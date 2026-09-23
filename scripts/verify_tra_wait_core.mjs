@@ -193,13 +193,17 @@ const live = (trains, at = AT_ISO) => ({ at, srv: NOW * 1000, trains });
   ok('H3 沒有上一站(舊版 App／起點站)⇒ 沒有行駛段', twRunWindow(null, S, 1) === null && twRunWindow(undefined, S, 1) === null);
   ok('H4 上一站發車不早於本站到站(壞資料)⇒ 沒有行駛段', twRunWindow(S, S, 1) === null && twRunWindow(S + 60, S, 1) === null);
 
-  ok('H5 間隔下限 45 秒(同一分鐘重跑不推兩發,相鄰兩分鐘一定推得出去)', TW_RUN_PUSH_GAP_SEC === 45, String(TW_RUN_PUSH_GAP_SEC));
+  // 2026-09-23 使用者裁示「那就改30秒吧」:行駛段每 30 秒一發(同一次 cron 內 +30 秒那一輪)。
+  ok('H5 間隔下限 20 秒(半分鐘兩發推得出去、下一分鐘早到 10 秒也推得出去、20 秒內重跑不推兩發)',
+    TW_RUN_PUSH_GAP_SEC === 20, String(TW_RUN_PUSH_GAP_SEC));
+  ok('H5b 上一發是 30 秒前(同一次 cron 的第一輪 → +30 秒那一輪)⇒ 推',
+    twRunTickDue({ delayMin: 1, tick: w.from + 60 }, w.from + 90, w) === true);
   const pre = { delayMin: 1, tick: w.from - 600 };
   ok('H6 車還沒從上一站開出來(21:19:59)⇒ 不推(車是靜止的)', twRunTickDue(pre, w.from - 1, w) === false);
   ok('H7 剛開出上一站(21:20:00)⇒ 推(邊界含)', twRunTickDue(pre, w.from, w) === true);
   ok('H8 行駛中、上一發是 60 秒前 ⇒ 推', twRunTickDue({ delayMin: 1, tick: w.from + 60 }, w.from + 120, w) === true);
-  ok('H9 行駛中、上一發才 44 秒前(同一分鐘重跑)⇒ 不推', twRunTickDue({ delayMin: 1, tick: w.from + 60 }, w.from + 104, w) === false);
-  ok('H9r 上一發恰好 45 秒前 ⇒ 推(邊界含)', twRunTickDue({ delayMin: 1, tick: w.from + 60 }, w.from + 105, w) === true);
+  ok('H9 行駛中、上一發才 19 秒前(排程「至少一次」的重跑)⇒ 不推', twRunTickDue({ delayMin: 1, tick: w.from + 60 }, w.from + 79, w) === false);
+  ok('H9r 上一發恰好 20 秒前 ⇒ 推(邊界含)', twRunTickDue({ delayMin: 1, tick: w.from + 60 }, w.from + 80, w) === true);
   ok('H10 上一發沒有 tick(舊版存的 last_state)⇒ 推', twRunTickDue({ delayMin: 1 }, w.from + 30, w) === true);
   ok('H10r 從沒推過(prev=null)⇒ 推', twRunTickDue(null, w.from + 30, w) === true);
   // 🔴 H11:到站那一刻起不再每分鐘推——之後的「車應已到」由 stale-date 翻,不靠推播。

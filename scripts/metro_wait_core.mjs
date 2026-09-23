@@ -137,7 +137,7 @@ export function mwCrowdByNo(trains) {
 // app/ios/App/App/MetroWaitAttributes.swift 的 ContentState。
 // 精度誠實(index.html:18806 的鐵則):北捷只送 nextEta/secondEta(絕對 epoch 秒),
 // 分鐘級系統只送 nextMinutes/secondMinutes,絕不把分鐘換算成 eta。
-export function mwContentState(sys, rows, crowdByNo, dataAt) {
+export function mwContentState(sys, rows, crowdByNo, dataAt, tickSec) {
   const isTrtc = sys === 'trtc';
   const a = rows[0] || null, b = rows[1] || null;
   // 鍵是這一列自己的官方車號;沒有車號(文湖線恆無)或對不到就留白,不退回終點比對。
@@ -157,6 +157,13 @@ export function mwContentState(sys, rows, crowdByNo, dataAt) {
     //    零推播的卡到站後必須老實說「不會自己接下一班」,推播接手的卡說那句話就是說謊。
     //    App 開卡時不送(nil=未知/沒接上),伺服器每一發都送 true。
     pushed: true,
+    // 🔴 tick:伺服器送出這一發的時刻(epoch 秒),欄位名與意義同台鐵等站卡(tra_wait_core twContentState)。
+    //    進站窗內每 30 秒推一發(使用者 2026-09-23 裁示「那就改30秒吧」),但北捷看板的資料時刻
+    //    不會每 30 秒都換 ⇒ 視圖若用 eta − dataAt 算車位,同一份資料推兩次車還是畫在同一格。
+    //    App 1.6.12 起改用 eta − tick(過期判定仍用 dataAt);更早的 App 不認得這一欄,解碼時略過
+    //    (ContentState 是編譯器合成的 Codable,只讀自己宣告過的鍵),照舊用 dataAt。
+    //    它【不進】mwShouldPush 的內容比較(否則每一輪都推),只拿來算進站窗內兩發的間隔。
+    tick: tickSec == null || !Number.isFinite(Number(tickSec)) ? null : Math.round(Number(tickSec)),
   };
 }
 
@@ -197,7 +204,8 @@ function mwEtaChanged(prev, next) {
 }
 // 進站窗:下一班離本站只剩「上一站→本站」這一段時,卡片上的進站軌道(B 方案)要畫車在路上。
 // 鎖定畫面的圖不會自己動,車只在收到一發更新時往前挪——遲滯會讓準點的車整段一發都不推,
-// 車就黏在上一站直到翻成「進站」。所以窗內每輪都推(cron 每分鐘一輪 ⇒ 車約每分鐘挪一格)。
+// 車就黏在上一站直到翻成「進站」。所以窗內每 30 秒推一發(使用者 2026-09-23 裁示「那就改30秒吧」:
+// cron 每分鐘一輪,同一次執行內 +30 秒再跑一輪只挪車的,見 worker.js waitCardHalfMinute)。
 // 250 秒:北捷站間行駛＋停站最長 241 秒(東門↔古亭),取整。窗外照舊走遲滯。
 // 只看 nextEta:分鐘級系統不送 eta,卡片也不畫車(精度誠實),不必為它多推。
 export const MW_APPROACH_SEC = 250;
@@ -206,6 +214,20 @@ function mwInApproach(next, nowSec) {
   const left = Number(next.nextEta) - Number(nowSec);
   return left > 0 && left <= MW_APPROACH_SEC;
 }
+// 進站窗內兩發之間的最小間隔。取值理由與台鐵等站卡的 TW_RUN_PUSH_GAP_SEC 逐字相同(兩張卡共用
+// 同一個半分鐘排程):相鄰兩發是 30 秒與 30±j 秒(j＝cron 起跑抖動),20 秒兩側各留 10 秒——
+// 下一分鐘早到 10 秒內仍推得出去,「至少一次」的重跑在 20 秒內不會把同一格再推一次。
+// 必須小於 worker.js 的 WAIT_HALF_TICK_MS,否則第二輪永遠推不出去。
+export const MW_APPROACH_PUSH_GAP_SEC = 20;
+// 進站窗內這一輪要不要為了「車往前挪一格」推一發。間隔以【上一次真的送出去的】tick 為準
+// (同 mwShouldPush 的比較基準);上一次沒有 tick(App 開卡後的第一發、或舊版 worker 存下來的)
+// 就當作到期。
+export function mwApproachTickDue(prev, next, nowSec) {
+  if (!mwInApproach(next, nowSec)) return false;
+  const raw = prev && prev.tick;
+  const last = raw == null || raw === '' ? NaN : Number(raw);   // Number(null) 是 0,不可以直接轉
+  return !Number.isFinite(last) || Number(nowSec) - last >= MW_APPROACH_PUSH_GAP_SEC;
+}
 const mwCrowdKey = v => (Array.isArray(v) ? v.map(Number).join(',') : '');
 // 這一輪算出來的內容,跟【上一次真的送出去的】比,值不值得再推一發。
 // 🔴 比較基準是「上一次送出去的」而不是「上一輪算出來的」——這是遲滯能成立的關鍵:
@@ -213,10 +235,10 @@ const mwCrowdKey = v => (Array.isArray(v) ? v.map(Number).join(',') : '');
 //    第七輪左右累積到門檻而推一發,卡片因此不會漂到與官方差太多,也不會每分鐘都推。
 // 🔴 dataAt 刻意不在比較範圍內:它每輪必變,算進去等於讓遲滯完全失效。視圖讀它的地方
 //    (過期判定、「HH:mm 更新」、進站軌道的車位)在進站窗內本來就每輪推,窗外車停在「還沒到上一站」,
-//    差一輪不影響畫面。pushed 同理(恆為 true)。
+//    差一輪不影響畫面。pushed 同理(恆為 true);tick 同理(每一發都不同,只拿來算進站窗的間隔)。
 export function mwShouldPush(prev, next, nowSec) {
   if (!prev) return true;
-  if (mwInApproach(next, nowSec)) return true;
+  if (mwApproachTickDue(prev, next, nowSec)) return true;
   if (String(prev.nextDest == null ? '' : prev.nextDest) !== String(next.nextDest == null ? '' : next.nextDest)) return true;
   if (String(prev.secondDest == null ? '' : prev.secondDest) !== String(next.secondDest == null ? '' : next.secondDest)) return true;
   if (String(prev.nextMinutes == null ? '' : prev.nextMinutes) !== String(next.nextMinutes == null ? '' : next.nextMinutes)) return true;

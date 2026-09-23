@@ -67,12 +67,14 @@ const APNS_FRAG = '/3/device/';
 let apnsCalls = [];              // [{token, host, body}]
 let apnsNextStatus = 200, apnsNextReason = '';
 let apnsTokenEnv = {};           // token → 'prod'|'sandbox';打錯環境回 400 BadDeviceToken(真實 APNs 行為)
+let apnsAdvanceSec = 0;          // 每一發 APNs 讓假時鐘往前走幾秒(預設 0＝不走)
 globalThis.fetch = async (url, init) => {
   const u = String(url);
   if (u.includes(APNS_FRAG)) {
     const token = u.split(APNS_FRAG)[1];
     const host = u.includes('api.sandbox.push.apple.com') ? 'sandbox' : 'prod';
-    apnsCalls.push({ token, host, body: JSON.parse(init.body), headers: init.headers });
+    apnsCalls.push({ token, host, body: JSON.parse(init.body), headers: init.headers, at: mockNowSec });
+    if (apnsAdvanceSec) mockNowSec += apnsAdvanceSec;   // 模擬「第一輪跑很久」(S 組)
     const want = apnsTokenEnv[token];
     if (want) {
       return host === want ? new Response('{}', { status: 200 })
@@ -118,7 +120,8 @@ if (!env.APNS_KEY_P8) abort('.dev.vars 沒有 APNS_KEY_P8 ⇒ metroWaitPushAll �
 if ('APNS_HOST' in env) delete env.APNS_HOST;   // 讓「環境未知先試 production」這個假設不被本機設定牽動
 const worker = await import(`${WT}/worker.js`);
 if (!worker._mw || typeof worker._mw.metroWaitPushAll !== 'function') abort('worker.js 沒有導出 _mw.metroWaitPushAll');
-const { metroWaitPushAll, metroWaitBind, metroWaitUnbind } = worker._mw;
+const { metroWaitPushAll, metroWaitPushWithHalf, metroWaitBind, metroWaitUnbind } = worker._mw;
+if (typeof metroWaitPushWithHalf !== 'function') abort('worker.js 沒有導出 _mw.metroWaitPushWithHalf');
 const fakeCtx = { waitUntil(p) { if (p && typeof p.catch === 'function') p.catch(() => {}); } };
 const BASE = 'https://dummy.invalid';
 
@@ -155,7 +158,7 @@ let swiftProps = [];
 ok('G2 前置(分母閘門):解得出 MetroWaitAttributes.ContentState 的屬性(解不出＝這條契約檢查等於沒有)',
   swiftProps.length >= 8, `解到 ${swiftProps.length} 個:${JSON.stringify(swiftProps)}`);
 const CONTRACT_KEYS = ['nextEta', 'nextMinutes', 'secondEta', 'secondMinutes', 'nextDest', 'secondDest',
-  'crowd', 'dataAt', 'notice', 'pushed'];
+  'crowd', 'dataAt', 'notice', 'pushed', 'tick'];
 const CONTRACT_SORTED = CONTRACT_KEYS.slice().sort();
 ok('G3(跨行程契約)Swift ContentState 的屬性集合 === 後端 content-state 的契約欄位集合',
   JSON.stringify(swiftProps.slice().sort()) === JSON.stringify(CONTRACT_SORTED),
@@ -198,6 +201,25 @@ async function tick() {
   apnsCalls = []; cacheMatches = [];
   const cap = await captureConsole(() => metroWaitPushAll(env, fakeCtx, BASE));
   return { ...cap, apns: apnsCalls.slice(), matches: cacheMatches.slice() };
+}
+// cron 真正跑的那一條:第一輪＋同一次執行內 +30 秒那一輪(worker.js waitCardHalfMinute)。
+// 睡眠用假的:把假時鐘往前撥,並記下「第二輪起跑前已經查過幾次來源」——第二輪結束時多出來的
+// 就是第二輪自己打的上游(必須是 0,北捷呼叫量不准增加)。halfHook 在第二輪起跑前執行(模擬這 30 秒內
+// 發生的事,例如有人剛開卡、APNs 開始回錯)。
+let halfHook = null;
+async function tickHalf() {
+  apnsCalls = []; cacheMatches = [];
+  const sleeps = [];
+  let before = null;
+  const sleep = async ms => {
+    sleeps.push(ms);
+    mockNowSec += ms / 1000;
+    if (halfHook) await halfHook();
+    before = cacheMatches.length;
+  };
+  const cap = await captureConsole(() => metroWaitPushWithHalf(env, fakeCtx, BASE, sleep));
+  return { ...cap, apns: apnsCalls.slice(), matches: cacheMatches.slice(), sleeps,
+    halfMatches: before == null ? null : cacheMatches.length - before };
 }
 // 北捷看板列的形狀就是 /api/trtc-live 的 board 元素:{name,dest,eta,at,no}
 const bRow = (name, dest, etaOffset, atOffset = -5, no = '') =>
@@ -681,6 +703,184 @@ const liveRow = (s, d, e, st = 0, l = 'BL') => ({ l, s, d, e, st, op: 'KRTC' });
   const r2 = await tick();
   ok('H3 一張卡都沒有 ⇒ 零上游、零 APNs(cron 每分鐘跑但不花任何成本)',
     r2.matches.length === 0 && r2.apns.length === 0, `matches=${r2.matches.length} apns=${r2.apns.length}`);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Group S:半分鐘那一輪(2026-09-23 使用者裁示「那就改30秒吧」)
+//   進站窗內的車從每分鐘挪一格改成每 30 秒挪一格:cron 仍每分鐘一次,同一次執行內 +30 秒再跑一輪
+//   只挪車的。期望值一律寫字面量(第幾秒推、推幾發),不引用 MW_APPROACH_PUSH_GAP_SEC 或
+//   WAIT_HALF_TICK_MS(心得 29)。
+// ══════════════════════════════════════════════════════════════════
+ok('S0(出貨路徑)cron 用的是帶半分鐘那一輪的版本,而且沒有留下舊的直接呼叫',
+  /metroWaitPushWithHalf\(env, ctx, 'https:\/\/railisland\.tw'\)/.test(workerSrc)
+  && !/metroWaitPushAll\(env, ctx, 'https:\/\/railisland\.tw'\)/.test(workerSrc));
+// 看板資料時刻刻意擺在「現在 − 20 秒」:北捷看板 15 秒換一幀、再加上快取,這是常態。
+// 第二輪若拿自己的「現在」重挑,這些列的資料齡會變成 50 秒 > 45 秒上限而被濾掉——S1 就是守這件事。
+const sBoard = (abs, extra = []) => ({ board: [{ name: '台北', dest: '淡水', eta: abs, at: mockNowSec - 20, no: '' }, ...extra], trains: [] });
+{
+  await resetTable();
+  const t0 = 1_800_000_000;
+  mockNowSec = t0;
+  const abs = t0 + 200;                              // 剩 200 秒:一開卡就在進站窗(250 秒)裡
+  await insRow({ token: T('s1'), sys: 'trtc', station: '台北', dest: null, end_at: t0 + 3600, apns_env: 'prod' });
+  const runs = [];
+  for (let k = 0; k < 4; k++) {
+    mockNowSec = t0 + k * 60;
+    srcTrtc = sBoard(abs);
+    runs.push(await tickHalf());
+  }
+  const at = runs.flatMap(r => r.apns.filter(a => a.body.aps.event === 'update').map(a => a.at - t0));
+  // 期望(字面量):剩 200/170/140/110/80/50/20 秒各一發;第 210 秒已過到站時刻,不推。
+  ok('S1 進站窗內每 30 秒一發(第 0、30、60、90、120、150、180 秒),過了到站時刻就停',
+    JSON.stringify(at) === '[0,30,60,90,120,150,180]', `實際=${JSON.stringify(at)}`);
+  const halfPushes = runs.flatMap(r => r.apns.filter(a => (a.at - t0) % 60 === 30));
+  const minutePushes = runs.flatMap(r => r.apns.filter(a => (a.at - t0) % 60 === 0));
+  const strip = cs => JSON.stringify({ ...cs, tick: null });
+  ok('S2 半分鐘那一發的內容＝同一分鐘第一發的內容(班次、eta、資料時刻逐字相同),只換 tick',
+    halfPushes.length === 3 && halfPushes.every((a, i) => strip(a.body.aps['content-state']) === strip(minutePushes[i].body.aps['content-state'])),
+    JSON.stringify(halfPushes.map(a => a.body.aps['content-state'])));
+  ok('S2b 每一發的 tick＝送出當下(第二輪＝第一輪 +30 秒)',
+    runs.flatMap(r => r.apns).every(a => a.body.aps['content-state'].tick === a.at),
+    JSON.stringify(runs.flatMap(r => r.apns).map(a => [a.at, a.body.aps['content-state'].tick])));
+  ok('S2c 半分鐘那一發也帶 stale-date＝下一班到站時刻(推播整包取代,少了它卡片就不會翻「進站」)',
+    halfPushes.every(a => a.body.aps['stale-date'] === abs), JSON.stringify(halfPushes.map(a => a.body.aps['stale-date'])));
+  ok('S3 第二輪零上游:一次都沒有再查北捷看板(北捷呼叫量不准增加)',
+    runs.every(r => r.halfMatches === 0), JSON.stringify(runs.map(r => r.halfMatches)));
+  ok('S3b(正向對照)第一輪確實查了北捷看板——不然 S3 是量不到東西的恆綠',
+    runs.every(r => r.matches.some(u => u.includes('/api/trtc-live'))));
+  ok('S3c 每一次執行只睡一次、恰好 30 秒(cron 次數不變,只在同一次執行內多一輪)',
+    runs.every(r => JSON.stringify(r.sleeps) === '[30000]'), JSON.stringify(runs.map(r => r.sleeps)));
+  const saved = JSON.parse((await getRow(T('s1'))).last_state);
+  ok('S4 last_state 記的是真的送出去的最後一發(含它的 tick)——下一輪的間隔判斷靠它',
+    saved.tick === t0 + 180 && saved.nextEta === abs, JSON.stringify(saved));
+}
+{
+  // 進站窗外:第二輪一發都不推(只挪「在路上」的車),第一輪照舊走遲滯。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  const abs = t0 + 900;
+  const runs = [];
+  await insRow({ token: T('s5'), sys: 'trtc', station: '台北', dest: null, end_at: t0 + 3600, apns_env: 'prod' });
+  for (let k = 0; k < 3; k++) {
+    mockNowSec = t0 + k * 60;
+    srcTrtc = sBoard(abs);
+    runs.push(await tickHalf());
+  }
+  const at = runs.flatMap(r => r.apns.map(a => a.at - t0));
+  ok('S5 進站窗外(剩 900 秒)⇒ 只有首發,半分鐘那一輪零推播', JSON.stringify(at) === '[0]', `實際=${JSON.stringify(at)}`);
+}
+{
+  // 分鐘級系統(機捷):不送 eta、卡片不畫車 ⇒ 第二輪不推。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  mockNowSec = t0;
+  srcLive.tymc = { at: new Date(mockNowSec * 1000).toISOString(), rows: [liveRow('三重站', '台北車站', 2)] };
+  await insRow({ token: T('s6'), sys: 'tymc', station: '三重站', dest: null, end_at: t0 + 3600, apns_env: 'prod' });
+  const r = await tickHalf();
+  ok('S6 分鐘級系統(剩 2 分)⇒ 半分鐘那一輪不推', JSON.stringify(r.apns.map(a => a.at - t0)) === '[0]',
+    JSON.stringify(r.apns.map(a => a.at - t0)));
+}
+{
+  // 收卡留給每分鐘那一輪:追蹤時段在兩輪之間到期,第二輪不收、下一分鐘第一輪才收(與改版前相同)。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  mockNowSec = t0;
+  srcTrtc = sBoard(t0 + 200);
+  await insRow({ token: T('s7'), sys: 'trtc', station: '台北', dest: null, end_at: t0 + 10, apns_env: 'prod',
+    last_state: { nextEta: t0 + 200, nextMinutes: null, secondEta: null, secondMinutes: null, nextDest: '淡水',
+      secondDest: null, crowd: null, dataAt: t0 - 20, notice: null, pushed: true, tick: t0 - 30 } });
+  const r1 = await tickHalf();
+  ok('S7 追蹤時段在第二輪之前到期 ⇒ 第二輪不推 end、不刪列',
+    !r1.apns.some(a => a.body.aps.event === 'end') && !!(await getRow(T('s7'))),
+    JSON.stringify(r1.apns.map(a => [a.at - t0, a.body.aps.event])));
+  mockNowSec = t0 + 60;
+  srcTrtc = sBoard(t0 + 200);
+  const r2 = await tickHalf();
+  ok('S7b 下一分鐘第一輪照舊收卡(推 end、刪列)',
+    r2.apns.length === 1 && r2.apns[0].body.aps.event === 'end' && !(await getRow(T('s7'))),
+    JSON.stringify(r2.apns.map(a => [a.at - t0, a.body.aps.event])));
+}
+{
+  // 第二輪的 APNs 失敗不記失敗次數:否則熔斷的「連續失敗輪數」會以兩倍速到頂。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  mockNowSec = t0;
+  srcTrtc = sBoard(t0 + 200);
+  await insRow({ token: T('s8'), sys: 'trtc', station: '台北', dest: null, end_at: t0 + 3600 });
+  halfHook = async () => { apnsNextStatus = 410; apnsNextReason = 'Unregistered'; };
+  const r = await tickHalf();
+  halfHook = null; apnsNextStatus = 200; apnsNextReason = '';
+  const row = await getRow(T('s8'));
+  const saved = row && JSON.parse(row.last_state);
+  ok('S8 第二輪真的推了而且被 APNs 拒絕(前提,不然下面兩條量不到東西)',
+    r.apns.some(a => a.at === t0 + 30), JSON.stringify(r.apns.map(a => a.at - t0)));
+  ok('S8b 第二輪的永久失敗不刪列、fail_streak 不加(留給每分鐘那一輪判)',
+    !!row && Number(row.fail_streak) === 0, row ? `fail_streak=${row.fail_streak}` : '列被刪了');
+  ok('S8c last_state 停在第一輪真的送出去的那一發(tick＝第一輪)', !!saved && saved.tick === t0, JSON.stringify(saved));
+}
+{
+  // 從沒推過的列(兩輪之間才開的卡)第二輪不碰:那是第一輪的事(第一發要用最新的看板)。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  mockNowSec = t0;
+  srcTrtc = sBoard(t0 + 200);
+  await insRow({ token: T('s9a'), sys: 'trtc', station: '台北', dest: null, end_at: t0 + 3600, apns_env: 'prod' });
+  halfHook = async () => { await insRow({ token: T('s9b'), sys: 'trtc', station: '台北', dest: null, end_at: t0 + 3600, apns_env: 'prod' }); };
+  const r = await tickHalf();
+  halfHook = null;
+  ok('S9 兩輪之間才開的卡(last_state 為空)⇒ 第二輪不推它', !r.apns.some(a => a.token === T('s9b')),
+    JSON.stringify(r.apns.map(a => [a.token.slice(0, 6), a.at - t0])));
+  ok('S9b(正向對照)同一輪裡已經在走的那張照推', r.apns.some(a => a.token === T('s9a') && a.at === t0 + 30));
+}
+{
+  // 排程觸發是「至少一次」:同一分鐘有第二次執行、晚 15 秒起跑,兩次執行交錯跑。
+  // ⇒ 同一格車不可以推兩次(第一次執行的兩發照推,第二次執行的兩發都在 20 秒內,不推)。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  mockNowSec = t0;
+  srcTrtc = sBoard(t0 + 200);
+  await insRow({ token: T('s10'), sys: 'trtc', station: '台北', dest: null, end_at: t0 + 3600, apns_env: 'prod' });
+  const seq = [];
+  const run = async (sec, half) => { mockNowSec = sec; apnsCalls = [];
+    const cap = await captureConsole(() => metroWaitPushAll(env, fakeCtx, BASE, half)); seq.push([sec - t0, apnsCalls.length]); return cap.result; };
+  const a1 = await run(t0, null);
+  const b1 = await run(t0 + 15, null);
+  await run(t0 + 30, { ...a1.handoff, deadlineMs: (t0 + 55) * 1000 });
+  await run(t0 + 45, { ...b1.handoff, deadlineMs: (t0 + 70) * 1000 });
+  ok('S10 重跑交錯(0/15/30/45 秒)⇒ 只有第 0 與第 30 秒推,晚 15 秒的那一次兩輪都不推',
+    JSON.stringify(seq) === '[[0,1],[15,0],[30,1],[45,0]]', JSON.stringify(seq));
+}
+{
+  // 第一輪跑太久:超過 40 秒就本分鐘不跑第二輪(再晚跑就會跟下一分鐘擠在一起);30–40 秒之間不睡、直接跑。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  mockNowSec = t0;
+  srcTrtc = sBoard(t0 + 200);
+  await insRow({ token: T('s11'), sys: 'trtc', station: '台北', dest: null, end_at: t0 + 3600, apns_env: 'prod' });
+  apnsAdvanceSec = 41;
+  const r = await tickHalf();
+  apnsAdvanceSec = 0;
+  ok('S11 第一輪跑了 41 秒 ⇒ 不睡、不跑第二輪(只有第一輪那一發)', r.sleeps.length === 0 && r.apns.length === 1,
+    `sleeps=${JSON.stringify(r.sleeps)} apns=${r.apns.length}`);
+  ok('S11b 並留下一行說明(診斷時看得出是跳過,不是壞掉)', r.errLines.some(l => l.includes('本分鐘不跑半分鐘那一輪')),
+    JSON.stringify(r.errLines));
+  await resetTable();
+  mockNowSec = t0 + 600;
+  srcTrtc = sBoard(t0 + 800);
+  await insRow({ token: T('s11c'), sys: 'trtc', station: '台北', dest: null, end_at: t0 + 3600, apns_env: 'prod' });
+  apnsAdvanceSec = 35;
+  const r2 = await tickHalf();
+  apnsAdvanceSec = 0;
+  ok('S11c 第一輪跑了 35 秒 ⇒ 不睡、立刻跑第二輪(第二發在第 35 秒)', r2.sleeps.length === 0
+    && JSON.stringify(r2.apns.map(a => a.at - (t0 + 600))) === '[0,35]', JSON.stringify(r2.apns.map(a => a.at - (t0 + 600))));
+}
+{
+  // 沒人開卡 ⇒ 第二輪整個不跑(不睡、不讀 D1、不打上游)。
+  await resetTable();
+  mockNowSec = 1_800_000_000;
+  const r = await tickHalf();
+  ok('S12 一張卡都沒有 ⇒ 不睡、零上游、零 APNs', r.sleeps.length === 0 && r.matches.length === 0 && r.apns.length === 0,
+    `sleeps=${r.sleeps.length} matches=${r.matches.length} apns=${r.apns.length}`);
 }
 
 await resetTable();

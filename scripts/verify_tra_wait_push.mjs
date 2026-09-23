@@ -66,12 +66,14 @@ Date.now = () => mockNowSec * 1000;
 const APNS_FRAG = '/3/device/';
 let apnsCalls = [];
 let apnsNextStatus = 200, apnsNextReason = '';
+let apnsAdvanceSec = 0;          // 每一發 APNs 讓假時鐘往前走幾秒(預設 0＝不走)
 globalThis.fetch = async (url, init) => {
   const u = String(url);
   if (u.includes(APNS_FRAG)) {
     const token = u.split(APNS_FRAG)[1];
     const host = u.includes('api.sandbox.push.apple.com') ? 'sandbox' : 'prod';
-    apnsCalls.push({ token, host, body: JSON.parse(init.body), headers: init.headers });
+    apnsCalls.push({ token, host, body: JSON.parse(init.body), headers: init.headers, at: mockNowSec });
+    if (apnsAdvanceSec) mockNowSec += apnsAdvanceSec;   // 模擬「第一輪跑很久」(S 組)
     return new Response(JSON.stringify({ reason: apnsNextReason }), { status: apnsNextStatus });
   }
   // 🔴 刻意讓其他目標一律拋:上游造假只走 caches.default 那一層。這一拋同時是 D 組
@@ -113,7 +115,8 @@ let usageWrites = 0;
 env.USAGE = { writeDataPoint() { usageWrites++; } };
 const worker = await import(`${WT}/worker.js`);
 if (!worker._tw || typeof worker._tw.traWaitPushAll !== 'function') abort('worker.js 沒有導出 _tw.traWaitPushAll');
-const { traWaitPushAll, traWaitBind, traWaitUnbind } = worker._tw;
+const { traWaitPushAll, traWaitPushWithHalf, traWaitBind, traWaitUnbind } = worker._tw;
+if (typeof traWaitPushWithHalf !== 'function') abort('worker.js 沒有導出 _tw.traWaitPushWithHalf');
 const fakeCtx = { waitUntil(p) { if (p && typeof p.catch === 'function') p.catch(() => {}); } };
 const BASE = 'https://dummy.invalid';
 
@@ -196,6 +199,24 @@ async function tick() {
   apnsCalls = []; cacheMatches = [];
   const cap = await captureConsole(() => traWaitPushAll(env, fakeCtx, BASE));
   return { ...cap, apns: apnsCalls.slice(), matches: cacheMatches.slice() };
+}
+// cron 真正跑的那一條:第一輪＋同一次執行內 +30 秒那一輪(worker.js waitCardHalfMinute)。
+// 睡眠用假的:把假時鐘往前撥,並記下「第二輪起跑前已經查過幾次來源」——第二輪結束時多出來的
+// 就是第二輪自己打的上游(必須是 0,TDX 點數不准多花)。halfHook 在第二輪起跑前執行。
+let halfHook = null;
+async function tickHalf() {
+  apnsCalls = []; cacheMatches = [];
+  const sleeps = [];
+  let before = null;
+  const sleep = async ms => {
+    sleeps.push(ms);
+    mockNowSec += ms / 1000;
+    if (halfHook) await halfHook();
+    before = cacheMatches.length;
+  };
+  const cap = await captureConsole(() => traWaitPushWithHalf(env, fakeCtx, BASE, sleep));
+  return { ...cap, apns: apnsCalls.slice(), matches: cacheMatches.slice(), sleeps,
+    halfMatches: before == null ? null : cacheMatches.length - before };
 }
 // 官方即時動態的替身。at 預設就是「現在」。
 const feed = (trains, atSec = mockNowSec) => ({ at: new Date(atSec * 1000).toISOString(), srv: mockNowSec * 1000, trains });
@@ -780,9 +801,152 @@ async function runMinutes(token, from, n, feedFn) {
   ok('R8e last_state 只有 tick 變了', JSON.stringify({ ...saved, tick: null }) === JSON.stringify({ ...prevState, tick: null })
     && saved.tick === t0, JSON.stringify(saved));
   // 同一分鐘 cron 重跑(排程觸發是至少一次)⇒ 不重推。
-  mockNowSec = t0 + 20;
+  mockNowSec = t0 + 15;
   const r2 = await tick();
-  ok('R9 同一分鐘重跑(20 秒後)⇒ 不重推同一格', r2.apns.length === 0, `apns=${r2.apns.length}`);
+  ok('R9 同一分鐘重跑(15 秒後)⇒ 不重推同一格', r2.apns.length === 0, `apns=${r2.apns.length}`);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// S 半分鐘那一輪(2026-09-23 使用者裁示「那就改30秒吧」)
+//   行駛段的車從每分鐘挪一格改成每 30 秒挪一格:cron 仍每分鐘一次,同一次執行內 +30 秒再跑一輪
+//   只挪車的。期望值一律寫字面量,不引用 TW_RUN_PUSH_GAP_SEC 或 WAIT_HALF_TICK_MS(心得 29)。
+// ══════════════════════════════════════════════════════════════════
+ok('S0(出貨路徑)cron 用的是帶半分鐘那一輪的版本,而且沒有留下舊的直接呼叫',
+  /traWaitPushWithHalf\(env, ctx, 'https:\/\/railisland\.tw'\)/.test(workerSrc)
+  && !/traWaitPushAll\(env, ctx, 'https:\/\/railisland\.tw'\)/.test(workerSrc));
+{
+  // 與 R1 同一個形狀:開卡後 20 分到本站,上一站 7 分鐘前開,官方誤點 1 分
+  // ⇒ 行駛段 = [開卡+14 分, 開卡+21 分),到站寬限 3 分 ⇒ 開卡+24 分收卡。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  const sched = t0 + 1200, prevDep = sched - 420;
+  const fixedAt = t0 - 40;
+  await insRow({ token: T('s1'), train_no: '172', sched_sec: sched, prev_dep_sec: prevDep, end_at: sched + 1800, bound_at: t0 });
+  const runs = [];
+  for (let k = 0; k < 26; k++) {
+    mockNowSec = t0 + k * 60;
+    srcLive = feed([{ no: '172', delay: 1, sta: '1020', status: 2 }], fixedAt);
+    const r = await tickHalf();
+    runs.push({ ...r, t: t0 + k * 60, alive: !!(await getRow(T('s1'))) });
+  }
+  const upd = runs.flatMap(r => r.apns.filter(a => a.body.aps.event === 'update').map(a => a.at - t0));
+  // 期望(字面量):第 0 秒首發;行駛段 840–1230 秒每 30 秒一發(14 發);其餘零推播。
+  const want = [0];
+  for (let x = 840; x <= 1230; x += 30) want.push(x);
+  ok('S1 行駛段每 30 秒一發(第 840、870 … 1230 秒共 14 發),其餘時段只有首發',
+    JSON.stringify(upd) === JSON.stringify(want), `實際=${JSON.stringify(upd)}`);
+  const halfs = runs.flatMap(r => r.apns.filter(a => (a.at - t0) % 60 === 30));
+  const mins = runs.flatMap(r => r.apns.filter(a => (a.at - t0) % 60 === 0 && a.at - t0 >= 840));
+  const strip = cs => JSON.stringify({ ...cs, tick: null });
+  ok('S2 半分鐘那一發的誤點、資料時刻與同一分鐘第一發逐字相同,只換 tick(不造新值)',
+    halfs.length === 7 && halfs.every((a, i) => strip(a.body.aps['content-state']) === strip(mins[i].body.aps['content-state'])
+      && a.body.aps['content-state'].tick === a.at),
+    JSON.stringify(halfs.map(a => a.body.aps['content-state'])));
+  ok('S2b 半分鐘那一發也帶 stale-date＝實際約到站(表訂＋1 分)',
+    halfs.every(a => a.body.aps['stale-date'] === sched + 60), JSON.stringify(halfs.map(a => a.body.aps['stale-date'])));
+  // 只看卡還在的那幾次執行(第 0–24 分鐘;第 24 分鐘那一輪收卡,之後表是空的,本來就什麼都不做)。
+  const live = runs.slice(0, 25);
+  ok('S3 第二輪零上游:一次都沒有再查 /api/tra-live(TDX 點數不准多花)',
+    live.every(r => r.halfMatches === 0), JSON.stringify(live.map(r => r.halfMatches)));
+  ok('S3b(正向對照)第一輪每一次都查了恰好一次 /api/tra-live',
+    live.every(r => r.matches.filter(u => u.includes('/api/tra-live')).length === 1),
+    JSON.stringify(live.map(r => r.matches.filter(u => u.includes('/api/tra-live')).length)));
+  ok('S3c 每一次執行只睡一次、恰好 30 秒', runs.slice(0, 24).every(r => JSON.stringify(r.sleeps) === '[30000]'),
+    JSON.stringify(runs.map(r => r.sleeps)));
+  ok('S4 收卡分鐘不變(第 24 分鐘那一輪推 end、刪列),半分鐘那一輪從不收卡',
+    runs[24].apns.length === 1 && runs[24].apns[0].body.aps.event === 'end' && runs[24].apns[0].at === t0 + 1440
+      && runs[23].alive === true && runs[24].alive === false,
+    JSON.stringify(runs.slice(22, 25).map(r => [r.apns.map(a => [a.at - t0, a.body.aps.event]), r.alive])));
+}
+{
+  // 收卡條件在兩輪之間成立(到站 + 3 分落在第 10 秒)⇒ 第二輪不收,下一分鐘第一輪才收(與改版前相同)。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  const sched = t0 - 230;                                     // 表訂＋誤點 1 分＋寬限 3 分 = t0 + 10
+  const prevState = { delayMin: 1, dataAt: t0 - 40, notice: null, pushed: true, tick: t0 - 600 };
+  await insRow({ token: T('s5'), train_no: '172', sched_sec: sched, prev_dep_sec: sched - 420, end_at: sched + 1800,
+    last_state: prevState, bound_at: t0 - 1800 });
+  mockNowSec = t0;
+  srcLive = feed([{ no: '172', delay: 1, sta: '1020', status: 2 }], t0 - 40);
+  const r1 = await tickHalf();
+  ok('S5 收卡條件在第二輪之前成立 ⇒ 第二輪不推 end、不刪列',
+    !r1.apns.some(a => a.body.aps.event === 'end') && !!(await getRow(T('s5'))),
+    JSON.stringify(r1.apns.map(a => [a.at - t0, a.body.aps.event])));
+  mockNowSec = t0 + 60;
+  srcLive = feed([{ no: '172', delay: 1, sta: '1020', status: 2 }], t0 + 20);
+  const r2 = await tickHalf();
+  ok('S5b 下一分鐘第一輪照舊收卡', r2.apns.length === 1 && r2.apns[0].body.aps.event === 'end' && !(await getRow(T('s5'))),
+    JSON.stringify(r2.apns.map(a => [a.at - t0, a.body.aps.event])));
+}
+{
+  // 第二輪的 APNs 失敗不記失敗次數(否則熔斷的「連續失敗輪數」以兩倍速到頂)。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  const sched = t0 + 300, prevDep = sched - 420;              // 已在行駛段
+  await insRow({ token: T('s6'), train_no: '172', sched_sec: sched, prev_dep_sec: prevDep, end_at: sched + 1800, bound_at: t0 - 600 });
+  mockNowSec = t0;
+  srcLive = feed([{ no: '172', delay: 0, sta: '1020', status: 2 }], t0 - 40);
+  halfHook = async () => { apnsNextStatus = 410; apnsNextReason = 'Unregistered'; };
+  const r = await tickHalf();
+  halfHook = null; apnsNextStatus = 200; apnsNextReason = '';
+  const row = await getRow(T('s6'));
+  const saved = row && JSON.parse(row.last_state);
+  ok('S6 第二輪真的推了(前提,不然下面兩條量不到東西)', r.apns.some(a => a.at === t0 + 30),
+    JSON.stringify(r.apns.map(a => a.at - t0)));
+  ok('S6b 第二輪的永久失敗不刪列、fail_streak 不加', !!row && Number(row.fail_streak) === 0,
+    row ? `fail_streak=${row.fail_streak}` : '列被刪了');
+  ok('S6c last_state 停在第一輪真的送出去的那一發(tick＝第一輪)', !!saved && saved.tick === t0, JSON.stringify(saved));
+}
+{
+  // 兩輪之間才開的卡(last_state 為空)第二輪不碰;已經在走的那張照推(正向對照)。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  const sched = t0 + 300, prevDep = sched - 420;
+  await insRow({ token: T('s7a'), train_no: '172', sched_sec: sched, prev_dep_sec: prevDep, end_at: sched + 1800, bound_at: t0 - 600 });
+  mockNowSec = t0;
+  srcLive = feed([{ no: '172', delay: 0, sta: '1020', status: 2 }], t0 - 40);
+  halfHook = async () => { await insRow({ token: T('s7b'), train_no: '172', sched_sec: sched, prev_dep_sec: prevDep, end_at: sched + 1800, bound_at: mockNowSec }); };
+  const r = await tickHalf();
+  halfHook = null;
+  ok('S7 兩輪之間才開的卡 ⇒ 第二輪不推它', !r.apns.some(a => a.token === T('s7b')),
+    JSON.stringify(r.apns.map(a => [a.token.slice(0, 6), a.at - t0])));
+  ok('S7b(正向對照)已經在走的那張第二輪照推', r.apns.some(a => a.token === T('s7a') && a.at === t0 + 30));
+}
+{
+  // 排程「至少一次」:同一分鐘第二次執行晚 15 秒起跑、兩次執行交錯 ⇒ 同一格不推兩次。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  const sched = t0 + 300, prevDep = sched - 420;
+  await insRow({ token: T('s8'), train_no: '172', sched_sec: sched, prev_dep_sec: prevDep, end_at: sched + 1800, bound_at: t0 - 600 });
+  srcLive = feed([{ no: '172', delay: 0, sta: '1020', status: 2 }], t0 - 40);
+  const seq = [];
+  const run = async (sec, half) => { mockNowSec = sec; apnsCalls = [];
+    const cap = await captureConsole(() => traWaitPushAll(env, fakeCtx, BASE, half)); seq.push([sec - t0, apnsCalls.length]); return cap.result; };
+  const a1 = await run(t0, null);
+  const b1 = await run(t0 + 15, null);
+  await run(t0 + 30, { ...a1.handoff, deadlineMs: (t0 + 55) * 1000 });
+  await run(t0 + 45, { ...b1.handoff, deadlineMs: (t0 + 70) * 1000 });
+  ok('S8 重跑交錯(0/15/30/45 秒)⇒ 只有第 0 與第 30 秒推', JSON.stringify(seq) === '[[0,1],[15,0],[30,1],[45,0]]', JSON.stringify(seq));
+}
+{
+  // 第一輪跑超過 40 秒 ⇒ 本分鐘不跑第二輪。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  const sched = t0 + 300, prevDep = sched - 420;
+  await insRow({ token: T('s9'), train_no: '172', sched_sec: sched, prev_dep_sec: prevDep, end_at: sched + 1800, bound_at: t0 - 600 });
+  mockNowSec = t0;
+  srcLive = feed([{ no: '172', delay: 0, sta: '1020', status: 2 }], t0 - 40);
+  apnsAdvanceSec = 41;
+  const r = await tickHalf();
+  apnsAdvanceSec = 0;
+  ok('S9 第一輪跑了 41 秒 ⇒ 不睡、不跑第二輪', r.sleeps.length === 0 && r.apns.length === 1,
+    `sleeps=${JSON.stringify(r.sleeps)} apns=${r.apns.length}`);
+  ok('S9b 並留下一行說明', r.errLines.some(l => l.includes('本分鐘不跑半分鐘那一輪')), JSON.stringify(r.errLines));
+  await resetTable();
+  mockNowSec = t0 + 120;
+  const r3 = await tickHalf();
+  ok('S9d 一張卡都沒有 ⇒ 不睡、零上游、零 APNs', r3.sleeps.length === 0 && r3.matches.length === 0 && r3.apns.length === 0,
+    `sleeps=${r3.sleeps.length} matches=${r3.matches.length} apns=${r3.apns.length}`);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -791,13 +955,17 @@ async function runMinutes(token, from, n, feedFn) {
 //   每筆 = [UpdateTime, SrcUpdateTime, DelayTime],台北時間,原值照抄、只取開卡之後那段。
 //   逐分鐘把「當下看板上這班車的最新一筆」餵給 cron(SrcUpdateTime 超過 30 分鐘就當作掉出動態窗),
 //   同一班車跑兩次:有上一站(新版 App)vs 沒有上一站(＝改版前的行為,當控制組)。
+//   cron 跑的是正式那一條(第一輪＋同一次執行內 +30 秒那一輪,tickHalf)。
 // ══════════════════════════════════════════════════════════════════
 const RP_DAY = '2026-09-13';
 const hms = x => Math.round(Date.parse(`${RP_DAY}T${x}+08:00`) / 1000);
 const hm = sec => new Intl.DateTimeFormat('zh-Hant-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false })
   .format(new Date(sec * 1000));
-// 期望的推播分鐘用字串列舉(與受測碼的算術無關)。
-const minuteList = (a, b) => { const out = []; for (let t = hms(a + ':00'); t <= hms(b + ':00'); t += 60) out.push(hm(t)); return out; };
+const hms2 = sec => new Intl.DateTimeFormat('zh-Hant-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+  .format(new Date(sec * 1000));
+// 期望的推播時刻用字串列舉(與受測碼的算術無關)。
+// 半分鐘清單:a:00 起每 30 秒一個,到 b:30 為止(行駛段推播的送出時刻)。
+const halfList = (a, b) => { const out = []; for (let t = hms(a + ':00'); t <= hms(b + ':30'); t += 30) out.push(hms2(t)); return out; };
 const RP_172 = [
     ['15:01:02','15:00:34',0],['15:04:02','15:03:18',0],['15:05:02','15:04:06',0],['15:06:02','15:05:24',0],
     ['15:09:02','15:08:30',0],['15:10:02','15:09:02',0],['15:11:02','15:10:51',0],['15:12:02','15:11:29',0],
@@ -859,9 +1027,10 @@ async function replay({ trainNo, station, bindAt, sched, prevDep, recs, withPrev
     mockNowSec = t;
     srcLive = rpFeed(recs, trainNo, t);
     d1Stmts = [];
-    const r = await tick();
+    const r = await tickHalf();
     const stmts = d1Stmts; d1Stmts = null;
     log.push({ hm: hm(t), events: r.apns.map(a => a.body.aps.event), cs: r.apns.map(a => a.body.aps['content-state']),
+      pushes: r.apns.map(a => ({ at: hms2(a.at), event: a.body.aps.event })),
       live: r.matches.filter(u => u.includes('/api/tra-live')).length,
       stmts: stmts.length,
       read: stmts.reduce((acc, x) => acc + (Number.isFinite(x.read) ? x.read : NaN), 0),
@@ -870,23 +1039,23 @@ async function replay({ trainNo, station, bindAt, sched, prevDep, recs, withPrev
   }
   return log;
 }
-const upd = log => log.filter(x => x.events.includes('update')).map(x => x.hm);
+const upd = log => log.flatMap(x => x.pushes.filter(p => p.event === 'update').map(p => p.at));
 const RP_REPORT = [];
 for (const c of [
   // 自強 172 在臺北等:時刻表上一站是板橋(15:38 開),臺北 15:46 到;15:10 開卡(車還在中壢一帶)。
   { name: '自強172@臺北(上一站板橋)', trainNo: '172', station: '臺北', bindAt: '15:10:00', prevDep: '15:38:00', sched: '15:46:00',
-    recs: RP_172, wantRun: minuteList('15:38', '15:45'), wantEnd: '15:49' },
+    recs: RP_172, wantRun: halfList('15:38', '15:45'), wantEnd: '15:49' },
   // 自強 165 在臺東等:上一站潮州 18:22 開,臺東 19:53 到——站間跑 1 小時 31 分(南迴),誤點 2→1→0。
   // 18:22、18:23 兩輪看板上還是誤點 0(潮州那筆 18:23:02 才進來)⇒ 窗口從表定 18:22 起算。
   { name: '自強165@臺東(上一站潮州,南迴 91 分)', trainNo: '165', station: '臺東', bindAt: '18:00:00', prevDep: '18:22:00', sched: '19:53:00',
-    recs: RP_165, wantRun: minuteList('18:22', '19:52'), wantEnd: '19:56' },
+    recs: RP_165, wantRun: halfList('18:22', '19:52'), wantEnd: '19:56' },
 ]) {
   const exp = await replay({ ...c, withPrev: true });
   const ctl = await replay({ ...c, withPrev: false });
   const tag = c.trainNo;
   const runSet = new Set(c.wantRun);
   const expUpd = upd(exp), ctlUpd = upd(ctl);
-  ok(`RP${tag}a 行駛段每一分鐘都推(${c.wantRun[0]}–${c.wantRun[c.wantRun.length - 1]} 共 ${c.wantRun.length} 輪)`,
+  ok(`RP${tag}a 行駛段每 30 秒都推(${c.wantRun[0]}–${c.wantRun[c.wantRun.length - 1]} 共 ${c.wantRun.length} 發)`,
     c.wantRun.every(m => expUpd.includes(m)), `缺:${JSON.stringify(c.wantRun.filter(m => !expUpd.includes(m)))}`);
   const preExp = expUpd.filter(m => m < c.wantRun[0]), preCtl = ctlUpd.filter(m => m < c.wantRun[0]);
   ok(`RP${tag}b 還沒到上一站那段:推播分鐘與改版前逐一相同(不多推一發)`,
@@ -896,9 +1065,9 @@ for (const c of [
   const endExp = exp.find(x => x.events.includes('end')), endCtl = ctl.find(x => x.events.includes('end'));
   ok(`RP${tag}d 收卡分鐘不變(${c.wantEnd}),新舊都收在同一分鐘`,
     endExp && endCtl && endExp.hm === c.wantEnd && endCtl.hm === c.wantEnd, `新=${endExp && endExp.hm} 舊=${endCtl && endCtl.hm}`);
-  const runCs = exp.filter(x => runSet.has(x.hm)).map(x => JSON.stringify(x.cs[0]));
+  const runCs = exp.flatMap(x => x.pushes.map((p, i) => ({ p, cs: x.cs[i] }))).filter(o => runSet.has(o.p.at)).map(o => JSON.stringify(o.cs));
   ok(`RP${tag}e 行駛段相鄰兩發內容都不同`, runCs.every((b, i) => i === 0 || b !== runCs[i - 1]));
-  ok(`RP${tag}f 上游呼叫與改版前一樣:每輪恰好一次 /api/tra-live(零新增 TDX 點數)`,
+  ok(`RP${tag}f 上游呼叫與改版前一樣:每次執行(含半分鐘那一輪)恰好一次 /api/tra-live(零新增 TDX 點數)`,
     exp.every(x => x.live === 1) && ctl.every(x => x.live === 1), `新 ${exp.length} 輪/舊 ${ctl.length} 輪`);
   const sum = (log, k) => log.reduce((a, x) => a + x[k], 0);
   const hours = exp.length / 60;

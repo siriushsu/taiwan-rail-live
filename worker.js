@@ -9,7 +9,7 @@ import {
 import { reduceOfficialRosterSelfHealing } from './scripts/trtc_official_roster.mjs';
 import { laNextIdx, laObsIdx, laSchedIdx, laArrivalEpoch, laStaleDate, laJwt, laJwtReset } from './scripts/la_push_core.mjs';
 import {
-  mwTrtcRows, mwLiveRows, mwCrowdByNo, mwContentState, mwStaleDate, mwShouldPush, mwTrtcDataAt,
+  mwTrtcRows, mwLiveRows, mwCrowdByNo, mwContentState, mwStaleDate, mwShouldPush, mwApproachTickDue, mwTrtcDataAt,
   MW_LIVE_MAX_AGE_SEC,
 } from './scripts/metro_wait_core.mjs';
 import {
@@ -3286,7 +3286,7 @@ async function traWaitBind(request, env) {
     return jsonRes({ error: 'bad_end' }, 400, 'no-store');
   }
   // prevDepSec:這班車在【上一個停靠站】的表定發車時刻(epoch 秒),開卡當下由 App 從時刻表查好。
-  // 伺服器拿它判斷「車是不是正在上一站→本站之間」,只有那一段每分鐘推一發(見 twRunWindow)。
+  // 伺服器拿它判斷「車是不是正在上一站→本站之間」,只有那一段每 30 秒推一發(見 twRunWindow)。
   // 選填:舊版 App 不送、起點站開卡也沒有上一站 ⇒ NULL,這一列照舊只在誤點變了才推。
   // 有送就必須在本站到站之前一天以內——壞值整包拒收(不默默當成沒送:卡片會以為接上了
   // 行駛中推播而畫出一台車,車卻只在誤點變了才動;拒收則 pushed 永遠不會是 true,視圖不畫車)。
@@ -3987,41 +3987,54 @@ async function metroWaitPushEnd(env, jwt, row, state, now, why, tag = 'mw-push')
   }
 }
 
-async function metroWaitPushAll(env, ctx, baseUrl) {
+// half:null＝每分鐘那一輪(行為與加入半分鐘那一輪之前逐字相同);非 null＝半分鐘那一輪
+// (見 waitCardHalfMinute),內容是第一輪交下來的 { sources, pickNow, deadlineMs }:
+//   · sources/pickNow:沿用第一輪那一份看板與第一輪的「現在」挑班次 ⇒ 挑出來的班次與第一輪逐字相同,
+//     而且【一發上游都不打】(北捷曾來函管呼叫量,memory trtc-api-call-budget)。
+//     🔴 pickNow 不可以換成這一輪的 now:北捷看板列的資料齡上限只有 45 秒(MW_TRTC_MAX_AGE_SEC),
+//        同一份看板晚 30 秒再挑,多數列會因為「太舊」被濾掉 ⇒ 卡片在第二輪少掉一班、甚至整張 hold。
+//   · 第二輪【只挪車】:只推進站窗內、間隔已到的列(mwApproachTickDue),內容＝第一輪那一份＋新的 tick。
+//     不收卡、不因內容變化推播、不記失敗次數——那些照舊每分鐘一次(失敗次數若半分鐘也記一次,
+//     熔斷的「連續失敗輪數」就會以兩倍速到頂)。從沒推過的列(prev=null)也不碰:那是第一輪的事。
+async function metroWaitPushAll(env, ctx, baseUrl, half = null) {
+  const tag = half ? 'mw-push 半分鐘' : 'mw-push';
   if (!env.APNS_KEY_P8 || !env.DELAY_DB) {
-    console.error('[cron mw-push] APNS_KEY_P8 或 DELAY_DB 未設定,cron 本輪整支跳過');
-    return { sent: 0, ended: 0, dropped: 0 };
+    console.error(`[cron ${tag}] APNS_KEY_P8 或 DELAY_DB 未設定,cron 本輪整支跳過`);
+    return { sent: 0, ended: 0, dropped: 0, handoff: null };
   }
   const tickStartMs = Date.now();
   const now = Math.floor(tickStartMs / 1000);
-  // 過期列的兜底清理(end 推播整發失敗時的唯一出路)。
-  await env.DELAY_DB.prepare('DELETE FROM metro_wait_bindings WHERE expire_at < ?').bind(now).run();
+  const pickNow = half ? half.pickNow : now;
+  const deadlineMs = half ? half.deadlineMs : tickStartMs + MW_TICK_BUDGET_MS;
+  // 過期列的兜底清理(end 推播整發失敗時的唯一出路)。半分鐘那一輪不做:每分鐘一次就夠。
+  if (!half) await env.DELAY_DB.prepare('DELETE FROM metro_wait_bindings WHERE expire_at < ?').bind(now).run();
   // ORDER BY end_at ASC:最快到期的排最前面——它們是最接近「該收卡」的列,被 LIMIT 或牆鐘
   // 預算截掉的代價最高(收卡遲到使用者看得見,一般更新遲到一分鐘看不見)。
   const rs = await env.DELAY_DB.prepare('SELECT * FROM metro_wait_bindings ORDER BY end_at ASC LIMIT ?').bind(MW_ROW_LIMIT + 1).all();
   let rows = rs.results || [];
   if (rows.length > MW_ROW_LIMIT) {
-    console.error(`[cron mw-push] 列數觸頂:本輪 ${rows.length}>${MW_ROW_LIMIT},只處理最快到期的前 ${MW_ROW_LIMIT} 列`);
+    console.error(`[cron ${tag}] 列數觸頂:本輪 ${rows.length}>${MW_ROW_LIMIT},只處理最快到期的前 ${MW_ROW_LIMIT} 列`);
     rows = rows.slice(0, MW_ROW_LIMIT);
   }
-  if (!rows.length) return { sent: 0, ended: 0, dropped: 0 };
-  const sources = await metroWaitSources(env, baseUrl, new Set(rows.map(r => String(r.sys))), now);
+  if (!rows.length) return { sent: 0, ended: 0, dropped: 0, handoff: null };
+  const sources = half ? half.sources : await metroWaitSources(env, baseUrl, new Set(rows.map(r => String(r.sys))), now);
   const jwt = await laJwt(env);
   let sent = 0, ended = 0, dropped = 0, unchanged = 0, held = 0, attempted = 0, apnsRetried = 0;
   let budgetExhausted = false, notReached = 0;
   const permFailCandidates = [];
   for (let ri = 0; ri < rows.length; ri++) {
-    if (Date.now() - tickStartMs > MW_TICK_BUDGET_MS) { budgetExhausted = true; notReached = rows.length - ri; break; }
+    if (Date.now() > deadlineMs) { budgetExhausted = true; notReached = rows.length - ri; break; }
     const row = rows[ri];
     try {
       const src = sources[String(row.sys)];
       let prev = null;
       try { prev = row.last_state ? JSON.parse(row.last_state) : null; }
       catch (e) { prev = null; }   // 壞掉的舊內容只代表「這一輪必推一發」,不該讓整列停擺
+      if (half && !prev) { unchanged++; continue; }
       let picked = [], serviceOver = false, dataAt = null;
       if (src && src.ok) {
         if (row.sys === 'trtc') {
-          picked = mwTrtcRows(src.board, row.station, row.dest, now);
+          picked = mwTrtcRows(src.board, row.station, row.dest, pickNow);
           dataAt = mwTrtcDataAt(picked);
         } else {
           const got = mwLiveRows(src.rows, row.station, row.dest);
@@ -4036,6 +4049,7 @@ async function metroWaitPushAll(env, ctx, baseUrl) {
       //     因此只靠 (1) 收,末班後到時段結束前會停在最後一班的「進站」——那是誠實的畫面
       //     (官方最後告訴我們的就是這班車進站),不是 bug。
       if (now >= Number(row.end_at) || serviceOver) {
+        if (half) { unchanged++; continue; }   // 收卡留給每分鐘那一輪(最多晚 30 秒,與改版前相同)
         // 🔴 收卡那一發的 content-state:【形狀】一律以現算的為準,【值】才沿用上一次送出去的。
         //    順序不可以顛倒——直接送 prev 會讓「舊版 worker 存下來的 last_state」決定欄位集合,
         //    而欄位集合是跨行程契約:新增一欄之後,所有還活著的卡收到的 end 都會少那一欄。
@@ -4052,8 +4066,8 @@ async function metroWaitPushAll(env, ctx, baseUrl) {
       //    長得一模一樣,而把其中任何一種當成「該收卡」都會讓卡片在使用者還要等車的時候
       //    憑空消失。使用者裁示:缺訊只 hold。
       if (!picked.length) { held++; continue; }
-      const state = mwContentState(row.sys, picked, src.crowdByNo, dataAt);
-      if (!mwShouldPush(prev, state, now)) { unchanged++; continue; }
+      const state = mwContentState(row.sys, picked, src.crowdByNo, dataAt, now);
+      if (half ? !mwApproachTickDue(prev, state, now) : !mwShouldPush(prev, state, now)) { unchanged++; continue; }
       attempted++;
       const staleDate = mwStaleDate(row.sys, picked, now);
       const body = { aps: { timestamp: now, event: 'update', 'content-state': state } };
@@ -4070,17 +4084,25 @@ async function metroWaitPushAll(env, ctx, baseUrl) {
         sent++;
         continue;
       }
+      if (half) {
+        console.error(`[cron ${tag}] APNs 非 2xx(不記失敗次數,留給每分鐘那一輪): status=${r.status} reason=${r.reason || '(無法解析)'} env=${r.envName} token=${String(row.token).slice(0, 8)}…`);
+        continue;
+      }
       const failStreak = (Number(row.fail_streak) || 0) + 1;
       await env.DELAY_DB.prepare('UPDATE metro_wait_bindings SET fail_streak=? WHERE token=?').bind(failStreak, row.token).run();
       console.error(`[cron mw-push] APNs 非 2xx: status=${r.status} reason=${r.reason || '(無法解析)'} env=${r.envName}${r.retried ? '(已試過另一個環境)' : ''} token=${String(row.token).slice(0, 8)}…`);
       if (r.status === 403 && !laJwtReset()) console.error('[cron mw-push] 403 但 provider token 仍在 20 分鐘冷卻期內,本輪沿用快取的 JWT');
       if (LA_PERM_FAIL_REASONS.has(r.reason)) permFailCandidates.push({ token: row.token, streak: failStreak });
     } catch (e) {
-      console.error(`[cron mw-push] 單列處理失敗(不影響其他列)token=${String(row.token).slice(0, 8)}… :`, (e && e.stack) || String(e));
+      console.error(`[cron ${tag}] 單列處理失敗(不影響其他列)token=${String(row.token).slice(0, 8)}… :`, (e && e.stack) || String(e));
     }
   }
   if (budgetExhausted) {
-    console.error(`[cron mw-push] 本輪預算用盡:已用 ${Math.round((Date.now() - tickStartMs) / 1000)} 秒(上限 ${MW_TICK_BUDGET_MS / 1000} 秒),rows=${rows.length} 中還有 ${notReached} 列本輪未處理`);
+    console.error(`[cron ${tag}] 本輪預算用盡:已用 ${Math.round((Date.now() - tickStartMs) / 1000)} 秒(截止 ${Math.round((deadlineMs - tickStartMs) / 1000)} 秒),rows=${rows.length} 中還有 ${notReached} 列本輪未處理`);
+  }
+  if (half) {
+    console.log(`[cron ${tag}] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent} unchanged=${unchanged} held=${held} apnsRetry=${apnsRetried}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
+    return { sent, ended: 0, dropped: 0, handoff: null };
   }
   // 熔斷:門檻與理由完全沿用 laPushAll(見那邊 LA_BREAKER_* 的長註解)。這裡同樣會發生
   // 「host/topic 一設錯就整批 BadDeviceToken」——那不是每顆 token 都死了,不可以整表刪光。
@@ -4097,7 +4119,10 @@ async function metroWaitPushAll(env, ctx, baseUrl) {
     dropped++;
   }
   console.log(`[cron mw-push] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent} ended=${ended} unchanged=${unchanged} held=${held} dropped=${dropped} apnsRetry=${apnsRetried}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
-  return { sent, ended, dropped };
+  // 交給半分鐘那一輪的東西:這一輪的看板與「現在」。沒有任何一個系統拿到可用看板 ⇒ 第二輪每一列都會
+  // hold,不必為它再讀一次 D1。
+  const anyOk = Object.values(sources).some(x => x && x.ok);
+  return { sent, ended, dropped, handoff: anyOk ? { sources, pickNow: now } : null };
 }
 
 // ══════════ 台鐵等站卡:每分鐘推播迴圈 ══════════
@@ -4128,35 +4153,46 @@ async function traWaitLive(env, ctx, baseUrl) {
   }
 }
 
-async function traWaitPushAll(env, ctx, baseUrl) {
+// half:null＝每分鐘那一輪(行為與加入半分鐘那一輪之前逐字相同);非 null＝半分鐘那一輪
+// (見 waitCardHalfMinute),內容是第一輪交下來的 { live, deadlineMs }:
+//   · live:沿用第一輪那一份官方即時動態 ⇒ 誤點與資料時刻與第一輪相同,【一點 TDX 點數都不多花】。
+//     (誤點資料齡門檻是 30 分鐘,晚 30 秒再用同一份不會改變它新不新鮮的判定——邊界上那一刻除外,
+//     而那一刻判成過舊也是事實。)
+//   · 第二輪【只挪車】:只推行駛段內、間隔已到的列(twRunTickDue),內容＝同一份資料算出來的＋新的 tick。
+//     不收卡、不延 end_at、不因內容變化推播、不記失敗次數——那些照舊每分鐘一次
+//     (理由同 metroWaitPushAll 的 half)。從沒推過的列(prev=null)也不碰。
+async function traWaitPushAll(env, ctx, baseUrl, half = null) {
+  const tag = half ? 'tw-push 半分鐘' : 'tw-push';
   if (!env.APNS_KEY_P8 || !env.DELAY_DB) {
-    console.error('[cron tw-push] APNS_KEY_P8 或 DELAY_DB 未設定,cron 本輪整支跳過');
-    return { sent: 0, ended: 0, dropped: 0 };
+    console.error(`[cron ${tag}] APNS_KEY_P8 或 DELAY_DB 未設定,cron 本輪整支跳過`);
+    return { sent: 0, ended: 0, dropped: 0, handoff: null };
   }
   const tickStartMs = Date.now();
   const now = Math.floor(tickStartMs / 1000);
-  // 過期列的兜底清理(end 推播整發失敗時的唯一出路)。
-  await env.DELAY_DB.prepare('DELETE FROM tra_wait_bindings WHERE expire_at < ?').bind(now).run();
+  const deadlineMs = half ? half.deadlineMs : tickStartMs + TW_TICK_BUDGET_MS;
+  // 過期列的兜底清理(end 推播整發失敗時的唯一出路)。半分鐘那一輪不做:每分鐘一次就夠。
+  if (!half) await env.DELAY_DB.prepare('DELETE FROM tra_wait_bindings WHERE expire_at < ?').bind(now).run();
   // ORDER BY end_at ASC:最快到期的排最前面(同 metroWaitPushAll——收卡遲到使用者看得見)。
   const rs = await env.DELAY_DB.prepare('SELECT * FROM tra_wait_bindings ORDER BY end_at ASC LIMIT ?').bind(TW_ROW_LIMIT + 1).all();
   let rows = rs.results || [];
   if (rows.length > TW_ROW_LIMIT) {
-    console.error(`[cron tw-push] 列數觸頂:本輪 ${rows.length}>${TW_ROW_LIMIT},只處理最快到期的前 ${TW_ROW_LIMIT} 列`);
+    console.error(`[cron ${tag}] 列數觸頂:本輪 ${rows.length}>${TW_ROW_LIMIT},只處理最快到期的前 ${TW_ROW_LIMIT} 列`);
     rows = rows.slice(0, TW_ROW_LIMIT);
   }
-  if (!rows.length) return { sent: 0, ended: 0, dropped: 0 };
-  const live = await traWaitLive(env, ctx, baseUrl);
+  if (!rows.length) return { sent: 0, ended: 0, dropped: 0, handoff: null };
+  const live = half ? half.live : await traWaitLive(env, ctx, baseUrl);
   const jwt = await laJwt(env);
   let sent = 0, ended = 0, dropped = 0, unchanged = 0, held = 0, extended = 0, attempted = 0, apnsRetried = 0, running = 0;
   let budgetExhausted = false, notReached = 0;
   const permFailCandidates = [];
   for (let ri = 0; ri < rows.length; ri++) {
-    if (Date.now() - tickStartMs > TW_TICK_BUDGET_MS) { budgetExhausted = true; notReached = rows.length - ri; break; }
+    if (Date.now() > deadlineMs) { budgetExhausted = true; notReached = rows.length - ri; break; }
     const row = rows[ri];
     try {
       let prev = null;
       try { prev = row.last_state ? JSON.parse(row.last_state) : null; }
       catch (e) { prev = null; }   // 壞掉的舊內容只代表「這一輪必推一發」,不該讓整列停擺
+      if (half && !prev) { unchanged++; continue; }
       const delay = twDelayFor(live, row.train_no, now);
       // ── hold 的判定要先算,因為底下每一件事都取決於「卡片這一刻顯示的是什麼」 ──
       // 🔴 這一條【不是】「缺訊只 hold」那條(那條講的是不收卡)。這裡講的是不改內容:
@@ -4175,6 +4211,7 @@ async function traWaitPushAll(env, ctx, baseUrl) {
       //    不准造的精度。這種列改由 end_at 收(bind 當下就有界,不會變成殭屍卡)。
       const why = twShouldEnd(now, shownDelay == null ? null : eta, row.end_at);
       if (why) {
+        if (half) { unchanged++; continue; }   // 收卡留給每分鐘那一輪(最多晚 30 秒,與改版前相同)
         // 形狀以現算的為準、值沿用上一次送出去的(理由同 metroWaitPushAll 的同一行:
         // 欄位集合是跨行程契約,直接送 prev 會讓舊版存下來的 last_state 決定欄位集合)。
         const endState = { ...twContentState(delay, delay.dataAt), ...(prev || {}), pushed: true };
@@ -4188,7 +4225,7 @@ async function traWaitPushAll(env, ctx, baseUrl) {
       // 🔴 放在收卡判定【之後】、推播判定【之前】:誤點把實際到站推遠時,end_at 必須先跟著延,
       //    否則下一輪就會用一個過期的 end_at 把還沒到的車收掉。而且它與「內容有沒有變」無關——
       //    誤點從 40 分變 41 分會推播,從 40 分變 40 分不推播,但兩種情況 end_at 都可能要延。
-      const nextEnd = twNextEndAt(eta, row.end_at, row.bound_at);
+      const nextEnd = half ? null : twNextEndAt(eta, row.end_at, row.bound_at);
       if (nextEnd != null) {
         await env.DELAY_DB.prepare('UPDATE tra_wait_bindings SET end_at=?, expire_at=? WHERE token=?')
           .bind(nextEnd, nextEnd + 300, row.token).run();
@@ -4198,6 +4235,7 @@ async function traWaitPushAll(env, ctx, baseUrl) {
       // 行駛中(上一站→本站)這一輪該不該為了挪車推一發。窗口用【顯示中】的誤點算——
       // 與卡片主角、stale-date、收卡用的是同一個 eta,車頭才會剛好在「實際約」那一刻碰到本站。
       const runDue = twRunTickDue(prev, now, twRunWindow(row.prev_dep_sec, row.sched_sec, shownDelay));
+      if (half && !runDue) { unchanged++; continue; }
 
       // hold ⇒ 內容不改,卡片繼續顯示上一次送出去的內容(含它那個較舊的「HH:mm 更新」,
       // 那正是誠實的新鮮度指示)。判定理由見上面 holding。
@@ -4224,17 +4262,25 @@ async function traWaitPushAll(env, ctx, baseUrl) {
         sent++;
         continue;
       }
+      if (half) {
+        console.error(`[cron ${tag}] APNs 非 2xx(不記失敗次數,留給每分鐘那一輪): status=${r.status} reason=${r.reason || '(無法解析)'} env=${r.envName} token=${String(row.token).slice(0, 8)}…`);
+        continue;
+      }
       const failStreak = (Number(row.fail_streak) || 0) + 1;
       await env.DELAY_DB.prepare('UPDATE tra_wait_bindings SET fail_streak=? WHERE token=?').bind(failStreak, row.token).run();
       console.error(`[cron tw-push] APNs 非 2xx: status=${r.status} reason=${r.reason || '(無法解析)'} env=${r.envName}${r.retried ? '(已試過另一個環境)' : ''} token=${String(row.token).slice(0, 8)}…`);
       if (r.status === 403 && !laJwtReset()) console.error('[cron tw-push] 403 但 provider token 仍在 20 分鐘冷卻期內,本輪沿用快取的 JWT');
       if (LA_PERM_FAIL_REASONS.has(r.reason)) permFailCandidates.push({ token: row.token, streak: failStreak });
     } catch (e) {
-      console.error(`[cron tw-push] 單列處理失敗(不影響其他列)token=${String(row.token).slice(0, 8)}… :`, (e && e.stack) || String(e));
+      console.error(`[cron ${tag}] 單列處理失敗(不影響其他列)token=${String(row.token).slice(0, 8)}… :`, (e && e.stack) || String(e));
     }
   }
   if (budgetExhausted) {
-    console.error(`[cron tw-push] 本輪預算用盡:已用 ${Math.round((Date.now() - tickStartMs) / 1000)} 秒(上限 ${TW_TICK_BUDGET_MS / 1000} 秒),rows=${rows.length} 中還有 ${notReached} 列本輪未處理`);
+    console.error(`[cron ${tag}] 本輪預算用盡:已用 ${Math.round((Date.now() - tickStartMs) / 1000)} 秒(截止 ${Math.round((deadlineMs - tickStartMs) / 1000)} 秒),rows=${rows.length} 中還有 ${notReached} 列本輪未處理`);
+  }
+  if (half) {
+    console.log(`[cron ${tag}] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent} running=${running} unchanged=${unchanged} held=${held} apnsRetry=${apnsRetried}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
+    return { sent, ended: 0, dropped: 0, handoff: null };
   }
   // 熔斷:門檻與理由完全沿用 laPushAll(見那邊 LA_BREAKER_* 的長註解)。
   const breakerRatio = attempted ? permFailCandidates.length / attempted : 0;
@@ -4250,7 +4296,50 @@ async function traWaitPushAll(env, ctx, baseUrl) {
     dropped++;
   }
   console.log(`[cron tw-push] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent} running=${running} ended=${ended} unchanged=${unchanged} held=${held} extended=${extended} dropped=${dropped} apnsRetry=${apnsRetried}${live ? '' : ' traLiveDown'}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
-  return { sent, ended, dropped };
+  // 交給半分鐘那一輪的只有這一份即時動態。拿不到(tra-live 掛了)⇒ 每一列都沒有官方誤點、
+  // 也就沒有行駛段可言,第二輪一發都不會推,不必為它再讀一次 D1。
+  return { sent, ended, dropped, handoff: live ? { live } : null };
+}
+
+// ══════════ 等車卡:半分鐘那一輪 ══════════
+// 2026-09-23 使用者裁示「那就改30秒吧」:等車卡進站軌道上的車(即時動態的圖不會自己走,只在收到推播時
+// 往前挪一格)從每分鐘挪一格改成每 30 秒挪一格。cron 的最小粒度是 1 分鐘(wrangler.jsonc 的
+// "* * * * *"),所以在【同一次執行內】等到第一輪起跑 +30 秒,再跑一輪只挪車的。
+// 🔴 成本邊界(說明給使用者的,每一條都有測試守著):
+//    · cron 次數不變:還是每分鐘一次,只是這一次多活 30 秒;
+//    · 上游呼叫零增加:第二輪吃第一輪交下來的那一份資料(handoff),不再呼叫 trtcLive／traLive;
+//    · 第二輪只推行駛段／進站窗內的車,優先度維持 5(laApnsSend),不動 Apple 的推播預算。
+// 第一輪沒有卡、或沒有任何可沿用的資料(handoff=null)⇒ 第二輪整個不跑(沒人開卡就零成本)。
+const WAIT_HALF_TICK_MS = 30000;
+// 第一輪跑超過這個時刻(相對第一輪起跑)就本分鐘不跑第二輪:再晚跑,第二輪就會跟下一分鐘的
+// cron 擠在一起,而且兩發的間隔會小於 TW_RUN_PUSH_GAP_SEC/MW_APPROACH_PUSH_GAP_SEC,本來就推不出去。
+const WAIT_HALF_TICK_LATEST_MS = 40000;
+// 第二輪逐列處理的截止時刻(相對第一輪起跑)。下一分鐘的 cron 約在 60 秒後起跑,留 5 秒不重疊。
+const WAIT_HALF_TICK_DEADLINE_MS = 55000;
+const waitHalfSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// sleep 可注入只為了測試(假時鐘);正式環境一律用 setTimeout。scheduled handler 內睡 30 秒在本專案
+// 已是驗證過的手法(trtcLedgerScheduled 的兩次取樣就是這樣隔開的)。
+async function waitCardHalfMinute(tag, first, second, sleep = waitHalfSleep) {
+  const startMs = Date.now();
+  const r1 = await first();
+  if (!r1 || !r1.handoff) return r1;
+  const used = Date.now() - startMs;
+  if (used > WAIT_HALF_TICK_LATEST_MS) {
+    console.error(`[cron ${tag}] 第一輪跑了 ${Math.round(used / 1000)} 秒(上限 ${WAIT_HALF_TICK_LATEST_MS / 1000} 秒),本分鐘不跑半分鐘那一輪`);
+    return r1;
+  }
+  if (used < WAIT_HALF_TICK_MS) await sleep(WAIT_HALF_TICK_MS - used);
+  const r2 = await second({ ...r1.handoff, deadlineMs: startMs + WAIT_HALF_TICK_DEADLINE_MS });
+  return { ...r1, half: r2 };
+}
+function metroWaitPushWithHalf(env, ctx, baseUrl, sleep) {
+  return waitCardHalfMinute('mw-push', () => metroWaitPushAll(env, ctx, baseUrl),
+    half => metroWaitPushAll(env, ctx, baseUrl, half), sleep);
+}
+function traWaitPushWithHalf(env, ctx, baseUrl, sleep) {
+  return waitCardHalfMinute('tw-push', () => traWaitPushAll(env, ctx, baseUrl),
+    half => traWaitPushAll(env, ctx, baseUrl, half), sleep);
 }
 
 // 今日準點/誤點榜(唯讀查 D1):每班車一列=今天最新一筆事件(obs_at 最大)+今天整體 max(delay_max)。
@@ -7388,14 +7477,15 @@ export default {
       if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(laTask);
       // 捷運等車卡:與跟車卡完全獨立的第二條推播迴圈(不同的表、不同的判定)。
       // 自帶 .catch ⇒ 不可能改變 scheduled 的成功/失敗契約(同 laTask)。
-      const mwTask = metroWaitPushAll(env, ctx, 'https://railisland.tw').catch(e => {
+      // 同一次執行內 +30 秒還有一輪只挪車的(見 waitCardHalfMinute)。
+      const mwTask = metroWaitPushWithHalf(env, ctx, 'https://railisland.tw').catch(e => {
         console.error('[cron mw-push] 失敗:', (e && e.stack) || String(e));
         return { error: String((e && e.message) || e) };
       });
       if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(mwTask);
       // 台鐵等站卡:第三條推播迴圈。自帶 .catch ⇒ 不可能改變 scheduled 的成功/失敗契約
-      // (同 laTask/mwTask)。三者【並行】起跑,牆鐘是 max 不是相加。
-      const twTask = traWaitPushAll(env, ctx, 'https://railisland.tw').catch(e => {
+      // (同 laTask/mwTask)。三者【並行】起跑,牆鐘是 max 不是相加。同樣有 +30 秒那一輪。
+      const twTask = traWaitPushWithHalf(env, ctx, 'https://railisland.tw').catch(e => {
         console.error('[cron tw-push] 失敗:', (e && e.stack) || String(e));
         return { error: String((e && e.message) || e) };
       });
@@ -7440,7 +7530,7 @@ export default {
         // (cron 牆鐘上限 15 分鐘,綽綽有餘),成本為零、不改回傳形狀。
         // laTask 自帶 .catch ⇒ 這個 await 不可能改變 scheduled 的成功/失敗契約。
         // mwTask 同理;兩者是【並行】起跑的,這裡依序 await 只是等它們各自跑完,
-        // 牆鐘是 max(45s, 40s) 不是兩者相加。
+        // 牆鐘是 max 不是相加(mwTask/twTask 含半分鐘那一輪,最長到起跑 +55 秒)。
         await laTask;
         await mwTask;
         await twTask;
@@ -7702,10 +7792,10 @@ export const _la = { laPushAll, traLive, laBind };
 // 捷運等車卡推播鏈(task-10)導出,理由與上面 _la 完全相同(D1／APNs／官方看板三個 IO,
 // 走 getPlatformProxy 在 Node 端直接呼叫)。見 scripts/verify_metro_wait_push.mjs。
 // bind/unbind 一併導出:兩支端點的驗證(欄位驗證、換站重設狀態欄)不必再起一個 HTTP 伺服器。
-export const _mw = { metroWaitPushAll, metroWaitBind, metroWaitUnbind };
+export const _mw = { metroWaitPushAll, metroWaitPushWithHalf, metroWaitBind, metroWaitUnbind };
 // 台鐵等站卡推播鏈導出,理由與 _mw 完全相同(D1／APNs／tra-live 三個 IO)。
 // 見 scripts/verify_tra_wait_push.mjs。
-export const _tw = { traWaitPushAll, traWaitBind, traWaitUnbind };
+export const _tw = { traWaitPushAll, traWaitPushWithHalf, traWaitBind, traWaitUnbind };
 // 純函式與端點/cron 導出,供離線回歸測試 import(scripts/verify_thsr_schedule.mjs)。
 // thsrConvertDaily/thsrBuildStationMap/thsrSelectServedDay/thsrKeyToMs 是純函式,可直接餵 fixture。
 // fetchThsrDaily/thsrStationMap/ingestThsrSchedule/thsrSchedule 會碰 D1/ASSETS/網路,測試要自備
