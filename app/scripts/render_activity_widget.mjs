@@ -1450,6 +1450,34 @@ func traTrackStateGate() {
     print("gate 通過：等站卡進站軌道四態畫面兩兩不同")
 }
 
+/// 🔴 gate：等站卡進站軌道版翻成 stale（車應已到）前後，鎖屏卡片必須一樣高。
+///    isStale 翻轉不是內容更新：系統會把卡片外框長高，內容卻仍按翻轉前的高度裁切，
+///    多出來的那一列只露出上緣 2pt（09-23 iPhone 17 Pro 模擬器 iOS 27 實拍）。
+///    160pt 上限 gate 對這件事是瞎的——157pt 照樣綠。
+///    成對比較：同一份 ContentState（同 tick、同公告、同推播狀態），只差 isStale。
+@MainActor
+func traStaleFlipHeightGate() {
+    let notice = "臺鐵即時資料中斷，誤點分鐘為最後一次官方更新"
+    let pairs: [(String, TraWaitDisplay, TraWaitDisplay)] = [
+        ("接上推播", traB(tickMin: 1), traBArrived),
+        ("沒接上推播", traB(tickMin: 1, pushed: nil), traBArrivedNoPush),
+        ("有服務異常公告", traB(tickMin: 1, notice: notice), traB(tickMin: 1, isStale: true, notice: notice)),
+    ]
+    var bad: [String] = []
+    for width: CGFloat in [360, 300] {
+        for (name, before, after) in pairs {
+            let a = pngData(TraWaitLockView(display: before), width: width, height: nil)
+            let b = pngData(TraWaitLockView(display: after), width: width, height: nil)
+            let ha = NSBitmapImageRep(data: a)?.pixelsHigh ?? -1, hb = NSBitmapImageRep(data: b)?.pixelsHigh ?? -2
+            if ha != hb { bad.append("\\(Int(width))pt・\\(name)：翻轉前 \\(Double(ha) / 3)pt、翻轉後 \\(Double(hb) / 3)pt") }
+            // 正向對照：翻轉後畫面要真的變了（到站那句說明有出來），否則上一條恆真。
+            if a == b { bad.append("\\(Int(width))pt・\\(name)：翻轉前後畫面一模一樣——到站說明沒畫出來") }
+        }
+    }
+    if !bad.isEmpty { FileHandle.standardError.write(Data(("stale 翻轉等高 gate 失敗：\\n" + bad.joined(separator: "\\n") + "\\n").utf8)); exit(1) }
+    print("gate 通過：等站卡進站軌道 stale 翻轉前後等高（接上／沒接上推播／有公告 × 360／300pt）")
+}
+
 // 動態島展開版約 360pt 寬。
 @main
 struct Harness {
@@ -1470,6 +1498,7 @@ struct Harness {
         trackStateGate()
         traCarGate()
         traTrackStateGate()
+        traStaleFlipHeightGate()
 
         // 臺鐵跟車：三態＋準點＋中斷＋最壞值
         _ = render(RailFollowLockView(display: followRunning), width: 360, maxHeight: lockScreenMaxHeight,

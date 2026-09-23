@@ -324,13 +324,20 @@ struct TraWaitLockView: View {
         .monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
     }
 
-    /// 公告或到站說明：只有一位（鎖屏 160pt 上限），優先序＝服務異常 ＞ 到站後怎麼辦。
-    @ViewBuilder private var noticeOrHint: some View {
+    /// 服務異常公告（紅字那一行）。
+    @ViewBuilder private var noticeLine: some View {
         if let notice = display.notice {
             Text("⚠ " + notice)
                 .font(.system(size: scale.pt(11), weight: .medium))
                 .foregroundStyle(RailTokens.colors(scheme).warn)
                 .lineLimit(1).minimumScaleFactor(0.8)
+        }
+    }
+
+    /// 公告或到站說明：只有一位（鎖屏 160pt 上限），優先序＝服務異常 ＞ 到站後怎麼辦。
+    @ViewBuilder private var noticeOrHint: some View {
+        if display.notice != nil {
+            noticeLine
         } else if let hint = display.staleHint {
             Text(hint)
                 .font(.system(size: scale.pt(11))).foregroundStyle(.secondary)
@@ -356,12 +363,26 @@ struct TraWaitLockView: View {
             MetroWaitTrack(track: track, station: display.station, trailing: display.footer,
                            trailingAccent: display.arrived ? RailNativeL10n.text("車應已到") : nil,
                            scale: scale)
+                // 🔴 到站後那句說明疊在軌道左上的空白，不另起一列：isStale 翻轉不是內容更新，
+                //    系統會把卡片外框長高，內容卻仍按翻轉前的高度裁切——多出來的那一列只露出上緣
+                //    2pt，要等睡眠喚醒重繪才完整（09-23 iPhone 17 Pro 模擬器 iOS 27 實拍，
+                //    harness 量 157pt 照樣是綠的）。⇒ 翻轉前後卡片必須一樣高，harness 有 gate。
+                //    這句只在 stale 出現，那時車停在右端站名牌旁（或沒畫車），左上本來就空著；
+                //    右側讓出兩節車＋站名牌，最多兩行，底緣仍在車頂之上。
+                .overlay(alignment: .topLeading) {
+                    if let hint = display.staleHint {
+                        Text(hint)
+                            .font(.system(size: scale.pt(11))).foregroundStyle(.secondary)
+                            .lineLimit(2).minimumScaleFactor(0.7)
+                            .padding(.trailing, scale.pt(track.car == .none ? 100 : 140))
+                    }
+                }
             HStack(spacing: scale.pt(6)) {
                 officialValues
                 Spacer(minLength: scale.pt(4))
                 TraWaitEndButton(scale: scale, height: 24)
             }
-            noticeOrHint
+            noticeLine
         }
     }
 
