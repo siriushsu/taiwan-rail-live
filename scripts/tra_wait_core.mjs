@@ -34,7 +34,14 @@ export const TW_MAX_TRACK_SEC = Math.round(3.5 * 3600);
 // 10 分鐘＝「使用者看到的『更新』時刻最多落後多久」與推播量之間的折衷。
 // 🔴 這與 metro_wait 的作法【刻意不同】:那張卡的視圖根本不畫 dataAt,所以它把 dataAt
 //    完全排除在比較之外;這張卡畫了,排除就等於印一個會越來越假的時刻。
+// 🔴 2026-09-23 例外(使用者裁示「先改伺服器每分鐘推播」):等車卡 B 在軌道上畫了一台車,
+//    而即時動態的圖片不會自己走,只在收到推播時往前挪一格。所以「車正在上一站→本站之間」
+//    那一段每分鐘推一發(見 twRunWindow/twRunTickDue);其他時段車是靜止的,仍照這條遲滯。
 export const TW_DATA_AT_EPS_SEC = 600;
+
+// 行駛段內兩發之間的最小間隔。cron 每分鐘一發,但排程觸發是「至少一次」、起跑時刻也會飄
+// 幾秒 ⇒ 45 秒:同一分鐘重跑不會推兩發,正常相鄰兩分鐘一定推得出去。
+export const TW_RUN_PUSH_GAP_SEC = 45;
 
 // 🔴 嚴格數值轉換:不可以直接用 Number()——`Number(null)`、`Number('')` 都是 **0**(不是 NaN),
 //    於是「算不出實際到站時刻」會被 `Number.isFinite` 判成合法的 0,再與 now 比大小就變成
@@ -108,18 +115,27 @@ export function twEtaSec(schedSec, delayMin) {
 // 組 ContentState。🔴 欄位集合是跨行程契約:每一個 key 都要送(值可以是 null),不可省略——
 // 與 laPushAll／mwContentState 同一條規矩。欄位名對應 app/ios/App/App/TraWaitAttributes.swift。
 // delayMin 的 null 與 0 是兩種不同的事實,不可合併(見 twDelayFor)。
-export function twContentState(delay, dataAt) {
+export function twContentState(delay, dataAt, tickSec) {
   const known = !!(delay && delay.known);
   const raw = num(delay && delay.delayMin);
   const at = num(dataAt);
+  const tick = num(tickSec);
   return {
     delayMin: known && raw != null ? Math.round(raw) : null,
     dataAt: at == null ? null : Math.round(at),
     notice: null,
-    // 🔴 pushed:告訴視圖「這張卡有伺服器在餵」。唯一的消費點是到站後那句說明——
-    //    零推播的卡必須老實說「不會自己更新誤點」,推播接手的卡說那句話就是說謊。
-    //    App 開卡時不送(nil=還不知道,綁定是開卡之後才非同步完成的),伺服器每一發都送 true。
+    // 🔴 pushed:告訴視圖「這張卡有伺服器在餵」。消費點有二:到站後那句說明(零推播的卡
+    //    必須老實說「不會自己更新誤點」),以及等車卡 B 要不要畫車(沒人餵的卡,車會停在
+    //    開卡那一刻的位置騙人)。App 開卡時不送(nil=還不知道),伺服器每一發都送 true。
     pushed: true,
+    // 🔴 tick:伺服器送出這一發的時刻(epoch 秒)。兩個用途:
+    //    (1) 行駛段每分鐘那一發,誤點與資料時刻常常一個字都沒變(TDX 兩分鐘才更新一次)——
+    //        內容若與上一發完全相同,系統不保證會重畫,車就不會往前挪。這一欄保證每一發都不一樣。
+    //    (2) 視圖畫車的時鐘【只准用它】,不准用 Date():系統會替同一份 ContentState 在不同時間
+    //        各算一張快照(淺色／深色／切外觀),用 Date() 同一次更新的車會前後跳、甚至倒退
+    //        (捷運等車卡 B 實測踩到,feat/metro-wait-track-b f7b144d3)。
+    //    它【不是】倒數,也不進 twShouldPush 的比較(否則車靜止的時段也每一輪都推)。
+    tick: tick == null ? null : Math.round(tick),
   };
 }
 
@@ -136,6 +152,31 @@ export function twShouldPush(prev, next) {
   if ((pa == null) !== (na == null)) return true;
   if (pa != null && Math.abs(na - pa) >= TW_DATA_AT_EPS_SEC) return true;
   return false;
+}
+
+// 這班車「從上一站開往本站」的時段 [from, to),epoch 秒。
+//   from = 上一站表定發車 + 誤點;to = 本站表定到站 + 誤點(＝卡片主角「實際約」)。
+// 回 null = 這一刻沒有行駛段可言,伺服器不必為了挪車推播:
+//   · 沒有上一站(舊版 App 不送、或這一站就是起點站);
+//   · 🔴 誤點未知(null)。車的位置只准用「表定＋官方誤點」推算——沒有官方誤點時照表定
+//     畫一台在走的車,就是在宣稱這班車準點。視圖在同一條件下不畫車,兩邊必須一致。
+//   · 上一站發車不早於本站到站(資料壞了;bind 端點已擋,這裡是第二道)。
+export function twRunWindow(prevDepSec, schedSec, delayMin) {
+  const p = num(prevDepSec), s = num(schedSec), d = num(delayMin);
+  if (p == null || s == null || d == null || p >= s) return null;
+  return { from: Math.round(p + d * 60), to: Math.round(s + d * 60) };
+}
+
+// 行駛段內這一輪要不要為了「車往前挪一格」推一發(與 twShouldPush 或起來用)。
+// 🔴 只看行駛段:車還沒從上一站開出來時它是靜止的(卡片畫在上一站左邊的虛線上),
+//    每分鐘推一發只是把同一張圖再送一次;到站之後由 stale-date 翻成「車應已到」,也不必推。
+// 間隔以【上一次真的送出去的】tick 為準(同 twShouldPush 的比較基準)。
+export function twRunTickDue(prev, nowSec, win) {
+  const now = num(nowSec);
+  if (!win || now == null) return false;
+  if (now < win.from || now >= win.to) return false;
+  const last = num(prev && prev.tick);
+  return last == null || now - last >= TW_RUN_PUSH_GAP_SEC;
 }
 
 // 該不該收卡。回 'arrived' / 'endAt' / null。

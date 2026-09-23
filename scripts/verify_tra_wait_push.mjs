@@ -17,6 +17,8 @@
 //   1) 本機 D1 套 schema(wrangler dev/getPlatformProxy 都不會自動建表):
 //      arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --local \
 //        --file=schema/0010_tra_wait.sql
+//      arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --local \
+//        --file=schema/0013_tra_wait_prev_dep.sql
 //   2) .dev.vars 要有三顆 APNs 假 secret(值不會送到 Apple,但 APNS_KEY_P8 必須是真的
 //      P-256 PKCS8,否則 crypto.subtle.importKey 會拋)。產生一把丟棄式的:
 //      node -e "const{generateKeyPairSync}=require('crypto');const{privateKey}=generateKeyPairSync('ec',{namedCurve:'prime256v1'});\
@@ -125,8 +127,9 @@ const BASE = 'https://dummy.invalid';
     const rs = await env.DELAY_DB.prepare('PRAGMA table_info(tra_wait_bindings)').all();
     cols = (rs.results || []).map(r => r.name).sort();
   } catch (e) { cols = []; }
-  const want = ['apns_env', 'bound_at', 'end_at', 'expire_at', 'fail_streak', 'last_state', 'sched_sec', 'station', 'token', 'train_no'].sort();
+  const want = ['apns_env', 'bound_at', 'end_at', 'expire_at', 'fail_streak', 'last_state', 'prev_dep_sec', 'sched_sec', 'station', 'token', 'train_no'].sort();
   if (!cols.length) abort('本機 D1 沒有 tra_wait_bindings 這張表——請照檔頭前置步驟 1 套 schema/0010_tra_wait.sql');
+  if (!cols.includes('prev_dep_sec')) abort('本機 D1 的 tra_wait_bindings 沒有 prev_dep_sec——請照檔頭前置步驟 1 套 schema/0013_tra_wait_prev_dep.sql');
   ok('G1(schema gate)tra_wait_bindings 的欄位集合正確', JSON.stringify(cols) === JSON.stringify(want),
     `實際=${JSON.stringify(cols)}`);
 }
@@ -144,7 +147,7 @@ let swiftProps = [];
 }
 ok('G2 前置(分母閘門):解得出 TraWaitAttributes.ContentState 的屬性(解不出＝這條契約檢查等於沒有)',
   swiftProps.length >= 4, `解到 ${swiftProps.length} 個:${JSON.stringify(swiftProps)}`);
-const CONTRACT_KEYS = ['delayMin', 'dataAt', 'notice', 'pushed'];
+const CONTRACT_KEYS = ['delayMin', 'dataAt', 'notice', 'pushed', 'tick'];
 const CONTRACT_SORTED = CONTRACT_KEYS.slice().sort();
 ok('G3(跨行程契約)Swift ContentState 的屬性集合 === 後端 content-state 的契約欄位集合',
   JSON.stringify(swiftProps.slice().sort()) === JSON.stringify(CONTRACT_SORTED),
@@ -178,9 +181,9 @@ ok('G0b(自檢)測試用 token 通過 worker 的格式驗證(不合法的話端�
 async function resetTable() { await env.DELAY_DB.prepare('DELETE FROM tra_wait_bindings').run(); }
 async function insRow(r) {
   await env.DELAY_DB.prepare(
-    'INSERT INTO tra_wait_bindings (token,station,train_no,sched_sec,end_at,last_state,fail_streak,apns_env,bound_at,expire_at)' +
-    ' VALUES (?,?,?,?,?,?,?,?,?,?)'
-  ).bind(r.token, r.station || '臺北', r.train_no, r.sched_sec, r.end_at,
+    'INSERT INTO tra_wait_bindings (token,station,train_no,sched_sec,prev_dep_sec,end_at,last_state,fail_streak,apns_env,bound_at,expire_at)' +
+    ' VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+  ).bind(r.token, r.station || '臺北', r.train_no, r.sched_sec, r.prev_dep_sec == null ? null : r.prev_dep_sec, r.end_at,
     r.last_state == null ? null : JSON.stringify(r.last_state), r.fail_streak || 0,
     r.apns_env == null ? null : r.apns_env, r.bound_at == null ? mockNowSec : r.bound_at,
     r.expire_at == null ? r.end_at + 300 : r.expire_at).run();
@@ -528,6 +531,16 @@ const post = (fn, body) => fn(new Request(`${BASE}/api/tra-wait/bind`, {
     && Number(row.bound_at) === mockNowSec && Number(row.expire_at) === sched + 1800 + 300,
     JSON.stringify(row));
   ok('H1c last_state 起始為 NULL(第一輪必推)', row && row.last_state === null);
+  ok('H1d 舊版 App 不送 prevDepSec ⇒ prev_dep_sec=NULL(照舊只在誤點變了才推)', row && row.prev_dep_sec === null, String(row && row.prev_dep_sec));
+  const withPrev = { ...good, token: T('h1p'), prevDepSec: sched - 480 };
+  const resP = await post(traWaitBind, withPrev);
+  const rowP = await getRow(T('h1p'));
+  ok('H6 送了上一站表定發車 ⇒ 200 且原值落地', resP.status === 200 && rowP && Number(rowP.prev_dep_sec) === sched - 480,
+    `${resP.status} ${JSON.stringify(rowP)}`);
+  // 🔴 站間跑將近六小時的班次是真的(2026-09-20 的 6022 次臺南 11:48 開→南港 17:40 到):
+  //    若把下限綁在 3.5 小時的追蹤上限,這張卡會整包 400、連誤點都收不到。
+  const longRun = await post(traWaitBind, { ...good, token: T('h1l'), prevDepSec: sched - (5 * 3600 + 52 * 60) });
+  ok('H6b 站間將近六小時(6022 次臺南→南港)也收', longRun.status === 200, String(longRun.status));
 
   const bad = async (patch, why) => {
     const r = await post(traWaitBind, { ...good, ...patch });
@@ -545,19 +558,22 @@ const post = (fn, body) => fn(new Request(`${BASE}/api/tra-wait/bind`, {
     await bad({ schedSec: 'x' }, 'bad_sched'),
     await bad({ endAt: mockNowSec - 1 }, 'bad_end'),
     await bad({ endAt: mockNowSec + 12661 }, 'bad_end'),
+    await bad({ prevDepSec: 'x' }, 'bad_prev'),
+    await bad({ prevDepSec: good.schedSec }, 'bad_prev'),
+    await bad({ prevDepSec: good.schedSec - 86401 }, 'bad_prev'),
   ];
   const wrong = cases.filter(c => c.status !== 400 || c.err !== c.why);
-  ok('H2 十一種不合法輸入各自回 400 與正確的 error 代碼', wrong.length === 0, JSON.stringify(wrong));
+  ok('H2 十四種不合法輸入各自回 400 與正確的 error 代碼', wrong.length === 0, JSON.stringify(wrong));
   // 🔴 分母閘門:上面那一批必須真的是「本來會成功、只差這一格」——否則 wrong.length===0
   //    也可能只是因為每一筆都因為別的理由被擋。good 本身回 200 已由 H1 證明。
-  ok('H2b(分母閘門)不合法清單涵蓋全部五個欄位', new Set(cases.map(c => c.why)).size === 5,
+  ok('H2b(分母閘門)不合法清單涵蓋全部六個欄位', new Set(cases.map(c => c.why)).size === 6,
     JSON.stringify([...new Set(cases.map(c => c.why))]));
 }
 {
   // 換綁另一班車:狀態欄要全部重設,apns_env 要留著。
   await resetTable();
   const sched = mockNowSec + 1200;
-  await insRow({ token: T('h3'), train_no: '123', sched_sec: sched, end_at: sched + 1800,
+  await insRow({ token: T('h3'), train_no: '123', sched_sec: sched, prev_dep_sec: sched - 600, end_at: sched + 1800,
     last_state: { delayMin: 9, dataAt: mockNowSec, notice: null, pushed: true }, fail_streak: 3,
     apns_env: 'sandbox', bound_at: mockNowSec - 5000 });
   const sched2 = mockNowSec + 2400;
@@ -570,6 +586,9 @@ const post = (fn, body) => fn(new Request(`${BASE}/api/tra-wait/bind`, {
   ok('H3c apns_env 保留(環境是這個 App 安裝的屬性,重設只會白付一次雙環境退路)',
     row.apns_env === 'sandbox', String(row.apns_env));
   ok('H3d 車次與表訂換成新的', row.train_no === '456' && Number(row.sched_sec) === sched2);
+  // 🔴 換綁到一班沒送上一站的車(舊版 App／起點站)⇒ 舊車的上一站必須清掉,
+  //    否則新車會拿舊車的時段每分鐘推。
+  ok('H3e 換綁到沒有上一站的車 ⇒ prev_dep_sec 清成 NULL', row.prev_dep_sec === null, String(row.prev_dep_sec));
 }
 {
   await resetTable();
@@ -657,6 +676,249 @@ const post = (fn, body) => fn(new Request(`${BASE}/api/tra-wait/bind`, {
   ok('J1c 去重也不寫用量埋點(_src=cron)', usageWrites === 0, `usageWrites=${usageWrites}`);
   globalThis.fetch = apnsFetch;
 }
+
+// ══════════════════════════════════════════════════════════════════
+// R 等車卡 B:行駛段(上一站→本站)每分鐘推一發(2026-09-23 使用者裁示「先改伺服器每分鐘推播」)
+//   卡片上的車只在收到推播時往前挪,所以【只有】車在上一站與本站之間那一段要每分鐘推;
+//   車還沒從上一站開出來時它是靜止的,不准白推;到站之後由 stale-date 接手,也不推。
+//   期望值一律從字面量排出來(第幾分鐘推、推幾發),不呼叫 tra_wait_core。
+// ══════════════════════════════════════════════════════════════════
+// 逐分鐘跑 cron,回傳每一輪的推播。資料時刻【釘死】在開卡前 40 秒:這樣 twShouldPush 的
+// 遲滯(誤點變了／資料時刻漂 10 分鐘)一輪都不會觸發,任何一發推播都只可能來自行駛段。
+async function runMinutes(token, from, n, feedFn) {
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    mockNowSec = from + k * 60;
+    srcLive = feedFn(mockNowSec);
+    const r = await tick();
+    out.push({ t: mockNowSec, apns: r.apns, alive: !!(await getRow(token)) });
+  }
+  return out;
+}
+{
+  // 表訂:開卡後 20 分到本站,上一站 7 分鐘前開(自強 172 板橋→臺北的形狀);官方誤點 1 分。
+  // ⇒ 行駛段 = [開卡+14 分, 開卡+21 分),到站寬限 3 分 ⇒ 開卡+24 分收卡。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  const sched = t0 + 1200, prevDep = sched - 420;
+  const fixedAt = t0 - 40;
+  const feedFn = () => feed([{ no: '172', delay: 1, sta: '1020', status: 2 }], fixedAt);
+  await insRow({ token: T('r1'), train_no: '172', sched_sec: sched, prev_dep_sec: prevDep, end_at: sched + 1800, bound_at: t0 });
+  const run = await runMinutes(T('r1'), t0, 26, feedFn);
+  const pushedAt = run.filter(x => x.apns.some(a => a.body.aps.event === 'update')).map(x => (x.t - t0) / 60);
+  // 期望(字面量):第 0 分鐘首發;第 14–20 分鐘行駛段每分鐘一發;其餘一發都沒有。
+  const want = [0, 14, 15, 16, 17, 18, 19, 20];
+  ok('R1 只有首發與行駛段(第 14–20 分鐘)有推,其餘分鐘零推播',
+    JSON.stringify(pushedAt) === JSON.stringify(want), `實際推播分鐘=${JSON.stringify(pushedAt)}`);
+  ok('R1b 車還沒從上一站開出來(第 1–13 分鐘)⇒ 13 輪全部不推',
+    run.slice(1, 14).every(x => x.apns.length === 0), run.slice(1, 14).map(x => x.apns.length).join(''));
+  const runPushes = run.slice(14, 21).map(x => x.apns[0]);
+  ok('R2 行駛段每一輪恰好一發 event=update',
+    run.slice(14, 21).every(x => x.apns.length === 1 && x.apns[0].body.aps.event === 'update'),
+    run.slice(14, 21).map(x => x.apns.length).join(''));
+  const bodies = runPushes.map(a => JSON.stringify(a && a.body.aps['content-state']));
+  ok('R3 行駛段相鄰兩發的 content-state 都不一樣(內容相同時系統不保證重畫)',
+    bodies.every((b, i) => i === 0 || b !== bodies[i - 1]), bodies.join(' | '));
+  ok('R3b 每一發的 tick＝送出當下,誤點與資料時刻照舊(只換 tick,不造新值)',
+    // 🔴 沒推的那一輪 a 是 undefined:要判紅,不可以拋例外把整支腳本(含後面的重放)中止掉。
+    runPushes.every((a, i) => { const cs = a && a.body.aps['content-state'];
+      return !!cs && cs.tick === t0 + (14 + i) * 60 && cs.delayMin === 1 && cs.dataAt === fixedAt && cs.pushed === true; }),
+    bodies[0]);
+  ok('R3c 行駛段每一發都帶 stale-date＝實際約到站(表訂＋1 分)',
+    runPushes.every(a => a && a.body.aps['stale-date'] === sched + 60), String(runPushes.map(a => a && a.body.aps['stale-date'])));
+  ok('R4 到站後(第 21–23 分鐘)不再每分鐘推(「車應已到」由 stale-date 翻)',
+    run.slice(21, 24).every(x => x.apns.length === 0), run.slice(21, 24).map(x => x.apns.length).join(''));
+  ok('R5 到站 + 3 分鐘(第 24 分鐘)照舊收卡:推 end、刪列',
+    run[24].apns.length === 1 && run[24].apns[0].body.aps.event === 'end' && run[24].alive === false,
+    `apns=${run[24].apns.map(a => a.body.aps.event)} alive=${run[24].alive}`);
+
+  // 🔴 R6 反向對照:同一班車、同一份資料,只差「沒有上一站」(舊版 App)⇒ 行駛段一發都不推。
+  //    少了這條,「每分鐘都推」也能讓 R1–R3 全綠。
+  await resetTable();
+  await insRow({ token: T('r6'), train_no: '172', sched_sec: sched, end_at: sched + 1800, bound_at: t0 });
+  const ctl = await runMinutes(T('r6'), t0, 26, feedFn);
+  const ctlAt = ctl.filter(x => x.apns.some(a => a.body.aps.event === 'update')).map(x => (x.t - t0) / 60);
+  ok('R6(反向對照)沒有上一站 ⇒ 只有首發,行駛段零推播', JSON.stringify(ctlAt) === '[0]', `實際=${JSON.stringify(ctlAt)}`);
+  ok('R6b(反向對照)收卡分鐘與有上一站的那張完全一樣(到站收卡不變)',
+    ctl[24].apns.length === 1 && ctl[24].apns[0].body.aps.event === 'end' && ctl[23].alive === true);
+}
+{
+  // 🔴 R7 精度紅線:官方誤點未知(這班車不在動態窗裡、從沒拿到過值)⇒ 沒有「車在哪」,
+  //    表定時段內也一發都不推。照表定每分鐘推等於宣稱這班車準點。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  const sched = t0 + 1200, prevDep = sched - 420;
+  await insRow({ token: T('r7'), train_no: '172', sched_sec: sched, prev_dep_sec: prevDep, end_at: sched + 1800, bound_at: t0 });
+  const run = await runMinutes(T('r7'), t0, 21, () => feed([{ no: '999', delay: 0 }], t0 - 40));
+  const at = run.filter(x => x.apns.length).map(x => (x.t - t0) / 60);
+  ok('R7 誤點未知 ⇒ 表定行駛段(第 13–19 分鐘)也不推', JSON.stringify(at) === '[0]', `實際=${JSON.stringify(at)}`);
+  ok('R7b 首發老實寫「沒有資訊」(delayMin=null)', run[0].apns[0] && run[0].apns[0].body.aps['content-state'].delayMin === null);
+}
+{
+  // 🔴 R8 hold × 行駛段:南迴那種站間長跑正是會整段掉出 TDX 動態窗的地方,也正是車最需要走的地方。
+  //    看板新鮮但查無此車 ⇒ 內容 hold(誤點、資料時刻照舊),但仍每分鐘推一發只換 tick。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  const sched = t0 + 1800, prevDep = sched - 3600;           // 上一站 1 小時前開,現在正跑在中間
+  const prevState = { delayMin: 3, dataAt: t0 - 300, notice: null, pushed: true, tick: t0 - 60 };
+  await insRow({ token: T('r8'), train_no: '165', sched_sec: sched, prev_dep_sec: prevDep, end_at: sched + 1800,
+    last_state: prevState, bound_at: t0 - 3600 });
+  mockNowSec = t0;
+  srcLive = feed([{ no: '777', delay: 0 }]);                  // 新鮮,但沒有 165
+  const r = await tick();
+  const cs = r.apns[0] && r.apns[0].body.aps['content-state'];
+  ok('R8 hold 中的車在行駛段 ⇒ 仍推一發(車要往前走)', r.apns.length === 1 && r.apns[0].body.aps.event === 'update',
+    `apns=${r.apns.length}`);
+  ok('R8b 那一發的誤點與資料時刻照抄上一次送出去的(不翻成無資訊、不造新值),只換 tick',
+    cs && cs.delayMin === 3 && cs.dataAt === t0 - 300 && cs.tick === t0 && cs.pushed === true && cs.notice === null,
+    JSON.stringify(cs));
+  ok('R8c 欄位集合仍是完整契約', cs && JSON.stringify(Object.keys(cs).sort()) === JSON.stringify(CONTRACT_SORTED),
+    JSON.stringify(cs && Object.keys(cs).sort()));
+  ok('R8d stale-date 用 hold 住的誤點(表訂＋3 分)', r.apns[0] && r.apns[0].body.aps['stale-date'] === sched + 180,
+    String(r.apns[0] && r.apns[0].body.aps['stale-date']));
+  const saved = JSON.parse((await getRow(T('r8'))).last_state);
+  ok('R8e last_state 只有 tick 變了', JSON.stringify({ ...saved, tick: null }) === JSON.stringify({ ...prevState, tick: null })
+    && saved.tick === t0, JSON.stringify(saved));
+  // 同一分鐘 cron 重跑(排程觸發是至少一次)⇒ 不重推。
+  mockNowSec = t0 + 20;
+  const r2 = await tick();
+  ok('R9 同一分鐘重跑(20 秒後)⇒ 不重推同一格', r2.apns.length === 0, `apns=${r2.apns.length}`);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// RP 真實資料重放:TDX 台鐵即時動態原始紀錄(本機 .cache/tra_hist/2026-09-13.jsonl.gz,
+//   TrainLiveBoard 每分鐘輪詢、只記有變的列)＋ data/tra_schedule.json 同星期幾(2026-09-20)的表定。
+//   每筆 = [UpdateTime, SrcUpdateTime, DelayTime],台北時間,原值照抄、只取開卡之後那段。
+//   逐分鐘把「當下看板上這班車的最新一筆」餵給 cron(SrcUpdateTime 超過 30 分鐘就當作掉出動態窗),
+//   同一班車跑兩次:有上一站(新版 App)vs 沒有上一站(＝改版前的行為,當控制組)。
+// ══════════════════════════════════════════════════════════════════
+const RP_DAY = '2026-09-13';
+const hms = x => Math.round(Date.parse(`${RP_DAY}T${x}+08:00`) / 1000);
+const hm = sec => new Intl.DateTimeFormat('zh-Hant-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false })
+  .format(new Date(sec * 1000));
+// 期望的推播分鐘用字串列舉(與受測碼的算術無關)。
+const minuteList = (a, b) => { const out = []; for (let t = hms(a + ':00'); t <= hms(b + ':00'); t += 60) out.push(hm(t)); return out; };
+const RP_172 = [
+    ['15:01:02','15:00:34',0],['15:04:02','15:03:18',0],['15:05:02','15:04:06',0],['15:06:02','15:05:24',0],
+    ['15:09:02','15:08:30',0],['15:10:02','15:09:02',0],['15:11:02','15:10:51',0],['15:12:02','15:11:29',0],
+    ['15:15:02','15:14:22',0],['15:16:02','15:15:56',0],['15:18:02','15:17:30',0],['15:19:02','15:18:10',0],
+    ['15:26:02','15:25:58',0],['15:27:02','15:26:30',1],['15:29:02','15:28:45',1],['15:30:02','15:29:21',0],
+    ['15:32:02','15:31:47',1],['15:33:02','15:32:07',0],['15:36:02','15:35:33',0],['15:37:02','15:35:59',0],
+    ['15:38:02','15:37:07',0],['15:39:02','15:38:29',0],['15:40:02','15:38:59',0],['15:42:02','15:41:57',0],
+    ['15:43:02','15:42:17',0],['15:45:02','15:44:45',0],['15:46:02','15:44:59',0],['15:48:02','15:47:39',0],
+    ['15:50:02','15:49:53',0],['15:54:02','15:53:43',0],['15:55:02','15:54:01',0],['15:56:02','15:55:39',0],
+];
+const RP_165 = [
+    ['17:50:02','17:49:26',1],['17:52:02','17:51:54',1],['17:55:02','17:54:37',1],['17:56:02','17:55:11',1],
+    ['17:57:02','17:56:47',1],['17:58:02','17:57:53',1],['18:01:02','18:00:58',0],['18:06:02','18:05:28',0],
+    ['18:10:02','18:09:45',0],['18:12:02','18:11:21',0],['18:13:02','18:12:43',1],['18:17:02','18:16:56',0],
+    ['18:22:02','18:21:38',0],['18:23:02','18:22:41',2],['18:25:02','18:24:48',2],['18:31:02','18:30:42',2],
+    ['18:32:02','18:31:28',2],['18:35:02','18:34:46',2],['18:36:02','18:35:50',2],['18:38:02','18:37:44',2],
+    ['18:43:02','18:42:28',1],['18:44:02','18:43:16',0],['18:47:02','18:46:42',0],['18:52:02','18:51:50',0],
+    ['18:57:02','18:56:45',0],['18:58:02','18:57:03',0],['19:00:32','18:59:10',0],['19:13:02','19:12:48',0],
+    ['19:15:02','19:14:17',0],['19:16:02','19:15:52',0],['19:17:02','19:16:24',0],['19:25:02','19:24:54',0],
+    ['19:26:02','19:25:12',0],['19:31:02','19:30:21',0],['19:37:02','19:36:54',0],['19:38:02','19:37:14',0],
+    ['19:44:02','19:43:48',0],['19:45:02','19:44:04',0],
+];
+function rpFeed(recs, trainNo, t) {
+  let cur = null;
+  for (const r of recs) if (hms(r[0]) <= t) cur = r;
+  const trains = cur && t - hms(cur[1]) <= 1800 ? [{ no: trainNo, delay: cur[2], sta: '0000', status: 2 }] : [];
+  return feed(trains, t - 58);   // 看板在每分鐘 :02 輪詢 ⇒ cron(:00)拿到的是 58 秒前那一份
+}
+// D1 計量:整個換掉 env.DELAY_DB(本機 binding 是 Proxy,覆寫它的 prepare 屬性不會生效——
+// 第一版就是這樣量出「0 條語句」)。只在 cron 那一輪量(resetTable/getRow 不算)。
+// 每條語句記 { 動詞, rows_read, rows_written }:後兩者取 D1 回傳的 meta(D1 就是照這兩個數計費)。
+const realDB = env.DELAY_DB;
+let d1Stmts = null;
+const wrapStmt = (st, verb) => new Proxy(st, { get(t, k) {
+  const v = t[k];
+  if (k === 'bind') return (...a) => wrapStmt(v.apply(t, a), verb);
+  if (k === 'run' || k === 'all' || k === 'first') return async (...a) => {
+    const r = await v.apply(t, a);
+    if (d1Stmts) d1Stmts.push({ verb, read: Number(r && r.meta && r.meta.rows_read), written: Number(r && r.meta && r.meta.rows_written) });
+    return r;
+  };
+  return typeof v === 'function' ? v.bind(t) : v;
+} });
+env.DELAY_DB = new Proxy(realDB, { get(t, k) {
+  if (k === 'prepare') return sql => wrapStmt(t.prepare(sql), String(sql).trim().split(/\s+/)[0].toUpperCase());
+  const v = t[k];
+  return typeof v === 'function' ? v.bind(t) : v;
+} });
+// 開卡直接寫列(bind 端點有每分鐘 20 次的真限流,重放一跑就撞;端點本身由 H1/H6 驗過)。
+// 欄位值照 bind 會寫的:end_at＝表訂＋30 分、bound_at＝開卡時刻。
+async function replay({ trainNo, station, bindAt, sched, prevDep, recs, withPrev }) {
+  await resetTable();
+  mockNowSec = hms(bindAt);
+  const token = T(`rp${trainNo}${withPrev ? 'p' : 'c'}`);
+  await insRow({ token, station, train_no: trainNo, sched_sec: hms(sched), end_at: hms(sched) + 1800,
+    prev_dep_sec: withPrev ? hms(prevDep) : null, bound_at: hms(bindAt) });
+  const log = [];
+  for (let t = hms(bindAt); t < hms(bindAt) + 4 * 3600; t += 60) {
+    mockNowSec = t;
+    srcLive = rpFeed(recs, trainNo, t);
+    d1Stmts = [];
+    const r = await tick();
+    const stmts = d1Stmts; d1Stmts = null;
+    log.push({ hm: hm(t), events: r.apns.map(a => a.body.aps.event), cs: r.apns.map(a => a.body.aps['content-state']),
+      live: r.matches.filter(u => u.includes('/api/tra-live')).length,
+      stmts: stmts.length,
+      read: stmts.reduce((acc, x) => acc + (Number.isFinite(x.read) ? x.read : NaN), 0),
+      written: stmts.reduce((acc, x) => acc + (Number.isFinite(x.written) ? x.written : NaN), 0) });
+    if (!(await getRow(token))) break;
+  }
+  return log;
+}
+const upd = log => log.filter(x => x.events.includes('update')).map(x => x.hm);
+const RP_REPORT = [];
+for (const c of [
+  // 自強 172 在臺北等:時刻表上一站是板橋(15:38 開),臺北 15:46 到;15:10 開卡(車還在中壢一帶)。
+  { name: '自強172@臺北(上一站板橋)', trainNo: '172', station: '臺北', bindAt: '15:10:00', prevDep: '15:38:00', sched: '15:46:00',
+    recs: RP_172, wantRun: minuteList('15:38', '15:45'), wantEnd: '15:49' },
+  // 自強 165 在臺東等:上一站潮州 18:22 開,臺東 19:53 到——站間跑 1 小時 31 分(南迴),誤點 2→1→0。
+  // 18:22、18:23 兩輪看板上還是誤點 0(潮州那筆 18:23:02 才進來)⇒ 窗口從表定 18:22 起算。
+  { name: '自強165@臺東(上一站潮州,南迴 91 分)', trainNo: '165', station: '臺東', bindAt: '18:00:00', prevDep: '18:22:00', sched: '19:53:00',
+    recs: RP_165, wantRun: minuteList('18:22', '19:52'), wantEnd: '19:56' },
+]) {
+  const exp = await replay({ ...c, withPrev: true });
+  const ctl = await replay({ ...c, withPrev: false });
+  const tag = c.trainNo;
+  const runSet = new Set(c.wantRun);
+  const expUpd = upd(exp), ctlUpd = upd(ctl);
+  ok(`RP${tag}a 行駛段每一分鐘都推(${c.wantRun[0]}–${c.wantRun[c.wantRun.length - 1]} 共 ${c.wantRun.length} 輪)`,
+    c.wantRun.every(m => expUpd.includes(m)), `缺:${JSON.stringify(c.wantRun.filter(m => !expUpd.includes(m)))}`);
+  const preExp = expUpd.filter(m => m < c.wantRun[0]), preCtl = ctlUpd.filter(m => m < c.wantRun[0]);
+  ok(`RP${tag}b 還沒到上一站那段:推播分鐘與改版前逐一相同(不多推一發)`,
+    JSON.stringify(preExp) === JSON.stringify(preCtl), `新=${JSON.stringify(preExp)} 舊=${JSON.stringify(preCtl)}`);
+  const postExp = expUpd.filter(m => m > c.wantRun[c.wantRun.length - 1]);
+  ok(`RP${tag}c 到站之後到收卡前零推播`, postExp.length === 0, JSON.stringify(postExp));
+  const endExp = exp.find(x => x.events.includes('end')), endCtl = ctl.find(x => x.events.includes('end'));
+  ok(`RP${tag}d 收卡分鐘不變(${c.wantEnd}),新舊都收在同一分鐘`,
+    endExp && endCtl && endExp.hm === c.wantEnd && endCtl.hm === c.wantEnd, `新=${endExp && endExp.hm} 舊=${endCtl && endCtl.hm}`);
+  const runCs = exp.filter(x => runSet.has(x.hm)).map(x => JSON.stringify(x.cs[0]));
+  ok(`RP${tag}e 行駛段相鄰兩發內容都不同`, runCs.every((b, i) => i === 0 || b !== runCs[i - 1]));
+  ok(`RP${tag}f 上游呼叫與改版前一樣:每輪恰好一次 /api/tra-live(零新增 TDX 點數)`,
+    exp.every(x => x.live === 1) && ctl.every(x => x.live === 1), `新 ${exp.length} 輪/舊 ${ctl.length} 輪`);
+  const sum = (log, k) => log.reduce((a, x) => a + x[k], 0);
+  const hours = exp.length / 60;
+  RP_REPORT.push({ 班次: c.name, 追蹤分鐘: exp.length,
+    APNs_舊: ctl.reduce((a, x) => a + x.events.length, 0), APNs_新: exp.reduce((a, x) => a + x.events.length, 0),
+    行駛段分鐘: c.wantRun.length,
+    D1語句_舊: sum(ctl, 'stmts'), D1語句_新: sum(exp, 'stmts'),
+    D1讀列_舊: sum(ctl, 'read'), D1讀列_新: sum(exp, 'read'), D1寫列_舊: sum(ctl, 'written'), D1寫列_新: sum(exp, 'written'),
+    TDX經手_舊: sum(ctl, 'live'), TDX經手_新: sum(exp, 'live'),
+    每小時APNs_舊: +(ctl.reduce((a, x) => a + x.events.length, 0) / hours).toFixed(1),
+    每小時APNs_新: +(exp.reduce((a, x) => a + x.events.length, 0) / hours).toFixed(1) });
+}
+env.DELAY_DB = realDB;
+// 🔴 計量本身要有分母閘門:包裝沒生效時所有數字都是 0,看起來像「零成本」。
+ok('RPg(計量自檢)D1 包裝真的量到語句與列數(不是 0、不是 NaN)',
+  RP_REPORT.every(r => r.D1語句_新 > 0 && Number.isFinite(r.D1讀列_新) && r.D1讀列_新 > 0 && Number.isFinite(r.D1寫列_新)),
+  JSON.stringify(RP_REPORT.map(r => [r.D1語句_新, r.D1讀列_新, r.D1寫列_新])));
+console.log('\n── 重放成本(同一班車、同一份資料,新＝有上一站／舊＝改版前) ──');
+for (const r of RP_REPORT) console.log(JSON.stringify(r));
+console.log('');
 
 await resetTable();
 await dispose();
