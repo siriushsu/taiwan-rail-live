@@ -662,7 +662,7 @@ let lockScreenMaxHeight: CGFloat = 160
 let islandExpandedMaxHeight: CGFloat = 144
 /// 🔴 動態島展開的【下半】實測預算——上面那個 144 是整張展開版面的外部常數，但這支腳本只算繪下半，
 ///    而下半的上方還壓著鏡頭帶（leading／trailing）。只拿下半去比 144 結構上照不到：
-///    2026-09-23 台鐵等站卡 B 在這裡量到下半 125pt、144 gate 全綠，模擬器（iPhone 17 Pro、iOS 27）
+///    2026-09-23 台鐵等站卡 B 在這裡量到下半 125pt、144 gate 全綠，模擬器（iPhone 17 Pro、iOS 26.5）
 ///    上卻把最底那列（官方值＋結束鈕）切掉一半。同一張截圖逐列量像素：島內容在距島頂約 133pt 被裁、
 ///    下半從約 42pt 開始 ⇒ 約 91pt；取 86 留 5pt 餘裕。改版後（下半 83pt）同一台模擬器實拍，
 ///    最底一列完整、墨跡到距島頂約 137pt。量法見 TraWaitIslandBottom 的註解。
@@ -1452,7 +1452,7 @@ func traTrackStateGate() {
 
 /// 🔴 gate：等站卡進站軌道版翻成 stale（車應已到）前後，鎖屏卡片必須一樣高。
 ///    isStale 翻轉不是內容更新：系統會把卡片外框長高，內容卻仍按翻轉前的高度裁切，
-///    多出來的那一列只露出上緣 2pt（09-23 iPhone 17 Pro 模擬器 iOS 27 實拍）。
+///    多出來的那一列只露出上緣 2pt（09-23 iPhone 17 Pro 模擬器 iOS 26.5 實拍）。
 ///    160pt 上限 gate 對這件事是瞎的——157pt 照樣綠。
 ///    成對比較：同一份 ContentState（同 tick、同公告、同推播狀態），只差 isStale。
 @MainActor
