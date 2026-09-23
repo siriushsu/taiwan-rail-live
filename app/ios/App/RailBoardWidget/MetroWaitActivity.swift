@@ -793,7 +793,11 @@ struct MetroWaitActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 5) {
                         RailLineMark(name: d.lineLabel, color: d.color, fontSize: 11)
-                        Text(d.station).font(.system(size: 12, weight: .medium)).lineLimit(1)
+                        // 進站軌道版：站名已在軌道右端的站牌上，頂列只留線名（兩者並排時線名被截成
+                        // 「淡水信…」，09-23 使用者裁示留線名）。沒有站牌的舊版面照舊顯示站名。
+                        if d.trackB == nil {
+                            Text(d.station).font(.system(size: 12, weight: .medium)).lineLimit(1)
+                        }
                     }
                     .padding(.leading, 4)
                 }
