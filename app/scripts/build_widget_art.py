@@ -6,7 +6,14 @@
 母圖不在 repo 裡（車模是 prototypes/tiny-trains 的 Blender 檔算出來的，場景是車庫分支
 garage/scene-03 的頁面重拍），放在：
   ~/Desktop/軌島小工具背景方案/素材/正式車模/<id>.png   hero-l 斜角、透明底、已去地板陰影
-  ~/Desktop/軌島小工具背景方案/素材/正式場景/<scene>-<day|night>.png   2880×2000
+  ~/Desktop/軌島小工具背景方案/素材/正式場景-軌道車/<scene>-<day|night>.png   2880×2000
+
+09-23 使用者：「要看到車 但是也要跟背景符合，我是要車子跑在場景的軌道上的圖」——
+場景裡本來那台車要停在【右上角看得到的地方】，不是另外疊車圖。做法是重拍母圖時用車庫頁的
+setTime(t) 把車停到軌道上的指定位置，再調裁切讓它落在右上角的可見區（站名牌右邊、淡出開始前；
+取 iOS 與 Android 兩邊可見區的交集，兩平台用同一組母圖與裁切）。
+重拍法：~/Desktop/軌島小工具背景方案/產生器/shoot_scenes/（與舊母圖同一套拍法，t＝舊值時逐像素相同）。
+舊母圖（車在左下被淡出蓋掉的那一版）留在 素材/正式場景/，不要再用。
 🔴 62 款車模的【參考照片】永遠不進 repo 與出貨產物——這裡只收自家模型的算繪圖。
 
 🔴 為什麼一定要縮到小工具的像素：WidgetKit 會拒絕比小工具像素面積還大的圖片（不算繪），
@@ -30,12 +37,17 @@ TRAINS = ['emu3000', 'emu900', 'emu800', 'e400', '700t', 'blue',
           'c381', 'c371', 'c341', 'val256', 'y100', 'kaohsiung', 'citadis', 'airportlocal']
 TRAIN_WIDTH_PT = 120
 
-# 場景：(資產名, 母圖, 點數寬高, 原圖上的裁切中心 x／y 與寬)。裁切中心是對著畫面挑的——
-# 站名牌蓋左上角，所以主角（車站、平交道）放在中間偏右。
+# 場景：(資產名, 母圖, 點數寬高, 原圖上的裁切中心 x／y 與寬)。
+# 裁切是對著「列車落在右上角」挑的（見檔頭）：t 是重拍母圖時 setTime 的值，列車外框是母圖 px，
+# 列車框（場景圖 pt）＝兩平台可見區的交集：小 x110–150／中 x113–335／大 x160–335，y 約 10–44／13–38／14–60。
+#   viaduct  t=10  新自強在高架環線右段   外框 (1990, 1131, 2390, 1222) → 大卡 pt (224, 25, 333, 49)
+#   duoliang t=18  藍皮沿海邊軌道        外框 (1851, 1107, 2216, 1203) → 中卡 pt (254, 15, 333, 36)
+#   crossing t=18  兩台對開剛過平交道     右邊那台 (1889, 1064, 2193, 1192) → 小卡 pt (114, 20, 148, 34)
+#                                        另一台在站名牌上方的後排軌道
 SCENES = [
-    ('widget-scene-viaduct-l', 'viaduct', (364, 150), (1700, 1060, 1900)),
-    ('widget-scene-duoliang-m', 'duoliang', (364, 96), (1660, 900, 2100)),
-    ('widget-scene-crossing-s', 'crossing', (170, 96), (1640, 1000, 1250)),
+    ('widget-scene-viaduct-l', 'viaduct', (364, 150), (1838, 1315, 1330)),
+    ('widget-scene-duoliang-m', 'duoliang', (364, 96), (1519, 1259, 1680)),
+    ('widget-scene-crossing-s', 'crossing', (170, 96), (1637, 1313, 1500)),
 ]
 
 
@@ -80,7 +92,7 @@ def build_scenes():
                 files.append((f'{name}{"-dark" if dark else ""}@{scale}x.jpg', scale, dark))
         folder = write_set(name, files)
         for period, dark in (('day', False), ('night', True)):
-            src = Image.open(os.path.join(SRC, '正式場景', f'{scene}-{period}.png')).convert('RGB')
+            src = Image.open(os.path.join(SRC, '正式場景-軌道車', f'{scene}-{period}.png')).convert('RGB')
             crop = src.crop(box)
             for scale in (2, 3):
                 out = crop.resize((wpt * scale, hpt * scale), Image.LANCZOS)
