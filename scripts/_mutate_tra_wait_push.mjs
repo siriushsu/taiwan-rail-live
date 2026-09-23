@@ -50,13 +50,13 @@ const MUTATIONS = [
     id: 'W3 把 end_at 延長塞進「推播成功」那一支',
     why: '看起來很自然:反正都要寫 D1,一起寫。但誤點穩定不變時根本不推播 ⇒ end_at 永遠\n'
        + '     停在原地 ⇒ 一班誤點 40 分的車會在還沒到站時被 end_at 收掉。',
-    from: `      const nextEnd = twNextEndAt(eta, row.end_at, row.bound_at);
+    from: `      const nextEnd = half ? null : twNextEndAt(eta, row.end_at, row.bound_at);
       if (nextEnd != null) {
         await env.DELAY_DB.prepare('UPDATE tra_wait_bindings SET end_at=?, expire_at=? WHERE token=?')
           .bind(nextEnd, nextEnd + 300, row.token).run();
         extended++;
       }`,
-    to: `      const nextEnd = twNextEndAt(eta, row.end_at, row.bound_at);`,
+    to: `      const nextEnd = half ? null : twNextEndAt(eta, row.end_at, row.bound_at);`,
     to2: {
       from: `        await env.DELAY_DB.prepare('UPDATE tra_wait_bindings SET last_state=?, apns_env=?, fail_streak=0 WHERE token=?')
           .bind(JSON.stringify(state), r.envName, row.token).run();
@@ -137,7 +137,7 @@ const MUTATIONS = [
     id: 'W10 拿掉過期列的兜底清理',
     why: '「收卡時就會刪列了,何必再掃一次」——但收卡推播整發失敗(APNs 全滅、D1 抖動)時,\n'
        + '     那一列會變成每分鐘打一次 APNs 的孤兒,永遠沒有出路。',
-    from: `  await env.DELAY_DB.prepare('DELETE FROM tra_wait_bindings WHERE expire_at < ?').bind(now).run();`,
+    from: `  if (!half) await env.DELAY_DB.prepare('DELETE FROM tra_wait_bindings WHERE expire_at < ?').bind(now).run();`,
     to: `  // (突變:拿掉兜底清理)`,
     expect: ['G1'],
   },
