@@ -1463,6 +1463,14 @@ func traStaleFlipHeightGate() {
         ("沒接上推播", traB(tickMin: 1, pushed: nil), traBArrivedNoPush),
         ("有服務異常公告", traB(tickMin: 1, notice: notice), traB(tickMin: 1, isStale: true, notice: notice)),
     ]
+    // 同一張卡只拿掉到站說明（正向對照用）。
+    func withoutHint(_ d: TraWaitDisplay) -> TraWaitDisplay {
+        TraWaitDisplay(trainType: d.trainType, station: d.station, color: d.color, lead: d.lead,
+                       heroCaption: d.heroCaption, heroText: d.heroText, schedText: d.schedText,
+                       delayText: d.delayText, delayTone: d.delayTone, expired: d.expired,
+                       track: d.track, progress: d.progress, arrived: d.arrived, footer: d.footer,
+                       notice: d.notice, staleHint: nil, trackB: d.trackB)
+    }
     var bad: [String] = []
     for width: CGFloat in [360, 300] {
         for (name, before, after) in pairs {
@@ -1470,8 +1478,12 @@ func traStaleFlipHeightGate() {
             let b = pngData(TraWaitLockView(display: after), width: width, height: nil)
             let ha = NSBitmapImageRep(data: a)?.pixelsHigh ?? -1, hb = NSBitmapImageRep(data: b)?.pixelsHigh ?? -2
             if ha != hb { bad.append("\\(Int(width))pt・\\(name)：翻轉前 \\(Double(ha) / 3)pt、翻轉後 \\(Double(hb) / 3)pt") }
-            // 正向對照：翻轉後畫面要真的變了（到站那句說明有出來），否則上一條恆真。
-            if a == b { bad.append("\\(Int(width))pt・\\(name)：翻轉前後畫面一模一樣——到站說明沒畫出來") }
+            // 正向對照：到站說明要真的畫在卡上——把它拿掉畫面就得不同，否則「等高」可能只是
+            // 因為那句根本沒畫（翻轉後「車應已到」綠字本來就會變，拿翻轉前後比照不到這件事）。
+            if after.staleHint == nil { bad.append("\\(Int(width))pt・\\(name)：stale 卻沒有到站說明") }
+            else if b == pngData(TraWaitLockView(display: withoutHint(after)), width: width, height: nil) {
+                bad.append("\\(Int(width))pt・\\(name)：到站說明沒畫出來（拿掉它畫面一模一樣）")
+            }
         }
     }
     if !bad.isEmpty { FileHandle.standardError.write(Data(("stale 翻轉等高 gate 失敗：\\n" + bad.joined(separator: "\\n") + "\\n").utf8)); exit(1) }
