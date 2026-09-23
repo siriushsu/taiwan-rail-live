@@ -32658,10 +32658,50 @@ function traWaitCandidates(rows) {
       schedEpoch,
       schedText: fmtHM(r.t % 86400),
       isLast: r.isLast,
+      ...traWaitHopOf(r, schedEpoch),
+      tr: r.tr,   // 開卡時查車型用（traWaitCarModel）
     });
     if (out.length >= 8) break;
   }
   return out;
+}
+// 等站卡進站軌道（B 方案）要的那一段，全部取自時刻表、開卡後不再變：
+//   prevStop／prevDepSec：這班車在本站之前【真正停靠】的上一站與它的表定開車（通過站不算——
+//     自強 172 在臺北前停板橋，不是萬華）。prevDepSec 也送給伺服器，它用同一個值決定
+//     「車在上一站→本站之間，每分鐘推一發」的行駛段；卡片用它算車的位置，兩邊不可各算各的。
+//   plateLeft／plateRight：本站站牌下緣的兩個鄰站（實體路線上的前後站，含這班車通過不停的站；
+//     tr.stops 是 densify 過的沿線每一站）。
+// 起站（沒有上一站）、環島觀光列車（虛構班次、沒有時刻）回空物件 ⇒ 卡片維持原本的軌脊版。
+function traWaitHopOf(r, schedEpoch) {
+  const stops = r.tr && r.tr.stops;
+  if (!stops || r.tr.loop) return {};
+  const i = stops.indexOf(r.stop);
+  if (i <= 0) return {};
+  let prev = null;
+  for (let j = i - 1; j >= 0; j--) if (stops[j].stop !== false) { prev = stops[j]; break; }
+  if (!prev || !Number.isFinite(prev.depSec)) return {};
+  // 相對量換算成絕對 epoch：看板時刻 r.t 與上一站開車都是同一份時刻表的當日秒，差值就是站間；
+  // 跨午夜（上一站 23:58 開、本站 00:03）差值會是負的，補一天。
+  let gap = r.t - prev.depSec;
+  if (gap < 0) gap += 86400;
+  if (!(gap > 0 && gap < 86400)) return {};
+  return {
+    prevStop: String(prev.name),
+    prevDepSec: schedEpoch - gap,
+    plateLeft: String(stops[i - 1].name),
+    plateRight: i + 1 < stops.length ? String(stops[i + 1].name) : null,
+  };
+}
+// 車型：與網站 3D 列車同一份對照（formations.js baseFormation），卡片畫它的正側面。
+// 拿不到（模組載入失敗）就不送，卡片維持軌脊版——不猜一個車型。
+async function traWaitCarModel(tr) {
+  try {
+    const { formationFor } = await import('./rail-3d/integration/formations.js');
+    const sp = specialOf(tr);
+    const f = formationFor({ systemId: tr.sys, carName: tr.carName, typeName: tr.typeName,
+      stockId: sp?.stock?.id, branchId: sp?.branch?.id, namedId: sp?.named?.id }, 'actual');
+    return f && f.id ? String(f.id) : null;
+  } catch (e) { return null; }
 }
 function traWaitDelayChip(trainNo) {
   const d = traWaitOfficialDelay(trainNo);
@@ -32739,6 +32779,14 @@ async function traWaitStartFor(st, cand) {
     payload.dataAt = delay.dataAt;
     if (delay.delayMin != null) payload.delayMin = delay.delayMin;
   }
+  // 進站軌道（B 方案）：上一站、上一站表定開車、站牌鄰站、車型。缺上一站或車型就整組不送，
+  // 卡片維持原本的軌脊版（半套資料畫不出一條對的軌道）。
+  const carModel = cand.prevStop && cand.tr ? await traWaitCarModel(cand.tr) : null;
+  if (cand.prevStop && Number.isFinite(cand.prevDepSec) && carModel) {
+    Object.assign(payload, { prevStop: cand.prevStop, prevDepSec: cand.prevDepSec,
+      plateLeft: cand.plateLeft, carModel });
+    if (cand.plateRight) payload.plateRight = cand.plateRight;
+  }
   waitCardsDropOther('tra');   // 鎖屏只留一張等候卡（原生也會收,這裡收 JS 這半的 state 與綁定）
   traWaitUnbind();             // 換車:先註銷上一張卡的交班（原生 start 會自動收掉舊卡）
   _twKey = key;                // 🔴 必須在 p.start() 之前設好:token 可能比 start 的 resolve 先回來
@@ -32747,7 +32795,9 @@ async function traWaitStartFor(st, cand) {
   if (res && res.ok) {
     // endAt 以原生回傳的為準（它是照同一條算式算出來、也是送去 bind 的那個值）。
     state.traWait = { station: st.name, trainNo: cand.trainNo, schedSec: cand.schedEpoch,
-      endAt: Number(res.endAt) || null };
+      endAt: Number(res.endAt) || null,
+      // 只在卡片真的拿到進站軌道時才交給伺服器：沒有軌道的卡，每分鐘推一發也沒有車可以挪。
+      prevDepSec: payload.prevDepSec != null ? payload.prevDepSec : null };
     if (_twPendingToken.key === key) traWaitBind(_twPendingToken.token, key);
   } else {
     _twKey = '';
@@ -32802,6 +32852,8 @@ async function traWaitBind(token, key) {
         // 🔴 schedSec 與 endAt 都用開卡當下那一組值:伺服器每分鐘要用同一個表定去算
         //    「實際約到站」,自己重算會與卡片上印著的那個數字漂開。
         schedSec: s.schedSec, endAt: s.endAt,
+        // 上一站表定開車：伺服器據此只在「車在上一站→本站之間」每分鐘推一發（車才會往前挪）。
+        ...(s.prevDepSec != null ? { prevDepSec: s.prevDepSec } : {}),
       }),
     });
     if (!r.ok) return;                 // 後端拒絕:不標記已交班,收卡時也就不會多送一發 unbind

@@ -62,6 +62,12 @@ public final class RailTraWaitPlugin extends Plugin {
             copyDouble(call, payload, "schedSec");
             copyDouble(call, payload, "dataAt");
             copyInt(call, payload, "delayMin");
+            // 進站軌道（B 方案）：網頁從時刻表算好的上一站、上一站表定開車、站牌鄰站、車型。
+            copyString(call, payload, "prevStop");
+            copyDouble(call, payload, "prevDepSec");
+            copyString(call, payload, "plateLeft");
+            copyString(call, payload, "plateRight");
+            copyString(call, payload, "carModel");
             long endAt = RailWaitNotification.startTra(getContext(), payload);
             JSObject out = new JSObject();
             out.put("ok", true);

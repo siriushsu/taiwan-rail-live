@@ -16,13 +16,25 @@
 //    不是產品（judgment 心得 34）。平移只動時刻不動日期，班表窗（14 天逐日）仍然命中。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const INDEX_MD5 = createHash('md5').update(readFileSync(path.join(ROOT, 'index.html'))).digest('hex');
+// D8–D11 的獨立期望來源：原始班表（只列停靠站）＋原生端認得的台鐵車型
+// （Android RailWaitTrack.traCarDrawable 的 switch；iOS TraWaitHop.carAspect 由 render harness 另驗），
+// 而且該車型的素材檔真的在。
+const rawTraSchedule = JSON.parse(readFileSync(path.join(ROOT, 'data/tra_schedule.json'), 'utf8'));
+const NATIVE_TRA_CARS = (() => {
+  const src = readFileSync(path.join(ROOT, 'app/android/app/src/main/java/tw/railisland/app/RailWaitTrack.java'), 'utf8');
+  const body = src.slice(src.indexOf('static int traCarDrawable('));
+  const drawables = new Set(readdirSync(path.join(ROOT, 'app/android/app/src/main/res/drawable-nodpi')));
+  return new Set([...body.slice(0, body.indexOf('default:')).matchAll(/case "([^"]+)": return R\.drawable\.(la_side_\w+);/g)]
+    .filter(m => drawables.has(m[2] + '.png')).map(m => m[1]));
+})();
+if (NATIVE_TRA_CARS.size < 10) throw new Error(`[G0] 從 traCarDrawable 只讀到 ${NATIVE_TRA_CARS.size} 款台鐵車型——解析壞了`);
 console.log(`[G0] ROOT=${ROOT}`);
 console.log(`[G0] index.html md5=${INDEX_MD5}`);
 
@@ -329,6 +341,28 @@ async function run(engineName, browser) {
   ok(tag('D6 payload 沒有任何 mm:ss 形狀的字串值'), badVals.length === 0, `bad=${badVals.join(',') || '(無)'}`);
   ok(tag('D6b 上面兩條真的掃到了東西（正向對照）'),
     !!pl && Object.keys(pl).length >= 6, `keys=${Object.keys(pl || {}).length}`);
+  // ── 進站軌道（B 方案）欄位：期望值取【原始班表 data/tra_schedule.json】——那份只列停靠站，
+  //    上一站＝清單裡的前一格；產品走的是加密過（含通過站 stop:false）的 tr.stops 再往回跳過通過站，
+  //    兩條路不共用任何一行（judgment 心得 29）。
+  const rawTrain = rawTraSchedule.trains.find(t => String(t.train) === String(target.no));
+  const rawIdx = rawTrain ? rawTrain.stops.findIndex(s => s.name === '板橋') : -1;
+  const rawPrev = rawIdx > 0 ? rawTrain.stops[rawIdx - 1] : null;
+  const rawHere = rawIdx >= 0 ? rawTrain.stops[rawIdx] : null;
+  ok(tag('D8 上一站＝原始班表裡這班車在板橋之前真的停的那一站'),
+    !!pl && !!rawPrev && pl.prevStop === rawPrev.name,
+    `payload=${pl && pl.prevStop} 原始班表=${rawPrev && rawPrev.name}`);
+  // 看板時刻＝本站開車（depSec），上一站開車也取 depSec；兩者的差就是 schedSec−prevDepSec。
+  ok(tag('D9 上一站開車與本站表定的間隔＝原始班表兩站開車時刻差'),
+    !!pl && !!rawPrev && !!rawHere && pl.schedSec - pl.prevDepSec === rawHere.depSec - rawPrev.depSec,
+    pl && rawPrev ? `payload 差 ${pl.schedSec - pl.prevDepSec}s，原始班表差 ${rawHere.depSec - rawPrev.depSec}s` : 'no data');
+  // 站牌兩側＝板橋的實體鄰站（字面量：浮洲、萬華），左邊是車來的那一側。
+  const eastbound = !!rawTrain && rawTrain.stops.findIndex(s => s.name === '臺北') > rawIdx;
+  ok(tag('D10 站牌鄰站＝板橋的實體鄰站、左邊是車來的方向'),
+    !!pl && pl.plateLeft === (eastbound ? '浮洲' : '萬華') && pl.plateRight === (eastbound ? '萬華' : '浮洲'),
+    `left=${pl && pl.plateLeft} right=${pl && pl.plateRight} 往${eastbound ? '東' : '西'}`);
+  // 車型必須是原生端有正側面素材的那 13 款之一——不在裡面卡片會靜靜退回軌脊版。
+  ok(tag('D11 車型是原生有素材的台鐵車型'),
+    !!pl && NATIVE_TRA_CARS.has(pl.carModel), `carModel=${pl && pl.carModel}`);
   ok(tag('D7 pill 翻成「結束追蹤」'),
     await page.evaluate(() => { const b = document.getElementById('boardTraWait'); return !!b && b.textContent.trim() === '結束追蹤' && b.classList.contains('on'); }));
 

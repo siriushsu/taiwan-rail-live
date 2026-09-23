@@ -99,12 +99,24 @@ public final class RailTraWaitPlugin: CAPPlugin, CAPBridgedPlugin {
             dest: call.getString("dest") ?? "",
             schedSec: schedSec,
             color: call.getString("color"),
-            endAt: endAt)
+            endAt: endAt,
+            // 進站軌道（B 方案）：網頁從時刻表算好送進來，開卡後不再變。缺任何一欄卡片就維持軌脊版。
+            prevStop: call.getString("prevStop"),
+            prevDepSec: call.getDouble("prevDepSec"),
+            plateLeft: call.getString("plateLeft"),
+            plateRight: call.getString("plateRight"),
+            carModel: call.getString("carModel"))
 
         var st = TraWaitAttributes.ContentState()
         st.delayMin = delayMin
         st.dataAt = call.getDouble("dataAt")
         st.notice = call.getString("notice")
+        #if DEBUG
+        // 模擬器截圖用：`xcrun simctl push` 更新不了模擬器上的 Live Activity，要看車就只能
+        // 開卡時直接給 pushed／tick。Release 編不進這兩行（出貨的卡一律等伺服器真的推過才畫車）。
+        if let p = call.getBool("debugPushed") { st.pushed = p }
+        if let t = call.getDouble("debugTick") { st.tick = t }
+        #endif
         // pushed 刻意不寫(nil＝還不知道):綁定是開卡之後才非同步完成的,
         // 伺服器每一發推播都會送 true。
         enqueue {

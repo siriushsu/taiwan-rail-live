@@ -3286,7 +3286,9 @@
       "屏東縣": "Pingtung County",
       "宜蘭縣": "Yilan County",
       "花蓮縣": "Hualien County",
-      "臺東縣": "Taitung County"
+      "臺東縣": "Taitung County",
+      "車應已到": "Should have arrived",
+      "{time} 開": "dep. {time}"
     },
     "ja": {
       "臺北車站": "台北駅",
@@ -6573,7 +6575,9 @@
       "屏東縣": "屏東県",
       "宜蘭縣": "宜蘭県",
       "花蓮縣": "花蓮県",
-      "臺東縣": "台東県"
+      "臺東縣": "台東県",
+      "車應已到": "到着した見込み",
+      "{time} 開": "{time}発"
     }
   }
 }

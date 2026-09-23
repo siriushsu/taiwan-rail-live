@@ -174,13 +174,26 @@ final class RailWaitTrack {
      */
     static NotificationCompat.ProgressStyle style(Context context, Hop hop, double pos,
             String stationColorFallback) {
+        int line = parse(hop.color, parse(stationColorFallback, 0xFF26497E));
+        return style(context, hop.carDrawable(), pos, line, line);
+    }
+
+    /**
+     * 台鐵等站卡：車模由網頁送來的車型 id 決定（{@link #traCarDrawable}），路線色＝車種色只給
+     * 還沒走完的那段；站牌帶子用站牌本色（深藍），同 iOS 台鐵站牌。
+     */
+    static NotificationCompat.ProgressStyle traStyle(Context context, int carRes, double pos, String colorHex) {
+        return style(context, carRes, pos, parse(colorHex, 0xFF26497E), 0xFF26497E);
+    }
+
+    private static NotificationCompat.ProgressStyle style(Context context, int carRes, double pos,
+            int line, int band) {
         boolean dark = (context.getResources().getConfiguration().uiMode
             & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
         int rail = dark ? 0xFF5A5A5E : 0xFFC7C7CC;
-        int line = parse(hop.color, parse(stationColorFallback, 0xFF26497E));
         NotificationCompat.ProgressStyle style = new NotificationCompat.ProgressStyle()
             .setStyledByProgress(false)
-            .setProgressEndIcon(IconCompat.createWithBitmap(plate(context, line, dark)));
+            .setProgressEndIcon(IconCompat.createWithBitmap(plate(context, band, dark)));
         double half = halfCarFraction();
         if (pos == -2) {
             // 還沒到上一站：上一站畫成進度條上的點，車停在它左邊（車頭不碰到它）。
@@ -188,7 +201,7 @@ final class RailWaitTrack {
             segment(style, prevAt, rail);
             segment(style, 1000 - prevAt, line);
             style.addProgressPoint(new NotificationCompat.ProgressStyle.Point(prevAt).setColor(rail));
-            style.setProgressTrackerIcon(car(context, hop))
+            style.setProgressTrackerIcon(car(context, carRes))
                 .setProgress((int) Math.round(half * 1000));
             return style;
         }
@@ -203,7 +216,7 @@ final class RailWaitTrack {
         if (nose > 0) segment(style, nose, rail);
         if (nose < 1000) segment(style, 1000 - nose, line);
         double center = Math.max(half, Math.min(1 - half, pos - half));
-        style.setProgressTrackerIcon(car(context, hop)).setProgress((int) Math.round(center * 1000));
+        style.setProgressTrackerIcon(car(context, carRes)).setProgress((int) Math.round(center * 1000));
         return style;
     }
 
@@ -229,8 +242,32 @@ final class RailWaitTrack {
         return 20.0 / barDp;
     }
 
-    private static IconCompat car(Context context, Hop hop) {
-        Bitmap src = BitmapFactory.decodeResource(context.getResources(), hop.carDrawable());
+    /**
+     * 台鐵車型 id（網站 3D 列車 formations.js 的 FORMATIONS[…].id）→ 正側面車模。
+     * 沒有素材的車型回 0 ⇒ 呼叫端不畫進站軌道（同 iOS TraWaitHop.carAspect 回 nil）。
+     * 刻意寫成明列的 switch 而不是 getIdentifier：資源縮減只認得寫死的 R 參照。
+     */
+    static int traCarDrawable(String model) {
+        switch (model == null ? "" : model) {
+            case "emu3000": return R.drawable.la_side_emu3000;
+            case "temu1000": return R.drawable.la_side_temu1000;
+            case "temu2000": return R.drawable.la_side_temu2000;
+            case "e1000": return R.drawable.la_side_e1000;
+            case "dr3100": return R.drawable.la_side_dr3100;
+            case "emu800": return R.drawable.la_side_emu800;
+            case "e200": return R.drawable.la_side_e200;
+            case "dr1000": return R.drawable.la_side_dr1000;
+            case "blue": return R.drawable.la_side_blue;
+            case "haifeng": return R.drawable.la_side_haifeng;
+            case "shanlan": return R.drawable.la_side_shanlan;
+            case "mingri": return R.drawable.la_side_mingri;
+            case "e500": return R.drawable.la_side_e500;
+            default: return 0;
+        }
+    }
+
+    private static IconCompat car(Context context, int carRes) {
+        Bitmap src = BitmapFactory.decodeResource(context.getResources(), carRes);
         int w = src.getWidth(), h = Math.max(w / 2, src.getHeight());
         Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         new Canvas(out).drawBitmap(src, 0, (h - src.getHeight()) / 2f, new Paint(Paint.FILTER_BITMAP_FLAG));
