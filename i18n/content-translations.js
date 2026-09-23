@@ -3128,14 +3128,14 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   'iPhone 與 Android 16 的等車卡加入進站軌道，捷運跟著官方倒數、台鐵跟著官方誤點': 'iPhone と Android 16 の待ち案内カードに到着トラックを追加。メトロは公式カウントダウン、台鉄は公式の遅延に合わせて動きます'
 });
-// 2026-09-23 跟車每 15 秒頓一下（車站建物遮罩分片計算）：首層摘要與第二層正本都要 en/ja。
+// 2026-09-23 跟車每 15 秒頓一下（車站建物遮罩分片計算）；09-24 遮罩套用再減半，首層摘要換成 9/24 這句、第二層正本補上 9/24：兩層都要 en/ja。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  '立體地圖跟車時，畫面不再約每 15 秒頓一下': 'Following a train on the 3D map no longer stutters about every 15 seconds.',
-  '改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛；9/23 再修正跟車時畫面約每 15 秒頓一下：沿途建築的遮擋判斷改成分段計算，不再擠在同一格畫面裡算完，更新時也不再把整批建築資料來回多搬一趟': 'Improved 3D train following and terrain performance while preserving full formations, model detail and continuous movement along the tracks. On 9/23, fixed a brief stutter about every 15 seconds while following a train: checks for buildings blocking the view along the route are now spread across frames instead of being done all at once, and updating them no longer copies the whole set of building data back and forth.',
+  '立體地圖跟車時，沿途建築每次更新的計算量再減半': 'Following a train on the 3D map now takes half the work each time the buildings along the route are updated.',
+  '改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛；9/23 修正跟車時約每 15 秒頓一下：建築遮擋改成分段計算、資料不再來回多搬；9/24 再把那一下的計算量減半': 'Improved 3D train following and terrain performance while preserving full formations, model detail and continuous movement along the tracks. On 9/23, fixed a brief stutter about every 15 seconds while following a train: checks for buildings blocking the view are now spread across frames, and the building data is no longer copied back and forth. On 9/24, halved the work done at that moment.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  '立體地圖跟車時，畫面不再約每 15 秒頓一下': '立体地図で列車を追跡しているとき、約15秒ごとに画面が一瞬止まる問題を修正しました。',
-  '改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛；9/23 再修正跟車時畫面約每 15 秒頓一下：沿途建築的遮擋判斷改成分段計算，不再擠在同一格畫面裡算完，更新時也不再把整批建築資料來回多搬一趟': '編成や模型の細部、線路に沿った連続走行を保ちながら、立体列車の追従と地形表示を滑らかにしました。9/23 には列車の追跡中に約15秒ごとに画面が一瞬止まる問題を修正し、沿線の建物による遮蔽の判定を複数のフレームに分けて計算し、更新時に建物データ全体を余分に往復させないようにしました。',
+  '立體地圖跟車時，沿途建築每次更新的計算量再減半': '立体地図で列車を追跡しているとき、沿線の建物を更新するたびの計算量をさらに半分にしました。',
+  '改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛；9/23 修正跟車時約每 15 秒頓一下：建築遮擋改成分段計算、資料不再來回多搬；9/24 再把那一下的計算量減半': '編成や模型の細部、線路に沿った連続走行を保ちながら、立体列車の追従と地形表示を滑らかにしました。9/23 には列車の追跡中に約15秒ごとに画面が一瞬止まる問題を修正し、建物による遮蔽の判定を複数のフレームに分けて計算し、建物データを余分に往復させないようにしました。9/24 にはその瞬間の計算量を半分にしました。',
 });
 // 2026-09-23 桌面小工具「背景」設定：第一層「最近更新」會顯示這句，同步補 en/ja。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
