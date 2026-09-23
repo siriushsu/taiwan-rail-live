@@ -36,6 +36,16 @@ async function open(browser, { width = 1440, height = 900, path = '/index.html',
   const page = await ctx.newPage();
   await page.goto(BASE + path, { waitUntil: 'load' });
   await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 30000 });
+  // 🔴 先讓頁面自己那發 /api/delay-stats 落地再交給各測試：落地時 .then／.catch 會把 state.delayStats
+  //    整個蓋掉、讓準點排行作廢重算（index.html ensureDelayStats）——測試若在它落地【之前】塞了假資料，
+  //    就會被蓋成本機後端回的東西（通常是 {}）。機器忙、dev_server 回得慢才輸這場競態 ⇒ F3「面板 0 vs 預期 4」
+  //    時紅時綠、每次紅在不同寬度／引擎（09-23 ship-web 連兩發）。自己先觸發一次（已載入或載入中會早退），
+  //    等到不在載入中為止；之後 state.delayStats 非空，ensureDelayStats 永遠早退，不會再有第二發。
+  await page.evaluate(async () => {
+    ensureDelayStats();
+    const until = Date.now() + 20000;
+    while (state._delayStatsFetching && Date.now() < until) await new Promise(r => setTimeout(r, 50));
+  });
   await page.evaluate(() => {
     const h = document.getElementById('howtoWrap'); if (h) h.remove();
     state.playing = false; // 凍結模擬時鐘：位置在整個測試過程保持穩定,不因真實秒數流逝而漂移
