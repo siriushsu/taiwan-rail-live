@@ -29071,6 +29071,23 @@
         }
       }
     },
+    "背景（預設車模）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Background (default: train model)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背景（既定：車両モデル）"
+          }
+        }
+      }
+    },
     "背景音樂": {
       "extractionState": "manual",
       "localizations": {

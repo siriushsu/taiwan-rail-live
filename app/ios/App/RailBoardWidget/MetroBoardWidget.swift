@@ -90,13 +90,13 @@ struct MetroBoardProvider: AppIntentTimelineProvider {
 
     func snapshot(for configuration: MetroBoardIntent, in context: Context) async -> MetroEntry {
         var e = await entry(for: configuration)
-        e.backdrop = configuration.background.backdrop
+        e.backdrop = configuration.backdrop
         return e
     }
 
     func timeline(for configuration: MetroBoardIntent, in context: Context) async -> Timeline<MetroEntry> {
         var e = await entry(for: configuration)
-        e.backdrop = configuration.background.backdrop
+        e.backdrop = configuration.backdrop
         // 官方視野約 12 分鐘。刷新間隔壓在視野內,讓「下一次刷新之前資料還有效」。
         // 系統不保證照做——所以版面一律顯示資料時刻,不假裝即時。
         // 🔴 真機回饋(08-14):單一 entry ⇒ 倒數走完【全卡僵在 0:00】直到下次刷新。

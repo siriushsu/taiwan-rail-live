@@ -813,7 +813,7 @@ struct RailBoardWidgetEntryView: View {
     private var backdrop: RailBackdrop {
         guard case .board = entry.content, !readable,
               [.systemSmall, .systemMedium, .systemLarge].contains(family) else { return .plain }
-        return entry.configuration.background.backdrop
+        return entry.configuration.backdrop
     }
 
     var body: some View {
