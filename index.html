@@ -5511,6 +5511,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="checkinsync0923"><span class="d">9/23</span><span>成就「通勤的證明」「老通勤族」的路段次數與打卡車站，現在會跟著帳號雲端同步，換一台裝置登入不再歸零（謝謝網友回報）</span></li>
         <li data-cl-of="metrowaitapproach0923"><span class="d">9/23</span><span>iPhone 捷運等車卡在列車進站前約 4 分鐘內，每分鐘跟官方即時資訊對一次時</span></li>
         <li data-cl-of="glassnear0913"><span class="d">9/23</span><span>跟車前進時，沿途建築的透視線條會持續更新，不必等列車靠站才一次出現</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/22</span><span>機捷跟上台灣設計展疏運班表（9/24–10/11）：假日機場第一航廈到環北的區間加班車每 15 分鐘一班，南延直達車改到機場第二航廈為止；深夜山鼻以南時刻也照官方改點更新</span></li>
@@ -5518,7 +5519,6 @@
         <li data-cl-of="virtualloops0920"><span class="d">9/20</span><span>山海號與平原號現在從地圖車牌、車站看板到列車資訊都直接標示為「軌島虛構專列」，不會再看起來像真實營運班次</span></li>
         <li data-cl-of="boardall0920"><span class="d">9/20</span><span>台鐵、高鐵與林鐵車站看板不再只看得到每個方向最近 3 班；點一下就能在同一張看板展開接下來 3 小時的全部班次，需要時也能收回精簡版</span></li>
         <li data-cl-of="nangangbrstop0920"><span class="d">9/20</span><span>修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道</span></li>
-        <li data-cl-of="appnoticegeo0919"><span class="d">9/19</span><span>App 的長提示現在會完整換行，不再被列車卡片或畫面邊緣截斷，點通知外面即可收起；地圖傾斜時也會隱藏定位點，不會被拍進截圖或錄影</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5780,6 +5780,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="checkinsync0923"><span class="d">9/23</span><span>打卡車站與搭乘路段次數加入帳號雲端同步：手機上累積的「通勤的證明」「老通勤族」進度與車站收集，登入同一帳號的電腦或另一台手機也看得到；以前這兩項只留在搭乘的那台裝置上，電腦登入會顯示 0（謝謝網友回報）</span></li>
         <li data-cl="appnoticegeo0919"><span class="d">9/19</span><span>App 的長提示改為完整換行，即使頂部工具與列車卡片之間空間不夠，也不再只剩上半句，點通知外面就能提前收起；任何傾斜視角都會隱藏定位精度圈、脈動環與藍點，回到平面視角才恢復</span></li>
         <li data-cl="favstangeo0916"><span class="d">9/16</span><span>最愛車站星號整合至站名標籤避免遮蔽文字，隨視距自然淡出；傾斜跟車時自動隱藏定位大圈與脈動環，維持 3D 視角純淨</span></li>
         <li data-cl="dexmisscard0908"><span class="d">9/8</span><span>護照收集章今天沒有班次時，點下去會在章旁邊跳出這班車的故事，並依班表告訴你下一個開行日與之後幾天；班表過期或十四天內都沒有開行時只說明沒有，不推測日期</span></li>
@@ -6597,7 +6598,8 @@
 // v0922a：機捷接上台灣設計展疏運班表(TDX 09-22 版):假日 A12–A21 區間加班車、南延直達車改到 A13、
 //         深夜山鼻以南改點;建置端補區間車折返站、SP3 增開車不再被切成兩台、直達車不再被回推假起點。
 // v0923b：捷運等車卡伺服器推播在進站前 250 秒內每輪都推（等車卡 B 進站軌道的車位靠它前進）。
-const BUILD = 'v0923b';
+// v0923c：打卡／路段次數接上帳號雲端同步並依帳號分區(issue #72:電腦登入「通勤的證明」「老通勤族」是 0)。
+const BUILD = 'v0923c';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -14754,21 +14756,26 @@ function userDataSaveCollection(kind, values) {
   data.revision++; data.updatedAt = at;
   const ok = userDataWrite(data); if (ok) userDataNotify('local'); return ok;
 }
+// 單一 collection 的逐筆 LWW 合併(兩邊都要先過 userDataNormalizeCollection)。平手時第一個參數贏。
+// 打卡／路段不在 envelope 裡,accountSyncTxn 直接拿它合併,與 envelope 走同一套語意。
+function userDataMergeCollection(first, second) {
+  const items = new Map(), tomb = new Map();
+  for (const src of [first, second]) {
+    src.items.forEach(x => { const old = items.get(x.id); if (!old || x.updatedAt > old.updatedAt) items.set(x.id, x); });
+    src.tombstones.forEach(x => { if (x.deletedAt > (tomb.get(x.id) || 0)) tomb.set(x.id, x.deletedAt); });
+  }
+  for (const [id, deletedAt] of tomb) { const item = items.get(id); if (item && deletedAt >= item.updatedAt) items.delete(id); }
+  return {
+    items: [...items.values()].sort((a, b) => a.id.localeCompare(b.id)),
+    tombstones: [...tomb].map(([id, deletedAt]) => ({ id, deletedAt })).sort((a, b) => a.id.localeCompare(b.id)),
+  };
+}
 function userDataMergeEnvelopes(localRaw, remoteRaw) {
   const incoming = userDataNormalizeEnvelope(remoteRaw), local = userDataNormalizeEnvelope(localRaw);
   if (!incoming || !local) throw new Error(t('不支援的軌島資料格式'));
   const at = userDataNow();
   USER_DATA_COLLECTIONS.forEach(kind => {
-    const items = new Map(), tomb = new Map();
-    for (const src of [local.collections[kind], incoming.collections[kind]]) {
-      src.items.forEach(x => { const old = items.get(x.id); if (!old || x.updatedAt > old.updatedAt) items.set(x.id, x); });
-      src.tombstones.forEach(x => { if (x.deletedAt > (tomb.get(x.id) || 0)) tomb.set(x.id, x.deletedAt); });
-    }
-    for (const [id, deletedAt] of tomb) { const item = items.get(id); if (item && deletedAt >= item.updatedAt) items.delete(id); }
-    local.collections[kind] = {
-      items: [...items.values()].sort((a, b) => a.id.localeCompare(b.id)),
-      tombstones: [...tomb].map(([id, deletedAt]) => ({ id, deletedAt })).sort((a, b) => a.id.localeCompare(b.id)),
-    };
+    local.collections[kind] = userDataMergeCollection(local.collections[kind], incoming.collections[kind]);
   });
   local.revision = Math.max(local.revision, incoming.revision) + 1; local.updatedAt = at;
   return local;
@@ -15196,6 +15203,15 @@ function accountMergeGuestData() {
   showToast(t('訪客紀錄已併入這個帳號'));
   accountScheduleSync(); // 有通行證就順便上雲端；沒有的話 accountSyncNow 自己會被資格閘門擋下
 }
+// 打卡／路段的雲端文件走這支,時間校正規則與下面 accountCloudEnvelope 逐字相同。刻意不讓
+// accountCloudEnvelope 反過來呼叫它:verify_user_data_clock_skew 會把 accountCloudEnvelope 的原始碼
+// 單獨抽出來執行,多一層依賴那邊就會 ReferenceError。
+function accountCloudCollection(kind, d) {
+  if (!d) return { items: [], tombstones: [] };
+  const serverAt = d.updatedAt && typeof d.updatedAt.toMillis === 'function' ? Number(d.updatedAt.toMillis()) || 0 : 0;
+  const clientAt = Number(d.clientUpdatedAt) || 0;
+  return userDataNormalizeCollection(kind, d, serverAt ? { serverAt, clientAt } : null);
+}
 function accountCloudEnvelope(docs) {
   const out = userDataEmpty(); out.deviceId = 'cloud'; out.revision = 0; out.updatedAt = 0;
   USER_DATA_COLLECTIONS.forEach(kind => {
@@ -15285,18 +15301,34 @@ async function accountSyncTxn(reason, myGen, myUid, retried) {
     // Firestore rules 尚未放行新 collection 時,整筆交易會 permission-denied——退回舊清單重試,
     // 別讓新收藏類型上線的時間差中斷既有同步(stations 資料仍留在本機,rules 部署後重整即恢復上傳)
     const kinds = a.legacyKinds ? USER_DATA_COLLECTIONS.filter(k => k !== 'stations') : USER_DATA_COLLECTIONS;
+    // 打卡／路段(成就「通勤的證明」「老通勤族」「車站巡禮」的來源)不住在 envelope,住在 checkins
+    // 分區,這裡跟 envelope 同一筆交易上傳。降級(legacyKinds)時一併不傳——rules 還沒放行它們時
+    // 整筆交易會被擋,跟 stations 當初上線是同一個時間差。示範資料(?demo=collect)永不上傳。
+    const localCk = loadCheckins(myUid);
+    const ckKinds = (a.legacyKinds || localCk.demo) ? [] : CHECKIN_SYNC_KINDS;
     const syncCollection = plusSyncCollection();
-    const refs = Object.fromEntries(kinds.map(kind => [kind, a.fb.doc(a.db, syncCollection, myUid, 'data', kind)]));
+    const refs = Object.fromEntries([...kinds, ...ckKinds].map(kind => [kind, a.fb.doc(a.db, syncCollection, myUid, 'data', kind)]));
     const local = userDataRead(myUid);
+    const localCkCols = checkinsToCollections(localCk);
+    let ckMerged = null;
     const merged = await a.fb.runTransaction(a.db, async tx => {
       const docs = {};
-      for (const kind of kinds) { const snap = await tx.get(refs[kind]); docs[kind] = snap.exists() ? snap.data() : null; }
+      for (const kind of [...kinds, ...ckKinds]) { const snap = await tx.get(refs[kind]); docs[kind] = snap.exists() ? snap.data() : null; }
       const out = userDataMergeEnvelopes(local, accountCloudEnvelope(docs));
       for (const kind of kinds) tx.set(refs[kind], {
         version: USER_DATA_VERSION, kind, revision: out.revision, clientUpdatedAt: out.updatedAt,
         items: out.collections[kind].items, tombstones: out.collections[kind].tombstones,
         updatedAt: a.fb.serverTimestamp(),
       });
+      ckMerged = {};
+      for (const kind of ckKinds) {
+        ckMerged[kind] = userDataMergeCollection(userDataNormalizeCollection(kind, localCkCols[kind]), accountCloudCollection(kind, docs[kind]));
+        tx.set(refs[kind], {
+          version: USER_DATA_VERSION, kind, revision: out.revision, clientUpdatedAt: out.updatedAt,
+          items: ckMerged[kind].items, tombstones: ckMerged[kind].tombstones,
+          updatedAt: a.fb.serverTimestamp(),
+        });
+      }
       return out;
     });
     // C-2 登入世代複查:交易解決後,身分是否還跟發起這次同步時一樣?變了(登出,或本機已被其他
@@ -15304,6 +15336,13 @@ async function accountSyncTxn(reason, myGen, myUid, retried) {
     // 關鍵一步,見本函式呼叫端 accountSyncNow 頂端的說明。
     if (a.gen !== myGen || !a.user || a.user.uid !== myUid) return false;
     if (!userDataWrite(merged, myUid)) throw new Error(t('瀏覽器儲存空間不足，無法保存同步結果'));
+    if (ckMerged && ckKinds.length) {
+      // 交易期間可能又蓋了章／走過一段(搭乘模式邊搭邊寫):寫回前拿「此刻的本機」再合併一次,
+      // 新寫的那幾筆 u 比較新,LWW 會留住它們,不會被交易開始前的快照蓋掉。
+      const nowCols = checkinsToCollections(loadCheckins(myUid)), cols = {};
+      for (const kind of ckKinds) cols[kind] = userDataMergeCollection(userDataNormalizeCollection(kind, nowCols[kind]), ckMerged[kind]);
+      saveCheckins(collectionsToCheckins(cols), myUid);
+    }
     userDataNotify('remote');
     a.lastSync = Date.now();
     try { localStorage.setItem('trainmap-last-sync-uid', myUid); } catch (e) {}
@@ -15477,6 +15516,7 @@ function accountClearLocal(uid) {
   const blank = () => { const e = userDataEmpty(); e.revision = 0; e.updatedAt = userDataNow(); return e; };
   userDataWrite(blank(), uid);  // 這個帳號自己的分區
   userDataWrite(blank(), null); // 共用匿名 key ＋ 四個 legacy 陣列(走 userDataWrite 的 if (!uid) 分支)
+  try { localStorage.removeItem(checkinStorageKey(uid)); localStorage.removeItem(CHECKIN_KEY); } catch (e) {} // 打卡／路段兩個分區比照清空
   // 2026-08-04 複審 Minor:LAST_UID 在登出時刻意留著(擋下一個登入的別人),但帳號已經刪掉時
   // 它指向一個不存在的 uid——同一個人重新註冊會拿到新 uid,陌生人判斷因而把他當外人:他在
   // 刪帳號之後、重新註冊之前以匿名身分累積的收藏不會被帶進新帳號。刪除是不可逆的終點,
@@ -15557,6 +15597,11 @@ async function accountDelete() {
     await accountDeleteServerData(u);
     for (const collection of ['users', 'sandboxUsers']) {
       for (const kind of USER_DATA_COLLECTIONS) await a.fb.deleteDoc(a.fb.doc(a.db, collection, u.uid, 'data', kind));
+      // rules 還沒放行這兩個 kind 時連文件都不可能存在,被擋就是「沒東西可刪」,不能讓它卡住刪帳號
+      for (const kind of CHECKIN_SYNC_KINDS) {
+        try { await a.fb.deleteDoc(a.fb.doc(a.db, collection, u.uid, 'data', kind)); }
+        catch (e) { if (!(e && e.code === 'permission-denied')) throw e; }
+      }
     }
     await a.fb.deleteUser(u); accountClearLocal(u.uid); accountClose(); showToast(t('軌島帳號與同步資料已刪除'));
   } catch (e) { a.actionError = t('刪除失敗：{error}', { error: e && e.message ? e.message : String(e) }); accountRender(); }
@@ -21568,12 +21613,31 @@ function sealName(n, kind) {
 // ⚠既有 rides 只存起訖站(from/to),沒存沿途站清單,所以完乘記錄只能推起訖兩站;
 //   沿途站要等批次 B 的搭乘模式才有真資料——不硬猜。
 const CHECKIN_KEY = 'trainmap-checkins-v1';
+const CHECKIN_SYNC_KINDS = ['checkins', 'segments']; // 雲端文件名;與 firestore.rules 的白名單同步
 const STN_STATUS_RANK = { follow: 0, pass: 1, visit: 2 };
 const STN_STATUS_LABEL = { follow: '跟完', pass: '搭過', visit: '到訪' };
-function loadCheckins() {
+// 打卡／路段比照 userData envelope 依帳號分區(userDataStorageKey 同一套規則):接上雲端同步之後,
+// 全裝置共用一把 key 會讓 B 登入時把 A 留在這台裝置上的收集一起傳進 B 的帳號。
+// 分區第一次被讀時的繼承規則也照抄 userDataMigrateAccountPartition:這台裝置上一個驗證身分
+// 不存在或就是本人 ⇒ 繼承共用 key;是別人 ⇒ 從空白開始(那人的收集仍在他自己的分區與雲端)。
+function checkinStorageKey(uid) { return uid ? CHECKIN_KEY + ':uid:' + uid : CHECKIN_KEY; }
+function checkinReadRaw(uid) {
+  const key = checkinStorageKey(uid);
+  let raw = localStorage.getItem(key);
+  if (raw == null && uid) {
+    let lastUid = null;
+    try { lastUid = localStorage.getItem(ACCOUNT_LAST_UID_KEY); } catch (e) {}
+    raw = (!lastUid || lastUid === uid) ? (localStorage.getItem(CHECKIN_KEY) || '') : '';
+    try { localStorage.setItem(key, raw); } catch (e) {}
+  }
+  return raw;
+}
+// uid 省略時讀寫「目前使用中的分區」,與 userDataRead 同一個慣例;accountSyncTxn 會明確傳 myUid。
+function loadCheckins(uid) {
+  if (uid === undefined) uid = userDataActiveUid();
   try {
-    const o = JSON.parse(localStorage.getItem(CHECKIN_KEY) || 'null');
-    return (o && typeof o === 'object' && o.st && typeof o.st === 'object') ? migrateCheckins(o) : { v: 2, st: {}, sg: {} };
+    const o = JSON.parse(checkinReadRaw(uid) || 'null');
+    return (o && typeof o === 'object' && o.st && typeof o.st === 'object') ? migrateCheckins(o, uid) : { v: 2, st: {}, sg: {} };
   } catch (e) { return { v: 2, st: {}, sg: {} }; }
 }
 // v1 的 sg 值是單一數字(只有總次數);v2 拆成 {n 總次數, nv 其中驗過定位的次數}——
@@ -21597,7 +21661,7 @@ function loadCheckins() {
 //   dirty 只在「這次真的補了東西」時為 true,所以落盤一輩子只發生一次:loadCheckins 在收集地圖
 //   模式是每幀呼叫的(drawCollectSegs → segmentCollection → loadCheckins),無條件寫會變成每幀一次
 //   localStorage.setItem。也因此本函式必須冪等——落盤後再讀,dirty 為 false,不再寫。
-function migrateCheckins(o) {
+function migrateCheckins(o, uid) {
   const now = userDataNow();
   let dirty = Number(o.v) !== 2;
   const sg = {};
@@ -21615,10 +21679,16 @@ function migrateCheckins(o) {
     st[k] = Object.assign({}, v, { u: u0 || Date.parse(String((v && v.d) || '')) || now });
   }
   const out = Object.assign({}, o, { v: 2, st, sg });
-  if (dirty) saveCheckins(out); // 回填落盤一次:不寫的話時間戳只是「本機讀取時刻」,見上方
+  if (dirty) saveCheckins(out, uid); // 回填落盤一次:不寫的話時間戳只是「本機讀取時刻」,見上方
   return out;
 }
-function saveCheckins(c) { try { localStorage.setItem(CHECKIN_KEY, JSON.stringify(c)); } catch (e) {} }
+function saveCheckins(c, uid) {
+  if (uid === undefined) uid = userDataActiveUid();
+  try { localStorage.setItem(checkinStorageKey(uid), JSON.stringify(c)); } catch (e) {}
+}
+// 使用者真的蓋章／走過一段時才排同步——不放進 saveCheckins:同步寫回本機也走 saveCheckins,
+// 放在那裡會變成「同步完又排下一次同步」的無限迴圈。
+function checkinsChanged() { if (typeof accountScheduleSync === 'function') accountScheduleSync(); }
 // 同一座實體站在班表資料裡可能掛兩個名字(環島線分支、官方全稱),座標完全重合——實測 3 對:
 // 臺北/臺北-環島、左營/左營(舊城)、新城/新城 (太魯閣)(新左營在 1.5 公里外,是真的另一座站不會被併)。
 // 2026-08-16 起後兩對已在資料層正名(densify_schedule.py 通過站改用官方站名),班表裡只剩臺北/臺北-環島;
@@ -21729,7 +21799,7 @@ function writeCheckin(st, status, opts) {
   e.d = today;
   if (status === 'visit') { if (o.low) e.lo = 1; else delete e.lo; } // 低信心只對「人在現場」的宣稱有意義
   e.u = userDataNow();   // 逐筆時間戳:多裝置合併時比這個決定誰贏(LWW)
-  c.st[k] = e; saveCheckins(c);
+  c.st[k] = e; saveCheckins(c); checkinsChanged();
   return true;
 }
 function doCheckin(st) {
@@ -21807,8 +21877,10 @@ function segmentCollectionVerified() {
   return out;
 }
 // ── 本機資料 ↔ userData collection 形狀 ──────────────────────────────
-// 現在還沒接帳號同步(ACCOUNT_ENABLED=false),但形狀現在就要定死:上線之後再改就得寫資料遷移,
-// 而收集類功能最傷的失敗模式就是「使用者重裝 App 整本護照歸零」。
+// 2026-09-23 起接上帳號同步(issue #72:電腦登入後「通勤的證明」「老通勤族」是 0,手機有)。
+// 沒有加進 USER_DATA_COLLECTIONS:打卡／路段住在自己的分區 key(loadCheckins,收集地圖每幀讀),
+// 塞進 envelope 會變成每幀解析整包收藏。改由 accountSyncTxn 在同一筆交易裡另外讀寫
+// users/{uid}/data/checkins 與 .../segments,合併用 userDataMergeCollection(與 envelope 同一套)。
 //
 // 合併語意:逐筆 LWW,沿用 userDataNormalizeCollection 既有的 at >= old.updatedAt,不另寫合併碼——
 // id 由 userDataItemId('checkins'/'segments', v) 讀 v.k 給(該分支已補上,見 userDataItemId)。
@@ -21816,13 +21888,6 @@ function segmentCollectionVerified() {
 // 那個 id 欄位只用來給下面的 .sort(byId) 排序與 M 組測試讀,不是接上同步後實際生效的鍵。
 // 已知限制(選過的,不是漏的):兩台裝置各搭同一段 50 次,合併後是 50 不是 100。
 // 做成相加要 CRDT 計數器,對 v1 是過度設計;而且相加在「同一台裝置重複同步」時會膨脹,那個失敗模式更糟。
-//
-// ⚠還沒真的接上同步——這裡只把「形狀」與「userDataItemId 認得這兩個 kind」做對,離真正上線還缺兩步,
-//   兩步都刻意不在這條分支動:
-//   1. 把 'checkins'、'segments' 加進 USER_DATA_COLLECTIONS(index.html:5284)——會啟動 envelope
-//      正規化路徑,影響範圍超出本 task。
-//   2. Firestore rules 白名單補這兩個 kind——要手動部署到 Firebase Console,這條分支做不到,
-//      而且 ACCOUNT_ENABLED=false(index.html:4994)現在也沒有生產消費者會去讀寫。
 function checkinsToCollections(c) {
   const byId = (a, b) => a.id.localeCompare(b.id);
   const now = userDataNow();
@@ -21894,7 +21959,7 @@ function writeSegments(tr, fromIdx, toIdx, verified) {
       c.sg[s.key] = cur;
     }
   }
-  saveCheckins(c);
+  saveCheckins(c); checkinsChanged();
 }
 // 各線完乘率:只列走過至少一段的線(全 0 的線列出來只是噪音)
 function lineCompletion() {
@@ -23360,7 +23425,7 @@ function seedCollectDemo() {
       });
     });
   });
-  saveCheckins({ v: 1, st, sg });
+  saveCheckins({ v: 1, demo: 1, st, sg }); // demo:1 ⇒ accountSyncTxn 不上傳(示範資料絕不進帳號)
   renderPassport(); if (typeof renderRidePanel === 'function') renderRidePanel();
   showToast(t('已載入示範收集資料（僅供確認設計）——清除請在網址加 ?demo=off'));
 }
@@ -23368,7 +23433,7 @@ function setupCollectDemo() {
   const mode = DEMO_MODE;
   if (mode !== 'collect' && mode !== 'off') return;
   if (mode === 'off') {
-    try { localStorage.removeItem(CHECKIN_KEY); localStorage.removeItem(RIDING_KEY); } catch (e) {}
+    try { localStorage.removeItem(checkinStorageKey(userDataActiveUid())); localStorage.removeItem(RIDING_KEY); } catch (e) {}
     renderPassport();
     showToast(t('示範收集資料已清除'));
     return;

@@ -34,7 +34,7 @@ console.log(`[G0] firestore.rules md5=${createHash('md5').update(RULES).digest('
 
 // 預期會執行的斷言數。具名常數，刻意寫死——**不可**從下面的 pass/fail 計數自己推導，
 // 那樣「少跑幾條」永遠會自動通過，這道閘門就變成零資訊的裝飾品。
-const EXPECTED_CHECK_COUNT = 18;
+const EXPECTED_CHECK_COUNT = 20;
 
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.FIRESTORE_EMULATOR_PORT || (process.env.FIRESTORE_EMULATOR_HOST || '').split(':')[1] || 8080);
@@ -199,6 +199,30 @@ await check('R8 多帶一個欄位就寫不了（hasOnly 白名單有牙）', as
   const db = testEnv.authenticatedContext(uid).firestore();
   await assertFails(setDoc(dataRef(db, uid), { ...validDoc(), evil: 1 }));
   await assertSucceeds(setDoc(dataRef(db, uid), validDoc()));
+});
+
+await check('R11 打卡／路段(checkins、segments)本人有資格可寫、可刪，無資格寫不了、別人讀不了', async () => {
+  const uid = 'r11-owner';
+  await seedEntitlement(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  const intruderDb = testEnv.authenticatedContext(UID_B).firestore();
+  for (const kind of ['checkins', 'segments']) {
+    const item = { id: 'k', value: { k: 'k', n: 1 }, updatedAt: 1 };
+    await assertSucceeds(setDoc(dataRef(db, uid, kind), { ...validDoc(kind), items: [item] }));
+    await assertFails(getDoc(dataRef(intruderDb, uid, kind)));
+    await assertSucceeds(deleteDoc(dataRef(db, uid, kind)));
+  }
+  await removeEntitlement(uid);
+  await assertFails(setDoc(dataRef(db, uid, 'segments'), validDoc('segments')));
+});
+
+await check('R12 路段筆數上限 5000 有牙（5000 可寫、5001 寫不了）', async () => {
+  const uid = 'r12-owner';
+  await seedEntitlement(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  const items = n => Array.from({ length: n }, (_, i) => ({ id: 's' + i, value: { k: 's' + i, n: 1, nv: 0 }, updatedAt: 1 }));
+  await assertSucceeds(setDoc(dataRef(db, uid, 'segments'), { ...validDoc('segments'), items: items(5000) }));
+  await assertFails(setDoc(dataRef(db, uid, 'segments'), { ...validDoc('segments'), items: items(5001) }));
 });
 
 await check('R9 entitlements 客戶端一律寫不了（只能由後端 Admin 憑證寫）', async () => {
