@@ -274,12 +274,12 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   const infoFileXml = new Map(infoFileNames.map(name => [name, read(`app/android/app/src/main/res/xml/${name}`)]));
   // 真正把列加進 wr_rows 的是 boardWithRows（board 只換算預設列數後轉呼叫它）。
   const railBoardBody = extractFunctionBody(railRender, 'boardWithRows', 'RailWidgetRender.java');
-  // 列數跟著高度走的那條鏈：sizes() 放進尺寸表的每一張都經 at()，at() 用 rowsThatFit 量出來的數畫。
-  // 有人把某個桶改回直接放 small()／medium()／large()（寫死列數），那個尺寸的卡就又會在
-  // Samsung 上空一截、或在矮的格子切掉最後一列，而示範列那幾條照樣全綠——所以另外驗這條鏈。
+  // 列數跟著高度走的那條鏈：sizes() 放進尺寸表的每一張（與 API<31 直接回傳的那張）都經 at()，
+  // at() 用 rowsThatFit 量出來的數畫。有人把某個桶改回直接放 small()／medium()／large()（寫死列數），
+  // 那個尺寸的卡就又會在 Samsung 上空一截、或在矮的格子切掉最後一列，而示範列那幾條照樣全綠——所以另外驗這條鏈。
   const railSizesBody = extractFunctionBody(railProvider, 'sizes', 'RailBoardWidgetProvider.java');
   const railAtBody = extractFunctionBody(railProvider, 'at', 'RailBoardWidgetProvider.java');
-  const railSizesPuts = [...railSizesBody.matchAll(/layouts\.put\(([^;]*)\);/g)].map(m => m[1]);
+  const railSizesPuts = [...railSizesBody.matchAll(/(?:layouts\.put|return tap)\(([^;]*)\);/g)].map(m => m[1]);
   const mixedBoardBody = extractFunctionBody(mixedRender, 'board', 'MixedWidgetRender.java');
 
   const contentRules = [
@@ -357,7 +357,7 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
       railMediumRows === exp4x2.rows],
     [`${railLargeName} 示範列數＝${railLargeRows}（預設大小列數＝${exp4x4.rows}，RailBoardWidgetProvider.java board() maxRows）`,
       railLargeRows === exp4x4.rows],
-    [`桌面上的發車看板班數跟著卡片高度走：sizes() 放進尺寸表的 ${railSizesPuts.length} 處都經 at()，at() 以 rowsThatFit 量出的班數畫`,
+    [`桌面上的發車看板班數跟著卡片高度走：sizes() 放進尺寸表與 API<31 回傳的 ${railSizesPuts.length} 處都經 at()，at() 以 rowsThatFit 量出的班數畫`,
       railSizesPuts.length > 0 && railSizesPuts.every(arg => /\bat\(context,/.test(arg) && !/\b(small|medium|large)\(/.test(arg))
         && /rowsThatFit\(/.test(railAtBody) && /boardWithRows\([^;]*\brows\b/.test(railAtBody)],
     [`widget_mixed_4x4 捷運段(wmx_metro_rows)示範＝${mixedMetro.tags.join('、') || '(無)'}（期望：demo-hero 一列在前、demo-row 至少一列）`,
