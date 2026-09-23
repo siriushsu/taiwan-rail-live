@@ -243,6 +243,8 @@ struct TraWaitHop: Equatable {
         case "shanlan":  return 2.470
         case "mingri":   return 1.972
         case "e500":     return 2.003
+        // 高鐵 700T（跟車卡進站軌道，docs/follow-card-track-20260923.md 三.6）。
+        case "700t":     return 2.701
         default:         return nil
         }
     }

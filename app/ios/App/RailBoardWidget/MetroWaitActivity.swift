@@ -446,6 +446,10 @@ struct MetroWaitTrack: View {
     var trailingAccent: String? = nil
     /// 動態島展開版：永遠黑底，軌道縮小（車高 16、整條 60、軌面 43）。
     var island: Bool = false
+    /// 上一站（左端小圓點）距卡片左緣的內縮量。等車卡預設 12pt——上一站是「你剛離開的地方」，
+    /// 貼著左緣就好。跟車卡用約一節車長（100pt）：車剛發車時車頭貼著左端小圓點，
+    /// 整節車廂（往左延伸）都要留在卡片內，不然車尾會被 12pt 內縮直接裁掉。
+    var prevInset: CGFloat = 12
     var scale: RailScale = RailScale(k: 1)
 
     @Environment(\.colorScheme) private var scheme
@@ -472,7 +476,7 @@ struct MetroWaitTrack: View {
             // 讓出左側那段虛線代表更遠的路。
             let sx = w - s(46)
             let far = track.car == .far
-            let px = far ? s(96) : s(12)
+            let px = far ? s(96) : s(prevInset)
             let nose: CGFloat? = {
                 switch track.car {
                 case .none: return nil

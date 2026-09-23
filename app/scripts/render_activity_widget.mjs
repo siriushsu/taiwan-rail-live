@@ -269,8 +269,19 @@ function trackStaticGate() {
   if (!/hop: TraWaitHop\(prevStop: ctx\.attributes\.prevStop/.test(traSource)) {
     bad.push('等站卡 display(ctx) 沒有用 attributes 組 TraWaitHop——真機上永遠不會出現進站軌道');
   }
+  // 跟車卡同樣共用這條軌道：鎖屏＋動態島兩處都要接上，出貨的 display(ctx) 要把 attributes 的
+  // sys／carModel 與推播的 tick／plateLeft／plateRight 傳進 make(...)。
+  const followCalls = followSource.match(/MetroWaitTrack\(track:/g)?.length ?? 0;
+  if (followCalls !== 2) bad.push(`跟車卡 MetroWaitTrack 呼叫點應為 2（鎖屏＋動態島），實際 ${followCalls}`);
+  if (!/sys: ctx\.attributes\.sys, carModel: ctx\.attributes\.carModel/.test(followSource)) {
+    bad.push('跟車卡 display(ctx) 沒有把 attributes.sys／carModel 傳進 make(...)——真機上永遠不會出現進站軌道');
+  }
+  if (!/tick: ctx\.state\.tick/.test(followSource)) bad.push('跟車卡 display(ctx) 沒有把 ctx.state.tick 傳進 make(...)——車永遠不動');
+  if (!/plateLeft: ctx\.state\.plateLeft, plateRight: ctx\.state\.plateRight/.test(followSource)) {
+    bad.push('跟車卡 display(ctx) 沒有把 ctx.state.plateLeft／plateRight 傳進 make(...)——台鐵站牌鄰站永遠不會出現');
+  }
   if (bad.length) throw new Error('進站軌道 gate 失敗：\n' + bad.map((b) => '  ' + b).join('\n'));
-  console.log('gate 通過：進站軌道零自走元件、捷運與臺鐵的鎖屏／動態島四處都接上、出貨路徑有查上一站與 tick');
+  console.log('gate 通過：進站軌道零自走元件、捷運／臺鐵／跟車卡的鎖屏／動態島六處都接上、出貨路徑有查上一站與 tick');
 }
 
 trackStaticGate();
@@ -418,6 +429,61 @@ let followWorst = RailFollowDisplay.make(
     nextStop: "新左營", prevStop: "臺北-環島",
     arrivalDate: nowSec + 23 * 60, departedDate: nowSec - 11 * 60,
     delaySec: 1_260, stopping: false, notice: nil, isStale: false, now: now)
+
+// ── 跟車卡：進站軌道（B 方案，docs/follow-card-track-20260923.md 三）─────────────
+// 台鐵 420 次自強：臺北 → 板橋，發車 nowSec-7 分、到站 minutesToArrive 分後。
+// tickMinutesFromNow：伺服器/前景這一發送出的時刻，用「距現在幾分」表示（可為 nil＝還沒收過帶
+// tick 的推播）。與 arrivalDate／departedDate 同一個座標系，方便手算行駛比例核對 gate。
+func followB(minutesToArrive: Double, tickMinutesFromNow: Double?, stopping: Bool = false,
+             delaySec: Int = 180, prevStop: String? = "臺北", notice: String? = nil,
+             isStale: Bool = false, transferWaiting: Bool = false,
+             sys: String = "tra_sched", carModel: String? = "emu3000",
+             plateLeft: String? = "萬華", plateRight: String? = "新莊") -> RailFollowDisplay {
+    RailFollowDisplay.make(
+        kind: "自強", trainNo: "420", colorHex: "#C0392B", terminus: "臺東",
+        nextStop: "板橋", prevStop: prevStop,
+        arrivalDate: nowSec + minutesToArrive * 60,
+        departedDate: nowSec - 7 * 60,
+        delaySec: delaySec, stopping: stopping, transferWaiting: transferWaiting,
+        notice: notice, isStale: isStale, now: now,
+        sys: sys, carModel: carModel,
+        tick: tickMinutesFromNow.map { nowSec + $0 * 60 },
+        plateLeft: plateLeft, plateRight: plateRight)
+}
+
+// 行駛中：發車 7 分、tick 落在發車後 4 分（距到站還有 4 分）⇒ 4/11 左右。
+let followBRunning = followB(minutesToArrive: 4, tickMinutesFromNow: -3)
+// 即將進站：tick 幾乎追上到站時刻，但還沒到（倒數已經 <60 秒進「即將進站」樣式）。
+let followBArriving = followB(minutesToArrive: 0.6, tickMinutesFromNow: 0.4)
+// 停靠中：不論 tick 在哪，stopping 一律畫 arrived（車停在站牌旁）。
+let followBStopping = followB(minutesToArrive: 0, tickMinutesFromNow: 0, stopping: true)
+// 剛發車：tick 貼著 departedDate，車頭剛離開上一站（驗 prevInset 100pt 有沒有讓整節車廂露出）。
+let followBJustDeparted = followB(minutesToArrive: 10, tickMinutesFromNow: -6.9)
+// 高鐵：不帶站牌鄰站，帶子用車種色（700T，plateLeft/Right 傳 nil 驗證「不帶鄰站」）。
+let followBThsrRunning = followB(minutesToArrive: 5, tickMinutesFromNow: -2, sys: "thsr_sched",
+                                 carModel: "700t", plateLeft: nil, plateRight: nil)
+let followBThsrArriving = followB(minutesToArrive: 0.6, tickMinutesFromNow: 0.4, sys: "thsr_sched",
+                                  carModel: "700t", plateLeft: nil, plateRight: nil)
+let followBThsrStopping = followB(minutesToArrive: 0, tickMinutesFromNow: 0, stopping: true,
+                                  sys: "thsr_sched", carModel: "700t", plateLeft: nil, plateRight: nil)
+let followBThsrJustDeparted = followB(minutesToArrive: 10, tickMinutesFromNow: -6.9, sys: "thsr_sched",
+                                      carModel: "700t", plateLeft: nil, plateRight: nil)
+// 沒接上任何一發（tick 是 nil）：只拿掉車，軌道照畫。
+let followBNoTick = followB(minutesToArrive: 4, tickMinutesFromNow: nil)
+// 到站時刻早就過去而沒有新推播（過期，同跟車卡舊版面那條規則）：資料過期 ⇒ arrived。
+let followBStale = followB(minutesToArrive: -4, tickMinutesFromNow: -3.9)
+// 等候轉乘：不畫車。
+let followBTransfer = followB(minutesToArrive: 4, tickMinutesFromNow: -3, transferWaiting: true)
+// 始發前（沒有上一站）：trackB 整個退回 nil（見 make() 的註解）。
+let followBNoPrev = followB(minutesToArrive: 10, tickMinutesFromNow: -1, prevStop: nil)
+// 系統不是台鐵／高鐵：trackB 應為 nil。
+let followBWrongSys = followB(minutesToArrive: 4, tickMinutesFromNow: -3, sys: "trtc")
+// 沒有車模素材：trackB 應為 nil。
+let followBNoAsset = followB(minutesToArrive: 4, tickMinutesFromNow: -3, carModel: "not-a-model")
+// 最壞情況：最長車種名＋4 碼車次＋最長站名與最長鄰站＋三位數誤點＋服務異常。
+let followBWorst = followB(minutesToArrive: 23, tickMinutesFromNow: -8, delaySec: 1_260,
+                           notice: "臺鐵即時資料中斷，位置為班表推估",
+                           plateLeft: "左營(舊城)", plateRight: "臺北-環島")
 
 // 捷運候車兩態（設計稿 E）＋兩個極端值。
 func wait(secondsToArrive: Double?, minutes: Int? = nil, isStale: Bool = false,
@@ -1552,6 +1618,88 @@ func traStaleFlipHeightGate() {
     print("gate 通過：等站卡進站軌道 stale 翻轉前後等高（接上／沒接上推播／有公告 × 360／300pt）")
 }
 
+/// 🔴 gate：跟車卡進站軌道車位置（純值層）。判準照契約 docs/follow-card-track-20260923.md 三.4：
+///    tick 為 nil ⇒ none；stopping／tick≥arrival／arrival 為 nil ⇒ arrived；資料過期 ⇒ arrived；
+///    否則 running((tick−departed)/(arrival−departed))；沒有 prevStop／transferWaiting／系統不對／
+///    沒有車模素材 ⇒ 整個 trackB 退回 nil（不是「trackB 在、car 是 none」——TrackB.prev 非 Optional，
+///    始發前沒有字可填，這個退路與 TraWaitHop.init? 缺上一站時完全一致）。
+@MainActor
+func followCarGate() {
+    var bad: [String] = []
+    func frac(_ d: RailFollowDisplay) -> Double? {
+        if case .running(let f)? = d.trackB?.car { return f } else { return nil }
+    }
+    guard let f1 = frac(followBRunning) else {
+        FileHandle.standardError.write(Data("跟車卡車位置 gate：行駛中那張沒有車\\n".utf8)); exit(1)
+    }
+    // 手算：發車 nowSec−7 分，到站 nowSec+4 分（行駛段 11 分），tick=nowSec−3 分 ⇒ 4/11。
+    if abs(f1 - 4.0 / 11.0) > 1e-9 { bad.append("行駛中應為 4/11，實際 \\(f1)") }
+    // tick 越接近到站，比例應越大（正向對照：換一個 tick 比例要跟著變）。
+    guard let f2 = frac(followB(minutesToArrive: 4, tickMinutesFromNow: -1)) else {
+        FileHandle.standardError.write(Data("跟車卡車位置 gate：tick 換成 -1 分後沒有車了\\n".utf8)); exit(1)
+    }
+    if !(f2 > f1) { bad.append("tick 越接近到站，比例應越大，實際 \\(f1) vs \\(f2)") }
+    if followBStopping.trackB?.car != .arrived { bad.append("停靠中應 arrived，實際 \\(String(describing: followBStopping.trackB?.car))") }
+    if followBStale.trackB?.car != .arrived { bad.append("資料過期應 arrived，實際 \\(String(describing: followBStale.trackB?.car))") }
+    for (name, d) in [("沒有 tick", followBNoTick), ("等候轉乘", followBTransfer)] {
+        if d.trackB == nil { bad.append("\\(name)：整條軌道不見了（應只拿掉車）") }
+        if d.trackB?.car != TrackCarNone { bad.append("\\(name)：不應畫車，實際 \\(String(describing: d.trackB?.car))") }
+    }
+    // tick 超過到站時刻 ⇒ arrived（即使還沒被伺服器判定 stale）。
+    let pastArrival = followB(minutesToArrive: 4, tickMinutesFromNow: 5)
+    if pastArrival.trackB?.car != .arrived { bad.append("tick 超過到站時刻應 arrived，實際 \\(String(describing: pastArrival.trackB?.car))") }
+    // arrivalDate 為 nil（算不出 ETA）⇒ arrived，不猜位置。
+    let noEta = RailFollowDisplay.make(
+        kind: "自強", trainNo: "420", colorHex: "#C0392B", terminus: "臺東",
+        nextStop: "板橋", prevStop: "臺北", arrivalDate: nil, departedDate: nowSec - 7 * 60,
+        delaySec: 0, stopping: false, notice: nil, isStale: false, now: now,
+        sys: "tra_sched", carModel: "emu3000", tick: nowSec - 60,
+        plateLeft: "萬華", plateRight: "新莊")
+    if noEta.trackB?.car != .arrived { bad.append("arrivalDate 為 nil 應 arrived，實際 \\(String(describing: noEta.trackB?.car))") }
+    // 反向：沒有上一站（始發前）、系統不是台鐵／高鐵、沒有車模素材 ⇒ trackB 整個是 nil。
+    if followBNoPrev.trackB != nil { bad.append("沒有上一站(始發前)不該有進站軌道") }
+    if followBWrongSys.trackB != nil { bad.append("捷運系統不該有跟車卡進站軌道") }
+    if followBNoAsset.trackB != nil { bad.append("沒有車模素材卻畫了進站軌道（會是一塊空白）") }
+    // 高鐵不帶站牌鄰站；台鐵鄰站要原樣帶出。
+    if followBThsrRunning.trackB?.plateNeighbours != nil { bad.append("高鐵不該有站牌鄰站") }
+    if followBRunning.trackB?.plateNeighbours != MetroWaitDisplay.TrackB.PlateNeighbours(left: "萬華", right: "新莊") {
+        bad.append("台鐵站牌鄰站應為 萬華／新莊")
+    }
+    if followBRunning.trackB?.prevSub == nil { bad.append("上一站小字（表定/發車時刻）沒有畫出來") }
+    if followBRunning.trackB?.prev != "臺北" { bad.append("上一站應為臺北") }
+    // 同一個 tick 在不同時刻重繪（系統替淺／深色、切外觀各算一張快照）⇒ 車必須停在同一處。
+    let a = followB(minutesToArrive: 4, tickMinutesFromNow: -3)
+    let atLaterNow = RailFollowDisplay.make(
+        kind: "自強", trainNo: "420", colorHex: "#C0392B", terminus: "臺東",
+        nextStop: "板橋", prevStop: "臺北",
+        arrivalDate: nowSec + 4 * 60, departedDate: nowSec - 7 * 60,
+        delaySec: 180, stopping: false, notice: nil, isStale: false,
+        now: Date(timeIntervalSince1970: nowSec + 30),
+        sys: "tra_sched", carModel: "emu3000", tick: nowSec - 3 * 60,
+        plateLeft: "萬華", plateRight: "新莊")
+    if a.trackB?.car != atLaterNow.trackB?.car {
+        bad.append("同一個 tick 在不同時刻重繪，車位置不同：\\(String(describing: a.trackB?.car)) vs \\(String(describing: atLaterNow.trackB?.car))")
+    }
+    if !bad.isEmpty { FileHandle.standardError.write(Data(("跟車卡車位置 gate 失敗：\\n" + bad.joined(separator: "\\n") + "\\n").utf8)); exit(1) }
+    print("gate 通過：跟車卡車位置（行駛比例手算＋遞增／停靠／過期／過站／沒 ETA 皆 arrived／沒 tick／轉乘不畫車）"
+        + "＋三條退回舊版面＋高鐵不帶鄰站／台鐵鄰站正確＋同 tick 不同時刻重繪車不動")
+}
+
+/// 🔴 gate：跟車卡進站軌道的幾個狀態在畫面上必須真的不一樣（PNG 位元組，不看實作）。
+@MainActor
+func followTrackStateGate() {
+    let shots: [(String, Data)] = [
+        ("行駛中", pngData(RailFollowLockView(display: followBRunning), width: 360, height: nil)),
+        ("即將進站", pngData(RailFollowLockView(display: followBArriving), width: 360, height: nil)),
+        ("停靠中", pngData(RailFollowLockView(display: followBStopping), width: 360, height: nil)),
+        ("剛發車", pngData(RailFollowLockView(display: followBJustDeparted), width: 360, height: nil)),
+    ]
+    for i in shots.indices { for j in (i + 1)..<shots.count where shots[i].1 == shots[j].1 {
+        FileHandle.standardError.write(Data("跟車卡進站軌道 gate：\\(shots[i].0) 與 \\(shots[j].0) 畫出來一模一樣\\n".utf8)); exit(1)
+    } }
+    print("gate 通過：跟車卡進站軌道四態畫面兩兩不同")
+}
+
 // 動態島展開版約 360pt 寬。
 @main
 struct Harness {
@@ -1574,6 +1722,8 @@ struct Harness {
         traCarGate()
         traTrackStateGate()
         traStaleFlipHeightGate()
+        followCarGate()
+        followTrackStateGate()
 
         // 臺鐵跟車：三態＋準點＋中斷＋最壞值
         _ = render(RailFollowLockView(display: followRunning), width: 360, maxHeight: lockScreenMaxHeight,
@@ -1592,6 +1742,31 @@ struct Harness {
                    to: outDir + "/la-follow-worst-393.png")
         _ = render(RailFollowLockView(display: followArriving), width: 360, maxHeight: lockScreenMaxHeight, mono: true,
                    to: outDir + "/la-follow-arriving-mono.png")
+
+        // 跟車卡・進站軌道（B）：淺色／深色 × 行駛中／即將進站／停靠中／剛發車 × 台鐵（emu3000）／高鐵（700t）
+        for dark in [true, false] {
+            let tag = dark ? "dark" : "light"
+            for (name, d) in [("running", followBRunning), ("arriving", followBArriving),
+                              ("stopping", followBStopping), ("departed", followBJustDeparted)] {
+                _ = render(RailFollowLockView(display: d), width: 360, maxHeight: lockScreenMaxHeight, dark: dark,
+                           to: outDir + "/la-followb-tra-\\(name)-\\(tag).png")
+            }
+            for (name, d) in [("running", followBThsrRunning), ("arriving", followBThsrArriving),
+                              ("stopping", followBThsrStopping), ("departed", followBThsrJustDeparted)] {
+                _ = render(RailFollowLockView(display: d), width: 360, maxHeight: lockScreenMaxHeight, dark: dark,
+                           to: outDir + "/la-followb-thsr-\\(name)-\\(tag).png")
+            }
+        }
+        _ = render(RailFollowLockView(display: followBNoTick), width: 360, maxHeight: lockScreenMaxHeight,
+                   to: outDir + "/la-followb-notick.png")
+        _ = render(RailFollowLockView(display: followBTransfer), width: 360, maxHeight: lockScreenMaxHeight,
+                   to: outDir + "/la-followb-transfer.png")
+        _ = render(RailFollowLockView(display: followBWorst), width: 330, maxHeight: lockScreenMaxHeight,
+                   to: outDir + "/la-followb-worst-393.png")
+        _ = render(RailFollowLockView(display: followBWorst), width: 300, maxHeight: lockScreenMaxHeight,
+                   to: outDir + "/la-followb-worst-narrow300.png")
+        _ = render(RailFollowLockView(display: followBRunning), width: 300, maxHeight: lockScreenMaxHeight, dark: false,
+                   to: outDir + "/la-followb-running-narrow300.png")
 
         // 捷運候車：正常／進站／未接推播／過期／整數分鐘／最壞值
         _ = render(MetroWaitLockView(display: waitNormal), width: 360, maxHeight: lockScreenMaxHeight,
@@ -1674,6 +1849,17 @@ struct Harness {
                    to: outDir + "/island-follow-bottom.png")
         _ = render(RailFollowIslandBottom(display: followStopping), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
                    to: outDir + "/island-follow-bottom-stopping.png")
+        // 跟車卡・進站軌道（B）動態島：四態 × 台鐵／高鐵。
+        for (name, d) in [("running", followBRunning), ("arriving", followBArriving),
+                          ("stopping", followBStopping), ("departed", followBJustDeparted)] {
+            _ = render(RailFollowIslandBottom(display: d), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
+                       to: outDir + "/island-followb-tra-\\(name).png")
+        }
+        for (name, d) in [("running", followBThsrRunning), ("arriving", followBThsrArriving),
+                          ("stopping", followBThsrStopping), ("departed", followBThsrJustDeparted)] {
+            _ = render(RailFollowIslandBottom(display: d), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
+                       to: outDir + "/island-followb-thsr-\\(name).png")
+        }
         _ = render(MetroWaitIslandBottom(display: waitNormal), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
                    to: outDir + "/island-wait-bottom.png")
         _ = render(MetroWaitIslandBottom(display: waitWorst), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
