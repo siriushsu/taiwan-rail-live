@@ -5511,6 +5511,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="perf3d0907"><span class="d">9/23</span><span>立體地圖跟車時，畫面不再約每 15 秒頓一下</span></li>
         <li data-cl-of="metrowaittrack0923"><span class="d">9/23</span><span>Android 16 的捷運等車通知加入進站軌道，列車跟著官方倒數開向你的車站</span></li>
         <li data-cl-of="railboardrows0923"><span class="d">9/23</span><span>Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班，Samsung 手機下方不再空一截</span></li>
         <li data-cl-of="checkinsync0923"><span class="d">9/23</span><span>成就「通勤的證明」「老通勤族」的路段次數與打卡車站，現在會跟著帳號雲端同步，換一台裝置登入不再歸零（謝謝網友回報）</span></li>
@@ -5518,7 +5519,6 @@
         <li data-cl-of="glassnear0913"><span class="d">9/23</span><span>跟車前進時，沿途建築的透視線條會持續更新，不必等列車靠站才一次出現</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/22</span><span>機捷跟上台灣設計展疏運班表（9/24–10/11）：假日機場第一航廈到環北的區間加班車每 15 分鐘一班，南延直達車改到機場第二航廈為止；深夜山鼻以南時刻也照官方改點更新</span></li>
         <li data-cl-of="yfallback0920"><span class="d">9/20</span><span>環狀線即時資料暫時中斷、在線列車無法定位時，地圖會自動改按當日班表運行，並標示「班表推估、時間可能有誤差」；訊號恢復後自動切回即時資料</span></li>
-        <li data-cl-of="virtualloops0920"><span class="d">9/20</span><span>山海號與平原號現在從地圖車牌、車站看板到列車資訊都直接標示為「軌島虛構專列」，不會再看起來像真實營運班次</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5526,6 +5526,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="perf3d0907"><span class="d">9/23</span><span>改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛；9/23 再修正跟車時畫面約每 15 秒頓一下：沿途建築的遮擋判斷改成分段計算，不再擠在同一格畫面裡算完</span></li>
         <li data-cl="glassnear0913"><span class="d">9/23</span><span>修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓；9/23 再改進跟車：列車前進時沿途建築的透視線條約每秒更新一次，不必等靠站才一次補上</span></li>
         <li data-cl="tymcexpo0922"><span class="d">9/22</span><span>機捷跟上台灣設計展疏運班表（9/24–10/11）：假日機場第一航廈到環北的區間加班車每 15 分鐘一班，南延直達車改到機場第二航廈為止；深夜山鼻以南時刻也照官方改點更新</span></li>
         <li data-cl="yfallback0920"><span class="d">9/20</span><span>環狀線即時資料暫時中斷、在線列車無法定位時，地圖會自動改按當日班表運行，並標示「班表推估、時間可能有誤差」；訊號恢復後自動切回即時資料</span></li>
@@ -5599,7 +5600,6 @@
         <li data-cl="searchtraintype0908"><span class="d">9/8</span><span>搜尋框接上車種與車型：以前打「自強號」會查無結果，現在輸入車種（自強、區間車、區間快、莒光）或車型（EMU3000、太魯閣、普悠瑪、推拉式 PP）都會列出當日符合的班次，正在跑的排最前面，命中的車型也能點開看介紹（謝謝網友回報）</span></li>
         <li data-cl="stocksearch0907"><span class="d">9/7</span><span>搜尋框可以打車型了：輸入 EMU3000、普悠瑪、PP、DR3100 找那一型今天的班次，正在跑的排最前面，點一下直接跟車</span></li>
         <li data-cl="followzoom0907"><span class="d">9/7</span><span>跟車鏡頭改為沿用你當下的視角，在近景點列車或按隨機跟隨不會再被拉遠，立體車身看得到細節；點跟隨中的那台車改成把鏡頭鎖回它，不再取消跟隨</span></li>
-        <li data-cl="perf3d0907"><span class="d">9/7</span><span>改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛</span></li>
         <li data-cl="ambientfollow3d0907"><span class="d">9/7</span><span>放空的跟車視角改成貼著車身的立體視角，看得到列車在軌道上跑，速度也放回實際車速；放空時的配樂改播完整曲庫</span></li>
         <li data-cl="garagefollow0909"><span class="d">9/9</span><span>環形試跑放大時會鎖定三節列車、跟著編組繞圈，旋轉時保持列車置中；縮回 100% 即可欣賞完整跑道</span></li>
         <li data-cl="garageglass0909"><span class="d">9/9</span><span>修正車庫三節車廂的車窗反光不一致；海岸行旅的玻璃會跟著日出、藍天、黃昏與星空變換光影</span></li>
@@ -6603,7 +6603,8 @@
 // v0923c：打卡／路段次數接上帳號雲端同步並依帳號分區(issue #72:電腦登入「通勤的證明」「老通勤族」是 0)。
 // v0923d：更新紀錄補 Android 台鐵發車看板班數跟著卡片高度走（網頁本身無變動；原生改動隨 Android 1.6.11 (62) 出貨）。
 // v0923e：更新紀錄補 Android 16 捷運等車通知進站軌道（隨 Android 1.6.11 出貨）。
-const BUILD = 'v0923e';
+// v0923f：跟車時車站建物遮罩改成分片計算，路線集合變動不再整批作廢快取，不再每 15 秒擠在同一幀算完。
+const BUILD = 'v0923f';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

@@ -8,6 +8,12 @@
 //  C 的假 move 帶 originalEvent(=手指):玻璃線只對手勢／慣性／飛行動畫延後,跟車的程式 jumpTo 沒有 originalEvent。
 //  N4. 跟車:每 50ms 發一組不帶 originalEvent 的 move+moveend(=jumpTo 的事件序列)8s → 玻璃線照常重建、
 //      相鄰兩次間隔 0.8–1.6s(不等 15s 上限,也不是每幀重建)。2026-09-23 使用者回報跟車時近景建物沒有線。
+//  M1. 冷快取分片:相機靜止時讓遮罩快取整批作廢(交替 setEngineeringMasks(null／空集合),工程遮罩仍是空的、結果不變),
+//      這一輪必須拆成 ≥3 次 maskBuildings 呼叫、任一次 ≤ 全輪耗時的 40%,且 8s 內算完。
+//      2026-09-23 跟車每 15s 頓一下:快取作廢後整輪在同一幀重新解碼(桌面 1x 132–229ms 長幀)。
+//  M2. 跟車冷快取:不帶 originalEvent 的 move 連發時,到 15s 上限(13.5–16.5s)開始算,之後各片不再等下一個 15s,
+//      開始後 3s 內算完;整輪只 querySourceFeatures 一次(各片沿用同一份清單)。
+//  M1／M2 以改寫 station-layer.js 包住 maskBuildings 記下每次呼叫的起點、耗時、是否還沒算完(回 null)。
 import {chromium} from 'playwright';
 const PORT = process.argv[2] || new URL(process.env.BASE_URL || 'http://127.0.0.1:5207/').port;
 const results = [];
@@ -15,6 +21,9 @@ const HEADFUL = process.env.HEADFUL==='1';
 const b = await chromium.launch(HEADFUL?{channel:'chrome',headless:false}:{});
 const ctx = await b.newContext({ viewport:{width:1280,height:800}, locale:'zh-TW', timezoneId:'Asia/Taipei', hasTouch:true });
 await ctx.addInitScript(()=>{ try{localStorage.setItem('trainmap-howto-seen','1');}catch(e){} });
+await ctx.route('**/rail-3d/station-layer.js', async route=>{ const response=await route.fetch(); const source=await response.text(), head='function maskBuildings(active){';
+  if(!source.includes(head)) throw new Error('station-layer.js 找不到 maskBuildings,M1/M2 無法量測');
+  await route.fulfill({ response, body: source.replace(head, `function maskBuildings(active){const t=performance.now(),r=maskBuildingsTimed(active);(window.__mb||(window.__mb=[])).push([t,performance.now()-t,r===null]);return r;}function maskBuildingsTimed(active){`) }); });
 const page = await ctx.newPage();
 const errors=[]; page.on('pageerror', e=>errors.push(String(e).slice(0,200)));
 await page.goto(`http://127.0.0.1:${PORT}/?scene=3d&lang=zh-TW&cb=${Date.now()}`, { waitUntil:'domcontentloaded' });
@@ -101,6 +110,34 @@ await page.waitForTimeout(8000);
 const rF = await page.evaluate(()=>{ clearInterval(window.__follow); const at=window.__qsfAll.filter(x=>x[1]==='night').map(x=>+((x[0]-window.__f0)/1000).toFixed(2)); return { at, gaps: at.slice(1).map((t,i)=>+(t-at[i]).toFixed(2)) }; });
 console.log('FOLLOW', JSON.stringify(rF));
 results.push({ name:'N4 跟車時玻璃線每 0.8–1.6s 重建一次(不等相機停)', pass: rF.at.length>=5 && rF.at[0]<=1.6 && rF.gaps.every(g=>g>=0.8&&g<=1.6), detail:rF });
+// 一輪＝含站房 querySourceFeatures 的那次呼叫,到第一個不是 null 的呼叫為止(中間回 null 的都是同一輪的分片)。
+const maskRun = (from) => page.evaluate((from)=>{ const calls=(window.__mb||[]).filter(c=>c[0]>=from), q=window.__qsf.filter(t=>t>=from);
+  const i=calls.findIndex(c=>q.some(t=>t>=c[0]&&t<=c[0]+c[1])); if(i<0) return { found:false, calls:calls.length, qsf:q.length };
+  const j=calls.findIndex((c,k)=>k>=i&&!c[2]); const run=j<0?calls.slice(i):calls.slice(i,j+1), ms=run.map(c=>c[1]), total=ms.reduce((a,b)=>a+b,0);
+  return { found:true, done:j>=0, startS:+((calls[i][0]-from)/1000).toFixed(2), endS:+((run.at(-1)[0]+run.at(-1)[1]-from)/1000).toFixed(2), calls:run.length,
+    totalMs:+total.toFixed(1), maxMs:+Math.max(...ms).toFixed(1), maxShare:+(Math.max(...ms)/total).toFixed(2), qsfInRun:q.filter(t=>t>=calls[i][0]&&t<=run.at(-1)[0]+run.at(-1)[1]).length }; }, from);
+const coldToggle = (collection) => page.evaluate((collection)=>{ window.__qsf=[]; window.__m0=performance.now(); railIslandIntegration.renderer.getStations().setEngineeringMasks(collection); return window.__m0; }, collection);
+
+// ---- M1:相機靜止、冷快取 → 分片算完 ----
+await page.waitForTimeout(1500);
+const m1From = await coldToggle(null);
+await page.waitForTimeout(8000);
+const r1 = await maskRun(m1From);
+console.log('M1', JSON.stringify(r1));
+results.push({ name:'M1 冷快取分片:≥3 片、任一片 ≤40%、8s 內算完', pass: r1.found && r1.done && r1.calls>=3 && r1.maxShare<=0.4 && r1.endS<=8, detail:r1 });
+
+// ---- M2:跟車(無 originalEvent 連發)、冷快取 → 15s 上限開始,之後不再等,3s 內算完、只查一次圖磚 ----
+await page.evaluate(()=>{ window.__mv=[]; window.__follow2=setInterval(()=>{ try{ M.raw.fire('move'); M.raw.fire('moveend'); }catch(e){} },50); });
+await page.waitForTimeout(1200);
+const m2From = await coldToggle({type:'FeatureCollection',features:[]});
+await page.evaluate(()=>{ try{ M.raw.fire('sourcedata',{sourceDataType:'content',sourceId:'openmaptiles',dataType:'source'}); }catch(e){} });
+await page.waitForTimeout(20000);
+const m2Gap = await page.evaluate(()=>{ clearInterval(window.__follow2); const mv=window.__mv; let mg=0; for(let i=1;i<mv.length;i++) mg=Math.max(mg,mv[i]-mv[i-1]); return +mg.toFixed(0); });
+const r2 = { ...await maskRun(m2From), maxFakeGapMs:m2Gap };
+console.log('M2', JSON.stringify(r2));
+// 與 C 同一個前置條件:假跟車的 move 斷開 ≥350ms,排程器就會當成相機停了,量到的不是跟車行為。
+if (r2.maxFakeGapMs>=350) results.push({ name:'M2 前置條件:假 move 間隔必須 <350ms(環境太慢=本條無效,不算過也不算紅)', pass:false, detail:r2 });
+else results.push({ name:'M2 跟車冷快取:13.5–16.5s 開始、之後 3s 內分片算完、整輪只查一次圖磚', pass: r2.found && r2.done && r2.startS>=13.5 && r2.startS<=16.5 && r2.endS-r2.startS<=3 && r2.calls>=2 && r2.qsfInRun===1, detail:r2 });
 results.push({ name:'Z 無 pageerror', pass: errors.length===0, detail:errors.slice(0,3) });
 for(const r of results) console.log(r.pass?'PASS':'FAIL', r.name, JSON.stringify(r.detail).slice(0,300));
 await b.close();
