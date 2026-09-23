@@ -538,8 +538,8 @@ struct MetroWaitTrack: View {
             .frame(width: w, height: height, alignment: .topLeading)
         }
         .frame(height: height)
-        // 只裁左右（虛線段那台車會往左伸出去）；上方多留 6pt：站名牌（尤其兩行帶子的台鐵站牌）
-        // 比預留的格子高 2–3pt，整片 clipped() 會把站牌的上框與圓角切掉。
+        // 左右照舊切齊（遠處的車會伸出左緣），上緣多留 6pt：站名牌的上框會凸出軌道區，
+        // 用 .clipped() 會把上框切掉一截（09-23 台鐵等車卡 session 發現，同一個修法）。
         .mask(Rectangle().padding(.top, -s(6)))
     }
 
@@ -566,7 +566,8 @@ struct MetroWaitTrack: View {
 }
 
 /// 琺瑯站名牌（色票同網站頂端的 `.plate`、小工具 C 方案同一組）：白瓷底＋深藍字，
-/// 下緣帶子用路線色＋線名。深色模式與動態島換成深藍瓷。
+/// 下緣帶子用路線色＋線名。深色模式與動態島用同一塊白瓷壓暗一階（09-23 使用者裁示：網站那組深藍瓷
+/// 放在黑灰卡片上跟原本的樣式不搭；壓暗是為了夜裡不刺眼）。
 struct MetroWaitPlate: View {
     let name: String
     let band: String?
@@ -605,9 +606,9 @@ struct MetroWaitPlate: View {
     }
 
     var body: some View {
-        let ink = Self.rgb(dark ? 0xcfe0f8 : 0x26497e)
-        let frame = Self.rgb(dark ? 0x3a4e76 : 0x767061)
-        let glaze = dark ? [Self.rgb(0x1b2740), Self.rgb(0x141d31), Self.rgb(0x10182a)]
+        let ink = Self.rgb(0x26497e)
+        let frame = Self.rgb(dark ? 0x6b6557 : 0x767061)
+        let glaze = dark ? [Self.rgb(0xe6e3da), Self.rgb(0xdcd8cc), Self.rgb(0xd0ccbf)]
                          : [Self.rgb(0xffffff), Self.rgb(0xf7f5ee), Self.rgb(0xedebe0)]
         VStack(spacing: s(2)) {
             Text(name)
@@ -849,7 +850,11 @@ struct MetroWaitActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 5) {
                         RailLineMark(name: d.lineLabel, color: d.color, fontSize: 11)
-                        Text(d.station).font(.system(size: 12, weight: .medium)).lineLimit(1)
+                        // 進站軌道版：站名已在軌道右端的站牌上，頂列只留線名（兩者並排時線名被截成
+                        // 「淡水信…」，09-23 使用者裁示留線名）。沒有站牌的舊版面照舊顯示站名。
+                        if d.trackB == nil {
+                            Text(d.station).font(.system(size: 12, weight: .medium)).lineLimit(1)
+                        }
                     }
                     .padding(.leading, 4)
                 }

@@ -209,7 +209,7 @@ public final class RailWaitNotificationInstrumentedTest {
 
     @Test
     public void android16TrackRunning() throws Exception {
-        Notification.ProgressStyle p = postTrack(40, false);
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTrack(40, false);
         assertNotNull("行駛中：左端是上一站", p.getProgressStartIcon());
         assertNotNull("行駛中：右端是本站站牌", p.getProgressEndIcon());
         assertNotNull("行駛中：要畫車", p.getProgressTrackerIcon());
@@ -223,7 +223,7 @@ public final class RailWaitNotificationInstrumentedTest {
 
     @Test
     public void android16TrackNotYetAtPrev() throws Exception {
-        Notification.ProgressStyle p = postTrack(200, false);
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTrack(200, false);
         assertEquals("還沒到上一站：上一站改畫成進度條上的點", null, p.getProgressStartIcon());
         assertEquals(1, p.getProgressPoints().size());
         assertNotNull(p.getProgressTrackerIcon());
@@ -233,7 +233,7 @@ public final class RailWaitNotificationInstrumentedTest {
 
     @Test
     public void android16TrackArriving() throws Exception {
-        Notification.ProgressStyle p = postTrack(-5, false);
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTrack(-5, false);
         assertNotNull(p.getProgressTrackerIcon());
         assertEquals("進站：整段都走過了", 1, p.getProgressSegments().size());
         hold();
@@ -241,7 +241,7 @@ public final class RailWaitNotificationInstrumentedTest {
 
     @Test
     public void android16TrackOfflineDrawsNoCar() throws Exception {
-        Notification.ProgressStyle p = postTrack(40, true);
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTrack(40, true);
         assertEquals("抓不到資料就不畫車", null, p.getProgressTrackerIcon());
         assertNotNull(p.getProgressStartIcon());
         assertNotNull(p.getProgressEndIcon());
@@ -301,7 +301,7 @@ public final class RailWaitNotificationInstrumentedTest {
     @Test
     public void android16TraTrackRunning() throws Exception {
         // 上一站表定開 −3 分、本站表定 +4 分、誤點 0 ⇒ 走了 3/7。
-        Notification.ProgressStyle p = postTraTrack(-3 * 60, 4 * 60, 0, "emu3000");
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTraTrack(-3 * 60, 4 * 60, 0, "emu3000");
         assertNotNull("行駛中：左端是上一站", p.getProgressStartIcon());
         assertNotNull("行駛中：右端是本站站牌", p.getProgressEndIcon());
         assertNotNull("行駛中：要畫車", p.getProgressTrackerIcon());
@@ -317,7 +317,7 @@ public final class RailWaitNotificationInstrumentedTest {
     @Test
     public void android16TraTrackNotYetAtPrev() throws Exception {
         // 上一站表定還要 5 分才開（誤點 0）⇒ 車停在上一站左邊。
-        Notification.ProgressStyle p = postTraTrack(5 * 60, 12 * 60, 0, "temu1000");
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTraTrack(5 * 60, 12 * 60, 0, "temu1000");
         assertEquals("還沒到上一站：上一站改畫成進度條上的點", null, p.getProgressStartIcon());
         assertEquals(1, p.getProgressPoints().size());
         assertNotNull(p.getProgressTrackerIcon());
@@ -329,7 +329,7 @@ public final class RailWaitNotificationInstrumentedTest {
     public void android16TraTrackDelayShiftsBothEnds() throws Exception {
         // 表定上一站 −10 分開、本站 −3 分到，但誤點 7 分 ⇒ 實際 −3 分開、+4 分到 ⇒ 同樣 3/7。
         // 只把誤點加在到站端（或只加在開車端）都會落在別的位置。
-        Notification.ProgressStyle p = postTraTrack(-10 * 60, -3 * 60, 7, "emu3000");
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTraTrack(-10 * 60, -3 * 60, 7, "emu3000");
         assertNotNull(p.getProgressTrackerIcon());
         assertEquals("誤點兩端都加：車頭仍在 3/7", 3000 / 7, p.getProgressSegments().get(0).getLength(), 2);
         hold();
@@ -337,7 +337,7 @@ public final class RailWaitNotificationInstrumentedTest {
 
     @Test
     public void android16TraTrackArrived() throws Exception {
-        Notification.ProgressStyle p = postTraTrack(-8 * 60, -60, 0, "emu3000");
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTraTrack(-8 * 60, -60, 0, "emu3000");
         assertNotNull(p.getProgressTrackerIcon());
         assertEquals("車應已到：整段都走過了", 1, p.getProgressSegments().size());
         hold();
@@ -345,7 +345,7 @@ public final class RailWaitNotificationInstrumentedTest {
 
     @Test
     public void android16TraTrackUnknownDelayDrawsNoCar() throws Exception {
-        Notification.ProgressStyle p = postTraTrack(-3 * 60, 4 * 60, null, "emu3000");
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTraTrack(-3 * 60, 4 * 60, null, "emu3000");
         assertEquals("沒有官方誤點就不畫車", null, p.getProgressTrackerIcon());
         assertNotNull(p.getProgressStartIcon());
         assertNotNull(p.getProgressEndIcon());
@@ -354,12 +354,12 @@ public final class RailWaitNotificationInstrumentedTest {
 
     @Test
     public void android16TraTrackUnknownModelKeepsLegacyProgress() throws Exception {
-        Notification.ProgressStyle p = postTraTrack(-3 * 60, 4 * 60, 0, "no-such-model");
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTraTrack(-3 * 60, 4 * 60, 0, "no-such-model");
         assertEquals("沒有素材的車型不畫進站軌道", null, p.getProgressStartIcon());
         assertEquals(null, p.getProgressEndIcon());
     }
 
-    private Notification.ProgressStyle postTraTrack(long prevDepOffsetSec, long schedOffsetSec,
+    private Notification.Style postTraTrack(long prevDepOffsetSec, long schedOffsetSec,
             Integer delayMin, String carModel) throws Exception {
         Assume.assumeTrue(Build.VERSION.SDK_INT >= 36);
         Assume.assumeTrue(RailWaitNotification.canNotify(context));
@@ -391,10 +391,13 @@ public final class RailWaitNotificationInstrumentedTest {
             n.extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER, false));
         Notification.Style style = Notification.Builder.recoverBuilder(context, n).getStyle();
         assertEquals(Notification.ProgressStyle.class, style.getClass());
-        return (Notification.ProgressStyle) style;
+        return style;
     }
 
-    private Notification.ProgressStyle postTrack(long etaOffsetSec, boolean offline) throws Exception {
+    // 🔴 輔助函式的簽名不准出現 Notification.ProgressStyle（API 36 才有）：JUnit 掃方法時會解析簽名型別，
+    //    API 35 以下整個類別載入失敗，連不需要 Android 16 的測試也跑不了（09-23 在 API 35 模擬器實見）。
+    //    方法內文的區域變數不受影響，那些測試開頭有 Assume 擋住。
+    private Notification.Style postTrack(long etaOffsetSec, boolean offline) throws Exception {
         Assume.assumeTrue(Build.VERSION.SDK_INT >= 36);
         Assume.assumeTrue(RailWaitNotification.canNotify(context));
         long now = System.currentTimeMillis();
@@ -421,11 +424,51 @@ public final class RailWaitNotificationInstrumentedTest {
         assertEquals(Notification.ProgressStyle.class, style.getClass());
         Log.i(TAG, "track eta+" + etaOffsetSec + " offline=" + offline + " promotion="
             + RailWaitNotification.promotionStatus(context));
-        return (Notification.ProgressStyle) style;
+        return style;
+    }
+
+    /**
+     * 站牌深色版＝同一塊白瓷壓暗一階（09-23 使用者裁示；網站那組深藍瓷放在黑灰卡片上不搭）。
+     * 深色靠 createConfigurationContext 切，不動手機的系統深色設定（別的 session 可能正在用這支手機）。
+     * 兩張圖存在 cache/plate-{light,dark}.png，可用 run-as 拉出來看。
+     */
+    @Test
+    public void plateStaysEnamelInDarkMode() throws Exception {
+        RailWaitTrack.Hop hop = RailWaitTrack.hop(context, "trtc", "台北車站", "象山");
+        assertNotNull(hop);
+        int[] face = new int[2];
+        for (int i = 0; i < 2; i++) {
+            android.content.res.Configuration conf =
+                new android.content.res.Configuration(context.getResources().getConfiguration());
+            conf.uiMode = (conf.uiMode & ~android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                | (i == 1 ? android.content.res.Configuration.UI_MODE_NIGHT_YES
+                          : android.content.res.Configuration.UI_MODE_NIGHT_NO);
+            Context c = context.createConfigurationContext(conf);
+            android.graphics.drawable.Drawable d =
+                RailWaitTrack.style(c, hop, 0.5, "#E3002C").getProgressEndIcon().loadDrawable(c);
+            int w = d.getIntrinsicWidth(), h = d.getIntrinsicHeight();
+            android.graphics.Bitmap b = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
+            d.setBounds(0, 0, w, h);
+            d.draw(new android.graphics.Canvas(b));
+            try (java.io.FileOutputStream out = new java.io.FileOutputStream(
+                    new java.io.File(context.getCacheDir(), "plate-" + (i == 1 ? "dark" : "light") + ".png"))) {
+                b.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out);
+            }
+            // 瓷面取樣點：「站」字左側、色帶上方（字約佔寬度中間一半，色帶從 68% 高開始）。
+            face[i] = b.getPixel(Math.round(w * 0.15f), Math.round(h * 0.45f));
+        }
+        for (int px : face) {
+            assertTrue("站牌瓷面要是白瓷（淺色），深色模式也一樣：#" + Integer.toHexString(px),
+                android.graphics.Color.red(px) > 190 && android.graphics.Color.green(px) > 190
+                    && android.graphics.Color.blue(px) > 180);
+        }
+        assertTrue("深色版要比淺色版壓暗一階：淺 #" + Integer.toHexString(face[0]) + " 深 #" + Integer.toHexString(face[1]),
+            android.graphics.Color.red(face[1]) < android.graphics.Color.red(face[0]));
     }
 
     /** 系統 tracker 寬最多 2 倍高，超過的會被從中間裁掉（車頭車尾不見）。 */
-    private void assertTrackerNotCropped(Notification.ProgressStyle p) {
+    private void assertTrackerNotCropped(Notification.Style style) {
+        Notification.ProgressStyle p = (Notification.ProgressStyle) style;
         android.graphics.drawable.Drawable d = p.getProgressTrackerIcon().loadDrawable(context);
         assertNotNull(d);
         assertTrue("車模圖寬高比 " + d.getIntrinsicWidth() + "×" + d.getIntrinsicHeight() + " 超過 2:1 會被裁",
