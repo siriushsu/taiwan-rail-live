@@ -1755,8 +1755,8 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {"桃園機場捷運全線每一班�
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"桃園機場捷運全線每一班都標得出直達車或普通車，首末班不再只顯示線號": "桃園空港MRTは全線すべての列車に直達か普通かの種別を表示するようになりました。始発と最終の列車も路線記号だけの表示ではなくなりました。"});
 
-Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓": "Fixed missing see-through outlines on nearby buildings in dense areas such as Taipei, prioritizing nearby buildings in view."});
-Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓": "台北など建物が密集する地域で、近くの建物の透視線が欠ける問題を修正しました。画面内の近景の輪郭を優先して表示します。"});
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓；9/23 再改進跟車：列車前進時沿途建築的透視線條約每秒更新一次，不必等靠站才一次補上": "Fixed missing see-through outlines on nearby buildings in dense areas such as Taipei, prioritizing nearby buildings in view. Since 9/23, while you follow a train, outlines along the route refresh about once a second instead of appearing only when the train stops."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓；9/23 再改進跟車：列車前進時沿途建築的透視線條約每秒更新一次，不必等靠站才一次補上": "台北など建物が密集する地域で、近くの建物の透視線が欠ける問題を修正しました。画面内の近景の輪郭を優先して表示します。9/23からは列車の追跡中も沿線の建物の透視線が約1秒ごとに更新され、停車するまで表示されないことはなくなりました。"});
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"到站提醒新增每天、週一到五或自訂星期的重複設定，通勤固定搭的那班設一次就長期有效": "Arrival reminders can now repeat every day, on weekdays, or on days you pick, so a regular commute only needs setting up once."});
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"到站提醒新增每天、週一到五或自訂星期的重複設定，通勤固定搭的那班設一次就長期有效": "到着リマインダーに毎日・平日・曜日指定の繰り返し設定を追加しました。いつも乗る通勤列車は一度設定すれば使い続けられます。"});
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"台鐵列車互穿再減少：補回 97 站的站區股道，雙線區間依行車方向分股行駛，台北–萬華地下段不再兩向共用同一條軌道，並改善單線會車判斷": "Fewer TRA trains now appear to pass through each other: station yard tracks are restored at 97 stations, double-track sections keep each direction on its own track (the Taipei–Wanhua underground section no longer shares one track both ways), and meets on single-track lines are judged more accurately."});
@@ -3093,4 +3093,47 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '台鐵誤點更新會核對官方所在車站；過站時的小幅誤點直接校正位置，同車次重複資料也不再把較大誤點蓋掉': '台鉄の遅延更新で公式の所在駅も照合するようにしました。駅を通過した際の小さな遅延増加はすぐに位置へ反映し、重複データがより大きな遅延を上書きすることもなくなりました。',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '跟車前進時，沿途建築的透視線條會持續更新，不必等列車靠站才一次出現': 'While you follow a train, building outlines along the route now keep updating instead of appearing all at once when the train stops.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '跟車前進時，沿途建築的透視線條會持續更新，不必等列車靠站才一次出現': '列車の追跡中も沿線の建物の透視線が更新され続け、停車したときにまとめて表示されることはなくなりました。',
+});
+// 2026-09-23 捷運等車卡進站前每分鐘對時：第一層「最近更新」會顯示這句，同步補 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  'iPhone 捷運等車卡在列車進站前約 4 分鐘內，每分鐘跟官方即時資訊對一次時': 'On iPhone, the metro waiting card now re-syncs its countdown with official real-time data every minute during the last 4 minutes or so before the train arrives'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  'iPhone 捷運等車卡在列車進站前約 4 分鐘內，每分鐘跟官方即時資訊對一次時': 'iPhoneのメトロ待ちカードは、列車到着の約4分前から毎分公式のリアルタイム情報と時刻を合わせるようになりました'
+});
+// 2026-09-23 issue #72 打卡／路段接上帳號同步：第一層「最近更新」會顯示這句，同步補 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '成就「通勤的證明」「老通勤族」的路段次數與打卡車站，現在會跟著帳號雲端同步，換一台裝置登入不再歸零（謝謝網友回報）': 'Station check-ins and segment counts behind the "Commuter credentials" and "Veteran commuter" achievements now sync with your account, so they no longer reset to zero when you sign in on another device (thanks for the report)',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '成就「通勤的證明」「老通勤族」的路段次數與打卡車站，現在會跟著帳號雲端同步，換一台裝置登入不再歸零（謝謝網友回報）': '実績「通勤の証」「ベテラン通勤者」の区間回数とチェックイン駅がアカウントのクラウド同期に対応し、別の端末でログインしてもゼロに戻らなくなりました（ご報告ありがとうございます）',
+});
+// 2026-09-23 Android 台鐵發車看板班數跟著卡片高度走：第一層「最近更新」會顯示這句，同步補 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  'Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班，Samsung 手機下方不再空一截': 'The Android TRA departure board widget now lists as many trains as the card can fit, leaving no empty gap at the bottom on Samsung phones'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  'Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班，Samsung 手機下方不再空一截': 'Android のホーム画面の台鉄発車案内ウィジェットが、カードに入るだけの列車を表示するようになり、Samsung 端末で下に空白が残らなくなりました'
+});
+// 2026-09-23 Android 16 捷運等車通知進站軌道：第一層「最近更新」會顯示這句，同步補 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  'Android 16 的捷運等車通知加入進站軌道，列車跟著官方倒數開向你的車站': 'On Android 16, metro waiting notifications now show an arrival track, with the train moving toward your station along with the official countdown'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  'Android 16 的捷運等車通知加入進站軌道，列車跟著官方倒數開向你的車站': 'Android 16 のメトロ待ち通知に到着トラックを追加。列車が公式カウントダウンに合わせてあなたの駅へ向かいます'
+});
+// 2026-09-23 跟車每 15 秒頓一下（車站建物遮罩分片計算）：首層摘要與第二層正本都要 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '立體地圖跟車時，畫面不再約每 15 秒頓一下': 'Following a train on the 3D map no longer stutters about every 15 seconds.',
+  '改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛；9/23 再修正跟車時畫面約每 15 秒頓一下：沿途建築的遮擋判斷改成分段計算，不再擠在同一格畫面裡算完': 'Improved 3D train following and terrain performance while preserving full formations, model detail and continuous movement along the tracks. On 9/23, fixed a brief stutter about every 15 seconds while following a train: checks for buildings blocking the view along the route are now spread across frames instead of being done all at once.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '立體地圖跟車時，畫面不再約每 15 秒頓一下': '立体地図で列車を追跡しているとき、約15秒ごとに画面が一瞬止まる問題を修正しました。',
+  '改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛；9/23 再修正跟車時畫面約每 15 秒頓一下：沿途建築的遮擋判斷改成分段計算，不再擠在同一格畫面裡算完': '編成や模型の細部、線路に沿った連続走行を保ちながら、立体列車の追従と地形表示を滑らかにしました。9/23 には列車の追跡中に約15秒ごとに画面が一瞬止まる問題を修正し、沿線の建物による遮蔽の判定を複数のフレームに分けて計算するようにしました。',
 });

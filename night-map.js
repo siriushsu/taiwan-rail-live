@@ -36,7 +36,7 @@
     const layer = {
       id:'building-glass-edges', type:'custom', renderingMode:'3d',
       onAdd(raw, gl) {
-        this.raw=raw; this.gl=gl; this.count=0; this.origin=[0,0,0]; this.disposed=false; this.tiles=null; this.movedAt=0; this.deferSince=0;
+        this.raw=raw; this.gl=gl; this.count=0; this.origin=[0,0,0]; this.disposed=false; this.tiles=null; this.movedAt=0; this.deferSince=0; this.autoAt=0; this.builtAt=0;
         const shader = (type,source) => { const s=gl.createShader(type); gl.shaderSource(s,source); gl.compileShader(s); if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
         const modern=!!gl.createVertexArray;
         const vs=shader(gl.VERTEX_SHADER,(modern?'#version 300 es\nin':'attribute')+' vec4 position; uniform mat4 matrix; '+(modern?'out':'varying')+' float alpha; void main(){gl_Position=matrix*vec4(position.xyz,1.0);alpha=position.w;}');
@@ -46,11 +46,14 @@
         if(!gl.getProgramParameter(this.program,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(this.program));
         this.attribute=gl.getAttribLocation(this.program,'position'); this.matrix=gl.getUniformLocation(this.program,'matrix');
         this.buffer=gl.createBuffer(); this.vao=gl.createVertexArray?.();
-        // 與 rail-3d/station-layer.js 的遮罩同一條規則:相機距上次移動 <400ms 就先不重建(手指還在拖),
-        // 最多延後 15s(跟車時相機每幀都動,不能永遠不更新)。地形圖磚到貨會改高度,整批快取作廢。
+        // 與 rail-3d/station-layer.js 的遮罩同一條規則:手指拖曳／慣性／飛行動畫距上次移動 <400ms 就先不重建,
+        // 最多延後 15s。地形圖磚到貨會改高度,整批快取作廢。
+        // 跟車是程式每幀 jumpTo(沒有 originalEvent、也不在 easing),不能等相機停:否則要等 15s 上限或靠站
+        // 才重建,前進中近景大多沒有線(2026-09-23 使用者回報;桌面實測近景有線比例 7s 後掉到 34%)。
+        // 跟車改成最多每 1s 重建一次;快取路徑一次重建桌面 4x 降速約 14–44ms。
         this.schedule=e=>{if(e?.sourceId && e.sourceId!=='openmaptiles'&&e.sourceId!=='terrain')return; if(e?.sourceId==='terrain')this.tiles=null; if(this.timer||this.disposed)return; this.timer=setTimeout(()=>{this.timer=null;this.settle();},240);};
-        this.settle=()=>{const now=performance.now();if(now-(this.movedAt||0)<400){if(!this.deferSince)this.deferSince=now;if(now-this.deferSince<15000){this.timer=setTimeout(()=>{this.timer=null;this.settle();},150);return;}}this.deferSince=0;this.rebuild();};
-        this.noteMove=()=>{this.movedAt=performance.now();};
+        this.settle=()=>{const now=performance.now();if(now-(this.movedAt||0)<400){if(!this.deferSince)this.deferSince=now;if(now-this.deferSince<15000){this.timer=setTimeout(()=>{this.timer=null;this.settle();},150);return;}}if(now-this.autoAt<400&&now-this.builtAt<1000){this.timer=setTimeout(()=>{this.timer=null;this.settle();},1000-(now-this.builtAt));return;}this.deferSince=0;this.rebuild();};
+        this.noteMove=e=>{if(e?.originalEvent||raw.isEasing())this.movedAt=performance.now();else this.autoAt=performance.now();};
         raw.on('moveend',this.schedule);raw.on('sourcedata',this.schedule);raw.on('move',this.noteMove);this.schedule();
         this.restore=()=>{this.onRemove(raw,gl);this.onAdd(raw,gl);};
         raw.on('webglcontextrestored',this.restore);
@@ -61,6 +64,7 @@
       // 地形到貨都整批作廢。圖磚緩衝區會讓同一棟出現在兩張圖磚,用完整外環鍵去重。
       rebuild() {
         if(this.disposed)return;
+        this.builtAt=performance.now();
         const raw=this.raw, z=raw.getZoom();
         if(z<14||!raw.getSource('openmaptiles')){this.count=0;return;}
         const center=raw.getCenter(), floors=z>=15.5, terrain=!!raw.getTerrain();

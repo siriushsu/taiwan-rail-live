@@ -14,7 +14,7 @@ import {
 } from './scripts/metro_wait_core.mjs';
 import {
   twDelayFor, twEtaSec, twContentState, twShouldPush, twShouldEnd, twNextEndAt,
-  TW_MAX_TRACK_SEC,
+  twRunWindow, twRunTickDue, TW_MAX_TRACK_SEC,
 } from './scripts/tra_wait_core.mjs';
 import { BUS_TRANSFER_SCHEMA, resolveBusLegVehicles, resolveBusRouteStops, resolveStationN1 } from './scripts/bus_transfer_core.mjs';
 import {
@@ -877,6 +877,172 @@ function trtcHwStale(mem, now) { return !mem || now - mem.at > TRTC_HW_THROTTLE_
 function trtcHwFallbackUsable(mem, now) {
   return !!mem && Array.isArray(mem.rows) && now - mem.at <= TRTC_HW_THROTTLE_MS * 2;
 }
+
+
+// ─── 集中輪詢（2026-09-02，北捷來函後的第四項）────────────────────────────────
+// 為什麼要有這個：Cloudflare 的 `caches.default` 與 isolate 記憶體都是【每個資料中心各一份】，
+// 所以上游呼叫量正比於「有幾個 colo 在服務我們」，與使用者人數無關。實測 24 小時內 41 個 colo
+// 服務過 /api/trtc-live，等效約 3.4 個全天候輪詢者；CarWeight 的 60 秒節流也因為 trtcHwMem
+// 是 per-isolate 而只省下一半（實測比值 0.50，理論值 0.25）。把三支上游收斂到單一 Durable Object
+// 之後，全球只剩一份計時器，量才會真的掉一個量級。
+//
+// 🔴 落點必須避開中國與香港（使用者長期裁示）。實測（2026-09-02，各 8 顆新 DO）：
+//    apac-ne → NRT×4 / KIX×3 / ICN×1，香港 0；apac-se → 香港 7/8；apac → 香港 3/8；
+//    無提示 → 香港 4/8。⇒ 只能用 apac-ne，另外三種都不合格。
+// 官方文件兩句（原文）：「Hints are a best effort and not a guarantee」、
+// 「Durable Objects do not currently change locations after they are created」。
+// ⇒ 提示不是保證，所以不能設完就算：每一輪都把 DO 自報的 colo 帶回來，落在禁區就【不用】這顆
+//    DO、退回各 colo 直打。量會回到原點，但不會違反裁示——這是刻意的取捨方向。
+// 🔴 名字不是隨便取的:DO 的落點在【建立當下】決定、之後不會搬,所以「哪個名字」等於
+//    「落在哪個城市」。2026-09-02 以 apac-ne 實測 8 個名字:NRT×4／ICN×2／KIX×2、香港 0;
+//    v2 落在 NRT(東京),符合裁示「亞洲首選東京」,故釘死它。
+//    要換名字＝換一顆新 DO＝重新抽落點,換之前先用 /status?name= 量到東京再換。
+const TRTC_POLLER_NAME = 'trtc-poller-v2';
+const TRTC_POLLER_HINT = 'apac-ne';
+// 只列香港：Cloudflare 的 Durable Objects 不佈署在中國大陸（中國網段是合作夥伴的獨立基礎設施），
+// 所以現實風險只有 HKG。不臆測性地窮舉大陸 colo 代碼——改用「每一輪都把實際 colo 放進回傳」
+// （trtcLive 的 cd.poller）讓任何意外落點【看得見】，而不是靠一份我猜出來的清單擋。
+const TRTC_POLLER_DENY_COLO = new Set(['HKG']);
+
+// 三支上游的唯一發射點。營運窗閘門與 CarWeight 60 秒節流都住在這裡，集中輪詢（DO）
+// 與退路（各 colo 直打）共用同一份 —— 兩條路各寫一套遲早會漂成兩種行為
+// （judgment 第九節第 10 條：跨處必須一致的東西只留一份）。
+// hwMem 由呼叫端持有並傳入／收回，函式本身不碰全域，才驗得動。
+async function trtcFetchUpstream(env, now, hwMem) {
+  const inService = trtcOperatingState(trtcLedgerNowEpoch(null, env)).open;
+  // 窗外（01:20–05:40）三支一律不打。回「成功的空列」而不是 outage：官方窗外本來就整批
+  // 回「營運時間已過」而被 fail-closed 丟掉，輸出等價，差別只有少了三發請求。
+  if (!inService) return { tk: { ok: true, rows: [] }, hw: [], hwThisRound: [], br: [], hwMem, inService: false };
+  const hwFresh = !trtcHwStale(hwMem, now);
+  const [hwFetched, brRaw, tkResult] = await Promise.all([
+    // 失敗回 null（不是 []）才分得開「這輪沒打」「打了但失敗」「打了是空的」——
+    // 失敗不得寫進 hwMem，否則一次抖動會把擁擠度靜音整整 60 秒而不是下一輪就補回來。
+    hwFresh ? Promise.resolve(null)
+      : trtcCall(trtcApiUrl(env, 'CarWeight'), 'getCarWeightByInfoEx', env).catch(() => null),
+    // 🔴 CarWeightBR 刻意不節流：它的 TrainNumber 要與倒數切出來的區段【逐台順序配對】，
+    //    用舊列會把車號標到別台車上＝「標錯」而非「留白」，違反裁示。
+    trtcCall(trtcApiUrl(env, 'CarWeightBR'), 'getCarWeightBRInfo', env).catch(() => []),
+    trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env)
+      .then(rows => ({ ok: true, rows: Array.isArray(rows) ? rows : [] }))
+      .catch(error => ({ ok: false, rows: [], error: (error && error.message) || String(error) })),
+  ]);
+  const nextHwMem = hwFetched ? { rows: hwFetched, at: now } : hwMem;
+  // 本輪 CarWeight 到底拿到什麼（節流命中 → 記憶體那份；真的打了 → 新的；打了但失敗 → 空）。
+  // 🔴 這個值是「三支全滅」判斷的輸入，不可以被下面的 fallback 灌成非空——否則 TrackInfo
+  //    掛掉時會被一份舊的 CarWeight 偽裝成「還有官方存在性資料」（09-03 5b4dd812 的重點）。
+  const hwThisRound = hwFresh && nextHwMem ? nextHwMem.rows : (hwFetched || []);
+  return {
+    tk: tkResult,
+    // 供擁擠度／車號裝飾用的那一份：本輪打了但失敗就退回記憶體那份（上限兩倍節流窗，
+    // 見 trtcHwFallbackUsable）。這是唯一與 hwThisRound 不同的地方。
+    hw: hwThisRound.length || !trtcHwFallbackUsable(nextHwMem, now) ? hwThisRound : nextHwMem.rows,
+    hwThisRound,
+    br: brRaw,
+    hwMem: nextHwMem,
+    inService: true,
+  };
+}
+
+// 全球唯一的北捷輪詢者。所有 colo 的 /api/trtc-live 與帳本 cron 都向它要同一份 raw frame；
+// 它自己每 15 秒才向北捷取一次，並用 inflight 把同時湧入的請求收斂成一發（沒有這道
+// single-flight，41 個 colo 同時過期會變成 41 發上游請求＝比不集中還糟）。
+export class TrtcPoller {
+  constructor(state, env) {
+    this.env = env;
+    this.frame = null;    // { at, body } —— body 是【已序列化】的字串，避免每個請求重跑一次 JSON.stringify
+    this.hwMem = null;
+    this.inflight = null;
+    this.colo = null;
+    this.denied = null;   // 落點違反區域裁示時記在這裡,之後一律不再碰上游
+    this.noCreds = false; // 這顆 Worker 沒設 TRTC secret(與 denied 不同:每輪重驗,不 latch)
+  }
+  async detectColo() {
+    // DO 的位置建立後就不會變，所以量一次就夠；失敗下一輪再試（不擋資料）。
+    if (this.colo) return this.colo;
+    try {
+      const t = await fetch('https://cloudflare.com/cdn-cgi/trace').then(r => r.text());
+      this.colo = (t.match(/^colo=(.+)$/m) || [])[1] || null;
+    } catch { /* 下一輪再試 */ }
+    return this.colo;
+  }
+  refresh(now) {
+    if (this.inflight) return this.inflight;
+    const run = (async () => {
+      // 🔴 落點檢查必須在【發射之前】。反過來寫(先打完上游、讓邊緣事後判定)會是最糟的組合：
+      //    既真的從禁區打了上游，邊緣又因為判定違規而退回直打再打一輪 ⇒ 又違規又加倍。
+      const colo = await this.detectColo();
+      if (colo && TRTC_POLLER_DENY_COLO.has(colo)) { this.denied = colo; return; }
+      // 🔴 沒有帳密就一發都不打。這顆 Worker 的 secret 與主站【各存一份】,漏設時 trtcCall 會把
+      //    字面上的 "undefined" 當帳密送去北捷——在對方正因呼叫量來函的時候送一串認證失敗,
+      //    是最不該發生的事。回報 no-credentials 讓邊緣退回直打(主站自己有帳密),站台照常。
+      //    刻意【不】latch(與 denied 不同):設好 secret 之後下一輪自己就恢復,不必人工介入。
+      this.noCreds = !(this.env && this.env.TRTC_API_USER && this.env.TRTC_API_PASS);
+      if (this.noCreds) return;
+      const r = await trtcFetchUpstream(this.env, now, this.hwMem);
+      this.hwMem = r.hwMem;
+      this.frame = { at: now, body: JSON.stringify({ tk: r.tk, hw: r.hw, hwThisRound: r.hwThisRound, br: r.br, inService: r.inService }) };
+    })();
+    // 🔴 不可寫成 `this.inflight = run.finally(...)`：finally 回傳的是【另一顆】promise，
+    //    於是回呼裡的 `this.inflight === run` 永遠不成立、inflight 永遠不清空 ⇒ 這顆 DO
+    //    只會輪詢一次，之後永遠回同一幀舊資料（正式站表現＝整個看板凍結，而且回應仍是 200
+    //    格式正確）。守門人第 6/7/10 節就是為了抓這種「看起來完全正常」的凍結。
+    const clear = () => { if (this.inflight === run) this.inflight = null; };
+    run.then(clear, clear);           // 兩個 handler 都給，才不會留下未處理的 rejection
+    this.inflight = run;
+    return run;
+  }
+  async fetch(request) {
+    // /status：只回落點與新鮮度，【不】觸發輪詢。輪詢者 Worker 有公開網址，若這條會觸發，
+    // 那個網址就變成外人驅動我們去打北捷的把手——正好與這一整批的目的相反。
+    if (request && new URL(request.url).pathname === '/status') {
+      return Response.json({ colo: await this.detectColo(), denied: this.denied,
+        hasFrame: !!this.frame, ageMs: this.frame ? Date.now() - this.frame.at : null });
+    }
+    const now = Date.now();
+    // 門檻與邊緣的 trtcMemoStale 同為 15 秒：邊緣過期時向這裡要，這裡也剛好該換一輪。
+    if (!this.denied && (this.noCreds || trtcMemoStale(this.frame, now))) {
+      try { await this.refresh(now); }
+      catch (e) { if (!this.frame) throw e; /* 有舊 frame 就先給舊的，別讓全站空手 */ }
+    }
+    // 落點在禁區、或這顆 Worker 沒設帳密：一列資料都不給、也【沒有】打過上游，
+    // 讓邊緣自己退回直打（主站有自己的帳密，站台不會因此空手）。
+    if (this.denied) return Response.json({ denied: this.denied, colo: this.denied });
+    if (this.noCreds || !this.frame) return Response.json({ denied: 'no-credentials', colo: this.colo });
+    return new Response(
+      `{"at":${this.frame.at},"ageMs":${Date.now() - this.frame.at},"colo":${JSON.stringify(this.colo)},` +
+      this.frame.body.slice(1),
+      { headers: { 'content-type': 'application/json; charset=utf-8' } });
+  }
+}
+
+// 邊緣側取 raw frame：先問集中輪詢者，不可用或落點在禁區就退回本 colo 直打。
+// fail-open 是刻意的：寧可多打幾發上游，也不要因為 DO 掛掉就整站沒有即時資料。
+async function trtcPollerFrame(env) {
+  if (!env || !env.TRTC_POLLER) return null;
+  const stub = env.TRTC_POLLER.get(env.TRTC_POLLER.idFromName(TRTC_POLLER_NAME), { locationHint: TRTC_POLLER_HINT });
+  const r = await stub.fetch('https://trtc-poller/raw');
+  if (!r.ok) return null;
+  const f = await r.json();
+  // DO 自己在發射前就擋下來了(見 TrtcPoller.refresh)，這裡只是把原因帶回去讓它看得見。
+  if (f && f.denied) return { denied: f.denied };
+  if (!f || !f.tk) return null;
+  // 第二道:萬一哪天 DO 那道被改壞,邊緣仍然不吃禁區來的資料。
+  if (f.colo && TRTC_POLLER_DENY_COLO.has(f.colo)) return { denied: f.colo };
+  return { tk: f.tk, hw: f.hw || [], hwThisRound: f.hwThisRound || [], br: f.br || [], poller: f.colo || '?', ageMs: f.ageMs || 0 };
+}
+async function trtcRawFrame(env, now) {
+  let denied = null;
+  try {
+    const viaPoller = await trtcPollerFrame(env);
+    if (viaPoller && !viaPoller.denied) return viaPoller;
+    if (viaPoller && viaPoller.denied) denied = viaPoller.denied;
+  } catch { /* 落到直打 */ }
+  const direct = await trtcFetchUpstream(env, now, trtcHwMem);
+  trtcHwMem = direct.hwMem;
+  // poller 欄位讓「這一輪是誰打的上游」在回傳裡看得見：'NRT' 等於集中輪詢生效中，
+  // 'direct' 等於退路（量會回到 41 個 colo 各打），'denied:HKG' 等於落點違規被擋下。
+  return { tk: direct.tk, hw: direct.hw, hwThisRound: direct.hwThisRound, br: direct.br, poller: denied ? 'denied:' + denied : 'direct', ageMs: 0 };
+}
 async function trtcLive(request, env) {
   const cacheKey = new Request(new URL('/api/trtc-live', request.url), { method: 'GET' });
   const edge = caches.default;
@@ -888,42 +1054,19 @@ async function trtcLive(request, env) {
       // 在發出三支上游 request 前取 acquisition order；慢回的舊 request 不得因完成較晚
       // 反過來覆蓋較晚開始、已成功寫入的 fresh official frame。
       const officialRequestStartedAt = Date.now();
-      // 營運時段閘門(2026-09-02,北捷來函)：窗外(01:20–05:40)三支上游一律不打。
-      // 這不是新的降級路徑——窗外官方本來就整批回「營運時間已過」,現行程式碼把那些列
-      // 全部 fail-closed 丟掉(:900、:924),最終結果就是 board 空、trains 空、boardPos 走
-      // 同一支 anchors。餵空列與打完再丟掉在輸出上等價,差別只有少了三發上游請求。
-      // 🔴 刻意【不】改用 held/outage payload:那會每晚多記一次假的斷訊起點(trtcNoteOfficialOutage),
-      // 也會讓前端的中斷徽章整夜亮著(index.html:24602 把 feedMode==='outage' 讀成上游中斷)。
-      // 時鐘走 trtcLedgerNowEpoch:與每分鐘帳本 cron 用同一個判斷,窗的定義只有一份
-      // (跨 session 必須一致的東西不做成兩份,見 judgment 第九節第 10 條);
-      // 順帶讓 TRTC_NOW_EPOCH 這個既有的測試接縫也蓋得到這道閘門。
-      const inService = trtcOperatingState(trtcLedgerNowEpoch(null, env)).open;
-      // CarWeight 走自己的 60 秒節流(見 trtcHwStale)。命中就不發這一支,其餘兩支照常。
-      const hwFresh = inService && !trtcHwStale(trtcHwMem, officialRequestStartedAt);
-      // 三支各自保留成敗：CarWeight 任一支抖動不拖垮 TrackInfo 官方名冊；反過來
-      // TrackInfo 失敗也不能被 CarWeight 的位置列偽裝成仍有官方存在性資料。
-      const [hwFetched, brRaw, tkResult] = inService ? await Promise.all([
-        // 失敗回 null(不是 [])才分得開「這輪沒打」「打了但失敗」「打了是空的」——
-        // 失敗不得寫進 trtcHwMem,否則一次抖動會把擁擠度靜音整整 60 秒而不是下一輪就補回來。
-        hwFresh ? Promise.resolve(null)
-          : trtcCall(trtcApiUrl(env, 'CarWeight'), 'getCarWeightByInfoEx', env).catch(() => null),
-        trtcCall(trtcApiUrl(env, 'CarWeightBR'), 'getCarWeightBRInfo', env).catch(() => []),
-        // TrackInfo 是官方名冊本體；必須保留「成功但合法空列」與「請求失敗」的差別，
-        // 不能都壓成 [] 後讓前端猜某線是不是該拿班表補車。
-        trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env)
-          .then(rows => ({ ok: true, rows: Array.isArray(rows) ? rows : [] }))
-          .catch(error => ({ ok: false, rows: [], error: (error && error.message) || String(error) })),
-      ]) : [null, [], { ok: true, rows: [] }];
-      if (hwFetched) trtcHwMem = { rows: hwFetched, at: officialRequestStartedAt };
-      // 節流命中 → 用記憶體那份；這一輪真的打了 → 用新的；打了但失敗 → 空。
-      // 🔴 這個值只回答「本輪 CarWeight 拿到什麼」,是下面「三支全滅」判斷的輸入,
-      //    不可以被下面的 fallback 灌成非空——否則 TrackInfo 掛掉時會被一份舊的
-      //    CarWeight 偽裝成「還有官方存在性資料」,那正是 :882 註解明文禁止的事。
-      const hwThisRound = hwFresh && trtcHwMem ? trtcHwMem.rows : (hwFetched || []);
-      // 供擁擠度／車號裝飾用的那一份:本輪拿到就用本輪的,本輪打了但失敗就退回記憶體那份
-      // (見 trtcHwFallbackUsable)。這是唯一與 hwThisRound 不同的地方。
-      const hwRaw = hwThisRound.length || !trtcHwFallbackUsable(trtcHwMem, officialRequestStartedAt)
-        ? hwThisRound : trtcHwMem.rows;
+      // 三支上游改由【集中輪詢】取得(2026-09-02 第四項)：全球單一 Durable Object 每 15 秒
+      // 打一次，各 colo 只向它要同一份 raw frame。營運窗閘門與 CarWeight 60 秒節流都搬進
+      // trtcFetchUpstream，集中路徑與直打退路共用同一份規則。
+      // 🔴 節流的價值就在這裡才兌現：trtcHwMem 是 per-isolate，同一個 colo 有幾個 isolate
+      //    就有幾個 60 秒計時器（實測省幅只有理論值的一半，比值 0.50 而非 0.25）；
+      //    收斂成一顆 DO 之後全球只剩一份計時器。
+      // frame 可能已經有最多 15 秒的年紀，加上邊緣自己的 15 秒 ⇒ 最壞 30 秒。這在既有容忍度
+      //    之內：這條回應本來就帶 stale-while-revalidate=120，冷門 colo 早就在供更舊的資料。
+      const frame = await trtcRawFrame(env, officialRequestStartedAt);
+      const hwRaw = frame.hw;              // 裝飾用（本輪失敗可退回記憶體那份）
+      const hwThisRound = frame.hwThisRound; // 「三支全滅」判斷的輸入，不吃 fallback
+      const brRaw = frame.br;
+      const tkResult = frame.tk;
       const tk = tkResult.rows;
       // official-first：TrackInfo 成功（包含合法空列）就是可發布的權威名冊；CarWeight
       // 只供 legacy trains／擁擠度裝飾，兩支同時空也不可把官方名冊拖成 outage。
@@ -1085,7 +1228,11 @@ async function trtcLive(request, env) {
           // 倒數切段的觀測性：derived＝從倒數還原出幾台、cwRows＝CarWeightBR 去重後幾列、
           // matched＝實際配上的台數。derived 與 cwRows 是**兩個獨立來源**的車數，
           // 差很多就是有一邊在騙人（晨間觀察與每小時巡檢都讀這三個數）。
-          brSeg: brSegStat } };
+          brSeg: brSegStat,
+          // 這一輪的上游是誰打的：colo 代碼(如 'NRT')＝集中輪詢生效中；'direct'＝退回各 colo
+          // 直打(DO 掛了或沒綁定，量會回到 41 個 colo 各打)；'denied:HKG'＝落點違反區域裁示被擋。
+          // 🔴 這是「集中輪詢有沒有在跑」的唯一外部證據——回應長得對不代表省到了呼叫。
+          poller: frame.poller, pollerAgeMs: frame.ageMs } };
       // TrackInfo collapsed rows 同時是位置錨點與唯一官方名冊；站名正規化、支線／終點消歧、
       // 身分延續皆在 Worker 完成。trip join 只附標籤，不決定任何車的存在。
       let boardPos = { at: null, feedMode: tkResult.ok ? 'official' : 'outage', rows: [], extensions: [],
@@ -1917,23 +2064,28 @@ async function trtcLedgerScheduled(event, env) {
   }
   const delayRaw = env && env.TRTC_BOARD_SAMPLE_DELAY_MS;
   const delayMs = delayRaw == null ? 30000 : Math.max(0, Math.min(60000, Number(delayRaw) || 0));
+  // 帳本改走與 /api/trtc-live 同一個集中輪詢者(2026-09-02)：這班 cron 原本每分鐘【另外】直打
+  // 上游 4 發(TrackInfo ×2＋CW＋BR)，與使用者路徑完全分開，一支就約 7.3 萬次/月。改讀同一份
+  // frame 之後這 4 發併進那 15 秒一輪裡，帳本拿到的也就是使用者當下看到的同一份資料。
+  // 兩次取樣仍然隔 delayMs(預設 30 秒)：frame 每 15 秒換一輪，所以 board1/board2 仍是兩幀不同的
+  // 資料；實際間隔不等於 delayMs 也無妨——下面的 now1/now2 都取上游自己的 NowDateTime(trtcBoardEpoch)，
+  // 不靠我們這邊的時鐘推算。
   const [model, first] = await Promise.all([
     trtcLedgerModel(env),
-    Promise.all([
-      trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env).catch(e => {
-        console.warn('[cron trtc-ledger] TrackInfo 第一次取樣失敗:', (e && e.message) || String(e));
-        return [];
-      }),
-      trtcCall(trtcApiUrl(env, 'CarWeight'), 'getCarWeightByInfoEx', env).catch(() => []),
-      trtcCall(trtcApiUrl(env, 'CarWeightBR'), 'getCarWeightBRInfo', env).catch(() => []),
-    ]),
+    trtcRawFrame(env, Date.now()).catch(e => {
+      console.warn('[cron trtc-ledger] 第一次取樣失敗:', (e && e.message) || String(e));
+      return { tk: { ok: false, rows: [] }, hw: [], hwThisRound: [], br: [], poller: 'error' };
+    }),
   ]);
-  const [board1, hwRaw, brRaw] = first;
+  const board1 = first.tk.rows, hwRaw = first.hw, brRaw = first.br;
+  if (!first.tk.ok) console.warn('[cron trtc-ledger] TrackInfo 第一次取樣失敗:', first.tk.error || '(無訊息)');
   if (delayMs) await new Promise(resolve => setTimeout(resolve, delayMs));
-  const board2 = await trtcCall(trtcApiUrl(env, 'TrackInfo'), 'getTrackInfo', env).catch(e => {
-    console.warn('[cron trtc-ledger] TrackInfo 第二次取樣失敗:', (e && e.message) || String(e));
-    return [];
+  const second = await trtcRawFrame(env, Date.now()).catch(e => {
+    console.warn('[cron trtc-ledger] 第二次取樣失敗:', (e && e.message) || String(e));
+    return { tk: { ok: false, rows: [] }, hw: [], hwThisRound: [], br: [], poller: 'error' };
   });
+  if (!second.tk.ok) console.warn('[cron trtc-ledger] TrackInfo 第二次取樣失敗:', second.tk.error || '(無訊息)');
+  const board2 = second.tk.rows;
   const now1 = trtcBoardEpoch(board1, gateNow), day = trtcServiceDay(now1);
   const context = await trtcLedgerContext(env, day, now1);
   const part1 = buildLedgerFromRaw({ model, boardRows: board1, hwRows: hwRaw, brRows: brRaw,
@@ -1944,7 +2096,8 @@ async function trtcLedgerScheduled(event, env) {
     aliases: context.aliases.concat(part1.aliasUpdates.map(aliasUpdateAsPrior)),
     historicalEvents: context.historicalEvents.concat(part1.events.map(eventAsHistory)), nowEpoch: now2, day });
   const stats = await persistTrtcLedger(env, [part1, part2], now2);
-  console.log(`[cron trtc-ledger] ${day}: board ${board1.length}+${board2.length}, hwRaw ${hwRaw.length}, brRaw ${brRaw.length}, ` +
+  console.log(`[cron trtc-ledger] ${day}: poller ${first.poller}/${second.poller}, ` +
+    `board ${board1.length}+${board2.length}, hwRaw ${hwRaw.length}, brRaw ${brRaw.length}, ` +
     `events ${stats.events}, tracks ${stats.tracks}, aliases ${stats.aliases}`);
   // 逐班綁定器(工項3):獨立 try/catch,不得拖垮上面已經成功寫入的帳本主流程(比照 hazardTask
   // 隔離寫法,worker.js scheduled() 內 hazardMonitorWithTimeout 的 catch)。用 includeY:true 的
@@ -3104,6 +3257,10 @@ const TW_TRAIN_NO_RE = /^[0-9A-Za-z]{1,8}$/;
 // 表訂時刻可以落在過去多久之內。看板點得到的班次都是未來的,但「使用者盯著一班已誤點
 // 20 分鐘、表訂時刻已經過去的車」正是本功能最典型的情境 ⇒ 往過去開 1 小時。
 const TW_SCHED_PAST_SEC = 3600;
+// 上一站表定發車最早可以比本站到站早多久。不綁 3.5 小時的追蹤上限:時刻表裡真的有站間跑
+// 將近六小時的班次(2026-09-20 的 6022 次臺南→南港),擋掉它等於整張卡失去推播。
+// 這一欄放寬不會放大濫用:每分鐘推播的總量仍被這一列的壽命(end_at ≤ bound_at + 3.5h)鎖死。
+const TW_PREV_DEP_MAX_GAP_SEC = 86400;
 async function traWaitBind(request, env) {
   if (request.method !== 'POST') return jsonRes({ error: 'method not allowed' }, 405, 'no-store');
   if (await rateLimited(env.LA_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
@@ -3128,19 +3285,33 @@ async function traWaitBind(request, env) {
   if (!Number.isFinite(endAt) || endAt <= now || endAt > now + TW_MAX_TRACK_SEC + 60) {
     return jsonRes({ error: 'bad_end' }, 400, 'no-store');
   }
+  // prevDepSec:這班車在【上一個停靠站】的表定發車時刻(epoch 秒),開卡當下由 App 從時刻表查好。
+  // 伺服器拿它判斷「車是不是正在上一站→本站之間」,只有那一段每分鐘推一發(見 twRunWindow)。
+  // 選填:舊版 App 不送、起點站開卡也沒有上一站 ⇒ NULL,這一列照舊只在誤點變了才推。
+  // 有送就必須在本站到站之前一天以內——壞值整包拒收(不默默當成沒送:卡片會以為接上了
+  // 行駛中推播而畫出一台車,車卻只在誤點變了才動;拒收則 pushed 永遠不會是 true,視圖不畫車)。
+  let prevDepSec = null;
+  if (b.prevDepSec != null) {
+    const p = Math.round(Number(b.prevDepSec));
+    if (!Number.isFinite(p) || p >= schedSec || p < schedSec - TW_PREV_DEP_MAX_GAP_SEC) {
+      return jsonRes({ error: 'bad_prev' }, 400, 'no-store');
+    }
+    prevDepSec = p;
+  }
   try {
     await env.DELAY_DB.prepare(
-      'INSERT INTO tra_wait_bindings (token,station,train_no,sched_sec,end_at,last_state,fail_streak,bound_at,expire_at)' +
-      ' VALUES (?,?,?,?,?,NULL,0,?,?) ON CONFLICT(token) DO UPDATE SET' +
+      'INSERT INTO tra_wait_bindings (token,station,train_no,sched_sec,prev_dep_sec,end_at,last_state,fail_streak,bound_at,expire_at)' +
+      ' VALUES (?,?,?,?,?,?,NULL,0,?,?) ON CONFLICT(token) DO UPDATE SET' +
       // last_state 與 fail_streak 一起歸零(同 0009 的理由):同一顆 token 換綁另一班車時,
       // 舊車的「上次送出去的內容」若黏著,新車第一輪只要碰巧同樣是「誤點 3 分」就不會推,
       // 卡片會停在舊車的資訊直到內容自己變。
       // bound_at 一起重設:3.5 小時的追蹤硬上限是「這張卡」的,不是「這顆 token」的。
       // apns_env 刻意不重設(環境是這個 App 安裝的屬性,見 schema/0008)。
       ' station=excluded.station, train_no=excluded.train_no, sched_sec=excluded.sched_sec,' +
+      ' prev_dep_sec=excluded.prev_dep_sec,' +
       ' end_at=excluded.end_at, last_state=NULL, fail_streak=0,' +
       ' bound_at=excluded.bound_at, expire_at=excluded.expire_at'
-    ).bind(String(b.token), station, trainNo, schedSec, endAt, now, endAt + 300).run();
+    ).bind(String(b.token), station, trainNo, schedSec, prevDepSec, endAt, now, endAt + 300).run();
     return jsonRes({ ok: true }, 200, 'no-store');
   } catch (e) {
     return jsonRes({ error: 'bind_failed' }, 503, 'no-store');
@@ -3882,7 +4053,7 @@ async function metroWaitPushAll(env, ctx, baseUrl) {
       //    憑空消失。使用者裁示:缺訊只 hold。
       if (!picked.length) { held++; continue; }
       const state = mwContentState(row.sys, picked, src.crowdByNo, dataAt);
-      if (!mwShouldPush(prev, state)) { unchanged++; continue; }
+      if (!mwShouldPush(prev, state, now)) { unchanged++; continue; }
       attempted++;
       const staleDate = mwStaleDate(row.sys, picked, now);
       const body = { aps: { timestamp: now, event: 'update', 'content-state': state } };
@@ -3976,7 +4147,7 @@ async function traWaitPushAll(env, ctx, baseUrl) {
   if (!rows.length) return { sent: 0, ended: 0, dropped: 0 };
   const live = await traWaitLive(env, ctx, baseUrl);
   const jwt = await laJwt(env);
-  let sent = 0, ended = 0, dropped = 0, unchanged = 0, held = 0, extended = 0, attempted = 0, apnsRetried = 0;
+  let sent = 0, ended = 0, dropped = 0, unchanged = 0, held = 0, extended = 0, attempted = 0, apnsRetried = 0, running = 0;
   let budgetExhausted = false, notReached = 0;
   const permFailCandidates = [];
   for (let ri = 0; ri < rows.length; ri++) {
@@ -4024,12 +4195,21 @@ async function traWaitPushAll(env, ctx, baseUrl) {
         extended++;
       }
 
-      // hold ⇒ 這一輪什麼都不推,卡片繼續顯示上一次送出去的內容(含它那個較舊的「HH:mm 更新」,
-      // 那正是誠實的新鮮度指示)。判定理由見上面 holding。
-      if (holding) { held++; continue; }
+      // 行駛中(上一站→本站)這一輪該不該為了挪車推一發。窗口用【顯示中】的誤點算——
+      // 與卡片主角、stale-date、收卡用的是同一個 eta,車頭才會剛好在「實際約」那一刻碰到本站。
+      const runDue = twRunTickDue(prev, now, twRunWindow(row.prev_dep_sec, row.sched_sec, shownDelay));
 
-      const state = twContentState(delay, delay.dataAt);
-      if (!twShouldPush(prev, state)) { unchanged++; continue; }
+      // hold ⇒ 內容不改,卡片繼續顯示上一次送出去的內容(含它那個較舊的「HH:mm 更新」,
+      // 那正是誠實的新鮮度指示)。判定理由見上面 holding。
+      // 🔴 hold 期間若車在行駛段,仍要推:南迴那種站間跑三十分鐘的區段正是會整段掉出動態窗
+      //    的地方,也正是車最需要往前走的地方。這一發的值全部沿用上一次送出去的(誤點、
+      //    資料時刻一個字都不改),只換 tick——車照「上次那個官方誤點」往前挪,不造任何新值。
+      if (holding && !runDue) { held++; continue; }
+      const state = holding
+        ? { ...twContentState(delay, delay.dataAt, now), ...prev, pushed: true, tick: now }
+        : twContentState(delay, delay.dataAt, now);
+      if (!runDue && !twShouldPush(prev, state)) { unchanged++; continue; }
+      if (runDue) running++;
       attempted++;
       const body = { aps: { timestamp: now, event: 'update', 'content-state': state } };
       // 🔴 stale-date 每一發都要帶:推播的 content 會【整包取代】舊 content,少送就等於把
@@ -4069,7 +4249,7 @@ async function traWaitPushAll(env, ctx, baseUrl) {
     await env.DELAY_DB.prepare('DELETE FROM tra_wait_bindings WHERE token=?').bind(c.token).run();
     dropped++;
   }
-  console.log(`[cron tw-push] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent} ended=${ended} unchanged=${unchanged} held=${held} extended=${extended} dropped=${dropped} apnsRetry=${apnsRetried}${live ? '' : ' traLiveDown'}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
+  console.log(`[cron tw-push] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent} running=${running} ended=${ended} unchanged=${unchanged} held=${held} extended=${extended} dropped=${dropped} apnsRetry=${apnsRetried}${live ? '' : ' traLiveDown'}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
   return { sent, ended, dropped };
 }
 
@@ -7493,7 +7673,13 @@ export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoar
 // ——理由與上面 _rateLimit 的導出完全相同。trtcLive 不是純函式，測試要自備 env／caches／
 // fetch 替身，導出的目的就是讓判準能【數上游被打了幾次】而不是只看回應長得對不對。
 // 見 scripts/verify_trtc_call_budget.mjs。
+// 測試接縫:把邊緣的 isolate 記憶體清成「剛開機的新 colo」。集中輪詢要驗的性質是
+// 【多個 colo 在同一個 15 秒窗內各問一次,上游只被打一輪】,而 trtcMem 是模組層全域,
+// 單一 Node 行程沒有別的辦法表現出「另一個 isolate」。門檻與 DO 的 frame 同為 15 秒,
+// 所以不清記憶體就永遠量不到集中效果(清時鐘會連 DO 的 frame 一起弄髒)。
+function trtcForgetMemoForTest() { trtcMem = null; trtcHwMem = null; }
 export const _trtc = { trtcParse, trtcEpoch, dedupeLatest, trtcCall, trtcApiUrl, trtcMemoStale, carsOf,
+  trtcFetchUpstream, trtcRawFrame, TrtcPoller, TRTC_POLLER_DENY_COLO, TRTC_POLLER_HINT, trtcForgetMemoForTest,
   trtcHwStale, trtcHwFallbackUsable, trtcLive };
 // B1 驗收用：導出編排層供本機 D1/fixture 測試，正式 router 不因此增加任何路徑。
 export const _trtcLedger = {

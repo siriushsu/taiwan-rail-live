@@ -1,0 +1,22 @@
+// 北捷集中輪詢者 Worker(獨立於主站 taiwan-rail-live)。理由見 trtc_poller_worker.mjs 檔頭。
+// 部署:npx wrangler deploy --config wrangler.poller.jsonc
+//
+// 🔴 這顆需要自己的 secret(與主站同值):
+//    npx wrangler secret put TRTC_API_USER --name railisland-trtc-poller
+//    npx wrangler secret put TRTC_API_PASS --name railisland-trtc-poller
+//
+// 🔴 沒有 crons:它是【被動】的——主站每 15 秒問一次時它才去打北捷。加 cron 會變成
+//    「沒人看也在打」,與這一整批的目的相反。
+// 🔴 沒有 assets／routes:它不服務任何網站流量。workers.dev 網址只給 /status(唯讀落點與新鮮度)。
+{
+  "name": "railisland-trtc-poller",
+  "main": "trtc_poller_worker.mjs",
+  "compatibility_date": "2026-07-09",
+  "workers_dev": true,
+  "durable_objects": {
+    "bindings": [{ "name": "TRTC_POLLER", "class_name": "TrtcPoller" }]
+  },
+  // new_sqlite_classes(不是 new_classes):本帳號已不允許新建 key-value 型 DO 命名空間。
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TrtcPoller"] }],
+  "observability": { "enabled": true }
+}

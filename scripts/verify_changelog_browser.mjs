@@ -53,7 +53,9 @@ const widths = [360, 375, 414, 768];
 // 9/19：隨機跟隨／換一班時顯示下一站牌一條（403→404）。
 // 9/19：App 長提示與定位點一條（404→405）；9/20：南港展覽館停車位置一條（405→406）。
 // 9/20：火車站看板完整班次、山海號／平原號虛構專列標示兩條（406→408）。
-const expectedHistoryCount = 408;
+// 9/23：Android 台鐵發車看板班數跟著卡片高度走一條（412→413）。
+// 9/23：Android 16 捷運等車通知進站軌道一條（413→414）。
+const expectedHistoryCount = 414;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

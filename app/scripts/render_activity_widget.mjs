@@ -14,7 +14,7 @@
 // 用法：node app/scripts/render_activity_widget.mjs [輸出目錄]
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -60,6 +60,11 @@ const attrSource = readFileSync(resolve(here, '../ios/App/App/RailFollowAttribut
 // 同上：等站卡的保鮮期常數住在雙 target 的 TraWaitAttributes.swift，是「設 staleDate 的那側」
 // 與「畫過期樣式的那側」唯一的共同祖先。
 const traAttrSource = readFileSync(resolve(here, '../ios/App/App/TraWaitAttributes.swift'), 'utf8');
+// 等車卡進站軌道（B 方案）的上一站查表住在雙 target 的 MetroWidgetShared.swift：抽出出貨用的那一份，
+// 餵【真的】MetroWidgetData.json（複製到執行檔旁邊，裸執行檔的 Bundle.main 就是那個目錄），
+// 驗到的是目錄資料＋查表規則本身，不是 harness 手捏的上一站。
+const sharedSource = readFileSync(resolve(here, '../ios/App/App/MetroWidgetShared.swift'), 'utf8');
+const assetsDir = join(widgetDir, 'Assets.xcassets');
 
 /**
  * 🔴 原始碼層 gate：harness 用替身畫「結束」鈕，所以它照不到 intent 有沒有真的接上。
@@ -234,13 +239,48 @@ function traNoSelfRunningTextGate() {
 
 traNoSelfRunningTextGate();
 
+/**
+ * 🔴 原始碼層 gate：進站軌道【一個自走元件都不准有】。
+ *
+ * Live Activity 裡圖片不會自己移動，車只在推播重繪時挪一格；軌道上若有任何自走的東西
+ * （`ProgressView(timerInterval:)`、`Text(.currentDate…)`），它會在兩次推播之間跑到車前面，
+ * 看起來像車被丟下（設計稿「車子怎麼動」一節）。所以路線色那段必須是跟車同一個靜態比例。
+ * 另驗兩個呼叫點（鎖屏、動態島）都真的畫了 MetroWaitTrack——只改一個時存在性檢查會綠。
+ */
+function trackStaticGate() {
+  const bad = [];
+  const decl = extractDeclaration(waitSource, 'struct MetroWaitTrack');
+  const code = decl.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+  for (const needle of ['timerInterval', 'Text(.currentDate', 'style: .relative', 'RailSpineTrack(']) {
+    if (code.includes(needle)) bad.push(`MetroWaitTrack 出現 ${needle}——自走的東西會跑到只在推播時才挪的車前面`);
+  }
+  const calls = waitSource.match(/MetroWaitTrack\(track:/g)?.length ?? 0;
+  if (calls !== 2) bad.push(`MetroWaitTrack 呼叫點應為 2（鎖屏＋動態島），實際 ${calls}`);
+  if (!/hop: MetroWidgetCatalog\.shared\.waitHop\(/.test(waitSource)) {
+    bad.push('出貨的 display(ctx) 沒有把 MetroWidgetCatalog.shared.waitHop 傳進 make(...)——真機上永遠不會出現進站軌道');
+  }
+  // 正向對照：確定掃的是真的有畫車的那一份。
+  if (!code.includes('MetroWaitCarImage(model:')) bad.push('MetroWaitTrack 沒畫車模——這道 gate 掃錯東西了');
+  if (bad.length) throw new Error('進站軌道 gate 失敗：\n' + bad.map((b) => '  ' + b).join('\n'));
+  console.log('gate 通過：進站軌道零自走元件、鎖屏與動態島兩處都接上、出貨路徑有查上一站');
+}
+
+trackStaticGate();
+
 const pieces = [
   extractDeclaration(dataSource, 'enum RailBoardClock'),
   extractDeclaration(attrSource, 'enum RailFollowStale'),
   extractDeclaration(followSource, 'struct RailFollowDisplay'),
   extractDeclaration(followSource, 'struct RailFollowLockView'),
   extractDeclaration(followSource, 'struct RailFollowIslandBottom'),
+  extractDeclaration(sharedSource, 'struct MetroWidgetCatalog'),
+  extractDeclaration(sharedSource, 'struct MetroWaitHop'),
+  // 第二個 extension 才是 waitHop（第一個是看板用的查詢，這裡用不到）。
+  extractDeclaration(sharedSource, 'extension MetroWidgetCatalog', { occurrence: 2 }),
   extractDeclaration(waitSource, 'struct MetroWaitDisplay'),
+  extractDeclaration(waitSource, 'struct MetroWaitThirdRow'),
+  extractDeclaration(waitSource, 'struct MetroWaitTrack'),
+  extractDeclaration(waitSource, 'struct MetroWaitPlate'),
   extractDeclaration(waitSource, 'struct MetroWaitSecondLine'),
   extractDeclaration(waitSource, 'struct MetroWaitLockView'),
   extractDeclaration(waitSource, 'struct MetroWaitIslandBottom'),
@@ -276,6 +316,19 @@ struct MetroWaitEndButton: View {
         } else {
             RailEndButton(scale: scale, height: height) { Text("結束") }
         }
+    }
+}
+
+// 正側面車模的替身：出貨版是 Image("la-side-<model>")（asset catalog），裸執行檔沒有 asset catalog
+// ⇒ 直接讀同一個 imageset 裡的 @3x PNG。找不到就整支失敗（素材漏進 catalog 要紅，不要畫一塊空白）。
+struct MetroWaitCarImage: View {
+    let model: String
+    var body: some View {
+        let path = "${assetsDir}/la-side-\\(model).imageset/la-side-\\(model)@3x.png"
+        guard let img = NSImage(contentsOfFile: path) else {
+            FileHandle.standardError.write(Data("缺素材：\\(path)\\n".utf8)); exit(1)
+        }
+        return Image(nsImage: img).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
     }
 }
 
@@ -390,6 +443,41 @@ let waitWorst = MetroWaitDisplay.make(
     secondDest: "臺北車站（直達車）", secondEta: nowSec + 900, secondMinutes: nil,
     crowd: [3, 3, 2, 2, 3, 3], dataAt: nowSec - 30, endAt: nowSec + 45 * 60,
     notice: "板南線板橋站往南港方向延誤約 5 分", pushed: true, isStale: false, now: now)
+
+// ── 捷運等車卡：進站軌道（B 方案）────────────────────────────────────────────
+// 上一站一律由【出貨的查表】對【真的目錄】算（見 hopGate），不在這裡手捏。
+let catalog = MetroWidgetCatalog.shared
+let hopTaipei = catalog.waitHop(sys: "trtc", station: "台北車站", dest: "象山")
+
+func waitB(secondsToArrive: Double, isStale: Bool = false, pushed: Bool? = true,
+           dataAgeSec: Double = 8, notice: String? = nil,
+           station: String = "台北車站", dest: String = "象山", lineLabel: String = "淡水信義線",
+           colorHex: String = "#E3002C", hop: MetroWaitHop? = hopTaipei) -> MetroWaitDisplay {
+    MetroWaitDisplay.make(
+        lineLabel: lineLabel, station: station, colorHex: colorHex,
+        nextDest: dest, nextEta: nowSec + secondsToArrive, nextMinutes: nil,
+        secondDest: "大安", secondEta: nowSec + secondsToArrive + 300, secondMinutes: nil,
+        crowd: [1, 1, 2, 1, 1, 1], dataAt: nowSec - dataAgeSec, endAt: nowSec + 30 * 60,
+        notice: notice, pushed: pushed, isStale: isStale, now: now, hop: hop)
+}
+
+// 中山 → 台北車站 行駛 68 秒（目錄 run）。40 秒 ⇒ 車頭走了約四成（設計稿示範 45%）。
+let waitBRunning = waitB(secondsToArrive: 40)
+let waitBRunningLate = waitB(secondsToArrive: 12)
+// 倒數比行駛秒長、但還在上一站的停站秒內 ⇒ 車頭貼著上一站。
+let waitBAtPrev = waitB(secondsToArrive: (hopTaipei?.runSec ?? 0) + 5)
+// 倒數比「行駛＋停站」還長 ⇒ 車還沒到上一站，畫在左側虛線段上。
+let waitBFar = waitB(secondsToArrive: 200)
+let waitBArriving = waitB(secondsToArrive: 0, isStale: true)
+// 沒接上推播（pushed 不是 true）：車不畫，只有軌道；到站後那句老實話照舊。
+let waitBNoPush = waitB(secondsToArrive: 40, pushed: nil)
+let waitBNoPushArriving = waitB(secondsToArrive: 0, isStale: true, pushed: nil)
+let waitBExpired = waitB(secondsToArrive: 40, dataAgeSec: 140)
+// 最壞情況：最長站名（站名牌要往左長）＋服務異常那一行。
+let hopLong = catalog.waitHop(sys: "trtc", station: "南港軟體園區", dest: "動物園")
+let waitBWorst = waitB(secondsToArrive: 50, notice: "板南線板橋站往南港方向延誤約 5 分",
+                       station: "南港軟體園區", dest: "動物園", lineLabel: "文湖線",
+                       colorHex: "#C48C31", hop: hopLong)
 
 // 臺鐵等站卡（設計稿 F）。
 //
@@ -1147,6 +1235,154 @@ func traMinimalGate() {
 }
 
 // 鎖屏 Live Activity 的內容寬：430pt 機型約 360pt，393pt 機型約 330pt。
+/// 🔴 gate：上一站查表（真目錄＋出貨規則）。每一條「查不到」都配一條同站或同系統的正向對照，
+///    否則「全部回 nil」也會讓否定判準全綠。
+@MainActor
+func hopGate() {
+    var bad: [String] = []
+    func expect(_ st: String, _ dest: String, prev: String?, run: Double? = nil, model: String? = nil,
+                line: String? = nil, sys: String = "trtc") {
+        let h = catalog.waitHop(sys: sys, station: st, dest: dest)
+        if h?.prev != prev { bad.append("\\(sys) \\(st)→往\\(dest)：上一站 \\(h?.prev ?? "nil")，應為 \\(prev ?? "nil")") }
+        if let run, h?.runSec != run { bad.append("\\(st)→往\\(dest)：行駛 \\(h?.runSec ?? -1) 秒，應為 \\(run)") }
+        if let model, h?.carModel != model { bad.append("\\(st)→往\\(dest)：車模 \\(h?.carModel ?? "nil")，應為 \\(model)") }
+        if let line, h?.lineName != line { bad.append("\\(st)→往\\(dest)：線名 \\(h?.lineName ?? "nil")，應為 \\(line)") }
+    }
+    // 期望值取自 data/trtc.json 的站序與 segs（外部資料），不是這支查表自己算的。
+    expect("台北車站", "象山", prev: "中山", run: 68, model: "c381", line: "淡水信義線")
+    expect("台北車站", "象山站", prev: "中山", run: 68)            // 官方尾綴「站」
+    expect("台北車站", "頂埔", prev: "善導寺", model: "c321", line: "板南線")
+    expect("忠孝復興", "動物園", prev: "南京復興", model: "val256", line: "文湖線")
+    expect("古亭", "南勢角", prev: "東門", line: "中和新蘆線")      // 兩條支線共線段：同一個上一站、取母線名
+    expect("大坪林", "新北產業園區", prev: nil)                      // 環狀線起點
+    expect("十四張", "新北產業園區", prev: "大坪林", model: "y100")
+    // 解不出唯一答案 ⇒ nil（不畫車）。
+    expect("忠孝復興", "南港展覽館", prev: nil)                      // 文湖線從大安來、板南線從忠孝新生來
+    expect("大橋頭", "南勢角", prev: nil)                            // 兩條支線各自一站
+    expect("淡水", "象山", prev: nil)                                // 本站是起點
+    expect("哈瑪星", "小港", prev: nil, sys: "krtc")                 // 分鐘級系統
+    if !catalog.systems.contains(where: { $0.id == "krtc" }) { bad.append("目錄裡沒有 krtc——上一條的 nil 沒有意義") }
+    if !bad.isEmpty { FileHandle.standardError.write(Data(("上一站查表 gate 失敗：\\n" + bad.joined(separator: "\\n") + "\\n").utf8)); exit(1) }
+    print("gate 通過：上一站查表 12 條（含 5 條查不到＋對照）")
+}
+
+/// 🔴 gate：車的位置（純值層）。判準取自物理事實（倒數越小車越靠近本站）與設計稿的狀態表，
+///    不問實作用了哪個公式。
+@MainActor
+func carStateGate() {
+    var bad: [String] = []
+    func frac(_ d: MetroWaitDisplay) -> Double? {
+        if case .running(let f)? = d.trackB?.car { return f } else { return nil }
+    }
+    guard let f40 = frac(waitBRunning), let f12 = frac(waitBRunningLate) else {
+        FileHandle.standardError.write(Data("車位置 gate：行駛中那兩張沒有車\\n".utf8)); exit(1)
+    }
+    if !(0 < f40 && f40 < f12 && f12 < 1) { bad.append("倒數 40 秒 \\(f40)、12 秒 \\(f12)：車沒有隨倒數往本站靠") }
+    if frac(waitBAtPrev) != 0 { bad.append("停在上一站時車頭應貼著上一站（0），實際 \\(String(describing: waitBAtPrev.trackB?.car))") }
+    if waitBFar.trackB?.car != .far { bad.append("倒數 200 秒應畫在虛線段（far），實際 \\(String(describing: waitBFar.trackB?.car))") }
+    if waitBArriving.trackB?.car != .arrived { bad.append("進站應 arrived，實際 \\(String(describing: waitBArriving.trackB?.car))") }
+    for (name, d) in [("沒接上推播", waitBNoPush), ("沒接上推播・進站", waitBNoPushArriving), ("資料過期", waitBExpired)] {
+        if d.trackB == nil { bad.append("\\(name)：整條軌道不見了（應只拿掉車）") }
+        if d.trackB?.car != TrackCarNone { bad.append("\\(name)：不應畫車，實際 \\(String(describing: d.trackB?.car))") }
+    }
+    if waitBNoPushArriving.staleHint?.contains("回軌島") != true { bad.append("沒接上推播的卡到站後少了「要看後續請回軌島」那句") }
+    // 同一份 ContentState 在不同時刻重繪（系統替淺／深色、切外觀各算一張快照）⇒ 車必須停在同一處，
+    // 否則同一次更新的車會前後跳、甚至倒退（09-23 模擬器實見）。
+    func carAt(_ t: Double) -> MetroWaitDisplay.TrackB.Car? {
+        MetroWaitDisplay.make(
+            lineLabel: "淡水信義線", station: "台北車站", colorHex: "#E3002C",
+            nextDest: "象山", nextEta: nowSec + 40, nextMinutes: nil,
+            secondDest: nil, secondEta: nil, secondMinutes: nil,
+            crowd: nil, dataAt: nowSec, endAt: nowSec + 1800,
+            notice: nil, pushed: true, isStale: false,
+            now: Date(timeIntervalSince1970: nowSec + t), hop: hopTaipei).trackB?.car
+    }
+    if carAt(1) != carAt(30) { bad.append("同一份資料在 +1 秒與 +30 秒重繪，車位置不同（\\(String(describing: carAt(1))) vs \\(String(describing: carAt(30)))）：車只准在更新時動") }
+    // 反向：分鐘級系統與查不到上一站 ⇒ 維持原本的軌脊版（不偽造位置）。
+    if waitApprox.trackB != nil { bad.append("高捷（分鐘級）不該有進站軌道") }
+    if waitB(secondsToArrive: 40, hop: nil).trackB != nil { bad.append("查不到上一站時不該有進站軌道") }
+    if !bad.isEmpty { FileHandle.standardError.write(Data(("車位置 gate 失敗：\\n" + bad.joined(separator: "\\n") + "\\n").utf8)); exit(1) }
+    print("gate 通過：車位置七態（行駛兩點遞增／停上一站／虛線段／進站／沒推播／過期）＋兩條退回軌脊")
+}
+let TrackCarNone: MetroWaitDisplay.TrackB.Car? = MetroWaitDisplay.TrackB.Car.none
+
+/// 🔴 gate：進站軌道的幾個狀態在畫面上必須真的不一樣（PNG 位元組，不看實作）。
+@MainActor
+func trackStateGate() {
+    let shots: [(String, Data)] = [
+        ("行駛中", pngData(MetroWaitLockView(display: waitBRunning), width: 360, height: nil)),
+        ("還沒到上一站", pngData(MetroWaitLockView(display: waitBFar), width: 360, height: nil)),
+        ("進站", pngData(MetroWaitLockView(display: waitBArriving), width: 360, height: nil)),
+        ("沒接上推播", pngData(MetroWaitLockView(display: waitBNoPush), width: 360, height: nil)),
+    ]
+    for i in shots.indices { for j in (i + 1)..<shots.count where shots[i].1 == shots[j].1 {
+        FileHandle.standardError.write(Data("進站軌道 gate：\\(shots[i].0) 與 \\(shots[j].0) 畫出來一模一樣\\n".utf8)); exit(1)
+    } }
+    print("gate 通過：進站軌道四態畫面兩兩不同")
+}
+
+/// 🔴 gate：卡片翻成 isStale（進站）後，畫出來的東西不准超出翻轉前的高度。
+///
+/// 09-23 台鐵等站卡 session 在 iOS 26.5 模擬器實見（進站軌道版，一次）：卡片在鎖屏亮著時翻 stale、
+/// 翻轉後多出一列，系統把外框長高，內容卻仍按翻轉前的高度裁——新的那列只露出上緣 2pt。
+/// 🔴 同一天它的軌脊版翻轉長高卻完整（一次），差別原因未明 ⇒ 這道 gate 是保險：讓版面不依賴系統
+///    怎麼重畫，不是在修一個捷運卡上實拍到的 bug（捷運卡的翻轉沒有實拍過）。
+/// 高度上限 gate（≤160）照不到：翻轉後單看是合格的，要比的是「前後」。
+/// ⇒ 成對算繪【只差 isStale】的兩張：進站那張的【墨跡下緣】不准超過行駛那張的【自然高度】
+///    （＝系統還在用的舊外框）。量墨跡不量外框：多出來的若只落在內距裡，被裁的是空白，不是字。
+/// 捷運第三列是單一欄位（公告 ＞ 到站說明 ＞ 擁擠度／再下一班），有擁擠度或再下一班時翻轉是換字；
+/// 危險的是兩者都沒有（末班、資料缺）——第三列從空變成一句到站說明。
+@MainActor
+func staleFlipHeightGate() {
+    func natural(_ png: Data) -> CGFloat { CGFloat(NSBitmapImageRep(data: png)?.pixelsHigh ?? 0) / 3 }
+    /// (翻轉前外框高, 翻轉後墨跡下緣)
+    func measure<A: View, B: View>(_ run: A, _ arr: B) -> (CGFloat, CGFloat) {
+        let before = natural(pngData(run, width: 360, height: nil))
+        let after = pngData(arr, width: 360, height: nil)
+        return (before, (inkBounds(after, scale: 3)?.y1 ?? .infinity) + 1.0 / 3)
+    }
+    func pair(crowd: [Int]?, second: String?, pushed: Bool?, hop: MetroWaitHop?, _ stale: Bool) -> MetroWaitDisplay {
+        MetroWaitDisplay.make(
+            lineLabel: "淡水信義線", station: "台北車站", colorHex: "#E3002C",
+            nextDest: "象山", nextEta: nowSec + (stale ? 0 : 40), nextMinutes: nil,
+            secondDest: second, secondEta: second.map { _ in nowSec + 340 }, secondMinutes: nil,
+            crowd: crowd, dataAt: nowSec - 8, endAt: nowSec + 30 * 60,
+            notice: nil, pushed: pushed, isStale: stale, now: now, hop: hop)
+    }
+    var bad: [String] = [], report: [String] = []
+    for (hop, hopName) in [(hopTaipei, "進站軌道"), (nil as MetroWaitHop?, "軌脊")] {
+        for (crowd, second, name) in [([1, 1, 2, 1, 1, 1] as [Int]?, "大安" as String?, "擁擠度＋再下一班"),
+                                      (nil, "大安", "只有再下一班"),
+                                      ([1, 1, 2, 1, 1, 1], nil, "只有擁擠度"),
+                                      (nil, nil, "兩者都沒有")] {
+            for pushed in [true, nil] as [Bool?] {
+                let label = "\\(hopName)／\\(name)／\\(pushed == true ? "接上推播" : "沒接上")"
+                let run = pair(crowd: crowd, second: second, pushed: pushed, hop: hop, false)
+                let arr = pair(crowd: crowd, second: second, pushed: pushed, hop: hop, true)
+                for (surface, m) in [("鎖屏", measure(MetroWaitLockView(display: run), MetroWaitLockView(display: arr))),
+                                     ("動態島", measure(MetroWaitIslandBottom(display: run), MetroWaitIslandBottom(display: arr)))] {
+                    report.append("\\(surface) \\(label)：舊外框 \\(m.0)pt、翻轉後墨跡到 \\(m.1)pt")
+                    if m.1 > m.0 { bad.append("\\(surface) \\(label)：翻進站後墨跡畫到 \\(m.1)pt，翻轉前外框只有 \\(m.0)pt ⇒ 下緣會被裁") }
+                }
+            }
+        }
+    }
+    // 正向對照：同一支量尺必須抓得到「翻轉後多一列」——拿行駛那張當舊外框，進站那張底下硬接一列字。
+    let run0 = pair(crowd: nil, second: nil, pushed: true, hop: nil, false)
+    let arr0 = pair(crowd: nil, second: nil, pushed: true, hop: nil, true)
+    let ctl = measure(MetroWaitLockView(display: run0),
+                      VStack(spacing: 0) { MetroWaitLockView(display: arr0); Text("多一列").font(.system(size: 11)) })
+    if !(ctl.1 > ctl.0) {
+        bad.append("正向對照失敗：進站那張底下多接一列字，量尺仍說沒超出（舊外框 \\(ctl.0)、墨跡 \\(ctl.1)）——這支量尺抓不到多一列")
+    }
+    if !bad.isEmpty {
+        FileHandle.standardError.write(Data(("翻轉等高 gate 失敗：\\n" + bad.joined(separator: "\\n")
+            + "\\n量測：\\n" + report.joined(separator: "\\n") + "\\n").utf8))
+        exit(1)
+    }
+    print("gate 通過：翻進站後墨跡不超出舊外框（\\(report.count) 對：軌道／軌脊 × 四種第三列 × 推播兩態 × 鎖屏／動態島；正向對照多一列 \\(ctl.0)→\\(ctl.1)pt 抓得到）")
+}
+
 // 動態島展開版約 360pt 寬。
 @main
 struct Harness {
@@ -1162,6 +1398,10 @@ struct Harness {
         traPrecisionGate()
         traStaticTextGate()
         traMinimalGate()
+        hopGate()
+        carStateGate()
+        trackStateGate()
+        staleFlipHeightGate()
 
         // 臺鐵跟車：三態＋準點＋中斷＋最壞值
         _ = render(RailFollowLockView(display: followRunning), width: 360, maxHeight: lockScreenMaxHeight,
@@ -1204,6 +1444,23 @@ struct Harness {
         _ = render(MetroWaitLockView(display: waitWorst), width: 300, maxHeight: lockScreenMaxHeight,
                    to: outDir + "/la-wait-worst-narrow300.png")
 
+        // 捷運候車・進站軌道（B）：淺色／深色 × 行駛中／停上一站／還沒到上一站／進站／沒接上推播（行駛・進站）／過期
+        for dark in [true, false] {
+            let tag = dark ? "dark" : "light"
+            for (name, d) in [("running", waitBRunning), ("atprev", waitBAtPrev), ("far", waitBFar),
+                              ("arriving", waitBArriving), ("nopush", waitBNoPush),
+                              ("nopush-arriving", waitBNoPushArriving), ("expired", waitBExpired)] {
+                _ = render(MetroWaitLockView(display: d), width: 360, maxHeight: lockScreenMaxHeight, dark: dark,
+                           to: outDir + "/la-waitb-\\(name)-\\(tag).png")
+            }
+        }
+        _ = render(MetroWaitLockView(display: waitBWorst), width: 330, maxHeight: lockScreenMaxHeight,
+                   to: outDir + "/la-waitb-worst-393.png")
+        _ = render(MetroWaitLockView(display: waitBWorst), width: 300, maxHeight: lockScreenMaxHeight,
+                   to: outDir + "/la-waitb-worst-narrow300.png")
+        _ = render(MetroWaitLockView(display: waitBRunning), width: 300, maxHeight: lockScreenMaxHeight, dark: false,
+                   to: outDir + "/la-waitb-running-narrow300.png")
+
         // 臺鐵等站：誤點／準點／未知／過期／早到／公告／到站（接上與沒接上推播）／最壞值
         for (name, d) in [("late", traLate), ("ontime", traOnTime), ("unknown", traUnknown),
                           ("expired", traExpired), ("early", traEarly), ("notice", traNotice),
@@ -1235,6 +1492,12 @@ struct Harness {
         // 進站時島上捨棄「再下一班」保住擁擠度（見 MetroWaitIslandBottom 的註解）。
         _ = render(MetroWaitIslandBottom(display: waitArriving), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
                    to: outDir + "/island-wait-bottom-arriving.png")
+
+        for (name, d) in [("running", waitBRunning), ("far", waitBFar), ("arriving", waitBArriving),
+                          ("nopush", waitBNoPush), ("worst", waitBWorst)] {
+            _ = render(MetroWaitIslandBottom(display: d), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
+                       to: outDir + "/island-waitb-\\(name).png")
+        }
 
         _ = render(TraWaitIslandBottom(display: traLate), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
                    to: outDir + "/island-trawait-bottom.png")
@@ -1275,6 +1538,8 @@ mkdirSync(outDir, { recursive: true });
 const swiftPath = join(outDir, 'harness.swift');
 const binPath = join(outDir, 'harness');
 writeFileSync(swiftPath, harness);
+// 裸執行檔的 Bundle.main＝執行檔所在目錄 ⇒ 複製真的目錄檔過去，MetroWidgetCatalog.shared 才讀得到。
+copyFileSync(join(widgetDir, 'MetroWidgetData.json'), join(outDir, 'MetroWidgetData.json'));
 
 execFileSync('swiftc', ['-O', '-parse-as-library', swiftPath, kitPath, nativeL10nPath, '-o', binPath], { stdio: 'inherit' });
 execFileSync(binPath, [outDir], { stdio: 'inherit' });

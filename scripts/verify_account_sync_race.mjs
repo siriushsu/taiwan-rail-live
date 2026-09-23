@@ -372,8 +372,8 @@ const chromiumB = await chromium.launch();
     };
   }, UID);
   ok('R3a 同步成功(第一輪與第二輪都回傳 true)', r.result1 === true && r.result2 === true, JSON.stringify(r));
-  ok('R3b 四個 kind 都呼叫了 tx.set(pins/favs/rides/stations)',
-    JSON.stringify(r.writeKinds1) === JSON.stringify(['favs', 'pins', 'rides', 'stations']), JSON.stringify(r.writeKinds1));
+  ok('R3b 六個 kind 都呼叫了 tx.set(pins/favs/rides/stations＋2026-09-23 起的 checkins/segments)',
+    JSON.stringify(r.writeKinds1) === JSON.stringify(['checkins', 'favs', 'pins', 'rides', 'segments', 'stations']), JSON.stringify(r.writeKinds1));
   ok('R3c 本機獨有的兩筆與雲端獨有的一筆,第一輪同時上傳與下載(merge 真的跑過,不是只挑一邊)',
     JSON.stringify(r.afterSync1) === JSON.stringify(['R3_CLOUD_ONLY', 'R3_LOCAL_A', 'R3_LOCAL_B']), JSON.stringify(r));
   ok('R3d revision = max(本機,雲端)+1(=6,雲端給的是5、本機剛建立是1)', r.revision1 === 6, `revision1=${r.revision1}`);
@@ -692,8 +692,8 @@ const chromiumB = await chromium.launch();
     r.syncSuspendedWhileBlocked === true, JSON.stringify(r));
   ok("R8 Important 5 核心斷言:刪帳號進行中,accountSyncNow('foreground') 回傳 false 且沒有觸碰 Firestore(txnCallsWhileBlocked===0)——不會把剛刪掉的文件重建",
     r.foregroundResult === false && r.txnCallsWhileBlocked === 0, JSON.stringify(r));
-  ok('R8 正向對照:放行之後 accountDelete() 仍然完整跑完(正式／Sandbox 兩個分區各 4 份，共 8 個 deleteDoc；deleteUser 也被呼叫)——syncSuspended 沒有把刪帳號本身卡死,只是暫停同步',
-    r.deleteDocCallsFinal === 8 && r.deleteUserCalledFinal === true, JSON.stringify(r));
+  ok('R8 正向對照:放行之後 accountDelete() 仍然完整跑完(正式／Sandbox 兩個分區各 6 份，共 12 個 deleteDoc；deleteUser 也被呼叫)——syncSuspended 沒有把刪帳號本身卡死,只是暫停同步',
+    r.deleteDocCallsFinal === 12 && r.deleteUserCalledFinal === true, JSON.stringify(r));
   ok('R8 旗標復原:accountDelete() 完成後 a.syncSuspended 復原成 false(不會永久卡住之後所有同步)',
     r.syncSuspendedFinal === false, JSON.stringify(r));
   ok('R8 正向對照:accountClearLocal 最終仍正常執行,本機分區確實被清空(R8_TRAIN 不在了)',
@@ -906,8 +906,8 @@ const chromiumB = await chromium.launch();
     r.opsWhileSyncInFlight.length === 0, JSON.stringify(r));
   ok('R8w Important 3 核心斷言(順序):最終的 Firestore 動作順序裡,所有 tx.set 都發生在第一個 deleteDoc 之前——剛刪掉的文件不會被在途同步重建',
     r.allSetsBeforeFirstDelete === true, JSON.stringify(r));
-  ok('R8w 正向對照(同一支收集器):三種動作最終都真的被記錄到(4 筆 tx.set、正式／Sandbox 共 8 筆 deleteDoc、1 筆 deleteUser)——證明上面「為 0」與「順序」不是因為 stub 根本沒被呼叫',
-    r.txnSetCount === 4 && r.deleteDocCount === 8 && r.deleteUserCount === 1, JSON.stringify(r));
+  ok('R8w 正向對照(同一支收集器):三種動作最終都真的被記錄到(6 筆 tx.set、正式／Sandbox 共 12 筆 deleteDoc、1 筆 deleteUser)——證明上面「為 0」與「順序」不是因為 stub 根本沒被呼叫',
+    r.txnSetCount === 6 && r.deleteDocCount === 12 && r.deleteUserCount === 1, JSON.stringify(r));
   ok('R8w 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -1498,7 +1498,7 @@ const chromiumB = await chromium.launch();
   ok('R16b 核心斷言:握手真的發生了——/api/plus-status 被打了 1 次,而且帶著 Bearer 身分(沒帶身分的請求後端只會回 401,等於白打)',
     statusAuth.length === 1 && /^Bearer .+/.test(statusAuth[0] || ''), JSON.stringify({ statusAuth }));
   ok('R16c 核心斷言:被擋時交易次數有上限——整次同步只送出 2 發(第一發全量、第二發是退回舊清單的重試),不是對著註定被 rules 擋下的規則洗版',
-    JSON.stringify(p1.attempts) === JSON.stringify([['pins', 'favs', 'rides', 'stations'], ['pins', 'favs', 'rides']]),
+    JSON.stringify(p1.attempts) === JSON.stringify([['pins', 'favs', 'rides', 'stations', 'checkins', 'segments'], ['pins', 'favs', 'rides']]),
     JSON.stringify(p1.attempts));
   ok('R16d 前置事實(下面「收回降級」才有東西可收):文件落地之前,a.legacyKinds 確實被設成 true,而且 cloudSyncReady 仍是 false',
     p1.legacyKinds === true && p1.cloudReady === false, JSON.stringify(p1));
@@ -1517,11 +1517,11 @@ const chromiumB = await chromium.launch();
     p2.legacyKinds === false, JSON.stringify(p2));
   ok('R16f 核心斷言(使用者真正看得到的結果):落地後那一次同步真的把四個 kind 全量提交上雲,而且 stations 裡就是他那筆收藏站點——降級期間沒上去的東西補上去了',
     p2.commits.length === 1
-      && JSON.stringify(p2.commits[0].map(w => w.kind)) === JSON.stringify(['pins', 'favs', 'rides', 'stations'])
+      && JSON.stringify(p2.commits[0].map(w => w.kind)) === JSON.stringify(['pins', 'favs', 'rides', 'stations', 'checkins', 'segments'])
       && JSON.stringify((p2.commits[0].find(w => w.kind === 'stations') || {}).ids) === JSON.stringify(['tra_sched|R16_STATION']),
     JSON.stringify(p2.commits));
   ok('R16g 核心斷言(時序):這一輪的兩發交易依序是「舊清單(還在降級中)→ 握手成功後的全量重試」——證明全量那發是握手促成的,不是第一發就送全量碰巧成功',
-    JSON.stringify(p2.attempts.slice(2)) === JSON.stringify([['pins', 'favs', 'rides'], ['pins', 'favs', 'rides', 'stations']]),
+    JSON.stringify(p2.attempts.slice(2)) === JSON.stringify([['pins', 'favs', 'rides'], ['pins', 'favs', 'rides', 'stations', 'checkins', 'segments']]),
     JSON.stringify(p2.attempts));
   ok('R16h 兩個狀態各自到位:資格文件落地後 plusCloudSyncReady() 變 true、plusIsActive() 仍是 true,而且這次同步回傳 true、錯誤訊息被清掉',
     p2.cloudReady === true && p2.plusActive === true && p2.r === true && p2.actionError === '' && p2.lastSync > 0, JSON.stringify(p2));
@@ -1536,7 +1536,7 @@ const chromiumB = await chromium.launch();
   });
   ok('R16j 握手不重打:資格文件已確認落地之後,再同步一次完全不碰 /api/plus-status(累計仍是 2),而且交易一發就成功',
     statusAuth.length === 2 && p3.r === true
-      && JSON.stringify(p3.newAttempts) === JSON.stringify([['pins', 'favs', 'rides', 'stations']]) && p3.commits === 2,
+      && JSON.stringify(p3.newAttempts) === JSON.stringify([['pins', 'favs', 'rides', 'stations', 'checkins', 'segments']]) && p3.commits === 2,
     JSON.stringify({ statusAuth, p3 }));
   ok('R16 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
@@ -1637,7 +1637,7 @@ const chromiumB = await chromium.launch();
     statusAuth.length === 1 && /^Bearer .+/.test(statusAuth[0] || ''), JSON.stringify({ statusAuth }));
   ok('R17b 核心斷言(使用者真正看得到的結果):握手之後真的補了一次全量同步,四個 kind 全部提交,stations 裡就是購買前存下的那筆站點',
     after.commits.length === 1
-      && JSON.stringify(after.commits[0].map(w => w.kind)) === JSON.stringify(['pins', 'favs', 'rides', 'stations'])
+      && JSON.stringify(after.commits[0].map(w => w.kind)) === JSON.stringify(['pins', 'favs', 'rides', 'stations', 'checkins', 'segments'])
       && JSON.stringify((after.commits[0].find(w => w.kind === 'stations') || {}).ids) === JSON.stringify(['tra_sched|R17_STATION']),
     JSON.stringify(after.commits));
   ok('R17c 兩個狀態都到位:購買後 plusIsActive() 與 plusCloudSyncReady() 都是 true,而且第一次同步就成功(lastSync 有值、沒有進入降級)',

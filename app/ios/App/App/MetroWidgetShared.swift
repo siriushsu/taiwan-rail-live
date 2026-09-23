@@ -43,6 +43,13 @@ struct MetroWidgetCatalog {
     /// 🔴 只有【解得出唯一路線】的班次才配得到名字(見 MetroBoardModel.resolveLine),
     ///    解不出來就留空字串——標頭寧可少一行字,也不要掛一條猜的線。
     let lineNameByID: [String: String]
+    /// "<sys>|<線 id>" → 該線依站序的每一站(名稱＋前一站到這一站的行駛秒＋停站秒)。
+    /// 等車卡的進站軌道要知道「這班車的上一站」與「上一站到本站要開多久」,兩者都只能從站序推。
+    let lineStops: [String: [LineStop]]
+    /// 每個系統的線 id(目錄順序)。查上一站時要逐線找「同時有本站與終點站」的那幾條。
+    let lineIDsBySys: [String: [String]]
+
+    struct LineStop { let name: String; let run: Double?; let dwell: Double? }
 
     static let shared: MetroWidgetCatalog = load()
 
@@ -54,7 +61,8 @@ struct MetroWidgetCatalog {
             //    ItemCollection 會是空的——這是唯一真的沒東西可列的情況,與 .empty 的語意不同)。
             return MetroWidgetCatalog(systems: [], alias: [:], lastTrain: [:], lineColors: [:],
                                       lineIDs: [:], coords: [:], destsByStation: [:],
-                                      lineColorByID: [:], lineNameByID: [:])
+                                      lineColorByID: [:], lineNameByID: [:],
+                                      lineStops: [:], lineIDsBySys: [:])
         }
         var out: [System] = []
         var colors: [String: [String]] = [:]
@@ -63,6 +71,8 @@ struct MetroWidgetCatalog {
         var destsByStation: [String: [String]] = [:]
         var byLineID: [String: String] = [:]
         var nameByLineID: [String: String] = [:]
+        var stopsByLine: [String: [LineStop]] = [:]
+        var lineOrder: [String: [String]] = [:]
         for s in (obj["systems"] as? [[String: Any]] ?? []) {
             let sysID = s["id"] as? String ?? ""
             let lines = s["lines"] as? [[String: Any]] ?? []
@@ -89,6 +99,15 @@ struct MetroWidgetCatalog {
                               crowd: s["crowd"] as? Bool ?? false,
                               stationNames: names, destinations: dests.sorted()))
             for line in lines {
+                // 站序不看色票:缺色票的線照樣有上一站可查。
+                if let lid = line["id"] as? String {
+                    lineOrder[sysID, default: []].append(lid)
+                    stopsByLine["\(sysID)|\(lid)"] = (line["stations"] as? [[String: Any]] ?? []).compactMap { st in
+                        guard let n = st["name"] as? String else { return nil }
+                        return LineStop(name: n, run: (st["run"] as? NSNumber)?.doubleValue,
+                                        dwell: (st["dwell"] as? NSNumber)?.doubleValue)
+                    }
+                }
                 guard let color = line["color"] as? String else { continue }
                 if let lid = line["id"] as? String {
                     byLineID["\(sysID)|\(lid)"] = color
@@ -116,7 +135,8 @@ struct MetroWidgetCatalog {
                                   lastTrain: obj["lastTrain"] as? [String: String] ?? [:],
                                   lineColors: colors, lineIDs: ids, coords: coords,
                                   destsByStation: destsByStation,
-                                  lineColorByID: byLineID, lineNameByID: nameByLineID)
+                                  lineColorByID: byLineID, lineNameByID: nameByLineID,
+                                  lineStops: stopsByLine, lineIDsBySys: lineOrder)
     }
 }
 
@@ -180,6 +200,97 @@ extension MetroWidgetCatalog {
         if kids.count == 1 { return kids.first }
         let stems = Set(kids.map { String($0.prefix(while: { $0 != "（" })) })
         return stems.count == 1 ? stems.first : nil
+    }
+}
+
+/// 等車卡進站軌道的一段(上一站 → 本站)。見 `MetroWidgetCatalog.waitHop`。
+struct MetroWaitHop: Equatable {
+    let prev: String
+    /// 上一站到本站的行駛秒(不含停站)。
+    let runSec: Double
+    /// 上一站的停站秒。倒數落在 (run, run+dwell] 之間＝車還停在上一站。
+    let dwellSec: Double
+    let lineID: String
+    /// 站名牌帶子上的線名;共線段取母線名,解不出來是 nil(帶子只留色)。
+    let lineName: String?
+    let colorHex: String?
+
+    /// 正側面車模(asset `la-side-<id>`)。對照網站 3D 列車的路線→車型
+    /// (rail-3d/integration/formations.js baseFormation):文湖線在 fleet-v1 只有 VAL256 一款。
+    var carModel: String {
+        switch lineID {
+        case "BR": return "val256"
+        case "BL": return "c321"
+        case "Y":  return "y100"
+        default:   return "c381"   // R／G／O 兩支線／新北投、小碧潭支線
+        }
+    }
+    /// 車模的寬高比(裁切後的實際像素比;app/scripts/build_la_side_assets.py 產圖時印出來的值,
+    /// 重產素材後要同步改這裡)。
+    var carAspect: Double {
+        switch carModel {
+        case "val256": return 2.255
+        case "y100":   return 2.499
+        default:       return 2.765
+        }
+    }
+}
+
+// 🔴 刻意放在【第二個】extension:算繪腳本(render_metro_widget／render_mixed_widget)只抽
+//    第一個 extension 與 struct 本體裸編譯（它們用字串找宣告頭，這行註解刻意不寫出完整宣告頭）,這一段要用到 MetroWaitHop,
+//    放進第一個會讓那兩支腳本編不過(它們不畫等車卡,用不到這段)。
+extension MetroWidgetCatalog {
+    /// 等車卡進站軌道要的那一段:下一班車從哪一站開過來、開多久、是哪條線。
+    ///
+    /// 只用目錄的站序推——不需要伺服器多給欄位,推播也不用改形狀(ContentState 本來就有 nextDest)。
+    /// 方向由終點決定:終點在本站的哪一側,車就從另一側的鄰站開過來。
+    /// 🔴 解不出唯一答案就回 nil,呼叫端不畫車(不猜):
+    ///    - 分鐘級系統(高捷/機捷)沒有秒級到站時刻,推不出位置 ⇒ 一律 nil;
+    ///    - 本站是這個方向的起點(淡水往象山):車就停在本站等發車,沒有「上一站」;
+    ///    - 兩條線都同時經過本站與終點、而上一站不同(忠孝復興往南港展覽館:文湖線從大安來、
+    ///      板南線從忠孝新生來;大橋頭往南勢角:兩條支線各自一站)——ContentState 只有終點,分不出是哪條線。
+    ///    共線段(中和新蘆線兩支線在古亭往南勢角)上一站相同,不算歧義。
+    func waitHop(sys: String, station: String, dest: String?) -> MetroWaitHop? {
+        guard systems.first(where: { $0.id == sys })?.precision == "sec",
+              let rawDest = dest, !rawDest.isEmpty else { return nil }
+        let lines = (lineIDsBySys[sys] ?? []).compactMap { id in lineStops["\(sys)|\(id)"].map { (id, $0) } }
+        let names = Set(lines.flatMap { $0.1.map(\.name) })
+        guard let here = canonicalStation(sys: sys, raw: station, known: names),
+              let to = canonicalStation(sys: sys, raw: rawDest, known: names), here != to else { return nil }
+        var found: [MetroWaitHop] = []
+        for (id, stops) in lines {
+            guard let i = stops.firstIndex(where: { $0.name == here }),
+                  let j = stops.firstIndex(where: { $0.name == to }) else { continue }
+            let p = j > i ? i - 1 : i + 1
+            guard stops.indices.contains(p) else { return nil }   // 本站是這個方向的起點
+            // run 記在「站序較後」的那一站(= 前一站到它);兩個方向同值(TDX S2STravelTime)。
+            guard let run = (j > i ? stops[i].run : stops[p].run), run > 0 else { return nil }
+            found.append(MetroWaitHop(prev: stops[p].name, runSec: run, dwellSec: stops[p].dwell ?? 0,
+                                      lineID: id, lineName: lineNameByID["\(sys)|\(id)"],
+                                      colorHex: lineColorByID["\(sys)|\(id)"]))
+        }
+        guard let first = found.first,
+              found.allSatisfy({ $0.prev == first.prev && $0.runSec == first.runSec }) else { return nil }
+        // 共線段的兩條支線:線名取母線名(「中和新蘆線（迴龍）」「中和新蘆線（蘆洲）」都同意「中和新蘆線」)。
+        let stems = Set(found.compactMap { $0.lineName.map { String($0.prefix(while: { $0 != "（" })) } })
+        let colors = Set(found.compactMap(\.colorHex))
+        return MetroWaitHop(prev: first.prev, runSec: first.runSec, dwellSec: first.dwellSec,
+                            lineID: first.lineID, lineName: stems.count == 1 ? stems.first : nil,
+                            colorHex: colors.count == 1 ? colors.first : nil)
+    }
+
+    /// 站名對回目錄:先直接比對,不中才走別名、臺→台、去尾綴「站」(順序同 MetroBoardModel:
+    /// 無條件去尾會弄丟「台北車站」)。
+    private func canonicalStation(sys: String, raw: String, known: Set<String>) -> String? {
+        if known.contains(raw) { return raw }
+        if let a = alias[sys]?[raw], known.contains(a) { return a }
+        let tai = raw.replacingOccurrences(of: "臺", with: "台")
+        if known.contains(tai) { return tai }
+        if tai.hasSuffix("站") {
+            let stripped = String(tai.dropLast())
+            if known.contains(stripped) { return stripped }
+        }
+        return nil
     }
 }
 

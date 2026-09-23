@@ -27,28 +27,52 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
   // 圖磚還在就不必再解碼、再跑 owner()/blocked(),remainders 的 Feature 物件也直接留用。
   // 2026-09-08 桌面 6x 降速實測:一次重算 620ms,其中 blocked() 190ms、把一萬多個分件座標
   // JSON.stringify 兩遍 135ms、解碼 110ms;圖磚集合沒變時這些全是重複工。
-  // 快取在路線集合(clearance.revision)或工程遮罩改變時整批作廢,圖磚卸載時逐條淘汰。
+  // 解碼、owner() 只跟工程遮罩有關,快取只在工程遮罩改變時整批作廢,圖磚卸載時逐條淘汰;
+  // 路線集合(clearance.revision)變了只重判 blocked()。跟車時列車進出畫面就會改 revision,
+  // 原本整批作廢、下一次重算在同一幀重新解碼全部建物(2026-09-23 桌面 1x 實跟台鐵 132–229ms 長幀)。
   const partCache=new Map();let partCacheKey='';
+  // 待算的分件分片做,算滿預算就讓出主執行緒,全部進快取之後的下一片才一次套用。
+  // 一輪只 querySourceFeatures 一次,各片沿用同一份清單,套用結果與一次算完相同。
+  // 預算＝上一片結束到這一片開始(≈一幀)的 30%,夾在 6–20ms:幀本來就慢時每片只拉長三成,
+  // 固定 6ms 在桌面 4x 降速(一幀 150ms+、每幀只輪到一片)時台北車站整批冷算要 16s 以上才套用。
+  const MASK_SLICE_MS=6,MASK_SLICE_MAX_MS=20;let pending=null,maskSliced=false;
   // 只在新分件進快取時序列化一次；沿用原版的完整多邊形相等規則，不以短雜湊代替。
   function polygonHash(rings){return JSON.stringify(rings);}
   function maskBuildings(active){
-    const visibleKey=active.map(r=>r.meta.id).join(',')+':'+(clearance?.revision||0);if(maskEpoch===sourceEpoch&&visibleKey===lastVisible)return false;
-    maskEpoch=sourceEpoch;lastVisible=visibleKey;
-    const cacheKey=(clearance?.revision||0)+':'+engineeringMaskKey;if(cacheKey!==partCacheKey){partCacheKey=cacheKey;partCache.clear();}
-    const ids=new Set(),activeSet=new Set(active),candidates=[...records,...engineeringMasks];for(const r of candidates){r.stats.masked=r.stats.visible;r.stats.excludedFeatureIds=[];}
+    if(!pending){
+      const visibleKey=active.map(r=>r.meta.id).join(',')+':'+(clearance?.revision||0);if(maskEpoch===sourceEpoch&&visibleKey===lastVisible)return false;
+      maskEpoch=sourceEpoch;lastVisible=visibleKey;
+      if(engineeringMaskKey!==partCacheKey){partCacheKey=engineeringMaskKey;partCache.clear();}
+      pending={active,next:0,at:performance.now(),features:map.getSource('openmaptiles')&&(active.length||clearance)?map.querySourceFeatures('openmaptiles',{sourceLayer:'building'}):[]};
+    }
+    const {active:snapshot,features}=pending,ids=new Set(),activeSet=new Set(snapshot),candidates=[...records,...engineeringMasks];
     const polygons=f=>f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.type==='MultiPolygon'?f.geometry.coordinates:[];
     // 凹輪廓不能用中心放大當緩衝（凹角會把自己的頂點排除）。只容許 1.5m
     // 邊界量化差，並先以 bbox 淘汰遠處建物。歸屬對全部站房算(不只可見的),結果才能跨次重用。
     const owners=p=>candidates.filter(r=>p[0].every(q=>r.masks.some((mask,i)=>{const [w,s,e,n]=r.maskBounds[i];return q[0]>=w&&q[0]<=e&&q[1]>=s&&q[1]<=n&&(inPolygon(q[0],q[1],mask)||mask.some(ring=>ring.slice(1).some((b,k)=>distanceToSegment(q[0],q[1],ring[k],b)<1.5/111320)));})));
-    const features=map.getSource('openmaptiles')&&(active.length||clearance)?map.querySourceFeatures('openmaptiles',{sourceLayer:'building'}):[];
+    // 以分件為單位檢查預算:圖磚把整磚同屬性建物併成一個 MultiPolygon,一個 feature 可能有上百個分件。
+    // 做到一半的 feature 暫存在 pending.cur,整個做完才進快取;rev 記開始時的版本,中途路線變了下一輪會重判。
+    const start=performance.now(),budget=Math.min(MASK_SLICE_MAX_MS,Math.max(MASK_SLICE_MS,(start-pending.at)*.3));let worked=false;
+    const over=()=>{if(worked&&performance.now()-start>=budget){pending.at=performance.now();return true;}worked=true;return false;};
+    for(;pending.next<features.length;pending.next++){const f=features[pending.next];if(f.id===undefined)continue;
+      const key=f.tile.z+'/'+f.tile.x+'/'+f.tile.y+':'+f.id;
+      if(!pending.cur){const parts=partCache.get(key),rev=clearance?.revision||0;if(parts?.rev===rev)continue;if(over())return null;
+        pending.cur=parts?{parts,rev,i:0}:{parts:[],rev,polys:polygons(f),i:0};}
+      const cur=pending.cur,{parts,polys}=cur;
+      for(;cur.i<(polys||parts).length;cur.i++){if(over())return null;const i=cur.i;
+        // 圖磚緩衝區會讓同一分件在相鄰圖磚各出現一次(座標逐 byte 相同),sig 對整個多邊形雜湊,remainders 只畫一份。
+        if(polys){const p=polys[i];parts.push({owners:owners(p),key:key+':'+i,sig:f.id+':'+polygonHash(p),feature:{type:'Feature',properties:{...f.properties,station_original_id:f.id},geometry:{type:'Polygon',coordinates:p}}});}
+        parts[i].blocked=!!clearance?.blocked(parts[i].feature.geometry.coordinates);
+      }
+      parts.rev=cur.rev;if(polys)partCache.set(key,parts);pending.cur=null;
+    }
+    if(worked)return null;
+    pending=null;for(const r of candidates){r.stats.masked=r.stats.visible;r.stats.excludedFeatureIds=[];}
     // 圖磚會把站房和遠處建物合併成同一 MultiPolygon；拆出站房後，把其餘
     // 分件原位重畫，不能讓背景建物消失，也不能保留一個方塊蓋住新屋頂。
     const live=new Set(),remainders=[],entries=[],hit=x=>x.blocked||x.owners.some(r=>activeSet.has(r));
     for(const f of features){if(f.id===undefined)continue;const key=f.tile.z+'/'+f.tile.x+'/'+f.tile.y+':'+f.id;live.add(key);
-      let parts=partCache.get(key);
-      // 圖磚緩衝區會讓同一分件在相鄰圖磚各出現一次(座標逐 byte 相同),sig 對整個多邊形雜湊,remainders 只畫一份。
-      if(!parts){parts=polygons(f).map((p,i)=>({owners:owners(p),blocked:!!clearance?.blocked(p),key:key+':'+i,sig:f.id+':'+polygonHash(p),feature:{type:'Feature',properties:{...f.properties,station_original_id:f.id},geometry:{type:'Polygon',coordinates:p}}}));partCache.set(key,parts);}
-      entries.push([f.id,parts]);
+      const parts=partCache.get(key);entries.push([f.id,parts]);
       for(const x of parts)if(hit(x)){ids.add(f.id);const r=x.owners.find(r=>activeSet.has(r));if(r&&!r.stats.excludedFeatureIds.includes(f.id))r.stats.excludedFeatureIds.push(f.id);}
     }
     // 同一個 id 在相鄰圖磚的另一份可能剛好沒有被遮到的分件,但整個 id 已從 building-3d 排除,它的分件也要重畫。
@@ -125,11 +149,16 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
   const MASK_STILL_MS=400,MASK_DEFER_MS=15000;let maskTimer=0,maskDeferSince=0,lastMoveAt=0;
   function noteMove(){lastMoveAt=performance.now();}
   function runMasks(){
-    maskDeferSince=0;if(disposed||!ownedSource||map.getSource('station-building-remainders')!==ownedSource)return;
+    if(disposed||!ownedSource||map.getSource('station-building-remainders')!==ownedSource){maskDeferSince=0;pending=null;maskSliced=false;return;}
     const active=[...records.filter(r=>r.stats.visible),...engineeringMasks];
     let changed=maskBuildings(clearance?[...records.filter(r=>r.maskActive),...engineeringMasks]:active);
-    changed=maskLabels(active)||changed;
+    // 還沒算完:下一片照同一條規則排。maskDeferSince 留到算完才歸零,手指還在拖就先停,
+    // 跟車(相機一直在動)已過 15s 上限就接著算,不會每一片都再等 15s。
+    if(changed===null){maskSliced=true;scheduleMasks();return;}
+    maskDeferSince=0;changed=maskLabels(active)||changed;
     if(changed){onUpdate(primary()?.stats);map.triggerRepaint();}
+    // 分片期間進來的失效(新圖磚、路線或可見站房變了)被這一輪的快照蓋過,算完再排一次;沒變就在 maskBuildings 開頭返回。
+    if(maskSliced){maskSliced=false;scheduleMasks();}
   }
   function scheduleMasks(){
     if(maskTimer||disposed)return;
