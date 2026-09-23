@@ -1,4 +1,4 @@
-// 驗 station-layer.js 遮罩延後的契約(桌面 headless Chromium,對本機 5207)。判準全部相對於事件,不吃環境幀率:
+// 驗 station-layer.js 遮罩延後的契約(桌面 Chrome 無視窗模式,對本機 5207)。判準全部相對於事件,不吃環境幀率:
 //  A. 每一次 maskBuildings 真跑(觀察 querySourceFeatures sourceLayer:'building')時,「距上一個 move 事件」≥350ms
 //     ——除非距上一次跑已 ≥14.5s(延後上限路徑)。任何一次違反=延後沒生效。
 //  B. 拖曳停下後 ≤2s 內至少跑一次;之後靜止 4s 內不再跑(不會迴圈);building-3d filter 真的含排除清單。
@@ -17,8 +17,8 @@
 import {chromium} from 'playwright';
 const PORT = process.argv[2] || new URL(process.env.BASE_URL || 'http://127.0.0.1:5207/').port;
 const results = [];
-const HEADFUL = process.env.HEADFUL==='1';
-const b = await chromium.launch(HEADFUL?{channel:'chrome',headless:false}:{});
+// 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走)。channel:'chrome' 的無視窗模式走真 GPU;不帶 channel 的 headless shell 是 SwiftShader 軟體算繪。
+const b = await chromium.launch({channel:'chrome',headless:true});
 const ctx = await b.newContext({ viewport:{width:1280,height:800}, locale:'zh-TW', timezoneId:'Asia/Taipei', hasTouch:true });
 await ctx.addInitScript(()=>{ try{localStorage.setItem('trainmap-howto-seen','1');}catch(e){} });
 await ctx.route('**/rail-3d/station-layer.js', async route=>{ const response=await route.fetch(); const source=await response.text(), head='function maskBuildings(active){';

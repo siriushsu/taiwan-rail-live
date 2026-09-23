@@ -11,7 +11,8 @@ async function treesSettled(p,timeout=40000){const t0=Date.now();let last=-1,sta
  return false;}
 async function boot(p){await p.goto(base+'?map=landscape&scene=3d&g=all&train=117&t=12:00&lang=zh-TW');await settle(p,'landscape');await p.waitForFunction(()=>state.ready&&state.followTrain);await p.evaluate(()=>{state.playing=false;setSimSec(43200);M.raw.setZoom(17);});await p.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.models>0,null,{timeout:45000});}
 for(const [name,engine]of Object.entries(process.env.ENGINE?{[process.env.ENGINE]:({chromium,webkit})[process.env.ENGINE]}:{chromium,webkit})){
- const browser=await engine.launch({headless:process.env.HEADFUL!=='1'});const context=await browser.newContext({viewport:{width:1360,height:980},locale:'zh-TW'});
+ // 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走),不再提供開視窗的選項。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
+ const browser=await engine.launch(name==='chromium'?{channel:'chromium',headless:true}:{headless:true});const context=await browser.newContext({viewport:{width:1360,height:980},locale:'zh-TW'});
  await context.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','dark');});const p=await context.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
  // 固定營運資料退回班表，避免當下即時快照影響重複驗證；不偽造衛星授權。
  await p.route('**/api/**',r=>r.fulfill({status:503,contentType:'application/json',body:'{}'}));

@@ -15,7 +15,8 @@ async function controls(page,scope='body'){
 }
 for(const [engine,type] of Object.entries({chromium,webkit})){
  if(process.env.ENGINES&&!process.env.ENGINES.split(',').includes(engine))continue;
- const browser=await type.launch({headless:engine!=='chromium'});
+ // 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走)。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
+ const browser=await type.launch(engine==='chromium'?{channel:'chromium',headless:true}:{headless:true});
  for(const [width,height] of [[360,780],[375,812],[390,844],[414,896],[768,1024],[844,390],[1280,900]]){
   console.log('開始',engine,width,height);
   const touch=width!==1280,context=await browser.newContext({viewport:{width,height},isMobile:touch,hasTouch:touch,deviceScaleFactor:1});const page=await context.newPage(),errors=[],requests=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()));

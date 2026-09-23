@@ -2,7 +2,8 @@ import {chromium,webkit} from 'playwright';
 import {mkdir,writeFile} from 'node:fs/promises';
 const base=process.env.BASE_URL||'http://127.0.0.1:5246',engine=process.env.ENGINE||'chromium',out=process.env.OUT||'output/view-guide';await mkdir(out,{recursive:true});
 let page;const rows=[],errors=[],check=(name,pass,data)=>{rows.push({name,pass:!!pass,data});console.log(pass?'PASS':'FAIL',name,JSON.stringify(data??''));};
-const b=await {chromium,webkit}[engine].launch({headless:engine!=='chromium'});
+// 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走)。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
+const b=await {chromium,webkit}[engine].launch(engine==='chromium'?{channel:'chromium',headless:true}:{headless:true});
 try{const c=await b.newContext({viewport:{width:1280,height:950},locale:'zh-TW',isMobile:true,hasTouch:true}),p=await c.newPage();page=p;p.on('pageerror',e=>errors.push(e.message));await p.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));await p.route('**/api/**',r=>r.fulfill({status:503,body:'{}'}));
 await p.goto(base+'/?scene=3d&g=all&train=117&t=12:00&z=18&appearance=light&verify=v0914c');await p.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.models>0,null,{timeout:60000});await p.waitForFunction(()=>railIslandIntegration.guide&&window.railViewControls);await p.evaluate(()=>{state.playing=false;setSimSec(43200);});await p.waitForTimeout(500);
 await p.evaluate(()=>{const r=railIslandIntegration.renderer;r.map.jumpTo({pitch:55,bearing:37,zoom:18});window.viewFrames=[];r.map.on('render',()=>{const v=railIslandIntegration.frame?.vehicles.find(v=>v.followed),a=v&&r.projectedVehicles().find(p=>p.id===v.id),q=v&&r.map.project([v.longitude,v.latitude]);viewFrames.push({pitch:r.map.getPitch(),id:v?.id,lock:state.followLock,error:a&&q?Math.hypot(a.x-q.x,a.y-q.y):null,head:r.stats.headLockErrorPx});});state.playing=true;});
