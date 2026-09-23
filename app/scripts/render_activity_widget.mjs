@@ -259,6 +259,8 @@ function trackStaticGate() {
   if (!/hop: MetroWidgetCatalog\.shared\.waitHop\(/.test(waitSource)) {
     bad.push('出貨的 display(ctx) 沒有把 MetroWidgetCatalog.shared.waitHop 傳進 make(...)——真機上永遠不會出現進站軌道');
   }
+  // 進站窗內伺服器每 30 秒推一發、看板 dataAt 不一定跟著換 ⇒ 沒把 tick 傳進去，兩發之間車會停在原地。
+  if (!/tick: ctx\.state\.tick/.test(waitSource)) bad.push('捷運等車卡 display(ctx) 沒有把 ctx.state.tick 傳進 make(...)——每 30 秒那一發車不會動');
   // 正向對照：確定掃的是真的有畫車的那一份。
   if (!code.includes('MetroWaitCarImage(model:')) bad.push('MetroWaitTrack 沒畫車模——這道 gate 掃錯東西了');
   // 臺鐵等站卡共用同一條軌道：鎖屏＋動態島兩處都要接上，出貨的 display(ctx) 要把 attributes 的那一段
@@ -1433,11 +1435,42 @@ func carStateGate() {
             now: Date(timeIntervalSince1970: nowSec + t), hop: hopTaipei).trackB?.car
     }
     if carAt(1) != carAt(30) { bad.append("同一份資料在 +1 秒與 +30 秒重繪，車位置不同（\\(String(describing: carAt(1))) vs \\(String(describing: carAt(30)))）：車只准在更新時動") }
+    // 推播的 tick（2026-09-23 起進站窗內每 30 秒一發）：看板 dataAt 沒換、只有 tick 換，車也要往前挪。
+    // 判準走物理等價不走公式：「看板 D 時刻說還有 60 秒、這一發在 D＋30 送出」與
+    // 「看板 D 時刻說還有 30 秒」是同一台車 ⇒ 位置必須相同。
+    func carTick(eta: Double, dataAt: Double, tick: Double?, redrawAfter: Double = 1) -> MetroWaitDisplay.TrackB.Car? {
+        MetroWaitDisplay.make(
+            lineLabel: "淡水信義線", station: "台北車站", colorHex: "#E3002C",
+            nextDest: "象山", nextEta: eta, nextMinutes: nil,
+            secondDest: nil, secondEta: nil, secondMinutes: nil,
+            crowd: nil, dataAt: dataAt, endAt: nowSec + 1800,
+            notice: nil, pushed: true, isStale: false,
+            now: Date(timeIntervalSince1970: (tick ?? dataAt) + redrawAfter), tick: tick, hop: hopTaipei).trackB?.car
+    }
+    // 取整秒：等價比較的兩邊走不同的減法，帶小數的 epoch 會差一個 ulp、Car 的 Double 比不相等。
+    let d0 = nowSec.rounded(.down) - 5
+    let tA = carTick(eta: d0 + 60, dataAt: d0, tick: d0), tB = carTick(eta: d0 + 60, dataAt: d0, tick: d0 + 30)
+    let tBoard30 = carTick(eta: d0 + 30, dataAt: d0, tick: nil)
+    if tB != tBoard30 { bad.append("看板 60 秒＋推播晚 30 秒送出（\\(String(describing: tB))）應與看板 30 秒同位置（\\(String(describing: tBoard30))）——make 沒用 tick") }
+    // 正向對照：tick 換了車一定要動（否則上一條在「tick 被無視、兩邊都算錯」時也可能湊巧相等）。
+    if tA == tB { bad.append("同一份看板、tick 晚 30 秒，車卻沒動（\\(String(describing: tA))）——make 根本沒在看 tick") }
+    // 舊伺服器不送 tick ⇒ 與改版前一樣用 eta − dataAt。
+    if carTick(eta: d0 + 40, dataAt: d0, tick: nil) != carTick(eta: d0 + 40, dataAt: d0, tick: d0) {
+        bad.append("沒有 tick（舊伺服器）時車位與 tick＝dataAt 不同——舊伺服器的卡會跳位")
+    }
+    // 同一個 tick 在不同時刻重繪 ⇒ 車停在同一處（帶 tick 的版本也要守這條）。
+    if carTick(eta: d0 + 60, dataAt: d0, tick: d0 + 30, redrawAfter: 1) != carTick(eta: d0 + 60, dataAt: d0, tick: d0 + 30, redrawAfter: 29) {
+        bad.append("同一個 tick 在 +1 秒與 +29 秒重繪，車位置不同：車只准在推播時動")
+    }
+    // 過期仍看 dataAt：tick 很新但看板資料已 140 秒 ⇒ 不畫車（tick 不准把過期資料洗成新鮮）。
+    if carTick(eta: nowSec + 20, dataAt: nowSec - 140, tick: nowSec - 2) != TrackCarNone {
+        bad.append("看板資料 140 秒前、tick 2 秒前：應按過期不畫車——過期判定被 tick 蓋掉了")
+    }
     // 反向：分鐘級系統與查不到上一站 ⇒ 維持原本的軌脊版（不偽造位置）。
     if waitApprox.trackB != nil { bad.append("高捷（分鐘級）不該有進站軌道") }
     if waitB(secondsToArrive: 40, hop: nil).trackB != nil { bad.append("查不到上一站時不該有進站軌道") }
     if !bad.isEmpty { FileHandle.standardError.write(Data(("車位置 gate 失敗：\\n" + bad.joined(separator: "\\n") + "\\n").utf8)); exit(1) }
-    print("gate 通過：車位置七態（行駛兩點遞增／停上一站／虛線段／進站／沒推播／過期）＋兩條退回軌脊")
+    print("gate 通過：車位置七態（行駛兩點遞增／停上一站／虛線段／進站／沒推播／過期）＋tick 五條（等價／會動／舊伺服器／重繪不動／過期看 dataAt）＋兩條退回軌脊")
 }
 let TrackCarNone: MetroWaitDisplay.TrackB.Car? = MetroWaitDisplay.TrackB.Car.none
 
