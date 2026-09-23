@@ -64,4 +64,17 @@ struct TraWaitAttributes: ActivityAttributes {
     //    「卡片印出來的承諾」;這裡的解法是不對使用者承諾這個數。留著只給 App 端自己
     //    做本地兜底用。同樣只准 Optional、只准加在最後。
     var endAt: Double?
+    // ── 進站軌道（B 方案）：開卡當下由網頁從時刻表算好寫進來，整張卡的生命週期裡【不會變】。
+    //    舊版網頁不給 ⇒ 全是 nil ⇒ 版面維持原本的軌脊（不猜）。同樣只准 Optional、只准加在最後。
+    /// 這班車在本站之前【真正停靠】的上一站（通過站不算：自強 172 在臺北前停板橋，不是萬華）。
+    var prevStop: String?
+    /// 上一站表定開車（epoch 秒）。與 bind 送給伺服器的 prevDepSec 是同一個值——
+    /// 伺服器用它算「每分鐘推一發」的行駛段，卡片用它算車的位置，兩邊不可各算各的。
+    var prevDepSec: Double?
+    /// 本站站名牌下緣的兩個鄰站（實體路線上，含這班車通過不停的站）。
+    /// plateLeft＝車開過來那一側，plateRight＝車要去那一側（本站是終點就沒有）。
+    var plateLeft: String?
+    var plateRight: String?
+    /// 正側面車模 id（asset `la-side-<id>`），對照同網站 3D 列車的 formations.js。
+    var carModel: String?
 }

@@ -11,8 +11,11 @@
      - 展示台是 shadow catcher，會留一層低 alpha 的灰陰影 ⇒ alpha<0.5 清掉、其餘拉回實心，再裁到墨跡框。
      - iOS：RailBoardWidget/Assets.xcassets/la-side-<id>.imageset（高 18pt 的 @2x／@3x）。
      - Android：res/drawable-nodpi/la_side_<id>.png（高 96px，通知 tracker 圖示的最終尺寸由系統縮）。
-     印出的寬高比要同步到 MetroWaitHop.carAspect（Swift）；Android（RailWaitTrack）直接讀圖的像素尺寸，不必同步。
+     印出的寬高比要同步到 MetroWaitHop.carAspect（捷運）／TraWaitHop.carAspect（台鐵）；
+     Android（RailWaitTrack）直接讀圖的像素尺寸，不必同步，但台鐵新車型要補進 traCarDrawable 的 switch。
 路線→車型對照同網站 3D 列車（rail-3d/integration/formations.js）：R/G/O/支線 c381、BL c321、Y y100、BR val256。
+台鐵（09-23 等站卡 B）：emu3000 temu1000 temu2000 e1000 dr3100 emu800 e200 dr1000 blue haifeng shanlan mingri e500
+——formations.js baseFormation 對台鐵回得出的每一種，網頁 traWaitCarModel 送的就是這個 id。
 """
 import json, os, sys
 

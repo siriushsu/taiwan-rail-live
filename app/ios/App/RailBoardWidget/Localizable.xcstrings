@@ -2279,6 +2279,23 @@
         }
       }
     },
+    "{time} 開": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dep. {time}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{time}発"
+          }
+        }
+      }
+    },
     "{time} 資料": {
       "extractionState": "manual",
       "localizations": {
@@ -22182,6 +22199,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "先頭車両の固定：オフ"
+          }
+        }
+      }
+    },
+    "車應已到": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Should have arrived"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到着した見込み"
           }
         }
       }

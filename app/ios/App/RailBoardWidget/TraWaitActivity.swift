@@ -62,6 +62,11 @@ struct TraWaitDisplay {
     let notice: String?
     /// 到站後那句說明（接上推播與沒接上是兩種話，不可只留一種）。
     let staleHint: String?
+    /// 進站軌道（B 方案）。nil ＝ 開卡時沒有上一站資訊（本站就是起站、舊版網頁、沒有車模素材）
+    /// ⇒ 維持原本的軌脊版面。與捷運等車卡共用同一個型別與同一條軌道（`MetroWaitTrack`）。
+    /// 🔴 車的位置 ＝ 表定＋官方誤點推出來的（上一站開車 → 本站），跟地圖上畫車同一套；
+    ///    官方沒有給台鐵列車位置。而且【只用推播的 tick 算】，不用重繪當下的時鐘（見 `make`）。
+    let trackB: MetroWaitDisplay.TrackB?
 
     /// 第三列後半的語氣。顏色由視圖決定，這裡只說是哪一種事實。
     enum DelayTone {
@@ -79,12 +84,15 @@ struct TraWaitDisplay {
     ///   - schedSec: 表定到站（epoch 秒，絕對時刻）
     ///   - delayMin: 官方誤點分鐘。**nil 與 0 是兩件事**——nil ＝ 沒有資訊，0 ＝ 準點。
     ///   - dataAt: 官方那份資料的時刻
-    ///   - now: 只用來判斷資料齡與算軌道填色比例。**不參與 heroText**。
+    ///   - now: 只用來判斷資料齡與算軌道填色比例。**不參與 heroText，也不參與車的位置**。
+    ///   - tick: 伺服器送出這一發推播的時刻（ContentState.tick）。車的位置只准用它算。
+    ///   - hop: 進站軌道那一段（attributes 開卡時寫入）；nil 就是原本的軌脊版。
     static func make(
         trainType: String, station: String, colorHex: String?,
         trainNo: String, dest: String, schedSec: Double,
         delayMin: Int?, dataAt: Double?,
-        notice: String?, pushed: Bool?, isStale: Bool, now: Date
+        notice: String?, pushed: Bool?, isStale: Bool, now: Date,
+        tick: Double? = nil, hop: TraWaitHop? = nil
     ) -> TraWaitDisplay {
         let nowSec = now.timeIntervalSince1970
         // 🔴 過期判定取【資料時刻】不取讀取端時鐘：後者對「被某層快取餵了舊主體」恆為新鮮，
@@ -134,6 +142,44 @@ struct TraWaitDisplay {
                                   : "誤點分鐘不會自己更新，要看最新請回軌島")
             : nil
 
+        // 進站軌道：車頭在「上一站實際開車 → 本站實際約到站」之間的比例，兩端都是表定＋官方誤點
+        // （同一條算式也是伺服器每分鐘推一發的行駛段，見 scripts/tra_wait_core.mjs twRunWindow）。
+        var trackB: MetroWaitDisplay.TrackB?
+        if let hop, let aspect = TraWaitHop.carAspect(hop.carModel) {
+            let car: MetroWaitDisplay.TrackB.Car
+            if pushed != true || shown == nil {
+                // 不畫車的兩種情形：
+                //   · 沒接上推播：車會停在開卡那一刻的位置不動，等於說謊（同捷運等車卡）；
+                //   · 沒有官方誤點（未知或過期）：照表定畫一台在走的車＝宣稱準點（精度紅線）。
+                car = .none
+            } else if isStale {
+                car = .arrived
+            } else if let t = tick, let m = shown {
+                // 🔴 只用 tick（伺服器送出這一發的時刻）不用 now：系統會替同一份 ContentState 在
+                //    不同時間各算一張快照（淺／深色、切外觀），用 now 同一次更新的車會前後跳甚至倒退
+                //    （捷運 B 09-23 模擬器實見）。車只在收到推播時往前挪一格——那正是設計稿要的。
+                let from = hop.prevDepSec + Double(m) * 60
+                let to = schedSec + Double(m) * 60
+                if t < from { car = .far }
+                else if t >= to { car = .arrived }
+                else { car = .running((t - from) / (to - from)) }
+            } else {
+                car = .none
+            }
+            let left = hop.plateLeft.map { RailNativeL10n.name($0) }
+            let right = hop.plateRight.map { RailNativeL10n.name($0) }
+            trackB = MetroWaitDisplay.TrackB(
+                prev: RailNativeL10n.name(hop.prevStop), car: car,
+                carModel: hop.carModel, carAspect: aspect, lineName: nil,
+                color: RailHex.color(colorHex),
+                // 上一站那個時刻是【表定】開車（時刻表上的字），不是實際——實際約到站只有主角那一個。
+                prevSub: RailNativeL10n.text("{time} 開", [
+                    "time": RailBoardClock.updateTimeString(Date(timeIntervalSince1970: hop.prevDepSec))
+                ]),
+                plateNeighbours: left == nil && right == nil ? nil
+                    : .init(left: left, right: right))
+        }
+
         let localizedStation = RailNativeL10n.name(station)
         let localizedDestination = RailNativeL10n.name(dest)
         return TraWaitDisplay(
@@ -154,7 +200,51 @@ struct TraWaitDisplay {
             footer: dataAt.map { RailNativeL10n.text("{time} 更新", [
                 "time": RailBoardClock.updateTimeString(Date(timeIntervalSince1970: $0))
             ]) },
-            notice: RailHex.trimmed(notice).map { RailNativeL10n.text($0) }, staleHint: hint)
+            notice: RailHex.trimmed(notice).map { RailNativeL10n.text($0) }, staleHint: hint,
+            trackB: trackB)
+    }
+}
+
+/// 進站軌道要的那一段：開卡當下由網頁從時刻表算好、寫進 `TraWaitAttributes`，整張卡的生命週期不變。
+struct TraWaitHop: Equatable {
+    let prevStop: String
+    let prevDepSec: Double
+    let plateLeft: String?
+    let plateRight: String?
+    let carModel: String
+
+    /// attributes 那五欄湊成一段。缺上一站或車模、上一站開車不早於本站表定 ⇒ nil（不畫進站軌道，不猜）。
+    init?(prevStop: String?, prevDepSec: Double?, plateLeft: String?, plateRight: String?,
+          carModel: String?, schedSec: Double) {
+        guard let prev = RailHex.trimmed(prevStop), let dep = prevDepSec, dep < schedSec,
+              let model = RailHex.trimmed(carModel) else { return nil }
+        self.prevStop = prev
+        self.prevDepSec = dep
+        self.plateLeft = RailHex.trimmed(plateLeft)
+        self.plateRight = RailHex.trimmed(plateRight)
+        self.carModel = model
+    }
+
+    /// 車模寬高比（app/scripts/build_la_side_assets.py cut 印出來的值，重產素材要同步改這裡）。
+    /// 沒有素材的車型回 nil ⇒ 不畫進站軌道（畫一塊空白比沒有軌道更糟）。
+    /// id 是網站 3D 列車 formations.js 的 FORMATIONS[…].id（網頁 traWaitCarModel 送來的值）。
+    static func carAspect(_ model: String) -> Double? {
+        switch model {
+        case "emu3000":  return 2.684
+        case "temu1000": return 2.747
+        case "temu2000": return 2.628
+        case "e1000":    return 2.025
+        case "dr3100":   return 2.414
+        case "emu800":   return 2.565
+        case "e200":     return 1.972
+        case "dr1000":   return 2.236
+        case "blue":     return 2.591
+        case "haifeng":  return 2.470
+        case "shanlan":  return 2.470
+        case "mingri":   return 1.972
+        case "e500":     return 2.003
+        default:         return nil
+        }
     }
 }
 
@@ -178,6 +268,104 @@ struct TraWaitLockView: View {
     }
 
     var body: some View {
+        Group {
+            if let track = display.trackB {
+                trackLayout(track)
+            } else {
+                spineLayout
+            }
+        }
+        // 水平邊距不能省：鎖屏 LA 的內容區沒有系統預設 margins（見等車卡的同一條註解）。
+        .padding(.horizontal, scale.pt(14))
+        .padding(.vertical, scale.pt(7))
+        .opacity(display.expired ? 0.62 : 1)
+    }
+
+    /// 主角：「實際約 21:27」。兩種版面同一顆（B 方案也不改成倒數——台鐵官方沒有預估到站）。
+    /// B 版照設計稿縮到 32pt、行高壓到字級本身（設計稿 `.hero{line-height:1}`）：數字沒有下伸部，
+    /// 系統預設行高上下多留的那幾 pt 是空的，卻會把「車應已到」那張擠破 160pt。
+    private func hero(size: CGFloat, tight: Bool = false) -> some View {
+        // 🔴 主角是【鐘面時刻】。這裡刻意不用 RailCountdownText：那顆會畫成
+        //    「數字＋單位」兩級字階（給「3 分」「52 秒」用的），而 18:35 是一個
+        //    不可拆的時刻；更重要的是它承載的是倒數語意，用在這裡會讓人把
+        //    「18:35」讀成「18 分 35 秒」。
+        HStack(alignment: .lastTextBaseline, spacing: scale.pt(4)) {
+            Text(display.heroCaption)
+                .font(.system(size: scale.pt(11)))
+                .foregroundStyle(.secondary).lineLimit(1)
+            Text(display.heroText)
+                .font(.system(size: scale.pt(size), weight: .semibold))
+                .monospacedDigit()
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .foregroundStyle(display.arrived
+                                 ? AnyShapeStyle(RailTokens.colors(scheme).ok)
+                                 : AnyShapeStyle(HierarchicalShapeStyle.primary))
+        }
+        .fixedSize(horizontal: true, vertical: false)
+        .frame(height: tight ? scale.pt(size) : nil)
+    }
+
+    /// 官方值那一列：「表定 18:32 · 誤點 3 分」。
+    private var officialValues: some View {
+        // 🔴 這一列是這張卡的良心：官方給的兩個值原文照登。主角那個 18:35 是我們算的，
+        //    18:32 與「誤點 3 分」才是官方說的話——兩者並列，使用者才驗得了我們。
+        //    ⚠️ 三種語氣（誤點／準點／沒有資訊）必須在畫面上真的不一樣，
+        //    「沒有資訊」尤其不可以長得像「準點」（那是宣稱一個官方沒說過的事實）。
+        HStack(spacing: 0) {
+            if let sched = display.schedText {
+                Text(sched + " · ")
+                    .font(.system(size: scale.pt(13)))
+                    .foregroundStyle(.secondary)
+            }
+            Text(display.delayText)
+                .font(.system(size: scale.pt(13), weight: .medium))
+                .foregroundStyle(delayColor)
+        }
+        .monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
+    }
+
+    /// 公告或到站說明：只有一位（鎖屏 160pt 上限），優先序＝服務異常 ＞ 到站後怎麼辦。
+    @ViewBuilder private var noticeOrHint: some View {
+        if let notice = display.notice {
+            Text("⚠ " + notice)
+                .font(.system(size: scale.pt(11), weight: .medium))
+                .foregroundStyle(RailTokens.colors(scheme).warn)
+                .lineLimit(1).minimumScaleFactor(0.8)
+        } else if let hint = display.staleHint {
+            Text(hint)
+                .font(.system(size: scale.pt(11))).foregroundStyle(.secondary)
+                .lineLimit(1).minimumScaleFactor(0.8)
+        }
+    }
+
+    /// B 方案：原本的站名列拿掉（站名改由軌道右端的站名牌說），車種標併進主角列；
+    /// 「更新時間」移到軌道下方右側，官方值與「結束」同一列。
+    private func trackLayout(_ track: MetroWaitDisplay.TrackB) -> some View {
+        VStack(alignment: .leading, spacing: scale.pt(3)) {
+            HStack(alignment: .center, spacing: scale.pt(6)) {
+                RailLineMark(name: display.trainType, color: display.color,
+                             fontSize: 11, scale: scale)
+                Text(display.lead)
+                    .font(.system(size: scale.pt(20), weight: .semibold))
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                Spacer(minLength: scale.pt(4))
+                hero(size: 32, tight: true)
+            }
+            // 到站那一刻明講。用「應」不是漏字：這個時刻是「表定＋官方誤點」推出來的估計值，
+            // 官方沒有說過車真的到了，卡片就不可以替它宣告。
+            MetroWaitTrack(track: track, station: display.station, trailing: display.footer,
+                           trailingAccent: display.arrived ? RailNativeL10n.text("車應已到") : nil,
+                           scale: scale)
+            HStack(spacing: scale.pt(6)) {
+                officialValues
+                Spacer(minLength: scale.pt(4))
+                TraWaitEndButton(scale: scale, height: 24)
+            }
+            noticeOrHint
+        }
+    }
+
+    private var spineLayout: some View {
         // 🔴 列距與主角字級是【被 160pt 逼出來的】,不是美感選擇:六列全滿(車種列／主角列／
         //    軌脊列／官方值列／公告或到站說明／底列)時,鎖屏卡片超過 160pt 就會被系統截掉
         //    上下緣。算繪 harness 對「公告」與「最壞值」兩個情境有 160pt 硬 gate,
@@ -197,23 +385,7 @@ struct TraWaitLockView: View {
                     .font(.system(size: scale.pt(22), weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.6)
                 Spacer(minLength: scale.pt(4))
-                // 🔴 主角是【鐘面時刻】。這裡刻意不用 RailCountdownText：那顆會畫成
-                //    「數字＋單位」兩級字階（給「3 分」「52 秒」用的），而 18:35 是一個
-                //    不可拆的時刻；更重要的是它承載的是倒數語意，用在這裡會讓人把
-                //    「18:35」讀成「18 分 35 秒」。
-                HStack(alignment: .lastTextBaseline, spacing: scale.pt(4)) {
-                    Text(display.heroCaption)
-                        .font(.system(size: scale.pt(11)))
-                        .foregroundStyle(.secondary).lineLimit(1)
-                    Text(display.heroText)
-                        .font(.system(size: scale.pt(34), weight: .semibold))
-                        .monospacedDigit()
-                        .lineLimit(1).minimumScaleFactor(0.7)
-                        .foregroundStyle(display.arrived
-                                         ? AnyShapeStyle(RailTokens.colors(scheme).ok)
-                                         : AnyShapeStyle(HierarchicalShapeStyle.primary))
-                }
-                .fixedSize(horizontal: true, vertical: false)
+                hero(size: 34)
             }
 
             HStack(spacing: scale.pt(6)) {
@@ -233,35 +405,14 @@ struct TraWaitLockView: View {
                     .lineLimit(1)
             }
 
-            // 🔴 這一列是這張卡的良心：官方給的兩個值原文照登。主角那個 18:35 是我們算的，
-            //    18:32 與「誤點 3 分」才是官方說的話——兩者並列，使用者才驗得了我們。
-            //    ⚠️ 三種語氣（誤點／準點／沒有資訊）必須在畫面上真的不一樣，
-            //    「沒有資訊」尤其不可以長得像「準點」（那是宣稱一個官方沒說過的事實）。
             HStack(spacing: 0) {
-                if let sched = display.schedText {
-                    Text(sched + " · ")
-                        .font(.system(size: scale.pt(13)))
-                        .foregroundStyle(.secondary)
-                }
-                Text(display.delayText)
-                    .font(.system(size: scale.pt(13), weight: .medium))
-                    .foregroundStyle(delayColor)
+                officialValues
                 Spacer(minLength: 0)
             }
-            .monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
 
             // 🔴 只有一位——理由同等車卡：鎖屏 Live Activity 只有 160pt 高，超過就被系統截掉。
             //    優先序＝服務異常 ＞ 到站後怎麼辦。
-            if let notice = display.notice {
-                Text("⚠ " + notice)
-                    .font(.system(size: scale.pt(11), weight: .medium))
-                    .foregroundStyle(RailTokens.colors(scheme).warn)
-                    .lineLimit(1).minimumScaleFactor(0.8)
-            } else if let hint = display.staleHint {
-                Text(hint)
-                    .font(.system(size: scale.pt(11))).foregroundStyle(.secondary)
-                    .lineLimit(1).minimumScaleFactor(0.8)
-            }
+            noticeOrHint
 
             HStack(spacing: scale.pt(6)) {
                 if let footer = display.footer {
@@ -274,10 +425,6 @@ struct TraWaitLockView: View {
                 TraWaitEndButton(scale: scale, height: 24)
             }
         }
-        // 水平邊距不能省：鎖屏 LA 的內容區沒有系統預設 margins（見等車卡的同一條註解）。
-        .padding(.horizontal, scale.pt(14))
-        .padding(.vertical, scale.pt(7))
-        .opacity(display.expired ? 0.62 : 1)
     }
 }
 
@@ -340,10 +487,15 @@ struct TraWaitIslandBottom: View {
                 }
                 .fixedSize(horizontal: true, vertical: false)
             }
-            RailSpineTrack(interval: display.track,
-                           progress: display.progress,
-                           phase: display.arrived ? .arriving : .running,
-                           lineColor: display.color, scale: scale)
+            if let track = display.trackB {
+                // 進站軌道縮小版（動態島永遠黑底）；「車應已到」在島上由主角轉綠表達，不另寫。
+                MetroWaitTrack(track: track, station: display.station, island: true, scale: scale)
+            } else {
+                RailSpineTrack(interval: display.track,
+                               progress: display.progress,
+                               phase: display.arrived ? .arriving : .running,
+                               lineColor: display.color, scale: scale)
+            }
             HStack(spacing: 0) {
                 if let sched = display.schedText {
                     Text(sched + " · ")
@@ -407,7 +559,12 @@ struct TraWaitActivityWidget: Widget {
             // 🔴 這張卡的 staleDate 是「實際約到站時刻」（RailTraWaitPlugin／worker 的
             //    stale-date 同一個值）⇒ isStale 的語意是「車應該到了」，不是「資料過期」。
             //    過期是另一條路（dataAt 超過 30 分鐘），兩者在版面上長得不一樣。
-            isStale: ctx.isStale, now: Date())
+            isStale: ctx.isStale, now: Date(),
+            // 車的位置只看伺服器這一發的 tick（不看 Date()，理由見 make）。
+            tick: ctx.state.tick,
+            hop: TraWaitHop(prevStop: ctx.attributes.prevStop, prevDepSec: ctx.attributes.prevDepSec,
+                            plateLeft: ctx.attributes.plateLeft, plateRight: ctx.attributes.plateRight,
+                            carModel: ctx.attributes.carModel, schedSec: ctx.attributes.schedSec))
     }
 
     var body: some WidgetConfiguration {

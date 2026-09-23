@@ -330,7 +330,25 @@ final class RailWaitNotification {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT);
         if (accentColor != null) builder.setColor(accentColor);
 
-        if (Build.VERSION.SDK_INT >= 36) {
+        String prevStop = state.optString("prevStop", "").trim();
+        Double prevDepSec = nullableDouble(state, "prevDepSec");
+        int carRes = RailWaitTrack.traCarDrawable(state.optString("carModel", ""));
+        if (Build.VERSION.SDK_INT >= 36 && !prevStop.isEmpty() && prevDepSec != null
+                && prevDepSec < schedSec && carRes != 0) {
+            // 進站軌道（B 方案）：兩端是上一站與本站，正側面車模沿軌道走；兩端只能放圖示，站名寫進內文。
+            // 車頭位置＝「上一站實際開車 → 本站實際約到站」的比例，兩端都是表定＋官方誤點（同 iOS）。
+            // 沒有官方誤點（未知或過期）就不畫車：照表定畫一台在走的車＝宣稱準點。
+            // 這張通知每分鐘重抓一次 /api/tra-live 並重貼（scheduleRefresh），車就一分鐘挪一格。
+            double pos = -1;
+            if (shownDelay != null) {
+                double from = prevDepSec + shownDelay * 60.0;
+                if (nowSec >= etaSec) pos = 1;
+                else if (nowSec < from) pos = -2;
+                else pos = (nowSec - from) / (etaSec - from);
+            }
+            builder.setContentText(RailNativeL10n.name(context, prevStop) + " → " + station + " · " + route);
+            builder.setStyle(RailWaitTrack.traStyle(context, carRes, pos, state.optString("color", "")));
+        } else if (Build.VERSION.SDK_INT >= 36) {
             NotificationCompat.ProgressStyle style = new NotificationCompat.ProgressStyle()
                 .setStyledByProgress(true)
                 .setProgressTrackerIcon(IconCompat.createWithResource(context, R.drawable.ic_stat_train));

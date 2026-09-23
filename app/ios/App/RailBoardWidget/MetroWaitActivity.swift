@@ -80,6 +80,17 @@ struct MetroWaitDisplay {
         let lineName: String?
         /// 路線色：站名牌帶子、還沒走完的那段、本站圓點。
         let color: Color?
+        /// 上一站站名後面的小字（台鐵等站卡：「21:19 開」＝上一站表定開車；捷運沒有）。
+        var prevSub: String? = nil
+        /// 站名牌帶子改寫本站的鄰站（台鐵站牌「◀ 萬華　松山 ▶」，帶子用站牌本色不用路線色）。
+        /// nil＝捷運那種「線名＋路線色」帶子。
+        var plateNeighbours: PlateNeighbours? = nil
+
+        /// 本站在實體路線上的兩個鄰站：left＝車開過來的那一側，right＝車要去的那一側（終點站沒有）。
+        struct PlateNeighbours: Equatable {
+            let left: String?
+            let right: String?
+        }
     }
 
     /// 資料過期的門檻。設計稿：「超過 90 秒沒有新資料就把倒數換成『暫無資料』」。
@@ -422,6 +433,8 @@ struct MetroWaitTrack: View {
     let station: String
     /// 軌道下方右側那一句（鎖屏：「追蹤至 21:40 · 21:23 更新」；動態島不放）。
     var trailing: String? = nil
+    /// 接在 trailing 前面、用 ok 綠的那一段（台鐵等站卡到站後的「車應已到」）。
+    var trailingAccent: String? = nil
     /// 動態島展開版：永遠黑底，軌道縮小（車高 16、整條 60、軌面 43）。
     var island: Bool = false
     var scale: RailScale = RailScale(k: 1)
@@ -504,12 +517,16 @@ struct MetroWaitTrack: View {
                 }
                 .frame(width: s(92), height: railY - s(12) - s(1), alignment: .bottom)
                 .position(x: sx, y: s(1) + (railY - s(12) - s(1)) / 2)
-                // 標籤：左＝上一站站名，右＝更新時間。
-                Text(track.prev)
-                    .font(.system(size: s(10.5), weight: .semibold))
+                // 標籤：左＝上一站站名（台鐵另帶「21:19 開」），右＝更新時間。
+                prevLabel
                     .lineLimit(1)
                     .offset(x: max(0, px - s(12)), y: railY + s(6))
-                if let trailing {
+                if let trailingAccent {
+                    accentLabel(trailingAccent)
+                        .monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
+                        .frame(width: w, alignment: .trailing)
+                        .offset(y: railY + s(6))
+                } else if let trailing {
                     Text(trailing)
                         .font(.system(size: s(10.5)))
                         .foregroundStyle(.secondary)
@@ -521,11 +538,30 @@ struct MetroWaitTrack: View {
             .frame(width: w, height: height, alignment: .topLeading)
         }
         .frame(height: height)
-        .clipped()
+        // 只裁左右（虛線段那台車會往左伸出去）；上方多留 6pt：站名牌（尤其兩行帶子的台鐵站牌）
+        // 比預留的格子高 2–3pt，整片 clipped() 會把站牌的上框與圓角切掉。
+        .mask(Rectangle().padding(.top, -s(6)))
+    }
+
+    /// 「車應已到 · 21:26 更新」：前半 ok 綠、後半同 trailing 的 secondary。
+    private func accentLabel(_ accent: String) -> Text {
+        let head = Text(accent).font(.system(size: s(10.5), weight: .semibold))
+            .foregroundStyle(RailTokens.colors(scheme).ok)
+        guard let trailing else { return head }
+        return Text("\(head)\(Text(" · " + trailing).font(.system(size: s(10.5))).foregroundStyle(.secondary))")
+    }
+
+    private var prevLabel: Text {
+        let name = Text(track.prev).font(.system(size: s(10.5), weight: .semibold))
+        guard let sub = track.prevSub else { return name }
+        return Text("\(name)\(Text(" " + sub).font(.system(size: s(10.5))).monospacedDigit().foregroundStyle(.secondary))")
     }
 
     private var plate: some View {
-        MetroWaitPlate(name: station, band: track.lineName, bandColor: track.color, dark: dark, scale: scale)
+        // 台鐵站牌的帶子是站牌本色（深藍），路線色只給還沒走完的那段與本站圓點。
+        MetroWaitPlate(name: station, band: track.lineName,
+                       bandColor: track.plateNeighbours == nil ? track.color : nil,
+                       neighbours: track.plateNeighbours, dark: dark, scale: scale)
     }
 }
 
@@ -535,6 +571,8 @@ struct MetroWaitPlate: View {
     let name: String
     let band: String?
     let bandColor: Color?
+    /// 有值時帶子改寫兩個鄰站「◀ 萬華　松山 ▶」（台鐵站牌），取代線名。
+    var neighbours: MetroWaitDisplay.TrackB.PlateNeighbours? = nil
     let dark: Bool
     var scale: RailScale = RailScale(k: 1)
 
@@ -545,6 +583,26 @@ struct MetroWaitPlate: View {
     }
     /// 中文站名字距拉開（站牌的樣子）；英文站名本來就長，照常字距。
     private var latin: Bool { name.unicodeScalars.contains { $0.isASCII && CharacterSet.letters.contains($0) } }
+
+    /// 帶子內容：捷運＝線名置中；台鐵＝左右兩個鄰站，箭頭小一號（同設計稿 .pf .l／.r）。
+    @ViewBuilder private var bandContent: some View {
+        let font = Font.system(size: s(8), weight: .heavy)
+        if let n = neighbours {
+            HStack(spacing: s(8)) {
+                if let l = n.left {
+                    Text("\(Text("◀").font(.system(size: s(6))).baselineOffset(s(1)))\(Text(" " + l).font(font))")
+                        .tracking(s(0.5))
+                }
+                Spacer(minLength: 0)
+                if let r = n.right {
+                    Text("\(Text(r + " ").font(font))\(Text("▶").font(.system(size: s(6))).baselineOffset(s(1)))")
+                        .tracking(s(0.5))
+                }
+            }
+        } else {
+            Text(band ?? " ").font(font).tracking(s(0.5))
+        }
+    }
 
     var body: some View {
         let ink = Self.rgb(dark ? 0xcfe0f8 : 0x26497e)
@@ -561,9 +619,7 @@ struct MetroWaitPlate: View {
                 .padding(.leading, latin ? 0 : s(3))
                 .padding(.horizontal, s(8))
                 .padding(.top, s(3))
-            Text(band ?? " ")
-                .font(.system(size: s(8), weight: .heavy))
-                .tracking(s(0.5))
+            bandContent
                 .foregroundStyle(Self.rgb(0xfff8ec))
                 .lineLimit(1)
                 .padding(.horizontal, s(6))

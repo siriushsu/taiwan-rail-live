@@ -296,6 +296,104 @@ public final class RailWaitNotificationInstrumentedTest {
         return ((Notification.ProgressStyle) Notification.Builder.recoverBuilder(context, n).getStyle()).getProgress();
     }
 
+    // ── 台鐵等站卡 B：進站軌道。位置＝表定＋官方誤點；上一站開車與本站到站都加同一個誤點。 ──
+
+    @Test
+    public void android16TraTrackRunning() throws Exception {
+        // 上一站表定開 −3 分、本站表定 +4 分、誤點 0 ⇒ 走了 3/7。
+        Notification.ProgressStyle p = postTraTrack(-3 * 60, 4 * 60, 0, "emu3000");
+        assertNotNull("行駛中：左端是上一站", p.getProgressStartIcon());
+        assertNotNull("行駛中：右端是本站站牌", p.getProgressEndIcon());
+        assertNotNull("行駛中：要畫車", p.getProgressTrackerIcon());
+        assertEquals("走過的灰＋剩下的車種色", 2, p.getProgressSegments().size());
+        assertEquals(0xFFC0392B, p.getProgressSegments().get(1).getColor());
+        assertEquals("車頭在 3/7", 3000 / 7, p.getProgressSegments().get(0).getLength(), 2);
+        assertTrackerNotCropped(p);
+        assertTextHas("板橋 → 臺北");
+        assertTextHas("實際約");
+        hold();
+    }
+
+    @Test
+    public void android16TraTrackNotYetAtPrev() throws Exception {
+        // 上一站表定還要 5 分才開（誤點 0）⇒ 車停在上一站左邊。
+        Notification.ProgressStyle p = postTraTrack(5 * 60, 12 * 60, 0, "temu1000");
+        assertEquals("還沒到上一站：上一站改畫成進度條上的點", null, p.getProgressStartIcon());
+        assertEquals(1, p.getProgressPoints().size());
+        assertNotNull(p.getProgressTrackerIcon());
+        assertTrue("車要在上一站左邊", p.getProgress() < p.getProgressPoints().get(0).getPosition());
+        hold();
+    }
+
+    @Test
+    public void android16TraTrackDelayShiftsBothEnds() throws Exception {
+        // 表定上一站 −10 分開、本站 −3 分到，但誤點 7 分 ⇒ 實際 −3 分開、+4 分到 ⇒ 同樣 3/7。
+        // 只把誤點加在到站端（或只加在開車端）都會落在別的位置。
+        Notification.ProgressStyle p = postTraTrack(-10 * 60, -3 * 60, 7, "emu3000");
+        assertNotNull(p.getProgressTrackerIcon());
+        assertEquals("誤點兩端都加：車頭仍在 3/7", 3000 / 7, p.getProgressSegments().get(0).getLength(), 2);
+        hold();
+    }
+
+    @Test
+    public void android16TraTrackArrived() throws Exception {
+        Notification.ProgressStyle p = postTraTrack(-8 * 60, -60, 0, "emu3000");
+        assertNotNull(p.getProgressTrackerIcon());
+        assertEquals("車應已到：整段都走過了", 1, p.getProgressSegments().size());
+        hold();
+    }
+
+    @Test
+    public void android16TraTrackUnknownDelayDrawsNoCar() throws Exception {
+        Notification.ProgressStyle p = postTraTrack(-3 * 60, 4 * 60, null, "emu3000");
+        assertEquals("沒有官方誤點就不畫車", null, p.getProgressTrackerIcon());
+        assertNotNull(p.getProgressStartIcon());
+        assertNotNull(p.getProgressEndIcon());
+        hold();
+    }
+
+    @Test
+    public void android16TraTrackUnknownModelKeepsLegacyProgress() throws Exception {
+        Notification.ProgressStyle p = postTraTrack(-3 * 60, 4 * 60, 0, "no-such-model");
+        assertEquals("沒有素材的車型不畫進站軌道", null, p.getProgressStartIcon());
+        assertEquals(null, p.getProgressEndIcon());
+    }
+
+    private Notification.ProgressStyle postTraTrack(long prevDepOffsetSec, long schedOffsetSec,
+            Integer delayMin, String carModel) throws Exception {
+        Assume.assumeTrue(Build.VERSION.SDK_INT >= 36);
+        Assume.assumeTrue(RailWaitNotification.canNotify(context));
+        long now = System.currentTimeMillis();
+        double nowSec = Math.floor(now / 1000.0);
+        JSONObject state = new JSONObject()
+            .put("active", true)
+            .put("kind", RailWaitNotification.KIND_TRA)
+            .put("station", "臺北")
+            .put("trainNo", "172")
+            .put("trainType", "自強")
+            .put("dest", "花蓮")
+            .put("color", "#C0392B")
+            .put("schedSec", nowSec + schedOffsetSec)
+            .put("dataAt", nowSec)
+            .put("endAt", nowSec + 60 * 60)
+            .put("prevStop", "板橋")
+            .put("prevDepSec", nowSec + prevDepOffsetSec)
+            .put("plateLeft", "萬華")
+            .put("plateRight", "松山")
+            .put("carModel", carModel);
+        if (delayMin != null) state.put("delayMin", delayMin);
+        RailWaitNotification.createChannel(context);
+        RailWaitNotification.post(context, state);
+        Notification n = findActiveNotification();
+        assertNotNull("系統沒有收到台鐵等站通知", n);
+        assertTrue("進站軌道也要具提升資格", n.hasPromotableCharacteristics());
+        assertFalse("台鐵等站卡不准用 chronometer 偽造秒級倒數",
+            n.extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER, false));
+        Notification.Style style = Notification.Builder.recoverBuilder(context, n).getStyle();
+        assertEquals(Notification.ProgressStyle.class, style.getClass());
+        return (Notification.ProgressStyle) style;
+    }
+
     private Notification.ProgressStyle postTrack(long etaOffsetSec, boolean offline) throws Exception {
         Assume.assumeTrue(Build.VERSION.SDK_INT >= 36);
         Assume.assumeTrue(RailWaitNotification.canNotify(context));

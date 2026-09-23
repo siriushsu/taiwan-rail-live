@@ -261,8 +261,16 @@ function trackStaticGate() {
   }
   // 正向對照：確定掃的是真的有畫車的那一份。
   if (!code.includes('MetroWaitCarImage(model:')) bad.push('MetroWaitTrack 沒畫車模——這道 gate 掃錯東西了');
+  // 臺鐵等站卡共用同一條軌道：鎖屏＋動態島兩處都要接上，出貨的 display(ctx) 要把 attributes 的那一段
+  // 與推播的 tick 傳進 make(...)——少任何一個，真機上不是沒有軌道就是車永遠不動。
+  const traCalls = traSource.match(/MetroWaitTrack\(track:/g)?.length ?? 0;
+  if (traCalls !== 2) bad.push(`等站卡 MetroWaitTrack 呼叫點應為 2（鎖屏＋動態島），實際 ${traCalls}`);
+  if (!/tick: ctx\.state\.tick/.test(traSource)) bad.push('等站卡 display(ctx) 沒有把 ctx.state.tick 傳進 make(...)——車永遠停在原地');
+  if (!/hop: TraWaitHop\(prevStop: ctx\.attributes\.prevStop/.test(traSource)) {
+    bad.push('等站卡 display(ctx) 沒有用 attributes 組 TraWaitHop——真機上永遠不會出現進站軌道');
+  }
   if (bad.length) throw new Error('進站軌道 gate 失敗：\n' + bad.map((b) => '  ' + b).join('\n'));
-  console.log('gate 通過：進站軌道零自走元件、鎖屏與動態島兩處都接上、出貨路徑有查上一站');
+  console.log('gate 通過：進站軌道零自走元件、捷運與臺鐵的鎖屏／動態島四處都接上、出貨路徑有查上一站與 tick');
 }
 
 trackStaticGate();
@@ -287,6 +295,7 @@ const pieces = [
   extractDeclaration(waitSource, 'struct RailIslandMinimal'),
   extractDeclaration(traAttrSource, 'enum TraWaitStale'),
   extractDeclaration(traSource, 'struct TraWaitDisplay'),
+  extractDeclaration(traSource, 'struct TraWaitHop'),
   extractDeclaration(traSource, 'struct TraWaitLockView'),
   extractDeclaration(traSource, 'struct TraWaitIslandBottom'),
   extractDeclaration(traSource, 'struct TraWaitIslandMinimal'),
@@ -522,6 +531,53 @@ let traWorst = TraWaitDisplay.make(
     delayMin: 125, dataAt: traNow.timeIntervalSince1970 - 30,
     notice: "臺鐵即時資料中斷，誤點分鐘為最後一次官方更新", pushed: true,
     isStale: false, now: traNow)
+
+// ── 臺鐵等站卡：進站軌道（B 方案）─────────────────────────────────────────
+// 設計稿那一班：自強 172，板橋 21:19 開 → 臺北 表定 21:26、官方誤點 1 分。
+// 🔴 時刻同樣寫死成具體的日期時間：期望的車位＝(tick − 21:20)／(21:27 − 21:20)，
+//    這個比例在 gate 裡用手算的分鐘數比，不拿實作自己的算式比。
+let traBSchedSec: Double = {
+    var c = Calendar(identifier: .gregorian)
+    c.timeZone = TimeZone(identifier: "Asia/Taipei")!
+    return c.date(from: DateComponents(year: 2026, month: 9, day: 23, hour: 21, minute: 26))!.timeIntervalSince1970
+}()
+let traBHop = TraWaitHop(prevStop: "板橋", prevDepSec: traBSchedSec - 7 * 60,
+                         plateLeft: "萬華", plateRight: "松山", carModel: "emu3000",
+                         schedSec: traBSchedSec)
+
+/// tickMin：伺服器那一發是表定前／後幾分鐘送的（nil＝還沒收過帶 tick 的推播）。
+/// nowAfterTickSec：系統重繪這張快照的時刻比 tick 晚幾秒（車位不准跟著它變）。
+func traB(tickMin: Double?, delayMin: Int? = 1, isStale: Bool = false, pushed: Bool? = true,
+          notice: String? = nil, nowAfterTickSec: Double = 5, hop: TraWaitHop? = traBHop,
+          trainType: String = "自強", station: String = "臺北", trainNo: String = "172",
+          dest: String = "花蓮") -> TraWaitDisplay {
+    let tick = tickMin.map { traBSchedSec + $0 * 60 }
+    let when = Date(timeIntervalSince1970: (tick ?? traBSchedSec - 180) + nowAfterTickSec)
+    return TraWaitDisplay.make(
+        trainType: trainType, station: station, colorHex: "#C0392B",
+        trainNo: trainNo, dest: dest, schedSec: traBSchedSec,
+        delayMin: delayMin, dataAt: when.timeIntervalSince1970 - 40,
+        notice: notice, pushed: pushed, isStale: isStale, now: when,
+        tick: tick, hop: hop)
+}
+
+// 行駛段＝[21:20, 21:27)（兩端都是表定＋誤點 1 分）。
+let traBRunning = traB(tickMin: -3)        // 21:23 ⇒ 3/7
+let traBRunningLate = traB(tickMin: 0)     // 21:26 ⇒ 6/7
+// 21:16：車還沒從板橋開出來 ⇒ 畫在左側虛線段上，車頭不碰板橋。
+let traBFar = traB(tickMin: -10)
+let traBArrived = traB(tickMin: 1, isStale: true)
+// 沒接上推播：只拿掉車，軌道照畫；到站後那句老實話照舊。
+let traBNoPush = traB(tickMin: nil, pushed: nil)
+let traBArrivedNoPush = traB(tickMin: 1, isStale: true, pushed: nil)
+// 沒有官方誤點：照表定畫一台在走的車＝宣稱準點 ⇒ 不畫車（精度紅線）。
+let traBUnknown = traB(tickMin: -3, delayMin: nil)
+// 最壞情況：最長車種標＋4 碼車次＋長站名與長鄰站名＋三位數誤點＋服務異常那一行。
+let traBWorst = traB(tickMin: -3, delayMin: 125, notice: "臺鐵即時資料中斷，誤點分鐘為最後一次官方更新",
+                     hop: TraWaitHop(prevStop: "新左營", prevDepSec: traBSchedSec - 7 * 60,
+                                     plateLeft: "左營(舊城)", plateRight: "臺北-環島", carModel: "e1000",
+                                     schedSec: traBSchedSec),
+                     trainType: "自強(3000)", station: "臺北-環島", trainNo: "1234", dest: "臺北-環島")
 
 // ── 算繪 ────────────────────────────────────────────────────────────────────
 
@@ -1136,12 +1192,15 @@ func traStaticTextGate() {
         [("lead", d.lead), ("caption", d.heroCaption), ("hero", d.heroText),
          ("sched", d.schedText ?? ""),
          ("delay", d.delayText), ("footer", d.footer ?? ""),
-         ("notice", d.notice ?? ""), ("hint", d.staleHint ?? "")]
+         ("notice", d.notice ?? ""), ("hint", d.staleHint ?? ""),
+         ("prevSub", d.trackB?.prevSub ?? "")]
     }
     let scenes: [(String, TraWaitDisplay)] = [
         ("誤點", traLate), ("準點", traOnTime), ("未知", traUnknown), ("過期", traExpired),
         ("早到", traEarly), ("公告", traNotice), ("到站", traArrived),
         ("到站未接推播", traArrivedNoPush), ("最壞值", traWorst),
+        ("B 行駛中", traBRunning), ("B 還沒到上一站", traBFar), ("B 車應已到", traBArrived),
+        ("B 沒接上推播", traBNoPush), ("B 沒有官方誤點", traBUnknown), ("B 最壞值", traBWorst),
     ]
     for (name, d) in scenes {
         for (field, text) in texts(d) {
@@ -1157,6 +1216,7 @@ func traStaticTextGate() {
             case "hero": body = text
             case "sched": body = String(text.dropFirst(3))          // 「表定 」
             case "footer": body = String(text.dropLast(3))          // 「 更新」
+            case "prevSub": body = String(text.dropLast(2))         // 「 開」（上一站表定開車）
             default:
                 fail("「\\(name)」的 \\(field) 出現冒號:「\\(text)」。只有主角、表定與資料時刻是時刻,"
                    + "其他欄位帶冒號多半是偷偷長出來的 m:ss")
@@ -1321,6 +1381,66 @@ func trackStateGate() {
     print("gate 通過：進站軌道四態畫面兩兩不同")
 }
 
+/// 🔴 gate：臺鐵等站卡的車位置（純值層）。判準取自設計稿的狀態表與手算的分鐘數，不問實作的公式：
+///    行駛段＝上一站表定開車＋誤點 → 本站表定＋誤點（21:20 → 21:27，七分鐘）。
+@MainActor
+func traCarGate() {
+    var bad: [String] = []
+    func frac(_ d: TraWaitDisplay) -> Double? {
+        if case .running(let f)? = d.trackB?.car { return f } else { return nil }
+    }
+    guard let f23 = frac(traBRunning), let f26 = frac(traBRunningLate) else {
+        FileHandle.standardError.write(Data("等站卡車位置 gate：行駛中那兩張沒有車\\n".utf8)); exit(1)
+    }
+    if abs(f23 - 3.0 / 7.0) > 1e-9 { bad.append("21:23 應走了 3/7，實際 \\(f23)") }
+    if abs(f26 - 6.0 / 7.0) > 1e-9 { bad.append("21:26 應走了 6/7，實際 \\(f26)") }
+    if traBFar.trackB?.car != .far { bad.append("21:16（還沒從板橋開）應畫在虛線段，實際 \\(String(describing: traBFar.trackB?.car))") }
+    if traB(tickMin: -6.5).trackB?.car != .far { bad.append("21:19:30 板橋表定開車＋誤點 1 分之前，車還不該離開上一站") }
+    if frac(traB(tickMin: -6)) != 0 { bad.append("21:20 整（上一站實際開車）車頭應貼著上一站（0）") }
+    if traB(tickMin: 1).trackB?.car != .arrived { bad.append("21:27（實際約到站）即使還沒 stale 也應是 arrived") }
+    if traBArrived.trackB?.car != .arrived { bad.append("stale 應 arrived，實際 \\(String(describing: traBArrived.trackB?.car))") }
+    for (name, d) in [("沒接上推播", traBNoPush), ("沒接上推播・到站", traBArrivedNoPush), ("沒有官方誤點", traBUnknown),
+                      ("收過推播但沒帶 tick（舊伺服器）", traB(tickMin: nil))] {
+        if d.trackB == nil { bad.append("\\(name)：整條軌道不見了（應只拿掉車）") }
+        if d.trackB?.car != TrackCarNone { bad.append("\\(name)：不應畫車，實際 \\(String(describing: d.trackB?.car))") }
+    }
+    if traBArrivedNoPush.staleHint?.contains("回軌島") != true { bad.append("沒接上推播的卡到站後少了「要看最新請回軌島」那句") }
+    // 同一份 ContentState（同一個 tick）在不同時刻重繪 ⇒ 車必須停在同一處（系統替淺／深色各算一張快照）。
+    let a = traB(tickMin: -3, nowAfterTickSec: 1).trackB?.car, b = traB(tickMin: -3, nowAfterTickSec: 30).trackB?.car
+    if a != b { bad.append("同一個 tick 在 +1 秒與 +30 秒重繪，車位置不同（\\(String(describing: a)) vs \\(String(describing: b))）：車只准在推播時動") }
+    // 正向對照：tick 換了車就要動（否則上一條恆真）。
+    if traB(tickMin: -3).trackB?.car == traB(tickMin: -2).trackB?.car { bad.append("tick 從 21:23 換到 21:24 車卻沒動——make 根本沒在看 tick") }
+    // 主角照舊是「實際約 21:27」鐘面時刻，不因為多了軌道就改成倒數；上一站那個時刻是表定開車。
+    if traBRunning.heroText != "21:27" || traBRunning.heroCaption != "實際約" { bad.append("B 主角應為「實際約 21:27」，實際「\\(traBRunning.heroCaption) \\(traBRunning.heroText)」") }
+    if traBRunning.trackB?.prevSub != "21:19 開" { bad.append("上一站小字應為「21:19 開」（表定開車），實際 \\(String(describing: traBRunning.trackB?.prevSub))") }
+    if traBRunning.trackB?.prev != "板橋" { bad.append("上一站應為板橋") }
+    if traBRunning.trackB?.plateNeighbours != MetroWaitDisplay.TrackB.PlateNeighbours(left: "萬華", right: "松山") { bad.append("站牌鄰站應為 萬華／松山") }
+    // 反向：缺上一站、車型沒有素材、上一站開車不早於本站表定 ⇒ 維持原本的軌脊版（不猜）。
+    if traB(tickMin: -3, hop: nil).trackB != nil { bad.append("沒有上一站時不該有進站軌道") }
+    let noAsset = TraWaitHop(prevStop: "板橋", prevDepSec: traBSchedSec - 420, plateLeft: nil, plateRight: nil,
+                             carModel: "not-a-model", schedSec: traBSchedSec)
+    if traB(tickMin: -3, hop: noAsset).trackB != nil { bad.append("車型沒有素材卻畫了進站軌道（會是一塊空白）") }
+    if TraWaitHop(prevStop: "板橋", prevDepSec: traBSchedSec, plateLeft: nil, plateRight: nil,
+                  carModel: "emu3000", schedSec: traBSchedSec) != nil { bad.append("上一站開車不早於本站表定，TraWaitHop 應拒收") }
+    if !bad.isEmpty { FileHandle.standardError.write(Data(("等站卡車位置 gate 失敗：\\n" + bad.joined(separator: "\\n") + "\\n").utf8)); exit(1) }
+    print("gate 通過：等站卡車位置（行駛兩點照手算比例／上一站開車前後／到站／沒推播／沒誤點／舊伺服器）＋只看 tick＋三條退回軌脊")
+}
+
+/// 🔴 gate：等站卡進站軌道的幾個狀態在畫面上必須真的不一樣（PNG 位元組，不看實作）。
+@MainActor
+func traTrackStateGate() {
+    let shots: [(String, Data)] = [
+        ("行駛中", pngData(TraWaitLockView(display: traBRunning), width: 360, height: nil)),
+        ("還沒到上一站", pngData(TraWaitLockView(display: traBFar), width: 360, height: nil)),
+        ("車應已到", pngData(TraWaitLockView(display: traBArrived), width: 360, height: nil)),
+        ("沒接上推播", pngData(TraWaitLockView(display: traBNoPush), width: 360, height: nil)),
+    ]
+    for i in shots.indices { for j in (i + 1)..<shots.count where shots[i].1 == shots[j].1 {
+        FileHandle.standardError.write(Data("等站卡進站軌道 gate：\\(shots[i].0) 與 \\(shots[j].0) 畫出來一模一樣\\n".utf8)); exit(1)
+    } }
+    print("gate 通過：等站卡進站軌道四態畫面兩兩不同")
+}
+
 // 動態島展開版約 360pt 寬。
 @main
 struct Harness {
@@ -1339,6 +1459,8 @@ struct Harness {
         hopGate()
         carStateGate()
         trackStateGate()
+        traCarGate()
+        traTrackStateGate()
 
         // 臺鐵跟車：三態＋準點＋中斷＋最壞值
         _ = render(RailFollowLockView(display: followRunning), width: 360, maxHeight: lockScreenMaxHeight,
@@ -1416,6 +1538,23 @@ struct Harness {
         _ = render(TraWaitLockView(display: traLate), width: 360, maxHeight: lockScreenMaxHeight, mono: true,
                    to: outDir + "/la-trawait-late-mono.png")
 
+        // 臺鐵等站・進站軌道（B）：淺色／深色 × 行駛中／還沒到上一站／車應已到／沒接上推播（行駛・到站）／沒有官方誤點
+        for dark in [true, false] {
+            let tag = dark ? "dark" : "light"
+            for (name, d) in [("running", traBRunning), ("far", traBFar), ("arrived", traBArrived),
+                              ("nopush", traBNoPush), ("nopush-arrived", traBArrivedNoPush),
+                              ("unknown", traBUnknown)] {
+                _ = render(TraWaitLockView(display: d), width: 360, maxHeight: lockScreenMaxHeight, dark: dark,
+                           to: outDir + "/la-trawaitb-\\(name)-\\(tag).png")
+            }
+        }
+        _ = render(TraWaitLockView(display: traBWorst), width: 330, maxHeight: lockScreenMaxHeight,
+                   to: outDir + "/la-trawaitb-worst-393.png")
+        _ = render(TraWaitLockView(display: traBWorst), width: 300, maxHeight: lockScreenMaxHeight,
+                   to: outDir + "/la-trawaitb-worst-narrow300.png")
+        _ = render(TraWaitLockView(display: traBArrived), width: 300, maxHeight: lockScreenMaxHeight, dark: false,
+                   to: outDir + "/la-trawaitb-arrived-narrow300.png")
+
         // 動態島展開版的下半（識別列由 region builder 提供，那一層 ActivityKit only）。
         // bottom region 沒有 system 圓角安全區；出貨版自行內縮 22pt，墨跡至少守住 21.5pt。
         _ = render(RailFollowIslandBottom(display: followRunning), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
@@ -1444,6 +1583,11 @@ struct Harness {
                    to: outDir + "/island-trawait-bottom-worst.png")
         _ = render(TraWaitIslandBottom(display: traArrived), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
                    to: outDir + "/island-trawait-bottom-arrived.png")
+        for (name, d) in [("running", traBRunning), ("far", traBFar), ("arrived", traBArrived),
+                          ("nopush", traBNoPush), ("worst", traBWorst)] {
+            _ = render(TraWaitIslandBottom(display: d), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
+                       to: outDir + "/island-trawaitb-\\(name).png")
+        }
         // 等站卡的 minimal 不塞字（塞不下「18:35」），兩態靠形狀分（gate 已驗過不同）。
         for (name, arrived) in [("waiting", false), ("arrived", true)] {
             _ = render(TraWaitIslandMinimal(arrived: arrived,
