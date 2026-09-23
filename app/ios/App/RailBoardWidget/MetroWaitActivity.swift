@@ -179,7 +179,10 @@ struct MetroWaitDisplay {
             } else if isStale {
                 car = .arrived
             } else if let eta = nextEta {
-                let left = eta - nowSec
+                // 🔴 剩餘秒數取【資料時刻】不取重繪時刻：系統會替同一份 ContentState 在不同時間各算一張
+                //    快照（淺／深色、切外觀），用 Date() 會讓同一次更新的車停在不同位置、甚至倒退
+                //    （09-23 模擬器實見：已畫到站牌的車，切回淺色後退到 0.83）。eta − dataAt＝官方看板當下的倒數。
+                let left = eta - (dataAt ?? nowSec)
                 if left <= 0 { car = .arrived }
                 else if left <= hop.runSec { car = .running(1 - left / hop.runSec) }
                 // 倒數落在 (行駛, 行駛＋停站]：車還停在上一站，車頭貼著上一站。

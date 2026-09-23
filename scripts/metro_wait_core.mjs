@@ -211,8 +211,9 @@ const mwCrowdKey = v => (Array.isArray(v) ? v.map(Number).join(',') : '');
 // 🔴 比較基準是「上一次送出去的」而不是「上一輪算出來的」——這是遲滯能成立的關鍵:
 //    eta 每輪漂 3 秒時,跟上一輪比永遠不到 20 秒門檻(推不出去),跟上次送出的比則會在
 //    第七輪左右累積到門檻而推一發,卡片因此不會漂到與官方差太多,也不會每分鐘都推。
-// 🔴 dataAt 刻意不在比較範圍內:它每輪必變而視圖根本不畫它(MetroWaitActivity.swift 沒有
-//    任何一處讀 state.dataAt),把它算進去等於讓遲滯完全失效。pushed 同理(恆為 true)。
+// 🔴 dataAt 刻意不在比較範圍內:它每輪必變,算進去等於讓遲滯完全失效。視圖讀它的地方
+//    (過期判定、「HH:mm 更新」、進站軌道的車位)在進站窗內本來就每輪推,窗外車停在「還沒到上一站」,
+//    差一輪不影響畫面。pushed 同理(恆為 true)。
 export function mwShouldPush(prev, next, nowSec) {
   if (!prev) return true;
   if (mwInApproach(next, nowSec)) return true;

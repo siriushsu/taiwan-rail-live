@@ -1286,6 +1286,18 @@ func carStateGate() {
         if d.trackB?.car != TrackCarNone { bad.append("\\(name)：不應畫車，實際 \\(String(describing: d.trackB?.car))") }
     }
     if waitBNoPushArriving.staleHint?.contains("回軌島") != true { bad.append("沒接上推播的卡到站後少了「要看後續請回軌島」那句") }
+    // 同一份 ContentState 在不同時刻重繪（系統替淺／深色、切外觀各算一張快照）⇒ 車必須停在同一處，
+    // 否則同一次更新的車會前後跳、甚至倒退（09-23 模擬器實見）。
+    func carAt(_ t: Double) -> MetroWaitDisplay.TrackB.Car? {
+        MetroWaitDisplay.make(
+            lineLabel: "淡水信義線", station: "台北車站", colorHex: "#E3002C",
+            nextDest: "象山", nextEta: nowSec + 40, nextMinutes: nil,
+            secondDest: nil, secondEta: nil, secondMinutes: nil,
+            crowd: nil, dataAt: nowSec, endAt: nowSec + 1800,
+            notice: nil, pushed: true, isStale: false,
+            now: Date(timeIntervalSince1970: nowSec + t), hop: hopTaipei).trackB?.car
+    }
+    if carAt(1) != carAt(30) { bad.append("同一份資料在 +1 秒與 +30 秒重繪，車位置不同（\\(String(describing: carAt(1))) vs \\(String(describing: carAt(30)))）：車只准在更新時動") }
     // 反向：分鐘級系統與查不到上一站 ⇒ 維持原本的軌脊版（不偽造位置）。
     if waitApprox.trackB != nil { bad.append("高捷（分鐘級）不該有進站軌道") }
     if waitB(secondsToArrive: 40, hop: nil).trackB != nil { bad.append("查不到上一站時不該有進站軌道") }
