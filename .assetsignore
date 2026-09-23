@@ -129,3 +129,8 @@ suno musics/_licensed
 # 檔案**,.gitignore 對它完全無效,少了這條,裸跑 versions upload 就讓 output/ 變成公開路徑。
 # (同一批的另一半是上面的 _shot_*.png——那條這邊本來就有,這次補的是 .gitignore 那邊。)
 output
+# 雙平台原生版的私有 repo:理由同 .gitignore 那邊,兩邊都要有才擋得住(心得:.gitignore 管
+# 公開歷史,本檔管 wrangler 從磁碟上傳什麼,語意域不同)。ship_web 走乾淨 worktree 所以正常
+# 出貨碰不到它,但任何一次裸跑 wrangler versions upload 都是從工作樹上傳。2026-09-23 與
+# .gitignore 同一批補,已登記進 scripts/verify_ignore_symmetry.mjs 的逐類斷言。
+native

@@ -162,3 +162,8 @@ _shot_*.png
 # 48 支 verify_*／optimize_* 的預設輸出目錄（verify_night_design 的 output/dark20、
 # verify_3d_integration 的 output/3d-integration…），外加外包交付物與報告 PDF。
 output/
+# 雙平台原生版的私有 repo（KMP railcore＋iOS／Android 原生殼）：它有自己的 .git,停在這裡
+# 只是為了跟網頁版並排開發。本 repo 是 PUBLIC,而 native/ 底下有未上架的原始碼與 parity golden。
+# 2026-09-23 補:在此之前它兩邊都沒有規則,主樹 git status 長期掛著一行 `?? native/`——
+# 一次 git add -A 就把它變成 gitlink(或在它的 .git 被搬走時整包進公開歷史),而 push 後不可改寫。
+native/

@@ -41,6 +41,13 @@ struct TraWaitAttributes: ActivityAttributes {
         //    App 開卡時【不寫】(nil＝還不知道,綁定是開卡之後才非同步完成的),
         //    伺服器每一發推播都送 true。
         var pushed: Bool?
+        // 🔴 tick:伺服器送出這一發的時刻(epoch 秒)。車在上一站→本站之間時伺服器每分鐘推一發,
+        //    而那一分鐘的誤點與資料時刻常常一個字都沒變——內容完全相同時系統不保證重畫,
+        //    車就不會往前挪。這一欄保證每一發都不一樣。
+        //    🔴 視圖算車位【只准用 tick】,不准用 Date():系統會替同一份 ContentState 在不同時間
+        //    各算一張快照(淺色／深色／切外觀),用 Date() 同一次更新的車會前後跳甚至倒退。
+        //    它【不是】倒數,不准拿來顯示「還有 N 分」(精度紅線見檔頭)。
+        var tick: Double?
     }
     var station: String             // 使用者在哪一站等
     var trainNo: String             // 台鐵車次號(也是伺服器每分鐘 join 官方誤點的鍵)

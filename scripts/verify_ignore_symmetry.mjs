@@ -38,6 +38,10 @@ const CLASSES = [
   { name: '內部出圖工具',   git: 'tools/',   asset: 'tools',    sample: 'tools/公告版型/x.html' },
   { name: 'Android 版面稿', git: 'android-native-design-mock.html', asset: 'android-native-design-mock.html',
     sample: 'android-native-design-mock.html' },
+  // 原生版私有 repo:它有自己的 .git,停在本 repo 底下只是為了並排開發。不是「內部工作文件」
+  // 而是**另一個 repo 的整棵樹**,但漏洞形狀一樣:2026-09-23 之前兩邊都沒規則,主樹 status
+  // 長期掛著 `?? native/`,一次 git add -A 就進公開歷史(push 後不可改寫)。
+  { name: '原生版私有 repo', git: 'native/', asset: 'native', sample: 'native/railcore/build.gradle.kts' },
   // 下面兩類不是「內部工作文件」而是**驗收閘門的現場產物**(可隨時重建),但一樣兩邊都要有:
   // 它們的輸出路徑寫死在腳本裡且是相對路徑,一律落在 repo 根目錄 ⇒ git status 長期是髒的,
   // 一次 git add -A 就進公開歷史;而 output/ 裡有外包交付的 zip 與內部報告 PDF,
