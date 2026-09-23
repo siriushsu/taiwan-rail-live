@@ -9,7 +9,9 @@
 // 突變:bash scripts/_mutate_tra_wait_core.sh  (七發,各自預期打紅哪幾條;跑完自動還原並比 md5)
 import {
   twLiveDataAt, twDelayFor, twEtaSec, twContentState, twShouldPush, twShouldEnd, twNextEndAt,
+  twRunWindow, twRunTickDue,
   TW_DELAY_MAX_AGE_SEC, TW_ARRIVED_GRACE_SEC, TW_END_PAD_SEC, TW_MAX_TRACK_SEC, TW_DATA_AT_EPS_SEC,
+  TW_RUN_PUSH_GAP_SEC,
 } from './tra_wait_core.mjs';
 
 const results = [];
@@ -101,18 +103,27 @@ const live = (trains, at = AT_ISO) => ({ at, srv: NOW * 1000, trains });
 
 // ── D ContentState 的跨行程契約 ───────────────────────────────────────────
 {
-  const st = twContentState({ delayMin: 3, known: true }, AT_SEC);
+  const st = twContentState({ delayMin: 3, known: true }, AT_SEC, NOW);
   const keys = Object.keys(st).sort().join(',');
   // 🔴 具名覆蓋率斷言:欄位集合是跨行程契約,少送一個 key 在 App 端就是那一欄變 nil。
   //    比對【整組】而不是逐個 includes——後者對「多送了一欄」完全無感。
-  ok('D1 欄位集合恰為 delayMin,dataAt,notice,pushed', keys === 'dataAt,delayMin,notice,pushed', keys);
+  ok('D1 欄位集合恰為 delayMin,dataAt,notice,pushed,tick', keys === 'dataAt,delayMin,notice,pushed,tick', keys);
   ok('D2 值照抄', st.delayMin === 3 && st.dataAt === AT_SEC && st.notice === null && st.pushed === true, JSON.stringify(st));
-  const unknown = twContentState({ delayMin: null, known: false }, AT_SEC);
-  ok('D3 誤點未知 ⇒ delayMin=null(而不是 0)', unknown.delayMin === null && Object.keys(unknown).length === 4);
+  const unknown = twContentState({ delayMin: null, known: false }, AT_SEC, NOW);
+  ok('D3 誤點未知 ⇒ delayMin=null(而不是 0)', unknown.delayMin === null && Object.keys(unknown).length === 5);
   // 🔴 反向對照:known=false 但 delayMin 帶著髒值時,也必須被清成 null——
   //    否則「上游掛掉沿用舊值」會靜靜地把一個過期的誤點畫到卡片上。
   ok('D3r known=false 時就算帶了值也要清成 null', twContentState({ delayMin: 9, known: false }, AT_SEC).delayMin === null);
   ok('D4 資料時刻壞值 ⇒ dataAt=null', twContentState({ delayMin: 0, known: true }, 'x').dataAt === null);
+  // 🔴 D5:tick 是「每一發都不一樣」的唯一保證。兩個相隔一分鐘的 now 餵進去,其他輸入一字不改,
+  //    產出必須不同——否則行駛段那一發的內容與上一發逐字相同,系統不保證重畫,車就不會動。
+  const t0 = JSON.stringify(twContentState({ delayMin: 3, known: true }, AT_SEC, NOW));
+  const t1 = JSON.stringify(twContentState({ delayMin: 3, known: true }, AT_SEC, NOW + 60));
+  ok('D5 誤點與資料時刻都沒變、只差一分鐘 ⇒ 兩發內容仍然不同(tick)', t0 !== t1, `${t0} vs ${t1}`);
+  ok('D5r tick 照抄送出時刻', st.tick === NOW, String(st.tick));
+  // 🔴 D6:tick 不可以進遲滯比較——否則「每一輪都變」會讓車靜止的時段也每分鐘推一發。
+  ok('D6 只有 tick 不同 ⇒ twShouldPush 仍判不推',
+    twShouldPush({ ...st }, { ...st, tick: NOW + 60 }) === false);
 }
 
 // ── E 推播遲滯 ────────────────────────────────────────────────────────────
@@ -164,6 +175,36 @@ const live = (trains, at = AT_ISO) => ({ at, srv: NOW * 1000, trains });
   ok('G4 延到超過 bound_at+3.5 小時要封頂', far === boundAt + 12600, String(far));
   ok('G5 封頂之後不再往上爬(回 null 而不是同一個值)',
     twNextEndAt(twEtaSec(SCHED, 400), boundAt + 12600, boundAt) === null);
+}
+
+// ── H 行駛段(上一站→本站):只有這一段每分鐘推 ─────────────────────────────
+// 情境照 mockup:自強 172 表定板橋 21:19 開、臺北 21:26 到,官方誤點 1 分。
+// 期望值用時鐘字串(Intl)獨立驗算,不重寫 p + d*60。
+{
+  const P = Math.round(Date.parse('2026-09-23T21:19:00+08:00') / 1000);
+  const S = Math.round(Date.parse('2026-09-23T21:26:00+08:00') / 1000);
+  const w = twRunWindow(P, S, 1);
+  ok('H1 行駛段 = 板橋實際開(21:20)→臺北實際約到(21:27)',
+    !!w && hhmm(w.from) === '21:20' && hhmm(w.to) === '21:27', w ? `${hhmm(w.from)}→${hhmm(w.to)}` : 'null');
+  ok('H1r 準點 ⇒ 就是表定 21:19→21:26', (() => { const x = twRunWindow(P, S, 0); return !!x && hhmm(x.from) === '21:19' && hhmm(x.to) === '21:26'; })());
+  // 🔴 H2 是精度紅線在這一層的樣子:沒有官方誤點就沒有「車在哪」,不可以拿表定充數。
+  ok('H2 誤點未知(null)⇒ 沒有行駛段(不照表定畫一台在走的車)', twRunWindow(P, S, null) === null);
+  ok('H2r 誤點未知是 null 不是 0(Number(null)===0 的老坑)', twRunWindow(P, S, '') === null);
+  ok('H3 沒有上一站(舊版 App／起點站)⇒ 沒有行駛段', twRunWindow(null, S, 1) === null && twRunWindow(undefined, S, 1) === null);
+  ok('H4 上一站發車不早於本站到站(壞資料)⇒ 沒有行駛段', twRunWindow(S, S, 1) === null && twRunWindow(S + 60, S, 1) === null);
+
+  ok('H5 間隔下限 45 秒(同一分鐘重跑不推兩發,相鄰兩分鐘一定推得出去)', TW_RUN_PUSH_GAP_SEC === 45, String(TW_RUN_PUSH_GAP_SEC));
+  const pre = { delayMin: 1, tick: w.from - 600 };
+  ok('H6 車還沒從上一站開出來(21:19:59)⇒ 不推(車是靜止的)', twRunTickDue(pre, w.from - 1, w) === false);
+  ok('H7 剛開出上一站(21:20:00)⇒ 推(邊界含)', twRunTickDue(pre, w.from, w) === true);
+  ok('H8 行駛中、上一發是 60 秒前 ⇒ 推', twRunTickDue({ delayMin: 1, tick: w.from + 60 }, w.from + 120, w) === true);
+  ok('H9 行駛中、上一發才 44 秒前(同一分鐘重跑)⇒ 不推', twRunTickDue({ delayMin: 1, tick: w.from + 60 }, w.from + 104, w) === false);
+  ok('H9r 上一發恰好 45 秒前 ⇒ 推(邊界含)', twRunTickDue({ delayMin: 1, tick: w.from + 60 }, w.from + 105, w) === true);
+  ok('H10 上一發沒有 tick(舊版存的 last_state)⇒ 推', twRunTickDue({ delayMin: 1 }, w.from + 30, w) === true);
+  ok('H10r 從沒推過(prev=null)⇒ 推', twRunTickDue(null, w.from + 30, w) === true);
+  // 🔴 H11:到站那一刻起不再每分鐘推——之後的「車應已到」由 stale-date 翻,不靠推播。
+  ok('H11 實際約到站那一刻(21:27:00)起 ⇒ 不推(邊界不含)', twRunTickDue(pre, w.to, w) === false && twRunTickDue(pre, w.to - 1, w) === true);
+  ok('H12 沒有行駛段(win=null)⇒ 永遠不推', twRunTickDue(null, w.from + 30, null) === false);
 }
 
 const bad = results.filter(r => !r.p).length;

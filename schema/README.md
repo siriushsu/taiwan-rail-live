@@ -16,6 +16,7 @@
 | `0010_tra_wait.sql` | ✅ **權威** | 台鐵等站卡的推播交班表 `tra_wait_bindings`（**與 `metro_wait_bindings` 也是兩張獨立的表**：那張每分鐘要重新挑「這一站的下一班是誰」，這張追的是**一班指定的車**、表訂時刻在開卡當下就固定）。**所有環境都要跑，與 0003／0009 彼此無關**。 |
 | `0011_journey_share.sql` | ✅ **權威** | 短效整段旅程分享 `journey_shares`。只保存最新狀態與（使用者另行同意時）最新一筆手機座標，不保存位置歷史；公開讀取 id 與編輯憑證分離，最長 12 小時失效。**所有環境都要跑。** |
 | `0012_la_journey_handoff.sql` | ✅ **權威** | 跟車即時動態的跨車轉乘計畫。替既有 `la_bindings` 增加 `journey_state`，讓同一張鎖屏卡可在轉乘站由來源列車交棒給已選班次。**所有環境都要跑。** |
+| `0013_tra_wait_prev_dep.sql` | ✅ **權威** | 台鐵等站卡 B（進站軌道）：替 `tra_wait_bindings` 補 `prev_dep_sec`（上一個停靠站的表定發車時刻），伺服器據此在「上一站→本站」那段每分鐘推一發讓卡片上的車往前挪。**所有環境都要跑，新環境＝`0010` + `0013`。** |
 
 ## 套用到正式庫
 
@@ -26,6 +27,7 @@ arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --r
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0010_tra_wait.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0011_journey_share.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0012_la_journey_handoff.sql
+arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0013_tra_wait_prev_dep.sql
 ```
 
 （`npx wrangler` 在這台機器是壞的，一律用上面的完整寫法。）
@@ -52,6 +54,11 @@ tra_wait_bindings`。**使用者端一樣看不出來**：等站卡開卡時就�
 🔴 **0012 忘了套的症狀**：`/api/la/bind` 在寫入轉乘計畫時回 503 `bind_failed`，單段跟車的
 本機卡片仍然會出現，但 App 進背景後永遠不會從來源列車交棒給接續班次。這正是最容易被
 「卡片看起來有開」掩蓋的失效方式，部署新 Worker 前必須先套 schema。
+
+🔴 **0013 忘了套的症狀**：`/api/tra-wait/bind` 的 INSERT 找不到 `prev_dep_sec` ⇒ 一律 503
+`bind_failed`（前端靜默忽略、卡片照開），從此**連誤點更新都沒有**——比 0010 忘了套更隱蔽，
+因為舊版 Worker 在同一個庫上是好的。**先套 0013 再部署新 Worker**；0013 是 `ALTER TABLE`，
+重跑會報 `duplicate column name`（無害，代表已經套過）。
 
 🔴 **只有「已經用舊版 0003 建過表」的環境才要再依序套 0004／0005／0006**（本機 `.wrangler`、
 開發庫）。`CREATE TABLE IF NOT EXISTS` 不會替既有的表補欄位，少了 `fail_streak` 會讓 cron

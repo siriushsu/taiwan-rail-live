@@ -112,11 +112,9 @@ const MUTATIONS = [
     why: '只更新「這次交班帶來的欄位」是最小改動的直覺寫法。後果:換綁另一班車時,\n'
        + '     新車第一輪只要碰巧同樣是「誤點 3 分」就不會推,卡片停在舊車;\n'
        + '     且 3.5 小時上限從舊卡起算,新卡可能一開就已經超時。',
-    from: `      ' station=excluded.station, train_no=excluded.train_no, sched_sec=excluded.sched_sec,' +
-      ' end_at=excluded.end_at, last_state=NULL, fail_streak=0,' +
+    from: `      ' end_at=excluded.end_at, last_state=NULL, fail_streak=0,' +
       ' bound_at=excluded.bound_at, expire_at=excluded.expire_at'`,
-    to: `      ' station=excluded.station, train_no=excluded.train_no, sched_sec=excluded.sched_sec,' +
-      ' end_at=excluded.end_at, expire_at=excluded.expire_at'`,
+    to: `      ' end_at=excluded.end_at, expire_at=excluded.expire_at'`,
     expect: ['H3', 'H3b'],
   },
   {
@@ -159,6 +157,80 @@ const MUTATIONS = [
       }`,
     },
     expect: ['J1'],
+  },
+  // ── 2026-09-23 等車卡 B:行駛段每分鐘推(使用者裁示「先改伺服器每分鐘推播」)──────────
+  {
+    id: 'W12 推播迴圈沒接上行駛段判斷(只剩遲滯)',
+    why: '改了純邏輯卻忘了在 worker 裡呼叫:卡片上的車只在誤點變了才動,跟改版前一模一樣。',
+    from: `      const runDue = twRunTickDue(prev, now, twRunWindow(row.prev_dep_sec, row.sched_sec, shownDelay));`,
+    to: `      const runDue = false;`,
+    expect: ['R1', 'R2', 'RP172a', 'RP165a'],
+  },
+  {
+    id: 'W13 行駛段窗口用「這一輪查到的」誤點而不是「顯示中的」',
+    why: '最直覺是拿 delay.delayMin——但 hold 時它是 null(這班車暫時掉出動態窗),\n'
+       + '     窗口就不見了:南迴那種站間長跑正好整段停車。',
+    from: `twRunWindow(row.prev_dep_sec, row.sched_sec, shownDelay)`,
+    to: `twRunWindow(row.prev_dep_sec, row.sched_sec, delay.delayMin)`,
+    expect: ['R8'],
+  },
+  {
+    id: 'W14 hold 一律不推(沿用改版前那行)',
+    why: '「hold 就是什麼都不送」是改版前的正確規則;車會動之後,hold 期間也要挪車。',
+    from: `      if (holding && !runDue) { held++; continue; }`,
+    to: `      if (holding) { held++; continue; }`,
+    expect: ['R8'],
+  },
+  {
+    id: 'W15 hold 中的行駛段那一發用現算的內容(不沿用上一次送出去的)',
+    why: '省掉 holding 分支、直接 twContentState:hold 住的「誤點 3 分」會被翻成「沒有資訊」,\n'
+       + '     主角時刻在 18:35↔18:32 之間跳——正是 hold 要防的事。',
+    from: `      const state = holding
+        ? { ...twContentState(delay, delay.dataAt, now), ...prev, pushed: true, tick: now }
+        : twContentState(delay, delay.dataAt, now);`,
+    to: `      const state = twContentState(delay, delay.dataAt, now);`,
+    expect: ['R8b'],
+  },
+  {
+    id: 'W16 推播沒帶 tick',
+    why: '忘了把 now 傳進去:行駛段相鄰兩發在 TDX 沒更新的那分鐘逐字相同,系統不保證重畫。',
+    from: `        : twContentState(delay, delay.dataAt, now);`,
+    to: `        : twContentState(delay, delay.dataAt);`,
+    expect: ['R3', 'R3b'],
+  },
+  {
+    id: 'W17 bind 收了 prevDepSec 卻沒寫進 D1',
+    why: '驗了格式、忘了綁參數:新版 App 開的卡全部退回改版前的行為,而且沒有任何錯誤訊息。',
+    from: `.bind(String(b.token), station, trainNo, schedSec, prevDepSec, endAt, now, endAt + 300)`,
+    to: `.bind(String(b.token), station, trainNo, schedSec, null, endAt, now, endAt + 300)`,
+    expect: ['H6'],
+  },
+  {
+    id: 'W18 換綁時不更新 prev_dep_sec',
+    why: 'ON CONFLICT 那串欄位最容易漏一個:新車會拿舊車的上一站時段每分鐘推。',
+    from: `      ' prev_dep_sec=excluded.prev_dep_sec,' +
+`,
+    to: ``,
+    expect: ['H3e'],
+  },
+  {
+    id: 'W19 上一站下限綁在 3.5 小時追蹤上限',
+    why: '「反正追蹤最多 3.5 小時」——但時刻表裡有站間將近六小時的班次(6022 次臺南→南港),\n'
+       + '     整張卡會 400、連誤點都收不到。',
+    from: `p < schedSec - TW_PREV_DEP_MAX_GAP_SEC`,
+    to: `p < schedSec - TW_MAX_TRACK_SEC`,
+    expect: ['H6b'],
+  },
+  {
+    id: 'W20 壞的 prevDepSec 默默當成沒送',
+    why: '「選填欄位壞了就忽略」很常見;但卡片會以為接上了行駛中推播而畫車,車卻只在誤點變了才動。',
+    from: `      return jsonRes({ error: 'bad_prev' }, 400, 'no-store');
+    }
+    prevDepSec = p;`,
+    to: `    } else {
+      prevDepSec = p;
+    }`,
+    expect: ['H2'],
   },
 ];
 

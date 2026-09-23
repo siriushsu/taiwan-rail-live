@@ -118,16 +118,71 @@ const MUTATIONS = [
     expect: ['B6', 'B6r'],
   },
   {
-    id: 'M11 同一車次多筆時取第一筆(還原成「找到就 return」)',
-    why: '沒實測過上游會給重複列時,最自然的寫法就是找到就回傳。實測(08-22 23:15/23:17)\n'
-       + '     3782 與 288 都是兩筆且誤點值不同 ⇒ 卡片會與看板差一分鐘,兩個都號稱官方值。',
-    from: `    found = { delayMin: Number.isFinite(d) ? Math.round(d) : 0, known: true, dataAt, fresh: true };
-  }
-  return found || miss;`,
-    to: `    return { delayMin: Number.isFinite(d) ? Math.round(d) : 0, known: true, dataAt, fresh: true };
-  }
-  return miss;`,
+    id: 'M11 同一車次多筆時後蓋前(還原成 Map.set 的舊行為)',
+    why: '沒實測過上游會給重複列時,最自然的寫法就是逐筆覆蓋。實測(08-22 23:15/23:17)\n'
+       + '     3782 與 288 都是兩筆且誤點值不同 ⇒ 上游換個排序,卡片就往前跳一分鐘。\n'
+       + '     (原本這一發寫的是「找到就 return」,對準的是改成「取較大誤點」之前的程式碼,\n'
+       + '      09-23 發現取代字串已命中 0 次、整支在這裡中止——改對準現行寫法。)',
+    from: `    if (!found || candidate.delayMin > found.delayMin) found = candidate;`,
+    to: `    found = candidate;`,
     expect: ['A7'],
+  },
+  // ── 2026-09-23 等車卡 B:行駛段每分鐘推(使用者裁示「先改伺服器每分鐘推播」)──────────
+  {
+    id: 'M12 誤點未知時拿表定充數(null 當 0)',
+    why: '沒想到精度紅線時最自然的寫法:沒誤點就當準點算行駛段。後果:卡片照表定畫一台在走的車,\n'
+       + '     等於宣稱這班車準點,而官方根本沒說。',
+    from: `  if (p == null || s == null || d == null || p >= s) return null;
+  return { from: Math.round(p + d * 60), to: Math.round(s + d * 60) };`,
+    to: `  if (p == null || s == null || p >= s) return null;
+  return { from: Math.round(p + (d || 0) * 60), to: Math.round(s + (d || 0) * 60) };`,
+    expect: ['H2', 'H2r'],
+  },
+  {
+    id: 'M13 行駛段終點用表定不加誤點',
+    why: '只記得「上一站開車時刻要加誤點」卻忘了終點也要:車頭會比卡片主角「實際約」早一分鐘碰到本站,\n'
+       + '     兩個數字互相矛盾。',
+    from: `  return { from: Math.round(p + d * 60), to: Math.round(s + d * 60) };`,
+    to: `  return { from: Math.round(p + d * 60), to: Math.round(s) };`,
+    expect: ['H1'],
+  },
+  {
+    id: 'M14 拿掉 tick(每一發內容可能逐字相同)',
+    why: '「誤點沒變就沒什麼好送的」——行駛段那一發在 TDX 兩分鐘才更新的空檔裡會與上一發逐字相同,\n'
+       + '     系統不保證重畫,車就停著。',
+    from: `    tick: tick == null ? null : Math.round(tick),`,
+    to: `    tick: null,`,
+    expect: ['D5', 'D5r'],
+  },
+  {
+    id: 'M15 tick 進遲滯比較',
+    why: '把 tick 當成一般欄位一起比:每一輪都不一樣 ⇒ 車靜止的時段也每分鐘推一發(推播量回到最壞)。',
+    from: `  if (s(prev.notice) !== s(next.notice)) return true;`,
+    to: `  if (s(prev.notice) !== s(next.notice)) return true;
+  if (s(prev.tick) !== s(next.tick)) return true;`,
+    expect: ['D6'],
+  },
+  {
+    id: 'M16 行駛段沒有起點(車還沒開也每分鐘推)',
+    why: '「到站前都推」是最省事的寫法。後果:開卡後車還在上一站以前的那幾十分鐘也每分鐘推,\n'
+       + '     而那段車根本不動(使用者裁示:車還沒到上一站時不要白推)。',
+    from: `  if (now < win.from || now >= win.to) return false;`,
+    to: `  if (now >= win.to) return false;`,
+    expect: ['H6'],
+  },
+  {
+    id: 'M17 行駛段沒有終點(到站後照推)',
+    why: '忘了到站後由 stale-date 接手:到站寬限那三分鐘也每分鐘推,而且推出去的車位置已經爆出軌道。',
+    from: `  if (now < win.from || now >= win.to) return false;`,
+    to: `  if (now < win.from) return false;`,
+    expect: ['H11'],
+  },
+  {
+    id: 'M18 拿掉最小間隔(同一分鐘重跑會推兩發)',
+    why: '「cron 本來就每分鐘一發」——但排程觸發是至少一次,重跑那一發會重推同一格。',
+    from: `  return last == null || now - last >= TW_RUN_PUSH_GAP_SEC;`,
+    to: `  return true;`,
+    expect: ['H9'],
   },
 ];
 

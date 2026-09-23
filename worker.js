@@ -14,7 +14,7 @@ import {
 } from './scripts/metro_wait_core.mjs';
 import {
   twDelayFor, twEtaSec, twContentState, twShouldPush, twShouldEnd, twNextEndAt,
-  TW_MAX_TRACK_SEC,
+  twRunWindow, twRunTickDue, TW_MAX_TRACK_SEC,
 } from './scripts/tra_wait_core.mjs';
 import { BUS_TRANSFER_SCHEMA, resolveBusLegVehicles, resolveBusRouteStops, resolveStationN1 } from './scripts/bus_transfer_core.mjs';
 import {
@@ -3104,6 +3104,10 @@ const TW_TRAIN_NO_RE = /^[0-9A-Za-z]{1,8}$/;
 // 表訂時刻可以落在過去多久之內。看板點得到的班次都是未來的,但「使用者盯著一班已誤點
 // 20 分鐘、表訂時刻已經過去的車」正是本功能最典型的情境 ⇒ 往過去開 1 小時。
 const TW_SCHED_PAST_SEC = 3600;
+// 上一站表定發車最早可以比本站到站早多久。不綁 3.5 小時的追蹤上限:時刻表裡真的有站間跑
+// 將近六小時的班次(2026-09-20 的 6022 次臺南→南港),擋掉它等於整張卡失去推播。
+// 這一欄放寬不會放大濫用:每分鐘推播的總量仍被這一列的壽命(end_at ≤ bound_at + 3.5h)鎖死。
+const TW_PREV_DEP_MAX_GAP_SEC = 86400;
 async function traWaitBind(request, env) {
   if (request.method !== 'POST') return jsonRes({ error: 'method not allowed' }, 405, 'no-store');
   if (await rateLimited(env.LA_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
@@ -3128,19 +3132,33 @@ async function traWaitBind(request, env) {
   if (!Number.isFinite(endAt) || endAt <= now || endAt > now + TW_MAX_TRACK_SEC + 60) {
     return jsonRes({ error: 'bad_end' }, 400, 'no-store');
   }
+  // prevDepSec:這班車在【上一個停靠站】的表定發車時刻(epoch 秒),開卡當下由 App 從時刻表查好。
+  // 伺服器拿它判斷「車是不是正在上一站→本站之間」,只有那一段每分鐘推一發(見 twRunWindow)。
+  // 選填:舊版 App 不送、起點站開卡也沒有上一站 ⇒ NULL,這一列照舊只在誤點變了才推。
+  // 有送就必須在本站到站之前一天以內——壞值整包拒收(不默默當成沒送:卡片會以為接上了
+  // 行駛中推播而畫出一台車,車卻只在誤點變了才動;拒收則 pushed 永遠不會是 true,視圖不畫車)。
+  let prevDepSec = null;
+  if (b.prevDepSec != null) {
+    const p = Math.round(Number(b.prevDepSec));
+    if (!Number.isFinite(p) || p >= schedSec || p < schedSec - TW_PREV_DEP_MAX_GAP_SEC) {
+      return jsonRes({ error: 'bad_prev' }, 400, 'no-store');
+    }
+    prevDepSec = p;
+  }
   try {
     await env.DELAY_DB.prepare(
-      'INSERT INTO tra_wait_bindings (token,station,train_no,sched_sec,end_at,last_state,fail_streak,bound_at,expire_at)' +
-      ' VALUES (?,?,?,?,?,NULL,0,?,?) ON CONFLICT(token) DO UPDATE SET' +
+      'INSERT INTO tra_wait_bindings (token,station,train_no,sched_sec,prev_dep_sec,end_at,last_state,fail_streak,bound_at,expire_at)' +
+      ' VALUES (?,?,?,?,?,?,NULL,0,?,?) ON CONFLICT(token) DO UPDATE SET' +
       // last_state 與 fail_streak 一起歸零(同 0009 的理由):同一顆 token 換綁另一班車時,
       // 舊車的「上次送出去的內容」若黏著,新車第一輪只要碰巧同樣是「誤點 3 分」就不會推,
       // 卡片會停在舊車的資訊直到內容自己變。
       // bound_at 一起重設:3.5 小時的追蹤硬上限是「這張卡」的,不是「這顆 token」的。
       // apns_env 刻意不重設(環境是這個 App 安裝的屬性,見 schema/0008)。
       ' station=excluded.station, train_no=excluded.train_no, sched_sec=excluded.sched_sec,' +
+      ' prev_dep_sec=excluded.prev_dep_sec,' +
       ' end_at=excluded.end_at, last_state=NULL, fail_streak=0,' +
       ' bound_at=excluded.bound_at, expire_at=excluded.expire_at'
-    ).bind(String(b.token), station, trainNo, schedSec, endAt, now, endAt + 300).run();
+    ).bind(String(b.token), station, trainNo, schedSec, prevDepSec, endAt, now, endAt + 300).run();
     return jsonRes({ ok: true }, 200, 'no-store');
   } catch (e) {
     return jsonRes({ error: 'bind_failed' }, 503, 'no-store');
@@ -3976,7 +3994,7 @@ async function traWaitPushAll(env, ctx, baseUrl) {
   if (!rows.length) return { sent: 0, ended: 0, dropped: 0 };
   const live = await traWaitLive(env, ctx, baseUrl);
   const jwt = await laJwt(env);
-  let sent = 0, ended = 0, dropped = 0, unchanged = 0, held = 0, extended = 0, attempted = 0, apnsRetried = 0;
+  let sent = 0, ended = 0, dropped = 0, unchanged = 0, held = 0, extended = 0, attempted = 0, apnsRetried = 0, running = 0;
   let budgetExhausted = false, notReached = 0;
   const permFailCandidates = [];
   for (let ri = 0; ri < rows.length; ri++) {
@@ -4024,12 +4042,21 @@ async function traWaitPushAll(env, ctx, baseUrl) {
         extended++;
       }
 
-      // hold ⇒ 這一輪什麼都不推,卡片繼續顯示上一次送出去的內容(含它那個較舊的「HH:mm 更新」,
-      // 那正是誠實的新鮮度指示)。判定理由見上面 holding。
-      if (holding) { held++; continue; }
+      // 行駛中(上一站→本站)這一輪該不該為了挪車推一發。窗口用【顯示中】的誤點算——
+      // 與卡片主角、stale-date、收卡用的是同一個 eta,車頭才會剛好在「實際約」那一刻碰到本站。
+      const runDue = twRunTickDue(prev, now, twRunWindow(row.prev_dep_sec, row.sched_sec, shownDelay));
 
-      const state = twContentState(delay, delay.dataAt);
-      if (!twShouldPush(prev, state)) { unchanged++; continue; }
+      // hold ⇒ 內容不改,卡片繼續顯示上一次送出去的內容(含它那個較舊的「HH:mm 更新」,
+      // 那正是誠實的新鮮度指示)。判定理由見上面 holding。
+      // 🔴 hold 期間若車在行駛段,仍要推:南迴那種站間跑三十分鐘的區段正是會整段掉出動態窗
+      //    的地方,也正是車最需要往前走的地方。這一發的值全部沿用上一次送出去的(誤點、
+      //    資料時刻一個字都不改),只換 tick——車照「上次那個官方誤點」往前挪,不造任何新值。
+      if (holding && !runDue) { held++; continue; }
+      const state = holding
+        ? { ...twContentState(delay, delay.dataAt, now), ...prev, pushed: true, tick: now }
+        : twContentState(delay, delay.dataAt, now);
+      if (!runDue && !twShouldPush(prev, state)) { unchanged++; continue; }
+      if (runDue) running++;
       attempted++;
       const body = { aps: { timestamp: now, event: 'update', 'content-state': state } };
       // 🔴 stale-date 每一發都要帶:推播的 content 會【整包取代】舊 content,少送就等於把
@@ -4069,7 +4096,7 @@ async function traWaitPushAll(env, ctx, baseUrl) {
     await env.DELAY_DB.prepare('DELETE FROM tra_wait_bindings WHERE token=?').bind(c.token).run();
     dropped++;
   }
-  console.log(`[cron tw-push] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent} ended=${ended} unchanged=${unchanged} held=${held} extended=${extended} dropped=${dropped} apnsRetry=${apnsRetried}${live ? '' : ' traLiveDown'}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
+  console.log(`[cron tw-push] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent} running=${running} ended=${ended} unchanged=${unchanged} held=${held} extended=${extended} dropped=${dropped} apnsRetry=${apnsRetried}${live ? '' : ' traLiveDown'}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
   return { sent, ended, dropped };
 }
 
