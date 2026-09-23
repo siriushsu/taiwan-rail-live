@@ -3144,3 +3144,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '桌面小工具新增「背景」設定，可選車模、場景或素色': 'ホーム画面ウィジェットに「背景」設定を追加（車両モデル・情景・無地）'
 });
+// 2026-09-23 iPhone 捷運等車卡偶爾停住十幾分鐘（Worker 模型快取卡死）：第一層「最近更新」會顯示這句，同步補 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '修正 iPhone 捷運等車卡偶爾十幾分鐘停住不更新': 'Fixed an issue where the iPhone metro waiting card sometimes froze for more than ten minutes without updating'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '修正 iPhone 捷運等車卡偶爾十幾分鐘停住不更新': 'iPhone のメトロ待ちカードが、ときどき十数分間更新されずに止まる問題を修正しました'
+});

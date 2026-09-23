@@ -56,7 +56,8 @@ const widths = [360, 375, 414, 768];
 // 9/23：Android 台鐵發車看板班數跟著卡片高度走一條（412→413）。
 // 9/23：Android 16 捷運等車通知進站軌道一條（413→414）。
 // 9/23：桌面小工具「背景」設定一條（414→415）。
-const expectedHistoryCount = 415;
+// 9/23：iPhone 捷運等車卡偶爾停住十幾分鐘的修正一條（415→416）。
+const expectedHistoryCount = 416;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
