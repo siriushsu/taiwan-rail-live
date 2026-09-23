@@ -3151,3 +3151,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '台鐵、高鐵的跟車卡加入進站軌道：列車在上一站與下一站之間跑，靠站時停在站牌旁，發車才換到下一段': '台鉄・台湾高鉄の追跡カードに到着トラックを追加。列車は前の駅と次の駅の間を走り、停車中は駅名標のそばで止まり、発車してから次の区間に切り替わります。',
 });
+// 2026-09-23 iPhone 捷運等車卡偶爾停住十幾分鐘（Worker 模型快取卡死）：第一層「最近更新」會顯示這句，同步補 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '修正 iPhone 捷運等車卡偶爾十幾分鐘停住不更新': 'Fixed an issue where the iPhone metro waiting card sometimes froze for more than ten minutes without updating'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '修正 iPhone 捷運等車卡偶爾十幾分鐘停住不更新': 'iPhone のメトロ待ちカードが、ときどき十数分間更新されずに止まる問題を修正しました'
+});

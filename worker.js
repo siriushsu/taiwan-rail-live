@@ -1279,8 +1279,14 @@ async function trtcLive(request, env) {
 
 // ── 北捷看板事件帳本(B1):D1 編排層 ──
 // 事件推導與身分指派全在 scripts/trtc_board_ledger.mjs 的純函式；這裡只負責資產、上游、D1。
-let trtcLedgerModelPromise = null;
-let trtcBoardModelPromise = null;
+// 🔴 模組層只快取【已經載好】的 model,不快取進行中的 promise(2026-09-23 事故):
+//    進行中的 promise 背後的 env.ASSETS.fetch 屬於發起它的那個 request;那個 request 被取消時 I/O 跟著
+//    被取消、promise 永遠不 resolve,之後同一個 isolate 裡每個 await 它的人——cron 帳本、綁定器、等車卡、
+//    訪客的 trtcLive——全部一起卡死(正式站實況:cron 每發跑滿 15 分鐘被 exceededWallTime 砍掉,
+//    帳本斷層 5–27 分鐘反覆出現)。改成各自載入、載好才寫回:冷啟動那一刻可能多載一兩份,
+//    換來一個 request 被取消不會拖死整個 isolate。守門人:scripts/verify_trtc_model_memo.mjs。
+let trtcLedgerModelCache = null;
+let trtcBoardModelCache = null;
 let trtcLedgerSchemaReady = false;
 
 async function trtcLedgerAssetJson(env, path) {
@@ -1298,22 +1304,29 @@ function trtcModelSources(env) {
 }
 
 async function trtcLedgerModel(env) { // 帳本用:含 Y(工項4起 tracks/bindings 一併寫入;events 仍排除,見 persistTrtcLedger)
-  if (!trtcLedgerModelPromise) trtcLedgerModelPromise = trtcModelSources(env)
-    .then(([trtc, times, codes]) => buildTrtcModel(trtc, times, codes, { includeY: true }));
-  return trtcLedgerModelPromise;
+  if (trtcLedgerModelCache) return trtcLedgerModelCache;
+  const [trtc, times, codes] = await trtcModelSources(env);
+  const model = buildTrtcModel(trtc, times, codes, { includeY: true });
+  if (!trtcLedgerModelCache) trtcLedgerModelCache = model;
+  return trtcLedgerModelCache;
 }
 
 async function trtcBoardModel(env) { // 前端位置錨點用:含 Y(同一份 TrackInfo 已夾帶,不多打上游也不多寫帳本)
-  if (!trtcBoardModelPromise) trtcBoardModelPromise = trtcModelSources(env)
-    .then(([trtc, times, codes]) => buildTrtcModel(trtc, times, codes, { includeY: true }));
-  return trtcBoardModelPromise;
+  if (trtcBoardModelCache) return trtcBoardModelCache;
+  const [trtc, times, codes] = await trtcModelSources(env);
+  const model = buildTrtcModel(trtc, times, codes, { includeY: true });
+  if (!trtcBoardModelCache) trtcBoardModelCache = model;
+  return trtcBoardModelCache;
 }
 
 // ── 逐班綁定器(工項2-3):資產、D1 讀寫全在這裡,身分/shift 判斷全在 trtc_board_ledger.mjs ──
-let trtcDayTypeTablePromise = null;
+// 與上面兩個 model 同一條規矩:只快取載好的表,不快取進行中的 promise。
+let trtcDayTypeTableCache = null;
 async function trtcDayTypeTable(env) { // data/tw_daytype.json:TW_DAYTYPE 的後端副本(前端本單不改)
-  if (!trtcDayTypeTablePromise) trtcDayTypeTablePromise = trtcLedgerAssetJson(env, 'data/tw_daytype.json');
-  return trtcDayTypeTablePromise;
+  if (trtcDayTypeTableCache) return trtcDayTypeTableCache;
+  const table = await trtcLedgerAssetJson(env, 'data/tw_daytype.json');
+  if (!trtcDayTypeTableCache) trtcDayTypeTableCache = table;
+  return trtcDayTypeTableCache;
 }
 
 let trtcTripSetsCache = null; // { day, tripSets, dayKeys } —— 一天只需重建一次,不隨每輪 cron 重算
@@ -7896,6 +7909,8 @@ export const _trtcLedger = {
   trtcOfficialRowsForJoin,
   trtcOfficialRosterSnapshot, trtcReadOfficialRoster, trtcPersistOfficialRoster,
   trtcOfficialOutagePayload, trtcOfficialHeldPayload, trtcOfficialTripDecorations, trtcBoardPositionAnchors,
+  // 模組層快取的三支載入器(見 scripts/verify_trtc_model_memo.mjs:一個 request 卡住不可拖住整個 isolate)
+  trtcLedgerModel, trtcBoardModel, trtcDayTypeTable,
 };
 // laPushAll 導出(task-6)：這條迴圈是全功能唯一沒有純函式測試覆蓋的部分(呼叫 D1／APNs／
 // traLive 三個 IO)。workerd 的 fetch 會拒絕自簽 HTTPS 憑證,沒辦法用假伺服器讓 wrangler dev
