@@ -8,6 +8,8 @@
 //  L3 靜止 4 秒內不再有全清(修法不會變成每幀重畫地形貼圖)。
 //  L4 setFilter 之後、重載開始之前先到一個 openmaptiles 圖磚事件(跟車時新圖磚隨時會到):不可以把「待重畫」提早用掉,S=F。
 //     假事件在 setFilter 同一個工作結束時送(microtask),送出當下 openmaptiles 必須仍是已載完(證明打在那個窗口)。
+//  L5 重載的圖磚分好幾幀才回來(慢手機的常態):把遮罩範圍所在 z14 圖磚的重載回應扣住 600ms,別的圖磚先到,
+//     最後一張回來前不可以先清,S=F。前置:確實有被扣的圖磚、且有別的 openmaptiles 圖磚在它們之前送達。
 //  D0 暗色＋地形:S=F(暗色沒有 2D 建物,修前也是 0,確保修法沒弄壞)。
 //  C  對照(證明 S/F 看得到卡舊):關遮罩後把 freeRtt 換成空函式再開遮罩,S 與 F 必須差 >100 px(雜訊底已驗為 0;
 //     這塊遮罩範圍地面露出的 2D 輪廓約 1200 px,多數被立體建物擋住,修前的卡舊也是這個量)。
@@ -21,12 +23,20 @@ const block={type:'FeatureCollection',features:[{type:'Feature',properties:{stat
 const pixels=async png=>(await sharp(png).removeAlpha().raw().toBuffer());
 const diff=async(a,b)=>{const A=await pixels(a),B=await pixels(b);let n=0;for(let i=0;i<A.length;i+=3)if(Math.max(Math.abs(A[i]-B[i]),Math.abs(A[i+1]-B[i+1]),Math.abs(A[i+2]-B[i+2]))>12)n++;return n;};
 console.log('目標站台:',base);
+// L5 用:記下每個 openmaptiles 載入／重載請求的圖磚,__hold 開著時把指定圖磚的回應延後送達(其餘照常)。
+const holdWorkers=()=>{const W=window.Worker,tiles=new Map();window.__held=[];window.__passed=[];
+  window.Worker=function(...a){const w=new W(...a),post=w.postMessage.bind(w),add=w.addEventListener.bind(w);
+    w.postMessage=(m,...r)=>{const c=m?.data?.source==='openmaptiles'&&m.data.tileID?.canonical;if(c)tiles.set(m.id,c.z+'/'+c.x+'/'+c.y);return post(m,...r);};
+    w.addEventListener=(type,fn,...r)=>type!=='message'?add(type,fn,...r):add('message',e=>{const k=tiles.get(e.data?.id);
+      if(k&&window.__hold){if(window.__hold.includes(k)){window.__held.push(k);return setTimeout(()=>fn.call(w,e),600);}window.__passed.push(k);}return fn.call(w,e);},...r);
+    return w;};window.Worker.prototype=W.prototype;};
 const browser=await chromium.launch(HEADFUL?{channel:'chrome',headless:false}:{});
 const failures=[];const check=(ok,msg)=>{console.log((ok?'PASS ':'FAIL ')+msg);if(!ok)failures.push(msg);};
 try{
 for(const dark of [false,true]){
   const name=dark?'暗色':'地景';
   const context=await browser.newContext({viewport:{width:1280,height:800},locale:'zh-TW',timezoneId:'Asia/Taipei'});
+  await context.addInitScript(holdWorkers);
   await context.addInitScript(d=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance',d?'dark':'light');},dark);
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.bringToFront();
   await page.goto(base+'?scene=3d&t=12:00&lang=zh-TW&cb='+Date.now());
@@ -73,6 +83,14 @@ for(const dark of [false,true]){
     await toggle(block);const S4=await shot(),F4=await fresh(),stray=await page.evaluate(()=>window.__stray),s4=await diff(S4,F4);
     check(stray?.loaded===true,`L4 前置:假圖磚事件已送出,且送出當下重載還沒開始(${JSON.stringify(stray)})`);
     check(s4===0,`L4 ${name}＋地形 重載開始前先到一個圖磚事件,遮罩開 S=F(差 ${s4} px)`);
+    await toggle(null);
+    await page.evaluate(b=>{const ring=b.features[0].geometry.coordinates[0],n=2**14,keys=new Set();
+      const tx=lon=>Math.floor((lon+180)/360*n),ty=lat=>{const r=lat*Math.PI/180;return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n);};
+      for(const [lon,lat] of ring)keys.add('14/'+tx(lon)+'/'+ty(lat));window.__hold=[...keys];window.__held=[];window.__passed=[];},block);
+    await toggle(block);const S5=await shot(),F5=await fresh();
+    const hold=await page.evaluate(()=>{const r={hold:window.__hold,held:window.__held.length,passed:window.__passed.length};window.__hold=null;return r;}),s5=await diff(S5,F5);
+    check(hold.held>0&&hold.passed>0,`L5 前置:遮罩範圍的圖磚重載被延後、且有別的圖磚先到(${JSON.stringify(hold)})`);
+    check(s5===0,`L5 ${name}＋地形 重載分幀回來,遮罩開 S=F(差 ${s5} px)`);
     await toggle(null);await page.evaluate(()=>{M.raw.terrain.sourceCache.freeRtt=()=>{};});
     await toggle(block);const SC=await shot(),FC=await fresh();const c=await diff(SC,FC);
     check(c>100,`C 對照:freeRtt 換成空函式後開遮罩,S 與 F 必須看得出差異(${c} px)`);
