@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 只給小工具挑選器／釘選框的 previewLayout 看（真小工具每次更新都 removeAllViews 後才填列）。
+     widget_rail_rows_demo_compact.xml 的第一列原樣照抄，小卡（compact=true）湊單數列用（各張版面用哪幾個示範檔湊出幾列，照 RailBoardWidgetProvider small()／medium()／large() 的預設大小列數；
+     verify_android_widget_parity.mjs 逐張比對）。
+     不綁 android:id。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="30dp"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:tag="demo-row">
+
+        <ImageView
+            android:layout_width="3dp"
+            android:layout_height="22dp"
+            android:contentDescription="@null"
+            android:scaleType="fitXY"
+            android:src="@drawable/wg_meter_block"
+            android:tint="@color/wg_navy" />
+
+        <ImageView
+            android:layout_width="10dp"
+            android:layout_height="8dp"
+            android:layout_marginStart="6dp"
+            android:contentDescription="@null"
+            android:scaleType="fitCenter"
+            android:src="@drawable/wg_heading_north" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="7dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="自強 123"
+                android:textColor="@color/wg_ink"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="往 花蓮"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="9sp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="09:41"
+            android:textColor="@color/wg_ink"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>

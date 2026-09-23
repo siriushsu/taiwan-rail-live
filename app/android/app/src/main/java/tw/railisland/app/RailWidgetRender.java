@@ -4,6 +4,8 @@ import android.content.Context;
 import android.graphics.Color;
 import android.util.TypedValue;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.RemoteViews;
 
 import java.text.SimpleDateFormat;
@@ -18,8 +20,18 @@ final class RailWidgetRender {
 
     private RailWidgetRender() {}
 
+    /**
+     * 預設大小的卡：maxRows 以一般字級計；大字版列高 30dp→42dp，同一塊地方照比例少放
+     * （預設大小實測：小 3→2、中 3→2、大 9→6，與按比例換算相同）。
+     */
     static RemoteViews board(Context context, int layout, RailWidgetData.Snapshot snapshot,
                              int maxRows, boolean readable, boolean compact) {
+        return boardWithRows(context, layout, snapshot, readable ? maxRows * 30 / 42 : maxRows, readable, compact);
+    }
+
+    /** 恰好放 count 班的卡（至少一列：沒有班次時那一列是空狀態）。count 由 {@link #rowsThatFit} 量出來。 */
+    static RemoteViews boardWithRows(Context context, int layout, RailWidgetData.Snapshot snapshot,
+                                     int count, boolean readable, boolean compact) {
         RemoteViews root = new RemoteViews(context.getPackageName(), layout);
         String origin = RailNativeL10n.name(context, snapshot.origin);
         root.setTextViewText(R.id.wr_head, compact ? origin : RailNativeL10n.text(context,
@@ -52,7 +64,7 @@ final class RailWidgetRender {
         root.removeAllViews(R.id.wr_rows);
 
         List<RailWidgetData.Row> rows = snapshot.rows;
-        int limit = Math.min(rows.size(), Math.max(1, maxRows - (readable ? (compact ? 1 : 2) : 0)));
+        int limit = Math.min(rows.size(), Math.max(1, count));
         for (int i = 0; i < limit; i++) root.addView(R.id.wr_rows, row(context, rows.get(i), readable, compact));
         if (limit == 0) {
             RemoteViews empty = new RemoteViews(context.getPackageName(), readable
@@ -69,6 +81,38 @@ final class RailWidgetRender {
             root.addView(R.id.wr_rows, empty);
         }
         return root;
+    }
+
+    /**
+     * 這張卡在 widthDp×heightDp 的格子裡放得下幾班（1～max）；量不出來回 0，呼叫端退回預設列數。
+     * 🔴 台鐵列是固定高度（widget_rail_row 30dp／好讀版 42dp），放不下會從列中間切掉，所以要算準。
+     *    不估字高：把整張卡在本 App 裡照桌面的方式 apply 出來量（字型、字級、Samsung 字體、
+     *    警示時露出的註腳都跟桌面同一套），量「表頭＋N 列＋註腳」的最小高度，N 加到放不下為止。
+     *    Samsung One UI 先照回報尺寸排版、再整張縮 0.83 畫上桌面，所以拿回報的 dp 比就對。
+     */
+    static int rowsThatFit(Context context, RemoteViews card, float widthDp, float heightDp, int max) {
+        try {
+            View root = card.apply(context, new FrameLayout(context));
+            ViewGroup rows = root.findViewById(R.id.wr_rows);
+            if (rows == null || rows.getChildCount() == 0) return 0;
+            int rowPx = rows.getChildAt(0).getLayoutParams().height;
+            if (rowPx <= 0) return 0;
+            rows.removeAllViews();
+            float density = context.getResources().getDisplayMetrics().density;
+            int widthSpec = View.MeasureSpec.makeMeasureSpec(Math.round(widthDp * density), View.MeasureSpec.EXACTLY);
+            int unbounded = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
+            int limitPx = (int) Math.floor(heightDp * density);
+            int fit = 1;
+            for (int n = 2; n <= max; n++) {
+                rows.setMinimumHeight(n * rowPx);
+                root.measure(widthSpec, unbounded);
+                if (root.getMeasuredHeight() > limitPx) break;
+                fit = n;
+            }
+            return fit;
+        } catch (RuntimeException error) {
+            return 0;
+        }
     }
 
     static RemoteViews row(Context context, RailWidgetData.Row row, boolean readable, boolean compact) {

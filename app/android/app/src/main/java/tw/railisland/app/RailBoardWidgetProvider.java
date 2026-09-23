@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.PowerManager;
 import android.util.SizeF;
 import android.widget.RemoteViews;
@@ -28,6 +29,13 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
     static final String PREFS = "rail_board_widget";
     static final String ACTION_REFRESH = "tw.railisland.app.REFRESH_RAIL_BOARD_WIDGET";
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
+    /** 「大」那一族格子至少這麼高才用大卡版面（以下是被 launcher 縮小放上去的，用中卡）。 */
+    private static final float LARGE_MIN_HEIGHT = 250f;
+    /**
+     * 回報尺寸扣一點再比：launcher 回報的 dp 與格子實際的 px 換算有浮點捨入，差一點點也會讓桶「放不進」而退到保底桶。
+     * 只吸收捨入（不到 1px）：扣到 2dp 時 Pixel 5×5 中卡素色（回報 221.7dp）剛好放得下的第 5 班會被扣掉。
+     */
+    private static final float FIT_SLACK_DP = 0.5f;
 
     @Override
     public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
@@ -122,7 +130,7 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
             RailWidgetData.Snapshot snapshot = RailWidgetData.fetch(context, sys, origin, destination, filters);
             snapshot.autoStale = autoStale;
             RailWidgetData.cache(context, PREFS, id, snapshot);
-            manager.updateAppWidget(id, sizes(context, id, snapshot, readable));
+            manager.updateAppWidget(id, sizes(context, manager, id, snapshot, readable));
             long next = System.currentTimeMillis() + 5 * 60_000L;
             if (!snapshot.rows.isEmpty()) {
                 long boundary = snapshot.rows.get(0).expectedAt();
@@ -136,7 +144,7 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
             RailWidgetData.Snapshot fallback = RailWidgetData.cached(context, PREFS, id);
             if (fallback != null) {
                 fallback.failed = true;
-                manager.updateAppWidget(id, sizes(context, id, fallback, readable));
+                manager.updateAppWidget(id, sizes(context, manager, id, fallback, readable));
             } else {
                 manager.updateAppWidget(id, tap(context, id,
                     RailWidgetRender.message(context, "暫時連不上", "點卡片仍可開啟軌島查看班次")));
@@ -145,30 +153,119 @@ public class RailBoardWidgetProvider extends AppWidgetProvider {
         }
     }
 
-    private static RemoteViews sizes(Context context, int id, RailWidgetData.Snapshot snapshot, boolean readable) {
+    /**
+     * 整張卡跟著格子實際的大小畫：版面照寬度（與這一格屬於哪個尺寸）挑，班數照高度量（{@link #at}）。
+     * 🔴 以前三尺寸的班數寫死、照 Pixel 調：Samsung One UI 回報的格子比 Pixel 高（大 5×4 回報 406×433dp，
+     *    Pixel 約 369×377），大卡底下空三、四班、小卡也空一截；反過來寫多了又會在矮的格子把最後一列切掉。
+     */
+    private static RemoteViews sizes(Context context, AppWidgetManager manager, int id, RailWidgetData.Snapshot snapshot,
+                                     boolean readable) {
         PendingIntent tap = openIntent(context, id, snapshot.sys, snapshot.origin);
+        String family = WidgetFamily.of(context, id);
+        Bundle options = manager.getAppWidgetOptions(id);
         if (Build.VERSION.SDK_INT < 31) {
-            // 沒有 setSizeSpecificViewLayouts 的機器:照這一格屬於哪個尺寸的 provider 挑一張。
-            String family = WidgetFamily.of(context, id);
-            if (WidgetFamily.SMALL.equals(family)) {
-                return tap(RailWidgetRender.board(context, R.layout.widget_rail_2x2, snapshot, 2, readable, true), tap);
-            }
-            if (WidgetFamily.LARGE.equals(family)) {
-                return tap(RailWidgetRender.board(context, R.layout.widget_rail_4x4, snapshot, 8, readable, false), tap);
-            }
-            return tap(RailWidgetRender.board(context, R.layout.widget_rail_4x2, snapshot, 4, readable, false), tap);
+            // 沒有 setSizeSpecificViewLayouts 的機器：照這一格屬於哪個尺寸的 provider 挑版面，班數照 launcher 回報的
+            // 直放尺寸量（雙看板同一做法）；連尺寸都沒回報就照預設大小量。
+            int width = options == null ? 0 : options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
+            int height = options == null ? 0 : options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0);
+            SizeF size = width > 0 && height > 0 ? new SizeF(width, height) : defaultSize(family);
+            return tap(at(context, family, snapshot, readable, size.getWidth(), size.getHeight()), tap);
+        }
+        // 候選尺寸：保底桶（比所有實際格子都矮，量出來的班數一定放得下）＋這個尺寸的預設大小＋launcher 回報的每一種
+        // 大小（直放、橫放、摺疊機內外螢幕）。系統在「放得進格子」的桶裡挑面積最大的那張，所以回報的那張會被挑中；
+        // 格子比回報的還小（沒預期到的情況）就退到保底桶，寧可少一班也不切掉最後一列。
+        List<SizeF> candidates = new ArrayList<>();
+        candidates.add(new SizeF(110f, 100f));
+        candidates.add(new SizeF(200f, 100f));
+        // 🔴 只有「大」那一族才開大卡桶：4×4 格線的兩列就有 276dp 高，中卡不擋會整張變成大卡版面。
+        if (WidgetFamily.LARGE.equals(family)) candidates.add(new SizeF(200f, LARGE_MIN_HEIGHT));
+        SizeF preset = defaultSize(family);
+        candidates.add(new SizeF(preset.getWidth(), preset.getHeight() - FIT_SLACK_DP));
+        for (SizeF size : reportedSizes(options)) {
+            candidates.add(new SizeF(size.getWidth(), size.getHeight() - FIT_SLACK_DP));
         }
         Map<SizeF, RemoteViews> layouts = new HashMap<>();
-        layouts.put(new SizeF(110f, 100f), tap(
-            RailWidgetRender.board(context, R.layout.widget_rail_2x2, snapshot, 2, readable, true), tap));
-        layouts.put(new SizeF(200f, 100f), tap(
-            RailWidgetRender.board(context, R.layout.widget_rail_4x2, snapshot, 4, readable, false), tap));
-        // 🔴 只有「大」那一族才開 4×4 桶:4×4 格線的兩列就有 276dp 高,中卡不擋會整張變成大卡版面。
-        if (WidgetFamily.LARGE.equals(WidgetFamily.of(context, id))) {
-            layouts.put(new SizeF(200f, 250f), tap(
-                RailWidgetRender.board(context, R.layout.widget_rail_4x4, snapshot, 8, readable, false), tap));
+        for (SizeF size : candidates) {
+            if (layouts.size() >= 16) break;   // RemoteViews 的尺寸表最多 16 張
+            String tier = tier(family, size);
+            // 桶寬只分兩級（小卡 110、中大卡 200，都比該級最窄的格子窄），比的主要是高度。
+            SizeF key = new SizeF(WidgetFamily.SMALL.equals(tier) ? 110f : 200f, size.getHeight());
+            if (size.getHeight() <= 0 || layouts.containsKey(key)) continue;
+            layouts.put(key, tap(at(context, tier, snapshot, readable, size.getWidth(), size.getHeight()), tap));
         }
         return new RemoteViews(layouts);
+    }
+
+    /** 寬度不到 200dp 用小卡版面；「大」那一族夠高才用大卡版面；其餘用中卡。 */
+    private static String tier(String family, SizeF size) {
+        if (size.getWidth() < 200f) return WidgetFamily.SMALL;
+        if (WidgetFamily.LARGE.equals(family) && size.getHeight() >= LARGE_MIN_HEIGHT) return WidgetFamily.LARGE;
+        return WidgetFamily.MEDIUM;
+    }
+
+    /** launcher 回報的所有顯示尺寸（API 31+）；舊 launcher 只給最小／最大寬高時，拼出直放與橫放兩種。 */
+    @SuppressWarnings("deprecation")
+    private static List<SizeF> reportedSizes(Bundle options) {
+        List<SizeF> out = new ArrayList<>();
+        if (options == null) return out;
+        ArrayList<SizeF> sizes = options.getParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES);
+        if (sizes != null) out.addAll(sizes);
+        if (out.isEmpty()) {
+            int minW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
+            int maxW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0);
+            int minH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0);
+            int maxH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0);
+            if (minW > 0 && maxH > 0) out.add(new SizeF(minW, maxH));
+            if (maxW > 0 && minH > 0) out.add(new SizeF(maxW, minH));
+        }
+        return out;
+    }
+
+    /**
+     * 格子實際 widthDp×heightDp 的整張卡：版面與預設那張相同，班數換成這個高度量得出來的數目
+     * （RailWidgetRender.rowsThatFit）；量不出來就用預設列數。
+     */
+    static RemoteViews at(Context context, String tier, RailWidgetData.Snapshot snapshot, boolean readable,
+                          float widthDp, float heightDp) {
+        RemoteViews preset = preset(context, tier, snapshot, readable);
+        int rows = RailWidgetRender.rowsThatFit(context, preset, widthDp, heightDp, Math.max(1, snapshot.rows.size()));
+        if (rows <= 0) return preset;
+        return RailWidgetRender.boardWithRows(context, preset.getLayoutId(), snapshot, rows, readable,
+            WidgetFamily.SMALL.equals(tier));
+    }
+
+    private static RemoteViews preset(Context context, String tier, RailWidgetData.Snapshot snapshot, boolean readable) {
+        if (WidgetFamily.SMALL.equals(tier)) return small(context, snapshot, readable);
+        if (WidgetFamily.LARGE.equals(tier)) return large(context, snapshot, readable);
+        return medium(context, snapshot, readable);
+    }
+
+    /**
+     * 各尺寸預設放上桌面的大小（launcher 回報的 dp），取已知最矮的那一組：Pixel 5×2 有 180dp 的（2026-09-23 前的實測），
+     * Pixel 7 模擬器 5×5 是 222dp、A54 是 207dp。挑選器示範列與預設列數都照這個大小，所以在已知的機型上預覽不會切列。
+     */
+    static SizeF defaultSize(String family) {
+        if (WidgetFamily.SMALL.equals(family)) return new SizeF(141f, 178f);
+        if (WidgetFamily.LARGE.equals(family)) return new SizeF(369f, 377f);
+        return new SizeF(369f, 180f);
+    }
+
+    /*
+     * 三尺寸各一張版面。這裡的列數是「預設大小」（defaultSize）量出來的班數：桌面上的卡照實際高度重量（at），
+     * 這個數只在量不出來時直接用，挑選器示範列也照它放。
+     * 🔴 每一個 board(...) 呼叫都要保持「board(context, R.layout.X, snapshot, N, readable, compact)」
+     *    這個字面寫法：verify_android_widget_parity.mjs 從這裡抽每張版面的預設列數去比挑選器示範列。
+     */
+    static RemoteViews small(Context context, RailWidgetData.Snapshot snapshot, boolean readable) {
+        return RailWidgetRender.board(context, R.layout.widget_rail_2x2, snapshot, 3, readable, true);
+    }
+
+    static RemoteViews medium(Context context, RailWidgetData.Snapshot snapshot, boolean readable) {
+        return RailWidgetRender.board(context, R.layout.widget_rail_4x2, snapshot, 3, readable, false);
+    }
+
+    static RemoteViews large(Context context, RailWidgetData.Snapshot snapshot, boolean readable) {
+        return RailWidgetRender.board(context, R.layout.widget_rail_4x4, snapshot, 9, readable, false);
     }
 
     private static RemoteViews configure(Context context, int id, RemoteViews views) {

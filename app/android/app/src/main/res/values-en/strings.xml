@@ -13,7 +13,7 @@
     <string name="rail_widget_small_name">Departure board · Small</string>
     <string name="rail_widget_small_description">The next two trains, the smallest tile</string>
     <string name="rail_widget_large_name">Departure board · Large</string>
-    <string name="rail_widget_large_description">The next eight trains, a full departure board</string>
+    <string name="rail_widget_large_description">The next trains, filling a full departure board</string>
     <string name="mixed_widget_name">Rail + metro board</string>
     <string name="mixed_widget_description">TRA or HSR departures and metro countdowns on one card</string>
     <string name="widget_loading">Updating…</string>
