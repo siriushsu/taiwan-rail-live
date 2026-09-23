@@ -218,7 +218,17 @@ final class RailWaitNotification {
             builder.setShowWhen(false);
         }
 
-        if (Build.VERSION.SDK_INT >= 36) {
+        RailWaitTrack.Hop hop = Build.VERSION.SDK_INT >= 36
+            ? RailWaitTrack.hop(context, state.optString("sys", ""), rawStation, state.optString("nextDest", ""))
+            : null;
+        if (hop != null) {
+            // 進站軌道（B 方案）：兩端是上一站與本站，車模沿軌道走；兩端只能放圖示，站名寫進內文。
+            double pos = RailWaitTrack.carPosition(hop, nextEta, now / 1000.0,
+                !state.optBoolean("trackOffline", false));
+            builder.setContentText(RailNativeL10n.name(context, hop.prev) + " → " + station
+                + " · " + compact);
+            builder.setStyle(RailWaitTrack.style(context, hop, pos, color));
+        } else if (Build.VERSION.SDK_INT >= 36) {
             // Android 16 的 ProgressStyle 是 Live Update／Samsung Now Bar 的原生行程樣式。
             // 一整段代表「開始等車→下一班抵達」，tracker 用軌島列車圖示沿進度前進；
             // 只有分鐘級資料的高捷／機捷不偽造秒級 ETA，改用 indeterminate 如實呈現。
@@ -430,9 +440,17 @@ final class RailWaitNotification {
                 String sys = state.optString("sys", "");
                 String station = state.optString("station", "");
                 String selectedDest = state.optString("selectedDest", "");
+                if (RailWaitTrack.localTickOnly(state, now)) {
+                    // 進站軌道：車在上一站→本站之間，只重貼讓車往前挪；官方資料一分鐘才更新一次。
+                    post(app, state);
+                    scheduleRefresh(app, state, false);
+                    return;
+                }
                 MetroWidgetData.Snapshot snapshot = MetroWidgetData.fetch(app, sys, station, selectedDest);
                 if (!snapshot.rows.isEmpty()) {
                     applySnapshot(state, snapshot);
+                    state.put("fetchedAt", now);
+                    state.remove("trackOffline");
                     save(app, state);
                     post(app, state);
                     scheduleRefresh(app, state, false);
@@ -441,6 +459,13 @@ final class RailWaitNotification {
                 }
             } catch (Exception ignored) {
                 JSONObject state = load(app);
+                if (state != null && KIND_METRO.equals(state.optString("kind", KIND_METRO))
+                        && !state.optBoolean("trackOffline", false)) {
+                    // 抓不到官方資料 ⇒ 進站軌道不畫車（沒接上就不畫，同 iOS 沒接上推播）。
+                    try { state.put("trackOffline", true); } catch (JSONException ignoredToo) {}
+                    save(app, state);
+                    post(app, state);
+                }
                 if (state != null) scheduleRefresh(app, state, true);
             } finally {
                 if (finished != null) finished.run();
@@ -612,6 +637,8 @@ final class RailWaitNotification {
             when = etaMillis > now + 60_000L
                 ? Math.max(now + 1_000L, etaMillis - 60_000L)
                 : etaMillis + 31_000L;
+            long move = RailWaitTrack.nextMoveMillis(context, state, etaMillis, now);
+            if (move > 0) when = Math.min(when, move);
         } else when = now + (retry ? 120_000L : 60_000L);
         if (endAt > 0 && when >= endAt) return;
         Intent intent = new Intent(context, MetroWaitStopReceiver.class).setAction(MetroWaitStopReceiver.ACTION_REFRESH);

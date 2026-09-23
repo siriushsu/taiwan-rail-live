@@ -11,7 +11,7 @@
      - 展示台是 shadow catcher，會留一層低 alpha 的灰陰影 ⇒ alpha<0.5 清掉、其餘拉回實心，再裁到墨跡框。
      - iOS：RailBoardWidget/Assets.xcassets/la-side-<id>.imageset（高 18pt 的 @2x／@3x）。
      - Android：res/drawable-nodpi/la_side_<id>.png（高 96px，通知 tracker 圖示的最終尺寸由系統縮）。
-     印出的寬高比要同步到 MetroWaitHop.carAspect（Swift）與 RailWaitTrack.CAR_ASPECT（Java）。
+     印出的寬高比要同步到 MetroWaitHop.carAspect（Swift）；Android（RailWaitTrack）直接讀圖的像素尺寸，不必同步。
 路線→車型對照同網站 3D 列車（rail-3d/integration/formations.js）：R/G/O/支線 c381、BL c321、Y y100、BR val256。
 """
 import json, os, sys
