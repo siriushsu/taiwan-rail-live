@@ -232,6 +232,72 @@ const MUTATIONS = [
     }`,
     expect: ['H2'],
   },
+  // ── 2026-09-23 半分鐘那一輪(使用者裁示「那就改30秒吧」)────────────────────────────
+  {
+    id: 'W21 cron 沒接上半分鐘版本(仍直接呼叫 traWaitPushAll)',
+    why: '包裝寫好了、測試也綠,但 scheduled 忘了改——正式站照舊每分鐘一發。',
+    from: `      const twTask = traWaitPushWithHalf(env, ctx, 'https://railisland.tw').catch(e => {`,
+    to: `      const twTask = traWaitPushAll(env, ctx, 'https://railisland.tw').catch(e => {`,
+    expect: ['S0'],
+  },
+  {
+    id: 'W22 第二輪重新拿 tra-live',
+    why: '「第二輪就是再跑一次迴圈」最自然——但那等於每分鐘多打一次上游(TDX 點數)。',
+    from: `  const live = half ? half.live : await traWaitLive(env, ctx, baseUrl);`,
+    to: `  const live = await traWaitLive(env, ctx, baseUrl);`,
+    expect: ['S3'],
+  },
+  {
+    id: 'W23 第二輪也收卡',
+    why: '收卡提早 30 秒看起來無害,但收卡推播、刪列、end 的欄位形狀都是每分鐘那一輪的契約。',
+    from: `        if (half) { unchanged++; continue; }   // 收卡留給每分鐘那一輪(最多晚 30 秒,與改版前相同)
+        // 形狀以現算的為準`,
+    to: `        // 形狀以現算的為準`,
+    expect: ['S5'],
+  },
+  {
+    id: 'W24 第二輪的 APNs 失敗也記失敗次數',
+    why: '沿用第一輪的失敗處理:熔斷的「連續失敗輪數」以兩倍速到頂,永久失敗半分鐘就刪列。',
+    from: `      if (half) {
+        console.error(\`[cron \${tag}] APNs 非 2xx(不記失敗次數,留給每分鐘那一輪): status=\${r.status} reason=\${r.reason || '(無法解析)'} env=\${r.envName} token=\${String(row.token).slice(0, 8)}…\`);
+        continue;
+      }
+      const failStreak = (Number(row.fail_streak) || 0) + 1;
+      await env.DELAY_DB.prepare('UPDATE tra_wait_bindings SET fail_streak=? WHERE token=?')`,
+    to: `      const failStreak = (Number(row.fail_streak) || 0) + 1;
+      await env.DELAY_DB.prepare('UPDATE tra_wait_bindings SET fail_streak=? WHERE token=?')`,
+    expect: ['S6b'],
+  },
+  {
+    id: 'W25 第二輪也推從沒推過的列',
+    why: '兩輪之間才開的卡,第一發該用最新的資料(下一分鐘第一輪),不是 30 秒前那一份。',
+    from: `      if (half && !prev) { unchanged++; continue; }
+      const delay = twDelayFor(live, row.train_no, now);`,
+    to: `      const delay = twDelayFor(live, row.train_no, now);`,
+    expect: ['S7'],
+  },
+  {
+    id: 'W26 第二輪不限行駛段(內容變了也推)',
+    why: '第二輪的職責只有挪車;內容變化的推播與失敗重試都是每分鐘一次的事。',
+    from: `      if (half && !runDue) { unchanged++; continue; }
+`,
+    to: ``,
+    expect: ['S10b'],
+  },
+  {
+    id: 'W27 包裝沒有睡到 +30 秒就跑第二輪',
+    why: '少了那一行等待,第二輪緊接著第一輪跑,間隔 0 秒一發都推不出去。',
+    from: `  if (used < WAIT_HALF_TICK_MS) await sleep(WAIT_HALF_TICK_MS - used);`,
+    to: ``,
+    expect: ['S1', 'S3c'],
+  },
+  {
+    id: 'W28 第一輪跑太久也照跑第二輪',
+    why: '沒有上限時,第二輪會跟下一分鐘的 cron 擠在一起。',
+    from: `  if (used > WAIT_HALF_TICK_LATEST_MS) {`,
+    to: `  if (false) {`,
+    expect: ['S9', 'S9b'],
+  },
 ];
 
 function runVerify() {

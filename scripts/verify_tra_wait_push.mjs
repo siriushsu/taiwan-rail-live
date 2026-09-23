@@ -927,6 +927,10 @@ ok('S0(出貨路徑)cron 用的是帶半分鐘那一輪的版本,而且沒有留
   await run(t0 + 30, { ...a1.handoff, deadlineMs: (t0 + 55) * 1000 });
   await run(t0 + 45, { ...b1.handoff, deadlineMs: (t0 + 70) * 1000 });
   ok('S8 重跑交錯(0/15/30/45 秒)⇒ 只有第 0 與第 30 秒推', JSON.stringify(seq) === '[[0,1],[15,0],[30,1],[45,0]]', JSON.stringify(seq));
+  // cron 起跑時刻會抖:下一分鐘那一次早到 8 秒(第 52 秒起跑),離第二輪那一發只有 22 秒 ⇒ 仍要推得出去。
+  mockNowSec = t0 + 52; apnsCalls = [];
+  await captureConsole(() => traWaitPushAll(env, fakeCtx, BASE));
+  ok('S8b 下一分鐘的 cron 早到 8 秒(離上一發 22 秒)⇒ 仍推得出去', apnsCalls.length === 1, `apns=${apnsCalls.length}`);
 }
 {
   // 第一輪跑超過 40 秒 ⇒ 本分鐘不跑第二輪。
@@ -947,6 +951,27 @@ ok('S0(出貨路徑)cron 用的是帶半分鐘那一輪的版本,而且沒有留
   const r3 = await tickHalf();
   ok('S9d 一張卡都沒有 ⇒ 不睡、零上游、零 APNs', r3.sleeps.length === 0 && r3.matches.length === 0 && r3.apns.length === 0,
     `sleeps=${r3.sleeps.length} matches=${r3.matches.length} apns=${r3.apns.length}`);
+}
+
+{
+  // 第二輪不因內容變化補推:第一輪那發(誤點 0→3)被 APNs 暫時拒收(500),第二輪時 APNs 已恢復——
+  // 車不在行駛段 ⇒ 第二輪不補推,留給下一分鐘第一輪(失敗處理與遲滯都是每分鐘一次的事)。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  const sched = t0 + 3600, prevDep = sched - 420;             // 車還遠,不在行駛段
+  const prevState = { delayMin: 0, dataAt: t0 - 300, notice: null, pushed: true, tick: t0 - 300 };
+  await insRow({ token: T('s10'), train_no: '172', sched_sec: sched, prev_dep_sec: prevDep, end_at: sched + 1800,
+    last_state: prevState, bound_at: t0 - 600 });
+  mockNowSec = t0;
+  srcLive = feed([{ no: '172', delay: 3, sta: '1020', status: 2 }], t0 - 40);
+  apnsNextStatus = 500; apnsNextReason = 'InternalServerError';
+  halfHook = async () => { apnsNextStatus = 200; apnsNextReason = ''; };
+  const r = await tickHalf();
+  halfHook = null; apnsNextStatus = 200; apnsNextReason = '';
+  ok('S10 第一輪真的推了誤點變化而且失敗(前提)', r.apns.filter(a => a.at === t0).length >= 1,
+    JSON.stringify(r.apns.map(a => a.at - t0)));
+  ok('S10b 車不在行駛段 ⇒ 第二輪不補推內容變化(留給下一分鐘)', !r.apns.some(a => a.at === t0 + 30),
+    JSON.stringify(r.apns.map(a => a.at - t0)));
 }
 
 // ══════════════════════════════════════════════════════════════════

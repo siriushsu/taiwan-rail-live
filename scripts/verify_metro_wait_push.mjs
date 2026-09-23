@@ -849,6 +849,10 @@ const sBoard = (abs, extra = []) => ({ board: [{ name: '台北', dest: '淡水',
   await run(t0 + 45, { ...b1.handoff, deadlineMs: (t0 + 70) * 1000 });
   ok('S10 重跑交錯(0/15/30/45 秒)⇒ 只有第 0 與第 30 秒推,晚 15 秒的那一次兩輪都不推',
     JSON.stringify(seq) === '[[0,1],[15,0],[30,1],[45,0]]', JSON.stringify(seq));
+  // cron 起跑時刻會抖:下一分鐘那一次早到 8 秒(第 52 秒起跑),離第二輪那一發只有 22 秒 ⇒ 仍要推得出去。
+  srcTrtc = sBoard(t0 + 200);
+  await run(t0 + 52, null);
+  ok('S10b 下一分鐘的 cron 早到 8 秒(離上一發 22 秒)⇒ 仍推得出去', seq[seq.length - 1][1] === 1, JSON.stringify(seq));
 }
 {
   // 第一輪跑太久:超過 40 秒就本分鐘不跑第二輪(再晚跑就會跟下一分鐘擠在一起);30–40 秒之間不睡、直接跑。
@@ -873,6 +877,24 @@ const sBoard = (abs, extra = []) => ({ board: [{ name: '台北', dest: '淡水',
   apnsAdvanceSec = 0;
   ok('S11c 第一輪跑了 35 秒 ⇒ 不睡、立刻跑第二輪(第二發在第 35 秒)', r2.sleeps.length === 0
     && JSON.stringify(r2.apns.map(a => a.at - (t0 + 600))) === '[0,35]', JSON.stringify(r2.apns.map(a => a.at - (t0 + 600))));
+}
+{
+  // 第二輪不因內容變化補推:第一輪那發(換了一班車)被 APNs 暫時拒收(500),第二輪時 APNs 已恢復——
+  // 下一班還不在進站窗 ⇒ 第二輪不補推,留給下一分鐘第一輪。
+  await resetTable();
+  const t0 = 1_800_000_000;
+  mockNowSec = t0;
+  srcTrtc = sBoard(t0 + 600);
+  await insRow({ token: T('s13'), sys: 'trtc', station: '台北', dest: null, end_at: t0 + 3600,
+    last_state: { nextEta: t0 + 300, nextMinutes: null, secondEta: null, secondMinutes: null, nextDest: '象山',
+      secondDest: null, crowd: null, dataAt: t0 - 60, notice: null, pushed: true, tick: t0 - 60 } });
+  apnsNextStatus = 500; apnsNextReason = 'InternalServerError';
+  halfHook = async () => { apnsNextStatus = 200; apnsNextReason = ''; };
+  const r = await tickHalf();
+  halfHook = null; apnsNextStatus = 200; apnsNextReason = '';
+  ok('S13 第一輪真的推了內容變化而且失敗(前提)', r.apns.some(a => a.at === t0), JSON.stringify(r.apns.map(a => a.at - t0)));
+  ok('S13b 下一班不在進站窗 ⇒ 第二輪不補推內容變化(留給下一分鐘)', !r.apns.some(a => a.at === t0 + 30),
+    JSON.stringify(r.apns.map(a => a.at - t0)));
 }
 {
   // 沒人開卡 ⇒ 第二輪整個不跑(不睡、不讀 D1、不打上游)。
