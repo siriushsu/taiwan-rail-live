@@ -27,7 +27,8 @@ async function treesSettled(page,timeout=40000){const t0=Date.now();let last=-1,
   if(r!==last){last=r;stable=Date.now();}if(last>0&&Date.now()-stable>1600)return true;await page.waitForTimeout(150);}
  return false;}
 for(const [name,engine]of Object.entries({chromium,webkit})){
- const browser=await engine.launch({headless:false});
+ // 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走)。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
+ const browser=await engine.launch(engine===chromium?{channel:'chromium',headless:true}:{headless:true});
  const page=await browser.newPage({viewport:{width:1360,height:980},locale:'zh-TW'}),requests=[],failed=[],errors=[];
  await page.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));
  await page.route('**/api/**',r=>r.fulfill({status:503,contentType:'application/json',body:'{}'}));

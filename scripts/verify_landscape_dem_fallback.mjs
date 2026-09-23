@@ -22,7 +22,8 @@ const sample=p=>p.evaluate(()=>{const s=railIslandIntegration.renderer.stats;
  return {models:s.models,demUnavailable:!!s.demUnavailable,groundMode:s.groundMode,terrain:!!M.raw.getTerrain(),
   displayHeightM:s.poseSamples?.[0]?.displayHeightM??null};});
 for(const [name,engine]of Object.entries(process.env.ENGINE?{[process.env.ENGINE]:({chromium,webkit})[process.env.ENGINE]}:{chromium,webkit})){
- const browser=await engine.launch({headless:process.env.HEADFUL!=='1'});
+ // 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走),不再提供開視窗的選項。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
+ const browser=await engine.launch(name==='chromium'?{channel:'chromium',headless:true}:{headless:true});
  for(const dem of [false,true]){
   const context=await browser.newContext({viewport:{width:1360,height:980},locale:'zh-TW'});
   await context.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');});
