@@ -618,7 +618,8 @@ console.log('\n═══ H. 近景不可把軌道畫沒了（實體股道白名�
   const p = await ctx.newPage();
   const read = async (z, at, tag) => {
     await p.goto(BASE + `/?g=all&scene=3d&lang=zh-TW&at=${at}&z=${z}&_cb=h${tag}`, { waitUntil: 'domcontentloaded' });
-    await p.waitForFunction(() => typeof state !== 'undefined' && state.ready && window.railIslandPhysical, { timeout: 120000 });
+    // 第二個參數是傳進頁面的 arg,options 要放第三個;放錯位置時 timeout 被忽略、只等預設 30s(09-24 高負載下 3D 開機逾時假紅)。
+    await p.waitForFunction(() => typeof state !== 'undefined' && state.ready && window.railIslandPhysical, null, { timeout: 120000 });
     await p.waitForTimeout(3000);
     return p.evaluate(() => {
       const I = window.railIslandIntegration, raw = window.__M.raw;
