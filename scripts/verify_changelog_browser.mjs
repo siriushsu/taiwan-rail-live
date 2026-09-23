@@ -58,7 +58,8 @@ const widths = [360, 375, 414, 768];
 // 9/23：桌面小工具「背景」設定一條（414→415）。
 // 9/23：iPhone 捷運等車卡偶爾停住十幾分鐘的修正一條（415→416）。
 // 9/23：台鐵、高鐵跟車卡進站軌道一條（416→417）。
-const expectedHistoryCount = 417;
+// 9/23：地景＋地形時立體車站周圍地面不再殘留舊建築輪廓一條（417→418）。
+const expectedHistoryCount = 418;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

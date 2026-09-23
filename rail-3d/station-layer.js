@@ -80,7 +80,7 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
     for(const key of partCache.keys())if(!live.has(key))partCache.delete(key);
     remainders.sort((a,b)=>a.key<b.key?-1:a.key>b.key?1:0);const sigs=new Set(),unique=remainders.filter(x=>!sigs.has(x.sig)&&sigs.add(x.sig)),nextContext=unique.map(x=>x.key).join('|');let changed=false;
     if(nextContext!==contextKey){contextKey=nextContext;ownedSource.setData({type:'FeatureCollection',features:unique.map(x=>x.feature)});changed=true;}
-    const values=[...ids].sort((a,b)=>a-b),key=values.join(',');if(key!==maskKey){maskKey=key;for(const [id,original] of filters){const exclude=['!', ['in',['id'],['literal',values]]];map.setFilter(id,values.length?(original?['all',original,exclude]:exclude):original);}changed=true;}return changed;
+    const values=[...ids].sort((a,b)=>a-b),key=values.join(',');if(key!==maskKey){maskKey=key;for(const [id,original] of filters){const exclude=['!', ['in',['id'],['literal',values]]];map.setFilter(id,values.length?(original?['all',original,exclude]:exclude):original);}rttPending=1;changed=true;}return changed;
   }
   function maskLabels(active){
     // 預留字幅及傾斜屋頂的投影範圍；透視仍不讓地名穿入站房，實體招牌保留。
@@ -181,9 +181,20 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
     // 模型高度仍由獨立的 schedule 準時更新，新圖磚則由 sourceEpoch 即時失效。
     clearTimeout(viewTimer);viewTimer=setTimeout(()=>{viewTimer=0;maskEpoch=-1;labelKey='';schedule();},100);schedule();
   }
+  // 地形開著時,地面上的 2D 建物(building 的 fill 圖層)畫在地形貼圖(render-to-texture)裡。建物 filter 一變,
+  // MapLibre 5.9 在 style 事件當下就全清貼圖,但那時圖磚還是舊 filter 的內容,下一幀就用舊內容重畫;
+  // 新圖磚回來時逐磚的 freeRtt(tileID) 用 overscaledZ 判父子,openmaptiles 在 z14 以上是超採樣圖磚
+  // (overscaledZ 16、canonical 14),比不到 z15–16 的地形磚(0 張),輪廓就停在舊 filter(上游 main 同樣寫法)。
+  // 2026-09-23 地景＋地形台北車站:遮罩套用後的畫面與 freeRtt() 強迫重畫差 3.2 萬 px。
+  // 所以等重載真的開始(styledata 時 openmaptiles 未載完)、再等它全部載完的那個圖磚事件,全清一次。
+  // 全清後那一幀桌面 1x 中位數 +0.2ms、4x +1ms,不掉幀(CDP 量測);不看地形開關,地形關著時沒有貼圖可清。
+  let rttPending=0;
+  function styleChanged(){if(rttPending===1&&!map.isSourceLoaded('openmaptiles'))rttPending=2;}
   // MapLibre 5.9 的單張圖磚完成事件有 tile，但沒有 sourceDataType。
   // 只收 content 會漏掉拖回快取區域後的圖磚更新，使遮罩停在上一區。
-  function sourceChanged(e){if(e.sourceDataType!=='content'&&!e.tile)return;if(e.sourceId==='openmaptiles'){sourceEpoch++;schedule();}else if(e.sourceId==='terrain')schedule();}
+  function sourceChanged(e){if(e.sourceDataType!=='content'&&!e.tile)return;if(e.sourceId==='openmaptiles'){sourceEpoch++;
+    if(rttPending===2&&e.tile&&map.isSourceLoaded('openmaptiles')){rttPending=0;if(map.terrain){map.terrain.sourceCache.freeRtt();map.triggerRepaint();}}
+    schedule();}else if(e.sourceId==='terrain')schedule();}
   return {
     id:'island-stations',type:'custom',renderingMode:'3d',failures,refresh,
     setEngineeringMasks(collection){
@@ -203,12 +214,12 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
       const building=map.getStyle().layers.find(l=>l.id==='building-3d');
       if(building)map.addLayer({id:'station-building-context',type:'fill-extrusion',source:'station-building-remainders',minzoom:13,paint:building.paint},'building-3d');
       renderer=new THREE.WebGLRenderer({canvas:map.getCanvas(),context:gl});renderer.autoClear=false;
-      map.on('idle',schedule);map.on('moveend',viewChanged);map.on('sourcedata',sourceChanged);map.on('move',noteMove);refresh();
+      map.on('idle',schedule);map.on('moveend',viewChanged);map.on('sourcedata',sourceChanged);map.on('styledata',styleChanged);map.on('move',noteMove);refresh();
     },
     render(gl,args){labelBounds=[];const canvas=map.getCanvas();for(const r of records)if(r.stats.visible&&r.model){camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(r.transform));renderer.resetState();renderer.render(r.scene,camera);
       const points=[];for(const x of [r.labelBox.min.x,r.labelBox.max.x])for(const y of [r.labelBox.min.y,r.labelBox.max.y])for(const z of [r.labelBox.min.z,r.labelBox.max.z]){const p=new THREE.Vector3(x,y,z+r.stats.groundM).applyMatrix4(camera.projectionMatrix);if(p.z>=-1&&p.z<=1)points.push({x:(p.x+1)*canvas.clientWidth/2,y:(1-p.y)*canvas.clientHeight/2});}
       if(points.length){const xs=points.map(p=>p.x),ys=points.map(p=>p.y),x=Math.min(...xs),y=Math.min(...ys);labelBounds.push({id:r.meta.id,x,y,width:Math.max(...xs)-x,height:Math.max(...ys)-y});}
     }},
-    onRemove(){if(disposed)return;disposed=true;clearTimeout(timer);clearTimeout(viewTimer);clearTimeout(maskTimer);map.off('idle',schedule);map.off('moveend',viewChanged);map.off('sourcedata',sourceChanged);map.off('move',noteMove);if(ownedSource&&map.getSource('station-building-remainders')===ownedSource){for(const [id,f] of filters)if(map.getLayer(id))map.setFilter(id,f);for(const [id,{original}] of symbolFilters)if(map.getLayer(id))map.setFilter(id,original);if(map.getLayer('station-building-context'))map.removeLayer('station-building-context');if(map.getSource('station-building-remainders'))map.removeSource('station-building-remainders');}for(const r of records)if(r.model)disposeStation(r.model);renderer?.dispose();}
+    onRemove(){if(disposed)return;disposed=true;clearTimeout(timer);clearTimeout(viewTimer);clearTimeout(maskTimer);map.off('idle',schedule);map.off('moveend',viewChanged);map.off('sourcedata',sourceChanged);map.off('styledata',styleChanged);map.off('move',noteMove);if(ownedSource&&map.getSource('station-building-remainders')===ownedSource){for(const [id,f] of filters)if(map.getLayer(id))map.setFilter(id,f);for(const [id,{original}] of symbolFilters)if(map.getLayer(id))map.setFilter(id,original);if(map.getLayer('station-building-context'))map.removeLayer('station-building-context');if(map.getSource('station-building-remainders'))map.removeSource('station-building-remainders');}for(const r of records)if(r.model)disposeStation(r.model);renderer?.dispose();}
   };
 }
