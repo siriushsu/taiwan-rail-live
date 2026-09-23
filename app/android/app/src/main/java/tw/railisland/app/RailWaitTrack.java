@@ -186,6 +186,32 @@ final class RailWaitTrack {
         return style(context, carRes, pos, parse(colorHex, 0xFF26497E), 0xFF26497E);
     }
 
+    /**
+     * 跟車卡（台鐵／高鐵）：進站軌道與等車卡共用同一套零件（一節大車、空心圓起點、站牌終點），
+     * 但沒有「還沒到上一站」的中繼點狀態——跟車卡的車永遠已經離開上一站，直接沿用 style() 的
+     * 行駛／到站／沒接上三段。站牌帶子台鐵固定站牌深藍（同 iOS 台鐵站牌），高鐵沒有獨立站牌色、
+     * 直接用車種色。
+     */
+    static NotificationCompat.ProgressStyle followStyle(Context context, int carRes, double pos,
+            String sys, String colorHex) {
+        int line = parse(colorHex, 0xFF26497E);
+        int band = "thsr_sched".equals(sys) ? line : 0xFF26497E;
+        return style(context, carRes, pos, line, band);
+    }
+
+    /**
+     * 跟車卡車位：發車→到站的比例（0＝剛發車、1＝到站）。停靠中固定回 1（車貼站牌、整條灰，
+     * 走 style() 的到站分支）；沒有上一站（始發前）或正在轉乘等待 ⇒ 回 -1，交給 style() 的
+     * 「沒接上」分支：只畫兩端圖示與軌道，不畫車（不猜車在哪）。
+     */
+    static double followCarPosition(boolean hasPrevStop, boolean transferWaiting, boolean stopping,
+            double departedAt, double arrivalAt, double nowSec) {
+        if (!hasPrevStop || transferWaiting) return -1;
+        if (stopping) return 1;
+        if (!(arrivalAt > departedAt)) return -1;
+        return Math.max(0, Math.min(1, (nowSec - departedAt) / (arrivalAt - departedAt)));
+    }
+
     private static NotificationCompat.ProgressStyle style(Context context, int carRes, double pos,
             int line, int band) {
         boolean dark = (context.getResources().getConfiguration().uiMode
@@ -196,11 +222,8 @@ final class RailWaitTrack {
             .setProgressEndIcon(IconCompat.createWithBitmap(plate(context, band, dark)));
         double half = halfCarFraction();
         if (pos == -2) {
-            // 還沒到上一站：上一站畫成進度條上的點，車停在它左邊（車頭不碰到它）。
-            int prevAt = 300;
-            segment(style, prevAt, rail);
-            segment(style, 1000 - prevAt, line);
-            style.addProgressPoint(new NotificationCompat.ProgressStyle.Point(prevAt).setColor(rail));
+            // 還沒到上一站：整段（上一站→本站）都還沒走，一段路線色；車貼在最左（半台車，車頭不出界）。
+            segment(style, 1000, line);
             style.setProgressTrackerIcon(car(context, carRes))
                 .setProgress((int) Math.round(half * 1000));
             return style;
@@ -262,6 +285,7 @@ final class RailWaitTrack {
             case "shanlan": return R.drawable.la_side_shanlan;
             case "mingri": return R.drawable.la_side_mingri;
             case "e500": return R.drawable.la_side_e500;
+            case "700t": return R.drawable.la_side_700t;
             default: return 0;
         }
     }

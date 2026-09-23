@@ -39,6 +39,7 @@ final class RailFollowNotification {
     static final int STOP_REQUEST_CODE = 46402;
     static final int ADVANCE_REQUEST_CODE = 46403;
     static final int REFRESH_REQUEST_CODE = 46404;
+    static final int MOVE_REQUEST_CODE = 46405;
     static final String PREFS = "rail_follow_live";
     static final String KEY_STATE = "active_state";
     private static final String LIVE_URL = "https://railisland.tw/api/tra-live";
@@ -65,6 +66,7 @@ final class RailFollowNotification {
         post(context, payload);
         scheduleAdvance(context, payload);
         scheduleRefresh(context);
+        scheduleMove(context, payload);
     }
 
     static void update(Context context, JSONObject payload) throws JSONException {
@@ -83,6 +85,7 @@ final class RailFollowNotification {
         post(context, state);
         scheduleAdvance(context, state);
         scheduleRefresh(context);
+        scheduleMove(context, state);
     }
 
     static JSONObject status(Context context) {
@@ -94,6 +97,7 @@ final class RailFollowNotification {
         if (!canNotify(context)) return;
         createChannel(context);
         long now = System.currentTimeMillis();
+        String sys = state.optString("sys", "");
         String trainNo = state.optString("trainNo", "");
         String kind = RailNativeL10n.name(context, state.optString("kind", "列車"));
         String nextStop = RailNativeL10n.name(context, state.optString("nextStop", "下一站"));
@@ -158,7 +162,14 @@ final class RailFollowNotification {
             builder.setProgress(1000, progress, false);
         } else builder.setShowWhen(false);
 
-        if (Build.VERSION.SDK_INT >= 36) {
+        int trackCarRes = ("tra_sched".equals(sys) || "thsr_sched".equals(sys))
+            ? RailWaitTrack.traCarDrawable(state.optString("carModel", "")) : 0;
+        if (Build.VERSION.SDK_INT >= 36 && trackCarRes != 0) {
+            // 進站軌道（同等車卡 B 方案零件）：一節大車沿「上一站→本站」跑，車後灰、車前路線色。
+            double pos = RailWaitTrack.followCarPosition(!prevStop.isEmpty(), transferWaiting, stopping,
+                departed / 1000.0, arrival / 1000.0, now / 1000.0);
+            builder.setStyle(RailWaitTrack.followStyle(context, trackCarRes, pos, sys, state.optString("color", "")));
+        } else if (Build.VERSION.SDK_INT >= 36) {
             NotificationCompat.ProgressStyle style = new NotificationCompat.ProgressStyle()
                 .setStyledByProgress(true)
                 .setProgressTrackerIcon(IconCompat.createWithResource(context, R.drawable.ic_stat_train));
@@ -191,29 +202,91 @@ final class RailFollowNotification {
             post(context, state);
             scheduleAdvance(context, state);
             scheduleRefresh(context);
+            scheduleMove(context, state);
             return;
         }
+        try {
+            if (applyAdvance(state, nowSec)) {
+                save(context, state);
+                post(context, state);
+                scheduleAdvance(context, state);
+                scheduleMove(context, state);
+            } else {
+                stop(context);
+            }
+        } catch (JSONException ignored) { stop(context); }
+    }
+
+    /**
+     * Y（背景推進）純函式：本站＝目前 state 顯示的 nextStop。
+     *   現在 &lt; 本站 arrivalAt          ⇒ 還在往本站跑，不動。
+     *   本站 arrivalAt ≤ 現在 &lt; depAt ⇒ 停靠中（stopping=true，仍顯示本站）。
+     *   現在 ≥ 本站 depAt               ⇒ 換到 remainingStops 裡本站之後那一筆。
+     * 本站在 remainingStops 裡找不到、或那一筆沒有 depAt（舊 payload）⇒ 完全比照改版前的
+     * advance() 邏輯：直接找第一筆 advanceAt 仍在未來的站。回傳 false＝沒有下一站可換，
+     * 呼叫端要收班。
+     */
+    static boolean applyAdvance(JSONObject state, long nowSec) throws JSONException {
         JSONArray stops = state.optJSONArray("remainingStops");
+        if (stops == null) return false;
+        String curName = state.optString("nextStop", "");
+        int curIndex = indexOfCurrentStop(state, stops);
+        Double depAt = curIndex < 0 ? null : nullableDouble(stops.optJSONObject(curIndex), "depAt");
+
+        if (depAt != null) {
+            double curArrival = state.optDouble("arrivalAt", 0);
+            if (nowSec < curArrival) return true;
+            if (nowSec < depAt) {
+                state.put("stopping", true);
+                return true;
+            }
+            JSONObject next = null;
+            for (int i = curIndex + 1; i < stops.length(); i++) {
+                JSONObject candidate = stops.optJSONObject(i);
+                if (candidate != null) { next = candidate; break; }
+            }
+            if (next == null) return false;
+            state.put("nextStop", next.optString("name", ""));
+            state.put("arrivalAt", next.optDouble("arrivalAt", 0));
+            state.put("departedAt", depAt);
+            state.put("advanceAt", next.optDouble("advanceAt", next.optDouble("arrivalAt", 0)));
+            state.put("prevStop", curName);
+            state.put("stopping", false);
+            state.put("transferWaiting", false);
+            return true;
+        }
+
+        // 沒有 depAt（舊 payload）：完全比照修改前的 advance() 邏輯，逐一找第一筆仍在未來的站。
         JSONObject next = null;
-        if (stops != null) for (int i = 0; i < stops.length(); i++) {
+        for (int i = 0; i < stops.length(); i++) {
             JSONObject candidate = stops.optJSONObject(i);
             if (candidate != null && candidate.optLong("advanceAt", candidate.optLong("arrivalAt")) > nowSec) {
                 next = candidate; break;
             }
         }
-        if (next == null) { stop(context); return; }
-        try {
-            state.put("nextStop", next.optString("name", ""));
-            state.put("arrivalAt", next.optDouble("arrivalAt", 0));
-            state.put("departedAt", next.optDouble("departedAt", 0));
-            state.put("advanceAt", next.optDouble("advanceAt", next.optDouble("arrivalAt", 0)));
-            state.put("prevStop", next.optString("prevStop", ""));
-            state.put("stopping", false);
-            state.put("transferWaiting", false);
-            save(context, state);
-            post(context, state);
-            scheduleAdvance(context, state);
-        } catch (JSONException ignored) { stop(context); }
+        if (next == null) return false;
+        state.put("nextStop", next.optString("name", ""));
+        state.put("arrivalAt", next.optDouble("arrivalAt", 0));
+        state.put("departedAt", next.optDouble("departedAt", 0));
+        state.put("advanceAt", next.optDouble("advanceAt", next.optDouble("arrivalAt", 0)));
+        state.put("prevStop", next.optString("prevStop", ""));
+        state.put("stopping", false);
+        state.put("transferWaiting", false);
+        return true;
+    }
+
+    /** 在 remainingStops 裡找「本站」：名字與 arrivalAt 都對得上目前 state 顯示的那一筆；找不到回 -1。 */
+    private static int indexOfCurrentStop(JSONObject state, JSONArray stops) {
+        String curName = state.optString("nextStop", "");
+        double curArrival = state.optDouble("arrivalAt", 0);
+        for (int i = 0; i < stops.length(); i++) {
+            JSONObject s = stops.optJSONObject(i);
+            if (s != null && curName.equals(s.optString("name", ""))
+                    && Math.abs(s.optDouble("arrivalAt", Double.NaN) - curArrival) < 0.5) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** WebView 已被系統收掉時，仍每分鐘讀台鐵官方動態，更新誤點、觀測站與停靠狀態。 */
@@ -247,6 +320,7 @@ final class RailFollowNotification {
                 boolean handedOff = applyHandoffIfDue(state, System.currentTimeMillis() / 1000, live);
                 if (!sourceStillActive && !handedOff) { stop(context); return; }
                 save(context, state); post(context, state); scheduleAdvance(context, state);
+                scheduleMove(context, state);
             } finally { connection.disconnect(); }
         } catch (Exception ignored) {
             advance(context);
@@ -265,6 +339,7 @@ final class RailFollowNotification {
         if (delta != 0) for (int i = 0; i < stops.length(); i++) {
             JSONObject stop = stops.optJSONObject(i); if (stop == null) continue;
             shift(stop, "arrivalAt", delta); shift(stop, "departedAt", delta); shift(stop, "advanceAt", delta);
+            shift(stop, "depAt", delta);
         }
         state.put("delaySec", newDelay);
 
@@ -366,6 +441,7 @@ final class RailFollowNotification {
         NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID);
         cancelAdvance(context);
         cancelRefresh(context);
+        cancelMove(context);
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY_STATE).apply();
     }
 
@@ -407,7 +483,7 @@ final class RailFollowNotification {
         AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarm == null) return;
         long now = System.currentTimeMillis();
-        long advance = (long) (state.optDouble("advanceAt", state.optDouble("arrivalAt", 0)) * 1000);
+        long advance = (long) (nextTransitionSec(state) * 1000);
         JSONObject handoff = state.optJSONObject("handoff");
         if (handoff != null) {
             long handoffAt = (handoff.optLong("sourceAt", 0) + state.optInt("delaySec", 0)) * 1000;
@@ -418,10 +494,77 @@ final class RailFollowNotification {
             advanceIntent(context, PendingIntent.FLAG_UPDATE_CURRENT));
     }
 
+    /**
+     * 下一個狀態轉換時刻：本站找得到 depAt 時，停靠中看 depAt（換站）、還沒到看 arrivalAt（進站／開始停靠）；
+     * 找不到（舊 payload 或本站不在 remainingStops 裡）⇒ 沿用舊欄位 advanceAt。
+     */
+    private static double nextTransitionSec(JSONObject state) {
+        JSONArray stops = state.optJSONArray("remainingStops");
+        int curIndex = stops == null ? -1 : indexOfCurrentStop(state, stops);
+        Double depAt = curIndex < 0 ? null : nullableDouble(stops.optJSONObject(curIndex), "depAt");
+        if (depAt != null) {
+            return state.optBoolean("stopping", false) ? depAt : state.optDouble("arrivalAt", 0);
+        }
+        return state.optDouble("advanceAt", state.optDouble("arrivalAt", 0));
+    }
+
+    private static Double nullableDouble(JSONObject object, String key) {
+        if (object == null || !object.has(key) || object.isNull(key)) return null;
+        double value = object.optDouble(key, Double.NaN);
+        return Double.isNaN(value) ? null : value;
+    }
+
     private static void cancelAdvance(Context context) {
         AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         PendingIntent pending = advanceIntent(context, PendingIntent.FLAG_NO_CREATE);
         if (alarm != null && pending != null) alarm.cancel(pending);
+    }
+
+    private static PendingIntent moveIntent(Context context, int flags) {
+        Intent intent = new Intent(context, RailFollowStopReceiver.class).setAction(RailFollowStopReceiver.ACTION_MOVE);
+        return PendingIntent.getBroadcast(context, MOVE_REQUEST_CODE, intent, flags | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    /** 行駛中且進站軌道有畫車，才需要每 {@link RailWaitTrack#MOVE_TICK_MS} 重貼一次讓車往前走。 */
+    static boolean shouldTickMove(JSONObject state) {
+        return Build.VERSION.SDK_INT >= 36 && moveTickEligible(state);
+    }
+
+    /**
+     * shouldTickMove 扣掉 SDK 檢查的純邏輯，拆開讓 API 35 也測得到：系統要是台鐵／高鐵、
+     * 車型要有素材、要有上一站（不是始發前）、不是轉乘等待、也不是停靠中。
+     */
+    static boolean moveTickEligible(JSONObject state) {
+        String sys = state.optString("sys", "");
+        if (!"tra_sched".equals(sys) && !"thsr_sched".equals(sys)) return false;
+        if (RailWaitTrack.traCarDrawable(state.optString("carModel", "")) == 0) return false;
+        if (state.optString("prevStop", "").isEmpty()) return false;
+        if (state.optBoolean("transferWaiting", false)) return false;
+        return !state.optBoolean("stopping", false);
+    }
+
+    private static void scheduleMove(Context context, JSONObject state) {
+        cancelMove(context);
+        if (!shouldTickMove(state)) return;
+        AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (alarm == null) return;
+        alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+            System.currentTimeMillis() + RailWaitTrack.MOVE_TICK_MS,
+            moveIntent(context, PendingIntent.FLAG_UPDATE_CURRENT));
+    }
+
+    private static void cancelMove(Context context) {
+        AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        PendingIntent pending = moveIntent(context, PendingIntent.FLAG_NO_CREATE);
+        if (alarm != null && pending != null) alarm.cancel(pending);
+    }
+
+    /** 20 秒本機重貼：只重算車位（pos 由現在時刻算出）、不連網、不動狀態。 */
+    static void localMoveTick(Context context) {
+        JSONObject state = load(context);
+        if (state == null) return;
+        post(context, state);
+        scheduleMove(context, state);
     }
 
     private static void scheduleRefresh(Context context) {

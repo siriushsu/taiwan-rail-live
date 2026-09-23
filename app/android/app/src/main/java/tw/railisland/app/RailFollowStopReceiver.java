@@ -8,6 +8,7 @@ public final class RailFollowStopReceiver extends BroadcastReceiver {
     static final String ACTION_STOP = "tw.railisland.app.STOP_RAIL_FOLLOW";
     static final String ACTION_ADVANCE = "tw.railisland.app.ADVANCE_RAIL_FOLLOW";
     static final String ACTION_REFRESH = "tw.railisland.app.REFRESH_RAIL_FOLLOW";
+    static final String ACTION_MOVE = "tw.railisland.app.MOVE_RAIL_FOLLOW";
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -18,6 +19,7 @@ public final class RailFollowStopReceiver extends BroadcastReceiver {
                 finally { pending.finish(); }
             }, "rail-follow-refresh").start();
         } else if (ACTION_ADVANCE.equals(intent.getAction())) RailFollowNotification.advance(context);
+        else if (ACTION_MOVE.equals(intent.getAction())) RailFollowNotification.localMoveTick(context);
         else RailFollowNotification.stop(context);
     }
 }
