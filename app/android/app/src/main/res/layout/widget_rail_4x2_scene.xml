@@ -29,6 +29,19 @@
         android:background="@drawable/wg_scene_fade"
         android:contentDescription="@null" />
 
+    <!-- 09-23 使用者：「C款的背景 我希望在使用的畫面能看到列車，要剛好放在右上角那邊能看到的地方」（選「疊下一班車模」）。
+         下一班車種的代表車，與 A 同一套車圖、同一個 bindCar；排在淡出層之後，車身不被淡掉。與 A 中卡頭帶的車同尺寸。 -->
+    <ImageView
+        android:id="@+id/wr_car"
+        android:layout_width="88dp"
+        android:layout_height="57dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="10dp"
+        android:contentDescription="@null"
+        android:scaleType="fitEnd"
+        android:src="@drawable/wg_car_emu3000" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
