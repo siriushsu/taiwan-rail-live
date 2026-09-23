@@ -5503,7 +5503,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/22</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/23</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5511,6 +5511,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="glassnear0913"><span class="d">9/23</span><span>跟車前進時，沿途建築的透視線條會持續更新，不必等列車靠站才一次出現</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/22</span><span>機捷跟上台灣設計展疏運班表（9/24–10/11）：假日機場第一航廈到環北的區間加班車每 15 分鐘一班，南延直達車改到機場第二航廈為止；深夜山鼻以南時刻也照官方改點更新</span></li>
         <li data-cl-of="yfallback0920"><span class="d">9/20</span><span>環狀線即時資料暫時中斷、在線列車無法定位時，地圖會自動改按當日班表運行，並標示「班表推估、時間可能有誤差」；訊號恢復後自動切回即時資料</span></li>
         <li data-cl-of="virtualloops0920"><span class="d">9/20</span><span>山海號與平原號現在從地圖車牌、車站看板到列車資訊都直接標示為「軌島虛構專列」，不會再看起來像真實營運班次</span></li>
@@ -5518,7 +5519,6 @@
         <li data-cl-of="nangangbrstop0920"><span class="d">9/20</span><span>修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道</span></li>
         <li data-cl-of="appnoticegeo0919"><span class="d">9/19</span><span>App 的長提示現在會完整換行，不再被列車卡片或畫面邊緣截斷，點通知外面即可收起；地圖傾斜時也會隱藏定位點，不會被拍進截圖或錄影</span></li>
         <li data-cl-of="randomnextplate0919"><span class="d">9/19</span><span>按「隨機跟隨」或「換一班」時，地圖會短暫亮出月台風格的牌子，直接告訴你這班車的下一站</span></li>
-        <li data-cl-of="tramground0919"><span class="d">9/19</span><span>高雄輕軌的五節車身重新對齊，近看不再一節高、一節低</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5526,6 +5526,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="glassnear0913"><span class="d">9/23</span><span>修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓；9/23 再改進跟車：列車前進時沿途建築的透視線條約每秒更新一次，不必等靠站才一次補上</span></li>
         <li data-cl="tymcexpo0922"><span class="d">9/22</span><span>機捷跟上台灣設計展疏運班表（9/24–10/11）：假日機場第一航廈到環北的區間加班車每 15 分鐘一班，南延直達車改到機場第二航廈為止；深夜山鼻以南時刻也照官方改點更新</span></li>
         <li data-cl="yfallback0920"><span class="d">9/20</span><span>環狀線即時資料暫時中斷、在線列車無法定位時，地圖會自動改按當日班表運行，並標示「班表推估、時間可能有誤差」；訊號恢復後自動切回即時資料</span></li>
         <li data-cl="nangangbrstop0920"><span class="d">9/20</span><span>修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道</span></li>
@@ -5534,7 +5535,6 @@
         <li data-cl="fullformations0914"><span class="d">9/14</span><span>所有列車都可顯示完整編組；區間車、莒光與觀光列車等資料不足的班次顯示推估車廂數，並清楚標示推估</span></li>
         <li data-cl="remainingtracks0913"><span class="d">9/14</span><span>調整台鐵各站停靠與進出股道，減少待避重疊、追撞與對向互穿；9/14 再補回 97 站的站區股道，雙線區間依行車方向分股行駛（台北–萬華地下段不再兩向共用同一條軌道），並改善單線會車判斷</span></li>
         <li data-cl="afrpushpull0913"><span class="d">9/13</span><span>修正阿里山林鐵機車的位置與方向，依路段呈現車尾推進、車頭牽引及之字形折返</span></li>
-        <li data-cl="glassnear0913"><span class="d">9/13</span><span>修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓</span></li>
         <li data-cl="sanyingtransfers0912"><span class="d">9/12</span><span>修正三鶯線重複轉乘資訊，更新站名翻譯與鄰近公車轉乘資料</span></li>
         <li data-cl="verifiedtracks0912"><span class="d">9/12</span><span>補回太麻里兩條月台股道，減少同站列車重疊；修正部分列車誤入同一股道的交會畫面</span></li>
         <li data-cl="flatbridges0912"><span class="d">9/12</span><span>修正全網平坦地圖的橋梁與引道突起，列車行經短橋時更平順</span></li>
@@ -6595,7 +6595,7 @@
 // v0920e：環狀線實際退回班表時明示「班表推估」與時間誤差，官方車輛恢復後自動撤除。
 // v0922a：機捷接上台灣設計展疏運班表(TDX 09-22 版):假日 A12–A21 區間加班車、南延直達車改到 A13、
 //         深夜山鼻以南改點;建置端補區間車折返站、SP3 增開車不再被切成兩台、直達車不再被回推假起點。
-const BUILD = 'v0922a';
+const BUILD = 'v0923a';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

@@ -1755,8 +1755,8 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {"桃園機場捷運全線每一班�
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"桃園機場捷運全線每一班都標得出直達車或普通車，首末班不再只顯示線號": "桃園空港MRTは全線すべての列車に直達か普通かの種別を表示するようになりました。始発と最終の列車も路線記号だけの表示ではなくなりました。"});
 
-Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓": "Fixed missing see-through outlines on nearby buildings in dense areas such as Taipei, prioritizing nearby buildings in view."});
-Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓": "台北など建物が密集する地域で、近くの建物の透視線が欠ける問題を修正しました。画面内の近景の輪郭を優先して表示します。"});
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓；9/23 再改進跟車：列車前進時沿途建築的透視線條約每秒更新一次，不必等靠站才一次補上": "Fixed missing see-through outlines on nearby buildings in dense areas such as Taipei, prioritizing nearby buildings in view. Since 9/23, while you follow a train, outlines along the route refresh about once a second instead of appearing only when the train stops."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓；9/23 再改進跟車：列車前進時沿途建築的透視線條約每秒更新一次，不必等靠站才一次補上": "台北など建物が密集する地域で、近くの建物の透視線が欠ける問題を修正しました。画面内の近景の輪郭を優先して表示します。9/23からは列車の追跡中も沿線の建物の透視線が約1秒ごとに更新され、停車するまで表示されないことはなくなりました。"});
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"到站提醒新增每天、週一到五或自訂星期的重複設定，通勤固定搭的那班設一次就長期有效": "Arrival reminders can now repeat every day, on weekdays, or on days you pick, so a regular commute only needs setting up once."});
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"到站提醒新增每天、週一到五或自訂星期的重複設定，通勤固定搭的那班設一次就長期有效": "到着リマインダーに毎日・平日・曜日指定の繰り返し設定を追加しました。いつも乗る通勤列車は一度設定すれば使い続けられます。"});
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"台鐵列車互穿再減少：補回 97 站的站區股道，雙線區間依行車方向分股行駛，台北–萬華地下段不再兩向共用同一條軌道，並改善單線會車判斷": "Fewer TRA trains now appear to pass through each other: station yard tracks are restored at 97 stations, double-track sections keep each direction on its own track (the Taipei–Wanhua underground section no longer shares one track both ways), and meets on single-track lines are judged more accurately."});
@@ -3093,4 +3093,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '台鐵誤點更新會核對官方所在車站；過站時的小幅誤點直接校正位置，同車次重複資料也不再把較大誤點蓋掉': '台鉄の遅延更新で公式の所在駅も照合するようにしました。駅を通過した際の小さな遅延増加はすぐに位置へ反映し、重複データがより大きな遅延を上書きすることもなくなりました。',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '跟車前進時，沿途建築的透視線條會持續更新，不必等列車靠站才一次出現': 'While you follow a train, building outlines along the route now keep updating instead of appearing all at once when the train stops.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '跟車前進時，沿途建築的透視線條會持續更新，不必等列車靠站才一次出現': '列車の追跡中も沿線の建物の透視線が更新され続け、停車したときにまとめて表示されることはなくなりました。',
 });
