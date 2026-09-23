@@ -38,6 +38,24 @@
     // 2026-08-03 建於 APAC。schema 由 worker 啟動時 CREATE TABLE IF NOT EXISTS 自建,無 migration 工具。
     { "binding": "TRTC_LEDGER", "database_name": "railisland-trtc-ledger", "database_id": "d9f5267d-f670-4657-b261-5bff39c51ebc" }
   ],
+  // Durable Object:北捷三支上游的【全球唯一輪詢者】(2026-09-02,北捷來函之後的第四項)。
+  // 為什麼要它:caches.default 與 isolate 記憶體都是每個資料中心各一份 ⇒ 上游呼叫量正比於
+  // 「有幾個 colo 在服務我們」(實測 24 小時 41 個),與使用者人數無關;CarWeight 的 60 秒節流
+  // 也因為計時器是 per-isolate 而只省一半(實測比值 0.50,理論 0.25)。收斂成一顆 DO 才會真的降一個量級。
+  //
+  // 🔴 這顆 DO 的落點【只能】用 apac-ne(程式碼裡的 TRTC_POLLER_HINT)。實測(2026-09-02,各 8 顆新 DO):
+  //    apac-ne → NRT×4/KIX×3/ICN×1、香港 0;apac-se → 香港 7/8;apac → 香港 3/8;無提示 → 香港 4/8。
+  //    使用者長期裁示「雲端 region 排除中國與香港」,所以另外三種一律不合格。
+  //    位置在建立當下決定且之後不會搬,但提示是 best effort 不是保證 ⇒ worker.js 每一輪都把 DO
+  //    自報的 colo 帶回 /api/trtc-live 的 cd.poller,落在禁區就退回各 colo 直打。
+  // new_sqlite_classes(不是 new_classes):本帳號已不允許新建 key-value 型 DO 命名空間。
+  // 🔴 script_name 指向【另一顆】Worker(railisland-trtc-poller,設定在 wrangler.poller.jsonc)。
+  // 這裡刻意【沒有】migrations:含 DO migration 的版本不能走 versions upload
+  // (Cloudflare 10211),而本站出貨鏈就是 upload → 預覽 → 升 100%。migration 歸那顆 Worker,
+  // 主站只是綁過去 ⇒ 出貨流程完全不受影響。動這一段前先讀 trtc_poller_worker.mjs 檔頭。
+  "durable_objects": {
+    "bindings": [{ "name": "TRTC_POLLER", "class_name": "TrtcPoller", "script_name": "railisland-trtc-poller" }]
+  },
   // Analytics Engine 綁定:
   // USAGE  :/api/tra-live 每筆請求埋點(cam/z/裝置),用來回答放空/跟車/靜止各佔多少前景分鐘;
   //         另有 /api/basemap-fallback 的街道底圖退場事件列(blob1='ofmfail',算前景分鐘時用 blob1 排除),
