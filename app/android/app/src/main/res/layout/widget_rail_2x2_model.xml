@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 發車看板・小・背景「車模」（mockup 小卡 A）：車停在右下角，「再下一班」那一列讓給車模
-     （provider 傳 maxRows=1），底下的來源註腳也收掉——車就停在它的位置上。
+     （預設大小放一班；格子夠高時，車頂之上放得下幾班就放幾班，見 RailWidgetRender.rowsThatFit），
+     底下的來源註腳也收掉——車就停在它的位置上。
      車頭朝左下（母圖 hero-l）⇒ 放右側時車頭朝內。 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/wr_root"

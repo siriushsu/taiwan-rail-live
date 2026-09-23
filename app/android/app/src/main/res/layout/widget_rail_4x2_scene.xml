@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 發車看板・中・背景「場景」：多良（wg_scene_medium）＋小站名牌。其餘規則同大卡場景版。
-     卡片高度 ≥202dp 時改用 widget_rail_4x2_scene_tall.xml（只差示範列 2→3）。🔴 改其中一張要同步另一張。 -->
+     放幾班跟著卡片高度走（RailBoardWidgetProvider.at）；示範列是預設大小的班數。 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/wr_root"
     android:layout_width="match_parent"
