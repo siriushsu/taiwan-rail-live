@@ -298,6 +298,7 @@ const pieces = [
   extractDeclaration(traSource, 'struct TraWaitHop'),
   extractDeclaration(traSource, 'struct TraWaitLockView'),
   extractDeclaration(traSource, 'struct TraWaitIslandBottom'),
+  extractDeclaration(traSource, 'struct TraWaitIslandHero'),
   extractDeclaration(traSource, 'struct TraWaitIslandMinimal'),
 ];
 
@@ -659,6 +660,14 @@ func inkBounds(_ png: Data, scale: CGFloat) -> (x0: CGFloat, x1: CGFloat, y0: CG
 ///    而破版判定只比左右兩邊，上下一次都沒驗（原註解卻寫著「只驗左右與上下有沒有貼邊」）。
 let lockScreenMaxHeight: CGFloat = 160
 let islandExpandedMaxHeight: CGFloat = 144
+/// 🔴 動態島展開的【下半】實測預算——上面那個 144 是整張展開版面的外部常數，但這支腳本只算繪下半，
+///    而下半的上方還壓著鏡頭帶（leading／trailing）。只拿下半去比 144 結構上照不到：
+///    2026-09-23 台鐵等站卡 B 在這裡量到下半 125pt、144 gate 全綠，模擬器（iPhone 17 Pro、iOS 27）
+///    上卻把最底那列（官方值＋結束鈕）切掉一半。同一張截圖逐列量像素：島內容在距島頂約 133pt 被裁、
+///    下半從約 42pt 開始 ⇒ 約 91pt；取 86 留 5pt 餘裕。改版後（下半 83pt）同一台模擬器實拍，
+///    最底一列完整、墨跡到距島頂約 137pt。量法見 TraWaitIslandBottom 的註解。
+///    只套在台鐵進站軌道版：其他版面還沒逐一實測過，不能拿一張截圖替它們下結論。
+let islandBottomUnderBandMax: CGFloat = 86
 
 @MainActor
 func render<V: View>(_ view: V, width: CGFloat, maxHeight: CGFloat? = nil,
@@ -1585,8 +1594,11 @@ struct Harness {
                    to: outDir + "/island-trawait-bottom-arrived.png")
         for (name, d) in [("running", traBRunning), ("far", traBFar), ("arrived", traBArrived),
                           ("nopush", traBNoPush), ("worst", traBWorst)] {
-            _ = render(TraWaitIslandBottom(display: d), width: 360, maxHeight: islandExpandedMaxHeight, inset: 21.5,
+            _ = render(TraWaitIslandBottom(display: d), width: 360, maxHeight: islandBottomUnderBandMax, inset: 21.5,
                        to: outDir + "/island-trawaitb-\\(name).png")
+            // trailing 那一格（鏡頭右側）約 95pt 寬。
+            _ = render(TraWaitIslandHero(display: d), width: 95, inset: 0,
+                       to: outDir + "/island-trawaitb-hero-\\(name).png")
         }
         // 等站卡的 minimal 不塞字（塞不下「18:35」），兩態靠形狀分（gate 已驗過不同）。
         for (name, arrived) in [("waiting", false), ("arrived", true)] {

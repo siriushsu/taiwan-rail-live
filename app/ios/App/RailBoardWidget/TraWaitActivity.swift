@@ -460,7 +460,40 @@ struct TraWaitEndButton: View {
 
 // MARK: - 動態島
 
+/// 進站軌道版的主角：放在動態島 trailing（鏡頭右側那一格），不在下半。理由見 `TraWaitIslandBottom`。
+struct TraWaitIslandHero: View {
+    let display: TraWaitDisplay
+    var scale: RailScale = RailScale(k: 1)
+
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        HStack(alignment: .lastTextBaseline, spacing: scale.pt(3)) {
+            Text(display.heroCaption)
+                .font(.system(size: scale.pt(10)))
+                .foregroundStyle(.secondary)
+            // 22 不是 24：這一格與鏡頭同高，字再高一點就把整條鏡頭帶撐高、吃掉下半的預算。
+            Text(display.heroText)
+                .font(.system(size: scale.pt(22), weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(display.arrived
+                                 ? AnyShapeStyle(RailTokens.colors(scheme).ok)
+                                 : AnyShapeStyle(HierarchicalShapeStyle.primary))
+        }
+        // 鏡頭右側只有約 95pt；英文說明字較長時整組等比縮，不截字。
+        .lineLimit(1).minimumScaleFactor(0.7)
+    }
+}
+
 /// 展開版面的下半（主角＋軌道＋官方兩值＋結束）。
+///
+/// 🔴 進站軌道版【沒有主角列】：09-23 模擬器（iPhone 17 Pro）實測，島的內容在距島頂約 133pt 處
+///    被系統裁掉，而下半從鏡頭帶底下（約 42pt）才開始 ⇒ 下半只有約 91pt。設計稿的
+///    「主角列＋軌道 60＋官方值列」要 125pt，官方值與「結束」會被切掉一半。所以：
+///    主角搬到 trailing（`TraWaitIslandHero`，與鏡頭同一帶、本來就空著）；
+///    「172 次 往 花蓮」疊進軌道左上角——站名牌在右、車在軌面上，那一塊本來就是空的。
+///    改版後同一台模擬器實測：下半 83pt，最底一列（含結束鈕）完整，墨跡到距島頂約 137pt。
+///    算繪 harness 對這個版面另有一道實測預算 gate（`islandBottomUnderBandMax`）。
 struct TraWaitIslandBottom: View {
     let display: TraWaitDisplay
     var scale: RailScale = RailScale(k: 1)
@@ -468,28 +501,38 @@ struct TraWaitIslandBottom: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: scale.pt(4)) {
-            HStack(alignment: .center, spacing: scale.pt(6)) {
-                Text(display.lead)
-                    .font(.system(size: scale.pt(17), weight: .semibold))
-                    .lineLimit(1).minimumScaleFactor(0.6)
-                Spacer(minLength: scale.pt(4))
-                HStack(alignment: .lastTextBaseline, spacing: scale.pt(3)) {
-                    Text(display.heroCaption)
-                        .font(.system(size: scale.pt(10)))
-                        .foregroundStyle(.secondary).lineLimit(1)
-                    Text(display.heroText)
-                        .font(.system(size: scale.pt(24), weight: .semibold))
-                        .monospacedDigit().lineLimit(1)
-                        .foregroundStyle(display.arrived
-                                         ? AnyShapeStyle(RailTokens.colors(scheme).ok)
-                                         : AnyShapeStyle(HierarchicalShapeStyle.primary))
+        VStack(alignment: .leading, spacing: scale.pt(display.trackB == nil ? 4 : 3)) {
+            if display.trackB == nil {
+                HStack(alignment: .center, spacing: scale.pt(6)) {
+                    Text(display.lead)
+                        .font(.system(size: scale.pt(17), weight: .semibold))
+                        .lineLimit(1).minimumScaleFactor(0.6)
+                    Spacer(minLength: scale.pt(4))
+                    HStack(alignment: .lastTextBaseline, spacing: scale.pt(3)) {
+                        Text(display.heroCaption)
+                            .font(.system(size: scale.pt(10)))
+                            .foregroundStyle(.secondary).lineLimit(1)
+                        Text(display.heroText)
+                            .font(.system(size: scale.pt(24), weight: .semibold))
+                            .monospacedDigit().lineLimit(1)
+                            .foregroundStyle(display.arrived
+                                             ? AnyShapeStyle(RailTokens.colors(scheme).ok)
+                                             : AnyShapeStyle(HierarchicalShapeStyle.primary))
+                    }
+                    .fixedSize(horizontal: true, vertical: false)
                 }
-                .fixedSize(horizontal: true, vertical: false)
             }
             if let track = display.trackB {
                 // 進站軌道縮小版（動態島永遠黑底）；「車應已到」在島上由主角轉綠表達，不另寫。
                 MetroWaitTrack(track: track, station: display.station, island: true, scale: scale)
+                    .overlay(alignment: .topLeading) {
+                        // 右側讓出站名牌：牌框 92pt 貼右緣、長站名會再往左長，留 128pt 才不會碰到。
+                        // 高度只到約 21pt，車頂在 27pt（軌面 43 − 車高 16），不會壓到車。
+                        Text(display.lead)
+                            .font(.system(size: scale.pt(17), weight: .semibold))
+                            .lineLimit(1).minimumScaleFactor(0.6)
+                            .padding(.trailing, scale.pt(128))
+                    }
             } else {
                 RailSpineTrack(interval: display.track,
                                progress: display.progress,
@@ -515,7 +558,8 @@ struct TraWaitIslandBottom: View {
         }
         // 與捷運等車卡共用 22pt 圓角安全線；10pt 在實機會讓最右側按鈕進入斜切區。
         .padding(.horizontal, scale.pt(22))
-        .padding(.bottom, scale.pt(6))
+        // 進站軌道版不留底：系統在裁切線下方本來就留了約 27pt 的島底，這 6pt 只會把結束鈕往外推。
+        .padding(.bottom, scale.pt(display.trackB == nil ? 6 : 0))
     }
 }
 
@@ -579,6 +623,12 @@ struct TraWaitActivityWidget: Widget {
                         Text(d.station).font(.system(size: 12, weight: .medium)).lineLimit(1)
                     }
                     .padding(.leading, 4)
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    // 只有進站軌道版把主角放這裡；沒有軌道時主角仍在下半的主角列（見 TraWaitIslandBottom）。
+                    if d.trackB != nil {
+                        TraWaitIslandHero(display: d).padding(.trailing, 4)
+                    }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     TraWaitIslandBottom(display: d)
