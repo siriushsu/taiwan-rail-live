@@ -131,9 +131,14 @@ export function buildNearbyScope({ station, scope, stopOfRouteRows, radiusM = 60
   return { scope, radiusM, maxStopUids, stops, routeRefs };
 }
 
+// 🔴 臺北市開放資料（BusSeatEvent 擁擠度）的時間是 "2026/09/24 20:44:55"：沒有時區，即臺北時間。
+//    V8 把無時區字串當執行環境的本地時間——本機（Asia/Taipei）解析正確，Workers（UTC）會變成八小時後的未來，
+//    年齡被 Math.max(0, …) 夾成 0，擁擠度的過期判斷在正式站從沒生效過（2026-09-24 實測）。
+//    與 bus_live_core.mjs 的 parseDirectBulkUpdateTime 同一條規則：這個格式一律補 +08:00。TDX 的時間都帶時區，不受影響。
 export function parseTimeMs(value) {
   if (!value) return null;
-  const ms = Date.parse(value);
+  const m = /^(\d{4})\/(\d{2})\/(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/.exec(String(value).trim());
+  const ms = Date.parse(m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}+08:00` : value);
   return Number.isFinite(ms) ? ms : null;
 }
 

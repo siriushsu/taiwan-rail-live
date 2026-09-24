@@ -187,6 +187,29 @@ check('臺北只採官方 Level 0/1/2；其他縣市即使撞到同車牌也固�
   assert.equal(tainan.vehicles[0].occupancy.state, 'not_provided');
 });
 
+check('臺北擁擠度的 UpdateTime 是無時區的臺北時間（"2026/09/01 14:04:30"）：UTC、臺北、洛杉磯算出的年齡與過期判斷都要一樣', () => {
+  // 正式資料就是這個格式（上面那條用 ISO＋08:00 的替身照不到）。Workers 跑在 UTC、本機跑在 Asia/Taipei，
+  // 只在本機時區驗等於沒驗（2026-09-24 正式站：259 秒前的擁擠度被算成 0 秒、永遠不會過期）。
+  // 每個時區先確認切換真的生效，否則這條是空過的。
+  const occupancyRows = [{ BusID: 'EAL2258', Level: 2 }];
+  const occupancyAt = updatedAt => resolveBusLegVehicles({ arrival, a1Rows: [vehicleRow()], a2Rows: [a2Row()], occupancyRows, occupancyUpdatedAt: updatedAt, nowMs: NOW }).vehicles[0].occupancy;
+  const originalTz = process.env.TZ;
+  try {
+    for (const [tz, offsetMin] of [['UTC', 0], ['Asia/Taipei', -480], ['America/Los_Angeles', 420]]) {
+      process.env.TZ = tz;
+      assert.equal(new Date(NOW).getTimezoneOffset(), offsetMin, `${tz}：時區切換沒生效，這條驗不到任何東西`);
+      const fresh = occupancyAt('2026/09/01 14:04:30');
+      assert.equal(fresh.ageSec, 30, `${tz}：30 秒前的擁擠度算成 ${fresh.ageSec} 秒`);
+      assert.equal(fresh.state, 'available', `${tz}：30 秒前的擁擠度應該可用，實際 ${fresh.state}`);
+      const stale = occupancyAt('2026/09/01 14:00:00');
+      assert.equal(stale.ageSec, 300, `${tz}：300 秒前的擁擠度算成 ${stale.ageSec} 秒`);
+      assert.equal(stale.state, 'stale', `${tz}：超過 180 秒的擁擠度應該判成 stale，實際 ${stale.state}`);
+    }
+  } finally {
+    if (originalTz === undefined) delete process.env.TZ; else process.env.TZ = originalTz;
+  }
+});
+
 check('兩個方向的站序都用各方向自己的遞增序列；過期 GPS 保留但 fresh=false', () => {
   const dir0Arrival = { ...arrival, direction: 0, subRouteUid: 'SUB0', stopSequence: 30 };
   const dir0 = resolveBusLegVehicles({

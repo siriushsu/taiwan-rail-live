@@ -5511,6 +5511,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="bustransferall"><span class="d">9/24</span><span>修正臺北市公車擁擠度的過期判斷：超過 3 分鐘的資料改標示過期，不再當成即時資料</span></li>
         <li data-cl-of="busstop0911"><span class="d">9/24</span><span>修正臺北市公車站牌的到站時間最多會卡在兩小時前、整列顯示「資料已過期」</span></li>
         <li data-cl-of="perf3d0907"><span class="d">9/24</span><span>立體地圖跟車時，沿途建築每次更新的計算量再減半</span></li>
         <li data-cl-of="terrainrtt0923"><span class="d">9/23</span><span>地景地圖開啟地形時，立體車站周圍的地面不再殘留舊的建築輪廓</span></li>
@@ -5518,7 +5519,6 @@
         <li data-cl-of="mwstall0923"><span class="d">9/23</span><span>修正 iPhone 捷運等車卡偶爾十幾分鐘停住不更新</span></li>
         <li data-cl-of="widgetbg0923"><span class="d">9/23</span><span>桌面小工具新增「背景」設定，可選車模、場景或素色</span></li>
         <li data-cl-of="metrowaittrack0923"><span class="d">9/23</span><span>iPhone 與 Android 16 的等車卡加入進站軌道，捷運跟著官方倒數、台鐵跟著官方誤點</span></li>
-        <li data-cl-of="railboardrows0923"><span class="d">9/23</span><span>Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班，Samsung 手機下方不再空一截</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5702,6 +5702,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="bustransferall"><span class="d">9/24</span><span>公車轉乘由三站擴至 239 座台鐵客運站；按下查詢才讀取 600 公尺內公車動態，選定路線後才查車牌、位置、站數與擁擠度。缺值照實留白，並可開 Google 地圖步行導航。9/24 修正臺北擁擠度超過 3 分鐘仍被當成即時資料顯示</span></li>
         <li data-cl="busstop0911"><span class="d">9/24</span><span>搜尋框找得到全台公車站牌，點進去就是這個站牌每條路線的到站時間；臺北市的資料直接取自市府開放資料，其餘縣市取自 TDX，沒有即時資料的路線會照實說明而不是用班表假裝；9/24 修正臺北市站牌到站時間最多卡在兩小時前、整列顯示「資料已過期」</span></li>
         <li data-cl="followtrack0923"><span class="d">9/23</span><span>台鐵、高鐵跟車卡加入進站軌道：列車在上一站與下一站之間跑，車後灰、車前路線色；靠站時停在站牌旁，發車才換下一段。iPhone 每 30 秒、Android 16 每 20 秒挪一格；Android 等車卡不再畫方塊。App 1.6.12 起</span></li>
         <li data-cl="mwstall0923"><span class="d">9/23</span><span>修正 iPhone 捷運等車卡偶爾停住十幾分鐘、沒有跟著官方倒數更新的問題：伺服器載入北捷班表時，只要其中一次載入被中斷，之後的更新都會跟著卡住；現在改成各自載入、互不牽連；9/24 台鐵等站卡與跟車卡也加上同樣的防護</span></li>
@@ -5727,7 +5728,6 @@
         <li data-cl="busjourney"><span class="d">9/3</span><span>軌道轉公車可接成可恢復的旅程：選好下車站後，列車抵達仍保留等車資訊；上車後顯示剩餘站數。無法安全對上車牌時，不會冒用別台車的位置。</span></li>
         <li data-cl="busassistant"><span class="d">9/3</span><span>跟車時可先指定轉乘站；抵達前 15 分、5 分與到站各查一次公車動態，合併列車抵達、站外步行與公車倒數估算裕度，不含站內步行。時光機、暫停或背景頁不查即時資料。</span></li>
         <li data-cl="busallrail"><span class="d">9/3</span><span>公車轉乘涵蓋地圖全部 541 座台鐵、高鐵、林鐵、捷運與輕軌站；513 站在 600 公尺內有可用站牌，其餘誠實標示無資料。只在開站或接近已指定轉乘站時查即時。</span></li>
-        <li data-cl="bustransferall"><span class="d">9/1</span><span>公車轉乘由三站擴至 239 座台鐵客運站；按下查詢才讀取 600 公尺內公車動態，選定路線後才查車牌、位置、站數與擁擠度。缺值照實留白，並可開 Google 地圖步行導航。</span></li>
         <li data-cl="boardwide"><span class="d">9/2</span><span>桌面車站看板加寬，較長的車種與行駛方向不再被截斷；手機版維持原本整寬抽屜。</span></li>
         <li data-cl="xferconn"><span class="d">9/1</span><span>快到台鐵／高鐵轉乘站時，卡片會列出對向系統最近兩班與抵達時的剩餘時間，也能釘選想搭的班次；站內步行時間仍請自行預留。</span></li>
         <li data-cl="tourpickcap"><span class="d">8/31</span><span>「隨機跟隨」限制單一列車的抽中權重，並避開剛跟過的五班；稀有車仍較容易出現，但不會反覆壟斷結果。</span></li>
@@ -6623,7 +6623,11 @@
 // v0924b：跟車時車站遮罩每 15 秒那次套用再減量：remainders 分件的 JSON 只在第一次送出時算，之後用快取片段直接交給
 //         setData（免主執行緒整份 stringify）；先排 feature 再依固定順序展開（省掉 1.4 萬件逐一字串排序）；遮罩 setFilter
 //         跳過 style-spec 驗證（守門：verify_3d_mask_equivalence 的順序／worker 資料／原生 stringify 三條）。
-const BUILD = 'v0924c';
+// v0924c：臺北市公車整包（到站、擁擠度）抓取一律 cache:'no-store'——Worker 的 fetch() 會經過 zone 快取，.gz 又沒有
+//         Cache-Control，每個節點卡兩小時（守門：verify_bus_stop_worker「Cloudflare 子請求快取」）。
+// v0924d：臺北擁擠度的 UpdateTime（無時區）在 Workers 的 UTC 被解析成八小時後，年齡夾成 0、過期判斷從沒生效；
+//         parseTimeMs 對這個格式補 +08:00（守門：verify_bus_transfer_core 三時區那條）。
+const BUILD = 'v0924d';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
