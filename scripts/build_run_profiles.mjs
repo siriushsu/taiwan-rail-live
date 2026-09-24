@@ -25,7 +25,7 @@ const CONSTS = ['PERF_DEFAULT', 'PERF_HSR', 'HSR_DEP_MID_SEC', 'PERF_RULES', 'PE
   'DIESEL_BRANCH_IDS',
   'SPEED_ZONES', 'ZONE_KNOT_GAP', '_rpPre', 'MEET_HEADWAY_SEC', 'MEET_NEAR_SEC',
   'OVERTAKE_LOOKAHEAD_KM', 'OVERTAKE_CLEAR_SEC', 'OVERTAKE_MAX_WAIT_SEC'];
-const FUNCS = ['haversineKm', 'ensureCum', 'posAlongShape', 'isHSR', 'specialOf', 'isDr1000', 'resolvePerf',
+const FUNCS = ['haversineKm', 'ensureCum', 'posAlongShape', 'isHSR', 'specialOf', 'namedTrainNosOn', 'isDr1000', 'resolvePerf',
   'speedZoneClassOf', 'runSpeedZones', 'zoneProfileOk', 'zoneNatural', 'speedZoneKnots',
   'buildProfile', 'buildObsProfile', 'profTimeToProg', 'profProgToTime',
   'schedSegmentKm', 'schedSegKmOf', 'assignRunProfiles', 'canonicalizeAliasTrains',

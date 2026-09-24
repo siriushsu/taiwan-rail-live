@@ -5503,7 +5503,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/24</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/25</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5511,6 +5511,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：照台鐵公布的班表，當天那幾班的列車卡會有介紹，今日亮點和搜尋「寶可夢」也找得到</span></li>
         <li data-cl-of="bustransferall"><span class="d">9/24</span><span>修正臺北市公車擁擠度的過期判斷：超過 3 分鐘的資料改標示過期，不再當成即時資料</span></li>
         <li data-cl-of="busstop0911"><span class="d">9/24</span><span>修正臺北市公車站牌的到站時間最多會卡在兩小時前、整列顯示「資料已過期」</span></li>
         <li data-cl-of="perf3d0907"><span class="d">9/24</span><span>立體地圖跟車時，沿途建築每次更新的計算量再減半</span></li>
@@ -5518,7 +5519,6 @@
         <li data-cl-of="followtrack0923"><span class="d">9/23</span><span>台鐵、高鐵的跟車卡加入進站軌道：列車在上一站與下一站之間跑，靠站時停在站牌旁，發車才換到下一段</span></li>
         <li data-cl-of="mwstall0923"><span class="d">9/23</span><span>修正 iPhone 捷運等車卡偶爾十幾分鐘停住不更新</span></li>
         <li data-cl-of="widgetbg0923"><span class="d">9/23</span><span>桌面小工具新增「背景」設定，可選車模、場景或素色</span></li>
-        <li data-cl-of="metrowaittrack0923"><span class="d">9/23</span><span>iPhone 與 Android 16 的等車卡加入進站軌道，捷運跟著官方倒數、台鐵跟著官方誤點</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5526,6 +5526,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：每天跑哪幾班照台鐵公布的班表比對（感謝網友整理提供），當天那幾班的列車卡會有介紹；今日亮點「特別列車出沒中」和搜尋「寶可夢」都列得出當天每一趟</span></li>
         <li data-cl="terrainrtt0923"><span class="d">9/23</span><span>地景地圖開啟地形時，立體車站周圍的地面不再殘留舊的建築輪廓</span></li>
         <li data-cl="perf3d0907"><span class="d">9/24</span><span>改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛；9/23 修正跟車時約每 15 秒頓一下：建築遮擋改成分段計算、資料不再來回多搬；9/24 再把那一下的計算量減半</span></li>
         <li data-cl="glassnear0913"><span class="d">9/23</span><span>修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓；9/23 再改進跟車：列車前進時沿途建築的透視線條約每秒更新一次，不必等靠站才一次補上</span></li>
@@ -6627,7 +6628,10 @@
 //         Cache-Control，每個節點卡兩小時（守門：verify_bus_stop_worker「Cloudflare 子請求快取」）。
 // v0924d：臺北擁擠度的 UpdateTime（無時區）在 Workers 的 UTC 被解析成八小時後，年齡夾成 0、過期判斷從沒生效；
 //         parseTimeMs 對這個格式補 +08:00（守門：verify_bus_transfer_core 三時區那條）。
-const BUILD = 'v0924d';
+// v0925a：寶可夢30周年主題列車（9/25–12/13）：具名列車可用 trainNosByDate 依營運日輪替車次，specialOf 按每一趟
+//         所屬營運日比對（跨午夜那段算前一天；頁面開著跨過午夜、名冊不是今天的，只認跨夜接續那一趟，其餘不標）；
+//         今日亮點、搜尋、列車卡跟著走，跟隨中那一趟換了營運日列車卡會重畫；收藏標籤不寫進去。
+const BUILD = 'v0925a';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -16920,6 +16924,10 @@ function tickCore(now) {
   state._liveClock = (state._liveClock || 0) + dt;
   if (state._liveClock >= 1) {
     state._liveClock = 0; state.wallDay = todayStr();
+    // 依日期輪替車次的具名列車(寶可夢列車):跟隨中那一趟換了營運日(跳時間、跨夜那趟跑完、跨過午夜)
+    // 時名稱與介紹要跟著換——列車卡平常只在開始跟隨與切語言時畫。只在結果變了才畫,條件同切語言那條。
+    if (state.followTrain && state.special?._hasDated && !document.getElementById('trainCard').hidden
+      && (specialOf(state.followTrain)?.named || null) !== state._tcNamed) renderTrainCard(state.followTrain);
     if (OFFICIAL_ROSTER_ENABLED) {
       const active = trtcOfficialRosterLive();
       if (state._trtcOfficialCountActive !== active) { state._trtcOfficialCountActive = active; updateCount(); }
@@ -17906,15 +17914,41 @@ const AMEN_FLAGS = [
 // 結果快取在車上;檔案缺失時回傳 null,呼叫端退回內建簡版(SPECIAL_TRAINS/KIND_RULES)
 // 這份檔只涵蓋台鐵,而車次號跨系統會撞號(林鐵 1/2 次 vs 環島之星 1/2 次,issue#23),
 // 故比對前必須以 tr.sys 限定台鐵——比照 assignRunProfiles 的實測通過時刻查表。
+// 依日期輪替車次的具名列車(trainNosByDate,如寶可夢30周年主題列車)要看「此刻畫的這一趟」
+// 屬於哪個營運日:9/25 的 2183 是寶可夢列車、9/26 的 2183 是一般區間車。快取跟著營運日走——
+// 跨午夜班清晨被 schedWrapT 接成前一天那一趟時營運日會換,那時要重算。
 function specialOf(tr) {
-  if (tr._sp !== undefined) return tr._sp;
   const sd = state.special;
+  const day = sd && sd._hasDated && tr.sys === 'tra_sched' ? traRunDay(tr) : null;
+  if (tr._sp !== undefined && tr._spDay === day) return tr._sp;
+  tr._spDay = day;
   if (!sd || tr.sys !== 'tra_sched') return (tr._sp = null);
   const no = String(tr.train);
-  const named = sd.namedTrains.find(n => n.trainNos.includes(no)) || null;
+  const named = sd.namedTrains.find(n => namedTrainNosOn(n, day).includes(no)) || null;
   const stock = sd.rollingStock.find(r => r.carNames.includes(tr.carName)) || null;
   const branch = sd.branchLines.find(b => tr.stops.some(s => b._set.has(s.name))) || null;
   return (tr._sp = { named, stock, branch });
+}
+// 具名列車「那一天」的車次:依日期輪替的條目查 trainNosByDate[營運日],其餘照固定的 trainNos。
+// day 為 null(班表過期、不知道今天真正跑哪幾班)時輪替條目回空陣列＝不標:有資訊就要對,認不出來留白。
+function namedTrainNosOn(n, day) {
+  return n.trainNosByDate ? (day && n.trainNosByDate[day]) || [] : n.trainNos;
+}
+// 這班台鐵車「此刻畫的這一趟」屬於哪個營運日(YYYY-MM-DD)。名冊日是 sys.data._schedDay;
+// 昨晚借進來的跨夜班(_prevNight)是前一天那趟;今天名冊裡的跨夜班在清晨被 schedWrapT 接成
+// 昨天那趟時也是前一天。頁面開著跨夜沒重載時(名冊日≠state.wallDay,換日不會自動重載名冊)
+// 名冊整份還是昨天的:只有從名冊日跨夜接續過來的那一趟認得出是名冊日那趟,其餘各班今天實際
+// 跑的是哪一趟這份名冊答不出來,回 null(不標)。班表過期退回同週幾(_schedStale)也回 null。
+// sys 可省略(預設取 tr.sys 那個系統);搜尋在台鐵分頁還沒載入過時也要能算,那時車上還沒有
+// tr.sys,由呼叫端直接給台鐵系統。
+function traRunDay(tr, sys = state.systems.find(x => x.id === tr.sys)) {
+  const r = sys && sys.data && !sys.data._schedStale ? sys.data._schedDay : null;
+  if (!r) return null;
+  const s = tr.stops;
+  const wrapped = !s._prevNight && schedWrapT(s, state.simSec, 0) !== state.simSec;
+  if (r !== state.wallDay) return wrapped ? r : null;
+  if (!s._prevNight && !wrapped) return r;
+  return new Date(Date.parse(r + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
 }
 function trainIntro(tr) {
   const cn = tr.carName || '';
@@ -17925,7 +17959,9 @@ function trainIntro(tr) {
   if (spd && spd.stock) {
     kind = spd.stock.name; desc = spd.stock.story;
     const fs = spd.stock.facts || [];
-    if (fs.length) {
+    // 依日期輪替的主題彩繪車(寶可夢列車)介紹已寫明實際編組(EMU800 八節),車型家族的小知識
+    // (例如「EMU900 一列 10 輛」)接在後面讀起來像在說這班是別的車型,這種不接
+    if (fs.length && !spd.named?.trainNosByDate) {
       factIndex = (parseInt(tr.train, 10) || 0) % fs.length;
       fact = fs[factIndex]; // 依車次號取,同車次每次看到同一則
     }
@@ -20032,6 +20068,7 @@ document.addEventListener('click', e => {
 // 地圖下方的列車資訊卡:介紹+服務標記,旅程日誌由 renderFollowEvents 填
 function renderTrainCard(tr) {
   const it = trainIntro(tr);
+  state._tcNamed = it.named || null; // 每秒比對用:依日期輪替的具名列車換了營運日就重畫(見 _liveClock)
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   document.getElementById('tcDot').style.background = tr.color;
   document.getElementById('tcNo').textContent = trainDisplayNo(tr);
@@ -20086,7 +20123,8 @@ function toggleFav(tr) {
   if (favs.some(f => favItemKey(f) === key)) favs = favs.filter(f => favItemKey(f) !== key);
   else {
     const spd = specialOf(tr);
-    const sp = (spd && spd.named) || SPECIAL_TRAINS[no];
+    // 收藏存的是車次、天天都在;依日期輪替的具名列車(寶可夢主題列車)只有特定日子是它,不能寫進標籤
+    const sp = (spd && spd.named && !spd.named.trainNosByDate && spd.named) || SPECIAL_TRAINS[no];
     const stops = tr.stops;
     // sys 一起存(issue #16 重號)；舊紀錄沒這欄時由 favTrainSys 依資料遷移慣例視為 tra_sched。
     // favs 的 userDataCleanValue 是就地正規化 train/label,不像 pins/stations 會重建物件,所以額外欄位存得住。
@@ -23875,6 +23913,12 @@ function computeHighlights() {
     // 系統閘門與 specialOf()／dexCandidates() 同一條:特別列車檔是台鐵專屬,而「台」分頁的
     // state.trains 含林鐵——不擋的話環島之星 1/2 次會標到林鐵的 1/2 次(2026-09-08 實測到)。
     const traPool = state.trains.filter(t => t.sys === 'tra_sched');
+    // 依日期輪替車次的具名列車:照發車順序列出今天每一趟(specialOf 按每一趟的營運日比對,
+    // 清晨還在跑的昨晚那趟也算得對),不用 trainNos 逐號找。
+    for (const nt of sd.namedTrains) if (nt.trainNosByDate) {
+      traPool.filter(t => specialOf(t)?.named === nt).sort((a, b) => a.stops[0].depSec - b.stops[0].depSec)
+        .forEach(tr => out.special.push({ tr, title: i18nContentData('namedTrains', nt, 'name'), sub: i18nContentData('namedTrains', nt, 'tags', 0) }));
+    }
     for (const nt of sd.namedTrains) for (const no of nt.trainNos) {
       const tr = traPool.find(t => String(t.train) === no);
       if (tr) out.special.push({ tr, title: i18nContentData('namedTrains', nt, 'name'), sub: i18nContentData('namedTrains', nt, 'tags', 0) });
@@ -23975,7 +24019,8 @@ function punctualRow(tr) {
 // 在探索面板列成純圖鑑條目,點了開既有 renderNamedIntro 介紹卡。
 function exploreGuideTrains() {
   const sd = state.special;
-  return sd ? sd.namedTrains.filter(n => !n.trainNos || n.trainNos.length === 0) : [];
+  // 依日期輪替車次的(寶可夢主題列車)有車次、只是每天不同,不是「無固定車次」:今天有排班就列在「特別列車出沒中」
+  return sd ? sd.namedTrains.filter(n => !n.trainNosByDate && (!n.trainNos || n.trainNos.length === 0)) : [];
 }
 function guideRow(n, i) {
   const name = i18nContentData('namedTrains', n, 'name');
@@ -29548,9 +29593,20 @@ function searchNamedMatch(q) {
   const out = { trs: [], infos: [] };
   if (!state.special || nq.length < 2 || /\d/.test(nq)) return out;
   for (const n of state.special.namedTrains) {
-    const aliases = [n.name, i18nContentData('namedTrains', n, 'name')].map(value => String(value || '').replace(/臺/g, '台').replace(/\s+/g, '').toLowerCase());
+    // aliases:使用者口語的叫法(「寶可夢列車」不是正式名稱「寶可夢30周年主題列車」的子字串)
+    const aliases = [n.name, i18nContentData('namedTrains', n, 'name'), ...(n.aliases || [])].map(value => String(value || '').replace(/臺/g, '台').replace(/\s+/g, '').toLowerCase());
     if (!aliases.some(value => value.indexOf(nq) >= 0)) continue;
     let found = false;
+    if (n.trainNosByDate) {
+      // 依日期輪替車次:只找台鐵,照發車順序列出今天每一趟。營運日判定與地圖列車卡(specialOf)同一個
+      // traRunDay;不走 specialOf 是因為台鐵分頁沒載入過時車上還沒有 tr.sys,系統閘門會全數擋掉。
+      const sys = state.systems.find(s => s.id === 'tra_sched');
+      const trs = sys ? (sys.data.trains || []).filter(t => namedTrainNosOn(n, traRunDay(t, sys)).includes(String(t.train))) : [];
+      // named 一起帶給結果列:同樣因為可能還沒有 tr.sys,列上的「寶可夢…・區間車」不能靠 specialOf 標
+      trs.sort((a, b) => a.stops[0].depSec - b.stops[0].depSec).forEach(tr => out.trs.push({ tr, sys, named: n }));
+      if (!trs.length) out.infos.push(n);
+      continue;
+    }
     for (const no of n.trainNos) {
       for (const sid of ['tra_sched', 'thsr_sched']) {
         const sys = state.systems.find(s => s.id === sid);
@@ -29569,7 +29625,8 @@ function renderNamedIntro(n) {
   drop.innerHTML = `<div class="sd-named"><b class="tn">${escHtml(i18nContentData('namedTrains', n, 'name'))}</b>` +
     ((n.tags || []).length ? `<span class="sys-chip">${escHtml(i18nContentData('namedTrains', n, 'tags', 0))}</span>` : '') +
     `<p>${escHtml(i18nContentData('namedTrains', n, 'story'))}</p>` +
-    `<div class="sd-note">${escHtml(t('觀光列車・無固定班次，開行日期與車次以台鐵公告為準'))}</div></div>`;
+    `<div class="sd-note">${escHtml(n.trainNosByDate ? t('每天跑的車次不同，以台鐵公布的班表為準')
+      : t('觀光列車・無固定班次，開行日期與車次以台鐵公告為準'))}</div></div>`;
   openSearchDrop();
 }
 const SEARCH_TYPE_ROWS = 8;
@@ -29854,9 +29911,9 @@ function renderSearchDrop(opts) {
     html += `<div class="sd-sec">${escHtml(t('車次'))}</div>`;
     html += trs.map((o, i) => {
       const tr = o.tr, a = tr.stops[0].name, b = tr.stops[tr.stops.length - 1].name;
-      const spd = specialOf(tr), sp = (spd && spd.named) || SPECIAL_TRAINS[String(tr.train)];
+      const spd = specialOf(tr), named = o.named || (spd && spd.named), sp = named || SPECIAL_TRAINS[String(tr.train)];
       const kind = tr.loop ? trainDisplayKind(tr)
-        : `${sp ? (spd?.named ? i18nContentData('namedTrains', spd.named, 'name') : t(sp.name)) + '・' : ''}${trainTypeName(tr.typeName)}`;
+        : `${sp ? (named ? i18nContentData('namedTrains', named, 'name') : t(sp.name)) + '・' : ''}${trainTypeName(tr.typeName)}`;
       return `<div class="row tr-row" data-ti="${i}"><span class="nm">${escHtml(trainDisplayNo(tr))}</span>`
         + `<span class="sys-chip">${escHtml(tr.loop ? t('虛構專列') : t(o.sys.label))}</span>`
         + `<span class="tr-meta">${escHtml(kind)}　${escHtml(stationName(a, tr.sys))}→${escHtml(stationName(b, tr.sys))}</span></div>`;
@@ -36425,6 +36482,7 @@ async function boot() {
   // 特別列車故事檔案(車型/具名觀光列車/支線);缺檔時 specialOf 回 null,退回內建簡版介紹
   state.special = await specialP;
   if (state.special) state.special.branchLines.forEach(b => { b._set = new Set(b.matchStations); });
+  if (state.special) state.special._hasDated = state.special.namedTrains.some(n => n.trainNosByDate);
   if (!state.systems.length) {
     document.getElementById('note').textContent = t('找不到路網資料（data/*.json 還在準備）');
     return;
