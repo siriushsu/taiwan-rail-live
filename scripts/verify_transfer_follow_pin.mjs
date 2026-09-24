@@ -340,6 +340,42 @@ async function runEngine(engineName, engine) {
       ok(P('F5pre1 手機殼成立(body.fs + MOBILE_MQ + 卡不在整合槽 + sheet 尚未開)'),
         shell.fs && shell.mobile && !shell.trainOpen && !shell.inUniSlot, JSON.stringify(shell));
 
+      // 🔴 F5pre2:量任何座標之前,先等「會把卡片撐高的最後一個非同步欄位」到位。
+      // 立體列車接點(rail-3d.js)是延遲載入的:attach() 動態 import map3d.js、createLiveMap 完成後,
+      // 同一個 render() 裡的 updateNote() 才把編組說明 .ri-formation-caption append 到 #followPanel 尾端
+      // (手機跟車時 followHeadLocked 為真,縮放 12 也會畫;桌面縮放 <13.8 不畫,所以桌面段不受影響)。
+      // 手機小卡是下錨往上長 ⇒ 說明到位那一刻,卡裡每個元件的上緣一起上移 48px,恰好一列 .xfc-row 高。
+      // 2026-09-24 實測(ship-web 約 1/6、單獨連跑 30 次中 2 次):F7 量 .fp-next 在說明到位之前(y=325)、
+      // tap 在之後;事件探針看到點擊【有派發、沒被吃掉】,只是落在上移後的 .xfc-t(排除清單內)
+      // ⇒ train-open=false。F5 在同一個窗口則會點到下一列、釘錯班次。
+      // 等的是產品自己的完成訊號:renderer 掛上(同 verify_3d_framing 的就緒判準)且說明已寫進這班車的
+      // 編組;立體列車載入失敗(errors 非空)就不會有說明、也就沒有這次位移,同樣算到位。
+      // 不用「連續幾次取樣不動」:失敗那一輪說明到位前,卡片已經連續靜止 770ms,取樣法照樣被騙。
+      const note3d = await page.waitForFunction(() => {
+        const ri = window.railIslandIntegration;
+        if (!ri) return false;
+        if (ri.errors.length) return { loadFailed: ri.errors.length };
+        const cap = document.querySelector('#followPanel .ri-formation-caption');
+        return ri.renderer && cap && !cap.hidden && cap.textContent.trim() ? { caption: cap.textContent.trim() } : false;
+      }, null, { timeout: 30000 }).then(h => h.jsonValue(), e => ({ timeout: String(e.message).slice(0, 100) }));
+      ok(P('F5pre2 手機:量座標前,卡片最後一個非同步欄位(立體列車編組說明)已到位'), !note3d.timeout, JSON.stringify(note3d));
+
+      // 落點記錄器(capture 階段、只記不攔):F5/F7 紅的時候要分得出三種原因——點擊根本沒派發(被吃掉)/
+      // 派發了但落在別的元件(座標過期)/落在目標上但產品沒反應。2026-09-24 那次 F7 紅只留下
+      // train-open=false,三種都長得一樣,得另外掛探針重現才分得出來。
+      await page.evaluate(() => {
+        window.__taps = [];
+        window.addEventListener('click', e => {
+          const el = e.target, cls = el && typeof el.className === 'string' ? el.className.trim() : '';
+          window.__taps.push({
+            on: el && el.tagName ? el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (cls ? '.' + cls.split(/\s+/).join('.') : '') : String(el),
+            connected: !!(el && el.isConnected),
+          });
+        }, true);
+      });
+      const tapCount = () => page.evaluate(() => window.__taps.length);
+      const tapsSince = n => page.evaluate(n => window.__taps.slice(n), n);
+
       // 座標與車次即時查詢(理由見桌面段 F3pre),並【連命中結果一起量】。
       // 🔴 停等條件是「這個座標現在真的打得到那一列」,不是「座標不動了」:手機殼開機後跟隨小卡
       // 還會再挪一次位,兩次取樣相同只證明「這一拍沒動」——實測踩到過 y=773.67 連續兩拍相同、
@@ -367,6 +403,7 @@ async function runEngine(engineName, engine) {
       ok(P('F5pre4 手機:該座標命中的是接續列本身(沒被 tab bar 之類的家具蓋住)'), !!probe && probe.inRow, JSON.stringify(probe));
       if (probe && probe.inRow) {
         const noM = probe.no;
+        const tap5 = await tapCount();
         await page.touchscreen.tap(probe.x + probe.width / 2, probe.y + probe.height / 2);
         await page.waitForFunction(() => !!state.xferPin, null, { timeout: 3000 }).catch(() => {});
         // sheet 是動畫上滑的:多等一拍,不要讓「還沒滑上來」冒充成「沒有被打開」。
@@ -375,7 +412,8 @@ async function runEngine(engineName, engine) {
           pin: state.xferPin ? { ...state.xferPin } : null,
           trainOpen: document.body.classList.contains('train-open'),
         }));
-        ok(P('F5 手機真觸控點接續列,確實釘住那一班'), !!res.pin && res.pin.n === noM, `點的=${noM} 釘的=${res.pin && res.pin.n}`);
+        ok(P('F5 手機真觸控點接續列,確實釘住那一班'), !!res.pin && res.pin.n === noM,
+          `點的=${noM} 釘的=${res.pin && res.pin.n} 落點=${JSON.stringify(await tapsSince(tap5))}`);
         ok(P('F6 且不會順便打開「列車」sheet(Finding 2:.xfc-row 要在排除清單裡)'),
           res.trainOpen === false, `train-open=${res.trainOpen}`);
 
@@ -388,6 +426,7 @@ async function runEngine(engineName, engine) {
           const b = e.getBoundingClientRect();
           return { x: b.x, y: b.y, width: b.width, height: b.height };
         });
+        const tap7 = await tapCount();
         if (nextBox && nextBox.width > 0) {
           await page.touchscreen.tap(nextBox.x + nextBox.width / 2, nextBox.y + nextBox.height / 2);
           await page.waitForFunction(() => document.body.classList.contains('train-open'), null, { timeout: 3000 }).catch(() => {});
@@ -397,7 +436,7 @@ async function runEngine(engineName, engine) {
         // 0×0、這裡等於沒點就宣告成功——正向對照自己也需要「我真的做了那個動作」的證據。
         ok(P('F7 正向對照:同一頁點卡片非排除區確實會開「列車」sheet(證明 F6 不是空斷言)'),
           opened && !!nextBox && nextBox.width > 0 && nextBox.height > 0,
-          `train-open=${opened} nextBox=${JSON.stringify(nextBox)}`);
+          `train-open=${opened} nextBox=${JSON.stringify(nextBox)} 落點=${JSON.stringify(await tapsSince(tap7))}`);
       }
     }
     ok(P('F手機 頁面零例外'), errors.length === 0, errors.slice(0, 3).join(' | '));
