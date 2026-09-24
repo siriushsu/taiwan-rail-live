@@ -5117,7 +5117,9 @@ async function ungzipJsonResponse(response) {
 
 async function fetchTaipeiBusSeat(env) {
   const url = env.BUS_SEAT_URL_OVERRIDE || BUS_SEAT_URL;
-  const response = await fetch(url, { headers: { accept: 'application/gzip,application/json' } });
+  // 🔴 cache:'no-store' 與 directBulkSnapshot 同理：同一台市府 blob、同樣是 .gz 又沒有 Cache-Control，
+  //    不帶就會被 Cloudflare 快取 120 分鐘，擁擠度一過 180 秒就全被判成 stale。
+  const response = await fetch(url, { headers: { accept: 'application/gzip,application/json' }, cache: 'no-store' });
   if (!response.ok) throw new Error(`taipei bus seat ${response.status}`);
   const parsed = await ungzipJsonResponse(response);
   return {
@@ -5240,6 +5242,8 @@ const BUS_STOP_STATIC_MEM_TTL_MS = 6 * 3600e3;
 //   edge s-maxage = 10 秒（PoP 多久回來問 Worker 一次）
 //   mem  TTL      = 15 秒（Worker 多久重抓上游一次）
 //   實際上游間隔 = 最小的、大於 mem 的 edge 倍數 = 10 × 2 = 20 秒
+//   🔴 這個算式的前提是子請求不經 Cloudflare 快取——見 directBulkSnapshot 的 cache:'no-store'
+//      （2026-09-24 之前沒有它，實際間隔是 Cloudflare 對 .gz 的預設 120 分鐘）。
 // 20 秒＝來源節拍的兩倍：每兩代取一代。手上的快照因此最舊 20 秒，但 etaSec 會扣掉快照年齡
 // （見 normalizeDirectBulkRow 的 ageSec），所以畫面上的倒數仍然以「此刻」為準，不會慢一拍。
 // 要追到每 10 秒就得把 mem 壓到 10 秒以下，代價是每 10 秒重解一次 1.88 MB 的 gzip——
@@ -5309,9 +5313,14 @@ async function directBulkSnapshot(env, city, entry) {
     const override = env.BUS_DIRECT_BASE_OVERRIDE;
     const urlOf = kind => (override ? `${String(override).replace(/\/$/, '')}/${kind}` : entry.directBulk.endpoints[kind]);
     const [estimateRes, routeRes] = await Promise.all([
-      fetch(urlOf('estimate'), { headers: { accept: 'application/gzip,application/json' } }),
+      // 🔴 cache:'no-store' 不可拿掉：Worker 的 fetch() 會經過 railisland.tw 這個 zone 的 Cloudflare 快取，
+      //    .gz 在預設快取副檔名表裡、市府 blob 又不送 Cache-Control ⇒ 預設快取 120 分鐘。
+      //    2026-09-24 正式站實測：每個節點各卡一份兩小時前的快照（KHH 18:54:55、HKG 18:20:55），
+      //    上面 15 秒的記憶體 TTL 每次重抓都拿到同一份。本機驗收（Node 替身 fetch）與 workers.dev 都照不到這一層，
+      //    守門人：scripts/verify_bus_stop_worker.mjs「Cloudflare 子請求快取」。
+      fetch(urlOf('estimate'), { headers: { accept: 'application/gzip,application/json' }, cache: 'no-store' }),
       // 路線名一天變不到一次，但沒有獨立的取得節拍就得為它多做一層快取；跟著到站一起抓最簡單，
-      // 而且它免費、77 KB，成本可以忽略。
+      // 而且它免費、77 KB，成本可以忽略。它刻意不帶 no-store：被 Cloudflare 快取兩小時對路線名無妨。
       fetch(urlOf('route'), { headers: { accept: 'application/gzip,application/json' } }),
     ]);
     if (!estimateRes.ok) throw new Error(`direct-bulk ${city} estimate ${estimateRes.status}`);

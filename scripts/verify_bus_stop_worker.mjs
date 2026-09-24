@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
-import worker, { _busStop } from '../worker.js';
+import worker, { _busStop, _busTransfer } from '../worker.js';
 import { BUS_STOP_INDEX_COLUMNS, parseProviderConfig } from './bus_live_core.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -75,12 +75,21 @@ globalThis.caches = {
 let authCalls = 0;
 const directCalls = [];
 const tdxCalls = [];
-globalThis.fetch = async requestLike => {
+// 每一發市府 blob 請求帶的 cache 模式（fetch 第二個參數或 Request 物件上的），給「Cloudflare 子請求快取」那段驗。
+const blobCacheModes = [];
+const cacheModeOf = (requestLike, init) => (init && init.cache) || (requestLike instanceof Request ? requestLike.cache : undefined);
+globalThis.fetch = async (requestLike, init) => {
   const url = new URL(requestLike instanceof URL ? requestLike.href : (typeof requestLike === 'string' ? requestLike : requestLike.url));
   if (url.hostname === 'auth.test') { authCalls += 1; return Response.json({ access_token: 'fixture-token', expires_in: 3600 }); }
   if (url.hostname === 'direct.test') {
     directCalls.push(url.pathname);
+    blobCacheModes.push({ path: url.pathname, cache: cacheModeOf(requestLike, init) });
     const body = url.pathname.endsWith('/route') ? DIRECT_ROUTE : DIRECT_ESTIMATE;
+    return new Response(gzipSync(Buffer.from(JSON.stringify(body))), { headers: { 'content-type': 'application/gzip' } });
+  }
+  if (url.hostname === 'seat.test') {
+    blobCacheModes.push({ path: url.pathname, cache: cacheModeOf(requestLike, init) });
+    const body = { EssentialInfo: { UpdateTime: SNAPSHOT_TEXT }, BusInfo: [] };
     return new Response(gzipSync(Buffer.from(JSON.stringify(body))), { headers: { 'content-type': 'application/gzip' } });
   }
   if (url.hostname === 'bus.test') {
@@ -121,7 +130,7 @@ const makeEnv = (overrides = {}) => ({
   ...overrides,
 });
 
-const reset = () => { _busStop.resetBusStopCaches(); edge.clear(); directCalls.length = 0; tdxCalls.length = 0; limiterCalls = 0; limiterAllow = Infinity; };
+const reset = () => { _busStop.resetBusStopCaches(); edge.clear(); directCalls.length = 0; tdxCalls.length = 0; blobCacheModes.length = 0; limiterCalls = 0; limiterAllow = Infinity; };
 const get = (url, env) => worker.fetch(new Request(url), env, {});
 
 // ── 設定檔就是端點的唯一來源 ──────────────────────────────────────────────
@@ -220,6 +229,29 @@ await check('direct-bulk 不取 TDX token（它不計 TDX 配額）', async () =
   const before = authCalls;
   await get('https://railisland.tw/api/bus-stop-live?stop=TPE-FIX-1', makeEnv());
   assert.equal(authCalls, before, 'direct-bulk 路徑不該打 TDX auth');
+});
+
+// ── Cloudflare 子請求快取 ─────────────────────────────────────────────────
+// 🔴 2026-09-24 正式站：Worker 抓市府 .gz 沒帶 cache:'no-store'，被 railisland.tw 的 Cloudflare 快取
+//    預設留 120 分鐘，臺北站牌整列「資料已過期」。那一層快取本機（這裡的替身 fetch）與 workers.dev 都照不到，
+//    所以只能在這裡鎖住「請求本身有沒有叫 Cloudflare 別存」。
+await check('Cloudflare 子請求快取：direct-bulk 抓到站快照一律 cache:no-store', async () => {
+  reset();
+  await get('https://railisland.tw/api/bus-stop-live?stop=TPE-FIX-1', makeEnv());
+  const estimate = blobCacheModes.filter(c => c.path.endsWith('/estimate'));
+  // 正向對照：這一發真的打到上游了，否則「每一發都 no-store」會在零發時空過。
+  assert.equal(estimate.length, 1, `應該剛好打一次到站快照，實際 ${estimate.length}`);
+  assert.deepEqual(estimate.map(c => c.cache), ['no-store'], '到站快照沒帶 cache:no-store，會被 Cloudflare 快取 120 分鐘');
+});
+
+await check('Cloudflare 子請求快取：臺北擁擠度（BusSeatEvent）一律 cache:no-store', async () => {
+  reset();
+  const seat = await _busTransfer.fetchTaipeiBusSeat({ BUS_SEAT_URL_OVERRIDE: 'https://seat.test/BusSeatEvent.gz' });
+  // 正向對照：替身真的被叫到，回來的快照時間就是 fixture 那一份。
+  assert.equal(seat.updatedAt, SNAPSHOT_TEXT);
+  const calls = blobCacheModes.filter(c => c.path.endsWith('/BusSeatEvent.gz'));
+  assert.equal(calls.length, 1, `應該剛好打一次擁擠度，實際 ${calls.length}`);
+  assert.equal(calls[0].cache, 'no-store', '擁擠度沒帶 cache:no-store，會被 Cloudflare 快取 120 分鐘');
 });
 
 // ── tdx-per-stop ──────────────────────────────────────────────────────────

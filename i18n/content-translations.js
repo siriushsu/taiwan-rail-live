@@ -3165,3 +3165,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '地景地圖開啟地形時，立體車站周圍的地面不再殘留舊的建築輪廓': '地景マップで地形をオンにしたとき、立体駅の周りの地面に古い建物の輪郭が残らなくなりました。'
 });
+// 2026-09-24 臺北市公車站牌到站卡在兩小時前（Worker 抓市府 .gz 被 Cloudflare 快取 120 分鐘）：首層摘要與第二層正本 busstop0911 都補 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '修正臺北市公車站牌的到站時間最多會卡在兩小時前、整列顯示「資料已過期」': 'Fixed Taipei City bus stop arrival times that could lag up to two hours behind, with every row showing "Data expired".',
+  '搜尋框找得到全台公車站牌，點進去就是這個站牌每條路線的到站時間；臺北市的資料直接取自市府開放資料，其餘縣市取自 TDX，沒有即時資料的路線會照實說明而不是用班表假裝；9/24 修正臺北市站牌到站時間最多卡在兩小時前、整列顯示「資料已過期」': 'Search now finds bus stops across Taiwan; tap one to see arrival times for every route at that stop. Taipei City data comes straight from the city government’s open data and other counties from TDX; routes without live data say so instead of faking it with timetables. 9/24: fixed Taipei stop arrival times that could lag up to two hours behind, with every row showing "Data expired".'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '修正臺北市公車站牌的到站時間最多會卡在兩小時前、整列顯示「資料已過期」': '台北市のバス停の到着時刻が最大2時間前のまま止まり、全行が「データ期限切れ」と表示される問題を修正しました',
+  '搜尋框找得到全台公車站牌，點進去就是這個站牌每條路線的到站時間；臺北市的資料直接取自市府開放資料，其餘縣市取自 TDX，沒有即時資料的路線會照實說明而不是用班表假裝；9/24 修正臺北市站牌到站時間最多卡在兩小時前、整列顯示「資料已過期」': '検索で全国のバス停が見つかり、タップするとそのバス停の各路線の到着時刻がわかります。台北市は市政府のオープンデータを直接使い、その他の県市は TDX から取得します。リアルタイムの情報がない路線は時刻表でごまかさず、その旨を表示します。9/24：台北市のバス停の到着時刻が最大2時間前のまま止まり、全行が「データ期限切れ」と表示される問題を修正しました'
+});

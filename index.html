@@ -5511,6 +5511,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="busstop0911"><span class="d">9/24</span><span>修正臺北市公車站牌的到站時間最多會卡在兩小時前、整列顯示「資料已過期」</span></li>
         <li data-cl-of="perf3d0907"><span class="d">9/24</span><span>立體地圖跟車時，沿途建築每次更新的計算量再減半</span></li>
         <li data-cl-of="terrainrtt0923"><span class="d">9/23</span><span>地景地圖開啟地形時，立體車站周圍的地面不再殘留舊的建築輪廓</span></li>
         <li data-cl-of="followtrack0923"><span class="d">9/23</span><span>台鐵、高鐵的跟車卡加入進站軌道：列車在上一站與下一站之間跑，靠站時停在站牌旁，發車才換到下一段</span></li>
@@ -5518,7 +5519,6 @@
         <li data-cl-of="widgetbg0923"><span class="d">9/23</span><span>桌面小工具新增「背景」設定，可選車模、場景或素色</span></li>
         <li data-cl-of="metrowaittrack0923"><span class="d">9/23</span><span>iPhone 與 Android 16 的等車卡加入進站軌道，捷運跟著官方倒數、台鐵跟著官方誤點</span></li>
         <li data-cl-of="railboardrows0923"><span class="d">9/23</span><span>Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班，Samsung 手機下方不再空一截</span></li>
-        <li data-cl-of="checkinsync0923"><span class="d">9/23</span><span>成就「通勤的證明」「老通勤族」的路段次數與打卡車站，現在會跟著帳號雲端同步，換一台裝置登入不再歸零（謝謝網友回報）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5702,6 +5702,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="busstop0911"><span class="d">9/24</span><span>搜尋框找得到全台公車站牌，點進去就是這個站牌每條路線的到站時間；臺北市的資料直接取自市府開放資料，其餘縣市取自 TDX，沒有即時資料的路線會照實說明而不是用班表假裝；9/24 修正臺北市站牌到站時間最多卡在兩小時前、整列顯示「資料已過期」</span></li>
         <li data-cl="followtrack0923"><span class="d">9/23</span><span>台鐵、高鐵跟車卡加入進站軌道：列車在上一站與下一站之間跑，車後灰、車前路線色；靠站時停在站牌旁，發車才換下一段。iPhone 每 30 秒、Android 16 每 20 秒挪一格；Android 等車卡不再畫方塊。App 1.6.12 起</span></li>
         <li data-cl="mwstall0923"><span class="d">9/23</span><span>修正 iPhone 捷運等車卡偶爾停住十幾分鐘、沒有跟著官方倒數更新的問題：伺服器載入北捷班表時，只要其中一次載入被中斷，之後的更新都會跟著卡住；現在改成各自載入、互不牽連；9/24 台鐵等站卡與跟車卡也加上同樣的防護</span></li>
         <li data-cl="metrowaittrack0923"><span class="d">9/23</span><span>等車卡加入進站軌道：列車以正側面圖從上一站開向你的車站站牌，捷運跟著官方倒數、台鐵照表定加官方誤點；iPhone 在鎖定畫面與動態島（台鐵卡每 30 秒挪一格），Android 16 在通知。App 1.6.11 起生效</span></li>
@@ -5713,7 +5714,6 @@
         <li data-cl="neardismiss0918"><span class="d">9/18</span><span>「附近車站」清單原本只有標題列那顆小小的 ✕ 關得掉，點地圖空白處或往下滑都沒反應，只能先點一站才收得起來；現在點空白處、往下滑都會收起來，✕ 的可按範圍也放大了</span></li>
         <li data-cl="citynav0916"><span class="d">9/16</span><span>選取縣市或搜尋車站後自動解除所在地鏡頭跟隨，避免地圖剛飛過去又隨即跳回使用者目前的定位點</span></li>
         <li data-cl="xfercollapse0911"><span class="d">9/11</span><span>跟車卡的轉乘接續可以收起來：預設收成一行，只留最近一班的車次與剩下幾分鐘，點一下才展開第二班與註記。展開或收合會記住，跟車卡、捷運卡與手機列車卡三處一起換。</span></li>
-        <li data-cl="busstop0911"><span class="d">9/11</span><span>搜尋框找得到全台公車站牌，點進去就是這個站牌每條路線的到站時間；臺北市的資料直接取自市府開放資料，其餘縣市取自 TDX，沒有即時資料的路線會照實說明而不是用班表假裝</span></li>
         <li data-cl="thsrseat0911"><span class="d">9/11</span><span>高鐵車站看板每一班都標出對號座還有沒有位子（有位／剩不多／售完），旁邊一顆「票價」按得開，列出標準座、商務座、自由座與各種優待票價</span></li>
         <li data-cl="xfermetro0910"><span class="d">9/10</span><span>轉乘接續加入捷運：高鐵桃園、台北車站、左營、高雄、橋頭、岡山這些轉乘站，接續班次除了台鐵與高鐵，也會列出桃園機場捷運與高雄捷運紅線、橘線；機捷每一班都標出直達車或普通車。捷運沒有對外公告的車次，車次欄留白。</span></li>
         <li data-cl="mrttrainno0908"><span class="d">9/8</span><span>跟隨捷運列車時，資訊卡上方會顯示車次：只在官方即時資料真的有給車次時顯示，文湖線、環狀線與其他沒有公開車次的系統維持留白，不會用內部編號充數</span></li>
@@ -6623,7 +6623,7 @@
 // v0924b：跟車時車站遮罩每 15 秒那次套用再減量：remainders 分件的 JSON 只在第一次送出時算，之後用快取片段直接交給
 //         setData（免主執行緒整份 stringify）；先排 feature 再依固定順序展開（省掉 1.4 萬件逐一字串排序）；遮罩 setFilter
 //         跳過 style-spec 驗證（守門：verify_3d_mask_equivalence 的順序／worker 資料／原生 stringify 三條）。
-const BUILD = 'v0924b';
+const BUILD = 'v0924c';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
