@@ -349,14 +349,15 @@ async function runEngine(engineName, engine) {
       // tap 在之後;事件探針看到點擊【有派發、沒被吃掉】,只是落在上移後的 .xfc-t(排除清單內)
       // ⇒ train-open=false。F5 在同一個窗口則會點到下一列、釘錯班次。
       // 等的是產品自己的完成訊號:renderer 掛上(同 verify_3d_framing 的就緒判準)且說明已寫進這班車的
-      // 編組;立體列車載入失敗(errors 非空)就不會有說明、也就沒有這次位移,同樣算到位。
+      // 編組;立體列車整個掛不上(載入結束、沒有 renderer、errors 非空)就不會有說明、也就沒有這次位移,
+      // 同樣算到位。errors 單獨非空不算——renderer 在跑時 onError 也會往裡塞非致命錯誤,說明照樣會晚到。
       // 不用「連續幾次取樣不動」:失敗那一輪說明到位前,卡片已經連續靜止 770ms,取樣法照樣被騙。
       const note3d = await page.waitForFunction(() => {
         const ri = window.railIslandIntegration;
         if (!ri) return false;
-        if (ri.errors.length) return { loadFailed: ri.errors.length };
+        if (!ri.renderer) return !ri.loading && ri.errors.length ? { loadFailed: ri.errors.length } : false;
         const cap = document.querySelector('#followPanel .ri-formation-caption');
-        return ri.renderer && cap && !cap.hidden && cap.textContent.trim() ? { caption: cap.textContent.trim() } : false;
+        return cap && !cap.hidden && cap.textContent.trim() ? { caption: cap.textContent.trim() } : false;
       }, null, { timeout: 30000 }).then(h => h.jsonValue(), e => ({ timeout: String(e.message).slice(0, 100) }));
       ok(P('F5pre2 手機:量座標前,卡片最後一個非同步欄位(立體列車編組說明)已到位'), !note3d.timeout, JSON.stringify(note3d));
 
