@@ -84,6 +84,7 @@ else
   STREAK="$(cat "$STREAK_FILE" 2>/dev/null || echo 0)"   # 網路類失敗:不增不減,免得遮住進行中的當機
 fi
 
+SCAN_CODE=$CODE  # 掃描器自己的離開碼；下面 manifest 紅會把 CODE 蓋掉，通知標題要看這個
 if [ "$MANI_CODE" -ne 0 ]; then
   OUT="${OUT}
 ❌ manifest 閘門紅：main 的 data/ 與清單不同步（改 data/ 那輪要跑 npm run build-manifest；紅行見明細）
@@ -104,9 +105,12 @@ if [ "$CODE" -ne 0 ]; then
   # 全文留檔，通知只帶一行——通知欄放不下，也不該逼人在通知裡讀明細
   printf '%s\n' "$OUT" > "$OUTDIR/last-failure.txt"
   # 三種互斥的紅,措辭要分得開:沒跑起來(環境)／自己掛了(判準工具壞)／偵測到異常(產品)。
-  if [ "$CODE" = 2 ]; then WHAT='掃描沒跑起來'
-  elif [ "$SCAN_VERDICTS" -eq 0 ]; then WHAT="巡檢自己掛了(連續 ${STREAK} 輪沒跑出判準)"
+  # 分類看 SCAN_CODE 不看 CODE:否則「網路斷＋manifest 紅」會被說成「巡檢自己掛了(連續 0 輪)」
+  # (09-24 08:06／08:26 實例)。「自己掛了」的條件要跟上面 STREAK 加一的條件一致。
+  if [ "$SCAN_CODE" = 2 ]; then WHAT='掃描沒跑起來'
+  elif [ "$SCAN_CODE" -ne 0 ] && [ "$SCAN_VERDICTS" -eq 0 ]; then WHAT="巡檢自己掛了(連續 ${STREAK} 輪沒跑出判準)"
   else WHAT='偵測到異常'; fi
+  [ "$MANI_CODE" -ne 0 ] && [ "$WHAT" != '偵測到異常' ] && WHAT="${WHAT}＋manifest 閘門紅"
   TITLE="軌島地圖巡檢：${WHAT}"
   MSG="$(printf '%s\n' "$OUT" | grep -E '^❌' | head -2 | tr '\n' ' ')"
   osascript -e "display notification \"${MSG//\"/}\" with title \"${TITLE}\" sound name \"Basso\"" >/dev/null 2>&1
