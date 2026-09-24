@@ -11,6 +11,8 @@
 //  4) 回歸:收集章的點擊本來就是「跳去跟那班車」(followDexStamp),說明卡不准搶走它。
 //  5) 原生 title 殘留:留著會與自製卡片同時冒出來,兩層 tooltip。
 //  6) 觸控:點按開卡、再點同一枚收起、點別處收起——真的用 tap,不用 hover 冒充。
+//  7) 語系漂移:A6/A7/B3 比的是畫面上的中文字,Playwright chromium 預設 en-US 會讓整頁變英文而假紅
+//     (08-28 多語上線後一直紅)。網址 ?lang 與 context locale 兩道都釘,A0/B0 具名閘門先確認真的是中文。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -19,6 +21,10 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 5271;
+// 網址 ?lang 是 index.html 自己的最高優先語系開關(query > localStorage > navigator);
+// context locale 管 navigator.language 與沒帶 locale 的 Intl——兩道缺一,閘門就要紅。
+const PAGE_LOCALE = 'zh-TW';
+const PAGE_QS = `?lang=${PAGE_LOCALE}`;
 
 // ── 第一道 gate:先證明驗的是這棵樹(心得 32:驗收腳本吃錯目標會兩輪全綠) ──
 const INDEX = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
@@ -110,20 +116,42 @@ const ENVELOPE = buildEnvelope(RIDES);
 const allErrors = [];
 
 async function bootPage(browser, { width = 1280, height = 900, touch = false } = {}) {
-  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, deviceScaleFactor: 1 });
+  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, deviceScaleFactor: 1, locale: PAGE_LOCALE });
   await ctx.addInitScript((envelope) => {
     localStorage.setItem('trainmap-howto-seen', '1');       // 首訪教學卡會蓋住地圖內元件
     localStorage.setItem('trainmap-appearance', 'light');
     localStorage.setItem('trainmap-passport-open', '1');
     localStorage.setItem('trainmap-user-data-v1', JSON.stringify(envelope));
+    // 閘門要驗進場網址帶了 ?lang,但開機途中 clearFollow() 會 replaceState 抹掉整條 query,
+    // 事後讀 location.search 恆為空。init script 跑在頁面任何 script 之前,這裡存到的才是進場網址。
+    window.__bootSearch = location.search;
   }, ENVELOPE);
   const page = await ctx.newPage();
   page.on('pageerror', e => allErrors.push('pageerror: ' + e));  // waitReady 逾時多半是 boot 靜默拋錯
   page.on('console', m => { if (m.type() === 'error') allErrors.push('console: ' + m.text()); });
-  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`http://localhost:${PORT}/${PAGE_QS}`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready; } catch (e) { return false; } }, null, { timeout: 30000 });
   await page.waitForTimeout(500);
   return { ctx, page };
+}
+
+// 具名前置閘門:這一頁真的是中文。語系一漂,A6/A7/B3 會各報各的英文字串,看不出共同上游。
+// 期望值是這裡手打的中文字面,不從頁面反推。兩個樣本各是 A6 標題與 A7 狀態讀的那條翻譯,
+// 在 en 之下都會變值(實測「First journey」「Not yet」)。nav 守第二道釘子:只有 context locale
+// 漂掉時,其餘幾項全靠網址 ?lang 撐著照樣會綠。
+async function langGate(page, tag) {
+  const g = await page.evaluate(() => ({
+    lang: window.__i18n ? window.__i18n.lang : null,
+    doc: document.documentElement.lang,
+    nav: navigator.language,
+    qs: window.__bootSearch,
+    name: window.__i18n ? window.__i18n.t('初乘紀念') : null,
+    st: window.__i18n ? window.__i18n.t('未達成') : null,
+  }));
+  ok(`${tag}0 語系釘死在 zh-TW(文案判準的前提)`,
+    g.lang === PAGE_LOCALE && g.doc === PAGE_LOCALE && g.nav === PAGE_LOCALE &&
+    new URLSearchParams(g.qs || '').get('lang') === PAGE_LOCALE && g.name === '初乘紀念' && g.st === '未達成',
+    JSON.stringify(g));
 }
 
 // 卡片的可見性證據:①rect 整個在視窗內 ②裁圖不是單一底色(≥12 種相異色)
@@ -168,6 +196,7 @@ async function popEvidence(page) {
   const browser = await chromium.launch();
   const { ctx, page } = await bootPage(browser);
   console.log('\n═══ A. chromium 1280×900 — 桌面 hover ═══');
+  await langGate(page, 'A');
 
   const seals = await page.evaluate(() =>
     Array.from(document.querySelectorAll('#passport .seal[data-ach]')).map(e => e.dataset.ach));
@@ -255,12 +284,23 @@ async function popEvidence(page) {
   const browser = await webkit.launch();
   const { ctx, page } = await bootPage(browser, { width: 390, height: 844, touch: true });
   console.log('\n═══ B. webkit 390×844 觸控 — 手機點按 ═══');
+  await langGate(page, 'B');
 
   await page.evaluate(() => { if (typeof openRidePanel === 'function') openRidePanel(); });
   await page.waitForTimeout(400);
   const chips = await page.evaluate(() =>
     Array.from(document.querySelectorAll('#ridePanel .achv-chip[data-ach]')).map(e => e.dataset.ach));
   ok('B1 手機護照 sheet 長出 21 枚成就 chip', chips.length === 21, `實測 ${chips.length} 枚`);
+
+  // A3 的 sheet 版:sheet 是另一份 markup(buildAchv 'chip'＋帶日期的 buildStamps),A3 只量得到桌面 #passport。
+  // 桌面也開得出這張 sheet,留著 title 一樣兩層提示。收集章數要 >0,否則「0 殘留」是空過(chip 數由 B1 把關)。
+  const sheetTitle = await page.evaluate(() => ({
+    left: document.querySelectorAll('#ridePanel [data-ach][title], #ridePanel [data-tip][title]').length,
+    ach: document.querySelectorAll('#ridePanel [data-ach]').length,
+    tip: document.querySelectorAll('#ridePanel [data-tip]').length,
+  }));
+  ok('B1b 手機護照 sheet 的成就 chip/收集章也不殘留原生 title', sheetTitle.tip > 0 && sheetTitle.left === 0,
+    `殘留 ${sheetTitle.left} 個(成就 ${sheetTitle.ach}、收集章 ${sheetTitle.tip})`);
 
   const target = 'rider5';
   const sel = `#ridePanel .achv-chip[data-ach="${target}"]`;

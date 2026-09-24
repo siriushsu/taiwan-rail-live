@@ -5511,6 +5511,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="achvhelp"><span class="d">9/25</span><span>護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框</span></li>
         <li data-cl-of="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：照台鐵公布的班表，當天那幾班的列車卡會有介紹，今日亮點和搜尋「寶可夢」也找得到</span></li>
         <li data-cl-of="bustransferall"><span class="d">9/24</span><span>修正臺北市公車擁擠度的過期判斷：超過 3 分鐘的資料改標示過期，不再當成即時資料</span></li>
         <li data-cl-of="busstop0911"><span class="d">9/24</span><span>修正臺北市公車站牌的到站時間最多會卡在兩小時前、整列顯示「資料已過期」</span></li>
@@ -5518,7 +5519,6 @@
         <li data-cl-of="terrainrtt0923"><span class="d">9/23</span><span>地景地圖開啟地形時，立體車站周圍的地面不再殘留舊的建築輪廓</span></li>
         <li data-cl-of="followtrack0923"><span class="d">9/23</span><span>台鐵、高鐵的跟車卡加入進站軌道：列車在上一站與下一站之間跑，靠站時停在站牌旁，發車才換到下一段</span></li>
         <li data-cl-of="mwstall0923"><span class="d">9/23</span><span>修正 iPhone 捷運等車卡偶爾十幾分鐘停住不更新</span></li>
-        <li data-cl-of="widgetbg0923"><span class="d">9/23</span><span>桌面小工具新增「背景」設定，可選車模、場景或素色</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5785,6 +5785,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="achvhelp"><span class="d">9/25</span><span>護照成就章新增說明卡，顯示達成條件、建議與目前進度；明星列車、車種圖鑑與支線收集章也能查看內容。9/25 修正滑鼠停在章上時，說明卡旁邊還會多跳出瀏覽器的小提示框</span></li>
         <li data-cl="checkinsync0923"><span class="d">9/23</span><span>打卡車站與搭乘路段次數加入帳號雲端同步：手機上累積的「通勤的證明」「老通勤族」進度與車站收集，登入同一帳號的電腦或另一台手機也看得到；以前這兩項只留在搭乘的那台裝置上，電腦登入會顯示 0（謝謝網友回報）</span></li>
         <li data-cl="appnoticegeo0919"><span class="d">9/19</span><span>App 的長提示改為完整換行，即使頂部工具與列車卡片之間空間不夠，也不再只剩上半句，點通知外面就能提前收起；任何傾斜視角都會隱藏定位精度圈、脈動環與藍點，回到平面視角才恢復</span></li>
         <li data-cl="favstangeo0916"><span class="d">9/16</span><span>最愛車站星號整合至站名標籤避免遮蔽文字，隨視距自然淡出；傾斜跟車時自動隱藏定位大圈與脈動環，維持 3D 視角純淨</span></li>
@@ -5792,7 +5793,6 @@
         <li data-cl="dexstarsys0908"><span class="d">9/8</span><span>修正護照收集章「環島之星 萌旅號」：台鐵與阿里山林鐵都有 1、2 次車，點下去會跑成林鐵的車。收集章與今日亮點現在只認台鐵班次</span></li>
         <li data-cl="rideseq"><span class="d">9/3</span><span>完乘記錄新增「順序」排序，依實際完成先後排列；手機旅程護照也補上順序、日期、車次、距離與車種排序（謝謝網友回報）</span></li>
         <li data-cl="guestmerge"><span class="d">9/1</span><span>登入後若裝置仍有登入前或其他帳號留下的資料，帳號面板會列出數量並讓你選擇併入；既有雲端資料不會被覆蓋（謝謝網友回報）</span></li>
-        <li data-cl="achvhelp"><span class="d">8/18</span><span>護照成就章新增說明卡，顯示達成條件、建議與目前進度；明星列車、車種圖鑑與支線收集章也能查看內容。</span></li>
         <li data-cl="linecomplete"><span class="d">8/14</span><span>縱貫線北段完乘率卡在 99%：新竹–北新竹是與內灣線共用的同一段軌道，以前只算給其中一條線。現在兩條線都算得到，已收集的紀錄不用重搭就會自動補上（謝謝網友回報）</span></li>
         <li data-cl="checkinplatform"><span class="d">8/14</span><span>單站蓋章改用月台範圍判定：像汐科這種月台特別長的車站，以前站在月台中段或另一端都按不下去，現在整條月台上任何位置都蓋得到章。全台鐵 241 座車站裡有 239 座換上各自的月台範圍（謝謝網友回報）</span></li>
         <li data-cl="favtrainkey"><span class="d">8/3</span><span>台鐵與高鐵有些車次號碼相同，過去收藏其中一班會蓋掉另一班，移除時也會兩班一起消失；現在最愛列車會連同鐵路系統分開辨認，同號車可以各自收藏與移除</span></li>
@@ -6631,7 +6631,9 @@
 // v0925a：寶可夢30周年主題列車（9/25–12/13）：具名列車可用 trainNosByDate 依營運日輪替車次，specialOf 按每一趟
 //         所屬營運日比對（跨午夜那段算前一天；頁面開著跨過午夜、名冊不是今天的，只認跨夜接續那一趟，其餘不標）；
 //         今日亮點、搜尋、列車卡跟著走，跟隨中那一趟換了營運日列車卡會重畫；收藏標籤不寫進去。
-const BUILD = 'v0925a';
+// v0925b：護照成就章／收集章拿掉原生 title——08-28 多語那批重套到含說明卡的版本時加了回來，桌面滑鼠停上去
+//         說明卡與瀏覽器提示同時出現；讀螢幕軟體仍讀成就的 aria-label（守門：verify_achv_help A3／B1b）。
+const BUILD = 'v0925b';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -23677,8 +23679,10 @@ function buildStamps(rides, opts) {
         const foot = i.got ? ((withDate && dateOf(cat, i.id)) || t('已收藏')) : t('點我重播');
         // 🔴 說明卡讀的是 data-tip/data-tipname,不是原生 title:title 在手機上完全看不到,
         //    而「怎麼拿到這枚章」正是手機使用者最需要的那句話(feat/achv-help)。
+        //    也不要再掛回原生 title:桌面會跟說明卡同時冒出兩層提示(08-28 多語那批重套時加回來過;
+        //    verify_achv_help 的 A3/B1b 守)。
         return `<span class="seal${i.got ? '' : ' na'}" data-cat="${escHtml(cat)}" data-id="${escHtml(i.id)}"` +
-          ` data-tip="${escHtml(t(i.tip))}" data-tipname="${escHtml(t(i.name))}" title="${escHtml(t(i.tip))}">${sealName(t(i.name))}<small>${escHtml(foot)}</small></span>`;
+          ` data-tip="${escHtml(t(i.tip))}" data-tipname="${escHtml(t(i.name))}">${sealName(t(i.name))}<small>${escHtml(foot)}</small></span>`;
       }).join('') + `</div>`;
   };
   const named = sd.namedTrains.filter(n => n.trainNos.length).map(n => // 無固定車次的觀光列車搭不到,不列入收集
@@ -23804,15 +23808,17 @@ function bindHelpPop() {
 }
 bindHelpPop();
 // 成就:桌面用金/灰圓章(style='seal',與舊版逐字相同,護照零變化),護照 sheet 用 chips(style='chip',mock C)
+// 🔴 不掛原生 title:達成條件由說明卡(bindHelpPop)顯示,留著 title 桌面會同時冒出兩層提示;
+//    讀螢幕軟體讀的是 aria-label(名稱＋條件)。verify_achv_help 的 A3/B1b 守這件事。
 function buildAchv(rides, style) {
   const ach = unlockedAchievements(rides);
   if (style === 'chip') {
     return phSec('achv', ACHIEVEMENTS.length, null, `${escHtml(t('成就'))}<b>${i18nNumber(ach.size)}/${i18nNumber(ACHIEVEMENTS.length)}</b>`) + `<div class="achv-chips">` +
-      ACHIEVEMENTS.map(a => `<span class="achv-chip${ach.has(a.id) ? ' on' : ''}" data-ach="${escHtml(a.id)}" tabindex="0" title="${escHtml(t(a.desc))}" aria-label="${escHtml(t(a.name) + '：' + t(a.desc))}">${railIcon(a.icon)}<span>${escHtml(t(a.name))}</span></span>`).join('') + `</div>`;
+      ACHIEVEMENTS.map(a => `<span class="achv-chip${ach.has(a.id) ? ' on' : ''}" data-ach="${escHtml(a.id)}" tabindex="0" aria-label="${escHtml(t(a.name) + '：' + t(a.desc))}">${railIcon(a.icon)}<span>${escHtml(t(a.name))}</span></span>`).join('') + `</div>`;
   }
   return phSec('achv', ACHIEVEMENTS.length, null, `${escHtml(t('成就徽章'))}<b>${i18nNumber(ach.size)}/${i18nNumber(ACHIEVEMENTS.length)}</b>`) + `<div class="ph-stamps">` +
     ACHIEVEMENTS.map(a =>
-      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" data-ach="${escHtml(a.id)}" tabindex="0" title="${escHtml(t(a.desc))}" aria-label="${escHtml(t(a.name) + '：' + t(a.desc))}">${sealName(t(a.name), 'achv')}<small>${railIcon(a.icon)}</small></span>`).join('') + '</div>';
+      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" data-ach="${escHtml(a.id)}" tabindex="0" aria-label="${escHtml(t(a.name) + '：' + t(a.desc))}">${sealName(t(a.name), 'achv')}<small>${railIcon(a.icon)}</small></span>`).join('') + '</div>';
 }
 // 完乘記錄列:桌面與 sheet 共用同一 markup,mode 決定排序(桌面隨排序鈕,sheet 固定 date 最新在前)
 function buildRideRows(rides, mode) {

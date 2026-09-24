@@ -364,7 +364,9 @@ async function desktopCore(browser, engine) {
         train: stockTrain ? document.getElementById('tcIntro').textContent.replace(/\s+/g, ' ').trim() : '',
         stamps: asText(buildStamps([])),
         achievements: asText(buildAchv([], 'chip')),
-        achievementTitles: [...achievementHost.querySelectorAll('.achv-chip')].map(item => item.title),
+        // 成就的滑鼠提示是說明卡(achHelpHtml 的 .hp-cond),不是原生 title——title 已拿掉,
+        // 留著會跟說明卡同時冒出兩層提示(verify_achv_help A3/B1b)。
+        achievementHover: ACHIEVEMENTS.map(a => { const node = document.createElement('div'); node.innerHTML = achHelpHtml(a.id); return node.querySelector('.hp-cond')?.textContent || ''; }),
         achievementLabels: [...achievementHost.querySelectorAll('.achv-chip')].map(item => item.getAttribute('aria-label')),
         help: document.getElementById('helpBody').textContent.replace(/\s+/g, ' ').trim(),
         footer: document.querySelector('.site-foot').textContent.replace(/\s+/g, ' ').trim(),
@@ -380,7 +382,7 @@ async function desktopCore(browser, engine) {
     assert(contentEn.train && !/undefined|i18n\./i.test(contentEn.train), `英文特色車種卡未正確渲染：${contentEn.train}`);
     assert(/Breezy\s*Blue/.test(contentEn.stamps) && /Pingxi\s*Line/.test(contentEn.stamps) && contentEn.stamps.includes('EMU3000'), `英文護照圖鑑未翻譯：${contentEn.stamps}`);
     await page.locator('#verifyAchv .achv-chip').first().hover();
-    assert(contentEn.achievements.includes('First journey') && contentEn.achievementTitles.includes('Complete your first full journey') && contentEn.achievementLabels.some(label => label.includes('First journey') && label.includes('Complete your first full journey')), `英文成就 hover／輔助說明未翻譯：${JSON.stringify(contentEn.achievementTitles.slice(0, 3))}`);
+    assert(contentEn.achievements.includes('First journey') && contentEn.achievementHover.includes('Complete your first full journey') && contentEn.achievementLabels.some(label => label.includes('First journey') && label.includes('Complete your first full journey')), `英文成就 hover／輔助說明未翻譯：${JSON.stringify(contentEn.achievementHover.slice(0, 3))}`);
     await page.evaluate(() => document.getElementById('verifyAchv')?.remove());
     assert(contentEn.help.includes('Search stations, train numbers and train names') && contentEn.help.includes('Journey Passport and completion stamps') && contentEn.help.includes('Background music'), `英文使用說明未完整翻譯：${contentEn.help.slice(0, 1000)}`);
     assert(contentEn.footer.includes('Data sources and licences') && contentEn.footer.includes('independent hobby project'), `英文資料來源介紹未翻譯：${contentEn.footer.slice(-1200)}`);
@@ -414,7 +416,7 @@ async function desktopCore(browser, engine) {
       help: document.getElementById('helpBody').textContent.replace(/\s+/g, ' ').trim(),
       named: document.getElementById('searchDrop').textContent.replace(/\s+/g, ' ').trim(),
       achievements: (() => { const node = document.createElement('div'); node.innerHTML = buildAchv([], 'chip'); return node.textContent.replace(/\s+/g, ' ').trim(); })(),
-      achievementTitles: (() => { const node = document.createElement('div'); node.innerHTML = buildAchv([], 'chip'); return [...node.querySelectorAll('.achv-chip')].map(item => item.title); })(),
+      achievementHover: ACHIEVEMENTS.map(a => { const node = document.createElement('div'); node.innerHTML = achHelpHtml(a.id); return node.querySelector('.hp-cond')?.textContent || ''; }),
       officialDestination: stationName('動物園站', 'mrt'),
       history: document.querySelector('.foot-more').textContent.replace(/\s+/g, ' ').trim(),
       metroWait: document.getElementById('metroWaitPicker').textContent.replace(/\s+/g, ' ').trim(),
@@ -433,7 +435,7 @@ async function desktopCore(browser, engine) {
     assert(immediate.help.includes('駅・列車番号・列車名を検索') && immediate.help.includes('旅程パスポートと完乗スタンプ'), '已開啟使用說明沒有跟著即時切成日文');
     assert(immediate.named.includes('山嵐号') && immediate.named.includes('花東縦谷'), '已開啟觀光列車介紹沒有跟著即時切成日文');
     assert(immediate.achievements.includes('初乗り記念') && immediate.history.includes('これまでの更新'), '日文成就或精簡更新歷史未翻譯');
-    assert(immediate.achievementTitles.includes('最初の完乗を達成') && immediate.officialDestination === '動物園', `日文成就 hover 或官方終點站 fallback 未翻譯：${JSON.stringify(immediate)}`);
+    assert(immediate.achievementHover.includes('最初の完乗を達成') && immediate.officialDestination === '動物園', `日文成就 hover 或官方終點站 fallback 未翻譯：${JSON.stringify(immediate)}`);
     assert(immediate.metroWait.includes('追跡時間') && immediate.metroWait.includes('方向を選択') && immediate.metroWait.includes('南港展覧館') && !immediate.metroWait.includes('追蹤'), `日文等車選單未即時翻譯：${immediate.metroWait}`);
     assert(immediate.alertChipAria === '運行情報。タップして詳細を表示' && immediate.alertChipTitle === '運行情報' && immediate.shareView === '画面を共有', `日文營運公告控制項／分享畫面未翻譯：${JSON.stringify(immediate)}`);
     assert(immediate.reviewedCopy.join('|') === '鑑賞モード|◌ 鑑賞モード|鑑賞モードを終了|431列車|431列車を追跡|乗車する|下車する・行先：台北', `日文複核用語未統一：${JSON.stringify(immediate.reviewedCopy)}`);
