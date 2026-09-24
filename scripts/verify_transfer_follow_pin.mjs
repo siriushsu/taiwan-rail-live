@@ -340,18 +340,22 @@ async function runEngine(engineName, engine) {
       ok(P('F5pre1 手機殼成立(body.fs + MOBILE_MQ + 卡不在整合槽 + sheet 尚未開)'),
         shell.fs && shell.mobile && !shell.trainOpen && !shell.inUniSlot, JSON.stringify(shell));
 
-      // 🔴 F5pre2:量任何座標之前,先等「會把卡片撐高的最後一個非同步欄位」到位。
+      // 🔴 F5pre2:量任何座標之前,先等那個晚到、會把卡片撐高的非同步欄位(立體列車編組說明)到位。
       // 立體列車接點(rail-3d.js)是延遲載入的:attach() 動態 import map3d.js、createLiveMap 完成後,
       // 同一個 render() 裡的 updateNote() 才把編組說明 .ri-formation-caption append 到 #followPanel 尾端
-      // (手機跟車時 followHeadLocked 為真,縮放 12 也會畫;桌面縮放 <13.8 不畫,所以桌面段不受影響)。
-      // 手機小卡是下錨往上長 ⇒ 說明到位那一刻,卡裡每個元件的上緣一起上移 48px,恰好一列 .xfc-row 高。
-      // 2026-09-24 實測(ship-web 約 1/6、單獨連跑 30 次中 2 次):F7 量 .fp-next 在說明到位之前(y=325)、
-      // tap 在之後;事件探針看到點擊【有派發、沒被吃掉】,只是落在上移後的 .xfc-t(排除清單內)
-      // ⇒ train-open=false。F5 在同一個窗口則會點到下一列、釘錯班次。
-      // 等的是產品自己的完成訊號:renderer 掛上(同 verify_3d_framing 的就緒判準)且說明已寫進這班車的
-      // 編組;立體列車整個掛不上(載入結束、沒有 renderer、errors 非空)就不會有說明、也就沒有這次位移,
-      // 同樣算到位。errors 單獨非空不算——renderer 在跑時 onError 也會往裡塞非致命錯誤,說明照樣會晚到。
+      // (手機跟車時 followHeadLocked 為真,縮放 12 也會畫;桌面縮放 <13.8 提早 return 不畫,桌面段因此不受影響)。
+      // 手機小卡是下錨往上長 ⇒ 說明到位那一刻,卡裡每個元件的上緣一起上移(今天兩行 48px,約一列 .xfc-row 高)。
+      // 2026-09-24 實測(ship-web 約 1/6;單獨連跑 2/30;加 CPU 負載 7/30):F7 量 .fp-next 在說明到位之前
+      // (y=325)、tap 在之後;事件探針看到點擊【有派發、沒被吃掉】,只是落在上移後的 .xfc-t(排除清單內)
+      // ⇒ train-open=false。F5 在同一個窗口會點到下一列、釘錯班次(獨立複審重現過)。
+      // 等的是產品自己的完成訊號:renderer 掛上(同 verify_3d_framing 的就緒判準)且說明已寫進這班車的編組;
+      // map3d.js／createLiveMap 失敗(載入結束、沒有 renderer、errors 非空)就不會有說明、也沒有這次位移,
+      // 同樣算到位。errors 單獨非空不算——renderer 在跑時 onError 也會塞非致命錯誤,說明照樣會晚到。
+      // rail-3d.js 開頭的 import 失敗則 railIslandIntegration 永遠不存在 ⇒ 這裡逾時紅(頁面也會報 console.error)。
       // 不用「連續幾次取樣不動」:失敗那一輪說明到位前,卡片已經連續靜止 770ms,取樣法照樣被騙。
+      // 放行之後已知還會動兩次,都小於點擊目標的半高、推不出目標:實體股道晚於 renderer 到時說明多一行
+      // (上移 16.5px;今天股道都先到)、速度膠囊開機 5 秒轉淡(下移 11px)。真的推出去時,F5/F7 的
+      // 「落點」會直接寫出點到誰。
       const note3d = await page.waitForFunction(() => {
         const ri = window.railIslandIntegration;
         if (!ri) return false;
@@ -359,7 +363,7 @@ async function runEngine(engineName, engine) {
         const cap = document.querySelector('#followPanel .ri-formation-caption');
         return cap && !cap.hidden && cap.textContent.trim() ? { caption: cap.textContent.trim() } : false;
       }, null, { timeout: 30000 }).then(h => h.jsonValue(), e => ({ timeout: String(e.message).slice(0, 100) }));
-      ok(P('F5pre2 手機:量座標前,卡片最後一個非同步欄位(立體列車編組說明)已到位'), !note3d.timeout, JSON.stringify(note3d));
+      ok(P('F5pre2 手機:量座標前,晚到會撐高卡片的立體列車編組說明已到位'), !note3d.timeout, JSON.stringify(note3d));
 
       // 落點記錄器(capture 階段、只記不攔):F5/F7 紅的時候要分得出三種原因——點擊根本沒派發(被吃掉)/
       // 派發了但落在別的元件(座標過期)/落在目標上但產品沒反應。2026-09-24 那次 F7 紅只留下
@@ -368,8 +372,12 @@ async function runEngine(engineName, engine) {
         window.__taps = [];
         window.addEventListener('click', e => {
           const el = e.target, cls = el && typeof el.className === 'string' ? el.className.trim() : '';
+          const near = s => el && el.closest ? el.closest(s) : null;
           window.__taps.push({
             on: el && el.tagName ? el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (cls ? '.' + cls.split(/\s+/).join('.') : '') : String(el),
+            x: Math.round(e.clientX), y: Math.round(e.clientY), // 觸控校正會把合成 click 吸到鄰近可點元件,座標不一定等於 tap 點
+            next: !!near('#followPanel .fp-next'),
+            row: (near('#fpConn .xfc-row') || { dataset: {} }).dataset.xn || null,
             connected: !!(el && el.isConnected),
           });
         }, true);
@@ -394,6 +402,7 @@ async function runEngine(engineName, engine) {
           hitTag: el && el.tagName, hitCls: el && String(el.className).slice(0, 40),
         };
       });
+      const tap5 = await tapCount(); // 在量座標之前取:量完到 tap 之間不再多一趟往返,不拉長要防的那個窗口
       let probe = null;
       for (let i = 0; i < 25; i++) {
         probe = await PROBE();
@@ -404,7 +413,6 @@ async function runEngine(engineName, engine) {
       ok(P('F5pre4 手機:該座標命中的是接續列本身(沒被 tab bar 之類的家具蓋住)'), !!probe && probe.inRow, JSON.stringify(probe));
       if (probe && probe.inRow) {
         const noM = probe.no;
-        const tap5 = await tapCount();
         await page.touchscreen.tap(probe.x + probe.width / 2, probe.y + probe.height / 2);
         await page.waitForFunction(() => !!state.xferPin, null, { timeout: 3000 }).catch(() => {});
         // sheet 是動畫上滑的:多等一拍,不要讓「還沒滑上來」冒充成「沒有被打開」。
@@ -421,13 +429,16 @@ async function runEngine(engineName, engine) {
         // 🔴 F7 正向對照必須在 F6 之後、同一頁做:少了它,F6 的「train-open 維持 false」在那條
         // 分支根本沒被走到時是恆真的空斷言。刻意不擺在 F5/F6 前面——開關一次「列車」sheet 會讓
         // 跟隨小卡重新排版,收合動畫期間量到的座標會落在別的家具上(見上面 F5pre3 的註解)。
+        const tap7 = await tapCount(); // 同 tap5:量座標之前取
         const nextBox = await page.evaluate(() => {
           const e = document.querySelector('#followPanel .fp-next');
           if (!e) return null;
           const b = e.getBoundingClientRect();
-          return { x: b.x, y: b.y, width: b.width, height: b.height };
+          // 量座標的同一拍記下中心點此刻打得到誰:inNext 為真、落點卻不在 .fp-next ⇒ 量完到 tap 之間又位移了;
+          // inNext 為假 ⇒ 量的當下就被別的家具蓋住。
+          const hit = b.width > 0 ? document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2) : null;
+          return { x: b.x, y: b.y, width: b.width, height: b.height, inNext: !!(hit && hit.closest && hit.closest('#followPanel .fp-next')) };
         });
-        const tap7 = await tapCount();
         if (nextBox && nextBox.width > 0) {
           await page.touchscreen.tap(nextBox.x + nextBox.width / 2, nextBox.y + nextBox.height / 2);
           await page.waitForFunction(() => document.body.classList.contains('train-open'), null, { timeout: 3000 }).catch(() => {});
