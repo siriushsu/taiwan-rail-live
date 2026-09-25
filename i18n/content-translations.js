@@ -3205,3 +3205,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框；用鍵盤按 Tab 移到章上也會打開說明卡，收集章按 Enter 等於點一下': 'パスポートの実績バッジとコレクションスタンプにマウスを乗せたとき、説明カードだけが表示され、ブラウザのツールチップが重ねて出なくなりました。キーボードのTabでバッジやスタンプに移動しても説明カードが開きます。コレクションスタンプはEnterでクリックと同じ操作になります',
 });
+// 2026-09-25 iPad 橫向／手機橫放「觀看」鈕浮在畫面中間：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '修正 iPad 橫向和手機橫放時，「觀看」按鈕跑到畫面中間；沒開卡片時會回到右上角的按鈕列': 'Fixed the “View” button drifting to the middle of the screen on iPad in landscape and on phones turned sideways; with no card open it now sits back in the button row at the top right.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '修正 iPad 橫向和手機橫放時，「觀看」按鈕跑到畫面中間；沒開卡片時會回到右上角的按鈕列': 'iPad の横向きやスマートフォンを横にしたとき、「表示」ボタンが画面の中央に出てしまう問題を修正しました。カードを開いていないときは右上のボタン列に戻ります',
+});

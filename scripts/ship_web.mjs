@@ -614,9 +614,11 @@ try {
     + '（單獨重跑：npm run check-anomaly）');
 
   // 觀看入口是沉浸模式的退出路徑；雙引擎真點進入、重開、退出與重載。
+  // 2026-09-25 加側欄模式（手機橫放、平板橫向）的觀看鈕位置：沒開卡片留在右上工具列、開卡片或跟車才讓到側欄左邊，
+  // 先前只量手機直向與桌面，iPad 橫向鈕浮在畫面中間從 9/14 起沒有任何閘門看得到。約 40 秒。
   const viewControls = spawnSync('node', [path.join(wt, 'scripts', 'verify_view_controls_gate.mjs')], { cwd: wt, encoding: 'utf8' });
   process.stdout.write(viewControls.stdout || ''); process.stderr.write(viewControls.stderr || '');
-  if (viewControls.status !== 0) fail('觀看設定與沉浸模式退出驗收未通過');
+  if (viewControls.status !== 0) fail('觀看設定、側欄模式觀看鈕位置或沉浸模式退出驗收未通過（單獨重跑：node scripts/verify_view_controls_gate.mjs）');
 
   // ── 2.24 護照成就章／收集章說明卡守門人(2026-09-25) ────────────────────────
   // 為什麼值得進出貨鏈(2.8 那把「成本 vs 保護」的尺):它守的缺陷 (a) 對真人 100% 復現——桌面滑鼠停在章上,
