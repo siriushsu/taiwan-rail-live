@@ -95,7 +95,7 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
    // 月台外側那段不砌牆：牆＝concrete 批次裡 y 厚 .16、高 .95 的方塊。月台範圍外的前直線要有牆，當正向對照。
    let wallInPlatform=0,wallElsewhere=0;for(const w of inst('concrete'))for(let i=0;i<w.count;i++){w.getMatrixAt(i,m);m.decompose(pos,rot,scl);if(Math.abs(scl.y-.16)>1e-6||Math.abs(scl.z-.95)>1e-6||pos.y>q0.y-2)continue;if(Math.abs(pos.x)<pl/2)wallInPlatform++;else if(Math.abs(pos.x)<19)wallElsewhere++;}
    sc.dispose();t.dispose();prim.dispose();
-   return{wheel,roof,railOffsets,railTop,railBottom,pathZ:q0.z,tieCount:ties.count,tieExpected:Math.ceil(path.length/.42),offPath,tieTop,wireZ,canopyUnder:deckZ-.05+2.92,mastCount,mastsOnPlatformSide,wallInPlatform,wallElsewhere};
+   return{wheel,roof,railOffsets,railTop,railBottom,pathZ:q0.z,tieCount:ties.count,tieExpected:Math.ceil(path.length/.42),offPath,tieTop,wireZ,canopyUnder:sc.canopyBox.min.z,mastCount,mastsOnPlatformSide,wallInPlatform,wallElsewhere};
   });
   check(engine+' 軌距對齊車模輪對（輪對位置每次從車模頂點重量）',track.railOffsets[0]<0&&track.railOffsets[1]>0&&track.railOffsets.every(o=>Math.abs(Math.abs(o)-track.wheel)<.06),{wheel:track.wheel,railOffsets:track.railOffsets});
   check(engine+' 軌頂托住輪底、軌底坐在枕木上',Math.abs(track.railTop-track.pathZ)<1e-6&&Math.abs(track.railBottom-track.tieTop)<1e-6,{railTop:track.railTop,pathZ:track.pathZ,railBottom:track.railBottom,tieTop:track.tieTop});
@@ -136,7 +136,7 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
     const hallWall=hall.filter(b=>b.sx>pl*.6&&b.sy>2);   // 其中整面的那塊牆（立面柱與玻璃帶也從地面立到月台底，不算）
     const cars=inst.filter(b=>b.m==='car'&&Math.abs(b.y-deckY)<3.2&&Math.abs(b.x)<pl/2+2),scooters=inst.filter(b=>b.m==='scooter'&&Math.abs(b.y-deckY)<3.2),paving=inst.filter(b=>b.m==='paving'&&Math.abs(b.y-deckY)<.5);
     const heads=inst.filter(b=>b.m==='lamp'&&b.y<a.station[1]-2),pools=inst.filter(b=>b.m==='lamp-pool'),streetPools=pools.filter(b=>b.y<a.station[1]-2);   // 路燈燈頭與路面光池：在站房前那條馬路上
-    const out={lamps,dayI,sunsetI,nightI,pool:{day:D.pool,sunset:U.pool,night:N.pool,dayVisible:D.poolVisible,nightVisible:N.poolVisible},heads,pools:pools.length,streetPools:streetPools.length,groundZ,platZ,py,pl,deckY,stationX:a.station[0],stationY:a.station[1],hall:hall.length,hallWall:hallWall.length,cars:cars.length,scooters:scooters.length,paving:paving.length,length:s.path.length};s.dispose();return out;});
+    const out={lamps,dayI,sunsetI,nightI,pool:{day:D.pool,sunset:U.pool,night:N.pool,dayVisible:D.poolVisible,nightVisible:N.poolVisible},heads,pools:pools.length,streetPools:streetPools.length,groundZ,platZ,platTop:s.platform.top,py,pl,deckY,stationX:a.station[0],stationY:a.station[1],hall:hall.length,hallWall:hallWall.length,cars:cars.length,scooters:scooters.length,paving:paving.length,length:s.path.length};s.dispose();return out;});
    const street=facts.heads,plat=facts.lamps.filter(l=>l.name.startsWith('platform-lamp')),entrance=facts.lamps.find(l=>l.name==='station-entrance');
    const ys=street.map(l=>l.y),xs=street.map(l=>l.x);
    check(engine+' 夜燈配置：馬路一排路燈（燈頭＋路面光池）、月台燈、站房入口燈；白天全暗、黃昏半亮、夜裡全亮；點光源不超過八盞（多了 headless 開頁會掉 context）',street.length>=6&&Math.max(...ys)-Math.min(...ys)<.1&&Math.max(...xs)-Math.min(...xs)>30&&street.every(l=>l.z>facts.groundZ+2.4)&&facts.streetPools>=6&&facts.pools>=8&&plat.length>=2&&!!entrance&&facts.lamps.length<=8&&facts.dayI.every(i=>i===0)&&facts.nightI.every(i=>i>0)&&facts.sunsetI.every((i,k)=>i>0&&i<facts.nightI[k])&&facts.pool.day===0&&facts.pool.dayVisible===false&&facts.pool.night>.3&&facts.pool.nightVisible===true&&facts.pool.sunset>0&&facts.pool.sunset<facts.pool.night,{street:street.length,streetPools:facts.streetPools,pools:facts.pools,platform:plat.length,entrance:!!entrance,pointLights:facts.lamps.length,dayMax:Math.max(...facts.dayI),nightMin:Math.min(...facts.nightI),pool:facts.pool});
@@ -144,7 +144,7 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
    const G=facts.groundZ,[lampA,lampB]=[...street].sort((a,b)=>a.x-b.x);   // 最左兩盞：中間沒停車、離站房遠
    const road=[[lampA.x,lampA.y-.1,G+.05],[(lampA.x+lampB.x)/2,lampA.y-.1,G+.05]];                 // 路燈正下方的路面 vs 兩盞之間
    const station=[facts.stationX,facts.stationY-2.9,G+.95];                                         // 站房面街那面的一樓玻璃
-   const platPt=[plat[0].x,facts.py-2.3,facts.platZ+.44],pier=[13.6,facts.deckY-.76,G+2.0];         // 月台面（燈下）與遠處一根橋墩正面（沒燈）當基準
+   const platPt=[plat[0].x,facts.py-2.3,facts.platTop+.02],pier=[13.6,facts.deckY-.76,G+2.0];         // 月台面（燈下）與遠處一根橋墩正面（沒燈）當基準
    const hallPt=[7.0,facts.py-2.87,G+2.1],band=[6.0,facts.py-2.9,G+2.6];   // 站體二樓窗帶：離入口燈 9.6 遠（點光源照射距離 6），夜裡會亮只能是玻璃自己發光                                                            // 站體面街那面、站房右邊露出的牆面
    const day=await sample([...road,station,platPt,pier,hallPt,band]);await p.tap('button[data-period="night"]');await settle(p);const night=await sample([...road,station,platPt,pier,hallPt,band]);await p.tap('button[data-period="day"]');await settle(p);
    const pool=s=>s[0].l/Math.max(1,s[1].l),platRatio=s=>s[3].l/Math.max(1,s[4].l);

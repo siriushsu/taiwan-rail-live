@@ -28,5 +28,28 @@ if(on('T1')){
  {const a=tt.at(10800.3),k=Math.floor(10800.3/tt.lap),b=tt.at(10800.3-k*tt.lap),m=((a.distance-b.distance)%L+L)%L;check('T1 長跑 3 小時同一圈位置一致',a.phase===b.phase&&Math.abs(a.local-b.local)<1e-6&&Math.min(m,L-m)<1e-6&&a.doors===b.doors,{a:a.local,b:b.local});}
 }
 
+if(on('T2')){
+ const pf=probe.platform,railTop=probe.path.sample(0).z,threshold=asset.doors?.threshold??.921;
+ const M=new THREE.Matrix4(),pos=new THREE.Vector3(),rot=new THREE.Quaternion(),scl=new THREE.Vector3(),inst=[];
+ for(const o of probe.group.children)if(o.isInstancedMesh)for(let i=0;i<o.count;i++){o.getMatrixAt(i,M);M.decompose(pos,rot,scl);inst.push({m:o.material.name||'',x:pos.x,y:pos.y,z:pos.z,sx:scl.x,sy:scl.y,sz:scl.z});}
+ const slab=inst.find(b=>b.m==='concrete'&&Math.abs(b.sx-probe.params.platformLength)<1e-6&&b.sy>3);
+ const bridge=inst.find(b=>b.m==='concrete'&&b.x>pf.bridge.x0&&b.x<pf.bridge.x1&&b.y<pf.outer&&b.y>pf.hutFront);
+ check('T2 月台方塊內緣＝platform.edge、外緣＝platform.outer、頂面＝platform.top',slab&&Math.abs(slab.y+slab.sy/2-pf.edge)<1e-6&&Math.abs(slab.y-slab.sy/2-pf.outer)<1e-6&&Math.abs(slab.z+slab.sz/2-pf.top)<1e-6,slab);
+ check('T2 車身側面到月台邊間隙 0.03～0.1（車身半寬由車模尺寸推得）',Math.abs(pf.trackY-pf.edge)-asset.sizeM[1]/2*scale>=.03&&Math.abs(pf.trackY-pf.edge)-asset.sizeM[1]/2*scale<=.1,{gap:Math.abs(pf.trackY-pf.edge)-asset.sizeM[1]/2*scale});
+ check('T2 月台面與車門踏板高度差 <0.01',Math.abs(pf.top-(railTop+threshold*scale))<.01,{top:pf.top,sill:railTop+threshold*scale,threshold});
+ check('T2 天橋面與月台面齊平（<0.01）且接上月台外緣',bridge&&Math.abs(bridge.z+bridge.sz/2-pf.top)<.01&&Math.abs(bridge.y-bridge.sy/2-pf.hutFront)<1e-6&&Math.abs(bridge.y+bridge.sy/2-pf.outer)<1e-6,bridge);
+ const yellow=inst.filter(b=>Math.abs(b.sy-.16)<1e-6&&Math.abs(b.sz-.03)<1e-6);
+ check('T2 黃線在新月台邊內側 0.12、貼在月台面上',yellow.length===1&&Math.abs(yellow[0].y-(pf.edge-.12))<1e-6&&Math.abs(yellow[0].z-(pf.top+.01))<1e-6,yellow);
+ const box=probe.canopyBox;
+ check('T2 雨棚外框：在接觸線之上、不伸過月台邊（範圍不往內加長）',box.min.z>probe.contactWireZ+.5&&box.max.y<pf.edge-1.5,{min:box.min,max:box.max,wire:probe.contactWireZ});
+ const mats=[...new Set(probe.group.children.filter(o=>o.isInstancedMesh&&/^canopy-/.test(o.material.name)).map(o=>o.material))];
+ const ver=()=>mats.map(m=>m.version).join(',');
+ const v0=ver();probe.setCanopyOpacity(.25);const faded=mats.every(m=>m.transparent&&!m.depthWrite&&m.opacity===.25),v1=ver();
+ probe.setCanopyOpacity(.5);const v2=ver();probe.setCanopyOpacity(1);const solid=mats.every(m=>!m.transparent&&m.depthWrite&&m.opacity===1),v3=ver();
+ check('T2 雨棚四種材質一起淡；只有跨過不透明的那一下才重編 shader',mats.length===4&&faded&&solid&&v0!==v1&&v1===v2&&v2!==v3&&probe.canopyOpacity===1,{names:mats.map(m=>m.name),faded,solid});
+ const shadowless=probe.group.children.filter(o=>o.isInstancedMesh&&['canopy-beam','canopy-lamp'].includes(o.material.name));
+ check('T2 雨棚樑與燈板不投影',shadowless.length===2&&shadowless.every(o=>!o.castShadow),shadowless.map(o=>[o.material.name,o.castShadow]));
+}
+
 probe.dispose();
 const fails=results.filter(r=>!r.pass).length;console.log(`共 ${results.length} 項：FAIL ${fails}`);if(fails)process.exitCode=1;

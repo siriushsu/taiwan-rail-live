@@ -16,7 +16,9 @@ export const DEFAULTS = {
  pierSpacing:3.4,     // 柱距
  canopy:'modern',     // 'modern' 薄平頂 ｜ 'simple' 單斜頂
  backdrop:'coast',    // 'coast' 靠海平原 ｜ 'fields' 水田平原
- label:'西部幹線高架'
+ label:'西部幹線高架',
+ platformEdge:.685,      // 軌道中心到月台邊：車身半寬 .625＋間隙 .06
+ platformAboveRail:.38   // 月台面高出軌頂：車門踏板頂 .921 車模公尺 × .4124
 };
 
 export function createScene(params = {}) {
@@ -39,6 +41,10 @@ export function createScene(params = {}) {
  // 道床與電車線的材質。sleeper／mast／concrete 有名字，驗收腳本靠名字在合批網格裡找到它們。
  const ballast=mat('#8b8577'),sleeper=mat('#c6c1b4'),railSide=mat('#6e6259',{metalness:.35,roughness:.6}),wire=mat('#4c4a46',{metalness:.5,roughness:.4}),mastSteel=mat('#b9bcb6',{metalness:.5,roughness:.45});
  sleeper.name='sleeper';mastSteel.name='mast';concrete.name='concrete';
+ // 雨棚自己一份材質（頂板、邊條、樑、燈板）：擋到車門時要能單獨淡掉，不能連站房、長椅一起淡。
+ const canopyCream=cream.clone(),canopyAccent=accent.clone(),canopySteel=steel.clone(),canopyLamp=lamp.clone(),hutDoor=mat('#26292d');
+ canopyCream.name='canopy-slab';canopyAccent.name='canopy-edge';canopySteel.name='canopy-beam';canopyLamp.name='canopy-lamp';hutDoor.name='hut-doorway';
+ const canopyMats=[canopyCream,canopyAccent,canopySteel,canopyLamp];canopyMats.forEach(m=>materials.add(m));
 
  // 同材質的靜態方塊合批，柱子與欄杆不各佔一次 draw call。
  const batches=new Map(),dummy=new THREE.Object3D();
@@ -143,30 +149,34 @@ export function createScene(params = {}) {
  strips(wire,[[-.015,wireZ,.015,wireZ]]).name='contact-wire';
 
  // 月台：沿前直線外側，長度吃 platformLength
+ // 只往軌道那側擴寬到貼齊車身（外側邊界、雨棚柱、長椅、樓梯接口不動），月台面抬到車門踏板高；月台上的設施一起抬 lift。
  const pl=p.platformLength,py=cy-radius-3.1,platZ=deckZ-.05;
- block(concrete,[pl,3.0,.42],[0,py-1.5,platZ+.21]);
- block(yellowLine,[pl,.16,.03],[0,py-.12,platZ+.43]);
- for(let x=-pl/2+1;x<pl/2;x+=2.4)block(concreteDark,[.5,.5,.02],[x,py-.12,platZ+.44]);
+ const trackY=cy-radius,edge=trackY-p.platformEdge,outer=py-3.0,top=railZ+p.platformAboveRail,lift=top-(platZ+.42);
+ const obstacles=[],benches=[],signs=[],box2=(x,y,hx,hy)=>({x0:x-hx,x1:x+hx,y0:y-hy,y1:y+hy});   // 乘客走位用的平面外框，與下面的方塊同一組算式
+ block(concrete,[pl,edge-outer,top-platZ],[0,(edge+outer)/2,(platZ+top)/2]);
+ block(yellowLine,[pl,.16,.03],[0,edge-.12,top+.01]);
+ for(let x=-pl/2+1;x<pl/2;x+=2.4)block(concreteDark,[.5,.5,.02],[x,edge-.37,top+.02]);
  // 雨棚
  const columns=Math.max(3,Math.round(pl/3.2));
  for(let i=0;i<columns;i++){const x=-pl/2+.9+i*(pl-1.8)/(columns-1);
-  block(steel,[.22,.22,2.5],[x,py-2.5,platZ+1.67]);
-  if(p.canopy==='modern')block(steel,[.3,2.6,.12],[x,py-1.6,platZ+2.9]);
+  block(steel,[.22,.22,2.5],[x,py-2.5,platZ+1.67+lift]);obstacles.push(box2(x,py-2.5,.11,.11));
+  if(p.canopy==='modern')block(canopySteel,[.3,2.6,.12],[x,py-1.6,platZ+2.9+lift]);
  }
  if(p.canopy==='modern'){
-  block(cream,[pl-.6,4.1,.16],[0,py-1.45,platZ+3.0]);
+  block(canopyCream,[pl-.6,4.1,.16],[0,py-1.45,platZ+3.0+lift]);
   // 邊條略伸出雨棚兩端與外側，避免同平面的異色端面在跟車時互搶深度。
-  block(accent,[pl-.5,.12,.22],[0,py+.64,platZ+2.94]);
+  block(canopyAccent,[pl-.5,.12,.22],[0,py+.64,platZ+2.94+lift]);
  } else {
-  block(cream,[pl-.6,3.6,.14],[0,py-1.6,platZ+2.86],[0.12,0,0]);
+  block(canopyCream,[pl-.6,3.6,.14],[0,py-1.6,platZ+2.86+lift],[0.12,0,0]);
  }
  // 月台上的座椅、站名牌、燈
  const lights=[],addLight=(name,x,y,z,k=1,dist=7)=>{const l=new THREE.PointLight('#ffd193',0,dist,2);l.position.set(x,y,z);l.name=name;l.userData.k=k;group.add(l);lights.push(l);return l;};
  for(let i=0;i<Math.max(2,Math.floor(pl/6));i++){const x=-pl/2+3+i*5.4;
-  block(cream,[1.5,.45,.1],[x,py-2.2,platZ+.72]);block(steel,[1.5,.06,.35],[x,py-2.42,platZ+.9]);
-  block(steel,[.09,.09,1.5],[x+1.8,py-2.6,platZ+1.2]);block(cream,[1.1,.1,.4],[x+1.8,py-2.6,platZ+1.95]);
-  addLight('platform-lamp-'+i,x,py-1.6,platZ+2.7,2.4);
-  block(lamp,[.9,.5,.08],[x,py-1.6,platZ+2.86]);
+  block(cream,[1.5,.45,.1],[x,py-2.2,platZ+.72+lift]);block(steel,[1.5,.06,.35],[x,py-2.42,platZ+.9+lift]);
+  block(steel,[.09,.09,1.5],[x+1.8,py-2.6,platZ+1.2+lift]);block(cream,[1.1,.1,.4],[x+1.8,py-2.6,platZ+1.95+lift]);
+  benches.push({x,y:py-2.2,seat:platZ+.77+lift});signs.push({x:x+1.8,y:py-2.6});obstacles.push({x0:x-.75,x1:x+.75,y0:py-2.45,y1:py-1.975},box2(x+1.8,py-2.6,.045,.045));
+  addLight('platform-lamp-'+i,x,py-1.6,platZ+2.7+lift,2.4);
+  block(canopyLamp,[.9,.5,.08],[x,py-1.6,platZ+2.86+lift]);
  }
 
  // 地面站房與連通樓梯
@@ -182,8 +192,12 @@ export function createScene(params = {}) {
  block(signBoard,[3.8,.16,.5],[-1,streetY-.06,groundZ+2.98]);
  addLight('station-entrance',-1,streetY-.7,groundZ+1.7,1.2,6);
  block(concreteDark,[2.2,1.6,.6],[2.4,stationY+.9,groundZ+3.82]);
- const bridgeBack=stationY+.3,bridgeFront=py-1.9,stairY=stationY+.9;
- block(concrete,[3.0,bridgeFront-bridgeBack,.3],[3.6,(bridgeBack+bridgeFront)/2,platZ-.1]);   // 天橋
+ // 天橋抬到與月台面齊平、不做台階；靠站房那端是坐在站房屋頂上的樓梯口小屋（乘客從它的門洞進出，進去就看不見）。
+ const bridgeBack=stationY+.3,hutFront=bridgeBack+1.7,stairY=stationY+.9,roofTop=groundZ+3.52,bridgeX=3.55,bridgeW=2.9;
+ block(concrete,[bridgeW,outer-hutFront,.3],[bridgeX,(hutFront+outer)/2,top-.15]);   // 天橋
+ block(cream,[3.0,hutFront-bridgeBack,top+1.2-roofTop],[3.5,(bridgeBack+hutFront)/2,(roofTop+top+1.2)/2]);   // 樓梯口小屋
+ block(roof,[3.3,2.0,.14],[3.5,(bridgeBack+hutFront)/2,top+1.27]);
+ block(hutDoor,[1.4,.02,1.0],[2.92,hutFront+.01,top+.5]);   // 門洞中心＝乘客走道中線（長椅擋住天橋右段後的 2.44～3.40）
  block(concrete,[3.0,.3,platZ-.4-groundZ],[3.6,stairY,(groundZ+platZ-.4)/2]);                 // 樓梯間
  for(let z=groundZ;z<platZ-.5;z+=.42)block(concreteDark,[2.6,.5,.1],[3.6,stairY+(z/platZ)*.3,z]);
  // 月台底下的站體（穿堂層）：月台不再懸空。一樓兩面玻璃牆、街側二樓窗帶、沿柱距一排立面柱；天橋從街側站房進到它的二樓。
@@ -237,16 +251,24 @@ export function createScene(params = {}) {
   o.castShadow=o.receiveShadow=true;o.instanceMatrix.needsUpdate=true;group.add(o);
  }
  const poolMesh=group.children.find(o=>o.isInstancedMesh&&o.material===poolMat);if(poolMesh)poolMesh.castShadow=poolMesh.receiveShadow=false;
+ // 雨棚：樑與燈板不投影（淡出時不留一排影子，也少兩個陰影 draw call）；外框給鏡頭→車門射線判斷遮擋。
+ const canopyMeshes=group.children.filter(o=>o.isInstancedMesh&&canopyMats.includes(o.material)),canopyBox=new THREE.Box3();
+ for(const o of canopyMeshes){if(o.material===canopySteel||o.material===canopyLamp)o.castShadow=false;o.computeBoundingBox();canopyBox.union(o.boundingBox);}
+ let canopyOpacity=1;
+ // 不透明時關掉 transparent，免得每幀多一次排序；只有跨過 1 的那一下才重編 shader。
+ function setCanopyOpacity(a){const next=Math.min(1,Math.max(0,a));if(next===canopyOpacity)return;const flip=(next<1)!==(canopyOpacity<1);canopyOpacity=next;
+  for(const m of canopyMats){m.opacity=next;if(flip){m.transparent=next<1;m.depthWrite=next>=1;m.needsUpdate=true;}}}
+ const platform={trackY,edge,outer,top,xMin:-pl/2,xMax:pl/2,hutFront,bridge:{x0:bridgeX-bridgeW/2,x1:bridgeX+bridgeW/2,y0:hutFront,y1:outer},obstacles,benches,signs};
 
  const anchors={platform:[0,py-1.5,platZ+.4],station:[-1,stationY,groundZ+1.6],deck:[0,cy-radius,deckZ],backdrop:[0,seaY0+seaDepth/2,groundZ+.04]};
 
  return {
-  group,path,anchors,params:p,label:p.label,themes:THEMES,
+  group,path,anchors,params:p,label:p.label,themes:THEMES,platform,canopyBox,setCanopyOpacity,get canopyOpacity(){return canopyOpacity;},contactWireZ:wireZ,
   camera:{yaw:-1.12,elevation:.58,radius:50},
   update(time,period='day'){
    const t=THEMES[period]||THEMES.day;
    if(waterMat){waterMat.color.set(t.water);const sh=waterMat.userData.shader;if(sh){sh.uniforms.seaTime.value=time;sh.uniforms.shallow.value.set(t.shallow);}}
-   glass.emissiveIntensity=t.window*1.1;lamp.emissiveIntensity=t.lamp*1.3;signBoard.emissiveIntensity=t.lamp*1.1;
+   glass.emissiveIntensity=t.window*1.1;lamp.emissiveIntensity=canopyLamp.emissiveIntensity=t.lamp*1.3;signBoard.emissiveIntensity=t.lamp*1.1;
    props.glass.emissiveIntensity=t.window;for(const s of props.signs)s.emissiveIntensity=t.window*.7;
    for(const l of lights)l.intensity=t.lamp*9*l.userData.k;   // 燭光值（cd）：月台燈 22、入口 11
    poolMat.opacity=t.lamp*.8;if(poolMesh)poolMesh.visible=t.lamp>0;

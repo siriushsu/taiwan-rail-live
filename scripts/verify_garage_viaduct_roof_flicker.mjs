@@ -17,7 +17,7 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
   for(const [version,module]of [['before',old],['after',fixed]]){
    const model=module.createScene(),s=new T.Scene();s.background=new T.Color('#e7e8e1');s.add(model.group,new T.HemisphereLight('#ffffff','#777777',2));const sun=new T.DirectionalLight('#ffffff',3);sun.position.set(30,-30,45);s.add(sun);
    for(const part of ['red','blue']){
-    const target=new T.Vector3(...(part==='red'?[version==='before'?9.2:9.25,version==='before'?-9.05:-8.96,6.94]:[version==='before'?4.9:5,-14.4979744,2.66]));
+    const target=new T.Vector3(...(part==='red'?[version==='before'?9.2:9.25,version==='before'?-9.05:-8.96,version==='before'?6.94:7.13]:[version==='before'?4.9:5,-14.4979744,2.66]));
     const cam=new T.OrthographicCamera(-.4,.4,.4,-.4,.1,200);cam.up.set(0,0,1);const samples=[];
     for(let i=0;i<48;i++){
      const yaw=-.8+i*.008;cam.position.copy(target).add(new T.Vector3(Math.cos(yaw)*70,Math.sin(yaw)*70,20));cam.lookAt(target);renderer.render(s,cam);ctx.drawImage(canvas,0,0);const data=ctx.getImageData(126,126,5,5).data;const rgb=[0,0,0];for(let j=0;j<data.length;j+=4)for(let k=0;k<3;k++)rgb[k]+=data[j+k]/25;samples.push(rgb);
