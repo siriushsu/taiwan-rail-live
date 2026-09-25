@@ -396,10 +396,15 @@ const MODES = {
     //   ＋小工具背景 A／C（iOS feat/widget-bg-ios-ac bb499f19、Android feat/widget-bg-android-ac c5b5a820，
     //   含台鐵看板班數跟高度走的背景版）＋台鐵等站卡 B（feat/tra-wait-b-card 200a892e；伺服器端 v0923b 已上線）。
     //   why 三語 09-23 使用者核准（202／497／306 字元）。
-    marketing: '1.6.11', build: '124', music: true, metroCore: true, androidPlus: true,
-    why: '軌島 1.6.11\n\n・桌面小工具新增「背景」設定：車模、場景或素色\n・等車卡加入進站軌道：列車從上一站沿軌道開向你的車站，台北捷運跟著官方倒數、台鐵跟著官方誤點（iPhone 鎖定畫面與動態島、Android 16 通知）\n・Android 桌面的台鐵發車看板依卡片高度排滿班次\n・打卡車站與搭乘路段次數跟著帳號雲端同步，換一台裝置登入也看得到\n・跟車前進時，沿途建築的透視線條會持續更新，卡頓也減少了',
-    whyEn: 'Rail Island 1.6.11\n\n• Widgets get a new Background setting: Train model, Scene, or Plain\n• Waiting cards show an arrival track: the train moves from the previous station toward yours, following official countdowns (Taipei Metro) and delays (TRA). iPhone Lock Screen, Dynamic Island, Android 16\n• The Android TRA board widget fills the card with trains\n• Check-ins and ride counts sync with your account across devices\n• While following a train, building outlines keep updating, with fewer stutters',
-    whyJa: '軌島 1.6.11\n\n・ホーム画面ウィジェットに「背景」設定を追加しました（車両モデル・情景・無地）\n・待ち案内カードに到着トラックを追加しました。列車が前の駅からあなたの駅へ進み、台北メトロは公式カウントダウン、台鉄は公式の遅延に合わせて動きます（iPhone のロック画面とダイナミックアイランド、Android 16 の通知）\n・Android の台鉄発車案内ウィジェットが、カードの高さに合わせて列車を並べるようになりました\n・チェックインした駅と乗車区間の回数がアカウントで同期され、別の端末でも見られるようになりました\n・列車を追従中、沿線の建物の輪郭線が走行に合わせて更新され、カクつきも減りました',
+    // 125／Android 64（2026-09-26）：Apple lookup 1.6.11 已於 09-24T05:52Z 上架、Play 1.6.11 (63) 09-23 已更新
+    //   ⇒ 行銷版號進到 1.6.12；124／63 已上架不重用號。載貨＝origin/main（網站 v0926b：台鐵班表窗 9/26–10/9、
+    //   寶可夢主題列車 v0925a／v0925c、左營站區平面、A4 層位、面板標題遮擋與長站名溢出、閘門改空埠）
+    //   ＋跟車卡台鐵／高鐵進站軌道（iOS 3c64ce49、Android 63be5384）＋iOS 捷運等車卡改用推播 tick（3cfd1e5e）。
+    //   why 三語待使用者核准（299／498／431 字元）。
+    marketing: '1.6.12', build: '125', music: true, metroCore: true, androidPlus: true,
+    why: '軌島 1.6.12\n\n・認得出寶可夢 30 周年主題列車（9/25–12/13）：當天那幾班的車牌寫成「寶可夢 2183」，列車卡附介紹\n・台鐵、高鐵跟車卡加入進站軌道（iPhone 鎖定畫面與動態島、Android 16 通知）\n・iPhone 捷運等車卡的列車每 30 秒往前挪一格\n・機捷改用台灣設計展最新公告的班表，10/12 起接上展後班表\n・淡海輕軌假日往崁頂、往淡水漁人碼頭的車改回停靠新市一路\n・立體地圖：高鐵左營站區改回平面；臺北車站的臺鐵列車不再畫在屋頂上，高捷紅線地下段不再浮在地面上\n・跟隨立體列車時的頓挫再減少\n・修正 iPhone 英日文介面選到長名稱時，畫面能左右拖動',
+    whyEn: 'Rail Island 1.6.12\n\n• Labels the Pokémon 30th Anniversary Train (Sep 25–Dec 13) with its own plate and intro\n• TRA and THSR follow cards get an arrival track\n• iPhone metro cards move the train every 30 seconds\n• Airport MRT: latest Design Expo timetable, post-expo from Oct 12\n• Danhai LRT weekend trains stop at Xinshi 1st Rd. again\n• 3D map: fixed heights at Zuoying, Taipei Station and the Kaohsiung Red Line\n• Smoother 3D train following\n• Fixed iPhone screens sliding sideways with long names',
+    whyJa: '軌島 1.6.12\n\n・ポケモン30周年テーマ列車（9/25–12/13）に対応しました。当日の該当列車は地図の車番が「ポケモン 2183」のように表示され、列車カードに紹介が付きます\n・台鉄・高鉄の追従カードに到着トラックを追加しました（iPhone のロック画面とダイナミックアイランド、Android 16 の通知）\n・iPhone の地下鉄待ち案内カードで、列車が30秒ごとに前へ進むようになりました\n・空港MRTを台湾デザイン展の最新の公式ダイヤに更新し、10/12 からは閉幕後のダイヤに切り替わります\n・淡海ライトレールの休日の崁頂・淡水漁人碼頭方面が、新市一路に再び停車するようになりました\n・3D地図：高鉄左営駅構内を平面に戻し、台北駅の台鉄列車と高雄MRT紅線の地下区間が地上に浮かないようにしました\n・3D列車の追従がさらに滑らかになりました\n・iPhone の英語・日本語表示で、長い名前を選ぶと画面が左右に動いてしまう問題を修正しました',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
