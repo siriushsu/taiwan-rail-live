@@ -5519,6 +5519,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="ridekbfocus0925"><span class="d">9/25</span><span>旅程護照用鍵盤往回移動時，被選到的章與按鈕不再被最上方的標題列蓋住</span></li>
         <li data-cl-of="garageselect0908"><span class="d">9/25</span><span>修正 iPhone 用英文或日文介面時，車庫選到名稱較長的車款，整個畫面會被左右拖動、左邊被切掉</span></li>
         <li data-cl-of="placedup0925"><span class="d">9/25</span><span>修正地圖上站名旁邊又出現同名地名、字疊在一起的問題，例如竹北站旁的「竹北市」</span></li>
         <li data-cl-of="followcard0925"><span class="d">9/25</span><span>跟車小卡的三個小修正：跟車時切換語言，車種和起訖會立刻換過來；虛構 8888 在手機上的關閉鈕不再被擠到第二行；第一次跟車時「車頭鎖定：開啟」的提示不再被蓋掉最後一個字</span></li>
@@ -5526,7 +5527,6 @@
         <li data-cl-of="danhaiv06_0925"><span class="d">9/25</span><span>淡海輕軌假日從紅樹林出發的車，改回每班都停新市一路：站牌也看得到往崁頂、往淡水漁人碼頭的班次（謝謝網友回報）</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷週一到週四也跟上台灣設計展疏運班表（9/24–10/11）：下午 4 點到晚上 8 點，機場第一航廈到環北加開區間車，南延直達車改到機場第二航廈為止</span></li>
         <li data-cl-of="viewcontrols0914"><span class="d">9/25</span><span>修正 iPad 橫向和手機橫放時，「觀看」按鈕跑到畫面中間；沒開卡片時會回到右上角的按鈕列</span></li>
-        <li data-cl-of="achvhelp"><span class="d">9/25</span><span>護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框；用鍵盤按 Tab 移到章上也會打開說明卡，收集章按 Enter 等於點一下</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5795,6 +5795,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="ridekbfocus0925"><span class="d">9/25</span><span>修正旅程護照用鍵盤往回移動（Shift+Tab）時，被選到的成就章、收集章與按鈕會停在最上方的標題列底下看不到；現在會停在標題下方，字級調大也一樣</span></li>
         <li data-cl="achvhelp"><span class="d">9/25</span><span>護照成就章新增說明卡，顯示達成條件、建議與目前進度；明星列車、車種圖鑑與支線收集章也能查看內容。9/25 修正滑鼠停在章上時，說明卡旁邊還會多跳出瀏覽器的小提示框，並讓鍵盤也能打開說明卡；英日文版收集章的文字改成滑鼠、觸控都適用的說法</span></li>
         <li data-cl="checkinsync0923"><span class="d">9/23</span><span>打卡車站與搭乘路段次數加入帳號雲端同步：手機上累積的「通勤的證明」「老通勤族」進度與車站收集，登入同一帳號的電腦或另一台手機也看得到；以前這兩項只留在搭乘的那台裝置上，電腦登入會顯示 0（謝謝網友回報）</span></li>
         <li data-cl="appnoticegeo0919"><span class="d">9/19</span><span>App 的長提示改為完整換行，即使頂部工具與列車卡片之間空間不夠，也不再只剩上半句，點通知外面就能提前收起；任何傾斜視角都會隱藏定位精度圈、脈動環與藍點，回到平面視角才恢復</span></li>
@@ -6669,6 +6670,8 @@
 // v0925k：車庫選車款的下拉選單加 overflow:hidden（train-garage.css）——WebKit 把選中那項的整行字寬算進 #trainGarage
 //         的捲動範圍，英日文長車名讓 iPhone 上整個車庫能左右拖動、左邊被切掉（00a5c02d 車名改走翻譯起）；
 //         選單外觀逐像素不變（守門：verify_garage_loop webkit 360/375 en）。
+//         旅程護照(#ridePanel)捲動區頂端讓出 sticky 標題的實高(rideHeadRO)：鍵盤 Shift+Tab 往回走時，成就膠囊與
+//         收集章不再停在標題底下（守門：verify_founding_seal G2.360.5）。
 const BUILD = 'v0925k';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
@@ -20951,6 +20954,18 @@ function recordRide(tr) {
   renderPassport();
   announceCollections(tr, rides, prevColl, prevAch, prevGarage);
 }
+// #ridePanel 的 h3 是 sticky 標題,瀏覽器自己把內容捲進來時(Tab／Shift+Tab 聚焦、scrollIntoView)不認 sticky:
+// 手機 sheet 預設小段只有 230px,Shift+Tab 往回走時,成就膠囊與收集章整顆停在標題底下(說明卡照開、錨點卻看不到;
+// 2026-09-25 實測 360–768 兩個引擎、標準與特大字級都有)。捲動區頂端讓出「標題實高＋下緣間距」=內容捲在最上面時
+// 本來的位置。用量的、不用字級推算:標題行高是 normal,三種字級×兩個引擎實測 36–48px 各不相同。
+// h3 每次重繪都是新節點,renderRidePanel 每次重掛。守門:verify_founding_seal G2.360.5(拿掉這段就紅;
+// 375 以上的寬度那支閘門照不到,鍵盤往回走要另外驗)。
+const rideHeadRO = window.ResizeObserver ? new ResizeObserver(entries => {
+  for (const { target: h3 } of entries) {
+    const rp = h3.parentElement, h = h3.getBoundingClientRect().height;
+    if (rp && h > 0) rp.style.scrollPaddingTop = (h + (parseFloat(getComputedStyle(h3).marginBottom) || 0)) + 'px';
+  }
+}) : null;
 // 護照 sheet(Batch B):與桌面 #passport 合併=同一份 builder;收集章→成就(chips)→完乘記錄(全量,最新在前)
 function renderRidePanel() {
   const el = document.getElementById('ridePanel');
@@ -20986,6 +21001,7 @@ function renderRidePanel() {
     (list ? `<div class="ph-list">${list}</div>`
       : `<div class="ph-empty">${escHtml(t('還沒有完乘記錄——從地圖角落「探」挑一班有趣的車，陪它跑完全程吧。'))}</div>`);
   el.querySelector('#rideClose').onclick = closeRidePanel;
+  if (rideHeadRO) { rideHeadRO.disconnect(); rideHeadRO.observe(el.querySelector(':scope > h3')); }
   // 灰章/金章點擊:與桌面一致觸發重播(followDexStamp);sheet 內先關面板再跟車(比照亮點列)
   el.onclick = e => {
     if (e.target.closest('.close')) return;

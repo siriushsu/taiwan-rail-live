@@ -3260,3 +3260,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '修正 iPhone 用英文或日文介面時，車庫選到名稱較長的車款，整個畫面會被左右拖動、左邊被切掉': 'iPhone で英語または日本語表示のとき、マイ車庫で名前の長い車両を選ぶと画面全体が左右に動かせてしまい、左側が切れる問題を修正しました',
 });
+// 2026-09-25 旅程護照鍵盤往回移動被標題列蓋住：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '旅程護照用鍵盤往回移動時，被選到的章與按鈕不再被最上方的標題列蓋住': 'In the Travel passport, moving back with the keyboard no longer leaves the selected stamp or button hidden under the title bar.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '旅程護照用鍵盤往回移動時，被選到的章與按鈕不再被最上方的標題列蓋住': '旅のパスポートでキーボードを使って前の項目に戻るとき、選んだ章やボタンが上部のタイトルバーに隠れないようにしました',
+});
