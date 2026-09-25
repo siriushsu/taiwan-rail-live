@@ -5536,6 +5536,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="subwayfloat0925"><span class="d">9/25</span><span>3D 地圖上臺北車站的臺鐵列車不再畫在車站屋頂上，高捷紅線地下段也不再浮在地面上；新左營臺鐵與高雄輕軌被頂高的地方回到原位</span></li>
         <li data-cl-of="kbfocusselect0925"><span class="d">9/25</span><span>用鍵盤往回移動時，我的最愛、車站看板等面板選到的項目不再被標題列蓋住；iPhone 英文介面選到長站名時，畫面不再能左右拖動</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷 10/12 起改用台灣設計展結束後的班表：機場第一航廈到環北的區間加班車停開，南延直達車恢復停高鐵桃園站、開到環北</span></li>
         <li data-cl-of="zuoyingflat0925"><span class="d">9/25</span><span>高鐵左營站進站那段改回平面：3D 地圖不再把站區畫成高架橋，北邊的高架照舊（謝謝網友回報）</span></li>
@@ -5543,7 +5544,6 @@
         <li data-cl-of="ridekbfocus0925"><span class="d">9/25</span><span>旅程護照用鍵盤往回移動時，被選到的章與按鈕不再被最上方的標題列蓋住</span></li>
         <li data-cl-of="garageselect0908"><span class="d">9/25</span><span>修正 iPhone 用英文或日文介面時，車庫選到名稱較長的車款，整個畫面會被左右拖動、左邊被切掉</span></li>
         <li data-cl-of="placedup0925"><span class="d">9/25</span><span>修正地圖上站名旁邊又出現同名地名、字疊在一起的問題，例如竹北站旁的「竹北市」</span></li>
-        <li data-cl-of="followcard0925"><span class="d">9/25</span><span>跟車小卡的三個小修正：跟車時切換語言，車種、起訖和準點率會立刻換過來；虛構 8888 在手機上的關閉鈕不再被擠到第二行；第一次跟車時「車頭鎖定：開啟」的提示不再被蓋掉最後一個字</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5953,6 +5953,7 @@
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
         <li><span class="d">7/11</span><span>可以安裝到主畫面（PWA），像 App 一樣全螢幕開啟</span></li>
         <li class="grp">資料校正</li>
+        <li data-cl="subwayfloat0925"><span class="d">9/25</span><span>高捷紅線與臺北臺鐵地下化（板橋～南港）改回畫在地面下：原本只因沿線一小段靠山（半屏山、南港）就被當成山岳隧道，整段畫在地面上約 8 公尺，連帶把交會的新左營臺鐵、高雄車站地下段、高雄輕軌與南港高鐵頂高</span></li>
         <li data-cl="zuoyingflat0925"><span class="d">9/25</span><span>高鐵左營站區（到北緯 22.7011 為止）改回平面：官方橋隧圖資把站區畫成橋樑，但高鐵左營站是平面站、月台在 1 樓；北邊的高架照舊（謝謝網友回報）</span></li>
         <li data-cl="tengyun0925"><span class="d">9/25</span><span>EMU3000 新自強的車種介紹改成「多數班次有騰雲座艙（特仕車編組除外）」，不再寫得像每班都有（謝謝網友提問）</span></li>
         <li data-cl="danhaiv06_0925"><span class="d">9/25</span><span>淡海輕軌假日往崁頂、往淡水漁人碼頭的車，改回照官方時刻停靠新市一路；原本假日這個方向每班都過站不停，站牌也只剩往紅樹林（謝謝網友回報）</span></li>
@@ -6711,7 +6712,14 @@
 //         由 boardRevealField 聚焦後補捲(守門：verify_board_scroll_pad)。
 //         跟車卡「接公車」「我上車了」、到站提醒、車站／地標導覽(rail-3d.css)的 <select> 加 overflow:hidden——WebKit
 //         把選中那項的整行字寬算進外層捲動範圍,英文長站名讓整張卡能左右拖動(最多 127px)。選單外觀逐像素不變。
-const BUILD = 'v0925p';
+// v0926b：高捷紅線 5 條與臺北臺鐵地下化 67 條 way 改回都市地下段——build_rail_levels 原本只看整段隧道的最高點
+//         （高出洞口 ≥20 m 就算山岳隧道），一小段靠山（半屏山 0.64／35.6 km、南港 1.99／55 km）就讓整段沿用洞口外高架
+//         的 +8 m：平面地圖浮在地面上，交會淨距再把新左營臺鐵、高雄車站地下段、輕軌愛河之心／凱旋、南港高鐵頂高。
+//         改成高出洞口 20 m 的取樣要占整段 5% 以上（MOUNTAIN_SHARE；全國只翻這兩段，下一段是 10%）。level-profiles.json
+//         完整重算後用 scripts/splice_mountain_share_profiles_0925.mjs 只換進高雄、臺北兩框 270 筆，蘇澳保留解不動；
+//         verify_rail_structure_heights G4 山岳分母改 ≥220，加改判名單與平面高度具名斷言（2026-09-25 裁示 A4）。
+//         同批出貨：台鐵班表窗重抓（9/26～10/9，寶可夢列車 10/3 起的車次才認得出來）、v0925p 面板修正、出貨閘門改空埠。
+const BUILD = 'v0926b';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
