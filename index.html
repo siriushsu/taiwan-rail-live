@@ -5793,7 +5793,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
-        <li data-cl="achvhelp"><span class="d">9/25</span><span>護照成就章新增說明卡，顯示達成條件、建議與目前進度；明星列車、車種圖鑑與支線收集章也能查看內容。9/25 修正滑鼠停在章上時，說明卡旁邊還會多跳出瀏覽器的小提示框，並讓鍵盤也能打開說明卡</span></li>
+        <li data-cl="achvhelp"><span class="d">9/25</span><span>護照成就章新增說明卡，顯示達成條件、建議與目前進度；明星列車、車種圖鑑與支線收集章也能查看內容。9/25 修正滑鼠停在章上時，說明卡旁邊還會多跳出瀏覽器的小提示框，並讓鍵盤也能打開說明卡；英日文版收集章的文字改成滑鼠、觸控都適用的說法</span></li>
         <li data-cl="checkinsync0923"><span class="d">9/23</span><span>打卡車站與搭乘路段次數加入帳號雲端同步：手機上累積的「通勤的證明」「老通勤族」進度與車站收集，登入同一帳號的電腦或另一台手機也看得到；以前這兩項只留在搭乘的那台裝置上，電腦登入會顯示 0（謝謝網友回報）</span></li>
         <li data-cl="appnoticegeo0919"><span class="d">9/19</span><span>App 的長提示改為完整換行，即使頂部工具與列車卡片之間空間不夠，也不再只剩上半句，點通知外面就能提前收起；任何傾斜視角都會隱藏定位精度圈、脈動環與藍點，回到平面視角才恢復</span></li>
         <li data-cl="favstangeo0916"><span class="d">9/16</span><span>最愛車站星號整合至站名標籤避免遮蔽文字，隨視距自然淡出；傾斜跟車時自動隱藏定位大圈與脈動環，維持 3D 視角純淨</span></li>
@@ -5822,7 +5822,7 @@
         <li data-cl="widgetrailjump0919"><span class="d">9/19</span><span>從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走</span></li>
         <li data-cl="cexpiostap0919"><span class="d">9/19</span><span>修正 iPhone／iPad 底部速度膠囊點不開：淡出把手點一下只會醒來，第二下常被誤導點到旁邊的暫停鍵；現在放開手指就直接展開，不再誤觸暫停。Android／桌面不受影響。</span></li>
         <li data-cl="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕：右側按鈕列載入後會變長，提示現在會跟著往下讓位</span></li>
-        <li data-cl="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補齊按鈕、路線名、公告、看板與提示，修正切換語言時殘留或誤換文字；長文案可分兩行，三鶯線公告列出首末班，iOS 定位權限說明補上中文；搜尋清單關閉後不再自行彈回</span></li>
+        <li data-cl="i18ngaps0919"><span class="d">9/19</span><span>英日文介面補齊按鈕、路線名、公告、看板與提示，修正切換語言時殘留或誤換文字；長文案可分兩行，三鶯線公告列出首末班，iOS 定位權限說明補上中文；搜尋清單關閉後不再自行彈回；9/25 英文版護照與幾處滑鼠提示的冒號、間隔號改用英文標點</span></li>
         <li data-cl="mixedwidget0919"><span class="d">9/19</span><span>Android 桌面的鐵路＋捷運雙看板重新排版：字放大，卡片放得下幾班就列幾班，不再空一大塊；已開通行證時，設定頁不會再誤寫需要通行證。</span></li>
         <li data-cl="repeatreminder0913"><span class="d">9/13</span><span>到站提醒可以設成每天、週一到五或自訂星期重複：通勤固定搭的那班設一次就長期有效，不必每天重設。重複的提醒依表定時刻在每個符合的日子響，一則重複提醒在 20 則上限裡仍然只算一則；原本設好的一次性提醒不受影響。</span></li>
         <li data-cl="widgetauto0911"><span class="d">9/11</span><span>小工具的車站可以設成「自動（最近的站）」，走到哪就換到哪一站；離開服務範圍時卡片會直接說明，不再默默顯示上一個地方的班次</span></li>
@@ -6648,7 +6648,12 @@
 //         換掉就收卡(WebKit 移除聚焦節點不送 focusout)；收集章補 tabindex、role=button、Enter 等同點擊；卡片開著時
 //         錨點 aria-describedby 指向 #helpPop(role=tooltip)；「名稱：說明」讀螢幕名稱的冒號依語系(i18nLabel)
 //         （守門：verify_achv_help A11–A17／B6b／B6c／B9，已掛 ship-web 2.24；verify_i18n 英文護照 aria-label）。
-const BUILD = 'v0925f';
+// v0925g：護照讀螢幕名稱與英文標點收尾——帶日期的收集章 aria-label 改用唸得出來的日期（Intl 月日，畫面照樣印
+//         MM.DD，以免「08.12」被唸成小數；日子不存在的記錄退回章下那行字，不丟例外）；成就章補 role=img、名稱帶達成與否（畫面靠金灰色區分）；英日文收集章的
+//         「Tap to replay」「tap to ride one」改成不限觸控的說法；英文版車站章／路線條提示、車站收集小標、配樂鈕、
+//         北捷徽章備案原因的冒號與間隔依語系（i18nColon／i18nSep，中文輸出不變）
+//         （守門：verify_achv_help A18／A19／B10–B12／C0–C7）。
+const BUILD = 'v0925g';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -6741,8 +6746,17 @@ function i18nJoin(...parts) {
 }
 // 「名稱：說明」的冒號同理屬於這次拼接:中文與日文用全形「：」,英文用半形加空白——讀螢幕軟體唸英文
 // aria-label 時,夾在句中的全形冒號是另一種字元(09-25 護照收集章與成就章 41 個英文標籤都是這樣)。
+function i18nColon() {
+  return I18N_LANG === 'zh-TW' || I18N_LANG === 'ja' ? '：' : ': ';
+}
 function i18nLabel(name, detail) {
-  return name + (I18N_LANG === 'zh-TW' || I18N_LANG === 'ja' ? '：' : ': ') + detail;
+  return name + i18nColon() + detail;
+}
+// 並列短語之間的間隔同理:中日文用「・」,每段本身就帶數字或空白、要拉開一點的用全形空白;英文一律「 · 」
+// (站內英文的慣例)。09-25 英文版車站章、路線條的滑鼠提示與車站收集小標都還夾著「・」與全形空白。
+function i18nSep(wide) {
+  if (I18N_LANG === 'zh-TW' || I18N_LANG === 'ja') return wide ? '　' : '・';
+  return ' · ';
 }
 function i18nHasTranslation(source) {
   return Object.prototype.hasOwnProperty.call(I18N_MESSAGES.en || {}, source) ||
@@ -19161,7 +19175,7 @@ function musicPlSync() {
     : eff.kind === 'family' ? ((D.families.find(f => f.id === eff.id) || {}).zh || '')
     : eff.kind === 'pool' ? ((musicPoolById(eff.id) || {}).zh || '') : t('隨機');
   const b = document.getElementById('musicPlBtn');
-  if (b) b.title = t('配樂情境') + '：' + t(nm);
+  if (b) b.title = i18nLabel(t('配樂情境'), t(nm));
   const el = document.getElementById('musicPlModal');
   if (el && !el.hidden) musicPlRender();
 }
@@ -23494,7 +23508,7 @@ function buildStationStamps(rides) {
     // 鍵是 sys|線id|A|B,取後兩段才是站名(前面兩段是系統與線)
     // 第一段就是系統代碼,拿來查譯名(不帶系統會掃全部系統,同名站可能翻錯城市)
     top && top[1] >= 5 ? t('最常搭 {segment} {n} 次', { segment: top[0].split('|').slice(2).map(name => stationName(name, top[0].split('|')[0])).join('–'), n: i18nNumber(top[1]) }, top[1]) : '',
-  ].filter(Boolean).join('　');
+  ].filter(Boolean).join(i18nSep(true));
   // 車站牆會無限長大(通勤族收到 300 座就是一面牆),預設只露最常去的一批,其餘按鈕展開
   const showAll = ppSecPrefs().stnAll === 1;
   const shown = showAll ? items : items.slice(0, STN_WALL_CAP);
@@ -23505,7 +23519,7 @@ function buildStationStamps(rides) {
     (sub ? `<span style="letter-spacing:0;font-weight:600">${escHtml(sub)}</span>` : '')) + `<div class="ph-stamps">` +
     shown.map(i => {
       const cls = 'stn-seal ' + i.s + (tierM.get(i.sys + '|' + i.name) === 0 ? ' t0' : '');
-      const tip = stationName(i.name, i.sys) + '・' + t(STN_STATUS_LABEL[i.s]) + (i.n > 1 ? '　' + t('{n} 次', { n: i18nNumber(i.n) }, i.n) : '') + (i.d ? '　' + t('最近 {date}', { date: i.d }) : '');
+      const tip = stationName(i.name, i.sys) + i18nSep() + t(STN_STATUS_LABEL[i.s]) + (i.n > 1 ? i18nSep(true) + t('{n} 次', { n: i18nNumber(i.n) }, i.n) : '') + (i.d ? i18nSep(true) + t('最近 {date}', { date: i.d }) : '');
       return `<span class="${cls}" title="${escHtml(tip)}">${sealName(stationName(i.name, i.sys), 'stn')}` +
         (i.n > 1 ? `<small class="cnt">×${i18nNumber(i.n)}</small>` : `<small>${escHtml(t(STN_STATUS_LABEL[i.s]))}</small>`) + `</span>`;
     }).join('') + more + `</div>`;
@@ -23617,7 +23631,7 @@ function buildLineBars() {
     lines.map(l => {
       const pct = Math.round(l.pct * 100);
       // 「段」單字鍵的英文是縮寫 Seg,跟在數字後面既不像句子也沒有單複數;改用整句樣板,依總段數選單複數。
-      return `<div class="ph-line" title="${escHtml(`${lineFullNameI18n(l)}　${t('{n} 段', { n: `${l.ridN}/${l.nSeg}` }, l.nSeg)}　${l.ridKm.toFixed(1)}/${l.km.toFixed(1)} km`)}">` +
+      return `<div class="ph-line" title="${escHtml(`${lineFullNameI18n(l)}${i18nSep(true)}${t('{n} 段', { n: `${l.ridN}/${l.nSeg}` }, l.nSeg)}${i18nSep(true)}${l.ridKm.toFixed(1)}/${l.km.toFixed(1)} km`)}">` +
         `<span class="pl-name">${escHtml(t(l.name.replace(/（.*$/, '')))}</span>` +
         `<span class="pl-bar"><i style="width:${pct}%;background:${escHtml(l.color || 'var(--red)')}"></i></span>` +
         `<span class="pl-pct${pct >= 100 ? ' done' : ''}">${pct}%</span></div>`;
@@ -23702,6 +23716,16 @@ function buildStamps(rides, opts) {
     const d = coll.at[cat + '|' + id] || '';           // 'YYYY-MM-DD'
     return d ? d.slice(5).replace(/-/g, '.') : '';     // → 'MM.DD'(與完乘記錄那欄同一種寫法)
   };
+  // 讀螢幕軟體會把章下的「08.12」唸成小數;aria-label 改放唸得出來的日期(畫面照樣印 MM.DD)。
+  // 記錄的是當地日曆日,不是時刻 ⇒ 以 UTC 解讀、以 UTC 格式化,換到哪個時區都是同一天。
+  const spokenDate = new Intl.DateTimeFormat(I18N_LANG, { month: 'long', day: 'numeric', timeZone: 'UTC' });
+  // 格式對但日子不存在的記錄(雲端同步只驗格式):2026-13-45 是 Invalid Date,format 會丟 RangeError、整張護照
+  // 跟著畫不出來;2026-02-30 會滾成 3 月 2 日、唸錯日子 ⇒ 轉回來不是同一天就不唸,退回章下那行字。
+  const dateSaid = (cat, id) => {
+    const d = coll.at[cat + '|' + id] || '';
+    const dt = /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(d + 'T00:00:00Z') : null;
+    return dt && !isNaN(dt) && dt.toISOString().slice(0, 10) === d ? t('{date}收藏', { date: spokenDate.format(dt) }) : '';
+  };
   const stampRow = (label, cat, items) => {
     if (!items.length) return '';
     const got = items.filter(i => i.got).length;
@@ -23709,6 +23733,7 @@ function buildStamps(rides, opts) {
       items.map(i => {
         // 有日期就印日期(「已收藏」是廢話——金章本身就在說這件事);沒日期的舊記錄退回「已收藏」
         const foot = i.got ? ((withDate && dateOf(cat, i.id)) || t('已收藏')) : t('點我重播');
+        const said = (i.got && withDate && dateSaid(cat, i.id)) || foot;
         // 🔴 說明卡讀的是 data-tip/data-tipname,不是原生 title:title 在手機上完全看不到,
         //    而「怎麼拿到這枚章」正是手機使用者最需要的那句話(feat/achv-help)。
         //    也不要再掛回原生 title:桌面會跟說明卡同時冒出兩層提示(08-28 多語那批重套時加回來過;
@@ -23717,7 +23742,7 @@ function buildStamps(rides, opts) {
         // aria-label 用名稱＋章下那行字——sealName 會把名稱拆成好幾行,讀出來會斷掉;故事由聚焦時的說明卡提供。
         return `<span class="seal${i.got ? '' : ' na'}" data-cat="${escHtml(cat)}" data-id="${escHtml(i.id)}"` +
           ` data-tip="${escHtml(t(i.tip))}" data-tipname="${escHtml(t(i.name))}"` +
-          ` tabindex="0" role="button" aria-label="${escHtml(i18nLabel(t(i.name), foot))}">${sealName(t(i.name))}<small>${escHtml(foot)}</small></span>`;
+          ` tabindex="0" role="button" aria-label="${escHtml(i18nLabel(t(i.name), said))}">${sealName(t(i.name))}<small>${escHtml(foot)}</small></span>`;
       }).join('') + `</div>`;
   };
   const named = sd.namedTrains.filter(n => n.trainNos.length).map(n => // 無固定車次的觀光列車搭不到,不列入收集
@@ -23884,13 +23909,16 @@ bindHelpPop();
 //    讀螢幕軟體讀的是 aria-label(名稱＋條件)。verify_achv_help 的 A3/B1b 守這件事。
 function buildAchv(rides, style) {
   const ach = unlockedAchievements(rides);
+  // 讀螢幕名稱帶上達成與否(畫面上是金章／灰章,讀螢幕軟體看不到顏色);role=img:span 沒有角色時
+  // aria-label 不算數(ARIA 1.2 禁止掛在 generic 上),章本身也就是一枚圖——點開的說明卡由 bindHelpPop 管。
+  const achLabel = a => i18nLabel(t('{name}（{state}）', { name: t(a.name), state: ach.has(a.id) ? t('已達成') : t('未達成') }), t(a.desc));
   if (style === 'chip') {
     return phSec('achv', ACHIEVEMENTS.length, null, `${escHtml(t('成就'))}<b>${i18nNumber(ach.size)}/${i18nNumber(ACHIEVEMENTS.length)}</b>`) + `<div class="achv-chips">` +
-      ACHIEVEMENTS.map(a => `<span class="achv-chip${ach.has(a.id) ? ' on' : ''}" data-ach="${escHtml(a.id)}" tabindex="0" aria-label="${escHtml(i18nLabel(t(a.name), t(a.desc)))}">${railIcon(a.icon)}<span>${escHtml(t(a.name))}</span></span>`).join('') + `</div>`;
+      ACHIEVEMENTS.map(a => `<span class="achv-chip${ach.has(a.id) ? ' on' : ''}" data-ach="${escHtml(a.id)}" tabindex="0" role="img" aria-label="${escHtml(achLabel(a))}">${railIcon(a.icon)}<span>${escHtml(t(a.name))}</span></span>`).join('') + `</div>`;
   }
   return phSec('achv', ACHIEVEMENTS.length, null, `${escHtml(t('成就徽章'))}<b>${i18nNumber(ach.size)}/${i18nNumber(ACHIEVEMENTS.length)}</b>`) + `<div class="ph-stamps">` +
     ACHIEVEMENTS.map(a =>
-      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" data-ach="${escHtml(a.id)}" tabindex="0" aria-label="${escHtml(i18nLabel(t(a.name), t(a.desc)))}">${sealName(t(a.name), 'achv')}<small>${railIcon(a.icon)}</small></span>`).join('') + '</div>';
+      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" data-ach="${escHtml(a.id)}" tabindex="0" role="img" aria-label="${escHtml(achLabel(a))}">${sealName(t(a.name), 'achv')}<small>${railIcon(a.icon)}</small></span>`).join('') + '</div>';
 }
 // 完乘記錄列:桌面與 sheet 共用同一 markup,mode 決定排序(桌面隨排序鈕,sheet 固定 date 最新在前)
 function buildRideRows(rides, mode) {
@@ -28490,7 +28518,7 @@ function metroCoreFallenDetail(lines, timetableIds = new Set()) {
     else if (reason === 'match') why = t('：看板列只有 {p} 對得到車，整個系統暫退回官方看板', { p: i18nNumber(Math.round(((sys && sys.ratio) || 0) * 100)) + '%' });
     else if (reason === 'stations') why = t('：站列版本與即時模型不一致，改用官方倒數');
     else if (reason === 'count') why = t('：車數相對近況異常減少，改用官方名冊或班表');
-    else if (reason) why = '：' + reason;
+    else if (reason) why = i18nColon() + reason;
     else why = t('：即時模型這一輪沒有這條線的車，改用官方名冊或班表');
     return routeName(ln.name || ln.id, freqSysIdOf(ln)) + why;
   }).join('\n');
