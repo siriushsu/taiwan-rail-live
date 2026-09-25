@@ -6,16 +6,19 @@
 // CSS 拿它給內容當 scroll-margin-top;WebKit 聚焦文字欄位不看 scroll-margin,由 boardRevealField 補捲。
 // 只有真瀏覽器量得到,兩個引擎各跑一輪:
 //   W 鍵盤往回走(Shift+Tab;WebKit 要 Option+Shift+Tab 才走得到按鈕):焦點中心落在固定段上的拍數＝0。
-//     360 直式標準／特大字級、844×390 橫式合併卡;走過的內容拍數要夠多,否則是沒走到的假綠。
+//     360 直式標準／特大字級(特大另走直式合併卡:分頁列在直式是一般內容,要讓位)、844×390 橫式合併卡;
+//     走過的內容拍數要夠多,否則是沒走到的假綠。
 //   J 面板捲到下面時把焦點放進標題裡的 ×(＝選單關掉時 opener.focus()、從面板外 Tab 進來):捲動量 ≤ 8px。
 //     容器 scroll-padding-top 那種寫法會跳 128–130px(v0925k 的護照就是那樣上線的)。
 //   F 文字欄位(軌道面板 #rdSearch)被蓋住時聚焦:下一拍之後不再被蓋,半秒後也沒被捲回去。
 //   P 讓位值＝捲到中段時實際卡住的固定段底緣(差 ≤ 1px):站名牌出現／消失之後(syncBoardHeadVar 尾端那一刀)、
-//     護照重繪換掉 h3 再換字級之後(MutationObserver 重掛)。
-//   N 正向對照,要紅才算數:拿掉讓位 ⇒ W 紅;改回容器 scroll-padding ⇒ J 紅(兩個引擎都做——WebKit 的聚焦捲動
-//     是非同步的,要證明等得夠久);拿掉那一刀／拿掉重掛 ⇒ P 紅(只做 Chromium)。
+//     護照重繪換掉 h3 再換字級之後(MutationObserver 重掛)。換字級走設定面板的真入口 state._setFontScale。
+//   N 正向對照,要紅才算數:拿掉讓位 ⇒ W 紅;分頁列的排除規則移出側欄 media 段 ⇒ 直式合併卡 W 紅;
+//     改回容器 scroll-padding ⇒ J 紅(兩個引擎都做——WebKit 的聚焦捲動是非同步的,要證明等得夠久);
+//     拿掉 boardRevealField ⇒ F 紅(只做 WebKit:Chromium 聚焦文字欄位本來就看 scroll-margin);
+//     拿掉那一刀／拿掉重掛 ⇒ P 紅(只做 Chromium)。
 // 慣例照 verify_transfer_collapse.mjs:自帶 node:http 靜態伺服器(埠號由系統挑)、語系與時鐘釘死、關首訪教學卡、
-// 掛 pageerror、T0 身分自檢。瀏覽器一律無視窗。約 75–95 秒(2026-09-25～26 實測 74–94s)。
+// 掛 pageerror、T0 身分自檢。瀏覽器一律無視窗。約 2 分鐘(2026-09-26 補直式合併卡與兩個突變後實測 126s)。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -211,15 +214,39 @@ const PLATE = async on => {
   const dp = document.getElementById('dwellPlate');
   return { ...__bsp.stuck('board'), plate: (dp.classList.contains('dp-docked') ? '併入' : '未併') + (dp.classList.contains('show') ? '亮' : '暗') };
 };
+// 換字級走設定面板用的那個入口(setFontScale 在閉包裡,只經 state._setFontScale 露出來);
+// 入口不見了就回報,不自己改 data-fs 冒充——那樣量不到真路徑多做的事(寫 localStorage、重量地圖與面板)。
 const FONT = async tier => {
-  if (typeof setFontScale === 'function') setFontScale(tier);
-  else if (tier === 'std') document.documentElement.removeAttribute('data-fs'); else document.documentElement.setAttribute('data-fs', tier);
+  if (typeof state === 'undefined' || typeof state._setFontScale !== 'function') return { noEntry: true };
+  state._setFontScale(tier);
   for (let i = 0; i < 4; i++) await new Promise(r => requestAnimationFrame(r));
   await new Promise(r => setTimeout(r, 150));
   return __bsp.stuck('ridePanel');
 };
-const padFits = s => Math.abs(s.pad - s.stuck) <= 1;
-const fmtS = s => `pad ${s.pad} 實際 ${s.stuck}(${s.n} 段, 可捲 ${s.max}${s.plate ? ', 牌' + s.plate : ''})`;
+const padFits = s => !s.noEntry && Math.abs(s.pad - s.stuck) <= 1;
+const fmtS = s => s.noEntry ? '換字級入口 state._setFontScale 不見了' : `pad ${s.pad} 實際 ${s.stuck}(${s.n} 段, 可捲 ${s.max}${s.plate ? ', 牌' + s.plate : ''})`;
+// 分頁列的排除規則原本只在側欄 media 段裡;原樣複製一份到 media 外＝「有人把它移出側欄段」。找不到那條就回 null
+const TABS_RULE_OUT = () => {
+  const find = rules => {
+    for (const r of rules) {
+      if (r.selectorText && r.selectorText.includes('.board > .uni-tabs') && r.style.scrollMarginTop === '0px') return r;
+      if (r.cssRules && !r.selectorText) { const hit = find(r.cssRules); if (hit) return hit; }
+    }
+    return null;
+  };
+  for (const sh of document.styleSheets) {
+    let rules; try { rules = sh.cssRules; } catch (e) { continue; }
+    for (const r of rules) {
+      if (!(r instanceof CSSMediaRule)) continue;
+      const hit = find(r.cssRules);
+      if (!hit) continue;
+      const el = document.createElement('style'); el.id = '__bspTabsOut'; el.textContent = hit.cssText;
+      document.head.appendChild(el);
+      return hit.selectorText;
+    }
+  }
+  return null;
+};
 
 let t0Done = false;
 for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
@@ -255,6 +282,15 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
     const f = await page.evaluate(FIELD);
     ok(P('F 360 被蓋住的文字欄位 #rdSearch 聚焦後讓出來、半秒後也沒被捲回去'), !f.none && f.over0 > 20 && f.over1 <= 0.5 && f.over2 <= 0.5,
       f.none ? '#rdSearch 不在畫面上' : `聚焦前壓 ${f.over0}px → 下一拍 ${f.over1} → 半秒後 ${f.over2}(≤0 才算讓出)`);
+    if (eng === 'webkit') {
+      // N:拿掉聚焦補捲 ⇒ WebKit 只剩 scroll-margin,文字欄位聚焦後仍壓在標題下(F 要量得到紅);量完掛回去
+      await open(page, 'trackPanel');
+      await page.evaluate(() => { for (const b of document.querySelectorAll('.board')) b.removeEventListener('focusin', boardRevealField); });
+      const fm = await page.evaluate(FIELD);
+      await page.evaluate(() => { for (const b of document.querySelectorAll('.board')) b.addEventListener('focusin', boardRevealField); });
+      ok(P('N 突變:拿掉 boardRevealField ⇒ #rdSearch 聚焦後仍壓在標題下(F 量得到紅)'), !fm.none && fm.over0 > 20 && (fm.over1 > 0.5 || fm.over2 > 0.5),
+        fm.none ? '#rdSearch 不在畫面上' : `聚焦前壓 ${fm.over0}px → 下一拍 ${fm.over1} → 半秒後 ${fm.over2}`);
+    }
     // P:護照重繪換掉 h3(新節點)之後換字級,讓位要跟著長高
     await open(page, 'ridePanel');
     const rideStuck = async mutate => {
@@ -271,7 +307,7 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
       `標準 ${fmtS(rs.std)}；特大 ${fmtS(rs.xl)}`);
     if (eng === 'chromium') {
       const rm = await rideStuck(true);
-      ok(P('N 突變:重繪後新 h3 沒被觀察 ⇒ 特大字級的讓位停在舊值(P 量得到紅)'), !padFits(rm.xl), `特大 ${fmtS(rm.xl)}`);
+      ok(P('N 突變:重繪後新 h3 沒被觀察 ⇒ 特大字級的讓位停在舊值(P 量得到紅)'), !rm.xl.noEntry && !padFits(rm.xl), `特大 ${fmtS(rm.xl)}`);
     }
     // N:改回容器 scroll-padding-top(v0925k 的寫法) ⇒ J 必須紅
     await open(page, 'board');
@@ -301,6 +337,27 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
       const need = Math.max(2, Math.min(20, Math.floor(w.n / 2)));
       ok(P(`W 360 特大 ${key} 鍵盤往回走,焦點不被固定段蓋住`), w.covered === 0 && w.content >= need,
         `被蓋 ${w.covered}/${w.content} 拍(可聚焦 ${w.n}、至少要走 ${need})${w.bad.length ? '；' + w.bad.join('、') : ''}`);
+    }
+    // 直式合併卡:分頁列不 sticky(只在側欄 media 段釘住),是一般內容,Shift+Tab 走到分頁鈕時要讓出標題
+    const portUni = async () => (await open(page, 'uni'))
+      && page.evaluate(() => { const t = document.querySelector('#board > .uni-tabs'); return t ? getComputedStyle(t).position : null; });
+    const tabsPos = await portUni();
+    ok(P('360 特大 直式合併卡打得開、分頁列不是 sticky'), !!tabsPos && tabsPos !== 'sticky', `分頁列 position=${tabsPos}`);
+    if (tabsPos && tabsPos !== 'sticky') {
+      const w = await walk(page, eng, 'board');
+      const need = Math.max(2, Math.min(20, Math.floor(w.n / 2)));
+      ok(P('W 360 特大 直式合併卡鍵盤往回走,焦點不被固定段蓋住'), w.covered === 0 && w.content >= need,
+        `被蓋 ${w.covered}/${w.content} 拍(可聚焦 ${w.n}、至少要走 ${need})${w.bad.length ? '；' + w.bad.join('、') : ''}`);
+      // N:把分頁列的排除規則移出側欄段 ⇒ 直式分頁鈕不再讓位,停在標題底下
+      const moved = await page.evaluate(TABS_RULE_OUT);
+      ok(P('N 突變目標:側欄 media 段裡找得到分頁列的排除規則'), !!moved, moved || '找不到');
+      if (moved) {
+        await portUni();
+        const wm = await walk(page, eng, 'board');
+        await page.evaluate(() => document.getElementById('__bspTabsOut').remove());
+        ok(P('N 突變:分頁列的排除規則移出側欄段 ⇒ 直式合併卡往回走會被蓋(W 量得到紅)'), wm.covered > 0,
+          `被蓋 ${wm.covered}/${wm.content} 拍${wm.bad.length ? '；' + wm.bad.join('、') : ''}`);
+      }
     }
     ok(P('360 特大字級全程零 pageerror'), errors.length === 0, errors.slice(0, 2).join(' | '));
     await ctx.close();

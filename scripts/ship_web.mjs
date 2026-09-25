@@ -645,12 +645,23 @@ try {
   // 整顆停在標題底下(修前我的最愛 700 步有 186 步被蓋);(b) 別的閘門量不到——founding_seal 的 G2.*.5 只量護照一張、
   // 而且不在鏈上;(c) 已經被無聲弄壞過一次——v0925k 護照那版用容器 scroll-padding-top,焦點一進標題裡的
   // × 內容就跳 128–130px,照樣上了正式站。另守 WebKit 文字欄位補捲、站名牌出現與換字級後讓位值跟上。
-  // 雙引擎、自己起純靜態 server、埠號由系統挑,約 75–95 秒。要在 strip 之前:突變自檢會找 syncBoardHeadVar 的原始碼行。
+  // 雙引擎、自己起純靜態 server、埠號由系統挑,約 2 分鐘。要在 strip 之前:突變自檢會找 syncBoardHeadVar 的原始碼行。
   const boardPad = spawnSync('node', [path.join(wt, 'scripts', 'verify_board_scroll_pad.mjs')],
     { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '' } });
   process.stdout.write(boardPad.stdout || ''); process.stderr.write(boardPad.stderr || '');
   if (boardPad.status !== 0) fail('面板標題讓位守門人未過——鍵盤聚焦被 sticky 標題蓋住、聚焦標題鈕時內容跳動，或讓位值沒跟上站名牌／字級'
     + '（單獨重跑：node scripts/verify_board_scroll_pad.mjs）');
+
+  // ── 2.26 選單橫拖守門人(2026-09-26) ─────────────────────────────────────────
+  // 為什麼值得進出貨鏈(2.8 那把尺):(a) 對真人 100% 復現——iPhone 英文介面在跟車卡選到長站名,整張卡能左右拖、
+  // 左邊被切掉(修前「接公車」127px);(b) 別的閘門量不到——Chromium 量永遠是 0,verify_garage_loop 只量車庫那一個;
+  // (c) 已經被無聲弄壞過一次——9/19 車名改走翻譯後,車庫選單在 WebKit 英文漏 278px,9/25 verify_garage_loop 紅了才發現;
+  // 這次修的另外四個修前一直漏著,沒有任何閘門紅過。只跑 WebKit、自己起純靜態 server、埠號由系統挑,約 11 秒。
+  const selectOv = spawnSync('node', [path.join(wt, 'scripts', 'verify_select_overflow.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '' } });
+  process.stdout.write(selectOv.stdout || ''); process.stderr.write(selectOv.stderr || '');
+  if (selectOv.status !== 0) fail('選單橫拖守門人未過——WebKit 選到長選項時外層容器能左右拖（select 少了 overflow:hidden）'
+    + '（單獨重跑：node scripts/verify_select_overflow.mjs）');
 
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
