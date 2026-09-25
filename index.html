@@ -1087,7 +1087,7 @@
   .follow-panel .fp-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .follow-panel .fp-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .follow-panel .fp-head b { font-size: calc(15px * var(--ui)); color: var(--ink-strong); }
-  /* 具名列車前綴(寶可夢)疊在車次正上方(setFollowTitle):不佔標題列的寬度——標題列跟一般車一樣排
+  /* 車次前綴(寶可夢、虛構環島車)疊在車次正上方(setFollowTitle):不佔標題列的寬度——標題列跟一般車一樣排
      「● 車次 時速 ×」,手機窄卡才不會把 × 擠到下一行;卡片頂端留一行小字的高度給它。 */
   .follow-panel.fp-named .fp-head { padding-top: calc(12px * var(--uis)); }
   .follow-panel.fp-named .fp-head > b { position: relative; }
@@ -7029,6 +7029,7 @@ function i18nRefreshDynamic() {
   // 平交道卡／台糖卡:開著時換語言就重畫(平交道卡只在模擬時間走動時每秒重畫,暫停中不會自己更新)
   try { if (typeof renderCrossingCard === 'function' && state.crossingSel) renderCrossingCard(); } catch (e) {}
   try { if (typeof renderSugarCard === 'function' && state.sugarSel) renderSugarCard(); } catch (e) {}
+  try { if (typeof setFollowHead === 'function' && state.followTrain && !document.getElementById('followPanel')?.hidden) setFollowHead(state.followTrain); } catch (e) {}
   try { if (typeof updateFollowPanel === 'function' && state.followTrain) updateFollowPanel(state.followTrain); } catch (e) {}
   try { if (typeof updateFreqFollowCamera === 'function' && state.freqFollow) updateFreqFollowCamera(false); } catch (e) {}
   try { if (typeof renderFollowBar === 'function' && !document.getElementById('followBar')?.hidden) renderFollowBar(t(state.followStatusMsg)); } catch (e) {}
@@ -12857,6 +12858,80 @@ function glTracksSync() {
 window.__glTracks = glTracks; // 守門人把手(verify_gl_tracks.mjs)
 // ==== GL TRACKS END ====
 
+// ==== 底圖地名去重 ====
+// 底圖(OFM)的地名點常跟我們畫的站名同名:竹北站旁就是「竹北市」的地名點,疊成「竹北竹北」(09-25 回報)。
+// 09-25 普查全台 607 站:去掉市鄉鎮區里村後跟站名相同的底圖地名,1 公里內 184 組、2 公里內 219 組——車站多半
+// 以所在鄉鎮命名。站名是 canvas 畫的、地名是 MapLibre 畫的,兩邊的碰撞避讓互相看不到,只能在底圖這邊擋:
+// 替底圖 place 圖層的 filter 加一條「名字等於 2 公里內某站的站名(可帶市鄉鎮區里村、臺台互通),而且這一級縮放
+// 那個站名已經畫出來 → 不畫」。畫哪些站、從第幾級畫,照 drawSched(TIER_STYLE.lz)與 drawFreq／drawDecoBase(13),
+// 最愛站照樣提早。圖磚的 filter 只認整數級,門檻取整數下限:寧可半級內兩邊都不畫,也不要疊字。
+// 立體模式的車站模型(rail-3d/station-layer.js maskLabels)也會改同一批圖層的 filter,而且是拿它自己記下的
+// 原始 filter 重組,會把這一條洗掉。所以這裡不記原始值:每幀看圖層現在的 filter 是不是我們最後寫的那一份,
+// 不是就表示別人剛寫過,拿它(先剝掉我們舊的那一條)再疊一次。setFilter 會讓整個底圖來源重排,
+// 只在「畫哪些站」變了或別人寫過時才寫。
+const PLACE_DEDUP_TAG = '__rail_place_dedup__'; // match 的第一個分支放這個認不到任何地名的標記,剝除時靠它認出是我們那一條
+const glPlaceDedup = { ids: null, hooked: false, inputs: [], clause: null, mine: new Map() };
+// 「畫哪些站」由這幾樣決定;任一樣變了才重組那一條(每幀比對,都是參照或短字串)
+function glPlaceDedupInputs() {
+  const sched = state.mode === 'sched';
+  return [sched, sched ? state.schedStations : state.lines, sched && state.deco ? state.decoLines : null,
+    sched ? '' : (state.lines || []).filter(ln => state.visible.has(ln.id)).map(ln => ln.id).join(','),
+    [..._favStNames].join(',')];
+}
+function glPlaceDedupClause() {
+  const groups = new Map();
+  const add = (name, lat, lon, lz) => {
+    const k = String(name).replace(/臺/g, '台'), z = Math.floor(lz - ML_Z);
+    const g = groups.get(k) || groups.set(k, new Map()).get(k);
+    (g.get(z) || g.set(z, []).get(z)).push([+lon.toFixed(4), +lat.toFixed(4)]);
+  };
+  if (state.mode === 'sched') {
+    for (const st of state.schedStations || []) {
+      const lz = TIER_STYLE[st.tier == null ? 4 : st.tier].lz;
+      add(st.name, st.lat, st.lon, isFavStationName(st.name) ? Math.max(0, lz - 1.5) : lz);
+    }
+  }
+  const lines = state.mode === 'sched' ? (state.deco && state.decoLines) || [] : (state.lines || []).filter(ln => state.visible.has(ln.id));
+  for (const ln of lines) for (const st of ln.stations || []) add(st.name, st.lat, st.lon, isFavStationName(st.name) ? 11.5 : 13);
+  const used = new Set([PLACE_DEDUP_TAG]), branches = [[PLACE_DEDUP_TAG], false];
+  for (const [k, g] of groups) {
+    const labels = [];
+    for (const base of new Set([k, k.replace(/台/g, '臺')])) for (const suf of ['', '市', '鄉', '鎮', '區', '里', '村']) {
+      if (!used.has(base + suf)) { used.add(base + suf); labels.push(base + suf); }
+    }
+    if (!labels.length) continue;
+    const near = [...g].map(([z, pts]) => ['all', ['>=', ['zoom'], z], ['<', ['distance', { type: 'MultiPoint', coordinates: pts }], 2000]]);
+    branches.push(labels, near.length > 1 ? ['any', ...near] : near[0]);
+  }
+  if (branches.length === 2) return null;
+  return ['!', ['match', ['coalesce', ['get', 'name:nonlatin'], ['get', 'name:zh'], ['get', 'name'], ['get', 'name:latin']], ...branches, false]];
+}
+// 從別人寫進去的 filter 剝掉我們舊的那一條(station-layer 記下的原始值可能已經含著它,或包在它自己的 all 裡)
+function glPlaceDedupStrip(f) {
+  if (!Array.isArray(f) || f[0] !== 'all') return f;
+  const rest = f.slice(1).filter(x => !(Array.isArray(x) && x[0] === '!' && Array.isArray(x[1]) && x[1][0] === 'match' && Array.isArray(x[1][2]) && x[1][2][0] === PLACE_DEDUP_TAG))
+    .map(glPlaceDedupStrip).filter(x => x != null);
+  return !rest.length ? null : rest.length === 1 ? rest[0] : ['all', ...rest];
+}
+function glPlaceDedupSync() {
+  if (!M || !M.raw || !M.isStyleReady()) return;
+  const raw = M.raw, d = glPlaceDedup;
+  if (!d.hooked) { d.hooked = true; M.onStyleLoad(() => { d.ids = null; d.mine.clear(); }); }
+  if (!d.ids) {
+    d.ids = raw.getLayersOrder().filter(id => { const L = raw.getLayer(id); return L && L.type === 'symbol' && L.sourceLayer === 'place'; });
+  }
+  const inputs = glPlaceDedupInputs();
+  const rebuilt = inputs.some((v, i) => v !== d.inputs[i]);
+  if (rebuilt) { d.inputs = inputs; d.clause = glPlaceDedupClause(); }
+  for (const id of d.ids) {
+    const L = raw.getLayer(id);
+    if (!L || (!rebuilt && d.mine.has(id) && L.filter === d.mine.get(id))) continue;
+    const base = glPlaceDedupStrip(L.filter);
+    raw.setFilter(id, !d.clause ? base : base ? ['all', base, d.clause] : d.clause, { validate: false });
+    d.mine.set(id, raw.getLayer(id).filter);
+  }
+}
+
 function drawSegOnShape(ln, s, color, lineWidth, w, h) {
   const inPad = p => p.x >= -60 && p.x <= w + 60 && p.y >= -60 && p.y <= h + 60;
   const pts = ln.shape ? shapeSlice(ln, s.dA, s.dB) : [s.pA, s.pB];
@@ -13432,7 +13507,7 @@ function trainDisplayNo(tr) {
   return pfx ? `${pfx} ${tr.train}` : String(tr && tr.train || '');
 }
 // 那個前綴本身(寶可夢／Pokémon／ポケモン);當天不是那幾班、或不是具名列車就回空字串。
-// 跟車小卡要把它拆出來疊在車次上方(見 setFollowTitle),其餘位置一律用 trainDisplayNo 整串。
+// 各處一律用 trainDisplayNo 整串;跟車小卡再從整串拆出前綴疊在車次上方(見 setFollowTitle)。
 function trainMapLabel(tr) {
   const named = tr && specialOf(tr)?.named;
   return named?.mapLabel ? i18nContentData('namedTrains', named, 'mapLabel') : '';
@@ -16851,6 +16926,7 @@ function draw() {
   trainPaintQ = null; // 上一幀若中途拋例外,殘留佇列不可帶進這一幀(否則車會被收進去卻沒人畫)
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (glTracksActive()) glTracksSync(); // GL 軌道:狀態沒變就早退(簽名比對),有變才 setFilter/setPaintProperty
+  glPlaceDedupSync(); // 底圖地名跟站名同名就不畫底圖那個(竹北站旁的「竹北市」);沒變就早退
   if (state.mode === 'sched') { if (state.deco) drawDecoBase(w, h); drawSched(w, h, state.deco ? () => drawDecoTrains(w, h) : null); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
   drawMe(); // 「我的位置」畫最後=在所有軌道與列車之上,不會被蓋掉
   drawJourneyShareMarker(); // 收件端的分享位置同樣是移動元素：永遠畫在真實座標，不做碰撞位移
@@ -24747,17 +24823,20 @@ function closeDelayHist() {
 // 「● 車次 時速 ×」:手機窄卡擠不下「寶可夢 2183＋時速＋×」,× 會被擠到第二行,停站時速變 0
 // 又擠得回去,整張卡跟著一跳一跳。textContent 仍是完整的「寶可夢 2183」(與其他位置同一串)。
 function setFollowTitle(tr) {
-  const el = document.getElementById('fpTrain'), pfx = tr.loop ? '' : trainMapLabel(tr);
-  if (pfx) el.innerHTML = `<span class="fp-pfx">${escHtml(pfx)}</span> ${escHtml(String(tr.train))}`;
-  else el.textContent = trainDisplayNo(tr);
+  // 車次前面的字(寶可夢的「寶可夢」、環島車的「虛構」)疊成車次上方的小字:手機小卡 176px 擠不下
+  // 「前綴＋車次＋時速＋×」,× 會被擠到第二行(09-25 回報虛構 8888)。整格字仍等於 trainDisplayNo(tr),
+  // tickCore 每秒拿它比對。
+  const el = document.getElementById('fpTrain'), full = trainDisplayNo(tr), no = String(tr.train);
+  const head = full !== no && full.endsWith(no) ? full.slice(0, -no.length) : '';
+  const pfx = head.trimEnd();
+  if (pfx) el.innerHTML = `<span class="fp-pfx">${escHtml(pfx)}</span>${escHtml(head.slice(pfx.length))}${escHtml(no)}`;
+  else el.textContent = full;
   document.getElementById('followPanel').classList.toggle('fp-named', !!pfx);
 }
-function showFollowPanel(tr) {
-  const fp = document.getElementById('followPanel');
-  if (state.mode !== 'sched' || !tr) { fp.hidden = true; closeRideBox(); syncFollowOnClass(); return; }
-  document.getElementById('fpDot').style.background = tr.color;
+// 跟車小卡的車次／車種／起訖。開卡時寫,換語言時 i18nRefreshDynamic 也整組重寫:車種是資料檔譯名、
+// 起訖帶終點時刻,畫面上的字反查不回原文,以前換語言後這兩行一直停在上一個語言(09-25 實測)。
+function setFollowHead(tr, it = trainIntro(tr)) {
   setFollowTitle(tr);
-  const it = renderTrainCard(tr);
   // 車型名(區間車（通勤電聯車）…)是資料檔 rollingStock 的名稱,要走 i18nContentData 才有外語(同 renderTrainCard 的 tcKind);
   // DR1000 那種被 trainIntro 覆寫掉的 kind 已不是車型名,照舊走 trainTypeName。
   document.getElementById('fpKind').textContent = tr.loop ? trainDisplayKind(tr)
@@ -24766,6 +24845,12 @@ function showFollowPanel(tr) {
   document.getElementById('fpDest').textContent = tr.loop
     ? t('臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站')
     : `${stationName(first.name, tr.sys)} → ${stationName(last.name, tr.sys)} · ${t('終點 {time} 抵達', { time: fmtHM(last.arrSec % 86400) })}`;
+}
+function showFollowPanel(tr) {
+  const fp = document.getElementById('followPanel');
+  if (state.mode !== 'sched' || !tr) { fp.hidden = true; closeRideBox(); syncFollowOnClass(); return; }
+  document.getElementById('fpDot').style.background = tr.color;
+  setFollowHead(tr, renderTrainCard(tr));
   renderDelayRow(); // 有快取即即時顯示;無則先隱藏,由 ensureDelayStats 到貨後補
   renderLaCta();    // 同上一行的位置:換車/重開面板時重算(訂閱狀態變動由 plusApplyCustomerInfo 那條負責)
   if (tr.sys === 'tra_sched') ensureDelayStats(); // 只有台鐵才觸發載入,跟高鐵不打這支 API
@@ -34056,9 +34141,13 @@ function setupToolRail() {
     : (btn.getAttribute('aria-label') || '');
   const showTip = (btn, ms) => {
     if (!window.matchMedia(MOBILE_MQ).matches) return;
+    // 沒有說明可補的鈕不出提示框:「觀看」鈕本身有字、沒有 aria-label,以前照樣掛一個空框,
+    // 而它沒有定位,空框對齊到整條工具列的中線,剛好蓋住車頭鎖定提示的最後一個字(「開啟」只剩「開[」,09-25 回報)。
+    const text = tipOf(btn);
+    if (!text) return;
     let t = btn.querySelector('.mt-tip');
     if (!t) { t = document.createElement('span'); t.className = 'mt-tip'; btn.appendChild(t); }
-    t.textContent = tipOf(btn);
+    t.textContent = text;
     clearTimeout(t._hideT);
     t._hideT = setTimeout(() => t.remove(), ms);
   };
