@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium, webkit } from 'playwright';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = Number(process.env.PORT || 5497);
+let PORT = Number(process.env.PORT || 0);
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css',
   '.png': 'image/png', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
@@ -15,6 +15,7 @@ const server = createServer((req, res) => {
   res.writeHead(200, { 'content-type': MIME[extname(file)] || 'application/octet-stream' }); res.end(readFileSync(file));
 });
 await new Promise(resolve => server.listen(PORT, '127.0.0.1', resolve));
+PORT = server.address().port; // 預設 0＝系統挑空埠（原本 5497，別人同時手動跑就撞埠假紅）
 
 // 釘死的日期會隨台鐵 14 天班表窗滾出去（原寫死 09-15，而 6563 只在 09-15 開；09-18 重抓後整支結構性紅）。
 // 改用台北今天（OVERTAKE_DATE 可覆寫）；指名的那對車不在窗內時，改從產品自己排出的待避裡挑同方向替身，

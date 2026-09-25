@@ -323,6 +323,8 @@ async function main() {
   const server = spawn(NODE, [path.join(ROOT, 'scripts', 'verify_bus_transfer_ui_server.mjs')], {
     cwd: ROOT, env: { ...process.env, PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe'],
   });
+  process.on('exit', () => server.kill('SIGTERM')); // 等待就緒逾時的 reject 在 try 外面，finally 收不到
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(1)); // 單打 pid 的 kill／pkill -f 不會觸發 'exit'，轉成 process.exit 讓上一行收得到
   let out = '', err = '';
   server.stdout.setEncoding('utf8'); server.stderr.setEncoding('utf8');
   server.stdout.on('data', c => out += c);

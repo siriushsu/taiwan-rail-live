@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
+import { createServer } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { chromium, webkit } from 'playwright';
 import { buildTrtcModel, resolveBoardRows, claimBoardRows, collapseClaims,
@@ -12,9 +13,12 @@ const ROOT = path.resolve(process.env.TRTC_POS_ROOT || path.resolve(path.dirname
 const OUTPUT = path.resolve(process.env.TRTC_POS_OUTPUT || path.join(ROOT, 'tmp/verify_trtc_board_positions-output.json'));
 const PAGE_ROOT = path.resolve(process.env.TRTC_POS_PAGE_ROOT || ROOT);
 const PAGE_HTML = PAGE_ROOT === ROOT ? null : fs.readFileSync(path.join(PAGE_ROOT, 'index.html'), 'utf8');
-const FIXTURE_PORT = Number(process.env.TRTC_POS_FIXTURE_PORT || 43387);
-const WORKER_PORT = Number(process.env.TRTC_POS_WORKER_PORT || 43389);
-const INSPECTOR_PORT = Number(process.env.TRTC_POS_INSPECTOR_PORT || 43390);
+// 預設埠由系統挑(比照 verify_worker_runtime_smoke.mjs 的 freePort):寫死的預設埠在上一輪被訊號砍掉、留下孤兒
+// wrangler／fixture 時,這一輪新起的撞埠退出,waitForHttp 第一發卻可能先拿到孤兒的回應(2026-09-25 verify_thsr_seat 同型)。
+const freePort = () => new Promise(res => { const srv = createServer(); srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => res(port)); }); });
+const FIXTURE_PORT = Number(process.env.TRTC_POS_FIXTURE_PORT) || await freePort();
+const WORKER_PORT = Number(process.env.TRTC_POS_WORKER_PORT) || await freePort();
+const INSPECTOR_PORT = Number(process.env.TRTC_POS_INSPECTOR_PORT) || await freePort();
 const PERSIST_DIR = process.env.TRTC_POS_PERSIST_DIR || fs.mkdtempSync('/tmp/railisland-trtc-pos-');
 const CLEAN_PERSIST_DIR = !process.env.TRTC_POS_PERSIST_DIR;
 const FIXTURE = `http://127.0.0.1:${FIXTURE_PORT}`;
@@ -309,6 +313,8 @@ async function mobileMatrix(browserType, workerName) {
 
 async function run() {
   let fixtureProc, workerProc, browser;
+  process.on('exit', () => { fixtureProc?.kill('SIGTERM'); workerProc?.kill('SIGTERM'); }); // 例外從計時器或事件丟出、或中途 process.exit() 時 finally 收不到
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(1)); // 單打 pid 的 kill／pkill -f 不會觸發 'exit'，轉成 process.exit 讓上一行收得到
   try {
     fixtureProc = spawn(process.execPath, [path.join(ROOT, 'scripts/fixture_trtc_board_ledger.mjs'), String(FIXTURE_PORT)],
       { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });

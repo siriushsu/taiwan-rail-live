@@ -24,7 +24,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = Number(process.env.PORT || 5561);
+let PORT = Number(process.env.PORT || 0);
 const EPS_KMH = 1e-6;
 const MIN_TRA_SEGS = 30000; // 2026-09-19 實測 38k 段有實體取樣；塌到這以下代表 physical 沒接上
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.glb': 'model/gltf-binary', '.bin': 'application/octet-stream', '.wasm': 'application/wasm' };
@@ -41,7 +41,8 @@ const server = createServer((req, res) => {
   res.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
   res.end(readFileSync(fp));
 });
-await new Promise(r => server.listen(PORT, r));
+await new Promise(r => server.listen(PORT, '127.0.0.1', r));
+PORT = server.address().port; // 預設 0＝系統挑空埠並綁 127.0.0.1：原本寫死 5561 又不給 host，別棵樹的孤兒佔著 127.0.0.1:5561 時這裡照樣 listen 成功、請求卻被孤兒接走
 
 // G0：量的是這棵樹
 const md5 = f => createHash('md5').update(readFileSync(path.join(ROOT, f))).digest('hex');

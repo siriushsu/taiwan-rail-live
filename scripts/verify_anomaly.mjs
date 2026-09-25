@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = +(process.env.PORT || 5188);
+const PORT = +(process.env.PORT || 0);
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 
 const server = createServer((req, res) => {
@@ -22,7 +22,7 @@ const server = createServer((req, res) => {
   res.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
   res.end(readFileSync(fp));
 });
-// PORT=0 時由系統挑空埠(出貨鏈這樣傳，避免撞到別的 session 正在用的 5188 而假紅)。
+// 預設 PORT=0 由系統挑空埠(原本預設 5188:別的 session 同時手動跑就撞埠假紅;出貨鏈一直傳 0)。
 await new Promise(r => server.listen(PORT, r));
 const URLROOT = `http://localhost:${server.address().port}/`;
 

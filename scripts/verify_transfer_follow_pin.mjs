@@ -33,7 +33,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = Number(process.env.PORT || 5523);
+let PORT = Number(process.env.PORT || 0);
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
   '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg',
@@ -56,6 +56,7 @@ const server = createServer((req, res) => {
   res.end(readFileSync(fp));
 });
 await new Promise(r => server.listen(PORT, r));
+PORT = server.address().port; // 預設 0＝系統挑空埠：原本 transfer_collapse 與 transfer_follow_pin 共用 5523，兩支同時跑就撞
 
 const results = [];
 const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`); };
