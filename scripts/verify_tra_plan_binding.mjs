@@ -8,13 +8,18 @@ assert.equal(bind(tr).basis,'exact');
 const derived=structuredClone(tr);derived.stops[pass].arrSec+=.125;derived.stops[pass].depSec+=.125;assert.equal(bind(derived).basis,'derived-pass-times');assert.strictEqual(bind(derived).plan,entry[1]);
 const planned=structuredClone(derived);planned.stops[pass]._plannedDwell=true;planned.stops[pass].depSec+=90;assert.equal(bind(planned).basis,'derived-pass-times');assert.strictEqual(bind(planned).plan,entry[1]);
 const backwards=structuredClone(derived);backwards.stops[pass].arrSec=backwards.stops[pass].depSec=backwards.stops[pass-1].depSec-1;assert.equal(bind(backwards),null,'時間倒退不可被當成通過曲線更新');
-const changedStop=structuredClone(tr),stop=changedStop.stops.findIndex((s,i)=>i>0&&i<tr.stops.length-1&&s.stop);changedStop.stops[stop].depSec+=1;assert.equal(bind(changedStop),null,'正式停靠時間改變不可套舊派車');
+// 改點（2026-10-03 起埔心、樹林、桃園幾班）：站序與停靠型態不變、原計畫沒有待避時，正式停靠改了時刻也沿用自己的股道，時間用今天的、待避歸零。
+const changedStop=structuredClone(tr),stop=changedStop.stops.findIndex((s,i)=>i>0&&i<tr.stops.length-1&&s.stop);changedStop.stops[stop].depSec+=1;const retimed=bind(changedStop);
+assert.equal(retimed?.basis,'retimed','正式停靠改時刻、站序與停靠型態不變時要沿用自己的股道');assert.deepEqual(retimed.plan.pathIds,entry[1].pathIds);assert.notStrictEqual(retimed.plan,entry[1]);assert.equal(retimed.plan.stopSignature,physicalStopSignature(changedStop));assert(retimed.plan.holds.every(h=>!h.arrival&&!h.departure)&&retimed.plan.departureHolds.every(v=>!v),'改點不可帶待避');
+const earlyOrigin=structuredClone(tr);earlyOrigin.stops[0].arrSec-=300;assert.equal(bind(earlyOrigin)?.basis,'retimed','首站提早到站（406 型）要沿用自己的股道');
+const skipped=structuredClone(tr);skipped.stops[stop].stop=false;skipped.stops[stop].depSec=skipped.stops[stop].arrSec;assert.equal(bind(skipped),null,'停靠改通過不可套舊派車');
+const added=structuredClone(tr);added.stops[pass].stop=true;added.stops[pass].depSec+=1;assert.equal(bind(added),null,'通過改停靠不可套舊派車');
 const changedNames=structuredClone(tr);[changedNames.stops[pass].name,changedNames.stops[pass+1].name]=[changedNames.stops[pass+1].name,changedNames.stops[pass].name];assert.equal(bind(changedNames),null,'站序改變不可套舊路徑');
-const held=structuredClone(dispatch);held.plans[entry[0]].holds[pass].departure=30;assert.equal(createPlanBinding(held)(derived),null,'通過時間更新不可沿用舊待避');
+const held=structuredClone(dispatch);held.plans[entry[0]].holds[pass].departure=30;assert.equal(createPlanBinding(held)(derived),null,'通過時間更新不可沿用舊待避');assert.equal(createPlanBinding(held)(changedStop),null,'改點不可沿用帶待避的舊計畫');
 const onlyHeld={plans:{[entry[0]]:held.plans[entry[0]]}},extraHeld={...tr,train:'TEST-HELD-SOURCE'},fresh=createPlanBinding(onlyHeld)(extraHeld);assert.equal(fresh.basis,'route-template');assert(fresh.plan.holds.every(h=>h.arrival===0&&h.departure===0),'加開車不可繼承來源待避');assert.equal(onlyHeld.plans[entry[0]].holds[pass].departure,30,'不可改寫來源計畫');
 for(const plan of rows.slice(0,30)){const source=make(plan),extra={...source,train:'TEST-EXTRA-'+source.train,stops:source.stops.map(s=>({...s,arrSec:s.arrSec+77,depSec:s.depSec+77}))},r=bind(extra);assert.equal(r.basis,'route-template');assert.equal(r.plan.pathIds.length,extra.stops.length-1);assert(r.plan.holds.every(h=>!h.arrival&&!h.departure));assert.equal(r.plan.stopSignature,physicalStopSignature(extra));for(let i=1;i<r.plan.pathIds.length;i++)assert.equal(network.paths[r.plan.pathIds[i-1]].to,network.paths[r.plan.pathIds[i]].from,'借用路徑必須使用同一來源接頭');}
 const reverse={...tr,train:'TEST-REVERSE',stops:tr.stops.toReversed().map((s,i)=>({...s,arrSec:10000+i*120,depSec:10000+i*120+(s.stop?30:0)}))},reversePlan=bind(reverse);assert(reversePlan);const source=JSON.parse(dispatch.plans[reversePlan.sourceKey].stopSignature).map(s=>s[0].split(':')[1]);assert(source.some((_,start)=>reverse.stops.every((s,i)=>source[start+i]===s.name)),'反方向必須對到反向站序');
 assert.equal(bind({...tr,train:'TEST-UNKNOWN',stops:tr.stops.map((s,i)=>({...s,name:i===pass?'不存在的測試站':s.name}))}),null);
 assert.equal(bind({...tr,sys:'thsr_sched',train:'TEST-CROSS-SYSTEM'}),null);
 assert.equal(bind({...tr,train:'TEST-LOOP',loop:true}),null);
-console.log('台鐵股道綁定：通過時刻更新、停靠／待避防護、30 班加開模板、雙方向與未知路徑檢查通過');
+console.log('台鐵股道綁定：通過時刻更新、改點沿用股道、停靠型態／待避防護、30 班加開模板、雙方向與未知路徑檢查通過');
