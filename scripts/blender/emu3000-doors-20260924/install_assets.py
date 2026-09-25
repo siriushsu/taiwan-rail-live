@@ -12,14 +12,21 @@ rail-3d/assets/garage-blender-v1/emu3000.{json,bin.gz}。
 另外把門口以外的外觀改回 BASE 資產的樣子：範圍沒變只是切法不同的平面整塊換回 BASE 的三角形
 （restore_base_triangulation），其餘逐角把法向量改回 BASE 的值（restore_base_normals，不動位置）。
 
-用法：
+用法（頭車，Task 4，行為與輸出逐 byte 不變）：
   python3 scripts/blender/emu3000-doors-20260924/install_assets.py [build目錄=output/emu3000-doors/build]
+
+用法（中間車／集電弓零件庫，Task 5，新增）：
+  python3 scripts/blender/emu3000-doors-20260924/install_assets.py mid [build目錄=output/emu3000-doors/build-mid]
+  python3 scripts/blender/emu3000-doors-20260924/install_assets.py pantograph [build目錄=output/emu3000-doors/build-pantograph]
 """
 import sys, gzip, hashlib, json, array, math, subprocess
 from pathlib import Path
 
-W = Path('/Users/xuxiang/Code/捷運小動畫/.claude/worktrees/garage-scene-03')
-BUILD_DIR = Path(sys.argv[1]) if len(sys.argv) > 1 else (W / 'output/emu3000-doors/build')
+W = Path(__file__).resolve().parents[3]  # repo 根目錄（scripts/blender/<本目錄>/<本檔>）
+_MODE = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in ('mid', 'pantograph') else None
+_PATH_ARG = sys.argv[2] if _MODE and len(sys.argv) > 2 else (sys.argv[1] if not _MODE and len(sys.argv) > 1 else None)
+_DEFAULT_BUILD = {'mid': 'build-mid', 'pantograph': 'build-pantograph'}.get(_MODE, 'build')
+BUILD_DIR = Path(_PATH_ARG) if _PATH_ARG else (W / 'output/emu3000-doors' / _DEFAULT_BUILD)
 ASSET_DIR = W / 'rail-3d/assets/garage-blender-v1'
 ASSET_JSON = ASSET_DIR / 'emu3000.json'
 ASSET_BIN_GZ = ASSET_DIR / 'emu3000.bin.gz'
@@ -199,59 +206,160 @@ def restore_base_normals(raw, groups, doors, base):
     return n.tobytes(), stats
 
 
-raw_path = BUILD_DIR / 'emu3000-doors.raw.bin'
-meta_path = BUILD_DIR / 'emu3000-doors.meta.json'
-if not raw_path.exists() or not meta_path.exists():
-    sys.exit(f'找不到 build 輸出：{raw_path} 或 {meta_path}（先跑 build_doors.py）')
+def install_head_car():
+    """頭車（Task 4）：原本的合併流程，逐行原封不動搬進函式——行為與輸出保持逐 byte 不變。"""
+    raw_path = BUILD_DIR / 'emu3000-doors.raw.bin'
+    meta_path = BUILD_DIR / 'emu3000-doors.meta.json'
+    if not raw_path.exists() or not meta_path.exists():
+        sys.exit(f'找不到 build 輸出：{raw_path} 或 {meta_path}（先跑 build_doors.py）')
 
-raw = raw_path.read_bytes()
-meta = json.loads(meta_path.read_text(encoding='utf-8'))
+    raw = raw_path.read_bytes()
+    meta = json.loads(meta_path.read_text(encoding='utf-8'))
 
-# 完整性檢查：raw.bin 的 sha256 要跟 meta.json 宣告的一致，避免併入損毀/過期的中繼檔
-raw_sha = hashlib.sha256(raw).hexdigest()
-if raw_sha != meta['sha256']:
-    sys.exit(f'raw.bin sha256 與 meta.json 不符：raw={raw_sha} meta={meta["sha256"]}（build 輸出可能過期，重跑 build_doors.py）')
+    # 完整性檢查：raw.bin 的 sha256 要跟 meta.json 宣告的一致，避免併入損毀/過期的中繼檔
+    raw_sha = hashlib.sha256(raw).hexdigest()
+    if raw_sha != meta['sha256']:
+        sys.exit(f'raw.bin sha256 與 meta.json 不符：raw={raw_sha} meta={meta["sha256"]}（build 輸出可能過期，重跑 build_doors.py）')
 
-if not ASSET_JSON.exists():
-    sys.exit(f'找不到既有資產：{ASSET_JSON}')
-asset = json.loads(ASSET_JSON.read_text(encoding='utf-8'))
+    if not ASSET_JSON.exists():
+        sys.exit(f'找不到既有資產：{ASSET_JSON}')
+    asset = json.loads(ASSET_JSON.read_text(encoding='utf-8'))
 
-orig_groups = asset['mesh']['drawGroups']
-new_groups = meta['drawGroups']
-if len(orig_groups) != len(new_groups):
-    sys.exit(f'drawGroups 數量不符：既有 {len(orig_groups)} vs 新算 {len(new_groups)}')
-merged_groups = []
-for i, (og, ng) in enumerate(zip(orig_groups, new_groups)):
-    if og['name'] != ng['name']:
-        sys.exit(f'drawGroups[{i}] 名稱不符：既有 {og["name"]!r} vs 新算 {ng["name"]!r}（順序可能跑掉）')
-    merged = dict(og)  # 保留既有的 color/metalness/roughness/clearcoat/lightingRole 原樣
-    merged['start'] = ng['start']
-    merged['count'] = ng['count']
-    merged_groups.append(merged)
+    orig_groups = asset['mesh']['drawGroups']
+    new_groups = meta['drawGroups']
+    if len(orig_groups) != len(new_groups):
+        sys.exit(f'drawGroups 數量不符：既有 {len(orig_groups)} vs 新算 {len(new_groups)}')
+    merged_groups = []
+    for i, (og, ng) in enumerate(zip(orig_groups, new_groups)):
+        if og['name'] != ng['name']:
+            sys.exit(f'drawGroups[{i}] 名稱不符：既有 {og["name"]!r} vs 新算 {ng["name"]!r}（順序可能跑掉）')
+        merged = dict(og)  # 保留既有的 color/metalness/roughness/clearcoat/lightingRole 原樣
+        merged['start'] = ng['start']
+        merged['count'] = ng['count']
+        merged_groups.append(merged)
 
-base = load_base()
-raw, triangulation_stats = restore_base_triangulation(raw, new_groups, meta['doors'], base)
-raw, normal_stats = restore_base_normals(raw, new_groups, meta['doors'], base)
-raw_sha = hashlib.sha256(raw).hexdigest()  # 內容改過了，雜湊跟著換（meta.json 的是 build 原始輸出的）
+    base = load_base()
+    raw, triangulation_stats = restore_base_triangulation(raw, new_groups, meta['doors'], base)
+    raw, normal_stats = restore_base_normals(raw, new_groups, meta['doors'], base)
+    raw_sha = hashlib.sha256(raw).hexdigest()  # 內容改過了，雜湊跟著換（meta.json 的是 build 原始輸出的）
 
-asset['mesh'] = dict(asset['mesh'])  # 淺拷貝，避免動到讀進來的物件被後面覆寫搞混
-asset['mesh']['sha256'] = raw_sha
-asset['mesh']['vertexCount'] = meta['vertexCount']
-asset['mesh']['triangleCount'] = meta['triangleCount']
-asset['mesh']['drawGroups'] = merged_groups
-# file/encoding/strideBytes/compression 格式不變，原樣保留（不覆寫）
+    asset['mesh'] = dict(asset['mesh'])  # 淺拷貝，避免動到讀進來的物件被後面覆寫搞混
+    asset['mesh']['sha256'] = raw_sha
+    asset['mesh']['vertexCount'] = meta['vertexCount']
+    asset['mesh']['triangleCount'] = meta['triangleCount']
+    asset['mesh']['drawGroups'] = merged_groups
+    # file/encoding/strideBytes/compression 格式不變，原樣保留（不覆寫）
 
-asset['doors'] = meta['doors']
-# bounds/sizeM 等其餘既有欄位完全不動（沿用讀進來的 asset dict 原值）
+    asset['doors'] = meta['doors']
+    # bounds/sizeM 等其餘既有欄位完全不動（沿用讀進來的 asset dict 原值）
 
-ASSET_DIR.mkdir(parents=True, exist_ok=True)
-ASSET_BIN_GZ.write_bytes(gzip.compress(raw, compresslevel=9, mtime=0))
-ASSET_JSON.write_text(json.dumps(asset, ensure_ascii=False, separators=(',', ':')) + '\n', encoding='utf-8')
+    ASSET_DIR.mkdir(parents=True, exist_ok=True)
+    ASSET_BIN_GZ.write_bytes(gzip.compress(raw, compresslevel=9, mtime=0))
+    ASSET_JSON.write_text(json.dumps(asset, ensure_ascii=False, separators=(',', ':')) + '\n', encoding='utf-8')
 
-print('GD_DOORS_INSTALL_OK', json.dumps({
-    'json': str(ASSET_JSON), 'binGz': str(ASSET_BIN_GZ),
-    'sha256': raw_sha, 'vertexCount': meta['vertexCount'], 'triangleCount': meta['triangleCount'],
-    'doorIds': [d['id'] for d in meta['doors']['items']],
-    'triangulationFromBase': triangulation_stats,
-    'normalsFromBase': normal_stats,
-}, ensure_ascii=False))
+    print('GD_DOORS_INSTALL_OK', json.dumps({
+        'json': str(ASSET_JSON), 'binGz': str(ASSET_BIN_GZ),
+        'sha256': raw_sha, 'vertexCount': meta['vertexCount'], 'triangleCount': meta['triangleCount'],
+        'doorIds': [d['id'] for d in meta['doors']['items']],
+        'triangulationFromBase': triangulation_stats,
+        'normalsFromBase': normal_stats,
+    }, ensure_ascii=False))
+
+
+def install_mid():
+    """中間車（Task 5）：build_mid.py 已經算好完整幾何＋doors＋pantograph mount，這裡只是組出
+    完整的 emu3000-mid.json 頂層 schema（沿用頭車的欄位形狀）並寫檔，不做任何幾何運算。"""
+    raw_path = BUILD_DIR / 'emu3000-mid.raw.bin'
+    meta_path = BUILD_DIR / 'emu3000-mid.meta.json'
+    if not raw_path.exists() or not meta_path.exists():
+        sys.exit(f'找不到 build 輸出：{raw_path} 或 {meta_path}（先跑 build_mid.py）')
+    raw = raw_path.read_bytes()
+    meta = json.loads(meta_path.read_text(encoding='utf-8'))
+    raw_sha = hashlib.sha256(raw).hexdigest()
+    if raw_sha != meta['sha256']:
+        sys.exit(f'raw.bin sha256 與 meta.json 不符：raw={raw_sha} meta={meta["sha256"]}（重跑 build_mid.py）')
+
+    head = json.loads(ASSET_JSON.read_text(encoding='utf-8'))  # 頭車，只讀不寫，借頂層欄位形狀與素材慣例
+
+    out_json = ASSET_DIR / 'emu3000-mid.json'
+    out_bin_gz = ASSET_DIR / 'emu3000-mid.bin.gz'
+    asset = {
+        'modelId': 'emu3000-mid', 'name': 'EMU3000 新自強（中間車）', 'version': 1,
+        'application': head['application'], 'family': head['family'],
+        'axes': head['axes'], 'gltfAxes': head['gltfAxes'], 'style': head['style'],
+        'sourcePhotosIncluded': False, 'operatorLogoIncluded': False, 'numberIsLiveIdentity': False,
+        'identityMaterial': None, 'engineeringDimensionsM': None,
+        'bounds': meta['bounds'], 'sizeM': meta['sizeM'],
+        'mesh': {
+            'file': 'emu3000-mid.bin.gz', 'sha256': raw_sha, 'encoding': 'float32-le', 'strideBytes': 24,
+            'vertexCount': meta['vertexCount'], 'triangleCount': meta['triangleCount'],
+            'drawGroups': meta['drawGroups'], 'compression': 'gzip',
+        },
+        'nativeObjectCount': None,
+        'features': {
+            'sideDoorGroups': 2, 'doorLeavesPerGroup': 1, 'pantographsOnThisAsset': 1,
+            'axlesPerBogie': head['features']['axlesPerBogie'], 'articulatedSections': 1, 'steamDriversPerSide': 0,
+        },
+        'specification': {
+            'id': 'emu3000-mid', 'family': head['specification']['family'],
+            'L': meta['sizeM'][0], 'W': head['specification']['W'], 'H': meta['sizeM'][2],
+            'body': head['specification']['body'], 'accent': head['specification']['accent'],
+            'roof': head['specification']['roof'], 'doorLeaves': 1, 'windows': None,
+            'power': 'overhead', 'revision': '2026-09-25-mid-r1',
+        },
+        'reference': head['reference'],
+        'formation': {'default': 'single-vehicle', 'illustrative': True, 'liveAssignment': False, 'shortFormation': None},
+        'lighting': None,
+        'doors': meta['doors'],
+        'pantograph': meta['pantograph'],
+    }
+    ASSET_DIR.mkdir(parents=True, exist_ok=True)
+    out_bin_gz.write_bytes(gzip.compress(raw, compresslevel=9, mtime=0))
+    out_json.write_text(json.dumps(asset, ensure_ascii=False, separators=(',', ':')) + '\n', encoding='utf-8')
+    print('GD_MID_INSTALL_OK', json.dumps({
+        'json': str(out_json), 'binGz': str(out_bin_gz), 'sha256': raw_sha,
+        'vertexCount': meta['vertexCount'], 'triangleCount': meta['triangleCount'],
+        'doorIds': [d['id'] for d in meta['doors']['items']], 'pantograph': meta['pantograph'],
+    }, ensure_ascii=False))
+
+
+def install_pantograph():
+    """集電弓零件庫（Task 5）：build_pantograph.py 已經算好 4 個部件的幾何與 rig，這裡只是照
+    garage-parts-v1 的欄位形狀組出 emu3000-pantograph.json 並寫檔。"""
+    raw_path = BUILD_DIR / 'emu3000-pantograph.raw.bin'
+    meta_path = BUILD_DIR / 'emu3000-pantograph.meta.json'
+    if not raw_path.exists() or not meta_path.exists():
+        sys.exit(f'找不到 build 輸出：{raw_path} 或 {meta_path}（先跑 build_pantograph.py）')
+    raw = raw_path.read_bytes()
+    meta = json.loads(meta_path.read_text(encoding='utf-8'))
+    raw_sha = hashlib.sha256(raw).hexdigest()
+    if raw_sha != meta['sha256']:
+        sys.exit(f'raw.bin sha256 與 meta.json 不符：raw={raw_sha} meta={meta["sha256"]}（重跑 build_pantograph.py）')
+
+    out_json = ASSET_DIR / 'emu3000-pantograph.json'
+    out_bin_gz = ASSET_DIR / 'emu3000-pantograph.bin.gz'
+    asset = {
+        'schema': 'garage-parts-v1', 'id': 'emu3000-pantograph', 'units': 'model',
+        'mesh': {
+            'file': 'emu3000-pantograph.bin.gz', 'sha256': raw_sha, 'encoding': 'float32-le', 'strideBytes': 24,
+            'vertexCount': meta['vertexCount'], 'triangleCount': meta['triangleCount'], 'compression': 'gzip',
+        },
+        'rig': meta['rig'],
+        'parts': meta['parts'],
+    }
+    ASSET_DIR.mkdir(parents=True, exist_ok=True)
+    out_bin_gz.write_bytes(gzip.compress(raw, compresslevel=9, mtime=0))
+    out_json.write_text(json.dumps(asset, ensure_ascii=False, separators=(',', ':')) + '\n', encoding='utf-8')
+    print('GD_PANTOGRAPH_INSTALL_OK', json.dumps({
+        'json': str(out_json), 'binGz': str(out_bin_gz), 'sha256': raw_sha,
+        'vertexCount': meta['vertexCount'], 'triangleCount': meta['triangleCount'],
+        'parts': [p['name'] for p in meta['parts']],
+    }, ensure_ascii=False))
+
+
+if _MODE is None:
+    install_head_car()
+elif _MODE == 'mid':
+    install_mid()
+elif _MODE == 'pantograph':
+    install_pantograph()

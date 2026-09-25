@@ -28,8 +28,16 @@ FLEET_RENDER=1 /Applications/Blender.app/Contents/MacOS/Blender -b --factory-sta
 # 把 build 輸出併入正式資產（只換 mesh 欄位＋新增 doors 欄位，其餘既有欄位原樣保留）
 python3 scripts/blender/emu3000-doors-20260924/install_assets.py [build目錄，預設 output/emu3000-doors/build]
 
+# 中間車與集電弓（見下方「中間車與集電弓」一節）。中間車讀的是已併入的頭車資產，頭車要先裝好
+python3 scripts/blender/emu3000-doors-20260924/build_mid.py
+/Applications/Blender.app/Contents/MacOS/Blender -b --python scripts/blender/emu3000-doors-20260924/build_pantograph.py
+python3 scripts/blender/emu3000-doors-20260924/install_assets.py mid          # 預設讀 output/emu3000-doors/build-mid
+python3 scripts/blender/emu3000-doors-20260924/install_assets.py pantograph   # 預設讀 output/emu3000-doors/build-pantograph
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup \
+  --python scripts/blender/emu3000-doors-20260924/render_mid_pantograph.py   # renders/10~13（讀已併入的資產）
+
 # 驗收
-node --no-warnings scripts/verify_garage_stop_assets.mjs D   # 12 項門專用幾何檢查（round 3 新增 D12）
+node --no-warnings scripts/verify_garage_stop_assets.mjs D M # D1～D12 頭車門＋M1～M9 中間車與集電弓，共 21 項
 node --no-warnings scripts/verify_garage_assets.mjs          # 62 款資產完整性
 ```
 
@@ -102,6 +110,34 @@ node --no-warnings scripts/verify_garage_assets.mjs          # 62 款資產完�
      內插出 BASE 的法向量寫回（`restore_base_normals`）。
    結果：D12 在門口外（含 6 cm 邊界）逐格與 BASE 相同；法向量門檻從 12° 收緊到 2° 也全過。
 
+## 中間車與集電弓（2026-09-26）
+
+正式輸出：`rail-3d/assets/garage-blender-v1/emu3000-mid.{json,bin.gz}`（中間車，動力車）與
+`emu3000-pantograph.{json,bin.gz}`（單臂集電弓零件庫）。頭車 `emu3000.*` 不動。
+
+**中間車 `emu3000-mid`（`build_mid.py`，純 Python，不用 Blender）**
+
+1. 直接讀已併入的頭車資產（含上面第 8 點的還原），取 x≤0 那半（含門 1），對 x=0 鏡射出另一半；
+   跨過 x=0 的三角形沿平面裁開，接縫逐點重合。沒有重做布林，所以門洞、門廳、壁袋和頭車門 1 那端一模一樣。
+2. 車門：R1／L1 在 x=−4.2、往 +x 滑；R2／L2 在 x=+4.2（鏡射），往 −x 滑。都往車廂中心收。
+3. 頭燈、尾燈角色的 drawGroup 整組拿掉，`lighting: null`；其餘 drawGroup 名稱、順序、材質值都沿用頭車。
+4. 車頂只留一個車頂單元（+X 端）。−X 端那座用 roof 群組 x<0、z>3.55 的三角形量出腳印（外擴 1 cm），
+   腳印內 z≥3.385 的三角形不分群組全部刪除；底下 z=3.40 的車頂面本來就連續，刪完是平車頂。
+5. 鏡射接縫正中那扇窗（window9）原本兩半玻璃貼在一起、沒有窗柱：x<0 那半的玻璃＋窗框整塊往外
+   平移 0.105，鏡射後兩側留出 0.2134 寬的窗柱，跟其他窗柱同寬。平移在外層窗框 T 形接點留下的
+   約 0.5 mm 裂縫，用縫合三角形補起來（第三輪）。
+6. 集電弓座 `pantograph.mount = [−2.9881, 0, 3.68]`：x＝−X 端轉向架兩軸（−3.5252、−2.4510）的平均，
+   z＝該點車頂 3.40＋底座高 `BASE_H` 0.28。`features.pantographsOnThisAsset: 1`、`articulatedSections: 1`。
+7. 37380 個三角形（上限 56106，M8）。
+
+**集電弓 `emu3000-pantograph`（`build_pantograph.py`，Blender）**
+
+- `schema: garage-parts-v1`，四個部件 base／lower／upper／head，各自以自己的轉軸為局部原點，由場景端組裝。
+- `rig = {lower: 1.10, upper: .81, headRise: .052}`：方案 A（使用者 09-25 裁示，電車線降到離軌頂約
+  1.95 世界單位）的字面值。base 從下臂轉軸 z=0 往下延伸 `BASE_H`（0.28）到車頂；這個值 `build_mid.py`
+  也用來算 mount.z，兩邊必須一致。
+- 256 個三角形（上限 1500）。電車線 1.95 伸不伸得到由 M7 驗（兩節連桿，肘朝 +x）。
+
 ## 已知限制
 
 - 場景／App 目前沒有接線播放這個開闔動畫（跟車卡、車庫展示尚未讀取 `doors` metadata）；本輪只交付
@@ -116,3 +152,8 @@ node --no-warnings scripts/verify_garage_assets.mjs          # 62 款資產完�
   人工檢視。
 - **`renders/` 的 Cycles 圖來自 `.blend`，不含併入時的還原（第 8 點）**：04 門內特寫裡鼻端那條淡漸層
   就是還原前的樣子，正式資產裡已經改回 BASE。要看正式資產，用 D12 的光線追蹤或車庫頁。
+- 中間車中央窗柱的內層窗框（|y|≈1.434）在平移後留了 4 道縫，只有從車廂裡面往外看才看得到；
+  外觀用 0.5 mm 光線掃描驗過是乾淨的（第三輪只補了外層）。
+- 集電弓底座高 `BASE_H` 0.28 與底座、礙子尺寸是示意值，沒有考據；部件外形也是簡化的示意等級。
+- `renders/10~13` 是 Blender Cycles 算繪，讀的是已併入的資產；集電弓姿勢由 `render_mid_pantograph.py`
+  自己解兩節連桿（取肘朝前那組解），跟車庫頁實際的升降弓程式是兩份實作。
