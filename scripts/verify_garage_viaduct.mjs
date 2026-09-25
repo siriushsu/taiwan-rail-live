@@ -58,7 +58,8 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
    // 車模：原點＝輪底；底部頂點最密的 |y| 桶＝輪對位置；最高頂點＝車頂。
    const prim=await M.loadGarageModel('emu3000'),t=await M.createConsist('emu3000',prim),car=t.cars[1].car;car.updateMatrixWorld(true);
    const hist={},v=new T.Vector3();let roof=-Infinity;
-   car.traverse(o=>{if(!o.isMesh)return;const a=o.geometry.attributes.position;for(let i=0;i<a.count;i++){v.fromBufferAttribute(a,i);o.localToWorld(v);const z=v.z-car.position.z;roof=Math.max(roof,z);if(z<.4){const k=Math.round(Math.abs(v.y)*20)/20;hist[k]=(hist[k]||0)+1;}}});
+   // 只量車身本身：09-24 起中間車車身掛了集電弓子物件，車頂高度不含它；集電弓貼線另由 verify_garage_viaduct_stop 的 S9 驗。
+   [t.cars[1].body].forEach(o=>{const a=o.geometry.attributes.position;for(let i=0;i<a.count;i++){v.fromBufferAttribute(a,i);o.localToWorld(v);const z=v.z-car.position.z;roof=Math.max(roof,z);if(z<.4){const k=Math.round(Math.abs(v.y)*20)/20;hist[k]=(hist[k]||0)+1;}}});
    const wheel=+Object.entries(hist).sort((a,b)=>b[1]-a[1])[0][0];
    // 鋼軌：軌頭網格兩段各取 s=0 那兩個頂點算中線偏移；軌腰網格最低點＝軌底。
    const head=byName('rail-head').geometry.attributes.position,web=byName('rail-web').geometry.attributes.position,per=head.count/2;

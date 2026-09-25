@@ -73,7 +73,9 @@ section('S2',async(b,engine)=>{const {p,ctx,errors}=await open(b);try{
 // S3 雨棚淡出與門口可見（12.5）：全景、跟車擋到門就淡，月台低角度不淡；門口的像素要真的看得到車。
 section('S3',async(b,engine)=>{const {p,ctx,errors}=await open(b);try{
  await p.evaluate(()=>viaductPreview.peopleVisible?.(false));
- await at(p,12);
+ // 量在「停穩、門還沒開」的 5.5 秒（煞停 5、開門 5.8）：雨棚擋不擋只看停車位置，跟門開沒開無關。
+ // 09-26 起門框取真實車門位置、門也真的會開；門全開時淺色門洞跟後方淺色高架差不到 24，沒被擋也量成看不到（實測 0.17～0.49），所以不量在開門中。
+ await at(p,5.5);
  // 同一個鏡頭、同一個時刻：有車與沒車兩張，比月台側每個畫面內門框的差異比例。
  const seenDoors=async()=>{await p.evaluate(async()=>{await __px.shot('on');viaductPreview.trainVisible(false);await __px.shot('off');viaductPreview.trainVisible(true);});
   const rects=(await doorRects(p,'platform')).filter(r=>r.on),seen=[];for(const r of rects)seen.push(await p.evaluate(r=>__px.diff('on','off',r),r));return seen;};
@@ -125,6 +127,114 @@ section('S6',async(b,engine)=>{const {p,ctx,errors}=await open(b);try{
  check(`${engine} S6 檢查點 1 四張截圖都在且各 >20 KB`,sizes.length===4&&sizes.every(([,n])=>n>20*1024),sizes);
  check(engine+' S6 沒有 JS 錯誤',errors.length===0,errors);
 }finally{await ctx.close();}},['chromium']);
+
+const shotIn=(p,name)=>p.evaluate(n=>__px.shot(n),name);
+const baseFile=f=>execFileSync('git',['-C',ROOT,'show',BASE_SHA+':'+f],{encoding:'buffer',maxBuffer:64<<20});
+
+// S7 車門開關（12.3）：月台側門口關門／全開兩張逐像素差異大、另一側差異近 0（不能只信程式記錄的門位置）。
+// 開門過程逐格截圖（設計書 §14：門扇內退時可能與門洞邊緣互搶深度），破面與閃爍由檢查點 2 與 Task 9 目視。
+section('S7',async(b,engine)=>{const {p,ctx,errors}=await open(b);try{
+ const T=await p.evaluate(()=>viaductPreview.timetable),dir=path.join(OUT,'checkpoint-2');mkdirSync(path.join(dir,'開門過程'),{recursive:true});
+ const snap=async name=>{if(engine==='chromium')await p.screenshot({path:path.join(dir,name)});};
+ await p.evaluate(()=>viaductPreview.peopleVisible?.(false));await cam(p,{view:'platform'});
+ await at(p,T.phases.openStart-.3);await shotIn(p,'closed');await snap('5-關門.png');
+ await at(p,T.phases.openStart+1.5);await snap('6-開門中.png');
+ await at(p,T.showcase);await shotIn(p,'open');await snap('7-全開.png');
+ const near=(await doorRects(p,'platform')).filter(r=>r.on),nd=[];for(const r of near)nd.push(await p.evaluate(r=>__px.diff('closed','open',r),r));
+ check(`${engine} S7 月台側：畫面內 ≥3 扇門、每扇關門與全開差異 >0.25`,near.length>=3&&nd.every(x=>x>.25),{doors:near.length,diff:nd});
+ await cam(p,{view:'train',yaw:-1.12+Math.PI,elevation:.3});
+ await at(p,T.phases.openStart-.3);await shotIn(p,'farClosed');await at(p,T.showcase);await shotIn(p,'farOpen');
+ const far=(await doorRects(p,'far')).filter(r=>r.on),fd=[];for(const r of far)fd.push(await p.evaluate(r=>__px.diff('farClosed','farOpen',r),r));
+ check(`${engine} S7 另一側：畫面內 ≥4 扇門、每扇差異 <0.03（不開）`,far.length>=4&&fd.every(x=>x<.03),{doors:far.length,diff:fd});
+ if(engine==='chromium'){await cam(p,{view:'platform',zoom:1.6});const sizes=[];
+  for(const dt of [.1,.2,.3,.4,.6,1,2,3]){await at(p,T.phases.openStart+dt);const file=path.join(dir,'開門過程',dt.toFixed(1)+'.png');await p.screenshot({path:file});sizes.push([dt,readFileSync(file).length]);}
+  check(`${engine} S7 開門過程八格截圖都在且各 >20 KB`,sizes.length===8&&sizes.every(([,n])=>n>20*1024),sizes);}
+ check(engine+' S7 沒有 JS 錯誤',errors.length===0,errors);
+}finally{await ctx.close();}});
+
+// S8 舊程式相容（12.4）：改動前的 garage-model.js 載入新車模＝關門的完整車身，與「舊程式＋舊車模」逐像素幾乎相同。
+// A 頁舊程式＋新車模；B 頁舊程式＋舊車模（BASE 的 json／bin.gz）。舊程式另外轉出現在的 loadGarageParts，主程式照樣能 import。
+// 對照組：新程式同一頁開門與關門，證明開門的差別量得出來。
+section('S8',async(b,engine)=>{
+ const OLD=execFileSync('git',['-C',ROOT,'show',BASE_SHA+':rail-3d/garage-model.js'],{encoding:'utf8'}),js=body=>({status:200,contentType:'text/javascript',body});
+ const oldLoader=async ctx=>{await ctx.route('**/rail-3d/garage-model.js*',r=>r.fulfill(js(OLD+"\nexport {loadGarageParts} from './garage-model-now.js';\n")));
+  await ctx.route('**/rail-3d/garage-model-now.js*',r=>r.fulfill(js(readFileSync(path.join(ROOT,'rail-3d/garage-model.js'),'utf8'))));};
+ const frame=async p=>{await p.evaluate(()=>viaductPreview.isolate(true));await cam(p,{view:'train'});await at(p,12);};
+ let url;
+ {const {p,ctx,errors}=await open(b,{},oldLoader);try{await frame(p);await shotIn(p,'a');url=await p.evaluate(()=>__px.url('a'));
+  check(engine+' S8 A 頁（舊程式＋新車模）沒有 JS 錯誤',errors.length===0,errors);}finally{await ctx.close();}}
+ {const {p,ctx,errors}=await open(b,{},async ctx=>{await oldLoader(ctx);
+   await ctx.route('**/garage-blender-v1/emu3000.json',r=>r.fulfill({status:200,contentType:'application/json',body:baseFile('rail-3d/assets/garage-blender-v1/emu3000.json')}));
+   await ctx.route('**/garage-blender-v1/emu3000.bin.gz',r=>r.fulfill({status:200,contentType:'application/gzip',body:baseFile('rail-3d/assets/garage-blender-v1/emu3000.bin.gz')}));});
+  try{await frame(p);await shotIn(p,'b');const r=await p.evaluate(async url=>{await __px.load('a',url);return __px.carIoU('a','b');},url);
+   check(`${engine} S8 舊程式載入新車模＝關門完整車身（與舊程式＋舊車模 IoU ≥0.995、色差像素 ≤1%）`,r.iou>=.995&&r.offShare<=.01,r);
+   check(engine+' S8 B 頁（舊程式＋舊車模）沒有 JS 錯誤',errors.length===0,errors);}finally{await ctx.close();}}
+ {const {p,ctx,errors}=await open(b);try{const T=await p.evaluate(()=>viaductPreview.timetable);await p.evaluate(()=>viaductPreview.isolate(true));await cam(p,{view:'train'});
+  await at(p,T.showcase);await shotIn(p,'o');await at(p,T.phases.openStart-.3);await shotIn(p,'c');const r=await p.evaluate(()=>__px.carIoU('o','c'));
+  check(`${engine} S8 對照組：新程式開門與關門的車身色差像素 ≥3%（量得出開門）`,r.offShare>=.03,r);
+  check(engine+' S8 對照組沒有 JS 錯誤',errors.length===0,errors);}finally{await ctx.close();}}
+});
+
+// S9 高架集電弓（12.6）：弓頭貼住電車線（高度差 ≤0.02）、電車線是平的；沒有電車線就降弓。
+section('S9',async(b,engine)=>{const {p,ctx,errors}=await open(b);try{
+ await at(p,12);
+ const r=await p.evaluate(()=>({panto:viaductPreview.pantographs(),wire:viaductPreview.wireBox(),z:viaductPreview.contactWireZ})),h=r.panto[0];
+ check(`${engine} S9 一支集電弓、升到電車線（reached）`,r.panto.length===1&&h.reached&&!h.folded,r.panto);
+ check(`${engine} S9 電車線是平的、弓頭與線底高度差 ≤0.02`,!!h&&r.wire.max[2]-r.wire.min[2]<1e-4&&Math.abs(r.wire.min[2]-h.head[2])<=.02,{wire:r.wire,head:h?.head,z:r.z});
+ const down=await p.evaluate(()=>{viaductPreview.setContactWire(null);return viaductPreview.pantographs();});
+ check(`${engine} S9 沒有電車線時降弓（folded、弓頭離鉸鏈 <0.05）`,down.length===1&&down[0].folded&&down[0].head[2]-down[0].hinge[2]<.05,down);
+ await p.evaluate(()=>viaductPreview.setContactWire(viaductPreview.contactWireZ));
+ check(engine+' S9 沒有 JS 錯誤',errors.length===0,errors);
+}finally{await ctx.close();}});
+
+// S10 夜晚開門（Review Focus 3）：門內頂燈（window 發光角色）在開門時透出暖光，關門時不透；窗燈照常。
+section('S10',async(b,engine)=>{const {p,ctx,errors}=await open(b);try{
+ const T=await p.evaluate(()=>viaductPreview.timetable);
+ await p.click('button[data-period="night"]');await p.evaluate(()=>viaductPreview.peopleVisible?.(false));await cam(p,{view:'platform'});
+ await at(p,T.phases.openStart-.3);await shotIn(p,'nc');const s=await at(p,T.showcase);await shotIn(p,'no');
+ const rects=(await doorRects(p,'platform')).filter(r=>r.on),m=[];for(const r of rects)m.push(await p.evaluate(r=>({closed:__px.mean('nc',r),open:__px.mean('no',r)}),r));
+ check(`${engine} S10 夜晚：畫面內 ≥2 扇月台側門，開門後門口變亮（+8）且偏暖（R>B）`,m.length>=2&&m.every(x=>x.open.l>x.closed.l+8&&x.open.r>x.open.b),m.map(x=>({closed:+x.closed.l.toFixed(1),open:+x.open.l.toFixed(1),r:+x.open.r.toFixed(1),b:+x.open.b.toFixed(1)})));
+ check(`${engine} S10 夜晚窗燈亮著（lighting.windows>0）`,s.lighting.windows>0,s.lighting);
+ check(engine+' S10 沒有 JS 錯誤',errors.length===0,errors);
+}finally{await ctx.close();}});
+
+// S11 多良、平交道（12.6、§11、Review Focus 4）：選 EMU3000 拿到車庫中間車、整列長度不變（平交道遮斷時序靠它）；
+// 集電弓升到線，整段路線正上方第一個東西就是電車線，不穿過腕臂、電桿或隧道頂。
+section('S11',async(b,engine)=>{
+ const manifest=JSON.parse(readFileSync(path.join(ROOT,'rail-3d/assets/blender-map-v1/manifest.json'),'utf8')),head=JSON.parse(baseFile('rail-3d/assets/garage-blender-v1/emu3000.json').toString('utf8'));
+ const mm=manifest.meshes['emu3000-mid'],expected=(mm.max[0]-mm.min[0]+2*head.sizeM[0])*1.25/head.sizeM[1]+.28;
+ for(const kind of ['duoliang','crossing']){
+  const ctx=await b.newContext({viewport:{width:1280,height:900},deviceScaleFactor:1,reducedMotion:'reduce'}),p=await ctx.newPage(),errors=[],urls=[];
+  p.on('pageerror',e=>errors.push(String(e)));p.on('console',m=>{if(m.type()==='error'&&!/\/favicon\.ico(\?|$)/.test(m.location()?.url||''))errors.push(m.text());});p.on('request',r=>urls.push(r.url()));
+  try{
+   await p.goto(SITE+'/prototypes/garage-'+kind+'/');await p.waitForFunction(()=>window.newScenePreview?.state.ready,null,{timeout:90000});
+   await p.selectOption('#train','emu3000');await p.waitForFunction(()=>{const s=newScenePreview.state;return s.ready&&s.model==='emu3000'&&!s.changing;},null,{timeout:90000});
+   const mid=urls.filter(u=>u.includes('/garage-blender-v1/emu3000-mid.json')),lod=urls.filter(u=>u.includes('/blender-map-v1/')&&u.includes('emu3000-mid'));
+   check(`${engine} S11 ${kind}：中間車讀車庫資產、不再借地圖 LOD`,mid.length>0&&lod.length===0,{mid:mid.length,lod});
+   const len=(await p.evaluate(()=>newScenePreview.state)).trainLength;
+   check(`${engine} S11 ${kind}：整列長度不變（差 <0.03）`,Math.abs(len-expected)<.03,{len,expected});
+   const t0=30/2.6,now=await p.evaluate(t=>{newScenePreview.setTime(t);return newScenePreview.pantographs().map(h=>({train:h.train,reached:h.reached,z:h.head[2],up:newScenePreview.probeUp([h.head[0],h.head[1],h.head[2]-.05])}));},t0);
+   check(`${engine} S11 ${kind}：${kind==='crossing'?2:1} 支集電弓都升到線，正上方第一個東西就是電車線（差 ≤0.02）`,now.length===(kind==='crossing'?2:1)&&now.every(h=>h.reached&&h.up!==null&&Math.abs(h.up-h.z)<=.02),now);
+   // 整段路線掃 40 個時刻；只看畫面內的集電弓。seen>0 是正向對照：一支都沒掃到時「沒有擋住」不算數。
+   const bad=[];let seen=0;
+   for(let k=0;k<40;k++){const t=k*(180/2.6)/40,rows=await p.evaluate(t=>{newScenePreview.setTime(t);return newScenePreview.pantographs().filter(h=>h.visible).map(h=>({train:h.train,z:h.head[2],up:newScenePreview.probeUp([h.head[0],h.head[1],h.head[2]-.05])}));},t);
+    for(const h of rows){seen++;if(!(h.up===null||h.up>=h.z-.02))bad.push({t:+t.toFixed(2),...h});}}
+   check(`${engine} S11 ${kind}：整段路線 40 個時刻，集電弓上方沒有腕臂、電桿或隧道頂擋住`,seen>0&&bad.length===0,{seen,bad:bad.slice(0,5)});
+   if(engine==='chromium'){await p.evaluate(t=>{newScenePreview.setPeriod('day');newScenePreview.setView('train');newScenePreview.setTime(t);},t0);
+    mkdirSync(path.join(OUT,'checkpoint-2'),{recursive:true});await p.screenshot({path:path.join(OUT,'checkpoint-2','8-'+kind+'-集電弓.png')});}
+   check(`${engine} S11 ${kind}：沒有 JS 錯誤`,errors.length===0,errors);
+  }finally{await ctx.close();}
+ }
+});
+
+// S12 效能（12.10）：夜晚、跟車、門全開：draw calls ≤125、三角形 ≤22 萬。
+section('S12',async(b,engine)=>{const {p,ctx,errors}=await open(b);try{
+ const T=await p.evaluate(()=>viaductPreview.timetable);
+ await p.click('button[data-period="night"]');await cam(p,{view:'train'});await at(p,T.showcase);
+ const s=await p.evaluate(()=>{viaductPreview.render();return viaductPreview.state;});
+ check(`${engine} S12 夜晚跟車停站：draw calls ≤125、三角形 ≤22 萬`,s.drawCalls<=125&&s.triangles<=220000,{drawCalls:s.drawCalls,triangles:s.triangles});
+ check(engine+' S12 沒有 JS 錯誤',errors.length===0,errors);
+}finally{await ctx.close();}});
 
 // ── 各段（Task 3：S1–S6；Task 6：S7–S12；Task 8：S13–S18）一律插在這一行之上 ──
 for(const [engine,launch] of Object.entries(ENGINES)){const b=await launch();

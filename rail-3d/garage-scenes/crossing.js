@@ -44,10 +44,11 @@ export function createScene(){
  const cars=[vehicle('car','#e6d8b7',1.65,-8.2,1),vehicle('scooter','#7c9b9a',2.4,-11.4,1),vehicle('car','#577c95',1.55,-14,1),vehicle('car','#b75540',-1.65,8.2,-1),vehicle('scooter','#d4b054',-2.35,11.4,-1),vehicle('car','#e5dfcf',-1.6,14,-1)];
  for(const [x,y,c]of [[-4.2,-7,'#d4a655'],[4.2,5.8,'#b9705a'],[-5.2,6,'#728e9d']])k.person(x,y,.18,{color:c,angle:Math.PI/2,hat:true});
  // 雙線電車線跨距與兩股軌道對位，不落柱在軌道中心。
+ // 電車線離軌頂約 1.94（與高架同一個高度），集電弓伸得到；電桿、橫樑、吊線跟著降。
  const wire=new THREE.Group();group.add(wire);
- for(let x=-28;x<=28;x+=14){for(const y of [-3.25,3.25])part(wire,dark,[.1,.1,4.0],[x,y,2.0]);part(wire,dark,[.1,6.6,.08],[x,0,3.92]);for(const y of [-1.65,1.65])part(wire,concrete,[.06,.06,.6],[x,y,3.65]);}
- for(const y of [-1.65,1.65])part(wire,dark,[70,.025,.025],[0,y,3.34]);
- k.bake();let state={};return{...k,path,opposingPath,kind:'crossing',focus:[0,5,1],update(time,period,train){const f=k.illumination(period),a=crossingState(train.distance,train.length,path.length,train.speed),b=crossingState(train.opposingDistance??train.distance,train.length,path.length,train.speed),s={...a,arrival:Math.max(a.arrival,b.arrival),clear:Math.min(a.clear,b.clear),closed:Math.max(a.closed,b.closed),alarm:a.alarm||b.alarm,occupied:a.occupied||b.occupied};s.phase=s.occupied?'雙向列車通過':!s.alarm?'通行開放':s.closed===1?'等待雙線清空':s.clear>.8?'遮斷桿上升':s.closed>0?'遮斷桿下降':'列車接近';for(const {pivot,side}of gates)pivot.rotation.y=side*(1-s.closed)*Math.PI/2;
+ for(let x=-28;x<=28;x+=14){for(const y of [-3.25,3.25])part(wire,dark,[.1,.1,2.97],[x,y,1.485]);part(wire,dark,[.1,6.6,.08],[x,0,2.89]);for(const y of [-1.65,1.65])part(wire,concrete,[.06,.06,.6],[x,y,2.62]);}
+ for(const y of [-1.65,1.65])part(wire,dark,[70,.025,.025],[0,y,2.31]);
+ k.bake();let state={};return{...k,path,opposingPath,kind:'crossing',contactWireZ:2.31-.0125,focus:[0,5,1],update(time,period,train){const f=k.illumination(period),a=crossingState(train.distance,train.length,path.length,train.speed),b=crossingState(train.opposingDistance??train.distance,train.length,path.length,train.speed),s={...a,arrival:Math.max(a.arrival,b.arrival),clear:Math.min(a.clear,b.clear),closed:Math.max(a.closed,b.closed),alarm:a.alarm||b.alarm,occupied:a.occupied||b.occupied};s.phase=s.occupied?'雙向列車通過':!s.alarm?'通行開放':s.closed===1?'等待雙線清空':s.clear>.8?'遮斷桿上升':s.closed>0?'遮斷桿下降':'列車接近';for(const {pivot,side}of gates)pivot.rotation.y=side*(1-s.closed)*Math.PI/2;
   for(const l of redLights)l.intensity=s.alarm?(f?2.5:.4):0;const blink=Math.floor(time*2.2)%2;for(const {m,index}of lamps){const on=s.alarm&&blink===index;m.emissiveIntensity=on?3:0;m.color.set(on?'#ff5943':'#551c19');}
   // 車流只在全開後通行；下一次警示前回到入口，所有回繞都在道路邊界。
   const span=38,openStart=3.2,openDuration=(path.length-train.length-7)/train.speed-9.2;

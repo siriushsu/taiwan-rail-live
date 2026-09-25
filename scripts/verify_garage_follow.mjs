@@ -17,7 +17,9 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
    const {createRenderer}=await import('/rail-3d/garage-renderer.js'),r=createRenderer(),canvas=document.querySelector('canvas'),copy=document.createElement('canvas'),ctx=copy.getContext('2d',{willReadFrequently:true}),rows=[];
    const masks=[0xff00ff,0x00ff00,0x0000ff].map(color=>new T.MeshBasicMaterial({color,toneMapped:false}));
    function measure(){
-    const cars=[];frame.scene.traverseVisible(o=>{if(o.isMesh&&Array.isArray(o.material)&&o.material.some(m=>m.name==='glass'))cars.push(o);});
+    // 認車：材質裡有玻璃的網格。09-26 起 emu3000 中間車改用自己的車庫資產，只有車窗（railLight:window:glass）、沒有車頭那組 glass；
+    // 認法比照 verify_garage_glass 與產品端（garage-model／garage-renderer）：glass 或車窗燈角色都算。
+    const cars=[];frame.scene.traverseVisible(o=>{if(o.isMesh&&Array.isArray(o.material)&&o.material.some(m=>m.name==='glass'||m.userData.railLightingRole==='window'))cars.push(o);});
     // 最大倍率可能裁到兩端；另量車身的完整投影，不能把裁切後色罩中心誤認為鏡頭焦點。
     let gx0=Infinity,gx1=-Infinity,gy0=Infinity,gy1=-Infinity;const point=new T.Vector3();
     for(const car of cars){const b=car.geometry.boundingBox;for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){point.set(x,y,z).applyMatrix4(car.matrixWorld).project(frame.camera);gx0=Math.min(gx0,point.x);gx1=Math.max(gx1,point.x);gy0=Math.min(gy0,point.y);gy1=Math.max(gy1,point.y);}}

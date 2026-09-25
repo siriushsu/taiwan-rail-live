@@ -1,7 +1,11 @@
 // 車庫的完整 Blender 素材與既有中間車／輕軌分節共用載入器。
 import * as THREE from './vendor/three.module.js';
 import {createTrainLights} from './garage-train-lights.js?revision=headlights-0912';
+import {createDoorControl} from './garage-doors.js?revision=doors-0924';
+import {buildGarageParts,createPantograph} from './garage-parts.js?revision=doors-0924';
 const base=new URL('./assets/garage-blender-v1/',import.meta.url),mapBase=new URL('./assets/blender-map-v1/',import.meta.url);
+// 這些中間車已有車庫等級的 Blender 資產（門、集電弓），不再借用地圖 LOD。
+const GARAGE_OWN=new Set(['emu3000-mid']);
 async function json(url,signal){const r=await fetch(url,{signal});if(!r.ok)throw Error('model metadata');return r.json();}
 async function checked(url,signal,bytes,sha,gzip=false){
  const r=await fetch(url,{signal});if(!r.ok)throw Error('model mesh');let b=await r.arrayBuffer();
@@ -12,7 +16,7 @@ async function checked(url,signal,bytes,sha,gzip=false){
 }
 function grey(m){m.onBeforeCompile=s=>{s.fragmentShader=s.fragmentShader.replace('#include <opaque_fragment>','#include <opaque_fragment>\ngl_FragColor.rgb=vec3(dot(gl_FragColor.rgb,vec3(.2126,.7152,.0722)));');};return m;}
 export async function loadGarageModel(id,signal,mapMeta,reference){
- const geometry=new THREE.BufferGeometry();let materials=[],lockedMaterials=[],lighting=null;
+ const geometry=new THREE.BufferGeometry();let materials=[],lockedMaterials=[],lighting=null,doors=null,pantograph=null;
  try{
   if(mapMeta){
    const b=await checked(new URL(mapMeta.file,mapBase),signal,mapMeta.byteLength,mapMeta.sha256),data=new Float32Array(b),buffer=new THREE.InterleavedBuffer(data,10);
@@ -44,7 +48,7 @@ export async function loadGarageModel(id,signal,mapMeta,reference){
   }else{
    const meta=await json(new URL(id+'.json',base),signal),b=await checked(new URL(meta.mesh.file,base),signal,meta.mesh.vertexCount*24,meta.mesh.sha256,true),buffer=new THREE.InterleavedBuffer(new Float32Array(b),6);
    geometry.setAttribute('position',new THREE.InterleavedBufferAttribute(buffer,3,0));geometry.setAttribute('normal',new THREE.InterleavedBufferAttribute(buffer,3,3));
-   lighting=meta.lighting||null;
+   lighting=meta.lighting||null;doors=meta.doors||null;pantograph=meta.pantograph||null;
    const flat=v=>Math.min(1,Math.max(0,(v*.95-.5)*.45+.5));
    for(const [i,g]of meta.mesh.drawGroups.entries()){geometry.addGroup(g.start,g.count,i);materials.push(new THREE.MeshPhysicalMaterial({name:g.name,color:new THREE.Color(...g.color),metalness:g.metalness,roughness:g.roughness,clearcoat:g.clearcoat,side:THREE.DoubleSide}));
     materials[i].userData.railLightingRole=g.lightingRole||null;
@@ -52,8 +56,13 @@ export async function loadGarageModel(id,signal,mapMeta,reference){
    }
   }
   geometry.computeBoundingBox();geometry.computeBoundingSphere();const center=new THREE.Vector3(),size=new THREE.Vector3();geometry.boundingBox.getCenter(center);geometry.boundingBox.getSize(size);
-  return{geometry,materials,lockedMaterials,center,size,lighting,dispose(){geometry.dispose();[...materials,...lockedMaterials].forEach(m=>m.dispose());}};
+  return{geometry,materials,lockedMaterials,center,size,lighting,doors,pantograph,dispose(){geometry.dispose();[...materials,...lockedMaterials].forEach(m=>m.dispose());}};
  }catch(e){geometry.dispose();[...materials,...lockedMaterials].forEach(m=>m.dispose());throw e;}
+}
+// 關節零件庫（集電弓、乘客）：JSON＋gzip 網格，長度與 sha256 同車模一樣先驗。
+export async function loadGarageParts(jsonUrl,signal){
+ const meta=await json(jsonUrl,signal),b=await checked(new URL(meta.mesh.file,jsonUrl),signal,meta.mesh.vertexCount*24,meta.mesh.sha256,true);
+ return buildGarageParts(meta,b);
 }
 let manifestPromise;
 export async function createConsist(id,primary,signal,opts={}){
@@ -69,7 +78,7 @@ export async function createConsist(id,primary,signal,opts={}){
  const assets=new Map([[id,primary]]),owned=[],root=new THREE.Group(),cars=[];
  try{
   for(const part of parts){if(assets.has(part.mesh))continue;
-   const derived=part.mesh.includes('-mid')||part.mesh.includes('-section-');
+   const derived=!GARAGE_OWN.has(part.mesh)&&(part.mesh.includes('-mid')||part.mesh.includes('-section-'));
    const a=await loadGarageModel(part.mesh,signal,derived?catalog.meshes[part.mesh]:null,derived?primary:null);assets.set(part.mesh,a);owned.push(a);
   }
   const scale=1.25/primary.size.y,items=parts.map(part=>({...part,asset:assets.get(part.mesh)}));
@@ -88,7 +97,14 @@ export async function createConsist(id,primary,signal,opts={}){
    couple();
   }
   straight(1);
-  const lighting=createTrainLights(cars);
-  return{root,cars,length:total,straight,follow,lighting,update(owned){for(const c of cars)c.body.material=owned?c.litMaterials:c.asset.lockedMaterials;},dispose(){lighting.dispose();root.clear();owned.forEach(a=>a.dispose());cg.dispose();cm.dispose();}};
+  const lighting=createTrainLights(cars),doors=createDoorControl(cars);
+  // 集電弓：車模中繼資料的 mount 是底座鉸鏈的車模座標；弓頭依場景接觸線高度解兩節連桿（無線＝降弓）。
+  const rigs=[],hinge=new THREE.Vector3(),tip=new THREE.Vector3();let wireZ=null;
+  for(const c of cars){const pg=c.asset.pantograph;if(!pg)continue;const kit=await loadGarageParts(new URL(pg.parts+'.json',base),signal),rig=createPantograph(kit);rig.root.position.set(...pg.mount);c.body.add(rig.root);rigs.push({c,kit,rig});}
+  // 車身有俯仰時「鉸鏈到弓頭」不再是純垂直，所以先解一次，再用接觸點實際世界高度修正兩次。
+  function updateParts(){for(const {c,rig}of rigs){c.car.updateWorldMatrix(true,true);rig.root.getWorldPosition(hinge);if(wireZ===null){rig.pose(null);continue;}
+   let target=(wireZ-hinge.z)/c.car.scale.z;rig.pose(target);for(let k=0;k<2;k++){rig.contact.getWorldPosition(tip);target+=(wireZ-tip.z)/c.car.scale.z;rig.pose(target);}}}
+  function pantographState(){return rigs.map(({c,rig})=>{rig.root.getWorldPosition(hinge);rig.contact.getWorldPosition(tip);return{car:c.id,head:tip.toArray(),hinge:hinge.toArray(),wireZ,reached:!!rig.last?.reached,folded:wireZ===null};});}
+  return{root,cars,length:total,straight,follow,lighting,doors,setContactWire(z){wireZ=z??null;updateParts();},updateParts,pantographState,update(owned){for(const c of cars)c.body.material=owned?c.litMaterials:c.asset.lockedMaterials;},dispose(){lighting.dispose();doors.dispose();rigs.forEach(r=>{r.rig.dispose();r.kit.dispose();});root.clear();owned.forEach(a=>a.dispose());cg.dispose();cm.dispose();}};
  }catch(e){owned.forEach(a=>a.dispose());throw e;}
 }

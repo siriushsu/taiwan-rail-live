@@ -51,5 +51,81 @@ if(on('T2')){
  check('T2 雨棚樑與燈板不投影',shadowless.length===2&&shadowless.every(o=>!o.castShadow),shadowless.map(o=>[o.material.name,o.castShadow]));
 }
 
+if(on('T6')){
+ const {doorOffset,buildDoorIndex,platformSide,INWARD_SHARE,createDoorControl}=await import('../rail-3d/garage-doors.js');
+ const {pantographPose,buildGarageParts,createPantograph}=await import('../rail-3d/garage-parts.js');
+ const door={id:'L1',side:1,inward:[0,-.14,0],slide:[1,0,0],travel:.66,center:[-4.2,1.466,2.02],ranges:[{start:3,count:6}]};
+ const c0=doorOffset(door,0),c1=doorOffset(door,1),ci=doorOffset(door,INWARD_SHARE);
+ check('T6 關門零位移',c0.every(v=>Math.abs(v)<1e-12),c0);
+ check('T6 內退完成時只內退、還沒滑',Math.abs(ci[1]+.14)<1e-12&&Math.abs(ci[0])<1e-12,ci);
+ check('T6 全開＝內退＋整個行程',Math.abs(c1[0]-.66)<1e-12&&Math.abs(c1[1]+.14)<1e-12,c1);
+ {let prev=doorOffset(door,0),mono=true;for(let i=1;i<=300;i++){const d=doorOffset(door,i/300);if(d[0]<prev[0]-1e-12||d[1]>prev[1]+1e-12)mono=false;prev=d;}check('T6 開門過程單調（先退後滑）',mono);}
+ check('T6 門索引：區段內是門號，其餘 0',[...buildDoorIndex(12,[door,{...door,id:'L2',ranges:[{start:9,count:2}]}])].join(',')==='0,0,0,1,1,1,1,1,1,2,2,0');
+ let threw=0;try{buildDoorIndex(12,[door,{...door,id:'X',ranges:[{start:8,count:2}]}]);}catch{threw++;}try{buildDoorIndex(5,[door]);}catch{threw++;}
+ check('T6 重疊或越界的區段丟錯',threw===2,{threw});
+ const q=new THREE.Quaternion(),n=new THREE.Vector3(0,-1,0);
+ check('T6 車頭朝 +x：車模 −Y 面向 y<0 的月台',platformSide(q,n)===-1);
+ q.setFromAxisAngle(new THREE.Vector3(0,0,1),Math.PI);
+ check('T6 反向連掛（轉 180°）：車模 +Y 面向月台',platformSide(q,n)===1);
+ // 假車：12 個頂點、兩個材質（一個共用、一個車燈模組做的複本）、兩扇門分在兩側。
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(36),3));
+ const shared=new THREE.MeshStandardMaterial(),windowMat=new THREE.MeshStandardMaterial(),lit=windowMat.clone();
+ const far={...door,id:'R1',side:-1,inward:[0,.14,0],slide:[-1,0,0],center:[4.2,-1.466,2.02],ranges:[{start:9,count:2}]};
+ const body=new THREE.Mesh(g,[shared,lit]),carGroup=new THREE.Group();carGroup.add(body);
+ const fake={id:'emu3000',car:carGroup,body,litMaterials:[shared,lit],asset:{geometry:g,materials:[shared,windowMat],doors:{items:[door,far]}}};
+ const ctl=createDoorControl([fake]);
+ check('T6 共用材質換成每節車自己的複本、車燈複本原地沿用',fake.litMaterials[0]!==shared&&fake.litMaterials[1]===lit&&body.material===fake.litMaterials);
+ const stub=()=>({uniforms:{},vertexShader:'#include <common>\nvoid main(){\n#include <begin_vertex>\n}'}),s0=stub(),s1=stub(),sd=stub();
+ fake.litMaterials[0].onBeforeCompile(s0);fake.litMaterials[1].onBeforeCompile(s1);body.customDepthMaterial.onBeforeCompile(sd);
+ check('T6 著色器加上門索引與位移、三個材質共用這節車的 uniform',s0.vertexShader.includes('attribute float doorIndex')&&s0.vertexShader.includes('doorOffsets[door-1]')&&s0.uniforms.doorOffsets===s1.uniforms.doorOffsets&&s0.uniforms.doorOffsets===sd.uniforms.doorOffsets);
+ check('T6 深度材質與快取鍵',body.customDepthMaterial?.isMeshDepthMaterial&&fake.litMaterials.every(m=>m.customProgramCacheKey()==='garage-doors-v1')&&body.customDepthMaterial.customProgramCacheKey()==='garage-doors-v1');
+ check('T6 doorIndex 屬性一個頂點一個值',g.getAttribute('doorIndex')?.count===12);
+ carGroup.updateMatrixWorld(true);ctl.update(1,n);const offs=s0.uniforms.doorOffsets.value;
+ check('T6 只開月台那一側（另一側零位移）',offs[0].length()===0&&Math.abs(offs[1].x+.66)<1e-12&&Math.abs(offs[1].y-.14)<1e-12,offs.slice(0,2));
+ check('T6 月台側門中心取的是面向月台那一扇',JSON.stringify(ctl.points('platform').map(p=>p.id))==='["emu3000:R1"]'&&ctl.points('platform')[0].point.x===4.2);
+ ctl.update(0,n);check('T6 門開度 0 時全部歸零',offs.every(o=>o.length()===0));
+ ctl.dispose();
+ const rig={lower:1.10,upper:.81,headRise:.052};
+ const up=pantographPose(rig,.88);
+ check('T6 升弓貼到目標高度',up.reached&&Math.abs(up.head[1]-.88)<1e-9,up.head);
+ check('T6 弓頭 x 固定＝lower−upper',Math.abs(up.head[0]-(rig.lower-rig.upper))<1e-9,up.head);
+ check('T6 肘在 +x、高於車頂',up.elbow[0]>0&&up.elbow[1]>0,up.elbow);
+ const down=pantographPose(rig,null);
+ check('T6 降弓兩臂攤平',Math.abs(down.lowerAngle)<1e-6&&Math.abs(Math.abs(down.upperAngle)-Math.PI)<1e-6,down);
+ const farPose=pantographPose(rig,5);
+ check('T6 目標超出臂長時 reached=false（不假裝貼線）',!farPose.reached&&farPose.head[1]<5,farPose.head);
+ {let prev=pantographPose(rig,.052),worst=0;for(let i=1;i<=400;i++){const p=pantographPose(rig,.052+i/400*1.8);worst=Math.max(worst,Math.abs(p.lowerAngle-prev.lowerAngle),Math.abs(p.upperAngle-prev.upperAngle));prev=p;}check('T6 升降過程角度連續（不翻面）',worst<.2,{worst});}
+ // 假零件庫：四個零件各一個三角形。組起來的接觸點世界座標要等於 IK 算的弓頭，弓頭保持水平。
+ const names=['base','lower','upper','head'],buf=new Float32Array(names.length*3*6);
+ const kit=buildGarageParts({schema:'garage-parts-v1',mesh:{vertexCount:names.length*3},parts:names.map((name,i)=>({name,start:i*3,count:3,color:[.5,.5,.5]})),rig},buf.buffer);
+ const panto=createPantograph(kit);let worst=0,tilt=0;
+ for(const target of [null,.4,.88,1.5]){const p=panto.pose(target);panto.root.updateMatrixWorld(true);const w=new THREE.Vector3().setFromMatrixPosition(panto.contact.matrixWorld),hq=new THREE.Quaternion();panto.contact.getWorldQuaternion(hq);
+  worst=Math.max(worst,Math.abs(w.x-p.head[0]),Math.abs(w.z-p.head[1]),Math.abs(w.y));tilt=Math.max(tilt,2*Math.acos(Math.min(1,Math.abs(hq.w))));}
+ check('T6 集電弓組裝：接觸點＝IK 弓頭、弓頭水平',worst<1e-9&&tilt<1e-6,{worst,tilt});
+ let bad=0;try{buildGarageParts({schema:'garage-parts-v0',mesh:{vertexCount:12},parts:[]},buf.buffer);}catch{bad++;}try{buildGarageParts({schema:'garage-parts-v1',mesh:{vertexCount:12},parts:[{name:'x',start:10,count:3}]},buf.buffer);}catch{bad++;}
+ check('T6 零件庫格式不符或區段越界丟錯',bad===2,{bad});
+ panto.dispose();kit.dispose();
+ // 門廳透光（設計書 §9「開門時門內透光」）：頂燈藏在門楣後、鏡頭一律俯看看不到它，three.js 的自發光也不照亮別的面；
+ // 所以門洞後方、車殼內側的三角形跟著這節車的窗燈（window 發光角色）一起亮。門扇、車殼外側、門洞以外、門楣以上不亮。
+ {const {buildDoorGlow}=await import('../rail-3d/garage-doors.js');
+  const tri=(x,y,z)=>[x,y,z,x+.01,y,z,x,y,z+.01];
+  const P=new Float32Array([...tri(-4.2,1.2,2),...tri(-4.2,1.45,2),...tri(-3,1.2,2),...tri(-4.2,1.2,2),...tri(-4.2,-1.2,2),...tri(-4.2,1.2,3.4),...tri(-4.2,-1.2,2)]);
+  const gd=[{id:'L1',side:1,center:[-4.2,1.466,2.02],width:.625,height:2.2,inward:[0,-.14,0],slide:[1,0,0],travel:.66,ranges:[{start:9,count:3}]},{id:'R1',side:-1,center:[-4.2,-1.466,2.02],width:.625,height:2.2,inward:[0,.14,0],slide:[1,0,0],travel:.66,ranges:[{start:18,count:3}]}];
+  const pos=new THREE.Float32BufferAttribute(P,3),glow=buildDoorGlow(pos,gd,buildDoorIndex(21,gd));
+  check('T6 門廳透光：門洞後方車殼內側＝1；車殼外側、門洞以外、門扇、門楣以上＝0',[...glow].join(',')==='1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0',[...glow].join(','));
+  const g2=new THREE.BufferGeometry();g2.setAttribute('position',pos);
+  const plain=new THREE.MeshStandardMaterial(),win=new THREE.MeshStandardMaterial();win.userData.railLightingRole='window';const winLit=win.clone();winLit.emissive.setRGB(1,.5,.25);winLit.emissiveIntensity=.5;
+  const body2=new THREE.Mesh(g2,[plain,winLit]),car2=new THREE.Group();car2.add(body2);
+  const fake2={id:'emu3000',car:car2,body:body2,litMaterials:[plain,winLit],asset:{geometry:g2,materials:[plain,win],doors:{items:gd}}};
+  const ctl2=createDoorControl([fake2]),f0={uniforms:{},vertexShader:'#include <common>\nvoid main(){\n#include <begin_vertex>\n}',fragmentShader:'#include <common>\nvoid main(){\n#include <emissivemap_fragment>\n}'};
+  fake2.litMaterials[0].onBeforeCompile(f0);car2.updateMatrixWorld(true);ctl2.update(0,n);
+  const want=new THREE.Color(.5,.25,.125),got=f0.uniforms.doorGlowColor?.value;
+  check('T6 門廳透光：著色器把 doorGlow 加進自發光，顏色＝這節車窗燈的 emissive×強度',g2.getAttribute('doorGlow')?.count===21&&f0.vertexShader.includes('vDoorGlow=doorGlow')&&f0.fragmentShader.includes('totalEmissiveRadiance+=doorGlowColor*vDoorGlow')&&!!got&&Math.abs(got.r-want.r)+Math.abs(got.g-want.g)+Math.abs(got.b-want.b)<1e-9,{got});
+  winLit.emissiveIntensity=0;ctl2.update(0,n);
+  check('T6 門廳透光：窗燈熄了（白天）門廳也不亮',!!got&&got.r===0&&got.g===0&&got.b===0,{got});
+  ctl2.dispose();
+ }
+}
+
 probe.dispose();
 const fails=results.filter(r=>!r.pass).length;console.log(`共 ${results.length} 項：FAIL ${fails}`);if(fails)process.exitCode=1;
