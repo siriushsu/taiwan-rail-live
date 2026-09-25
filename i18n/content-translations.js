@@ -3212,3 +3212,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '修正 iPad 橫向和手機橫放時，「觀看」按鈕跑到畫面中間；沒開卡片時會回到右上角的按鈕列': 'iPad の横向きやスマートフォンを横にしたとき、「表示」ボタンが画面の中央に出てしまう問題を修正しました。カードを開いていないときは右上のボタン列に戻ります',
 });
+// 2026-09-25 機捷週一到週四跟上設計展疏運班表：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '機捷週一到週四也跟上台灣設計展疏運班表（9/24–10/11）：下午 4 點到晚上 8 點，機場第一航廈到環北加開區間車，南延直達車改到機場第二航廈為止': 'Taoyuan Airport MRT now follows the Taiwan Design Expo timetable on Mondays to Thursdays too (Sep 24–Oct 11): from 4 pm to 8 pm, extra shuttles run between A12 Airport Terminal 1 and A21 Huanbei, and southbound Express services end at Airport Terminal 2.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '機捷週一到週四也跟上台灣設計展疏運班表（9/24–10/11）：下午 4 點到晚上 8 點，機場第一航廈到環北加開區間車，南延直達車改到機場第二航廈為止': '桃園MRTの月〜木曜も台湾デザイン展の輸送ダイヤ（9/24〜10/11）に対応：16時〜20時は A12 空港第1ターミナル〜A21 環北間に区間臨時列車が運行し、南延直達車は空港第2ターミナル止まりに変更。',
+});
