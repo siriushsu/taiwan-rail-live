@@ -725,7 +725,7 @@
     '太魯閣自強號': 'Taroko Express', 'TEMU1000 型傾斜式電聯車，過彎不必大幅減速，主跑東部幹線。': 'TEMU1000 tilting EMU, primarily used on the eastern main line.',
     '普悠瑪自強號': 'Puyuma Express', 'TEMU2000 型傾斜式電聯車，2013 年起投入東部幹線。': 'TEMU2000 tilting EMU, serving the eastern main line since 2013.',
     'PP 自強號': 'PP Tze-Chiang', 'E1000 型推拉式自強號，前後機車頭一推一拉。': 'A push–pull intercity train with a locomotive at each end.',
-    'EMU3000 新自強': 'EMU3000 Tze-Chiang', '2021 年起投入的日立製城際電聯車，安靜平穩，設「騰雲座艙」商務車廂。': 'A quiet, smooth Hitachi intercity EMU introduced in 2021, with the Tengyun business cabin.',
+    'EMU3000 新自強': 'EMU3000 Tze-Chiang', '2021 年起投入的日立製城際電聯車，安靜平穩；多數班次有「騰雲座艙」商務車廂（特仕車編組除外）。': 'A quiet, smooth Hitachi intercity EMU introduced in 2021. Most services have the Tengyun business cabin (except the special-edition sets).',
     '柴聯自強號': 'Diesel Tze-Chiang', 'DR2800／2900／3100 型柴油電聯車，不吃電、非電化區間也能跑。': 'DR2800, 2900 and 3100 diesel multiple units that can run beyond electrified lines.',
     '自強號': 'Tze-Chiang Limited Express', '台鐵最高等級的城際列車。': 'TRA’s highest-category intercity train.',
     '機車牽引的傳統對號快車，橘黃塗裝，1970 年登場，班次已越來越少。': 'A traditional locomotive-hauled reserved train introduced in 1970, now increasingly rare.',
@@ -782,7 +782,7 @@
     '太魯閣自強號': '太魯閣自強号', 'TEMU1000 型傾斜式電聯車，過彎不必大幅減速，主跑東部幹線。': '曲線を高速で通過できるTEMU1000型振子式電車で、主に東部幹線を走ります。',
     '普悠瑪自強號': '普悠瑪自強号', 'TEMU2000 型傾斜式電聯車，2013 年起投入東部幹線。': '2013年から東部幹線で運用するTEMU2000型振子式電車です。',
     'PP 自強號': 'PP自強号', 'E1000 型推拉式自強號，前後機車頭一推一拉。': '編成の前後に機関車を置くプッシュプル式都市間列車です。',
-    'EMU3000 新自強': 'EMU3000新自強号', '2021 年起投入的日立製城際電聯車，安靜平穩，設「騰雲座艙」商務車廂。': '2021年登場の日立製都市間電車で、静かで滑らかな乗り心地とビジネスクラス「騰雲座艙」を備えます。',
+    'EMU3000 新自強': 'EMU3000新自強号', '2021 年起投入的日立製城際電聯車，安靜平穩；多數班次有「騰雲座艙」商務車廂（特仕車編組除外）。': '2021年登場の日立製都市間電車で、静かで滑らかな乗り心地です。多くの列車にビジネスクラス「騰雲座艙」があります（特別仕様編成を除く）。',
     '柴聯自強號': 'ディーゼル自強号', 'DR2800／2900／3100 型柴油電聯車，不吃電、非電化區間也能跑。': 'DR2800・2900・3100型気動車で、非電化区間も走行できます。',
     '自強號': '自強号', '台鐵最高等級的城際列車。': '台湾鉄路で最上位の都市間列車です。',
     '機車牽引的傳統對號快車，橘黃塗裝，1970 年登場，班次已越來越少。': '1970年登場のオレンジ色の機関車牽引指定席列車で、運転本数は減少しています。',
@@ -1040,7 +1040,7 @@
       rollingStock: {
         emu3000: {
           name: 'EMU3000 Tze-Chiang Limited Express',
-          story: 'Hitachi designed this new intercity train around “silent mobility,” earning a Good Design Best 100 award. All 50 twelve-car sets are in service, including TRA’s first business-class cabin, Tengyun.',
+          story: 'Hitachi designed this new intercity train around “silent mobility,” earning a Good Design Best 100 award. All 50 twelve-car sets are in service. It was TRA’s first train with a business-class cabin, Tengyun, which most services include (except the special-edition sets).',
           facts: ['Unlike Taroko and Puyuma trains, the EMU3000 has no tilting mechanism; it relies on modern performance and improved track standards.']
         },
         taroko: {
@@ -1139,7 +1139,7 @@
       rollingStock: {
         emu3000: {
           name: 'EMU3000 新自強号',
-          story: '日立が「静謐な移動」をテーマに設計し、Good Design Best 100を受賞した新世代都市間列車です。12両編成50本が揃い、台湾鉄路初のビジネスクラス「騰雲座艙」も備えます。',
+          story: '日立が「静謐な移動」をテーマに設計し、Good Design Best 100を受賞した新世代都市間列車です。12両編成50本が揃いました。台湾鉄路で初めてビジネスクラス「騰雲座艙」を設けた車両で、多くの列車に連結されています（特別仕様編成を除く）。',
           facts: ['太魯閣号・普悠瑪号と異なり車体傾斜装置はなく、新しい線路規格と車両性能で高速化しています。']
         },
         taroko: {
