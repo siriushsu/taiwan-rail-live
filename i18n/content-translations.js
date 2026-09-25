@@ -3295,3 +3295,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '3D 地圖上臺北車站的臺鐵列車不再畫在車站屋頂上，高捷紅線地下段也不再浮在地面上；新左營臺鐵與高雄輕軌被頂高的地方回到原位': '3D地図で、台北駅の台鉄列車を駅の屋根の上に描かなくなり、高雄メトロ レッドラインの地下区間も地上に浮かなくなりました。新左営の台鉄と高雄ライトレールで持ち上がっていた箇所も元の高さに戻りました。',
 });
+// 2026-09-26 台鐵 10/3 改點的 14 班在 3D 沿用自己的股道（裁示 (b′)）：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '台鐵 10/3 起有 14 班調整時刻，3D 地圖裡這些車照樣走原本的股道': '14 TRA trains get new times from Oct 3; on the 3D map they still run on their usual tracks.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '台鐵 10/3 起有 14 班調整時刻，3D 地圖裡這些車照樣走原本的股道': '台鉄で10月3日から時刻が変わる14本も、3D地図ではこれまでと同じ線路を走ります',
+});

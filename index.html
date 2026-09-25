@@ -5528,7 +5528,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/25</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/26</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5536,6 +5536,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="remainingtracks0913"><span class="d">9/26</span><span>台鐵 10/3 起有 14 班調整時刻，3D 地圖裡這些車照樣走原本的股道</span></li>
         <li data-cl-of="subwayfloat0925"><span class="d">9/25</span><span>3D 地圖上臺北車站的臺鐵列車不再畫在車站屋頂上，高捷紅線地下段也不再浮在地面上；新左營臺鐵與高雄輕軌被頂高的地方回到原位</span></li>
         <li data-cl-of="kbfocusselect0925"><span class="d">9/25</span><span>用鍵盤往回移動時，我的最愛、車站看板等面板選到的項目不再被標題列蓋住；iPhone 英文介面選到長站名時，畫面不再能左右拖動</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷 10/12 起改用台灣設計展結束後的班表：機場第一航廈到環北的區間加班車停開，南延直達車恢復停高鐵桃園站、開到環北</span></li>
@@ -5543,7 +5544,6 @@
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷 10/2（週五）與 10/11（週日）也跟上設計展疏運班表：機場第一航廈到環北的區間加班車每 15 分鐘一班，10/2 開到晚上 10 點、10/11 開到晚上 8 點</span></li>
         <li data-cl-of="ridekbfocus0925"><span class="d">9/25</span><span>旅程護照用鍵盤往回移動時，被選到的章與按鈕不再被最上方的標題列蓋住</span></li>
         <li data-cl-of="garageselect0908"><span class="d">9/25</span><span>修正 iPhone 用英文或日文介面時，車庫選到名稱較長的車款，整個畫面會被左右拖動、左邊被切掉</span></li>
-        <li data-cl-of="placedup0925"><span class="d">9/25</span><span>修正地圖上站名旁邊又出現同名地名、字疊在一起的問題，例如竹北站旁的「竹北市」</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5551,6 +5551,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="remainingtracks0913"><span class="d">9/26</span><span>調整台鐵各站停靠與進出股道，減少待避重疊、追撞與對向互穿；9/14 再補回 97 站的站區股道，雙線區間依行車方向分股行駛（台北–萬華地下段不再兩向共用同一條軌道），並改善單線會車判斷；10/3 起台鐵調整時刻的 14 班照樣走這些股道</span></li>
         <li data-cl="placedup0925"><span class="d">9/25</span><span>地圖上站名旁邊若有同名的底圖地名（例如竹北站旁的「竹北市」「竹北里」），站名畫出來時就不再重複顯示；拉遠到還沒標出站名的時候，地名照樣看得到</span></li>
         <li data-cl="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：每天跑哪幾班照台鐵公布的班表比對（感謝網友整理提供），當天那幾班地圖上的車牌會寫成「寶可夢 2183」這樣、列車卡會有介紹；今日亮點「特別列車出沒中」和搜尋「寶可夢」都列得出當天每一趟</span></li>
         <li data-cl="terrainrtt0923"><span class="d">9/23</span><span>地景地圖開啟地形時，立體車站周圍的地面不再殘留舊的建築輪廓</span></li>
@@ -5562,7 +5563,6 @@
         <li data-cl="landscapedem0918"><span class="d">9/18</span><span>Android App 的地景地圖修正：立體列車不再整批消失，改回照真實地形高度擺在山坡與高架橋上（原因是 Android 讀不出 App 內建的地形資料）</span></li>
         <li data-cl="overtakeplan0915"><span class="d">9/15</span><span>台鐵後車即將追上前車時，會預先回找有足夠煞車時間的車站安排待避，並依車種煞車性能決定停哪一站（例如 6563 次改在崇德等 207 次通過）；9/19 再修：待避與對向交會都保留安全間隔，同軌互穿再減少</span></li>
         <li data-cl="fullformations0914"><span class="d">9/14</span><span>所有列車都可顯示完整編組；區間車、莒光與觀光列車等資料不足的班次顯示推估車廂數，並清楚標示推估</span></li>
-        <li data-cl="remainingtracks0913"><span class="d">9/14</span><span>調整台鐵各站停靠與進出股道，減少待避重疊、追撞與對向互穿；9/14 再補回 97 站的站區股道，雙線區間依行車方向分股行駛（台北–萬華地下段不再兩向共用同一條軌道），並改善單線會車判斷</span></li>
         <li data-cl="afrpushpull0913"><span class="d">9/13</span><span>修正阿里山林鐵機車的位置與方向，依路段呈現車尾推進、車頭牽引及之字形折返</span></li>
         <li data-cl="sanyingtransfers0912"><span class="d">9/12</span><span>修正三鶯線重複轉乘資訊，更新站名翻譯與鄰近公車轉乘資料</span></li>
         <li data-cl="verifiedtracks0912"><span class="d">9/12</span><span>補回太麻里兩條月台股道，減少同站列車重疊；修正部分列車誤入同一股道的交會畫面</span></li>
@@ -6719,7 +6719,14 @@
 //         完整重算後用 scripts/splice_mountain_share_profiles_0925.mjs 只換進高雄、臺北兩框 270 筆，蘇澳保留解不動；
 //         verify_rail_structure_heights G4 山岳分母改 ≥220，加改判名單與平面高度具名斷言（2026-09-25 裁示 A4）。
 //         同批出貨：台鐵班表窗重抓（9/26～10/9，寶可夢列車 10/3 起的車次才認得出來）、v0925p 面板修正、出貨閘門改空埠。
-const BUILD = 'v0926b';
+// v0926c：台鐵 10/3 起改點（ODS 逐日檔一路到 11/23 都是新版）的 14 班，在 3D 沿用自己在派車表裡的股道。plan-binding
+//         對同鍵改點（406、1136、1192 等 10 班，起訖時刻不變）回 basis:'retimed'：站序、停靠型態相同、原計畫不帶待避
+//         才沿用，時間用今天的、待避歸零；起訖時刻變了、鍵跟著變的 1248／1254／4737／4006 找同車次時刻最接近的自己那份
+//         計畫並回報 sourceKey——借 1128／1120 的路徑會在汐止、鶯歌走回 09-13 修掉的舊股道。沿用自己的計畫時一併帶上
+//         templateEligible:false（藍皮 5898／5899）。閘門：verify_remaining_station_routes 由閘門自己用車次、站序、停靠
+//         型態認名冊的改點版（rosterOf），不拿產品回報的鍵對名冊；受保護模板與藍皮改數不重複的鍵／車次；
+//         verify_tra_plan_binding 補正反案例（2026-09-26 裁示 (b′)）。
+const BUILD = 'v0926c';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
