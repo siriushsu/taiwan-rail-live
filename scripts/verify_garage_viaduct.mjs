@@ -43,32 +43,12 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   check(engine+' 跟車視角三節完整構圖',await p.evaluate(()=>{const c=document.querySelector('#scene');return viaductPreview.state.bounds.every(b=>b.left>0&&b.right<c.width&&b.top>0&&b.bottom<c.height);}));
   await p.screenshot({path:`${OUT}/${engine}-follow.png`});
   await p.tap('[data-view="world"]');await settle(p);
-  const worldFits=await p.evaluate(async()=>{const api=viaductPreview,rows=[];for(const frac of [0,.25,.5,.75]){api.setTime(frac*api.state.pathLength/api.state.speed);await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const c=document.querySelector('#scene'),bounds=api.state.bounds,ok=bounds.every(b=>b.left>0&&b.right<c.width&&b.top>0&&b.bottom<c.height);rows.push({frac,ok,bounds});}return rows;});
+  const worldFits=await p.evaluate(async()=>{const api=viaductPreview,rows=[];for(const frac of [0,.25,.5,.75]){api.setTime(api.timeAtPosition(frac*api.state.pathLength));await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const c=document.querySelector('#scene'),bounds=api.state.bounds,ok=bounds.every(b=>b.left>0&&b.right<c.width&&b.top>0&&b.bottom<c.height);rows.push({frac,ok,bounds});}return rows;});
   check(engine+' 全景視角環線四個位置都完整看到三節車',worldFits.every(r=>r.ok),worldFits.map(r=>({frac:r.frac,ok:r.ok})));
   await p.screenshot({path:`${OUT}/${engine}-world.png`});
 
-  // 看月台：車廂應停在 s=0（月台中心），且行駛暫停。
-  await p.evaluate(()=>viaductPreview.setTime(9));await p.tap('#platform');await settle(p);
-  check(engine+' 看月台停在月台中心且暫停',(await state(p)).distance===0&&(await state(p)).running===false,await state(p));
-
-  // 看月台從跟車視角按下去也要看得見車：月台雨棚正好擋在跟車鏡頭與車之間。
-  // 判準用車窗暗色像素：遮擋狀態要比露出狀態少一個數量級以上（道床的軌腰在陰影裡會入鏡一兩個像素，所以不是恰為 0），露出狀態要大於 0。
-  const darkInBounds=pg=>pg.evaluate(()=>{
-   const c=document.querySelector('#scene'),cv=document.createElement('canvas');cv.width=c.width;cv.height=c.height;
-   const g=cv.getContext('2d');g.drawImage(c,0,0);
-   const bs=viaductPreview.state.bounds;
-   const L=Math.max(0,Math.min(...bs.map(x=>x.left))),R=Math.min(c.width,Math.max(...bs.map(x=>x.right)));
-   const T=Math.max(0,Math.min(...bs.map(x=>x.top))),B=Math.min(c.height,Math.max(...bs.map(x=>x.bottom)));
-   if(R<=L||B<=T)return{view:c.dataset.view,dark:0};
-   const d=g.getImageData(L,T,R-L,B-T).data;let dark=0;
-   for(let i=0;i<d.length;i+=4)if(d[i]<70&&d[i+1]<80&&d[i+2]<90)dark++;
-   return{view:c.dataset.view,dark};
-  });
-  await p.tap('[data-view="train"]');await p.tap('#reset');await settle(p);
-  const occluded=await darkInBounds(p);
-  await p.tap('#platform');await settle(p);
-  const revealed=await darkInBounds(p);
-  check(engine+' 看月台從跟車視角按下也看得見車',revealed.view==='world'&&revealed.dark>0&&occluded.dark<=revealed.dark*.1,{occluded,revealed});
+  // 看月台：巡航中按下去要快轉到下一次進站減速、切月台低角度並開始播放（設計書第 7 節）。
+  {const T=await p.evaluate(()=>viaductPreview.timetable);await p.evaluate(t=>viaductPreview.setTime(t),T.phases.cruiseAt+10);await p.tap('#platform');const s=await state(p);check(engine+' 看月台：快轉到下一次進站並切月台低角度',s.view==='platform'&&s.running===true&&s.lap===1&&['braking','stopped'].includes(s.phase),s);await p.tap('#play');}
 
   // 道床與電車線：對車模量出來的輪對位置與車頂，不對程式碼裡的常數。
   const track=await p.evaluate(async()=>{
@@ -140,7 +120,7 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
    const street=facts.heads,plat=facts.lamps.filter(l=>l.name.startsWith('platform-lamp')),entrance=facts.lamps.find(l=>l.name==='station-entrance');
    const ys=street.map(l=>l.y),xs=street.map(l=>l.x);
    check(engine+' 夜燈配置：馬路一排路燈（燈頭＋路面光池）、月台燈、站房入口燈；白天全暗、黃昏半亮、夜裡全亮；點光源不超過八盞（多了 headless 開頁會掉 context）',street.length>=6&&Math.max(...ys)-Math.min(...ys)<.1&&Math.max(...xs)-Math.min(...xs)>30&&street.every(l=>l.z>facts.groundZ+2.4)&&facts.streetPools>=6&&facts.pools>=8&&plat.length>=2&&!!entrance&&facts.lamps.length<=8&&facts.dayI.every(i=>i===0)&&facts.nightI.every(i=>i>0)&&facts.sunsetI.every((i,k)=>i>0&&i<facts.nightI[k])&&facts.pool.day===0&&facts.pool.dayVisible===false&&facts.pool.night>.3&&facts.pool.nightVisible===true&&facts.pool.sunset>0&&facts.pool.sunset<facts.pool.night,{street:street.length,streetPools:facts.streetPools,pools:facts.pools,platform:plat.length,entrance:!!entrance,pointLights:facts.lamps.length,dayMax:Math.max(...facts.dayI),nightMin:Math.min(...facts.nightI),pool:facts.pool});
-   await p.tap('[data-view="world"]');await p.tap('button[data-period="day"]');if((await state(p)).running)await p.tap('#play');await p.evaluate(t=>viaductPreview.setTime(t),facts.length/2/2.1);await p.tap('#reset');await settle(p);
+   await p.tap('[data-view="world"]');await p.tap('button[data-period="day"]');if((await state(p)).running)await p.tap('#play');await p.evaluate(s=>viaductPreview.setTime(viaductPreview.timeAtPosition(s)),facts.length/2);await p.tap('#reset');await settle(p);
    const G=facts.groundZ,[lampA,lampB]=[...street].sort((a,b)=>a.x-b.x);   // 最左兩盞：中間沒停車、離站房遠
    const road=[[lampA.x,lampA.y-.1,G+.05],[(lampA.x+lampB.x)/2,lampA.y-.1,G+.05]];                 // 路燈正下方的路面 vs 兩盞之間
    const station=[facts.stationX,facts.stationY-2.9,G+.95];                                         // 站房面街那面的一樓玻璃
@@ -158,11 +138,11 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   for(const width of [360,375,390,414,520,768,1280]){await p.setViewportSize({width,height:900});await settle(p);await p.tap('#in');await p.tap('#out');await p.tap('#reset');await settle(p);const ui=await p.evaluate(()=>{const els=[...document.querySelectorAll('button,a')].filter(e=>e.getClientRects().length),bad=[],overlap=[];for(const e of els){const r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);if(!e.contains(hit)||r.width<43||r.height<43)bad.push(e.textContent);}for(let i=0;i<els.length;i++)for(let j=i+1;j<els.length;j++){const a=els[i].getBoundingClientRect(),b=els[j].getBoundingClientRect();if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1)overlap.push([els[i].textContent,els[j].textContent]);}return{bad,overlap,overflow:document.documentElement.scrollWidth>innerWidth};});check(engine+' '+width+' 真觸控與可及性',!ui.bad.length&&!ui.overlap.length&&!ui.overflow,ui);}
 
   const mem=(await state(p)).memory;for(let i=0;i<3;i++){await p.tap('[data-view="train"]');await p.tap('button[data-period="night"]');await p.tap('[data-view="world"]');await p.tap('button[data-period="day"]');}await settle(p);check(engine+' 切換不累積資源',JSON.stringify(mem)===JSON.stringify((await state(p)).memory),{before:mem,after:(await state(p)).memory});
-  const draws=(await state(p)).draws;await p.waitForTimeout(250);check(engine+' 暫停不重繪',(await state(p)).draws===draws);
+  await p.waitForFunction(()=>viaductPreview.state.canopyOpacity===viaductPreview.state.canopyTarget);const draws=(await state(p)).draws;await p.waitForTimeout(250);check(engine+' 暫停不重繪',(await state(p)).draws===draws);
   check(engine+' 無 JS／WebGL 錯誤',errors.length===0,errors);
   await p.close();
 
-  const mobile=await b.newPage({viewport:{width:375,height:900},reducedMotion:'reduce',isMobile:true,hasTouch:true});await mobile.goto(URL);await mobile.waitForFunction(()=>window.viaductPreview?.state.ready,null,{timeout:90000});check(engine+' 手機預設跟車且減少動態停止',!(await state(mobile)).running&&(await state(mobile)).view==='train');await mobile.evaluate(()=>viaductPreview.setTime(4));await mobile.screenshot({path:`${OUT}/${engine}-mobile.png`,fullPage:true});await mobile.close();
+  const mobile=await b.newPage({viewport:{width:375,height:900},reducedMotion:'reduce',isMobile:true,hasTouch:true});await mobile.goto(URL);await mobile.waitForFunction(()=>window.viaductPreview?.state.ready,null,{timeout:90000});check(engine+' 手機預設跟車且減少動態停止',!(await state(mobile)).running&&(await state(mobile)).view==='train'&&(await state(mobile)).doors===1);await mobile.evaluate(()=>viaductPreview.setTime(4));await mobile.screenshot({path:`${OUT}/${engine}-mobile.png`,fullPage:true});await mobile.close();
  }catch(e){check(engine+' 驗證流程',false,e.stack);}finally{await b.close();}
 }
 writeFileSync(OUT+'/results.json',JSON.stringify(results,null,2));
