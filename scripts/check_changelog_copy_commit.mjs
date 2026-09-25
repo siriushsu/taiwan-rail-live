@@ -2,7 +2,8 @@
 // pre-push 閘門:推往 main 的那顆 commit,更新紀錄要過 verify_changelog_copy(npm run check-copy):
 // 最近更新最多 8 條、每條 ≤90 字;完整歷史每條 ≤120 字。
 //
-// 為什麼有這支:check-copy 不在 ship_web 的閘門鏈裡,也沒掛在任何推送檢查上,只能靠人記得手動跑。
+// 為什麼有這支:check-copy 原本不在 ship_web 的閘門鏈裡,也沒掛在任何推送檢查上,只能靠人記得手動跑
+// (09-26 起 ship_web 的 2.45 也跑同一支 verify)。
 // 2026-09-08 首層一條寫到 97 字、2026-09-25 第二層一條寫到 136 字,兩次都是推上 main 之後才被別的 session 抓到。
 // 2026-09-25 使用者裁示「check-copy 掛進推送前檢查吧」;掛上當下 origin/main 本身就是紅的
 // (機捷設計展那條第二層 165 字,v0925o 推上去時沒人跑 check-copy),同一輪縮回 120 字。

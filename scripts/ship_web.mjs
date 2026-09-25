@@ -95,6 +95,15 @@ try {
   process.stdout.write(remoteSchema.stdout || ''); process.stderr.write(remoteSchema.stderr || '');
   if (remoteSchema.status !== 0) fail('正式庫 schema 與 schema/*.sql 不一致或查不到——先補套 migration（要使用者 go）再出貨（單獨重跑：node scripts/verify_remote_schema.mjs）');
 
+  // ── 2.45 更新紀錄字數閘門（最近更新最多 8 條、每條 ≤90 字；完整歷史每條 ≤120 字）─────────────
+  // 09-08、09-25 兩次超長都是推上 main 之後才被別的 session 抓到。09-26 先掛進 pre-push
+  // （check_changelog_copy_commit.mjs），但 --ref 出貨可以不經過推 main，所以出貨鏈也要一道（使用者 09-26 裁示）。
+  // 純 node、毫秒級，排在 2.5 前面：超長就別先跑後面那些瀏覽器閘門。
+  // 同 i18n：驗的是【這棵乾淨出貨樹】那一份（verify 讀自己上一層的 index.html）；半路崩掉也是非 0，一樣擋。
+  const copy = spawnSync('node', [path.join(wt, 'scripts', 'verify_changelog_copy.mjs')], { encoding: 'utf8' });
+  process.stdout.write(copy.stdout || ''); process.stderr.write(copy.stderr || '');
+  if (copy.status !== 0) fail('更新紀錄字數未過——把列出的條目縮短再出貨（單獨重跑：npm run check-copy）');
+
   // ── 2.5 i18n 稽核閘門（漏譯不准出貨）──────────────────────────────────────
   // 🔴 位置不可移到 strip 之後:check_i18n 的 evaluateConstBlock 拿【註解】當區塊結束標記
   //    （'// 有精選特色'、'// 播放/速度/時間'），strip 把註解刪光之後它會報「找不到內容區塊」
