@@ -56,24 +56,31 @@ function densify(trains, fromSec, headwaySec) {
 }
 
 // 常態加班(op 沒有 dates):官方公告的新增班次 TDX 還沒上架時,直接併進基準 set(不是例外日)。
+// 例外日(op 有 dates)也走這裡,加進該日的例外 set。
 // 行駛型態複製同 set 裡「從同一站、於 like 發車」的那班,整班平移到 dep;kinds 同步插入同一位置。
+// 同一型態多班時用 deps 列出各班起站發車時刻(照官方時刻表字面抄)。
 // TDX 已有同站同刻發車的班次 ⇒ 跳過並提示可刪,不會疊出兩班。
 function addTrips(L, setName, adds, id, log) {
   const trains = L.sets[setName];
   for (const a of adds) {
-    const from = a.from ?? 0, dep = toSec(a.dep), like = toSec(a.like);
-    if (trains.some(tr => tr[0] === from && depOf(tr) === dep)) {
-      log(`  ⚑ ${id}: ${setName} 已有 ${a.dep} 發車班次(TDX 已上架),本條可刪`);
-      continue;
+    const from = a.from ?? 0, like = toSec(a.like);
+    let added = 0;
+    for (const hm of a.deps || [a.dep]) {
+      const dep = toSec(hm);
+      if (trains.some(tr => tr[0] === from && depOf(tr) === dep)) {
+        log(`  ⚑ ${id}: ${setName} 已有 ${hm} 發車班次(TDX 已上架),本條可刪`);
+        continue;
+      }
+      const ti = trains.findIndex(tr => tr[0] === from && depOf(tr) === like);
+      if (ti < 0) throw new Error(`special_ops ${id}: ${setName} 找不到 ${a.like} 發車的模板班次`);
+      const tr = trains[ti].map((v, i) => (i % 2 ? v - like + dep : v));
+      let at = trains.findIndex(t => depOf(t) > dep); if (at < 0) at = trains.length;
+      trains.splice(at, 0, tr);
+      const ks = L.kinds?.[setName];
+      if (ks) L.kinds[setName] = ks.slice(0, at) + ks[ti] + ks.slice(at);
+      added++;
     }
-    const ti = trains.findIndex(tr => tr[0] === from && depOf(tr) === like);
-    if (ti < 0) throw new Error(`special_ops ${id}: ${setName} 找不到 ${a.like} 發車的模板班次`);
-    const tr = trains[ti].map((v, i) => (i % 2 ? v - like + dep : v));
-    let at = trains.findIndex(t => depOf(t) > dep); if (at < 0) at = trains.length;
-    trains.splice(at, 0, tr);
-    const ks = L.kinds?.[setName];
-    if (ks) L.kinds[setName] = ks.slice(0, at) + ks[ti] + ks.slice(at);
-    log(`  ⚑ ${id}: ${setName} 加 ${a.dep} 班(型態同 ${a.like})`);
+    if (added) log(`  ⚑ ${id}: ${setName} 加 ${a.deps ? `${added} 班` : `${a.dep} 班`}(型態同 ${a.like})`);
   }
 }
 
@@ -90,11 +97,16 @@ export function applySpecialOps(out, outPath, ROOT, log = console.log) {
       if (!base) throw new Error(`special_ops ${op.id}: ${lid} 沒有基準 set「${op.base}」`);
       if (!op.dates) { addTrips(L, op.base, rule.add || [], op.id, log); continue; }
       let trains = base.map(tr => tr.slice());
+      // 車種(目前只有機捷有 kinds)跟著班次走:前端要求 kinds 與 set 等長同序,缺了那天整天留白。
+      // 稀釋/停駛只是挑掉班次;加密生出的新班不知車種,記 '0'(前端當未標)。
+      const bk = L.kinds?.[op.base], kindOf = new Map(bk ? trains.map((tr, i) => [tr, bk[i]]) : []);
       if (rule.thin) trains = thin(trains, toSec(rule.thin.from), rule.thin.headwayMin * 60);
       if (rule.suspend) trains = suspend(trains, toSec(rule.suspend.from), rule.suspend.branchFrom);
       if (rule.densify) trains = densify(trains, toSec(rule.densify.from), rule.densify.headwaySec);
       trains.sort((a, b) => depOf(a) - depOf(b) || endOf(a) - endOf(b));
       L.sets[op.setName] = trains;
+      if (bk) L.kinds[op.setName] = trains.map(tr => kindOf.get(tr) ?? '0').join('');
+      addTrips(L, op.setName, rule.add || [], op.id, log);
       L.dates = L.dates || {};
       for (const d of op.dates) L.dates[d] = op.setName;
       log(`  ⚑ ${lid} 例外「${op.setName}」${base.length}→${trains.length} 班 (${op.dates.join(' ')})`);
