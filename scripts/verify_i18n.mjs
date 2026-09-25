@@ -527,13 +527,32 @@ async function controlAudit(page, scopeSelector = 'body') {
       return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > .05 && style.pointerEvents !== 'none' &&
         rect.width >= 4 && rect.height >= 4 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
     });
-    const blocked = [];
+    const blocked = [], blockedInView = [];
     for (const el of visible) {
       const rect = el.getBoundingClientRect();
-      const x = Math.max(1, Math.min(innerWidth - 1, rect.left + rect.width / 2));
-      const y = Math.max(1, Math.min(innerHeight - 1, rect.top + rect.height / 2));
+      const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+      const x = Math.max(1, Math.min(innerWidth - 1, cx));
+      const y = Math.max(1, Math.min(innerHeight - 1, cy));
       const hit = document.elementFromPoint(x, y);
-      if (!hit || !(el === hit || el.contains(hit))) blocked.push(el.id || el.getAttribute('aria-label') || el.textContent.trim().slice(0, 24));
+      if (!hit || !(el === hit || el.contains(hit))) {
+        const label = el.id || el.getAttribute('aria-label') || el.textContent.trim().slice(0, 24);
+        blocked.push(label);
+        // 中心還在視窗與每一層捲動盒(overflow≠visible 的祖先,到 scope 為止)的可見範圍內 ⇒ 是被蓋住,
+        // 不是被捲動盒裁掉。allowInitiallyClipped 只放行後者(見 assertAudit)。可見範圍取 padding box
+        // (扣邊框與捲軸)再往內縮 1px:中心恰好壓在裁切線上的那一列,命中的是捲動盒自己,那是被裁掉
+        // (09-25 Chromium 768px「更多設定」的「全日班次走勢」:列 965–1013、捲動盒 299–989、中心 989);
+        // clientTop／clientWidth 是整數、元素座標是小數,差不到一格也得算裁掉。被歸成裁掉的一樣要過
+        // scrollableControlsReachable 逐枚捲進視野那一關,不會因此漏驗。
+        const E = 1;
+        let inView = cx >= E && cx < innerWidth - E && cy >= E && cy < innerHeight - E;
+        for (let a = el.parentElement; a && inView; a = a === root ? null : a.parentElement) {
+          const cs = getComputedStyle(a);
+          if (cs.display === 'inline' || cs.display === 'contents' || (cs.overflowX === 'visible' && cs.overflowY === 'visible')) continue;
+          const r = a.getBoundingClientRect(), left = r.left + a.clientLeft, top = r.top + a.clientTop;
+          inView = cx >= left + E && cx < left + a.clientWidth - E && cy >= top + E && cy < top + a.clientHeight - E;
+        }
+        if (inView) blockedInView.push(label);
+      }
     }
     const overlaps = [];
     for (let i = 0; i < visible.length; i++) for (let j = i + 1; j < visible.length; j++) {
@@ -544,7 +563,7 @@ async function controlAudit(page, scopeSelector = 'body') {
       const h = Math.min(ar.bottom, br.bottom) - Math.max(ar.top, br.top);
       if (w > 3 && h > 3) overlaps.push(`${a.id || a.textContent.trim().slice(0, 12)}↔${b.id || b.textContent.trim().slice(0, 12)} (${Math.round(w)}×${Math.round(h)})`);
     }
-    return { overflow: Math.max(0, document.documentElement.scrollWidth - innerWidth), blocked, overlaps, visible: visible.length };
+    return { overflow: Math.max(0, document.documentElement.scrollWidth - innerWidth), blocked, blockedInView, overlaps, visible: visible.length };
   }, scopeSelector);
 }
 
@@ -553,6 +572,8 @@ async function assertAudit(page, scope, label, allowInitiallyClipped = false) {
   assert(!audit.missing, `${label} 找不到 audit scope：${audit.missing}`);
   assert(audit.overflow <= 1, `${label} 水平溢出 ${audit.overflow}px`);
   if (!allowInitiallyClipped) assert(audit.blocked.length === 0, `${label} 控制項中心不可點：${audit.blocked.join(', ')}`);
+  // 捲動盒:被裁掉的交給 scrollableControlsReachable 逐枚捲進視野再驗;初始畫面上看得到卻被蓋住的,這裡就要紅。
+  else assert(audit.blockedInView.length === 0, `${label} 控制項在可見範圍內卻被蓋住：${audit.blockedInView.join(', ')}`);
   assert(audit.overlaps.length === 0, `${label} 控制項重疊：${audit.overlaps.join(', ')}`);
   return audit.visible;
 }
@@ -560,7 +581,7 @@ async function assertAudit(page, scope, label, allowInitiallyClipped = false) {
 async function scrollableControlsReachable(page, rootSelector) {
   return page.evaluate(async rootSelector => {
     const root = document.querySelector(rootSelector);
-    const controls = root ? [...root.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled])')] : [];
+    const controls = root ? [...root.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [role="button"]')] : [];
     const blocked = [];
     for (const el of controls) {
       const style = getComputedStyle(el);
@@ -572,7 +593,7 @@ async function scrollableControlsReachable(page, rootSelector) {
       if (rect.width < 4 || rect.height < 4) continue;
       const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
       const hit = x >= 0 && x < innerWidth && y >= 0 && y < innerHeight ? document.elementFromPoint(x, y) : null;
-      if (!hit || !(hit === el || el.contains(hit))) blocked.push(el.id || el.textContent.trim().slice(0, 24));
+      if (!hit || !(hit === el || el.contains(hit))) blocked.push(el.id || el.getAttribute('aria-label') || el.textContent.trim().slice(0, 24));
     }
     return blocked;
   }, rootSelector);
@@ -611,9 +632,28 @@ async function mobileScenario(browser, engine, width) {
     await page.tap('#moreClose');
     await page.tap('#tabRide');
     await page.waitForFunction(() => !document.getElementById('ridePanel').hidden);
-    await assertAudit(page, '#ridePanel', `${engine} ${width}px 護照 sheet`);
+    // 護照 sheet 是捲動盒。收集章 09-25 起是按鈕(role=button,鍵盤到得了),捲在面板底緣以下那幾枚的中心會落在
+    // tab 列上——那是被捲動盒裁掉,不是被蓋住(09-25 實測 webkit 375/768、chromium 375:點不到的中心全在面板
+    // 底緣之外,逐枚捲進視野後 20/20 點得到)。比照上面「更多設定」:初始畫面只放行被捲動盒裁掉的(看得到卻被蓋住
+    // 的照樣紅,見 assertAudit),再逐枚捲進視野驗。
+    await assertAudit(page, '#ridePanel', `${engine} ${width}px 護照 sheet`, true);
+    const rideUnreachable = await scrollableControlsReachable(page, '#ridePanel');
+    assert(rideUnreachable.length === 0, `${engine} ${width}px 護照 sheet 裁切不可點：${rideUnreachable.join(', ')}`);
     const rideText = await bodyText(page, '#ridePanel');
     assert(rideText.includes('Travel passport') && !rideText.includes('還沒有完乘記錄'), `${width}px 護照 sheet 未即時翻譯：${rideText}`);
+    // 讀螢幕軟體唸的是 aria-label,上面的畫面文字照不到;visibleEnglishCjk 又只認漢字、不認假名與全形標點。
+    // 09-25 收集章與成就章的「名稱：說明」在英文裡全夾全形冒號(護照 sheet 42 個標籤中 41 個)。
+    // 章與成就的標籤數量要有具名斷言:只看「> 0」的話,光關閉鈕一個就成立,章沒畫出來也照樣綠。
+    const rideA11y = await page.evaluate(() => {
+      const q = s => document.querySelectorAll('#ridePanel ' + s).length;
+      return { labels: [...document.querySelectorAll('#ridePanel [aria-label]')].map(el => el.getAttribute('aria-label')),
+        stamps: q('.seal[data-cat]'), stampsLabeled: q('.seal[data-cat][aria-label]'),
+        chips: q('.achv-chip'), chipsLabeled: q('.achv-chip[aria-label]'), achievements: ACHIEVEMENTS.length };
+    });
+    assert(rideA11y.stamps > 0 && rideA11y.stampsLabeled === rideA11y.stamps && rideA11y.chips === rideA11y.achievements && rideA11y.chipsLabeled === rideA11y.chips,
+      `${engine} ${width}px 護照 sheet 章／成就的讀螢幕名稱數量不符：${JSON.stringify({ ...rideA11y, labels: rideA11y.labels.length })}`);
+    const rideCjkLabels = rideA11y.labels.filter(label => /[\u3000-\u30ff\u3400-\u9fff\uff00-\uffef]/.test(label));
+    assert(rideCjkLabels.length === 0, `${engine} ${width}px 護照 sheet 英文 aria-label 夾中日文或全形字元（共 ${rideA11y.labels.length} 個）：${rideCjkLabels.slice(0, 5).join(' ｜ ')}`);
 
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => window.__i18n?.catalogReady && typeof state !== 'undefined' && state.ready, null, { timeout: 90_000 });
