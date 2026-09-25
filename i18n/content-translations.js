@@ -3237,13 +3237,6 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '{date}收藏': '{date}に収集',
   '{name}（{state}）': '{name}（{state}）'
 });
-// 2026-09-25 機捷 10/2（週五）補上設計展區間車：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
-Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  '機捷 10/2（週五）也跟上台灣設計展疏運班表：上午 11 點到晚上 10 點，機場第一航廈到環北的區間加班車每 15 分鐘一班': 'Taoyuan Airport MRT on Friday, Oct 2 also follows the Taiwan Design Expo timetable: from 11 am to 10 pm, extra shuttles run every 15 minutes between A12 Airport Terminal 1 and A21 Huanbei.'
-});
-Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  '機捷 10/2（週五）也跟上台灣設計展疏運班表：上午 11 點到晚上 10 點，機場第一航廈到環北的區間加班車每 15 分鐘一班': '桃園MRTの10/2（金）も台湾デザイン展の輸送ダイヤに対応：11時〜22時は A12 空港第1ターミナル〜A21 環北間の区間臨時列車が15分ごとに運行。'
-});
 // 2026-09-25 底圖同名地名與站名疊字、跟車小卡三個小修正：第一層更新紀錄兩條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '修正地圖上站名旁邊又出現同名地名、字疊在一起的問題，例如竹北站旁的「竹北市」': 'Fixed a place name with the same name as a nearby station (such as “Zhubei City” next to Zhubei Station) overlapping the station label on the map.',
@@ -3253,10 +3246,24 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '修正地圖上站名旁邊又出現同名地名、字疊在一起的問題，例如竹北站旁的「竹北市」': '地図で駅名のすぐ横に同じ名前の地名（竹北駅の横の「竹北市」など）が重なって表示される問題を修正しました',
   '跟車小卡的三個小修正：跟車時切換語言，車種和起訖會立刻換過來；虛構 8888 在手機上的關閉鈕不再被擠到第二行；第一次跟車時「車頭鎖定：開啟」的提示不再被蓋掉最後一個字': '追跡カードの小さな修正を3つ行いました。追跡中に言語を切り替えると、車種と区間がすぐに切り替わります。スマートフォンで架空 8888 を追跡したとき、閉じるボタンが2行目に押し出されなくなりました。初めて追跡したときに出る「先頭車両の固定：オン」の表示で、最後の1文字が隠れなくなりました'
 });
-// 2026-09-25 機捷 10/11（設計展最後一天）區間車只開到晚上 8 點：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+// 2026-09-25 車庫長車名讓 iPhone 整個車庫能左右拖動：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  '機捷 10/11（週日）設計展最後一天照官方班表：機場第一航廈到環北的區間加班車開到晚上 8 點為止': 'Taoyuan Airport MRT on Sunday, Oct 11, the last day of the Taiwan Design Expo, follows the official timetable: the extra shuttles between A12 Airport Terminal 1 and A21 Huanbei run until 8 pm.'
+  '修正 iPhone 用英文或日文介面時，車庫選到名稱較長的車款，整個畫面會被左右拖動、左邊被切掉': 'Fixed My garage on iPhone in English or Japanese: choosing a train with a long name let the whole screen be dragged sideways, cutting off the left edge.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  '機捷 10/11（週日）設計展最後一天照官方班表：機場第一航廈到環北的區間加班車開到晚上 8 點為止': '桃園MRTの10/11（日）台湾デザイン展最終日は公式ダイヤどおり：A12 空港第1ターミナル〜A21 環北間の区間臨時列車は20時まで運行。'
+  '修正 iPhone 用英文或日文介面時，車庫選到名稱較長的車款，整個畫面會被左右拖動、左邊被切掉': 'iPhone で英語または日本語表示のとき、マイ車庫で名前の長い車両を選ぶと画面全体が左右に動かせてしまい、左側が切れる問題を修正しました',
+});
+// 2026-09-25 旅程護照鍵盤往回移動被標題列蓋住：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '旅程護照用鍵盤往回移動時，被選到的章與按鈕不再被最上方的標題列蓋住': 'In the Travel passport, moving back with the keyboard no longer leaves the selected stamp or button hidden under the title bar.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '旅程護照用鍵盤往回移動時，被選到的章與按鈕不再被最上方的標題列蓋住': '旅のパスポートでキーボードを使って前の項目に戻るとき、選んだ章やボタンが上部のタイトルバーに隠れないようにしました',
+});
+// 2026-09-25 機捷 10/2（週五）、10/11（設計展最後一天）區間車：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '機捷 10/2（週五）與 10/11（週日）也跟上設計展疏運班表：機場第一航廈到環北的區間加班車每 15 分鐘一班，10/2 開到晚上 10 點、10/11 開到晚上 8 點': 'Taoyuan Airport MRT on Friday, Oct 2 and Sunday, Oct 11 also follows the Taiwan Design Expo timetable: extra shuttles run every 15 minutes between A12 Airport Terminal 1 and A21 Huanbei, until 10 pm on Oct 2 and until 8 pm on Oct 11.'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '機捷 10/2（週五）與 10/11（週日）也跟上設計展疏運班表：機場第一航廈到環北的區間加班車每 15 分鐘一班，10/2 開到晚上 10 點、10/11 開到晚上 8 點': '桃園MRTの10/2（金）と10/11（日）も台湾デザイン展の輸送ダイヤに対応：A12 空港第1ターミナル〜A21 環北間の区間臨時列車が15分ごとに運行、10/2は22時まで、10/11は20時まで。'
 });
