@@ -24040,8 +24040,8 @@ function punctualRow(tr) {
   const s = (state.delayStats || {})[String(tr.train)] || {};
   const fmt1 = v => (v == null ? '?' : (Number.isInteger(v) ? String(v) : v.toFixed(1)));
   const mTxt = fmt1(s.m), aTxt = fmt1(s.a), dTxt = s.d != null ? s.d : '?';
-  return `<div class="row" data-no="${tr.train}" data-sys="${tr.sys || ''}" title="${escHtml(t('跟隨 {train} 次・近 30 天最糟單日全程誤點 {worst} 分、平均 {average} 分、{days} 天有紀錄', { train: tr.train, worst: mTxt, average: aTxt, days: dTxt }))}"><span class="dot" style="background:${tr.color}"></span>` +
-    `<b>${escHtml(t('{train}次', { train: tr.train }))}</b><span class="dest">${escHtml(trainTypeName(tr.typeName || ''))}${tr.typeName ? ' · ' : ''}${escHtml(t('最糟{worst}分・平均{average}分・{days}天', { worst: mTxt, average: aTxt, days: dTxt }))}</span>` +
+  return `<div class="row" data-no="${tr.train}" data-sys="${tr.sys || ''}" title="${escHtml(t('跟隨 {train} 次・近 30 天最糟單日全程誤點 {worst} 分、平均 {average} 分、{days} 天有紀錄', { train: trainDisplayNo(tr), worst: mTxt, average: aTxt, days: dTxt }))}"><span class="dot" style="background:${tr.color}"></span>` +
+    `<b>${escHtml(t('{train}次', { train: trainDisplayNo(tr) }))}</b><span class="dest">${escHtml(trainTypeName(tr.typeName || ''))}${tr.typeName ? ' · ' : ''}${escHtml(t('最糟{worst}分・平均{average}分・{days}天', { worst: mTxt, average: aTxt, days: dTxt }))}</span>` +
     `<span class="min">${status}</span></div>`;
 }
 // 觀光列車圖鑑(無固定車次:trainNos 為空的山嵐/鳴日/環島之星…):不進成就/護照(index 既有設計),
@@ -24066,9 +24066,9 @@ function hlCard(h) {
   const tr = h.tr, last = tr.stops[tr.stops.length - 1];
   const status = trainStatusTxt(tr);
   return `<button type="button" class="hl-card" data-no="${tr.train}" data-sys="${tr.sys || ''}" ` +
-    `title="${escHtml(t('跟隨 {train} 次・{status}', { train: tr.train, status }))}">` +
+    `title="${escHtml(t('跟隨 {train} 次・{status}', { train: trainDisplayNo(tr), status }))}">` +
     `<span class="hc-k">${escHtml(h.title)}</span>` +
-    `<span class="hc-v"><i class="dot" style="background:${tr.color}"></i>${escHtml(t('{train} 次', { train: tr.train }))}</span>` +
+    `<span class="hc-v"><i class="dot" style="background:${tr.color}"></i>${escHtml(t('{train} 次', { train: trainDisplayNo(tr) }))}</span>` +
     `<span class="hc-s">${escHtml(stationName(tr.stops[0].name, tr.sys))} → ${escHtml(stationName(last.name, tr.sys))}${h.sub ? ' · ' + escHtml(h.sub) : ''}</span>` +
     `</button>`;
 }
