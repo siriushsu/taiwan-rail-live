@@ -63,7 +63,8 @@ const widths = [360, 375, 414, 768];
 // 9/25：淡海輕軌假日新市一路、EMU3000 騰雲座艙說明兩條（419→421）。
 // 9/25：底圖同名地名不跟站名疊字、跟車小卡三個小修正兩條（421→423）。
 // 9/25：旅程護照用鍵盤往回移動時章與按鈕被標題列蓋住的修正一條（423→424）。
-const expectedHistoryCount = 425;
+// 9/25：各面板鍵盤往回移動被標題列蓋住、iPhone 英文長站名選單讓畫面左右拖動的修正一條（425→426）。
+const expectedHistoryCount = 426;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

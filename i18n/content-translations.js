@@ -3274,3 +3274,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '高鐵左營站進站那段改回平面：3D 地圖不再把站區畫成高架橋，北邊的高架照舊（謝謝網友回報）': '高鉄左営駅に入る区間を地上に戻しました。3D地図で駅構内を高架橋として描かなくなり、北側の高架はそのままです（ご報告ありがとうございました）',
 });
+// 2026-09-25 各面板鍵盤往回移動被標題列蓋住、iPhone 英文長站名選單讓畫面左右拖動：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '用鍵盤往回移動時，我的最愛、車站看板等面板選到的項目不再被標題列蓋住；iPhone 英文介面選到長站名時，畫面不再能左右拖動': 'Moving back with the keyboard no longer leaves the selected item hidden under the title bar in My favourites, station boards and other panels. On iPhone in English, choosing a long station name no longer lets the screen slide sideways.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '用鍵盤往回移動時，我的最愛、車站看板等面板選到的項目不再被標題列蓋住；iPhone 英文介面選到長站名時，畫面不再能左右拖動': 'キーボードで前の項目に戻るとき、お気に入りや駅案内などのパネルで選んだ項目がタイトルバーに隠れないようにしました。iPhoneの英語表示で長い駅名を選んでも、画面が左右に動かないようにしました',
+});

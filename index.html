@@ -1687,9 +1687,14 @@
   .follow-panel .fp-busbox { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
   .follow-panel .fp-busbox-r { display: flex; align-items: center; gap: 6px; }
   .follow-panel .fp-busbox-r > span { flex: none; font-size: calc(11.5px * var(--uis)); font-weight: 800; color: var(--muted); }
+  /* WebKit(iPhone 的 Safari 與 App)會把 <select> 選中那一項的整行字寬算進外層捲動區(#followPanel、提醒單的
+     .takeout-body)的捲動範圍:字在畫面上已裁在箭頭前,整張卡卻能左右拖動。英文長站名撐得出來——2026-09-25 選到
+     「Chang Jung Christian University」時,跟車卡的公車轉乘可拖 127px、「我上車了」61px、到站提醒 360px 寬 19px;
+     日文、中文與 Chromium 都是 0。overflow:hidden 把溢出留在選單裡(同 train-garage.css .g-model-select)。 */
   .follow-panel .fp-busbox select {
     flex: 1; min-width: 0; min-height: 40px; font: inherit; font-size: calc(12px * var(--uis)); font-weight: 700;
     color: var(--ink-strong); background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-pill); padding: 4px 8px;
+    overflow: hidden;
   }
   .follow-panel .fp-busbox button {
     flex: 1; min-height: 40px; font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800; letter-spacing: 1px;
@@ -1710,9 +1715,10 @@
   .follow-panel .fp-ridebox { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
   .follow-panel .fp-ridebox-r { display: flex; align-items: center; gap: 6px; }
   .follow-panel .fp-ridebox-r > span { flex: none; font-size: calc(11.5px * var(--uis)); font-weight: 800; color: var(--muted); }
-  .follow-panel .fp-ridebox select {
+  .follow-panel .fp-ridebox select { /* overflow:hidden 見上面 .fp-busbox select */
     flex: 1; min-width: 0; min-height: 40px; font: inherit; font-size: calc(12px * var(--uis)); font-weight: 700;
     color: var(--ink-strong); background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-pill); padding: 4px 8px;
+    overflow: hidden;
   }
   .follow-panel .fp-ridebox button {
     flex: 1; min-height: 40px; font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800; letter-spacing: 1px;
@@ -2274,6 +2280,13 @@
     background: var(--navy); color: var(--on-navy); border-radius: 7px 7px 0 0;
     position: sticky; top: 0; z-index: 1;
   }
+  /* 鍵盤聚焦／scrollIntoView 把內容捲進來時,讓出整疊 sticky 固定段(h3;橫式合併卡另有站名牌與分頁列)。
+     值由 syncBoardScrollPad 量出來寫進 --board-scroll-pad。🔴 給內容 scroll-margin-top、不給容器 scroll-padding-top:
+     後者把固定段整條劃成「不算可見」,焦點一進到標題裡的 ×／☆／追蹤鈕,內容就被往上捲約 130px(2026-09-25 實測)。
+     h3 在任何版面都釘住;站名牌與分頁列只在側欄模式釘住(直式時分頁列是一般內容,要讓位),
+     它們的排除寫在側欄那段、緊貼各自的 sticky 規則,條件才不會分岔。 */
+  .board > :not(h3),
+  .board > :not(h3) * { scroll-margin-top: var(--board-scroll-pad, 0px); }
   .board h3 .sys-chip { /* 共構站(台北/板橋/南港…)看板標題的系統徽章:標清楚這張板是台鐵還是高鐵/哪個捷運 */
     display: inline-block; margin-left: 7px; padding: 0 7px 1px;
     font-size: calc(10.5px * var(--uis)); font-weight: 700; letter-spacing: 1px; line-height: 1.5;
@@ -3278,6 +3291,7 @@
     width: 100%; min-height: 44px; padding: 7px 10px; border: 1.5px solid var(--line); border-radius: 8px;
     background: var(--paper); color: var(--ink); font: inherit; font-size: calc(16px * var(--ui));
   }
+  .notify-field select { overflow: hidden; } /* 見 .follow-panel .fp-busbox select */
   .notify-offsets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
   .notify-offsets label { cursor: pointer; }
   .notify-offsets input { position: absolute; opacity: 0; pointer-events: none; }
@@ -4538,6 +4552,8 @@
       margin: 0 -14px 8px; padding: 5px 14px 6px;
       background: var(--paper);
     }
+    /* 釘住了就是固定段,焦點進來不讓位(為什麼見 .board h3 下面那條 scroll-margin) */
+    body.fs .board > .uni-tabs, body.fs .board > .uni-tabs * { scroll-margin-top: 0; }
     /* 🔴 半透明時比照 08-27 裁示「標題列半透明＋blur(6px)」(見 body.panel-translucent .board h3 那條):
        sticky 層下捲過的字要糊成色塊;只給玻璃不給 blur 就是字疊字(08-27 真機橫式回報的那鍋粥)。 */
     body.fs.panel-translucent .board .uni-tabs {
@@ -4605,6 +4621,7 @@
       background: var(--paper); border: 0; border-radius: 0; box-shadow: none;
       transform: none; transition: opacity .18s ease;
     }
+    body.fs .board > .dwell-plate.dp-docked, body.fs .board > .dwell-plate.dp-docked * { scroll-margin-top: 0; } /* 同分頁列那條 */
     body.fs.panel-translucent .dwell-plate.dp-docked {
       background: var(--panel-glass);
       -webkit-backdrop-filter: blur(6px) saturate(1.08); /* 同上:sticky 層必帶 blur,否則捲動字疊字 */
@@ -5519,6 +5536,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="kbfocusselect0925"><span class="d">9/25</span><span>用鍵盤往回移動時，我的最愛、車站看板等面板選到的項目不再被標題列蓋住；iPhone 英文介面選到長站名時，畫面不再能左右拖動</span></li>
         <li data-cl-of="zuoyingflat0925"><span class="d">9/25</span><span>高鐵左營站進站那段改回平面：3D 地圖不再把站區畫成高架橋，北邊的高架照舊（謝謝網友回報）</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷 10/2（週五）與 10/11（週日）也跟上設計展疏運班表：機場第一航廈到環北的區間加班車每 15 分鐘一班，10/2 開到晚上 10 點、10/11 開到晚上 8 點</span></li>
         <li data-cl-of="ridekbfocus0925"><span class="d">9/25</span><span>旅程護照用鍵盤往回移動時，被選到的章與按鈕不再被最上方的標題列蓋住</span></li>
@@ -5526,7 +5544,6 @@
         <li data-cl-of="placedup0925"><span class="d">9/25</span><span>修正地圖上站名旁邊又出現同名地名、字疊在一起的問題，例如竹北站旁的「竹北市」</span></li>
         <li data-cl-of="followcard0925"><span class="d">9/25</span><span>跟車小卡的三個小修正：跟車時切換語言，車種和起訖會立刻換過來；虛構 8888 在手機上的關閉鈕不再被擠到第二行；第一次跟車時「車頭鎖定：開啟」的提示不再被蓋掉最後一個字</span></li>
         <li data-cl-of="danhaiv06_0925"><span class="d">9/25</span><span>淡海輕軌假日從紅樹林出發的車，改回每班都停新市一路：站牌也看得到往崁頂、往淡水漁人碼頭的班次（謝謝網友回報）</span></li>
-        <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷週一到週四也跟上台灣設計展疏運班表（9/24–10/11）：下午 4 點到晚上 8 點，機場第一航廈到環北加開區間車，南延直達車改到機場第二航廈為止</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5820,6 +5837,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="kbfocusselect0925"><span class="d">9/25</span><span>用鍵盤往回移動（Shift+Tab）時，我的最愛、台鐵與高鐵車站看板（含跟車時）、軌道與路線、查詢面板選到的項目不再停在標題列底下；iPhone 英文介面在「接公車」「我上車了」、到站提醒與車站／地標導覽選到長站名時，畫面不再能左右拖動</span></li>
         <li data-cl="widgetbg0923"><span class="d">9/23</span><span>桌面小工具新增「背景」設定：台鐵／高鐵發車看板可選車模、場景或素色，捷運看板可選車模或素色；iPhone 與 Android 都有，App 1.6.11 起生效</span></li>
         <li data-cl="railboardrows0923"><span class="d">9/23</span><span>Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班：Samsung 等把小工具格子給得比較高的手機，卡片下方不再空一大截；小、中、大三種尺寸與大字版一起調整</span></li>
         <li data-cl="widgetrailjump0919"><span class="d">9/19</span><span>從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走</span></li>
@@ -6683,7 +6701,14 @@
 //         level-profiles.json 完整重算後用 scripts/splice_zuoying_flat_profiles_0925.mjs 只換進左營周邊 43 筆，蘇澳
 //         09-14 保留的高程解不動。verify_rail_grounding 加「站區離地不超過 1 公尺」與「北側高架仍是橋」兩條
 //         （2026-09-25 裁示「左營改平面」）。
-const BUILD = 'v0925m';
+// v0925n：.board 家族面板(看板、收藏、護照、軌道、查詢…11 張)的內容一律讓出整疊 sticky 固定段(syncBoardScrollPad
+//         量出 --board-scroll-pad 給內容當 scroll-margin-top,取代只管護照的 rideHeadRO;橫式合併卡含站名牌與分頁列):
+//         鍵盤 Shift+Tab 往回走時焦點不再停在標題底下。不再用容器的 scroll-padding-top——v0925k 護照那樣寫,
+//         焦點一進到標題裡的 ×／☆／追蹤鈕,內容就往上跳約 130px。WebKit 聚焦文字欄位不看 scroll-margin,
+//         由 boardRevealField 聚焦後補捲(守門：verify_board_scroll_pad)。
+//         跟車卡「接公車」「我上車了」、到站提醒、車站／地標導覽(rail-3d.css)的 <select> 加 overflow:hidden——WebKit
+//         把選中那項的整行字寬算進外層捲動範圍,英文長站名讓整張卡能左右拖動(最多 127px)。選單外觀逐像素不變。
+const BUILD = 'v0925n';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -20965,18 +20990,59 @@ function recordRide(tr) {
   renderPassport();
   announceCollections(tr, rides, prevColl, prevAch, prevGarage);
 }
-// #ridePanel 的 h3 是 sticky 標題,瀏覽器自己把內容捲進來時(Tab／Shift+Tab 聚焦、scrollIntoView)不認 sticky:
-// 手機 sheet 預設小段只有 230px,Shift+Tab 往回走時,成就膠囊與收集章整顆停在標題底下(說明卡照開、錨點卻看不到;
-// 2026-09-25 實測 360–768 兩個引擎、標準與特大字級都有)。捲動區頂端讓出「標題實高＋下緣間距」=內容捲在最上面時
-// 本來的位置。用量的、不用字級推算:標題行高是 normal,三種字級×兩個引擎實測 36–48px 各不相同。
-// h3 每次重繪都是新節點,renderRidePanel 每次重掛。守門:verify_founding_seal G2.360.5(拿掉這段就紅;
-// 375 以上的寬度那支閘門照不到,鍵盤往回走要另外驗)。
-const rideHeadRO = window.ResizeObserver ? new ResizeObserver(entries => {
-  for (const { target: h3 } of entries) {
-    const rp = h3.parentElement, h = h3.getBoundingClientRect().height;
-    if (rp && h > 0) rp.style.scrollPaddingTop = (h + (parseFloat(getComputedStyle(h3).marginBottom) || 0)) + 'px';
+// .board 家族(看板、收藏、護照、軌道、搜尋…11 張)的 h3 是 sticky 標題;橫式合併卡(跟車中開看板)h3 底下還釘著
+// 站名牌與分頁列。瀏覽器自己把內容捲進來時(Tab／Shift+Tab 聚焦、scrollIntoView)不認 sticky:手機 sheet 預設小段
+// 只有 230px,往回走的焦點整顆停在標題底下(2026-09-25 實測 360–844 兩個引擎、標準與特大字級:護照、收藏、看板、
+// 高鐵看板、軌道、搜尋都有)。讓位量「整疊固定段的底緣」=最下面那段的 sticky top＋實高＋下緣間距,寫進
+// --board-scroll-pad,由 CSS 給固定段以外的內容當 scroll-margin-top(見 .board h3 下面那條;為什麼不用容器的
+// scroll-padding-top 也寫在那裡)。用量的、不用字級推算:標題行高是 normal,三種字級×兩個引擎實測 36–48px 各不相同。
+// 看板、收藏、護照每次重繪都換掉整份 innerHTML(h3 是新節點)⇒ MutationObserver 跟著重掛,拿走的節點 unobserve,
+// 不讓脫離 DOM 的舊標題一直掛在 observer 上。分頁列的 top 讀 --board-head-h,那個值變了分頁列尺寸不變 ⇒
+// syncBoardHeadVar 算完另外補一刀。守門:scripts/verify_board_scroll_pad.mjs。
+// 這三種是「可能釘住」的候選,真的有沒有釘住看計算後的 position(分頁列直式時是一般內容)。CSS 那邊不讓位的排除要跟著:
+// h3 寫在 .board h3 下面那條,站名牌與分頁列寫在側欄段、緊貼各自的 sticky 規則。
+const BOARD_HEADS = ':scope > h3, :scope > .dwell-plate, :scope > .uni-tabs';
+function syncBoardScrollPad(bd) {
+  let pad = 0;
+  for (const h of bd.querySelectorAll(BOARD_HEADS)) {
+    const cs = getComputedStyle(h), hh = h.getBoundingClientRect().height;
+    if (cs.position === 'sticky' && hh > 0) pad = Math.max(pad, (parseFloat(cs.top) || 0) + hh + (parseFloat(cs.marginBottom) || 0));
   }
+  const v = pad > 0 ? (+pad.toFixed(1)) + 'px' : '';
+  if (bd.style.getPropertyValue('--board-scroll-pad') !== v) bd.style.setProperty('--board-scroll-pad', v);
+}
+const boardPadRO = window.ResizeObserver ? new ResizeObserver(entries => {
+  for (const bd of new Set(entries.map(e => e.target.parentElement))) if (bd) syncBoardScrollPad(bd);
 }) : null;
+if (boardPadRO && window.MutationObserver) {
+  const isHead = n => n.nodeType === 1 && n.matches('h3, .dwell-plate, .uni-tabs');
+  const mo = new MutationObserver(recs => {
+    for (const r of recs) {
+      r.removedNodes.forEach(n => { if (isHead(n)) boardPadRO.unobserve(n); });
+      r.addedNodes.forEach(n => { if (isHead(n)) boardPadRO.observe(n); });
+    }
+  });
+  for (const bd of document.querySelectorAll('.board')) {
+    for (const n of bd.children) if (isHead(n)) boardPadRO.observe(n);
+    mo.observe(bd, { childList: true });
+  }
+}
+// WebKit(iPhone／App)聚焦文字欄位時走「讓插入點可見」那條路,不看 scroll-margin:軌道面板 #rdSearch、查詢面板
+// #trainSearch 聚焦後仍整顆壓在標題下(2026-09-25 實測 49px,800ms 內不會自己讓開;Chromium 會看,這裡量到 0 就不動)。
+// 聚焦後下一拍量一次,還壓著就讓出重疊的量。釘住的固定段裡的欄位不處理(它本來就釘在上面)。
+function boardRevealField(ev) {
+  const bd = ev.currentTarget, t = ev.target;
+  if (!t.matches('input, textarea')) return;
+  const head = t.closest('.board > h3, .board > .dwell-plate, .board > .uni-tabs');
+  if (head && getComputedStyle(head).position === 'sticky') return;
+  requestAnimationFrame(() => {
+    if (document.activeElement !== t) return;
+    const pad = parseFloat(bd.style.getPropertyValue('--board-scroll-pad')) || 0;
+    const over = bd.getBoundingClientRect().top + bd.clientTop + pad - t.getBoundingClientRect().top;
+    if (over > 0.5) bd.scrollTop -= over;
+  });
+}
+for (const bd of document.querySelectorAll('.board')) bd.addEventListener('focusin', boardRevealField);
 // 護照 sheet(Batch B):與桌面 #passport 合併=同一份 builder;收集章→成就(chips)→完乘記錄(全量,最新在前)
 function renderRidePanel() {
   const el = document.getElementById('ridePanel');
@@ -21012,7 +21078,6 @@ function renderRidePanel() {
     (list ? `<div class="ph-list">${list}</div>`
       : `<div class="ph-empty">${escHtml(t('還沒有完乘記錄——從地圖角落「探」挑一班有趣的車，陪它跑完全程吧。'))}</div>`);
   el.querySelector('#rideClose').onclick = closeRidePanel;
-  if (rideHeadRO) { rideHeadRO.disconnect(); rideHeadRO.observe(el.querySelector(':scope > h3')); }
   // 灰章/金章點擊:與桌面一致觸發重播(followDexStamp);sheet 內先關面板再跟車(比照亮點列)
   el.onclick = e => {
     if (e.target.closest('.close')) return;
@@ -30818,6 +30883,7 @@ function syncBoardHeadVar() {
   if (boardHeadRO && h3 && h3 !== boardHeadRoTarget) {
     boardHeadRO.disconnect(); boardHeadRO.observe(h3); boardHeadRoTarget = h3;
   }
+  if (on) syncBoardScrollPad(bd); // 分頁列的 sticky top 剛換過值,尺寸沒變 ⇒ boardPadRO 不會替我們補
 }
 // §04c v2 契約8:站名牌雙錨點。卡開著 ⇒ DOM 搬進卡頭(h3 之後、分頁列之前);
 // 卡沒開或直式 ⇒ 搬回 .stage 當露出地圖置中的獨立牌。設計明寫「兩者共用同一份元件、只換錨點」,
