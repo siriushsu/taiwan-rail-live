@@ -166,5 +166,97 @@ if(on('M')){const hd=load(now,DIR,'emu3000'),o=load(then,DIR,'emu3000'),m=load(n
  for(const b of bad9)console.log('   M9',b.id,JSON.stringify(b.diffPx?{diffPx:b.diffPx,kinds:b.kinds}:b),JSON.stringify(b.first??''));
 }
 
+// P：乘客零件庫 garage-people-v1/people（Task 7）。P 段固定 9 項（P6～P9 是主對話加的，見帳本 Task 7 的 Ruling）。
+// 人的座標＝零件頂點＋該零件的轉軸（每個零件以自己的轉軸為原點匯出）；成對零件的第二份放在 y 取負的轉軸、幾何不鏡像（Task 8 的畫法），兩份都照這個規則算。
+if(on('P')){const p=load(now,'rail-3d/assets/garage-people-v1/','people'),pm=p.meta,rig=pm.rig??{},parts=Array.isArray(pm.parts)?pm.parts:[];
+ const NAMES=['head','hair-short','hair-long','hair-bun','torso-shirt','torso-jacket','torso-hoodie','torso-dress','arm','hand','leg','shoe','acc-backpack','acc-suitcase','acc-handbag','acc-hat'],
+  TINTS=['top','bottom','skin','hair','accent','fixed'],PAIRED=['arm','hand','leg','shoe'],RIG={hip:[0,.1,.86],shoulder:[0,.2,1.36],neck:[0,0,1.42]};
+ // 轉軸表（計畫 Task 7 Interfaces）：頭、髮型、帽子在 neck；手臂、手、手提包在 shoulder（+Y 側）；腿、鞋在 hip（+Y 側）；上身、後背包、行李箱在原點。
+ // rig 的 hip／shoulder／neck 照 Interfaces 逐值比：Task 8 坐下用 rig.hip[2]、拖行李箱用 rig.shoulder[1]，零件轉軸也必須等於它們。
+ const pivotFor=n=>n==='head'||n.startsWith('hair-')||n==='acc-hat'?RIG.neck:n==='arm'||n==='hand'||n==='acc-handbag'?RIG.shoulder:n==='leg'||n==='shoe'?RIG.hip:[0,0,0];
+ const same3=(u,v)=>Array.isArray(u)&&u.length===3&&u.every((x,k)=>Math.abs(x-v[k])<=1e-6),rangeOk=q=>Number.isInteger(q?.start)&&Number.isInteger(q?.count)&&q.start>=0&&q.count>=3&&q.count%3===0&&q.start+q.count<=p.count;
+ const byName={},bad={},flag=(k,v)=>(bad[k]??=[]).push(v);
+ for(const q of parts){if(byName[q.name])flag('重複',q.name);byName[q.name]=q;if(!NAMES.includes(q.name))flag('多出',q.name);
+  if(!TINTS.includes(q.tint))flag('tint',q.name+':'+q.tint);
+  if(q.tint==='fixed'&&!(Array.isArray(q.color)&&q.color.length===3&&q.color.every(c=>Number.isFinite(c)&&c>=0&&c<=1)))flag('fixed 缺 color',q.name);
+  if(q.perPerson!==(PAIRED.includes(q.name)?2:1))flag('perPerson',q.name+':'+q.perPerson);
+  if(!same3(q.pivot,pivotFor(q.name)))flag('轉軸',q.name+':'+JSON.stringify(q.pivot));
+  if(!rangeOk(q))flag('區段',q.name);}
+ for(const n of NAMES)if(!byName[n])flag('缺',n);
+ const sorted=parts.filter(rangeOk).sort((a,b)=>a.start-b.start);for(let i=1;i<sorted.length;i++)if(sorted[i].start<sorted[i-1].start+sorted[i-1].count)flag('區段重疊',sorted[i-1].name+'/'+sorted[i].name);
+ for(const k of ['hip','shoulder','neck'])if(!same3(rig[k],RIG[k]))flag('rig',k+':'+JSON.stringify(rig[k]??null));
+ check('P1 people 讀得到（長度、雜湊對）；garage-parts-v1、id／kind people、units model；16 個零件名恰好齊全；tint 在集合內、fixed 有 color；perPerson 與轉軸照表；rig 的 hip／shoulder／neck 照 Interfaces',
+  pm.schema==='garage-parts-v1'&&pm.id==='people'&&pm.kind==='people'&&pm.units==='model'&&pm.mesh?.file==='people.bin.gz'&&!Object.keys(bad).length,{schema:pm.schema,id:pm.id,kind:pm.kind,units:pm.units,file:pm.mesh?.file,bad});
+ // 零件在自己座標系裡的外框（原點＝轉軸）與三角形數；區段不合法回 null，後面各項就判不合格而不是丟錯。
+ const E={};for(const n of NAMES){const q=byName[n];if(!rangeOk(q)||!Array.isArray(q.pivot)||q.pivot.length!==3){E[n]=null;continue;}
+  const e={y0:Infinity,y1:-Infinity,z0:Infinity,z1:-Infinity,tris:q.count/3,pv:q.pivot};for(let v=q.start;v<q.start+q.count;v++){const y=p.f[v*6+1],z=p.f[v*6+2];e.y0=Math.min(e.y0,y);e.y1=Math.max(e.y1,y);e.z0=Math.min(e.z0,z);e.z1=Math.max(e.z1,z);}E[n]=e;}
+ // P2：第二份只把轉軸的 y 取負，z 不變，所以每個零件算一次。
+ const basic=['head','hair-short','torso-shirt',...PAIRED],miss2=basic.filter(n=>!E[n]);let z0=Infinity,z1=-Infinity;for(const n of basic)if(E[n]){z0=Math.min(z0,E[n].z0+E[n].pv[2]);z1=Math.max(z1,E[n].z1+E[n].pv[2]);}
+ check('P2 基本組合（head、hair-short、torso-shirt，arm、hand、leg、shoe 各兩份）靜止：min z∈[−.02,.02]、max z−min z∈[1.65,1.75]、rig.height∈[1.65,1.75]',
+  !miss2.length&&z0>=-.02&&z0<=.02&&z1-z0>=1.65&&z1-z0<=1.75&&rig.height>=1.65&&rig.height<=1.75,{minZ:+z0.toFixed(4),height:+(z1-z0).toFixed(4),rigHeight:rig.height??null,miss:miss2});
+ // P3：任一種組合的最大 |y| 就是各非配件零件（成對的兩份都算）最大 |y| 的最大值，所以逐零件驗就等於驗遍所有組合。
+ // 另驗成對零件對自己的 xz 平面左右對稱（外框 |y0+y1|≤.01）：第二份不鏡像幾何，不對稱的話另一側的手腳會陷進身體或往外撐，只驗 |y| 上限照不到。
+ const wide={},asym={};let maxY=0;for(const n of NAMES.filter(n=>!n.startsWith('acc-'))){const e=E[n];if(!e){wide[n]='缺';continue;}
+  const m=Math.max(...(PAIRED.includes(n)?[e.pv[1],-e.pv[1]]:[e.pv[1]]).flatMap(py=>[Math.abs(e.y0+py),Math.abs(e.y1+py)]));maxY=Math.max(maxY,m);if(m>.25)wide[n]=+m.toFixed(4);
+  if(PAIRED.includes(n)&&Math.abs(e.y0+e.y1)>.01)asym[n]=[+e.y0.toFixed(4),+e.y1.toFixed(4)];}
+ check('P3 任一種組合（配件除外）靜止時最大 |y| ≤.25；成對零件對 xz 平面左右對稱（外框 |y0+y1|≤.01）',!Object.keys(wide).length&&!Object.keys(asym).length,{maxY:+maxY.toFixed(4),wide,asym});
+ const T=n=>E[n]?.tris??NaN,big=pre=>Math.max(...NAMES.filter(n=>n.startsWith(pre)).map(T)),worst=T('head')+big('hair-')+big('torso-')+2*PAIRED.reduce((s,n)=>s+T(n),0)+big('acc-');
+ check('P4 最壞組合（head＋最大髮型＋最大上身＋2×(arm＋hand＋leg＋shoe)＋最大配件）≤600 三角形',worst<=600,{worst,tris:Object.fromEntries(NAMES.map(n=>[n,T(n)]))});
+ let degen=0;const firstBad=[];for(let v=0;v+2<p.count;v+=3){const A=vtx(p,v),ar=Math.hypot(...cross3(sub3(vtx(p,v+1),A),sub3(vtx(p,v+2),A)))/2;if(!(ar>1e-10)){degen++;if(firstBad.length<5)firstBad.push(v);}}
+ check('P5 沒有退化三角形（面積 >1e-10）',p.count>0&&p.count%3===0&&degen===0,{triangles:p.count/3,degen,first:firstBad});
+ // P6：Task 8 的乘客材質是 three.js 預設的 FrontSide，只畫逆時針（正面）的三角形；Blender 算繪預設兩面都畫，一覽圖照不到繞向反了的零件。
+ // (a) 面法向量（依繞向）與三個頂點法向量的和同向：繞向與法向量不一致會缺面或打光反了；(b) 以零件頂點重心算的有號體積 >0：整個零件裡外翻（繞向與法向量一起反）時 (a) 照不到。
+ const flip={};for(const n of NAMES){const q=byName[n];if(!rangeOk(q)){flip[n]='缺';continue;}let c=[0,0,0];for(let v=q.start;v<q.start+q.count;v++)for(let k=0;k<3;k++)c[k]+=p.f[v*6+k]/q.count;
+  let bad6=0,vol=0;for(let v=q.start;v<q.start+q.count;v+=3){const A=vtx(p,v),B=vtx(p,v+1),C=vtx(p,v+2),fn=cross3(sub3(B,A),sub3(C,A)),vn=[0,1,2].map(k=>p.f[v*6+3+k]+p.f[v*6+9+k]+p.f[v*6+15+k]);
+   if(!(dot3(fn,vn)>0))bad6++;vol+=dot3(sub3(A,c),cross3(sub3(B,c),sub3(C,c)))/6;}
+  if(bad6||!(vol>0))flip[n]={反向三角形:bad6,有號體積:+vol.toExponential(3)};}
+ check('P6 每個零件三角形朝外：面法向量與頂點法向量同向、以重心算的有號體積 >0（FrontSide 只畫正面）',!Object.keys(flip).length,flip);
+ // P7～P9 是 Task 7 第二輪收件時加的雙向判準（帳本 Task 7 的 Ruling）。第一輪只量「頭頂有沒有頭髮」「上身頂面平不平」這類單向的數，
+ // 第二輪照著數字做，數字全過，結果臉被頭髮整個蓋住、頭浮在上身上方 9 公分、手臂頂端凸出肩線 16 公分。所以每個外觀要求都配一個反方向的量。
+ // W(n)＝零件第一份的三角形（頂點＋轉軸，人座標）；BB(n)＝它的外框 [x0,x1,y0,y1,z0,z1]；ray＝Möller–Trumbore，回傳沿 d 最近的距離，沒打到回 Infinity。
+ const W=n=>{const q=byName[n],t=[];if(!rangeOk(q)||!Array.isArray(q.pivot)||q.pivot.length!==3)return t;for(let v=q.start;v<q.start+q.count;v+=3)t.push([0,1,2].map(k=>vtx(p,v+k).map((x,i)=>x+q.pivot[i])));return t;};
+ const BB=n=>{const b=[Infinity,-Infinity,Infinity,-Infinity,Infinity,-Infinity];for(const t of W(n))for(const v of t)for(let k=0;k<3;k++){b[2*k]=Math.min(b[2*k],v[k]);b[2*k+1]=Math.max(b[2*k+1],v[k]);}return b;};
+ const ray=(o,d,T)=>{let best=Infinity;for(const [a,b,c] of T){const e1=sub3(b,a),e2=sub3(c,a),h=cross3(d,e2),det=dot3(e1,h);if(Math.abs(det)<1e-12)continue;
+  const s=sub3(o,a),u=dot3(s,h)/det;if(u<0||u>1)continue;const q=cross3(s,e1),w=dot3(d,q)/det;if(w<0||u+w>1)continue;const t=dot3(e2,q)/det;if(t>1e-9&&t<best)best=t;}return best;};
+ // P7：從正面（+X 往 −X）平行射，網格 1 公分。頭頂上 1/3 先打到頭髮 ≥.9；臉部帶（頭寬中間 60%、頭高 15%～55%）先打到頭（皮膚）≥.9；
+ // 從正上方往下射，頭頂（以頭外框中心、頭半寬 70% 為半徑的圓內）先打到頭髮 ≥.95。三種髮型都驗。
+ // 頭頂那條是第三輪收件加的：頭髮做成繞在頭上半部的一圈、頭頂從髮帽穿出來（像禿頂戴髮帶），正面上 1/3 仍量到 .82，.6 的門檻放過了它。
+ // 帽子要罩住三種髮型：帽簷以上的頭髮頂點都在帽子外框內（容差 .005），頭髮不高過帽頂。臉部帶跟著頭的外框走，換頭型不必改數字。
+ const H=W('head'),hat=BB('acc-hat'),v7={},p7={};
+ if(!H.length||!(hat[0]<hat[1]))p7.缺=['head','acc-hat'].filter(n=>!W(n).length);
+ else{const [hx0,hx1,hy0,hy1,Z0,Z1]=BB('head'),Hh=Z1-Z0,Hw=hy1-hy0,Yc=(hy0+hy1)/2,Xc=(hx0+hx1)/2,Rc=.7*Hw/2;
+  for(const h of ['hair-short','hair-long','hair-bun']){const R=W(h);if(!R.length){p7[h]='缺';continue;}
+   const shoot=(y,z)=>[ray([3,y,z],[-1,0,0],H),ray([3,y,z],[-1,0,0],R)];let n1=0,hair=0,n2=0,skin=0;
+   for(let y=Yc-Hw/2;y<=Yc+Hw/2+1e-9;y+=.01)for(let z=Z1-Hh/3;z<=Z1+.05+1e-9;z+=.01){const [a,b]=shoot(y,z);if(a===Infinity&&b===Infinity)continue;n1++;if(b<a)hair++;}
+   for(let y=Yc-.3*Hw;y<=Yc+.3*Hw+1e-9;y+=.01)for(let z=Z0+.15*Hh;z<=Z0+.55*Hh+1e-9;z+=.01){const [a,b]=shoot(y,z);if(a===Infinity&&b===Infinity)continue;n2++;if(a<=b)skin++;}
+   let n3=0,crown=0;for(let x=Xc-Rc;x<=Xc+Rc+1e-9;x+=.01)for(let y=Yc-Rc;y<=Yc+Rc+1e-9;y+=.01){if(Math.hypot(x-Xc,y-Yc)>Rc)continue;const o=[x,y,Z1+3],a=ray(o,[0,0,-1],H),b=ray(o,[0,0,-1],R);if(a===Infinity&&b===Infinity)continue;n3++;if(b<a)crown++;}
+   const hv=R.flat(),out=hv.filter(v=>v[2]>hat[4]+.02&&(v[0]<hat[0]-.005||v[0]>hat[1]+.005||v[1]<hat[2]-.005||v[1]>hat[3]+.005)).length,over=Math.max(...hv.map(v=>v[2]))-hat[5];
+   v7[h]={top:+(hair/Math.max(n1,1)).toFixed(3),face:+(skin/Math.max(n2,1)).toFixed(3),crown:+(crown/Math.max(n3,1)).toFixed(3),outHat:out,overHat:+over.toFixed(3)};
+   if(!(v7[h].top>=.9&&v7[h].face>=.9&&v7[h].crown>=.95&&out===0&&over<=0))p7[h]=v7[h];}}
+ check('P7 正面看：頭頂上 1/3 先打到頭髮 ≥.9、臉部帶（頭寬中間 60%、頭高 15%～55%）先打到皮膚 ≥.9；正上方看：頭頂（頭半寬 70% 的圓內）先打到頭髮 ≥.95；三種髮型都驗；帽子罩住三種髮型（帽簷以上的頭髮在帽子外框內、不高過帽頂）',!Object.keys(p7).length,Object.keys(p7).length?p7:v7);
+ // P8：四種上身各驗（只量 +Y 側，P3 已驗左右對稱）。top＝上身頂在中心（往下射）；sh＝肩線＝手臂內緣往內 1 公分處上身頂的高度（打不到＝上身不夠寬）。
+ // neck＝頭最低點−top ≤.005（頭坐在上身上）；slope＝top−sh ≥.02（圓肩或斜肩，不是一整片平台）；arm＝手臂頂−sh ∈[−.02,.04]（不凸出成尖角，也不掛在肩線下）；
+ // gap＝手臂內緣−上身在手臂上段高度（肩轉軸下 .06～.16）的最大半寬 ≤.005（手臂和上身之間看不到縫）；頭寬 ≥.9×最寬的肩寬（上身在肩轉軸下 .16 到頂之間的最大半寬×2）。
+ // 半寬用水平射線量（從 +Y 往 −Y，x 取 −.06～.06 五點、z 每 2 公分），不用頂點：粗網格在那個高度可能一個頂點都沒有，會量成 0。
+ const ab=BB('arm'),apv=byName.arm?.pivot,hdb=BB('head'),v8={},p8={};
+ if(!Array.isArray(apv)||!(ab[0]<ab[1])||!(hdb[0]<hdb[1]))p8.缺=['arm','head'].filter(n=>!W(n).length);
+ else{const armR=Math.max(Math.abs(ab[2]-apv[1]),Math.abs(ab[3]-apv[1])),yIn=apv[1]-armR,sz=apv[2];let maxSW=0;
+  const halfAt=(T,z0,z1)=>{let m=0;for(let z=z0;z<=z1+1e-9;z+=.02)for(const x of [-.06,-.03,0,.03,.06]){const u=ray([x,1,z],[0,-1,0],T);if(u!==Infinity)m=Math.max(m,1-u);}return m;};
+  for(const t of ['torso-shirt','torso-jacket','torso-hoodie','torso-dress']){const T=W(t);if(!T.length){p8[t]='缺';continue;}
+   const topAt=y=>{const u=ray([.001,y,3],[0,0,-1],T);return u===Infinity?null:3-u;},c=topAt(.001),sh=topAt(yIn-.01);
+   const half=halfAt(T,sz-.16,sz-.06);maxSW=Math.max(maxSW,2*halfAt(T,sz-.16,c??sz));
+   const r=v8[t]={top:c===null?null:+c.toFixed(3),sh:sh===null?null:+sh.toFixed(3),neck:c===null?null:+(hdb[4]-c).toFixed(3),slope:c===null||sh===null?null:+(c-sh).toFixed(3),arm:sh===null?null:+(ab[5]-sh).toFixed(3),gap:+(yIn-half).toFixed(3)};
+   if(!(c!==null&&sh!==null&&r.neck<=.005&&r.slope>=.02&&r.arm>=-.02&&r.arm<=.04&&r.gap<=.005))p8[t]=r;}
+  v8.head=+((hdb[3]-hdb[2])/Math.max(maxSW,1e-9)).toFixed(3);if(!(v8.head>=.9))p8.head=v8.head;}
+ check('P8 頭坐在上身上、圓肩、手臂貼身（四種上身）：頭最低點−上身頂 ≤.005；上身頂−肩線 ≥.02；手臂頂−肩線 ∈[−.02,.04]；手臂與上身之間的縫 ≤.005；頭寬 ≥.9×最寬肩寬',!Object.keys(p8).length,Object.keys(p8).length?p8:v8);
+ // P9：Task 8 拖行李箱的變換 T(−.35,−rig.shoulder[1],0)·Ry(.35)（計畫 Task 8）下，箱子最高點（拉桿頂）離右手（hand 第二份）外框中心 ≤.05，箱底著地 min z∈[−.02,.02]。
+ const sc=W('acc-suitcase'),hd=byName.hand;let v9=null;
+ if(sc.length&&rangeOk(hd)&&Array.isArray(hd.pivot)&&Array.isArray(rig.shoulder)){const c=Math.cos(.35),s=Math.sin(.35),S=sc.flat().map(([x,y,z])=>[x*c+z*s-.35,y-rig.shoulder[1],-x*s+z*c]),top=S.reduce((a,v)=>v[2]>a[2]?v:a);
+  const hv=[];for(let v=hd.start;v<hd.start+hd.count;v++){const w=vtx(p,v);hv.push([w[0]+hd.pivot[0],w[1]-hd.pivot[1],w[2]+hd.pivot[2]]);}
+  const mid=k=>(Math.min(...hv.map(v=>v[k]))+Math.max(...hv.map(v=>v[k])))/2,hc=[0,1,2].map(mid);
+  v9={top:top.map(x=>+x.toFixed(3)),hand:hc.map(x=>+x.toFixed(3)),dist:+Math.hypot(...sub3(top,hc)).toFixed(3),minZ:+Math.min(...S.map(v=>v[2])).toFixed(4)};}
+ check('P9 行李箱照 Task 8 的變換 T(−.35,−rig.shoulder[1],0)·Ry(.35) 擺：拉桿頂離右手（hand 第二份）外框中心 ≤.05、箱底 min z∈[−.02,.02]',!!v9&&v9.dist<=.05&&Math.abs(v9.minZ)<=.02,v9??'缺 acc-suitcase／hand／rig.shoulder');
+}
+
 // （D、M、P 各段插在這一行之上）
 const fails=results.filter(r=>!r.pass).length;console.log(`共 ${results.length} 項：FAIL ${fails}`);if(fails)process.exitCode=1;
