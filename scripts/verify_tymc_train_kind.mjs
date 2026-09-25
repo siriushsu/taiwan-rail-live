@@ -25,7 +25,6 @@ const check = (n, pass, detail) => { results.push({ n, pass }); console.log(`${p
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json',
   '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
-const port = 8399 + (process.pid % 200);
 const server = http.createServer((req, res) => {
   const rel = decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/, '') || 'index.html';
   const f = path.join(ROOT, rel);
@@ -33,7 +32,9 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': MIME[path.extname(f)] || 'application/octet-stream' });
   res.end(fs.readFileSync(f));
 });
-await new Promise(r => server.listen(port, r));
+await new Promise(r => server.listen(0, '127.0.0.1', r));
+// 系統挑空埠。原本 8399+pid%200 仍可能撞上別人佔著 127.0.0.1 的同號埠，而不給 host 的 listen 照樣成功、請求被對方接走＝靜默量錯。
+const port = server.address().port;
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, locale: 'zh-TW' });

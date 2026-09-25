@@ -1,14 +1,15 @@
 // 用實際班表與 renderer 驗林鐵推／拉方向；首段方向、折返連續性、雙引擎及手機觸控。
+// 埠預設 0（系統挑空埠）並綁 127.0.0.1：寫死 5686 又不給 host 時，別棵樹留下的孤兒佔著 127.0.0.1:5686，這裡綁 :: 照樣成功、請求卻被孤兒接走（2026-09-25 實測）。
 import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';import {createServer} from 'node:http';import {chromium,webkit} from 'playwright';
-const root=process.cwd(),port=Number(process.env.PORT||5686),out=process.env.OUT||'output/afr-push-pull';fs.mkdirSync(out,{recursive:true});
-const server=createServer((req,res)=>{const u=new URL(req.url,'http://x');let f=path.join(root,decodeURIComponent(u.pathname));if(u.pathname.startsWith('/api/')){res.setHeader('content-type','application/json');return res.end(u.pathname==='/api/thsr-schedule'?fs.readFileSync('data/thsr_schedule_dense.json'):'{}');}if(!fs.existsSync(f)){res.statusCode=404;return res.end();}if(fs.statSync(f).isDirectory())f=path.join(f,'index.html');res.setHeader('content-type',({'.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.html':'text/html','.css':'text/css','.png':'image/png'})[path.extname(f)]||'application/octet-stream');res.end(fs.readFileSync(f));});await new Promise(r=>server.listen(port,r));
+const root=process.cwd(),port=Number(process.env.PORT||0),out=process.env.OUT||'output/afr-push-pull';fs.mkdirSync(out,{recursive:true});
+const server=createServer((req,res)=>{const u=new URL(req.url,'http://x');let f=path.join(root,decodeURIComponent(u.pathname));if(u.pathname.startsWith('/api/')){res.setHeader('content-type','application/json');return res.end(u.pathname==='/api/thsr-schedule'?fs.readFileSync('data/thsr_schedule_dense.json'):'{}');}if(!fs.existsSync(f)){res.statusCode=404;return res.end();}if(fs.statSync(f).isDirectory())f=path.join(f,'index.html');res.setHeader('content-type',({'.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.html':'text/html','.css':'text/css','.png':'image/png'})[path.extname(f)]||'application/octet-stream');res.end(fs.readFileSync(f));});await new Promise(r=>server.listen(port,'127.0.0.1',r));
 // 預期方向獨立列出，不能從受測函式或車次奇偶產生答案。-1＝機車在行進後端。
 const cases=[['1','嘉義',-1],['2','十字路',1],['5','屏遮那',-1],['5','第一分道',1],['5','第二分道',-1],['5','神木',1],['8','阿里山',-1],['8','神木',1],['8','第二分道',-1],['8','第一分道',1],['31','阿里山',-1],['32','沼平',1],['120','阿里山',-1],['121','神木',1],['97','阿里山',-1],['98','祝山',1]];
 const rows=[];
 async function open(browser,options={}){
  const page=await browser.newPage({viewport:{width:1280,height:900},locale:'zh-TW',...options});await page.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));await page.clock.install({time:new Date('2026-09-13T12:00:00+08:00')});
  if(process.env.MUTATE==='initial')await page.route('**/rail-3d/physical/afr-operation.js',r=>r.fulfill({contentType:'text/javascript',body:'export function afrInitialFacing(){return 1;}'}));
- await page.goto(`http://127.0.0.1:${port}/?scene=3d&g=all&at=23.51,120.81&z=17&t=09:02`);await page.waitForFunction(()=>state.ready&&window.railIslandPhysical&&window.railIslandIntegration?.renderer,null,{timeout:180000});await page.clock.pauseAt(new Date('2026-09-13T12:01:00+08:00'));
+ await page.goto(`http://127.0.0.1:${server.address().port}/?scene=3d&g=all&at=23.51,120.81&z=17&t=09:02`);await page.waitForFunction(()=>state.ready&&window.railIslandPhysical&&window.railIslandIntegration?.renderer,null,{timeout:180000});await page.clock.pauseAt(new Date('2026-09-13T12:01:00+08:00'));
  await page.evaluate(()=>{state.playing=false;_blockHold.clear();updateBlockHolds=()=>{};railIslandIntegration.setModelMode('all');});return page;
 }
 async function show(page,no,station){
