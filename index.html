@@ -5519,6 +5519,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="garageselect0908"><span class="d">9/25</span><span>修正 iPhone 用英文或日文介面時，車庫選到名稱較長的車款，整個畫面會被左右拖動、左邊被切掉</span></li>
         <li data-cl-of="placedup0925"><span class="d">9/25</span><span>修正地圖上站名旁邊又出現同名地名、字疊在一起的問題，例如竹北站旁的「竹北市」</span></li>
         <li data-cl-of="followcard0925"><span class="d">9/25</span><span>跟車小卡的三個小修正：跟車時切換語言，車種和起訖會立刻換過來；虛構 8888 在手機上的關閉鈕不再被擠到第二行；第一次跟車時「車頭鎖定：開啟」的提示不再被蓋掉最後一個字</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷 10/2（週五）也跟上台灣設計展疏運班表：上午 11 點到晚上 10 點，機場第一航廈到環北的區間加班車每 15 分鐘一班</span></li>
@@ -5526,7 +5527,6 @@
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷週一到週四也跟上台灣設計展疏運班表（9/24–10/11）：下午 4 點到晚上 8 點，機場第一航廈到環北加開區間車，南延直達車改到機場第二航廈為止</span></li>
         <li data-cl-of="viewcontrols0914"><span class="d">9/25</span><span>修正 iPad 橫向和手機橫放時，「觀看」按鈕跑到畫面中間；沒開卡片時會回到右上角的按鈕列</span></li>
         <li data-cl-of="achvhelp"><span class="d">9/25</span><span>護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框；用鍵盤按 Tab 移到章上也會打開說明卡，收集章按 Enter 等於點一下</span></li>
-        <li data-cl-of="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：照台鐵公布的班表，當天那幾班的車牌會寫「寶可夢」、列車卡有介紹，今日亮點和搜尋「寶可夢」也找得到</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5617,7 +5617,7 @@
         <li data-cl="garagecars0909"><span class="d">9/9</span><span>修正車庫試跑時中間車廂消失的問題，環形與海岸場景都會完整顯示三節編組，輕軌分節也能正常欣賞</span></li>
         <li data-cl="garageloop0908"><span class="d">9/8</span><span>車庫加入環形試跑，三節小車沿彎道逐節轉向，可暫停、反向與自由旋轉欣賞；所有場景都能按鈕、滾輪或雙指縮放，海岸行旅也保留在選單中</span></li>
         <li data-cl="garagecoast0908"><span class="d">9/8</span><span>車庫新增三節編組的頭城海岸行旅，沿著無盡鐵道欣賞立體海岸與龜山島；依台灣時間呈現日出、藍天、黃昏或星空，也能調整視角與反向欣賞車身</span></li>
-        <li data-cl="garageselect0908"><span class="d">9/8</span><span>車庫改用下拉選單直接選車，按鐵道系統分組；展示台移到更容易看見的位置，不用輸入車型名稱</span></li>
+        <li data-cl="garageselect0908"><span class="d">9/8</span><span>車庫改用下拉選單直接選車，按鐵道系統分組；展示台移到更容易看見的位置，不用輸入車型名稱；9/25 修正 iPhone 英日文介面選到長車名時，整個車庫能被左右拖動</span></li>
         <li data-cl="garage0907"><span class="d">9/7</span><span>新增收藏車庫，62 款精修小車可旋轉欣賞；還沒收集到的是灰色車體，累積旅程進度解鎖後才有塗裝，舊護照自動帶入</span></li>
         <li data-cl="busboardscroll0907"><span class="d">9/7</span><span>修正車站看板更新時，已捲到公車資訊的位置被往回拉的問題</span></li>
         <li data-cl="physicaltracks0907"><span class="d">9/7</span><span>近景列車依推估股道分流，少量交疊會暫時靠旁避讓；捷運到站時保留立體車身。阿里山林鐵暫不套股道，停站的車不再畫到軌道外；阿里山、祝山、神木一帶補畫站內與之字形折返股道</span></li>
@@ -6666,7 +6666,10 @@
 //         重複時不畫（glPlaceDedupSync，只改 place 圖層 filter，跟 station-layer 的遮罩條件共存：被蓋回就重疊、被包進
 //         all 就剝掉舊的那條）；車次前綴（寶可夢、虛構）一律疊在車次上方（setFollowTitle），虛構 8888 的 × 不再擠到
 //         第二行；換語言時 setFollowHead 重寫車次／車種／起訖，立體列車編組說明換語言的第一幀不等 300ms 節流。
-const BUILD = 'v0925j';
+// v0925k：車庫選車款的下拉選單加 overflow:hidden（train-garage.css）——WebKit 把選中那項的整行字寬算進 #trainGarage
+//         的捲動範圍，英日文長車名讓 iPhone 上整個車庫能左右拖動、左邊被切掉（00a5c02d 車名改走翻譯起）；
+//         選單外觀逐像素不變（守門：verify_garage_loop webkit 360/375 en）。
+const BUILD = 'v0925k';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

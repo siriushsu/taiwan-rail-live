@@ -3253,3 +3253,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '修正地圖上站名旁邊又出現同名地名、字疊在一起的問題，例如竹北站旁的「竹北市」': '地図で駅名のすぐ横に同じ名前の地名（竹北駅の横の「竹北市」など）が重なって表示される問題を修正しました',
   '跟車小卡的三個小修正：跟車時切換語言，車種和起訖會立刻換過來；虛構 8888 在手機上的關閉鈕不再被擠到第二行；第一次跟車時「車頭鎖定：開啟」的提示不再被蓋掉最後一個字': '追跡カードの小さな修正を3つ行いました。追跡中に言語を切り替えると、車種と区間がすぐに切り替わります。スマートフォンで架空 8888 を追跡したとき、閉じるボタンが2行目に押し出されなくなりました。初めて追跡したときに出る「先頭車両の固定：オン」の表示で、最後の1文字が隠れなくなりました'
 });
+// 2026-09-25 車庫長車名讓 iPhone 整個車庫能左右拖動：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '修正 iPhone 用英文或日文介面時，車庫選到名稱較長的車款，整個畫面會被左右拖動、左邊被切掉': 'Fixed My garage on iPhone in English or Japanese: choosing a train with a long name let the whole screen be dragged sideways, cutting off the left edge.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '修正 iPhone 用英文或日文介面時，車庫選到名稱較長的車款，整個畫面會被左右拖動、左邊被切掉': 'iPhone で英語または日本語表示のとき、マイ車庫で名前の長い車両を選ぶと画面全体が左右に動かせてしまい、左側が切れる問題を修正しました',
+});

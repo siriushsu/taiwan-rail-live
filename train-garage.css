@@ -45,7 +45,12 @@
 #trainGarage .g-tabs button[aria-pressed=true]{background:var(--g-ink);color:var(--g-paper)}
 #trainGarage .g-picker{display:flex;gap:10px;align-items:center;flex:1;max-width:540px;min-width:0;font-size:12px;color:var(--g-muted)}
 #trainGarage .g-picker>span{flex:none}
-#trainGarage .g-model-select{border:1px solid var(--g-line);border-radius:10px;background:var(--g-card);padding:10px;font-size:16px;min-width:0;width:100%;height:48px;flex:1}
+/* WebKit(iPhone 的 Safari 與 App)會把選中那一項的整行字寬算進外層的捲動範圍：字在畫面上已裁在
+   箭頭前，整個車庫卻能左右拖動、左邊被切掉。英日文車名改走翻譯(00a5c02d)後撐得出來——「全部車款」
+   選到最長那款時，英文 375px 寬可拖 263px、440px 仍有 198px，日文 375px 有 87px；中文只有 360px
+   有 6px；Chromium 各語言都是 0。overflow:hidden 把溢出留在選單裡，修前修後選單外觀逐像素相同。
+   守門：verify_garage_loop 的 webkit 360/375 en(預設那款就撐得出來，拿掉這行就紅)。 */
+#trainGarage .g-model-select{border:1px solid var(--g-line);border-radius:10px;background:var(--g-card);padding:10px;font-size:16px;min-width:0;width:100%;height:48px;flex:1;overflow:hidden}
 #trainGarage .g-result{font-size:12px;color:var(--g-muted);margin:24px 0 12px}
 #trainGarage .g-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 #trainGarage .g-car{position:relative;text-align:left;min-width:0;border:1px solid var(--g-line);border-radius:14px;background:var(--g-card);padding:12px;display:flex;flex-direction:column;align-items:stretch}
