@@ -21,7 +21,9 @@ body.ambient .ri-formation-caption{display:none}
 
 .ri-guide-row { flex-wrap:wrap; gap:8px; }
 .ri-guide-input { display:flex; flex:1; gap:8px; min-width:0; }
-.ri-guide-input select { flex:1; min-width:0; width:100%; min-height:44px; color:var(--navy); background:var(--paper); border:1px solid var(--line); border-radius:6px; font:inherit; }
+/* overflow:hidden:WebKit 把選中那項的整行字寬算進 #viewSettingsBody 的捲動範圍,桌面英文選到「Chiang Kai-shek
+   Memorial Hall」整個觀看面板可左右拖 50px(2026-09-25 實測;同 index.html .fp-busbox select)。 */
+.ri-guide-input select { flex:1; min-width:0; width:100%; min-height:44px; color:var(--navy); background:var(--paper); border:1px solid var(--line); border-radius:6px; font:inherit; overflow:hidden; }
 .ri-guide-input button { flex:none; min-width:52px; min-height:44px; color:var(--paper); background:var(--navy); border:0; border-radius:6px; font:inherit; }
 @media(max-width:480px){.ri-guide-row > label{width:100%;}}
 

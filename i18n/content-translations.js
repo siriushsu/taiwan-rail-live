@@ -3281,3 +3281,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '機捷 10/12 起改用台灣設計展結束後的班表：機場第一航廈到環北的區間加班車停開，南延直達車恢復停高鐵桃園站、開到環北': '桃園MRTは10/12から台湾デザイン展終了後のダイヤに切り替わります：A12 空港第1ターミナル〜A21 環北間の区間臨時列車は運休となり、南延直達車は再び A18 高鉄桃園駅に停車して A21 環北まで運行します。',
 });
+// 2026-09-25 各面板鍵盤往回移動被標題列蓋住、iPhone 英文長站名選單讓畫面左右拖動：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '用鍵盤往回移動時，我的最愛、車站看板等面板選到的項目不再被標題列蓋住；iPhone 英文介面選到長站名時，畫面不再能左右拖動': 'Moving back with the keyboard no longer leaves the selected item hidden under the title bar in My favourites, station boards and other panels. On iPhone in English, choosing a long station name no longer lets the screen slide sideways.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '用鍵盤往回移動時，我的最愛、車站看板等面板選到的項目不再被標題列蓋住；iPhone 英文介面選到長站名時，畫面不再能左右拖動': 'キーボードで前の項目に戻るとき、お気に入りや駅案内などのパネルで選んだ項目がタイトルバーに隠れないようにしました。iPhoneの英語表示で長い駅名を選んでも、画面が左右に動かないようにしました',
+});
