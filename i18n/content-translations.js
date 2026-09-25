@@ -251,7 +251,7 @@
     '通勤的證明': 'Commuter credentials', '同一段路來回搭滿 100 次': 'Travel the same segment 100 times',
     '老通勤族': 'Veteran commuter', '同一段路來回搭滿 500 次': 'Travel the same segment 500 times',
     '明星列車': 'Star trains', '車種圖鑑': 'Rolling-stock gallery', '支線行腳': 'Branch-line journeys',
-    '還沒搭過——點我去搭一班': 'Not collected yet—tap to ride one', '已收藏': 'Collected', '點我重播': 'Tap to replay',
+    '還沒搭過——點我去搭一班': 'Not collected yet—ride one now', '已收藏': 'Collected', '點我重播': 'Replay',
     '成就徽章': 'Achievement badges', '創': 'F', '創始島民': 'Founding Islander', '謝謝你在最早的時候就決定支持軌島': 'Thank you for supporting Rail Island from the beginning.',
     '車站收集': 'Station collection', '到訪 {n}': '{n} visited', '路段 {n}': '{n} segments', '最常搭 {segment} {n} 次': 'Most travelled: {segment}, {n} times',
     '收起 ▴': 'Show less ▴', '還有 {n} 座 ▾': '{n} more stations ▾', '跟完': 'Followed', '搭過': 'Travelled', '到訪': 'Visited', '{n} 次': '{n} times', '最近 {date}': 'Latest {date}',
@@ -524,7 +524,7 @@
     '通勤的證明': '通勤の証', '同一段路來回搭滿 100 次': '同一区間を100回乗車',
     '老通勤族': 'ベテラン通勤者', '同一段路來回搭滿 500 次': '同一区間を500回乗車',
     '明星列車': 'スター列車', '車種圖鑑': '車種図鑑', '支線行腳': '支線の旅',
-    '還沒搭過——點我去搭一班': '未収集—タップして乗ってみる', '已收藏': '収集済み', '點我重播': 'タップして再生',
+    '還沒搭過——點我去搭一班': '未収集—乗ってみよう', '已收藏': '収集済み', '點我重播': '再生',
     '成就徽章': '実績バッジ', '創': '創', '創始島民': '創始島民', '謝謝你在最早的時候就決定支持軌島': '初期から軌島を支えていただき、ありがとうございます。',
     '車站收集': '駅コレクション', '到訪 {n}': '訪問 {n}', '路段 {n}': '区間 {n}', '最常搭 {segment} {n} 次': '最多乗車：{segment}・{n}回',
     '收起 ▴': '折りたたむ ▴', '還有 {n} 座 ▾': 'あと{n}駅 ▾', '跟完': '追跡完了', '搭過': '乗車済み', '到訪': '訪問済み', '{n} 次': '{n}回', '最近 {date}': '最近 {date}',
@@ -3225,4 +3225,15 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '淡海輕軌假日從紅樹林出發的車，改回每班都停新市一路：站牌也看得到往崁頂、往淡水漁人碼頭的班次（謝謝網友回報）': '淡海ライトレールの土休日、紅樹林発の列車がふたたび全便新市一路に停車するようになり、駅の発車案内にも崁頂方面・淡水漁人碼頭方面の列車が表示されます（ご報告ありがとうございました）',
+});
+// 2026-09-25 護照讀螢幕名稱：收集章的日期改用唸得出來的寫法（章下印的「08.12」會被唸成小數）、成就章帶上
+// 達成與否（畫面上靠金章／灰章區分，讀螢幕軟體看不到顏色）。另把收集章的「點我重播」「點我去搭一班」英日文
+// 改成不限觸控的說法（桌面是用滑鼠點）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '{date}收藏': 'Collected on {date}',
+  '{name}（{state}）': '{name} ({state})'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '{date}收藏': '{date}に収集',
+  '{name}（{state}）': '{name}（{state}）'
 });
