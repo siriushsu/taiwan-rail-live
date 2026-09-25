@@ -24,7 +24,7 @@ const sameStopPattern=(plan,tr)=>JSON.parse(plan.stopSignature).every((s,i,a)=>!
 // 寫死的時刻——不借路徑的話一年裡只有恰好對上那兩天綁得到,其餘日子整班退回示意線形)。
 const TEMPLATE_SYSTEMS=['tra_sched','thsr_sched','afr_sched'];
 export function createPlanBinding(dispatch){
- const templates=new Map();
+ const templates=new Map(),byTrain=new Map();
  return tr=>{
   const sys=tr.sys||tr.system,key=physicalTrainKey(tr),exact=dispatch.plans[key];
   if(exact){if(exact.pathIds.length!==tr.stops.length-1)return null;
@@ -35,6 +35,16 @@ export function createPlanBinding(dispatch){
    // 台鐵改點(2026-10-03 起埔心、樹林、桃園幾班提早，首站發車與末站到站不變所以同鍵)同樣沿用自己的股道，
    // 但停靠型態要相同、原計畫不得帶待避——待避是替舊時刻解的交會，歸零後可能重新互穿。
    return sys==='thsr_sched'||sys==='tra_sched'&&noHolds(exact)&&sameStopPattern(exact,tr)?{basis:'retimed',sourceKey:key,plan:borrow(exact.pathIds,tr)}:null;
+  }
+  // 台鐵改點改到首站發車或末站到站時鍵跟著變（2026-10-03 起 1248／1254 到基隆晚 1 分）：先找同車次、同站序、
+  // 同停靠型態、不帶待避的自己的計畫，沿用自己驗收過的股道。借別班的路徑會把替這班修好的站場進路退回去
+  // （1248 借 1128 會在汐止走回 09-13 修掉的舊股道、1254 借 1120 在鶯歌也是）。同車次有幾份就取時刻最接近的。
+  if(sys==='tra_sched'&&!tr.loop&&validTimes(tr)){
+   if(!byTrain.size)for(const [k,p] of Object.entries(dispatch.plans))if(k.startsWith(sys+':'))(byTrain.get(k.split(':')[1])||byTrain.set(k.split(':')[1],[]).get(k.split(':')[1])).push([k,p]);
+   const gap=p=>JSON.parse(p.stopSignature).reduce((n,s,i)=>n+Math.abs(s[1]-tr.stops[i].arrSec)+Math.abs(s[2]-tr.stops[i].depSec),0);
+   const own=(byTrain.get(String(tr.train))||[]).filter(([,p])=>p.pathIds.length===tr.stops.length-1&&noHolds(p)&&sameStations(p,tr)&&sameStopPattern(p,tr))
+    .map(([k,p])=>({k,p,gap:gap(p)})).sort((a,b)=>a.gap-b.gap||(a.k<b.k?-1:1))[0];
+   if(own)return {basis:'retimed',sourceKey:own.k,plan:borrow(own.p.pathIds,tr)};
   }
   // 加開車只借用完整、有序的既有路徑切片，不借用別班的時間、待避或接車關係。
   if(!TEMPLATE_SYSTEMS.includes(sys)||tr.loop||tr.stops.length<2||!validTimes(tr))return null;
