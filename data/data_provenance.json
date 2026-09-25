@@ -98,7 +98,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "464e6a0016042ec928b71b7a81fdcf10"
+   "checksum": "a853ce0d34f3e46422fc70037a531352"
   },
   "data/offline_land_style.json": {
    "sourceDescription": "離線陸地的 MapLibre style 片段(fill/line 兩層、light/dark/sat 三主題),值抄自 index.html 的 offlineLandStyle();scripts/verify_track_geojson.mjs G9 對 index.html 逐值驗算",
@@ -251,7 +251,7 @@
    "effectiveDateField": "generated",
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "fe548e32ec3c44b25f520f4c829b628a"
+   "checksum": "d192b977df1a4239cde68c468f2f27e6"
   },
   "data/tra_station_class.json": {
    "sourceDescription": "維基百科「臺灣鐵路車站列表」表格(scripts/fetch_station_class.mjs;台鐵官方 OpenData 車站基本資料集無站等欄位)",

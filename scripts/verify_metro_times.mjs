@@ -489,6 +489,30 @@ for (const rel of FILES) {
   for (const [p, n] of Object.entries(TRUNK_PAIRS[rel] || {}))
     ck(trunkPairs.get(p) === n, `${p} 的共線段 ${n} 站都有被疊車檢查涵蓋（本檔找到：${[...trunkPairs].map(([k, v]) => `${k} ${v} 站`).join('、') || '無'}）`);
 
+  // ── 官方:班班都停的站,經過它(前後都有停靠)的每一班都要停 ──
+  // 2026-09-25 網友回報淡海「紅樹林出發的車有時不停新市一路」:建置把新市一路假日去程那兩筆混班記錄
+  // 整筆排除,又以為後面會內插補回(內插只跑 allStop 線),假日去程於是每班都過站不停。
+  // 官方依據:TDX 新市一路站別時刻表平日、假日都列了往崁頂與往淡水漁人碼頭的班次;新北捷運官網 FAQ
+  // 「重疊區(紅樹林站-濱海沙崙站)」班距是兩線疊加。站名比對,不寫站序(站序會隨線檔漂)。
+  for (const { file, line, station } of [
+    { file: 'data/ntdlrt_times.json', line: 'V', station: '新市一路' },
+    { file: 'data/ntdlrt_times.json', line: 'VB', station: '新市一路' },
+  ].filter(x => x.file === rel)) {
+    const m = geoLines.find(l => l.id === line)?.stations.findIndex(s => s.name === station) ?? -1;
+    ck(m >= 0, `${line} 線檔找得到「${station}」`);
+    if (m < 0) continue;
+    for (const [tag, trains] of Object.entries(lines[line]?.sets || {})) {
+      let pass = 0, skip = 0, ex = null;
+      for (const tr of trains) {
+        const idx = tr.filter((_, i) => i % 2 === 0);
+        if (!(idx.some(i => i < m) && idx.some(i => i > m))) continue;
+        pass++;
+        if (!idx.includes(m)) { skip++; ex ??= `${hm(tr[1])} 自站序 ${tr[0]} 發`; }
+      }
+      ck(pass > 0 && skip === 0, `${line}/${tag} 經過${station}的 ${pass} 班都停（過站不停 ${skip} 班${ex ? `，首例 ${ex}` : ''}）`);
+    }
+  }
+
   // ── 官方:與營運者公告的字面值逐筆比對 ──
   for (const o of OFFICIAL.filter(o => o.file === rel)) {
     const trains = (lines[o.line] && lines[o.line].sets[o.set]) || [];

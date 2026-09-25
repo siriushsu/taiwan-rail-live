@@ -263,6 +263,7 @@ function chainRoute(stns, dir, stats, dbg, shuttle) {
 // as(虛擬路線名:跨 RouteID 合併記錄,治淡海回程幹線被亂拆在 V-1/V-2/空編號)、
 // stitchTo(本組鏈尾接到目標組的中途始發鏈,治藍海支線頭與幹線分家)、noDestOk(不計缺終點)、noOriginBackfill(第一個有記錄站即真起點,不回推始發)、
 // requireFirst(只留從此站發起的鏈:幹線記錄混含多線班次時,擋掉對方線造成的幻影中途始發車)、
+// fillFrom([{station,dir,tag}]:該站記錄已被 drop 不參與串接,串完再從各路線同站記錄的聯集補回官方時刻,見補回段)、
 // destByPattern/originByPattern(StoppingPatternID → 該停靠模式的官方端點 StationID):
 //   StoppingPatternID 只在同一個 RouteID 內唯一;覆寫不得掛在 routeId:'*' 或帶 as: 的合併 spec 上
 //   (反例:TYMC A-2/dir0 也使用 SP2,且其記錄級終點是 A13),否則會跨路線誤命中。
@@ -541,6 +542,25 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
     //   2. spec.fillSkips 的線上只跨一站的跳站——那一站剛好缺這一筆,或這一筆跟鄰站撞同一分鐘
     //      (環狀線平日景平/景安 22:56 同分)。不補的話品質閘會因為「跳過有記錄的站」整班丟掉,
     //      等於宣稱官方表上的那班車不存在。只補一站:跨兩站以上的鏈仍交給品質閘擋幻影班次。
+    // 補回(spec.fillFrom):被 drop 的站車還是有停,只是那筆記錄混了別線班次不能拿來串接。串完之後,
+    // 從各路線同站、同方向、同營運日記錄的聯集,找「夾在這班前後兩個停靠之間、恰好一個」的官方時刻補回;
+    // 找不到或不只一個就不補、照舊過站(不內插:站牌時間要照官方),並在建置輸出告警。
+    for (const f of g.spec.fillFrom || []) {
+      if (f.dir !== g.dir || f.tag !== g.tag) continue;
+      const m = ctx.idxOf.get(stnNameCache(g.spec.op).get(f.station));
+      const times = [...new Set(sttCache(g.spec.op)
+        .filter(r => r.StationID === f.station && r.Direction === f.dir && r.ServiceDay.ServiceTag === f.tag)
+        .flatMap(r => (depsOf(r.Timetables) || { deps: [] }).deps))];
+      let filled = 0, missed = 0;
+      for (const c of chains) {
+        const j = c.stops.findIndex((s, i) => i > 0 && Math.min(s[0], c.stops[i - 1][0]) < m && m < Math.max(s[0], c.stops[i - 1][0]));
+        if (j < 0) continue;
+        const hit = times.filter(t => t > c.stops[j - 1][1] && t < c.stops[j][1]);
+        if (hit.length === 1) { c.stops.splice(j, 0, [m, hit[0]]); filled++; } else missed++;
+      }
+      notes.push(`${line.id} ${g.routeId}/${g.dir}/${g.tag}: ${f.station} 以各路線官方時刻聯集補回 ${filled} 個停靠`);
+      if (missed) console.warn(`  ⚠ ${line.id} ${g.routeId}/${g.dir}/${g.tag}: ${f.station} 有 ${missed} 班找不到唯一的官方時刻,照舊過站不停`);
+    }
     if (allStop && !line.loop) {
       const stnName = stnNameCache(g.spec.op);
       const droppedIdx = new Set((g.spec.drop || [])
@@ -767,12 +787,18 @@ const SYSTEMS = [
     // 回程(往紅樹林)的幹線記錄被 TDX 亂拆在 V-1/V-2/空路線編號 → 合併成虛擬路線再鏈;
     // 幹線記錄混含兩線班次 → requireFirst 只留從本線支線端(V10淡海新市鎮/V26漁人碼頭)發起的鏈。
     lines: { V: [
-      // 新市一路(V06)假日去程記錄是兩線混班(班距減半)→ 兩路線都排除,列車過站以行駛時間內插
-      { op: 'NTDLRT', routeId: 'V-1', destIs: 'V11', drop: [{ station: 'V06', dir: 0, tag: '假日' }] },
+      // 新市一路(V06)假日去程的 V-1、V-2 兩筆記錄都列了兩條線的時刻(班距減半)→ 不拿來串接(會把站間秒校準
+      // 與配對一起帶歪),但時刻本身都對(各班＝本線淡金北新 +1 分),車也班班都停(TDX 新市一路平日兩筆記錄
+      // 各自列全本線班次;新北捷運 FAQ 稱「重疊區(紅樹林站-濱海沙崙站)」)。舊寫法以為後面會內插補回,但內插只跑
+      // allStop 線,淡海假日去程於是每班都過站不停(2026-09-25 網友回報)。fillFrom 串完再從兩筆聯集補回官方時刻
+      // (兩筆各漏列幾個,如藍海線 08:49 那班的 08:58 只在 V-1)。
+      { op: 'NTDLRT', routeId: 'V-1', destIs: 'V11', drop: [{ station: 'V06', dir: 0, tag: '假日' }],
+        fillFrom: [{ station: 'V06', dir: 0, tag: '假日' }] },
       { op: 'NTDLRT', routeId: '*', destIs: 'V01', as: 'V-回程', requireFirst: 'V10',
         only: ['V02', 'V03', 'V04', 'V05', 'V06', 'V07', 'V08', 'V09', 'V10'] },
     ], VB: [
-      { op: 'NTDLRT', routeId: 'V-2', destIs: 'V26', drop: [{ station: 'V06', dir: 0, tag: '假日' }] },
+      { op: 'NTDLRT', routeId: 'V-2', destIs: 'V26', drop: [{ station: 'V06', dir: 0, tag: '假日' }],
+        fillFrom: [{ station: 'V06', dir: 0, tag: '假日' }] },
       { op: 'NTDLRT', routeId: '*', destIs: 'V01', as: 'VB-回程', requireFirst: 'V26',
         only: ['V26', 'V27', 'V28', 'V02', 'V03', 'V04', 'V05', 'V06', 'V07', 'V08', 'V09'] },
     ] } },
