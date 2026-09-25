@@ -14,6 +14,18 @@
       "runtimeArgs": ["scripts/dev_server.mjs"],
       "port": 5179,
       "autoPort": true
+    },
+    {
+      "name": "garage-5251",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "5251", "--bind", "127.0.0.1"],
+      "port": 5251
+    },
+    {
+      "name": "garage-5291",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "5291", "--bind", "127.0.0.1"],
+      "port": 5291
     }
   ]
 }
