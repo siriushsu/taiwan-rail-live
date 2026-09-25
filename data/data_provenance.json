@@ -251,7 +251,7 @@
    "effectiveDateField": "generated",
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "d192b977df1a4239cde68c468f2f27e6"
+   "checksum": "6a626906b1e09babc0fb02b6e8610042"
   },
   "data/tra_station_class.json": {
    "sourceDescription": "維基百科「臺灣鐵路車站列表」表格(scripts/fetch_station_class.mjs;台鐵官方 OpenData 車站基本資料集無站等欄位)",
@@ -359,7 +359,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "7a5c3590cc042feaa51c9d1891675ef0"
+   "checksum": "ce5881ac3297291bcfb94356e371d843"
   }
  }
 }

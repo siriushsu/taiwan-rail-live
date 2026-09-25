@@ -84,32 +84,64 @@ function addTrips(L, setName, adds, id, log) {
   }
 }
 
+// 例外日取消班次(官方那天沒開的):用「起站 + 發車時刻」逐班指名(照官方時刻表字面抄),只刪該日的例外 set。
+// 找不到或同刻多班 ⇒ 直接失敗:基準 set 換版了,這條要重新對官網,不能默默少刪或多刪。
+function dropTrips(trains, drops, id, setName) {
+  for (const d of drops) {
+    const from = d.from ?? 0;
+    for (const hm of d.deps) {
+      const dep = toSec(hm), hit = trains.filter(tr => tr[0] === from && depOf(tr) === dep);
+      if (hit.length !== 1) throw new Error(`special_ops ${id}: ${setName} 站 ${from} ${hm} 發車的班次有 ${hit.length} 班(要恰好 1 班才能取消)`);
+      trains.splice(trains.indexOf(hit[0]), 1);
+    }
+  }
+  return trains;
+}
+
+// 臺北日期;SPECIAL_OPS_TODAY=YYYY-MM-DD 覆寫(測過期路徑)
+const taipeiToday = () => process.env.SPECIAL_OPS_TODAY || new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(new Date());
+
 export function applySpecialOps(out, outPath, ROOT, log = console.log) {
   let cfg;
   try { cfg = JSON.parse(readFileSync(path.join(ROOT, 'data/special_ops.json'), 'utf8')); }
   catch { return; }                                 // 沒有例外檔就什麼都不做
+  const today = taipeiToday();
   for (const op of cfg.ops || []) {
     if (op.out !== outPath) continue;
+    // 例外日全都過了、而基準已換版(TDX 改點)套不上 ⇒ 跳過並提示可刪,不擋整個建置:
+    // 否則沒人記得刪的過期條目會讓巡檢的 sync-metro 在 TDX 換版那天整批失敗,新班表同步不進來。
+    // 還沒過的例外套不上照樣直接失敗——那是要重新對官網的訊號。
+    const expired = !!op.dates && op.dates.every(d => d < today);
     for (const [lid, rule] of Object.entries(op.lines)) {
       const L = out.lines[lid];
-      if (!L) throw new Error(`special_ops ${op.id}: 線 ${lid} 不存在於 ${outPath}`);
-      const base = L.sets[op.base];
-      if (!base) throw new Error(`special_ops ${op.id}: ${lid} 沒有基準 set「${op.base}」`);
-      if (!op.dates) { addTrips(L, op.base, rule.add || [], op.id, log); continue; }
-      let trains = base.map(tr => tr.slice());
-      // 車種(目前只有機捷有 kinds)跟著班次走:前端要求 kinds 與 set 等長同序,缺了那天整天留白。
-      // 稀釋/停駛只是挑掉班次;加密生出的新班不知車種,記 '0'(前端當未標)。
-      const bk = L.kinds?.[op.base], kindOf = new Map(bk ? trains.map((tr, i) => [tr, bk[i]]) : []);
-      if (rule.thin) trains = thin(trains, toSec(rule.thin.from), rule.thin.headwayMin * 60);
-      if (rule.suspend) trains = suspend(trains, toSec(rule.suspend.from), rule.suspend.branchFrom);
-      if (rule.densify) trains = densify(trains, toSec(rule.densify.from), rule.densify.headwaySec);
-      trains.sort((a, b) => depOf(a) - depOf(b) || endOf(a) - endOf(b));
-      L.sets[op.setName] = trains;
-      if (bk) L.kinds[op.setName] = trains.map(tr => kindOf.get(tr) ?? '0').join('');
-      addTrips(L, op.setName, rule.add || [], op.id, log);
-      L.dates = L.dates || {};
-      for (const d of op.dates) L.dates[d] = op.setName;
-      log(`  ⚑ ${lid} 例外「${op.setName}」${base.length}→${trains.length} 班 (${op.dates.join(' ')})`);
+      try { applyLine(L, lid, rule, op, outPath, log); }
+      catch (e) {
+        if (!expired) throw e;
+        if (L) { delete L.sets[op.setName]; if (L.kinds) delete L.kinds[op.setName]; }
+        log(`  ⚑ ${op.id}: 例外日 ${op.dates.join(' ')} 都已過、基準已換版套不上,這次不套用,本條可刪(${e.message})`);
+      }
     }
   }
+}
+
+function applyLine(L, lid, rule, op, outPath, log) {
+  if (!L) throw new Error(`special_ops ${op.id}: 線 ${lid} 不存在於 ${outPath}`);
+  const base = L.sets[op.base];
+  if (!base) throw new Error(`special_ops ${op.id}: ${lid} 沒有基準 set「${op.base}」`);
+  if (!op.dates) { addTrips(L, op.base, rule.add || [], op.id, log); return; }
+  let trains = base.map(tr => tr.slice());
+  // 車種(目前只有機捷有 kinds)跟著班次走:前端要求 kinds 與 set 等長同序,缺了那天整天留白。
+  // 稀釋/停駛只是挑掉班次;加密生出的新班不知車種,記 '0'(前端當未標)。
+  const bk = L.kinds?.[op.base], kindOf = new Map(bk ? trains.map((tr, i) => [tr, bk[i]]) : []);
+  if (rule.thin) trains = thin(trains, toSec(rule.thin.from), rule.thin.headwayMin * 60);
+  if (rule.suspend) trains = suspend(trains, toSec(rule.suspend.from), rule.suspend.branchFrom);
+  if (rule.densify) trains = densify(trains, toSec(rule.densify.from), rule.densify.headwaySec);
+  if (rule.drop) trains = dropTrips(trains, rule.drop, op.id, op.setName);
+  trains.sort((a, b) => depOf(a) - depOf(b) || endOf(a) - endOf(b));
+  L.sets[op.setName] = trains;
+  if (bk) L.kinds[op.setName] = trains.map(tr => kindOf.get(tr) ?? '0').join('');
+  addTrips(L, op.setName, rule.add || [], op.id, log);
+  L.dates = L.dates || {};
+  for (const d of op.dates) L.dates[d] = op.setName;
+  log(`  ⚑ ${lid} 例外「${op.setName}」${base.length}→${trains.length} 班 (${op.dates.join(' ')})`);
 }

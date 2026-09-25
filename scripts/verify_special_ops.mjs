@@ -56,8 +56,19 @@ const EXPECT = {
         firstHm: ['10:44', '10:48', '10:53', '10:57', '11:01', '11:04', '11:07', '11:10', '11:13'] },
     ] },
   },
+  // 桃園機捷官網各站時刻表,查詢日期 2026-10-11(週日,設計展最後一天,網站本來走假日 set),2026-09-25 實查:
+  //   公告逐字「及10/11(日) 11:00至20:00 於A12-A21區間啟動加班車疏運」
+  //   A12 往老街溪○ 37 班 10:49…19:49(假日 45 班到 21:49);A21 往台北○ 38 班 10:44…19:59(假日 46 班到 21:59)
+  // ⇒ 那天只少 20:00 以後的○:A12 20:04–21:49、A21 20:14–21:59 各 8 班;20:00 以前的○照開。
+  'tymc-20261011-expo-last-day': {
+    out: 'data/tymc_times.json', base: '假日', date: '2026-10-11',
+    dateDrop: { line: 'A', runs: [
+      { from: 11, to: 20, windows: [['20:04', '21:49']], everyMin: 15, keepLast: '19:49' },
+      { from: 20, to: 11, windows: [['20:14', '21:59']], everyMin: 15, keepLast: '19:59' },
+    ] },
+  },
 };
-// 臺北日期,只給上面 expo.through 用;VERIFY_TODAY=YYYY-MM-DD 覆寫(測展期後那條路徑)
+// 臺北日期,給上面 expo.through 與「例外日已過」用;VERIFY_TODAY=YYYY-MM-DD 覆寫(測展期後那條路徑)
 const TODAY = process.env.VERIFY_TODAY || new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(new Date());
 
 let pass = 0, fail = 0;
@@ -103,6 +114,8 @@ for (const [id, E] of Object.entries(EXPECT)) {
   if (E.dateAdd) {
     const X = E.dateAdd, L = T[X.line], base = L && L.sets[E.base];
     const setName = L && L.dates && L.dates[E.date], sp = setName && L.sets[setName];
+    // 例外日已過、基準換版套不上時建置端會跳過(special_ops.mjs 的 expired);那就只提示可刪,不擋出貨
+    if (!sp && E.date < TODAY) { console.log(`  ⚑ ${E.date} 已過,建置端已不套用(基準換版)——本筆 EXPECT 與 special_ops.json 那筆都可刪`); continue; }
     ok(!!sp && !!base, `${E.date} 指到例外 set「${setName || '無'}」、基準「${E.base}」也在`);
     if (!sp || !base) continue;
     ok(Object.keys(L.dates).filter(d => L.dates[d] === setName).join(',') === E.date, `只有 ${E.date} 走「${setName}」`);
@@ -130,6 +143,35 @@ for (const [id, E] of Object.entries(EXPECT)) {
       ok(!base.some(tr => tr[0] === R.from && deps.includes(depOf(tr))), `對照:基準「${E.base}」本來沒有這些班(例外確實有加東西)`);
     }
     ok(extra.length === want, `例外 set 只比基準多這 ${want} 班 — 實際多 ${extra.length} 班`);
+    continue;
+  }
+
+  if (E.dateDrop) {
+    const X = E.dateDrop, L = T[X.line], base = L && L.sets[E.base];
+    const setName = L && L.dates && L.dates[E.date], sp = setName && L.sets[setName];
+    // 例外日已過、基準換版套不上時建置端會跳過(special_ops.mjs 的 expired);那就只提示可刪,不擋出貨
+    if (!sp && E.date < TODAY) { console.log(`  ⚑ ${E.date} 已過,建置端已不套用(基準換版)——本筆 EXPECT 與 special_ops.json 那筆都可刪`); continue; }
+    ok(!!sp && !!base, `${E.date} 指到例外 set「${setName || '無'}」、基準「${E.base}」也在`);
+    if (!sp || !base) continue;
+    ok(Object.keys(L.dates).filter(d => L.dates[d] === setName).join(',') === E.date, `只有 ${E.date} 走「${setName}」`);
+    const kOf = (s, i) => ((L.kinds && L.kinds[s]) || '')[i] || '';
+    ok(L.kinds && L.kinds[setName] && L.kinds[setName].length === sp.length, `kinds 與例外 set 等長(前端長度對不上會整天不標車種)`);
+    // 基準扣掉例外 set 的每一班(連同車種)＝被取消的班;例外 set 多出任何一班都算錯
+    const key = (tr, k) => tr.join(',') + '|' + k, pool = new Map();
+    base.forEach((tr, i) => pool.set(key(tr, kOf(E.base, i)), (pool.get(key(tr, kOf(E.base, i))) || 0) + 1));
+    const alien = sp.filter((tr, i) => { const q = key(tr, kOf(setName, i)), c = pool.get(q) || 0; if (c) pool.set(q, c - 1); return !c; });
+    ok(!alien.length, `例外 set 每班(連同車種)都來自基準「${E.base}」— 多出 ${alien.length} 班`);
+    const gone = [...pool].flatMap(([q, c]) => Array(c).fill(q.split('|')[0].split(',').map(Number)));
+    let want = 0;
+    for (const R of X.runs) {
+      const deps = R.windows.flatMap(([a, b]) => { const r = []; for (let t = toSec(a); t <= toSec(b); t += R.everyMin * 60) r.push(t); return r; });
+      want += deps.length;
+      const bad = deps.filter(d => gone.filter(tr => tr[0] === R.from && depOf(tr) === d && tr[tr.length - 2] === R.to).length !== 1);
+      ok(!bad.length, `站索引 ${R.from}→${R.to} ${R.windows.map(w => w.join('–')).join('、')} 每 ${R.everyMin} 分 ${deps.length} 班逐班取消 — 沒取消到 ${bad.length} 班${bad.length ? ':' + bad.slice(0, 3).map(hh).join(',') : ''}`);
+      const last = sp.filter(tr => tr[0] === R.from && tr[tr.length - 2] === R.to).map(depOf).sort((a, b) => a - b).pop();
+      ok(last === toSec(R.keepLast), `對照:官方那天最後一班 ${R.keepLast} 仍在(只砍 20:00 以後)— 實際最後一班 ${last == null ? '無' : hh(last)}`);
+    }
+    ok(gone.length === want, `例外 set 只比基準少這 ${want} 班 — 實際少 ${gone.length} 班`);
     continue;
   }
 

@@ -25,7 +25,7 @@
   let landscapeGround=(params.get('ground')||read('ri-landscape-ground','terrain'))==='flat'?'flat':'terrain';
   const effectiveGround=()=>state.basemap==='landscape'?landscapeGround:groundMode;
   formationMode=formationMode==='three'?'three':'actual';groundMode=groundMode==='terrain'?'terrain':'flat';trainSizeMode=trainSizeMode==='scale'?'scale':'readable';
-  let renderer=null,lastFrame=null,loading=false,loadSerial=Promise.resolve(),epoch=0,manualTarget=null,appearanceKey='',noteAt=0;
+  let renderer=null,lastFrame=null,loading=false,loadSerial=Promise.resolve(),epoch=0,manualTarget=null,appearanceKey='',noteAt=0,noteLang='';
   const shapeCache=new WeakMap(),tripKeys=new WeakMap(),targets=new Map(),stationTargets=new Map(),motionItems=new Map(),headings=new Map(),errors=[];
   const save=(key,value)=>{try{localStorage.setItem(key,String(value));}catch{}};
   function tripKey(tr){
@@ -109,7 +109,8 @@
   function currentTarget(){return state.followTrain?{tr:state.followTrain}:state.freqFollow;}
   function idFor(target){for(const [id,hit]of targets)if(sameTarget(target,hit))return id;return null;}
   function select(id){const hit=targets.get(id);if(!hit)return false;manualTarget=null;if(hit.ln)setFreqFollow(hit);else setFollow(hit.tr,false,true);return true;}
-  function updateNote(){if(performance.now()-noteAt<300)return;noteAt=performance.now();const v=lastFrame?.vehicles.find(v=>v.followed),spec=v&&formationFor(v,formationMode);
+  // 編組說明寫在跟車小卡上;換語言後的第一幀不等 300ms 節流,否則小卡這一行會停在上一個語言(09-25)。
+  function updateNote(){const lang=document.documentElement.lang;if(performance.now()-noteAt<300&&lang===noteLang)return;noteAt=performance.now();noteLang=lang;const v=lastFrame?.vehicles.find(v=>v.followed),spec=v&&formationFor(v,formationMode);
     for(const panel of [document.getElementById('followPanel'),document.getElementById('freqCard')]){if(!panel)continue;panel.style.setProperty('--follow-color',v?.color||'var(--red)');let el=panel.querySelector('.ri-formation-caption');if(!el){el=document.createElement('div');el.className='ri-formation-caption';panel.append(el);}let text=spec?(spec.mode==='three'?t('3 節示意'):spec.countBasis==='unknown'?t('3 節示意 · 當班編組待確認'):spec.countBasis==='estimated'?t('{n} 節 · 推估編組',{n:spec.actualCarCount}):t(spec.articulated?'{n} 分節 · 標準編組':'{n} 節 · 標準編組',{n:spec.actualCarCount})):'';if(v?.route?.physical)text+=' · '+t('推估股道');el.hidden=!enabled||!spec;el.textContent=text?text+(effectiveGround()==='terrain'?' · '+t('地表起伏示意'):''):'';}
   }
   // 衛星原貌與街圖透視各自記住選擇，避免沿用舊街圖的預設透明。
