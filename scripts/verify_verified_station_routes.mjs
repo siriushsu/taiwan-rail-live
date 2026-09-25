@@ -36,9 +36,10 @@ const pp=Object.entries(dispatch.plans).filter(([k])=>k.startsWith('tra_sched:14
 console.log({trains:found.size,samples,maxBoundaryJumpM:maxJump,forward,backward,platformDistanceM:platformDistance});
 
 // 非電化的新股道僅限藍皮；所有 14 日名冊的其他車與合成加開電車都不能借入。
-let dieselBound=0;for(const tr of scheduled.trains){const r=motion.record(tr);if(!r)continue;
+// 數的是藍皮車次不是班表定義：改點那兩週同一班新舊兩版會並存，兩版都走非電化股道才對。
+const dieselTrains=new Set();for(const tr of scheduled.trains){const r=motion.record(tr);if(!r)continue;
  const diesel=r.plan.pathIds.some(id=>paths[id].edgeIds.some(e=>g.edges.get(e).wayId===proof.dieselTrack.allowedWay));if(!diesel)continue;
- assert(['5898','5899'].includes(String(tr.train)));assert.equal(r.plan.templateEligible,false);dieselBound++;
+ assert(['5898','5899'].includes(String(tr.train)));assert.equal(r.plan.templateEligible,false);dieselTrains.add(String(tr.train));
  const extra={...tr,train:'TEST-ELECTRIC-'+tr.train,carName:'自強(3000障)'};const borrowed=createPlanBinding(dispatch)(extra);
  assert(borrowed,'加開車仍應有普通路徑可借');assert(!borrowed.plan.pathIds.some(id=>paths[id].edgeIds.some(e=>g.edges.get(e).wayId===proof.dieselTrack.allowedWay)),'非電化月台不得借給加開電車');
-}assert.equal(dieselBound,2);console.log({dieselBound,extraElectricProtected:2});
+}assert.equal(dieselTrains.size,2);console.log({dieselBound:dieselTrains.size,extraElectricProtected:2});

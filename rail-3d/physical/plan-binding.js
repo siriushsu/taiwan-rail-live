@@ -15,7 +15,8 @@ export function sameDerivedPasses(plan,tr){
    &&(p.arrSec===p.depSec||p._plannedDwell===true&&p.depSec>p.arrSec);
  });
 }
-const borrow=(pathIds,tr)=>{const holds=tr.stops.map(()=>({arrival:0,departure:0}));return {pathIds,holds,departureHolds:holds.map(()=>0),officialDelaySec:0,stopSignature:physicalStopSignature(tr)};};
+// own：沿用的是自己那份計畫時一併帶上「不可借給別班當模板」的標記（藍皮 5898／5899 的非電化股道靠它守）。
+const borrow=(pathIds,tr,own)=>{const holds=tr.stops.map(()=>({arrival:0,departure:0}));return {pathIds,holds,departureHolds:holds.map(()=>0),officialDelaySec:0,stopSignature:physicalStopSignature(tr),...(own?.templateEligible===false&&{templateEligible:false})};};
 const sameStations=(plan,tr)=>{let old;try{old=JSON.parse(plan.stopSignature);}catch{return false;}return old.length===tr.stops.length&&old.every((s,i)=>s[0]===stationKey(tr.sys||tr.system,tr.stops[i].name));};
 // 停靠型態：中途每站是停是過要與原計畫相同（原計畫的正式停靠一律有停留秒數，通過站到離同秒）。
 const sameStopPattern=(plan,tr)=>JSON.parse(plan.stopSignature).every((s,i,a)=>!i||i===a.length-1||(tr.stops[i].stop!==false)===(s[2]>s[1]));
@@ -34,7 +35,7 @@ export function createPlanBinding(dispatch){
    // 高鐵當日班表只改了到離站時刻(同車次、同站序):沿用自己原本的股道,時間與待避一律用今天的。
    // 台鐵改點(2026-10-03 起埔心、樹林、桃園幾班提早，首站發車與末站到站不變所以同鍵)同樣沿用自己的股道，
    // 但停靠型態要相同、原計畫不得帶待避——待避是替舊時刻解的交會，歸零後可能重新互穿。
-   return sys==='thsr_sched'||sys==='tra_sched'&&noHolds(exact)&&sameStopPattern(exact,tr)?{basis:'retimed',sourceKey:key,plan:borrow(exact.pathIds,tr)}:null;
+   return sys==='thsr_sched'||sys==='tra_sched'&&noHolds(exact)&&sameStopPattern(exact,tr)?{basis:'retimed',sourceKey:key,plan:borrow(exact.pathIds,tr,exact)}:null;
   }
   // 台鐵改點改到首站發車或末站到站時鍵跟著變（2026-10-03 起 1248／1254 到基隆晚 1 分）：先找同車次、同站序、
   // 同停靠型態、不帶待避的自己的計畫，沿用自己驗收過的股道。借別班的路徑會把替這班修好的站場進路退回去
@@ -44,7 +45,7 @@ export function createPlanBinding(dispatch){
    const gap=p=>JSON.parse(p.stopSignature).reduce((n,s,i)=>n+Math.abs(s[1]-tr.stops[i].arrSec)+Math.abs(s[2]-tr.stops[i].depSec),0);
    const own=(byTrain.get(String(tr.train))||[]).filter(([,p])=>p.pathIds.length===tr.stops.length-1&&noHolds(p)&&sameStations(p,tr)&&sameStopPattern(p,tr))
     .map(([k,p])=>({k,p,gap:gap(p)})).sort((a,b)=>a.gap-b.gap||(a.k<b.k?-1:1))[0];
-   if(own)return {basis:'retimed',sourceKey:own.k,plan:borrow(own.p.pathIds,tr)};
+   if(own)return {basis:'retimed',sourceKey:own.k,plan:borrow(own.p.pathIds,tr,own.p)};
   }
   // 加開車只借用完整、有序的既有路徑切片，不借用別班的時間、待避或接車關係。
   if(!TEMPLATE_SYSTEMS.includes(sys)||tr.loop||tr.stops.length<2||!validTimes(tr))return null;
