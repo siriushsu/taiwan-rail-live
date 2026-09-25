@@ -394,7 +394,7 @@ if (SECTIONS.has('D')) {
   };
   const ready = (await waitReady()) && devAlive();
   ok('D0 dev_server.mjs 起得來且回應 HTTP(埠取自自己起的那支)', ready,
-    ready ? BASE : `dev_server ${devAlive() ? '沒印出埠' : `已結束(${dev.exitCode ?? dev.signalCode})`} · log 尾巴:${devLog.text.slice(-300)}`);
+    ready ? BASE : `dev_server ${!devAlive() ? `已結束(${dev.exitCode ?? dev.signalCode})` : BASE ? `印出 ${BASE} 但 30 秒內 /index.html 沒回 200` : '30 秒內沒印出埠'} · log 尾巴:${devLog.text.slice(-300)}`);
 
   if (ready) {
     // 語系與時鐘雙釘(memory: verify-locale-must-be-pinned.md)——網址帶 ?lang=zh-TW/en/ja(index.html

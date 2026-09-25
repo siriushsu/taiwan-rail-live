@@ -115,6 +115,9 @@ if (SECTIONS.has('C')) {
   globalThis.caches = { default: { match: async () => undefined, put: async () => {} } };
 
   const realNow = Date.now.bind(Date);
+  // C 會整個換掉 globalThis.fetch(makeFetchMock 對未預期網址直接 throw)。不還原的話,整支一起跑時 D0 探
+  // dev_server、E2 探 wrangler 的 fetch 全被最後一個替身吃掉,D、E 必紅(verify_thsr_seat.mjs 的 C 段同一個坑,已還原)。
+  const realFetch = globalThis.fetch;
   let fakeNowMs = null;
   Date.now = () => (fakeNowMs != null ? fakeNowMs : realNow());
   // 台北日期字串 → 對應的 UTC ms(供建構「跨午夜僅差 2 分鐘」的精確時間戳):00:00 台北=前一天 16:00 UTC。
@@ -239,6 +242,7 @@ if (SECTIONS.has('C')) {
   }
 
   Date.now = realNow;
+  globalThis.fetch = realFetch;
   console.log(`  (happyCalls 供除錯:auth=${happyCalls.auth} freeseat=${happyCalls.freeseat})`);
 }
 
@@ -274,7 +278,7 @@ if (SECTIONS.has('D')) {
   };
   const ready = (await waitReady()) && devAlive();
   ok('D0 dev_server.mjs 起得來且回應 HTTP(埠取自自己起的那支)', ready,
-    ready ? BASE : `dev_server ${devAlive() ? '沒印出埠' : `已結束(${dev.exitCode ?? dev.signalCode})`} · log 尾巴:${devLog.text.slice(-300)}`);
+    ready ? BASE : `dev_server ${!devAlive() ? `已結束(${dev.exitCode ?? dev.signalCode})` : BASE ? `印出 ${BASE} 但 30 秒內 /index.html 沒回 200` : '30 秒內沒印出埠'} · log 尾巴:${devLog.text.slice(-300)}`);
 
   if (ready) {
     // 高鐵免劃位 mock:'108' 對應 dense.json 的高鐵車次 '0108'(驗證前導零剝除);'1214' 是台鐵
