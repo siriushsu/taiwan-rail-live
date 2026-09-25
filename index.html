@@ -5519,6 +5519,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷 10/11（週日）設計展最後一天照官方班表：機場第一航廈到環北的區間加班車開到晚上 8 點為止</span></li>
         <li data-cl-of="placedup0925"><span class="d">9/25</span><span>修正地圖上站名旁邊又出現同名地名、字疊在一起的問題，例如竹北站旁的「竹北市」</span></li>
         <li data-cl-of="followcard0925"><span class="d">9/25</span><span>跟車小卡的三個小修正：跟車時切換語言，車種和起訖會立刻換過來；虛構 8888 在手機上的關閉鈕不再被擠到第二行；第一次跟車時「車頭鎖定：開啟」的提示不再被蓋掉最後一個字</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷 10/2（週五）也跟上台灣設計展疏運班表：上午 11 點到晚上 10 點，機場第一航廈到環北的區間加班車每 15 分鐘一班</span></li>
@@ -5526,7 +5527,6 @@
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷週一到週四也跟上台灣設計展疏運班表（9/24–10/11）：下午 4 點到晚上 8 點，機場第一航廈到環北加開區間車，南延直達車改到機場第二航廈為止</span></li>
         <li data-cl-of="viewcontrols0914"><span class="d">9/25</span><span>修正 iPad 橫向和手機橫放時，「觀看」按鈕跑到畫面中間；沒開卡片時會回到右上角的按鈕列</span></li>
         <li data-cl-of="achvhelp"><span class="d">9/25</span><span>護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框；用鍵盤按 Tab 移到章上也會打開說明卡，收集章按 Enter 等於點一下</span></li>
-        <li data-cl-of="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：照台鐵公布的班表，當天那幾班的車牌會寫「寶可夢」、列車卡有介紹，今日亮點和搜尋「寶可夢」也找得到</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5539,7 +5539,7 @@
         <li data-cl="terrainrtt0923"><span class="d">9/23</span><span>地景地圖開啟地形時，立體車站周圍的地面不再殘留舊的建築輪廓</span></li>
         <li data-cl="perf3d0907"><span class="d">9/24</span><span>改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛；9/23 修正跟車時約每 15 秒頓一下：建築遮擋改成分段計算、資料不再來回多搬；9/24 再把那一下的計算量減半</span></li>
         <li data-cl="glassnear0913"><span class="d">9/23</span><span>修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓；9/23 再改進跟車：列車前進時沿途建築的透視線條約每秒更新一次，不必等靠站才一次補上</span></li>
-        <li data-cl="tymcexpo0922"><span class="d">9/22</span><span>機捷跟上台灣設計展疏運班表（9/24–10/11）：假日與 10/2 週五機場第一航廈到環北的區間加班車每 15 分鐘一班，週一到週四下午 4 點到晚上 8 點也有；南延直達車改到機場第二航廈為止；深夜山鼻以南時刻也照官方改點更新</span></li>
+        <li data-cl="tymcexpo0922"><span class="d">9/22</span><span>機捷跟上台灣設計展疏運班表（9/24–10/11）：假日與 10/2 週五機場第一航廈到環北區間車每 15 分鐘一班（10/11 只到晚上 8 點），週一到週四下午 4 點到 8 點也有；南延直達車只到機場第二航廈；深夜山鼻以南照官方改點</span></li>
         <li data-cl="yfallback0920"><span class="d">9/20</span><span>環狀線即時資料暫時中斷、在線列車無法定位時，地圖會自動改按當日班表運行，並標示「班表推估、時間可能有誤差」；訊號恢復後自動切回即時資料</span></li>
         <li data-cl="nangangbrstop0920"><span class="d">9/20</span><span>修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道</span></li>
         <li data-cl="landscapedem0918"><span class="d">9/18</span><span>Android App 的地景地圖修正：立體列車不再整批消失，改回照真實地形高度擺在山坡與高架橋上（原因是 Android 讀不出 App 內建的地形資料）</span></li>
@@ -6666,7 +6666,10 @@
 //         重複時不畫（glPlaceDedupSync，只改 place 圖層 filter，跟 station-layer 的遮罩條件共存：被蓋回就重疊、被包進
 //         all 就剝掉舊的那條）；車次前綴（寶可夢、虛構）一律疊在車次上方（setFollowTitle），虛構 8888 的 × 不再擠到
 //         第二行；換語言時 setFollowHead 重寫車次／車種／起訖，立體列車編組說明換語言的第一幀不等 300ms 節流。
-const BUILD = 'v0925j';
+// v0925k：機捷 10/11（設計展最後一天）照官網各站時刻表只開到 20:00——special_ops 例外日新增 drop（起站＋發車時刻
+//         逐班指名取消，找不到或同刻多班直接失敗），假日 385→設計展末日 369 班；已過期的例外遇到 TDX 換版改成跳過並
+//         提示可刪，不再讓巡檢 sync-metro 整批失敗（verify_special_ops dateDrop＋過期提示）。
+const BUILD = 'v0925k';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
