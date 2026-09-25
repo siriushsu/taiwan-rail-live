@@ -340,6 +340,51 @@ async function runEngine(engineName, engine) {
       ok(P('F5pre1 手機殼成立(body.fs + MOBILE_MQ + 卡不在整合槽 + sheet 尚未開)'),
         shell.fs && shell.mobile && !shell.trainOpen && !shell.inUniSlot, JSON.stringify(shell));
 
+      // 🔴 F5pre2:量任何座標之前,先等那個晚到、會把卡片撐高的非同步欄位(立體列車編組說明)到位。
+      // 立體列車接點(rail-3d.js)是延遲載入的:attach() 動態 import map3d.js、createLiveMap 完成後,
+      // 同一個 render() 裡的 updateNote() 才把編組說明 .ri-formation-caption append 到 #followPanel 尾端
+      // (手機跟車時 followHeadLocked 為真,縮放 12 也會畫;桌面縮放 <13.8 提早 return 不畫,桌面段因此不受影響)。
+      // 手機小卡是下錨往上長 ⇒ 說明到位那一刻,卡裡每個元件的上緣一起上移(今天兩行 48px,約一列 .xfc-row 高)。
+      // 2026-09-24 實測(ship-web 約 1/6;單獨連跑 2/30;加 CPU 負載 7/30):F7 量 .fp-next 在說明到位之前
+      // (y=325)、tap 在之後;事件探針看到點擊【有派發、沒被吃掉】,只是落在上移後的 .xfc-t(排除清單內)
+      // ⇒ train-open=false。F5 在同一個窗口會點到下一列、釘錯班次(獨立複審重現過)。
+      // 等的是產品自己的完成訊號:renderer 掛上(同 verify_3d_framing 的就緒判準)且說明已寫進這班車的編組;
+      // map3d.js／createLiveMap 失敗(載入結束、沒有 renderer、errors 非空)就不會有說明、也沒有這次位移,
+      // 同樣算到位。errors 單獨非空不算——renderer 在跑時 onError 也會塞非致命錯誤,說明照樣會晚到。
+      // rail-3d.js 開頭的 import 失敗則 railIslandIntegration 永遠不存在 ⇒ 這裡逾時紅(頁面也會報 console.error)。
+      // 不用「連續幾次取樣不動」:失敗那一輪說明到位前,卡片已經連續靜止 770ms,取樣法照樣被騙。
+      // 放行之後已知還會動兩次,都小於點擊目標的半高、推不出目標:實體股道晚於 renderer 到時說明多一行
+      // (上移 16.5px;今天股道都先到)、速度膠囊開機 5 秒轉淡(下移 11px)。真的推出去時,F5/F7 的
+      // 「落點」會直接寫出點到誰。
+      const note3d = await page.waitForFunction(() => {
+        const ri = window.railIslandIntegration;
+        if (!ri) return false;
+        if (!ri.renderer) return !ri.loading && ri.errors.length ? { loadFailed: ri.errors.length } : false;
+        const cap = document.querySelector('#followPanel .ri-formation-caption');
+        return cap && !cap.hidden && cap.textContent.trim() ? { caption: cap.textContent.trim() } : false;
+      }, null, { timeout: 30000 }).then(h => h.jsonValue(), e => ({ timeout: String(e.message).slice(0, 100) }));
+      ok(P('F5pre2 手機:量座標前,晚到會撐高卡片的立體列車編組說明已到位'), !note3d.timeout, JSON.stringify(note3d));
+
+      // 落點記錄器(capture 階段、只記不攔):F5/F7 紅的時候要分得出三種原因——點擊根本沒派發(被吃掉)/
+      // 派發了但落在別的元件(座標過期)/落在目標上但產品沒反應。2026-09-24 那次 F7 紅只留下
+      // train-open=false,三種都長得一樣,得另外掛探針重現才分得出來。
+      await page.evaluate(() => {
+        window.__taps = [];
+        window.addEventListener('click', e => {
+          const el = e.target, cls = el && typeof el.className === 'string' ? el.className.trim() : '';
+          const near = s => el && el.closest ? el.closest(s) : null;
+          window.__taps.push({
+            on: el && el.tagName ? el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (cls ? '.' + cls.split(/\s+/).join('.') : '') : String(el),
+            x: Math.round(e.clientX), y: Math.round(e.clientY), // 觸控校正會把合成 click 吸到鄰近可點元件,座標不一定等於 tap 點
+            next: !!near('#followPanel .fp-next'),
+            row: (near('#fpConn .xfc-row') || { dataset: {} }).dataset.xn || null,
+            connected: !!(el && el.isConnected),
+          });
+        }, true);
+      });
+      const tapCount = () => page.evaluate(() => window.__taps.length);
+      const tapsSince = n => page.evaluate(n => window.__taps.slice(n), n);
+
       // 座標與車次即時查詢(理由見桌面段 F3pre),並【連命中結果一起量】。
       // 🔴 停等條件是「這個座標現在真的打得到那一列」,不是「座標不動了」:手機殼開機後跟隨小卡
       // 還會再挪一次位,兩次取樣相同只證明「這一拍沒動」——實測踩到過 y=773.67 連續兩拍相同、
@@ -357,6 +402,7 @@ async function runEngine(engineName, engine) {
           hitTag: el && el.tagName, hitCls: el && String(el.className).slice(0, 40),
         };
       });
+      const tap5 = await tapCount(); // 在量座標之前取:量完到 tap 之間不再多一趟往返,不拉長要防的那個窗口
       let probe = null;
       for (let i = 0; i < 25; i++) {
         probe = await PROBE();
@@ -375,18 +421,23 @@ async function runEngine(engineName, engine) {
           pin: state.xferPin ? { ...state.xferPin } : null,
           trainOpen: document.body.classList.contains('train-open'),
         }));
-        ok(P('F5 手機真觸控點接續列,確實釘住那一班'), !!res.pin && res.pin.n === noM, `點的=${noM} 釘的=${res.pin && res.pin.n}`);
+        ok(P('F5 手機真觸控點接續列,確實釘住那一班'), !!res.pin && res.pin.n === noM,
+          `點的=${noM} 釘的=${res.pin && res.pin.n} 落點=${JSON.stringify(await tapsSince(tap5))}`);
         ok(P('F6 且不會順便打開「列車」sheet(Finding 2:.xfc-row 要在排除清單裡)'),
           res.trainOpen === false, `train-open=${res.trainOpen}`);
 
         // 🔴 F7 正向對照必須在 F6 之後、同一頁做:少了它,F6 的「train-open 維持 false」在那條
         // 分支根本沒被走到時是恆真的空斷言。刻意不擺在 F5/F6 前面——開關一次「列車」sheet 會讓
         // 跟隨小卡重新排版,收合動畫期間量到的座標會落在別的家具上(見上面 F5pre3 的註解)。
+        const tap7 = await tapCount(); // 同 tap5:量座標之前取
         const nextBox = await page.evaluate(() => {
           const e = document.querySelector('#followPanel .fp-next');
           if (!e) return null;
           const b = e.getBoundingClientRect();
-          return { x: b.x, y: b.y, width: b.width, height: b.height };
+          // 量座標的同一拍記下中心點此刻打得到誰:inNext 為真、落點卻不在 .fp-next ⇒ 量完到 tap 之間又位移了;
+          // inNext 為假 ⇒ 量的當下就被別的家具蓋住。
+          const hit = b.width > 0 ? document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2) : null;
+          return { x: b.x, y: b.y, width: b.width, height: b.height, inNext: !!(hit && hit.closest && hit.closest('#followPanel .fp-next')) };
         });
         if (nextBox && nextBox.width > 0) {
           await page.touchscreen.tap(nextBox.x + nextBox.width / 2, nextBox.y + nextBox.height / 2);
@@ -397,7 +448,7 @@ async function runEngine(engineName, engine) {
         // 0×0、這裡等於沒點就宣告成功——正向對照自己也需要「我真的做了那個動作」的證據。
         ok(P('F7 正向對照:同一頁點卡片非排除區確實會開「列車」sheet(證明 F6 不是空斷言)'),
           opened && !!nextBox && nextBox.width > 0 && nextBox.height > 0,
-          `train-open=${opened} nextBox=${JSON.stringify(nextBox)}`);
+          `train-open=${opened} nextBox=${JSON.stringify(nextBox)} 落點=${JSON.stringify(await tapsSince(tap7))}`);
       }
     }
     ok(P('F手機 頁面零例外'), errors.length === 0, errors.slice(0, 3).join(' | '));
