@@ -5519,6 +5519,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="zuoyingflat0925"><span class="d">9/25</span><span>高鐵左營站進站那段改回平面：3D 地圖不再把站區畫成高架橋，北邊的高架照舊（謝謝網友回報）</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷 10/2（週五）也跟上台灣設計展疏運班表：上午 11 點到晚上 10 點，機場第一航廈到環北的區間加班車每 15 分鐘一班</span></li>
         <li data-cl-of="danhaiv06_0925"><span class="d">9/25</span><span>淡海輕軌假日從紅樹林出發的車，改回每班都停新市一路：站牌也看得到往崁頂、往淡水漁人碼頭的班次（謝謝網友回報）</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷週一到週四也跟上台灣設計展疏運班表（9/24–10/11）：下午 4 點到晚上 8 點，機場第一航廈到環北加開區間車，南延直達車改到機場第二航廈為止</span></li>
@@ -5526,7 +5527,6 @@
         <li data-cl-of="achvhelp"><span class="d">9/25</span><span>護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框；用鍵盤按 Tab 移到章上也會打開說明卡，收集章按 Enter 等於點一下</span></li>
         <li data-cl-of="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：照台鐵公布的班表，當天那幾班的車牌會寫「寶可夢」、列車卡有介紹，今日亮點和搜尋「寶可夢」也找得到</span></li>
         <li data-cl-of="bustransferall"><span class="d">9/24</span><span>修正臺北市公車擁擠度的過期判斷：超過 3 分鐘的資料改標示過期，不再當成即時資料</span></li>
-        <li data-cl-of="busstop0911"><span class="d">9/24</span><span>修正臺北市公車站牌的到站時間最多會卡在兩小時前、整列顯示「資料已過期」</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5932,6 +5932,7 @@
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
         <li><span class="d">7/11</span><span>可以安裝到主畫面（PWA），像 App 一樣全螢幕開啟</span></li>
         <li class="grp">資料校正</li>
+        <li data-cl="zuoyingflat0925"><span class="d">9/25</span><span>高鐵左營站區（到北緯 22.7011 為止）改回平面：官方橋隧圖資把站區畫成橋樑，但高鐵左營站是平面站、月台在 1 樓；北邊的高架照舊（謝謝網友回報）</span></li>
         <li data-cl="tengyun0925"><span class="d">9/25</span><span>EMU3000 新自強的車種介紹改成「多數班次有騰雲座艙（特仕車編組除外）」，不再寫得像每班都有（謝謝網友提問）</span></li>
         <li data-cl="danhaiv06_0925"><span class="d">9/25</span><span>淡海輕軌假日往崁頂、往淡水漁人碼頭的車，改回照官方時刻停靠新市一路；原本假日這個方向每班都過站不停，站牌也只剩往紅樹林（謝謝網友回報）</span></li>
         <li data-cl="dr1000branch"><span class="d">9/19</span><span>台鐵支線修正：平溪、深澳、集集、內灣線跑的是 DR1000 柴油客車，起步、進站的加減速與最高速度改照它的性能；地圖下方的列車卡也改顯示 DR1000 的介紹，不再套用電聯車的數值與故事</span></li>
@@ -6659,7 +6660,14 @@
 //         建置照舊不拿來串接，串完再以 fillFrom 從兩筆聯集補回官方時刻（不內插）；verify_metro_times 加「經過
 //         新市一路的班次都要停」（2026-09-25 網友回報）。
 //         另：EMU3000 車種介紹改「多數班次有騰雲座艙（特仕車編組除外）」（2026-09-25 裁示①，官方無逐班派車資料，不逐班標）。
-const BUILD = 'v0925i';
+// v0925m：高鐵左營站區 14 條股道（北緯 22.6848～22.7011，本線／側線／渡線）改回平面——OSM 沒標結構、判成橋全來自
+//         國土測繪中心高鐵圖資，官方平面圖月台在 1 樓；加進 scripts/lib/rail_official_ignore.mjs 具名排除。站中段底下
+//         有高捷紅線隧道（被判成山岳隧道，模型裡在地面上 8 公尺），交會淨距原本上下各讓一半，會把放平的站中段再頂高
+//         4～5.5 公尺；改成具名路段在上方時淨距全由下方讓出（build_rail_levels 層位初值、lib/flat_rail_grade 平面地圖）。
+//         level-profiles.json 完整重算後用 scripts/splice_zuoying_flat_profiles_0925.mjs 只換進左營周邊 43 筆，蘇澳
+//         09-14 保留的高程解不動。verify_rail_grounding 加「站區離地不超過 1 公尺」與「北側高架仍是橋」兩條
+//         （2026-09-25 裁示「左營改平面」）。
+const BUILD = 'v0925m';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

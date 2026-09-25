@@ -3244,3 +3244,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '機捷 10/2（週五）也跟上台灣設計展疏運班表：上午 11 點到晚上 10 點，機場第一航廈到環北的區間加班車每 15 分鐘一班': '桃園MRTの10/2（金）も台湾デザイン展の輸送ダイヤに対応：11時〜22時は A12 空港第1ターミナル〜A21 環北間の区間臨時列車が15分ごとに運行。'
 });
+// 2026-09-25 高鐵左營站區改回平面：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '高鐵左營站進站那段改回平面：3D 地圖不再把站區畫成高架橋，北邊的高架照舊（謝謝網友回報）': 'The approach into Zuoying HSR Station is back at ground level: the 3D map no longer draws the station area as a viaduct, while the viaduct to the north is unchanged (thanks to the rider who reported it).',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '高鐵左營站進站那段改回平面：3D 地圖不再把站區畫成高架橋，北邊的高架照舊（謝謝網友回報）': '高鉄左営駅に入る区間を地上に戻しました。3D地図で駅構内を高架橋として描かなくなり、北側の高架はそのままです（ご報告ありがとうございました）',
+});

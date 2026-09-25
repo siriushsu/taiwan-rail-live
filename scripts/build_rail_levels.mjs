@@ -103,10 +103,11 @@ for(const r of records){const {w,path,e,c}=r;const snap=s=>{let lo=0,hi=path.d.l
 for(const n of nodes)n.z/=n.count;
 // 交叉淨距與沿軌連續坡道同時求解，避免在來源短 way 或交叉點產生垂直折角。
 // 8% 是顯示過渡的斜率上限，不是宣稱鐵路實際坡度。
+// 上方是裁示為平面的具名路段（lib/rail_official_ignore.mjs）時，淨距全由下方讓出，上方不被頂高。
 let violation=Infinity,iterations=0;
 for(;iterations<3000;iterations++){
  for(const [a,b,max]of edges){const x=nodes[a],y=nodes[b],d=y.z-x.z;if(Math.abs(d)>max){const shift=(Math.abs(d)-max)*Math.sign(d)/2;x.z+=shift;y.z-=shift;}}
- for(const [a,b]of crossings){const x=nodes[a.id],y=nodes[b.id],gap=Math.max(7,7+y.ground-x.ground),d=gap-(x.z-y.z);if(d>0){x.z+=d/2;y.z-=d/2;}}
+ for(const [a,b]of crossings){const x=nodes[a.id],y=nodes[b.id],gap=Math.max(7,7+y.ground-x.ground),d=gap-(x.z-y.z);if(d>0){if(OFFICIAL_IGNORE.has(String(a.r.w.id)))y.z-=d;else{x.z+=d/2;y.z-=d/2;}}}
  if(iterations%20===0){violation=0;for(const [a,b,max]of edges)violation=Math.max(violation,Math.abs(nodes[a].z-nodes[b].z)-max);if(violation<.001)break;}
 }
 if(violation>.01){const worst=edges.map(([a,b,max])=>({a,b,max,error:Math.abs(nodes[a].z-nodes[b].z)-max})).sort((a,b)=>b.error-a.error).slice(0,5);console.log(worst.map(e=>({...e,ways:records.filter(r=>r.ids.includes(e.a)||r.ids.includes(e.b)).map(r=>r.w.id)})));throw Error('高度過渡未收斂 '+violation);}

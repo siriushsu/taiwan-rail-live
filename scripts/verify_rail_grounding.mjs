@@ -11,8 +11,15 @@ const levels=read('level-profiles.json');let layerOnly=0,grounded=0,bridges=0,fr
 // 具名排除（清單與理由在 lib/rail_official_ignore.mjs）要扣掉分母，所以先證明它沒過期：
 // id 打錯或官方改版後那條 way 不見了，下面的分母斷言就會被靜默放寬。
 for(const id of OFFICIAL_IGNORE)assert.ok(official[id],'具名排除的 way 不在官方對照表裡,清單過期 '+id);
-// 裁示(2026-09-12)「臺中捷運高鐵臺中站是平面站」：排除掉官方判定之後必須真的留在地面。
+// 裁示(2026-09-12)「臺中捷運高鐵臺中站是平面站」、(2026-09-25)「左營改平面」：排除掉官方判定之後必須真的留在地面。
 for(const id of OFFICIAL_IGNORE)assert.equal(levels.entries[id]?.kind,'surface','具名排除的 way 沒有留在地面 '+id);
+// 左營裁示的另一半「其餘路段照舊」：北緯 22.7011 起 OSM 明示的高架仍須是橋（排除清單不能吃過界）。
+for(const id of ['197666420','118104818'])assert.equal(levels.entries[id]?.kind,'bridge','左營北側高架不該被一起放平 '+id);
+// 「站區改成平面」要連高度一起驗，只驗 kind 會放過中段隆起：放平後站中段曾被底下的高捷紅線隧道以交會淨距
+// 頂高 4～5.5 公尺，kind 照樣是 surface。站區 12 條（扣掉銜接北側高架、帶引道坡的 1493067933／1493067934）
+// 的層位初值（地形模式的目標）與平面地圖高度都不得離地超過 1 公尺。
+for(const id of ['501135661','197666421','197666424','706622462','197666429','24261746','501139165','501102955','501139166','197666423','501134072','501132942'])
+ for(const key of ['offsets','flatOffsets']){const top=Math.max(...(levels.entries[id]?.[key]||[0]));assert.ok(top<=1,`左營站區 ${id} 的 ${key} 被抬到 ${top.toFixed(2)} 公尺`);}
 for(const tags of [{layer:'1'},{layer:'2',bridge:'no'},{layer:'1',embankment:'yes'}])assert.equal(classifyRailStructure(tags).kind,'surface');
 assert.equal(classifyRailStructure({bridge:'viaduct',layer:'1'}).kind,'bridge');
 for(const [nf,pf] of [['network.json','display-profiles.json'],['metro-network.json','metro-display-profiles.json']]){

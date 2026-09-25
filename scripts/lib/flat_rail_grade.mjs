@@ -1,4 +1,5 @@
 import {gradeOf} from './tunnel_rail_grade.mjs';
+import {OFFICIAL_IGNORE} from './rail_official_ignore.mjs';
 // 平坦地圖的橋面高度亦須沿整個實體路網求解，不能在每個短橋片段各自升降。
 // 200m 是柔化顯示過渡的尺度，不是現地橋梁尺寸。保留原始 offsets 給地形覆土計算。
 export const FLAT_SMOOTH_M=200;
@@ -29,11 +30,12 @@ export function applyFlatRailGrade(records,entries,crossings){
  // 地下疊層保留原本的 8% 約束：既有來源接頭在極短距離內換層，硬套露天坡度會與
  // 7m 淨距互相矛盾（台北地下交叉會無解）。露天橋梁與引道則一律採較緩的系統上限。
 // 露天取樣原本在地面以上時下限為 0；原有地下引道可保留負值，但不能比舊剖面更低。
- const gaps=crossings.map(([u,l])=>[atPin(u),atPin(l),7]);
+ // 上方是裁示為平面的具名路段（lib/rail_official_ignore.mjs）時，淨距全由下方讓出，上方不被頂高。
+ const gaps=crossings.map(([u,l])=>[atPin(u),atPin(l),7,OFFICIAL_IGNORE.has(String(u.r.w.id))]);
  let passes=0,error=Infinity;
  for(;passes<3000;passes++){
   for(const [a,b,,limit]of edges){const d=z[b]-z[a],over=Math.abs(d)-limit;if(over>0){const shift=Math.sign(d)*over/2;z[a]+=shift;z[b]-=shift;}}
-  for(const [a,b,gap]of gaps){const short=gap-z[a]+z[b];if(short>0){z[a]+=short/2;z[b]-=short/2;}}
+  for(const [a,b,gap,atGrade]of gaps){const short=gap-z[a]+z[b];if(short>0){if(atGrade)z[b]-=short;else{z[a]+=short/2;z[b]-=short/2;}}}
   for(let i=0;i<n;i++)z[i]=Math.max(z[i],nodes[i].floor);
   if(passes%20===0){error=0;for(const [a,b,,limit]of edges)error=Math.max(error,Math.abs(z[a]-z[b])-limit);for(const [a,b,gap]of gaps)error=Math.max(error,gap-z[a]+z[b]);if(error<.0003)break;}
  }
