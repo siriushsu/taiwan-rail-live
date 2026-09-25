@@ -47,6 +47,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import os from 'node:os';
+import { pathToFileURL } from 'node:url';
 import { acquireShipLock, checkProductionAncestry } from './ship_web_guard.mjs';
 
 const args = process.argv.slice(2);
@@ -86,6 +87,18 @@ git('worktree', 'add', '--detach', '--force', wt, sha);
 let ok = false;
 try {
   fs.symlinkSync(path.join(repo, 'node_modules'), path.join(wt, 'node_modules'));
+
+  // ── 2.3 閘門的 Chromium 走真 GPU 的無頭模式（2026-09-26）─────────────────────────────
+  // 預設的 chromium.launch() 是 chrome-headless-shell，WebGL 走 SwiftShader 軟體算繪，開地圖的閘門光 GPU 程序
+  // 就佔 4–5 顆核心，十幾個 session 並行時互相拖慢、計時型閘門假紅。scripts/pw_gpu_preload.mjs 替沒指定
+  // channel 的 launch 補 channel:'chromium'（同一版 Chromium 的無頭模式、ANGLE Metal），閘門檔不用改。
+  // 只掛在閘門段：strip 與 wrangler 之前還原。出貨樹沒有這支就維持 headless shell。
+  const nodeOptionsBefore = process.env.NODE_OPTIONS;
+  const gpuPreload = path.join(wt, 'scripts', 'pw_gpu_preload.mjs');
+  if (fs.existsSync(gpuPreload)) {
+    process.env.NODE_OPTIONS = [nodeOptionsBefore, `--import=${pathToFileURL(gpuPreload).href}`].filter(Boolean).join(' ');
+    console.log("閘門 Chromium：channel 'chromium' 無頭模式（真 GPU）");
+  }
 
   // ── 2.4 正式庫 schema：出貨的程式碼要讀寫的表與欄，正式 D1 都要有（唯讀查詢，約 3 秒）──────────
   // 2026-09-24 發現正式庫從沒套 0012，v0904d 起跟車卡每次綁定都 503、近三週靜默全停；本機驗收自己套齊
@@ -662,6 +675,8 @@ try {
   process.stdout.write(selectOv.stdout || ''); process.stderr.write(selectOv.stderr || '');
   if (selectOv.status !== 0) fail('選單橫拖守門人未過——WebKit 選到長選項時外層容器能左右拖（select 少了 overflow:hidden）'
     + '（單獨重跑：node scripts/verify_select_overflow.mjs）');
+
+  if (nodeOptionsBefore === undefined) delete process.env.NODE_OPTIONS; else process.env.NODE_OPTIONS = nodeOptionsBefore;
 
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
