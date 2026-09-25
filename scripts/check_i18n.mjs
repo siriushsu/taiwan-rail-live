@@ -249,7 +249,7 @@ scanEnglishCjk(messages.en, 'messages.en');
 const contentData = sandbox.window.RAIL_I18N_CONTENT_DATA || {};
 scanEnglishCjk(contentData.en, 'content.en');
 const contentFields = {
-  namedTrains: ['name', 'story', 'tags'],
+  namedTrains: ['name', 'story', 'tags', 'mapLabel'],
   rollingStock: ['name', 'story', 'facts'],
   branchLines: ['name', 'section', 'story'],
 };

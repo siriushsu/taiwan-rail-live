@@ -1033,7 +1033,7 @@
           story: 'A fictional Rail Island train from Taipei to Fangliao via the Western Trunk and Pingtung lines. It crosses northern hills and the Chianan Plain, turns back at Fangliao and meets its eastern sibling Shanhai there.'
         },
         pokemon30: {
-          name: 'Pokémon 30th Anniversary Train', tags: ['Limited time', 'Themed livery', 'Regular tickets valid'],
+          name: 'Pokémon 30th Anniversary Train', mapLabel: 'Pokémon', tags: ['Limited time', 'Themed livery', 'Regular tickets valid'],
           story: 'A TRA × Shin Kong Mitsukoshi train celebrating Pokémon’s 30th anniversary: an 8-car EMU800 commuter train fully wrapped with Pokémon from every generation and Pikachu. From 25 Sep to 13 Dec it runs regular services, mostly on the Western Line and on some days down the South Link Line to Taitung, and ordinary tickets are valid; the trains it runs each day follow the schedule published by TRA (thanks to the fans who compiled it). Six weekend specials (Taipei → Xinzuoying) also run and need separate tickets from the Shin Kong Mitsukoshi app.'
         }
       },
@@ -1132,7 +1132,7 @@
           story: '軌島オリジナルの架空列車です。台北から縦貫線と屏東線で枋寮へ向かい、北部の丘陵と嘉南平原を横断します。枋寮で折り返し、東回りの兄弟列車・山海号とすれ違います。'
         },
         pokemon30: {
-          name: 'ポケモン30周年テーマ列車', tags: ['期間限定', 'ラッピング車両', '普通乗車券で乗車可'],
+          name: 'ポケモン30周年テーマ列車', mapLabel: 'ポケモン', tags: ['期間限定', 'ラッピング車両', '普通乗車券で乗車可'],
           story: '台湾鉄路と新光三越が手がける、ポケモン30周年のテーマ列車です。8両編成のEMU800形通勤電車を、歴代のポケモンとピカチュウでまるごとラッピングしています。9/25〜12/13 は通常列車として、主に西部幹線を、日によっては南廻線の台東まで走り、普通の乗車券で乗れます。日ごとに走る列車は台湾鉄路が公表したダイヤに基づきます（整理してくれたファンの方に感謝）。ほかに週末の特別列車（台北→新左営）が6本あり、新光三越アプリでの別途購入が必要です。'
         }
       },
@@ -3193,10 +3193,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 });
 // 2026-09-25 寶可夢30周年主題列車（每天輪替車次，照台鐵公布的班表比對）：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  '認得出寶可夢30周年主題列車（9/25–12/13）：照台鐵公布的班表，當天那幾班的列車卡會有介紹，今日亮點和搜尋「寶可夢」也找得到': 'The Pokémon 30th Anniversary Train (9/25–12/13) is now recognized: following the published TRA schedule, the train cards of that day’s runs show its introduction, and you can also find it in Today’s highlights or by searching “Pokémon”.',
+  '認得出寶可夢30周年主題列車（9/25–12/13）：照台鐵公布的班表，當天那幾班的車牌會寫「寶可夢」、列車卡有介紹，今日亮點和搜尋「寶可夢」也找得到': 'The Pokémon 30th Anniversary Train (9/25–12/13) is now recognized: following the published TRA schedule, that day’s runs are tagged “Pokémon” on the map and introduced on their train cards, and you can also find them in Today’s highlights or by searching “Pokémon”.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  '認得出寶可夢30周年主題列車（9/25–12/13）：照台鐵公布的班表，當天那幾班的列車卡會有介紹，今日亮點和搜尋「寶可夢」也找得到': 'ポケモン30周年テーマ列車（9/25〜12/13）を見分けられるようになりました。台湾鉄路が公表したダイヤに従い、その日の該当列車の列車カードに紹介が表示されます。今日の見どころや「ポケモン」の検索からも見つかります。',
+  '認得出寶可夢30周年主題列車（9/25–12/13）：照台鐵公布的班表，當天那幾班的車牌會寫「寶可夢」、列車卡有介紹，今日亮點和搜尋「寶可夢」也找得到': 'ポケモン30周年テーマ列車（9/25〜12/13）を見分けられるようになりました。台湾鉄路が公表したダイヤに従い、その日の該当列車は地図の車番に「ポケモン」と付き、列車カードに紹介が表示されます。今日の見どころや「ポケモン」の検索からも見つかります。',
 });
 // 2026-09-25 護照成就章／收集章拿掉重套時殘留的原生 title（桌面滑鼠停上去兩層提示）：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {

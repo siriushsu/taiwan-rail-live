@@ -1087,6 +1087,14 @@
   .follow-panel .fp-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .follow-panel .fp-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .follow-panel .fp-head b { font-size: calc(15px * var(--ui)); color: var(--ink-strong); }
+  /* 具名列車前綴(寶可夢)疊在車次正上方(setFollowTitle):不佔標題列的寬度——標題列跟一般車一樣排
+     「● 車次 時速 ×」,手機窄卡才不會把 × 擠到下一行;卡片頂端留一行小字的高度給它。 */
+  .follow-panel.fp-named .fp-head { padding-top: calc(12px * var(--uis)); }
+  .follow-panel.fp-named .fp-head > b { position: relative; }
+  .follow-panel .fp-head .fp-pfx {
+    position: absolute; left: 0; bottom: 100%; white-space: nowrap;
+    font-size: calc(10.5px * var(--uis)); font-weight: 800; line-height: 1.15; letter-spacing: .5px;
+  }
   /* 車種名獨佔第二行、可折行、全名永不截(全域):卡高只隨換車變,不隨時速位數變 */
   .follow-panel .fp-head .kind {
     font-size: calc(12px * var(--uis)); color: var(--faint); font-weight: 600;
@@ -5512,7 +5520,7 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li data-cl-of="achvhelp"><span class="d">9/25</span><span>護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框</span></li>
-        <li data-cl-of="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：照台鐵公布的班表，當天那幾班的列車卡會有介紹，今日亮點和搜尋「寶可夢」也找得到</span></li>
+        <li data-cl-of="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：照台鐵公布的班表，當天那幾班的車牌會寫「寶可夢」、列車卡有介紹，今日亮點和搜尋「寶可夢」也找得到</span></li>
         <li data-cl-of="bustransferall"><span class="d">9/24</span><span>修正臺北市公車擁擠度的過期判斷：超過 3 分鐘的資料改標示過期，不再當成即時資料</span></li>
         <li data-cl-of="busstop0911"><span class="d">9/24</span><span>修正臺北市公車站牌的到站時間最多會卡在兩小時前、整列顯示「資料已過期」</span></li>
         <li data-cl-of="perf3d0907"><span class="d">9/24</span><span>立體地圖跟車時，沿途建築每次更新的計算量再減半</span></li>
@@ -5526,7 +5534,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
-        <li data-cl="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：每天跑哪幾班照台鐵公布的班表比對（感謝網友整理提供），當天那幾班的列車卡會有介紹；今日亮點「特別列車出沒中」和搜尋「寶可夢」都列得出當天每一趟</span></li>
+        <li data-cl="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：每天跑哪幾班照台鐵公布的班表比對（感謝網友整理提供），當天那幾班地圖上的車牌會寫成「寶可夢 2183」這樣、列車卡會有介紹；今日亮點「特別列車出沒中」和搜尋「寶可夢」都列得出當天每一趟</span></li>
         <li data-cl="terrainrtt0923"><span class="d">9/23</span><span>地景地圖開啟地形時，立體車站周圍的地面不再殘留舊的建築輪廓</span></li>
         <li data-cl="perf3d0907"><span class="d">9/24</span><span>改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛；9/23 修正跟車時約每 15 秒頓一下：建築遮擋改成分段計算、資料不再來回多搬；9/24 再把那一下的計算量減半</span></li>
         <li data-cl="glassnear0913"><span class="d">9/23</span><span>修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓；9/23 再改進跟車：列車前進時沿途建築的透視線條約每秒更新一次，不必等靠站才一次補上</span></li>
@@ -6633,7 +6641,10 @@
 //         今日亮點、搜尋、列車卡跟著走，跟隨中那一趟換了營運日列車卡會重畫；收藏標籤不寫進去。
 // v0925b：護照成就章／收集章拿掉原生 title——08-28 多語那批重套到含說明卡的版本時加了回來，桌面滑鼠停上去
 //         說明卡與瀏覽器提示同時出現；讀螢幕軟體仍讀成就的 aria-label（守門：verify_achv_help A3／B1b）。
-const BUILD = 'v0925b';
+// v0925c：寶可夢列車在地圖上認得出來：具名列車可在資料檔寫 mapLabel，當天那幾班的車號一律寫成「寶可夢 2183」
+//         （trainDisplayNo，跟虛構環島車「虛構 8888」同一套：地圖車牌、看板、搜尋、平交道預測、跟車卡）。
+//         手機跟車小卡太窄，「寶可夢」改成疊在車次上方的小字（setFollowTitle），標題列才不會把 × 擠到下一行。
+const BUILD = 'v0925c';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -13384,8 +13395,18 @@ const _blockSideEase = new Map();      // 進出偏移要漸變,不能一到門�
 const _blockSideLatch = new Set();     // 已經讓開的:通過的車真的走遠之前不准回到軌道上
 // 虛構環島車不再只顯示看起來很像真實車次的 8888/8889。這個 helper 是所有「第一眼辨識」
 // 位置的單一事實來源：地圖車牌、看板、搜尋、平交道／落釘預測與跟車卡都要直接寫「虛構」。
+// 具名列車在資料檔寫了 mapLabel 的(寶可夢列車)同一套:當天那幾班寫成「寶可夢 2183」——
+// specialOf 依營運日比對,別天的 2183 照舊只寫車次。
 function trainDisplayNo(tr) {
-  return tr && tr.loop ? t('虛構 {train}', { train: String(tr.train) }) : String(tr && tr.train || '');
+  if (tr && tr.loop) return t('虛構 {train}', { train: String(tr.train) });
+  const pfx = trainMapLabel(tr);
+  return pfx ? `${pfx} ${tr.train}` : String(tr && tr.train || '');
+}
+// 那個前綴本身(寶可夢／Pokémon／ポケモン);當天不是那幾班、或不是具名列車就回空字串。
+// 跟車小卡要把它拆出來疊在車次上方(見 setFollowTitle),其餘位置一律用 trainDisplayNo 整串。
+function trainMapLabel(tr) {
+  const named = tr && specialOf(tr)?.named;
+  return named?.mapLabel ? i18nContentData('namedTrains', named, 'mapLabel') : '';
 }
 function trainDisplayKind(tr) {
   return tr && tr.loop ? `${t(tr.loopName)}・${t('軌島虛構專列')}` : trainTypeName(tr && tr.typeName || '');
@@ -16930,6 +16951,8 @@ function tickCore(now) {
     // 時名稱與介紹要跟著換——列車卡平常只在開始跟隨與切語言時畫。只在結果變了才畫,條件同切語言那條。
     if (state.followTrain && state.special?._hasDated && !document.getElementById('trainCard').hidden
       && (specialOf(state.followTrain)?.named || null) !== state._tcNamed) renderTrainCard(state.followTrain);
+    // 跟車小卡的車號同理(寶可夢那幾班寫「寶可夢 2183」,換了營運日或切了語言要跟著換);小卡平常只在開始跟隨時寫
+    if (state.followTrain && document.getElementById('fpTrain').textContent !== trainDisplayNo(state.followTrain)) setFollowTitle(state.followTrain);
     if (OFFICIAL_ROSTER_ENABLED) {
       const active = trtcOfficialRosterLive();
       if (state._trtcOfficialCountActive !== active) { state._trtcOfficialCountActive = active; updateCount(); }
@@ -24637,11 +24660,20 @@ function closeDelayHist() {
   state._delayHistOpen = null;
   updateSheetOpenClass();
 }
+// 跟車小卡標題。具名列車的前綴(寶可夢)疊在車次正上方的小字,標題列本身跟一般車一樣只排
+// 「● 車次 時速 ×」:手機窄卡擠不下「寶可夢 2183＋時速＋×」,× 會被擠到第二行,停站時速變 0
+// 又擠得回去,整張卡跟著一跳一跳。textContent 仍是完整的「寶可夢 2183」(與其他位置同一串)。
+function setFollowTitle(tr) {
+  const el = document.getElementById('fpTrain'), pfx = tr.loop ? '' : trainMapLabel(tr);
+  if (pfx) el.innerHTML = `<span class="fp-pfx">${escHtml(pfx)}</span> ${escHtml(String(tr.train))}`;
+  else el.textContent = trainDisplayNo(tr);
+  document.getElementById('followPanel').classList.toggle('fp-named', !!pfx);
+}
 function showFollowPanel(tr) {
   const fp = document.getElementById('followPanel');
   if (state.mode !== 'sched' || !tr) { fp.hidden = true; closeRideBox(); syncFollowOnClass(); return; }
   document.getElementById('fpDot').style.background = tr.color;
-  document.getElementById('fpTrain').textContent = trainDisplayNo(tr);
+  setFollowTitle(tr);
   const it = renderTrainCard(tr);
   // 車型名(區間車（通勤電聯車）…)是資料檔 rollingStock 的名稱,要走 i18nContentData 才有外語(同 renderTrainCard 的 tcKind);
   // DR1000 那種被 trainIntro 覆寫掉的 kind 已不是車型名,照舊走 trainTypeName。
