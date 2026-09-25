@@ -1248,6 +1248,7 @@ function findLedgerDb(dbDir) {
 
 let vtree = null, fixtureProc = null, workerProc = null;
 process.on('exit', () => { fixtureProc?.kill('SIGTERM'); workerProc?.kill('SIGTERM'); }); // 例外從計時器或事件丟出、或中途 process.exit() 時 finally 收不到
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(1)); // 單打 pid 的 kill／pkill -f 不會觸發 'exit'，轉成 process.exit 讓上一行收得到
 if (process.env.TRTC_BIND_SKIP_R4 === '1') {
   note('R4 本輪跳過', 'TRTC_BIND_SKIP_R4=1(僅供快速迭代純函式段落用,正式驗收不得帶此旗標)');
 } else

@@ -278,6 +278,7 @@ async function run() {
 
   let fixtureProc, workerProc;
   process.on('exit', () => { fixtureProc?.kill('SIGTERM'); workerProc?.kill('SIGTERM'); }); // 例外從計時器或事件丟出、或中途 process.exit() 時 finally 收不到
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(1)); // 單打 pid 的 kill／pkill -f 不會觸發 'exit'，轉成 process.exit 讓上一行收得到
   try {
     fs.rmSync(path.join(ROOT, '.wrangler'), { recursive: true, force: true });
     fixtureProc = spawn(process.execPath, [path.join(ROOT, 'scripts/fixture_trtc_board_ledger.mjs'), String(FIXTURE_PORT)],

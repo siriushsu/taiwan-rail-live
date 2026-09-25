@@ -38,6 +38,7 @@ const server = spawn(NODE, [path.join(ROOT, 'scripts', 'verify_bus_transfer_ui_s
 // 任何離開路徑都收掉 fixture server：run() 失敗時在 try 裡直接 process.exit()，finally 不會執行；
 // 等待就緒逾時的 reject 也在 try 外面。原本這兩條路都會留下孤兒。
 process.on('exit', () => server.kill('SIGTERM'));
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(1)); // 單打 pid 的 kill／pkill -f 不會觸發 'exit'，轉成 process.exit 讓上一行收得到
 
 let serverOutput = '';
 let serverError = '';

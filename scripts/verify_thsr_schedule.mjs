@@ -330,9 +330,12 @@ async function runV4() {
   const VTREE = path.join(ROOT, '.cache/thsr-v4-vtree');
   let fixtureProc, workerProc;
   process.on('exit', () => { fixtureProc?.kill('SIGTERM'); workerProc?.kill('SIGTERM'); }); // 例外從計時器或事件丟出、或中途 process.exit() 時 finally 收不到
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(1)); // 單打 pid 的 kill／pkill -f 不會觸發 'exit'，轉成 process.exit 讓上一行收得到
   try {
     rmSync(VTREE, { recursive: true, force: true });
-    execSync(`git worktree add --detach "${VTREE}" HEAD`, { cwd: ROOT, stdio: 'pipe' });
+    // -f:上一輪若被信號或計時器例外中止,finally 沒跑到,目錄已被上面 rmSync 刪掉但登記還在,
+    // 不加 -f 的 add 會拒絕(missing but already registered),V4 就為環境殘留紅一次。
+    execSync(`git worktree add -f --detach "${VTREE}" HEAD`, { cwd: ROOT, stdio: 'pipe' });
     execSync(`ln -s "${path.join(ROOT, 'node_modules')}" "${path.join(VTREE, 'node_modules')}"`, { stdio: 'pipe' });
     rmSync(path.join(VTREE, '.wrangler'), { recursive: true, force: true });
     // 🔴 這棵樹是從 HEAD 建的 ⇒ V4 驗的是「已 commit 的版本」,不是工作樹。工作樹有未 commit 的

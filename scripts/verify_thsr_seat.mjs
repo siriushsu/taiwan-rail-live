@@ -376,6 +376,7 @@ if (SECTIONS.has('D')) {
   });
   // 中途丟例外或 process.exit() 也收得掉:原本只在 D 段正常走完才 kill,D2 逾時那次就留下孤兒。
   process.on('exit', () => dev.kill('SIGTERM'));
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(1)); // 單打 pid 的 kill／pkill -f 不會觸發 'exit',轉成 process.exit 讓上一行收得到
   dev.stdout.on('data', d => { devLog.text += d; });
   dev.stderr.on('data', d => { devLog.text += d; });
 

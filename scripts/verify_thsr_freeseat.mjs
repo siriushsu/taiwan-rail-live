@@ -260,6 +260,7 @@ if (SECTIONS.has('D')) {
   });
   // 中途丟例外或 process.exit() 也收得掉:原本只在 D 段正常走完才 kill,例外時會留下孤兒繼續佔埠。
   process.on('exit', () => dev.kill('SIGTERM'));
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(1)); // 單打 pid 的 kill／pkill -f 不會觸發 'exit',轉成 process.exit 讓上一行收得到
   dev.stdout.on('data', d => { devLog.text += d; });
   dev.stderr.on('data', d => { devLog.text += d; });
 
@@ -552,6 +553,7 @@ if (SECTIONS.has('E')) {
       try { rmSync(dir, { recursive: true, force: true }); } catch (e) {}
     };
     process.on('exit', stop); // 例外從計時器或事件丟出、或中途 process.exit() 時,呼叫端的 stop() 走不到;重複呼叫無害
+    for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(1)); // 單打 pid 的 kill／pkill -f 不會觸發 'exit',轉成 process.exit 讓上一行收得到
 
     const t0 = Date.now();
     const deadline = t0 + 300000;
