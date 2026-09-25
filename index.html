@@ -1087,7 +1087,7 @@
   .follow-panel .fp-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .follow-panel .fp-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .follow-panel .fp-head b { font-size: calc(15px * var(--ui)); color: var(--ink-strong); }
-  /* 具名列車前綴(寶可夢)疊在車次正上方(setFollowTitle):不佔標題列的寬度——標題列跟一般車一樣排
+  /* 車次前綴(寶可夢、虛構環島車)疊在車次正上方(setFollowTitle):不佔標題列的寬度——標題列跟一般車一樣排
      「● 車次 時速 ×」,手機窄卡才不會把 × 擠到下一行;卡片頂端留一行小字的高度給它。 */
   .follow-panel.fp-named .fp-head { padding-top: calc(12px * var(--uis)); }
   .follow-panel.fp-named .fp-head > b { position: relative; }
@@ -5519,14 +5519,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="placedup0925"><span class="d">9/25</span><span>修正地圖上站名旁邊又出現同名地名、字疊在一起的問題，例如竹北站旁的「竹北市」</span></li>
+        <li data-cl-of="followcard0925"><span class="d">9/25</span><span>跟車小卡的三個小修正：跟車時切換語言，車種和起訖會立刻換過來；虛構 8888 在手機上的關閉鈕不再被擠到第二行；第一次跟車時「車頭鎖定：開啟」的提示不再被蓋掉最後一個字</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷 10/2（週五）也跟上台灣設計展疏運班表：上午 11 點到晚上 10 點，機場第一航廈到環北的區間加班車每 15 分鐘一班</span></li>
         <li data-cl-of="danhaiv06_0925"><span class="d">9/25</span><span>淡海輕軌假日從紅樹林出發的車，改回每班都停新市一路：站牌也看得到往崁頂、往淡水漁人碼頭的班次（謝謝網友回報）</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷週一到週四也跟上台灣設計展疏運班表（9/24–10/11）：下午 4 點到晚上 8 點，機場第一航廈到環北加開區間車，南延直達車改到機場第二航廈為止</span></li>
         <li data-cl-of="viewcontrols0914"><span class="d">9/25</span><span>修正 iPad 橫向和手機橫放時，「觀看」按鈕跑到畫面中間；沒開卡片時會回到右上角的按鈕列</span></li>
         <li data-cl-of="achvhelp"><span class="d">9/25</span><span>護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框；用鍵盤按 Tab 移到章上也會打開說明卡，收集章按 Enter 等於點一下</span></li>
         <li data-cl-of="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：照台鐵公布的班表，當天那幾班的車牌會寫「寶可夢」、列車卡有介紹，今日亮點和搜尋「寶可夢」也找得到</span></li>
-        <li data-cl-of="bustransferall"><span class="d">9/24</span><span>修正臺北市公車擁擠度的過期判斷：超過 3 分鐘的資料改標示過期，不再當成即時資料</span></li>
-        <li data-cl-of="busstop0911"><span class="d">9/24</span><span>修正臺北市公車站牌的到站時間最多會卡在兩小時前、整列顯示「資料已過期」</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5534,6 +5534,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="placedup0925"><span class="d">9/25</span><span>地圖上站名旁邊若有同名的底圖地名（例如竹北站旁的「竹北市」「竹北里」），站名畫出來時就不再重複顯示；拉遠到還沒標出站名的時候，地名照樣看得到</span></li>
         <li data-cl="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：每天跑哪幾班照台鐵公布的班表比對（感謝網友整理提供），當天那幾班地圖上的車牌會寫成「寶可夢 2183」這樣、列車卡會有介紹；今日亮點「特別列車出沒中」和搜尋「寶可夢」都列得出當天每一趟</span></li>
         <li data-cl="terrainrtt0923"><span class="d">9/23</span><span>地景地圖開啟地形時，立體車站周圍的地面不再殘留舊的建築輪廓</span></li>
         <li data-cl="perf3d0907"><span class="d">9/24</span><span>改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛；9/23 修正跟車時約每 15 秒頓一下：建築遮擋改成分段計算、資料不再來回多搬；9/24 再把那一下的計算量減半</span></li>
@@ -5711,6 +5712,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="followcard0925"><span class="d">9/25</span><span>跟車小卡：跟車時切換語言，車種、起訖和立體列車的編組說明會立刻換過來；虛構 8888 的「虛構」跟寶可夢列車一樣疊在車次上方，手機上的關閉鈕不再擠到第二行；第一次跟車時「車頭鎖定：開啟」的提示，不再被旁邊的空白提示框蓋掉最後一個字</span></li>
         <li data-cl="bustransferall"><span class="d">9/24</span><span>公車轉乘由三站擴至 239 座台鐵客運站；按下查詢才讀取 600 公尺內公車動態，選定路線後才查車牌、位置、站數與擁擠度。缺值照實留白，並可開 Google 地圖步行導航。9/24 修正臺北擁擠度超過 3 分鐘仍被當成即時資料顯示</span></li>
         <li data-cl="busstop0911"><span class="d">9/24</span><span>搜尋框找得到全台公車站牌，點進去就是這個站牌每條路線的到站時間；臺北市的資料直接取自市府開放資料，其餘縣市取自 TDX，沒有即時資料的路線會照實說明而不是用班表假裝；9/24 修正臺北市站牌到站時間最多卡在兩小時前、整列顯示「資料已過期」</span></li>
         <li data-cl="followtrack0923"><span class="d">9/23</span><span>台鐵、高鐵跟車卡加入進站軌道：列車在上一站與下一站之間跑，車後灰、車前路線色；靠站時停在站牌旁，發車才換下一段。iPhone 每 30 秒、Android 16 每 20 秒挪一格；Android 等車卡不再畫方塊。App 1.6.12 起</span></li>
@@ -6659,7 +6661,12 @@
 //         建置照舊不拿來串接，串完再以 fillFrom 從兩筆聯集補回官方時刻（不內插）；verify_metro_times 加「經過
 //         新市一路的班次都要停」（2026-09-25 網友回報）。
 //         另：EMU3000 車種介紹改「多數班次有騰雲座艙（特仕車編組除外）」（2026-09-25 裁示①，官方無逐班派車資料，不逐班標）。
-const BUILD = 'v0925i';
+// v0925j：跟車小卡與底圖地名四個小修正——手機第一次跟車時，工具列提示不再替沒有說明的「觀看」鈕掛空框
+//         （空框對齊到工具列中線，蓋住「車頭鎖定：開啟」最後一個字）；底圖地名跟 2 公里內、此刻已畫出站名的同名車站
+//         重複時不畫（glPlaceDedupSync，只改 place 圖層 filter，跟 station-layer 的遮罩條件共存：被蓋回就重疊、被包進
+//         all 就剝掉舊的那條）；車次前綴（寶可夢、虛構）一律疊在車次上方（setFollowTitle），虛構 8888 的 × 不再擠到
+//         第二行；換語言時 setFollowHead 重寫車次／車種／起訖，立體列車編組說明換語言的第一幀不等 300ms 節流。
+const BUILD = 'v0925j';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -7029,6 +7036,7 @@ function i18nRefreshDynamic() {
   // 平交道卡／台糖卡:開著時換語言就重畫(平交道卡只在模擬時間走動時每秒重畫,暫停中不會自己更新)
   try { if (typeof renderCrossingCard === 'function' && state.crossingSel) renderCrossingCard(); } catch (e) {}
   try { if (typeof renderSugarCard === 'function' && state.sugarSel) renderSugarCard(); } catch (e) {}
+  try { if (typeof setFollowHead === 'function' && state.followTrain && !document.getElementById('followPanel')?.hidden) setFollowHead(state.followTrain); } catch (e) {}
   try { if (typeof updateFollowPanel === 'function' && state.followTrain) updateFollowPanel(state.followTrain); } catch (e) {}
   try { if (typeof updateFreqFollowCamera === 'function' && state.freqFollow) updateFreqFollowCamera(false); } catch (e) {}
   try { if (typeof renderFollowBar === 'function' && !document.getElementById('followBar')?.hidden) renderFollowBar(t(state.followStatusMsg)); } catch (e) {}
@@ -12857,6 +12865,80 @@ function glTracksSync() {
 window.__glTracks = glTracks; // 守門人把手(verify_gl_tracks.mjs)
 // ==== GL TRACKS END ====
 
+// ==== 底圖地名去重 ====
+// 底圖(OFM)的地名點常跟我們畫的站名同名:竹北站旁就是「竹北市」的地名點,疊成「竹北竹北」(09-25 回報)。
+// 09-25 普查全台 607 站:去掉市鄉鎮區里村後跟站名相同的底圖地名,1 公里內 184 組、2 公里內 219 組——車站多半
+// 以所在鄉鎮命名。站名是 canvas 畫的、地名是 MapLibre 畫的,兩邊的碰撞避讓互相看不到,只能在底圖這邊擋:
+// 替底圖 place 圖層的 filter 加一條「名字等於 2 公里內某站的站名(可帶市鄉鎮區里村、臺台互通),而且這一級縮放
+// 那個站名已經畫出來 → 不畫」。畫哪些站、從第幾級畫,照 drawSched(TIER_STYLE.lz)與 drawFreq／drawDecoBase(13),
+// 最愛站照樣提早。圖磚的 filter 只認整數級,門檻取整數下限:寧可半級內兩邊都不畫,也不要疊字。
+// 立體模式的車站模型(rail-3d/station-layer.js maskLabels)也會改同一批圖層的 filter,而且是拿它自己記下的
+// 原始 filter 重組,會把這一條洗掉。所以這裡不記原始值:每幀看圖層現在的 filter 是不是我們最後寫的那一份,
+// 不是就表示別人剛寫過,拿它(先剝掉我們舊的那一條)再疊一次。setFilter 會讓整個底圖來源重排,
+// 只在「畫哪些站」變了或別人寫過時才寫。
+const PLACE_DEDUP_TAG = '__rail_place_dedup__'; // match 的第一個分支放這個認不到任何地名的標記,剝除時靠它認出是我們那一條
+const glPlaceDedup = { ids: null, hooked: false, inputs: [], clause: null, mine: new Map() };
+// 「畫哪些站」由這幾樣決定;任一樣變了才重組那一條(每幀比對,都是參照或短字串)
+function glPlaceDedupInputs() {
+  const sched = state.mode === 'sched';
+  return [sched, sched ? state.schedStations : state.lines, sched && state.deco ? state.decoLines : null,
+    sched ? '' : (state.lines || []).filter(ln => state.visible.has(ln.id)).map(ln => ln.id).join(','),
+    [..._favStNames].join(',')];
+}
+function glPlaceDedupClause() {
+  const groups = new Map();
+  const add = (name, lat, lon, lz) => {
+    const k = String(name).replace(/臺/g, '台'), z = Math.floor(lz - ML_Z);
+    const g = groups.get(k) || groups.set(k, new Map()).get(k);
+    (g.get(z) || g.set(z, []).get(z)).push([+lon.toFixed(4), +lat.toFixed(4)]);
+  };
+  if (state.mode === 'sched') {
+    for (const st of state.schedStations || []) {
+      const lz = TIER_STYLE[st.tier == null ? 4 : st.tier].lz;
+      add(st.name, st.lat, st.lon, isFavStationName(st.name) ? Math.max(0, lz - 1.5) : lz);
+    }
+  }
+  const lines = state.mode === 'sched' ? (state.deco && state.decoLines) || [] : (state.lines || []).filter(ln => state.visible.has(ln.id));
+  for (const ln of lines) for (const st of ln.stations || []) add(st.name, st.lat, st.lon, isFavStationName(st.name) ? 11.5 : 13);
+  const used = new Set([PLACE_DEDUP_TAG]), branches = [[PLACE_DEDUP_TAG], false];
+  for (const [k, g] of groups) {
+    const labels = [];
+    for (const base of new Set([k, k.replace(/台/g, '臺')])) for (const suf of ['', '市', '鄉', '鎮', '區', '里', '村']) {
+      if (!used.has(base + suf)) { used.add(base + suf); labels.push(base + suf); }
+    }
+    if (!labels.length) continue;
+    const near = [...g].map(([z, pts]) => ['all', ['>=', ['zoom'], z], ['<', ['distance', { type: 'MultiPoint', coordinates: pts }], 2000]]);
+    branches.push(labels, near.length > 1 ? ['any', ...near] : near[0]);
+  }
+  if (branches.length === 2) return null;
+  return ['!', ['match', ['coalesce', ['get', 'name:nonlatin'], ['get', 'name:zh'], ['get', 'name'], ['get', 'name:latin']], ...branches, false]];
+}
+// 從別人寫進去的 filter 剝掉我們舊的那一條(station-layer 記下的原始值可能已經含著它,或包在它自己的 all 裡)
+function glPlaceDedupStrip(f) {
+  if (!Array.isArray(f) || f[0] !== 'all') return f;
+  const rest = f.slice(1).filter(x => !(Array.isArray(x) && x[0] === '!' && Array.isArray(x[1]) && x[1][0] === 'match' && Array.isArray(x[1][2]) && x[1][2][0] === PLACE_DEDUP_TAG))
+    .map(glPlaceDedupStrip).filter(x => x != null);
+  return !rest.length ? null : rest.length === 1 ? rest[0] : ['all', ...rest];
+}
+function glPlaceDedupSync() {
+  if (!M || !M.raw || !M.isStyleReady()) return;
+  const raw = M.raw, d = glPlaceDedup;
+  if (!d.hooked) { d.hooked = true; M.onStyleLoad(() => { d.ids = null; d.mine.clear(); }); }
+  if (!d.ids) {
+    d.ids = raw.getLayersOrder().filter(id => { const L = raw.getLayer(id); return L && L.type === 'symbol' && L.sourceLayer === 'place'; });
+  }
+  const inputs = glPlaceDedupInputs();
+  const rebuilt = inputs.some((v, i) => v !== d.inputs[i]);
+  if (rebuilt) { d.inputs = inputs; d.clause = glPlaceDedupClause(); }
+  for (const id of d.ids) {
+    const L = raw.getLayer(id);
+    if (!L || (!rebuilt && d.mine.has(id) && L.filter === d.mine.get(id))) continue;
+    const base = glPlaceDedupStrip(L.filter);
+    raw.setFilter(id, !d.clause ? base : base ? ['all', base, d.clause] : d.clause, { validate: false });
+    d.mine.set(id, raw.getLayer(id).filter);
+  }
+}
+
 function drawSegOnShape(ln, s, color, lineWidth, w, h) {
   const inPad = p => p.x >= -60 && p.x <= w + 60 && p.y >= -60 && p.y <= h + 60;
   const pts = ln.shape ? shapeSlice(ln, s.dA, s.dB) : [s.pA, s.pB];
@@ -13432,7 +13514,7 @@ function trainDisplayNo(tr) {
   return pfx ? `${pfx} ${tr.train}` : String(tr && tr.train || '');
 }
 // 那個前綴本身(寶可夢／Pokémon／ポケモン);當天不是那幾班、或不是具名列車就回空字串。
-// 跟車小卡要把它拆出來疊在車次上方(見 setFollowTitle),其餘位置一律用 trainDisplayNo 整串。
+// 各處一律用 trainDisplayNo 整串;跟車小卡再從整串拆出前綴疊在車次上方(見 setFollowTitle)。
 function trainMapLabel(tr) {
   const named = tr && specialOf(tr)?.named;
   return named?.mapLabel ? i18nContentData('namedTrains', named, 'mapLabel') : '';
@@ -16851,6 +16933,7 @@ function draw() {
   trainPaintQ = null; // 上一幀若中途拋例外,殘留佇列不可帶進這一幀(否則車會被收進去卻沒人畫)
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (glTracksActive()) glTracksSync(); // GL 軌道:狀態沒變就早退(簽名比對),有變才 setFilter/setPaintProperty
+  glPlaceDedupSync(); // 底圖地名跟站名同名就不畫底圖那個(竹北站旁的「竹北市」);沒變就早退
   if (state.mode === 'sched') { if (state.deco) drawDecoBase(w, h); drawSched(w, h, state.deco ? () => drawDecoTrains(w, h) : null); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
   drawMe(); // 「我的位置」畫最後=在所有軌道與列車之上,不會被蓋掉
   drawJourneyShareMarker(); // 收件端的分享位置同樣是移動元素：永遠畫在真實座標，不做碰撞位移
@@ -24747,17 +24830,20 @@ function closeDelayHist() {
 // 「● 車次 時速 ×」:手機窄卡擠不下「寶可夢 2183＋時速＋×」,× 會被擠到第二行,停站時速變 0
 // 又擠得回去,整張卡跟著一跳一跳。textContent 仍是完整的「寶可夢 2183」(與其他位置同一串)。
 function setFollowTitle(tr) {
-  const el = document.getElementById('fpTrain'), pfx = tr.loop ? '' : trainMapLabel(tr);
-  if (pfx) el.innerHTML = `<span class="fp-pfx">${escHtml(pfx)}</span> ${escHtml(String(tr.train))}`;
-  else el.textContent = trainDisplayNo(tr);
+  // 車次前面的字(寶可夢的「寶可夢」、環島車的「虛構」)疊成車次上方的小字:手機小卡 176px 擠不下
+  // 「前綴＋車次＋時速＋×」,× 會被擠到第二行(09-25 回報虛構 8888)。整格字仍等於 trainDisplayNo(tr),
+  // tickCore 每秒拿它比對。
+  const el = document.getElementById('fpTrain'), full = trainDisplayNo(tr), no = String(tr.train);
+  const head = full !== no && full.endsWith(no) ? full.slice(0, -no.length) : '';
+  const pfx = head.trimEnd();
+  if (pfx) el.innerHTML = `<span class="fp-pfx">${escHtml(pfx)}</span>${escHtml(head.slice(pfx.length))}${escHtml(no)}`;
+  else el.textContent = full;
   document.getElementById('followPanel').classList.toggle('fp-named', !!pfx);
 }
-function showFollowPanel(tr) {
-  const fp = document.getElementById('followPanel');
-  if (state.mode !== 'sched' || !tr) { fp.hidden = true; closeRideBox(); syncFollowOnClass(); return; }
-  document.getElementById('fpDot').style.background = tr.color;
+// 跟車小卡的車次／車種／起訖。開卡時寫,換語言時 i18nRefreshDynamic 也整組重寫:車種是資料檔譯名、
+// 起訖帶終點時刻,畫面上的字反查不回原文,以前換語言後這兩行一直停在上一個語言(09-25 實測)。
+function setFollowHead(tr, it = trainIntro(tr)) {
   setFollowTitle(tr);
-  const it = renderTrainCard(tr);
   // 車型名(區間車（通勤電聯車）…)是資料檔 rollingStock 的名稱,要走 i18nContentData 才有外語(同 renderTrainCard 的 tcKind);
   // DR1000 那種被 trainIntro 覆寫掉的 kind 已不是車型名,照舊走 trainTypeName。
   document.getElementById('fpKind').textContent = tr.loop ? trainDisplayKind(tr)
@@ -24766,6 +24852,12 @@ function showFollowPanel(tr) {
   document.getElementById('fpDest').textContent = tr.loop
     ? t('臺北 ⇄ 枋寮 永續來回 · 一輪 12 小時 · 永不到站')
     : `${stationName(first.name, tr.sys)} → ${stationName(last.name, tr.sys)} · ${t('終點 {time} 抵達', { time: fmtHM(last.arrSec % 86400) })}`;
+}
+function showFollowPanel(tr) {
+  const fp = document.getElementById('followPanel');
+  if (state.mode !== 'sched' || !tr) { fp.hidden = true; closeRideBox(); syncFollowOnClass(); return; }
+  document.getElementById('fpDot').style.background = tr.color;
+  setFollowHead(tr, renderTrainCard(tr));
   renderDelayRow(); // 有快取即即時顯示;無則先隱藏,由 ensureDelayStats 到貨後補
   renderLaCta();    // 同上一行的位置:換車/重開面板時重算(訂閱狀態變動由 plusApplyCustomerInfo 那條負責)
   if (tr.sys === 'tra_sched') ensureDelayStats(); // 只有台鐵才觸發載入,跟高鐵不打這支 API
@@ -34056,9 +34148,13 @@ function setupToolRail() {
     : (btn.getAttribute('aria-label') || '');
   const showTip = (btn, ms) => {
     if (!window.matchMedia(MOBILE_MQ).matches) return;
+    // 沒有說明可補的鈕不出提示框:「觀看」鈕本身有字、沒有 aria-label,以前照樣掛一個空框,
+    // 而它沒有定位,空框對齊到整條工具列的中線,剛好蓋住車頭鎖定提示的最後一個字(「開啟」只剩「開[」,09-25 回報)。
+    const text = tipOf(btn);
+    if (!text) return;
     let t = btn.querySelector('.mt-tip');
     if (!t) { t = document.createElement('span'); t.className = 'mt-tip'; btn.appendChild(t); }
-    t.textContent = tipOf(btn);
+    t.textContent = text;
     clearTimeout(t._hideT);
     t._hideT = setTimeout(() => t.remove(), ms);
   };
