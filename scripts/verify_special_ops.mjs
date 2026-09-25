@@ -68,7 +68,7 @@ const EXPECT = {
     ] },
   },
 };
-// 臺北日期,只給上面 expo.through 用;VERIFY_TODAY=YYYY-MM-DD 覆寫(測展期後那條路徑)
+// 臺北日期,給上面 expo.through 與「例外日已過」用;VERIFY_TODAY=YYYY-MM-DD 覆寫(測展期後那條路徑)
 const TODAY = process.env.VERIFY_TODAY || new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(new Date());
 
 let pass = 0, fail = 0;
@@ -114,6 +114,8 @@ for (const [id, E] of Object.entries(EXPECT)) {
   if (E.dateAdd) {
     const X = E.dateAdd, L = T[X.line], base = L && L.sets[E.base];
     const setName = L && L.dates && L.dates[E.date], sp = setName && L.sets[setName];
+    // 例外日已過、基準換版套不上時建置端會跳過(special_ops.mjs 的 expired);那就只提示可刪,不擋出貨
+    if (!sp && E.date < TODAY) { console.log(`  ⚑ ${E.date} 已過,建置端已不套用(基準換版)——本筆 EXPECT 與 special_ops.json 那筆都可刪`); continue; }
     ok(!!sp && !!base, `${E.date} 指到例外 set「${setName || '無'}」、基準「${E.base}」也在`);
     if (!sp || !base) continue;
     ok(Object.keys(L.dates).filter(d => L.dates[d] === setName).join(',') === E.date, `只有 ${E.date} 走「${setName}」`);
@@ -147,6 +149,8 @@ for (const [id, E] of Object.entries(EXPECT)) {
   if (E.dateDrop) {
     const X = E.dateDrop, L = T[X.line], base = L && L.sets[E.base];
     const setName = L && L.dates && L.dates[E.date], sp = setName && L.sets[setName];
+    // 例外日已過、基準換版套不上時建置端會跳過(special_ops.mjs 的 expired);那就只提示可刪,不擋出貨
+    if (!sp && E.date < TODAY) { console.log(`  ⚑ ${E.date} 已過,建置端已不套用(基準換版)——本筆 EXPECT 與 special_ops.json 那筆都可刪`); continue; }
     ok(!!sp && !!base, `${E.date} 指到例外 set「${setName || '無'}」、基準「${E.base}」也在`);
     if (!sp || !base) continue;
     ok(Object.keys(L.dates).filter(d => L.dates[d] === setName).join(',') === E.date, `只有 ${E.date} 走「${setName}」`);
