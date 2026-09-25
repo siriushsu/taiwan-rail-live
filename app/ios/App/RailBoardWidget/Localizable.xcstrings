@@ -2228,6 +2228,23 @@
         }
       }
     },
+    "{time} 到": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "arr. {time}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{time}着"
+          }
+        }
+      }
+    },
     "{time} 抵達": {
       "extractionState": "manual",
       "localizations": {
