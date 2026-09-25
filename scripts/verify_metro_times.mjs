@@ -103,6 +103,29 @@ const OFFICIAL_TRAINS = [
   ...['平日', '假日'].map(set => ({ file: 'data/tymc_times.json', line: 'A', set, kind: '2',
     src: '機捷南下 台北 22:30 直達車',
     stops: [[0, '台北車站', '22:30'], [2, '新北產業園區站', '22:40'], [7, '長庚醫院站', '22:52'], [11, '機場第一航廈站', '23:09']] })),
+  // 南下普通車 台北 18:08 與 ■ 台北 18:04:設計展(9/24–10/11)平日 16–20 時興南有一半的車到環北就收班
+  // (圖例「加方形-2026台灣設計展期間,調整為開往A21班次(每站停靠)」台北 18:04/18:19/18:34,與「空心圓-
+  // 增開區間服務班次(A12←→A21,每站停靠)」),環北「往中壢(老街溪站)」表上沒有它們。建置端曾把興南→環北
+  // 量成 14 分(實跑 4 分),■ 車搶走 18:08 普通車在環北的 19:29、被接到老街溪,普通車反而跳過環北
+  // (2026-09-25 查出,當日 647e318d 退回)。各站時刻表(2026-09-25 實查)09-29(二)、10-02(五)、10-13(二,
+  // 展期後)三天 18:08 這班逐站相同;普通車(一般標記)彼此不超車,下一站第一班晚於本站發車的普通車即同一班。
+  // ■ 三班之間也不超車,各站第一個 ■ 就是 18:04(10-02 週五同一班在 A13 以南改標空心圓,時刻相同)。
+  // endsAt=終點站序:只比時刻抓不到「■ 被接到老街溪、普通車被截在環北」——截斷後補的環北到站剛好也是 19:29。
+  // validThrough:■ 只存在於設計展班表,過了那天這條印「不適用」不算紅(TDX 撤班表的那天不該擋住巡檢)。
+  { file: 'data/tymc_times.json', line: 'A', set: '平日', kind: '1', endsAt: 21,
+    src: '機捷南下 台北 18:08 普通車(過環北開往老街溪)',
+    stops: [[0, '台北車站', '18:08'], [1, '三重站', '18:14'], [2, '新北產業園區站', '18:18'], [3, '新莊副都心站', '18:20'],
+      [4, '泰山站', '18:22'], [5, '泰山貴和站', '18:25'], [6, '體育大學站', '18:30'], [7, '長庚醫院站', '18:38'], [8, '林口站', '18:41'],
+      [9, '山鼻站', '18:50'], [10, '坑口站', '18:53'], [11, '機場第一航廈站', '18:57'], [12, '機場第二航廈站', '19:00'], [13, '機場旅館站', '19:03'],
+      [14, '大園站', '19:06'], [15, '橫山站', '19:09'], [16, '領航站', '19:12'], [17, '高鐵桃園站', '19:17'], [18, '桃園體育園區站', '19:20'],
+      [19, '興南站', '19:25'], [20, '環北站', '19:29']] },
+  { file: 'data/tymc_times.json', line: 'A', set: '平日', kind: '1', endsAt: 20, validThrough: '2026-10-11',
+    src: '機捷南下 ■台北 18:04(設計展調整為開往環北)',
+    stops: [[0, '台北車站', '18:04'], [1, '三重站', '18:10'], [2, '新北產業園區站', '18:14'], [3, '新莊副都心站', '18:16'],
+      [4, '泰山站', '18:18'], [5, '泰山貴和站', '18:21'], [6, '體育大學站', '18:26'], [7, '長庚醫院站', '18:30'], [8, '林口站', '18:33'],
+      [9, '山鼻站', '18:42'], [10, '坑口站', '18:45'], [11, '機場第一航廈站', '18:48'], [12, '機場第二航廈站', '18:51'], [13, '機場旅館站', '18:54'],
+      [14, '大園站', '18:57'], [15, '橫山站', '19:00'], [16, '領航站', '19:03'], [17, '高鐵桃園站', '19:07'], [18, '桃園體育園區站', '19:10'],
+      [19, '興南站', '19:15']] },
   // 北捷:臺北捷運在 data.taipei 發布的「站別時刻表_中和新蘆線平日」(EffectiveDate 2026-08-31,
   // resource c526a43a-fc82-4ba3-beda-0497a303fc4a),與建置吃的 TDX 不同源。只有逐站清單沒有車次,
   // 以 O-1(往迴龍)同方向先發先到逐站往下接。古亭→東門官方跑 5 分,落在窗外,這班曾整班不見。
@@ -206,6 +229,8 @@ const STRUCT_ONLY = argv.includes('--structure-only');
 let fail = 0, checks = 0;
 const ck = (ok, msg) => { checks++; console.log((ok ? '  ✓ ' : '  ✗ ') + msg); if (!ok) fail++; };
 const hm = s => `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}`;
+// 臺北日期,只給 OFFICIAL_TRAINS 的 validThrough 用;VERIFY_TODAY=YYYY-MM-DD 覆寫(測過期那條路徑)
+const TODAY = process.env.VERIFY_TODAY || new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(new Date());
 const pct = x => (x * 100).toFixed(1) + '%';
 
 // 一班 = [idx,sec, idx,sec, ...] 攤平,見 build_metro_times.mjs 檔頭
@@ -467,6 +492,10 @@ for (const rel of FILES) {
       `${o.line}/${o.set} ${o.src} ${o.from} 後與官方時刻表一致（官方 ${o.want.join(' ')}${g.join(' ') === o.want.join(' ') ? '' : `；產物 ${g.join(' ') || '無'}`}）`);
   }
   for (const o of OFFICIAL_TRAINS.filter(o => o.file === rel)) {
+    if (o.validThrough && TODAY > o.validThrough) {
+      console.log(`  ⏭ ${o.line}/${o.set} ${o.src}：官方班表只到 ${o.validThrough}，今天 ${TODAY} 不適用`);
+      continue;
+    }
     const geo = geoLines.find(l => l.id === o.line);
     const badIdx = o.stops.filter(([i, name]) => !geo || !geo.stations[i] || geo.stations[i].name !== name);
     ck(!badIdx.length, `${o.line} ${o.src}：站序 index 對得上線檔站名${badIdx.length ? `（對不上 ${badIdx.map(([i, n]) => `${i}≠${n}`).join('、')}）` : ''}`);
@@ -478,9 +507,13 @@ for (const rel of FILES) {
     const [i0, , t0] = o.stops[0];
     const near = trains.find(tr => stopsOf(tr).get(i0) === t0);
     const fmt = tr => idxsOf(tr).map((i, k) => `${i}@${hm(secsOf(tr)[k])}`).join(' ');
-    ck(ti >= 0 && (!o.kind || kinds[ti] === o.kind),
+    const endIdx = ti >= 0 ? trains[ti][trains[ti].length - 2] : null;
+    const endOk = ti < 0 || o.endsAt == null || endIdx === o.endsAt;
+    ck(ti >= 0 && (!o.kind || kinds[ti] === o.kind) && endOk,
       `${o.line}/${o.set} ${o.src} 整班照官方時刻表逐站相符（官方 ${o.stops.map(([i, , t]) => `${i}@${t}`).join(' ')}` +
-      (ti < 0 ? `；產物 ${near ? fmt(near) : '無此班'}` : kinds[ti] === o.kind || !o.kind ? '' : `；車種 ${kinds[ti] || '未標'}≠${o.kind}`) + '）');
+      (o.endsAt != null ? `，終點 ${o.endsAt}` : '') +
+      (ti < 0 ? `；產物 ${near ? fmt(near) : '無此班'}` : kinds[ti] === o.kind || !o.kind ? '' : `；車種 ${kinds[ti] || '未標'}≠${o.kind}`) +
+      (endOk ? '' : `；產物終點 ${endIdx}：${fmt(trains[ti])}`) + '）');
   }
 
   for (const lid of ORIGIN_LITERAL[rel] || []) {

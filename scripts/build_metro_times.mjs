@@ -137,7 +137,7 @@ function calibrate(stns, dir) {
       if (j < B.length && B[j] - a <= 1800) first.push(B[j] - a);
     }
     const g = first.length ? median(first) : null;
-    const ss = [];
+    const pick = [];
     j = 0;
     if (g != null) for (const a of A) {
       while (j < B.length && B[j] < a + 15) j++;
@@ -146,8 +146,19 @@ function calibrate(stns, dir) {
         if (best < 0 || Math.abs(B[i] - a - g) < Math.abs(B[best] - a - g)) best = i;
         if (B[i] - a > g) break;
       }
-      if (best >= 0) ss.push([a, B[best] - a]);
+      if (best >= 0) pick.push([a, best]);
     }
+    // 一個到站只屬於一班車:被兩個發車配到時,只留行駛秒最接近 g 的那個。在後站之前就收班的車
+    // 沒有自己的後站到站,「最接近 發車+g」會配到下一班車的到站。2026-09-25 機捷平日 16–20 時
+    // 興南一半的車到環北就收班(設計展 ○ A12↔A21 區間車、■ 台北→環北),興南→環北被量成 14 分
+    // (實跑 4 分),時段中位數整段翻成 14 分;■ 車與晚 10 分鐘那班普通車在環北的預測到站同分,
+    // 搶走普通車的環北記錄——台北 18:04 ■ 被接到老街溪,18:08 普通車反而跳過環北。
+    const owner = new Map();
+    for (const [a, bi] of pick) {
+      const o = owner.get(bi);
+      if (o == null || Math.abs(B[bi] - a - g) < Math.abs(B[bi] - o - g)) owner.set(bi, a);
+    }
+    const ss = pick.filter(([a, bi]) => owner.get(bi) === a).map(([a, bi]) => [a, B[bi] - a]);
     samples.push(ss);
   }
   const memo = new Map();
@@ -486,6 +497,12 @@ function buildLineTimes(line, routeSpecs, sttCache, stnNameCache, notes, allStop
       const to = shuttleTo(c);
       if (to != null) { c.stops.push([to, c.last + dir.expected(li, to)]); c.lastIdx = to; stats.shuttle = (stats.shuttle || 0) + 1; continue; }
       const k = dir.steps(li, destIdx);
+      // 鏈尾與記錄級終點之間還有「本組有發車記錄」的站,這班卻一筆都沒配到 ⇒ 它在那站收班,
+      // 不是跳過那站一路開到記錄級終點。機捷設計展 ■「調整為開往A21班次(每站停靠)」(台北 18:04/
+      // 18:19/18:34)掛在 SP1、記錄級終點 A22,興南之後就沒有發車記錄;舊寫法補成「興南→老街溪」、
+      // 跳過環北。只接手原本會跨站補終點的情況(2~3 步),1 步與 3 步以上照舊。
+      const mid = k >= 2 && k <= 3 && !line.loop && stns.find(s => ahead({ asc }, li, s.idx) && ahead({ asc }, s.idx, destIdx));
+      if (mid) { c.stops.push([mid.idx, c.last + dir.expected(li, mid.idx)]); c.lastIdx = mid.idx; stats.shuttle = (stats.shuttle || 0) + 1; continue; }
       if (k >= 1 && k <= 3) c.stops.push([destIdx, c.last + dir.expected(li, destIdx)]);
       else if (!g.spec.noDestOk) stats.noDest++;
     }
