@@ -167,6 +167,18 @@ const crossGateCheck = page => page.evaluate(() => {
   return { no, setSize: state._punctual.size, hasRealOnly, leaked };
 });
 
+// G0 我在量的是誰(前置):在本樹寫一個探針頁,從 BASE 原樣讀回來才往下跑。B2a 在 B 段才驗,A 段早已對 BASE 跑完;
+// BASE 上是別棵樹、而那棵樹開不了機時,整支只剩 A 段一個 30 秒逾時,不會點名原因(2026-09-25 孤兒 dev_server 同形)。
+{
+  const probe = `_whoami_punctual_${process.pid}.html`;
+  const token = `whoami ${process.pid} ${Date.now()}`;
+  writeFileSync(probe, token);
+  const got = await fetch(`${BASE}/${probe}`, { signal: AbortSignal.timeout(10000) }).then(r => r.ok ? r.text() : `HTTP ${r.status}`).catch(e => String(e));
+  try { unlinkSync(probe); } catch (e) {}
+  ok('G0 BASE 服務的是這棵樹(剛寫進本樹的探針頁原樣吐回)', got === token, got === token ? BASE : `${BASE}/${probe} → ${got.slice(0, 60)}`);
+  if (got !== token) process.exit(1);
+}
+
 let mutantWritten = false;
 try {
 
