@@ -17,6 +17,11 @@
 //     一律真按 Tab/Enter/Esc,讀螢幕軟體那半用 chromium 無障礙樹實際算出的描述,不看屬性在不在。
 //     觸控點按也會聚焦,聚焦就開卡會跟「再點一次收起」互相抵銷——B3/B6 同時守這條。焦點離開只收鍵盤開的卡,
 //     點按開的卡歸「點別處收起」管(否則 focusout 先收,B7/B8 量不到 click 那條);錨點被重繪換掉要收(B9)。
+//  9) 讀螢幕名稱的內容:成就章靠金章／灰章區分達成與否,讀螢幕軟體看不到顏色 ⇒ 名稱要帶狀態,而且要有角色
+//     (span 沒有角色時 aria-label 不算數)(A18/B10/C1);章下的「08.12」會被唸成小數 ⇒ 帶日期的收集章要換成
+//     唸得出來的日期(B11/C6);格式對但日子不存在的日期要退回章下那行字,不准讓護照畫不出來(B12/C7)。
+//     英文頁的讀螢幕名稱與滑鼠提示不准夾中日文字元與全形標點、不寫只適用觸控的
+//     tap(C2–C5)——「沒有中文」是反向判準,一律配數量與該出現的片段;中文那一支沒被一起改掉由 A19 守。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -27,7 +32,13 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // 網址 ?lang 是 index.html 自己的最高優先語系開關(query > localStorage > navigator);
 // context locale 管 navigator.language 與沒帶 locale 的 Intl——兩道缺一,閘門就要紅。
 const PAGE_LOCALE = 'zh-TW';
-const PAGE_QS = `?lang=${PAGE_LOCALE}`;
+// 語系閘門的期望值:手打字面,不從頁面反推(en 兩個樣本是 09-25 探針實測值)。
+const LANGS = {
+  'zh-TW': { locale: 'zh-TW', name: '初乘紀念', st: '未達成' },
+  en: { locale: 'en-US', name: 'First journey', st: 'Not yet' },
+};
+// 中日文字元與全形標點(含假名區——「・」U+30FB 也算,全形空白 U+3000、全形冒號 U+FF1A 都在內),同 verify_i18n。
+const CJK = /[\u3000-\u30ff\u3400-\u9fff\uff00-\uffef]/;
 
 // ── 第一道 gate:先證明驗的是這棵樹(心得 32:驗收腳本吃錯目標會兩輪全綠) ──
 const INDEX = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
@@ -83,6 +94,9 @@ const MIN_DEP = Math.min(...RIDES.map(r => r.dep));             // 21600 = 06:00
 const MAX_DEP = Math.max(...RIDES.map(r => r.dep));             // 72000 = 20:00
 const hm = s => String(Math.floor(s / 3600)).padStart(2, '0') + ':' + String(Math.floor(s % 3600 / 60)).padStart(2, '0');
 const num = n => Number(n).toLocaleString('en-US');
+// 普悠瑪是 fixture 裡唯一收到的收集章(400 次的 stockId);讀螢幕日期的期望值由這個日期手組,不經 Intl。
+const [, PU_M, PU_D] = RIDES.find(r => r.stockId === 'puyuma').date.split('-');
+const MONTH_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 // id → { name, got, expect }。expect 是卡片上「進度那一行」該出現的字串;null=已達成(不畫進度)。
 const EXPECT = {
@@ -124,8 +138,9 @@ function buildEnvelope(rides) {
 const ENVELOPE = buildEnvelope(RIDES);
 const allErrors = [];
 
-async function bootPage(browser, { width = 1280, height = 900, touch = false } = {}) {
-  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, deviceScaleFactor: 1, locale: PAGE_LOCALE });
+async function bootPage(browser, { width = 1280, height = 900, touch = false, lang = PAGE_LOCALE, tz } = {}) {
+  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, deviceScaleFactor: 1, locale: LANGS[lang].locale,
+    ...(tz ? { timezoneId: tz } : {}) });
   await ctx.addInitScript((envelope) => {
     localStorage.setItem('trainmap-howto-seen', '1');       // 首訪教學卡會蓋住地圖內元件
     localStorage.setItem('trainmap-appearance', 'light');
@@ -138,7 +153,7 @@ async function bootPage(browser, { width = 1280, height = 900, touch = false } =
   const page = await ctx.newPage();
   page.on('pageerror', e => allErrors.push('pageerror: ' + e));  // waitReady 逾時多半是 boot 靜默拋錯
   page.on('console', m => { if (m.type() === 'error') allErrors.push('console: ' + m.text()); });
-  await page.goto(`http://127.0.0.1:${PORT}/${PAGE_QS}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`http://127.0.0.1:${PORT}/?lang=${lang}`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready; } catch (e) { return false; } }, null, { timeout: 30000 });
   await page.waitForTimeout(500);
   return { ctx, page };
@@ -147,8 +162,9 @@ async function bootPage(browser, { width = 1280, height = 900, touch = false } =
 // 具名前置閘門:這一頁真的是中文。語系一漂,A6/A7/B3 會各報各的英文字串,看不出共同上游。
 // 期望值是這裡手打的中文字面,不從頁面反推。兩個樣本各是 A6 標題與 A7 狀態讀的那條翻譯,
 // 在 en 之下都會變值(實測「First journey」「Not yet」)。nav 守第二道釘子:只有 context locale
-// 漂掉時,其餘幾項全靠網址 ?lang 撐著照樣會綠。
-async function langGate(page, tag) {
+// 漂掉時,其餘幾項全靠網址 ?lang 撐著照樣會綠。C 段反過來釘 en,期望值見 LANGS。
+async function langGate(page, tag, lang = PAGE_LOCALE) {
+  const want = LANGS[lang];
   const g = await page.evaluate(() => ({
     lang: window.__i18n ? window.__i18n.lang : null,
     doc: document.documentElement.lang,
@@ -157,10 +173,78 @@ async function langGate(page, tag) {
     name: window.__i18n ? window.__i18n.t('初乘紀念') : null,
     st: window.__i18n ? window.__i18n.t('未達成') : null,
   }));
-  ok(`${tag}0 語系釘死在 zh-TW(文案判準的前提)`,
-    g.lang === PAGE_LOCALE && g.doc === PAGE_LOCALE && g.nav === PAGE_LOCALE &&
-    new URLSearchParams(g.qs || '').get('lang') === PAGE_LOCALE && g.name === '初乘紀念' && g.st === '未達成',
+  ok(`${tag}0 語系釘死在 ${lang}(文案判準的前提)`,
+    g.lang === lang && g.doc === lang && g.nav === want.locale &&
+    new URLSearchParams(g.qs || '').get('lang') === lang && g.name === want.name && g.st === want.st,
     JSON.stringify(g));
+}
+
+// 讀螢幕軟體拿到的是瀏覽器算好的無障礙樹(角色/名稱/描述),不是屬性本身——直接問 chromium 算出了什麼
+async function axNode(cdp, sel) {
+  const { root } = await cdp.send('DOM.getDocument', { depth: 0 });
+  const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: sel });
+  if (!nodeId) return { role: null, name: '', desc: '' };
+  const { nodes } = await cdp.send('Accessibility.getPartialAXTree', { nodeId, fetchRelatives: false });
+  const n = nodes[0] || {};
+  return { role: n.role ? n.role.value : null, name: n.name ? n.name.value : '', desc: n.description ? n.description.value : '' };
+}
+
+// 車站收集小標與路線條要有打卡／路段才長得出來(完乘 fixture 只有起訖站、沒有路段)。用頁面自己的讀寫函式塞,
+// 被驗的是分隔符與冒號,不是打卡本身。一段走 6 次 ⇒ 小標長出「最常搭」(≥5 次),三段齊全;另打一座到訪站。
+async function seedCheckins(page) {
+  return page.evaluate(() => {
+    const rec = [...lineNetwork().values()].find(r => r.sys === 'tra_sched' && r.segs.length >= 3);
+    if (!rec) return null;
+    const c = loadCheckins();
+    c.sg[rec.segs[0].key] = { n: 6, nv: 0 };
+    c.sg[rec.segs[1].key] = { n: 1, nv: 0 };
+    c.st['tra_sched|松山'] = { name: '松山', sys: 'tra_sched', s: 'visit', n: 1, d: '2026-08-13' };
+    saveCheckins(c);
+    renderPassport();
+    return rec.id;
+  });
+}
+
+// 格式對但日子不存在的日期(雲端同步只驗格式,這種值進得了完乘記錄):護照不准因此畫不出來,也不准唸錯日子——
+// 要退回章下那行字。直接用頁面的 buildStamps 組一份「普悠瑪那趟換成壞日期」的 HTML 來量,不動存檔。
+// 前者是 Invalid Date(Intl 會丟 RangeError),後者 V8 會滾成 3 月 2 日(兩種壞法各一)。
+const BAD_DATES = ['2026-13-45', '2026-02-30'];
+async function badDateStamps(page) {
+  return page.evaluate((bad) => bad.map(date => {
+    const rides = loadRides().map(r => (r.stockId === 'puyuma' ? { ...r, date } : r));
+    let html = '', err = null;
+    try { html = buildStamps(rides, { date: true }); } catch (e) { err = String(e); }
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    const e = tpl.content.querySelector('.seal[data-cat="stock"][data-id="puyuma"]');
+    return { date, err, label: e ? e.getAttribute('aria-label') || '' : null, name: e ? e.dataset.tipname || '' : '',
+      foot: e ? (e.querySelector('small') || {}).textContent || '' : '' };
+  }), BAD_DATES);
+}
+const badDateOk = (list, colon) => list.length === BAD_DATES.length && list.every(b =>
+  !b.err && !!b.name && b.foot === b.date.slice(5).replace(/-/g, '.') && b.label === b.name + colon + b.foot);
+
+// 車站章、小標、路線條的滑鼠提示,以及護照外那兩處冒號:配樂鈕(網站沒開配樂時整顆拿掉 ⇒ 借一顆暫時的)與
+// 北捷徽章的備案原因(照抄核心給的原因碼 ⇒ 換成替身才走得到那一支,結尾是替身字串也證明真的走到了)。
+async function sepSites(page) {
+  return page.evaluate(() => {
+    const P = document.getElementById('passport');
+    const ln = metroLivePool().find(l => metroCoreSystemIdForLine(l));
+    const orig = window.metroCoreLineBlocked;
+    window.metroCoreLineBlocked = () => 'verify-reason';
+    let trtc = null;
+    try { trtc = ln ? metroCoreFallenDetail([ln]) : null; } finally { window.metroCoreLineBlocked = orig; }
+    let b = document.getElementById('musicPlBtn');
+    const made = !b;
+    if (made) { b = document.createElement('button'); b.id = 'musicPlBtn'; document.body.appendChild(b); }
+    b.title = '';
+    musicPlSync();
+    const music = b.title;
+    if (made) b.remove();
+    return { stn: Array.from(P.querySelectorAll('.stn-seal[title]')).map(e => e.title),
+      sub: (P.querySelector('.ph-sec[data-sec="stn"] > span[style]') || {}).textContent || '',
+      lines: Array.from(P.querySelectorAll('.ph-line[title]')).map(e => e.title), trtc, music };
+  });
 }
 
 // 卡片的可見性證據:①rect 整個在視窗內 ②裁圖不是單一底色(≥12 種相異色)
@@ -293,17 +377,9 @@ async function popEvidence(page) {
       desc: a && a.getAttribute ? a.getAttribute('aria-describedby') : null,
       open: !p.hidden, title: (p.querySelector('.hp-t span') || {}).textContent || '', popRole: p.getAttribute('role') };
   });
-  // 讀螢幕軟體拿到的是瀏覽器算好的無障礙樹(角色/名稱/描述),不是屬性本身——直接問 chromium 算出了什麼
   const cdp = await ctx.newCDPSession(page);
   await cdp.send('Accessibility.enable');
-  const axOf = async (sel) => {
-    const { root } = await cdp.send('DOM.getDocument', { depth: 0 });
-    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: sel });
-    if (!nodeId) return { role: null, name: '', desc: '' };
-    const { nodes } = await cdp.send('Accessibility.getPartialAXTree', { nodeId, fetchRelatives: false });
-    const n = nodes[0] || {};
-    return { role: n.role ? n.role.value : null, name: n.name ? n.name.value : '', desc: n.description ? n.description.value : '' };
-  };
+  const axOf = sel => axNode(cdp, sel);
 
   await page.focus(`#passport .seal[data-ach="${seals[0]}"]`);
   await page.keyboard.press('Tab');
@@ -370,6 +446,29 @@ async function popEvidence(page) {
   }, [`#passport .seal[data-ach="${seals[0]}"]`, `#passport .seal[data-ach="${seals[1]}"]`]);
   ok('A17 換錨點時舊錨點的 aria-describedby 跟著拿掉(只剩新錨點指向卡片)', sw.a === null && sw.b === 'helpPop', JSON.stringify(sw));
 
+  // A18(失效模式 9):讀螢幕名稱要帶達成與否、要有角色。狀態的期望值取 EXPECT(本腳本手算),兩種狀態都有
+  // 樣本(4 枚已達成);名稱比到冒號為止＋冒號後非空——拿掉 aria-label 時 role=img 不從內容算名稱,名稱會變空。
+  const achAx = [];
+  for (const id of seals) achAx.push({ id, ...(await axOf(`#passport .seal[data-ach="${id}"]`)) });
+  const achPre = id => { const e = EXPECT[id] || {}; return `${e.name}（${e.got ? '已達成' : '未達成'}）：`; };
+  const achBad = achAx.filter(a => a.role !== 'image' || !a.name.startsWith(achPre(a.id)) || a.name.length <= achPre(a.id).length);
+  ok('A18 桌面成就章 21 枚都是圖、讀螢幕名稱＝「名稱（達成與否）：說明」',
+    achAx.length === 21 && achBad.length === 0 && achAx.some(a => (EXPECT[a.id] || {}).got) && achAx.some(a => !(EXPECT[a.id] || {}).got),
+    `比對 ${achAx.length} 枚、不符 ${achBad.length}` + achBad.slice(0, 3).map(a => `:${a.id} role=${a.role}「${a.name.slice(0, 30)}」`).join(''));
+
+  // A19:英文那一支修正沒把中文一起改掉——車站章提示「站名・狀態　次數　最近」、小標與路線條以全形空白分段、
+  // 配樂鈕與北捷徽章是全形冒號(i18nSep／i18nColon 的中文分支)。
+  const seededA = await seedCheckins(page);
+  const zh = await sepSites(page);
+  const zhBad = [];
+  if (zh.stn.length !== N_STN + 1 || !zh.stn.every(s => /^[^・　]+・[^・　]+(　[^・　]+)*$/.test(s))) zhBad.push('車站章 ' + JSON.stringify(zh.stn.slice(0, 2)));
+  if (zh.sub.split('　').length !== 3 || /・| · /.test(zh.sub)) zhBad.push(`小標「${zh.sub}」`);
+  if (!zh.lines.length || !zh.lines.every(s => s.split('　').length === 3)) zhBad.push('路線條 ' + JSON.stringify(zh.lines.slice(0, 1)));
+  if (!(zh.trtc || '').endsWith('：verify-reason')) zhBad.push(`北捷「${zh.trtc}」`);
+  if (!/^[^：:]+：\S/.test(zh.music)) zhBad.push(`配樂「${zh.music}」`);
+  ok('A19 中文的分隔與冒號維持原樣(車站章「・」、小標與路線條全形空白、配樂鈕與北捷徽章全形冒號)',
+    !!seededA && zhBad.length === 0, `塞了 ${seededA} 的路段;` + zhBad.join(' / '));
+
   await ctx.close(); await browser.close();
 }
 
@@ -395,6 +494,26 @@ async function popEvidence(page) {
   }));
   ok('B1b 手機護照 sheet 的成就 chip/收集章也不殘留原生 title', sheetTitle.tip > 0 && sheetTitle.left === 0,
     `殘留 ${sheetTitle.left} 個(成就 ${sheetTitle.ach}、收集章 ${sheetTitle.tip})`);
+
+  // B10:sheet 的成就 chip 是另一份 markup(buildAchv 的 'chip'),A18 量不到。webkit 沒有 CDP 無障礙樹 ⇒ 看屬性:
+  // 角色與名稱就是從這兩個屬性來的,A18 已在 chromium 證明它們真的進了無障礙樹。
+  const chipLab = await page.evaluate(() => Array.from(document.querySelectorAll('#ridePanel .achv-chip[data-ach]'))
+    .map(e => ({ id: e.dataset.ach, role: e.getAttribute('role'), label: e.getAttribute('aria-label') || '' })));
+  const chipPre = id => { const e = EXPECT[id] || {}; return `${e.name}（${e.got ? '已達成' : '未達成'}）：`; };
+  const chipBad = chipLab.filter(c => c.role !== 'img' || !c.label.startsWith(chipPre(c.id)) || c.label.length <= chipPre(c.id).length);
+  ok('B10 手機成就 chip 21 枚都是圖、讀螢幕名稱帶達成與否', chipLab.length === 21 && chipBad.length === 0,
+    `比對 ${chipLab.length} 枚、不符 ${chipBad.length}` + chipBad.slice(0, 3).map(c => `:${c.id} role=${c.role}「${c.label.slice(0, 30)}」`).join(''));
+
+  // B11:sheet 的收集章帶日期(章下印 MM.DD),讀螢幕軟體會唸成小數 ⇒ aria-label 要是唸得出來的日期。
+  const dated = await page.evaluate(() => Array.from(document.querySelectorAll('#ridePanel .seal[data-cat]:not(.na)'))
+    .map(e => ({ key: e.dataset.cat + '|' + e.dataset.id, label: e.getAttribute('aria-label') || '', foot: (e.querySelector('small') || {}).textContent || '' })));
+  const pu = dated.find(d => d.key === 'stock|puyuma');
+  const wantPu = `${STAMP_NAME['stock|puyuma']}：${+PU_M}月${+PU_D}日收藏`;
+  ok('B11 手機護照 sheet 帶日期的收集章:讀螢幕名稱是唸得出來的日期、畫面照樣印 MM.DD',
+    !!pu && pu.label === wantPu && pu.foot === `${PU_M}.${PU_D}` && !dated.some(d => /\d{2}\.\d{2}/.test(d.label)),
+    `收到 ${dated.length} 枚;普悠瑪 ${JSON.stringify(pu)} 期望「${wantPu}」`);
+  const badZh = await badDateStamps(page);
+  ok('B12 格式對但日子不存在的日期:護照照樣畫得出來、不唸錯日子(退回章下那行字)', badDateOk(badZh, '：'), JSON.stringify(badZh));
 
   const target = 'rider5';
   const sel = `#ridePanel .achv-chip[data-ach="${target}"]`;
@@ -475,6 +594,72 @@ async function popEvidence(page) {
   });
   ok('B9 外接鍵盤在收集章按 Enter 去跟車:面板收起後說明卡跟著收(WebKit 移除聚焦節點不送 focusout)',
     b9open && b9.followed === b9keys[1] && b9.panelHidden && !b9.popOpen, JSON.stringify({ open: b9open, ...b9, want: b9keys[1] }));
+
+  await ctx.close(); await browser.close();
+}
+
+// ═══════════ C. 英文 chromium 桌面:讀螢幕名稱與滑鼠提示(失效模式 9) ═══════════
+// 「不夾中日文與全形字元」是反向判準:每一條都配上數量(分母不准無聲縮水)與該出現的英文片段。
+// 時區刻意選負時差:念得出來的日期若照本地時區格式化會提早一天,在臺北時區(+8)量不到這種錯(C6)。
+const C_TZ = 'America/Los_Angeles';
+{
+  const browser = await chromium.launch();
+  const { ctx, page } = await bootPage(browser, { lang: 'en', tz: C_TZ });
+  console.log('\n═══ C. chromium 1280×900 英文 — 讀螢幕名稱與滑鼠提示 ═══');
+  await langGate(page, 'C', 'en');
+  const cdp = await ctx.newCDPSession(page);
+  await cdp.send('Accessibility.enable');
+
+  const seals = await page.evaluate(() => Array.from(document.querySelectorAll('#passport .seal[data-ach]')).map(e => e.dataset.ach));
+  const enAch = [];
+  for (const id of seals) enAch.push({ id, ...(await axNode(cdp, `#passport .seal[data-ach="${id}"]`)) });
+  const enAchBad = enAch.filter(a => {
+    const m = a.name.match(/^.+? \((Achieved|Not yet)\): \S/);
+    return a.role !== 'image' || !m || (m[1] === 'Achieved') !== !!(EXPECT[a.id] || {}).got || CJK.test(a.name);
+  });
+  ok('C1 英文成就章 21 枚都是圖、名稱「Name (Achieved|Not yet): 說明」且狀態逐枚相符、不夾全形字元',
+    enAch.length === 21 && enAchBad.length === 0,
+    `比對 ${enAch.length} 枚、不符 ${enAchBad.length}` + enAchBad.slice(0, 3).map(a => `:${a.id} role=${a.role}「${a.name.slice(0, 40)}」`).join(''));
+
+  // 未收的章要有(>0),「不寫 tap」才不是空過;收到的章故事可能出現 tap 這個字,只看未收那句提示。
+  const enStamps = await page.evaluate(() => Array.from(document.querySelectorAll('#passport .seal[data-cat]')).map(e => ({
+    key: e.dataset.cat + '|' + e.dataset.id, na: e.classList.contains('na'), label: e.getAttribute('aria-label') || '',
+    name: e.dataset.tipname || '', tip: e.dataset.tip || '', foot: (e.querySelector('small') || {}).textContent || '' })));
+  const nStamps = N_NAMED + N_STOCK + N_BRANCH;
+  const enStampBad = enStamps.filter(s => s.label !== s.name + ': ' + s.foot || CJK.test(s.label) ||
+    /\btap\b/i.test(s.label + ' ' + s.foot + ' ' + (s.na ? s.tip : '')));
+  ok('C2 英文收集章:讀螢幕名稱＝「名稱: 章下字」、不夾全形字元、不寫只適用觸控的 tap',
+    enStamps.length === nStamps && enStamps.some(s => s.na) && enStampBad.length === 0,
+    `${enStamps.length} 枚(期望 ${nStamps})、未收 ${enStamps.filter(s => s.na).length}、不符 ${enStampBad.length}` +
+    enStampBad.slice(0, 2).map(s => ':' + JSON.stringify(s).slice(0, 140)).join(''));
+
+  const seeded = await seedCheckins(page);
+  const en = await sepSites(page);
+  const stnBad = en.stn.filter(s => CJK.test(s) || !s.includes(' · '));
+  ok('C3 英文車站章提示與車站收集小標以「 · 」分段、不夾全形字元',
+    !!seeded && en.stn.length === N_STN + 1 && stnBad.length === 0 && en.sub.split(' · ').length === 3 && !CJK.test(en.sub),
+    `車站章 ${en.stn.length} 枚(期望 ${N_STN + 1})、不符 ${JSON.stringify(stnBad.slice(0, 2))};小標「${en.sub}」`);
+  const lineBad = en.lines.filter(s => CJK.test(s) || s.split(' · ').length !== 3);
+  ok('C4 英文路線條提示以「 · 」分段、不夾全形字元', en.lines.length >= 1 && lineBad.length === 0,
+    `${en.lines.length} 條、不符 ${JSON.stringify(lineBad.slice(0, 2))}`);
+  ok('C5 英文配樂鈕提示與北捷徽章備案原因用半形冒號「: 」',
+    /^[^:：]+: \S/.test(en.music) && !CJK.test(en.music) && (en.trtc || '').endsWith(': verify-reason') && !CJK.test(en.trtc || ''),
+    JSON.stringify({ music: en.music, trtc: en.trtc }));
+
+  // 護照 sheet 才帶日期(桌面護照不帶);桌面也開得出這張 sheet。
+  await page.evaluate(() => openRidePanel());
+  await page.waitForFunction(() => !document.getElementById('ridePanel').hidden && !!document.querySelector('#ridePanel .seal[data-cat]'));
+  const enPu = await page.evaluate(() => {
+    const e = document.querySelector('#ridePanel .seal[data-cat="stock"][data-id="puyuma"]');
+    return e ? { label: e.getAttribute('aria-label') || '', name: e.dataset.tipname || '', foot: (e.querySelector('small') || {}).textContent || '',
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone } : null;
+  });
+  const wantEn = enPu ? `${enPu.name}: Collected on ${MONTH_EN[+PU_M - 1]} ${+PU_D}` : '(沒有普悠瑪章)';
+  // 時區也要在頁面裡驗到:少了這道,bootPage 的 tz 一旦沒生效,C6 就只剩臺北時區、那一層防線沒人看。
+  ok('C6 英文護照 sheet 帶日期的收集章唸得出日期(Collected on 月 日、負時差也不差一天)、畫面照樣印 MM.DD',
+    !!enPu && enPu.tz === C_TZ && !!enPu.name && enPu.label === wantEn && enPu.foot === `${PU_M}.${PU_D}`, `${JSON.stringify(enPu)} 期望「${wantEn}」`);
+  const badEn = await badDateStamps(page);
+  ok('C7 英文:格式對但日子不存在的日期,護照照樣畫得出來、不唸錯日子(退回章下那行字)', badDateOk(badEn, ': '), JSON.stringify(badEn));
 
   await ctx.close(); await browser.close();
 }
