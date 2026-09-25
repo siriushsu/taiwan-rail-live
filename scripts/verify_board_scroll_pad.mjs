@@ -15,7 +15,7 @@
 //   N 正向對照,要紅才算數:拿掉讓位 ⇒ W 紅;改回容器 scroll-padding ⇒ J 紅(兩個引擎都做——WebKit 的聚焦捲動
 //     是非同步的,要證明等得夠久);拿掉那一刀／拿掉重掛 ⇒ P 紅(只做 Chromium)。
 // 慣例照 verify_transfer_collapse.mjs:自帶 node:http 靜態伺服器(埠號由系統挑)、語系與時鐘釘死、關首訪教學卡、
-// 掛 pageerror、T0 身分自檢。瀏覽器一律無視窗。約 95 秒(2026-09-25 實測 94s)。
+// 掛 pageerror、T0 身分自檢。瀏覽器一律無視窗。約 75–95 秒(2026-09-25～26 實測 74–94s)。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
