@@ -115,12 +115,15 @@ const args = process.argv.slice(2), DETAIL = args.includes('--detail');
 let dates = args.filter(a => /^\d{4}-\d{2}-\d{2}$/.test(a));
 const sp = args.find(a => a.startsWith('--special='));
 if (sp) {
-  const n = Number(sp.split('=')[1]), today = taipeiToday(), want = new Set(), why = {};
+  const n = Number(sp.split('=')[1]), today = taipeiToday(), want = new Set(), why = {}, seen = new Set();
+  // special_ops 改版區間(有 from 的 op)指過去的 set 整段每天都在 dates 裡,不是單日例外:同一版只查第一天
+  const RANGE = new Set((J('data/special_ops.json').ops || []).filter(o => o.from && o.out === 'data/tymc_times.json').flatMap(o => Object.values(o.lines?.A?.replace || {})));
   let plainWd = null, plainWe = null;
   for (let i = 0; i <= n; i++) {
     const d = addDays(today, i);
     if (DT[d]) { want.add(d); why[d] = DT[d] === 1 ? '國定假日/補假' : '補班'; }
-    else if (T.dates && T.dates[d]) { want.add(d); why[d] = `例外「${T.dates[d]}」`; }
+    else if (T.dates && T.dates[d] && !RANGE.has(T.dates[d])) { want.add(d); why[d] = `例外「${T.dates[d]}」`; }
+    else if (T.dates && RANGE.has(T.dates[d])) { if (!seen.has(T.dates[d])) { seen.add(T.dates[d]); want.add(d); why[d] = `改版「${T.dates[d]}」(同版只查第一天)`; } }
     else if (!plainWd && wd(d) >= 1 && wd(d) <= 5) { plainWd = d; want.add(d); why[d] = '對照：一般平日'; }
     else if (!plainWe && (wd(d) === 0 || wd(d) === 6)) { plainWe = d; want.add(d); why[d] = '對照：一般週末'; }
   }
