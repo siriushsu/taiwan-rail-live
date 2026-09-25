@@ -114,6 +114,7 @@ export function applySpecialOps(out, outPath, ROOT, log = console.log) {
     const expired = !!op.dates && op.dates.every(d => d < today);
     for (const [lid, rule] of Object.entries(op.lines)) {
       const L = out.lines[lid];
+      if (op.from) { applyRange(L, lid, rule, op, outPath, ROOT, log); continue; }
       try { applyLine(L, lid, rule, op, outPath, log); }
       catch (e) {
         if (!expired) throw e;
@@ -144,4 +145,43 @@ function applyLine(L, lid, rule, op, outPath, log) {
   L.dates = L.dates || {};
   for (const d of op.dates) L.dates[d] = op.setName;
   log(`  ⚑ ${lid} 例外「${op.setName}」${base.length}→${trains.length} 班 (${op.dates.join(' ')})`);
+}
+
+// 改版區間(op 有 from/until、沒有 dates):官方某日起整份班表換版,TDX 卻還掛著舊版(TDX 班表沒有生效日期)。
+// op.snapshot 是新版各日型的完整班表(含車種),rule.replace = { 基準日型: 輸出 set 名 }。
+// from～until 每一天照前端 prepFreqTimes() 的挑法(國定假日/補假→holiday、補班→days[1]、其餘看週幾)
+// 算出原本走哪個日型,有對應的就在 dates 改指快照。已被其他 op 指定的日子不動(單日例外優先)。
+// 基準換版就停用:某日型的基準(TDX)已經沒有 rule.untilBaseLacks 兩站之間的區間車,代表 TDX 已換成新版,
+// 那個日型不再套用並印「本條可刪」——不重複套,也不讓巡檢的 sync-metro 在 TDX 換版那天失敗。
+function applyRange(L, lid, rule, op, outPath, ROOT, log) {
+  if (!L) throw new Error(`special_ops ${op.id}: 線 ${lid} 不存在於 ${outPath}`);
+  const snap = JSON.parse(readFileSync(path.join(ROOT, op.snapshot), 'utf8'));
+  const DT = JSON.parse(readFileSync(path.join(ROOT, 'data/tw_daytype.json'), 'utf8'));
+  const [a, b] = rule.untilBaseLacks;
+  const between = tr => (tr[0] === a && tr[tr.length - 2] === b) || (tr[0] === b && tr[tr.length - 2] === a);
+  const live = {};
+  for (const [day, setName] of Object.entries(rule.replace)) {
+    const base = L.sets[day];
+    if (!base) throw new Error(`special_ops ${op.id}: ${lid} 沒有基準 set「${day}」`);
+    if (!base.some(between)) {
+      log(`  ⚑ ${op.id}: 基準「${day}」已沒有站 ${a}↔${b} 的區間車(TDX 已換版),不再套「${setName}」,本條可刪`);
+      continue;
+    }
+    const sp = snap.sets?.[day], ks = snap.kinds?.[day];
+    if (!sp?.length) throw new Error(`special_ops ${op.id}: 快照 ${op.snapshot} 沒有「${day}」`);
+    if (L.kinds && ks?.length !== sp.length) throw new Error(`special_ops ${op.id}: 快照「${day}」車種 ${ks?.length} 字、班表 ${sp.length} 班,要等長`);
+    L.sets[setName] = sp.map(tr => tr.slice());
+    if (L.kinds) L.kinds[setName] = ks;
+    live[day] = setName;
+  }
+  if (!Object.keys(live).length) return;
+  L.dates = L.dates || {};
+  const next = d => new Date(Date.parse(d + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10);
+  let n = 0;
+  for (let d = op.from; d <= op.until; d = next(d)) {
+    const day = DT[d] === 1 ? (L.holiday || L.days[0]) : DT[d] === 2 ? L.days[1] : L.days[new Date(d + 'T00:00:00Z').getUTCDay()];
+    if (!live[day] || L.dates[d]) continue;
+    L.dates[d] = live[day]; n++;
+  }
+  log(`  ⚑ ${lid} 改版「${Object.values(live).join('／')}」${op.from}～${op.until} 共 ${n} 天`);
 }

@@ -3274,3 +3274,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '高鐵左營站進站那段改回平面：3D 地圖不再把站區畫成高架橋，北邊的高架照舊（謝謝網友回報）': '高鉄左営駅に入る区間を地上に戻しました。3D地図で駅構内を高架橋として描かなくなり、北側の高架はそのままです（ご報告ありがとうございました）',
 });
+// 2026-09-25 機捷 10/12 起改用設計展結束後的班表：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '機捷 10/12 起改用台灣設計展結束後的班表：機場第一航廈到環北的區間加班車停開，南延直達車恢復停高鐵桃園站、開到環北': 'From Oct 12, Taoyuan Airport MRT switches to its timetable for after the Taiwan Design Expo: the extra shuttles between A12 Airport Terminal 1 and A21 Huanbei stop running, and southbound Express services again stop at A18 HSR Taoyuan Station and run through to A21 Huanbei.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '機捷 10/12 起改用台灣設計展結束後的班表：機場第一航廈到環北的區間加班車停開，南延直達車恢復停高鐵桃園站、開到環北': '桃園MRTは10/12から台湾デザイン展終了後のダイヤに切り替わります：A12 空港第1ターミナル〜A21 環北間の区間臨時列車は運休となり、南延直達車は再び A18 高鉄桃園駅に停車して A21 環北まで運行します。',
+});
