@@ -5519,6 +5519,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="danhaiv06_0925"><span class="d">9/25</span><span>淡海輕軌假日從紅樹林出發的車，改回每班都停新市一路：站牌也看得到往崁頂、往淡水漁人碼頭的班次（謝謝網友回報）</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷週一到週四也跟上台灣設計展疏運班表（9/24–10/11）：下午 4 點到晚上 8 點，機場第一航廈到環北加開區間車，南延直達車改到機場第二航廈為止</span></li>
         <li data-cl-of="viewcontrols0914"><span class="d">9/25</span><span>修正 iPad 橫向和手機橫放時，「觀看」按鈕跑到畫面中間；沒開卡片時會回到右上角的按鈕列</span></li>
         <li data-cl-of="achvhelp"><span class="d">9/25</span><span>護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框；用鍵盤按 Tab 移到章上也會打開說明卡，收集章按 Enter 等於點一下</span></li>
@@ -5526,7 +5527,6 @@
         <li data-cl-of="bustransferall"><span class="d">9/24</span><span>修正臺北市公車擁擠度的過期判斷：超過 3 分鐘的資料改標示過期，不再當成即時資料</span></li>
         <li data-cl-of="busstop0911"><span class="d">9/24</span><span>修正臺北市公車站牌的到站時間最多會卡在兩小時前、整列顯示「資料已過期」</span></li>
         <li data-cl-of="perf3d0907"><span class="d">9/24</span><span>立體地圖跟車時，沿途建築每次更新的計算量再減半</span></li>
-        <li data-cl-of="terrainrtt0923"><span class="d">9/23</span><span>地景地圖開啟地形時，立體車站周圍的地面不再殘留舊的建築輪廓</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5932,6 +5932,7 @@
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
         <li><span class="d">7/11</span><span>可以安裝到主畫面（PWA），像 App 一樣全螢幕開啟</span></li>
         <li class="grp">資料校正</li>
+        <li data-cl="danhaiv06_0925"><span class="d">9/25</span><span>淡海輕軌假日往崁頂、往淡水漁人碼頭的車，改回照官方時刻停靠新市一路；原本假日這個方向每班都過站不停，站牌也只剩往紅樹林（謝謝網友回報）</span></li>
         <li data-cl="dr1000branch"><span class="d">9/19</span><span>台鐵支線修正：平溪、深澳、集集、內灣線跑的是 DR1000 柴油客車，起步、進站的加減速與最高速度改照它的性能；地圖下方的列車卡也改顯示 DR1000 的介紹，不再套用電聯車的數值與故事</span></li>
         <li data-cl="mergedir0918"><span class="d">9/18</span><span>班表整理修正：淡水信義線平日清晨往淡水的 6 班補回（象山、台北車站、劍潭 6:00 首班車，以及從忠義出發的 3 班）；機捷平日 1 班、淡海輕軌假日 7 班不再開到半路往回開；淡海假日 4 班疊在另一支線列車上的重複短班也拿掉了</span></li>
         <li data-cl="ylast0918"><span class="d">9/18</span><span>環狀線平日深夜班表補齊：大坪林 23:12 到 24:00 發往新北產業園區的末班車照官方時刻開到終點，中和站時刻改對齊官方時刻表</span></li>
@@ -6648,7 +6649,7 @@
 //         換掉就收卡(WebKit 移除聚焦節點不送 focusout)；收集章補 tabindex、role=button、Enter 等同點擊；卡片開著時
 //         錨點 aria-describedby 指向 #helpPop(role=tooltip)；「名稱：說明」讀螢幕名稱的冒號依語系(i18nLabel)
 //         （守門：verify_achv_help A11–A17／B6b／B6c／B9，已掛 ship-web 2.24；verify_i18n 英文護照 aria-label）。
-const BUILD = 'v0925f';
+const BUILD = 'v0925g';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

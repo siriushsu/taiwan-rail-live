@@ -3219,3 +3219,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '機捷週一到週四也跟上台灣設計展疏運班表（9/24–10/11）：下午 4 點到晚上 8 點，機場第一航廈到環北加開區間車，南延直達車改到機場第二航廈為止': '桃園MRTの月〜木曜も台湾デザイン展の輸送ダイヤ（9/24〜10/11）に対応：16時〜20時は A12 空港第1ターミナル〜A21 環北間に区間臨時列車が運行し、南延直達車は空港第2ターミナル止まりに変更。',
 });
+// 2026-09-25 淡海輕軌假日去程改回停新市一路：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '淡海輕軌假日從紅樹林出發的車，改回每班都停新市一路：站牌也看得到往崁頂、往淡水漁人碼頭的班次（謝謝網友回報）': 'On weekends and holidays, Danhai LRT trains leaving Hongshulin stop at Xinshi 1st Rd. again, and its station board once more lists trains toward Kanding and Tamsui Fisherman’s Wharf (thanks to the rider who reported it).',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '淡海輕軌假日從紅樹林出發的車，改回每班都停新市一路：站牌也看得到往崁頂、往淡水漁人碼頭的班次（謝謝網友回報）': '淡海ライトレールの土休日、紅樹林発の列車がふたたび全便新市一路に停車するようになり、駅の発車案内にも崁頂方面・淡水漁人碼頭方面の列車が表示されます（ご報告ありがとうございました）',
+});

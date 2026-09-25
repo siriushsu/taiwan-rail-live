@@ -98,7 +98,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "464e6a0016042ec928b71b7a81fdcf10"
+   "checksum": "a853ce0d34f3e46422fc70037a531352"
   },
   "data/offline_land_style.json": {
    "sourceDescription": "離線陸地的 MapLibre style 片段(fill/line 兩層、light/dark/sat 三主題),值抄自 index.html 的 offlineLandStyle();scripts/verify_track_geojson.mjs G9 對 index.html 逐值驗算",
