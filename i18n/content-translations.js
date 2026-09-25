@@ -3244,3 +3244,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '機捷 10/2（週五）也跟上台灣設計展疏運班表：上午 11 點到晚上 10 點，機場第一航廈到環北的區間加班車每 15 分鐘一班': '桃園MRTの10/2（金）も台湾デザイン展の輸送ダイヤに対応：11時〜22時は A12 空港第1ターミナル〜A21 環北間の区間臨時列車が15分ごとに運行。'
 });
+// 2026-09-25 底圖同名地名與站名疊字、跟車小卡三個小修正：第一層更新紀錄兩條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '修正地圖上站名旁邊又出現同名地名、字疊在一起的問題，例如竹北站旁的「竹北市」': 'Fixed a place name with the same name as a nearby station (such as “Zhubei City” next to Zhubei Station) overlapping the station label on the map.',
+  '跟車小卡的三個小修正：跟車時切換語言，車種和起訖會立刻換過來；虛構 8888 在手機上的關閉鈕不再被擠到第二行；第一次跟車時「車頭鎖定：開啟」的提示不再被蓋掉最後一個字': 'Three follow card fixes: switching languages while following now updates the train type and route right away; the close button for Fictional 8888 no longer wraps to a second line on phones; the “Train head lock: on” tip shown the first time you follow no longer has its last character covered.'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '修正地圖上站名旁邊又出現同名地名、字疊在一起的問題，例如竹北站旁的「竹北市」': '地図で駅名のすぐ横に同じ名前の地名（竹北駅の横の「竹北市」など）が重なって表示される問題を修正しました',
+  '跟車小卡的三個小修正：跟車時切換語言，車種和起訖會立刻換過來；虛構 8888 在手機上的關閉鈕不再被擠到第二行；第一次跟車時「車頭鎖定：開啟」的提示不再被蓋掉最後一個字': '追跡カードの小さな修正を3つ行いました。追跡中に言語を切り替えると、車種と区間がすぐに切り替わります。スマートフォンで架空 8888 を追跡したとき、閉じるボタンが2行目に押し出されなくなりました。初めて追跡したときに出る「先頭車両の固定：オン」の表示で、最後の1文字が隠れなくなりました'
+});
