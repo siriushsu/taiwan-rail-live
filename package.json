@@ -42,7 +42,7 @@
     "check-mapscan-wording": "bash scripts/verify_mapscan_cron_wording.sh scripts/scan_map_health_cron.sh",
     "check-manifest": "node scripts/verify_data_manifest.mjs && node scripts/verify_data_provenance.mjs",
     "check-metro-times": "node scripts/verify_metro_times.mjs",
-    "check-metro-data": "node scripts/verify_metro_times.mjs && node scripts/verify_transfer_departures.mjs && node scripts/verify_tymc_express_endpoints.mjs",
+    "check-metro-data": "node scripts/verify_metro_times.mjs && node scripts/verify_transfer_departures.mjs && node scripts/verify_tymc_express_endpoints.mjs && node scripts/verify_special_ops.mjs",
     "check-public": "node scripts/check_tracked_ignored.mjs && node scripts/verify_ignore_symmetry.mjs && node scripts/verify_public_repo_hygiene.mjs && node scripts/verify_privacy_providers.mjs",
     "check-privacy": "node scripts/verify_privacy_providers.mjs",
     "check-web-login-csp": "node scripts/verify_web_login_csp.mjs",
