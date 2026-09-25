@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 
-W = Path('/Users/xuxiang/Code/捷運小動畫/.claude/worktrees/garage-scene-03')
+W = Path(__file__).resolve().parents[3]  # repo 根目錄（scripts/blender/<本目錄>/<本檔>）
 SNAP = W / 'scripts/blender/emu3000-20260912'
 OUT_ROOT = W / 'output/emu3000-doors'
 NOTES_PATH = OUT_ROOT / 'NOTES.md'
