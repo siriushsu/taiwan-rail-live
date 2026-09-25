@@ -258,6 +258,11 @@ try {
   } else {
     writeFileSync(MUTANT_PATH, orig.replace(GATE, REPLACEMENT));
     mutantWritten = true;
+    // 我在量的是誰:突變頁剛寫進這棵樹,BASE 必須原樣吐回來;吐不回來＝BASE 服的是別棵樹(2026-09-25 別人留下的
+    // 孤兒 dev_server 佔著固定埠,突變頁 404、頁面沒有 state、30 秒逾時,看起來像產品回歸)。
+    const servedMutant = await fetch(BASE + '/' + MUTANT_PATH).then(r => r.ok ? r.text() : `HTTP ${r.status}`).catch(e => String(e));
+    ok('B2a BASE 服務的是這棵樹(剛寫進本樹的突變頁原樣吐回)', servedMutant === orig.replace(GATE, REPLACEMENT),
+       servedMutant === orig.replace(GATE, REPLACEMENT) ? BASE : `${BASE}/${MUTANT_PATH} → ${servedMutant.slice(0, 60)}`);
     const { ctx, page } = await open(browser, { width: 1440, path: '/' + MUTANT_PATH });
     const r = await crossGateCheck(page);
     ok('B2 突變版(拿掉跨系統閘門)：測試如預期翻紅——高鐵同號車混入準點排行 Set', !r.error && r.leaked,

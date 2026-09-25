@@ -245,26 +245,36 @@ if (SECTIONS.has('C')) {
 // ══════════════════════════ D:Playwright 前端(dev_server.mjs) ══════════════════════════
 if (SECTIONS.has('D')) {
   console.log('\n===== D 前端:Playwright(chromium+webkit)+ dev_server.mjs =====');
-  const PORT = 8932; // 與 verify_punctual.mjs/verify_my_trains.mjs 的既有慣例同一個埠,結尾直接借它們驗零回歸
-  const BASE = `http://127.0.0.1:${PORT}`;
+  // 🔴 埠交給系統挑(PORT=0),實際埠從自己起的 dev_server 印的那行讀;D6 再把同一個 BASE 傳給
+  //    verify_punctual.mjs/verify_my_trains.mjs。原本寫死 8932:別人留下的孤兒佔著埠時,這裡新起的撞埠死掉,
+  //    waitReady 只看「有人回 200」就量到孤兒服務的另一棵樹(2026-09-25 verify_thsr_seat 的 8933 就是這樣)。
+  let BASE = '';
 
   const devLog = { text: '' };
   const dev = spawn('node', [path.join(ROOT, 'scripts/dev_server.mjs')], {
-    cwd: ROOT, env: { ...process.env, PORT: String(PORT) }, stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: ROOT, env: { ...process.env, PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe'],
   });
+  // 中途丟例外或 process.exit() 也收得掉:原本只在 D 段正常走完才 kill,例外時會留下孤兒繼續佔埠。
+  process.on('exit', () => dev.kill('SIGTERM'));
   dev.stdout.on('data', d => { devLog.text += d; });
   dev.stderr.on('data', d => { devLog.text += d; });
 
+  const devAlive = () => dev.exitCode === null && dev.signalCode === null;
   const waitReady = async () => {
     const deadline = Date.now() + 30000;
-    while (Date.now() < deadline) {
-      try { const r = await fetch(BASE + '/index.html'); if (r.ok) return true; } catch (e) {}
+    while (Date.now() < deadline && devAlive()) {
+      const m = /dev server (http:\/\/127\.0\.0\.1:\d+)/.exec(devLog.text);
+      if (m) {
+        BASE = m[1];
+        try { const r = await fetch(BASE + '/index.html'); if (r.ok) return true; } catch (e) {}
+      }
       await new Promise(res => setTimeout(res, 300));
     }
     return false;
   };
-  const ready = await waitReady();
-  ok('D0 dev_server.mjs 起得來且回應 HTTP', ready, ready ? BASE : `log 尾巴:${devLog.text.slice(-300)}`);
+  const ready = (await waitReady()) && devAlive();
+  ok('D0 dev_server.mjs 起得來且回應 HTTP(埠取自自己起的那支)', ready,
+    ready ? BASE : `dev_server ${devAlive() ? '沒印出埠' : `已結束(${dev.exitCode ?? dev.signalCode})`} · log 尾巴:${devLog.text.slice(-300)}`);
 
   if (ready) {
     // 高鐵免劃位 mock:'108' 對應 dense.json 的高鐵車次 '0108'(驗證前導零剝除);'1214' 是台鐵
@@ -537,6 +547,7 @@ if (SECTIONS.has('E')) {
       try { execFileSync('git', ['-C', ROOT, 'worktree', 'remove', '--force', tree], { stdio: 'ignore' }); } catch (e) {}
       try { rmSync(dir, { recursive: true, force: true }); } catch (e) {}
     };
+    process.on('exit', stop); // 例外從計時器或事件丟出、或中途 process.exit() 時,呼叫端的 stop() 走不到;重複呼叫無害
 
     const t0 = Date.now();
     const deadline = t0 + 300000;

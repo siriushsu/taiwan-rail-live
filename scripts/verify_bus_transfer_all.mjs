@@ -35,6 +35,9 @@ const server = spawn(NODE, [path.join(ROOT, 'scripts', 'verify_bus_transfer_ui_s
   env: { ...process.env, PORT: '0' },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
+// 任何離開路徑都收掉 fixture server：run() 失敗時在 try 裡直接 process.exit()，finally 不會執行；
+// 等待就緒逾時的 reject 也在 try 外面。原本這兩條路都會留下孤兒。
+process.on('exit', () => server.kill('SIGTERM'));
 
 let serverOutput = '';
 let serverError = '';

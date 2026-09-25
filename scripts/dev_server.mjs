@@ -84,4 +84,6 @@ createServer(async (req, res) => {
   res.setHeader('Accept-Ranges','bytes');
   if(range){const start=Number(range[1]),end=Math.min(data.length-1,range[2]?Number(range[2]):data.length-1);if(start>end||start>=data.length){res.statusCode=416;return res.end();}res.statusCode=206;res.setHeader('Content-Range',`bytes ${start}-${end}/${data.length}`);res.setHeader('Content-Length',end-start+1);return res.end(data.subarray(start,end+1));}
   res.end(data);
-}).listen(PORT, '127.0.0.1', () => console.log(`dev server http://127.0.0.1:${PORT}`));
+// PORT=0 時由系統挑空埠，這行印的是實際埠：閘門從自己起的子程序讀這一行拿埠，就不會量到別棵樹留下的
+// 孤兒（2026-09-25 事故：寫死 8933，孤兒佔著埠，ready 判定只看「有人回 200」）。
+}).listen(PORT, '127.0.0.1', function () { console.log(`dev server http://127.0.0.1:${this.address().port}`); });

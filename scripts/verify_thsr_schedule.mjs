@@ -313,11 +313,14 @@ async function waitForHttp(url, timeoutMs, child) {
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const curl = (url, args = []) => execFileSync('curl', ['-k', '-sS', ...args, url], { encoding: 'utf8' });
+// 預設埠由系統挑(比照 verify_worker_runtime_smoke.mjs 的 freePort):寫死的預設埠在上一輪被訊號砍掉、留下孤兒
+// wrangler／fixture 時,這一輪新起的撞埠退出,waitForHttp 第一發卻可能先拿到孤兒的回應(2026-09-25 verify_thsr_seat 同型)。
+const freePort = () => new Promise(res => { const srv = createServer(); srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => res(port)); }); });
 
 async function runV4() {
-  const FIXTURE_PORT = Number(process.env.THSR_FIXTURE_PORT || 43991);
-  const WORKER_PORT = Number(process.env.THSR_WORKER_PORT || 43993);
-  const INSPECTOR_PORT = Number(process.env.THSR_INSPECTOR_PORT || 43994);
+  const FIXTURE_PORT = Number(process.env.THSR_FIXTURE_PORT) || await freePort();
+  const WORKER_PORT = Number(process.env.THSR_WORKER_PORT) || await freePort();
+  const INSPECTOR_PORT = Number(process.env.THSR_INSPECTOR_PORT) || await freePort();
   const FIXTURE = `http://127.0.0.1:${FIXTURE_PORT}`;
   const BASE = `https://127.0.0.1:${WORKER_PORT}`;
   // 乾淨 detached worktree:wrangler dev 若從本工作樹啟動,assets.directory:"." 監看整棵樹(含未追蹤檔)
@@ -326,6 +329,7 @@ async function runV4() {
   // 那個目錄早就不存在,每跑一次就在別處留一棵孤兒樹。
   const VTREE = path.join(ROOT, '.cache/thsr-v4-vtree');
   let fixtureProc, workerProc;
+  process.on('exit', () => { fixtureProc?.kill('SIGTERM'); workerProc?.kill('SIGTERM'); }); // 例外從計時器或事件丟出、或中途 process.exit() 時 finally 收不到
   try {
     rmSync(VTREE, { recursive: true, force: true });
     execSync(`git worktree add --detach "${VTREE}" HEAD`, { cwd: ROOT, stdio: 'pipe' });

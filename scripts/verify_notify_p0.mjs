@@ -45,6 +45,14 @@ if (!BASE) {
     if (i > 100) { console.error('✗ dev server 起不來（' + BASE + '）'); devChild.kill(); process.exit(1); }
     await new Promise(r => setTimeout(r, 100));
   }
+  // G0 我在量的是誰(比照 verify_afr.mjs):freePort 先放掉埠才交給 dev_server,中間若被別人搶走,自己的
+  // dev_server 撞埠死掉、上面的迴圈卻照樣拿到別人的 200(2026-09-25 verify_thsr_seat 固定埠孤兒事故同一型)。
+  const servedMd5 = createHash('md5').update(Buffer.from(await (await fetch(BASE + 'index.html')).arrayBuffer())).digest('hex');
+  const localMd5 = createHash('md5').update(readFileSync(path.join(ROOT, 'index.html'))).digest('hex');
+  if (devChild.exitCode !== null || devChild.signalCode !== null || servedMd5 !== localMd5) {
+    console.error(`✗ G0 ${BASE} 回應的不是本樹自己起的 dev_server(子程序結束碼=${devChild.exitCode ?? devChild.signalCode ?? '仍在跑'};served md5=${servedMd5}、本樹=${localMd5})`);
+    process.exit(1);
+  }
 }
 // 🔴 判準盲點 0「我在量的是誰」:NOTIFY_BASE 可以把整支指到【別棵樹】,而紅綠會長得一模一樣。
 //    所以第一行就印出這支實際服的根目錄與 index.html 的 md5,出貨鏈紅掉時才分辨得出樹對不對。

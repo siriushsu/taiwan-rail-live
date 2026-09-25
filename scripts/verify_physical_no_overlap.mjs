@@ -51,7 +51,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = Number(process.env.PORT || 5531);
+let PORT = Number(process.env.PORT || 0);
 // 釘死的考卷：132e1ebb 是 9/9 抓的班表（窗 09-09～09-22），9/13 就是 BASE_* 那幾條棘輪量基線的服務日。
 // 換基線時這兩個值與 BASE_* 一起改，並在 commit 訊息附新舊四個數字。
 const FIXTURE_REF = '132e1ebb', FIXTURE_DATE = '2026-09-13';
@@ -87,7 +87,8 @@ const server = createServer((req, res) => {
   res.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
   res.end(readFileSync(fp));
 });
-await new Promise(r => server.listen(PORT, r));
+await new Promise(r => server.listen(PORT, '127.0.0.1', r));
+PORT = server.address().port; // 預設 0＝系統挑空埠並綁 127.0.0.1：原本寫死 5531 又不給 host，別棵樹的孤兒佔著 127.0.0.1:5531 時這裡照樣 listen 成功、請求卻被孤兒接走
 
 const results = [];
 const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`); };

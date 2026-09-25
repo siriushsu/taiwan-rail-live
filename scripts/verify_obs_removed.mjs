@@ -10,7 +10,7 @@ import { extname, join, resolve } from 'node:path';
 import { chromium } from 'playwright';
 
 const ROOT = resolve(process.argv[2] || join(import.meta.dirname, '..'));
-const PORT = Number(process.env.OBS_PORT || 43533);
+let PORT = Number(process.env.OBS_PORT || 0);
 const PATTERN = /state\.liveMode|state\.director\b|state\.liveReplay|state\._liveMapOverride|state\._dirBmIdx|state\._dirPhase|state\._dirNext|DIRECTOR_KEY|DIRECTOR_FOLLOW_Z|DIR_FOLLOW_BLOCK|DIR_GROUP_BLOCK|DIR_BASEMAPS|LIVE_REPLAY_FROM|LIVE_REPLAY_TO|function initDirector|function initLive|function directorTick|function directorClockTick|function liveClockTick|function advanceDirectorBasemap|function pickTourMetro|function pickCityOverview|function ambientJumpToMetro|function fadeSwitchMetro|function metroCoverage|METRO_TOUR_CHANCE|CITY_OVERVIEW_SPEED|classList\.(add|contains|remove)\('live'\)|classList\.(add|contains|remove)\('director'\)|body\.live[ .]|body\.director\b|body\.fs\.live\b|:not\(\.live\)|\.live-hud|\.live-wm|id="liveHud"|\?live=1|\?live=2|\?live\b|get\('live'\)|replayBadge|msStatReplay|\.badge \.replay|sc\.slow|導播/g;
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript',
   '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
@@ -42,6 +42,7 @@ const server = createServer(async (rq, rs) => {
   } catch { rs.statusCode = 404; rs.end('nf'); }
 });
 await new Promise(r => server.listen(PORT, '127.0.0.1', r));
+PORT = server.address().port; // 預設 0＝系統挑空埠（原本 43533，別人同時手動跑就撞埠假紅）
 const browser = await chromium.launch();
 try {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
