@@ -59,6 +59,14 @@ const FIXTURE = !process.env.TEST_DATE;
 const TEST_DATE = process.env.TEST_DATE || FIXTURE_DATE;
 if (!/^\d{4}-\d{2}-\d{2}$/.test(TEST_DATE)) throw Error('TEST_DATE 必須為 YYYY-MM-DD');
 const fixtureSchedule = FIXTURE ? execFileSync('git', ['-C', ROOT, 'show', `${FIXTURE_REF}:data/tra_schedule_dense.json`], { maxBuffer: 64 << 20 }) : null;
+// 🔴 2026-09-26：只釘班表不夠。重放時頁面還會讀 tra_pass_obs.json（7 天實測通過時刻）與
+//   tra_run_profiles.json（跑段剖面），兩個都是 npm run fetch-schedule 每次整份重產的——9/26 重抓後
+//   同一份 9/13 考卷量到 C 13→19、B 37→38、A′ 9→4，程式一行沒動。這兩個釘在 09-22 量基線時磁碟上
+//   那一份（0ef6fa24：pass_obs 是 8f228a09 重抓的、run_profiles 是 0ef6fa24 重算的），重放回到
+//   13／37／9 逐項相同。換基線時這個 ref 跟 FIXTURE_REF 一起改。
+const FIXTURE_DERIVED_REF = '0ef6fa24';
+const fixtureDerived = FIXTURE ? new Map(['data/tra_pass_obs.json', 'data/tra_run_profiles.json'].map(p =>
+  ['/' + p, execFileSync('git', ['-C', ROOT, 'show', `${FIXTURE_DERIVED_REF}:${p}`], { maxBuffer: 64 << 20 })])) : null;
 const STEP = Number(process.env.STEP || 4);
 const SAMPLE = Number(process.env.SAMPLE || 120);
 const FROM = Number(process.env.FROM || 5 * 3600);
@@ -81,6 +89,7 @@ const server = createServer((req, res) => {
     return res.end('{}');
   }
   if (fixtureSchedule && url.pathname === '/data/tra_schedule_dense.json') { res.setHeader('content-type', MIME['.json']); return res.end(fixtureSchedule); }
+  if (fixtureDerived && fixtureDerived.has(url.pathname)) { res.setHeader('content-type', MIME['.json']); return res.end(fixtureDerived.get(url.pathname)); }
   let fp = path.join(ROOT, decodeURIComponent(url.pathname));
   if (existsSync(fp) && statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
   if (!path.resolve(fp).startsWith(ROOT) || !existsSync(fp)) { res.statusCode = 404; return res.end('nf'); }
@@ -227,7 +236,7 @@ ok('G1 physical 已就緒且覆蓋台鐵全班',
   `台鐵 ${setup.hasCovered}/${setup.traTotal} 走實體股道, 全系統 ${setup.trains} 班, liveActive=${setup.live}`);
 
 ok('G1b 判準使用畫面的支線與具名車型', setup.identities.every((r,i)=>r.id===['e500','dr1000','haifeng'][i] && Math.abs(r.lengthM-(process.env.FORMATION_PROBE==='legacy-three'?[57,60,60]:[137,60,80])[i])<1e-6), JSON.stringify(setup.identities));
-ok('G1c 班表服務日與固定重放日一致', setup.serviceDate===TEST_DATE, `${setup.serviceDate} / ${TEST_DATE}${FIXTURE ? `（班表快照 ${FIXTURE_REF}）` : '（磁碟班表）'}`);
+ok('G1c 班表服務日與固定重放日一致', setup.serviceDate===TEST_DATE, `${setup.serviceDate} / ${TEST_DATE}${FIXTURE ? `（班表快照 ${FIXTURE_REF}，通過時刻與跑段剖面快照 ${FIXTURE_DERIVED_REF}）` : '（磁碟班表）'}`);
 // ── 連續重放（棘輪要演化,快照掃描量不到真實動態）────────────────────────────────
 await page.evaluate(([f]) => { __reset(); __step(f); }, [FROM]);
 const cls = h => h.dwellA && h.dwellB ? 'B 兩車都停站' : (!h.sameDir ? 'A′ 對向' : (h.dwellA || h.dwellB ? 'C 一停一跑' : 'A 同向在途'));
