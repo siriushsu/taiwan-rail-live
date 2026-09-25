@@ -3230,3 +3230,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '{date}收藏': '{date}に収集',
   '{name}（{state}）': '{name}（{state}）'
 });
+// 2026-09-25 機捷 10/2（週五）補上設計展區間車：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '機捷 10/2（週五）也跟上台灣設計展疏運班表：上午 11 點到晚上 10 點，機場第一航廈到環北的區間加班車每 15 分鐘一班': 'Taoyuan Airport MRT on Friday, Oct 2 also follows the Taiwan Design Expo timetable: from 11 am to 10 pm, extra shuttles run every 15 minutes between A12 Airport Terminal 1 and A21 Huanbei.'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '機捷 10/2（週五）也跟上台灣設計展疏運班表：上午 11 點到晚上 10 點，機場第一航廈到環北的區間加班車每 15 分鐘一班': '桃園MRTの10/2（金）も台湾デザイン展の輸送ダイヤに対応：11時〜22時は A12 空港第1ターミナル〜A21 環北間の区間臨時列車が15分ごとに運行。'
+});

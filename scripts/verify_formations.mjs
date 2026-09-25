@@ -144,7 +144,8 @@ assert.ok(new Date() < new Date(ESTIMATE_RECHECK + 'T00:00:00+08:00'),
 // 官方值真的覆蓋全部班次、產品端真的讀它、回推那支函式沒有偷偷回來。
 const tymc = JSON.parse(fs.readFileSync('data/tymc_times.json')).lines.A;
 const coverage = Object.entries(tymc.sets).map(([key, set]) => ({key, trips: set.length, tagged: [...(tymc.kinds?.[key] || '')].filter(c => c !== '0').length}));
-assert.equal(coverage.length, 2, '機捷日型數量改變（原本平日／假日兩種），請同時更新這個數字');
+// special_ops 的特定日期例外 set（lines.A.dates 指到的）不是日型，不算；它們照樣要逐班帶車種（下一段）
+assert.equal(coverage.filter(c => !Object.values(tymc.dates || {}).includes(c.key)).length, 2, '機捷日型數量改變（原本平日／假日兩種），請同時更新這個數字');
 for (const {key, trips, tagged} of coverage)
   assert.equal(tagged, trips, `機捷 ${key} 只有 ${tagged}/${trips} 班帶官方車種，沒有官方值的會退成推估編組`);
 const rail3d = fs.readFileSync('rail-3d.js', 'utf8');
