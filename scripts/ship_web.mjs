@@ -618,6 +618,17 @@ try {
   process.stdout.write(viewControls.stdout || ''); process.stderr.write(viewControls.stderr || '');
   if (viewControls.status !== 0) fail('觀看設定與沉浸模式退出驗收未通過');
 
+  // ── 2.24 護照成就章／收集章說明卡守門人(2026-09-25) ────────────────────────
+  // 為什麼值得進出貨鏈(2.8 那把「成本 vs 保護」的尺):它守的缺陷 (a) 對真人 100% 復現——桌面滑鼠停在章上,
+  // 說明卡與瀏覽器原生提示兩層疊著出現;(b) 別的閘門都量不到,verify_i18n 當時甚至把殘留的 title 當成規格斷言;
+  // (c) 已經被別批無聲弄壞過一次——08-28 多語那批重套時把 title 加回來,這支不在鏈上,從 08-28 紅到 09-25 沒人看到。
+  // 另守卡片內容／進度逐枚比對、鍵盤與讀螢幕軟體(Tab 開卡、Enter、Esc、無障礙樹描述)、觸控點按開收。
+  // 雙引擎、自己起純靜態 server、埠號由系統挑(不撞別的 session 手動跑的同一支),約 14 秒。
+  const achvHelp = spawnSync('node', [path.join(wt, 'scripts', 'verify_achv_help.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(achvHelp.stdout || ''); process.stderr.write(achvHelp.stderr || '');
+  if (achvHelp.status !== 0) fail('護照說明卡守門人未過——原生 title 殘留、卡片內容或進度錯配、鍵盤或觸控開收失效'
+    + '（單獨重跑：npm run check-achv-help）');
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });

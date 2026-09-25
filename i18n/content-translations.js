@@ -3198,10 +3198,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '認得出寶可夢30周年主題列車（9/25–12/13）：照台鐵公布的班表，當天那幾班的車牌會寫「寶可夢」、列車卡有介紹，今日亮點和搜尋「寶可夢」也找得到': 'ポケモン30周年テーマ列車（9/25〜12/13）を見分けられるようになりました。台湾鉄路が公表したダイヤに従い、その日の該当列車は地図の車番に「ポケモン」と付き、列車カードに紹介が表示されます。今日の見どころや「ポケモン」の検索からも見つかります。',
 });
-// 2026-09-25 護照成就章／收集章拿掉重套時殘留的原生 title（桌面滑鼠停上去兩層提示）：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+// 2026-09-25 護照成就章／收集章拿掉重套時殘留的原生 title（桌面滑鼠停上去兩層提示），並讓鍵盤也能打開說明卡：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  '護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框': 'Hovering over Passport achievement badges and collection stamps now shows just the info card, without the browser’s own tooltip popping up as well.',
+  '護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框；用鍵盤按 Tab 移到章上也會打開說明卡，收集章按 Enter 等於點一下': 'Hovering over Passport achievement badges and collection stamps now shows just the info card, without the browser’s own tooltip popping up as well. You can also Tab to a badge or stamp to open its info card, and pressing Enter on a collection stamp works like clicking it.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  '護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框': 'パスポートの実績バッジとコレクションスタンプにマウスを乗せたとき、説明カードだけが表示され、ブラウザのツールチップが重ねて出なくなりました',
+  '護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框；用鍵盤按 Tab 移到章上也會打開說明卡，收集章按 Enter 等於點一下': 'パスポートの実績バッジとコレクションスタンプにマウスを乗せたとき、説明カードだけが表示され、ブラウザのツールチップが重ねて出なくなりました。キーボードのTabでバッジやスタンプに移動しても説明カードが開きます。コレクションスタンプはEnterでクリックと同じ操作になります',
 });

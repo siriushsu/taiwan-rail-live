@@ -13,6 +13,10 @@
 //  6) 觸控:點按開卡、再點同一枚收起、點別處收起——真的用 tap,不用 hover 冒充。
 //  7) 語系漂移:A6/A7/B3 比的是畫面上的中文字,Playwright chromium 預設 en-US 會讓整頁變英文而假紅
 //     (08-28 多語上線後一直紅)。網址 ?lang 與 context locale 兩道都釘,A0/B0 具名閘門先確認真的是中文。
+//  8) 鍵盤與讀螢幕軟體:說明卡此前只接滑鼠與點按,Tab 到章上什麼都沒有;收集章連焦點都拿不到。
+//     一律真按 Tab/Enter/Esc,讀螢幕軟體那半用 chromium 無障礙樹實際算出的描述,不看屬性在不在。
+//     觸控點按也會聚焦,聚焦就開卡會跟「再點一次收起」互相抵銷——B3/B6 同時守這條。焦點離開只收鍵盤開的卡,
+//     點按開的卡歸「點別處收起」管(否則 focusout 先收,B7/B8 量不到 click 那條);錨點被重繪換掉要收(B9)。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -20,7 +24,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = 5271;
 // 網址 ?lang 是 index.html 自己的最高優先語系開關(query > localStorage > navigator);
 // context locale 管 navigator.language 與沒帶 locale 的 Intl——兩道缺一,閘門就要紅。
 const PAGE_LOCALE = 'zh-TW';
@@ -47,7 +50,9 @@ const server = createServer((req, res) => {
   res.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
   res.end(readFileSync(fp));
 });
-await new Promise(r => server.listen(PORT, r));
+// 埠號讓系統挑:這支在 ship-web 鏈上(2.24),固定埠會撞到別的 session 手動跑的同一支(同 2.23 的理由)。
+await new Promise(r => server.listen(0, '127.0.0.1', r));
+const PORT = server.address().port;
 
 const results = [];
 const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); };
@@ -65,6 +70,10 @@ const SPECIAL = JSON.parse(readFileSync(path.join(ROOT, 'data/tra_special_trains
 const N_NAMED = SPECIAL.namedTrains.filter(x => x.trainNos && x.trainNos.length).length;
 const N_STOCK = SPECIAL.rollingStock.length;
 const N_BRANCH = SPECIAL.branchLines.length;
+// 收集章名稱同樣讀 JSON——頁面的 data-tipname 正是卡片標題的來源,拿它當期望值等於自己比自己。
+const STAMP_NAME = {};
+for (const [cat, list] of [['named', SPECIAL.namedTrains], ['stock', SPECIAL.rollingStock], ['branch', SPECIAL.branchLines]])
+  for (const x of list) STAMP_NAME[cat + '|' + x.id] = x.name;
 const TOT_KM = RIDES.reduce((a, r) => a + r.km, 0);            // 610
 const MAX_KM = Math.max(...RIDES.map(r => r.km));              // 375
 const MAX_STOPS = Math.max(...RIDES.map(r => r.stops));        // 16
@@ -129,7 +138,7 @@ async function bootPage(browser, { width = 1280, height = 900, touch = false } =
   const page = await ctx.newPage();
   page.on('pageerror', e => allErrors.push('pageerror: ' + e));  // waitReady 逾時多半是 boot 靜默拋錯
   page.on('console', m => { if (m.type() === 'error') allErrors.push('console: ' + m.text()); });
-  await page.goto(`http://localhost:${PORT}/${PAGE_QS}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`http://127.0.0.1:${PORT}/${PAGE_QS}`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready; } catch (e) { return false; } }, null, { timeout: 30000 });
   await page.waitForTimeout(500);
   return { ctx, page };
@@ -276,6 +285,91 @@ async function popEvidence(page) {
   ok('A10 收集章點擊仍觸發 followDexStamp(說明卡沒搶走既有行為)',
     followed !== 'not-called' && followed !== 'no-seal' && followed !== 'no-fn', `實得: ${followed}`);
 
+  // ══ 鍵盤與讀螢幕軟體(失效模式 8):起點用程式聚焦,之後一律真按鍵——Tab 才保證焦點框亮起 ══
+  await page.mouse.move(5, 5);
+  const kbd = () => page.evaluate(() => {
+    const a = document.activeElement, p = document.getElementById('helpPop'), d = (a && a.dataset) || {};
+    return { ach: d.ach || null, key: d.cat ? d.cat + '|' + d.id : null,
+      desc: a && a.getAttribute ? a.getAttribute('aria-describedby') : null,
+      open: !p.hidden, title: (p.querySelector('.hp-t span') || {}).textContent || '', popRole: p.getAttribute('role') };
+  });
+  // 讀螢幕軟體拿到的是瀏覽器算好的無障礙樹(角色/名稱/描述),不是屬性本身——直接問 chromium 算出了什麼
+  const cdp = await ctx.newCDPSession(page);
+  await cdp.send('Accessibility.enable');
+  const axOf = async (sel) => {
+    const { root } = await cdp.send('DOM.getDocument', { depth: 0 });
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: sel });
+    if (!nodeId) return { role: null, name: '', desc: '' };
+    const { nodes } = await cdp.send('Accessibility.getPartialAXTree', { nodeId, fetchRelatives: false });
+    const n = nodes[0] || {};
+    return { role: n.role ? n.role.value : null, name: n.name ? n.name.value : '', desc: n.description ? n.description.value : '' };
+  };
+
+  await page.focus(`#passport .seal[data-ach="${seals[0]}"]`);
+  await page.keyboard.press('Tab');
+  await page.waitForTimeout(60);
+  const k1 = await kbd();
+  ok('A11 Tab 移到下一枚成就章就開出那一枚的說明卡', k1.ach === seals[1] && k1.open && k1.title === (EXPECT[seals[1]] || {}).name,
+    JSON.stringify(k1));
+  const p11 = await popEvidence(page);
+  const ax1 = await axOf(`#passport .seal[data-ach="${seals[1]}"]`);
+  ok('A12 讀螢幕軟體聚焦時唸得到說明卡(無障礙樹的描述含卡上的條件與攻略)',
+    k1.desc === 'helpPop' && k1.popRole === 'tooltip' && !!p11 && !!p11.cond && !!p11.how.trim() &&
+    ax1.desc.includes(p11.cond) && ax1.desc.includes(p11.how.trim()),
+    `describedby=${k1.desc} role=${k1.popRole} 描述「${ax1.desc.slice(0, 60)}」`);
+
+  const stampKeys = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('#passport .seal[data-tip]')).map(e => e.dataset.cat + '|' + e.dataset.id));
+  const stampSel = k => { const [c, i] = String(k).split('|'); return `#passport .seal[data-cat="${c}"][data-id="${i}"]`; };
+  await page.focus(stampSel(stampKeys[0]));
+  await page.keyboard.press('Tab');
+  await page.waitForTimeout(60);
+  const k2 = await kbd();
+  const ax2 = await axOf(stampSel(stampKeys[1]));
+  const want2 = STAMP_NAME[stampKeys[1]];
+  // 讀螢幕名稱要恰好是「名稱：章下那行字」(aria-label):只比開頭抓不到 aria-label 被拿掉——那時名稱改由內容
+  // 算出(sealName 拆行的名稱＋章下字),開頭一樣是名稱。語系釘在 zh-TW ⇒ 冒號是全形(i18nLabel)。
+  const foot2 = await page.evaluate(s => (document.querySelector(s + ' small') || {}).textContent || '', stampSel(stampKeys[1]));
+  ok('A13 收集章 Tab 到得了、開出自己的說明卡,而且是按鈕',
+    stampKeys.length > 2 && !!want2 && k2.key === stampKeys[1] && k2.open && k2.title === want2 &&
+    ax2.role === 'button' && !!foot2 && ax2.name === want2 + '：' + foot2,
+    `${JSON.stringify(k2)} 期望標題「${want2}」 role=${ax2.role} 名稱「${ax2.name}」 期望名稱「${want2}：${foot2}」`);
+
+  await page.evaluate(() => {
+    window.__followCalled = null; window.__followOrig = window.followDexStamp;
+    window.followDexStamp = (cat, id) => { window.__followCalled = cat + '|' + id; };
+  });
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(60);
+  const entered = await page.evaluate(() => { const r = window.__followCalled; window.followDexStamp = window.__followOrig; return r; });
+  ok('A14 收集章按 Enter 等同點擊(去跟那班車)', entered === stampKeys[1], `實得: ${entered}`);
+
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(60);
+  const k3 = await kbd();
+  ok('A15 Esc 收起說明卡、焦點留在原地、aria-describedby 一併拿掉',
+    k2.open && !k3.open && k3.key === stampKeys[1] && k3.desc === null, JSON.stringify(k3));
+
+  await page.keyboard.press('Tab');
+  await page.waitForTimeout(60);
+  const k4 = await kbd();
+  await page.evaluate(() => document.activeElement.blur());
+  await page.waitForTimeout(60);
+  const k5 = await kbd();
+  const leftDesc = await page.evaluate(() => document.querySelectorAll('[aria-describedby="helpPop"]').length);
+  ok('A16 焦點離開就收卡,不留指向空卡的 aria-describedby', k4.key === stampKeys[2] && k4.open && !k5.open && leftDesc === 0,
+    `Tab 後 ${JSON.stringify(k4)} / blur 後 open=${k5.open} 殘留 describedby ${leftDesc} 個`);
+
+  // A17:卡片開著時換到別枚錨點(黏住的卡上再 hover 別枚、followDexStamp 在開著的卡上換錨點),舊的那枚要拿掉
+  // aria-describedby(showHelpPop 開頭那行)。A16 走的是「先 focusout 收卡再開」,碰不到這條,所以直接呼叫。
+  const sw = await page.evaluate(([a, b]) => {
+    const ea = document.querySelector(a), eb = document.querySelector(b);
+    showHelpPop(ea, helpPopHtmlFor(ea)); showHelpPop(eb, helpPopHtmlFor(eb));
+    const r = { a: ea.getAttribute('aria-describedby'), b: eb.getAttribute('aria-describedby') };
+    hideHelpPop(); return r;
+  }, [`#passport .seal[data-ach="${seals[0]}"]`, `#passport .seal[data-ach="${seals[1]}"]`]);
+  ok('A17 換錨點時舊錨點的 aria-describedby 跟著拿掉(只剩新錨點指向卡片)', sw.a === null && sw.b === 'helpPop', JSON.stringify(sw));
+
   await ctx.close(); await browser.close();
 }
 
@@ -312,6 +406,7 @@ async function popEvidence(page) {
   await page.tap(sel);
   await page.waitForTimeout(120);
   const p1 = await popEvidence(page);
+  const d3 = await page.evaluate(s => document.querySelector(s).getAttribute('aria-describedby'), sel);
   ok('B3 點按 chip 開出說明卡', !!p1 && p1.title === EXPECT[target].name, p1 ? `標題「${p1.title}」` : '沒開');
   ok('B4 手機卡片完整在視窗內、非空白', !!p1 && p1.inView && p1.colors >= 12,
     p1 ? `inView=${p1.inView} 色數=${p1.colors} rect=${p1.x.toFixed(0)},${p1.y.toFixed(0)} ${p1.w.toFixed(0)}x${p1.h.toFixed(0)}` : '');
@@ -321,6 +416,21 @@ async function popEvidence(page) {
   await page.tap(sel);
   await page.waitForTimeout(120);
   ok('B6 再點同一枚收起', (await popEvidence(page)) === null);
+  const d6 = await page.evaluate(s => document.querySelector(s).getAttribute('aria-describedby'), sel);
+  ok('B6b 開卡時 chip 以 aria-describedby 指向卡片、收起就拿掉', d3 === 'helpPop' && d6 === null, `開=${d3} 收=${d6}`);
+
+  // 外接鍵盤(iPad 那種):WebKit 的焦點框判定是另一套實作,A11 只量了 chromium。
+  // 上面兩下點按也讓 chip 拿到了焦點——那時焦點框不亮、不准開卡,B3/B6 已經守住;這裡驗亮的時候要開。
+  await page.evaluate(s => document.querySelector(s).focus(), `#ridePanel .achv-chip[data-ach="${chips[0]}"]`);
+  await page.keyboard.press('Tab');
+  await page.waitForTimeout(80);
+  const kb = await page.evaluate(() => ({ ach: document.activeElement.dataset.ach || null,
+    open: !document.getElementById('helpPop').hidden,
+    title: (document.querySelector('#helpPop .hp-t span') || {}).textContent || '' }));
+  ok('B6c 外接鍵盤 Tab 到下一枚 chip 就開出那一枚的說明卡', kb.ach === chips[1] && kb.open && kb.title === (EXPECT[chips[1]] || {}).name,
+    JSON.stringify(kb));
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(60);
 
   // B7/B8:點別處要收。刻意分兩個落點——面板「內」的空白與面板「外」的地圖。
   // 面板內那一下曾經整個失效(#ridePanel 的 click 冒泡不到 document,被中途 stopPropagation),
@@ -340,6 +450,31 @@ async function popEvidence(page) {
   await page.touchscreen.tap(195, 120);   // 面板外的地圖區
   await page.waitForTimeout(180);
   ok('B8 點面板外(地圖)收起', opened2 && (await popEvidence(page)) === null, opened2 ? '' : '前一步沒開起來');
+
+  // B9:外接鍵盤 Tab 到收集章按 Enter 去跟車 ⇒ 面板收起、錨點被清掉,說明卡要跟著收。WebKit 移除聚焦中的節點
+  // 不送 focusout(chromium 會),09-25 實測卡片孤零零留在地圖上。有沒有車可跟看當下時刻 ⇒「有車」與「跟車」
+  // 都換成替身,不讓這條在沒車的時段變成沒樣本。
+  if (await page.evaluate(() => document.getElementById('ridePanel').hidden)) await page.tap('#tabRide');
+  await page.waitForFunction(() => !document.getElementById('ridePanel').hidden && document.querySelectorAll('#ridePanel .seal[data-cat]').length > 1);
+  const b9keys = await page.evaluate(() => {
+    window.__dexOrig = window.dexCandidates; window.__followOrig = window.followDexStamp; window.__followed = null;
+    window.dexCandidates = () => [{ train: '0', sys: 'tra' }];
+    window.followDexStamp = (cat, id) => { window.__followed = cat + '|' + id; };
+    return Array.from(document.querySelectorAll('#ridePanel .seal[data-cat]')).slice(0, 2).map(e => e.dataset.cat + '|' + e.dataset.id);
+  });
+  const b9sel = k => { const [c, i] = k.split('|'); return `#ridePanel .seal[data-cat="${c}"][data-id="${i}"]`; };
+  await page.evaluate(s => document.querySelector(s).focus(), b9sel(b9keys[0]));
+  await page.keyboard.press('Tab');
+  await page.waitForTimeout(80);
+  const b9open = await page.evaluate(() => !document.getElementById('helpPop').hidden && !!state._helpPopFor);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(150);
+  const b9 = await page.evaluate(() => {
+    const r = { panelHidden: document.getElementById('ridePanel').hidden, popOpen: !document.getElementById('helpPop').hidden, followed: window.__followed };
+    window.dexCandidates = window.__dexOrig; window.followDexStamp = window.__followOrig; return r;
+  });
+  ok('B9 外接鍵盤在收集章按 Enter 去跟車:面板收起後說明卡跟著收(WebKit 移除聚焦節點不送 focusout)',
+    b9open && b9.followed === b9keys[1] && b9.panelHidden && !b9.popOpen, JSON.stringify({ open: b9open, ...b9, want: b9keys[1] }));
 
   await ctx.close(); await browser.close();
 }

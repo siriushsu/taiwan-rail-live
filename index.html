@@ -5519,7 +5519,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="achvhelp"><span class="d">9/25</span><span>護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框</span></li>
+        <li data-cl-of="achvhelp"><span class="d">9/25</span><span>護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框；用鍵盤按 Tab 移到章上也會打開說明卡，收集章按 Enter 等於點一下</span></li>
         <li data-cl-of="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：照台鐵公布的班表，當天那幾班的車牌會寫「寶可夢」、列車卡有介紹，今日亮點和搜尋「寶可夢」也找得到</span></li>
         <li data-cl-of="bustransferall"><span class="d">9/24</span><span>修正臺北市公車擁擠度的過期判斷：超過 3 分鐘的資料改標示過期，不再當成即時資料</span></li>
         <li data-cl-of="busstop0911"><span class="d">9/24</span><span>修正臺北市公車站牌的到站時間最多會卡在兩小時前、整列顯示「資料已過期」</span></li>
@@ -5793,7 +5793,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
-        <li data-cl="achvhelp"><span class="d">9/25</span><span>護照成就章新增說明卡，顯示達成條件、建議與目前進度；明星列車、車種圖鑑與支線收集章也能查看內容。9/25 修正滑鼠停在章上時，說明卡旁邊還會多跳出瀏覽器的小提示框</span></li>
+        <li data-cl="achvhelp"><span class="d">9/25</span><span>護照成就章新增說明卡，顯示達成條件、建議與目前進度；明星列車、車種圖鑑與支線收集章也能查看內容。9/25 修正滑鼠停在章上時，說明卡旁邊還會多跳出瀏覽器的小提示框，並讓鍵盤也能打開說明卡</span></li>
         <li data-cl="checkinsync0923"><span class="d">9/23</span><span>打卡車站與搭乘路段次數加入帳號雲端同步：手機上累積的「通勤的證明」「老通勤族」進度與車站收集，登入同一帳號的電腦或另一台手機也看得到；以前這兩項只留在搭乘的那台裝置上，電腦登入會顯示 0（謝謝網友回報）</span></li>
         <li data-cl="appnoticegeo0919"><span class="d">9/19</span><span>App 的長提示改為完整換行，即使頂部工具與列車卡片之間空間不夠，也不再只剩上半句，點通知外面就能提前收起；任何傾斜視角都會隱藏定位精度圈、脈動環與藍點，回到平面視角才恢復</span></li>
         <li data-cl="favstangeo0916"><span class="d">9/16</span><span>最愛車站星號整合至站名標籤避免遮蔽文字，隨視距自然淡出；傾斜跟車時自動隱藏定位大圈與脈動環，維持 3D 視角純淨</span></li>
@@ -6029,7 +6029,7 @@
   </section>
 </div>
 <!-- 成就/收集章的說明卡:同樣刻意放 body 層(理由見 .help-pop 的 CSS 註解)。內容由 showHelpPop() 灌。 -->
-<div class="help-pop" id="helpPop" hidden></div>
+<div class="help-pop" id="helpPop" role="tooltip" hidden></div>
 
 <div class="takeout-modal" id="helpModal" hidden>
   <section class="takeout-dialog help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
@@ -6644,7 +6644,11 @@
 // v0925c：寶可夢列車在地圖上認得出來：具名列車可在資料檔寫 mapLabel，當天那幾班的車號一律寫成「寶可夢 2183」
 //         （trainDisplayNo，跟虛構環島車「虛構 8888」同一套：地圖車牌、看板、搜尋、平交道預測、跟車卡）。
 //         手機跟車小卡太窄，「寶可夢」改成疊在車次上方的小字（setFollowTitle），標題列才不會把 × 擠到下一行。
-const BUILD = 'v0925c';
+// v0925d：說明卡接上鍵盤——焦點框亮起(:focus-visible)才開卡、焦點離開(只收鍵盤開的卡)或 Esc 收卡、錨點被重繪
+//         換掉就收卡(WebKit 移除聚焦節點不送 focusout)；收集章補 tabindex、role=button、Enter 等同點擊；卡片開著時
+//         錨點 aria-describedby 指向 #helpPop(role=tooltip)；「名稱：說明」讀螢幕名稱的冒號依語系(i18nLabel)
+//         （守門：verify_achv_help A11–A17／B6b／B6c／B9，已掛 ship-web 2.24；verify_i18n 英文護照 aria-label）。
+const BUILD = 'v0925d';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -6734,6 +6738,11 @@ function i18nNumber(value, options) {
 function i18nJoin(...parts) {
   const gap = I18N_LANG === 'zh-TW' || I18N_LANG === 'ja' ? '' : ' ';
   return parts.filter(part => part != null && part !== '').join(gap);
+}
+// 「名稱：說明」的冒號同理屬於這次拼接:中文與日文用全形「：」,英文用半形加空白——讀螢幕軟體唸英文
+// aria-label 時,夾在句中的全形冒號是另一種字元(09-25 護照收集章與成就章 41 個英文標籤都是這樣)。
+function i18nLabel(name, detail) {
+  return name + (I18N_LANG === 'zh-TW' || I18N_LANG === 'ja' ? '：' : ': ') + detail;
 }
 function i18nHasTranslation(source) {
   return Object.prototype.hasOwnProperty.call(I18N_MESSAGES.en || {}, source) ||
@@ -23704,8 +23713,11 @@ function buildStamps(rides, opts) {
         //    而「怎麼拿到這枚章」正是手機使用者最需要的那句話(feat/achv-help)。
         //    也不要再掛回原生 title:桌面會跟說明卡同時冒出兩層提示(08-28 多語那批重套時加回來過;
         //    verify_achv_help 的 A3/B1b 守)。
+        // 點了會去跟那班車 ⇒ 是按鈕:tabindex 讓鍵盤到得了、Enter 等同點擊(bindHelpPop)。
+        // aria-label 用名稱＋章下那行字——sealName 會把名稱拆成好幾行,讀出來會斷掉;故事由聚焦時的說明卡提供。
         return `<span class="seal${i.got ? '' : ' na'}" data-cat="${escHtml(cat)}" data-id="${escHtml(i.id)}"` +
-          ` data-tip="${escHtml(t(i.tip))}" data-tipname="${escHtml(t(i.name))}">${sealName(t(i.name))}<small>${escHtml(foot)}</small></span>`;
+          ` data-tip="${escHtml(t(i.tip))}" data-tipname="${escHtml(t(i.name))}"` +
+          ` tabindex="0" role="button" aria-label="${escHtml(i18nLabel(t(i.name), foot))}">${sealName(t(i.name))}<small>${escHtml(foot)}</small></span>`;
       }).join('') + `</div>`;
   };
   const named = sd.namedTrains.filter(n => n.trainNos.length).map(n => // 無固定車次的觀光列車搭不到,不列入收集
@@ -23724,10 +23736,13 @@ function buildStamps(rides, opts) {
 // 所以一律用 document 層委派,不逐元素掛 listener——掛上去的下一次重建就沒了。
 const HELP_POP_HOVER = matchMedia('(hover: hover) and (pointer: fine)').matches;
 function hideHelpPop() {
+  if (state._helpPopWatch) state._helpPopWatch.disconnect();
   const p = document.getElementById('helpPop');
   if (p) { p.hidden = true; p.innerHTML = ''; }
+  if (state._helpPopFor) state._helpPopFor.removeAttribute('aria-describedby');
   state._helpPopFor = null;
   state._helpPopSticky = false;
+  state._helpPopByFocus = false;
 }
 function placeHelpPop(el) {
   const p = document.getElementById('helpPop');
@@ -23745,9 +23760,21 @@ function placeHelpPop(el) {
 function showHelpPop(el, html) {
   const p = document.getElementById('helpPop');
   if (!p || !html) return;
+  // 卡片開著時錨點以 aria-describedby 指向它(#helpPop 是 role=tooltip)⇒ 讀螢幕軟體聚焦到章時,
+  // 除了 aria-label 的名稱,還唸得到卡上的條件、進度與攻略。換錨點時舊的那枚要拿掉,別指向別人的卡。
+  if (state._helpPopFor && state._helpPopFor !== el) state._helpPopFor.removeAttribute('aria-describedby');
   p.innerHTML = html; p.hidden = false;
+  el.setAttribute('aria-describedby', 'helpPop');
   state._helpPopFor = el;
   state._helpPopSticky = false; // 預設是 hover 提示;要黏住的呼叫端(followDexStamp)自己補 true
+  state._helpPopByFocus = false; // 鍵盤聚焦開的卡由 focusin 那條自己補 true(bindHelpPop)
+  // 錨點被重繪換掉就收卡:護照與手機 sheet 有十幾個重繪入口,WebKit 移除聚焦中的節點不送 focusout、
+  // repositionHelpPop 又只在捲動／縮放時跑 ⇒ 鍵盤開的卡會孤零零留在畫面上(09-25 實測:手機 Tab 到
+  // 收集章按 Enter 去跟車,面板收了、卡還在)。只在卡片開著時觀察,收卡就停(hideHelpPop)。
+  if (!state._helpPopWatch) state._helpPopWatch = new MutationObserver(() => {
+    if (state._helpPopFor && !state._helpPopFor.isConnected) hideHelpPop();
+  });
+  state._helpPopWatch.observe(document.body, { childList: true, subtree: true });
   placeHelpPop(el);
 }
 // 捲動時**跟著錨點重算位置**,不是直接收掉。原本收掉的版本有個很難看見的失效:
@@ -23824,6 +23851,28 @@ function bindHelpPop() {
     if (!HELP_POP_HOVER && state._helpPopFor === el) { hideHelpPop(); return; } // 觸控:再點一次收起
     showHelpPop(el, helpPopHtmlFor(el));
   }, true);
+  // 鍵盤:Tab 到章上就開卡、焦點離開就收(此前卡片只接滑鼠與點按,Tab 過去什麼都沒有)。
+  // 🔴 只認焦點框亮起(:focus-visible)的聚焦——觸控點按會先聚焦再送 click,聚焦就開卡的話,
+  //    緊接的 click 會被上面判成「再點一次收起」,卡片一閃即逝;滑鼠點擊由 hover/click 兩條路負責。
+  const kbdFocus = el => { try { return el.matches(':focus-visible'); } catch (e) { return false; } };
+  document.addEventListener('focusin', e => {
+    const el = e.target.closest && e.target.closest(SEL);
+    if (!el || !kbdFocus(el)) return;
+    showHelpPop(el, helpPopHtmlFor(el));
+    if (state._helpPopFor === el) state._helpPopByFocus = true;
+  });
+  // 焦點離開只收「鍵盤聚焦開的」卡。點按開的卡歸上面的 click 管(點別處收起):觸控點按也會讓章拿到
+  // 焦點,若這裡一律收,點別處時焦點一離開就先收掉,click 那條壞了也看不出來(verify_achv_help B7/B8)。
+  document.addEventListener('focusout', e => {
+    const el = e.target.closest && e.target.closest(SEL);
+    if (el && state._helpPopFor === el && state._helpPopByFocus && !state._helpPopSticky) hideHelpPop();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && state._helpPopFor) { hideHelpPop(); return; }
+    // 收集章是按鈕(點了去跟那班車):Enter 等同點擊。空白鍵維持全站的播放/暫停(與真按鈕同一慣例,
+    // 見全域 keydown 那段)。
+    if (e.key === 'Enter' && e.target.matches && e.target.matches('.seal[data-cat]')) { e.preventDefault(); e.target.click(); }
+  });
   // 卡片是 fixed 定位,底下的捲動盒(#ridePanel/頁面)一動,位置就過期 ⇒ 跟著錨點重算。
   // capture:true 是必要的——#ridePanel 自己的捲動不會冒泡到 window。
   addEventListener('scroll', repositionHelpPop, true);
@@ -23837,11 +23886,11 @@ function buildAchv(rides, style) {
   const ach = unlockedAchievements(rides);
   if (style === 'chip') {
     return phSec('achv', ACHIEVEMENTS.length, null, `${escHtml(t('成就'))}<b>${i18nNumber(ach.size)}/${i18nNumber(ACHIEVEMENTS.length)}</b>`) + `<div class="achv-chips">` +
-      ACHIEVEMENTS.map(a => `<span class="achv-chip${ach.has(a.id) ? ' on' : ''}" data-ach="${escHtml(a.id)}" tabindex="0" aria-label="${escHtml(t(a.name) + '：' + t(a.desc))}">${railIcon(a.icon)}<span>${escHtml(t(a.name))}</span></span>`).join('') + `</div>`;
+      ACHIEVEMENTS.map(a => `<span class="achv-chip${ach.has(a.id) ? ' on' : ''}" data-ach="${escHtml(a.id)}" tabindex="0" aria-label="${escHtml(i18nLabel(t(a.name), t(a.desc)))}">${railIcon(a.icon)}<span>${escHtml(t(a.name))}</span></span>`).join('') + `</div>`;
   }
   return phSec('achv', ACHIEVEMENTS.length, null, `${escHtml(t('成就徽章'))}<b>${i18nNumber(ach.size)}/${i18nNumber(ACHIEVEMENTS.length)}</b>`) + `<div class="ph-stamps">` +
     ACHIEVEMENTS.map(a =>
-      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" data-ach="${escHtml(a.id)}" tabindex="0" aria-label="${escHtml(t(a.name) + '：' + t(a.desc))}">${sealName(t(a.name), 'achv')}<small>${railIcon(a.icon)}</small></span>`).join('') + '</div>';
+      `<span class="seal${ach.has(a.id) ? ' gold' : ' na'}" data-ach="${escHtml(a.id)}" tabindex="0" aria-label="${escHtml(i18nLabel(t(a.name), t(a.desc)))}">${sealName(t(a.name), 'achv')}<small>${railIcon(a.icon)}</small></span>`).join('') + '</div>';
 }
 // 完乘記錄列:桌面與 sheet 共用同一 markup,mode 決定排序(桌面隨排序鈕,sheet 固定 date 最新在前)
 function buildRideRows(rides, mode) {

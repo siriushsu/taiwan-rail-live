@@ -67,6 +67,7 @@
     "check-native-localizations": "node app/scripts/verify_native_localizations.mjs",
     "check-i18n": "node scripts/check_i18n.mjs",
     "check-i18n-browser": "node scripts/verify_i18n.mjs",
+    "check-achv-help": "node scripts/verify_achv_help.mjs",
     "check-notify": "node scripts/verify_notify_p0.mjs",
     "check-voice": "node scripts/check_voice.mjs",
     "check-engine": "ENGINE_GATE_STRICT=1 node scripts/verify_engine_adapter.mjs",
