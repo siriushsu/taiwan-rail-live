@@ -84,6 +84,20 @@ function addTrips(L, setName, adds, id, log) {
   }
 }
 
+// 例外日取消班次(官方那天沒開的):用「起站 + 發車時刻」逐班指名(照官方時刻表字面抄),只刪該日的例外 set。
+// 找不到或同刻多班 ⇒ 直接失敗:基準 set 換版了,這條要重新對官網,不能默默少刪或多刪。
+function dropTrips(trains, drops, id, setName) {
+  for (const d of drops) {
+    const from = d.from ?? 0;
+    for (const hm of d.deps) {
+      const dep = toSec(hm), hit = trains.filter(tr => tr[0] === from && depOf(tr) === dep);
+      if (hit.length !== 1) throw new Error(`special_ops ${id}: ${setName} 站 ${from} ${hm} 發車的班次有 ${hit.length} 班(要恰好 1 班才能取消)`);
+      trains.splice(trains.indexOf(hit[0]), 1);
+    }
+  }
+  return trains;
+}
+
 export function applySpecialOps(out, outPath, ROOT, log = console.log) {
   let cfg;
   try { cfg = JSON.parse(readFileSync(path.join(ROOT, 'data/special_ops.json'), 'utf8')); }
@@ -103,6 +117,7 @@ export function applySpecialOps(out, outPath, ROOT, log = console.log) {
       if (rule.thin) trains = thin(trains, toSec(rule.thin.from), rule.thin.headwayMin * 60);
       if (rule.suspend) trains = suspend(trains, toSec(rule.suspend.from), rule.suspend.branchFrom);
       if (rule.densify) trains = densify(trains, toSec(rule.densify.from), rule.densify.headwaySec);
+      if (rule.drop) trains = dropTrips(trains, rule.drop, op.id, op.setName);
       trains.sort((a, b) => depOf(a) - depOf(b) || endOf(a) - endOf(b));
       L.sets[op.setName] = trains;
       if (bk) L.kinds[op.setName] = trains.map(tr => kindOf.get(tr) ?? '0').join('');
