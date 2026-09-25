@@ -125,9 +125,31 @@ notes.洞口銜接 = checked;notes.洞口普查 = {洞口端點:portalEnds,相�
 
 // ── G4 隧道分類的分母 ──────────────────────────────────────────────
 const bores={};for(const e of Object.values(E))if(e.boreKind)bores[e.boreKind]=(bores[e.boreKind]||0)+1;
-if(!(bores.mountain>=250))failures.push(`G4 山岳隧道只有 ${bores.mountain||0} 條 way，地形分類可能整批失效`);
+// 2026-09-25 裁示 A4 之後山岳隧道由 302 條降為 230 條（高捷紅線 5 條、臺北臺鐵地下化 67 條改回都市地下）。
+if(!(bores.mountain>=220))failures.push(`G4 山岳隧道只有 ${bores.mountain||0} 條 way，地形分類可能整批失效`);
 if(!(bores.subsurface>=350))failures.push(`G4 都市地下段只有 ${bores.subsurface||0} 條 way`);
 notes.隧道分類 = bores;
+// 起伏 ≥20 m 卻判成都市地下的，只准是 A4 改判的那兩段：高出洞口 20 m 的取樣只占 1.8%（半屏山）與 3.6%（南港）。
+// 名單釘死，門檻或 DEM 一動就會紅；新命中要先人工確認現地。
+const SHALLOW_HILL_EXPECTED=[
+ // 高捷紅線
+ '462002035','462701171','838474612','838474614','911443379',
+ // 臺北臺鐵地下化
+ '111449037','1551465830','1551465831','1551465832','194118009','194118010','194118011','194118012','194118014','194118015','194118017','194118018','194118019','194118020','194118021','194118022','194118023','194118024','194118025','194118028','194118029','194118030','194118031','194118032','194118035','194118036','194118037','194118038','19792761','23403470','365993922','365993923','381111235','391706270','51420790','542501098','542501099','542501100','574543348','574543350','615600482','615600483','615600484','615600485','615600486','633685393','633685394','633685395','633685396','710692152','710692153','871108521','871108523','871112936','871112937','871112938','871112939','871809212','871809213','871809214','87192065','877532232','877532233','877532239','877532240','877532241','f9-taipei-east-bridge-0914'];
+const shallowHill=Object.entries(E).filter(([,e])=>e.boreKind==='subsurface'&&e.reliefM>=20).map(([id])=>id).sort();
+if(JSON.stringify(shallowHill)!==JSON.stringify([...SHALLOW_HILL_EXPECTED].sort()))failures.push(`G4 起伏 ≥20 m 卻判都市地下的有 ${shallowHill.length} 條，與 A4 裁示名單 ${SHALLOW_HILL_EXPECTED.length} 條不符——新命中要先人工確認現地`);
+// 分類對了還要看畫面：改判之前這兩段在平面地圖浮在地面上 +8 公尺，交會淨距再把新左營的平面臺鐵頂高 3.7 公尺。
+const shallowFlatMax=Math.max(...SHALLOW_HILL_EXPECTED.map(id=>Math.max(...(E[id]?.flatOffsets||[Infinity]))));
+if(!(shallowFlatMax<0))failures.push(`G4 A4 改判的地下段在平面地圖最高 ${shallowFlatMax.toFixed(2)}m，沒有降到地面下`);
+const XZY_AT=[120.3083,22.6887],XZY_TRA=['93484396','501182457','501190266','501190268','501190269','595516451','1061049301'];
+let xzyMax=-Infinity,xzyN=0;
+for(const id of XZY_TRA){const e=E[id],w=wayById.get(id);if(!e?.flatOffsets||!w){failures.push(`G4 新左營臺鐵 ${id} 不見了（來源重切了？）`);continue;}
+ const path=makePath(w.coordinates);
+ e.distances.forEach((s,i)=>{const [x,y]=path.at(Math.min(s,path.length)).coordinate;
+  if(Math.hypot((x-XZY_AT[0])*111320*Math.cos(XZY_AT[1]*Math.PI/180),(y-XZY_AT[1])*110574)<=250){xzyN++;xzyMax=Math.max(xzyMax,e.flatOffsets[i]);}});}
+if(!(xzyN>=100))failures.push(`G4 新左營紅線交會 250 公尺內只取到 ${xzyN} 個臺鐵取樣，量測失效`);
+if(!(xzyMax<=.01))failures.push(`G4 新左營平面臺鐵在紅線交會處被頂高 ${xzyMax.toFixed(2)}m`);
+notes.A4改判 = {名單:shallowHill.length,平面地圖最高:+shallowFlatMax.toFixed(2),新左營臺鐵最高:+xzyMax.toFixed(3),新左營取樣:xzyN};
 
 // ── G5 穿透地表的地下軌道，只留淺的 ────────────────────────────────
 // live-underground-3d 會清深度緩衝，畫在那一層的軌道看得穿地表。都市地下段要這個效果，
@@ -371,4 +393,4 @@ notes.露天縱坡最陡 = Object.fromEntries(Object.entries(steepest).map(([s,{
 
 console.log(notes);
 if(failures.length){console.log(failures);process.exit(1);}
-console.log('橋隧種類與顯示高度：反向改判、橋面高度、洞口銜接、分類分母、穿透門檻、露天縱坡、接縫、平面埋沒、平面浮空、隧道不畫與隧道證據皆通過');
+console.log('橋隧種類與顯示高度：反向改判、橋面高度、洞口銜接、分類分母與 A4 改判、穿透門檻、露天縱坡、接縫、平面埋沒、平面浮空、隧道不畫與隧道證據皆通過');

@@ -38,6 +38,12 @@ const tierOf=c=>c.kind==='bridge'?1:c.kind==='tunnel'?-1:0;
 // 兩者用 DEM 地形起伏區分，與 OSM 標記、官方橋隧圖資都不同源；門檻與
 // build_rail_structures_official.mjs 的 RELIEF_M 同一個 20 公尺，取樣理由見該檔。
 const MOUNTAIN_RELIEF_M=20;
+// 只看最高點，一小段靠山就會把整段拖成山岳隧道：高捷紅線 35.6 公里裡只有半屏山那 0.64 公里
+// （取樣 1.8%）高出洞口 20 公尺，臺北臺鐵地下化 55 公里裡只有南港那 1.99 公里（3.6%）。兩段都沿用
+// 洞口外高架的 +8 公尺，平面地圖整段浮在地面上，交會淨距再把新左營臺鐵、美麗島、高雄車站地下段頂高。
+// 2026-09-25 裁示 A4：高出洞口 20 公尺的取樣要占整段 5% 以上才算山岳隧道。全國低於 5% 的只有這兩段，
+// 下一段是 10%（高鐵 0.16 公里、10 個取樣），門檻落在兩群之間的空白。
+const MOUNTAIN_SHARE=.05;
 const dem=openRailDem(new URL('../',import.meta.url));
 let corridor,outdoor,tunnels,bores={mountain:0,subsurface:0};
 // 只靠 layer<0 被判成隧道、DEM 又找不到山的段：改判成平面，理由隨產物出去供回查。
@@ -64,7 +70,8 @@ for(const seed of tunnelSet){
  }
  const portalGround=[];for(const p of portals)portalGround.push(await dem.ground(p.r.w.coordinates[p.i]));
  const base=portalGround.length?portalGround.reduce((a,b)=>a+b,0)/portalGround.length:Math.min(...grounds);
- const reliefM=+(Math.max(...grounds)-base).toFixed(1),mountain=reliefM>=MOUNTAIN_RELIEF_M;
+ const reliefM=+(Math.max(...grounds)-base).toFixed(1),hillShare=grounds.filter(g=>+(g-base).toFixed(1)>=MOUNTAIN_RELIEF_M).length/grounds.length;
+ const mountain=reliefM>=MOUNTAIN_RELIEF_M&&hillShare>=MOUNTAIN_SHARE;
  // 只靠 layer<0 判成隧道的段，要地形站得住腳才留下來。
  // structure-kind.js 檔頭的原則是「layer 表達交叉上下序，不能單獨作為結構的證據」，橋的方向
  // 早就照做（只認 tags.bridge），隧道的方向一直沒有——於是「有道路從上面跨過去」的平地路段
@@ -74,9 +81,9 @@ for(const seed of tunnelSet){
  // 宜蘭線牡丹 474 公尺（兩端都接橋、起伏 7.1m）。全網 15 段 17.7 公里，全部是單條 way。
  // 判準用的是這裡本來就算好的兩個量，不引入新常數：明示標記（來源 tunnel=yes／location=underground
  // 或官方橋隧圖資判隧道）與 DEM 起伏。有山的（起伏 ≥20m）一律留著，所以三貂嶺那條只有 layer=-2
- // 的 372 公尺（起伏 235.9m）不受影響。
+ // 的 372 公尺（起伏 235.9m）不受影響。這裡看的是最高點，不是上面山岳隧道的占比門檻。
  const evidence=run.some(r=>r.w.tags?.tunnel==='yes'||r.w.tags?.location==='underground'||official[r.w.id]?.kind==='tunnel');
- if(!evidence&&!mountain){
+ if(!evidence&&reliefM<MOUNTAIN_RELIEF_M){
   for(const r of run){r.c.kind='surface';r.c.layerOnlyTunnel=true;r.c.reliefM=reliefM;}
   demoted.push({system:run[0].w.system,ways:run.map(r=>String(r.w.id)),reliefM,km:+(run.reduce((a,r)=>a+r.path.d.at(-1),0)/1000).toFixed(2)});
   continue;

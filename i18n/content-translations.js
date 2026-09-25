@@ -3274,3 +3274,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '高鐵左營站進站那段改回平面：3D 地圖不再把站區畫成高架橋，北邊的高架照舊（謝謝網友回報）': '高鉄左営駅に入る区間を地上に戻しました。3D地図で駅構内を高架橋として描かなくなり、北側の高架はそのままです（ご報告ありがとうございました）',
 });
+// 2026-09-25 高捷紅線與臺北臺鐵地下化改回地面下（裁示 A4）：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '3D 地圖上臺北車站的臺鐵列車不再畫在車站屋頂上，高捷紅線地下段也不再浮在地面上；新左營臺鐵與高雄輕軌被頂高的地方回到原位': "On the 3D map, TRA trains at Taipei Main Station are no longer drawn on top of the station roof, and the Kaohsiung Metro Red Line's underground section no longer floats above ground; the spots where the TRA at Xinzuoying and the Kaohsiung Light Rail were pushed up are back at their proper height.",
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '3D 地圖上臺北車站的臺鐵列車不再畫在車站屋頂上，高捷紅線地下段也不再浮在地面上；新左營臺鐵與高雄輕軌被頂高的地方回到原位': '3D地図で、台北駅の台鉄列車を駅の屋根の上に描かなくなり、高雄メトロ レッドラインの地下区間も地上に浮かなくなりました。新左営の台鉄と高雄ライトレールで持ち上がっていた箇所も元の高さに戻りました。',
+});
