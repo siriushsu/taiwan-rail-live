@@ -292,8 +292,11 @@ section('S17',async(b,engine)=>{const ctx=await b.newContext({viewport:{width:37
  try{await p.goto(PAGE);await p.waitForFunction(()=>window.viaductPreview?.state.ready,null,{timeout:90000});
   const s=await st(p);
   check(`${engine} S17 手機減少動態：不播放、門全開、有人正在上車`,s.running===false&&s.doors===1&&s.passengers?.boarding>=1,{running:s.running,doors:s.doors,passengers:s.passengers});
-  if(engine==='chromium'){const dir=path.join(OUT,'checkpoint-4');mkdirSync(dir,{recursive:true});const file=path.join(dir,'手機-減少動態.png');await p.screenshot({path:file});
-   check(`${engine} S17 手機截圖在且 >20 KB`,readFileSync(file).length>20*1024,readFileSync(file).length);}
+  // 09-26 驗收：ready 當下雨棚還沒開始淡（不透明度 1、目標 .25），約 0.3 s 後才淡完；截圖前後都要已經等於目標。
+  if(engine==='chromium'){const dir=path.join(OUT,'checkpoint-4');mkdirSync(dir,{recursive:true});const file=path.join(dir,'手機-減少動態.png');
+   await settled(p);const before=await st(p);await p.screenshot({path:file});const after=await st(p);
+   check(`${engine} S17 手機截圖在且 >20 KB`,readFileSync(file).length>20*1024,readFileSync(file).length);
+   check(`${engine} S17 手機截圖前後雨棚都已淡完（不透明度＝目標）`,[before,after].every(s=>s.canopyOpacity===s.canopyTarget),{before:[before.canopyOpacity,before.canopyTarget],after:[after.canopyOpacity,after.canopyTarget]});}
   check(engine+' S17 沒有 JS 錯誤',errors.length===0,errors);
  }finally{await ctx.close();}});
 
