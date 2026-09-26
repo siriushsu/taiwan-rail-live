@@ -127,5 +127,42 @@ if(on('T6')){
  }
 }
 
+if(on('T8')){
+ const plan=await import('../rail-3d/garage-people-plan.js'),{peopleInvariants,peopleChecks}=await import('./lib/people_invariants.mjs');
+ const pf=probe.platform,cars=[-4.2,0,4.2],doorY=pf.trackY-1.443*scale;
+ const doors=[-5.93,-2.47,-1.61,1.61,2.47,5.93].map((x,i)=>({id:'d'+i,x,y:doorY,inboard:Math.sign(cars.reduce((a,c)=>Math.abs(c-x)<Math.abs(a-x)?c:a)-x)}));
+ const v=peopleInvariants({plan,timetable:tt,doors,platform:pf,stops:60});
+ for(const [name,pass,detail]of peopleChecks(v,plan.PEOPLE.spacing))check('T8 '+name,pass,detail);
+ // 樓梯口小屋的門洞：上車者從門洞中線走出來，下車者走進去時整個人在門洞寬度內（不穿牆）。
+ const M=new THREE.Matrix4(),pos=new THREE.Vector3(),rot=new THREE.Quaternion(),scl=new THREE.Vector3();let hole=null;
+ for(const o of probe.group.children)if(o.isInstancedMesh&&o.material.name==='hut-doorway'){o.getMatrixAt(0,M);M.decompose(pos,rot,scl);hole={x:pos.x,half:scl.x/2};}
+ const p0=plan.planStop(0,{timetable:tt,doors,platform:pf}),R=plan.PEOPLE.radius;
+ const exits=p0.people.filter(q=>q.role!=='idle').map(q=>q.role==='board'?q.keys[0].x:q.keys[q.keys.length-1].x);
+ check('T8 乘客都從樓梯口小屋的門洞進出（不穿牆）',hole&&exits.every(x=>Math.abs(x-hole.x)<=hole.half-R),{hole,exits});
+ // 拉行李箱的人（帳本 Task 8 的注意與 Ruling）：箱子照計畫擺在右後方 T(−.35,−shoulder.y,0)·Ry(.35)；計畫的腿擺幅 .45 讓右腳往後擺時穿進箱子，
+ // 右手照計畫前後擺也會離開拉桿。用正式零件庫幾何、畫法模組的真實擺法走完一個步伐週期（64 格）：
+ // 腿與鞋的三角形不碰箱子（另把腿往箱子那側多推 0.02 當餘裕）、右手外框中心離拉桿頂（箱子最高點，同 P9 的量法）≤.05、腳掌仍前後擺 ≥.1。
+ // 正向對照：同一個偵測器套計畫原本的擺法（箱子 T(−.35,−shoulder.y,0)·Ry(.35)、右腿往後 Ry(.45)）必須抓到相交，證明偵測器分得出穿與不穿。
+ {const {gunzipSync}=await import('node:zlib'),{buildGarageParts}=await import('../rail-3d/garage-parts.js'),{personPose}=await import('../rail-3d/garage-people.js');
+  const pm=JSON.parse(readFileSync(new URL('../rail-3d/assets/garage-people-v1/people.json',import.meta.url),'utf8')),gz=gunzipSync(readFileSync(new URL('../rail-3d/assets/garage-people-v1/people.bin.gz',import.meta.url)));
+  const kit=buildGarageParts(pm,gz.buffer.slice(gz.byteOffset,gz.byteOffset+gz.byteLength));
+  const tris=(name,m,shift=0)=>{const a=kit.parts.get(name).geometry.getAttribute('position'),out=[];for(let i=0;i<a.count;i+=3)out.push([0,1,2].map(k=>new THREE.Vector3(a.getX(i+k),a.getY(i+k),a.getZ(i+k)).applyMatrix4(m).add(new THREE.Vector3(shift,0,0))));return out;};
+  const ray=new THREE.Ray(),hitP=new THREE.Vector3(),dir=new THREE.Vector3(),box=t=>new THREE.Box3().setFromPoints(t);
+  const edgeHit=(P,T)=>{for(let k=0;k<3;k++){const p=P[k],len=dir.subVectors(P[(k+1)%3],p).length();if(len<1e-12)continue;ray.set(p,dir.multiplyScalar(1/len));if(ray.intersectTriangle(T[0],T[1],T[2],false,hitP)&&hitP.distanceTo(p)<=len)return true;}return false;};
+  const hits=(A,B)=>{let n=0;const bb=B.map(box);for(const a of A){const ab=box(a);for(let j=0;j<B.length;j++)if(ab.intersectsBox(bb[j])&&(edgeHit(a,B[j])||edgeHit(B[j],a)))n++;}return n;};
+  const look={torso:'shirt',hair:'short',accessory:'suitcase',top:'#6f8fa8',bottom:'#3d4450',hairColor:'#2b2320',skin:'#e9c8a8',accent:'#c9463d',scale:1};
+  let collide=0,margin=0,far=0,footMin=Infinity,footMax=-Infinity;
+  for(let k=0;k<64;k++){const pose=personPose({id:'suitcase',walking:true,stride:k/64*.5,pose:'stand',look},kit),get=(n,c=0)=>pose.find(e=>e.name===n&&e.copy===c)?.matrix;
+   const cs=tris('acc-suitcase',get('acc-suitcase')),top=cs.flat().reduce((a,v)=>v.z>a.z?v:a),hand=box(tris('hand',get('hand',1)).flat()).getCenter(new THREE.Vector3());
+   const legs=c=>[...tris('leg',get('leg',c)),...tris('shoe',get('shoe',c))];
+   collide+=hits([...legs(0),...legs(1)],cs);margin+=hits([...legs(0),...legs(1)].map(t=>t.map(v=>v.clone().add(new THREE.Vector3(-.02,0,0)))),cs);far=Math.max(far,hand.distanceTo(top));
+   const foot=box(tris('shoe',get('shoe',1)).flat());footMin=Math.min(footMin,foot.min.x);footMax=Math.max(footMax,foot.min.x);}
+  const planLeg=new THREE.Matrix4().makeTranslation(...kit.parts.get('leg').pivot.map((v,i)=>i===1?-v:v)).multiply(new THREE.Matrix4().makeRotationY(.45));
+  const planCase=new THREE.Matrix4().makeTranslation(-.35,-kit.rig.shoulder[1],0).multiply(new THREE.Matrix4().makeRotationY(.35)),control=hits([...tris('leg',planLeg),...tris('shoe',planLeg)],tris('acc-suitcase',planCase));
+  const pose0=personPose({id:'suitcase',walking:false,stride:0,pose:'stand',look},kit),caseMinZ=Math.min(...tris('acc-suitcase',pose0.find(e=>e.name==='acc-suitcase').matrix).flat().map(v=>v.z));
+  check('T8 拉行李箱的人走路：腳與鞋不穿進箱子（含 0.02 餘裕）、右手一直握在拉桿頂（≤.05）、箱底著地（±.02）、腳掌仍前後擺 ≥.1；對照組（計畫原擺法）抓得到相交',collide===0&&margin===0&&far<=.05&&Math.abs(caseMinZ)<=.02&&footMax-footMin>=.1&&control>0,{collide,margin,handToTop:+far.toFixed(4),caseMinZ:+caseMinZ.toFixed(4),footSwing:+(footMax-footMin).toFixed(3),control});
+  kit.dispose();}
+}
+
 probe.dispose();
 const fails=results.filter(r=>!r.pass).length;console.log(`共 ${results.length} 項：FAIL ${fails}`);if(fails)process.exitCode=1;

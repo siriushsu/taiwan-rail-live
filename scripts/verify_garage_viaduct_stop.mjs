@@ -236,6 +236,71 @@ section('S12',async(b,engine)=>{const {p,ctx,errors}=await open(b);try{
  check(engine+' S12 沒有 JS 錯誤',errors.length===0,errors);
 }finally{await ctx.close();}});
 
+// S13 乘客不變式（12.7）：用頁面實際量到的停站車門跑同一份劇本判準（Node 那份 T8 用的是 probe 的車門）。
+section('S13',async(b,engine)=>{const {p,ctx,errors}=await open(b);try{
+ const g=await p.evaluate(()=>({doors:viaductPreview.passengers.stopDoors,platform:viaductPreview.platform,L:viaductPreview.state.pathLength,v:viaductPreview.state.speed}));
+ check(`${engine} S13 頁面量到 6 扇月台側停站車門`,g.doors.length===6,g.doors);
+ const plan=await import('../rail-3d/garage-people-plan.js'),{peopleInvariants,peopleChecks}=await import('./lib/people_invariants.mjs');
+ const v=peopleInvariants({plan,timetable:createStopTimetable({pathLength:g.L,speed:g.v}),doors:g.doors,platform:g.platform,stops:12});
+ for(const [name,pass,detail]of peopleChecks(v,plan.PEOPLE.spacing))check(engine+' S13 '+name,pass,detail);
+ check(engine+' S13 沒有 JS 錯誤',errors.length===0,errors);
+}finally{await ctx.close();}});
+
+// S14 乘客看得到、夜裡被月台燈照亮（12.7）：夜晚看月台、展示時刻。有人與沒人兩張的差異像素 ≥400；關掉月台燈後，同一批像素暗 8 以上。
+section('S14',async(b,engine)=>{const {p,ctx,errors}=await open(b);try{
+ await p.click('button[data-period="night"]');await cam(p,{view:'platform'});
+ const q=await p.evaluate(()=>viaductPreview.passengers);await at(p,q.showcaseTime);
+ await shotIn(p,'pOn');await p.evaluate(()=>viaductPreview.peopleVisible(false));await shotIn(p,'pOff');await p.evaluate(()=>viaductPreview.peopleVisible(true));
+ await p.evaluate(()=>viaductPreview.lampsVisible(false));await shotIn(p,'lOff');await p.evaluate(()=>viaductPreview.lampsVisible(true));
+ const m1=await p.evaluate(()=>__px.mean('pOn',null,['pOn','pOff'])),m2=await p.evaluate(()=>__px.mean('lOff',null,['pOn','pOff']));
+ check(`${engine} S14 夜晚看月台：乘客佔 ≥400 個像素`,m1.n>=400,{n:m1.n});
+ check(`${engine} S14 關掉月台燈，乘客那些像素暗 8 以上（被月台燈照亮）`,m1.l>m2.l+8,{lampsOn:+m1.l.toFixed(1),lampsOff:+m2.l.toFixed(1)});
+ check(engine+' S14 沒有 JS 錯誤',errors.length===0,errors);
+}finally{await ctx.close();}});
+
+// S15 長跑可重現（Review Focus 5）：跳到三小時後、跳回開頭、再跳回同一刻，畫面逐像素相同、乘客狀態相同。
+section('S15',async(b,engine)=>{const {p,ctx,errors}=await open(b);try{
+ await cam(p,{view:'platform'});
+ await at(p,10800.3);await shotIn(p,'a');const ja=JSON.stringify(await p.evaluate(()=>viaductPreview.passengers));
+ await at(p,50);
+ await at(p,10800.3);await shotIn(p,'b');const jb=JSON.stringify(await p.evaluate(()=>viaductPreview.passengers));
+ const d=await p.evaluate(()=>__px.diff('a','b',null,0));
+ check(`${engine} S15 t=10800.3 跳走再跳回：畫面逐像素相同、乘客狀態相同`,d===0&&ja===jb,{diff:d,a:ja.slice(0,160),b:jb.slice(0,160)});
+ check(engine+' S15 沒有 JS 錯誤',errors.length===0,errors);
+}finally{await ctx.close();}});
+
+// S16 最擠時的效能（12.10）：夜晚跟車，在第 3 站前後 ±30 秒每 0.5 秒找月台上人最多的一刻；那一刻整頁 draw calls ≤125、三角形 ≤22 萬，乘客 ≤17 個 draw call、≤1 萬個三角形。
+section('S16',async(b,engine)=>{const {p,ctx,errors}=await open(b);try{
+ const T=await p.evaluate(()=>viaductPreview.timetable);
+ await p.click('button[data-period="night"]');await cam(p,{view:'train'});
+ const peak=await p.evaluate(lap=>{let best={t:0,on:-1};for(let u=-30;u<30;u+=.5){const t=3*lap+u;viaductPreview.setTime(t);const on=viaductPreview.passengers.onPlatform;if(on>best.on)best={t,on};}return best;},T.lap);
+ await at(p,peak.t);
+ const r=await p.evaluate(()=>{viaductPreview.render();const s=viaductPreview.state,q=viaductPreview.passengers;return{drawCalls:s.drawCalls,triangles:s.triangles,people:{drawCalls:q.drawCalls,triangles:q.triangles}};});
+ check(`${engine} S16 最擠時：整頁 draw calls ≤125、三角形 ≤22 萬，乘客 draw calls ≤17、三角形 ≤1 萬`,peak.on>0&&r.drawCalls<=125&&r.triangles<=220000&&r.people.drawCalls<=17&&r.people.triangles<=10000,{peak,...r});
+ check(engine+' S16 沒有 JS 錯誤',errors.length===0,errors);
+}finally{await ctx.close();}});
+
+// S17 手機、減少動態（§7、12.8、12.9）：一打開就停在展示時刻——不播放、門全開、有人正在上車。
+// 不用 open()：它會把播放中的頁面按暫停，那樣「減少動態時一開始就不播放」就量不到了。
+section('S17',async(b,engine)=>{const ctx=await b.newContext({viewport:{width:375,height:812},reducedMotion:'reduce',isMobile:true,hasTouch:true}),p=await ctx.newPage(),errors=[];
+ p.on('pageerror',e=>errors.push(String(e)));p.on('console',m=>{if(m.type()==='error'&&!/\/favicon\.ico(\?|$)/.test(m.location()?.url||''))errors.push(m.text());});
+ try{await p.goto(PAGE);await p.waitForFunction(()=>window.viaductPreview?.state.ready,null,{timeout:90000});
+  const s=await st(p);
+  check(`${engine} S17 手機減少動態：不播放、門全開、有人正在上車`,s.running===false&&s.doors===1&&s.passengers?.boarding>=1,{running:s.running,doors:s.doors,passengers:s.passengers});
+  if(engine==='chromium'){const dir=path.join(OUT,'checkpoint-4');mkdirSync(dir,{recursive:true});const file=path.join(dir,'手機-減少動態.png');await p.screenshot({path:file});
+   check(`${engine} S17 手機截圖在且 >20 KB`,readFileSync(file).length>20*1024,readFileSync(file).length);}
+  check(engine+' S17 沒有 JS 錯誤',errors.length===0,errors);
+ }finally{await ctx.close();}});
+
+// S18 檢查點 4 截圖：白天、夜晚 × 看月台、跟車、全景，都在展示時刻（有人正在上車）。
+section('S18',async(b,engine)=>{const {p,ctx,errors}=await open(b);try{
+ const dir=path.join(OUT,'checkpoint-4');mkdirSync(dir,{recursive:true});const q=await p.evaluate(()=>viaductPreview.passengers),sizes=[];
+ for(const period of ['day','night']){await p.click(`button[data-period="${period}"]`);
+  for(const view of ['platform','train','world']){await cam(p,{view});await at(p,q.showcaseTime);const file=path.join(dir,`${period}-${view}.png`);await p.screenshot({path:file});sizes.push([period+'-'+view,readFileSync(file).length]);}}
+ check(`${engine} S18 檢查點 4 六張截圖都在且各 >20 KB`,sizes.length===6&&sizes.every(([,n])=>n>20*1024),sizes);
+ check(engine+' S18 沒有 JS 錯誤',errors.length===0,errors);
+}finally{await ctx.close();}},['chromium']);
+
 // ── 各段（Task 3：S1–S6；Task 6：S7–S12；Task 8：S13–S18）一律插在這一行之上 ──
 for(const [engine,launch] of Object.entries(ENGINES)){const b=await launch();
  try{for(const s of SECTIONS)if(on(s.id)&&s.engines.includes(engine)){try{await s.fn(b,engine);}catch(e){check(engine+' '+s.id+' 執行沒有例外',false,String(e&&e.stack||e));}}}

@@ -143,7 +143,7 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   check(engine+' 無 JS／WebGL 錯誤',errors.length===0,errors);
   await p.close();
 
-  const mobile=await b.newPage({viewport:{width:375,height:900},reducedMotion:'reduce',isMobile:true,hasTouch:true});await mobile.goto(URL);await mobile.waitForFunction(()=>window.viaductPreview?.state.ready,null,{timeout:90000});check(engine+' 手機預設跟車且減少動態停止',!(await state(mobile)).running&&(await state(mobile)).view==='train'&&(await state(mobile)).doors===1);await mobile.evaluate(()=>viaductPreview.setTime(4));await mobile.screenshot({path:`${OUT}/${engine}-mobile.png`,fullPage:true});await mobile.close();
+  const mobile=await b.newPage({viewport:{width:375,height:900},reducedMotion:'reduce',isMobile:true,hasTouch:true});await mobile.goto(URL);await mobile.waitForFunction(()=>window.viaductPreview?.state.ready,null,{timeout:90000});check(engine+' 手機預設跟車且減少動態停止',!(await state(mobile)).running&&(await state(mobile)).view==='train'&&(await state(mobile)).doors===1&&(await state(mobile)).passengers?.boarding>=1);await mobile.evaluate(()=>viaductPreview.setTime(4));await mobile.screenshot({path:`${OUT}/${engine}-mobile.png`,fullPage:true});await mobile.close();
  }catch(e){check(engine+' 驗證流程',false,e.stack);}finally{await b.close();}
 }
 writeFileSync(OUT+'/results.json',JSON.stringify(results,null,2));

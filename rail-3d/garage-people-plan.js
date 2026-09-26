@@ -1,0 +1,75 @@
+// 月台乘客劇本：純函式，Node 與瀏覽器共用。每一站（圈）一份劇本，以站號當亂數種子，同一站號永遠同一份。
+// 座標是世界單位；月台由「深度」描述：depth＝從月台邊往月台內走的距離（0＝月台邊，負值＝跨過間隙進車內）。
+export const PEOPLE=Object.freeze({walk:.6,radius:.12,spacing:.3,exitGap:.9,clear:1.6,boardGap:.9,emerge:34,arriveBy:1,
+ waitDepth:.45,boardLaneDepth:1.3,laneDepth:.95,laneStep:.32,columnStep:.32,spotOffsets:[-.55,.55,-.91,.91],spotClear:.34,maxPerDoor:3,maxAlightPerDoor:2,maxAlightDoors:4,idle:3});
+const TORSOS=['shirt','jacket','hoodie','dress'],HAIRS=['short','long','bun'],ACCESSORIES=[null,'backpack','suitcase','handbag','hat'];
+const TOPS=['#d9c7a3','#6f8fa8','#b8574a','#e8e3d6','#4e5d6c','#8a9a5b','#c98f5d','#7b6a8f'],BOTTOMS=['#3d4450','#6b5a48','#2f3a4c','#8c8374'];
+const HAIR_COLORS=['#2b2320','#4a3426','#1f1f24','#7a5a3a'],SKINS=['#e9c8a8','#d6a987','#b98663','#f1d3b8'],ACCENTS=['#c9463d','#2f6f8f','#e0b44c','#3b3b3b'];
+export function mulberry32(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;};}
+const pick=(r,list)=>list[Math.floor(r()*list.length)];
+function makeLook(r){const child=r()<.14;return{torso:pick(r,TORSOS),hair:pick(r,HAIRS),accessory:child?null:pick(r,ACCESSORIES),top:pick(r,TOPS),bottom:pick(r,BOTTOMS),hairColor:pick(r,HAIR_COLORS),skin:pick(r,SKINS),accent:pick(r,ACCENTS),scale:child?.7:.94+r()*.12};}
+// 路徑：從 start 出發、依序走過 points；每段依步行速度排時間。keys 帶累積距離 d（走路擺動用）與停下時的朝向 face。
+function route(t0,start,points,speed){
+ const keys=[{t:t0,x:start[0],y:start[1],d:0,face:0}];
+ for(const [x,y]of points){const a=keys[keys.length-1],len=Math.hypot(x-a.x,y-a.y);a.face=len>0?Math.atan2(y-a.y,x-a.x):a.face;keys.push({t:a.t+len/speed,x,y,d:a.d+len,face:a.face});}
+ return keys;
+}
+function hold(keys,until,face){const a=keys[keys.length-1];if(face!==undefined)a.face=face;if(until>a.t)keys.push({...a,t:until});return keys;}
+export function personAt(p,t){
+ if(t<p.appear||t>=p.vanish)return null;
+ const k=p.keys;let i=0;while(i<k.length-2&&t>=k[i+1].t)i++;
+ const a=k[i],b=k[i+1]??a,span=b.t-a.t,f=span>0?Math.min(1,Math.max(0,(t-a.t)/span)):0,moving=span>0&&(b.x!==a.x||b.y!==a.y);
+ const x=a.x+(b.x-a.x)*f,y=a.y+(b.y-a.y)*f;
+ return{id:p.id,x,y,heading:moving?Math.atan2(b.y-a.y,b.x-a.x):a.face,walking:moving,stride:a.d+Math.hypot(x-a.x,y-a.y),pose:p.pose||'stand',look:p.look};
+}
+// 走道：上天橋那一段的直行道（柱距 0.32、避開擋在天橋前的長椅），由右往左排。
+function columnsFor(platform,R){
+ const {bridge,obstacles}=platform,front=Math.min(platform.outer,platform.edge),back=Math.max(platform.outer,platform.edge);
+ let hi=bridge.x1-R-.03;for(const o of obstacles)if(o.x1>bridge.x0&&o.x0<bridge.x1&&o.y1>front&&o.y0<back)hi=Math.min(hi,o.x0-R-.03);
+ const lo=bridge.x0+R+.03,cols=[];for(let x=hi;x>=lo-1e-9;x-=PEOPLE.columnStep)cols.push(x);return cols;
+}
+export function planStop(stop,{timetable,doors,platform,seed=20260924}){
+ const P=PEOPLE,R=P.radius,r=mulberry32(seed^Math.imul(stop+1,0x9E3779B1)),T0=stop*timetable.lap,ph=timetable.phases;
+ const out=Math.sign(platform.outer-platform.edge),Y=depth=>platform.edge+out*depth,openEnd=T0+ph.openEnd,closeStart=T0+ph.closeStart;
+ const cols=columnsFor(platform,R),xIn=(cols[0]+cols[cols.length-1])/2,hutY=platform.hutFront,hideY=platform.hutFront+out*.5;
+ const B=4+Math.floor(r()*(Math.min(8,12-P.idle-2)-4+1)),A=2+Math.floor(r()*(Math.min(6,12-P.idle-B)-2+1));
+ const people=[],byDoor=new Map(doors.map(d=>[d.id,{door:d,alight:[],board:[],spots:[]}]));
+ // 候車點：門兩側、黃線後；離任何一扇門的中線與別的候車點都 ≥0.34（下車者沿門的中線走出來）。
+ const taken=[];for(const s of byDoor.values())for(const off of P.spotOffsets){const x=s.door.x+off;
+  if(x<platform.xMin+R+.2||x>platform.xMax-R-.2)continue;if(doors.some(d=>Math.abs(d.x-x)<P.spotClear)||taken.some(v=>Math.abs(v-x)<P.spotClear))continue;taken.push(x);s.spots.push(x);}
+ const order=[...byDoor.values()];for(let i=order.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
+ // 下車：最多 4 扇門、每門 ≤2 人；第一輪每門 1～2 人，不夠再把只下 1 人的門補到 2 人。
+ let left=A,used=0;for(const s of order){if(!left||used===P.maxAlightDoors)break;const n=Math.min(left,P.maxAlightPerDoor,1+Math.floor(r()*2));for(let k=0;k<n;k++)s.alight.push(k);left-=n;used++;}
+ for(const s of order){if(!left)break;if(s.alight.length===1){s.alight.push(1);left--;}}
+ // 上車：依序填各門的候車點，每門 ≤3 人。
+ let need=B;for(let pass=0;pass<P.maxPerDoor&&need;pass++)for(const s of order){if(!need)break;if(s.board.length<Math.min(P.maxPerDoor,s.spots.length)&&s.board.length===pass){s.board.push(s.spots[pass]);need--;}}
+ // 下車者的走道：天橋左右兩群分開、近的門走靠軌道的走道與靠內側的直行道，路線不交叉。
+ const alightDoors=[...byDoor.values()].filter(s=>s.alight.length),hi=cols[0];
+ const right=alightDoors.filter(s=>s.door.x>hi).sort((a,b)=>a.door.x-b.door.x),leftGroup=alightDoors.filter(s=>s.door.x<=hi).sort((a,b)=>b.door.x-a.door.x);
+ right.forEach((s,i)=>{s.column=cols[right.length-1-i];s.lane=i;});leftGroup.forEach((s,i)=>{s.column=cols[right.length+i];s.lane=i;});
+ let id=0;const inside=d=>[d.x,d.y-out*.12],passage=d=>[d.x+d.inboard*.22,d.y-out*.12],sill=d=>[d.x,Y(.05)];
+ let firstBoard=null;
+ for(const s of byDoor.values()){const d=s.door;let lastExit=-Infinity;
+  for(const k of s.alight){const exit=openEnd+k*P.exitGap,start=passage(d),t0=exit-.22/P.walk,laneY=Y(P.laneDepth+s.lane*P.laneStep);
+   const keys=route(t0,start,[inside(d),sill(d),[d.x,laneY],[s.column,laneY],[s.column,platform.outer],[s.column,hutY],[s.column,hideY]],P.walk);
+   people.push({id:'s'+stop+'-'+id++,stop,role:'alight',door:d.id,look:makeLook(r),appear:t0,vanish:keys[keys.length-1].t,keys});lastExit=Math.max(lastExit,exit);}
+  const boardStart=Number.isFinite(lastExit)?lastExit+P.clear:openEnd+.3;
+  s.board.forEach((x,j)=>{const t=boardStart+j*P.boardGap;s.boardTimes=(s.boardTimes||[]).concat(t);});
+ }
+ // 進站前：候車者由遠到近陸續從樓梯口小屋走出來，站到候車點面向軌道。
+ const boarders=[];for(const s of byDoor.values())s.board.forEach((x,j)=>boarders.push({s,x,j,len:Math.abs(x-xIn)+Math.abs(Y(P.boardLaneDepth)-hutY)}));
+ boarders.sort((a,b)=>b.len-a.len);let emerge=T0-P.emerge;const faceTrack=Math.atan2(-out,0);
+ for(const b of boarders){const d=b.s.door,waitY=Y(P.waitDepth),laneY=Y(P.boardLaneDepth),t0=emerge;emerge+=1.2+r()*1.8;
+  const keys=route(t0,[xIn,hideY],[[xIn,hutY],[xIn,laneY],[b.x,laneY],[b.x,waitY]],P.walk),arrived=keys[keys.length-1].t,go=b.s.boardTimes[b.j];
+  hold(keys,go,faceTrack);const base=keys[keys.length-1].d,board=route(go,[b.x,waitY],[sill(d),inside(d),passage(d)],P.walk);for(const k of board.slice(1)){k.d+=base;keys.push(k);}
+  const person={id:'s'+stop+'-'+id++,stop,role:'board',door:d.id,look:makeLook(r),appear:t0,vanish:keys[keys.length-1].t,keys,arrived,boardAt:go};people.push(person);
+  if(!firstBoard||go<firstBoard.boardAt)firstBoard=person;}
+ const showcaseTime=firstBoard?(firstBoard.boardAt+firstBoard.vanish)/2:T0+ph.openEnd+1;
+ return{stop,people,showcaseTime,counts:{board:boarders.length,alight:people.filter(p=>p.role==='alight').length,idle:P.idle},closeStart,openEnd};
+}
+// 不搭車的人：長椅上坐兩位、站名牌前站一位；整天都在，不隨站號變。
+export function idlePeople(platform,seed=20260924){
+ const r=mulberry32(seed^0x51ED27),out=Math.sign(platform.outer-platform.edge),faceTrack=Math.atan2(-out,0),seats=platform.benches.slice(0,2),sign=platform.signs[1]??platform.signs[0];
+ const at=(x,y,face,pose,i)=>({id:'idle-'+i,role:'idle',pose,look:makeLook(r),appear:-Infinity,vanish:Infinity,keys:[{t:-Infinity,x,y,d:0,face}]});
+ return[at(seats[0].x-.35,seats[0].y,faceTrack,'sit',0),at(seats[1].x+.35,seats[1].y,faceTrack,'sit',1),at(sign.x+.32,sign.y-out*.34,Math.atan2(out,0),'stand',2)];
+}

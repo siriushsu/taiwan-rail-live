@@ -1,12 +1,13 @@
 import * as THREE from '../../rail-3d/vendor/three.module.js';
 import {createScene,THEMES} from '../../rail-3d/garage-scenes/viaduct.js?revision=stop-0924';
-import {loadGarageModel,createConsist} from '../../rail-3d/garage-model.js?revision=doors-0924';
+import {loadGarageModel,createConsist,loadGarageParts} from '../../rail-3d/garage-model.js?revision=doors-0924';
+import {createPeople} from '../../rail-3d/garage-people.js?revision=people-0924';
 import {createTerrainFollower} from '../../rail-3d/garage-scenes/consist-3d.js';
 import {createStopTimetable} from '../../rail-3d/garage-scenes/stop-timetable.js?revision=stop-0924';
 const canvas=document.querySelector('#scene'),loading=document.querySelector('#loading');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const SPEED=2.1; // 巡航時每秒沿路徑前進的弧長；位置一律由停站時刻表從時間求出（setTime 與逐幀播放同一條路）。
-let follow3D,renderer,environment,primary,train,viaduct,tt,stop,raf=0,last=0,time=0,distance=0,period='day',view=matchMedia('(max-width:800px)').matches?'train':'world',running=!reduced.matches,zoom=1,span=1,yaw=-1.12,elevation=.58,disposed=false,ready=false,draws=0;
+let follow3D,renderer,environment,primary,train,viaduct,tt,stop,people=null,stopDoors=[],raf=0,last=0,time=0,distance=0,period='day',view=matchMedia('(max-width:800px)').matches?'train':'world',running=!reduced.matches,zoom=1,span=1,yaw=-1.12,elevation=.58,disposed=false,ready=false,draws=0;
 const scene=new THREE.Scene(),camera=new THREE.OrthographicCamera(-40,40,30,-30,.1,400);camera.up.set(0,0,1);
 const focus=new THREE.Vector3(),pan=new THREE.Vector3(),target=new THREE.Vector3(),sun=new THREE.DirectionalLight('#fff1cf',3.2),hemi=new THREE.HemisphereLight('#c1dce7','#7b8663',2.1);
 sun.position.set(-25,-30,45);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-42,right:42,top:35,bottom:-35,near:1,far:140});sun.shadow.normalBias=.035;sun.shadow.bias=-.0001;scene.add(sun,hemi,sun.target);
@@ -36,7 +37,7 @@ function draw(dt=0){
  stop=tt.at(time);distance=stop.distance;
  viaduct.update(time,period);follow3D(viaduct.path,distance);train.updateParts?.();
  // 車燈先更新：門廳透光讀的是這一幀的窗燈強度。
- train.lighting.update(period,1);train.doors?.update(stop.doors,platformNormal);
+ train.lighting.update(period,1);train.doors?.update(stop.doors,platformNormal);people?.update(time);
  const rect=canvas.getBoundingClientRect(),aspect=rect.width/Math.max(1,rect.height);
  if(view==='train'){target.set(0,0,0);for(const c of train.cars)target.add(c.car.position);target.multiplyScalar(1/train.cars.length);target.z+=1.4;}else if(view==='platform'){const pf=viaduct.platform;target.set(1.6,pf.edge-.4,pf.top+.45);}else target.set(0,1.5,2.6);
  focus.copy(target).add(pan);
@@ -68,17 +69,24 @@ canvas.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','-'
 const observer=new ResizeObserver(resize);observer.observe(canvas);
 document.addEventListener('visibilitychange',()=>{last=0;if(document.hidden){cancelAnimationFrame(raf);raf=0;}else schedule();});
 reduced.addEventListener('change',()=>{if(reduced.matches){running=false;controls();schedule();}});
-function dispose(){if(disposed)return;disposed=true;ready=false;cancelAnimationFrame(raf);observer.disconnect();train?.dispose();primary?.dispose();viaduct?.dispose();environment?.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();renderer?.dispose();}
+function dispose(){if(disposed)return;disposed=true;ready=false;cancelAnimationFrame(raf);observer.disconnect();people?.dispose();train?.dispose();primary?.dispose();viaduct?.dispose();environment?.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();renderer?.dispose();}
 window.addEventListener('pagehide',dispose);window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 try{
  renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();dispose();loading.hidden=false;loading.replaceChildren(document.createTextNode('畫面暫時中斷，請重新開啟場景。'));const b=document.createElement('button');b.textContent='重新開啟';b.onclick=()=>location.reload();loading.append(b);});
  const studio=new THREE.Scene();studio.background=new THREE.Color('#9dafb0');const pmrem=new THREE.PMREMGenerator(renderer);environment=pmrem.fromScene(studio,.1);scene.environment=environment.texture;pmrem.dispose();
- viaduct=createScene();scene.add(viaduct.group);tt=createStopTimetable({pathLength:viaduct.path.length,speed:SPEED});if(reduced.matches)time=tt.showcase;stop=tt.at(time);primary=await loadGarageModel('emu3000');if(disposed){primary.dispose();throw Error('disposed');}train=await createConsist('emu3000',primary);if(disposed){train.dispose();throw Error('disposed');}scene.add(train.root);train.root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+ viaduct=createScene();scene.add(viaduct.group);tt=createStopTimetable({pathLength:viaduct.path.length,speed:SPEED});stop=tt.at(time);primary=await loadGarageModel('emu3000');if(disposed){primary.dispose();throw Error('disposed');}train=await createConsist('emu3000',primary);if(disposed){train.dispose();throw Error('disposed');}scene.add(train.root);train.root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
  platformNormal.set(0,Math.sign(viaduct.platform.edge-viaduct.platform.trackY),0);train.setContactWire?.(viaduct.contactWireZ);
- follow3D=createTerrainFollower(train);ready=true;loading.hidden=true;setView(view);setTheme(period);controls();resize();draw();schedule();
+ follow3D=createTerrainFollower(train);
+ // 乘客用停站時的月台側車門：把車放到 s=0、門關著，量每扇門的世界座標與「往車廂中心」的方向。
+ follow3D(viaduct.path,viaduct.path.length);train.updateParts?.();train.doors?.update(0,platformNormal);scene.updateMatrixWorld(true);
+ stopDoors=train.doors?train.doors.points('platform').map(p=>({id:p.id,x:p.point.x,y:p.point.y,inboard:Math.sign(p.car.car.position.x-p.point.x)})):[];
+ const kit=await loadGarageParts(new URL('../../rail-3d/assets/garage-people-v1/people.json',import.meta.url));if(disposed){kit.dispose();throw Error('disposed');}
+ people=createPeople({kit,timetable:tt,doors:stopDoors,platform:viaduct.platform,scale:1.25/primary.size.y});scene.add(people.group);
+ if(reduced.matches){time=people.plan(0).showcaseTime;stop=tt.at(time);}
+ ready=true;loading.hidden=true;setView(view);setTheme(period);controls();resize();draw();schedule();
  window.viaductPreview={
-  get state(){return{ready,lighting:train.lighting.state,period,view,running,pan:{x:pan.x,y:pan.y},distance,time,phase:stop.phase,lap:stop.lap,doors:stop.doors,currentSpeed:stop.speed,canopyOpacity:viaduct.canopyOpacity,canopyTarget:canopyGoal,zoom,draws,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},poses:train.cars.map(c=>({id:c.id,x:c.car.position.x,y:c.car.position.y,z:c.car.position.z,heading:c.heading,pitch:c.pitch,offset:c.offset,length:c.length})),trainLength:train.length,pathLength:viaduct.path.length,params:viaduct.params,speed:SPEED, bounds:train.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),ps=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const q=new THREE.Vector3(x,y,z).project(camera);ps.push([(q.x+1)*canvas.width/2,(1-q.y)*canvas.height/2]);}return{left:Math.min(...ps.map(p=>p[0])),right:Math.max(...ps.map(p=>p[0])),top:Math.min(...ps.map(p=>p[1])),bottom:Math.max(...ps.map(p=>p[1]))};})};},
+  get state(){return{ready,lighting:train.lighting.state,period,view,running,pan:{x:pan.x,y:pan.y},distance,time,phase:stop.phase,lap:stop.lap,doors:stop.doors,currentSpeed:stop.speed,canopyOpacity:viaduct.canopyOpacity,canopyTarget:canopyGoal,passengers:people?.state??null,zoom,draws,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},poses:train.cars.map(c=>({id:c.id,x:c.car.position.x,y:c.car.position.y,z:c.car.position.z,heading:c.heading,pitch:c.pitch,offset:c.offset,length:c.length})),trainLength:train.length,pathLength:viaduct.path.length,params:viaduct.params,speed:SPEED, bounds:train.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),ps=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const q=new THREE.Vector3(x,y,z).project(camera);ps.push([(q.x+1)*canvas.width/2,(1-q.y)*canvas.height/2]);}return{left:Math.min(...ps.map(p=>p[0])),right:Math.max(...ps.map(p=>p[0])),top:Math.min(...ps.map(p=>p[1])),bottom:Math.max(...ps.map(p=>p[1]))};})};},
   sample:s=>viaduct.path.sample(s),
   project:p=>{const q=new THREE.Vector3(...p).project(camera);return{x:(q.x+1)*canvas.width/2,y:(1-q.y)*canvas.height/2};},
   setTime:t=>{time=t;draw(0);schedule();},render:()=>draw(0),dispose,
@@ -90,10 +98,13 @@ try{
   platform:viaduct.platform,
   cars:()=>train.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.body);return{id:c.id,x:c.car.position.x,y:c.car.position.y,heading:c.heading,length:c.length,min:b.min.toArray(),max:b.max.toArray()};}),
   sill:()=>viaduct.path.sample(0).z+(primary.doors?.threshold??.921)*1.25/primary.size.y,
-  isolate:on=>{viaduct.group.visible=!on;ground.visible=!on;scene.background=on?new THREE.Color('#ff00ff'):new THREE.Color(THEMES[period].background);draw(0);},
+  isolate:on=>{viaduct.group.visible=!on;ground.visible=!on;people?.setVisible(!on);scene.background=on?new THREE.Color('#ff00ff'):new THREE.Color(THEMES[period].background);draw(0);},
   pantographs:()=>train.pantographState?.()??[],
   setContactWire:z=>{train.setContactWire?.(z);draw(0);},
   contactWireZ:viaduct.contactWireZ,
-  wireBox:()=>{const b=new THREE.Box3().setFromObject(viaduct.group.getObjectByName('contact-wire'));return{min:b.min.toArray(),max:b.max.toArray()};}
+  wireBox:()=>{const b=new THREE.Box3().setFromObject(viaduct.group.getObjectByName('contact-wire'));return{min:b.min.toArray(),max:b.max.toArray()};},
+  get passengers(){return people?{...people.state,stopDoors,showcaseTime:people.plan(0).showcaseTime}:null;},
+  peopleVisible:v=>{people?.setVisible(v);draw(0);},
+  lampsVisible:v=>{viaduct.group.traverse(o=>{if(o.isLight&&o.name.startsWith('platform-lamp'))o.visible=v;});draw(0);}
  };
 }catch(e){if(!disposed){dispose();loading.hidden=false;loading.textContent='小車暫時無法載入。';const b=document.createElement('button');b.textContent='重新載入';b.onclick=()=>location.reload();loading.append(b);}console.error(e);}
