@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// 網站出貨鏈（railisland.tw 正式站）——固化成唯一入口：npm run ship-web [-- --ref <ref>] [--preview]
+// 網站出貨鏈（railisland.tw 正式站）——固化成唯一入口：npm run ship-web [-- --ref <ref>] [--preview] [--full]
 //
 // --preview：只做到 upload（不升 100%），給使用者親試用。預覽也走同一條乾淨樹＋strip，
 // 因為預覽的用途是「試那顆待出貨的產物」——上傳未 strip 的原始檔，等於試的跟要出的不是同一份，
 // 而且它一旦被 promote 就是把去註解靜默退掉（本檔開頭那個 08-27 事故的成因）。
 // 🔴 預覽 URL 在 Cloudflare Access 後面：curl／Playwright 只會拿到登入頁，自動化驗不了，
 // 只有使用者本人開得起來——所以這條路徑刻意沒有收貨檢查，不要假裝有。
+// --full：忽略閘門帳本，強制重跑全部閘門。帳本只用來加速同一產品碼的重試，不改變 strip／upload／deploy／收貨步驟。
 //
 // 為什麼要有這條：去註解（strip_ship_comments）是出貨的必經步驟，但它以前只是一個獨立
 // npm script——任何一次「直接 wrangler versions upload」都會把原始檔出上去，去註解靜默
@@ -42,17 +43,19 @@
 //  - versions deploy 的版本 ID 只取自同一次 upload 的輸出（versions list 取 [0] 會拿到最舊版）
 //  - 收貨判準＝正式站 md5 與本地 stripped 檔逐 byte 相等（不是 BUILD 字串、不是抽 grep）
 
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync as rawSpawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { acquireShipLock, checkProductionAncestry } from './ship_web_guard.mjs';
+import { createGateRunner } from './ship_web_gate_ledger.mjs';
 
 const args = process.argv.slice(2);
 const REF = (() => { const i = args.indexOf('--ref'); return i >= 0 ? args[i + 1] : 'origin/main'; })();
 const PREVIEW = args.includes('--preview');
+const FULL_GATES = args.includes('--full');
 const PROD = 'https://railisland.tw';
 
 const repo = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
@@ -106,6 +109,16 @@ try {
     process.env.NODE_OPTIONS = [nodeOptionsBefore, `--import=${pathToFileURL(gpuPreload).href}`].filter(Boolean).join(' ');
     console.log("閘門 Chromium：channel 'chromium' 無頭模式（真 GPU）");
   }
+
+  // 閘門帳本只複用「同一份產品程式碼」已綠的結果；產品／i18n／App 任一變動仍全跑。
+  // 帳本讀寫失敗時 fail-open 成全跑，--full 可人工強制全跑；正式 D1 schema 永遠重查。
+  const commonGitDir = path.resolve(repo, git('rev-parse', '--git-common-dir').trim());
+  const ledgerPath = process.env.SHIP_WEB_LEDGER
+    ? path.resolve(repo, process.env.SHIP_WEB_LEDGER)
+    : path.join(commonGitDir, 'ship-web-gates.json');
+  const gateRunner = createGateRunner({ root: wt, ledgerPath, sha, forceFull: FULL_GATES, spawnSync: rawSpawnSync });
+  const spawnSync = (command, childArgs, options) => gateRunner.run(command, childArgs, options);
+  console.log(`閘門帳本：${ledgerPath}${FULL_GATES ? '（--full：本發強制全跑）' : ''}`);
 
   // ── 2.4 正式庫 schema：出貨的程式碼要讀寫的表與欄，正式 D1 都要有（唯讀查詢，約 3 秒）──────────
   // 2026-09-24 發現正式庫從沒套 0012，v0904d 起跟車卡每次綁定都 503、近三週靜默全停；本機驗收自己套齊
@@ -169,6 +182,12 @@ try {
   process.stdout.write(shipGuard.stdout || ''); process.stderr.write(shipGuard.stderr || '');
   if (shipGuard.status !== 0) fail('出貨防線的守門人未過——並行鎖或認正式站的判定壞了'
     + '（單獨重跑：npm run check-ship-web-guard）');
+
+  // ── 2.63 閘門帳本自檢（純 node、離線，不呼叫 ship-web）──
+  const gateLedger = spawnSync('node', [path.join(wt, 'scripts', 'verify_ship_web_gate_ledger.mjs')], { encoding: 'utf8' });
+  process.stdout.write(gateLedger.stdout || ''); process.stderr.write(gateLedger.stderr || '');
+  if (gateLedger.status !== 0) fail('出貨閘門帳本未過——產品指紋、更新紀錄例外、失敗重試或 --full 壞了'
+    + '（單獨重跑：npm run check-ship-web-gates）');
 
   // ── 2.65 辦公日曆表兩份副本的同步 ──────────────────────────────────────────
   // index.html 的 TW_DAYTYPE(前端選捷運班表)與 data/tw_daytype.json(worker 做北捷逐班綁定)
@@ -723,6 +742,9 @@ try {
   process.stdout.write(plusSub.stdout || ''); process.stderr.write(plusSub.stderr || '');
   if (plusSub.status !== 0) fail('通行證守門人未過——付費閘門、購買流程、資格判定或止血旗標有一條不符'
     + '（單獨重跑：node scripts/verify_plus_subscription.mjs）');
+
+  const gateSummary = gateRunner.summary();
+  console.log(`閘門帳本總結：實跑 ${gateSummary.ran}／複用 ${gateSummary.skipped}`);
 
   if (nodeOptionsBefore === undefined) delete process.env.NODE_OPTIONS; else process.env.NODE_OPTIONS = nodeOptionsBefore;
 
