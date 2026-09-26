@@ -42,12 +42,31 @@
 //   平交道卡家族(.xing-card:平交道、落釘、台糖、附近車站)的卡頭 .xc-head、列車 sheet 的 .tc-head、車庫頂列 .g-top:
 //     J 捲在下面時聚焦標題的鈕內容不跳(360 直式與 844×390 橫式,捲得動的才量);W 附近車站卡在 App(?demo=bounty
 //     開出「蓋章」鈕)往回走不被卡頭蓋;車庫 W 看焦點「上緣」(車卡比讓位高,中心判準對它恆綠),P 讓位＝頂列實高＋15
-//     (模擬瀏海把頂列撐高之後也要跟上)。S 其餘卡標題以外沒有可聚焦元素＝W 零資訊的前提,出現了就要改成真的量。
+//     (模擬瀏海把頂列撐高之後也要跟上)。S 平交道卡、台糖卡標題以外沒有可聚焦元素＝W 零資訊的前提,出現了就要改成真的量
+//     (落釘卡、附近車站卡的列 v0926j 起可聚焦,已改成真的走,見下一段)。
 //   N 每格都有對照:拿掉底部讓位 ⇒ B 紅;提示列自己也給 scroll-margin-bottom ⇒ 它的 J 紅;讓位寫死成標準字級的值 ⇒
 //     特大字級 P 紅(只做 Chromium);容器 scroll-padding-top(車庫修前就是這樣,跳 201–390px)⇒ 各卡 J 紅;
 //     拿掉卡內讓位 ⇒ 附近車站／車庫 W 紅;車庫讓位寫死成修前的 84px ⇒ 頂列變高後 P 紅;列可聚焦 ⇒ S 紅。
-// 量法本身的坑:看板每 20 秒、平交道卡與落釘卡每一模擬秒整張重寫,焦點會被洗回 body。W 走到一半掉焦點的那輪重走;
-// J 聚焦前才抓鈕、事後確認焦點還在(見 JUMP 上面的註解)。
+// v0926j 平交道卡、落釘卡、附近車站卡(xp* 那幾支):修前兩張卡每一模擬秒整張 innerHTML 重寫(附近車站卡在 App 定位更新時也是),
+//   鍵盤停在卡頭 ✕／存 上每次重畫都被踢回 body(兩個引擎、360／844×390／1280 全部);滑鼠按下後、放開前碰上重畫,按下的節點
+//   被換掉,兩個引擎都不送 click;落釘卡的班次列、附近車站卡的站只接滑鼠。修法:卡頭沒變就不換、清單換完把鍵盤焦點放回
+//   同一顆(不捲動);落釘卡按住時先不重畫;定時重畫改成滿 1 真實秒一次(修前 60× 每真實秒 40–48 次)。
+//   K 鍵盤停在卡頭的鈕／清單的列上(真的按 Tab 走過去,亮框),重畫兩次:每一幀焦點都在同一顆、最後還亮框、捲動沒動
+//     (844×390 平交道卡 ✕、落釘卡 存／✕／第 3 班;360 附近車站卡第 3 站;1280 落釘卡在「已存」按 Enter 取消收藏、卡頭整張換之後)。
+//   R 焦點列被捲出卡片可見範圍再重畫:捲動不動、焦點還在(844×390 落釘卡、360 附近車站卡)。
+//   W 往回走過每一列不被卡頭蓋、E 第 2 列 Enter＝點一下(跟那班車／開那站看板)、空白鍵只切一次播放(844×390 落釘卡、360 附近車站卡)。
+//     844×390 落釘卡可見內容只剩 17.5px、一列 27px,Chromium 會把列停在卡頭下 9–10px(中心沒被蓋,W 照中心判準是綠的);
+//     那是卡太矮,不是讓位錯,另案。
+//   C 1280 滑鼠:平交道卡 ✕ 按住到碰上一次重畫再放開,卡照樣關;落釘卡第 1 班按住 1.3 秒再放開,照樣跟車、按住期間沒重畫。
+//   Q 1280 60× 放 3 秒:平交道卡、落釘卡各重畫 2–4 次。
+//   V 360 落釘卡、附近車站卡往前走:列的框不被卡片切、有框、列的框對比 ≥ 3。卡頭 ✕／存 在亮色只有 1.9:1(修前就有,另案),
+//     這格不看卡頭的對比。844×390 落釘卡的列框一定被切(可見內容比一列矮),同 W 那條,另案。
+//   N 對照:重畫後不放回焦點 ⇒ 列的 K、取消收藏那格紅;放回焦點不帶 preventScroll ⇒ R 紅;卡頭有兩道(沒變就不換、換了也放回),
+//     兩道一起拿掉 ⇒ 卡頭 ✕ 的 K 紅;卡頭每次整張換(照樣放回焦點)⇒ C 平交道 ✕ 紅;按住照樣重畫 ⇒ C 落釘卡紅;
+//     節拍改回模擬秒差 ⇒ Q 紅(只做 Chromium);拿掉 Enter 接線 ⇒ E 紅;拿掉卡內讓位 ⇒ W 紅;
+//     拿掉卡內底部讓位 ⇒ 附近車站卡站名框的下緣被切(V 紅);落釘卡的列框改回往外畫 ⇒ 左右被切(V 紅)。
+// 量法本身的坑:看板每 20 秒整張重寫,焦點會被洗回 body(平交道卡、落釘卡的每秒重畫 v0926j 起會放回焦點)。
+// W 走到一半掉焦點的那輪重走、J 聚焦前才抓鈕並事後確認焦點還在(見 JUMP 上面的註解),兩道都保留當保險。
 // 慣例照 verify_transfer_collapse.mjs:自帶 node:http 靜態伺服器(埠號由系統挑)、語系與時鐘釘死、關首訪教學卡、
 // 掛 pageerror、T0 身分自檢。瀏覽器一律無視窗。約 5–6 分鐘(2026-09-26 補直式合併卡與兩個突變後實測 126s;
 // 同日補三張清單面板後 158s,機器負載約 32;再補按住空白鍵、桌面點擊、重抓的格子與突變後 175s,負載約 18;
@@ -449,7 +468,7 @@ async function walk(page, eng, id) {
 // 聚焦前才抓鈕、聚焦後確認焦點還在它身上:平交道卡、落釘卡每一模擬秒整張 innerHTML 重寫(renderCrossingCard／
 // renderPinCard),看板每 20 秒重繪。聚焦到被換掉的舊鈕＝什麼都沒發生,捲動當然不動 ⇒ J 假綠、對照假不紅
 // (2026-09-26 落釘卡實測兩個引擎都這樣,還因此誤判成「卡太矮量不出來」)。沒留住就等下一次重繪之後重量,
-// 四次都沒留住 ⇒ jump 記 NaN,J 與對照都判不過
+// 四次都沒留住 ⇒ jump 記 NaN,J 與對照都判不過。v0926j 起這兩張的卡頭沒變就不換,這道重試留著當保險
 const JUMP = async ([id, sel]) => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const p = document.getElementById(id);
@@ -757,6 +776,271 @@ async function cardJ(page, P, tag, key, sel) {
   await page.evaluate(root => { document.querySelector(root).style.scrollPaddingTop = ''; }, c.root);
   ok(P(`N 對照:${tag} ${key} 容器 scroll-padding-top ⇒ 聚焦標題的鈕內容會跳(J 量得到紅)`), !jn.none && Math.abs(jn.jump) > 8,
     jn.none ? '標題裡找不到鈕' : `${jn.btn} 捲動 ${jn.before}→${jn.after}`);
+}
+
+// ════ v0926j 平交道卡、落釘卡、附近車站卡:重畫不洗掉鍵盤焦點、不吞滑鼠點擊(格子說明見檔頭) ════
+const XP_ROW = { pin: '.xc-row[data-no]', near: '.nx-top[data-st]' };
+const XP_TRIG = { xing: 'renderCrossingCard()', pin: 'renderPinCard()', near: 'renderNearbyStations()' };
+// 焦點的身分:卡頭的鈕看 id,落釘卡的列看車次｜系統,附近車站卡看 系統｜站名(重畫後是新節點,只能比身分)
+const XP_INIT = `window.__xpk = a => a ? (a.id ? '#' + a.id : a.dataset && a.dataset.no ? a.dataset.no + '|' + (a.dataset.sys || '') : (a.dataset && a.dataset.st) || null) : null;`;
+// 用鍵盤把焦點送到目標(程式聚焦不亮框,要真的按鍵;WebKit 要 Option):先程式聚焦 from,再照 keys 按(F=Tab、B=Shift+Tab)。
+// 布置時先停住模擬(免得走到一半剛好重畫),xpHold 開始量時放回原本的播放狀態
+async function xpFocus(page, eng, key, plans) {
+  const F = eng === 'webkit' ? 'Alt+Tab' : 'Tab', B = eng === 'webkit' ? 'Alt+Shift+Tab' : 'Shift+Tab', root = CARDS2[key].root;
+  await page.evaluate(XP_INIT);
+  await page.evaluate(() => { if (window.__xpPlay0 === undefined) window.__xpPlay0 = state.playing; state.playing = false; });
+  let at;
+  for (const [from, ...keys] of plans) {
+    await page.evaluate(([root, from]) => document.querySelector(root + ' ' + from).focus(), [root, from]);
+    for (const k of keys) { await page.keyboard.press(k === 'F' ? F : B); await settle(page); }
+    at = await page.evaluate(root => {
+      const p = document.querySelector(root), a = document.activeElement; let fv = false; try { fv = a.matches(':focus-visible'); } catch (e) {}
+      return { k: a && p.contains(a) ? __xpk(a) : null, fv, st: p.scrollTop, max: p.scrollHeight - p.clientHeight };
+    }, root);
+    if (at.k && at.fv) break;
+  }
+  return at;
+}
+const XP_PLANS = {
+  '#xcClose': [['#xcClose', 'F', 'B'], ['#xcClose', 'B', 'F']],   // 平交道卡只有 ✕ 一顆:出去再回來
+  '#pinSave': [['#pinClose', 'B']], '#pinClose': [['#pinSave', 'F']],
+  row: (key, k) => [[key === 'pin' ? '#pinClose' : '#nearClose', ...Array(k).fill('F')]],   // 從卡頭最後一顆往前走 k 步＝第 k 列
+};
+// 焦點列捲出卡片可見範圍(使用者拿滾輪／手指捲過):列在上半就捲到底,否則捲回頂
+const XP_AWAY = root => {
+  const p = document.querySelector(root), a = document.activeElement, max = p.scrollHeight - p.clientHeight;
+  const top0 = a.getBoundingClientRect().top - p.getBoundingClientRect().top + p.scrollTop;
+  p.scrollTop = top0 < max / 2 ? max : 0;
+  const r = a.getBoundingClientRect(), pr = p.getBoundingClientRect(), vt = pr.top + p.clientTop;
+  return { max, st: p.scrollTop, out: r.bottom <= vt + 1 || r.top >= vt + p.clientHeight - 1 };
+};
+// 重畫 n 次(直接叫定時重畫叫的那支;模擬照原本狀態在跑,定時的也照常來)。期間每一幀記焦點有沒有離開那一顆、捲動有沒有動。
+// WebKit 的聚焦捲動是非同步的,重畫完多等一下才讀
+async function xpHold(page, key, n = 2) {
+  const root = CARDS2[key].root;
+  await page.evaluate(root => {
+    const p = document.querySelector(root), k0 = __xpk(document.activeElement);
+    window.__xh = { k0, st0: p.scrollTop, muts: 0, lost: null, moved: 0, done: false };
+    window.__xhMO = new MutationObserver(recs => { if (recs.some(r => r.addedNodes.length)) __xh.muts++; });
+    __xhMO.observe(p, { childList: true });
+    const loop = () => {
+      if (__xh.done) return;
+      const a = document.activeElement;
+      if (!__xh.lost && __xpk(a) !== k0) __xh.lost = __bsp.desc(a) || '(無)';
+      if (Math.abs(p.scrollTop - __xh.st0) > 1) __xh.moved++;
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+    state.playing = window.__xpPlay0; window.__xpPlay0 = undefined;
+  }, root);
+  for (let i = 0; i < n; i++) { await page.evaluate(XP_TRIG[key]); await settle(page); }
+  await page.waitForTimeout(150);
+  return page.evaluate(root => {
+    const p = document.querySelector(root), a = document.activeElement; let fv = false; try { fv = a.matches(':focus-visible'); } catch (e) {}
+    __xh.done = true; __xhMO.disconnect();
+    return { k0: __xh.k0, st0: __xh.st0, muts: __xh.muts, lost: __xh.lost, moved: __xh.moved, k: __xpk(a), fv, st: p.scrollTop };
+  }, root);
+}
+const xhOk = h => h.muts >= 2 && !h.lost && !!h.k0 && h.k === h.k0 && h.fv && Math.abs(h.st - h.st0) <= 1 && h.moved === 0;
+const fmtH = h => `重畫 ${h.muts} 次;焦點${h.lost ? `離開過(到 ${h.lost})` : '一幀都沒離開'}、最後在 ${h.k}(原本 ${h.k0}${h.fv ? '' : ',沒亮框'});` +
+  `捲動 ${Math.round(h.st0)}→${Math.round(h.st)}${h.moved ? `(中途動過 ${h.moved} 幀)` : ''}`;
+// K:鍵盤停在 target(卡頭的鈕,或 {row:k} 第 k 列)上,重畫兩次
+async function xpK(page, eng, key, target, away = false) {
+  const plans = typeof target === 'string' ? XP_PLANS[target] : XP_PLANS.row(key, target.row);
+  const at = await xpFocus(page, eng, key, plans);
+  if (!at.k || !at.fv) { await page.evaluate(() => { state.playing = window.__xpPlay0; window.__xpPlay0 = undefined; }); return { setup: false, at }; }
+  const mv = away ? await page.evaluate(XP_AWAY, CARDS2[key].root) : null;
+  return { setup: true, at, mv, h: await xpHold(page, key) };
+}
+const xkOk = r => r.setup && xhOk(r.h) && (!r.mv || r.mv.out);
+const fmtK = r => !r.setup ? `鍵盤送不到目標(停在 ${r.at.k}${r.at.fv ? '' : ',沒亮框'})` : (r.mv ? `焦點列捲出可見範圍=${r.mv.out}(可捲 ${r.mv.max});` : '') + fmtH(r.h);
+// E:鍵盤走到第 2 列按 key。落釘卡:跟那班車;附近車站卡:開那一站的看板。播放被切幾次用 COUNT_PLAY 數
+async function xpE(page, eng, key, keyName) {
+  const at = await xpFocus(page, eng, key, XP_PLANS.row(key, 2));
+  await page.evaluate(() => { state.playing = window.__xpPlay0; window.__xpPlay0 = undefined; });
+  if (!at.k || !at.fv) return { setup: false, at };
+  await page.evaluate(COUNT_PLAY);
+  await page.keyboard.press(keyName); await settle(page); await page.waitForTimeout(150);
+  const r = await page.evaluate(([root, k0]) => {
+    const p = document.querySelector(root), a = document.activeElement, n = window.__bspPlay;
+    if (n % 2) window.__bspPlayOrig();
+    return { plays: n, fol: state.followTrain ? String(state.followTrain.train) + '|' + (state.followTrain.sys || '') : null,
+      board: state.boardStation ? state.boardStation.name : null, stay: !!(p && a && p.contains(a) && __xpk(a) === k0) };
+  }, [CARDS2[key].root, at.k]);
+  await page.evaluate(UNCOUNT_PLAY);
+  const name = key === 'near' ? at.k.split('|').slice(1).join('|') : null;
+  return { setup: true, k: at.k, ...r, hit: key === 'pin' ? r.fol === at.k : r.board === name };
+}
+const fmtE = e => !e.setup ? `鍵盤走不到第 2 列(停在 ${e.at.k})` : `第 2 列 ${e.k} → 跟車 ${e.fol}、看板 ${e.board}、播放被切 ${e.plays} 次、焦點${e.stay ? '還在那一列' : '離開了那一列'}`;
+// C:滑鼠按在 sel 上。until='repaint' ⇒ 按住到卡片真的重畫過一次(最多 2.5 秒)才放開;數字 ⇒ 按住那麼多毫秒
+async function xpPress(page, key, sel, until) {
+  const root = CARDS2[key].root;
+  const t = await page.evaluate(([root, sel]) => { const b = document.querySelector(root + ' ' + sel); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, no: b.dataset.no || null }; }, [root, sel]);
+  if (!t) return { none: true };
+  await page.evaluate(root => { window.__xc = { reps: 0 }; window.__xcMO = new MutationObserver(recs => { if (recs.some(r => r.addedNodes.length)) __xc.reps++; }); __xcMO.observe(document.querySelector(root), { childList: true }); setSpeed(1); state.playing = true; }, root);
+  await page.mouse.move(t.x, t.y); await page.mouse.down();
+  await page.evaluate(() => { __xc.reps = 0; });   // 只數按住期間
+  if (until === 'repaint') await page.waitForFunction(() => __xc.reps >= 1, null, { timeout: 2500 }).catch(() => {});
+  else await page.waitForTimeout(until);
+  const during = await page.evaluate(() => __xc.reps);
+  await page.mouse.up(); await settle(page); await page.waitForTimeout(100);
+  return page.evaluate(([root, no, during]) => {
+    __xcMO.disconnect(); const p = document.querySelector(root);
+    return { during, closed: !p || p.hidden, followed: !!no && !!state.followTrain && String(state.followTrain.train) === no, no };
+  }, [root, t.no, during]);
+}
+// Q:倍速 speed 放 3 秒,數卡片整段重畫幾次
+const XP_RATE = async ([root, speed]) => {
+  const p = document.querySelector(root); let n = 0;
+  const mo = new MutationObserver(recs => { if (recs.some(r => r.addedNodes.length)) n++; }); mo.observe(p, { childList: true });
+  setSpeed(speed); state.playing = true;
+  await new Promise(r => setTimeout(r, 3000));
+  mo.disconnect(); setSpeed(1);
+  return n;
+};
+// 對照用的替身(index.html 的這幾支都是全域函式宣告,換掉 window 上的名字,呼叫端就會叫到替身)
+const XP_MUT = {
+  noRefocus: () => { window.__xpRF = boardRefocus; window.boardRefocus = () => {}; },
+  scrollRefocus: () => { window.__xpRF = boardRefocus; window.boardRefocus = (el, sel) => { const n = sel && el.querySelector(sel); if (n && n !== document.activeElement) n.focus(); }; },
+  undoRefocus: () => { window.boardRefocus = window.__xpRF; },
+  // 卡頭也每次整張換(照樣放回焦點)／整張換又不放回(修前的寫法)
+  wholeHead: () => { window.__xpXP = xcPaint; window.xcPaint = (el, head, rest) => { const fk = boardFocusSel(el); el.innerHTML = head + rest; el._xcHead = head; boardRefocus(el, fk); }; },
+  wholeNoRefocus: () => { window.__xpXP = xcPaint; window.xcPaint = (el, head, rest) => { el.innerHTML = head + rest; el._xcHead = head; }; },
+  undoPaint: () => { window.xcPaint = window.__xpXP; },
+  noHold: () => { window.__xpHeld = pinCardHeld; window.pinCardHeld = () => false; },
+  undoHold: () => { window.pinCardHeld = window.__xpHeld; },
+  // 修前的節拍:模擬時間差 ≥ 1 秒就重畫(高倍速一幀就跳過 1 秒)
+  simTick: () => { window.__xpDue = xcRepaintDue; window.xcRepaintDue = at => Math.abs(state.simSec - (at || 0)) >= 1; },
+  undoTick: () => { window.xcRepaintDue = window.__xpDue; },
+};
+// 附近車站卡、落釘卡的 W、E 與對照(列可聚焦之後 S 的前提不成立,改成真的走)
+async function xpRowsWE(page, eng, P, tag, key) {
+  const nRows = await page.evaluate(([root, sel]) => document.querySelectorAll(root + ' ' + sel).length, [CARDS2[key].root, XP_ROW[key]]);
+  const w = await walk2(page, eng, key, -1);
+  ok(P(`W ${tag} ${key} 鍵盤往回走過每一列,焦點不被卡頭蓋`), nRows >= 4 && w.covered === 0 && w.content >= nRows, `列 ${nRows};${fmtW(w)}`);
+  const wm = await withMut(page, MUT.noCardPad, async () => { await open2(page, key); return walk2(page, eng, key, -1); });
+  ok(P(`N 突變:拿掉卡內讓位 ⇒ ${tag} ${key} 往回走停在卡頭下(W 量得到紅)`), wm.covered > 0, fmtW(wm));
+  await open2(page, key);
+  const e = await xpE(page, eng, key, 'Enter');
+  ok(P(`E ${tag} ${key} 第 2 列按 Enter＝點一下(${key === 'pin' ? '跟那班車' : '開那一站的看板'}),播放不動`), e.setup && e.hit && e.plays === 0, fmtE(e));
+  await open2(page, key);
+  const sp = await xpE(page, eng, key, ' ');
+  ok(P(`E ${tag} ${key} 第 2 列按空白鍵只切一次播放,列不動、焦點留在那一列`), sp.setup && !sp.fol && !sp.board && sp.plays === 1 && sp.stay, fmtE(sp));
+  await open2(page, key);
+  // 卡片元素常駐、接線只掛一次(重畫不會重掛):拿掉之後要自己放回去
+  await page.evaluate(root => { const p = document.querySelector(root); window.__xpKD = p.onkeydown; p.onkeydown = null; }, CARDS2[key].root);
+  const en = await xpE(page, eng, key, 'Enter');
+  await page.evaluate(root => { document.querySelector(root).onkeydown = window.__xpKD; }, CARDS2[key].root);
+  ok(P(`N 突變:拿掉 ${tag} ${key} 的 Enter 接線 ⇒ Enter 沒反應(E 量得到紅)`), en.setup && !en.hit, fmtE(en));
+}
+// 360 直式:附近車站卡(sheet,8 站捲得動;網頁版不定時重畫,App 定位更新時才重畫 ⇒ 這裡直接叫 renderNearbyStations)
+async function xpNear360(page, eng, P) {
+  const cell = async (label, target, away, mut) => {
+    await open2(page, 'near');
+    if (mut) await page.evaluate(XP_MUT[mut]);
+    try { return await xpK(page, eng, 'near', target, away); } finally { if (mut) await page.evaluate(XP_MUT.undoRefocus); }
+  };
+  const k = await cell('K', { row: 3 }, false);
+  ok(P('K 360 附近車站卡:鍵盤停在第 3 站,重畫兩次後焦點還在同一站、捲動沒動'), xkOk(k), fmtK(k));
+  const r = await cell('R', { row: 1 }, true);
+  ok(P('R 360 附近車站卡:第 1 站被捲出可見範圍後重畫,捲動不動、焦點還在那一站'), xkOk(r), fmtK(r));
+  const kn = await cell('K', { row: 3 }, false, 'noRefocus');
+  ok(P('N 突變:重畫後不放回焦點 ⇒ 附近車站卡焦點掉(K 量得到紅)'), kn.setup && !xkOk(kn) && !!kn.h.lost, fmtK(kn));
+  const rn = await cell('R', { row: 1 }, true, 'scrollRefocus');
+  ok(P('N 突變:放回焦點不帶 preventScroll ⇒ 附近車站卡被捲回焦點那一站(R 量得到紅)'), rn.setup && rn.mv && rn.mv.out && Math.abs(rn.h.st - rn.h.st0) > 1, fmtK(rn));
+  await open2(page, 'near');
+  await xpRowsWE(page, eng, P, '360', 'near');
+}
+// 844×390 橫式:平交道卡、落釘卡捲得動(可捲 150 上下)。卡頭的鈕 K、落釘卡的列 K／R／W／E
+async function xp844(page, eng, P) {
+  const cell = async (key, target, away, mut) => {
+    await open2(page, key);
+    if (mut) await page.evaluate(XP_MUT[mut]);
+    try { return await xpK(page, eng, key, target, away); }
+    finally { if (mut === 'wholeNoRefocus') await page.evaluate(XP_MUT.undoPaint); else if (mut) await page.evaluate(XP_MUT.undoRefocus); }
+  };
+  for (const [key, btn] of [['xing', '#xcClose'], ['pin', '#pinSave'], ['pin', '#pinClose']]) {
+    const k = await cell(key, btn, false);
+    ok(P(`K 844×390 ${key} 鍵盤停在卡頭的 ${btn},重畫兩次後焦點還在它身上、捲動沒動`), xkOk(k), fmtK(k));
+  }
+  const k = await cell('pin', { row: 3 }, false);
+  ok(P('K 844×390 落釘卡:鍵盤停在第 3 班,重畫兩次後焦點還在同一班、捲動沒動'), xkOk(k), fmtK(k));
+  const r = await cell('pin', { row: 1 }, true);
+  ok(P('R 844×390 落釘卡:第 1 班被捲出可見範圍後重畫,捲動不動、焦點還在那一班'), xkOk(r), fmtK(r));
+  const kn = await cell('pin', { row: 3 }, false, 'noRefocus');
+  ok(P('N 突變:重畫後不放回焦點 ⇒ 落釘卡列上的焦點掉(K 量得到紅)'), kn.setup && !xkOk(kn) && !!kn.h.lost, fmtK(kn));
+  const rn = await cell('pin', { row: 1 }, true, 'scrollRefocus');
+  ok(P('N 突變:放回焦點不帶 preventScroll ⇒ 落釘卡被捲回焦點那一班(R 量得到紅)'), rn.setup && rn.mv && rn.mv.out && Math.abs(rn.h.st - rn.h.st0) > 1, fmtK(rn));
+  // 卡頭的鈕有兩道:卡頭沒變就不換、換了也放回焦點。只拿掉一道它還是綠的(另一道擋著),兩道都拿掉才考得到這格有牙
+  const hn = await cell('xing', '#xcClose', false, 'wholeNoRefocus');
+  ok(P('N 突變:卡頭每次整張換、又不放回焦點(修前的寫法)⇒ 平交道卡 ✕ 上的焦點掉(K 量得到紅)'), hn.setup && !xkOk(hn) && !!hn.h.lost, fmtK(hn));
+  await open2(page, 'pin');
+  await xpRowsWE(page, eng, P, '844×390', 'pin');
+}
+// 1280 桌面:滑鼠按住跨過重畫(C)、高倍速重畫次數(Q)、已存→存(卡頭真的換了,只剩放回焦點那一道)
+async function xp1280(page, eng, P) {
+  await page.evaluate(XP_INIT);
+  const press = async (key, sel, until, mut, undo) => {
+    await open2(page, key);
+    const play0 = await page.evaluate(() => state.playing);
+    if (mut) await page.evaluate(XP_MUT[mut]);
+    try { return await xpPress(page, key, sel, until); } finally { if (undo) await page.evaluate(XP_MUT[undo]); await page.evaluate(p => { state.playing = p; }, play0); }
+  };
+  const cx = await press('xing', '#xcClose', 'repaint');
+  ok(P('C 1280 平交道卡:滑鼠按住 ✕ 到碰上一次重畫再放開,卡照樣關'), cx.during >= 1 && cx.closed, `按住期間重畫 ${cx.during} 次、卡${cx.closed ? '關了' : '還開著'}`);
+  const cxn = await press('xing', '#xcClose', 'repaint', 'wholeHead', 'undoPaint');
+  ok(P('N 突變:卡頭每次整張換(照樣放回焦點)⇒ 按住 ✕ 碰上重畫,放開後卡沒關(C 量得到紅)'), cxn.during >= 1 && !cxn.closed, `按住期間重畫 ${cxn.during} 次、卡${cxn.closed ? '關了' : '還開著'}`);
+  const cp = await press('pin', '.xc-row[data-no]', 1300);
+  ok(P('C 1280 落釘卡:滑鼠按住第 1 班 1.3 秒再放開,照樣跟那班車(按住時不重畫)'), cp.followed && cp.during === 0, `按住期間重畫 ${cp.during} 次、跟車 ${cp.followed}(${cp.no})`);
+  const cpn = await press('pin', '.xc-row[data-no]', 1300, 'noHold', 'undoHold');
+  ok(P('N 突變:按住照樣重畫 ⇒ 放開後沒跟車(C 量得到紅)'), cpn.during >= 1 && !cpn.followed, `按住期間重畫 ${cpn.during} 次、跟車 ${cpn.followed}(${cpn.no})`);
+  for (const key of ['xing', 'pin']) {
+    await open2(page, key);
+    const n = await page.evaluate(XP_RATE, [CARDS2[key].root, 60]);
+    ok(P(`Q 1280 ${key} 60× 每真實秒重畫一次上下(3 秒 2–4 次;修前 40–48 次／秒)`), n >= 2 && n <= 4, `3 秒 ${n} 次`);
+  }
+  if (eng === 'chromium') {   // 節拍跟引擎無關,只做一個
+    await open2(page, 'pin'); await page.evaluate(XP_MUT.simTick);
+    const nn = await page.evaluate(XP_RATE, [CARDS2.pin.root, 60]);
+    await page.evaluate(XP_MUT.undoTick);
+    ok(P('N 突變:節拍改回「模擬時間差 ≥ 1 秒」⇒ 60× 幾乎每幀重畫(Q 量得到紅)'), nn > 12, `3 秒 ${nn} 次`);
+  }
+  // 已存的地點:鍵盤停在「已存」按 Enter ＝ 取消收藏,卡頭換成「存」(整張換),焦點要留在那顆鈕上
+  const unsave = async mut => {
+    await page.evaluate(() => savePins([{ lat: 25.0143, lon: 121.4637, label: '測試地點' }]));
+    await open2(page, 'pin');
+    if (mut) await page.evaluate(XP_MUT[mut]);
+    try {
+      const at = await xpFocus(page, eng, 'pin', XP_PLANS['#pinSave']);
+      await page.evaluate(() => { state.playing = window.__xpPlay0; window.__xpPlay0 = undefined; });
+      const before = await page.evaluate(() => document.getElementById('pinSave').textContent);
+      await page.keyboard.press('Enter'); await settle(page); await page.waitForTimeout(150);
+      return page.evaluate(([at, before]) => {
+        const a = document.activeElement; let fv = false; try { fv = a.matches(':focus-visible'); } catch (e) {}
+        return { at: at.k, before, after: (document.getElementById('pinSave') || {}).textContent, k: __xpk(a), fv, saved: pinSavedIdx(25.0143, 121.4637) >= 0 };
+      }, [at, before]);
+    } finally { if (mut) await page.evaluate(XP_MUT.undoRefocus); }
+  };
+  const fmtU = u => `${u.at} 「${u.before}」→「${u.after}」、地點${u.saved ? '還存著' : '已移除'};焦點在 ${u.k}${u.fv ? '' : '(沒亮框)'}`;
+  const u = await unsave(null);
+  ok(P('K 1280 落釘卡:鍵盤在「已存」按 Enter 取消收藏,卡頭換成「存」,焦點留在那顆鈕上'), u.at === '#pinSave' && !u.saved && u.before !== u.after && u.k === '#pinSave' && u.fv, fmtU(u));
+  const un = await unsave('noRefocus');
+  ok(P('N 突變:重畫後不放回焦點 ⇒ 取消收藏後焦點掉(K 量得到紅)'), un.at === '#pinSave' && !un.saved && un.k !== '#pinSave', fmtU(un));
+}
+// V(v0926j):落釘卡的班次、附近車站卡的站名是新的焦點停點,框要看得到——往前走到卡底不被切、有框、列的框對底下 ≥ 3:1。
+// 卡頭 ✕／存 在亮色主題只有 1.9:1(紅框疊藏青,修前就有,另案)⇒ 只看列的對比,不套 vOk 的整體對比。
+// 突變兩條各自那格要紅:拿掉卡內底部讓位 ⇒ 站名往前走到卡底框的下緣被切;落釘卡的列框改回往外畫 ⇒ 左右被卡片切掉。
+async function xpRing360(page, eng, P) {
+  const walkV = async (key, id) => { await open2(page, key); return ringWalk(page, eng, id, 'fwd'); };
+  for (const [key, id, el] of [['pin', 'pinCard', 'div.xc-row'], ['near', 'nearCard', 'div.nx-top']]) {
+    const v = await walkV(key, id);
+    ok(P(`V 360 ${key} 往前走:列的框不被卡片切、有框、對比 ≥ 3(卡頭鈕的對比另案)`),
+      v.fv >= 6 && v.clipped === 0 && v.noRing === 0 && v.seen.includes(el) && (v.seenC[el] ?? 0) >= 3, `${fmtV(v)}；走過 ${fmtSeen(v)}`);
+  }
+  const vb = await withMut(page, '.xing-card > :not(.xc-head) * { scroll-margin-bottom: 0 !important; }', () => walkV('near', 'nearCard'));
+  ok(P('N 突變:拿掉卡內底部讓位 ⇒ 附近車站卡站名往前走到卡底,框的下緣被切(V 量得到紅)'), badHas(vb, 'div.nx-top', '切掉b'), fmtV(vb));
+  const vo = await withMut(page, '.xing-card .xc-row[data-no]:focus-visible { outline-offset: 2px !important; }', () => walkV('pin', 'pinCard'));
+  ok(P('N 突變:落釘卡的列框改回往外畫 ⇒ 左右被卡片切掉(V 量得到紅)'), badHas(vo, 'div.xc-row', '切掉'), fmtV(vo));
 }
 
 let t0Done = false;
@@ -1119,6 +1403,7 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
       async () => { await open(page, 'board'); return ringWalk(page, eng, 'board'); });
     ok(P('N 突變:暗色方向鈕的捲動盒拿掉左右留邊 ⇒ 頭尾兩顆的框被切(V 量得到紅)'), badHas(vnm, 'button', '切掉'), fmtV(vnm));
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+    await xp1280(page, eng, P);   // v0926j 平交道卡、落釘卡:滑鼠按住跨過重畫、高倍速重畫次數、取消收藏後的焦點
     ok(P('1280 全程零 pageerror'), errors.length === 0, errors.slice(0, 2).join(' | '));
     await ctx.close();
   }
@@ -1180,14 +1465,17 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
       await cardJ(page, P, '360', 'tc', ':scope > .tc-head button');
       await page.evaluate(() => setSheetSize(document.getElementById('trainCard'), 'small')); // 段高偏好還給小段
     }
-    // 平交道卡家族(網頁版):標題以外都沒有可聚焦元素;直式只有附近車站卡捲得動,其餘三張的 J 在 844×390 量
+    // 平交道卡家族(網頁版):平交道卡、台糖卡標題以外沒有可聚焦元素(S);落釘卡、附近車站卡的列 v0926j 起可聚焦,
+    // S 的前提不成立,改成真的走(附近車站卡在這裡、落釘卡在 844×390 那段)。直式只有附近車站卡捲得動,其餘三張的 J 在 844×390 量
     for (const key of ['xing', 'pin', 'sugar', 'near']) {
       const opened = await open2(page, key);
       ok(P(`360 ${key} 卡打得開`), opened);
       if (!opened) continue;
-      await cardS(page, P, '360', key);
+      if (key === 'xing' || key === 'sugar') await cardS(page, P, '360', key);
       if (key === 'near') await cardJ(page, P, '360', key, ':scope > .xc-head button');
     }
+    await xpNear360(page, eng, P);
+    await xpRing360(page, eng, P);
     // 車庫:W(往回走 40 拍夠了,全部 80 幾拍)、J(修前跳 390px)、P(讓位跟著頂列實高走)
     const isG = await open2(page, 'garage');
     ok(P('360 車庫打得開'), isG);
@@ -1225,6 +1513,7 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
       ok(P(`844×390 ${key} 卡打得開`), opened);
       if (opened) await cardJ(page, P, '844×390', key, ':scope > .xc-head button');
     }
+    await xp844(page, eng, P);   // v0926j 卡頭的鈕與落釘卡的列:重畫後焦點還在、捲動沒動;落釘卡 W／E
     const isTc = await open2(page, 'tc');
     ok(P('844×390 列車 sheet 打得開'), isTc);
     if (isTc) await cardJ(page, P, '844×390', 'tc', ':scope > .tc-head button');

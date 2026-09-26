@@ -3330,3 +3330,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '用鍵盤往下一項移動時，跟車卡選到的按鈕不再被底部的「詳細」提示列蓋住；App 附近車站卡往回移動時「蓋章」鈕不再被標題蓋住；車庫捲到下面再回到頂列按鈕，畫面不再往上跳': 'キーボードで次の項目へ移動するとき、追跡カードで選んだボタンが下部の「詳細」バーに隠れないようにしました。アプリの近くの駅カードで前の項目に戻るとき「スタンプ」ボタンがタイトルに隠れず、マイ車庫で下までスクロールしてから上部のボタンに戻っても画面が跳ばなくなりました。',
 });
+// 2026-09-26 平交道卡、落釘卡每秒重畫洗掉鍵盤焦點與按住的鈕，落釘卡班次、附近車站接上鍵盤：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '平交道卡、落釘卡用鍵盤選到的按鈕不會再每秒被洗掉，點 ✕ 或班次也不會偶爾沒反應；落釘卡的班次和 App 的附近車站能用鍵盤選到，按 Enter 就能跟車、看班次': 'On the level-crossing and pin cards, the button you reach with the keyboard no longer loses its selection every second, and tapping ✕ or a train no longer occasionally does nothing. Trains on the pin card and, in the app, nearby stations can now be reached with the keyboard: press Enter to follow a train or see upcoming trains.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '平交道卡、落釘卡用鍵盤選到的按鈕不會再每秒被洗掉，點 ✕ 或班次也不會偶爾沒反應；落釘卡的班次和 App 的附近車站能用鍵盤選到，按 Enter 就能跟車、看班次': '踏切カードとピンのカードで、キーボードで選んだボタンが毎秒の更新で外れなくなり、✕ や列車をタップしても反応しないことがなくなりました。ピンのカードの列車とアプリの「近くの駅」もキーボードで選べるようになり、Enter キーで列車を追跡したり、次の列車を見たりできます。',
+});

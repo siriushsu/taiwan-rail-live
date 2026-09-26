@@ -985,9 +985,11 @@
   }
   /* 卡頭 sticky ⇒ 讓位同 .board(為什麼給內容 scroll-margin 而不是容器 scroll-padding,見 .board h3 下面那條)。
      App 的「你附近的車站」每列有「蓋章」鈕,鍵盤往回走時整顆停在卡頭底下(2026-09-26 實測 1–3 拍)。
-     值由 syncBoardScrollPad 量卡頭實高寫進 --board-scroll-pad。 */
+     值由 syncBoardScrollPad 量卡頭實高寫進 --board-scroll-pad。
+     底部留 6px 給焦點框(同 .board 沒有提示列時):落釘卡的班次、附近車站卡的站名 v0926j 起鍵盤走得到,
+     往下 Tab 的聚焦捲動把站名那一行貼齊卡片底緣,框的下緣整條被切(2026-09-26 實測兩個引擎)。 */
   .xing-card > :not(.xc-head),
-  .xing-card > :not(.xc-head) * { scroll-margin-top: var(--board-scroll-pad, 0px); }
+  .xing-card > :not(.xc-head) * { scroll-margin-top: var(--board-scroll-pad, 0px); scroll-margin-bottom: 6px; }
   .xing-card .xc-ico { flex: none; display: flex; opacity: .9; }
   .xing-card .xc-ttl { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
   .xing-card .xc-ttl b { font-size: calc(15px * var(--ui)); font-weight: 900; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1011,6 +1013,8 @@
   .xing-card .xc-save:hover { background: rgba(255,255,255,.3); }
   .xing-card .xc-row[data-no] { cursor: pointer; }
   .xing-card .xc-row[data-no]:hover { background: var(--bg-stage); }
+  /* 落釘卡的班次列鍵盤走得到:列跟卡片一樣寬、卡片又是捲動容器,外凸的焦點框左右會被裁掉 ⇒ 往內畫(列有左右內距,壓不到字) */
+  .xing-card .xc-row[data-no]:focus-visible { outline-offset: -2px; }
   /* 地點釘:Google Maps 風圓點。草稿=藏青、已存=琥珀+白星 */
   .pin-ico { background: none; border: 0; }
   .pin-ico svg { display: block; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.42)); transform-origin: center; transition: transform .18s ease; }
@@ -5563,6 +5567,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="xcfocus0926"><span class="d">9/26</span><span>平交道卡、落釘卡用鍵盤選到的按鈕不會再每秒被洗掉，點 ✕ 或班次也不會偶爾沒反應；落釘卡的班次和 App 的附近車站能用鍵盤選到，按 Enter 就能跟車、看班次</span></li>
         <li data-cl-of="spacekey0926"><span class="d">9/26</span><span>空白鍵在任何地方都是播放／暫停，不會再順便打開資料卡、展開卡片或讓鍵盤選取跳回頁首，按住也只切一次；面板邊緣與標題列按鈕的鍵盤選取框不再被切掉</span></li>
         <li data-cl-of="kbfocusfoot0926"><span class="d">9/26</span><span>用鍵盤往下一項移動時，跟車卡選到的按鈕不再被底部的「詳細」提示列蓋住；App 附近車站卡往回移動時「蓋章」鈕不再被標題蓋住；車庫捲到下面再回到頂列按鈕，畫面不再往上跳</span></li>
         <li data-cl-of="boardrowkb0926"><span class="d">9/26</span><span>今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 就行</span></li>
@@ -5570,7 +5575,6 @@
         <li data-cl-of="remainingtracks0913"><span class="d">9/26</span><span>台鐵 10/3 起有 14 班調整時刻，3D 地圖裡這些車照樣走原本的股道</span></li>
         <li data-cl-of="subwayfloat0925"><span class="d">9/25</span><span>3D 地圖上臺北車站的臺鐵列車不再畫在車站屋頂上，高捷紅線地下段也不再浮在地面上；新左營臺鐵與高雄輕軌被頂高的地方回到原位</span></li>
         <li data-cl-of="kbfocusselect0925"><span class="d">9/25</span><span>用鍵盤往回移動時，我的最愛、車站看板等面板選到的項目不再被標題列蓋住；iPhone 英文介面選到長站名時，畫面不再能左右拖動</span></li>
-        <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷 10/12 起改用台灣設計展結束後的班表：機場第一航廈到環北的區間加班車停開，南延直達車恢復停高鐵桃園站、開到環北</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5865,6 +5869,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="xcfocus0926"><span class="d">9/26</span><span>平交道卡、落釘卡每秒更新時，鍵盤選到的按鈕或班次會留在原處、畫面不跳，點 ✕、存或班次也不會偶爾沒反應（高倍速播放時原本幾乎點不到）；落釘卡的班次與 App 附近車站卡的站名能用鍵盤移過去，按 Enter 跟車或開看板</span></li>
         <li data-cl="spacekey0926"><span class="d">9/26</span><span>空白鍵一律只做播放／暫停：在清單列、按鈕、資料卡上按不會再同時打開東西，按鈕上按完鍵盤選取留在原處（原本會跳回頁首），按住不放只切一次；面板底緣、標題列、字級切換與公車轉乘卡的鍵盤選取框不再被切掉，「全部班次」鈕選到時看得到框</span></li>
         <li data-cl="kbfocusfoot0926"><span class="d">9/26</span><span>用鍵盤往下一項移動（Tab）時，跟車時車站看板「這班車」頁選到的按鈕不再停在底部的「詳細」提示列底下；App 附近車站卡往回移動時「蓋章」鈕不再停在標題底下；車庫捲到下面時回到頂列的按鈕，畫面不再往上跳一大段</span></li>
         <li data-cl="boardrowkb0926"><span class="d">9/26</span><span>今日台鐵動態、公車站牌與行程分享的每一列都能用鍵盤移過去，讀螢幕軟體也會唸出整列；今日動態按 Enter 展開逐站歷程、行程分享選目的站；清單自動更新時，鍵盤停在哪一列就留在那一列；公車站牌切換語言時到站時間立刻跟著換</span></li>
@@ -6787,7 +6792,15 @@
 //         左右留 4px；「全部班次」鈕原本寫不存在的 var(--focus)、聚焦時沒框。兩引擎 × 12 張面板往前＋往回走：亮色六寬度被切
 //         1203→0 拍、暗色三寬度 553→0 拍，沒框只剩刻意用藏青邊框的搜尋框；公車轉乘卡展開後 5–6→0。
 //         守門：verify_board_scroll_pad 補 E 空白鍵、V 焦點框各格（360／1280、亮／暗）與逐條突變對照。
-const BUILD = 'v0926h';
+// v0926j：平交道卡、落釘卡每秒整張重畫（App 附近車站卡在定位更新時也是），把鍵盤焦點洗回頁面，也把按住的鈕換掉。xcPaint：卡頭 HTML 沒變就只換
+//         卡頭以下，重畫前後用 boardRefocus 放回焦點（preventScroll）；重畫改成每真實秒最多一次（xcRepaintDue，照查詢答案區）；
+//         落釘卡按住時先不重畫（pinCardHeld，最多 1.5 秒）。落釘卡的列、附近車站卡的站名列 tabindex＋role=button＋aria-label，
+//         只接 Enter。修前兩引擎 × 360／844／1280：卡頭 ×、存 第一次重畫就掉焦點；落釘 5 列、附近 8 列可聚焦 0；60× 下
+//         Chromium 每真實秒重畫 47.7 次、WebKit 39.3 次，按住 60ms 以上點 × 或列 0/4 次有反應，1× 按壓跨過重畫 0/3。
+//         修後焦點跨兩次重畫都在、scrollTop 不變，列 5／8 全到，每秒 1 次，點擊 4/4、3/3。卡片內容補 scroll-margin-bottom 6px
+//         （同 .board）：站名列往下 Tab 到卡底時框的下緣被切 1 拍→0（Chromium 三寬度、WebKit 360）。
+//         守門：verify_board_scroll_pad 補 K／R／W／E／C／Q／V／N 各格與突變對照（兩個引擎）。
+const BUILD = 'v0926j';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -13946,9 +13959,26 @@ function closeCrossingCard() {
   const el = document.getElementById('xingCard');
   el.hidden = true; el.innerHTML = '';
 }
+// 平交道卡、落釘卡每秒重畫一次(倒數要跳、已通過的班次退出)。原本整張 innerHTML 重寫,卡頭的鈕(✕、存)也每秒換新:
+// 鍵盤停在鈕上的焦點每秒被踢回頁首;滑鼠按住時剛好碰上一次重畫,放開後 click 也不派發——按下的節點在放開前被換掉,
+// 兩個引擎都不送(2026-09-26 實測 1× 跨過一次重畫 0/3,60× 按住 60ms 起 0/4)。
+// 卡頭內容沒變就留著、只換它下面的清單與註腳;卡頭變了(換語言、存／已存、拖釘換線)才整張換。
+// 清單每秒都換:鍵盤焦點由 boardFocusSel／boardRefocus 放回同一列、不捲動;落釘卡的列點得動,按住時先不重畫(pinCardHeld)。
+// 附近車站卡(App 定位更新時重畫)也走這裡。
+function xcPaint(el, head, rest) {
+  const fk = boardFocusSel(el), h = el.firstElementChild;
+  if (h && el._xcHead === head) { while (h.nextSibling) h.nextSibling.remove(); h.insertAdjacentHTML('afterend', rest); }
+  else { el.innerHTML = head + rest; el._xcHead = head; }
+  boardRefocus(el, fk);
+}
+// 定時重畫的節拍(同查詢答案區):模擬時間有動、而且距上次重畫滿 1 真實秒。原本只看 simSec 差 ≥1,高倍速時一幀就跳過
+// 1 秒 ⇒ 幾乎每幀整張重畫(2026-09-26 實測 60× 每真實秒 40–48 次);改成牆鐘之後倍速不放大,1× 照舊每秒一次。
+function xcRepaintDue(renderedAt, wallAt) {
+  return state.simSec !== renderedAt && Date.now() - (wallAt || 0) >= 1000;
+}
 function renderCrossingCard() {
   const cr = state.crossingSel; if (!cr) return;
-  state._xingRenderedAt = state.simSec;
+  state._xingRenderedAt = state.simSec; state._xingRenderedWallAt = Date.now();
   // noSched 筆(貨運港線/專用線/已停用線,官方 415 處中的 21 處):不掛線形,無列車模擬——只標點不算班次
   const list = cr.noSched ? [] : crossingPasses(cr);
   // 線名:四條支線的代碼先換回中文線名,再跟台鐵線名一樣走路線目錄(外語查不到才退回 t())。
@@ -13973,14 +14003,15 @@ function renderCrossingCard() {
   const ico = `<svg class="xc-ico" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">` +
     `<circle cx="9" cy="9" r="7.2" fill="none" stroke="currentColor" stroke-width="1.6"/>` +
     `<path d="M4.5 4.5 L13.5 13.5 M4.5 13.5 L13.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
-  document.getElementById('xingCard').innerHTML =
+  const el = document.getElementById('xingCard');
+  xcPaint(el,
     `<div class="xc-head">${ico}<div class="xc-ttl"><b>${cr.name}</b>` +
     `<span class="xc-meta">${escHtml(lnName)} · ${escHtml(t(cr.type))}${cls ? ' · ' + escHtml(cls) : ''}</span></div>` +
-    `<button class="xc-close" id="xcClose" type="button" aria-label="${escHtml(t('關閉'))}">✕</button></div>` +
+    `<button class="xc-close" id="xcClose" type="button" aria-label="${escHtml(t('關閉'))}">✕</button></div>`,
     `<div class="xc-list">${rows}</div>` +
-    `<div class="xc-foot">${escHtml(t('依時刻表推算僅供參考，遮斷機通常提前 30–60 秒動作，請以現場號誌為準'))}</div>`;
-  const el = document.getElementById('xingCard'); el.hidden = false;
-  document.getElementById('xcClose').onclick = closeCrossingCard;
+    `<div class="xc-foot">${escHtml(t('依時刻表推算僅供參考，遮斷機通常提前 30–60 秒動作，請以現場號誌為準'))}</div>`);
+  el.hidden = false;
+  if (!el._wired) { el._wired = true; el.onclick = e => { if (e.target.closest('#xcClose')) closeCrossingCard(); }; } // 委派只掛一次(同落釘卡)
 }
 // ── 台糖五分車園區(靜態景點標記) ─────────────────────────────────────────────
 // 糖鐵無公開介接(TDX 軌道營運機構無台糖),五分車為園區觀光列車且多為假日/預約開行,
@@ -14702,22 +14733,26 @@ function renderNearbyStations() {
       const near = checkinJudge(s.st).ok;
       const ckTxt = done ? t('今天已蓋 ✓') : (e && e.n ? t('蓋章 · 第 {n} 次', { n: i18nNumber(e.n + 1) }, e.n + 1) : t('蓋章'));
       // 實體收集限 App(規格 §9):網頁端連字串都不產生——產生後再隱藏會留下可被 CSS 復活的殘骸。
+      // data-st(系統|站名)給重畫後放回鍵盤焦點用:定位更新會重排清單,只靠 data-i 會把焦點放到別站的列或蓋章鈕上
+      const key = escHtml(s.st.sys + '|' + s.st.name);
       const ck = PHYSICAL_COLLECT_ENABLED
-        ? '<button class="nx-ck' + (done ? ' done' : near ? '' : ' far') + '" type="button" data-i="' + i + '"' +
+        ? '<button class="nx-ck' + (done ? ' done' : near ? '' : ' far') + '" type="button" data-i="' + i + '" data-st="' + key + '"' +
           (done ? ' disabled' : '') + '>' + ckTxt + '</button>'
         : '';
-      return '<div class="nx-row" data-i="' + i + '"><div class="nx-top">' +
+      // 點站＝開看板 ⇒ 站名那一行是按鈕(Enter 見下面的 onkeydown)。不掛在整列上:App 的列裡還有「蓋章」鈕,按鈕裡不能再套按鈕
+      const said = [stationName(s.st.name, s.st._i18nSys), km, s.label ? t(s.label) : ''].filter(Boolean).join(i18nSep(true));
+      return '<div class="nx-row" data-i="' + i + '"><div class="nx-top" data-st="' + key + '" tabindex="0" role="button" aria-label="' + escHtml(said) + '">' +
         '<span class="nx-name">' + escHtml(stationName(s.st.name, s.st._i18nSys)) + '</span><span class="nx-km">' + escHtml(km) + '</span></div>' +
         '<div class="nx-sub">' + lbl + '<span>' + escHtml(t('點站看接下來的班次')) + '</span>' + ck + '</div></div>';
     }).join('');
   }
-  el.innerHTML = '<div class="xc-head">' + ico + '<div class="xc-ttl"><b>' + escHtml(t('你附近的車站')) + '</b>' +
+  xcPaint(el, '<div class="xc-head">' + ico + '<div class="xc-ttl"><b>' + escHtml(t('你附近的車站')) + '</b>' +
     '<span class="xc-meta">' + escHtml(meta) + '</span></div>' +
-    '<button class="xc-close" id="nearClose" type="button" aria-label="' + escHtml(t('關閉')) + '">✕</button></div>' +
+    '<button class="xc-close" id="nearClose" type="button" aria-label="' + escHtml(t('關閉')) + '">✕</button></div>',
     '<div class="xc-list">' + body + '</div>' +
     '<div class="xc-foot">' + (PHYSICAL_COLLECT_ENABLED
       ? escHtml(t('你的位置僅用於本機顯示與蓋章判定、不會上傳。點站看班次，按「蓋章」把這座站收進旅程護照。'))
-      : escHtml(t('你的位置僅用於本機顯示、不會上傳。點站看接下來的班次。'))) + '</div>';
+      : escHtml(t('你的位置僅用於本機顯示、不會上傳。點站看接下來的班次。'))) + '</div>');
   el.hidden = false;
   if (!el._wired) {
     el._wired = true;
@@ -14735,6 +14770,7 @@ function renderNearbyStations() {
       // 先開看板再算鏡頭:sheet 開了才知道地圖被遮多少,這一站才落在露出來那塊(見 focusCenter)
       if (st) { openBoard(st); M.panTo(focusCenter(st.lat, st.lon)); }
     };
+    el.onkeydown = e => boardRowKey(e, '.nx-top[data-st]');
   }
 }
 // ── 落釘看附近火車 ───────────────────────────────────────────────────────────
@@ -16925,7 +16961,10 @@ function renderPinCard() {
       const mm = Math.floor(r.delta / 60), ss = Math.floor(r.delta % 60);
       const cd = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
       const dl = r.delayMin > 0 ? '<span class="xc-dl">+' + escHtml(t('{n} 分', { n: i18nNumber(r.delayMin) }, r.delayMin)) + '</span>' : '';
-      return '<div class="xc-row" data-no="' + escHtml(r.tr.train) + '" data-sys="' + escHtml(r.tr.sys || '') + '" title="' + escHtml(t('跟隨 {train} 次', { train: trainDisplayNo(r.tr) })) + '"><span class="xc-no">' + escHtml(trainDisplayNo(r.tr)) + '</span>' +
+      // 點列＝跟這班車 ⇒ 是按鈕(Enter 見下面的 onkeydown;空白鍵照全站慣例是播放／暫停)。讀螢幕唸的名稱不放每秒在跳的倒數
+      const said = [t('跟隨 {train} 次', { train: trainDisplayNo(r.tr) }), trainDisplayKind(r.tr), t('往 {station}', { station: stationName(r.dir, r.tr.sys) }),
+        fmtHM(r.pass), r.delayMin > 0 ? t('誤點 {n} 分', { n: i18nNumber(r.delayMin) }, r.delayMin) : ''].filter(Boolean).join(i18nSep(true));
+      return '<div class="xc-row" data-no="' + escHtml(r.tr.train) + '" data-sys="' + escHtml(r.tr.sys || '') + '" tabindex="0" role="button" aria-label="' + escHtml(said) + '" title="' + escHtml(t('跟隨 {train} 次', { train: trainDisplayNo(r.tr) })) + '"><span class="xc-no">' + escHtml(trainDisplayNo(r.tr)) + '</span>' +
         '<span class="xc-kind">' + escHtml(trainDisplayKind(r.tr)) + '</span><span class="xc-dir">' + escHtml(t('往 {station}', { station: stationName(r.dir, r.tr.sys) })) + '</span>' +
         '<span class="xc-time">' + fmtHM(r.pass) + dl + '</span><span class="xc-cd">' + cd + '</span></div>';
     };
@@ -16941,31 +16980,44 @@ function renderPinCard() {
     }).join('');
     foot = `<div class="xc-foot">${escHtml(t('吸附軌道依時刻表推算，僅供參考；拖曳釘子可微調位置。'))}</div>`;
   }
-  el.innerHTML = '<div class="xc-head">' + ico + '<div class="xc-ttl"><b>' + escHtml(title) + '</b>' +
+  xcPaint(el, '<div class="xc-head">' + ico + '<div class="xc-ttl"><b>' + escHtml(title) + '</b>' +
     '<span class="xc-meta">' + meta + '</span></div>' +
     '<button class="xc-save" id="pinSave" type="button">' + escHtml(t(saved ? '已存' : '存')) + '</button>' +
-    '<button class="xc-close" id="pinClose" type="button" aria-label="' + escHtml(t('關閉')) + '">✕</button></div>' +
-    '<div class="xc-list">' + body + '</div>' + foot;
+    '<button class="xc-close" id="pinClose" type="button" aria-label="' + escHtml(t('關閉')) + '">✕</button></div>',
+    '<div class="xc-list">' + body + '</div>' + foot);
   el.hidden = false;
-  state._pinRenderedAt = state.simSec;
+  state._pinRenderedAt = state.simSec; state._pinRenderedWallAt = Date.now();
   if (!el._wired) { // 事件委派只掛一次:卡片每模擬秒重繪(倒數要跳),per-render 綁 handler 會在重繪瞬間掉點擊
     el._wired = true;
     el.onpointerdown = e => {
+      el._pressAt = Date.now(); // 按住期間 tick 先不重畫(見 pinCardHeld)
       const row = e.target.closest('.xc-row[data-no]');
       el._downNo = row ? row.dataset.no : null;
       el._downSys = row ? row.dataset.sys : null;
     };
+    const release = () => { el._pressAt = 0; };
+    window.addEventListener('pointerup', release, true);
+    window.addEventListener('pointercancel', release, true);
     el.onclick = e => {
       if (e.target.closest('#pinClose')) return closePinCard();
       if (e.target.closest('#pinSave')) return togglePinSave();
       const row = e.target.closest('.xc-row[data-no]');
-      const no = row ? row.dataset.no : el._downNo; // 按下到放開之間列被重繪換走時,用 pointerdown 記的車次補(比照站牌看板)
+      // 按下的列若在放開前被換掉,兩個引擎都不送 click(不會走到這裡),所以改成按住時不重畫;
+      // 這裡的 pointerdown 補記只剩「按在列上、拖到卡片別處才放開」這種 click 落在共同祖先的情況
+      const no = row ? row.dataset.no : el._downNo;
       const sys = row ? row.dataset.sys : el._downSys;
       if (!no) return;
       // 這條路徑不經 followTrainNo,自己撈 state.trains——所以重號的篩選要在這裡自己做(issue #16)
       const tr = findTrain(no, sys); if (tr) setFollow(tr);
     };
+    el.onkeydown = e => boardRowKey(e, '.xc-row[data-no]');
   }
+}
+// 指標按在落釘卡上、還沒放開 ⇒ 先不做定時重畫,否則按下的列被換掉、放開後不會有 click。
+// 放開(任何地方)就解除;右鍵選單之類收不到放開的情況,1.5 秒後照常重畫,倒數不會卡住。
+function pinCardHeld() {
+  const el = document.getElementById('pinCard');
+  return !!(el && el._pressAt && Date.now() - el._pressAt < 1500);
 }
 function togglePinSave() {
   if (!pinDraft) return;
@@ -17184,8 +17236,8 @@ function tickCore(now) {
       state.simSec !== state._queryRenderedAt && Date.now() - (state._queryRenderedWallAt || 0) >= 1000) renderQueryAnswer();
   if (state.mode === 'sched') {
     if (state.boardStation && Math.abs(state.simSec - (state.boardRenderedAt || 0)) >= 20) renderBoard();
-    if (state.crossingSel && Math.abs(state.simSec - (state._xingRenderedAt || 0)) >= 1) renderCrossingCard(); // 倒數每秒刷新+已通過班次退出
-    if (pinDraft && Math.abs(state.simSec - (state._pinRenderedAt || 0)) >= 1) renderPinCard(); // 釘卡倒數同樣每秒刷新(已通過班次自動退出)
+    if (state.crossingSel && xcRepaintDue(state._xingRenderedAt, state._xingRenderedWallAt)) renderCrossingCard(); // 倒數每秒刷新+已通過班次退出
+    if (pinDraft && xcRepaintDue(state._pinRenderedAt, state._pinRenderedWallAt) && !pinCardHeld()) renderPinCard(); // 釘卡同樣每秒刷新;按住卡片時先不換(見 pinCardHeld)
     if ((state._trip && !state._tripClosed) || (journeyShareRemote && !journeyShareRemote.closed)) {
       state._tripClock = (state._tripClock || 0) + dt;
       if (state._tripClock >= 1) { state._tripClock = 0; renderTripBanner(); }
