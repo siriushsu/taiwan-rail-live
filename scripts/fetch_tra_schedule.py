@@ -66,7 +66,8 @@ TRA_PATH = "data/tra.json"
 # 派車表、出貨閘門轉紅（實測見 memory tra-pingzhen-station-opening）。現在的規則：
 #   - 待上架站（站碼在下面這份，或官方站名在 fetch_tra.py 的 PENDING_STATIONS）要等
 #     官方車站清單有、而且 data/tra.json 站序也有這一站才收；在那之前照丟，但每次具名印出來。
-#   - 官方車站清單沒有、也不是待上架站的站碼：整輪失敗、不寫檔，交給人判斷。
+#   - 官方車站清單沒有（或有但座標不可用）、也不是待上架站的站碼：整輪失敗、不寫檔，交給人判斷。
+#     座標不可用以前一樣是靜默丟掉整站——中壢的座標要是壞了，一次會少掉 2,900 多個停靠。
 # 「tra.json 有沒有這一站」只對待上架站用站名判：1001「臺北-環島」這種官方專用站碼的
 # 站名本來就對不上 tra.json（densify 靠座標把它吸到臺北），套成通用規則會誤丟。
 # 站碼表只能另記一份：站碼不是官方車站清單的值，是逐日時刻表先用上的（站名是推定）。
@@ -183,13 +184,15 @@ def parse_hms_to_sec(hms):
     return int(h) * 3600 + int(m) * 60 + int(s)
 
 
-def station_status(code, station_index, tra_names, pending_names):
+def station_status(code, station_index, listed_names, tra_names, pending_names):
     """回傳 (站點, 略過原因)。原因 None＝照收；"pending"＝待上架站，照丟但具名回報；
-    "unknown"＝官方車站清單沒有、也不是待上架站，整輪要失敗。"""
+    "unknown"＝官方車站清單沒有（或座標不可用）、也不是待上架站，整輪要失敗。
+    listed_names 是整份官方車站清單的站碼→站名（含座標不可用的站）。"""
     st = station_index.get(code)
+    name = _norm(listed_names.get(code) or "")
     # 站名用「包含」比對，跟 watch_official.mjs 的 TRA_WATCH_NAMES 一樣：官方若寫成「平鎮臨時站」也要認得
-    if code in PENDING_STATION_CODES or (st is not None and any(n in _norm(st["name"]) for n in pending_names)):
-        if st is not None and _norm(st["name"]) in tra_names:
+    if code in PENDING_STATION_CODES or (name and any(n in name for n in pending_names)):
+        if st is not None and name in tra_names:
             return st, None
         return None, "pending"
     return (st, None) if st is not None else (None, "unknown")
@@ -316,6 +319,7 @@ def main():
         station_index[code] = {"name": s.get("stationName"), "lat": lat, "lon": lon}
     print(f"車站清單共 {len(stations_list)} 站，可用座標 {len(station_index)} 站（不可用：{bad_gps_codes}）", file=sys.stderr)
 
+    listed_names = {s.get("stationCode"): s.get("stationName") for s in stations_list}
     with open(TRA_PATH, encoding="utf-8") as f:
         tra_names = {_norm(s["name"]) for line in json.load(f)["lines"] for s in line["stations"]}
     pending_names = {_norm(n) for n in PENDING_STATIONS}
@@ -323,7 +327,7 @@ def main():
 
     def lookup(code):
         if code not in status_cache:
-            status_cache[code] = station_status(code, station_index, tra_names, pending_names)
+            status_cache[code] = station_status(code, station_index, listed_names, tra_names, pending_names)
         return status_cache[code]
 
     skipped_by_day = collections.defaultdict(dict)  # (站碼, 原因) → {日期: 停靠數}
@@ -375,16 +379,19 @@ def main():
 
     pending_skips, unknown_skips = skips("pending"), skips("unknown")
     for code, per_day in pending_skips:
+        name = listed_names.get(code)
         if code in station_index:
-            what = f"「{station_index[code]['name']}」（官方車站清單已上架，但 {TRA_PATH} 站序還沒有這一站）"
+            what = f"「{name}」（官方車站清單已上架，但 {TRA_PATH} 站序還沒有「{name}」這個站名）"
+        elif code in listed_names:
+            what = f"「{name}」（官方車站清單有這個站碼，但座標不可用）"
         else:
             what = f"（官方車站清單還沒有這個站碼；推定為{PENDING_STATION_CODES.get(code, '？')}）"
         print(f"⏸ 待上架站 {code}{what}：照丟 {per_day_text(per_day)}", file=sys.stderr)
     if unknown_skips:
-        detail = "；".join(f"{code}{'（官方清單有這個站碼但座標不可用）' if code in bad_gps_codes else ''} "
+        detail = "；".join(f"{code}{'（官方清單有這個站碼但座標不可用）' if code in listed_names else ''} "
                           f"{per_day_text(per_day)}" for code, per_day in unknown_skips)
         raise RuntimeError(
-            f"逐日時刻表用到官方車站清單查不到、也不是待上架站的站碼：{detail}。"
+            f"逐日時刻表用到官方車站清單沒有（或座標不可用）、也不是待上架站的站碼：{detail}。"
             "依 2026-09-26 裁示整輪失敗、不寫檔。先查清楚是新站、改碼還是官方清單出錯；"
             "是待上架新站就把站碼加進 PENDING_STATION_CODES（站名加進 fetch_tra.py 的 PENDING_STATIONS），"
             "不要為了讓重抓過而直接放行。")
