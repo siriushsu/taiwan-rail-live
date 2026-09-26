@@ -1,7 +1,25 @@
-// 乘客與配件不穿出車殼：純計算，給 verify_garage_stop_node.mjs T8 用。
+// 乘客與配件不穿出車殼：給 verify_garage_stop_node.mjs T8（probe 的車門）與 verify_garage_viaduct_stop.mjs S13（頁面量到的車門）用。
 // 車門座標系（車模公尺）：u＝沿車身往車廂中心（從門中心量）、w＝離車中心線的距離（門扇中心面 1.466、車殼外表面約 1.425）、z＝高度（門檻 .915）。
 // 劇本座標換到車模同 T8 的可見性檢查：u＝a/scale＋du、w＝1.466−(e/scale＋dv)、z＝.921＋走路起伏＋零件高度。
+import {readFileSync} from 'node:fs';
+import {gunzipSync} from 'node:zlib';
 export const OPENING={half:.3175,z0:.915,z1:3.125};
+// 正式車模頭車與中間車、每一側車門全開時的三角形（車模座標）：每扇門一筆 {id,dd,T,n}，T 每個三角形 9 個數。dir＝車模資料夾的 URL。
+export function openDoorCars(dir){const cars=[];
+ for(const id of ['emu3000','emu3000-mid']){const m=JSON.parse(readFileSync(new URL(id+'.json',dir),'utf8')),g=gunzipSync(readFileSync(new URL(m.mesh.file,dir))),f=new Float32Array(g.buffer,g.byteOffset,g.byteLength/4);
+  const n=m.mesh.vertexCount/3,inR=(x,v)=>x.ranges.some(r=>v>=r.start&&v<r.start+r.count);
+  for(const s of [1,-1]){const own=m.doors.items.filter(x=>x.side===s),T=new Float64Array(n*9);
+   for(let v=0;v<n*3;v++){const o=own.find(x=>inR(x,v));for(let j=0;j<3;j++)T[v*3+j]=f[v*6+j]+(o?o.inward[j]+o.slide[j]*o.travel:0);}
+   for(const dd of own)cars.push({id,dd,T,n});}}
+ return cars;}
+// 在給定的停站車門上，用正式零件庫與畫面每幀用的 posePerson 跑下面的判準；另回傳沒量到的角色×配件×車門方向（miss）。
+export async function clipOnDoors({doors,platform,timetable,stops=30,dt=.02}){
+ const R3=new URL('../../rail-3d/',import.meta.url),plan=await import(new URL('garage-people-plan.js',R3).href),{buildGarageParts}=await import(new URL('garage-parts.js',R3).href),{posePerson}=await import(new URL('garage-people.js',R3).href);
+ const pm=JSON.parse(readFileSync(new URL('assets/garage-people-v1/people.json',R3),'utf8')),gz=gunzipSync(readFileSync(new URL('assets/garage-people-v1/people.bin.gz',R3)));
+ const kit=buildGarageParts(pm,gz.buffer.slice(gz.byteOffset,gz.byteOffset+gz.byteLength)),scale=1.25/JSON.parse(readFileSync(new URL('assets/garage-blender-v1/emu3000.json',R3),'utf8')).sizeM[1];
+ const r=peopleClip({plan,pose:(q,v,t)=>posePerson(q,v,t,v.heading,kit,scale),kit,skins:skinFields(openDoorCars(new URL('assets/garage-blender-v1/',R3))),doors,platform,timetable,scale,stops,dt}),miss=[];
+ for(const role of ['alight','board'])for(const acc of ['none','backpack','handbag','hat','suitcase'])for(const g of ['+','-'])if(!(r.groups[role+'/'+acc+'/'+g]?.inCar>0))miss.push(role+'/'+acc+'/'+g);
+ kit.dispose();return{...r,miss};}
 // 車殼外表面高度場：每扇門附近 u、z 每 0.02 一格，從車外水平往車內看，第一個碰到的面（任何群組，s·y>1.2）的 s·y；
 // 碰不到（車端以外、門洞裡）記 NaN。cars＝[{id,dd,T,n}]，T＝門全開時的三角形座標（每個三角形 9 個數）。
 export function skinFields(cars,{u0=-1.2,u1=2.4,z0=.84,z1=3.26,step=.02}={}){

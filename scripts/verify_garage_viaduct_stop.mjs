@@ -248,6 +248,9 @@ section('S13',async(b,engine)=>{const {p,ctx,errors}=await open(b);try{
  const plan=await import('../rail-3d/garage-people-plan.js'),{peopleInvariants,peopleChecks}=await import('./lib/people_invariants.mjs');
  const v=peopleInvariants({plan,timetable:createStopTimetable({pathLength:g.L,speed:g.v}),doors:g.doors,platform:g.platform,stops:12});
  for(const [name,pass,detail]of peopleChecks(v,plan.PEOPLE.spacing))check(engine+' S13 '+name,pass,detail);
+ // 頁面車門上的穿殼判準（T8 同一套，T8 用 probe 的車門）。09-26 突變實例：拿掉「上車先走到門正前方」，probe 的車門 200 站都量不到，頁面的車門第 27 站就穿出 2.8 cm。
+ const {clipOnDoors}=await import('./lib/people_clip.mjs'),c=await clipOnDoors({doors:g.doors,platform:g.platform,timetable:createStopTimetable({pathLength:g.L,speed:g.v}),stops:30});
+ check(`${engine} S13 頁面車門：上下車的人與配件不穿出車殼（門洞以外、30 站、逐 0.02 秒，超過 1 cm 算穿），每種角色×配件×車門方向都量到`,c.bad.length===0&&c.miss.length===0,{samples:c.samples,bad:c.bad.length,worst:[...c.bad].sort((x,y)=>y.sev-x.sev).slice(0,3),miss:c.miss});
  check(engine+' S13 沒有 JS 錯誤',errors.length===0,errors);
 }finally{await ctx.close();}});
 

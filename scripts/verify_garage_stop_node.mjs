@@ -171,11 +171,7 @@ if(on('T8')){
     for(const e of personPose({id:'env',walking:stride>=0,stride:Math.max(0,stride),pose:'stand',look:lk(acc,hair,torso)},kit))E.union(kit.parts.get(e.name).geometry.boundingBox.clone().applyMatrix4(e.matrix));}
    E.min.multiplyScalar(1.06);E.max.multiplyScalar(1.06);
    const body=[];for(let i=0;i<=5;i++)for(let j=0;j<=3;j++)for(let k=0;k<=6;k++)if(i%5===0||j%3===0||k%6===0)body.push([E.min.x+(E.max.x-E.min.x)*i/5,E.min.y+(E.max.y-E.min.y)*j/3,E.min.z+(E.max.z-E.min.z)*k/6]);
-   const cars=[];for(const id of ['emu3000','emu3000-mid']){const m=JSON.parse(readFileSync(new URL(`../rail-3d/assets/garage-blender-v1/${id}.json`,import.meta.url),'utf8')),g=gunzipSync(readFileSync(new URL('../rail-3d/assets/garage-blender-v1/'+m.mesh.file,import.meta.url))),f=new Float32Array(g.buffer,g.byteOffset,g.byteLength/4);
-    const n=m.mesh.vertexCount/3,inR=(x,v)=>x.ranges.some(r=>v>=r.start&&v<r.start+r.count);
-    for(const s of [1,-1]){const own=m.doors.items.filter(x=>x.side===s),T=new Float64Array(n*9);
-     for(let v=0;v<n*3;v++){const o=own.find(x=>inR(x,v));for(let j=0;j<3;j++)T[v*3+j]=f[v*6+j]+(o?o.inward[j]+o.slide[j]*o.travel:0);}
-     for(const dd of own)cars.push({id,dd,T,n});}}
+   const cars=(await import('./lib/people_clip.mjs')).openDoorCars(new URL('../rail-3d/assets/garage-blender-v1/',import.meta.url));
    const blocked=(T,idx,p,q)=>{const dx=q[0]-p[0],dy=q[1]-p[1],dz=q[2]-p[2],L=Math.hypot(dx,dy,dz),d0=dx/L,d1=dy/L,d2=dz/L;
     for(const t of idx){const o=t*9,ax=T[o],ay=T[o+1],az=T[o+2],e1x=T[o+3]-ax,e1y=T[o+4]-ay,e1z=T[o+5]-az,e2x=T[o+6]-ax,e2y=T[o+7]-ay,e2z=T[o+8]-az;
      const px=d1*e2z-d2*e2y,py=d2*e2x-d0*e2z,pz=d0*e2y-d1*e2x,det=e1x*px+e1y*py+e1z*pz;if(Math.abs(det)<1e-12)continue;
