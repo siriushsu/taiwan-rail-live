@@ -59,6 +59,13 @@ const repo = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: '
 const git = (...a) => execFileSync('git', a, { cwd: repo, encoding: 'utf8' });
 const md5 = buf => crypto.createHash('md5').update(buf).digest('hex');
 const fail = msg => { console.error('❌ ' + msg); process.exit(1); };
+// 閘門與上傳用的 wrangler、playwright 都從這棵樹的 node_modules 借（下面 2. 會 symlink 進乾淨 worktree）。
+// 缺了它，第一個用到 wrangler 的正式庫 schema 閘門只印「查不到正式庫……先補套 migration」，看起來像正式庫出事，
+// 其實只是這棵樹沒有 node_modules（2026-09-26 從新開的 worktree 出貨時踩到）。所以在拿鎖、開樹之前先擋。
+if (!fs.existsSync(path.join(repo, 'node_modules', 'wrangler', 'bin', 'wrangler.js'))) {
+  const main = path.dirname(path.resolve(repo, git('rev-parse', '--git-common-dir').trim()));
+  fail(`這棵樹沒有 node_modules（找不到 wrangler），不是正式庫的問題。先接上主 repo 的再出貨：\n   ln -sn ${path.join(main, 'node_modules')} ${path.join(repo, 'node_modules')}`);
+}
 async function fetchProd(pathname = '/') {
   const url = `${PROD}${pathname}${pathname.includes('?') ? '&' : '?'}bust=${Date.now()}${Math.floor(Math.random() * 1e6)}`;
   try {

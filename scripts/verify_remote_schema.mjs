@@ -92,6 +92,11 @@ let raw;
 if (ddlArg) raw = fs.readFileSync(ddlArg, 'utf8');
 else {
   const wrangler = path.join(root, 'node_modules', 'wrangler', 'bin', 'wrangler.js');
+  // 沒有 wrangler 時 node 只印 MODULE_NOT_FOUND，下面那句「查不到正式庫」會讓人以為要對正式庫補 migration。
+  if (!fs.existsSync(wrangler)) {
+    console.error(`❌ 找不到 wrangler（${wrangler}）：這棵樹沒有 node_modules，不是正式庫的問題——先 ln -sn <主 repo>/node_modules 接上再跑`);
+    process.exit(2);
+  }
   const r = spawnSync('arch', ['-arm64', 'node', wrangler, 'd1', 'execute', 'DELAY_DB', '--remote', '--json',
     '--command', "SELECT name, sql FROM sqlite_master WHERE type='table'"], { cwd: root, encoding: 'utf8' });
   raw = r.stdout || '';
