@@ -81,7 +81,8 @@ const widths = [360, 375, 414, 768];
 // 9/27：平鎮附近誤點列車維持同股前後關係一條（440→441）。
 // 9/27：公車、月台與災害來源卡住後可限時復原一條（441→442）。
 // 9/27：台鐵方向與站區派軌重新整理一條（442→443）。
-const expectedHistoryCount = 443;
+// 9/27：立體建築重裝後保留透視透明度一條（443→444）。
+const expectedHistoryCount = 444;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

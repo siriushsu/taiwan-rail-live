@@ -51,6 +51,11 @@ try{
   // v0907e（b8f468fc）起街圖建築多了「透視顯示」開關，預設透視（比夜間玻璃更透）；.30 是切到「實體」時的夜間玻璃。
   // 本支寫在那之前，兩個狀態都要驗：先量預設，再按設定裡那顆「實體」鈕。
   await settle(page);const see=await page.evaluate(buildings);await page.screenshot({path:path.join(out,en+'-glass-see.png')});
+  // MapLibre 原生 zoom 13.4 介於建築層 minzoom 13 與立體列車 render 門檻 13.8 之間：
+  // 這裡重裝建築層後不會有 render() 幫忙補同步，所以必須當場保住「透視」的 .24。
+  const narrow=await page.evaluate(()=>{M.raw.setZoom(13.4);railIslandIntegration.setInspection(true);const originalDark=state.mapDark,sample=dark=>{state.mapDark=dark;railIslandIntegration.syncAppearance(true);const before=M.raw.getPaintProperty('building-3d','fill-extrusion-opacity');installBuilding3d();return{before,after:M.raw.getPaintProperty('building-3d','fill-extrusion-opacity')}};const dark=sample(true),light=sample(false);state.mapDark=originalDark;railIslandIntegration.syncAppearance(true);return{zoom:M.raw.getZoom(),dark,light,inspection:document.querySelector('[data-rail3d="inspection"] [aria-pressed="true"]')?.dataset.value};});
+  ok(en+' 縮放 13.4 重裝建築在亮暗外觀都保留透視透明度',Math.abs(narrow.zoom-13.4)<.01&&narrow.dark.before===.24&&narrow.dark.after===.24&&narrow.light.before===.24&&narrow.light.after===.24&&narrow.inspection==='on',narrow);
+  await page.evaluate(()=>M.raw.setZoom(16));
   await page.evaluate(()=>document.querySelector('[data-rail3d="inspection"] button[data-value="off"]')?.click());
   await settle(page);const glass=await page.evaluate(buildings);
   ok(en+' 預設透視顯示：藍色建築比實體更透',see.inspection==='on'&&see.alpha>0&&see.alpha<glass.alpha&&see.color==='#638BC5'&&see.source==='openmaptiles',see);

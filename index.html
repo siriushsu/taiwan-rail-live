@@ -5608,6 +5608,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="buildingopacity0927"><span class="d">9/27</span><span>立體建築剛出現的縮放範圍內，切換亮暗外觀後會保留「透視顯示」的透明度，不再突然變得不透明</span></li>
         <li data-cl-of="traphysicalstation0927"><span class="d">9/27</span><span>重新整理台鐵列車的行車方向與車站股道安排，減少對向共用同一股，以及列車在站內重疊或互穿的畫面</span></li>
         <li data-cl-of="workerrecover0927"><span class="d">9/27</span><span>公車到站、台鐵月台與災害監看遇到官方來源沒回應時，會在限時內結束等待並於下一輪恢復</span></li>
         <li data-cl-of="pingzhenhold0927"><span class="d">9/27</span><span>台鐵誤點列車經過平鎮附近時，會穩定維持前後車順序，減少在同一股道短暫重疊的畫面</span></li>
@@ -5615,7 +5616,6 @@
         <li data-cl-of="musicpools0927"><span class="d">9/27</span><span>跟車配樂新增南方日光、黃昏斜光、北海岸天色、花蓮山海、山海聚落共創 5 組共 27 首；App 需要時從網站串流，不會把這批新歌塞進安裝包</span></li>
         <li data-cl-of="followalign0926"><span class="d">9/26</span><span>iPhone 點列車後，左下資訊卡的車次與時速會排在同一條線上，不再一高一低</span></li>
         <li data-cl-of="share3d0926"><span class="d">9/26</span><span>用 Safari 開別人分享的立體地圖時，列車編組、地形與立體列車開關會完整保留，不再偶爾回到自己的預設設定</span></li>
-        <li data-cl-of="groupswitch0926"><span class="d">9/26</span><span>切換上方分組（全台同框、台鐵、高鐵、捷運與輕軌）時，畫面不會再卡住兩三秒</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5994,6 +5994,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="buildingopacity0927"><span class="d">9/27</span><span>修正立體地圖剛放大到能看見建築、還沒顯示立體列車時，切換亮暗外觀會讓「透視顯示」的建築突然變得不透明；現在重新裝入建築後會立即套回所選的透明度</span></li>
         <li data-cl="tramground0919"><span class="d">9/19</span><span>修正高雄輕軌五節車身高低不一：沒有轉向架的中間車節曾被錯誤往下拉約 36 公分，現在全列共用同一條軌面基準，屋頂與窗帶恢復平順；淡海、安坑輕軌同步套用同一修正。另掃描全 62 款列車，其他一般車廂未發現同類問題</span></li>
         <li data-cl="night200907"><span class="d">9/7</span><span>暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格。9/19 附近車站、平交道、糖鐵與儲存地點卡的關閉鈕與「存」改用亮字，暗色下看得見了</span></li>
         <li data-cl="tracksovermap0904"><span class="d">9/4</span><span>修正暗色 MapLibre 地圖的彩色路線仍被道路切碎；所有道路與 3D 建築現在都在路線下方，地名維持在上方。</span></li>
@@ -6887,7 +6888,8 @@
 // v0927e：依既有站場股道重新分配台鐵停靠節點與進出路徑，14 天模型的同節點停靠衝突 390→237、
 //         通過車穿越停靠車 3560→2714；方向逆行段維持 35，不動時刻、way/node 與既有高程特例。
 // v0927f：方向修復器與站區修復器共用具名進路保護；完整 F1→F2 重跑兩輪固定，既有高程解不重算。
-const BUILD = 'v0927f';
+// v0927g：建築層重裝後立即套回 3D 透視偏好，修正 MapLibre zoom 13～13.8 切主題時透明度從 .24 跳回 .30／.72。
+const BUILD = 'v0927g';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
@@ -7911,6 +7913,7 @@ function installBuilding3d() {
     M.raw.setPaintProperty('building-3d', 'fill-extrusion-color', state.basemap === 'landscape' ? LANDSCAPE_BUILDING_COLOR : state.mapDark ? '#638BC5' : '#d4d0c5');
     M.raw.setPaintProperty('building-3d', 'fill-extrusion-opacity', state.basemap === 'landscape' ? 1 : state.mapDark ? .30 : .72);
     if (state.mapDark && state.basemap !== 'landscape') window.RailNightMap?.installGlass(M.raw);
+    window.railIslandIntegration?.syncAppearance(true);
     return;
   }
   const layers = (M.raw.getStyle() && M.raw.getStyle().layers) || [];
@@ -7928,6 +7931,7 @@ function installBuilding3d() {
     },
   }, (firstTrack || firstSymbol) && (firstTrack || firstSymbol).id);
   if (state.mapDark && state.basemap !== 'landscape') window.RailNightMap?.installGlass(M.raw);
+  window.railIslandIntegration?.syncAppearance(true);
 }
 function syncMap3dUi() {
   const btn = document.getElementById('map3dBtn');
