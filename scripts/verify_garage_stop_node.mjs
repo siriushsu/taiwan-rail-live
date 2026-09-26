@@ -113,6 +113,15 @@ if(on('T6')){
   const gd=[{id:'L1',side:1,center:[-4.2,1.466,2.02],width:.625,height:2.2,inward:[0,-.14,0],slide:[1,0,0],travel:.66,ranges:[{start:9,count:3}]},{id:'R1',side:-1,center:[-4.2,-1.466,2.02],width:.625,height:2.2,inward:[0,.14,0],slide:[1,0,0],travel:.66,ranges:[{start:18,count:3}]}];
   const pos=new THREE.Float32BufferAttribute(P,3),glow=buildDoorGlow(pos,gd,buildDoorIndex(21,gd));
   check('T6 門廳透光：門洞後方車殼內側＝1；車殼外側、門洞以外、門扇、門楣以上＝0',[...glow].join(',')==='1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0',[...glow].join(','));
+  // 09-26 複驗項 6：門廳背牆是一整片跨過門洞的四邊形、只切兩個三角形，看重心只亮一半；看重心還會點亮跨過門洞邊的車殼外側長條（夜裡車外發亮）。
+  // 斜看時門洞裡大半是門廳端牆（在背牆的兩頭）；車端那扇門的端牆跟車端外側只隔 2 cm，車端外側不能亮（車與車之間的縫看得到）。
+  // 門廳地板切出的小三角形可能整個在門洞範圍外；門廳範圍內貼著車殼的斜面（裙板）是車外看得到的面，不能亮。
+  // 客室地板邊的底盤斜條（整節車長、只有 2 cm 高）也面朝門口，但不是背牆：拿它量門廳長度，盒子會延伸到車頭擋風玻璃框、客室裡的橫向面。
+  const Q=new Float32Array([-4.79,.89,.92,-3.1,.89,.92,-3.1,.89,3.12, -3.882,1.425,1,-3.76,1.425,1,-3.882,1.425,3, -4.79,.88,.921,-3.1,.88,.921,-3.1,1.37,.921, -4.23,.99,1.01,4.23,.99,1.01,4.23,-.99,1.01,
+   -4.778,.88,.92,-4.778,1.42,.92,-4.778,.88,3.12, -4.8,.9,.95,-4.8,1.42,.95,-4.8,.9,3.1, -3.76,1.363,.921,-3.608,1.362,.921,-3.608,.875,.921, -3.8,1.37,.93,-3.6,1.41,.98,-3.8,1.41,.98,
+   -4.23,1.02,.97,4.23,1.02,.97,4.23,1.026,.99, -2.2,.9,1,-2.2,1.3,1,-2.2,.9,3]);
+  const glow2=buildDoorGlow(new THREE.Float32BufferAttribute(Q,3),gd,new Float32Array(30));
+  check('T6 門廳透光：跨出門洞的背牆、地板與背牆兩頭的端牆＝1（不看重心）；跨過門洞邊的車殼外側長條、客室地板、車端外側、門廳範圍內貼車殼的斜面、門廳範圍外的橫向面＝0',[...glow2].join(',')==='1,1,1,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0',[...glow2].join(','));
   const g2=new THREE.BufferGeometry();g2.setAttribute('position',pos);
   const plain=new THREE.MeshStandardMaterial(),win=new THREE.MeshStandardMaterial();win.userData.railLightingRole='window';const winLit=win.clone();winLit.emissive.setRGB(1,.5,.25);winLit.emissiveIntensity=.5;
   const body2=new THREE.Mesh(g2,[plain,winLit]),car2=new THREE.Group();car2.add(body2);

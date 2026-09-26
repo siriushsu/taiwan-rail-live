@@ -6,6 +6,7 @@ import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {buildDoorGlow} from '../rail-3d/garage-doors.js';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),BASE='65682ab6b492f8ede13b890f3689de468ed69bb2',DIR='rail-3d/assets/garage-blender-v1/';
 const want=new Set(process.argv.slice(2)),on=k=>!want.size||want.has(k);
 const results=[];function check(name,pass,detail){results.push({name,pass:!!pass});console.log(pass?'PASS':'FAIL',name,JSON.stringify(detail??'').slice(0,400));}
@@ -32,13 +33,14 @@ const groupOf=(a,v)=>a.meta.mesh.drawGroups.find(g=>v>=g.start&&v<g.start+g.coun
 // 正交光線追蹤（D12 用）：在過 c、垂直於 dir 的像平面上每 px 一格射一條；回傳每格 {q：像平面上的點, h：第一個命中 {t,g,front,n} 或 null}。
 // n＝插值頂點法向量（three.js 打光用的就是它）；front＝射到三角形正面（FrontSide 材質看得到）。三角形先依像平面投影分到 2 cm 的格子，每條射線只測自己那格。
 const sub3=(p,q)=>[p[0]-q[0],p[1]-q[1],p[2]-q[2]],dot3=(p,q)=>p[0]*q[0]+p[1]*q[1]+p[2]*q[2],cross3=(p,q)=>[p[1]*q[2]-p[2]*q[1],p[2]*q[0]-p[0]*q[2],p[0]*q[1]-p[1]*q[0]],unit3=p=>{const l=Math.hypot(...p);return l>0?p.map(x=>x/l):p;};
-function ortho(a,tris,c,dir,half,px){const right=unit3(cross3(dir,[0,0,1])),up=cross3(right,dir),B=.02,nx=Math.ceil(2*half[0]/B),ny=Math.ceil(2*half[1]/B),bins=Array.from({length:nx*ny},()=>[]);
- for(const v of tris){let a0=1e9,a1=-1e9,b0=1e9,b1=-1e9;for(let k=0;k<3;k++){const p=sub3(vtx(a,v+k),c),x=dot3(p,right)+half[0],y=half[1]-dot3(p,up);a0=Math.min(a0,x);a1=Math.max(a1,x);b0=Math.min(b0,y);b1=Math.max(b1,y);}
+// off(v)＝頂點位移（同 cast，D13 用來把門扇移到全開）；命中另帶三角形首頂點索引 v。
+function ortho(a,tris,c,dir,half,px,off){const right=unit3(cross3(dir,[0,0,1])),up=cross3(right,dir),B=.02,nx=Math.ceil(2*half[0]/B),ny=Math.ceil(2*half[1]/B),bins=Array.from({length:nx*ny},()=>[]);
+ for(const v of tris){let a0=1e9,a1=-1e9,b0=1e9,b1=-1e9;for(let k=0;k<3;k++){const p=sub3(vtx(a,v+k,off),c),x=dot3(p,right)+half[0],y=half[1]-dot3(p,up);a0=Math.min(a0,x);a1=Math.max(a1,x);b0=Math.min(b0,y);b1=Math.max(b1,y);}
   for(let i=Math.max(0,Math.floor(a0/B));i<=Math.min(nx-1,Math.floor(a1/B));i++)for(let j=Math.max(0,Math.floor(b0/B));j<=Math.min(ny-1,Math.floor(b1/B));j++)bins[j*nx+i].push(v);}
  const out=[],W=Math.round(2*half[0]/px),H=Math.round(2*half[1]/px);
- for(let j=0;j<H;j++)for(let i=0;i<W;i++){const x=(i+.5)*px,y=(j+.5)*px,q=[0,1,2].map(k=>c[k]+right[k]*(x-half[0])+up[k]*(half[1]-y)),o=q.map((v,k)=>v-dir[k]*6),r=cast(a,bins[Math.floor(y/B)*nx+Math.floor(x/B)],o,dir);
-  let h=null;if(r){const A=vtx(a,r.v),e1=sub3(vtx(a,r.v+1),A),e2=sub3(vtx(a,r.v+2),A),p=sub3(o.map((v,k)=>v+dir[k]*r.t),A),d00=dot3(e1,e1),d01=dot3(e1,e2),d11=dot3(e2,e2),d20=dot3(p,e1),d21=dot3(p,e2),den=d00*d11-d01*d01,u=(d11*d20-d01*d21)/den,w=(d00*d21-d01*d20)/den,wt=[1-u-w,u,w];
-   h={t:r.t,g:groupOf(a,r.v).name,front:dot3(cross3(e1,e2),dir)<0,n:unit3([0,1,2].map(k=>wt.reduce((s,wk,m)=>s+wk*a.f[(r.v+m)*6+3+k],0)))};}
+ for(let j=0;j<H;j++)for(let i=0;i<W;i++){const x=(i+.5)*px,y=(j+.5)*px,q=[0,1,2].map(k=>c[k]+right[k]*(x-half[0])+up[k]*(half[1]-y)),o=q.map((v,k)=>v-dir[k]*6),r=cast(a,bins[Math.floor(y/B)*nx+Math.floor(x/B)],o,dir,off);
+  let h=null;if(r){const A=vtx(a,r.v,off),e1=sub3(vtx(a,r.v+1,off),A),e2=sub3(vtx(a,r.v+2,off),A),p=sub3(o.map((v,k)=>v+dir[k]*r.t),A),d00=dot3(e1,e1),d01=dot3(e1,e2),d11=dot3(e2,e2),d20=dot3(p,e1),d21=dot3(p,e2),den=d00*d11-d01*d01,u=(d11*d20-d01*d21)/den,w=(d00*d21-d01*d20)/den,wt=[1-u-w,u,w];
+   h={t:r.t,v:r.v,g:groupOf(a,r.v).name,front:dot3(cross3(e1,e2),dir)<0,n:unit3([0,1,2].map(k=>wt.reduce((s,wk,m)=>s+wk*a.f[(r.v+m)*6+3+k],0)))};}
   out.push({q,h});}
  return out;}
 
@@ -93,6 +95,26 @@ function doorChecks(a,yOut){const doors=a.meta.doors,items=Array.isArray(doors?.
    for(let k=0;k<3;k++){const x=a.f[(v+k)*6],y=s*a.f[(v+k)*6+1],z=a.f[(v+k)*6+2];if(!(y>=.875&&y<=1.425&&z>=2.9&&z<=3.13&&Math.abs(x-cx)<=.5)){ok=false;break;}}if(ok)n++;}
   return n>=2?null:{lampTris:n};});
  R.D11=[items.length>0&&win.length>0&&bad11.length===0,items.length?bad11:none];
+ // D13 門廳透光（設計書 §9；09-26 複驗項 6）：夜裡從門洞看進去，門廳背牆、地板、兩側端牆要整片亮，亮的面也只能從門洞看得到。
+ // 背牆與地板都是一整片跨過門洞的四邊形，舊規則看三角形重心、只點亮其中一部分，每個門口都有一條斜的明暗交界；端牆在門洞範圍外，斜看時佔門洞大半，舊規則整片不亮。
+ // 用正式 buildDoorGlow 算每個三角形亮不亮；那扇門全開，D12 同一套正交光線追蹤（正面、兩個 30° 斜角，再加兩個 60° 斜角與鏡頭最低的俯角 1.0）每 2 cm 一格：
+ // 穿過門框內緣 s·y 1.40 平面的點在門洞內（內縮 2 cm）、第一個命中是門廳背牆（body、s·y .8～1.0、面朝門口＝法向量沿 y）、地板（水平面、門檻高度 ±1 cm、s·y .8～1.4）或端牆（body、直立且正對車身方向 |n_x|≥.99、s·y .88～1.40、離門中心 ≤ 門寬/2＋.35）→ 要亮；第一個命中是亮的面 → 穿過點要在門洞外擴 6 cm 以內（同 D12）。
+ // 穿過點量在 1.40 不用 D12 的 1.44：60° 斜看時車殼外那 4 cm 會橫移 7 cm，門洞角落看進去的門內地板會被算成門洞外。
+ // 車頭那扇門斜看會看到車頭流線外殼的背面（|n_x| .93、離門中心 .86 以外），那是車外的面，不算端牆、也不能亮。
+ // 地板外緣與車殼之間有一道約 1 cm 的縫，俯看會看到縫下的裙板內側（z .90、整節車長的一個三角形），那是車身結構不是地板，不要求亮。
+ // 客室地板（chassis）伸進門廳的台階——直立面 s·y 1.026、頂面 z 1.01，都是整節車長的三角形——不算門廳面，現在是暗的（帳本 Task 9 的已知項）。
+ const index=new Float32Array(a.count);items.forEach((d,k)=>{for(const r of d.ranges??[])for(let v=r.start;v<r.start+r.count&&v<a.count;v++)index[v]=k+1;});
+ const glow=items.length?buildDoorGlow({count:a.count,getX:v=>a.f[v*6],getY:v=>a.f[v*6+1],getZ:v=>a.f[v*6+2]},items,index):null,view={...dirs,前深斜:s=>unit3([-.85,-s*.5,-.15]),後深斜:s=>unit3([.85,-s*.5,-.15]),俯角:s=>[0,-s*Math.cos(1),-Math.sin(1)]};
+ const bad13=each((d,s,cx,w,h,bz)=>{const off0=openOffset(d),off=v=>inRanges(d,v)?off0:null,tris=near(a,cx,3);let wall=0,dark=0,lit=0,stray=0,firstDark=null,firstStray=null;
+  for(const [name,f] of Object.entries(view)){const dir=f(s);
+   for(const {q,h:x} of ortho(a,tris,[cx,s*1.44,2.15],dir,[1.4,1.35],.02,off)){if(!x)continue;
+    const lam=(1.40-s*q[1])/(s*dir[1]),pc=q.map((v,k)=>v+dir[k]*lam),sy=s*(q[1]+dir[1]*(x.t-6));
+    if(Math.abs(pc[0]-cx)<=w/2-.02&&pc[2]>=bz+.02&&pc[2]<=bz+h-.02){const n=unit3(cross3(sub3(vtx(a,x.v+1,off),vtx(a,x.v,off)),sub3(vtx(a,x.v+2,off),vtx(a,x.v,off)))),hz=q[2]+dir[2]*(x.t-6);
+     const face=x.g==='body'&&sy>=.8&&sy<=1.0&&Math.abs(n[1])>=.9?'背牆':Math.abs(n[2])>=.9&&Math.abs(hz-bz)<=.01&&sy>=.8&&sy<=1.4?'地板':x.g==='body'&&Math.abs(n[0])>=.99&&sy>=.88&&sy<=1.40&&Math.abs(q[0]+dir[0]*(x.t-6)-cx)<=w/2+.35?'端牆':null;
+     if(face){wall++;if(!glow[x.v]){dark++;firstDark??={face,dir:name,dx:+(pc[0]-cx).toFixed(3),z:+pc[2].toFixed(3)};}}}
+    if(glow[x.v]){lit++;if(!(Math.abs(pc[0]-cx)<=w/2+.06&&pc[2]>=bz-.06&&pc[2]<=bz+h+.06)){stray++;firstStray??={dir:name,dx:+(pc[0]-cx).toFixed(3),z:+pc[2].toFixed(3),sy:+sy.toFixed(3),g:x.g};}}}}
+  return wall&&!dark&&lit&&!stray?null:{wall,dark,lit,stray,firstDark,firstStray};});
+ R.D13=[items.length>0&&bad13.length===0,items.length?bad13:none];
  return R;}
 // 門口以外逐格比外觀（D12 對 BASE、M9 對頭車）。09-25 實例：門廳盒子的外側平板做在 |y| 1.425（車殼外表面），在車殼上下圓弧處凸出 3～8 cm（底部一整條橡膠、頂部一片車身），
 // 在平直處跟車殼共面（框條與車身搶深度＝閃爍黑線）；重建時車頭折線的法向量被抹平（整片側板變漸層）、車端端牆被切成不同的三角形（整面明暗改變）——D1～D11 全綠照不到。
@@ -113,7 +135,7 @@ function mirrorX(a){const f=new Float32Array(a.f.length);
  for(let v=0;v<a.count;v+=3)for(let k=0;k<3;k++){const o=(v+k)*6,i=(v+[0,2,1][k])*6;f[o]=-a.f[i];f[o+1]=a.f[i+1];f[o+2]=a.f[i+2];f[o+3]=-a.f[i+3];f[o+4]=a.f[i+4];f[o+5]=a.f[i+5];}
  return{meta:a.meta,f,count:a.count};}
 
-// D：頭尾車 emu3000 的可動車門（Task 4）。四扇門的結果合併在同一項，D 段固定 12 項。
+// D：頭尾車 emu3000 的可動車門（Task 4）。四扇門的結果合併在同一項，D 段固定 13 項（D13 是 Task 9 複驗後加的，見帳本）。
 if(on('D')){const a=load(now,DIR,'emu3000'),o=load(then,DIR,'emu3000'),R=doorChecks(a,yOutOf(o));
  const items=Array.isArray(a.meta.doors?.items)?a.meta.doors.items:[],none='沒有 doors',G=a.meta.mesh.drawGroups,G0=o.meta.mesh.drawGroups;
  check('D1 doors：schema garage-doors-v1、type slide-pocket；4 扇門，每側 2 扇',...R.D1);
@@ -133,6 +155,7 @@ if(on('D')){const a=load(now,DIR,'emu3000'),o=load(then,DIR,'emu3000'),R=doorChe
  const bad12=eachDoor(items,(d,s,cx,w,h,bz)=>exteriorDiff(a,o,s,cx,w,h,bz));
  check('D12 門口以外的外觀與 BASE 相同：正面＋兩個斜角光線追蹤，群組、深度、正反面、法向量逐格一致',items.length>0&&bad12.length===0,items.length?bad12:none);
  for(const b of bad12)console.log('   D12',b.id,JSON.stringify({diffPx:b.diffPx,kinds:b.kinds}),JSON.stringify(b.first));   // check() 的明細只印 400 字，四扇門看不全
+ check('D13 門廳透光：從門洞看進去的門廳背牆、地板、端牆整片亮、亮的面只從門洞看得到（正式 buildDoorGlow；正面、30° 與 60° 斜角、俯角 1.0 光線追蹤）',...R.D13);
 }
 
 // M：中間車 emu3000-mid 與集電弓零件庫 emu3000-pantograph（Task 5）。M 段固定 9 項。
@@ -145,7 +168,7 @@ if(on('M')){const hd=load(now,DIR,'emu3000'),o=load(then,DIR,'emu3000'),m=load(n
  const roles=mm.mesh.drawGroups.filter(g=>g.lightingRole==='headFront'||g.lightingRole==='tailFront').map(g=>g.name);
  check('M3 沒有頭燈、尾燈角色，lighting 省略或 null；features.pantographsOnThisAsset＝1',roles.length===0&&mm.lighting==null&&mm.features?.pantographsOnThisAsset===1,{roles,lighting:mm.lighting??null,pantographs:mm.features?.pantographsOnThisAsset??null});
  const R=doorChecks(m,yOutOf(o)),failed=Object.entries(R).filter(([,r])=>!r[0]).map(([k,r])=>({[k]:r[1]})),HG=hd.meta.mesh.drawGroups,foreign=mm.mesh.drawGroups.filter(g=>!HG.some(h=>sameGroup(g,h))).map(g=>g.name);
- check('M4 中間車車門過 D1、D4～D9、D11；每個 drawGroup 的名稱與材質值都在頭車裡找得到',failed.length===0&&foreign.length===0,{failed,foreign});
+ check('M4 中間車車門過 D1、D4～D9、D11、D13；每個 drawGroup 的名稱與材質值都在頭車裡找得到',failed.length===0&&foreign.length===0,{failed,foreign});
  check('M5 集電弓座：x 取負（肘朝 +x）且 |x| 在 2.0～3.5、|y|<.05、z 在 3.3～3.7',Array.isArray(mount)&&mount[0]<0&&-mount[0]>=2&&-mount[0]<=3.5&&Math.abs(mount[1])<.05&&mount[2]>=3.3&&mount[2]<=3.7,{mount:mount??null});
  const pm=p.meta,rig=pm.rig??{},parts=Array.isArray(pm.parts)?pm.parts:[],ext={};
  for(const q of parts){if(!Number.isInteger(q.start)||!Number.isInteger(q.count)||q.start<0||q.count<3||q.count%3||q.start+q.count>p.count){ext[q.name]='越界或不是 3 的倍數';continue;}

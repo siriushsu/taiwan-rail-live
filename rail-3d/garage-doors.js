@@ -19,13 +19,32 @@ export function buildDoorIndex(vertexCount,items){
  return index;
 }
 // 門廳透光（設計書 §9「開門時門內透光」）：頂燈藏在門楣後、鏡頭一律俯看看不到它，three.js 的自發光也不照亮別的面；
-// 所以門洞後方、車殼內側（比門扇中心面再往內 4 公分）、門檻到門楣之間的三角形標 1，讓它們跟著這節車的窗燈一起亮。
-// z 夾在門檻與門楣之間：車殼在車肩、裙板往內彎，範圍放寬會把門洞上下的車殼外側也標進來，夜裡車外會發亮。門扇（index≠0）不算。
+// 所以門洞後方、車殼內側（比門扇中心面再往內 4 公分）、門檻到門楣之間的面標 1，讓它們跟著這節車的窗燈一起亮。門扇（index≠0）不算。
+// 09-26 複驗項 6 起不看三角形重心：門廳背牆與地板是一整片跨過門洞的四邊形、只切兩個三角形，看重心只亮一半，還會點亮跨過門洞邊的車殼外側長條。
+// 1. 整個三角形在門洞左右範圍內（外擴 5 cm）：重心深度在 .5～門扇中心面內 4 cm（原本的規則）。
+// 2. 跨過門洞範圍的：整個在車內深處（離中心線 .5～1.3；車殼最往內彎的裙板也在 1.36 以外）。
+// 1、2 的 z 看重心、夾在門檻與門楣之間：車殼在車肩、裙板往內彎，放寬會把門洞上下的車殼外側也標進來，夜裡車外會發亮。
+// 3. 門廳盒子：沿車身＝背牆（2 的條件、面朝門口、從門檻到門楣整面高）的範圍，深 .85～門扇中心面內 4 cm，門檻到門楣上方 5 cm；整個三角形在盒內就亮，
+//    （客室地板邊的底盤斜條也面朝門口、在深處，但只有 2 cm 高、整節車長；拿它量，盒子會延伸到車頭擋風玻璃框與客室裡的橫向面。）
+//    但伸到 1.3 以外（貼著車殼）的只有端牆（法向量沿車身）與地板（到 1.38）。斜看時門洞裡大半是端牆；車端那扇門的端牆跟車端外側只隔 2 cm，
+//    靠背牆範圍（外擴 2 mm）分開，車端外側（車與車之間的縫看得到）不會亮；車頭那扇門外面的流線外殼也在盒外。
+// 載入車模時每個 geometry 跑一次（頭車約 6 萬個三角形）：先把每個三角形的包圍盒與法向量存進 T，每扇門只做純量比較，不配置物件。
+// T 每個三角形 12 格：0 第一個頂點、1 |法向量 x|、2 |法向量 y|、3 水平面（1／0）、4～5 x 最小／最大、6～7 y 最小／最大、8 重心 y、9～10 z 最小／最大、11 重心 z。
 export function buildDoorGlow(position,items,index){
- const glow=new Float32Array(position.count);
+ const glow=new Float32Array(position.count),T=new Float64Array(Math.floor(position.count/3)*12);let m=0;
  for(let v=0;v+2<position.count;v+=3){if(index[v]||index[v+1]||index[v+2])continue;
-  let x=0,y=0,z=0;for(let k=0;k<3;k++){x+=position.getX(v+k)/3;y+=position.getY(v+k)/3;z+=position.getZ(v+k)/3;}
-  if(items.some(d=>{const w=Math.sign(d.center[1])*y;return Math.abs(x-d.center[0])<=d.width/2+.05&&w>.5&&w<=Math.abs(d.center[1])-.04&&z>=d.center[2]-d.height/2-.01&&z<=d.center[2]+d.height/2-.005;}))glow.fill(1,v,v+3);
+  const x0=position.getX(v),y0=position.getY(v),z0=position.getZ(v),x1=position.getX(v+1),y1=position.getY(v+1),z1=position.getZ(v+1),x2=position.getX(v+2),y2=position.getY(v+2),z2=position.getZ(v+2);
+  const ax=x1-x0,ay=y1-y0,az=z1-z0,bx=x2-x0,by=y2-y0,bz=z2-z0,nx=ay*bz-az*by,ny=az*bx-ax*bz,nz=ax*by-ay*bx,l=Math.hypot(nx,ny,nz);
+  T[m]=v;T[m+1]=l>0?Math.abs(nx)/l:0;T[m+2]=l>0?Math.abs(ny)/l:0;T[m+3]=l>0&&Math.abs(nz)/l>=.9?1:0;T[m+4]=Math.min(x0,x1,x2);T[m+5]=Math.max(x0,x1,x2);
+  T[m+6]=Math.min(y0,y1,y2);T[m+7]=Math.max(y0,y1,y2);T[m+8]=(y0+y1+y2)/3;T[m+9]=Math.min(z0,z1,z2);T[m+10]=Math.max(z0,z1,z2);T[m+11]=(z0+z1+z2)/3;m+=12;}
+ for(const d of items){const s=Math.sign(d.center[1]),cx=d.center[0],hw=d.width/2+.05,lim=Math.abs(d.center[1])-.04,z0=d.center[2]-d.height/2,z1=d.center[2]+d.height/2;
+  // a、b＝沿車身、相對門中心的範圍；w0、w1＝往車內（s·y）的範圍；wc＝重心往車內的深度。
+  let x0=Infinity,x1=-Infinity;
+  for(let i=0;i<m;i+=12){const a=T[i+4]-cx,b=T[i+5]-cx,w0=Math.min(s*T[i+6],s*T[i+7]),w1=Math.max(s*T[i+6],s*T[i+7]),zc=T[i+11];
+   if(T[i+2]>=.9&&zc>=z0-.01&&zc<=z1-.005&&a<=hw&&b>=-hw&&w0>.5&&w1<=1.3&&T[i+9]<=z0+.05&&T[i+10]>=z1-.05){x0=Math.min(x0,a);x1=Math.max(x1,b);}}
+  for(let i=0;i<m;i+=12){const a=T[i+4]-cx,b=T[i+5]-cx,w0=Math.min(s*T[i+6],s*T[i+7]),w1=Math.max(s*T[i+6],s*T[i+7]),wc=s*T[i+8],zc=T[i+11];
+   if(zc>=z0-.01&&zc<=z1-.005&&(a>=-hw&&b<=hw?wc>.5&&wc<=lim:a<=hw&&b>=-hw&&w0>.5&&w1<=1.3)
+    ||a>=x0-.002&&b<=x1+.002&&w0>=.85&&w1<=lim&&T[i+9]>=z0-.01&&T[i+10]<=z1+.05&&(w1<=1.3||T[i+1]>=.9||T[i+3]&&w1<=1.38))glow.fill(1,T[i],T[i]+3);}
  }
  return glow;
 }
