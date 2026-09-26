@@ -130,6 +130,27 @@ for (const [engName, w] of MATRIX) {
   ok(P('找到可跟的車(已撥鐘到到站前,#fpConn 確定有真實資料)'), !!found, JSON.stringify(found));
   if (!found) { await browser.close(); continue; }
 
+  // 🔴 C1pre(只有手機):量任何座標、點任何東西之前,先等晚到、會把卡片撐高的立體列車編組說明到位。
+  // 來源與判準同 verify_transfer_follow_pin 的 F5pre2(量測細節寫在那裡):rail-3d.js 延遲載入,renderer
+  // 掛上後 render() 裡的 updateNote() 才把 .ri-formation-caption append 到 #followPanel 尾端;手機小卡
+  // 下錨往上長,說明到位那一刻卡裡每個元件的上緣一起上移(今天兩行 48px)。說明到位前卡片可以已經連續
+  // 靜止 770ms,下面 settle() 的「連續三次取樣不變」照不到還沒發生的位移 ⇒ C1/C7 量到過期版面、
+  // C3 點到上移後的別的元件。手機跟車時 followHeadLocked 為真才畫;桌面縮放 <13.8 不畫,1280 不等
+  // (等了只會逾時假紅)。整個掛不上(載入結束、沒有 renderer、errors 非空)就不會有說明,同樣放行;
+  // errors 單獨非空不算——renderer 在跑時 onError 也會塞非致命錯誤,說明照樣晚到。
+  // detail 的 ms＝這次等了多久:接近 0 表示跟車時說明早就到了,這一輪沒有碰到那個窗口。
+  if (MOBILE) {
+    const t0 = Date.now();
+    const note3d = await page.waitForFunction(() => {
+      const ri = window.railIslandIntegration;
+      if (!ri) return false;
+      if (!ri.renderer) return !ri.loading && ri.errors.length ? { loadFailed: ri.errors.length } : false;
+      const cap = document.querySelector('#followPanel .ri-formation-caption');
+      return cap && !cap.hidden && cap.textContent.trim() ? { caption: cap.textContent.trim() } : false;
+    }, null, { timeout: 30000 }).then(h => h.jsonValue(), e => ({ timeout: String(e.message).slice(0, 100) }));
+    ok(P('C1pre 手機:量座標與點擊前,晚到會撐高卡片的立體列車編組說明已到位'), !note3d.timeout, JSON.stringify({ ...note3d, ms: Date.now() - t0 }));
+  }
+
   // 點之前先等版面沉澱:跟隨小卡錨在左下,欄位陸續到位時卡片會長高、上緣往上跑,
   // #fpConn 跟著移動。Playwright 的 stability 只看連續兩幀,機器忙時會在檢查通過之後、
   // 真正派發之前又位移 ⇒ 點到卡片裡別的東西(實測 webkit 在第六個 context 時中過一次:
