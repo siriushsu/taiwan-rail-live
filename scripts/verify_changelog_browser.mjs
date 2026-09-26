@@ -72,7 +72,8 @@ const widths = [360, 375, 414, 768];
 // 9/26：空白鍵全站一致只做播放／暫停、面板內鍵盤焦點框不再被切掉一條（430→431）。
 // 9/26：鍵盤焦點不再掉回頁首（看板重畫、關面板、行程分享列、捷運膠囊）一條（431→432）。
 // 9/26：平交道卡、落釘卡每秒重畫不再洗掉鍵盤焦點與按住的鈕、落釘卡班次與附近車站接上鍵盤一條（432→433）。
-const expectedHistoryCount = 433;
+// 9/26：手機橫放時平交道卡、落釘卡、台糖卡改成靠右整條顯示一條（433→434）。
+const expectedHistoryCount = 434;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

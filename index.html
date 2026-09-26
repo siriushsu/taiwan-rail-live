@@ -988,7 +988,8 @@
      值由 syncBoardScrollPad 量卡頭實高寫進 --board-scroll-pad。
      附近車站卡的站名(v0926j 起鍵盤走得到)與「蓋章」鈕的框往外畫:往下 Tab 的聚焦捲動把它貼齊卡片底緣,框的下緣整條被切
      (2026-09-26 實測兩個引擎)⇒ 底部留 6px(同 .board 沒有提示列時)。落釘卡的列框往內畫,不留:844×390 那張可見內容比一列矮,
-     多留的 6px 會讓 Chromium 往回走時把列再往卡頭底下推 6px(列中心被蓋)。 */
+     多留的 6px 會讓 Chromium 往回走時把列再往卡頭底下推 6px(列中心被蓋)。
+     (v0926l 起矮橫式的落釘卡改坐側欄、放得下全部列,「比一列矮」這個理由不在了;列框往內畫,不留也不會被切。) */
   .xing-card > :not(.xc-head),
   .xing-card > :not(.xc-head) * { scroll-margin-top: var(--board-scroll-pad, 0px); }
   .xing-card .nx-row * { scroll-margin-bottom: 6px; }
@@ -4836,6 +4837,31 @@
       right: calc(var(--rail-w) + 16px + var(--sa-r));
     }
     body.fs.sheet-open .alert-detail, body.fs.train-open .alert-detail { width: auto; left: 8px; }
+    /* 🔴 平交道卡／台糖卡／落釘卡改坐側欄槽位(09-26 使用者裁示方案 A)。
+       手機殼那條 .xing-card(top:191、max-height:100%-313)是照直式寫的:動作列底下開槽、底部留給跟隨卡。
+       橫式只有 375–430 高,同一條式子算出來卡只剩 62–117px,卡頭就吃掉 42–56px(特大字級卡頭比卡還高)⇒
+       修前 844×390 平交道卡五列只看得到一列、落釘卡一列都沒有,667×375 三張全是零列。
+       改成跟 sheet 家族同一條側欄:上錨到頂、寬讀 --rail-w、右緣讓瀏海 --sa-r
+       (舊的 right:8px 沒讀 --sa-r,瀏海在右邊時卡的右緣鑽進瀏海底下)。
+       下緣停在版權列之上,不是 sheet 家族的 tabbar-clear+8:這三張不在 SHEET_PANEL_IDS,body.sheet-open
+       不會成立、版權列不淡出,要讓出它那一行(10px×行高 1.25,跟著 --uis)再留 6px。
+       只挑這三個 id:#pinHint(一行提示條)與 #nearCard(本來就在 sheet 家族)也掛 .xing-card,寫成 class 會一起拉走。
+       代價是裁示時就列出來的:蓋住右上角的公告鈕、全▾、觀看、隨機(同 08-27 v3「可以擋住右上角那些按鈕」);
+       跟車中右側是跟車欄,卡疊在它上半。上面那條 sheet-open／train-open 讓位碰不到這三張——
+       開 sheet 或列車 sheet 都走 soloPanel,會先把它們關掉。
+       卡坐進側欄就算側欄的一份,--rail-occupy 跟著算(契約8「中線=[左界, 側欄左緣−8] 的中點」):
+       速度膠囊與特大字級提示卡照樣讓開。沒這條,特大字級時卡的左下角壓在膠囊與「現在」底下(667×375 相交 63×52)。
+       只管高 ≤ 500 的橫式:再高,手機殼那條就還有 190px 以上(量過的橫向平板 768–1024 高都五列全露),不是缺陷,維持原位。
+       守門人:verify_board_scroll_pad 的 L 格(內容區至少放得下第一列,列高當場量)。 */
+    @media (max-height: 500px) {
+      body.fs:has(:is(#xingCard, #pinCard, #sugarCard):not([hidden])) { --rail-occupy: calc(var(--rail-w) + 16px + var(--sa-r)); }
+      body.fs :is(#xingCard, #pinCard, #sugarCard) {
+        --xc-bot: calc(var(--tabbar-clear) + 6px + 10px * 1.25 * var(--uis) + 6px);
+        top: calc(8px + var(--sa-t)); left: auto; right: calc(8px + var(--sa-r));
+        width: var(--rail-w); max-width: none; border-radius: 12px;
+        max-height: calc(100% - 8px - var(--sa-t) - var(--xc-bot));
+      }
+    }
 
     /* ── §04c 契約3:時鐘徽章併入頂列(placeBadge 搬 DOM,這裡只管樣式) ──
        position:static 讓它加入頂列 flex;margin-right:auto 把「牌+徽章」釘成左群、頁籤留右
@@ -5569,6 +5595,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="landcard0926"><span class="d">9/26</span><span>手機橫放時，平交道卡、落釘卡、台糖卡改成靠右整條顯示，接下來的班次不用捲就看得到（原本卡片太矮，常常一列都看不到）</span></li>
         <li data-cl-of="xcfocus0926"><span class="d">9/26</span><span>平交道卡、落釘卡用鍵盤選到的按鈕不會再每秒被洗掉，點 ✕ 或班次也不會偶爾沒反應；落釘卡的班次和 App 的附近車站能用鍵盤選到，按 Enter 就能跟車、看班次</span></li>
         <li data-cl-of="kbfocusback0926"><span class="d">9/26</span><span>用鍵盤操作時，車站看板自動更新、關掉面板、在行程分享選好目的站、展開或收起跟捷運時的膠囊小卡之後，選取不再跳回頁首，會留在原處或回到打開面板的按鈕</span></li>
         <li data-cl-of="spacekey0926"><span class="d">9/26</span><span>空白鍵在任何地方都是播放／暫停，不會再順便打開資料卡、展開卡片或讓鍵盤選取跳回頁首，按住也只切一次；面板邊緣與標題列按鈕的鍵盤選取框不再被切掉</span></li>
@@ -5576,7 +5603,6 @@
         <li data-cl-of="boardrowkb0926"><span class="d">9/26</span><span>今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 就行</span></li>
         <li data-cl-of="fpnextwrap0926"><span class="d">9/26</span><span>跟車卡的「下一站」遇到較長的站名（例如英文介面的長榮大學、科工館）會換行顯示全名，整張卡不再能左右拖動</span></li>
         <li data-cl-of="remainingtracks0913"><span class="d">9/26</span><span>台鐵 10/3 起有 14 班調整時刻，3D 地圖裡這些車照樣走原本的股道</span></li>
-        <li data-cl-of="subwayfloat0925"><span class="d">9/25</span><span>3D 地圖上臺北車站的臺鐵列車不再畫在車站屋頂上，高捷紅線地下段也不再浮在地面上；新左營臺鐵與高雄輕軌被頂高的地方回到原位</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5871,6 +5897,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="landcard0926"><span class="d">9/26</span><span>手機橫放時，平交道卡、落釘卡、台糖卡改成跟車站看板一樣靠右整條顯示，接下來的班次一次看完（原本卡片太矮、標題就佔掉大半，落釘卡常常一列班次都看不到）；iPhone 橫放時瀏海也不再擋住卡片右緣</span></li>
         <li data-cl="xcfocus0926"><span class="d">9/26</span><span>平交道卡、落釘卡每秒更新時，鍵盤選到的按鈕或班次會留在原處、畫面不跳，點 ✕、存或班次也不會偶爾沒反應（高倍速播放時原本幾乎點不到）；落釘卡的班次與 App 附近車站卡的站名能用鍵盤移過去，按 Enter 跟車或開看板</span></li>
         <li data-cl="kbfocusback0926"><span class="d">9/26</span><span>用鍵盤操作時選取不再跳回頁首：車站看板（含跟車時的合併卡、暗色看板的方向鈕）每 20 秒更新後留在原處；關掉面板回到打開它的按鈕；行程分享選好目的站後回到「行程分享」鈕；跟捷運時的膠囊小卡展開停在 ×、收起停在膠囊</span></li>
         <li data-cl="spacekey0926"><span class="d">9/26</span><span>空白鍵一律只做播放／暫停：在清單列、按鈕、資料卡上按不會再同時打開東西，按鈕上按完鍵盤選取留在原處（原本會跳回頁首），按住不放只切一次；面板底緣、標題列、字級切換與公車轉乘卡的鍵盤選取框不再被切掉，「全部班次」鈕選到時看得到框</span></li>
@@ -6810,7 +6837,12 @@
 //         修後焦點跨兩次重畫都在、scrollTop 不變，列 5／8 全到，每秒 1 次，點擊 4/4、3/3。附近車站卡的列補 scroll-margin-bottom
 //         6px（同 .board；落釘卡的列框往內畫、不留）：站名列往下 Tab 到卡底時框的下緣被切 1 拍→0（Chromium 三寬度、WebKit 360）。
 //         守門：verify_board_scroll_pad 補 K／R／W／E／C／Q／V／N 各格與突變對照（兩個引擎）。
-const BUILD = 'v0926j';
+// v0926l：手機橫式（高 ≤ 500）的平交道卡、落釘卡、台糖卡沿用直式手機殼的位置（top 191、max-height 100%−313），844×390 只剩 73px、
+//         卡頭吃掉 42–56px：平交道卡五列只看得到一列、落釘卡零列，667×375 三張全是零列。改坐右側欄槽位（09-26 使用者裁示方案 A，
+//         跟車站看板同一格）：寬 --rail-w、上緣接頂列、下緣停在版權列之上、右緣讓瀏海；卡開著時 --rail-occupy 跟著算（契約 8：
+//         速度膠囊與特大字級提示卡往左讓）。修後兩引擎 844／667／932 × 標準、特大：平交道卡、落釘卡 5/5 列，台糖卡標準字級全文不用捲；
+//         平板（高 > 500）與直式逐值同修前。守門：verify_board_scroll_pad 補 L／N 各格、verify_landscape L2b 改驗槽位＋互斥，各附突變。
+const BUILD = 'v0926l';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

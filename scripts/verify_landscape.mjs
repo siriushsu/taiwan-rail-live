@@ -982,10 +982,41 @@ async function landscapeSuite(browser, eng) {
       return out;
     });
     const found = wideOverlays.filter(o => !o.missing);
-    const clash = found.filter(o => o.overlaps);
+    // v0926l 起矮橫式(高 ≤ 500)的平交道卡、落釘卡、台糖卡改坐側欄槽位(09-26 使用者裁示方案 A):
+    // 卡「就是」側欄那一格,強制顯示當然會跟開著的側欄疊——那不是鑽到底下,是同一格輪流用,
+    // 前提是兩者真的互斥。所以 .xing-card 疊到時改成真做一次:側欄開著時開卡 ⇒ 側欄關、卡開;
+    // 卡開著時開側欄 ⇒ 卡關(三張各一次)。只放行「整張寬度都在側欄那一欄裡」的疊法(ox ≈ 卡寬);
+    // 半張伸進去的仍是鑽到底下。突變:soloPanel 不關平交道卡 ⇒ 紅;卡寬比側欄多 40px ⇒ 紅。
+    let railSlot = null;
+    const xc = found.find(o => o.name === '.xing-card' && o.overlaps);
+    if (xc) {
+      railSlot = await page.evaluate(async () => {
+        const vis = id => { const e = document.getElementById(id); return !!(e && !e.hidden && e.getClientRects().length); };
+        const settle = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 80))));
+        for (let i = 0; i < 100 && !state.crossings; i++) { ensureCrossings(); await new Promise(r => setTimeout(r, 100)); }
+        const cr = (state.crossings || []).find(c => !c.noSched);
+        if (!cr) return { err: '平交道資料沒載到' };
+        const out = [];
+        for (const [id, open] of [['xingCard', () => openCrossingCard(cr)], ['pinCard', () => openPinAt(25.0143, 121.4637)],
+          ['sugarCard', () => openSugarCard(SUGAR_PARKS[0])]]) {
+          const p0 = vis('explorePanel');
+          open(); await settle();
+          const p1 = vis('explorePanel'), c1 = vis(id);
+          openExplorePanel(); await settle();
+          const c2 = vis(id), p2 = vis('explorePanel');
+          out.push({ id, ok: p0 && !p1 && c1 && !c2 && p2, s: `側欄${+p0}→開卡→側欄${+p1}卡${+c1}→開側欄→卡${+c2}側欄${+p2}` });
+        }
+        return { out };
+      });
+      railSlot.inSlot = xc.ox >= xc.w - 2;
+      railSlot.ok = !railSlot.err && railSlot.inSlot && railSlot.out.every(o => o.ok);
+    }
+    const clash = found.filter(o => o.overlaps && !(o.name === '.xing-card' && railSlot && railSlot.ok));
+    const slotNote = railSlot ? `；.xing-card 坐側欄槽位(疊${xc.ox}×${xc.oy},卡寬 ${xc.w}${railSlot.inSlot ? '' : ' ✗ 沒整張在側欄那一欄'})`
+      + (railSlot.err ? ` ✗ ${railSlot.err}` : `,互斥 ${railSlot.out.map(o => `${o.id} ${o.ok ? '✓' : '✗ ' + o.s}`).join(' ')}`) : '';
     ok(`L2b ${eng}/${S.tag} 整寬浮層不鑽進側欄底下`, clash.length === 0,
-      clash.map(c => `${c.name}疊${c.ox}×${c.oy}`).join(' ')
-        || `逐一驗過 ${found.map(o => o.name).join('/')}`);
+      (clash.map(c => `${c.name}疊${c.ox}×${c.oy}`).join(' ')
+        || `逐一驗過 ${found.map(o => o.name).join('/')}`) + slotNote);
     ok(`L9 ${eng}/${S.tag} 整寬浮層覆蓋率`, found.length >= 5,
       `${found.length}/6 找得到並量到（缺的：${wideOverlays.filter(o => o.missing).map(o => o.name).join(',') || '無'}）`);
 

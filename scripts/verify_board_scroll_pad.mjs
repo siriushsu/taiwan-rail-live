@@ -69,25 +69,36 @@
 //     (844×390 平交道卡 ✕、落釘卡 存／✕／第 3 班;360 附近車站卡第 3 站;1280 落釘卡在「已存」按 Enter 取消收藏、卡頭整張換之後)。
 //   R 焦點列被捲出卡片可見範圍再重畫:捲動不動、焦點還在(844×390 落釘卡、360 附近車站卡)。
 //   W 往回走過每一列不被卡頭蓋、E 第 2 列 Enter＝點一下(跟那班車／開那站看板)、空白鍵只切一次播放(844×390 落釘卡、360 附近車站卡)。
-//     844×390 落釘卡可見內容只剩 17.5px、一列 27px,Chromium 會把列停在卡頭下 9–10px(中心沒被蓋,W 照中心判準是綠的);
-//     那是卡太矮,不是讓位錯,另案。
+//     (當時 844×390 落釘卡可見內容只剩 17.5px、一列 27px,Chromium 會把列停在卡頭下 9–10px——卡太矮,不是讓位錯;
+//     v0926l 卡改坐側欄、放得下全部列,這幾格改在 SHORT_CARD 壓成捲得動的卡上量,見 v0926l 那段。)
 //   C 1280 滑鼠:平交道卡 ✕ 按住到碰上一次重畫再放開,卡照樣關;落釘卡第 1 班按住 1.3 秒再放開,照樣跟車、按住期間沒重畫。
 //   Q 1280 60× 放 3 秒:平交道卡、落釘卡各重畫 2–4 次。
 //   V 360 落釘卡、附近車站卡往前走:列的框不被卡片切、有框、列的框對比 ≥ 3。卡頭 ✕／存 在亮色只有 1.9:1(修前就有,另案),
-//     這格不看卡頭的對比。844×390 落釘卡的列框一定被切(可見內容比一列矮),同 W 那條,另案。
+//     這格不看卡頭的對比。844×390 落釘卡修前的列框一定被切(可見內容比一列矮),v0926l 起不再比一列矮(V 只在 360 量)。
 //   N 對照:重畫後不放回焦點 ⇒ 列的 K、取消收藏那格紅;放回焦點不帶 preventScroll ⇒ R 紅;卡頭有兩道(沒變就不換、換了也放回),
 //     兩道一起拿掉 ⇒ 卡頭 ✕ 的 K 紅;卡頭每次整張換(照樣放回焦點)⇒ C 平交道 ✕ 紅;按住照樣重畫 ⇒ C 落釘卡紅;
 //     節拍改回模擬秒差 ⇒ Q 紅(只做 Chromium);拿掉 Enter 接線 ⇒ E 紅;拿掉卡內讓位 ⇒ W 紅;
 //     拿掉附近車站卡列的底部讓位 ⇒ 站名框的下緣被切(V 紅);落釘卡的列框改回往外畫 ⇒ 左右被切(V 紅)。
 //     落釘卡的列刻意不給底部讓位:844×390 可見內容比一列矮,多留 6px 會讓 Chromium 往回走把列壓進卡頭 16px(W 紅,2026-09-26 實測)。
+//     (v0926l 起那張卡放得下全部列,這個理由不在了;列框往內畫,不留也不會被切,V 360 那格盯著。)
+// v0926l 矮橫式(高 ≤ 500)的平交道卡、落釘卡、台糖卡改坐側欄槽位(使用者裁示方案 A)。修前照直式的 top 191／max-height 100%−313:
+//   844×390 卡高 73、卡頭吃掉 42–56,落釘卡一列都看不到;667×375 三張全是零列。
+//   L 剛打開時卡頭以下放得下第一列(台糖卡是說明文字第一行;列高、行高當場量,不寫死):844×390、667×375 標準與特大字級。
+//     另外:右側 59px 瀏海時卡的右緣不進安全區(844×390);內容撐到最高的台糖卡不蓋版權列、速度膠囊與特大字級提示卡讓開側欄
+//     (667×375 特大);直式 360 照舊(上緣在頂列之下)。
+//   N 把修法那幾條從樣式表拿掉再量(不是另寫一份修前的值去蓋)⇒ L 紅(844×390 只有落釘卡紅——修前平交道卡還露一列、
+//     台糖卡一行;667×375 三張都紅)、瀏海那格紅;只拿掉 --rail-occupy 那條 ⇒ 速度膠囊壓到卡;下緣改用 sheet 家族那條 ⇒
+//     蓋到版權列;槽位的上錨漏進直式 ⇒ 直式那格紅。
+//   修好之後三張卡在橫式不捲了:844×390 的 J／K／R／W 考的是捲得動的卡裡的讓位與重畫放回焦點(JS 行為),改用 SHORT_CARD
+//   (測試專用樣式,max-height 100px)把卡壓回捲得動再量;前提由各格自己把關(可捲 ≥ 40、第 1 班真的捲出可見範圍、走過每一列)。
 // 量法本身的坑:看板每 20 秒、平交道卡與落釘卡每一模擬秒整張重寫,修前焦點會被洗回 body(看板 v0926i、兩張卡 v0926j 起會放回焦點)。
 // W 走到一半掉焦點的那輪重走、J 聚焦前才抓鈕並事後確認焦點還在(見 JUMP 上面的註解),兩道都保留當保險。
 // 慣例照 verify_transfer_collapse.mjs:自帶 node:http 靜態伺服器(埠號由系統挑)、語系與時鐘釘死、關首訪教學卡、
-// 掛 pageerror、T0 身分自檢。瀏覽器一律無視窗。約 8–9 分鐘(2026-09-26 補直式合併卡與兩個突變後實測 126s;
+// 掛 pageerror、T0 身分自檢。瀏覽器一律無視窗。約 9–11 分鐘(2026-09-26 補直式合併卡與兩個突變後實測 126s;
 // 同日補三張清單面板後 158s,機器負載約 32;再補按住空白鍵、桌面點擊、重抓的格子與突變後 175s,負載約 18;
 // 再補合併卡底部提示列、平交道卡家族、車庫各格後 322s,264 條,負載約 13–22;v0926h 補空白鍵 E 各格與焦點框 V 各格後
 // 339s,320 條,負載約 8–12,同時另有一支量測在跑;v0926i 鍵盤焦點四件、v0926j 平交道卡與落釘卡各格併在一起後 512s,
-// 511 條,負載約 2–5)。
+// 511 條,負載約 2–5;v0926l 矮橫式三張卡的 L／N 各格後 674s,563 條,負載約 14–30,同時另有兩支 verify_landscape 全套在跑)。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -1137,7 +1148,7 @@ async function xpNear360(page, eng, P) {
   await open2(page, 'near');
   await xpRowsWE(page, eng, P, '360', 'near');
 }
-// 844×390 橫式:平交道卡、落釘卡捲得動(可捲 150 上下)。卡頭的鈕 K、落釘卡的列 K／R／W／E
+// 844×390 橫式:平交道卡、落釘卡由 SHORT_CARD 壓成捲得動的卡(v0926l 起真的版面放得下全部列、不捲了)。卡頭的鈕 K、落釘卡的列 K／R／W／E
 async function xp844(page, eng, P) {
   const cell = async (key, target, away, mut) => {
     await open2(page, key);
@@ -1228,6 +1239,127 @@ async function xpRing360(page, eng, P) {
   const vo = await withMut(page, '.xing-card .xc-row[data-no]:focus-visible { outline-offset: 2px !important; }', () => walkV('pin', 'pinCard'));
   ok(P('N 突變:落釘卡的列框改回往外畫 ⇒ 左右被卡片切掉(V 量得到紅)'), badHas(vo, 'div.xc-row', '切掉'), fmtV(vo));
 }
+
+// ════ v0926l 矮橫式的平交道卡、落釘卡、台糖卡改坐側欄槽位(L;格子說明見檔頭) ════
+const LC_KEYS = ['xing', 'pin', 'sugar'];
+// 剛打開(捲在頂端)時卡頭以下的可視高,與第一個內容單位:平交道卡、落釘卡是第一列,台糖卡沒有列、是說明文字的第一行。
+// 列高、行高都當場量,不寫死
+const LC_MEASURE = root => {
+  const p = document.querySelector(root);
+  if (!p || p.hidden || !p.getClientRects().length) return { shown: false };
+  const f = n => +n.toFixed(1), pr = p.getBoundingClientRect(), portTop = pr.top + p.clientTop, portBot = portTop + p.clientHeight;
+  const head = p.querySelector(':scope > .xc-head'), headBot = Math.max(portTop, head ? head.getBoundingClientRect().bottom : portTop);
+  const row = p.querySelector('.xc-row'), body = p.querySelector('.sg-body');
+  let u = null;
+  if (row) { const r = row.getBoundingClientRect(); u = { kind: '列', top: r.top, h: r.height }; }
+  else if (body) {
+    const cs = getComputedStyle(body), lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.5;
+    u = { kind: '行字', top: body.getBoundingClientRect().top + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.paddingTop) || 0), h: lh };
+  }
+  const tb = document.getElementById('topbar'), at = [...document.querySelectorAll('.maplibregl-ctrl-attrib')].find(e => e.getClientRects().length);
+  return { shown: true, none: !u, kind: u && u.kind, unit: u ? f(u.h) : 0, st: p.scrollTop, client: p.clientHeight, sh: p.scrollHeight, head: f(headBot - portTop),
+    vis: f(portBot - headBot), firstIn: !!u && u.top >= headBot - 0.5 && u.top + u.h <= portBot + 0.5,
+    top: f(pr.top), right: f(pr.right), bottom: f(pr.bottom), vw: innerWidth,
+    tbBot: tb ? f(tb.getBoundingClientRect().bottom) : null, attTop: at ? f(at.getBoundingClientRect().top) : null };
+};
+const lcOk = m => m.shown && !m.none && m.st === 0 && m.vis >= m.unit && m.firstIn;
+const fmtLc = m => !m.shown ? '沒開出來' : m.none ? '找不到列或說明文字' :
+  `卡高 ${m.client}、卡頭 ${m.head}、內容可視 ${m.vis}、第一${m.kind} ${m.unit}${m.firstIn ? '' : '(沒整個露出來)'}${m.st ? `、捲在 ${m.st}` : ''}`;
+async function lcCells(page) {
+  const out = {};
+  for (const key of LC_KEYS) out[key] = (await open2(page, key)) ? await page.evaluate(LC_MEASURE, CARDS2[key].root) : { shown: false };
+  return out;
+}
+// N:把修法從樣式表拿掉(拿掉的就是 index.html 裡那幾條,不是另外寫一份修前的值去蓋)、量完原位放回。
+// need='' 拿掉兩條(槽位＋--rail-occupy);need=':has(' 只拿掉 --rail-occupy 那條。找不到回 0,對照那格照樣算紅(改了選擇器就要跟著改這裡)
+const LC_DROP = ([on, need]) => {
+  if (!on) { for (const d of (window.__lcDrop || []).reverse()) d.parent.insertRule(d.css, d.i); window.__lcDrop = []; return 0; }
+  window.__lcDrop = [];
+  const walk = parent => {
+    for (let i = parent.cssRules.length - 1; i >= 0; i--) {
+      const r = parent.cssRules[i], s = r instanceof CSSStyleRule ? r.selectorText : '';
+      if (s.includes('#xingCard') && s.includes('#sugarCard') && s.includes(need)) { __lcDrop.push({ parent, i, css: r.cssText }); parent.deleteRule(i); }
+      else if (r.cssRules) walk(r);
+    }
+  };
+  for (const ss of document.styleSheets) { try { walk(ss); } catch (e) {} }
+  return __lcDrop.length;
+};
+async function lcDropped(page, fn, need = '') {
+  const n = await page.evaluate(LC_DROP, [true, need]);
+  try { return { n, r: await fn() }; } finally { await page.evaluate(LC_DROP, [false, need]); }
+}
+// L:剛打開時卡頭以下放得下第一個內容單位。N:拿掉修法 ⇒ mustRed 點名的卡要紅
+// (844×390 修前平交道卡還露得出一列、台糖卡一行,只有落釘卡紅;667×375 三張都紅)
+async function lcLand(page, P, tag, mustRed) {
+  const m = await lcCells(page);
+  for (const key of LC_KEYS) ok(P(`L ${tag} ${key} 卡頭以下放得下第一${m[key].kind || '列'}`), lcOk(m[key]), fmtLc(m[key]));
+  const d = await lcDropped(page, () => lcCells(page));
+  const red = LC_KEYS.filter(k => !lcOk(d.r[k]));
+  ok(P(`N 突變:拿掉側欄槽位 ⇒ ${tag} ${mustRed.join('、')} 的 L 紅`), d.n > 0 && mustRed.every(k => red.includes(k)),
+    d.n ? `拿掉 ${d.n} 條;` + LC_KEYS.map(k => `${k} ${fmtLc(d.r[k])}`).join('；') : '樣式表裡找不到那幾條規則');
+}
+// 瀏海在右邊(App 殼寫 --safe-area-inset-right;59px 是 iPhone 橫放的量級):卡的右緣不進安全區
+async function lcSafeArea(page, P, tag) {
+  const SA = 59, inSafe = m => m.shown && m.right <= m.vw - SA + 0.5;
+  const set = v => page.evaluate(v => { const s = document.documentElement.style; if (v) s.setProperty('--safe-area-inset-right', v + 'px'); else s.removeProperty('--safe-area-inset-right'); }, v);
+  await set(SA);
+  try {
+    const m = await lcCells(page);
+    ok(P(`L ${tag} 右側有 ${SA}px 瀏海時,三張卡的右緣不進安全區`), LC_KEYS.every(k => inSafe(m[k])), LC_KEYS.map(k => `${k} 右緣 ${m[k].right}/${m[k].vw - SA}`).join('、'));
+    const d = await lcDropped(page, () => lcCells(page));
+    ok(P(`N 突變:拿掉側欄槽位 ⇒ ${tag} 瀏海時卡的右緣進安全區(量得到紅)`), d.n > 0 && LC_KEYS.every(k => !inSafe(d.r[k])),
+      LC_KEYS.map(k => `${k} 右緣 ${d.r[k].right}`).join('、'));
+  } finally { await set(0); }
+}
+// 版權列(地圖授權)不能被蓋:挑內容撐到最高的台糖卡量下緣。N:下緣改用 sheet 家族的 tabbar-clear+8(不讓版權列那一行)⇒ 紅
+async function lcAttrib(page, P, tag) {
+  const clear = m => m.shown && m.attTop != null && m.bottom <= m.attTop + 0.5;
+  const one = () => open2(page, 'sugar').then(() => page.evaluate(LC_MEASURE, CARDS2.sugar.root));
+  const m = await one();
+  ok(P(`L ${tag} 台糖卡撐到最高也不蓋版權列`), clear(m) && m.sh > m.client,
+    `下緣 ${m.bottom}／版權列上緣 ${m.attTop ?? '找不到'};內容 ${m.sh}、卡 ${m.client}(內容要比卡高,卡撐到最高才算數)`);
+  const mm = await withMut(page, 'body.fs :is(#xingCard, #pinCard, #sugarCard) { --xc-bot: calc(var(--tabbar-clear) + 8px) !important; }', one);
+  ok(P(`N 突變:卡的下緣改用 sheet 家族那條 ⇒ ${tag} 台糖卡蓋到版權列(量得到紅)`), mm.shown && mm.attTop != null && !clear(mm), `下緣 ${mm.bottom}／版權列上緣 ${mm.attTop}`);
+}
+// 卡坐進側欄 ⇒ 速度膠囊、特大字級提示卡照契約8 讓開。量卡與它們的相交面積(提示卡沒出現就不看)。N:只拿掉 --rail-occupy 那條 ⇒ 紅
+const LC_CLEAR = root => {
+  const c = document.querySelector(root).getBoundingClientRect();
+  const hit = sel => {
+    const e = document.querySelector(sel);
+    if (!e || e.hidden || !e.getClientRects().length || getComputedStyle(e).visibility === 'hidden' || +getComputedStyle(e).opacity === 0) return null;
+    const r = e.getBoundingClientRect(), w = Math.min(c.right, r.right) - Math.max(c.left, r.left), h = Math.min(c.bottom, r.bottom) - Math.max(c.top, r.top);
+    return w > 0.5 && h > 0.5 ? `${Math.round(w)}×${Math.round(h)}` : '';
+  };
+  return { controls: hit('.controls'), hint: hit('#landFsHint') };
+};
+const clearOk = c => c.controls === '' && !c.hint;
+const fmtClear = c => `速度膠囊 ${c.controls === null ? '不在' : c.controls || '不相交'}、提示卡 ${c.hint === null ? '不在' : c.hint || '不相交'}`;
+async function lcYield(page, P, tag) {
+  const all = async () => { const o = {}; for (const k of LC_KEYS) o[k] = (await open2(page, k)) ? await page.evaluate(LC_CLEAR, CARDS2[k].root) : { controls: null, hint: null }; return o; };
+  const c = await all();
+  ok(P(`L ${tag} 卡開著時速度膠囊、特大字級提示卡讓開側欄,不跟卡相交(兩者都要在場)`), LC_KEYS.every(k => clearOk(c[k]) && c[k].hint !== null),
+    LC_KEYS.map(k => `${k} ${fmtClear(c[k])}`).join('；'));
+  const d = await lcDropped(page, all, ':has(');
+  ok(P(`N 突變:拿掉 --rail-occupy 那條 ⇒ ${tag} 速度膠囊、提示卡壓到卡(量得到紅)`), d.n > 0 && LC_KEYS.every(k => !!d.r[k].controls && !!d.r[k].hint),
+    d.n ? LC_KEYS.map(k => `${k} ${fmtClear(d.r[k])}`).join('；') : '樣式表裡找不到那條規則');
+}
+// 直式照舊(側欄槽位只給矮橫式):三張卡的上緣在頂列之下、放得下第一列。N:槽位的上錨漏進直式 ⇒ 紅
+async function lcPortrait(page, P) {
+  const below = m => m.shown && m.tbBot != null && m.top >= m.tbBot;
+  const m = await lcCells(page);
+  for (const key of LC_KEYS) ok(P(`L 360 ${key} 直式照舊:上緣在頂列之下、放得下第一${m[key].kind || '列'}`), lcOk(m[key]) && below(m[key]),
+    `${fmtLc(m[key])}、上緣 ${m[key].top}／頂列底 ${m[key].tbBot}`);
+  const lk = await withMut(page, 'body.fs :is(#xingCard, #pinCard, #sugarCard) { top: calc(8px + var(--sa-t)) !important; }', () => lcCells(page));
+  ok(P('N 突變:側欄槽位的上錨漏進直式 ⇒ 360 三張卡的 L 紅'), LC_KEYS.every(k => lk[k].shown && !below(lk[k])), LC_KEYS.map(k => `${k} 上緣 ${lk[k].top}`).join('、'));
+}
+// 修好之後三張卡在橫式放得下全部列、不捲了;下面 844×390 的 J／K／R／W 考的是「捲得動的卡」裡的讓位與重畫放回焦點(JS 行為)。
+// 用測試專用樣式把卡壓回捲得動的高度(卡頭＋兩列上下);前提由各格自己把關(J 要可捲 ≥ 40、R 要第 1 班真的捲出可見範圍、W 要走過每一列)
+const SHORT_CARD = ':is(#xingCard, #pinCard, #sugarCard) { max-height: 100px !important; }';
+const setShort = (page, on) => page.evaluate(([css, on]) => {
+  document.getElementById('__bspShort')?.remove();
+  if (on) { const el = document.createElement('style'); el.id = '__bspShort'; el.textContent = css; document.head.appendChild(el); }
+}, [SHORT_CARD, on]);
 
 let t0Done = false;
 for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
@@ -1676,6 +1808,7 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
       if (key === 'xing' || key === 'sugar') await cardS(page, P, '360', key);
       if (key === 'near') await cardJ(page, P, '360', key, ':scope > .xc-head button');
     }
+    await lcPortrait(page, P);   // v0926l 側欄槽位只給矮橫式,直式照舊
     await xpNear360(page, eng, P);
     await xpRing360(page, eng, P);
     // 車庫:W(往回走 40 拍夠了,全部 80 幾拍)、J(修前跳 390px)、P(讓位跟著頂列實高走)
@@ -1706,16 +1839,21 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
     await ctx.close();
   }
 
-  // ── 2026-09-26 844×390 橫式:平交道卡家族、列車 sheet、車庫(直式捲不動的卡在這裡捲得動) ──────────────
+  // ── 2026-09-26 844×390 橫式:平交道卡家族、列車 sheet、車庫 ──────────────
+  // 平交道卡、落釘卡、台糖卡 v0926l 起坐側欄槽位、放得下全部列:先量 L(真的版面),再用 SHORT_CARD 壓回捲得動的卡量 J／K／R／W
   {
     const { ctx, page, errors } = await boot(browser, { width: 844, height: 390 });
     await page.evaluate(HELPERS2);
+    await lcLand(page, P, '844×390', ['pin']);
+    await lcSafeArea(page, P, '844×390');
+    await setShort(page, true);
     for (const key of ['xing', 'pin', 'sugar', 'near']) {
       const opened = await open2(page, key);
       ok(P(`844×390 ${key} 卡打得開`), opened);
       if (opened) await cardJ(page, P, '844×390', key, ':scope > .xc-head button');
     }
     await xp844(page, eng, P);   // v0926j 卡頭的鈕與落釘卡的列:重畫後焦點還在、捲動沒動;落釘卡 W／E
+    await setShort(page, false);
     const isTc = await open2(page, 'tc');
     ok(P('844×390 列車 sheet 打得開'), isTc);
     if (isTc) await cardJ(page, P, '844×390', 'tc', ':scope > .tc-head button');
@@ -1734,6 +1872,20 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
         jn.none ? '頂列裡找不到鈕' : `${jn.btn} 捲動 ${jn.before}→${jn.after}`);
     }
     ok(P('844×390 補量段全程零 pageerror'), errors.length === 0, errors.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+
+  // ── v0926l 667×375 橫式(修前三張卡全是零列):L＋對照;特大字級再量 L、版權列、速度膠囊與提示卡讓位 ─────────────
+  // 特大那輪開機就是特大(存好的字級偏好):「橫式×特大」提示卡只在開機與橫直切換時判斷要不要出現,開機後才換字級它不會出來
+  for (const tier of ['std', 'xlarge']) {
+    const { ctx, page, errors } = await boot(browser, { width: 667, height: 375, tier });
+    const T = tier === 'std' ? '667×375' : '667×375 特大';
+    await page.evaluate(HELPERS2);
+    const fs = await page.evaluate(() => document.documentElement.getAttribute('data-fs') || 'std');
+    ok(P(`${T} 字級開機生效`), fs === tier, `data-fs=${fs}`);
+    await lcLand(page, P, T, LC_KEYS);
+    if (tier === 'xlarge') { await lcAttrib(page, P, T); await lcYield(page, P, T); }
+    ok(P(`${T} 全程零 pageerror`), errors.length === 0, errors.slice(0, 2).join(' | '));
     await ctx.close();
   }
 

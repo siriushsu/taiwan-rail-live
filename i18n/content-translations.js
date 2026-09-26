@@ -3344,3 +3344,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '平交道卡、落釘卡用鍵盤選到的按鈕不會再每秒被洗掉，點 ✕ 或班次也不會偶爾沒反應；落釘卡的班次和 App 的附近車站能用鍵盤選到，按 Enter 就能跟車、看班次': '踏切カードとピンのカードで、キーボードで選んだボタンが毎秒の更新で外れなくなり、✕ や列車をタップしても反応しないことがなくなりました。ピンのカードの列車とアプリの「近くの駅」もキーボードで選べるようになり、Enter キーで列車を追跡したり、次の列車を見たりできます。',
 });
+// 2026-09-26 手機橫放時平交道卡、落釘卡、台糖卡太矮看不到內容，改坐側欄槽位：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '手機橫放時，平交道卡、落釘卡、台糖卡改成靠右整條顯示，接下來的班次不用捲就看得到（原本卡片太矮，常常一列都看不到）': 'In landscape on a phone, the level-crossing, pin and sugar railway cards now run down the right side like the station board, so upcoming trains show without scrolling (the cards used to be so short that often not even one row was visible).'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '手機橫放時，平交道卡、落釘卡、台糖卡改成靠右整條顯示，接下來的班次不用捲就看得到（原本卡片太矮，常常一列都看不到）': 'スマートフォンを横向きにしたとき、踏切カード・ピンのカード・五分車のカードを駅の発車案内と同じく右側に縦長で表示するようにしました。次の列車をスクロールせずに見られます（以前はカードが低すぎて、1行も見えないことがよくありました）。'
+});
