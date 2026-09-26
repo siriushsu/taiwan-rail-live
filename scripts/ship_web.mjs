@@ -319,6 +319,16 @@ try {
   process.stdout.write(sun.stdout || ''); process.stderr.write(sun.stderr || '');
   if (sun.status !== 0) fail('日夜光影的太陽位置與時間連續性驗證未過');
 
+  // 夜間設計守門人：實際開 Chromium＋WebKit，驗暗色 3D 建築、玻璃細線像素、來車看板與手機觸控版面。
+  // 2026-09-26 回查時它曾紅了 19 天卻沒有任何出貨路徑執行，所以這裡不只驗檔案存在，而是直接跑完整腳本。
+  // 帳本歸類為「一般產品閘門」：inputs＝整體產品指紋＋本腳本（含 import closure）＋共用出貨執行器；
+  // 純 BUILD／更新紀錄可沿用，任何產品、資料、i18n 或 App 變動都會重跑，--full 一定重跑。
+  const nightDesign = spawnSync('node', [path.join(wt, 'scripts', 'verify_night_design.mjs')],
+    { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(nightDesign.stdout || ''); process.stderr.write(nightDesign.stderr || '');
+  if (nightDesign.status !== 0) fail('夜間設計守門人未過——暗色 3D 建築、玻璃細線、來車看板或手機觸控版面回歸'
+    + '（單獨重跑：node scripts/verify_night_design.mjs）');
+
   // 三鶯線營運時段(2026-09-11 掛上出貨鏈)。它守的是全網唯一一條「時刻表用官方公告的營運時段
   // ＋班距合成出來」的線:兩端寫錯過三次,每次的症狀都是使用者才看得到的——時段太寬就整晚畫
   // 幽靈車(v0711j,7.5 小時),太窄就該有車的時段整段空白(08-16~08-18,四小時)。腳本自己起

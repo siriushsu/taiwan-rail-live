@@ -46,6 +46,7 @@ put('scripts/verify_beta.mjs', 'console.log("beta");\n');
 put('scripts/verify_changelog_copy.mjs', 'console.log("copy");\n');
 put('scripts/verify_remote_schema.mjs', 'console.log("schema");\n');
 put('scripts/verify_fail.mjs', 'console.log("fail");\n');
+put('scripts/verify_night_design.mjs', 'console.log("night-v1");\n');
 put('package.json', '{}\n');
 git('init', '-q'); git('add', '.');
 
@@ -127,6 +128,50 @@ fs.writeFileSync(ledger, '{broken');
 const brokenBefore = calls;
 run(make({ sha: '6'.repeat(40) }), 'verify_beta.mjs');
 ok('帳本損壞時 fail-open 全跑', calls === brokenBefore + 1);
+
+// 夜間設計掛入 ship-web 後的選擇矩陣：它是一般產品閘門，不把純版號／更新紀錄當產品變動；
+// 但產品、腳本本身或 --full 任一變動都必須真跑。這組用獨立帳本，不借前面 alpha/beta 的狀態。
+const nightLedger = path.join(tmp, 'night-ledger.json');
+let nightCalls = 0;
+const nightSpawn = (_command, args, options = {}) => {
+  nightCalls++;
+  const text = `green ${path.basename(args[0])}\n`;
+  return { status: 0, signal: null, stdout: options.encoding ? text : Buffer.from(text), stderr: options.encoding ? '' : Buffer.alloc(0) };
+};
+const makeNight = ({ sha, forceFull = false } = {}) => createGateRunner({
+  root: tmp, ledgerPath: nightLedger, sha: sha || '7'.repeat(40), forceFull,
+  spawnSync: nightSpawn, log: () => {}, warn: () => {},
+});
+const runNight = runner => runner.run('node', [path.join(tmp, 'scripts', 'verify_night_design.mjs')],
+  { cwd: tmp, encoding: 'utf8' });
+
+const nightFirst = runNight(makeNight({ sha: '7'.repeat(40) }));
+const nightAgain = runNight(makeNight({ sha: '8'.repeat(40) }));
+ok('夜間 gate：無帳本實跑、同輸入才複用', nightCalls === 1
+  && !String(nightFirst.stdout).includes('帳本命中') && String(nightAgain.stdout).includes('帳本命中'), `calls=${nightCalls}`);
+
+const beforeCopyOnly = productFingerprint(tmp);
+const copyOnly = fs.readFileSync(path.join(tmp, 'index.html'), 'utf8')
+  .replace('更新紀錄已改', '夜間矩陣更新')
+  .replace("const BUILD = 'v1';", "const BUILD = 'v9';");
+put('index.html', copyOnly);
+const nightCopy = runNight(makeNight({ sha: '9'.repeat(40) }));
+ok('夜間 gate：純 BUILD／更新紀錄可複用', productFingerprint(tmp) === beforeCopyOnly
+  && nightCalls === 1 && String(nightCopy.stdout).includes('帳本命中'), `calls=${nightCalls}`);
+
+put('worker.js', 'export const value = 3;\n');
+const nightProduct = runNight(makeNight({ sha: 'a'.repeat(40) }));
+ok('夜間 gate：產品輸入變動必須重跑', nightCalls === 2
+  && !String(nightProduct.stdout).includes('帳本命中'), `calls=${nightCalls}`);
+
+put('scripts/verify_night_design.mjs', 'console.log("night-v2");\n');
+const nightScript = runNight(makeNight({ sha: 'b'.repeat(40) }));
+ok('夜間 gate：自己的腳本變動必須重跑', nightCalls === 3
+  && !String(nightScript.stdout).includes('帳本命中'), `calls=${nightCalls}`);
+
+const nightFull = runNight(makeNight({ sha: 'c'.repeat(40), forceFull: true }));
+ok('夜間 gate：--full 無條件重跑', nightCalls === 4
+  && !String(nightFull.stdout).includes('帳本命中'), `calls=${nightCalls}`);
 
 fs.rmSync(tmp, { recursive: true, force: true });
 const bad = R.filter(Boolean).length !== R.length;

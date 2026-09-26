@@ -233,6 +233,7 @@ await group('W', async () => {
   const lock = at('acquireShipLock({'), firstGate = at("'check_i18n.mjs'"), behind = at('`${sha}..origin/main`');
   const strip = at("'strip_ship_comments.mjs'"), upload = at("'versions', 'upload'"), deploy = at("'versions', 'deploy'");
   const pre = at("prodGate('上傳前')"), pre2 = at("prodGate('升版前'");
+  const nightDesign = at("'verify_night_design.mjs'");
   ok('W1 出貨鎖在落後檢查與所有閘門之前拿', lock > 0 && lock < behind && lock < firstGate, `鎖@${lock}、落後檢查@${behind}、第一道閘門@${firstGate}`);
   ok('W2 鎖只在正式出貨拿,拿不到就停', /if \(!PREVIEW\) \{[^}]*acquireShipLock\(\{/.test(src) && /if \(!lock\.ok\) fail\(lock\.message\)/.test(src)
     && /'--git-common-dir'/.test(src), '要有 if (!PREVIEW) {…acquireShipLock、if (!lock.ok) fail(…)、--git-common-dir');
@@ -244,6 +245,10 @@ await group('W', async () => {
   // ship_web 不能跑,所以 import 打錯字要等到下一次真的出貨才炸——在這裡先對
   const names = ((src.match(/import \{([^}]+)\} from '\.\/ship_web_guard\.mjs'/) || [])[1] || '').split(',').map(s => s.trim()).filter(Boolean);
   ok('W6 ship_web 從 guard 匯入的名字都真的有匯出', names.length >= 2 && names.every(n => typeof guard[n] === 'function'), names.join('、') || '找不到那行 import');
+  ok('W7 夜間設計守門人經帳本執行、且失敗會在 strip 前擋下出貨',
+    nightDesign > firstGate && nightDesign < strip
+      && /const nightDesign = spawnSync\('node', \[path\.join\(wt, 'scripts', 'verify_night_design\.mjs'\)\][^]*?if \(nightDesign\.status !== 0\) fail\(/.test(src),
+    `night-design@${nightDesign}、strip@${strip}`);
 });
 
 fs.rmSync(TMP, { recursive: true, force: true });
