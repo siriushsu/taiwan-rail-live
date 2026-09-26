@@ -74,6 +74,15 @@ import { runEngineMatrix } from './lib/engine_matrix.mjs';
 //   placeControlRail 改 no-op         → L13b/L13c(跟隨鎖不在工具欄)
 //   契約8中線 --land-lb 238→150       → L14e/L14f 四筆(站名牌+速度膠囊雙雙偏離)
 //   工具欄常數44(行為上不可觀測:膠囊只在相機關閉時存在) → L13d 原始碼斷言把關
+//
+// ── 2026-09-26 使用者裁示 B：跟車的車頭鎖定＝車頭置中，不做前瞻 ──
+// 09-09 手機車頭鎖定（a5473792）起，相機約束（rail-3d.js installFollowCameraLock）把第一節車釘在露出地圖中心，
+// §04c 的前瞻（followAheadPx）只剩 3D 整合層沒載入時的退路在用。使用者裁示接受車頭置中（與 09-07 立體模式
+// b8f468fc 一致）⇒ L1b／P4 與 L5 分類器改用 centerPass（列車離露出中心 ≤10px）；前瞻方向的分支計數與
+// 「L9 相機判準分支分佈」隨之退役。上面「前瞻方向寫死朝北 → L1b 六筆紅」那條突變已不適用。
+// 突變驗證（QUICK、Chromium，對照組全綠）：
+//   相機約束讓位歸零（rail-3d.js 的 padding 改全 0）→ L1b／P4 紅（列車落在容器中心，不在露出中心）
+//   前瞻寫死朝北 60px（followAheadPx）          → L1b／P4 維持綠（車頭鎖定下前瞻沒被用到，判準不再綁它）
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE_REF = process.env.BASE_REF || '110f0e93';
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
@@ -354,6 +363,8 @@ const INSTALL_EXPOSED = () => {
       cx: +(left + (mc.width - left - right) / 2).toFixed(1), cy: +(top + (mc.height - top - bottom) / 2).toFixed(1),
       w: +(mc.width - left - right).toFixed(1), h: +(mc.height - top - bottom).toFixed(1) };
   };
+  // 2026-09-26 裁示 B 之後，判準只用 dist（列車離露出中心）；err0／dir／stable 只留在細節欄當診斷。
+  // 以下是裁示前的前瞻契約說明，保留供對照。
   // 前瞻期望:相機瞄準點=露出中心沿行進方向前移 0.15×露出短邊(契約:「讓前方路線多露一段」)
   // ⇒ **列車**落在露出中心的行進**反**方向 m 處:trainPt = center − m·dir。
   // 方向用「路徑上往後 45 秒的位置」經 Leaflet 公開投影自算——與實作唯一共用的是 trainPos 這份
@@ -384,10 +395,9 @@ const INSTALL_EXPOSED = () => {
       err0: dir ? +Math.hypot(a.x - (ex.cx - m * dir.x), a.y - (ex.cy - m * dir.y)).toFixed(1) : null };
   };
 };
-// 相機判準的共用判定與分支計數(心得 37d:弱判是分支,分佈要有具名斷言,不能無聲全滑進弱判)
-const aheadBranch = { moving: 0, dwell: 0 };
-const aheadPass = c => !c.err && (c.stable ? c.err0 <= 10 : c.dist <= c.m + 10);
-const aheadCount = c => { if (!c.err) aheadBranch[c.stable ? 'moving' : 'dwell']++; };
+// 相機判準的共用判定（2026-09-26 裁示 B）：車頭鎖定把第一節車釘在露出地圖中心，不做前瞻。
+// 容差 10px 沿用裁示前強判的容差；實測 dist 0–1px（兩引擎、橫直各尺寸）。
+const centerPass = c => !c.err && c.dist <= 10;
 
 // 可見浮層（供相交掃描）。刻意不含 header/.stage/leaflet 容器——它們是別人的父層，相交無意義。
 const OVERLAY_SEL = ['#topbar', '#clock', '#randBtn', '#nearBtn', '#alertBanner', '#dwellPlate',
@@ -874,8 +884,8 @@ async function landscapeSuite(browser, eng) {
 
       // 🔴 L1b：「看得見」還不夠——側欄在右邊，列車就算完全不讓位、待在容器正中央，也剛好還在
       //    露出區裡（852 寬時容器中心 426 < 側欄左緣 504）⇒「看得見」對讓位機制零鑑別力。
-      //    §04c 契約：置中目標＝露出地圖矩形幾何中心＋前瞻（沿行進方向偏 15% 短邊），
-      //    四邊都讓（頂列/tabbar/速度膠囊/跟隨欄/工具堆/側欄），照 __aheadExpect 的契約推導驗。
+      //    契約：置中目標＝露出地圖矩形幾何中心（2026-09-26 裁示 B：車頭鎖定不做前瞻），
+      //    四邊都讓（頂列/tabbar/速度膠囊/跟隨欄/工具堆/側欄），照 __aheadExpect 從渲染 rect 推導驗。
       // 🔴 必須在「放大之後」量：橫向開機是 zoom 6（台灣的南北向要塞進 393px 高），
       //    那個縮放下視窗經度跨幅 18.7° 比整個 maxBounds(10.75°) 還寬 ⇒ Leaflet 把中心完全釘死、
       //    地圖一格都不能平移，讓位在物理上不可能發生。使用者跟車時本來就會放大，
@@ -883,8 +893,7 @@ async function landscapeSuite(browser, eng) {
       await page.evaluate(() => { state._autoPan = true; window.__M.setView(window.__M.getCenter(), 11, { animate: false }); state._autoPan = false; });
       await page.waitForTimeout(700);
       const cam = await page.evaluate(() => window.__aheadExpect());
-      aheadCount(cam);
-      ok(`L1b ${eng}/${S.tag} ${P.label}·放大後列車在露出中心＋前瞻`, aheadPass(cam),
+      ok(`L1b ${eng}/${S.tag} ${P.label}·放大後列車在露出中心`, centerPass(cam),
         JSON.stringify({ err0: cam.err0, dist: cam.dist, m: cam.m, dir: cam.dir, ex: cam.ex }));
 
       const o = await settledOverlap(page);
@@ -1302,13 +1311,12 @@ async function portraitSuite(browser, eng) {
       // 缺陷 D（zoom 6 視窗比 maxBounds 高 ⇒ 相機釘死）已由「夾限改用露出的那塊」修掉，
       // clamped 分支**應該恆為 0**，但刻意保留：它是「夾死又回來了」的哨兵，
       // 真的走進去時至少要保證帳面等於實況（帳實不符會讓後續所有差量記帳一起歪掉）。
-      // 🔴 分類器照 §04c 契約用 __aheadExpect（露出中心＋前瞻）判：第一版拿「離容器中心的
+      // 🔴 分類器用 __aheadExpect 的露出中心判（2026-09-26 裁示 B 起不含前瞻，改用 centerPass）。第一版拿「離容器中心的
       //    垂直距離 == (bottom−top)/2」判 canPan，§04c 之後前瞻會把車帶離中心至多 15% 短邊、
       //    水平也會讓位——舊式一律誤判成「夾死」，把讓位成功的尺寸整批推進 honest 分支（分母無聲縮水）。
       const cam = await page.evaluate(() => window.__aheadExpect());
-      const canPan = aheadPass(cam);
+      const canPan = centerPass(cam);
       if (canPan) {
-        aheadCount(cam);
         ok(`L5 ${eng}/${S.tag} ${P.label}·列車看得見`, t.onMap === true,
           JSON.stringify(t) + `｜相機 ${JSON.stringify({ err0: cam.err0, dist: cam.dist, m: cam.m })}`);
       } else {
@@ -2253,10 +2261,10 @@ async function zeroRegressionSuite(browser, eng) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// P4：§04c-P 直式相機矩陣——小卡態／46% sheet 兩態的露出中心＋前瞻。
+// P4：§04c-P 直式相機矩陣——小卡態／46% sheet 兩態的露出中心（2026-09-26 裁示 B：車頭鎖定不做前瞻）。
 // 設計回包行為契約 1：「四個方向都要讓位——直式跟隨小卡態的位移是往右上，不是只往上」。
 // __exposed 判準側自帶同一條閘門規則（契約常數），所以這裡問的是「實作真的照閘門行為」——
-// 實作若半讓位，err0 直接爆表；若閘門值改了，兩邊常數對不上也會紅。
+// 實作若半讓位，dist 直接爆表；若閘門值改了，兩邊常數對不上也會紅。
 //
 // 🔴 2026-08-26：原本第三態「88% sheet·走 64px 最小露出閘門（垂直軸整個放棄）」隨大段退役而移除
 //    ——兩段制最高 46%，直向再也做不出「露出帶低於 MIN_MAP_STRIP」的情境，留著只會是一條
@@ -2277,11 +2285,10 @@ async function portraitCameraSuite(browser, eng) {
         await page.waitForTimeout(800);
       }
       const cam = await page.evaluate(() => window.__aheadExpect());
-      aheadCount(cam);
       if (st === 'card') {
         ok(`P4 ${eng} 小卡態·左界=小卡右緣(相機往右上讓)`,
           !cam.err && cam.ex.left >= 150 && cam.ex.cx > S.w / 2 + 20, JSON.stringify(cam.ex));
-        ok(`P4 ${eng} 小卡態·列車在露出中心＋前瞻`, aheadPass(cam),
+        ok(`P4 ${eng} 小卡態·列車在露出中心`, centerPass(cam),
           JSON.stringify({ err0: cam.err0, dist: cam.dist, m: cam.m, ex: cam.ex }));
       } else if (st === 'mid') {
         // 出貨行為:46% 態小卡被 placeFsOverlays 抬到 sheet 上方,**仍可見** ⇒ 行為契約 2
@@ -2295,7 +2302,7 @@ async function portraitCameraSuite(browser, eng) {
           !lifted.err && lifted.fpBottom <= lifted.sheetTop + 2, JSON.stringify(lifted));
         ok(`P4 ${eng} 46%sheet·左界=小卡右緣、下界=sheet 頂`,
           !cam.err && cam.ex.left >= 150 && cam.ex.bottom > S.h * 0.35, JSON.stringify(cam.ex));
-        ok(`P4 ${eng} 46%sheet·列車在露出中心＋前瞻`, aheadPass(cam),
+        ok(`P4 ${eng} 46%sheet·列車在露出中心`, centerPass(cam),
           JSON.stringify({ err0: cam.err0, dist: cam.dist, m: cam.m, ex: cam.ex }));
       }
     }
@@ -2312,8 +2319,6 @@ const matrix = await runEngineMatrix(async ({ engineUrl, check }) => {
   activeCheck = check;
   results.length = 0;
   errors.length = 0;
-  aheadBranch.moving = 0;
-  aheadBranch.dwell = 0;
 for (const [eng, B] of (QUICK ? [['chromium', chromium]] : [['chromium', chromium], ['webkit', webkit]])) {
   const browser = await B.launch();
   await landscapeSuite(browser, eng);
@@ -2328,10 +2333,6 @@ for (const [eng, B] of (QUICK ? [['chromium', chromium]] : [['chromium', chromiu
   if (!QUICK) { await portraitSuite(browser, eng); await zeroRegressionSuite(browser, eng); }
   await browser.close();
 }
-// 相機判準的分支分佈（心得 37d）：dwell 弱判只驗「距中心 ≈ 幅度」不驗方向，
-// 樣本若多數滑進弱判，「前瞻方向對不對」整個維度等於沒驗——具名把關，不能只印在 detail。
-ok('L9 相機判準分支分佈：行進中強判佔多數', aheadBranch.moving >= (aheadBranch.moving + aheadBranch.dwell) * 0.5,
-  `moving=${aheadBranch.moving}／dwell=${aheadBranch.dwell}`);
 check(errors.length === 0, '全情境零 pageerror/console.error', errors.slice(0, 10).join(' | '));
 });
 server.close();
