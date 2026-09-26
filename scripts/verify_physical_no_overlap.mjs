@@ -175,6 +175,7 @@ const setup = await page.evaluate(async () => {
     for (const [k, ta] of ra) { const tb = rb.get(k); if (!tb) continue;
       const ov = Math.min(ta[1], tb[1]) - Math.max(ta[0], tb[0]); if (ov > 1e-9) { m += ov * ta[2]; keys.push(k); } }
     return { m, keys }; };
+  window.__occupancy = occupancy; window.__sharedMetres = sharedMetres; window.__modelOf = modelOf; // G10 用
   window.__scan = (useHold) => {
     const vs = [];
     for (const tr of state.trains) {
@@ -291,6 +292,98 @@ const control = await page.evaluate(([from, to, step, sample]) => {
 }, [FROM, TO, STEP, SAMPLE]);
 ok('G8 正向對照:關掉防追撞,同向在途互穿必須明顯變多', control.a > A,
   `對照組 ${control.n} 個時點量到 ${control.a} 筆（有防追撞時 ${A} 筆）`);
+// ── G10／G11 派車表沒有的中途停靠站（2026-10 起的平鎮臨時站 1105）────────────────────────────────────────────
+// 立體地圖讓官方停靠這種站的班次停在原本那一段路徑上（motion.js 的 cuts），那裡沒有月台待避這回事。現行資料沒有這種站，
+// 出貨鏈只有這裡跑得到：取一班真車 T 的一段站間，複製出 L（在該段實體路徑上插一個停 60 秒的陌生站，其後各站 +120 秒）與
+// F（整班 +75 秒、不停陌生站），讓 F 在 L 停站時追上，逐秒量兩車車身有沒有共用股道，量到 L 抵達下一個正式站為止——兩班
+// 複製車在那一站被派到同一股道，F 會照規則 (1) 從停站中的 L 旁邊越過，那是正式站的既有行為（上面 G5 的 C 類），不歸這裡管。
+// 每條各有對照組：把受測的那一道防線換成改動前的行為，必須量到互穿，證明情境真的走到那條路徑。量測期間 T 移出名冊。
+//   G10 防線 blockDwellOnLine：前車停在那裡是主線上的實體障礙，不能照規則 (1) 放行。陌生站放在實體路徑 45% 處往左 20 m。
+//   G11 防線 blockSep3d：同一段 2D 車距不等於立體車距（L 在 2D 停在示意線的投影點、立體停在實體路徑的投影點）。陌生站
+//       挑全網「示意線比例比實體比例前面最多」的一點（投影離示意線 50 m 內），F 照真實通過車帶著這一站（通過），兩班都用
+//       自強 3000 編組（245.7 m）：2D 車距守在標準 400 m 時，立體車距短到不夠兩個半車長。
+await page.evaluate(() => {
+  window.__pinch = ({ T, I, U, f, fPass, carName, guard, fake }) => {
+    const P = railIslandPhysical, s0 = T.stops, K = I + 1, run = s0[K].arrSec - s0[I].depSec;
+    const uArr = Math.round(s0[I].depSec + run * f + 30), st = { name: '派車表沒有的測試停靠站', lat: U[1], lon: U[0] };
+    const mk = (train, stops) => ({ ...T, train, stops, ...(carName && { carName }) });
+    const L = mk('TEST-C2-L', [...s0.slice(0, K).map(x => ({ ...x })), { ...st, arrSec: uArr, depSec: uArr + 60, stop: true },
+      ...s0.slice(K).map(x => ({ ...x, arrSec: x.arrSec + 120, depSec: x.depSec + 120 }))]);
+    const fs = s0.map(x => ({ ...x, arrSec: x.arrSec + 75, depSec: x.depSec + 75 }));
+    if (fPass) { const tp = Math.round(fs[I].depSec + run * f); fs.splice(K, 0, { ...st, arrSec: tp, depSec: tp, stop: false }); }
+    const F = mk('TEST-C2-F', fs);
+    assignSchedShapePathsFor([L, F], state.trackLines.filter(l => l.sys === 'tra_sched'));
+    const rl = P.has(L) && P.record(L), rf = P.has(F) && P.record(F);
+    if (!rl || !rf || !rl.cuts?.[I]?.some(x => x.k === K) || (fPass && !rf.stopIndexes))
+      return { error: `合成車沒綁上實體股道或沒在陌生站切開（L=${!!rl} F=${!!rf}）` };
+    const saved = state.trains, orig = window[guard];
+    state.trains = saved.filter(x => x !== T).concat([L, F]);
+    const go = real => {
+      window[guard] = real ? orig : fake;
+      __reset();
+      const o = { lDwellU: 0, fHeld: 0, maxHoldF: 0, shared: 0, maxSharedM: 0 };
+      for (let t = s0[I].depSec - 120; t < L.stops[K + 1].arrSec; t++) {
+        __step(t);
+        const pl = trainPos(L, t), pf = trainPos(F, t);
+        if (!pl?.physical || !pf?.physical) continue;
+        const hf = blockHoldSec(F);
+        if (pl.dwell && pl.stopIndex === K) { o.lDwellU++; if (hf > .5) o.fHeld++; }
+        if (hf > o.maxHoldF) o.maxHoldF = +hf.toFixed(1);
+        const m = __sharedMetres(__occupancy(pl.route, pl.chainageM, __modelOf(L).lengthM), __occupancy(pf.route, pf.chainageM, __modelOf(F).lengthM)).m;
+        if (m > .01) { o.shared++; o.maxSharedM = Math.max(o.maxSharedM, +m.toFixed(1)); }
+      }
+      return o;
+    };
+    let withFix, control;
+    try { withFix = go(true); control = go(false); } finally { window[guard] = orig; state.trains = saved; __reset(); }
+    return { T: String(T.train), seg: `${s0[I].name}→${s0[K].name}`, lenM: +__modelOf(L).lengthM.toFixed(1), withFix, control };
+  };
+});
+const pinchMsg = r => r.error || `${r.T} 次 ${r.seg}${r.note || ''}：L 在陌生站停 ${r.withFix.lDwellU} 秒、其間 F 被擋 ${r.withFix.fHeld} 秒`
+  + `（hold 最高 ${r.withFix.maxHoldF} 秒），兩車車身共用股道 ${r.withFix.shared} 秒；對照組 ${r.control.shared} 秒、最多共用 ${r.control.maxSharedM} m`;
+const pinchOk = r => !r.error && r.withFix.lDwellU >= 55 && r.withFix.fHeld > 0 && r.withFix.shared === 0 && r.control.shared > 0;
+const g10 = await page.evaluate(() => {
+  const P = railIslandPhysical;
+  for (const tr of state.trains) {
+    if (tr.sys !== 'tra_sched' || tr.loop || tr.stops._prevNight || !P.has(tr) || P.record(tr).stopIndexes) continue;
+    const s = tr.stops, r = P.record(tr);
+    for (let i = 1; i + 1 < s.length; i++) {
+      const a = s[i], b = s[i + 1];
+      if (a.stop === false || b.stop === false || b.arrSec - a.depSec < 300 || a.depSec - a.arrSec > 40 || a.depSec < 36000 || a.depSec > 72000) continue;
+      const path = P.geometry.unfold(String(r.plan.pathIds[i])).path;
+      if (path.length < 3000) continue;
+      const sU = path.length * .45, [pa, pb, pc] = [sU - 5, sU + 5, sU].map(x => path.at(x).coordinate), mx = 111320 * Math.cos(pc[1] * Math.PI / 180);
+      const ex = (pb[0] - pa[0]) * mx, ny = (pb[1] - pa[1]) * 111320, nn = Math.hypot(ex, ny);
+      return __pinch({ T: tr, I: i, U: [pc[0] - ny / nn * 20 / mx, pc[1] + ex / nn * 20 / 111320], f: .45, guard: 'blockDwellOnLine', fake: () => false });
+    }
+  }
+  return { error: '找不到合用的站間' };
+});
+ok('G10 派車表沒有的中途停靠站：前車停在主線上時後車在後面等，不開進它的車身', pinchOk(g10), pinchMsg(g10));
+const g11 = await page.evaluate(() => {
+  const P = railIslandPhysical;
+  let c = null;
+  for (const tr of state.trains) {
+    if (tr.sys !== 'tra_sched' || tr.loop || tr.stops._prevNight || !P.has(tr) || P.record(tr).stopIndexes) continue;
+    const s = tr.stops, r = P.record(tr);
+    for (let i = 1; i + 1 < s.length; i++) {
+      const a = s[i], b = s[i + 1];
+      if (a.stop === false || b.stop === false || b.arrSec - a.depSec < 300 || a.depSec - a.arrSec > 40 || a.depSec < 36000 || a.depSec > 72000 || !a.segLn || a.bridgeTo) continue;
+      const path = P.geometry.unfold(String(r.plan.pathIds[i])).path;
+      if (path.length < 3000) continue;
+      for (let k = 5; k <= 15; k++) {
+        const f = k / 20, q = path.at(path.length * f).coordinate, pr = projectOntoShape(a.segLn, q[1], q[0]);
+        if (pr.d == null || pr.perpKm > .05) continue;
+        const mis = ((pr.d - a.dA) / (a.dB - a.dA) - f) * path.length;
+        if (!c || mis > c.mis) c = { tr, i, f, U: q, mis };
+      }
+    }
+  }
+  if (!c) return { error: '找不到合用的站間' };
+  const res = __pinch({ T: c.tr, I: c.i, U: c.U, f: c.f, fPass: true, carName: '自強(3000)', guard: 'blockSep3d', fake: () => Infinity });
+  return { ...res, note: `實體 ${Math.round(c.f * 100)}% 處（示意線比例前面 ${Math.round(c.mis)} m，編組 ${res.lenM} m）` };
+});
+ok('G11 派車表沒有的中途停靠站那一段：2D 車距縮水時照立體車距擋，後車不開進前車車身', pinchOk(g11) && g11.lenM > 240, pinchMsg(g11));
 ok('G9 頁面沒有 JS 例外', errors.length === 0, errors.slice(0, 2).join(' | ') || '0');
 
 console.log(`\n分類統計 A=${A}(撞上限 ${capped}) A′=${Ap} B=${B} C=${C}｜判準＝車身共用股道；數量採棘輪上限`);

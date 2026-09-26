@@ -26,8 +26,8 @@ const sameStopPattern=(plan,tr)=>JSON.parse(plan.stopSignature).every((s,i,a)=>!
 const TEMPLATE_SYSTEMS=['tra_sched','thsr_sched','afr_sched'];
 export function createPlanBinding(dispatch){
  const templates=new Map(),byTrain=new Map(),known=new Map();
- // 派車表沒有的台鐵中途站（2026-10 起的平鎮臨時站 1105）3D 當作不存在：通過站直接略過，停靠站把前後兩段
- // 併回原本那一段——車走派車表原本的股道、不在那一站停。回傳的 stops 是綁定實際用的站序（原班表的站物件），
+ // 派車表沒有的台鐵中途站（2026-10 起的平鎮臨時站 1105）綁定時當作不存在：通過站直接略過，停靠站把前後兩段
+ // 併回原本那一段——車走派車表原本的股道，停在那一站投影到那一段路徑上的點（motion.js 的 cuts）。回傳的 stops 是綁定實際用的站序（原班表的站物件），
  // stopIndexes 是它們在原班表的位置。起訖站不在派車表就不略過，照舊綁不到、退回示意線形。
  // 2D 地圖、看板、小工具照官方站序，不經過這裡。
  const knownOf=sys=>{let set=known.get(sys);if(!set){set=new Set();for(const [k,p] of Object.entries(dispatch.plans))if(k.startsWith(sys+':'))for(const s of JSON.parse(p.stopSignature))set.add(s[0]);known.set(sys,set);}return set;};

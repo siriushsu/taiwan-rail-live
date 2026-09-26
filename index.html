@@ -11372,6 +11372,9 @@ function planSameDirectionOvertakes(trains, union, sections) {
     const k = keyOf(tr); (days.get(k) || days.set(k, new Set()).get(k)).add(day);
   }
   const shareDay = (a, b) => { const A = days.get(keyOf(a)), B = days.get(keyOf(b)); if (!A || !B) return true; for (const d of A) if (B.has(d)) return true; return false; };
+  // 實體股道表沒有的站（2026-10 起的平鎮臨時站）派車表沒有它的站場股道，立體地圖的車停在主線上（rail-3d/physical/motion.js），
+  // 沒有讓後車從旁邊超過去的待避線 ⇒ 不選它當待避站。站名正規化與 traSectionKey 同一套；沒有表就沒有依據，照舊。
+  const tracked = sections ? new Set(Object.keys(sections).flatMap(k => k.split('|'))) : null;
   const proposals = new Map();
   for (let ia = 0; ia < trains.length; ia++) {
     const A = trains[ia]; if (A.loop || !A.stops || A.stops.length < 2) continue;
@@ -11402,6 +11405,7 @@ function planSameDirectionOvertakes(trains, union, sections) {
           if (lookKm > OVERTAKE_LOOKAHEAD_KM) break;
           const lead = fst.arrSec - st.arrSec;
           if (st.stop !== false || lead < need) continue;
+          if (tracked && !tracked.has(traSectionKey(st.name, st.name).split('|')[0])) continue;
           const dep = fst.depSec + OVERTAKE_CLEAR_SEC;
           if (dep - st.arrSec > OVERTAKE_MAX_WAIT_SEC) continue;
           chosen = { tr: L, j: lc, dep, follower: String(F.train), station: st.name, lead, need, lookKm }; break;
@@ -11538,7 +11542,8 @@ function trainPos(tr, t) { return trainPosAt(tr, t - liveDelaySec(tr) - blockHol
 // (1) 前車「行進中」才算障礙,停站中不算。時刻表本身就寫滿待避,月台超車是合法的(現實中被待避的車
 //     在側線上);停站中的車也擋人的話,表定待避會整批失效。副產品:被擋的車不會停在隧道裡——它是
 //     減速到與前車同速跟在後面,只有前車自己快停下來時才停,而前車只在車站停(例外:走實體股道時前車
-//     壓在後車要進的那條股道上,後車在站外等股道空出來,見 blockParkedBlocks)。
+//     壓在後車要進的那條股道上,後車在站外等股道空出來,見 blockParkedBlocks;停在派車表沒有的站上
+//     也一樣,見 blockDwellOnLine)。
 //     「停站中」看的是車實際停在哪,不只看有沒有停站區間:停靠站後面接一段被拉長的跑段,跑段曲線會把
 //     多出來的時間攤成站心外好幾分鐘的爬行(到開同秒的站連停站區間都沒有)——那段也是停在站上
 //     (見 blockStoppedAtStop)。
@@ -11608,6 +11613,28 @@ function blockParkedBlocks(p, it) {
     if (d[i + 1] > pf.chainageM && body.has(pf.route.edges[i].edgeId)) return true;
   return false;
 }
+// 前車停在派車表沒有的中途停靠站上(2026-10 起的平鎮臨時站 1105)。立體地圖讓它停在原本那一段路徑上
+// (rail-3d/physical/motion.js 的 cuts),那裡沒有側線,車身壓在主線上——規則 (1) 的「月台待避合法」
+// 在這裡不成立,後車照舊放行就是開進它的車身。當成實質停在站上的前車交給 blockParkedBlocks,
+// 只擋實體股道上真的會撞到的後車;示意線形上的車 blockParkedBlocks 一律放行,與改動前相同。
+function blockDwellOnLine(it) {
+  const P = window.railIslandPhysical, r = it.tr.stops[it.g.i]?.stop !== false && P?.has(it.tr) && P.record(it.tr);
+  return !!(r && r.stopIndexes && !r.stopIndexes.includes(it.g.i));
+}
+// 同一段裡有這種站時，2D 車距不等於立體股道上的車距：停靠那一站的車兩截各照剖面走、停在那一站的投影點，與 2D 同步；
+// 通過的車整段照一條剖面走（motion.js 的 runBetween），過站時刻跟 2D 不同。同一個 2D 車距在立體地圖上會縮短
+// ——實測 10/27 埔心→平鎮，2154（停平鎮）誤點 16 分、後面的 114（通過）2D 車距守在 400 m，立體車心距只剩 203 m，
+// 兩車車身共用 14 m。這種配對另外量立體車距：前車車身壓在後車接下來的股道上時（blockParkedBlocks），取前車車心
+// 投影到後車路徑上的距離（km），呼叫端與 2D 車距取小者。兩車都不在這種段落就回 Infinity，棘輪只看 2D，與改動前相同。
+function blockSep3d(lead, it) {
+  const P = window.railIslandPhysical, rec = x => P?.has(x.tr) && P.record(x.tr);
+  if (!lead.it || !(rec(lead.it)?.stopIndexes || rec(it)?.stopIndexes)) return Infinity;
+  const pl = trainPosAt(lead.it.tr, state.simSec - liveDelaySec(lead.it.tr) - lead.it.h);
+  const pf = trainPosAt(it.tr, state.simSec - liveDelaySec(it.tr) - it.h);
+  const cut = (x, p) => { const k = rec(x)?.stopIndexes; return !!(k && p?.physical && k[p.segmentIndex + 1] - k[p.segmentIndex] > 1); };
+  if (!(cut(lead.it, pl) || cut(it, pf)) || !blockParkedBlocks(lead, it)) return Infinity;
+  return (pf.route.path.locate([pl.lon, pl.lat]).s - pf.chainageM) / 1000;
+}
 function updateBlockHolds() {
   _blockSide.clear();
   if (state.mode !== 'sched' || !state.trains) { _blockHold.clear(); _blockGap.clear(); _blockPrevD.clear(); _blockSim = null; return; }
@@ -11642,7 +11669,7 @@ function updateBlockHolds() {
       let target = 0, lead = barrier;
       if (!it.g.dwell) for (let m = parked.length - 1; m >= 0; m--) if (blockParkedBlocks(parked[m], it)) { lead = parked[m]; break; }
       if (lead && !it.g.dwell) {
-        const sep = (lead.d - it.g.d) * it.g.dir;           // km,與前車的實際距離
+        const sep = Math.min((lead.d - it.g.d) * it.g.dir, blockSep3d(lead, it)); // km,與前車的實際距離(立體較短時取立體,見 blockSep3d)
         const pv = _blockGap.get(it.key);
         // 棘輪綁在「這一台前車」上:換一台前車就重新以現況起算。沿用上一台的棘輪(它可能在 12km 外,
         // 早就長到 400m)會讓後車在新前車貼身出現的當下被要求退開 350m——它不能倒退,只能原地停死
@@ -11688,11 +11715,12 @@ function updateBlockHolds() {
         if (pf) _blockPrevD.set(it.key, pf); else _blockPrevD.delete(it.key);
       } else { _blockHold.delete(it.key); _blockPrevD.delete(it.key); }
       // 屏障存前車的里程本身,車距由每台後車各自的棘輪決定;前車停站中就不是障礙(月台待避合法),
-      // 屏障沿用更前面那班的。實質停在站上的另外記著,只擋實體股道上真的會撞到的後車(blockParkedBlocks)
+      // 屏障沿用更前面那班的。實質停在站上的另外記著,只擋實體股道上真的會撞到的後車(blockParkedBlocks)。
+      // 停在派車表沒有的站上也記進去:立體地圖讓它停在主線上,那裡沒有月台待避這回事(blockDwellOnLine)
       if (!it.g.dwell) {
         if (blockStoppedAtStop(it, tAt)) parked.push({ d: it.g.d, key: it.key, it });
-        else { barrier = { d: it.g.d, key: it.key }; parked.length = 0; }
-      }
+        else { barrier = { d: it.g.d, key: it.key, it }; parked.length = 0; }
+      } else if (blockDwellOnLine(it)) parked.push({ d: it.g.d, key: it.key, it });
     }
     // 並排偏移的配對:在同一份排序上取「連續且貼近」的車列。用 arr 的鄰接而不是 barrier 鏈——
     // 停站中的車也要參與(月台待避的當下正是兩顆標記重疊的那一刻)。
@@ -11884,17 +11912,29 @@ function assignSchedShapePathsFor(trains, lines) {
       incoming.bridgeTo = to; incoming.bridgeKm = gap;
       state._segStats.bridged++;
     }
-    // 派車表沒有的中途通過站（2026-10 起的平鎮臨時站）前後兩對都不在實體股道表裡，上面掛不到 physKm。立體地圖把那幾段
-    // 併回原本那一段畫（rail-3d/physical/plan-binding.js），點速＝剖面速度×（原本那一段的實體長÷各小段剖面長相加），
-    // 所以把原本那一段的 maxPathM 按示意長比例分給各小段，相加才回到原本那一段的下限（理由見 schedSegKmOf）。
-    // 中途站有停靠的不分：3D 在那裡跨了跑段、整段退回等速，用不到剖面長。
+    // 派車表沒有的中途站（2026-10 起的平鎮臨時站）前後兩對都不在實體股道表裡，上面掛不到 physKm。立體地圖把那幾段
+    // 併回原本那一段畫（rail-3d/physical/plan-binding.js）：中途站有停靠的，車停在那一站座標投影到原本那一段路徑上的點，
+    // 前後各截各自照跑段剖面走（rail-3d/physical/motion.js）；通過站不切。每截的點速＝剖面速度×（那一截的實體長÷各小段
+    // 剖面長相加），所以把那一截的實體長上限按示意長比例分給各小段，相加才回到那一截的下限（理由見 schedSegKmOf）。
+    // 那一截的實體長上限：兩端都是派車站＝原本那一段的 maxPathM；端點是中途停靠站時取股道表 via（那一站投影到每條派過
+    // 路徑上離兩端各最遠多少，產生器用畫車端同一個投影），[前端, 後端] 一截取「後端離前站最遠」與「前端離後站最遠」較小者，
+    // 兩者都不短於任一條路徑上的那一截。via 缺那一站就不補，留給 verify_phys_speed_cap 的 G3 報。
     if (tr.sys === 'tra_sched' && !tr.loop && traKnown) for (let i = 0; i < s.length - 2; i++) {
       if (!traKnown.has(traName(s[i].name))) continue;
       let j = i + 1; while (j < s.length - 1 && !traKnown.has(traName(s[j].name))) j++;
-      const p = j > i + 1 && s.slice(i + 1, j).every(x => x.stop === false) && state.trackSections[traSectionKey(s[i].name, s[j].name)];
+      const key = traSectionKey(s[i].name, s[j].name), p = j > i + 1 && state.trackSections[key];
       if (!(p && p.maxPathM > 0)) continue;
-      const km = s.slice(i, j).map((_, k) => schedSegKmOf(s, i + k)), sum = km.reduce((a, b) => a + b, 0);
-      if (sum > 0) km.forEach((x, k) => { s[i + k].physKm = p.maxPathM / 1000 * x / sum; });
+      const fwd = key.split('|')[0] === traName(s[i].name), cuts = [i];
+      for (let k = i + 1; k < j; k++) if (s[k].stop !== false) cuts.push(k);
+      cuts.push(j);
+      // far(k)＝[離前站 s[i] 最遠, 離後站 s[j] 最遠]（公尺）
+      const far = k => k === i ? [0, p.maxPathM] : k === j ? [p.maxPathM, 0] : (v => v && (fwd ? v : [v[1], v[0]]))(p.via?.[traName(s[k].name)]);
+      for (let c = 0; c + 1 < cuts.length; c++) {
+        const a = cuts[c], b = cuts[c + 1], fa = far(a), fb = far(b);
+        if (!fa || !fb) continue;
+        const bound = Math.min(fb[0], fa[1]), km = s.slice(a, b).map((_, k) => schedSegKmOf(s, a + k)), sum = km.reduce((x, y) => x + y, 0);
+        if (sum > 0) km.forEach((x, k) => { s[a + k].physKm = bound / 1000 * x / sum; });
+      }
       i = j - 1;
     }
     // 高鐵時刻表只到「分」(實測今日 151 班每一個到離站時刻 %60 皆為 0;台鐵是 30 秒解析度,

@@ -1,6 +1,9 @@
 import fs from 'node:fs';import assert from 'node:assert/strict';
 import {createPlanBinding,physicalTrainKey,physicalStopSignature} from '../rail-3d/physical/plan-binding.js';
 import {createPhysicalMotion} from '../rail-3d/physical/motion.js';
+import {createRouteRuntime} from '../rail-3d/physical/route-runtime.js';import {profileProgress} from '../rail-3d/physical/timing.js';
+import {makeSandbox,readPassObs,readTrackSections} from './build_run_profiles.mjs';import {farthestAlong} from './lib/track_section_via.mjs';
+import {normSta,sectionKey} from './lib/parallel_tracks.mjs';import {runInContext} from 'node:vm';
 const dispatch=JSON.parse(fs.readFileSync('rail-3d/physical/dispatch.json')),network=JSON.parse(fs.readFileSync('rail-3d/physical/network.json'));
 const rows=Object.entries(dispatch.plans).filter(([k,p])=>k.startsWith('tra_sched:')&&!p.holds?.some(h=>h.arrival||h.departure));
 const make=([key,p])=>({sys:'tra_sched',train:key.split(':')[1],stops:JSON.parse(p.stopSignature).map(([n,arrSec,depSec],i,a)=>({name:n.split(':')[1],arrSec,depSec,stop:i===0||i===a.length-1||arrSec!==depSec}))});
@@ -48,4 +51,53 @@ assert.equal(bind({...merged,loop:true}),null,'環島車不略過派車表沒有
 // 跨夜判斷（index.html schedWrapT）讀原班表陣列上的旗標（_prevNight 等）：取樣要把原陣列交給 wrap，不能交併段後新建的那份。
 let wrapped=null;createPhysicalMotion(network,null,dispatch).sample(merged,0,{wrap:s=>{wrapped=s;return -1e9;}});
 assert.strictEqual(wrapped,merged.stops,'跨夜判斷要拿原班表的站序陣列');
-console.log('台鐵股道綁定：通過時刻更新、改點沿用股道、停靠型態／待避防護、30 班加開模板、雙方向與未知路徑、派車表沒有的中途站略過檢查通過');
+// ── 派車表沒有的中途「停靠」站（平鎮 C2）──────────────────────────────────────────────────────────────
+// 3D 停在該站座標投影到原本那一段路徑上的點、停到官方離站時刻（motion.js 的 cuts），前後兩截各自照跑段剖面走；
+// 剖面長 ≥ 那一截的實體長（index.html assignSchedShapePathsFor 拿股道表的 via 補下限，理由見 schedSegKmOf）。
+// 現行資料沒有這種站，出貨鏈只有這裡跑得到：取一班真車「實體路徑比示意線形長最多」的一段，在 45% 處往左 20 m 插一個停 30 秒的
+// 陌生站（其後各站 +120 秒，綁定走 retimed、沿用自己的股道），via 用產生器同一支 farthestAlong 算，剖面用 index.html 原文沙箱
+// （build_run_profiles 的 makeSandbox）算。對照組：不補 via 時至少要有一截剖面比實體短——否則這組檢查沒有牙。
+const hav=(a,b)=>{const r=Math.PI/180,x=Math.sin((b.lat-a.lat)*r/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin((b.lon-a.lon)*r/2)**2;return 2*6371000*Math.asin(Math.sqrt(x));};
+const raw=fs.readFileSync('data/tra_schedule_dense.json','utf8'),sched=JSON.parse(raw),lines=JSON.parse(fs.readFileSync('data/tra.json')).lines,sections=readTrackSections('data/tra_track_sections.json');
+const shaped=(trains,secs)=>{const ctx=makeSandbox('index.html');ctx.state.trackSections=secs;ctx.trains=trains;ctx.lines=lines;runInContext('canonicalizeAliasTrains(trains); clearPlannedOvertakes(trains); assignSchedShapePathsFor(trains, lines)',ctx);return ctx;};
+const runtime=createRouteRuntime(network,null),motion=createPhysicalMotion(network,null,dispatch);
+let best=null;
+{const cands=sched.trains.slice(0,200).filter(t=>{const b=!t.loop&&bind({...t,sys:'tra_sched'});return b&&b.basis==='exact'&&!b.stopIndexes;}),clones=cands.map(t=>structuredClone({...t,sys:'tra_sched'})),ctx=shaped(clones,sections),segKm=runInContext('schedSegmentKm',ctx);
+ clones.forEach((t,n)=>{const pl=bind(t).plan;t.stops.forEach((s,i)=>{const nx=t.stops[i+1];if(!nx||s.stop===false||nx.stop===false||nx.arrSec-s.depSec<300)return;
+  const ratio=runtime.unfold(String(pl.pathIds[i])).path.length/(1000*(s.segLn?segKm(s):hav(s,nx)/1000));if(!best||ratio>best.ratio)best={src:cands[n],i,ratio,pid:pl.pathIds[i]};});});}
+assert(best&&best.ratio>1.005,`要找得到實體路徑比示意線形長的站間（最大比例 ${best?.ratio}）`);
+const I=best.i,K=I+1,s0=best.src.stops,path=runtime.unfold(String(best.pid)).path,sU=path.length*.45,[pa,pb,pc]=[sU-5,sU+5,sU].map(x=>path.at(x).coordinate),mx=111320*Math.cos(pc[1]*Math.PI/180);
+const ex=(pb[0]-pa[0])*mx,ny=(pb[1]-pa[1])*111320,nn=Math.hypot(ex,ny),U=[pc[0]-ny/nn*20/mx,pc[1]+ex/nn*20/111320],NAME='派車表沒有的測試停靠站';
+const uArr=Math.round(s0[I].depSec+(s0[K].arrSec-s0[I].depSec)*.45+30);
+const synth=()=>({...best.src,sys:'tra_sched',stops:[...s0.slice(0,K).map(x=>({...x})),{name:NAME,lat:U[1],lon:U[0],arrSec:uArr,depSec:uArr+30,stop:true},...s0.slice(K).map(x=>({...x,arrSec:x.arrSec+120,depSec:x.depSec+120}))]});
+const key=sectionKey(s0[I].name,s0[K].name),dirs=new Map();
+for(const[pk,p]of Object.entries(dispatch.plans)){if(!pk.startsWith('tra_sched:'))continue;const sig=JSON.parse(p.stopSignature);
+ for(let j=0;j+1<sig.length;j++){const a=sig[j][0].split(':')[1],b=sig[j+1][0].split(':')[1];if(sectionKey(a,b)===key&&!dirs.has(String(p.pathIds[j])))dirs.set(String(p.pathIds[j]),normSta(a)===key.split('|')[0]);}}
+const far=farthestAlong(runtime,dirs,[U]),up=m=>+((Math.ceil(m*1000)+1)/1000).toFixed(3);
+const syn=synth(),ctl=synth();shaped([syn],{...sections,[key]:{...sections[key],via:{[normSta(NAME)]:[up(far.first),up(far.second)]}}});shaped([ctl],sections);
+const rec=motion.record(syn),loc=path.locate(U),Q=path.at(loc.s).coordinate,proj={lat:Q[1],lon:Q[0]};
+assert(rec&&rec.plan.pathIds[I]===best.pid&&!rec.stopIndexes.includes(K)&&rec.stopIndexes.includes(I)&&rec.stopIndexes.includes(K+1),'陌生停靠站要略過、那一段照舊走原本的路徑');
+assert.deepEqual(rec.cuts?.[I]?.map(c=>c.k),[K],'那一段要在陌生停靠站切開');assert(Math.abs(rec.cuts[I][0].at-loc.s)<1e-9,'切點＝站座標投影到那一段路徑上的位置');
+for(let t=uArr;t<=uArr+30;t+=.5){const p=motion.sample(syn,t);assert(p?.physical&&p.dwell&&p.stopIndex===K&&hav(p,proj)<=.01,`${t} 秒：官方停留時段內要停在投影點`);}
+for(const[t0,t1]of[[uArr-.01,uArr],[uArr+30,uArr+30.01]])assert(hav(motion.sample(syn,t0),motion.sample(syn,t1))<1,`${t0}→${t1} 秒：進出站不可跳`);
+const pieces=[loc.s,path.length-loc.s],prof=x=>[x.stops[I].rpSegKm*1000,x.stops[K].rpSegKm*1000];
+assert(syn.stops[I].rp&&syn.stops[K].rp&&syn.stops[I].rp!==syn.stops[K].rp,'兩截各有自己的跑段剖面');
+assert(prof(syn).every((m,j)=>m>=pieces[j]),`兩截剖面長 ${prof(syn)} 要 ≥ 實體長 ${pieces}`);
+assert(prof(ctl).some((m,j)=>m<pieces[j]),`對照組（不補 via）要有一截剖面比實體短，否則這組檢查沒有牙：${prof(ctl)} vs ${pieces}`);
+let moving=0;
+for(let t=syn.stops[I].depSec;t+.5<=syn.stops[K+1].arrSec;t+=.5){const a=motion.sample(syn,t),b=motion.sample(syn,t+.5);if(!a?.physical||!b?.physical||a.dwell||b.dwell||a.stopIndex!==b.stopIndex)continue;
+ const st=a.rawTime<uArr?syn.stops[I]:syn.stops[K],D=x=>profileProgress(st.rp,x-st.rpDep)*st.rp.L;moving++;
+ assert(b.chainageM-a.chainageM<=(D(b.rawTime)-D(a.rawTime))*(1+1e-9)+1e-9,`${t} 秒：點速不可超過剖面速度`);}
+assert(moving>100,`兩截行駛取樣 ${moving}`);
+// 同向待避不選實體股道表沒有的站（index.html planSameDirectionOvertakes）：拿現行資料第一天、照前端同一條每日管線選站，
+// 把選中的第一個待避站從股道表拿掉重跑，那一站就不能再被選；表不動時要選得到（對照組，證明這條檢查有牙）。
+const plannedOn=(day,secs)=>{const sc=JSON.parse(raw),ctx=makeSandbox('index.html');ctx.state.passObs=readPassObs('data/tra_pass_obs.json');ctx.state.trackSections=secs;
+ for(const t of sc.trains)t.sys='tra_sched';ctx.trs=sc.dates[day].map(i=>sc.trains[i]);ctx.lines=lines;ctx.union={trains:sc.trains,dates:sc.dates};
+ runInContext('canonicalizeAliasTrains(trs); clearPlannedOvertakes(trs); assignSchedShapePathsFor(trs, lines); resolveTraTraffic(trs, union, state.trackSections)',ctx);
+ return ctx.trs.flatMap(t=>t.stops.filter(s=>s._plannedDwell).map(s=>({no:String(t.train),station:s.name})));};
+const day=Object.keys(sched.dates).sort()[0],waits=plannedOn(day,sections);
+assert(waits.length>0,`${day} 要有預排待避（對照組）`);
+const X=normSta(waits[0].station),atX=waits.filter(p=>normSta(p.station)===X).length,untracked=Object.fromEntries(Object.entries(sections).filter(([pk])=>!pk.split('|').includes(X)));
+assert(Object.keys(untracked).length<Object.keys(sections).length,`股道表要真的拿掉 ${X}`);
+assert(!plannedOn(day,untracked).some(p=>normSta(p.station)===X),`股道表沒有 ${X} 時不可選它當待避站`);
+console.log(`台鐵股道綁定：通過時刻更新、改點沿用股道、停靠型態／待避防護、30 班加開模板、雙方向與未知路徑、派車表沒有的中途站略過檢查通過；派車表沒有的中途停靠站（${best.src.train} 次 ${s0[I].name}→${s0[K].name}，實體／示意 ${best.ratio.toFixed(4)}）停在投影點、兩截剖面長 ≥ 實體、點速 ≤ 剖面速度（${moving} 個取樣）；${day} 拿掉 ${X} 後不選它待避（原本在那裡待避 ${atX} 次，當天共 ${waits.length} 次）`);
