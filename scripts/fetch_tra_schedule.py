@@ -30,6 +30,9 @@
    未收錄，但同屬「110X」自強號系列命名慣例（比照已知的 110G/110H 皆為
    EMU3000 型自強號變體），本腳本依此慣例歸類為「自強」類，並在
    source_notes 註明這是慣例推斷、非官方文件逐字確認。
+4. 待上架站閘門（2026-09-26 使用者裁示，見 PENDING_STATION_CODES 上方說明）：
+   官方車站清單查不到的站碼不再一律靜默丟掉——待上架站照丟但具名印出來，
+   其他陌生站碼整輪失敗、不寫檔。
 """
 
 import collections
@@ -39,6 +42,8 @@ import json
 import re
 import sys
 import urllib.request
+
+from fetch_tra import PENDING_STATIONS, _norm  # 待通車站名與站名正規化只准一份，在 fetch_tra.py
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 
@@ -51,6 +56,23 @@ LON_MIN, LON_MAX = 120.0, 122.0
 
 DAYS_AHEAD = 14   # 今天起連續抓幾天
 MIN_DAYS_OK = 7   # 至少抓到幾天才算成功（清單通常只發佈到某天為止）
+
+TRA_PATH = "data/tra.json"
+
+# ── 待上架站閘門（2026-09-26 使用者裁示）──────────────────────────────────
+# 平鎮臨時站在官方車站清單上架之前，逐日時刻表 10/26 起就先用了站碼 1105。以前查不到
+# 座標的站一律靜默丟掉，丟了什麼沒人知道；等官方清單上架，下一次例行重抓又會直接收進來，
+# 可是 data/tra.json 的站序還沒有這一站，densify 會把它吸到 2 公里內的中壢，3D 綁不到
+# 派車表、出貨閘門轉紅（實測見 memory tra-pingzhen-station-opening）。現在的規則：
+#   - 待上架站（站碼在下面這份，或官方站名在 fetch_tra.py 的 PENDING_STATIONS）要等
+#     官方車站清單有、而且 data/tra.json 站序也有這一站才收；在那之前照丟，但每次具名印出來。
+#   - 官方車站清單沒有（或有但座標不可用）、也不是待上架站的站碼：整輪失敗、不寫檔，交給人判斷。
+#     座標不可用以前一樣是靜默丟掉整站——中壢的座標要是壞了，14 天的窗會少掉近 2,900 個停靠。
+# 「tra.json 有沒有這一站」只對待上架站用站名判：1001「臺北-環島」這種官方專用站碼的
+# 站名本來就對不上 tra.json（densify 靠座標把它吸到臺北），套成通用規則會誤丟。
+# 站碼表只能另記一份：站碼不是官方車站清單的值，是逐日時刻表先用上的（站名是推定）。
+# 站納入站序、整條管線跑完之後，這裡與 PENDING_STATIONS 的那一筆一起移除。
+PENDING_STATION_CODES = {"1105": "平鎮"}
 
 # 官方「CarClass列車種類代碼表」全文（devDoc PDF 第 8–9 頁手key）。
 CARCLASS_TABLE = {
@@ -162,11 +184,26 @@ def parse_hms_to_sec(hms):
     return int(h) * 3600 + int(m) * 60 + int(s)
 
 
-def build_trains_for_day(train_infos, station_index, unknown_codes_seen,
-                         typename_color_seen, drop_stats):
+def station_status(code, station_index, listed_names, tra_names, pending_names):
+    """回傳 (站點, 略過原因)。原因 None＝照收；"pending"＝待上架站，照丟但具名回報；
+    "unknown"＝官方車站清單沒有（或座標不可用）、也不是待上架站，整輪要失敗。
+    listed_names 是整份官方車站清單的站碼→站名（含座標不可用的站）。"""
+    st = station_index.get(code)
+    name = _norm(listed_names.get(code) or "")
+    # 站名用「包含」比對，跟 watch_official.mjs 的 TRA_WATCH_NAMES 一樣：官方若寫成「平鎮臨時站」也要認得
+    if code in PENDING_STATION_CODES or (name and any(n in name for n in pending_names)):
+        if st is not None and name in tra_names:
+            return st, None
+        return None, "pending"
+    return (st, None) if st is not None else (None, "unknown")
+
+
+def build_trains_for_day(train_infos, lookup, unknown_codes_seen,
+                         typename_color_seen, drop_stats, skipped):
     """把單日 TrainInfos 清洗成 train 物件清單（schema 與舊單日版逐欄相同：
     train/typeName/carName/color/stops）。跨午夜、丟站清洗邏輯與舊版一致。
-    drop_stats 為累加用的 Counter。"""
+    lookup(站碼) 回傳 station_status 的結果；drop_stats、skipped（(站碼, 原因)→停靠數）
+    為累加用的 Counter。"""
     trains_out = []
     for t in train_infos:
         car_class = t.get("CarClass", "")
@@ -178,9 +215,10 @@ def build_trains_for_day(train_infos, station_index, unknown_codes_seen,
         raw_stops = []
         for ti in time_infos:
             code = ti["Station"]
-            st = station_index.get(code)
+            st, why = lookup(code)
             if st is None:
                 drop_stats["dropped_stops"] += 1
+                skipped[(code, why)] += 1
                 continue
             raw_stops.append((ti, st))
 
@@ -281,6 +319,19 @@ def main():
         station_index[code] = {"name": s.get("stationName"), "lat": lat, "lon": lon}
     print(f"車站清單共 {len(stations_list)} 站，可用座標 {len(station_index)} 站（不可用：{bad_gps_codes}）", file=sys.stderr)
 
+    listed_names = {s.get("stationCode"): s.get("stationName") for s in stations_list}
+    with open(TRA_PATH, encoding="utf-8") as f:
+        tra_names = {_norm(s["name"]) for line in json.load(f)["lines"] for s in line["stations"]}
+    pending_names = {_norm(n) for n in PENDING_STATIONS}
+    status_cache = {}
+
+    def lookup(code):
+        if code not in status_cache:
+            status_cache[code] = station_status(code, station_index, listed_names, tra_names, pending_names)
+        return status_cache[code]
+
+    skipped_by_day = collections.defaultdict(dict)  # (站碼, 原因) → {日期: 停靠數}
+
     unknown_codes_seen = collections.Counter()
     drop_stats = collections.Counter()
     typename_color_seen = {}
@@ -299,9 +350,12 @@ def main():
         train_infos = raw["TrainInfos"]
         update_times[dash] = raw.get("UpdateTime", "")
         raw_counts[dash] = len(train_infos)
+        day_skipped = collections.Counter()
         day_trains = build_trains_for_day(
-            train_infos, station_index, unknown_codes_seen, typename_color_seen, drop_stats
+            train_infos, lookup, unknown_codes_seen, typename_color_seen, drop_stats, day_skipped
         )
+        for key, n in day_skipped.items():
+            skipped_by_day[key][dash] = n
         per_day_counts[dash] = len(day_trains)
         idxs = []
         for tr in day_trains:
@@ -315,6 +369,32 @@ def main():
         dates_map[dash] = idxs
         print(f"  {dash}: 原始 {len(train_infos)} → 產出 {len(day_trains)} 車次"
               f"（聯集累計 {len(union_trains)} 份唯一定義）", file=sys.stderr)
+
+    def per_day_text(per_day):
+        return "、".join(f"{d} {n}" for d, n in sorted(per_day.items())) + " 個停靠"
+
+    def skips(reason):
+        return sorted(((code, per_day) for (code, why), per_day in skipped_by_day.items() if why == reason),
+                      key=lambda x: x[0])
+
+    pending_skips, unknown_skips = skips("pending"), skips("unknown")
+    for code, per_day in pending_skips:
+        name = listed_names.get(code) or "（站名空白）"
+        if code in station_index:
+            what = f"「{name}」（官方車站清單已上架，但 {TRA_PATH} 站序還沒有這個站名）"
+        elif code in listed_names:
+            what = f"「{name}」（官方車站清單有這個站碼，但座標不可用）"
+        else:
+            what = f"（官方車站清單還沒有這個站碼；推定為{PENDING_STATION_CODES.get(code, '？')}）"
+        print(f"⏸ 待上架站 {code}{what}：照丟 {per_day_text(per_day)}", file=sys.stderr)
+    if unknown_skips:
+        detail = "；".join(f"{code}{'（官方清單有這個站碼但座標不可用）' if code in listed_names else ''} "
+                          f"{per_day_text(per_day)}" for code, per_day in unknown_skips)
+        raise RuntimeError(
+            f"逐日時刻表用到官方車站清單沒有（或座標不可用）、也不是待上架站的站碼：{detail}。"
+            "依 2026-09-26 裁示整輪失敗、不寫檔。先查清楚是新站、改碼還是官方清單出錯；"
+            "是待上架新站就把站碼加進 PENDING_STATION_CODES（站名加進 fetch_tra.py 的 PENDING_STATIONS），"
+            "不要為了讓重抓過而直接放行。")
 
     date_keys = sorted(dates_map)
     types_out = [{"key": k, "color": v} for k, v in sorted(typename_color_seen.items())]
@@ -340,6 +420,11 @@ def main():
         f"{drop_stats['dropped_trains_no_coord'] + drop_stats['dropped_trains_too_short']}。"
         f" 各日產出車次數：{per_day_counts}。"
     )
+    if pending_skips:
+        source_notes += (
+            " 丟棄的 stop 中含待上架站（依 2026-09-26 裁示，官方車站清單與 data/tra.json 站序都有這一站才收）："
+            + "；".join(f"站碼 {code} {per_day_text(per_day)}" for code, per_day in pending_skips) + "。"
+        )
 
     output = {
         "system": "台鐵時刻表",

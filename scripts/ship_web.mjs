@@ -679,6 +679,19 @@ try {
     + '或跟車卡「下一站」長站名沒換行、讓整張卡能左右拖（#fpNext 又變回 nowrap）'
     + '（單獨重跑：node scripts/verify_select_overflow.mjs）');
 
+  // ── 2.27 通行證守門人(2026-09-26) ───────────────────────────────────────────
+  // 為什麼值得進出貨鏈(2.8 那把尺):(a) 它守的缺陷對真人 100% 復現——網站未訂閱者按「Google 清單匯入」直接開出
+  // 匯入(f76685dd 自己點名過的洞:只改入口可見性、不改點擊,網站就能免費匯入)、sandbox 資格被當成正式通行證、已付費者的資格在同步或
+  // 冷啟動時消失、手機「更多」抽屜裡唯一的購買入口點不到、Android 止血旗標關不掉;(b) 別的閘門量不到——鏈上此前
+  // 沒有任何通行證閘門,verify_plus_features(npm run check-plus)也不在鏈上;(c) 這塊改得勤,每一輪都可能無聲弄壞:
+  // 一個月內改了四輪(08-31、09-09、09-10、09-23),這支因為不在鏈上,那幾輪留下的 6 條過期判準紅了 26 天沒人看到。
+  // 在鏈上的話,改行為的那一輪就得同輪對齊判準。雙引擎、自己起純靜態 server、埠號由系統挑,約 3 分鐘(負載高時實測 186 秒)。
+  const plusSub = spawnSync('node', [path.join(wt, 'scripts', 'verify_plus_subscription.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, VERIFY_PORT: '' } });
+  process.stdout.write(plusSub.stdout || ''); process.stderr.write(plusSub.stderr || '');
+  if (plusSub.status !== 0) fail('通行證守門人未過——付費閘門、購買流程、資格判定或止血旗標有一條不符'
+    + '（單獨重跑：node scripts/verify_plus_subscription.mjs）');
+
   if (nodeOptionsBefore === undefined) delete process.env.NODE_OPTIONS; else process.env.NODE_OPTIONS = nodeOptionsBefore;
 
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
