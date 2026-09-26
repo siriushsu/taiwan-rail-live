@@ -374,6 +374,10 @@ const btnSpaceOk = k => k.stay && k.todayPanel && k.plays === 1;
 const FC_SETUP = async () => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   if (state.mode !== 'freq') selectGroup(GROUPS.find(g => g.id === 'metro'));
+  // loadFreqGroup 依產品契約會把時鐘跳回「現在」；凌晨跑 ship-web 時全線已收班，
+  // 即使 boot URL 已釘 ?t=09:41，這裡仍會得到 0 個 _freqHits。切群組後再釘回日間，
+  // 讓本 gate 驗的是膠囊鍵盤行為，不把執行機器的牆鐘時間混進前置條件。
+  setSimSec(9 * 3600 + 41 * 60);
   for (let i = 0; i < 60 && !((state._freqHits || []).some(h => h.ln)); i++) await sleep(100);
   let used = null;
   for (const h of (state._freqHits || []).filter(h => h.ln)) {
