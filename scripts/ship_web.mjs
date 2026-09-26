@@ -669,11 +669,14 @@ try {
   // 為什麼值得進出貨鏈(2.8 那把尺):(a) 對真人 100% 復現——iPhone 英文介面在跟車卡選到長站名,整張卡能左右拖、
   // 左邊被切掉(修前「接公車」127px);(b) 別的閘門量不到——Chromium 量永遠是 0,verify_garage_loop 只量車庫那一個;
   // (c) 已經被無聲弄壞過一次——9/19 車名改走翻譯後,車庫選單在 WebKit 英文漏 278px,9/25 verify_garage_loop 紅了才發現;
-  // 這次修的另外四個修前一直漏著,沒有任何閘門紅過。只跑 WebKit、自己起純靜態 server、埠號由系統挑,約 11 秒。
+  // 這次修的另外四個修前一直漏著,沒有任何閘門紅過。自己起純靜態 server、埠號由系統挑。
+  // 09-26 加跟車卡「下一站」#fpNext 格(v0926d:長站名換行):同一個「整張卡能左右拖」,來源是 nowrap 不是 select,
+  // 兩個引擎都中(修前 WebKit 87px、Chromium 69px),所以這格 WebKit、Chromium 都跑。整支約 23 秒。
   const selectOv = spawnSync('node', [path.join(wt, 'scripts', 'verify_select_overflow.mjs')],
     { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '' } });
   process.stdout.write(selectOv.stdout || ''); process.stderr.write(selectOv.stderr || '');
-  if (selectOv.status !== 0) fail('選單橫拖守門人未過——WebKit 選到長選項時外層容器能左右拖（select 少了 overflow:hidden）'
+  if (selectOv.status !== 0) fail('選單／跟車卡下一站橫拖守門人未過——WebKit 選到長選項時外層容器能左右拖（select 少了 overflow:hidden），'
+    + '或跟車卡「下一站」長站名沒換行、讓整張卡能左右拖（#fpNext 又變回 nowrap）'
     + '（單獨重跑：node scripts/verify_select_overflow.mjs）');
 
   if (nodeOptionsBefore === undefined) delete process.env.NODE_OPTIONS; else process.env.NODE_OPTIONS = nodeOptionsBefore;

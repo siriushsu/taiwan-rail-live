@@ -6,13 +6,21 @@
 // index.html 跟車卡的「接公車」#fpBusTo、「我上車了」#fpRideTo、到站提醒 #notifyStation,rail-3d.css 觀看面板的
 // 車站／地標導覽 #riGuidePlace(車庫 .g-model-select 由 verify_garage_loop 守)。
 // 修前 WebKit 英文實測:#fpBusTo 127px、#fpRideTo 61、#notifyStation 19(360 寬)、#riGuidePlace 50(1280 寬)。
-// Chromium 的 select 計算後 overflow 恆為 visible、這個缺陷也不發生,這支只跑 WebKit。
+// Chromium 的 select 計算後 overflow 恆為 visible、這個缺陷也不發生,select 那幾格只跑 WebKit。
 //   S 每個 select 塞一個長選項並選它,對每個 overflow-x 為 auto／scroll 的祖先與文件本身寫 scrollLeft＝大數再讀回:
 //     讀回值 ≤ 1px(＝使用者拖不動)。長選項是注入的(兩個實測最長的英文名接起來),不靠今天跟到哪班車、剩哪幾站。
 //   N 正向對照,要紅才算數:同一格把那個 select 改回 overflow:visible ⇒ 讀回值必須 > 1px。
+//
+// 同一個症狀的另一個來源(2026-09-26 加,守 v0926d):跟車卡「下一站」#fpNext 原本 white-space:nowrap,英文長站名
+// (長榮大學、科工館)比卡寬還寬,.follow-panel 的 overflow-y:auto 讓 x 軸也變成可捲,整張卡能左右拖。這個兩個引擎都中:
+// 修前英文實測 WebKit 手機 87px、桌面 69px、放空 101px,Chromium 69／54／84px(360～768 寬卡寬相同,數字一樣)。
+// 修法照 2026-09-26 裁示 (b):換行顯示全名;放空三行條(手機)維持一行、放不下以省略號收尾。
+//   F 同一個長字串塞進 #fpNext(包住 updateFollowPanel,每次重繪後改回注入的字串),量同一套可拖 px:≤ 1px,而且
+//     一般卡換成 ≥ 2 行、字沒被截、沒超出卡片內容區;放空卡維持 1 行、text-overflow 是 ellipsis。
+//   FN 正向對照:同一格把 #fpNext 改回修前的寫法(nowrap、min-width:auto、overflow:visible)⇒ 可拖 > 1px。
 // 慣例照 verify_board_scroll_pad.mjs:自帶 node:http 靜態伺服器(埠號由系統挑)、語系與時鐘釘死、關首訪教學卡、
-// 掛 pageerror、T0 身分自檢。瀏覽器一律無視窗。約 11 秒(2026-09-26 實測)。
-import { webkit } from 'playwright';
+// 掛 pageerror、T0 身分自檢。瀏覽器一律無視窗。約 23 秒(2026-09-26 實測,兩個引擎)。
+import { webkit, chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -120,6 +128,76 @@ const CELLS = [
     })()`, close: `(() => { if (window.railViewControls) window.railViewControls.close(); })()` },
 ];
 
+// 跟車卡「下一站」:塞長站名 → 量可拖 px、行數、有沒有被截 → 同一格改回修前的 nowrap 再量一次 → 還原
+const FP_PROBE = async ([name]) => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const raf = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  // updateFollowPanel 每次重繪都重寫站名:包一層,寫完改回注入的字串
+  if (!window.__verifyFpWrapped) {
+    const orig = window.updateFollowPanel;
+    window.updateFollowPanel = function () {
+      const r = orig.apply(this, arguments);
+      const nx = document.getElementById('fpNext');
+      if (nx && window.__verifyFpName && nx.textContent !== window.__verifyFpName) nx.textContent = window.__verifyFpName;
+      return r;
+    };
+    window.__verifyFpWrapped = true;
+  }
+  const done = r => { window.__verifyFpName = null; if (state.followTrain) updateFollowPanel(state.followTrain); return r; };
+  window.__verifyFpName = name;
+  if (state.followTrain) updateFollowPanel(state.followTrain);
+  await raf(); await sleep(250); await raf();
+  const stn = document.getElementById('fpNext'), card = document.getElementById('followPanel');
+  if (!stn || !card) return done({ missing: true });
+  if (card.hidden || !card.getClientRects().length) return done({ hidden: true });
+  const desc = e => e === document.scrollingElement ? 'document' : e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (typeof e.className === 'string' && e.className.trim() ? '.' + e.className.trim().split(/\s+/)[0] : '');
+  const measure = () => {
+    const els = [];
+    for (let a = stn.parentElement; a && a !== document.documentElement; a = a.parentElement)
+      if (a !== document.body && /(auto|scroll)/.test(getComputedStyle(a).overflowX)) els.push(a);
+    els.push(document.scrollingElement);
+    let pan = { px: 0, el: '—' };
+    for (const e of els) {
+      const x0 = e.scrollLeft;
+      e.scrollLeft = 1e6;
+      const px = e.scrollLeft;
+      e.scrollLeft = x0;
+      if (px > pan.px) pan = { px, el: desc(e) };
+    }
+    const rg = document.createRange();
+    rg.selectNodeContents(stn);
+    const lines = new Set([...rg.getClientRects()].filter(r => r.width > 0).map(r => Math.round(r.top))).size;
+    const cr = card.getBoundingClientRect(), cs = getComputedStyle(card);
+    const contentRight = cr.left + card.clientLeft + card.clientWidth - parseFloat(cs.paddingRight);
+    return { pan, lines, clipped: stn.scrollWidth > stn.clientWidth + 1,
+      over: +(stn.getBoundingClientRect().right - contentRight).toFixed(1), ellipsis: getComputedStyle(stn).textOverflow === 'ellipsis' };
+  };
+  const held = stn.textContent === name;
+  const fixed = measure();
+  stn.style.whiteSpace = 'nowrap'; stn.style.minWidth = 'auto'; stn.style.overflow = 'visible';
+  await raf();
+  const heldMut = stn.textContent === name;
+  const mutated = measure();
+  stn.style.whiteSpace = ''; stn.style.minWidth = ''; stn.style.overflow = '';
+  return done({ held, heldMut, fixed, mutated, ambient: document.body.classList.contains('ambient'), cardW: +card.getBoundingClientRect().width.toFixed(1) });
+};
+// 放空三行條只在手機版面:進放空、切「跟車」視角、關自動導覽(免得量到一半被換成捷運車),再跟回一班台鐵車
+const AMBIENT = `(async () => { setAmbient(true); setAmbientStyle('follow'); setAutoTour(false); await new Promise(r => setTimeout(r, 800)); })()`;
+
+async function fpCell(page, engine, width, mode) {
+  const r = await page.evaluate(FP_PROBE, [LONG]);
+  const where = r.missing ? '找不到' : r.hidden ? '跟車卡不在畫面上' : null;
+  const tag = `${engine} ${width}${mode === 'ambient' ? ' 放空' : ''} fpNext`;
+  const f = r.fixed || {};
+  const shape = mode === 'ambient' ? f.lines === 1 && f.ellipsis : f.lines >= 2 && !f.clipped && f.over <= 0.5;
+  ok(`F ${tag} 長站名${mode === 'ambient' ? '維持一行、省略號收尾' : '換行顯示全名'},外層拖不動`,
+    !where && r.held && (mode !== 'ambient' || r.ambient) && f.pan.px <= 1 && shape,
+    where || `${r.held ? '' : '長站名被重繪洗掉；'}${mode === 'ambient' && !r.ambient ? '沒進到放空；' : ''}可拖 ${f.pan.px}px(${f.pan.el}),`
+      + `${f.lines} 行、${f.clipped ? '字被截' : '字沒被截'}、超出內容區 ${f.over}px、ellipsis=${f.ellipsis},卡寬 ${r.cardW}`);
+  if (!where) ok(`FN ${tag} 對照:改回 nowrap ⇒ 外層拖得動(F 量得到紅)`, r.heldMut && r.mutated.pan.px > 1,
+    `${r.heldMut ? '' : '長站名被重繪洗掉；'}可拖 ${r.mutated.pan.px}px(${r.mutated.pan.el})`);
+}
+
 async function boot(browser, width) {
   const height = width < 1000 ? 780 : 800, mobile = width < 1000;
   const ctx = await browser.newContext({ viewport: { width, height }, isMobile: mobile, hasTouch: mobile, locale: 'en-US', timezoneId: 'Asia/Taipei' });
@@ -139,34 +217,46 @@ async function boot(browser, width) {
   return { ctx, page, errors };
 }
 
-const browser = await webkit.launch({ headless: true });
 let t0Done = false;
-for (const width of [...new Set(CELLS.map(c => c.width))]) {
-  const { ctx, page, errors } = await boot(browser, width);
-  if (!t0Done) {
-    t0Done = true;
-    const [served, lang] = await page.evaluate(() => [typeof BUILD !== 'undefined' ? BUILD : '?', document.documentElement.lang]);
-    ok('T0 服務端 BUILD 與本機檔案一致、介面是英文', served === localBuild && lang === 'en', `served=${served} local=${localBuild} lang=${lang}`);
+// select 那幾格只跑 WebKit;fpNext 兩個引擎都跑(手機 360 寬＋放空、桌面 1280 寬;360～768 卡寬相同)
+for (const [engine, type] of [['webkit', webkit], ['chromium', chromium]]) {
+  const browser = await type.launch({ headless: true });
+  for (const width of [360, 1280]) {
+    const { ctx, page, errors } = await boot(browser, width);
+    if (!t0Done) {
+      t0Done = true;
+      const [served, lang] = await page.evaluate(() => [typeof BUILD !== 'undefined' ? BUILD : '?', document.documentElement.lang]);
+      ok('T0 服務端 BUILD 與本機檔案一致、介面是英文', served === localBuild && lang === 'en', `served=${served} local=${localBuild} lang=${lang}`);
+    }
+    const cells = engine === 'webkit' ? CELLS.filter(c => c.width === width) : [];
+    const following = async (suffix = '') => {
+      const train = await page.evaluate(FOLLOW);
+      ok(`${engine === 'webkit' ? '' : 'chromium '}${width}${suffix} 跟得到一班還有後續停站的台鐵車`, !!train, `跟 ${train} 次`);
+    };
+    // 先跑 select 格(維持原本「跟車後才開三個 select」的順序;1280 那格不跟車),fpNext 放最後
+    if (cells.some(c => c.key.startsWith('fp') || c.key === 'notifyStation')) await following();
+    for (const c of cells) {
+      await page.evaluate(c.open);
+      const r = await page.evaluate(PROBE, [c.sel, LONG]);
+      try { await page.evaluate(c.close); } catch (e) {}
+      const where = r.missing ? '找不到' : r.hidden ? '不在畫面上' : null;
+      ok(`S ${width} ${c.key} 選到長選項,外層拖不動`, !where && r.held && r.fixed.px <= 1,
+        where || `${r.held ? '' : '長選項被重繪洗掉；'}可拖 ${r.fixed.px}px(${r.fixed.el}),select overflow=${r.ov}、寬 ${r.selW}`);
+      if (!where) ok(`N ${width} ${c.key} 對照:改回 overflow:visible ⇒ 外層拖得動(S 量得到紅)`, r.heldMut && r.mutated.px > 1,
+        `${r.heldMut ? '' : '長選項被重繪洗掉；'}可拖 ${r.mutated.px}px(${r.mutated.el})`);
+    }
+    if (!(await page.evaluate(() => !!state.followTrain))) await following();
+    await fpCell(page, engine, width, 'normal');
+    if (width < 1000) {
+      await page.evaluate(AMBIENT);
+      await following(' 放空');
+      await fpCell(page, engine, width, 'ambient');
+    }
+    ok(`${engine === 'webkit' ? '' : 'chromium '}${width} 全程零 pageerror`, errors.length === 0, errors.slice(0, 2).join(' | '));
+    await ctx.close();
   }
-  const cells = CELLS.filter(c => c.width === width);
-  if (cells.some(c => c.key.startsWith('fp') || c.key === 'notifyStation')) {
-    const train = await page.evaluate(FOLLOW);
-    ok(`${width} 跟得到一班還有後續停站的台鐵車`, !!train, `跟 ${train} 次`);
-  }
-  for (const c of cells) {
-    await page.evaluate(c.open);
-    const r = await page.evaluate(PROBE, [c.sel, LONG]);
-    try { await page.evaluate(c.close); } catch (e) {}
-    const where = r.missing ? '找不到' : r.hidden ? '不在畫面上' : null;
-    ok(`S ${width} ${c.key} 選到長選項,外層拖不動`, !where && r.held && r.fixed.px <= 1,
-      where || `${r.held ? '' : '長選項被重繪洗掉；'}可拖 ${r.fixed.px}px(${r.fixed.el}),select overflow=${r.ov}、寬 ${r.selW}`);
-    if (!where) ok(`N ${width} ${c.key} 對照:改回 overflow:visible ⇒ 外層拖得動(S 量得到紅)`, r.heldMut && r.mutated.px > 1,
-      `${r.heldMut ? '' : '長選項被重繪洗掉；'}可拖 ${r.mutated.px}px(${r.mutated.el})`);
-  }
-  ok(`${width} 全程零 pageerror`, errors.length === 0, errors.slice(0, 2).join(' | '));
-  await ctx.close();
+  await browser.close();
 }
-await browser.close();
 server.close();
 
 const failed = results.filter(r => !r.pass);

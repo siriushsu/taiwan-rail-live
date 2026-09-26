@@ -1126,7 +1126,11 @@
     margin-top: 7px; padding-top: 7px; border-top: 1.5px dashed var(--line-dash);
   }
   .follow-panel .fp-next .lbl { font-size: calc(11px * var(--uis)); color: var(--faint); font-weight: 800; letter-spacing: 2px; flex: none; }
-  .follow-panel .fp-next .stn { font-size: calc(16px * var(--ui)); font-weight: 900; color: var(--ink-strong); letter-spacing: 1px; white-space: nowrap; }
+  /* 站名放不下就換行、顯示全名(2026-09-26 裁示,捷運 .fc-next .stn 本來就會換行)。原本 nowrap:英文「Chang Jung
+     Christian University」比卡寬還寬,.follow-panel 的 overflow-y:auto 讓 x 軸也變成可捲,整張卡能左右拖、左邊被切掉
+     (修前 WebKit 手機 87px、桌面 69px)。overflow-wrap:anywhere 讓沒有空白的長字也折得下;放空三行條另外維持單行。
+     守門人:verify_select_overflow.mjs 的 fpNext 格。 */
+  .follow-panel .fp-next .stn { font-size: calc(16px * var(--ui)); font-weight: 900; color: var(--ink-strong); letter-spacing: 1px; min-width: 0; overflow-wrap: anywhere; }
   .follow-panel .fp-next .eta { margin-left: auto; font-size: calc(13px * var(--ui)); font-weight: 700; color: var(--navy); text-align: right; white-space: nowrap; }
   .follow-panel .fp-next .eta b { color: var(--navy); } /* 倒數分鐘是行程資訊不是警示,紅色會被誤讀成誤點(v0718f) */
   .follow-panel .fp-prog { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
@@ -4453,7 +4457,8 @@
     body.ambient .follow-panel .fp-next .lbl { display: none; }
     body.ambient .follow-panel .fp-head b { font-size: calc(13px * var(--ui)); }
     body.ambient .follow-panel .fp-head .spd b { font-size: calc(15px * var(--ui)); }
-    body.ambient .follow-panel .fp-next .stn { font-size: calc(14px * var(--ui)); white-space: nowrap; }
+    /* 三行條維持單行:放不下的長站名以省略號收尾,不撐寬卡片(修前 WebKit 101px 可拖,見 .fp-next .stn 基底那條) */
+    body.ambient .follow-panel .fp-next .stn { font-size: calc(14px * var(--ui)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     /* ── 右緣工具欄(§04c-P 裁決,直式與橫式共用同一個元件):⇄ 換一班/隨機跟隨 → ◎ 附近車站 →
        🔒跟隨鎖,44×44 垂直一疊、icon-only、右錨。原本兩顆帶字膠囊橫躺地圖中上方＋鎖鈕孤懸右緣
        中段=「四個東西三種尺寸三條基準線」(§04c D2/D3);收成一欄後只剩一條右緣基準線,寬度不再
@@ -5536,6 +5541,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="fpnextwrap0926"><span class="d">9/26</span><span>跟車卡的「下一站」遇到較長的站名（例如英文介面的長榮大學、科工館）會換行顯示全名，整張卡不再能左右拖動</span></li>
         <li data-cl-of="remainingtracks0913"><span class="d">9/26</span><span>台鐵 10/3 起有 14 班調整時刻，3D 地圖裡這些車照樣走原本的股道</span></li>
         <li data-cl-of="subwayfloat0925"><span class="d">9/25</span><span>3D 地圖上臺北車站的臺鐵列車不再畫在車站屋頂上，高捷紅線地下段也不再浮在地面上；新左營臺鐵與高雄輕軌被頂高的地方回到原位</span></li>
         <li data-cl-of="kbfocusselect0925"><span class="d">9/25</span><span>用鍵盤往回移動時，我的最愛、車站看板等面板選到的項目不再被標題列蓋住；iPhone 英文介面選到長站名時，畫面不再能左右拖動</span></li>
@@ -5543,7 +5549,6 @@
         <li data-cl-of="zuoyingflat0925"><span class="d">9/25</span><span>高鐵左營站進站那段改回平面：3D 地圖不再把站區畫成高架橋，北邊的高架照舊（謝謝網友回報）</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷 10/2（週五）與 10/11（週日）也跟上設計展疏運班表：機場第一航廈到環北的區間加班車每 15 分鐘一班，10/2 開到晚上 10 點、10/11 開到晚上 8 點</span></li>
         <li data-cl-of="ridekbfocus0925"><span class="d">9/25</span><span>旅程護照用鍵盤往回移動時，被選到的章與按鈕不再被最上方的標題列蓋住</span></li>
-        <li data-cl-of="garageselect0908"><span class="d">9/25</span><span>修正 iPhone 用英文或日文介面時，車庫選到名稱較長的車款，整個畫面會被左右拖動、左邊被切掉</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5729,6 +5734,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="fpnextwrap0926"><span class="d">9/26</span><span>跟車卡的「下一站」遇到較長的站名（例如英文介面的長榮大學、科工館）會換行顯示全名，整張卡不再能左右拖動、左邊被切掉；放空模式的精簡小卡維持一行，放不下的以「…」收尾</span></li>
         <li data-cl="followcard0925"><span class="d">9/25</span><span>跟車小卡：跟車時切換語言，車種、起訖、準點率和立體列車的編組說明會立刻換過來；虛構 8888 的「虛構」跟寶可夢列車一樣疊在車次上方，手機上的關閉鈕不再擠到第二行；第一次跟車時「車頭鎖定：開啟」的提示，不再被旁邊的空白提示框蓋掉最後一個字</span></li>
         <li data-cl="bustransferall"><span class="d">9/24</span><span>公車轉乘由三站擴至 239 座台鐵客運站；按下查詢才讀取 600 公尺內公車動態，選定路線後才查車牌、位置、站數與擁擠度。缺值照實留白，並可開 Google 地圖步行導航。9/24 修正臺北擁擠度超過 3 分鐘仍被當成即時資料顯示</span></li>
         <li data-cl="busstop0911"><span class="d">9/24</span><span>搜尋框找得到全台公車站牌，點進去就是這個站牌每條路線的到站時間；臺北市的資料直接取自市府開放資料，其餘縣市取自 TDX，沒有即時資料的路線會照實說明而不是用班表假裝；9/24 修正臺北市站牌到站時間最多卡在兩小時前、整列顯示「資料已過期」</span></li>
@@ -6726,7 +6732,11 @@
 //         templateEligible:false（藍皮 5898／5899）。閘門：verify_remaining_station_routes 由閘門自己用車次、站序、停靠
 //         型態認名冊的改點版（rosterOf），不拿產品回報的鍵對名冊；受保護模板與藍皮改數不重複的鍵／車次；
 //         verify_tra_plan_binding 補正反案例（2026-09-26 裁示 (b′)）。
-const BUILD = 'v0926c';
+// v0926d：跟車卡「下一站」長站名改成換行顯示全名（2026-09-26 裁示 (b)）。原本 nowrap，英文「Chang Jung Christian
+//         University」「Science And Technology Museum」比卡寬還寬，.follow-panel 的 overflow-y:auto 讓整張卡能左右拖：
+//         修前 WebKit 手機 87px、桌面 69px、放空 101px，Chromium 69／54／84px，日文 Chromium 手機 6px。放空三行條維持單行
+//         加省略號。守門人：verify_select_overflow.mjs 加 fpNext 格（兩個引擎，突變改回 nowrap 必須紅）。
+const BUILD = 'v0926d';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

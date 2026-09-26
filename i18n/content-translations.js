@@ -3302,3 +3302,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '台鐵 10/3 起有 14 班調整時刻，3D 地圖裡這些車照樣走原本的股道': '台鉄で10月3日から時刻が変わる14本も、3D地図ではこれまでと同じ線路を走ります',
 });
+// 2026-09-26 跟車卡「下一站」長站名換行顯示全名（裁示 (b)）：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '跟車卡的「下一站」遇到較長的站名（例如英文介面的長榮大學、科工館）會換行顯示全名，整張卡不再能左右拖動': 'On the follow card, long names under “Next stop” (such as Chang Jung Christian University or Science And Technology Museum in English) now wrap onto the next line in full, and the card no longer slides sideways.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '跟車卡的「下一站」遇到較長的站名（例如英文介面的長榮大學、科工館）會換行顯示全名，整張卡不再能左右拖動': '追跡カードの「次の駅」に長い駅名（英語表示の長栄大学や国立科学技術博物館など）が出たときは折り返して全部表示し、カードが左右に動かないようにしました',
+});

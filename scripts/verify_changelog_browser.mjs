@@ -66,7 +66,7 @@ const widths = [360, 375, 414, 768];
 // 9/25：高鐵左營站區改回平面一條（424→425，併入時補上的數字）。
 // 9/25：各面板鍵盤往回移動被標題列蓋住、iPhone 英文長站名選單讓畫面左右拖動的修正一條（425→426）。
 // 9/25：高捷紅線與臺北臺鐵地下化改回地面下一條（426→427，與上一條面板修正同批出貨）。
-const expectedHistoryCount = 427;
+const expectedHistoryCount = 428;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
