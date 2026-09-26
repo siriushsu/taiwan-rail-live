@@ -31,7 +31,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { makeParallelIndex, isTrack, segLen, sectionKey } from './lib/parallel_tracks.mjs';
+import { makeParallelIndex, isTrack, segLen, sectionKey, normSta } from './lib/parallel_tracks.mjs';
+import { unknownStationsBetween, farthestAlong } from './lib/track_section_via.mjs';
 import { createRouteRuntime } from '../rail-3d/physical/route-runtime.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -73,7 +74,7 @@ function pathStats(p) {
 // 讓公尺→公里→公尺的浮點來回與 offsets 累加誤差永遠落在安全側。
 const runtime = createRouteRuntime(net, null);
 // 站對 ← 派車表：plan.stopSignature 第 i 站→第 i+1 站的路徑就是 pathIds[i]
-const pairs = new Map();   // "A|B" → {total, par, maxPath, paths:Set, refs:Set}
+const pairs = new Map();   // "A|B" → {total, par, maxPath, paths:Set, refs:Set, dir:Map(路徑 id→是否從鍵的第一站出發)}
 for (const [key, plan] of Object.entries(dispatch.plans)) {
   if (!key.startsWith('tra_sched:')) continue;
   const sig = JSON.parse(plan.stopSignature);
@@ -81,20 +82,37 @@ for (const [key, plan] of Object.entries(dispatch.plans)) {
     const a = sig[i][0].split(':')[1], b = sig[i + 1][0].split(':')[1];
     const pk = sectionKey(a, b);   // 站名正規化成班表用字「臺」再排序，理由見 lib/parallel_tracks.mjs
 
-    const rec = pairs.get(pk) || pairs.set(pk, { total: 0, par: 0, maxPath: 0, paths: new Set(), refs: new Set() }).get(pk);
+    const rec = pairs.get(pk) || pairs.set(pk, { total: 0, par: 0, maxPath: 0, paths: new Set(), refs: new Set(), dir: new Map() }).get(pk);
     const pid = plan.pathIds[i]; if (rec.paths.has(pid)) continue;
     const p = net.paths[pid]; if (!p) continue;
-    rec.paths.add(pid);
+    rec.paths.add(pid); rec.dir.set(String(pid), normSta(a) === pk.split('|')[0]);
     const st = pathStats(p); rec.total += st.total; rec.par += st.par; for (const r of st.refs) rec.refs.add(r);
     rec.maxPath = Math.max(rec.maxPath, runtime.unfold(String(pid)).path.length);
   }
+}
+// via＝派車表沒有、班表卻排在這個站對中間的站（2026-10 起的平鎮臨時站 1105）投影到這個站對每條派過路徑上，
+// 離鍵的第一站、第二站各最遠多少公尺（[第一站, 第二站]，進位規則同 maxPathM）。立體地圖讓官方停靠這種站的班次
+// 停在投影點、前後兩截各自照跑段剖面走（rail-3d/physical/motion.js，同一個 locate()）；index.html 拿它當那兩截的
+// 剖面長下限。站名與座標取班表（畫車端讀的同一份 tr.stops），班表沒有這種站就不寫這個欄位——股道表逐 byte 不變。
+const sched = JSON.parse(readFileSync(path.join(ROOT, 'data/tra_schedule_dense.json'), 'utf8'));
+const between = unknownStationsBetween(sched.trains, new Set([...pairs.keys()].flatMap(k => k.split('|'))));
+const via = new Map(), viaLog = [];
+for (const [pk, byName] of between) {
+  const rec = pairs.get(pk); if (!rec) continue;
+  const v = {};
+  for (const [name, coords] of [...byName].sort((x, y) => x[0].localeCompare(y[0], 'zh-Hant'))) {
+    const far = farthestAlong(runtime, rec.dir, [...coords].map(c => c.split(',').map(Number)));
+    v[name] = [far.first, far.second].map(m => +((Math.ceil(m * 1000) + 1) / 1000).toFixed(3));
+    viaLog.push(`${pk} 中間 ${name}：離兩端最遠 ${v[name].join(' / ')} m，路徑 ${rec.dir.size} 條，投影誤差最大 ${far.errorM.toFixed(3)} m`);
+  }
+  via.set(pk, v);
 }
 const out = {};
 for (const [pk, r] of [...pairs].sort((x, y) => x[0].localeCompare(y[0], 'zh-Hant'))) {
   const frac = r.total > 0 ? r.par / r.total : 0, refs = [...r.refs].sort();
   const known = refs.length && refs.every(x => KNOWN_DOUBLE_REFS[x]) ? refs.map(x => KNOWN_DOUBLE_REFS[x]).join('；') : null;
   out[pk] = { tracks: known || frac >= DOUBLE_FRAC ? 2 : 1, parallelFrac: +frac.toFixed(3), lengthM: Math.round(r.total / r.paths.size),
-    maxPathM: +((Math.ceil(r.maxPath * 1000) + 1) / 1000).toFixed(3), refs, ...(known ? { override: known } : {}) };
+    maxPathM: +((Math.ceil(r.maxPath * 1000) + 1) / 1000).toFixed(3), refs, ...(known ? { override: known } : {}), ...(via.has(pk) ? { via: via.get(pk) } : {}) };
 }
 const file = path.join(ROOT, 'data/tra_track_sections.json');
 writeFileSync(file, JSON.stringify({
@@ -108,12 +126,15 @@ writeFileSync(file, JSON.stringify({
     + 'maxPathM＝該站對派過的實體股道路徑中最長者（公尺，進位到公釐再加 1 公釐），index.html 建跑段剖面時站間長度取它與示意線形長的較大者，'
     + '畫在任一條實體股道或示意線形上的點速才不會超過剖面速度（＝不超過車種極速）。'
     + '鍵＝兩站名正規化成班表用字「臺」後排序、以 | 相接（讀表端 index.html 用班表站名查）。'
+    + (via.size ? 'via＝班表（data/tra_schedule_dense.json）排在站對中間、派車表沒有的站，其座標投影到該站對每條派過路徑上離鍵的第一站、第二站各最遠多少公尺'
+      + '（進位規則同 maxPathM），index.html 當停在那一站的前後兩截剖面長下限。' : '')
     + '產生器 scripts/build_tra_track_sections.mjs。',
   pairs: out,
 }, null, 1));
 const byRef = {};
 for (const [pk, v] of Object.entries(out)) { const k = v.refs.join('+') || '(無 ref)'; (byRef[k] = byRef[k] || []).push(`${pk} ${v.tracks === 2 ? '雙' : '單'} ${v.parallelFrac} ${v.lengthM}m`); }
 for (const [k, list] of Object.entries(byRef).sort()) { console.log(`\n== ${k} ==`); for (const l of list) console.log('  ' + l); }
+for (const l of viaLog) console.log('via ' + l);
 const n1 = Object.values(out).filter(v => v.tracks === 1).length;
 console.log(`\n站對 ${Object.keys(out).length}：單線 ${n1}、雙線 ${Object.keys(out).length - n1} → ${file}`);
 
