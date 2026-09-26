@@ -51,7 +51,8 @@ function side(S,u,w,z){
 // 嚴重度＝min(外側最遠, 內側最深)，超過 tol 才算（貼著車殼滑過不算）。車端以外（沒有車殼資料）算車外，所以穿出車端也抓得到。
 // 同時量跳動：朝向每 dt 的變化（turn）、行李箱外框 8 個角每 dt 的位移（caseStep，車模公尺），以及位移裡人自己轉身與平移解釋不了的部分
 //（caseJump＝角的位移 −（這一步轉的角度 × 那一角離人中心的水平距離 ＋ 人中心的位移）；箱子被人拖著一起轉不算跳）。
-// 只記從月台看得到的範圍：人的中心往車內不到 visible（.24＝門廳後牆那條線，再往裡只剩隔間後的走道，從門口看不到腿和箱子）。
+// 跳動只記從月台看得到的範圍：人的中心往車內不到 visible（.24＝門廳後牆那條線，再往裡只剩隔間後的走道，從門口看不到腿和箱子）。
+// 穿殼不受 visible 限制：人的中心從門外 near 起一路量到車內。
 export function peopleClip({plan,pose,kit,skins,doors,platform,timetable,scale,stops=20,dt=.02,near=-.25,tol=.01,visible=.24}){
  const out=Math.sign(platform.outer-platform.edge),V=new Map();
  for(const [name,p]of kit.parts){const a=p.geometry.getAttribute('position'),f=new Float64Array(a.count*3);for(let i=0;i<a.count;i++){f[i*3]=a.getX(i);f[i*3+1]=a.getY(i);f[i*3+2]=a.getZ(i);}
