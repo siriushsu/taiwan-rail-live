@@ -76,8 +76,11 @@
 #trainGarage .g-fallback{bottom:68px;pointer-events:none}
 #trainGarage .g-sources a{display:inline-flex;align-items:center;min-height:44px;overflow-wrap:anywhere}
 @media(prefers-reduced-motion:reduce){#trainGarage *{scroll-behavior:auto}}
-/* 橫向手機捲入按鈕時，必須避開 sticky 頂列。 */
-#trainGarage{scroll-padding-top:calc(84px + env(safe-area-inset-top));scroll-padding-bottom:16px}
+/* 橫向手機捲入按鈕時，必須避開 sticky 頂列。讓位給頂列以外的內容 scroll-margin-top，不給容器 scroll-padding-top：
+   後者把頂列整條劃成「不算可見」，捲在下面時焦點一進「回到地圖」，內容就被捲走 201–390px（2026-09-26 實測兩個引擎）。
+   頂列實高由 train-garage.js 量進 --g-top-h（含瀏海安全區）；多 15px 讓焦點框露在頂列下面（原本的 84＝頂列 69＋15）。 */
+#trainGarage{scroll-padding-bottom:16px}
+#trainGarage>:not(.g-top),#trainGarage>:not(.g-top) *{scroll-margin-top:calc(var(--g-top-h,69px) + 15px)}
 
 #trainGarage.g-legacy[open]{display:block;z-index:2147483647}
 

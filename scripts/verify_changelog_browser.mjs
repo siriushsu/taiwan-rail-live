@@ -68,7 +68,8 @@ const widths = [360, 375, 414, 768];
 // 9/25：高捷紅線與臺北臺鐵地下化改回地面下一條（426→427，與上一條面板修正同批出貨）。
 // 9/26：跟車卡「下一站」長站名換行一條（427→428，併入時補上的註解）。
 // 9/26：今日台鐵動態、公車站牌、行程分享的列可用鍵盤走到與按下一條（428→429）。
-const expectedHistoryCount = 429;
+// 9/26：跟車卡「詳細」提示列蓋住往下一項的焦點、App 附近車站卡與車庫的標題讓位修正一條（429→430）。
+const expectedHistoryCount = 430;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

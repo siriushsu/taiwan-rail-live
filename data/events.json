@@ -1,6 +1,36 @@
 {
-  "updated": "2026-09-24",
+  "updated": "2026-09-26",
   "events": [
+    {
+      "id": "tra-20260924-kato-e500-pp",
+      "source": "official",
+      "title": "臺鐵×KATO E500＋PP自強號模型首賣會",
+      "note": "N 規模型限量首賣（10/3 上午 10 點），兩天都有鐵道模型運轉會，11 點到 17 點",
+      "start": "2026-10-03",
+      "end": "2026-10-04",
+      "anchor": { "kind": "station", "sys": "tra_sched", "name": "臺北" },
+      "url": "https://www.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac2a0cfb55601a0d307034d0497"
+    },
+    {
+      "id": "trtc-20260924-exit-music-fest",
+      "source": "official",
+      "title": "2026出口音樂節",
+      "note": "劍潭站 3 號出口旁北藝中心戶外廣場，晚上 6 點開唱；搖滾區票 9/29–10/5 用台北捷運Go登記抽",
+      "start": "2026-10-17",
+      "end": "2026-10-17",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "劍潭" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=CC29E06A1A7F151D"
+    },
+    {
+      "id": "trtc-20260923-xinzhongshan-art",
+      "source": "official",
+      "title": "心中山「是誰躲起來了？」展覽",
+      "note": "心中山線形公園北段的裝置作品，用電箱和拆建殘料蓋出的微型棲居空間，呼應赤峰街打鐵五金的過去",
+      "start": "2026-09-23",
+      "end": "2026-11-22",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "雙連" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=681B26EB737DAB11"
+    },
     {
       "id": "trtc-20260811-pokemon10",
       "source": "official",

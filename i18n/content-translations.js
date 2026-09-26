@@ -3316,3 +3316,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 或空白鍵就行': '本日の台湾鉄路・バス停・旅程共有の一覧を、キーボードで1行ずつ移動できるようになり、スクリーンリーダーも各行を読み上げます。Enter キーかスペースキーで、列車の駅ごとの履歴を開いたり目的駅を選んだりできます。',
 });
+// 2026-09-26 跟車卡「詳細」提示列蓋住往下一項的焦點、App 附近車站卡「蓋章」鈕被卡頭蓋住、車庫聚焦頂列鈕畫面跳動：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '用鍵盤往下一項移動時，跟車卡選到的按鈕不再被底部的「詳細」提示列蓋住；App 附近車站卡往回移動時「蓋章」鈕不再被標題蓋住；車庫捲到下面再回到頂列按鈕，畫面不再往上跳': 'When moving to the next item with the keyboard, the selected button in the follow card no longer hides under the “Details” bar at the bottom. In the app, “Stamp” buttons in the nearby stations card no longer hide under the title when moving back, and returning to the top-bar buttons in My garage no longer makes the page jump.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '用鍵盤往下一項移動時，跟車卡選到的按鈕不再被底部的「詳細」提示列蓋住；App 附近車站卡往回移動時「蓋章」鈕不再被標題蓋住；車庫捲到下面再回到頂列按鈕，畫面不再往上跳': 'キーボードで次の項目へ移動するとき、追跡カードで選んだボタンが下部の「詳細」バーに隠れないようにしました。アプリの近くの駅カードで前の項目に戻るとき「スタンプ」ボタンがタイトルに隠れず、マイ車庫で下までスクロールしてから上部のボタンに戻っても画面が跳ばなくなりました。',
+});

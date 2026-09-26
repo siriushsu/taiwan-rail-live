@@ -25,9 +25,23 @@
 //     R 公車站牌重抓後焦點留在同一列,焦點列被捲出畫面時也不把清單捲回去。
 //     N:拿掉兩張的鍵盤接線 ⇒ E 紅;重畫後不放回焦點 ⇒ E、R 紅;放回焦點不帶 preventScroll ⇒ R 紅;空白鍵改回按下就觸發 ⇒ 按住那格紅;
 //     拿掉公車列的點擊放焦點 ⇒ C 紅;列拿掉 tabindex ⇒ W 紅;拿掉讓位 ⇒ 今日動態 W 紅。兩個引擎都做。
+// 2026-09-26 補量的格子(各自一段,在上面三段之後):
+//   B 往前走(Tab;WebKit 要 Option+Tab):直式合併卡「這班車」sheet 小段,焦點中心不落在釘在卡緣(sticky bottom:0)的
+//     「詳細・往上拉看完整資料」提示列(.uni-more)上;標準與特大字級。修前兩個引擎 1–2 拍整顆停在它底下。
+//     配套:它自己釘著時聚焦它內容不跳(J);底部讓位＝它實際佔掉的下緣(P,小段→中段→小段、換字級之後)。
+//   平交道卡家族(.xing-card:平交道、落釘、台糖、附近車站)的卡頭 .xc-head、列車 sheet 的 .tc-head、車庫頂列 .g-top:
+//     J 捲在下面時聚焦標題的鈕內容不跳(360 直式與 844×390 橫式,捲得動的才量);W 附近車站卡在 App(?demo=bounty
+//     開出「蓋章」鈕)往回走不被卡頭蓋;車庫 W 看焦點「上緣」(車卡比讓位高,中心判準對它恆綠),P 讓位＝頂列實高＋15
+//     (模擬瀏海把頂列撐高之後也要跟上)。S 其餘卡標題以外沒有可聚焦元素＝W 零資訊的前提,出現了就要改成真的量。
+//   N 每格都有對照:拿掉底部讓位 ⇒ B 紅;提示列自己也給 scroll-margin-bottom ⇒ 它的 J 紅;讓位寫死成標準字級的值 ⇒
+//     特大字級 P 紅(只做 Chromium);容器 scroll-padding-top(車庫修前就是這樣,跳 201–390px)⇒ 各卡 J 紅;
+//     拿掉卡內讓位 ⇒ 附近車站／車庫 W 紅;車庫讓位寫死成修前的 84px ⇒ 頂列變高後 P 紅;列可聚焦 ⇒ S 紅。
+// 量法本身的坑:看板每 20 秒、平交道卡與落釘卡每一模擬秒整張重寫,焦點會被洗回 body。W 走到一半掉焦點的那輪重走;
+// J 聚焦前才抓鈕、事後確認焦點還在(見 JUMP 上面的註解)。
 // 慣例照 verify_transfer_collapse.mjs:自帶 node:http 靜態伺服器(埠號由系統挑)、語系與時鐘釘死、關首訪教學卡、
-// 掛 pageerror、T0 身分自檢。瀏覽器一律無視窗。約 2–3 分鐘(2026-09-26 補直式合併卡與兩個突變後實測 126s;
-// 同日補三張清單面板後 158s,機器負載約 32;再補按住空白鍵、桌面點擊、重抓的格子與突變後 175s,負載約 18)。
+// 掛 pageerror、T0 身分自檢。瀏覽器一律無視窗。約 5–6 分鐘(2026-09-26 補直式合併卡與兩個突變後實測 126s;
+// 同日補三張清單面板後 158s,機器負載約 32;再補按住空白鍵、桌面點擊、重抓的格子與突變後 175s,負載約 18;
+// 再補合併卡底部提示列、平交道卡家族、車庫各格後 322s,264 條,負載約 13–22)。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -86,7 +100,7 @@ const HELPERS = `window.__bsp = (() => {
     .filter(e => !e.disabled && e.tabIndex >= 0 && !e.closest('[hidden], [inert]') && getComputedStyle(e).visibility !== 'hidden' && e.getClientRects().length > 0);
   const measure = id => {
     const p = document.getElementById(id), a = document.activeElement;
-    if (!p || p.hidden || !a || a === p || !p.contains(a)) return { left: true };
+    if (!p || p.hidden || !a || a === p || !p.contains(a)) return { left: true, lost: !a || a === document.body };
     const hs = heads(p), inHead = hs.some(h => h.contains(a));
     const r = a.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
     const covered = !inHead && hs.some(h => hit && h.contains(hit));
@@ -244,7 +258,7 @@ async function listWalk(page, eng, P, key, tag) {
     `被蓋 ${w.covered}/${w.content} 拍(列 ${c.rows}、可聚焦 ${w.n})${w.bad.length ? '；' + w.bad.join('、') : ''}`);
 }
 
-async function boot(browser, { width, height, tier = 'std' }) {
+async function boot(browser, { width, height, tier = 'std', query = '' }) {
   const mobile = width < 1000;
   const ctx = await browser.newContext({ viewport: { width, height }, isMobile: mobile, hasTouch: mobile, locale: 'zh-TW', timezoneId: 'Asia/Taipei' });
   await ctx.addInitScript(t => {
@@ -258,7 +272,7 @@ async function boot(browser, { width, height, tier = 'std' }) {
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(String(e).slice(0, 200)));
-  await page.goto(`${BASE}?lang=zh-TW&t=09:41`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}?lang=zh-TW&t=09:41${query}`, { waitUntil: 'domcontentloaded' });
   // 等開機收尾:finishLoad 會 closeRidePanel(),太早開護照會量到被關掉的空面板
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.mode === 'sched' && state.ready === true && (state.trains || []).length > 0; } catch (e) { return false; } }, null, { timeout: 90000 });
   await page.evaluate(HELPERS);
@@ -270,38 +284,56 @@ async function open(page, key) {
   await settle(page); await page.waitForTimeout(250);
   return page.evaluate(id => { const p = document.getElementById(id); return !!(p && !p.hidden); }, ELEM[key]);
 }
-// W:從最後一個可聚焦元素一路往回走到焦點離開面板
+// W:從最後一個可聚焦元素一路往回走到焦點離開面板。看板每 20 秒重繪一次,innerHTML 換掉正在聚焦的節點 ⇒ 焦點掉回
+// body(不是走完;2026-09-26 實測合併卡那格偶爾只走 2 拍就停,對照因此假綠),那一輪不算、重走,最多三輪
 async function walk(page, eng, id) {
-  const n = await page.evaluate(id => { const p = document.getElementById(id); const tb = __bsp.tabbables(p); if (tb.length) tb[tb.length - 1].focus(); return tb.length; }, id);
-  let steps = 0, content = 0, covered = 0; const bad = [];
-  for (let i = 0; i < 80; i++) {
-    await settle(page);
-    const m = await page.evaluate(id => __bsp.measure(id), id);
-    if (m.left) break;
-    steps++;
-    if (!m.inHead) content++;
-    if (m.covered) { covered++; if (bad.length < 3) bad.push(`${m.el} 壓 ${m.over}px`); }
-    await page.keyboard.press(eng === 'webkit' ? 'Alt+Shift+Tab' : 'Shift+Tab');
+  let r;
+  for (let round = 0; round < 3; round++) {
+    const n = await page.evaluate(id => { const p = document.getElementById(id); const tb = __bsp.tabbables(p); if (tb.length) tb[tb.length - 1].focus(); return tb.length; }, id);
+    let steps = 0, content = 0, covered = 0, lost = false; const bad = [];
+    for (let i = 0; i < 80; i++) {
+      await settle(page);
+      const m = await page.evaluate(id => __bsp.measure(id), id);
+      if (m.left) { lost = !!m.lost; break; }
+      steps++;
+      if (!m.inHead) content++;
+      if (m.covered) { covered++; if (bad.length < 3) bad.push(`${m.el} 壓 ${m.over}px`); }
+      await page.keyboard.press(eng === 'webkit' ? 'Alt+Shift+Tab' : 'Shift+Tab');
+    }
+    r = { n, steps, content, covered, bad, lost };
+    if (!lost || covered) break;
   }
-  return { n, steps, content, covered, bad };
+  return r;
 }
 // J:捲到 80% 再把焦點放進標題(或固定段裡)的某個鈕;WebKit 的聚焦捲動是非同步的,等 450ms 再量
+// 聚焦前才抓鈕、聚焦後確認焦點還在它身上:平交道卡、落釘卡每一模擬秒整張 innerHTML 重寫(renderCrossingCard／
+// renderPinCard),看板每 20 秒重繪。聚焦到被換掉的舊鈕＝什麼都沒發生,捲動當然不動 ⇒ J 假綠、對照假不紅
+// (2026-09-26 落釘卡實測兩個引擎都這樣,還因此誤判成「卡太矮量不出來」)。沒留住就等下一次重繪之後重量,
+// 四次都沒留住 ⇒ jump 記 NaN,J 與對照都判不過
 const JUMP = async ([id, sel]) => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const p = document.getElementById(id);
-  const btns = [...p.querySelectorAll(sel)].filter(e => !e.disabled && e.getClientRects().length);
-  const btn = btns[btns.length - 1];
-  if (!btn) return { none: true };
-  if (document.activeElement) document.activeElement.blur();
-  const max = p.scrollHeight - p.clientHeight;
-  p.scrollTop = Math.floor(max * 0.8);
-  await sleep(150);
-  const before = p.scrollTop;
-  btn.focus();
-  await sleep(450);
-  const after = p.scrollTop;
-  btn.blur();
-  return { btn: __bsp.desc(btn), max, before, after, jump: before - after };
+  const pick = () => { const b = [...p.querySelectorAll(sel)].filter(e => !e.disabled && e.getClientRects().length); return b[b.length - 1]; };
+  const rerender = () => new Promise(res => { const mo = new MutationObserver(() => { mo.disconnect(); res(); }); mo.observe(p, { childList: true }); setTimeout(() => { mo.disconnect(); res(); }, 1500); });
+  if (!pick()) return { none: true };
+  let r;
+  for (let i = 0; i < 4; i++) {
+    if (i) await rerender();
+    if (document.activeElement) document.activeElement.blur();
+    const max = p.scrollHeight - p.clientHeight;
+    p.scrollTop = Math.floor(max * 0.8);
+    await sleep(150);
+    const btn = pick();
+    if (!btn) return { none: true };
+    const before = p.scrollTop;
+    btn.focus();
+    await sleep(450);
+    const after = p.scrollTop, held = btn.isConnected && document.activeElement === btn;
+    btn.blur();
+    r = { btn: __bsp.desc(btn) + (held ? '' : '(焦點留不住)'), max, before, after, jump: held ? before - after : NaN };
+    if (held) break;
+  }
+  return r;
 };
 const H3_BTN = ':scope > h3 button, :scope > h3 a[href]';
 // F:#rdSearch 在 #rdSystem 正上方;把 #rdSystem 捲到剛好貼著固定段,#rdSearch 就整顆壓在標題下,再聚焦它
@@ -369,6 +401,190 @@ const TABS_RULE_OUT = () => {
   }
   return null;
 };
+
+// ════ 2026-09-26 補量的格子用的工具(上面那份只認 .board 的 h3／站名牌／分頁列,這份吃任意容器＋固定段) ════
+const HELPERS2 = `window.__bsp2 = (() => {
+  const heads = (p, cls) => [...p.children].filter(n => n.matches(cls) && getComputedStyle(n).position === 'sticky' && n.getBoundingClientRect().height > 0);
+  const footOf = p => { const f = p.querySelector(':scope > .uni-slot .uni-more'); return f && getComputedStyle(f).position === 'sticky' && f.getBoundingClientRect().height > 0 ? f : null; };
+  // edge:上緣壓在標題下超過 1px 就算(車庫的格子是高卡片,中心點永遠落在頂列下面,中心判準拿掉讓位也量到 0)
+  const measure = ([root, cls, withFoot, edge]) => {
+    const p = document.querySelector(root), a = document.activeElement;
+    if (!p || p.hidden || !a || a === p || !p.contains(a)) return { left: true, lost: !a || a === document.body };
+    const hs = heads(p, cls), f = withFoot ? footOf(p) : null;
+    const inFoot = !!(f && f.contains(a)), inFix = inFoot || hs.some(h => h.contains(a));
+    const r = a.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    const over = hs.length ? +(Math.max(...hs.map(h => h.getBoundingClientRect().bottom)) - r.top).toFixed(1) : 0;
+    return { inFix, inFoot, el: __bsp.desc(a), over,
+      top: !inFix && (edge ? over > 1 : hs.some(h => hit && h.contains(hit))), bot: !inFix && !!(f && hit && f.contains(hit)) };
+  };
+  // 標題以外的可聚焦元素:一個都沒有,往回走就是零資訊(S)
+  const content = ([root, cls]) => {
+    const p = document.querySelector(root);
+    return __bsp.tabbables(p).filter(e => { const h = e.closest(cls); return !(h && p.contains(h)); }).map(__bsp.desc);
+  };
+  // 合併卡底部提示列:讓位值 vs 釘在卡緣時實際佔掉的下緣(捲動區下緣 − 它的上緣 ＋ 它的上邊界)。量當下的捲動位置
+  const foot = () => {
+    const bd = document.getElementById('board'), f = bd.querySelector(':scope > .uni-slot .uni-more');
+    const pad = parseFloat(bd.style.getPropertyValue('--board-scroll-pad-bottom')) || 0;
+    if (!f || !f.getClientRects().length) return { pad, shown: false };
+    const portBottom = bd.getBoundingClientRect().top + bd.clientTop + bd.clientHeight, r = f.getBoundingClientRect();
+    const pinned = getComputedStyle(f).position === 'sticky' && Math.abs(portBottom - (parseFloat(getComputedStyle(bd).paddingBottom) || 0) - r.bottom) < 2;
+    return { pad, shown: true, pinned, stuck: +(portBottom - r.top + (parseFloat(getComputedStyle(f).marginTop) || 0)).toFixed(1) };
+  };
+  return { measure, content, foot };
+})();`;
+const CARDS2 = {
+  uni: { root: '#board', cls: 'h3, .dwell-plate, .uni-tabs', foot: true },
+  tc: { root: '#trainCard', cls: '.tc-head' },
+  xing: { root: '#xingCard', cls: '.xc-head' },
+  pin: { root: '#pinCard', cls: '.xc-head' },
+  sugar: { root: '#sugarCard', cls: '.xc-head' },
+  near: { root: '#nearCard', cls: '.xc-head' },
+  garage: { root: '#trainGarage', cls: '.g-top', edge: true },
+};
+const OPEN2 = {
+  // 合併卡預設開在「這一站」;提示列在「這班車」那一頁,照使用者的路徑點分頁鈕切過去
+  uni: `(async () => { await ${OPEN.uni}; document.querySelector('#board > .uni-tabs button[data-t=train]')?.click(); await new Promise(r => setTimeout(r, 300)); })()`,
+  // 列車 sheet 小段只露標題＋遙測,內容到中段才有。setSheetSize 會寫全站段高偏好,量完要還給小段
+  tc: `(async () => {
+    const cands = state.trains.filter(t => t.sys === 'tra_sched' && t.stops && t.stops.length > 20);
+    const tr = cands.find(t => { const tt = effTLive(t), info = nextStopInfo(t, tt); return tt >= t.stops[0].depSec && !dwellInfoOf(t, tt) && info && info.min >= 3; }) || cands[0];
+    followTrainNo(String(tr.train), { sys: 'tra_sched' });
+    await new Promise(r => setTimeout(r, 400));
+    openTrainSheet(); await new Promise(r => setTimeout(r, 300));
+    setSheetSize(document.getElementById('trainCard'), 'medium'); await new Promise(r => setTimeout(r, 300));
+  })()`,
+  // 平交道資料是開機後才非同步抓(ensureCrossings),開卡前等它到
+  xing: `(async () => {
+    for (let i = 0; i < 100 && !state.crossings; i++) { ensureCrossings(); await new Promise(r => setTimeout(r, 100)); }
+    const cs = state.crossings.filter(c => !c.noSched);
+    openCrossingCard(cs.find(c => { try { return crossingPasses(c).length >= 5; } catch (e) { return false; } }) || cs[0]);
+  })()`,
+  pin: `openPinAt(25.0143, 121.4637)`,
+  sugar: `openSugarCard(SUGAR_PARKS[0])`,
+  near: `openNearbyStations(25.0478, 121.517, 20)`,
+  garage: `(async () => {
+    openTrainGarage();
+    for (let i = 0; i < 60; i++) { await new Promise(r => setTimeout(r, 100)); const g = document.getElementById('trainGarage'); if (g && g.open && g.querySelectorAll('button').length > 8) break; }
+    await new Promise(r => setTimeout(r, 300));
+  })()`,
+};
+const CLOSE_ALL2 = `(() => {
+  try { if (window.TrainGarage && TrainGarage.isOpen) TrainGarage.close(); } catch (e) {}
+  for (const f of ['closeTrainSheet', 'closeCrossingCard', 'closePinCard', 'closeSugarCard', 'closeNearbyStations']) try { window[f](); } catch (e) {}
+})()`;
+async function open2(page, key) {
+  await page.evaluate(CLOSE_ALL2); await page.evaluate(CLOSE_ALL); await settle(page);
+  await page.evaluate(OPEN2[key]);
+  await settle(page); await page.waitForTimeout(250);
+  return page.evaluate(sel => { const p = document.querySelector(sel); return !!(p && !p.hidden && p.getClientRects().length); }, CARDS2[key].root);
+}
+// 往前(dir 1:Tab;WebKit 要 Option+Tab)或往回(-1)走到焦點離開容器。焦點掉回 body＝跟車卡重繪換掉了正在聚焦的
+// 節點(不是走完;09-26 探針在 Chromium 實測過一輪只走 2/12 拍),那一輪不算、重走,最多三輪
+async function walk2(page, eng, key, dir, cap = 60) {
+  const c = CARDS2[key], press = dir > 0 ? (eng === 'webkit' ? 'Alt+Tab' : 'Tab') : (eng === 'webkit' ? 'Alt+Shift+Tab' : 'Shift+Tab');
+  let w;
+  for (let round = 0; round < 3; round++) {
+    const n = await page.evaluate(([root, dir]) => { const tb = __bsp.tabbables(document.querySelector(root)); if (tb.length) (dir > 0 ? tb[0] : tb[tb.length - 1]).focus(); return tb.length; }, [c.root, dir]);
+    w = { n, steps: 0, content: 0, covered: 0, foot: false, lost: false, bad: [] };
+    for (let i = 0; i < cap; i++) {
+      await settle(page);
+      const m = await page.evaluate(a => __bsp2.measure(a), [c.root, c.cls, !!c.foot, !!c.edge]);
+      if (m.left) { w.lost = m.lost; break; }
+      w.steps++;
+      if (m.inFoot) w.foot = true;
+      if (!m.inFix) w.content++;
+      if (m.top || m.bot) { w.covered++; if (w.bad.length < 3) w.bad.push(`${m.el} 停在${m.top ? `標題下(壓 ${m.over}px)` : '底部提示列下'}`); }
+      await page.keyboard.press(press);
+    }
+    if (!w.lost || w.covered || (c.foot && w.foot)) break;
+  }
+  return w;
+}
+const fmtW = w => `被蓋 ${w.covered}/${w.content} 拍(可聚焦 ${w.n}${w.lost ? '、焦點掉回 body 三輪' : ''})${w.bad.length ? '；' + w.bad.join('、') : ''}`;
+// 提示列釘在卡緣時聚焦它本身(往前 Tab 走到它):內容不該動
+const JFOOT = async () => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const bd = document.getElementById('board'), f = bd.querySelector(':scope > .uni-slot .uni-more');
+  if (!f || !f.getClientRects().length) return { none: true };
+  if (document.activeElement) document.activeElement.blur();
+  bd.scrollTop = Math.min(40, bd.scrollHeight - bd.clientHeight); await sleep(150);
+  const pinned = __bsp2.foot().pinned, before = bd.scrollTop;
+  f.focus(); await sleep(450);
+  const after = bd.scrollTop; f.blur();
+  return { pinned, before, after };
+};
+// P:捲回頂端(提示列的自然版位在下緣之外 ⇒ 釘在卡緣)再量
+const FOOT0 = async () => {
+  const bd = document.getElementById('board'); bd.scrollTop = 0;
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  return __bsp2.foot();
+};
+const footFits = s => s.shown && s.pinned && Math.abs(s.pad - s.stuck) <= 1;
+const fmtF = s => !s.shown ? `提示列不在(讓位 ${s.pad})` : `讓位 ${s.pad} 實際 ${s.stuck}${s.pinned ? '' : '(沒釘在卡緣)'}`;
+// 換段高走抓把／標題列用的同一個入口 setSheetSize
+const SIZE = async size => {
+  setSheetSize(document.getElementById('board'), size);
+  for (let i = 0; i < 3; i++) await new Promise(r => requestAnimationFrame(r));
+  await new Promise(r => setTimeout(r, 250));
+};
+const FONT2 = async tier => {
+  if (typeof state === 'undefined' || typeof state._setFontScale !== 'function') return false;
+  state._setFontScale(tier);
+  for (let i = 0; i < 4; i++) await new Promise(r => requestAnimationFrame(r));
+  await new Promise(r => setTimeout(r, 200));
+  return true;
+};
+// 車庫:內容的讓位(第一個頂列以外可聚焦元素的 scroll-margin-top)vs 頂列實高
+const GARAGE_PAD = async () => {
+  for (let i = 0; i < 3; i++) await new Promise(r => requestAnimationFrame(r));
+  const g = document.getElementById('trainGarage'), top = g.querySelector(':scope > .g-top');
+  const el = __bsp.tabbables(g).find(e => !top.contains(e));
+  return { head: +top.getBoundingClientRect().height.toFixed(1), margin: el ? parseFloat(getComputedStyle(el).scrollMarginTop) || 0 : -1 };
+};
+const gFits = g => g.margin >= 0 && Math.abs(g.margin - (g.head + 15)) <= 1;
+// 突變用的覆寫樣式(!important 蓋過 index.html／train-garage.css 那幾條)
+const MUT = {
+  noFootPad: '.board > :not(h3), .board > :not(h3) * { scroll-margin-bottom: 0 !important; }',
+  footSelfPad: 'body.fs .board.sheet-small .uni-slot .uni-more { scroll-margin-bottom: var(--board-scroll-pad-bottom, 0px) !important; }',
+  noCardPad: '.xing-card > :not(.xc-head), .xing-card > :not(.xc-head) * { scroll-margin-top: 0 !important; }',
+  noGaragePad: '#trainGarage > :not(.g-top), #trainGarage > :not(.g-top) * { scroll-margin-top: 0 !important; }',
+  garage84: '#trainGarage > :not(.g-top), #trainGarage > :not(.g-top) * { scroll-margin-top: 84px !important; }',
+  // 修前的寫法:容器 scroll-padding-top 84px、內容不讓位
+  garageOld: '#trainGarage { scroll-padding-top: 84px !important; } #trainGarage > :not(.g-top), #trainGarage > :not(.g-top) * { scroll-margin-top: 0 !important; }',
+};
+const withMut = async (page, css, fn) => {
+  await page.evaluate(css => { const el = document.createElement('style'); el.id = '__bspMut'; el.textContent = css; document.head.appendChild(el); }, css);
+  try { return await fn(); } finally { await page.evaluate(() => document.getElementById('__bspMut')?.remove()); }
+};
+// S＋對照:把第一個看得見的內容列設成可聚焦 ⇒ S 要紅
+const S_MUT = ([root, cls, on]) => {
+  const p = document.querySelector(root), n = [...p.children].find(e => !e.matches(cls) && e.getClientRects().length);
+  if (!n) return null;
+  if (on) n.setAttribute('tabindex', '0'); else n.removeAttribute('tabindex');
+  return __bsp.desc(n);
+};
+async function cardS(page, P, tag, key) {
+  const c = CARDS2[key];
+  const s = await page.evaluate(a => __bsp2.content(a), [c.root, c.cls]);
+  ok(P(`S ${tag} ${key} 標題以外沒有可聚焦元素(W 零資訊的前提;有了就要改成真的走)`), s.length === 0, s.slice(0, 3).join('、'));
+  const tgt = await page.evaluate(S_MUT, [c.root, c.cls, true]);
+  const sm = await page.evaluate(a => __bsp2.content(a), [c.root, c.cls]);
+  await page.evaluate(S_MUT, [c.root, c.cls, false]);
+  ok(P(`N 突變:${tag} ${key} 內容列可聚焦 ⇒ S 量得到紅`), !!tgt && sm.length > 0, `${tgt || '找不到內容列'} → ${sm.length} 個`);
+}
+// J＋對照:容器 scroll-padding-top＝標題實高(v0925k 護照、修前車庫的寫法)⇒ 要紅。捲不太動的卡(可捲 < 40)量不出來,算不過
+async function cardJ(page, P, tag, key, sel) {
+  const c = CARDS2[key], id = c.root.slice(1);
+  const j = await page.evaluate(JUMP, [id, sel]);
+  ok(P(`J ${tag} ${key} 捲在下面時聚焦標題的鈕,內容不跳`), !j.none && j.max >= 40 && Math.abs(j.jump) <= 8,
+    j.none ? '標題裡找不到鈕' : `${j.btn} 捲動 ${j.before}→${j.after}(可捲 ${j.max})`);
+  await page.evaluate(([root, cls]) => { const p = document.querySelector(root); p.style.scrollPaddingTop = [...p.children].find(n => n.matches(cls)).getBoundingClientRect().height + 'px'; }, [c.root, c.cls]);
+  const jn = await page.evaluate(JUMP, [id, sel]);
+  await page.evaluate(root => { document.querySelector(root).style.scrollPaddingTop = ''; }, c.root);
+  ok(P(`N 對照:${tag} ${key} 容器 scroll-padding-top ⇒ 聚焦標題的鈕內容會跳(J 量得到紅)`), !jn.none && Math.abs(jn.jump) > 8,
+    jn.none ? '標題裡找不到鈕' : `${jn.btn} 捲動 ${jn.before}→${jn.after}`);
+}
 
 let t0Done = false;
 for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
@@ -612,6 +828,153 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
     await page.evaluate(() => document.getElementById('busStopPanel').addEventListener('focusin', busRowDropPointerFocus));
     ok(P('N 突變:拿掉公車列的點擊放焦點 ⇒ 點一列再按鍵,焦點留在列上而且亮框(C 量得到紅)'), nbc.onRow && nbc.ring > 0, fmtClick(nbc));
     ok(P('1280 全程零 pageerror'), errors.length === 0, errors.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+
+  // ── 2026-09-26 360×780 直式:合併卡底部提示列(標準→特大字級)、列車 sheet、平交道卡家族、車庫 ─────────
+  {
+    const { ctx, page, errors } = await boot(browser, { width: 360, height: 780 });
+    await page.evaluate(HELPERS2);
+    const openUni = async () => (await open2(page, 'uni'))
+      && page.evaluate(() => { const bd = document.getElementById('board'); return bd.classList.contains('uni-train') && bd.classList.contains('sheet-small'); });
+    // B:從第一個可聚焦元素往前走,走到提示列本身才算走完它上面的內容
+    const B = async tier => {
+      const w = await walk2(page, eng, 'uni', 1);
+      ok(P(`B 360 ${tier} 直式合併卡小段往前走,焦點不停在底部提示列下`), w.covered === 0 && w.foot && w.content >= 3,
+        fmtW(w) + (w.foot ? '' : '；沒走到提示列'));
+      const wm = await withMut(page, MUT.noFootPad, async () => { await openUni(); return walk2(page, eng, 'uni', 1); });
+      ok(P(`N 突變:拿掉底部讓位 ⇒ ${tier}往前走會停在提示列下(B 量得到紅)`), wm.covered > 0, fmtW(wm));
+    };
+    const isUni = await openUni();
+    ok(P('360 直式合併卡打得開、在「這班車」頁的小段'), isUni);
+    if (isUni) {
+      await B('標準');
+      await openUni();
+      const jf = await page.evaluate(JFOOT);
+      ok(P('J 360 提示列釘在卡緣時聚焦它本身,內容不跳'), !jf.none && jf.pinned && Math.abs(jf.after - jf.before) <= 8,
+        jf.none ? '提示列不在' : `捲動 ${jf.before}→${jf.after}${jf.pinned ? '' : '(沒釘在卡緣)'}`);
+      const jm = await withMut(page, MUT.footSelfPad, () => page.evaluate(JFOOT));
+      ok(P('N 突變:提示列自己也吃底部讓位 ⇒ 聚焦它內容會跳(J 量得到紅)'), !jm.none && Math.abs(jm.after - jm.before) > 8,
+        jm.none ? '提示列不在' : `捲動 ${jm.before}→${jm.after}`);
+      // P:小段 → 中段(提示列收掉,讓位歸零)→ 回小段 → 特大字級
+      const s0 = await page.evaluate(FOOT0);
+      await page.evaluate(SIZE, 'medium'); const sm = await page.evaluate(FOOT0);
+      await page.evaluate(SIZE, 'small'); const s1 = await page.evaluate(FOOT0);
+      const fontOk = await page.evaluate(FONT2, 'xlarge'); const s2 = await page.evaluate(FOOT0);
+      ok(P('P 360 底部讓位＝提示列釘住時實際佔掉的下緣(小段→中段→回小段→特大字級)'),
+        footFits(s0) && !sm.shown && sm.pad === 0 && footFits(s1) && fontOk && footFits(s2) && s2.stuck > s0.stuck + 5,
+        `小段 ${fmtF(s0)}；中段 ${fmtF(sm)}；回小段 ${fmtF(s1)}；特大 ${fontOk ? fmtF(s2) : '換字級入口 state._setFontScale 不見了'}`);
+      await openUni();
+      await B('特大');
+      if (eng === 'chromium') {
+        // N:讓位寫死成標準字級的值(不量) ⇒ 換到特大字級後讓位停在舊值
+        await page.evaluate(FONT2, 'std'); await openUni();
+        const std = (await page.evaluate(FOOT0)).pad;
+        await page.evaluate(v => {
+          window.__origSBSP = syncBoardScrollPad;
+          window.syncBoardScrollPad = bd => { __origSBSP(bd); if (bd.style.getPropertyValue('--board-scroll-pad-bottom')) bd.style.setProperty('--board-scroll-pad-bottom', v + 'px'); };
+        }, std);
+        await page.evaluate(FONT2, 'xlarge'); const sx = await page.evaluate(FOOT0);
+        await page.evaluate(() => { window.syncBoardScrollPad = window.__origSBSP; });
+        ok(P('N 突變:底部讓位寫死成標準字級的值 ⇒ 特大字級對不上(P 量得到紅)'), sx.shown && !footFits(sx), `寫死 ${std}；特大 ${fmtF(sx)}`);
+      }
+      await page.evaluate(FONT2, 'std');
+    }
+    // 列車 sheet(中段):標題以外沒有可聚焦元素＋J
+    const isTc = await open2(page, 'tc');
+    ok(P('360 列車 sheet 打得開'), isTc);
+    if (isTc) {
+      await cardS(page, P, '360', 'tc');
+      await cardJ(page, P, '360', 'tc', ':scope > .tc-head button');
+      await page.evaluate(() => setSheetSize(document.getElementById('trainCard'), 'small')); // 段高偏好還給小段
+    }
+    // 平交道卡家族(網頁版):標題以外都沒有可聚焦元素;直式只有附近車站卡捲得動,其餘三張的 J 在 844×390 量
+    for (const key of ['xing', 'pin', 'sugar', 'near']) {
+      const opened = await open2(page, key);
+      ok(P(`360 ${key} 卡打得開`), opened);
+      if (!opened) continue;
+      await cardS(page, P, '360', key);
+      if (key === 'near') await cardJ(page, P, '360', key, ':scope > .xc-head button');
+    }
+    // 車庫:W(往回走 40 拍夠了,全部 80 幾拍)、J(修前跳 390px)、P(讓位跟著頂列實高走)
+    const isG = await open2(page, 'garage');
+    ok(P('360 車庫打得開'), isG);
+    if (isG) {
+      const w = await walk2(page, eng, 'garage', -1, 40);
+      ok(P('W 360 車庫鍵盤往回走,焦點上緣不壓在頂列下'), w.covered === 0 && w.content >= 20, fmtW(w));
+      const wm = await withMut(page, MUT.noGaragePad, () => walk2(page, eng, 'garage', -1, 40));
+      ok(P('N 突變:拿掉車庫內容的讓位 ⇒ 往回走焦點上緣壓在頂列下(W 量得到紅)'), wm.covered > 0, fmtW(wm));
+      const j = await page.evaluate(JUMP, ['trainGarage', ':scope > .g-top button']);
+      ok(P('J 360 車庫捲在下面時聚焦頂列的鈕,內容不跳'), !j.none && j.max >= 150 && Math.abs(j.jump) <= 8,
+        j.none ? '頂列裡找不到鈕' : `${j.btn} 捲動 ${j.before}→${j.after}(可捲 ${j.max})`);
+      const jn = await withMut(page, MUT.garageOld, () => page.evaluate(JUMP, ['trainGarage', ':scope > .g-top button']));
+      ok(P('N 突變:改回修前的容器 scroll-padding-top 84px ⇒ 聚焦頂列的鈕內容會跳(J 量得到紅)'), !jn.none && Math.abs(jn.jump) > 8,
+        jn.none ? '頂列裡找不到鈕' : `${jn.btn} 捲動 ${jn.before}→${jn.after}`);
+      // 頂列變高:照 .g-top 的 padding-top:max(12px, env(safe-area-inset-top)),模擬 59px 的瀏海安全區
+      const g0 = await page.evaluate(GARAGE_PAD);
+      await page.evaluate(() => { document.querySelector('#trainGarage > .g-top').style.paddingTop = '59px'; });
+      const g1 = await page.evaluate(GARAGE_PAD);
+      ok(P('P 360 車庫讓位＝頂列實高＋15(頂列變高之後也是)'), gFits(g0) && gFits(g1) && g1.head > g0.head + 30,
+        `頂列 ${g0.head} 讓位 ${g0.margin}；變高 ${g1.head} 讓位 ${g1.margin}`);
+      const gm = await withMut(page, MUT.garage84, () => page.evaluate(GARAGE_PAD));
+      ok(P('N 突變:車庫讓位寫死成修前的 84px ⇒ 頂列變高後對不上(P 量得到紅)'), !gFits(gm), `頂列 ${gm.head} 讓位 ${gm.margin}`);
+      await page.evaluate(() => { document.querySelector('#trainGarage > .g-top').style.paddingTop = ''; });
+    }
+    ok(P('360 補量段全程零 pageerror'), errors.length === 0, errors.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+
+  // ── 2026-09-26 844×390 橫式:平交道卡家族、列車 sheet、車庫(直式捲不動的卡在這裡捲得動) ──────────────
+  {
+    const { ctx, page, errors } = await boot(browser, { width: 844, height: 390 });
+    await page.evaluate(HELPERS2);
+    for (const key of ['xing', 'pin', 'sugar', 'near']) {
+      const opened = await open2(page, key);
+      ok(P(`844×390 ${key} 卡打得開`), opened);
+      if (opened) await cardJ(page, P, '844×390', key, ':scope > .xc-head button');
+    }
+    const isTc = await open2(page, 'tc');
+    ok(P('844×390 列車 sheet 打得開'), isTc);
+    if (isTc) await cardJ(page, P, '844×390', 'tc', ':scope > .tc-head button');
+    const isG = await open2(page, 'garage');
+    ok(P('844×390 車庫打得開'), isG);
+    if (isG) {
+      const w = await walk2(page, eng, 'garage', -1, 40);
+      ok(P('W 844×390 車庫鍵盤往回走,焦點上緣不壓在頂列下'), w.covered === 0 && w.content >= 20, fmtW(w));
+      const wm = await withMut(page, MUT.noGaragePad, () => walk2(page, eng, 'garage', -1, 40));
+      ok(P('N 突變:拿掉車庫內容的讓位 ⇒ 844×390 往回走焦點上緣壓在頂列下(W 量得到紅)'), wm.covered > 0, fmtW(wm));
+      const j = await page.evaluate(JUMP, ['trainGarage', ':scope > .g-top button']);
+      ok(P('J 844×390 車庫捲在下面時聚焦頂列的鈕,內容不跳'), !j.none && j.max >= 150 && Math.abs(j.jump) <= 8,
+        j.none ? '頂列裡找不到鈕' : `${j.btn} 捲動 ${j.before}→${j.after}(可捲 ${j.max})`);
+      const jn = await withMut(page, MUT.garageOld, () => page.evaluate(JUMP, ['trainGarage', ':scope > .g-top button']));
+      ok(P('N 突變:改回修前的容器 scroll-padding-top 84px ⇒ 844×390 聚焦頂列的鈕內容會跳(J 量得到紅)'), !jn.none && Math.abs(jn.jump) > 8,
+        jn.none ? '頂列裡找不到鈕' : `${jn.btn} 捲動 ${jn.before}→${jn.after}`);
+    }
+    ok(P('844×390 補量段全程零 pageerror'), errors.length === 0, errors.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+
+  // ── 2026-09-26 360×780 App(?demo=bounty):附近車站卡每列有「蓋章」鈕,往回走不被卡頭蓋 ─────────────
+  {
+    const { ctx, page, errors } = await boot(browser, { width: 360, height: 780, query: '&demo=bounty' });
+    await page.evaluate(HELPERS2);
+    const nearW = async tier => {
+      const opened = await open2(page, 'near');
+      const n = opened ? await page.evaluate(() => document.querySelectorAll('#nearCard .nx-ck').length) : 0;
+      ok(P(`App 360 ${tier} 附近車站卡打得開、有「蓋章」鈕`), n > 0, `${n} 顆`);
+      if (!n) return;
+      const w = await walk2(page, eng, 'near', -1);
+      const need = Math.max(2, Math.min(20, Math.floor(w.n / 2)));
+      ok(P(`W App 360 ${tier} 附近車站卡鍵盤往回走,焦點不被卡頭蓋住`), w.covered === 0 && w.content >= need, fmtW(w) + `(至少要走 ${need})`);
+      const wm = await withMut(page, MUT.noCardPad, async () => { await open2(page, 'near'); return walk2(page, eng, 'near', -1); });
+      ok(P(`N 突變:拿掉卡內讓位 ⇒ ${tier}往回走會停在卡頭下(W 量得到紅)`), wm.covered > 0, fmtW(wm));
+    };
+    await nearW('標準');
+    if (await open2(page, 'near')) await cardJ(page, P, 'App 360', 'near', ':scope > .xc-head button');
+    const fontOk = await page.evaluate(FONT2, 'xlarge');
+    ok(P('App 360 換特大字級走得到真入口 state._setFontScale'), fontOk);
+    if (fontOk) await nearW('特大');
+    ok(P('App 360 全程零 pageerror'), errors.length === 0, errors.slice(0, 2).join(' | '));
     await ctx.close();
   }
   await browser.close();
