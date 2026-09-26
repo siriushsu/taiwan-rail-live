@@ -986,10 +986,12 @@
   /* 卡頭 sticky ⇒ 讓位同 .board(為什麼給內容 scroll-margin 而不是容器 scroll-padding,見 .board h3 下面那條)。
      App 的「你附近的車站」每列有「蓋章」鈕,鍵盤往回走時整顆停在卡頭底下(2026-09-26 實測 1–3 拍)。
      值由 syncBoardScrollPad 量卡頭實高寫進 --board-scroll-pad。
-     底部留 6px 給焦點框(同 .board 沒有提示列時):落釘卡的班次、附近車站卡的站名 v0926j 起鍵盤走得到,
-     往下 Tab 的聚焦捲動把站名那一行貼齊卡片底緣,框的下緣整條被切(2026-09-26 實測兩個引擎)。 */
+     附近車站卡的站名(v0926j 起鍵盤走得到)與「蓋章」鈕的框往外畫:往下 Tab 的聚焦捲動把它貼齊卡片底緣,框的下緣整條被切
+     (2026-09-26 實測兩個引擎)⇒ 底部留 6px(同 .board 沒有提示列時)。落釘卡的列框往內畫,不留:844×390 那張可見內容比一列矮,
+     多留的 6px 會讓 Chromium 往回走時把列再往卡頭底下推 6px(列中心被蓋)。 */
   .xing-card > :not(.xc-head),
-  .xing-card > :not(.xc-head) * { scroll-margin-top: var(--board-scroll-pad, 0px); scroll-margin-bottom: 6px; }
+  .xing-card > :not(.xc-head) * { scroll-margin-top: var(--board-scroll-pad, 0px); }
+  .xing-card .nx-row * { scroll-margin-bottom: 6px; }
   .xing-card .xc-ico { flex: none; display: flex; opacity: .9; }
   .xing-card .xc-ttl { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
   .xing-card .xc-ttl b { font-size: calc(15px * var(--ui)); font-weight: 900; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -5568,13 +5570,13 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li data-cl-of="xcfocus0926"><span class="d">9/26</span><span>平交道卡、落釘卡用鍵盤選到的按鈕不會再每秒被洗掉，點 ✕ 或班次也不會偶爾沒反應；落釘卡的班次和 App 的附近車站能用鍵盤選到，按 Enter 就能跟車、看班次</span></li>
+        <li data-cl-of="kbfocusback0926"><span class="d">9/26</span><span>用鍵盤操作時，車站看板自動更新、關掉面板、在行程分享選好目的站、展開或收起跟捷運時的膠囊小卡之後，選取不再跳回頁首，會留在原處或回到打開面板的按鈕</span></li>
         <li data-cl-of="spacekey0926"><span class="d">9/26</span><span>空白鍵在任何地方都是播放／暫停，不會再順便打開資料卡、展開卡片或讓鍵盤選取跳回頁首，按住也只切一次；面板邊緣與標題列按鈕的鍵盤選取框不再被切掉</span></li>
         <li data-cl-of="kbfocusfoot0926"><span class="d">9/26</span><span>用鍵盤往下一項移動時，跟車卡選到的按鈕不再被底部的「詳細」提示列蓋住；App 附近車站卡往回移動時「蓋章」鈕不再被標題蓋住；車庫捲到下面再回到頂列按鈕，畫面不再往上跳</span></li>
         <li data-cl-of="boardrowkb0926"><span class="d">9/26</span><span>今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 就行</span></li>
         <li data-cl-of="fpnextwrap0926"><span class="d">9/26</span><span>跟車卡的「下一站」遇到較長的站名（例如英文介面的長榮大學、科工館）會換行顯示全名，整張卡不再能左右拖動</span></li>
         <li data-cl-of="remainingtracks0913"><span class="d">9/26</span><span>台鐵 10/3 起有 14 班調整時刻，3D 地圖裡這些車照樣走原本的股道</span></li>
         <li data-cl-of="subwayfloat0925"><span class="d">9/25</span><span>3D 地圖上臺北車站的臺鐵列車不再畫在車站屋頂上，高捷紅線地下段也不再浮在地面上；新左營臺鐵與高雄輕軌被頂高的地方回到原位</span></li>
-        <li data-cl-of="kbfocusselect0925"><span class="d">9/25</span><span>用鍵盤往回移動時，我的最愛、車站看板等面板選到的項目不再被標題列蓋住；iPhone 英文介面選到長站名時，畫面不再能左右拖動</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5870,6 +5872,7 @@
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
         <li data-cl="xcfocus0926"><span class="d">9/26</span><span>平交道卡、落釘卡每秒更新時，鍵盤選到的按鈕或班次會留在原處、畫面不跳，點 ✕、存或班次也不會偶爾沒反應（高倍速播放時原本幾乎點不到）；落釘卡的班次與 App 附近車站卡的站名能用鍵盤移過去，按 Enter 跟車或開看板</span></li>
+        <li data-cl="kbfocusback0926"><span class="d">9/26</span><span>用鍵盤操作時選取不再跳回頁首：車站看板（含跟車時的合併卡、暗色看板的方向鈕）每 20 秒更新後留在原處；關掉面板回到打開它的按鈕；行程分享選好目的站後回到「行程分享」鈕；跟捷運時的膠囊小卡展開停在 ×、收起停在膠囊</span></li>
         <li data-cl="spacekey0926"><span class="d">9/26</span><span>空白鍵一律只做播放／暫停：在清單列、按鈕、資料卡上按不會再同時打開東西，按鈕上按完鍵盤選取留在原處（原本會跳回頁首），按住不放只切一次；面板底緣、標題列、字級切換與公車轉乘卡的鍵盤選取框不再被切掉，「全部班次」鈕選到時看得到框</span></li>
         <li data-cl="kbfocusfoot0926"><span class="d">9/26</span><span>用鍵盤往下一項移動（Tab）時，跟車時車站看板「這班車」頁選到的按鈕不再停在底部的「詳細」提示列底下；App 附近車站卡往回移動時「蓋章」鈕不再停在標題底下；車庫捲到下面時回到頂列的按鈕，畫面不再往上跳一大段</span></li>
         <li data-cl="boardrowkb0926"><span class="d">9/26</span><span>今日台鐵動態、公車站牌與行程分享的每一列都能用鍵盤移過去，讀螢幕軟體也會唸出整列；今日動態按 Enter 展開逐站歷程、行程分享選目的站；清單自動更新時，鍵盤停在哪一列就留在那一列；公車站牌切換語言時到站時間立刻跟著換</span></li>
@@ -6792,13 +6795,20 @@
 //         左右留 4px；「全部班次」鈕原本寫不存在的 var(--focus)、聚焦時沒框。兩引擎 × 12 張面板往前＋往回走：亮色六寬度被切
 //         1203→0 拍、暗色三寬度 553→0 拍，沒框只剩刻意用藏青邊框的搜尋框；公車轉乘卡展開後 5–6→0。
 //         守門：verify_board_scroll_pad 補 E 空白鍵、V 焦點框各格（360／1280、亮／暗）與逐條突變對照。
+// v0926i：鍵盤焦點不再掉回頁首（修前四件都落在 body）。車站看板整張重畫、合併卡重建分頁列之前記下鍵盤焦點（boardHoldFocus，
+//         鍵沿用 boardFocusSel，暗色方向鈕沒有 id／class／data 就用「父層 class＋標籤」），畫完放回同一顆、不捲動；12 張面板的開函式
+//         記下開它的鈕（notePanelOpener，在擠掉別張之前）、關函式關完送回去（panelFocusBack：搬出面板的那顆留著→開它的鈕→
+//         看不到就退到 PANEL_ENTRY 裡看得到的固定入口，文字欄位與滑鼠／觸控焦點不送）；行程分享列 Enter 分享後回到「行程分享」鈕；
+//         捷運膠囊 Enter 展開焦點落在卡的 ×、× 收起落在膠囊。修前→修後(兩引擎、亮暗、360／1280)：renderBoard 每一顆 0/6–0/11
+//         → 全回，mountUniCard 分頁鈕 2 顆都掉 → 全回；關面板、行程分享列、捷運膠囊 52 格全落在 body → 全回入口且亮框。
+//         守門：verify_board_scroll_pad 補 R／O／C 各格與逐層突變對照。
 // v0926j：平交道卡、落釘卡每秒整張重畫（App 附近車站卡在定位更新時也是），把鍵盤焦點洗回頁面，也把按住的鈕換掉。xcPaint：卡頭 HTML 沒變就只換
 //         卡頭以下，重畫前後用 boardRefocus 放回焦點（preventScroll）；重畫改成每真實秒最多一次（xcRepaintDue，照查詢答案區）；
 //         落釘卡按住時先不重畫（pinCardHeld，最多 1.5 秒）。落釘卡的列、附近車站卡的站名列 tabindex＋role=button＋aria-label，
 //         只接 Enter。修前兩引擎 × 360／844／1280：卡頭 ×、存 第一次重畫就掉焦點；落釘 5 列、附近 8 列可聚焦 0；60× 下
 //         Chromium 每真實秒重畫 47.7 次、WebKit 39.3 次，按住 60ms 以上點 × 或列 0/4 次有反應，1× 按壓跨過重畫 0/3。
-//         修後焦點跨兩次重畫都在、scrollTop 不變，列 5／8 全到，每秒 1 次，點擊 4/4、3/3。卡片內容補 scroll-margin-bottom 6px
-//         （同 .board）：站名列往下 Tab 到卡底時框的下緣被切 1 拍→0（Chromium 三寬度、WebKit 360）。
+//         修後焦點跨兩次重畫都在、scrollTop 不變，列 5／8 全到，每秒 1 次，點擊 4/4、3/3。附近車站卡的列補 scroll-margin-bottom
+//         6px（同 .board；落釘卡的列框往內畫、不留）：站名列往下 Tab 到卡底時框的下緣被切 1 拍→0（Chromium 三寬度、WebKit 360）。
 //         守門：verify_board_scroll_pad 補 K／R／W／E／C／Q／V／N 各格與突變對照（兩個引擎）。
 const BUILD = 'v0926j';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
@@ -21087,6 +21097,7 @@ function renderFavPanel() {
   el.querySelector('#favClose').onclick = closeFavPanel;
 }
 function openFavPanel() {
+  notePanelOpener('favPanel');
   soloPanel('fav');
   closeBoard(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist();
   const el = document.getElementById('favPanel');
@@ -21097,10 +21108,12 @@ function openFavPanel() {
   reframeFocus();     // 內容 render 後再量一次:updateSheetOpenClass 那次是在面板還空著時量高度(只讓了該讓的 1/3)
 }
 function closeFavPanel() {
+  const back = panelFocusBack('favPanel');
   const el = document.getElementById('favPanel');
   el.hidden = true; el.innerHTML = '';
   updateSheetOpenClass();
   document.getElementById('favBtn').classList.remove('active');
+  back();
 }
 
 // ── 旅程收集(完乘記錄,localStorage;參考日本「乗りつぶし」收集文化) ──
@@ -21232,6 +21245,59 @@ function boardRefocus(el, sel) {
   const n = sel && el.querySelector(sel);
   if (n && n !== document.activeElement) n.focus({ preventScroll: true });
 }
+function focusShown(e) {
+  return !!(e && e.isConnected && e.tabIndex >= 0 && !e.disabled && e.getClientRects().length
+    && !e.closest('[hidden], [inert]') && getComputedStyle(e).visibility !== 'hidden');
+}
+// 車站看板整張重畫(renderBoard 每 20 模擬秒)、整合卡拆掉重建分頁列(mountUniCard)也會換掉聚焦中的那一顆,
+// 焦點掉回頁首。重畫前記下,畫完放回:用 boardFocusSel 的鍵、同鍵的第幾顆(字面對得上優先)找回那一顆
+// (跟車卡是搬出去再搬回來,找到的就是它自己)。暗色看板的方向鈕沒有 id／class／data,鍵改用「父層 class＋標籤」。
+// 同樣只接鍵盤焦點、不捲動;畫的過程裡焦點已經被別人接走就不搶。
+function boardHoldFocus(el) {
+  const a = document.activeElement;
+  if (!el || !a || a === el || !el.contains(a)) return () => {};
+  try { if (!a.matches(':focus-visible')) return () => {}; } catch (e) { return () => {}; }
+  const pc = a.parentElement && a.parentElement.classList[0];
+  const key = boardFocusSel(el) || (pc ? '.' + CSS.escape(pc) + ' > ' + a.tagName.toLowerCase() : null);
+  const nth = key ? [...el.querySelectorAll(key)].indexOf(a) : -1, text = a.textContent;
+  return () => {
+    const cur = document.activeElement;
+    if (cur && cur !== document.body && cur !== a) return;
+    const now = key ? [...el.querySelectorAll(key)] : [];
+    const n = now[nth] && now[nth].textContent === text ? now[nth] : now.find(x => x.textContent === text) || now[nth] || now[0];
+    if (focusShown(n) && n !== document.activeElement) n.focus({ preventScroll: true });
+  };
+}
+// 關面板把鍵盤焦點送回開它的那顆鈕。開函式第一行記下當時焦點在哪(notePanelOpener,在擠掉別張之前);
+// 關函式第一行拿 panelFocusBack、關完才叫:焦點若在面板裡而且是鍵盤焦點(文字欄位不算,觸控聚焦它也會亮)才送。
+// 聚焦的那顆只是被搬走(整合卡的跟車卡搬回原位)就留在它身上;否則回到開它的鈕;那顆鈕已經看不到(收起的觀看設定、
+// 被擠掉的查詢面板裡的列)就退到這張面板固定的入口(桌機、手機各一顆,取看得到的那顆),都看不到就不動。
+const panelOpener = {};
+const PANEL_ENTRY = {
+  favPanel: ['#favBtn', '#tabFav'], ridePanel: ['#rideBtn', '#tabRide'], explorePanel: ['#exploreBtn', '#tabExplore'],
+  searchPanel: ['#tabSearch'], todayPanel: ['#todayBtn', '#tabSearch'],
+  trackPanel: ['.view-rail [aria-controls="view-labels"]', '#viewSettingsBtn', '#trackBtn'],
+  fontPanel: ['.view-rail [aria-controls="view-display"]', '#viewSettingsBtn'],
+  board: ['#trainSearch', '#tabSearch'], busStopPanel: ['#trainSearch', '#tabSearch'],
+  delayHistPanel: ['#followPanel button'], tripPanel: ['#fpTripShare'],
+};
+function notePanelOpener(id) {
+  const p = document.getElementById(id), a = document.activeElement;
+  if (p && !p.hidden && p.contains(a)) return; // 已經開著(換站、重開):沿用原本記下的
+  panelOpener[id] = a && a !== document.body ? a : null;
+}
+function panelFocusBack(id) {
+  const p = document.getElementById(id), a = document.activeElement;
+  if (!p || p.hidden || !a || a === p || !p.contains(a) || a.matches('input, textarea, select')) return () => {};
+  try { if (!a.matches(':focus-visible')) return () => {}; } catch (e) { return () => {}; }
+  return () => {
+    const cur = document.activeElement;
+    if (cur && cur !== document.body && cur !== a) return;
+    const to = [a, panelOpener[id]].find(e => e && !p.contains(e) && focusShown(e))
+      || (PANEL_ENTRY[id] || []).map(s => [...document.querySelectorAll(s)].find(focusShown)).find(Boolean);
+    if (to && to !== document.activeElement) to.focus({ preventScroll: true });
+  };
+}
 // 護照 sheet(Batch B):與桌面 #passport 合併=同一份 builder;收集章→成就(chips)→完乘記錄(全量,最新在前)
 function renderRidePanel() {
   const el = document.getElementById('ridePanel');
@@ -21286,6 +21352,7 @@ function renderRidePanel() {
   };
 }
 function openRidePanel() {
+  notePanelOpener('ridePanel');
   soloPanel('ride');
   closeBoard(); closeFavPanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist();
   document.getElementById('ridePanel').hidden = false;
@@ -21295,10 +21362,12 @@ function openRidePanel() {
   reframeFocus();     // 內容 render 後再量一次:updateSheetOpenClass 那次是在面板還空著時量高度(只讓了該讓的 1/3)
 }
 function closeRidePanel() {
+  const back = panelFocusBack('ridePanel');
   const el = document.getElementById('ridePanel');
   el.hidden = true; el.innerHTML = ''; el.onclick = null;
   updateSheetOpenClass();
   document.getElementById('rideBtn').classList.remove('active');
+  back();
 }
 
 // 車庫只讀護照的既有收藏事實；在地圖上顯示哪款模型並不是收集條件。
@@ -24568,6 +24637,7 @@ function renderExplorePanel() {
   };
 }
 function openExplorePanel() {
+  notePanelOpener('explorePanel');
   soloPanel('explore');
   closeBoard(); closeFavPanel(); closeRidePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist();
   document.getElementById('explorePanel').hidden = false;
@@ -24577,11 +24647,13 @@ function openExplorePanel() {
   reframeFocus();     // 內容 render 後再量一次:updateSheetOpenClass 那次是在面板還空著時量高度(只讓了該讓的 1/3)
 }
 function closeExplorePanel() {
+  const back = panelFocusBack('explorePanel');
   const el = document.getElementById('explorePanel');
   // 只清 #expBody:h3 是固定骨架不重建
   el.hidden = true; const eb = document.getElementById('expBody'); if (eb) eb.innerHTML = ''; el.onclick = null;
   updateSheetOpenClass();
   document.getElementById('exploreBtn').classList.remove('active');
+  back();
 }
 
 // ── 今日台鐵動態:全台鐵當日誤點排行＋每班車逐站歷程(todayBtn 開啟) ──
@@ -24715,6 +24787,7 @@ function renderTodayPanel() {
   reframeFocus();     // 掛在 render 尾端而非開啟點:這面板是非同步載入,載完重畫會改高度,要跟著重新讓位
 }
 function openTodayPanel() {
+  notePanelOpener('todayPanel');
   soloPanel('today');
   closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeDelayHist();
   const el = document.getElementById('todayPanel');
@@ -24746,12 +24819,14 @@ function openTodayPanel() {
   state._todayTimer = setInterval(() => { if (!document.hidden) fetchTodayBoard(); }, 120e3); // 開著每 120 秒刷新,背景分頁跳過
 }
 function closeTodayPanel() {
+  const back = panelFocusBack('todayPanel');
   const el = document.getElementById('todayPanel');
   el.hidden = true; el.innerHTML = ''; el.onclick = null; el.onkeydown = null;
   state._todayOpen = null;
   clearInterval(state._todayTimer); state._todayTimer = null;
   updateSheetOpenClass();
   document.getElementById('todayBtn').classList.remove('active');
+  back();
 }
 
 // ── 跟隨動態事件(停靠/交會/待避) ──
@@ -25092,6 +25167,7 @@ function renderDelayHist() {
 }
 function openDelayHist(tr) {
   if (!PLUS_ENABLED || !tr || tr.sys !== 'tra_sched') return;
+  notePanelOpener('delayHistPanel');
   const no = String(tr.train);
   state._delayHistOpen = no;
   state._delayHistKind = tr.loop ? tr.loopName : (tr.typeName || '');
@@ -25113,9 +25189,11 @@ function openDelayHist(tr) {
 function closeDelayHist() {
   const el = document.getElementById('delayHistPanel');
   if (!el || el.hidden) return;
+  const back = panelFocusBack('delayHistPanel');
   el.hidden = true; el.innerHTML = ''; el.onclick = null;
   state._delayHistOpen = null;
   updateSheetOpenClass();
+  back();
 }
 // 跟車小卡標題。具名列車的前綴(寶可夢)疊在車次正上方的小字,標題列本身跟一般車一樣只排
 // 「● 車次 時速 ×」:手機窄卡擠不下「寶可夢 2183＋時速＋×」,× 會被擠到第二行,停站時速變 0
@@ -29972,6 +30050,7 @@ function discoveryView(points, options) {
     maxZoom: options.maxZoom || 14, bearing: 0, pitch: options.pitch == null ? M.getPitch() : options.pitch });
 }
 function openTrackPanel(view) {
+  notePanelOpener('trackPanel');
   soloPanel('track');
   closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTodayPanel(); closeDelayHist();
   document.getElementById('trackPanel').hidden = false;
@@ -29981,9 +30060,11 @@ function openTrackPanel(view) {
   updateSheetOpenClass();
 }
 function closeTrackPanel() {
+  const back = panelFocusBack('trackPanel');
   document.getElementById('trackPanel').hidden = true;
   document.getElementById('trackBtn').classList.remove('active');
   updateSheetOpenClass();
+  back();
 }
 function syncTrackSeg() {
   document.querySelectorAll('#trackSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === state.trackStyle));
@@ -29993,6 +30074,7 @@ function syncTrackSeg() {
 // (入口只有「更多」那一列),所以不必同步任何 .active 態。
 const FS_TIER_LABEL = { std: '標準', large: '大', xlarge: '特大' };
 function openFontPanel() {
+  notePanelOpener('fontPanel');
   soloPanel('font');
   closeBoard(); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTodayPanel(); closeDelayHist();
   document.getElementById('fontPanel').hidden = false;
@@ -30002,8 +30084,10 @@ function openFontPanel() {
 function closeFontPanel() {
   const el = document.getElementById('fontPanel');
   if (!el || el.hidden) return;
+  const back = panelFocusBack('fontPanel');
   el.hidden = true;
   updateSheetOpenClass();
+  back();
 }
 function syncFontPanel() {
   const user = state.fontScale || 'std';
@@ -30241,14 +30325,17 @@ let busStopPanelToken = 0;
 function closeBusStopPanel() {
   const el = document.getElementById('busStopPanel');
   if (!el) return;
+  const back = panelFocusBack('busStopPanel');
   busStopPanel = null;
   busStopPanelToken += 1;             // 在途的回應回來時認不得這個 token,不會往已關的面板寫
   clearInterval(busStopPanelTimer); busStopPanelTimer = null;
   el.hidden = true; el.innerHTML = ''; el.onclick = null;
   updateSheetOpenClass();
+  back();
 }
 function openBusStopPanel(stop) {
   if (!stop) return;
+  notePanelOpener('busStopPanel');
   soloPanel('busstop');
   closeSearchDrop();
   busStopPanel = { stop, body: null, error: null, fetchedAtMs: null };
@@ -30489,6 +30576,7 @@ function closeSearchDrop() {
 // 查詢 sheet(2026-09-06 兩態):瀏覽態開,不聚焦——使用者自己點輸入框才叫鍵盤(那才是 iOS 允許出鍵盤的手勢)。
 // user:true=使用者自己點 tab/×(Task 5 用它寫開關記憶);自動開、被 soloPanel 擠掉都是 user:false。
 function openSearchPanel({ user = false } = {}) {
+  notePanelOpener('searchPanel');
   soloPanel('search');
   if (user) { try { localStorage.setItem(QUERY_OPEN_KEY, '1'); } catch (e) {} state._queryAutoStation = null; }
   renderQueryLinks();
@@ -30508,10 +30596,12 @@ function closeSearchPanel({ user = false } = {}) {
     if (state._queryAutoStation) { try { localStorage.setItem(QUERY_DISMISS_KEY, state._queryAutoStation); } catch (e) {} } // 自動開之後直接關掉:同站不再自動開
   }
   state._queryAutoStation = null; // 點答案進看板(soloPanel 擠掉)也算離開自動開狀態,之後的手動關不記
+  const back = panelFocusBack('searchPanel');
   el.hidden = true;
   closeSearchDrop();
   const inp = document.getElementById('trainSearch'); if (inp) inp.blur(); // 面板收起鍵盤跟著收
   updateSheetOpenClass(); // 作用中 sheet 不再是它 ⇒ search-open 一併清掉
+  back();
 }
 // 打字態切換。只在使用者聚焦輸入框時進入;離開只有兩條路:關閉面板、或對標題列做抓把手勢(輕點/下拉)。
 // 🔴 不在 blur 離開:blur 先於下拉列的 click,若此時縮回半高,列會在手指底下移位。
@@ -30929,8 +31019,9 @@ function saveLastBoard(st) {
   if (!st || !st.name || !st.sys) return;
   try { localStorage.setItem(LAST_BOARD_KEY, JSON.stringify({ sys: st.sys, name: st.name })); } catch (e) {}
 }
-function openBoard(st) { soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); boardRxOpen.clear(); boardFarePage = null; document.getElementById('board').classList.remove('show-all'); state.boardStation = st; saveLastBoard(st); uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }
+function openBoard(st) { notePanelOpener('board'); soloPanel('board'); closeFavPanel(); closeRidePanel(); closeExplorePanel(); closeTrackPanel(); closeTodayPanel(); closeDelayHist(); closePinCard(); closeNearbyStations(); closeSugarCard(); boardRxOpen.clear(); boardFarePage = null; document.getElementById('board').classList.remove('show-all'); state.boardStation = st; saveLastBoard(st); uniTab = 'station'; uniUncollapseForBoard(); renderBoard(); }
 function closeBoard() {
+  const back = panelFocusBack('board'); // 在搬走跟車卡之前拿:焦點若在卡裡,搬回原位後留在它身上
   unmountUniCard(); // 先把跟車卡搬回家,再清 innerHTML——否則它會跟著被清掉
   busTransferCloseBoard();
   state.boardStation = null;
@@ -30941,6 +31032,7 @@ function closeBoard() {
   el.hidden = true; el.innerHTML = '';
   updateSheetOpenClass();
   syncBusJourneyDock();
+  back();
 }
 
 // ── 整合卡(設計 D1–D3):跟車中開車站看板 ⇒ 同一張卡兩個分頁「這班車 / 這一站」 ──────────
@@ -31006,6 +31098,7 @@ function mountUniCard() {
   if (!uniHome) uniHome = fp.parentElement;
   const h3 = el.querySelector('h3');
   if (!h3) return;
+  const refocus = boardHoldFocus(el); // 分頁列拆掉重建、跟車卡搬出搬進:聚焦中的分頁鈕或卡內的鈕會被換掉／掉焦點
   el.querySelectorAll('.uni-tabs, .uni-slot').forEach(n => n.remove());
   const tabs = document.createElement('div');
   tabs.className = 'uni-tabs';
@@ -31044,6 +31137,7 @@ function mountUniCard() {
     if (typeof reframeFocus === 'function') reframeFocus(); // 分頁換了內容高度就變,讓位要重算
   };
   applyUniTab(el);
+  refocus();
 }
 // 看板每次重繪都會把 innerHTML 換掉(分頁列與槽跟著沒了),所以掛載一律走這個入口。
 function syncUniCard() {
@@ -31773,12 +31867,14 @@ function renderBoard() {
   const el = document.getElementById('board'), st = state.boardStation;
   const preserveScroll = !el.hidden && st && el._stnKey === st.name + '|' + st.sys;
   const scrollTop = el.scrollTop;
+  const refocus = boardHoldFocus(el); // 整張換掉:鍵盤焦點等公車區、夜間看板都畫回來之後才放回
   renderBoardBody();
   window.RailNightBoard?.decorate(el, () => state.simSec, t('下一班'));
   boardAlignColumns(el);
   // 公車區 mount 前短暫變空，重繪會把 scrollTop 夾到較短的高度。
   // 內容與夜間看板都恢復後才還原；換站仍由 renderBoardBody 歸零。
   if (preserveScroll && !el.hidden) el.scrollTop = scrollTop;
+  refocus();
 }
 // 看板列 HTML(依方向分組、空組不畫、組內時間序、各取 perGroup 班)。
 // renderBoardBody(預覽 3／完整全量)與查詢答案區(perGroup 1)共用同一份——答案區的字面必須等於看板同組第一列,
@@ -37639,6 +37735,7 @@ async function shareTrip(tr, destName) {
 function openTripSharePanel() {
   const tr = state.followTrain;
   if (!tr || !tripSysCode(tr.sys)) return;
+  notePanelOpener('tripPanel');
   closeBoard(); // 面板家族共用右上槽，先收車站看板避免疊
   renderTripSharePanel();
   document.getElementById('tripPanel').hidden = false;
@@ -37660,8 +37757,10 @@ function renderTripSharePanel() {
       : `<div class="sub" style="padding:8px 0 4px">${escHtml(t('這班車沒有剩餘停站了（已接近終點），沒辦法再選目的站。'))}</div>`);
 }
 function closeTripSharePanel() {
+  const back = panelFocusBack('tripPanel'); // 列上按 Enter 分享也走這裡:焦點回到跟車卡的「行程分享」
   const el = document.getElementById('tripPanel');
   el.hidden = true; el.innerHTML = '';
+  back();
 }
 // ── 接收端：解碼 ?trip= → 強制 live、自動跟車、顯示行程橫幅(不受 TRIP_SHARE_ENABLED 影響) ──
 function applyTripLink(tp) {
@@ -37866,11 +37965,15 @@ try { if (localStorage.getItem('trainmap-fprail-min') === '1') document.getEleme
 document.getElementById('fpEnd').onclick = (e) => { e.stopPropagation(); setAutoTour(false); clearFollow(); };
 function setFreqCardCompact(on, remember = true) {
   const card = document.getElementById('freqCard');
+  // 鍵盤焦點在卡上時(膠囊本身、或展開卡的 ×),切換後留在卡裡:展開落在 ×、收起落在膠囊。
+  // 以前展開會拿掉膠囊的 tabindex、收起會把 × 藏掉,焦點都掉回頁首。
+  let kbd = false; try { kbd = card.contains(document.activeElement) && document.activeElement.matches(':focus-visible'); } catch (e) {}
   card.classList.toggle('fc-min', on);
   if (on) { card.setAttribute('tabindex', '0'); card.setAttribute('aria-label', t('展開')); }
   else { card.removeAttribute('tabindex'); card.removeAttribute('aria-label'); }
   if (remember) try { localStorage.setItem('trainmap-fc-min', on ? '1' : '0'); } catch (e) {}
   invalidateMapInsets(); if (M) reframeFocus();
+  if (kbd) (on ? card : document.getElementById('fcClose')).focus({ preventScroll: true });
 }
 document.getElementById('fcClose').onclick = e => { e.stopPropagation(); setFreqCardCompact(true); };
 document.getElementById('freqCard').onclick = e => {

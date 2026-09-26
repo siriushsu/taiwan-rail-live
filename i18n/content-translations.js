@@ -3316,6 +3316,13 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 就行': '本日の台湾鉄路・バス停・旅程共有の一覧を、キーボードで1行ずつ移動できるようになり、スクリーンリーダーも各行を読み上げます。Enter キーで、列車の駅ごとの履歴を開いたり目的駅を選んだりできます。',
 });
+// 2026-09-26 鍵盤焦點不再掉回頁首（看板重畫、關面板、行程分享列、捷運膠囊）：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '用鍵盤操作時，車站看板自動更新、關掉面板、在行程分享選好目的站、展開或收起跟捷運時的膠囊小卡之後，選取不再跳回頁首，會留在原處或回到打開面板的按鈕': 'When using the keyboard, your selection no longer jumps back to the top of the page after the station board refreshes, a panel closes, you pick a destination in Journey sharing, or you expand or collapse the pill-sized Metro follow card. It stays where it was, or goes back to the button that opened the panel.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '用鍵盤操作時，車站看板自動更新、關掉面板、在行程分享選好目的站、展開或收起跟捷運時的膠囊小卡之後，選取不再跳回頁首，會留在原處或回到打開面板的按鈕': 'キーボード操作中、駅の発車標が自動更新されたとき、パネルを閉じたとき、旅程共有で目的駅を選んだとき、メトロ追跡中の小さくしたカードを展開・収納したときに、選択位置がページ先頭に戻らなくなりました。元の場所か、パネルを開いたボタンに戻ります。',
+});
 // 2026-09-26 空白鍵全站一致只做播放／暫停、面板內鍵盤焦點框不再被切掉：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '空白鍵在任何地方都是播放／暫停，不會再順便打開資料卡、展開卡片或讓鍵盤選取跳回頁首，按住也只切一次；面板邊緣與標題列按鈕的鍵盤選取框不再被切掉': 'The Space bar now always plays or pauses, wherever you press it: it no longer also opens a data card or expands a card, or sends your keyboard selection back to the top of the page, and holding it down toggles only once. Keyboard focus outlines at panel edges and on title-bar buttons are no longer cut off.',
