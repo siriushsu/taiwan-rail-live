@@ -3309,3 +3309,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '跟車卡的「下一站」遇到較長的站名（例如英文介面的長榮大學、科工館）會換行顯示全名，整張卡不再能左右拖動': '追跡カードの「次の駅」に長い駅名（英語表示の長栄大学や国立科学技術博物館など）が出たときは折り返して全部表示し、カードが左右に動かないようにしました',
 });
+// 2026-09-26 今日台鐵動態、公車站牌、行程分享的列表列接上鍵盤與讀螢幕軟體：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 或空白鍵就行': 'The lists in TRA today, Bus stops and Journey sharing can now be browsed row by row with the keyboard, and screen readers read out each row. Press Enter or Space to open a train’s stop-by-stop history or pick your destination.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 或空白鍵就行': '本日の台湾鉄路・バス停・旅程共有の一覧を、キーボードで1行ずつ移動できるようになり、スクリーンリーダーも各行を読み上げます。Enter キーかスペースキーで、列車の駅ごとの履歴を開いたり目的駅を選んだりできます。',
+});

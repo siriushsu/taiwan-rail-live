@@ -5541,6 +5541,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="boardrowkb0926"><span class="d">9/26</span><span>今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 或空白鍵就行</span></li>
         <li data-cl-of="fpnextwrap0926"><span class="d">9/26</span><span>跟車卡的「下一站」遇到較長的站名（例如英文介面的長榮大學、科工館）會換行顯示全名，整張卡不再能左右拖動</span></li>
         <li data-cl-of="remainingtracks0913"><span class="d">9/26</span><span>台鐵 10/3 起有 14 班調整時刻，3D 地圖裡這些車照樣走原本的股道</span></li>
         <li data-cl-of="subwayfloat0925"><span class="d">9/25</span><span>3D 地圖上臺北車站的臺鐵列車不再畫在車站屋頂上，高捷紅線地下段也不再浮在地面上；新左營臺鐵與高雄輕軌被頂高的地方回到原位</span></li>
@@ -5548,7 +5549,6 @@
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷 10/12 起改用台灣設計展結束後的班表：機場第一航廈到環北的區間加班車停開，南延直達車恢復停高鐵桃園站、開到環北</span></li>
         <li data-cl-of="zuoyingflat0925"><span class="d">9/25</span><span>高鐵左營站進站那段改回平面：3D 地圖不再把站區畫成高架橋，北邊的高架照舊（謝謝網友回報）</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷 10/2（週五）與 10/11（週日）也跟上設計展疏運班表：機場第一航廈到環北的區間加班車每 15 分鐘一班，10/2 開到晚上 10 點、10/11 開到晚上 8 點</span></li>
-        <li data-cl-of="ridekbfocus0925"><span class="d">9/25</span><span>旅程護照用鍵盤往回移動時，被選到的章與按鈕不再被最上方的標題列蓋住</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5843,6 +5843,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="boardrowkb0926"><span class="d">9/26</span><span>今日台鐵動態、公車站牌與行程分享的每一列都能用鍵盤移過去，讀螢幕軟體也會唸出整列；今日動態按 Enter 或空白鍵展開逐站歷程、行程分享選目的站；清單自動更新時，鍵盤停在哪一列就留在那一列；公車站牌切換語言時到站時間立刻跟著換</span></li>
         <li data-cl="kbfocusselect0925"><span class="d">9/25</span><span>用鍵盤往回移動時，我的最愛、台鐵與高鐵車站看板（含跟車時）、軌道與路線、查詢面板選到的項目不再停在標題列底下；英文介面選到長站名時，iPhone 的「接公車」「我上車了」、到站提醒與 Mac Safari 的車站／地標導覽不再能左右拖動</span></li>
         <li data-cl="widgetbg0923"><span class="d">9/23</span><span>桌面小工具新增「背景」設定：台鐵／高鐵發車看板可選車模、場景或素色，捷運看板可選車模或素色；iPhone 與 Android 都有，App 1.6.11 起生效</span></li>
         <li data-cl="railboardrows0923"><span class="d">9/23</span><span>Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班：Samsung 等把小工具格子給得比較高的手機，卡片下方不再空一大截；小、中、大三種尺寸與大字版一起調整</span></li>
@@ -6736,7 +6737,13 @@
 //         University」「Science And Technology Museum」比卡寬還寬，.follow-panel 的 overflow-y:auto 讓整張卡能左右拖：
 //         修前 WebKit 手機 87px、桌面 69px、放空 101px，Chromium 69／54／84px，日文 Chromium 手機 6px。放空三行條維持單行
 //         加省略號。守門人：verify_select_overflow.mjs 加 fpNext 格（兩個引擎，突變改回 nowrap 必須紅）。
-const BUILD = 'v0926d';
+// v0926e：今日台鐵動態、公車站牌、行程分享三張面板的列表列可用鍵盤走到與按下。原本是不能聚焦的 div，鍵盤只走得到 ×
+//         （公車多一個地圖連結），讀螢幕把整份清單唸成一團。今日動態、行程分享的列 tabindex＋role=button＋aria-label，
+//         Enter 按下、空白鍵放開等同點一下（照原生按鈕；按下就觸發的寫法，按住空白鍵會連切 4 次播放）；公車列點了沒動作，
+//         改 role=group 只讓鍵盤走得到、讀螢幕唸得出，滑鼠／觸控點出來的焦點直接放掉。今日動態、公車重畫整份清單時
+//         把鍵盤焦點放回同一列（preventScroll）；公車站牌開著時切語言立刻重畫。修前兩引擎 × 五寬度可聚焦列 0，
+//         修後 30／16／17 列全到。守門人：verify_board_scroll_pad 三張清單面板的 W／E／C／R 格與突變對照（兩個引擎）。
+const BUILD = 'v0926e';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -7128,6 +7135,8 @@ function i18nRefreshDynamic() {
   try { if (typeof renderHelp === 'function' && !document.getElementById('helpModal')?.hidden) renderHelp(); } catch (e) {}
   try { if (typeof renderFavPanel === 'function' && !document.getElementById('favPanel')?.hidden) renderFavPanel(); } catch (e) {}
   try { if (typeof renderTodayPanel === 'function' && !document.getElementById('todayPanel')?.hidden) renderTodayPanel(); } catch (e) {}
+  // 公車站牌:到站時間與每列唸給讀螢幕軟體的名稱都是組出來的字,翻譯樹翻不到,不重畫要等 30 秒重抓才換語言
+  try { if (typeof renderBusStopPanel === 'function' && busStopPanel && !document.getElementById('busStopPanel')?.hidden) renderBusStopPanel(); } catch (e) {}
   try { if (typeof renderDelayHist === 'function' && !document.getElementById('delayHistPanel')?.hidden) renderDelayHist(); } catch (e) {}
   try { if (typeof renderFollowEvents === 'function' && !document.getElementById('trainCard')?.hidden) renderFollowEvents(); } catch (e) {}
   try { if (typeof accountRender === 'function' && !document.getElementById('accountModal')?.hidden) accountRender(); } catch (e) {}
@@ -21073,6 +21082,31 @@ function boardRevealField(ev) {
   });
 }
 for (const bd of document.querySelectorAll('.board')) bd.addEventListener('focusin', boardRevealField);
+// 今日動態、公車站牌、行程分享三張的列表列是 div:掛 tabindex＋role 讓鍵盤走得到,點得動的列 Enter／空白鍵等同點一下。
+// 擋掉冒泡:空白鍵在全站快捷鍵是播放／暫停,焦點在列上時空白鍵就是按這一列,兩件事不能一起發生。
+// 觸發時機跟原生按鈕一樣:Enter 按下就觸發(連發不算),空白鍵放開才觸發。行程分享一按面板就收起、焦點回到頁面,
+// 空白鍵要是按下就觸發,按住不放的連發會全掉進全站快捷鍵、一直切播放;放開才觸發,連發時焦點還在列上、都在這裡接住。
+function boardRowKey(e, sel) {
+  if ((e.key !== 'Enter' && e.key !== ' ') || !e.target.matches || !e.target.matches(sel)) return;
+  e.preventDefault(); e.stopPropagation();
+  if (e.type === 'keyup' ? e.key === ' ' : (e.key === 'Enter' && !e.repeat)) e.target.click();
+}
+// 今日動態(120 秒)與公車站牌(30 秒)自己重抓後、展開一列時都換掉整份 innerHTML,焦點所在那顆跟著被換掉,
+// 鍵盤使用者就被踢回頁首。重畫前記下焦點是哪一顆(id、data-*,都沒有才用 class),畫完放回同一顆、不捲動。
+// 只接鍵盤亮框的焦點(:focus-visible):滑鼠／觸控點列也會讓列拿到焦點,那種不放回,點擊之後的樣子維持原樣。
+function boardFocusSel(el) {
+  const a = document.activeElement;
+  if (!a || a === el || !el.contains(a)) return null;
+  try { if (!a.matches(':focus-visible')) return null; } catch (e) { return null; }
+  if (a.id) return '#' + CSS.escape(a.id);
+  const data = [...a.attributes].filter(x => x.name.startsWith('data-')).map(x => `[${x.name}="${CSS.escape(x.value)}"]`).join('');
+  const cls = [...a.classList].map(c => '.' + CSS.escape(c)).join('');
+  return (data || cls) ? a.tagName.toLowerCase() + (data || cls) : null;
+}
+function boardRefocus(el, sel) {
+  const n = sel && el.querySelector(sel);
+  if (n && n !== document.activeElement) n.focus({ preventScroll: true });
+}
 // 護照 sheet(Batch B):與桌面 #passport 合併=同一份 builder;收集章→成就(chips)→完乘記錄(全量,最新在前)
 function renderRidePanel() {
   const el = document.getElementById('ridePanel');
@@ -24494,7 +24528,11 @@ function todayRow(item) { // 徽章＝目前(最新觀測)誤點;今天峰值已
   const type = traTrainType(no), dm = item.delayMax || 0, dl = item.delay || 0;
   const last = `${stationName(traStnName(item.sta), 'tra_sched')}·${traStatusTxt(item.status)} ${String(item.at).slice(11, 16)}`;
   const past = dm > dl ? `<span class="td-past">${escHtml(t('曾誤點 {n} 分', { n: i18nNumber(dm) }, dm))}</span>` : '';
-  const head = `<div class="row td-row${open ? ' open' : ''}" data-no="${no}">` +
+  // 點列＝展開／收合逐站歷程 ⇒ 是按鈕;讀螢幕唸的名稱用畫面上同一組字,片語之間照語言分隔
+  const said = [t('{train} 次', { train: no }), type ? trainTypeName(type) : '', last,
+    dm > dl ? t('曾誤點 {n} 分', { n: i18nNumber(dm) }, dm) : '', dl >= 1 ? t('誤點 {n} 分', { n: i18nNumber(dl) }, dl) : t('準點')]
+    .filter(Boolean).join(i18nSep(true));
+  const head = `<div class="row td-row${open ? ' open' : ''}" data-no="${no}" tabindex="0" role="button" aria-expanded="${open}" aria-label="${escHtml(said)}">` +
     `<b>${no}</b>` + (type ? `<span class="td-type">${escHtml(trainTypeName(type))}</span>` : '') +
     `<span class="td-last">${escHtml(last)}</span>${past}${todayDelayBadge(dl)}</div>`;
   return head + (open ? `<div class="td-detail">${renderTodayEvents(no)}</div>` : '');
@@ -24546,7 +24584,9 @@ function renderTodayPanel() {
     body = `<div class="sub">${escHtml(t('今日已觀測 {total} 班・誤點≥5分：目前 {current} 班・今天曾有 {peak} 班', { total: i18nNumber(n), current: i18nNumber(c), peak: i18nNumber(m) }, n))}<br><span class="td-hint">${escHtml(t('資料自今晨起累積，每天重新開始'))}</span></div>` +
       sorted.map(todayRow).join('');
   }
+  const fk = boardFocusSel(el);
   el.innerHTML = `<h3>${escHtml(t('今日台鐵動態'))}<button class="close" id="todayClose">×</button></h3>` + body;
+  boardRefocus(el, fk);
   reframeFocus();     // 掛在 render 尾端而非開啟點:這面板是非同步載入,載完重畫會改高度,要跟著重新讓位
 }
 function openTodayPanel() {
@@ -24572,6 +24612,7 @@ function openTodayPanel() {
       renderTodayPanel();
     }
   };
+  el.onkeydown = el.onkeyup = e => boardRowKey(e, '.td-row[data-no]');
   updateSheetOpenClass();
   document.getElementById('todayBtn').classList.add('active');
   renderTodayPanel();                 // 先畫(有舊資料即顯示,否則載入中)
@@ -24581,7 +24622,7 @@ function openTodayPanel() {
 }
 function closeTodayPanel() {
   const el = document.getElementById('todayPanel');
-  el.hidden = true; el.innerHTML = ''; el.onclick = null;
+  el.hidden = true; el.innerHTML = ''; el.onclick = null; el.onkeydown = el.onkeyup = null;
   state._todayOpen = null;
   clearInterval(state._todayTimer); state._todayTimer = null;
   updateSheetOpenClass();
@@ -30138,9 +30179,13 @@ function busStopRowHtml(r) {
   const dirLabel = r.direction === 0 ? t('去程') : r.direction === 1 ? t('返程') : '';
   const kind = busEtaKind(a0 && a0.live);
   const later = a1 && a1.live ? t('再 {eta}', { eta: busEtaText(a1.live) }) : '';
-  return `<div class="bus-eta-row"><span class="bus-eta-no">${escHtml(r.routeName)}</span>` +
+  // 列本身點了沒有動作,只是一格資訊:tabindex 讓鍵盤一列一列走得到(sheet 捲得動才看得到後面的路線),
+  // role=group＋名稱讓讀螢幕一次唸完這一列。data-route 是重畫後把焦點放回同一列的鑰匙(路線＋方向,同 nextTwoByRoute 的分組)
+  const next = a0 ? busEtaText(a0.live) : t('無即時資料');
+  const said = [r.routeName, dirLabel, next, later].filter(Boolean).join(i18nSep(true));
+  return `<div class="bus-eta-row" tabindex="0" role="group" data-route="${escHtml(`${r.routeId}|${r.direction == null ? '' : r.direction}`)}" aria-label="${escHtml(said)}"><span class="bus-eta-no">${escHtml(r.routeName)}</span>` +
     `<span class="bus-eta-to">${escHtml(dirLabel)}</span>` +
-    `<span class="bus-eta-when"><span class="bus-eta-next" data-k="${kind}">${escHtml(a0 ? busEtaText(a0.live) : t('無即時資料'))}</span>` +
+    `<span class="bus-eta-when"><span class="bus-eta-next" data-k="${kind}">${escHtml(next)}</span>` +
     `<span class="bus-eta-later">${escHtml(later)}</span></span></div>`;
 }
 function renderBusStopPanel() {
@@ -30149,6 +30194,7 @@ function renderBusStopPanel() {
   if (!el) return;
   if (!cur) { el.hidden = true; el.innerHTML = ''; updateSheetOpenClass(); return; }
   const stop = cur.stop, body = cur.body;
+  const fk = boardFocusSel(el);        // 每 30 秒重畫一次:鍵盤焦點停在哪一列,畫完放回那一列
   const sub = [stop.cityLabel || stop.city].filter(Boolean).join(' · ');
   let html = `<h3>${escHtml(stop.name)}<span class="sys-chip">${escHtml(t('公車'))}</span>` +
     `<button class="close" id="busStopClose" aria-label="${escHtml(t('關閉'))}">×</button></h3>` +
@@ -30156,7 +30202,7 @@ function renderBusStopPanel() {
   const pos = stop.position || (body && body.stop && body.stop.position);
   if (pos && pos.lat != null && pos.lon != null)
     html += `<a class="mapLink" href="https://www.google.com/maps/search/?api=1&query=${pos.lat},${pos.lon}" target="_blank" rel="noopener">${escHtml(t('在 Google 地圖開啟 ↗'))}</a>`;
-  if (!body && !cur.error) { html += `<p>${escHtml(t('查詢中…'))}</p>`; el.innerHTML = html; el.hidden = false; updateSheetOpenClass(); bindBusStopPanel(el); return; }
+  if (!body && !cur.error) { html += `<p>${escHtml(t('查詢中…'))}</p>`; el.innerHTML = html; boardRefocus(el, fk); el.hidden = false; updateSheetOpenClass(); bindBusStopPanel(el); return; }
   // 新鮮度條:永遠把「這一份是幾點的」寫出來。放久了轉金色並給更新鈕。
   const atMs = busStopDataAtMs(body, cur.fetchedAtMs);
   const ageMs = cur.fetchedAtMs ? Date.now() - cur.fetchedAtMs : null;
@@ -30182,7 +30228,7 @@ function renderBusStopPanel() {
   }
   const srcName = body && body.source && body.source.attribution ? body.source.attribution : '';
   html += `<p class="bus-note">${escHtml(t('實際到站時間請以各公車業者官方資訊為準'))}${srcName ? '　' + escHtml(srcName) : ''}</p>`;
-  el.innerHTML = html; el.hidden = false; updateSheetOpenClass();
+  el.innerHTML = html; boardRefocus(el, fk); el.hidden = false; updateSheetOpenClass();
   bindBusStopPanel(el);
 }
 function bindBusStopPanel(el) {
@@ -30192,6 +30238,14 @@ function bindBusStopPanel(el) {
     if (b) b.onclick = () => { refreshBusStopPanel(); };
   }
 }
+// 公車列點了沒有動作,但有 tabindex:滑鼠／觸控點到時瀏覽器照樣把焦點交給它(當下不亮框),之後按任何鍵(例如空白鍵
+// 暫停)兩個引擎都會替它補亮焦點框,30 秒重畫時 boardFocusSel 也會把它當鍵盤焦點放回去。點出來的焦點直接放掉,
+// 跟改版前一樣回到頁面;鍵盤走進來的、重畫時放回的都算 :focus-visible,照留。
+function busRowDropPointerFocus(e) {
+  const r = e.target;
+  try { if (r.matches && r.matches('.bus-eta-row') && !r.matches(':focus-visible')) r.blur(); } catch (err) {}
+}
+document.getElementById('busStopPanel').addEventListener('focusin', busRowDropPointerFocus);
 const SEARCH_STN_ROWS = 12;
 // 常駐搜尋框的下拉:列車名稱區＋車次區(含數字才出現,置頂)＋車站區＋公車站牌區(非同步後到)。
 // 即時重繪、量小免 debounce(公車那一區例外,它要打網路所以自己 debounce)。
@@ -37471,9 +37525,12 @@ function renderTripSharePanel() {
   el.innerHTML = `<h3>${escHtml(t('行程分享'))}<button class="close" id="tripPanelClose" title="${escHtml(t('關閉'))}">×</button></h3>` +
     `<div class="sub">${escHtml(t('選你的目的站，產生一個「活的」行程連結——對方看得到列車位置與到站時刻，你不用一直回傳定位。'))}</div>` +
     (stops.length
-      ? stops.map(x =>
-          `<div class="row" data-dest="${escHtml(x.s.name)}"><span class="dot" style="background:${tr.color}"></span>` +
-          `<b>${escHtml(stationName(x.s.name, tr.sys))}</b><span class="dest">${escHtml(t('表定 {time} 到', { time: fmtHM(x.s.arrSec % 86400) }))}</span></div>`).join('')
+      ? stops.map(x => {
+          // 點列＝拿這一站當目的站分享 ⇒ 是按鈕(Enter／空白鍵見下面 tripPanel 的 onkeydown)
+          const stn = stationName(x.s.name, tr.sys), arr = t('表定 {time} 到', { time: fmtHM(x.s.arrSec % 86400) });
+          return `<div class="row" data-dest="${escHtml(x.s.name)}" tabindex="0" role="button" aria-label="${escHtml(stn + i18nSep(true) + arr)}"><span class="dot" style="background:${tr.color}"></span>` +
+            `<b>${escHtml(stn)}</b><span class="dest">${escHtml(arr)}</span></div>`;
+        }).join('')
       : `<div class="sub" style="padding:8px 0 4px">${escHtml(t('這班車沒有剩餘停站了（已接近終點），沒辦法再選目的站。'))}</div>`);
 }
 function closeTripSharePanel() {
@@ -37610,6 +37667,7 @@ document.getElementById('tripPanel').onclick = (e) => {
   const row = e.target.closest('.row[data-dest]');
   if (row && state.followTrain) { const d = row.dataset.dest; closeTripSharePanel(); shareTrip(state.followTrain, d); }
 };
+document.getElementById('tripPanel').onkeydown = document.getElementById('tripPanel').onkeyup = e => boardRowKey(e, '.row[data-dest]');
 
 document.getElementById('pp').onclick = togglePlay;
 // 速度軌磁吸:拖到常用檔位(1/10/30/60)±2 內就吸附——取代舊的四顆預設鈕
