@@ -3402,3 +3402,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '公車到站、台鐵月台與災害監看遇到官方來源沒回應時，會在限時內結束等待並於下一輪恢復': '公式データ元から応答がない場合、バス到着情報・台鉄のホーム情報・災害監視は一定時間で待機を終え、次の更新で復旧するようになりました。',
 });
+// 2026-09-27 台鐵站場股道分配改善：第一層更新紀錄那條的 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '改善全台多座車站的台鐵股道安排，減少兩班車停在同一位置，或通過列車穿過停靠列車的畫面': 'Improved TRA track assignments at stations across Taiwan, reducing cases where two trains stop in the same place or a passing train appears to cross through a stopped train.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '改善全台多座車站的台鐵股道安排，減少兩班車停在同一位置，或通過列車穿過停靠列車的畫面': '台湾各地の駅で台鉄列車の番線割り当てを改善し、2本の列車が同じ位置に停車したり、通過列車が停車中の列車を突き抜けて見えたりする場面を減らしました。',
+});

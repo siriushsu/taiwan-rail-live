@@ -35,10 +35,15 @@ import { formationFor } from '../rail-3d/integration/formations.js';
 import { computeProfiles, readPassObs } from './build_run_profiles.mjs';
 
 const SYS = 'tra_sched', OUT_DIR = process.env.OUT_DIR || 'output/stations';
-const PASS_MARGIN = 60, ROUNDS = 12;
+const PASS_MARGIN = 60, ROUNDS = 12, MAX_PAIR_STRETCH = 1.05;
 const net = JSON.parse(fs.readFileSync(process.env.NETWORK || 'rail-3d/physical/network.json', 'utf8'));
 const dispatch = JSON.parse(fs.readFileSync(process.env.DISPATCH || 'rail-3d/physical/dispatch.json', 'utf8'));
 const sched = JSON.parse(fs.readFileSync('data/tra_schedule_dense.json', 'utf8'));
+// remaining-routes fixture 裡的 afterPlans 是逐秒、雙方向與模板借用都驗收過的基準；F2 不能為了總量更低
+// 又把這些具名修復重寫。保護清單直接讀同一份 fixture，避免修復器與 gate 各自維護兩張會漂移的名單。
+const protectedPlans = JSON.parse(fs.readFileSync('scripts/fixtures/remaining-routes-0913.json', 'utf8')).afterPlans;
+const protectedPlanKeys = new Set(Object.keys(protectedPlans));
+const protectedTrainNos = new Set([...protectedPlanKeys].map(key => key.split(':')[1]));
 // 通過站的時刻要用畫面真的會用的那一份：跑剖面＋交會／待避推論（F3）之後的時刻，不是班表密化的插值——
 // 待避推論會刻意把通過車的時刻夾進被超越那班的停站窗裡，用插值時刻會漏掉正是要修的那些衝突。
 // verify_run_profiles_match.mjs 保證這裡算出來的與畫面逐值相同。車次鍵與簽章仍用原始班表（綁定看的是那一份）。
@@ -50,6 +55,31 @@ const { clean } = classify(); const memo = new Map();
 const plans = dispatch.plans;
 const wrongSegments = () => Object.entries(plans).filter(([k]) => k.startsWith(SYS + ':')).reduce((n, [, p]) => n + p.pathIds.filter(pid => paths[pid] && wrongOn(paths[pid], clean).length).length, 0);
 const wrongBefore = wrongSegments();
+
+// F2 只修站內指派，不得順手改變整段站間的里程尺度，也不得把原本沒走非電化股道的車搬進去：
+// * tra_track_sections.maxPathM 取同一站對最長的派車路徑，單一候選若突然拉長很多，會讓所有同站對列車
+//   的跑段剖面一起變長。汐科曾因此把 967m 拉到 1254m，模型衝突雖少，完整重放反而多一筆互穿。
+// * 太麻里藍皮月台是非電化專用；只看「有沒有路」會把一般列車也搬進去，具名回歸會抓到。
+// 站間容許 5% 幾何差異（供月台股道繞行），非電化則採「不新增 way」的保守規則：本來就在柴油支線
+// 上的車仍可沿原有非電化 way 改道，但不能因這次站內修復新踏入另一條非電化股道。
+const basePairMax = new Map();
+for (const [, plan] of Object.entries(plans)) {
+  if (!plan.stopSignature) continue;
+  const sig = JSON.parse(plan.stopSignature);
+  plan.pathIds.forEach((pid, i) => {
+    const p = paths[pid]; if (!p || !sig[i + 1]) return;
+    const key = sig[i][0] + '>' + sig[i + 1][0];
+    basePairMax.set(key, Math.max(basePairMax.get(key) || 0, p.lengthM));
+  });
+}
+const wayById = new Map(net.ways.map(w => [String(w.id), w]));
+const nonElectricCache = new Map();
+function nonElectricWays(pid) {
+  if (nonElectricCache.has(pid)) return nonElectricCache.get(pid);
+  const out = new Set((paths[pid]?.edgeIds || []).map(eid => String(g.edges.get(eid)?.wayId))
+    .filter(wid => wayById.get(wid)?.tags?.electrified === 'no'));
+  nonElectricCache.set(pid, out); return out;
+}
 
 // ── 逐日名冊 ─────────────────────────────────────────────────────────────────────
 const bind = createPlanBinding(dispatch), days = Object.keys(sched.dates).sort();
@@ -70,6 +100,8 @@ for (const day of days) for (const ix of sched.dates[day]) {
   else { current.set(key, b.plan.pathIds.slice()); borrowed.add(key); }          // 借來的：改了才落成
 }
 console.log(`名冊：${trainOf.size} 個車次鍵（借路徑 ${borrowed.size}），${days.length} 天`);
+const initialNonElectric = new Map([...current].map(([key, ids]) => [key,
+  new Set(ids.flatMap(pid => [...nonElectricWays(pid)]))]));
 
 // ── 候選停車節點 ───────────────────────────────────────────────────────────────────
 const poolCache = new Map();
@@ -129,8 +161,8 @@ function materialize(key) {
   plans[key] = { pathIds: ids, departureHolds: holds.map(() => 0), officialDelaySec: 0, holds, stopSignature: physicalStopSignature(t.tr), lengthM: lenOf(t.no) ?? 240 };
   current.set(key, ids); borrowed.delete(key); report.materialised++;
 }
-const report = { params: { PASS_MARGIN, ROUNDS }, rounds: [], moves: [], movesByStation: {}, unfixed: [], materialised: 0 };
-const stats = { 修好: 0, 無替代節點: 0, 無順向路徑: 0, 道岔接不上: 0, 換了不會更好: 0 };
+const report = { params: { PASS_MARGIN, ROUNDS, MAX_PAIR_STRETCH }, rounds: [], moves: [], movesByStation: {}, unfixed: [], materialised: 0 };
+const stats = { 修好: 0, 無替代節點: 0, 無順向路徑: 0, 引入新非電化股道: 0, 拉長站間超過基線: 0, 道岔接不上: 0, 換了不會更好: 0 };
 function localCells(key, i) {
   const t = trainOf.get(key), out = [];
   for (const day of daysOf.get(key) || []) for (const k of [i - 1, i, i + 1]) { const cell = cells.get(day)?.get(t.names[k]); if (cell) out.push(cell); }
@@ -142,10 +174,17 @@ function tryMove(key, i) {
   if (!options.length) { stats.無替代節點++; report.unfixed.push({ key, i, station: st, reason: '無替代節點' }); return false; }
   const prev = i > 0 ? paths[ids[i - 1]].from : null, next = i < last ? paths[ids[i]].to : null, local = localCells(key, i);
   const before = local.reduce((n, c) => n + cellConflicts(c).length, 0);
-  let best = null, routable = 0, turnBlocked = 0;
+  const allowedNonElectric = initialNonElectric.get(key) || new Set();
+  let best = null, routable = 0, turnBlocked = 0, electricBlocked = 0, stretchBlocked = 0;
   for (const m of options) {
     const inR = i > 0 ? cleanRoute(prev, m, paths[ids[i - 1]].lengthM, clean, memo) : null, outR = i < last ? cleanRoute(m, next, paths[ids[i]].lengthM, clean, memo) : null;
     if ((i > 0 && !inR) || (i < last && !outR)) continue;
+    const introduced = [inR?.id, outR?.id].filter(pid => pid !== undefined && pid !== null)
+      .some(pid => [...nonElectricWays(pid)].some(wid => !allowedNonElectric.has(wid)));
+    if (introduced) { electricBlocked++; continue; }
+    const inLimit = i > 0 ? (basePairMax.get(t.names[i - 1] + '>' + st) || paths[ids[i - 1]].lengthM) * MAX_PAIR_STRETCH : Infinity;
+    const outLimit = i < last ? (basePairMax.get(st + '>' + t.names[i + 1]) || paths[ids[i]].lengthM) * MAX_PAIR_STRETCH : Infinity;
+    if ((inR && inR.lengthM > inLimit + 1e-6) || (outR && outR.lengthM > outLimit + 1e-6)) { stretchBlocked++; continue; }
     const ids2 = ids.slice(); if (i > 0) ids2[i - 1] = inR.id; if (i < last) ids2[i] = outR.id;
     // 三個接點：前一站（舊進站段→新進站段）、本站（新進站段→新出站段）、下一站（新出站段→舊出站段）
     if ((i > 1 && !turnOK(ids2[i - 2], ids2[i - 1])) || (i > 0 && i < last && !turnOK(ids2[i - 1], ids2[i])) || (i + 1 < last && !turnOK(ids2[i], ids2[i + 1]))) { turnBlocked++; continue; }
@@ -153,7 +192,10 @@ function tryMove(key, i) {
     const after = local.reduce((n, c) => n + cellConflicts(c, { key, ids: ids2 }).length, 0), lengthM = (inR?.lengthM || 0) + (outR?.lengthM || 0);
     if (after < before && (!best || after < best.after || (after === best.after && lengthM < best.lengthM))) best = { m, ids2, after, lengthM };
   }
-  if (!routable) { const reason = turnBlocked ? '道岔接不上' : '無順向路徑'; stats[reason]++; report.unfixed.push({ key, i, station: st, reason }); return false; }
+  if (!routable) {
+    const reason = electricBlocked ? '引入新非電化股道' : stretchBlocked ? '拉長站間超過基線' : turnBlocked ? '道岔接不上' : '無順向路徑';
+    stats[reason]++; report.unfixed.push({ key, i, station: st, reason }); return false;
+  }
   if (!best) { stats.換了不會更好++; report.unfixed.push({ key, i, station: st, reason: '換了不會更好' }); return false; }
   if (borrowed.has(key)) materialize(key);
   const live = current.get(key); live.length = 0; live.push(...best.ids2);
@@ -167,7 +209,11 @@ let list = allConflicts(); const first = tally(list);
 console.log(`修復前：B ${first.B}、C ${first.C}（14 天合計，去重 ${dedup(list)} 對）`);
 for (let round = 1; round <= ROUNDS; round++) {
   const load = new Map();
-  for (const c of list) for (const s of [c.x, c.y]) { const k = s.key + '@' + s.i; load.set(k, (load.get(k) || 0) + 1); }
+  for (const c of list) for (const s of [c.x, c.y]) {
+    // 同車次的改點版 key 可能不同；若把它 materialize 成 exact，產品就不再走既有的 retimed 保護路徑。
+    if (protectedTrainNos.has(s.key.split(':')[1])) continue;
+    const k = s.key + '@' + s.i; load.set(k, (load.get(k) || 0) + 1);
+  }
   const order = [...load.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
   report.unfixed = [];
   for (const k of order) { const at = k.lastIndexOf('@'); tryMove(k.slice(0, at), +k.slice(at + 1)); }
@@ -178,9 +224,16 @@ for (let round = 1; round <= ROUNDS; round++) {
 }
 const final = tally(list), wrongAfter = wrongSegments();
 assert.ok(wrongAfter <= wrongBefore, `方向變差了 ${wrongBefore} → ${wrongAfter}`);
+for (const [key, plan] of Object.entries(protectedPlans)) assert.deepEqual(plans[key], plan, '重寫已驗收進路 ' + key);
 // 收尾自檢：改過的計畫仍首尾相接、段數正確
 for (const [key, ids] of current) { const t = trainOf.get(key);
   assert.equal(ids.length, t.stops.length - 1, key + ' 段數不對');
+  const allowedNonElectric = initialNonElectric.get(key) || new Set();
+  for (const pid of ids) for (const wid of nonElectricWays(pid)) assert.ok(allowedNonElectric.has(wid), key + ' 引入新的非電化股道 ' + wid);
+  ids.forEach((pid, i) => {
+    const p = paths[pid], limit = basePairMax.get(t.names[i] + '>' + t.names[i + 1]);
+    if (limit) assert.ok(p.lengthM <= limit * MAX_PAIR_STRETCH + 1e-6, `${key} ${t.names[i]}→${t.names[i + 1]} 把站間拉長 ${p.lengthM}/${limit}`);
+  });
   for (let i = 1; i < ids.length; i++) { assert.equal(paths[ids[i - 1]].to, paths[ids[i]].from, key + ' 第 ' + i + ' 段不相接'); assert.ok(turnOK(ids[i - 1], ids[i]), key + ' 第 ' + i + ' 站進出段接不上（道岔不得倒車）'); }
   if (plans[key]) assert.strictEqual(plans[key].pathIds, ids, key + ' 計畫與名冊脫鉤'); }
 const unfixedBy = {}; for (const u of report.unfixed) { const k = u.station.split(':')[1] + '·' + u.reason; unfixedBy[k] = (unfixedBy[k] || 0) + 1; }

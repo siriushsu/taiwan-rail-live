@@ -69,8 +69,8 @@
   },
   "二水|林內": {
    "tracks": 2,
-   "parallelFrac": 0.975,
-   "lengthM": 8179,
+   "parallelFrac": 0.972,
+   "lengthM": 8177,
    "maxPathM": 8171.986,
    "refs": [
     "縱貫線",
@@ -88,9 +88,9 @@
   },
   "二結|宜蘭": {
    "tracks": 2,
-   "parallelFrac": 0.976,
-   "lengthM": 5732,
-   "maxPathM": 5721.66,
+   "parallelFrac": 0.971,
+   "lengthM": 5733,
+   "maxPathM": 5722.178,
    "refs": [
     "宜蘭線"
    ]
@@ -142,7 +142,7 @@
   },
   "三民|瑞穗": {
    "tracks": 2,
-   "parallelFrac": 0.98,
+   "parallelFrac": 0.976,
    "lengthM": 9330,
    "maxPathM": 9325.43,
    "refs": [
@@ -243,9 +243,9 @@
   },
   "三義|銅鑼": {
    "tracks": 2,
-   "parallelFrac": 0.985,
-   "lengthM": 7503,
-   "maxPathM": 7495.377,
+   "parallelFrac": 0.983,
+   "lengthM": 7504,
+   "maxPathM": 7495.836,
    "refs": [
     "縱貫線"
    ]
@@ -397,7 +397,7 @@
   },
   "大湖|路竹": {
    "tracks": 2,
-   "parallelFrac": 0.957,
+   "parallelFrac": 0.923,
    "lengthM": 3026,
    "maxPathM": 3028.689,
    "refs": [
@@ -469,16 +469,16 @@
   },
   "山佳|鶯歌": {
    "tracks": 2,
-   "parallelFrac": 0.924,
-   "lengthM": 4450,
-   "maxPathM": 4418.294,
+   "parallelFrac": 0.923,
+   "lengthM": 4451,
+   "maxPathM": 4418.63,
    "refs": [
     "縱貫線"
    ]
   },
   "中里|二結": {
    "tracks": 2,
-   "parallelFrac": 0.943,
+   "parallelFrac": 0.915,
    "lengthM": 1279,
    "maxPathM": 1277.964,
    "refs": [
@@ -496,7 +496,7 @@
   },
   "中洲|大湖": {
    "tracks": 2,
-   "parallelFrac": 0.94,
+   "parallelFrac": 0.947,
    "lengthM": 2865,
    "maxPathM": 2863.608,
    "refs": [
@@ -581,7 +581,7 @@
    "tracks": 2,
    "parallelFrac": 1,
    "lengthM": 1425,
-   "maxPathM": 1428.547,
+   "maxPathM": 1429.15,
    "refs": [
     "縱貫線"
    ]
@@ -696,7 +696,7 @@
   },
   "斗六|斗南": {
    "tracks": 2,
-   "parallelFrac": 0.934,
+   "parallelFrac": 0.928,
    "lengthM": 7655,
    "maxPathM": 7648.033,
    "refs": [
@@ -714,7 +714,7 @@
   },
   "斗南|石龜": {
    "tracks": 2,
-   "parallelFrac": 0.942,
+   "parallelFrac": 0.934,
    "lengthM": 3913,
    "maxPathM": 3911.061,
    "refs": [
@@ -759,7 +759,7 @@
   },
   "冬山|羅東": {
    "tracks": 2,
-   "parallelFrac": 0.93,
+   "parallelFrac": 0.927,
    "lengthM": 4993,
    "maxPathM": 4986.577,
    "refs": [
@@ -797,9 +797,9 @@
   },
   "北湖|湖口": {
    "tracks": 2,
-   "parallelFrac": 0.933,
+   "parallelFrac": 0.925,
    "lengthM": 2520,
-   "maxPathM": 2512.23,
+   "maxPathM": 2512.862,
    "refs": [
     "縱貫線"
    ]
@@ -972,8 +972,8 @@
   },
   "永樂|蘇澳新": {
    "tracks": 2,
-   "parallelFrac": 0.483,
-   "lengthM": 5063,
+   "parallelFrac": 0.489,
+   "lengthM": 5062,
    "maxPathM": 5053.206,
    "refs": [
     "北迴線"
@@ -1037,7 +1037,7 @@
   "吉安|志學": {
    "tracks": 1,
    "parallelFrac": 0.004,
-   "lengthM": 8973,
+   "lengthM": 8972,
    "maxPathM": 8956.673,
    "refs": [
     "臺東線"
@@ -1045,7 +1045,7 @@
   },
   "吉安|花蓮": {
    "tracks": 1,
-   "parallelFrac": 0.123,
+   "parallelFrac": 0.14,
    "lengthM": 3443,
    "maxPathM": 3437.662,
    "refs": [
@@ -1101,8 +1101,8 @@
   },
   "池上|海端": {
    "tracks": 1,
-   "parallelFrac": 0.046,
-   "lengthM": 5568,
+   "parallelFrac": 0.045,
+   "lengthM": 5569,
    "maxPathM": 5579.736,
    "refs": [
     "臺東線"
@@ -1128,8 +1128,8 @@
   },
   "竹南|談文": {
    "tracks": 2,
-   "parallelFrac": 1,
-   "lengthM": 4442,
+   "parallelFrac": 0.989,
+   "lengthM": 4441,
    "maxPathM": 4427.804,
    "refs": [
     "縱貫線"
@@ -1284,9 +1284,9 @@
   },
   "東澳|永樂": {
    "tracks": 2,
-   "parallelFrac": 0.158,
-   "lengthM": 5960,
-   "maxPathM": 6061.648,
+   "parallelFrac": 0.157,
+   "lengthM": 5977,
+   "maxPathM": 6062.963,
    "refs": [
     "北迴線"
    ],
@@ -1339,9 +1339,9 @@
   },
   "林內|石榴": {
    "tracks": 2,
-   "parallelFrac": 1,
+   "parallelFrac": 0.993,
    "lengthM": 4751,
-   "maxPathM": 4744.771,
+   "maxPathM": 4745.001,
    "refs": [
     "縱貫線"
    ]
@@ -1366,8 +1366,8 @@
   },
   "林鳳營|隆田": {
    "tracks": 2,
-   "parallelFrac": 0.959,
-   "lengthM": 5568,
+   "parallelFrac": 0.963,
+   "lengthM": 5567,
    "maxPathM": 5561.964,
    "refs": [
     "縱貫線"
@@ -1394,8 +1394,8 @@
   },
   "保安|臺南": {
    "tracks": 2,
-   "parallelFrac": 0.985,
-   "lengthM": 7636,
+   "parallelFrac": 0.988,
+   "lengthM": 7637,
    "maxPathM": 7635.574,
    "refs": [
     "縱貫線"
@@ -1466,7 +1466,7 @@
   },
   "南港|松山": {
    "tracks": 2,
-   "parallelFrac": 0.756,
+   "parallelFrac": 0.748,
    "lengthM": 2717,
    "maxPathM": 2694.581,
    "refs": [
@@ -1529,9 +1529,9 @@
   },
   "南澳|東澳": {
    "tracks": 2,
-   "parallelFrac": 0.141,
-   "lengthM": 7888,
-   "maxPathM": 7903.654,
+   "parallelFrac": 0.14,
+   "lengthM": 7897,
+   "maxPathM": 7904.248,
    "refs": [
     "北迴線"
    ],
@@ -1539,8 +1539,8 @@
   },
   "南澳|武塔": {
    "tracks": 2,
-   "parallelFrac": 0.929,
-   "lengthM": 3746,
+   "parallelFrac": 0.92,
+   "lengthM": 3745,
    "maxPathM": 3728.952,
    "refs": [
     "北迴線"
@@ -1839,7 +1839,7 @@
   },
   "新左營|楠梓": {
    "tracks": 2,
-   "parallelFrac": 0.95,
+   "parallelFrac": 0.955,
    "lengthM": 5091,
    "maxPathM": 5097.083,
    "refs": [
@@ -1923,7 +1923,7 @@
   },
   "新豐|竹北": {
    "tracks": 2,
-   "parallelFrac": 0.909,
+   "parallelFrac": 0.908,
    "lengthM": 4794,
    "maxPathM": 4769.449,
    "refs": [
@@ -1932,7 +1932,7 @@
   },
   "新豐|湖口": {
    "tracks": 2,
-   "parallelFrac": 0.943,
+   "parallelFrac": 0.939,
    "lengthM": 6211,
    "maxPathM": 6169.946,
    "refs": [
@@ -2041,7 +2041,7 @@
   "彰化|成功": {
    "tracks": 2,
    "parallelFrac": 0.947,
-   "lengthM": 7192,
+   "lengthM": 7191,
    "maxPathM": 7174.446,
    "refs": [
     "成追線",
