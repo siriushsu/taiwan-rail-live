@@ -143,7 +143,7 @@ if(on('T8')){
  // 右手照計畫前後擺也會離開拉桿。用正式零件庫幾何、畫法模組的真實擺法走完一個步伐週期（64 格）：
  // 腿與鞋的三角形不碰箱子（另把腿往箱子那側多推 0.02 當餘裕）、右手外框中心離拉桿頂（箱子最高點，同 P9 的量法）≤.05、腳掌仍前後擺 ≥.1。
  // 正向對照：同一個偵測器套計畫原本的擺法（箱子 T(−.35,−shoulder.y,0)·Ry(.35)、右腿往後 Ry(.45)）必須抓到相交，證明偵測器分得出穿與不穿。
- {const {gunzipSync}=await import('node:zlib'),{buildGarageParts}=await import('../rail-3d/garage-parts.js'),{personPose}=await import('../rail-3d/garage-people.js');
+ {const {gunzipSync}=await import('node:zlib'),{buildGarageParts}=await import('../rail-3d/garage-parts.js'),{personPose,posePerson}=await import('../rail-3d/garage-people.js');
   const pm=JSON.parse(readFileSync(new URL('../rail-3d/assets/garage-people-v1/people.json',import.meta.url),'utf8')),gz=gunzipSync(readFileSync(new URL('../rail-3d/assets/garage-people-v1/people.bin.gz',import.meta.url)));
   const kit=buildGarageParts(pm,gz.buffer.slice(gz.byteOffset,gz.byteOffset+gz.byteLength));
   const tris=(name,m,shift=0)=>{const a=kit.parts.get(name).geometry.getAttribute('position'),out=[];for(let i=0;i<a.count;i+=3)out.push([0,1,2].map(k=>new THREE.Vector3(a.getX(i+k),a.getY(i+k),a.getZ(i+k)).applyMatrix4(m).add(new THREE.Vector3(shift,0,0))));return out;};
@@ -165,6 +165,7 @@ if(on('T8')){
   // 之前門洞被封板擋住，人在門內任何地方消失都「看不到」。人用外框估：所有髮型、上身、配件、四個步伐相位擺出來的零件外框聯集
   // （乘上大人最大縮放 1.06），外框表面取樣點連到自家門洞外口 7×12 點；正式車模頭車、中間車各 4 扇門（那一側兩扇全開）都要每條線段先碰到車模。
   // 劇本座標換到車模：沿車身往車廂中心＝u、往車內＝v，v 從門扇中心面 |y|=1.466 量（T8 的門面取 1.443，這樣換偏淺 2 cm，偏保守）。
+  // 拉行李箱的人：箱子沿走過的路拖在後面，不一定在外框裡，那一刻的真實箱子外框表面另外取點加進去。
   {const E=new THREE.Box3(),lk=(accessory,hair,torso)=>({torso,hair,accessory,top:'#fff',bottom:'#fff',hairColor:'#fff',skin:'#fff',accent:'#fff',scale:1});
    for(const acc of [null,'backpack','suitcase','handbag','hat'])for(const [hair,torso]of [['short','shirt'],['long','jacket'],['bun','hoodie'],['short','dress']])for(const stride of [0,.0625,.125,.1875,.375,-1]){
     for(const e of personPose({id:'env',walking:stride>=0,stride:Math.max(0,stride),pose:'stand',look:lk(acc,hair,torso)},kit))E.union(kit.parts.get(e.name).geometry.boundingBox.clone().applyMatrix4(e.matrix));}
@@ -184,22 +185,57 @@ if(on('T8')){
     return false;};
    const out=Math.sign(pf.outer-pf.edge),states=new Map();
    for(let n=0;n<10;n++)for(const q of plan.planStop(n,{timetable:tt,doors,platform:pf}).people){if(q.role==='idle')continue;
-    const st=plan.personAt(q,q.role==='board'?q.vanish-1e-6:q.appear),fd=doors.find(d=>d.id===q.door),a=(st.x-fd.x)*fd.inboard,e=(fd.y-st.y)*out;
+    const tq=q.role==='board'?q.vanish-1e-6:q.appear,st=plan.personAt(q,tq),fd=doors.find(d=>d.id===q.door),a=(st.x-fd.x)*fd.inboard,e=(fd.y-st.y)*out,extra=[];
+    if(q.look.accessory==='suitcase'){const cs=posePerson(q,st,tq,st.heading,kit,scale).find(p=>p.name==='acc-suitcase'),B=kit.parts.get('acc-suitcase').geometry.boundingBox.clone().applyMatrix4(cs.matrix),ls=q.look.scale;
+     for(let i=0;i<=3;i++)for(let j=0;j<=3;j++)for(let k=0;k<=3;k++)if(i%3===0||j%3===0||k%3===0)extra.push([(B.min.x+(B.max.x-B.min.x)*i/3)*ls,(B.min.y+(B.max.y-B.min.y)*j/3)*ls,(B.min.z+(B.max.z-B.min.z)*k/3)*ls]);}
     // 人的前方（本地 +X）與左方（本地 +Y）換到門的座標系：u＝沿車身往車廂中心、v＝往車內。
     const c=Math.cos(st.heading),s=Math.sin(st.heading),fwd=[fd.inboard*c,-out*s],left=[-fd.inboard*s,-out*c];
-    const key=[q.role,a,e,...fwd,...left].map(v=>typeof v==='number'?v.toFixed(3):v).join();
-    if(!states.has(key))states.set(key,{role:q.role,id:q.id,a,e,fwd,left});}
+    const key=[q.role,a,e,...fwd,...left,extra.length?q.id:''].map(v=>typeof v==='number'?v.toFixed(3):v).join();
+    if(!states.has(key))states.set(key,{role:q.role,id:q.id,a,e,fwd,left,extra});}
    const seen=[];let cases=0;
    for(const s0 of states.values())for(const {id,dd,T,n}of cars){cases++;const s=dd.side,sig=Math.sign(dd.slide[0]),cx=dd.center[0];
     // 車模 x＝cx+sig·u、y＝s·(1.466−v)。
-    const P=body.map(([x,y,z])=>{const du=x*s0.fwd[0]+y*s0.left[0],dv=x*s0.fwd[1]+y*s0.left[1];return[cx+sig*(s0.a/scale+du),s*(1.466-(s0.e/scale+dv)),.921+z];});
+    const P=[...body,...s0.extra].map(([x,y,z])=>{const du=x*s0.fwd[0]+y*s0.left[0],dv=x*s0.fwd[1]+y*s0.left[1];return[cx+sig*(s0.a/scale+du),s*(1.466-(s0.e/scale+dv)),.921+z];});
     const Q=[];for(let i=0;i<=6;i++)for(let j=0;j<=11;j++)Q.push([cx+.635*(i/6-.5)*.98,s*1.48,.915+2.21*(.02+.96*j/11)]);
     const lo=[0,1,2].map(k=>Math.min(...P.map(p=>p[k]),...Q.map(p=>p[k]))-.01),hi=[0,1,2].map(k=>Math.max(...P.map(p=>p[k]),...Q.map(p=>p[k]))+.01),idx=[];
     for(let t=0;t<n;t++){const o=t*9;let ok=true;for(let k=0;k<3&&ok;k++){const a0=T[o+k],a1=T[o+3+k],a2=T[o+6+k];if(Math.max(a0,a1,a2)<lo[k]||Math.min(a0,a1,a2)>hi[k])ok=false;}if(ok)idx.push(t);}
     const c=[cx,s*1.44,2.02],dist=t=>{let d=0;for(let k=0;k<3;k++){const m=(T[t*9+k]+T[t*9+3+k]+T[t*9+6+k])/3-c[k];d+=m*m;}return d;};idx.sort((x,y)=>dist(x)-dist(y));
     let hit=null;for(const p of P){for(const q of Q)if(!blocked(T,idx,p,q)){hit={p:p.map(v=>+v.toFixed(3)),q:q.map(v=>+v.toFixed(3))};break;}if(hit)break;}
     if(hit)seen.push({role:s0.role,person:s0.id,car:id,door:dd.id,along:+s0.a.toFixed(3),deep:+s0.e.toFixed(3),...hit});}
-   check('T8 上車者消失、下車者出現的那一刻，從自家門洞看不到人（正式車模頭車與中間車 8 扇門，人以所有外型與步伐的外框估）',states.size>0&&seen.length===0,{states:states.size,cases,visible:seen.length,envelope:[E.min,E.max].map(v=>[v.x,v.y,v.z].map(n=>+n.toFixed(3))),first:seen.slice(0,3)});}
+   check('T8 上車者消失、下車者出現的那一刻，從自家門洞看不到人（正式車模頭車與中間車 8 扇門，人以所有外型與步伐的外框估）',states.size>0&&seen.length===0,{states:states.size,cases,visible:seen.length,envelope:[E.min,E.max].map(v=>[v.x,v.y,v.z].map(n=>+n.toFixed(3))),first:seen.slice(0,3)});
+   // 09-26 獨立複驗（帳本 Task 9）：行李箱在門口穿出車殼、轉身時朝向與箱子瞬間跳。用上面同一組車模（8 扇門全開）的車殼，
+   // 以畫面每幀用的同一個 posePerson 逐 0.02 秒擺每位上下車者（判準在 scripts/lib/people_clip.mjs）：零件任何一條邊在門洞以外跨過車殼超過 1 cm 算穿殼。
+   // 30 站：第 23 站才出現第一位往 − 方向下車的拉行李箱乘客，覆蓋率另外具名檢查。
+   {const {skinFields,peopleClip}=await import('./lib/people_clip.mjs'),skins=skinFields(cars),stops=30,dt=.02;
+    const run=(pose,p=plan)=>peopleClip({plan:p,pose,kit,skins,doors,platform:pf,timetable:tt,scale,stops,dt});
+    const real=(q,v,t)=>posePerson(q,v,t,v.heading,kit,scale),r=run(real),miss=[];
+    for(const role of ['alight','board'])for(const acc of ['none','backpack','handbag','hat','suitcase'])for(const g of ['+','-'])if(!(r.groups[role+'/'+acc+'/'+g]?.inCar>0))miss.push(role+'/'+acc+'/'+g);
+    check('T8 上下車的人與配件不穿出車殼（門洞以外；正式車模頭車與中間車 8 扇門、30 站、逐 0.02 秒，超過 1 cm 算穿），每種角色×配件×車門方向都量到',r.bad.length===0&&miss.length===0,{samples:r.samples,bad:r.bad.length,worst:[...r.bad].sort((x,y)=>y.sev-x.sev).slice(0,3),miss});
+    // 對照組：行李箱固定在右後方斜拖（改動前的拉法：不沿路拖、不立起來）、手提包不收到身前，都要抓到穿殼。
+    const rigid=(q,v,t)=>q.look.accessory==='suitcase'?personPose({...v,wheel:undefined,hand:undefined,tuck:0},kit):real(q,v,t),count=(res,acc)=>res.bad.filter(b=>b.acc===acc).length;
+    const c1=run(rigid),c2=run((q,v,t)=>q.look.accessory==='handbag'?personPose({...v,tuck:0},kit):real(q,v,t));
+    check('T8 穿殼判準的對照組：行李箱固定在右後方斜拖（改動前的拉法）、手提包不收到身前，都抓得到穿殼',count(c1,'suitcase')>0&&count(c2,'handbag')>0,{suitcase:count(c1,'suitcase'),handbag:count(c2,'handbag')});
+    // 轉身與行李箱不跳，只算從月台看得到的範圍（people_clip 的 visible）：朝向每 0.02 秒 ≤.35 rad（轉 90° 至少 0.09 秒）；
+    // 行李箱外框各角的位移扣掉人自己轉身與平移能解釋的部分（caseJump）≤ 走路速度 3 倍。箱子被人拖著一起轉不算跳
+    //（月台上短短的橫移會讓箱子跟著身體甩過去，caseStep 約 0.18）；箱子立起來、沿路跟上來都比上限慢（實測 200 站最多 0.054）。
+    // 對照組：朝向在路點瞬間轉（改動前的算法）要超過轉身上限；走到一半換手（箱子瞬間換邊）要超過跳動上限。
+    const jumpMax=3*plan.PEOPLE.walk*dt/scale,raw={...plan,personAt(p,t){const v=plan.personAt(p,t);if(!v)return v;const k=p.keys;let i=0;while(i<k.length-2&&t>=k[i+1].t)i++;
+     const a=k[i],b=k[i+1]??a;return{...v,heading:b.t>a.t&&(b.x!==a.x||b.y!==a.y)?Math.atan2(b.y-a.y,b.x-a.x):a.face};}};
+    const c3=run(real,raw),c4=run((q,v,t)=>posePerson(q,t>(q.appear+q.vanish)/2?{...v,hand:-(v.hand??-1)}:v,t,v.heading,kit,scale));
+    check('T8 轉身不跳（看得到的範圍每 0.02 秒 ≤.35 rad）、行李箱不跳（人轉身與平移解釋不了的位移 ≤ 走路速度 3 倍）；對照組（路點瞬間轉身、走到一半換手）都抓得到',r.turn.step<=.35&&r.caseJump.step<=jumpMax&&c3.turn.step>.35&&c4.caseJump.step>jumpMax,{turn:r.turn,caseJump:r.caseJump,caseStep:r.caseStep,jumpMax:+jumpMax.toFixed(4),control:{turn:+c3.turn.step.toFixed(3),caseJump:+c4.caseJump.step.toFixed(3)}});
+    // 拉行李箱的人沿真實路線（含轉身、門口把箱子立起來）：腳與鞋不穿進箱子（上面的三角形相交，逐 0.02 秒；停著不動時每 0.2 秒）。
+    // 對照組：腿照正常步幅擺（不因箱子太近而縮小），要抓得到相交。
+    const pool=new Map(),place=(name,m,key)=>{const a=kit.parts.get(name).geometry.getAttribute('position');let T=pool.get(key);
+     if(!T){T=[];for(let i=0;i<a.count;i+=3)T.push([new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3()]);pool.set(key,T);}
+     for(let i=0;i<a.count;i+=3)for(let k=0;k<3;k++)T[i/3][k].set(a.getX(i+k),a.getY(i+k),a.getZ(i+k)).applyMatrix4(m);return T;};
+    const pv=kit.parts.get('leg').pivot,legM=new THREE.Matrix4(),legR=new THREE.Matrix4(),t0=Date.now();let samples=0,hit=0,ctl=0,first=null;
+    for(let n=0;n<stops;n++)for(const q of plan.planStop(n,{timetable:tt,doors,platform:pf}).people){if(q.role==='idle'||q.look.accessory!=='suitcase')continue;
+     for(let t=q.appear;t<q.vanish;t+=dt){const v=plan.personAt(q,t);if(!v||(!v.walking&&Math.round((t-q.appear)/dt)%10))continue;samples++;
+      const pose=real(q,v,t),get=(nm,c)=>pose.find(e=>e.name===nm&&e.copy===c).matrix,cs=place('acc-suitcase',get('acc-suitcase',0),'case');
+      if(hits([0,1].flatMap(c=>[...place('leg',get('leg',c),'leg'+c),...place('shoe',get('shoe',c),'shoe'+c)]),cs)){hit++;first??={id:q.id,t:+t.toFixed(2)};}
+      const phi=v.walking?Math.sin(v.stride/(.25*v.look.scale)*Math.PI):0;
+      if(hits([0,1].flatMap(c=>{legM.makeTranslation(pv[0],c?-pv[1]:pv[1],pv[2]).multiply(legR.makeRotationY((c?-1:1)*.45*phi));return[...place('leg',legM,'fl'+c),...place('shoe',legM,'fs'+c)];}),cs))ctl++;}}
+    check('T8 拉行李箱的人沿真實路線（含轉身、門口立起箱子）腳與鞋不穿進箱子；對照組（腿照正常步幅擺）抓得到相交',samples>0&&hit===0&&ctl>0,{samples,hit,first,control:ctl,ms:Date.now()-t0});}}
   kit.dispose();}
 }
 
