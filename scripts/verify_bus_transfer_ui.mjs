@@ -52,6 +52,10 @@ const executable = ui
 check(!/\bsetInterval\s*\(/.test(executable), 'UI 沒有 setInterval 背景輪詢');
 check(!/\bsetTimeout\s*\(/.test(executable), 'UI 沒有 setTimeout 背景輪詢');
 check(!/visibilitychange/.test(executable), 'UI 不會因分頁可見性背景重取');
+check(/new global\.MessageChannel\(\)/.test(ui) && /NEXT_TASK_TOKEN/.test(ui),
+  'ResizeObserver 密度重繪以 MessageChannel 下一 task 排程，並有無 timer 的 postMessage 退路');
+check(/instance\.root\.__btuInstance !== instance/.test(ui),
+  'ResizeObserver 舊 task 執行前會確認 root 仍屬於原 instance');
 check(/\['live', 'ok', 'available'\]\.includes\(source\.state\)/.test(ui),
   'Worker 的 live 狀態不會被誤標成來源降級');
 check(/QUERY_REFRESH_AFTER_SEC = 20/.test(ui), '再次明示展開時以 20 秒為資料刷新界線');

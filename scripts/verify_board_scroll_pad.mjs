@@ -116,6 +116,10 @@ const MIME = {
 // 三張清單面板(今日台鐵動態、公車站牌、行程分享)的假資料:/api 一律回 {} 的話今日動態與公車站牌都是空的,量不到列。
 // 筆數刻意比手機 sheet 放得下的多,往回走才會捲、才考得到標題會不會蓋住列。
 const API_FIX = {
+  '/api/bus-stop-search': () => ({ query: '固定站', total: 2, rows: [
+    { stationUid: 'TPE-KF-1', name: '固定站甲', city: 'Taipei', cityLabel: '臺北市', position: { lat: 25.0478, lon: 121.517 }, routes: ['307', '0東'] },
+    { stationUid: 'TPE-KF-2', name: '固定站乙', city: 'Taipei', cityLabel: '臺北市', position: { lat: 25.05, lon: 121.52 }, routes: ['49'] },
+  ] }),
   '/api/today-board': () => ({ trains: Array.from({ length: 30 }, (_, i) => ({ no: String(101 + i * 11), delay: i % 7, delayMax: (i % 7) + (i % 3),
     sta: '1000', status: i % 3, at: `2026-09-26T09:${String(10 + i).padStart(2, '0')}:00+08:00` })) }),
   '/api/station-events': () => ({ events: Array.from({ length: 6 }, (_, i) => ({ at: `2026-09-26T08:${String(10 + i * 5).padStart(2, '0')}:00+08:00`,
@@ -457,7 +461,10 @@ const KF_KEYLESS = "(pc ? '.' + CSS.escape(pc) + ' > ' + a.tagName.toLowerCase()
 const KF_BACK = 'if (to && to !== document.activeElement) to.focus({ preventScroll: true });';
 const KF_MOVED = '[a, panelOpener[id]]';
 const KF_TEXT = "a.matches('input, textarea, select')";
-const KF_FV = "try { if (!a.matches(':focus-visible')) return () => {}; } catch (e) { return () => {}; }";
+const KF_FV = "if (!byEsc && !a.matches(':focus-visible')) return () => {};";
+const KF_ENTRY = "(PANEL_ENTRY[id] || []).map(s => [...document.querySelectorAll(s)].find(focusShown)).find(Boolean)";
+const KF_BY_ESC = 'const byEsc = boardPanelEscClosing === id;';
+const KF_DROP_CLOSE = 'closeSearchDrop();';
 // O:關面板焦點回到入口。從真入口用鍵盤打開(聚焦＋Enter、打字);入口不是鍵盤走得到的(公車站牌列、誤點履歷連結)
 // 直接叫開函式。焦點放到 × 按 Enter,焦點要落在 expect 裡第一顆看得到的(開它的鈕;它看不到時是面板固定的入口)、亮框。
 const KF_STOP = `{ name: '臺北車站', city: 'Taipei', cityLabel: '臺北市', stationUid: 'TPE0001', position: { lat: 25.0478, lon: 121.517 } }`;
@@ -485,23 +492,23 @@ const O_360 = {
   explorePanel: { name: '今日亮點', steps: [['focus', '#tabExplore'], ['key', 'Enter']], close: '#exploreClose', expect: '#tabExplore' },
   searchPanel: { name: '查詢', steps: [['focus', '#tabSearch'], ['key', 'Enter']], close: '#searchPanelClose', expect: '#tabSearch' },
   // 軌道與路線、字級兩列被搬進「觀看設定」(rail-3d/integration/view-controls.js);按下去觀看設定跟著收起,那一列看不到
-  trackPanel: { name: '軌道與路線', steps: [['focus', '#viewSettingsBtn'], ['key', 'Enter'], ['wait', 200], ['focus', '.view-tab[data-view="labels"]'], ['key', 'Enter'], ['wait', 200], ['focus', '[data-act="track"]'], ['key', 'Enter']], close: '#trackClose', expect: '#viewSettingsBtn' },
-  fontPanel: { name: '字級', steps: [['focus', '#viewSettingsBtn'], ['key', 'Enter'], ['wait', 200], ['focus', '.view-tab[data-view="display"]'], ['key', 'Enter'], ['wait', 200], ['focus', '[data-act="fontscale"]'], ['key', 'Enter']], close: '#fontClose', expect: '#viewSettingsBtn' },
+  trackPanel: { name: '軌道與路線', steps: [['focus', '#viewSettingsBtn'], ['key', 'Enter'], ['wait', 200], ['focus', '.view-tabs .view-tab[data-view="labels"]'], ['key', 'Enter'], ['wait', 200], ['focus', '[data-act="track"]'], ['key', 'Enter']], close: '#trackClose', expect: '#viewSettingsBtn' },
+  fontPanel: { name: '字級', steps: [['focus', '#viewSettingsBtn'], ['key', 'Enter'], ['wait', 200], ['focus', '.view-tabs .view-tab[data-view="display"]'], ['key', 'Enter'], ['wait', 200], ['focus', '[data-act="fontscale"]'], ['key', 'Enter']], close: '#fontClose', expect: '#viewSettingsBtn' },
   todayPanel: { name: '今日動態', steps: [['focus', '#tabSearch'], ['key', 'Enter'], ['wait', 300], ['focus', '.ql-row[data-act="today"]'], ['key', 'Enter']], close: '#todayClose', expect: '#tabSearch' },
   board: { name: '車站看板', steps: KF_SEARCH, close: '#boardClose', expect: '#tabSearch' },
   // 合併卡的入口(跟車中點地圖上的站、我的最愛的站列)都不是鍵盤走得到的,直接叫開函式;打開當下要真的長出分頁列
   // (跟車中從查詢開站會先停止跟車,組不出合併卡)
-  uni: { name: '直式合併卡', panel: 'board', pre: [KF_FOLLOW], steps: [['js', KF_UNI]], must: '#board .uni-tabs', close: '#boardClose', expect: '#tabSearch' },
-  busStopPanel: { name: '公車站牌', steps: [['focus', '#tabSearch'], ['key', 'Enter'], ['wait', 300], ['js', `openBusStopPanel(${KF_STOP})`]], close: '#busStopClose', expect: '#tabSearch' },
-  delayHistPanel: { name: '誤點履歷', pre: [KF_FOLLOW, KF_STATS], steps: [['js', 'openDelayHist(state.followTrain)']], close: '#delayHistClose', expect: '#followPanel button' },
+  uni: { name: '直式合併卡', panel: 'board', pre: [KF_FOLLOW], steps: [['js', KF_UNI]], must: '#board .uni-tabs', skipOpenFocus: true, close: '#boardClose', expect: '#tabSearch' },
+  busStopPanel: { name: '公車站牌', steps: [['focus', '#tabSearch'], ['key', 'Enter'], ['wait', 300], ['focus', '#trainSearch'], ['type', '固定站'], ['wait', 800], ['focus', '#searchDrop .bus-row[role="button"]'], ['key', 'Enter']], close: '#busStopClose', expect: '#tabSearch' },
+  delayHistPanel: { name: '誤點履歷', pre: [KF_FOLLOW, KF_STATS], steps: [['focus', '#followPanel .fp-dhlink[role="button"]'], ['key', 'Enter']], close: '#delayHistClose', expect: '#followPanel .fp-dhlink[role="button"]' },
   tripPanel: { name: '行程分享', pre: [KF_PLUS, KF_FOLLOW], steps: [['focus', '#fpTripShare'], ['key', 'Enter']], close: '#tripPanelClose', expect: '#fpTripShare' },
   // 第 3 件:行程分享列按 Enter 分享,面板收起,焦點回到「行程分享」鈕
-  tripRow: { name: '行程分享列 Enter 分享', how: '列上按 Enter 分享、面板收起', panel: 'tripPanel', pre: [KF_PLUS, KF_FOLLOW, STUB_SHARE], steps: [['focus', '#fpTripShare'], ['key', 'Enter']], close: '#tripPanel .row[data-dest]', expect: '#fpTripShare' },
+  tripRow: { name: '行程分享列 Enter 分享', how: '列上按 Enter 分享、面板收起', panel: 'tripPanel', pre: [KF_PLUS, KF_FOLLOW, STUB_SHARE], steps: [['focus', '#fpTripShare'], ['key', 'Enter']], atOpen: '#tripPanelClose', close: '#tripPanel .row[data-dest]', expect: '#fpTripShare' },
   // 開它的鈕不是面板固定的入口(直接造出來:焦點停在護照鈕上叫開我的最愛)⇒ 回到開它的那顆,不是固定入口
   favFromRide: { name: '我的最愛(從護照鈕開)', how: '焦點停在護照鈕上叫開、× 按 Enter 關', panel: 'favPanel', steps: [['focus', '#tabRide'], ['js', 'openFavPanel()']], close: '#favClose', expect: '#tabRide' },
   // 合併卡「這班車」裡按「行程分享」:開行程分享會先關看板、跟車卡搬回原位,焦點要留在那顆鈕上(不被看板的關閉拉去入口)
   uniTrip: { name: '合併卡裡的行程分享', how: '「這班車」裡按 Enter 打開,焦點留在那顆鈕上(看板收起不把它拉走);× 按 Enter 關', panel: 'tripPanel', pre: [KF_PLUS, KF_FOLLOW], steps: [['js', KF_UNI], ['focus', '#board .uni-tabs [data-t="train"]'], ['key', 'Enter'], ['wait', 200], ['focus', '#fpTripShare'], ['key', 'Enter']],
-    atOpen: '#fpTripShare', close: '#tripPanelClose', expect: '#fpTripShare' },
+    atOpen: '#tripPanelClose', close: '#tripPanelClose', expect: '#fpTripShare' },
 };
 const O_1280 = {
   favPanel: { name: '我的最愛', steps: [['focus', '#favBtn'], ['key', 'Enter']], close: '#favClose', expect: '#favBtn' },
@@ -512,9 +519,9 @@ const O_1280 = {
   trackPanel: { name: '軌道與路線', steps: [['focus', '.view-rail [aria-controls="view-labels"]'], ['key', 'Enter'], ['wait', 200], ['focus', '[data-act="track"]'], ['key', 'Enter']], close: '#trackClose', expect: '.view-rail [aria-controls="view-labels"]' },
   fontPanel: { name: '字級', steps: [['focus', '.view-rail [aria-controls="view-display"]'], ['key', 'Enter'], ['wait', 200], ['focus', '[data-act="fontscale"]'], ['key', 'Enter']], close: '#fontClose', expect: '.view-rail [aria-controls="view-display"]' },
   board: { name: '車站看板', steps: [['focus', '#trainSearch'], ['type', '臺北'], ['key', 'Enter'], ['wait', 300]], close: '#boardClose', expect: '#trainSearch' },
-  busStopPanel: { name: '公車站牌', steps: [['focus', '#trainSearch'], ['js', `openBusStopPanel(${KF_STOP})`]], close: '#busStopClose', expect: '#trainSearch' },
+  busStopPanel: { name: '公車站牌', steps: [['focus', '#trainSearch'], ['type', '固定站'], ['wait', 800], ['focus', '#searchDrop .bus-row[role="button"]'], ['key', 'Enter']], close: '#busStopClose', expect: '#trainSearch' },
 };
-async function closeBack(page, key, flow) {
+async function closeBack(page, key, flow, closeKey = 'Enter', moveToClose = true) {
   await page.evaluate(CLOSE_ALL); await page.evaluate(KF_RESET);
   for (const js of flow.pre || []) await page.evaluate(js);
   await settle(page);
@@ -533,24 +540,43 @@ async function closeBack(page, key, flow) {
   }
   await page.waitForTimeout(150);
   const id = flow.panel || key;
+  const openSel = flow.skipOpenFocus ? null : (flow.atOpen || flow.close);
   const at = await page.evaluate(([id, sel, must]) => { const p = document.getElementById(id), a = document.activeElement;
-    return { opened: !!(p && !p.hidden), atOpen: __bsp.desc(a), atOpenOk: !sel || (!!a && a.matches(sel) && __kf.fv(a)), mustOk: !must || !!document.querySelector(must) }; },
-    [id, flow.atOpen || null, flow.must || null]);
+    return { opened: !!(p && !p.hidden), atOpen: __bsp.desc(a), atOpenOk: !sel || (!!a && a.matches(sel) && __kf.fv(a)),
+      ariaOk: !sel || !(a && a.classList.contains('close')) || !!a.getAttribute('aria-label'), mustOk: !must || !!document.querySelector(must) }; },
+    [id, openSel, flow.must || null]);
   if (!at.opened) return { opened: false, mustOk: at.mustOk };
-  await page.keyboard.press('Shift');
-  const c = await page.evaluate(sel => { const e = [...document.querySelectorAll(sel)].find(__kf.shown); if (e) e.focus(); return !!e; }, flow.close);
-  if (!c) return { opened: true, none: flow.close };
-  await page.keyboard.press('Enter'); await settle(page); await page.waitForTimeout(150);
+  if (moveToClose) {
+    await page.keyboard.press('Shift');
+    const c = await page.evaluate(sel => { const e = [...document.querySelectorAll(sel)].find(__kf.shown); if (e) e.focus(); return !!e; }, flow.close);
+    if (!c) return { opened: true, none: flow.close };
+  }
+  await page.keyboard.press(closeKey); await settle(page); await page.waitForTimeout(150);
   const r = await page.evaluate(([id, want]) => {
     const p = document.getElementById(id), a = document.activeElement, w = [...document.querySelectorAll(want)].find(__kf.shown);
     return { opened: true, closed: !p || p.hidden, on: !!w && a === w, fv: __kf.fv(a), active: __bsp.desc(a), want: w ? __bsp.desc(w) : '(看不到)',
       shared: window.__bspShared ? window.__bspShared.slice() : null };
   }, [id, flow.expect]);
-  return { ...r, atOpen: at.atOpen, atOpenOk: at.atOpenOk, mustOk: at.mustOk };
+  return { ...r, atOpen: at.atOpen, atOpenOk: at.atOpenOk, ariaOk: at.ariaOk, mustOk: at.mustOk };
 }
-const backOk = r => r.opened && r.mustOk && r.closed && r.on && r.fv && r.atOpenOk;
+const backOk = r => r.opened && r.mustOk && r.closed && r.on && r.fv && r.atOpenOk && r.ariaOk;
 const fmtBack = r => r.none ? `找不到看得到的 ${r.none}` : !r.opened ? '沒打開' :
-  `${r.mustOk ? '' : '打開的不是要量的那種(例如合併卡沒長出分頁列)、'}${r.atOpenOk ? '' : `打開時焦點在 ${r.atOpen}、`}關${r.closed ? '了' : '不掉'}、焦點在 ${r.active}${r.fv ? '' : '(沒亮框)'}(該在 ${r.want})`;
+  `${r.mustOk ? '' : '打開的不是要量的那種(例如合併卡沒長出分頁列)、'}${r.atOpenOk ? '' : `打開時焦點在 ${r.atOpen}、`}${r.ariaOk ? '' : 'close 沒有 accessible name、'}關${r.closed ? '了' : '不掉'}、焦點在 ${r.active}${r.fv ? '' : '(沒亮框)'}(該在 ${r.want})`;
+// 從真起點用 Tab 逐拍走到新增入口，不能用 element.focus() 代替「Tab 可到達」。WebKit 的 Option+Tab
+// 才會把一般頁面控件納入鍵盤巡覽；每拍等兩個 rAF，避免下拉／面板重畫時讀到上一顆。
+async function kfTabTo(page, eng, start, target, boundary, max = 50) {
+  await page.keyboard.press('Shift');
+  const found = await page.evaluate(sel => { const e = [...document.querySelectorAll(sel)].find(__kf.shown); if (e) e.focus({ preventScroll: true }); return !!e; }, start);
+  if (!found) return { none: start, steps: -1 };
+  for (let i = 0; i <= max; i++) {
+    const at = await page.evaluate(([sel, boundary]) => { const a = document.activeElement; return {
+      target: !!a && a.matches(sel), inside: !boundary || (!!a && !!a.closest(boundary)), active: __bsp.desc(a) }; }, [target, boundary]);
+    if (at.target) return { steps: i, active: at.active };
+    if (i > 0 && !at.inside) return { steps: -1, left: true, active: at.active };
+    await page.keyboard.press(eng === 'webkit' ? 'Alt+Tab' : 'Tab'); await settle(page);
+  }
+  return { steps: -1, active: await page.evaluate(() => __bsp.desc(document.activeElement)) };
+}
 // V 走一趟:從第一個(fwd)或最後一個(back)可聚焦元素開始按 Tab／Shift+Tab 走到焦點離開面板,最多 max 拍。
 // 焦點被重繪洗回 body 的那輪重走(同 walk),最多三輪。WebKit 的聚焦捲動是非同步的,每拍多等 60ms 再量。
 async function ringWalk(page, eng, id, dir = 'fwd', max = 60) {
@@ -616,6 +642,24 @@ async function listWalk(page, eng, P, key, tag) {
 async function boot(browser, { width, height, tier = 'std', query = '' }) {
   const mobile = width < 1000;
   const ctx = await browser.newContext({ viewport: { width, height }, isMobile: mobile, hasTouch: mobile, locale: 'zh-TW', timezoneId: 'Asia/Taipei' });
+  if (process.env.BSP_TRACE_RO === '1') await ctx.addInitScript(() => {
+    const NativeRO = window.ResizeObserver; if (!NativeRO) return;
+    let seq = 0; window.__bspRoCalls = []; window.__bspRoErrors = [];
+    window.ResizeObserver = class extends NativeRO {
+      constructor(cb) {
+        const id = ++seq, stack = String(new Error(`ResizeObserver#${id}`).stack || '').split('\n').slice(1, 5).join(' | ');
+        super((entries, observer) => {
+          window.__bspRoCalls.push({ id, stack, at: performance.now(), targets: entries.map(e => e.target.id || e.target.className || e.target.tagName).slice(0, 5) });
+          if (window.__bspRoCalls.length > 30) window.__bspRoCalls.shift();
+          return cb(entries, observer);
+        });
+      }
+    };
+    addEventListener('error', e => {
+      if (/ResizeObserver loop completed with undelivered notifications/.test(String(e.message || e.error || '')))
+        window.__bspRoErrors.push({ at: performance.now(), recent: window.__bspRoCalls.slice(-12) });
+    });
+  });
   await ctx.addInitScript(t => {
     try {
       localStorage.setItem('trainmap-howto-seen', '1');
@@ -1361,11 +1405,75 @@ const setShort = (page, on) => page.evaluate(([css, on]) => {
   if (on) { const el = document.createElement('style'); el.id = '__bspShort'; el.textContent = css; document.head.appendChild(el); }
 }, [SHORT_CARD, on]);
 
+// 公車卡的密度 RO 工作會排到 MessageChannel 的下一 task。可控 channel 刻意延後 flush，
+// 重現「舊 instance 還有 job，同一 connected root 已 mount 新站」；舊 job 不得覆掉新 DOM。
+async function busTransferSchedulerOwnership(browser, P) {
+  const page = await browser.newPage({ viewport: { width: 720, height: 640 } });
+  const errors = [];
+  page.on('pageerror', error => errors.push(String(error)));
+  try {
+    await page.goto('about:blank');
+    await page.evaluate(() => {
+      window.__btuFakeChannels = [];
+      class FakeMessageChannel {
+        constructor() {
+          this.posts = 0;
+          this.port1 = { onmessage: null };
+          this.port2 = { postMessage: () => { this.posts++; } };
+          window.__btuFakeChannels.push(this);
+        }
+      }
+      Object.defineProperty(window, 'MessageChannel', { configurable: true, writable: true, value: FakeMessageChannel });
+    });
+    await page.addScriptTag({ path: path.join(ROOT, 'bus-transfer-ui.js') });
+    await page.evaluate(() => {
+      const root = document.createElement('section');
+      root.id = '__btuSchedulerRoot';
+      root.style.cssText = 'display:block;width:500px';
+      document.body.appendChild(root);
+      window.__btuOldInstance = window.BusTransferUI.mount({
+        root, stationId: 'RI:OLD', stationName: '舊站', phase: 'planning', viewKey: 'RI:OLD|scheduler',
+      });
+    });
+    await page.waitForFunction(() => window.__btuOldInstance?.densityPending && window.__btuFakeChannels[0]?.posts >= 1);
+    await page.evaluate(() => window.__btuFakeChannels[0].port1.onmessage({ data: 0 }));
+    await page.evaluate(() => { document.getElementById('__btuSchedulerRoot').style.width = '200px'; });
+    await page.waitForFunction(() => window.__btuOldInstance?.densityPending && window.__btuFakeChannels[0]?.posts >= 2);
+    const result = await page.evaluate(() => {
+      const root = document.getElementById('__btuSchedulerRoot'), old = window.__btuOldInstance;
+      window.BusTransferUI.unmount(root);
+      const fresh = window.BusTransferUI.mount({
+        root, stationId: 'RI:NEW', stationName: '新站', phase: 'planning', viewKey: 'RI:NEW|scheduler',
+      });
+      const before = root.textContent;
+      window.__btuFakeChannels[0].port1.onmessage({ data: 0 });
+      return {
+        beforeNew: before.includes('新站') && !before.includes('舊站'),
+        current: root.__btuInstance === fresh && root.__btuInstance?.stationId === 'RI:NEW',
+        afterNew: root.textContent.includes('新站') && !root.textContent.includes('舊站'),
+        oldPending: old.densityPending,
+        posts: window.__btuFakeChannels[0].posts,
+      };
+    });
+    ok(P('B 公車密度舊 MessageChannel job 不覆蓋同 root 的新 instance'),
+      result.beforeNew && result.current && result.afterNew && !result.oldPending && result.posts >= 2 && errors.length === 0,
+      `${JSON.stringify(result)}${errors.length ? ` pageerror=${errors.join(' | ')}` : ''}`);
+  } finally { await page.close(); }
+}
+
 let t0Done = false;
+const focusOnly = process.env.BSP_FOCUS_ONLY === '1';
+const schedulerOnly = process.env.BSP_SCHEDULER_ONLY === '1';
+const focusOnlyEng = process.env.BSP_FOCUS_ENG || '';
+const focusOnlyWidth = Number(process.env.BSP_FOCUS_WIDTH || 0);
 for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
+  if (focusOnly && focusOnlyEng && eng !== focusOnlyEng) continue;
   const browser = await bt.launch({ headless: true });
   const P = s => `${eng} ${s}`;
+  await busTransferSchedulerOwnership(browser, P);
+  if (schedulerOnly) { await browser.close(); continue; }
 
+  if (!focusOnly) {
   // ── 360×780 直式標準字級 ─────────────────────────────────────────────────
   {
     const { ctx, page, errors } = await boot(browser, { width: 360, height: 780 });
@@ -1912,21 +2020,29 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
     ok(P('App 360 全程零 pageerror'), errors.length === 0, errors.slice(0, 2).join(' | '));
     await ctx.close();
   }
+  }
 
   // ── 2026-09-26 鍵盤焦點四件(v0926i):看板重畫、關面板不把鍵盤焦點丟回頁首(見檔頭 R／O／C 那段) ───────────
   for (const [w, h] of [[360, 780], [1280, 800]]) {
+    if (focusOnly && focusOnlyWidth && w !== focusOnlyWidth) continue;
     const { ctx, page, errors } = await boot(browser, { width: w, height: h });
     const V = String(w), mobile = w < 1000;
+    let focusMark = 'boot', focusErrorMarks = [];
+    page.on('pageerror', e => focusErrorMarks.push({ at: focusMark, message: String(e).slice(0, 200) }));
     await page.waitForFunction(() => !!document.getElementById('viewDock'), null, { timeout: 30000 }).catch(() => {});
     await page.evaluate(KF_HELP);
     await page.evaluate(() => { if (state.playing) togglePlay(); });   // 暫停:只量主動呼叫的那一次重畫,每 20 模擬秒的自動重畫不混進來
     for (const theme of ['light', 'dark']) {
+      focusMark = `重畫:${theme}:appearance`;
       const TH = theme === 'dark' ? '暗色' : '亮色', night = theme === 'dark' ? ['night-directions', 'night-next'] : [];
       await page.evaluate(th => state._setAppearance(th), theme);   // 設定面板「外觀」的真入口
+      focusMark = `重畫:${theme}:openBoard`;
       if (!(await open(page, 'board'))) { ok(P(`R ${V} ${TH}臺北看板打得開`), false); continue; }
+      focusMark = `重畫:${theme}:hold-renderBoard`;
       const rb = await holdEach(page, 'renderBoard');
       ok(P(`R ${V} ${TH}臺北看板:焦點停在每一顆可聚焦元素上重畫(renderBoard),焦點回到同一顆、亮框、捲動不動`), kfOk(rb, ['h3', ...night]), fmtKf(rb));
       if (theme === 'light') {
+        focusMark = `重畫:${theme}:mutation-renderBoard`;
         const m = await mutFn(page, 'renderBoard', KF_HOLD, 'const refocus = () => {};');
         ok(P(`N ${V} 突變目標那一行還在 renderBoard 裡`), m);
         if (m) {
@@ -1934,6 +2050,7 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
           ok(P(`N ${V} 突變:renderBoard 重畫後不放回焦點 ⇒ 每一顆都掉(R 量得到紅)`), rm.total > 0 && rm.kept === 0, fmtKf(rm));
         }
       } else {
+        focusMark = `重畫:${theme}:mutation-boardHoldFocus`;
         const m = await mutFn(page, 'boardHoldFocus', KF_KEYLESS, 'null');
         ok(P(`N ${V} 突變目標那一段還在 boardHoldFocus 裡(沒有 id／class／data 的鈕用父層 class 當鍵)`), m);
         if (m) {
@@ -1944,14 +2061,18 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
       }
       if (!mobile) continue;
       // 直式合併卡:跟車中開看板,標題下有分頁列;「這班車」那一頁是搬進來的跟車卡
+      focusMark = `重畫:${theme}:openUni`;
       if (!(await open(page, 'uni'))) { ok(P(`R ${V} ${TH}直式合併卡打得開`), false); continue; }
+      focusMark = `重畫:${theme}:uni-tab-station`;
       const t0 = await uniTabEnter(page, 'station');
       ok(P(`R ${V} ${TH}合併卡:「這一站」分頁鈕按 Enter,焦點留在新的那顆分頁鈕上(已選、亮框)`), tabOk(t0), fmtTab(t0));
       for (const call of ['renderBoard', 'mountUniCard']) {
+        focusMark = `重畫:${theme}:uni-station-${call}`;
         const r = await holdEach(page, call);
         ok(P(`R ${V} ${TH}合併卡「這一站」:焦點停在每一顆上 ${call}(),焦點回到同一顆、亮框、捲動不動`), kfOk(r, ['h3', 'uni-tabs', ...night]), fmtKf(r));
       }
       if (theme === 'dark') continue;
+      focusMark = `重畫:${theme}:mutation-mountUniCard`;
       const m = await mutFn(page, 'mountUniCard', KF_HOLD, 'const refocus = () => {};');
       ok(P(`N ${V} 突變目標那一行還在 mountUniCard 裡`), m);
       if (m) {
@@ -1960,22 +2081,212 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
         await unmutFn(page, 'mountUniCard');
         ok(P(`N ${V} 突變:mountUniCard 重建分頁列後不放回焦點 ⇒ 分頁鈕那區紅、分頁按 Enter 焦點掉(R 量得到紅)`), kfRedAt(rm, 'uni-tabs') && !tabOk(tm), `${fmtKf(rm)}；分頁 Enter:${fmtTab(tm)}`);
       }
+      focusMark = `重畫:${theme}:uni-tab-train`;
       const t1 = await uniTabEnter(page, 'train');
       ok(P(`R ${V} ${TH}合併卡:「這班車」分頁鈕按 Enter,焦點留在新的那顆分頁鈕上(已選、亮框)`), tabOk(t1), fmtTab(t1));
       for (const call of ['renderBoard', 'mountUniCard']) {
+        focusMark = `重畫:${theme}:uni-train-${call}`;
         const r = await holdEach(page, call, 40);
         ok(P(`R ${V} ${TH}合併卡「這班車」:焦點停在每一顆上 ${call}(),焦點回到同一顆(跟車卡搬出去再搬回來)、亮框、捲動不動`), kfOk(r, ['uni-tabs', 'uni-slot']), fmtKf(r));
       }
+      focusMark = `重畫:${theme}:uni-tab-back-station`;
       const t2 = await uniTabEnter(page, 'station');
       ok(P(`R ${V} ${TH}合併卡:切回「這一站」,焦點留在分頁鈕上(已選、亮框)`), tabOk(t2), fmtTab(t2));
     }
     await page.evaluate(() => state._setAppearance('light'));
     const flows = mobile ? O_360 : O_1280;
     for (const [key, flow] of Object.entries(flows)) {
+      focusMark = `Enter關閉:${key}`;
       const r = await closeBack(page, key, flow);
       const shared = key !== 'tripRow' || (!!r.shared && r.shared.length === 1);
       const how = flow.how || (flow.steps.some(([op]) => op === 'js') ? '入口不是鍵盤走得到的、叫開函式打開,× 按 Enter 關' : '鍵盤打開、× 按 Enter 關');
       ok(P(`O ${V} ${flow.name}:${how},焦點回到 ${flow.expect}(亮框)`), backOk(r) && shared, fmtBack(r) + (key === 'tripRow' ? `、分享了 ${JSON.stringify(r.shared)}` : ''));
+    }
+    // 2.1 剩餘焦點：鍵盤開啟時落在有 accessible name 的 close，直接按 Esc 也走同一條退路。
+    // 直式合併卡那格是測試直接叫 openBoard()，不是鍵盤入口，故只在上面的 Enter 關閉格量既有退路。
+    for (const [key, flow] of Object.entries(flows).filter(([, f]) => !f.skipOpenFocus)) {
+      focusMark = `Esc關閉:${key}`;
+      const r = await closeBack(page, key, flow, 'Escape', false);
+      ok(P(`E ${V} ${flow.name}:鍵盤打開焦點落在 close(有名稱),Esc 關閉並回 ${flow.expect}`), backOk(r), fmtBack(r));
+    }
+
+    // Esc 的層級：面板內的暫態層先收，下一發才收整張。ridePanel 的 helpPop handler 比共用 handler 晚註冊，
+    // searchDrop 又會跟著 bus-row hidden；兩種都在這裡用真鍵盤釘住順序與焦點。
+    const rideEsc = async () => {
+      await page.evaluate(CLOSE_ALL); await page.evaluate(KF_RESET);
+      const openSel = mobile ? '#tabRide' : '#rideBtn';
+      await page.keyboard.press('Shift'); await page.evaluate(sel => document.querySelector(sel).focus(), openSel); await page.keyboard.press('Enter'); await settle(page);
+      await page.keyboard.press('Shift');
+      const has = await page.evaluate(() => { const e = document.querySelector('#ridePanel [data-ach]'); if (e) e.focus(); return !!e; });
+      await settle(page);
+      const before = await page.evaluate(() => !!state._helpPopFor && !document.getElementById('helpPop').hidden);
+      await page.keyboard.press('Escape'); await settle(page);
+      const one = await page.evaluate(() => ({ panel: !document.getElementById('ridePanel').hidden, pop: !state._helpPopFor && document.getElementById('helpPop').hidden }));
+      await page.keyboard.press('Escape'); await settle(page);
+      const two = await page.evaluate(sel => ({ closed: document.getElementById('ridePanel').hidden, back: document.activeElement && document.activeElement.matches(sel), fv: __kf.fv(document.activeElement) }), openSel);
+      return { has, before, one, two };
+    };
+    focusMark = 'Esc層級:rideHelp';
+    const re = await rideEsc();
+    ok(P(`E ${V} 護照成就說明:第一發 Esc 只收說明、第二發收面板並回入口`), re.has && re.before && re.one.panel && re.one.pop && re.two.closed && re.two.back && re.two.fv, JSON.stringify(re));
+
+    if (mobile) {
+      // aria-modal 高層未必會立刻搬焦點（Plus／懸賞板皆如此）；第一發要留給 modal 自己的
+      // document Escape handler，不能被先註冊的 .board handler 收掉底層並 stopImmediate。
+      const modalEscStack = async kind => {
+        await page.evaluate(CLOSE_ALL); await page.evaluate(KF_RESET);
+        const panel = kind === 'plus' ? 'board' : 'ridePanel', closeSel = kind === 'plus' ? '#boardClose' : '#rideClose';
+        const opened = await open(page, panel);
+        await page.keyboard.press('Shift');
+        const focused = await page.evaluate(sel => { const e = document.querySelector(sel); if (e) e.focus(); return document.activeElement === e; }, closeSel);
+        if (kind === 'plus') await page.evaluate(() => plusOpen('kbd-focus-gate'));
+        else await page.evaluate(async () => {
+          const orig = fetchBountyBoard;
+          window.fetchBountyBoard = async () => ({ cards: [], demo: true });
+          try { await openBountyBoard(); } finally { window.fetchBountyBoard = orig; }
+        });
+        await settle(page);
+        const modalId = kind === 'plus' ? 'plusModal' : 'bountyModal';
+        const before = await page.evaluate(([modalId, panel, closeSel]) => ({ modal: !document.getElementById(modalId).hidden,
+          panel: !document.getElementById(panel).hidden, focus: document.activeElement && document.activeElement.matches(closeSel),
+          generic: boardModalLayerOpen() }), [modalId, panel, closeSel]);
+        await page.keyboard.press('Escape'); await settle(page);
+        const one = await page.evaluate(([modalId, panel, closeSel]) => ({ modalClosed: document.getElementById(modalId).hidden,
+          panelOpen: !document.getElementById(panel).hidden, focus: document.activeElement && document.activeElement.matches(closeSel) }), [modalId, panel, closeSel]);
+        await page.keyboard.press('Escape'); await settle(page);
+        const two = await page.evaluate(panel => ({ panelClosed: document.getElementById(panel).hidden }), panel);
+        return { opened, focused, before, one, two };
+      };
+      for (const [kind, label] of [['plus', 'Plus modal／車站看板'], ['bounty', '懸賞板 modal／旅程護照']]) {
+        focusMark = `Esc層級:modal:${kind}`;
+        const mr = await modalEscStack(kind);
+        ok(P(`E ${V} ${label}:第一發只收 aria-modal 高層，第二發才收底層 board`),
+          mr.opened && mr.focused && mr.before.modal && mr.before.panel && mr.before.focus && mr.before.generic
+            && mr.one.modalClosed && mr.one.panelOpen && mr.one.focus && mr.two.panelClosed,
+          JSON.stringify(mr));
+      }
+    }
+
+    // searchDrop 在手機位於 searchPanel 裡、桌面則掛在 header；兩種版面都必須由下拉自己接住
+    // 公車列上的 Esc，先把焦點交回輸入框再收掉結果。用真 Tab 走到列，避免只驗程式化 focus。
+    const busRowEsc = async () => {
+      await page.evaluate(CLOSE_ALL); await page.evaluate(KF_RESET);
+      if (mobile) {
+        await page.keyboard.press('Shift');
+        await page.evaluate(() => document.getElementById('tabSearch').focus());
+        await page.keyboard.press('Enter'); await settle(page);
+      }
+      await page.keyboard.press('Shift');
+      await page.evaluate(() => { const i = document.getElementById('trainSearch'); i.value = ''; i.focus(); });
+      await page.keyboard.type('固定站', { delay: 20 });
+      await page.waitForSelector('#searchDrop .bus-row', { state: 'visible', timeout: 5000 });
+      await settle(page);
+      const tab = await kfTabTo(page, eng, '#searchClear', '#searchDrop .bus-row[role="button"]', '#searchDrop');
+      const before = await page.evaluate(() => ({ row: document.activeElement && document.activeElement.matches('#searchDrop .bus-row'),
+        role: document.activeElement && document.activeElement.getAttribute('role'), aria: document.activeElement && document.activeElement.getAttribute('aria-label') }));
+      await page.keyboard.press('Escape'); await settle(page);
+      const after = await page.evaluate(() => ({ panel: !document.getElementById('searchPanel').hidden,
+        drop: document.getElementById('searchDrop').hidden, input: document.activeElement === document.getElementById('trainSearch'),
+        active: __bsp.desc(document.activeElement) }));
+      return { tab, before, after };
+    };
+    focusMark = 'Esc層級:busRow';
+    const br = await busRowEsc();
+    ok(P(`T ${V} 公車搜尋列:Tab 可達、有名稱；Esc 收下拉並回 input${mobile ? '，可再關 panel' : '（桌面 header）'}`),
+      br.tab.steps >= 0 && br.before.row && br.before.role === 'button' && !!br.before.aria && br.after.drop && br.after.input && (!mobile || br.after.panel),
+      `Tab ${br.tab.steps} 步；${JSON.stringify(br)}`);
+    if (!mobile && eng === 'chromium') {
+      focusMark = 'mutation:searchDropEscape';
+      const m = await mutFn(page, 'searchDropKeydown', KF_DROP_CLOSE, '');
+      ok(P(`N ${V} 突變目標那一行還在 searchDropKeydown 裡(Esc 收下拉)`), m);
+      if (m) {
+        const bm = await busRowEsc(); await unmutFn(page, 'searchDropKeydown');
+        ok(P(`N ${V} 突變:公車列 Esc 不 closeSearchDrop ⇒ 下拉仍開著(T 量得到紅)`), bm.before.row && !bm.after.drop,
+          JSON.stringify(bm));
+      }
+    }
+
+    if (mobile) {
+      focusMark = 'Esc層級:searchInput';
+      // search input：focus 會打開下拉；第一發只收下拉且留在 input，第二發收 panel 回 tab。
+      await page.evaluate(CLOSE_ALL); await page.evaluate(KF_RESET);
+      await page.keyboard.press('Shift'); await page.evaluate(() => document.getElementById('tabSearch').focus()); await page.keyboard.press('Enter'); await settle(page);
+      await page.keyboard.press('Shift'); await page.evaluate(() => document.getElementById('trainSearch').focus()); await settle(page);
+      const sd0 = await page.evaluate(() => !document.getElementById('searchDrop').hidden);
+      await page.keyboard.press('Escape'); await settle(page);
+      const sd1 = await page.evaluate(() => ({ panel: !document.getElementById('searchPanel').hidden, drop: document.getElementById('searchDrop').hidden, input: document.activeElement === document.getElementById('trainSearch') }));
+      await page.keyboard.press('Escape'); await settle(page);
+      const sd2 = await page.evaluate(() => ({ panel: document.getElementById('searchPanel').hidden, tab: document.activeElement === document.getElementById('tabSearch'), fv: __kf.fv(document.activeElement) }));
+      ok(P(`E ${V} 查詢 input:第一發 Esc 只收下拉,第二發收面板並回查詢 tab`), sd0 && sd1.panel && sd1.drop && sd1.input && sd2.panel && sd2.tab && sd2.fv, JSON.stringify({ sd1, sd2 }));
+
+      // bus-row 的第一發已由上方共用格驗過；焦點此刻在 input，第二發仍須能由 .board 關整張。
+      const brAgain = await busRowEsc();
+      await page.keyboard.press('Escape'); await settle(page);
+      const br2 = await page.evaluate(() => ({ panel: document.getElementById('searchPanel').hidden, tab: document.activeElement === document.getElementById('tabSearch'), fv: __kf.fv(document.activeElement) }));
+      ok(P(`T ${V} 公車搜尋列:第二發 Esc 關 panel 並回查詢 tab`), brAgain.after.drop && brAgain.after.input && br2.panel && br2.tab && br2.fv,
+        JSON.stringify({ first: brAgain.after, second: br2 }));
+
+      // 最愛車站列：從 close 用 Tab 走到列，Enter 真的開站看板並把焦點帶到新 close。
+      focusMark = '可鍵盤入口:favStation';
+      await page.evaluate(CLOSE_ALL); await page.evaluate(KF_RESET);
+      await page.evaluate(() => userDataSaveCollection('stations', [{ name: '臺北', lat: 25.0478, lon: 121.517, sys: 'tra_sched', group: 'all', label: '台鐵' }]));
+      await page.keyboard.press('Shift'); await page.evaluate(() => document.getElementById('tabFav').focus()); await page.keyboard.press('Enter'); await settle(page);
+      const fs = await kfTabTo(page, eng, '#favClose', '#favPanel .fvst-go[data-stkey]', '#favPanel');
+      await page.keyboard.press('Enter'); await settle(page);
+      const fa = await page.evaluate(() => ({ board: !document.getElementById('board').hidden, close: document.activeElement && document.activeElement.matches('#boardClose'), fv: __kf.fv(document.activeElement) }));
+      ok(P(`T ${V} 最愛車站列:Tab 可達,Enter 開看板並聚焦 close`), fs.steps >= 0 && fa.board && fa.close && fa.fv, `Tab ${fs.steps} 步；${JSON.stringify(fa)}`);
+
+      // 新 DOM 不可回到「role=button 的外列包住真正移除 button」；兩個 sibling 都用真觸控點一次。
+      focusMark = 'touch:favSibling';
+      await page.evaluate(CLOSE_ALL); await page.evaluate(KF_RESET);
+      await page.evaluate(() => userDataSaveCollection('stations', [
+        { name: '臺北', lat: 25.0478, lon: 121.517, sys: 'tra_sched', group: 'all', label: '台鐵' },
+        { name: '板橋', lat: 25.0143, lon: 121.4637, sys: 'tra_sched', group: 'all', label: '台鐵' },
+      ]));
+      await page.tap('#tabFav'); await settle(page);
+      const fvDom = await page.evaluate(() => {
+        const row = document.querySelector('#favPanel .row.fvst'), go = row && row.querySelector(':scope > .fvst-go'), rm = row && row.querySelector(':scope > .rm');
+        return { row: !!row, rowRole: row && row.getAttribute('role'), rowTab: row && row.hasAttribute('tabindex'),
+          nativeGo: !!go && go.tagName === 'BUTTON' && go.type === 'button', nativeRm: !!rm && rm.tagName === 'BUTTON',
+          siblings: !!go && !!rm && go.parentElement === row && rm.parentElement === row && !go.contains(rm) && !rm.contains(go) };
+      });
+      ok(P(`T ${V} 最愛車站 DOM:外列純容器，主動作與移除是 sibling 原生按鈕`),
+        fvDom.row && fvDom.rowRole === null && !fvDom.rowTab && fvDom.nativeGo && fvDom.nativeRm && fvDom.siblings, JSON.stringify(fvDom));
+      await page.tap('#favPanel .fvst-go'); await settle(page);
+      const fvGo = await page.evaluate(() => !document.getElementById('board').hidden);
+      ok(P(`T ${V} 最愛車站 .fvst-go 可用 page.tap 真開看板`), fvGo);
+      await page.evaluate(() => closeBoard()); await settle(page);
+      await page.tap('#tabFav'); await settle(page);
+      const fvBefore = await page.locator('#favPanel .row.fvst').count();
+      await page.locator('#favPanel .row.fvst > .rm').first().tap(); await settle(page);
+      const fvAfter = await page.locator('#favPanel .row.fvst').count();
+      ok(P(`T ${V} 最愛車站 .rm 可用 page.tap 真移除且不觸發主動作`), fvBefore >= 2 && fvAfter === fvBefore - 1 && await page.locator('#board').evaluate(e => e.hidden),
+        `${fvBefore}→${fvAfter}`);
+
+      // 兩個誤點履歷入口：跟車卡與列車 sheet 各自從前一顆控制用 Tab 走入，再用 Enter 開卡。
+      focusMark = '可鍵盤入口:delayLinks';
+      await page.evaluate(CLOSE_ALL); await page.evaluate(KF_RESET); await page.evaluate(KF_FOLLOW); await page.evaluate(KF_STATS); await settle(page);
+      const d1 = await kfTabTo(page, eng, '#fpClose', '#followPanel .fp-dhlink[role="button"]', '#followPanel');
+      await page.keyboard.press('Enter'); await settle(page);
+      const da = await page.evaluate(() => ({ open: !document.getElementById('delayHistPanel').hidden, close: document.activeElement && document.activeElement.matches('#delayHistClose'), fv: __kf.fv(document.activeElement) }));
+      ok(P(`T ${V} 跟車卡誤點履歷:Tab 可達,Enter 開面板並聚焦 close`), d1.steps >= 0 && da.open && da.close && da.fv, `Tab ${d1.steps} 步；${JSON.stringify(da)}`);
+      await page.keyboard.press('Escape'); await settle(page);
+      await page.evaluate(() => openTrainSheet()); await settle(page);
+      await page.evaluate(() => setSheetSize(document.getElementById('trainCard'), 'medium')); await settle(page);
+      const d2 = await kfTabTo(page, eng, '#tcSheetClose', '#tcDelayHist[role="button"]', '#trainCard');
+      await page.keyboard.press('Enter'); await settle(page);
+      const db = await page.evaluate(() => ({ open: !document.getElementById('delayHistPanel').hidden, close: document.activeElement && document.activeElement.matches('#delayHistClose'), fv: __kf.fv(document.activeElement) }));
+      ok(P(`T ${V} 列車 sheet 誤點履歷:Tab 可達,Enter 開面板並聚焦 close`), d2.steps >= 0 && db.open && db.close && db.fv, `Tab ${d2.steps} 步；${JSON.stringify(db)}`);
+
+      // 合併卡收合：× 被藏掉後，焦點改落在膠囊上仍可見、可命中的「結束」。
+      focusMark = 'uniCollapse';
+      await page.evaluate(CLOSE_ALL); await page.evaluate(KF_RESET); await page.evaluate(KF_FOLLOW); await page.evaluate(KF_UNI); await settle(page);
+      await uniTabEnter(page, 'train');
+      await page.keyboard.press('Shift'); await page.evaluate(() => document.getElementById('fpClose').focus()); await page.keyboard.press('Enter'); await settle(page);
+      const uc = await page.evaluate(() => { const e = document.getElementById('fpEnd'), r = e.getBoundingClientRect(); return {
+        collapsed: document.body.classList.contains('uni-collapsed') && document.getElementById('followPanel').classList.contains('fp-min'), board: document.getElementById('board').hidden,
+        end: document.activeElement === e, fv: __kf.fv(e), hit: document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === e }; });
+      ok(P(`E ${V} 合併卡 × 收合:焦點落在可見可命中的「結束」`), uc.collapsed && uc.board && uc.end && uc.fv && uc.hit, JSON.stringify(uc));
     }
     // 焦點在文字欄位時關(觸控點進文字欄位也會亮框,WebKit 點 × 焦點又留在欄位上):不送,免得入口在觸控裝置上亮框
     const TXT = async () => {
@@ -1989,31 +2300,110 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
         return { fv, active: __bsp.desc(a), moved: !!a && a !== document.body && !a.closest('#trackPanel') };
       });
     };
+    focusMark = 'directClose:input';
     const tx = await TXT();
     ok(P(`O ${V} 軌道與路線:焦點在搜尋框(文字欄位)時關掉,焦點不被送去入口`), tx.fv && !tx.moved, `搜尋框${tx.fv ? '' : '沒'}亮框、關掉後焦點在 ${tx.active}`);
     if (mobile) {
+      const openTrackViaView = async () => {
+        await page.evaluate(CLOSE_ALL); await page.evaluate(KF_RESET);
+        for (const sel of ['#viewSettingsBtn', '.view-tabs .view-tab[data-view="labels"]', '[data-act="track"]']) {
+          await page.keyboard.press('Shift');
+          const found = await page.evaluate(sel => { const e = [...document.querySelectorAll(sel)].find(__kf.shown); if (e) e.focus(); return !!e; }, sel);
+          if (!found) return false;
+          await page.keyboard.press('Enter'); await settle(page); await page.waitForTimeout(120);
+        }
+        return page.evaluate(() => !document.getElementById('trackPanel').hidden);
+      };
+      const trackInputEsc = async () => {
+        const opened = await openTrackViaView();
+        if (!opened) return { opened: false };
+        await page.keyboard.press('Shift');
+        await page.evaluate(() => document.getElementById('rdSearch').focus({ preventScroll: true })); await settle(page);
+        const input = await page.evaluate(() => document.activeElement === document.getElementById('rdSearch') && __kf.fv(document.activeElement));
+        await page.keyboard.press('Escape'); await settle(page); await page.waitForTimeout(100);
+        return page.evaluate(([opened, input]) => { const a = document.activeElement; return { opened, input,
+          closed: document.getElementById('trackPanel').hidden, back: a === document.getElementById('viewSettingsBtn'),
+          fv: __kf.fv(a), active: __bsp.desc(a) }; }, [opened, input]);
+      };
+      focusMark = 'Esc輸入框:正向';
+      const ie = await trackInputEsc();
+      ok(P(`E ${V} 軌道與路線 input:真按 Esc 關面板並回觀看入口`), ie.opened && ie.input && ie.closed && ie.back && ie.fv, JSON.stringify(ie));
+
+      // 先用沒有自訂 opener 的直接開啟情境，單獨觀察 PANEL_ENTRY 固定入口退路。
+      const trackFixedBack = async () => {
+        await page.evaluate(CLOSE_ALL); await page.evaluate(KF_RESET);
+        await page.evaluate(() => {
+          panelOpener.trackPanel = null; panelOpenedByKeyboard.trackPanel = false;
+          try { document.activeElement.blur(); } catch (e) {}
+          openTrackPanel();
+        }); await settle(page);
+        await page.keyboard.press('Shift');
+        const found = await page.evaluate(() => { const e = document.getElementById('trackClose'); if (e) e.focus(); return !!e; });
+        if (!found) return { opened: false };
+        await page.keyboard.press('Enter'); await settle(page);
+        return page.evaluate(() => { const a = document.activeElement; return { opened: true,
+          closed: document.getElementById('trackPanel').hidden, back: a === document.getElementById('viewSettingsBtn'),
+          fv: __kf.fv(a), active: __bsp.desc(a) }; });
+      };
+      focusMark = '固定入口:正向';
+      const fixed = await trackFixedBack();
+      ok(P(`O ${V} 軌道與路線:沒有自訂 opener 時關閉走固定觀看入口`), fixed.opened && fixed.closed && fixed.back && fixed.fv, JSON.stringify(fixed));
+
+      focusMark = 'mutation:panelFocusBack整段';
       let m = await mutFn(page, 'panelFocusBack', KF_BACK, '');
       ok(P(`N ${V} 突變目標那一行還在 panelFocusBack 裡(關完放回焦點)`), m);
       if (m) {
-        const a = await closeBack(page, 'favPanel', O_360.favPanel), b = await closeBack(page, 'tripRow', O_360.tripRow);
+        const a = await closeBack(page, 'favPanel', O_360.favPanel);
         await unmutFn(page, 'panelFocusBack');
-        ok(P(`N ${V} 突變:關面板不放回焦點 ⇒ 我的最愛、行程分享列關掉後焦點不在入口(O 量得到紅)`), a.closed && !a.on && b.closed && !b.on, `我的最愛:${fmtBack(a)}；行程分享列:${fmtBack(b)}`);
+        ok(P(`N ${V} 突變:關面板不執行放回 ⇒ 我的最愛關掉後焦點不在入口(O 量得到紅)`), a.closed && !a.on, fmtBack(a));
       }
-      const had = await page.evaluate(() => { window.__kfEntry = PANEL_ENTRY.trackPanel; PANEL_ENTRY.trackPanel = []; return (window.__kfEntry || []).length; });
-      const te = await closeBack(page, 'trackPanel', O_360.trackPanel);
-      await page.evaluate(() => { PANEL_ENTRY.trackPanel = window.__kfEntry; });
-      ok(P(`N ${V} 突變:軌道與路線的固定入口清空 ⇒ 開它的那一列跟著觀看設定收起、看不到,關掉後焦點沒地方回(O 量得到紅)`), had > 0 && te.closed && !te.on, fmtBack(te));
+      focusMark = 'mutation:固定入口';
+      m = await mutFn(page, 'panelFocusBack', KF_ENTRY, 'null');
+      ok(P(`N ${V} 突變目標那一段還在 panelFocusBack 裡(固定入口退路)`), m);
+      if (m) {
+        const te = await trackFixedBack(); await unmutFn(page, 'panelFocusBack');
+        ok(P(`N ${V} 突變:拿掉固定入口退路 ⇒ 沒有 opener 時關閉後焦點回不到觀看入口(O 量得到紅)`), te.opened && te.closed && !te.back, JSON.stringify(te));
+      }
+      focusMark = 'mutation:byEsc';
+      m = await mutFn(page, 'panelFocusBack', KF_BY_ESC, 'const byEsc = false;');
+      ok(P(`N ${V} 突變目標那一行還在 panelFocusBack 裡(Esc 明確鍵盤關閉)`), m);
+      if (m) {
+        const im = await trackInputEsc(); await unmutFn(page, 'panelFocusBack');
+        ok(P(`N ${V} 突變:input 的 Esc 不標成鍵盤關閉 ⇒ 面板會關但焦點回不到觀看入口(E 量得到紅)`), im.opened && im.input && im.closed && !im.back, JSON.stringify(im));
+      }
+      focusMark = 'mutation:noteOpener';
       const hadNote = await page.evaluate(() => { window.__kfNote = notePanelOpener; window.notePanelOpener = () => {}; delete panelOpener.favPanel; return typeof window.__kfNote === 'function'; });
       const fr = await closeBack(page, 'favFromRide', O_360.favFromRide);
       await page.evaluate(() => { window.notePanelOpener = window.__kfNote; });
       ok(P(`N ${V} 突變:開面板不記開它的鈕 ⇒ 從護照鈕開的我的最愛關掉後回到固定入口、不是護照鈕(O 量得到紅)`), hadNote && fr.closed && !fr.on, fmtBack(fr));
+      const movedOutBack = async () => {
+        await page.evaluate(CLOSE_ALL); await page.evaluate(KF_RESET);
+        await page.evaluate(() => {
+          panelOpener.board = null; panelOpenedByKeyboard.board = false;
+          try { document.activeElement.blur(); } catch (e) {}
+        });
+        await page.evaluate(KF_PLUS); await page.evaluate(KF_FOLLOW); await page.evaluate(KF_UNI); await settle(page);
+        await uniTabEnter(page, 'train');
+        await page.keyboard.press('Shift');
+        const before = await page.evaluate(() => { const e = document.getElementById('fpTripShare'); if (__kf.shown(e)) e.focus({ preventScroll: true }); return document.activeElement === e; });
+        await page.evaluate(() => closeBoard()); await settle(page);
+        return page.evaluate(before => ({ before, closed: document.getElementById('board').hidden,
+          kept: document.activeElement === document.getElementById('fpTripShare'), fixed: document.activeElement === document.getElementById('tabSearch'), active: __bsp.desc(document.activeElement) }), before);
+      };
+      focusMark = 'movedOut:正向';
+      const movedOk = await movedOutBack();
+      ok(P(`O ${V} 合併卡搬出的行程分享鈕:直接關看板後焦點留在原鈕`), movedOk.before && movedOk.closed && movedOk.kept,
+        `關後焦點在 ${movedOk.active}`);
+      focusMark = 'mutation:movedOut';
       m = await mutFn(page, 'panelFocusBack', KF_MOVED, '[panelOpener[id]]');
       ok(P(`N ${V} 突變目標那一段還在 panelFocusBack 裡(搬出面板的那顆留著)`), m);
       if (m) {
-        const u = await closeBack(page, 'uniTrip', O_360.uniTrip);
+        const u = await movedOutBack();
         await unmutFn(page, 'panelFocusBack');
-        ok(P(`N ${V} 突變:搬出面板的那顆不算 ⇒ 合併卡裡按行程分享,看板收起時焦點被拉去看板的入口(O 量得到紅)`), u.opened && !u.atOpenOk, `打開時焦點在 ${u.atOpen}`);
+        ok(P(`N ${V} 突變:搬出面板的那顆不算 ⇒ 直接關合併卡時焦點跳去固定入口(O 量得到紅)`), u.before && u.closed && !u.kept && u.fixed,
+          `關後焦點在 ${u.active}`);
       }
+      focusMark = 'mutation:directInput';
       m = await mutFn(page, 'panelFocusBack', KF_TEXT, 'false');
       ok(P(`N ${V} 突變目標那一段還在 panelFocusBack 裡(文字欄位不送)`), m);
       if (m) {
@@ -2038,10 +2428,91 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
           ok(P(`N ${V} 突變:滑鼠點 × 也放回焦點 ⇒ 焦點被送去入口(C 量得到紅;只做 Chromium:WebKit 點按鈕不給焦點,碰不到這條規則)`), cm.entry, `焦點在 ${cm.active}`);
         }
       }
+
+      // 桌面公告要由真 state → renderAlertBanner 長出、能命中並真的關掉；不能只把 hidden 拿掉造假。
+      focusMark = 'desktop:alertBanner';
+      await page.evaluate(CLOSE_ALL); await page.evaluate(KF_RESET);
+      await page.evaluate(() => {
+        try { sessionStorage.removeItem('trainmap-alert-dismissed'); } catch (e) {}
+        state.alert = { list: [{ sys: 'tra_sched', sysLabel: '台鐵', title: '鍵盤焦點驗收公告', start: '2026-09-26T09:00:00+08:00' }] };
+        renderAlertBanner();
+      }); await settle(page);
+      const ab = await page.evaluate(() => {
+        const banner = document.getElementById('alertBanner'), close = banner.querySelector('.ab-close'), r = close && close.getBoundingClientRect();
+        const at = r && document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return { shown: !banner.hidden && !!banner.getClientRects().length, close: !!close,
+          hit: !!close && (at === close || close.contains(at)), text: banner.textContent.trim() };
+      });
+      ok(P(`G ${V} 桌面 alertBanner 由公告 state 真實顯示且關閉鈕可命中`), ab.shown && ab.close && ab.hit && ab.text.includes('鍵盤焦點驗收公告'), JSON.stringify(ab));
+
+      // .badge 基底原本 pointer-events:none；用真 click 守住 #statBadge 的桌面修正，而非只看 role/tabindex。
+      await page.click('#statBadge'); await settle(page);
+      ok(P(`G ${V} 桌面時鐘徽章真 click 可打開資料狀態卡`), await page.locator('#statPop').evaluate(e => !e.hidden));
+      await page.click('#statPopClose'); await settle(page);
+
+      // 把 standalone 容易漏掉的桌面控件也納入出貨 gate。nearBtn 在網站版會被產品移除，故只記 coverage、不列必需；
+      // 其他類別在 1280 真斷點都應存在，所有 layout-visible 項目再由 elementFromPoint 判可點。
+      focusMark = 'desktop:controlGeometry';
+      await page.evaluate(CLOSE_ALL); await page.evaluate(KF_RESET); await page.evaluate(KF_FOLLOW); await settle(page);
+      const geo = await page.evaluate(() => {
+        const selectors = {
+          fsFab: '#fsFab', followLock: '#followLockBtn',
+          clock: '#statBadge', alert: '#alertBanner,#alertBanner button',
+          toolbar: '.controls button,.controls input:not([type="hidden"]),.controls [tabindex]',
+          mapControl: '.maplibregl-control-container button,.maplibregl-control-container a[href]',
+          near: '#nearBtn',
+        };
+        const shown = e => {
+          if (!e || e.closest('[hidden],[inert]')) return false;
+          const r = e.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          if (r.width <= 0 || r.height <= 0 || getComputedStyle(e).visibility === 'hidden') return false;
+          for (let n = e; n && n.nodeType === 1; n = n.parentElement) {
+            const s = getComputedStyle(n);
+            if (s.display === 'none' || Number(s.opacity) <= .05) return false;
+            if (n !== e && n !== document.body && n !== document.documentElement) {
+              const nr = n.getBoundingClientRect();
+              const clipX = /^(auto|scroll|hidden|clip)$/.test(s.overflowX), clipY = /^(auto|scroll|hidden|clip)$/.test(s.overflowY);
+              if ((clipX && (cx < nr.left || cx > nr.right)) || (clipY && (cy < nr.top || cy > nr.bottom))) return false;
+            }
+          }
+          return true;
+        };
+        const coverage = {}, seen = new Set(), items = [];
+        for (const [kind, sel] of Object.entries(selectors)) {
+          const list = [...document.querySelectorAll(sel)].filter(shown); coverage[kind] = list.length;
+          for (const e of list) {
+            if (seen.has(e)) continue; seen.add(e);
+            const r = e.getBoundingClientRect(), at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            items.push({ e, kind, name: e.id ? `#${e.id}` : `${e.tagName.toLowerCase()}.${[...e.classList].join('.')}`,
+              hit: at === e || e.contains(at), at: at && (at.id ? `#${at.id}` : at.tagName.toLowerCase()),
+              inViewport: r.left >= -1 && r.right <= innerWidth + 1 && r.top >= -1 && r.bottom <= innerHeight + 1,
+              r: { left: r.left, top: r.top, right: r.right, bottom: r.bottom } });
+          }
+        }
+        const overlaps = [];
+        for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
+          const a = items[i], b = items[j]; if (a.e.contains(b.e) || b.e.contains(a.e)) continue;
+          const w = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left), h = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+          if (w > .5 && h > .5) overlaps.push(`${a.name}×${b.name}:${Math.round(w * h)}`);
+        }
+        return { coverage, overlaps, badHit: items.filter(x => !x.hit).map(x => `${x.name}→${x.at || 'null'}`),
+          out: items.filter(x => !x.inViewport).map(x => x.name), overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth };
+      });
+      ok(P(`G ${V} 桌面全畫面／跟車鎖／工具列／地圖控制可命中、零相交、在 viewport 內`),
+        geo.coverage.fsFab >= 1 && geo.coverage.followLock >= 1 && geo.coverage.clock >= 1 && geo.coverage.alert >= 2
+          && geo.coverage.toolbar >= 5 && geo.coverage.mapControl >= 2
+          && !geo.overlaps.length && !geo.badHit.length && !geo.out.length && geo.overflow <= 1,
+        `coverage=${JSON.stringify(geo.coverage)} near 可為 0；overlap=${geo.overlaps.join(' | ') || '-'} hit=${geo.badHit.join(' | ') || '-'} out=${geo.out.join(',') || '-'} overflow=${geo.overflow}`);
+      await page.click('#alertBanner .ab-close'); await settle(page);
+      ok(P(`G ${V} 桌面 alertBanner 幾何同輪後真 click 收起`), await page.locator('#alertBanner').evaluate(e => e.hidden));
     }
-    // WebKit 360 連續重畫看板會丟「ResizeObserver loop completed with undelivered notifications」:修前 origin/main 同樣出現,不是這批造成、不算
-    const errs = errors.filter(e => !/ResizeObserver loop/.test(e));
-    ok(P(`${V} 鍵盤焦點段全程零 pageerror`), errs.length === 0, errs.slice(0, 2).join(' | ') + (errors.length > errs.length ? `(另有 ${errors.length - errs.length} 則 ResizeObserver loop 通知,不算)` : ''));
+    const roPattern = /^(?:Error:\s*)?ResizeObserver loop completed with undelivered notifications\.?$/;
+    const roErrors = errors.filter(e => roPattern.test(e)), otherErrors = errors.filter(e => !roPattern.test(e));
+    const roMarks = focusErrorMarks.filter(e => roPattern.test(e.message));
+    const roTrace = process.env.BSP_TRACE_RO === '1' ? await page.evaluate(() => window.__bspRoErrors || []) : [];
+    ok(P(`${V} 鍵盤焦點段無其他 pageerror`), otherErrors.length === 0, otherErrors.slice(0, 2).join(' | '));
+    ok(P(`${V} 鍵盤焦點段 ResizeObserver exact pageerror 為 0`), roErrors.length === 0,
+      `判準=${roPattern}；次數=${roErrors.length}；步驟=${JSON.stringify(roMarks)}${roTrace.length ? `；trace=${JSON.stringify(roTrace)}` : ''}`);
     await ctx.close();
   }
   await browser.close();

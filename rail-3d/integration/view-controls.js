@@ -32,10 +32,10 @@ export function mountViewControls({translate:t}) {
   panel.append(head,nav,body);dock.append(rail,panel);document.body.append(dock);document.getElementById('mapActions').append(toggle);
   function sync(){state._syncMoreSheet?.();for(const[key,page]of pages){page.hidden=key!==active;for(const b of buttons.get(key)){b.classList.toggle('on',opened&&key===active);b.setAttribute('aria-expanded',String(opened&&key===active));}}toggle.setAttribute('aria-expanded',String(opened));}
   function open(key=active,source=toggle){opener=source;active=key;document.getElementById('moreClose').click();opened=true;panel.hidden=false;document.body.classList.add('view-open');sync();layout();}
-  function close(restore=false){opened=false;panel.hidden=true;document.body.classList.remove('view-open');sync();if(restore&&opener?.isConnected)opener.focus();}
+  function close(restore=false){opened=false;panel.hidden=true;document.body.classList.remove('view-open');sync();if(restore){const shown=e=>!!(e?.isConnected&&e.getClientRects().length&&!e.closest('[hidden],[inert]')&&getComputedStyle(e).visibility!=='hidden');const to=[opener,buttons.get(active)?.[0],toggle].find(shown);to?.focus({preventScroll:true});}}
   toggle.onclick=()=>opened?close():open();closeBtn.onclick=()=>close(true);
   // 開子面板或進沉浸時先收觀看面板；原本的事件仍在相同元素上執行。
-  body.addEventListener('click',e=>{const row=e.target.closest('.ms-row');if(row&&(row.dataset.close==='1'||['track','fontscale'].includes(row.dataset.act)||row.dataset.proxy==='immBtn'))close();});
+  body.addEventListener('click',e=>{const row=e.target.closest('.ms-row');if(!row)return;let keyboard=false;try{keyboard=row.contains(document.activeElement)&&document.activeElement.matches(':focus-visible');}catch(_){}if(row.dataset.close==='1'||['track','fontscale'].includes(row.dataset.act)||row.dataset.proxy==='immBtn')close(keyboard);});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&opened){e.preventDefault();close(true);}});
   document.addEventListener('pointerdown',e=>{if(opened&&!dock.contains(e.target)&&!toggle.contains(e.target))close();});
   function layout(){

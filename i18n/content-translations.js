@@ -3381,3 +3381,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   'iPhone 點列車後，左下資訊卡的車次與時速會排在同一條線上，不再一高一低': 'iPhoneで列車をタップしたとき、左下の情報カードにある列車番号と速度が上下にずれず、同じ基準線にそろうようになりました。',
   '用 Safari 開別人分享的立體地圖時，列車編組、地形與立體列車開關會完整保留，不再偶爾回到自己的預設設定': 'Safariで共有された3D地図を開いたとき、列車編成・地形・3D列車の設定をすべて引き継ぎ、ときどき自分の初期設定に戻ることがなくなりました。',
 });
+// 2026-09-27 面板焦點、Esc、清單鍵盤入口與桌面時鐘操作：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '鍵盤操作更完整：開啟面板會直接選到有名稱的關閉鈕，按 Esc 可關閉；公車搜尋、最愛車站與誤點履歷都能用 Tab 選到，桌面時鐘也能點開資料狀態': 'Keyboard access is more complete: opening a panel moves focus to its named Close button, and Escape closes it. Bus search results, favourite stations and delay history can all be reached with Tab. The desktop clock now opens Data status when clicked.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '鍵盤操作更完整：開啟面板會直接選到有名稱的關閉鈕，按 Esc 可關閉；公車搜尋、最愛車站與誤點履歷都能用 Tab 選到，桌面時鐘也能點開資料狀態': 'キーボード操作を改善しました。パネルを開くと名前のある「閉じる」ボタンに移動し、Escで閉じられます。バス停の検索結果・お気に入り駅・遅延履歴はTabで選べます。デスクトップの時計からデータ状況も開けます。',
+});

@@ -37,6 +37,54 @@
   const JOURNEY_STORAGE_KEY = 'rail-island-bus-journey-v1';
   const JOURNEY_MAX_AGE_MS = 12 * 3600 * 1000;
 
+  // ResizeObserver 裡不能同步改寫被觀測的 root，Promise microtask 在 WebKit
+  // 也可能還留在同一輪 delivery。用 MessageChannel 排到下一個 task，且不引入 timer；
+  // 老環境沒有 MessageChannel 時改用專用 postMessage token。
+  const NEXT_TASK_TOKEN = '__rail_island_btu_next_task__';
+  const NEXT_TASK_QUEUE = [];
+  let nextTaskPosted = false;
+  let nextTaskChannel = null;
+  let nextTaskWindowListener = false;
+
+  function flushNextTasks() {
+    nextTaskPosted = false;
+    const jobs = NEXT_TASK_QUEUE.splice(0);
+    for (const job of jobs) job();
+  }
+
+  function enqueueNextTask(job) {
+    if (typeof job !== 'function') return false;
+    NEXT_TASK_QUEUE.push(job);
+    if (nextTaskPosted) return true;
+
+    if (typeof global.MessageChannel === 'function') {
+      if (!nextTaskChannel) {
+        nextTaskChannel = new global.MessageChannel();
+        nextTaskChannel.port1.onmessage = flushNextTasks;
+      }
+      nextTaskPosted = true;
+      nextTaskChannel.port2.postMessage(0);
+      return true;
+    }
+
+    if (typeof global.postMessage === 'function' && typeof global.addEventListener === 'function') {
+      if (!nextTaskWindowListener) {
+        global.addEventListener('message', event => {
+          if (event.source === global && event.data === NEXT_TASK_TOKEN) flushNextTasks();
+        });
+        nextTaskWindowListener = true;
+      }
+      nextTaskPosted = true;
+      global.postMessage(NEXT_TASK_TOKEN, '*');
+      return true;
+    }
+
+    // 極舊宿主連 task primitive 都沒有時，不在 ResizeObserver 裡同步重繪；
+    // 下次 mount／使用者互動仍會依當時寬度重算密度。
+    NEXT_TASK_QUEUE.pop();
+    return false;
+  }
+
   // 宿主傳入既有的 t()。整個 App 同一時間只會使用一種介面語言；重新 mount
   // （例如切換語言後重繪看板）會更新這個函式。未提供時安全退回繁中。
   let translateImpl = null;
@@ -1204,21 +1252,23 @@ ${body}
     instance.handler = event => onClick(instance, event);
     root.addEventListener('click', instance.handler);
     // 容器寬度或字級改變時重算密度。layout 事件驅動，不是輪詢，也永遠不發請求。
-    // 重繪必須推出 callback（在裡面同步改寫被觀測元素的 innerHTML 會被判定為 resize loop
-    // 而丟掉後續通知），但不能用 requestAnimationFrame：文件隱藏時（背景分頁、列印、
-    // 預覽偵測）瀏覽器不跑 rAF，那等於整條路徑死掉。microtask 在隱藏文件下照跑。
+    // 重繪必須推出 ResizeObserver delivery；WebKit 會在同一輪執行 Promise microtask，
+    // 所以改由共用 MessageChannel 排到下一個 task。它在背景頁也能前進，且沒有 timer。
     if (typeof global.ResizeObserver === 'function') {
       instance.observer = new global.ResizeObserver(() => {
         if (instance.densityPending) return;
         instance.densityPending = true;
-        Promise.resolve().then(() => {
+        const queued = enqueueNextTask(() => {
           try {
-            if (!instance.root || !instance.root.isConnected) return;
+            // 同一個 connected root 可能已 unmount 舊站、重 mount 新站；舊 RO job
+            // 仍在共用 task queue 裡，不能再拿舊 instance 覆寫新站 DOM。
+            if (!instance.root || !instance.root.isConnected || instance.root.__btuInstance !== instance) return;
             if (densityOf(instance.root) !== instance.density) render(instance);
           } finally {
             instance.densityPending = false;   // finally：旗標永遠不可能卡住
           }
         });
+        if (!queued) instance.densityPending = false;
       });
       instance.observer.observe(root);
     }

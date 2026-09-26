@@ -688,12 +688,13 @@ try {
   // 為什麼值得進出貨鏈(2.8 那把尺):(a) 對鍵盤使用者 100% 復現——手機 sheet 小段只有 230px,往回走的焦點
   // 整顆停在標題底下(修前我的最愛 700 步有 186 步被蓋);(b) 別的閘門量不到——founding_seal 的 G2.*.5 只量護照一張、
   // 而且不在鏈上;(c) 已經被無聲弄壞過一次——v0925k 護照那版用容器 scroll-padding-top,焦點一進標題裡的
-  // × 內容就跳 128–130px,照樣上了正式站。另守 WebKit 文字欄位補捲、站名牌出現與換字級後讓位值跟上。
+  // × 內容就跳 128–130px,照樣上了正式站。另守 WebKit 文字欄位補捲、站名牌出現與換字級後讓位值跟上，
+  // 以及面板開啟落點、Esc 階層／退路、鍵盤清單入口、公車卡密度排程與可見控制命中。
   // 雙引擎、自己起純靜態 server、埠號由系統挑,約 2 分鐘。要在 strip 之前:突變自檢會找 syncBoardHeadVar 的原始碼行。
   const boardPad = spawnSync('node', [path.join(wt, 'scripts', 'verify_board_scroll_pad.mjs')],
     { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '' } });
   process.stdout.write(boardPad.stdout || ''); process.stderr.write(boardPad.stderr || '');
-  if (boardPad.status !== 0) fail('面板標題讓位守門人未過——鍵盤聚焦被 sticky 標題蓋住、聚焦標題鈕時內容跳動，或讓位值沒跟上站名牌／字級'
+  if (boardPad.status !== 0) fail('面板鍵盤守門人未過——焦點被 sticky 標題蓋住、開關面板或 Esc 的焦點退路失效、鍵盤入口失效，或公車卡密度排程／控制項命中異常'
     + '（單獨重跑：node scripts/verify_board_scroll_pad.mjs）');
 
   // ── 2.26 選單橫拖守門人(2026-09-26) ─────────────────────────────────────────
