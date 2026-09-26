@@ -5608,6 +5608,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="workerrecover0927"><span class="d">9/27</span><span>公車到站、台鐵月台與災害監看遇到官方來源沒回應時，會在限時內結束等待並於下一輪恢復</span></li>
         <li data-cl-of="pingzhenhold0927"><span class="d">9/27</span><span>台鐵誤點列車經過平鎮附近時，會穩定維持前後車順序，減少在同一股道短暫重疊的畫面</span></li>
         <li data-cl-of="kbdremain0927"><span class="d">9/27</span><span>鍵盤操作更完整：開啟面板會直接選到有名稱的關閉鈕，按 Esc 可關閉；公車搜尋、最愛車站與誤點履歷都能用 Tab 選到，桌面時鐘也能點開資料狀態</span></li>
         <li data-cl-of="musicpools0927"><span class="d">9/27</span><span>跟車配樂新增南方日光、黃昏斜光、北海岸天色、花蓮山海、山海聚落共創 5 組共 27 首；App 需要時從網站串流，不會把這批新歌塞進安裝包</span></li>
@@ -5615,7 +5616,6 @@
         <li data-cl-of="share3d0926"><span class="d">9/26</span><span>用 Safari 開別人分享的立體地圖時，列車編組、地形與立體列車開關會完整保留，不再偶爾回到自己的預設設定</span></li>
         <li data-cl-of="groupswitch0926"><span class="d">9/26</span><span>切換上方分組（全台同框、台鐵、高鐵、捷運與輕軌）時，畫面不會再卡住兩三秒</span></li>
         <li data-cl-of="garagereverse0926"><span class="d">9/26</span><span>車庫環形試跑按 ⇄ 反向行駛時會整列掉頭，車頭照樣在最前面（原本頭尾兩節的車頭會轉進車廂中間）；福森號、栩悅號兩端都改成觀景車頭</span></li>
-        <li data-cl-of="landcard0926"><span class="d">9/26</span><span>手機橫放時，平交道卡、落釘卡、台糖卡改成靠右整條顯示，接下來的班次不用捲就看得到（原本卡片太矮，常常一列都看不到）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5744,6 +5744,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="workerrecover0927"><span class="d">9/27</span><span>公車到站、台鐵月台與災害監看遇到官方來源沒有回應時，查詢會在限時內結束等待；下一輪會重新連線，不再讓同一個卡住的請求拖住之後所有查詢</span></li>
         <li data-cl="trastationanchor0919"><span class="d">9/19</span><span>修正台鐵誤點時列車常跑在實際位置前面：現在會保留官方回報的所在車站與進出站狀態，確認列車過站時，即使誤點增加不到 5 分鐘也會立即回到官方誤點位置；同車次重複資料固定採較大的誤點，不再由最後一筆任意覆蓋。（謝謝搭乘實測回報）</span></li>
         <li data-cl="speedcapzone0919"><span class="d">9/19</span><span>2、438、5232 次自強號駛近新馬急彎前，地圖上的列車曾短暫快過車種極速（最高 148 km/h）；現在全程不超過極速，也照彎道速限通過，到站時刻不變；同日再修立體地圖：速度改依列車實際走的股道長度計算，台鐵全線不再超過車種極速</span></li>
         <li data-cl="viewcontrols0914"><span class="d">9/14</span><span>觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟；修正地形切換時橋墩閃現與遠景列車大小設定未生效；9/18 起開著車站卡或列車卡也能直接進觀看設定；9/25 修正平板與手機橫放時觀看鈕浮在畫面中間</span></li>
@@ -6879,7 +6880,10 @@
 // v0927b：補齊面板鍵盤開啟落點與 Esc 退路、公車搜尋／最愛車站／誤點履歷鍵盤入口、跟車合併卡收合焦點，
 //         桌面時鐘可點開資料狀態；公車轉乘密度重畫改排到下一個 task，避開 WebKit ResizeObserver loop，
 //         並用 instance ownership guard 防止舊排程覆寫同一個 root 上的新車站。
-const BUILD = 'v0927c';
+// v0927c：台鐵誤點列車經過平鎮附近時，同股道前後關係沿用物理防追撞排序，避免短暫重疊。
+// v0927d：公車五類共用上游、台鐵月台與 NCDR 災害刷新加入有限等待、超齡接手與舊 owner identity guard；
+//         公車 edge cache 另守住舊寫入晚完成與 replay 失敗，不讓長 TTL 倒退。
+const BUILD = 'v0927d';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);

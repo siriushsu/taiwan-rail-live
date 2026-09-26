@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import {normalizePlatformSnapshot,resolvePlatform,platformEventAt} from '../rail-platform.js';
-import {createPlatformProxy} from './tra_platform_proxy.mjs';
+import {
+  createPlatformProxy, PLATFORM_MEM_TTL_MS, PLATFORM_REFRESH_WAIT_MAX_MS,
+  PLATFORM_REFRESH_RECLAIM_MS, PLATFORM_FAIL_TTL_MS,
+} from './tra_platform_proxy.mjs';
 const date='2026-09-07T00:01:00+08:00',now=Date.parse(date);
 const stationInfo={臺北:{id:'1000',name:'臺北'},彰化:{id:'3360',name:'彰化'}};
 const record=(props={})=>({StationID:'1000',TrainNo:'123',Platform:'1A',ScheduleArrivalTime:'23:59:00',ScheduleDepartureTime:'00:03:00',UpdateTime:date,RunningStatus:0,...props});
@@ -61,4 +64,70 @@ const fallback=await(await proxy(request,{},{})).json();
 check('上游轉址不跟隨；保留舊原始有效期限供客戶端撤回',()=>{assert.equal(fallback.expiresAt,now+180000);assert.equal(calls,2);});
 await proxy(request,{},{});
 check('來源失敗有退避，畫面刷新不狂打 API',()=>assert.equal(calls,2));
+
+check('刷新等待、放掉與快取週期的關係固定',()=>{
+  assert(PLATFORM_REFRESH_WAIT_MAX_MS<PLATFORM_REFRESH_RECLAIM_MS);
+  assert(PLATFORM_REFRESH_RECLAIM_MS>=PLATFORM_MEM_TTL_MS);
+});
+
+// 發起 request 被取消時，fetch／body 可能永遠不 settle，不能只信 AbortSignal。用一發故意不理 abort
+// 的上游證明：同時查詢仍併流、caller 有總截止、下一輪能恢復，而且舊回應晚到不會覆寫新快照。
+let recoveryCalls=0,recoveryClock=now,firstSignal,releaseFirst;
+const firstUpstream=new Promise(resolve=>{releaseFirst=resolve;});
+const recoveryProxy=createPlatformProxy({
+  getToken:async()=> 'fixture-token',now:()=>recoveryClock,refreshWaitMs:30,reclaimMs:60,
+  fetcher:async(url,options)=>{
+    recoveryCalls++;
+    if(recoveryCalls===1){firstSignal=options.signal;return await firstUpstream;}
+    return Response.json(raw([record({Platform:'2B'})]));
+  },
+});
+const recoveryStarted=performance.now();
+const timedOut=await Promise.all([recoveryProxy(request,{},{}),recoveryProxy(request,{},{} )]);
+const recoveryElapsed=Math.round(performance.now()-recoveryStarted);
+check('上游永不回應時，同時查詢只打一發且在總截止內回退',()=>{
+  assert.equal(recoveryCalls,1);
+  assert(timedOut.every(response=>response.status===503));
+  assert(recoveryElapsed<500,`實際等待 ${recoveryElapsed}ms`);
+  assert.equal(firstSignal.aborted,true);
+});
+recoveryClock+=PLATFORM_FAIL_TTL_MS+1;
+const recovered=await recoveryProxy(request,{},{});
+const recoveredBody=await recovered.json();
+check('截止後下一輪可重抓並採用新月台',()=>{
+  assert.equal(recovered.status,200);
+  assert.equal(recoveryCalls,2);
+  assert.equal(recoveredBody.records[0].platform,'2B');
+});
+releaseFirst(Response.json(raw([record({Platform:'1A'})])));
+await new Promise(resolve=>setTimeout(resolve,0));
+const afterLate=await(await recoveryProxy(request,{},{})).json();
+check('已截止的舊回應晚到不覆寫新快照',()=>assert.equal(afterLate.records[0].platform,'2B'));
+
+// Cloudflare request 被取消時，該 request 的 timer 也可能一起消失。這裡把所有 timer 換成永不
+// 觸發的 fixture，證明復原確實走 owner 年齡 reclaim，而不是前一項測試的硬截止清場。
+let reclaimCalls=0,reclaimClock=now,reclaimSignal,releaseStranded;
+const strandedUpstream=new Promise(resolve=>{releaseStranded=resolve;});
+const reclaimProxy=createPlatformProxy({
+  getToken:async()=> 'fixture-token',now:()=>reclaimClock,refreshWaitMs:30,reclaimMs:60,
+  setTimer:()=>Symbol('vanished-timer'),clearTimer:()=>{},
+  fetcher:async(url,options)=>{
+    reclaimCalls++;
+    if(reclaimCalls===1){reclaimSignal=options.signal;return await strandedUpstream;}
+    return Response.json(raw([record({Platform:'3A'})]));
+  },
+});
+const strandedCaller=reclaimProxy(request,{},{});
+await new Promise(resolve=>setTimeout(resolve,0));
+reclaimClock+=60;
+const reclaimedResponse=await reclaimProxy(request,{},{});
+const reclaimedBody=await reclaimedResponse.json();
+releaseStranded(Response.json(raw([record({Platform:'1A'})])));
+const oldCallerBody=await(await strandedCaller).json();
+check('owner 的 timer 隨 request 消失時，滿週期可 reclaim 且舊回應不覆寫新月台',()=>{
+  assert.equal(reclaimCalls,2);
+  assert.equal(reclaimSignal.aborted,true);
+  assert.equal(reclaimedBody.records[0].platform,'3A');
+  assert.equal(oldCallerBody.records[0].platform,'3A');
+});
 console.log(`月台核心／代理 ${checks}/${checks} 通過`);

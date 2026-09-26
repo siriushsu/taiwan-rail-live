@@ -401,6 +401,8 @@ const HAZARD_TYPES = [
 const HAZARD_MEM_TTL_MS = 60e3;
 const HAZARD_FAIL_TTL_MS = 30e3;
 const HAZARD_FETCH_TIMEOUT_MS = 8e3;
+const HAZARD_REFRESH_RECLAIM_MS = HAZARD_MEM_TTL_MS;
+const HAZARD_MONITOR_TIMEOUT_MS = 12e3;
 let hazardMem = null, hazardMemAt = 0, hazardRefresh = null, hazardFailAt = 0;
 
 function ncdrText(value) {
@@ -465,32 +467,75 @@ function normalizeNcdrHazards(feed, nowMs = Date.now()) {
   return hazards.sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function resetHazardMem() { hazardMem = null; hazardMemAt = 0; hazardRefresh = null; hazardFailAt = 0; }
+function resetHazardMem() {
+  if (hazardRefresh && hazardRefresh.controller) hazardRefresh.controller.abort();
+  hazardMem = null; hazardMemAt = 0; hazardRefresh = null; hazardFailAt = 0;
+}
 
-function refreshHazardMem(env) {
-  if (hazardRefresh) return hazardRefresh; // 同 isolate cache miss 共流，避免同一瞬間所有訪客一起打 NCDR
-  hazardRefresh = (async () => {
-    const sourceUrl = (env && env.NCDR_ALERT_URL) || NCDR_ACTIVE_HAZARD_URL; // 測試可注入本機 fixture；正式環境不設即鎖官方源
+function refreshHazardMem(env, {
+  waitMaxMs = HAZARD_FETCH_TIMEOUT_MS,
+  reclaimMs = HAZARD_REFRESH_RECLAIM_MS,
+  now = Date.now,
+  setTimer = setTimeout,
+  clearTimer = clearTimeout,
+} = {}) {
+  // 跟台鐵即時刷新相同，inflight 同時記 owner 與起跑時間：發起 request 被取消時，底層 I/O 及它的
+  // timer 都可能永遠不 settle。每位搭車者只等這一輪剩餘的 waitMaxMs；滿一個正常刷新週期後才放掉，
+  // 避免來源卡住時反而比正常節拍更密集重打。identity guard 則防舊輪晚到清掉或覆寫接手的新輪。
+  let ride = hazardRefresh;
+  if (ride && now() - ride.at >= reclaimMs) {
+    if (hazardRefresh === ride) {
+      ride.controller.abort();
+      hazardRefresh = null;
+    }
+    ride = null;
+  }
+  if (!ride) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), HAZARD_FETCH_TIMEOUT_MS);
-    let r;
-    try {
-      r = await fetch(sourceUrl, { headers: { accept: 'application/json' }, signal: controller.signal });
-    } catch (e) {
-      if (controller.signal.aborted) throw new Error('ncdr timeout');
-      throw e;
-    } finally { clearTimeout(timer); }
-    if (!r.ok) throw new Error('ncdr api ' + r.status);
-    const d = await r.json();
-    const root = d && d.feed && typeof d.feed === 'object' ? d.feed : d;
-    hazardMem = {
-      at: ncdrText(root && root.updated) || new Date().toISOString(), observedAt: new Date().toISOString(),
-      source: 'NCDR', stale: false, hazards: normalizeNcdrHazards(d, Date.now()),
-    };
-    hazardMemAt = Date.now(); hazardFailAt = 0;
-  })().catch(e => { hazardFailAt = Date.now(); throw e; })
-    .finally(() => { hazardRefresh = null; });
-  return hazardRefresh;
+    const mine = { at: now(), controller, p: null };
+    hazardRefresh = mine;
+    let deadlineTimer;
+    const work = Promise.resolve().then(async () => {
+      const sourceUrl = (env && env.NCDR_ALERT_URL) || NCDR_ACTIVE_HAZARD_URL; // 測試可注入本機 fixture；正式環境不設即鎖官方源
+      const r = await fetch(sourceUrl, { headers: { accept: 'application/json' }, signal: controller.signal });
+      if (!r.ok) throw new Error('ncdr api ' + r.status);
+      const d = await r.json();
+      const root = d && d.feed && typeof d.feed === 'object' ? d.feed : d;
+      return {
+        at: ncdrText(root && root.updated) || new Date().toISOString(), observedAt: new Date().toISOString(),
+        source: 'NCDR', stale: false, hazards: normalizeNcdrHazards(d, Date.now()),
+      };
+    });
+    const deadline = new Promise((_, reject) => {
+      deadlineTimer = setTimer(() => {
+        controller.abort();
+        reject(new Error('ncdr timeout'));
+      }, waitMaxMs);
+    });
+    mine.p = Promise.race([work, deadline])
+      .then(next => {
+        if (hazardRefresh === mine) {
+          hazardMem = next; hazardMemAt = Date.now(); hazardFailAt = 0;
+        }
+      })
+      .catch(e => {
+        if (hazardRefresh === mine) hazardFailAt = Date.now();
+        throw e;
+      })
+      .finally(() => {
+        clearTimer(deadlineTimer);
+        if (hazardRefresh === mine) hazardRefresh = null;
+      });
+    ride = mine;
+  }
+  let waiterTimer;
+  return Promise.race([
+    ride.p,
+    new Promise((_, reject) => {
+      waiterTimer = setTimer(() => reject(new Error('ncdr refresh wait timeout')),
+        Math.max(0, waitMaxMs - (now() - ride.at)));
+    }),
+  ]).finally(() => clearTimer(waiterTimer));
 }
 
 async function hazardAlert(request, env) {
@@ -538,7 +583,7 @@ async function hazardMonitorScheduled(event, env) {
     failed: settled.filter(x => x.status === 'rejected' || !(x.value && x.value.ok)).length };
 }
 
-function hazardMonitorWithTimeout(event, env, timeoutMs = 12000) {
+function hazardMonitorWithTimeout(event, env, timeoutMs = HAZARD_MONITOR_TIMEOUT_MS) {
   let timer;
   return Promise.race([
     hazardMonitorScheduled(event, env),
@@ -4797,11 +4842,133 @@ const BUS_S2_SELECT = 'RouteUID,RouteID,SubRouteUID,SubRouteID,Direction,Stops';
 const BUS_TRANSFER_RAW_TTL_SEC = 20;
 const BUS_TRANSFER_LAST_GOOD_SEC = 3600;
 const BUS_ROUTE_STOPS_TTL_SEC = 21600;
+// 動態公車上游仍要 single-flight（否則同一站湧入會重複花 TDX 點數／重解大 blob），但不能無限期
+// 搭別的 request 留下的 I/O。等待上限保住本次請求；放掉門檻 ≥ 最慢的 60 秒正常節拍，來源卡住時
+// 不會比正常情況更密集重打。所有 Map 都存 owner identity，舊輪晚到不得刪掉接手的新輪。
+const BUS_INFLIGHT_WAIT_MAX_MS = 12e3;
+const BUS_INFLIGHT_RECLAIM_MS = 60e3;
 let busTransferManifestMem = null;
 const busTransferStationMem = new Map();
 const busTransferInflight = new Map();
 const busLegInflight = new Map();
 const busRouteStopsInflight = new Map();
+
+function sharedBusInflight(map, key, start, {
+  waitMaxMs = BUS_INFLIGHT_WAIT_MAX_MS,
+  reclaimMs = BUS_INFLIGHT_RECLAIM_MS,
+  now = Date.now,
+} = {}) {
+  let ride = map.get(key);
+  if (ride && now() - ride.at >= reclaimMs) {
+    if (map.get(key) === ride) {
+      ride.controller.abort();
+      map.delete(key);
+    }
+    ride = null;
+  }
+  if (!ride) {
+    const controller = new AbortController();
+    const mine = { at: now(), controller, p: null };
+    map.set(key, mine);
+    mine.p = Promise.resolve()
+      .then(() => start({ signal: controller.signal, isCurrent: () => map.get(key) === mine }))
+      .finally(() => { if (map.get(key) === mine) map.delete(key); });
+    ride = mine;
+  }
+  let timer;
+  return Promise.race([
+    ride.p,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('bus inflight timeout')),
+        Math.max(0, waitMaxMs - (now() - ride.at)));
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+// Cache API 沒有 compare-and-swap：舊 owner 若已進入 edge.put 才被 reclaim，單做 identity check
+// 仍有「新 B 先寫完、舊 A 後寫完」而倒退成 A 的 TOCTOU。每個 cache group 將並行寫入編號；
+// 舊寫入結束後若看見更新代，就再補寫目前最新 payload，直到自己追上。若舊 I/O 永遠不結束，
+// 它也永遠不會覆蓋任何東西；最新一輪不必等它，照常完成。
+const busCacheWriteStates = new Map();
+let busCacheMutationEpoch = 0;
+async function matchBusCache(edge, cacheKey, retry = true) {
+  const groupKey = cacheKey.url;
+  const epoch = busCacheMutationEpoch;
+  const before = busCacheWriteStates.get(groupKey);
+  const beforeLatest = before && before.latest;
+  // 清除也失敗代表 edge 內容已知不可信；下一輪成功寫入前一律繞過。
+  if (before && before.quarantined) return undefined;
+  const expected = beforeLatest && beforeLatest.entries.find(entry => entry.key.url === cacheKey.url);
+  const hit = await edge.match(cacheKey);
+  if (!before) {
+    // ABA：match 抓到舊 body 後 pending 的短窗裡，B 可能完整 start→put→state 回收；前後都看不到
+    // state。miss 也必須走這條（B 可能剛把 miss 補成 hit）。用全域單調 epoch 看見整段生命週期，
+    // 重讀一次；忙碌時最多重試一輪，之後保守 miss。
+    if (epoch !== busCacheMutationEpoch) return retry ? matchBusCache(edge, cacheKey, false) : undefined;
+    return hit;
+  }
+  const changed = () => {
+    const after = busCacheWriteStates.get(groupKey);
+    return after !== before || after.quarantined || after.latest !== beforeLatest;
+  };
+  if (!hit) return changed() ? (retry ? matchBusCache(edge, cacheKey, false) : undefined) : hit;
+  // 最早的 A.put 可能永遠不 settle；B 已成功後 state.pending 仍不會歸零。此時不能永久 bypass
+  // B 的有效 cache（會讓每一位訪客都重打 TDX），但也不能接受 A 日後倒灌的舊 body。
+  if (!expected) return undefined;
+  let body;
+  try { body = await hit.clone().text(); } catch (e) { return undefined; }
+  if (changed()) return retry ? matchBusCache(edge, cacheKey, false) : undefined;
+  return body === expected.body ? hit : undefined;
+}
+async function orderedBusCachePut(edge, groupKey, entries) {
+  busCacheMutationEpoch++;
+  let state = busCacheWriteStates.get(groupKey);
+  if (!state) {
+    state = { generation: 0, pending: 0, latest: null, quarantined: false };
+    busCacheWriteStates.set(groupKey, state);
+  }
+  const mine = { generation: ++state.generation, entries };
+  state.latest = mine; state.pending++;
+  const write = async payload => {
+    for (const entry of payload.entries) {
+      await edge.put(entry.key, new Response(entry.body, { headers: entry.headers }));
+    }
+  };
+  const discard = async payload => {
+    if (typeof edge.delete !== 'function') return false;
+    let ok = true;
+    for (const entry of payload.entries) {
+      try { await edge.delete(entry.key); } catch (e) { ok = false; }
+    }
+    return ok;
+  };
+  let seen = mine;
+  try {
+    while (true) {
+      try {
+        await write(seen);
+      } catch (error) {
+        // 這次 put 可能已先寫進一部分，尤其可能是舊 owner 把 A 蓋回去後，補寫 B 才失敗。
+        // Cache API 沒有 rollback；至少清掉整組，讓下次 miss 重抓，絕不把已知倒退值留到長 TTL。
+        const discarded = await discard(seen);
+        state.quarantined = !discarded;
+        // delete 自己也可能卡住；期間若已有更新一代，清除完成後必須再補那一代，不能把它刪掉就走。
+        if (state.latest !== seen) { seen = state.latest; continue; }
+        throw error;
+      }
+      if (state.latest === seen) {
+        state.quarantined = false;
+        break;
+      }
+      seen = state.latest;
+    }
+  } finally {
+    state.pending--;
+    if (!state.pending && !state.quarantined && state.latest === seen && busCacheWriteStates.get(groupKey) === state) {
+      busCacheWriteStates.delete(groupKey);
+    }
+  }
+}
 
 // 只記「真的打到 TDX 一次」：20 秒快取命中不會進這裡，所以能直接換算點數。
 // doubles = [calls, wire/content-length bytes, decoded JSON bytes]；失敗回應也記一次，
@@ -4880,16 +5047,17 @@ function busN1Rows(body) {
   return body && Array.isArray(body.EstimatedTimeOfArrivals) ? body.EstimatedTimeOfArrivals : [];
 }
 
-async function fetchBusN1(env, scopeData, token) {
+async function fetchBusN1(env, scopeData, token, signal) {
   const stopUids = (scopeData.stops || []).map(stop => stop.stopUid);
   const response = await fetch(busN1Url(env, scopeData.scope, stopUids), {
     headers: { authorization: 'Bearer ' + token, accept: 'application/json' },
     redirect: 'manual',
+    signal,
   });
   if (!response.ok) {
     const contentLength = Number(response.headers.get('content-length'));
     recordBusTdxUsage(env, 'N1', scopeData.scope, response.status, Number.isFinite(contentLength) ? contentLength : 0, 0);
-    if (response.status === 401) tok = null;
+    if (response.status === 401 && !signal?.aborted) tok = null;
     throw new Error(`tdx bus n1 ${response.status} ${scopeData.scope}`);
   }
   const text = await response.text();
@@ -4919,16 +5087,15 @@ async function cachedBusTransferRaw(request, env, station) {
   const cacheKey = busTransferCacheKey(request, station.id, 'raw');
   const lastKey = busTransferCacheKey(request, station.id, 'lastgood');
   try {
-    const hit = await edge.match(cacheKey);
+    const hit = await matchBusCache(edge, cacheKey);
     if (hit) return { ...(await hit.json()), cacheState: 'hit' };
   } catch (e) { /* workers.dev／測試環境 cache 不可用時，仍可直查 */ }
 
-  if (busTransferInflight.has(station.id)) return await busTransferInflight.get(station.id);
-  const task = (async () => {
+  return await sharedBusInflight(busTransferInflight, station.id, async ({ signal, isCurrent }) => {
     let settled;
     try {
       const token = await getToken(env); // 兩個 scope 共用同一把 token，避免冷啟並行重複打 OAuth。
-      settled = await Promise.allSettled(station.scopes.map(scopeData => fetchBusN1(env, scopeData, token)));
+      settled = await Promise.allSettled(station.scopes.map(scopeData => fetchBusN1(env, scopeData, token, signal)));
     } catch (error) {
       settled = station.scopes.map(() => ({ status: 'rejected', reason: error }));
     }
@@ -4956,14 +5123,16 @@ async function cachedBusTransferRaw(request, env, station) {
     }
     const raw = { fetchedAt: new Date().toISOString(), rowsByScope, scopeStatus };
     const body = JSON.stringify(raw);
-    try {
-      await edge.put(cacheKey, new Response(body, { headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_TRANSFER_RAW_TTL_SEC}` } }));
-      await edge.put(lastKey, new Response(body, { headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_TRANSFER_LAST_GOOD_SEC}` } }));
-    } catch (e) { /* 快取失敗不可讓使用者的主動查詢一起失敗 */ }
+    if (isCurrent()) {
+      try {
+        await orderedBusCachePut(edge, cacheKey.url, [
+          { key: cacheKey, body, headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_TRANSFER_RAW_TTL_SEC}` } },
+          { key: lastKey, body, headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_TRANSFER_LAST_GOOD_SEC}` } },
+        ]);
+      } catch (e) { /* 快取失敗不可讓使用者的主動查詢一起失敗 */ }
+    }
     return { ...raw, cacheState: 'miss' };
-  })().finally(() => busTransferInflight.delete(station.id));
-  busTransferInflight.set(station.id, task);
-  return await task;
+  });
 }
 
 async function busTransfer(request, env) {
@@ -5017,15 +5186,16 @@ function busDynamicUrl(env, kind, arrival) {
   return url;
 }
 
-async function fetchBusDynamic(env, kind, arrival, token) {
+async function fetchBusDynamic(env, kind, arrival, token, signal) {
   const response = await fetch(busDynamicUrl(env, kind, arrival), {
     headers: { authorization: 'Bearer ' + token, accept: 'application/json' },
     redirect: 'manual',
+    signal,
   });
   if (!response.ok) {
     const contentLength = Number(response.headers.get('content-length'));
     recordBusTdxUsage(env, kind === 'RealTimeByFrequency' ? 'A1' : 'A2', arrival.scope, response.status, Number.isFinite(contentLength) ? contentLength : 0, 0);
-    if (response.status === 401) tok = null;
+    if (response.status === 401 && !signal?.aborted) tok = null;
     throw new Error(`tdx bus ${kind} ${response.status} ${arrival.scope}`);
   }
   const text = await response.text();
@@ -5059,15 +5229,16 @@ function busRouteStopsUrl(env, arrival) {
   return url;
 }
 
-async function fetchBusRouteStops(env, arrival, token) {
+async function fetchBusRouteStops(env, arrival, token, signal) {
   const response = await fetch(busRouteStopsUrl(env, arrival), {
     headers: { authorization: 'Bearer ' + token, accept: 'application/json' },
     redirect: 'manual',
+    signal,
   });
   if (!response.ok) {
     const contentLength = Number(response.headers.get('content-length'));
     recordBusTdxUsage(env, 'S2', arrival.scope, response.status, Number.isFinite(contentLength) ? contentLength : 0, 0);
-    if (response.status === 401) tok = null;
+    if (response.status === 401 && !signal?.aborted) tok = null;
     throw new Error(`tdx bus StopOfRoute ${response.status} ${arrival.scope}`);
   }
   const text = await response.text();
@@ -5086,23 +5257,24 @@ async function cachedBusRouteStopsRaw(request, env, arrival) {
   const edge = caches.default;
   const cacheKey = busTransferCacheKey(request, arrival.key, 'route-stops');
   try {
-    const hit = await edge.match(cacheKey);
+    const hit = await matchBusCache(edge, cacheKey);
     if (hit) return { ...(await hit.json()), cacheState: 'hit' };
   } catch (e) {}
-  if (busRouteStopsInflight.has(arrival.key)) return await busRouteStopsInflight.get(arrival.key);
-  const task = (async () => {
+  return await sharedBusInflight(busRouteStopsInflight, arrival.key, async ({ signal, isCurrent }) => {
     const token = await getToken(env);
-    const fetched = await fetchBusRouteStops(env, arrival, token);
+    const fetched = await fetchBusRouteStops(env, arrival, token, signal);
     const raw = { fetchedAt: new Date().toISOString(), rows: fetched.rows };
-    try {
-      await edge.put(cacheKey, new Response(JSON.stringify(raw), {
-        headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_ROUTE_STOPS_TTL_SEC}` },
-      }));
-    } catch (e) {}
+    if (isCurrent()) {
+      try {
+        await orderedBusCachePut(edge, cacheKey.url, [{
+          key: cacheKey,
+          body: JSON.stringify(raw),
+          headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_ROUTE_STOPS_TTL_SEC}` },
+        }]);
+      } catch (e) {}
+    }
     return { ...raw, cacheState: 'miss' };
-  })().finally(() => busRouteStopsInflight.delete(arrival.key));
-  busRouteStopsInflight.set(arrival.key, task);
-  return await task;
+  });
 }
 
 async function ungzipJsonResponse(response) {
@@ -5115,11 +5287,11 @@ async function ungzipJsonResponse(response) {
   return { body: JSON.parse(text), bytes: compressed.byteLength, decodedBytes: new TextEncoder().encode(text).byteLength };
 }
 
-async function fetchTaipeiBusSeat(env) {
+async function fetchTaipeiBusSeat(env, signal) {
   const url = env.BUS_SEAT_URL_OVERRIDE || BUS_SEAT_URL;
   // 🔴 cache:'no-store' 與 directBulkSnapshot 同理：同一台市府 blob、同樣是 .gz 又沒有 Cache-Control，
   //    不帶就會被 Cloudflare 快取 120 分鐘，擁擠度一過 180 秒就全被判成 stale。
-  const response = await fetch(url, { headers: { accept: 'application/gzip,application/json' }, cache: 'no-store' });
+  const response = await fetch(url, { headers: { accept: 'application/gzip,application/json' }, cache: 'no-store', signal });
   if (!response.ok) throw new Error(`taipei bus seat ${response.status}`);
   const parsed = await ungzipJsonResponse(response);
   return {
@@ -5136,18 +5308,17 @@ async function cachedBusLegRaw(request, env, arrival) {
   const cacheKey = busTransferCacheKey(request, keyId, 'leg-raw');
   const lastKey = busTransferCacheKey(request, keyId, 'leg-lastgood');
   try {
-    const hit = await edge.match(cacheKey);
+    const hit = await matchBusCache(edge, cacheKey);
     if (hit) return { ...(await hit.json()), cacheState: 'hit' };
   } catch (e) {}
-  if (busLegInflight.has(keyId)) return await busLegInflight.get(keyId);
-  const task = (async () => {
+  return await sharedBusInflight(busLegInflight, keyId, async ({ signal, isCurrent }) => {
     try {
       const token = await getToken(env);
       const tasks = [
-        fetchBusDynamic(env, 'RealTimeByFrequency', arrival, token),
-        fetchBusDynamic(env, 'RealTimeNearStop', arrival, token),
+        fetchBusDynamic(env, 'RealTimeByFrequency', arrival, token, signal),
+        fetchBusDynamic(env, 'RealTimeNearStop', arrival, token, signal),
       ];
-      if (arrival.scope === 'City/Taipei') tasks.push(fetchTaipeiBusSeat(env));
+      if (arrival.scope === 'City/Taipei') tasks.push(fetchTaipeiBusSeat(env, signal));
       const settled = await Promise.allSettled(tasks);
       if (settled[0].status !== 'fulfilled') throw settled[0].reason;
       const a1 = settled[0].value;
@@ -5173,10 +5344,14 @@ async function cachedBusLegRaw(request, env, arrival) {
         ],
       };
       const body = JSON.stringify(raw);
-      try {
-        await edge.put(cacheKey, new Response(body, { headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_TRANSFER_RAW_TTL_SEC}` } }));
-        await edge.put(lastKey, new Response(body, { headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_TRANSFER_LAST_GOOD_SEC}` } }));
-      } catch (e) {}
+      if (isCurrent()) {
+        try {
+          await orderedBusCachePut(edge, cacheKey.url, [
+            { key: cacheKey, body, headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_TRANSFER_RAW_TTL_SEC}` } },
+            { key: lastKey, body, headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_TRANSFER_LAST_GOOD_SEC}` } },
+          ]);
+        } catch (e) {}
+      }
       return { ...raw, cacheState: 'miss' };
     } catch (error) {
       try {
@@ -5185,9 +5360,7 @@ async function cachedBusLegRaw(request, env, arrival) {
       } catch (e) {}
       throw error;
     }
-  })().finally(() => busLegInflight.delete(keyId));
-  busLegInflight.set(keyId, task);
-  return await task;
+  });
 }
 
 async function busLegLive(request, env) {
@@ -5307,8 +5480,7 @@ async function directBulkSnapshot(env, city, entry) {
   const cached = busDirectMem.get(city);
   if (cached && Date.now() - cached.at < BUS_DIRECT_MEM_TTL_MS) return cached;
   const key = `direct:${city}`;
-  if (busStopInflight.has(key)) return await busStopInflight.get(key);
-  const task = (async () => {
+  return await sharedBusInflight(busStopInflight, key, async ({ signal, isCurrent }) => {
     // 🔴 端點取自設定檔，不是常數；BUS_DIRECT_BASE_OVERRIDE 只在本機驗收時指向 fixture server。
     const override = env.BUS_DIRECT_BASE_OVERRIDE;
     const urlOf = kind => (override ? `${String(override).replace(/\/$/, '')}/${kind}` : entry.directBulk.endpoints[kind]);
@@ -5318,10 +5490,10 @@ async function directBulkSnapshot(env, city, entry) {
       //    2026-09-24 正式站實測：每個節點各卡一份兩小時前的快照（KHH 18:54:55、HKG 18:20:55），
       //    上面 15 秒的記憶體 TTL 每次重抓都拿到同一份。本機驗收（Node 替身 fetch）與 workers.dev 都照不到這一層，
       //    守門人：scripts/verify_bus_stop_worker.mjs「Cloudflare 子請求快取」。
-      fetch(urlOf('estimate'), { headers: { accept: 'application/gzip,application/json' }, cache: 'no-store' }),
+      fetch(urlOf('estimate'), { headers: { accept: 'application/gzip,application/json' }, cache: 'no-store', signal }),
       // 路線名一天變不到一次，但沒有獨立的取得節拍就得為它多做一層快取；跟著到站一起抓最簡單，
       // 而且它免費、77 KB，成本可以忽略。它刻意不帶 no-store：被 Cloudflare 快取兩小時對路線名無妨。
-      fetch(urlOf('route'), { headers: { accept: 'application/gzip,application/json' } }),
+      fetch(urlOf('route'), { headers: { accept: 'application/gzip,application/json' }, signal }),
     ]);
     if (!estimateRes.ok) throw new Error(`direct-bulk ${city} estimate ${estimateRes.status}`);
     const estimate = await ungzipJsonResponse(estimateRes);
@@ -5335,11 +5507,9 @@ async function directBulkSnapshot(env, city, entry) {
       } catch (e) { /* 路線名拿不到只讓列上顯示 id，不該讓整站的到站一起失敗 */ }
     }
     const snapshot = { rows, routeNames, snapshotMs: parseDirectBulkUpdateTime(updateTime), updateTime, at: Date.now(), bytes: estimate.bytes, decodedBytes: estimate.decodedBytes };
-    busDirectMem.set(city, snapshot);
+    if (isCurrent()) busDirectMem.set(city, snapshot);
     return snapshot;
-  })().finally(() => busStopInflight.delete(key));
-  busStopInflight.set(key, task);
-  return await task;
+  });
 }
 
 function busStopTdxUrl(env, scope, stopUids) {
@@ -5359,26 +5529,30 @@ async function tdxStopSnapshot(request, env, entry, stopUids) {
   const clusterKey = [...stopUids].sort().join(',');
   const edge = caches.default;
   const cacheKey = new Request(new URL(`/api/bus-stop-live__raw?scope=${encodeURIComponent(entry.tdxScope)}&stops=${encodeURIComponent(clusterKey)}`, request.url).toString(), { method: 'GET' });
-  try { const hit = await edge.match(cacheKey); if (hit) return { ...(await hit.json()), cacheState: 'hit' }; } catch (e) {}
+  try { const hit = await matchBusCache(edge, cacheKey); if (hit) return { ...(await hit.json()), cacheState: 'hit' }; } catch (e) {}
   const inflightKey = `tdx:${entry.tdxScope}:${clusterKey}`;
-  if (busStopInflight.has(inflightKey)) return await busStopInflight.get(inflightKey);
-  const task = (async () => {
+  return await sharedBusInflight(busStopInflight, inflightKey, async ({ signal, isCurrent }) => {
     const r = await fetch(busStopTdxUrl(env, entry.tdxScope, stopUids), {
       headers: { authorization: 'Bearer ' + await getToken(env), accept: 'application/json' },
       redirect: 'manual',
+      signal,
     });
-    if (r.status === 401) { tok = null; throw new Error('tdx 401 bus-stop-live'); }
+    if (r.status === 401) { if (!signal.aborted) tok = null; throw new Error('tdx 401 bus-stop-live'); }
     if (!r.ok) throw new Error(`tdx bus-stop-live ${r.status}`);
     const body = await r.json();
     const rows = Array.isArray(body) ? body : (body && Array.isArray(body.EstimatedTimeOfArrivals) ? body.EstimatedTimeOfArrivals : []);
     const raw = { fetchedAt: new Date().toISOString(), rows };
-    try {
-      await edge.put(cacheKey, new Response(JSON.stringify(raw), { headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${Math.round(BUS_TDX_MEM_TTL_MS / 1000)}` } }));
-    } catch (e) {}
+    if (isCurrent()) {
+      try {
+        await orderedBusCachePut(edge, cacheKey.url, [{
+          key: cacheKey,
+          body: JSON.stringify(raw),
+          headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${Math.round(BUS_TDX_MEM_TTL_MS / 1000)}` },
+        }]);
+      } catch (e) {}
+    }
     return { ...raw, cacheState: 'miss' };
-  })().finally(() => busStopInflight.delete(inflightKey));
-  busStopInflight.set(inflightKey, task);
-  return await task;
+  });
 }
 
 async function busStopSearch(request, env) {
@@ -7858,7 +8032,11 @@ export const _metroAlert = {
   stripHtmlAndTruncate, formatNewsTitle, mapNewsToAlert, filterAndMapNews,
 };
 // NCDR 災害觸發器純解析 + 端點/cron 編排，供 fixture-only 離線回歸測試。
-export const _hazard = { ncdrTimeMs, normalizeNcdrHazards, hazardAlert, hazardMonitorScheduled, resetHazardMem };
+export const _hazard = {
+  ncdrTimeMs, normalizeNcdrHazards, hazardAlert, hazardMonitorScheduled, hazardMonitorWithTimeout,
+  refreshHazardMem, resetHazardMem,
+  HAZARD_FETCH_TIMEOUT_MS, HAZARD_REFRESH_RECLAIM_MS, HAZARD_MONITOR_TIMEOUT_MS,
+};
 // 純函式導出,供離線回歸測試 import:逐站事件 diff 與 mem.at→台北日換算。
 export const _stationEvents = { diffTrains, twDayFromMemAt };
 // 公車轉乘全臺台鐵站：核心 resolver 在 scripts/bus_transfer_core.mjs，這裡導出 IO 編排供 fixture 測試。
@@ -7866,13 +8044,13 @@ export const _stationEvents = { diffTrains, twDayFromMemAt };
 export const _busTransfer = {
   busTransfer, busLegLive, busRouteStops, busTransferManifestData, busTransferStationData, busN1Url, busN1Rows, fetchBusN1, cachedBusTransferRaw,
   busDynamicUrl, fetchBusDynamic, fetchBusRouteStops, busRouteStopsUrl, fetchTaipeiBusSeat, cachedBusLegRaw, cachedBusRouteStopsRaw,
-  resetBusTransferCaches,
+  resetBusTransferCaches, sharedBusInflight, matchBusCache, orderedBusCachePut, BUS_INFLIGHT_WAIT_MAX_MS, BUS_INFLIGHT_RECLAIM_MS,
 };
 // 公車站牌搜尋與到站（單元 C 第一批）：純 resolver 在 scripts/bus_live_core.mjs，
 // 這裡導出 IO 編排供 fixture 測試——要能數「打了幾發上游」「端點網址是不是從設定檔來的」。
 export const _busStop = {
   busStopSearch, busStopLive, busStopIndex, busProviderConfig, directBulkSnapshot, tdxStopSnapshot, busStopTdxUrl,
-  resetBusStopCaches,
+  resetBusStopCaches, sharedBusInflight, matchBusCache, orderedBusCachePut, BUS_INFLIGHT_WAIT_MAX_MS, BUS_INFLIGHT_RECLAIM_MS,
   BUS_DIRECT_EDGE_TTL_SEC, BUS_DIRECT_MEM_TTL_MS, BUS_TDX_EDGE_TTL_SEC, BUS_TDX_MEM_TTL_MS,
 };
 // 短效旅程分享：導出驗證與端點編排，fixture 測試可證明憑證分離、只留最新位置與立即刪除。

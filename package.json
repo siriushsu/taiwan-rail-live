@@ -123,6 +123,7 @@
     "check-follow-heading": "node scripts/verify_follow_heading_toggle.mjs",
     "check-follow-rotate": "node scripts/verify_follow_rotate.mjs",
     "check-platforms": "node scripts/verify_platforms.mjs",
+    "check-worker-inflight": "node scripts/verify_worker_inflight_recovery.mjs",
     "check-platforms-browser": "node scripts/verify_platforms_browser.mjs",
     "check-platforms-swift": "node scripts/verify_platforms_swift.mjs",
     "check-3d-road-occlusion": "node scripts/verify_3d_road_occlusion.mjs",

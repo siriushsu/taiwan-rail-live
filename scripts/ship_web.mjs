@@ -459,6 +459,16 @@ try {
   if (traInflight.status !== 0) fail('台鐵即時刷新去重閘門未過——搭便車又會無限期等別人的 I/O，或去重被拿掉而多打 TDX'
     + '（單獨重跑：node scripts/verify_tra_live_inflight.mjs）');
 
+  // ── 2.9d Worker 其他共用 inflight 也不可被一發取消的 I/O 永久毒死 ──────────────
+  // NCDR 災害監看與五種公車動態 key 都會跨 request 共乘上游（月台同型案例由前面的 platforms gate 守）。
+  // 只傳 AbortSignal 不夠：
+  // owner 被取消時，fetch/body 與它的 timer 可能一起永遠 pending。這支用不理 abort 的 fixture 守住
+  // 總截止、下一輪復原、昂貴公車上游在放掉前不重打，以及舊 owner 晚到不清新 owner。
+  const workerInflight = spawnSync('node', [path.join(wt, 'scripts', 'verify_worker_inflight_recovery.mjs')], { encoding: 'utf8' });
+  process.stdout.write(workerInflight.stdout || ''); process.stderr.write(workerInflight.stderr || '');
+  if (workerInflight.status !== 0) fail('Worker 共用刷新復原閘門未過——NCDR 或公車上游卡住後仍會拖住後續請求'
+    + '（單獨重跑：npm run check-worker-inflight）');
+
   // ── 2.10 OBS 直播／導播模式守門人 ───────────────────────────────────────────
   // 2026-09-03 刪掉 ?live=1／?live=2 之後補的。守的是「刪掉的東西不會被某條舊分支的合併
   // 靜默帶回來」——這個 repo 的合併吃掉／帶回東西從來不會讓 build 紅（見 app/scripts/

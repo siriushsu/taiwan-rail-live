@@ -3395,3 +3395,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '台鐵誤點列車經過平鎮附近時，會穩定維持前後車順序，減少在同一股道短暫重疊的畫面': '平鎮付近を通る遅延した台鉄列車が前後関係を安定して保つようになり、同じ線路上で一時的に重なって見える場面を減らしました。',
 });
+// 2026-09-27 Worker 共用刷新卡住後可限時結束並於下一輪恢復：第一層更新紀錄那條的 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '公車到站、台鐵月台與災害監看遇到官方來源沒回應時，會在限時內結束等待並於下一輪恢復': 'When official sources stop responding, bus arrivals, TRA platform data and hazard monitoring now stop waiting within a fixed time and recover on the next refresh.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '公車到站、台鐵月台與災害監看遇到官方來源沒回應時，會在限時內結束等待並於下一輪恢復': '公式データ元から応答がない場合、バス到着情報・台鉄のホーム情報・災害監視は一定時間で待機を終え、次の更新で復旧するようになりました。',
+});
