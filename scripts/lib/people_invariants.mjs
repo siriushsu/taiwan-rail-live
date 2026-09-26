@@ -8,7 +8,8 @@ export function peopleInvariants({plan:{planStop,personAt,idlePeople,PEOPLE},tim
   if(!(p.counts.board>=4&&p.counts.board<=7&&p.counts.alight>=2&&p.counts.alight<=12-p.counts.idle-p.counts.board))counts=false;
   for(const q of p.people){
    if(q.role==='board'){if(q.vanish>T0+timetable.phases.closeStart-.2)late++;if(q.arrived>T0-PEOPLE.arriveBy)arrive++;}
-   if(q.role==='alight'&&q.keys[1].t<T0+timetable.phases.openEnd-1e-9)exitEarly++;
+   // 下車者走到門中線（車內那一格）的時間；路線從車內深處出發，不能用 keys[1] 代表跨出車門。
+   if(q.role==='alight'){const dx=doors.find(d=>d.id===q.door)?.x,k=q.keys.find(k=>Math.abs(k.x-dx)<1e-9&&depth(k.y)<=doorPlane);if(!k||k.t<T0+timetable.phases.openEnd-1e-9)exitEarly++;}
   }
   for(let t=T0-40;t<T0+45;t+=step){
    const vis=[...[n-1,n,n+1].filter(k=>k>=0).flatMap(k=>plan(k).people),...idle].map(q=>personAt(q,t)).filter(Boolean);
@@ -18,7 +19,10 @@ export function peopleInvariants({plan:{planStop,personAt,idlePeople,PEOPLE},tim
     if(a.pose!=='sit'&&!a.id.startsWith('idle'))for(const o of platform.obstacles){const dx=Math.max(o.x0-a.x,0,a.x-o.x1),dy=Math.max(o.y0-a.y,0,a.y-o.y1);if(Math.hypot(dx,dy)<R)obst++;}
     const dd=depth(a.y),near=doors.reduce((m,d)=>Math.min(m,Math.abs(d.x-a.x)),Infinity);
     if(dd<.05&&dd>doorPlane&&near>.03)thresh++;   // 跨過月台間隙只能在門的正中
-    if(dd<=doorPlane&&near>.3)thresh++;           // 進到車內只能在門內那一小段
+    // 車內（世界單位，從最近那扇門量：a＝沿車身往車廂中心、e＝往車內）：門廳深到背牆（e≤.24，車模 |y| .89）為止，
+    // 過了隔間牆（a>.455，車模 1.10 m）才可以往車中心線走（e≤.66）；穿隔間牆只能走通道口（e≥.099，車模 |y|≤1.225）。
+    if(dd<=doorPlane){const d=doors.reduce((m,d)=>Math.abs(d.x-a.x)<Math.abs(m.x-a.x)?d:m),al=(a.x-d.x)*d.inboard,e=doorPlane-dd;
+     if(al<-.03||al>.6||e>.66||(al<.455&&e>.24)||(al>.43&&al<.48&&e<.099))thresh++;}
     const onPlat=dd>=0&&dd<=depth(platform.outer)&&a.x>=platform.xMin+R&&a.x<=platform.xMax-R;
     const onBridge=dd>depth(platform.outer)-1e-9&&a.x>=platform.bridge.x0+R&&a.x<=platform.bridge.x1-R;
     if(!(onPlat||onBridge||dd<.05))bounds++;
@@ -38,7 +42,7 @@ export function peopleChecks(v,spacing){
   ['月台上同時最多 12 人',v.maxOn<=12,{maxOn:v.maxOn}],
   ['任兩人距離 ≥0.3',v.minGap>=spacing-1e-9,v.worstPair],
   ['不穿過雨棚柱、長椅、站名牌柱',v.obst===0,{obst:v.obst}],
-  ['跨過間隙只在門的正中（±0.03）、車內不超出門內（±0.3）',v.thresh===0,{thresh:v.thresh}],
+  ['跨過間隙只在門的正中（±0.03）；車內只走門廳、穿隔間牆通道口、再往車中心線（不穿背牆與隔間牆）',v.thresh===0,{thresh:v.thresh}],
   ['人都在月台或天橋上（或正在進出車門）',v.bounds===0,{bounds:v.bounds}],
   ['上車者都在開始關門前 0.2 秒進門並隱藏',v.late===0,{late:v.late}],
   ['候車者在列車開始減速前 1 秒就定位',v.arrive===0,{arrive:v.arrive}],

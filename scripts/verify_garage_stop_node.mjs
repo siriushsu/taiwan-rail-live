@@ -161,6 +161,45 @@ if(on('T8')){
   const planCase=new THREE.Matrix4().makeTranslation(-.35,-kit.rig.shoulder[1],0).multiply(new THREE.Matrix4().makeRotationY(.35)),control=hits([...tris('leg',planLeg),...tris('shoe',planLeg)],tris('acc-suitcase',planCase));
   const pose0=personPose({id:'suitcase',walking:false,stride:0,pose:'stand',look},kit),caseMinZ=Math.min(...tris('acc-suitcase',pose0.find(e=>e.name==='acc-suitcase').matrix).flat().map(v=>v.z));
   check('T8 拉行李箱的人走路：腳與鞋不穿進箱子（含 0.02 餘裕）、右手一直握在拉桿頂（≤.05）、箱底著地（±.02）、腳掌仍前後擺 ≥.1；對照組（計畫原擺法）抓得到相交',collide===0&&margin===0&&far<=.05&&Math.abs(caseMinZ)<=.02&&footMax-footMin>=.1&&control>0,{collide,margin,handToTop:+far.toFixed(4),caseMinZ:+caseMinZ.toFixed(4),footSwing:+(footMax-footMin).toFixed(3),control});
+  // 上車者消失、下車者出現的那一刻，從自家門洞看不到人（設計書 §10「被車身擋住後隱藏」）。09-26 門洞打通之後才量得到：
+  // 之前門洞被封板擋住，人在門內任何地方消失都「看不到」。人用外框估：所有髮型、上身、配件、四個步伐相位擺出來的零件外框聯集
+  // （乘上大人最大縮放 1.06），外框表面取樣點連到自家門洞外口 7×12 點；正式車模頭車、中間車各 4 扇門（那一側兩扇全開）都要每條線段先碰到車模。
+  // 劇本座標換到車模：沿車身往車廂中心＝u、往車內＝v，v 從門扇中心面 |y|=1.466 量（T8 的門面取 1.443，這樣換偏淺 2 cm，偏保守）。
+  {const E=new THREE.Box3(),lk=(accessory,hair,torso)=>({torso,hair,accessory,top:'#fff',bottom:'#fff',hairColor:'#fff',skin:'#fff',accent:'#fff',scale:1});
+   for(const acc of [null,'backpack','suitcase','handbag','hat'])for(const [hair,torso]of [['short','shirt'],['long','jacket'],['bun','hoodie'],['short','dress']])for(const stride of [0,.0625,.125,.1875,.375,-1]){
+    for(const e of personPose({id:'env',walking:stride>=0,stride:Math.max(0,stride),pose:'stand',look:lk(acc,hair,torso)},kit))E.union(kit.parts.get(e.name).geometry.boundingBox.clone().applyMatrix4(e.matrix));}
+   E.min.multiplyScalar(1.06);E.max.multiplyScalar(1.06);
+   const body=[];for(let i=0;i<=5;i++)for(let j=0;j<=3;j++)for(let k=0;k<=6;k++)if(i%5===0||j%3===0||k%6===0)body.push([E.min.x+(E.max.x-E.min.x)*i/5,E.min.y+(E.max.y-E.min.y)*j/3,E.min.z+(E.max.z-E.min.z)*k/6]);
+   const cars=[];for(const id of ['emu3000','emu3000-mid']){const m=JSON.parse(readFileSync(new URL(`../rail-3d/assets/garage-blender-v1/${id}.json`,import.meta.url),'utf8')),g=gunzipSync(readFileSync(new URL('../rail-3d/assets/garage-blender-v1/'+m.mesh.file,import.meta.url))),f=new Float32Array(g.buffer,g.byteOffset,g.byteLength/4);
+    const n=m.mesh.vertexCount/3,inR=(x,v)=>x.ranges.some(r=>v>=r.start&&v<r.start+r.count);
+    for(const s of [1,-1]){const own=m.doors.items.filter(x=>x.side===s),T=new Float64Array(n*9);
+     for(let v=0;v<n*3;v++){const o=own.find(x=>inR(x,v));for(let j=0;j<3;j++)T[v*3+j]=f[v*6+j]+(o?o.inward[j]+o.slide[j]*o.travel:0);}
+     for(const dd of own)cars.push({id,dd,T,n});}}
+   const blocked=(T,idx,p,q)=>{const dx=q[0]-p[0],dy=q[1]-p[1],dz=q[2]-p[2],L=Math.hypot(dx,dy,dz),d0=dx/L,d1=dy/L,d2=dz/L;
+    for(const t of idx){const o=t*9,ax=T[o],ay=T[o+1],az=T[o+2],e1x=T[o+3]-ax,e1y=T[o+4]-ay,e1z=T[o+5]-az,e2x=T[o+6]-ax,e2y=T[o+7]-ay,e2z=T[o+8]-az;
+     const px=d1*e2z-d2*e2y,py=d2*e2x-d0*e2z,pz=d0*e2y-d1*e2x,det=e1x*px+e1y*py+e1z*pz;if(Math.abs(det)<1e-12)continue;
+     const inv=1/det,sx=p[0]-ax,sy=p[1]-ay,sz=p[2]-az,u=(sx*px+sy*py+sz*pz)*inv;if(u<-1e-9||u>1+1e-9)continue;
+     const qx=sy*e1z-sz*e1y,qy=sz*e1x-sx*e1z,qz=sx*e1y-sy*e1x,w=(d0*qx+d1*qy+d2*qz)*inv;if(w<-1e-9||u+w>1+1e-9)continue;
+     const h=(e2x*qx+e2y*qy+e2z*qz)*inv;if(h>1e-4&&h<L-1e-4)return true;}
+    return false;};
+   const out=Math.sign(pf.outer-pf.edge),states=new Map();
+   for(let n=0;n<10;n++)for(const q of plan.planStop(n,{timetable:tt,doors,platform:pf}).people){if(q.role==='idle')continue;
+    const st=plan.personAt(q,q.role==='board'?q.vanish-1e-6:q.appear),fd=doors.find(d=>d.id===q.door),a=(st.x-fd.x)*fd.inboard,e=(fd.y-st.y)*out;
+    // 人的前方（本地 +X）與左方（本地 +Y）換到門的座標系：u＝沿車身往車廂中心、v＝往車內。
+    const c=Math.cos(st.heading),s=Math.sin(st.heading),fwd=[fd.inboard*c,-out*s],left=[-fd.inboard*s,-out*c];
+    const key=[q.role,a,e,...fwd,...left].map(v=>typeof v==='number'?v.toFixed(3):v).join();
+    if(!states.has(key))states.set(key,{role:q.role,id:q.id,a,e,fwd,left});}
+   const seen=[];let cases=0;
+   for(const s0 of states.values())for(const {id,dd,T,n}of cars){cases++;const s=dd.side,sig=Math.sign(dd.slide[0]),cx=dd.center[0];
+    // 車模 x＝cx+sig·u、y＝s·(1.466−v)。
+    const P=body.map(([x,y,z])=>{const du=x*s0.fwd[0]+y*s0.left[0],dv=x*s0.fwd[1]+y*s0.left[1];return[cx+sig*(s0.a/scale+du),s*(1.466-(s0.e/scale+dv)),.921+z];});
+    const Q=[];for(let i=0;i<=6;i++)for(let j=0;j<=11;j++)Q.push([cx+.635*(i/6-.5)*.98,s*1.48,.915+2.21*(.02+.96*j/11)]);
+    const lo=[0,1,2].map(k=>Math.min(...P.map(p=>p[k]),...Q.map(p=>p[k]))-.01),hi=[0,1,2].map(k=>Math.max(...P.map(p=>p[k]),...Q.map(p=>p[k]))+.01),idx=[];
+    for(let t=0;t<n;t++){const o=t*9;let ok=true;for(let k=0;k<3&&ok;k++){const a0=T[o+k],a1=T[o+3+k],a2=T[o+6+k];if(Math.max(a0,a1,a2)<lo[k]||Math.min(a0,a1,a2)>hi[k])ok=false;}if(ok)idx.push(t);}
+    const c=[cx,s*1.44,2.02],dist=t=>{let d=0;for(let k=0;k<3;k++){const m=(T[t*9+k]+T[t*9+3+k]+T[t*9+6+k])/3-c[k];d+=m*m;}return d;};idx.sort((x,y)=>dist(x)-dist(y));
+    let hit=null;for(const p of P){for(const q of Q)if(!blocked(T,idx,p,q)){hit={p:p.map(v=>+v.toFixed(3)),q:q.map(v=>+v.toFixed(3))};break;}if(hit)break;}
+    if(hit)seen.push({role:s0.role,person:s0.id,car:id,door:dd.id,along:+s0.a.toFixed(3),deep:+s0.e.toFixed(3),...hit});}
+   check('T8 上車者消失、下車者出現的那一刻，從自家門洞看不到人（正式車模頭車與中間車 8 扇門，人以所有外型與步伐的外框估）',states.size>0&&seen.length===0,{states:states.size,cases,visible:seen.length,envelope:[E.min,E.max].map(v=>[v.x,v.y,v.z].map(n=>+n.toFixed(3))),first:seen.slice(0,3)});}
   kit.dispose();}
 }
 

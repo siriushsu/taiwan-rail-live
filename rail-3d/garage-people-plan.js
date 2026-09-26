@@ -47,11 +47,17 @@ export function planStop(stop,{timetable,doors,platform,seed=20260924}){
  const alightDoors=[...byDoor.values()].filter(s=>s.alight.length),hi=cols[0];
  const right=alightDoors.filter(s=>s.door.x>hi).sort((a,b)=>a.door.x-b.door.x),leftGroup=alightDoors.filter(s=>s.door.x<=hi).sort((a,b)=>b.door.x-a.door.x);
  right.forEach((s,i)=>{s.column=cols[right.length-1-i];s.lane=i;});leftGroup.forEach((s,i)=>{s.column=cols[right.length+i];s.lane=i;});
- let id=0;const inside=d=>[d.x,d.y-out*.12],passage=d=>[d.x+d.inboard*.22,d.y-out*.12],sill=d=>[d.x,Y(.05)];
+ // 車內路點（世界單位；a＝沿車身往車廂中心、e＝從門往車內），由車模量得（車模公尺×.4124）：隔間牆離門中心 1.10 m、通道口在 |y| .875～1.225、
+ // 門廳背牆在 |y| .875 從車端延伸到隔間牆。上車者沿門廳走到通道口、穿過去、往車中心線走（繞過背牆端點），最後轉向車廂中心走一小步才隱藏：
+ // 這時連拖在身後的行李箱都在背牆後面，從自家門洞任何角度都看不到（T8 用正式車模驗）。下車者從車中心線上、背牆後面出現，面向門走出來。
+ const IN={mouth:[.41,.165],through:[.495,.186],center:[.495,.62],hide:[.557,.62],appear:[.495,.64]};
+ let id=0;const inside=d=>[d.x,d.y-out*.12],car=(d,[a,e])=>[d.x+d.inboard*a,d.y-out*e],sill=d=>[d.x,Y(.05)];
+ const walkIn=d=>[inside(d),car(d,IN.mouth),car(d,IN.through),car(d,IN.center),car(d,IN.hide)],walkOut=d=>[car(d,IN.through),car(d,IN.mouth),inside(d)];
+ const len=(a,pts)=>pts.reduce((L,b)=>{L+=Math.hypot(b[0]-a[0],b[1]-a[1]);a=b;return L;},0);
  let firstBoard=null;
  for(const s of byDoor.values()){const d=s.door;let lastExit=-Infinity;
-  for(const k of s.alight){const exit=openEnd+k*P.exitGap,start=passage(d),t0=exit-.22/P.walk,laneY=Y(P.laneDepth+s.lane*P.laneStep);
-   const keys=route(t0,start,[inside(d),sill(d),[d.x,laneY],[s.column,laneY],[s.column,platform.outer],[s.column,hutY],[s.column,hideY]],P.walk);
+  for(const k of s.alight){const exit=openEnd+k*P.exitGap,start=car(d,IN.appear),t0=exit-len(start,walkOut(d))/P.walk,laneY=Y(P.laneDepth+s.lane*P.laneStep);
+   const keys=route(t0,start,[...walkOut(d),sill(d),[d.x,laneY],[s.column,laneY],[s.column,platform.outer],[s.column,hutY],[s.column,hideY]],P.walk);
    people.push({id:'s'+stop+'-'+id++,stop,role:'alight',door:d.id,look:makeLook(r),appear:t0,vanish:keys[keys.length-1].t,keys});lastExit=Math.max(lastExit,exit);}
   const boardStart=Number.isFinite(lastExit)?lastExit+P.clear:openEnd+.3;
   s.board.forEach((x,j)=>{const t=boardStart+j*P.boardGap;s.boardTimes=(s.boardTimes||[]).concat(t);});
@@ -61,7 +67,7 @@ export function planStop(stop,{timetable,doors,platform,seed=20260924}){
  boarders.sort((a,b)=>b.len-a.len);let emerge=T0-P.emerge;const faceTrack=Math.atan2(-out,0);
  for(const b of boarders){const d=b.s.door,waitY=Y(P.waitDepth),laneY=Y(P.boardLaneDepth),t0=emerge;emerge+=1.2+r()*1.8;
   const keys=route(t0,[xIn,hideY],[[xIn,hutY],[xIn,laneY],[b.x,laneY],[b.x,waitY]],P.walk),arrived=keys[keys.length-1].t,go=b.s.boardTimes[b.j];
-  hold(keys,go,faceTrack);const base=keys[keys.length-1].d,board=route(go,[b.x,waitY],[sill(d),inside(d),passage(d)],P.walk);for(const k of board.slice(1)){k.d+=base;keys.push(k);}
+  hold(keys,go,faceTrack);const base=keys[keys.length-1].d,board=route(go,[b.x,waitY],[sill(d),...walkIn(d)],P.walk);for(const k of board.slice(1)){k.d+=base;keys.push(k);}
   const person={id:'s'+stop+'-'+id++,stop,role:'board',door:d.id,look:makeLook(r),appear:t0,vanish:keys[keys.length-1].t,keys,arrived,boardAt:go};people.push(person);
   if(!firstBoard||go<firstBoard.boardAt)firstBoard=person;}
  const showcaseTime=firstBoard?(firstBoard.boardAt+firstBoard.vanish)/2:T0+ph.openEnd+1;
