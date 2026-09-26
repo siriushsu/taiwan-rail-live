@@ -338,6 +338,9 @@
 /* 已抵達階段唯一的主操作。導航不跟它競爭：導航只出現在使用者選定路線之後的展開區內。 */
 .btu-primary{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:calc(48px * var(--uit,1));padding:10px 14px;font:inherit;font-size:calc(14px * var(--ui,1));font-weight:800;cursor:pointer;background:var(--navy,#2A4A73);color:var(--on-navy,#FFFDF6);border:0;box-shadow:inset 0 3px 0 var(--gold,#D2A12A)}
 .btu-primary:hover{opacity:.94}
+/* 卡片為了圓角是 overflow:hidden，貼齊卡緣的整寬鈕往外畫焦點框，左右（在底部時連下緣）整條被切掉，改往內畫；主操作是藏青底，框用反白字色、讓開上緣的金線。 */
+.btu-rowbtn:focus-visible,.btu-summary:focus-visible,.btu-more:focus-visible,.btu-retry:focus-visible{outline-offset:-2px}
+.btu-primary:focus-visible{outline-color:var(--on-navy,#FFFDF6);outline-offset:-5px}
 .btu-summary{display:flex;align-items:center;gap:8px;width:100%;min-height:calc(40px * var(--uit,1));padding:7px 12px;font:inherit;font-size:calc(11.5px * var(--uis,1));font-weight:700;cursor:pointer;text-align:left;color:var(--muted,#6B5F4A);background:none;border:0;border-top:1px dashed var(--line-dash,#D8CBA9)}
 .btu-summary:hover{background:var(--bg-stage,#F7F0DD)}
 .btu-summary .btu-caret{margin-left:auto;color:var(--faint,#8A7C62);font-weight:700}

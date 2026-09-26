@@ -2295,9 +2295,11 @@
      h3 在任何版面都釘住;站名牌與分頁列只在側欄模式釘住(直式時分頁列是一般內容,要讓位),
      它們的排除寫在側欄那段、緊貼各自的 sticky 規則,條件才不會分岔。
      底部同理:直式合併卡 sheet 小段的「詳細」提示列(.uni-more)釘在卡緣,往前 Tab 的焦點要停在它上面,
-     值寫進 --board-scroll-pad-bottom,它自己的排除緊貼它的 sticky 規則。 */
+     值寫進 --board-scroll-pad-bottom,它自己的排除緊貼它的 sticky 規則。
+     沒有提示列時底部留 6px 給焦點框(外推 2px＋框寬 2px;看板「全部班次」鈕是 2＋3):往下 Tab 的聚焦捲動會把
+     元素貼齊面板底緣,框的下緣整條被切掉(2026-09-26 實測 11 張面板往下走都有)。上緣不用留,讓位已含 h3 的 7px 下距。 */
   .board > :not(h3),
-  .board > :not(h3) * { scroll-margin-top: var(--board-scroll-pad, 0px); scroll-margin-bottom: var(--board-scroll-pad-bottom, 0px); }
+  .board > :not(h3) * { scroll-margin-top: var(--board-scroll-pad, 0px); scroll-margin-bottom: var(--board-scroll-pad-bottom, 6px); }
   .board h3 .sys-chip { /* 共構站(台北/板橋/南港…)看板標題的系統徽章:標清楚這張板是台鐵還是高鐵/哪個捷運 */
     display: inline-block; margin-left: 7px; padding: 0 7px 1px;
     font-size: calc(10.5px * var(--uis)); font-weight: 700; letter-spacing: 1px; line-height: 1.5;
@@ -2458,7 +2460,7 @@
     background: var(--bg-stage); border: 1.5px solid var(--line); border-radius: 8px; cursor: pointer;
   }
   .board .board-all-toggle:hover { border-color: var(--navy); }
-  .board .board-all-toggle:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .board .board-all-toggle:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; } /* 原本寫 var(--focus),全站沒有這個變數,整條失效、聚焦時完全沒有框 */
   /* 🔴 這兩條是白名單:點得動的列才給 cursor/hover。新增可點的列一定要同輪加進來——
      週末活動入口列(data-weekend)漏了,結果它畫了 `›`、點下去也真的會開頁,滑鼠移上去卻是
      游標不變、底色不動,同一框裡其他每一列都有回饋,唯獨它沒有。 */
@@ -2580,6 +2582,10 @@
   .board.has-notify h3 { padding-right: 78px; } /* 三顆鈕(×/☆/🔔)時多留右側空間,避免長站名壓到鈴鐺 */
   .board .close:hover, .board .board-star:hover, .board .board-notify:hover { opacity: 1; }
   .board .board-star.on { color: #ffd977; opacity: 1; }
+  /* 標題列裡的鈕聚焦時,框用鈕自己的字色、透明度同滑過時拉滿:全域紅框疊在亮色藏青標題上只有約 1.9:1。
+     字色在亮色是 --on-navy、暗色(night-theme.css 把卡頭漆成深底)是淺灰藍,兩邊都是卡頭該用的那一色(同 .fp-back 的 inherit)。
+     手機與暗色的鈕是 44×44 貼齊面板右上角,框改往內畫,見那兩處。 */
+  .board h3 :focus-visible { outline-color: currentColor; opacity: 1; }
   /* 捷運等車卡入口(Task 6):h3 內另起一行(不像 close/star 用絕對定位插槽——
      .board 桌面寬 360px(v0901 前為 280),硬塞第三顆同款圖示鈕仍會擠壓長站名),故不影響 h3 padding-right。
      08-14 真機回饋「按鈕不明顯、不知道用途」——待機態改滿寬金底 CTA,追蹤中反轉成描邊。 */
@@ -2852,6 +2858,10 @@
   }
   .seg button:first-child { border-left: 0; }
   .seg button.on { font-weight: 800; color: var(--on-navy); background: var(--navy); }
+  /* .seg 為了圓角是 overflow:hidden,往外畫的焦點框三邊被切掉 ⇒ 往內畫。選中那顆是藏青底:框改用反白字色、
+     再往內縮一格留一圈藏青,貼著外緣畫會跟外面的米色底連成一片,看起來像藏青塊變小而不是一圈框 */
+  .seg button:focus-visible { outline-offset: -2px; }
+  .seg button.on:focus-visible { outline-color: var(--on-navy); outline-offset: -4px; }
   .toggle {
     width: 34px; height: 19px; border-radius: var(--r-pill); background: var(--line-faint);
     border: 1px solid var(--line); position: relative; cursor: pointer; flex: none; padding: 0;
@@ -4144,6 +4154,8 @@
     .board .close { right: 0; }
     .board .board-star { right: 44px; }
     .board .board-notify { right: 88px; }
+    /* 貼齊面板上緣與右緣(× 還上移 2.9px),往外畫的焦點框上、右兩邊整條被面板切掉 ⇒ 往內 5px 畫 */
+    .board :is(.close, .board-star, .board-notify):focus-visible { outline-offset: -5px; }
     .board h3 { padding-right: 94px; }
     .board.has-notify h3 { padding-right: 138px; }
     /* ── 附近車站卡:併入 sheet 家族(2026-07-25 裁決)──
@@ -5551,14 +5563,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="spacekey0926"><span class="d">9/26</span><span>空白鍵在任何地方都是播放／暫停，不會再順便打開資料卡、展開卡片或讓鍵盤選取跳回頁首，按住也只切一次；面板邊緣與標題列按鈕的鍵盤選取框不再被切掉</span></li>
         <li data-cl-of="kbfocusfoot0926"><span class="d">9/26</span><span>用鍵盤往下一項移動時，跟車卡選到的按鈕不再被底部的「詳細」提示列蓋住；App 附近車站卡往回移動時「蓋章」鈕不再被標題蓋住；車庫捲到下面再回到頂列按鈕，畫面不再往上跳</span></li>
-        <li data-cl-of="boardrowkb0926"><span class="d">9/26</span><span>今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 或空白鍵就行</span></li>
+        <li data-cl-of="boardrowkb0926"><span class="d">9/26</span><span>今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 就行</span></li>
         <li data-cl-of="fpnextwrap0926"><span class="d">9/26</span><span>跟車卡的「下一站」遇到較長的站名（例如英文介面的長榮大學、科工館）會換行顯示全名，整張卡不再能左右拖動</span></li>
         <li data-cl-of="remainingtracks0913"><span class="d">9/26</span><span>台鐵 10/3 起有 14 班調整時刻，3D 地圖裡這些車照樣走原本的股道</span></li>
         <li data-cl-of="subwayfloat0925"><span class="d">9/25</span><span>3D 地圖上臺北車站的臺鐵列車不再畫在車站屋頂上，高捷紅線地下段也不再浮在地面上；新左營臺鐵與高雄輕軌被頂高的地方回到原位</span></li>
         <li data-cl-of="kbfocusselect0925"><span class="d">9/25</span><span>用鍵盤往回移動時，我的最愛、車站看板等面板選到的項目不再被標題列蓋住；iPhone 英文介面選到長站名時，畫面不再能左右拖動</span></li>
         <li data-cl-of="tymcexpo0922"><span class="d">9/25</span><span>機捷 10/12 起改用台灣設計展結束後的班表：機場第一航廈到環北的區間加班車停開，南延直達車恢復停高鐵桃園站、開到環北</span></li>
-        <li data-cl-of="zuoyingflat0925"><span class="d">9/25</span><span>高鐵左營站進站那段改回平面：3D 地圖不再把站區畫成高架橋，北邊的高架照舊（謝謝網友回報）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5853,8 +5865,9 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="spacekey0926"><span class="d">9/26</span><span>空白鍵一律只做播放／暫停：在清單列、按鈕、資料卡上按不會再同時打開東西，按鈕上按完鍵盤選取留在原處（原本會跳回頁首），按住不放只切一次；面板底緣、標題列、字級切換與公車轉乘卡的鍵盤選取框不再被切掉，「全部班次」鈕選到時看得到框</span></li>
         <li data-cl="kbfocusfoot0926"><span class="d">9/26</span><span>用鍵盤往下一項移動（Tab）時，跟車時車站看板「這班車」頁選到的按鈕不再停在底部的「詳細」提示列底下；App 附近車站卡往回移動時「蓋章」鈕不再停在標題底下；車庫捲到下面時回到頂列的按鈕，畫面不再往上跳一大段</span></li>
-        <li data-cl="boardrowkb0926"><span class="d">9/26</span><span>今日台鐵動態、公車站牌與行程分享的每一列都能用鍵盤移過去，讀螢幕軟體也會唸出整列；今日動態按 Enter 或空白鍵展開逐站歷程、行程分享選目的站；清單自動更新時，鍵盤停在哪一列就留在那一列；公車站牌切換語言時到站時間立刻跟著換</span></li>
+        <li data-cl="boardrowkb0926"><span class="d">9/26</span><span>今日台鐵動態、公車站牌與行程分享的每一列都能用鍵盤移過去，讀螢幕軟體也會唸出整列；今日動態按 Enter 展開逐站歷程、行程分享選目的站；清單自動更新時，鍵盤停在哪一列就留在那一列；公車站牌切換語言時到站時間立刻跟著換</span></li>
         <li data-cl="kbfocusselect0925"><span class="d">9/25</span><span>用鍵盤往回移動時，我的最愛、台鐵與高鐵車站看板（含跟車時）、軌道與路線、查詢面板選到的項目不再停在標題列底下；英文介面選到長站名時，iPhone 的「接公車」「我上車了」、到站提醒與 Mac Safari 的車站／地標導覽不再能左右拖動</span></li>
         <li data-cl="widgetbg0923"><span class="d">9/23</span><span>桌面小工具新增「背景」設定：台鐵／高鐵發車看板可選車模、場景或素色，捷運看板可選車模或素色；iPhone 與 Android 都有，App 1.6.11 起生效</span></li>
         <li data-cl="railboardrows0923"><span class="d">9/23</span><span>Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班：Samsung 等把小工具格子給得比較高的手機，卡片下方不再空一大截；小、中、大三種尺寸與大字版一起調整</span></li>
@@ -6766,7 +6779,15 @@
 //         assignSchedShapePathsFor 把原本那一段的 maxPathM 按示意長分給各小段當 physKm，併段剖面才不短於實體股道（09-19 不留容差）。
 //         閘門：verify_remaining_station_routes 名冊比對改用閘門自算的站集；verify_phys_speed_cap 併段整段量、G3 加併段剖面長下限。
 //         現行資料沒有派車表以外的站：逐班綁定、剖面欄位、逐秒 3D 位置新舊全同，畫面沒有變化。
-const BUILD = 'v0926g';
+// v0926h：空白鍵全站一致只做播放／暫停（2026-09-26 裁示「空白鍵的功能還是改回一致比較好」）。修前兩引擎 × 五寬度：今日動態列
+//         按空白鍵展開、行程分享列拿那站分享並關面板（播放都不動），資料狀態徽章與捷運膠囊按一下同時開卡又切播放，頁面上按住連切
+//         5 次，× 上按完焦點被 blur 回頁面。修後列、徽章、膠囊只接 Enter；全域 keydown 擋預設動作、連發不切、不 blur，keyup 也擋
+//         （Firefox 沒裝、沒驗）。焦點框：手機標題列 ×／☆／🔔（44×44 貼齊面板右上，暗色全寬同）往內 5px、改用字色（紅框疊藏青
+//         只有 1.9:1）；沒有提示列時內容 scroll-margin-bottom 預設 6px；字級分段鈕、公車轉乘卡的鈕往內畫；暗色方向鈕的橫向捲動盒
+//         左右留 4px；「全部班次」鈕原本寫不存在的 var(--focus)、聚焦時沒框。兩引擎 × 12 張面板往前＋往回走：亮色六寬度被切
+//         1203→0 拍、暗色三寬度 553→0 拍，沒框只剩刻意用藏青邊框的搜尋框；公車轉乘卡展開後 5–6→0。
+//         守門：verify_board_scroll_pad 補 E 空白鍵、V 焦點框各格（360／1280、亮／暗）與逐條突變對照。
+const BUILD = 'v0926h';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -21136,14 +21157,12 @@ function boardRevealField(ev) {
   });
 }
 for (const bd of document.querySelectorAll('.board')) bd.addEventListener('focusin', boardRevealField);
-// 今日動態、公車站牌、行程分享三張的列表列是 div:掛 tabindex＋role 讓鍵盤走得到,點得動的列 Enter／空白鍵等同點一下。
-// 擋掉冒泡:空白鍵在全站快捷鍵是播放／暫停,焦點在列上時空白鍵就是按這一列,兩件事不能一起發生。
-// 觸發時機跟原生按鈕一樣:Enter 按下就觸發(連發不算),空白鍵放開才觸發。行程分享一按面板就收起、焦點回到頁面,
-// 空白鍵要是按下就觸發,按住不放的連發會全掉進全站快捷鍵、一直切播放;放開才觸發,連發時焦點還在列上、都在這裡接住。
+// 今日動態、公車站牌、行程分享三張的列表列是 div:掛 tabindex＋role 讓鍵盤走得到,點得動的列按 Enter 等同點一下(連發不算)。
+// 空白鍵照全站慣例是播放／暫停(真按鈕、收集章也一樣,見全域 keydown 那段),這裡不接、讓它冒泡上去。
 function boardRowKey(e, sel) {
-  if ((e.key !== 'Enter' && e.key !== ' ') || !e.target.matches || !e.target.matches(sel)) return;
-  e.preventDefault(); e.stopPropagation();
-  if (e.type === 'keyup' ? e.key === ' ' : (e.key === 'Enter' && !e.repeat)) e.target.click();
+  if (e.key !== 'Enter' || !e.target.matches || !e.target.matches(sel)) return;
+  e.preventDefault();
+  if (!e.repeat) e.target.click();
 }
 // 今日動態(120 秒)與公車站牌(30 秒)自己重抓後、展開一列時都換掉整份 innerHTML,焦點所在那顆跟著被換掉,
 // 鍵盤使用者就被踢回頁首。重畫前記下焦點是哪一顆(id、data-*,都沒有才用 class),畫完放回同一顆、不捲動。
@@ -24666,7 +24685,7 @@ function openTodayPanel() {
       renderTodayPanel();
     }
   };
-  el.onkeydown = el.onkeyup = e => boardRowKey(e, '.td-row[data-no]');
+  el.onkeydown = e => boardRowKey(e, '.td-row[data-no]');
   updateSheetOpenClass();
   document.getElementById('todayBtn').classList.add('active');
   renderTodayPanel();                 // 先畫(有舊資料即顯示,否則載入中)
@@ -24676,7 +24695,7 @@ function openTodayPanel() {
 }
 function closeTodayPanel() {
   const el = document.getElementById('todayPanel');
-  el.hidden = true; el.innerHTML = ''; el.onclick = null; el.onkeydown = el.onkeyup = null;
+  el.hidden = true; el.innerHTML = ''; el.onclick = null; el.onkeydown = null;
   state._todayOpen = null;
   clearInterval(state._todayTimer); state._todayTimer = null;
   updateSheetOpenClass();
@@ -34252,8 +34271,9 @@ function setupStatPop() {
   });
   const toggle = () => statPopSet(pop.hidden);
   b.addEventListener('click', e => { e.stopPropagation(); toggle(); });
+  // 只接 Enter:空白鍵照全站慣例是播放／暫停。原本也接空白鍵又沒擋冒泡,按一下同時開資料卡又切播放
   b.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    if (e.key === 'Enter') { e.preventDefault(); toggle(); }
   });
   const x = document.getElementById('statPopClose');
   if (x) x.addEventListener('click', () => statPopSet(false));
@@ -37580,7 +37600,7 @@ function renderTripSharePanel() {
     `<div class="sub">${escHtml(t('選你的目的站，產生一個「活的」行程連結——對方看得到列車位置與到站時刻，你不用一直回傳定位。'))}</div>` +
     (stops.length
       ? stops.map(x => {
-          // 點列＝拿這一站當目的站分享 ⇒ 是按鈕(Enter／空白鍵見下面 tripPanel 的 onkeydown)
+          // 點列＝拿這一站當目的站分享 ⇒ 是按鈕(Enter 見下面 tripPanel 的 onkeydown)
           const stn = stationName(x.s.name, tr.sys), arr = t('表定 {time} 到', { time: fmtHM(x.s.arrSec % 86400) });
           return `<div class="row" data-dest="${escHtml(x.s.name)}" tabindex="0" role="button" aria-label="${escHtml(stn + i18nSep(true) + arr)}"><span class="dot" style="background:${tr.color}"></span>` +
             `<b>${escHtml(stn)}</b><span class="dest">${escHtml(arr)}</span></div>`;
@@ -37721,7 +37741,7 @@ document.getElementById('tripPanel').onclick = (e) => {
   const row = e.target.closest('.row[data-dest]');
   if (row && state.followTrain) { const d = row.dataset.dest; closeTripSharePanel(); shareTrip(state.followTrain, d); }
 };
-document.getElementById('tripPanel').onkeydown = document.getElementById('tripPanel').onkeyup = e => boardRowKey(e, '.row[data-dest]');
+document.getElementById('tripPanel').onkeydown = e => boardRowKey(e, '.row[data-dest]');
 
 document.getElementById('pp').onclick = togglePlay;
 // 速度軌磁吸:拖到常用檔位(1/10/30/60)±2 內就吸附——取代舊的四顆預設鈕
@@ -37804,8 +37824,9 @@ document.getElementById('fcClose').onclick = e => { e.stopPropagation(); setFreq
 document.getElementById('freqCard').onclick = e => {
   if (!e.target.closest('button,a') && e.currentTarget.classList.contains('fc-min')) setFreqCardCompact(false);
 };
+// 膠囊只接 Enter:空白鍵照全站慣例是播放／暫停。原本也接空白鍵又沒擋冒泡,按一下同時展開卡片又切播放
 document.getElementById('freqCard').onkeydown = e => {
-  if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setFreqCardCompact(false); }
+  if (e.target === e.currentTarget && e.key === 'Enter') { e.preventDefault(); setFreqCardCompact(false); }
 };
 try { if (localStorage.getItem('trainmap-fc-min') === '1') setFreqCardCompact(true, false); } catch (e) {}
 document.getElementById('fcEnd').onclick = (e) => { e.stopPropagation(); clearFreqFollow(); };
@@ -37970,15 +37991,19 @@ document.getElementById('tcStops').onclick = e => {
 document.addEventListener('keydown', e => {
   const tg = e.target;
   if (tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA' || tg.isContentEditable)) return;
-  // v0718i:blur 範圍原本不分按鍵一律觸發,導致「更多」抽屜改真 button 後 Enter 鍵也被連帶 blur 掉、
-  // 按鈕來不及完成原生啟動——縮小成只在空白鍵才 blur(維持原意:避免空白鍵同時觸發聚焦中的按鈕),
-  // 其餘按鍵(含 Enter)不再打斷按鈕自己的鍵盤啟動行為。
-  if (tg && tg.tagName === 'BUTTON' && e.code === 'Space') tg.blur();
-  if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+  // 空白鍵只做播放／暫停這一件事:不按下聚焦中的按鈕,焦點也留在原地。原本(v0718i 起)把聚焦中的按鈕 blur 掉來防止
+  // 它被空白鍵按下去,代價是鍵盤使用者按一下暫停焦點就掉回頁面、得從頭 Tab;其實 keydown 擋掉預設動作就夠了
+  // (2026-09-26 實測 Chromium、WebKit 的 button／summary 都不會被啟動)。按住不放的連發不算,只切一次(原本按住會連切)。
+  if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) togglePlay(); }
   else if (e.key === 'f' || e.key === 'F') document.getElementById('fsFab').click();
   else if (e.key === 'ArrowLeft' && state.mode === 'sched') setSimSec(state.simSec - 600);
   else if (e.key === 'ArrowRight' && state.mode === 'sched') setSimSec(state.simSec + 600);
   else { const v = { 1: 1, 2: 10, 3: 30, 4: 60 }[e.key]; if (v) setSpeed(v); }
+});
+// 保險:有的引擎按鈕是在空白鍵放開時才啟動,放開那一下也擋掉(Chromium／WebKit 只擋 keydown 就夠;Firefox 沒裝、沒驗過)
+document.addEventListener('keyup', e => {
+  const tg = e.target;
+  if (e.code === 'Space' && !(tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA' || tg.isContentEditable))) e.preventDefault();
 });
 document.getElementById('ambientBtn').onclick = () => setAmbient(!state.ambient);
 // 音樂初始化防炸:萬一某平台缺元素/API 拋錯,別讓同段後面的 boot 接線整片死掉（38/39 事故的保險）

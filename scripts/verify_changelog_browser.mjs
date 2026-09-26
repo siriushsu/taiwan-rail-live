@@ -69,7 +69,8 @@ const widths = [360, 375, 414, 768];
 // 9/26：跟車卡「下一站」長站名換行一條（427→428，併入時補上的註解）。
 // 9/26：今日台鐵動態、公車站牌、行程分享的列可用鍵盤走到與按下一條（428→429）。
 // 9/26：跟車卡「詳細」提示列蓋住往下一項的焦點、App 附近車站卡與車庫的標題讓位修正一條（429→430）。
-const expectedHistoryCount = 430;
+// 9/26：空白鍵全站一致只做播放／暫停、面板內鍵盤焦點框不再被切掉一條（430→431）。
+const expectedHistoryCount = 431;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

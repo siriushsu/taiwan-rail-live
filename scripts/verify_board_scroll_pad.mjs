@@ -7,24 +7,34 @@
 // 只有真瀏覽器量得到,兩個引擎各跑一輪:
 //   W 鍵盤往回走(Shift+Tab;WebKit 要 Option+Shift+Tab 才走得到按鈕):焦點中心落在固定段上的拍數＝0。
 //     360 直式標準／特大字級(特大另走直式合併卡:分頁列在直式是一般內容,要讓位)、844×390 橫式合併卡;
-//     走過的內容拍數要夠多,否則是沒走到的假綠。
+//     走過的內容拍數要夠多,否則是沒走到的假綠。直式合併卡另外直接把分頁鈕捲成半露再往回走進去(tabsPeek):
+//     整份往回走碰不碰得到半露看當天資料,碰不到時拿掉讓位也不會紅(2026-09-26 多一列活動就假綠、擋下 ship-web)。
 //   J 面板捲到下面時把焦點放進標題裡的 ×(＝選單關掉時 opener.focus()、從面板外 Tab 進來):捲動量 ≤ 8px。
 //     容器 scroll-padding-top 那種寫法會跳 128–130px(v0925k 的護照就是那樣上線的)。
 //   F 文字欄位(軌道面板 #rdSearch)被蓋住時聚焦:下一拍之後不再被蓋,半秒後也沒被捲回去。
 //   P 讓位值＝捲到中段時實際卡住的固定段底緣(差 ≤ 1px):站名牌出現／消失之後(syncBoardHeadVar 尾端那一刀)、
 //     護照重繪換掉 h3 再換字級之後(MutationObserver 重掛)。換字級走設定面板的真入口 state._setFontScale。
-//   N 正向對照,要紅才算數:拿掉讓位 ⇒ W 紅;分頁列的排除規則移出側欄 media 段 ⇒ 直式合併卡 W 紅;
+//   N 正向對照,要紅才算數:拿掉讓位 ⇒ W 紅;分頁列的排除規則移出側欄 media 段 ⇒ 直式合併卡半露那格紅;
 //     改回容器 scroll-padding ⇒ J 紅(兩個引擎都做——WebKit 的聚焦捲動是非同步的,要證明等得夠久);
 //     拿掉 boardRevealField ⇒ F 紅(只做 WebKit:Chromium 聚焦文字欄位本來就看 scroll-margin);
 //     拿掉那一刀／拿掉重掛 ⇒ P 紅(只做 Chromium)。
 //   三張清單面板(今日台鐵動態、公車站牌、行程分享;v0926e 起列可聚焦,假資料由本機伺服器的 /api 供應):
 //     W 每一列都可聚焦、往回走過每一列而且零拍被蓋(360 標準／特大、844×390 三種版面都走);
-//     E 從標題的 × 用鍵盤走進第一列,Enter／空白鍵做的事跟點一下一樣(今日動態展開逐站、焦點留在那一列,再按一次收合;
-//     行程分享拿那一站分享),空白鍵不順便切播放／暫停,按住空白鍵連發也只分享一次、播放一次都不切;
+//     E 從標題的 × 用鍵盤走進第一列,Enter 做的事跟點一下一樣(今日動態展開逐站、焦點留在那一列,再按一次收合;
+//     行程分享拿那一站分享)。空白鍵照全站慣例只做播放／暫停(v0926g,使用者裁示「空白鍵的功能還是改回一致比較好」):
+//     在列上按,列不動、播放只切一次、焦點留在那一列;按住連發也只切一次;按鈕(×)上按不會把它按下去、焦點不掉回頁面;
+//     資料狀態徽章與捷運膠囊卡 Enter 才開、空白鍵只切播放(原本兩件事一起做);
 //     C 滑鼠點公車列再按鍵,焦點不留在列上、不亮框(點列跟改版前一樣;在 1280 桌面量,Chromium 手機模擬點一下不給焦點、量不到);
 //     R 公車站牌重抓後焦點留在同一列,焦點列被捲出畫面時也不把清單捲回去。
-//     N:拿掉兩張的鍵盤接線 ⇒ E 紅;重畫後不放回焦點 ⇒ E、R 紅;放回焦點不帶 preventScroll ⇒ R 紅;空白鍵改回按下就觸發 ⇒ 按住那格紅;
+//     N:拿掉兩張的鍵盤接線 ⇒ E 紅;重畫後不放回焦點 ⇒ E、R 紅;放回焦點不帶 preventScroll ⇒ R 紅;列也接空白鍵(v0926e 的寫法)⇒
+//     空白鍵那格紅;連發也切播放 ⇒ 按住那格紅;空白鍵把按鈕 blur 掉(v0718i 的寫法)⇒ 按鈕那格紅;徽章、膠囊也接空白鍵 ⇒ 各自那格紅;
 //     拿掉公車列的點擊放焦點 ⇒ C 紅;列拿掉 tabindex ⇒ W 紅;拿掉讓位 ⇒ 今日動態 W 紅。兩個引擎都做。
+//   V 焦點框看得到(v0926g):往前走(Tab)每一拍的焦點框四邊都沒被捲動容器或卡片裁掉、有框、框色對底下那一層 ≥ 3:1。
+//     360 臺北看板(標題 44×44 的 ×／☆ 貼齊面板右上角、公車轉乘主鈕、「全部班次」鈕)、今日動態(列貼齊面板底緣)、字級面板
+//     (.seg 分段鈕)、暗色主題臺北看板;1280 臺北看板與今日動態、暗色主題臺北看板(標題鈕 44×44 貼齊右緣、方向鈕在橫向捲動盒裡)。
+//     每格都要走過點名的元素。N:每條修法各突變一次——標題鈕框改回往外畫／改回紅色、主鈕改回往外畫／紅色、「全部班次」改回
+//     var(--focus)、底部讓位預設改回 0、分段鈕改回往外畫、選中分段鈕改回紅色、暗色標題鈕改回往外畫、暗色方向鈕捲動盒拿掉左右留邊,
+//     各自那格都要紅,而且要紅在被點名的那顆、那一種(badHas)。
 // 2026-09-26 補量的格子(各自一段,在上面三段之後):
 //   B 往前走(Tab;WebKit 要 Option+Tab):直式合併卡「這班車」sheet 小段,焦點中心不落在釘在卡緣(sticky bottom:0)的
 //     「詳細・往上拉看完整資料」提示列(.uni-more)上;標準與特大字級。修前兩個引擎 1–2 拍整顆停在它底下。
@@ -41,7 +51,8 @@
 // 慣例照 verify_transfer_collapse.mjs:自帶 node:http 靜態伺服器(埠號由系統挑)、語系與時鐘釘死、關首訪教學卡、
 // 掛 pageerror、T0 身分自檢。瀏覽器一律無視窗。約 5–6 分鐘(2026-09-26 補直式合併卡與兩個突變後實測 126s;
 // 同日補三張清單面板後 158s,機器負載約 32;再補按住空白鍵、桌面點擊、重抓的格子與突變後 175s,負載約 18;
-// 再補合併卡底部提示列、平交道卡家族、車庫各格後 322s,264 條,負載約 13–22)。
+// 再補合併卡底部提示列、平交道卡家族、車庫各格後 322s,264 條,負載約 13–22;v0926g 補空白鍵 E 各格與焦點框 V 各格後
+// 339s,320 條,負載約 8–12,同時另有一支量測在跑)。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -121,6 +132,53 @@ const HELPERS = `window.__bsp = (() => {
   return { heads, desc, tabbables, measure, padOf, stuck };
 })();`;
 
+// V:焦點框看不看得到(2026-09-26,v0926g)。沿框的厚度在四邊中線上各取 16 點:落在捲動容器／卡片的可見區外(overflow 裁切,
+// 一路往上找到 body)、或被不含它的 sticky 固定段蓋住就算看不到,一邊看不到超過 0.5px 算被切。
+// 對比:框色對框底下那一層的底色——往內畫(offset < 0)看元素自己、往外畫看父層,取第一個不透明度 ≥ .5 的底色;< 3 算太淡
+// (藏青標題上的全域紅框量到約 1.9)。只算焦點框亮起(:focus-visible)的拍。
+const RING_INIT = () => {
+  const rgba = s => { const m = String(s).match(/rgba?\(([^)]+)\)/); if (!m) return null; const v = m[1].split(/[\s,\/]+/).filter(Boolean).map(Number); return { r: v[0], g: v[1], b: v[2], a: v.length > 3 ? v[3] : 1 }; };
+  const lum = c => { const f = x => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  window.__bspRing = id => {
+    const p = document.getElementById(id), a = document.activeElement;
+    if (!p || p.hidden || !a || a === p || !p.contains(a)) return { left: true, lost: !a || a === document.body };
+    let fv = false; try { fv = a.matches(':focus-visible'); } catch (e) {}
+    const cs = getComputedStyle(a);
+    const w = cs.outlineStyle === 'none' ? 0 : (parseFloat(cs.outlineWidth) || 0), off = parseFloat(cs.outlineOffset) || 0;
+    const hs = __bsp.heads(p), hi = hs.findIndex(h => h.contains(a)), cover = (hi < 0 ? hs : hs.slice(hi + 1)).map(h => h.getBoundingClientRect());
+    const res = { el: __bsp.desc(a), fv, w, off, cut: [], contrast: null };
+    if (!w) return res;
+    const r = a.getBoundingClientRect(), c = { l: 0, t: 0, r: innerWidth, b: innerHeight };
+    for (let n = a.parentElement; n && n !== document.body && n !== document.documentElement; n = n.parentElement) {
+      const s = getComputedStyle(n), cx = s.overflowX !== 'visible', cy = s.overflowY !== 'visible';
+      if (!cx && !cy) continue;
+      const nr = n.getBoundingClientRect(), L = nr.left + n.clientLeft, T = nr.top + n.clientTop;
+      if (cx) { c.l = Math.max(c.l, L); c.r = Math.min(c.r, L + n.clientWidth); }
+      if (cy) { c.t = Math.max(c.t, T); c.b = Math.min(c.b, T + n.clientHeight); }
+    }
+    const e = off + w, mx = (r.left + r.right) / 2, my = (r.top + r.bottom) / 2, N = 16;
+    const band = (axis, a0, a1, at) => {
+      let seen = 0;
+      for (let i = 0; i < N; i++) {
+        const v = a0 + (a1 - a0) * (i + 0.5) / N, x = axis === 'y' ? at : v, y = axis === 'y' ? v : at;
+        if (x < c.l || x > c.r || y < c.t || y > c.b) continue;
+        if (cover.some(h => x >= h.left && x <= h.right && y >= h.top && y <= h.bottom)) continue;
+        seen++;
+      }
+      return w * seen / N;
+    };
+    const vis = { t: band('y', r.top - e, r.top - off, mx), b: band('y', r.bottom + off, r.bottom + e, mx),
+      l: band('x', r.left - e, r.left - off, my), r: band('x', r.right + off, r.right + e, my) };
+    res.cut = Object.keys(vis).filter(k => w - vis[k] > 0.5);
+    let bg = null;
+    for (let n = off < 0 ? a : a.parentElement; n; n = n.parentElement) { const b = rgba(getComputedStyle(n).backgroundColor); if (b && b.a >= 0.5) { bg = b; break; } }
+    const oc = rgba(cs.outlineColor);
+    if (bg && oc) res.contrast = +ratio(oc, bg).toFixed(2);
+    return res;
+  };
+};
+
 const OPEN = {
   favPanel: `(() => {
     const stns = [['臺北', 25.0478, 121.517], ['板橋', 25.0143, 121.4637], ['桃園', 24.9892, 121.3136], ['新竹', 24.8016, 120.9716], ['臺中', 24.1372, 120.6869],
@@ -172,6 +230,7 @@ Object.assign(OPEN, {
   })()`,
 });
 Object.assign(ELEM, { todayPanel: 'todayPanel', busStopPanel: 'busStopPanel', tripPanel: 'tripPanel' });
+OPEN.fontPanel = `openFontPanel()`; ELEM.fontPanel = 'fontPanel';
 const LIST_ROWS = { todayPanel: '.td-row[data-no]', busStopPanel: '.bus-eta-row', tripPanel: '.row[data-dest]' };
 const LIST_MIN = { todayPanel: 30, busStopPanel: 16, tripPanel: 12 };      // 假資料的筆數;行程分享看那班車還剩幾站
 const HOPS = { todayPanel: 1, busStopPanel: 2, tripPanel: 1 };            // 從標題的 × 往前幾步到第一列(公車站牌中間隔著地圖連結)
@@ -218,7 +277,16 @@ const fmtBus = r => `${r.k0}→${r.k1} 捲動 ${Math.round(r.st0)}→${Math.roun
 // 全站快捷鍵的空白鍵叫的是全域的 togglePlay:換成計數器,數它被叫了幾次(只看最後的播放狀態,偶數次連發會切回原狀、看不出來)
 const COUNT_PLAY = () => { window.__bspPlay = 0; if (!window.__bspPlayOrig) { window.__bspPlayOrig = togglePlay; window.togglePlay = function () { window.__bspPlay++; return window.__bspPlayOrig.apply(this, arguments); }; } };
 const UNCOUNT_PLAY = () => { if (window.__bspPlayOrig) { window.togglePlay = window.__bspPlayOrig; window.__bspPlayOrig = null; } };
-// 行程分享:鍵盤走到第一列後按住空白鍵(按下＋連發 4 下＋放開)。只能分享一次、全站播放一次都不能切
+// 數 fn 期間全站播放被切了幾次;切了奇數次就切回來,後面的格子照原本的播放狀態跑
+async function spacePress(page, fn) {
+  await page.evaluate(COUNT_PLAY);
+  const r = await fn();
+  const plays = await page.evaluate(() => { const n = window.__bspPlay; if (n % 2) window.__bspPlayOrig(); return n; });
+  await page.evaluate(UNCOUNT_PLAY);
+  return { ...r, plays };
+}
+const spaceRowOk = r => r.at.onRow && r.after.onRow && r.after.key === r.first && r.plays === 1;
+// 行程分享:鍵盤走到第一列後按住空白鍵(按下＋連發 4 下＋放開)。播放只切一次(連發不算)、不分享、焦點留在那一列
 async function tripHoldSpace(page, eng) {
   await page.evaluate(STUB_SHARE);
   const r = await rowPress(page, eng, 'tripPanel', null);
@@ -227,12 +295,83 @@ async function tripHoldSpace(page, eng) {
   for (let i = 0; i < 4; i++) { await page.waitForTimeout(40); await page.keyboard.down(' '); }
   await page.keyboard.up(' ');
   await settle(page); await page.waitForTimeout(150);
-  const h = await page.evaluate(() => ({ plays: window.__bspPlay, shared: window.__bspShared.slice(), open: !document.getElementById('tripPanel').hidden }));
+  const h = await page.evaluate(() => {
+    const p = document.getElementById('tripPanel'), a = document.activeElement, n = window.__bspPlay;
+    if (n % 2) window.__bspPlayOrig();
+    return { plays: n, shared: window.__bspShared.slice(), open: !p.hidden, onRowAfter: !!(a && p.contains(a) && a.matches('.row[data-dest]')) };
+  });
   await page.evaluate(UNCOUNT_PLAY);
   return { first: r.first, onRow: r.at.onRow, ...h };
 }
-const holdOk = h => h.onRow && !h.open && h.shared.length === 1 && h.shared[0] === h.first && h.plays === 0;
-const fmtHold = h => `走到 ${h.onRow ? h.first : '(不在列上)'}；放開後 面板${h.open ? '還開著' : '關了'}、分享了 ${JSON.stringify(h.shared)}、播放被切 ${h.plays} 次`;
+const holdOk = h => h.onRow && h.onRowAfter && h.open && h.shared.length === 0 && h.plays === 1;
+const fmtHold = h => `走到 ${h.onRow ? h.first : '(不在列上)'}；放開後 面板${h.open ? '還開著' : '關了'}、分享了 ${JSON.stringify(h.shared)}、播放被切 ${h.plays} 次、焦點${h.onRowAfter ? '還在列上' : '離開了列'}`;
+// 聚焦 sel 再按 key:焦點還在不在它身上、今日動態面板、資料卡、捷運膠囊的狀態
+async function keyOn(page, sel, key) {
+  await page.evaluate(sel => document.querySelector(sel).focus(), sel);
+  await settle(page);
+  await page.keyboard.press(key); await settle(page); await page.waitForTimeout(150);
+  return page.evaluate(sel => {
+    const a = document.activeElement, t = document.querySelector(sel);
+    return { stay: !!t && a === t, active: __bsp.desc(a), todayPanel: !document.getElementById('todayPanel').hidden,
+      statPop: !document.getElementById('statPop').hidden, fcMin: document.getElementById('freqCard').classList.contains('fc-min') };
+  }, sel);
+}
+const fmtKey = k => `焦點${k.stay ? '留在原處' : '跑到 ' + k.active}、今日動態${k.todayPanel ? '開著' : '關了'}、資料卡${k.statPop ? '開著' : '關著'}、膠囊${k.fcMin ? '收著' : '展開'}、播放被切 ${k.plays} 次`;
+const btnSpaceOk = k => k.stay && k.todayPanel && k.plays === 1;
+// 捷運跟隨卡縮成的膠囊:切到捷運群組,拿地圖上畫出來的車一班一班試著跟(北捷要官方即時身分,本機沒有即時 API),收成膠囊
+const FC_SETUP = async () => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  if (state.mode !== 'freq') selectGroup(GROUPS.find(g => g.id === 'metro'));
+  for (let i = 0; i < 60 && !((state._freqHits || []).some(h => h.ln)); i++) await sleep(100);
+  let used = null;
+  for (const h of (state._freqHits || []).filter(h => h.ln)) {
+    setFreqFollow(h); await sleep(200);
+    if (!document.getElementById('freqCard').hidden) { used = h.ln.id || h.ln.name; break; }
+  }
+  if (!used) return { ok: false, why: '跟不起任何一班捷運' };
+  await sleep(300);
+  setFreqCardCompact(true, false); await sleep(100);
+  const c = document.getElementById('freqCard');
+  return { ok: !c.hidden && c.classList.contains('fc-min') && c.tabIndex >= 0, line: used };
+};
+const FC_COMPACT = () => { setFreqCardCompact(true, false); };
+// V 走一趟:從第一個(fwd)或最後一個(back)可聚焦元素開始按 Tab／Shift+Tab 走到焦點離開面板,最多 max 拍。
+// 焦點被重繪洗回 body 的那輪重走(同 walk),最多三輪。WebKit 的聚焦捲動是非同步的,每拍多等 60ms 再量。
+async function ringWalk(page, eng, id, dir = 'fwd', max = 60) {
+  const key = eng === 'webkit' ? (dir === 'fwd' ? 'Alt+Tab' : 'Alt+Shift+Tab') : (dir === 'fwd' ? 'Tab' : 'Shift+Tab');
+  let r;
+  for (let round = 0; round < 3; round++) {
+    const n = await page.evaluate(([id, dir]) => {
+      const p = document.getElementById(id); p.scrollTop = dir === 'fwd' ? 0 : p.scrollHeight;
+      const tb = __bsp.tabbables(p); if (tb.length) (dir === 'fwd' ? tb[0] : tb[tb.length - 1]).focus(); return tb.length;
+    }, [id, dir]);
+    const st = { n, fv: 0, clipped: 0, noRing: 0, low: 0, minC: null, seen: [], seenC: {}, bad: [], lost: false };
+    for (let i = 0; i < max; i++) {
+      await settle(page);
+      if (eng === 'webkit') await page.waitForTimeout(60);
+      const m = await page.evaluate(id => __bspRing(id), id);
+      if (m.left) { st.lost = !!m.lost; break; }
+      if (m.fv) {
+        st.fv++; if (!st.seen.includes(m.el)) st.seen.push(m.el);
+        const why = [];
+        if (!m.w) { st.noRing++; why.push('沒有框'); }
+        if (m.cut.length) { st.clipped++; why.push('切掉' + m.cut.join('')); }
+        if (m.contrast !== null) { st.minC = st.minC === null ? m.contrast : Math.min(st.minC, m.contrast); st.seenC[m.el] = Math.min(st.seenC[m.el] ?? Infinity, m.contrast); }
+        if (m.contrast !== null && m.contrast < 3) { st.low++; why.push('對比 ' + m.contrast); }
+        if (why.length && st.bad.length < 4) st.bad.push(`${m.el} ${why.join(' ')}`);
+      }
+      await page.keyboard.press(key);
+    }
+    r = st;
+    if (!st.lost || st.clipped || st.noRing || st.low) break;
+  }
+  return r;
+}
+const vOk = (v, need) => v.fv >= need && v.clipped === 0 && v.noRing === 0 && v.low === 0;
+// 突變要指名紅在哪一顆、哪一種(bad 只留前 4 筆,走訪順序裡被點名的都在前面)
+const badHas = (v, el, why) => v.bad.some(b => b.startsWith(el + ' ') && b.includes(why));
+const fmtSeen = v => v.seen.map(k => k + (k in v.seenC ? `(${v.seenC[k]})` : '')).join('、');
+const fmtV = v => `亮框 ${v.fv} 拍(可聚焦 ${v.n}):被切 ${v.clipped}、沒有框 ${v.noRing}、對比不足 ${v.low}(最低 ${v.minC ?? '—'})${v.bad.length ? '；' + v.bad.join('、') : ''}`;
 // 公車列點了沒有動作:滑鼠點一列、再按一個沒有快捷鍵的字母,焦點不能留在列上、面板裡不能有亮框(跟改版前一樣回到頁面)
 async function busClickKey(page) {
   const pt = await page.evaluate(() => { const r = document.querySelectorAll('#busStopPanel .bus-eta-row')[1]; const b = r.getBoundingClientRect(); return { x: b.left + 30, y: b.top + b.height / 2 }; });
@@ -276,6 +415,7 @@ async function boot(browser, { width, height, tier = 'std', query = '' }) {
   // 等開機收尾:finishLoad 會 closeRidePanel(),太早開護照會量到被關掉的空面板
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.mode === 'sched' && state.ready === true && (state.trains || []).length > 0; } catch (e) { return false; } }, null, { timeout: 90000 });
   await page.evaluate(HELPERS);
+  await page.evaluate(RING_INIT);
   return { ctx, page, errors };
 }
 async function open(page, key) {
@@ -401,6 +541,39 @@ const TABS_RULE_OUT = () => {
   }
   return null;
 };
+// 分頁鈕「半露」時往回走進它。兩個引擎的聚焦捲動都是:半露＝捲到剛好露出(對齊最近的邊,吃 scroll-margin),整顆在捲動區
+// 外＝置中——置中那種一定被夾到最上面、分頁鈕恆在標題下方,拿掉讓位也不會被蓋,零資訊。往回走整份清單時走到分頁鈕是
+// 半露還是整顆在外,看當天資料:2026-09-26 臺北看板多了一列活動(10/03 起臺鐵×KATO),就從半露變成整顆在外,突變對照兩個
+// 引擎都假綠(被蓋 0/6)、擋下 ship-web。這裡直接把最後一顆分頁鈕捲成上半截在捲動區外,從它後面那顆往回走一步,不看資料。
+// 看板每 20 秒整張重畫,走完焦點不在分頁鈕上就重來,最多三次
+async function tabsPeek(page, eng) {
+  let r = { none: true };
+  for (let i = 0; i < 3; i++) {
+    const prep = await page.evaluate(() => {
+      const bd = document.getElementById('board'), tb = __bsp.tabbables(bd);
+      const tabs = tb.filter(e => e.closest('#board > .uni-tabs'));
+      if (!tabs.length) return { none: true };
+      const last = tabs[tabs.length - 1], next = tb[tb.indexOf(last) + 1];
+      if (!next) return { none: true };
+      const inner = () => bd.getBoundingClientRect().top + bd.clientTop, rr = last.getBoundingClientRect();
+      bd.scrollTop += rr.top - inner() + rr.height / 2;
+      next.focus({ preventScroll: true });
+      return { next: __bsp.desc(next), peek: +(inner() - last.getBoundingClientRect().top).toFixed(1), h: Math.round(rr.height) };
+    });
+    if (prep.none) return prep;
+    await settle(page);
+    await page.keyboard.press(eng === 'webkit' ? 'Alt+Shift+Tab' : 'Shift+Tab');
+    await settle(page);
+    if (eng === 'webkit') await page.waitForTimeout(120);
+    const m = await page.evaluate(() => { const a = document.activeElement; return { onTab: !!(a && a.closest && a.closest('#board > .uni-tabs')), ...__bsp.measure('board') }; });
+    r = { ...prep, ...m };
+    if (m.onTab) break;
+  }
+  return r;
+}
+const peekOk = k => !k.none && k.onTab && !k.covered;
+const fmtPeek = k => k.none ? '找不到分頁鈕或它後面的元素'
+  : `分頁鈕(高 ${k.h}px)上緣露在捲動區外 ${k.peek}px,從 ${k.next} 往回走 ⇒ 焦點${k.onTab ? '在分頁鈕' : '不在分頁鈕(' + (k.el || '離開面板') + ')'}、${k.covered ? `被標題壓 ${k.over}px` : `上緣離標題 ${-k.over}px`}`;
 
 // ════ 2026-09-26 補量的格子用的工具(上面那份只認 .board 的 h3／站名牌／分頁列,這份吃任意容器＋固定段) ════
 const HELPERS2 = `window.__bsp2 = (() => {
@@ -640,18 +813,43 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
     const tc = await page.evaluate(ROW_STATE, ['todayPanel', LIST_ROWS.todayPanel]);
     ok(P('E 360 今日動態:再按一次 Enter 收合,焦點還在那一列'), tdOk(te) && tc.todayOpen === null && tc.exp === 'false' && tc.onRow && tc.key === te.first,
       `收合後 展開=${tc.todayOpen} aria-expanded=${tc.exp} 焦點=${tc.onRow ? tc.key : '離開了列'}`);
+    // 空白鍵照全站慣例只做播放／暫停(v0926g):在列上按,列不動、播放切一次、焦點留在那一列
     await open(page, 'todayPanel');
-    const ts = await rowPress(page, eng, 'todayPanel', ' ');
-    ok(P('E 360 今日動態:空白鍵一樣展開,不動播放／暫停'), tdOk(ts) && ts.after.playing === ts.at.playing, `${fmtTd(ts)} 播放 ${ts.at.playing}→${ts.after.playing}`);
-    for (const k of ['Enter', ' ']) {
-      await open(page, 'tripPanel'); await page.evaluate(STUB_SHARE);
-      const r = await rowPress(page, eng, 'tripPanel', k);
-      ok(P(`E 360 行程分享:鍵盤走到第一列按${k === ' ' ? '空白鍵' : ' Enter'},拿那一站分享、面板收起、不動播放／暫停`),
-        tpOk(r) && r.after.playing === r.at.playing, `${fmtTp(r)} 播放 ${r.at.playing}→${r.after.playing}`);
-    }
+    const ts = await spacePress(page, () => rowPress(page, eng, 'todayPanel', ' '));
+    ok(P('E 360 今日動態:空白鍵只切一次播放／暫停,列不展開、焦點留在那一列'), spaceRowOk(ts) && ts.after.todayOpen === null,
+      `${fmtTd(ts)} 播放被切 ${ts.plays} 次`);
+    await open(page, 'tripPanel'); await page.evaluate(STUB_SHARE);
+    const tr = await rowPress(page, eng, 'tripPanel', 'Enter');
+    ok(P('E 360 行程分享:鍵盤走到第一列按 Enter,拿那一站分享、面板收起、不動播放／暫停'),
+      tpOk(tr) && tr.after.playing === tr.at.playing, `${fmtTp(tr)} 播放 ${tr.at.playing}→${tr.after.playing}`);
+    await open(page, 'tripPanel'); await page.evaluate(STUB_SHARE);
+    const tsp = await spacePress(page, () => rowPress(page, eng, 'tripPanel', ' '));
+    ok(P('E 360 行程分享:空白鍵只切一次播放／暫停,不分享、面板開著、焦點留在那一列'),
+      spaceRowOk(tsp) && tsp.after.open && tsp.after.shared.length === 0, `${fmtTp(tsp)} 播放被切 ${tsp.plays} 次`);
     await open(page, 'tripPanel');
     const th = await tripHoldSpace(page, eng);
-    ok(P('E 360 行程分享:按住空白鍵(連發 4 下)只分享一次、全站播放一次都沒切'), holdOk(th), fmtHold(th));
+    ok(P('E 360 行程分享:按住空白鍵(連發 4 下)播放只切一次、不分享、焦點留在那一列'), holdOk(th), fmtHold(th));
+    // 按鈕上按空白鍵:今日動態的 × 被按下去的話面板會關;焦點要留在 ×(v0718i 起原本把按鈕 blur 掉,焦點掉回頁面)
+    await open(page, 'todayPanel');
+    const bs = await spacePress(page, () => keyOn(page, '#todayPanel > h3 .close', ' '));
+    ok(P('E 360 按鈕上按空白鍵:只切一次播放／暫停,× 沒被按下去(面板開著)、焦點留在 ×'), btnSpaceOk(bs), fmtKey(bs));
+    // 資料狀態徽章(role=button):Enter 開資料卡、不動播放;空白鍵只切播放、不開卡
+    await page.evaluate(CLOSE_ALL);
+    const badge = await page.evaluate(() => { const b = document.getElementById('statBadge'); return !!(b && b.getClientRects().length && getComputedStyle(b).visibility !== 'hidden'); });
+    ok(P('E 360 資料狀態徽章看得到(量得到的前提)'), badge);
+    if (badge) {
+      const be = await spacePress(page, () => keyOn(page, '#statBadge', 'Enter'));
+      await page.evaluate(() => statPopSet(false));
+      ok(P('E 360 資料狀態徽章:Enter 打開資料卡、播放不動'), be.statPop && be.plays === 0, fmtKey(be));
+      const bsp = await spacePress(page, () => keyOn(page, '#statBadge', ' '));
+      await page.evaluate(() => statPopSet(false));
+      ok(P('E 360 資料狀態徽章:空白鍵只切一次播放／暫停,不開資料卡、焦點留在徽章'), !bsp.statPop && bsp.plays === 1 && bsp.stay, fmtKey(bsp));
+      // N:徽章也接空白鍵(原本的寫法:開卡又沒擋冒泡)⇒ 空白鍵那格要紅
+      await page.evaluate(() => { window.__bspBadgeKD = e => { if (e.key === ' ') { e.preventDefault(); statPopSet(document.getElementById('statPop').hidden); } }; document.getElementById('statBadge').addEventListener('keydown', window.__bspBadgeKD); });
+      const nbsp = await spacePress(page, () => keyOn(page, '#statBadge', ' '));
+      await page.evaluate(() => { document.getElementById('statBadge').removeEventListener('keydown', window.__bspBadgeKD); statPopSet(false); });
+      ok(P('N 突變:徽章也接空白鍵 ⇒ 按一下同時開資料卡又切播放(E 徽章那格量得到紅)'), !(!nbsp.statPop && nbsp.plays === 1 && nbsp.stay), fmtKey(nbsp));
+    }
     // R:公車站牌重抓後焦點留在同一列;焦點列被捲出畫面時重抓,清單也不能被捲回去
     await open(page, 'busStopPanel');
     await rowPress(page, eng, 'busStopPanel', null, HOPS.busStopPanel + 2);
@@ -659,6 +857,41 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
     ok(P('R 360 公車站牌:鍵盤停在第 3 列時重抓,焦點留在同一列、捲動不動'), busOk(br), fmtBus(br));
     const bra = await busRefresh(page, true);
     ok(P('R 360 公車站牌:焦點列被捲出畫面後重抓,焦點留在那一列、清單不被捲回去'), busOk(bra), fmtBus(bra));
+    // V:焦點框看得到。每格都要走過點名的元素,否則是沒量到的假綠
+    await open(page, 'board');
+    const vb = await ringWalk(page, eng, 'board');
+    const vbNeed = ['button#boardClose.close', 'button.btu-primary', 'button.board-all-toggle'];
+    ok(P('V 360 臺北看板往前走:焦點框不被切、每一拍都有框、對比 ≥ 3'), vOk(vb, 3) && vbNeed.every(k => vb.seen.includes(k)),
+      `${fmtV(vb)}；走過 ${fmtSeen(vb)}`);
+    await open(page, 'todayPanel');
+    const vt = await ringWalk(page, eng, 'todayPanel', 'fwd', 34);
+    ok(P('V 360 今日動態往前走:列貼齊面板底緣時框不被切'), vOk(vt, 25), fmtV(vt));
+    await open(page, 'fontPanel');
+    const vf = await ringWalk(page, eng, 'fontPanel');
+    ok(P('V 360 字級面板:分段鈕的框不被切、選中那顆(藏青底)框的對比 ≥ 3'), vOk(vf, 4) && vf.seen.includes('button.on'), `${fmtV(vf)}；走過 ${fmtSeen(vf)}`);
+    // N(V):每一條修法各突變一次,指名考哪一條
+    for (const [label, css, key, pick] of [
+      ['手機標題鈕的框改回往外畫 ⇒ × 上、右兩邊被切', '.board :is(.close, .board-star, .board-notify):focus-visible { outline-offset: 2px !important; }', 'board', v => badHas(v, 'button#boardClose.close', '切掉')],
+      ['標題鈕的框改回全域紅色 ⇒ 疊在藏青標題上對比不足', '.board h3 :focus-visible { outline-color: var(--red) !important; }', 'board', v => badHas(v, 'button#boardClose.close', '對比')],
+      ['公車轉乘主鈕的框改回往外畫 ⇒ 被卡片左右切掉', '.btu-primary:focus-visible { outline-offset: 2px !important; }', 'board', v => badHas(v, 'button.btu-primary', '切掉')],
+      ['公車轉乘主鈕的框改回紅色 ⇒ 藏青底上對比不足', '.btu-primary:focus-visible { outline-color: var(--red) !important; }', 'board', v => badHas(v, 'button.btu-primary', '對比')],
+      ['「全部班次」鈕改回 var(--focus) ⇒ 聚焦時沒有框', '.board .board-all-toggle:focus-visible { outline: 3px solid var(--focus) !important; }', 'board', v => badHas(v, 'button.board-all-toggle', '沒有框')],
+      ['底部讓位的預設值改回 0 ⇒ 往前走時列貼齊底緣、框的下緣被切', MUT.noFootPad, 'todayPanel', v => badHas(v, 'div.row', '切掉b')],
+      ['分段鈕的框改回往外畫 ⇒ 被 .seg 切掉', '.seg button:focus-visible { outline-offset: 2px !important; }', 'fontPanel', v => badHas(v, 'button', '切掉')],
+      ['選中的分段鈕框改回紅色 ⇒ 藏青底上對比不足', '.seg button.on:focus-visible { outline-color: var(--red) !important; }', 'fontPanel', v => badHas(v, 'button.on', '對比')],
+    ]) {
+      const vm = await withMut(page, css, async () => { await open(page, key); return ringWalk(page, eng, key, 'fwd', key === 'todayPanel' ? 34 : 60); });
+      ok(P(`N 突變:${label}(V 量得到紅)`), pick(vm), fmtV(vm));
+    }
+    // V 360 暗色主題:標題鈕 44×44 貼齊右緣;方向鈕在橫向捲動盒(overflow-x:auto)裡,頭尾兩顆貼齊盒緣
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+    await open(page, 'board');
+    const vdk = await ringWalk(page, eng, 'board');
+    const ndir = await page.evaluate(() => document.querySelectorAll('#board .night-directions button').length);
+    ok(P('V 360 暗色主題臺北看板往前走:標題鈕、方向鈕的框不被切、對比 ≥ 3'),
+      ndir >= 2 && vOk(vdk, 7) && vdk.seen.includes('button#boardClose.close') && vdk.seen.includes('button'),
+      `方向鈕 ${ndir} 顆；${fmtV(vdk)}；走過 ${fmtSeen(vdk)}`);
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
     // N:每個突變都要紅——拿掉今日動態列的鍵盤接線 ⇒ Enter 不展開;拿掉行程分享列的 ⇒ Enter 不分享;
     //   重畫後不放回焦點(boardRefocus 換成空的) ⇒ 今日動態 Enter 後焦點離開列、公車站牌重抓後焦點不見;
     //   放回焦點不帶 preventScroll ⇒ 焦點列捲出畫面後重抓,清單被捲回去;空白鍵改回按下就觸發 ⇒ 按住時播放被連發一直切;
@@ -688,12 +921,26 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
     await page.evaluate(() => { window.boardRefocus = window.__bspRefocus; });
     ok(P('N 突變:放回焦點不帶 preventScroll ⇒ 焦點列捲出畫面後重抓,清單被捲回去(R 量得到紅)'),
       !!nba.k0 && nba.k1 === nba.k0 && Math.abs(nba.st1 - nba.st0) > 1, fmtBus(nba));
-    await open(page, 'tripPanel');
-    await page.evaluate(() => { const p = document.getElementById('tripPanel'); window.__bspTripKD = p.onkeydown; window.__bspTripKU = p.onkeyup; p.onkeyup = null;
+    // 列也接空白鍵(v0926e 的寫法:空白鍵等同點一下、擋掉冒泡)⇒ 空白鍵拿那一站分享、播放沒切
+    await open(page, 'tripPanel'); await page.evaluate(STUB_SHARE);
+    await page.evaluate(() => { const p = document.getElementById('tripPanel'); window.__bspTripKD = p.onkeydown;
       p.onkeydown = e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.row[data-dest]')) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) e.target.click(); } }; });
+    const nts = await spacePress(page, () => rowPress(page, eng, 'tripPanel', ' '));
+    await page.evaluate(() => { document.getElementById('tripPanel').onkeydown = window.__bspTripKD; });
+    ok(P('N 突變:列也接空白鍵 ⇒ 空白鍵拿那一站分享、播放沒切(E 行程分享空白鍵那格量得到紅)'),
+      !(spaceRowOk(nts) && nts.after.open && nts.after.shared.length === 0), `${fmtTp(nts)} 播放被切 ${nts.plays} 次`);
+    // 連發也切播放(拿掉全站快捷鍵的 e.repeat 那道;在捕獲階段替每一下連發補叫一次 togglePlay)⇒ 按住時播放被連切
+    await page.evaluate(() => { window.__bspRep = e => { if (e.code === 'Space' && e.repeat) togglePlay(); }; window.addEventListener('keydown', window.__bspRep, true); });
+    await open(page, 'tripPanel');
     const nth = await tripHoldSpace(page, eng);
-    await page.evaluate(() => { const p = document.getElementById('tripPanel'); p.onkeydown = window.__bspTripKD; p.onkeyup = window.__bspTripKU; });
-    ok(P('N 突變:空白鍵改回按下就觸發 ⇒ 按住時面板收起後的連發一直切播放(E 按住那格量得到紅)'), !holdOk(nth) && nth.plays > 0, fmtHold(nth));
+    await page.evaluate(() => window.removeEventListener('keydown', window.__bspRep, true));
+    ok(P('N 突變:連發也切播放 ⇒ 按住時播放被連切(E 按住那格量得到紅)'), !holdOk(nth) && nth.plays > 1, fmtHold(nth));
+    // 空白鍵先把聚焦中的按鈕 blur 掉(v0718i 的寫法)⇒ 焦點掉回頁面
+    await page.evaluate(() => { window.__bspBlur = e => { const a = document.activeElement; if (e.code === 'Space' && a && a.tagName === 'BUTTON') a.blur(); }; window.addEventListener('keydown', window.__bspBlur, true); });
+    await open(page, 'todayPanel');
+    const nbs = await spacePress(page, () => keyOn(page, '#todayPanel > h3 .close', ' '));
+    await page.evaluate(() => window.removeEventListener('keydown', window.__bspBlur, true));
+    ok(P('N 突變:空白鍵把聚焦中的按鈕 blur 掉 ⇒ 焦點掉回頁面(E 按鈕那格量得到紅)'), !btnSpaceOk(nbs) && !nbs.stay, fmtKey(nbs));
     await open(page, 'todayPanel');
     await page.evaluate(() => { for (const r of document.querySelectorAll('#todayPanel .td-row')) r.removeAttribute('tabindex'); });
     const ntw = await walk(page, eng, 'todayPanel');
@@ -735,6 +982,23 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
     await open(page, 'todayPanel');
     const wnt = await walk(page, eng, 'todayPanel');
     ok(P('N 對照:拿掉讓位 ⇒ 今日動態鍵盤往回走,列會被蓋(三張清單的 W 量得到紅)'), wnt.covered > 0, `被蓋 ${wnt.covered}/${wnt.content} 拍`);
+    // 捷運跟隨卡縮成的膠囊(tabindex):Enter 展開、不動播放;空白鍵只切播放、不展開(原本兩件事一起做)。要切到捷運群組,放最後
+    await page.evaluate(CLOSE_ALL);
+    const fc = await page.evaluate(FC_SETUP);
+    ok(P('E 360 捷運跟隨卡縮成膠囊、聚焦得到(量得到的前提)'), fc.ok, JSON.stringify(fc));
+    if (fc.ok) {
+      const fs = await spacePress(page, () => keyOn(page, '#freqCard', ' '));
+      ok(P('E 360 捷運膠囊:空白鍵只切一次播放／暫停,不展開、焦點留在膠囊'), fs.fcMin && fs.plays === 1 && fs.stay, fmtKey(fs));
+      const fe = await spacePress(page, () => keyOn(page, '#freqCard', 'Enter'));
+      ok(P('E 360 捷運膠囊:Enter 展開、播放不動'), !fe.fcMin && fe.plays === 0, fmtKey(fe));
+      // N:膠囊也接空白鍵(原本的寫法)⇒ 空白鍵那格要紅
+      await page.evaluate(FC_COMPACT);
+      await page.evaluate(() => { const c = document.getElementById('freqCard'); window.__bspFcKD = c.onkeydown;
+        c.onkeydown = e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setFreqCardCompact(false); } }; });
+      const nfs = await spacePress(page, () => keyOn(page, '#freqCard', ' '));
+      await page.evaluate(() => { document.getElementById('freqCard').onkeydown = window.__bspFcKD; });
+      ok(P('N 突變:膠囊也接空白鍵 ⇒ 按一下同時展開又切播放(E 膠囊那格量得到紅)'), !(nfs.fcMin && nfs.plays === 1 && nfs.stay), fmtKey(nfs));
+    }
     ok(P('360 標準字級全程零 pageerror'), errors.length === 0, errors.slice(0, 2).join(' | '));
     await ctx.close();
   }
@@ -762,15 +1026,21 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
       const need = Math.max(2, Math.min(20, Math.floor(w.n / 2)));
       ok(P('W 360 特大 直式合併卡鍵盤往回走,焦點不被固定段蓋住'), w.covered === 0 && w.content >= need,
         `被蓋 ${w.covered}/${w.content} 拍(可聚焦 ${w.n}、至少要走 ${need})${w.bad.length ? '；' + w.bad.join('、') : ''}`);
+      // 整份往回走碰不碰得到「分頁鈕半露」看當天資料(見 tabsPeek),這一格直接造出半露再走進去
+      await portUni();
+      const pk = await tabsPeek(page, eng);
+      ok(P('W 360 特大 直式合併卡:分頁鈕半露在捲動區上緣時往回走進它,不被標題蓋住'), peekOk(pk), fmtPeek(pk));
       // N:把分頁列的排除規則移出側欄段 ⇒ 直式分頁鈕不再讓位,停在標題底下
       const moved = await page.evaluate(TABS_RULE_OUT);
       ok(P('N 突變目標:側欄 media 段裡找得到分頁列的排除規則'), !!moved, moved || '找不到');
       if (moved) {
         await portUni();
         const wm = await walk(page, eng, 'board');
+        await portUni();
+        const pkm = await tabsPeek(page, eng);
         await page.evaluate(() => document.getElementById('__bspTabsOut').remove());
-        ok(P('N 突變:分頁列的排除規則移出側欄段 ⇒ 直式合併卡往回走會被蓋(W 量得到紅)'), wm.covered > 0,
-          `被蓋 ${wm.covered}/${wm.content} 拍${wm.bad.length ? '；' + wm.bad.join('、') : ''}`);
+        ok(P('N 突變:分頁列的排除規則移出側欄段 ⇒ 分頁鈕半露時往回走進它會被標題蓋住(W 半露那格量得到紅)'), !pkm.none && pkm.onTab && pkm.covered,
+          `${fmtPeek(pkm)}；整份往回走被蓋 ${wm.covered}/${wm.content} 拍(看當天資料,只列參考)`);
       }
     }
     ok(P('360 特大字級全程零 pageerror'), errors.length === 0, errors.slice(0, 2).join(' | '));
@@ -827,6 +1097,28 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
     const nbc = await busClickKey(page);
     await page.evaluate(() => document.getElementById('busStopPanel').addEventListener('focusin', busRowDropPointerFocus));
     ok(P('N 突變:拿掉公車列的點擊放焦點 ⇒ 點一列再按鍵,焦點留在列上而且亮框(C 量得到紅)'), nbc.onRow && nbc.ring > 0, fmtClick(nbc));
+    // V 1280:桌面標題鈕 22×22 不貼邊、框照舊往外畫(字色);暗色主題的鈕是 44×44 貼齊右緣,框往內畫
+    await open(page, 'board');
+    const vd = await ringWalk(page, eng, 'board');
+    ok(P('V 1280 臺北看板往前走:焦點框不被切、每一拍都有框、對比 ≥ 3'), vOk(vd, 3) && vd.seen.includes('button#boardClose.close'),
+      `${fmtV(vd)}；走過 ${fmtSeen(vd)}`);
+    await open(page, 'todayPanel');
+    const vdt = await ringWalk(page, eng, 'todayPanel', 'fwd', 34);
+    ok(P('V 1280 今日動態往前走:列貼齊面板底緣時框不被切'), vOk(vdt, 25), fmtV(vdt));
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+    await open(page, 'board');
+    const vk = await ringWalk(page, eng, 'board');
+    const ndk = await page.evaluate(() => document.querySelectorAll('#board .night-directions button').length);
+    ok(P('V 1280 暗色主題臺北看板往前走:標題鈕(44×44 貼齊右緣)、方向鈕(橫向捲動盒)框不被切、對比 ≥ 3'),
+      ndk >= 2 && vOk(vk, 7) && vk.seen.includes('button#boardClose.close') && vk.seen.includes('button'),
+      `方向鈕 ${ndk} 顆；${fmtV(vk)}；走過 ${fmtSeen(vk)}`);
+    const vkm = await withMut(page, 'html[data-theme=dark] .board :is(.close, .board-star, .board-notify):focus-visible { outline-offset: 2px !important; }',
+      async () => { await open(page, 'board'); return ringWalk(page, eng, 'board'); });
+    ok(P('N 突變:暗色標題鈕的框改回往外畫 ⇒ × 右邊被切(V 量得到紅)'), badHas(vkm, 'button#boardClose.close', '切掉'), fmtV(vkm));
+    const vnm = await withMut(page, 'html[data-theme=dark] .night-directions { margin: 0 !important; padding: 4px 0 12px !important; }',
+      async () => { await open(page, 'board'); return ringWalk(page, eng, 'board'); });
+    ok(P('N 突變:暗色方向鈕的捲動盒拿掉左右留邊 ⇒ 頭尾兩顆的框被切(V 量得到紅)'), badHas(vnm, 'button', '切掉'), fmtV(vnm));
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
     ok(P('1280 全程零 pageerror'), errors.length === 0, errors.slice(0, 2).join(' | '));
     await ctx.close();
   }

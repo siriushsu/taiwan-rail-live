@@ -3311,10 +3311,17 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 });
 // 2026-09-26 今日台鐵動態、公車站牌、行程分享的列表列接上鍵盤與讀螢幕軟體：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  '今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 或空白鍵就行': 'The lists in TRA today, Bus stops and Journey sharing can now be browsed row by row with the keyboard, and screen readers read out each row. Press Enter or Space to open a train’s stop-by-stop history or pick your destination.',
+  '今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 就行': 'The lists in TRA today, Bus stops and Journey sharing can now be browsed row by row with the keyboard, and screen readers read out each row. Press Enter to open a train’s stop-by-stop history or pick your destination.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  '今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 或空白鍵就行': '本日の台湾鉄路・バス停・旅程共有の一覧を、キーボードで1行ずつ移動できるようになり、スクリーンリーダーも各行を読み上げます。Enter キーかスペースキーで、列車の駅ごとの履歴を開いたり目的駅を選んだりできます。',
+  '今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 就行': '本日の台湾鉄路・バス停・旅程共有の一覧を、キーボードで1行ずつ移動できるようになり、スクリーンリーダーも各行を読み上げます。Enter キーで、列車の駅ごとの履歴を開いたり目的駅を選んだりできます。',
+});
+// 2026-09-26 空白鍵全站一致只做播放／暫停、面板內鍵盤焦點框不再被切掉：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '空白鍵在任何地方都是播放／暫停，不會再順便打開資料卡、展開卡片或讓鍵盤選取跳回頁首，按住也只切一次；面板邊緣與標題列按鈕的鍵盤選取框不再被切掉': 'The Space bar now always plays or pauses, wherever you press it: it no longer also opens a data card or expands a card, or sends your keyboard selection back to the top of the page, and holding it down toggles only once. Keyboard focus outlines at panel edges and on title-bar buttons are no longer cut off.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '空白鍵在任何地方都是播放／暫停，不會再順便打開資料卡、展開卡片或讓鍵盤選取跳回頁首，按住也只切一次；面板邊緣與標題列按鈕的鍵盤選取框不再被切掉': 'スペースキーはどこで押しても再生／一時停止だけになりました。データカードを開いたりカードを展開したり、キーボードの選択位置がページ先頭に戻ったりすることはなく、押し続けても切り替えは1回だけです。パネルの端やタイトルバーのボタンで、キーボードの選択枠が切れなくなりました。',
 });
 // 2026-09-26 跟車卡「詳細」提示列蓋住往下一項的焦點、App 附近車站卡「蓋章」鈕被卡頭蓋住、車庫聚焦頂列鈕畫面跳動：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {

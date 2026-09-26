@@ -40,6 +40,7 @@ html[data-theme=dark] .board :is(.close,.board-star,.board-notify) { width:44px;
 html[data-theme=dark] .board .close { right:0; }
 html[data-theme=dark] .board .board-star { right:44px; }
 html[data-theme=dark] .board .board-notify { right:88px; }
+html[data-theme=dark] .board :is(.close,.board-star,.board-notify):focus-visible { outline-offset:-5px; } /* 44×44 貼齊面板右緣，焦點框往外畫右邊會被切掉 */
 html[data-theme=dark] .board h3 { padding-right:94px; }
 html[data-theme=dark] .board.has-notify h3 { padding-right:138px; }
 html[data-theme=dark] .board .row { min-height:44px; padding:10px 0; border-top:1px solid var(--line-faint); }
@@ -53,7 +54,9 @@ html[data-theme=dark] body :is(.badge,.maptools,.mapbtn,.city-menu,.chip,.m-tabb
 }
 html[data-theme=dark] .grouptabs .gtab.active { box-shadow:inset 0 -2px 0 #FF6B57,0 0 16px rgba(255,107,87,.09); }
 html[data-theme=dark] :is(.chip,.mapbtn):hover { border-color:#AFCBF5; }
-html[data-theme=dark] .night-directions { display:flex; gap:6px; overflow-x:auto; padding:4px 0 12px; scrollbar-width:thin; }
+html[data-theme=dark] .night-directions { display:flex; gap:6px; overflow-x:auto; margin:0 -4px; padding:4px 4px 12px; scrollbar-width:thin; }
+/* 橫向捲動盒會裁掉往外畫的焦點框(2px＋離 2px):左右各留 4px、用負邊距抵銷,按鈕位置不變;捲到中間那顆時也留同樣的邊 */
+html[data-theme=dark] .night-directions button { scroll-margin-inline:4px; }
 html[data-theme=dark] .night-directions button {
   flex:1 0 auto; min-height:44px; padding:7px 14px; border:1px solid var(--line); border-radius:8px;
   font-size:14px; font-weight:700; line-height:1.4; font-family:inherit; color:#A9B8D4; background:rgba(146,180,235,.04); cursor:pointer;
