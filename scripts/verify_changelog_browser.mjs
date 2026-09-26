@@ -76,7 +76,8 @@ const widths = [360, 375, 414, 768];
 // 9/26：切換上方分組（全台同框、台鐵、高鐵、捷運與輕軌）不再卡住兩三秒一條（435→436）。
 // 9/26：Safari 開分享畫面時保留立體列車、編組與地形參數一條（436→437）。
 // 9/26：iPhone 跟車卡車次與時速對齊一條（437→438）。
-const expectedHistoryCount = 438;
+// 9/27：五個配樂情境新增 27 首、App 維持串流不增肥一條（438→439）。
+const expectedHistoryCount = 439;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

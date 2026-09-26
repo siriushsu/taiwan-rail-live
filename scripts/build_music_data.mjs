@@ -59,7 +59,7 @@ const POOLS = [
     zones: null, hours: ['dawn'], weather: null, auto: true },
   { id: 'golden-hour', zh: '黃昏斜光', family: 'quiet-hours', desc: '斜射光與一天的收尾',
     zones: null, hours: ['dusk'], weather: null, auto: true },
-  { id: 'island-community', zh: '山海聚落共創', family: null, desc: '與原民音樂人共創（尚未開放）',
+  { id: 'island-community', zh: '山海聚落共創', family: null, desc: '以山海聚落為想像的開闊合奏與彼此呼應',
     zones: null, hours: null, weather: null, auto: false },
   { id: 'rail-texture-score', zh: '鐵道質地配樂', family: null, desc: '鐵道質地的聲音設計',
     zones: null, hours: null, weather: null, auto: false },
@@ -77,6 +77,8 @@ const free = FREE_FOLDERS.flatMap(d =>
 
 // 付費曲目：`_pass/<pool-id>/` 一池一資料夾。目錄不存在＝該池尚未上架，tracks 留空陣列。
 // 🔴 WAV 母帶在 `_pass` 的兄弟目錄 `_masters/`，已進 .gitignore 與 .assetsignore，永不出貨。
+//    2026-09-27 起新母帶統一由 WAV 轉為 libmp3lame -q:a 5、48 kHz stereo；不從既有 MP3
+//    二次轉碼。這批背景器樂實測約 126 kbps，與 CBR 128k 等大但保留來源 loudness 較完整。
 const pools = POOLS.map(p => {
   const dir = path.join(MUSIC_DIR, '_pass', p.id);
   const tracks = existsSync(dir)

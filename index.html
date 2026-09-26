@@ -5590,7 +5590,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/26</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/27</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5598,6 +5598,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="musicpools0927"><span class="d">9/27</span><span>跟車配樂新增南方日光、黃昏斜光、北海岸天色、花蓮山海、山海聚落共創 5 組共 27 首；App 需要時從網站串流，不會把這批新歌塞進安裝包</span></li>
         <li data-cl-of="followalign0926"><span class="d">9/26</span><span>iPhone 點列車後，左下資訊卡的車次與時速會排在同一條線上，不再一高一低</span></li>
         <li data-cl-of="share3d0926"><span class="d">9/26</span><span>用 Safari 開別人分享的立體地圖時，列車編組、地形與立體列車開關會完整保留，不再偶爾回到自己的預設設定</span></li>
         <li data-cl-of="groupswitch0926"><span class="d">9/26</span><span>切換上方分組（全台同框、台鐵、高鐵、捷運與輕軌）時，畫面不會再卡住兩三秒</span></li>
@@ -5605,7 +5606,6 @@
         <li data-cl-of="landcard0926"><span class="d">9/26</span><span>手機橫放時，平交道卡、落釘卡、台糖卡改成靠右整條顯示，接下來的班次不用捲就看得到（原本卡片太矮，常常一列都看不到）</span></li>
         <li data-cl-of="xcfocus0926"><span class="d">9/26</span><span>平交道卡、落釘卡用鍵盤選到的按鈕不會再每秒被洗掉，點 ✕ 或班次也不會偶爾沒反應；落釘卡的班次和 App 的附近車站能用鍵盤選到，按 Enter 就能跟車、看班次</span></li>
         <li data-cl-of="kbfocusback0926"><span class="d">9/26</span><span>用鍵盤操作時，車站看板自動更新、關掉面板、在行程分享選好目的站、展開或收起跟捷運時的膠囊小卡之後，選取不再跳回頁首，會留在原處或回到打開面板的按鈕</span></li>
-        <li data-cl-of="spacekey0926"><span class="d">9/26</span><span>空白鍵在任何地方都是播放／暫停，不會再順便打開資料卡、展開卡片或讓鍵盤選取跳回頁首，按住也只切一次；面板邊緣與標題列按鈕的鍵盤選取框不再被切掉</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5861,6 +5861,7 @@
         <li><span class="d">7/13</span><span>列車位置改用車種加減速模型：起步緩加速、進站緩減速，不再全程等速</span></li>
         <li><span class="d">7/10</span><span>跟隨鎖：跟隨中可自由拖曳地圖，按「◉ 回到列車」恢復置中；7/9 鐵道迷功能包（路線高亮、月台站名牌、日夜天色、速度曲線）</span></li>
         <li class="grp">放空模式</li>
+        <li data-cl="musicpools0927"><span class="d">9/27</span><span>跟車配樂新增「南方日光」「黃昏斜光」「北海岸天色」「花蓮山海」「山海聚落共創」5 個情境、共 27 首；網站放空模式也會輪播。這批歌由正式站按需要串流，App 仍只內建原本 12 首離線曲，不會因這次加歌變大</span></li>
         <li data-cl="ambientlock"><span class="d">9/1</span><span>放空模式鎖定程式鏡頭，出口不再被手勢區遮住或重進後縮成空白鈕；背景音樂開關顯示也已修正（謝謝網友回報）</span></li>
         <li data-cl="railsound"><span class="d">9/3</span><span>App 版「配樂情境」新增「車聲」開關：跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放。鐵軌環境音是 Envato 授權素材，只烤進 App，網站沒有。</span></li>
         <li data-cl="music57"><span class="d">8/27</span><span>放空模式的背景音樂重新整理過：曲目從 29 首增加到 57 首，分成 Afloat、Midnight stories、Moonlake、Rainy day、Star &amp; Neon、peaceful piano 六組不同氛圍</span></li>
@@ -6863,7 +6864,7 @@
 //         三節同向時連正向都是觀景窗頂著前一節、尾端露出貫通門 ⇒ 尾車 flip；中間車仍是同一個端車車模（沒有中間車模型），
 //         觀景窗對著頭車的貫通門。守門：verify_garage_facing（62 款 × 環形八點與海岸 × 正反兩向，以車燈材質重心當車頭端真值，
 //         附對照組）掛 check-garage 與 ship-web；verify_garage_loop 反向判準改驗「頭車換端且車頭朝外、逆向時頭車領頭」。
-const BUILD = 'v0926p';
+const BUILD = 'v0927a';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);

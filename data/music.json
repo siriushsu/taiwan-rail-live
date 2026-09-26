@@ -553,7 +553,28 @@
       "hours": null,
       "weather": null,
       "auto": true,
-      "tracks": []
+      "tracks": [
+        {
+          "src": "_pass/north-coast/Between Rain and Sea-2.mp3",
+          "dur": 195,
+          "bytes": 3416349
+        },
+        {
+          "src": "_pass/north-coast/Between Rain and Sea.mp3",
+          "dur": 195,
+          "bytes": 3335061
+        },
+        {
+          "src": "_pass/north-coast/Green Hills, Salt Wind.mp3",
+          "dur": 117,
+          "bytes": 1946901
+        },
+        {
+          "src": "_pass/north-coast/Harbor Line Overcast.mp3",
+          "dur": 195,
+          "bytes": 3301605
+        }
+      ]
     },
     {
       "id": "yilan-line",
@@ -579,7 +600,43 @@
       "hours": null,
       "weather": null,
       "auto": true,
-      "tracks": []
+      "tracks": [
+        {
+          "src": "_pass/hualien-cliffs/Between Cliffs and Blue.mp3",
+          "dur": 200,
+          "bytes": 3249669
+        },
+        {
+          "src": "_pass/hualien-cliffs/Gorge Light.mp3",
+          "dur": 200,
+          "bytes": 3039141
+        },
+        {
+          "src": "_pass/hualien-cliffs/Northbound Under High Mountains.mp3",
+          "dur": 200,
+          "bytes": 3137517
+        },
+        {
+          "src": "_pass/hualien-cliffs/Small Station, Warm Wind-2.mp3",
+          "dur": 166,
+          "bytes": 2884509
+        },
+        {
+          "src": "_pass/hualien-cliffs/Small Station, Warm Wind.mp3",
+          "dur": 128,
+          "bytes": 2129565
+        },
+        {
+          "src": "_pass/hualien-cliffs/Stone River Window-2.mp3",
+          "dur": 200,
+          "bytes": 2757261
+        },
+        {
+          "src": "_pass/hualien-cliffs/Stone River Window.mp3",
+          "dur": 200,
+          "bytes": 3191709
+        }
+      ]
     },
     {
       "id": "taitung-open",
@@ -623,7 +680,38 @@
       ],
       "weather": null,
       "auto": true,
-      "tracks": []
+      "tracks": [
+        {
+          "src": "_pass/southern-sun/Heat Haze at the Platform.mp3",
+          "dur": 180,
+          "bytes": 3206781
+        },
+        {
+          "src": "_pass/southern-sun/Market Town Afternoon.mp3",
+          "dur": 148,
+          "bytes": 2422989
+        },
+        {
+          "src": "_pass/southern-sun/Palm Shadows by the Line.mp3",
+          "dur": 159,
+          "bytes": 2802165
+        },
+        {
+          "src": "_pass/southern-sun/Rice Fields in the Window.mp3",
+          "dur": 184,
+          "bytes": 3367605
+        },
+        {
+          "src": "_pass/southern-sun/Southbound Afternoon.mp3",
+          "dur": 179,
+          "bytes": 3186117
+        },
+        {
+          "src": "_pass/southern-sun/Southern Terminal Glow.mp3",
+          "dur": 180,
+          "bytes": 2992389
+        }
+      ]
     },
     {
       "id": "mountain-branch",
@@ -724,18 +812,70 @@
       ],
       "weather": null,
       "auto": true,
-      "tracks": []
+      "tracks": [
+        {
+          "src": "_pass/golden-hour/Glass Towers at Sunset.mp3",
+          "dur": 185,
+          "bytes": 2977365
+        },
+        {
+          "src": "_pass/golden-hour/Last Light on the Plain-2.mp3",
+          "dur": 190,
+          "bytes": 3085317
+        },
+        {
+          "src": "_pass/golden-hour/Last Light on the Plain.mp3",
+          "dur": 189,
+          "bytes": 2817501
+        },
+        {
+          "src": "_pass/golden-hour/Mountains Holding Daylight.mp3",
+          "dur": 190,
+          "bytes": 3267141
+        },
+        {
+          "src": "_pass/golden-hour/Orange Coast Southbound-2.mp3",
+          "dur": 190,
+          "bytes": 3309309
+        },
+        {
+          "src": "_pass/golden-hour/Orange Coast Southbound.mp3",
+          "dur": 149,
+          "bytes": 2379573
+        }
+      ]
     },
     {
       "id": "island-community",
       "zh": "山海聚落共創",
       "family": null,
-      "desc": "與原民音樂人共創（尚未開放）",
+      "desc": "以山海聚落為想像的開闊合奏與彼此呼應",
       "zones": null,
       "hours": null,
       "weather": null,
       "auto": false,
-      "tracks": []
+      "tracks": [
+        {
+          "src": "_pass/island-community/Footsteps Across the Valley.mp3",
+          "dur": 190,
+          "bytes": 3241197
+        },
+        {
+          "src": "_pass/island-community/Gathering Light.mp3",
+          "dur": 190,
+          "bytes": 3241125
+        },
+        {
+          "src": "_pass/island-community/River Path, Open Sky.mp3",
+          "dur": 190,
+          "bytes": 2727717
+        },
+        {
+          "src": "_pass/island-community/Where Mountains Answer Sea.mp3",
+          "dur": 134,
+          "bytes": 1835397
+        }
+      ]
     },
     {
       "id": "rail-texture-score",

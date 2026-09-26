@@ -256,6 +256,23 @@
         }
       }
     },
+    "；另有 {n} 條線改依當日班表推估，列車位置與到站時間可能有誤差": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "; {n} other lines are estimated from today’s timetable, so train positions and arrival times may be inaccurate"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "；ほか{n}路線は当日の時刻表から推定しているため、列車位置と到着時刻に誤差がある場合があります"
+          }
+        }
+      }
+    },
     "；另有 {n} 條線的即時資料異常，已改用官方名冊或班表": {
       "extractionState": "manual",
       "localizations": {
@@ -354,6 +371,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "；直近の更新失敗：{error}"
+          }
+        }
+      }
+    },
+    "：即時訊號暫時中斷，目前依當日班表推估；列車位置與到站時間可能有誤差": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ": the live signal is temporarily unavailable; estimates now follow today’s timetable, so train positions and arrival times may be inaccurate"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "：リアルタイム信号が一時中断しているため、現在は当日の時刻表から推定しています。列車位置と到着時刻に誤差がある場合があります"
           }
         }
       }
@@ -987,6 +1021,23 @@
         }
       }
     },
+    "{date}收藏": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collected on {date}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{date}に収集"
+          }
+        }
+      }
+    },
     "{distance} 內有 {n} 條路線": {
       "extractionState": "manual",
       "localizations": {
@@ -1255,6 +1306,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "{line}・{station}方面"
+          }
+        }
+      }
+    },
+    "{line}：班表推估": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{line}: timetable estimate"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{line}：時刻表から推定"
           }
         }
       }
@@ -1701,6 +1769,23 @@
         }
       }
     },
+    "{n} 線：班表推估": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} lines: timetable estimate"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n}路線：時刻表から推定"
+          }
+        }
+      }
+    },
     "{n} 點": {
       "extractionState": "manual",
       "localizations": {
@@ -1714,6 +1799,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "{n}ポイント"
+          }
+        }
+      }
+    },
+    "{name}（{state}）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{name} ({state})"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{name}（{state}）"
           }
         }
       }
@@ -3656,19 +3758,19 @@
         }
       }
     },
-    "2021 年起投入的日立製城際電聯車，安靜平穩，設「騰雲座艙」商務車廂。": {
+    "2021 年起投入的日立製城際電聯車，安靜平穩；多數班次有「騰雲座艙」商務車廂（特仕車編組除外）。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A quiet, smooth Hitachi intercity EMU introduced in 2021, with the Tengyun business cabin."
+            "value": "A quiet, smooth Hitachi intercity EMU introduced in 2021. Most services have the Tengyun business cabin (except the special-edition sets)."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "2021年登場の日立製都市間電車で、静かで滑らかな乗り心地とビジネスクラス「騰雲座艙」を備えます。"
+            "value": "2021年登場の日立製都市間電車で、静かで滑らかな乗り心地です。多くの列車にビジネスクラス「騰雲座艙」があります（特別仕様編成を除く）。"
           }
         }
       }
@@ -3737,6 +3839,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "30分"
+          }
+        }
+      }
+    },
+    "3D 地圖上臺北車站的臺鐵列車不再畫在車站屋頂上，高捷紅線地下段也不再浮在地面上；新左營臺鐵與高雄輕軌被頂高的地方回到原位": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On the 3D map, TRA trains at Taipei Main Station are no longer drawn on top of the station roof, and the Kaohsiung Metro Red Line's underground section no longer floats above ground; the spots where the TRA at Xinzuoying and the Kaohsiung Light Rail were pushed up are back at their proper height."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D地図で、台北駅の台鉄列車を駅の屋根の上に描かなくなり、高雄メトロ レッドラインの地下区間も地上に浮かなくなりました。新左営の台鉄と高雄ライトレールで持ち上がっていた箇所も元の高さに戻りました。"
           }
         }
       }
@@ -5985,6 +6104,23 @@
         }
       }
     },
+    "山海號與平原號現在從地圖車牌、車站看板到列車資訊都直接標示為「軌島虛構專列」，不會再看起來像真實營運班次": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shanhai and Pingyuan now carry a clear “Rail Island fictional special” label on map tags, station boards and train details, so they cannot be mistaken for real services."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "山海号と平原号は、地図の列車札・駅案内・列車情報のすべてで「軌島の架空特別列車」と明記し、実在の運行列車と誤解されないようにしました。"
+          }
+        }
+      }
+    },
     "山海聚落共創": {
       "extractionState": "manual",
       "localizations": {
@@ -8212,6 +8348,23 @@
         }
       }
     },
+    "今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 就行": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The lists in TRA today, Bus stops and Journey sharing can now be browsed row by row with the keyboard, and screen readers read out each row. Press Enter to open a train’s stop-by-stop history or pick your destination."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本日の台湾鉄路・バス停・旅程共有の一覧を、キーボードで1行ずつ移動できるようになり、スクリーンリーダーも各行を読み上げます。Enter キーで、列車の駅ごとの履歴を開いたり目的駅を選んだりできます。"
+          }
+        }
+      }
+    },
     "今日台鐵動態與誤點履歷": {
       "extractionState": "manual",
       "localizations": {
@@ -9113,6 +9266,23 @@
         }
       }
     },
+    "切換上方分組（全台同框、台鐵、高鐵、捷運與輕軌）時，畫面不會再卡住兩三秒": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switching between All Taiwan, TRA, High Speed Rail and Metro & Light Rail at the top no longer freezes the screen for a few seconds"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上部の「台湾全体」「台湾鉄路」「台湾高速鉄道」「メトロ・ライトレール」を切り替えても、画面が数秒止まることがなくなりました"
+          }
+        }
+      }
+    },
     "切換不會重新框景——你原本看的地方還在原地。字級調大時那顆鈕會跟著變大，但位置不變。": {
       "extractionState": "manual",
       "localizations": {
@@ -9602,6 +9772,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "スマートフォンの列車追跡と鑑賞モードに先頭固定スイッチを追加。拡大縮小・回転中も先頭を中央に保ち、解除して自由に移動した後も同じ列車へ戻れます。"
+          }
+        }
+      }
+    },
+    "手機橫放時，平交道卡、落釘卡、台糖卡改成靠右整條顯示，接下來的班次不用捲就看得到（原本卡片太矮，常常一列都看不到）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In landscape on a phone, the level-crossing, pin and sugar railway cards now run down the right side like the station board, so upcoming trains show without scrolling (the cards used to be so short that often not even one row was visible)."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スマートフォンを横向きにしたとき、踏切カード・ピンのカード・五分車のカードを駅の発車案内と同じく右側に縦長で表示するようにしました。次の列車をスクロールせずに見られます（以前はカードが低すぎて、1行も見えないことがよくありました）。"
           }
         }
       }
@@ -10503,6 +10690,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "以下の場面にはパスが必要です。未加入でも一覧はすべて表示されます。"
+          }
+        }
+      }
+    },
+    "以山海聚落為想像的開闊合奏與彼此呼應": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An open ensemble inspired by mountain-and-sea communities, with parts answering one another"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "山と海の集落をイメージした、開放的で呼応しあうアンサンブル"
           }
         }
       }
@@ -12037,6 +12241,57 @@
         }
       }
     },
+    "台鐵 10/3 起有 14 班調整時刻，3D 地圖裡這些車照樣走原本的股道": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "14 TRA trains get new times from Oct 3; on the 3D map they still run on their usual tracks."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台鉄で10月3日から時刻が変わる14本も、3D地図ではこれまでと同じ線路を走ります"
+          }
+        }
+      }
+    },
+    "台鐵、高鐵的跟車卡加入進站軌道：列車在上一站與下一站之間跑，靠站時停在站牌旁，發車才換到下一段": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRA and THSR follow cards now show an arrival track: the train runs between the previous and next stops, waits beside the station sign while stopped, and moves on to the next section only when it departs."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台鉄・台湾高鉄の追跡カードに到着トラックを追加。列車は前の駅と次の駅の間を走り、停車中は駅名標のそばで止まり、発車してから次の区間に切り替わります。"
+          }
+        }
+      }
+    },
+    "台鐵、高鐵與林鐵車站看板不再只看得到每個方向最近 3 班；點一下就能在同一張看板展開接下來 3 小時的全部班次，需要時也能收回精簡版": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRA, HSR and Alishan station boards now let you expand from the next three services per direction to every service in the next three hours, then collapse the list again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台鉄・高鉄・阿里山林鉄の駅案内で、方面ごとの直近3本から今後3時間の全列車へ展開し、必要に応じて一覧を再び折りたためるようになりました。"
+          }
+        }
+      }
+    },
     "台鐵、高鐵與阿里山林鐵皆依真實時刻表運行（台鐵回到現在時刻自動套用即時誤點；林鐵依官方公告時刻表，無即時資訊）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。": {
       "extractionState": "manual",
       "localizations": {
@@ -12564,6 +12819,23 @@
         }
       }
     },
+    "台鐵誤點更新會核對官方所在車站；過站時的小幅誤點直接校正位置，同車次重複資料也不再把較大誤點蓋掉": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRA delay updates now cross-check the official reported station. Small delay increases are applied immediately when a train passes a station, and duplicate rows can no longer overwrite a larger delay."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台鉄の遅延更新で公式の所在駅も照合するようにしました。駅を通過した際の小さな遅延増加はすぐに位置へ反映し、重複データがより大きな遅延を上書きすることもなくなりました。"
+          }
+        }
+      }
+    },
     "台鐵誤點推估（依 {time} 即時資料投射）· {n} 班誤點中": {
       "extractionState": "manual",
       "localizations": {
@@ -13070,6 +13342,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "踏切：オン"
+          }
+        }
+      }
+    },
+    "平交道卡、落釘卡用鍵盤選到的按鈕不會再每秒被洗掉，點 ✕ 或班次也不會偶爾沒反應；落釘卡的班次和 App 的附近車站能用鍵盤選到，按 Enter 就能跟車、看班次": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On the level-crossing and pin cards, the button you reach with the keyboard no longer loses its selection every second, and tapping ✕ or a train no longer occasionally does nothing. Trains on the pin card and, in the app, nearby stations can now be reached with the keyboard: press Enter to follow a train or see upcoming trains."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "踏切カードとピンのカードで、キーボードで選んだボタンが毎秒の更新で外れなくなり、✕ や列車をタップしても反応しないことがなくなりました。ピンのカードの列車とアプリの「近くの駅」もキーボードで選べるようになり、Enter キーで列車を追跡したり、次の列車を見たりできます。"
           }
         }
       }
@@ -14468,6 +14757,23 @@
         }
       }
     },
+    "用 Safari 開別人分享的立體地圖時，列車編組、地形與立體列車開關會完整保留，不再偶爾回到自己的預設設定": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opening someone else’s shared 3D map in Safari now keeps the shared train formation, terrain and 3D-train settings instead of occasionally falling back to your own defaults."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Safariで共有された3D地図を開いたとき、列車編成・地形・3D列車の設定をすべて引き継ぎ、ときどき自分の初期設定に戻ることがなくなりました。"
+          }
+        }
+      }
+    },
     "用 Safari／Chrome 開啟，才能把軌島加入主畫面，下次一點就回來": {
       "extractionState": "manual",
       "localizations": {
@@ -14566,6 +14872,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "切符型の項目で列車種別と路線を選択"
+          }
+        }
+      }
+    },
+    "用鍵盤往下一項移動時，跟車卡選到的按鈕不再被底部的「詳細」提示列蓋住；App 附近車站卡往回移動時「蓋章」鈕不再被標題蓋住；車庫捲到下面再回到頂列按鈕，畫面不再往上跳": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When moving to the next item with the keyboard, the selected button in the follow card no longer hides under the “Details” bar at the bottom. In the app, “Stamp” buttons in the nearby stations card no longer hide under the title when moving back, and returning to the top-bar buttons in My garage no longer makes the page jump."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーボードで次の項目へ移動するとき、追跡カードで選んだボタンが下部の「詳細」バーに隠れないようにしました。アプリの近くの駅カードで前の項目に戻るとき「スタンプ」ボタンがタイトルに隠れず、マイ車庫で下までスクロールしてから上部のボタンに戻っても画面が跳ばなくなりました。"
+          }
+        }
+      }
+    },
+    "用鍵盤往回移動時，我的最愛、車站看板等面板選到的項目不再被標題列蓋住；iPhone 英文介面選到長站名時，畫面不再能左右拖動": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moving back with the keyboard no longer leaves the selected item hidden under the title bar in My favourites, station boards and other panels. On iPhone in English, choosing a long station name no longer lets the screen slide sideways."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーボードで前の項目に戻るとき、お気に入りや駅案内などのパネルで選んだ項目がタイトルバーに隠れないようにしました。iPhoneの英語表示で長い駅名を選んでも、画面が左右に動かないようにしました"
+          }
+        }
+      }
+    },
+    "用鍵盤操作時，車站看板自動更新、關掉面板、在行程分享選好目的站、展開或收起跟捷運時的膠囊小卡之後，選取不再跳回頁首，會留在原處或回到打開面板的按鈕": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When using the keyboard, your selection no longer jumps back to the top of the page after the station board refreshes, a panel closes, you pick a destination in Journey sharing, or you expand or collapse the pill-sized Metro follow card. It stays where it was, or goes back to the button that opened the panel."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーボード操作中、駅の発車標が自動更新されたとき、パネルを閉じたとき、旅程共有で目的駅を選んだとき、メトロ追跡中の小さくしたカードを展開・収納したときに、選択位置がページ先頭に戻らなくなりました。元の場所か、パネルを開いたボタンに戻ります。"
           }
         }
       }
@@ -15229,6 +15586,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "立体地図のトンネル入口を斜面に沿う坑門・擁壁に変更し、浮いたアーチを改善。地下トンネルに沿って山肌に現れる線路表示も除去しました。"
+          }
+        }
+      }
+    },
+    "立體地圖跟車時，沿途建築每次更新的計算量再減半": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Following a train on the 3D map now takes half the work each time the buildings along the route are updated."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立体地図で列車を追跡しているとき、沿線の建物を更新するたびの計算量をさらに半分にしました。"
           }
         }
       }
@@ -17409,6 +17783,23 @@
         }
       }
     },
+    "地景地圖開啟地形時，立體車站周圍的地面不再殘留舊的建築輪廓": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With terrain on in the landscape map, old building outlines no longer linger on the ground around 3D stations."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地景マップで地形をオンにしたとき、立体駅の周りの地面に古い建物の輪郭が残らなくなりました。"
+          }
+        }
+      }
+    },
     "地景地圖標示 Beta，持續完善地形、建物與沿線景觀": {
       "extractionState": "manual",
       "localizations": {
@@ -17885,6 +18276,23 @@
         }
       }
     },
+    "成就「通勤的證明」「老通勤族」的路段次數與打卡車站，現在會跟著帳號雲端同步，換一台裝置登入不再歸零（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station check-ins and segment counts behind the \"Commuter credentials\" and \"Veteran commuter\" achievements now sync with your account, so they no longer reset to zero when you sign in on another device (thanks for the report)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "実績「通勤の証」「ベテラン通勤者」の区間回数とチェックイン駅がアカウントのクラウド同期に対応し、別の端末でログインしてもゼロに戻らなくなりました（ご報告ありがとうございます）"
+          }
+        }
+      }
+    },
     "成就解鎖　<b>{achievement}</b>": {
       "extractionState": "manual",
       "localizations": {
@@ -17966,6 +18374,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "折りたたむ ▴"
+          }
+        }
+      }
+    },
+    "收起完整班次": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show fewer services"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示本数を減らす"
           }
         }
       }
@@ -20877,6 +21302,23 @@
         }
       }
     },
+    "改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛；9/23 修正跟車時約每 15 秒頓一下：建築遮擋改成分段計算、資料不再來回多搬；9/24 再把那一下的計算量減半": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improved 3D train following and terrain performance while preserving full formations, model detail and continuous movement along the tracks. On 9/23, fixed a brief stutter about every 15 seconds while following a train: checks for buildings blocking the view are now spread across frames, and the building data is no longer copied back and forth. On 9/24, halved the work done at that moment."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編成や模型の細部、線路に沿った連続走行を保ちながら、立体列車の追従と地形表示を滑らかにしました。9/23 には列車の追跡中に約15秒ごとに画面が一瞬止まる問題を修正し、建物による遮蔽の判定を複数のフレームに分けて計算し、建物データを余分に往復させないようにしました。9/24 にはその瞬間の計算量を半分にしました。"
+          }
+        }
+      }
+    },
     "改善立體地圖拖曳與旋轉的流暢度，保留完整列車與建築細節；切換地形後，建築輪廓也會回到正確高度": {
       "extractionState": "manual",
       "localizations": {
@@ -21128,6 +21570,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "毎日"
+          }
+        }
+      }
+    },
+    "每天跑的車次不同，以台鐵公布的班表為準": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It runs different trains each day, following the schedule published by TRA."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日によって走る列車が異なります。台湾鉄路が公表したダイヤに従います。"
           }
         }
       }
@@ -21655,6 +22114,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "車庫を読み込めませんでした。しばらくしてからお試しください。"
+          }
+        }
+      }
+    },
+    "車庫環形試跑按 ⇄ 反向行駛時會整列掉頭，車頭照樣在最前面（原本頭尾兩節的車頭會轉進車廂中間）；福森號、栩悅號兩端都改成觀景車頭": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In the garage loop track, the \"Reverse direction\" (⇄) button now turns the whole train around so the front car still leads (the cabs at both ends used to swing round and face into the train); the Fusen and Xuyue now show an observation cab at both ends."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "車庫の周回コースで ⇄（進行方向を反転）を押すと編成ごと向きを変え、先頭車が先頭のまま走るようにしました（以前は両端の車両の運転台が編成の内側を向いていました）。福森号・栩悦号は両端とも展望車の顔になりました。"
           }
         }
       }
@@ -25688,6 +26164,23 @@
         }
       }
     },
+    "空白鍵在任何地方都是播放／暫停，不會再順便打開資料卡、展開卡片或讓鍵盤選取跳回頁首，按住也只切一次；面板邊緣與標題列按鈕的鍵盤選取框不再被切掉": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Space bar now always plays or pauses, wherever you press it: it no longer also opens a data card or expands a card, or sends your keyboard selection back to the top of the page, and holding it down toggles only once. Keyboard focus outlines at panel edges and on title-bar buttons are no longer cut off."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スペースキーはどこで押しても再生／一時停止だけになりました。データカードを開いたりカードを展開したり、キーボードの選択位置がページ先頭に戻ったりすることはなく、押し続けても切り替えは1回だけです。パネルの端やタイトルバーのボタンで、キーボードの選択枠が切れなくなりました。"
+          }
+        }
+      }
+    },
     "芝山": {
       "extractionState": "manual",
       "localizations": {
@@ -27711,6 +28204,23 @@
         }
       }
     },
+    "按「隨機跟隨」或「換一班」時，地圖會短暫亮出月台風格的牌子，直接告訴你這班車的下一站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap “Follow random train” or “Switch train” and a platform-style sign briefly shows that train’s next stop."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「ランダム追跡」または「列車を変更」を押すと、ホーム風の駅名標でその列車の次の駅を短く表示します。"
+          }
+        }
+      }
+    },
     "按上方的「離開」回到即時地圖": {
       "extractionState": "manual",
       "localizations": {
@@ -28166,6 +28676,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "旅程パスポートを見る"
+          }
+        }
+      }
+    },
+    "查看接下來 3 小時全部 {n} 班": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View all {n} services in the next 3 hours"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今後3時間の全{n}本を表示"
           }
         }
       }
@@ -29989,6 +30516,23 @@
         }
       }
     },
+    "軌島虛構專列": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rail Island fictional special"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島の架空特別列車"
+          }
+        }
+      }
+    },
     "軌島新版已在 Google Play 上架": {
       "extractionState": "manual",
       "localizations": {
@@ -30533,6 +31077,57 @@
         }
       }
     },
+    "修正 iPad 橫向和手機橫放時，「觀看」按鈕跑到畫面中間；沒開卡片時會回到右上角的按鈕列": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed the “View” button drifting to the middle of the screen on iPad in landscape and on phones turned sideways; with no card open it now sits back in the button row at the top right."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPad の横向きやスマートフォンを横にしたとき、「表示」ボタンが画面の中央に出てしまう問題を修正しました。カードを開いていないときは右上のボタン列に戻ります"
+          }
+        }
+      }
+    },
+    "修正 iPhone 用英文或日文介面時，車庫選到名稱較長的車款，整個畫面會被左右拖動、左邊被切掉": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed My garage on iPhone in English or Japanese: choosing a train with a long name let the whole screen be dragged sideways, cutting off the left edge."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone で英語または日本語表示のとき、マイ車庫で名前の長い車両を選ぶと画面全体が左右に動かせてしまい、左側が切れる問題を修正しました"
+          }
+        }
+      }
+    },
+    "修正 iPhone 捷運等車卡偶爾十幾分鐘停住不更新": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed an issue where the iPhone metro waiting card sometimes froze for more than ten minutes without updating"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone のメトロ待ちカードが、ときどき十数分間更新されずに止まる問題を修正しました"
+          }
+        }
+      }
+    },
     "修正一般路段被誤畫成高架橋的問題；橋梁只依明確標記呈現，普通軌道貼近地表，保留交會與地下路段的高低差": {
       "extractionState": "manual",
       "localizations": {
@@ -30584,19 +31179,36 @@
         }
       }
     },
-    "修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓": {
+    "修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fixed missing see-through outlines on nearby buildings in dense areas such as Taipei, prioritizing nearby buildings in view."
+            "value": "Wenhu Line trains at Taipei Nangang Exhibition Center now stop on the straight platform inside the station instead of the curve to the west."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "台北など建物が密集する地域で、近くの建物の透視線が欠ける問題を修正しました。画面内の近景の輪郭を優先して表示します。"
+            "value": "文湖線の南港展覧館駅で、列車が西側のカーブではなく、駅構内の直線ホームに停車するよう位置を修正しました。"
+          }
+        }
+      }
+    },
+    "修正台北等密集市區近處建築缺少透視線條，優先保留畫面內的近景輪廓；9/23 再改進跟車：列車前進時沿途建築的透視線條約每秒更新一次，不必等靠站才一次補上": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed missing see-through outlines on nearby buildings in dense areas such as Taipei, prioritizing nearby buildings in view. Since 9/23, while you follow a train, outlines along the route refresh about once a second instead of appearing only when the train stops."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台北など建物が密集する地域で、近くの建物の透視線が欠ける問題を修正しました。画面内の近景の輪郭を優先して表示します。9/23からは列車の追跡中も沿線の建物の透視線が約1秒ごとに更新され、停車するまで表示されないことはなくなりました。"
           }
         }
       }
@@ -30716,6 +31328,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "地形データの読み込みが遅れたときに橋と橋脚が地面に埋もれる問題を修正しました。地形が揃うと自動的に正しい高さに戻ります。"
+          }
+        }
+      }
+    },
+    "修正地圖上站名旁邊又出現同名地名、字疊在一起的問題，例如竹北站旁的「竹北市」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed a place name with the same name as a nearby station (such as “Zhubei City” next to Zhubei Station) overlapping the station label on the map."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地図で駅名のすぐ横に同じ名前の地名（竹北駅の横の「竹北市」など）が重なって表示される問題を修正しました"
           }
         }
       }
@@ -31005,6 +31634,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Webサイトでログインが「失敗」と表示される問題を修正しました。GoogleとAppleのログインが正常に完了し、ログイン後はコレクションと乗車記録が同期されます。"
+          }
+        }
+      }
+    },
+    "修正臺北市公車站牌的到站時間最多會卡在兩小時前、整列顯示「資料已過期」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed Taipei City bus stop arrival times that could lag up to two hours behind, with every row showing \"Data expired\"."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台北市のバス停の到着時刻が最大2時間前のまま止まり、全行が「データ期限切れ」と表示される問題を修正しました"
+          }
+        }
+      }
+    },
+    "修正臺北市公車擁擠度的過期判斷：超過 3 分鐘的資料改標示過期，不再當成即時資料": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed the expiry check for Taipei City bus occupancy: data older than 3 minutes is now marked as expired instead of being shown as live."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台北市のバスの混雑度の期限切れ判定を修正しました。3分を超えたデータは期限切れと表示し、リアルタイムの情報として扱いません"
           }
         }
       }
@@ -31600,6 +32263,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "旅のパスポート（完乗記録・スタンプ）"
+          }
+        }
+      }
+    },
+    "旅程護照用鍵盤往回移動時，被選到的章與按鈕不再被最上方的標題列蓋住": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In the Travel passport, moving back with the keyboard no longer leaves the selected stamp or button hidden under the title bar."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旅のパスポートでキーボードを使って前の項目に戻るとき、選んだ章やボタンが上部のタイトルバーに隠れないようにしました"
           }
         }
       }
@@ -32297,6 +32977,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "ホーム画面の発車ウィジェットでも各行に上り／下りを表示：Android に方向の三角を新たに追加し、両プラットフォームとも三角を大きくして、台鉄公式の「上り＝青・下り＝緑」に変更しました。"
+          }
+        }
+      }
+    },
+    "桌面小工具新增「背景」設定，可選車模、場景或素色": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widgets get a new Background setting: Train model, Scene, or Plain"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホーム画面ウィジェットに「背景」設定を追加（車両モデル・情景・無地）"
           }
         }
       }
@@ -34171,6 +34868,23 @@
         }
       }
     },
+    "高鐵左營站進站那段改回平面：3D 地圖不再把站區畫成高架橋，北邊的高架照舊（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The approach into Zuoying HSR Station is back at ground level: the 3D map no longer draws the station area as a viaduct, while the viaduct to the north is unchanged (thanks to the rider who reported it)."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高鉄左営駅に入る区間を地上に戻しました。3D地図で駅構内を高架橋として描かなくなり、北側の高架はそのままです（ご報告ありがとうございました）"
+          }
+        }
+      }
+    },
     "高鐵列車依當日真實時刻表沿西部走廊南北奔馳（南港－左營）— 點列車跟隨、點車站看班次。": {
       "extractionState": "manual",
       "localizations": {
@@ -35272,6 +35986,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "候補を選びます。列車を選ぶとすぐ追跡を開始します。"
+          }
+        }
+      }
+    },
+    "從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opening Rail Island from a TRA board or the combined rail + metro board now goes to the correct railway map and station; Taipei Main is no longer mistaken for the metro station of the same name."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台鉄の発車案内または「鉄道＋メトロ」案内から軌島を開いたとき、正しい鉄道マップと駅を表示するようになりました。台北駅が同名のメトロ駅と誤認されることもありません。"
           }
         }
       }
@@ -36547,6 +37278,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "淡海ライトレール・行武者"
+          }
+        }
+      }
+    },
+    "淡海輕軌假日從紅樹林出發的車，改回每班都停新市一路：站牌也看得到往崁頂、往淡水漁人碼頭的班次（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On weekends and holidays, Danhai LRT trains leaving Hongshulin stop at Xinshi 1st Rd. again, and its station board once more lists trains toward Kanding and Tamsui Fisherman’s Wharf (thanks to the rider who reported it)."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "淡海ライトレールの土休日、紅樹林発の列車がふたたび全便新市一路に停車するようになり、駅の発車案内にも崁頂方面・淡水漁人碼頭方面の列車が表示されます（ご報告ありがとうございました）"
           }
         }
       }
@@ -41447,6 +42195,40 @@
         }
       }
     },
+    "虛構 {train}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fictional {train}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "架空 {train}"
+          }
+        }
+      }
+    },
+    "虛構專列": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fictional special"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "架空特別列車"
+          }
+        }
+      }
+    },
     "街道底圖載入異常，列車與路線不受影響。可切換到「衛星」底圖。": {
       "extractionState": "manual",
       "localizations": {
@@ -45221,6 +46003,23 @@
         }
       }
     },
+    "跟車小卡的三個小修正：跟車時切換語言，車種、起訖和準點率會立刻換過來；虛構 8888 在手機上的關閉鈕不再被擠到第二行；第一次跟車時「車頭鎖定：開啟」的提示不再被蓋掉最後一個字": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Three follow card fixes: switching languages while following now updates the train type, route and on-time rate right away; the close button for Fictional 8888 no longer wraps to a second line on phones; the “Train head lock: on” tip shown the first time you follow no longer has its last character covered."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追跡カードの小さな修正を3つ行いました。追跡中に言語を切り替えると、車種・区間・定時率がすぐに切り替わります。スマートフォンで架空 8888 を追跡したとき、閉じるボタンが2行目に押し出されなくなりました。初めて追跡したときに出る「先頭車両の固定：オン」の表示で、最後の1文字が隠れなくなりました"
+          }
+        }
+      }
+    },
     "跟車卡收起後保持單行，編組說明留在展開資訊中；暗色改用精簡玻璃卡，結束按鈕更容易點擊": {
       "extractionState": "manual",
       "localizations": {
@@ -45251,6 +46050,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "追跡カードまたは駅案内の星をタップ"
+          }
+        }
+      }
+    },
+    "跟車卡的「下一站」遇到較長的站名（例如英文介面的長榮大學、科工館）會換行顯示全名，整張卡不再能左右拖動": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On the follow card, long names under “Next stop” (such as Chang Jung Christian University or Science And Technology Museum in English) now wrap onto the next line in full, and the card no longer slides sideways."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追跡カードの「次の駅」に長い駅名（英語表示の長栄大学や国立科学技術博物館など）が出たときは折り返して全部表示し、カードが左右に動かないようにしました"
+          }
+        }
+      }
+    },
+    "跟車前進時，沿途建築的透視線條會持續更新，不必等列車靠站才一次出現": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "While you follow a train, building outlines along the route now keep updating instead of appearing all at once when the train stops."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車の追跡中も沿線の建物の透視線が更新され続け、停車したときにまとめて表示されることはなくなりました。"
           }
         }
       }
@@ -45353,6 +46186,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "追跡サウンドトラック:見ている列車の場所と時刻に合わせて曲の場面が切り替わります"
+          }
+        }
+      }
+    },
+    "跟車配樂新增南方日光、黃昏斜光、北海岸天色、花蓮山海、山海聚落共創 5 組共 27 首；App 需要時從網站串流，不會把這批新歌塞進安裝包": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow-mode music adds 27 tracks across five settings: Southern Sun, Golden Hour, Northern Coast Skies, Hualien Sea and Cliffs, and Island Community Sessions. The app streams them from the website as needed instead of adding them to the download."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追跡中のBGMに「南のひかり」「黄昏の斜光」「北海岸の空」「花蓮の山と海」「山と海の集落との共作」の5場面・27曲を追加しました。アプリは必要なときにウェブサイトから再生し、今回の新曲をダウンロード容量には加えません。"
           }
         }
       }
@@ -47465,23 +48315,6 @@
         }
       }
     },
-    "與原民音樂人共創（尚未開放）": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Created with Indigenous musicians (not yet available)"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "原住民ミュージシャンとの共作（未公開）"
-          }
-        }
-      }
-    },
     "蒜頭蔗埕文化園區": {
       "extractionState": "manual",
       "localizations": {
@@ -47597,6 +48430,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "どの列車か特定できませんでした"
+          }
+        }
+      }
+    },
+    "認得出寶可夢30周年主題列車（9/25–12/13）：照台鐵公布的班表，當天那幾班的車牌會寫「寶可夢」、列車卡有介紹，今日亮點和搜尋「寶可夢」也找得到": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Pokémon 30th Anniversary Train (9/25–12/13) is now recognized: following the published TRA schedule, that day’s runs are tagged “Pokémon” on the map and introduced on their train cards, and you can also find them in Today’s highlights or by searching “Pokémon”."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ポケモン30周年テーマ列車（9/25〜12/13）を見分けられるようになりました。台湾鉄路が公表したダイヤに従い、その日の該当列車は地図の車番に「ポケモン」と付き、列車カードに紹介が表示されます。今日の見どころや「ポケモン」の検索からも見つかります。"
           }
         }
       }
@@ -49709,6 +50559,40 @@
         }
       }
     },
+    "機捷 10/12 起改用台灣設計展結束後的班表：機場第一航廈到環北的區間加班車停開，南延直達車恢復停高鐵桃園站、開到環北": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From Oct 12, Taoyuan Airport MRT switches to its timetable for after the Taiwan Design Expo: the extra shuttles between A12 Airport Terminal 1 and A21 Huanbei stop running, and southbound Express services again stop at A18 HSR Taoyuan Station and run through to A21 Huanbei."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "桃園MRTは10/12から台湾デザイン展終了後のダイヤに切り替わります：A12 空港第1ターミナル〜A21 環北間の区間臨時列車は運休となり、南延直達車は再び A18 高鉄桃園駅に停車して A21 環北まで運行します。"
+          }
+        }
+      }
+    },
+    "機捷 10/2（週五）與 10/11（週日）也跟上設計展疏運班表：機場第一航廈到環北的區間加班車每 15 分鐘一班，10/2 開到晚上 10 點、10/11 開到晚上 8 點": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taoyuan Airport MRT on Friday, Oct 2 and Sunday, Oct 11 also follows the Taiwan Design Expo timetable: extra shuttles run every 15 minutes between A12 Airport Terminal 1 and A21 Huanbei, until 10 pm on Oct 2 and until 8 pm on Oct 11."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "桃園MRTの10/2（金）と10/11（日）も台湾デザイン展の輸送ダイヤに対応：A12 空港第1ターミナル〜A21 環北間の区間臨時列車が15分ごとに運行、10/2は22時まで、10/11は20時まで。"
+          }
+        }
+      }
+    },
     "機捷平日早上山鼻 7:37 那班區間車不再開到林口就消失，照官方時刻開到台北": {
       "extractionState": "manual",
       "localizations": {
@@ -49790,6 +50674,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "空港MRT普通車・1000形"
+          }
+        }
+      }
+    },
+    "機捷週一到週四也跟上台灣設計展疏運班表（9/24–10/11）：下午 4 點到晚上 8 點，機場第一航廈到環北加開區間車，南延直達車改到機場第二航廈為止": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taoyuan Airport MRT now follows the Taiwan Design Expo timetable on Mondays to Thursdays too (Sep 24–Oct 11): from 4 pm to 8 pm, extra shuttles run between A12 Airport Terminal 1 and A21 Huanbei, and southbound Express services end at Airport Terminal 2."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "桃園MRTの月〜木曜も台湾デザイン展の輸送ダイヤ（9/24〜10/11）に対応：16時〜20時は A12 空港第1ターミナル〜A21 環北間に区間臨時列車が運行し、南延直達車は空港第2ターミナル止まりに変更。"
+          }
+        }
+      }
+    },
+    "機捷跟上台灣設計展疏運班表（9/24–10/11）：假日機場第一航廈到環北的區間加班車每 15 分鐘一班，南延直達車改到機場第二航廈為止；深夜山鼻以南時刻也照官方改點更新": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taoyuan Airport MRT now follows the Taiwan Design Expo timetable (Sep 24–Oct 11): on Fridays, weekends and national holidays, extra shuttles run every 15 minutes between A12 Airport Terminal 1 and A21 Huanbei, southbound Express services end at Airport Terminal 2, and late-night times south of Shanbi are updated to the official revision."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "桃園MRTが台湾デザイン展の輸送ダイヤ（9/24〜10/11）に対応：金・土・日・祝日は A12 空港第1ターミナル〜A21 環北間に区間臨時列車が15分間隔で運行し、南延直達車は空港第2ターミナル止まりに変更。深夜の山鼻以南の各駅時刻も公式改正に合わせて更新。"
           }
         }
       }
@@ -51528,6 +52446,23 @@
         }
       }
     },
+    "環狀線即時資料暫時中斷、在線列車無法定位時，地圖會自動改按當日班表運行，並標示「班表推估、時間可能有誤差」；訊號恢復後自動切回即時資料": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If Circular Line live data is interrupted and active trains cannot be located, the map falls back to today’s timetable and clearly marks that positions and times are estimates; it switches back to live data automatically when the signal returns."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "環状線のリアルタイムデータが一時中断し、運行中の列車位置を取得できない場合は、当日の時刻表による推定であることと時刻に誤差があり得ることを明記し、信号回復後は自動でリアルタイム情報へ戻します。"
+          }
+        }
+      }
+    },
     "環狀線循環": {
       "extractionState": "manual",
       "localizations": {
@@ -52010,13 +52945,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Not collected yet—tap to ride one"
+            "value": "Not collected yet—ride one now"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "未収集—タップして乗ってみる"
+            "value": "未収集—乗ってみよう"
           }
         }
       }
@@ -52384,13 +53319,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tap to replay"
+            "value": "Replay"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "タップして再生"
+            "value": "再生"
           }
         }
       }
@@ -53568,6 +54503,23 @@
         }
       }
     },
+    "寶可夢30周年主題列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pokémon 30th Anniversary Train"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ポケモン30周年テーマ列車"
+          }
+        }
+      }
+    },
     "懸": {
       "extractionState": "manual",
       "localizations": {
@@ -53768,6 +54720,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "パスポート"
+          }
+        }
+      }
+    },
+    "護照成就章與收集章，滑鼠停上去只會出現說明卡，不再多跳出瀏覽器的小提示框；用鍵盤按 Tab 移到章上也會打開說明卡，收集章按 Enter 等於點一下": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hovering over Passport achievement badges and collection stamps now shows just the info card, without the browser’s own tooltip popping up as well. You can also Tab to a badge or stamp to open its info card, and pressing Enter on a collection stamp works like clicking it."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスポートの実績バッジとコレクションスタンプにマウスを乗せたとき、説明カードだけが表示され、ブラウザのツールチップが重ねて出なくなりました。キーボードのTabでバッジやスタンプに移動しても説明カードが開きます。コレクションスタンプはEnterでクリックと同じ操作になります"
           }
         }
       }
@@ -54503,6 +55472,23 @@
         }
       }
     },
+    "Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班，Samsung 手機下方不再空一截": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Android TRA departure board widget now lists as many trains as the card can fit, leaving no empty gap at the bottom on Samsung phones"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Android のホーム画面の台鉄発車案内ウィジェットが、カードに入るだけの列車を表示するようになり、Samsung 端末で下に空白が残らなくなりました"
+          }
+        }
+      }
+    },
     "Android 發車小工具的「大字好讀版」現在會真正放大班次、時刻、狀態與列高，不再只是少顯示幾班；使用說明也補上擁擠度、我的地點、班次篩選、背景更新及版本評分入口": {
       "extractionState": "manual",
       "localizations": {
@@ -54652,6 +55638,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "App版は「その他」の下部に現在のバージョンと、控えめな評価入口を表示します。"
+          }
+        }
+      }
+    },
+    "App 的長提示現在會完整換行，不再被列車卡片或畫面邊緣截斷，點通知外面即可收起；地圖傾斜時也會隱藏定位點，不會被拍進截圖或錄影": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Long App notices now wrap in full instead of being clipped by train cards or screen edges; tap outside to close them. The location dot also hides in tilted views so it stays out of screenshots and recordings."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App の長い通知は列車カードや画面端で途切れず、全文を折り返し表示します。通知の外をタップすると閉じられます。地図を傾けたときは位置情報の点も隠れ、スクリーンショットや録画に残りません。"
           }
         }
       }
@@ -55553,6 +56556,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "iPhoneのメトロウィジェットに複数駅を配置、または「自動（最寄り駅）」で移動に合わせて切替"
+          }
+        }
+      }
+    },
+    "iPhone 捷運等車卡在列車進站前約 4 分鐘內，每分鐘跟官方即時資訊對一次時": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On iPhone, the metro waiting card now re-syncs its countdown with official real-time data every minute during the last 4 minutes or so before the train arrives"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhoneのメトロ待ちカードは、列車到着の約4分前から毎分公式のリアルタイム情報と時刻を合わせるようになりました"
+          }
+        }
+      }
+    },
+    "iPhone 與 Android 16 的等車卡加入進站軌道，捷運跟著官方倒數、台鐵跟著官方誤點": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting cards on iPhone and Android 16 now show an arrival track, following official countdowns for the metro and official delays for TRA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone と Android 16 の待ち案内カードに到着トラックを追加。メトロは公式カウントダウン、台鉄は公式の遅延に合わせて動きます"
+          }
+        }
+      }
+    },
+    "iPhone 點列車後，左下資訊卡的車次與時速會排在同一條線上，不再一高一低": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After you tap a train on iPhone, its train number and speed line up on the same baseline in the lower-left card instead of sitting at different heights."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhoneで列車をタップしたとき、左下の情報カードにある列車番号と速度が上下にずれず、同じ基準線にそろうようになりました。"
           }
         }
       }

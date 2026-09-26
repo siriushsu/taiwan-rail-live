@@ -371,9 +371,10 @@ export async function assertLicensedBuildAllowed({ includeLicensedMusic, include
       '音樂授權政策尚未核准，不可建立含 Suno 音樂的 App');
     const checklist = await readFile(join(appRoot, 'MUSIC_LICENSE_CHECKLIST.md'), 'utf8');
     const trackRows = checklist.split('\n').filter(line => /^\| .+\.mp3 \|/.test(line));
-    // 2026-08-27：曲庫由 29 首換成 57 首(六個歌單資料夾)。這個數字是硬編的,因為它的用途是
+    // 2026-08-27：免費曲庫由 29 首換成 57 首；2026-09-27 再把本批 27 首線上情境曲納入核對表。
+    // 這個數字是硬編的,因為它的用途是
     // 「有人動了曲庫卻沒回頭補核對表」的警報——跟著曲庫自動走就永遠不會響。
-    assert(trackRows.length === 57, `音樂核對表應有 57 首，目前是 ${trackRows.length} 首`);
+    assert(trackRows.length === 84, `音樂核對表應有 84 首（免費 57＋本批串流 27），目前是 ${trackRows.length} 首`);
     assert(trackRows.every(line => /\| 已核對 \|\s*$/.test(line)),
       '音樂核對表仍有未核對曲目');
   }
@@ -911,6 +912,10 @@ export async function verifyRelease({
     const extra = [...shipped].filter(rel => !declared.includes(rel));
     assert(missing.length === 0, `內建曲目缺 ${missing.length} 首:${missing.slice(0, 3).join('、')}`);
     assert(extra.length === 0, `bundle 多出 ${extra.length} 首不在 MUSIC_BUNDLED:${extra.slice(0, 3).join('、')}`);
+    const bundledBytes = (await Promise.all(musicFiles.filter(file => /\.mp3$/i.test(file))
+      .map(file => lstat(join(output, file))))).reduce((sum, info) => sum + info.size, 0);
+    assert(bundledBytes <= 40 * 1024 * 1024,
+      `App 內建配樂 ${(bundledBytes / 1024 / 1024).toFixed(2)} MiB，超過 40 MiB 預算`);
 
     // 🔴 2026-08-27 補：把「授權核對表」綁到「實際會播的曲目」。
     //    為什麼非有不可：核對表的首數斷言(上面 readReleasePolicy 那段)只是核對表與一個常數
@@ -923,12 +928,21 @@ export async function verifyRelease({
     assert(!!allBlock, '含音樂 build 的 index.html 必須宣告 MUSIC_FILES');
     const allTracks = [...allBlock[1].matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"/g)]
       .map(m => (m[1] ?? m[2]).replace(/\\(.)/g, '$1'));
-    const noLicence = allTracks.filter(rel => !listed.has(rel));
-    const orphan = [...listed].filter(rel => !allTracks.includes(rel));
+    const freeListed = new Set([...listed].filter(rel => !rel.startsWith('_pass/')));
+    const streamedListed = [...listed].filter(rel => rel.startsWith('_pass/'));
+    const noLicence = allTracks.filter(rel => !freeListed.has(rel));
+    const orphan = [...freeListed].filter(rel => !allTracks.includes(rel));
     assert(noLicence.length === 0,
       `有 ${noLicence.length} 首會播但不在授權核對表裡:${noLicence.slice(0, 3).join('、')}`);
     assert(orphan.length === 0,
       `授權核對表有 ${orphan.length} 首已不在曲目清單裡(核對表沒跟上換庫):${orphan.slice(0, 3).join('、')}`);
+    const musicData = JSON.parse(await readFile(join(output, 'data/music.json'), 'utf8'));
+    const paidTracks = new Set((musicData.pools || []).flatMap(pool => (pool.tracks || []).map(track => track.src)));
+    const streamedOrphan = streamedListed.filter(rel => !paidTracks.has(rel));
+    assert(streamedListed.length === 27,
+      `本批串流情境曲授權核對表應有 27 首，目前是 ${streamedListed.length} 首`);
+    assert(streamedOrphan.length === 0,
+      `串流曲授權核對表有 ${streamedOrphan.length} 首不在 music.json:${streamedOrphan.slice(0, 3).join('、')}`);
 
     // 🔴 車聲圖層(2026-09-03):Envato 授權的鐵軌環境音 loop,只在含音樂 build 內建、不進 repo 不上網站。
     //    缺檔或旗標沒帶的症狀只有「車聲開關不見了」,沒有別的訊號;授權條目綁在同一份核對表上。

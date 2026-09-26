@@ -3365,3 +3365,19 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '切換上方分組（全台同框、台鐵、高鐵、捷運與輕軌）時，畫面不會再卡住兩三秒': '上部の「台湾全体」「台湾鉄路」「台湾高速鉄道」「メトロ・ライトレール」を切り替えても、画面が数秒止まることがなくなりました',
 });
+// 2026-09-27 五個配樂情境新增 27 首、App 維持串流不增肥：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '跟車配樂新增南方日光、黃昏斜光、北海岸天色、花蓮山海、山海聚落共創 5 組共 27 首；App 需要時從網站串流，不會把這批新歌塞進安裝包': 'Follow-mode music adds 27 tracks across five settings: Southern Sun, Golden Hour, Northern Coast Skies, Hualien Sea and Cliffs, and Island Community Sessions. The app streams them from the website as needed instead of adding them to the download.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '跟車配樂新增南方日光、黃昏斜光、北海岸天色、花蓮山海、山海聚落共創 5 組共 27 首；App 需要時從網站串流，不會把這批新歌塞進安裝包': '追跡中のBGMに「南のひかり」「黄昏の斜光」「北海岸の空」「花蓮の山と海」「山と海の集落との共作」の5場面・27曲を追加しました。アプリは必要なときにウェブサイトから再生し、今回の新曲をダウンロード容量には加えません。',
+});
+// v0926o/p 的第一層更新紀錄原本只補了第二層正本；兩條精簡文案在外語介面會原樣留中文。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  'iPhone 點列車後，左下資訊卡的車次與時速會排在同一條線上，不再一高一低': 'After you tap a train on iPhone, its train number and speed line up on the same baseline in the lower-left card instead of sitting at different heights.',
+  '用 Safari 開別人分享的立體地圖時，列車編組、地形與立體列車開關會完整保留，不再偶爾回到自己的預設設定': 'Opening someone else’s shared 3D map in Safari now keeps the shared train formation, terrain and 3D-train settings instead of occasionally falling back to your own defaults.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  'iPhone 點列車後，左下資訊卡的車次與時速會排在同一條線上，不再一高一低': 'iPhoneで列車をタップしたとき、左下の情報カードにある列車番号と速度が上下にずれず、同じ基準線にそろうようになりました。',
+  '用 Safari 開別人分享的立體地圖時，列車編組、地形與立體列車開關會完整保留，不再偶爾回到自己的預設設定': 'Safariで共有された3D地図を開いたとき、列車編成・地形・3D列車の設定をすべて引き継ぎ、ときどき自分の初期設定に戻ることがなくなりました。',
+});
