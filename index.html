@@ -1099,6 +1099,9 @@
   .follow-panel .fp-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .follow-panel .fp-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .follow-panel .fp-head b { font-size: calc(15px * var(--ui)); color: var(--ink-strong); }
+  /* Issue #73:時速本來自己用 baseline、車次卻仍繼承整列的 center，WebKit 兩條基線差 1.14px
+     （特大字級 1.70px）。兩者要參與同一個 flex baseline 群；只選直接子 b，不能套到時速數字內層。 */
+  .follow-panel .fp-head > b { align-self: baseline; }
   /* 車次前綴(寶可夢、虛構環島車)疊在車次正上方(setFollowTitle):不佔標題列的寬度——標題列跟一般車一樣排
      「● 車次 時速 ×」,手機窄卡才不會把 × 擠到下一行;卡片頂端留一行小字的高度給它。 */
   .follow-panel.fp-named .fp-head { padding-top: calc(12px * var(--uis)); }
@@ -5595,6 +5598,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="followalign0926"><span class="d">9/26</span><span>iPhone 點列車後，左下資訊卡的車次與時速會排在同一條線上，不再一高一低</span></li>
         <li data-cl-of="share3d0926"><span class="d">9/26</span><span>用 Safari 開別人分享的立體地圖時，列車編組、地形與立體列車開關會完整保留，不再偶爾回到自己的預設設定</span></li>
         <li data-cl-of="groupswitch0926"><span class="d">9/26</span><span>切換上方分組（全台同框、台鐵、高鐵、捷運與輕軌）時，畫面不會再卡住兩三秒</span></li>
         <li data-cl-of="garagereverse0926"><span class="d">9/26</span><span>車庫環形試跑按 ⇄ 反向行駛時會整列掉頭，車頭照樣在最前面（原本頭尾兩節的車頭會轉進車廂中間）；福森號、栩悅號兩端都改成觀景車頭</span></li>
@@ -5602,7 +5606,6 @@
         <li data-cl-of="xcfocus0926"><span class="d">9/26</span><span>平交道卡、落釘卡用鍵盤選到的按鈕不會再每秒被洗掉，點 ✕ 或班次也不會偶爾沒反應；落釘卡的班次和 App 的附近車站能用鍵盤選到，按 Enter 就能跟車、看班次</span></li>
         <li data-cl-of="kbfocusback0926"><span class="d">9/26</span><span>用鍵盤操作時，車站看板自動更新、關掉面板、在行程分享選好目的站、展開或收起跟捷運時的膠囊小卡之後，選取不再跳回頁首，會留在原處或回到打開面板的按鈕</span></li>
         <li data-cl-of="spacekey0926"><span class="d">9/26</span><span>空白鍵在任何地方都是播放／暫停，不會再順便打開資料卡、展開卡片或讓鍵盤選取跳回頁首，按住也只切一次；面板邊緣與標題列按鈕的鍵盤選取框不再被切掉</span></li>
-        <li data-cl-of="kbfocusfoot0926"><span class="d">9/26</span><span>用鍵盤往下一項移動時，跟車卡選到的按鈕不再被底部的「詳細」提示列蓋住；App 附近車站卡往回移動時「蓋章」鈕不再被標題蓋住；車庫捲到下面再回到頂列按鈕，畫面不再往上跳</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5789,6 +5792,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="followalign0926"><span class="d">9/26</span><span>修正 iPhone 點列車後，左下跟車卡的車次與時速在 WebKit 上沒有對齊的問題；標準、大、特大三種字級現在都排在同一條基線上</span></li>
         <li data-cl="fpnextwrap0926"><span class="d">9/26</span><span>跟車卡的「下一站」遇到較長的站名（例如英文介面的長榮大學、科工館）會換行顯示全名，整張卡不再能左右拖動、左邊被切掉；放空模式的精簡小卡維持一行，放不下的以「…」收尾</span></li>
         <li data-cl="followcard0925"><span class="d">9/25</span><span>跟車小卡：跟車時切換語言，車種、起訖、準點率和立體列車的編組說明會立刻換過來；虛構 8888 的「虛構」跟寶可夢列車一樣疊在車次上方，手機上的關閉鈕不再擠到第二行；第一次跟車時「車頭鎖定：開啟」的提示，不再被旁邊的空白提示框蓋掉最後一個字</span></li>
         <li data-cl="bustransferall"><span class="d">9/24</span><span>公車轉乘由三站擴至 239 座台鐵客運站；按下查詢才讀取 600 公尺內公車動態，選定路線後才查車牌、位置、站數與擁擠度。缺值照實留白，並可開 Google 地圖步行導航。9/24 修正臺北擁擠度超過 3 分鐘仍被當成即時資料顯示</span></li>
@@ -6859,7 +6863,7 @@
 //         三節同向時連正向都是觀景窗頂著前一節、尾端露出貫通門 ⇒ 尾車 flip；中間車仍是同一個端車車模（沒有中間車模型），
 //         觀景窗對著頭車的貫通門。守門：verify_garage_facing（62 款 × 環形八點與海岸 × 正反兩向，以車燈材質重心當車頭端真值，
 //         附對照組）掛 check-garage 與 ship-web；verify_garage_loop 反向判準改驗「頭車換端且車頭朝外、逆向時頭車領頭」。
-const BUILD = 'v0926o';
+const BUILD = 'v0926p';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);

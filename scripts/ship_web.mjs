@@ -560,6 +560,17 @@ try {
   if (issue19.status !== 0) fail('跟車面板時間軸守門人未過——面板的里程與地圖畫的車對不上,或停靠態/遙測列壞了'
     + '（單獨重跑：npm run check-issue19）');
 
+  // ── 2.17b issue #73 跟車卡車次／時速基線守門人(2026-09-26) ────────────────
+  // 原因只在 WebKit 看得出來：flex 列整體 align-items:center，但時速單獨 align-self:baseline，
+  // 車次若沒加入同一 baseline 群組，標準／大／特大字級會各錯 1.14／1.41／1.70px；Chromium 恰好
+  // 算成 0，單引擎會假綠。從回報座標真 tap canvas 車牌，再掃五種手機寬、三階字級、公告與 sheet。
+  const issue73 = spawnSync('node', [path.join(wt, 'scripts', 'verify_issue_73_follow_head.mjs')], {
+    cwd: wt, encoding: 'utf8', env: { ...process.env, MUTATE: '', ONLY: '', QUICK: '', TEST_WIDTH: '' },
+  });
+  process.stdout.write(issue73.stdout || ''); process.stderr.write(issue73.stderr || '');
+  if (issue73.status !== 0) fail('Issue #73 跟車卡守門人未過——WebKit 的車次與時速基線錯位、真觸控點車失效，或手機浮層互相遮住'
+    + '（單獨重跑：npm run check-issue73）');
+
   // ── 2.18 字級雙倍率契約守門人(2026-09-08)——純靜態、0.16 秒、不需要 dev server ────
   // 設計檔 TURN 5/6 的對照表不是一顆倍率:主文 --ui 是 1／1.25／1.5,小標籤與次要說明
   // --uis 只有 1／1.14／1.29。兩者互相跑錯邊時畫面「看起來只是字大了一點」,沒有任何
