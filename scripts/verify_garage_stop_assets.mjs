@@ -71,9 +71,11 @@ function doorChecks(a,yOut){const doors=a.meta.doors,items=Array.isArray(doors?.
   return miss?{miss,of:105,first}:null;});
  R.D6=[items.length>0&&bad6.length===0,items.length?bad6:none];
  // 取樣格與 D6 相同、鋪滿整個門口：只取左右兩直行會漏掉門口中間留下的東西（09-25 實例：原位留了一個固定門把）。
+ // 門口到門廳背牆（body，s·y 約 .89）之間只准有扶手（metal）。09-26 實例：挖洞的切刀內面在 s·y 1.40 留成 body 封板，
+ // 舊判準「命中在 .8～1.44」把 1.40 也算門內，門內從來沒露出來過。
  const bad7=each((d,s,cx,w,h,bz)=>{const tris=near(a,cx),off0=openOffset(d),off=v=>inRanges(d,v)?off0:null;let bad=0,first=null;
-  for(let i=0;i<=6;i++)for(let j=0;j<=14;j++){const x=cx+w*(i/6-.5)*.9,z=bz+h*(.05+.9*j/14),r=cast(a,tris,[x,s*3,z],[0,-s,0],off),sy=r?3-r.t:null;
-   if(!r||sy<.8||sy>1.44){bad++;first??={x,z,sy,group:r?groupOf(a,r.v)?.name:null};}}
+  for(let i=0;i<=6;i++)for(let j=0;j<=14;j++){const x=cx+w*(i/6-.5)*.9,z=bz+h*(.05+.9*j/14),r=cast(a,tris,[x,s*3,z],[0,-s,0],off),sy=r?3-r.t:null,g=r?groupOf(a,r.v)?.name:null;
+   if(!r||sy<.8||(g==='metal'?sy>1.44:g!=='body'||sy>1.0)){bad++;first??={x,z,sy,group:g};}}
   return bad?{bad,of:105,first}:null;});
  R.D7=[items.length>0&&bad7.length===0,items.length?bad7:none];
  const th=doors?.threshold;
@@ -122,7 +124,7 @@ if(on('D')){const a=load(now,DIR,'emu3000'),o=load(then,DIR,'emu3000'),R=doorChe
  check('D4 ranges：start≥0、count 為 3 的倍數、不越界、互不重疊、完整落在同名 drawGroup 內',...R.D4);
  check('D5 門扇完整：range 內頂點都在門扇外框內，range 外沒有頂點落在門扇內部',...R.D5);
  check('D6 關門完全蓋住門洞：105 條射線第一個命中都是這扇門',...R.D6);
- check('D7 全開露出門內：105 條射線都命中門內（s·y 在 .8～1.44）',...R.D7);
+ check('D7 全開露出門內：105 條射線第一個命中是門廳背牆（body，s·y .8～1.0）或扶手（metal）',...R.D7);
  check('D8 門內地板＝踏板高：往下射第一個命中與 threshold 差 ≤.002，threshold 在 .915～.925',...R.D8);
  check('D9 壁袋收得下：全開門扇 s·y 在 1.29～1.40，滑動路徑上沒有別的三角形',...R.D9);
  const tri=a.count/3,tri0=o.count/3;

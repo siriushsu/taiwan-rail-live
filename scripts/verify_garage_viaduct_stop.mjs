@@ -138,10 +138,15 @@ section('S7',async(b,engine)=>{const {p,ctx,errors}=await open(b);try{
  const snap=async name=>{if(engine==='chromium')await p.screenshot({path:path.join(dir,name)});};
  await p.evaluate(()=>viaductPreview.peopleVisible?.(false));await cam(p,{view:'platform'});
  await at(p,T.phases.openStart-.3);await shotIn(p,'closed');await snap('5-關門.png');
+ await at(p,T.phases.openStart+1);await shotIn(p,'opening1');
  await at(p,T.phases.openStart+1.5);await snap('6-開門中.png');
+ await at(p,T.phases.openStart+2);await shotIn(p,'opening2');
  await at(p,T.showcase);await shotIn(p,'open');await snap('7-全開.png');
- const near=(await doorRects(p,'platform')).filter(r=>r.on),nd=[];for(const r of near)nd.push(await p.evaluate(r=>__px.diff('closed','open',r),r));
+ const near=(await doorRects(p,'platform')).filter(r=>r.on),nd=[],md=[];for(const r of near){nd.push(await p.evaluate(r=>__px.diff('closed','open',r),r));md.push(await p.evaluate(r=>__px.diff('opening1','opening2',r),r));}
  check(`${engine} S7 月台側：畫面內 ≥3 扇門、每扇關門與全開差異 >0.25`,near.length>=3&&nd.every(x=>x>.25),{doors:near.length,diff:nd});
+ // 門扇 0.4 s 後開始滑進壁袋，1.0 s 與 2.0 s 之間滑了約四成行程，門口畫面一定要變。
+ // 09-26 實例：門洞被車殼的封板擋住，門扇一內退就看不見，1.0 s 到全開每一格都一樣，只比關門與全開的判準照不到。
+ check(`${engine} S7 月台側開門過程：每扇門 1.0 s 與 2.0 s 的門口差異 >0.05（看得到門扇在滑）`,near.length>=3&&md.every(x=>x>.05),{doors:near.length,diff:md});
  await cam(p,{view:'train',yaw:-1.12+Math.PI,elevation:.3});
  await at(p,T.phases.openStart-.3);await shotIn(p,'farClosed');await at(p,T.showcase);await shotIn(p,'farOpen');
  const far=(await doorRects(p,'far')).filter(r=>r.on),fd=[];for(const r of far)fd.push(await p.evaluate(r=>__px.diff('farClosed','farOpen',r),r));

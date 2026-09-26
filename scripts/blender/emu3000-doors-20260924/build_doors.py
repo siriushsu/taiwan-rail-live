@@ -229,6 +229,33 @@ if nm_after > nm_before:
 else:
     note('非流形邊未增加（布林未在車門區域引入新的非流形邊）。')
 
+# 09-26 驗收抓到：切刀內緣停在 |y|=1.40，而 EXACT 把封閉的車殼當成實心，所以切刀內面在每個門洞裡
+# 留成一片 body 封板——門扇一內退就被它擋住，門內、扶手、門廳透光永遠看不到。刪掉「落在 |y|=1.40
+# 平面上、又在門洞範圍內」的車殼面，門洞才真的打通；洞緣側壁（外表面到 1.40）保留當門洞厚度。
+def remove_hole_caps():
+    bm = bmesh.new()
+    bm.from_mesh(shell_obj.data)
+    mw = shell_obj.matrix_world
+    caps = []
+    for face in bm.faces:
+        pts = [mw @ v.co for v in face.verts]
+        for d in doors_info:
+            s = d['side']
+            if all(abs(s * q.y - 1.40) < 1e-3 and abs(q.x - d['cx']) <= HOLE_W / 2 + 1e-3
+                   and abs(q.z - DOOR_CZ) <= HOLE_H / 2 + 1e-3 for q in pts):
+                caps.append(face)
+                break
+    bmesh.ops.delete(bm, geom=caps, context='FACES')
+    bm.to_mesh(shell_obj.data)
+    bm.free()
+    shell_obj.data.update()
+    return len(caps)
+
+
+cap_faces = remove_hole_caps()
+note(f'刪掉門洞封板 {cap_faces} 面（切刀內面，|y|=1.40）；洞緣非流形邊：{nm_edge_count(shell_obj)}（多出的是門洞內緣一圈開放邊，預期）。')
+assert cap_faces >= len(doors_info), f'只找到 {cap_faces} 面封板，少於 {len(doors_info)} 個門洞'
+
 # round 3 修正第一輪（刪除 round 2 的 bm.from_mesh()/remove_doubles/recalc_face_normals/
 # bm.to_mesh() 整體重算）：改完仍用 D12 逐格比對，法向量差 >12° 的區域完全沒變、且刪除前後
 # sha256 早先量過是一樣的——證明那段從來就不是主因。
@@ -305,12 +332,14 @@ bpy.data.objects.remove(shell_normal_src, do_unlink=True)
 bpy.data.meshes.remove(_normal_src_mesh)
 note('已用 Data Transfer（CUSTOM_NORMAL，POLYINTERP_NEAREST，來源＝挖洞前車殼複製）把車殼法向量抄回——round 3 定案版，取代前七輪失敗的嘗試（整體重算法向量／NEAREST_POLYNOR 面級抄法向量刻面／POLYINTERP_LNORPROJ 較差／無條件全設平滑／DATA_TRANSFER modifier SMOOTH／逐面比對抄 use_smooth 無效／烘焙來源 corner_normals 無效／頂點座標比對+角級取值在鼻端摺線位置重合處覆蓋錯值，見上方八段註解）。R1／L1 殘留（15415／24008 diffPx，純法向量差異）是車端端牆（x=-4.8）切法不同、頂點與角落法向量都跟 BASE 相同，由 install_assets.py 併入時換回 BASE 的切法（見 README 第 8 點）。')
 
-# 逐洞確認真的貫穿（沿 -side*Y 從外側射線，命中點應落在洞內或更深處，不是原車殼外表面 y≈±1.425）
+# 逐洞確認真的貫穿（沿 -side*Y 從外側射線，命中點應落在洞內或更深處，不是原車殼外表面 y≈±1.425）。
+# 09-26 以前這裡只記錄不中止，封板（命中 s·y=1.40）一路帶進正式資產；現在打不通就停。
 for d in doors_info:
     origin = Vector((d['cx'], d['side'] * 3.0, DOOR_CZ))
     direction = Vector((0, -d['side'], 0))
     hit, loc, nrm, idx = shell_obj.ray_cast(origin, direction)
     note(f"門洞貫穿檢查 {d['id']}：hit={hit} y={loc.y if hit else None}（應遠小於 {d['side']*1.4:.3f}，即洞已打通）")
+    assert not hit or d['side'] * loc.y < 1.0, f"門洞沒打通 {d['id']}：命中 y={loc.y}"
 
 # 車殼是薄殼，門洞只挖在車殼這個物件上；但「連續腰線」（side_band() 畫的車身色帶，hitachi 車頭在
 # passenger() 內建了 z=H-.91／z=1.30 兩條，見 build_models.py:163-164）是跨整節車身的獨立長條物件，
