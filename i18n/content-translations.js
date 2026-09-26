@@ -3358,3 +3358,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '車庫環形試跑按 ⇄ 反向行駛時會整列掉頭，車頭照樣在最前面（原本頭尾兩節的車頭會轉進車廂中間）；福森號、栩悅號兩端都改成觀景車頭': '車庫の周回コースで ⇄（進行方向を反転）を押すと編成ごと向きを変え、先頭車が先頭のまま走るようにしました（以前は両端の車両の運転台が編成の内側を向いていました）。福森号・栩悦号は両端とも展望車の顔になりました。'
 });
+// 2026-09-26 切換分組不再卡住：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '切換上方分組（全台同框、台鐵、高鐵、捷運與輕軌）時，畫面不會再卡住兩三秒': 'Switching between All Taiwan, TRA, High Speed Rail and Metro & Light Rail at the top no longer freezes the screen for a few seconds',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '切換上方分組（全台同框、台鐵、高鐵、捷運與輕軌）時，畫面不會再卡住兩三秒': '上部の「台湾全体」「台湾鉄路」「台湾高速鉄道」「メトロ・ライトレール」を切り替えても、画面が数秒止まることがなくなりました',
+});

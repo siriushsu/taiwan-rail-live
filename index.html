@@ -5595,6 +5595,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="groupswitch0926"><span class="d">9/26</span><span>切換上方分組（全台同框、台鐵、高鐵、捷運與輕軌）時，畫面不會再卡住兩三秒</span></li>
         <li data-cl-of="garagereverse0926"><span class="d">9/26</span><span>車庫環形試跑按 ⇄ 反向行駛時會整列掉頭，車頭照樣在最前面（原本頭尾兩節的車頭會轉進車廂中間）；福森號、栩悅號兩端都改成觀景車頭</span></li>
         <li data-cl-of="landcard0926"><span class="d">9/26</span><span>手機橫放時，平交道卡、落釘卡、台糖卡改成靠右整條顯示，接下來的班次不用捲就看得到（原本卡片太矮，常常一列都看不到）</span></li>
         <li data-cl-of="xcfocus0926"><span class="d">9/26</span><span>平交道卡、落釘卡用鍵盤選到的按鈕不會再每秒被洗掉，點 ✕ 或班次也不會偶爾沒反應；落釘卡的班次和 App 的附近車站能用鍵盤選到，按 Enter 就能跟車、看班次</span></li>
@@ -5602,7 +5603,6 @@
         <li data-cl-of="spacekey0926"><span class="d">9/26</span><span>空白鍵在任何地方都是播放／暫停，不會再順便打開資料卡、展開卡片或讓鍵盤選取跳回頁首，按住也只切一次；面板邊緣與標題列按鈕的鍵盤選取框不再被切掉</span></li>
         <li data-cl-of="kbfocusfoot0926"><span class="d">9/26</span><span>用鍵盤往下一項移動時，跟車卡選到的按鈕不再被底部的「詳細」提示列蓋住；App 附近車站卡往回移動時「蓋章」鈕不再被標題蓋住；車庫捲到下面再回到頂列按鈕，畫面不再往上跳</span></li>
         <li data-cl-of="boardrowkb0926"><span class="d">9/26</span><span>今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 就行</span></li>
-        <li data-cl-of="fpnextwrap0926"><span class="d">9/26</span><span>跟車卡的「下一站」遇到較長的站名（例如英文介面的長榮大學、科工館）會換行顯示全名，整張卡不再能左右拖動</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5898,6 +5898,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="groupswitch0926"><span class="d">9/26</span><span>切換上方分組（全台同框、台鐵、高鐵、捷運與輕軌；手機橫放時從收合鈕選單切換）時，畫面不會再卡住兩三秒</span></li>
         <li data-cl="landcard0926"><span class="d">9/26</span><span>手機橫放時，平交道卡、落釘卡、台糖卡改成跟車站看板一樣靠右整條顯示，接下來的班次一次看完（原本卡片太矮、標題就佔掉大半，落釘卡常常一列班次都看不到）；iPhone 橫放時瀏海也不再擋住卡片右緣</span></li>
         <li data-cl="xcfocus0926"><span class="d">9/26</span><span>平交道卡、落釘卡每秒更新時，鍵盤選到的按鈕或班次會留在原處、畫面不跳，點 ✕、存或班次也不會偶爾沒反應（高倍速播放時原本幾乎點不到）；落釘卡的班次與 App 附近車站卡的站名能用鍵盤移過去，按 Enter 跟車或開看板</span></li>
         <li data-cl="kbfocusback0926"><span class="d">9/26</span><span>用鍵盤操作時選取不再跳回頁首：車站看板（含跟車時的合併卡、暗色看板的方向鈕）每 20 秒更新後留在原處；關掉面板回到打開它的按鈕；行程分享選好目的站後回到「行程分享」鈕；跟捷運時的膠囊小卡展開停在 ×、收起停在膠囊</span></li>
@@ -6857,7 +6858,7 @@
 //         三節同向時連正向都是觀景窗頂著前一節、尾端露出貫通門 ⇒ 尾車 flip；中間車仍是同一個端車車模（沒有中間車模型），
 //         觀景窗對著頭車的貫通門。守門：verify_garage_facing（62 款 × 環形八點與海岸 × 正反兩向，以車燈材質重心當車頭端真值，
 //         附對照組）掛 check-garage 與 ship-web；verify_garage_loop 反向判準改驗「頭車換端且車頭朝外、逆向時頭車領頭」。
-const BUILD = 'v0926m';
+const BUILD = 'v0926n';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -12150,10 +12151,42 @@ function applySchedSystems(sysList) {
     const trs = state.trains.filter(t => t.sys === sys.id);
     const lns = state.trackLines.filter(l => l.sys === sys.id);
     if (sys.id === 'tra_sched') {
+      // 切群組只重建 state.trains/state.trackLines 兩個外層陣列,台鐵名冊、列車與軌道物件本身都沒換。
+      // 待避規劃會把結果直接寫回 stops；輸入身分完全相同時沿用那些結果,避免每次切群組重算整天車流。
+      // 除了頂層資料，也記住成員與其關鍵子陣列：同一個 roster/lines 陣列若被原地增刪、換車或換幾何，
+      // 仍會 miss 並完整重算。passObs/runProfiles/trackSections 換檔同樣會 miss。
+      // 命中時 state._segStats 與 _rpPre 只計這次實際重貼的車（環島車與其他系統）；台鐵全量要看開機那次完整計算。
+      const refSeqEq = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+      const roster = sys.data.trains || [], trackLines = sys._track?.lines || [];
+      const pre = state.runProfiles, cache = sys._traTrafficCache;
+      const cacheHit = !!cache
+        && cache.data === sys.data && cache.roster === roster
+        && cache.denseTrains === sys.data._denseTrains && cache.dates === sys.data.dates
+        && cache.trackLines === trackLines && cache.trackSections === state.trackSections
+        && cache.runProfiles === pre && cache.passObs === state.passObs
+        && cache.resolveTraffic === resolveTraTraffic
+        && refSeqEq(cache.trains, trs) && refSeqEq(cache.trainStops, trs.map(tr => tr.stops))
+        && refSeqEq(cache.lines, lns) && refSeqEq(cache.lineShapes, lns.map(ln => ln.shape))
+        && refSeqEq(cache.lineStations, lns.map(ln => ln.stations));
+      if (cacheHit) {
+        state._meetStats = cache.meetStats;
+        // 8888/8889 的首次貼軌發生在時刻仍為 0 時，之後 retimeLoopTrains 才鋪成 12 小時；origin/main
+        // 因而會在第一次切群組時重貼一次，位置才進入穩定值。它們不參與交會／待避，只單獨保留這個
+        // 既有重貼行為，不能為了快取把 boot 的位置永久凍住（驗收逐次對齊也刻意保留這項既有差異）。
+        const loops = trs.filter(tr => tr.loop);
+        if (loops.length) {
+          clearPlannedOvertakes(loops);
+          state.runProfiles = null;
+          if (lns.length) assignSchedShapePathsFor(loops, lns);
+          state.runProfiles = pre;
+          if (pre) for (const tr of loops) if (!tr.stops.some(st => st._plannedDwell)) reassignTrainProfile(tr);
+        }
+        continue;
+      }
       clearPlannedOvertakes(trs);
       // 待避選站必須只看同一份現算曲線。預算檔收的是「安排完成後」的跑段，若在選站前先套用，
       // 少數起訖恰好同長的舊跑段會反過來改變候選結果，造成有檔／缺檔時畫出不同時刻。
-      const pre = state.runProfiles; state.runProfiles = null;
+      state.runProfiles = null;
       if (lns.length) assignSchedShapePathsFor(trs, lns);
       if (lns.length)
         state._meetStats = resolveTraTraffic(trs, { trains: sys.data._denseTrains || sys.data.trains, dates: sys.data.dates }, state.trackSections);
@@ -12161,6 +12194,14 @@ function applySchedSystems(sysList) {
       // 缺預算檔時保留剛完成的交會曲線；有檔時才讓未待避列車換成等價預算。
       // 待避列車已在 planSameDirectionOvertakes 依新邊界重建完，不再碰它。
       if (pre) for (const tr of trs) if (!tr.stops.some(st => st._plannedDwell)) reassignTrainProfile(tr);
+      sys._traTrafficCache = {
+        data: sys.data, roster, denseTrains: sys.data._denseTrains, dates: sys.data.dates,
+        trackLines, trackSections: state.trackSections, runProfiles: pre, passObs: state.passObs,
+        resolveTraffic: resolveTraTraffic,
+        trains: trs.slice(), trainStops: trs.map(tr => tr.stops),
+        lines: lns.slice(), lineShapes: lns.map(ln => ln.shape), lineStations: lns.map(ln => ln.stations),
+        meetStats: state._meetStats,
+      };
       continue;
     }
     if (lns.length) assignSchedShapePathsFor(trs, lns);

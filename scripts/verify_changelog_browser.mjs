@@ -73,7 +73,8 @@ const widths = [360, 375, 414, 768];
 // 9/26：鍵盤焦點不再掉回頁首（看板重畫、關面板、行程分享列、捷運膠囊）一條（431→432）。
 // 9/26：平交道卡、落釘卡每秒重畫不再洗掉鍵盤焦點與按住的鈕、落釘卡班次與附近車站接上鍵盤一條（432→433）。
 // 9/26：手機橫放時平交道卡、落釘卡、台糖卡改成靠右整條顯示一條（433→434）。
-const expectedHistoryCount = 435;
+// 9/26：切換上方分組（全台同框、台鐵、高鐵、捷運與輕軌）不再卡住兩三秒一條（435→436）。
+const expectedHistoryCount = 436;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
