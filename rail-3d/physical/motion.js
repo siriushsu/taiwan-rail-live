@@ -20,7 +20,8 @@ export function createPhysicalMotion(pack,profiles,dispatch,{requireSignature=tr
  function runOf(r,tr,i){const s=r.stops[i],a=r.stopIndexes?.[i],b=r.stopIndexes?.[i+1];if(a==null||b===a+1)return s.rp?s:null;
   let segKm=0;for(let k=a;k<b;k++){if(!s.rp||tr.stops[k].rp!==s.rp)return null;segKm+=tr.stops[k].rpSegKm;}return {rp:s.rp,rpDep:s.rpDep,rpOff:s.rpOff,rpSegKm:segKm};}
  function sample(tr,clockSec,{officialDelaySec=0,wrap=(s,t,grace)=>t<s[0].arrSec&&t+86400<=s.at(-1).depSec+grace?t+86400:t}={}){
-  const r=record(tr);if(!r)return undefined;const stops=r.stops,t=wrap(stops,clockSec-officialDelaySec,r.maxHold),schedule=r.schedule;
+  // 跨夜判斷拿原班表的陣列：名冊把 _prevNight 等旗標掛在它上面（index.html schedWrapT）。首末站從不略過，時間範圍與綁定站序相同。
+  const r=record(tr);if(!r)return undefined;const stops=r.stops,t=wrap(tr.stops,clockSec-officialDelaySec,r.maxHold),schedule=r.schedule;
   if(t<schedule[0].arrSec||t>schedule.at(-1).depSec)return null;
   if(r.bindingBasis!=='route-template'&&dispatch.handoffs?.some(h=>h.from===physicalTrainKey(tr))&&t>=schedule.at(-1).arrSec)return null;
   let lo=0,hi=schedule.length-1;while(hi-lo>1){const m=(lo+hi)>>1;if(schedule[m].arrSec<=t)lo=m;else hi=m;}

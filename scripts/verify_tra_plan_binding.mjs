@@ -1,5 +1,6 @@
 import fs from 'node:fs';import assert from 'node:assert/strict';
 import {createPlanBinding,physicalTrainKey,physicalStopSignature} from '../rail-3d/physical/plan-binding.js';
+import {createPhysicalMotion} from '../rail-3d/physical/motion.js';
 const dispatch=JSON.parse(fs.readFileSync('rail-3d/physical/dispatch.json')),network=JSON.parse(fs.readFileSync('rail-3d/physical/network.json'));
 const rows=Object.entries(dispatch.plans).filter(([k,p])=>k.startsWith('tra_sched:')&&!p.holds?.some(h=>h.arrival||h.departure));
 const make=([key,p])=>({sys:'tra_sched',train:key.split(':')[1],stops:JSON.parse(p.stopSignature).map(([n,arrSec,depSec],i,a)=>({name:n.split(':')[1],arrSec,depSec,stop:i===0||i===a.length-1||arrSec!==depSec}))});
@@ -34,4 +35,17 @@ const reverse={...tr,train:'TEST-REVERSE',stops:tr.stops.toReversed().map((s,i)=
 assert.equal(bind({...tr,train:'TEST-UNKNOWN',stops:tr.stops.map((s,i)=>({...s,name:i===pass?'不存在的測試站':s.name}))}),null);
 assert.equal(bind({...tr,sys:'thsr_sched',train:'TEST-CROSS-SYSTEM'}),null);
 assert.equal(bind({...tr,train:'TEST-LOOP',loop:true}),null);
-console.log('台鐵股道綁定：通過時刻更新、改點沿用股道、停靠型態／待避防護、30 班加開模板、雙方向與未知路徑檢查通過');
+// 派車表沒有的中途站（2026-10 起的平鎮臨時站）3D 當作不存在：插在兩個相鄰站之間，通過或停靠都要綁回原本那份計畫，回傳綁定用的
+// 站序（原班表的站物件）與它們在原班表的位置；首站前多一站、環島車不略過。現行資料沒有這種站，出貨鏈只有這裡會跑到這條路徑。
+const gapAt=tr.stops.reduce((best,s,i)=>i&&s.arrSec-tr.stops[i-1].depSec>tr.stops[best].arrSec-tr.stops[best-1].depSec?i:best,1);
+const withUnknown=(t,at,dwell)=>{const m=(t.stops[at-1].depSec+t.stops[at].arrSec)/2;return {...t,stops:[...t.stops.slice(0,at),{name:'派車表沒有的測試站',arrSec:m-dwell/2,depSec:m+dwell/2,stop:dwell>0},...t.stops.slice(at)]};};
+for(const dwell of[0,30]){const u=withUnknown(tr,gapAt,dwell),r=bind(u);
+ assert.equal(r?.basis,'exact',`派車表沒有的中途${dwell?'停靠':'通過'}站要略過、綁回原本那份計畫`);assert.strictEqual(r.plan,entry[1]);
+ assert.deepEqual(r.stopIndexes,u.stops.map((_,i)=>i).filter(i=>i!==gapAt));assert(r.stops.every((s,i)=>s===u.stops[r.stopIndexes[i]]),'綁定站序要是原班表的站物件');}
+const merged=withUnknown(tr,gapAt,0);
+assert.equal(bind({...tr,stops:[{name:'派車表沒有的測試站',arrSec:tr.stops[0].arrSec-600,depSec:tr.stops[0].arrSec-600,stop:true},...tr.stops]}),null,'首站前多一個派車表沒有的站不可略過');
+assert.equal(bind({...merged,loop:true}),null,'環島車不略過派車表沒有的站');
+// 跨夜判斷（index.html schedWrapT）讀原班表陣列上的旗標（_prevNight 等）：取樣要把原陣列交給 wrap，不能交併段後新建的那份。
+let wrapped=null;createPhysicalMotion(network,null,dispatch).sample(merged,0,{wrap:s=>{wrapped=s;return -1e9;}});
+assert.strictEqual(wrapped,merged.stops,'跨夜判斷要拿原班表的站序陣列');
+console.log('台鐵股道綁定：通過時刻更新、改點沿用股道、停靠型態／待避防護、30 班加開模板、雙方向與未知路徑、派車表沒有的中途站略過檢查通過');
