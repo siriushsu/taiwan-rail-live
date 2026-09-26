@@ -5595,6 +5595,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="garagereverse0926"><span class="d">9/26</span><span>車庫環形試跑按 ⇄ 反向行駛時會整列掉頭，車頭照樣在最前面（原本頭尾兩節的車頭會轉進車廂中間）；福森號、栩悅號兩端都改成觀景車頭</span></li>
         <li data-cl-of="landcard0926"><span class="d">9/26</span><span>手機橫放時，平交道卡、落釘卡、台糖卡改成靠右整條顯示，接下來的班次不用捲就看得到（原本卡片太矮，常常一列都看不到）</span></li>
         <li data-cl-of="xcfocus0926"><span class="d">9/26</span><span>平交道卡、落釘卡用鍵盤選到的按鈕不會再每秒被洗掉，點 ✕ 或班次也不會偶爾沒反應；落釘卡的班次和 App 的附近車站能用鍵盤選到，按 Enter 就能跟車、看班次</span></li>
         <li data-cl-of="kbfocusback0926"><span class="d">9/26</span><span>用鍵盤操作時，車站看板自動更新、關掉面板、在行程分享選好目的站、展開或收起跟捷運時的膠囊小卡之後，選取不再跳回頁首，會留在原處或回到打開面板的按鈕</span></li>
@@ -5602,7 +5603,6 @@
         <li data-cl-of="kbfocusfoot0926"><span class="d">9/26</span><span>用鍵盤往下一項移動時，跟車卡選到的按鈕不再被底部的「詳細」提示列蓋住；App 附近車站卡往回移動時「蓋章」鈕不再被標題蓋住；車庫捲到下面再回到頂列按鈕，畫面不再往上跳</span></li>
         <li data-cl-of="boardrowkb0926"><span class="d">9/26</span><span>今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 就行</span></li>
         <li data-cl-of="fpnextwrap0926"><span class="d">9/26</span><span>跟車卡的「下一站」遇到較長的站名（例如英文介面的長榮大學、科工館）會換行顯示全名，整張卡不再能左右拖動</span></li>
-        <li data-cl-of="remainingtracks0913"><span class="d">9/26</span><span>台鐵 10/3 起有 14 班調整時刻，3D 地圖裡這些車照樣走原本的股道</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5610,6 +5610,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="garagereverse0926"><span class="d">9/26</span><span>車庫環形試跑按 ⇄ 反向行駛時改成整列掉頭，車頭照樣在最前面帶著跑；原本頭尾兩節的車頭會轉進車廂中間，機車頭也會轉成對著自己拖的客車。福森號、栩悅號三節編組的兩端都改成觀景車頭，不再有一端露出貫通門</span></li>
         <li data-cl="remainingtracks0913"><span class="d">9/26</span><span>調整台鐵各站停靠與進出股道，減少待避重疊、追撞與對向互穿；9/14 再補回 97 站的站區股道，雙線區間依行車方向分股行駛（台北–萬華地下段不再兩向共用同一條軌道），並改善單線會車判斷；10/3 起台鐵調整時刻的 14 班照樣走這些股道</span></li>
         <li data-cl="placedup0925"><span class="d">9/25</span><span>地圖上站名旁邊若有同名的底圖地名（例如竹北站旁的「竹北市」「竹北里」），站名畫出來時就不再重複顯示；拉遠到還沒標出站名的時候，地名照樣看得到</span></li>
         <li data-cl="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：每天跑哪幾班照台鐵公布的班表比對（感謝網友整理提供），當天那幾班地圖上的車牌會寫成「寶可夢 2183」這樣、列車卡會有介紹；今日亮點「特別列車出沒中」和搜尋「寶可夢」都列得出當天每一趟</span></li>
@@ -6850,7 +6851,13 @@
 //         跟車站看板同一格）：寬 --rail-w、上緣接頂列、下緣停在版權列之上、右緣讓瀏海；卡開著時 --rail-occupy 跟著算（契約 8：
 //         速度膠囊與特大字級提示卡往左讓）。修後兩引擎 844／667／932 × 標準、特大：平交道卡、落釘卡 5/5 列，台糖卡標準字級全文不用捲；
 //         平板（高 > 500）與直式逐值同修前。守門：verify_board_scroll_pad 補 L／N 各格、verify_landscape L2b 改驗槽位＋互斥，各附突變。
-const BUILD = 'v0926l';
+// v0926m：車庫環形試跑按 ⇄ 反向時，garage-model.js follow() 原本「位置不動、每節 rotation 再加 π」：頭尾兩節的車頭（車燈端）
+//         轉進車廂之間，單機頭車款的機車頭對著自己拖的客車（09-26 截圖：安坑輕軌光耀金）。改成整列掉頭——車序沿路徑以編組中心
+//         前後對調、每節跟著轉向，等同海岸行旅 straight() 的整列旋轉。福森號、栩悅號的車模是端車（+X 觀景窗與頭燈、−X 貫通門），
+//         三節同向時連正向都是觀景窗頂著前一節、尾端露出貫通門 ⇒ 尾車 flip；中間車仍是同一個端車車模（沒有中間車模型），
+//         觀景窗對著頭車的貫通門。守門：verify_garage_facing（62 款 × 環形八點與海岸 × 正反兩向，以車燈材質重心當車頭端真值，
+//         附對照組）掛 check-garage 與 ship-web；verify_garage_loop 反向判準改驗「頭車換端且車頭朝外、逆向時頭車領頭」。
+const BUILD = 'v0926m';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

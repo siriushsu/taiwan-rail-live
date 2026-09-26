@@ -68,6 +68,9 @@ export async function createConsist(id,primary,signal,opts={}){
  // 阿里山林鐵的機關車固定連結在下山端、以推進方式上山（交通部觀光署與農業部都記載之字形是「時而前拖、時而後推」）。
  // 車身朝向不動，只是換到編組的另一端。
  if(opts.locoAtTail)parts=[...parts].reverse();
+ // 福森號、栩悅號的車模是端車：+X 端是觀景窗與頭燈、另一端是貫通門。三節同向會讓觀景窗頂著前一節、尾端露出貫通門，尾車轉 180° 讓兩端都是車頭面。
+ // 要排在 locoAtTail 換端之後：先 flip 再整列倒序，被 flip 的那節會換到頭車，兩端的觀景窗全部朝內。
+ if(id==='fushen'||id==='xuyue')parts=[parts[0],parts[1],{...parts[2],flip:true}];
  const assets=new Map([[id,primary]]),owned=[],root=new THREE.Group(),cars=[];
  try{
   for(const part of parts){if(assets.has(part.mesh))continue;
@@ -85,8 +88,10 @@ export async function createConsist(id,primary,signal,opts={}){
   function straight(direction){root.rotation.z=direction===-1?0:Math.PI;for(const c of cars){c.car.position.set(c.offset,0,.18);c.car.rotation.z=c.flip?Math.PI:0;c.heading=0;}couple();}
   function follow(path,distance,direction){
    root.rotation.z=0;
-   // 車身由前後轉向架之間的弦決定；反向只改朝向與速度，不瞬移車廂的位置。
-   for(const c of cars){const s=distance+c.offset,a=path.sample(s+c.length*.30),b=path.sample(s-c.length*.30);c.heading=Math.atan2(a.y-b.y,a.x-b.x);c.car.position.set((a.x+b.x)/2,(a.y+b.y)/2,.18);c.car.rotation.z=c.heading+(c.flip?Math.PI:0)+(direction===-1?Math.PI:0);}
+   // 車身由前後轉向架之間的弦決定。反向＝整列掉頭（同 straight() 整列旋轉）：車序沿路徑以編組中心前後對調、每節跟著轉向，
+   // 頭車永遠在行進方向最前面；只把每節原地轉 180° 會讓頭尾車頭都轉進車廂之間。
+   const d=direction===-1?-1:1;
+   for(const c of cars){const s=distance+d*c.offset,a=path.sample(s+d*c.length*.30),b=path.sample(s-d*c.length*.30);c.heading=Math.atan2(a.y-b.y,a.x-b.x);c.car.position.set((a.x+b.x)/2,(a.y+b.y)/2,.18);c.car.rotation.z=c.heading+(c.flip?Math.PI:0);}
    couple();
   }
   straight(1);

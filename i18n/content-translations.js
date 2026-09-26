@@ -3351,3 +3351,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '手機橫放時，平交道卡、落釘卡、台糖卡改成靠右整條顯示，接下來的班次不用捲就看得到（原本卡片太矮，常常一列都看不到）': 'スマートフォンを横向きにしたとき、踏切カード・ピンのカード・五分車のカードを駅の発車案内と同じく右側に縦長で表示するようにしました。次の列車をスクロールせずに見られます（以前はカードが低すぎて、1行も見えないことがよくありました）。'
 });
+// 2026-09-26 車庫環形試跑反向改成整列掉頭、福森號栩悅號兩端觀景車頭：第一層更新紀錄那條的 en/ja（第二層正本一律走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '車庫環形試跑按 ⇄ 反向行駛時會整列掉頭，車頭照樣在最前面（原本頭尾兩節的車頭會轉進車廂中間）；福森號、栩悅號兩端都改成觀景車頭': 'In the garage loop track, the "Reverse direction" (⇄) button now turns the whole train around so the front car still leads (the cabs at both ends used to swing round and face into the train); the Fusen and Xuyue now show an observation cab at both ends.'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '車庫環形試跑按 ⇄ 反向行駛時會整列掉頭，車頭照樣在最前面（原本頭尾兩節的車頭會轉進車廂中間）；福森號、栩悅號兩端都改成觀景車頭': '車庫の周回コースで ⇄（進行方向を反転）を押すと編成ごと向きを変え、先頭車が先頭のまま走るようにしました（以前は両端の車両の運転台が編成の内側を向いていました）。福森号・栩悦号は両端とも展望車の顔になりました。'
+});

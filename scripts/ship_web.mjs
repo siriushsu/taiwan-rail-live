@@ -333,6 +333,10 @@ try {
   const garage = spawnSync('node', [path.join(wt, 'scripts', 'verify_garage_assets.mjs')], { encoding: 'utf8' });
   process.stdout.write(garage.stdout || ''); process.stderr.write(garage.stderr || '');
   if (garage.status !== 0) fail('收藏車庫模型或收集規則檢查未通過');
+  // 車庫三節車頭尾朝向（62 款 × 環形／海岸 × 正反兩向），離線約 2 秒。
+  const garageFacing = spawnSync('node', [path.join(wt, 'scripts', 'verify_garage_facing.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(garageFacing.stdout || ''); process.stderr.write(garageFacing.stderr || '');
+  if (garageFacing.status !== 0) fail('收藏車庫三節車頭尾朝向檢查未通過');
 
   // ── 2.7 對外用語閘門（更名後的舊名不准出貨）────────────────────────────────
   // 🔴 位置與 2.5 同一個理由,不可移到 strip 之後:check_voice 的 constBlock surface
