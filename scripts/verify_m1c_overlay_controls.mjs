@@ -18,9 +18,11 @@ const MUTS = new Set(['marker', 'forward', 'controls']);
 if (MUT && !MUTS.has(MUT)) throw new Error(`未知 MUT=${MUT}`);
 if (SCOPE !== 'all' && !MUTS.has(SCOPE)) throw new Error(`未知 SCOPE=${SCOPE}`);
 
-const markerPredicate = src => (src.match(/new maplibregl\.Marker\s*\(/g) || []).length >= 3
-  && src.includes("anchor: 'center', draggable: true")
-  && src.includes("anchor: 'bottom'");
+// 🔴 2026-09-26 判準過期改寫:v0916c(cd58b6c5)把收藏車站的 ★ 改畫進 canvas 站名標籤、拔掉那顆
+//    anchor:'bottom' 的 DOM Marker(commit 訊息「移除遮擋文字的 DOM Marker」)⇒ 原生 Marker 只剩
+//    草稿釘(可拖、center)與收藏地點(center)兩處。收藏車站改由下方 M17 量畫出來的標籤框＋真點擊。
+const markerPredicate = src => (src.match(/new maplibregl\.Marker\s*\(/g) || []).length >= 2
+  && src.includes("anchor: 'center', draggable: true");
 const forwardPredicate = src => src.includes("M.on('click', handleMapClick)")
   && src.includes('handleMapClick({ containerPoint: cp, latlng: M.fromScreen(cp) });')
   && !src.includes("M.fire('click', { containerPoint: cp, latlng: M.fromScreen(cp) });");
@@ -146,10 +148,29 @@ async function desktopMarkers(browser, url, engine, check) {
       renderFavStationMarkers();
       window.__M.setView([st.lat, st.lon], Math.max(window.__M.getZoom(), 13), { animate: false });
     });
-    const star = page.locator('.favst-ico');
-    check(await star.count() === 1, 'M17 收藏車站 Marker 出現');
-    if (await star.count()) await star.click();
-    check(await page.locator('#board').isVisible(), 'M17 收藏車站 Marker 可點開看板');
+    // v0916c 起 ★ 畫在 canvas 站名標籤旁(labelBoxes＝繪製端記下的實際標籤框,點擊命中也讀它),
+    // 「支援直接點擊站名標籤開啟車站時刻板」⇒ 量「畫出來了」＋「真點那個框會開到這一站的看板」。
+    // 車剛好黏在標籤上時產品依設計彈疊點小選單(列車/車站二選一),照使用者動作選車站那一列。
+    const favName = await page.evaluate(() => window.__m1cFavStation.name);
+    await page.waitForFunction(n => labelBoxes.some(b => b.isFav && b.st && b.st.name === n && (b.opacity ?? 1) > 0),
+      favName, { timeout: 8000 }).catch(() => {});
+    const favBox = await page.evaluate(n => {
+      const b = labelBoxes.find(x => x.isFav && x.st && x.st.name === n && (x.opacity ?? 1) > 0);
+      if (!b) return null;
+      const mc = window.__M.getContainer().getBoundingClientRect();
+      return { x: mc.left + (b.l + b.r) / 2, y: mc.top + (b.t + b.b) / 2, w: Math.round(b.r - b.l), h: Math.round(b.b - b.t), opacity: b.opacity ?? 1, sys: b.st.sys };
+    }, favName);
+    check(!!favBox, 'M17 收藏車站★畫進站名標籤', favBox || `labelBoxes 裡沒有 isFav 的「${favName}」`);
+    let viaPick = false;
+    if (favBox) {
+      await page.mouse.click(favBox.x, favBox.y);
+      await page.waitForTimeout(300);
+      const row = page.locator('#tapPick:not([hidden]) .tp-row', { hasText: favName }).filter({ hasText: '看板' });
+      if (await row.count()) { viaPick = true; await row.first().click(); await page.waitForTimeout(300); }
+    }
+    const opened = await page.evaluate(() => ({ visible: !document.getElementById('board').hidden, station: state.boardStation?.name || null, sys: state.boardStation?.sys || null }));
+    check(!!favBox && opened.visible && opened.station === favName && opened.sys === favBox.sys, 'M17 點收藏車站的站名標籤開到該站看板',
+      { ...opened, want: `${favName}/${favBox?.sys}`, viaPick });
 
     if (SCOPE === 'marker') {
       check(errors.length === 0, '桌面 Marker 情境零 pageerror', errors.slice(0, 5));
