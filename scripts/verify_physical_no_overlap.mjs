@@ -142,7 +142,9 @@ await page.waitForFunction(() => state.ready && state.trains?.length > 0 && wind
 
 // 凍結自動 rAF／計時器，避免兩個重放 chunk 之間多呼叫一次 dSim=0 的 snap 改變 hold。
 await page.clock.pauseAt(new Date(clockStart.getTime()+60000));
-const setup = await page.evaluate(async () => {
+// legacy-three 是刻意把通勤車縮成 60 m 的診斷模式；正式出貨 gate 必須命中實際 160 m 通勤編組。
+const FORMATION_BRIDGE_REGULAR_M = process.env.FORMATION_PROBE === 'legacy-three' ? 60 : 160;
+const setup = await page.evaluate(async regularExpectedM => {
   const F = await import('/rail-3d/integration/formations.js');
   const P = await import('/rail-3d/integration/train-path.js');
   const catalog = await (await fetch('/rail-3d/assets/blender-map-v1/manifest.json')).json();
@@ -227,16 +229,34 @@ const setup = await page.evaluate(async () => {
   // 獨立的具名判準：支線與觀光車不能因主線區間車放長而一起變成 8 節。
   const identityRoster=(await (await fetch('/data/tra_schedule_dense.json')).json()).trains;
   const identities = ['2','1839','6652'].map(no => {const raw=identityRoster.find(t=>String(t.train)===no),tr=raw&&{...raw,sys:'tra_sched'};const m=tr&&modelOf(tr);return {no,id:m?.id,lengthM:m?.lengthM};});
-  return { identities, serviceDate: state.trains.find(t=>t.sys==='tra_sched'&&!t.loop&&!t.stops._prevNight)?._rday, trains: state.trains.length,
+  // blockClearance3d 讀的 helper 必須與畫面編組同源；抽「名冊裡真的在跑的物件」，不另造假車讓 fallback 蒙混。
+  const helper = railIslandPhysical.formationLengthM;
+  const bridgeSample = (expectedM, expectedId) => {
+    for (const tr of state.trains) {
+      if (tr.sys !== 'tra_sched' || tr.loop || tr.stops._prevNight) continue;
+      const m = modelOf(tr);
+      if (!m || m.id !== expectedId || Math.abs(m.lengthM - expectedM) > 1e-9) continue;
+      return { no: String(tr.train), carName: tr.carName, id: m.id, modelM: m.lengthM,
+        helperM: typeof helper === 'function' ? helper(tr) : null };
+    }
+    return null;
+  };
+  const formationBridge = { type: typeof helper,
+    samples: [bridgeSample(245.7, 'emu3000'), bridgeSample(regularExpectedM, 'emu800')] };
+  return { identities, formationBridge, serviceDate: state.trains.find(t=>t.sys==='tra_sched'&&!t.loop&&!t.stops._prevNight)?._rday, trains: state.trains.length,
     traTotal: state.trains.filter(t => t.sys === 'tra_sched' && !t.loop).length,
     hasCovered: state.trains.filter(t => t.sys === 'tra_sched' && !t.loop && railIslandPhysical.has(t)).length,
     physicalReady: !!window.railIslandPhysical, live: liveActive() };
-});
+}, FORMATION_BRIDGE_REGULAR_M);
 ok('G1 physical 已就緒且覆蓋台鐵全班',
   setup.physicalReady && setup.traTotal >= 800 && setup.hasCovered / setup.traTotal >= 0.99,
   `台鐵 ${setup.hasCovered}/${setup.traTotal} 走實體股道, 全系統 ${setup.trains} 班, liveActive=${setup.live}`);
 
 ok('G1b 判準使用畫面的支線與具名車型', setup.identities.every((r,i)=>r.id===['e500','dr1000','haifeng'][i] && Math.abs(r.lengthM-(process.env.FORMATION_PROBE==='legacy-three'?[57,60,60]:[137,60,80])[i])<1e-6), JSON.stringify(setup.identities));
+ok(`G1b2 formationLengthM helper 與畫面實際 245.7m／${FORMATION_BRIDGE_REGULAR_M}m 編組同源`,
+  setup.formationBridge.type === 'function' && setup.formationBridge.samples.every((r, i) => r
+    && Math.abs(r.modelM - [245.7, FORMATION_BRIDGE_REGULAR_M][i]) < 1e-9 && Math.abs(r.helperM - r.modelM) < 1e-9),
+  JSON.stringify(setup.formationBridge));
 ok('G1c 班表服務日與固定重放日一致', setup.serviceDate===TEST_DATE, `${setup.serviceDate} / ${TEST_DATE}${FIXTURE ? `（班表快照 ${FIXTURE_REF}，通過時刻與跑段剖面快照 ${FIXTURE_DERIVED_REF}）` : '（磁碟班表）'}`);
 // ── 連續重放（棘輪要演化,快照掃描量不到真實動態）────────────────────────────────
 await page.evaluate(([f]) => { __reset(); __step(f); }, [FROM]);
@@ -292,7 +312,7 @@ const control = await page.evaluate(([from, to, step, sample]) => {
 }, [FROM, TO, STEP, SAMPLE]);
 ok('G8 正向對照:關掉防追撞,同向在途互穿必須明顯變多', control.a > A,
   `對照組 ${control.n} 個時點量到 ${control.a} 筆（有防追撞時 ${A} 筆）`);
-// ── G10／G11 派車表沒有的中途停靠站（2026-10 起的平鎮臨時站 1105）────────────────────────────────────────────
+// ── G10／G11／G12 派車表沒有的中途停靠站（2026-10 起的平鎮臨時站 1105）───────────────────────────────────────
 // 立體地圖讓官方停靠這種站的班次停在原本那一段路徑上（motion.js 的 cuts），那裡沒有月台待避這回事。現行資料沒有這種站，
 // 出貨鏈只有這裡跑得到：取一班真車 T 的一段站間，複製出 L（在該段實體路徑上插一個停 60 秒的陌生站，其後各站 +120 秒）與
 // F（整班 +75 秒、不停陌生站），讓 F 在 L 停站時追上，逐秒量兩車車身有沒有共用股道，量到 L 抵達下一個正式站為止——兩班
@@ -302,8 +322,10 @@ ok('G8 正向對照:關掉防追撞,同向在途互穿必須明顯變多', contr
 //   G11 防線 blockSep3d：同一段 2D 車距不等於立體車距（L 在 2D 停在示意線的投影點、立體停在實體路徑的投影點）。陌生站
 //       挑全網「示意線比例比實體比例前面最多」的一點（投影離示意線 50 m 內），F 照真實通過車帶著這一站（通過），兩班都用
 //       自強 3000 編組（245.7 m）：2D 車距守在標準 400 m 時，立體車距短到不夠兩個半車長。
+//   G12 防線 gapParked／formation clearance：在 L/F 中間插入 2D 較近、但實體走另一股的 M。M 會清掉普通
+//       parked，gapParked 必須仍把 L 留給 F 做實體股道檢查；L 離開陌生站後的 first bite 另要以兩列真實編組半長和起咬。
 await page.evaluate(() => {
-  window.__pinch = ({ T, I, U, f, fPass, carName, guard, fake }) => {
+  window.__pinch = ({ T, I, U, f, fPass, carName, guard, fake, alsoGuard, alsoFake }) => {
     const P = railIslandPhysical, s0 = T.stops, K = I + 1, run = s0[K].arrSec - s0[I].depSec;
     const uArr = Math.round(s0[I].depSec + run * f + 30), st = { name: '派車表沒有的測試停靠站', lat: U[1], lon: U[0] };
     const mk = (train, stops) => ({ ...T, train, stops, ...(carName && { carName }) });
@@ -316,10 +338,11 @@ await page.evaluate(() => {
     const rl = P.has(L) && P.record(L), rf = P.has(F) && P.record(F);
     if (!rl || !rf || !rl.cuts?.[I]?.some(x => x.k === K) || (fPass && !rf.stopIndexes))
       return { error: `合成車沒綁上實體股道或沒在陌生站切開（L=${!!rl} F=${!!rf}）` };
-    const saved = state.trains, orig = window[guard];
+    const saved = state.trains, orig = window[guard], origAlso = alsoGuard && window[alsoGuard];
     state.trains = saved.filter(x => x !== T).concat([L, F]);
     const go = real => {
       window[guard] = real ? orig : fake;
+      if (alsoGuard) window[alsoGuard] = real ? origAlso : alsoFake;
       __reset();
       const o = { lDwellU: 0, fHeld: 0, maxHoldF: 0, shared: 0, maxSharedM: 0 };
       for (let t = s0[I].depSec - 120; t < L.stops[K + 1].arrSec; t++) {
@@ -335,7 +358,9 @@ await page.evaluate(() => {
       return o;
     };
     let withFix, control;
-    try { withFix = go(true); control = go(false); } finally { window[guard] = orig; state.trains = saved; __reset(); }
+    try { withFix = go(true); control = go(false); } finally {
+      window[guard] = orig; if (alsoGuard) window[alsoGuard] = origAlso; state.trains = saved; __reset();
+    }
     return { T: String(T.train), seg: `${s0[I].name}→${s0[K].name}`, lenM: +__modelOf(L).lengthM.toFixed(1), withFix, control };
   };
 });
@@ -354,7 +379,8 @@ const g10 = await page.evaluate(() => {
       if (path.length < 3000) continue;
       const sU = path.length * .45, [pa, pb, pc] = [sU - 5, sU + 5, sU].map(x => path.at(x).coordinate), mx = 111320 * Math.cos(pc[1] * Math.PI / 180);
       const ex = (pb[0] - pa[0]) * mx, ny = (pb[1] - pa[1]) * 111320, nn = Math.hypot(ex, ny);
-      return __pinch({ T: tr, I: i, U: [pc[0] - ny / nn * 20 / mx, pc[1] + ex / nn * 20 / 111320], f: .45, guard: 'blockDwellOnLine', fake: () => false });
+      return __pinch({ T: tr, I: i, U: [pc[0] - ny / nn * 20 / mx, pc[1] + ex / nn * 20 / 111320], f: .45,
+        guard: 'blockDwellOnLine', fake: () => false, alsoGuard: 'blockMergedDwellCandidate', alsoFake: () => false });
     }
   }
   return { error: '找不到合用的站間' };
@@ -384,6 +410,196 @@ const g11 = await page.evaluate(() => {
   return { ...res, note: `實體 ${Math.round(c.f * 100)}% 處（示意線比例前面 ${Math.round(c.mis)} m，編組 ${res.lenM} m）` };
 });
 ok('G11 派車表沒有的中途停靠站那一段：2D 車距縮水時照立體車距擋，後車不開進前車車身', pinchOk(g11) && g11.lenM > 240, pinchMsg(g11));
+
+// 三車專用情境：L 停在合併段的陌生站，M 在 2D 上排在 L/F 之間、卻走另一條實體 path，F 則與 L 同股。
+// 先用 blockParkedBlocks 本身證明 L→F=true，L→M=false，再重放到 L 離開陌生站後；不接受只靠 pathId 不同的自說自話。
+const g12 = await page.evaluate(specs => {
+  const P = railIslandPhysical, saved = state.trains, savedSec = state.simSec;
+  const norm = name => String(name).replaceAll('臺', '台').replace(/\s*[（(].*?[）)]/g, '').replace(/-環島$/, '').trim();
+  const eligible = tr => tr.sys === 'tra_sched' && !tr.loop && !tr.stops._prevNight && P.has(tr) && !P.record(tr).stopIndexes;
+  const one = spec => {
+    const fail = error => ({ train: spec.train, dir: spec.dir, error });
+    try {
+      const T = saved.find(x => x.sys === 'tra_sched' && String(x.train) === spec.train);
+      if (!T || !eligible(T)) return fail('固定車次不存在或沒有實體派軌');
+      const s0 = T.stops, I = spec.segmentIndex, K = I + 1, a = s0[I], b = s0[K], r = P.record(T);
+      if (norm(a?.name) !== norm(spec.from) || norm(b?.name) !== norm(spec.to) || !a.segLn)
+        return fail(`固定站間已漂移：${a?.name}→${b?.name}`);
+      const pathId = String(r.plan.pathIds[I]), path = P.geometry.unfold(pathId).path;
+      const at = path.at(path.length * spec.f), U = at?.coordinate;
+      if (!U) return fail('固定實體路徑比例已失效');
+      const pr = projectOntoShape(a.segLn, U[1], U[0]);
+      const mis = ((pr.d - a.dA) / (a.dB - a.dA) - spec.f) * path.length;
+      const runSec = b.arrSec - a.depSec, uArr = Math.round(a.depSec + runSec * spec.f);
+      const st = { name: `派車表沒有的 G12 ${spec.train} 停靠站`, lat: U[1], lon: U[0] };
+      const mk = (suffix, stops) => ({ ...T, train: `TEST-G12-${spec.train}-${suffix}`, carName: '自強(3000)', stops });
+      const L = mk('L', [...s0.slice(0, K).map(x => ({ ...x })), { ...st, arrSec: uArr, depSec: uArr + 60, stop: true },
+        ...s0.slice(K).map(x => ({ ...x, arrSec: x.arrSec + 60, depSec: x.depSec + 60 }))]);
+      const fs = s0.map(x => ({ ...x, arrSec: x.arrSec + spec.delay, depSec: x.depSec + spec.delay }));
+      const tp = Math.round(fs[I].depSec + runSec * spec.f);
+      fs.splice(K, 0, { ...st, arrSec: tp, depSec: tp, stop: false });
+      const F = mk('F', fs);
+      assignSchedShapePathsFor([L, F], state.trackLines.filter(l => l.sys === 'tra_sched'));
+      const rl = P.has(L) && P.record(L), rf = P.has(F) && P.record(F);
+      if (!rl?.cuts?.[I]?.some(x => x.k === K) || !rf?.stopIndexes) return fail('L/F 沒綁上固定合併段');
+
+      const mid = uArr + 30, gl = trainSeg(L, mid), gf = trainSeg(F, mid);
+      if (!gl?.dwell || !gf || gf.dwell || gl.ln !== gf.ln || gl.dir !== gf.dir || gl.dir !== spec.dir)
+        return fail('L/F 的固定 2D 方向或停靠狀態已漂移');
+      const sep2 = (gl.d - gf.d) * gl.dir, pl0 = trainPosAt(L, mid), pf0 = trainPosAt(F, mid);
+      if (!(sep2 > .12) || !pl0?.physical || !pf0?.physical) return fail('L/F 固定位置已漂移');
+      const locF = pf0.route.path.locate([pl0.lon, pl0.lat]), sep3 = locF && (locF.s - pf0.chainageM) / 1000;
+      if (!(sep3 > .06 && sep3 < .30 && sep3 + .02 < sep2)) return fail('L/F 固定 2D/3D 間距已漂移');
+
+      const middle = saved.find(x => x.sys === 'tra_sched' && String(x.train) === spec.middleTrain);
+      const middleRecord = middle && P.has(middle) && P.record(middle), us = middle?.stops;
+      if (!middleRecord || norm(us[spec.middleSegmentIndex]?.name) !== norm(spec.from)
+          || norm(us[spec.middleSegmentIndex + 1]?.name) !== norm(spec.to)
+          || String(middleRecord.plan.pathIds[spec.middleSegmentIndex]) === pathId)
+        return fail('M 的固定不同股站間已漂移');
+      // 保留原車次號，讓 plan-binding 優先借回它自己驗過的另一股；名冊只放合成 M，不與原車並存。
+      const M = { ...middle, carName: '自強(3000)', stops: us.map(x => ({ ...x,
+        arrSec: x.arrSec + spec.middleShift, depSec: x.depSec + spec.middleShift })) };
+      assignSchedShapePathsFor([M], state.trackLines.filter(l => l.sys === 'tra_sched'));
+      const rm = P.has(M) && P.record(M), gm = trainSeg(M, mid), pm0 = trainPosAt(M, mid);
+      if (!rm || String(rm.plan.pathIds[spec.middleSegmentIndex]) === pathId || !gm || gm.dwell
+          || gm.ln !== gl.ln || gm.dir !== gl.dir || !pm0?.physical) return fail('M 沒重現固定不同股位置');
+      const wantGap = (sep2 + sep3) / 2, aheadM = (gl.d - gm.d) * gl.dir, behindM = (gm.d - gf.d) * gl.dir;
+      if (!(aheadM > .01 && behindM > .01 && Math.abs(behindM - wantGap) < .04)) return fail('L–M–F 固定 2D 排序已漂移');
+
+      state.simSec = mid;
+      const lit = { tr: L, h: 0, g: gl }, leader = { d: gl.d, key: blockKeyOf(L), it: lit };
+      const fit = { tr: F, h: 0, g: gf }, mit = { tr: M, h: 0, g: gm };
+      const blocksF = blockParkedBlocks(leader, fit), blocksM = blockParkedBlocks(leader, mit);
+      const sepCheck = blockSep3d(leader, fit);
+      if (!blocksF || blocksM || !Number.isFinite(sepCheck)) return fail('L→F 共股或 L→M 不共股的結構斷言已漂移');
+
+      const origCandidate = window.blockMergedDwellCandidate, origClearance = window.blockClearance3d;
+      state.trains = [L, M, F];
+      const go = mode => {
+        window.blockMergedDwellCandidate = mode === 'candidate' || mode === 'double' ? () => false : origCandidate;
+        window.blockClearance3d = mode === 'clearance' || mode === 'double' ? () => BLOCK_GAP_MIN_KM : origClearance;
+        __reset();
+        const out = { shared: 0, post: 0, maxSharedM: 0, fHeld: 0, maxHold: 0, lDwell: 0, rising: 0, risingPost: 0 };
+        for (let t = L.stops[K].arrSec, end = Math.min(L.stops[K + 1].arrSec - 1, L.stops[K].depSec + 240); t <= end; t++) {
+          const before = blockHoldSec(F);
+          __step(t);
+          const pl = trainPos(L, t), pf = trainPos(F, t);
+          if (!pl?.physical || !pf?.physical) continue;
+          if (pl.dwell && pl.stopIndex === K) out.lDwell++;
+          const after = blockHoldSec(F);
+          if (after > .5) out.fHeld++;
+          out.maxHold = Math.max(out.maxHold, +after.toFixed(2));
+          if (after > before + .01) { out.rising++; if (t > L.stops[K].depSec) out.risingPost++; }
+          const shared = __sharedMetres(__occupancy(pl.route, pl.chainageM, __modelOf(L).lengthM),
+            __occupancy(pf.route, pf.chainageM, __modelOf(F).lengthM)).m;
+          if (shared > .01) {
+            out.shared++; out.maxSharedM = Math.max(out.maxSharedM, +shared.toFixed(1));
+            if (t > L.stops[K].depSec) out.post++;
+          }
+        }
+        return out;
+      };
+      let production, candidate, clearance, double;
+      try { production = go('production'); candidate = go('candidate'); clearance = go('clearance'); double = go('double'); }
+      finally { window.blockMergedDwellCandidate = origCandidate; window.blockClearance3d = origClearance; state.trains = saved; __reset(); }
+      return { train: String(T.train), dir: gl.dir, M: String(M.train), seg: `${a.name}→${b.name}`,
+        segmentIndex: I, f: spec.f, misM: Math.round(mis), delay: spec.delay, middleShift: spec.middleShift,
+        sep2M: +(sep2 * 1000).toFixed(1), sep3M: +(sep3 * 1000).toFixed(1), middleGapM: +(behindM * 1000).toFixed(1),
+        differentTrack: blocksF && !blocksM, lHasGap: !!rl.stopIndexes, fHasGap: !!rf.stopIndexes,
+        production, candidate, clearance, double };
+    } finally { state.trains = saved; state.simSec = savedSec; __reset(); }
+  };
+  try { return specs.map(one); }
+  finally { state.trains = saved; state.simSec = savedSec; __reset(); }
+}, [
+  // 探索版證明 +1 的 45%／F+75 找不到 L→M 不共股且兩個單一突變都會撞的組合；命中只在汐科端分岔的 95%、F+45。
+  // -1 可保留原本 F+75，但同樣要取百福端分岔的 5%。以下連 M 車次、站間索引與時差都固定，gate 不再全網搜尋答案。
+  { train: '1211', dir: 1, from: '汐科', to: '南港', segmentIndex: 8, f: .95, delay: 45,
+    middleTrain: '4135', middleSegmentIndex: 14, middleShift: 17737.25 },
+  { train: '1228', dir: -1, from: '百福', to: '七堵', segmentIndex: 34, f: .05, delay: 75,
+    middleTrain: '1272', middleSegmentIndex: 27, middleShift: -17863 },
+]);
+for (const r of g12) {
+  const pass = !r.error && r.differentTrack && r.production.shared === 0 && r.production.post === 0
+    && r.production.lDwell >= 55 && r.production.fHeld > 0 && r.production.risingPost > 0 && r.production.maxHold < 119
+    && r.candidate.shared > 0 && r.candidate.post > 0 && r.clearance.shared > 0 && r.clearance.post > 0
+    && r.double.shared > 0 && r.double.post > 0;
+  ok(`G12-${r.train} dir ${r.dir > 0 ? '+1' : '-1'}：三車不同股、departure first-bite 與真實編組淨距`, pass,
+    r.error || `${r.train}/${r.M} ${r.seg}@${Math.round(r.f * 100)}%（F+${r.delay}s，M ${r.middleShift >= 0 ? '+' : ''}${r.middleShift}s）：`
+      + `2D/3D=${r.sep2M}/${r.sep3M}m、M 距 F=${r.middleGapM}m；`
+      + `正式=${r.production.shared}/${r.production.post}（rise ${r.production.rising}/${r.production.risingPost}，maxHold ${r.production.maxHold}s），`
+      + `候選突變=${r.candidate.shared}/${r.candidate.post}，clearance-only=${r.clearance.shared}/${r.clearance.post}，`
+      + `雙突變=${r.double.shared}/${r.double.post}`);
+}
+// ── G13 2D 排序翻轉仍須沿用上一幀的實體 owner ────────────────
+// 造兩列同向行進車，先把 F 的上一幀 physical gap 釘在 L；本格把 F 的 2D 里程放到 L 前面，
+// 讓排序先處理 F。正式邏輯必須藉 blockOldPhysicalOwner 找回 L，並在稍後處理 L 時抑制 F→L
+// 的反咬。負對照只把 seam 突變成 null：F 應失去 owner、L 應誤把 F 當成 regular barrier。
+const g13 = await page.evaluate(() => {
+  const saved = {
+    trains: state.trains, mode: state.mode, simSec: state.simSec,
+    trainSeg: window.trainSeg, trainPosAt: window.trainPosAt,
+    liveDelaySec: window.liveDelaySec, speedCapOf: window.speedCapOf,
+    blockSep2d: window.blockSep2d, blockSep3d: window.blockSep3d,
+    blockClearance3d: window.blockClearance3d,
+    blockStoppedAtStop: window.blockStoppedAtStop,
+    blockOldPhysicalOwner: window.blockOldPhysicalOwner,
+    railIslandPhysical: window.railIslandPhysical,
+  };
+  const run = (dir, mutate) => {
+    const ln = { id: `G13-${dir}` };
+    const L = { sys: 'tra_sched', train: `TEST-G13-${dir}-L`, _role: 'L',
+      _g: { ln, dir, d: 1, dwell: false, i: 0 } };
+    const F = { sys: 'tra_sched', train: `TEST-G13-${dir}-F`, _role: 'F',
+      _g: { ln, dir, d: 1 + dir * .001, dwell: false, i: 0 } };
+    const lk = blockKeyOf(L), fk = blockKeyOf(F);
+    __reset();
+    state.mode = 'sched'; state.trains = [L, F]; state.simSec = 1001;
+    _blockSim = 1000;
+    _blockGap.set(fk, { lead: lk, gk: .16, physical: true });
+    window.blockOldPhysicalOwner = mutate ? () => null : saved.blockOldPhysicalOwner;
+    updateBlockHolds();
+    const fg = _blockGap.get(fk), lg = _blockGap.get(lk);
+    return {
+      dir, mutate,
+      owner: fg?.lead === lk && fg?.physical === true,
+      reverse: lg?.lead === fk,
+      followerGap: fg ? { lead: fg.lead, physical: !!fg.physical, gk: +fg.gk.toFixed(3) } : null,
+      leaderGap: lg ? { lead: lg.lead, physical: !!lg.physical, gk: +lg.gk.toFixed(3) } : null,
+      holds: { L: +blockHoldSec(L).toFixed(3), F: +blockHoldSec(F).toFixed(3) },
+    };
+  };
+  try {
+    window.trainSeg = tr => tr._g;
+    window.trainPosAt = tr => ({ lat: 0, lon: tr._g.d, physical: true });
+    window.liveDelaySec = () => 0;
+    window.speedCapOf = () => 120;
+    window.blockSep2d = (lead, it) => (lead.it.g.d - it.g.d) * it.g.dir;
+    window.blockSep3d = (lead, it) => lead.it.tr._role === 'L' && it.tr._role === 'F' ? .15 : Infinity;
+    window.blockClearance3d = () => .16;
+    window.blockStoppedAtStop = () => false;
+    window.railIslandPhysical = { has: () => false };
+    return [1, -1].map(dir => ({ production: run(dir, false), mutation: run(dir, true) }));
+  } finally {
+    window.trainSeg = saved.trainSeg; window.trainPosAt = saved.trainPosAt;
+    window.liveDelaySec = saved.liveDelaySec; window.speedCapOf = saved.speedCapOf;
+    window.blockSep2d = saved.blockSep2d; window.blockSep3d = saved.blockSep3d;
+    window.blockClearance3d = saved.blockClearance3d;
+    window.blockStoppedAtStop = saved.blockStoppedAtStop;
+    window.blockOldPhysicalOwner = saved.blockOldPhysicalOwner;
+    window.railIslandPhysical = saved.railIslandPhysical;
+    state.trains = saved.trains; state.mode = saved.mode; state.simSec = saved.simSec;
+    __reset();
+  }
+});
+for (const r of g13) {
+  const p = r.production, m = r.mutation;
+  const pass = p.owner && !p.reverse && !m.owner && m.reverse;
+  ok(`G13 dir ${p.dir > 0 ? '+1' : '-1'}：2D 翻序沿用 physical owner 且不反咬`, pass,
+    `正式 owner/reverse=${p.owner}/${p.reverse}、hold L/F=${p.holds.L}/${p.holds.F}s；`
+      + `seam→null owner/reverse=${m.owner}/${m.reverse}、hold L/F=${m.holds.L}/${m.holds.F}s`);
+}
 ok('G9 頁面沒有 JS 例外', errors.length === 0, errors.slice(0, 2).join(' | ') || '0');
 
 console.log(`\n分類統計 A=${A}(撞上限 ${capped}) A′=${Ap} B=${B} C=${C}｜判準＝車身共用股道；數量採棘輪上限`);

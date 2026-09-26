@@ -10,11 +10,14 @@
   const {createPlaceGuide}=await import(base+'place-guide.js');
   const {formationFor,tripDirection,stationDirection}=await import(base+'formations.js');
   const directionCache=new WeakMap();function timetableDirection(tr,ln){if(!directionCache.has(tr))directionCache.set(tr,tripDirection(tr,ln.stations.length,!!ln.loop));return directionCache.get(tr);}
+  // 防追撞要用 3D 編組資料的 actual 長度；不能讀 dispatch plan.lengthM，那是派車預留值（例如區間車可只有 60 m）。
+  const formationLengthM=tr=>{const sp=specialOf(tr),f=formationFor({systemId:tr.sys,carName:tr.carName,typeName:tr.typeName,
+    stockId:sp?.stock?.id,branchId:sp?.branch?.id,namedId:sp?.named?.id},'actual');return f?.lengths.reduce((a,b)=>a+b,0)||null;};
   // 機捷車種讀官方 TrainType(index.html 的 tymcKindOf,來源 TDX StationTimeTable),不由停靠樣態回推——
   // 官方另有「跳站的普通車」,回推會把它畫成 5 節直達車。實測今日兩種日型 607 班官方全部有標,
   // 回推則 11 班猜不出、6 班猜錯。官方沒標的留 null,照舊退成 3 節示意並標「當班編組待確認」。
   const TYMC_SERVICE={com:'local',exp:'express'};
-  if(params.get('tracks')!=='legacy')import('./rail-3d/physical/client.js').then(m=>m.loadPhysicalMotion()).then(m=>{window.railIslandPhysical=m;glTracks.sig='';}).catch(e=>console.error('實體股道',e));
+  if(params.get('tracks')!=='legacy')import('./rail-3d/physical/client.js').then(m=>m.loadPhysicalMotion()).then(m=>{m.formationLengthM=formationLengthM;window.railIslandPhysical=m;glTracks.sig='';}).catch(e=>console.error('實體股道',e));
   // 這一區的 ri-* 全是使用者在「觀看設定」裡按過的選擇(立體列車開關、編組、地形、車身大小、透視…),
   // 原本記在 sessionStorage,分頁一關(手機上就是把 app 滑掉)整組就沒了,下次開又回預設——
   // 使用者 2026-09-18 回報的正是這件事。設定要跨次開啟活著,只能放 localStorage,

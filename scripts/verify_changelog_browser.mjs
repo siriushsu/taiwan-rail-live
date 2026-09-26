@@ -78,7 +78,7 @@ const widths = [360, 375, 414, 768];
 // 9/26：iPhone 跟車卡車次與時速對齊一條（437→438）。
 // 9/27：五個配樂情境新增 27 首、App 維持串流不增肥一條（438→439）。
 // 9/27：補齊面板焦點、Esc、清單鍵盤入口與桌面時鐘操作一條（439→440）。
-const expectedHistoryCount = 440;
+const expectedHistoryCount = 441;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

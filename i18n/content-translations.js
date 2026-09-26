@@ -3388,3 +3388,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '鍵盤操作更完整：開啟面板會直接選到有名稱的關閉鈕，按 Esc 可關閉；公車搜尋、最愛車站與誤點履歷都能用 Tab 選到，桌面時鐘也能點開資料狀態': 'キーボード操作を改善しました。パネルを開くと名前のある「閉じる」ボタンに移動し、Escで閉じられます。バス停の検索結果・お気に入り駅・遅延履歴はTabで選べます。デスクトップの時計からデータ状況も開けます。',
 });
+// 2026-09-27 平鎮附近的誤點追車穩定維持前後關係：第一層更新紀錄那條的 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '台鐵誤點列車經過平鎮附近時，會穩定維持前後車順序，減少在同一股道短暫重疊的畫面': 'When delayed TRA trains pass near Pingzhen, they now keep a stable front-to-back order, reducing brief overlaps on the same track.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '台鐵誤點列車經過平鎮附近時，會穩定維持前後車順序，減少在同一股道短暫重疊的畫面': '平鎮付近を通る遅延した台鉄列車が前後関係を安定して保つようになり、同じ線路上で一時的に重なって見える場面を減らしました。',
+});

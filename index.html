@@ -5608,6 +5608,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="pingzhenhold0927"><span class="d">9/27</span><span>台鐵誤點列車經過平鎮附近時，會穩定維持前後車順序，減少在同一股道短暫重疊的畫面</span></li>
         <li data-cl-of="kbdremain0927"><span class="d">9/27</span><span>鍵盤操作更完整：開啟面板會直接選到有名稱的關閉鈕，按 Esc 可關閉；公車搜尋、最愛車站與誤點履歷都能用 Tab 選到，桌面時鐘也能點開資料狀態</span></li>
         <li data-cl-of="musicpools0927"><span class="d">9/27</span><span>跟車配樂新增南方日光、黃昏斜光、北海岸天色、花蓮山海、山海聚落共創 5 組共 27 首；App 需要時從網站串流，不會把這批新歌塞進安裝包</span></li>
         <li data-cl-of="followalign0926"><span class="d">9/26</span><span>iPhone 點列車後，左下資訊卡的車次與時速會排在同一條線上，不再一高一低</span></li>
@@ -5615,7 +5616,6 @@
         <li data-cl-of="groupswitch0926"><span class="d">9/26</span><span>切換上方分組（全台同框、台鐵、高鐵、捷運與輕軌）時，畫面不會再卡住兩三秒</span></li>
         <li data-cl-of="garagereverse0926"><span class="d">9/26</span><span>車庫環形試跑按 ⇄ 反向行駛時會整列掉頭，車頭照樣在最前面（原本頭尾兩節的車頭會轉進車廂中間）；福森號、栩悅號兩端都改成觀景車頭</span></li>
         <li data-cl-of="landcard0926"><span class="d">9/26</span><span>手機橫放時，平交道卡、落釘卡、台糖卡改成靠右整條顯示，接下來的班次不用捲就看得到（原本卡片太矮，常常一列都看不到）</span></li>
-        <li data-cl-of="xcfocus0926"><span class="d">9/26</span><span>平交道卡、落釘卡用鍵盤選到的按鈕不會再每秒被洗掉，點 ✕ 或班次也不會偶爾沒反應；落釘卡的班次和 App 的附近車站能用鍵盤選到，按 Enter 就能跟車、看班次</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5623,6 +5623,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="pingzhenhold0927"><span class="d">9/27</span><span>台鐵誤點列車經過平鎮附近時，會穩定維持同一股道上的前後車順序，並依畫面上的實際編組長度保留距離，減少誤點追車時短暫重疊的畫面</span></li>
         <li data-cl="garagereverse0926"><span class="d">9/26</span><span>車庫環形試跑按 ⇄ 反向行駛時改成整列掉頭，車頭照樣在最前面帶著跑；原本頭尾兩節的車頭會轉進車廂中間，機車頭也會轉成對著自己拖的客車。福森號、栩悅號三節編組的兩端都改成觀景車頭，不再有一端露出貫通門</span></li>
         <li data-cl="remainingtracks0913"><span class="d">9/26</span><span>調整台鐵各站停靠與進出股道，減少待避重疊、追撞與對向互穿；9/14 再補回 97 站的站區股道，雙線區間依行車方向分股行駛（台北–萬華地下段不再兩向共用同一條軌道），並改善單線會車判斷；10/3 起台鐵調整時刻的 14 班照樣走這些股道</span></li>
         <li data-cl="placedup0925"><span class="d">9/25</span><span>地圖上站名旁邊若有同名的底圖地名（例如竹北站旁的「竹北市」「竹北里」），站名畫出來時就不再重複顯示；拉遠到還沒標出站名的時候，地名照樣看得到</span></li>
@@ -6878,7 +6879,7 @@
 // v0927b：補齊面板鍵盤開啟落點與 Esc 退路、公車搜尋／最愛車站／誤點履歷鍵盤入口、跟車合併卡收合焦點，
 //         桌面時鐘可點開資料狀態；公車轉乘密度重畫改排到下一個 task，避開 WebKit ResizeObserver loop，
 //         並用 instance ownership guard 防止舊排程覆寫同一個 root 上的新車站。
-const BUILD = 'v0927b';
+const BUILD = 'v0927c';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
@@ -11692,11 +11693,11 @@ function blockStoppedAtStop(it, tAt) {
 // 上面那條放行只在示意線形上無條件成立:同線同向畫成一條線,看不出站裡有幾條股道。走實體股道時看得到
 // ——前車車身壓在後車接下來要走的股道上,放行只會讓後車開進去跟它重疊(實測無條件放行時 280 提早開進
 // 七堵,10:06 那一格與同一股道上爬行的 6652 共用 80m、車心相距 2.8m,實體閘門 C 類 10→11)。那種前車
-// 照舊是障礙,後車在站外等股道空出來。畫面端拿不到編組長度,車身取車心前後各 BLOCK_AT_STOP_KM——寧可
-// 多擋,多擋就是改動前的行為。
-function blockParkedBlocks(p, it) {
-  const pl = trainPosAt(p.it.tr, state.simSec - liveDelaySec(p.it.tr) - p.it.h);
-  const pf = trainPosAt(it.tr, state.simSec - liveDelaySec(it.tr) - it.h);
+// 照舊是障礙,後車在站外等股道空出來。這裡只做候選命中，車身保守取車心前後各 BLOCK_AT_STOP_KM；
+// 真正的安全間距另由 blockClearance3d 讀畫面使用的編組長度。
+function blockParkedBlocks(p, it, followHold = it.h, leadHold = p.it.h) {
+  const pl = trainPosAt(p.it.tr, state.simSec - liveDelaySec(p.it.tr) - leadHold);
+  const pf = trainPosAt(it.tr, state.simSec - liveDelaySec(it.tr) - followHold);
   if (!pl?.physical || !pf?.physical) return false;
   const half = BLOCK_AT_STOP_KM * 1000, body = new Set();
   let d = pl.route.path.d;
@@ -11715,19 +11716,58 @@ function blockDwellOnLine(it) {
   const P = window.railIslandPhysical, r = it.tr.stops[it.g.i]?.stop !== false && P?.has(it.tr) && P.record(it.tr);
   return !!(r && r.stopIndexes && !r.stopIndexes.includes(it.g.i));
 }
+// 這個 2D 分組只要有車走合併段，就把同組停站車另留一份候選，不讓不同實體股道的行進車把它清掉。這裡只收候選；
+// 真正是否阻擋仍由 blockSep3d 要求「任一車正在合併段、且前車車身壓在後車接下來的同一股道」。
+// 因此普通月台的合法待避仍是 Infinity，不會改變既有行為。
+function blockMergedDwellCandidate(it, groupHasMerged) {
+  const P = window.railIslandPhysical;
+  return !!(groupHasMerged && P?.has(it.tr));
+}
+function blockGapAtOrdinaryEndpoint(lead, it, followHold = it.h, leadHold = lead.it.h) {
+  // 普通真車站仍沿用「月台待避合法」：若前車停點就是後車這一截的實體綁定端點，不由 gapParked 提早接管。
+  // 判綁定端點而非原班表端點很重要：通過平鎮的車在原表也有 stop:false 的平鎮，但實體派車表略過它，
+  // 綁定段仍是中壢→埔心；因此平鎮不會被誤放行，中壢／埔心的既有月台規則則維持不變。
+  const P = window.railIslandPhysical, r = P?.has(it.tr) && P.record(it.tr);
+  const pl = trainPosAt(lead.it.tr, state.simSec - liveDelaySec(lead.it.tr) - leadHold);
+  const pf = trainPosAt(it.tr, state.simSec - liveDelaySec(it.tr) - followHold);
+  if (!r || !pl?.physical || !pf?.physical) return false;
+  const g = lead.it.g;
+  let i = g.dwell ? pl.stopIndex : null;
+  if (i == null && g.seg) i = Math.abs(g.d - g.seg.dA) <= Math.abs(g.seg.dB - g.d) ? g.i : g.i + 1;
+  const name = lead.it.tr.stops[i]?.name, a = r.stops[pf.segmentIndex], b = r.stops[pf.segmentIndex + 1];
+  return name != null && (traStnKey(a?.name) === traStnKey(name) || traStnKey(b?.name) === traStnKey(name));
+}
 // 同一段裡有這種站時，2D 車距不等於立體股道上的車距：停靠那一站的車兩截各照剖面走、停在那一站的投影點，與 2D 同步；
 // 通過的車整段照一條剖面走（motion.js 的 runBetween），過站時刻跟 2D 不同。同一個 2D 車距在立體地圖上會縮短
 // ——實測 10/27 埔心→平鎮，2154（停平鎮）誤點 16 分、後面的 114（通過）2D 車距守在 400 m，立體車心距只剩 203 m，
 // 兩車車身共用 14 m。這種配對另外量立體車距：前車車身壓在後車接下來的股道上時（blockParkedBlocks），取前車車心
 // 投影到後車路徑上的距離（km），呼叫端與 2D 車距取小者。兩車都不在這種段落就回 Infinity，棘輪只看 2D，與改動前相同。
-function blockSep3d(lead, it) {
+function blockSep3d(lead, it, followHold = it.h, leadHold = lead.it.h) {
   const P = window.railIslandPhysical, rec = x => P?.has(x.tr) && P.record(x.tr);
   if (!lead.it || !(rec(lead.it)?.stopIndexes || rec(it)?.stopIndexes)) return Infinity;
-  const pl = trainPosAt(lead.it.tr, state.simSec - liveDelaySec(lead.it.tr) - lead.it.h);
-  const pf = trainPosAt(it.tr, state.simSec - liveDelaySec(it.tr) - it.h);
+  const pl = trainPosAt(lead.it.tr, state.simSec - liveDelaySec(lead.it.tr) - leadHold);
+  const pf = trainPosAt(it.tr, state.simSec - liveDelaySec(it.tr) - followHold);
   const cut = (x, p) => { const k = rec(x)?.stopIndexes; return !!(k && p?.physical && k[p.segmentIndex + 1] - k[p.segmentIndex] > 1); };
-  if (!(cut(lead.it, pl) || cut(it, pf)) || !blockParkedBlocks(lead, it)) return Infinity;
-  return (pf.route.path.locate([pl.lon, pl.lat]).s - pf.chainageM) / 1000;
+  if (!(cut(lead.it, pl) || cut(it, pf)) || !blockParkedBlocks(lead, it, followHold, leadHold)) return Infinity;
+  const sep = (pf.route.path.locate([pl.lon, pl.lat])?.s - pf.chainageM) / 1000;
+  return Number.isFinite(sep) ? sep : Infinity;
+}
+function blockSep2d(lead, it, followHold = it.h, leadHold = lead.it.h) {
+  const gl = trainSeg(lead.it.tr, state.simSec - liveDelaySec(lead.it.tr) - leadHold);
+  const gf = trainSeg(it.tr, state.simSec - liveDelaySec(it.tr) - followHold);
+  return gl && gf && gl.ln === gf.ln && gl.dir === gf.dir ? (gl.d - gf.d) * gf.dir : Infinity;
+}
+// 只在上面的實體配對成立時，棘輪下限才改用畫面真正畫出的兩列編組半長和。舊靜態資產組合若還沒有
+// formationLengthM，就保守沿用 blockParkedBlocks 的每列 200 m；絕不拿 dispatch 的預留長度冒充車身。
+function blockClearance3d(lead, it) {
+  const length = window.railIslandPhysical?.formationLengthM;
+  return Math.min(BLOCK_GAP_KM, ((length?.(lead.it.tr) || BLOCK_AT_STOP_KM * 2000)
+    + (length?.(it.tr) || BLOCK_AT_STOP_KM * 2000)) / 2000);
+}
+// 2D 前後順序翻轉時，只能從前一幀已經建立的 physical gap 找回原 owner。
+// 獨立 helper 讓回歸 gate 可以精準拔掉這條路徑，證明不是眼前 barrier 碰巧接住。
+function blockOldPhysicalOwner(it, oldGap, byKey) {
+  return !it.g.dwell && oldGap?.physical ? byKey.get(oldGap.lead) : null;
 }
 function updateBlockHolds() {
   _blockSide.clear();
@@ -11755,26 +11795,77 @@ function updateBlockHolds() {
   }
   for (const arr of groups.values()) {
     arr.sort((x, y) => (y.g.d - x.g.d) * x.g.dir);         // 由前往後(沿行進方向里程遞減)
+    const P = window.railIslandPhysical;
+    const hasMerged = arr.some(({ tr }) => P?.has(tr) && P.record(tr)?.stopIndexes?.length);
+    const byKey = new Map(arr.map(it => [it.key, it]));
+    const priorGaps = new Map(arr.map(it => [it.key, _blockGap.get(it.key)]));
+    const settledByKey = new Map();
+    const latchedFollowers = new Map();
     let barrier = null;                                     // {d 沿線里程(km), key 前車};後車的畫面位置不得越過
     const parked = [];                                      // 實質停在站上的前車(blockStoppedAtStop),由前往後
+    const gapParked = [];                                   // 合併段同股道的停站候選；不被不同股道的 barrier 清掉
     for (const it of arr) {
       const vcap = speedCapOf(it.tr) / 3600;                // km/s
       const tAt = hh => state.simSec - liveDelaySec(it.tr) - hh;
-      let target = 0, lead = barrier;
-      if (!it.g.dwell) for (let m = parked.length - 1; m >= 0; m--) if (blockParkedBlocks(parked[m], it)) { lead = parked[m]; break; }
+      let target = 0, lead = barrier, releaseLead = null, releaseGap = 0;
+      const oldGap = priorGaps.get(it.key);
+      const leadHoldOf = p => hasMerged ? (p.settledH ?? p.it.h) : p.it.h;
+      if (!it.g.dwell) for (let m = parked.length - 1; m >= 0; m--)
+        if (blockParkedBlocks(parked[m], it, it.h, leadHoldOf(parked[m]))) { lead = parked[m]; break; }
+      // 實體路徑與 2D 投影的前後順序可能在同一秒對調。上一幀已經是 follower 的車，
+      // 這一幀不能因 2D 排序翻轉反過來扣住舊 lead；舊 follower 會在下方沿用原 owner。
+      if (lead && latchedFollowers.get(it.key)?.has(lead.key)) lead = null;
+      let sep3d = lead ? blockSep3d(lead, it, it.h, leadHoldOf(lead)) : Infinity;
+      const sep2d = lead ? blockSep2d(lead, it, it.h, leadHoldOf(lead)) : Infinity;
+      // 實體模式只在「一列車身＋本幀最多前進距離」內接手：更早套用會把普通 400m 棘輪帶進中壢／埔心停站，
+      // 後車白白累積到 120 秒上限，反而在前車稍後停平鎮時穿過它。進模式時也會在下方重設 gk，不沿用普通模式的 400m。
+      const near3d = (p, s3) => Number.isFinite(s3)
+        && s3 <= blockClearance3d(p, it) + (snap ? 0 : vcap * dSim) + 1e-6;
+      if (lead && !near3d(lead, sep3d)) sep3d = Infinity;
+      let sep = lead ? Math.min(Number.isFinite(sep3d) ? sep2d
+        : (lead.d - it.g.d) * it.g.dir, sep3d) : Infinity;
+      // 只在兩車一幀內可能對調、而且實體車距仍在編組淨距附近時，跨幀沿用舊 owner。
+      // 這是有上界的單幀 latch：離開同股、超出兩車最大相對位移或轉成停站態就自動釋放，
+      // 不會把過期的前後關係一直黏到離開合併段。
+      const oldLeadIt = blockOldPhysicalOwner(it, oldGap, byKey);
+      if (oldLeadIt && oldLeadIt !== it) {
+        const p = settledByKey.get(oldLeadIt.key) || { d: oldLeadIt.g.d, key: oldLeadIt.key, it: oldLeadIt };
+        const ph = leadHoldOf(p), s3 = blockSep3d(p, it, it.h, ph), s2 = blockSep2d(p, it, it.h, ph);
+        const risk = s2 <= (vcap + speedCapOf(oldLeadIt.tr) / 3600) * (snap ? 0 : dSim) + 1e-6;
+        const bounded = Number.isFinite(s3) && s3 > 0 && s3 <= blockClearance3d(p, it)
+          + (snap ? 0 : (vcap + speedCapOf(oldLeadIt.tr) / 3600) * dSim) + 1e-6;
+        const reciprocal = priorGaps.get(oldLeadIt.key)?.physical && priorGaps.get(oldLeadIt.key).lead === it.key;
+        if (!reciprocal && risk && bounded) {
+          let followers = latchedFollowers.get(p.key);
+          if (!followers) latchedFollowers.set(p.key, followers = new Set());
+          followers.add(it.key);
+          const s = Math.min(s2, s3);
+          if (s < sep || lead?.key === p.key) { lead = p; sep3d = s3; sep = s; }
+        }
+      }
+      if (!it.g.dwell) for (let m = gapParked.length - 1; m >= 0; m--) {
+        const p = gapParked[m], ph = leadHoldOf(p); if (blockGapAtOrdinaryEndpoint(p, it, it.h, ph)) continue;
+        if (latchedFollowers.get(it.key)?.has(p.key)) continue;
+        const s3 = blockSep3d(p, it, it.h, ph); if (!near3d(p, s3)) continue;
+        const s2 = blockSep2d(p, it, it.h, ph), s = Math.min(s2, s3);
+        if (s < sep) { lead = p; sep3d = s3; sep = s; }
+      }
       if (lead && !it.g.dwell) {
-        const sep = Math.min((lead.d - it.g.d) * it.g.dir, blockSep3d(lead, it)); // km,與前車的實際距離(立體較短時取立體,見 blockSep3d)
-        const pv = _blockGap.get(it.key);
+        // km,與前車的有效距離；候選比較同時看 2D／3D，不能讓較遠的停站車蓋掉眼前的普通 barrier。
+        const pv = oldGap;
         // 棘輪綁在「這一台前車」上:換一台前車就重新以現況起算。沿用上一台的棘輪(它可能在 12km 外,
         // 早就長到 400m)會讓後車在新前車貼身出現的當下被要求退開 350m——它不能倒退,只能原地停死
         // (西勢實測停 16 秒,前車還在 87km/h 拉開)。
-        let gk = (pv && pv.lead === lead.key) ? pv.gk
-          : Math.min(BLOCK_GAP_KM, Math.max(BLOCK_GAP_MIN_KM, sep));   // 首次咬住:以現況為準,不硬拉開
+        const physical = Number.isFinite(sep3d);
+        const gmin = physical ? blockClearance3d(lead, it) : BLOCK_GAP_MIN_KM;
+        let gk = (pv && pv.lead === lead.key && !!pv.physical === physical) ? Math.max(pv.gk, gmin)
+          : Math.min(BLOCK_GAP_KM, Math.max(gmin, sep));   // 實體合併段至少保留兩列車身；其餘仍以現況首咬
         // 只在「還有餘裕」時往回長。咬住的時候還在長,等於目標追著後車跑:前車以 7.5km/h(2m/s)拉開、
         // 棘輪以 10km/h(2.8m/s)長,差距永遠補不完 ⇒ 後車在區間停死(實測宜蘭線 402 就是這樣)。
         // 設計要的是「減速到與前車同速、跟在後面一個車距」,不是停死。
         if (sep >= gk) gk = Math.min(BLOCK_GAP_KM, gk + BLOCK_GAP_GROW * (snap ? BLOCK_GAP_KM : dSim));
-        _blockGap.set(it.key, { lead: lead.key, gk });
+        _blockGap.set(it.key, { lead: lead.key, gk, physical });
+        if (physical) { releaseLead = lead; releaseGap = gk; }
         const over = (gk - sep);                            // km,>0=比該有的車距更近
         if (over > 0) {
           const g2 = trainSeg(it.tr, tAt(it.h - 2));        // 原始模型此刻的速度(km/s);換線形無從比里程 → 取極速
@@ -11792,8 +11883,27 @@ function updateBlockHolds() {
         // 比的是畫出來的經緯度而不是里程:換線形時里程無從比,而那正是 hold 可能一次歸零的時候。
         const prev = _blockPrevD.get(it.key) || trainPosAt(it.tr, tAt(it.h));
         const maxKm = vcap * dSim;
-        const ok = hh => { const p = trainPosAt(it.tr, tAt(hh)); return p && haversineKm(p, prev) <= maxKm; };
+        // 合併段除了守極速，hold 回收後也必須仍在本幀的實體棘輪外；否則會一幀放掉 20～33 m、
+        // 下一幀才補回，恰好讓 160／245.7 m 編組每隔一秒擦碰。當前已鎖定實體前車後，候選位置若讓
+        // blockSep3d 回 Infinity，本幀先視為不安全；下一幀重排後才由完整 2D／3D 關係決定是否放行。
+        const gapOk = hh => {
+          if (!releaseLead) return true;
+          const leadHold = releaseLead.settledH ?? releaseLead.it.h;
+          const s3 = blockSep3d(releaseLead, it, hh, leadHold), s2 = blockSep2d(releaseLead, it, hh, leadHold);
+          return Number.isFinite(s3) && Math.min(s2, s3) + 1e-6 >= releaseGap;
+        };
+        const ok = hh => { const p = trainPosAt(it.tr, tAt(hh)); return p && haversineKm(p, prev) <= maxKm && gapOk(hh); };
         if (!prev || ok(target)) h2 = target;
+        else if (releaseLead && !ok(it.h)) {
+          // 前車本幀也被加 hold 時，舊 hi 可能已經不安全；最多多補本幀秒數（畫面停住），再從安全端反查最小 hold。
+          const stopH = Math.min(BLOCK_CAP_SEC, it.h + dSim);
+          if (!ok(stopH)) h2 = stopH;
+          else {
+            let lo = it.h, hi = stopH;
+            for (let k = 0; k < 12; k++) { const mid = (lo + hi) / 2; if (ok(mid)) hi = mid; else lo = mid; }
+            h2 = hi;
+          }
+        }
         else {
           let lo = target, hi = it.h;                       // lo=追最多(可能超速), hi=不追(必合法)
           for (let k = 0; k < 12; k++) { const mid = (lo + hi) / 2; if (ok(mid)) hi = mid; else lo = mid; }
@@ -11809,12 +11919,16 @@ function updateBlockHolds() {
         if (pf) _blockPrevD.set(it.key, pf); else _blockPrevD.delete(it.key);
       } else { _blockHold.delete(it.key); _blockPrevD.delete(it.key); }
       // 屏障存前車的里程本身,車距由每台後車各自的棘輪決定;前車停站中就不是障礙(月台待避合法),
-      // 屏障沿用更前面那班的。實質停在站上的另外記著,只擋實體股道上真的會撞到的後車(blockParkedBlocks)。
-      // 停在派車表沒有的站上也記進去:立體地圖讓它停在主線上,那裡沒有月台待避這回事(blockDwellOnLine)
+      // 屏障沿用更前面那班的。實質停在站上的另外記著，只擋實體股道上真的會撞到的後車(blockParkedBlocks)。
+      // gapParked 只替合併段保留停站候選：中間即使插進不同股道的行進車，後車仍會拿實體股道再判一次。
+      const observer = { d: it.g.d, key: it.key, it, settledH: h2 };
+      settledByKey.set(it.key, observer);
+      const stoppedAtStop = !it.g.dwell && blockStoppedAtStop(it, tAt);
       if (!it.g.dwell) {
-        if (blockStoppedAtStop(it, tAt)) parked.push({ d: it.g.d, key: it.key, it });
-        else { barrier = { d: it.g.d, key: it.key, it }; parked.length = 0; }
-      } else if (blockDwellOnLine(it)) parked.push({ d: it.g.d, key: it.key, it });
+        if (stoppedAtStop) parked.push(observer);
+        else { barrier = observer; parked.length = 0; }
+      } else if (blockDwellOnLine(it)) parked.push(observer);
+      if ((it.g.dwell || stoppedAtStop) && blockMergedDwellCandidate(it, hasMerged)) gapParked.push(observer);
     }
     // 並排偏移的配對:在同一份排序上取「連續且貼近」的車列。用 arr 的鄰接而不是 barrier 鏈——
     // 停站中的車也要參與(月台待避的當下正是兩顆標記重疊的那一刻)。
