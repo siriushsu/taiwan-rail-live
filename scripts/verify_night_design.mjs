@@ -28,6 +28,16 @@ function geometry(){
  const controls=[...panel.querySelectorAll('.night-directions button,.night-next,#boardClose,#boardStar')].filter(n=>n.offsetWidth&&n.offsetHeight&&!n.hidden).map(n=>{const b=n.getBoundingClientRect(),x=b.left+b.width/2,y=b.top+b.height/2,hit=document.elementFromPoint(x,y);return{id:name(n),w:b.width,h:b.height,hit:n===hit||n.contains(hit),visible:y>=r.top&&y<r.bottom};});
  return {overflow:document.documentElement.scrollWidth>innerWidth+1,panel:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,h:r.height},controls,overlap};
 }
+const buildings=()=>{const g=M.raw.getLayer('building-glass-edges');return{keys:Object.keys(g||{}),count:g?.implementation?.count??g?.count,alpha:M.raw.getPaintProperty('building-3d','fill-extrusion-opacity'),color:M.raw.getPaintProperty('building-3d','fill-extrusion-color'),source:M.raw.getLayer('building-3d').source,inspection:document.querySelector('[data-rail3d="inspection"] [aria-pressed="true"]')?.dataset.value};};
+const clip=async page=>sharp(await page.screenshot({clip:{x:100,y:250,width:500,height:400}})).raw().toBuffer();
+const differ=(a,b)=>{let n=0;for(let i=0;i<a.length;i++)if(Math.abs(a[i]-b[i])>5)n++;return n;};
+// 等畫面靜止：圖磚到齊、立體模組載完、玻璃層沒有排著的重建，而且連兩次截圖都跟上一張相同。
+async function settle(page){
+ await page.waitForFunction(()=>{const l=M.raw.getLayer('building-glass-edges'),impl=l?.implementation||l;return M.raw.areTilesLoaded()&&!window.railIslandIntegration?.loading&&!impl?.timer;},null,{timeout:60000});
+ let prev=await clip(page),still=0,tries=0;
+ for(;tries<60&&still<2;tries++){await page.waitForTimeout(250);const cur=await clip(page);still=differ(prev,cur)===0?still+1:0;prev=cur;}
+ return {still:still>=2,tries};
+}
 let browser;
 try{
  for(const [en,engine]of Object.entries({chromium,webkit})){
@@ -36,19 +46,32 @@ try{
   const page=await ctx.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await boot(page);
   await page.evaluate(()=>{M.setView([25.0478,121.5164],17,{animate:false});setMap3d(true);M.raw.setPitch(55);});
   await page.waitForFunction(()=>M.raw.getLayer('building-glass-edges')?.implementation?.count>0||M.raw.getLayer('building-glass-edges')?.count>0,null,{timeout:30000}).catch(()=>{});
-  const glass=await page.evaluate(()=>{const g=M.raw.getLayer('building-glass-edges');return{keys:Object.keys(g||{}),count:g?.implementation?.count??g?.count,alpha:M.raw.getPaintProperty('building-3d','fill-extrusion-opacity'),color:M.raw.getPaintProperty('building-3d','fill-extrusion-color'),source:M.raw.getLayer('building-3d').source};});
+  // 凍結其他移動層，將細線層 draw count 歸零作像素 A/B，避免只驗樣式參數。
+  await page.evaluate(()=>{document.getElementById('overlay').style.visibility='hidden';M.raw.setPaintProperty('building-3d','fill-extrusion-opacity-transition',{duration:0});});
+  // v0907e（b8f468fc）起街圖建築多了「透視顯示」開關，預設透視（比夜間玻璃更透）；.30 是切到「實體」時的夜間玻璃。
+  // 本支寫在那之前，兩個狀態都要驗：先量預設，再按設定裡那顆「實體」鈕。
+  await settle(page);const see=await page.evaluate(buildings);await page.screenshot({path:path.join(out,en+'-glass-see.png')});
+  await page.evaluate(()=>document.querySelector('[data-rail3d="inspection"] button[data-value="off"]')?.click());
+  await settle(page);const glass=await page.evaluate(buildings);
+  ok(en+' 預設透視顯示：藍色建築比實體更透',see.inspection==='on'&&see.alpha>0&&see.alpha<glass.alpha&&see.color==='#638BC5'&&see.source==='openmaptiles',see);
   ok(en+' 透明藍色建築使用原始建築資料',glass.alpha===.30&&glass.color==='#638BC5'&&glass.source==='openmaptiles',glass);
   ok(en+' 屋頂與樓層線確實產生頂點',glass.count>0&&glass.count<=161000,glass);
   const order=await page.evaluate(()=>{const ids=M.raw.getLayersOrder();return {glass:ids.indexOf('building-glass-edges'),track:ids.indexOf('track-glow'),labels:ids.filter(id=>M.raw.getLayer(id).type==='symbol').map(id=>ids.indexOf(id))};});
   ok(en+' 玻璃細線在所有軌道與站名之下',order.glass>=0&&order.glass<order.track&&order.labels.every(i=>i>order.glass),order);
-  // 凍結其他移動層，將細線層 draw count 歸零作像素 A/B，避免只驗樣式參數。
-  await page.evaluate(()=>{document.getElementById('overlay').style.visibility='hidden';M.raw.setPaintProperty('building-3d','fill-extrusion-opacity-transition',{duration:0});});
-  async function shot(){await page.waitForTimeout(300);return sharp(await page.screenshot({clip:{x:100,y:250,width:500,height:400}})).raw().toBuffer();}
+  // 開／關兩張之間只能差細線。只等固定 300ms 時兩頭都會錯（09-26 實測）：玻璃層在窗口內自己重建、把歸零的
+  // count 補回去，差異變 0；透明度與地標模型還在變時，差異被它們灌到十幾萬，細線沒拿掉也照樣過。
+  // 所以先等畫面靜止、A/B 期間暫停重建，並確認「關」那格 count 真的是 0、還原後與「開」逐位元組相同。
+  const ready=await settle(page);
+  await page.evaluate(()=>{const g=M.raw.getLayer('building-glass-edges'),impl=g.implementation||g;clearTimeout(impl.timer);impl.timer=null;impl.pausedRebuild=impl.rebuild;impl.rebuild=()=>{};});
+  async function shot(){await page.waitForTimeout(300);return clip(page);}
   const on=await shot();await page.screenshot({path:path.join(out,en+'-glass.png')});
   await page.evaluate(()=>{const g=M.raw.getLayer('building-glass-edges'),impl=g.implementation||g;impl.savedCount=impl.count;impl.count=0;M.raw.triggerRepaint();});
   const off=await shot();let changed=0;for(let i=0;i<on.length;i++)if(on[i]-off[i]>5)changed++;
-  ok(en+' 玻璃細線有實際像素輸出',changed>120,changed);
-  await page.evaluate(()=>{const g=M.raw.getLayer('building-glass-edges'),impl=g.implementation||g;impl.count=impl.savedCount;document.getElementById('overlay').style.visibility='';});
+  const held=await page.evaluate(()=>{const g=M.raw.getLayer('building-glass-edges'),impl=g.implementation||g;return impl.count===0;});
+  await page.evaluate(()=>{const g=M.raw.getLayer('building-glass-edges'),impl=g.implementation||g;impl.count=impl.savedCount;M.raw.triggerRepaint();});
+  const drift=differ(on,await shot());
+  await page.evaluate(()=>{const g=M.raw.getLayer('building-glass-edges'),impl=g.implementation||g;impl.rebuild=impl.pausedRebuild;delete impl.pausedRebuild;impl.schedule?.();document.getElementById('overlay').style.visibility='';});
+  ok(en+' 玻璃細線有實際像素輸出',ready.still&&held&&drift===0&&changed>120,{changed,held,drift,ready});
   await page.evaluate(board);await page.evaluate(()=>M.setView([25.047,121.517],13,{animate:false}));
   for(const direction of ['南下','北上']){
    await page.getByRole('button',{name:direction,exact:true}).click();
