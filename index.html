@@ -5595,6 +5595,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="share3d0926"><span class="d">9/26</span><span>用 Safari 開別人分享的立體地圖時，列車編組、地形與立體列車開關會完整保留，不再偶爾回到自己的預設設定</span></li>
         <li data-cl-of="groupswitch0926"><span class="d">9/26</span><span>切換上方分組（全台同框、台鐵、高鐵、捷運與輕軌）時，畫面不會再卡住兩三秒</span></li>
         <li data-cl-of="garagereverse0926"><span class="d">9/26</span><span>車庫環形試跑按 ⇄ 反向行駛時會整列掉頭，車頭照樣在最前面（原本頭尾兩節的車頭會轉進車廂中間）；福森號、栩悅號兩端都改成觀景車頭</span></li>
         <li data-cl-of="landcard0926"><span class="d">9/26</span><span>手機橫放時，平交道卡、落釘卡、台糖卡改成靠右整條顯示，接下來的班次不用捲就看得到（原本卡片太矮，常常一列都看不到）</span></li>
@@ -5602,7 +5603,6 @@
         <li data-cl-of="kbfocusback0926"><span class="d">9/26</span><span>用鍵盤操作時，車站看板自動更新、關掉面板、在行程分享選好目的站、展開或收起跟捷運時的膠囊小卡之後，選取不再跳回頁首，會留在原處或回到打開面板的按鈕</span></li>
         <li data-cl-of="spacekey0926"><span class="d">9/26</span><span>空白鍵在任何地方都是播放／暫停，不會再順便打開資料卡、展開卡片或讓鍵盤選取跳回頁首，按住也只切一次；面板邊緣與標題列按鈕的鍵盤選取框不再被切掉</span></li>
         <li data-cl-of="kbfocusfoot0926"><span class="d">9/26</span><span>用鍵盤往下一項移動時，跟車卡選到的按鈕不再被底部的「詳細」提示列蓋住；App 附近車站卡往回移動時「蓋章」鈕不再被標題蓋住；車庫捲到下面再回到頂列按鈕，畫面不再往上跳</span></li>
-        <li data-cl-of="boardrowkb0926"><span class="d">9/26</span><span>今日台鐵動態、公車站牌與行程分享的清單可以用鍵盤一列一列移過去，讀螢幕軟體也唸得出每一列；展開逐站歷程、選目的站，按 Enter 就行</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6003,6 +6003,7 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li data-cl="share3d0926"><span class="d">9/26</span><span>修正 Safari 開啟分享畫面時偶爾遺失立體設定：立體列車開關、列車編組、地形模式與分享視角都會照對方傳來的連結開啟，不再被開機過程清掉</span></li>
         <li data-cl="weblogin0910"><span class="d">9/10</span><span>修正網站按登入會顯示「登入失敗」的問題：Google 與 Apple 登入現在都能正常完成，登入後收藏、完乘與通行證資格就會同步。App 內的登入不受影響。（謝謝網友回報）</span></li>
         <li data-cl="passentry0910"><span class="d">9/10</span><span>通行證有自己的入口了：手機從「更多」打開就在第二列，電腦在工具列上有一顆「通行證」，不再和「帳號同步」共用同一格。在網站上打開通行證時，也直接給 App Store 與 Google Play 的下載連結。</span></li>
         <li data-cl="passpeek0910"><span class="d">9/10</span><span>通行證不用先登入也看得到：面板直接打得開，可以先看清楚有哪些功能，要看價格或訂閱時才需要登入軌島帳號。已經訂閱的人一樣從同一個地方登入恢復。</span></li>
@@ -6858,7 +6859,10 @@
 //         三節同向時連正向都是觀景窗頂著前一節、尾端露出貫通門 ⇒ 尾車 flip；中間車仍是同一個端車車模（沒有中間車模型），
 //         觀景窗對著頭車的貫通門。守門：verify_garage_facing（62 款 × 環形八點與海岸 × 正反兩向，以車燈材質重心當車頭端真值，
 //         附對照組）掛 check-garage 與 ship-web；verify_garage_loop 反向判準改驗「頭車換端且車頭朝外、逆向時頭車領頭」。
-const BUILD = 'v0926n';
+const BUILD = 'v0926o';
+// rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
+// 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
+const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -18314,8 +18318,9 @@ function clearFollow() {
   // 「按下開始錄製那一刻」還早）。demo 模式(?demo=bounty)沒有其他地方記著它——網址列一旦丟了,
   // 使用者中途重新整理就會讀到空 query string、PHYSICAL_COLLECT_ENABLED 現場重新求值變 false,
   // 掉回一般網頁(明天備援站實測正是這條路)。這裡是所有 clearFollow() 呼叫的共同出口，修在這裡
-  // 才能連開機那一次也護到，不是只護住錄製流程那一條呼叫路徑。其餘 query 參數
-  // (?theater=/?breath=/?tripshare=)都只是一次性測試開關，消失不影響功能，不需要一起保留。
+  // 才能連開機那一次也護到，不是只護住錄製流程那一條呼叫路徑。rail-3d 的分享與觀看參數
+  // 已在開機第一批程式碼快照到 RAIL_3D_BOOT_PARAMS；其餘 query 參數(?theater=/?breath=/?tripshare=)
+  // 都只是一次性測試開關，消失不影響功能，不需要一起保留。
   try { if (!document.fullscreenElement) history.replaceState(null, '', location.pathname + (DEMO_AS_APP ? '?demo=bounty' : '')); } catch (e) {}
   const fb = document.getElementById('followBar');
   if (fb) { fb.hidden = true; fb.className = 'followbar'; fb.innerHTML = ''; }

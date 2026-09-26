@@ -2,12 +2,13 @@ import {chromium,webkit} from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const base=process.env.VURL||'http://127.0.0.1:5244',rows=[];
+fs.mkdirSync('output/tainan-memory',{recursive:true});
 for(const [engine,type] of Object.entries({chromium,webkit})){
  console.log('開始',engine);
  // 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走)。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
  const browser=await type.launch(engine==='chromium'?{channel:'chromium',headless:true}:{headless:true}),page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
- await page.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-map3d','0');});
- await page.goto(base+'/?scene=2d&g=all&lang=zh-TW');await page.waitForFunction(()=>typeof state!=='undefined'&&state.ready&&state.trains?.length>0,null,{timeout:120000});
+ await page.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-map3d','0');localStorage.setItem('ri-trains-enabled','0');});
+ await page.goto(base+'/?g=all&lang=zh-TW');await page.waitForFunction(()=>typeof state!=='undefined'&&state.ready&&state.trains?.length>0,null,{timeout:120000});
  await page.evaluate(()=>{state.playing=false;});
  for(const width of [360,375,390,414,768,1280]){
   await page.setViewportSize({width,height:900});

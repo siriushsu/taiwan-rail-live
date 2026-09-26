@@ -1,5 +1,8 @@
 /* 與主站共用 MapLibre、行車時鐘及點擊/跟隨；只接入 3D 顯示。 */
 (async()=>{
+  // index.html 在 boot 開始前已經快照 query；必須在第一個 await 之前接手。
+  // fallback 給舊 index.html 配新 rail-3d.js 的短暫靜態資產快取組合。
+  const params=typeof RAIL_3D_BOOT_PARAMS==='undefined'?new URLSearchParams(location.search):RAIL_3D_BOOT_PARAMS;
   const base='./rail-3d/integration/';
   const {installFollowCameraLock}=await import(base+'follow-camera-lock.js');
   let cameraLock=null,guide=null,lastTilt={pitch:55,bearing:0,elevation:0};
@@ -11,7 +14,6 @@
   // 官方另有「跳站的普通車」,回推會把它畫成 5 節直達車。實測今日兩種日型 607 班官方全部有標,
   // 回推則 11 班猜不出、6 班猜錯。官方沒標的留 null,照舊退成 3 節示意並標「當班編組待確認」。
   const TYMC_SERVICE={com:'local',exp:'express'};
-  const params=new URLSearchParams(location.search);
   if(params.get('tracks')!=='legacy')import('./rail-3d/physical/client.js').then(m=>m.loadPhysicalMotion()).then(m=>{window.railIslandPhysical=m;glTracks.sig='';}).catch(e=>console.error('實體股道',e));
   // 這一區的 ri-* 全是使用者在「觀看設定」裡按過的選擇(立體列車開關、編組、地形、車身大小、透視…),
   // 原本記在 sessionStorage,分頁一關(手機上就是把 app 滑掉)整組就沒了,下次開又回預設——

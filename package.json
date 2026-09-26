@@ -115,6 +115,7 @@
     "check-3d-assets": "node scripts/verify_3d_assets.mjs",
     "check-articulated-grounding": "node scripts/verify_articulated_grounding.mjs",
     "check-3d-lifecycle": "node scripts/verify_3d_lifecycle.mjs",
+    "check-share-url-3d": "node scripts/verify_share_url_3d.mjs",
     "check-3d-framing": "node scripts/verify_3d_framing.mjs",
     "check-3d-occlusion": "node scripts/verify_3d_occlusion.mjs",
     "check-follow-heading": "node scripts/verify_follow_heading_toggle.mjs",

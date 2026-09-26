@@ -2,7 +2,7 @@ import {chromium,webkit} from 'playwright';
 import fs from 'node:fs';
 const base=process.env.VURL||'http://127.0.0.1:5207/',results=[];
 for(const[name,engine]of Object.entries({chromium,webkit})){
- const browser=await engine.launch(),page=await browser.newPage({viewport:{width:375,height:900},locale:'zh-TW',isMobile:true,hasTouch:true}),errors=[];
+ const browser=await engine.launch(name==='chromium'?{channel:'chromium',headless:true}:{headless:true}),page=await browser.newPage({viewport:{width:375,height:900},locale:'zh-TW',isMobile:true,hasTouch:true}),errors=[];
  page.on('pageerror',e=>errors.push(e.stack));await page.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));
  try{
   await page.goto(base+'?scene=3d&z=19&g=all&train=117&t=12:00&lang=zh-TW');await page.waitForFunction(()=>window.railIslandIntegration?.renderer&&state.followTrain,null,{timeout:60000});

@@ -512,6 +512,15 @@ try {
   // 「改到面板算繪或 sheet 家族就原地復發、其餘閘門照不到」的那種。兩引擎約 2–3 分鐘。
   // 🔴 preflight 主動洗掉繼承來的 QT_ONLY(空字串走 verify_query_tab.mjs 的 falsy 分支＝全跑)——
   // 「不設」不等於「不受影響」，出貨那個 shell 若曾 export QT_ONLY，spawnSync 預設會原樣繼承。
+  // ── 2.14b 3D 分享 URL 開機契約守門人──rail-3d 先 await dynamic import，boot 又會清理 query。
+  // 在 import 切點主動清掉 query，Chromium＋WebKit 各 10 輪驗實際設定與 z／visit 視角。
+  const share3d = spawnSync('node', [path.join(wt, 'scripts', 'verify_share_url_3d.mjs')], {
+    cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '', BASE_URL: '', VURL: '', ENGINE: '', ROUNDS: '10' },
+  });
+  process.stdout.write(share3d.stdout || ''); process.stderr.write(share3d.stderr || '');
+  if (share3d.status !== 0) fail('3D 分享連結開機契約未過——Safari 可能遺失立體列車、編組、地形或視角參數'
+    + '（單獨重跑：npm run check-share-url-3d）');
+
   const queryTab = spawnSync('node', [path.join(wt, 'scripts', 'verify_query_tab.mjs'), wt], { encoding: 'utf8', env: { ...process.env, QT_ONLY: '', QUERY_SECTION: '' } });
   process.stdout.write(queryTab.stdout || ''); process.stderr.write(queryTab.stderr || '');
   if (queryTab.status !== 0) fail('查詢分頁守門人未過——兩態 sheet／答案同源／自動開／更多抽屜之一壞了'
