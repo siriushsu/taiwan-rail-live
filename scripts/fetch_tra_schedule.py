@@ -67,7 +67,7 @@ TRA_PATH = "data/tra.json"
 #   - 待上架站（站碼在下面這份，或官方站名在 fetch_tra.py 的 PENDING_STATIONS）要等
 #     官方車站清單有、而且 data/tra.json 站序也有這一站才收；在那之前照丟，但每次具名印出來。
 #   - 官方車站清單沒有（或有但座標不可用）、也不是待上架站的站碼：整輪失敗、不寫檔，交給人判斷。
-#     座標不可用以前一樣是靜默丟掉整站——中壢的座標要是壞了，一次會少掉 2,900 多個停靠。
+#     座標不可用以前一樣是靜默丟掉整站——中壢的座標要是壞了，14 天的窗會少掉近 2,900 個停靠。
 # 「tra.json 有沒有這一站」只對待上架站用站名判：1001「臺北-環島」這種官方專用站碼的
 # 站名本來就對不上 tra.json（densify 靠座標把它吸到臺北），套成通用規則會誤丟。
 # 站碼表只能另記一份：站碼不是官方車站清單的值，是逐日時刻表先用上的（站名是推定）。
@@ -379,9 +379,9 @@ def main():
 
     pending_skips, unknown_skips = skips("pending"), skips("unknown")
     for code, per_day in pending_skips:
-        name = listed_names.get(code)
+        name = listed_names.get(code) or "（站名空白）"
         if code in station_index:
-            what = f"「{name}」（官方車站清單已上架，但 {TRA_PATH} 站序還沒有「{name}」這個站名）"
+            what = f"「{name}」（官方車站清單已上架，但 {TRA_PATH} 站序還沒有這個站名）"
         elif code in listed_names:
             what = f"「{name}」（官方車站清單有這個站碼，但座標不可用）"
         else:
