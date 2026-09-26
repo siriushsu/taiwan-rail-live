@@ -6743,7 +6743,13 @@
 //         改 role=group 只讓鍵盤走得到、讀螢幕唸得出，滑鼠／觸控點出來的焦點直接放掉。今日動態、公車重畫整份清單時
 //         把鍵盤焦點放回同一列（preventScroll）；公車站牌開著時切語言立刻重畫。修前兩引擎 × 五寬度可聚焦列 0，
 //         修後 30／16／17 列全到。守門人：verify_board_scroll_pad 三張清單面板的 W／E／C／R 格與突變對照（兩個引擎）。
-const BUILD = 'v0926e';
+// v0926g：3D 綁定略過派車表沒有的台鐵中途站（2026-10 起的平鎮臨時站 1105，評估選項 C1）：通過站直接略過，停靠站把前後兩段
+//         併回原本那一段，車走派車表原本的股道、不在平鎮停（C2 另案）；2D 照官方站序。plan-binding 回傳綁定用的站序與它們在
+//         原班表的位置，motion 照它建行車紀錄：併段中間全是通過站就沿用同一條跑段剖面、段長取各小段相加，跨了跑段退回等速。
+//         assignSchedShapePathsFor 把原本那一段的 maxPathM 按示意長分給各小段當 physKm，併段剖面才不短於實體股道（09-19 不留容差）。
+//         閘門：verify_remaining_station_routes 名冊比對改用閘門自算的站集；verify_phys_speed_cap 併段整段量、G3 加併段剖面長下限。
+//         現行資料沒有派車表以外的站：逐班綁定、剖面欄位、逐秒 3D 位置新舊全同，畫面沒有變化。
+const BUILD = 'v0926g';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -11805,6 +11811,9 @@ function assignSchedShapePathsFor(trains, lines) {
       byName.get(name).push({ ln, d: pr.d });
     }
   }
+  // 實體股道表認得的台鐵站（表鍵的兩端，正規化與 traSectionKey 同一套），給下面的併段下限用。
+  const traName = n => traSectionKey(n, n).split('|')[0];
+  const traKnown = state.trackSections ? new Set(Object.keys(state.trackSections).flatMap(k => k.split('|'))) : null;
   for (const tr of trains) {
     const s = tr.stops, perf = resolvePerf(tr); // 車種加減速參數(HSR/carName/typeName 解析)
     for (const st of s) { delete st.bridgeTo; delete st.bridgeKm; delete st.rp; delete st.rpDep; delete st.rpOff; delete st.rpSegKm; delete st.physKm; }
@@ -11836,6 +11845,19 @@ function assignSchedShapePathsFor(trains, lines) {
       if (!(gap > 0.001 && gap <= 0.1)) continue;
       incoming.bridgeTo = to; incoming.bridgeKm = gap;
       state._segStats.bridged++;
+    }
+    // 派車表沒有的中途通過站（2026-10 起的平鎮臨時站）前後兩對都不在實體股道表裡，上面掛不到 physKm。立體地圖把那幾段
+    // 併回原本那一段畫（rail-3d/physical/plan-binding.js），點速＝剖面速度×（原本那一段的實體長÷各小段剖面長相加），
+    // 所以把原本那一段的 maxPathM 按示意長比例分給各小段，相加才回到原本那一段的下限（理由見 schedSegKmOf）。
+    // 中途站有停靠的不分：3D 在那裡跨了跑段、整段退回等速，用不到剖面長。
+    if (tr.sys === 'tra_sched' && !tr.loop && traKnown) for (let i = 0; i < s.length - 2; i++) {
+      if (!traKnown.has(traName(s[i].name))) continue;
+      let j = i + 1; while (j < s.length - 1 && !traKnown.has(traName(s[j].name))) j++;
+      const p = j > i + 1 && s.slice(i + 1, j).every(x => x.stop === false) && state.trackSections[traSectionKey(s[i].name, s[j].name)];
+      if (!(p && p.maxPathM > 0)) continue;
+      const km = s.slice(i, j).map((_, k) => schedSegKmOf(s, i + k)), sum = km.reduce((a, b) => a + b, 0);
+      if (sum > 0) km.forEach((x, k) => { s[i + k].physKm = p.maxPathM / 1000 * x / sum; });
+      i = j - 1;
     }
     // 高鐵時刻表只到「分」(實測今日 151 班每一個到離站時刻 %60 皆為 0;台鐵是 30 秒解析度,
     // 有 :00 也有 :30,故不適用),而真車是在那一分之內關門、滑出月台。照分秒整放行等於每一站

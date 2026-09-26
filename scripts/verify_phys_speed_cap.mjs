@@ -10,8 +10,9 @@
 // 判準：
 //   G1 physical 就緒，台鐵實體段覆蓋率具名斷言（分母不准無聲縮水）。
 //   G2 預算剖面整批被採用（used>0、stale=0）——否則量到的是現算剖面，不是出貨的那份。
-//   G3 台鐵：每個有實體股道表的站對都拿到 physKm（剖面長度的來源）。
-//   G4 台鐵：實體點速 ≤ 車種極速（數值誤差 1e-6 km/h，不是容差）。
+//   G3 台鐵：每個有實體股道表的站對都拿到 physKm（剖面長度的來源）；中間夾派車表沒有的通過站、3D 併成一段畫的，
+//      各小段剖面長相加不短於前後兩站那一對的最長實體路徑。
+//   G4 台鐵：實體點速 ≤ 車種極速（數值誤差 1e-6 km/h，不是容差）；併段整段量。
 //   G5 機捷：同上。
 //   高鐵只印資訊：剖面綁在派軌解上，改長度要重解六種日型的派軌，另案處理（已知最多 +1.75 km/h）。
 //
@@ -62,29 +63,44 @@ await page.waitForFunction(() => typeof state !== 'undefined' && state.trains &&
   && window.railIslandPhysical && typeof window.railIslandPhysical.sample === 'function', null, { timeout: 240000 });
 await page.waitForTimeout(3000);
 
-const r = await page.evaluate(() => {
-  const P = window.railIslandPhysical, EPS = 0.01, out = { pre: { ..._rpPre }, sys: {}, missPhysKm: [], tableHit: 0 };
+const r = await page.evaluate(async () => {
+  const P = window.railIslandPhysical, EPS = 0.01, out = { pre: { ..._rpPre }, sys: {}, missPhysKm: [], tableHit: 0, mergedHit: 0, mergedShort: [] };
+  // 派車表沒有的台鐵中途站（2026-10 起的平鎮）3D 把前後兩段併成一段畫（plan-binding.js），取樣回報的 stopIndex
+  // 是併段起點 ⇒ 照官方站序逐段量會漏掉併段後半截。這裡改成量整段併段；站集由閘門自己從派車表算，不取產品回報的站序。
+  const { stationKey } = await import('/rail-3d/physical/timing.js');
+  const known = new Set(Object.entries(P.dispatch.plans).filter(([k]) => k.startsWith('tra_sched:')).flatMap(([, p]) => JSON.parse(p.stopSignature).map(x => x[0])));
   for (const tr of state.trains) {
     const sys = tr.sys; if (!['tra_sched', 'thsr_sched', 'afr_sched'].includes(sys) || !tr.stops) continue;
     const o = out.sys[sys] || (out.sys[sys] = { segs: 0, trains: new Set(), over: [], worst: null });
     const s = tr.stops, cap = resolvePerf(tr).v;
+    const skipped = i => sys === 'tra_sched' && !tr.loop && i > 0 && i < s.length - 1 && !known.has(stationKey(sys, s[i].name));
     for (let i = 0; i < s.length - 1; i++) {
       if (sys === 'tra_sched' && state.trackSections) {
         const p = state.trackSections[traSectionKey(s[i].name, s[i + 1].name)];
         if (p && p.maxPathM > 0) { out.tableHit++; if (!(s[i].physKm > 0)) out.missPhysKm.push(`${tr.train} ${s[i].name}→${s[i + 1].name}`); }
       }
-      const t0 = s[i].depSec + EPS, t1 = s[i + 1].arrSec - EPS; if (!(t1 > t0)) continue;
+      if (skipped(i)) continue;
+      let j = i + 1; while (j < s.length - 1 && skipped(j)) j++;
+      // 併段中間全是通過站時 3D 沿用同一條剖面：各小段剖面長相加不得短於前後兩站那一對的最長實體路徑（G3 同一條下限）。
+      if (j > i + 1 && state.trackSections && s.slice(i + 1, j).every(x => x.stop === false)) {
+        const p = state.trackSections[traSectionKey(s[i].name, s[j].name)];
+        if (p && p.maxPathM > 0) {
+          out.mergedHit++; const L = s.slice(i, j).reduce((n, x) => n + (x.rpSegKm || 0) * 1000, 0);
+          if (!(L >= p.maxPathM - 1e-6)) out.mergedShort.push(`${tr.train} ${s[i].name}→${s[j].name} ${L.toFixed(3)}<${p.maxPathM}`);
+        }
+      }
+      const t0 = s[i].depSec + EPS, t1 = s[j].arrSec - EPS; if (!(t1 > t0)) continue;
       const a = P.sample(tr, t0), b = P.sample(tr, t1);
       if (!a || !b || !a.physical || !b.physical || a.stopIndex !== i || b.stopIndex !== i || a.route !== b.route) continue;
       let peak = 0;
-      for (let u = s[i].depSec; u + 0.5 <= s[i + 1].arrSec; u += 0.5) {
+      for (let u = s[i].depSec; u + 0.5 <= s[j].arrSec; u += 0.5) {
         const p0 = P.sample(tr, u), p1 = P.sample(tr, u + 0.5);
         if (!p0 || !p1 || !p0.physical || !p1.physical || p0.route !== p1.route) continue;
         const v = (p1.chainageM - p0.chainageM) * 7.2; if (v > peak) peak = v;
       }
       o.segs++; o.trains.add(String(tr.train));
-      const x = { train: String(tr.train), from: s[i].name, to: s[i + 1].name, cap, dot: peak,
-        physM: b.chainageM - a.chainageM, profM: s[i].rp ? s[i].rpSegKm * 1000 : null };
+      const x = { train: String(tr.train), from: s[i].name, to: s[j].name, cap, dot: peak,
+        physM: b.chainageM - a.chainageM, profM: s.slice(i, j).every(x => x.rp) ? s.slice(i, j).reduce((n, x) => n + x.rpSegKm * 1000, 0) : null };
       if (!o.worst || peak - cap > o.worst.dot - o.worst.cap) o.worst = x;
       if (peak > cap) o.over.push(x);
     }
@@ -99,8 +115,9 @@ const tra = r.sys.tra_sched || { segs: 0, trains: 0, over: [] }, afr = r.sys.afr
 t('頁面無 pageerror', errs.length === 0, errs.slice(0, 2).join(' | '));
 t('G1 physical 就緒且台鐵實體段覆蓋率', tra.segs >= MIN_TRA_SEGS, `${tra.segs} 段／${tra.trains} 班（下限 ${MIN_TRA_SEGS}）`);
 t('G2 預算剖面整批被採用', r.pre.used > 0 && r.pre.stale === 0, `used ${r.pre.used} stale ${r.pre.stale} local ${r.pre.local}`);
-t('G3 有實體股道表的台鐵站間都帶 physKm', r.tableHit > 0 && r.missPhysKm.length === 0,
-  `命中 ${r.tableHit} 站間，缺 ${r.missPhysKm.length}${r.missPhysKm.length ? '：' + r.missPhysKm.slice(0, 3).join('、') : ''}`);
+t('G3 有實體股道表的台鐵站間都帶 physKm', r.tableHit > 0 && r.missPhysKm.length === 0 && r.mergedShort.length === 0,
+  `命中 ${r.tableHit} 站間，缺 ${r.missPhysKm.length}${r.missPhysKm.length ? '：' + r.missPhysKm.slice(0, 3).join('、') : ''}`
+  + `；併段 ${r.mergedHit} 段，剖面短於實體 ${r.mergedShort.length}${r.mergedShort.length ? '：' + r.mergedShort.slice(0, 3).join('、') : ''}`);
 const overBy = o => o.over.filter(x => x.dot > x.cap + EPS_KMH);
 t('G4 台鐵實體點速 ≤ 車種極速', overBy(tra).length === 0,
   `${overBy(tra).length} 段／${new Set(overBy(tra).map(x => x.train)).size} 班超標；最接近上限：${fmt(tra.worst)}`);
