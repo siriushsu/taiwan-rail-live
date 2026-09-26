@@ -3402,10 +3402,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '公車到站、台鐵月台與災害監看遇到官方來源沒回應時，會在限時內結束等待並於下一輪恢復': '公式データ元から応答がない場合、バス到着情報・台鉄のホーム情報・災害監視は一定時間で待機を終え、次の更新で復旧するようになりました。',
 });
-// 2026-09-27 台鐵站場股道分配改善：第一層更新紀錄那條的 en/ja。
+// 2026-09-27 台鐵方向與站場股道分配改善：更新紀錄的 en/ja。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  '改善全台多座車站的台鐵股道安排，減少兩班車停在同一位置，或通過列車穿過停靠列車的畫面': 'Improved TRA track assignments at stations across Taiwan, reducing cases where two trains stop in the same place or a passing train appears to cross through a stopped train.',
+  '重新整理台鐵列車的行車方向與車站股道安排，減少對向共用同一股，以及列車在站內重疊或互穿的畫面': 'Refined TRA running directions and station track assignments, reducing opposite-direction track sharing and visual overlaps or pass-throughs inside stations.',
+  '依既有路網與站場圖重新整理台鐵列車的行車方向、停靠與進出股道安排，讓更多對向、同時進站、停靠或通過的列車分開使用可用股道，減少共用同一股、停在同一位置或互相穿過的畫面': 'Using the existing railway and station layouts, TRA running directions, stopping tracks and station approaches were reorganised so more opposing, arriving, stopped and passing trains use separate available tracks, reducing shared-track conflicts, overlaps and visual pass-throughs.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  '改善全台多座車站的台鐵股道安排，減少兩班車停在同一位置，或通過列車穿過停靠列車的畫面': '台湾各地の駅で台鉄列車の番線割り当てを改善し、2本の列車が同じ位置に停車したり、通過列車が停車中の列車を突き抜けて見えたりする場面を減らしました。',
+  '重新整理台鐵列車的行車方向與車站股道安排，減少對向共用同一股，以及列車在站內重疊或互穿的畫面': '台鉄列車の進行方向と駅構内の番線割り当てを見直し、対向列車の同一線路利用や、駅構内での重なり・すり抜けを減らしました。',
+  '依既有路網與站場圖重新整理台鐵列車的行車方向、停靠與進出股道安排，讓更多對向、同時進站、停靠或通過的列車分開使用可用股道，減少共用同一股、停在同一位置或互相穿過的畫面': '既存の路線網と駅構内図に基づき、台鉄列車の進行方向、停車番線、進入・退出経路を見直しました。対向列車や同時に進入・停車・通過する列車が別々の線路を使いやすくなり、同一線路の共有、重なり、すり抜けを減らしました。',
 });

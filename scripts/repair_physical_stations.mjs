@@ -43,7 +43,6 @@ const sched = JSON.parse(fs.readFileSync('data/tra_schedule_dense.json', 'utf8')
 // 又把這些具名修復重寫。保護清單直接讀同一份 fixture，避免修復器與 gate 各自維護兩張會漂移的名單。
 const protectedPlans = JSON.parse(fs.readFileSync('scripts/fixtures/remaining-routes-0913.json', 'utf8')).afterPlans;
 const protectedPlanKeys = new Set(Object.keys(protectedPlans));
-const protectedTrainNos = new Set([...protectedPlanKeys].map(key => key.split(':')[1]));
 // 通過站的時刻要用畫面真的會用的那一份：跑剖面＋交會／待避推論（F3）之後的時刻，不是班表密化的插值——
 // 待避推論會刻意把通過車的時刻夾進被超越那班的停站窗裡，用插值時刻會漏掉正是要修的那些衝突。
 // verify_run_profiles_match.mjs 保證這裡算出來的與畫面逐值相同。車次鍵與簽章仍用原始班表（綁定看的是那一份）。
@@ -84,6 +83,7 @@ function nonElectricWays(pid) {
 // ── 逐日名冊 ─────────────────────────────────────────────────────────────────────
 const bind = createPlanBinding(dispatch), days = Object.keys(sched.dates).sort();
 const current = new Map(), borrowed = new Set(), trainOf = new Map(), daysOf = new Map(), coords = new Map();
+const protectedScheduleKeys = new Set();
 const carName = new Map();
 for (const day of days) for (const ix of sched.dates[day]) {
   const t = sched.trains[ix], no = String(t.train);
@@ -93,6 +93,11 @@ for (const day of days) for (const ix of sched.dates[day]) {
   (daysOf.get(key) || daysOf.set(key, []).get(key)).push(day);
   if (trainOf.has(key)) continue;
   const b = bind(tr); if (!b?.plan || b.plan.pathIds.length !== tr.stops.length - 1) continue;
+  // exact／derived 直接以自己的 key 為來源；retimed／route-template 則保護 binder 實際沿用的
+  // source plan。不用 bare trainNo，避免未來同號但站序／停靠型態不同的另一份計畫被過度保護。
+  const protectedSourceKey = b.sourceKey
+    || (b.basis === 'exact' || b.basis === 'derived-pass-times' ? key : null);
+  if (protectedSourceKey && protectedPlanKeys.has(protectedSourceKey)) protectedScheduleKeys.add(key);
   const names = tr.stops.map(s => stationKey(SYS, s.name));
   names.forEach((n, i) => { if (!coords.has(n) && Number.isFinite(t.stops[i].lat)) coords.set(n, { lat: t.stops[i].lat, lon: t.stops[i].lon }); });
   trainOf.set(key, { key, no, tr, stops: tr.stops, names, basis: b.basis });
@@ -210,8 +215,8 @@ console.log(`修復前：B ${first.B}、C ${first.C}（14 天合計，去重 ${d
 for (let round = 1; round <= ROUNDS; round++) {
   const load = new Map();
   for (const c of list) for (const s of [c.x, c.y]) {
-    // 同車次的改點版 key 可能不同；若把它 materialize 成 exact，產品就不再走既有的 retimed 保護路徑。
-    if (protectedTrainNos.has(s.key.split(':')[1])) continue;
+    // 若把沿用受保護 source plan 的 schedule variant materialize 成 exact，產品就不再走該受保護進路。
+    if (protectedScheduleKeys.has(s.key)) continue;
     const k = s.key + '@' + s.i; load.set(k, (load.get(k) || 0) + 1);
   }
   const order = [...load.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);

@@ -36,6 +36,11 @@ const OUT_DIR = process.env.OUT_DIR || 'output/directions';
 const ROUNDS = 3, WRONG_COST = 1000, NODE_COST = 1, PATH_COST = 0.01;
 const net = JSON.parse(fs.readFileSync(process.env.NETWORK || 'rail-3d/physical/network.json', 'utf8'));
 const dispatch = JSON.parse(fs.readFileSync(process.env.DISPATCH || 'rail-3d/physical/dispatch.json', 'utf8'));
+// remaining-routes fixture 裡的 afterPlans 是逐秒、雙方向與模板借用都驗收過的基準；F1 不能為了
+// 壓低逆向段又重寫這些具名修復。F1 只走 dispatch.plans，保護 exact source key 即可；改點版不在
+// 這張表，之後由 plan-binding 以 retimed 沿用未改的 source plan。
+const protectedPlans = JSON.parse(fs.readFileSync('scripts/fixtures/remaining-routes-0913.json', 'utf8')).afterPlans;
+const protectedPlanKeys = new Set(Object.keys(protectedPlans));
 const before = structuredClone(dispatch.plans);
 const M = makeDirectionModel({ net, dispatch });
 const { paths, plans, sigOf, classify, wrongOn, cleanRoute, turnOK, newPaths, nodesOf } = M;
@@ -91,6 +96,7 @@ for (let round = 1; round <= ROUNDS; round++) {
   const { rows, clean } = classify(); lastClean = clean; const memo = new Map();
   let touched = 0, wrongBefore = 0, wrongAfter = 0, nodeChanges = 0, pathChanges = 0;
   for (const [key, plan] of plans) {
+    if (protectedPlanKeys.has(key)) continue;
     const s = solvePlan(plan, clean, memo); if (!s) continue;
     wrongBefore += s.wrongBefore; wrongAfter += s.wrongAfter;
     if (s.wrongAfter >= s.wrongBefore && !s.pathChanges) continue;
@@ -120,6 +126,7 @@ for (const [key, plan] of plans) { const sig = sigOf(plan);
   plan.pathIds.forEach((pid, i) => { const bad = paths[pid] && wrongOn(paths[pid], lastClean); if (bad?.length) report.remaining.push({ plan: key, i, from: sig[i][0].split(':')[1], to: sig[i + 1][0].split(':')[1], wrongWays: bad }); }); }
 const remainingSeg = {}; for (const r of report.remaining) { const k = r.from + '→' + r.to; remainingSeg[k] = (remainingSeg[k] || 0) + 1; }
 const overlapsAfter = nodeOverlaps();
+for (const [key, plan] of Object.entries(protectedPlans)) assert.deepEqual(dispatch.plans[key], plan, '重寫已驗收進路 ' + key);
 console.log(`新落成路徑 ${Object.keys(newPaths).length}，改到 ${Object.keys(report.changedPlans).length} 份計畫；仍逆向的段 ${report.remaining.length}（${new Set(report.remaining.map(r => r.plan)).size} 份計畫）`);
 console.log('仍逆向最多的站間：', Object.entries(remainingSeg).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, v]) => `${k} ${v}`).join('，'));
 console.log('換節點最多的站：', Object.entries(report.nodeChangesByStation).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, v]) => `${k} ${v}`).join('，'));

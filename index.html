@@ -5608,7 +5608,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="traphysicalstation0927"><span class="d">9/27</span><span>改善全台多座車站的台鐵股道安排，減少兩班車停在同一位置，或通過列車穿過停靠列車的畫面</span></li>
+        <li data-cl-of="traphysicalstation0927"><span class="d">9/27</span><span>重新整理台鐵列車的行車方向與車站股道安排，減少對向共用同一股，以及列車在站內重疊或互穿的畫面</span></li>
         <li data-cl-of="workerrecover0927"><span class="d">9/27</span><span>公車到站、台鐵月台與災害監看遇到官方來源沒回應時，會在限時內結束等待並於下一輪恢復</span></li>
         <li data-cl-of="pingzhenhold0927"><span class="d">9/27</span><span>台鐵誤點列車經過平鎮附近時，會穩定維持前後車順序，減少在同一股道短暫重疊的畫面</span></li>
         <li data-cl-of="kbdremain0927"><span class="d">9/27</span><span>鍵盤操作更完整：開啟面板會直接選到有名稱的關閉鈕，按 Esc 可關閉；公車搜尋、最愛車站與誤點履歷都能用 Tab 選到，桌面時鐘也能點開資料狀態</span></li>
@@ -5623,7 +5623,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
-        <li data-cl="traphysicalstation0927"><span class="d">9/27</span><span>依既有站場圖重新整理台鐵各站的停靠與進出股道安排，讓更多同時進站、停靠或通過的列車分開使用可用股道，減少兩班車停在同一位置，或通過列車穿過停靠列車的畫面</span></li>
+        <li data-cl="traphysicalstation0927"><span class="d">9/27</span><span>依既有路網與站場圖重新整理台鐵列車的行車方向、停靠與進出股道安排，讓更多對向、同時進站、停靠或通過的列車分開使用可用股道，減少共用同一股、停在同一位置或互相穿過的畫面</span></li>
         <li data-cl="pingzhenhold0927"><span class="d">9/27</span><span>台鐵誤點列車經過平鎮附近時，會穩定維持同一股道上的前後車順序，並依畫面上的實際編組長度保留距離，減少誤點追車時短暫重疊的畫面</span></li>
         <li data-cl="garagereverse0926"><span class="d">9/26</span><span>車庫環形試跑按 ⇄ 反向行駛時改成整列掉頭，車頭照樣在最前面帶著跑；原本頭尾兩節的車頭會轉進車廂中間，機車頭也會轉成對著自己拖的客車。福森號、栩悅號三節編組的兩端都改成觀景車頭，不再有一端露出貫通門</span></li>
         <li data-cl="remainingtracks0913"><span class="d">9/26</span><span>調整台鐵各站停靠與進出股道，減少待避重疊、追撞與對向互穿；9/14 再補回 97 站的站區股道，雙線區間依行車方向分股行駛（台北–萬華地下段不再兩向共用同一條軌道），並改善單線會車判斷；10/3 起台鐵調整時刻的 14 班照樣走這些股道</span></li>
@@ -6886,7 +6886,8 @@
 //         公車 edge cache 另守住舊寫入晚完成與 replay 失敗，不讓長 TTL 倒退。
 // v0927e：依既有站場股道重新分配台鐵停靠節點與進出路徑，14 天模型的同節點停靠衝突 390→237、
 //         通過車穿越停靠車 3560→2714；方向逆行段維持 35，不動時刻、way/node 與既有高程特例。
-const BUILD = 'v0927e';
+// v0927f：方向修復器與站區修復器共用具名進路保護；完整 F1→F2 重跑兩輪固定，既有高程解不重算。
+const BUILD = 'v0927f';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);

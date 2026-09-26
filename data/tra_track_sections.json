@@ -2040,8 +2040,8 @@
   },
   "彰化|成功": {
    "tracks": 2,
-   "parallelFrac": 0.947,
-   "lengthM": 7191,
+   "parallelFrac": 0.948,
+   "lengthM": 7190,
    "maxPathM": 7174.446,
    "refs": [
     "成追線",
@@ -2050,17 +2050,17 @@
   },
   "彰化|花壇": {
    "tracks": 2,
-   "parallelFrac": 0.955,
-   "lengthM": 6613,
-   "maxPathM": 6606.365,
+   "parallelFrac": 0.952,
+   "lengthM": 6612,
+   "maxPathM": 6603.819,
    "refs": [
     "縱貫線"
    ]
   },
   "彰化|追分": {
    "tracks": 2,
-   "parallelFrac": 0.92,
-   "lengthM": 7195,
+   "parallelFrac": 0.914,
+   "lengthM": 7197,
    "maxPathM": 7178.414,
    "refs": [
     "縱貫線"

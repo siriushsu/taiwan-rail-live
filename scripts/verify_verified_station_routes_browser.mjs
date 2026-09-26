@@ -1,7 +1,14 @@
 // 真引擎逐秒對照局部派軌，並看實際 renderer 的車廂與手機觸控。直接載入產品完整編組。
-import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';import {createServer} from 'node:http';import {chromium,webkit} from 'playwright';
+import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';import {createServer} from 'node:http';import {execFileSync} from 'node:child_process';import {chromium,webkit} from 'playwright';
 const root=process.cwd(),port=Number(process.env.PORT||5644),out='output/verified-station-browser';fs.mkdirSync(out,{recursive:true});
-const server=createServer((req,res)=>{const u=new URL(req.url,'http://x');let f=path.join(root,decodeURIComponent(u.pathname));if(u.pathname.startsWith('/api/')){res.setHeader('content-type','application/json');return res.end(u.pathname==='/api/thsr-schedule'?fs.readFileSync('data/thsr_schedule_dense.json'):'{}');}if(!fs.existsSync(f)){res.statusCode=404;return res.end();}if(fs.statSync(f).isDirectory())f=path.join(f,'index.html');res.setHeader('content-type',({'.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.html':'text/html','.css':'text/css','.png':'image/png'})[path.extname(f)]||'application/octet-stream');res.end(fs.readFileSync(f));});await new Promise(r=>server.listen(port,r));
+// 這三檔是同一份 09-12 固定考卷，不可拆開：班表決定列車時刻，pass obs／run profiles
+// 決定站間插值。只固定其中一檔會讓 clock 仍是 09-12、對照時點卻隨每週 rolling input 漂移。
+const fixtureRef='ccc51f6a',fixtureFiles=new Map([
+ ['/data/tra_schedule_dense.json','data/tra_schedule_dense.json'],
+ ['/data/tra_pass_obs.json','data/tra_pass_obs.json'],
+ ['/data/tra_run_profiles.json','data/tra_run_profiles.json']
+].map(([url,file])=>[url,execFileSync('git',['show',`${fixtureRef}:${file}`],{cwd:root,maxBuffer:64<<20})]));
+const server=createServer((req,res)=>{const u=new URL(req.url,'http://x'),fixture=fixtureFiles.get(u.pathname);let f=path.join(root,decodeURIComponent(u.pathname));if(fixture){res.setHeader('content-type','application/json');return res.end(fixture);}if(u.pathname.startsWith('/api/')){res.setHeader('content-type','application/json');return res.end(u.pathname==='/api/thsr-schedule'?fs.readFileSync('data/thsr_schedule_dense.json'):'{}');}if(!fs.existsSync(f)){res.statusCode=404;return res.end();}if(fs.statSync(f).isDirectory())f=path.join(f,'index.html');res.setHeader('content-type',({'.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.html':'text/html','.css':'text/css','.png':'image/png'})[path.extname(f)]||'application/octet-stream');res.end(fs.readFileSync(f));});await new Promise(r=>server.listen(port,r));
 const cases=[['411','162',24240],['301','306',32160],['2608','2523',44880],['5899','410',46440],['410','423',46485],['5899','423',46560],['3028','431',52920],['5898','431',53040],['1208','129',53040],['4234','231',67320],['3021','432',71760]];
 const rows=[];
 try{for(const[engine,type]of Object.entries({chromium,webkit})){
