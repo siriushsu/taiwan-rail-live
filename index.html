@@ -5612,6 +5612,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="trawait0928"><span class="d">9/28</span><span>修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面</span></li>
         <li data-cl-of="klrtboard0928"><span class="d">9/28</span><span>高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次</span></li>
         <li data-cl-of="trackshape0927"><span class="d">9/27</span><span>北捷紅線與三鶯線的軌道改用官方最新線形，列車與車站沿更新後的路線行駛</span></li>
         <li data-cl-of="buildingopacity0927"><span class="d">9/27</span><span>立體建築剛出現的縮放範圍內，切換亮暗外觀後會保留「透視顯示」的透明度，不再突然變得不透明</span></li>
@@ -5619,7 +5620,6 @@
         <li data-cl-of="workerrecover0927"><span class="d">9/27</span><span>公車到站、台鐵月台與災害監看遇到官方來源沒回應時，會在限時內結束等待並於下一輪恢復</span></li>
         <li data-cl-of="pingzhenhold0927"><span class="d">9/27</span><span>台鐵誤點列車經過平鎮附近時，會穩定維持前後車順序，減少在同一股道短暫重疊的畫面</span></li>
         <li data-cl-of="kbdremain0927"><span class="d">9/27</span><span>鍵盤操作更完整：開啟面板會直接選到有名稱的關閉鈕，按 Esc 可關閉；公車搜尋、最愛車站與誤點履歷都能用 Tab 選到，桌面時鐘也能點開資料狀態</span></li>
-        <li data-cl-of="musicpools0927"><span class="d">9/27</span><span>跟車配樂新增南方日光、黃昏斜光、北海岸天色、花蓮山海、山海聚落共創 5 組共 27 首；App 需要時從網站串流，不會把這批新歌塞進安裝包</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5627,6 +5627,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="trawait0928"><span class="d">9/28</span><span>修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面</span></li>
         <li data-cl="klrtboard0928"><span class="d">9/28</span><span>高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次</span></li>
         <li data-cl="trackshape0927"><span class="d">9/27</span><span>北捷紅線與三鶯線的軌道改用官方最新線形，列車與車站沿更新後的路線行駛</span></li>
         <li data-cl="traphysicalstation0927"><span class="d">9/27</span><span>依既有路網與站場圖重新整理台鐵列車的行車方向、停靠與進出股道安排，讓更多對向、同時進站、停靠或通過的列車分開使用可用股道，減少共用同一股、停在同一位置或互相穿過的畫面</span></li>
@@ -6897,7 +6898,8 @@
 // v0927g：建築層重裝後立即套回 3D 透視偏好，修正 MapLibre zoom 13～13.8 切主題時透明度從 .24 跳回 .30／.72。
 // v0927h：北捷紅線（R／R_XBT）與三鶯線改用 TDX 2026-09-27 官方線形；三鶯線碎片先以 chainExact() 按相同端點串鏈。
 // v0928a：高雄輕軌看板按順逆行各保留班次，以實際後續停靠站提示方向，終點不再冒充方向。
-const BUILD = 'v0928a';
+// v0928b：保留彎道速限，補回長跑段抵站前追越的官方停靠窗，避免多餘的提早待避。
+const BUILD = 'v0928b';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
@@ -11249,7 +11251,7 @@ const MEET_NEAR_SEC = 1800;     // 只看時刻相近的停靠,更遠的班互�
 // (交會推論當成不是單線、跑段長度當成沒有實體股道)=>整段失明。讀表的兩處共用這一份。
 function traSectionKey(a, b) { return [a, b].map(n => String(n).replace(/台/g, '臺')).sort().join('|'); }
 function inferMeetPassTimes(trains, union, sections) {
-  const stats = { snapped: 0, infeasible: 0, unbuildable: 0, tooFar: 0, zoneSkipped: 0, log: [] };
+  const stats = { snapped: 0, infeasible: 0, unbuildable: 0, tooFar: 0, zoneSkipped: 0, zoneArrivalSnapped: 0, zoneArrivalRejected: 0, log: [] };
   if (!union || !Array.isArray(union.trains)) return stats;
   const keyOf = tr => tr.train + ':' + tr.stops[0].depSec + ':' + tr.stops[tr.stops.length - 1].arrSec;
   const days = new Map();                         // 班鍵 → Set(開行日);沒有 dates 資料的班視為天天開
@@ -11294,8 +11296,12 @@ function inferMeetRun(tr, s, k0, k1, xk, perf, zoneCls, at, shareDay, single, st
   const segKm = []; let runKm = 0;
   for (let i = k0; i < k1; i++) { segKm.push(s[i].rpSegKm); runKm += s[i].rpSegKm; }
   if (!(runKm > 0)) return;
-  // 彎道速限跑段(新馬／和仁):節點是官方核定值,不與交會折點混排,整段不動。
-  if (zoneCls && runSpeedZones(s, k0, k1, segKm, zoneCls, perf.v, runKm * 1000)) { stats.zoneSkipped++; return; }
+  // 彎道與遠處的交會可同處一條長跑段；原本整段跳過會連汐止的停靠窗也看不到。
+  // 只對已守住各彎速限的剖面重錨，彎道節點全保護，重建後再驗每個彎。
+  const zones = zoneCls && runSpeedZones(s, k0, k1, segKm, zoneCls, perf.v, runKm * 1000);
+  if (zones && !zoneProfileOk(s[k0].rp, zones)) { stats.zoneSkipped++; return; }
+  const arrivalInput = zones && s.map(st => ({ arr: st.arrSec, dep: st.depSec }));
+  const arrivalAnchors = zones ? new Map() : null;
   const off = i => i < k1 ? s[i].rpOff : runKm * 1000;          // 距跑段起點公尺(末站＝跑段全長)
   const idx = (name, from, to) => { for (let i = from; i <= to; i++) if (s[i].name === name) return i; return -1; };
   // Y 在 X 的第 i 站的時刻:Y 在兩個官方停靠站之間的時刻按 X 的里程線性內插(Y 自己的通過站時刻不能用,
@@ -11319,12 +11325,26 @@ function inferMeetRun(tr, s, k0, k1, xk, perf, zoneCls, at, shareDay, single, st
       const tp = s[j].arrSec, name = s[j].name, P = s[j - 1].name, N = s[j + 1].name;
       // hi 拆成兩個來源分開記:同向待避(hiWait)與對向交會(hiMeet)。平常取兩者較小的那一個當上界,
       // 只有在「下界比上界還晚」(窗內無解)時才需要分辨誰是硬約束——見下面 lo > hi 那一段。
-      let lo = -Infinity, hiWait = Infinity, hiMeet = Infinity, whyLo = null, whyHiWait = null, whyHiMeet = null;
+      let lo = -Infinity, loWait = -Infinity, hiWait = Infinity, hiMeet = Infinity, whyLo = null, whyLoWait = null, whyHiWait = null, whyHiMeet = null;
       for (const y of at.get(name) || []) {
         if (y.k === xk || (Math.abs(tp - y.arr) > MEET_NEAR_SEC && Math.abs(tp - y.dep) > MEET_NEAR_SEC) || !shareDay(xk, y.k)) continue;
         const dwell = y.dep - y.arr, end = !y.prev || !y.next;   // 起終點站:停多久沒有意義,留 30 秒
         if (!end && dwell < 30) continue;                        // 班表 30 秒解析度,看不到的停靠不當交會點
         const m = end ? 30 : Math.min(30, Math.floor(dwell / 3));
+        // X 在 Y 上一個官方停靠站仍落後，卻在 Y 抵達本站前通過：相對次序在站間翻轉。
+        // 先使用 Y 已有的官方停靠窗，不能再替 Y 在更早的通過站憑空安排一次待避。
+        // 只讀 Y 的官方到離站時刻；X 的上一站時刻取自己的同一跑段，保持離線／前端同源。
+        // 只修停靠窗邊緣、差距不超過既有安全裕度的近失案例。更早就追上的車需要重解整段前後
+        // 次序，不能只把本站往後挪（223／277 會因此在頂埔反向生成假待避，牽動整段剖面）。
+        if (zones && y.next === N && y.prevStop && arrivalInput[j].arr < y.arr && y.arr - arrivalInput[j].arr <= m) {
+          const r = idx(y.prevStop, k0, j - 1);
+          if (r >= 0 && arrivalInput[r].dep > y.prevDep) {
+            if (y.arr + m > loWait) { loWait = y.arr + m; whyLoWait = '待避(等它到) ' + y.k; }
+            if (y.dep - m < hiWait) { hiWait = y.dep - m; whyHiWait = '待避(等它到) ' + y.k; }
+          }
+        }
+        // 本次只補原先整段略過的「彎道長跑段、同向車抵站前追越」；其餘彎道交會仍不改。
+        if (zones) continue;
         // 同向待避的觸發是「X 比 Y 離站前 m 秒還晚」,不是「比 Y 離站還晚」:X 落在 (y.dep−m, y.dep] 時
         // 目標 hiWait=y.dep−m 本來就違反,舊條件卻整段放行。2026-09-19 實測 214 在 2008 離開汐止前 12 秒
         // 通過(要求 30 秒),出站後兩車在汐止–五堵同軌互穿。
@@ -11343,6 +11363,9 @@ function inferMeetRun(tr, s, k0, k1, xk, perf, zoneCls, at, shareDay, single, st
         }
       }
       const hi = Math.min(hiWait, hiMeet), whyHi = hiMeet <= hiWait ? whyHiMeet : whyHiWait;
+      // 多個官方停靠窗互不相容時，不取其中半邊硬套；整顆新推論保守退出。
+      if (zones && loWait > hi) continue;
+      if (loWait <= hi && loWait > lo) { lo = loWait; whyLo = whyLoWait; }
       if (tp >= lo - 0.5 && tp <= hi + 0.5) continue;
       let target = tp < lo ? lo : hi, why = tp < lo ? whyLo : whyHi;
       if (lo > hi) {
@@ -11375,10 +11398,11 @@ function inferMeetRun(tr, s, k0, k1, xk, perf, zoneCls, at, shareDay, single, st
     let applied = false;
     for (const c of cands) {
       const rec = { no: tr.train, k: xk, station: s[c.j].name, from: Math.round(c.tp), to: Math.round(c.target), why: c.why };
-      const rp = reanchorRunProfile(s, k0, k1, c.j, c.target, perf, runKm);
-      if (!rp) { rejected.add(c.j + ':' + Math.round(c.target)); stats.unbuildable++; rec.skip = 'unbuildable'; if (stats.log.length < 400) stats.log.push(rec); continue; }
+      const rp = reanchorRunProfile(s, k0, k1, c.j, c.target, perf, runKm, zones, arrivalAnchors);
+      if (!rp) { rejected.add(c.j + ':' + Math.round(c.target)); if (zones) stats.zoneArrivalRejected++; else stats.unbuildable++; rec.skip = zones ? 'zone-arrival-unbuildable' : 'unbuildable'; if (stats.log.length < 400) stats.log.push(rec); continue; }
       applyRunProfile(s, k0, k1, rp, runKm);
-      stats.snapped++; rec.to = Math.round(s[c.j].arrSec); if (stats.log.length < 400) stats.log.push(rec); applied = true; break;
+      if (arrivalAnchors) arrivalAnchors.set(off(c.j), Math.round(c.target - s[k0].depSec));
+      if (zones) stats.zoneArrivalSnapped++; else stats.snapped++; rec.to = Math.round(s[c.j].arrSec); if (stats.log.length < 400) stats.log.push(rec); applied = true; break;
     }
     if (!applied) break;
   }
@@ -11389,30 +11413,37 @@ function inferMeetRun(tr, s, k0, k1, xk, perf, zoneCls, at, shareDay, single, st
 // 就會把該車常態誤點型態帶進準點班表(143 次出彰化 6.6 公里走 10 分鐘),誰讓路很清楚。
 // runKm 必須是 assignRunProfiles 同序累加出來的值,重建的 L 才逐 bit 相同(離線預算的 T/L 閘門用它比對)。
 // 回 null＝建不出合格剖面(錨點沒留住、或只剩端點還是超速)。
-function reanchorRunProfile(s, k0, k1, j, target, perf, runKm) {
+function reanchorRunProfile(s, k0, k1, j, target, perf, runKm, zones, anchors) {
   const rp0 = s[k0].rp, runDep = s[k0].depSec, runT = s[k1].arrSec - runDep, dS = s[j].rpOff;
   const tA = Math.round(target - runDep);
   if (!(tA > 4 && tA < runT - 4)) return null;
+  const protectedZone = d => zones && zones.some(z => d >= z.d0 - 1 && d <= z.d1 + 1);
+  const protectedPoint = d => protectedZone(d) || (d !== dS && anchors?.has(d));
+  if (protectedZone(dS)) return null; // 不移動官方速限區內的節點
   let pts = [];
   if (rp0.obs) for (let i = 1; i < rp0.xs.length - 1; i++) {
     const t = rp0.xs[i], d = rp0.ys[i];
-    if (Math.abs(d - dS) < 1 || (d < dS ? t > tA - 5 : t < tA + 5)) continue;
-    pts.push({ t, d });
+    if (Math.abs(d - dS) < 1 || (d < dS ? t > tA - 5 : t < tA + 5)) {
+      if (protectedPoint(d)) return null;
+      continue;
+    }
+    pts.push({ t, d, z: !!protectedPoint(d) });
   }
   pts.push({ t: tA, d: dS, z: true });
   pts.sort((a, b) => a.d - b.d);
   const vMid = (perf.v > 0 ? perf.v : 135) / 3.6, vEnd = vMid * 0.85;
   for (let guard = 0; guard < 64; guard++) {
-    const rp = buildObsProfile(runKm, runT, pts, perf.v);
+    const rp = buildObsProfile(runKm, runT, pts, perf.v, zones);
     if (!rp) return null;
     const n = rp.xs.length, ia = rp.ys.indexOf(dS);
     if (ia <= 0 || ia >= n - 1 || rp.xs[ia] !== tA) return null;
+    if (anchors && [...anchors].some(([d, t]) => d !== dS && rp.xs[rp.ys.indexOf(d)] !== t)) return null;
     let bad = -1;
     for (let q = 0; q < n - 1; q++) {
       const v = (rp.ys[q + 1] - rp.ys[q]) / (rp.xs[q + 1] - rp.xs[q]);
       if (v > (q === 0 || q === n - 2 ? vEnd : vMid)) { bad = q; break; }
     }
-    if (bad < 0) return rp;
+    if (bad < 0) return !zones || zoneProfileOk(rp, zones) ? rp : null;
     const drop = bad + 1 !== ia && bad + 1 < n - 1 ? rp.ys[bad + 1] : bad !== ia && bad > 0 ? rp.ys[bad] : null;
     // drop == null ＝【超速的那一側根本沒有折點可刪】:錨點緊鄰跑段端點(ia===1 或 ia===n-2),
     // 超標的區間就是「真停靠站 ↔ 錨點」本身。2026-09-14 實測:把交會的位移上限從 300 一路放到 1800,
@@ -11422,7 +11453,7 @@ function reanchorRunProfile(s, k0, k1, j, target, perf, runKm) {
     // 連車種極速 vMid 都超過(最兇的 420 次汐止要 5882 公尺/30 秒＝706 km/h),另 3 筆介於 vEnd 與
     // vMid 之間——而那一側的端點是真停靠站(車子從靜止起步),0.85 的端點係數正是為此而設。
     // 結論:走到這裡代表【班表推出來的約束在物理上做不到】,維持原曲線、讓互穿閘門去報才是誠實的。
-    if (drop == null) return null;
+    if (drop == null || protectedPoint(drop)) return null;
     const before = pts.length;
     pts = pts.filter(p => p.d !== drop);
     if (pts.length === before) return null;

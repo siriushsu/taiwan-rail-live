@@ -258,6 +258,7 @@ function main() {
   console.log(`貼軌 ${JSON.stringify(segStats)}｜耗時 ${Date.now() - t0}ms`);
   console.log(`交會／待避推論：夾回 ${meetStats.snapped} 處通過時刻｜窗內無解 ${meetStats.infeasible}｜`
     + `重建不合格 ${meetStats.unbuildable}｜位移超過上限 ${meetStats.tooFar}｜彎道跑段略過 ${meetStats.zoneSkipped}`);
+  console.log(`彎道長跑段新增抵站窗：套用 ${meetStats.zoneArrivalSnapped}｜不可行拒絕 ${meetStats.zoneArrivalRejected}（另列，既有 MR1 分母與門檻不變）`);
   console.log(`已寫入 ${profPath}（班表檔未動）`);
 }
 

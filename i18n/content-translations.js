@@ -3430,9 +3430,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 // 2026-09-28 高雄輕軌環線：順逆行與終點分開，提示實際途經站。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '順行': 'Clockwise', '逆行': 'Counterclockwise', '經 {stations}': 'Via {stations}',
+  '修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面': 'Improved passing estimates for some long-distance TRA trains by using the leading train’s scheduled stop, reducing unnecessary extra waits followed by overtaking between stations.',
   '高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次': 'Kaohsiung LRT arrival boards now separate clockwise and counterclockwise services and show stops along the way, instead of labelling everything as bound for Lizihnei and hiding services in the other direction.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '順行': '時計回り', '逆行': '反時計回り', '經 {stations}': '{stations} 経由',
+  '修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面': '一部の台鉄長距離列車の待避推定を修正しました。先行列車の予定停車時間を優先して使い、余分な待避の後に駅間で再び追い越す表示を減らします。',
   '高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次': '高雄ライトレールの到着案内で時計回り・反時計回りを分け、経由駅を表示します。すべてが籬仔内行きと表示されたり、反対方向の便が隠れたりしなくなりました。',
 });
