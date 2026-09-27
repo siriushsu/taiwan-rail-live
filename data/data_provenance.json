@@ -119,13 +119,13 @@
    "checksum": "8a9e811f550c6febfdda21b81cfa9633"
   },
   "data/sanying.json": {
-   "sourceDescription": "路線幾何與車站座標:OpenStreetMap 貢獻者(ODbL,2026-07 擷取);站序站名:新北捷運公司官網;站間行駛時間:交通部 TDX 運輸資料流通服務(新北捷運三鶯線,2026-09-12 抓取);班距為試營運公告估算(尖峰6分/離峰8分)",
+   "sourceDescription": "路線幾何:交通部 TDX 運輸資料流通服務(新北捷運三鶯線,2026-09-27 抓取);車站座標:OpenStreetMap 貢獻者(ODbL,2026-07 擷取);站序站名:新北捷運公司官網;站間行駛時間:交通部 TDX 運輸資料流通服務(新北捷運三鶯線,2026-09-12 抓取);",
    "sourceField": "source_notes",
    "effectiveDate": null,
    "effectiveDateField": null,
    "geometrySource": "OSM",
    "coordinateBasis": "WGS84(OpenStreetMap 定義即 WGS84)",
-   "checksum": "8516a803e32a1d54c115c55c6d58bc5e"
+   "checksum": "f847a681a563656d4d4474b8dbf7b388"
   },
   "data/sanying_times.json": {
    "sourceDescription": "三鶯線無公開逐班時刻表:營運時段06:00-24:00(各站首末班)與站間行駛時間取自交通部TDX運輸資料流通服務(新北捷運三鶯線,2026-09-12 抓取),班距依新北捷運公司公告(平日尖峰06:30-08:30、17:30-19:30 6分/平日離峰及假日8分)合成,非公告時刻",
@@ -287,7 +287,7 @@
    "effectiveDateField": null,
    "geometrySource": "TDX+OSM",
    "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
-   "checksum": "1fed44df78d144af5371af020b254d9d"
+   "checksum": "883c500929f8b0f46e2233e18feafd39"
   },
   "data/track_stations.geojson": {
    "sourceDescription": "由 data/{tra,thsr_track,afr,trtc,tymc,ntdlrt,ntalrt,sanying,krtc,tmrt}.json 的 lines[].shape 與 lines[].stations 轉成 GeoJSON([lon,lat],小數 6 位),scripts/build_track_g",

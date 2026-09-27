@@ -126,6 +126,33 @@ function stitch(parts, tol = 0.15) {
   return chains;
 }
 
+// 按「端點座標完全相同」把碎片串成鏈(不做容差、不丟短碎片)。給 stitch() 之前用:
+// TDX 三鶯線是數百個約 19m 的 2 點碎片,直接交給 stitch() 會被 ≤20m 的雜訊過濾吃掉。
+function chainExact(parts) {
+  const key = p => p[0].toFixed(7) + ',' + p[1].toFixed(7);
+  const adj = new Map();
+  const link = (a, b) => { if (!adj.has(a)) adj.set(a, []); adj.get(a).push(b); };
+  const pt = new Map();
+  for (const part of parts) for (let i = 1; i < part.length; i++) {
+    const a = key(part[i - 1]), b = key(part[i]);
+    if (a === b) continue;
+    pt.set(a, part[i - 1]); pt.set(b, part[i]); link(a, b); link(b, a);
+  }
+  const seen = new Set(), chains = [];
+  const starts = [...adj.keys()].sort((a, b) => adj.get(a).length - adj.get(b).length); // 端點先走
+  for (const s of starts) {
+    if (seen.has(s)) continue;
+    const chain = [pt.get(s)]; seen.add(s);
+    for (let cur = s; ;) {
+      const next = adj.get(cur).find(k => !seen.has(k));
+      if (!next) break;
+      seen.add(next); chain.push(pt.get(next)); cur = next;
+    }
+    if (chain.length > 1) chains.push(chain);
+  }
+  return chains;
+}
+
 // 除毛刺(同 despike_shapes.mjs 演算法):清掉縫合殘留的「出去又折回」小段
 function despike(pts) {
   const GAP = 0.06, MIN_LEG = 0.005, WIN = 40;
@@ -493,20 +520,19 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
   }));
 }
 
-// ─────────────── SANYING 三鶯線(幾何/站序取自 OSM,站間行駛時間取自 TDX) ───────────────
+// ─────────────── SANYING 三鶯線(幾何與站間行駛時間取自 TDX,站序站座標取自 OSM) ───────────────
 {
   console.log('== SANYING 三鶯線');
   const stations = stationMap('SANYING_Station.json');
   const sol = solOrder('SANYING_StationOfLine.json');
-  const shapes = shapeParts('SANYING_Shape.json');
   // 2026-09-12 起 TDX 以 NTMC(新北捷運)營運商發布三鶯線,站碼與本線同為 LB01~LB12,
   // 直接取官方站間行駛時間填 segs[].run(先前 11 段全 null,前端只能用距離/速度回推)。
-  // 2026-09-27 TDX 首度在 NTMC_Shape.json 補上 LB 的官方 Geometry,但實測是 745 個 2 點碎片,
-  // stitch() 縫合後仍留 8 條互不相連的鏈(鏈間最小縫隙 150–269m,遠超單跳 join 的 250m 上限),
-  // 臺北大學(LB07)所在鏈與鶯歌車站(LB08)所在鏈之間要串 3 跳(5→2→3→4)才通,現有 assemble()
-  // 只支援單跳跨鏈接合,該站間段會退化成直線(離軌 857m)——比現有 OSM 線形更差,故暫不採用,
-  // 幾何(Shape)續用 OSM;班距(Frequency)TDX 已有 LB 但未核對,續用官方公告值。
-  // 若要之後改用 TDX 幾何,需先擴充 assemble() 支援多跳跨鏈接合並重新驗證全部 11 段。
+  // 2026-09-27 TDX 首度在 NTMC_Shape.json 補上 LB 的官方 Geometry(使用者裁示「軌道可以照新的改」):
+  // 745 個 2 點碎片、首尾座標逐點相接、只有 2 個端點無分岔,是一條 14.1km 的單線。
+  // 碎片平均約 19m,stitch() 會把 ≤20m 的碎片當雜訊丟掉而留下斷點,所以先按相同端點串成一條鏈再交給它。
+  // TDX 沒有 LB 時退回 OSM 版(SANYING_Shape.json)。班距(Frequency)續用官方公告值。
+  const tdxLB = shapeParts('NTMC_Shape.json').get('LB');
+  const shapes = tdxLB ? new Map([['LB', chainExact(tdxLB)]]) : shapeParts('SANYING_Shape.json');
   const maps = s2sMaps('NTMC_S2STravelTime.json');
   const lines = [
     assemble({
@@ -517,7 +543,7 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
   ];
   writeFileSync(path.join(ROOT, 'data/sanying.json'), JSON.stringify({
     system: 'NTMC-LB',
-    source_notes: '路線幾何與車站座標:OpenStreetMap 貢獻者(ODbL,2026-07 擷取);站序站名:新北捷運公司官網;站間行駛時間:交通部 TDX 運輸資料流通服務(新北捷運三鶯線,2026-09-12 抓取);班距為試營運公告估算(尖峰6分/離峰8分)',
+    source_notes: (tdxLB ? '路線幾何:交通部 TDX 運輸資料流通服務(新北捷運三鶯線,2026-09-27 抓取);車站座標:OpenStreetMap 貢獻者(ODbL,2026-07 擷取)' : '路線幾何與車站座標:OpenStreetMap 貢獻者(ODbL,2026-07 擷取)') + ';站序站名:新北捷運公司官網;站間行駛時間:交通部 TDX 運輸資料流通服務(新北捷運三鶯線,2026-09-12 抓取);班距為試營運公告估算(尖峰6分/離峰8分)',
     lines,
   }));
 }

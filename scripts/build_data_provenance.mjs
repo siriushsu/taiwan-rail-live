@@ -41,8 +41,7 @@ export const GEOMETRY_SOURCE = {
   'data/ntdlrt.json': 'TDX',
   'data/ntdlrt_times.json': null,
   'data/rail_crossing_levels.json': 'OSM',
-  'data/sanying.json': 'OSM',                  // 幾何與站座標仍取自 OSM(TDX 2026-09-27 首度補上 LB 的 Shape,但碎片間有 150–269m
-                                                 // 多跳斷點、現有 assemble() 縫不起來,詳見 build_tdx.mjs 的 SANYING 段註解,暫不採用)
+  'data/sanying.json': 'OSM',                  // 車站座標仍取自 OSM;路線幾何 2026-09-27 起改用 TDX(NTMC_Shape 的 LB),見 build_tdx.mjs 的 SANYING 段
   'data/sanying_times.json': null,
   'data/station_transfers.json': null,         // 輸出只有站名/距離,不含座標(距離由 data/tdx/*_Station.json 算)
   'data/taiwan_land.json': 'MOI',
