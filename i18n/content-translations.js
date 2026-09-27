@@ -3418,3 +3418,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '立體建築剛出現的縮放範圍內，切換亮暗外觀後會保留「透視顯示」的透明度，不再突然變得不透明': '立体建物が表示され始めるズーム域で明暗テーマを切り替えても、選んだ「透視」の透明度を保ち、建物が急に不透明にならないようにしました。',
 });
+// 2026-09-27 北捷紅線與三鶯線改用 TDX 官方新線形：第一層更新紀錄那條的 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '北捷紅線與三鶯線的軌道改用官方最新線形，列車與車站沿更新後的路線行駛': 'The Taipei Metro Red Line and the Sanying Line now use the latest official track alignments, and trains and stations follow the updated routes.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '北捷紅線與三鶯線的軌道改用官方最新線形，列車與車站沿更新後的路線行駛': '台北メトロ レッドラインと三鶯線の線路を公式の最新線形に更新し、列車と駅が新しいルートに沿って表示されるようにしました。',
+});
