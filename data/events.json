@@ -1,6 +1,16 @@
 {
-  "updated": "2026-09-26",
+  "updated": "2026-09-27",
   "events": [
+    {
+      "id": "tra-20260924-pokemon30-skm",
+      "source": "official",
+      "title": "新光三越週年慶寶可夢30周年主題列車",
+      "note": "EMU800 全車寶可夢彩繪，每天在西部幹線跑區間車",
+      "start": "2026-09-25",
+      "end": "2026-12-13",
+      "anchor": { "kind": "system", "sys": "tra_sched" },
+      "url": "https://www.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac2a0cfb55601a0d3373b9c04fd&page=0"
+    },
     {
       "id": "tra-20260924-kato-e500-pp",
       "source": "official",
