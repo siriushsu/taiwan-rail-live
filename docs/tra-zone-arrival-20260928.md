@@ -30,3 +30,13 @@
 - Chromium／WebKit 離線／現算對照：各 55,333 個執行期欄位、33,752 個停站節點、20,042 條曲線皆 0 差異，stale=0。
 
 出貨仍須全套 `ship-web` 閘門與正式站收貨。輕軌看板本身的驗收見 `klrt-board-directions-20260928.md`；以上不構成輕軌定位精度或私有 Core 通過驗收的證據。
+
+## 出貨環境的第二個阻擋
+
+完整出貨跑到觀看控制驗收時，Chromium 的 1180×820 觸控平板情境回報 `mobile=false`、`side=false`，6 項失敗；相同腳本在未含台鐵修正的 `9b7978a5` 完整重現，WebKit 正常。兩次均未到 upload／deploy。
+
+獨立空白頁設定 `isMobile:true, hasTouch:true`，Chromium 149／Chrome 153 仍可能回報 `maxTouchPoints=0`、`pointer:coarse=false`、`any-pointer:coarse=false`；另一次 Chromium 成功，顯示不是穩定的產品斷點問題。呼叫原生 `Emulation.setTouchEmulationEnabled({enabled:true,maxTouchPoints:1})` 後回到 1／true／true；無觸控對照維持 0／false／false。
+
+因此只在 `verify_view_btn_side_entry.mjs` 的 Chromium 測試頁、載入產品前明確設定原生觸控，並新增「粗指標及觸控點已生效」斷言。沒有覆寫 `matchMedia`、DOM class、CSS、產品程式、既有幾何或點擊判準；WebKit 不改。
+
+修正後重新執行完整 `verify_view_controls_gate.mjs`：exit 0，原有沉浸模式、車身比例、地形與側欄按鈕驗收全過，新增的 6 個觸控前置檢查也通過。網站程式和 BUILD 保持 v0928b，不因測試修正另改產品。

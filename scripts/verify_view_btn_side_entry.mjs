@@ -28,12 +28,20 @@ for(const[engine,type]of Object.entries({chromium,webkit})){
       const ctx=await browser.newContext({viewport:{width:w,height:h},isMobile:true,hasTouch:true,locale:'zh-TW'});
       await ctx.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));
       const p=await ctx.newPage(),tag=`${engine} ${name} ${w}×${h}`;
+      // Chromium 的完整無頭模式偶爾在 newPage 完成後仍未套用 hasTouch（空白頁也可重現：
+      // maxTouchPoints=0、any-pointer:coarse=false）。以瀏覽器原生 CDP 明確啟用觸控，
+      // 不改 matchMedia／產品 CSS／版面 class；下方仍用真觸控與幾何驗收。
+      if(engine==='chromium'){
+        const cdp=await ctx.newCDPSession(p);
+        await cdp.send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:1});
+      }
       const boot=async q=>{await p.goto(base+'/?lang=zh-TW&t=12:00'+q);await p.waitForFunction(()=>typeof state!=='undefined'&&state.ready&&!!window.railViewControls,null,{timeout:60000});await p.evaluate(()=>{state.playing=false;});await p.waitForTimeout(300);};
       // 真點一次：面板要真的打開，再收回去給下一格用。
       const tapOpens=async()=>{await p.tap('#viewSettingsBtn');const ok=await p.evaluate(()=>document.body.classList.contains('view-open')&&!document.getElementById('viewSettingsPanel').hidden);await p.evaluate(()=>railViewControls.close());return ok;};
       await boot('');
       // 正向對照：這一格真的是預期的版面模式，否則下面量的是別的版面。
-      const env=await p.evaluate(()=>({mobile:document.body.classList.contains('mobile-shell'),side:sheetIsSideRail()}));
+      const env=await p.evaluate(()=>({mobile:document.body.classList.contains('mobile-shell'),side:sheetIsSideRail(),coarse:matchMedia('(any-pointer: coarse)').matches,touchPoints:navigator.maxTouchPoints}));
+      check(`${tag} 原生觸控模擬已生效`,env.coarse&&(engine!=='chromium'||env.touchPoints>=1),env);
       check(`${tag} 版面模式`,env.mobile&&env.side===side,env);
       let m=await p.evaluate(probe);
       check(`${tag} 沒開卡片：觀看鈕在右上工具列`,m.cls.length===0&&inColumn(m)&&await tapOpens(),m);
