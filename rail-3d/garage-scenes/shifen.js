@@ -10,7 +10,6 @@ export const THEMES = {
 };
 
 export const DEFAULTS = {
- skyLanterns:6,      // 同時飄在老街上空的天燈數
  streetLength:22,    // 老街長度：兩排店屋沿鐵軌延伸的距離
  label:'平溪線十分老街'
 };
@@ -24,9 +23,9 @@ export function createScene(params = {}) {
  const grass=mat('#7f9068'),gravel=mat('#a49a86'),hillMat=mat('#5b7a4c');
  const ballast=mat('#8a8274'),sleeper=mat('#7a6a55'),steel=mat('#9aa3a4',{metalness:.6,roughness:.34}),railSide=mat('#6e6259',{metalness:.35,roughness:.6});
  const paving=mat('#b9b2a2'),wood=mat('#8b6a4a'),plank=mat('#a98a63'),bridgeDeck=mat('#9c7c55'),tin=mat('#5d6d70'),tile=mat('#8c4a3a'),whiteLine=mat('#e9e2cf'),postMat=mat('#6b6f6a'),cable=mat('#5a5f63',{metalness:.5,roughness:.5}),dark=mat('#3a4548');
- const stringMat=mat('#4a3b30'),lanternMat=mat('#d94a3a',{emissive:'#ff7a4a',emissiveIntensity:0}),paper=mat('#ffffff',{emissive:'#ffb15a',emissiveIntensity:0,roughness:.9}),flame=mat('#ffd08a',{emissive:'#ff8a2a',emissiveIntensity:1.6}),lamp=mat('#f7dca6',{emissive:'#ffc87d',emissiveIntensity:0});
+ const stringMat=mat('#4a3b30'),lanternMat=mat('#d94a3a',{emissive:'#ff7a4a',emissiveIntensity:0}),lamp=mat('#f7dca6',{emissive:'#ffc87d',emissiveIntensity:0});
  // 有名字的材質是給驗收腳本在合批網格裡認出東西用的。
- sleeper.name='sleeper';paving.name='paving';plank.name='plank';bridgeDeck.name='bridge-deck';stringMat.name='string';lanternMat.name='lantern';paper.name='sky-lantern';postMat.name='post';
+ sleeper.name='sleeper';paving.name='paving';plank.name='plank';bridgeDeck.name='bridge-deck';stringMat.name='string';lanternMat.name='lantern';postMat.name='post';
 
  // 同材質的靜態方塊合批。
  const batches=new Map(),dummy=new THREE.Object3D();
@@ -176,15 +175,15 @@ export function createScene(params = {}) {
  for(let n=0;n<34;){const x=-32+rand()*64,y=-19+rand()*30;if(!clear(x,y)||farmBox(x,y))continue;props.bush(x,y,groundZ,.35+rand()*.35);n++;}
  for(let i=0;i<14;i++){const x=-32+rand()*64,y=-19+rand()*30;if(!clear(x,y)||farmBox(x,y))continue;props.rock(x,y,groundZ,.16+rand()*.22,rand()<.4);}
 
- // 天燈：老街上空幾盞紙燈慢慢往上飄，飄出畫面就從街心再放一盞。位置逐幀更新，所以是自己的 InstancedMesh，不進靜態合批。
- const H=13,releaseZ=groundZ+1.3,nSky=Math.max(0,p.skyLanterns|0);
- const skyGeo=geo(new THREE.CylinderGeometry(.5,.36,1,4,1));skyGeo.rotateX(Math.PI/2);skyGeo.rotateZ(Math.PI/4);
- const flameGeo=geo(new THREE.BoxGeometry(.16,.16,.12));
- const colors=['#e8503a','#f2a23a','#f4d35e','#e86f9a','#f5f0e6','#6fb1e8'];
- const lanternSet=[];for(let k=0;k<nSky;k++)lanternSet.push({x:streetX0+2.5+rand()*(p.streetLength-5),y:trackY+(rand()-.5)*1.6,rise:.55+rand()*.35,phase:rand()*H});
- let sky=null,flames=null;
- if(nSky){sky=new THREE.InstancedMesh(skyGeo,paper,nSky);flames=new THREE.InstancedMesh(flameGeo,flame,nSky);sky.name='sky-lanterns';flames.name='sky-flames';sky.castShadow=true;
-  for(let k=0;k<nSky;k++)sky.setColorAt(k,new THREE.Color(colors[k%colors.length]));group.add(sky,flames);}
+ // 天燈（放飛的、會往上飄的那種）09-28 起改用 Blender 資產的獨立零件庫（garage-lanterns-v1），
+ // 不再是這裡的程序化幾何——createScene() 是同步的純函式，資產要非同步載入，所以搬到下面的
+ // createSkyLanterns()（main.js 等 loadGarageParts() 完成後才呼叫，回傳自己的 group，跟南迴的
+ // createAttendant／createPeople 同一個模式：核心場景保持同步，人／天燈是額外裝上去的一層）。
+ // 這裡只留老街範圍給 createSkyLanterns() 算落點用（跟這裡種樹/種燈的隨機分布用同一個範圍）。
+ // x1 09-28 從 streetX1(9) 延伸到 stX+2(≈15.2)：原本落點範圍在老街段就結束，車停十分站時
+ // 「陪它走走」跟車鏡頭朝著車站方向，畫面裡幾乎看不到天燈落點；延伸到站區後緣才讓那個鏡頭也有
+ // 幾盞天燈可看（實測結果見 scripts/verify_garage_shifen_stop.mjs 的站區可見度判準）。
+ const lanternZone={x0:streetX0,x1:stX+2,trackY,groundZ};
 
  // 夜燈：每一串燈籠底下一盞暖光（照亮鋪面與兩排店面）、車站一盞、三間農舍門口各一盞小的；強度在 update 依時段調，白天是 0。
  const lampSpots=[];for(let x=streetX0+1.2;x<streetX1-.5;x+=3.6)lampSpots.push([x,trackY,1.85,1]);lampSpots.push([stX+2.5,stY,1.9,1],[-22,-15.3,1.3,.45],[-25.2,-3,1.3,.45],[22,-16.3,1.3,.45]);
@@ -200,20 +199,122 @@ export function createScene(params = {}) {
  const anchors={street:[(streetX0+streetX1)/2,trackY,groundZ+1],station:[stX,stY,platTop],bridge:[bx,(by0+by1)/2,deckZ],hills:[0,18,groundZ+3],river:[0,(riverY0+riverY1)/2,groundZ+.04]};
 
  return {
-  group,path,anchors,params:p,label:p.label,themes:THEMES,
+  group,path,anchors,lanternZone,params:p,label:p.label,themes:THEMES,
   camera:{yaw:-1.12,elevation:.58,radius:50},
   update(time,period='day'){
    const t=THEMES[period]||THEMES.day;
    waterMat.color.set(t.water);const sh=waterMat.userData.shader;if(sh){sh.uniforms.seaTime.value=time;sh.uniforms.shallow.value.set(t.shallow);}
-   paper.emissiveIntensity=t.paper;lanternMat.emissiveIntensity=t.lantern;lamp.emissiveIntensity=t.lamp;
+   lanternMat.emissiveIntensity=t.lantern;lamp.emissiveIntensity=t.lamp;
    for(const l of lights)l.intensity=t.lamp*6*l.userData.k;props.glass.emissiveIntensity=t.window;for(const s of props.signs)s.emissiveIntensity=t.window*.7;   // 燈是燭光值（cd）；窗戶、店面玻璃與店招夜裡自發光
-   if(sky){
-    for(let k=0;k<nSky;k++){const L=lanternSet[k],c=((time*L.rise+L.phase)%H+H)%H,z=releaseZ+c,x=L.x+Math.sin(time*.23+k*1.3)*.5,y=L.y+Math.cos(time*.19+k*2.1)*.3;
-     dummy.position.set(x,y,z);dummy.rotation.set(Math.sin(time*.5+k)*.06,Math.cos(time*.4+k)*.06,k*.7,'ZYX');dummy.scale.set(.5,.5,.75);dummy.updateMatrix();sky.setMatrixAt(k,dummy.matrix);
-     dummy.position.set(x,y,z-.42);dummy.rotation.set(0,0,0,'ZYX');dummy.scale.set(1,1,1);dummy.updateMatrix();flames.setMatrixAt(k,dummy.matrix);}
-    sky.instanceMatrix.needsUpdate=flames.instanceMatrix.needsUpdate=true;
-   }
   },
   dispose(){group.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());}
  };
+}
+
+// 天燈（Blender 資產版）：main.js 等 loadGarageParts() 讀到 garage-lanterns-v1 之後才呼叫，回傳自己
+// 的 group（main.js 直接 scene.add()）與獨立的 update(time,period)（main.js 的 draw() 裡跟
+// shifen.update() 一起呼叫，不掛在 shifen 自己的 update 上——這層是額外裝上去的，之後別的場景要借用
+// 天燈也不用碰 createScene()，跟南迴的 createAttendant／createPeople 同一個模式）。
+// scale 跟人／車同一個換算：kit 裡的幾何是「模型公尺」（跟 garage-people-v1 的 rig.height=1.7 同一個
+// 基準），乘上 main.js 算好的 1.25/primary.size.y 就是這個場景的世界單位，天燈／乘客的相對大小因此
+// 自動貼近真實比例，不必在這裡另外調校。位置（x/y/z、老街範圍、回收高度）留在場景既有的世界單位，
+// 只有天燈自己的形狀（scale）吃 scale 換算。
+// 夜裡的暖橘光暈貼圖：一張 64×64 的放射狀漸層（中心白熱、中段暖橘、邊緣透明），單一 canvas 產生、
+// 所有天燈共用同一張——搭配 THREE.Points 一次 draw call畫完全部光暈實例，不隨天燈數量線性增加
+// draw call（每盞天燈另開一個 THREE.Sprite 會，12 盞就是 12 個 draw call，這個場景的 draw-call
+// 預算吃緊，見 rail-3d 既有效能鐵則）。
+function glowTexture(){
+ if(typeof document==='undefined')return null; // 純 Node 環境（verify_garage_shifen_stop.mjs 的外形／升空檢查）沒有 DOM，光暈只在瀏覽器裡需要。
+ const c=document.createElement('canvas');c.width=c.height=64;
+ const ctx=c.getContext('2d');
+ const g=ctx.createRadialGradient(32,32,0,32,32,32);
+ g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.35,'rgba(255,196,130,.6)');g.addColorStop(1,'rgba(255,150,70,0)');
+ ctx.fillStyle=g;ctx.fillRect(0,0,64,64);
+ const tex=new THREE.CanvasTexture(c);tex.needsUpdate=true;return tex;
+}
+
+export function createSkyLanterns(kit,scale,zone,params={}){
+ const cfg={count:12,seed:20260928,...params};
+ const group=new THREE.Group();group.name='sky-lanterns-rig';
+ const materials=[];
+ const paperMat=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.9,emissive:'#ffb15a',emissiveIntensity:0});materials.push(paperMat);
+ const frameMat=new THREE.MeshStandardMaterial({color:'#8a6a45',roughness:.85});materials.push(frameMat);
+ const flameMat=new THREE.MeshStandardMaterial({color:'#ffd08a',emissive:'#ff8a2a',emissiveIntensity:1.6,roughness:.6});materials.push(flameMat);
+ const nSky=Math.max(0,cfg.count|0);
+ let seed=cfg.seed;const rand=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
+ const colors=['#e8503a','#f2a23a','#f4d35e','#e86f9a','#f5f0e6','#6fb1e8'];
+ // H／releaseZ：回收高度／放飛起點，跟舊版程序化天燈同一個飛行包絡（維持不變）。FADE：淡出/淡入各佔
+ // 的爬升量（世界單位）——循環重置前後這段距離內把 scale 收到 0，避免瞬移穿幫（十分-天燈升空判準）。
+ const H=13,releaseZ=zone.groundZ+1.3,FADE=1.1;
+ // phase 09-28 起改成「均分＋小抖動」而非純隨機：主對話要求任何時刻老街上方都同時看得到幾盞不同
+ // 高度的天燈，純隨機在數量不多時容易洗出「這一刻剛好全部擠在同一段高度」的抽樣，均分能保證任何
+ // 時刻都攤開在整個爬升週期的不同位置，抖動量壓在 ±7.5% 週期，維持「錯落」的手感不會看起來機械對齊。
+ const lanternSet=[];for(let k=0;k<nSky;k++)lanternSet.push({x:zone.x0+2.5+rand()*(zone.x1-zone.x0-5),y:zone.trackY+(rand()-.5)*1.6,rise:.55+rand()*.35,phase:(k/nSky)*H+(rand()-.5)*H*.15});
+ let paperMesh=null,frameMesh=null,flameMesh=null,glowPoints=null,glowGeo=null,glowMat=null,glowTex=null;
+ if(nSky){
+  paperMesh=new THREE.InstancedMesh(kit.parts.get('lantern-paper').geometry,paperMat,nSky);paperMesh.name='sky-lantern-paper';paperMesh.castShadow=true;
+  frameMesh=new THREE.InstancedMesh(kit.parts.get('lantern-frame').geometry,frameMat,nSky);frameMesh.name='sky-lantern-frame';
+  flameMesh=new THREE.InstancedMesh(kit.parts.get('lantern-flame').geometry,flameMat,nSky);flameMesh.name='sky-lantern-flame';
+  for(let k=0;k<nSky;k++)paperMesh.setColorAt(k,new THREE.Color(colors[k%colors.length]));
+  group.add(paperMesh,frameMesh,flameMesh);
+  // 夜裡發光：每盞一個 additive 暖橘光暈點，位置每幀跟著天燈本體走，亮度＝時段×該盞目前的 fade
+  // （淡入/淡出時光暈跟著一起淡，不會在天燈剛出現/剛回收那一刻先亮/晚暗穿幫）。純 Node 環境
+  // （verify_garage_shifen_stop.mjs 的外形／升空檢查）沒有 DOM／canvas，glowTexture() 回 null 時
+  // 整組光暈跳過不建——那些檢查本來就不需要光暈，只驗形狀與 fade。
+  glowTex=glowTexture();
+  if(glowTex){
+   glowGeo=new THREE.BufferGeometry();
+   glowGeo.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(nSky*3),3));
+   glowGeo.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(nSky*3),3));
+   glowMat=new THREE.PointsMaterial({map:glowTex,size:34,sizeAttenuation:false,vertexColors:true,transparent:true,depthWrite:false,depthTest:false,blending:THREE.AdditiveBlending});
+   materials.push(glowMat);
+   // depthTest:false 是必要的、不是可省的效能微調：THREE.Points 整個點精靈只有一個深度值（點本身
+   // 的位置），釘在天燈腰身中心會被自己不透明的紙燈殼前緣整片擋掉深度測試（前緣一定比中心點更靠
+   // 鏡頭），實測不關深度測試時光暈在畫面中心幾乎量不到任何貢獻（跟完全沒開光暈時同一個讀數）。
+   // 柔和的 additive 光暈本來就常見不做深度測試（代表光線繞過/穿透物體邊緣散出來的觀感），代價是
+   // 光暈永遠畫在最上層、不會被前方物體正確遮擋——這個場景的光暈很小很柔和，這個代價可接受。
+   // sizeAttenuation:false 是刻意的：three.js 內建的 point-size shader 只在透視投影下依距離縮放
+   // （isPerspectiveMatrix 分支），這個場景的三個鏡頭（全景／跟車／月台）視野跨距差很大，固定像素
+   // 尺寸才能保證在每個鏡頭下都量得到、不會在某個鏡頭忽然縮到量不到。
+   glowPoints=new THREE.Points(glowGeo,glowMat);glowPoints.name='sky-lantern-glow';glowPoints.frustumCulled=false;
+   group.add(glowPoints);
+  }
+ }
+ const dummy=new THREE.Object3D(),m4=new THREE.Matrix4(),pos=new THREE.Vector3(),quat=new THREE.Quaternion(),scl=new THREE.Vector3();
+ function stateAt(k,time){
+  const L=lanternSet[k],c=((time*L.rise+L.phase)%H+H)%H,z=releaseZ+c;
+  const x=L.x+Math.sin(time*.23+k*1.3)*.5,y=L.y+Math.cos(time*.19+k*2.1)*.3;
+  return{x,y,z,cycle:c,fade:Math.max(0,Math.min(1,c/FADE,(H-c)/FADE))};
+ }
+ const GLOW_COLOR=new THREE.Color('#ff9a4a'),GLOW_K={day:0,sunset:.5,night:1},glowMidH=kit.rig.height*.5;
+ function update(time,period='day'){
+  const t=THEMES[period]||THEMES.day;
+  paperMat.emissiveIntensity=t.paper;
+  if(!nSky)return;
+  const gk=GLOW_K[period]??GLOW_K.day,gc=glowGeo&&glowGeo.attributes.color,gp=glowGeo&&glowGeo.attributes.position;
+  for(let k=0;k<nSky;k++){
+   const s=stateAt(k,time),sc=scale*s.fade;
+   dummy.position.set(s.x,s.y,s.z);dummy.rotation.set(Math.sin(time*.5+k)*.06,Math.cos(time*.4+k)*.06,k*.7,'ZYX');
+   dummy.scale.set(sc,sc,sc);dummy.updateMatrix();
+   paperMesh.setMatrixAt(k,dummy.matrix);frameMesh.setMatrixAt(k,dummy.matrix);flameMesh.setMatrixAt(k,dummy.matrix);
+   // 光暈點的世界座標刻意抬到天燈「腰身」高度（base z ＋ 半個模型高度×目前實際 scale），不是跟本體
+   // 一樣釘在 base（原本寫成 s.z，跟本體共用同一個基準點但視覺上光暈該包著整顆燈籠鼓起的地方，
+   // 不是趴在燈籠底部）；這個修正同時也是讓「關掉光暈」的驗收突變測試量得到差異的必要條件——光暈
+   // 沒有跟紙燈殼中心對齊時，驗收在紙燈殼中心取樣會完全量不到光暈開關的差異（紙殼本體不透明，
+   // 擋住了不同高度的光暈）。
+   if(gp){const gi=gk*s.fade;gp.setXYZ(k,s.x,s.y,s.z+glowMidH*sc);gc.setXYZ(k,GLOW_COLOR.r*gi,GLOW_COLOR.g*gi,GLOW_COLOR.b*gi);}
+  }
+  paperMesh.instanceMatrix.needsUpdate=frameMesh.instanceMatrix.needsUpdate=flameMesh.instanceMatrix.needsUpdate=true;
+  if(gp){gp.needsUpdate=true;gc.needsUpdate=true;}
+ }
+ update(0,'day');
+ // 驗收用：直接讀「實際畫出來的東西」的世界座標／scale（用 getMatrixAt 讀回剛才 setMatrixAt 寫入的
+ // 那份，不是另外重算 stateAt 的公式），跟南迴 peopleBounds() 同一個原則。
+ function readInstance(k){
+  if(!paperMesh||k<0||k>=nSky)return null;
+  paperMesh.getMatrixAt(k,m4);m4.decompose(pos,quat,scl);
+  return{position:pos.toArray(),scale:scl.x};
+ }
+ return{group,count:nSky,H,releaseZ,FADE,lanternSet,update,readInstance,
+  dispose(){group.clear();materials.forEach(m=>m.dispose());glowTex&&glowTex.dispose();}};
 }

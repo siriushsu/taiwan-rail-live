@@ -48,9 +48,16 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   check(engine+' 全景視角環線四個位置都完整看到三節車',worldFits.every(r=>r.ok),worldFits.map(r=>({frac:r.frac,ok:r.ok})));
   await p.screenshot({path:`${OUT}/${engine}-world.png`});
 
-  // 看老街：車廂應停在 s=0（老街中段），且行駛暫停。
-  await p.evaluate(()=>shifenPreview.setTime(9));await p.tap('#platform');await settle(p);
-  check(engine+' 看老街停在老街中段且暫停',(await state(p)).distance===0&&(await state(p)).running===false,await state(p));
+  // 看老街：09-28 起改成「快轉到下一次進站」（不是瞬移到老街中段），套用南迴同一套 stop-timetable
+  // 做法——舊判準（distance===0 且 running===false）驗的是已經拔掉的瞬移行為，改驗新行為：時間真的往前
+  // 跳（不是瞬移到某個固定值）、跳完處在減速／停站階段、切到月台特寫視角；再等到真的停穩，車停在月台
+  // 中心（世界座標 x≈STATION_OFFSET）且速度為零。深入的階段機（含突變測試）放 verify_garage_shifen_stop.mjs。
+  await p.evaluate(()=>shifenPreview.setTime(40));const beforeClick=(await state(p)).time;   // 40 秒落在巡航段（brake=5…cruiseAt=26 之後），確保這次點擊真的會觸發快轉，不是本來就在減速/停站中
+  await p.tap('#platform');await settle(p);const afterClick=await state(p);
+  check(engine+' 看老街快轉到下一次進站（不是瞬移）',afterClick.time>beforeClick+1&&(afterClick.phase==='braking'||afterClick.phase==='stopped')&&afterClick.view==='platform',{beforeClick,afterClick});
+  await p.evaluate(()=>new Promise(res=>{const iv=setInterval(()=>{if(shifenPreview.state.phase==='stopped'){clearInterval(iv);res();}},50);}));await settle(p);
+  const stoppedAt=await state(p);
+  check(engine+' 看老街快轉後真的停在月台、車速歸零',stoppedAt.phase==='stopped'&&stoppedAt.currentSpeed===0&&Math.abs(stoppedAt.poses[1].x-13.2)<.05,stoppedAt);
 
   // 店屋貼著鐵軌，車不能被房子擋掉：先把場景整個隱藏、只畫車，拿到車的剪影；再把場景放回去，剪影裡顏色沒被改掉的像素就是露出來的部分。
   // 淺色車身貼著淺色房子時「有車／沒車」的像素差會被低估，所以不拿那個當分母，拿剪影當分母。
@@ -61,11 +68,14 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
    const diff=(a,b,i)=>Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2]);
    let silhouette=0,visible=0;for(let y=T;y<B;y++)for(let x=L;x<R;x++){const i=(y*c.width+x)*4;if(diff(alone,bare,i)<=25)continue;silhouette++;if(diff(withScene,alone,i)<=25)visible++;}
    return{view:c.dataset.view,silhouette,visible,ratio:+(visible/Math.max(1,silhouette)).toFixed(3)};});
-  const worldStreet=await exposure(p);
+  // 09-28：車改停到月台（見上方），原本量「全景」視角的曝光率改量新增的月台特寫視角（platform）——
+  // 停到月台旁邊之後，兩個視角的仰角都要夠陡（見 main.js draw()/reset() 的說明），才不會被月台雨棚
+  // 橫著蓋住車身；這兩條的 0.7 門檻沒放寬，是把相機仰角修對之後量到的真實曝光率（0.72／0.73 一線）。
+  const platformShot=await exposure(p);
   await p.tap('[data-view="train"]');await p.tap('#reset');await settle(p);
   const followStreet=await exposure(p);
-  check(engine+' 看老街（全景）車身露出七成以上',worldStreet.view==='world'&&worldStreet.silhouette>200&&worldStreet.ratio>=.7,worldStreet);
-  check(engine+' 跟車視角停在老街裡車身露出七成以上',followStreet.view==='train'&&followStreet.silhouette>400&&followStreet.ratio>=.7,followStreet);
+  check(engine+' 看老街（月台特寫）車身露出七成以上',platformShot.view==='platform'&&platformShot.silhouette>200&&platformShot.ratio>=.7,platformShot);
+  check(engine+' 跟車視角停在月台旁車身露出七成以上',followStreet.view==='train'&&followStreet.silhouette>400&&followStreet.ratio>=.7,followStreet);
 
   // 道床、老街、天燈、車站、河與山：全部對著同一份 shifen.js 蓋出來的場景量，車的尺寸每次從車模頂點重量。
   const scene=await p.evaluate(async()=>{
@@ -96,11 +106,18 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
    const stringsAcross=strings.filter(s=>s.y0<trackY-.6&&s.y1>trackY+.6).length,stringMinZ=Math.min(...strings.map(s=>s.z));
    // 電車線：本場景沒有；高架場景有，當正向對照。
    const wireHere=!!byName('contact-wire'),vs=V.createScene(),wireViaduct=!!vs.group.children.find(o=>o.name==='contact-wire');vs.dispose();
-   // 天燈：兩個時刻各讀一次位置；夜裡紙燈與燈籠的自發光要比白天強。
-   const sky=byName('sky-lanterns'),readSky=()=>{const out=[];for(let i=0;i<sky.count;i++){sky.getMatrixAt(i,m);m.decompose(pos,rot,scl);out.push({x:+pos.x.toFixed(2),y:+pos.y.toFixed(2),z:+pos.z.toFixed(2)});}return out;};
+   // 天燈：09-28 起搬到 createSkyLanterns()（獨立於 createScene() 之外，資產非同步載入），這裡另外
+   // 載入同一份 kit 建一次，用 readInstance()（讀真的寫進 InstancedMesh 的那份，不是重算 stateAt 公式）
+   // 兩個時刻各讀一次位置；夜裡紙燈與燈籠串的自發光要比白天強。
+   const lanternKit=await M.loadGarageParts(new URL('/rail-3d/assets/garage-lanterns-v1/lanterns.json',location.href)),
+    skyLanterns=S.createSkyLanterns(lanternKit,1.25/prim.size.y,sc.lanternZone),
+    paperMesh=skyLanterns.group.children.find(o=>o.name==='sky-lantern-paper'),
+    readSky=()=>Array.from({length:skyLanterns.count},(_,i)=>{const r=skyLanterns.readInstance(i);return{x:+r.position[0].toFixed(2),y:+r.position[1].toFixed(2),z:+r.position[2].toFixed(2)};});
    const lanternMat=inst('lantern')[0].material;
-   sc.update(0,'day');const skyA=readSky(),paperDay=sky.material.emissiveIntensity,lanternDay=lanternMat.emissiveIntensity;
-   sc.update(2.5,'night');const skyB=readSky(),paperNight=sky.material.emissiveIntensity,lanternNight=lanternMat.emissiveIntensity;
+   const lanternZoneX=[sc.lanternZone.x0,sc.lanternZone.x1]; // 09-28 二版：落點範圍從街段延伸到站區（見 shifen.js createScene 的 lanternZone 註解），這裡直接讀場景自己宣告的範圍，不要另外硬編一份跟它可能對不上的邊界。
+   sc.update(0,'day');skyLanterns.update(0,'day');const skyA=readSky(),paperDay=paperMesh.material.emissiveIntensity,lanternDay=lanternMat.emissiveIntensity;
+   sc.update(2.5,'night');skyLanterns.update(2.5,'night');const skyB=readSky(),paperNight=paperMesh.material.emissiveIntensity,lanternNight=lanternMat.emissiveIntensity;
+   skyLanterns.dispose();lanternKit.dispose();
    // 月台：plank 批次裡最長的那塊。
    let plat=null;for(const o of inst('plank'))for(let i=0;i<o.count;i++){o.getMatrixAt(i,m);m.decompose(pos,rot,scl);if(!plat||scl.x>plat.sx)plat={x:pos.x,y:pos.y,z:pos.z,sx:scl.x,sy:scl.y,sz:scl.z};}
    const platEdgeGap=Math.abs(plat.y-trackY)-plat.sy/2-halfW,platTop=plat.z+plat.sz/2;
@@ -113,7 +130,7 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
    const inRect=(x,y)=>{const ax=Math.abs(x),ay=Math.abs(y);if(ax>33||ay>20)return false;if(ax<=29||ay<=16)return true;return Math.hypot(ax-29,ay-16)<=4;};
    for(let i=0;i<hpv.count;i++){const x=hpv.getX(i)+hills.position.x,y=hpv.getY(i)+hills.position.y,z=hpv.getZ(i)+hills.position.z;hillMax=Math.max(hillMax,z);if(!inRect(x,y))hillOutside++;}
    sc.dispose();t.dispose();prim.dispose();
-   return{wheel,roof,halfW,railOffsets,railTop,railBottom,pathZ:q0.z,trackY,tieCount:ties.count,tieExpected:Math.ceil(path.length/.42),offPath,tieTop,minEdge,gap:minEdge-halfW,closest,streetItems,streetX,stringCount:strings.length,stringsAcross,stringMinZ,roofZ:railZ+roof,wireHere,wireViaduct,skyA,skyB,paperDay,paperNight,lanternDay,lanternNight,groundZ,platEdgeGap,platTop,riverY,deck,backY,hillMax,hillOutside,hillVerts:hpv.count};
+   return{wheel,roof,halfW,railOffsets,railTop,railBottom,pathZ:q0.z,trackY,tieCount:ties.count,tieExpected:Math.ceil(path.length/.42),offPath,tieTop,minEdge,gap:minEdge-halfW,closest,streetItems,streetX,stringCount:strings.length,stringsAcross,stringMinZ,roofZ:railZ+roof,wireHere,wireViaduct,skyA,skyB,lanternZoneX,paperDay,paperNight,lanternDay,lanternNight,groundZ,platEdgeGap,platTop,riverY,deck,backY,hillMax,hillOutside,hillVerts:hpv.count};
   });
   check(engine+' 軌距對齊車模輪對（輪對位置每次從車模頂點重量）',scene.railOffsets[0]<0&&scene.railOffsets[1]>0&&scene.railOffsets.every(o=>Math.abs(Math.abs(o)-scene.wheel)<.06),{wheel:scene.wheel,railOffsets:scene.railOffsets});
   check(engine+' 軌頂托住輪底、軌底坐在枕木上',Math.abs(scene.railTop-scene.pathZ)<1e-6&&Math.abs(scene.railBottom-scene.tieTop)<1e-6,{railTop:scene.railTop,pathZ:scene.pathZ,railBottom:scene.railBottom,tieTop:scene.tieTop});
@@ -121,30 +138,46 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   check(engine+' 老街店屋貼著車走但不撞車（淨空由車模半寬推導：≥.25 且 ≤.7）',scene.streetItems>20&&scene.gap>=.25&&scene.gap<=.7,{gap:+scene.gap.toFixed(3),halfW:+scene.halfW.toFixed(3),closest:scene.closest,streetItems:scene.streetItems});
   check(engine+' 燈籠串條條橫過街心、掛在車頂之上',scene.stringCount>=6&&scene.stringsAcross===scene.stringCount&&scene.stringMinZ-scene.roofZ>=.3,{stringCount:scene.stringCount,stringsAcross:scene.stringsAcross,stringMinZ:scene.stringMinZ,roofZ:scene.roofZ});
   check(engine+' 柴油小車不架電車線（高架場景有＝正向對照）',!scene.wireHere&&scene.wireViaduct,{wireHere:scene.wireHere,wireViaduct:scene.wireViaduct});
-  const rising=scene.skyA.map((a,i)=>scene.skyB[i].z>a.z).filter(Boolean).length,skyInStreet=[...scene.skyA,...scene.skyB].every(l=>l.x>=scene.streetX[0]&&l.x<=scene.streetX[1]&&Math.abs(l.y-scene.trackY)<=1.5&&l.z>=scene.groundZ+1.2&&l.z<=scene.groundZ+15);
-  check(engine+' 天燈從老街上空往上飄（飄走的從街心再放一盞）',scene.skyA.length===6&&rising>=5&&skyInStreet,{rising,skyA:scene.skyA,skyB:scene.skyB});
+  // 09-28 二版：天燈預設數量從 6 盞改成 12 盞（見 shifen.js createSkyLanterns 的 cfg.count），
+  // 這裡的期望值跟著等比例更新——原本「6 盞裡至少 5 盞在漲」（容許 1 盞剛好在這個取樣窗口內
+  // wrap 回收）是照 6 盞校準的容忍度（1/6≈16.7%），盞數變多、相位改成均分後，固定的 2.5 秒取樣窗
+  // 落在某一盞 wrap 附近的機率跟著變高（12 盞均分在 13 秒週期，統計上預期任何時刻都有一兩盞在
+  // wrap 前後），照同一個比例（16.7%）換算成 12 盞就是「至少 10 盞在漲」，不是行為壞掉、是取樣
+  // 對到了原本就會發生的 wrap（實測 skyB 裡確實有一盞 z 從 13.07 掉到 1.68，正是 wrap 那一下）。
+  const rising=scene.skyA.map((a,i)=>scene.skyB[i].z>a.z).filter(Boolean).length,skyInStreet=[...scene.skyA,...scene.skyB].every(l=>l.x>=scene.lanternZoneX[0]&&l.x<=scene.lanternZoneX[1]&&Math.abs(l.y-scene.trackY)<=1.5&&l.z>=scene.groundZ+1.2&&l.z<=scene.groundZ+15);
+  check(engine+' 天燈從老街上空往上飄（飄走的從街心再放一盞）',scene.skyA.length===12&&rising>=10&&skyInStreet,{rising,skyA:scene.skyA,skyB:scene.skyB});
   check(engine+' 夜裡天燈與燈籠亮起來',scene.paperNight>scene.paperDay&&scene.lanternNight>scene.lanternDay&&scene.lanternDay===0,{paperDay:scene.paperDay,paperNight:scene.paperNight,lanternDay:scene.lanternDay,lanternNight:scene.lanternNight});
   check(engine+' 月台貼在軌旁、面高托得住車門',scene.platEdgeGap>=.2&&scene.platEdgeGap<=.8&&scene.platTop>=scene.pathZ-.1&&scene.platTop<=scene.pathZ+.35,{platEdgeGap:+scene.platEdgeGap.toFixed(3),platTop:scene.platTop,pathZ:scene.pathZ});
   check(engine+' 河在後直線外側、吊橋跨過整條河',scene.riverY[0]>scene.backY+1.45&&scene.deck.y0<scene.riverY[0]&&scene.deck.y1>scene.riverY[1]&&scene.deck.z>scene.groundZ+.5,{riverY:scene.riverY,backY:scene.backY,deck:scene.deck});
   check(engine+' 對岸的山收在底座裡、有高度',scene.hillOutside===0&&scene.hillMax>=scene.groundZ+4&&scene.hillVerts>1000,{hillOutside:scene.hillOutside,hillMax:scene.hillMax,hillVerts:scene.hillVerts});
 
-  // 參數化證明：在頁面裡直接 import shifen.js，用不同參數各建一次場景。
+  // 參數化證明：在頁面裡直接 import shifen.js，用不同參數各建一次場景。09-28 起 skyLanterns 不再是
+  // createScene() 的參數（天燈搬到獨立的 createSkyLanterns()，見上面「天燈」那段），這裡拆成兩組證明：
+  // createScene() 只證 streetLength；天燈數量的參數化改對 createSkyLanterns() 自己的 count 測。
   const paramProof=await p.evaluate(async()=>{
    const mod=await import('../../rail-3d/garage-scenes/shifen.js');
    function countTriangles(group){let total=0;group.traverse(o=>{if(o.isMesh){const g=o.geometry,idx=g.index,tris=(idx?idx.count:g.attributes.position.count)/3;total+=tris*(o.isInstancedMesh?o.count:1);}});return total;}
-   const configs=[{name:'default',params:{}},{name:'noLanterns',params:{skyLanterns:0}},{name:'shortStreet',params:{streetLength:12,skyLanterns:3}},{name:'defaultAgain',params:{}}];
+   const configs=[{name:'default',params:{}},{name:'shortStreet',params:{streetLength:12}},{name:'defaultAgain',params:{}}];
    const out=[];
    for(const cfg of configs){
-    const s=mod.createScene(cfg.params),sky=s.group.children.find(o=>o.name==='sky-lanterns'),triangles=countTriangles(s.group),childCountBefore=s.group.children.length,paramsEcho=JSON.parse(JSON.stringify(s.params));
+    const s=mod.createScene(cfg.params),triangles=countTriangles(s.group),childCountBefore=s.group.children.length,paramsEcho=JSON.parse(JSON.stringify(s.params));
     s.dispose();
-    out.push({name:cfg.name,triangles,skyCount:sky?sky.count:0,paramsEcho,childCountBefore,childCountAfter:s.group.children.length});
+    out.push({name:cfg.name,triangles,paramsEcho,childCountBefore,childCountAfter:s.group.children.length});
    }
    return out;
   });
-  const [pDefault,pNoLantern,pShort,pDefaultAgain]=paramProof;
-  check(engine+' 參數化：天燈數照參數（0 盞就沒有那個網格）',pDefault.skyCount===6&&pNoLantern.skyCount===0&&pShort.skyCount===3,paramProof.map(x=>({name:x.name,skyCount:x.skyCount})));
+  const [pDefault,pShort,pDefaultAgain]=paramProof;
   check(engine+' 參數化：老街縮短三角形變少、相同參數兩次結果相同（正向對照）',pShort.triangles<pDefault.triangles&&pDefault.triangles===pDefaultAgain.triangles&&pDefault.triangles>0,paramProof.map(x=>({name:x.name,triangles:x.triangles})));
-  check(engine+' 參數化：四組都能 dispose 且不留下幾何',paramProof.every(x=>x.childCountBefore>0&&x.childCountAfter===0)&&pShort.paramsEcho.streetLength===12,paramProof.map(x=>({before:x.childCountBefore,after:x.childCountAfter})));
+  check(engine+' 參數化：三組都能 dispose 且不留下幾何',paramProof.every(x=>x.childCountBefore>0&&x.childCountAfter===0)&&pShort.paramsEcho.streetLength===12,paramProof.map(x=>({before:x.childCountBefore,after:x.childCountAfter})));
+
+  // createSkyLanterns() 自己的參數化：count 控制天燈網格的實例數（0 盞時乾脆不建 InstancedMesh）。
+  const lanternParamProof=await p.evaluate(async()=>{
+   const S=await import('/rail-3d/garage-scenes/shifen.js'),M=await import('/rail-3d/garage-model.js'),sc=S.createScene();
+   const kit=await M.loadGarageParts(new URL('/rail-3d/assets/garage-lanterns-v1/lanterns.json',location.href));
+   const out=[];for(const count of [0,3,6]){const l=S.createSkyLanterns(kit,1,sc.lanternZone,{count});const paperMesh=l.group.children.find(o=>o.name==='sky-lantern-paper');out.push({count,got:l.count,hasMesh:!!paperMesh,meshCount:paperMesh?paperMesh.count:0});l.dispose();}
+   kit.dispose();sc.dispose();return out;
+  });
+  check(engine+' 參數化：天燈數照 createSkyLanterns 的 count（0 盞就沒有那個網格）',lanternParamProof.every(x=>x.got===x.count&&x.hasMesh===(x.count>0)&&x.meshCount===x.count),lanternParamProof);
 
   // 山的背面與夜燈（09-12 兩點：轉到背面山要是實心的、有房子有燈的地方要有光）。全部在 1440×1000 的全景頁上量真實像素；車先停到後直線，老街不被車擋。
   {
