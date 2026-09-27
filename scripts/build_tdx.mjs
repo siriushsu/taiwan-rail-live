@@ -501,7 +501,12 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
   const shapes = shapeParts('SANYING_Shape.json');
   // 2026-09-12 起 TDX 以 NTMC(新北捷運)營運商發布三鶯線,站碼與本線同為 LB01~LB12,
   // 直接取官方站間行駛時間填 segs[].run(先前 11 段全 null,前端只能用距離/速度回推)。
-  // 幾何(Shape)與班距(Frequency)TDX 查無 LB,故線形續用 OSM、班距續用官方公告值。
+  // 2026-09-27 TDX 首度在 NTMC_Shape.json 補上 LB 的官方 Geometry,但實測是 745 個 2 點碎片,
+  // stitch() 縫合後仍留 8 條互不相連的鏈(鏈間最小縫隙 150–269m,遠超單跳 join 的 250m 上限),
+  // 臺北大學(LB07)所在鏈與鶯歌車站(LB08)所在鏈之間要串 3 跳(5→2→3→4)才通,現有 assemble()
+  // 只支援單跳跨鏈接合,該站間段會退化成直線(離軌 857m)——比現有 OSM 線形更差,故暫不採用,
+  // 幾何(Shape)續用 OSM;班距(Frequency)TDX 已有 LB 但未核對,續用官方公告值。
+  // 若要之後改用 TDX 幾何,需先擴充 assemble() 支援多跳跨鏈接合並重新驗證全部 11 段。
   const maps = s2sMaps('NTMC_S2STravelTime.json');
   const lines = [
     assemble({
