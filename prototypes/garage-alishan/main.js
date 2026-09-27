@@ -1,11 +1,11 @@
 import * as THREE from '../../rail-3d/vendor/three.module.js';
-import {createScene,THEMES} from '../../rail-3d/garage-scenes/alishan.js?revision=turnout-sign-0912';
-import {loadGarageModel,createConsist} from '../../rail-3d/garage-model.js?revision=headlights-0912';
+import {createScene,THEMES} from '../../rail-3d/garage-scenes/alishan.js?revision=alishan-fx-20260928';
+import {loadGarageModel,createConsist,loadGarageParts} from '../../rail-3d/garage-model.js?revision=headlights-0912';
 import {createJourney} from '../../rail-3d/garage-scenes/alishan-route.js?revision=turnout-sign-0912';
 import {createTerrainFollower} from '../../rail-3d/garage-scenes/consist-3d.js';
 const canvas=document.querySelector('#scene'),loading=document.querySelector('#loading');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-let journey,follow3D,pose,renderer,environment,primary,train,coast,raf=0,last=0,time=0,distance=0,period='day',view=matchMedia('(max-width:800px)').matches?'train':'world',running=!reduced.matches,zoom=1,span=1,yaw=-1.35,elevation=.67,disposed=false,ready=false,draws=0;
+let journey,follow3D,pose,renderer,environment,primary,train,coast,fxKit,raf=0,last=0,time=0,distance=0,period='day',view=matchMedia('(max-width:800px)').matches?'train':'world',running=!reduced.matches,zoom=1,span=1,yaw=-1.35,elevation=.67,disposed=false,ready=false,draws=0;
 const scene=new THREE.Scene(),camera=new THREE.OrthographicCamera(-40,40,30,-30,.1,400);camera.up.set(0,0,1);
 const focus=new THREE.Vector3(),pan=new THREE.Vector3(),target=new THREE.Vector3(),sun=new THREE.DirectionalLight('#fff1cf',3.2),hemi=new THREE.HemisphereLight('#c1dce7','#7b8663',2.1);
 sun.position.set(-25,-30,45);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-42,right:42,top:45,bottom:-45,near:1,far:140});sun.shadow.normalBias=.035;sun.shadow.bias=-.0001;scene.add(sun,hemi,sun.target);
@@ -46,20 +46,31 @@ canvas.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','-'
 const observer=new ResizeObserver(resize);observer.observe(canvas);
 document.addEventListener('visibilitychange',()=>{last=0;if(document.hidden){cancelAnimationFrame(raf);raf=0;}else schedule();});
 reduced.addEventListener('change',()=>{if(reduced.matches){running=false;controls();schedule();}});
-function dispose(){if(disposed)return;disposed=true;ready=false;cancelAnimationFrame(raf);observer.disconnect();train?.dispose();primary?.dispose();coast?.dispose();environment?.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();renderer?.dispose();}
+function dispose(){if(disposed)return;disposed=true;ready=false;cancelAnimationFrame(raf);observer.disconnect();train?.dispose();primary?.dispose();coast?.dispose();fxKit?.dispose();environment?.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();renderer?.dispose();}
 window.addEventListener('pagehide',dispose);window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 try{
  renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();dispose();loading.hidden=false;loading.replaceChildren(document.createTextNode('畫面暫時中斷，請重新開啟場景。'));const b=document.createElement('button');b.textContent='重新開啟';b.onclick=()=>location.reload();loading.append(b);});
  const studio=new THREE.Scene();studio.background=new THREE.Color('#9dafb0');const pmrem=new THREE.PMREMGenerator(renderer);environment=pmrem.fromScene(studio,.1);scene.environment=environment.texture;pmrem.dispose();
- coast=createScene();scene.add(coast.group);primary=await loadGarageModel('dl38');if(disposed){primary.dispose();throw Error('disposed');}train=await createConsist('dl38',primary,null,{locoAtTail:true});if(disposed){train.dispose();throw Error('disposed');}scene.add(train.root);train.root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+ fxKit=await loadGarageParts(new URL('../../rail-3d/assets/garage-alishan-fx-v1/alishan-fx.json',import.meta.url));if(disposed){fxKit.dispose();throw Error('disposed');}
+ coast=createScene(fxKit);scene.add(coast.group);primary=await loadGarageModel('dl38');if(disposed){primary.dispose();throw Error('disposed');}train=await createConsist('dl38',primary,null,{locoAtTail:true});if(disposed){train.dispose();throw Error('disposed');}scene.add(train.root);train.root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+ // 螢火蟲離地高度換算真實世界公尺數要用「車模的縮放比例」——跟 garage-model.js createConsist
+ // 內部算車廂長度用的是同一條公式（1.25/primary.size.y），這裡沒有匯出那個內部變數，直接照樣重算。
+ coast.fx.setTrainScale(1.25/primary.size.y);
  journey=createJourney(coast.routes,train.length);follow3D=createTerrainFollower(train);ready=true;loading.hidden=true;setView(view);setTheme(period);controls();resize();draw();schedule();
  window.alishanPreview={
-  get state(){return{ready,turnouts:coast.turnouts.state,lighting:train.lighting.state,period,view,running,pan:{x:pan.x,y:pan.y},direction:pose?.sign,distance,time,zoom,draws,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},poses:train.cars.map(c=>({id:c.id,x:c.car.position.x,y:c.car.position.y,z:c.car.position.z,heading:c.heading,pitch:c.pitch,offset:c.offset,length:c.length})),pose,journeyDuration:journey.total,stages:journey.stages,trainLength:train.length, bounds:train.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),ps=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const q=new THREE.Vector3(x,y,z).project(camera);ps.push([(q.x+1)*canvas.width/2,(1-q.y)*canvas.height/2]);}return{left:Math.min(...ps.map(p=>p[0])),right:Math.max(...ps.map(p=>p[0])),top:Math.min(...ps.map(p=>p[1])),bottom:Math.max(...ps.map(p=>p[1]))};})};},
+  get state(){return{ready,turnouts:coast.turnouts.state,lighting:train.lighting.state,period,view,running,pan:{x:pan.x,y:pan.y},direction:pose?.sign,distance,time,zoom,draws,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},poses:train.cars.map(c=>({id:c.id,x:c.car.position.x,y:c.car.position.y,z:c.car.position.z,heading:c.heading,pitch:c.pitch,offset:c.offset,length:c.length})),pose,journeyDuration:journey.total,stages:journey.stages,trainLength:train.length,fx:coast.fx.state, bounds:train.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),ps=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const q=new THREE.Vector3(x,y,z).project(camera);ps.push([(q.x+1)*canvas.width/2,(1-q.y)*canvas.height/2]);}return{left:Math.min(...ps.map(p=>p[0])),right:Math.max(...ps.map(p=>p[0])),top:Math.min(...ps.map(p=>p[1])),bottom:Math.max(...ps.map(p=>p[1]))};})};},
   sample:(route,s)=>coast.routes[route].sample(s),
   ground:p=>coast.groundHeight(...p),surface:p=>coast.surfaceHeight(...p),
   project:p=>{const q=new THREE.Vector3(...p).project(camera);return{x:(q.x+1)*canvas.width/2,y:(1-q.y)*canvas.height/2};},
   setTime:t=>{time=t;draw();},render:draw,dispose,
-  trainVisible:visible=>{train.root.visible=visible;draw();}
+  trainVisible:visible=>{train.root.visible=visible;draw();},
+  // 驗收用：強制開關雲海（不受時段影響），供「跟車鏡頭下列車露出比例」的像素比對測試使用；
+  // 傳 null 恢復照時段（黃昏）自動判斷。
+  cloudsVisible:v=>{coast.fx.setForceClouds(v);draw();},
+  // 驗收用：強制開關螢火蟲（不受時段影響），供「螢火蟲可見度」的像素比對測試使用（跟
+  // cloudsVisible 同一個模式：關掉拍一張當底、開了拍一張，兩張同背景只差螢火蟲，diff 出來的
+  // 亮點才乾淨，不會被燈籠/車燈之類本來就亮的東西污染）；傳 null 恢復照時段（夜晚）自動判斷。
+  fireflyVisible:v=>{coast.fx.setForceFireflies(v);draw();}
  };
 }catch(e){if(!disposed){dispose();loading.hidden=false;loading.textContent='小車暫時無法載入。';const b=document.createElement('button');b.textContent='重新載入';b.onclick=()=>location.reload();loading.append(b);}console.error(e);}
