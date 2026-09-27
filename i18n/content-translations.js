@@ -1402,6 +1402,7 @@
   window.RAIL_I18N_CHANGELOG = {
     en: [
       { name: 'Map and live data', items: [
+        { date: 'Sep 28, 2026', text: 'Kaohsiung LRT arrival boards now separate clockwise and counterclockwise services and show stops along the way without hiding the other direction.' },
         { date: 'Sep 7, 2026', text: 'Dark maps now add a soft neon glow in each route’s own color, while other map and track display modes keep their existing appearance.' },
         { date: 'Sep 7, 2026', text: 'Added route browsing, reversible station lists, scenic views and search examples. Station arrival times and countdowns are easier to spot.' },
         { date: 'Aug 2026', text: 'Improved metro live-position matching, station boards, fallback notices and TRA pass-through movement.' },
@@ -1418,6 +1419,7 @@
     ],
     ja: [
       { name: '地図とリアルタイム情報', items: [
+        { date: '2026年9月28日', text: '高雄ライトレールの到着案内で時計回り・反時計回りを分けて経由駅を表示し、反対方向の便も確認できるようにしました。' },
         { date: '2026年9月7日', text: 'ダークマップの路線が本来の色で柔らかく発光するようになりました。他の地図や軌道表示モードは従来どおりです。' },
         { date: '2026年9月7日', text: '路線ガイド、駅順の反転、おすすめの眺め、検索例を追加しました。駅案内の時刻と到着までの時間も見やすくしました。' },
         { date: '2026年8月', text: 'メトロ列車位置の対応付け、駅案内、フォールバック表示、台湾鉄路の通過駅アニメーションを改善しました。' },
@@ -3424,4 +3426,13 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '北捷紅線與三鶯線的軌道改用官方最新線形，列車與車站沿更新後的路線行駛': '台北メトロ レッドラインと三鶯線の線路を公式の最新線形に更新し、列車と駅が新しいルートに沿って表示されるようにしました。',
+});
+// 2026-09-28 高雄輕軌環線：順逆行與終點分開，提示實際途經站。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '順行': 'Clockwise', '逆行': 'Counterclockwise', '經 {stations}': 'Via {stations}',
+  '高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次': 'Kaohsiung LRT arrival boards now separate clockwise and counterclockwise services and show stops along the way, instead of labelling everything as bound for Lizihnei and hiding services in the other direction.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '順行': '時計回り', '逆行': '反時計回り', '經 {stations}': '{stations} 経由',
+  '高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次': '高雄ライトレールの到着案内で時計回り・反時計回りを分け、経由駅を表示します。すべてが籬仔内行きと表示されたり、反対方向の便が隠れたりしなくなりました。',
 });

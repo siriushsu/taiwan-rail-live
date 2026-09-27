@@ -2520,6 +2520,10 @@
   .board .row b { color: var(--ink-strong); }
   .board .row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
   .board .row .dest { flex: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* 環線方向與途經站分兩行，長站名不可被省略成看不出搭哪一向。 */
+  .board .klrt-board-row { flex-wrap: wrap; row-gap: 1px; }
+  .board .klrt-board-row > b { flex: 1 1 0%; }
+  .board .klrt-board-row > .dest { order: 1; flex: 1 0 100%; padding-left: 16px; white-space: normal; overflow-wrap: anywhere; }
   /* 外語一列塞不下(2026-09-19 回報「車站資訊的字有些都被切到了」):英文的車種、線名常比中文長一倍，
      實測 402px 寬英文台鐵板約三成的列「往哪裡」整個被擠到框外，捷運板把線名與車次擠成 0 寬
      (日文少數幾站，中文只有台北車站的機捷那格)。boardAlignColumns 在單行版量到任何一格 .dest 被截，
@@ -5600,7 +5604,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/27</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/28</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5608,6 +5612,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="klrtboard0928"><span class="d">9/28</span><span>高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次</span></li>
         <li data-cl-of="trackshape0927"><span class="d">9/27</span><span>北捷紅線與三鶯線的軌道改用官方最新線形，列車與車站沿更新後的路線行駛</span></li>
         <li data-cl-of="buildingopacity0927"><span class="d">9/27</span><span>立體建築剛出現的縮放範圍內，切換亮暗外觀後會保留「透視顯示」的透明度，不再突然變得不透明</span></li>
         <li data-cl-of="traphysicalstation0927"><span class="d">9/27</span><span>重新整理台鐵列車的行車方向與車站股道安排，減少對向共用同一股，以及列車在站內重疊或互穿的畫面</span></li>
@@ -5615,7 +5620,6 @@
         <li data-cl-of="pingzhenhold0927"><span class="d">9/27</span><span>台鐵誤點列車經過平鎮附近時，會穩定維持前後車順序，減少在同一股道短暫重疊的畫面</span></li>
         <li data-cl-of="kbdremain0927"><span class="d">9/27</span><span>鍵盤操作更完整：開啟面板會直接選到有名稱的關閉鈕，按 Esc 可關閉；公車搜尋、最愛車站與誤點履歷都能用 Tab 選到，桌面時鐘也能點開資料狀態</span></li>
         <li data-cl-of="musicpools0927"><span class="d">9/27</span><span>跟車配樂新增南方日光、黃昏斜光、北海岸天色、花蓮山海、山海聚落共創 5 組共 27 首；App 需要時從網站串流，不會把這批新歌塞進安裝包</span></li>
-        <li data-cl-of="followalign0926"><span class="d">9/26</span><span>iPhone 點列車後，左下資訊卡的車次與時速會排在同一條線上，不再一高一低</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5623,6 +5627,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="klrtboard0928"><span class="d">9/28</span><span>高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次</span></li>
         <li data-cl="trackshape0927"><span class="d">9/27</span><span>北捷紅線與三鶯線的軌道改用官方最新線形，列車與車站沿更新後的路線行駛</span></li>
         <li data-cl="traphysicalstation0927"><span class="d">9/27</span><span>依既有路網與站場圖重新整理台鐵列車的行車方向、停靠與進出股道安排，讓更多對向、同時進站、停靠或通過的列車分開使用可用股道，減少共用同一股、停在同一位置或互相穿過的畫面</span></li>
         <li data-cl="pingzhenhold0927"><span class="d">9/27</span><span>台鐵誤點列車經過平鎮附近時，會穩定維持同一股道上的前後車順序，並依畫面上的實際編組長度保留距離，減少誤點追車時短暫重疊的畫面</span></li>
@@ -6891,7 +6896,8 @@
 // v0927f：方向修復器與站區修復器共用具名進路保護；完整 F1→F2 重跑兩輪固定，既有高程解不重算。
 // v0927g：建築層重裝後立即套回 3D 透視偏好，修正 MapLibre zoom 13～13.8 切主題時透明度從 .24 跳回 .30／.72。
 // v0927h：北捷紅線（R／R_XBT）與三鶯線改用 TDX 2026-09-27 官方線形；三鶯線碎片先以 chainExact() 按相同端點串鏈。
-const BUILD = 'v0927h';
+// v0928a：高雄輕軌看板按順逆行各保留班次，以實際後續停靠站提示方向，終點不再冒充方向。
+const BUILD = 'v0928a';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
@@ -32456,7 +32462,7 @@ function renderBoardBody() {
 }
 
 // 捷運/輕軌看板:掃經過本站的每條線當日時刻表(ln._tt),抓最近幾班到離站倒數(-30秒~未來2小時內)。
-// 轉乘站(多條線經過本站)每條線各自成組(依 lines 順序排列)、線內再依方向(該班最後停靠站名)分組,各取最近 2 班。
+// 轉乘站每條線各自成組、線內依終點分組，各取最近 2 班；高雄輕軌環線另用順逆行分組。
 // 捷運沒有車次號,跟隨走 setFreqFollow({ln,tr}) (tr=ln._tt 裡的那班陣列本身,不是台鐵的 followTrainNo)。
 // lines:資料來源陣列——各捷運分頁傳 state.lines,全台同框裝飾層傳 state.decoLines。
 // isDeco:裝飾層沒有 state.visible 個別開關(全開),跳過該項篩選;分頁模式仍照使用者勾選的系統過濾。
@@ -33008,7 +33014,25 @@ function refreshTrtcOfficialBoardCountdown(nowMs = Date.now()) {
   });
   if (rerender) renderBoard();
 }
-// opts.compact(查詢答案區):不碰 el、只回傳 body 字串,每個目的地組只留第一列。三條路徑都要吃到(spec §4.3)。
+// 高雄輕軌兩向都以籬仔內為終點，終點名不能當方向鍵。方向取本站→下一站，
+// 包含 0→37／37→0 接縫；途經提示只從本趟剩餘停靠站選，不越過終點指向下一圈。
+function klrtBoardRoute(ln, trip, i) {
+  if (ln._sys !== 'krtc' || ln.id !== 'C' || !ln.loop || i < 0 || i + 2 >= trip.length) return null;
+  const count = ln.stations.length;
+  const delta = (trip[i + 2] - trip[i] + count) % count;
+  const direction = delta === 1 ? 1 : delta === count - 1 ? -1 : 0;
+  if (!direction) return null;
+  const nextName = ln.stations[trip[i + 2]].name;
+  const destName = ln.stations[trip[trip.length - 2]].name;
+  const landmarks = new Set(['駁二大義', '美術館', '愛河之心', '科工館']);
+  let viaName = destName;
+  for (let k = i + 2; k < trip.length; k += 2) {
+    const name = ln.stations[trip[k]].name;
+    if (landmarks.has(name)) { viaName = name; break; }
+  }
+  return { direction, nextName, viaName };
+}
+// opts.compact(查詢答案區):不碰 el、只回傳 body 字串,每個方向／目的地組只留第一列。三條路徑都要吃到(spec §4.3)。
 function renderFreqBoard(el, st, lines, isDeco, opts) {
   const compact = !!(opts && opts.compact);
   const core = metroCoreBoardView(st, lines, isDeco);
@@ -33023,7 +33047,7 @@ function renderFreqBoard(el, st, lines, isDeco, opts) {
     if ((!isDeco && !state.visible.has(ln.id)) || !ln._tt) return; // 未勾選的線不上板;班距合成線(BR/TG/LB)當日也有 _tt,一併列入
     const si = ln.stations.findIndex(s => s.name.replace(/臺/g, '台') === key);
     if (si < 0) return; // 這條線不經過本站
-    const byDir = new Map(); // destName -> rows[]
+    const byDir = new Map(); // 輕軌用方向＋終點，其餘維持終點分組
     ln._tt.forEach((trip, ci) => {
       let i = -1;
       for (let k = 0; k < trip.length; k += 2) if (trip[k] === si) { i = k; break; }
@@ -33033,13 +33057,15 @@ function renderFreqBoard(el, st, lines, isDeco, opts) {
       if (dtm > 43200) dtm -= 86400; else if (dtm < -43200) dtm += 86400; // 跨午夜換日對齊(比照台鐵看板)
       if (dtm < -30 || dtm > 7200) return; // 未來 2 小時內
       const destName = ln.stations[trip[trip.length - 2]].name;
-      if (!byDir.has(destName)) byDir.set(destName, []);
+      const klrtRoute = klrtBoardRoute(ln, trip, i);
+      const groupKey = klrtRoute ? klrtRoute.direction + '|' + destName : destName;
+      if (!byDir.has(groupKey)) byDir.set(groupKey, { destName, klrtRoute, rows: [] });
       // 機捷「往台北車站」同時有直達與普通,同一組裡混排 ⇒ 車種要逐列標,光看目的地分不出來
-      byDir.get(destName).push({ t, dtm, ci, tymcKind: tymcKindOf(ln, trip) });
+      byDir.get(groupKey).rows.push({ t, dtm, ci, tymcKind: tymcKindOf(ln, trip) });
     });
-    byDir.forEach((rows, destName) => {
+    byDir.forEach(({ rows, destName, klrtRoute }) => {
       rows.sort((a, b) => a.dtm - b.dtm);
-      groups.push({ ln, li, destName, rows: rows.slice(0, 2) });
+      groups.push({ ln, li, destName, klrtRoute, rows: rows.slice(0, 2) });
     });
   });
   groups.sort((a, b) => a.li - b.li || a.rows[0].dtm - b.rows[0].dtm);
@@ -33050,12 +33076,16 @@ function renderFreqBoard(el, st, lines, isDeco, opts) {
   const body = groups.map((g, gi) => {
     const lineLabel = metroBoardRowLabel(heads, metroLineFullLabel(g.ln), g.ln, g.destName);
     const destination = stationName(g.destName, g.ln._sys);
+    const route = g.klrtRoute;
+    const routeLabel = route && t(route.direction === 1 ? '順行' : '逆行');
+    const routeVia = route && [...new Set([route.nextName, route.viaName])].map(name => stationName(name, g.ln._sys)).join(' · ');
+    const followTitle = (route ? routeLabel + ' · ' + routeVia + ' · ' : '') + t('跟隨往 {station} 的班次', { station: destination });
     return metroBoardHeadHtml(heads, gi, g.ln) + (compact ? g.rows.slice(0, 1) : g.rows).map(r => {
       const minutes = Math.round(r.dtm / 60);
       const min = r.dtm < 60 ? t('即將進站') : t('{n} 分', { n: i18nNumber(minutes) }, minutes);
-      const direction = (r.tymcKind ? t(TYMC_KIND_NAME[r.tymcKind]) + '・' : '') + t('往 {station}', { station: destination });
-      return `<div class="row" data-li="${g.li}" data-ci="${r.ci}" title="${escHtml(t('跟隨往 {station} 的班次', { station: destination }))}"><span class="dot" style="background:${g.ln.color}"></span>` +
-        `<b>${escHtml(direction)}</b><span class="dest">${escHtml(lineLabel)}</span>` +
+      const direction = routeLabel || (r.tymcKind ? t(TYMC_KIND_NAME[r.tymcKind]) + '・' : '') + t('往 {station}', { station: destination });
+      return `<div class="row${route ? ' klrt-board-row' : ''}" data-li="${g.li}" data-ci="${r.ci}" title="${escHtml(followTitle)}"><span class="dot" style="background:${g.ln.color}"></span>` +
+        `<b>${escHtml(direction)}</b><span class="dest">${escHtml(route ? t('經 {stations}', { stations: routeVia }) : lineLabel)}</span>` +
         `<span class="t">${fmtHM(r.t % 86400)}</span><span class="min">${escHtml(min)}</span></div>`;
     }).join('');
   }).join('');
