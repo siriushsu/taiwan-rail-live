@@ -21,7 +21,15 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
   for(const period of ['day','sunset','night']){await p.tap('button[data-period="'+period+'"]');await settle(p);await p.screenshot({path:`${OUT}/${engine}-${period}.png`});check(engine+' '+period+' 切換', (await state(p)).period===period);}
   await p.tap('button[data-period="day"]');await p.tap('[data-view="train"]');await settle(p);check(engine+' 跟車三節完整構圖',await p.evaluate(()=>{const c=document.querySelector('#scene');return southCoastPreview.state.bounds.every(b=>b.left>0&&b.right<c.width&&b.top>0&&b.bottom<c.height);}));await p.screenshot({path:`${OUT}/${engine}-follow.png`});
   check(engine+' 環線沒有倒退入口',await p.locator('#reverse').count()===0);
-  const before=await state(p);await p.tap('#play');await p.waitForFunction(d=>southCoastPreview.state.distance>d+.4,before.distance);await p.tap('#play');await settle(p);const after=await state(p);check(engine+' 環線固定向前且車廂不瞬移',after.distance>before.distance&&after.poses.every((c,i)=>Math.hypot(c.x-before.poses[i].x,c.y-before.poses[i].y)<3));
+  const before=await state(p);await p.tap('#play');
+  // 本景會在小站停靠（Part A）：setDistance(0) 剛好落在停站起點，最長需等 brake+dwell+accel（timetable.phases.cruiseAt）
+  // 這麼多「模擬秒」才會再次前進，不能沿用「車永不停」年代的預設 30s timeout。另外實測這台機器目前
+  // 用預設 headless（無 channel，SwiftShader 軟體算繪）跑本頁時，模擬時間／真實時間比值遠低於 1
+  // （量到約 0.26~0.32，即時鐘只用真實時間的三分之一不到），這個比值在 before（無棕櫚）就已經很低，
+  // 棕櫚只是再疊加了一點，不是主因；真實等待時間要用這個比值換算，用一個保守的下界。
+  const tphases=await p.evaluate(()=>southCoastPreview.timetable.phases);
+  await p.waitForFunction(d=>southCoastPreview.state.distance>d+.4,before.distance,{timeout:Math.ceil(tphases.cruiseAt*1000/0.2)+20000});
+  await p.tap('#play');await settle(p);const after=await state(p);check(engine+' 環線固定向前且車廂不瞬移',after.distance>before.distance&&after.poses.every((c,i)=>Math.hypot(c.x-before.poses[i].x,c.y-before.poses[i].y)<3));
   await p.evaluate(()=>southCoastPreview.setDistance(34));await p.tap('#reset');await settle(p);check(engine+' 彎道仍三節且無非有限座標',(await state(p)).poses.every(c=>[c.x,c.y,c.heading].every(Number.isFinite)));await p.screenshot({path:`${OUT}/${engine}-curve.png`});
   await panChecks({b,engine,URL,api:'southCoastPreview',check,settle,trainTarget:c=>[c[0],c[1],1.4]});   // 鏡頭平移（四頁共用的判準，在自己開的桌面頁與觸控頁上量）
   await p.evaluate(()=>southCoastPreview.setDistance(28));await p.tap('#play');
