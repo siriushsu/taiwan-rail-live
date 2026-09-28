@@ -1,13 +1,16 @@
 import * as THREE from '../../rail-3d/vendor/three.module.js';
-import {createScene,THEMES} from '../../rail-3d/garage-scenes/alishan.js?revision=alishan-fx-20260928';
+import {createScene,THEMES} from '../../rail-3d/garage-scenes/alishan.js?revision=alishan-trees-fireflies-occlusion-20260928';
 import {loadGarageModel,createConsist,loadGarageParts} from '../../rail-3d/garage-model.js?revision=headlights-0912';
 import {createJourney} from '../../rail-3d/garage-scenes/alishan-route.js?revision=turnout-sign-0912';
 import {createTerrainFollower} from '../../rail-3d/garage-scenes/consist-3d.js';
 const canvas=document.querySelector('#scene'),loading=document.querySelector('#loading');
+// 車身世界高度目標（跟 createConsist 的 scale=1.25/primary.size.y 同一個 1.25），車廂 car.position.z
+// 只是底部基準，車身視覺中心要再加半個高度——遮擋淡出/raycast 判準跟相機取景都要用同一個數字。
+const TRAIN_HEIGHT=1.25;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-let journey,follow3D,pose,renderer,environment,primary,train,coast,fxKit,raf=0,last=0,time=0,distance=0,period='day',view=matchMedia('(max-width:800px)').matches?'train':'world',running=!reduced.matches,zoom=1,span=1,yaw=-1.35,elevation=.67,disposed=false,ready=false,draws=0;
+let journey,follow3D,pose,renderer,environment,primary,train,coast,fxKit,treesKit,raf=0,last=0,time=0,distance=0,period='day',view=matchMedia('(max-width:800px)').matches?'train':'world',running=!reduced.matches,zoom=1,span=1,yaw=-1.35,elevation=.67,disposed=false,ready=false,draws=0;
 const scene=new THREE.Scene(),camera=new THREE.OrthographicCamera(-40,40,30,-30,.1,400);camera.up.set(0,0,1);
-const focus=new THREE.Vector3(),pan=new THREE.Vector3(),target=new THREE.Vector3(),sun=new THREE.DirectionalLight('#fff1cf',3.2),hemi=new THREE.HemisphereLight('#c1dce7','#7b8663',2.1);
+const focus=new THREE.Vector3(),pan=new THREE.Vector3(),target=new THREE.Vector3(),trainCenter=new THREE.Vector3(),sun=new THREE.DirectionalLight('#fff1cf',3.2),hemi=new THREE.HemisphereLight('#c1dce7','#7b8663',2.1);
 sun.position.set(-25,-30,45);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-42,right:42,top:45,bottom:-45,near:1,far:140});sun.shadow.normalBias=.035;sun.shadow.bias=-.0001;scene.add(sun,hemi,sun.target);
 const groundGeo=new THREE.PlaneGeometry(2000,2000),groundMat=new THREE.ShadowMaterial({opacity:.12}),ground=new THREE.Mesh(groundGeo,groundMat);ground.position.z=-3.05;ground.receiveShadow=true;scene.add(ground);
 function controls(){document.querySelector('#play').textContent=running?'Ⅱ':'▷';document.querySelector('#play').setAttribute('aria-label',running?'暫停行駛':'開始行駛');document.querySelector('#play').setAttribute('aria-pressed',String(running));document.querySelector('#in').disabled=zoom>=1.8;document.querySelector('#out').disabled=zoom<=.7;}
@@ -22,7 +25,15 @@ function draw(){
  if(view==='train'){target.set(0,0,0);for(const c of train.cars)target.add(c.car.position);target.multiplyScalar(1/train.cars.length);target.z+=1.4;}else target.set(0,0,6.5);
  focus.copy(target).add(pan);
  span=(view==='train'?Math.max(9,train.length*.65/aspect):Math.max(29,43/aspect))/zoom;
- Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});camera.position.set(focus.x+100*Math.cos(elevation)*Math.cos(yaw),focus.y+100*Math.cos(elevation)*Math.sin(yaw),focus.z+100*Math.sin(elevation));camera.lookAt(focus);camera.updateProjectionMatrix();camera.updateMatrixWorld();scene.updateMatrixWorld(true);renderer.render(scene,camera);draws++;
+ Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});camera.position.set(focus.x+100*Math.cos(elevation)*Math.cos(yaw),focus.y+100*Math.cos(elevation)*Math.sin(yaw),focus.z+100*Math.sin(elevation));camera.lookAt(focus);camera.updateProjectionMatrix();camera.updateMatrixWorld();
+ // 跟車鏡頭遮擋淡出：一定要在 camera.position 算好「之後」才能呼叫——coast.update() 在本函式
+ // 開頭就執行，那時候 camera 還在上一幀的位置，塞進 update() 裡會晚一幀。trainCenter 每幀重算，
+ // 不重用 view==='train' 時的 target（target 在 view==='world' 時是固定點，不是真正車centre）。
+ // car.position.z 是車廂「底部」基準（body 的 bbox.min.z 被歸零到這個高度，見 garage-model.js
+ // createConsist），不是車身視覺中心——+TRAIN_HEIGHT/2 抓到車身實際中段，不然遮擋線瞄準鐵軌
+ // 高度，會擦過地形邊緣而不是真正穿過車身（見 alishan.js/raycastTrain 除錯記錄）。
+ trainCenter.set(0,0,0);for(const c of train.cars)trainCenter.add(c.car.position);trainCenter.multiplyScalar(1/train.cars.length);trainCenter.z+=TRAIN_HEIGHT/2;coast.updateTreeFade(camera.position,trainCenter);
+ scene.updateMatrixWorld(true);renderer.render(scene,camera);draws++;
  canvas.dataset.ready='true';canvas.dataset.direction=String(pose.sign);canvas.dataset.distance=String(distance);canvas.dataset.period=period;canvas.dataset.view=view;
 }
 function frame(at){raf=0;if(disposed||document.hidden)return;if(last&&at-last<32){schedule();return;}const dt=last?Math.min((at-last)/1000,.08):0;last=at;if(running){time+=dt;}draw();if(running)schedule();}
@@ -46,20 +57,21 @@ canvas.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','-'
 const observer=new ResizeObserver(resize);observer.observe(canvas);
 document.addEventListener('visibilitychange',()=>{last=0;if(document.hidden){cancelAnimationFrame(raf);raf=0;}else schedule();});
 reduced.addEventListener('change',()=>{if(reduced.matches){running=false;controls();schedule();}});
-function dispose(){if(disposed)return;disposed=true;ready=false;cancelAnimationFrame(raf);observer.disconnect();train?.dispose();primary?.dispose();coast?.dispose();fxKit?.dispose();environment?.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();renderer?.dispose();}
+function dispose(){if(disposed)return;disposed=true;ready=false;cancelAnimationFrame(raf);observer.disconnect();train?.dispose();primary?.dispose();coast?.dispose();fxKit?.dispose();treesKit?.dispose();environment?.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();renderer?.dispose();}
 window.addEventListener('pagehide',dispose);window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 try{
  renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();dispose();loading.hidden=false;loading.replaceChildren(document.createTextNode('畫面暫時中斷，請重新開啟場景。'));const b=document.createElement('button');b.textContent='重新開啟';b.onclick=()=>location.reload();loading.append(b);});
  const studio=new THREE.Scene();studio.background=new THREE.Color('#9dafb0');const pmrem=new THREE.PMREMGenerator(renderer);environment=pmrem.fromScene(studio,.1);scene.environment=environment.texture;pmrem.dispose();
  fxKit=await loadGarageParts(new URL('../../rail-3d/assets/garage-alishan-fx-v1/alishan-fx.json',import.meta.url));if(disposed){fxKit.dispose();throw Error('disposed');}
- coast=createScene(fxKit);scene.add(coast.group);primary=await loadGarageModel('dl38');if(disposed){primary.dispose();throw Error('disposed');}train=await createConsist('dl38',primary,null,{locoAtTail:true});if(disposed){train.dispose();throw Error('disposed');}scene.add(train.root);train.root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+ treesKit=await loadGarageParts(new URL('../../rail-3d/assets/garage-alishan-trees-v1/alishan-trees.json',import.meta.url));if(disposed){treesKit.dispose();throw Error('disposed');}
+ coast=createScene(fxKit,treesKit);scene.add(coast.group);primary=await loadGarageModel('dl38');if(disposed){primary.dispose();throw Error('disposed');}train=await createConsist('dl38',primary,null,{locoAtTail:true});if(disposed){train.dispose();throw Error('disposed');}scene.add(train.root);train.root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
  // 螢火蟲離地高度換算真實世界公尺數要用「車模的縮放比例」——跟 garage-model.js createConsist
  // 內部算車廂長度用的是同一條公式（1.25/primary.size.y），這裡沒有匯出那個內部變數，直接照樣重算。
- coast.fx.setTrainScale(1.25/primary.size.y);
+ coast.fx.setTrainScale(TRAIN_HEIGHT/primary.size.y);
  journey=createJourney(coast.routes,train.length);follow3D=createTerrainFollower(train);ready=true;loading.hidden=true;setView(view);setTheme(period);controls();resize();draw();schedule();
  window.alishanPreview={
-  get state(){return{ready,turnouts:coast.turnouts.state,lighting:train.lighting.state,period,view,running,pan:{x:pan.x,y:pan.y},direction:pose?.sign,distance,time,zoom,draws,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},poses:train.cars.map(c=>({id:c.id,x:c.car.position.x,y:c.car.position.y,z:c.car.position.z,heading:c.heading,pitch:c.pitch,offset:c.offset,length:c.length})),pose,journeyDuration:journey.total,stages:journey.stages,trainLength:train.length,fx:coast.fx.state, bounds:train.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),ps=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const q=new THREE.Vector3(x,y,z).project(camera);ps.push([(q.x+1)*canvas.width/2,(1-q.y)*canvas.height/2]);}return{left:Math.min(...ps.map(p=>p[0])),right:Math.max(...ps.map(p=>p[0])),top:Math.min(...ps.map(p=>p[1])),bottom:Math.max(...ps.map(p=>p[1]))};})};},
+  get state(){return{ready,turnouts:coast.turnouts.state,lighting:train.lighting.state,period,view,running,pan:{x:pan.x,y:pan.y},direction:pose?.sign,distance,time,zoom,draws,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},poses:train.cars.map(c=>({id:c.id,x:c.car.position.x,y:c.car.position.y,z:c.car.position.z,heading:c.heading,pitch:c.pitch,offset:c.offset,length:c.length})),pose,journeyDuration:journey.total,stages:journey.stages,trainLength:train.length,fx:coast.fx.state,forest:coast.forest, bounds:train.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),ps=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const q=new THREE.Vector3(x,y,z).project(camera);ps.push([(q.x+1)*canvas.width/2,(1-q.y)*canvas.height/2]);}return{left:Math.min(...ps.map(p=>p[0])),right:Math.max(...ps.map(p=>p[0])),top:Math.min(...ps.map(p=>p[1])),bottom:Math.max(...ps.map(p=>p[1]))};})};},
   sample:(route,s)=>coast.routes[route].sample(s),
   ground:p=>coast.groundHeight(...p),surface:p=>coast.surfaceHeight(...p),
   project:p=>{const q=new THREE.Vector3(...p).project(camera);return{x:(q.x+1)*canvas.width/2,y:(1-q.y)*canvas.height/2};},
@@ -71,6 +83,42 @@ try{
   // 驗收用：強制開關螢火蟲（不受時段影響），供「螢火蟲可見度」的像素比對測試使用（跟
   // cloudsVisible 同一個模式：關掉拍一張當底、開了拍一張，兩張同背景只差螢火蟲，diff 出來的
   // 亮點才乾淨，不會被燈籠/車燈之類本來就亮的東西污染）；傳 null 恢復照時段（夜晚）自動判斷。
-  fireflyVisible:v=>{coast.fx.setForceFireflies(v);draw();}
+  fireflyVisible:v=>{coast.fx.setForceFireflies(v);draw();},
+  // 驗收用：螢火蟲尺寸/柔邊度解耦測試——見 alishan.js 的 setFireflyHalo/setFireflyCore 註解。
+  fireflyHalo:v=>{coast.fx.setFireflyHalo(v);draw();},
+  fireflyCore:v=>{coast.fx.setFireflyCore(v);draw();},
+  // 驗收用：螢火蟲顏色量測——halo 關閉後核心單獨的 on/off 像素差值振幅很小（peak 總和量級
+  // 個位數~十幾），ACES 色調映射對composited 畫面做非線性壓縮，訊號越小、R/G/B 三通道的相對
+  // 比例被這個非線性扭曲得越嚴重（實測會把材質本來 G≫R>B 的比例量成 R≈G 甚至打平）；關掉
+  // tone mapping 讓 on/off 差值回到線性可加，才量得到材質自己真正的顏色比例，不受這個非線性
+  // 干擾。傳 false 關閉、true 或 null 恢復 ACES。
+  setToneMapping:v=>{renderer.toneMapping=v===false?THREE.NoToneMapping:THREE.ACESFilmicToneMapping;draw();},
+  // 驗收用：跟車鏡頭遮擋——從目前相機位置對「目前列車中心」做一次 raycast，回傳第一個「未淡出
+  // 到看穿」的命中是什麼（train/tree/other/none）。opacity<0.6 的樹視為淡出到看穿，略過看下一個
+  // 命中，呼應淡出的視覺意圖（不是機械式「第一個命中什麼就算什麼」）。「是不是列車」用祖先鏈
+  // 判斷是不是 train.root 的子孫——train.root 底下只有車身/連結器/集電弓，不需要逐一枚舉標記
+  // （枚舉法漏標過連結器 THREE.Mesh，被誤判成 other，才改用這個更穩的判法）。
+  raycastTrain:()=>{
+   const camPos=camera.position.clone(),tc=new THREE.Vector3();for(const c of train.cars)tc.add(c.car.position);tc.multiplyScalar(1/train.cars.length);tc.z+=TRAIN_HEIGHT/2;// 見 draw() 內 trainCenter 註解：瞄準車身中段，不是底部基準
+   const dir=tc.clone().sub(camPos),dist=dir.length();if(dist<1e-5)return{type:'none',dist:0};
+   dir.multiplyScalar(1/dist);
+   const rc=new THREE.Raycaster(camPos,dir,0,dist+.05);rc.camera=camera;// Sprite.raycast() 要求設定，否則螢火蟲會炸 matrixWorld null
+   const hits=rc.intersectObjects(scene.children,true);
+   const isTrainPart=o=>{for(let p=o;p;p=p.parent)if(p===train.root)return true;return false;};
+   // debugHits：驗收判準紅了要能回答「打到什麼」，不只是「不是列車」——限前 6 個候選，
+   // 含淡出前的原始 opacity（供人工複核淡出邏輯是否合理，不是只看最終結論）。
+   const debugHits=hits.slice(0,6).map(h=>{const o=h.object,op=(o.isInstancedMesh&&o.geometry.attributes.instanceOpacity&&h.instanceId!=null)?o.geometry.attributes.instanceOpacity.array[h.instanceId]:null;return{name:o.name||o.type,parent:o.parent?.name||o.parent?.type||null,isTrain:isTrainPart(o),isTree:!!o.userData?.isTree,dist:h.distance,opacity:op};});
+   for(const h of hits){
+    const obj=h.object;
+    if(obj.isInstancedMesh&&obj.geometry.attributes.instanceOpacity&&h.instanceId!=null){
+     const op=obj.geometry.attributes.instanceOpacity.array[h.instanceId];
+     if(op<0.6)continue;
+     if(obj.userData?.isTree)return{type:'tree',dist:h.distance,opacity:op,debugHits};
+    }
+    if(isTrainPart(obj))return{type:'train',dist:h.distance,debugHits};
+    return{type:'other',name:obj.name||obj.type,parent:obj.parent?.name||obj.parent?.type||null,dist:h.distance,debugHits};
+   }
+   return{type:'none',dist,debugHits};
+  }
  };
 }catch(e){if(!disposed){dispose();loading.hidden=false;loading.textContent='小車暫時無法載入。';const b=document.createElement('button');b.textContent='重新載入';b.onclick=()=>location.reload();loading.append(b);}console.error(e);}

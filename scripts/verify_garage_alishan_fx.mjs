@@ -113,6 +113,31 @@ try{
   {count:fireState.fireflyCount,heightRange:[Math.min(...heights),Math.max(...heights)],
    heightRangeM:heightsM?[Math.min(...heightsM),Math.max(...heightsM)]:null,flickered,total:heights.length,dayFire});
 
+ // ---------- 阿里山-螢火蟲-成群：2026-09-28 新增。退件「撒得太開像雜訊」——改成 4~6 個聚落，
+ // 每個聚落要真的「聚」（成員彼此散佈半徑要遠小於全場尺度），不是隨機撒點事後硬貼標籤。
+ // clusterId 是 alishan.js 建構時依插入順序給的分群編號，跟真正的空間分布是獨立資訊
+ // （比對「編號相同」與「位置真的聚在一起」兩件事，才不會被「隨便分幾組」矇混過去）。
+ const groupFx=await p.evaluate(()=>alishanPreview.state.fx);
+ const clusterCount=groupFx.fireflyClusterCount;
+ const byCluster=new Map();
+ for(const pt of groupFx.fireflyPositions){if(!byCluster.has(pt.clusterId))byCluster.set(pt.clusterId,[]);byCluster.get(pt.clusterId).push(pt);}
+ const clusterSpreads=[...byCluster.entries()].map(([id,pts])=>{const cx=pts.reduce((s,p)=>s+p.x,0)/pts.length,cy=pts.reduce((s,p)=>s+p.y,0)/pts.length;const spread=Math.max(...pts.map(p=>Math.hypot(p.x-cx,p.y-cy)));return{id,count:pts.length,spread};});
+ // 展幅上限取 10 世界單位——全場板子外框約 70×46，聚落展幅遠小於此才算「聚」不是「散」。
+ check('阿里山-螢火蟲-成群',clusterCount>=4&&clusterCount<=6&&clusterSpreads.length===clusterCount&&clusterSpreads.every(c=>c.spread<=10),
+  {clusterCount,clusterSpreads});
+
+ // ---------- 阿里山-螢火蟲-任何時刻60%在亮：2026-09-28 新增。退件「幾乎看不到」的根因是亮度
+ // 公式有半週期恆為 0——這裡密集抽樣一整趟 journey 的時間點，每個時間點都要有 ≥60% 螢火蟲
+ // brightness≥LIT_BRIGHTNESS，取所有樣本的「最小值」而非平均值，因為使用者會在任何一瞬間
+ // 看畫面，不是看時間平均。40 個樣本涵蓋最短週期(2s)一輪以上，也涵蓋跨 120 隻獨立相位/週期
+ // 可能出現的最壞瞬間。----------
+ const LIT_BRIGHTNESS=0.25;
+ const litSamples=[];
+ for(let k=0;k<40;k++){const t=k*0.37;const br=await p.evaluate(tt=>{alishanPreview.setTime(tt);return alishanPreview.state.fx.fireflyBrightness;},t);const lit=br.filter(v=>v>=LIT_BRIGHTNESS).length;litSamples.push({t,fraction:lit/br.length});}
+ const minFraction=Math.min(...litSamples.map(s=>s.fraction));
+ check('阿里山-螢火蟲-任何時刻60%在亮',minFraction>=0.6,
+  {minFraction,worstSample:litSamples.find(s=>s.fraction===minFraction),sampleCount:litSamples.length});
+
  // ---------- 阿里山-螢火蟲可見：第三輪新增、第四輪退回大幅擴充。退件原話：舊判準只有下限
  // （直徑≥4px），這是「協調端上次開條件的漏洞」——這輪同一份 on/off 逐像素 diff 資料一次量出
  // 五件事：可見數量（沿用既有 ≥12，只用下限篩「這算不算一隻螢火蟲」，不受尺寸上限影響，讓
@@ -123,70 +148,130 @@ try{
  // 顆鏡頭：night+train+折返靜止點 t=86.15。----------
  await p.tap('button[data-period="night"]');await p.tap('[data-view="train"]');await settle(p);
  await p.evaluate(()=>alishanPreview.setTime(86.15));await settle(p);
+ const fireCanvasSize=await p.evaluate(()=>{const c=document.querySelector('#scene');return{w:c.width,h:c.height};});
+ const {w:fw,h:fh}=fireCanvasSize;
+ // scanFireflies：同一套「on/off 逐像素 diff＋窗格內掃 peak/lit/剖面」邏輯抽成函式，因為
+ // 2026-09-28 這輪要跑兩次獨立的 on/off——一次雙層（核心+外暈，量「可見/尺寸上限/顏色」，
+ // 對應使用者實際看到的畫面）、一次只留核心（halo 強制關閉，量「核心/柔邊度」）。原因見下面
+ // 大註解：外暈半徑變大時中心附近的加色貢獻也會變大，雙層一起量會讓「尺寸」突變連坐打紅
+ // 「核心/柔邊度」，退件明講這次要解耦——結構上做到解耦的辦法就是量測時把兩層拆開，不是
+ // 重新定義門檻。
+ // litThreshold 保留可調參數（目前唯一呼叫點用預設值 30）：曾經試過「halo 關閉、只留核心」
+ // 的第二次獨立掃描，需要比合併訊號更低的門檻才量得到，後來發現核心單獨只有 1~3px、
+ // ring-sampling 在這種次像素尺度下不可靠，改回單一次合併掃描（見下方呼叫處的說明）；
+ // 參數留著沒有壞處，不影響現在唯一的呼叫方式。
+ function scanFireflies(onPixels,offPixels,projected,litThreshold=30){
+  const intensityAt=(x,y)=>{if(x<0||y<0||x>=fw||y>=fh)return 0;const i=(y*fw+x)*4;return Math.abs(onPixels[i]-offPixels[i])+Math.abs(onPixels[i+1]-offPixels[i+1])+Math.abs(onPixels[i+2]-offPixels[i+2]);};
+  // 螢火蟲整體只有個位數像素大小，剖面取樣點常落在半個像素之間——雙線性內插比 Math.round()
+  // 準得多，不然「75% 半徑」這種次像素距離會被整數化誤差量到偏高（先前實測：round 版本量到
+  // ratio75 一度衝到 0.41，換成雙線性後同一份渲染結果量到的是真正平滑曲線該有的低比例）。
+  const intensityAtF=(x,y)=>{const x0=Math.floor(x),y0=Math.floor(y),fx=x-x0,fy=y-y0;return intensityAt(x0,y0)*(1-fx)*(1-fy)+intensityAt(x0+1,y0)*fx*(1-fy)+intensityAt(x0,y0+1)*(1-fx)*fy+intensityAt(x0+1,y0+1)*fx*fy;};
+  const rgbDiffAt=(x,y)=>{if(x<0||y<0||x>=fw||y>=fh)return[0,0,0];const i=(y*fw+x)*4;return[Math.abs(onPixels[i]-offPixels[i]),Math.abs(onPixels[i+1]-offPixels[i+1]),Math.abs(onPixels[i+2]-offPixels[i+2])];};
+  const LIT=litThreshold,R=12,detected=[];
+  for(let idx=0;idx<projected.length;idx++){
+   const cx=Math.round(projected[idx].x),cy=Math.round(projected[idx].y);
+   if(cx<-R||cy<-R||cx>=fw+R||cy>=fh+R)continue;
+   // 全窗格掃描一次，量出 peak（連同座標，投影中心可能有 ≤1px 取整誤差）與 lit 像素數，
+   // 直徑/核心/剖面三個子判準共用同一份掃描結果，不用各自重複掃描。
+   let peak=-1,peakX=cx,peakY=cy,lit=0;
+   const vals=[];
+   for(let dy=-R;dy<=R;dy++)for(let dx=-R;dx<=R;dx++){
+    const v=intensityAt(cx+dx,cy+dy);vals.push(v);
+    if(v>peak){peak=v;peakX=cx+dx;peakY=cy+dy;}
+    if(v>LIT)lit++;
+   }
+   if(peak<=LIT||!lit)continue;
+   const diameter=2*Math.sqrt(lit/Math.PI);
+   // 核心＝比背景亮出來的部分裡落在「離峰值最近的上 25%」那段的區域（門檻取 75% 上檔，比第一版
+   // 草稿的 60% 更保守，避免外暈萬一在突變 2 下變成大面積接近峰值的平台時被誤算進核心）。
+   const coreThresh=LIT+(peak-LIT)*0.75;
+   const coreLit=vals.filter(v=>v>coreThresh).length;
+   const coreDiameter=coreLit?2*Math.sqrt(coreLit/Math.PI):0;
+   // 柔邊度剖面：以偵測到的峰值座標為圓心（不是投影中心，兩者可能差 ≤1px），沿半徑 50%/75%/
+   // 100%（100%＝偵測到的外暈半徑本身）各取 8 個方向平均，要求單調不遞增（容許 ±2 的取樣雜訊）
+   // 且 75% 處的「高出背景的亮度」≤ 中心「高出背景的亮度」的 40%。背景＝0（on/off 兩張圖沒有
+   // 螢火蟲時逐像素相同，diff 定義上就是 0，不需要另外量）。
+   const ringAvgAt=rr=>{if(rr<0.4)return peak;let s=0;const n=8;for(let k=0;k<n;k++){const a=k/n*Math.PI*2;s+=intensityAtF(peakX+Math.cos(a)*rr,peakY+Math.sin(a)*rr);}return s/n;};
+   const Rh=diameter/2,v50=ringAvgAt(Rh*.5),v75=ringAvgAt(Rh*.75),vEdge=ringAvgAt(Rh);
+   const monotonic=peak>=v50-2&&v50>=v75-2&&v75>=vEdge-2;
+   const ratio75=peak>0?v75/peak:1;
+   const [dR,dG,dB]=rgbDiffAt(peakX,peakY);
+   const colorOk=dG>dR&&dR>dB&&dB<=0.6*dG;
+   detected.push({idx,x:cx,y:cy,peak:Math.round(peak),diameter:+diameter.toFixed(2),coreDiameter:+coreDiameter.toFixed(2),
+    monotonic,ratio75:+ratio75.toFixed(3),dR,dG,dB,colorOk});
+  }
+  return detected;
+ }
+ // 第一次 on/off：核心+外暈都在（一般狀態），量「可見/尺寸上限/顏色」——對應使用者實際看到的畫面。
  await p.evaluate(()=>alishanPreview.fireflyVisible(false));await settle(p);
  const fireOffPixels=await read();
  await p.evaluate(()=>alishanPreview.fireflyVisible(true));await settle(p);
  const fireOnPixels=await read();
  const fireflyPositions=await p.evaluate(()=>alishanPreview.state.fx.fireflyPositions);
  const projected=await p.evaluate(pts=>pts.map(pt=>alishanPreview.project([pt.x,pt.y,pt.z])),fireflyPositions);
- await p.evaluate(()=>alishanPreview.fireflyVisible(null));
- const fireCanvasSize=await p.evaluate(()=>{const c=document.querySelector('#scene');return{w:c.width,h:c.height};});
- const {w:fw,h:fh}=fireCanvasSize;
- const intensityAt=(x,y)=>{if(x<0||y<0||x>=fw||y>=fh)return 0;const i=(y*fw+x)*4;return Math.abs(fireOnPixels[i]-fireOffPixels[i])+Math.abs(fireOnPixels[i+1]-fireOffPixels[i+1])+Math.abs(fireOnPixels[i+2]-fireOffPixels[i+2]);};
- // 螢火蟲整體只有個位數像素大小，剖面取樣點常落在半個像素之間——雙線性內插比 Math.round()
- // 準得多，不然「75% 半徑」這種次像素距離會被整數化誤差量到偏高（先前實測：round 版本量到
- // ratio75 一度衝到 0.41，換成雙線性後同一份渲染結果量到的是真正平滑曲線該有的低比例）。
- const intensityAtF=(x,y)=>{const x0=Math.floor(x),y0=Math.floor(y),fx=x-x0,fy=y-y0;return intensityAt(x0,y0)*(1-fx)*(1-fy)+intensityAt(x0+1,y0)*fx*(1-fy)+intensityAt(x0,y0+1)*(1-fx)*fy+intensityAt(x0+1,y0+1)*fx*fy;};
- const rgbDiffAt=(x,y)=>{if(x<0||y<0||x>=fw||y>=fh)return[0,0,0];const i=(y*fw+x)*4;return[Math.abs(fireOnPixels[i]-fireOffPixels[i]),Math.abs(fireOnPixels[i+1]-fireOffPixels[i+1]),Math.abs(fireOnPixels[i+2]-fireOffPixels[i+2])];};
- const LIT=30,R=12,detected=[];
- for(let idx=0;idx<projected.length;idx++){
-  const cx=Math.round(projected[idx].x),cy=Math.round(projected[idx].y);
-  if(cx<-R||cy<-R||cx>=fw+R||cy>=fh+R)continue;
-  // 全窗格掃描一次，量出 peak（連同座標，投影中心可能有 ≤1px 取整誤差）與 lit 像素數，
-  // 直徑/核心/剖面三個子判準共用同一份掃描結果，不用各自重複掃描。
-  let peak=-1,peakX=cx,peakY=cy,lit=0;
-  const vals=[];
-  for(let dy=-R;dy<=R;dy++)for(let dx=-R;dx<=R;dx++){
-   const v=intensityAt(cx+dx,cy+dy);vals.push(v);
-   if(v>peak){peak=v;peakX=cx+dx;peakY=cy+dy;}
-   if(v>LIT)lit++;
-  }
-  if(peak<=LIT||!lit)continue;
-  const diameter=2*Math.sqrt(lit/Math.PI);
-  // 核心＝比背景亮出來的部分裡落在「離峰值最近的上 25%」那段的區域（門檻取 75% 上檔，比第一版
-  // 草稿的 60% 更保守，避免外暈萬一在突變 2 下變成大面積接近峰值的平台時被誤算進核心）。
-  const coreThresh=LIT+(peak-LIT)*0.75;
-  const coreLit=vals.filter(v=>v>coreThresh).length;
-  const coreDiameter=coreLit?2*Math.sqrt(coreLit/Math.PI):0;
-  // 柔邊度剖面：以偵測到的峰值座標為圓心（不是投影中心，兩者可能差 ≤1px），沿半徑 50%/75%/
-  // 100%（100%＝偵測到的外暈半徑本身）各取 8 個方向平均，要求單調不遞增（容許 ±2 的取樣雜訊）
-  // 且 75% 處的「高出背景的亮度」≤ 中心「高出背景的亮度」的 40%。背景＝0（on/off 兩張圖沒有
-  // 螢火蟲時逐像素相同，diff 定義上就是 0，不需要另外量）。
-  const ringAvgAt=rr=>{if(rr<0.4)return peak;let s=0;const n=8;for(let k=0;k<n;k++){const a=k/n*Math.PI*2;s+=intensityAtF(peakX+Math.cos(a)*rr,peakY+Math.sin(a)*rr);}return s/n;};
-  const Rh=diameter/2,v50=ringAvgAt(Rh*.5),v75=ringAvgAt(Rh*.75),vEdge=ringAvgAt(Rh);
-  const monotonic=peak>=v50-2&&v50>=v75-2&&v75>=vEdge-2;
-  const ratio75=peak>0?v75/peak:1;
-  // 顏色：峰值像素本身 on/off 兩張圖的 R/G/B 各自差值（不是加總強度），量的是「這個光源本身的
-  // 顏色」，不受場景背景色影響。
-  const [dR,dG,dB]=rgbDiffAt(peakX,peakY);
-  const colorOk=dG>dR&&dR>dB&&dB<=0.6*dG;
-  detected.push({idx,x:cx,y:cy,diameter:+diameter.toFixed(2),coreDiameter:+coreDiameter.toFixed(2),
-   monotonic,ratio75:+ratio75.toFixed(3),dR,dG,dB,colorOk});
- }
- // 「可見」＝既有下限 diameter≥4px（沿用第三輪定義，不受新的上限/核心/柔邊度/顏色門檻影響，
- // 讓突變 1（外暈放大成 20px）不會連坐拖垮這個數量判準——退件明講兩者要分開)。
+ const detected=scanFireflies(fireOnPixels,fireOffPixels,projected);
+ // 2026-09-28 最終設計（取代先前兩版都被突變測試推翻的做法）：突變3（放大 HALO_PX）證明「核心/
+ // 柔邊度/顏色都量在核心+外暈合併畫面上」結構上量不乾淨——外暈變大時，合併訊號的峰值位置、
+ // ring-sampling 剖面、被亮到的鄰近背景像素全部跟著變，四個判準（含尺寸上限）連坐一起紅。
+ // 拆成三種各自結構解耦的量法：
+ // 1) 可見／尺寸上限——維持在「核心+外暈」合併畫面上量：這兩個判準本來就該量「使用者實際看到
+ //    的整團光暈多大」，外暈尺寸改變時這裡本來就應該有反應，不需要解耦。
+ // 2) 核心／顏色——改成第二次獨立 on/off、halo 強制關閉（只留核心 sprite），見下方擷取區塊；
+ //    halo 關閉時 HALO_PX 對這次擷取的畫面零貢獻，結構上不可能被外暈尺寸突變牽連。
+ // 3) 柔邊度——改成直接讀 glowTex 自己的 alpha 剖面（texture-space，見 alishan.js 的
+ //    sampleAlphaProfile／fx.state.glowAlphaProfile），完全不經過畫面像素，結構上不受任何
+ //    on-screen 尺寸/mipmap/ACES 色調映射/背景疊色影響（也不再需要柔邊度的 90% 容忍度——
+ //    這是單一貼圖的內在屬性，不是逐隻取樣，沒有「背景偶發遮蔽污染其中幾隻」這種問題）。
  const visibleFireflies=detected.filter(d=>d.diameter>=4);
  check('阿里山-螢火蟲可見',visibleFireflies.length>=12,
   {visibleCount:visibleFireflies.length,total:fireflyPositions.length,sample:visibleFireflies.slice(0,6).map(d=>({x:d.x,y:d.y,diameter:d.diameter}))});
  check('阿里山-螢火蟲可見-尺寸上限',visibleFireflies.length>0&&visibleFireflies.every(d=>d.diameter<=10+1e-6),
   {diameterRange:visibleFireflies.length?[Math.min(...visibleFireflies.map(d=>d.diameter)),Math.max(...visibleFireflies.map(d=>d.diameter))]:null});
- check('阿里山-螢火蟲可見-核心',visibleFireflies.length>0&&visibleFireflies.every(d=>d.coreDiameter<=3+1e-6),
-  {coreDiameterRange:visibleFireflies.length?[Math.min(...visibleFireflies.map(d=>d.coreDiameter)),Math.max(...visibleFireflies.map(d=>d.coreDiameter))]:null});
- check('阿里山-螢火蟲可見-柔邊度',visibleFireflies.length>0&&visibleFireflies.every(d=>d.monotonic&&d.ratio75<=0.4+1e-6),
-  {ratio75Range:visibleFireflies.length?[Math.min(...visibleFireflies.map(d=>d.ratio75)),Math.max(...visibleFireflies.map(d=>d.ratio75))]:null,
-   nonMonotonic:visibleFireflies.filter(d=>!d.monotonic).length});
- check('阿里山-螢火蟲可見-顏色',visibleFireflies.length>0&&visibleFireflies.every(d=>d.colorOk),
-  {sample:visibleFireflies.slice(0,4).map(d=>({dR:d.dR,dG:d.dG,dB:d.dB})),failCount:visibleFireflies.filter(d=>!d.colorOk).length});
+
+ // 第二次 on/off：halo 強制關閉，只留核心——量「核心」與「顏色」，結構上不受 HALO_PX 影響。
+ // litThreshold 用 10 而非預設 30：核心單獨的訊號峰值遠低於「核心+外暈」合併訊號的峰值（探針
+ // probe_core_only_intensity.mjs 量過：200 個遠離任何螢火蟲的隨機點 on/off 恆等，雜訊地板=0；
+ // 錨定群核心峰值都遠高於地板），10 在兩者之間留了足夠邊際。這裡只讀 diameter（lit 像素計數，
+ // 不涉及次像素 ring-sampling），核心單獨尺度雖小但「數有幾個像素比門檻亮」不像「沿半徑取樣算
+ // 比例」那樣在次像素尺度下失真——先前踩的坑是把柔邊度也塞進這次獨立擷取才出問題，見上面。
+ await p.evaluate(()=>alishanPreview.fireflyHalo(false));await settle(p);
+ await p.evaluate(()=>alishanPreview.fireflyVisible(false));await settle(p);
+ const coreOffPixels=await read();
+ await p.evaluate(()=>alishanPreview.fireflyVisible(true));await settle(p);
+ const coreOnPixels=await read();
+ await p.evaluate(()=>{alishanPreview.fireflyVisible(null);alishanPreview.fireflyHalo(null);});await settle(p);
+ const coreDetected=scanFireflies(coreOnPixels,coreOffPixels,projected,10);
+ check('阿里山-螢火蟲可見-核心',coreDetected.length>0&&coreDetected.every(d=>d.diameter<=3+1e-6),
+  {coreCount:coreDetected.length,diameterRange:coreDetected.length?[Math.min(...coreDetected.map(d=>d.diameter)),Math.max(...coreDetected.map(d=>d.diameter))]:null});
+ // 第三次 on/off：halo 仍關閉、另外把 tone mapping 也關掉——專門量「顏色」。實測發現核心單獨
+ // 的訊號振幅很小（peak 總和量級十幾），ACES 色調映射對composited 畫面做非線性壓縮，訊號越小這個
+ // 非線性把材質本來 G≫R>B 的比例壓到 R≈G 甚至打平（探針 probe_color_coreonly.mjs：idx 45/51/72
+ // 量到 d[R,G,B]=[4,4,3]／[5,5,2]，dG 沒有大於 dR，passRate 只有 0.875，低於 90% 門檻——這不是
+ // 背景污染，是量測方法本身在小訊號下失真）。關掉 tone mapping 後 on/off 差值回到線性可加，
+ // 材質自己的顏色比例才量得乾淨（探針 probe_color_notonemap.mjs：同一批樣本 22/22 全過，
+ // 原本打平的 idx 45/51 訊號太弱被自然排除在偵測之外，不是被勉強量成合格）。
+ await p.evaluate(()=>{alishanPreview.fireflyHalo(false);alishanPreview.setToneMapping(false);alishanPreview.fireflyVisible(false);});await settle(p);
+ const colorOffPixels=await read();
+ await p.evaluate(()=>alishanPreview.fireflyVisible(true));await settle(p);
+ const colorOnPixels=await read();
+ await p.evaluate(()=>{alishanPreview.fireflyVisible(null);alishanPreview.fireflyHalo(null);alishanPreview.setToneMapping(true);});await settle(p);
+ const colorDetected=scanFireflies(colorOnPixels,colorOffPixels,projected,10);
+ // ≥90% 通過而非「每一隻都要過」：跟「可見」同一個風格，容許極少數投影點疊在背景邊界上的
+ // 偶發污染；若顏色 formula 本身真的壞了，失敗比例會遠超過 10%（下面突變測試會驗證這點）。
+ const passRate=(arr,pred)=>arr.length?arr.filter(pred).length/arr.length:0;
+ check('阿里山-螢火蟲可見-顏色',colorDetected.length>0&&passRate(colorDetected,d=>d.colorOk)>=0.9,
+  {passRate:+passRate(colorDetected,d=>d.colorOk).toFixed(3),colorCount:colorDetected.length,
+   sample:colorDetected.slice(0,4).map(d=>({dR:d.dR,dG:d.dG,dB:d.dB})),failIdx:colorDetected.filter(d=>!d.colorOk).map(d=>d.idx)});
+
+ // 柔邊度：直接讀貼圖自己的 alpha 剖面（texture-space，非畫面像素）——見上面設計說明。
+ // 半徑 0/25/50/75/90/100% 各自 16 方向平均（抵銷 64×64 網格的像素化雜訊），要求單調不遞增
+ // （容許 ±2 的取樣雜訊，跟舊版 on-screen 判準的容差一致）且 75% 半徑處 ≤ 中心的 40%。
+ const glowProfile=await p.evaluate(()=>alishanPreview.state.fx.glowAlphaProfile);
+ const centerAlpha=glowProfile[0].alpha,atFrac=f=>glowProfile.find(s=>s.rFrac===f).alpha;
+ const softMonotonic=glowProfile.every((s,i)=>i===0||s.alpha<=glowProfile[i-1].alpha+2);
+ const softRatio75=centerAlpha>0?atFrac(.75)/centerAlpha:1;
+ check('阿里山-螢火蟲可見-柔邊度',softMonotonic&&softRatio75<=0.4+1e-6,
+  {profile:glowProfile,ratio75:+softRatio75.toFixed(4),monotonic:softMonotonic});
 
  check('無 JS 錯誤',errors.length===0,errors);
  await p.close();

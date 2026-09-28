@@ -10,7 +10,10 @@ for(const stage of journey.stages){const t=stage.start+stage.duration,a=journey.
 check('全部六個階段銜接含完整編組端點無瞬移',maxJump<1e-6,{maxJump});
 for(const r of routes)for(let s=.2;s<r.length-.2;s+=.2){const a=r.sample(s-.1),b=r.sample(s+.1);maxSlope=Math.max(maxSlope,Math.abs((a.z-b.z)/Math.hypot(a.x-b.x,a.y-b.y)));}check('路徑有實際坡度與 11 單位高差',maxSlope>.1&&routes[2].sample(routes[2].length).z-routes[0].sample(0).z===11,{maxSlope});
 for(const [engine,type]of Object.entries({chromium,webkit})){
- const b=await type.launch({headless:true});
+ // chromium 預設 headless（headless shell）在這支腳本上有已知的間歇性 timeout（跟本檔案無關的
+ // 環境特性，webkit 同一輪穩定通過）；channel:'chrome' 是完整瀏覽器的無視窗模式，跟
+ // verify_garage_alishan_fx.mjs 已經在用的做法一致，這裡順手同步，不是另外新增的判準。
+ const b=await type.launch(engine==='chromium'?{channel:'chrome',headless:true}:{headless:true});
  try{
   const p=await b.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1,isMobile:true,hasTouch:true});const errors=[];p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')errors.push(m.text());});await p.goto(URL);await p.waitForFunction(()=>window.alishanPreview?.state.ready,null,{timeout:90000});await p.tap('#play');await settle(p);
   check(engine+' 編組＝DL38 ＋ 兩節林鐵客車',JSON.stringify([...(await state(p)).poses.map(c=>c.id)].sort())===JSON.stringify(['alicoach','alicoach','dl38']),(await state(p)).poses.map(c=>c.id));
@@ -28,6 +31,24 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
   const continuity=await p.evaluate(()=>{const api=alishanPreview,stages=api.state.stages;let jump=0,angle=0,dwell=0;for(const s of stages){const t=s.start+s.duration;api.setTime(t-.00001);const a=api.state.poses;api.setTime(t+.00001);const b=api.state.poses;for(let i=0;i<a.length;i++){jump=Math.max(jump,Math.hypot(a[i].x-b[i].x,a[i].y-b[i].y,a[i].z-b[i].z));angle=Math.max(angle,Math.abs(a[i].heading-b[i].heading),Math.abs(a[i].pitch-b[i].pitch));}api.setTime(s.start+s.travel+.2);const c=JSON.stringify(api.state.poses);api.setTime(s.start+s.travel+2.8);if(c===JSON.stringify(api.state.poses)&&!api.state.pose.moving)dwell++;}return{jump,angle,dwell};});check(engine+' 折返與上下端停車不跳位／不翻頭／停足三秒',continuity.jump<1e-5&&continuity.angle<1e-5&&continuity.dwell===6,continuity);
   await p.evaluate(()=>alishanPreview.setTime(4));
   const pixel=await p.evaluate(async()=>{const api=alishanPreview,c=document.querySelector('#scene'),out=document.createElement('canvas');out.width=c.width;out.height=c.height;const ctx=out.getContext('2d'),read=async()=>{const im=new Image();im.src=c.toDataURL();await im.decode();ctx.drawImage(im,0,0);return ctx.getImageData(0,0,c.width,c.height).data;};api.trainVisible(false);const empty=await read();api.trainVisible(true);const full=await read();return api.state.bounds.map(b=>{let changed=0;for(let y=Math.max(0,Math.floor(b.top));y<Math.min(c.height,b.bottom);y++)for(let x=Math.max(0,Math.floor(b.left));x<Math.min(c.width,b.right);x++){const i=(y*c.width+x)*4;if(Math.abs(full[i]-empty[i])+Math.abs(full[i+1]-empty[i+1])+Math.abs(full[i+2]-empty[i+2])>25)changed++;}return changed;});});check(engine+' 三節車體的實際像素',pixel.every(n=>n>30),pixel);
+  // 2026-09-28 精修：森林（Blender 資產取代 ConeGeometry）與跟車鏡頭遮擋淡出，見
+  // rail-3d/garage-scenes/alishan.js 的森林/updateTreeFade 大註解。
+  const forestState=await state(p),forest=forestState.forest;
+  check(engine+' 阿里山-森林-無程式圓錐',forest.coneGeometryCount===0,{coneGeometryCount:forest.coneGeometryCount});
+  check(engine+' 阿里山-森林-柳杉紅檜神木都有',forest.sugiCount>=30&&forest.hinokiCount>=30&&forest.giantCount===1,{sugiCount:forest.sugiCount,hinokiCount:forest.hinokiCount,giantCount:forest.giantCount});
+  check(engine+' 阿里山-森林-神木全場最粗',forest.giantTrunkR>forest.maxRegularTrunkR,{giantTrunkR:forest.giantTrunkR,maxRegularTrunkR:forest.maxRegularTrunkR});
+  // 樹底貼地：拿實際「拿去 plant() 的樹幹基準高度」比對 surfaceHeight()（對真正的地形網格
+  // raycast，不是重算 groundHeight 公式）——避免同源比對，容許值涵蓋地形網格三角化的內插誤差。
+  const groundedCheck=await p.evaluate(bases=>bases.map(b=>{const surf=alishanPreview.surface([b.x,b.y]);return{x:b.x,y:b.y,z:b.z,surf,delta:surf==null?null:Math.abs(surf-b.z)};}),forest.bases);
+  check(engine+' 阿里山-森林-樹底貼地',groundedCheck.length>=8&&groundedCheck.every(r=>r.delta!=null&&r.delta<.3),groundedCheck);
+  check(engine+' 阿里山-森林-Draw call 預算',forestState.drawCalls<=98,{drawCalls:forestState.drawCalls,baseline:88,ceiling:98});
+  // 跟車鏡頭遮擋：全journey均勻抽 8 個時間點，從相機對列車中心 raycast，第一個未淡出到看穿的
+  // 命中要 ≥7/8 是列車本身（不是被樹擋住）。
+  await p.tap('[data-view="train"]');await settle(p);
+  const journeyDuration=forestState.journeyDuration,occlusionSamples=[];
+  for(let k=0;k<8;k++){const t=Math.max(.5,Math.min(journeyDuration-.5,(k+.5)/8*journeyDuration));await p.evaluate(tt=>alishanPreview.setTime(tt),t);await settle(p);const rc=await p.evaluate(()=>alishanPreview.raycastTrain());occlusionSamples.push({t,type:rc.type,dist:rc.dist});}
+  const occlusionHits=occlusionSamples.filter(s=>s.type==='train').length;
+  check(engine+' 阿里山-跟車鏡頭遮擋-列車命中率',occlusionHits>=7,{occlusionHits,total:8,samples:occlusionSamples});
   for(const period of ['day','sunset','night']){await p.tap('button[data-period="'+period+'"]');await settle(p);await p.screenshot({path:`${OUT}/${engine}-${period}.png`});check(engine+' '+period+' 光影可切換',(await state(p)).period===period);}
   await p.tap('button[data-period="day"]');await p.tap('[data-view="train"]');await settle(p);check(engine+' 跟車構圖三節完整',await p.evaluate(()=>{const c=document.querySelector('#scene');return alishanPreview.state.bounds.every(b=>b.left>0&&b.right<c.width&&b.top>0&&b.bottom<c.height);}));await p.screenshot({path:`${OUT}/${engine}-follow.png`});
   await p.tap('#switchback');await p.waitForFunction(()=>alishanPreview.state.pose.stage===0&&!alishanPreview.state.pose.moving,null,{timeout:45000});const stopped=await state(p);await p.waitForFunction(()=>alishanPreview.state.pose.stage===1&&alishanPreview.state.pose.moving,null,{timeout:30000});await p.tap('#play');await settle(p);const reversed=await state(p);check(engine+' 真實動畫停車後換線倒推',stopped.pose.route===0&&reversed.pose.route===1&&reversed.pose.sign===-1,{stopped:stopped.pose,reversed:reversed.pose});
@@ -35,7 +56,9 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
   await panChecks({b,engine,URL,api:'alishanPreview',check,settle});   // 鏡頭平移（四頁共用的判準，在自己開的桌面頁與觸控頁上量）
   await p.tap('[data-view="world"]');await p.evaluate(()=>alishanPreview.setTime(4));
   for(const width of [360,375,390,414,520,768,1280]){await p.setViewportSize({width,height:900});await settle(p);await p.tap('#in');await p.tap('#out');await p.tap('#reset');await settle(p);const ui=await p.evaluate(()=>{const els=[...document.querySelectorAll('button,a')].filter(e=>e.getClientRects().length),bad=[],overlap=[];for(const e of els){const r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);if(!e.contains(hit)||r.width<43||r.height<43)bad.push(e.textContent);}for(let i=0;i<els.length;i++)for(let j=i+1;j<els.length;j++){const a=els[i].getBoundingClientRect(),b=els[j].getBoundingClientRect();if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1)overlap.push([els[i].textContent,els[j].textContent]);}return{bad,overlap,overflow:document.documentElement.scrollWidth>innerWidth};});check(engine+' '+width+' 真觸控與可及性',!ui.bad.length&&!ui.overlap.length&&!ui.overflow,ui);}
-  const mem=(await state(p)).memory;for(let i=0;i<3;i++){await p.tap('[data-view="train"]');await p.tap('button[data-period="night"]');await p.tap('[data-view="world"]');await p.tap('button[data-period="day"]');}await settle(p);check(engine+' 切換不累積資源',JSON.stringify(mem)===JSON.stringify((await state(p)).memory));const draws=(await state(p)).draws;await p.waitForTimeout(250);check(engine+' 暫停不重繪',(await state(p)).draws===draws);check(engine+' 無 JS／WebGL 錯誤',errors.length===0,errors);await p.close();
+  // 夜晚才亮的螢火蟲光暈、跟車才用的樹木淡出，第一次切過去才上傳 GPU：09-28 實測切一輪後 +1 幾何、+3 貼圖，之後四輪都不再變。
+  // 所以先暖身一輪再取基準；後面三輪還在長才是漏。
+  const cycle=async()=>{await p.tap('[data-view="train"]');await p.tap('button[data-period="night"]');await p.tap('[data-view="world"]');await p.tap('button[data-period="day"]');};await cycle();await settle(p);const mem=(await state(p)).memory;for(let i=0;i<3;i++)await cycle();await settle(p);const memAfter=(await state(p)).memory;check(engine+' 切換不累積資源',JSON.stringify(mem)===JSON.stringify(memAfter),{warm:mem,after:memAfter});const draws=(await state(p)).draws;await p.waitForTimeout(250);check(engine+' 暫停不重繪',(await state(p)).draws===draws);check(engine+' 無 JS／WebGL 錯誤',errors.length===0,errors);await p.close();
   const mobile=await b.newPage({viewport:{width:375,height:900},reducedMotion:'reduce',isMobile:true,hasTouch:true});await mobile.goto(URL);await mobile.waitForFunction(()=>window.alishanPreview?.state.ready,null,{timeout:90000});check(engine+' 手機預設跟車且減少動態停止',!(await state(mobile)).running&&(await state(mobile)).view==='train');await mobile.evaluate(()=>alishanPreview.setTime(4));await mobile.screenshot({path:`${OUT}/${engine}-mobile.png`,fullPage:true});await mobile.close();
  }catch(e){check(engine+' 驗證流程',false,e.stack);}finally{await b.close();}
 }

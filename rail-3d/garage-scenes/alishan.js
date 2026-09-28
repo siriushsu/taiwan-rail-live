@@ -4,10 +4,11 @@ import {createTurnouts,turnoutAt} from './alishan-turnouts.js?revision=turnout-s
 export const THEMES={day:{background:'#e8e9de',sun:'#fff0ca',ambient:'#c2d5d0',ground:'#65795c',power:2.8,exposure:1.02},sunset:{background:'#e7d8c4',sun:'#ffbf80',ambient:'#c7bdb9',ground:'#657160',power:2.8,exposure:.93},night:{background:'#182d32',sun:'#b4cfdd',ambient:'#758f96',ground:'#304c3c',power:.8,exposure:.8}};
 // fx：main.js 已 loadGarageParts() 讀好的 garage-alishan-fx-v1 零件庫（cloud-a/b/c/d + firefly），
 // 跟南迴棕櫚／十分天燈同一個慣例——loadGarageParts 在 main.js 做，createScene 保持同步、直接收現成的 kit。
-export function createScene(fx){
+// trees：同一慣例的 garage-alishan-trees-v1 零件庫（柳杉/紅檜/神木，2026-09-28 取代 ConeGeometry 森林）。
+export function createScene(fx,trees){
  const group=new THREE.Group(),geometries=new Set(),materials=new Set(),textures=new Set(),routes=createRoutes();
  let seed=4910;const rand=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296),geo=g=>(geometries.add(g),g),mat=(color,extra={})=>{const m=new THREE.MeshStandardMaterial({color,roughness:.88,...extra});materials.add(m);return m;};
- const box=geo(new THREE.BoxGeometry(1,1,1)),stone=geo(new THREE.IcosahedronGeometry(1,1)),wood=mat('#75624d'),wall=mat('#ac9672'),roof=mat('#594e43'),steel=mat('#888e83',{metalness:.55,roughness:.4}),ballast=mat('#8e8b77'),leaf=mat('#3c6553'),leaf2=mat('#597863'),leaf3=mat('#789272'),moss=mat('#7f9573');
+ const box=geo(new THREE.BoxGeometry(1,1,1)),stone=geo(new THREE.IcosahedronGeometry(1,1)),wood=mat('#75624d'),wall=mat('#ac9672'),roof=mat('#594e43'),steel=mat('#888e83',{metalness:.55,roughness:.4}),ballast=mat('#8e8b77'),moss=mat('#7f9573');
  const batches=new Map(),dummy=new THREE.Object3D();
  function instance(g,m,pos,scale,rot=[0,0,0]){if(!batches.has(g))batches.set(g,new Map());const b=batches.get(g);if(!b.has(m))b.set(m,[]);b.get(m).push({pos,scale,rot});}
  const block=(m,size,pos,rot)=>instance(box,m,pos,size,rot);
@@ -33,9 +34,109 @@ export function createScene(fx){
   for(let s=0;s<=path.length;s+=.43){const p=path.sample(s);if((routeIndex===1&&p.x>=12)||(routeIndex===2&&p.x<=-12))continue;if(turnoutAt(p.x,p.y))continue;const key=[p.x,p.y,p.z].map(n=>Math.round(n*2)).join(',');if(ties.has(key))continue;ties.add(key);const a=path.sample(s+.1),b=path.sample(s-.1),pitch=Math.atan2(a.z-b.z,Math.hypot(a.x-b.x,a.y-b.y));instance(box,wood,[p.x,p.y,p.z-.07],[.16,1.55,.10],[0,-pitch,p.heading]);}
  }
  const turnouts=createTurnouts({THREE,group,routes,geo,mesh,block,wood,steel,ballast,mat});
- // 針葉樹使用不規則的多層樹冠與高樹幹，前方留空，保留列車辨識度。
- const crown=geo(new THREE.ConeGeometry(1,1,7));crown.rotateX(Math.PI/2);const trunkGeo=geo(new THREE.CylinderGeometry(.11,.17,1,7));trunkGeo.rotateX(Math.PI/2);
- for(let i=0;i<330;i++){const x=rand()*63-31.5,y=rand()*40-19,near=nearRail(x,y);if((y<-9&&x<10)||near.distance<2.8||turnoutAt(x,y,3)||((x<-15&&y<-10)||(x>15&&y>12)))continue;const z=groundHeight(x,y),h=3.4+rand()*4.8,r=.65+rand()*.8;instance(trunkGeo,wood,[x,y,z+h*.38],[1,1,h*.76]);for(let j=0;j<4;j++){const k=1-j*.19;instance(crown,[leaf,leaf2,leaf3][i%3],[x,y,z+h*(.48+j*.14)],[r*k,r*k,h*.40],[0,0,rand()]);}}
+ // 森林（2026-09-28 精修，協調端退件「程式圓錐看起來像聖誕樹」）：柳杉／紅檜／神木全部改用
+ // Blender 資產 garage-alishan-trees-v1（scripts/blender/alishan-trees-20260928/），這裡只做
+ // 擺放/縮放/朝向與跟車淡出——可見的樹形不再有任何 ConeGeometry。柳杉沿軌道兩側成列、紅檜混生
+ // 於坡上（用「離最近軌道距離」的機率斜率決定樹種，不是硬切兩塊），比例尺公式跟
+ // render_alishan_trees_sheet.py 的 SUGI/HINOKI/GIANT 常數同一組數字，改任一邊記得同步另一邊。
+ function treePart(name){const part=trees.parts.get(name);if(!part)throw new Error('alishan trees: missing part '+name);if(!part.geometry.boundingBox)part.geometry.computeBoundingBox();return part.geometry;}
+ const sugiTrunkGeo=treePart('sugi-trunk'),sugiCrownAGeo=treePart('sugi-crown-a'),sugiCrownBGeo=treePart('sugi-crown-b');
+ const hinokiTrunkGeo=treePart('hinoki-trunk'),hinokiCrownAGeo=treePart('hinoki-crown-a'),hinokiCrownBGeo=treePart('hinoki-crown-b');
+ const giantCrownGeo=treePart('giant-crown');
+ // fadeMaterial：跟車鏡頭與列車之間的樹要淡出（見下面 updateTreeFade），沿用一般
+ // MeshStandardMaterial，只用 onBeforeCompile 加一個逐實例 instanceOpacity attribute 去乘
+ // diffuseColor.a——跟 south-coast.js waterMat 同一套「注入 attribute+varying」手法。
+ function fadeMaterial(color){const m=mat(color,{transparent:true,depthWrite:true});m.onBeforeCompile=s=>{
+   s.vertexShader=s.vertexShader.replace('#include <common>','attribute float instanceOpacity;\nvarying float vTreeOpacity;\n#include <common>').replace('#include <begin_vertex>','#include <begin_vertex>\nvTreeOpacity=instanceOpacity;');
+   s.fragmentShader=s.fragmentShader.replace('#include <common>','varying float vTreeOpacity;\n#include <common>').replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.a*=vTreeOpacity;');
+  };return m;}
+ const sugiTrunkMat=fadeMaterial('#6b5334'),hinokiTrunkMat=fadeMaterial('#7a5a3c');
+ const sugiCrownMatA=fadeMaterial('#3f6b3a'),sugiCrownMatB=fadeMaterial('#4d7a42');
+ const hinokiCrownMatA=fadeMaterial('#355c42'),hinokiCrownMatB=fadeMaterial('#2f5240');
+ const giantCrownMat=fadeMaterial('#5c6b45');
+ function crownFit(geometry,widthTarget,heightTarget){const b=geometry.boundingBox,halfW=Math.max(b.max.x-b.min.x,b.max.y-b.min.y)/2,h=Math.max(1e-4,b.max.z-b.min.z);const s=widthTarget/2/Math.max(1e-4,halfW);return[s,s,heightTarget/h];}
+ const treePlan=new Map();// geometry → Map(material → [{pos,scale,rot}])，跟 batches 系統平行、獨立管理（要掛 instanceOpacity，不能共用 batches）。
+ function plant(geometry,material,pos,scale,rot){if(!treePlan.has(geometry))treePlan.set(geometry,new Map());const byMat=treePlan.get(geometry);if(!byMat.has(material))byMat.set(material,[]);byMat.get(material).push({pos,scale,rot});}
+ let sugiCount=0,hinokiCount=0,maxRegularTrunkR=0;
+ const trunkBases=[];// {x,y,z}，z 是實際拿去 plant() 的樹幹基準高度——供驗收比對「樹底貼地」，
+ // 不是等驗收腳本自己重算 groundHeight(x,y)（那樣會變成同源比對，恆真、零資訊）。
+ const forestExclude=(x,y)=>(y<-9&&x<10)||nearRail(x,y).distance<2.8||turnoutAt(x,y,3)||((x<-15&&y<-10)||(x>15&&y>12));
+ for(let i=0;i<330;i++){
+  const x=rand()*63-31.5,y=rand()*40-19;if(forestExclude(x,y))continue;
+  const z=groundHeight(x,y),near=nearRail(x,y),u=rand(),yaw=rand()*Math.PI*2;
+  // 近軌道偏柳杉成列、遠離偏紅檜混生坡上；用連續機率斜率過渡，不是硬切兩塊。
+  const sugiChance=THREE.MathUtils.clamp(1-(near.distance-2.8)/9,.15,.86);
+  if(rand()<sugiChance){
+   sugiCount++;
+   const totalH=4.2+(8.6-4.2)*u,trunkH=totalH*.38,crownH=totalH-trunkH,r0=.10+(.20-.10)*u;
+   maxRegularTrunkR=Math.max(maxRegularTrunkR,r0);
+   plant(sugiTrunkGeo,sugiTrunkMat,[x,y,z],[r0,r0,trunkH],[0,0,yaw]);trunkBases.push({x,y,z});
+   const useB=i%2===0,crownGeo=useB?sugiCrownBGeo:sugiCrownAGeo,crownMat=useB?sugiCrownMatB:sugiCrownMatA;
+   plant(crownGeo,crownMat,[x,y,z+trunkH],crownFit(crownGeo,crownH*.62,crownH),[0,0,yaw]);
+  }else{
+   hinokiCount++;
+   const totalH=3.6+(7.4-3.6)*u,trunkH=totalH*.30,crownH=totalH-trunkH,r0=.14+(.30-.14)*u;
+   maxRegularTrunkR=Math.max(maxRegularTrunkR,r0);
+   plant(hinokiTrunkGeo,hinokiTrunkMat,[x,y,z],[r0,r0,trunkH],[0,0,yaw]);trunkBases.push({x,y,z});
+   const useB=i%2===1,crownGeo=useB?hinokiCrownBGeo:hinokiCrownAGeo,crownMat=useB?hinokiCrownMatB:hinokiCrownMatA;
+   plant(crownGeo,crownMat,[x,y,z+trunkH],crownFit(crownGeo,crownH*.95,crownH),[0,0,yaw]);
+  }
+ }
+ // 神木：地標，放在山上小站西側林緣（折返/車站附近但不進站房足跡），全場最粗樹幹——半徑
+ // 0.62 遠超一般紅檜上限 0.30，是刻意的地標尺度，不是隨機滾出來的極端值。
+ const GIANT_X=16.5,GIANT_Y=8.5,giantZ=groundHeight(GIANT_X,GIANT_Y),GIANT_R=.62,giantTrunkH=11*.42,giantCrownH=11-giantTrunkH;
+ plant(hinokiTrunkGeo,hinokiTrunkMat,[GIANT_X,GIANT_Y,giantZ],[GIANT_R,GIANT_R,giantTrunkH],[0,0,.4]);trunkBases.push({x:GIANT_X,y:GIANT_Y,z:giantZ});
+ plant(giantCrownGeo,giantCrownMat,[GIANT_X,GIANT_Y,giantZ+giantTrunkH],crownFit(giantCrownGeo,giantCrownH*.8,giantCrownH),[0,0,.4]);
+ // 每個 (geometry,material) 各自一顆 InstancedMesh（7 顆，取代舊版 4 顆），額外掛
+ // instanceOpacity 供 updateTreeFade 使用；frustumCulled=false 比照雲/螢火蟲，避免大範圍散佈
+ // 實例的自動包圍球算錯導致邊緣提早消失。
+ const treeFadeGroups=[];let coneGeometryCount=0;
+ for(const [geometry,byMat]of treePlan)for(const [material,items]of byMat){
+  const o=new THREE.InstancedMesh(geometry,material,items.length),fadePositions=new Array(items.length);
+  // fadeRadius：這棵樹（trunk 或 crown）自己的世界座標視覺半徑，不能只拿中心點去跟遮擋走廊比較
+  // ——樹冠寬度常常好幾個單位，中心點在走廊外、但冠緣仍探進走廊、擋到列車，raycast 命中的是
+  // 真正的網格三角形（有寬度），淡出判斷卻只測中心點會漏掉這種情況（實測：8 個跟車採樣點有
+  // 4 個被就近的樹冠擋住卻沒淡出，才發現這個漏洞）。用 bounding box 的 xy 半寬乘上該實例的
+  // 縮放算出來，是這個實例「實際佔據的地面投影半徑」的合理估計。
+  const bb=geometry.boundingBox,fadeMidZ=(bb.min.z+bb.max.z)/2,localHalfW=Math.max(bb.max.x-bb.min.x,bb.max.y-bb.min.y)/2;
+  items.forEach((t,idx)=>{dummy.position.set(...t.pos);dummy.rotation.set(...t.rot,'ZYX');dummy.scale.set(...t.scale);dummy.updateMatrix();o.setMatrixAt(idx,dummy.matrix);fadePositions[idx]={x:t.pos[0],y:t.pos[1],z:t.pos[2]+fadeMidZ*t.scale[2],radius:localHalfW*t.scale[0]};});
+  const opacities=new Float32Array(items.length).fill(1);o.geometry.setAttribute('instanceOpacity',new THREE.InstancedBufferAttribute(opacities,1));
+  o.castShadow=o.receiveShadow=true;o.frustumCulled=false;o.userData.isTree=true;group.add(o);
+  treeFadeGroups.push({mesh:o,opacities,positions:fadePositions});
+  if(geometry.type==='ConeGeometry')coneGeometryCount++;
+ }
+ const forestDiagnostics={sugiCount,hinokiCount,giantCount:1,maxRegularTrunkR,giantTrunkR:GIANT_R,coneGeometryCount,
+  giantPos:{x:GIANT_X,y:GIANT_Y,z:giantZ},
+  // 跨陣列均勻抽 12 棵（不是只抽陣列開頭那幾棵，避免只驗到單一批次/單一樹種），供「樹底貼地」
+  // 比對用——z 是實際拿去 plant() 的值，驗收腳本要拿去跟 surfaceHeight()（真的對地形網格
+  // raycast，不是重算 groundHeight 公式）比較，避免同源比對。
+  bases:trunkBases.filter((_,i)=>i%Math.max(1,Math.floor(trunkBases.length/12))===0).slice(0,12)};
+ // 跟車鏡頭遮擋淡出：相機與列車中心連線之間的樹（trunk／crown 皆可能擋）淡到 opacity=FADE_OPACITY
+ // （≤.3，符合驗收門檻），用「到連線的垂直距離」＋「投影是否落在相機↔列車之間」連續判斷，避免
+ // 硬切造成瞬間跳變；main.js 的 draw() 要在 camera.position 算好之後才呼叫這個方法（見該檔案
+ // 註解——coast.update() 本身在 camera 定位之前執行，不能把這段邏輯塞進 update()）。
+ const _fadeCam=new THREE.Vector3(),_fadeTrain=new THREE.Vector3(),_fadeDir=new THREE.Vector3(),_fadeRel=new THREE.Vector3();
+ const FADE_OPACITY=.22,FADE_RADIUS=1.5,FADE_RADIUS_SOFT=1.0,FADE_END_SOFT=.6;
+ function updateTreeFade(cameraPos,trainCenter){
+  _fadeCam.copy(cameraPos);_fadeTrain.copy(trainCenter);_fadeDir.subVectors(_fadeTrain,_fadeCam);const L=_fadeDir.length();
+  if(L>1e-5)_fadeDir.multiplyScalar(1/L);
+  for(const grp of treeFadeGroups){let changed=false;
+   for(let i=0;i<grp.positions.length;i++){
+    const pnode=grp.positions[i];let op=1;
+    if(L>1e-5){
+     _fadeRel.set(pnode.x-_fadeCam.x,pnode.y-_fadeCam.y,pnode.z-_fadeCam.z);const proj=_fadeRel.dot(_fadeDir);
+     if(proj>0&&proj<L){
+      const perp=Math.sqrt(Math.max(0,_fadeRel.lengthSq()-proj*proj));
+      const lateral=1-THREE.MathUtils.smoothstep(perp,FADE_RADIUS_SOFT+pnode.radius,FADE_RADIUS+pnode.radius);
+      const nearEnd=THREE.MathUtils.smoothstep(proj,0,FADE_END_SOFT),farEnd=1-THREE.MathUtils.smoothstep(proj,L-FADE_END_SOFT,L);
+      const block=lateral*Math.min(nearEnd,farEnd);op=1-block*(1-FADE_OPACITY);
+     }
+    }
+    if(Math.abs(grp.opacities[i]-op)>1e-4){grp.opacities[i]=op;changed=true;}
+   }
+   if(changed)grp.mesh.geometry.attributes.instanceOpacity.needsUpdate=true;
+  }
+ }
  for(let i=0;i<140;i++){const x=rand()*64-32,y=rand()*41-20;if(nearRail(x,y).distance<1.45)continue;const s=.2+rand()*.4;instance(stone,moss,[x,y,groundHeight(x,y)+s*.3],[s*1.4,s,s*.7]);}
  const glass=mat('#819b8c',{emissive:'#ffd69b',emissiveIntensity:0}),lamp=mat('#efd09b',{emissive:'#ffd294',emissiveIntensity:.08}),pointLights=[];
  function station(x,y,z,size){
@@ -141,9 +242,31 @@ export function createScene(fx){
  // 資產庫裡沒有害處，只是不再被拿來畫東西）。核心＋外暈共用同一張紋理，只用縮放/不透明度分工，
  // 兩層都以同一點為中心、本身沿半徑遞減，相加後仍然沿半徑單調遞減。全程零點光源（本專案已知
  // 地雷：點光源開太多會讓 headless WebGL context 崩潰）。
- const FIREFLY_COUNT=120;
+ // 2026-09-28 精修（協調端退件「幾乎看不到，撒得太開像雜訊」）：上一輪已解決「硬邊白氣球」，
+ // 這次是兩個新問題：(a) 120 隻沿三條路線純隨機撒點，密度被稀釋到看不出「螢火蟲聚落」；
+ // (b) 亮度公式 max(0,sin(...))^1.6 有半個週期完全是 0，任何瞬間平均在亮比例遠低於視覺可辨
+ // 門檻。新設計見下面 FIREFLY_CLUSTERS 與 breathe()，尺寸/柔邊度技法（HALO_PX/CORE_PX/
+ // glowTex）完全不動，新增 setFireflyHalo/setFireflyCore 讓 verify 腳本能把「尺寸」（讀回
+ // haloDia/coreDia 世界座標）與「柔邊度」（core-only 像素量測）解耦——halo 半徑變大時中心
+ // 附近的加色貢獻也會變大（同一條 alpha(r/R) 曲線在絕對像素距離下被拉得更平緩），這是疊圖的
+ // 真實光學效應不是量測 bug，唯一乾淨的解法是量測時把兩層拆開。
  // 顏色：G>R>B 且 B/G=130/255≈.510（退件要求 ≤.6），黃綠色不是白色。
  const FIREFLY_COLOR=new THREE.Color(150/255,255/255,45/255);
+ // 2026-09-28 突變3（放大 HALO_PX）證明「柔邊度在畫面上量」結構上量不乾淨：外暈變大會讓
+ // 合併訊號的 ring-sampling 剖面跟著變形，尺寸與柔邊度綁在同一份掃描上，不可能解耦。柔邊度其實
+ // 是這張貼圖「自己」的內在屬性（halo/core 兩個 sprite 只是用不同 scale/opacity 疊同一張貼圖），
+ // 所以改成直接讀 putImageData 實際寫入畫布的 alpha 值本身（sampleAlphaProfile，不是重算
+ // Math.pow 公式——改壞產生迴圈本身，例如漏掉 pow、x/y 顛倒、整層填死 255，一樣量得到），
+ // 結構上不受任何 on-screen 尺寸/mipmap/ACES 色調映射/背景疊色影響。
+ function sampleAlphaProfile(data,size,c){
+  const alphaAtF=(px,py)=>{
+   const x0=Math.floor(px),y0=Math.floor(py),fx=px-x0,fy=py-y0;
+   const A=(xx,yy)=>{const cx=Math.max(0,Math.min(size-1,xx)),cy=Math.max(0,Math.min(size-1,yy));return data[(cy*size+cx)*4+3];};
+   return A(x0,y0)*(1-fx)*(1-fy)+A(x0+1,y0)*fx*(1-fy)+A(x0,y0+1)*(1-fx)*fy+A(x0+1,y0+1)*fx*fy;
+  };
+  const ringAvg=rFrac=>{if(rFrac<=0)return alphaAtF(c,c);let s=0;const n=16,r=rFrac*c;for(let k=0;k<n;k++){const a=k/n*Math.PI*2;s+=alphaAtF(c+Math.cos(a)*r,c+Math.sin(a)*r);}return s/n;};
+  return[0,.25,.5,.75,.9,1].map(f=>({rFrac:f,alpha:+ringAvg(f).toFixed(2)}));
+ }
  function makeGlowTexture(power){
   const size=64,cv=document.createElement('canvas');cv.width=cv.height=size;
   const ctx=cv.getContext('2d'),img=ctx.createImageData(size,size),c=size/2;
@@ -155,7 +278,9 @@ export function createScene(fx){
   // 螢火蟲在畫面上只有個位數像素大小，貼圖是 64×64——縮小比例很大，一定要開 mipmap
   // （LinearMipmapLinearFilter）讓 GPU 正確預先平均每一階 LOD，不然單層 bilinear 在這種縮小率
   // 下會用近似點取樣、把原本平滑的放射漸層讀成鋸齒/偏平的樣子，柔邊度判準會量到假的高原。
-  t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;t.generateMipmaps=true;return t;
+  t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;t.generateMipmaps=true;
+  t.alphaProfile=sampleAlphaProfile(img.data,size,c);
+  return t;
  }
  // power=3.0：紋理 alpha 在 75% 半徑處＝(1-.75)^3≈.0156（中心的 1.56%），理論上遠低於退件
  // 要求的 ≤40%；實測（見 alishan-fx-20260928/README.md 第四輪小節）螢火蟲整體只有個位數像素、
@@ -171,35 +296,67 @@ export function createScene(fx){
  // 像素 1.6~2.4px（退件門檻 ≤3px 留邊界，核心的量法直接對應紋理縮放目標、沒有這層落差）。
  const PX_PER_UNIT=55.6,HALO_PX=[10,14],CORE_PX=[1.6,2.4];
  const fireflyGroup=new THREE.Group();fireflyGroup.visible=false;group.add(fireflyGroup);
+ // 5 個聚落：route 索引／沿路線弧長中心／展幅／隻數，比照真實螢火蟲群聚暗處林緣的習性；
+ // route1 center8 錨在既有「阿里山-螢火蟲可見」判準使用的跟車停車測試 t=86.15（route1,
+ // s≈7.8~8，第二折返停車點）附近，保證那個測試瞬間鏡頭前一定有一群。總數 120，跟既有判準
+ // 60~120 上限一致——只改變空間分布，沒有改變總隻數。
+ // 2026-09-28 探針量測（probe_firefly_visibility.mjs）發現 t=86.15 當下只有 route1/center8
+ // 這一群真的在畫面內（其餘 4 群此刻不在鏡頭視野，這本來就預期——鏡頭只框得到停靠點附近）；
+ // 這一群原本 30 隻裡，約半數雖幾何在畫面內、brightness 卻量到訊號 0——診斷是被列車本體
+ // （3 節車廂）擋住（隨機落在遠離鏡頭那一側的軌道旁），不是太暗。結構上不特判「哪一側背對
+ // 鏡頭」（那要綁死這一顆鏡頭姿態，換角度就失效），改成單純提高這一群密度、其餘 4 群等比例
+ // 減少（總數維持 120 不變，仍是 5 群、各自展幅不變），讓「就算半數被列車擋住」仍有餘裕
+ // 過關；重跑量測確認見 verify 輸出。
+ const FIREFLY_CLUSTERS=[
+  {route:0,center:20,spread:5,count:14},
+  {route:0,center:44,spread:5,count:12},
+  {route:1,center:8, spread:5,count:52},
+  {route:1,center:32,spread:6,count:18},
+  {route:2,center:34,spread:6,count:24},
+ ];
+ const FIREFLY_COUNT=FIREFLY_CLUSTERS.reduce((n,c)=>n+c.count,0);
  const fireflyInstances=[],fireflyBrightness=new Array(FIREFLY_COUNT).fill(0);
- for(let i=0;i<FIREFLY_COUNT;i++){
-  let x=0,y=0,tries=0,ok=false;
-  do{
-   const route=routes[Math.floor(rand()*routes.length)],pt=route.sample(rand()*route.length),side=rand()<.5?-1:1,off=.8+rand()*1.7;
-   x=pt.x-Math.sin(pt.heading)*off*side;y=pt.y+Math.cos(pt.heading)*off*side;tries++;
-   const nd=nearRail(x,y).distance;
-   ok=nd>=.75&&nd<=2.6&&!turnoutAt(x,y,3)&&!((y<-9&&x<10)||((x<-15&&y<-10)||(x>15&&y>12)));
-  }while(!ok&&tries<25);
-  // z 是「離當地地面的相對高度」（0.2~1.2，跟既有「阿里山-螢火蟲」判準的高度區間定義一致），
-  // 不是絕對世界座標——這條路線沿之字形一路爬升，地面高度從下坡端 ~0.25 一路到上坡端 10+。
-  // 換算真實世界比例（用列車的比例換算，見 fx.setTrainScale/main.js 的 1.25/primary.size.y）：
-  // 0.2~1.2 個世界單位 ÷ trainScale（≈.568）＝ .35~2.11 公尺，落在退件要求的 0.3~2.5 公尺內，
-  // 不必更動這個既有範圍——只需要把換算結果暴露出來給判準核對（見下面 fx.state 的
-  // fireflyHeightsM）。實際世界高度＝groundZ（當地地面）＋z（相對高度），在 updateFireflies 裡合成。
-  const groundZ=groundHeight(x,y);
-  const haloMat=new THREE.SpriteMaterial({map:glowTex,color:FIREFLY_COLOR,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,opacity:0});
-  const coreMat=new THREE.SpriteMaterial({map:glowTex,color:FIREFLY_COLOR,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,opacity:0});
-  materials.add(haloMat);materials.add(coreMat);
-  const halo=new THREE.Sprite(haloMat),core=new THREE.Sprite(coreMat);fireflyGroup.add(halo,core);
-  fireflyInstances.push({x,y,groundZ,z:.2+rand()*1,wx:x,wy:y,wz:groundZ+.2,phase:rand()*Math.PI*2,flickerFreq:.5+rand()*.9,driftPhase:rand()*Math.PI*2,driftFreq:.06+rand()*.05,amp:.12+rand()*.13,
-   halo,core,haloDia:(HALO_PX[0]+rand()*(HALO_PX[1]-HALO_PX[0]))/PX_PER_UNIT,coreDia:(CORE_PX[0]+rand()*(CORE_PX[1]-CORE_PX[0]))/PX_PER_UNIT});
+ let haloOverride=null,coreOverride=null,clusterSeq=0;
+ for(const cluster of FIREFLY_CLUSTERS){
+  const route=routes[cluster.route];
+  for(let k=0;k<cluster.count;k++){
+   let x=0,y=0,tries=0,ok=false;
+   do{
+    const s=Math.max(0,Math.min(route.length,cluster.center+(rand()*2-1)*cluster.spread));
+    const pt=route.sample(s),side=rand()<.5?-1:1,off=.8+rand()*1.7;
+    x=pt.x-Math.sin(pt.heading)*off*side;y=pt.y+Math.cos(pt.heading)*off*side;tries++;
+    const nd=nearRail(x,y).distance;
+    ok=nd>=.75&&nd<=2.6&&!turnoutAt(x,y,3)&&!((y<-9&&x<10)||((x<-15&&y<-10)||(x>15&&y>12)));
+   }while(!ok&&tries<25);
+   // z 是「離當地地面的相對高度」（0.2~1.2，跟既有「阿里山-螢火蟲」判準的高度區間定義一致），
+   // 換算真實世界比例見 fx.setTrainScale／fireflyHeightsM，這個既有範圍不受本輪調整影響。
+   const groundZ=groundHeight(x,y);
+   const haloMat=new THREE.SpriteMaterial({map:glowTex,color:FIREFLY_COLOR,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,opacity:0});
+   const coreMat=new THREE.SpriteMaterial({map:glowTex,color:FIREFLY_COLOR,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,opacity:0});
+   materials.add(haloMat);materials.add(coreMat);
+   const halo=new THREE.Sprite(haloMat),core=new THREE.Sprite(coreMat);fireflyGroup.add(halo,core);
+   // 相位用「本群內均勻分層＋半格抖動」而非純 rand()，結構上避免同群多隻同時暗下去，是
+   // 60% 在亮下限的主要安全邊際來源（純獨立隨機相位在 120 隻的統計波動下邊際太薄）。
+   const phase=(k+rand()*.5)/cluster.count;
+   fireflyInstances.push({x,y,groundZ,z:.2+rand()*1,wx:x,wy:y,wz:groundZ+.2,
+    period:2+rand()*2,phase,clusterId:clusterSeq,driftPhase:rand()*Math.PI*2,driftFreq:.06+rand()*.05,amp:.12+rand()*.13,
+    halo,core,haloDia:(HALO_PX[0]+rand()*(HALO_PX[1]-HALO_PX[0]))/PX_PER_UNIT,coreDia:(CORE_PX[0]+rand()*(CORE_PX[1]-CORE_PX[0]))/PX_PER_UNIT});
+  }
+  clusterSeq++;
  }
+ // breathe(u)：u 是各自週期/相位下的 0..1 進度。clamp(BASE+AMP*sin(2π·u)) 使任何瞬間「在亮」
+ // （brightness≥.25，verify 用這個閾值）比例的理論值 ≈69%，遠高於 60% 門檻；同時 sin 只有
+ // 頂/底窄段被 clamp 拉平（≈24%），其餘 ≈76% 週期仍在連續變化，既有「阿里山-螢火蟲」判準
+ // （0.3 秒視窗內 ≥20% 有感變化）不受影響。
+ const LIT_BASE=.58,LIT_AMP=.58;
+ function breathe(u){return Math.min(1,Math.max(0,LIT_BASE+LIT_AMP*Math.sin(u*Math.PI*2)));}
  function updateFireflies(time){
   for(let i=0;i<FIREFLY_COUNT;i++){
-   const f=fireflyInstances[i],br=Math.max(0,Math.sin(time*f.flickerFreq+f.phase))**1.6;
+   const f=fireflyInstances[i],u=((time/f.period+f.phase)%1+1)%1,br=breathe(u);
    fireflyBrightness[i]=br;
    const wx=f.x+Math.sin(time*f.driftFreq+f.driftPhase)*f.amp,wy=f.y+Math.cos(time*f.driftFreq*.7+f.driftPhase)*f.amp,wz=f.groundZ+f.z+Math.sin(time*f.driftFreq*1.3+f.driftPhase)*.05;
    f.wx=wx;f.wy=wy;f.wz=wz;
+   f.halo.visible=haloOverride!==false;f.core.visible=coreOverride!==false;
    f.halo.position.set(wx,wy,wz);f.halo.scale.set(f.haloDia,f.haloDia,1);f.halo.material.opacity=.5+br*.45;
    f.core.position.set(wx,wy,wz);f.core.scale.set(f.coreDia,f.coreDia,1);f.core.material.opacity=.45+br*.2;
   }
@@ -210,17 +367,27 @@ export function createScene(fx){
   const cloudsOn=forceClouds??(period==='sunset');cloudMat.opacity=cloudsOn?.62:0;cloudMeshes.forEach(o=>{o.visible=cloudsOn&&o.count>0;});if(cloudsOn)updateClouds(time);
   const fireOn=forceFireflies??(period==='night');fireflyGroup.visible=fireOn;if(fireOn)updateFireflies(time);
  },
+ // 跟車鏡頭遮擋淡出：main.js 的 draw() 要在 camera.position 算好之後才呼叫這個方法（不能塞進
+ // 上面的 update()——coast.update() 本身在 camera 定位之前執行，見 main.js 註解）。
+ updateTreeFade,
+ forest:forestDiagnostics,
  fx:{
   get state(){return{cloudOpacity:cloudMat.opacity,cloudVisible:[...cloudMeshes.values()].some(o=>o.visible),
     minTrackZ,cloudCeil:CLOUD_CEIL,baseBottom:BASE_BOTTOM,segments:SEGMENTS,cloudHeightWidthRatio,
     clouds:cloudInstances.map(c=>({name:c.name,wx:c.wx,wy:c.wy,wz:c.wz,radius:c.radius,halfHeight:c.halfHeight,ground:c.ground,segment:c.segment,top:c.top,railDist:c.railDist})),
-    fireflyVisible:fireflyGroup.visible,fireflyCount:FIREFLY_COUNT,
+    fireflyVisible:fireflyGroup.visible,fireflyCount:FIREFLY_COUNT,fireflyClusterCount:FIREFLY_CLUSTERS.length,pxPerUnit:PX_PER_UNIT,
+    glowAlphaProfile:glowTex.alphaProfile,
     fireflyHeights:fireflyInstances.map(f=>f.z),
     fireflyHeightsM:trainScale?fireflyInstances.map(f=>f.z/trainScale):null,
     fireflyBrightness:[...fireflyBrightness],
-    fireflyPositions:fireflyInstances.map((f,i)=>({x:f.wx,y:f.wy,z:f.wz,brightness:fireflyBrightness[i]}))};},
+    fireflyPositions:fireflyInstances.map((f,i)=>({x:f.wx,y:f.wy,z:f.wz,brightness:fireflyBrightness[i],clusterId:f.clusterId,haloDia:f.haloDia,coreDia:f.coreDia}))};},
   setForceClouds(v){forceClouds=v;},
   setForceFireflies(v){forceFireflies=v;},
+  // 2026-09-28 新增：讓 verify 腳本能把「尺寸」（讀回 haloDia/coreDia 世界座標，不受這兩個
+  // 開關影響）跟「柔邊度」（core-only 像素量測，halo 強制關閉）完全解耦——理由見上面螢火蟲
+  // 大註解。v 傳 false 強制隱藏，傳 null 恢復預設（跟著 breathe() 亮度走）。
+  setFireflyHalo(v){haloOverride=v;},
+  setFireflyCore(v){coreOverride=v;},
   // 第四輪退回新增：main.js 在 train 模型載入完成後呼叫一次，填入「世界單位/公尺」比例
   // （1.25/primary.size.y，跟 garage-model.js createConsist 內部用的是同一個公式），供
   // fireflyHeightsM 换算螢火蟲離地高度的真實世界公尺數。
