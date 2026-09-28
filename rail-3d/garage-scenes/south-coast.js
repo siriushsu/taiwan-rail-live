@@ -65,7 +65,7 @@ export function createScene(palmsKit=null,stationKit=null){
  // 棕櫚（第三版，09-28）：整棵樹在 Blender 建好（scripts/blender/palms-20260928/build_palms.py，椰子 3 款＋
  // 檳榔 2 款），一款樹＝零件庫裡同一個前綴的幾個零件（樹幹、環紋、樹冠、葉鞘、椰子果、枯葉，顏色不同所以
  // 分開存）；這裡只把它們接成一份幾何、每個零件上一個頂點色，一款樹＝一個 InstancedMesh。程式只管擺放：
- // 位置（樹幹底＝HEAD 的同一點）、yaw、等比縮放、每棵的深淺（instanceColor），形狀一律是 Blender 的。
+ // 位置（樹幹底＝HEAD 的同一點；被闊葉樹冠蓋住的 20 棵例外，見 PALM_NUDGE）、yaw、等比縮放、每棵的深淺（instanceColor），形狀一律是 Blender 的。
  // 第二版「每片葉子一個 instance、下垂角由程式算」被使用者退回（原話：「只有藍皮的樹 感覺還是不太對」
  // 「棕梠樹的比例跟樣貌太奇怪」），主對話讀截圖歸納的問題：葉子從頂端直接往下垂、藍綠色、檳榔像牙籤、
  // 比旁邊的闊葉樹矮一截。
@@ -112,6 +112,15 @@ export function createScene(palmsKit=null,stationKit=null){
  const broadleafTrunkMat=mat('#6b5d4a'),broadleafCanopyAMat=mat('#4a7048'),broadleafCanopyBMat=mat('#5c8a4f');
  const BL_SCALE_MIN=.85,BL_SCALE_MAX=1.4; // 闊葉樹整棵縮放範圍，重用同一個 s（見迴圈內），不額外抽樣。
  const boulders=[],broadleafATrunks=[],broadleafACanopy=[],broadleafBTrunks=[],broadleafBCanopy=[];
+ // 樹冠被闊葉樹冠蓋住的山坡棕櫚挪位（09-28）。使用者原話 16:0x「棕梠樹的比例跟樣貌太奇怪 其他的樹不用動」；主對話 18:2x 提問
+ // （山坡棕櫚有一批樹冠一半以上埋在闊葉樹冠裡，要修只能動棕櫚：移開／拿掉／不管），使用者 18:32 回「A」，主對話解讀為「移開」。
+ // 48dfc156 量到 20 棵（樹冠取樣點 ≥50% 落在闊葉樹冠內）。鍵＝下面迴圈的序號 i，值＝[dx,dy]（場景單位）：物種、款式、yaw、高度、
+ // 深淺仍照原位的抽樣決定，只把樹幹底挪到 (x+dx,y+dy)、z 重算 height()；不在表裡的棕櫚與闊葉樹逐 byte 不變，也不多抽 rand()。
+ // 位移由主對話派工的一次性搜尋（.05 格點取最近）決定，新位置條件：樹冠被蓋 <25%、椰子系 z<1.35、檳榔 z≥1.35 且 paletteAt 仍判
+ // 棕櫚、在迴圈抽樣範圍內、樹冠不比原本靠近軌道（離道碴夠遠時除外）、樹冠中心離別棵棕櫚 ≥ 較大樹冠半徑的一半、樹幹離闊葉樹幹
+ // ≥ 兩倍半徑和、不跟任兩棵棕櫚排成一排。23 與 239 另加兩條（主對話 09-28 追加，其餘 18 棵照原搜尋結果）：樹幹底到樹冠中心那段
+ // 不穿過闊葉樹冠、六個鏡頭方向至少一個看得到一半以上的樹冠。驗收：verify_garage_south_coast_stop.mjs「南迴-棕櫚 not buried」（闊葉樹冠實際網格）。
+ const PALM_NUDGE={23:[0,.3],33:[.05,.75],47:[1.3,.4],95:[4,-2.75],101:[.7,-.45],120:[3.9,-1.8],137:[-5.25,-.05],146:[6.15,-1],147:[2.1,-1.9],227:[3.6,0],239:[1.25,-5.2],246:[-1.35,-3.75],289:[1.9,-6.5],298:[1.3,-4.9],308:[1.8,2.35],331:[7.55,-4.5],365:[.55,-.1],431:[2.9,-.8],432:[-3.35,-.05],453:[1,0]};
  for(let i=0;i<460;i++){const x=rand()*51-25.5,y=rand()*7.4+1.2,z=height(x,y);if(z<.6)continue;const s=.38+rand()*.58;
   const plant=((i*2654435761)>>>0)%1000<520; // 山坡「有沒有種東西」，跟原本一樣先決定，不因新的物種邏輯改變機率。
   const ratio=z/PEAK,speciesHash=((i*2246822519)>>>0)%1000/1000; // 高度比例＋獨立雜湊決定棕櫚／闊葉（見上方 paletteAt）。
@@ -124,8 +133,9 @@ export function createScene(palmsKit=null,stationKit=null){
     }else kind='betel';
    }else{const lh=((i*668265263)>>>0)%1000/1000;kind=lh<.5?'broadleafA':'broadleafB';}
   }
-  if(kind==='betel')placePalm(kind,i,[x,y,z],s,1,i*.71);
-  else if(PALM_OF_KIND[kind])placePalm(kind,i,[x,y,z],s,1,seaward(i));
+  const d=PALM_NUDGE[i],at=d?[x+d[0],y+d[1],height(x+d[0],y+d[1])]:[x,y,z]; // 只有 PALM_NUDGE 那 20 棵棕櫚換位置（見上方）。
+  if(kind==='betel')placePalm(kind,i,at,s,1,i*.71);
+  else if(PALM_OF_KIND[kind])placePalm(kind,i,at,s,1,seaward(i));
   else if(kind==='broadleafA'||kind==='broadleafB'){
    const bs=BL_SCALE_MIN+uOf(s)*(BL_SCALE_MAX-BL_SCALE_MIN),yawTrunk=i*.71; // 重用同一個 s，不額外抽樣。
    const trunks=kind==='broadleafA'?broadleafATrunks:broadleafBTrunks,canopy=kind==='broadleafA'?broadleafACanopy:broadleafBCanopy;

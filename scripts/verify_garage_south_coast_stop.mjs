@@ -56,14 +56,63 @@ const broadleafHash=BL_NAMES.every(n=>blMesh[n])?sha(BL_NAMES.flatMap(n=>[`${n}|
 check('南迴-闊葉樹 unchanged 4 個闊葉 InstancedMesh 的 instanceMatrix 雜湊＝HEAD（c3050359）字面值（依據：使用者「其他的樹不用動」）',
  broadleafHash==='70120545a3265f7140aaa7205323ecf83174e884bb8ca691b896f79ae50e18f3',{broadleafHash,counts:BL_NAMES.map(n=>blMesh[n]?.count)});
 
-// (2) 棕櫚位置與物種不變：每棵棕櫚「物種＋樹幹底世界座標(toFixed 5)」排序後的雜湊＝HEAD 字面值。HEAD 的物種＝樹幹
-//     mesh（betel／coco／coco-curved-a／coco-curved-b），這一版＝款名對應回同一個物種（檳榔兩款都是 betel）。
-const palmRows=[],trees=[];
+// (2) 棕櫚位置與物種（09-28 挪位後改寫）。48dfc156 的 90 棵裡，樹冠一半以上埋在闊葉樹冠裡的 20 棵山坡棕櫚挪了位
+//     （south-coast.js 的 PALM_NUDGE。使用者原話 16:0x「棕梠樹的比例跟樣貌太奇怪 其他的樹不用動」；主對話 18:2x 問遮擋怎麼處理，
+//     使用者 18:32 回「A」，主對話解讀為「移開」），其餘 70 棵不動。原本「整批位置＋物種雜湊＝HEAD」拆成四條（主對話派工）：
+//     沒被挪的鎖 48dfc156 字面值、被挪的棵數、物種清單不變、每棵位移上限。物種＝款名對應回 HEAD 的物種（檳榔兩款都是 betel）。
+//     被挪的樹用「物種＋yaw」認：yaw 由迴圈序號決定，跟位置、款式、高度都無關（改檳榔 a/b 分法、改高度的突變不會讓這裡認錯樹）；
+//     同物種兩棵 yaw 最小差 4.8e-3 rad，容差 1e-3。MOVED＝那 20 棵在 48dfc156 的 [物種, yaw, 樹幹底 x, y]（instance 矩陣實測）。
+const MOVED=[['coco',-1.068,16.5349,7.2561],['betel',-1.7027,15.6637,2.5675],['cocoCurvedB',-1.2408,6.5505,7.3979],['betel',-1.665,-22.0629,4.1864],['betel',2.595,.5409,2.5707],['betel',-2.7646,-21.4322,3.0076],['cocoCurvedB',-.9888,-13.308,8.3964],['betel',3.129,-20.5978,2.7708],['betel',-2.4442,21.0831,6.9988],['betel',-2.1928,10.188,8.4791],
+ ['betel',.044,-10.7385,8.0525],['betel',-1.2692,-2.9344,6.6385],['coco',-1.92,-10.247,8.3887],['cocoCurvedA',-1.5348,-4.0349,7.6323],['betel',-1.2315,-4.0889,3.5577],['betel',2.5321,-21.7976,5.7191],['betel',1.5394,-7.8197,8.5074],['betel',-1.8661,-.1223,2.8294],['coco',-1.6812,-9.6822,8.5793],['betel',1.1875,15.2434,2.7471]];
+const trees=[];
 for(const model of PALM_MODELS){const o=palmMesh[model];if(!o)continue;
- for(let i=0;i<o.count;i++){const {m,p,s}=decomposeAt(o,i);palmRows.push([PALM_SPECIES[model],p.x.toFixed(5),p.y.toFixed(5),p.z.toFixed(5)].join(','));trees.push({model,i,m,x:p.x,y:p.y,z:p.z,scale:s.x,scaleXYZ:[s.x,s.y,s.z]});}}
-const palmHash=sha([palmRows.sort().join('\n')]);
-check('南迴-棕櫚 base+species 每棵棕櫚的物種＋樹幹底座標雜湊＝HEAD（c3050359）字面值（依據：主對話派工「位置與哪棵是哪個物種跟 HEAD 一樣」）',
- palmHash==='b146a4c83066ef8b2e965860495f8f52222566613379a0ea98d1183c5a20bcec',{palmHash,n:palmRows.length});
+ for(let i=0;i<o.count;i++){const {m,p,s}=decomposeAt(o,i);trees.push({model,i,m,x:p.x,y:p.y,z:p.z,scale:s.x,scaleXYZ:[s.x,s.y,s.z]});}}
+const yawOf=m=>Math.atan2(m.elements[1],m.elements[0]),yawGap=(a,b)=>{const d=Math.abs(a-b)%(2*Math.PI);return Math.min(d,2*Math.PI-d);};
+const rowOf=t=>[PALM_SPECIES[t.model],t.x.toFixed(5),t.y.toFixed(5),t.z.toFixed(5)].join(',');
+const movedHits=MOVED.map(([sp,yaw,x0,y0])=>{const hits=trees.filter(t=>PALM_SPECIES[t.model]===sp&&yawGap(yawOf(t.m),yaw)<1e-3);return {sp,hits,t:hits[0],d:hits.length===1?Math.hypot(hits[0].x-x0,hits[0].y-y0):NaN};});
+const movedTrees=new Set(movedHits.flatMap(r=>r.hits));
+const unmovedHash=sha([trees.filter(t=>!movedTrees.has(t)).map(rowOf).sort().join('\n')]);
+check('南迴-棕櫚 unmoved 沒被挪的 70 棵棕櫚（山坡 37＋後排 33）物種＋樹幹底座標雜湊＝48dfc156 字面值（依據：主對話派工「沒被挪的所有棕櫚…要跟 48dfc156 逐筆相同」）',
+ unmovedHash==='dec291a2f4bef7004b6036d77aab489bccf8825ca04006e4dc70bd68cc42c244',{unmovedHash,n:trees.length-movedTrees.size});
+const movedOut=movedHits.filter(r=>r.hits.length===1&&r.d>1e-3);
+check('南迴-棕櫚 moved count 被挪的棕櫚 20 棵：MOVED 每一筆恰好認到一棵，而且離開了 48dfc156 的原位',
+ movedHits.length===20&&movedOut.length===20,{moved:movedOut.length,unmatched:movedHits.filter(r=>r.hits.length!==1).length});
+const speciesCount={};for(const t of trees)speciesCount[PALM_SPECIES[t.model]]=(speciesCount[PALM_SPECIES[t.model]]??0)+1;
+check('南迴-棕櫚 species list 物種清單不變：檳榔 36／直幹椰子 39（含後排）／彎幹 A 7／彎幹 B 8（48dfc156 實測）',
+ Object.keys(speciesCount).length===4&&speciesCount.betel===36&&speciesCount.coco===39&&speciesCount.cocoCurvedA===7&&speciesCount.cocoCurvedB===8,speciesCount);
+// 位移上限 9 單位（20.3 m）：實測最大 8.79（左端山腳的檳榔，分帶最窄處）；這條擋「挪到場景另一頭」這類錯，不是設計目標。
+// 分帶與範圍是擺放端守的規則（主對話派工）：椰子系 z<1.35、檳榔 z≥1.35、山坡抽樣範圍 x∈[-25.5,25.5)、y∈[1.2,8.6)、z≥.6。
+const movedOne=movedHits.filter(r=>r.hits.length===1),moveD=movedOne.map(r=>r.d);
+const ruleBad=movedOne.filter(({sp,t,d})=>!(d<=9&&(sp==='betel'?t.z>=1.35:t.z<1.35)&&t.x>=-25.5&&t.x<25.5&&t.y>=1.2&&t.y<8.6&&t.z>=.6));
+check('南迴-棕櫚 displacement 每棵被挪的位移 ≤9 單位，新位置仍守分帶（椰子系 z<1.35、檳榔 z≥1.35）與山坡抽樣範圍',
+ movedOne.length>0&&ruleBad.length===0,{maxD:+Math.max(...moveD).toFixed(3),meanD:+(moveD.reduce((a,b)=>a+b,0)/moveD.length).toFixed(3),ruleBad:ruleBad.map(({sp,t})=>[sp,+t.x.toFixed(2),+t.y.toFixed(2),+t.z.toFixed(3)])});
+
+// (2e) 沒有山坡棕櫚 ≥50% 被闊葉樹冠蓋住（主對話派工：≥50% 被蓋的山坡棕櫚要變 0）。擺放端找新位置用的是闊葉樹冠的橢球近似，
+//      這裡刻意換一個來源：闊葉樹冠的實際網格。網格是幾顆互相重疊的封閉 20 面體，重疊處射線奇偶會抵銷，所以先依共用頂點拆成殼、
+//      每條邊恰好屬於兩個三角形才算封閉（有殼不封閉就紅：奇偶判定在不封閉的殼上沒有意義），逐殼做射線奇偶，任一殼內＝在樹冠內。
+//      取樣點：fronds／young 每個三角形的第一個頂點（世界座標）。
+function canopyShells(g){const pa=g.attributes.position,key=k=>[pa.getX(k),pa.getY(k),pa.getZ(k)].map(v=>Math.round(v*1e5)).join(',');
+ const par=new Map(),find=a=>{while(par.get(a)!==a)a=par.get(a);return a;};
+ for(let k=0;k<pa.count;k++)par.set(key(k),key(k));
+ for(let k=0;k<pa.count;k+=3){const a=find(key(k));par.set(find(key(k+1)),a);par.set(find(key(k+2)),a);}
+ const shells=new Map();
+ for(let k=0;k<pa.count;k+=3){const r=find(key(k));if(!shells.has(r))shells.set(r,{tris:[],edges:new Map()});const s=shells.get(r);
+  s.tris.push([0,1,2].map(j=>new THREE.Vector3(pa.getX(k+j),pa.getY(k+j),pa.getZ(k+j))));
+  for(const [a,b] of [[0,1],[1,2],[2,0]]){const e=[key(k+a),key(k+b)].sort().join('|');s.edges.set(e,(s.edges.get(e)??0)+1);}}
+ return [...shells.values()].map(s=>({tris:s.tris,closed:[...s.edges.values()].every(c=>c===2)}));}
+const ray=new THREE.Ray(new THREE.Vector3(),new THREE.Vector3(.31,.17,1).normalize()),rayHit=new THREE.Vector3(); // 斜一點，不會剛好擦過 20 面體的邊與頂點。
+const inShell=(p,s)=>{ray.origin.copy(p);let n=0;for(const [a,b,c] of s.tris)if(ray.intersectTriangle(a,b,c,false,rayHit))n++;return n%2===1;};
+const canopies=[];let shellCount=0,shellsClosed=true;
+for(const n of ['palm-broadleaf-a-canopy','palm-broadleaf-b-canopy']){const o=blMesh[n];if(!o)continue;const shells=canopyShells(o.geometry);shellCount+=shells.length;shellsClosed&&=shells.every(s=>s.closed);
+ if(!o.geometry.boundingBox)o.geometry.computeBoundingBox();
+ for(let i=0;i<o.count;i++){const {m}=decomposeAt(o,i);canopies.push({inv:m.clone().invert(),box:o.geometry.boundingBox.clone().applyMatrix4(m),shells});}}
+const localPt=new THREE.Vector3(),inCanopy=w=>canopies.some(c=>c.box.containsPoint(w)&&c.shells.some(s=>inShell(localPt.copy(w).applyMatrix4(c.inv),s)));
+const buriedOf=t=>{const g=palmMesh[t.model].geometry,pa=g.attributes.position,w=new THREE.Vector3();let n=0,hit=0;
+ for(const p of g.userData.palmParts.filter(p=>p.name==='fronds'||p.name==='young'))for(let k=p.start;k<p.start+p.count;k+=3){w.fromBufferAttribute(pa,k).applyMatrix4(t.m);n++;if(inCanopy(w))hit++;}return hit/n;};
+const hillBuried=trees.filter(t=>t.y<BACK_ROW_Y).map(t=>({t,f:buriedOf(t)})),worstBuried=hillBuried.reduce((a,b)=>b.f>a.f?b:a,{f:-1});
+check('南迴-棕櫚 not buried 山坡棕櫚沒有一棵的樹冠取樣點 ≥50% 落在闊葉樹冠的實際網格內（逐殼射線奇偶，每一殼都封閉）',
+ shellsClosed&&canopies.length>0&&hillBuried.length>0&&hillBuried.every(r=>r.f<.5),
+ {max:+worstBuried.f.toFixed(3),at:worstBuried.t&&[worstBuried.t.model,+worstBuried.t.x.toFixed(2),+worstBuried.t.y.toFixed(2)],n50:hillBuried.filter(r=>r.f>=.5).length,n25:hillBuried.filter(r=>r.f>=.25).length,hill:hillBuried.length,shells:shellCount,shellsClosed});
 
 // (3) 植被迴圈吃 rand() 的次數不變：迴圈之後第一個吃 rand() 的是礫石（95 顆，rock 材質 #879081），它的 instanceMatrix
 //     雜湊＝HEAD 字面值。只看礫石、不看全場：站房等之後的改動不該讓這條紅。
