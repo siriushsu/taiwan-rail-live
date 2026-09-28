@@ -25,7 +25,13 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   await p.goto(URL);await p.waitForFunction(()=>window.shifenPreview?.state.ready,null,{timeout:90000});await p.tap('#play');await settle(p);
 
   check(engine+' DR1000 三節柴油客車編組',JSON.stringify((await state(p)).poses.map(c=>c.id))===JSON.stringify(['dr1000','dr1000','dr1000']));
-  check(engine+' 畫面預算：draw call 不超過 110',(await state(p)).drawCalls<=110,{drawCalls:(await state(p)).drawCalls,triangles:(await state(p)).triangles});
+  // 09-28 三項精修（遊客＋看老街鏡頭＋Blender 樹叢竹叢）把上限從 110 調整到 115：新增的都是
+  // InstancedMesh（不是逐一個體 Mesh，維持「每種幾何一個 draw call、靠 per-instance 上色做外觀
+  // 變化」的既有省法）——遊客 7 種部位＋手持天燈 3 個網格＋植被 4 種部位＝14 個新 InstancedMesh，
+  // 實測落在 113（車站原本 102 基準＋11，因為部分實例 count=0 時 three.js 不計入 draw call）。
+  // 115 是「實測值 113＋2 的極小緩衝」，仍遠低於任務允許放寬到的 125 上限（高架月台場景那一版
+  // 的量），沒有必要一次跳到頂。
+  check(engine+' 畫面預算：draw call 不超過 115（09-28 遊客＋植被精修後的新上限，原 110 是舊基準）',(await state(p)).drawCalls<=115,{drawCalls:(await state(p)).drawCalls,triangles:(await state(p)).triangles});
 
   // 三節車體的實際像素：量真實像素，不是讀設定值。
   const pixel=await p.evaluate(async()=>{const api=shifenPreview,c=document.querySelector('#scene'),out=document.createElement('canvas');out.width=c.width;out.height=c.height;const ctx=out.getContext('2d'),read=async()=>{const im=new Image();im.src=c.toDataURL();await im.decode();ctx.drawImage(im,0,0);return ctx.getImageData(0,0,c.width,c.height).data;};api.trainVisible(false);const empty=await read();api.trainVisible(true);const full=await read();return api.state.bounds.map(b=>{let changed=0;for(let y=Math.max(0,Math.floor(b.top));y<Math.min(c.height,b.bottom);y++)for(let x=Math.max(0,Math.floor(b.left));x<Math.min(c.width,b.right);x++){const i=(y*c.width+x)*4;if(Math.abs(full[i]-empty[i])+Math.abs(full[i+1]-empty[i+1])+Math.abs(full[i+2]-empty[i+2])>25)changed++;}return changed;});});
@@ -68,14 +74,29 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
    const diff=(a,b,i)=>Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2]);
    let silhouette=0,visible=0;for(let y=T;y<B;y++)for(let x=L;x<R;x++){const i=(y*c.width+x)*4;if(diff(alone,bare,i)<=25)continue;silhouette++;if(diff(withScene,alone,i)<=25)visible++;}
    return{view:c.dataset.view,silhouette,visible,ratio:+(visible/Math.max(1,silhouette)).toFixed(3)};});
-  // 09-28：車改停到月台（見上方），原本量「全景」視角的曝光率改量新增的月台特寫視角（platform）——
-  // 停到月台旁邊之後，兩個視角的仰角都要夠陡（見 main.js draw()/reset() 的說明），才不會被月台雨棚
-  // 橫著蓋住車身；這兩條的 0.7 門檻沒放寬，是把相機仰角修對之後量到的真實曝光率（0.72／0.73 一線）。
+  // 09-28 二版：獨立評審指出「看老街」原本的月台特寫（仰角拉到 1.15 rad≈66° 只為了閃雨棚）其實只
+  // 看得到站房屋頂，看不到老街——改成沿老街走廊的低角度全景（PLATFORM_YAW／PLATFORM_ELEVATION，
+  // 見 main.js），跟車視角在站區也不再自動拉高仰角到 1.22（同一次評審要求）。這兩個視角原本用「車身
+  // 曝光率 ≥.7」當唯一判準（那是舊設計專門為了閃雨棚校準出來的數字）；新設計的構圖重點換成老街本身，
+  // 車身曝光率不再是唯一標準，但仍留一個寬鬆下限當退化保護（車不能整個消失在雨棚或畫面外）——下面
+  // platformFraming 量的「兩排店面／天燈是否真的在畫面裡」＋這裡的曝光率下限一起構成新判準。
+  // 下限 .35 是兩個引擎實測值（platform≈.46/.47，跟車站區≈.415/.418）打七折取整，不是另外猜的數字。
   const platformShot=await exposure(p);
+  const platformFraming=await p.evaluate(()=>{
+   const api=shifenPreview,c=document.querySelector('#scene');
+   const inBounds=q=>q.x>=0&&q.x<=c.width&&q.y>=0&&q.y<=c.height;
+   const xs=[-11,-6,-2,2,6];
+   const farRow=xs.map(x=>api.project([x,-3.15,1.5])),nearRow=xs.map(x=>api.project([x,-9.55,1.0]));
+   const info=api.lanternInfo(),lanterns=[];for(let k=0;k<(info?.count||0);k++){const r=api.lanternState(k);if(r)lanterns.push(r);}
+   const maxScale=Math.max(0,...lanterns.map(l=>l.scale));
+   const risen=lanterns.filter(l=>l.scale>maxScale*.25&&inBounds(api.project(l.position)));
+   return{elevation:api.state.elevation,farRowOn:farRow.filter(inBounds).length,nearRowOn:nearRow.filter(inBounds).length,lanternCount:lanterns.length,risenOnScreen:risen.length};
+  });
   await p.tap('[data-view="train"]');await p.tap('#reset');await settle(p);
   const followStreet=await exposure(p);
-  check(engine+' 看老街（月台特寫）車身露出七成以上',platformShot.view==='platform'&&platformShot.silhouette>200&&platformShot.ratio>=.7,platformShot);
-  check(engine+' 跟車視角停在月台旁車身露出七成以上',followStreet.view==='train'&&followStreet.silhouette>400&&followStreet.ratio>=.7,followStreet);
+  check(engine+' 看老街：沿街低角度（仰角實測值 ≤25°）＋兩排店面與天燈都在畫面裡',platformShot.view==='platform'&&platformFraming.elevation<=.4363&&platformFraming.farRowOn>=3&&platformFraming.nearRowOn>=3&&platformFraming.risenOnScreen>=3,{...platformFraming,ratio:platformShot.ratio});
+  check(engine+' 看老街車身曝光率退化保護（新構圖不以車身為主角，只防整個消失）',platformShot.view==='platform'&&platformShot.silhouette>200&&platformShot.ratio>=.35,platformShot);
+  check(engine+' 跟車視角停在月台旁車身曝光率退化保護（09-28 起不再自動拉高仰角避雨棚，這裡改防整個消失）',followStreet.view==='train'&&followStreet.silhouette>400&&followStreet.ratio>=.35,followStreet);
 
   // 道床、老街、天燈、車站、河與山：全部對著同一份 shifen.js 蓋出來的場景量，車的尺寸每次從車模頂點重量。
   const scene=await p.evaluate(async()=>{
@@ -205,6 +226,72 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
    const lit=cands.filter((w,i)=>night[i+2].l>day[i+2].l*1.5&&night[i+2].r>night[i+2].b+30);
    check(engine+' 夜裡房子的窗戶亮起來：遠排二樓窗白天是暗的、晚上暖色發亮（避開燈籠串的窗至少一半要亮）',facts.windows>40&&facts.nightGlass>facts.dayGlass&&facts.dayGlass===0&&cands.length>=2&&lit.length*2>=cands.length,{windows:facts.windows,cands:cands.length,lit:lit.length,samples:cands.map((w,i)=>({w,day:day[i+2].l,night:[night[i+2].r,night[i+2].g,night[i+2].b]}))});
   }
+
+  // 09-28 精修 Task 3：Blender 樹叢／竹叢取代程序化二十面體「寶石樹」。舊 broadleaf 的樹幹材質色
+  // 71664e（props.js 專用、bush/rock 不用這個色）現在只可能出現在活頁面「真正在畫面上」的 scene
+  // 裡（vegetation 是另外用 loadGarageParts() 建的資產、透過 main.js 的 vegetation.group 掛上去，
+  // 不在 createScene() 自己的 group 裡）——第一版判準誤用乾淨 createScene() 探針掃描，那個探針從
+  // 建構時的定義就不含任何樹的幾何（新舊都不含，因為 createScene() 早就把樹的建立搬出去了），
+  // 掃出來永遠是 0、跟改動無關，做突變測試時才抓到自己判準測錯物件——已改成掃 sceneHasMaterialColor()
+  // 讀的那個真正的 live scene。treeSpots／bambooSpots 座標仍然用探針拿（純資料、不含幾何，是安全的）。
+  const oldBroadleafTrunks=await p.evaluate(()=>shifenPreview.sceneHasMaterialColor('#71664e')?1:0);
+  const vegFacts=await p.evaluate(async()=>{
+   const S=await import('/rail-3d/garage-scenes/shifen.js');
+   const probe=S.createScene();
+   const treeSpots=probe.treeSpots.map(s=>({z:s.z,species:s.species})),bambooSpots=probe.bambooSpots.length;
+   probe.dispose();
+   const api=shifenPreview,idxs=[0,1,2,49,50,99,100,149,150,199];
+   const flush=idxs.map(i=>{const t=api.vegTrunk(i);return t&&treeSpots[i]?Math.abs(t.position[2]-treeSpots[i].z):Infinity;});
+   const speciesSeen=new Set(treeSpots.map(s=>s.species));
+   return {treeCount:treeSpots.length,bambooSpotCount:bambooSpots,flushErrors:flush,speciesSeen:[...speciesSeen],vegInfo:api.vegInfo()};
+  });
+  check(engine+' 場景不再建立任何舊二十面體寶石樹（掃活頁面真正的 scene，找 broadleaf 專用樹幹材質色 71664e）',oldBroadleafTrunks===0,oldBroadleafTrunks);
+  check(engine+' 樹幹底部貼齊地面（世界座標 z 跟落點資料逐棵一致，容差只蓋 float32 存取的量化誤差）',vegFacts.flushErrors.every(e=>e<1e-3),vegFacts.flushErrors);
+  check(engine+' 至少兩種闊葉樹外觀（叢生多瓣冠層，round／layered 種）＋竹叢座標數與植被總數吻合',vegFacts.speciesSeen.length>=2&&vegFacts.bambooSpotCount>0&&vegFacts.vegInfo.treeCount===vegFacts.treeCount&&vegFacts.vegInfo.culmCount===vegFacts.bambooSpotCount*6&&vegFacts.vegInfo.leafCount===vegFacts.vegInfo.culmCount*5,vegFacts);
+
+  // 09-28 精修 Task 1：遊客站在老街軌道上、手持天燈、列車接近時避讓、遠離後走回。全圈 dt=.05 細掃
+  // （用跟真正逐幀播放一樣的方式一小步一小步 setTime，update() 內部的 dt 才不會被 clamp 到 .08
+  // 上限之外——採樣方式跟實際播放一致，不是瞬移採樣），比對「車體世界包圍盒」（跟 state.bounds
+  // 同一個 THREE.Box3().setFromObject 來源，只是不投影到螢幕）而不是重算 trainMinDistance() 內部
+  // 公式，避免判準跟被驗的實作同源。
+  await p.tap('[data-view="world"]');
+  const sweep=await p.evaluate(async()=>{
+   const api=shifenPreview,lap=api.timetable.lap,DT=.05,N=Math.ceil((lap+1)/DT),out=[];
+   for(let k=0;k<=N;k++){const t=k*DT;api.setTime(t);const vs=api.visitorState(),boxes=api.trainWorldBounds();out.push({t,vs:vs.map(v=>[v.x,v.y,v.lateral]),boxes:boxes.map(bx=>[bx.min[0],bx.min[1],bx.max[0],bx.max[1]])});}
+   return {walkSpeedWorld:api.visitorInfo().walkSpeedWorld,holderIndices:api.visitorInfo().holderIndices,count:api.visitorInfo().count,samples:out};
+  });
+  const pointBoxDist=(px,py,box)=>{const dx=Math.max(box[0]-px,0,px-box[2]),dy=Math.max(box[1]-py,0,py-box[3]);return Math.hypot(dx,dy);};
+  const SAFETY_GAP=.3;   // 自訂：車體世界包圍盒表面到遊客中心點的最小容許淨空，約略一個人自己半個身寬（測「有沒有跟車體重疊」，不是重算內部 nearGap/farGap 兩個常數）
+  let worstGap=Infinity,worstGapAt=null;
+  for(const s of sweep.samples)for(const v of s.vs){let best=Infinity;for(const bx of s.boxes)best=Math.min(best,pointBoxDist(v[0],v[1],bx));if(best<worstGap){worstGap=best;worstGapAt={t:s.t,v};}}
+  check(engine+' 遊客避讓：列車經過全程（雙向都在同一條迴圈裡跑過），每個人跟車體世界包圍盒的距離都保持安全淨空',worstGap>=SAFETY_GAP,{worstGap:+worstGap.toFixed(3),SAFETY_GAP,worstGapAt});
+
+  // 「沒有列車」不能用「離站後固定等幾秒」判定：實測（probe-farGap-candidates／probe-peak-separation，
+  // 09-28）發現這條迴圈本身是折返繞遠（河與吊橋、對岸的山）再回到老街，對街上靠近月台端的定點來說，
+  // 火車離站後的直線距離會先小幅拉開、再因為迴圈彎回來又暫時縮小，要到迴圈遠端（實測約離站後 30~55
+  // 秒不等，因人而異）才會真正穩定拉開到 farGap 以外——這是這條迴圈的幾何本身，不是漏抓或誤觸發
+  // （曾經以為是 bug，逐一比對 state.poses 世界座標與各遊客距離才確認是真實幾何）。所以判準改成
+  // 「整條迴圈是否存在一段連續夠長（≥5 秒）、onTrack>=3 的穩定窗口」，只驗「真的會發生」這件事本身，
+  // 不assume 何時發生；用連續秒數而非單一取樣點，排除單幀雜訊或迴圈中段暫時性的部分回流（idx8 類
+  // 遊客在遠端會先降到谷值又回升，見 probe-recovery-timeline 的記錄）當假陽性。
+  const REQUIRED_HOLD=5;
+  let holdStart=null,bestHold=0,bestHoldAt=null,minOnTrackEver=Infinity;
+  for(const s of sweep.samples){
+   const onTrack=s.vs.filter(v=>v[2]<0.5).length;
+   if(onTrack<minOnTrackEver)minOnTrackEver=onTrack;
+   if(onTrack>=3){if(holdStart==null)holdStart=s.t;const held=s.t-holdStart;if(held>bestHold){bestHold=held;bestHoldAt=s.t;}}
+   else holdStart=null;
+  }
+  check(engine+' 遊客避讓：整條迴圈存在一段連續≥5秒、軌道上至少3人的穩定窗口（不假設離站後幾秒內就穩定，這條迴圈的幾何要到遠端才會真正拉開安全距離，見 polish-04-notes）',bestHold>=REQUIRED_HOLD,{bestHold:+bestHold.toFixed(2),bestHoldAt,minOnTrackEver});
+
+  let maxSpeed=0,maxSpeedAt=null;
+  for(let i=1;i<sweep.samples.length;i++){const s=sweep.samples[i],prev=sweep.samples[i-1],dt=s.t-prev.t;for(let k=0;k<s.vs.length;k++){const d=Math.hypot(s.vs[k][0]-prev.vs[k][0],s.vs[k][1]-prev.vs[k][1])/dt;if(d>maxSpeed){maxSpeed=d;maxSpeedAt={t:s.t,k};}}}
+  check(engine+' 遊客避讓：獨立從逐幀世界座標差重算最大位移速度不超過 1.5 m/s 上限（不信內部 maxWorldSpeedSeen 的自我回報）',maxSpeed<=1.5+.05,{maxSpeed:+maxSpeed.toFixed(4),maxSpeedAt});
+
+  const holderCheck=await p.evaluate(()=>{const api=shifenPreview,vs=api.visitorState();return api.visitorInfo().holderIndices.map(i=>vs[i]?.holdsLantern===true);});
+  check(engine+' 手持天燈的人數與名冊一致（4 人）、天燈幾何實際存在',holderCheck.length===4&&holderCheck.every(Boolean)&&(await p.evaluate(()=>!!shifenPreview.visitorLantern(0))),holderCheck);
+  await p.evaluate(()=>shifenPreview.setTime(0));await p.tap('#reset');await settle(p);
+
   await panChecks({b,engine,URL,api:'shifenPreview',check,settle});   // 鏡頭平移（四頁共用的判準，在自己開的桌面頁與觸控頁上量）
   await p.tap('[data-view="world"]');await p.evaluate(()=>shifenPreview.setTime(4));
   for(const width of [360,375,390,414,520,768,1280]){await p.setViewportSize({width,height:900});await settle(p);await p.tap('#in');await p.tap('#out');await p.tap('#reset');await settle(p);const ui=await p.evaluate(()=>{const els=[...document.querySelectorAll('button,a')].filter(e=>e.getClientRects().length),bad=[],overlap=[];for(const e of els){const r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);if(!e.contains(hit)||r.width<43||r.height<43)bad.push(e.textContent);}for(let i=0;i<els.length;i++)for(let j=i+1;j<els.length;j++){const a=els[i].getBoundingClientRect(),b=els[j].getBoundingClientRect();if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1)overlap.push([els[i].textContent,els[j].textContent]);}return{bad,overlap,overflow:document.documentElement.scrollWidth>innerWidth};});check(engine+' '+width+' 真觸控與可及性',!ui.bad.length&&!ui.overlap.length&&!ui.overflow,ui);}

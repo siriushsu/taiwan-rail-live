@@ -1,5 +1,5 @@
 import * as THREE from '../../rail-3d/vendor/three.module.js';
-import {createScene,THEMES,createSkyLanterns} from '../../rail-3d/garage-scenes/shifen.js';
+import {createScene,THEMES,createSkyLanterns,createVegetation,createVisitors} from '../../rail-3d/garage-scenes/shifen.js?revision=shifen-polish-20260928';
 import {loadGarageModel,createConsist,loadGarageParts} from '../../rail-3d/garage-model.js?revision=headlights-0912';
 import {createTerrainFollower} from '../../rail-3d/garage-scenes/consist-3d.js';
 import {createStopTimetable} from '../../rail-3d/garage-scenes/stop-timetable.js?revision=stop-0927';
@@ -7,7 +7,15 @@ const canvas=document.querySelector('#scene'),loading=document.querySelector('#l
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const SPEED=1.7; // 巡航時每秒沿路徑前進的弧長；位置一律由停站時刻表從時間求出（setTime／setDistance 與逐幀播放同一條路，跟南迴同一個模式）。
 const STATION_OFFSET=13.2; // path 的 s=0 落在老街中段（x=0）；十分站月台中心在 x=13.2（前直線上 x===s），停站永遠停在 s≡0，這裡把它搬到月台中心。
-let tt,stop,lanterns=null,follow3D,renderer,environment,primary,train,shifen,raf=0,last=0,time=0,distance=0,period='day',view=matchMedia('(max-width:800px)').matches?'train':'world',running=!reduced.matches,zoom=1,span=1,yaw=-1.12,elevation=.58,disposed=false,ready=false,draws=0,lastPhase=null;
+let tt,stop,lanterns=null,vegetation=null,visitors=null,follow3D,renderer,environment,primary,train,shifen,raf=0,last=0,time=0,distance=0,period='day',view=matchMedia('(max-width:800px)').matches?'train':'world',running=!reduced.matches,zoom=1,span=1,yaw=-1.12,elevation=.58,disposed=false,ready=false,draws=0;
+// 「看老街」的預設鏡頭角度：沿老街軸線（老街與軌道都沿世界 x 軸）從西端斜看向車站，仰角壓低到
+// ≤25°（09-28 評審：舊版是仰角 1.15 rad≈66° 的俯視，只看到站房屋頂）。yaw 的偏移方向要同時滿足
+// 兩件事——(a) offset.x<0（鏡頭在西側、看向 +x／車站方向，才是「沿軸看」不是「橫看」）；
+// (b) offset.y<0（鏡頭偏南／月台這一側，遠排 2 樓街屋的正面法向量朝 -y，要從南側才看得到正面；
+// 近排 1 樓矮店面法向量朝 +y、原本就是設計成「背面也開窗」給這個角度看背面，見 shifen.js 的
+// townhouse(...,back:true) 那行）。PLATFORM_YAW=-2.7 rad（≈-155°）：cos>0 分量小、以近似
+// 沿軸為主，sin 分量夠看到遠排店面正面又不致跌回舊版「橫看」被雨棚整片擋住車身的問題。
+const PLATFORM_YAW=-2.7,PLATFORM_ELEVATION=.35;
 const scene=new THREE.Scene(),camera=new THREE.OrthographicCamera(-40,40,30,-30,.1,400);camera.up.set(0,0,1);
 const focus=new THREE.Vector3(),pan=new THREE.Vector3(),target=new THREE.Vector3(),sun=new THREE.DirectionalLight('#fff1cf',3.2),hemi=new THREE.HemisphereLight('#c1dce7','#7b8663',2.1);
 sun.position.set(-25,-30,45);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-42,right:42,top:35,bottom:-35,near:1,far:140});sun.shadow.normalBias=.035;sun.shadow.bias=-.0001;scene.add(sun,hemi,sun.target);
@@ -20,30 +28,25 @@ function draw(){
  if(!ready||disposed)return;
  stop=tt.at(time);distance=stop.distance;
  shifen.update(time,period);follow3D(shifen.path,distance+STATION_OFFSET);
- train.lighting.update(period,1);lanterns?.update(time,period);
- // 跟車視角在站區（減速／停站／加速）也會被同一片月台雨棚蓋住車頭（原因見下方月台特寫的說明）；只在
- // 階段真的切換的當下調整仰角（不是每幀都覆寫），使用者手動拖曳調的仰角在下一次階段切換前不會被搶走。
- if(view==='train'&&stop.phase!==lastPhase)elevation=stop.phase==='cruising'?.5:1.22;
- lastPhase=stop.phase;
+ train.lighting.update(period,1);lanterns?.update(time,period);vegetation?.update?.(time,period);visitors?.update?.(time,distance,shifen.path,train);
  const rect=canvas.getBoundingClientRect(),aspect=rect.width/Math.max(1,rect.height);
- // 月台特寫：南迴「看月台」是壓低仰角貼近平視，但十分這裡試過同樣做法會被月台雨棚整片蓋住車身——
- // 正交相機沒有透視，物體在畫面上的位置只看「與視線方向垂直的偏移」，雨棚比車高又比車靠鏡頭這一側，
- // 仰角越平兩者在視線方向上越對齊、擋得越兇（量過：預設 .58 仰角偏移角 18°，壓到 .22 反而縮到 12°、
- // 更擋；換到雨棚另一側則會直接看穿對岸的山，一樣整片擋住，那座山比雨棚更沒得閃）。抬高仰角才是對的
- // 方向——正交投影下，仰角趨近90°（正上方往下看）時，任何物體的高度差都不影響它投到畫面上的位置，
- // 雨棚再高也不會跟著往車身那邊「斜」過去蓋住它，兩者会照世界座標的 y 差乾乾淨淨分開。仰角抬到 1.15
- // rad（約66°，仍看得出車身立體感，不是全垂直俯視）就把偏移角推開，雨棚退回車正後方一小截，
- // 不再橫著蓋住車身；鏡頭仍留在跟其他視角同一側（原本的 yaw，換到對岸那側會看到山）。
+ // 看老街：09-28 評審換掉舊版仰角 1.15 rad 的月台俯視（那個角度＋原本的站區目標點会被月台雨棚整片
+ // 蓋住，見已刪除的舊註解／git 歷史）。新版改成沿老街走廊的低角度（PLATFORM_ELEVATION=.35
+ // rad≈20°，在評審要求的 ≤25° 之內），目標點也從站區搬到老街中段（不再對著雨棚），這樣雨棚只會
+ // 出現在畫面邊緣、不會擋住老街本身。span 加大到能同時涵蓋老街兩排店面＋軌道人群＋站區。
+ // 跟車視角 09-28 起不再依站區階段（減速／停站／加速）自動拉高仰角到 1.22——同一次評審要求「停站時
+ // 的跟車鏡頭也不要自動拉到 1.22」，固定用跟巡航時同一個仰角（.5，由 reset() 設定），使用者仍可
+ // 手動拖曳調整。
  if(view==='train'){target.set(0,0,0);for(const c of train.cars)target.add(c.car.position);target.multiplyScalar(1/train.cars.length);target.z+=1.4;}
- else if(view==='platform')target.set(STATION_OFFSET,-7.3,.95);
+ else if(view==='platform')target.set(-2,-6.5,1.3);
  else target.set(0,1.0,1.2);
  focus.copy(target).add(pan);
- span=(view==='train'?Math.max(9,train.length*.65/aspect):view==='platform'?Math.max(5.5,7.5/aspect):Math.max(24,35/aspect))/zoom;
+ span=(view==='train'?Math.max(9,train.length*.65/aspect):view==='platform'?Math.max(7.5,11/aspect):Math.max(24,35/aspect))/zoom;
  Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});camera.position.set(focus.x+100*Math.cos(elevation)*Math.cos(yaw),focus.y+100*Math.cos(elevation)*Math.sin(yaw),focus.z+100*Math.sin(elevation));camera.lookAt(focus);camera.updateProjectionMatrix();camera.updateMatrixWorld();scene.updateMatrixWorld(true);renderer.render(scene,camera);draws++;
  canvas.dataset.ready='true';canvas.dataset.distance=String(distance);canvas.dataset.period=period;canvas.dataset.view=view;
 }
 function frame(at){raf=0;if(disposed||document.hidden)return;if(last&&at-last<32){schedule();return;}const dt=last?Math.min((at-last)/1000,.08):0;last=at;if(running)time+=dt;draw();if(running)schedule();}
-function reset(){zoom=1;pan.set(0,0,0);yaw=-1.12;elevation=view==="platform"?1.15:view==='train'?(stop&&stop.phase!=='cruising'?1.22:.5):.58;controls();schedule();}   // 平地老街的跟車鏡頭抬高一點（.42→.5），近排店屋的屋頂才不會蓋掉車身下半；月台特寫／跟車在站區都抬高仰角（原因見 draw() 裡的說明），yaw 沿用原本那一側（換到對岸看得到山，一樣會擋）
+function reset(){zoom=1;pan.set(0,0,0);yaw=view==='platform'?PLATFORM_YAW:-1.12;elevation=view==='platform'?PLATFORM_ELEVATION:view==='train'?.5:.58;controls();schedule();}   // 平地老街的跟車鏡頭抬高一點（.42→.5），近排店屋的屋頂才不會蓋掉車身下半；看老街 09-28 改成沿街低角度（見 PLATFORM_YAW 說明），跟車視角不再依站區階段拉高仰角（同一次評審要求，見 draw() 的說明）
 function setView(next){view=next;document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));document.querySelector('#platform')?.setAttribute('aria-pressed',String(view==='platform'));reset();}
 function setZoom(z){zoom=Math.max(.7,Math.min(1.8,z));controls();schedule();}
 for(const b of document.querySelectorAll('button[data-period]'))b.onclick=()=>setTheme(b.dataset.period);
@@ -66,7 +69,7 @@ canvas.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','-'
 const observer=new ResizeObserver(resize);observer.observe(canvas);
 document.addEventListener('visibilitychange',()=>{last=0;if(document.hidden){cancelAnimationFrame(raf);raf=0;}else schedule();});
 reduced.addEventListener('change',()=>{if(reduced.matches){running=false;controls();schedule();}});
-function dispose(){if(disposed)return;disposed=true;ready=false;cancelAnimationFrame(raf);observer.disconnect();lanterns?.dispose();train?.dispose();primary?.dispose();shifen?.dispose();environment?.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();renderer?.dispose();}
+function dispose(){if(disposed)return;disposed=true;ready=false;cancelAnimationFrame(raf);observer.disconnect();lanterns?.dispose();vegetation?.dispose();visitors?.dispose();train?.dispose();primary?.dispose();shifen?.dispose();environment?.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();renderer?.dispose();}
 window.addEventListener('pagehide',dispose);window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 try{
  renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -77,19 +80,43 @@ try{
  follow3D=createTerrainFollower(train);
  // 天燈：跟人／車同一個比例尺（1.25/primary.size.y），資產載入是非同步的，所以晚於 createScene() 才裝上去（見 shifen.js 的 createSkyLanterns 說明）。
  const lanternKit=await loadGarageParts(new URL('../../rail-3d/assets/garage-lanterns-v1/lanterns.json',import.meta.url));if(disposed){lanternKit.dispose();throw Error('disposed');}
- lanterns=createSkyLanterns(lanternKit,1.25/primary.size.y,shifen.lanternZone,{seed:20260928});scene.add(lanterns.group);
+ const shifenScale=1.25/primary.size.y;
+ lanterns=createSkyLanterns(lanternKit,shifenScale,shifen.lanternZone,{seed:20260928});scene.add(lanterns.group);
+ // 樹與竹叢、遊客與舉天燈：09-28 新增，跟天燈同一個「非同步資產、等 loadGarageParts() 完成後才裝上去」模式。
+ const vegKit=await loadGarageParts(new URL('../../rail-3d/assets/garage-shifen-v1/shifen-veg.json',import.meta.url));if(disposed){vegKit.dispose();throw Error('disposed');}
+ vegetation=createVegetation(vegKit,shifen.treeSpots,shifen.bambooSpots);scene.add(vegetation.group);
+ const peopleKit=await loadGarageParts(new URL('../../rail-3d/assets/garage-people-v1/people.json',import.meta.url));if(disposed){peopleKit.dispose();throw Error('disposed');}
+ visitors=createVisitors(peopleKit,lanternKit,shifenScale,shifen.lanternZone,{seed:20260929});scene.add(visitors.group);
  ready=true;loading.hidden=true;setView(view);setTheme(period);controls();resize();draw();schedule();
  window.shifenPreview={
-  get state(){return{ready,lighting:train.lighting.state,period,view,running,pan:{x:pan.x,y:pan.y},distance,time,phase:stop.phase,lap:stop.lap,currentSpeed:stop.speed,zoom,draws,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},poses:train.cars.map(c=>({id:c.id,x:c.car.position.x,y:c.car.position.y,z:c.car.position.z,heading:c.heading,pitch:c.pitch,offset:c.offset,length:c.length})),trainLength:train.length,pathLength:shifen.path.length,params:shifen.params,speed:SPEED, bounds:train.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),ps=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const q=new THREE.Vector3(x,y,z).project(camera);ps.push([(q.x+1)*canvas.width/2,(1-q.y)*canvas.height/2]);}return{left:Math.min(...ps.map(p=>p[0])),right:Math.max(...ps.map(p=>p[0])),top:Math.min(...ps.map(p=>p[1])),bottom:Math.max(...ps.map(p=>p[1]))};})};},
+  get state(){return{ready,lighting:train.lighting.state,period,view,running,pan:{x:pan.x,y:pan.y},yaw,elevation,distance,time,phase:stop.phase,lap:stop.lap,currentSpeed:stop.speed,zoom,draws,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},poses:train.cars.map(c=>({id:c.id,x:c.car.position.x,y:c.car.position.y,z:c.car.position.z,heading:c.heading,pitch:c.pitch,offset:c.offset,length:c.length})),trainLength:train.length,pathLength:shifen.path.length,params:shifen.params,speed:SPEED, bounds:train.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),ps=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const q=new THREE.Vector3(x,y,z).project(camera);ps.push([(q.x+1)*canvas.width/2,(1-q.y)*canvas.height/2]);}return{left:Math.min(...ps.map(p=>p[0])),right:Math.max(...ps.map(p=>p[0])),top:Math.min(...ps.map(p=>p[1])),bottom:Math.max(...ps.map(p=>p[1]))};})};},
   sample:s=>shifen.path.sample(s),
   project:p=>{const q=new THREE.Vector3(...p).project(camera);return{x:(q.x+1)*canvas.width/2,y:(1-q.y)*canvas.height/2};},
   setTime:t=>{time=t;draw();},timeAtPosition:s=>tt.timeAtPosition(s),timetable:{lap:tt.lap,phases:tt.phases,showcase:tt.showcase,stationOffset:STATION_OFFSET},
   render:draw,dispose,
   trainVisible:visible=>{train.root.visible=visible;draw();},
   sceneVisible:visible=>{shifen.group.visible=ground.visible=visible;draw();},   // 驗收用：只留車（連接影子的地面也收掉），量「車完全露出」的剪影當對照
-  setVisible:(name,visible)=>{const o=shifen.group.getObjectByName(name)||lanterns?.group.getObjectByName(name);if(o)o.visible=visible;draw();return !!o;},   // 驗收用：把某個具名網格藏起來當對照（也找得到 lanterns.group 裡的東西，例如 sky-lantern-glow：跟 shifen.group 是兄弟關係，不是它的子節點）
+  setVisible:(name,visible)=>{const o=shifen.group.getObjectByName(name)||lanterns?.group.getObjectByName(name)||vegetation?.group.getObjectByName(name)||visitors?.group.getObjectByName(name);if(o)o.visible=visible;draw();return !!o;},   // 驗收用：把某個具名網格藏起來當對照（也找得到 lanterns/vegetation/visitors 群組裡的東西，跟 shifen.group 是兄弟關係，不是它的子節點）
   // 驗收用：天燈——實際畫出來的第 k 盞的世界座標／scale（見 shifen.js 的 readInstance），與靜態資訊（總數／回收高度／淡出窗）。
   lanternState:k=>lanterns?lanterns.readInstance(k):null,
-  lanternInfo:()=>lanterns?{count:lanterns.count,H:lanterns.H,releaseZ:lanterns.releaseZ,fade:lanterns.FADE}:null
+  lanternInfo:()=>lanterns?{count:lanterns.count,H:lanterns.H,releaseZ:lanterns.releaseZ,fade:lanterns.FADE}:null,
+  // 驗收用：樹與竹叢——實際寫進樹幹 InstancedMesh 的第 i 棵世界座標／scale，與總數。
+  vegInfo:()=>vegetation?{treeCount:vegetation.treeCount,canopyCount:vegetation.canopyCount,culmCount:vegetation.culmCount,leafCount:vegetation.leafCount}:null,
+  vegTrunk:i=>vegetation?vegetation.readTrunk(i):null,
+  // 驗收用：遊客——目前每個人的邏輯狀態（這一幀真的拿去 setMatrixAt 的那份，不是重算）；
+  // readTorso/readLantern 額外讀回 GPU 端實際矩陣，連算繪管線本身有沒有寫對都驗得到。
+  visitorInfo:()=>visitors?{count:visitors.count,holderIndices:visitors.holderIndices,walkSpeedWorld:visitors.walkSpeedWorld,maxWorldSpeedSeen:visitors.maxWorldSpeedSeen}:null,
+  visitorState:()=>visitors?visitors.state():null,
+  visitorTorso:i=>visitors?visitors.readTorso(i):null,
+  visitorLantern:k=>visitors?visitors.readLantern(k):null,
+  // 驗收用：每節車廂實際的世界座標軸對齊包圍盒（跟 state.bounds 同一個 THREE.Box3().setFromObject
+  // 來源，只是不投影到螢幕——用來跟遊客世界座標做「車身表面到人」的獨立跨系統距離比對，不是
+  // 重算 trainMinDistance() 內部公式）。
+  trainWorldBounds:()=>train.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car);return{min:b.min.toArray(),max:b.max.toArray()};}),
+  // 驗收用：掃「真的在畫面上的那個 scene」（含 vegetation/visitors/lanterns 這些跟 shifen.group
+  // 平行加進 scene 的群組），找有沒有任何 material 用到某個十六進位色——vegetation 是另外用
+  // loadGarageParts() 建的資產、不在 createScene() 探針裡，只有活頁面的 scene 才看得到它，所以
+  // 這個判準不能用「另外 new 一個 createScene() 探針」代替，一定要掃這個真正的 scene。
+  sceneHasMaterialColor:hex=>{let found=false;scene.traverse(o=>{if(o.material?.color&&o.material.color.getHexString()===hex.replace('#',''))found=true;});return found;}
  };
 }catch(e){if(!disposed){dispose();loading.hidden=false;loading.textContent='小車暫時無法載入。';const b=document.createElement('button');b.textContent='重新載入';b.onclick=()=>location.reload();loading.append(b);}console.error(e);}
