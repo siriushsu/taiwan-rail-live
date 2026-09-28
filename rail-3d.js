@@ -36,7 +36,10 @@
   function tripKey(tr){
     if(!tripKeys.has(tr)){let h=2166136261;for(const c of JSON.stringify(tr)){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}tripKeys.set(tr,(h>>>0).toString(36));}return tripKeys.get(tr);
   }
-  function coreRouteDirection(tr,ln){const ps=tr?.trajectory?.map(p=>p.progress).filter(Number.isFinite)||[],next=ps.find(p=>Math.abs(p-ps[0])>1e-6);return stationDirection(ps[0],next??tr?.nextCall?.stationIndex??ps[0],ln.stations.length,!!ln.loop);}
+  function coreRouteDirection(tr,ln){const ps=tr?.trajectory?.map(p=>p.progress).filter(Number.isFinite)||[],next=ps.find(p=>Math.abs(p-ps[0])>1e-6),sampled=stationDirection(ps[0],next??tr?.nextCall?.stationIndex??ps[0],ln.stations.length,!!ln.loop);
+    // 待發軌跡可以整段停在同一點；Core direction 是 1/2 枚舉，不可直接 Math.sign
+    // （兩者都會變 +1）。沒有位移切線時明確換成本站路線的正／反向。
+    return sampled??(Number(tr?.direction)===2?1:Number(tr?.direction)===1?-1:null);}
   function lineRecord(ln,systemId){
     const shape=ln.shape;
     let coordinates=shapeCache.get(shape||ln);
@@ -92,6 +95,10 @@
       const start=Math.max(...pair.map(p=>p.record.startIndex)),end=Math.min(...pair.map(p=>p.record.endIndex)),ranges=[];
       if(start>0)ranges.push([0,ln.stations[start].d*1000]);
       if(end<ln.stations.length-1)ranges.push([ln.stations[end].d*1000,Infinity]);
+      // 環線最後一站到第 0 站仍是一段真的軌道。實體雙股道資料目前以最後一個真實站索引
+      // 收尾，不能因為 end===stations.length-1 就把這段示意線形一併抽掉；Core 的攤平
+      // 37→38 正是在這段上走，保留後也讓超出實體資料範圍的車與看得見的路線同層對齊。
+      else if(ln.loop&&end===ln.stations.length-1)ranges.push([ln.stations[end].d*1000,Infinity]);
       if(ranges.length)routes[i]={...routes[i],drawingRanges:ranges};else routes.splice(i,1);
     }for(const p of pair)routes.push(p.route);}}}
     for(const id of headings.keys())if(!targets.has(id))headings.delete(id);

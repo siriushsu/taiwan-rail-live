@@ -3429,12 +3429,14 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 });
 // 2026-09-28 高雄輕軌環線：順逆行與終點分開，提示實際途經站。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  '順行': 'Clockwise', '逆行': 'Counterclockwise', '經 {stations}': 'Via {stations}',
+  '順行': 'Clockwise', '逆行': 'Counterclockwise', '經 {stations}': 'Via {stations}', '即將發車': 'Departing soon',
+  '高雄輕軌發車前先在籬仔內等候，發車後沿用同一班身分；衛星位置確認屬於同一班才校正，否則依官方倒數逐站推算': 'Kaohsiung LRT trains now wait at Lizihnei before departure and keep the same trip identity after leaving. GPS positions are applied only after confirming they belong to that official trip; otherwise positions are estimated from official countdowns.',
   '修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面': 'Improved passing estimates for some long-distance TRA trains by using the leading train’s scheduled stop, reducing unnecessary extra waits followed by overtaking between stations.',
   '高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次': 'Kaohsiung LRT arrival boards now separate clockwise and counterclockwise services and show stops along the way, instead of labelling everything as bound for Lizihnei and hiding services in the other direction.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  '順行': '時計回り', '逆行': '反時計回り', '經 {stations}': '{stations} 経由',
+  '順行': '時計回り', '逆行': '反時計回り', '經 {stations}': '{stations} 経由', '即將發車': 'まもなく発車',
+  '高雄輕軌發車前先在籬仔內等候，發車後沿用同一班身分；衛星位置確認屬於同一班才校正，否則依官方倒數逐站推算': '高雄ライトレールは発車前に籬仔内で待機し、発車後も同じ便の識別を保ちます。GPS 位置は公式の便と同一だと確認できた場合だけ補正に使い、それ以外は公式カウントダウンから順に推定します。',
   '修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面': '一部の台鉄長距離列車の待避推定を修正しました。先行列車の予定停車時間を優先して使い、余分な待避の後に駅間で再び追い越す表示を減らします。',
   '高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次': '高雄ライトレールの到着案内で時計回り・反時計回りを分け、経由駅を表示します。すべてが籬仔内行きと表示されたり、反対方向の便が隠れたりしなくなりました。',
 });

@@ -5612,6 +5612,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="klrtcore0928"><span class="d">9/28</span><span>高雄輕軌發車前先在籬仔內等候，發車後沿用同一班身分；衛星位置確認屬於同一班才校正，否則依官方倒數逐站推算</span></li>
         <li data-cl-of="trawait0928"><span class="d">9/28</span><span>修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面</span></li>
         <li data-cl-of="klrtboard0928"><span class="d">9/28</span><span>高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次</span></li>
         <li data-cl-of="trackshape0927"><span class="d">9/27</span><span>北捷紅線與三鶯線的軌道改用官方最新線形，列車與車站沿更新後的路線行駛</span></li>
@@ -5619,7 +5620,6 @@
         <li data-cl-of="traphysicalstation0927"><span class="d">9/27</span><span>重新整理台鐵列車的行車方向與車站股道安排，減少對向共用同一股，以及列車在站內重疊或互穿的畫面</span></li>
         <li data-cl-of="workerrecover0927"><span class="d">9/27</span><span>公車到站、台鐵月台與災害監看遇到官方來源沒回應時，會在限時內結束等待並於下一輪恢復</span></li>
         <li data-cl-of="pingzhenhold0927"><span class="d">9/27</span><span>台鐵誤點列車經過平鎮附近時，會穩定維持前後車順序，減少在同一股道短暫重疊的畫面</span></li>
-        <li data-cl-of="kbdremain0927"><span class="d">9/27</span><span>鍵盤操作更完整：開啟面板會直接選到有名稱的關閉鈕，按 Esc 可關閉；公車搜尋、最愛車站與誤點履歷都能用 Tab 選到，桌面時鐘也能點開資料狀態</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5627,6 +5627,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="klrtcore0928"><span class="d">9/28</span><span>高雄輕軌發車前先在籬仔內等候，發車後沿用同一班身分；衛星位置確認屬於同一班才校正，否則依官方倒數逐站推算</span></li>
         <li data-cl="trawait0928"><span class="d">9/28</span><span>修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面</span></li>
         <li data-cl="klrtboard0928"><span class="d">9/28</span><span>高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次</span></li>
         <li data-cl="trackshape0927"><span class="d">9/27</span><span>北捷紅線與三鶯線的軌道改用官方最新線形，列車與車站沿更新後的路線行駛</span></li>
@@ -6899,7 +6900,8 @@
 // v0927h：北捷紅線（R／R_XBT）與三鶯線改用 TDX 2026-09-27 官方線形；三鶯線碎片先以 chainExact() 按相同端點串鏈。
 // v0928a：高雄輕軌看板按順逆行各保留班次，以實際後續停靠站提示方向，終點不再冒充方向。
 // v0928b：保留彎道速限，補回長跑段抵站前追越的官方停靠窗，避免多餘的提早待避。
-const BUILD = 'v0928b';
+// v0928c：公開端接入 KLRT Core 原身分與攤平環線軌跡；待發、雙向看板、來源提示與逐系統退路一併補齊。
+const BUILD = 'v0928c';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
@@ -7518,7 +7520,7 @@ const state = {
   metroCore: { snapshot: null, etag: null, fetchedAt: 0, lastOkAt: 0, polling: false, error: null,
     // 三道退回閘門的判定結果。blockedLines 的鍵是 `systemId:lineId`,blockedSystems 的鍵是 systemId;
     // 值都是給徽章與診斷看的原因物件。lineIdWarn 收 P0-3 的命名契約落差。
-    blockedLines: {}, blockedSystems: {}, lineIdWarn: null, matchRatio: {}, selfCheck: null,
+    blockedLines: {}, blockedSystems: {}, isolatedSystems: {}, lineIdWarn: null, matchRatio: {}, selfCheck: null,
     stationMismatch: {}, failedSince: 0 },
   // Private Metro Core 的 client cache。只保存 Worker 已完成身分／速度／停站判斷後的 canonical snapshot；
   // 公開前端只做 trajectory 線性補間，失效或過期就自動退回下方既有即時／班表路徑。
@@ -12914,7 +12916,9 @@ function updateFreqCard(info) {
   document.getElementById('fcLine').textContent = metroLineFullLabel(ln);
   // 機捷兩種車跑同一條線、同一個顏色,不寫車種就分不出這班是站站停還是跳站(issue #44/#45)
   const fcKind = f.tr ? tymcKindOf(ln, f.tr) : null;
-  const fcDirTxt = info.loop ? t('環狀線循環') : (info.termName ? t('往 {station}', { station: stationName(info.termName, ln._sys) }) : '');
+  const fcDirTxt = info.loop
+    ? (info.routeDirection === 1 ? t('順行') : info.routeDirection === -1 ? t('逆行') : t('環狀線循環'))
+    : (info.termName ? t('往 {station}', { station: stationName(info.termName, ln._sys) }) : '');
   document.getElementById('fcDir').textContent = fcKind
     ? t(TYMC_KIND_NAME[fcKind]) + (fcDirTxt ? '・' + fcDirTxt : '') : fcDirTxt;
   // 實際時刻班次附下一站發車時刻(HH:MM);班距幽靈車只有站名
@@ -12969,9 +12973,18 @@ function updateFreqCard(info) {
   // 官方訊號中斷時這張卡不能還寫「依北捷官方秒級資料」——那正是使用者盯著看的那一行
   const fStale = f.vehicleId != null && !f.core ? trtcOfficialStaleFor(ln.id) : null;
   if (f.core) {
-    txt = t(info.grace ? '即時名單更新中；暫沿用這台車上一批已確認的軌跡'
-      : '● 車輛位置與站台預告共用同一份即時推演');
-    cls = info.grace ? 'warn' : 'on';
+    if (info.grace) { txt = t('即時名單更新中；暫沿用這台車上一批已確認的軌跡'); cls = 'warn'; }
+    else if (info.systemId === 'klrt' && info.source === 'gps') {
+      txt = t('● 已依官方列車衛星定位校正'); cls = 'on';
+    } else if (info.systemId === 'klrt' && info.source === 'board') {
+      txt = t('● 已依官方到站看板逐站倒數推算'); cls = 'on';
+    } else if (info.systemId === 'klrt' && info.source === 'hold') {
+      txt = t('官方資料暫時中斷，沿用最後一次官方位置'); cls = 'warn';
+    } else if (info.systemId === 'klrt' && info.source === 'schedule') {
+      txt = t('依官方當日時刻表行駛');
+    } else {
+      txt = t('● 車輛位置與站台預告共用同一份即時推演'); cls = 'on';
+    }
   }
   else if (metroAlertFor(ln)) { txt = t(f.vehicleId != null
     ? (fStale ? '營運異常公告中；官方訊號亦中斷，位置與時刻皆為推估' : '營運異常公告中；到站時刻仍依官方即時資料')
@@ -27347,19 +27360,20 @@ pollLive();
 // ── Private Metro Core client（只做 canonical trajectory 線性補間） ────────
 // 網站預設開啟（2026-08-28 尖峰跨站修正後重新 rollout）；?metrocore=0 是顯式關的逃生口。
 // App build 明確注入布林旗標（v13 原生恆開），網站的預設值管不到它。
-// Worker／snapshot 失敗、過期或時鐘離開現在時，
-// 所有讀者都得到 null，立即退回既有北捷／高捷即時與班表路徑，不留下半套混合狀態。
+// Worker／envelope 失敗、過期或時鐘離開現在時，所有讀者都得到 null；單一 system 的
+// schema／lineId 壞掉則只隔離該 system。兩種情形都退回各自既有即時與班表路徑。
 const METRO_CORE_SCHEMA = 'metro-snapshot/v1';
 const METRO_CORE_ENDPOINT = APP_CFG.metroCoreUrl ||
   'https://railisland-metro-core.sirius1984.workers.dev/v1/metro/snapshot';
 const METRO_CORE_POLL_MS = 15e3;
-// 🔴 P0-3 命名契約:Core 的 train.lineId／board.lineId 必須逐字是這 11 個之一。
-//    真值來源已逐字比對過:data/trtc.json 的九條線 id ＝ TRTC_BOARD_LINES;
-//    data/krtc.json 的 KR/KO(C 線是輕軌,不歸 Core 管)。命名一改而前端不知道,
+// 🔴 P0-3 命名契約:Core 的 train.lineId／board.lineId 必須逐字是這 12 個之一。
+//    真值來源已逐字比對過:data/trtc.json 的九條線 id ＝ TRTC_BOARD_LINES、
+//    data/krtc.json 的 KR/KO 與獨立 klrt 系統的 C。命名一改而前端不知道,
 //    受影響的線會安靜地變成空陣列——那正是 08-21 事故的三個可能形態之一。
 const METRO_CORE_LINE_IDS = {
   trtc: ['BR', 'R', 'R_XBT', 'G', 'G_XBT', 'O_XINZHUANG', 'O_LUZHOU', 'BL', 'Y'],
   krtc: ['KR', 'KO'],
+  klrt: ['C'],
 };
 const METRO_CORE_LINE_ID_SET = new Map(Object.keys(METRO_CORE_LINE_IDS)
   .map(sysId => [sysId, new Set(METRO_CORE_LINE_IDS[sysId])]));
@@ -27372,7 +27386,7 @@ const METRO_CORE_COUNT_MIN_SAMPLES = 4; // 樣本不足＝不判定(不是異常
 const METRO_CORE_COUNT_MIN_BASE = 4;    // 基線太小不判:1→0 不叫腰斬,只是離峰
 const METRO_CORE_COUNT_DROP = 0.5;      // 相對基線腰斬
 const METRO_CORE_COUNT_STRIKES = 2;     // 防抖:連兩輪才進、連兩輪才出
-// P2-9 看板列身分覆蓋率的「寬鬆觀測閘門」(逐系統)。Core 自家 shadow 報告實測北捷 70–76%、
+// P2-9 看板列身分覆蓋率的「寬鬆觀測閘門」(逐系統；KLRT 的合法匿名列另行豁免)。Core 自家 shadow 報告實測北捷 70–76%、
 // 高捷 0–5%,所以門檻設在 0.5:北捷正常時過得去,高捷那種整批匿名會被擋下退回班表。
 // 嚴格版(100%)是伺服端的發布閘門,不放在這裡——單一壞列不該讓整包退掉。
 const METRO_CORE_MATCH_MIN = 0.5;
@@ -27395,37 +27409,32 @@ function metroCoreFlag(search) {
 }
 const METRO_CORE_ENABLED = metroCoreFlag(location.search);
 
-function metroCoreValidateSnapshot(snapshot) {
+function metroCoreValidateEnvelope(snapshot) {
   if (!snapshot || snapshot.schema !== METRO_CORE_SCHEMA || !String(snapshot.revision || '').trim()) return false;
   const generatedAt = Number(snapshot.generatedAt), validUntil = Number(snapshot.validUntil);
-  if (!(generatedAt > 0) || !(validUntil >= generatedAt) || !Array.isArray(snapshot.systems)) return false;
+  return generatedAt > 0 && validUntil >= generatedAt && Array.isArray(snapshot.systems);
+}
+function metroCoreSystemValidationError(system) {
+  if (!system || !String(system.systemId || '').trim() || !Array.isArray(system.trains) || !Array.isArray(system.boards)) return 'schema';
   const ids = new Set();
-  const trainsBySystem = new Map();
-  for (const system of snapshot.systems) {
-    if (!system || !String(system.systemId || '').trim() || !Array.isArray(system.trains) || !Array.isArray(system.boards)) return false;
-    const byId = new Map();
-    trainsBySystem.set(String(system.systemId), byId);
-    for (const train of system.trains) {
-      if (!train || !String(train.vehicleId || '').trim() || !String(train.lineId || '').trim() ||
-          (train.direction !== 1 && train.direction !== 2) || !Array.isArray(train.trajectory) || !train.trajectory.length ||
-          ids.has(String(train.vehicleId))) return false;
-      ids.add(String(train.vehicleId));
-      byId.set(String(train.vehicleId), train);
-      const step = train.direction === 2 ? 1 : -1;
-      let prior = null;
-      for (const point of train.trajectory) {
-        if (!point || !Number.isFinite(Number(point.epoch)) || !Number.isFinite(Number(point.progress)) ||
-            (prior && (Number(point.epoch) <= Number(prior.epoch) ||
-              (Number(point.progress) - Number(prior.progress)) * step < -1e-9))) return false;
-        prior = point;
-      }
+  for (const train of system.trains) {
+    if (!train || !String(train.vehicleId || '').trim() || !String(train.lineId || '').trim() ||
+        (train.direction !== 1 && train.direction !== 2) || !Array.isArray(train.trajectory) || !train.trajectory.length ||
+        ids.has(String(train.vehicleId))) return 'schema';
+    ids.add(String(train.vehicleId));
+    const step = train.direction === 2 ? 1 : -1;
+    let prior = null;
+    for (const point of train.trajectory) {
+      if (!point || !Number.isFinite(Number(point.epoch)) || !Number.isFinite(Number(point.progress)) ||
+          (prior && (Number(point.epoch) <= Number(prior.epoch) ||
+            (Number(point.progress) - Number(prior.progress)) * step < -1e-9))) return 'schema';
+      prior = point;
     }
   }
-  for (const system of snapshot.systems) for (const board of system.boards) {
-    if (!board || !String(board.lineId || '').trim() || !Number.isInteger(Number(board.stationIndex)) || !Array.isArray(board.rows)) return false;
-    const byId = trainsBySystem.get(String(system.systemId)) || new Map();
+  for (const board of system.boards) {
+    if (!board || !String(board.lineId || '').trim() || !Number.isInteger(Number(board.stationIndex)) || !Array.isArray(board.rows)) return 'schema';
     for (const row of board.rows) {
-      if (!row || !Number.isFinite(Number(row.arrivalEpoch))) return false;
+      if (!row || !Number.isFinite(Number(row.arrivalEpoch))) return 'schema';
       if (row.vehicleId == null) continue;
       // 🔴 這裡【只】要求「這台車在同一家的名冊裡」。線／方向／終點的一致性刻意不在這道
       //    整包閘門判——那是下面 metroCoreRowVehicleId 的工作：一列不一致只讓那一列失去身分
@@ -27436,10 +27445,53 @@ function metroCoreValidateSnapshot(snapshot) {
       //    忠孝復興這類共站只要有一列指錯線，兩家共 129 台車會整批退回 legacy——正是
       //    下面那段註解說「本批要防的放大效應」。移除它以還原 6eeda7f 的設計；偵測強度不變
       //    （逐列版查的是同一組線／方向／終點三項），變的只是壞掉一列時的處置範圍。
-      if (!byId.has(String(row.vehicleId))) return false;
+      if (!ids.has(String(row.vehicleId))) return 'reference';
     }
   }
+  return null;
+}
+function metroCoreSystemLineIdError(system) {
+  const sysId = String(system && system.systemId || ''), allow = METRO_CORE_LINE_ID_SET.get(sysId);
+  if (!allow) return null;
+  const ids = [];
+  for (const train of system.trains || []) ids.push(String(train && train.lineId || ''));
+  for (const board of system.boards || []) ids.push(String(board && board.lineId || ''));
+  for (const line of system.lines || []) ids.push(String(line && line.id || ''));
+  const unknown = Array.from(new Set(ids.filter(id => !allow.has(id))));
+  return unknown.length ? { reason: 'lineId', unknown } : null;
+}
+function metroCoreValidateSnapshot(snapshot) {
+  if (!metroCoreValidateEnvelope(snapshot)) return false;
+  const seen = new Set();
+  for (const system of snapshot.systems) {
+    const id = String(system && system.systemId || '');
+    if (!id || seen.has(id) || metroCoreSystemValidationError(system) || metroCoreSystemLineIdError(system)) return false;
+    seen.add(id);
+  }
   return true;
+}
+// schema／命名錯誤只隔離發生問題的系統。KLRT、TRTC、KRTC 共用同一份 envelope，
+// 但任一家的一列壞資料都不該讓另外兩家的新 revision 一起被舊 snapshot 卡住。
+function metroCorePrepareSnapshot(snapshot) {
+  if (!metroCoreValidateEnvelope(snapshot)) return null;
+  const counts = new Map();
+  for (const system of snapshot.systems) {
+    const id = String(system && system.systemId || '');
+    counts.set(id, (counts.get(id) || 0) + 1);
+  }
+  const systems = [], isolatedSystems = {};
+  snapshot.systems.forEach((system, index) => {
+    const id = String(system && system.systemId || ''), key = id || '#' + (index + 1);
+    let issue = counts.get(id) > 1 ? { reason: 'duplicate' } : null;
+    if (!issue) {
+      const reason = metroCoreSystemValidationError(system);
+      if (reason) issue = { reason };
+    }
+    if (!issue) issue = metroCoreSystemLineIdError(system);
+    if (issue) isolatedSystems[key] = issue;
+    else systems.push(system);
+  });
+  return { snapshot: { ...snapshot, systems }, isolatedSystems };
 }
 // 共站辨線的前端守門:看板列宣告的路線／方向／終點,必須與它指到的那台車一致。忠孝復興、
 // 東門這類共站,伺服端一旦把板南線的列連到文湖線的車,使用者點站牌就會跟到另一條線的車,
@@ -27481,6 +27533,7 @@ function metroCoreSystemIdForLine(ln) {
   const sys = freqSysIdOf(ln), id = String(ln && ln.id || '');
   if (sys === 'mrt' && TRTC_BOARD_LINES.has(id)) return 'trtc';
   if (sys === 'krtc' && (id === 'KR' || id === 'KO')) return 'krtc';
+  if (sys === 'krtc' && id === 'C' && ln && ln.loop) return 'klrt';
   return null;
 }
 function metroCoreSystem(systemId) {
@@ -27522,18 +27575,42 @@ function metroCoreLineForId(systemId, lineId) {
   }
   return null;
 }
+// C 線在 Core 內攤平成 0..38；虛擬 38 是下一圈的真實站 0。所有消費端都走
+// 這兩支 adapter，避免地圖、跟車卡與站牌各自用不同的 modulo 時機。
+// 🔴 補間前絕不可把 38 先取成 0：37→38 必須沿實際環線尾段走完，不能跨圖跳點。
+function metroCoreKlrtLoop(ln) {
+  return !!(ln && ln.loop && String(ln.id) === 'C' && metroCoreSystemIdForLine(ln) === 'klrt');
+}
+function metroCoreFlatMax(ln) {
+  return metroCoreKlrtLoop(ln) ? ln.stations.length : ln.stations.length - 1;
+}
+function metroCoreStationAt(ln, flatIndex) {
+  if (!ln || !Array.isArray(ln.stations) || !ln.stations.length || !Number.isInteger(Number(flatIndex))) return null;
+  const index = Number(flatIndex);
+  if (metroCoreKlrtLoop(ln) && index === ln.stations.length) return ln.stations[0] || null;
+  return ln.stations[index] || null;
+}
+function metroCoreBoardFlatIndex(ln, stationIndex, direction) {
+  const index = Number(stationIndex);
+  // 逆行的籬仔內發車列位於攤平起點 38；方向 1 的終點 0 不會列在出發看板。
+  return metroCoreKlrtLoop(ln) && index === 0 && Number(direction) === 1
+    ? ln.stations.length : index;
+}
 function metroCorePositionAt(ln, train, epoch) {
   const sampled = metroCoreSampleTrain(train, epoch);
   if (!sampled || !ln || !Array.isArray(ln.stations) || !ln.stations.length) return null;
-  const max = ln.stations.length - 1, progress = Math.max(0, Math.min(max, Number(sampled.progress)));
+  const max = metroCoreFlatMax(ln), progress = Math.max(0, Math.min(max, Number(sampled.progress)));
   const stationIndex = Math.round(progress);
-  if (Math.abs(progress - stationIndex) < 1e-9 && ln.stations[stationIndex]) {
-    const station = ln.stations[stationIndex];
+  const station = metroCoreStationAt(ln, stationIndex);
+  if (Math.abs(progress - stationIndex) < 1e-9 && station) {
     return { ...sampled, progress, lat: station.lat, lon: station.lon, atStation: true };
   }
   const from = Math.floor(progress), to = Math.ceil(progress);
-  if (!ln.stations[from] || !ln.stations[to] || from === to) return null;
-  const pos = posBetweenStations(ln, from, to, progress - from);
+  const fromStation = metroCoreStationAt(ln, from), toStation = metroCoreStationAt(ln, to);
+  if (!fromStation || !toStation || from === to) return null;
+  const physicalFrom = metroCoreKlrtLoop(ln) && from === ln.stations.length ? 0 : from;
+  const physicalTo = metroCoreKlrtLoop(ln) && to === ln.stations.length ? 0 : to;
+  const pos = posBetweenStations(ln, physicalFrom, physicalTo, progress - from);
   return pos ? { ...sampled, ...pos, progress, atStation: false, motionFrom: from, motionTo: to } : null;
 }
 // 🔴 P0-1/P0-2/P0-3/P2-9 的統一出口:這條線這一刻能不能用 Core?回原因字串或 null。
@@ -27541,6 +27618,8 @@ function metroCorePositionAt(ln, train, epoch) {
 function metroCoreLineBlocked(systemId, lineId) {
   const core = state.metroCore;
   if (!core) return null;
+  const isolated = core.isolatedSystems && core.isolatedSystems[String(systemId)];
+  if (isolated) return isolated.reason;
   const sys = core.blockedSystems && core.blockedSystems[String(systemId)];
   if (sys) return sys.reason;
   const key = String(systemId) + ':' + String(lineId);
@@ -27609,16 +27688,23 @@ function metroCoreEpochSecOfDay(epoch) {
 function metroCoreVehicleInfo(rec) {
   if (!rec) return { pos: null };
   const { ln, train, pos } = rec, step = Number(train.direction) === 2 ? 1 : -1;
+  const exactIndex = Math.round(Number(pos.progress)), destinationIndex = Number(train.destinationStationIndex);
+  // KLRT pending 車在 flat 0／38 精確停站，Core 可合法不送 nextCall。一般 ceil/floor 會把
+  // 「下一站」寫成目前的籬仔內；尚未到 terminal 時要沿 direction 跨到 1／37。
+  const inferredNext = metroCoreKlrtLoop(ln) && Math.abs(Number(pos.progress) - exactIndex) < 1e-9 &&
+    exactIndex !== destinationIndex ? Math.max(0, Math.min(metroCoreFlatMax(ln), exactIndex + step))
+    : Math.max(0, Math.min(metroCoreFlatMax(ln), step > 0 ? Math.ceil(pos.progress) : Math.floor(pos.progress)));
   const nextIndex = train.nextCall && Number.isInteger(Number(train.nextCall.stationIndex))
-    ? Number(train.nextCall.stationIndex) : Math.max(0, Math.min(ln.stations.length - 1,
-      step > 0 ? Math.ceil(pos.progress) : Math.floor(pos.progress)));
-  const terminal = ln.stations[Number(train.destinationStationIndex)];
-  const next = ln.stations[nextIndex];
+    ? Number(train.nextCall.stationIndex) : inferredNext;
+  const terminal = metroCoreStationAt(ln, Number(train.destinationStationIndex));
+  const next = metroCoreStationAt(ln, nextIndex);
   // officialNo 在這裡統一命名:Core 的 publicLabel 與北捷 roster 的 officialNo 是同一個東西
   // ——freqCrowdCars() 拿 publicLabel 去 join crowdByNo(鍵＝官方 TrackInfo.TrainNumber)打得中,
   // 那條 join 就是證據。統一之後 updateFreqCard 只要讀一個欄位,不必分辨自己在哪條路徑上。
   // 🔴 永遠不是 vehicleId:那是我們自己由各站倒數合成的內部身分,契約明禁拿它冒充車次。
-  return { ln, pos, loop: false, grace: !!rec.grace, officialNo: String(train.publicLabel || ''),
+  return { ln, pos, loop: !!ln.loop, routeDirection: metroCoreKlrtLoop(ln) ? step : null,
+    grace: !!rec.grace, systemId: String(rec.systemId || ''),
+    source: String(train.quality && train.quality.source || ''), officialNo: String(train.publicLabel || ''),
     termName: terminal && terminal.name || '', nextName: next && next.name || '',
     nextSec: train.nextCall && Number.isFinite(Number(train.nextCall.arrivalEpoch))
       ? metroCoreEpochSecOfDay(train.nextCall.arrivalEpoch) : null };
@@ -27648,8 +27734,8 @@ function metroCoreMedian(values) {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 function metroCoreResetGates() { metroCoreCountHistory.clear(); metroCoreCountStrikes.clear(); }
-// P0-3:snapshot 的 lineId 是否守住命名契約。只檢查【前端會消費】的兩個系統,
-// 其他 systemId 一律略過(Core 之後多接一家不該讓現有兩家整包退掉)。
+// P0-3:snapshot 的 lineId 是否守住命名契約。只檢查【前端會消費】的系統,
+// 其他 systemId 一律略過(Core 之後多接一家不該讓現有系統一起退回)。
 function metroCoreLineIdIssues(snapshot) {
   const unknown = [], missing = [];
   for (const system of (snapshot && snapshot.systems) || []) {
@@ -27697,10 +27783,12 @@ function metroCoreMatchRatios(snapshot, nowEpoch) {
 // P0-2:逐線車數相對自己近況腰斬 ⇒ 那條線退回 legacy。
 function metroCoreEvaluateCounts(snapshot, nowEpoch, prior) {
   const counts = new Map();
-  for (const sysId of METRO_CORE_LINE_ID_SET.keys()) for (const id of METRO_CORE_LINE_IDS[sysId]) counts.set(sysId + ':' + id, 0);
   for (const system of (snapshot && snapshot.systems) || []) {
     const sysId = String(system && system.systemId || '');
     if (!METRO_CORE_LINE_ID_SET.has(sysId)) continue;
+    // 缺席或已被 prepareSnapshot 隔離的 system 不可餵 0 進相對基線：那不是「車數腰斬」，
+    // 而是這一輪根本沒有可評估資料。它自己走 P0-1 退路，其他 system 照常更新。
+    for (const id of METRO_CORE_LINE_IDS[sysId]) counts.set(sysId + ':' + id, 0);
     for (const train of system.trains || []) {
       if (train && train.retireAt != null && Number(nowEpoch) >= Number(train.retireAt)) continue;
       const key = sysId + ':' + String(train && train.lineId);
@@ -27774,6 +27862,9 @@ function metroCoreApplyGates(snapshot, nowEpoch = Date.now() / 1000) {
   const blockedSystems = {};
   for (const sysId in ratios) {
     const r = ratios[sysId];
+    // KLRT 的匿名倒數是固定介面中的合法資料：vehicleId=null 仍要顯示 ETA，只是不可跟隨。
+    // 身分覆蓋率低不能反過來丟掉整份官方倒數；schema／引用錯誤仍由 prepareSnapshot 隔離。
+    if (sysId === 'klrt') continue;
     if (r.ratio != null && r.ratio < METRO_CORE_MATCH_MIN) {
       blockedSystems[sysId] = { reason: 'match', matched: r.matched, total: r.total,
         ratio: Math.round(r.ratio * 1000) / 1000 };
@@ -27794,7 +27885,7 @@ function metroCoreDegradedSummary() {
   const core = state.metroCore;
   if (!core) return null;
   const lines = Object.keys({ ...(core.blockedLines || {}), ...(core.stationMismatch || {}) }),
-    systems = Object.keys(core.blockedSystems || {});
+    systems = Object.keys({ ...(core.blockedSystems || {}), ...(core.isolatedSystems || {}) });
   if (!lines.length && !systems.length && !core.error && !(core.lineIdWarn && core.lineIdWarn.unknown.length)) return null;
   return { lines, systems, error: core.error || null,
     unknown: (core.lineIdWarn && core.lineIdWarn.unknown) || [] };
@@ -27830,19 +27921,13 @@ async function pollMetroCore() {
       state.metroCore.failedSince = 0; return true;
     }
     if (!response.ok) throw new Error('snapshot ' + response.status);
-    const snapshot = await response.json();
-    if (!metroCoreValidateSnapshot(snapshot)) throw new Error('snapshot schema');
-    // 🔴 P0-3:出現契約外的 lineId ＝ 命名約定已經改了而前端不知道。這種情況下就算 snapshot
-    //    通過 schema 驗證,受影響的線也只會安靜地變成空的,所以整包退回、保留舊 snapshot,
-    //    並在 error 裡寫清楚是哪幾條——這是「畫面沒車」與「命名對不上」唯一可分辨的地方。
-    const lineIdIssues = metroCoreLineIdIssues(snapshot);
-    if (lineIdIssues.unknown.length) {
-      state.metroCore.lineIdWarn = lineIdIssues;
-      throw new Error('lineId 契約外：' + lineIdIssues.unknown.join('、'));
-    }
+    const incoming = await response.json(), prepared = metroCorePrepareSnapshot(incoming);
+    if (!prepared) throw new Error('snapshot schema');
+    const snapshot = prepared.snapshot;
     const prior = state.metroCore.snapshot;
     if (prior && Number(snapshot.generatedAt) < Number(prior.generatedAt)) throw new Error('snapshot rollback');
     state.metroCore.snapshot = snapshot;
+    state.metroCore.isolatedSystems = prepared.isolatedSystems;
     state.metroCore.etag = `"${String(snapshot.revision)}"`;
     state.metroCore.fetchedAt = state.metroCore.lastOkAt = Date.now();
     state.metroCore.error = null; state.metroCore.failedSince = 0;
@@ -27868,7 +27953,7 @@ window.__railMetroCore = { enabled: METRO_CORE_ENABLED, endpoint: METRO_CORE_END
     validUntil: state.metroCore.snapshot && state.metroCore.snapshot.validUntil,
     fetchedAt: state.metroCore.fetchedAt, lastOkAt: state.metroCore.lastOkAt, error: state.metroCore.error,
     blockedLines: state.metroCore.blockedLines, blockedSystems: state.metroCore.blockedSystems,
-    stationMismatch: state.metroCore.stationMismatch,
+    isolatedSystems: state.metroCore.isolatedSystems, stationMismatch: state.metroCore.stationMismatch,
     matchRatio: state.metroCore.matchRatio, lineIdWarn: state.metroCore.lineIdWarn,
     lineIdSelfCheck: state.metroCore.selfCheck }) };
 
@@ -29382,6 +29467,7 @@ function metroCoreFallenDetail(lines, timetableIds = new Set()) {
     else if (reason === 'match') why = t('：看板列只有 {p} 對得到車，整個系統暫退回官方看板', { p: i18nNumber(Math.round(((sys && sys.ratio) || 0) * 100)) + '%' });
     else if (reason === 'stations') why = t('：站列版本與即時模型不一致，改用官方倒數');
     else if (reason === 'count') why = t('：車數相對近況異常減少，改用官方名冊或班表');
+    else if (reason === 'schema' || reason === 'reference' || reason === 'lineId' || reason === 'duplicate') why = t('：這個系統的即時資料格式異常，已隔離並改用官方名冊或班表');
     else if (reason) why = i18nColon() + reason;
     else why = t('：即時模型這一輪沒有這條線的車，改用官方名冊或班表');
     return routeName(ln.name || ln.id, freqSysIdOf(ln)) + why;
@@ -32506,7 +32592,8 @@ function metroCoreArrivalState(rec, nowEpoch = Date.now() / 1000) {
   if (!pos) return { near: false, departed: true, matched: false, distanceM: null };
   const distanceM = haversineKm(station, pos) * 1000;
   const step = Number(train.direction) === 2 ? 1 : -1;
-  return { near: distanceM <= 25, departed: (Number(pos.progress) - rec.stationIndex) * step > .02 && distanceM > 25,
+  const flatStation = metroCoreBoardFlatIndex(rec.ln, rec.stationIndex, train.direction);
+  return { near: distanceM <= 25, departed: (Number(pos.progress) - flatStation) * step > .02 && distanceM > 25,
     matched: true, distanceM, vehicleId: String(train.vehicleId) };
 }
 function metroCoreCountdownText(rec, nowEpoch = Date.now() / 1000) {
@@ -32515,6 +32602,12 @@ function metroCoreCountdownText(rec, nowEpoch = Date.now() / 1000) {
   if (left <= 0) {
     const arrival = metroCoreArrivalState(rec, nowEpoch);
     rec.arrival = arrival;
+    // C 線站 0 的兩向列都是籬仔內起點發車錨；Core 會讓 countdown 在 0 分後繼續掛到
+    // 真正離站，不能把原地待發的 p0／p38 說成「列車進站」。其他站與 arriving／dwelling
+    // 仍沿用到站語意，避免把一般到站一併改成發車。
+    if (metroCoreKlrtLoop(rec.ln) && Number(rec.stationIndex) === 0 && rec.state === 'countdown') {
+      return t('即將發車');
+    }
     return t(arrival.near || (!rec.vehicleId && (rec.state === 'arriving' || rec.state === 'dwelling'))
       ? '列車進站' : '即將進站');
   }
@@ -32530,7 +32623,8 @@ function metroCoreLegacyGroupsForEntry(entry, officialDirections = null) {
     let k = -1;
     for (let i = 0; i < trip.length; i += 2) if (trip[i] === entry.si) { k = i; break; }
     if (k < 0 || k === trip.length - 2) return;
-    const next = Number(trip[k + 2]), direction = next > entry.si ? 2 : 1;
+    const next = Number(trip[k + 2]), klrtRoute = klrtBoardRoute(entry.ln, trip, k);
+    const direction = klrtRoute ? (klrtRoute.direction === 1 ? 2 : 1) : next > entry.si ? 2 : 1;
     if (officialDirections && officialDirections.has(direction)) return;
     const t = trip[k + 1] + metroShiftSec(entry.ln, trip);
     let dtm = t - state.simSec;
@@ -32538,7 +32632,7 @@ function metroCoreLegacyGroupsForEntry(entry, officialDirections = null) {
     if (dtm < -30 || dtm > METRO_CORE_BOARD_WINDOW_SEC) return;
     const destName = entry.ln.stations[trip[trip.length - 2]].name;
     const key = direction + '|' + destName;
-    if (!byDest.has(key)) byDest.set(key, { direction, destName, rows: [] });
+    if (!byDest.has(key)) byDest.set(key, { direction, destName, klrtRoute, rows: [] });
     byDest.get(key).rows.push({ kind: 'legacy', ...entry, ci, t, dtm, destName, direction });
   });
   const candidates = [...byDest.values()];
@@ -32548,7 +32642,22 @@ function metroCoreLegacyGroupsForEntry(entry, officialDirections = null) {
     candidates.filter(group => group.direction === direction)
       .sort((a, b) => a.rows[0].dtm - b.rows[0].dtm)[0]) : candidates;
   return picked.filter(Boolean).map(group => ({ kind: 'legacy', ...entry, destName: group.destName,
+    klrtRoute: group.klrtRoute,
     rows: group.rows.slice(0, 2) }));
+}
+function metroCoreKlrtBoardRoute(ln, stationIndex, direction) {
+  if (!metroCoreKlrtLoop(ln) || !Number.isInteger(Number(stationIndex)) || (direction !== 1 && direction !== 2)) return null;
+  const count = ln.stations.length, start = Number(stationIndex), step = direction === 2 ? 1 : -1;
+  const nextIndex = (start + step + count) % count, next = ln.stations[nextIndex];
+  if (!next) return null;
+  const landmarks = new Set(['駁二大義', '美術館', '愛河之心', '科工館']);
+  let viaName = ln.stations[0] && ln.stations[0].name || '';
+  for (let offset = 1; offset <= count; offset++) {
+    const index = (start + step * offset % count + count) % count, station = ln.stations[index];
+    if (station && landmarks.has(station.name)) { viaName = station.name; break; }
+    if (index === 0 && offset < count) break;
+  }
+  return { direction: step, nextName: next.name, viaName };
 }
 function metroCoreBoardView(st, lines, isDeco, nowEpoch = Date.now() / 1000) {
   if (!metroCoreSnapshotLive(nowEpoch)) return null;
@@ -32578,14 +32687,15 @@ function metroCoreBoardView(st, lines, isDeco, nowEpoch = Date.now() / 1000) {
       const byDest = new Map();
       for (const row of board && board.rows || []) {
         if (row.state === 'departed') continue;
-        const destIndex = Number(row.destinationStationIndex), dest = entry.ln.stations[destIndex];
+        const destIndex = Number(row.destinationStationIndex), dest = metroCoreStationAt(entry.ln, destIndex);
         const dtm = Number(row.arrivalEpoch) - nowEpoch;
         if (!dest || !Number.isFinite(dtm) || dtm > 7200) continue;
         // 共站辨線:身分對不上這條線就只留時刻、不連結車輛(見 metroCoreRowVehicleId)
         const vehicleId = metroCoreRowVehicleId(system, board, row);
+        const klrtRoute = metroCoreKlrtBoardRoute(entry.ln, entry.si, Number(row.direction));
         const rec = { kind: 'core', ...entry, stationIndex: entry.si, row, state: row.state, destinationStationIndex: destIndex,
           destName: dest.name, direction: Number(row.direction), arrivalEpoch: Number(row.arrivalEpoch),
-          vehicleId, match: vehicleId == null ? 'unmatched' : String(row.match || 'unmatched'), dtm };
+          vehicleId, match: vehicleId == null ? 'unmatched' : String(row.match || 'unmatched'), klrtRoute, dtm };
         const arrival = metroCoreArrivalState(rec, nowEpoch);
         const dwell = Math.max(1, trtcOfficialDwellAt(entry.ln, entry.si) || TRTC_OFFICIAL_BOARD_ARRIVING_GRACE_SEC);
         if (arrival.departed || (dtm < -dwell && !arrival.near)) continue;
@@ -32595,7 +32705,8 @@ function metroCoreBoardView(st, lines, isDeco, nowEpoch = Date.now() / 1000) {
       }
       for (const rows of byDest.values()) {
         rows.sort((a, b) => a.dtm - b.dtm);
-        groups.push({ kind: 'core', ...entry, destName: rows[0].destName, rows: rows.slice(0, 2) });
+        groups.push({ kind: 'core', ...entry, destName: rows[0].destName,
+          klrtRoute: rows[0].klrtRoute, rows: rows.slice(0, 2) });
       }
       const officialDirections = new Set([...byDest.values()].flat().map(rec => Number(rec.direction)));
       groups.push(...metroCoreLegacyGroupsForEntry(entry, officialDirections));
@@ -32677,8 +32788,12 @@ function renderMetroCoreFreqBoard(el, st, lines, isDeco, view, opts) {
   const body = view.groups.map((group, gi) => metroBoardHeadHtml(heads, gi, group.ln) + (compact ? group.rows.slice(0, 1) : group.rows).map(rec => {
     const lineLabel = metroBoardRowLabel(heads, metroLineFullLabel(group.ln), group.ln, rec.destName);
     const destination = stationName(rec.destName, group.ln._sys);
-    const direction = t('往 {station}', { station: destination });
-    const followTitle = t('跟隨往 {station} 的班次', { station: destination });
+    const route = group.klrtRoute;
+    const routeLabel = route && t(route.direction === 1 ? '順行' : '逆行');
+    const routeVia = route && [...new Set([route.nextName, route.viaName])]
+      .map(name => stationName(name, group.ln._sys)).join(' · ');
+    const direction = routeLabel || t('往 {station}', { station: destination });
+    const followTitle = (route ? routeLabel + ' · ' + routeVia + ' · ' : '') + t('跟隨往 {station} 的班次', { station: destination });
     if (rec.kind === 'core') {
       const index = records.push(rec) - 1, followable = !!rec.vehicleId;
       const train = followable && metroCoreSystem(rec.systemId).trains.find(item => String(item.vehicleId) === rec.vehicleId);
@@ -32689,18 +32804,19 @@ function renderMetroCoreFreqBoard(el, st, lines, isDeco, view, opts) {
       // 班表之間翻動,使用者就看到擁擠度忽有忽無(實測 86 秒內翻了 7 次)。兩條路徑要嘛都有、
       // 要嘛都沒有,不可以只有一條有。
       const crowdHtml = trtcOfficialCrowdHtml(label);
-      return `<div class="row${crowdHtml ? ' has-crowd' : ''}" data-core-record="${index}"${followable
+      return `<div class="row${route ? ' klrt-board-row' : ''}${crowdHtml ? ' has-crowd' : ''}" data-core-record="${index}"${followable
         ? ` data-core-vehicle="${escHtml(rec.vehicleId)}" data-core-system="${escHtml(rec.systemId)}" data-core-line="${escHtml(group.ln.id)}" data-li="${group.li}" title="${escHtml(followTitle)}"` : ''}>` +
         `<span class="dot" style="background:${group.ln.color}"></span><b>${escHtml(direction)}</b>` +
-        `<span class="dest">${escHtml([lineLabel, label].filter(Boolean).join('　'))}</span>` +
+        `<span class="dest">${escHtml(route ? t('經 {stations}', { stations: routeVia }) : [lineLabel, label].filter(Boolean).join('　'))}</span>` +
         crowdHtml +
         `<span class="t">${trtcOfficialAbsoluteHM(rec.arrivalEpoch)}</span><span class="min">${escHtml(metroCoreCountdownText(rec))}</span></div>`;
     }
     const minutes = Math.round(rec.dtm / 60);
     const min = rec.dtm < 60 ? t('即將進站') : t('{n} 分', { n: i18nNumber(minutes) }, minutes);
-    return `<div class="row" data-li="${group.li}" data-ci="${rec.ci}" title="${escHtml(followTitle)}">` +
+    return `<div class="row${route ? ' klrt-board-row' : ''}" data-li="${group.li}" data-ci="${rec.ci}" title="${escHtml(followTitle)}">` +
       `<span class="dot" style="background:${group.ln.color}"></span><b>${escHtml(direction)}</b>` +
-      `<span class="dest">${escHtml(lineLabel)}</span><span class="t">${fmtHM(rec.t % 86400)}</span><span class="min">${escHtml(min)}</span></div>`;
+      `<span class="dest">${escHtml(route ? t('經 {stations}', { stations: routeVia }) : lineLabel)}</span>` +
+      `<span class="t">${fmtHM(rec.t % 86400)}</span><span class="min">${escHtml(min)}</span></div>`;
   }).join('')).join('');
   if (compact) return body;
   const fav = isFavStation(st), sysNames = [];

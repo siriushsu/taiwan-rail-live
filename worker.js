@@ -752,10 +752,13 @@ async function metroLive(request, env, sys) {
       const token = await getToken(env);
       const parts = await Promise.all(METRO_LIVE_OPS[sys].map(async op => {
         // $select 欄位須與下方 map() 取用的一致(LineID/StationName/DestinationStationName/
-        // EstimateTime/ServiceStatus);巢狀的 .Zh_tw 子欄位選父層即可,實測完整保留。
+        // EstimateTime/ServiceStatus，以及 KLRT 專用的 TripHeadSign/SrcUpdateTime);
+        // 巢狀的 .Zh_tw 子欄位選父層即可,實測完整保留。
         // ⚠️ TDX 對本端點的 EstimateTime 直接無視 $select(列不列都照回)⇒ 針對它做的突變測試
         // 不會變紅,那不代表判準沒牙,是上游根本不理你。
-        const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LiveBoard/${op}?%24top=5000&%24select=LineID%2CStationName%2CDestinationStationName%2CEstimateTime%2CServiceStatus&%24format=JSON`,
+        const select = 'LineID,StationName,DestinationStationName,EstimateTime,ServiceStatus' +
+          (op === 'KLRT' ? ',TripHeadSign,SrcUpdateTime' : '');
+        const r = await fetch(`https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LiveBoard/${op}?%24top=5000&%24select=${encodeURIComponent(select)}&%24format=JSON`,
           { headers: { authorization: 'Bearer ' + token }, redirect: 'manual' });
         if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
         if (!r.ok) throw new Error('tdx api ' + r.status);
@@ -766,6 +769,11 @@ async function metroLive(request, env, sys) {
           d: (x.DestinationStationName && x.DestinationStationName.Zh_tw) || '',
           e: x.EstimateTime,   // 到站倒數(整數分鐘,可 null)
           st: x.ServiceStatus, // 0=正常 1=未發車 2=交管不停 3=末班已過 4=未營運
+          ...(op === 'KLRT' ? {
+            dir: x.TripHeadSign && typeof x.TripHeadSign === 'object'
+              ? (x.TripHeadSign.Zh_tw || '') : (x.TripHeadSign || ''),
+            su: x.SrcUpdateTime,
+          } : {}),
           op,
         }));
       }));
