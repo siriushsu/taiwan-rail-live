@@ -1,5 +1,5 @@
 import * as THREE from '../../rail-3d/vendor/three.module.js';
-import {createScene,THEMES,createAttendant} from '../../rail-3d/garage-scenes/south-coast.js?revision=coast-polish-20260928';
+import {createScene,THEMES,createAttendant} from '../../rail-3d/garage-scenes/south-coast.js?revision=coast-palms-opus-20260928';
 import {loadGarageModel,createConsist,loadGarageParts} from '../../rail-3d/garage-model.js?revision=headlights-0912';
 import {createPeople} from '../../rail-3d/garage-people.js?revision=people-0927';
 import {createStopTimetable} from '../../rail-3d/garage-scenes/stop-timetable.js?revision=stop-0927';

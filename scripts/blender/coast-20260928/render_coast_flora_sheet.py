@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""讀已安裝的 rail-3d/assets/garage-palms-v1/palms.json + .bin.gz，把 4 個新零件組
-（彎幹椰子 A/B、闊葉樹 A/B）各拼一棵，旁邊擺簡化人形比例尺（身高 .754，跟
+"""讀已安裝的 rail-3d/assets/garage-palms-v1/palms.json + .bin.gz，把闊葉樹 A/B
+各拼一棵（彎幹椰子 09-28 起跟其他棕櫚一起改由 palms-20260928/render_palms_sheet.py 出圖，舊零件已不在資產裡），旁邊擺簡化人形比例尺（身高 .754，跟
 palms-20260928/render_palms_sheet.py 同一個換算：南迴這個場景座標系裡，1.7 m 真人＝.754
 模型單位——這裡沿用同一支比例尺，不是另外重算）。四棵並排各拍側面＋斜上方＋45°斜看低角度
 三張（低角度是使用者要求的驗收角度之一：彎幹要「側面看得出來」、闊葉要「經得起近看側面低角度」）。
@@ -91,32 +91,8 @@ def Rz(t):
     return Matrix.Rotation(t, 4, 'Z')
 
 
-TRUNK_HEX = '71664e'
-COCO_FROND_HEX = '3f6a5a'
 BL_TRUNK_HEX = '6b5d4a'
 BL_CANOPY_A_HEX, BL_CANOPY_B_HEX = '4a7048', '5c8a4f'
-
-# 跟 south-coast.js 的常數一致（build_coast_flora.py NOTES 也記錄了同一組數字）：
-REF_HEIGHT, REF_R0, REF_R1 = 2.2, .125, .0775
-COCO_FRONDS, COCO_DROOP, COCO_DROOP_AMP, COCO_SPREAD_MULT, COCO_DIAM_FRAC = 13, .68, .25, 1.40, .70
-
-
-def build_curved(x0, y0, trunk_part, s):
-    """s＝目標最終高度/REF_HEIGHT（跟 south-coast.js 的換算一致），這裡固定 s=1（參考尺寸本身）。"""
-    add_part(trunk_part, Txyz(x0, y0, 0) @ Sxyz(s, s, s), TRUNK_HEX, 'trunk')
-    height = REF_HEIGHT * s
-    diam = height * COCO_DIAM_FRAC
-    spread = (diam / 2) * COCO_SPREAD_MULT
-    topA = (.42, 0.0) if 'curved-a' in trunk_part else (.377, 0.0)
-    hub = (x0 + topA[0] * s, y0 + topA[1] * s, height)
-    for j in range(COCO_FRONDS):
-        yaw = j * 2.399963
-        droop = COCO_DROOP + COCO_DROOP_AMP * math.sin(j * 2.399963)
-        length = spread * (.85 if j < 3 else .9)
-        mw = Txyz(*hub) @ Rz(yaw) @ Matrix.Rotation(droop, 4, 'Y') @ Sxyz(length, length, length)
-        add_part('coco-fronds', mw, COCO_FROND_HEX, 'cfrond')
-    return height, diam
-
 
 def build_broadleaf(x0, y0, variant):
     trunk = f'broadleaf-{variant}-trunk'
@@ -149,19 +125,15 @@ def _ico(radius):
     return verts, faces
 
 
-SLOTS = [-6, -2, 2, 6]
-hA, dA = build_curved(SLOTS[0], 0, 'coco-curved-a-trunk', 1.0)
-add_person_proxy(SLOTS[0] + .8, 0)
-hB, dB = build_curved(SLOTS[1], 0, 'coco-curved-b-trunk', 1.0)
-add_person_proxy(SLOTS[1] + .8, 0)
-build_broadleaf(SLOTS[2], 0, 'a')
-add_person_proxy(SLOTS[2] + 1.3, 0)
-build_broadleaf(SLOTS[3], 0, 'b')
-add_person_proxy(SLOTS[3] + 1.4, 0)
+SLOTS = [-2, 2]
+build_broadleaf(SLOTS[0], 0, 'a')
+add_person_proxy(SLOTS[0] + 1.3, 0)
+build_broadleaf(SLOTS[1], 0, 'b')
+add_person_proxy(SLOTS[1] + 1.4, 0)
 
 note_path = W / 'output/coast-flora/NOTES.md'
 with open(note_path, 'a', encoding='utf-8') as fh:
-    fh.write(f'- [render_coast_flora_sheet] 彎幹椰子 A：height={hA:.3f} diam={dA:.3f}；B：height={hB:.3f} diam={dB:.3f}（s=1，即 REF_HEIGHT 本身；人形比例尺高 .754）\n')
+    fh.write('- [render_coast_flora_sheet] 闊葉樹 A／B 各一棵（人形比例尺高 .754）\n')
 
 
 def frame_ortho(loc, target, scale, res):

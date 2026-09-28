@@ -6,6 +6,7 @@
 import {chromium} from 'playwright';
 import {readFileSync} from 'node:fs';
 import {gunzipSync} from 'node:zlib';
+import {createHash} from 'node:crypto';
 import * as THREE from '../rail-3d/vendor/three.module.js';
 import {createScene} from '../rail-3d/garage-scenes/south-coast.js';
 import {buildGarageParts} from '../rail-3d/garage-parts.js';
@@ -13,8 +14,8 @@ import {buildGarageParts} from '../rail-3d/garage-parts.js';
 const PAGE_URL='http://127.0.0.1:5251/prototypes/garage-south-coast/';
 const results=[];function check(name,pass,detail){results.push({name,pass:!!pass});console.log(pass?'PASS':'FAIL',name,JSON.stringify(detail??'').slice(0,300));}
 
-// ── 純 Node（不需要瀏覽器）：棕櫚物種計數／整棵高度／樹冠體積／椰子果位置＋站務員方塊座標一致性，
-// 直接讀 createScene() 的 instanced mesh。棕櫚改用 Blender 零件庫（見 scripts/blender/palms-20260928/），
+// ── 純 Node（不需要瀏覽器）：棕櫚（位置／物種雜湊、高度、樹冠比例與形狀、葉色、椰子果、預算）、闊葉樹不變、
+// 站房與站體設施，直接讀 createScene() 的 instanced mesh。棕櫚用 Blender 零件庫（見 scripts/blender/palms-20260928/），
 // 這裡跟瀏覽器端 main.js 一樣用 loadGarageParts 的 Node 版本（fs+zlib 取代 fetch）讀同一份正式資產。──
 const ASSET_DIR=new URL('../rail-3d/assets/garage-palms-v1/',import.meta.url);
 const palmsMeta=JSON.parse(readFileSync(new URL('palms.json',ASSET_DIR),'utf8'));
@@ -27,182 +28,221 @@ const stationMeta=JSON.parse(readFileSync(new URL('station.json',STATION_ASSET_D
 const stationRaw=gunzipSync(readFileSync(new URL('station.bin.gz',STATION_ASSET_DIR)));
 const stationKit=buildGarageParts(stationMeta,stationRaw.buffer.slice(stationRaw.byteOffset,stationRaw.byteOffset+stationRaw.byteLength));
 
-function extract(scene){const list=[];scene.group.traverse(o=>{if(!o.isInstancedMesh)return;
- const vcount=o.geometry.attributes.position.count,color=o.material.color?o.material.color.getHexString():'?';
- const items=[];const m=new THREE.Matrix4(),pos=new THREE.Vector3(),quat=new THREE.Quaternion(),scl=new THREE.Vector3();
- for(let i=0;i<o.count;i++){o.getMatrixAt(i,m);m.decompose(pos,quat,scl);items.push({x:+pos.x.toFixed(6),y:+pos.y.toFixed(6),z:+pos.z.toFixed(6)});}
- list.push({name:o.name,vcount,color,count:o.count,items});});return list;}
-const scene=createScene(palmsKit,stationKit),groups=extract(scene);
+const scene=createScene(palmsKit,stationKit);
 const meshByName=new Map();scene.group.traverse(o=>{if(o.isInstancedMesh&&o.name)meshByName.set(o.name,o);});
-const oldBroadleaf=groups.filter(g=>['4e7158','668363','8c9c70'].includes(g.color)).reduce((s,g)=>s+g.count,0);
-const betelTrunkMesh=meshByName.get('palm-betel-trunk'),cocoTrunkMesh=meshByName.get('palm-coco-trunk');
-const betelFrondMesh=meshByName.get('palm-betel-fronds'),cocoFrondMesh=meshByName.get('palm-coco-fronds');
-const betelCrownMesh=meshByName.get('palm-betel-crownshaft'),cocoFruitMesh=meshByName.get('palm-coco-fruit');
-// 09-28 山上植被精修（評審第 2 項）新增四款：椰子彎幹 A/B（沿用 coco-fronds 葉冠，見
-// south-coast.js 的 plantAs）與闊葉樹 A/B（各自 trunk+canopy）。
-const cocoCurvedATrunkMesh=meshByName.get('palm-coco-curved-a-trunk'),cocoCurvedAFrondMesh=meshByName.get('palm-coco-curved-a-fronds');
-const cocoCurvedBTrunkMesh=meshByName.get('palm-coco-curved-b-trunk'),cocoCurvedBFrondMesh=meshByName.get('palm-coco-curved-b-fronds');
-const broadleafATrunkMesh=meshByName.get('palm-broadleaf-a-trunk'),broadleafACanopyMesh=meshByName.get('palm-broadleaf-a-canopy');
-const broadleafBTrunkMesh=meshByName.get('palm-broadleaf-b-trunk'),broadleafBCanopyMesh=meshByName.get('palm-broadleaf-b-canopy');
-const betelCount=betelTrunkMesh?.count??0,cocoCount=cocoTrunkMesh?.count??0;
-const curvedACount=cocoCurvedATrunkMesh?.count??0,curvedBCount=cocoCurvedBTrunkMesh?.count??0;
-const broadleafACount=broadleafATrunkMesh?.count??0,broadleafBCount=broadleafBTrunkMesh?.count??0;
-const palmTotal=betelCount+cocoCount+curvedACount+curvedBCount,broadleafTotal=broadleafACount+broadleafBCount,totalVeg=palmTotal+broadleafTotal;
-// 舊判準「總棵數 150～220」是棕櫚種滿整座山（未分海拔）時代的密度檢查；山上植被精修把大部分中高海拔
-// 的棕櫚改成闊葉樹（見 south-coast.js 的 paletteAt），棕櫚本身棵數必然大減，改成量「全部植被
-// （棕櫚 4 款＋闊葉 2 款）合計」延續同一個「不要太空也不要爆量」的密度把關（實測 213，見
-// scratchpad/garage-b/polish-01-notes.md）。
-check('南迴-棕櫚 species 六款植被（檳榔／椰子直幹／椰子彎幹A／椰子彎幹B／闊葉A／闊葉B）皆有實例、舊闊葉樹（3 色 crown）殘留數＝0、全部植被總棵數在 150～260',
- betelCount>0&&cocoCount>0&&curvedACount>0&&curvedBCount>0&&broadleafACount>0&&broadleafBCount>0&&oldBroadleaf===0&&totalVeg>=150&&totalVeg<=260,
- {betelCount,cocoCount,curvedACount,curvedBCount,broadleafACount,broadleafBCount,palmTotal,broadleafTotal,totalVeg,oldBroadleaf});
-
-// 逐頂點量測世界座標範圍（不是 peopleBounds() 那套「轉局部包圍盒 8 角」）：棕櫚扇葉剖面是「風箏」
-// 四點，局部包圍盒角大多是幽靈角（不對應任何真實頂點——例如 y=±寬度 同時 z=+摺痕高，這兩者只在不同
-// 頂點各自成立，不會同時發生），轉包圍盒角在這個剖面上會嚴重高估：本輪第一版曾量到某棵椰子樹「高度」
-// 3.68，逐頂點重量只有 2.3 附近，差距純粹是測量假象。这份 verify 刻意不沿用 peopleBounds() 的技巧。
-function localVerts(mesh){const pos=mesh.geometry.attributes.position,out=[];for(let i=0;i<pos.count;i++)out.push(new THREE.Vector3(pos.getX(i),pos.getY(i),pos.getZ(i)));return out;}
 function decomposeAt(mesh,idx){const m=new THREE.Matrix4();mesh.getMatrixAt(idx,m);const p=new THREE.Vector3(),q=new THREE.Quaternion(),s=new THREE.Vector3();m.decompose(p,q,s);return{m,p,q,s};}
-function worldExtent(mesh,idx,verts){const {m}=decomposeAt(mesh,idx);let minZ=Infinity,maxZ=-Infinity,minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;const v=new THREE.Vector3();
- for(const lv of verts){v.copy(lv).applyMatrix4(m);if(v.z<minZ)minZ=v.z;if(v.z>maxZ)maxZ=v.z;if(v.x<minX)minX=v.x;if(v.x>maxX)maxX=v.x;if(v.y<minY)minY=v.y;if(v.y>maxY)maxY=v.y;}
- return{minZ,maxZ,minX,maxX,minY,maxY};}
-function minMax(list,key){if(!list.length)return[null,null];let lo=Infinity,hi=-Infinity;for(const it of list){if(it[key]<lo)lo=it[key];if(it[key]>hi)hi=it[key];}return[+lo.toFixed(4),+hi.toFixed(4)];}
+function minMax(list,key){if(!list.length)return[null,null];let lo=Infinity,hi=-Infinity;for(const it of list){const v=key?it[key]:it;if(v<lo)lo=v;if(v>hi)hi=v;}return[+lo.toFixed(4),+hi.toFixed(4)];}
+const sha=(parts)=>{const h=createHash('sha256');for(const x of parts)h.update(x);return h.digest('hex');};
+const matBytes=o=>Buffer.from(o.instanceMatrix.array.buffer,o.instanceMatrix.array.byteOffset,o.count*16*4);
 
-const BETEL_FRONDS=9,COCO_FRONDS=13;
-const HEIGHT_RANGE={betel:[2.2,2.8],coco:[1.8,2.6]}; // 使用者裁示的整棵高度範圍（縮景比例，非真實比例，見 AGENTS.md 同族裁示的記法）。
-// 09-28 退回重做：後排（south-coast.js loop2，車站周邊平地）原本只縮樹冠、樹幹留全高，全景看起來是
-// 「光禿的火柴棒」。改成整棵（樹幹高／粗／topZ／設計 diam）用同一個 BACK_ROW_SCALE 等比例縮小成幼樹
-// ——兩邊改這個值要一起改。後排高度範圍＝前排 coco 範圍乘上同一個縮放係數（不是另外憑空訂的數字），
-// 前／後排用 trunk 世界座標 y 分辨：loop1（山坡）y∈[1.2,8.6]，loop2（平地）y∈[12,16.4]，10 是安全分界。
-const BACK_ROW_SCALE=.45,BACK_ROW_Y=10;
-const HEIGHT_RANGE_COCO_BACK=[HEIGHT_RANGE.coco[0]*BACK_ROW_SCALE,HEIGHT_RANGE.coco[1]*BACK_ROW_SCALE];
-// 樹冠比例門檻（抓火柴棒）：只縮樹冠、不縮樹幹會讓 diam/height 掉到很小；.35／.5 分別是 betelSize()／
-// cocoSize() 設計公式裡 diam/topZ 的下限（u=0 時），量測後前排最細的樹一度貼著／略低於這兩個數字，
-// 已把 BETEL_SPREAD_MULT／COCO_SPREAD_MULT（south-coast.js）小幅調大到全數清門檻，不是改門檻遷就它。
-const CANOPY_RATIO_FLOOR={betel:.35,coco:.5};
-function analyzeSpecies(trunkMesh,frondMesh,frondsPerTree,crownMesh){
- if(!trunkMesh||!frondMesh)return[];
- const frondVerts=localVerts(frondMesh),out=[];
- for(let t=0;t<trunkMesh.count;t++){
-  const {p:tp}=decomposeAt(trunkMesh,t),groundZ=tp.z;
-  let maxZ=-Infinity,minZ=Infinity,bxMin=Infinity,bxMax=-Infinity,byMin=Infinity,byMax=-Infinity;
-  const s=t*frondsPerTree,e=Math.min(s+frondsPerTree,frondMesh.count);
-  for(let i=s;i<e;i++){const ext=worldExtent(frondMesh,i,frondVerts);
-   maxZ=Math.max(maxZ,ext.maxZ);minZ=Math.min(minZ,ext.minZ);
-   bxMin=Math.min(bxMin,ext.minX);bxMax=Math.max(bxMax,ext.maxX);byMin=Math.min(byMin,ext.minY);byMax=Math.max(byMax,ext.maxY);}
-  const diam=Math.max(bxMax-bxMin,byMax-byMin);let crownTop=maxZ;
-  if(crownMesh){const {p:cp,s:cs}=decomposeAt(crownMesh,t);crownTop=Math.max(crownTop,cp.z+cs.z);}
-  const height=crownTop-groundZ;
-  // hubOffset：葉冠水平範圍中心 vs 樹幹底部世界座標的水平距離——直幹樹只有扇葉 jitter 帶來的雜訊
-  // （實測 ≤0.113），彎幹樹因為葉冠掛點跟著彎曲樹梢偏移，這個值會明顯大（見下方彎幹棕櫚 curvature 判準）。
-  const hubOffset=Math.hypot((bxMin+bxMax)/2-tp.x,(byMin+byMax)/2-tp.y);
-  out.push({t,height,diam,thickRatio:(maxZ-minZ)/diam,ratio:diam/height,cx:tp.x,cy:tp.y,hubOffset});
- }
- return out;
-}
-const betelTrees=analyzeSpecies(betelTrunkMesh,betelFrondMesh,BETEL_FRONDS,betelCrownMesh);
-const cocoTrees=analyzeSpecies(cocoTrunkMesh,cocoFrondMesh,COCO_FRONDS,null);
-const cocoFront=cocoTrees.filter(t=>t.cy<BACK_ROW_Y),cocoBack=cocoTrees.filter(t=>t.cy>=BACK_ROW_Y);
-
-const betelHeightOk=betelTrees.every(t=>t.height>=HEIGHT_RANGE.betel[0]&&t.height<=HEIGHT_RANGE.betel[1]);
-const cocoFrontHeightOk=cocoFront.every(t=>t.height>=HEIGHT_RANGE.coco[0]&&t.height<=HEIGHT_RANGE.coco[1]);
-const cocoBackHeightOk=cocoBack.length>0&&cocoBack.every(t=>t.height>=HEIGHT_RANGE_COCO_BACK[0]&&t.height<=HEIGHT_RANGE_COCO_BACK[1]);
-check('南迴-棕櫚 height 每棵樹整棵高度都落在該物種目標範圍內（前排/後排 coco 分開比對各自範圍，太高或太矮都算不過）',
- betelHeightOk&&cocoFrontHeightOk&&cocoBackHeightOk,
- {betelRange:minMax(betelTrees,'height'),cocoFrontRange:minMax(cocoFront,'height'),cocoBackRange:minMax(cocoBack,'height'),
-  target:{betel:HEIGHT_RANGE.betel,cocoFront:HEIGHT_RANGE.coco,cocoBack:HEIGHT_RANGE_COCO_BACK},cocoBackCount:cocoBack.length});
-
-const volumeOk=[...betelTrees,...cocoTrees].every(t=>t.thickRatio>=.25);
-check('南迴-棕櫚 canopy has volume 每棵樹樹冠垂直厚度都 ≥0.25×樹冠直徑（不是扁平的星形）',volumeOk,
- {betelThickRange:minMax(betelTrees,'thickRatio'),cocoThickRange:minMax(cocoTrees,'thickRatio')});
-
-const betelRatioOk=betelTrees.every(t=>t.ratio>=CANOPY_RATIO_FLOOR.betel);
-const cocoRatioOk=cocoTrees.every(t=>t.ratio>=CANOPY_RATIO_FLOOR.coco);
-check('南迴-棕櫚 canopy ratio 每棵樹冠直徑÷整棵高度都達門檻（抓火柴棒：只縮樹冠不縮樹幹會被這條逮到）',
- betelRatioOk&&cocoRatioOk,
- {betelRatioRange:minMax(betelTrees,'ratio'),cocoRatioRange:minMax(cocoTrees,'ratio'),floor:CANOPY_RATIO_FLOOR});
-
-// 椰子果：每顆果都要落在「離自己最近那棵椰子樹」樹頂 15% 高度內，且水平距離 ≤0.3×該樹樹冠半徑。
-let fruitOk=true;const fruitBad=[];
-if(cocoFruitMesh&&cocoTrunkMesh&&cocoTrees.length){
- for(let i=0;i<cocoFruitMesh.count;i++){
-  const {p:fp}=decomposeAt(cocoFruitMesh,i);
-  let best=null,bestD=Infinity;
-  for(const tr of cocoTrees){const d=Math.hypot(fp.x-tr.cx,fp.y-tr.cy);if(d<bestD){bestD=d;best=tr;}}
-  const {p:tp}=decomposeAt(cocoTrunkMesh,best.t);
-  const topZ=tp.z+best.height,horiz=Math.hypot(fp.x-tp.x,fp.y-tp.y),radius=best.diam/2;
-  const withinTop15=fp.z>=topZ-best.height*.15,withinRadius=horiz<=radius*.3;
-  if(!withinTop15||!withinRadius){fruitOk=false;fruitBad.push({i,withinTop15,withinRadius,horiz:+horiz.toFixed(3),radius:+radius.toFixed(3)});}
- }
-}
-check('南迴-棕櫚 coconut position 每顆椰子果都在該樹樹頂 15% 高度內、且水平距離 ≤0.3×樹冠半徑',fruitOk&&(cocoFruitMesh?.count??0)>0,
- {fruitCount:cocoFruitMesh?.count??0,badCount:fruitBad.length,sample:fruitBad.slice(0,3)});
-
-// ── 09-28 山上植被精修（評審「01 藍皮」第 2 項）新增判準：彎幹棕櫚（curvature）／闊葉樹高度／
-// 海拔限制（棕櫚只留海岸低坡）／稜線闊葉覆蓋／撒點間距（非等距）／貼地誤差。全部直接讀
-// createScene() 真正畫出來的 instanced mesh 世界座標（不是重算原始碼公式），跟上面既有判準同一個
-// 紀律。terrain（height 函式＋PEAK）直接從 scene 拿，不是 verify 自己重寫地形公式的另一份副本。──
+// ── 南迴-棕櫚（第三版，09-28）。使用者原話：「那個樹看起來像是個笑話 這什麼東西？」「細節還是都需要用blender製作」
+// 「只有藍皮的樹 感覺還是不太對」「棕梠樹的比例跟樣貌太奇怪 其他的樹不用動」。
+// 棕櫚改成整棵在 Blender 建好（scripts/blender/palms-20260928/build_palms.py，椰子 3 款＋檳榔 2 款），
+// south-coast.js 一款樹＝一個 InstancedMesh（palm-<款>），幾何的子零件範圍在 geometry.userData.palmParts。
+// 下面的判準全部讀 createScene() 真正畫出來的 instanced mesh（世界座標）或它的幾何本身，不重算 south-coast.js 的公式。
+// 判準依據：「主對話派工」＝主對話 09-28 派工單訂的數字；「HEAD」＝c3050359 乾淨樹實測、寫死成字面值。──
+const PALM_SPECIES={'coco-straight':'coco','coco-curved-a':'cocoCurvedA','coco-curved-b':'cocoCurvedB','betel-a':'betel','betel-b':'betel'};
+const PALM_MODELS=Object.keys(PALM_SPECIES),isCoco=m=>m.startsWith('coco');
+const palmMesh=Object.fromEntries(PALM_MODELS.map(k=>[k,meshByName.get('palm-'+k)]));
+const BL_NAMES=['palm-broadleaf-a-trunk','palm-broadleaf-a-canopy','palm-broadleaf-b-trunk','palm-broadleaf-b-canopy'];
+const blMesh=Object.fromEntries(BL_NAMES.map(n=>[n,meshByName.get(n)]));
 const terrain=scene.terrain;
-const cocoCurvedATrees=analyzeSpecies(cocoCurvedATrunkMesh,cocoCurvedAFrondMesh,COCO_FRONDS,null);
-const cocoCurvedBTrees=analyzeSpecies(cocoCurvedBTrunkMesh,cocoCurvedBFrondMesh,COCO_FRONDS,null);
-const curvedTrees=[...cocoCurvedATrees,...cocoCurvedBTrees];
+// 前／後排用樹幹底 y 分辨：loop1（山坡）y∈[1.2,8.6]，loop2（車站周邊平地）y∈[12,16.4]，10 是安全分界。
+const BACK_ROW_Y=10;
 
-// 彎幹可見度：hubOffset（葉冠掛點相對樹幹底部的水平偏移）≥0.25——實測直幹係對照組最高只到 0.113，
-// 彎幹 A/B 實測最低 0.309，門檻卡在兩者中間，區分度很寬，不是卡在臨界值。
-const curvedOffsetOk=curvedTrees.length>0&&curvedTrees.every(t=>t.hubOffset>=.25);
-check('南迴-彎幹棕櫚 curvature 兩款彎幹椰子的葉冠掛點都明顯偏離樹幹底部正上方（水平偏移 ≥0.25，直幹對照組同一量測 ≤0.113，非卡在臨界值）',
- curvedOffsetOk,{curvedOffsetRange:minMax(curvedTrees,'hubOffset'),straightControlRange:minMax(analyzeSpecies(cocoTrunkMesh,cocoFrondMesh,COCO_FRONDS,null).filter(t=>t.cy<BACK_ROW_Y),'hubOffset'),n:curvedTrees.length});
+// (1) 闊葉樹一棵都沒動（使用者：「其他的樹不用動」）：4 個闊葉 InstancedMesh 的「名稱|數量|instanceMatrix bytes」
+//     雜湊＝HEAD 字面值。
+const broadleafHash=BL_NAMES.every(n=>blMesh[n])?sha(BL_NAMES.flatMap(n=>[`${n}|${blMesh[n].count}|`,matBytes(blMesh[n])])):'missing';
+check('南迴-闊葉樹 unchanged 4 個闊葉 InstancedMesh 的 instanceMatrix 雜湊＝HEAD（c3050359）字面值（依據：使用者「其他的樹不用動」）',
+ broadleafHash==='70120545a3265f7140aaa7205323ecf83174e884bb8ca691b896f79ae50e18f3',{broadleafHash,counts:BL_NAMES.map(n=>blMesh[n]?.count)});
 
-// 彎幹椰子沿用跟直幹椰子完全相同的 cocoSize(s).trunkH 反推 uniform scale，理論上落在同一個既有
-// coco 高度範圍內；這裡直接量測確認，不是只信公式推導。
-const curvedHeightOk=curvedTrees.length>0&&curvedTrees.every(t=>t.height>=HEIGHT_RANGE.coco[0]&&t.height<=HEIGHT_RANGE.coco[1]);
-check('南迴-彎幹棕櫚 height 兩款彎幹椰子整棵高度都落在跟直幹椰子相同的既有範圍內',curvedHeightOk,
- {curvedHeightRange:minMax(curvedTrees,'height'),target:HEIGHT_RANGE.coco,n:curvedTrees.length});
+// (2) 棕櫚位置與物種不變：每棵棕櫚「物種＋樹幹底世界座標(toFixed 5)」排序後的雜湊＝HEAD 字面值。HEAD 的物種＝樹幹
+//     mesh（betel／coco／coco-curved-a／coco-curved-b），這一版＝款名對應回同一個物種（檳榔兩款都是 betel）。
+const palmRows=[],trees=[];
+for(const model of PALM_MODELS){const o=palmMesh[model];if(!o)continue;
+ for(let i=0;i<o.count;i++){const {m,p,s}=decomposeAt(o,i);palmRows.push([PALM_SPECIES[model],p.x.toFixed(5),p.y.toFixed(5),p.z.toFixed(5)].join(','));trees.push({model,i,m,x:p.x,y:p.y,z:p.z,scale:s.x,scaleXYZ:[s.x,s.y,s.z]});}}
+const palmHash=sha([palmRows.sort().join('\n')]);
+check('南迴-棕櫚 base+species 每棵棕櫚的物種＋樹幹底座標雜湊＝HEAD（c3050359）字面值（依據：主對話派工「位置與哪棵是哪個物種跟 HEAD 一樣」）',
+ palmHash==='b146a4c83066ef8b2e965860495f8f52222566613379a0ea98d1183c5a20bcec',{palmHash,n:palmRows.length});
 
-// 闊葉樹整棵高度（樹幹底部世界 z 到樹冠逐頂點世界最高點）：設計範圍見 south-coast.js 的
-// BL_SCALE_MIN/MAX（絕對尺寸幾何×均勻縮放），這裡量真正渲染出來的結果，範圍留了餘裕
-// （實測 A:2.156~3.496、B:1.762~2.843，門檻比實測寬，不是卡在臨界值）。
-function canopyHeights(trunkMesh,canopyMesh){if(!trunkMesh||!canopyMesh)return[];const cv=localVerts(canopyMesh),out=[];
- for(let i=0;i<trunkMesh.count;i++){const {p:tp}=decomposeAt(trunkMesh,i);out.push(worldExtent(canopyMesh,i,cv).maxZ-tp.z);}return out;}
+// (3) 植被迴圈吃 rand() 的次數不變：迴圈之後第一個吃 rand() 的是礫石（95 顆，rock 材質 #879081），它的 instanceMatrix
+//     雜湊＝HEAD 字面值。只看礫石、不看全場：站房等之後的改動不該讓這條紅。
+const boulderMeshes=[];scene.group.traverse(o=>{if(o.isInstancedMesh&&o.material.color?.getHexString()==='879081'&&o.geometry.type==='IcosahedronGeometry')boulderMeshes.push(o);});
+const boulderHash=boulderMeshes.length===1?sha([matBytes(boulderMeshes[0])]):'missing';
+check('南迴-植被 rand-sequence 礫石（植被迴圈之後第一個用 rand() 的物件）instanceMatrix 雜湊＝HEAD 字面值（依據：主對話派工「rand() 呼叫次數與順序不變」）',
+ boulderHash==='f1d4394ad138237f24dc4a37aff9867d7f2d798d6bf30909643c8fc6718bae81',{boulderHash,count:boulderMeshes[0]?.count});
+
+// (4) 款數與棵數：5 款棕櫚各自的棵數（字面值，實測）、闊葉 A/B 棵數、舊闊葉樹（3 色 crown）殘留 0、全部植被 150～260。
+//     物種總數（檳榔 36／直幹椰子 39 含後排／彎幹 A 7／彎幹 B 8）已由上面 base+species 雜湊鎖住；這裡鎖的是
+//     「檳榔在兩款之間怎麼分」這種雜湊看不到的部分。
+const EXPECT_COUNTS={'coco-straight':39,'coco-curved-a':7,'coco-curved-b':8,'betel-a':13,'betel-b':23};
+const counts=Object.fromEntries(PALM_MODELS.map(m=>[m,palmMesh[m]?.count??0]));
+const oldBroadleaf=(()=>{let n=0;scene.group.traverse(o=>{if(o.isInstancedMesh&&['4e7158','668363','8c9c70'].includes(o.material.color?.getHexString()))n+=o.count;});return n;})();
+const broadleafTotal=(blMesh['palm-broadleaf-a-trunk']?.count??0)+(blMesh['palm-broadleaf-b-trunk']?.count??0);
+const totalVeg=trees.length+broadleafTotal;
+check('南迴-棕櫚 species 5 款棕櫚棵數＝實測字面值、闊葉 A/B 皆有、舊闊葉樹殘留 0、全部植被 150～260',
+ PALM_MODELS.every(m=>counts[m]===EXPECT_COUNTS[m])&&broadleafTotal>0&&oldBroadleaf===0&&totalVeg>=150&&totalVeg<=260,{counts,broadleafTotal,oldBroadleaf,totalVeg});
+
+// 每款樹的幾何：子零件（userData.palmParts）→ 局部座標頂點。樹的局部座標：原點＝樹幹底，+Z 朝上。
+const geomInfo={};
+for(const model of PALM_MODELS){const o=palmMesh[model];if(!o)continue;const g=o.geometry,pa=g.attributes.position,col=g.attributes.color;
+ const parts=g.userData.palmParts||[];const sub=name=>parts.filter(p=>p.name===name);
+ const verts=list=>{const out=[];for(const p of list)for(let k=p.start;k<p.start+p.count;k++)out.push(new THREE.Vector3(pa.getX(k),pa.getY(k),pa.getZ(k)));return out;};
+ geomInfo[model]={g,pa,col,parts,sub,verts,tris:pa.count/3};}
+
+// (5) 整棵高度（世界座標：全部頂點最高點－樹幹底）。前排椰子 2.8～3.5、檳榔 3.0～3.7、後排椰子＝前排×.45（1.26～1.575）；
+//     而且前排最矮的棕櫚不能比同一坡帶（高度比 <.38，棕櫚生長的坡帶）闊葉樹的平均高度矮。
+//     依據：主對話派工「棕櫚要讀得出是高大的樹，不能比同一坡帶的闊葉樹矮一截」；HEAD 同坡帶闊葉樹實測 1.79～3.41、平均 2.47。
+const HEIGHT_RANGE={coco:[2.8,3.5],betel:[3.0,3.7]},BACK_ROW_SCALE=.45;
+for(const t of trees){const gi=geomInfo[t.model];if(!gi.g.boundingBox)gi.g.computeBoundingBox();t.height=gi.g.boundingBox.max.z*t.scaleXYZ[2];t.back=t.y>=BACK_ROW_Y;}
+const rangeOf=t=>{const r=HEIGHT_RANGE[isCoco(t.model)?'coco':'betel'];return t.back?r.map(v=>v*BACK_ROW_SCALE):r;};
+const heightBad=trees.filter(t=>{const [lo,hi]=rangeOf(t);return !(t.height>=lo-1e-6&&t.height<=hi+1e-6);});
+// 程式只准做等比縮放（主對話派工：形狀一律是 Blender 的，程式只管位置、yaw、等比縮放、深淺）。
+const nonUniform=trees.filter(t=>Math.abs(t.scaleXYZ[0]-t.scaleXYZ[2])>1e-6||Math.abs(t.scaleXYZ[1]-t.scaleXYZ[2])>1e-6).length;
+function canopyHeights(trunkName,canopyName){const tm=blMesh[trunkName],cm=blMesh[canopyName];if(!tm||!cm)return[];if(!cm.geometry.boundingBox)cm.geometry.computeBoundingBox();
+ const pa=cm.geometry.attributes.position,v=new THREE.Vector3(),out=[];
+ for(let i=0;i<tm.count;i++){const {m,p}=decomposeAt(cm,i);let mz=-Infinity;for(let k=0;k<pa.count;k++){v.fromBufferAttribute(pa,k).applyMatrix4(m);if(v.z>mz)mz=v.z;}out.push({h:mz-decomposeAt(tm,i).p.z,x:p.x,y:p.y});}return out;}
+const blA=canopyHeights('palm-broadleaf-a-trunk','palm-broadleaf-a-canopy'),blB=canopyHeights('palm-broadleaf-b-trunk','palm-broadleaf-b-canopy');
+const sameBand=[...blA,...blB].filter(b=>terrain.height(b.x,b.y)/terrain.peak<.38).map(b=>b.h);
+const sameBandMean=sameBand.reduce((a,b)=>a+b,0)/Math.max(1,sameBand.length);
+const frontPalmMin=Math.min(...trees.filter(t=>!t.back).map(t=>t.height));
+check('南迴-棕櫚 height 每棵整棵高度在範圍內（前排椰子 2.8～3.5、檳榔 3.0～3.7、後排椰子×.45）、每棵等比縮放，且前排最矮的棕櫚 ≥ 同坡帶闊葉樹平均高',
+ trees.length>0&&heightBad.length===0&&nonUniform===0&&frontPalmMin>=sameBandMean,
+ {cocoFront:minMax(trees.filter(t=>isCoco(t.model)&&!t.back),'height'),betel:minMax(trees.filter(t=>!isCoco(t.model)),'height'),cocoBack:minMax(trees.filter(t=>t.back),'height'),
+  bad:heightBad.slice(0,3).map(t=>[t.model,+t.height.toFixed(3)]),nonUniform,frontPalmMin:+frontPalmMin.toFixed(3),sameBandBroadleafMean:+sameBandMean.toFixed(3),sameBandN:sameBand.length});
+
+// 樹冠（綠葉：fronds＋young）的水平直徑、垂直範圍、水平中心偏移：在樹的局部座標量（樹的前後左右兩軸取大者），
+// 再乘上這棵的等比縮放。不在世界座標量：yaw 會讓「世界軸向包圍盒寬」隨方位角變化最多約 13%（8～9 片葉的檳榔實測
+// .53～.61），量到的是轉角度而不是樹冠大小。
+for(const model of PALM_MODELS){const gi=geomInfo[model];if(!gi)continue;const b=new THREE.Box3().setFromPoints(gi.verts([...gi.sub('fronds'),...gi.sub('young')]));
+ gi.crown={diam:Math.max(b.max.x-b.min.x,b.max.y-b.min.y),thick:b.max.z-b.min.z,offset:Math.hypot((b.min.x+b.max.x)/2,(b.min.y+b.max.y)/2)};}
+for(const t of trees){const c=geomInfo[t.model].crown;t.diam=c.diam*t.scale;t.thick=c.thick*t.scale;t.ratio=t.diam/t.height;t.hubOffset=c.offset*t.scale;}
+
+// (6) 樹冠比例。檳榔：樹冠直徑÷整棵高 .45～.6（主對話派工）。椰子：樹冠直徑÷整棵高 ≥.5（沿用 HEAD 的「抓火柴棒」下限），
+//     整個樹冠側面輪廓（樹冠基部、綠葉、乾葉、椰子果，不含樹幹）寬÷高 1.6～2.2（主對話派工）。
+//     另外記錄「只算綠葉」的寬÷高（約 3.2，不設門檻）：派工同時要求「葉片先上揚 20～35°、只有外側約 1/3 下垂、葉尖約落在
+//     樹冠底」，照這個形狀綠葉樹冠本身的寬÷高必然是 3～5（見 scratchpad palms-opus-notes.md 第 2 節），兩條要求只有把乾葉算進
+//     樹冠輪廓時才同時成立；這裡以形狀要求為準，比例量整個輪廓。
+const cocoSil={};
+for(const model of PALM_MODELS.filter(isCoco)){const gi=geomInfo[model];
+ const sil=gi.verts(gi.parts.filter(p=>!['trunk','rings'].includes(p.name))),green=gi.verts([...gi.sub('fronds'),...gi.sub('young')]);
+ const ext=vs=>{const b=new THREE.Box3().setFromPoints(vs);return{w:Math.max(b.max.x-b.min.x,b.max.y-b.min.y),h:b.max.z-b.min.z};};
+ const a=ext(sil),gr=ext(green);cocoSil[model]={silWH:+(a.w/a.h).toFixed(3),greenWH:+(gr.w/gr.h).toFixed(3)};}
+const betelRatioOk=trees.filter(t=>!isCoco(t.model)).every(t=>t.ratio>=.45&&t.ratio<=.6);
+const cocoRatioOk=trees.filter(t=>isCoco(t.model)).every(t=>t.ratio>=.5);
+const cocoSilOk=Object.values(cocoSil).length===3&&Object.values(cocoSil).every(c=>c.silWH>=1.6&&c.silWH<=2.2);
+check('南迴-棕櫚 crown ratio 檳榔樹冠直徑÷整棵高 .45～.6；椰子 ≥.5；椰子整個樹冠側面輪廓寬÷高 1.6～2.2',betelRatioOk&&cocoRatioOk&&cocoSilOk,
+ {betel:minMax(trees.filter(t=>!isCoco(t.model)),'ratio'),coco:minMax(trees.filter(t=>isCoco(t.model)),'ratio'),cocoSil});
+
+// (7) 樹冠形狀（幾何，逐片葉）。一片葉＝fronds／young 子零件裡「共用頂點相連」的一組三角形；掛點＝椰子樹冠基部（knob）
+//     或檳榔葉鞘（shaft）的頂面。水平伸展不到最長葉一半的是中央新葉（spear），不算葉片。
+//     椰子（主對話派工的形狀）：12～16 片；每片先上揚（葉片最高點比自己的葉基高 ≥ 伸展長度×.08，而且最高點在伸展
+//     距離的 40% 以外＝內側至少四成是往上長的，對應派工「只有外側約 1/3 下垂」）、外側下垂（葉尖低於自己的最高點，
+//     差距 ≥ 伸展長度 ×.1）；整個綠色樹冠最高點高於掛點；葉尖落在樹冠下半部（葉尖高度中位數在樹冠垂直範圍的下 40%）；
+//     正上方看葉片方位相鄰間隙 ≤40°。檳榔：7～10 片、每片都上揚（同上兩個條件）、樹冠最高點高於掛點。
+//     HEAD 的椰子葉從掛點直接往下垂（最高點＝葉基），「先上揚」這條就會紅。
+function frondsOf(gi){
+ const tris=[];for(const p of [...gi.sub('fronds'),...gi.sub('young')])for(let k=p.start;k<p.start+p.count;k+=3)tris.push(k);
+ const key=k=>`${gi.pa.getX(k).toFixed(5)},${gi.pa.getY(k).toFixed(5)},${gi.pa.getZ(k).toFixed(5)}`;
+ const parent=tris.map((_,i)=>i),find=i=>parent[i]===i?i:(parent[i]=find(parent[i])),owner=new Map();
+ tris.forEach((k,i)=>{for(let j=0;j<3;j++){const kk=key(k+j);if(owner.has(kk))parent[find(i)]=find(owner.get(kk));else owner.set(kk,i);}});
+ const groups=new Map();tris.forEach((k,i)=>{const r=find(i);if(!groups.has(r))groups.set(r,[]);groups.get(r).push(k);});
+ return [...groups.values()].map(ks=>{const vs=[];for(const k of ks)for(let j=0;j<3;j++)vs.push(new THREE.Vector3(gi.pa.getX(k+j),gi.pa.getY(k+j),gi.pa.getZ(k+j)));return vs;});
+}
+const shape={};
+for(const model of PALM_MODELS){const gi=geomInfo[model];if(!gi)continue;
+ const anchorVs=gi.verts(gi.sub(isCoco(model)?'knob':'shaft'));if(!anchorVs.length){shape[model]={missingAnchor:true};continue;}
+ const ab=new THREE.Box3().setFromPoints(anchorVs),hub=new THREE.Vector3((ab.min.x+ab.max.x)/2,(ab.min.y+ab.max.y)/2,ab.max.z);
+ const comps=frondsOf(gi).map(vs=>{const r=v=>Math.hypot(v.x-hub.x,v.y-hub.y);let base=vs[0],tip=vs[0],top=vs[0];
+  for(const v of vs){if(r(v)<r(base))base=v;if(r(v)>r(tip))tip=v;if(v.z>top.z)top=v;}const cx=vs.reduce((a,v)=>a+v.x,0)/vs.length,cy=vs.reduce((a,v)=>a+v.y,0)/vs.length; // 方位角＝整片葉重心（兩側小葉對稱，≈葉軸方向；葉尖那一點會偏向一側小葉）。
+  return{reach:r(tip),baseZ:base.z,tipZ:tip.z,topZ:top.z,apexFrac:r(top)/r(tip),az:Math.atan2(cy-hub.y,cx-hub.x)*180/Math.PI};});
+ const maxReach=Math.max(...comps.map(c=>c.reach)),fr=comps.filter(c=>c.reach>=maxReach*.5);
+ const green=gi.verts([...gi.sub('fronds'),...gi.sub('young')]),gz=green.map(v=>v.z),cMin=Math.min(...gz),cMax=Math.max(...gz);
+ const az=fr.map(c=>c.az).sort((a,b)=>a-b),gaps=az.map((a,i)=>i?a-az[i-1]:a+360-az[az.length-1]);
+ const tipFrac=fr.map(c=>(c.tipZ-cMin)/(cMax-cMin)).sort((a,b)=>a-b),tipFracMedian=tipFrac[Math.floor(tipFrac.length/2)];
+ shape[model]={fronds:fr.length,allRise:fr.every(c=>c.topZ-c.baseZ>=.08*c.reach&&c.apexFrac>=.4),minRise:+Math.min(...fr.map(c=>(c.topZ-c.baseZ)/c.reach)).toFixed(3),minApexFrac:+Math.min(...fr.map(c=>c.apexFrac)).toFixed(3),
+  allDroop:fr.every(c=>c.topZ-c.tipZ>=c.reach*.1),minDroopRatio:+Math.min(...fr.map(c=>(c.topZ-c.tipZ)/c.reach)).toFixed(3),
+  crownAboveHub:+(cMax-hub.z).toFixed(3),tipFracMedian:+tipFracMedian.toFixed(3),maxAzGap:+Math.max(...gaps).toFixed(1)};}
+const shapeOk=PALM_MODELS.every(m=>{const s=shape[m];if(!s||s.missingAnchor)return false;
+ if(isCoco(m))return s.fronds>=12&&s.fronds<=16&&s.allRise&&s.allDroop&&s.crownAboveHub>0&&s.tipFracMedian<=.4&&s.maxAzGap<=40;
+ return s.fronds>=7&&s.fronds<=10&&s.allRise&&s.crownAboveHub>0;});
+check('南迴-棕櫚 crown shape 椰子 12～16 片、每片先上揚（內側四成以上往上）後外側下垂、樹冠最高點高於掛點、葉尖在樹冠下 40%、方位間隙 ≤40°；檳榔 7～10 片、每片上揚',shapeOk,
+ {'款:[片數,最小上揚比,最小拱頂位置,最小下垂比,冠頂高於掛點,葉尖位置中位數,最大方位間隙]':Object.fromEntries(PALM_MODELS.map(m=>{const x=shape[m]||{};return[m,[x.fronds,x.minRise,x.minApexFrac,x.minDroopRatio,x.crownAboveHub,x.tipFracMedian,x.maxAzGap]];}))});
+
+// (8) 樹冠有厚度（沿用 HEAD：不是扁平星形）：每棵綠色樹冠垂直範圍 ≥ .25×樹冠直徑。
+check('南迴-棕櫚 canopy has volume 每棵綠色樹冠垂直範圍 ≥0.25×樹冠直徑（不是扁平的星形）',trees.every(t=>t.thick>=.25*t.diam),
+ {coco:minMax(trees.filter(t=>isCoco(t.model)).map(t=>t.thick/t.diam)),betel:minMax(trees.filter(t=>!isCoco(t.model)).map(t=>t.thick/t.diam))});
+
+// (9) 葉色（頂點色，sRGB 色相）。椰子葉（fronds／young）70～100°（黃綠），檳榔葉 90～120°，檳榔葉鞘比檳榔葉亮；任何棕櫚
+//     頂點色都不准落在 150～200°（藍綠，主對話讀截圖指出的舊椰子葉 #3f6a5a≈158°）。每棵的 instanceColor 必須是灰階
+//     （只調深淺、不改色相）。依據：主對話派工的色相範圍。
+function hsl(c){const [r,g,b]=[c.r,c.g,c.b].map(x=>x<=.0031308?x*12.92:1.055*x**(1/2.4)-.055),mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2,d=mx-mn;
+ if(d<1e-6)return{h:0,s:0,l};const s=d/(1-Math.abs(2*l-1));let h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;if(h<0)h+=360;return{h,s,l};}
+const hue={};let tealVerts=0,tintBad=0;
+for(const model of PALM_MODELS){const gi=geomInfo[model];if(!gi?.col){hue[model]={noColor:true};continue;}
+ const colAt=k=>new THREE.Color(gi.col.getX(k),gi.col.getY(k),gi.col.getZ(k)),partHues=name=>gi.sub(name).flatMap(p=>{const out=[];for(let k=p.start;k<p.start+p.count;k+=3)out.push(hsl(colAt(k)));return out;});
+ for(let k=0;k<gi.col.count;k+=3){const c=hsl(colAt(k));if(c.s>.1&&c.h>=150&&c.h<=200)tealVerts++;}
+ const leaf=[...partHues('fronds'),...partHues('young')],shaftL=partHues('shaft').map(c=>c.l);
+ hue[model]={leafHue:minMax(leaf,'h'),leafL:minMax(leaf,'l'),shaftL:shaftL.length?minMax(shaftL):null};
+ const o=palmMesh[model];if(o.instanceColor)for(let i=0;i<o.count;i++){const r=o.instanceColor.getX(i),g=o.instanceColor.getY(i),b=o.instanceColor.getZ(i);if(Math.abs(r-g)>1e-6||Math.abs(r-b)>1e-6)tintBad++;}}
+const hueOk=PALM_MODELS.every(m=>{const h=hue[m];if(!h||h.noColor||h.leafHue[0]===null)return false;const [lo,hi]=isCoco(m)?[70,100]:[90,120];
+ return h.leafHue[0]>=lo&&h.leafHue[1]<=hi&&(isCoco(m)||(h.shaftL&&h.shaftL[0]>h.leafL[1]));})&&tealVerts===0&&tintBad===0;
+check('南迴-棕櫚 hue 椰子葉色相 70～100°、檳榔葉 90～120°、檳榔葉鞘比葉亮、棕櫚無 150～200° 藍綠頂點、每棵深淺是灰階',hueOk,{hue,tealVerts,tintBad});
+
+// (10) 椰子果在樹冠正下方：每顆果（fruit 子零件裡相連的一組三角形）中心低於掛點、離掛點 ≤ 整棵高 ×.12，水平距離掛點
+//      ≤ .3×樹冠半徑（沿用 HEAD「≤0.3×樹冠半徑」）。每款椰子至少一串（≥3 顆）。
+const fruit={};
+for(const model of PALM_MODELS.filter(isCoco)){const gi=geomInfo[model];const fv=gi.verts(gi.sub('fruit'));const ab=new THREE.Box3().setFromPoints(gi.verts(gi.sub('knob')));
+ const hub=new THREE.Vector3((ab.min.x+ab.max.x)/2,(ab.min.y+ab.max.y)/2,ab.max.z),H=gi.g.boundingBox.max.z;
+ const green=gi.verts([...gi.sub('fronds'),...gi.sub('young')]),gb=new THREE.Box3().setFromPoints(green),crownR=Math.max(gb.max.x-gb.min.x,gb.max.y-gb.min.y)/2;
+ const balls=[];for(let k=0;k+60<=fv.length;k+=60){const c=new THREE.Vector3();for(let j=0;j<60;j++)c.add(fv[k+j]);c.multiplyScalar(1/60);balls.push(c);}
+ const bad=balls.filter(c=>!(c.z<hub.z&&hub.z-c.z<=.12*H&&Math.hypot(c.x-hub.x,c.y-hub.y)<=.3*crownR));
+ fruit[model]={n:balls.length,bad:bad.length,maxDrop:+Math.max(...balls.map(c=>hub.z-c.z)).toFixed(3),maxHoriz:+Math.max(...balls.map(c=>Math.hypot(c.x-hub.x,c.y-hub.y))).toFixed(3),limitHoriz:+(.3*crownR).toFixed(3)};}
+check('南迴-棕櫚 coconut fruit 每款椰子 ≥3 顆果，每顆都在掛點下方（≤ 整棵高×.12）、水平距離 ≤0.3×樹冠半徑',
+ Object.keys(fruit).length===3&&Object.values(fruit).every(f=>f.n>=3&&f.bad===0),fruit);
+
+// (11) 預算：每棵三角形椰子 ≤900（含椰子果）、檳榔 ≤450；棕櫚 InstancedMesh 數（＝draw call 數）≤ HEAD 的 10。
+const palmDrawMeshes=[...meshByName.keys()].filter(n=>n.startsWith('palm-')&&!BL_NAMES.includes(n)).length;
+const trisPerTree=Object.fromEntries(PALM_MODELS.map(m=>[m,geomInfo[m]?.tris]));
+check('南迴-棕櫚 budget 每棵三角形 椰子 ≤900、檳榔 ≤450；棕櫚 InstancedMesh ≤10（HEAD 10 個）',
+ PALM_MODELS.every(m=>trisPerTree[m]>0&&trisPerTree[m]<=(isCoco(m)?900:450))&&palmDrawMeshes<=10,{trisPerTree,palmDrawMeshes});
+
+// ── 09-28 山上植被精修（評審「01 藍皮」第 2 項）的判準，沿用、改讀新的 mesh：彎幹棕櫚／闊葉樹高度／海拔限制／
+// 稜線闊葉覆蓋／撒點間距／貼地誤差。terrain（height 函式＋PEAK）直接從 scene 拿。──
+// 彎幹可見度：綠色樹冠水平中心相對樹幹底的偏移，彎幹 A/B ≥0.25；直幹（前排）對照組同一量測列在 detail。
+const curved=trees.filter(t=>t.model==='coco-curved-a'||t.model==='coco-curved-b'),straightFront=trees.filter(t=>t.model==='coco-straight'&&!t.back);
+check('南迴-彎幹棕櫚 curvature 兩款彎幹椰子的樹冠中心都明顯偏離樹幹底部正上方（水平偏移 ≥0.25，直幹對照組列在 detail）',
+ curved.length>0&&curved.every(t=>t.hubOffset>=.25),{curvedOffsetRange:minMax(curved,'hubOffset'),straightControlRange:minMax(straightFront,'hubOffset'),n:curved.length});
+
+// 闊葉樹整棵高度（樹幹底到樹冠逐頂點最高點）：沿用（實測 A:2.156~3.496、B:1.762~2.843）。
 const HEIGHT_RANGE_BROADLEAF={a:[1.9,3.7],b:[1.5,3.0]};
-const blAHeights=canopyHeights(broadleafATrunkMesh,broadleafACanopyMesh),blBHeights=canopyHeights(broadleafBTrunkMesh,broadleafBCanopyMesh);
-const blHeightOk=blAHeights.length>0&&blBHeights.length>0&&blAHeights.every(h=>h>=HEIGHT_RANGE_BROADLEAF.a[0]&&h<=HEIGHT_RANGE_BROADLEAF.a[1])&&blBHeights.every(h=>h>=HEIGHT_RANGE_BROADLEAF.b[0]&&h<=HEIGHT_RANGE_BROADLEAF.b[1]);
+const blHeightOk=blA.length>0&&blB.length>0&&blA.every(b=>b.h>=HEIGHT_RANGE_BROADLEAF.a[0]&&b.h<=HEIGHT_RANGE_BROADLEAF.a[1])&&blB.every(b=>b.h>=HEIGHT_RANGE_BROADLEAF.b[0]&&b.h<=HEIGHT_RANGE_BROADLEAF.b[1]);
 check('南迴-闊葉樹 height 兩款闊葉樹整棵高度（樹幹底到樹冠逐頂點最高點）都落在設計範圍內',blHeightOk,
- {aRange:[Math.min(...blAHeights),Math.max(...blAHeights)].map(v=>+v.toFixed(3)),bRange:[Math.min(...blBHeights),Math.max(...blBHeights)].map(v=>+v.toFixed(3)),target:HEIGHT_RANGE_BROADLEAF});
+ {aRange:minMax(blA,'h'),bRange:minMax(blB,'h'),target:HEIGHT_RANGE_BROADLEAF});
 
-// 海拔限制：棕櫚（四款合計）裡 ratio=height(x,y)/PEAK >0.35 的比例 ≤10%（海岸平地/低坡才長棕櫚，
-// 不是評審批評的「種到稜線」）；ratio 直接用 terrain.height 對每棵樹實際世界座標算，不是撒點時的
-// 中繼變數。
-const allPalmMeshes=[betelTrunkMesh,cocoTrunkMesh,cocoCurvedATrunkMesh,cocoCurvedBTrunkMesh].filter(Boolean);
-const allBroadleafMeshes=[broadleafATrunkMesh,broadleafBTrunkMesh].filter(Boolean);
-function worldXY(mesh){const out=[];for(let i=0;i<mesh.count;i++){const {p}=decomposeAt(mesh,i);out.push(p);}return out;}
-const palmPts=allPalmMeshes.flatMap(worldXY).filter(p=>p.y<BACK_ROW_Y); // 排除後排平地椰子（不在山坡上，ratio 概念不適用）。
+// 海拔限制：山坡棕櫚（排除後排平地）裡 ratio=height(x,y)/PEAK >0.35 的比例 ≤10%。
+const palmPts=trees.filter(t=>!t.back);
 const palmRatios=palmPts.map(p=>terrain.height(p.x,p.y)/terrain.peak);
 const palmAbove35=palmRatios.filter(r=>r>.35).length,palmAbove35Pct=palmAbove35/palmRatios.length;
-check('南迴-山上植被 elevation-restriction 棕櫚（檳榔＋三款椰子，排除後排平地）裡 ratio(高度/山頂)>0.35 的比例 ≤10%（實測 4.4%，海岸低坡才有棕櫚）',
+check('南迴-山上植被 elevation-restriction 棕櫚（檳榔＋三款椰子，排除後排平地）裡 ratio(高度/山頂)>0.35 的比例 ≤10%（海岸低坡才有棕櫚）',
  palmAbove35Pct<=.10,{palmAbove35,total:palmRatios.length,palmAbove35Pct:+palmAbove35Pct.toFixed(4)});
 
-// 稜線覆蓋：ratio>=0.5 的「已種植」植被（棕櫚+闊葉，不含空位）裡闊葉佔比 ≥0.85。
-const broadleafPts=allBroadleafMeshes.flatMap(worldXY);
-const ridgePalmRatios=palmPts.map(p=>terrain.height(p.x,p.y)/terrain.peak).filter(r=>r>=.5).length;
-const ridgeBroadleafRatios=broadleafPts.map(p=>terrain.height(p.x,p.y)/terrain.peak).filter(r=>r>=.5).length;
-const ridgeTotal=ridgePalmRatios+ridgeBroadleafRatios,ridgeBroadleafPct=ridgeTotal?ridgeBroadleafRatios/ridgeTotal:NaN;
-check('南迴-山上植被 ridge-coverage 稜線（ratio(高度/山頂)>=0.5）的植被裡闊葉佔比 ≥0.85（實測 97.1%）',
- ridgeTotal>0&&ridgeBroadleafPct>=.85,{ridgePalmCount:ridgePalmRatios,ridgeBroadleafCount:ridgeBroadleafRatios,ridgeTotal,ridgeBroadleafPct:+ridgeBroadleafPct.toFixed(4)});
+// 稜線覆蓋：ratio>=0.5 的已種植植被（棕櫚＋闊葉）裡闊葉佔比 ≥0.85。
+function worldXY(mesh){const out=[];if(!mesh)return out;for(let i=0;i<mesh.count;i++)out.push(decomposeAt(mesh,i).p);return out;}
+const broadleafPts=[...worldXY(blMesh['palm-broadleaf-a-trunk']),...worldXY(blMesh['palm-broadleaf-b-trunk'])];
+const ridgePalm=palmRatios.filter(r=>r>=.5).length,ridgeBroadleaf=broadleafPts.map(p=>terrain.height(p.x,p.y)/terrain.peak).filter(r=>r>=.5).length;
+const ridgeTotal=ridgePalm+ridgeBroadleaf,ridgeBroadleafPct=ridgeTotal?ridgeBroadleaf/ridgeTotal:NaN;
+check('南迴-山上植被 ridge-coverage 稜線（ratio(高度/山頂)>=0.5）的植被裡闊葉佔比 ≥0.85',
+ ridgeTotal>0&&ridgeBroadleafPct>=.85,{ridgePalm,ridgeBroadleaf,ridgeTotal,ridgeBroadleafPct:+ridgeBroadleafPct.toFixed(4)});
 
-// 撒點間距：全部山坡植被（棕櫚 4 款＋闊葉 2 款，不含後排平地）合併看最近鄰距離的變異係數，
-// ≥0.25 代表不是等距排列的網格（評審批評「插滿牙籤」的另一半——不只物種單一，排列也規律）。
+// 撒點間距：山坡植被（棕櫚＋闊葉，不含後排平地）最近鄰距離變異係數 ≥0.25（不是等距網格）。
 function nnCV(points){if(points.length<3)return NaN;const d=[];for(let a=0;a<points.length;a++){let best=Infinity;for(let b=0;b<points.length;b++){if(a===b)continue;const dist=Math.hypot(points[a].x-points[b].x,points[a].y-points[b].y);if(dist<best)best=dist;}d.push(best);}
  const mean=d.reduce((s,v)=>s+v,0)/d.length,vr=d.reduce((s,v)=>s+(v-mean)**2,0)/d.length;return Math.sqrt(vr)/mean;}
-const spacingPts=[...palmPts,...broadleafPts];
-const spacingCV=nnCV(spacingPts);
-check('南迴-山上植被 spacing 山坡植被最近鄰距離變異係數 ≥0.25（不是等距排列的網格，實測 0.83）',
- spacingCV>=.25,{spacingCV:+spacingCV.toFixed(4),n:spacingPts.length});
+const spacingPts=[...palmPts,...broadleafPts],spacingCV=nnCV(spacingPts);
+check('南迴-山上植被 spacing 山坡植被最近鄰距離變異係數 ≥0.25（不是等距排列的網格）',spacingCV>=.25,{spacingCV:+spacingCV.toFixed(4),n:spacingPts.length});
 
-// 貼地：樹幹底部世界 z 與 terrain.height(x,y) 誤差 ≤0.02（排除後排平地——那裡本來就不是用山坡
-// 地形高度，是固定平地 z=.3，height(x,y) 在那裡不代表任何設計意圖）。
-function groundErr(mesh,filterFn){if(!mesh)return[];const out=[];for(let i=0;i<mesh.count;i++){const {p}=decomposeAt(mesh,i);if(filterFn&&!filterFn(p))continue;out.push(Math.abs(p.z-terrain.height(p.x,p.y)));}return out;}
-const groundErrs=[...groundErr(betelTrunkMesh),...groundErr(cocoTrunkMesh,p=>p.y<BACK_ROW_Y),
- ...groundErr(cocoCurvedATrunkMesh),...groundErr(cocoCurvedBTrunkMesh),...groundErr(broadleafATrunkMesh),...groundErr(broadleafBTrunkMesh)];
+// 貼地：樹幹底部世界 z 與 terrain.height(x,y) 誤差 ≤0.02（排除後排平地，那裡是固定 z=.3）。
+const groundErrs=[...palmPts,...worldXY(blMesh['palm-broadleaf-a-trunk']),...worldXY(blMesh['palm-broadleaf-b-trunk'])].map(p=>Math.abs(p.z-terrain.height(p.x,p.y)));
 const maxGroundErr=groundErrs.length?Math.max(...groundErrs):Infinity;
 check('南迴-山上植被 ground-snap 樹幹底部貼地誤差 ≤0.02（跟地形 terrain.height(x,y) 比對，排除後排平地）',
  groundErrs.length>0&&maxGroundErr<=.02,{maxGroundErr:+maxGroundErr.toFixed(5),n:groundErrs.length});
