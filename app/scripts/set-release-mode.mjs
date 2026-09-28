@@ -401,10 +401,12 @@ const MODES = {
     //   寶可夢主題列車 v0925a／v0925c、左營站區平面、A4 層位、面板標題遮擋與長站名溢出、閘門改空埠）
     //   ＋跟車卡台鐵／高鐵進站軌道（iOS 3c64ce49、Android 63be5384）＋iOS 捷運等車卡改用推播 tick（3cfd1e5e）。
     //   why 三語待使用者核准（299／498／431 字元）。
-    marketing: '1.6.12', build: '125', music: true, metroCore: true, androidPlus: true,
-    why: '軌島 1.6.12\n\n・認得出寶可夢 30 周年主題列車（9/25–12/13）：當天那幾班的車牌寫成「寶可夢 2183」，列車卡附介紹\n・台鐵、高鐵跟車卡加入進站軌道（iPhone 鎖定畫面與動態島、Android 16 通知）\n・iPhone 捷運等車卡的列車每 30 秒往前挪一格\n・機捷改用台灣設計展最新公告的班表，10/12 起接上展後班表\n・淡海輕軌假日往崁頂、往淡水漁人碼頭的車改回停靠新市一路\n・立體地圖：高鐵左營站區改回平面；臺北車站的臺鐵列車不再畫在屋頂上，高捷紅線地下段不再浮在地面上\n・跟隨立體列車時的頓挫再減少\n・修正 iPhone 英日文介面選到長名稱時，畫面能左右拖動',
-    whyEn: 'Rail Island 1.6.12\n\n• Labels the Pokémon 30th Anniversary Train (Sep 25–Dec 13) with its own plate and intro\n• TRA and THSR follow cards get an arrival track\n• iPhone metro cards move the train every 30 seconds\n• Airport MRT: latest Design Expo timetable, post-expo from Oct 12\n• Danhai LRT weekend trains stop at Xinshi 1st Rd. again\n• 3D map: fixed heights at Zuoying, Taipei Station and the Kaohsiung Red Line\n• Smoother 3D train following\n• Fixed iPhone screens sliding sideways with long names',
-    whyJa: '軌島 1.6.12\n\n・ポケモン30周年テーマ列車（9/25–12/13）に対応しました。当日の該当列車は地図の車番が「ポケモン 2183」のように表示され、列車カードに紹介が付きます\n・台鉄・高鉄の追従カードに到着トラックを追加しました（iPhone のロック画面とダイナミックアイランド、Android 16 の通知）\n・iPhone の地下鉄待ち案内カードで、列車が30秒ごとに前へ進むようになりました\n・空港MRTを台湾デザイン展の最新の公式ダイヤに更新し、10/12 からは閉幕後のダイヤに切り替わります\n・淡海ライトレールの休日の崁頂・淡水漁人碼頭方面が、新市一路に再び停車するようになりました\n・3D地図：高鉄左営駅構内を平面に戻し、台北駅の台鉄列車と高雄MRT紅線の地下区間が地上に浮かないようにしました\n・3D列車の追従がさらに滑らかになりました\n・iPhone の英語・日本語表示で、長い名前を選ぶと画面が左右に動いてしまう問題を修正しました',
+    // 126／Android 65（2026-09-28）：Apple lookup 確認 1.6.12 已上架；包含 v0926b 之後至 v0928c 的全部更新。
+    // 固定 KLRT 私有 runtime 0671cd3；公開 App 只帶播放／看板串接，不打包私有演算法。
+    marketing: '1.6.13', build: '126', music: true, metroCore: true, androidPlus: true,
+    why: '軌島 1.6.13\n\n・高雄輕軌依官方倒數顯示起點待發車，發車後可接續跟隨；站牌分開顯示順、逆時針來車\n・更新台鐵 10/3 起班表與平鎮臨時站資料，改善進站、彎道與同軌列車的呈現\n・更新北捷紅線、三鶯線軌道；切換立體地圖主題後保留建物透視設定\n・新增 27 首串流配樂\n・修正 iPhone 車次與時速對齊、長名稱溢出，改善手機橫向面板與切換系統的卡頓\n・修正車庫列車轉向，以及福森號、栩悅號的觀景端朝向',
+    whyEn: 'Rail Island 1.6.13\n\n• Kaohsiung LRT: origin departures and separate clockwise/counterclockwise boards\n• TRA: Oct 3 timetable, Pingzhen temporary station, improved track and arrival display\n• Updated Taipei Red Line and Sanying tracks; 3D see-through setting stays after theme changes\n• 27 new streaming music tracks\n• Fixed iPhone labels, long names, landscape panels and pauses when switching systems\n• Corrected garage train turns and scenic train orientation',
+    whyJa: '軌島 1.6.13\n\n・高雄ライトレールで公式の発車予告に合わせて始発待ちの列車を表示し、発車後も追従できるようにしました。時計回り・反時計回りの案内を分けて表示します\n・台鉄の10/3以降のダイヤと平鎮臨時駅を更新し、到着・カーブ・同一線路上の列車の表示を改善しました\n・台北MRT紅線・三鶯線の線路を更新し、3Dテーマ変更後も建物の透過設定を保持します\n・配信BGMを27曲追加しました\n・iPhoneの車番と速度の位置、長い名称、横画面のパネル、路線切替時の動作を改善しました\n・車庫の列車の向きと福森号・栩悦号の展望車側の向きを修正しました',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
