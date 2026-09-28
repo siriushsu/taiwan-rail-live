@@ -1,5 +1,5 @@
 import * as THREE from '../../rail-3d/vendor/three.module.js';
-import {createScene,THEMES,createAttendant} from '../../rail-3d/garage-scenes/south-coast.js';
+import {createScene,THEMES,createAttendant} from '../../rail-3d/garage-scenes/south-coast.js?revision=coast-polish-20260928';
 import {loadGarageModel,createConsist,loadGarageParts} from '../../rail-3d/garage-model.js?revision=headlights-0912';
 import {createPeople} from '../../rail-3d/garage-people.js?revision=people-0927';
 import {createStopTimetable} from '../../rail-3d/garage-scenes/stop-timetable.js?revision=stop-0927';
@@ -7,7 +7,7 @@ const canvas=document.querySelector('#scene'),loading=document.querySelector('#l
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const SPEED=2.1; // 巡航時每秒沿路徑前進的弧長；位置一律由停站時刻表從時間求出（setTime／setDistance 與逐幀播放同一條路）。
 const STATION_OFFSET=-3; // path 的 s=0 落在地圖 x=0（沿海直線段 x=s），小站月台實際中心在 x=-3；停站永遠停在 s≡0，這裡把它搬到月台中心。
-let tt,stop,people=null,attendant=null,palmsKit=null,renderer,environment,primary,train,coast,raf=0,last=0,time=0,distance=0,period='day',view=matchMedia('(max-width:800px)').matches?'train':'world',running=!reduced.matches,zoom=1,span=1,cameraYaw=-1.14,yaw=-1.14,elevation=.65,disposed=false,ready=false,draws=0;
+let tt,stop,people=null,attendant=null,palmsKit=null,stationKit=null,renderer,environment,primary,train,coast,raf=0,last=0,time=0,distance=0,period='day',view=matchMedia('(max-width:800px)').matches?'train':'world',running=!reduced.matches,zoom=1,span=1,cameraYaw=-1.14,yaw=-1.14,elevation=.65,disposed=false,ready=false,draws=0;
 const scene=new THREE.Scene(),camera=new THREE.OrthographicCamera(-40,40,30,-30,.1,400);camera.up.set(0,0,1);
 const focus=new THREE.Vector3(),pan=new THREE.Vector3(),target=new THREE.Vector3(),sun=new THREE.DirectionalLight('#fff1cf',3.2),hemi=new THREE.HemisphereLight('#c1dce7','#7b8663',2.1);
 sun.position.set(-25,-30,45);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-42,right:42,top:35,bottom:-35,near:1,far:140});sun.shadow.normalBias=.035;sun.shadow.bias=-.0001;scene.add(sun,hemi,sun.target);
@@ -35,7 +35,7 @@ function draw(){
  canvas.dataset.ready='true';canvas.dataset.distance=String(distance);canvas.dataset.period=period;canvas.dataset.view=view;
 }
 function frame(at){raf=0;if(disposed||document.hidden)return;if(last&&at-last<32){schedule();return;}const dt=last?Math.min((at-last)/1000,.08):0;last=at;if(running)time+=dt;draw();if(running)schedule();}
-function reset(){zoom=1;pan.set(0,0,0);yaw=view==='platform'?-1.3:view==='train'?-Math.PI/2:-1.14;elevation=view==='platform'?.24:.65;controls();schedule();}
+function reset(){zoom=1;pan.set(0,0,0);yaw=view==='platform'?-.1:view==='train'?-Math.PI/2:-1.14;elevation=view==='platform'?.4:.65;controls();schedule();}
 function setView(next){view=next;document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));document.querySelector('#platform')?.setAttribute('aria-pressed',String(view==='platform'));reset();}
 function setZoom(z){zoom=Math.max(.7,Math.min(1.8,z));controls();schedule();}
 for(const b of document.querySelectorAll('button[data-period]'))b.onclick=()=>setTheme(b.dataset.period);
@@ -57,14 +57,14 @@ canvas.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','-'
 const observer=new ResizeObserver(resize);observer.observe(canvas);
 document.addEventListener('visibilitychange',()=>{last=0;if(document.hidden){cancelAnimationFrame(raf);raf=0;}else schedule();});
 reduced.addEventListener('change',()=>{if(reduced.matches){running=false;controls();schedule();}});
-function dispose(){if(disposed)return;disposed=true;ready=false;cancelAnimationFrame(raf);observer.disconnect();people?.dispose();palmsKit?.dispose();train?.dispose();primary?.dispose();coast?.dispose();environment?.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();renderer?.dispose();}
+function dispose(){if(disposed)return;disposed=true;ready=false;cancelAnimationFrame(raf);observer.disconnect();people?.dispose();palmsKit?.dispose();stationKit?.dispose();train?.dispose();primary?.dispose();coast?.dispose();environment?.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();renderer?.dispose();}
 window.addEventListener('pagehide',dispose);window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 try{
  renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();dispose();loading.hidden=false;loading.replaceChildren(document.createTextNode('畫面暫時中斷，請重新開啟場景。'));const b=document.createElement('button');b.textContent='重新開啟';b.onclick=()=>location.reload();loading.append(b);});
  const studio=new THREE.Scene();studio.background=new THREE.Color('#9dafb0');const pmrem=new THREE.PMREMGenerator(renderer);environment=pmrem.fromScene(studio,.1);scene.environment=environment.texture;pmrem.dispose();
- palmsKit=await loadGarageParts(new URL('../../rail-3d/assets/garage-palms-v1/palms.json',import.meta.url));if(disposed){palmsKit.dispose();throw Error('disposed');}
- coast=createScene(palmsKit);scene.add(coast.group);tt=createStopTimetable({pathLength:coast.path.length,speed:SPEED});stop=tt.at(time);
+ [palmsKit,stationKit]=await Promise.all([loadGarageParts(new URL('../../rail-3d/assets/garage-palms-v1/palms.json',import.meta.url)),loadGarageParts(new URL('../../rail-3d/assets/garage-coast-v1/station.json',import.meta.url))]);if(disposed){palmsKit.dispose();stationKit.dispose();throw Error('disposed');}
+ coast=createScene(palmsKit,stationKit);scene.add(coast.group);tt=createStopTimetable({pathLength:coast.path.length,speed:SPEED});stop=tt.at(time);
  primary=await loadGarageModel('blue');if(disposed){primary.dispose();throw Error('disposed');}train=await createConsist('blue',primary);if(disposed){train.dispose();throw Error('disposed');}scene.add(train.root);train.root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
  // 月台乘客：候車的人＋一位站務員都是不上下車的「idle」人物（高架景的上下車劇本靠 doors 陣列驅動，這裡傳空陣列就不會有人上下車）。
  const kit=await loadGarageParts(new URL('../../rail-3d/assets/garage-people-v1/people.json',import.meta.url));if(disposed){kit.dispose();throw Error('disposed');}
@@ -106,6 +106,34 @@ try{
   },
   sceneVisible:visible=>{coast.group.visible=ground.visible=visible;draw();},
   trainVisible:visible=>{train.root.visible=visible;draw();},
-  peopleVisible:v=>{people?.setVisible(v);draw();}
+  peopleVisible:v=>{people?.setVisible(v);draw();},
+  // 「看月台」鏡頭驗收：對每個人頭中心，用該像素在畫面上的實際平行光線（正交相機，setFromCamera
+  // 會依 near 平面上對應那一欄構出跟渲染時同一條光線，不是從 camera.position 幅射的透視光線）
+  // 對列車、場景（含站房／棕櫚／護欄等 coast.group 內的一切）各自 raycast，量「有沒有比這個人更近
+  // 的東西擋在中間」——不假設「第一個命中一定是人」（人體網格很薄，光線穿心點未必真的打在網格上），
+  // 只問「列車或場景有沒有擋在人前面」，符合判準原文「第一個命中的就是那個人」的實際可驗證形式。
+  platformSightlines(){
+   const pb=this.peopleBounds();
+   const headMesh2=attendant.children.find(o=>o.geometry===kit.parts.get('head').geometry);
+   const targets=pb.heads.map((h,i)=>({label:'passenger'+i,pos:h}));
+   if(headMesh2)targets.push({label:'attendant',pos:headMesh2.position.toArray()});
+   const raycaster=new THREE.Raycaster(),out=[];
+   for(const t of targets){
+    const world=new THREE.Vector3(...t.pos),ndc=world.clone().project(camera);
+    raycaster.setFromCamera({x:ndc.x,y:ndc.y},camera);
+    const dist=raycaster.ray.origin.distanceTo(world);
+    const trainHit=raycaster.intersectObject(train.root,true)[0];
+    const coastHit=raycaster.intersectObject(coast.group,true)[0];
+    const EPS=.05;
+    const blockedByTrain=!!trainHit&&trainHit.distance<dist-EPS;
+    const blockedByCoast=!!coastHit&&coastHit.distance<dist-EPS;
+    out.push({label:t.label,pos:t.pos,dist:+dist.toFixed(3),visible:!blockedByTrain&&!blockedByCoast,
+     blockedBy:blockedByTrain?'train':blockedByCoast?'coast':null,
+     blockDist:blockedByTrain?+trainHit.distance.toFixed(3):blockedByCoast?+coastHit.distance.toFixed(3):null,
+     blockName:blockedByTrain?trainHit.object.name:blockedByCoast?coastHit.object.name:null,
+     inFrame:ndc.x>=-1&&ndc.x<=1&&ndc.y>=-1&&ndc.y<=1});
+   }
+   return out;
+  }
  };
 }catch(e){if(!disposed){dispose();loading.hidden=false;loading.textContent='小車暫時無法載入。';const b=document.createElement('button');b.textContent='重新載入';b.onclick=()=>location.reload();loading.append(b);}console.error(e);}

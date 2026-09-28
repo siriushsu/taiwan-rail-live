@@ -6,7 +6,7 @@ export const THEMES = {
  sunset:{background:'#e9d6c3',sun:'#ffbc77',ambient:'#d5b7b2',ground:'#6c7161',power:3.1,exposure:.95,water:'#547f89',shallow:'#9db5a4'},
  night:{background:'#172c38',sun:'#a4c8eb',ambient:'#69839d',ground:'#2d3b40',power:.7,exposure:.78,water:'#193e55',shallow:'#3b6975'}
 };
-export function createScene(palmsKit=null){
+export function createScene(palmsKit=null,stationKit=null){
  const group=new THREE.Group(),geometries=new Set(),materials=new Set();
  let seed=9184; const rand=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
  const geo=g=>(geometries.add(g),g),mat=(color,more={})=>{const m=new THREE.MeshStandardMaterial({color,roughness:.88,...more});materials.add(m);return m;};
@@ -18,6 +18,8 @@ export function createScene(palmsKit=null){
  // 拿不到非同步資源（見檔尾 createAttendant 的說明）。沒有 kit 時就不種樹，其餘場景不受影響——
  // 沿用既有 Node 端 verify（scripts/verify_garage_south_coast_stop.mjs）呼叫 createScene() 的慣例。
  const grass=mat('#809475'),rock=mat('#879081'),sand=mat('#c1bb9f'),gravel=mat('#a69c84'),wood=mat('#5b4c3a'),steel=mat('#8a9291',{metalness:.65,roughness:.35}),cream=mat('#e9dfc3'),roof=mat('#557f7b'),red=mat('#a45c46'),trunk=mat('#71664e');
+ // lamp／windows 是發光材質，掛在路燈玻璃與窗玻璃兩個 Blender 零件（garage-coast-v1）上，
+ // 材質物件本身不變，update() 照舊只切 emissiveIntensity 就能驅動日夜——見檔尾 update()。
  const lamp=mat('#f6d797',{emissive:'#ffc879',emissiveIntensity:.08});
  const windows=mat('#718e8a',{metalness:.15,roughness:.25,emissive:'#ffc47e',emissiveIntensity:0});
  function mesh(g,m,pos){const o=new THREE.Mesh(g,m);if(pos)o.position.set(...pos);o.castShadow=true;o.receiveShadow=true;group.add(o);return o;}
@@ -89,7 +91,34 @@ export function createScene(palmsKit=null){
  // 後排火柴棒，是量測後才發現前排最細的樹也貼著門檻），故小幅調大到量測後全數過門檻、且不頂到高度
  // 上限的值——調整前排同時也讓後排幼樹（用同一個倍率，見 BACK_ROW_SCALE）的比例維持跟前排一致。
  const BETEL_SPREAD_MULT=1.30,COCO_SPREAD_MULT=1.55;
+ // 山上植被精修（獨立評審 2026-09-28「01 藍皮」第 2 項）：棕櫚（含彎幹）只留海岸平地/低坡，
+ // 稜線改闊葉樹冠團塊——原本檳榔不分海拔種到山頂，遠看像「插滿牙籤的綠色軟糖」。物種取捨用
+ // z（已經抽出來的地形高度，不是新抽樣）換算成的高度比例＋雜湊值做決定性判斷，跟上面 plant/coco
+ // 判斷同一個紀律（雜湊取餘數、不呼叫新 rand()），不影響既有 rand() 序列（後排／礫石等下游
+ // 取樣的抽樣次序不變）。四個新零件（coco-curved-a/b-trunk、broadleaf-a/b-trunk+canopy）見
+ // scripts/blender/coast-20260928/build_coast_flora.py。
+ const PEAK=Math.max(...hills.map(h=>h[4])); // 9.2，跟地形同源用量的不手打常數。
+ // 門檻由 scratchpad/garage-b/sim_exact.mjs 對正式 seed=9184 逐配置實測選定（不是猜的）：
+ // [.18,.38,.01] 讓「棕櫚中 ratio>.35」≈5.8%（門檻 ≤10%）、「ridge(ratio≥.5) 已種植裡闊葉佔比」
+ // ≈97.1%（門檻 ≥90%），兩條驗收判準都留足夠餘裕，不是卡在臨界值。
+ const PALM_MAX_RATIO=.18,BROADLEAF_MIN_RATIO=.38,RIDGE_PALM_RESIDUAL=.01;
+ function paletteAt(ratio,hashVal){
+  if(ratio<PALM_MAX_RATIO)return'palm'; // 海岸平地/低坡：只長棕櫚。
+  if(ratio>=BROADLEAF_MIN_RATIO)return hashVal<RIDGE_PALM_RESIDUAL?'palm':'broadleaf'; // 稜線：幾乎全闊葉，留極少量棕櫚點綴不做死板二分。
+  const t=(ratio-PALM_MAX_RATIO)/(BROADLEAF_MIN_RATIO-PALM_MAX_RATIO);
+  return hashVal<1-t*(1-RIDGE_PALM_RESIDUAL)?'palm':'broadleaf'; // 過渡帶：棕櫚機率線性遞減，避免硬邊界。
+ }
+ // 彎幹椰子＝絕對尺寸＋執行期均勻縮放（跟直幹棕櫚的非均勻縮放不同，見 build_coast_flora.py
+ // 檔頭說明：曲度若用非均勻縮放會被半徑方向拉伸而失真）。CURVED_TOP_A/B 是頂環相對 REF_HEIGHT
+ // 的局部位移，必須跟建模腳本印出的 GD_COAST_FLORA_BUILD_OK.topA/topB 一致（本輪已核對：
+ // topA=[0.42,0]、topB=[0.377,0]）。su（uniform scale）用跟直幹椰子完全相同的 cocoSize(s).trunkH
+ // 反推，兩種椰子因此落在同一個既有驗證高度範圍，只有樹幹形狀不同。
+ const CURVED_REF_HEIGHT=2.2,CURVED_TOP_A=.42,CURVED_TOP_B=.377;
+ const broadleafTrunkMat=mat('#6b5d4a'),broadleafCanopyAMat=mat('#4a7048'),broadleafCanopyBMat=mat('#5c8a4f');
+ const BL_SCALE_MIN=.85,BL_SCALE_MAX=1.4; // 闊葉樹整棵縮放範圍，重用同一個 s（見迴圈內），不額外抽樣。
  const betelTrunks=[],betelCrowns=[],betelFronds=[],cocoTrunks=[],cocoFronds=[],cocoFruit=[],boulders=[];
+ const cocoCurvedATrunks=[],cocoCurvedAFronds=[],cocoCurvedBTrunks=[],cocoCurvedBFronds=[];
+ const broadleafATrunks=[],broadleafACanopy=[],broadleafBTrunks=[],broadleafBCanopy=[];
  // 一棵樹的樹冠扇葉：count 片羽狀葉繞 hub 均勻分布（baseYaw 用 i*2.399963 錯開每棵樹的起始角，跟舊版同一招）；
  // droop 依 j 用 sin(j*2.399963) 做決定性變化（非 rand()）——不讓全部扇葉共用同一個俯仰角，樹冠才不會讀起來
  // 像完美對稱的風車（舊版的抱怨之一），也讓樹冠有足夠的垂直厚度。jitters 只有前 2～3 片有（loop1/loop2 抽到的
@@ -110,24 +139,45 @@ export function createScene(palmsKit=null){
    list.push({pos:hub,rot:frondRot(droop+jy*.2,yaw+(jit?jx*.3:0)),scale:[len,len,len]});}
  }
  for(let i=0;i<460;i++){const x=rand()*51-25.5,y=rand()*7.4+1.2,z=height(x,y);if(z<.6)continue;const s=.38+rand()*.58;
-  const plant=((i*2654435761)>>>0)%1000<520,coco=plant&&z<1.35; // 山坡以檳榔為主、近山腳（z 較低）才偶爾種椰子。
-  let count=0,droopBase=0,droopAmp=0,spread=0,hub=[0,0,0];
+  const plant=((i*2654435761)>>>0)%1000<520; // 山坡「有沒有種東西」，跟原本一樣先決定，不因新的物種邏輯改變機率。
+  const ratio=z/PEAK,speciesHash=((i*2246822519)>>>0)%1000/1000; // 高度比例＋獨立雜湊決定棕櫚／闊葉（見上方 paletteAt）。
+  let kind='none';
   if(plant){
-   if(coco){const sz=cocoSize(s);hub=[x,y,z+sz.topZ];
-    cocoTrunks.push({pos:[x,y,z],rot:[(s-.5)*.5,0,i*.71],scale:[sz.trunkR,sz.trunkR,sz.trunkH]});
-    count=COCO_FRONDS;droopBase=COCO_DROOP;droopAmp=COCO_DROOP_AMP;spread=(sz.diam/2)*COCO_SPREAD_MULT; // 前排：跟車鏡頭遮擋量測顯示這一圈扇葉幾乎不影響能見度，維持較大尺寸。
-    // fr（果實離主幹的水平半徑）用 spread（實際扇葉長度基準）算、不是 sz.diam/2（設計目標值）：
-    // 這一排的扇葉刻意放大 1.40 倍，用未放大的 sz.diam/2 算 fr 會讓果實看起來飄在縮小版樹冠外面。
-    const fruitZ=z+sz.topZ*.92,fr=spread*.15;
-    for(let k=0;k<8;k++){const a=k*2.399963+i;cocoFruit.push({pos:[x+fr*Math.cos(a),y+fr*Math.sin(a),fruitZ-k*.004],rot:[0,0,0],scale:[.09,.09,.09]});}
-   }else{const sz=betelSize(s);hub=[x,y,z+sz.topZ];
-    betelTrunks.push({pos:[x,y,z],rot:[(s-.5)*.05,0,i*.71],scale:[sz.trunkR,sz.trunkR,sz.trunkH]});
-    betelCrowns.push({pos:[x,y,z+sz.trunkH-sz.crownH*.3],rot:[(s-.5)*.05,0,i*.71],scale:[sz.crownR,sz.crownR,sz.crownH]});
-    count=BETEL_FRONDS;droopBase=BETEL_DROOP;droopAmp=BETEL_DROOP_AMP;spread=(sz.diam/2)*BETEL_SPREAD_MULT;
-   }
+   if(paletteAt(ratio,speciesHash)==='palm'){
+    if(z<1.35){ // 近山腳／海岸最低處才是「椰子系」（沿用原本 coco 的 z 門檻），其餘棕櫚範圍是檳榔。
+     const vh=((i*3266489917)>>>0)%1000/1000; // 椰子系內再分直幹／彎幹 A／彎幹 B（多數彎幹，直接回應評審「同一款」的抱怨）。
+     kind=vh<.25?'coco':vh<.625?'cocoCurvedA':'cocoCurvedB';
+    }else kind='betel';
+   }else{const lh=((i*668265263)>>>0)%1000/1000;kind=lh<.5?'broadleafA':'broadleafB';}
+  }
+  let count=0,droopBase=0,droopAmp=0,spread=0,hub=[0,0,0],fronds=null;
+  if(kind==='coco'){const sz=cocoSize(s);hub=[x,y,z+sz.topZ];
+   cocoTrunks.push({pos:[x,y,z],rot:[(s-.5)*.5,0,i*.71],scale:[sz.trunkR,sz.trunkR,sz.trunkH]});
+   count=COCO_FRONDS;droopBase=COCO_DROOP;droopAmp=COCO_DROOP_AMP;spread=(sz.diam/2)*COCO_SPREAD_MULT;fronds=cocoFronds; // 前排：跟車鏡頭遮擋量測顯示這一圈扇葉幾乎不影響能見度，維持較大尺寸。
+   // fr（果實離主幹的水平半徑）用 spread（實際扇葉長度基準）算、不是 sz.diam/2（設計目標值）：
+   // 這一排的扇葉刻意放大 1.40 倍，用未放大的 sz.diam/2 算 fr 會讓果實看起來飄在縮小版樹冠外面。
+   const fruitZ=z+sz.topZ*.92,fr=spread*.15;
+   for(let k=0;k<8;k++){const a=k*2.399963+i;cocoFruit.push({pos:[x+fr*Math.cos(a),y+fr*Math.sin(a),fruitZ-k*.004],rot:[0,0,0],scale:[.09,.09,.09]});}
+  }else if(kind==='betel'){const sz=betelSize(s);hub=[x,y,z+sz.topZ];
+   betelTrunks.push({pos:[x,y,z],rot:[(s-.5)*.05,0,i*.71],scale:[sz.trunkR,sz.trunkR,sz.trunkH]});
+   betelCrowns.push({pos:[x,y,z+sz.trunkH-sz.crownH*.3],rot:[(s-.5)*.05,0,i*.71],scale:[sz.crownR,sz.crownR,sz.crownH]});
+   count=BETEL_FRONDS;droopBase=BETEL_DROOP;droopAmp=BETEL_DROOP_AMP;spread=(sz.diam/2)*BETEL_SPREAD_MULT;fronds=betelFronds;
+  }else if(kind==='cocoCurvedA'||kind==='cocoCurvedB'){
+   // 樹幹本身彎曲烘進幾何、朝局部 +X；用 yawTrunk 把整棵繞 Z 轉到任意方位，hub（葉冠掛點）跟著
+   // 同一個旋轉＋均勻縮放算世界座標，才會跟看得見的彎曲樹梢對齊（不是浮在樹幹正上方）。
+   const sz=cocoSize(s),su=sz.trunkH/CURVED_REF_HEIGHT,yawTrunk=i*.71,top=kind==='cocoCurvedA'?CURVED_TOP_A:CURVED_TOP_B;
+   hub=[x+su*top*Math.cos(yawTrunk),y+su*top*Math.sin(yawTrunk),z+sz.trunkH];
+   (kind==='cocoCurvedA'?cocoCurvedATrunks:cocoCurvedBTrunks).push({pos:[x,y,z],rot:[0,0,yawTrunk],scale:[su,su,su]});
+   count=COCO_FRONDS;droopBase=COCO_DROOP;droopAmp=COCO_DROOP_AMP;spread=(sz.diam/2)*COCO_SPREAD_MULT;
+   fronds=kind==='cocoCurvedA'?cocoCurvedAFronds:cocoCurvedBFronds;
+  }else if(kind==='broadleafA'||kind==='broadleafB'){
+   const bs=BL_SCALE_MIN+uOf(s)*(BL_SCALE_MAX-BL_SCALE_MIN),yawTrunk=i*.71; // 重用同一個 s，不額外抽樣。
+   const trunks=kind==='broadleafA'?broadleafATrunks:broadleafBTrunks,canopy=kind==='broadleafA'?broadleafACanopy:broadleafBCanopy;
+   trunks.push({pos:[x,y,z],rot:[0,0,yawTrunk],scale:[bs,bs,bs]});
+   canopy.push({pos:[x,y,z],rot:[0,0,yawTrunk],scale:[bs,bs,bs]});
   }
   const jitters=[];for(let j=0;j<3;j++){jitters.push([(rand()-.5)*s,(rand()-.5)*s]);}
-  if(plant)pushFronds(coco?cocoFronds:betelFronds,hub,count,droopBase,droopAmp,spread,i,jitters);
+  if(fronds)pushFronds(fronds,hub,count,droopBase,droopAmp,spread,i,jitters);
  }
  for(let i=0;i<110;i++){const x=rand()*55-27.5,y=12+rand()*4.4,s=.4+rand()*.5;
   const plant=((i*2654435761)>>>0)%1000<300; // 後排（車站周邊、內側平地）：椰子稀疏種，比例比山坡低很多。
@@ -147,20 +197,62 @@ export function createScene(palmsKit=null){
  for(let i=0;i<95;i++){const x=rand()*60-30,s=.15+rand()*.35;boulders.push({pos:[x,shore(x)+.4+rand()*.5,-.28],rot:[rand(),rand(),rand()],scale:[s*1.4,s,s*.8]});}
  if(palmsKit){
   const plant=(partName,material,items)=>{if(!items.length)return;const o=instances(palmsKit.parts.get(partName).geometry,material,items);o.name='palm-'+partName;};
+  // 彎幹椰子的葉冠沿用 coco-fronds 幾何（不重建），但要給獨立名字——沿用 partName 當名字會跟直幹
+  // 椰子的葉冠 InstancedMesh 撞名（THREE.Object3D.name 不要求唯一，但依名字查找的驗證/邏輯只會
+  // 找到第一個，彎幹那兩組會被靜默漏掉），故另開 plantAs 指定顯示名字、幾何仍指定用 partName 找。
+  const plantAs=(partName,label,material,items)=>{if(!items.length)return;const o=instances(palmsKit.parts.get(partName).geometry,material,items);o.name='palm-'+label;};
   plant('betel-trunk',trunk,betelTrunks);plant('betel-crownshaft',crownMat,betelCrowns);plant('betel-fronds',betelFrondMat,betelFronds);
   plant('coco-trunk',trunk,cocoTrunks);plant('coco-fronds',cocoFrondMat,cocoFronds);plant('coco-fruit',fruitMat,cocoFruit);
+  plant('coco-curved-a-trunk',trunk,cocoCurvedATrunks);plantAs('coco-fronds','coco-curved-a-fronds',cocoFrondMat,cocoCurvedAFronds);
+  plant('coco-curved-b-trunk',trunk,cocoCurvedBTrunks);plantAs('coco-fronds','coco-curved-b-fronds',cocoFrondMat,cocoCurvedBFronds);
+  plant('broadleaf-a-trunk',broadleafTrunkMat,broadleafATrunks);plant('broadleaf-a-canopy',broadleafCanopyAMat,broadleafACanopy);
+  plant('broadleaf-b-trunk',broadleafTrunkMat,broadleafBTrunks);plant('broadleaf-b-canopy',broadleafCanopyBMat,broadleafBCanopy);
  }
  instances(stoneGeo,rock,boulders);
  // 小站只取南迴沿線的意象，不標上真實站名。
  block(cream,[13,1.4,.5],[-3,-3.05,.20]);block(sand,[13.2,1.55,.10],[-3,-3.05,.49]);
  block(mat('#d2b675'),[13.1,.11,.035],[-3,-3.79,.565]);
- block(cream,[4.6,2.3,1.8],[-4,-.9,.9]);
- const roofShape=new THREE.Shape();roofShape.moveTo(-1.5,0);roofShape.lineTo(0,.75);roofShape.lineTo(1.5,0);roofShape.closePath();const rg=geo(new THREE.ExtrudeGeometry(roofShape,{depth:5.2,bevelEnabled:false}));rg.rotateX(Math.PI/2);rg.rotateZ(Math.PI/2);mesh(rg,roof,[-6.6,-.9,1.9]);
- for(const x of [-5.5,-4,-2.5])block(windows,[.85,.04,.76],[x,-2.071,1.05]);
- for(const x of [0,3]){block(wood,[.1,.1,2.1],[x,-2.6,1.05]);block(wood,[.1,.1,2.1],[x,-1.4,1.05]);}block(roof,[4.3,2,.16],[1.4,-2,2.12]);
- for(const x of [-7,1,4]){block(wood,[1.25,.36,.12],[x,-3,.91]);for(const dx of [-.44,.44])block(wood,[.09,.24,.37],[x+dx,-3,.7]);}
- for(const x of [-10.2,5.2]){block(wood,[.10,.1,2.35],[x,-3.05,1.55]);block(cream,[1.3,.12,.64],[x,-3.05,2.1]);block(roof,[1.3,.14,.13],[x,-3.05,1.88]);}
- const lights=[];for(const x of [-9,3,8]){block(wood,[.11,.11,2.8],[x,-1.8,1.4]);block(wood,[.7,.1,.08],[x+.3,-1.8,2.75]);block(lamp,[.35,.27,.12],[x+.55,-1.8,2.68]);const l=new THREE.PointLight('#ffca84',0,5,2);l.position.set(x+.55,-1.8,2.4);group.add(l);lights.push(l);}
+ // 站房與站體設施：獨立評審 2026-09-28「01 藍皮」第 3 項第一版（純 box/cylinder 疊法）被使用者
+ // 退回，原話「細節還是都需要用 blender 製作」。全部改用 Blender 建的 garage-parts-v1 零件庫
+ // （rail-3d/assets/garage-coast-v1，見 scripts/blender/coast-20260928/build_coast_station.py），
+ // stationKit 由呼叫端（main.js）跟 palmsKit 同一批非同步載入好才傳進來，沒有 kit 時就不畫站房，
+ // 其餘場景不受影響（跟棕櫚 kit 同一個道理）。窗框／門框這次是真正挖空的洞，玻璃／門片嵌進洞裡，
+ // 不再需要「哪一層比較貼近鏡頭」的 JS 深度戲法——第一版那個戲法曾經把順序寫反、窗框整片擋住玻璃，
+ // 現在這個坑在幾何層級就不存在了。
+ // 站名牌改成垃圾桶：使用者原話給的兩個選項之一（「不然就拿掉站牌，換成別的 Blender 站體設施」）。
+ // 空白站名牌本來就是原評審點名的缺陷，沒有文字/圖標內容，牌子做得再精緻多半還是「看起來空空的」；
+ // 垃圾桶不需要任何文字/圖案就能讀出「這是站體設施」。
+ const PLATFORM_TOP=.54; // 跟下面 platform.top 常數同一個值（那個宣告在這裡之後，此處先各自命名）。
+ if(stationKit){
+  const part=(name)=>stationKit.parts.get(name).geometry;
+  const place=(name,material,pos,label=name)=>{const o=instances(part(name),material,[{pos,rot:[0,0,0],scale:[1,1,1]}]);o.name='sk-'+label;return o;};
+  // 09-28 第二版重排：新門(.5 寬)比舊版(.42)寬，舊的窗3/門X（-2.68/-1.90）會讓門伸出牆體右緣、
+  // 雨庇底部也蓋進門框頂端——實測 verify_garage_south_coast_stop.mjs 抓到兩條真的重疊，不是
+  // 判準寫太嚴。三扇窗與門整組往左重新分配，窗與窗、窗與門之間都留 .25 淨空，門距牆體左右緣
+  // 都留 ≥.2 淨空（見該判準的 detail 輸出核對）；雨庇 Z 墊高到門頂上方留 ~.04 淨空。
+  const WX=[-5.6,-4.4,-3.2],WY=-2.05,WZ=1.05,DOOR_X=-2.2,DOOR_Z=.52,CANOPY_Z=1.18;
+  place('wall',cream,[-4,-.9,0]);
+  place('roof',roof,[-4,-.9,1.8]);
+  WX.forEach((x,i)=>{place('window-frame',wood,[x,WY,WZ],'window-frame'+i);place('window-glass',windows,[x,WY,WZ],'window-glass'+i);});
+  place('door',wood,[DOOR_X,WY,DOOR_Z]);
+  place('canopy',wood,[DOOR_X,WY,CANOPY_Z]);
+  // 長椅：椅面 3 條座板＋靠背＋兩腳，腳貼平台面（PLATFORM_TOP）、座面在腳頂上方。
+  [-7,1,4].forEach((x,i)=>{
+   [-.44,.44].forEach((dx,j)=>place('bench-leg',wood,[x+dx,-3,PLATFORM_TOP],`bench${i}-leg${j}`));
+   place('bench-seat',wood,[x,-3,PLATFORM_TOP+.35],`bench${i}-seat`);
+   place('bench-back',wood,[x,-3.16,PLATFORM_TOP+.35],`bench${i}-back`);
+  });
+  // 路燈：柱／臂／頭／玻璃共用同一個貼地點（局部座標系見 build_coast_station.py 檔頭說明）。
+  [-9,3,8].forEach((x,i)=>{
+   const at=[x,-1.8,0];
+   place('lamp-pole',wood,at,`lamp${i}-pole`);place('lamp-arm',wood,at,`lamp${i}-arm`);
+   place('lamp-head',steel,at,`lamp${i}-head`);place('lamp-glass',lamp,at,`lamp${i}-glass`);
+  });
+  // 垃圾桶（取代站名牌），貼平台面。
+  const binDark=mat('#2b2620');
+  [-10.2,5.2].forEach((x,i)=>{place('bin-body',binDark,[x,-3.05,PLATFORM_TOP],`bin${i}-body`);place('bin-rim',steel,[x,-3.05,PLATFORM_TOP],`bin${i}-rim`);});
+ }
+ const lights=[];for(const x of [-9,3,8]){const l=new THREE.PointLight('#ffca84',0,5,2);l.position.set(x+.55,-1.8,2.4);group.add(l);lights.push(l);}
  // 海側的低紅欄杆留出列車視線。
  for(let x=-11;x<=7;x+=.72)block(red,[.07,.07,.6],[x,-7.2,.2]);block(red,[18.2,.07,.065],[-2,-7.2,.50]);
  // 站務員改用 garage-people-v1 零件庫拼（見檔尾 createAttendant，跟候車乘客走同一條 personPose 路徑同一個比例尺），
@@ -173,7 +265,10 @@ export function createScene(palmsKit=null){
  const platform={edge:-3.8,outer:-2.3,top:.54,xMin:-9.5,xMax:3.5,
   benches:[{x:-7,y:-3,seat:.97},{x:1,y:-3,seat:.97},{x:4,y:-3,seat:.97}],
   signs:[{x:-6,y:-3.05},{x:-2.32,y:-3.05}],bridge:{x0:-3.05,x1:-2.95},obstacles:[],hutFront:-2.3};
- return {group,path,anchors,platform,label:'南迴海岸',camera:{yaw:-1.15,elevation:.65,radius:48},themes:THEMES,
+ // terrain 給驗證用（山坡植被的高度比例判準）：height 跟撒點迴圈是同一個函式（不是重算的近似值），
+ // peak 是同一個 PEAK 常數，hills 原始陣列一併附上供除錯；純資料，update()/dispose() 不會動它。
+ const terrain={height,hills,peak:PEAK};
+ return {group,path,anchors,platform,terrain,label:'南迴海岸',camera:{yaw:-1.15,elevation:.65,radius:48},themes:THEMES,
  update(time,period='day'){const t=THEMES[period]||THEMES.day;waterMat.color.set(t.water);if(waterMat.userData.shader){waterMat.userData.shader.uniforms.coastTime.value=time;waterMat.userData.shader.uniforms.shallow.value.set(t.shallow);}windows.emissiveIntensity=period==='night'?1.2:period==='sunset'?.35:0;lamp.emissiveIntensity=period==='night'?2:.08;lights.forEach(l=>l.intensity=period==='night'?5:0);return t;},
  dispose(){group.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());}
  };

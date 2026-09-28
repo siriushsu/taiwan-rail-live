@@ -18,7 +18,24 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
    const cars=api.state.bounds.map(b=>{let n=0,changed=0;for(let y=Math.max(0,Math.floor(b.top));y<Math.min(c.height,b.bottom);y++)for(let x=Math.max(0,Math.floor(b.left));x<Math.min(c.width,b.right);x++){const i=(y*c.width+x)*4;n++;if(Math.abs(full[i]-empty[i])+Math.abs(full[i+1]-empty[i+1])+Math.abs(full[i+2]-empty[i+2])>25)changed++;}return{n,changed};});
    const point=api.project([-4,-14,-.61]),i=(Math.round(point.y)*c.width+Math.round(point.x))*4;return{cars,water:[full[i],full[i+1],full[i+2]]};
   });check(engine+' 三節車體實際像素與海面',pixel.cars.every(c=>c.changed>30)&&pixel.water[2]>pixel.water[0]+10,pixel);
-  for(const period of ['day','sunset','night']){await p.tap('button[data-period="'+period+'"]');await settle(p);await p.screenshot({path:`${OUT}/${engine}-${period}.png`});check(engine+' '+period+' 切換', (await state(p)).period===period);}
+  // 09-28 站房精修第二版新增：窗框/玻璃改用 Blender 真挖洞設計後，「玻璃會不會被窗框整片擋住」這件事
+  // 已經在幾何層級不可能發生（見 verify_garage_south_coast_stop.mjs 檔頭理由 2），改成量這條唯一真正
+  // 還需要驗的事——夜間 emissiveIntensity 切到 1.2 是否真的讓玻璃像素變亮，不是只讀 state.period
+  // 字串。取樣點用中間那扇窗（world [-4.4,-2.05,1.05]，跟 south-coast.js 的 WX[1]/WY/WZ 同一個點，
+  // 剛好是窗框洞口＋玻璃共用的擺放中心），沿用本檔案已有的 canvas.toDataURL()+getImageData 讀像素模式
+  // （跟上面「三節車體實際像素」同一套手法，不是另外發明的量測方式）。
+  const glowSamples={};
+  for(const period of ['day','sunset','night']){await p.tap('button[data-period="'+period+'"]');await settle(p);await p.screenshot({path:`${OUT}/${engine}-${period}.png`});check(engine+' '+period+' 切換', (await state(p)).period===period);
+   if(period==='day'||period==='night')glowSamples[period]=await p.evaluate(async()=>{
+    const api=southCoastPreview,c=document.querySelector('#scene'),pt=api.project([-4.4,-2.05,1.05]);
+    const out=document.createElement('canvas');out.width=c.width;out.height=c.height;const ctx=out.getContext('2d');
+    const im=new Image();im.src=c.toDataURL();await im.decode();ctx.drawImage(im,0,0);
+    const x=Math.max(0,Math.min(c.width-5,Math.round(pt.x)-2)),y=Math.max(0,Math.min(c.height-5,Math.round(pt.y)-2));
+    const d=ctx.getImageData(x,y,5,5).data;let r=0,g=0,b=0,n=0;for(let i=0;i<d.length;i+=4){r+=d[i];g+=d[i+1];b+=d[i+2];n++;}return{r:r/n,g:g/n,b:b/n};
+   });
+  }
+  const dayBright=glowSamples.day.r+glowSamples.day.g+glowSamples.day.b,nightBright=glowSamples.night.r+glowSamples.night.g+glowSamples.night.b;
+  check(engine+' 南迴-站房 夜間窗玻璃像素確實比白天亮（採樣中間那扇窗中心 5×5，評審判準：夜晚窗玻璃的像素確實發光）',nightBright>dayBright+40,{day:glowSamples.day,night:glowSamples.night,dayBright,nightBright});
   await p.tap('button[data-period="day"]');await p.tap('[data-view="train"]');await settle(p);check(engine+' 跟車三節完整構圖',await p.evaluate(()=>{const c=document.querySelector('#scene');return southCoastPreview.state.bounds.every(b=>b.left>0&&b.right<c.width&&b.top>0&&b.bottom<c.height);}));await p.screenshot({path:`${OUT}/${engine}-follow.png`});
   check(engine+' 環線沒有倒退入口',await p.locator('#reverse').count()===0);
   const before=await state(p);await p.tap('#play');
