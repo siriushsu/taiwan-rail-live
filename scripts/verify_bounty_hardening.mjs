@@ -1147,6 +1147,45 @@ await attempt('N3c', async () => {
     J({ mid: { sc: r.mid.sc, cov: r.mid.cov }, end: { sc: r.end.sc, cov: r.end.cov } }));
 });
 
+// N3e：接手那一發用「同一個 now」把同一班判完，之後被接手的那一發才送它第③段的 batch。
+// 第③段的 MARKED 看的是「這一組的樣本此刻全是 verdict＝這一發的判定、verdict_at＝這一發的 now」：接手那一發的 now 若恰好相同
+// （BOUNTY_NOW 固定，或兩發落在同一毫秒）、判定也相同，被接手那一發的 MARKED 照樣成立——這時只剩租約圍欄擋住點數、sample_count、收滿寫第二次。
+// N3a／N3c 的接手那一發是在被接手那一發跑完之後才跑（樣本還是 pending），MARKED 自己就擋住了，量不到租約圍欄（突變 v6 的 N3_legacy 因此存活）。
+// 注入點同 N3：被接手那一發第③段讀認領那一句；在那裡把它的租約改成過期、整個跑完接手的那一發（同一個 now、同一份資料＝同一個判定），再讓它繼續。
+async function n3eRun(rules) {
+  const A = 'dev-n3e-000001';
+  const w = world({ seed: boardSql('山線') + claimSql({ id: 'claim-n3e', actor: A, seg: KT('山線', 'S0|S1'), pts: 9 }), rules });
+  putBatches(w.db, { actor: A, trainNo: 'F1', pts: leg({ sec: 700 }) });
+  let inner = null;
+  const h = hookOnce(w.DELAY_DB, /FROM bounty_claims WHERE actor=COALESCE/, async () => {
+    w.db.prepare("UPDATE kv_blobs SET v=json_set(v, '$.until', 0) WHERE k=?").run(LEASE);
+    inner = await w.cron();
+  });
+  const outer = await w.cron();
+  const cov = rows(w, "SELECT covered_at IS NOT NULL c FROM bounty_board WHERE seg_key LIKE 'tra_sched|山線|%' ORDER BY seg_key").map(r => r.c);
+  const at = one(w, "SELECT COUNT(*) n, SUM(verdict='ok' AND verdict_at=?) same FROM bounty_samples WHERE actor=? AND train_no='F1'", NOW_MS, A);
+  return { h, inner, outer, at, cov, v: q.verdicts(w, A, 'F1'), point: q.point(w, A), sc: q.sampleCounts(w, '山線'),
+    claim: one(w, "SELECT status FROM bounty_claims WHERE id='claim-n3e'").status, bal: q.bal(w, A), contrib: q.contrib(w, A), lease: q.lease(w) };
+}
+await attempt('N3e', async () => {
+  const pick = s => s && { trips: s.trips, ok: s.ok, chips: s.chips, locked: s.locked, error: s.error };
+  const a = await n3eRun();
+  ok('N3e0 [前提] 接手那一發在被接手那一發的第③段之前跑完、拿得到租約、判 ok；樣本全部標成 ok、verdict_at＝被接手那一發的 now（它的 MARKED 會成立，只剩租約圍欄擋）',
+    a.h.fired >= 1 && a.inner && a.inner.locked === false && a.inner.trips === 1 && a.inner.ok === 1 && a.at.n > 0 && a.at.same === a.at.n,
+    J({ fired: a.h.fired, inner: pick(a.inner), at: a.at }));
+  ok('N3ea [N3] 接手那一發用同一個 now 判完之後，被接手的那一發第③段一句都不寫：點數恰 27（6 段×3＋認領鎖價 9，沒有加兩次）、sample_count S0|S1…S6|S7 各 1、' +
+    '認領 fulfilled、籌碼仍 1 顆、登記仍 7 段；被接手那一發這一班不算判過（trips 0）；租約都已釋放',
+    a.v === 'ok' && a.point && a.point.points === 27 && J(a.sc) === J(S7) && a.claim === 'fulfilled' && a.bal === 1 && a.contrib === 7 &&
+      a.outer.trips === 0 && a.outer.ok === 0 && !a.lease,
+    J({ point: a.point, sc: a.sc, claim: a.claim, bal: a.bal, contrib: a.contrib, outer: pick(a.outer), lease: a.lease }));
+  // 降級路徑（設定檔缺台鐵的 coverDistinct：sample_count 與收滿同一句、門檻取 coverN 台鐵 1）。
+  const b = await n3eRun({ ...RULES, coverDistinct: { THSR: RULES.coverDistinct.THSR } });
+  ok('N3eb [N3] 降級路徑：同一個情境，sample_count 仍各 1（沒有加兩次）、收滿 S0|S1…S6|S7、點數恰 27；前提同 N3e0',
+    RULES.coverDistinct.TRA > 0 && b.h.fired >= 1 && b.inner && b.inner.trips === 1 && b.at.n > 0 && b.at.same === b.at.n &&
+      b.v === 'ok' && J(b.sc) === J(S7) && J(b.cov) === J(S7) && b.point && b.point.points === 27 && b.outer.trips === 0,
+    J({ sc: b.sc, cov: b.cov, point: b.point, inner: pick(b.inner), outer: pick(b.outer), at: b.at }));
+});
+
 // N3d：租約在 ② 被接手（第二輪獨立驗收 D2）。注入點一：寫帳本那一句之前；注入點二：去重登記的 batch 之前。
 // 舊版 ② 不圍（「兩者本來就冪等」）：冪等擋得住同一班入帳兩次，擋不住「兩發各自讀到今天還沒領、各自寫」——被接手的那一發照樣入帳、登記。
 async function n3dRun(where) {
