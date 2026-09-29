@@ -830,14 +830,20 @@ export async function verifyRelease({
   //    iOS 95／96／97 與 Android 全部帶著這顆上架,六道發行閘門一路全綠。
   //    目錄型 target 一律驗它的 index.html——SPA fallback 之所以無害的前提就是那個檔真的在。
   const relativeSet = new Set(relativeFiles);
-  const linkTargets = new Set();
+  const linkTargets = new Set(), dirLinks = [];
   for (const [, value] of html.matchAll(/href="([^"]+)"/g)) {
     if (/^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith('//')) continue; // http(s):／mailto: 等外部
     if (value.includes('${') || value.includes('{{')) continue;  // 內嵌腳本裡的樣板字串,不是真連結
     const clean = value.split('#')[0].split('?')[0].replace(/^\.?\//, '');
     if (!clean) continue;                                        // href="#" 與純錨點
-    linkTargets.add(/\.[a-z0-9]+$/i.test(clean) ? clean : clean.replace(/\/+$/, '') + '/index.html');
+    // 🔴 2026-09-29 更正上面「驗它的 index.html 就好」：Capacitor 回的是【根目錄】的 index.html，
+    //    不是那個目錄自己的 index.html（Router.swift：basePath + "/index.html"）。所以目錄就算有打包
+    //    index.html 也照樣死——台南歷史重播 ./memories/tainan-2026-09-12/ 就是這樣在 App 裡打不開。
+    //    打包後的首頁不准留任何無副檔名連結，要嘛寫完整 .../index.html，要嘛由 prepare-web 換成外開。
+    if (!/\.[a-z0-9]+$/i.test(clean)) { dirLinks.push(value); continue; }
+    linkTargets.add(clean);
   }
+  assert(!dirLinks.length, `首頁有無副檔名的目錄連結（App 裡會把首頁重載在錯的 base 下，整頁死掉）：${dirLinks.join('、')}`);
   // 正向對照：收集器自己要有具名斷言,否則 regex 一與 index.html 的寫法脫節,下面的全稱斷言就整條
   // 空過報綠（這正是 bus-transfer-ui.js 那一條學到的教訓,同一段下面就有一個同形的）。
   assert(linkTargets.has('privacy.html') && linkTargets.has('terms.html'),

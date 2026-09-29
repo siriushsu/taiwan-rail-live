@@ -5627,6 +5627,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tainanfast0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：修正 App 裡點了打不開，網頁版下載量從約 11 MB 降到約 2 MB，開啟更快、全線視角更順</span></li>
         <li data-cl-of="trachain0929"><span class="d">9/29</span><span>10/3 環島專車這類比任何固定班次都跑得遠的台鐵專車，地圖上改沿真實股道行駛，不再整趟退回示意路線</span></li>
         <li data-cl-of="traovertake0929"><span class="d">9/29</span><span>修正少數台鐵列車在車站空等不存在的後車，或出站後異常慢行的問題</span></li>
         <li data-cl-of="followcard0929"><span class="d">9/29</span><span>App 鎖定畫面跟車卡：Android 補上小列車、iPhone 改成三節車廂，從車站看板追下一班車時卡片會立刻出現</span></li>
@@ -5634,7 +5635,6 @@
         <li data-cl-of="seotitle0929"><span class="d">9/29</span><span>網頁標題與搜尋結果說明寫清楚：台鐵、高鐵、捷運即時地圖與時刻表</span></li>
         <li data-cl-of="klrtcore0928"><span class="d">9/28</span><span>高雄輕軌發車前先在籬仔內等候，發車後沿用同一班身分；衛星位置確認屬於同一班才校正，否則依官方倒數逐站推算</span></li>
         <li data-cl-of="trawait0928"><span class="d">9/28</span><span>修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面</span></li>
-        <li data-cl-of="klrtboard0928"><span class="d">9/28</span><span>高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5642,6 +5642,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="tainanfast0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：修正 App 裡點了打不開；列車與站房模型改壓縮下載（內容不變），網頁版下載量從約 11 MB 降到約 2 MB，全線視角的繪製量也大幅減少</span></li>
         <li data-cl="trachain0929"><span class="d">9/29</span><span>比任何固定班次都跑得遠的台鐵專車（如 10/3 環島專車 6669、10/4 花蓮→新左營 6509），改成一段段接用既有班次走過的真實股道，交接站前後接得上；之前整趟退回示意路線</span></li>
         <li data-cl="traovertake0929"><span class="d">9/29</span><span>修正台鐵同向待避的兩個推估錯誤：前車照後車「還沒改過」的時刻在站上空等（例如 9/30 自強 145 在百福白等 163 秒，後車其實還在宜蘭線），以及被待避切開的長程專車出站後異常慢行再一路狂奔；現在後車真的通過後前車才放行</span></li>
         <li data-cl="klrtcore0928"><span class="d">9/28</span><span>高雄輕軌發車前先在籬仔內等候，發車後沿用同一班身分；衛星位置確認屬於同一班才校正，否則依官方倒數逐站推算</span></li>
@@ -6413,7 +6414,7 @@
          尾巴那格由 syncMoreSheet() 依 plusIsActive() 換字:未持證=看方案,已持證=已啟用(不對已付費的人推銷) -->
     <button class="ms-row" data-proxy="plusBtn" data-close="1" style="display:none"><span>軌島通行證</span><span class="ms-tail"><b id="msPassVal">看方案</b><span class="chev">›</span></span></button>
     <button class="ms-row" data-act="musicpl" data-close="1"><span>配樂情境</span><span class="chev">›</span></button>
-    <a class="ms-row" id="tainanMemoryLink" href="./memories/tainan-2026-09-12/"><span>台南地面鐵道・歷史重播</span><span class="chev">›</span></a>
+    <a class="ms-row" id="tainanMemoryLink" href="./memories/tainan-2026-09-12/index.html"><span>台南地面鐵道・歷史重播</span><span class="chev">›</span></a>
     <div class="ms-row" data-act="language"><span>語言</span><span class="seg" id="msLangSeg" role="group" aria-label="選擇介面語言"><button data-lang="zh-TW">繁中</button><button data-lang="en">EN</button><button data-lang="ja">日本語</button></span></div>
     <div class="ms-sec">地圖顯示</div>
     <div class="ms-row" data-act="theme"><span>外觀</span><span class="seg" id="msThemeSeg"><button data-v="light">亮</button><button data-v="dark">暗</button><button data-v="auto">自動</button></span></div>
@@ -6922,7 +6923,7 @@
 // v0928b：保留彎道速限，補回長跑段抵站前追越的官方停靠窗，避免多餘的提早待避。
 // v0928c：公開端接入 KLRT Core 原身分與攤平環線軌跡；待發、雙向看板、來源提示與逐系統退路一併補齊。
 // v0929b：網頁版首次開啟固定繁中（?lang → 已存偏好 → zh-TW），英日語瀏覽器只給一條小提示；原生 App 仍依 navigator.languages。
-const BUILD = 'v0929d';
+const BUILD = 'v0929e';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);

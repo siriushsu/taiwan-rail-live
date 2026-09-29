@@ -35,6 +35,12 @@ function check(name,fn){
 }
 const result=p=>p.then(value=>({ok:true,value}),error=>({ok:false,error}));
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
+// owner 的截止是 setTimeout(waitMaxMs)；caller 的等候是 waitMaxMs 扣掉 now()（Date.now）的已過時間。mine.at 比截止
+// 計時器早取樣，Date.now 與 libuv 的毫秒邊界也不同步，中間多跨 1 ms，caller 就比 owner 截止早放棄（2026-09-29 出貨偶發紅）。
+// 所以呼叫 refreshHazardMem 的同一拍就掛一顆同 waitMaxMs 的 timer，等它觸發才驗 abort、才開下一輪：同 duration 的 timer
+// 排同一條清單、先進先出，它必在 owner 截止之後，觸發時 owner 的 abort 與收尾（放掉共用那一輪）都已跑完。ms 要跟呼叫時的
+// waitMaxMs 相同。不要改成 caller 放棄後才起算：驗證點晚一整個 waitMaxMs，截止晚到、截止後沒放掉那一輪（被 reclaim 蓋掉）就驗不出來。
+const pastOwnerDeadline=waitMaxMs=>new Promise(resolve=>setTimeout(resolve,waitMaxMs));
 
 check('NCDR 子截止小於 scheduled 總截止，放掉門檻不短於正常刷新週期',()=>{
   assert(hazard.HAZARD_FETCH_TIMEOUT_MS<hazard.HAZARD_MONITOR_TIMEOUT_MS);
@@ -43,11 +49,14 @@ check('NCDR 子截止小於 scheduled 總截止，放掉門檻不短於正常刷
 
 hazard.resetHazardMem();fetchCalls=0;fetchMode='fetch-hang';
 const hazardStarted=performance.now();
-const hazardPair=await Promise.all([
+const hazardPairP=Promise.all([
   result(hazard.refreshHazardMem({}, {waitMaxMs:25,reclaimMs:60})),
   result(hazard.refreshHazardMem({}, {waitMaxMs:25,reclaimMs:60})),
 ]);
+const hazardDeadline=pastOwnerDeadline(25); // 兩位 caller 都可能比 owner 截止早放棄；不等的話 abort 還沒發生，RECOVERED 也會搭上舊輪
+const hazardPair=await hazardPairP;
 const hazardElapsed=Math.round(performance.now()-hazardStarted);
+await hazardDeadline;
 check('NCDR fetch 永不回應：同時刷新只打一發，兩位 caller 都在截止內結束',()=>{
   assert.equal(fetchCalls,1);
   assert(hazardPair.every(x=>!x.ok));
@@ -63,8 +72,10 @@ check('NCDR 截止後下一輪可重抓成功',()=>{
 });
 
 hazard.resetHazardMem();fetchCalls=0;fetchMode='body-hang';
-const bodyHang=await result(hazard.refreshHazardMem({}, {waitMaxMs:25,reclaimMs:60}));
-await tick(); // caller 與 owner 的同毫秒 timer 都到期後再驗 abort；兩者誰先排進 queue 不是契約。
+const bodyHangP=result(hazard.refreshHazardMem({}, {waitMaxMs:25,reclaimMs:60}));
+const bodyHangDeadline=pastOwnerDeadline(25); // caller 與 owner 的 timer 誰先到期不是契約，差距也不只同毫秒
+const bodyHang=await bodyHangP;
+await bodyHangDeadline;
 check('NCDR headers 已到但 body 永不結束，仍由同一個總截止收掉',()=>{
   assert.equal(bodyHang.ok,false);
   assert.equal(fetchCalls,1);
@@ -73,7 +84,9 @@ check('NCDR headers 已到但 body 永不結束，仍由同一個總截止收掉
 
 hazard.resetHazardMem();fetchCalls=0;fetchMode='late';lateResolve=null;
 const oldHazard=result(hazard.refreshHazardMem({}, {waitMaxMs:25,reclaimMs:60}));
+const oldHazardDeadline=pastOwnerDeadline(25); // 舊 caller 可能比舊輪截止早放棄；等舊輪真的截止，新一輪才不會搭上它
 await oldHazard;
+await oldHazardDeadline;
 fetchMode='NEW';
 await hazard.refreshHazardMem({}, {waitMaxMs:25,reclaimMs:60});
 lateResolve(response('OLD'));
@@ -147,11 +160,15 @@ for(const label of busKeys){
     assert.equal(beforeReclaim.ok,false);assert.equal(calls,1);
   });
   nowMs=1060;
-  const replacement=result(bus.sharedBusInflight(map,label,start,options));
+  // 接手者與搭車者的等候是真的 setTimeout（sharedBusInflight 沒有 timer 注入點），下面卻要跑三個真 tick 才放 NEW；
+  // 主執行緒卡住 20 ms 以上，它們就在 NEW 之前逾時（2026-09-29 自然跑 1/100 紅在 route S2）。這段驗接手與共乘，
+  // 等候上限上面已驗過，所以只放寬這兩發的 waitMaxMs。
+  const handover={...options,waitMaxMs:1000};
+  const replacement=result(bus.sharedBusInflight(map,label,start,handover));
   await tick();
   old.resolve('OLD');
   await tick();
-  const passenger=result(bus.sharedBusInflight(map,label,start,options));
+  const passenger=result(bus.sharedBusInflight(map,label,start,handover));
   await tick();
   check(`${label}：滿放掉門檻才開下一輪，並 abort 舊 owner`,()=>{
     assert.equal(calls,2);assert.equal(oldSignal.aborted,true);
