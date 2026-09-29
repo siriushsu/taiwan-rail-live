@@ -9,7 +9,13 @@
   鷹架每根立管都落在地面或屋面上（第一版半截懸空）、布面不透明度 0.64→0.82（照片幾乎看不到後面的建築）、
   拿掉沒有照片依據的頂蓋、接縫改不透明細線（第一版半透明接縫排在布面前面畫，會把後面的布面擋掉）、
   圍籬拿掉埋在橫翼裡的後 9 m 並補頂蓋。
-- 布面單面（法線朝外）：從外側看，遠側面因背面剔除不會疊出雜訊；不透明度由 model.json 的 wrap drawGroups 給出。
+- 第三輪（2026-09-30）修正驗收員 HIGH-1／MEDIUM-1：第二輪拿掉頂蓋後，布面站在前廳平台上、離二樓正面 4.3 m 又沒有頂，
+  頁面 40° 俯視時二樓正面約 8 m 以上（長窗拱頂、柱頭、圓鐘、簷口、山形壁與尖飾）整段露在布面頂上，看起來像半截屏風。
+  加一圈水平收口：由布面頂（Z_WT）往內接到二樓女兒牆頂外緣，只蓋布面與建築之間的空隙（正面 3.96 m、兩側與後面 0.76 m），
+  不蓋屋面（第一輪驗收員指出整片屋頂蓋沒有照片依據、還會把屋面照亮）；山形壁與尖飾（13.4–13.8 m）另加一個緊貼的小盒子（頂罩），
+  退在布面前壁後方、從照片 03 的視線被頂邊擋住（第三輪 v1 把前壁在中段加高，疊圖看得到一塊照片沒有的凸起，已捨棄）。
+  布面改雙面（model.json wrap.doubleSided＝true，頁面本來就支援）：從側後、背面看，遠側布面的內側也畫得出來；三角形不加倍，由頁面材質的 side 決定。
+- 布面雙面：不透明度由 model.json 的 wrap drawGroups 給出；半透明布面不寫深度，three.js 對雙面半透明材質先畫背面、再畫正面。
 
 下緣高度：前廳平台的女兒牆頂是 5.80 m，布面正面平面（y=YP+WRAP_D）橫跨平台左右女兒牆的位置，
 所以布面下緣與底桿必須高於 5.80——取 5.95 m（底桿中心 5.90，離女兒牆頂 5.9 cm）。
@@ -38,6 +44,22 @@ TUBE_R = 0.045
 TUBE_IN = 0.07                            # 鋼管中心退到布面內側的距離（管外緣離布面 2.5 mm）
 FENCE_X = XR + 2.4                        # 南側圍籬離主棟右牆的距離
 FENCE_H = 2.4
+
+# ---- 第三輪：布面頂的水平收口（closure）與山形壁、尖飾的頂罩（hood）
+COPE = 0.34                               # 二樓女兒牆頂（簷口最上一階，頂 z=12.50）外緣離牆面的距離（common.cornice_profile 的 0.34）
+COPE_IN = 0.30                            # 女兒牆頂往屋面內側的厚度（同上 back=0.30）
+IN_X0, IN_X1 = XL - COPE, XR + COPE       # 收口內緣＝二樓女兒牆頂外緣的矩形；收口只蓋這個矩形與布面之間，不蓋屋面
+IN_Y0, IN_Y1 = Y2 - COPE, YB + COPE
+# 頂罩（hood）：緊貼山形壁與屋頂尖飾的小盒子，站在收口與女兒牆頂／屋面上；布面前壁與頂邊不動。
+# 不把布面前壁在中段加高：照片 03（相機 21.7, −17.7, 1.58 m）的頂邊是一條直線，前壁加高會在頂邊上凸出一塊（第三輪 v1 疊圖實測約 40 px）；
+# 退在頂邊後方 3.5 m 以上的小盒子，從照片 03 的視線（仰角約 20–30°）看被頂邊擋住，與照片不矛盾。
+Z_FIN_TOP = 13.80                         # 屋頂尖飾圓球頂（facade.py：球心 13.50、半徑 0.30）；山形壁脊 13.42 較低
+Z_HOOD = Z_FIN_TOP + 0.35                 # 頂罩頂 14.15 m
+FIN_HALF = PIER + 0.56                    # 屋頂尖飾（含線腳座半寬 0.56）離二樓中軸的最遠距離（facade.pilasters）
+HOOD_X0, HOOD_X1 = XC - FIN_HALF - 0.35, XC + FIN_HALF + 0.35        # 頂罩左右壁：離尖飾線腳座外緣 0.35 m
+HOOD_Y0 = Y2 - 0.46 - 0.30                # 頂罩前壁：在尖飾線腳座前緣（Y2−0.46）之前 0.30 m
+HOOD_Y1 = Y2 + 0.35 + 0.15                # 頂罩後壁：站在屋面上，在尖飾線腳座後緣（Y2+0.35）之後 0.15 m
+assert HOOD_Y0 > MY0 + 3.0 and HOOD_Y0 < IN_Y0, '頂罩前壁要在收口之內、離布面前壁夠遠'
 
 STANDARDS = []                            # 立管清單 (x, y, z_bottom, z_top, 落腳面名稱)，供獨立稽核比對
 LOG = []
@@ -226,6 +248,71 @@ def dressing(G, P, tag, ribs):
         sheet(G, P, Z_WWT - h, Z_WWT, 'wrap_seam', off)
 
 
+# ---------------------------------------------------------------- 布面頂的水平收口與頂罩（第三輪）
+def _flat(G, pts3, n):
+    """平面簡單多邊形（頂點已在同一平面）以耳切法切成三角形：只用多邊形自己的頂點，不多生 T 字接點（相鄰面共用的邊頂點一致）。"""
+    ax = max(range(3), key=lambda i: abs(n[i]))                       # 投影到法線最大分量以外的兩軸做 2D 耳切
+    k = [i for i in range(3) if i != ax]
+    for i, j, l in ear_clip([(p[k[0]], p[k[1]]) for p in pts3]):
+        G.tri(pts3[i], pts3[j], pts3[l], 'wrap_fabric', n, n, n)
+
+
+def closure(G, P):
+    """布面頂（Z_WT）往內的水平收口：外緣是主棟布面路徑 P 的上緣，內緣是二樓女兒牆頂外緣（IN_X0…IN_Y1 的矩形），
+    只蓋布面與建築之間的空隙，女兒牆以內的屋面不蓋。逐段做梯形條帶：外緣每個頂點對應到內緣矩形上的最近點
+    （凸形對凸形，對應次序不會反、條帶互不重疊）；轉角處數個外緣點共用內緣的同一個角點，條帶退化成扇形的三角形。
+    外緣的頂點就是布面上緣的頂點（不加點，布面與收口的折線沒有 T 字接點）。
+    前直段在頂罩左右壁之間退到頂罩前壁（y=HOOD_Y0）：頂罩底下不鋪收口（尖飾線腳座前緣在 Y2−0.46，收口鋪到女兒牆頂外緣會穿進去），
+    所以這一段是帶缺口的多邊形，交給耳切法。"""
+    up = (0.0, 0.0, 1.0)
+    for p, q in zip(P.v, P.v[1:]):
+        x0, y0, x1, y1 = p[0], p[1], q[0], q[1]
+        a, b = (x0, y0, Z_WT), (x1, y1, Z_WT)
+        if abs(y0 - MY0) < 1e-9 and abs(y1 - MY0) < 1e-9 and x0 < HOOD_X0 and x1 > HOOD_X1:      # 前直段
+            _flat(G, [a, b, (x1, IN_Y0, Z_WT), (HOOD_X1, IN_Y0, Z_WT), (HOOD_X1, HOOD_Y0, Z_WT),
+                      (HOOD_X0, HOOD_Y0, Z_WT), (HOOD_X0, IN_Y0, Z_WT), (x0, IN_Y0, Z_WT)], up)
+            continue
+        ia = (min(max(x0, IN_X0), IN_X1), min(max(y0, IN_Y0), IN_Y1), Z_WT)
+        ib = (min(max(x1, IN_X0), IN_X1), min(max(y1, IN_Y0), IN_Y1), Z_WT)
+        G.tri(a, b, ib, 'wrap_fabric', up, up, up)
+        G.tri(a, ib, ia, 'wrap_fabric', up, up, up)          # ia＝ib 時退化成零面積，由 Geo.tri 略過
+
+
+def hood(G):
+    """頂罩：緊貼山形壁與屋頂尖飾（13.4–13.8 m）的小盒子——前壁、頂面、站在屋面上的後壁、兩側壁，全都是布面。
+    前壁下緣靠在收口的缺口邊（Z_WT）；兩側壁是一整片、下緣有三段：收口（Z_WT）、女兒牆頂（Z_CAP）、屋面（Z_ROOF−0.02），
+    下緣都只是「靠著」底下的面，不穿進去（女兒牆頂與屋面的交界多留 2 cm，不讓側壁的頂點正好落在女兒牆內緣面上）；盒子下面是開的
+    （下方就是女兒牆頂、尖飾與山形壁）。各面都用同一組頂點，相鄰面共用的邊沒有 T 字接點。"""
+    x0, x1, y0, y3 = HOOD_X0, HOOD_X1, HOOD_Y0, HOOD_Y1
+    zt, zr = Z_HOOD, Z_ROOF - 0.02
+    y1, y2 = IN_Y0, Y2 + COPE_IN + 0.02           # 女兒牆頂的外緣、內緣（頂面 Z_CAP）；y2 以後是屋面
+    G.quad((x0, y0, Z_WT), (x1, y0, Z_WT), (x1, y0, zt), (x0, y0, zt), 'wrap_fabric', (0.0, -1.0, 0.0))     # 前壁
+    G.quad((x0, y0, zt), (x1, y0, zt), (x1, y3, zt), (x0, y3, zt), 'wrap_fabric', (0.0, 0.0, 1.0))          # 頂面
+    G.quad((x0, y3, zr), (x1, y3, zr), (x1, y3, zt), (x0, y3, zt), 'wrap_fabric', (0.0, 1.0, 0.0))          # 後壁
+    for x, nx in ((x0, -1.0), (x1, 1.0)):                                                                    # 兩側壁（階梯狀下緣）
+        _flat(G, [(x, y0, Z_WT), (x, y1, Z_WT), (x, y1, Z_CAP), (x, y2, Z_CAP), (x, y2, zr), (x, y3, zr), (x, y3, zt), (x, y0, zt)], (nx, 0.0, 0.0))
+
+
+def _line(x0, y0, x1, y1, nx, ny):
+    P = Path()
+    P._add(x0, y0, nx, ny)
+    P._add(x1, y1, nx, ny)
+    return P
+
+
+def hood_dressing(G):
+    """頂罩的細節：前壁中腰一條橫向接縫、前壁與兩側壁的上緣接縫、前壁兩端各一根角骨。"""
+    h, off = 0.08, 0.015
+    zm = (Z_WT + Z_HOOD) / 2
+    front = _line(HOOD_X0, HOOD_Y0, HOOD_X1, HOOD_Y0, 0, -1)
+    sheet(G, front, zm - h / 2, zm + h / 2, 'wrap_seam', off)
+    sheet(G, front, Z_HOOD - h, Z_HOOD, 'wrap_seam', off)
+    sheet(G, _line(HOOD_X0, HOOD_Y0, HOOD_X0, HOOD_Y1, -1, 0), Z_HOOD - h, Z_HOOD, 'wrap_seam', off)
+    sheet(G, _line(HOOD_X1, HOOD_Y0, HOOD_X1, HOOD_Y1, 1, 0), Z_HOOD - h, Z_HOOD, 'wrap_seam', off)
+    for x in (HOOD_X0 + 0.05, HOOD_X1 - 0.05):
+        rib(G, x, HOOD_Y0, 0, -1, Z_WT, Z_HOOD)
+
+
 # ---------------------------------------------------------------- 鷹架
 def _inside(x, y, z, b, inflate):
     x0, x1, y0, y1, z0, z1 = b
@@ -378,6 +465,10 @@ def build():
         ribs = []
         dressing(G, M, 'main', ribs)
         dressing(G, Wp, 'wing', ribs)
+        # ---- 布面頂的水平收口（布面與二樓女兒牆頂外緣之間）與頂罩（緊貼山形壁與尖飾的小盒子）
+        closure(G, M)
+        hood(G)
+        hood_dressing(G)
         # ---- 鷹架（布面下緣以下與落腳面之間）
         scaffold(G, M)
         scaffold(G, Wp)
