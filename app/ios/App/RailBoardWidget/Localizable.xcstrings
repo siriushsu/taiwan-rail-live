@@ -26504,6 +26504,23 @@
         }
       }
     },
+    "空心＝跟完": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hollow = Followed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "白抜き＝追跡完了"
+          }
+        }
+      }
+    },
     "空白鍵": {
       "extractionState": "manual",
       "localizations": {
@@ -37669,23 +37686,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "淡江大学"
-          }
-        }
-      }
-    },
-    "淡色＝跟完": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Faded = Followed"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "淡色＝追跡完了"
           }
         }
       }

@@ -1,7 +1,8 @@
 import SwiftUI
 import WidgetKit
 
-// 「車站收集」小工具的資料模型與五種版面（純 SwiftUI，刻意不碰 UIKit／AppIntents）。
+// 「車站收集」小工具的資料模型與四種版面（小、中、鎖屏矩形、鎖屏圓形；純 SwiftUI，刻意不碰 UIKit／AppIntents）。
+// 2026-09-29 23:04 使用者：「路線收集我覺得只需要做小跟中的版面就好 不用大的」→ 大卡（systemLarge）整個拿掉。
 //
 // 為什麼獨立成一個檔：app/scripts/render_collect_widget.mjs 把這個檔【整檔逐字】連同
 // RailWidgetKit.swift、RailNativeL10n.swift 一起交給 swiftc 編成 macOS 執行檔算圖，
@@ -11,7 +12,7 @@ import WidgetKit
 // 架構：網頁算、原生只畫。數字只有一個來源——網頁 stationCollection(loadRides())，
 // 也就是護照「車站 N 座」用的那個函式；網頁整包算好經外掛寫成 App Group 的 collection.json，
 // 這裡【只讀不算】：n／total／各系統 v／n／recent／點位一律照抄，唯一自己算的是
-// 「百分比四捨五入」與「進度條填滿比例」這兩個純顯示量（由驗收腳本從 payload 獨立重算比對）。
+// 「百分比字串」、「進度條填滿比例」與「單一系統的取景視窗」這三個純顯示量（由驗收腳本從 payload 獨立重算比對）。
 // 契約（資料格式 v1）：docs/superpowers/plans/2026-09-29-車站收集小工具.md。
 
 // MARK: - 資料模型（collection.json v1）
@@ -88,6 +89,34 @@ struct CollectionDot: Equatable {
     let s: Int
 }
 
+/// 單一系統範圍的取景視窗：0..1000 正規化空間裡的【正方形】（規格第二輪第 3 點，三平台共同約定）。
+/// 正方形視窗的道理：整島框 1000×1000 是照 aspect 畫進地圖框的，兩軸各放大 1000/size 倍，
+/// 真實比例就不變形。全台範圍不用視窗（nil＝整島框 0..1000）。
+struct CollectionViewport: Equatable {
+    let x0: Double
+    let y0: Double
+    let size: Double
+
+    /// 該系統所有點的外框，四邊各加 pad = max(0.12×max(寬,高), 10)；
+    /// 邊長 S = max(寬+2pad, 高+2pad, 40)，以外框中心為中心；超出 0..1000 不夾回。沒有點回 nil。
+    static func fitting(_ points: [CollectionDot]) -> CollectionViewport? {
+        guard let first = points.first else { return nil }
+        var minX = first.x, maxX = first.x, minY = first.y, maxY = first.y
+        for p in points {
+            minX = min(minX, p.x); maxX = max(maxX, p.x)
+            minY = min(minY, p.y); maxY = max(maxY, p.y)
+        }
+        let w = maxX - minX, h = maxY - minY
+        let pad = max(0.12 * max(w, h), 10)
+        let side = max(w + 2 * pad, h + 2 * pad, 40)
+        return CollectionViewport(x0: (minX + maxX) / 2 - side / 2, y0: (minY + maxY) / 2 - side / 2, size: side)
+    }
+
+    func contains(_ d: CollectionDot) -> Bool {
+        d.x >= x0 && d.x <= x0 + size && d.y >= y0 && d.y <= y0 + size
+    }
+}
+
 struct CollectionFigures {
     /// nil＝全台
     let scopeKey: String?
@@ -95,11 +124,18 @@ struct CollectionFigures {
     let title: String
     let collected: Int
     let total: Int
-    let percent: Int
+    /// 百分比的數字部分：「37」、邊界「<1」（有收集但四捨五入成 0）與「99」（還沒收滿但四捨五入成 100）。
+    /// 不含「%」——大數字加小符號的版面自己接。
+    let percentNumber: String
     let aspect: Double
+    /// 這個範圍自己的點（全台＝全部；單一系統＝該系統的點）：三態照畫。
     let dots: [CollectionDot]
+    /// 單一系統範圍：取景視窗（nil＝全台整島框）。
+    let viewport: CollectionViewport?
+    /// 單一系統範圍：視窗內【其他系統】的點，畫成更淡的中性灰墊底。全台範圍恆為空。
+    let others: [CollectionDot]
     let systems: [CollectionSnapshot.System]
-    /// 最近蓋章：全台＝payload 全部（最多 4 筆）；單一系統＝只留 k 相符的。
+    /// 最近蓋章：payload 每系統各送最近 4 筆——全台＝取整體前 4 筆；單一系統＝只留 k 相符的前 4 筆。
     let recent: [CollectionSnapshot.Recent]
     /// 中卡的進度條：有收集的系統，依總站數大到小，最多 5 個。
     let topSystems: [CollectionSnapshot.System]
@@ -109,6 +145,8 @@ struct CollectionFigures {
     var isAll: Bool { scopeKey == nil }
     var isEmpty: Bool { collected == 0 }
     var remaining: Int { max(0, total - collected) }
+    /// 顯示用的整段百分比字串（「37%」「<1%」「99%」）。
+    var percentText: String { percentNumber + "%" }
 }
 
 enum CollectionScope {
@@ -119,6 +157,16 @@ enum CollectionScope {
     static func percent(_ v: Int, of total: Int) -> Int {
         guard total > 0, v > 0 else { return 0 }
         return min(100, (v * 200 + total) / (2 * total))
+    }
+
+    /// 百分比的數字部分（規格第二輪第 5 點）：p = v/total×100 四捨五入，兩個邊界例外——
+    /// 有收集（v>0）卻四捨五入成 0 → 「<1」；還沒收滿（v<total）卻四捨五入成 100 → 「99」。
+    /// 「0%」只留給真的一站都沒收，「100%」只留給真的收滿。
+    static func percentNumber(_ v: Int, of total: Int) -> String {
+        let p = percent(v, of: total)
+        if v > 0 && p == 0 { return "<1" }
+        if v < total && p >= 100 { return "99" }
+        return "\(p)"
     }
 
     /// 進度條／直立條的填滿比例：v/n，但「有收集」時至少畫 3%，不然 1/241 是看不見的一條線。
@@ -142,24 +190,30 @@ enum CollectionScope {
             .prefix(5)
             .map(\.element)
         let untouched = snap.sys.filter { $0.v == 0 }.count
+        func dot(_ p: CollectionSnapshot.Point) -> CollectionDot {
+            CollectionDot(x: p.x, y: p.y, color: p.color, s: p.s)
+        }
 
         if let index {
             let sys = snap.sys[index]
-            let dots = snap.pts.filter { $0.sys == index }
-                .map { CollectionDot(x: $0.x, y: $0.y, color: $0.color, s: $0.s) }
+            let own = snap.pts.filter { $0.sys == index }.map(dot)
+            let viewport = CollectionViewport.fitting(own)
+            // 視窗內的其他系統點墊底；視窗外的不畫。該系統一個點都沒有（不該發生）就退回整島框，其他系統全畫。
+            let others = snap.pts.filter { $0.sys != index }.map(dot).filter { viewport?.contains($0) ?? true }
             return CollectionFigures(
                 scopeKey: sys.k, title: sys.label,
-                collected: sys.v, total: sys.n, percent: percent(sys.v, of: sys.n),
-                aspect: snap.aspect, dots: dots, systems: snap.sys,
-                recent: snap.recent.filter { $0.k == sys.k },
+                collected: sys.v, total: sys.n, percentNumber: percentNumber(sys.v, of: sys.n),
+                aspect: snap.aspect, dots: own, viewport: viewport, others: others,
+                systems: snap.sys,
+                recent: Array(snap.recent.filter { $0.k == sys.k }.prefix(4)),
                 topSystems: ranked, untouchedSystems: untouched)
         }
         return CollectionFigures(
             scopeKey: nil, title: RailNativeL10n.text("全台"),
-            collected: snap.n, total: snap.total, percent: percent(snap.n, of: snap.total),
+            collected: snap.n, total: snap.total, percentNumber: percentNumber(snap.n, of: snap.total),
             aspect: snap.aspect,
-            dots: snap.pts.map { CollectionDot(x: $0.x, y: $0.y, color: $0.color, s: $0.s) },
-            systems: snap.sys, recent: snap.recent,
+            dots: snap.pts.map(dot), viewport: nil, others: [],
+            systems: snap.sys, recent: Array(snap.recent.prefix(4)),
             topSystems: ranked, untouchedSystems: untouched)
     }
 }
@@ -185,13 +239,16 @@ enum CollectionContent {
 struct CollectionMeasureKey: EnvironmentKey { static let defaultValue = false }
 /// 打開後，地圖只佔位不畫點：算繪出來的墨跡就只剩文字，才能量「文字有沒有壓進地圖框」。
 struct CollectionMapHiddenKey: EnvironmentKey { static let defaultValue = false }
-/// 打開後，Canvas 每畫一個點就記一筆（量的是真的 fill 呼叫，不是事先算好的長度）。
+/// 打開後，Canvas 每畫一個點就記一筆（量的是真的 fill／stroke 呼叫，不是事先算好的長度）：
+/// 筆數之外，連每個點的圓心（Canvas 座標，pt）一起記下，驗收腳本拿去跟 payload 獨立算出的座標比。
 struct CollectionProbeKey: EnvironmentKey { static let defaultValue: CollectionDrawProbe? = nil }
 
 final class CollectionDrawProbe: @unchecked Sendable {
-    var off = 0
-    var follow = 0
-    var solid = 0
+    /// 各層畫出的圓心：other＝視窗內其他系統的淡灰點、off＝未收集、follow＝跟完（空心圈）、solid＝搭過／到訪。
+    var other: [CGPoint] = []
+    var off: [CGPoint] = []
+    var follow: [CGPoint] = []
+    var solid: [CGPoint] = []
 }
 
 extension EnvironmentValues {
@@ -273,8 +330,8 @@ enum CollectionMetrics {
     static let dotRadiusRatio: CGFloat = 0.0075
     static let dotRadiusFloor: CGFloat = 1.0
     static let solidScale: CGFloat = 1.3
-    /// 跟完（s=1）用線色但畫淡：不透明度。
-    static let followAlpha = 0.6
+    /// 跟完（s=1）畫線色空心圈：圈外徑＝實心圓直徑，圈寬＝實心半徑的這個倍數（規格第二輪第 4 點）。
+    static let hollowRingRatio: CGFloat = 0.45
     /// 為文字欄預留給地圖的寬度佔（地圖高）的比例。台灣點陣寬高比 0.5516，取 0.6 留餘裕。
     static let mapReserveRatio: CGFloat = 0.6
 
@@ -370,42 +427,17 @@ struct CollectionBar: View {
     }
 }
 
-/// 大卡底部的直立填滿條（一個系統一根）。
-struct CollectionPill: View {
-    let id: String
-    let fraction: Double
-    let height: CGFloat
-    var dimmed = false
-
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.railMonochrome) private var mono
-
-    var body: some View {
-        let brand = RailTokens.colors(scheme).brand
-        GeometryReader { geo in
-            ZStack(alignment: .bottom) {
-                Rectangle().fill(CollectionPalette.off(scheme))
-                Rectangle()
-                    .fill(mono ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(brand))
-                    .opacity(dimmed ? 0.4 : 1)
-                    .frame(height: geo.size.height * fraction)
-                    .collectReport(id + ".fill")
-                    .widgetAccentable()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .frame(height: height)
-        .clipShape(Capsule())
-        .collectReport(id + ".track")
-    }
-}
-
 // MARK: - 點陣地圖
 
 enum CollectionPalette {
     /// 未收集的中性淡灰（軌道底色用同一組灰）。
     static func off(_ scheme: ColorScheme) -> Color {
         scheme == .dark ? Color(white: 0.24) : Color(white: 0.88)
+    }
+
+    /// 單一系統視窗裡「其他系統」的點：比 off 更淡一階（更靠近底色），只當位置參照，不搶主角。
+    static func otherOff(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color(white: 0.165) : Color(white: 0.925)
     }
 
     /// 線色 → Color。深色模式提亮（網頁 mockup 的 brightness(1.3)，這裡取 1.25 再夾住），
@@ -422,6 +454,10 @@ enum CollectionPalette {
 
 struct CollectionMapView: View {
     let dots: [CollectionDot]
+    /// nil＝整島框（全台）；單一系統＝取景視窗，視窗內容等比放大填滿地圖框。
+    var viewport: CollectionViewport? = nil
+    /// 視窗內其他系統的點（已由 figures 濾掉視窗外的），畫成更淡的中性灰墊在最底。
+    var others: [CollectionDot] = []
 
     @Environment(\.colorScheme) private var scheme
     @Environment(\.railMonochrome) private var mono
@@ -432,47 +468,74 @@ struct CollectionMapView: View {
         max(CollectionMetrics.dotRadiusFloor, h * CollectionMetrics.dotRadiusRatio)
     }
 
-    /// 點的畫面座標：x、y 為 0..1000，留出已收集點的半徑當內距，最邊上的點才不會被裁掉。
-    static func center(_ dot: CollectionDot, in size: CGSize) -> CGPoint {
+    /// 點的畫面座標：0..1000（全台）或視窗內（單一系統）先正規化成 0..1，再留出已收集點的半徑當內距，
+    /// 最邊上的點才不會被裁掉。全台與單一系統共用這一條公式，只差 u、v 的來源。
+    static func center(_ dot: CollectionDot, in size: CGSize, viewport: CollectionViewport? = nil) -> CGPoint {
         let inset = radius(forHeight: size.height) * CollectionMetrics.solidScale
-        return CGPoint(x: inset + dot.x / 1000 * (size.width - 2 * inset),
-                       y: inset + dot.y / 1000 * (size.height - 2 * inset))
+        let u: Double, v: Double
+        if let vp = viewport {
+            u = (dot.x - vp.x0) / vp.size
+            v = (dot.y - vp.y0) / vp.size
+        } else {
+            u = dot.x / 1000
+            v = dot.y / 1000
+        }
+        return CGPoint(x: inset + u * (size.width - 2 * inset),
+                       y: inset + v * (size.height - 2 * inset))
     }
 
     var body: some View {
-        let dots = self.dots, scheme = self.scheme, mono = self.mono
+        let dots = self.dots, others = self.others, viewport = self.viewport
+        let scheme = self.scheme, mono = self.mono
         let hidden = self.hidden, probe = self.probe
         // 🔴 未收集的點用【不透明】淡灰，不用 primary 加透明度：台北一帶幾十個點疊在一起，
         //    半透明會疊成一團黑（實測 small 空狀態），看起來像有東西被收集了。
         let off = CollectionPalette.off(scheme)
+        let otherOff = CollectionPalette.otherOff(scheme)
         ZStack {
-            // 未收集：中性淡灰，畫在底層。
+            // 底層：其他系統的淡灰點（單一系統視窗才有），再來是這個範圍未收集的中性灰。
             Canvas { ctx, size in
-                probe?.off = 0
+                probe?.other = []
+                probe?.off = []
                 guard !hidden else { return }
                 let r = Self.radius(forHeight: size.height)
+                for d in others {
+                    let c = Self.center(d, in: size, viewport: viewport)
+                    ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)),
+                             with: .color(otherOff))
+                    probe?.other.append(c)
+                }
                 for d in dots where d.s == 0 {
-                    let c = Self.center(d, in: size)
+                    let c = Self.center(d, in: size, viewport: viewport)
                     ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)),
                              with: .color(off))
-                    probe?.off += 1
+                    probe?.off.append(c)
                 }
             }
             // 已收集（含跟完）：線色。單獨一層是為了讓「著色」模式只把這一層染成強調色。
+            // 三態：s=2 實心圓；s=1 空心圈（外徑同實心、圈寬 0.45 倍半徑）。深淺色與著色都靠形狀分，不靠深淺。
             Canvas { ctx, size in
-                probe?.follow = 0
-                probe?.solid = 0
+                probe?.follow = []
+                probe?.solid = []
                 guard !hidden else { return }
                 let r = Self.radius(forHeight: size.height) * CollectionMetrics.solidScale
-                // 先畫淡的、再畫實心，實心疊在淡的上面。
+                let ring = r * CollectionMetrics.hollowRingRatio
+                // 先畫空心的、再畫實心，實心疊在空心上面。
                 for pass in [1, 2] {
                     for d in dots where d.s == pass {
-                        let c = Self.center(d, in: size)
-                        let base = mono ? Color.primary : CollectionPalette.color(d.color, scheme: scheme)
-                        let paint = pass == 1 ? base.opacity(CollectionMetrics.followAlpha) : base
-                        ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)),
-                                 with: .color(paint))
-                        if pass == 1 { probe?.follow += 1 } else { probe?.solid += 1 }
+                        let c = Self.center(d, in: size, viewport: viewport)
+                        let paint = mono ? Color.primary : CollectionPalette.color(d.color, scheme: scheme)
+                        if pass == 1 {
+                            // 描邊置中在路徑上：路徑半徑 = 外徑 − 圈寬/2，外緣才會剛好落在 r。
+                            let mid = r - ring / 2
+                            ctx.stroke(Path(ellipseIn: CGRect(x: c.x - mid, y: c.y - mid, width: 2 * mid, height: 2 * mid)),
+                                       with: .color(paint), lineWidth: ring)
+                            probe?.follow.append(c)
+                        } else {
+                            ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)),
+                                     with: .color(paint))
+                            probe?.solid.append(c)
+                        }
                     }
                 }
             }
@@ -508,13 +571,14 @@ enum CollectionCopy {
     }
 
     /// 「37」大、「%」小的百分比。用 AttributedString 串，不用 Text + Text（macOS／iOS 26 起 `+` 標為棄用）。
-    static func bigPercent(_ pct: Int, big: CGFloat, small: CGFloat) -> Text {
-        var number = AttributedString("\(pct)")
-        number.font = .system(size: big, weight: .bold).monospacedDigit()
+    /// number 是 CollectionFigures.percentNumber（「37」「<1」「99」），不含「%」。
+    static func bigPercent(_ number: String, big: CGFloat, small: CGFloat) -> Text {
+        var digits = AttributedString(number)
+        digits.font = .system(size: big, weight: .bold).monospacedDigit()
         var sign = AttributedString("%")
         sign.font = .system(size: small, weight: .semibold)
         sign.foregroundColor = .secondary
-        return Text(number + sign)
+        return Text(digits + sign)
     }
 
     static var emptyTitle: String { RailNativeL10n.text("還沒有收集的車站") }
@@ -558,7 +622,7 @@ struct SmallCollectionView: View {
                 textColumn(f, k)
                     .frame(width: textW, alignment: .leading)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                CollectionMapView(dots: f.dots)
+                CollectionMapView(dots: f.dots, viewport: f.viewport, others: f.others)
                     .frame(width: mapW, height: mapH)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -601,8 +665,8 @@ struct SmallCollectionView: View {
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 CollectionText(
-                    id: "pct", text: "\(f.percent)%",
-                    content: CollectionCopy.bigPercent(f.percent, big: k.pt(f.percent >= 100 ? 28 : 34), small: k.pt(15)),
+                    id: "pct", text: f.percentText,
+                    content: CollectionCopy.bigPercent(f.percentNumber, big: k.pt(f.percentNumber.count >= 3 ? 28 : 34), small: k.pt(15)),
                     key: true)
                 Color.clear.frame(height: k.pt(5))
                 CollectionText(
@@ -649,7 +713,7 @@ struct MediumCollectionView: View {
             column(f, k)
                 .frame(width: colW, alignment: .topLeading)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            CollectionMapView(dots: f.dots)
+            CollectionMapView(dots: f.dots, viewport: f.viewport, others: f.others)
                 .frame(width: mapW, height: mapH)
         }
     }
@@ -663,16 +727,21 @@ struct MediumCollectionView: View {
                     content: Text(heading).font(.system(size: k.pt(14), weight: .bold)), minScale: 0.7)
                 Spacer(minLength: 0)
                 CollectionText(
-                    id: "pct", text: "\(f.percent)%",
-                    content: Text("\(f.percent)%").font(.system(size: k.pt(14), weight: .bold)).monospacedDigit(),
+                    id: "pct", text: f.percentText,
+                    content: Text(f.percentText).font(.system(size: k.pt(14), weight: .bold)).monospacedDigit(),
                     key: true)
             }
             CollectionText(
                 id: "countOf", text: CollectionCopy.countOf(f),
                 content: Text(CollectionCopy.countOf(f)).font(.system(size: k.pt(10.5))),
                 key: true, tone: .secondary)
-            Spacer(minLength: k.pt(4))
+            Spacer(minLength: k.pt(3))
             middle(f, k)
+            // 圖例：有收集的卡才有東西要解釋（空狀態沒有實心也沒有空心）。放不下時 e／h 兩道閘門會紅。
+            if !f.isEmpty {
+                Spacer(minLength: k.pt(3))
+                CollectionLegend(k: k)
+            }
         }
     }
 
@@ -694,14 +763,15 @@ struct MediumCollectionView: View {
             let labelWidth = min(k.pt(58), max(k.pt(30), f.topSystems
                 .map { CollectionMetrics.estimatedWidth($0.label, fontSize: k.pt(11.5)) }.max() ?? 0))
             VStack(alignment: .leading, spacing: 0) {
-                VStack(spacing: k.pt(2)) {
+                // 列距 1pt（原 2）：加了圖例那一行之後，全台中卡在 430 寬會多出 4pt 溢出，靠這裡與下面兩處各省一點。
+                VStack(spacing: k.pt(1)) {
                     ForEach(Array(f.topSystems.enumerated()), id: \.offset) { _, s in
                         systemRow(s, k, labelWidth: labelWidth)
                     }
                 }
                 if f.untouchedSystems > 0 {
                     let note = RailNativeL10n.text("還有 {n} 個系統還沒去過", ["n": "\(f.untouchedSystems)"])
-                    Color.clear.frame(height: k.pt(4))
+                    Color.clear.frame(height: k.pt(3))
                     CollectionText(
                         id: "untouched", text: note,
                         content: Text(note).font(.system(size: k.pt(10.5))),
@@ -767,139 +837,35 @@ struct CollectionRecentRow: View {
     }
 }
 
-// MARK: - Large（大卡）
+// MARK: - 圖例（中卡）
 
-struct LargeCollectionView: View {
-    let content: CollectionContent
+/// 圖例一行：「實心＝搭過／到訪」「空心＝跟完」。資料沒有「第一次收集日期」，所以不做「今年新增」，
+/// 只解釋兩種畫法。圖例的點用品牌色（著色模式跟著壓成單色），形狀與地圖上的三態畫法同一套：
+/// 實心圓、外徑相同的空心圈（圈寬＝半徑的 0.45 倍）。
+struct CollectionLegend: View {
+    let k: RailScale
 
     var body: some View {
-        GeometryReader { geo in
-            let k = RailScale(width: geo.size.width, reference: RailScale.mediumReference)
-            Group {
-                switch content {
-                case .unavailable: CollectionUnavailableBody(k: k, big: true)
-                case .data(let f): dataBody(f, k, geo.size)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-        .padding(CollectionMetrics.inset)
-        .coordinateSpace(name: CollectionSpace.card)
-    }
-
-    @ViewBuilder
-    private func dataBody(_ f: CollectionFigures, _ k: RailScale, _ size: CGSize) -> some View {
-        let mapH = k.pt(204)
-        let mapW = (mapH * f.aspect).rounded()
-        let gap = k.pt(14)
-        let sideW = (size.width - (mapH * CollectionMetrics.mapReserveRatio).rounded() - gap).rounded()
-
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: k.pt(6)) {
-                let heading = CollectionCopy.heading(f)
-                CollectionText(
-                    id: "title", text: heading,
-                    content: Text(heading).font(.system(size: k.pt(15), weight: .bold)), minScale: 0.7)
-                Spacer(minLength: 0)
-                CollectionText(
-                    id: "pct", text: "\(f.percent)%",
-                    content: Text("\(f.percent)%").font(.system(size: k.pt(28), weight: .bold)).monospacedDigit(),
-                    key: true)
-            }
-            Color.clear.frame(height: k.pt(8))
-            ZStack(alignment: .topLeading) {
-                side(f, k)
-                    .frame(width: sideW, alignment: .topLeading)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                CollectionMapView(dots: f.dots)
-                    .frame(width: mapW, height: mapH)
-            }
-            .frame(height: mapH)
-            Spacer(minLength: k.pt(8))
-            pills(f, k)
-            Color.clear.frame(height: k.pt(6))
-            legend(k)
-        }
-    }
-
-    private func side(_ f: CollectionFigures, _ k: RailScale) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            CollectionText(
-                id: "count", text: CollectionCopy.count(f),
-                content: Text(CollectionCopy.count(f)).font(.system(size: k.pt(15), weight: .bold)),
-                key: true)
-            CollectionText(
-                id: "totalLine", text: CollectionCopy.totalLine(f),
-                content: Text(CollectionCopy.totalLine(f)).font(.system(size: k.pt(12))),
-                key: true, tone: .secondary)
-            if f.isEmpty {
-                Color.clear.frame(height: k.pt(14))
-                CollectionText(
-                    id: "empty.title", text: CollectionCopy.emptyTitle,
-                    content: Text(CollectionCopy.emptyTitle).font(.system(size: k.pt(13), weight: .semibold)),
-                    lines: 2, minScale: 0.75)
-                Color.clear.frame(height: k.pt(3))
-                CollectionText(
-                    id: "empty.hint", text: CollectionCopy.emptyHint,
-                    content: Text(CollectionCopy.emptyHint).font(.system(size: k.pt(12))),
-                    lines: 4, minScale: 0.75, tone: .secondary)
-            } else if !f.recent.isEmpty {
-                let head = RailNativeL10n.text("最近蓋章")
-                Color.clear.frame(height: k.pt(14))
-                CollectionText(
-                    id: "recent.head", text: head,
-                    content: Text(head).font(.system(size: k.pt(11), weight: .semibold)),
-                    tone: .secondary)
-                Color.clear.frame(height: k.pt(6))
-                VStack(alignment: .leading, spacing: k.pt(5)) {
-                    ForEach(Array(f.recent.prefix(4).enumerated()), id: \.offset) { i, r in
-                        CollectionRecentRow(record: r, index: i, k: k)
-                    }
-                }
-            }
-        }
-    }
-
-    /// 10 個系統各一根直立填滿條（依 v/n）。選了單一系統時，其餘系統退淡，選中的那根照常。
-    private func pills(_ f: CollectionFigures, _ k: RailScale) -> some View {
-        HStack(alignment: .bottom, spacing: k.pt(5)) {
-            ForEach(Array(f.systems.enumerated()), id: \.offset) { _, s in
-                let dim = f.scopeKey != nil && f.scopeKey != s.k
-                VStack(spacing: k.pt(4)) {
-                    CollectionPill(id: "pill.\(s.k)", fraction: CollectionScope.fill(s.v, of: s.n),
-                                   height: k.pt(46), dimmed: dim)
-                    CollectionText(
-                        id: "pill.\(s.k).label", text: s.label,
-                        content: Text(s.label).font(.system(size: k.pt(s.label.count > 2 ? 9 : 10.5))),
-                        minScale: 0.5, tone: s.v > 0 ? .secondary : .tertiary)
-                }
-                .frame(maxWidth: .infinity)
-            }
-        }
-    }
-
-    /// 圖例一行。資料沒有「第一次收集日期」，所以不做「今年新增」，只解釋兩種深淺。
-    private func legend(_ k: RailScale) -> some View {
         let solid = RailNativeL10n.text("實心＝搭過／到訪")
-        let follow = RailNativeL10n.text("淡色＝跟完")
-        return HStack(spacing: k.pt(4)) {
-            CollectionLegendDot(faded: false, k: k)
+        let follow = RailNativeL10n.text("空心＝跟完")
+        HStack(spacing: k.pt(4)) {
+            CollectionLegendDot(hollow: false, k: k)
             CollectionText(
                 id: "legend.solid", text: solid,
-                content: Text(solid).font(.system(size: k.pt(11))), minScale: 0.7, tone: .secondary)
-            Color.clear.frame(width: k.pt(8), height: 1)
-            CollectionLegendDot(faded: true, k: k)
+                content: Text(solid).font(.system(size: k.pt(10))), minScale: 0.7, tone: .secondary)
+            Color.clear.frame(width: k.pt(6), height: 1)
+            CollectionLegendDot(hollow: true, k: k)
             CollectionText(
                 id: "legend.follow", text: follow,
-                content: Text(follow).font(.system(size: k.pt(11))), minScale: 0.7, tone: .secondary)
+                content: Text(follow).font(.system(size: k.pt(10))), minScale: 0.7, tone: .secondary)
             Spacer(minLength: 0)
         }
-        .frame(height: k.pt(14))
+        .frame(height: k.pt(12))
     }
 }
 
 struct CollectionLegendDot: View {
-    let faded: Bool
+    let hollow: Bool
     let k: RailScale
     @Environment(\.colorScheme) private var scheme
     @Environment(\.railMonochrome) private var mono
@@ -907,11 +873,17 @@ struct CollectionLegendDot: View {
     var body: some View {
         let base = mono ? AnyShapeStyle(HierarchicalShapeStyle.primary)
                         : AnyShapeStyle(RailTokens.colors(scheme).brand)
-        Circle()
-            .fill(base)
-            .opacity(faded ? CollectionMetrics.followAlpha : 1)
-            .frame(width: k.pt(8), height: k.pt(8))
-            .widgetAccentable()
+        let d = k.pt(8)
+        Group {
+            if hollow {
+                // 圈寬 = 半徑 × 0.45 = 直徑 × 0.225，與地圖上的空心圈同比例。
+                Circle().strokeBorder(base, lineWidth: d * CollectionMetrics.hollowRingRatio / 2)
+            } else {
+                Circle().fill(base)
+            }
+        }
+        .frame(width: d, height: d)
+        .widgetAccentable()
     }
 }
 
@@ -969,8 +941,8 @@ struct RectangularCollectionView: View {
                 CollectionText(id: "title", text: heading,
                                content: Text(heading).font(.system(size: 11, weight: .medium)), minScale: 0.7, tone: .secondary)
                 Spacer(minLength: 2)
-                CollectionText(id: "pct", text: "\(f.percent)%",
-                               content: Text("\(f.percent)%").font(.system(size: 11, weight: .semibold)).monospacedDigit(),
+                CollectionText(id: "pct", text: f.percentText,
+                               content: Text(f.percentText).font(.system(size: 11, weight: .semibold)).monospacedDigit(),
                                key: true)
             }
             .widgetAccentable()
@@ -1001,13 +973,15 @@ struct CircularCollectionView: View {
         case .unavailable:
             Text("—").font(.system(size: 18, weight: .semibold)).widgetAccentable()
         case .data(let f):
-            Gauge(value: Double(min(f.collected, max(f.total, 1))), in: 0...Double(max(f.total, 1))) {
+            // 圓環照實際比例，有收集時至少畫 3%（與進度條同一個 fill 規則）。
+            Gauge(value: CollectionScope.fill(f.collected, of: f.total), in: 0...1) {
                 Text(RailNativeL10n.text("車站"))
             } currentValueLabel: {
-                // 「100%」四個字元在圓環內側放不下預設字級，會被截成「10…」——滿分時字級再降一階。
-                CollectionText(id: "pct", text: "\(f.percent)%",
-                               content: Text("\(f.percent)%")
-                                   .font(.system(size: f.percent >= 100 ? 11 : 15, weight: .semibold)),
+                // 「100%」四個字元在圓環內側放不下預設字級，會被截成「10…」——四個字元時字級再降一階
+                // （「<1%」「99%」都只有三個字元，照預設字級）。
+                CollectionText(id: "pct", text: f.percentText,
+                               content: Text(f.percentText)
+                                   .font(.system(size: f.percentText.count >= 4 ? 11 : 15, weight: .semibold)),
                                minScale: 0.6)
             }
             .gaugeStyle(.accessoryCircularCapacity)

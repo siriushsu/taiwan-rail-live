@@ -20,7 +20,7 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setPlus", returnType: CAPPluginReturnPromise),
     ]
 
-    // ── 深連結轉運(小工具 metro-wait／station／pass) ──
+    // ── 深連結轉運(小工具 metro-wait／station／pass／passport) ──
     // 本專案沒裝 @capacitor/app,appUrlOpen 那條 JS 事件根本沒人聽;深連結由 AppDelegate
     // 直接交給本 plugin 轉成 "waitOpen" 事件。cold start 時 open-url 可能比 plugin load()
     // 先到 ⇒ 先暫存;JS listener 可能比事件晚掛 ⇒ notifyListeners 用 retainUntilConsumed。
@@ -30,9 +30,12 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
 
     // 通行證閘門擋下時,小工具的 widgetURL 是 railisland://pass ——同樣沒有 appUrlOpen 可聽,
     // 一併由本 plugin 轉運成 "waitOpen" 事件(帶 view:"pass"),JS 端收到就開通行證面板。
+    // 車站收集小工具的 widgetURL 是 railisland://passport(旅程護照,不是通行證方案頁 pass)——
+    // 走同一條路,事件帶 view:"passport",JS 端收到就開旅程護照面板。
     public static func handleOpen(url: URL) -> Bool {
         guard url.scheme == "railisland",
-              url.host == "metro-wait" || url.host == "station" || url.host == "pass" else { return false }
+              url.host == "metro-wait" || url.host == "station" || url.host == "pass"
+                || url.host == "passport" else { return false }
         if let p = shared { p.forwardOpen(url) } else { pendingOpenURL = url }
         return true
     }
@@ -53,6 +56,7 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
         var data: [String: Any] = [:]
         for item in comps.queryItems ?? [] { data[item.name] = item.value ?? "" }
         if comps.host == "pass" { data["view"] = "pass" }
+        if comps.host == "passport" { data["view"] = "passport" }
         if comps.host == "station" { data["view"] = "station" }
         notifyListeners("waitOpen", data: data, retainUntilConsumed: true)
     }

@@ -8,10 +8,10 @@ import WidgetKit
 // App Group `group.tw.railisland.app` 根目錄的 collection.json → 呼叫
 // `WidgetCenter.shared.reloadTimelines(ofKind: "CollectionWidget")`。這裡只讀，不重算任何數字。
 //
-// 點小工具：不設 widgetURL，打開 App 首頁。2026-09-29 查過：現有深連結只有 railisland://metro-wait、
-// station、pass 三個 host（RailMetroWaitPlugin.handleOpen），網頁端 waitOpen 只認 view:'pass'
-// （通行證方案頁，不是旅程護照）與 view:'station'，沒有任何路徑能直接開旅程護照（openRidePanel）。
-// 要做得先動 AppDelegate／RailMetroWaitPlugin 與網頁路由，不在這一批範圍。
+// 點小工具：所有尺寸都開 railisland://passport（旅程護照）。使用者 09-29 裁示「打開旅程護照（建議）」。
+// RailMetroWaitPlugin.handleOpen 收 host `passport`、轉成 waitOpen 事件（data.view = "passport"），
+// 網頁端收到就開 openRidePanel()。只在下面 EntryView 的最外層掛一次 widgetURL，四種家族共用；
+// 驗收腳本 render_collect_widget.mjs 的 u 閘門靜態掃這裡（拿掉或改掛在單一家族分支上都會紅）。
 
 extension CollectionStore {
     /// App Group 容器根目錄的 collection.json。
@@ -71,12 +71,13 @@ struct CollectionEntryView: View {
         Group {
             switch family {
             case .systemMedium: MediumCollectionView(content: entry.content)
-            case .systemLarge: LargeCollectionView(content: entry.content)
             case .accessoryRectangular: RectangularCollectionView(content: entry.content)
             case .accessoryCircular: CircularCollectionView(content: entry.content)
             default: SmallCollectionView(content: entry.content)
             }
         }
+        // 點小工具 → 旅程護照。掛在家族 switch 的外面：四種尺寸（含鎖屏兩款）一律生效。
+        .widgetURL(URL(string: "railisland://passport"))
         // 著色（tinted／accented）與鎖屏：系統會把所有顏色壓成單一色調 ⇒ 由元件層統一退成單色版面。
         .railRenderingMode(renderingMode)
         .containerBackground(for: .widget) {
@@ -98,7 +99,7 @@ struct CollectionWidget: Widget {
         }
         .configurationDisplayName("車站收集")
         .description("看你收集了幾成全台鐵道車站。點陣照車站的真實位置排出鐵道網，收集過的站亮起線色；範圍可選全台或單一系統。")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryCircular])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryCircular])
         .contentMarginsDisabled()
     }
 }
@@ -111,13 +112,6 @@ struct CollectionWidget: Widget {
 }
 
 #Preview(as: .systemMedium) {
-    CollectionWidget()
-} timeline: {
-    CollectionEntry(date: .now, configuration: CollectionIntent(),
-                    content: CollectionContent.make(CollectionStore.loadPreviewSample(), scope: nil))
-}
-
-#Preview(as: .systemLarge) {
     CollectionWidget()
 } timeline: {
     CollectionEntry(date: .now, configuration: CollectionIntent(),

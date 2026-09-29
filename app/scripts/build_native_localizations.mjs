@@ -330,7 +330,8 @@ Object.assign(native, {
   '還有 {n} 個系統還沒去過': ['Systems not visited yet: {n}', '未訪問の路線：{n}'],
   '最近蓋章': ['Recent stamps', '最近のスタンプ'],
   '實心＝搭過／到訪': ['Solid = Travelled / Visited', '塗り＝乗車済み／訪問済み'],
-  '淡色＝跟完': ['Faded = Followed', '淡色＝追跡完了'],
+  // 2026-09-29 第二輪裁示：跟完改畫線色空心圈，圖例文字同步（取代「淡色＝跟完」）。
+  '空心＝跟完': ['Hollow = Followed', '白抜き＝追跡完了'],
 });
 Object.assign(native, {
   '基隆市': ['Keelung City', '基隆市'], '臺北市': ['Taipei City', '台北市'], '新北市': ['New Taipei City', '新北市'],
