@@ -57,7 +57,7 @@ const SYSTEMS = [
     title: N('台中捷運路線圖：綠線車站與營運時間｜軌島', 'Taichung MRT Map: Green Line Stations & Operating Hours | Rail Island', '台中MRT 路線図｜緑線の駅と運行時間｜軌島'),
     panels: [['TG']] },
   { id: 'kaohsiung', name: N('高雄捷運', 'Kaohsiung MRT', '高雄MRT'),
-    title: N('高雄捷運路線圖：紅線、橘線與環狀輕軌｜軌島', 'Kaohsiung MRT Map: Red Line, Orange Line & Circular Light Rail | Rail Island', '高雄MRT 路線図｜赤線・オレンジ線・環状ライトレール｜軌島'),
+    title: N('高雄捷運路線圖：紅線、橘線與環狀輕軌｜軌島', 'Kaohsiung MRT Map: Red Line, Orange Line & Circular Light Rail | Rail Island', '高雄MRT 路線図｜レッドライン・オレンジライン・環状ライトレール｜軌島'),
     panels: [['KR', 'KO', 'C']] },
 ];
 
@@ -73,8 +73,8 @@ const LINE_PAGES = [
   { sys: 'new-taipei', slug: 'ankeng', lines: ['K'], name: N('安坑輕軌', 'Ankeng LRT', '安坑ライトレール') },
   { sys: 'new-taipei', slug: 'sanying', lines: ['LB'], name: N('三鶯線', 'Sanying Line', '三鶯線') },
   { sys: 'taichung', slug: 'green', lines: ['TG'], name: N('綠線', 'Green Line', '緑線'), alias: N('烏日文心北屯線', 'Wuriwenxin Beitun Line', '烏日文心北屯線') },
-  { sys: 'kaohsiung', slug: 'red', lines: ['KR'], name: N('紅線', 'Red Line', '赤線') },
-  { sys: 'kaohsiung', slug: 'orange', lines: ['KO'], name: N('橘線', 'Orange Line', 'オレンジ線') },
+  { sys: 'kaohsiung', slug: 'red', lines: ['KR'], name: N('紅線', 'Red Line', 'レッドライン') },
+  { sys: 'kaohsiung', slug: 'orange', lines: ['KO'], name: N('橘線', 'Orange Line', 'オレンジライン') },
   { sys: 'kaohsiung', slug: 'circular-lrt', lines: ['C'], name: N('環狀輕軌', 'Circular Light Rail', '環状ライトレール') },
 ];
 
@@ -96,15 +96,16 @@ const KIND_LABEL = { '1': N('普通車', 'Commuter', '普通列車'), '2': N('�
 const SPECIAL_NOTES = [
   { opId: 'tymc-20261012-post-expo', until: '2026-10-11', lineIds: ['A'], fromIdx: 11, toIdx: 20,
     text: (lang, a, z) => pick(lang,
-      `9/24（四）至 10/11（日）為 2026 台灣設計展疏運期間：${a}到${z}之間加開每站停靠的區間加班車（週一至四 16:00–20:00；週五至日含國定假日 11:00–22:00；10/11 為 11:00–20:00），該時段取消南延直達車。10/12 起改用展後班表。下列首末班車與班距是一般班表的計算結果，臨時班表以營運單位公告為準。`,
+      `9/24（四）至 10/11（日）為 2026 台灣設計展疏運期間，${a}到${z}之間加開每站停靠的區間加班車（週一至四 16:00–20:00；週五至日含國定假日 11:00–22:00；10/11 為 11:00–20:00），該時段取消南延直達車。10/12 起改用展後班表。下列首末班車與班距是一般班表的計算結果，臨時班表以營運單位公告為準。`,
       `Sep 24 (Thu) to Oct 11 (Sun) is the special service period for the 2026 Taiwan Design Expo. Extra trains that stop at every station run between ${a} and ${z} (Mon–Thu 16:00–20:00; Fri–Sun and public holidays 11:00–22:00; Oct 11 11:00–20:00), and the express trains that run on to the southern extension are cancelled in those hours. From Oct 12 the post-expo timetable applies. The first and last trains and headways below are calculated from the regular timetable; temporary timetables are subject to the operator's announcements.`,
       `9/24（木）〜10/11（日）は2026台湾デザイン展の輸送対策期間です。${a}〜${z}の間で各駅に停車する区間臨時列車が増発され（月〜木 16:00〜20:00、金〜日・祝日 11:00〜22:00、10/11は11:00〜20:00）、この時間帯は南側の延伸区間まで走る直達列車が運休になります。10/12からは展示会終了後のダイヤになります。以下の始発・終電と運転間隔は通常ダイヤから計算したもので、臨時ダイヤは運営会社の発表を優先してください。`) },
 ];
 
 // ── 共用小工具 ───────────────────────────────────────────────────────────────────
 const pad2 = n => String(n).padStart(2, '0');
+// 捨去到分，跟站上 fmtHM 一樣：資料有秒（例 22:25:30），四捨五入會把末班寫晚一分鐘。
 const hmOf = sec => {
-  const m = Math.round(sec / 60);
+  const m = Math.floor(sec / 60);
   return { text: `${pad2(Math.floor(m / 60) % 24)}:${pad2(m % 60)}`, next: m >= 1440 };
 };
 const timeHtml = sec => { const t = hmOf(sec); return t.next ? `${t.text}<sup class="nd">+1</sup>` : t.text; };
@@ -804,7 +805,7 @@ function headwayText(lang, page, lineId) {
     const o = pn(lang, stRow(lineId, d.origin));
     return pick(lang, `${o}發車 ${win(d, 'zh')}`, `from ${o}, ${win(d, 'en')}`, `${o}発：${win(d, 'ja')}`);
   });
-  return head + per.join(pick(lang, '；', '; ', '；'));
+  return head + per.join(pick(lang, '；', '; ', '／'));
 }
 
 // ── 路線結構描述 ─────────────────────────────────────────────────────────────────────
@@ -1155,7 +1156,7 @@ function shortRunNotes(lang, page, lineId, svc) {
     const per = a.sets.map(set => ({ set, o: (svc.others[set.name] || []).find(o => o.dest === d) })).filter(x => x.o);
     const same = per.length === a.sets.length && per.every(x => x.o.times.join(',') === per[0].o.times.join(','));
     const name = pn(lang, stRow(lineId, d));
-    const body = same ? shortRunText(lang, per[0].o) : per.map(x => `${dayLabel(lang, x.set.days, x.set.holiday)} ${shortRunText(lang, x.o)}`).join(pick(lang, '；', '; ', '；'));
+    const body = same ? shortRunText(lang, per[0].o) : per.map(x => `${dayLabel(lang, x.set.days, x.set.holiday)} ${shortRunText(lang, x.o)}`).join(pick(lang, '；', '; ', '／'));
     const tail = same && a.sets.length > 1 ? pick(lang, '（各班表日相同）', ' (same on every timetable day)', '（どの曜日も同じ）') : '';
     return pick(lang, `另有只開到${name}、不開到終點站的班次：${body}${tail}`, `Some trains stop short at ${name}: ${body}${tail}`, `${name}止まりの列車もあります：${body}${tail}`);
   });
@@ -1205,10 +1206,15 @@ function answerSection(lang, page) {
     const hw = headwayText(lang, page, id);
     if (hw) items.push(esc(page.cfg.lines.length > 1 ? `${dataLineLabel(lang, page, id)}${pick(lang, '：', ': ', '：')}${hw}` : hw));
   }
+  const loopLine = page.cfg.lines.some(id => M.lineModels[id].data.loop);
   const note = page.estimated
     ? pick(lang, '軌島的資料來源沒有這條路線的逐班時刻表，因此不列首末班車，營運時段與班距請以營運單位公告為準。',
       'Rail Island\'s data sources have no train-by-train timetable for this line, so first and last trains are not listed; check the operator for the actual hours and headways.',
       '軌島のデータソースにはこの路線の列車ごとの時刻表がないため、始発・終電は掲載していません。実際の運行時間と運転間隔は運営会社の発表で確認してください。')
+    : loopLine
+    ? pick(lang, '環狀線沒有終點站：「首班」「末班」是從上面列出的車站往各方向發車的最早與最晚時間；各班表日與各站時刻在下方。',
+      'The line is a loop with no terminus: "first" and "last" are the earliest and latest departures from the station shown above, in each direction. Other day types and every station are further down.',
+      '環状線には終点がないため、「始発」「終電」は上に示した駅から各方向へ出る最初と最後の列車の発車時刻です。ほかの曜日と各駅の時刻は下にあります。')
     : pick(lang, '「首班」「末班」是開到終點站的列車在起點站的最早與最晚發車時間；比這更早或更晚、只開到中途的班次另外標示；各班表日與各站時刻在下方。',
       '"First" and "last" are the earliest and latest departures from the starting terminus of trains that run all the way to the other end; trains that stop short and leave earlier or later than these are listed separately. Other day types and every station are further down.',
       '「始発」「終電」は、反対側の終点まで走る列車の起点駅での最初と最後の発車時刻です。それより早く、または遅く出る途中止まりの列車は別に示します。ほかの曜日と各駅の時刻は下にあります。');
@@ -1509,9 +1515,9 @@ function buildOverviewPage(lang) {
   const estNames = B.pages.filter(p => p.estimated).map(p => lineName(lang, p));
   const cards = B.systems.map(s => `<article class="card"><h3><a href="${sysHref(lang, s.id)}">${esc(s.name[lang])}</a></h3><p>${esc(pick(lang, `${s.pages.length} 條路線、${s.stationCount} 站：${list(lang, s.pages.map(p => p.name[lang]))}`, `${s.pages.length} ${s.pages.length === 1 ? 'line' : 'lines'}, ${s.stationCount} stations: ${list(lang, s.pages.map(p => p.name[lang]))}`, `${s.pages.length}路線・${s.stationCount}駅：${list(lang, s.pages.map(p => p.name[lang]))}`))}</p><a class="card-link" href="${sysHref(lang, s.id)}">${esc(pick(lang, `看${s.name.zh}路線圖 →`, `${s.name.en} map →`, `${s.name.ja} 路線図 →`))}</a></article>`).join('');
   const notes = `<div class="answer-box"><p>${esc(pick(lang,
-    `站名、站序與座標來自交通部 TDX 與 OpenStreetMap；首末班車與班距由各系統公開的逐站時刻表計算。軌島的資料來源沒有${list(lang, estNames)}的逐班時刻表，這些頁面只列營運時段與班距。`,
-    `Routes, stop order and station positions come from Taiwan's Ministry of Transportation TDX open data and OpenStreetMap; first and last trains and headways are calculated from each system's published station-by-station timetable. Rail Island's data sources have no train-by-train timetable for ${list(lang, estNames)}, so those pages list only operating hours and headways.`,
-    `路線、停車駅の順序、駅の位置は交通部TDXのオープンデータとOpenStreetMapにもとづきます。始発・終電と運転間隔は、各システムが公開している駅別時刻表から計算しています。軌島のデータソースには${list(lang, estNames)}の列車ごとの時刻表がないため、運行時間帯と運転間隔だけを載せています。`))}</p><p>${esc(overviewRunNote(lang))}</p><p class="source-note">${esc(pick(lang, `頁面產生日期：${M.date}。`, `Page generated on ${M.date}.`, `ページ生成日：${M.date}。`))}</p></div><div class="notice"><strong>${esc(pick(lang, '提醒：', 'Note: ', 'ご注意：'))}</strong>${esc(noticeText(lang))}</div>`;
+    `站名、站序與座標來自交通部 TDX 與 OpenStreetMap。軌島的資料來源沒有${list(lang, estNames)}的逐班時刻表，這些頁面只列營運時段與班距；其餘路線的首末班車與班距，由各系統公開的逐站時刻表計算。`,
+    `Routes, stop order and station positions come from Taiwan's Ministry of Transportation TDX open data and OpenStreetMap. Rail Island's data sources have no train-by-train timetable for ${list(lang, estNames)}, so those pages list only operating hours and headways; for every other line, first and last trains and headways are calculated from each system's published station-by-station timetable.`,
+    `路線、停車駅の順序、駅の位置は交通部TDXのオープンデータとOpenStreetMapにもとづきます。軌島のデータソースには${list(lang, estNames)}の列車ごとの時刻表がないため、これらのページは運行時間帯と運転間隔だけを載せています。そのほかの路線の始発・終電と運転間隔は、各システムが公開している駅別時刻表から計算しています。`))}</p><p>${esc(overviewRunNote(lang))}</p><p class="source-note">${esc(pick(lang, `頁面產生日期：${M.date}。`, `Page generated on ${M.date}.`, `ページ生成日：${M.date}。`))}</p></div><div class="notice"><strong>${esc(pick(lang, '提醒：', 'Note: ', 'ご注意：'))}</strong>${esc(noticeText(lang))}</div>`;
   const content = [
     section('systems', pick(lang, '選擇城市或系統', 'Choose a city or system', '都市・システムを選ぶ'), `<div class="card-grid system-cards">${cards}</div>`),
     section('lines', pick(lang, '所有捷運與輕軌路線', 'All metro and light rail lines', 'すべてのメトロ・ライトレール路線'), `<ul class="line-index">${B.pages.map(p => lineIndexItem(lang, p, true)).join('')}</ul>`),

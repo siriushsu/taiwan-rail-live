@@ -51,7 +51,8 @@ const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
 // 標點也算漏譯：英文頁不該出現全形／中日文標點；中日文頁不該出現「中日文字 + 半形逗號冒號分號 + 空白」（站名裡的半形括號不算）
 const FULLWIDTH_PUNCT = /[\u3000-\u303f\uff01-\uff5e]/;
 const ASCII_PUNCT_AFTER_CJK = /[\u3040-\u30ff\u3400-\u9fff\uff00-\uffef][,:;] |[\u3040-\u30ff\u3400-\u9fff]\.\s/;
-const hmOf = sec => { const m = Math.round(sec / 60); return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
+// 捨去到分，跟站上 fmtHM 一樣（四捨五入會把 22:25:30 的末班寫成 22:26）
+const hmOf = sec => { const m = Math.floor(sec / 60); return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
 const median = arr => { const s = [...arr].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
 const textOf = frag => decode(frag.replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
 const dropScripts = html => html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ');
@@ -118,6 +119,12 @@ const RUNS_ON_TIMETABLE = { zh: /依時刻表在地圖上跑/, en: /run(?:ning)?
 const TRTC_LIVE = { zh: /官方逐班即時資料/, en: /official train-by-train live data/, ja: /公式の列車ごとのリアルタイムデータ/ };
 const RED_WORDS = /票價|運賃|料金|\bfares?\b|通行證|付費|訂閱|收費|錄影|録画|\brecord(?:ing)?\b/i;
 const RED_PRODUCT_WORDS = /\bPlus\b|\bPass\b|Islander/;
+// 09-29 使用者：「文湖線那句照你說的改成資料來源沒有」——頁面只寫「軌島的資料來源沒有……」，不斷言官方有沒有公開
+const NO_PUBLISH_CLAIM = {
+  zh: /(?:官方|營運單位|捷運公司)?(?:沒有|未|不)公開|無公開|未公布|沒有公布/,
+  en: /\b(?:does not|doesn't|do not|don't|did not|didn't|never) publish|\bnot (?:been )?(?:publicly )?published|\bunpublished\b/i,
+  ja: /(?:公開|公表)(?:し|して|されて)?(?:い)?ない|非公開|未公開/,
+};
 const OPERATOR_WORDS = /新北捷運|New Taipei Metro|新北メトロ|營運商|運營商/;
 
 for (const p of pages) {
@@ -236,6 +243,7 @@ for (const p of pages) {
   const bodyText = textOf(dropScripts(body));
   ok(!RED_WORDS.test(bodyText) && !RED_PRODUCT_WORDS.test(bodyText), `${tag} 沒有收費／通行證／錄影／票價字樣`, (bodyText.match(RED_WORDS) || bodyText.match(RED_PRODUCT_WORDS) || [])[0]);
   ok(bodyText.includes(NOTICE[p.lang]), `${tag} 有「${NOTICE.zh}」對應句`);
+  ok(!NO_PUBLISH_CLAIM[p.lang].test(bodyText), `${tag} 不斷言官方有沒有公開（只寫軌島的資料來源沒有）`, (bodyText.match(NO_PUBLISH_CLAIM[p.lang]) || [])[0]);
   // 地圖上怎麼跑：台北捷運寫官方逐班即時、不准寫成「依時刻表在地圖上跑」（09-29 驗收抓到文湖線頁這樣寫＝不實）；
   // 其餘系統要有「依時刻表在地圖上跑」；總覽兩句都要有
   const isTaipei = p.key === 'taipei' || String(p.key || '').startsWith('taipei/');
@@ -317,6 +325,10 @@ for (const lang of Object.keys(ROOTS)) {
   ok(idxLinks.length === 2, '首頁 .ms-aeo-links／頁尾兩處都有「捷運路線圖」入口', `${idxLinks.length} 處`);
   ok(/APP_REPLACE_START aeo-links-foot[\s\S]*?href="metro\/"[\s\S]*?APP_REPLACE_END aeo-links-foot/.test(idx) && /APP_REPLACE_START aeo-links-ms[\s\S]*?href="metro\/"[\s\S]*?APP_REPLACE_END aeo-links-ms/.test(idx), '入口放在 APP_REPLACE 區間內（App build 才會換成絕對網址）');
   ok(idx.includes('台北捷運九線的列車位置與車站倒數都是官方逐班即時'), 'index.html 捷運頁導言仍寫台北捷運九線位置來自官方逐班即時（路線圖頁的「地圖上怎麼跑」照它寫；導言改了這裡就紅）');
+  // 高雄的路線圖頁寫「依時刻表在地圖上跑，並依官方到站看板校正」，照的是這段高捷導言。09-29 使用者裁示高捷紅橘線要改成跟台北一樣
+  // 用到站倒數當名冊；那一版上線、導言跟著改時這裡就紅——同一輪要改 scripts/build_metro_pages.mjs 的 runNote／overviewRunNote／
+  // systemRunHtml（高雄不再是「依時刻表跑」）與上面 isTaipei 那組分類，再更新這裡的期望值。
+  ok(idx.includes("lead: '紅橘兩線與環狀輕軌依當日實際時刻表在港都穿梭，營運時段依官方到站看板即時校正 — 拖曳、縮放看看。'"), 'index.html 高捷導言仍寫「依當日實際時刻表…到站看板即時校正」（改了就要同步改路線圖頁高雄的「地圖上怎麼跑」）');
   ok(/\['metro', '捷運路線圖'\]/.test(read('app/scripts/prepare-web.mjs')), 'App build 的說明連結也有「捷運路線圖」（正式站絕對網址）');
   const tr = read('i18n/translations.js');
   ok(/'捷運路線圖': 'Metro maps'/.test(tr) && /'捷運路線圖': 'メトロ路線図'/.test(tr), 'i18n 有「捷運路線圖」的 en／ja 詞條');
@@ -554,6 +566,59 @@ for (const s of sample) {
     }
     log(`    班距：${hw.map(d => `${exp.g.stations[d.origin].name}發車 ${d.morning ?? '—'}／${d.midday ?? '—'} 分`).join('；')}`);
   }
+}
+
+// B3. 依附支線（新北投、小碧潭）的首末班明細表。B2 只驗主線的首末班列，支線的表原本沒人驗（09-29 第二輪驗收的突變 M4 擋不到）。
+console.log('B3. 依附支線的首末班明細（全部）');
+for (const s of SPEC) for (const id of s.attached) {
+  const exp = expectedServices(s.file, id);
+  for (const svc of exp.services) {
+    const fromName = exp.g.stations[svc.origin].name, toName = exp.g.stations[svc.dest].name;
+    for (const lang of Object.keys(ROOTS)) {
+      const p = pageAt(lang, `${s.sys}/${s.slug}`);
+      const label = dayLabel(lang, exp.days, exp.holiday);
+      // 標題是「新北投支線 · 北投 → 新北投」：支線名稱裡就有站名，只看「·」後面的起訖、左右各自精確比對
+      const ends = h => { const t = textOf(h); const r = t.slice(t.lastIndexOf('·') + 1).split('→').map(x => x.trim()); return r.length === 2 ? r : null; };
+      const card = [...(p.secs.times || '').matchAll(/<article class="time-card"><h3>([\s\S]*?)<\/h3>([\s\S]*?)<\/article>/g)].find(m => { const e = ends(m[1]); return !!e && nameSet(lang, fromName).has(e[0]) && nameSet(lang, toName).has(e[1]); });
+      if (!ok(!!card, `${lang} ${id} 明細表有「${fromName} → ${toName}」`)) continue;
+      const row = [...card[2].matchAll(/<tr><th scope="row">([\s\S]*?)<\/th><td class="t">([\s\S]*?)<\/td><td class="t">([\s\S]*?)<\/td><\/tr>/g)].find(m => textOf(m[1]) === label);
+      if (!ok(!!row, `${lang} ${id} ${fromName}→${toName} 明細表有「${label}」列`, card[2].slice(0, 200))) continue;
+      const cell = h => ({ t: textOf(h.replace(/<sup[\s\S]*?<\/sup>/g, '')), next: /class="nd"/.test(h) });
+      const f = cell(row[2]), l = cell(row[3]);
+      ok(f.t === hmOf(svc.first) && f.next === (svc.first >= 86400), `${lang} ${id} ${fromName}→${toName} ${label} 首班 頁面 ${f.t}${f.next ? '(+1)' : ''}／data ${hmOf(svc.first)}${svc.first >= 86400 ? '(+1)' : ''}`);
+      ok(l.t === hmOf(svc.last) && l.next === (svc.last >= 86400), `${lang} ${id} ${fromName}→${toName} ${label} 末班 頁面 ${l.t}${l.next ? '(+1)' : ''}／data ${hmOf(svc.last)}${svc.last >= 86400 ? '(+1)' : ''}`);
+    }
+    log(`  ${s.slug}／${id} ${fromName} → ${toName}：首班 ${hmOf(svc.first)}、末班 ${hmOf(svc.last)}${svc.last >= 86400 ? '(+1)' : ''}`);
+  }
+}
+
+// B4. 摘要的營運時段（各路線頁 description＋系統頁路線卡片），14 條全部。定義：週三所屬班表裡，從各資料線端點站發車的
+// 最早與最晚時間（環線＝從站序 0 發車）；跟主線同一日型的依附支線也算——淡水信義線主線末班 00:00、新北投支線 00:12，
+// 只算主線會少掉支線的末班（09-29 第二輪驗收的突變 M3 擋不到）。估算線（沒有逐班時刻表）＝逐班最早／最晚發車，同 B2。
+console.log('B4. 摘要營運時段（14 條，全部；含同日型的依附支線）');
+const NEXT_DAY = { zh: '（次日）', en: ' (next day)', ja: '（翌日）' };
+for (const s of SPEC) {
+  const base = expectedServices(s.file, s.main[0]);
+  const est = !!(TIMES[s.file].estimated || TIMES[s.file].lines[s.main[0]].estimated);
+  let first = Infinity, last = -Infinity;
+  for (const id of [...s.main, ...s.attached]) {
+    const e = id === s.main[0] ? base : expectedServices(s.file, id);
+    if (!s.main.includes(id) && e.days.join() !== base.days.join()) continue;
+    const deps = est ? e.services.flatMap(x => [x.first, x.last])
+      : e.trains.filter(t => (e.loop ? t[0] === 0 : t[0] === 0 || t[0] === e.n - 1)).map(t => t[1]);
+    for (const d of deps) { first = Math.min(first, d); last = Math.max(last, d); }
+  }
+  if (!ok(Number.isFinite(first), `${s.slug} data 算得出營運時段`)) continue;
+  for (const lang of Object.keys(ROOTS)) {
+    const want = `${hmOf(first)}–${hmOf(last)}${last >= 86400 ? NEXT_DAY[lang] : ''}`;
+    const p = pageAt(lang, `${s.sys}/${s.slug}`);
+    const desc = decode((p.html.match(/<meta name="description" content="([^"]*)"/) || [, ''])[1]);
+    ok(desc.includes(want), `${lang} ${s.slug} description 的營運時段 ${want}`, desc.slice(0, 160));
+    const sp = pageAt(lang, s.sys);
+    const card = [...sp.html.matchAll(/<div class="line-title"><a href="([^"]*)">[\s\S]*?<\/a><\/div><div class="line-meta">([\s\S]*?)<\/div>/g)].find(m => m[1].endsWith(`/${s.slug}/`));
+    ok(!!card && textOf(card[2]).includes(want), `${lang} ${s.sys} 系統頁「${s.slug}」卡片的營運時段 ${want}`, card ? textOf(card[2]) : '找不到卡片');
+  }
+  log(`  ${s.slug.padEnd(17)} ${hmOf(first)}–${hmOf(last)}${last >= 86400 ? '(+1)' : ''}${est ? '（估算線）' : ''}`);
 }
 
 console.log('────');
