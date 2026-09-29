@@ -158,7 +158,9 @@
       const box=document.createElement('div');box.className='g-scene-entry';
       const go=document.createElement('button');go.type='button';go.className='g-scene-go';go.textContent=tr('進入場景');
       const place=document.createElement('small');place.textContent=tr(sc.place);
-      go.onclick=()=>openScene(row);box.append(go,place);action.after(box);
+      go.onclick=()=>openScene(row);box.append(go,place);
+      // 放在展示框頂部的分頁列正下方：手機上詳情區在摺線下約 500px，放展示框下方也還要捲約 370px。
+      (dialog.querySelector('.g-scene-bar')||action).after(box);
     }
     $('.g-source-body').replaceChildren();
     for(const text of [tr('模型製作：軌島（Q 版示意）'),tr('收藏的是紀念模型，不代表曾搭乘這個實際車型或車號。'),tr('外觀依公開照片參考繪製；照片僅連結，未作為模型貼圖。')]) {

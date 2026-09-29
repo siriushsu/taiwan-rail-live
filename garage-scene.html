@@ -33,13 +33,14 @@ canvas{display:block;width:100%;height:100%;position:absolute;inset:0;touch-acti
 .notice h1{font-family:"Songti TC","Noto Serif TC",serif;font-weight:500;font-size:26px;line-height:1.4;letter-spacing:.06em;margin:0}
 .notice p{margin:0;font-size:14px;line-height:1.8;color:#67766f}
 .notice .car{font-size:14px;letter-spacing:.05em}
-#frame:has([data-period=night]){background:#172c38;color:#e3e4d5}
-#frame:has([data-period=night]) .title small,#frame:has([data-period=night]) .hint,#frame:has([data-period=night]) .caption{color:#a5b4b1}
-#frame:has([data-period=night]) button{color:#e2e4da;background:#2c4654;border-color:#78929340}
-#frame:has([data-period=night]) button[aria-pressed=true]{background:#d9d5b8;color:#203b45}
-#frame:has([data-period=night]) .cluster{background:#203744;border-color:#78929340}
-#frame:has([data-period=night]) .loading{background:#172c38cc;color:#c8d3d0}
-#frame:has([data-period=sunset]){background:#e9d6c3}
+#frame:has(#stage[data-period=night]){background:#172c38;color:#e3e4d5}
+#frame:has(#stage[data-period=night]) .title small,#frame:has(#stage[data-period=night]) .hint,#frame:has(#stage[data-period=night]) .caption{color:#a5b4b1}
+#frame:has(#stage[data-period=night]) button{color:#e2e4da;background:#2c4654;border-color:#78929340}
+#frame:has(#stage[data-period=night]) button[aria-pressed=true]{background:#d9d5b8;color:#203b45}
+#frame:has(#stage[data-period=night]) .cluster{background:#203744;border-color:#78929340}
+#frame:has(#stage[data-period=night]) .loading{background:#172c38cc;color:#c8d3d0}
+#frame:has(#stage[data-period=sunset]){background:#e9d6c3}
+#frame:has(#stage[data-period=sunset]) .title small,#frame:has(#stage[data-period=sunset]) .hint,#frame:has(#stage[data-period=sunset]) .caption{color:#4f5d57}
 @media(max-width:800px){.bar{padding:6px 10px}.cluster button{padding:0 10px}.view-tabs button{padding:0 11px}.tools{gap:6px}}
 </style></head><body><div id="frame"></div>
 <script src="./i18n/translations.js"></script>
