@@ -6073,6 +6073,7 @@
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
         <li><span class="d">7/11</span><span>可以安裝到主畫面（PWA），像 App 一樣全螢幕開啟</span></li>
         <li class="grp">資料校正</li>
+        <li data-cl="metrolead0929"><span class="d">9/29</span><span>捷運導言更正：「北北桃」與台北捷運的地圖導言，也改成台北捷運各線（含文湖線）的列車位置與車站倒數都來自官方逐班即時資料，不再把文湖線寫成班距推算</span></li>
         <li data-cl="subwayfloat0925"><span class="d">9/25</span><span>高捷紅線與臺北臺鐵地下化（板橋～南港）改回畫在地面下：原本只因沿線一小段靠山（半屏山、南港）就被當成山岳隧道，整段畫在地面上約 8 公尺，連帶把交會的新左營臺鐵、高雄車站地下段、高雄輕軌與南港高鐵頂高</span></li>
         <li data-cl="zuoyingflat0925"><span class="d">9/25</span><span>高鐵左營站區（到北緯 22.7011 為止）改回平面：官方橋隧圖資把站區畫成橋樑，但高鐵左營站是平面站、月台在 1 樓；北邊的高架照舊（謝謝網友回報）</span></li>
         <li data-cl="tengyun0925"><span class="d">9/25</span><span>EMU3000 新自強的車種介紹改成「多數班次有騰雲座艙（特仕車編組除外）」，不再寫得像每班都有（謝謝網友提問）</span></li>
@@ -8198,7 +8199,7 @@ function pal() { return MAP_PAL[state.basemap === 'landscape' ? 'light' : state.
 
 // 各系統的站名牌／副標／導言文案(loadSystem 依系統套用)
 const SYS_META = {
-  mrt:       { plateL: '淡水', plateR: '象山', sub: 'TAIPEI METRO LIVE',    lead: '各線列車依當日實際時刻表在城市裡穿梭，營運時段依官方到站看板即時校正（含環狀線；文湖線為班距推算）— 拖曳、縮放看看。' },
+  mrt:       { plateL: '淡水', plateR: '象山', sub: 'TAIPEI METRO LIVE',    lead: '各線列車在城市裡穿梭，列車位置與車站倒數都是官方逐班即時（含文湖線、環狀線）— 拖曳、縮放看看。' },
   tymc:      { plateL: '台北車站', plateR: '老街溪', sub: 'TAOYUAN AIRPORT MRT LIVE', lead: '機場捷運直達車與普通車依當日實際時刻表連結雙北與桃園機場，營運時段依官方到站看板即時校正 — 拖曳、縮放看看。' },
   ntdlrt:    { plateL: '紅樹林', plateR: '漁人碼頭', sub: 'DANHAI LIGHT RAIL LIVE', lead: '淡海輕軌綠山線與藍海線依官方當日時刻表在淡水穿梭，營運時段依官方列車動態即時校正 — 拖曳、縮放看看。' },
   ntalrt:    { plateL: '雙城', plateR: '十四張', sub: 'ANKENG LIGHT RAIL LIVE', lead: '安坑輕軌依官方當日時刻表沿安康路串起新店丘陵，營運時段依官方列車動態即時校正 — 拖曳、縮放看看。' },
@@ -17975,7 +17976,7 @@ const GROUPS = [
       lead: '台鐵、高鐵與阿里山林鐵皆依真實時刻表運行（台鐵回到現在時刻自動套用即時誤點；林鐵依官方公告時刻表，無即時資訊）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。' } },
   { id: 'north', label: '北北桃', mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying'],
     plate: { plateL: '淡水', plateR: '桃園機場', sub: 'GREATER TAIPEI RAIL',
-      lead: '台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，北捷、新北捷與機捷營運時段依官方即時資訊校正（三鶯線、文湖線為班距推算）— 可在上方勾選要同時顯示的系統,拖曳、縮放地圖看看。' } },
+      lead: '台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線為班距推算）— 可在上方勾選要同時顯示的系統，拖曳、縮放地圖看看。' } },
   { id: 'south', label: '中南部', mode: 'freq', members: ['tmrt', 'krtc'],
     plate: { plateL: '台中', plateR: '高雄', sub: 'CENTRAL & SOUTHERN METRO',
       lead: '台中捷運與高雄捷運同框，高捷與輕軌營運時段依官方到站看板校正（台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。' } },
