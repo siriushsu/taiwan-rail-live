@@ -164,7 +164,9 @@ ok('H4 防偽不過時不看品質閘的結論（順序固定：先防偽後品�
     ? JSON.stringify(M) : STUB_RULES, { status: 200 }) };
   const board = LINE.stations.slice(1).map((s, i) =>
     `('tra_sched|南迴線|${LINE.stations[i].name}|${s.name}','tra_sched','自強',0,'track','',1,1,2,10,1,1,0,NULL)`).join(',');
-  const mk = (id, actor, pts) => `('${id}','${actor}','tra_sched','南迴線','312',0,'2026-07-28','${JSON.stringify(pts)}',NULL,1,'pending')`;
+  // 上傳時間要合理（乘車日 07-28 的隔天凌晨）：防偽閘的日期窗以上傳時間為基準（integrityGate 的 uploadedAt），
+  // 原本寫 1（1970 年）會被判 future_date——那個值在舊行為下沒人讀，在新行為下等於「上傳早於乘車日 50 多年」。
+  const mk = (id, actor, pts) => `('${id}','${actor}','tra_sched','南迴線','312',0,'2026-07-28','${JSON.stringify(pts)}',NULL,${Date.parse('2026-07-29T01:00:00Z')},'pending')`;
   const clean = cleanTrip().pts;
   const blocked = clean.map(p => ({ ...p, acc: 120 }));
   // 同 F6：spoof 底座須用 wobblyPts()，clean.map(...) 會因直線位置零方差而測不出 doppler_too_clean。
@@ -285,13 +287,15 @@ ok('H4 防偽不過時不看品質閘的結論（順序固定：先防偽後品�
   for (let t = 0; t < 1000; t++) {
     const n = t === 999 ? 5 : 4;
     for (let i = 0; i < n; i++) {
-      vals.push(`('s${t}-${i}','dev-${String(t).padStart(4, '0')}','tra_sched','南迴線','312',0,'2026-07-28','${pts}',NULL,${i},'pending')`);
+      vals.push(`('s${t}-${i}','dev-${String(t).padStart(4, '0')}','tra_sched','南迴線','312',0,'2026-07-28','${pts}',NULL,${Date.parse('2026-07-29T01:00:00Z') + i},'pending')`);
     }
   }
   const { db, DELAY_DB } = openTestDb(
     `INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict) VALUES ${vals.join(',')};`);
   _bounty.bountyResetMemCaches();
-  const stat = await bountyVerifyCron({ DELAY_DB, ASSETS, BOUNTY_NOW: String(Date.parse('2026-07-29T02:00:00Z')) });
+  // 預算調到用不完：1000 班 ok 趟在預設子請求預算（8000）下一發做不完，會早於截斷就停手；這一組驗的是「截斷切在班車邊界」，
+  // 停手的原因要只剩截斷（預算停手另有 verify_bounty_cron2.mjs 的 M 組專驗）。
+  const stat = await bountyVerifyCron({ DELAY_DB, ASSETS, BOUNTY_NOW: String(Date.parse('2026-07-29T02:00:00Z')), BOUNTY_SUBREQ_BUDGET: '1000000' });
   const total = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
   const done = db.prepare("SELECT COUNT(*) c FROM bounty_samples WHERE verdict<>'pending'").get().c;
   // 核心判準：逐趟檢查「全判完」或「全還沒判」，不存在中間狀態

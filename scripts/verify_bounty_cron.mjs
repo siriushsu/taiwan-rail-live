@@ -87,12 +87,15 @@ function world(over = {}) {
 // 直接寫樣本列（每一批一列）。first＝這一段批次的起始序號（同一班車分幾次寫入時，序號與 submitted_at 都要接續）。
 function putBatches(db, o) {
   const { actor, trainNo, lnId, sys = 'tra_sched', date = D28, pts, dir = 0, client = APP, first = 0, size = 200 } = o;
+  // submittedAt：上傳時間的基準，預設是固定世界的「一小時前」。防偽閘的日期窗以上傳時間為基準（integrityGate 的 uploadedAt），
+  // 所以用真時鐘的情境（B4）要自己給一個貼近真實現在的值，不然乘車日（真實昨天／今天）會比上傳時間（固定世界）還晚而被判 future_date。
+  const at = o.submittedAt ?? (NOW_MS - 3600e3);
   chunk(pts, size).forEach((part, k) => {
     const c = Array.isArray(client) ? client[Math.min(first + k, client.length - 1)] : client;
     db.prepare("INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict,client)" +
       " VALUES (?,?,?,?,?,?,?,?,NULL,?,'pending',?)")
       .run(`${actor}.${trainNo}.${date}.${lnId}.${first + k}`, actor, sys, lnId, trainNo, dir, date, J(part),
-        NOW_MS - 3600e3 + first + k, c ? J(c) : null);
+        at + first + k, c ? J(c) : null);
   });
 }
 
@@ -285,8 +288,9 @@ await attempt('B4', async () => {
   for (let tries = 0; tries < 2; tries++) {                              // 跨台北午夜的那一瞬間重來一次（機率趨近 0，但不讓它變成偶發紅）
     const today = tp(Date.now()), yday = tp(Date.now() - DAY);
     const w = world({ now: null });
-    putBatches(w.db, { actor: 'b4-yday', trainNo: '101', lnId: '山線', date: yday, pts: leg({ sec: 700 }) });
-    putBatches(w.db, { actor: 'b4-today', trainNo: '102', lnId: '山線', date: today, pts: leg({ sec: 700 }) });
+    const upAt = Date.now() - 3600e3;                                     // 上傳時間貼近真實現在（見 putBatches 的 submittedAt）
+    putBatches(w.db, { actor: 'b4-yday', trainNo: '101', lnId: '山線', date: yday, pts: leg({ sec: 700 }), submittedAt: upAt });
+    putBatches(w.db, { actor: 'b4-today', trainNo: '102', lnId: '山線', date: today, pts: leg({ sec: 700 }), submittedAt: upAt });
     await w.cron();
     if (tp(Date.now()) !== today) continue;
     ok('B4 [F24] 沒有 BOUNTY_NOW 時用真時鐘：昨天的趟判掉（ok、+1）、今天的趟不判（pending、0）',
@@ -379,6 +383,9 @@ await attempt('C7', async () => {
   // 截斷（單次最多 4000 列 pending）必須切在「整班車」的邊界：3998 班單批的填充車＋最後一班三批的 ZZ 車，共 4001 列。
   // 第 3999、4000 列是 ZZ 車的前兩批——若從中間切開，這兩批會被當成半班車判掉（約 500 秒 <600 → 0 顆），第三批隔天單獨判又是 0 顆。
   const w = world();
+  // 3998 班填充車在預設子請求預算（8000）下一發做不完（每班至少 5 個子請求，停在預算是 S13b 的新行為）；這一條驗的是「截斷切在班車邊界」，
+  // 所以把預算調到用不完，讓停手的原因只剩截斷（預算停手另有 verify_bounty_cron2.mjs 的 M 組專驗）。
+  w.env.BOUNTY_SUBREQ_BUDGET = '1000000';
   w.db.exec('BEGIN');
   const ins = w.db.prepare("INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict,client)" +
     " VALUES (?,'trunc-a','tra_sched','山線',?,0,?,?,NULL,?,'pending',?)");
