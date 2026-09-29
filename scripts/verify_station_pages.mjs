@@ -114,7 +114,7 @@ function tr(lang, kind, zhName, sys) {   // kind: 'station'（sys 必給）| 'ty
   if (lang === 'zh') return zhName;
   const rec = kind === 'type' ? i18n.trainTypes[zhName] : i18n.systems[sys === 'TRA' ? 'tra_sched' : 'thsr_sched'][zhName];
   if (!rec || !rec[lang]) return null;
-  return rec[lang];
+  return (W_NAME[lang] || {})[rec[lang]] ?? rec[lang];
 }
 const revCache = {};
 function revStation(lang, sys, text) {   // 該語系的站名文字 → 官方（中文）站名
@@ -201,7 +201,8 @@ const decode = s => s.replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n)).r
 const strip = s => decode(s.replace(/<[^>]*>/g, ''));
 
 function parsePage(html) {
-  const main = (html.match(/<main[\s\S]*?<\/main>/) || [''])[0];
+  // 表格元素上的 ARIA role（role="row" 等，手機版讓讀屏保留表格語意用）與時刻內容無關，解析前先剝掉，下面的結構正規式維持原樣。
+  const main = (html.match(/<main[\s\S]*?<\/main>/) || [''])[0].replace(/ role="[^"]*"/g, '');
   const sections = [];
   for (const m of main.matchAll(/<section class="content-section tt" id="([a-z]+)-([0-9A-Za-z]+)">([\s\S]*?)<\/section>/g)) {
     const body = m[3];
@@ -219,13 +220,13 @@ function parsePage(html) {
         cols: [...chunk.matchAll(/<th scope="col">([\s\S]*?)<\/th>/g)].map(x => strip(x[1])), rows: [],
         trCount: (chunk.match(/<tbody>[\s\S]*?<\/tbody>/) || [''])[0].split('<tr').length - 1,
       };
-      for (const r of chunk.matchAll(/<tr(?: class="([^"]*)")?><th scope="row" class="t">([\s\S]*?)<\/th><td class="c-train">([\s\S]*?)<small class="car">([\s\S]*?)<\/small><\/td><td class="c-(to|from)">([\s\S]*?)<\/td><td class="c-run">([\s\S]*?)<\/td><\/tr>/g)) {
+      for (const r of chunk.matchAll(/<tr(?: class="([^"]*)")?><th scope="row" class="t">([\s\S]*?)<\/th><td class="c-train">([\s\S]*?)(?:<small class="car">([\s\S]*?)<\/small>)?<\/td><td class="c-(to|from)">([\s\S]*?)<\/td><td class="c-run">([\s\S]*?)<\/td><\/tr>/g)) {
         const tm = r[2].match(/^(\d\d):(\d\d)(<sup class="nd">\+1<\/sup>)?$/);
         blk.rows.push({
           special: /\bspecial\b/.test(r[1] || ''), timeRaw: strip(r[2]),
           timeText: tm ? `${tm[1]}:${tm[2]}${tm[3] ? '+1' : ''}` : null,
           sec: tm ? (+tm[1]) * 3600 + (+tm[2]) * 60 + (tm[3] ? 86400 : 0) : null,
-          train: strip(r[3]), type: strip(r[4]), other: strip(r[6]), run: strip(r[7]),
+          train: strip(r[3]), type: strip(r[4] || ''), other: strip(r[6]), run: strip(r[7]),
         });
       }
       sec.blocks.push(blk);
@@ -297,7 +298,7 @@ function decodeLabel(lang, text, cal) {
     if ((m = text.match(/^(週[^，；]+)(?:，另 ([^；]+))?(?:；(.+) 不開)?$/))) return finishWeekdays(lang, m[1], m[2], m[3], cal, errs);
   } else if (lang === 'en') {
     if (text === 'Daily') return { set: all(), errs };
-    if (text === 'Working days (not on holidays)') return { set: new Set(D.filter(d => !isHoliday(d))), errs };
+    if (text === 'Working days') return { set: new Set(D.filter(d => !isHoliday(d))), errs };
     if (text === 'Weekends and holidays') return { set: new Set(D.filter(d => isHoliday(d))), errs };
     if ((m = text.match(new RegExp(`^Daily from ${T}$`)))) return { set: between(one(m[1]) || '', cal.last), errs };
     if ((m = text.match(new RegExp(`^Daily through ${T}$`)))) return { set: between(cal.first, one(m[1]) || ''), errs };
@@ -337,25 +338,27 @@ const W_ = {
   zh: {
     period: '時刻表涵蓋區間', perDay: '每天開出班數', sysWord: { TRA: '台鐵', THSR: '高鐵' },
     range: /(\d+)\/(\d+)（(.)）至 (\d+)\/(\d+)（(.)）/,
-    depN: /班次共 (\d+) 班/, arrN: /以本站為終點的 (\d+) 班/, subN: /(\d+) 班/,
+    depN: /開出 (\d+) 個班次/, arrN: /以本站為終點的 (\d+) 班/, subN: /(\d+) 班/,
     dayLabel: /^(\d+)\/(\d+) 週(.)(?:（(.+)）)?$/,
     south: /^南下/, north: /^北上/,
   },
   en: {
     period: 'Timetable period', perDay: 'Departures per day', sysWord: { TRA: 'TRA', THSR: 'HSR' },
     range: /(?:From )?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d+) \((...)\) to (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d+) \((...)\)/,
-    depN: /(\d+) (?:TRA|HSR) services depart/, arrN: /services that end here \((\d+)\)/, subN: /(\d+) trains?/,
+    depN: /there (?:is|are) (\d+) distinct (?:TRA|HSR) departures?/, arrN: /trains that end here \((\d+)\)/, subN: /(\d+) trains?/,
     dayLabel: /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d+) (Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?: \((.+)\))?$/,
     south: /^Southbound/, north: /^Northbound/,
   },
   ja: {
     period: '時刻表の対象期間', perDay: '1日の発車本数', sysWord: { TRA: '台鉄', THSR: '高鉄' },
     range: /(\d+)月(\d+)日（(.)）〜(\d+)月(\d+)日（(.)）/,
-    depN: /発車する(?:台鉄|高鉄)は(\d+)本/, arrN: /終点の列車（(\d+)本）/, subN: /(\d+)本/,
+    depN: /発車する(?:台鉄|高鉄)は.*?合計(\d+)本/, arrN: /終点の列車（(\d+)本）/, subN: /(\d+)本/,
     dayLabel: /^(\d+)月(\d+)日 (.)曜(?:（(.+)）)?$/,
     south: /^南下/, north: /^北上/,
   },
 };
+// 頁面顯示的站名與字典值不同的少數幾個（字典 en 帶底線，頁面顯示成括號寫法；docs/i18n/tra_station_names.json _caveats 的建議）
+const W_NAME = { en: { Zhongli_Taoyuan: 'Zhongli (Taoyuan)', Zhongli_Yilan: 'Zhongli (Yilan)' } };
 const rangeParts = (lang, m) => {   // → {a:{mon,day,wd}, b:{...}}
   const mon = x => (lang === 'en' ? MON_EN.indexOf(x) + 1 : +x);
   return { a: { mon: mon(m[1]), day: +m[2], wd: m[3] }, b: { mon: mon(m[4]), day: +m[5], wd: m[6] } };
@@ -564,8 +567,9 @@ function verifyStation(st, lang, page, members, expByMember) {
           c.rowsMatched++;
           const timeTag = `${train} ${timeWant}`;
           // 車種
-          const typeOk = [...e.types].some(k => tr(lang, 'type', k) === r.type);
-          ok(6, typeOk, `${bTag} 車次 ${timeTag} 車種不符`, `頁面「${r.type}」、應為 ${[...e.types].map(k => `「${tr(lang, 'type', k)}」`).join('／')}`);
+          // 高鐵每一列的車種都一樣（High Speed Rail／高鐵），是雜訊，頁面不顯示；台鐵照舊要對上 i18n 的車種名
+          const typeOk = mem.sys === 'THSR' ? r.type === '' : [...e.types].some(k => tr(lang, 'type', k) === r.type);
+          ok(6, typeOk, `${bTag} 車次 ${timeTag} 車種不符`, mem.sys === 'THSR' ? `高鐵列不該顯示車種、頁面「${r.type}」` : `頁面「${r.type}」、應為 ${[...e.types].map(k => `「${tr(lang, 'type', k)}」`).join('／')}`);
           // G2：行駛日
           ok(2, pick.d.errs.length === 0, `${bTag} 車次 ${timeTag} 行駛日標籤「${r.run}」不合規格`, pick.d.errs.join('；'));
           ok(2, exact, `${bTag} 車次 ${timeTag} 行駛日標籤「${r.run}」展開後與實際行駛日不同`, `標籤展開 [${mdList(pick.d.set)}]、實際 [${mdList(e.dates)}]`);

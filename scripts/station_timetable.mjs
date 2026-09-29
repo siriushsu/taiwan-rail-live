@@ -51,8 +51,8 @@
 //       arrSec, arr, train, type, from:{zh,en,ja} /*始發站*/, run, label
 //     }]
 //   }
-//   合併鍵:車次＋本站開車秒＋終點(到站表:車次＋到站秒＋始發站),行駛日取聯集。
-//   同一車次改點前後各一版、時刻相同的會併成一列。台鐵同一站在同一班的清單裡出現兩次
+//   合併鍵:車次＋本站開車「分」(floor(秒/60),與頁面顯示同單位)＋終點(到站表:車次＋到站分＋始發站),行駛日取聯集。
+//   同一車次改點前後各一版、顯示時刻相同(秒數可差幾秒)的會併成一列;列的 depSec／arrSec 取該組最小值。台鐵同一站在同一班的清單裡出現兩次
 //   (環島專車 6669 始發又終到新左營)時,始發那次進方向表、終到那次進 arrivals。
 //
 //   fmtTime(sec) → { hm:'00:34', nextDay:true, zh:'00:34（+1）', en:'00:34 (+1)', ja:'00:34（翌日）' }
@@ -63,14 +63,14 @@
 //     語法(順序即判斷順序,第一個成立的為準;zh 完全照 phaseb_mockup.py 的 run_label):
 //       kind        zh                     en                              ja
 //       daily       每日                   Daily                           毎日
-//       workdays    上班日（放假日不開）   Working days (not on holidays)  平日（休日は運休）
+//       workdays    上班日（放假日不開）   Working days                    平日（休日は運休）
 //       offdays     週末與放假日           Weekends and holidays           土日・休日
 //       from        10/3 起每日            Daily from Oct 3                10月3日から毎日
 //       until       10/2 以前每日          Daily through Oct 2             10月2日まで毎日
 //       span        10/3–10/8 每日         Daily Oct 3–Oct 8               10月3日〜10月8日 毎日
 //                   (from/until/span 只在「日期連續、≥3 天」時用;起點是首日→until,終點是末日→from)
-//       weekdays    週五、週日             Fri, Sun                        金・日
-//                   週一至週三、週五       Mon–Wed, Fri                    月〜水・金       (連續 ≥3 個星期幾才用「至／–／〜」)
+//       weekdays    週五、週日             Fri, Sun                        金曜・日曜
+//                   週一至週三、週五       Mon–Wed, Fri                    月曜〜水曜・金曜  (連續 ≥3 個星期幾才用「至／–／〜」)
 //                     + 例外日  ，另 10/3  , plus Oct 3                    、ほか10月3日     (該日在 run 裡、但它的星期幾不在歸納內)
 //                     + 缺席日  ；9/28（放假） 不開  ; not on Sep 28 (holiday)  ；9月28日（休日）は運休
 //                   星期幾歸納＝「資料涵蓋的每個該星期幾都開」才算(涵蓋內沒出現過的星期幾不算)
@@ -151,7 +151,7 @@ const T = {
     sep: '、', wdSep: '、', wd: i => `週${WD.zh[i]}`, wdRange: (a, b) => `週${WD.zh[a]}至週${WD.zh[b]}`,
   },
   en: {
-    daily: 'Daily', workdays: 'Working days (not on holidays)', offdays: 'Weekends and holidays',
+    daily: 'Daily', workdays: 'Working days', offdays: 'Weekends and holidays',
     from: m => `Daily from ${m}`, until: m => `Daily through ${m}`, span: (a, b) => `Daily ${a}–${b}`,
     extra: l => `, plus ${l}`, miss: l => `; not on ${l}`, only: l => `Only ${l}`,
     sep: ', ', wdSep: ', ', wd: i => WD.en[i], wdRange: (a, b) => `${WD.en[a]}–${WD.en[b]}`,
@@ -160,7 +160,7 @@ const T = {
     daily: '毎日', workdays: '平日（休日は運休）', offdays: '土日・休日',
     from: m => `${m}から毎日`, until: m => `${m}まで毎日`, span: (a, b) => `${a}〜${b} 毎日`,
     extra: l => `、ほか${l}`, miss: l => `；${l}は運休`, only: l => `${l}のみ`,
-    sep: '、', wdSep: '・', wd: i => WD.ja[i], wdRange: (a, b) => `${WD.ja[a]}〜${WD.ja[b]}`,
+    sep: '、', wdSep: '・', wd: i => `${WD.ja[i]}曜`, wdRange: (a, b) => `${WD.ja[a]}曜〜${WD.ja[b]}曜`,   // 單獨一個「日」易讀成別的意思,每個星期都寫「曜」
   },
 };
 
@@ -204,13 +204,16 @@ export function runLabel(runDates, cal) {
 }
 
 // ── 名稱 ─────────────────────────────────────────────────────────────────────
+// 字典裡兩個台鐵站的英文帶底線消歧義標記(1100 中壢 Zhongli_Taoyuan、7170 中里 Zhongli_Yilan;TDX 逐字相同),
+// docs/i18n/tra_station_names.json 的 _caveats 建議顯示成 Zhongli (Taoyuan)。只在頁面產生時轉換,不改字典。
+const displayEn = en => en && en.replace(/^([^_\s]+)_([^_\s]+)$/, '$1 ($2)');
 function nameOf(i18n, sys, zh, lenient = false) {
   const e = (i18n.systems[sys] || {})[zh];
   if (!e || !e.en || !e.ja) {
-    if (lenient) return { zh, en: e && e.en || null, ja: e && e.ja || null };
+    if (lenient) return { zh, en: displayEn(e && e.en) || null, ja: e && e.ja || null };
     throw new Error(`i18n/stations.json systems.${sys} 缺「${zh}」的英日文名`);
   }
-  return { zh, en: e.en, ja: e.ja };
+  return { zh, en: displayEn(e.en), ja: e.ja };
 }
 
 function typeOf(i18n, typeName, carName) {
@@ -238,14 +241,18 @@ function assemble({ system, station, stationName, ds, inputs, sysKey, defaultTyp
     const tr = ds.trains[i];
     for (const o of occ(tr, stationName)) {
       const run = runsOf.get(i);
+      // 合併鍵用「分」不用「秒」:頁面只顯示到分(捨去),同車次改點前後只差幾秒、顯示成同一分鐘的必須併成一列
+      // (否則會出現顯示上一模一樣、行駛日互補的兩列)。列的秒數取該組最小值,排序才不看到達順序。
       if (o.terminating) {
-        const key = `${tr.train}|${o.sec}|${o.from}`;
+        const key = `${tr.train}|${Math.floor(o.sec / 60)}|${o.from}`;
         const row = arr.get(key) || arr.set(key, { sec: o.sec, train: tr.train, tr, from: o.from, run: new Set() }).get(key);
+        row.sec = Math.min(row.sec, o.sec);
         for (const d of run) row.run.add(d);
       } else {
         const g = dirOf(o);
-        const key = `${g}|${tr.train}|${o.sec}|${o.to}`;
+        const key = `${g}|${tr.train}|${Math.floor(o.sec / 60)}|${o.to}`;
         const row = dep.get(key) || dep.set(key, { g, sec: o.sec, train: tr.train, tr, to: o.to, next: o.next, run: new Set() }).get(key);
+        row.sec = Math.min(row.sec, o.sec);
         for (const d of run) row.run.add(d);
       }
     }

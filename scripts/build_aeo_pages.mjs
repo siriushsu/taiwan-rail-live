@@ -746,10 +746,17 @@ const liveHref = (lang, model) => `/?g=${liveGroup(model.sysCodes)}&at=${model.p
 // ── 日期與班數文字 ──
 const WD_NAMES = { zh: ['一', '二', '三', '四', '五', '六', '日'], en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], ja: ['月', '火', '水', '木', '金', '土', '日'] };
 const plainMd = md => { const cut = md.search(/[（(]/); return cut < 0 ? md : md.slice(0, cut).trim(); };
-function dayCountLabel(lang, p) {                                  // 「9/28 週一（放假）」「Sep 28 Mon (holiday)」「9月28日 月曜（休日）」
+// 「9/28 週一（放假）」「Sep 28 Mon (holiday)」「9月28日 月曜（休日）」。回傳 HTML：手機窄欄時括號註記不准斷在中間
+// （「（放／假）」），日期＋星期、括號註記各包成不斷行的單位（.nb），只允許在兩者之間換行。
+const nb = html => `<span class="nb">${html}</span>`;
+function dayCountLabel(lang, p) {
   const md = p.md[lang], plain = plainMd(md), note = md.slice(plain.length).trim(), wd = WD_NAMES[lang][p.weekday];
-  return pick3(lang, `${plain} 週${wd}${note}`, `${plain} ${wd}${note ? ` ${note}` : ''}`, `${plain} ${wd}曜${note}`);
+  const head = pick3(lang, `${plain} 週${wd}`, `${plain} ${wd}`, `${plain} ${wd}曜`);
+  return nb(escapeHtml(head)) + (note ? pick3(lang, '', ' ', '') + nb(escapeHtml(note)) : '');
 }
+// 行駛日標籤裡的「日期＋括號註記」（9/28（放假）、Sep 28 (holiday)、10月9日（休日））同樣包成不斷行的單位；標籤本身是純文字（閘門與資料層用）
+const NOTE_UNIT = /(?:(?:\d+\/\d+|[A-Z][a-z]{2} \d+|\d+月\d+日) ?)?[（(][^）)]*[）)]|\d+月\d+日/g;   // 日文的日期本身（10月10日）也不准斷在「月」與數字之間
+const runLabelHtml = text => escapeHtml(text).replace(NOTE_UNIT, unit => nb(unit));
 function rangeText(lang, tt, withWeekday = true) {
   const a = tt.perDay[0], b = tt.perDay[tt.perDay.length - 1];
   const pa = plainMd(a.md[lang]), pb = plainMd(b.md[lang]);
@@ -765,22 +772,28 @@ const TH = {
   train: { zh: '車次', en: 'Train', ja: '列車' }, to: { zh: '終點', en: 'To', ja: '行き先' },
   from: { zh: '始發站', en: 'From', ja: '始発駅' }, run: { zh: '行駛日', en: 'Runs', ja: '運転日' },
 };
-function ttTable(lang, labelId, timeHead, otherHead, otherClass, rows) {
-  const body = rows.map(r => `<tr${r.label.special ? ' class="special"' : ''}><th scope="row" class="t">${timeHtml(r.time)}</th><td class="c-train">${escapeHtml(r.train)}<small class="car">${escapeHtml(r.type[lang])}</small></td><td class="${otherClass}">${escapeHtml(r.other[lang])}</td><td class="c-run">${escapeHtml(r.label[lang])}</td></tr>`).join('');
-  return `<div class="table-wrap tt-wrap"><table aria-labelledby="${labelId}"><thead><tr><th scope="col">${escapeHtml(timeHead)}</th><th scope="col">${escapeHtml(TH.train[lang])}</th><th scope="col">${escapeHtml(otherHead)}</th><th scope="col">${escapeHtml(TH.run[lang])}</th></tr></thead><tbody>${body}</tbody></table></div>`;
+// 手機版 CSS 把 table／tr／td 改成 display:block／inline（assets/aeo.css），Safari 在這種情況下會丟掉表格語意，
+// 所以 role 一律明寫（ARIA 覆寫是標準解）。showType=false：高鐵每列的車種都一樣，是雜訊，不顯示。
+function ttTable(lang, labelId, timeHead, otherHead, otherClass, rows, showType = true) {
+  const car = r => (showType ? `<small class="car">${escapeHtml(r.type[lang])}</small>` : '');
+  const body = rows.map(r => `<tr${r.label.special ? ' class="special"' : ''} role="row"><th scope="row" class="t" role="rowheader">${timeHtml(r.time)}</th><td class="c-train" role="cell">${escapeHtml(r.train)}${car(r)}</td><td class="${otherClass}" role="cell">${escapeHtml(r.other[lang])}</td><td class="c-run" role="cell">${runLabelHtml(r.label[lang])}</td></tr>`).join('');
+  const colhead = text => `<th scope="col" role="columnheader">${escapeHtml(text)}</th>`;
+  return `<div class="table-wrap tt-wrap"><table role="table" aria-labelledby="${labelId}"><thead role="rowgroup"><tr role="row">${colhead(timeHead)}${colhead(TH.train[lang])}${colhead(otherHead)}${colhead(TH.run[lang])}</tr></thead><tbody role="rowgroup">${body}</tbody></table></div>`;
 }
+const trainsN = (lang, n) => pick3(lang, `${n} 班`, `${n} train${n === 1 ? '' : 's'}`, `${n}本`);
 function dirHeading(lang, sys, d) {
   const dests = d.destinations.slice(0, 2).map(x => x.name[lang]);
   if (sys === 'TRA') {
-    if (!d.next || !d.next[lang]) throw new Error(`台鐵方向「${d.key}」缺 ${lang} 下一站名稱`);
+    if (!d.next || !d.next[lang]) throw new Error(`台鐵方向「${d.key}」缺 ${lang} 經由站名稱`);
+    // 方向依「清單裡本站的下一個點」分，那個點可能是通過站、不是下一個停靠站，所以寫「經 X」不寫「下一站」
     return {
       main: pick3(lang, `往${dests.join('、')}方向`, `Towards ${joinList('en', dests)}`, `${dests.join('・')}方面`),
-      sub: pick3(lang, `（下一站 ${d.next.zh}，${d.count} 班）`, ` (next stop: ${d.next.en}, ${d.count} trains)`, `（次の駅：${d.next.ja}、${d.count}本）`),
+      sub: pick3(lang, `（經${d.next.zh}，${trainsN(lang, d.count)}）`, ` (via ${d.next.en}, ${trainsN(lang, d.count)})`, `（${d.next.ja}経由、${trainsN(lang, d.count)}）`),
     };
   }
   return {
     main: pick3(lang, `${d.label.zh}（往${dests.join('、')}）`, `${d.label.en} (towards ${joinList('en', dests)})`, `${d.label.ja}（${dests.join('・')}方面）`),
-    sub: pick3(lang, `（${d.count} 班）`, ` (${d.count} trains)`, `（${d.count}本）`),
+    sub: pick3(lang, `（${trainsN(lang, d.count)}）`, ` (${trainsN(lang, d.count)})`, `（${trainsN(lang, d.count)}）`),
   };
 }
 const ttBlockId = (rec, suffix) => `${rec.item.system.toLowerCase()}-${rec.item.stationId}-${suffix}`;
@@ -792,26 +805,29 @@ function ttSection(lang, model, rec) {
   const total = tt.directions.reduce((n, d) => n + d.count, 0), arrN = tt.arrivals.length;
   const range = rangeText(lang, tt);
   const h2 = pick3(lang, `${short}${name}站時刻表`, `${short} ${name} Station timetable`, `${short}${name}駅の時刻表`);
-  const arrText = arrN ? pick3(lang, `；以本站為終點的 ${arrN} 班另列在到站時刻`, `; services that end here (${arrN}) are listed separately under arrival times`, `。この駅が終点の列車（${arrN}本）は、到着時刻として別に載せています`) : '';
+  const arrText = arrN ? pick3(lang, `；以本站為終點的 ${arrN} 班另列在到站時刻`, `; trains that end here (${arrN}) are listed separately under arrival times`, `。この駅が終点の列車（${arrN}本）は、到着時刻として別に載せています`) : '';
+  // 「共 N」是整個資料區間內「不重複的班次列」（同車次、同時刻只算一個，不論行駛哪幾天），不是每天的班數——
+  // 事實表寫的「每天開出班數」是另一個口徑，導言要讓人看得出這是 n 天合計。
+  const n = tt.dates.length, one = total === 1;
   const intro = pick3(lang,
-    `${range}，從${name}站開出的${short}班次共 ${total} 班，依方向與開車時間排列${arrText}。「行駛日」標出不是每天都開的班次。`,
-    `From ${range}, ${total} ${short} services depart from ${name} Station, listed by direction and departure time${arrText}. The "Runs" column shows the days a train runs when it does not run every day.`,
-    `${range}に${name}駅から発車する${short}は${total}本で、方面と発車時刻の順に並べています${arrText}。「運転日」には、毎日ではない列車の運転日を示しています。`);
+    `${range}，這 ${n} 天合計從${name}站開出 ${total} 個班次（同一車次、同一時刻只算一個，不論哪幾天行駛），依方向與開車時間排列${arrText}。「行駛日」標出不是每天都開的班次。`,
+    `From ${range}, there ${one ? 'is' : 'are'} ${total} distinct ${short} departure${one ? '' : 's'} from ${name} Station over the ${n} days (each train number and departure time is counted once, however many days it runs), listed by direction and departure time${arrText}. Trains that don't run every day are highlighted in the "Runs" column.`,
+    `${range}の${n}日間に${name}駅から発車する${short}は、列車番号と発車時刻の組み合わせごとに数えて合計${total}本です（運転日が違っても同じ組み合わせは1本と数えます）。方面と発車時刻の順に並べています${arrText}。毎日運転しない列車は「運転日」欄で目立たせています。`);
   const toc = [];
   const blocks = tt.directions.map((d, i) => {
     const id = ttBlockId(rec, sys === 'TRA' ? String(i + 1) : d.key);
     const { main, sub } = dirHeading(lang, sys, d);
     toc.push({ id, label: pick3(lang, `${short}${name}：${main}`, `${short} ${name}: ${main}`, `${short}${name}：${main}`) });
     const rows = d.rows.map(r => ({ time: r.dep, train: r.train, type: r.type, other: r.to, label: r.label }));
-    return `<div class="dir-block"><h3 id="${id}">${escapeHtml(main)}<span class="dir-sub">${escapeHtml(sub)}</span></h3>${ttTable(lang, id, TH.dep[lang], TH.to[lang], 'c-to', rows)}</div>`;
+    return `<div class="dir-block"><h3 id="${id}">${escapeHtml(main)}<span class="dir-sub">${escapeHtml(sub)}</span></h3>${ttTable(lang, id, TH.dep[lang], TH.to[lang], 'c-to', rows, sys !== 'THSR')}</div>`;
   });
   if (arrN) {
     const id = ttBlockId(rec, 'arrivals');
     const main = pick3(lang, `以${name}站為終點的班次（到站時刻）`, `Trains ending at ${name} (arrival times)`, `${name}駅が終点の列車（到着時刻）`);
-    const sub = pick3(lang, `（${arrN} 班）`, ` (${arrN} trains)`, `（${arrN}本）`);
+    const sub = pick3(lang, `（${trainsN(lang, arrN)}）`, ` (${trainsN(lang, arrN)})`, `（${trainsN(lang, arrN)}）`);
     toc.push({ id, label: pick3(lang, `${short}${name}：到站班次`, `${short} ${name}: arrivals`, `${short}${name}：到着列車`) });
     const rows = tt.arrivals.map(r => ({ time: r.arr, train: r.train, type: r.type, other: r.from, label: r.label }));
-    blocks.push(`<div class="dir-block"><h3 id="${id}">${escapeHtml(main)}<span class="dir-sub">${escapeHtml(sub)}</span></h3>${ttTable(lang, id, TH.arr[lang], TH.from[lang], 'c-from', rows)}</div>`);
+    blocks.push(`<div class="dir-block"><h3 id="${id}">${escapeHtml(main)}<span class="dir-sub">${escapeHtml(sub)}</span></h3>${ttTable(lang, id, TH.arr[lang], TH.from[lang], 'c-from', rows, sys !== 'THSR')}</div>`);
   }
   const afr = sys === 'TRA' && model.sysCodes.includes('AFR')
     ? `<p class="table-note">${escapeHtml(pick3(lang, '阿里山林鐵的班次不在本頁的時刻表內。', 'Alishan Forest Railway trips are not included in the timetables on this page.', '阿里山森林鉄道の列車は、このページの時刻表には含まれていません。'))}</p>` : '';
@@ -838,7 +854,7 @@ const FACT_LABEL = {
 };
 const TT_SOURCE = {
   TRA: { zh: '台鐵：臺鐵開放資料的逐日時刻表', en: 'TRA: daily timetables from the Taiwan Railway open data portal', ja: '台鉄：台湾鉄路の公式オープンデータ（毎日の時刻表）' },
-  THSR: { zh: '高鐵：交通部 TDX 的高鐵每日時刻表', en: 'HSR: daily timetables from the Ministry of Transportation TDX platform', ja: '高鉄：交通部 TDX の高鉄の毎日の時刻表' },
+  THSR: { zh: '高鐵：交通部 TDX 的高鐵每日時刻表', en: 'HSR: daily timetables from the Ministry of Transportation TDX platform', ja: '高鉄：交通部 TDX の日別時刻表' },
 };
 
 function factsSection(lang, model) {
@@ -854,12 +870,12 @@ function factsSection(lang, model) {
     add(FACT_LABEL.ttsource[lang], escapeHtml(model.ttSystems.map(code => TT_SOURCE[code][lang]).join(pick3(lang, '；', '. ', '。')) + pick3(lang, '。', '.', '。')));
     const groups = model.tts.map(({ item, tt }) => {
       const title = pick3(lang, `${SYSTEM_SHORT.zh[item.system]}${tt.station.zh}站（不含以本站為終點的班次）`, `${SYSTEM_SHORT.en[item.system]} ${tt.station.en} Station (services ending here are not counted)`, `${SYSTEM_SHORT.ja[item.system]}${tt.station.ja}駅（この駅が終点の列車は含みません）`);
-      const chips = tt.perDay.map(p => `<li${tt.offDates.includes(p.date) ? ' class="off"' : ''}><span>${escapeHtml(dayCountLabel(lang, p))}</span><b>${p.departing}</b></li>`).join('');
+      const chips = tt.perDay.map(p => `<li${tt.offDates.includes(p.date) ? ' class="off"' : ''}><span>${dayCountLabel(lang, p)}</span><b>${p.departing}</b></li>`).join('');
       return `<p class="dc-title">${escapeHtml(title)}</p><ul class="day-counts">${chips}</ul>`;
     });
     add(FACT_LABEL.perday[lang], groups.join(''));
   }
-  add(FACT_LABEL.stations[lang], model.details.map(item => `${escapeHtml(SYSTEM_NAMES[lang][item.system] || item.system)} ${escapeHtml(memberName(lang, item))}（${escapeHtml(item.stationId)}）`).join(pick3(lang, '；', '; ', '；')));
+  add(FACT_LABEL.stations[lang], model.details.map(item => `${escapeHtml(SYSTEM_NAMES[lang][item.system] || item.system)} ${escapeHtml(memberName(lang, item))}${pick3(lang, '（', ' (', '（')}${escapeHtml(item.stationId)}${pick3(lang, '）', ')', '）')}`).join(pick3(lang, '；', '; ', '；')));
   if (model.address && lang === 'zh') add(FACT_LABEL.address.zh, escapeHtml(model.address));
   add(FACT_LABEL.coords[lang], `${model.position[0].toFixed(6)}, ${model.position[1].toFixed(6)}`);
   return `<section class="content-section" id="facts"><h2>${escapeHtml(pick3(lang, '本站可以搭什麼', 'What you can ride here', 'この駅で乗れる路線'))}</h2><div class="fact-table">\n      ${rows.join('\n      ')}\n    </div></section>`;
@@ -869,8 +885,8 @@ function howParagraphs(lang, model) {
   const has = code => model.sysCodes.includes(code);
   const first = [
     has('TRA') && pick3(lang, '台鐵列車以官方班表為基礎，官方即時誤點可用時會校正時間軸位置。', 'TRA trains run from the official timetable, and when official real-time delay data is available it is used to correct their position on the timeline.', '台鉄の列車は公式時刻表をもとに走り、公式のリアルタイム遅延データが使える場合は、時間軸上の位置を補正します。'),
-    has('THSR') && pick3(lang, '高鐵列車依官方時刻表推演，本站頁面不宣稱有高鐵逐車 GPS。', 'HSR trains run from the official timetable; this page does not claim per-train GPS for high speed rail.', '高鉄の列車は公式時刻表にもとづいて走らせています。このページでは、高鉄の列車ごとの GPS があるとは説明しません。'),
-    METRO_SYSTEMS.some(has) && pick3(lang, '捷運列車依各營運機構可取得的官方時刻、班距、到站倒數或列車動態呈現；不同系統的即時程度不同。', 'Metro trains are shown from the official timetables, headways, arrival countdowns or train movements each operator makes available; how live each system is differs.', 'メトロの列車は、各運営会社が公開している公式の時刻、運転間隔、到着カウントダウン、列車の動きにもとづいて表示します。リアルタイム性はシステムによって異なります。'),
+    has('THSR') && pick3(lang, '高鐵列車依官方時刻表推演，本站頁面不宣稱有高鐵逐車 GPS。', 'HSR trains run from the official timetable; this page does not claim per-train GPS for high speed rail.', '高鉄の列車は公式時刻表にもとづいて走らせています。このページでは、高鉄の列車ごとの GPS 位置は使っていません。'),
+    METRO_SYSTEMS.some(has) && pick3(lang, '捷運列車依各營運機構可取得的官方時刻、班距、到站倒數或列車動態呈現；不同系統的即時程度不同。', 'Metro trains are shown from the official timetables, headways, arrival countdowns or train movements each operator makes available; the level of real-time data varies by system.', 'メトロの列車は、各運営会社が公開している公式の時刻、運転間隔、到着カウントダウン、列車の動きにもとづいて表示します。リアルタイム性はシステムによって異なります。'),
     has('AFR') && pick3(lang, '阿里山林鐵依公開班表與路線資料推演。', 'Alishan Forest Railway trains run from the published timetable and route data.', '阿里山森林鉄道は、公開されている時刻表と路線データにもとづいて走ります。'),
   ].filter(Boolean);
   const shorts = shortsOf(lang, model);
@@ -897,22 +913,25 @@ function stationPageHtml(lang, config, index) {
   const pathname = stationHref(lang, slug);
   const alts = Object.fromEntries(LANGS3.map(code => [code, stationHref(code, slug)]));
   const shorts = shortsOf(lang, model), hasTt = model.tts.length > 0;
+  // 標題／meta description 的長度是搜尋結果會不會被截斷的問題：英文 title ≤70、description ≤160，中日文 description ≤100 字。
+  // 描述只留「站名＋時刻表＋系統＋資料涵蓋區間」，站的簡介（summary）留在頁面導言，不進 description。
+  const ranges = model.ttSystems.map(code => `${SYSTEM_SHORT[lang][code]} ${rangeText(lang, model.tts.find(rec => rec.item.system === code).tt, false)}`);
   const pageTitle = hasTt
-    ? pick3(lang, `${title}時刻表：${joinList('zh', shorts)}逐班時刻與轉乘`, `${title} Timetable: ${joinList('en', shorts)} Train Times and Transfers`, `${title} 時刻表：${joinList('ja', shorts)}の列車時刻と乗り換え`)
-    : pick3(lang, `${title}：路線、轉乘與軌島資料說明`, `${title}: Lines, Transfers and How Rail Island Shows It`, `${title}：路線・乗り換えと軌島での表示`);
+    ? pick3(lang, `${title}時刻表：${joinList('zh', shorts)}逐班時刻與轉乘`, `${title} Timetable: ${joinList('en', shorts)} Times and Transfers`, `${title} 時刻表：${joinList('ja', shorts)}の列車時刻と乗り換え`)
+    : pick3(lang, `${title}：路線、轉乘與軌島資料說明`, `${title}: Lines, Transfers and Rail Island Data`, `${title}：路線・乗り換えと軌島での表示`);
   const heading = hasTt ? pageTitle : title;
+  const firstSentence = text => text.slice(0, (text.search(lang === 'en' ? /\.(\s|$)/ : /。/) + 1) || text.length);
   const description = hasTt
-    ? pick3(lang, `${title}時刻表：${joinList('zh', shorts)}逐班時刻、行駛日與轉乘說明，每週更新。${summary}`,
-      `${title} timetable: ${joinList('en', shorts)} train times, running days and transfer notes, updated weekly. ${summary}`,
-      `${title}の時刻表：${joinList('ja', shorts)}の列車時刻、運転日、乗り換えの説明を毎週更新。${summary}`)
-    : pick3(lang, `${summary} 查看收錄系統、路線、轉乘判讀與資料限制。`, `${summary} See the systems, lines, transfer notes and data limits.`, `${summary} 収録システム、路線、乗り換えの見方、データの限界を確認できます。`);
+    ? pick3(lang, `${title}時刻表：${joinList('zh', shorts)}兩週內逐班的開車時間、終點與行駛日，涵蓋${ranges.join('、')}，每週更新，並附轉乘說明。`,
+      `${title} timetable: ${joinList('en', shorts)} train times and running days for ${joinList('en', ranges)}, updated weekly, with transfer notes.`,
+      `${title}の時刻表：${joinList('ja', shorts)}の列車ごとの発車時刻・行き先・運転日（${ranges.join('、')}、毎週更新）と乗り換えの説明。`)
+    : pick3(lang, `${firstSentence(summary)}本頁說明收錄的系統與路線、轉乘的判讀方式、軌島如何顯示這一站，以及資料的限制。`, `${firstSentence(summary)} See the systems, lines, transfer notes and data limits.`, `${firstSentence(summary)}収録システム、路線、乗り換えの見方、データの限界を確認できます。`);
+  if ([...description].length > (lang === 'en' ? 160 : 100)) throw new Error(`車站頁 ${lang}/${slug} 的 description 過長（${[...description].length}）：${description}`);
+  if (lang === 'en' && [...pageTitle].length > 70) throw new Error(`車站頁 en/${slug} 的 title 過長（${[...pageTitle].length}）：${pageTitle}`);
   const lede = hasTt
-    ? (() => {
-      const ranges = model.ttSystems.map(code => `${SYSTEM_SHORT[lang][code]} ${rangeText(lang, model.tts.find(rec => rec.item.system === code).tt, false)}`);
-      return pick3(lang, `${summary}本頁列出${ranges.join('、')} 的逐班時刻與行駛日，每週更新一次。`,
-        `${summary} This page lists train-by-train times and running days for ${joinList('en', ranges)}, updated once a week.`,
-        `${summary} このページでは、${ranges.join('、')}の列車ごとの時刻と運転日を、週に1回更新して載せています。`);
-    })()
+    ? pick3(lang, `${summary}本頁列出${ranges.join('、')} 的逐班時刻與行駛日，每週更新一次。`,
+      `${summary} This page lists train-by-train times and running days for ${joinList('en', ranges)}, updated once a week.`,
+      `${summary} このページでは、${ranges.join('、')}の列車ごとの時刻と運転日を、週に1回更新して載せています。`)
     : summary;
   const place = {
     '@type': 'Place', name: title,
@@ -978,6 +997,7 @@ const INDEX_TEXT = {
   en: {
     title: 'Taiwan Railway Station Timetables and Transfer Stations | Rail Island', h1: 'Station Timetables and Transfer Stations',
     description: n => `Rail Island's station index covers ${n} frequently searched railway stations and same-name stations in Taiwan, with train-by-train TRA and HSR times and running days (updated weekly), plus lines, shared-station relationships and data limits.`,
+    metaDescription: n => `Timetables for ${n} frequently searched railway stations in Taiwan: train-by-train TRA and HSR times and running days, updated weekly.`,
     h2: 'Frequently searched stations', intro: 'Same name does not always mean same station. The index keeps the TRA and HSR stations of Taoyuan, Hsinchu, Taichung, Tainan and Chiayi apart, so that different places are not mistaken for one station when searching.',
     linkTt: 'View timetable and station guide →', linkGuide: 'View station guide →',
     noticeLead: 'A station that is not listed here is not necessarily missing from Rail Island.', noticeText: 'These are the first station pages. TRA and HSR timetables are updated once a week; the full list of stations and current departures are on the live map.',
@@ -996,7 +1016,8 @@ const INDEX_TEXT = {
 function stationIndexHtml(lang) {
   const t = INDEX_TEXT[lang], pathname = stationIndexHref(lang);
   const alts = Object.fromEntries(LANGS3.map(code => [code, stationIndexHref(code)]));
-  const description = t.description(stations.length);
+  const lede = t.description(stations.length);
+  const description = (t.metaDescription || t.description)(stations.length);   // en 的頁面導言較長，meta description 另用 ≤160 字元的短版
   const schema = {
     '@context': 'https://schema.org', '@type': 'CollectionPage', name: t.title, description, url: `${siteUrl}${pathname}`,
     inLanguage: htmlLangOf[lang], dateModified: stationModified,
@@ -1017,7 +1038,7 @@ ${sh.headerHtml(lang, alts)}
     <section class="hero">
       <p class="eyebrow">${t.eyebrow}</p>
       <h1>${escapeHtml(t.h1)}</h1>
-      <p class="lede">${escapeHtml(description)}</p>
+      <p class="lede">${escapeHtml(lede)}</p>
       <div class="hero-actions"><a class="button" href="${live}">${escapeHtml(t.live)}</a>${lang === 'zh' ? `<a class="button secondary" href="${pathname}">${escapeHtml(t.second)}</a>` : ''}</div>
     </section>
     <section class="content-section"><h2>${escapeHtml(t.h2)}</h2><p class="section-intro">${escapeHtml(t.intro)}</p><div class="card-grid station-grid">${cards}</div></section>

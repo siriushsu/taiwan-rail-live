@@ -426,6 +426,8 @@ sup.nd { margin-left: 1px; color: var(--red); font-size: 10px; font-weight: 800;
 .day-counts { display: grid; grid-template-columns: repeat(auto-fill, minmax(11em, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
 .day-counts li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 10px; border: 1px solid var(--line-faint); border-radius: 8px; background: var(--paper); font-size: 14px; line-height: 1.6; }
 .day-counts li.off { background: var(--stage); }
+/* 「9/28 週一（放假）」「9/28（放假）」窄欄時不准斷在括號中間：日期＋括號註記由產生器包成 .nb（keep-all 在 WebKit 反而會斷在「（」後面，所以不用） */
+.nb { white-space: nowrap; }
 .day-counts b { font-variant-numeric: tabular-nums; }
 .tt .dir-block { margin-top: 26px; }
 .tt .dir-block h3 { margin: 0 0 10px; }
@@ -464,10 +466,11 @@ sup.nd { margin-left: 1px; color: var(--red); font-size: 10px; font-weight: 800;
   .tt td { display: inline; padding: 0; border: 0; white-space: normal; }
   .tt small.car { display: inline; margin-left: .4em; font-size: .8em; }
   .tt .c-to, .tt .c-from { margin-left: .45em; }
-  .tt .c-to::before { content: "→\00a0"; color: var(--muted); }
-  .tt .c-from::before { content: "←\00a0"; color: var(--muted); }
+  /* 箭頭與圓點只是視覺分隔，讀屏不該唸出來：content 的「/ ""」替代文字寫法（不支援的瀏覽器會丟掉第二行、留第一行） */
+  .tt .c-to::before { content: "→\00a0"; content: "→\00a0" / ""; color: var(--muted); }
+  .tt .c-from::before { content: "←\00a0"; content: "←\00a0" / ""; color: var(--muted); }
   .tt .c-run { margin-left: .4em; color: var(--muted); font-size: .86em; }
-  .tt .c-run::before { content: "·\00a0"; }
+  .tt .c-run::before { content: "·\00a0"; content: "·\00a0" / ""; }
 }
 
 @media (prefers-reduced-motion: reduce) {
