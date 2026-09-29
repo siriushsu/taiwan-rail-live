@@ -75,7 +75,7 @@ function release(){
  people?.dispose();palmsKit?.dispose();stationKit?.dispose();kit?.dispose();train?.dispose();primary?.dispose();coast?.dispose();environment?.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();
  // 保底：場景裡走過的每個 mesh 都再清一次（各模組的 dispose 沒涵蓋到的漏網之魚；重複 dispose 無害）。
  scene.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)for(const m of [].concat(o.material))disposeMaterial(m);if(o.isInstancedMesh)o.dispose();});
- renderer?.dispose();renderer?.forceContextLoss();
+ renderer?.dispose();if(renderer&&!renderer.getContext().isContextLost())renderer.forceContextLoss(); // 載入途中被 dispose 時 release() 會被叫第二次；WebKit 對已掉的 context 再 loseContext 會噴 console error
 }
 function dispose(){
  if(disposed)return;disposed=true;ready=false;cancelAnimationFrame(raf);raf=0;
