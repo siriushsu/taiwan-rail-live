@@ -1,11 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import assert from 'node:assert/strict';
 import {makePath,distanceM,formationPoses} from '../memories/tainan-2026-09-12/vendor/train-path.js';
 const dir=path.resolve(import.meta.dirname,'../memories/tainan-2026-09-12'),read=f=>JSON.parse(fs.readFileSync(path.join(dir,f),'utf8'));
 const integrity=read('integrity.json'),data=read('snapshot.json'),sources=read('source-schedule.json'),paths=data.routes.map(r=>makePath(r.coordinates));
-for(const [file,hash] of Object.entries(integrity.files))assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(dir,file))).digest('hex'),hash,'封存檔案被改寫：'+file);
+// 網格改存 .bin.gz（傳輸量），雜湊仍是解壓後的原始 .bin，所以封存內容逐 byte 不變。
+const archived=f=>fs.existsSync(path.join(dir,f))?fs.readFileSync(path.join(dir,f)):zlib.gunzipSync(fs.readFileSync(path.join(dir,f+'.gz')));
+for(const [file,hash] of Object.entries(integrity.files))assert.equal(crypto.createHash('sha256').update(archived(file)).digest('hex'),hash,'封存檔案被改寫：'+file);
+const onDisk=[];(function visit(p){for(const e of fs.readdirSync(p,{withFileTypes:true})){const f=path.join(p,e.name);if(e.isDirectory())visit(f);else if(e.name!=='integrity.json')onDisk.push(path.relative(dir,f).replace(/\.gz$/,''));}})(dir);
+assert.deepEqual(onDisk.sort(),Object.keys(integrity.files).sort(),'封存目錄與雜湊清單不一致');
 assert.equal(data.date,'2026-09-12');assert.equal(data.trains.length,227);assert.equal(new Set(data.trains.map(t=>t.id)).size,227);
 assert.equal(data.trains.filter(t=>t.direction==='北上').length,114);assert.equal(data.trains.filter(t=>t.direction==='南下').length,113);assert.equal(data.trains.filter(t=>t.serviceDate==='2026-09-11').length,2);
 assert.ok(data.rails.length>30);assert.ok(data.rails.every(r=>r.tags.railway==='rail'&&!r.tags.construction&&!r.tags.tunnel));

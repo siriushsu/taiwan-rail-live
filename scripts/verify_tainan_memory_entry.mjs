@@ -24,7 +24,7 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
  }
  // 真正從既有更多選單點入，不能只驗 href 存在。
  await page.evaluate(()=>{document.body.classList.remove('fs');document.getElementById('alertBanner').hidden=true;});
- await page.setViewportSize({width:390,height:844});await page.tap('#tabMore');await page.tap('#tainanMemoryLink');await page.waitForURL('**/memories/tainan-2026-09-12/');try{await page.waitForFunction(()=>window.tainanMemory?.state.ready,null,{timeout:60000});}catch(e){console.log('歷史頁載入狀態',engine,page.url(),await page.locator('#loading').textContent());throw e;}
+ await page.setViewportSize({width:390,height:844});await page.tap('#tabMore');await page.tap('#tainanMemoryLink');await page.waitForURL('**/memories/tainan-2026-09-12/index.html');try{await page.waitForFunction(()=>window.tainanMemory?.state.ready,null,{timeout:60000});}catch(e){console.log('歷史頁載入狀態',engine,page.url(),await page.locator('#loading').textContent());throw e;}
  await page.tap('#live');await page.waitForURL(url=>url.pathname==='/'&&url.searchParams.get('at')==='22.99681,120.21295');
  await browser.close();
 }

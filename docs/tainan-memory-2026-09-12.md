@@ -30,7 +30,7 @@
 
 ## 防止封存被改寫
 
-`integrity.json` 保存各封存檔的 SHA-256。瀏覽器對資料及模型核對雜湊，`scripts/verify_tainan_memory.mjs` 則核對完整清單、227 班、雙向、跨夜、里程單調與路段連續性；已接進 `ship_web.mjs`，往後出貨前會再次檢查。
+`integrity.json` 保存各封存檔的 SHA-256。列車與站房網格（`fleet/*.bin`、`station/near.mesh.bin`）自 2026-09-29 起以 `.bin.gz` 存放：Cloudflare 不壓縮 octet-stream，未壓縮時手機要多下載約 9 MB；雜湊仍是解壓後原始 `.bin` 的值，封存內容逐 byte 不變（改動前後 24 筆原有雜湊只有 `replay.js` 變動）。瀏覽器對資料及模型核對雜湊，`scripts/verify_tainan_memory.mjs` 則核對完整清單、227 班、雙向、跨夜、里程單調與路段連續性；已接進 `ship_web.mjs`，往後出貨前會再次檢查。
 
 封存目錄不可加入每天重抓資料的流程，也不能為了讓驗收通過而直接重算雜湊。若日後取得 10 月切換前的新班表，應建立新的日期版本，保留本次版本，並在使用者看過後再調整入口。
 
