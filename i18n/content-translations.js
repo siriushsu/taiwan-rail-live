@@ -3440,3 +3440,37 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面': '一部の台鉄長距離列車の待避推定を修正しました。先行列車の予定停車時間を優先して使い、余分な待避の後に駅間で再び追い越す表示を減らします。',
   '高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次': '高雄ライトレールの到着案内で時計回り・反時計回りを分け、経由駅を表示します。すべてが籬仔内行きと表示されたり、反対方向の便が隠れたりしなくなりました。',
 });
+// 2026-09-29 車庫共用場景外框頁（garage-scene.html）與藍皮南迴場景：外框字串＋場景頁上原本只有中文的按鈕。
+// 「離開」「暫停行駛」「開始行駛」「重設視角」已有譯文，這裡不重複。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '這一景還沒解鎖': 'This scene is still locked',
+  '這款車的專屬場景還沒開放。': 'This train does not have its own scene yet.',
+  '南迴線・多良海岸': 'South Link Line · Duoliang Coast',
+  '山海全景': 'Mountains & sea', '陪它走走': 'Walk with it',
+  '晴日': 'Sunny', '夕照': 'Sunset', '入夜': 'Night', '看月台': 'Platform view',
+  '縮小': 'Zoom out', '放大': 'Zoom in',
+  '拖曳轉個角度 · 滾動或雙指縮放 · 右鍵拖曳或雙指拖曳移動鏡頭': 'Drag to turn · scroll or pinch to zoom · right-drag or two-finger drag to move the camera',
+  '觀賞視角': 'View', '時間': 'Time of day', '列車與視角控制': 'Train and camera controls',
+  '南迴海岸微縮場景': 'South Link coast miniature scene',
+  '藍皮三節列車行駛於南迴海岸微縮場景，可拖曳旋轉或以方向鍵調整': 'A three-car Blue Train runs through a miniature South Link coast scene. Drag to rotate or use the arrow keys to adjust.',
+  '南迴海岸 · 微縮印象': 'South Link coast · miniature impression',
+  '正在把小車搬到海邊…': 'Carrying the little train to the seaside…',
+  '畫面暫時中斷，請重新開啟場景。': 'The view was interrupted. Please reopen the scene.',
+  '重新開啟': 'Reopen', '小車暫時無法載入。': 'The little train could not load.', '重新載入': 'Reload'
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '這一景還沒解鎖': 'このシーンはまだロックされています',
+  '這款車的專屬場景還沒開放。': 'この車両の専用シーンはまだ公開されていません。',
+  '南迴線・多良海岸': '南廻線・多良海岸',
+  '山海全景': '山と海の全景', '陪它走走': '一緒に走る',
+  '晴日': '晴れ', '夕照': '夕焼け', '入夜': '夜', '看月台': 'ホームを見る',
+  '縮小': '縮小', '放大': '拡大',
+  '拖曳轉個角度 · 滾動或雙指縮放 · 右鍵拖曳或雙指拖曳移動鏡頭': 'ドラッグで回転 · スクロールまたはピンチで拡大縮小 · 右ドラッグまたは2本指ドラッグでカメラ移動',
+  '觀賞視角': '視点', '時間': '時間帯', '列車與視角控制': '列車とカメラの操作',
+  '南迴海岸微縮場景': '南廻線の海岸ミニチュアシーン',
+  '藍皮三節列車行駛於南迴海岸微縮場景，可拖曳旋轉或以方向鍵調整': '3両編成の藍皮列車が南廻線の海岸ミニチュアを走ります。ドラッグで回転、矢印キーで調整できます。',
+  '南迴海岸 · 微縮印象': '南廻線の海岸 · ミニチュアの印象',
+  '正在把小車搬到海邊…': '小さな列車を海辺へ運んでいます…',
+  '畫面暫時中斷，請重新開啟場景。': '画面が一時的に中断されました。シーンを開き直してください。',
+  '重新開啟': '開き直す', '小車暫時無法載入。': '小さな列車を読み込めませんでした。', '重新載入': '再読み込み'
+});

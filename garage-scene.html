@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#eae7dd"><link rel="icon" href="data:,"><title>軌島 車庫場景</title>
+<style>
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:#eae7dd;color:#263f45;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Hiragino Sans",sans-serif;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;border:1px solid #36545b28;background:#fffcf480;border-radius:100px;min-height:44px;padding:0 17px;touch-action:manipulation}
+button:hover{background:#fffaf0}
+button[aria-pressed=true]{background:#294f58;color:#fff8e7;border-color:#294f58}
+button:focus-visible,canvas:focus-visible{outline:3px solid #bf7848;outline-offset:3px}
+button:disabled{opacity:.4;cursor:default}
+#frame{position:fixed;inset:0;display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.bar{display:flex;align-items:center;gap:12px;padding:8px 12px;min-height:60px;flex:none}
+.leave{min-width:44px;min-height:44px;padding:0 16px;font-size:14px;flex:none}
+.title{min-width:0;line-height:1.35}
+.title b{display:block;font-size:15px;font-weight:600;letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.title small{display:block;font-size:12px;color:#67766f;letter-spacing:.05em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#stage{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;padding:0 12px 12px}
+.canvas-wrap{position:relative;flex:1;min-height:0}
+canvas{display:block;width:100%;height:100%;position:absolute;inset:0;touch-action:none}
+.view-tabs{display:flex;gap:6px;position:absolute;top:4px;right:0;z-index:1}
+.view-tabs button{font-size:12px;padding:0 14px}
+.hint{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:max-content;max-width:94%;text-align:center;font-size:11px;letter-spacing:.06em;color:#718177;pointer-events:none;margin:0}
+.tools{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding-top:10px}
+.cluster{display:flex;gap:3px;padding:3px;border:1px solid #38575b25;border-radius:100px;background:#fffaf359}
+.cluster button{font-size:12px;border-color:transparent;padding:0 12px}
+.cluster .icon{min-width:44px;padding:0 8px;font-size:17px}
+.caption{text-align:center;font-size:11px;letter-spacing:.1em;color:#768077;margin:8px 0 0}
+.loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#526c6c;z-index:2;background:#eae7ddcc;text-align:center;padding:0 16px}
+.loading[hidden]{display:none}
+.loading button{margin-left:12px}
+.notice{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center}
+.notice h1{font-family:"Songti TC","Noto Serif TC",serif;font-weight:500;font-size:26px;line-height:1.4;letter-spacing:.06em;margin:0}
+.notice p{margin:0;font-size:14px;line-height:1.8;color:#67766f}
+.notice .car{font-size:14px;letter-spacing:.05em}
+#frame:has([data-period=night]){background:#172c38;color:#e3e4d5}
+#frame:has([data-period=night]) .title small,#frame:has([data-period=night]) .hint,#frame:has([data-period=night]) .caption{color:#a5b4b1}
+#frame:has([data-period=night]) button{color:#e2e4da;background:#2c4654;border-color:#78929340}
+#frame:has([data-period=night]) button[aria-pressed=true]{background:#d9d5b8;color:#203b45}
+#frame:has([data-period=night]) .cluster{background:#203744;border-color:#78929340}
+#frame:has([data-period=night]) .loading{background:#172c38cc;color:#c8d3d0}
+#frame:has([data-period=sunset]){background:#e9d6c3}
+@media(max-width:800px){.bar{padding:6px 10px}.cluster button{padding:0 10px}.view-tabs button{padding:0 11px}.tools{gap:6px}}
+</style></head><body><div id="frame"></div>
+<script src="./i18n/translations.js"></script>
+<script src="./i18n/content-translations.js"></script>
+<script src="./train-garage-catalog.js"></script>
+<script src="./train-garage-scenes.js"></script>
+<script type="module" src="./garage-scene.js?revision=scene-frame-0929"></script>
+</body></html>

@@ -130,3 +130,6 @@ window.RailGarageScenes = {
 //  辨識度極高又好用低面數做，但現有對照裡沒有車空著。要用得先挪一款（例如把某款
 //  區間車從 seaside-platform 移過來），屬於配置調整，等裁示。
 //  參考照片與幾何筆記：~/Documents/軌島封存/車站參考照片-20260912/（不進 repo）
+
+// 已接進車庫（可由 garage-scene.html 掛載）的場景 id；其餘三景（alishan、viaduct、shifen）做好了但這一輪先不開。
+window.RailGarageSceneLive = ['south-coast'];
