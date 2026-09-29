@@ -41,6 +41,10 @@
   let active = false, renderer, raf = 0, auto = false, yaw = -.55, elevation = .39, last = 0, drag = null, resize, visibility;
   const pointers=new Map();let pinch=null,zoom=1;
   let mode='model',running=false,direction=1,distance=0,travelTime=0,inView=true,period='day';
+  // 場景分頁（旗標 garagescene 開才用得到）：sceneUi＝目前這份 DOM 掛的是兩分頁版；tab＝展示框分頁 model｜scene；
+  // loopOn＝「跑起來」開關（開＝mode 'loop'）；cardsUp＝場景卡片正在顯示（此時 3D 不畫、rAF 停掉）。
+  // 旗標關時四個都停在初值，舊路徑完全不碰它們。
+  let sceneUi=false,tab='model',loopOn=false,cardsUp=false;
   function scenePeriod(){const now=new Date(),h=(now.getUTCHours()+8)%24+now.getUTCMinutes()/60;return h>=5&&h<7?'sunrise':h>=7&&h<17?'day':h>=17&&h<19?'sunset':'night';}
   function resetView(){zoom=1;pointers.clear();pinch=drag=null;yaw=mode==='track'?-Math.PI/2:mode==='loop'?-.9:-.55;elevation=mode==='track'?.16:mode==='loop'?.8:.39;}
   function clampView(){if(mode==='loop')elevation=Math.max(.25,Math.min(1.35,elevation));if(mode==='track'){yaw=Math.max(-Math.PI/2-.20,Math.min(-Math.PI/2+.20,yaw));elevation=Math.max(.08,Math.min(.30,elevation));}}
@@ -80,9 +84,9 @@
       $('.g-fallback').textContent=tr('小車載入失敗，請重試；收藏進度不受影響。');$('.g-fallback').hidden=false;$('.g-retry').hidden=false;
     }
   }
-  function requestDraw() { if (!raf && !sceneEl && dialog?.open && inView && !document.hidden) raf=requestAnimationFrame(frame); }
+  function requestDraw() { if (!raf && !sceneEl && !cardsUp && dialog?.open && inView && !document.hidden) raf=requestAnimationFrame(frame); }
   function frame(at) {
-    raf=0;if(!dialog.open||document.hidden||!inView||sceneEl)return;
+    raf=0;if(!dialog.open||document.hidden||!inView||sceneEl||cardsUp)return;
     // 精修網格試跑最多約 30 fps；離開展示台或切到背景後不持續佔用 GPU。
     if((auto||running)&&last&&at-last<32){requestDraw();return;}
     const dt=last?Math.min((at-last)/1000,.06):0;last=at;
@@ -96,33 +100,125 @@
   function setZoom(value){zoom=Math.max(.7,Math.min(3,value));showControls();requestDraw();}
   function showControls() {
     $('.g-zoom-in').disabled=zoom>=3;$('.g-zoom-out').disabled=zoom<=.7;$('.g-zoom-level').textContent=Math.round(zoom*100)+'%';
-    dialog.classList.toggle('g-scene',mode!=='model');
+    dialog.classList.toggle('g-scene',mode!=='model'||(sceneUi&&tab==='scene'));
     for(const b of dialog.querySelectorAll('[data-view]'))b.setAttribute('aria-pressed',String(b.dataset.view===mode));
-    $('.g-reverse').hidden=mode==='model';$('.g-reverse').setAttribute('aria-pressed',String(direction===-1));
+    if(sceneUi){for(const b of dialog.querySelectorAll('[data-tab]'))b.setAttribute('aria-pressed',String(b.dataset.tab===tab));$('.g-run-switch').setAttribute('aria-checked',String(loopOn));}
+    $('.g-reverse').hidden=mode==='model'||cardsUp;$('.g-reverse').setAttribute('aria-pressed',String(direction===-1));
     $('.g-auto').setAttribute('aria-label',tr(mode!=='model'?(running?'暫停行駛':'開始行駛'):'自動旋轉'));
     $('.g-auto').setAttribute('aria-pressed',String(mode!=='model'?running:auto));$('.g-auto').textContent=(mode!=='model'?running:auto)?'Ⅱ':'▷';
     $('.g-view-hint').textContent=mode==='track'?tr('頭城海岸・龜山島')+' · '+tr({sunrise:'日出',day:'藍天',sunset:'黃昏',night:'星空'}[period]):mode==='loop'?tr('環形試跑 · 拖曳旋轉，欣賞三節小車'):tr('上下左右拖曳，看看每一面');
   }
-  // 一車一景：哪台車進哪一景只准經過 sceneFor（對照表在 train-garage-scenes.js），這裡不寫死任何車款或場景名。
-  // 解鎖判斷在場景頁自己（garageSceneUnlocked），車庫只負責開 iframe、收 leave 訊息。
+  // 一車一景（旗標 garagescene 開才有，host.scenes 由 index.html 傳入）。展示框的「場景」分頁列出這台車能開進的景：
+  // 哪台車進哪幾景只准經過 garageScenesFor（對照表在 train-garage-scenes.js），這裡不寫死任何車款或場景名；
+  // 卡片的鎖頭只准問 garageSceneUnlocked（garage-scene-unlock.js，解鎖單位是場景 id，不看通行證）。
+  // 車庫只負責列卡片、開 iframe、收 leave 訊息；點進去之後場景頁會再問一次解鎖，鎖住時由它顯示「還沒解鎖」。
   let sceneEl=null,sceneFrame=null,sceneBtn=null;
-  function sceneFor(row){
-    if(!host?.scenes||!row)return null;
-    const s=globalThis.RailGarageScenes?.[row.id];
-    return s&&(globalThis.RailGarageSceneLive||[]).includes(s.scene)?s:null;
+  // 旗標開、而且對照表有載入才走兩分頁版；對照表沒載到就當旗標關（舊的三分頁）。
+  const scenesOn=()=>!!host?.scenes&&typeof globalThis.garageScenesFor==='function';
+  const scenesOf=row=>sceneUi&&row?globalThis.garageScenesFor(row.id)||[]:[];
+  const sceneUnlocked=id=>typeof globalThis.garageSceneUnlocked==='function'&&!!globalThis.garageSceneUnlocked(id);
+  const LOCK_SVG='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  const MAKING_SVG='<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="6" width="18" height="7" rx="1.5"/><path d="M7 13 11 6M12 13 16 6M17 13l3-5"/><path d="M6 13v7M18 13v7"/></svg>';
+  // 場景分頁的樣式。放在這裡、旗標開才注入 <style>（旗標關時連 CSS 都和以前一樣）；顏色只用 --g-* 變數，深色模式自動跟著走。
+  const SCENE_CSS=`
+#trainGarage .g-scene-tabs.g-tabs-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+#trainGarage .g-scene-tabs.g-tabs-2 button{padding:10px 4px;font-size:13px}
+#trainGarage .g-scene-tabs.g-tabs-2 button[aria-pressed=true]{font-weight:600}
+#trainGarage .g-run{padding:2px 12px 8px;border-bottom:1px solid var(--g-line)}
+#trainGarage .g-run-main{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#trainGarage .g-run-switch{display:inline-flex;align-items:center;gap:10px;padding:0 8px 0 0;border:0;background:none;text-align:left}
+#trainGarage .g-run-switch b{font-size:15px;line-height:1.4}
+#trainGarage .g-run-track{position:relative;flex:none;width:48px;height:28px;border-radius:14px;border:1px solid var(--g-line);background:var(--line-faint,var(--g-stage));transition:background-color .15s,border-color .15s}
+#trainGarage .g-run-track::after{content:"";position:absolute;left:2px;top:2px;box-sizing:border-box;width:22px;height:22px;border-radius:50%;border:1px solid var(--g-line);background:var(--g-paper);transition:transform .15s}
+#trainGarage .g-run-switch[aria-checked=true] .g-run-track{background:var(--g-accent);border-color:var(--g-accent)}
+#trainGarage .g-run-switch[aria-checked=true] .g-run-track::after{transform:translateX(20px);border-color:transparent;background:#fffdf6}
+#trainGarage .g-run small{display:block;margin-top:-2px;font-size:12px;line-height:1.5;color:var(--g-muted)}
+#trainGarage .g-making{display:flex;flex-direction:column;align-items:center;gap:4px;padding:20px 14px 10px;text-align:center}
+#trainGarage .g-making svg{color:var(--g-ink)}
+#trainGarage .g-making b{font-size:16px;line-height:1.4}
+#trainGarage .g-making small{font-size:12px;line-height:1.5;color:var(--g-muted)}
+#trainGarage .g-tag{position:absolute;left:12px;bottom:12px;padding:4px 10px;border:1px solid var(--g-line);border-radius:20px;background:var(--g-card);color:var(--g-ink);font-size:11px;line-height:1.5;pointer-events:none}
+#trainGarage .g-scene-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:10px;padding:10px}
+#trainGarage .g-scene-card{display:flex;flex-direction:column;align-items:stretch;min-width:0;padding:0;overflow:hidden;text-align:left;border:1px solid var(--g-line);border-radius:12px;background:var(--g-card)}
+#trainGarage .g-scene-th{position:relative;display:block;width:100%;aspect-ratio:16/9;overflow:hidden;background:var(--g-stage)}
+#trainGarage .g-scene-th img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover}
+#trainGarage .g-scene-locked .g-scene-th img{filter:grayscale(1) contrast(.7) brightness(1.05);opacity:.75}
+#trainGarage .g-scene-fav{position:absolute;left:8px;top:8px;padding:4px 10px;border-radius:20px;background:var(--g-accent);color:var(--g-paper);font-size:11px;letter-spacing:1px;line-height:1.4}
+#trainGarage .g-scene-tx{display:flex;flex-direction:column;gap:3px;padding:10px 12px 12px}
+#trainGarage .g-scene-tx b{font-size:16px;line-height:1.4}
+#trainGarage .g-scene-tx small{font-size:12px;line-height:1.5;color:var(--g-muted)}
+#trainGarage .g-scene-state{display:flex}
+#trainGarage .g-scene-enter{margin-top:8px;padding:10px 20px;border-radius:10px;background:var(--g-accent);color:var(--g-paper);font-size:14px;line-height:1.4}
+#trainGarage .g-scene-lock{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:9px 12px;border:1px dashed var(--g-line);border-radius:10px;color:var(--g-muted);font-size:12px;line-height:1.4}
+#trainGarage .g-stage[data-panel=cards] .g-viewport,#trainGarage .g-stage[data-panel=cards] .g-fallback,#trainGarage .g-stage[data-panel=cards] .g-stage-foot{display:none}
+@media(prefers-reduced-motion:reduce){#trainGarage .g-run-track,#trainGarage .g-run-track::after{transition:none}}`;
+  // 兩分頁版的 DOM：build() 先照舊組好三分頁，旗標開再由這裡改成「近看小車｜場景」並補上跑起來開關、卡片區、製作中區塊與標籤，
+  // 所以旗標關時 build() 出來的 HTML 一個字都沒動。
+  function mountSceneTab(){
+    if(!document.getElementById('trainGarageSceneStyle')){const s=document.createElement('style');s.id='trainGarageSceneStyle';s.textContent=SCENE_CSS;document.head.append(s);}
+    const tabs=$('.g-scene-tabs');tabs.classList.add('g-tabs-2');
+    tabs.innerHTML=[['model','近看小車'],['scene','場景']].map(([id,text])=>`<button type="button" data-tab="${id}" aria-pressed="${tab===id}">${esc(tr(text))}</button>`).join('');
+    $('.g-scene-bar').insertAdjacentHTML('afterend',
+      `<div class="g-run"><div class="g-run-main"><button type="button" class="g-run-switch" role="switch" aria-checked="${loopOn}" aria-describedby="gRunHint"><span class="g-run-track" aria-hidden="true"></span><b>${esc(tr('跑起來'))}</b></button></div><small id="gRunHint">${esc(tr('開啟後小車繞圈跑'))}</small></div>`
+      +`<div class="g-making" hidden>${MAKING_SVG}<b>${esc(tr('這款車的場景製作中'))}</b><small>${esc(tr('先用「海岸行旅」暫時展示'))}</small></div>`
+      +`<div class="g-scene-list" hidden></div>`);
+    $('.g-viewport').insertAdjacentHTML('beforeend',`<span class="g-tag" hidden>${esc(tr('海岸行旅・暫時展示'))}</span>`);
+    for(const b of dialog.querySelectorAll('[data-tab]'))b.onclick=()=>{if(tab===b.dataset.tab)return;tab=b.dataset.tab;showDetail();};
+    $('.g-run-switch').onclick=()=>{loopOn=!loopOn;showDetail();};
+    sceneUi=true;
+  }
+  // 依目前分頁、開關與這台車有沒有景，決定展示框現在是哪一種畫面：
+  //   model＝近看小車（開關開著就是環形試跑 loop）｜cards＝場景卡片（3D 不畫、rAF 停）｜making＝這款車沒有景，製作中區塊＋海岸行旅（track）。
+  function syncScenePanel(row){
+    const list=scenesOf(row),panel=tab==='model'?'model':list.length?'cards':'making',want=panel==='making'?'track':loopOn?'loop':'model';
+    if(want!==mode){mode=want;auto=false;running=mode!=='model'&&!reduced.matches;resetView();last=0;}
+    cardsUp=panel==='cards';
+    if(cardsUp){cancelAnimationFrame(raf);raf=0;renderSceneCards(row,list);}
+    else if(panel==='making'){const box=$('.g-scene-list');if(box.dataset.key){box.replaceChildren();delete box.dataset.key;}} // 沒有景的車：不留上一台車的（隱藏）卡片
+    $('.g-stage').dataset.panel=panel;
+    $('.g-run').hidden=panel!=='model';$('.g-scene-list').hidden=!cardsUp;$('.g-making').hidden=panel!=='making';$('.g-tag').hidden=panel!=='making';
+    // 反向鍵跟著跑起來那一列走（分頁列寬度才不會在開關時縮放）；製作中沒有那一列，回分頁列旁。
+    const rev=$('.g-reverse'),slot=panel==='model'?$('.g-run-main'):$('.g-scene-bar');if(rev.parentNode!==slot)slot.append(rev);
+  }
+  function renderSceneCards(row,list){
+    const box=$('.g-scene-list'),key=row.id+'|'+list.join(',');
+    if(box.dataset.key!==key){
+      const home=globalThis.RailGarageScenes?.[row.id]?.scene; // 本命景：對照表登記給這台車的那一景，在清單裡才標
+      box.replaceChildren(...list.map(id=>{
+        const info=globalThis.RailGarageSceneInfo?.[id]||{},card=document.createElement('button');
+        card.type='button';card.className='g-scene-card';card.dataset.scene=id;
+        card.innerHTML=`<span class="g-scene-th">${info.preview?`<img src="${esc(info.preview)}" alt="" loading="lazy" decoding="async" width="640" height="360">`:''}${id===home?`<span class="g-scene-fav">${esc(tr('本命景'))}</span>`:''}</span><span class="g-scene-tx"><b>${esc(tr(info.name||id))}</b>${info.blurb?`<small>${esc(tr(info.blurb))}</small>`:''}<span class="g-scene-state"></span></span>`;
+        const img=card.querySelector('img');if(img)img.onerror=()=>{img.hidden=true;};
+        card.onclick=()=>openScene(row.id,id,card);
+        return card;
+      }));
+      box.dataset.key=key;
+    }
+    syncSceneLocks();
+  }
+  // 重讀每張卡的解鎖狀態（切到場景分頁、從場景頁回來都會呼叫）。只在狀態變了才動 DOM，卡片本身不重建，焦點與預覽圖都留著。
+  function syncSceneLocks(){
+    for(const card of dialog?.querySelectorAll('.g-scene-card')||[]){
+      const id=card.dataset.scene,unlocked=sceneUnlocked(id);
+      if(card.dataset.unlocked===String(unlocked))continue;
+      const info=globalThis.RailGarageSceneInfo?.[id]||{};
+      card.dataset.unlocked=String(unlocked);card.classList.toggle('g-scene-locked',!unlocked);
+      card.querySelector('.g-scene-state').innerHTML=unlocked?`<span class="g-scene-enter">${esc(tr('進入'))}</span>`:`<span class="g-scene-lock">${LOCK_SVG}${esc(tr('這一景還沒解鎖'))}</span>`;
+      card.setAttribute('aria-label',[tr(info.name||id),card.querySelector('.g-scene-fav')?tr('本命景'):'',unlocked?tr('進入'):tr('這一景還沒解鎖')].filter(Boolean).join(' · '));
+    }
   }
   function onSceneMessage(e){
     if(!sceneEl||e.origin!==location.origin||e.source!==sceneFrame?.contentWindow)return;
     if(e.data?.type==='railisland:garage-scene:leave')closeScene(true);
   }
-  function openScene(row){
+  function openScene(carId,sceneId,trigger){
     if(sceneEl||!dialog?.open)return;
-    sceneBtn=document.activeElement;
+    sceneBtn=trigger||document.activeElement; // iOS Safari 點按鈕不會讓它取得焦點，所以由呼叫端把卡片傳進來
     cancelAnimationFrame(raf);raf=0;
     sceneEl=document.createElement('div');sceneEl.className='g-scene-overlay';
     sceneFrame=document.createElement('iframe');
     sceneFrame.setAttribute('allow','fullscreen');sceneFrame.title=tr('場景');
-    sceneFrame.src='garage-scene.html?car='+encodeURIComponent(row.id)+'&lang='+encodeURIComponent(host.lang())+'&period='+encodeURIComponent(period==='sunrise'?'day':period)+'&embed=1';
+    sceneFrame.src='garage-scene.html?car='+encodeURIComponent(carId)+'&scene='+encodeURIComponent(sceneId)+'&lang='+encodeURIComponent(host.lang())+'&period='+encodeURIComponent(period==='sunrise'?'day':period)+'&embed=1';
     sceneEl.append(sceneFrame);dialog.append(sceneEl);
     window.addEventListener('message',onSceneMessage);
   }
@@ -132,13 +228,15 @@
     try{sceneFrame.src='about:blank';}catch(e){}
     sceneEl.remove();sceneEl=sceneFrame=null;
     const b=sceneBtn;sceneBtn=null;last=0;
-    if(restoreFocus){const go=dialog?.querySelector('.g-scene-go');(go||b)?.focus?.({preventScroll:true});}
+    syncSceneLocks(); // 從場景頁回來：解鎖狀態可能變了（例如剛兌換），重讀一次
+    if(restoreFocus)(b?.isConnected?b:dialog?.querySelector('[data-tab="scene"]'))?.focus?.({preventScroll:true});
     requestDraw();
   }
   function showDetail() {
     const row=rows.find(r=>r.id===selected);
     $('.g-showcase').hidden=!row;
     if(!row){auto=running=false;cancelAnimationFrame(raf);raf=0;showControls();return;}
+    if(sceneUi)syncScenePanel(row);
     $('.g-view').setAttribute('aria-label',tr(row.model.name)+' · '+status(row)+' · '+tr(mode==='track'?'海岸行旅':mode==='loop'?'環形試跑':'近看小車'));
     showControls();
     const badge=$('.g-status');badge.textContent=status(row);badge.classList.toggle('owned',row.owned);
@@ -152,16 +250,6 @@
     $('.g-date').textContent=demo?tr('展示模式・不計入收藏'):row.date?tr('首次入庫：{date}',{date:row.date}):'';
     const action=$('.g-cta');action.hidden=!row.rule||demo;action.textContent=row.rule.category==='progress'?tr('查看旅程護照'):tr(row.owned?'再陪它跑一趟':'開始收集');
     action.onclick=()=>{const rule=row.rule;close();host.launch(rule);};
-    dialog.querySelector('.g-scene-entry')?.remove();
-    const sc=sceneFor(row);
-    if(sc){
-      const box=document.createElement('div');box.className='g-scene-entry';
-      const go=document.createElement('button');go.type='button';go.className='g-scene-go';go.textContent=tr('進入場景');
-      const place=document.createElement('small');place.textContent=tr(sc.place);
-      go.onclick=()=>openScene(row);box.append(go,place);
-      // 放在展示框頂部的分頁列正下方：手機上詳情區在摺線下約 500px，放展示框下方也還要捲約 370px。
-      (dialog.querySelector('.g-scene-bar')||action).after(box);
-    }
     $('.g-source-body').replaceChildren();
     for(const text of [tr('模型製作：軌島（Q 版示意）'),tr('收藏的是紀念模型，不代表曾搭乘這個實際車型或車號。'),tr('外觀依公開照片參考繪製；照片僅連結，未作為模型貼圖。')]) {
       const p=document.createElement('p');p.textContent=text;$('.g-source-body').append(p);
@@ -171,7 +259,7 @@
       const p=document.createElement('p'),a=document.createElement('a');
       a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';a.textContent=tr('外觀參考')+' · '+tr(source.label)+' ↗';p.append(a);$('.g-source-body').append(p);
     }
-    if(loadedId!==row.id||loadedMode!==mode)loadSelected();
+    if(!cardsUp&&(loadedId!==row.id||loadedMode!==mode))loadSelected(); // 場景卡片顯示中不載 3D，切回近看小車時才載
     requestDraw();
   }
   function chooseModel(id) {
@@ -238,6 +326,7 @@
       <div class="g-detail"><span class="g-status"></span><h2 class="g-name"></h2><p class="g-system"></p><p class="g-reason"></p><p class="g-goal"></p><p class="g-date"></p><button class="g-cta"></button><details class="g-sources"><summary>${esc(tr('車型與來源'))} ↗</summary><div class="g-source-body"></div></details></div></section>
       <p class="g-result" role="status" aria-live="polite"></p><div class="g-grid"></div>
       <footer class="g-footer"><span class="g-catalog"></span> · ${esc(tr('模型製作：軌島（Q 版示意）'))}<br>${esc(tr('進度沿用旅程護照；62 款小車都有收集條件，既有車種章自動帶入。'))}<br>${esc(tr('收藏的是紀念模型，不代表曾搭乘這個實際車型或車號。'))}</footer></main>`;
+    sceneUi=false;if(scenesOn())mountSceneTab();
 
     // 頂列實高給 CSS 當內容的 scroll-margin-top（見 train-garage.css「避開 sticky 頂列」那條）。
     // 要看 border-box：頂列上內距是 max(12px, 瀏海安全區)，轉向時只有內距變、內容框不變，預設的觀察框收不到。
@@ -270,7 +359,7 @@
   function cleanup() {
     if (!active) return;
     active = false;renderSession++;modelTicket++;loadedId='';
-    closeScene(false);cancelAnimationFrame(raf);raf=0;auto=running=false;drag=pinch=null;pointers.clear();resize?.disconnect();visibility?.disconnect();
+    closeScene(false);cancelAnimationFrame(raf);raf=0;auto=running=false;cardsUp=false;drag=pinch=null;pointers.clear();resize?.disconnect();visibility?.disconnect();
     renderer?.dispose();renderer=null;
     host?.onClose();
   }
@@ -308,7 +397,7 @@
     host=adapter;active=true;
     if(!dialog){dialog=document.createElement('dialog');dialog.id='trainGarage';dialog.setAttribute('aria-labelledby','garageTitle');document.body.append(dialog);dialog.addEventListener('cancel',e=>{e.preventDefault();close();});dialog.addEventListener('close',()=>{if(!dialog.open)cleanup();});}
     demo=!!options.demo;data();selected=demo?'e200':rows.find(r=>r.owned)?.id||'emu3000';
-    filter=demo||rows.some(r=>r.owned)?'owned':'all';auto=running=false;mode='model';resetView();direction=1;distance=0;travelTime=0;period=scenePeriod();last=0;inView=true;
+    filter=demo||rows.some(r=>r.owned)?'owned':'all';auto=running=false;mode='model';tab='model';loopOn=false;cardsUp=false;resetView();direction=1;distance=0;travelTime=0;period=scenePeriod();last=0;inView=true;
     rendererPromise=startRenderer();
     showDialog();build();dialog.scrollTop=0;$('.g-close').focus({preventScroll:true});requestDraw();
   }
