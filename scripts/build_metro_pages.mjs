@@ -919,7 +919,7 @@ function runNote(lang, page) {
     return pick(lang,
       '高雄環狀輕軌有官方逐車 GPS 可用時，軌島用它校正各車位置；定位中斷時退回到站看板，列車仍依時刻表在地圖上跑。',
       'When the official per-train GPS of the Kaohsiung Circular Light Rail is available, Rail Island uses it to correct each train\'s position; when positioning drops out it falls back to the arrival boards, and trains keep running on the timetable on the map.',
-      '高雄のライトレール環状線は、公式の列車ごとの GPS が使えるときはそれで各列車の位置を補正し、位置が取れないときは到着案内に戻ります。列車は時刻表どおりに地図上を走ります。');
+      '高雄のライトレール環状線では、公式の列車ごとの GPS が使えるときはその情報で各列車の位置を補正します。位置情報が途切れたときは駅の到着案内に戻りますが、列車は引き続き時刻表どおりに地図上を走ります。');
   }
   return pick(lang,
     '沒有逐車 GPS 的部分，列車依時刻表在地圖上跑；有官方到站倒數或列車動態時，軌島會用它校正畫面。',
