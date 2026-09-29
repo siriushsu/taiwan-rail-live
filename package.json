@@ -16,6 +16,7 @@
     "check-sunlight-terrain": "node scripts/verify_sunlight_terrain.mjs",
     "check-aeo-browser": "node scripts/verify_aeo_browser.mjs",
     "check-metro-pages": "node scripts/build_aeo_pages.mjs --check && node scripts/verify_metro_pages.mjs",
+    "check-station-pages": "node scripts/build_aeo_pages.mjs --check && node scripts/verify_station_pages.mjs --all",
     "check-copy": "node scripts/verify_changelog_copy.mjs",
     "check-issue19": "node scripts/verify_issue19.mjs",
     "check-issue73": "node scripts/verify_issue_73_follow_head.mjs",
