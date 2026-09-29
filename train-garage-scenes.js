@@ -1,8 +1,8 @@
 // 車款 → 場景對照表。**手維護，不是產生檔**（對照 train-garage-catalog.js 是 import_garage_blender.py 整份覆寫的產生檔）。
 // 設計書：docs/superpowers/specs/2026-09-09-車庫一車一景-design.md §3.4、2026-09-12-車庫場景複審與特色車站-design.md §4
 //
-// 🚧 草案（2026-09-12）：站點分派還沒經使用者裁示，也還沒有任何程式讀這個檔。
-//    四個已完成的場景（south-coast／alishan／viaduct／shifen）只活在 prototypes/garage-*/，車庫本體尚未接線。
+// 🚧 草案（2026-09-12）：站點分派還沒經使用者裁示。
+//    09-29 起車庫（train-garage.js）與場景外框頁（garage-scene.html）會讀這個檔，功能在旗標 garagescene 後面關著。
 //
 // 欄位：
 //   tier   'A' 手工場景（一眼認得出是哪裡）｜'B' 原型＋參數
@@ -133,3 +133,28 @@ window.RailGarageScenes = {
 
 // 已接進車庫（可由 garage-scene.html 掛載）的場景 id；其餘三景（alishan、viaduct、shifen）做好了但這一輪先不開。
 window.RailGarageSceneLive = ['south-coast'];
+
+// 哪一類車可以開進哪幾景（以 train-garage-catalog.js 的 system 欄判斷）。主對話判讀：台鐵車進三座台鐵景、林鐵車進阿里山；
+// 捷運、輕軌、高鐵目前沒有合適的景。方向來自使用者 09-29 10:26「或者另一個方向，是讓所有的車子都能跑在現在有的場景中適合的景」、10:30「確認改這個方向」。
+window.RailGarageSceneFit = {
+ '台鐵': ['south-coast','viaduct','shifen'],
+ '阿里山林鐵': ['alishan'],
+};
+
+// 場景卡與場景頁用的名稱（繁中原文，當 t() 的鍵）：name＝卡片標題、blurb＝卡片副標、place＝場景頁頁首、preview＝卡片預覽圖。
+window.RailGarageSceneInfo = {
+ 'south-coast': {name:'多良海岸',blurb:'南迴線・山與海之間的小站',place:'南迴線・多良海岸',preview:'rail-3d/assets/garage-scene-previews/south-coast.jpg'},
+ viaduct:       {name:'高架車站',blurb:'高架月台・每圈進站停靠',place:'高架車站・站前街',preview:'rail-3d/assets/garage-scene-previews/viaduct.jpg'},
+ shifen:        {name:'十分老街',blurb:'鐵道貼著老街穿過',place:'平溪線・十分老街',preview:'rail-3d/assets/garage-scene-previews/shifen.jpg'},
+ alishan:       {name:'阿里山',blurb:'山林間的森林鐵道',place:'阿里山林鐵・之字形',preview:'rail-3d/assets/garage-scene-previews/alishan.jpg'},
+};
+
+// 這台車可以開進哪幾景：只列已開放（RailGarageSceneLive）的景；本命景（上面對照表的 scene 欄）在清單裡就排第一。
+// 車庫的場景卡、場景頁的 scene 參數檢查，都只准經過這個函式。
+window.garageScenesFor = function(carId){
+ const sys=window.RailGarageCatalog?.[carId]?.system;
+ const live=window.RailGarageSceneLive||[];
+ const fit=(window.RailGarageSceneFit?.[sys]||[]).filter(s=>live.includes(s));
+ const home=window.RailGarageScenes?.[carId]?.scene;
+ return home&&fit.includes(home)?[home,...fit.filter(s=>s!==home)]:fit;
+};
