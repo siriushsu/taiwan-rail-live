@@ -1,8 +1,91 @@
 import * as THREE from '../vendor/three.module.js';
 import {createKit,smooth} from './new-scene-kit.js';
 import {coastalPath,offsetPoint,ribbon,fence,hillside,tunnelRidge,staircase} from './scene-detail-kit.js';
+import {personPose} from '../garage-people.js?revision=people-0927';
+// 遊客（garage-people-v1 的 Blender 零件＋garage-camera-v1 的相機）看經過的列車。
+// 比例：站姿 1.7 m 的人 × PERSON_SCALE；比真實再大一點（Q 版場景，欄杆、階梯是照原本的遊客高度做的）。
+export const PERSON_SCALE=.58,HEAD_LIMIT=70*Math.PI/180,TORSO_LIMIT=75*Math.PI/180;
+// 角速度上限（rad/s）：頭、攝影者上半身、走路者轉身。沒有瞬移：目標一跳，實際角度也只能照上限追。
+export const HEAD_RATE=3.2,TORSO_RATE=2.4,TURN_RATE=2.0,TAU=.16,SEE_X=36;
+const TRACK=true;
+const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a)),clampTo=(v,l)=>Math.max(-l,Math.min(l,v));
+// 一步：一階追蹤（時間常數 TAU）再夾角速度上限。rate 是 Infinity 就等於沒上限（突變測試用）。
+function follow(cur,target,dt,rate){const d=target-cur,step=d*(1-Math.exp(-dt/TAU)),lim=rate*dt;return cur+Math.max(-lim,Math.min(lim,step));}
 
-export function createScene(){
+// ---- 遊客 -------------------------------------------------------------------------------------------------
+// 每個零件一個 InstancedMesh（人的零件與相機零件共用同一套做法）；每幀照狀態擺姿勢。
+// 一般遊客：身體朝固定方向（看海），頭在 HEAD_LIMIT 內轉向最近車廂中心。
+// 攝影者：腳固定，上半身（頭、髮、上衣、彎臂、相機）繞腰一起轉，上限 TORSO_LIMIT，相機因此永遠對著頭朝的方向。
+// 走路者：沿平台來回走；轉身（走向反轉）也走 TURN_RATE 的角速度上限，不瞬間掉頭。
+const HEAD_PARTS=n=>n==='head'||n.startsWith('hair-')||n==='acc-hat';
+const UPPER_PARTS=n=>HEAD_PARTS(n)||n.startsWith('torso-')||n==='acc-backpack';
+const CAMERA_PARTS=['camera-body','camera-top','camera-lens','camera-glass','grip-sleeve-l','grip-sleeve-r','grip-hand-l','grip-hand-r'];
+const TORSOS=['shirt','jacket','hoodie','dress'],HAIRS=['short','long','bun'],
+ BOTTOMS=['#384d5b','#3d4450','#6b5a48','#2f3a4c'],SKINS=['#e9c8a8','#d6a987','#b98663','#f1d3b8'],HAIRC=['#2b2320','#4a3426','#1f1f24','#7a5a3a'],ACCENTS=['#c9463d','#2f6f8f','#e0b44c','#3b3b3b'];
+function createVisitors(kits,specs){
+ const [people,camera]=kits,group=new THREE.Group();group.name='duoliang-visitors';
+ const peopleMat=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.78}),cameraMat=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.5,metalness:.1}),meshes=new Map();
+ for(const [kit,material] of [[people,peopleMat],[camera,cameraMat]])for(const [name,part] of kit.parts){
+  const m=new THREE.InstancedMesh(part.geometry,material,specs.length*(part.perPerson??1));m.name='duoliang-'+name;m.castShadow=m.receiveShadow=true;m.frustumCulled=false;m.count=0;group.add(m);meshes.set(name,{mesh:m,part,n:0});}
+ const list=specs.map((sp,i)=>{
+  const photo=sp.kind==='photographer',look={hair:HAIRS[(i*2+1)%3],torso:TORSOS[(i*3+1)%4],accessory:sp.hat&&!photo?'hat':(!photo&&i%5===2?'backpack':null),scale:1,
+   top:sp.color,bottom:BOTTOMS[i%4],skin:SKINS[(i*3+1)%4],hairColor:HAIRC[(i*5+2)%4],accent:ACCENTS[i%4]};
+  return{...sp,i,look,pv:{look,pose:'stand',walking:false,stride:0,step:1,hand:0},out:[],yaw:sp.yaw??0,turn:0,car:-1,s:sp.s??0,slots:{}};});
+ const root=new THREE.Matrix4(),sm=new THREE.Matrix4(),rz=new THREE.Matrix4(),tw=new THREE.Matrix4(),world=new THREE.Matrix4(),color=new THREE.Color(),m4=new THREE.Matrix4(),p3=new THREE.Vector3();
+ let last=null,seenCount=0;
+ function put(v,name,matrix){const e=meshes.get(name),{part}=e;world.multiplyMatrices(root,matrix);e.mesh.setMatrixAt(e.n,world);
+  if(part.tint==='fixed')color.setRGB(part.color[0],part.color[1],part.color[2]);else color.set(part.tint==='hair'?v.look.hairColor:v.look[part.tint]);
+  e.mesh.setColorAt(e.n,color);(v.slots[name]??=[]).push(e.n);e.n++;}
+ function update(time,cars){
+  const dt=last===null?0:time-last,snap=last===null||dt<0||dt>.5,moving=dt>1e-9&&!snap;last=time;
+  const seen=[];cars.forEach((c,i)=>{if(Math.abs(c[0])<SEE_X)seen.push({i,x:c[0],y:c[1]});});seenCount=seen.length;
+  for(const e of meshes.values())e.n=0;
+  for(const v of list){
+   v.slots={};
+   if(v.kind==='walker'&&(moving||snap)){const s=v.base+Math.sin(time*.11+v.i)*2,ds=s-v.s;v.s=s;
+    const sn=v.path.sample(s),p=offsetPoint(v.path,s,3.0,v.z);v.x=p[0];v.y=p[1];
+    if(snap){v.pv.walking=false;v.yaw=sn.heading+(Math.cos(time*.11+v.i)>=0?0:Math.PI);}
+    else{const want=sn.heading+(ds>=0?0:Math.PI);v.yaw+=Math.max(-TURN_RATE*dt,Math.min(TURN_RATE*dt,wrap(want-v.yaw)*(1-Math.exp(-dt/TAU))));
+     v.pv.walking=Math.abs(ds)/dt>.02;if(v.pv.walking)v.pv.stride+=Math.abs(ds)/(PERSON_SCALE*v.rel)*.38;}}
+   // 目標：最近車廂中心（換目標要贏 4% 才換，不在兩節中間來回跳）；沒車就回到原本朝向。
+   let target=0;
+   if(TRACK&&seen.length){const d=c=>Math.hypot(c.x-v.x,c.y-v.y);let best=seen[0];for(const c of seen)if(d(c)<d(best))best=c;
+    const keep=seen.find(c=>c.i===v.car);if(keep&&d(keep)<=d(best)*1.04)best=keep;v.car=best.i;
+    target=wrap(Math.atan2(best.y-v.y,best.x-v.x)-v.yaw);
+    if(Math.abs(target)>Math.PI-.5&&Math.abs(v.turn)>.05)target=Math.sign(v.turn)*Math.abs(target);} // 車在正後方：沿用原本轉的那一側，不在 ±180° 兩邊來回甩
+   else v.car=-1;
+   const photo=v.kind==='photographer',limit=photo?TORSO_LIMIT:HEAD_LIMIT,rate=photo?TORSO_RATE:HEAD_RATE,goal=clampTo(target,limit);
+   v.turn=snap?goal:follow(v.turn,goal,dt,rate);
+   const s=PERSON_SCALE*v.rel;root.makeTranslation(v.x,v.y,v.z).multiply(rz.makeRotationZ(v.yaw)).multiply(sm.makeScale(s,s,s));
+   tw.makeRotationZ(v.turn);
+   for(const e of personPose(v.pv,people,v.out)){
+    if(photo&&(e.name==='arm'||e.name==='hand'))continue;
+    if(photo&&UPPER_PARTS(e.name))put(v,e.name,m4.multiplyMatrices(tw,e.matrix));
+    else if(!photo&&HEAD_PARTS(e.name))put(v,e.name,m4.copy(e.matrix).multiply(tw));
+    else put(v,e.name,e.matrix);}
+   if(photo)for(const name of CAMERA_PARTS)put(v,name,tw);
+  }
+  for(const e of meshes.values()){e.mesh.count=e.n;e.mesh.visible=e.n>0;e.mesh.instanceMatrix.needsUpdate=true;if(e.mesh.instanceColor)e.mesh.instanceColor.needsUpdate=true;}
+ }
+ // 讀回實際畫出來的東西（各零件實例矩陣×零件幾何）：驗收與截圖檢查用，不重算公式。
+ function inspect(){
+  return list.map(v=>{
+   const world=(name,k,point)=>{const e=meshes.get(name);e.mesh.getMatrixAt(v.slots[name][k],m4);return p3.copy(point).applyMatrix4(m4).toArray();};
+   const center=name=>{const b=meshes.get(name).part.geometry.boundingBox;return b.getCenter(new THREE.Vector3());};
+   const dirOf=name=>{const e=meshes.get(name);e.mesh.getMatrixAt(v.slots[name][0],m4);const d=new THREE.Vector3(1,0,0).transformDirection(m4);return Math.atan2(d.y,d.x);};
+   const min=[Infinity,Infinity,Infinity],max=[-Infinity,-Infinity,-Infinity];
+   for(const [name,ks] of Object.entries(v.slots)){const b=meshes.get(name).part.geometry.boundingBox,e=meshes.get(name);for(const k of ks){e.mesh.getMatrixAt(k,m4);
+    for(let c=0;c<8;c++){p3.set(c&1?b.max.x:b.min.x,c&2?b.max.y:b.min.y,c&4?b.max.z:b.min.z).applyMatrix4(m4);for(let a=0;a<3;a++){min[a]=Math.min(min[a],p3.getComponent(a));max[a]=Math.max(max[a],p3.getComponent(a));}}}}
+   const out={i:v.i,kind:v.kind,pos:[v.x,v.y,v.z],bodyYaw:v.yaw,head:{pos:world('head',0,new THREE.Vector3()),yaw:dirOf('head')},bbox:{min,max},
+    feet:[0,1].map(k=>world('shoe',k,center('shoe'))),car:v.car};
+   if(v.kind==='photographer'){const b=world('camera-body',0,center('camera-body')),g=world('camera-glass',0,center('camera-glass'));out.camera={pos:b,yaw:Math.atan2(g[1]-b[1],g[0]-b[0])};}
+   return out;});
+ }
+ return{group,update,inspect,get seen(){return seenCount;},count:list.length,
+  dispose(){for(const {mesh} of meshes.values())mesh.dispose();peopleMat.dispose();cameraMat.dispose();group.clear();}};
+}
+
+export function createScene(kits=null){
  const k=createKit(),{group,mat,block,beam,mesh,props,rand}=k,path=coastalPath();
  const stone=mat('#a5a18b'),red=mat('#b93f2b'),cream=mat('#c9c2ac'),wood=mat('#785d43');
  k.slab('#655442',76,48,-1.6,.45,5);k.slab('#ad9671',75.5,47.5,-1.15,.5,5);
@@ -48,13 +131,16 @@ export function createScene(){
  // 山腳護坡塊及泄水溝，不穿入遊客平台。
  for(const side of [-1,1])for(let i=0;i<9;i++){const x=side*(13+i*.6),y=path.sample(x).y+5.5;block(mat('#8e9580'),[.42,.22,.56],[x,y,4.05+i*.15],[0,.12,0]);}
  const colors=['#d8a64e','#b35042','#5c8f9b','#e7dfc6','#485e7f','#d0a5a2'];
- for(let i=0;i<10;i++){const s=-20+i*4.2,p=offsetPoint(path,s,2.3+(i%2)*.8,4.5);k.person(...p,{color:colors[i%6],photo:i%3===0,hat:i%4===0,scale:i===7?.67:.9,angle:path.sample(s).heading});}
- for(let i=0;i<5;i++)k.person(-9.8+i*2.0,6.6,6.9,{color:colors[(i+2)%6],photo:i%2===0,hat:i===2,scale:.9});
- const walkers=[k.person(-4,4,4.5,{color:'#c5aa64',walk:true,hat:true}),k.person(1,3.8,4.5,{color:'#799caa',walk:true,scale:.75})];
+ // 遊客：位置、人數、衣色沿用原本；攝影者（原本手上有深色方塊的那幾位）改舉真的相機，所以不戴帽子。
+ const specs=[];
+ for(let i=0;i<10;i++){const s=-20+i*4.2,p=offsetPoint(path,s,2.3+(i%2)*.8,4.5);specs.push({kind:i%3===0?'photographer':'visitor',x:p[0],y:p[1],z:4.5,yaw:path.sample(s).heading-Math.PI/2+(i%3-1)*.1,color:colors[i%6],hat:i%4===0,rel:i===7?.74:1+((i*7)%5-2)*.02});}
+ for(let i=0;i<5;i++)specs.push({kind:i%2===0?'photographer':'visitor',x:-9.8+i*2.0,y:6.6,z:6.9,yaw:-Math.PI/2+(i%3-1)*.1,color:colors[(i+2)%6],hat:i===2,rel:1+((i*3)%5-2)*.02});
+ [[-4,'#c5aa64',1,true],[2,'#799caa',.8,false]].forEach(([base,color,rel,hat],i)=>specs.push({kind:'walker',base,x:0,y:0,z:4.5,yaw:0,path,s:base,color,hat,rel}));
+ const visitors=kits?createVisitors(kits,specs):null;if(visitors)group.add(visitors.group);
  for(const s of [-19,-10,11,20]){const p=offsetPoint(path,s,3.6,4.5);k.lamp(...p,2.7);}k.lamp(-10,9.8,6.9,2.5);k.lamp(4,4.4,4.5,2.4);
  const wireGroup=new THREE.Group();group.add(wireGroup);const wireMat=mat('#62685f');
  // 電車線離軌頂 1.95（與高架同一個高度），集電弓伸得到；腕臂在線上方，弓頭不會穿過它。
  for(let s=-22;s<=22;s+=8){const p=offsetPoint(path,s,1.15,5.065);k.part(wireGroup,wireMat,[.08,.08,2.13],p);const q=offsetPoint(path,s,.5,6.01);k.part(wireGroup,wireMat,[.10,1.35,.08],q,[0,0,path.sample(s).heading]);}
  for(let s=-25;s<25;s+=.5){const a=offsetPoint(path,s,0,5.95),b=offsetPoint(path,s+.5,0,5.95),v=new THREE.Vector3(...b).sub(new THREE.Vector3(...a));const o=k.part(wireGroup,wireMat,[v.length(),.023,.023],a);o.position.addScaledVector(v,.5);o.rotation.z=path.sample(s).heading;}
- k.bake();let state={};return{...k,path,kind:'duoliang',contactWireZ:5.95-.0115,focus:[0,5,6],update(time,period,train){const light=k.illumination(period);sea.color.set(period==='night'?'#193e52':period==='dawn'?'#8c9999':period==='sunset'?'#658c93':'#3b8d9d');for(const {w,y,phase}of waves){w.position.y=y+Math.sin(time*.35+phase)*.18;w.scale.x=1+Math.sin(time*.5+phase)*.12;}walkers.forEach((g,i)=>{const s=-4+i*6+Math.sin(time*.11+i)*2,p=offsetPoint(path,s,3.0,4.5);g.position.set(...p);g.rotation.z=path.sample(s).heading+(Math.cos(time*.11+i)>0?-Math.PI/2:Math.PI/2);});wireGroup.visible=train.id==='emu3000';state={visitors:17,lights:light,walkers:walkers.map(g=>g.position.toArray()),electrified:wireGroup.visible,stairs,tunnels,curved:true};},get state(){return state;}};
+ k.bake();let state={};return{...k,path,kind:'duoliang',contactWireZ:5.95-.0115,focus:[0,5,6],update(time,period,train){const light=k.illumination(period);sea.color.set(period==='night'?'#193e52':period==='dawn'?'#8c9999':period==='sunset'?'#658c93':'#3b8d9d');for(const {w,y,phase}of waves){w.position.y=y+Math.sin(time*.35+phase)*.18;w.scale.x=1+Math.sin(time*.5+phase)*.12;}visitors?.update(time,train.cars??[]);wireGroup.visible=train.id==='emu3000';state={visitors:specs.length,watching:visitors?.seen??0,lights:light,electrified:wireGroup.visible,stairs,tunnels,curved:true};},get state(){return state;},inspect:()=>visitors?.inspect()??[],dispose(){k.dispose();visitors?.dispose();}};
 }
