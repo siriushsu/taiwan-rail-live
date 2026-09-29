@@ -796,7 +796,7 @@ await attempt('K1', async () => {
   const P = {
     list: sqlOf(/^WITH t AS \(/),
     load: sqlOf(/^SELECT \* FROM \(SELECT \*, SUM\(length\(payload\)\) OVER \(ORDER BY submitted_at, id ROWS UNBOUNDED PRECEDING\) AS cum_bytes FROM bounty_samples WHERE actor=\? AND trip_date=\? AND train_no=\? AND verdict='pending'\)/),
-    prior: sqlOf(/FROM bounty_samples WHERE actor IN/),
+    prior: sqlOf(/FROM bounty_samples s LEFT JOIN json_each\(/),          // 前次線組（獨立驗收 C4 之後在 SQL 裡依線彙總，樣本表別名 s）
     mark: sqlOf(/^UPDATE bounty_samples SET verdict=\?/),
     points: sqlOf(/^INSERT INTO bounty_points \(actor,uid,points,merged_into,updated_at\) SELECT/),
     claims: sqlOf(/FROM bounty_claims WHERE actor=COALESCE\(.*status='open'.*json_each/),
@@ -823,7 +823,7 @@ await attempt('K1', async () => {
       !/SCAN (s|l|x|bounty_samples|chip_ledger|kv_blobs)\b/.test(plans.list) && KV_PK.test(plans.list) &&
       ['mark', 'points', 'count', 'close'].every(k => KV_PK.test(plans[k]) && !/SCAN kv_blobs\b/.test(plans[k])) &&
       /SEARCH bounty_samples USING INDEX idx_samples_trip \(actor=\? AND trip_date=\? AND train_no=\?\)/.test(plans.load) &&
-      /SEARCH bounty_samples USING INDEX idx_samples_trip \(actor=\? AND trip_date=\? AND train_no=\?\)/.test(plans.prior) &&
+      /SEARCH (s|bounty_samples) USING INDEX idx_samples_trip \(actor=\? AND trip_date=\? AND train_no=\?\)/.test(plans.prior) &&
       /SEARCH bounty_samples USING INDEX sqlite_autoindex_bounty_samples_\d+ \(id=\?\)/.test(plans.mark) && !/idx_samples_pending/.test(plans.mark),
     J({ list: plans.list, load: plans.load, prior: plans.prior, mark: plans.mark, points: plans.points, count: plans.count, close: plans.close }));
   if (!CTL) return noCtl('K1a', '無法比對等價');

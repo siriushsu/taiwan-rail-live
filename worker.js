@@ -7608,34 +7608,20 @@ function bountyDistinctNeed(rules, segKey) {
   return n > 0 ? n : 0;
 }
 
-// 「前次線組」（S12，遲傳合併判）：這一班車先前已判定過（verdict 不是 pending）的樣本列，依 sys|ln_id 分組、各自組回一趟。
+// 「前次線組」（S12，遲傳合併判）：這一班車先前已判定過（verdict 不是 pending）的樣本，SQL 已經依 sys|ln_id 彙總成一條線一列
+// （見 bountyVerifyTrain 的前次查詢：worst、最早／最晚的樣本時間 t0／t1）。
 // 只給 bountyCreditTripChips 做籌碼判斷用——不重新登記去重、不重新標記、不給點數（那些在它自己那一發都做過了）。
 //   ・verdict：該組最壞的——有 suspect 就 suspect，否則有 ok 就 ok，否則 unusable（同一條線先後兩發判出不同結果時，寧可保守）。
-//   ・cov：該組 ok 列的 segs（判定當下寫下的覆蓋段 JSON）取聯集；segs 讀不出來（直接寫入的列、壞掉的 JSON）就當沒有覆蓋段。
+//   ・trip.pts：只有最早與最晚兩個時間（籌碼只用得到整班長度）；那條線沒有讀得出時間的點就是空的。
+//   ・cov 一律空：籌碼判斷只拿覆蓋段來看「落在哪一條線」（偏遠 ×2），而覆蓋段一定落在那一組自己的線上
+//     （coverageOf 的鍵是 line.sys|line.lnId 開頭，line 就是用這一組的 sys|ln_id 查的），ok 的組沒有覆蓋段時本來就退回自己的 sys|ln_id——
+//     結果相同，所以不把 segs 讀回來（獨立驗收 C4：segs 每列都帶整組的覆蓋段、列數沒有上界，一個帳號併十台裝置就是 75 MB）。
 function bountyPriorGroups(rows) {
-  const lines = new Map();
-  for (const r of rows) {
-    const lk = `${r.sys}|${r.ln_id}`;
-    (lines.get(lk) || lines.set(lk, []).get(lk)).push(r);
-  }
-  const out = [];
-  for (const lineRows of lines.values()) {
-    const vs = new Set(lineRows.map(r => r.verdict));
-    const verdict = vs.has('suspect') ? 'suspect' : vs.has('ok') ? 'ok' : 'unusable';
-    const seen = new Set(), cov = [];
-    for (const r of lineRows) {
-      if (r.verdict !== 'ok') continue;
-      let segs = [];
-      try { segs = JSON.parse(r.segs); } catch (e) {}
-      for (const c of Array.isArray(segs) ? segs : []) {
-        if (!c || typeof c.key !== 'string') continue;
-        const k = `${c.key}|${c.dir}|${c.kind}|${c.slot}`;
-        if (!seen.has(k)) { seen.add(k); cov.push(c); }
-      }
-    }
-    out.push({ trip: assembleTrip(lineRows), v: { verdict }, cov });
-  }
-  return out;
+  return rows.map(r => ({
+    trip: { sys: r.sys, lnId: r.ln_id, pts: r.t0 == null ? [] : [{ t: r.t0 }, { t: r.t1 }] },
+    v: { verdict: Number(r.worst) === 2 ? 'suspect' : Number(r.worst) === 1 ? 'ok' : 'unusable' },
+    cov: [],
+  }));
 }
 
 // 一班車（同一個 actor＋tripDate＋trainNo）＝一趟＝最多發一次錄程籌碼。回傳這一趟實際入帳的籌碼數（0＝沒入帳）。
@@ -7992,27 +7978,36 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   // 讀樣本與寫入之間，這個裝置可能剛好被併進帳號（POST /api/bounty-merge：樣本與認領整批改名到 uid，原 token 那一列歸零只當墓碑）；
   // 第③段的讀寫因此不直接用這個 who，而是在每一句 SQL 裡當場再解析一跳（BOUNTY_WHO_SQL）；② 的籌碼與登記也在寫入的那一句裡解析。
   const who = await resolveActor(env, readActor);
-  // 遲傳合併判（S12）：這班車先前已判定過的列（前一發 cron 判完的前半段）。actor 綁「讀樣本時的 actor」與「當下的身分」兩個：
+  // 遲傳合併判（S12）：這班車先前已判定過的列（前一發 cron 判完的前半段）。actor 找「讀樣本時的 actor」與「此刻的身分」兩個：
   // 前半段是裝置 token 時期判的、中間登入合併過，樣本列已改名到 uid（或反過來），兩個都要找。走 idx_samples_trip。
-  // 這些列只參與籌碼判斷（bountyPriorGroups 的說明）；同一班車前半段當時若已入帳，bountyCreditTripChips 的「已入過帳」查詢照舊擋住後半段。
-  // 🔴 不讀 payload（review-B R2）：前次線組在籌碼判斷裡只用得到「最早與最晚的樣本時間」（整班長度），所以在 SQL 裡把每一列的 payload
-  // 換成只含這兩點的陣列（[{t:最早},{t:最晚}]；讀不出來的 payload 當空陣列，與 assembleTrip 吞掉壞 JSON 同一個結果）。
-  // 前次的列最多還有一整天的額度那麼多（每批 600 點），連 payload 讀進來就又是一班車兩倍的記憶體。
+  // 🔴 此刻的身分在這一句裡當場解析（BOUNTY_WHO_SQL，從上面的 who 再解析一跳）：合併若剛好落在上面的 resolveActor 與這一句之間，
+  // 前半段已經改名到帳號，只綁 JS 解析出來的舊 token 就查不到——只拿後半段判，籌碼少發，而且後半段隨即標成已判定，之後再也補不回來
+  // （第三輪獨立驗收 C3 的遲傳窗）。
+  // 這些列只參與籌碼判斷（bountyPriorGroups 的說明）；同一班車前半段當時若已入帳，bountyCreditTripChips 的「已入過帳」條件照舊擋住後半段。
+  // 🔴 回傳的量有上界（review-B R2、獨立驗收 C4）：payload 與 segs 都不送回 Worker，在 SQL 裡依線彙總成一條線一列——
+  // 最壞的判定、所有列的最早與最晚樣本時間（只算數字型的 t；讀不出來的 payload 當空陣列，與 assembleTrip 吞掉壞 JSON 同一個結果）、
+  // 有沒有任何一列自報模擬器。列數≤線數：上傳端點只收題庫裡有的線（bountySubmit 的白名單），不隨前次的列數或併進來的裝置數長大。
+  // （舊版每一列都送回 segs——判定時寫下的整組覆蓋段，最長的線一列約 8 KB；列數是「這班車前次的批數」，一個帳號併 k 台都錄了同一班的裝置
+  // 就是 k 倍，實測 k＝10 約 75 MB，而 Workers 一個 isolate 只有 128 MB。）
   const priorRs = await env.DELAY_DB.prepare(
-    'SELECT id, actor, sys, ln_id, train_no, dir, trip_date, verdict, segs, client,' +
-    " CASE WHEN json_valid(payload) THEN (SELECT CASE WHEN MIN(json_extract(j.value, '$.t')) IS NULL THEN '[]'" +
-    " ELSE json_array(json_object('t', MIN(json_extract(j.value, '$.t'))), json_object('t', MAX(json_extract(j.value, '$.t')))) END" +
-    " FROM json_each(bounty_samples.payload) j) ELSE '[]' END AS payload" +
-    " FROM bounty_samples WHERE actor IN (?, ?) AND trip_date=? AND train_no=? AND verdict <> 'pending'"
-  ).bind(readActor, who, tripDate, trainNo).all();
+    'SELECT s.sys AS sys, s.ln_id AS ln_id,' +
+    " MAX(CASE s.verdict WHEN 'suspect' THEN 2 WHEN 'ok' THEN 1 ELSE 0 END) AS worst," +
+    " MIN(json_extract(j.value, '$.t')) AS t0, MAX(json_extract(j.value, '$.t')) AS t1," +
+    " MAX(CASE WHEN json_valid(s.client) THEN json_type(s.client, '$.simulator') = 'true' END) AS sim" +
+    " FROM bounty_samples s LEFT JOIN json_each(CASE WHEN json_valid(s.payload) THEN s.payload ELSE '[]' END) j" +
+    "  ON j.type = 'object' AND json_type(j.value, '$.t') IN ('integer', 'real')" +
+    ' WHERE s.actor IN (?, ' + BOUNTY_WHO_SQL + ") AND s.trip_date=? AND s.train_no=? AND s.verdict <> 'pending'" +
+    ' GROUP BY s.sys, s.ln_id'
+  ).bind(readActor, who, who, tripDate, trainNo).all();
   const priorRows = priorRs.results || [];
   const prior = bountyPriorGroups(priorRows);
   // 模擬器（開發、審查、QA 用 GPX 重播）：這班車「本次或前次」任何一列自報模擬器，這班車只留判定結果（下面照寫 verdict 等欄），
   // 不發籌碼、不登記去重、不動看板（sample_count／covered_at／人數）、不給舊點數、不關認領——
   // 每個模擬器安裝都是新的 installId，算進去會把正式環境的收滿人數灌上去，而收滿會讓卡片下架。
-  // 前次也要看：模擬器的前半段先判掉、後半段換一批「乾淨」的列才到，不能靠分兩發洗掉旗標。
+  // 前次也要看：模擬器的前半段先判掉、後半段換一批「乾淨」的列才到，不能靠分兩發洗掉旗標。前次的旗標在 SQL 裡讀（sim 欄），
+  // 判準與 bountyClientOf 相同：client 是 JSON 物件而且 simulator 嚴格等於 true（client 由 sanitizeClient 寫入，只可能是那三個鍵或 null）。
   const isSim = r => bountyClientOf(r).simulator === true;
-  const sim = rows.some(isSim) || priorRows.some(isSim);
+  const sim = rows.some(isSim) || priorRows.some(r => Number(r.sim) === 1);
   // ② v2 的兩件事（籌碼入帳、每段去重登記）刻意排在「標記已判定」之前：兩者都是冪等的（帳本 UNIQUE＋同班車查詢、
   // 登記 NOT EXISTS），所以中途失敗時這一班車仍是 pending、下一發整班重跑一次，不會重複發、也不會漏發。
   // 反過來排（先標已判定、再寫）的話，中途失敗的那一班就永遠是「已判定、沒有籌碼」。

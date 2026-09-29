@@ -468,6 +468,24 @@ await attempt('C2c', async () => {
     hb.fired === 1 && hb.merge === 200 && q.contrib(w, UID) === 7 && q.contrib(w, DEV) === 0 && J(users) === J(S7) && q.bal(w, UID) === 1 && q.bal(w, DEV) === 0,
     J({ hb, contrib: [q.contrib(w, UID), q.contrib(w, DEV)], users, bal: [q.bal(w, UID), q.bal(w, DEV)] }));
 });
+await attempt('C2f', async () => {
+  // 遲傳＋合併（第三輪獨立驗收 C3 的遲傳窗）：DEV 的 L2 前半 400 秒前一發已判 ok（不到 600 秒、0 顆）；後半 400 秒這一發才判。
+  // 注入點：前次線組那一句（這一班的身分已在 JS 解析成 DEV 之後）。這一刻 DEV 被併進 UID：前半的列已改名到 UID。
+  // 舊版只綁 JS 解析出來的 DEV → 前次查不到前半 → 只拿後半 400 秒判 → 0 顆，而且後半隨即標成已判定、再也補不回來。
+  // 期望：前次查詢在 SQL 裡當場解析身分、找得到前半 → 整班 801 秒 → 1 顆，記在 UID。
+  const DEV = 'dev-c2f-race-01', UID = 'uid-c2f-race-01';
+  const w = world({ seed: boardSql('山線') + pointsSql([[UID, UID, 0, null]]) });
+  putBatches(w.db, { actor: DEV, trainNo: 'L2', pts: leg({ sec: 400, t0: 30000 }), first: 0 });
+  const st1 = await w.cron();
+  putBatches(w.db, { actor: DEV, trainNo: 'L2', pts: leg({ sec: 400, t0: 30401, d0: 8000 }), first: 100 });
+  let mst = null;
+  const h = hookOnce(w.DELAY_DB, PRIOR_RE, async () => { mst = (await merge(w, DEV, UID)).status; });
+  const st2 = await w.cron({ BOUNTY_NOW: String(NOW_MS + 3600e3) });
+  ok('C2f [第三輪 C3] 合併落在前次查詢之前：前半（已改名到 UID）照樣算進整班長度 → 這一發 1 顆、記在 UID；DEV 名下 0；整班 ok（前一發只判前半、0 顆）',
+    st1.chips === 0 && h.fired === 1 && mst === 200 && st2.chips === 1 && J(q.trips(w)) === J([{ actor: UID, delta: 1, ref: `${UID}|${D28}|L2`, day: D28 }]) &&
+      q.bal(w, DEV) === 0 && q.verdicts(w, UID, 'L2') === 'ok',
+    J({ st1: st1.chips, fired: h.fired, mst, chips: st2.chips, trips: q.trips(w), v: q.verdicts(w, UID, 'L2') }));
+});
 
 // ═══ C3：第 k 次 D1 呼叫失敗（k 全掃）═══════════════════════════════════════════
 // 在第 k 次 D1 呼叫（first／all／run／raw 各算 1、batch 算 1、exec 算 1）丟例外。包在 bountyCounted 的下面，不影響它的計數。
@@ -627,12 +645,38 @@ await attempt('R2a', async () => {
   await w.cron();
   putBatches(w.db, { actor: A, trainNo: 'J1', pts: leg({ sec: 400, t0: 30401, d0: 8000 }), first: 100 });
   const prior = [];
-  spyRows(w.DELAY_DB, (sql, rs) => { if (PRIOR_RE.test(sql)) prior.push(...rs.map(r => ({ id: String(r.id), payload: String(r.payload) }))); });
+  spyRows(w.DELAY_DB, (sql, rs) => { if (PRIOR_RE.test(sql)) prior.push(...rs.map(r => ({ ...r }))); });
   const st2 = await w.cron({ BOUNTY_NOW: String(NOW_MS + 3600e3) });
-  const got = prior.sort((a, b) => a.id.localeCompare(b.id)).map(r => r.payload);
-  ok('R2a1 [R2] 前次線組 3 列，每列的 payload 只剩最早與最晚兩點：[30000,30199]、[30200,30399]、[30400,30400]',
-    J(got) === J([J([{ t: 30000 }, { t: 30199 }]), J([{ t: 30200 }, { t: 30399 }]), J([{ t: 30400 }, { t: 30400 }])]), J(got));
+  ok('R2a1 [R2／C4] 前次線組在 SQL 裡依線彙總：前半 3 批只回 1 列（山線）——最壞判定 ok（worst 1）、最早 30000、最晚 30400、不是模擬器；payload、segs 等其他欄都不送回',
+    J(prior) === J([{ sys: 'tra_sched', ln_id: '山線', worst: 1, t0: 30000, t1: 30400, sim: 0 }]), J(prior));
   ok('R2a2 籌碼判斷照舊看整班（前 400＋後 400＝801 秒 ≥ 600）：補發 1 顆', st2.chips === 1 && q.bal(w, A) === 1, J({ chips: st2.chips, bal: q.bal(w, A) }));
+});
+await attempt('C4', async () => {
+  // 前次的列很多、每列 segs 都很大（獨立驗收 C4：一個帳號併進 k 台都錄了同一班的裝置，列數就是 k 倍；segs 是判定時寫下的整組覆蓋段，最長的線一列約 8 KB）。
+  // A 的 C4 這一班：前面 300 批已判 ok（山線 150 批 t 30000–30299、南迴線 150 批 t 30300–30400，每批 segs 約 8 KB），後半 1 批山線 400 秒 pending。
+  // 期望：前次查詢只回 2 列（一條線一列）、送回的全部不到 1 KB（舊版每列帶 segs：300 列約 2.4 MB）；
+  // 籌碼照舊看整班：30000–30801＝801 秒 ≥ 600，而且前次 ok 的南迴線是偏遠線 → ×2 ＝ 2 顆（前次組沒有 segs 也要算進偏遠判斷）。
+  const A = 'uid-c4-0000001';
+  const w = world({ seed: boardSql('山線') + boardSql('南迴線') + pointsSql([[A, A, 0, null]]) });
+  const big = ln => J(Array.from({ length: 91 }, (_, i) => ({ key: KT(ln, SEGS10[i % 9]), dir: 0, kind: 'track', slot: 'pad-' + String(i).padStart(3, '0') + '-' + 'x'.repeat(24), cov: 1 })));
+  const ins = w.db.prepare("INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict,client)" +
+    " VALUES (?,?,'tra_sched',?,'C4',0,?,?,?,?,'ok',?)");
+  w.db.exec('BEGIN');
+  for (let i = 0; i < 300; i++) {
+    const ln = i < 150 ? '山線' : '南迴線', t = i < 150 ? 30000 + i * 2 : 30300 + Math.min(100, (i - 150) * 2);
+    ins.run(`c4-prior-${String(i).padStart(3, '0')}`, A, ln, D28, J([{ d: i, t, v: 20, acc: 8 }, { d: i + 1, t: Math.min(t + 1, i < 150 ? 30299 : 30400), v: 20, acc: 8 }]), big(ln), NOW_MS - 7200e3 + i, J(APP));
+  }
+  w.db.exec('COMMIT');
+  putBatches(w.db, { actor: A, trainNo: 'C4', pts: leg({ sec: 400, t0: 30401 }), first: 500 });
+  const segBytes = one(w, "SELECT SUM(length(segs)) n FROM bounty_samples WHERE train_no='C4' AND verdict='ok'").n;
+  const prior = [];
+  spyRows(w.DELAY_DB, (sql, rs) => { if (PRIOR_RE.test(sql)) prior.push(...rs.map(r => ({ ...r }))); });
+  const st = await w.cron();
+  const sent = J(prior).length;
+  ok('C4 [C4] 前次 300 批（segs 合計 > 2 MB）：前次查詢只回 2 列（山線、南迴線，各 worst 1）、全部不到 1 KB、沒有 segs／payload 欄；整班 801 秒、南迴線偏遠 ×2 → 2 顆',
+    segBytes > 2e6 && prior.length === 2 && sent < 1024 && prior.every(r => J(Object.keys(r)) === J(['sys', 'ln_id', 'worst', 't0', 't1', 'sim']) && r.worst === 1) &&
+      J(prior.map(r => r.ln_id).sort()) === J(['南迴線', '山線'].sort()) && st.chips === 2 && J(q.trips(w)) === J([{ actor: A, delta: 2, ref: `${A}|${D28}|C4`, day: D28 }]),
+    J({ segBytes, rows: prior.length, sent, prior, chips: st.chips, trips: q.trips(w) }));
 });
 // 超量的車：看哪一句查詢把它的 payload 讀回了 Worker（spyRows 看每一句回的每一列；記整句 SQL，對照組拿 LOAD_RE 比）
 const payloadReads = (w, trainNo) => {
