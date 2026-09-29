@@ -171,6 +171,338 @@ public final class RailWaitNotificationInstrumentedTest {
             replaced.optString("kind"));
     }
 
+    // ── 進站軌道（B 方案）──────────────────────────────────────────────
+    // 期望值直接寫字面量（上一站、站間秒、路線色），不呼叫 RailWaitTrack 產生「期望」。
+    // `-e holdMs 7000`：貼完停在畫面上，給主機端 adb screencap 截圖用；不帶就不停。
+
+    @Test
+    public void trackHopLookupMatchesCatalogOrder() throws Exception {
+        MetroWidgetData.Catalog catalog = MetroWidgetData.catalog(context);
+        RailWaitTrack.Hop h = RailWaitTrack.hop(catalog, "trtc", "台北車站", "象山");
+        assertNotNull("台北車站往象山要查得到上一站", h);
+        assertEquals("中山", h.prev);
+        assertEquals(68.0, h.runSec, 0.001);
+        assertEquals("淡水信義線", h.lineName);
+        assertEquals("#E3002C", h.color);
+        RailWaitTrack.Hop bl = RailWaitTrack.hop(catalog, "trtc", "台北車站", "頂埔");
+        assertNotNull(bl);
+        assertEquals("善導寺", bl.prev);
+        assertEquals(R.drawable.la_side_c321, bl.carDrawable());
+        RailWaitTrack.Hop br = RailWaitTrack.hop(catalog, "trtc", "忠孝復興", "動物園");
+        assertNotNull(br);
+        assertEquals("南京復興", br.prev);
+        assertEquals(R.drawable.la_side_val256, br.carDrawable());
+        RailWaitTrack.Hop o = RailWaitTrack.hop(catalog, "trtc", "古亭", "南勢角");
+        assertNotNull("共線段兩條支線上一站相同，不算歧義", o);
+        assertEquals("東門", o.prev);
+        assertEquals("中和新蘆線", o.lineName);
+        RailWaitTrack.Hop y = RailWaitTrack.hop(catalog, "trtc", "十四張", "新北產業園區");
+        assertNotNull(y);
+        assertEquals("大坪林", y.prev);
+        assertEquals(R.drawable.la_side_y100, y.carDrawable());
+        assertNotNull("官方帶「站」尾綴的終點也要對得回目錄", RailWaitTrack.hop(catalog, "trtc", "台北車站", "象山站"));
+        assertEquals("兩條線上一站不同 ⇒ 不猜", null, RailWaitTrack.hop(catalog, "trtc", "忠孝復興", "南港展覽館"));
+        assertEquals("兩條支線各自一站 ⇒ 不猜", null, RailWaitTrack.hop(catalog, "trtc", "大橋頭", "南勢角"));
+        assertEquals("本站是起點 ⇒ 沒有上一站", null, RailWaitTrack.hop(catalog, "trtc", "淡水", "象山"));
+        assertEquals("分鐘級系統不畫車", null, RailWaitTrack.hop(catalog, "krtc", "哈瑪星", "小港"));
+    }
+
+    @Test
+    public void android16TrackRunning() throws Exception {
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTrack(40, false);
+        assertNotNull("行駛中：左端是上一站", p.getProgressStartIcon());
+        assertNotNull("行駛中：右端是本站站牌", p.getProgressEndIcon());
+        assertNotNull("行駛中：要畫車", p.getProgressTrackerIcon());
+        assertFalse("分段顏色自己給，不讓系統依進度淡化", p.isStyledByProgress());
+        assertEquals("走過的灰＋剩下的路線色", 2, p.getProgressSegments().size());
+        assertEquals(0xFFE3002C, p.getProgressSegments().get(1).getColor());
+        assertTrackerNotCropped(p);
+        assertTextHas("中山 → 台北車站");
+        hold();
+    }
+
+    @Test
+    public void android16TrackNotYetAtPrev() throws Exception {
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTrack(200, false);
+        assertEquals("還沒到上一站：不再畫進度點（09-23 裁示拿掉方塊）", 0, p.getProgressPoints().size());
+        assertEquals("整段（上一站→本站）都還沒走，一段路線色", 1, p.getProgressSegments().size());
+        assertEquals(0xFFE3002C, p.getProgressSegments().get(0).getColor());
+        assertNotNull(p.getProgressTrackerIcon());
+        assertTrue("車要貼在最左", p.getProgress() < 500);
+        hold();
+    }
+
+    @Test
+    public void android16TrackArriving() throws Exception {
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTrack(-5, false);
+        assertNotNull(p.getProgressTrackerIcon());
+        assertEquals("進站：整段都走過了", 1, p.getProgressSegments().size());
+        hold();
+    }
+
+    @Test
+    public void android16TrackOfflineDrawsNoCar() throws Exception {
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTrack(40, true);
+        assertEquals("抓不到資料就不畫車", null, p.getProgressTrackerIcon());
+        assertNotNull(p.getProgressStartIcon());
+        assertNotNull(p.getProgressEndIcon());
+        hold();
+    }
+
+    @Test
+    public void android16AmbiguousHopKeepsLegacyProgress() throws Exception {
+        Assume.assumeTrue(Build.VERSION.SDK_INT >= 36);
+        Assume.assumeTrue(RailWaitNotification.canNotify(context));
+        long now = System.currentTimeMillis();
+        RailWaitNotification.createChannel(context);
+        RailWaitNotification.post(context, new JSONObject()
+            .put("active", true).put("sys", "trtc").put("station", "忠孝復興").put("lineLabel", "板南線")
+            .put("color", "#0070BD").put("nextDest", "南港展覽館").put("nextEta", (now + 40_000L) / 1000.0)
+            .put("dataAt", now / 1000.0).put("endAt", (now + 30 * 60_000L) / 1000.0));
+        Notification n = findActiveNotification();
+        assertNotNull(n);
+        Notification.ProgressStyle p = (Notification.ProgressStyle) Notification.Builder.recoverBuilder(context, n).getStyle();
+        assertEquals("上一站有歧義 ⇒ 維持原本的進度條（沒有兩端圖示）", null, p.getProgressStartIcon());
+        assertTrue(p.isStyledByProgress());
+    }
+
+    /** 走真的 start()→鬧鐘→refreshAsync：車在區間內時約 20 秒本機重貼一次，車要真的往前挪。 */
+    @Test
+    public void android16TrackMovesOnLocalTick() throws Exception {
+        Assume.assumeTrue(Build.VERSION.SDK_INT >= 36);
+        Assume.assumeTrue(RailWaitNotification.canNotify(context));
+        long now = System.currentTimeMillis();
+        // fetchedAt＝剛抓過 ⇒ 接下來 55 秒內的鬧鐘只重貼、不上網（結果不受當下官方資料影響）。
+        RailWaitNotification.start(context, new JSONObject()
+            .put("sys", "trtc").put("station", "台北車站").put("lineLabel", "淡水信義線")
+            .put("color", "#E3002C").put("nextDest", "象山").put("nextEta", now / 1000.0 + 60)
+            .put("dataAt", now / 1000.0).put("fetchedAt", now).put("durationMin", 30));
+        int first = currentProgress();
+        // 鬧鐘是非精確的（setAndAllowWhileIdle）：要 20 秒，系統可延到約 35 秒。等「車動了」這個訊號，
+        // 不等固定秒數；50 秒還沒動才算紅。
+        long t0 = SystemClock.uptimeMillis();
+        int later = first;
+        while (later == first && SystemClock.uptimeMillis() - t0 < 50_000) {
+            SystemClock.sleep(1_000);
+            later = currentProgress();
+        }
+        Log.i(TAG, "local tick progress " + first + " -> " + later + " after "
+            + (SystemClock.uptimeMillis() - t0) + " ms");
+        assertTrue("本機重貼之後車要往前走：" + first + " → " + later, later > first);
+    }
+
+    private int currentProgress() {
+        Notification n = findActiveNotification();
+        assertNotNull(n);
+        return ((Notification.ProgressStyle) Notification.Builder.recoverBuilder(context, n).getStyle()).getProgress();
+    }
+
+    // ── 台鐵等站卡 B：進站軌道。位置＝表定＋官方誤點；上一站開車與本站到站都加同一個誤點。 ──
+
+    @Test
+    public void android16TraTrackRunning() throws Exception {
+        // 上一站表定開 −3 分、本站表定 +4 分、誤點 0 ⇒ 走了 3/7。
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTraTrack(-3 * 60, 4 * 60, 0, "emu3000");
+        assertNotNull("行駛中：左端是上一站", p.getProgressStartIcon());
+        assertNotNull("行駛中：右端是本站站牌", p.getProgressEndIcon());
+        assertNotNull("行駛中：要畫車", p.getProgressTrackerIcon());
+        assertEquals("走過的灰＋剩下的車種色", 2, p.getProgressSegments().size());
+        assertEquals(0xFFC0392B, p.getProgressSegments().get(1).getColor());
+        // 容差 TRA_POS_TOL：測試把「現在」取整到秒，postTra 貼出時又自己讀一次時鐘，行駛段 7 分鐘 ⇒ 每過 1 秒
+        // 車頭挪 1000/420≈2.4 格。容差 2 格（不到 1 秒）在 A54 上會偶發差 3 格（09-23 實見 431 vs 428）。
+        assertEquals("車頭在 3/7", 3000 / 7, p.getProgressSegments().get(0).getLength(), TRA_POS_TOL);
+        assertTrackerNotCropped(p);
+        assertTextHas("板橋 → 臺北");
+        assertTextHas("實際約");
+        assertTextLacks("車應已到");
+        hold();
+    }
+
+    @Test
+    public void android16TraTrackNotYetAtPrev() throws Exception {
+        // 上一站表定還要 5 分才開（誤點 0）⇒ 車貼在最左，整段都還沒走。
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTraTrack(5 * 60, 12 * 60, 0, "temu1000");
+        assertEquals("還沒到上一站：不再畫進度點（09-23 裁示拿掉方塊）", 0, p.getProgressPoints().size());
+        assertEquals("整段（上一站→本站）都還沒走，一段路線色", 1, p.getProgressSegments().size());
+        assertEquals(0xFFC0392B, p.getProgressSegments().get(0).getColor());
+        assertNotNull(p.getProgressTrackerIcon());
+        assertTrue("車要貼在最左", p.getProgress() < 500);
+        hold();
+    }
+
+    @Test
+    public void android16TraTrackDelayShiftsBothEnds() throws Exception {
+        // 表定上一站 −10 分開、本站 −3 分到，但誤點 7 分 ⇒ 實際 −3 分開、+4 分到 ⇒ 同樣 3/7。
+        // 只把誤點加在到站端（或只加在開車端）都會落在別的位置。
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTraTrack(-10 * 60, -3 * 60, 7, "emu3000");
+        assertNotNull(p.getProgressTrackerIcon());
+        assertEquals("誤點兩端都加：車頭仍在 3/7", 3000 / 7, p.getProgressSegments().get(0).getLength(), TRA_POS_TOL);
+        hold();
+    }
+
+    @Test
+    public void android16TraTrackArrived() throws Exception {
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTraTrack(-8 * 60, -60, 0, "emu3000");
+        assertNotNull(p.getProgressTrackerIcon());
+        assertEquals("車應已到：整段都走過了", 1, p.getProgressSegments().size());
+        // Android 16 的 ProgressStyle 只顯示這一行內文，到站那句要寫在這裡（iOS 寫在軌道下方）。
+        assertTextHas("臺北 車應已到");
+        assertTextLacks("板橋 → 臺北");
+        hold();
+    }
+
+    @Test
+    public void android16TraTrackUnknownDelayDrawsNoCar() throws Exception {
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTraTrack(-3 * 60, 4 * 60, null, "emu3000");
+        assertEquals("沒有官方誤點就不畫車", null, p.getProgressTrackerIcon());
+        assertNotNull(p.getProgressStartIcon());
+        assertNotNull(p.getProgressEndIcon());
+        hold();
+    }
+
+    @Test
+    public void android16TraTrackUnknownModelKeepsLegacyProgress() throws Exception {
+        Notification.ProgressStyle p = (Notification.ProgressStyle) postTraTrack(-3 * 60, 4 * 60, 0, "no-such-model");
+        assertEquals("沒有素材的車型不畫進站軌道", null, p.getProgressStartIcon());
+        assertEquals(null, p.getProgressEndIcon());
+    }
+
+    /** 約 3 秒的時鐘差（見 android16TraTrackRunning）。錯的算法差很遠：誤點只加在到站端會落在 714。 */
+    private static final float TRA_POS_TOL = 8;
+
+    private Notification.Style postTraTrack(long prevDepOffsetSec, long schedOffsetSec,
+            Integer delayMin, String carModel) throws Exception {
+        Assume.assumeTrue(Build.VERSION.SDK_INT >= 36);
+        Assume.assumeTrue(RailWaitNotification.canNotify(context));
+        long now = System.currentTimeMillis();
+        double nowSec = Math.floor(now / 1000.0);
+        JSONObject state = new JSONObject()
+            .put("active", true)
+            .put("kind", RailWaitNotification.KIND_TRA)
+            .put("station", "臺北")
+            .put("trainNo", "172")
+            .put("trainType", "自強")
+            .put("dest", "花蓮")
+            .put("color", "#C0392B")
+            .put("schedSec", nowSec + schedOffsetSec)
+            .put("dataAt", nowSec)
+            .put("endAt", nowSec + 60 * 60)
+            .put("prevStop", "板橋")
+            .put("prevDepSec", nowSec + prevDepOffsetSec)
+            .put("plateLeft", "萬華")
+            .put("plateRight", "松山")
+            .put("carModel", carModel);
+        if (delayMin != null) state.put("delayMin", delayMin);
+        RailWaitNotification.createChannel(context);
+        RailWaitNotification.post(context, state);
+        Notification n = findActiveNotification();
+        assertNotNull("系統沒有收到台鐵等站通知", n);
+        assertTrue("進站軌道也要具提升資格", n.hasPromotableCharacteristics());
+        assertFalse("台鐵等站卡不准用 chronometer 偽造秒級倒數",
+            n.extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER, false));
+        Notification.Style style = Notification.Builder.recoverBuilder(context, n).getStyle();
+        assertEquals(Notification.ProgressStyle.class, style.getClass());
+        return style;
+    }
+
+    // 🔴 輔助函式的簽名不准出現 Notification.ProgressStyle（API 36 才有）：JUnit 掃方法時會解析簽名型別，
+    //    API 35 以下整個類別載入失敗，連不需要 Android 16 的測試也跑不了（09-23 在 API 35 模擬器實見）。
+    //    方法內文的區域變數不受影響，那些測試開頭有 Assume 擋住。
+    private Notification.Style postTrack(long etaOffsetSec, boolean offline) throws Exception {
+        Assume.assumeTrue(Build.VERSION.SDK_INT >= 36);
+        Assume.assumeTrue(RailWaitNotification.canNotify(context));
+        long now = System.currentTimeMillis();
+        JSONObject state = new JSONObject()
+            .put("active", true)
+            .put("sys", "trtc")
+            .put("station", "台北車站")
+            .put("lineLabel", "淡水信義線")
+            .put("color", "#E3002C")
+            .put("nextDest", "象山")
+            .put("nextEta", now / 1000.0 + etaOffsetSec)
+            .put("secondDest", "大安")
+            .put("secondEta", now / 1000.0 + etaOffsetSec + 300)
+            .put("crowd", new org.json.JSONArray("[1,1,2,1,1,1]"))
+            .put("dataAt", now / 1000.0)
+            .put("endAt", (now + 30 * 60_000L) / 1000.0);
+        if (offline) state.put("trackOffline", true);
+        RailWaitNotification.createChannel(context);
+        RailWaitNotification.post(context, state);
+        Notification n = findActiveNotification();
+        assertNotNull("系統沒有收到等車通知", n);
+        assertTrue("進站軌道也要具提升資格", n.hasPromotableCharacteristics());
+        Notification.Style style = Notification.Builder.recoverBuilder(context, n).getStyle();
+        assertEquals(Notification.ProgressStyle.class, style.getClass());
+        Log.i(TAG, "track eta+" + etaOffsetSec + " offline=" + offline + " promotion="
+            + RailWaitNotification.promotionStatus(context));
+        return style;
+    }
+
+    /**
+     * 站牌深色版＝同一塊白瓷壓暗一階（09-23 使用者裁示；網站那組深藍瓷放在黑灰卡片上不搭）。
+     * 深色靠 createConfigurationContext 切，不動手機的系統深色設定（別的 session 可能正在用這支手機）。
+     * 兩張圖存在 cache/plate-{light,dark}.png，可用 run-as 拉出來看。
+     */
+    @Test
+    public void plateStaysEnamelInDarkMode() throws Exception {
+        RailWaitTrack.Hop hop = RailWaitTrack.hop(context, "trtc", "台北車站", "象山");
+        assertNotNull(hop);
+        int[] face = new int[2];
+        for (int i = 0; i < 2; i++) {
+            android.content.res.Configuration conf =
+                new android.content.res.Configuration(context.getResources().getConfiguration());
+            conf.uiMode = (conf.uiMode & ~android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                | (i == 1 ? android.content.res.Configuration.UI_MODE_NIGHT_YES
+                          : android.content.res.Configuration.UI_MODE_NIGHT_NO);
+            Context c = context.createConfigurationContext(conf);
+            android.graphics.drawable.Drawable d =
+                RailWaitTrack.style(c, hop, 0.5, "#E3002C").getProgressEndIcon().loadDrawable(c);
+            int w = d.getIntrinsicWidth(), h = d.getIntrinsicHeight();
+            android.graphics.Bitmap b = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
+            d.setBounds(0, 0, w, h);
+            d.draw(new android.graphics.Canvas(b));
+            try (java.io.FileOutputStream out = new java.io.FileOutputStream(
+                    new java.io.File(context.getCacheDir(), "plate-" + (i == 1 ? "dark" : "light") + ".png"))) {
+                b.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out);
+            }
+            // 瓷面取樣點：「站」字左側、色帶上方（字約佔寬度中間一半，色帶從 68% 高開始）。
+            face[i] = b.getPixel(Math.round(w * 0.15f), Math.round(h * 0.45f));
+        }
+        for (int px : face) {
+            assertTrue("站牌瓷面要是白瓷（淺色），深色模式也一樣：#" + Integer.toHexString(px),
+                android.graphics.Color.red(px) > 190 && android.graphics.Color.green(px) > 190
+                    && android.graphics.Color.blue(px) > 180);
+        }
+        assertTrue("深色版要比淺色版壓暗一階：淺 #" + Integer.toHexString(face[0]) + " 深 #" + Integer.toHexString(face[1]),
+            android.graphics.Color.red(face[1]) < android.graphics.Color.red(face[0]));
+    }
+
+    /** 系統 tracker 寬最多 2 倍高，超過的會被從中間裁掉（車頭車尾不見）。 */
+    private void assertTrackerNotCropped(Notification.Style style) {
+        Notification.ProgressStyle p = (Notification.ProgressStyle) style;
+        android.graphics.drawable.Drawable d = p.getProgressTrackerIcon().loadDrawable(context);
+        assertNotNull(d);
+        assertTrue("車模圖寬高比 " + d.getIntrinsicWidth() + "×" + d.getIntrinsicHeight() + " 超過 2:1 會被裁",
+            d.getIntrinsicWidth() <= 2 * d.getIntrinsicHeight());
+    }
+
+    private void assertTextHas(String needle) {
+        Notification n = findActiveNotification();
+        String text = String.valueOf(n.extras.getCharSequence(Notification.EXTRA_TEXT));
+        assertTrue("內文要有「" + needle + "」：" + text, text.contains(needle));
+    }
+
+    private void assertTextLacks(String needle) {
+        Notification n = findActiveNotification();
+        String text = String.valueOf(n.extras.getCharSequence(Notification.EXTRA_TEXT));
+        assertFalse("內文不該有「" + needle + "」：" + text, text.contains(needle));
+    }
+
+    private void hold() {
+        String raw = InstrumentationRegistry.getArguments().getString("holdMs");
+        if (raw != null) SystemClock.sleep(Long.parseLong(raw));
+    }
+
     private Notification findActiveNotification() {
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         assertNotNull("NotificationManager 不存在", manager);

@@ -80,6 +80,8 @@ function extractDeclaration(source, header, { occurrence = 1 } = {}) {
 const kitPath = join(widgetDir, 'RailWidgetKit.swift');
 const modelPath = join(widgetDir, 'MetroBoardModel.swift');
 const l10nPath = join(widgetDir, 'RailNativeL10n.swift');
+// BoardSnapshot 帶站名牌（RailPlateInfo）之後，背景元件層也要整檔一起編。
+const artPath = join(widgetDir, 'RailWidgetArt.swift');
 const dataPath = join(widgetDir, 'MetroWidgetData.json');
 const boardSource = readFileSync(join(widgetDir, 'RailBoardWidget.swift'), 'utf8');
 const dataSource = readFileSync(join(widgetDir, 'RailBoardData.swift'), 'utf8');
@@ -532,7 +534,7 @@ copyFileSync(dataPath, join(outDir, 'MetroWidgetData.json'));
 
 execFileSync(
   'swiftc',
-  ['-O', '-parse-as-library', swiftPath, modelPath, kitPath, l10nPath, '-o', binPath],
+  ['-O', '-parse-as-library', swiftPath, modelPath, kitPath, artPath, l10nPath, '-o', binPath],
   { stdio: 'inherit' }
 );
 execFileSync(binPath, [outDir], { stdio: 'inherit' });

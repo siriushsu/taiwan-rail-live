@@ -84,8 +84,14 @@ public final class MixedWidgetConfigActivity extends AppCompatActivity {
         metroDirectionSpinner = new Spinner(this);
         root.addView(metroDirectionSpinner, matchWrap(dp(4)));
 
-        TextView pass = text("免費版可使用一個捷運站；多站與自動選站需啟用軌島通行證。", 13,
-            getColor(R.color.wg_warn));
+        // 通行證狀態照小工具判定用的同一顆旗標（MixedBoardWidgetProvider.hasMetroSlot 讀的就是它）。
+        // 🔴 這行原本寫死免費版說明：已開通的人每次打開設定頁都被告知「需啟用通行證」，
+        //    而自動選站明明能用（使用者 2026-09-18 回報）。捷運單卡的設定頁早就分兩種說法，這裡跟上。
+        boolean plus = getSharedPreferences(MetroWidgetProvider.PREFS, Context.MODE_PRIVATE)
+            .getBoolean("plus_active", false);
+        TextView pass = text(plus ? "通行證已啟用：可以放多站，也可以用自動選站。"
+                : "免費版可使用一個捷運站；多站與自動選站需啟用軌島通行證。", 13,
+            getColor(plus ? R.color.wg_ink_soft : R.color.wg_warn));
         root.addView(pass, matchWrap(dp(18)));
 
         Button done = new Button(this);

@@ -13,6 +13,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/wg_card"
+    android:clipToPadding="false"
     android:orientation="vertical"
     android:paddingStart="12dp"
     android:paddingEnd="12dp"
@@ -20,8 +21,15 @@
     android:paddingBottom="10dp">
 
     <LinearLayout
+        android:id="@+id/wb_headrow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="-11dp"
+        android:layout_marginTop="-10dp"
+        android:layout_marginEnd="-9dp"
+        android:paddingStart="11dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="9dp"
         android:baselineAligned="false"
         android:gravity="center_vertical"
         android:orientation="horizontal">
@@ -370,5 +378,15 @@
             android:textColor="@color/wg_ink_faint"
             android:textSize="10sp" android:visibility="gone"
             />
+        <!-- A 車模（WidgetBackground.metroCar）。小卡與 iOS 相同：不加頭帶、只放車，停在註腳列右端；
+             素色時 binder 收掉。 -->
+        <ImageView
+            android:id="@+id/wb_car"
+            android:layout_width="44dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="6dp"
+            android:contentDescription="@null"
+            android:scaleType="fitEnd"
+            android:src="@drawable/wg_car_c381" />
     </LinearLayout>
 </LinearLayout>

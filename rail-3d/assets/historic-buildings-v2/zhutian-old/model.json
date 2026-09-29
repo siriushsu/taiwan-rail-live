@@ -24,24 +24,32 @@
       "url": "https://www.openstreetmap.org/way/948468408",
       "use": "舊站房：輪廓與位置",
       "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://tcmb.culture.tw/zh-tw/detail?id=558490&indexCode=Culture_Place",
+      "use": "文庫沿革、約 24.2 坪與現況外觀照片；頁面座標偏離可見建物，位置另核对"
+    },
+    {
+      "url": "https://www.google.com/maps?cid=8513163742541452935",
+      "use": "池上一郎博士文庫現址與衛星輪廓交叉比對"
     }
   ],
   "priority": 1,
-  "placementStatus": "calibrated-plan",
+  "placementStatus": "mixed-plan-and-site-anchor",
   "anchor": [
     120.53992470041862,
     22.586425354206455
   ],
   "verifiedDimensionsM": {},
   "estimatedDimensionsM": {
-    "width": 12.821082592010498,
-    "depth": 19.658973693847656,
+    "width": 17.482741832733154,
+    "depth": 70.42208480834961,
     "height": 6.8779425621032715,
     "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
   },
-  "referenceReviewDate": null,
+  "referenceReviewDate": "2026-09-12",
   "geometryStatus": "plan-calibrated-exterior-estimated",
-  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "scope": "依來源校正平面與補齊可確認附屬構件；尺寸與高度屬地圖外觀估計，非工程測繪",
   "railRelation": "站區：竹田驛園，需與現行高架站定位分開",
   "reviewedPhotos": [],
   "referenceStatus": "exterior-review-pending",
@@ -60,8 +68,16 @@
     "shortSideM": 8.37,
     "source": "OpenStreetMap contributors",
     "license": "ODbL-1.0",
-    "scope": "早期輪廓參考；本輪逐棟校正依 calibration.parts 與 placements-source.json",
+    "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
     "referenceFile": "source-layouts/zhutian-old.json"
+  },
+  "completionReview": {
+    "date": "2026-09-12",
+    "changes": [
+      "補舊站北側原貨運服務所（池上一郎博士文庫）；舊站與現役高架月台分開",
+      "長站棚未取得對應現存舊設施的輪廓，不把現役高架月台移植到舊站"
+    ],
+    "precision": "地圖外觀模型；無實測高度或完整多面立面，不視為工程測繪"
   },
   "orientationMode": "ENU-baked",
   "absoluteGroundAltitudeM": null,
@@ -72,6 +88,7 @@
     "附屬小屋 / 屋頂",
     "附屬小屋 / 立面"
   ],
+  "mapEligible": true,
   "calibration": {
     "version": 2,
     "basis": "各部件獨立平面擬合；非工程測繪",
@@ -91,6 +108,22 @@
         ],
         "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
         "facadeBearingDeg": null
+      },
+      {
+        "id": "池上一郎文庫",
+        "name": "池上一郎文庫",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.54001029877247,
+          22.586915059617624
+        ],
+        "rotationDeg": 8.325647324427504,
+        "scaleXY": [
+          0.6580259946566458,
+          0.8383152029802833
+        ],
+        "basis": "文化部記錄之原貨運服務所，現為池上一郎博士文庫；Google Maps 現址與衛星小木屋交叉定位；文資頁座標偏東，未直接採用；屋頂或遺址邊緣依既有 Esri 底圖目視估計，非測量外框",
+        "facadeBearingDeg": 250
       }
     ],
     "verticalDatum": "terrain-relative",
@@ -123,25 +156,25 @@
       0.0
     ],
     "max": [
-      7.781401634216309,
-      9.829486846923828,
+      12.443060874938965,
+      60.59259796142578,
       6.8779425621032715
     ]
   },
   "sizeM": [
-    12.821082592010498,
-    19.658973693847656,
+    17.482741832733154,
+    70.42208480834961,
     6.8779425621032715
   ],
   "lods": {
     "near": {
       "file": "near.mesh.bin",
       "glb": "near.glb",
-      "sha256": "4e10c447669cf46051bca2219d85fbb895b671b0abed343f3743a7b6ae23db93",
-      "glbSha256": "281f78f59bf1ca45bec039779585b3b9d06aac9dcff55f66385362c3216a5247",
+      "sha256": "b87d0bc7684b26ccf03b23b98fc01e22ef3feed6a1e57a4d651813acd6528f52",
+      "glbSha256": "16e494e4b8c5b324af5a36869afc1a059e7e1f1c16f105f906a893cd9873ef4e",
       "strideBytes": 24,
-      "vertexCount": 3882,
-      "triangleCount": 1294,
+      "vertexCount": 7020,
+      "triangleCount": 2340,
       "drawGroups": [
         {
           "component": "舊站房",
@@ -207,18 +240,70 @@
           ],
           "metalness": 0.05000000074505806,
           "roughness": 0.5699999928474426
+        },
+        {
+          "component": "池上一郎文庫",
+          "name": "stone",
+          "start": 3882,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "池上一郎文庫",
+          "name": "brown",
+          "start": 3918,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "池上一郎文庫",
+          "name": "dark",
+          "start": 3954,
+          "count": 2706,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "池上一郎文庫",
+          "name": "glass",
+          "start": 6660,
+          "count": 360,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
         }
       ],
-      "byteLength": 93168
+      "byteLength": 168480
     },
     "far": {
       "file": "far.mesh.bin",
       "glb": "far.glb",
-      "sha256": "172d565d2ff65d22f960df8c2583220ec9dd027af8ea1ada2b94b662a1f4d6d5",
-      "glbSha256": "d20604165011188a29bcd12b86387bb5a3ab6cfb8ddb2ac9ed004bf231640673",
+      "sha256": "a14c9469fc1342b1056929b59cf729d23e04297e0940bc247ccebb100f4db03b",
+      "glbSha256": "0eb0392d63fc2e5726c4f69b5001e4c931b390b801c8983b513c13f21cf42881",
       "strideBytes": 24,
-      "vertexCount": 1746,
-      "triangleCount": 582,
+      "vertexCount": 3216,
+      "triangleCount": 1072,
       "drawGroups": [
         {
           "component": "舊站房",
@@ -284,12 +369,64 @@
           ],
           "metalness": 0.05000000074505806,
           "roughness": 0.5699999928474426
+        },
+        {
+          "component": "池上一郎文庫",
+          "name": "stone",
+          "start": 1746,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "池上一郎文庫",
+          "name": "brown",
+          "start": 1782,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "池上一郎文庫",
+          "name": "dark",
+          "start": 1818,
+          "count": 1038,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "池上一郎文庫",
+          "name": "glass",
+          "start": 2856,
+          "count": 360,
+          "color": [
+            0.08437620848417282,
+            0.1946178376674652,
+            0.22322796285152435
+          ],
+          "metalness": 0.2199999988079071,
+          "roughness": 0.30000001192092896
         }
       ],
-      "byteLength": 41904
+      "byteLength": 77184
     }
   },
-  "nativeObjectCount": 151,
+  "nativeObjectCount": 267,
   "sourcePhotosIncluded": false,
   "operatorLogoIncluded": false,
   "modelUse": "map-exterior",
@@ -309,7 +446,22 @@
       ],
       "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
       "facadeBearingDeg": null
+    },
+    {
+      "id": "池上一郎文庫",
+      "name": "池上一郎文庫",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.54001029877247,
+        22.586915059617624
+      ],
+      "rotationDeg": 8.325647324427504,
+      "scaleXY": [
+        0.6580259946566458,
+        0.8383152029802833
+      ],
+      "basis": "文化部記錄之原貨運服務所，現為池上一郎博士文庫；Google Maps 現址與衛星小木屋交叉定位；文資頁座標偏東，未直接採用；屋頂或遺址邊緣依既有 Esri 底圖目視估計，非測量外框",
+      "facadeBearingDeg": 250
     }
-  ],
-  "mapEligible": true
+  ]
 }

@@ -69,6 +69,10 @@ final class MetroWidgetData {
         final Map<String, String> lineLabels = new LinkedHashMap<>();
         /** lineId → 該線的站序（目錄本來就有序）。設計稿 4×3 的前後站帶要用。 */
         final Map<String, List<String>> lineOrder = new LinkedHashMap<>();
+        /** lineId → 與 lineOrder 同 index 的站間行駛秒（本線前一站到該站）與停站秒，目錄沒給是 NaN。
+         *  等車卡進站軌道用（RailWaitTrack），與 iOS MetroWidgetCatalog.lineStops 讀同一份欄位。 */
+        final Map<String, List<Double>> lineRun = new LinkedHashMap<>();
+        final Map<String, List<Double>> lineDwell = new LinkedHashMap<>();
 
         /** 同一條線上的鄰站；轉乘站有多條線時取第一條有序列的（設計稿只畫一組前後站）。 */
         String[] neighbors(String stationName, String preferLineId) {
@@ -261,11 +265,18 @@ final class MetroWidgetData {
                 JSONArray stations = line.optJSONArray("stations");
                 if (stations == null) continue;
                 List<String> order = new ArrayList<>();
-                if (!lineId.isEmpty()) system.lineOrder.put(lineId, order);
+                List<Double> runs = new ArrayList<>(), dwells = new ArrayList<>();
+                if (!lineId.isEmpty()) {
+                    system.lineOrder.put(lineId, order);
+                    system.lineRun.put(lineId, runs);
+                    system.lineDwell.put(lineId, dwells);
+                }
                 for (int k = 0; k < stations.length(); k++) {
                     JSONObject rawStation = stations.getJSONObject(k);
                     String name = rawStation.optString("name");
                     order.add(name);
+                    runs.add(rawStation.optDouble("run", Double.NaN));
+                    dwells.add(rawStation.optDouble("dwell", Double.NaN));
                     StationInfo station = system.stationByName.get(name);
                     if (station == null) {
                         station = new StationInfo(name, rawStation.optDouble("lat", Double.NaN),

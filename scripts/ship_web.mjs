@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// 網站出貨鏈（railisland.tw 正式站）——固化成唯一入口：npm run ship-web [-- --ref <ref>] [--preview]
+// 網站出貨鏈（railisland.tw 正式站）——固化成唯一入口：npm run ship-web [-- --ref <ref>] [--preview] [--full]
 //
 // --preview：只做到 upload（不升 100%），給使用者親試用。預覽也走同一條乾淨樹＋strip，
 // 因為預覽的用途是「試那顆待出貨的產物」——上傳未 strip 的原始檔，等於試的跟要出的不是同一份，
 // 而且它一旦被 promote 就是把去註解靜默退掉（本檔開頭那個 08-27 事故的成因）。
 // 🔴 預覽 URL 在 Cloudflare Access 後面：curl／Playwright 只會拿到登入頁，自動化驗不了，
 // 只有使用者本人開得起來——所以這條路徑刻意沒有收貨檢查，不要假裝有。
+// --full：忽略閘門帳本，強制重跑全部閘門。帳本只用來加速同一產品碼的重試，不改變 strip／upload／deploy／收貨步驟。
 //
 // 為什麼要有這條：去註解（strip_ship_comments）是出貨的必經步驟，但它以前只是一個獨立
 // npm script——任何一次「直接 wrangler versions upload」都會把原始檔出上去，去註解靜默
@@ -14,25 +15,60 @@
 // 逐 byte 收貨 整條固化。防呆全是實際踩過的坑：
 //  - 只從乾淨 detached worktree 出貨（wrangler 傳磁碟檔，.gitignore 管不到未追蹤檔）
 //  - 出貨基準落後 origin/main 就停（整包替換會退掉別人的 commit）
+//  - 同時只准一發正式出貨（2026-09-19 00:28 f418f5 要出 cb5fe11b、另一個 session 要出 51cd374e，
+//    是用跨 session 訊息問了才沒撞）：兩發並行是「後收尾的贏」——較舊那發起跑時已過了落後檢查，
+//    閘門跑完 20–35 分鐘照樣 upload＋升 100%，把較新的正式站蓋回去（BUILD、md5 都不同，步驟 4 不擋）。
+//    鎖檔＝git common dir（所有 worktree 共用）下的 ship-web.lock，O_EXCL 建立，記 pid／ref／sha／起跑時間；
+//    在落後檢查與所有閘門之前拿，第二發當場退、訊息點名持有者。
+//    🔴 解鎖掛在 process 'exit'，不在 finally：fail() 走 process.exit，finally 根本不會跑。
+//    被 kill／Ctrl-C 的那發連 'exit' 都不跑，鎖會留著；pid 已死 ⇒ 下一發自動接手。
+//    --preview 不拿鎖、也不做下一條（只 upload 不升版，蓋不到正式站）。
+//  - upload 前、deploy 前各認一次正式站，認不出或比出貨基準新就停：正式站 index.html 要逐 byte 等於
+//    某顆 X 去註解的結果（用 X 自己的 strip 腳本重做）、data/data_manifest.json 要等於 X 那份，且 X 是
+//    出貨基準的祖先（或就是它）。起跑時的落後檢查只保證「不比起跑那刻的 main 舊」，保證不了「不比正式站舊」——
+//    正式站可能跑著部署時沒 push 的版本，或在閘門跑的那 30 分鐘裡被別處換掉。
+//    限制（都是這個指紋照不到的地方；要補只能在出貨時把 sha 蓋進產物或版本標籤，還沒做）：
+//    · 只改 worker.js 或清單外資料（*_times.json、events.json、軌道 geojson…）的 commit 指紋不變。
+//      2026-09-19 量 main 最近 300 顆：動到執行期檔案的 53 顆裡有 19 顆屬此類。這種版本在線上時，
+//      同指紋的祖先照樣放行——會把它的 worker／資料改動退掉。
+//    · 鎖只管同一個 clone、而且只管有這段程式碼的 ship_web：別的 clone、別台機器、裸 wrangler、
+//      `wrangler secret put`（會把最新上傳的版本升上線）、還沒併到這一版的舊 worktree 跑的 ship_web
+//      （跑的是 cwd 那棵樹的這支檔，不是出貨 ref 裡的）都繞得過；它們只剩本發 deploy 前那次檢查擋得到，
+//      而檢查到 deploy 之間仍有幾秒空窗。
+//    · 判死只看 pid 在不在：pid 被別的程序重用時，死鎖會被當成活的擋下（寧可擋錯）——訊息列出 pid，
+//      確認那不是 ship-web 再刪鎖檔。
+//    兩道防線的邏輯在 scripts/ship_web_guard.mjs，測試：node scripts/verify_ship_web_guard.mjs
+//    （本檔沒有 --help、不認得的旗標一律忽略，不帶 --preview 就是出正式站——永遠不要拿它試跑）。
 //  - 內容與正式站不同但 BUILD 字串相同就停（內容不同的兩顆不准共用版號）
 //  - versions deploy 的版本 ID 只取自同一次 upload 的輸出（versions list 取 [0] 會拿到最舊版）
 //  - 收貨判準＝正式站 md5 與本地 stripped 檔逐 byte 相等（不是 BUILD 字串、不是抽 grep）
 
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync as rawSpawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import os from 'node:os';
+import { pathToFileURL } from 'node:url';
+import { acquireShipLock, checkProductionAncestry } from './ship_web_guard.mjs';
+import { createGateRunner } from './ship_web_gate_ledger.mjs';
 
 const args = process.argv.slice(2);
 const REF = (() => { const i = args.indexOf('--ref'); return i >= 0 ? args[i + 1] : 'origin/main'; })();
 const PREVIEW = args.includes('--preview');
+const FULL_GATES = args.includes('--full');
 const PROD = 'https://railisland.tw';
 
 const repo = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
 const git = (...a) => execFileSync('git', a, { cwd: repo, encoding: 'utf8' });
 const md5 = buf => crypto.createHash('md5').update(buf).digest('hex');
 const fail = msg => { console.error('❌ ' + msg); process.exit(1); };
+// 閘門與上傳用的 wrangler、playwright 都從這棵樹的 node_modules 借（下面 2. 會 symlink 進乾淨 worktree）。
+// 缺了它，第一個用到 wrangler 的正式庫 schema 閘門只印「查不到正式庫……先補套 migration」，看起來像正式庫出事，
+// 其實只是這棵樹沒有 node_modules（2026-09-26 從新開的 worktree 出貨時踩到）。所以在拿鎖、開樹之前先擋。
+if (!fs.existsSync(path.join(repo, 'node_modules', 'wrangler', 'bin', 'wrangler.js'))) {
+  const main = path.dirname(path.resolve(repo, git('rev-parse', '--git-common-dir').trim()));
+  fail(`這棵樹沒有 node_modules（找不到 wrangler），不是正式庫的問題。先接上主 repo 的再出貨：\n   ln -sn ${path.join(main, 'node_modules')} ${path.join(repo, 'node_modules')}`);
+}
 async function fetchProd(pathname = '/') {
   const url = `${PROD}${pathname}${pathname.includes('?') ? '&' : '?'}bust=${Date.now()}${Math.floor(Math.random() * 1e6)}`;
   try {
@@ -44,6 +80,13 @@ async function fetchProd(pathname = '/') {
 // ── 1. preflight ──────────────────────────────────────────────────────────
 git('fetch', 'origin');
 const sha = git('rev-parse', REF).trim();
+if (!PREVIEW) {   // 出貨鎖：比落後檢查與所有閘門都早拿，第二發當場退（設計與限制見檔頭）
+  const lockPath = path.join(path.resolve(repo, git('rev-parse', '--git-common-dir').trim()), 'ship-web.lock');
+  const lock = acquireShipLock({ lockPath, ref: REF, sha });
+  if (!lock.ok) fail(lock.message);
+  if (lock.note) console.log(lock.note);
+  console.log(`出貨鎖 ✓ ${lockPath}`);
+}
 const behind = git('log', '--oneline', `${sha}..origin/main`).trim();
 if (behind) fail(`出貨基準落後 origin/main，整包替換會退掉這些 commit：\n${behind}`);
 console.log(`出貨基準 ${REF} = ${sha.slice(0, 8)}`);
@@ -55,6 +98,45 @@ let ok = false;
 try {
   fs.symlinkSync(path.join(repo, 'node_modules'), path.join(wt, 'node_modules'));
 
+  // ── 2.3 閘門的 Chromium 走真 GPU 的無頭模式（2026-09-26）─────────────────────────────
+  // 預設的 chromium.launch() 是 chrome-headless-shell，WebGL 走 SwiftShader 軟體算繪，開地圖的閘門光 GPU 程序
+  // 就佔 4–5 顆核心，十幾個 session 並行時互相拖慢、計時型閘門假紅。scripts/pw_gpu_preload.mjs 替沒指定
+  // channel 的 launch 補 channel:'chromium'（同一版 Chromium 的無頭模式、ANGLE Metal），閘門檔不用改。
+  // 只掛在閘門段：strip 與 wrangler 之前還原。出貨樹沒有這支就維持 headless shell。
+  const nodeOptionsBefore = process.env.NODE_OPTIONS;
+  const gpuPreload = path.join(wt, 'scripts', 'pw_gpu_preload.mjs');
+  if (fs.existsSync(gpuPreload)) {
+    process.env.NODE_OPTIONS = [nodeOptionsBefore, `--import=${pathToFileURL(gpuPreload).href}`].filter(Boolean).join(' ');
+    console.log("閘門 Chromium：channel 'chromium' 無頭模式（真 GPU）");
+  }
+
+  // 閘門帳本只複用「同一份產品程式碼」已綠的結果；產品／i18n／App 任一變動仍全跑。
+  // 帳本讀寫失敗時 fail-open 成全跑，--full 可人工強制全跑；正式 D1 schema 永遠重查。
+  const commonGitDir = path.resolve(repo, git('rev-parse', '--git-common-dir').trim());
+  const ledgerPath = process.env.SHIP_WEB_LEDGER
+    ? path.resolve(repo, process.env.SHIP_WEB_LEDGER)
+    : path.join(commonGitDir, 'ship-web-gates.json');
+  const gateRunner = createGateRunner({ root: wt, ledgerPath, sha, forceFull: FULL_GATES, spawnSync: rawSpawnSync });
+  const spawnSync = (command, childArgs, options) => gateRunner.run(command, childArgs, options);
+  console.log(`閘門帳本：${ledgerPath}${FULL_GATES ? '（--full：本發強制全跑）' : ''}`);
+
+  // ── 2.4 正式庫 schema：出貨的程式碼要讀寫的表與欄，正式 D1 都要有（唯讀查詢，約 3 秒）──────────
+  // 2026-09-24 發現正式庫從沒套 0012，v0904d 起跟車卡每次綁定都 503、近三週靜默全停；本機驗收自己套齊
+  // schema，照不到正式庫漏套。排在所有閘門之前：缺 migration 就別先跑 30 分鐘閘門。預覽也跑（共用同一個 D1）。
+  // 查不到正式庫（exit 2）同樣擋下——驗不了不等於通過。
+  const remoteSchema = spawnSync('node', [path.join(wt, 'scripts', 'verify_remote_schema.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(remoteSchema.stdout || ''); process.stderr.write(remoteSchema.stderr || '');
+  if (remoteSchema.status !== 0) fail('正式庫 schema 與 schema/*.sql 不一致或查不到——先補套 migration（要使用者 go）再出貨（單獨重跑：node scripts/verify_remote_schema.mjs）');
+
+  // ── 2.45 更新紀錄字數閘門（最近更新最多 8 條、每條 ≤90 字；完整歷史每條 ≤120 字）─────────────
+  // 09-08、09-25 兩次超長都是推上 main 之後才被別的 session 抓到。09-26 先掛進 pre-push
+  // （check_changelog_copy_commit.mjs），但 --ref 出貨可以不經過推 main，所以出貨鏈也要一道（使用者 09-26 裁示）。
+  // 純 node、毫秒級，排在 2.5 前面：超長就別先跑後面那些瀏覽器閘門。
+  // 同 i18n：驗的是【這棵乾淨出貨樹】那一份（verify 讀自己上一層的 index.html）；半路崩掉也是非 0，一樣擋。
+  const copy = spawnSync('node', [path.join(wt, 'scripts', 'verify_changelog_copy.mjs')], { encoding: 'utf8' });
+  process.stdout.write(copy.stdout || ''); process.stderr.write(copy.stderr || '');
+  if (copy.status !== 0) fail('更新紀錄字數未過——把列出的條目縮短再出貨（單獨重跑：npm run check-copy）');
+
   // ── 2.5 i18n 稽核閘門（漏譯不准出貨）──────────────────────────────────────
   // 🔴 位置不可移到 strip 之後:check_i18n 的 evaluateConstBlock 拿【註解】當區塊結束標記
   //    （'// 有精選特色'、'// 播放/速度/時間'），strip 把註解刪光之後它會報「找不到內容區塊」
@@ -64,6 +146,16 @@ try {
   const i18n = spawnSync('node', [path.join(wt, 'scripts', 'check_i18n.mjs')], { encoding: 'utf8' });
   process.stdout.write(i18n.stdout || ''); process.stderr.write(i18n.stderr || '');
   if (i18n.status !== 0) fail('i18n 稽核未過——補齊 en/ja 再出貨（單獨重跑：npm run check-i18n）');
+
+  // ── 2.5b i18n 瀏覽器驗收（Chromium＋WebKit，約 70 秒）──────────────────────
+  // 2.5 是靜態掃描，看不到「畫出來的畫面」：切換語言後殘留前一種語言、App 的「更多」面板、法務頁、
+  // 手機四寬度的可見中文，都只有真的開瀏覽器才量得到(2026-09-19 使用者在 App 英日文實測回報的那一批，
+  // 靜態掃描全綠)。這支此前沒有任何呼叫者，而且還要人先起一個 5178 的 server 才跑得動。
+  // 🔴 洗掉繼承來的 RAIL_I18N_URL：有值時它改連既有 server、驗的可能是別棵樹（G0 會擋，但別讓它發生）。
+  const i18nBrowser = spawnSync('node', [path.join(wt, 'scripts', 'verify_i18n.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, RAIL_I18N_URL: '' } });
+  process.stdout.write(i18nBrowser.stdout || ''); process.stderr.write(i18nBrowser.stderr || '');
+  if (i18nBrowser.status !== 0) fail('i18n 瀏覽器驗收未過——英日文畫面有中文殘留或切換語言殘留（單獨重跑：npm run check-i18n-browser）');
 
   // ── 2.6 部署設定的「整包覆蓋」防線 ────────────────────────────────────────
   // `triggers.crons` 與 `.assetsignore` 都是宣告式整包覆蓋:部署時拿檔案裡那份【取代】現況。
@@ -83,6 +175,19 @@ try {
   process.stdout.write(loginCsp.stdout || ''); process.stderr.write(loginCsp.stderr || '');
   if (loginCsp.status !== 0) fail('網頁登入的 CSP 檢查未過——出貨會讓登入回到 auth/internal-error'
     + '（單獨重跑：npm run check-web-login-csp）');
+
+  // ── 2.62 出貨防線自己的守門人(並行鎖、認正式站;純 node、離線、約 10 秒)────────────
+  // 防線壞掉的症狀是「該擋的沒擋」,平常完全看不出來;而本檔不能試跑,只有這支測得到它。
+  const shipGuard = spawnSync('node', [path.join(wt, 'scripts', 'verify_ship_web_guard.mjs')], { encoding: 'utf8' });
+  process.stdout.write(shipGuard.stdout || ''); process.stderr.write(shipGuard.stderr || '');
+  if (shipGuard.status !== 0) fail('出貨防線的守門人未過——並行鎖或認正式站的判定壞了'
+    + '（單獨重跑：npm run check-ship-web-guard）');
+
+  // ── 2.63 閘門帳本自檢（純 node、離線，不呼叫 ship-web）──
+  const gateLedger = spawnSync('node', [path.join(wt, 'scripts', 'verify_ship_web_gate_ledger.mjs')], { encoding: 'utf8' });
+  process.stdout.write(gateLedger.stdout || ''); process.stderr.write(gateLedger.stderr || '');
+  if (gateLedger.status !== 0) fail('出貨閘門帳本未過——產品指紋、更新紀錄例外、失敗重試或 --full 壞了'
+    + '（單獨重跑：npm run check-ship-web-gates）');
 
   // ── 2.65 辦公日曆表兩份副本的同步 ──────────────────────────────────────────
   // index.html 的 TW_DAYTYPE(前端選捷運班表)與 data/tw_daytype.json(worker 做北捷逐班綁定)
@@ -127,9 +232,15 @@ try {
   const historic = spawnSync('node', [path.join(wt, 'scripts', 'verify_historic_assets.mjs')], { encoding: 'utf8' });
   process.stdout.write(historic.stdout || ''); process.stderr.write(historic.stderr || '');
   if (historic.status !== 0) fail('歷史建物資產或定位契約未通過');
+  const tainanMemory = spawnSync('node', [path.join(wt, 'scripts', 'verify_tainan_memory.mjs')], { encoding: 'utf8' });
+  process.stdout.write(tainanMemory.stdout || ''); process.stderr.write(tainanMemory.stderr || '');
+  if (tainanMemory.status !== 0) fail('台南地面鐵道封存雜湊、班次或沿軌接續未通過');
   const railLevels = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_levels.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(railLevels.stdout || ''); process.stderr.write(railLevels.stderr || '');
   if (railLevels.status !== 0) fail('軌道上下層、交叉淨距或來源剖面版本未通過');
+  const flatGrade = spawnSync('node', [path.join(wt, 'scripts', 'verify_flat_rail_grade.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(flatGrade.stdout || ''); process.stderr.write(flatGrade.stderr || '');
+  if (flatGrade.status !== 0) fail('平坦地圖的橋梁、引道或列車縱坡未通過');
   const railGrounding = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_grounding.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(railGrounding.stdout || ''); process.stderr.write(railGrounding.stderr || '');
   if (railGrounding.status !== 0) fail('橋梁來源判定或示意列車高度對應未通過');
@@ -139,18 +250,84 @@ try {
   const tunnelGrade = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_tunnel_grade.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(tunnelGrade.stdout || ''); process.stderr.write(tunnelGrade.stderr || '');
   if (tunnelGrade.status !== 0) fail('隧道顯示縱坡未通過——隧道又跟著山坡起伏了（單獨重跑：node scripts/verify_rail_tunnel_grade.mjs）');
+  // 2026-09-11 issue #57：上面四道對「OSM 隧道／官方橋梁互指」「layer 當高度」「洞口把鄰接高架
+  // 拖下去」三個缺陷全是綠的——隧道被誤判成橋就整段退出 tunnelGrade 的分母，缺陷會讓判準的樣本
+  // 自己消失。這一支專驗反向改判、橋面離地高度、洞口銜接與地表穿透門檻。
+  const structureHeights = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_structure_heights.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(structureHeights.stdout || ''); process.stderr.write(structureHeights.stderr || '');
+  if (structureHeights.status !== 0) fail('橋隧種類或顯示高度未通過（單獨重跑：npm run check-rail-structure-heights）');
+  // 2026-09-12：地形分片的 Range 在 Cloudflare 靜態資產上不生效（要 16 KB 回 200 ＋整個 8 MB），
+  // 開站一次白抓 96 MB。本機 dev_server 會正確回 206 ⇒ 瀏覽器驗收在這件事上結構性失明，
+  // 這一支自己造一台照 Cloudflare 行為的伺服器來考，另配一台回 206 的當正向對照。
+  // 兩列車互相穿越:issue #17 的防追撞在 0f5bb774 被 railIslandPhysical.has() 短路掉之後,台鐵整整
+  // 五天是 100% 死碼,而唯一那支相關閘門(verify_no_overtake)量的是示意線形管線、照樣全綠。
+  // 🔴 所以這支一定要掛在出貨鏈上,而且它自己會先具名斷言「physical 已就緒、has() 覆蓋 918/918」
+  //    ——分母塌掉的話它會紅,不會像前一支那樣靜靜地驗錯管線。全日重放約五分鐘,不接受縮短取樣:
+  //    BASE_A/B/C/OPP 那幾個棘輪基線是在 SAMPLE=120 下量的,改取樣密度會讓棘輪失去意義。
+  const overlap = spawnSync('node', [path.join(wt, 'scripts', 'verify_physical_no_overlap.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(overlap.stdout || ''); process.stderr.write(overlap.stderr || '');
+  if (overlap.status !== 0) fail('實體股道上的列車互穿檢查未通過（單獨重跑：npm run check-physical-overlap）');
+  // 實體層畫車速度：立體地圖把剖面的進度比例乘到實體股道長上，#fpSpd 已夾過看不出來，
+  // 只有直接量 railIslandPhysical.sample 才抓得到（issue #15，2026-09-19 修前 271 段超標）。
+  const physSpeed = spawnSync('node', [path.join(wt, 'scripts', 'verify_phys_speed_cap.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(physSpeed.stdout || ''); process.stderr.write(physSpeed.stderr || '');
+  if (physSpeed.status !== 0) fail('實體股道上的畫車速度超過車種極速（單獨重跑：npm run check-phys-speed-cap）');
+
+  const stationRoutes = spawnSync('node', [path.join(wt, 'scripts', 'verify_verified_station_routes.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(stationRoutes.stdout || ''); process.stderr.write(stationRoutes.stderr || '');
+  if (stationRoutes.status !== 0) fail('具名派軌、太麻里月台來源、非電化限制或接站連續驗證未通過');
+
+  const remainingRoutes = spawnSync('node', [path.join(wt, 'scripts', 'verify_remaining_station_routes.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(remainingRoutes.stdout || ''); process.stderr.write(remainingRoutes.stderr || '');
+  if (remainingRoutes.status !== 0) fail('多站改派、借路保護或進出站連續驗證未通過');
+
+  const terrainChunks = spawnSync('node', [path.join(wt, 'scripts', 'verify_terrain_chunk_cache.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(terrainChunks.stdout || ''); process.stderr.write(terrainChunks.stderr || '');
+  if (terrainChunks.status !== 0) fail('地形分片快取未通過——忽略 Range 的伺服器會被重複下載同一片（單獨重跑：npm run check-terrain-chunk-cache）');
   const guangci = spawnSync('node', [path.join(wt, 'scripts', 'verify_guangci_tracks.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(guangci.stdout || ''); process.stderr.write(guangci.stderr || '');
   if (guangci.status !== 0) fail('廣慈延伸段雙軌連通性或來源座標未通過');
   const formations = spawnSync('node', [path.join(wt, 'scripts', 'verify_formations.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(formations.stdout || ''); process.stderr.write(formations.stderr || '');
   if (formations.status !== 0) fail('列車編組節數未通過——有車種的實際編組退回 3 節示意（單獨重跑：npm run check-formations）');
+  const dr1000 = spawnSync('node', [path.join(wt, 'scripts', 'verify_dr1000_perf.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(dr1000.stdout || ''); process.stderr.write(dr1000.stderr || '');
+  if (dr1000.status !== 0) fail('DR1000 運動參數未通過——支線柴油客車拿到電聯車的加減速（單獨重跑：npm run check-dr1000-perf）');
+  // 預算剖面表過期也是無聲失效：前端判過期只看 T／L，改了車種參數或位置模型卻沒重產表，舊值照樣被採用。
+  // 要排在資料清單之前——照提示重產表之後，清單也跟著要重產。
+  const runProf = spawnSync('node', [path.join(wt, 'scripts', 'build_run_profiles.mjs'), '--check'], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(runProf.stdout || ''); process.stderr.write(runProf.stderr || '');
+  if (runProf.status !== 0) fail('台鐵預算剖面表與目前的模型不符（前端會照舊表畫位置），或 MR1 交會推論棘輪退步（單獨重跑：node scripts/build_run_profiles.mjs --check）');
+  // 資料清單過期是無聲失效：網站宣稱什麼都沒變，App 就永遠不重抓那個檔。原本只有 App 的 prepare-web
+  // 與每日巡檢會驗，網站出貨不驗——DR1000 那批重建了跑段剖面卻漏了重產清單，出貨前靠人工比對才發現。
+  const manifest = spawnSync('node', [path.join(wt, 'scripts', 'verify_data_manifest.mjs'), wt], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(manifest.stdout || ''); process.stderr.write(manifest.stderr || '');
+  if (manifest.status !== 0) fail('資料清單與資料檔不符——App 會以為檔案沒變、永遠不重抓（修法：npm run build-manifest 後一起 commit）');
+  const fullFormations = spawnSync('node', [path.join(wt, 'scripts', 'verify_full_formations_browser.mjs')], { cwd:wt, encoding:'utf8', env:{...process.env,PORT:''} });
+  process.stdout.write(fullFormations.stdout || ''); process.stderr.write(fullFormations.stderr || '');
+  if (fullFormations.status !== 0) fail('完整／推估編組的實際渲染或手機切換未通過');
   const trackSide = spawnSync('node', [path.join(wt, 'scripts', 'verify_metro_track_side.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(trackSide.stdout || ''); process.stderr.write(trackSide.stderr || '');
   if (trackSide.status !== 0) fail('捷運雙軌左右未通過——有路線的來車與去車跑在真實相反的股道上（單獨重跑：npm run check-metro-track-side）');
+  const trtcLineFallback = spawnSync('node', [path.join(wt, 'scripts', 'verify_trtc_line_fallback.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(trtcLineFallback.stdout || ''); process.stderr.write(trtcLineFallback.stderr || '');
+  if (trtcLineFallback.status !== 0) fail('北捷單線 0 台的班表退路未通過——官方來源失效時可能整條線消失（單獨重跑：npm run check-trtc-line-fallback）');
+  const nangangStop = spawnSync('node', [path.join(wt, 'scripts', 'verify_nangang_stop_position.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(nangangStop.stdout || ''); process.stderr.write(nangangStop.stderr || '');
+  if (nangangStop.status !== 0) fail('文湖線南港展覽館停車位置未通過——兩方向必須停在月台內的 OSM 正式停車點（單獨重跑：npm run check-nangang-stop-position）');
   const sun = spawnSync('node', [path.join(wt, 'scripts', 'verify_sun.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(sun.stdout || ''); process.stderr.write(sun.stderr || '');
   if (sun.status !== 0) fail('日夜光影的太陽位置與時間連續性驗證未過');
+
+  // 夜間設計守門人：實際開 Chromium＋WebKit，驗暗色 3D 建築、玻璃細線像素、來車看板與手機觸控版面。
+  // 2026-09-26 回查時它曾紅了 19 天卻沒有任何出貨路徑執行，所以這裡不只驗檔案存在，而是直接跑完整腳本。
+  // 帳本歸類為「一般產品閘門」：inputs＝整體產品指紋＋本腳本（含 import closure）＋共用出貨執行器；
+  // 純 BUILD／更新紀錄可沿用，任何產品、資料、i18n 或 App 變動都會重跑，--full 一定重跑。
+  const nightDesign = spawnSync('node', [path.join(wt, 'scripts', 'verify_night_design.mjs')],
+    { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(nightDesign.stdout || ''); process.stderr.write(nightDesign.stderr || '');
+  if (nightDesign.status !== 0) fail('夜間設計守門人未過——暗色 3D 建築、玻璃細線、來車看板或手機觸控版面回歸'
+    + '（單獨重跑：node scripts/verify_night_design.mjs）');
 
   // 三鶯線營運時段(2026-09-11 掛上出貨鏈)。它守的是全網唯一一條「時刻表用官方公告的營運時段
   // ＋班距合成出來」的線:兩端寫錯過三次,每次的症狀都是使用者才看得到的——時段太寬就整晚畫
@@ -169,6 +346,25 @@ try {
   const traBinding = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_plan_binding.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(traBinding.stdout || ''); process.stderr.write(traBinding.stderr || '');
   if (traBinding.status !== 0) fail('台鐵班表與股道綁定防護未通過');
+  // 同向預排待避是瀏覽器裡依當日車群決定，靜態派車檢查碰不到；固定順向 6563／207 與
+  // 反向 114／228，在 Chromium＋WebKit 實測煞車提前量、站內停等、清站間隔與實體股道。
+  const overtakeStation = spawnSync('node', [path.join(wt, 'scripts', 'verify_overtake_station_planning.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '' } });
+  process.stdout.write(overtakeStation.stdout || ''); process.stderr.write(overtakeStation.stderr || '');
+  if (overtakeStation.status !== 0) fail('台鐵預排待避的煞車距離、站內停等或雙方向案例未通過');
+  const zoneArrival = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_zone_arrival.mjs')],
+    { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(zoneArrival.stdout || ''); process.stderr.write(zoneArrival.stderr || '');
+  if (zoneArrival.status !== 0) fail('台鐵彎道長跑段的官方停靠窗／固定 145、5241 案例未通過');
+  const thsrBinding = spawnSync('node', [path.join(wt, 'scripts', 'verify_thsr_plan_binding.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(thsrBinding.stdout || ''); process.stderr.write(thsrBinding.stderr || '');
+  if (thsrBinding.status !== 0) fail('高鐵當日班表與股道綁定防護未通過(新車次或改時刻的班次會掉回示意線形而折疊)');
+  const thsrTracks = spawnSync('node', [path.join(wt, 'scripts', 'verify_thsr_station_tracks.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(thsrTracks.stdout || ''); process.stderr.write(thsrTracks.stderr || '');
+  if (thsrTracks.status !== 0) fail('高鐵車站股道規則未通過(停靠列車要停外側到發線、通過列車走內側正線)');
+  const thsrOccupancy = spawnSync('node', [path.join(wt, 'scripts', 'verify_thsr_reservation_motion.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(thsrOccupancy.stdout || ''); process.stderr.write(thsrOccupancy.stderr || '');
+  if (thsrOccupancy.status !== 0) fail('高鐵派車佔用模型與行車模型不同源(曲線指紋不符、通過時刻差超過 1 秒、或同日班次有股道交疊)——重跑六種日型派車');
   const traContinuity = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_binding_continuity.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(traContinuity.stdout || ''); process.stderr.write(traContinuity.stderr || '');
   if (traContinuity.status !== 0) fail('台鐵雙向通過站或加開車股道連續性未通過');
@@ -177,6 +373,10 @@ try {
   const garage = spawnSync('node', [path.join(wt, 'scripts', 'verify_garage_assets.mjs')], { encoding: 'utf8' });
   process.stdout.write(garage.stdout || ''); process.stderr.write(garage.stderr || '');
   if (garage.status !== 0) fail('收藏車庫模型或收集規則檢查未通過');
+  // 車庫三節車頭尾朝向（62 款 × 環形／海岸 × 正反兩向），離線約 2 秒。
+  const garageFacing = spawnSync('node', [path.join(wt, 'scripts', 'verify_garage_facing.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(garageFacing.stdout || ''); process.stderr.write(garageFacing.stderr || '');
+  if (garageFacing.status !== 0) fail('收藏車庫三節車頭尾朝向檢查未通過');
 
   // ── 2.7 對外用語閘門（更名後的舊名不准出貨）────────────────────────────────
   // 🔴 位置與 2.5 同一個理由,不可移到 strip 之後:check_voice 的 constBlock surface
@@ -254,6 +454,35 @@ try {
   if (budget.status !== 0) fail('北捷呼叫量閘門未過——營運窗閘門或 CarWeight 節流被改掉了'
     + '（單獨重跑：node scripts/verify_trtc_call_budget.mjs）');
 
+  // ── 2.9b 北捷模型載入器不跨 request 共用進行中的 promise ──────────────────────
+  // 2026-09-23 事故之後補的：模組層快取曾經存【進行中的 promise】，發起它的 request 被取消時
+  // I/O 跟著被取消、promise 永遠不 resolve，同一個 isolate 之後的 cron 每發都卡滿 15 分鐘被砍
+  // （exceededWallTime），北捷帳本斷層、iPhone 捷運等車卡停推。這種回歸不會讓畫面或別的判準變紅，
+  // 只會在某個晚上帳本又斷掉。純離線（ASSETS 替身讀這棵乾淨出貨樹的 data/），約 1 秒。
+  const trtcMemo = spawnSync('node', [path.join(wt, 'scripts', 'verify_trtc_model_memo.mjs')], { encoding: 'utf8' });
+  process.stdout.write(trtcMemo.stdout || ''); process.stderr.write(trtcMemo.stderr || '');
+  if (trtcMemo.status !== 0) fail('北捷模型載入器閘門未過——模組層快取又存了進行中的 promise，一個 request 被取消就會卡死整個 isolate 的 cron'
+    + '（單獨重跑：node scripts/verify_trtc_model_memo.mjs）');
+
+  // ── 2.9c 台鐵即時動態的上游刷新去重不可無限期等別人的 I/O ─────────────────────
+  // 與 2.9b 同一類（2026-09-23）：traLiveInflight 讓跟車卡、等站卡與訪客共搭一發 TDX 刷新（省點數，不能拿掉），
+  // 但發起者被取消時那一發永遠不會結束；沒有上限的話，這個 isolate 之後每一次刷新都陪它卡到 15 分鐘。
+  // 驗去重仍在、超齡放掉重刷、搭便車有限等待且不多打 TDX、被放掉的舊那發晚到不清掉新那發。純離線，約 3 秒。
+  const traInflight = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_live_inflight.mjs')], { encoding: 'utf8' });
+  process.stdout.write(traInflight.stdout || ''); process.stderr.write(traInflight.stderr || '');
+  if (traInflight.status !== 0) fail('台鐵即時刷新去重閘門未過——搭便車又會無限期等別人的 I/O，或去重被拿掉而多打 TDX'
+    + '（單獨重跑：node scripts/verify_tra_live_inflight.mjs）');
+
+  // ── 2.9d Worker 其他共用 inflight 也不可被一發取消的 I/O 永久毒死 ──────────────
+  // NCDR 災害監看與五種公車動態 key 都會跨 request 共乘上游（月台同型案例由前面的 platforms gate 守）。
+  // 只傳 AbortSignal 不夠：
+  // owner 被取消時，fetch/body 與它的 timer 可能一起永遠 pending。這支用不理 abort 的 fixture 守住
+  // 總截止、下一輪復原、昂貴公車上游在放掉前不重打，以及舊 owner 晚到不清新 owner。
+  const workerInflight = spawnSync('node', [path.join(wt, 'scripts', 'verify_worker_inflight_recovery.mjs')], { encoding: 'utf8' });
+  process.stdout.write(workerInflight.stdout || ''); process.stderr.write(workerInflight.stderr || '');
+  if (workerInflight.status !== 0) fail('Worker 共用刷新復原閘門未過——NCDR 或公車上游卡住後仍會拖住後續請求'
+    + '（單獨重跑：npm run check-worker-inflight）');
+
   // ── 2.10 OBS 直播／導播模式守門人 ───────────────────────────────────────────
   // 2026-09-03 刪掉 ?live=1／?live=2 之後補的。守的是「刪掉的東西不會被某條舊分支的合併
   // 靜默帶回來」——這個 repo 的合併吃掉／帶回東西從來不會讓 build 紅（見 app/scripts/
@@ -275,8 +504,9 @@ try {
   // ── 2.11b 公車站牌搜尋與到站守門（單元 C 第一批）─────────────────────────
   // 🔴 不在出貨鏈上的驗收腳本等於不存在，所以本批一寫完就掛上來。這兩支守的是：
   //    五種到站語意不得被收斂成同一個「沒資料」、GoBack 2／3 不准猜方向、
-  //    端點網址只能來自 data/bus_providers.json、四支公車端點都掛了 BUS_LIMITER
-  //    （其中兩支是本批補的舊債）、雙層 TTL 的算式與註解一致、授權署名沒被拿掉。
+  //    端點網址只能來自 data/bus_providers.json、五支公車端點都掛了 BUS_LIMITER
+  //    （bus-transfer／bus-leg-live 是本批補的舊債，bus-route-stops 是 09-13 補的）、
+  //    雙層 TTL 的算式與註解一致、授權署名沒被拿掉。
   const busStop = spawnSync('node', [path.join(wt, 'scripts', 'verify_bus_stop_worker.mjs')], { encoding: 'utf8' });
   process.stdout.write(busStop.stdout || ''); process.stderr.write(busStop.stderr || '');
   if (busStop.status !== 0) fail('公車站牌到站驗收未過（單獨重跑：npm run check-bus-stop）');
@@ -288,6 +518,13 @@ try {
   const busStopBrowser = spawnSync('node', [path.join(wt, 'scripts', 'verify_bus_stop_browser.mjs')], { encoding: 'utf8' });
   process.stdout.write(busStopBrowser.stdout || ''); process.stderr.write(busStopBrowser.stderr || '');
   if (busStopBrowser.status !== 0) fail('公車站牌瀏覽器驗收未過（單獨重跑：node scripts/verify_bus_stop_browser.mjs）');
+
+  // 高鐵對號座餘位與票價(2026-09-11 的設計批次)——這支閘門寫好之後一直沒掛上出貨鏈,等於沒有守門人。
+  // 它自己就分四層(純函式／端點替身／Playwright 雙引擎／零回歸重跑 punctual＋my_trains),預設離線,
+  // 真上游要 --real 才打(TDX 有節流),所以掛在這裡不會讓出貨依賴外部服務。
+  const thsrSeat = spawnSync('node', [path.join(wt, 'scripts', 'verify_thsr_seat.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(thsrSeat.stdout || ''); process.stderr.write(thsrSeat.stderr || '');
+  if (thsrSeat.status !== 0) fail('高鐵對號座餘位／票價驗收未過（單獨重跑：npm run check-thsr-seat）');
 
   // ── 2.12 地圖引擎適配層閘門(換引擎 M0,2026-09-03)——純靜態、毫秒級:index.html 裡任何繞過適配層 M 直接
   // 呼叫 Leaflet `map.xxx(` 的程式碼都會在這裡擋下(否則 MapLibre 引擎一開就炸,而 Leaflet 路徑全綠照不到)。
@@ -318,6 +555,15 @@ try {
   // 「改到面板算繪或 sheet 家族就原地復發、其餘閘門照不到」的那種。兩引擎約 2–3 分鐘。
   // 🔴 preflight 主動洗掉繼承來的 QT_ONLY(空字串走 verify_query_tab.mjs 的 falsy 分支＝全跑)——
   // 「不設」不等於「不受影響」，出貨那個 shell 若曾 export QT_ONLY，spawnSync 預設會原樣繼承。
+  // ── 2.14b 3D 分享 URL 開機契約守門人──rail-3d 先 await dynamic import，boot 又會清理 query。
+  // 在 import 切點主動清掉 query，Chromium＋WebKit 各 10 輪驗實際設定與 z／visit 視角。
+  const share3d = spawnSync('node', [path.join(wt, 'scripts', 'verify_share_url_3d.mjs')], {
+    cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '', BASE_URL: '', VURL: '', ENGINE: '', ROUNDS: '10' },
+  });
+  process.stdout.write(share3d.stdout || ''); process.stderr.write(share3d.stderr || '');
+  if (share3d.status !== 0) fail('3D 分享連結開機契約未過——Safari 可能遺失立體列車、編組、地形或視角參數'
+    + '（單獨重跑：npm run check-share-url-3d）');
+
   const queryTab = spawnSync('node', [path.join(wt, 'scripts', 'verify_query_tab.mjs'), wt], { encoding: 'utf8', env: { ...process.env, QT_ONLY: '', QUERY_SECTION: '' } });
   process.stdout.write(queryTab.stdout || ''); process.stderr.write(queryTab.stderr || '');
   if (queryTab.status !== 0) fail('查詢分頁守門人未過——兩態 sheet／答案同源／自動開／更多抽屜之一壞了'
@@ -337,6 +583,9 @@ try {
   process.stdout.write(afr.stdout || ''); process.stderr.write(afr.stderr || '');
   if (afr.status !== 0) fail('阿里山林鐵守門人未過——路網／班次／看板／手機版,或「奔跑中列車都在軌道上」壞了'
     + '（單獨重跑：npm run check-afr）');
+  const afrFacing = spawnSync('node', [path.join(wt, 'scripts', 'verify_afr_push_pull.mjs')], { cwd:wt, encoding:'utf8', env:{...process.env,PORT:'',ENGINE:'',MUTATE:'',OUT:''} });
+  process.stdout.write(afrFacing.stdout || ''); process.stderr.write(afrFacing.stderr || '');
+  if (afrFacing.status !== 0) fail('林鐵推進／牽引方向、折返車身或手機驗證未通過');
 
   // ── 2.17 issue #19 跟車面板時間軸守門人(2026-09-08) ───────────────────────
   // 為什麼值得進出貨鏈:它守的是「跟車面板宣稱的已行駛里程」與「地圖實際繪製的車輛座標」
@@ -353,6 +602,17 @@ try {
   process.stdout.write(issue19.stdout || ''); process.stderr.write(issue19.stderr || '');
   if (issue19.status !== 0) fail('跟車面板時間軸守門人未過——面板的里程與地圖畫的車對不上,或停靠態/遙測列壞了'
     + '（單獨重跑：npm run check-issue19）');
+
+  // ── 2.17b issue #73 跟車卡車次／時速基線守門人(2026-09-26) ────────────────
+  // 原因只在 WebKit 看得出來：flex 列整體 align-items:center，但時速單獨 align-self:baseline，
+  // 車次若沒加入同一 baseline 群組，標準／大／特大字級會各錯 1.14／1.41／1.70px；Chromium 恰好
+  // 算成 0，單引擎會假綠。從回報座標真 tap canvas 車牌，再掃五種手機寬、三階字級、公告與 sheet。
+  const issue73 = spawnSync('node', [path.join(wt, 'scripts', 'verify_issue_73_follow_head.mjs')], {
+    cwd: wt, encoding: 'utf8', env: { ...process.env, MUTATE: '', ONLY: '', QUICK: '', TEST_WIDTH: '' },
+  });
+  process.stdout.write(issue73.stdout || ''); process.stderr.write(issue73.stderr || '');
+  if (issue73.status !== 0) fail('Issue #73 跟車卡守門人未過——WebKit 的車次與時速基線錯位、真觸控點車失效，或手機浮層互相遮住'
+    + '（單獨重跑：npm run check-issue73）');
 
   // ── 2.18 字級雙倍率契約守門人(2026-09-08)——純靜態、0.16 秒、不需要 dev server ────
   // 設計檔 TURN 5/6 的對照表不是一顆倍率:主文 --ui 是 1／1.25／1.5,小標籤與次要說明
@@ -397,6 +657,121 @@ try {
   if (mrtNo.status !== 0) fail('捷運車次欄守門人未過——有官方車次卻沒顯示,或沒有官方車次卻硬填了一個'
     + '（單獨重跑：npm run check-metro-train-no）');
 
+  // ── 2.21 本地提醒守門人(2026-09-13) ──────────────────────────────────────
+  // 為什麼值得進出貨鏈:這支此前【沒有任何呼叫者】,而且它自己已經紅了大約兩個月沒人知道——
+  // 12 個案例倒在同一個原因(腳本用中文字串找元件,Playwright 預設語系讓 I18N_LANG 變成 en),
+  // 另外 4 個倒在 2026-09-06 查詢分頁改版把提醒入口搬走而判準沒跟著搬。兩者都是
+  // 「不在出貨鏈上的驗收腳本等於不存在」的教科書例子(同 2.7／2.8／2.9)。
+  // 它守的東西沒有別的判準照得到:提醒是【純本地】功能(localStorage + Capacitor 本地通知),
+  // 不經過任何 API,所以資料閘門一條都碰不到;而排程算錯的症狀是「時間到了沒響」或
+  // 「響在錯的時間」——畫面永遠正常,使用者要等到隔天才發現,而且只在真機上發現。
+  // 涵蓋:五個入口都還在、跨日與誤點快照、20 則上限、週期性規則的下次時間、原生排程格位
+  // 不相撞、iOS 64 則預算、既有 v1 資料不被動到。實測 38 秒(22 案、自己起 dev server)。
+  // 🔴 洗掉繼承來的 NOTIFY_BASE:它會讓整支跑去驗【別棵樹】而紅綠長得一模一樣(同 2.19 的 PORT)。
+  const notify = spawnSync('node', [path.join(wt, 'scripts', 'verify_notify_p0.mjs')],
+    { encoding: 'utf8', env: { ...process.env, NOTIFY_BASE: '', PORT: '' } });
+  process.stdout.write(notify.stdout || ''); process.stderr.write(notify.stderr || '');
+  if (notify.status !== 0) fail('本地提醒守門人未過——提醒入口不見了,或排程時間／格位／上限算錯'
+    + '（單獨重跑：npm run check-notify）');
+
+  // ── 2.22 台鐵誤點偏移的畫面行為守門人(2026-09-19) ─────────────────────────
+  // 為什麼值得進出貨鏈:它守兩條使用者裁示——誤點一次加大 ≥5 分要一步跳回真實位置(09-05)、未滿 5 分要
+  // 慢速前進不准定格(09-07)——外加「暫停時車不准自己動」「追回誤點時不得超過車種極速 2 倍」。受測的
+  // easedShift／liveDelaySec／trainPos／實體股道 trainPosAt 都是別批常改的地方,改壞了畫面照樣有車,
+  // 只是位置差一個誤點量,沒有別的閘門量得到。這支此前沒有任何呼叫者,而且深夜跑會因為選到沒在跑的車
+  // 而假紅(2026-09-19 已釘鐘 12:00 修掉,另加 P0／D2 具名前提)。自己起純靜態 server(/api 一律 404,
+  // 不打上游),雙引擎約 30 秒。
+  // 🔴 洗掉繼承來的 PORT／ROOT:有值時它改連既有 server、驗的可能是別棵樹(同 2.16／2.17)。
+  // 站點錨點是這批次新增的例外路徑：用真實班表的里程遞增／遞減班次各一，重放首見站點、
+  // 換站已離站、同站小誤點與同號重複列。不掛進出貨鏈就會變成只有這次人工跑過的一次性腳本。
+  for (const engine of ['chromium', 'webkit']) {
+    const traAnchor = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_live_anchor.mjs')],
+      { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '', ROOT: '', ENGINE: engine } });
+    process.stdout.write(traAnchor.stdout || ''); process.stderr.write(traAnchor.stderr || '');
+    if (traAnchor.status !== 0) fail(`台鐵站點錨點守門人(${engine})未過——換站小誤點沒立即對齊、重複列蓋掉較大誤點，或雙向班次其一失效`
+      + '（單獨重跑：ENGINE=webkit npm run check-tra-live-anchor）');
+  }
+
+  const traMotion = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_motion.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '', ROOT: '', ENGINES: 'chromium,webkit' } });
+  process.stdout.write(traMotion.stdout || ''); process.stderr.write(traMotion.stderr || '');
+  if (traMotion.status !== 0) fail('台鐵誤點偏移守門人未過——大跳變沒一步跳回、小增量定格、暫停時車自己動,或追回時超速'
+    + '（單獨重跑：ENGINES=chromium,webkit npm run check-tra-motion）');
+
+  // ── 2.23 自家營運異常偵測守門人(2026-09-19) ─────────────────────────────
+  // 為什麼值得進出貨鏈:捷運徽章(即時更新中／官方即時／官方中斷／班表備案)與台鐵大面積誤點橫幅是異常狀態機
+  // 的兩個出口,改壞了畫面照樣有字、只是狀態錯,沒有別的閘門量得到。這支此前沒有任何呼叫者,判準一度過期
+  // (Metro-Core 接管後的新字樣、橫幅清空只設 hidden),2026-09-19 修正並逐條突變驗過。純靜態 server、約 4 秒。
+  // 🔴 PORT 傳 0:讓它自己挑空埠,不撞別的 session 正在用的預設 5188。
+  const anomaly = spawnSync('node', [path.join(wt, 'scripts', 'verify_anomaly.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '0' } });
+  process.stdout.write(anomaly.stdout || ''); process.stderr.write(anomaly.stderr || '');
+  if (anomaly.status !== 0) fail('營運異常偵測守門人未過——捷運即時徽章或台鐵大面積誤點橫幅的狀態錯了'
+    + '（單獨重跑：npm run check-anomaly）');
+
+  // 觀看入口是沉浸模式的退出路徑；雙引擎真點進入、重開、退出與重載。
+  // 2026-09-25 加側欄模式（手機橫放、平板橫向）的觀看鈕位置：沒開卡片留在右上工具列、開卡片或跟車才讓到側欄左邊，
+  // 先前只量手機直向與桌面，iPad 橫向鈕浮在畫面中間從 9/14 起沒有任何閘門看得到。約 40 秒。
+  const viewControls = spawnSync('node', [path.join(wt, 'scripts', 'verify_view_controls_gate.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(viewControls.stdout || ''); process.stderr.write(viewControls.stderr || '');
+  if (viewControls.status !== 0) fail('觀看設定、側欄模式觀看鈕位置或沉浸模式退出驗收未通過（單獨重跑：node scripts/verify_view_controls_gate.mjs）');
+
+  // ── 2.24 護照成就章／收集章說明卡守門人(2026-09-25) ────────────────────────
+  // 為什麼值得進出貨鏈(2.8 那把「成本 vs 保護」的尺):它守的缺陷 (a) 對真人 100% 復現——桌面滑鼠停在章上,
+  // 說明卡與瀏覽器原生提示兩層疊著出現;(b) 別的閘門都量不到,verify_i18n 當時甚至把殘留的 title 當成規格斷言;
+  // (c) 已經被別批無聲弄壞過一次——08-28 多語那批重套時把 title 加回來,這支不在鏈上,從 08-28 紅到 09-25 沒人看到。
+  // 另守卡片內容／進度逐枚比對、鍵盤與讀螢幕軟體(Tab 開卡、Enter、Esc、無障礙樹描述)、觸控點按開收。
+  // 雙引擎、自己起純靜態 server、埠號由系統挑(不撞別的 session 手動跑的同一支),約 14 秒。
+  const achvHelp = spawnSync('node', [path.join(wt, 'scripts', 'verify_achv_help.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(achvHelp.stdout || ''); process.stderr.write(achvHelp.stderr || '');
+  if (achvHelp.status !== 0) fail('護照說明卡守門人未過——原生 title 殘留、卡片內容或進度錯配、鍵盤或觸控開收失效'
+    + '（單獨重跑：npm run check-achv-help）');
+
+  // ── 2.25 面板 sticky 標題讓位守門人(2026-09-25) ────────────────────────────
+  // 為什麼值得進出貨鏈(2.8 那把尺):(a) 對鍵盤使用者 100% 復現——手機 sheet 小段只有 230px,往回走的焦點
+  // 整顆停在標題底下(修前我的最愛 700 步有 186 步被蓋);(b) 別的閘門量不到——founding_seal 的 G2.*.5 只量護照一張、
+  // 而且不在鏈上;(c) 已經被無聲弄壞過一次——v0925k 護照那版用容器 scroll-padding-top,焦點一進標題裡的
+  // × 內容就跳 128–130px,照樣上了正式站。另守 WebKit 文字欄位補捲、站名牌出現與換字級後讓位值跟上，
+  // 以及面板開啟落點、Esc 階層／退路、鍵盤清單入口、公車卡密度排程與可見控制命中。
+  // 雙引擎、自己起純靜態 server、埠號由系統挑,約 2 分鐘。要在 strip 之前:突變自檢會找 syncBoardHeadVar 的原始碼行。
+  const boardPad = spawnSync('node', [path.join(wt, 'scripts', 'verify_board_scroll_pad.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '' } });
+  process.stdout.write(boardPad.stdout || ''); process.stderr.write(boardPad.stderr || '');
+  if (boardPad.status !== 0) fail('面板鍵盤守門人未過——焦點被 sticky 標題蓋住、開關面板或 Esc 的焦點退路失效、鍵盤入口失效，或公車卡密度排程／控制項命中異常'
+    + '（單獨重跑：node scripts/verify_board_scroll_pad.mjs）');
+
+  // ── 2.26 選單橫拖守門人(2026-09-26) ─────────────────────────────────────────
+  // 為什麼值得進出貨鏈(2.8 那把尺):(a) 對真人 100% 復現——iPhone 英文介面在跟車卡選到長站名,整張卡能左右拖、
+  // 左邊被切掉(修前「接公車」127px);(b) 別的閘門量不到——Chromium 量永遠是 0,verify_garage_loop 只量車庫那一個;
+  // (c) 已經被無聲弄壞過一次——9/19 車名改走翻譯後,車庫選單在 WebKit 英文漏 278px,9/25 verify_garage_loop 紅了才發現;
+  // 這次修的另外四個修前一直漏著,沒有任何閘門紅過。自己起純靜態 server、埠號由系統挑。
+  // 09-26 加跟車卡「下一站」#fpNext 格(v0926d:長站名換行):同一個「整張卡能左右拖」,來源是 nowrap 不是 select,
+  // 兩個引擎都中(修前 WebKit 87px、Chromium 69px),所以這格 WebKit、Chromium 都跑。整支約 23 秒。
+  const selectOv = spawnSync('node', [path.join(wt, 'scripts', 'verify_select_overflow.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '' } });
+  process.stdout.write(selectOv.stdout || ''); process.stderr.write(selectOv.stderr || '');
+  if (selectOv.status !== 0) fail('選單／跟車卡下一站橫拖守門人未過——WebKit 選到長選項時外層容器能左右拖（select 少了 overflow:hidden），'
+    + '或跟車卡「下一站」長站名沒換行、讓整張卡能左右拖（#fpNext 又變回 nowrap）'
+    + '（單獨重跑：node scripts/verify_select_overflow.mjs）');
+
+  // ── 2.27 通行證守門人(2026-09-26) ───────────────────────────────────────────
+  // 為什麼值得進出貨鏈(2.8 那把尺):(a) 它守的缺陷對真人 100% 復現——網站未訂閱者按「Google 清單匯入」直接開出
+  // 匯入(f76685dd 自己點名過的洞:只改入口可見性、不改點擊,網站就能免費匯入)、sandbox 資格被當成正式通行證、已付費者的資格在同步或
+  // 冷啟動時消失、手機「更多」抽屜裡唯一的購買入口點不到、Android 止血旗標關不掉;(b) 別的閘門量不到——鏈上此前
+  // 沒有任何通行證閘門,verify_plus_features(npm run check-plus)也不在鏈上;(c) 這塊改得勤,每一輪都可能無聲弄壞:
+  // 一個月內改了四輪(08-31、09-09、09-10、09-23),這支因為不在鏈上,那幾輪留下的 6 條過期判準紅了 26 天沒人看到。
+  // 在鏈上的話,改行為的那一輪就得同輪對齊判準。雙引擎、自己起純靜態 server、埠號由系統挑,約 3 分鐘(負載高時實測 186 秒)。
+  const plusSub = spawnSync('node', [path.join(wt, 'scripts', 'verify_plus_subscription.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, VERIFY_PORT: '' } });
+  process.stdout.write(plusSub.stdout || ''); process.stderr.write(plusSub.stderr || '');
+  if (plusSub.status !== 0) fail('通行證守門人未過——付費閘門、購買流程、資格判定或止血旗標有一條不符'
+    + '（單獨重跑：node scripts/verify_plus_subscription.mjs）');
+
+  const gateSummary = gateRunner.summary();
+  console.log(`閘門帳本總結：實跑 ${gateSummary.ran}／複用 ${gateSummary.skipped}`);
+
+  if (nodeOptionsBefore === undefined) delete process.env.NODE_OPTIONS; else process.env.NODE_OPTIONS = nodeOptionsBefore;
+
   // ── 3. strip（腳本內建 esbuild AST 重印等價證明，任何不等價都非零退出）────
   const rawBytes = fs.readFileSync(path.join(wt, 'index.html'));
   execFileSync('node', [path.join(wt, 'scripts', 'strip_ship_comments.mjs'), wt], { stdio: 'inherit' });
@@ -414,6 +789,14 @@ try {
   const prodNow = await fetchProd('/');
   if (prodNow.status === 200 && md5(prodNow.body) !== strippedMd5 && buildOf(prodNow.body) === newBuild)
     fail(`內容與正式站不同但 BUILD 同為 '${newBuild}'——先 bump BUILD 再出貨`);
+
+  // ── 4.5 認正式站（判準與限制見檔頭）：上傳前、升版前各一次；--preview 不升版，不需要 ──────
+  const prodGate = async (when, ifFail = '') => {
+    const r = await checkProductionAncestry({ repo, sha, fetchProd, nodeModules: path.join(repo, 'node_modules') });
+    if (!r.ok) fail(`${when}認正式站未過${ifFail}：${r.message}`);
+    console.log(`${when}認正式站 ✓ ${r.message}`);
+  };
+  if (!PREVIEW) await prodGate('上傳前');
 
   // ── 5. upload ────────────────────────────────────────────────────────────
   const wrangler = path.join(repo, 'node_modules', 'wrangler', 'bin', 'wrangler.js');
@@ -433,6 +816,7 @@ try {
     console.log(`   升正式站：把這條分支併進 main 之後跑 npm run ship-web`);
   } else {
     // ── 6. deploy @100%（ID 只取自上面那次 upload 的輸出）──────────────────
+    await prodGate('升版前', `（已上傳的 ${verId} 沒有升版，正式站沒動）`);
     const dep = spawnSync('arch', ['-arm64', 'node', wrangler, 'versions', 'deploy', `${verId}@100%`, '--yes'],
       { cwd: wt, encoding: 'utf8' });
     process.stdout.write(dep.stdout || ''); process.stderr.write(dep.stderr || '');
@@ -447,8 +831,17 @@ try {
       await new Promise(r => setTimeout(r, 20000));
     }
     if (!live) fail('正式站內容在 ~3 分鐘內未收斂到本次 stripped md5——查 deployments list 與快取');
-    const api = await fetchProd('/api/trtc-live');
-    if (api.status !== 200) fail(`/api/trtc-live 回 ${api.status}——Worker 路由疑似壞了`);
+    // 429 只重試不判死：2026-09-19 claude-4e 那輪收貨後這裡拿到 Cloudflare 邊緣限流(body「error code: 1015」、
+    // retry-after 1),同一時間 /api/tra-live 與 /api/thsr-schedule 都 200、幾十秒後 trtc-live 也回 200——
+    // 多個 session 同時打正式站就會踩到,與 Worker 壞沒壞無關。其他非 200 仍當場判死。
+    let api = await fetchProd('/api/trtc-live');
+    for (let attempt = 1; api.status === 429 && attempt <= 6; attempt++) {
+      console.log(`  /api/trtc-live 回 429（${String(api.body).slice(0, 40)}），邊緣限流，10s 後重試 ${attempt}/6`);
+      await new Promise(r => setTimeout(r, 10000));
+      api = await fetchProd('/api/trtc-live');
+    }
+    if (api.status !== 200) fail(`/api/trtc-live 回 ${api.status}——Worker 路由疑似壞了`
+      + (api.status === 429 ? '（連續一分鐘 429：先手動 curl 確認是不是邊緣限流還沒退）' : ''));
     console.log(`✅ 出貨完成：railisland.tw 逐 byte＝stripped(${sha.slice(0, 8)})，${stripped.length} bytes，BUILD '${newBuild}'，API 200`);
   }
   ok = true;

@@ -193,6 +193,13 @@ struct MixedBoardEntryView: View {
     let entry: MixedBoardEntry
     @Environment(\.widgetRenderingMode) private var renderingMode
 
+    /// 正常雙看板的捷運半有自己的 AppIntent 按鈕，其餘區域應開鐵路站。
+    /// 通行證 CTA 沒有 waitTarget，才保留原本的 pass 深連結。
+    private var fallbackURL: URL? {
+        if entry.metro.waitTarget == nil, let metroURL = entry.metro.deepLink { return metroURL }
+        return RailBoardDeepLink.stationURL(originKey: entry.configuration.railOrigin)
+    }
+
     var body: some View {
         GeometryReader { geo in
             MixedBoardCard(
@@ -206,7 +213,7 @@ struct MixedBoardEntryView: View {
         // 16 是 WidgetKit 的預設內距，contentMarginsDisabled 後由我們自己補回來。
         .padding(RailBoardInsets.content)
         .railRenderingMode(renderingMode)
-        .widgetURL(entry.metro.deepLink)
+        .widgetURL(fallbackURL)
         .containerBackground(for: .widget) {
             Color(uiColor: .systemBackground)
         }
@@ -278,7 +285,8 @@ private struct MixedBoardCard: View {
 
     /// 捷運那半點下去 ＝ 在背景直接開等車卡,不打開 App(同小卡,見 MetroBoardView.body)。
     /// 🔴 只包捷運那半:整張卡都包起來的話,鐵路那半也會變成「開捷運等車卡」的按鈕;
-    ///    鐵路那半維持整卡的 widgetURL 深連結(見 MixedBoardEntryView)。
+    ///    鐵路那半維持整卡的 widgetURL 深連結(見 MixedBoardEntryView)，
+    ///    但那條現在明確帶鐵路系統，不再指向捷運。
     /// 🔴 內層 VStack 與外層同參數(.leading／spacing 0),包 Button(.plain) 不改變幾何——
     ///    Button 的 label 若直接收兩個子 view 會被塞進隱式橫排,分區標題就跑到列的旁邊去。
     @ViewBuilder private func metroHalf(follows: Int) -> some View {

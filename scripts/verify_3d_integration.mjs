@@ -18,7 +18,10 @@ for(const [engineName,engine]of Object.entries(process.env.ENGINE==='chromium'?{
   await page.evaluate(()=>{M.raw.setZoom(17);railIslandIntegration.setGroundMode('terrain');});await page.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.poseSamples[0]?.displayHeightM>100,null,{timeout:45000});await page.waitForTimeout(500);s=await page.evaluate(summary);const align=await page.evaluate(()=>railIslandIntegration.renderer.alignment());
   check(engineName+' 地形與車廂共用高程',s.model?.cars.every(c=>c.height>100)&&Math.abs(align?.heightDelta)<.02,{height:s.model?.height,alignment:align?.heightDelta});
   await page.screenshot({path:out+'/'+engineName+'-terrain.png'});
-  await page.evaluate(()=>{railIslandIntegration.setGroundMode('flat');window.__before3D=railIslandIntegration.renderer;state._setAppearance('light');});await page.waitForFunction(()=>!window.railIslandIntegration?.loading&&window.railIslandIntegration?.renderer!==window.__before3D&&window.railIslandIntegration?.renderer?.stats.models>0&&!state.mapDark,null,{timeout:45000});s=await page.evaluate(summary);check(engineName+' 地形關閉／切亮色保留列車',s.model?.height===.65&&s.errors.length===0,s);
+  await page.evaluate(()=>{railIslandIntegration.setGroundMode('flat');window.__before3D=railIslandIntegration.renderer;state._setAppearance('light');});await page.waitForFunction(()=>!window.railIslandIntegration?.loading&&window.railIslandIntegration?.renderer!==window.__before3D&&window.railIslandIntegration?.renderer?.stats.models>0&&!state.mapDark,null,{timeout:45000});s=await page.evaluate(summary);
+  // 平面模式的車高＝該處橋梁／路堤的平面高差＋.65（v0912o 起），隨位置與高程資料而變，不是常數。
+  // 以開地形前同一班、同一座標量到的平面高度為準；上一條已證明地形會把它抬到 >100。
+  check(engineName+' 地形關閉／切亮色保留列車',frozen.ground==='flat'&&s.model?.id===frozen.model.id&&JSON.stringify(s.model.coordinate)===JSON.stringify(frozen.model.coordinate)&&Math.abs(s.model.height-frozen.model.height)<.01&&s.errors.length===0,{flat:frozen.model.height,height:s.model?.height,ground:s.ground,errors:s.errors});
   await page.evaluate(()=>{window.__before3D=railIslandIntegration.renderer;state._setAppearance('dark');});await page.waitForFunction(()=>!window.railIslandIntegration?.loading&&window.railIslandIntegration?.renderer!==window.__before3D&&window.railIslandIntegration?.renderer?.stats.models>0&&state.mapDark,null,{timeout:45000});
   check(engineName+' 暗色玻璃建築與霓虹保留',await page.evaluate(()=>!!M.raw.getLayer('building-glass-edges')&&M.raw.getPaintProperty('track-glow','line-opacity')>.1));
   await page.evaluate(()=>{M.raw.fire('rotatestart',{originalEvent:{}});M.raw.setBearing(65);M.raw.setPitch(55);});await page.waitForTimeout(500);check(engineName+' 側面跟車保留使用者方向',Math.abs((await page.evaluate(summary)).bearing-65)<.1);
@@ -36,8 +39,14 @@ for(const [engineName,engine]of Object.entries(process.env.ENGINE==='chromium'?{
   try{await boot(page);
    await page.evaluate(()=>{M.raw.fire('rotatestart',{originalEvent:{}});M.raw.setBearing(115);M.raw.setPitch(55);});await page.waitForTimeout(500);
    const compass=page.locator('.maplibregl-ctrl-compass');await compass.tap();await page.waitForTimeout(500);let s=await page.evaluate(summary);check(engineName+' '+width+' 真觸控指北',Math.abs(s.bearing)<.1&&s.pitch<.1);
-   await page.locator('#tabMore').tap();const target=page.locator('[data-rail3d="formation"] [data-value="three"]');await target.scrollIntoViewIfNeeded();await target.tap();await page.waitForFunction(()=>window.railIslandIntegration?.formationMode==='three');check(engineName+' '+width+' 編組設定觸控',true);
-   const acc=await page.evaluate(()=>{const buttons=[...document.querySelectorAll('[data-rail3d] button')];return {overflow:document.documentElement.scrollWidth>innerWidth+1,small:buttons.filter(b=>b.getBoundingClientRect().height<44).map(b=>b.textContent)};});check(engineName+' '+width+' 設定無橫捲／觸控 44px',!acc.overflow&&!acc.small.length,acc);
+   // v0914c 起 3D 設定搬進「觀看」面板分頁（view-controls.js），更多裡已經沒有這幾排；入口同 verify_view_controls。
+   const tapTab=async key=>{const tab=page.locator('.view-tabs [data-view="'+key+'"]');await tab.scrollIntoViewIfNeeded();await tab.tap();};
+   // 只量顯示中那一頁：隱藏分頁的按鈕高度是 0。count 為 0 表示沒量到任何按鈕，不算通過。
+   const measure=()=>page.evaluate(()=>{const buttons=[...document.querySelectorAll('#viewSettingsBody .view-page:not([hidden]) [data-rail3d] button')];return {overflow:document.documentElement.scrollWidth>innerWidth+1,count:buttons.length,small:buttons.filter(b=>b.getBoundingClientRect().height<44).map(b=>b.textContent)};});
+   const opener=page.locator('#viewSettingsBtn');await opener.scrollIntoViewIfNeeded();await opener.tap();await tapTab('train');
+   const target=page.locator('[data-rail3d="formation"] [data-value="three"]');await target.scrollIntoViewIfNeeded();await target.tap();await page.waitForFunction(()=>window.railIslandIntegration?.formationMode==='three');check(engineName+' '+width+' 編組設定觸控',true);
+   const trainAcc=await measure();await tapTab('map');const mapAcc=await measure();
+   check(engineName+' '+width+' 設定無橫捲／觸控 44px',[trainAcc,mapAcc].every(a=>!a.overflow&&a.count>0&&!a.small.length),{train:trainAcc,map:mapAcc});
    const caption=await page.locator('[data-rail3d="ground"] [data-value="terrain"]');await caption.scrollIntoViewIfNeeded();const accessible=await caption.evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));});check(engineName+' '+width+' 地形控件未被裁切',accessible);
    await page.screenshot({path:out+'/'+engineName+'-'+width+'-settings.png'});
   }catch(e){check(engineName+' '+width+' 手機完成',false,String(e));}await context.close();

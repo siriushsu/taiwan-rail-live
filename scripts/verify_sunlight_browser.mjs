@@ -74,13 +74,18 @@ for(const [name,engine] of Object.entries(process.env.ENGINE==='chromium'?{chrom
    ctx=await browser.newContext({viewport:{width,height:900},isMobile:true,hasTouch:true,locale:'zh-TW',deviceScaleFactor:1});await ctx.addInitScript(init);page=await ctx.newPage();await boot(page);
    for(const full of [false,true]){
     await page.evaluate(full=>{document.body.classList.toggle('fs',full);M.resize();},full);
-    await page.locator('#tabMore').tap();await page.locator('#sunlightRow').scrollIntoViewIfNeeded();
+    // v0914c 起「日夜光影」列(#sunlightRow)搬進觀看面板「地圖」分頁,不再掛在「更多」抽屜下。
+    const rail=page.locator('.view-rail [data-view="map"]');
+    if(await rail.isVisible())await rail.tap();else{await page.tap('#viewSettingsBtn');await page.tap('.view-tabs [data-view="map"]');}
+    await page.locator('#sunlightRow').scrollIntoViewIfNeeded();
     const prior=await page.evaluate(()=>sunlight.enabled);await page.tap('#sunlightRow');
     const data=await page.evaluate(()=>{const el=document.getElementById('sunlightRow'),r=el.getBoundingClientRect(),hit=(b)=>{const q=b.getBoundingClientRect();return q.width>0&&q.height>0&&b.contains(document.elementFromPoint(q.x+q.width/2,q.y+q.height/2));};
      const overlaps=[...document.querySelectorAll('button,input,select,a[href],[role="button"]')].filter(b=>b!==el&&!el.contains(b)&&hit(b)).filter(b=>{const q=b.getBoundingClientRect();return Math.min(q.right,r.right)-Math.max(q.left,r.left)>1&&Math.min(q.bottom,r.bottom)-Math.max(q.top,r.top)>1;}).map(b=>b.id||b.textContent.trim().slice(0,20));
      return {on:sunlight.enabled,aria:el.getAttribute('aria-checked'),hit:hit(el),height:r.height,overlaps,overflow:document.documentElement.scrollWidth>innerWidth+1,store:localStorage.getItem('trainmap-sunlight'),share:new URL(buildShareUrl()).searchParams.get('sun')};});
     check(`${name} ${width} ${full?'全畫面':'一般'} 真觸控／可及／所有控件交集／無橫捲`,data.on!==prior&&data.aria===String(data.on)&&data.hit&&data.height>=44&&!data.overlaps.length&&!data.overflow&&data.store===(data.on?'1':'0')&&data.share===(data.on?'on':'off'),data);
-    await page.tap('#sunlightRow');await page.tap('#moreClose');
+    await page.tap('#sunlightRow');
+    // #sunlightRow 沒有 data-act/data-proxy,不在 view-controls.js 的自動關閉清單裡,面板不會自己收起。
+    const vc=page.locator('.view-close');if(await vc.isVisible())await vc.tap();
    }
    await ctx.close();
   }

@@ -2,7 +2,8 @@
 //
 // 存在的理由:清單過期是「無聲失效」——網站會宣稱什麼都沒變,App 就永遠不更新資料,
 // 而畫面照常有車,沒有任何錯誤訊息。這正是這個專案最常踩的那類 bug,所以要有閘門。
-// 退出碼非 0 ⇒ 跑 `node scripts/build_data_manifest.mjs` 重產並一起 commit。
+// 退出碼非 0 ⇒ 跑 `npm run build-manifest`(manifest 與 provenance 一起重產)並一起 commit。
+// 只跑 build_data_manifest.mjs 會留下過期的 data_provenance.json(2026-09-23 987a4687 就是這樣)。
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,7 +18,7 @@ console.log('[manifest gate] 目標目錄:', ROOT);
 let onDisk;
 try { onDisk = JSON.parse(readFileSync(path.join(ROOT, 'data/data_manifest.json'), 'utf8')); }
 catch (e) {
-  console.error('❌ 讀不到 data/data_manifest.json —— 跑 `node scripts/build_data_manifest.mjs`');
+  console.error('❌ 讀不到 data/data_manifest.json —— 跑 `npm run build-manifest`');
   process.exit(1);
 }
 const expect = buildManifest(ROOT);
@@ -32,7 +33,7 @@ for (const k of differ) console.error(`  ❌ 雜湊過期：${k}（清單 ${onDi
 
 if (missing.length || extra.length || differ.length) {
   console.error(`\n❌ data_manifest 與實際資料檔不符（缺 ${missing.length}／多 ${extra.length}／過期 ${differ.length}）。`);
-  console.error('   修法：node scripts/build_data_manifest.mjs，然後把 data/data_manifest.json 一起 commit。');
+  console.error('   修法：npm run build-manifest（manifest 與 provenance 一起重產），然後把 data/data_manifest.json 與 data/data_provenance.json 一起 commit。');
   process.exit(1);
 }
 console.log(`✅ data_manifest 與 ${Object.keys(expect).length} 個資料檔一致`);

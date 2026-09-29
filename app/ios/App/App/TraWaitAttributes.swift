@@ -41,6 +41,13 @@ struct TraWaitAttributes: ActivityAttributes {
         //    App 開卡時【不寫】(nil＝還不知道,綁定是開卡之後才非同步完成的),
         //    伺服器每一發推播都送 true。
         var pushed: Bool?
+        // 🔴 tick:伺服器送出這一發的時刻(epoch 秒)。車在上一站→本站之間時伺服器每分鐘推一發,
+        //    而那一分鐘的誤點與資料時刻常常一個字都沒變——內容完全相同時系統不保證重畫,
+        //    車就不會往前挪。這一欄保證每一發都不一樣。
+        //    🔴 視圖算車位【只准用 tick】,不准用 Date():系統會替同一份 ContentState 在不同時間
+        //    各算一張快照(淺色／深色／切外觀),用 Date() 同一次更新的車會前後跳甚至倒退。
+        //    它【不是】倒數,不准拿來顯示「還有 N 分」(精度紅線見檔頭)。
+        var tick: Double?
     }
     var station: String             // 使用者在哪一站等
     var trainNo: String             // 台鐵車次號(也是伺服器每分鐘 join 官方誤點的鍵)
@@ -57,4 +64,17 @@ struct TraWaitAttributes: ActivityAttributes {
     //    「卡片印出來的承諾」;這裡的解法是不對使用者承諾這個數。留著只給 App 端自己
     //    做本地兜底用。同樣只准 Optional、只准加在最後。
     var endAt: Double?
+    // ── 進站軌道（B 方案）：開卡當下由網頁從時刻表算好寫進來，整張卡的生命週期裡【不會變】。
+    //    舊版網頁不給 ⇒ 全是 nil ⇒ 版面維持原本的軌脊（不猜）。同樣只准 Optional、只准加在最後。
+    /// 這班車在本站之前【真正停靠】的上一站（通過站不算：自強 172 在臺北前停板橋，不是萬華）。
+    var prevStop: String?
+    /// 上一站表定開車（epoch 秒）。與 bind 送給伺服器的 prevDepSec 是同一個值——
+    /// 伺服器用它算「每分鐘推一發」的行駛段，卡片用它算車的位置，兩邊不可各算各的。
+    var prevDepSec: Double?
+    /// 本站站名牌下緣的兩個鄰站（實體路線上，含這班車通過不停的站）。
+    /// plateLeft＝車開過來那一側，plateRight＝車要去那一側（本站是終點就沒有）。
+    var plateLeft: String?
+    var plateRight: String?
+    /// 正側面車模 id（asset `la-side-<id>`），對照同網站 3D 列車的 formations.js。
+    var carModel: String?
 }

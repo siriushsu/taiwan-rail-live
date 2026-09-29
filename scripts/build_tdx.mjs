@@ -126,6 +126,33 @@ function stitch(parts, tol = 0.15) {
   return chains;
 }
 
+// 按「端點座標完全相同」把碎片串成鏈(不做容差、不丟短碎片)。給 stitch() 之前用:
+// TDX 三鶯線是數百個約 19m 的 2 點碎片,直接交給 stitch() 會被 ≤20m 的雜訊過濾吃掉。
+function chainExact(parts) {
+  const key = p => p[0].toFixed(7) + ',' + p[1].toFixed(7);
+  const adj = new Map();
+  const link = (a, b) => { if (!adj.has(a)) adj.set(a, []); adj.get(a).push(b); };
+  const pt = new Map();
+  for (const part of parts) for (let i = 1; i < part.length; i++) {
+    const a = key(part[i - 1]), b = key(part[i]);
+    if (a === b) continue;
+    pt.set(a, part[i - 1]); pt.set(b, part[i]); link(a, b); link(b, a);
+  }
+  const seen = new Set(), chains = [];
+  const starts = [...adj.keys()].sort((a, b) => adj.get(a).length - adj.get(b).length); // 端點先走
+  for (const s of starts) {
+    if (seen.has(s)) continue;
+    const chain = [pt.get(s)]; seen.add(s);
+    for (let cur = s; ;) {
+      const next = adj.get(cur).find(k => !seen.has(k));
+      if (!next) break;
+      seen.add(next); chain.push(pt.get(next)); cur = next;
+    }
+    if (chain.length > 1) chains.push(chain);
+  }
+  return chains;
+}
+
 // 除毛刺(同 despike_shapes.mjs 演算法):清掉縫合殘留的「出去又折回」小段
 function despike(pts) {
   const GAP = 0.06, MIN_LEG = 0.005, WIN = 40;
@@ -368,7 +395,14 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
   const oldMrt = JSON.parse(readFileSync(path.join(ROOT, 'data/mrt.json'), 'utf8'));
   const y = oldMrt.lines.find(l => l.id === 'Y');
   if (y) { lines.push(y); console.log(`  Y ${y.name}: 自 mrt.json 搬入(OSM 幾何,班距估算)`); }
-  writeFileSync(path.join(ROOT, 'data/trtc.json'), JSON.stringify({
+  // 🔴 2026-09-12 巡檢實測:本機 TDX 快照若還沒有 R01 廣慈/奉天宮(信義東延段,北捷自家 API 早就有,
+  //    缺口在 TDX 匯入端),重建會把那一站從 trtc.json 直接刪掉——R 線 28→27 站、線形少 27 點、
+  //    26 段站間時間跟著位移,而且不會有任何錯誤訊息。現檔的 R01 是人工補進去的(座標取 TDX 官方值、
+  //    線形取 OSM),重建等於把那份工作清掉。比照 build_metro_times.mjs 的 TRTC 閘門:
+  //    讀得到 R01 才准重寫,讀不到就保留現檔;TDX 補齊的那天閘門自動失效,不必有人回來拆。
+  if (!stations.has('R01') && !process.argv.includes('--force-trtc')) {
+    console.warn('  ⚠ 跳過 data/trtc.json:TDX 快照缺 R01 廣慈/奉天宮,重建會刪站(要覆蓋請加 --force-trtc)');
+  } else writeFileSync(path.join(ROOT, 'data/trtc.json'), JSON.stringify({
     system: 'TRTC',
     source_notes: '交通部 TDX 運輸資料流通服務(台北捷運路線幾何/站序/班距/站間行駛時間,2026-07 抓取);環狀線為 OSM 幾何+官網公告班距估算',
     lines,
@@ -486,13 +520,20 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
   }));
 }
 
-// ─────────────── SANYING 三鶯線(TDX 尚未收錄,幾何/站序取自 OSM) ───────────────
+// ─────────────── SANYING 三鶯線(幾何與站間行駛時間取自 TDX,站序站座標取自 OSM) ───────────────
 {
   console.log('== SANYING 三鶯線');
   const stations = stationMap('SANYING_Station.json');
   const sol = solOrder('SANYING_StationOfLine.json');
-  const shapes = shapeParts('SANYING_Shape.json');
-  const maps = s2sMapsOpt('SANYING_S2STravelTime.json'); // TDX 未收錄,無 S2S 檔
+  // 2026-09-12 起 TDX 以 NTMC(新北捷運)營運商發布三鶯線,站碼與本線同為 LB01~LB12,
+  // 直接取官方站間行駛時間填 segs[].run(先前 11 段全 null,前端只能用距離/速度回推)。
+  // 2026-09-27 TDX 首度在 NTMC_Shape.json 補上 LB 的官方 Geometry(使用者裁示「軌道可以照新的改」):
+  // 745 個 2 點碎片、首尾座標逐點相接、只有 2 個端點無分岔,是一條 14.1km 的單線。
+  // 碎片平均約 19m,stitch() 會把 ≤20m 的碎片當雜訊丟掉而留下斷點,所以先按相同端點串成一條鏈再交給它。
+  // TDX 沒有 LB 時退回 OSM 版(SANYING_Shape.json)。班距(Frequency)續用官方公告值。
+  const tdxLB = shapeParts('NTMC_Shape.json').get('LB');
+  const shapes = tdxLB ? new Map([['LB', chainExact(tdxLB)]]) : shapeParts('SANYING_Shape.json');
+  const maps = s2sMaps('NTMC_S2STravelTime.json');
   const lines = [
     assemble({
       id: 'LB', name: '三鶯線', color: '#79BCE8', ids: sol.get('LB'), parts: shapes.get('LB'),
@@ -502,7 +543,7 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
   ];
   writeFileSync(path.join(ROOT, 'data/sanying.json'), JSON.stringify({
     system: 'NTMC-LB',
-    source_notes: '路線幾何與車站座標:OpenStreetMap 貢獻者(ODbL,2026-07 擷取);站序站名:新北捷運公司官網;班距為試營運公告估算(尖峰6分/離峰8分)',
+    source_notes: (tdxLB ? '路線幾何:交通部 TDX 運輸資料流通服務(新北捷運三鶯線,2026-09-27 抓取);車站座標:OpenStreetMap 貢獻者(ODbL,2026-07 擷取)' : '路線幾何與車站座標:OpenStreetMap 貢獻者(ODbL,2026-07 擷取)') + ';站序站名:新北捷運公司官網;站間行駛時間:交通部 TDX 運輸資料流通服務(新北捷運三鶯線,2026-09-12 抓取);班距為試營運公告估算(尖峰6分/離峰8分)',
     lines,
   }));
 }

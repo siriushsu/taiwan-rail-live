@@ -42,6 +42,22 @@ export const TRANSFER_NAME_ALIASES = Object.freeze({
   'TRA:4340': '左營',       // 新左營 ↔ 高鐵／高捷左營
 });
 
+// 同一條實體線在兩個來源各有一份時，在載入階段就擇一，否則會生出「自己配自己」的轉乘群。
+// 鍵是要**排除**的 `系統:LineID`，值記下留下來的那一份與理由；真值來源仍是各自的 TDX 檔，
+// 這裡只把具名的那一條擋掉，不做任何自動判別（自動判別會在上游改名時無聲改變產物）。
+//
+// NTMC:LB —— TDX 2026-09-12 起把三鶯線掛進新北捷運 NTMC 營運商，與 repo 既有的 SANYING
+// 來源是同一條線的兩份紀錄：12 站站碼與站序完全相同、中文站名只差 LB07 的臺／台、
+// 座標差 0.0～215.9m。兩份都收會多出 12 個轉乘群（10 組純自己配自己，另外兩組是把頂埔與
+// 鶯歌的真群塞進一個重複成員）。使用者 2026-09-12 裁示留 SANYING：整個 repo 的對照表都假設
+// 「一個 TDX 營運商＝一個 app 系統」（index.html 的 TRANSFER_ROUTE_I18N_SYSTEM、
+// build_bus_transfer_index.mjs 的 DEFINITIONS、build_i18n_station_names.mjs），而 NTMC 現在
+// 同時有環狀線與三鶯線，改吃 NTMC 要把那三張表一起改成路線級。兩份對轉乘結果等價：
+// 頂埔↔TRTC:BL01 是 128.4m／115.3m、鶯歌↔TRA:1070 是 199.4m／195.7m，都遠在 450m 內。
+export const DUPLICATE_ROUTE_SOURCES = Object.freeze({
+  'NTMC:LB': Object.freeze({ keptRoute: 'SANYING:LB', label: '三鶯線' }),
+});
+
 function readCollection(file, key, { optional = false } = {}) {
   let raw;
   try { raw = JSON.parse(readFileSync(file, 'utf8')); }
@@ -161,7 +177,9 @@ function loadTraSourceData(root) {
   };
 }
 
-export function loadSourceData(root = ROOT, { includeTra = true } = {}) {
+export function loadSourceData(root = ROOT, { includeTra = true, excludeDuplicates = true } = {}) {
+  const excludedRoutes = excludeDuplicates ? new Set(Object.keys(DUPLICATE_ROUTE_SOURCES)) : new Set();
+  const excludedSeen = new Set();
   const tdxDir = path.join(root, 'data', 'tdx');
   const prefixes = readdirSync(tdxDir)
     .map(file => /^(.+)_Station\.json$/.exec(file))
@@ -183,10 +201,18 @@ export function loadSourceData(root = ROOT, { includeTra = true } = {}) {
     const lineById = new Map((lineRows || []).map(line => [String(line.LineID), line]));
     const memberships = new Map();
 
+    const excludedStationIds = new Set();
+    let keptStationOfLines = 0;
     for (const line of stationOfLines) {
       const lineId = String(line.LineID || '');
       if (!lineId) throw new Error(`${stationOfLineRel} 有缺 LineID 的記錄`);
       const key = `${system}:${lineId}`;
+      if (excludedRoutes.has(key)) {
+        excludedSeen.add(key);
+        for (const member of line.Stations || []) excludedStationIds.add(String(member.StationID || ''));
+        continue;
+      }
+      keptStationOfLines += 1;
       if (!routes[key]) routes[key] = {
         system,
         lineId,
@@ -212,6 +238,8 @@ export function loadSourceData(root = ROOT, { includeTra = true } = {}) {
       if (sourceIds.has(stationId)) throw new Error(`${stationRel} 的 StationID ${stationId} 重複`);
       sourceIds.add(stationId);
       const stationRoutes = [...(memberships.get(stationId) || [])].sort();
+      // 只屬於被排除路線的站跟著那條線一起不收；同時也屬於保留路線的站照常收。
+      if (!stationRoutes.length && excludedStationIds.has(stationId)) continue;
       if (!stationRoutes.length) throw new Error(`${stationRel} 的 ${stationId} 未出現在 StationOfLine`);
       stations.push({
         key: `${system}:${stationId}`,
@@ -229,14 +257,18 @@ export function loadSourceData(root = ROOT, { includeTra = true } = {}) {
       if (!sourceIds.has(stationId)) throw new Error(`${stationOfLineRel} 引用了 Station 檔不存在的 ${stationId}`);
     }
 
+    const systemExcluded = [...excludedRoutes].filter(key => key.startsWith(`${system}:`) && excludedSeen.has(key)).sort();
     sourceSystems.push({
       system,
       stationFile: stationRel,
       stationOfLineFile: stationOfLineRel,
       lineFile: lineRows ? lineRel : null,
-      stationRecords: stationRows.length,
-      stationOfLines: stationOfLines.length,
+      // 計的是「實際收進線網的」數量，不是檔案列數：被排除的重複路線不算在內，
+      // 否則 stationRecords 會比產物裡真的存在的站多，讀數與內容對不上。
+      stationRecords: stations.filter(station => station.system === system).length,
+      stationOfLines: keptStationOfLines,
       routeMemberships: [...memberships.values()].reduce((sum, set) => sum + set.size, 0),
+      ...(systemExcluded.length ? { excludedDuplicateRoutes: systemExcluded } : {}),
     });
   }
 
@@ -245,6 +277,17 @@ export function loadSourceData(root = ROOT, { includeTra = true } = {}) {
     stations.push(...tra.stations);
     Object.assign(routes, tra.routes);
     sourceSystems.push(tra.sourceSystem);
+  }
+
+  // 正向對照：排除表不是「反正沒有所以不用排」。每一條都必須真的在來源裡命中，
+  // 而且留下來的那一份必須真的在產物裡 —— 否則就是上游改了或來源檔不見了，要當場紅掉重新裁示，
+  // 不能靜靜地少掉一整條線。
+  for (const [excluded, spec] of Object.entries(DUPLICATE_ROUTE_SOURCES)) {
+    if (!excludeDuplicates) continue;
+    if (!excludedSeen.has(excluded))
+      throw new Error(`DUPLICATE_ROUTE_SOURCES 的 ${excluded}（${spec.label}）在來源裡找不到：上游可能已經撤掉這份重複，請重新確認要留哪一份`);
+    if (!Object.hasOwn(routes, spec.keptRoute))
+      throw new Error(`排除了 ${excluded} 卻找不到要留下的 ${spec.keptRoute}（${spec.label}）：這條線會整條消失`);
   }
 
   stations.sort((a, b) => a.key.localeCompare(b.key));
@@ -297,9 +340,9 @@ function makeGroups(stations, maxDistanceM) {
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
-export function buildTransferData({ root = ROOT, maxDistanceM = MAX_TRANSFER_DISTANCE_M, includeTra = true } = {}) {
+export function buildTransferData({ root = ROOT, maxDistanceM = MAX_TRANSFER_DISTANCE_M, includeTra = true, excludeDuplicates = true } = {}) {
   if (!(maxDistanceM > 0)) throw new Error('maxDistanceM 必須大於 0');
-  const source = loadSourceData(root, { includeTra });
+  const source = loadSourceData(root, { includeTra, excludeDuplicates });
   const groups = makeGroups(source.stations, maxDistanceM);
   const transferIdByStation = new Map(groups.flatMap(group => group.members.map(key => [key, group.id])));
   const stations = {};

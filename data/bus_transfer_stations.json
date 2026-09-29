@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-03T07:25:05.359Z",
+  "generatedAt": "2026-09-12T15:32:34.342Z",
   "coverage": "all_active_rail_stations",
   "trigger": "user_open_only",
   "polling": false,
@@ -934,13 +934,6 @@
       "appSystem": "krtc",
       "systemLabel": "高雄捷運與輕軌",
       "asset": "/data/bus-transfer/RI-KRTC_68BD5679.json"
-    },
-    "RI:MRT_94D3C0FE": {
-      "id": "RI:MRT_94D3C0FE",
-      "name": "廣慈/奉天宮",
-      "appSystem": "mrt",
-      "systemLabel": "台北捷運",
-      "asset": "/data/bus-transfer/RI-MRT_94D3C0FE.json"
     },
     "RI:NTALRT_B5287A80": {
       "id": "RI:NTALRT_B5287A80",
@@ -3007,6 +3000,20 @@
       "systemLabel": "台北捷運",
       "asset": "/data/bus-transfer/TRTC-BL13.json"
     },
+    "TRTC:BL14": {
+      "id": "TRTC:BL14",
+      "name": "忠孝新生",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL14.json"
+    },
+    "TRTC:BL15": {
+      "id": "TRTC:BL15",
+      "name": "忠孝復興",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-BL15.json"
+    },
     "TRTC:BL16": {
       "id": "TRTC:BL16",
       "name": "忠孝敦化",
@@ -3125,13 +3132,6 @@
       "appSystem": "mrt",
       "systemLabel": "台北捷運",
       "asset": "/data/bus-transfer/TRTC-BR09.json"
-    },
-    "TRTC:BR10": {
-      "id": "TRTC:BR10",
-      "name": "忠孝復興",
-      "appSystem": "mrt",
-      "systemLabel": "台北捷運",
-      "asset": "/data/bus-transfer/TRTC-BR10.json"
     },
     "TRTC:BR11": {
       "id": "TRTC:BR11",
@@ -3371,13 +3371,6 @@
       "systemLabel": "台北捷運",
       "asset": "/data/bus-transfer/TRTC-O06.json"
     },
-    "TRTC:O07": {
-      "id": "TRTC:O07",
-      "name": "忠孝新生",
-      "appSystem": "mrt",
-      "systemLabel": "台北捷運",
-      "asset": "/data/bus-transfer/TRTC-O07.json"
-    },
     "TRTC:O09": {
       "id": "TRTC:O09",
       "name": "行天宮",
@@ -3496,6 +3489,13 @@
       "appSystem": "mrt",
       "systemLabel": "台北捷運",
       "asset": "/data/bus-transfer/TRTC-O54.json"
+    },
+    "TRTC:R01": {
+      "id": "TRTC:R01",
+      "name": "廣慈/奉天宮",
+      "appSystem": "mrt",
+      "systemLabel": "台北捷運",
+      "asset": "/data/bus-transfer/TRTC-R01.json"
     },
     "TRTC:R02": {
       "id": "TRTC:R02",

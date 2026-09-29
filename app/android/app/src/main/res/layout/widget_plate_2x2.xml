@@ -18,6 +18,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/wg_card"
+    android:clipToPadding="false"
     android:orientation="vertical"
     android:paddingStart="13dp"
     android:paddingEnd="13dp"
@@ -26,8 +27,15 @@
 
     <!-- ── header：站號徽章｜線名｜狀態 chip｜時戳 ── -->
     <LinearLayout
+        android:id="@+id/wg_headrow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="-12dp"
+        android:layout_marginTop="-11dp"
+        android:layout_marginEnd="-10dp"
+        android:paddingStart="12dp"
+        android:paddingTop="11dp"
+        android:paddingEnd="10dp"
         android:baselineAligned="false"
         android:gravity="center_vertical"
         android:orientation="horizontal">
@@ -196,8 +204,26 @@
         android:gravity="end|center_vertical"
         android:orientation="horizontal">
 
+        <!-- 再下班／擁擠度／說明在 2×2 一律收掉（binder compact 分支），XML 預設就寫 gone：
+             挑選器預覽不跑 binder，預設值要等於放上桌面的樣子，否則那三個會把車擠掉。 -->
+        <!-- A 車模（WidgetBackground.metroCar）。小卡與 iOS 相同：不加頭帶、只放車，停在左下、
+             車頭轉向右邊的分鐘數。寬度吃這一列剩下的空間（0dp＋weight），主角變寬（進站／暫無資料）
+             時車等比縮小，不會壓到字；素色時 binder 收掉。scaleX=-1 以視圖中心鏡射，所以用 fitEnd
+             才會落在左邊。 -->
+        <ImageView
+            android:id="@+id/wg_car"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="6dp"
+            android:contentDescription="@null"
+            android:scaleType="fitEnd"
+            android:scaleX="-1"
+            android:src="@drawable/wg_car_c381" />
+
         <TextView
             android:id="@+id/wg_foot_left"
+            android:visibility="gone"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -210,6 +236,7 @@
         <!-- 擁擠度：六節逐節上色，車頭那節帶圓鼻標出行進方向 -->
         <LinearLayout
             android:id="@+id/wg_meter"
+            android:visibility="gone"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="5dp"
@@ -225,6 +252,7 @@
 
         <TextView
             android:id="@+id/wg_foot_right"
+            android:visibility="gone"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:maxLines="1"

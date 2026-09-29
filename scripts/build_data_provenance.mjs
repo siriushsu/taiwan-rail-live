@@ -41,7 +41,7 @@ export const GEOMETRY_SOURCE = {
   'data/ntdlrt.json': 'TDX',
   'data/ntdlrt_times.json': null,
   'data/rail_crossing_levels.json': 'OSM',
-  'data/sanying.json': 'OSM',                  // TDX 尚未收錄三鶯線,幾何與站座標取自 OSM
+  'data/sanying.json': 'OSM',                  // 車站座標仍取自 OSM;路線幾何 2026-09-27 起改用 TDX(NTMC_Shape 的 LB),見 build_tdx.mjs 的 SANYING 段
   'data/sanying_times.json': null,
   'data/station_transfers.json': null,         // 輸出只有站名/距離,不含座標(距離由 data/tdx/*_Station.json 算)
   'data/taiwan_land.json': 'MOI',
@@ -53,6 +53,7 @@ export const GEOMETRY_SOURCE = {
   'data/tra.json': 'TDX+OSM',                  // 主線形 OSM Overpass;山線三義–后里等區段以 TDX Shape 替換
   'data/tra_pass_obs.json': null,
   'data/tra_run_profiles.json': null,           // 輸出只有時間與沿跑段的里程,不含座標(里程由 data/tra.json 線形算)
+  'data/tra_track_sections.json': null,         // 只有站對→單線/雙線與平行股道長度佔比,不含座標(幾何來自 rail-3d/physical/network.json)
   'data/tra_platforms.json': 'OSM',
   'data/tra_schedule_dense.json': 'TDX+OSM',   // 通過站沿 tra.json 線形內插
   'data/tra_special_trains.json': null,

@@ -77,15 +77,15 @@
       "stockId": null,
       "branchId": null,
       "namedId": null,
-      "chainageM": 9332.591519317046,
+      "chainageM": 9332.391125636424,
       "railDirection": 1,
       "formationFacing": 1,
       "sourceKind": "timetable",
       "direction": 1,
       "pathIds": [
-        "18230",
-        "18286",
-        "18964"
+        "19697",
+        "19719",
+        "19970"
       ],
       "extension": {
         "prefixM": 250,

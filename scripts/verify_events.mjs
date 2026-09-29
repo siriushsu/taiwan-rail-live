@@ -259,9 +259,19 @@ async function run(browser, engine) {
     const titles = await pg.$$eval('#expBody .row[data-ev] b', ns => ns.map(n => n.textContent.trim()));
     chk(`${engine} E2 系統級活動出現在清單`, titles.includes('系統級活動'), JSON.stringify(titles));
     chk(`${engine} E3 已結束活動不在清單`, !titles.includes('已結束活動'), JSON.stringify(titles));
-    // 排序:活動節必須在「今日之最」之前
-    const iEv = secs.indexOf('近期活動'), iBest = secs.indexOf('今日之最');
-    chk(`${engine} E4 活動節排在今日之最之前`, iEv >= 0 && (iBest < 0 || iEv < iBest), `ev=${iEv} best=${iBest}`);
+    // 排序:🔴 這條原本寫「活動節要排在今日之最之前」,那是 2026-08-12 當時的版面。
+    // 2026-08-23 的設計 3e(commit b524f919)刻意把「今日之最」改成四格並移到面板最前面,
+    // 且 verify_font_scale.mjs 的 M1 正在守「今日之最排最前面」(還附了突變測試)——
+    // 兩條判準會直接打架,所以過期的是這一條,不是產品。
+    // 改守真正會無聲爛掉的那件事:活動節不准被擠到長尾去,必須排在「支線小火車 /
+    // 準點排行 / 觀光列車圖鑑」這些常設清單之前(寫「排在誰前面」而不是寫死索引數字)。
+    const TAIL_SECS = ['支線小火車', '準點排行', '觀光列車圖鑑（無固定車次）'];
+    const iEv = secs.indexOf('近期活動');
+    // 尾段一節都沒出現時 every() 會恆真 ⇒ 判準自己失去牙齒,所以連「至少量到一節」一起斷言。
+    const tail = TAIL_SECS.map(n => [n, secs.indexOf(n)]).filter(([, i]) => i >= 0);
+    chk(`${engine} E4 活動節排在支線/準點/圖鑑等常設清單之前`,
+      iEv >= 0 && tail.length > 0 && tail.every(([, i]) => iEv < i),
+      JSON.stringify({ ev: iEv, tail, secs }));
     await ctx.close();
   } catch (e) { chk(`${engine} E! 這一節整節跑完不拋例外`, false, String((e && e.message) || e).split('\n')[0].slice(0, 160)); }
 

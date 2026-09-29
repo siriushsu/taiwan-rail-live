@@ -30,6 +30,7 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
     private Spinner directionSpinner;
     private Spinner layoutSpinner;
     private Spinner freqSpinner;
+    private Spinner backgroundSpinner;
     private FrameLayout preview;
     private TextView passNote;
     private final List<MetroWidgetData.StationInfo> visibleStations = new ArrayList<>();
@@ -91,6 +92,12 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
         layoutSpinner.setAdapter(adapter(java.util.Arrays.asList("琺瑯站牌（一站一班）", "夜行看板（多方向並排）")));
         root.addView(layoutSpinner, matchWrap(dp(4)));
 
+        // 捷運卡只有車模／素色（現有三個場景都是台鐵題材）；名稱與順序與 iOS 相同（WidgetBackground）。
+        root.addView(label("背景"), matchWrap(dp(16)));
+        backgroundSpinner = new Spinner(this);
+        backgroundSpinner.setAdapter(adapter(java.util.Arrays.asList(WidgetBackground.METRO_LABELS)));
+        root.addView(backgroundSpinner, matchWrap(dp(4)));
+
         root.addView(label("更新頻率"), matchWrap(dp(16)));
         freqSpinner = new Spinner(this);
         freqSpinner.setAdapter(adapter(java.util.Arrays.asList(
@@ -122,6 +129,9 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
             @Override public void selected(int position) { refreshPreview(); }
         });
         layoutSpinner.setOnItemSelectedListener(new SimpleSelection() {
+            @Override public void selected(int position) { refreshPreview(); }
+        });
+        backgroundSpinner.setOnItemSelectedListener(new SimpleSelection() {
             @Override public void selected(int position) { refreshPreview(); }
         });
         done.setOnClickListener(v -> save());
@@ -158,6 +168,8 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
         directionSpinner.setSelection(Math.max(0, directionAt));
         layoutSpinner.setSelection(MetroWidgetProvider.LAYOUT_BOARD
             .equals(prefs.getString("layout_" + widgetId, MetroWidgetProvider.LAYOUT_PLATE)) ? 1 : 0);
+        backgroundSpinner.setSelection(java.util.Arrays.asList(WidgetBackground.METRO_VALUES)
+            .indexOf(WidgetBackground.read(prefs, widgetId, true)));
         String freq = prefs.getString("freq_" + widgetId, "std");
         freqSpinner.setSelection("eco".equals(freq) ? 0 : "max".equals(freq) ? 2 : 1);
         boolean plus = prefs.getBoolean("plus_active", false);
@@ -257,7 +269,17 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
                 (plate.badge == null ? "" : plate.badge + " ") + plate.station,
                 RailNativeL10n.text(this, "單位分鐘"), plate.footRight, null, false)
             : MetroWidgetPlateRender.plate(this, R.layout.widget_plate_4x2, plate);
-        preview.addView(views.apply(this, preview));
+        String previewLine = info == null || info.lineIds.isEmpty() ? null : info.lineIds.get(0);
+        MetroWidgetPlateRender.backdrop(views, board, false, WidgetBackground.MODEL.equals(selectedBackground()),
+            system == null ? 0 : WidgetBackground.metroCar(system.id, previewLine));
+        // 🔴 application context：AppCompat 的 inflater 會把車模 ImageView 換成不吃 setImageViewResource 的
+        //    AppCompatImageView，設定頁當場閃退（見 RailWidgetConfigActivity.RemoteViewsHost）。
+        preview.addView(views.apply(getApplicationContext(), preview));
+    }
+
+    private String selectedBackground() {
+        int at = backgroundSpinner == null ? 0 : backgroundSpinner.getSelectedItemPosition();
+        return WidgetBackground.METRO_VALUES[Math.max(0, at)];
     }
 
     private String selectedDirection() {
@@ -285,7 +307,8 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
             .putString("layout_" + widgetId, layoutSpinner.getSelectedItemPosition() == 1
                 ? MetroWidgetProvider.LAYOUT_BOARD : MetroWidgetProvider.LAYOUT_PLATE)
             .putString("freq_" + widgetId, freqSpinner.getSelectedItemPosition() == 0 ? "eco"
-                : freqSpinner.getSelectedItemPosition() == 2 ? "max" : "std");
+                : freqSpinner.getSelectedItemPosition() == 2 ? "max" : "std")
+            .putString(WidgetBackground.key(widgetId), selectedBackground());
         // 使用者重設的正是免費站時，名額跟著同一顆小工具搬到新站，不殘留在舊站。
         if (previousKey != null && previousKey.equals(prefs.getString("free_station", null))) {
             if (selectedKey == null) editor.remove("free_station");

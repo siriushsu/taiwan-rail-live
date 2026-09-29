@@ -58,6 +58,9 @@ check('A7 free.tracks 與 index.html 的 MUSIC_FILES 完全相同（雙向）', 
 check('A8 free.bundled 與 index.html 的 MUSIC_BUNDLED 完全相同（雙向）', sameList(BUNDLED, J.free.bundled),
   BUNDLED ? 'index 多：' + BUNDLED.filter(b => !J.free.bundled.includes(b)).slice(0, 2).join(' / ') +
             '  data 多：' + J.free.bundled.filter(b => !BUNDLED.includes(b)).slice(0, 2).join(' / ') : 'MUSIC_BUNDLED 抓不到');
+const bundledBytes = J.free.tracks.filter(t => J.free.bundled.includes(t.src)).reduce((sum, t) => sum + t.bytes, 0);
+check('A9 App 內建配樂維持在 40 MiB 預算內', bundledBytes <= 40 * 1024 * 1024,
+  `實際 ${(bundledBytes / 1024 / 1024).toFixed(2)} MiB`);
 
 // ── B. 兩條曲庫零交集（設計書 D1 的機械化身）──
 const freeSet = new Set(J.free.tracks.map(t => t.src));
@@ -67,6 +70,13 @@ check('B2 每首付費曲檔案真的在', J.pools.every(p => p.tracks.every(t =
 // 母帶絕不可外流：付費曲的路徑一律在 _pass/ 底下，不得指到 _masters/ 或任何 .wav
 check('B3 付費曲不得指向母帶或 wav',
   J.pools.every(p => p.tracks.every(t => t.src.startsWith('_pass/') && t.src.endsWith('.mp3'))));
+check('B4 每首付費曲都有正的 dur/bytes，且 bytes 與磁碟一致',
+  J.pools.every(p => p.tracks.every(t => t.dur > 0 && t.bytes > 0 && statSync(path.join(MUSIC_DIR, t.src)).size === t.bytes)));
+const expectedNewPools = { 'southern-sun': 6, 'golden-hour': 6, 'north-coast': 4, 'hualien-cliffs': 7, 'island-community': 4 };
+const newPoolCounts = Object.fromEntries(J.pools.filter(p => p.id in expectedNewPools).map(p => [p.id, p.tracks.length]));
+check('B5 9/27 新增五個情境池共 27 首且逐池完整',
+  Object.entries(expectedNewPools).every(([id, n]) => newPoolCounts[id] === n),
+  Object.entries(newPoolCounts).map(([id, n]) => `${id}=${n}`).join('、'));
 
 // ── C. 結構契約 ──
 const famIds = new Set(J.families.map(f => f.id));

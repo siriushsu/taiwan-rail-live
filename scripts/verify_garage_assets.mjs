@@ -39,5 +39,23 @@ const full={rides:Array.from({length:100},()=>({km:100})),coll:{...empty.coll,br
 assert(collection(full,catalog).every(r=>r.owned),'62 款全部可由護照解鎖');
 const html=read('index.html').toString(),prep=read('app/scripts/prepare-web.mjs').toString();
 for(const f of ['train-garage.js','train-garage.css','train-garage-catalog.js'])assert(html.includes('./'+f)&&prep.includes("'"+f+"'"),'首頁與 App 接線 '+f);
+// 英日文：車名與出處標籤曾直接顯示中文(2026-09-19 修)。兩道：字典每條都有 en/ja(en 不得含漢字)，
+// 以及顯示端每次讀 model.name／source.label 都先過 tr()/t()——字典補齊但顯示端沒過翻譯，畫面照樣是中文。
+const i18nBox={window:{}};vm.createContext(i18nBox);
+for(const f of ['i18n/translations.js','i18n/content-translations.js'])vm.runInContext(read(f).toString(),i18nBox);
+const msgs=i18nBox.window.RAIL_I18N_MESSAGES,han=/[㐀-鿿]/;let names=0;
+for(const id of ids)for(const text of [catalog[id].name,...catalog[id].sources.map(s=>s.label)]){
+ if(!han.test(text))continue;names++;
+ assert(msgs.en[text]&&!han.test(msgs.en[text]),'車庫英文漏譯 '+id+'：'+text);
+ assert(msgs.ja[text],'車庫日文漏譯 '+id+'：'+text);
+}
+// collection() 裡 `?.name || model.name` 是 row.label 的來源，畫面上一律 tr(row.label)，不算顯示端。
+const rawReads=(raw,fn)=>{const src=raw.replace('?.name || model.name','');return [...src.matchAll(/(?:row\.model|model|r\.model)\.name|source\.label/g)].filter(m=>!src.slice(0,m.index).endsWith(fn+'(')).length;};
+const garageSrc=read('train-garage.js').toString(),toast=html.match(/msgs\.push\(t\('車庫入庫[^\n]*/)?.[0]||'';
+assert(toast,'找不到車庫入庫通知那一行');
+assert(rawReads(garageSrc,'tr')===0,'train-garage.js 有車名／出處沒過 tr() 就上畫面');
+assert(rawReads(toast,'t')===0,'車庫入庫通知的車名沒過 t()');
+// 正向對照：拿掉一個 tr() 必須被抓到，否則上面兩條是恆真。
+assert(rawReads(garageSrc.replace('tr(row.model.name)','row.model.name'),'tr')===1,'顯示端檢查沒有牙齒');
 for(const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g))if(!/src=|type="(?:module|application)/.test(m[1]))new vm.Script(m[2]);
-console.log(`PASS 62 款 Blender 原始網格／材質／來源、124 個門檻邊界、舊章帶入、零進度與全部可解鎖、首頁與 App 接線。壓縮 ${Math.round(bytes/1024/1024)} MB。`);
+console.log(`PASS 62 款 Blender 原始網格／材質／來源、124 個門檻邊界、舊章帶入、零進度與全部可解鎖、首頁與 App 接線、${names} 條車名與出處英日文且顯示端都過翻譯。壓縮 ${Math.round(bytes/1024/1024)} MB。`);

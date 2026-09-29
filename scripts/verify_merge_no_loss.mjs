@@ -24,7 +24,8 @@
 //   node scripts/verify_merge_no_loss.mjs --parents A B --allow id1,id2    # 刻意移除的要逐筆列
 // 退出碼：0＝兩側的東西都還在；1＝有東西不見了；2＝跑不起來（參數錯／讀不到檔）。
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -90,10 +91,48 @@ for (const s of sides) {
   if (!okSide) bad++;
 }
 // 「整檔取單邊」的一句話檢查（08-23 那顆合併的形態）：候選與某一側逐 byte 相同就是它。
+// 🔴 但「逐 byte 相同」本身不是遺失——**另一側沒有任何只活在它身上的 index.html 內容**時，
+// 相同才是唯一正確的結果。2026-09-12 併的三顆都是這種：fix/changelog-canon-i18n 與
+// garage/scene-03 只動 scripts/ 與新檔，feat/widget-nearest 的內容早就以別的路徑進了 main
+// （那顆合併的 diff 是空的）。不分辨的話這道判準對「併工具鏈分支」與「併殘留分支」永遠是紅的，
+// 而一個永遠紅的閘門等於沒有閘門——真的整檔取單邊那天沒有人會再看它一眼。
+// 判準改成「把另一側自分岔點起的 index.html 改動套回候選，是不是什麼都沒變」：
+//   git merge-file <候選副本> <分岔點> <另一側>   → 無衝突且結果等於候選 ⇒ 沒有東西被丟掉
+// 兩道對照（換了判準就要重跑，證明它仍抓得到 08-23 的形態）：
+//   正向：node scripts/verify_merge_no_loss.mjs --parents d21d4adc feat/bus-data-layer \
+//           --cand <(git show d21d4adc:index.html)   ⇒ G2 必須紅（那側有 6 處衝突）
+//   差異化：--parents d21d4adc b1fd0faa --cand 3736b2a3 的 index.html ⇒ G2 必須綠
+const mergeBase = (() => {
+  try { return execFileSync('git', ['merge-base', REFS[0], REFS[1]], { cwd: REPO }).toString().trim(); }
+  catch { return null; }
+})();
+// 另一側自分岔點起的改動，是不是已經全在候選裡？回傳 null＝量不出來（沒有共同祖先），
+// 這時不放行，照舊把「逐 byte 相同」當遺失處理——量不到不等於沒事。
+const otherChangesAlreadyIn = otherRef => {
+  if (!mergeBase) return null;
+  const dir = mkdtempSync(join(tmpdir(), 'merge-no-loss-'));
+  try {
+    const work = join(dir, 'work.html'), base = join(dir, 'base.html'), other = join(dir, 'other.html');
+    writeFileSync(work, candHtml);
+    writeFileSync(base, execFileSync('git', ['show', `${mergeBase}:index.html`], { cwd: REPO, maxBuffer: 256 * 1024 * 1024 }));
+    writeFileSync(other, execFileSync('git', ['show', `${otherRef}:index.html`], { cwd: REPO, maxBuffer: 256 * 1024 * 1024 }));
+    try { execFileSync('git', ['merge-file', '-q', work, base, other], { cwd: REPO }); }
+    catch { return false; }                       // 非零退出＝有衝突＝那側有候選容不下的內容
+    return readFileSync(work, 'utf8') === candHtml;
+  } catch { return null; } finally { rmSync(dir, { recursive: true, force: true }); }
+};
+
 for (const s of sides) {
+  const other = sides.find(o => o !== s);
   const same = md5(s.html) === md5(candHtml);
-  console.log(`${same ? 'FAIL' : 'PASS'} G2 候選不是「整檔取 ${s.ref} 那一側」 — ${same ? '逐 byte 相同＝另一側的改動全數消失' : 'md5 不同'}`);
-  if (same) bad++;
+  const contained = same ? otherChangesAlreadyIn(other.ref) : null;
+  const failed = same && contained !== true;
+  const why = !same ? 'md5 不同'
+    : contained === true ? `逐 byte 相同，但 ${other.ref} 的 index.html 改動已全在候選裡（套回去零變化）⇒ 相同才是對的`
+    : contained === false ? '逐 byte 相同＝另一側的改動全數消失'
+    : '逐 byte 相同，且量不出另一側的改動在不在（沒有共同祖先）';
+  console.log(`${failed ? 'FAIL' : 'PASS'} G2 候選不是「整檔取 ${s.ref} 那一側」 — ${why}`);
+  if (failed) bad++;
 }
 
 // 🔴 G3：候選的 inline script 真的 parse 得過（2026-08-31 的事故）。

@@ -22,7 +22,10 @@ if (!Number.isInteger(WANT) || WANT <= 0) { console.log('❌ 取樣筆數參數�
 const NEAR_M = 250;          // 判「在這一站」的半徑。站距最短約 600m,250m 不會跨到鄰站
 const WIN_LO = 45, WIN_HI = 200;  // 只取這個倒數區間:太短來不及佈署觀測,太長期間會換班次
 
-const b = await chromium.launch(); const p = await b.newPage();
+// 🔴 視窗要夠大:下面要求「整張北捷網都在畫面內」**而且**縮放 ≥12(見下),兩者同時成立才有分母。
+// 路網跨約 0.45° 經度 × 0.35° 緯度,z12 下 1600×1200 剛好包得住(1600/256×360/4096≈0.55°)。
+// 預設的 1280×720 包不住,fitBounds 只好退到 z10.8,低於畫車門檻。
+const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1600, height: 1200 } });
 p.on('pageerror', e => console.log('  ⚠️ pageerror:', String(e).slice(0, 160)));
 if (LOCAL) {
   const html = fs.readFileSync(LOCAL, 'utf8');
@@ -36,8 +39,36 @@ await p.evaluate(() => { const g = GROUPS.find(x => (x.members || []).includes('
 await p.waitForTimeout(2500);
 // 🔴 視野要框住整個北捷:_trtcOfficialDisplay 只留「這一格有畫出來」的車,
 // 預設視野若沒涵蓋路網,它會是空的 ⇒ 分母 0,長得跟「此刻沒車」一模一樣。
-await p.evaluate(() => window.__map.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
-await p.waitForTimeout(3000);
+// 走適配層 window.__M(不是 window.__map)。__map 是 M.raw＝裸的 maplibregl.Map:它有 fitBounds,
+// 但吃 [lng, lat],而這裡傳的是 Leaflet 慣例的 [lat, lng] ⇒ 緯度 121.3 超出 ±90,MapLibre 的 LngLat
+// 建構式當場拋 Invalid LngLat latitude value,整支腳本中斷。適配層自己做 [lat,lng]→LngLat 轉換。
+await p.evaluate(() => window.__M.fitBounds([[24.90, 121.30], [25.25, 121.75]], { animate: false }));
+// 🔴 前置閘門:上面那行是本腳本分母的唯一來源,它要是沒生效,下面會印「分母為 0」——與「此刻真的沒車」
+// 長得一模一樣。所以這裡當場把框到的視野讀回來驗一次,框歪就直接說是框歪,不要讓它偽裝成沒車。
+const view = await p.evaluate(() => { const c = window.__M.getCenter();
+  return { lat: +c.lat.toFixed(4), lng: +c.lng.toFixed(4), z: +window.__M.getZoom().toFixed(2) }; });
+// 🔴 光是「框對地方」還不夠:捷運的列車在 index.html:11105 是 `showTrain = z >= 12`,z 低於 12
+// 一台都不畫 ⇒ _trtcOfficialDisplay 一樣是空的,而症狀與框錯地方、與「此刻沒車」三者完全同形
+// (實測:同一份正式站資料,z10.84 時 disp=0、z12 時 disp=101)。fitBounds 只保證包得住、不保證
+// 夠近,所以這裡把不足的補到門檻上;視窗已放大到 z12 仍包得住全網,補上去不會漏掉邊緣的車。
+const MIN_DRAW_Z = 12; // index.html:11105 showTrain = z >= 12
+if (view.z < MIN_DRAW_Z) {
+  await p.evaluate(z => window.__M.setView([25.075, 121.525], z, { animate: false }), MIN_DRAW_Z);
+  await p.waitForTimeout(1500);
+  Object.assign(view, await p.evaluate(() => { const c = window.__M.getCenter();
+    return { lat: +c.lat.toFixed(4), lng: +c.lng.toFixed(4), z: +window.__M.getZoom().toFixed(2) }; }));
+}
+const framed = view.lat > 24.9 && view.lat < 25.25 && view.lng > 121.3 && view.lng < 121.75 && view.z >= MIN_DRAW_Z;
+console.log(`視野:中心 ${view.lat},${view.lng} z${view.z}${framed ? '(北捷路網範圍內、已達畫車門檻)' : ''}`);
+if (!framed) { console.log(`❌ 視野沒有框到北捷路網或縮放低於畫車門檻 z${MIN_DRAW_Z},分母必然為 0,下面的結果一律不算數`); await b.close(); process.exit(2); }
+// 🔴 等「完成訊號」不等固定秒數:_trtcOfficialDisplay 不是每一影格重算,而是**下一次名冊輪詢落地**
+// 時才連同位置一起寫進去(實測:z 已經是 12、名冊也有 106 台,但名冊收到 12 秒時 disp 仍是 0,
+// 下一份名冊一到就跳到 103)。原本固定等 3 秒,等於拿「剛好沒跨過輪詢邊界」當「此刻沒車」。
+await p.waitForFunction(() => typeof _trtcOfficialDisplay !== 'undefined' && _trtcOfficialDisplay.size > 0,
+  null, { timeout: 30000 }).catch(() => {});
+const drawn = await p.evaluate(() => _trtcOfficialDisplay.size);
+if (!drawn) { console.log('❌ 等了 30 秒(>一個名冊輪詢週期)畫面上仍然一台名冊車都沒有,分母為 0 的原因在這裡,不是「此刻沒車」'); await b.close(); process.exit(2); }
+console.log(`畫面上名冊車 ${drawn} 台`);
 
 // 站牌倒數的唯一來源:名冊車的 timeline(產品就是拿它顯示站牌秒數的官方值)
 const pick = () => p.evaluate(({ lo, hi }) => {

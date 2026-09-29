@@ -1,19 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- iOS MixedBoardWidget 的 Android 對應版：同一卡片、同一條閱讀軸，先捷運再鐵路。 -->
+<!-- iOS MixedBoardWidget 的 Android 對應版：同一卡片、同一條閱讀軸，先捷運再鐵路。
+     每段＝一列主角＋N 列次列；N 由 MixedWidgetRender 依卡片高度算（與 iOS MixedPlan 同一條分配規則），
+     算完剩下不到一列的高度由倒數第二個那塊空白吃掉，註腳貼底。
+     🔴 列與分區的最小高度一律取 @dimen/wmx_*（dimens_widget_mixed.xml）：Java 用同一組值算列數，
+        這裡寫死數字就會跟 Java 的預算對不上。高度寫 wrap_content＋minHeight 而不是固定值：
+        系統字級開大時字會長得比列高快（Android 14 起 sp 換算是非線性的，大數值放大得少），
+        固定列高會把每一列的第二行切掉。API 31 以上 Java 會把這幾塊（與每一列）直接釘成預算裡的高度
+        （MixedWidgetRender.pin），這裡的 wrap_content＋minHeight 是 31 以下與挑選器預覽用的。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/wmx_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/wg_card"
     android:orientation="vertical"
-    android:paddingStart="15dp"
-    android:paddingTop="13dp"
-    android:paddingEnd="15dp"
-    android:paddingBottom="11dp">
+    android:paddingStart="16dp"
+    android:paddingTop="@dimen/wmx_pad_top"
+    android:paddingEnd="16dp"
+    android:paddingBottom="@dimen/wmx_pad_bottom">
 
     <LinearLayout
+        android:id="@+id/wmx_title_row"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:minHeight="@dimen/wmx_title_h"
         android:gravity="center_vertical"
         android:orientation="horizontal">
         <TextView
@@ -22,76 +31,97 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:ellipsize="end"
+            android:includeFontPadding="false"
             android:maxLines="1"
-            android:text="雙看板"
+            android:text="板橋雙看板"
             android:textColor="@color/wg_ink"
-            android:textSize="16sp"
+            android:textSize="18sp"
             android:textStyle="bold" />
         <TextView
             android:id="@+id/wmx_stamp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:includeFontPadding="false"
             android:maxLines="1"
             android:text="09:41 更新"
             android:textColor="@color/wg_ink_faint"
-            android:textSize="9sp" />
+            android:textSize="11sp" />
     </LinearLayout>
 
     <TextView
         android:id="@+id/wmx_metro_head"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:minHeight="@dimen/wmx_section_h"
         android:ellipsize="end"
+        android:gravity="center_vertical"
+        android:includeFontPadding="false"
         android:maxLines="1"
-        android:text="捷運 · 板橋"
+        android:text="捷運 · 台北捷運 · 板橋"
         android:textColor="@color/wg_ink_soft"
-        android:textSize="10sp"
+        android:textSize="12sp"
         android:textStyle="bold" />
     <LinearLayout
         android:id="@+id/wmx_metro_rows"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="wrap_content"
         android:orientation="vertical">
         <include layout="@layout/widget_mixed_metro_rows_demo" />
     </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginStart="10dp"
-        android:layout_marginTop="4dp"
-        android:layout_marginEnd="10dp"
-        android:layout_marginBottom="4dp"
-        android:background="@color/wg_paper_edge" />
+        android:layout_height="@dimen/wmx_divider_h"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:background="@color/wg_paper_edge"
+            android:orientation="horizontal" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/wmx_rail_head"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:minHeight="@dimen/wmx_section_h"
         android:ellipsize="end"
+        android:gravity="center_vertical"
+        android:includeFontPadding="false"
         android:maxLines="1"
-        android:text="鐵路 · 板橋"
+        android:text="鐵路 · 台鐵＋高鐵 · 板橋"
         android:textColor="@color/wg_ink_soft"
-        android:textSize="10sp"
+        android:textSize="12sp"
         android:textStyle="bold" />
     <LinearLayout
         android:id="@+id/wmx_rail_rows"
         android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        <include layout="@layout/widget_mixed_rail_rows_demo" />
+    </LinearLayout>
+
+    <!-- 剩下不到一列的高度都在這裡（見檔頭）。 -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:orientation="vertical">
-        <include layout="@layout/widget_rail_rows_demo" />
-    </LinearLayout>
+        android:orientation="vertical" />
 
     <TextView
         android:id="@+id/wmx_note"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:minHeight="@dimen/wmx_note_h"
         android:ellipsize="end"
+        android:gravity="center_vertical"
+        android:includeFontPadding="false"
         android:maxLines="1"
         android:text="捷運即時 · 台鐵誤點 · 高鐵表定"
         android:textColor="@color/wg_ink_faint"
-        android:textSize="9sp" />
+        android:textSize="11sp" />
 </LinearLayout>

@@ -111,9 +111,15 @@ for (const s of SYS) {
     lines: geo.lines.map(l => ({
       id: l.id, name: l.name, color: l.color,
       // lat/lon 照抄 geo 檔字面值(自動選站的最近站計算用),不重算不取捨。
-      stations: l.stations.map(st => {
+      stations: l.stations.map((st, i) => {
         const one = { name: st.name, lat: st.lat, lon: st.lon,
                       dests: [...(destsOf.get(st.name) || [])].sort() };
+        // 等車卡的進站軌道（B 方案）：車的位置＝官方倒數 ÷ 上一站到本站的站間時間。
+        // run＝【本線前一站】到這一站的行駛秒（幾何檔 segs[i-1]，TDX S2STravelTime，兩個方向同值）；
+        // dwell＝這一站的停站秒。對不到就不給——兩端讀不到就不畫車，不拿距離或均速去估一個。
+        const run = i > 0 ? Number(l.segs?.[i - 1]?.run) : NaN;
+        if (run > 0) one.run = run;
+        if (Number(st.dwell) > 0) one.dwell = Number(st.dwell);
         // 對不到就不給，Android 那邊沒有站號徽章就不畫（不編一個假的）。
         const code = codeOf.get(`${tdxLineId(l.id)}|${st.name}`);
         if (code) one.code = code;

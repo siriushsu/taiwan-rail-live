@@ -222,6 +222,11 @@ final class RailWidgetData {
         String platformOrigin;
         String platform;
         long platformExpiresAt;
+        /**
+         * 發車列的「下一個停靠站」（方向三角用的同一個值）。只在組看板那一輪用來推站名牌的鄰站，
+         * 🔴 刻意不進快取：鄰站已經算好存在 Snapshot 上，快取列不需要再帶一份。
+         */
+        transient String nextStop;
 
         String platformAt(long now) {
             return "tra".equals(sys) && relation != Relation.PASS && now < platformExpiresAt ? platform : null;
@@ -287,6 +292,9 @@ final class RailWidgetData {
         boolean includePass;
         /** 這一輪被「預設不顯示通過列」擋掉幾列;>0 而看板又是空的,代表本站今日無車停靠。 */
         int hiddenPass;
+        /** C 場景站名牌下緣的鄰站（往南那一站放左 ◀、往北那一站放右 ▶）；推不出來就是 null，那一側不畫。 */
+        String neighborSouth;
+        String neighborNorth;
         final List<Row> rows = new ArrayList<>();
 
         JSONObject toJson() throws JSONException {
@@ -294,6 +302,8 @@ final class RailWidgetData {
                 .put("origin", origin).put("destination", destination == null ? "" : destination)
                 .put("generatedAt", generatedAt).put("failed", failed).put("includePass", includePass).put("hiddenPass", hiddenPass);
             if (scheduleNote != null) out.put("scheduleNote", scheduleNote);
+            if (neighborSouth != null) out.put("neighborSouth", neighborSouth);
+            if (neighborNorth != null) out.put("neighborNorth", neighborNorth);
             JSONArray list = new JSONArray();
             for (Row row : rows) list.put(row.toJson());
             out.put("rows", list);
@@ -311,6 +321,9 @@ final class RailWidgetData {
             out.failed = raw.optBoolean("failed", false);
             out.includePass = raw.optBoolean("includePass", false);
             out.hiddenPass = raw.optInt("hiddenPass", 0);
+            // 舊快取沒有這兩欄 ⇒ 留 null ⇒ 那一輪站名牌只畫站名、不畫鄰站帶，下一次抓取就補回來。
+            out.neighborSouth = raw.isNull("neighborSouth") ? null : raw.optString("neighborSouth", null);
+            out.neighborNorth = raw.isNull("neighborNorth") ? null : raw.optString("neighborNorth", null);
             JSONArray rows = raw.optJSONArray("rows");
             if (rows != null) for (int i = 0; i < rows.length(); i++) {
                 JSONObject row = rows.optJSONObject(i);
@@ -562,6 +575,10 @@ final class RailWidgetData {
             out.rows.addAll(thsr.rows);
             out.hiddenPass = tra.hiddenPass + thsr.hiddenPass;
             out.scheduleNote = tra.scheduleNote;
+            // 共站的站名牌寫台鐵的鄰站（牌子上是台鐵站名）；台鐵這一側推不出來才退用高鐵。
+            boolean traSides = tra.neighborSouth != null || tra.neighborNorth != null;
+            out.neighborSouth = traSides ? tra.neighborSouth : thsr.neighborSouth;
+            out.neighborNorth = traSides ? tra.neighborNorth : thsr.neighborNorth;
         } else {
             SystemInfo system = "thsr".equals(sys) ? currentThsr(catalog, now)
                 : "tra".equals(sys) ? currentTra(context, catalog, now)
@@ -677,6 +694,7 @@ final class RailWidgetData {
             }
         }
         future.sort(Comparator.comparingLong(row -> row.scheduledAt));
+        neighbors(system, origin, future, out);
         if (out.rows.isEmpty() && !future.isEmpty()) out.rows.add(future.get(0));
         out.rows.sort(Comparator.comparingLong(row -> row.scheduledAt));
         return out;
@@ -720,10 +738,32 @@ final class RailWidgetData {
             headingTo = row.terminus;
         }
         row.heading = heading(system, origin, headingTo);
+        if (row.relation == Relation.DEPARTURE) row.nextStop = headingTo;
         int second = row.relation == Relation.DEPARTURE ? originStop.dep : originStop.arr;
         row.scheduledAt = serviceDay + second * 1000L;
         row.destinationAt = destinationAt;
         return row;
+    }
+
+    /**
+     * C 場景站名牌的鄰站（與 iOS 同一條規則）：本站發車班次的「下一個停靠站」，用方向三角同一個
+     * 緯度判準分成往北／往南兩組，每組取離本站最近的那一站。某一側沒有班次就是 null（只畫一側）。
+     * 用停靠站而不是線形上的相鄰站：小工具資料只有停靠序列，而牌子要告訴人「車往哪一站開」。
+     */
+    private static void neighbors(SystemInfo system, String origin, List<Row> rows, Snapshot out) {
+        Station here = system.stationByName.get(origin);
+        if (here == null || !Double.isFinite(here.lat) || !Double.isFinite(here.lon)) return;
+        double north = Double.MAX_VALUE, south = Double.MAX_VALUE;
+        double scale = Math.cos(Math.toRadians(here.lat));
+        for (Row row : rows) {
+            if (row.nextStop == null || row.heading == null) continue;
+            Station there = system.stationByName.get(row.nextStop);
+            if (there == null || !Double.isFinite(there.lat) || !Double.isFinite(there.lon)) continue;
+            double dx = (there.lon - here.lon) * scale, dy = there.lat - here.lat;
+            double d = dx * dx + dy * dy;
+            if (row.heading == Heading.NORTH && d < north) { north = d; out.neighborNorth = row.nextStop; }
+            if (row.heading == Heading.SOUTH && d < south) { south = d; out.neighborSouth = row.nextStop; }
+        }
     }
 
     /**
@@ -886,19 +926,54 @@ final class RailWidgetData {
         if (cachedCurrentTra != null && today.equals(cachedCurrentTraDay)
             && now - cachedCurrentTraAt < 5 * 60_000L) return cachedCurrentTra;
 
+        // 🔴 磁碟快取涵蓋今天**且 REFRESH_AHEAD_DAYS 天後仍在窗內**才直接用。原本是「涵蓋今天就用」——
+        //    窗最後幾天明明線上早已換新窗，這裡卻不去抓；抓到的窗不比手上舊才採用，抓不到照舊。
+        //    另外打包那份比快取新就用打包的：快取放 cacheDir、更新 App 不會清，離線更新 App 時
+        //    剛打包進來的新窗不能輸給一份還涵蓋今天的舊快取（2026-09-21，與 iOS 寫入器同一套判準）。
         SystemInfo built = null;
         try {
             JSONObject doc = readTraCache(context, today);
-            if (doc == null) doc = downloadTraSchedule(context, today);
+            if (doc == null || !coversDay(doc, dayKey(now + REFRESH_AHEAD_DAYS * 86_400_000L))) {
+                JSONObject fresh = downloadTraSchedule(context, today);
+                if (fresh != null && lastDay(fresh).compareTo(lastDay(doc)) >= 0) doc = fresh;
+            }
             if (doc != null) built = buildTraSystem(doc);
         } catch (Exception ignored) {
             built = null;
         }
-        SystemInfo out = built != null ? built : catalog.byId.get("tra");
+        SystemInfo bundled = catalog.byId.get("tra");
+        SystemInfo out = built != null
+            && (bundled == null || lastDayOf(built.dates).compareTo(lastDayOf(bundled.dates)) >= 0)
+            ? built : bundled;
         cachedCurrentTra = out;
         cachedCurrentTraDay = today;
         cachedCurrentTraAt = now;
         return out;
+    }
+
+    /** 與 iOS 看板「窗剩 ≤3 天就提醒」同一個門檻：該提醒的那一天就是開始抓的那一天。 */
+    private static final int REFRESH_AHEAD_DAYS = 3;
+
+    private static boolean coversDay(JSONObject doc, String day) {
+        JSONObject dates = doc == null ? null : doc.optJSONObject("dates");
+        return dates != null && dates.has(day);
+    }
+
+    /** 精簡檔的窗最後一天：沒有 dates 就是空字串＝最舊。 */
+    private static String lastDay(JSONObject doc) {
+        return lastDayOf(doc == null ? null : doc.optJSONObject("dates"));
+    }
+
+    /** dates 鍵的最大值（yyyy-MM-dd 可直接按字典序比大小）。 */
+    private static String lastDayOf(JSONObject dates) {
+        String best = "";
+        if (dates == null) return best;
+        java.util.Iterator<String> keys = dates.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            if (key.compareTo(best) > 0) best = key;
+        }
+        return best;
     }
 
     /** 磁碟快取:涵蓋窗含今天才算數,否則當作沒有(回 null 讓上層去下載)。 */

@@ -3,18 +3,18 @@ import fs from 'node:fs';
 const base=process.env.BASE_URL||'http://127.0.0.1:5208/';
 const out='output/platforms';fs.mkdirSync(out,{recursive:true});
 const checks=[];const check=(name,pass,detail)=>{checks.push({name,pass,detail});console.log((pass?'PASS ':'FAIL ')+name+' '+JSON.stringify(detail??''));};
-const epoch=Date.parse('2026-09-07T09:28:00+08:00');
+const epoch=Date.parse('2026-09-26T09:28:00+08:00');
 for(const [engineName,engine]of Object.entries({chromium,webkit})){
- const browser=await engine.launch();
+ const browser=await engine.launch(engineName==='chromium'?{channel:'chromium',headless:true}:{headless:true});
  for(const width of (process.env.WIDTHS||'360,375,390,414,520,768,1280').split(',').map(Number)){
   const context=await browser.newContext({viewport:{width,height:900},locale:'zh-TW',isMobile:width<1000,hasTouch:width<1000});
   const p=await context.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
   let platform='1A',stamp=epoch,calls=0;
   await p.clock.setFixedTime(new Date(epoch));
-  await p.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','dark');});
+  await p.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','dark');localStorage.setItem('ri-trains-enabled','0');});
   await p.route('**/api/tra-platforms',async route=>{calls++;await route.fulfill({json:{schema:1,at:new Date(stamp).toISOString(),expiresAt:stamp+180000,records:[{stationId:'3370',stationName:'花壇',trainNo:'3177',arrivalAt:epoch+300000,departureAt:epoch+360000,state:platform?'known':'unavailable',platform,updatedAt:stamp,expiresAt:stamp+180000}]}});});
   try{
-   await p.goto(base+'?scene=2d&train=3177&t=09:28&lang=zh-TW',{waitUntil:'domcontentloaded'});
+   await p.goto(base+'?train=3177&t=09:28&lang=zh-TW',{waitUntil:'domcontentloaded'});
    await p.waitForFunction(()=>state.ready&&state.followTrain&&window.RailPlatforms,null,{timeout:60000});
    await p.waitForTimeout(1100);
    check(`${engineName} ${width} 回放不取目前月台`,calls===0&&await p.locator('#fpPlatform').isHidden());

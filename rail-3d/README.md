@@ -15,3 +15,11 @@
 驗收腳本位於 `scripts/verify_3d_*`、`verify_follow_heading_toggle.mjs`、`verify_compass_selection.mjs`、`verify_station_targets.mjs`。涵蓋 Chromium／WebKit、雙向完整編組、地形對齊、透明遮擋像素、模型實際觸控與亮暗快速切換；手機含 360、375、390、414、520、768 寬。
 
 出貨仍使用 `npm run ship-web -- --preview --ref <commit>`。原始檔保留註解，乾淨出貨樹才去註解。Native prepare-web 已加入本模組以免遺漏引用，離線資產約增加 199 MB；本次只發布網站預覽，未建置或發布原生 App。
+
+## 2026-09-14：視角過場與地點導覽
+
+「更多 → 地圖視角」以 1.2 秒在俯視和傾斜間切換，保留縮放與跟車目標；反向切換接續當前角度，減少動態效果偏好直接完成。使用共用 MapLibre 相機，保留後續效能、夜景、實體股道及車頭鎖定修正。
+
+「更多 → 車站／地標導覽」提供既有 12 個站區與 5 個地標，依畫面剩餘空間取景。導覽解除相機跟隨，保留選車資訊；新 UI 和地名含英文、日文翻譯。`?visit=taipei101` 可直接前往。
+
+一般跟車構圖補齊正向、斜向及俯視的車頭留白；手機／放空仍使用既有嚴格車頭鎖定。新驗收 `scripts/verify_view_guide.mjs` 可用 `BASE_URL` 指定本機、版本預覽與正式網址，並以 `ENGINE` 切換 Chromium／WebKit。既有 `verify_head_lock_browser.mjs` 另驗捏合、旋轉、拖曳與車頭鎖定；沒有把原型的第二張地圖或其未追蹤資料整包發布。

@@ -9,9 +9,9 @@
 // 誤點履歷卡的 Plus teaser 測法):
 //   ・跨系統閘門用突變測試證明有牙——拿掉 favTrainSys(f)==='tra_sched' 那道條件,同一份測試必須從
 //     綠翻紅(測不出差別的判準等於沒有判準)。
-//   ・PLUS_ENABLED 是網站暗啟動旗標(index.html 6182 行 IIFE:App 恆開、網站要 ?plus=1)——本功能
-//     整節掛在這個旗標下,比照誤點履歷入口(.fp-dhlink)的既有驗法(E1/E4 pattern),證明「無 ?plus=1
-//     時零存在」不是巧合,同一支收集器帶 ?plus=1 時必須真的抓得到(正向對照)。
+//   ・PLUS_ENABLED 原本是網站暗啟動旗標(App 恆開、網站要 ?plus=1)。網站自 7907d849(2026-09-10)
+//     起已恆開,故 Section H 的判準改成「兩種網址得到同一結果」＝開關不再看網址參數,並補一條
+//     控制組證明收集器在真的不存在時會回報不存在(詳見 Section H 開頭)。
 //   ・Plus 兩側都要驗:訂閱狀態為真時完整清單可點進履歷卡;為假時模糊 teaser+CTA 呼叫 plusGateOpen,
 //     解鎖後(模擬 plusFinishPending)重畫成完整清單——只驗一側測不出閘門壞掉。
 //   ・零回歸不重寫一份弱化的準點排行檢查,直接子行程重跑 scripts/verify_punctual.mjs 整支
@@ -34,13 +34,20 @@ const info = (n, msg) => console.log(`  ·    ${n} — ${msg}`);
 const fmt1 = v => (v == null ? '?' : (Number.isInteger(v) ? String(v) : v.toFixed(1)));
 let mutantWritten = false;
 
+// 🔴 2026-09-11 補釘語系。本檔所有「節存在嗎/列印了什麼」的判準都靠中文字串比對(favSnap 的
+// `t.includes('我的車')`、A5/E1 的「最糟N分・平均N分・N天」),而這裡原本兩處 newContext 都沒帶 locale
+// ⇒ Playwright Chromium 預設 navigator.language=en-US ⇒ index.html 的 I18N_LANG 變 en ⇒ 整節渲染成
+// 英文("Worst 5 min · avg 5 min · 25 days"、"Subscribe to compare punctuality…"),十條判準同時紅,
+// **看起來跟產品回歸一模一樣**。這正是 verify-locale-must-be-pinned 記過的坑;verify_punctual.mjs
+// 早就釘了 locale(所以它是綠的),本檔漏了。兩道一起下:網址 lang(index.html 自己最高優先的語系開關,
+// query > localStorage > navigator)＋context locale(讓 Intl/toLocaleString 也不漂)。
 async function open(browser, { width = 1440, height = 900, path: p = '/index.html', qs = '?plus=1', hasTouch = false } = {}) {
-  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch });
+  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch, locale: 'zh-TW' });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.goto(BASE + p + qs, { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 30000 });
+  await page.goto(BASE + p + (qs ? qs + '&lang=zh-TW' : '?lang=zh-TW'), { waitUntil: 'load' });
+  await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, null, { timeout: 30000 });
   await page.evaluate(() => {
     const h = document.getElementById('howtoWrap'); if (h) h.remove();
     state.playing = false; // 凍結模擬時鐘
@@ -74,12 +81,38 @@ const favSnap = page => page.evaluate(() => {
   };
 });
 
+// G0 我在量的是誰(前置):在本樹寫一個探針頁,從 BASE 原樣讀回來才往下跑。B2a 在 B 段才驗,A 段早已對 BASE 跑完;
+// BASE 上是別棵樹、而那棵樹開不了機時,整支只剩 A 段一個 30 秒逾時,不會點名原因(2026-09-25 孤兒 dev_server 同形)。
+{
+  const probe = `_whoami_mytrains_${process.pid}.html`;
+  const token = `whoami ${process.pid} ${Date.now()}`;
+  writeFileSync(path.join(ROOT, probe), token);
+  const got = await fetch(`${BASE}/${probe}`, { signal: AbortSignal.timeout(10000) }).then(r => r.ok ? r.text() : `HTTP ${r.status}`).catch(e => String(e));
+  try { unlinkSync(path.join(ROOT, probe)); } catch (e) {}
+  ok('G0 BASE 服務的是這棵樹(剛寫進本樹的探針頁原樣吐回)', got === token, got === token ? BASE : `${BASE}/${probe} → ${got.slice(0, 60)}`);
+  if (got !== token) process.exit(1);
+}
+
 try {
 
 // ══════════ Section A：基本資料邏輯(只收台鐵/沒資料優雅退化/上榜標記) ══════════
 {
   const browser = await chromium.launch();
   const { ctx, page, errors } = await open(browser, { width: 1440 });
+
+  // A0：具名語系前置閘門。本檔十條判準都比對畫面上的中文字,語系一漂它們會各自報不同的英文字串、
+  // 散落在 A/C/D/E/H 五節,沒人看得出共同上游(verify-locale-must-be-pinned 記的就是這個)。
+  // 有這一條,下次語系機制再變時第一個紅的是它,而且訊息直接說得出「現在是哪一語」。
+  {
+    const lang = await page.evaluate(() => ({
+      i18n: window.__i18n && window.__i18n.lang, docLang: document.documentElement.lang,
+      // 僅供訊息參考,不當判準:t() 對「沒有譯文的鍵」會回原字串,所以它在 zh-TW 與 en 下都是中文
+      // ⇒ 拿它當條件是個永遠不會紅的恆真項(拔掉語系釘子實測確認過)。真正會翻的是下面兩個旗標。
+      sampleInfoOnly: window.__i18n ? window.__i18n.t('我的車') : null,
+    }));
+    ok('A0 語系已釘死在 zh-TW(以下所有中文字串判準的前置條件)',
+       lang.i18n === 'zh-TW' && lang.docLang === 'zh-TW', JSON.stringify(lang));
+  }
 
   // 湊 10 班合格候選(d>=20)撐滿準點排行前10,third 班排第 5 名、eleventh 班(d 足但不夠擠進前10)當「有資料但沒上榜」對照
   const ds = {};
@@ -153,6 +186,11 @@ try {
   } else {
     writeFileSync(path.join(ROOT, MUTANT_PATH), orig.replace(GATE, REPLACEMENT));
     mutantWritten = true;
+    // 我在量的是誰:突變頁剛寫進這棵樹,BASE 必須原樣吐回來;吐不回來＝BASE 服的是別棵樹(2026-09-25 別人留下的
+    // 孤兒 dev_server 佔著固定埠,突變頁 404、頁面沒有 state、30 秒逾時,看起來像產品回歸)。
+    const servedMutant = await fetch(BASE + '/' + MUTANT_PATH).then(r => r.ok ? r.text() : `HTTP ${r.status}`).catch(e => String(e));
+    ok('B2a BASE 服務的是這棵樹(剛寫進本樹的突變頁原樣吐回)', servedMutant === orig.replace(GATE, REPLACEMENT),
+       servedMutant === orig.replace(GATE, REPLACEMENT) ? BASE : `${BASE}/${MUTANT_PATH} → ${servedMutant.slice(0, 60)}`);
     const { ctx, page } = await open(browser, { width: 1440, path: '/' + MUTANT_PATH });
     const r = await crossGateCheck(page);
     ok('B2 突變版(拿掉跨系統閘門):測試如預期翻紅——高鐵同號車混入 myTrainFavs()', r.leaked,
@@ -259,14 +297,22 @@ try {
 
 // ══════════ Section E：真實後端資料(至少一組非 mock 的斷言) ══════════
 {
-  let real;
-  try {
-    const res = await fetch('https://railisland.tw/api/delay-stats');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    real = await res.json();
-  } catch (e) {
-    ok('E0 正式站 /api/delay-stats 可達(接外部 API 前置驗證)', false, e.message);
-    real = null;
+  // 一發不重試會把本機連外網路的抖動(機器高負載時 undici 連線逾時,只印「fetch failed」)當成正式站掛了:
+  // 09-23 ship-web 兩次紅在這裡,同時段手動連打 10 發全 200。試 3 次都失敗才算紅(正式站真掛仍然抓得到)。
+  let real = null, lastErr = null;
+  for (let i = 0; i < 3 && !real; i++) {
+    try {
+      const res = await fetch('https://railisland.tw/api/delay-stats');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      real = await res.json();
+    } catch (e) {
+      lastErr = e;
+      if (i < 2) await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+  if (!real) {
+    const why = lastErr.cause ? ` (${lastErr.cause.code || lastErr.cause.message})` : '';
+    ok('E0 正式站 /api/delay-stats 可達(接外部 API 前置驗證)', false, `${lastErr.message}${why}(試了 3 次)`);
   }
   if (real) {
     ok('E0 正式站 /api/delay-stats 可達,回傳有 trains 物件', !!(real.trains && Object.keys(real.trains).length > 0), `n_trains=${real.trains ? Object.keys(real.trains).length : 0}`);
@@ -275,7 +321,7 @@ try {
     if (candNo) {
       const truth = trains[candNo];
       const browser = await chromium.launch();
-      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-TW' }); // 同上:E1 比對中文「最糟N分・平均N分・N天」,不釘語系就恆紅
       await ctx.route('**/api/delay-stats*', async route => {
         try {
           const r = await fetch('https://railisland.tw/api/delay-stats');
@@ -285,14 +331,16 @@ try {
       });
       const page = await ctx.newPage();
       const errors = []; page.on('pageerror', e => errors.push(e.message));
-      await page.goto(BASE + '/index.html?plus=1', { waitUntil: 'load' });
-      await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 30000 });
+      await page.goto(BASE + '/index.html?plus=1&lang=zh-TW', { waitUntil: 'load' });
+      await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, null, { timeout: 30000 });
       await page.evaluate(() => { const h = document.getElementById('howtoWrap'); if (h) h.remove(); state.playing = false; });
       await setFavs(page, [{ train: candNo, sys: 'tra_sched', label: '真實資料測試車' }]);
       await setPlus(page, true);
       await openFav(page); // 這裡才觸發 ensureDelayStats() → 被 route 轉發到正式站
       try {
-        await page.waitForFunction(() => state.delayStats && Object.keys(state.delayStats).length > 0, { timeout: 15000 });
+        // 原本寫 { timeout: 15000 } 卻放在 arg 位置,從沒生效——實際一直是預設 30 秒。這裡等的是轉發到正式站的
+        // 真實回應,高負載下網路會抖(見上方 E 段註解),縮成 15 秒只會多一個誤紅來源,所以保留一直在跑的 30 秒。
+        await page.waitForFunction(() => state.delayStats && Object.keys(state.delayStats).length > 0, null, { timeout: 30000 });
       } catch (e) { /* 下面的斷言會自然失敗並回報 */ }
       const snap = await favSnap(page);
       const row = snap.rows.find(r => r.no === candNo);
@@ -357,30 +405,52 @@ for (const engineName of ['chromium', 'webkit']) {
   await browser.close();
 }
 
-// ══════════ Section H：PLUS_ENABLED 暗啟動契約——網站無 ?plus=1 時「我的車」節必須零存在 ══════════
+// ══════════ Section H：PLUS_ENABLED 契約——網站已恆開,「我的車」節不再看網址參數 ══════════
+// 🔴 2026-09-11 改判準。原本寫「網站無 ?plus=1 時『我的車』節必須零存在」,那是**暗啟動**時期的契約:
+//    網站在 7907d849(2026-09-10 01:58)已經把通行證開給所有訪客,這條從那一刻起就與出貨中的產品相反,
+//    等於閘門在替一個已經結束的暗啟動把關。同一顆過期期望值昨晚已在 app/scripts/verify-android-plus-gate.mjs
+//    對齊過(1a6868dc:「沒帶 ?plus=1」的期望值 false → true),本檔是它漏掉的第二處。
+//    比照那顆的作法:**兩種網址都留著**,判準改成「兩種網址得到同一個結果」——要守的東西從
+//    「沒帶參數時要藏起來」換成「開關不再看網址參數」,而不是只把 false 改成 true 就算了。
+// 🔴 代價:H1／H2 現在都期望「節存在」,原本那對「一負一正」的自我對照因此消失——hasSection 若哪天
+//    變成恆真(例如 favSnap 的選取器被改壞),兩條會一起空過。故補 H3 當控制組:把該節從 DOM 拿掉後,
+//    同一支收集器必須回報不存在(judgment 第七節第5條:反向/恆真型判準要有「該紅時真的會紅」的對照)。
 {
   const browser = await chromium.launch();
   const ds = { H1: { a: 1, d: 21, m: 2 } };
-  const favs = [{ train: 'H1', sys: 'tra_sched', label: '暗啟動測試車　起點→終點' }];
+  const favs = [{ train: 'H1', sys: 'tra_sched', label: '通行證測試車　起點→終點' }];
+  const snapWith = async qs => {
+    const { ctx, page } = await open(browser, { width: 1440, qs });
+    await setStats(page, ds); await setFavs(page, favs); await setPlus(page, true);
+    await openFav(page);
+    const snap = await favSnap(page);
+    return { ctx, page, snap };
+  };
 
-  // H1：預設網址(無 ?plus=1,＝真實網站訪客)→ 節不存在
-  {
-    const { ctx, page } = await open(browser, { width: 1440, qs: '' });
-    await setStats(page, ds); await setFavs(page, favs); await setPlus(page, true);
-    await openFav(page);
-    const snap = await favSnap(page);
-    ok('H1 預設網址(無 ?plus=1):「我的車」節不存在(myt-* 零蹤跡,不只是 CTA 被藏)', !snap.hasSection && !snap.hasCtaBtn && snap.rows.length === 0, JSON.stringify({ hasSection: snap.hasSection, rows: snap.rows.length }));
-    await ctx.close();
-  }
-  // H2 正向對照:同一支收集器帶 ?plus=1 時必須真的抓得到,證明 H1 的「不存在」是產品行為不是收集器失靈
-  {
-    const { ctx, page } = await open(browser, { width: 1440, qs: '?plus=1' });
-    await setStats(page, ds); await setFavs(page, favs); await setPlus(page, true);
-    await openFav(page);
-    const snap = await favSnap(page);
-    ok('H2 正向對照:帶 ?plus=1 → 「我的車」節確實存在', snap.hasSection && snap.rows.length === 1, '');
-    await ctx.close();
-  }
+  // H1：預設網址(無 ?plus=1,＝真實網站訪客)→ 節存在(網站已恆開)
+  const bare = await snapWith('');
+  ok('H1 預設網址(無 ?plus=1):「我的車」節存在(網站 7907d849 起通行證恆開,不再暗啟動)',
+     bare.snap.hasSection && bare.snap.rows.length === 1,
+     JSON.stringify({ hasSection: bare.snap.hasSection, rows: bare.snap.rows.length }));
+
+  // H2：帶 ?plus=1 → 與 H1 同結果,證明開關不再看網址參數(不是換一個參數名而已)
+  const plus = await snapWith('?plus=1');
+  ok('H2 帶 ?plus=1 與不帶得到同一結果(開關不看網址參數)',
+     plus.snap.hasSection && plus.snap.rows.length === bare.snap.rows.length,
+     JSON.stringify({ hasSection: plus.snap.hasSection, rows: plus.snap.rows.length, 與H1同列數: plus.snap.rows.length === bare.snap.rows.length }));
+
+  // H3：控制組——H1/H2 都期望「存在」,必須證明這支收集器在真的不存在時會回報不存在
+  await plus.page.evaluate(() => {
+    const el = document.getElementById('favPanel');
+    for (const s of el.querySelectorAll('.sec')) if (s.textContent.includes('我的車')) s.remove();
+    for (const r of el.querySelectorAll('.row.myt')) r.remove();
+  });
+  const removed = await favSnap(plus.page);
+  ok('H3 控制組:把「我的車」節從 DOM 移除後,同一支收集器回報不存在(證明 H1/H2 不是恆真空過)',
+     !removed.hasSection && removed.rows.length === 0,
+     JSON.stringify({ hasSection: removed.hasSection, rows: removed.rows.length }));
+
+  await bare.ctx.close(); await plus.ctx.close();
   await browser.close();
 }
 

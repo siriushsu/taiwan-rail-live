@@ -152,10 +152,14 @@ async function openSatellite(page, touch) {
   const visible = await page.evaluate(() => { const b = document.getElementById('satBtn'); return !!(b && b.offsetParent); });
   if (visible) { await act('#satBtn'); }
   else {
-    // 手機:底圖改由「更多」裡的「地圖風格」分段控制(#msBasemapSeg,index.html:5933)切換。
+    // 手機:底圖改由「地圖風格」分段控制(#msBasemapSeg,index.html:6200)切換。
     // 舊路徑等的是 .ms-row[data-proxy="satBtn"]——那一列已經不存在(抽屜改版後只剩分段控制),
     // 於是 webkit 手機那一路長期卡在 waitForSelector 逾時,紅得像 webkit 起不來。
-    await act('#tabMore');
+    // v0914c 起 #msBasemapSeg 又從「更多」抽屜搬進觀看面板「地圖」分頁;桌面走側欄
+    // .view-rail,手機沒有側欄要先開 #viewSettingsBtn 再切 .view-tabs 分頁。
+    const railVisible = await page.evaluate(() => { const r = document.querySelector('.view-rail [data-view="map"]'); return !!(r && r.offsetParent); });
+    if (railVisible) { await act('.view-rail [data-view="map"]'); }
+    else { await act('#viewSettingsBtn'); await act('.view-tabs [data-view="map"]'); }
     await page.waitForSelector('#msBasemapSeg button[data-map="sat"]:not([disabled])', { state: 'visible', timeout: 5000 });
     await act('#msBasemapSeg button[data-map="sat"]');
   }
@@ -177,6 +181,12 @@ async function followAnyTrain(page) {
 // 八個情境一起紅而且紅得像功能壞掉(window.__map 現在是 maplibregl.Map,見 index.html 的把手註解)。
 // 另外 satGlStyle 有一層固定 z6 的保底圖(source sat6,minzoom=maxzoom=6)＋warmSatUnderlayGl() 的
 // 預抓,那與解析度無關,單獨歸一格,否則 other===0 這種判準永遠不可能成立。
+// 🔴 別把下面十幾處 window.__map.getZoom() 「順手」改成 window.__M.getZoom()。其他驗收腳本裡
+//    window.__map.<Leaflet API> 一律是遷移沒跟上的 bug,但**這裡是對的**:上面那條公式
+//    (raster 圖磚層級 = 相機 zoom + log2(512/tileSize)) 吃的是 MapLibre 的**相機 zoom**,
+//    也就是 raw.getZoom();適配層的 getZoom() 已經加了 ML_Z=1 換成全站的 256px 尺度,
+//    換過去會讓 std/hiZ 整組偏移一格,現在全過的 38 條判準會一起翻紅(標準解析被算成 other、
+//    高解析被算成 base)。2026-09-11 實測基準:情境1 zoom=7、18 張圖磚全落在 std=8。
 const SAT_UNDERLAY_Z = 6;
 function classify(zooms, zoom) {
   const std = zoom + 1, hiZ = zoom + 2;

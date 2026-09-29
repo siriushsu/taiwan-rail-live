@@ -905,6 +905,8 @@ struct PreparedBoard {
     let meta: MetaDocument
     /// 看板空的、但本站今天其實有「通過本站」的列車被預設收起來了。
     let passHidden: Bool
+    /// 站名牌下緣的鄰站（小工具「場景」背景用）。推不出來就是 nil。
+    var neighbors: StationNeighbors? = nil
 
     /// 這張看板上有沒有任何一個系統提供即時誤點（只有它為真才值得打即時 API）。
     var anyLive: Bool { systems.contains { $0.live } }
@@ -923,6 +925,43 @@ struct PreparedBoard {
 
     var isWatching: Bool {
         destinationName == nil
+    }
+}
+
+/// 本站往南、往北各一個鄰站——小工具「場景」背景左上角那面站名牌的「◀ 萬華　松山 ▶」。
+///
+/// 🔴 小工具資料沒有鄰站欄位，這裡從【本站發車班次的下一個停靠站】推：每一班的
+///    `to` 第一站就是它離開本站後的下一站。依緯度（與方向三角同一個 RailHeading 判準）
+///    分成往北／往南兩組，每組取【離本站最近】的那一站——快車會跳站，但慢車一定停鄰站，
+///    而任何一班車的下一站都不會比鄰站更近。
+///    分叉站（八堵、竹南……）一側不只一個鄰站，這裡只取最近的那一個；某一側沒有發車
+///    （端點站）就只有一側。兩側都推不出來回 nil，站名牌就不畫帶子。
+struct StationNeighbors: Equatable {
+    /// 站名牌左邊（◀）。
+    let south: String?
+    /// 站名牌右邊（▶）。
+    let north: String?
+
+    static func derive(originID: Int, departures: [DepartureRecord],
+                       stations: [StationRecord]) -> StationNeighbors? {
+        guard stations.indices.contains(originID),
+              let la = stations[originID].la, let lo = stations[originID].lo else { return nil }
+        let cosLat = cos(la * .pi / 180)
+        var best: [RailHeading: (id: Int, d: Double)] = [:]
+        for departure in departures {
+            guard let next = departure.to.first?.first, next != originID,
+                  stations.indices.contains(next),
+                  let nla = stations[next].la, let nlo = stations[next].lo,
+                  let heading = RailHeading.between(from: originID, to: next, stations: stations)
+            else { continue }
+            let d = pow(nla - la, 2) + pow((nlo - lo) * cosLat, 2)
+            if let current = best[heading], current.d <= d { continue }
+            best[heading] = (next, d)
+        }
+        let south = best[.south].map { stations[$0.id].n }
+        let north = best[.north].map { stations[$0.id].n }
+        guard south != nil || north != nil else { return nil }
+        return StationNeighbors(south: south, north: north)
     }
 }
 
@@ -1430,7 +1469,8 @@ struct RailBoardEngine {
             templates: templates,
             journeys: visibleJourneys,
             meta: meta,
-            passHidden: passHidden
+            passHidden: passHidden,
+            neighbors: StationNeighbors.derive(originID: originID, departures: board.deps, stations: stations)
         )
     }
 
@@ -1475,7 +1515,9 @@ struct RailBoardEngine {
             meta: first.meta,
             // 共站要「每個成員都空、且至少一個成員是因為藏了通過車才空」才算 passHidden——
             // 任一成員還有車就不是空看板，那句「本站今天只有通過列車」會變成謊話。
-            passHidden: journeys.isEmpty && parts.contains { $0.passHidden }
+            passHidden: journeys.isEmpty && parts.contains { $0.passHidden },
+            // 共站的站名牌：取第一個推得出鄰站的成員（成員順序照 composite.members）。
+            neighbors: parts.lazy.compactMap(\.neighbors).first
         )
     }
 

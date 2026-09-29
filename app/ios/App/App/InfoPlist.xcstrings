@@ -14,6 +14,12 @@
             "state": "translated",
             "value": "軌島"
           }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島"
+          }
         }
       }
     },
@@ -22,13 +28,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rail Island uses your location while the app is open to move the map near you and show nearby stations and trains. Raw coordinates stay on your device and are not uploaded. You can still explore the map manually if you decline."
+            "value": "Rail Island uses your location while you use the app to update your blue dot, center the map on you and show nearby stations. Your latest location is sent only if you separately turn on live location sharing for a trip, and only to people with the short-lived link; sharing stops when the app goes to the background or the screen locks."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "軌島はAppの使用中、現在地付近へ地図を移動し、周辺の駅と列車を表示するために位置情報を使います。取得した座標は端末内だけで使用し、アップロードしません。許可しなくても地図を手動で利用できます。"
+            "value": "軌島はAppの使用中、地図上の青い点、現在地へのカメラ移動、近くの駅の表示に位置情報を使います。旅程のリアルタイム位置共有を別途オンにした場合に限り、最新の位置が有効期限付きリンクを持つ人に送られます。バックグラウンドに移るか画面をロックすると停止します。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島會在你使用 App 時更新地圖藍點、所在地鏡頭與附近車站。只有你另行開啟旅程的即時位置分享時，最新位置才會傳給持有短效連結的人；進入背景或鎖屏即停止。"
           }
         }
       }
@@ -38,13 +50,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rail Island accesses location only while you use the app, to move the map near you and show nearby stations and trains. It does not track you continuously in the background or request Always access. Raw coordinates stay on your device and are not uploaded; you can still explore manually if you decline."
+            "value": "Rail Island never asks for Always access or tracks your location in the background. Your blue dot stays on your device; your latest location is sent only while the app is open, and only if you separately turn on live location sharing for a trip."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "軌島はAppの使用中だけ位置情報を取得し、現在地付近へ地図を移動して周辺の駅と列車を表示します。バックグラウンドで継続的に追跡せず、「常に許可」も要求しません。座標は端末内だけで使用し、アップロードしません。許可しなくても手動で利用できます。"
+            "value": "軌島は「常に許可」を求めず、バックグラウンドで位置情報を追跡しません。通常の青い点は端末内だけで使います。旅程のリアルタイム位置共有を別途オンにした場合に限り、Appが前面にある間だけ最新の位置を送信します。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島不會要求「永遠允許」或在背景持續定位。一般藍點只留在裝置內；只有你另行開啟旅程的即時位置分享時，才會在 App 前景傳送最新位置。"
           }
         }
       }

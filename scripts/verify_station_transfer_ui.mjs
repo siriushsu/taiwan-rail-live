@@ -96,7 +96,7 @@ try {
     log(`ENGINE ${engineName}`);
     try {
       for (const width of [360, 375, 414, 768]) {
-        const ctx = await browser.newContext({ viewport: { width, height: heights[width] }, isMobile: true, hasTouch: true });
+        const ctx = await browser.newContext({ viewport: { width, height: heights[width] }, isMobile: true, hasTouch: true, locale: 'zh-TW' });
         await ctx.addInitScript(() => {
           localStorage.setItem('trainmap-howto-seen', '1');
           localStorage.setItem('trainmap-appearance', 'light');
@@ -148,12 +148,13 @@ try {
         ok(`${engineName} ${width} 具名台鐵案例可跟隨`, !!(picked && picked.sys === 'tra_sched'), JSON.stringify(picked));
 
         // ── 落點 A：車站看板的站況區（回答「這站是什麼」）──
-        // 站物件一律取 app 自己的索引（helpNearestStation），不自組。轉乘查找的真正過濾器是
+        // 站物件一律取 app 自己的索引，不自組。轉乘查找的真正過濾器是
         // criteria.maxDistanceM 的座標閘門，餵一顆只有站名沒有座標的假物件，會結構性地永遠查無而假紅。
         const board = await page.evaluate(() => {
-          window.__map.setView([25.0478, 121.5170], 15); // 台北車站
-          const st = helpNearestStation();
-          if (!st) return { found: false, why: 'helpNearestStation 在台北車站視野回空' };
+          window.__M.setView([25.0478, 121.5170], 15, { animate: false }); // 台北車站，經地圖適配層置中
+          // 跟車鏡頭可能剛重新置中；本項驗看板，直接從真實站點索引取具名台北案例。
+          const st = nearbyStationCandidates().find(({ st }) => st.sys === 'tra_sched' && ['臺北', '台北'].includes(st.name))?.st;
+          if (!st) return { found: false, why: '站點索引缺少台鐵台北車站' };
           openBoard(st);
           const meta = document.querySelector('#board .stnMeta');
           const xfer = meta && meta.querySelector('.xfer');
@@ -348,7 +349,7 @@ try {
       // 桌面一輪。上面四個寬度全部 ≤900px，統統落在手機媒體查詢裡——桌面的看板是側欄、
       // 跟隨卡的位置與可用寬度都不同，兩個落點都得在真桌面再量一次，靜態 gate 驗不到這些。
       {
-        const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+        const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
         await ctx.addInitScript(() => {
           localStorage.setItem('trainmap-howto-seen', '1');
           localStorage.setItem('trainmap-appearance', 'light');
@@ -379,8 +380,8 @@ try {
         const wide = await page.evaluate(() => {
           const out = {};
           // 落點 A
-          window.__map.setView([25.0478, 121.5170], 15);
-          const st = helpNearestStation();
+          window.__M.setView([25.0478, 121.5170], 15, { animate: false });
+          const st = nearbyStationCandidates().find(({ st }) => st.sys === 'tra_sched' && ['臺北', '台北'].includes(st.name))?.st;
           out.station = st && st.name;
           if (st) openBoard(st);
           const meta = document.querySelector('#board .stnMeta');

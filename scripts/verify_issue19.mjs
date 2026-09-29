@@ -46,7 +46,9 @@ if (!process.env.VURL) {
   for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { child?.kill(); process.exit(1); });
   for (let i = 0; ; i++) {                       // 等它真的聽得到，不用固定秒數
     try { if ((await fetch(URL)).ok) break; } catch (e) {}
-    if (i > 100) { console.error(`✗ dev server 起不來（${URL}）`); child?.kill(); process.exit(1); }
+    // 上限 60 秒：原本 10 秒，09-19 01:24 的 ship-web 在多個 session 同跑瀏覽器閘門時卡在這裡
+    // （無崩潰訊息，同一份內容單獨重跑 19 秒全綠）。伺服器一回應就跳出，健康時不會變慢。
+    if (i > 600) { console.error(`✗ dev server 起不來（${URL}）`); child?.kill(); process.exit(1); }
     await new Promise(r => setTimeout(r, 100));
   }
 }

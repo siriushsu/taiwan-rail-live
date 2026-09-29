@@ -74,6 +74,15 @@ import { runEngineMatrix } from './lib/engine_matrix.mjs';
 //   placeControlRail 改 no-op         → L13b/L13c(跟隨鎖不在工具欄)
 //   契約8中線 --land-lb 238→150       → L14e/L14f 四筆(站名牌+速度膠囊雙雙偏離)
 //   工具欄常數44(行為上不可觀測:膠囊只在相機關閉時存在) → L13d 原始碼斷言把關
+//
+// ── 2026-09-26 使用者裁示 B：跟車的車頭鎖定＝車頭置中，不做前瞻 ──
+// 09-09 手機車頭鎖定（a5473792）起，相機約束（rail-3d.js installFollowCameraLock）把第一節車釘在露出地圖中心，
+// §04c 的前瞻（followAheadPx）只剩 3D 整合層沒載入時的退路在用。使用者裁示接受車頭置中（與 09-07 立體模式
+// b8f468fc 一致）⇒ L1b／P4 與 L5 分類器改用 centerPass（列車離露出中心 ≤10px）；前瞻方向的分支計數與
+// 「L9 相機判準分支分佈」隨之退役。上面「前瞻方向寫死朝北 → L1b 六筆紅」那條突變已不適用。
+// 突變驗證（QUICK、Chromium，對照組全綠）：
+//   相機約束讓位歸零（rail-3d.js 的 padding 改全 0）→ L1b／P4 紅（列車落在容器中心，不在露出中心）
+//   前瞻寫死朝北 60px（followAheadPx）          → L1b／P4 維持綠（車頭鎖定下前瞻沒被用到，判準不再綁它）
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE_REF = process.env.BASE_REF || '110f0e93';
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
@@ -199,8 +208,12 @@ const PICK_FOLLOW = async () => {
   return cand(true) || cand(false);
 };
 
-async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSize = null, fontScale = null, hasTouch = true } = {}) {
+async function boot(browser, { w, h, tag }, { url = BASE, follow = true, sheetSize = null, fontScale = null, hasTouch = true, block3d = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch, isMobile: true });
+  // block3d：擋掉 rail-3d.js（3D 整合層整個不載）＝「3D 模組載不到」這個真實存在的退路環境。
+  // 用途見 F3a：手機車頭鎖定（09-09 a5473792）的相機約束住在 3D 整合層，約束在的時候相機離不開列車；
+  // 只有它不在時，平面置中路徑與相機自癒才是真正在把關的那一層。
+  if (block3d) await ctx.route(/\/rail-3d\.js(?:\?.*)?$/, r => r.abort());
   await ctx.addInitScript(a => {
     try {
       localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light');
@@ -350,6 +363,8 @@ const INSTALL_EXPOSED = () => {
       cx: +(left + (mc.width - left - right) / 2).toFixed(1), cy: +(top + (mc.height - top - bottom) / 2).toFixed(1),
       w: +(mc.width - left - right).toFixed(1), h: +(mc.height - top - bottom).toFixed(1) };
   };
+  // 2026-09-26 裁示 B 之後，判準只用 dist（列車離露出中心）；err0／dir／stable 只留在細節欄當診斷。
+  // 以下是裁示前的前瞻契約說明，保留供對照。
   // 前瞻期望:相機瞄準點=露出中心沿行進方向前移 0.15×露出短邊(契約:「讓前方路線多露一段」)
   // ⇒ **列車**落在露出中心的行進**反**方向 m 處:trainPt = center − m·dir。
   // 方向用「路徑上往後 45 秒的位置」經 Leaflet 公開投影自算——與實作唯一共用的是 trainPos 這份
@@ -380,10 +395,9 @@ const INSTALL_EXPOSED = () => {
       err0: dir ? +Math.hypot(a.x - (ex.cx - m * dir.x), a.y - (ex.cy - m * dir.y)).toFixed(1) : null };
   };
 };
-// 相機判準的共用判定與分支計數(心得 37d:弱判是分支,分佈要有具名斷言,不能無聲全滑進弱判)
-const aheadBranch = { moving: 0, dwell: 0 };
-const aheadPass = c => !c.err && (c.stable ? c.err0 <= 10 : c.dist <= c.m + 10);
-const aheadCount = c => { if (!c.err) aheadBranch[c.stable ? 'moving' : 'dwell']++; };
+// 相機判準的共用判定（2026-09-26 裁示 B）：車頭鎖定把第一節車釘在露出地圖中心，不做前瞻。
+// 容差 10px 沿用裁示前強判的容差；實測 dist 0–1px（兩引擎、橫直各尺寸）。
+const centerPass = c => !c.err && c.dist <= 10;
 
 // 可見浮層（供相交掃描）。刻意不含 header/.stage/leaflet 容器——它們是別人的父層，相交無意義。
 const OVERLAY_SEL = ['#topbar', '#clock', '#randBtn', '#nearBtn', '#alertBanner', '#dwellPlate',
@@ -870,8 +884,8 @@ async function landscapeSuite(browser, eng) {
 
       // 🔴 L1b：「看得見」還不夠——側欄在右邊，列車就算完全不讓位、待在容器正中央，也剛好還在
       //    露出區裡（852 寬時容器中心 426 < 側欄左緣 504）⇒「看得見」對讓位機制零鑑別力。
-      //    §04c 契約：置中目標＝露出地圖矩形幾何中心＋前瞻（沿行進方向偏 15% 短邊），
-      //    四邊都讓（頂列/tabbar/速度膠囊/跟隨欄/工具堆/側欄），照 __aheadExpect 的契約推導驗。
+      //    契約：置中目標＝露出地圖矩形幾何中心（2026-09-26 裁示 B：車頭鎖定不做前瞻），
+      //    四邊都讓（頂列/tabbar/速度膠囊/跟隨欄/工具堆/側欄），照 __aheadExpect 從渲染 rect 推導驗。
       // 🔴 必須在「放大之後」量：橫向開機是 zoom 6（台灣的南北向要塞進 393px 高），
       //    那個縮放下視窗經度跨幅 18.7° 比整個 maxBounds(10.75°) 還寬 ⇒ Leaflet 把中心完全釘死、
       //    地圖一格都不能平移，讓位在物理上不可能發生。使用者跟車時本來就會放大，
@@ -879,8 +893,7 @@ async function landscapeSuite(browser, eng) {
       await page.evaluate(() => { state._autoPan = true; window.__M.setView(window.__M.getCenter(), 11, { animate: false }); state._autoPan = false; });
       await page.waitForTimeout(700);
       const cam = await page.evaluate(() => window.__aheadExpect());
-      aheadCount(cam);
-      ok(`L1b ${eng}/${S.tag} ${P.label}·放大後列車在露出中心＋前瞻`, aheadPass(cam),
+      ok(`L1b ${eng}/${S.tag} ${P.label}·放大後列車在露出中心`, centerPass(cam),
         JSON.stringify({ err0: cam.err0, dist: cam.dist, m: cam.m, dir: cam.dir, ex: cam.ex }));
 
       const o = await settledOverlap(page);
@@ -982,10 +995,41 @@ async function landscapeSuite(browser, eng) {
       return out;
     });
     const found = wideOverlays.filter(o => !o.missing);
-    const clash = found.filter(o => o.overlaps);
+    // v0926l 起矮橫式(高 ≤ 500)的平交道卡、落釘卡、台糖卡改坐側欄槽位(09-26 使用者裁示方案 A):
+    // 卡「就是」側欄那一格,強制顯示當然會跟開著的側欄疊——那不是鑽到底下,是同一格輪流用,
+    // 前提是兩者真的互斥。所以 .xing-card 疊到時改成真做一次:側欄開著時開卡 ⇒ 側欄關、卡開;
+    // 卡開著時開側欄 ⇒ 卡關(三張各一次)。只放行「整張寬度都在側欄那一欄裡」的疊法(ox ≈ 卡寬);
+    // 半張伸進去的仍是鑽到底下。突變:soloPanel 不關平交道卡 ⇒ 紅;卡寬比側欄多 40px ⇒ 紅。
+    let railSlot = null;
+    const xc = found.find(o => o.name === '.xing-card' && o.overlaps);
+    if (xc) {
+      railSlot = await page.evaluate(async () => {
+        const vis = id => { const e = document.getElementById(id); return !!(e && !e.hidden && e.getClientRects().length); };
+        const settle = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 80))));
+        for (let i = 0; i < 100 && !state.crossings; i++) { ensureCrossings(); await new Promise(r => setTimeout(r, 100)); }
+        const cr = (state.crossings || []).find(c => !c.noSched);
+        if (!cr) return { err: '平交道資料沒載到' };
+        const out = [];
+        for (const [id, open] of [['xingCard', () => openCrossingCard(cr)], ['pinCard', () => openPinAt(25.0143, 121.4637)],
+          ['sugarCard', () => openSugarCard(SUGAR_PARKS[0])]]) {
+          const p0 = vis('explorePanel');
+          open(); await settle();
+          const p1 = vis('explorePanel'), c1 = vis(id);
+          openExplorePanel(); await settle();
+          const c2 = vis(id), p2 = vis('explorePanel');
+          out.push({ id, ok: p0 && !p1 && c1 && !c2 && p2, s: `側欄${+p0}→開卡→側欄${+p1}卡${+c1}→開側欄→卡${+c2}側欄${+p2}` });
+        }
+        return { out };
+      });
+      railSlot.inSlot = xc.ox >= xc.w - 2;
+      railSlot.ok = !railSlot.err && railSlot.inSlot && railSlot.out.every(o => o.ok);
+    }
+    const clash = found.filter(o => o.overlaps && !(o.name === '.xing-card' && railSlot && railSlot.ok));
+    const slotNote = railSlot ? `；.xing-card 坐側欄槽位(疊${xc.ox}×${xc.oy},卡寬 ${xc.w}${railSlot.inSlot ? '' : ' ✗ 沒整張在側欄那一欄'})`
+      + (railSlot.err ? ` ✗ ${railSlot.err}` : `,互斥 ${railSlot.out.map(o => `${o.id} ${o.ok ? '✓' : '✗ ' + o.s}`).join(' ')}`) : '';
     ok(`L2b ${eng}/${S.tag} 整寬浮層不鑽進側欄底下`, clash.length === 0,
-      clash.map(c => `${c.name}疊${c.ox}×${c.oy}`).join(' ')
-        || `逐一驗過 ${found.map(o => o.name).join('/')}`);
+      (clash.map(c => `${c.name}疊${c.ox}×${c.oy}`).join(' ')
+        || `逐一驗過 ${found.map(o => o.name).join('/')}`) + slotNote);
     ok(`L9 ${eng}/${S.tag} 整寬浮層覆蓋率`, found.length >= 5,
       `${found.length}/6 找得到並量到（缺的：${wideOverlays.filter(o => o.missing).map(o => o.name).join(',') || '無'}）`);
 
@@ -1101,29 +1145,6 @@ async function fix0812Suite(browser, eng) {
   //     是 Leaflet 縮放動畫仿射的旗標,隨引擎一起拔掉(index.html 現在只留一行說明註解)。retire 而不是
   //     改寫,因為它守的那個否決根本不存在了——MapLibre 每幀真實更新相機,recenterTo 沒有這個前置閘。
   //     留著只會量到「注一個沒人讀的旗標、沒人清它」而永遠紅(實測 d=0／za=true),那是判準過期不是回歸。
-  const f3a = await page.evaluate(async () => {
-    const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
-    window.__origRecenter = recenterTo;
-    recenterTo = () => {}; // 癱瘓主置中路徑:能救回來的只剩自癒
-    const p = trainPos(tr, state.simSec);
-    const rs0 = state._camRescues || 0;
-    window.__M.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
-    const iv = setInterval(() => { state._gestureAt = performance.now(); }, 400); // 模擬使用者持續操作
-    await new Promise(r => setTimeout(r, 4300));
-    clearInterval(iv);
-    const held = (state._camRescues || 0) - rs0;
-    state._gestureAt = 0; // 手勢停止(禁救期已過):離屏計時早已滿,下一拍就該開火
-    await new Promise(r => setTimeout(r, 1600));
-    const fired = (state._camRescues || 0) - rs0;
-    const p2 = trainPos(tr, state.simSec) || p;
-    const cp = window.__M.toScreen([p2.lat, p2.lon]);
-    const sz = window.__M.getSize();
-    recenterTo = window.__origRecenter;
-    return { held, fired, z: +window.__M.getZoom().toFixed(1),
-      inView: cp.x >= 0 && cp.x <= sz.x && cp.y >= 0 && cp.y <= sz.y };
-  });
-  ok(`F3a ${eng}/16橫 自癒:手勢持續中按兵不動(0 次),手勢停止即開火貼車 z≥13`,
-    !f3a.err && f3a.held === 0 && f3a.fired >= 1 && f3a.inView && f3a.z >= 13, JSON.stringify(f3a));
   const f3c = await page.evaluate(async () => {
     const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
     const p = trainPos(tr, state.simSec);
@@ -1141,6 +1162,44 @@ async function fix0812Suite(browser, eng) {
   ok(`F3c ${eng}/16橫 轉場旗標卡死(>5s):triage 清旗標+撤遮幕+跟隨鏡頭同幀接手`,
     !f3c.err && !f3c.tra && parseFloat(f3c.veil) < 0.05 && f3c.inView, JSON.stringify(f3c));
   await ctx.close();
+  // (a) 2026-09-26 改到「3D 整合層沒載入」的頁面量(判準本身一字不改):09-09 手機車頭鎖定(a5473792)
+  //     起,3D 整合層用 MapLibre 的 transformCameraUpdate 把相機中心釘在列車上——程式 setView 只有 zoom
+  //     生效、center 被原地擋回(memory verify-camera-blocked-by-follow-lock),相機根本離不開列車,自癒
+  //     結構上不會開火(實測 held=0 fired=0 z=11 inView=true;bisect:72e6b822 綠→a5473792 紅)。
+  //     手機上自癒現在真正在把關的是整合層載不到時的平面置中退路,所以在那個環境驗它。
+  const b3 = await boot(browser, { w: 852, h: 393, tag: '16橫·無3D整合層' }, { block3d: true });
+  if (!b3) ok(`F3a ${eng} 取得行駛中列車(無3D整合層)`, false, '深夜無台鐵車＝環境條件');
+  else {
+    const pre3 = await b3.page.evaluate(() => ({ integration: !!window.railIslandIntegration,
+      constraint: !!window.__M.raw.transformCameraUpdate, followLock: !!state.followLock }));
+    // 前置閘門:整合層真的沒載入、相機約束真的不在——否則下面量的又是被約束擋住的那條路
+    ok(`F3a ${eng}/16橫 前置:3D 整合層沒載入、相機約束不在(平面置中與自癒是唯一防線)`,
+      pre3.integration === false && pre3.constraint === false && pre3.followLock === true, JSON.stringify(pre3));
+    const f3a = await b3.page.evaluate(async () => {
+      const tr = state.followTrain; if (!tr) return { err: 'no-follow' };
+      window.__origRecenter = recenterTo;
+      recenterTo = () => {}; // 癱瘓主置中路徑:能救回來的只剩自癒
+      const p = trainPos(tr, state.simSec);
+      const rs0 = state._camRescues || 0;
+      window.__M.setView([p.lat + 0.4, p.lon - 0.4], 11, { animate: false });
+      const iv = setInterval(() => { state._gestureAt = performance.now(); }, 400); // 模擬使用者持續操作
+      await new Promise(r => setTimeout(r, 4300));
+      clearInterval(iv);
+      const held = (state._camRescues || 0) - rs0;
+      state._gestureAt = 0; // 手勢停止(禁救期已過):離屏計時早已滿,下一拍就該開火
+      await new Promise(r => setTimeout(r, 1600));
+      const fired = (state._camRescues || 0) - rs0;
+      const p2 = trainPos(tr, state.simSec) || p;
+      const cp = window.__M.toScreen([p2.lat, p2.lon]);
+      const sz = window.__M.getSize();
+      recenterTo = window.__origRecenter;
+      return { held, fired, z: +window.__M.getZoom().toFixed(1),
+        inView: cp.x >= 0 && cp.x <= sz.x && cp.y >= 0 && cp.y <= sz.y };
+    });
+    ok(`F3a ${eng}/16橫 自癒:手勢持續中按兵不動(0 次),手勢停止即開火貼車 z≥13`,
+      !f3a.err && f3a.held === 0 && f3a.fired >= 1 && f3a.inView && f3a.z >= 13, JSON.stringify(f3a));
+    await b3.ctx.close();
+  }
   // F4 直式對照組:更多維持全寬底抽屜——橫式收斂規則不得外漏到直式
   const ctx2 = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
   await ctx2.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-appearance', 'light'); localStorage.setItem('trainmap-language', 'zh-TW'); } catch (e) {} });
@@ -1252,13 +1311,12 @@ async function portraitSuite(browser, eng) {
       // 缺陷 D（zoom 6 視窗比 maxBounds 高 ⇒ 相機釘死）已由「夾限改用露出的那塊」修掉，
       // clamped 分支**應該恆為 0**，但刻意保留：它是「夾死又回來了」的哨兵，
       // 真的走進去時至少要保證帳面等於實況（帳實不符會讓後續所有差量記帳一起歪掉）。
-      // 🔴 分類器照 §04c 契約用 __aheadExpect（露出中心＋前瞻）判：第一版拿「離容器中心的
+      // 🔴 分類器用 __aheadExpect 的露出中心判（2026-09-26 裁示 B 起不含前瞻，改用 centerPass）。第一版拿「離容器中心的
       //    垂直距離 == (bottom−top)/2」判 canPan，§04c 之後前瞻會把車帶離中心至多 15% 短邊、
       //    水平也會讓位——舊式一律誤判成「夾死」，把讓位成功的尺寸整批推進 honest 分支（分母無聲縮水）。
       const cam = await page.evaluate(() => window.__aheadExpect());
-      const canPan = aheadPass(cam);
+      const canPan = centerPass(cam);
       if (canPan) {
-        aheadCount(cam);
         ok(`L5 ${eng}/${S.tag} ${P.label}·列車看得見`, t.onMap === true,
           JSON.stringify(t) + `｜相機 ${JSON.stringify({ err0: cam.err0, dist: cam.dist, m: cam.m })}`);
       } else {
@@ -1423,9 +1481,18 @@ async function rotationSuite(browser, eng) {
     // 使用者的實際操作序=先收面板/跟車再換組,判準照那個序走;逃生門(fp 可收合)由裁示背書。
     await page.evaluate(() => { try { soloPanel(null); updateSheetOpenClass(); clearFollow(); } catch (e) {} });
     await page.waitForTimeout(400);
-    let tapped = true, switched = false, how = '';
+    let tapped = true, switched = false, how = '', before = null, tapMs = null;
+    // 診斷(不改通過條件):點擊逾時≠按不動。f14ee875(v0915a 同向待避選站)起 selectGroup 在主執行緒同步
+    // 跑 resolveTraTraffic,WebKit 無視窗實測 2.1–3.4 s(之前 0.08–0.16 s)⇒ Playwright 的 tap 要等 click
+    // handler 跑完才回來,3 s 逾時落在它身上。細節欄另記「點擊耗時／切組別同步耗時／逾時後組別有沒有換」,
+    // 紅的時候一眼分得出是按不到還是按了但卡住(分類帳 docs/verify-landscape-red-classification-20260926.md)。
+    await page.evaluate(() => {
+      window.__l10SgMs = null;
+      const orig = selectGroup;
+      selectGroup = function (...a) { const t = performance.now(); try { return orig.apply(this, a); } finally { window.__l10SgMs = Math.round(performance.now() - t); selectGroup = orig; } };
+    });
     try {
-      const before = await page.evaluate(() => state.group);
+      before = await page.evaluate(() => state.group);
       const one = await page.evaluate(() => {
         const b = document.querySelector('.topbar .gtab-one');
         return !!b && !b.hidden && getComputedStyle(b).display !== 'none' && b.getClientRects().length > 0;
@@ -1435,7 +1502,8 @@ async function rotationSuite(browser, eng) {
         await page.tap('.topbar .gtab-one', { timeout: 3000 });
         await page.waitForTimeout(320);
         const rows = page.locator('#gtabPop .gp-row:not([aria-current=true])');
-        if (await rows.count() === 0) tapped = false; else await rows.first().tap({ timeout: 3000 });
+        if (await rows.count() === 0) tapped = false;
+        else { const t0 = Date.now(); try { await rows.first().tap({ timeout: 3000 }); } finally { tapMs = Date.now() - t0; } }
       } else {
         how = '四顆分頁';
         const tabs = page.locator('.topbar .grouptabs .gtab:not(.active)');
@@ -1446,7 +1514,10 @@ async function rotationSuite(browser, eng) {
         switched = (await page.evaluate(() => state.group)) !== before;
       }
     } catch (e) { tapped = false; }
-    ok(`L10 ${eng}/${sz} 來回轉兩次後分組切換（${how}）真的按得動`, tapped && switched, `tap=${tapped} 換組了=${switched}`);
+    await page.waitForTimeout(tapped ? 0 : 700);
+    const l10diag = await page.evaluate(b => ({ sgMs: window.__l10SgMs, groupNow: state.group, changed: state.group !== b }), before).catch(() => ({}));
+    ok(`L10 ${eng}/${sz} 來回轉兩次後分組切換（${how}）真的按得動`, tapped && switched,
+      `tap=${tapped} 換組了=${switched} 點擊耗時=${tapMs ?? '—'}ms selectGroup同步=${l10diag.sgMs ?? '沒呼叫'}ms` + (tapped ? '' : ` 逾時後組別${l10diag.changed ? '已換(按到了但主執行緒卡住)' : '沒換'}`));
     await ctx.close();
   }
 
@@ -1627,13 +1698,25 @@ const LOCK_PROBE = () => {
   }
   const maR = ma.getBoundingClientRect(), Lr = lb.getBoundingClientRect();
   // v5(08-27 裁示「一排橫的在右上方」):橫式工具欄從直欄改橫排——直欄契約「右緣對齊」死亡,
-  // 列契約=上緣對齊＋整欄單列高(≤46=44+捨入)＋角落顆(最右)是隨機跟隨(row-reverse 的 DOM 首顆)。
+  // 列契約=同一列＋整欄單列高＋角落顆(最右)是隨機跟隨(row-reverse 的 DOM 首顆)。
+  // 🔴 2026-09-26:當年等高(44)時寫成「上緣對齊±2」「欄高≤46」,09-09 車頭鎖定鈕改成 44×52 後這兩個
+  //    代理量失效(容器 align-items:center ⇒ 44 的鈕上緣比鎖鈕低 4px、欄高 52)。改驗意圖本身:
+  //    同一列＝兩兩垂直重疊至少較矮那顆的一半(疊成兩列就不重疊);單列高＝欄高 ≤ 最高那顆 +2
+  //    (從當下量到的推,不寫死 44/46——判準盲點 3)。上緣與中心照樣印在 detail,方便看對齊。
   const sorted = rects.slice().sort((a, b) => b.r.right - a.r.right);
+  let sameRow = rects.length > 0;
+  for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+    const a = rects[i].r, b = rects[j].r;
+    if (Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) < 0.5 * Math.min(a.height, b.height)) sameRow = false;
+  }
   return {
-    unlocked: lb.classList.contains('unlocked'), label: (lb.textContent || '').trim(),
+    // 讀狀態字本身(.lock-state):首次跟車時 showTip 會把 .mt-tip「車頭鎖定：開啟」塞進鈕裡 2 秒,讀整顆 textContent 會量到提示
+    unlocked: lb.classList.contains('unlocked'), label: ((lb.querySelector('.lock-state') || lb).textContent || '').trim(),
+    pressed: lb.getAttribute('aria-pressed'),
     inRail: lb.parentNode === ma, lockW: Math.round(Lr.width), lockH: Math.round(Lr.height),
-    topAligned: rects.every(k => Math.abs(k.r.top - maR.top) <= 2),
-    singleRow: Math.round(maR.height) <= 46,
+    sameRow, railH: Math.round(maR.height),
+    tops: rects.map(k => Math.round(k.r.top)), mids: rects.map(k => Math.round((k.r.top + k.r.bottom) / 2)),
+    singleRow: rects.length > 0 && Math.round(maR.height) <= Math.round(Math.max(...rects.map(k => k.r.height))) + 2,
     cornerId: sorted.length ? sorted[0].id : null,
     minSize: Math.round(Math.min(...rects.map(k => Math.min(k.r.width, k.r.height)))),
     overlaps,
@@ -1799,7 +1882,12 @@ async function deviceSuite(browser, eng) {
     if (!b) { ok(`L13 ${eng}/${S.tag} 環境：有行駛中的台鐵車可跟`, false, '深夜無車＝環境條件，不是產品回歸'); continue; }
     const { ctx, page } = b;
 
-    // ── E：走使用者的實際操作序（拖曳地圖→自動解鎖→膠囊變寬），不是直接改 class ──
+    // ── E：走使用者的實際操作序，不是直接改 class ──
+    // 🔴 2026-09-26 判準過期改寫(bisect:72e6b822 綠→a5473792 紅)：09-09 使用者要求「手機右側需要明確的
+    //    車頭鎖定開關。鎖定時仍可縮放、旋轉；解鎖後自由移動」(docs/rail-structures-head-lock-0909.md)
+    //    ⇒ 手機的車頭鎖只由開關解除，拖曳地圖不再解鎖(index.html dragstart 的 !followHeadLocked() 閘)，
+    //    鎖鈕也不再長成「回到列車」膠囊，改成 44×52 的「鎖定／自由」開關。舊操作序「拖曳→自動解鎖→膠囊」
+    //    已不存在，改照新契約走：拖曳一次(先證明地圖真的收到拖曳、再驗沒有解鎖)→收合跟隨欄→按開關解鎖。
     // 🔴 拖曳起點必須在**露出的地圖**上：§04c 跟隨欄佔掉左緣 [10,230]，0.3×667=200 落在欄內，
     //    按下去點到的是 fpStatus——不但解不了鎖，還會誤開列車 sheet，把後面 L14 的版面整個帶歪
     //    （SE3 那對 L13/L14d 假紅就是這條連鎖）。起點取 max(0.3W, 跟隨欄右緣+40)。
@@ -1815,10 +1903,21 @@ async function deviceSuite(browser, eng) {
     const sx = fpIsRightRail
       ? Math.max(100, Math.round(fpBox.left / 2))
       : Math.max(Math.round(S.w * 0.3), Math.round((fpBox ? fpBox.right : 0) + 40));
+    const drag0 = await page.evaluate(() => {
+      window.__dragStarts = 0;
+      window.__M.raw.on('dragstart', () => { window.__dragStarts++; });
+      return state.followLock;
+    });
     await touchDrag(page, eng, sx, Math.round(S.h * 0.5), sx - 80, Math.round(S.h * 0.66));
     await page.waitForTimeout(700);
-    // v3(2026-08-27 裁示):解鎖後跟隨欄(右側欄)蓋著工具堆——「可以擋住右上角那些按鈕沒關係」。
-    // 使用者要按「回到列車/隨機跟隨」的實際操作序=先點 ×(fpClose)把欄收合成膠囊(跟隨不中斷、
+    const drag1 = await page.evaluate(() => ({ dragStarts: window.__dragStarts, locked: state.followLock,
+      pressed: document.getElementById('followLockBtn')?.getAttribute('aria-pressed') }));
+    // 正向對照先證明地圖真的把它當拖曳收下(dragstart ≥1)——拖曳沒送到地圖時「沒解鎖」恆真(判準盲點 5)
+    ok(`L13a ${eng}/${S.tag} 拖曳地圖不解鎖(手機車頭鎖只由開關解除)`,
+      drag0 === true && drag1.dragStarts >= 1 && drag1.locked === true && drag1.pressed === 'true',
+      JSON.stringify({ 拖曳前鎖定: drag0, ...drag1 }));
+    // v3(2026-08-27 裁示):跟隨欄(右側欄)蓋著工具堆——「可以擋住右上角那些按鈕沒關係」。
+    // 使用者要按工具堆(車頭鎖定/隨機跟隨)的實際操作序=先點 ×(fpClose)把欄收合成膠囊(跟隨不中斷、
     // 契約4 記憶收合),工具堆露出再按。判準照這個序走;fpClose 不存在/不可見時照舊直量。
     await page.evaluate(() => {
       const x = document.getElementById('fpClose');
@@ -1827,17 +1926,20 @@ async function deviceSuite(browser, eng) {
         && (fp.getBoundingClientRect().left + fp.getBoundingClientRect().right) / 2 > innerWidth / 2) x.click();
     });
     await page.waitForTimeout(400);
+    let lockTapped = true;
+    try { await page.tap('#followLockBtn', { timeout: 3000 }); } catch (e) { lockTapped = false; }
+    await page.waitForTimeout(400);
     const L = await page.evaluate(LOCK_PROBE);
     // 前置閘門：沒真的解鎖的話，下面的欄內秩序判準是恆真的假綠（心得 17）
-    ok(`L13 ${eng}/${S.tag} 前置：拖曳地圖真的解了鎖`, L.unlocked === true && L.label === '回到列車',
-      `unlocked=${L.unlocked}／文字=${JSON.stringify(L.label)}／膠囊寬=${L.lockW}`);
-    // v5:直欄契約「右緣對齊」→ 列契約「上緣對齊＋單列高＋角落顆=隨機跟隨」
-    ok(`L13b ${eng}/${S.tag} 「回到列車」在工具欄內·橫排上緣對齊·單列·角落顆=隨機跟隨·互不相疊`,
-      L.inRail === true && L.topAligned === true && L.singleRow === true
+    ok(`L13 ${eng}/${S.tag} 前置：按車頭鎖定開關真的解了鎖`,
+      lockTapped && L.unlocked === true && L.pressed === 'false' && L.label === '自由',
+      `tap=${lockTapped}／unlocked=${L.unlocked}／aria-pressed=${L.pressed}／文字=${JSON.stringify(L.label)}／鈕 ${L.lockW}×${L.lockH}`);
+    ok(`L13b ${eng}/${S.tag} 車頭鎖定開關在工具欄內·同一列·單列高·角落顆=隨機跟隨·互不相疊`,
+      L.inRail === true && L.sameRow === true && L.singleRow === true
       && L.cornerId === 'randBtn' && L.overlaps.length === 0,
-      L.overlaps.join(' | ') || `inRail=${L.inRail} topAligned=${L.topAligned} singleRow=${L.singleRow} corner=${L.cornerId} 膠囊 ${L.lockW}×${L.lockH}`);
+      L.overlaps.join(' | ') || `inRail=${L.inRail} sameRow=${L.sameRow} singleRow=${L.singleRow} corner=${L.cornerId} 鎖鈕 ${L.lockW}×${L.lockH} 欄高 ${L.railH} 上緣 ${L.tops} 中心 ${L.mids}`);
     ok(`L13c ${eng}/${S.tag} 兩顆都按得到且 ≥44`, L.lockTappable === true && L.randTappable !== false && L.minSize >= 44,
-      `回到列車=${L.lockTappable}／隨機跟隨=${L.randTappable}／最小邊=${L.minSize}`);
+      `車頭鎖定=${L.lockTappable}／隨機跟隨=${L.randTappable}／最小邊=${L.minSize}`);
 
     // ── F：停靠站名牌的量體 ──
     const D = await page.evaluate(DWELL_PROBE);
@@ -1954,6 +2056,18 @@ async function landV2Suite(browser, eng) {
         drift.length === 0 && out.toolsInDom && out.cardInDom,
         drift.length ? `沒回來:${drift.map(k => `${k} ${before[k]}→${out[k]}`).join('、')}`
           : RT.map(k => `${k}=${out[k]}`).join(' '));
+      // V2b(09-09「放空跟車也顯示」車頭鎖定開關):上面那趟是預設的群車視角,進場就清掉跟車,鎖鈕依設計收起。
+      //   切到跟車視角再進一次放空(自動巡遊接手跟一班),量鎖鈕在、點得到、其餘工具仍收起。
+      //   前置閘門:真的在放空跟車——沒接上車的話「鎖鈕收起」是正確行為,判準會把它判成缺陷。
+      await page.evaluate(() => { setAmbientStyle('follow'); setAmbient(true); });
+      const folOn = await page.waitForFunction(() => state.ambient && state.ambientStyle === 'follow' && !!(state.followTrain || state.freqFollow),
+        null, { timeout: 10000 }).then(() => true, () => false);
+      await page.waitForTimeout(900);
+      const amb2 = await settled();
+      ok(`V2b ${eng} 放空跟車·車頭鎖定開關留著且點得到、其餘工具仍收起(09-09)`,
+        folOn && amb2.lock > 0.9 && amb2.lockHit === true && amb2.toolsExLock <= 0.05,
+        JSON.stringify({ 放空跟車中: folOn, lock: amb2.lock, lockHit: amb2.lockHit, toolsExLock: amb2.toolsExLock }));
+      await page.evaluate(() => { setAmbient(false); setAmbientStyle('hotspot'); });
       await ctx.close();
     }
   }
@@ -2035,12 +2149,20 @@ const AMBIENT_PROBE = () => {
   const tb = document.getElementById('topbar'), tools = document.getElementById('mapActions');
   const bd = document.getElementById('board'), cap = document.querySelector('.controls');
   const exit = document.getElementById('ambientBtn');
-  let exitHit = false;
-  if (exit && exit.getClientRects().length) {
-    const r = exit.getBoundingClientRect();
+  const hitSelf = el => {
+    if (!el || !el.getClientRects().length) return false;
+    const r = el.getBoundingClientRect();
     const q = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-    exitHit = !!(q && (q === exit || exit.contains(q)));
-  }
+    return !!(q && (q === el || el.contains(q)));
+  };
+  const exitHit = hitSelf(exit);
+  // 🔴 2026-09-26 判準過期改寫(bisect:72e6b822 綠→a5473792 紅):09-09 起放空改成「容器不淡、成員收起」
+  //    (CSS body.fs.ambient .map-actions{opacity:1},#followLockBtn 以外的成員 display:none;
+  //    docs/rail-structures-head-lock-0909.md「放空跟車也顯示」車頭鎖定開關)⇒ 量容器 opacity 恆 1,
+  //    「工具堆收起」改量成員(取最亮那顆,display:none 記 0)。鎖鈕另外拆出來:群車巡航沒在跟車,它依設計
+  //    也收起(tools 全員);放空跟車才留它(toolsExLock 量其餘成員,V2b 具名驗它在、點得到)。
+  const lockBtn = document.getElementById('followLockBtn');
+  const members = tools ? [...tools.children] : [];
   // 🔴 頂列本體的 pointer-events 恆為 none(它是整條橫帶,不能吃掉底下地圖的拖曳),
   //    可互動性住在它的**子元件**上 ⇒ 判「還能不能點」要對子元件做命中測試,不是讀容器的 PE。
   let topbarHit = null;
@@ -2055,7 +2177,9 @@ const AMBIENT_PROBE = () => {
     topbar: +eff(tb).toFixed(2), topbarPE: tb ? getComputedStyle(tb).pointerEvents : null,
     topbarKid: kid ? (kid.id || kid.className) : null, topbarHit,
     topbarDisplay: tb ? getComputedStyle(tb).display : null,
-    tools: +eff(tools).toFixed(2), toolsInDom: !!(tools && tools.isConnected),
+    tools: +Math.max(0, ...members.map(eff)).toFixed(2), toolsN: members.length, toolsInDom: !!(tools && tools.isConnected),
+    toolsExLock: +Math.max(0, ...members.filter(e => e !== lockBtn).map(eff)).toFixed(2),
+    lock: +eff(lockBtn).toFixed(2), lockHit: hitSelf(lockBtn),
     card: +eff(bd && !bd.hidden ? bd : null).toFixed(2), cardInDom: !!(bd && bd.isConnected),
     capsule: +eff(cap).toFixed(2), exitHit,
   };
@@ -2137,10 +2261,10 @@ async function zeroRegressionSuite(browser, eng) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// P4：§04c-P 直式相機矩陣——小卡態／46% sheet 兩態的露出中心＋前瞻。
+// P4：§04c-P 直式相機矩陣——小卡態／46% sheet 兩態的露出中心（2026-09-26 裁示 B：車頭鎖定不做前瞻）。
 // 設計回包行為契約 1：「四個方向都要讓位——直式跟隨小卡態的位移是往右上，不是只往上」。
 // __exposed 判準側自帶同一條閘門規則（契約常數），所以這裡問的是「實作真的照閘門行為」——
-// 實作若半讓位，err0 直接爆表；若閘門值改了，兩邊常數對不上也會紅。
+// 實作若半讓位，dist 直接爆表；若閘門值改了，兩邊常數對不上也會紅。
 //
 // 🔴 2026-08-26：原本第三態「88% sheet·走 64px 最小露出閘門（垂直軸整個放棄）」隨大段退役而移除
 //    ——兩段制最高 46%，直向再也做不出「露出帶低於 MIN_MAP_STRIP」的情境，留著只會是一條
@@ -2161,11 +2285,10 @@ async function portraitCameraSuite(browser, eng) {
         await page.waitForTimeout(800);
       }
       const cam = await page.evaluate(() => window.__aheadExpect());
-      aheadCount(cam);
       if (st === 'card') {
         ok(`P4 ${eng} 小卡態·左界=小卡右緣(相機往右上讓)`,
           !cam.err && cam.ex.left >= 150 && cam.ex.cx > S.w / 2 + 20, JSON.stringify(cam.ex));
-        ok(`P4 ${eng} 小卡態·列車在露出中心＋前瞻`, aheadPass(cam),
+        ok(`P4 ${eng} 小卡態·列車在露出中心`, centerPass(cam),
           JSON.stringify({ err0: cam.err0, dist: cam.dist, m: cam.m, ex: cam.ex }));
       } else if (st === 'mid') {
         // 出貨行為:46% 態小卡被 placeFsOverlays 抬到 sheet 上方,**仍可見** ⇒ 行為契約 2
@@ -2179,7 +2302,7 @@ async function portraitCameraSuite(browser, eng) {
           !lifted.err && lifted.fpBottom <= lifted.sheetTop + 2, JSON.stringify(lifted));
         ok(`P4 ${eng} 46%sheet·左界=小卡右緣、下界=sheet 頂`,
           !cam.err && cam.ex.left >= 150 && cam.ex.bottom > S.h * 0.35, JSON.stringify(cam.ex));
-        ok(`P4 ${eng} 46%sheet·列車在露出中心＋前瞻`, aheadPass(cam),
+        ok(`P4 ${eng} 46%sheet·列車在露出中心`, centerPass(cam),
           JSON.stringify({ err0: cam.err0, dist: cam.dist, m: cam.m, ex: cam.ex }));
       }
     }
@@ -2196,8 +2319,6 @@ const matrix = await runEngineMatrix(async ({ engineUrl, check }) => {
   activeCheck = check;
   results.length = 0;
   errors.length = 0;
-  aheadBranch.moving = 0;
-  aheadBranch.dwell = 0;
 for (const [eng, B] of (QUICK ? [['chromium', chromium]] : [['chromium', chromium], ['webkit', webkit]])) {
   const browser = await B.launch();
   await landscapeSuite(browser, eng);
@@ -2212,10 +2333,6 @@ for (const [eng, B] of (QUICK ? [['chromium', chromium]] : [['chromium', chromiu
   if (!QUICK) { await portraitSuite(browser, eng); await zeroRegressionSuite(browser, eng); }
   await browser.close();
 }
-// 相機判準的分支分佈（心得 37d）：dwell 弱判只驗「距中心 ≈ 幅度」不驗方向，
-// 樣本若多數滑進弱判，「前瞻方向對不對」整個維度等於沒驗——具名把關，不能只印在 detail。
-ok('L9 相機判準分支分佈：行進中強判佔多數', aheadBranch.moving >= (aheadBranch.moving + aheadBranch.dwell) * 0.5,
-  `moving=${aheadBranch.moving}／dwell=${aheadBranch.dwell}`);
 check(errors.length === 0, '全情境零 pageerror/console.error', errors.slice(0, 10).join(' | '));
 });
 server.close();

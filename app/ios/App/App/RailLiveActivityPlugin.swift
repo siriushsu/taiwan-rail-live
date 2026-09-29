@@ -55,7 +55,15 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
             delaySec: call.getInt("delaySec") ?? 0,
             terminus: call.getString("terminus") ?? "",
             stopping: call.getBool("stopping"),
-            prevStop: call.getString("prevStop")
+            prevStop: call.getString("prevStop"),
+            // 🔴 tick＝這支方法被呼叫的當下（前景 start／update 皆走這裡）,不是伺服器推播的值——
+            //    前景由 App 自己更新時,車照樣要跟著這一發往前挪,不能只靠後端 push 才會動。
+            tick: Date().timeIntervalSince1970,
+            // 🔴 網頁第一發的 carModel 幾乎都是 null（formations.js 還在 import），而 Attributes 開卡後不能改；
+            //    所以每一發前景更新都把 carModel 寫進這一欄，卡片解出車型後才切得到進站軌道版面。
+            carModelOverride: call.getString("carModelOverride") ?? call.getString("carModel"),
+            plateLeft: call.getString("plateLeft"),
+            plateRight: call.getString("plateRight")
         )
     }
 
@@ -77,6 +85,20 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     override public func load() {
         guard #available(iOS 17.6, *) else { return }
         enqueue { await self.endAll() }   // App 啟動先掃一次孤兒
+        // 鎖屏/動態島的「結束」鈕走 RailFollowEndIntent,而那個檔同時要編進 widget
+        // extension ⇒ 它【看不到】這個 plugin,收完卡片只能發 railFollowChanged。
+        // 這裡接住它,補上 endAll() 的另外兩件事:否則 App 還活著時從鎖屏按結束,
+        // current 會留著一張已經收掉的卡,之後每一發 update 都對死卡片送出(不報錯、
+        // 畫面也不會動),而 current 清掉之後 update 會誠實回 noactivity。
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("railFollowChanged"), object: nil, queue: .main
+        ) { [weak self] note in
+            guard let self, (note.userInfo?["active"] as? Bool) == false else { return }
+            // 🔴 current／tokenTask 只能在 main queue 上讀寫(見 enqueue 的註解),所以
+            //    queue 指定 .main。endAll() 自己發的那一份會走進這裡,但它剛清過,冪等。
+            self.tokenTask?.cancel(); self.tokenTask = nil
+            self.current = nil
+        }
     }
 
     @objc func start(_ call: CAPPluginCall) {
@@ -90,7 +112,10 @@ public final class RailLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
             sys: call.getString("sys") ?? "",
             // 車種代表色。Attributes 只在 request 當下定版,之後的 update 改不了它——
             // 但車種本來就不會中途變,這正是它該放在 Attributes 而不是 ContentState 的理由。
-            color: call.getString("color")
+            color: call.getString("color"),
+            // 進站軌道（B 方案）車模 id；拿不到就是 nil,卡片退回舊版面(RailFollowDisplay.make
+            // 只在 sys 是 tra_sched／thsr_sched 且 carAspect 有值時才切版面)。
+            carModel: call.getString("carModel")
         )
         let st = state(from: call)
         enqueue {

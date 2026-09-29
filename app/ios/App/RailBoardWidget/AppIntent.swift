@@ -351,6 +351,43 @@ struct ConfigurationAppIntent: WidgetConfigurationIntent {
     //    倒數只是換了位置的常態資訊，搶在狀態前面會把「這班誤點了」擠掉。
     @Parameter(title: "主要顯示發車時刻", default: false)
     var clockFirst: Bool
+
+    // 2026-09-23 使用者裁示：「就用 A 跟 C，開始實作到 App 小工具」，設定加「背景」三選一、
+    // 預設車模。版面規格見 RailWidgetArt.swift。
+    // 🔴 刻意用 String＋optionsProvider、不用 AppEnum：09-23 模擬器（iOS 26.5）實測 AppEnum 版
+    //    設定畫面選得到、也存得進去（serializedParameters 裡是 background = scene），但 extension 的
+    //    InitializeAction 一律解成 nil ⇒ 永遠拿到預設的車模，場景／素色選了等於沒選；
+    //    同一個 intent 的 String 參數（起站、目的站、篩選）都正常。算繪 harness 直接注入 backdrop，
+    //    看不到這一段——改這一格一定要上模擬器實際切換一次。
+    //    與檔頭「為什麼參數型別是 String 而不是 AppEntity」同一族：這個 extension 解不回任何自訂型別。
+    //    存值 model／scene／plain，不要改名；nil＝沒動過設定＝車模（讀 `backdrop`）。
+    // 🔴 刻意不給 defaultResult／default：String 的預設值只有值沒有顯示名稱，設定畫面會直接露出
+    //    「model」（09-23 模擬器實測）。沒選過時這格照「目的站（可留空）」的慣例顯示標題，
+    //    所以標題自己講出預設是什麼。
+    @Parameter(title: "背景（預設車模）", optionsProvider: RailWidgetBackgroundOptionsProvider())
+    var background: String?
+}
+
+/// 小工具「背景」三選一（車模預設／場景／素色）。值是 RailBackdrop 的 rawValue。
+@available(iOS 17.0, *)
+struct RailWidgetBackgroundOptionsProvider: DynamicOptionsProvider {
+    func results() async throws -> ItemCollection<String> {
+        ItemCollection(sections: [IntentItemSection(items: [RailBackdrop.model, .scene, .plain].map(\.intentItem))])
+    }
+}
+
+@available(iOS 17.0, *)
+extension RailBackdrop {
+    /// 設定選單的一列：值是存值，顯示的是「車模／場景／素色」。
+    var intentItem: IntentItem<String> {
+        let title: String
+        switch self {
+        case .model: title = "車模"
+        case .scene: title = "場景"
+        case .plain: title = "素色"
+        }
+        return IntentItem(rawValue, title: LocalizedStringResource(stringLiteral: RailNativeL10n.option(title)))
+    }
 }
 
 @available(iOS 17.0, *)
@@ -362,6 +399,9 @@ extension ConfigurationAppIntent {
         guard let destination, !destination.isEmpty, destination != Self.anyDestination else { return nil }
         return destination
     }
+
+    /// 「背景」設定。沒動過（nil）或讀不懂的存值一律當車模（裁示的預設）。
+    var backdrop: RailBackdrop { background.flatMap(RailBackdrop.init(rawValue:)) ?? .model }
 
     static var previewCommute: ConfigurationAppIntent {
         let intent = ConfigurationAppIntent()

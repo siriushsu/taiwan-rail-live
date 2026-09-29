@@ -1,6 +1,46 @@
 {
-  "updated": "2026-09-11",
+  "updated": "2026-09-27",
   "events": [
+    {
+      "id": "tra-20260924-pokemon30-skm",
+      "source": "official",
+      "title": "新光三越週年慶寶可夢30周年主題列車",
+      "note": "EMU800 全車寶可夢彩繪，每天在西部幹線跑區間車",
+      "start": "2026-09-25",
+      "end": "2026-12-13",
+      "anchor": { "kind": "system", "sys": "tra_sched" },
+      "url": "https://www.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac2a0cfb55601a0d3373b9c04fd&page=0"
+    },
+    {
+      "id": "tra-20260924-kato-e500-pp",
+      "source": "official",
+      "title": "臺鐵×KATO E500＋PP自強號模型首賣會",
+      "note": "N 規模型限量首賣（10/3 上午 10 點），兩天都有鐵道模型運轉會，11 點到 17 點",
+      "start": "2026-10-03",
+      "end": "2026-10-04",
+      "anchor": { "kind": "station", "sys": "tra_sched", "name": "臺北" },
+      "url": "https://www.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac2a0cfb55601a0d307034d0497"
+    },
+    {
+      "id": "trtc-20260924-exit-music-fest",
+      "source": "official",
+      "title": "2026出口音樂節",
+      "note": "劍潭站 3 號出口旁北藝中心戶外廣場，晚上 6 點開唱；搖滾區票 9/29–10/5 用台北捷運Go登記抽",
+      "start": "2026-10-17",
+      "end": "2026-10-17",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "劍潭" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=CC29E06A1A7F151D"
+    },
+    {
+      "id": "trtc-20260923-xinzhongshan-art",
+      "source": "official",
+      "title": "心中山「是誰躲起來了？」展覽",
+      "note": "心中山線形公園北段的裝置作品，用電箱和拆建殘料蓋出的微型棲居空間，呼應赤峰街打鐵五金的過去",
+      "start": "2026-09-23",
+      "end": "2026-11-22",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "雙連" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=681B26EB737DAB11"
+    },
     {
       "id": "trtc-20260811-pokemon10",
       "source": "official",
@@ -12,26 +52,6 @@
       "url": "https://pokemongo.com/zh-Hant/news/2026daanpark"
     },
     {
-      "id": "ntmetro-20260814-fireworks-0816",
-      "source": "official",
-      "title": "2026仲夏夜繽紛樂",
-      "note": "漁人碼頭週日夜間煙火，輕軌會加開藍海線疏運",
-      "start": "2026-08-16",
-      "end": "2026-08-16",
-      "anchor": { "kind": "station", "sys": "ntdlrt", "name": "淡水漁人碼頭" },
-      "url": "https://www.ntmetro.com.tw/basic/?mode=detail&node=890"
-    },
-    {
-      "id": "ntmetro-20260814-fireworks-0823",
-      "source": "official",
-      "title": "2026仲夏夜繽紛樂",
-      "note": "漁人碼頭週日夜間煙火，當晚同場加映民歌演唱會",
-      "start": "2026-08-23",
-      "end": "2026-08-23",
-      "anchor": { "kind": "station", "sys": "ntdlrt", "name": "淡水漁人碼頭" },
-      "url": "https://www.ntmetro.com.tw/basic/?mode=detail&node=890"
-    },
-    {
       "id": "ntmetro-20260814-fireworks-0830",
       "source": "official",
       "title": "2026仲夏夜繽紛樂",
@@ -40,16 +60,6 @@
       "end": "2026-08-30",
       "anchor": { "kind": "station", "sys": "ntdlrt", "name": "淡水漁人碼頭" },
       "url": "https://www.ntmetro.com.tw/basic/?mode=detail&node=890"
-    },
-    {
-      "id": "ntmetro-20260814-folksong",
-      "source": "official",
-      "title": "下一站，憶起唱民歌",
-      "note": "民歌演唱會在漁人碼頭開唱，以淡江大橋當背景",
-      "start": "2026-08-23",
-      "end": "2026-08-23",
-      "anchor": { "kind": "station", "sys": "ntdlrt", "name": "淡水漁人碼頭" },
-      "url": "https://www.ntmetro.com.tw/basic/?mode=detail&node=891"
     },
     {
       "id": "afr-20260819-starry-train",
@@ -295,6 +305,16 @@
       "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2419-1.html"
     },
     {
+      "id": "tymc-20260921-designexpo-extra",
+      "source": "official",
+      "title": "設計展期間 A12–A21 尖峰加班車",
+      "note": "機場第一航廈到環北之間尖峰每小時多 8 列，最密 5 分鐘一班；原本南延的直達車這段期間只開到機場第二航廈",
+      "start": "2026-09-24",
+      "end": "2026-10-11",
+      "anchor": { "kind": "system", "sys": "tymc" },
+      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2427-1.html"
+    },
+    {
       "id": "trtc-20260908-jingjun-venues",
       "source": "official",
       "title": "敬軍優惠 三大遊憩場館免費",
@@ -323,6 +343,47 @@
       "end": "2026-09-19",
       "anchor": { "kind": "station", "sys": "mrt", "name": "大安森林公園" },
       "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=A2C11A764A640D3D"
+    },
+    {
+      "id": "trtc-20260911-kidspark-teacher",
+      "source": "official",
+      "title": "兒童新樂園敬師月",
+      "note": "臺北市教師持教師證或學校識別證，本人加親友共 4 人免費入園；假日再送 4 項設施遊樂券。劍潭站出口 3 轉公車可到",
+      "start": "2026-09-11",
+      "end": "2026-09-30",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "劍潭" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=FD5BEE81DC171572"
+    },
+    {
+      "id": "thsr-20260911-hsinchu-p3-parking",
+      "source": "official",
+      "title": "高鐵新竹站 P3 停車場新費率",
+      "note": "9/15 起 P3 每小時 60 元、每日上限 720 元；P1、P2 維持每小時 50 元、上限 350 元",
+      "start": "2026-09-15",
+      "end": "2026-10-15",
+      "endGuess": true,
+      "anchor": { "kind": "station", "sys": "thsr_sched", "name": "新竹" },
+      "url": "https://www.thsrc.com.tw/ArticleContent/88f56fb0-2613-45d8-8bec-0ccbfe72d2d3"
+    },
+    {
+      "id": "thsr-20260911-domestic-travel-subsidy",
+      "source": "official",
+      "title": "國旅補助搭高鐵 指定車次 55 折起",
+      "note": "在合作飯店官網訂房加購指定離峰車次車票，可與觀光署國旅補助併用",
+      "start": "2026-09-11",
+      "end": "2026-12-31",
+      "anchor": { "kind": "system", "sys": "thsr_sched" },
+      "url": "https://www.thsrc.com.tw/ArticleContent/a1ee91c8-74ef-4eb9-9da0-6b3637541885"
+    },
+    {
+      "id": "trtc-20260917-kidspark-midautumn",
+      "source": "official",
+      "title": "兒童新樂園「中秋童樂」打卡抽獎",
+      "note": "園區有中秋限定的玉兔與發光月亮布置，打卡可參加抽獎",
+      "start": "2026-09-19",
+      "end": "2026-09-28",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "劍潭" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=220D0D7A2C8B041E"
     }
   ]
 }

@@ -1,0 +1,40 @@
+{
+  "images": [
+    {
+      "filename": "widget-scene-duoliang-m@2x.jpg",
+      "idiom": "universal",
+      "scale": "2x"
+    },
+    {
+      "filename": "widget-scene-duoliang-m@3x.jpg",
+      "idiom": "universal",
+      "scale": "3x"
+    },
+    {
+      "filename": "widget-scene-duoliang-m-dark@2x.jpg",
+      "idiom": "universal",
+      "scale": "2x",
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ]
+    },
+    {
+      "filename": "widget-scene-duoliang-m-dark@3x.jpg",
+      "idiom": "universal",
+      "scale": "3x",
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ]
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

@@ -36,9 +36,9 @@ import { homedir } from 'node:os';
 
 const appRoot = dirname(dirname(fileURLToPath(import.meta.url)));   // …/app
 
-// 已證實可通過二進位審查的正式版 macOS build（build 9 用的就是這個值）。
+// 已證實可通過二進位審查的正式版 macOS build（macOS 27 正式版 26A428；相容舊值 25G70）。
 // 之後若換機器或 Apple 收緊檢查，改這裡一處即可。
-const RELEASE_OS_BUILD = process.env.RAIL_RELEASE_OS_BUILD || '25G70';
+const RELEASE_OS_BUILD = process.env.RAIL_RELEASE_OS_BUILD || '26A428';
 // beta seed 的 build 號長相：<主版>A<5開頭四碼><小寫字母>，例如 26A5378n。
 const BETA_RE = /^\d+[A-Z]5\d{3}[a-z]$/;
 

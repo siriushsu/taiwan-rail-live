@@ -84,7 +84,13 @@ ok('G6b 有格式驗證(regex)且 fallback null', /\^\\d\+\(\\\.\\d\+\)\*\$/.tes
 ok('G8a 商店連結有平台分流(storeUrl)', /getPlatform\(\) === 'android' \? PLAY_STORE_URL : APP_STORE_URL/.test(html));
 ok('G8b 閘門按鈕走 storeUrl() 不寫死 Apple', gateFn.includes('storeUrl()') && !gateFn.includes('APP_STORE_URL,'));
 const flv = (html.match(/async function fetchLatestAppVersion[\s\S]*?\n\}/) || [''])[0];
-ok('G8c Android 上 lookup 直接回 null', /'android'\) return null/.test(flv), flv.slice(0, 120));
+// Android 改走 Play Core(RAIL_NATIVE_APPUPDATE)後，舊判準「Android 分支直接 return null」這個字面已不存在，
+// 從那顆 commit 起這條一直是紅的。改成驗它原本要守的事：Android 分支以 return 收尾、
+// 分支裡碰不到 APPVER_LOOKUP，所以永遠走不到 iTunes lookup。
+const androidBranch = (flv.match(/getPlatform\(\) === 'android'\) \{[\s\S]*?\n {4}\}/) || [''])[0];
+ok('G8c Android 分支在 iTunes lookup 之前就回傳', !!androidBranch && !androidBranch.includes('APPVER_LOOKUP')
+  && /\breturn\b[^;]*(\{[\s\S]*\})?;\s*\n {4}\}$/.test(androidBranch)
+  && flv.indexOf(androidBranch) < flv.indexOf('fetch(APPVER_LOOKUP'), androidBranch.slice(0, 160) || flv.slice(0, 120));
 
 // G7 prepare-web 注入 RAIL_APP_WHATS_NEW(verify-release 另有版號一致 gate,這裡只驗注入存在)。
 const prep = readFileSync(join(ROOT, 'app/scripts/prepare-web.mjs'), 'utf8');

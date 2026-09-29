@@ -165,7 +165,7 @@ const M = await A.page.evaluate(() => {
     // 縮放掃描：同一個時刻只改 zoom → 螢幕距離變、其他一切不變。
     // 這是「偏移只在標記會疊到時才出現」最乾淨的實驗旋鈕。
     for (const z of [16, 15, 14, 13, 12, 11, 10, 9]) {
-      window.__map.setView([sc.lat, sc.lon], z, { animate: false });
+      window.__M.setView([sc.lat, sc.lon], z, { animate: false });
       settle();
       const oa = offOf(trA), ob = offOf(trB);
       const ca = rawCp(trA), cb = rawCp(trB);
@@ -196,7 +196,7 @@ const M = await A.page.evaluate(() => {
     }
 
     // 以下都在「標記真的會疊到」的縮放下量
-    window.__map.setView([sc.lat, sc.lon], 14, { animate: false });
+    window.__M.setView([sc.lat, sc.lon], 14, { animate: false });
     settle();
     const oa = offOf(trA), ob = offOf(trB);
     if (!oa || !ob) continue;
@@ -543,7 +543,7 @@ await A.page.evaluate(() => {
   };
   state.speedMult = 30; state.playing = true;
 }, null);
-await A.page.evaluate(s => { window.__map.setView([s.lat, s.lon], 12, { animate: false }); state.simSec = s.t; }, M.scene0);
+await A.page.evaluate(s => { window.__M.setView([s.lat, s.lon], 12, { animate: false }); state.simSec = s.t; }, M.scene0);
 await A.page.waitForTimeout(9000);
 const MO = await A.page.evaluate(() => {
   state.playing = false;
@@ -619,7 +619,7 @@ const OV = await A.page.evaluate(() => {
     // 鏡頭對準**這個窗的中段**而不是候選時刻：窗長 300 秒，沿用舊中心會讓車跑出畫面，
     // _trainHits 找不到它，整段一列都收不到（看起來像「沒踩到」，其實是鏡頭沒跟上）。
     const mid = trainPos(hit.me, hit.t + (from + to) / 2) || hit;
-    window.__map.setView([mid.lat, mid.lon], 13, { animate: false });
+    window.__M.setView([mid.lat, mid.lon], 13, { animate: false });
     const me = hit.me, other = hit.other, rows = [];
     for (let dt = from; dt <= to; dt += 3) {                      // 逐 3 秒走過整段
       state.simSec = hit.t + dt; updateBlockHolds(); settle(dt === from ? 40 : 8);
@@ -716,6 +716,13 @@ const ST = await A.page.evaluate(() => {
     // 單獨重走同樣的區間卻完全穩定＝那 2 次是掃描順序的產物，不是產品的行為。
     // 真實使用是時間往前連續跑，不會這樣跳；跳完就要清乾淨，否則量到的是自己的殘留。
     _blockHold.clear(); _blockGap.clear(); _blockPrevD.clear(); _blockSideEase.clear(); _blockSideSign.clear();
+    // 🔴 狀態衛生缺口(2026-09-19):這兩顆是後來加的閂(角色/已讓開)，B19 的 clearAll() 早就清了，
+    //   這裡漏清——跟上面那段註解講的是同一種「掃描順序殘留」，只是換一條沒被堵的縫，理應補上。
+    //   ⚠ 補清後實測 3181/6011 12:14+201 那筆換邊仍原樣重現，不是這條縫造成的；保留這個修正是
+    //   因為它本身是對的(closes a real gap，不會有副作用)，但那一筆換邊目前分類未定——不是排除掉
+    //   了就代表沒問題，需要另外用完整的頁面狀態歷程重現才能判定是產品邊界案例還是別的殘留管道。
+    if (typeof _blockSideLatch !== 'undefined') _blockSideLatch.clear();
+    if (typeof _blockSideRole !== 'undefined') _blockSideRole.clear();
     _blockSim = null;
     for (let dt = -90; dt <= 480; dt += 3) {
       state.simSec = sd.t + dt; updateBlockHolds();
@@ -819,7 +826,7 @@ const RB = await A.page.evaluate(() => {
     if (!me || !you) continue;
     state.simSec = sd.t; clearAll(); updateBlockHolds();
     const q0 = trainPos(me, state.simSec); if (!q0) continue;
-    window.__map.setView([q0.lat, q0.lon], 14, { animate: false });
+    window.__M.setView([q0.lat, q0.lon], 14, { animate: false });
     clearAll();                                                   // 每段各自從乾淨狀態起走
     const rows = [];
     for (let dt = -90; dt <= 300; dt += 3) {
@@ -953,7 +960,7 @@ for (const [name, eng] of (process.env.SKIP_MOBILE ? [] : [['chromium', chromium
         for (const [k, info] of _blockSide) {
           const me = byKey.get(k); if (!me || !info.other) continue;
           const p = trainPos(me, t), qq = trainPos(info.other, t); if (!p || !qq) continue;
-          window.__map.setView([(p.lat + qq.lat) / 2, (p.lon + qq.lon) / 2], 14, { animate: false });
+          window.__M.setView([(p.lat + qq.lat) / 2, (p.lon + qq.lon) / 2], 14, { animate: false });
           settle();
           const h = state._trainHits.find(x => x.tr === me); if (!h) continue;
           const raw = window.__M.toScreen([p.lat, p.lon]);

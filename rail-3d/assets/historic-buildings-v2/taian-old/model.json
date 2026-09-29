@@ -16,24 +16,33 @@
       "url": "https://www.openstreetmap.org/way/460456181",
       "use": "舊站房：輪廓與位置",
       "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1354207984",
+      "use": "保存月台：現址輪廓",
+      "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/node/4561136386",
+      "use": "紀念碑位置"
     }
   ],
   "priority": 2,
-  "placementStatus": "calibrated-plan",
+  "placementStatus": "mixed-plan-and-site-anchor",
   "anchor": [
     120.74910546831173,
     24.32274904359843
   ],
   "verifiedDimensionsM": {},
   "estimatedDimensionsM": {
-    "width": 17.859725952148438,
-    "depth": 13.953080177307129,
-    "height": 4.099999904632568,
+    "width": 261.86610412597656,
+    "depth": 77.08570575714111,
+    "height": 9.050000190734863,
     "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
   },
-  "referenceReviewDate": "2026-09-08",
+  "referenceReviewDate": "2026-09-12",
   "geometryStatus": "plan-calibrated-exterior-estimated",
-  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "scope": "依來源校正平面與補齊可確認附屬構件；尺寸與高度屬地圖外觀估計，非工程測繪",
   "railRelation": "**舊線地景**：舊山線，與新泰安站分開",
   "reviewedPhotos": [
     {
@@ -58,18 +67,21 @@
   "referenceStatus": "partial-exterior-review",
   "pendingChecks": [
     "高度測量與完整多面立面校正",
-    "正面方向複核",
-    "未定位附屬構件：地下道入口、紀念碑、舊月台、高位舊月台雨庇"
+    "正面方向複核"
   ],
+  "completionReview": {
+    "date": "2026-09-12",
+    "changes": [
+      "補保存月台、雙排棚柱、地下道入口與砲彈形紀念碑",
+      "有地形時各部件貼當地地面；平面底圖另保留月台約 4.5m 相對高度，此值為外觀估計"
+    ],
+    "precision": "地圖外觀模型；無實測高度或完整多面立面，不視為工程測繪"
+  },
   "orientationMode": "ENU-baked",
   "absoluteGroundAltitudeM": null,
   "railElevationM": null,
-  "omittedUnlocatedComponents": [
-    "地下道入口",
-    "紀念碑",
-    "舊月台",
-    "高位舊月台雨庇"
-  ],
+  "omittedUnlocatedComponents": [],
+  "mapEligible": true,
   "calibration": {
     "version": 2,
     "basis": "各部件獨立平面擬合；非工程測繪",
@@ -88,6 +100,76 @@
           1.0252782453319267
         ],
         "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "保存月台",
+        "name": "保存月台",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.74842805757096,
+          24.322375807692403
+        ],
+        "rotationDeg": 13.25,
+        "scaleXY": [
+          0.987708035018791,
+          1.1196875348069868
+        ],
+        "basis": "OSM way/1354207984 現址輪廓；高度與立面為外觀估計；連續月台與雨庇共用雨庇所在處的地形高度，避免各自取高導致棚柱懸空",
+        "facadeBearingDeg": null,
+        "terrainAnchor": [
+          120.74911150328163,
+          24.32252234980541
+        ],
+        "flatGroundOffsetM": 4.5
+      },
+      {
+        "id": "月台雨庇",
+        "name": "月台雨庇",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.74911150328163,
+          24.32252234980541
+        ],
+        "rotationDeg": 13.240516894993902,
+        "scaleXY": [
+          0.935374396891038,
+          1.208272023831242
+        ],
+        "basis": "臺中文資處現況照片：雙排鋼軌柱、低坡雨庇；衛星可見平台上長屋頂；屋頂或遺址邊緣依既有 Esri 底圖目視估計，非測量外框",
+        "facadeBearingDeg": null,
+        "flatGroundOffsetM": 4.5
+      },
+      {
+        "id": "地下道入口",
+        "name": "地下道入口",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.74919331065658,
+          24.322594451924903
+        ],
+        "rotationDeg": 14.620872401536069,
+        "scaleXY": [
+          0.9949697941210616,
+          0.8084129412021444
+        ],
+        "basis": "臺中文資處說明地下道連接低處站房與高位月台；入口位置依站房至月台連線估計；屋頂或遺址邊緣依既有 Esri 底圖目視估計，非測量外框",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "震災復興紀念碑",
+        "name": "震災復興紀念碑",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.7500404,
+          24.3225825
+        ],
+        "rotationDeg": 0,
+        "scaleXY": [
+          1.0000000170298988,
+          1.0000000170298988
+        ],
+        "basis": "OSM node/4561136386 紀念碑現址；砲彈形碑身依文資資料，尺寸估計",
         "facadeBearingDeg": null
       }
     ],
@@ -116,36 +198,36 @@
   "engineeringDimensionsM": null,
   "bounds": {
     "min": [
-      -8.929862976074219,
-      -6.976540565490723,
-      0.0
+      -165.6273651123047,
+      -67.45658111572266,
+      -4.5
     ],
     "max": [
-      8.929862976074219,
-      6.976539611816406,
-      4.099999904632568
+      96.23873901367188,
+      9.629124641418457,
+      4.550000190734863
     ]
   },
   "sizeM": [
-    17.859725952148438,
-    13.953080177307129,
-    4.099999904632568
+    261.86610412597656,
+    77.08570575714111,
+    9.050000190734863
   ],
   "lods": {
     "near": {
       "file": "near.mesh.bin",
       "glb": "near.glb",
-      "sha256": "02733f26e39ce8bd0657962a21b608b7ce417ab8bd3a5f4ad16fa40e4114ad89",
-      "glbSha256": "5d4df9c0f102671768226d6c1c753237f559059e528fd1315457e5cfff87b175",
+      "sha256": "b78d0e693662194fb01bb97caeb4aa2cc5aba097da6fb117e449c1e9f1ed7ad0",
+      "glbSha256": "b91bb9244bf6373bdd1557089823a708e9d9f25714ba2ee9fd3b1059961ab122",
       "strideBytes": 24,
-      "vertexCount": 2628,
-      "triangleCount": 876,
+      "vertexCount": 6336,
+      "triangleCount": 2112,
       "drawGroups": [
         {
           "component": "舊站房",
           "name": "stone",
           "start": 0,
-          "count": 72,
+          "count": 144,
           "color": [
             0.5840784311294556,
             0.5088813304901123,
@@ -156,13 +238,13 @@
         },
         {
           "component": "舊站房",
-          "name": "cream",
-          "start": 72,
-          "count": 1548,
+          "name": "sage",
+          "start": 144,
+          "count": 864,
           "color": [
-            0.715693473815918,
-            0.6583748459815979,
-            0.533276379108429
+            0.18782077729701996,
+            0.3049873113632202,
+            0.2541520893573761
           ],
           "metalness": 0.05000000074505806,
           "roughness": 0.5699999928474426
@@ -170,8 +252,8 @@
         {
           "component": "舊站房",
           "name": "dark",
-          "start": 1620,
-          "count": 504,
+          "start": 1008,
+          "count": 360,
           "color": [
             0.040915198624134064,
             0.06480326503515244,
@@ -183,8 +265,8 @@
         {
           "component": "舊站房",
           "name": "glass",
-          "start": 2124,
-          "count": 504,
+          "start": 1368,
+          "count": 288,
           "color": [
             0.08437620848417282,
             0.1946178376674652,
@@ -192,24 +274,128 @@
           ],
           "metalness": 0.2199999988079071,
           "roughness": 0.30000001192092896
+        },
+        {
+          "component": "舊站房",
+          "name": "cream",
+          "start": 1656,
+          "count": 792,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存月台",
+          "name": "stone",
+          "start": 2448,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存月台",
+          "name": "cream",
+          "start": 2520,
+          "count": 72,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "月台雨庇",
+          "name": "dark",
+          "start": 2592,
+          "count": 1098,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "月台雨庇",
+          "name": "sage",
+          "start": 3690,
+          "count": 1920,
+          "color": [
+            0.18782077729701996,
+            0.3049873113632202,
+            0.2541520893573761
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "地下道入口",
+          "name": "stone",
+          "start": 5610,
+          "count": 108,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "地下道入口",
+          "name": "dark",
+          "start": 5718,
+          "count": 36,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "震災復興紀念碑",
+          "name": "stone",
+          "start": 5754,
+          "count": 582,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
         }
       ],
-      "byteLength": 63072
+      "byteLength": 152064
     },
     "far": {
       "file": "far.mesh.bin",
       "glb": "far.glb",
-      "sha256": "b285440e4628d033bfe79f5d85bb8f887da7fed602672465da0e71f2cc0da09c",
-      "glbSha256": "cd899177559278a150defe4a854213af1fa5ea6599c1c11b29841bc2992a50fc",
+      "sha256": "9632fb1c2ff14a99e15bec3f657fefabfcea4c2ab1694db5c7162496a3019e63",
+      "glbSha256": "48611bdda84b7a7f940bc23fa8b3d7c79baf55ca7e1fe26daea17a75bd2a094e",
       "strideBytes": 24,
-      "vertexCount": 1620,
-      "triangleCount": 540,
+      "vertexCount": 4980,
+      "triangleCount": 1660,
       "drawGroups": [
         {
           "component": "舊站房",
           "name": "stone",
           "start": 0,
-          "count": 72,
+          "count": 144,
           "color": [
             0.5840784311294556,
             0.5088813304901123,
@@ -220,13 +406,13 @@
         },
         {
           "component": "舊站房",
-          "name": "cream",
-          "start": 72,
-          "count": 540,
+          "name": "sage",
+          "start": 144,
+          "count": 288,
           "color": [
-            0.715693473815918,
-            0.6583748459815979,
-            0.533276379108429
+            0.18782077729701996,
+            0.3049873113632202,
+            0.2541520893573761
           ],
           "metalness": 0.05000000074505806,
           "roughness": 0.5699999928474426
@@ -234,8 +420,8 @@
         {
           "component": "舊站房",
           "name": "dark",
-          "start": 612,
-          "count": 504,
+          "start": 432,
+          "count": 360,
           "color": [
             0.040915198624134064,
             0.06480326503515244,
@@ -247,8 +433,8 @@
         {
           "component": "舊站房",
           "name": "glass",
-          "start": 1116,
-          "count": 504,
+          "start": 792,
+          "count": 288,
           "color": [
             0.08437620848417282,
             0.1946178376674652,
@@ -256,12 +442,116 @@
           ],
           "metalness": 0.2199999988079071,
           "roughness": 0.30000001192092896
+        },
+        {
+          "component": "舊站房",
+          "name": "cream",
+          "start": 1080,
+          "count": 792,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存月台",
+          "name": "stone",
+          "start": 1872,
+          "count": 72,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存月台",
+          "name": "cream",
+          "start": 1944,
+          "count": 72,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "月台雨庇",
+          "name": "dark",
+          "start": 2016,
+          "count": 318,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "月台雨庇",
+          "name": "sage",
+          "start": 2334,
+          "count": 1920,
+          "color": [
+            0.18782077729701996,
+            0.3049873113632202,
+            0.2541520893573761
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "地下道入口",
+          "name": "stone",
+          "start": 4254,
+          "count": 108,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "地下道入口",
+          "name": "dark",
+          "start": 4362,
+          "count": 36,
+          "color": [
+            0.040915198624134064,
+            0.06480326503515244,
+            0.08228270709514618
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "震災復興紀念碑",
+          "name": "stone",
+          "start": 4398,
+          "count": 582,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
         }
       ],
-      "byteLength": 38880
+      "byteLength": 119520
     }
   },
-  "nativeObjectCount": 73,
+  "nativeObjectCount": 232,
   "sourcePhotosIncluded": false,
   "operatorLogoIncluded": false,
   "modelUse": "map-exterior",
@@ -281,7 +571,76 @@
       ],
       "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
       "facadeBearingDeg": null
+    },
+    {
+      "id": "保存月台",
+      "name": "保存月台",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.74842805757096,
+        24.322375807692403
+      ],
+      "rotationDeg": 13.25,
+      "scaleXY": [
+        0.987708035018791,
+        1.1196875348069868
+      ],
+      "basis": "OSM way/1354207984 現址輪廓；高度與立面為外觀估計；連續月台與雨庇共用雨庇所在處的地形高度，避免各自取高導致棚柱懸空",
+      "facadeBearingDeg": null,
+      "terrainAnchor": [
+        120.74911150328163,
+        24.32252234980541
+      ],
+      "flatGroundOffsetM": 4.5
+    },
+    {
+      "id": "月台雨庇",
+      "name": "月台雨庇",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.74911150328163,
+        24.32252234980541
+      ],
+      "rotationDeg": 13.240516894993902,
+      "scaleXY": [
+        0.935374396891038,
+        1.208272023831242
+      ],
+      "basis": "臺中文資處現況照片：雙排鋼軌柱、低坡雨庇；衛星可見平台上長屋頂；屋頂或遺址邊緣依既有 Esri 底圖目視估計，非測量外框",
+      "facadeBearingDeg": null,
+      "flatGroundOffsetM": 4.5
+    },
+    {
+      "id": "地下道入口",
+      "name": "地下道入口",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.74919331065658,
+        24.322594451924903
+      ],
+      "rotationDeg": 14.620872401536069,
+      "scaleXY": [
+        0.9949697941210616,
+        0.8084129412021444
+      ],
+      "basis": "臺中文資處說明地下道連接低處站房與高位月台；入口位置依站房至月台連線估計；屋頂或遺址邊緣依既有 Esri 底圖目視估計，非測量外框",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "震災復興紀念碑",
+      "name": "震災復興紀念碑",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.7500404,
+        24.3225825
+      ],
+      "rotationDeg": 0,
+      "scaleXY": [
+        1.0000000170298988,
+        1.0000000170298988
+      ],
+      "basis": "OSM node/4561136386 紀念碑現址；砲彈形碑身依文資資料，尺寸估計",
+      "facadeBearingDeg": null
     }
-  ],
-  "mapEligible": true
+  ]
 }

@@ -1,6 +1,38 @@
 import { chromium, webkit } from 'playwright';
+import { createServer } from 'node:http';
+import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const BASE = process.env.RAIL_I18N_URL || 'http://127.0.0.1:5178/';
+// 沒給 RAIL_I18N_URL 就自己起:純靜態、/api 一律 404,服這支腳本所在的樹(出貨鏈跑的是乾淨出貨樹,驗的就是那棵)。
+// 給了就改連既有 server(例如 /api 轉發正式站的那種,深夜才看得到的官方公告字串要靠它)。
+// 兩種模式都先做 G0:服出來的 index.html 必須逐 byte 等於本樹——驗到別棵樹時紅綠長得一模一樣。
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json',
+  '.geojson': 'application/geo+json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
+  '.webp': 'image/webp', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
+let BASE = process.env.RAIL_I18N_URL;
+let ownServer = null;
+if (!BASE) {
+  ownServer = createServer((q, s) => {
+    const u = new URL(q.url, 'http://x');
+    let fp = path.join(ROOT, decodeURIComponent(u.pathname));
+    if (fs.existsSync(fp) && fs.statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
+    // 比 ROOT + 分隔符:只比 ROOT 的話,/..%2F<同名前綴的兄弟目錄>/… 也服得到(同 verify_tra_motion)
+    if (u.pathname.startsWith('/api/') || !path.resolve(fp).startsWith(ROOT + path.sep) || !fs.existsSync(fp)) { s.statusCode = 404; return s.end(); }
+    s.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
+    s.end(fs.readFileSync(fp));
+  });
+  await new Promise(r => ownServer.listen(0, '127.0.0.1', r));
+  BASE = `http://127.0.0.1:${ownServer.address().port}/`;
+}
+{
+  const diskMd5 = createHash('md5').update(fs.readFileSync(path.join(ROOT, 'index.html'))).digest('hex');
+  const servedMd5 = createHash('md5').update(Buffer.from(await (await fetch(new URL('index.html', BASE))).arrayBuffer())).digest('hex');
+  console.log(`G0 target=${ROOT}\n   base=${BASE}\n   disk=${diskMd5}\n   serve=${servedMd5}`);
+  if (diskMd5 !== servedMd5) { console.error('G0 FAIL：server 服的不是這棵樹的 index.html'); process.exit(1); }
+}
 const results = [];
 const failures = [];
 
@@ -332,11 +364,15 @@ async function desktopCore(browser, engine) {
         train: stockTrain ? document.getElementById('tcIntro').textContent.replace(/\s+/g, ' ').trim() : '',
         stamps: asText(buildStamps([])),
         achievements: asText(buildAchv([], 'chip')),
-        achievementTitles: [...achievementHost.querySelectorAll('.achv-chip')].map(item => item.title),
+        // 成就的滑鼠提示是說明卡(achHelpHtml 的 .hp-cond),不是原生 title——title 已拿掉,
+        // 留著會跟說明卡同時冒出兩層提示(verify_achv_help A3/B1b)。
+        achievementHover: ACHIEVEMENTS.map(a => { const node = document.createElement('div'); node.innerHTML = achHelpHtml(a.id); return node.querySelector('.hp-cond')?.textContent || ''; }),
         achievementLabels: [...achievementHost.querySelectorAll('.achv-chip')].map(item => item.getAttribute('aria-label')),
         help: document.getElementById('helpBody').textContent.replace(/\s+/g, ' ').trim(),
         footer: document.querySelector('.site-foot').textContent.replace(/\s+/g, ' ').trim(),
         recent: document.querySelector('.foot-recent').textContent.replace(/\s+/g, ' ').trim(),
+        recentHead: document.querySelector('.foot-recent li.grp')?.textContent.trim() || '',
+        recentItems: document.querySelectorAll('.foot-recent li[data-cl-of]').length,
         history: document.querySelector('.foot-more').textContent.replace(/\s+/g, ' ').trim(),
         footerCjk: [...new Set(footerCjk)],
       };
@@ -346,12 +382,15 @@ async function desktopCore(browser, engine) {
     assert(contentEn.train && !/undefined|i18n\./i.test(contentEn.train), `英文特色車種卡未正確渲染：${contentEn.train}`);
     assert(/Breezy\s*Blue/.test(contentEn.stamps) && /Pingxi\s*Line/.test(contentEn.stamps) && contentEn.stamps.includes('EMU3000'), `英文護照圖鑑未翻譯：${contentEn.stamps}`);
     await page.locator('#verifyAchv .achv-chip').first().hover();
-    assert(contentEn.achievements.includes('First journey') && contentEn.achievementTitles.includes('Complete your first full journey') && contentEn.achievementLabels.some(label => label.includes('First journey') && label.includes('Complete your first full journey')), `英文成就 hover／輔助說明未翻譯：${JSON.stringify(contentEn.achievementTitles.slice(0, 3))}`);
+    assert(contentEn.achievements.includes('First journey') && contentEn.achievementHover.includes('Complete your first full journey') && contentEn.achievementLabels.some(label => label.includes('First journey') && label.includes('Complete your first full journey')), `英文成就 hover／輔助說明未翻譯：${JSON.stringify(contentEn.achievementHover.slice(0, 3))}`);
     await page.evaluate(() => document.getElementById('verifyAchv')?.remove());
     assert(contentEn.help.includes('Search stations, train numbers and train names') && contentEn.help.includes('Journey Passport and completion stamps') && contentEn.help.includes('Background music'), `英文使用說明未完整翻譯：${contentEn.help.slice(0, 1000)}`);
     assert(contentEn.footer.includes('Data sources and licences') && contentEn.footer.includes('independent hobby project'), `英文資料來源介紹未翻譯：${contentEn.footer.slice(-1200)}`);
     assert(contentEn.footerCjk.length === 0, `英文頁尾展開後仍有中文：${contentEn.footerCjk.join(' ｜ ')}`);
-    assert(contentEn.recent.includes('English and Japanese now cover') && contentEn.history.includes('Earlier updates by topic') && contentEn.history.includes('Map and live data'), `英文公開更新紀錄未精簡翻譯：${contentEn.recent} ｜ ${contentEn.history}`);
+    // 第一層「最近更新」是滾動檢視(最多 8 條,新的一進榜舊的就被合法擠出去),不可綁某一條的字面:原本綁 8/28
+    // 多語上線那條 'English and Japanese now cover',它 9 月初被擠出第一層後這條就恆紅(被上一條頁尾中文遮住沒人看到)。
+    // 改驗「標題已譯＋至少一條」;每條有沒有譯文交給上面的 footerCjk——它掃整個展開後的 .site-foot,含第一層。
+    assert(contentEn.recentHead === 'Recent updates' && contentEn.recentItems >= 1 && contentEn.history.includes('Earlier updates by topic') && contentEn.history.includes('Map and live data'), `英文公開更新紀錄未精簡翻譯：${JSON.stringify({ head: contentEn.recentHead, items: contentEn.recentItems })} ${contentEn.recent} ｜ ${contentEn.history}`);
     record(engine, '英文品牌、說明、特色站車、圖鑑、護照、成就與精簡更新紀錄');
 
     // 選單保持開啟時切換語言，驗證不是只在下次開啟／重整才更新。
@@ -377,7 +416,7 @@ async function desktopCore(browser, engine) {
       help: document.getElementById('helpBody').textContent.replace(/\s+/g, ' ').trim(),
       named: document.getElementById('searchDrop').textContent.replace(/\s+/g, ' ').trim(),
       achievements: (() => { const node = document.createElement('div'); node.innerHTML = buildAchv([], 'chip'); return node.textContent.replace(/\s+/g, ' ').trim(); })(),
-      achievementTitles: (() => { const node = document.createElement('div'); node.innerHTML = buildAchv([], 'chip'); return [...node.querySelectorAll('.achv-chip')].map(item => item.title); })(),
+      achievementHover: ACHIEVEMENTS.map(a => { const node = document.createElement('div'); node.innerHTML = achHelpHtml(a.id); return node.querySelector('.hp-cond')?.textContent || ''; }),
       officialDestination: stationName('動物園站', 'mrt'),
       history: document.querySelector('.foot-more').textContent.replace(/\s+/g, ' ').trim(),
       metroWait: document.getElementById('metroWaitPicker').textContent.replace(/\s+/g, ' ').trim(),
@@ -396,7 +435,7 @@ async function desktopCore(browser, engine) {
     assert(immediate.help.includes('駅・列車番号・列車名を検索') && immediate.help.includes('旅程パスポートと完乗スタンプ'), '已開啟使用說明沒有跟著即時切成日文');
     assert(immediate.named.includes('山嵐号') && immediate.named.includes('花東縦谷'), '已開啟觀光列車介紹沒有跟著即時切成日文');
     assert(immediate.achievements.includes('初乗り記念') && immediate.history.includes('これまでの更新'), '日文成就或精簡更新歷史未翻譯');
-    assert(immediate.achievementTitles.includes('最初の完乗を達成') && immediate.officialDestination === '動物園', `日文成就 hover 或官方終點站 fallback 未翻譯：${JSON.stringify(immediate)}`);
+    assert(immediate.achievementHover.includes('最初の完乗を達成') && immediate.officialDestination === '動物園', `日文成就 hover 或官方終點站 fallback 未翻譯：${JSON.stringify(immediate)}`);
     assert(immediate.metroWait.includes('追跡時間') && immediate.metroWait.includes('方向を選択') && immediate.metroWait.includes('南港展覧館') && !immediate.metroWait.includes('追蹤'), `日文等車選單未即時翻譯：${immediate.metroWait}`);
     assert(immediate.alertChipAria === '運行情報。タップして詳細を表示' && immediate.alertChipTitle === '運行情報' && immediate.shareView === '画面を共有', `日文營運公告控制項／分享畫面未翻譯：${JSON.stringify(immediate)}`);
     assert(immediate.reviewedCopy.join('|') === '鑑賞モード|◌ 鑑賞モード|鑑賞モードを終了|431列車|431列車を追跡|乗車する|下車する・行先：台北', `日文複核用語未統一：${JSON.stringify(immediate.reviewedCopy)}`);
@@ -451,7 +490,11 @@ async function legalPages(browser, engine) {
     await page.goto(new URL('privacy.html?lang=en', BASE).href, { waitUntil: 'domcontentloaded' });
     assert(await page.getAttribute('html', 'lang') === 'en', '英文隱私頁 lang 錯誤');
     const privacyEn = await bodyText(page, 'main');
-    assert(privacyEn.includes('Raw coordinates obtained directly from system location do not leave your device') && privacyEn.includes('does not sell personal data'), '英文隱私頁缺少定位／資料用途核心條款');
+    // 定位條款錨在承諾本身(「原始座標……不離開裝置」),不綁主詞那半句的措辭:9/3 加「整段旅程分享可附即時位置」
+    // 時,隱私頁把「直接從系統定位取得的原始座標不會離開裝置」如實收窄成「一般藍點與附近車站使用的原始座標……」,
+    // 譯文同輪跟上,這裡卻還比對舊句 ⇒ 兩引擎恆紅兩週。舊句的無條件承諾在分享位置上線後已不成立,不可改回去。
+    const privacyEnCore = { location: /Raw coordinates [^.]*do not leave your device/.test(privacyEn), noSale: privacyEn.includes('does not sell personal data') };
+    assert(privacyEnCore.location && privacyEnCore.noSale, `英文隱私頁缺少定位／資料用途核心條款：${JSON.stringify(privacyEnCore)}`);
     assert(!/[\u3400-\u9fff]/.test(privacyEn), `英文隱私頁仍有中文：${privacyEn.match(/[\u3400-\u9fff][^.!?]{0,80}/)?.[0] || ''}`);
     assert((await page.locator('a[href*="terms.html"]').first().getAttribute('href')).includes('lang=en'), '法務頁連結沒有保留語言');
 
@@ -462,7 +505,8 @@ async function legalPages(browser, engine) {
 
     await page.goto(new URL('privacy.html?lang=ja', BASE).href, { waitUntil: 'domcontentloaded' });
     const privacyJa = await bodyText(page, 'main');
-    assert(await page.getAttribute('html', 'lang') === 'ja' && privacyJa.includes('システム位置情報から直接得た生の座標は端末外へ送信しません') && privacyJa.includes('個人データを販売せず'), '日文隱私頁核心條款未翻譯');
+    const privacyJaCore = { lang: await page.getAttribute('html', 'lang'), location: /生の座標は端末外へ/.test(privacyJa), noSale: privacyJa.includes('個人データを販売せず') }; // 錨法同英文那條
+    assert(privacyJaCore.lang === 'ja' && privacyJaCore.location && privacyJaCore.noSale, `日文隱私頁核心條款未翻譯：${JSON.stringify(privacyJaCore)}`);
     await page.goto(new URL('terms.html?lang=ja', BASE).href, { waitUntil: 'domcontentloaded' });
     const termsJa = await bodyText(page, 'main');
     assert(termsJa.includes('自動更新サブスクリプション') && termsJa.includes('自動解約'), '日文服務條款核心說明未翻譯');
@@ -483,13 +527,32 @@ async function controlAudit(page, scopeSelector = 'body') {
       return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > .05 && style.pointerEvents !== 'none' &&
         rect.width >= 4 && rect.height >= 4 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
     });
-    const blocked = [];
+    const blocked = [], blockedInView = [];
     for (const el of visible) {
       const rect = el.getBoundingClientRect();
-      const x = Math.max(1, Math.min(innerWidth - 1, rect.left + rect.width / 2));
-      const y = Math.max(1, Math.min(innerHeight - 1, rect.top + rect.height / 2));
+      const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+      const x = Math.max(1, Math.min(innerWidth - 1, cx));
+      const y = Math.max(1, Math.min(innerHeight - 1, cy));
       const hit = document.elementFromPoint(x, y);
-      if (!hit || !(el === hit || el.contains(hit))) blocked.push(el.id || el.getAttribute('aria-label') || el.textContent.trim().slice(0, 24));
+      if (!hit || !(el === hit || el.contains(hit))) {
+        const label = el.id || el.getAttribute('aria-label') || el.textContent.trim().slice(0, 24);
+        blocked.push(label);
+        // 中心還在視窗與每一層捲動盒(overflow≠visible 的祖先,到 scope 為止)的可見範圍內 ⇒ 是被蓋住,
+        // 不是被捲動盒裁掉。allowInitiallyClipped 只放行後者(見 assertAudit)。可見範圍取 padding box
+        // (扣邊框與捲軸)再往內縮 1px:中心恰好壓在裁切線上的那一列,命中的是捲動盒自己,那是被裁掉
+        // (09-25 Chromium 768px「更多設定」的「全日班次走勢」:列 965–1013、捲動盒 299–989、中心 989);
+        // clientTop／clientWidth 是整數、元素座標是小數,差不到一格也得算裁掉。被歸成裁掉的一樣要過
+        // scrollableControlsReachable 逐枚捲進視野那一關,不會因此漏驗。
+        const E = 1;
+        let inView = cx >= E && cx < innerWidth - E && cy >= E && cy < innerHeight - E;
+        for (let a = el.parentElement; a && inView; a = a === root ? null : a.parentElement) {
+          const cs = getComputedStyle(a);
+          if (cs.display === 'inline' || cs.display === 'contents' || (cs.overflowX === 'visible' && cs.overflowY === 'visible')) continue;
+          const r = a.getBoundingClientRect(), left = r.left + a.clientLeft, top = r.top + a.clientTop;
+          inView = cx >= left + E && cx < left + a.clientWidth - E && cy >= top + E && cy < top + a.clientHeight - E;
+        }
+        if (inView) blockedInView.push(label);
+      }
     }
     const overlaps = [];
     for (let i = 0; i < visible.length; i++) for (let j = i + 1; j < visible.length; j++) {
@@ -500,7 +563,7 @@ async function controlAudit(page, scopeSelector = 'body') {
       const h = Math.min(ar.bottom, br.bottom) - Math.max(ar.top, br.top);
       if (w > 3 && h > 3) overlaps.push(`${a.id || a.textContent.trim().slice(0, 12)}↔${b.id || b.textContent.trim().slice(0, 12)} (${Math.round(w)}×${Math.round(h)})`);
     }
-    return { overflow: Math.max(0, document.documentElement.scrollWidth - innerWidth), blocked, overlaps, visible: visible.length };
+    return { overflow: Math.max(0, document.documentElement.scrollWidth - innerWidth), blocked, blockedInView, overlaps, visible: visible.length };
   }, scopeSelector);
 }
 
@@ -509,6 +572,8 @@ async function assertAudit(page, scope, label, allowInitiallyClipped = false) {
   assert(!audit.missing, `${label} 找不到 audit scope：${audit.missing}`);
   assert(audit.overflow <= 1, `${label} 水平溢出 ${audit.overflow}px`);
   if (!allowInitiallyClipped) assert(audit.blocked.length === 0, `${label} 控制項中心不可點：${audit.blocked.join(', ')}`);
+  // 捲動盒:被裁掉的交給 scrollableControlsReachable 逐枚捲進視野再驗;初始畫面上看得到卻被蓋住的,這裡就要紅。
+  else assert(audit.blockedInView.length === 0, `${label} 控制項在可見範圍內卻被蓋住：${audit.blockedInView.join(', ')}`);
   assert(audit.overlaps.length === 0, `${label} 控制項重疊：${audit.overlaps.join(', ')}`);
   return audit.visible;
 }
@@ -516,7 +581,7 @@ async function assertAudit(page, scope, label, allowInitiallyClipped = false) {
 async function scrollableControlsReachable(page, rootSelector) {
   return page.evaluate(async rootSelector => {
     const root = document.querySelector(rootSelector);
-    const controls = root ? [...root.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled])')] : [];
+    const controls = root ? [...root.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [role="button"]')] : [];
     const blocked = [];
     for (const el of controls) {
       const style = getComputedStyle(el);
@@ -528,7 +593,7 @@ async function scrollableControlsReachable(page, rootSelector) {
       if (rect.width < 4 || rect.height < 4) continue;
       const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
       const hit = x >= 0 && x < innerWidth && y >= 0 && y < innerHeight ? document.elementFromPoint(x, y) : null;
-      if (!hit || !(hit === el || el.contains(hit))) blocked.push(el.id || el.textContent.trim().slice(0, 24));
+      if (!hit || !(hit === el || el.contains(hit))) blocked.push(el.id || el.getAttribute('aria-label') || el.textContent.trim().slice(0, 24));
     }
     return blocked;
   }, rootSelector);
@@ -567,9 +632,28 @@ async function mobileScenario(browser, engine, width) {
     await page.tap('#moreClose');
     await page.tap('#tabRide');
     await page.waitForFunction(() => !document.getElementById('ridePanel').hidden);
-    await assertAudit(page, '#ridePanel', `${engine} ${width}px 護照 sheet`);
+    // 護照 sheet 是捲動盒。收集章 09-25 起是按鈕(role=button,鍵盤到得了),捲在面板底緣以下那幾枚的中心會落在
+    // tab 列上——那是被捲動盒裁掉,不是被蓋住(09-25 實測 webkit 375/768、chromium 375:點不到的中心全在面板
+    // 底緣之外,逐枚捲進視野後 20/20 點得到)。比照上面「更多設定」:初始畫面只放行被捲動盒裁掉的(看得到卻被蓋住
+    // 的照樣紅,見 assertAudit),再逐枚捲進視野驗。
+    await assertAudit(page, '#ridePanel', `${engine} ${width}px 護照 sheet`, true);
+    const rideUnreachable = await scrollableControlsReachable(page, '#ridePanel');
+    assert(rideUnreachable.length === 0, `${engine} ${width}px 護照 sheet 裁切不可點：${rideUnreachable.join(', ')}`);
     const rideText = await bodyText(page, '#ridePanel');
     assert(rideText.includes('Travel passport') && !rideText.includes('還沒有完乘記錄'), `${width}px 護照 sheet 未即時翻譯：${rideText}`);
+    // 讀螢幕軟體唸的是 aria-label,上面的畫面文字照不到;visibleEnglishCjk 又只認漢字、不認假名與全形標點。
+    // 09-25 收集章與成就章的「名稱：說明」在英文裡全夾全形冒號(護照 sheet 42 個標籤中 41 個)。
+    // 章與成就的標籤數量要有具名斷言:只看「> 0」的話,光關閉鈕一個就成立,章沒畫出來也照樣綠。
+    const rideA11y = await page.evaluate(() => {
+      const q = s => document.querySelectorAll('#ridePanel ' + s).length;
+      return { labels: [...document.querySelectorAll('#ridePanel [aria-label]')].map(el => el.getAttribute('aria-label')),
+        stamps: q('.seal[data-cat]'), stampsLabeled: q('.seal[data-cat][aria-label]'),
+        chips: q('.achv-chip'), chipsLabeled: q('.achv-chip[aria-label]'), achievements: ACHIEVEMENTS.length };
+    });
+    assert(rideA11y.stamps > 0 && rideA11y.stampsLabeled === rideA11y.stamps && rideA11y.chips === rideA11y.achievements && rideA11y.chipsLabeled === rideA11y.chips,
+      `${engine} ${width}px 護照 sheet 章／成就的讀螢幕名稱數量不符：${JSON.stringify({ ...rideA11y, labels: rideA11y.labels.length })}`);
+    const rideCjkLabels = rideA11y.labels.filter(label => /[\u3000-\u30ff\u3400-\u9fff\uff00-\uffef]/.test(label));
+    assert(rideCjkLabels.length === 0, `${engine} ${width}px 護照 sheet 英文 aria-label 夾中日文或全形字元（共 ${rideA11y.labels.length} 個）：${rideCjkLabels.slice(0, 5).join(' ｜ ')}`);
 
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => window.__i18n?.catalogReady && typeof state !== 'undefined' && state.ready, null, { timeout: 90_000 });
@@ -581,19 +665,27 @@ async function mobileScenario(browser, engine, width) {
   }
 }
 
+// 每個情境各自 try/catch(各自開 context,彼此不共用狀態)。原本整個引擎包一個 try,第一條紅就中止,
+// 後面的情境從沒跑過:2026-09-19 Chromium 死在 desktopCore(公告沒翻譯),隱私頁那條只在 WebKit 看得到,
+// 被當成「WebKit 沒切到英文」——其實兩引擎都紅,只是 Chromium 根本沒跑到那裡。
 for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
   let browser;
+  const widths = engine === 'Chromium' ? [360, 375, 414, 768] : [375, 768];
+  const scenarios = [
+    ...(engine === 'Chromium' ? [['desktopCore', () => desktopCore(browser, engine)]] : []),
+    ['navigatorDetection', () => navigatorDetection(browser, engine)],
+    ['legalPages', () => legalPages(browser, engine)],
+    ...widths.map(width => [`mobile ${width}px`, () => mobileScenario(browser, engine, width)]),
+  ];
   try {
     browser = await launcher.launch({ headless: true });
-    if (engine === 'Chromium') {
-      await desktopCore(browser, engine);
-      await navigatorDetection(browser, engine);
-      await legalPages(browser, engine);
-      for (const width of [360, 375, 414, 768]) await mobileScenario(browser, engine, width);
-    } else {
-      await navigatorDetection(browser, engine);
-      await legalPages(browser, engine);
-      for (const width of [375, 768]) await mobileScenario(browser, engine, width);
+    for (const [name, run] of scenarios) {
+      try {
+        await run();
+      } catch (error) {
+        failures.push(`${engine} · ${name}：${error.stack || error.message}`);
+        console.error(`✗ ${engine} · ${name}：${error.message}`);
+      }
     }
   } catch (error) {
     failures.push(`${engine}：${error.stack || error.message}`);
@@ -609,3 +701,4 @@ if (failures.length) {
   process.exit(1);
 }
 console.log(`\ni18n 瀏覽器驗證通過：${results.length} 個情境。`);
+if (ownServer) { ownServer.closeAllConnections?.(); ownServer.close(); }

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DUPLICATE_ROUTE_SOURCES } from './build_station_transfers.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => JSON.parse(fs.readFileSync(path.join(root, rel), 'utf8'));
@@ -24,11 +25,38 @@ function addStation(sys, zh, en, ja) {
   const bucket = out.systems[sys] || (out.systems[sys] = {});
   bucket[zh] = { en: en || zh, ja: ja || zh };
 }
-function stationRows(op) {
-  const raw = read(`data/tdx/${op}_Station.json`);
+function rows(rel, key) {
+  const raw = read(rel);
   if (Array.isArray(raw)) return raw;
-  if (Array.isArray(raw.Stations)) return raw.Stations;
+  if (Array.isArray(raw[key])) return raw[key];
   return [];
+}
+
+// 同一條實體線在兩個 TDX 營運商各有一份時（2026-09-12 起 TDX 把三鶯線同時掛在 NTMC 底下），
+// i18n 必須跟 build_station_transfers.mjs 擇同一邊，共用那張具名表。不擇邊的後果不是重複而已：
+// 被排除的那份會把站名灌進**另一個系統**的字典（NTMC ⇒ mrt 台北捷運），而且日文退回中文
+// ——12 站有 6 站的正確日文只存在於 docs/i18n/ja_station_names.json 的 SANYING 那一份
+// （長寿山／横渓／鶯歌駅／国華／鶯桃福徳）。
+const excludedLineIds = op => new Set(Object.keys(DUPLICATE_ROUTE_SOURCES)
+  .filter(key => key.startsWith(`${op}:`)).map(key => key.slice(op.length + 1)));
+
+function excludedStationIds(op) {
+  const lines = excludedLineIds(op);
+  if (!lines.size) return new Set();
+  const kept = new Set(), dropped = new Set();
+  for (const line of rows(`data/tdx/${op}_StationOfLine.json`, 'StationOfLines')) {
+    const target = lines.has(String(line.LineID)) ? dropped : kept;
+    for (const member of line.Stations || []) target.add(String(member.StationID));
+  }
+  // 同時也屬於保留路線的站要留著（共站不是重複）
+  for (const id of kept) dropped.delete(id);
+  return dropped;
+}
+
+function stationRows(op) {
+  const drop = excludedStationIds(op);
+  return rows(`data/tdx/${op}_Station.json`, 'Stations')
+    .filter(station => !drop.has(String(station.StationID)));
 }
 
 for (const [sys, rawOps] of Object.entries(sources)) {
@@ -50,10 +78,8 @@ for (const [op, sys] of Object.entries(supplementalSystems)) {
 }
 
 function lineRows(op) {
-  const raw = read(`data/tdx/${op}_Line.json`);
-  if (Array.isArray(raw)) return raw;
-  if (Array.isArray(raw.Lines)) return raw.Lines;
-  return [];
+  const drop = excludedLineIds(op);
+  return rows(`data/tdx/${op}_Line.json`, 'Lines').filter(line => !drop.has(String(line.LineID)));
 }
 function addRoute(sys, zh, en, ja) {
   if (!zh) return;

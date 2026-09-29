@@ -270,9 +270,14 @@ async function sectionB(browser, engine) {
   }));
   const base = await read();
   ok(`B1 ${engine} 沒選過時是標準檔`, base.ui === '1' && base.fs === null, JSON.stringify(base));
-  await page.tap('#tabMore'); await page.waitForTimeout(400);
-  // 設計 6c:字級是「更多」裡的 `›` 子頁,不是抽屜裡的一排鈕。真的點那一列、真的把面板開起來,
-  // 不是查 CSS 算出什麼——elementFromPoint／computed style 答得出「命中誰」,答不出「做得到嗎」。
+  // v0914c 起「字級」列搬進觀看面板「畫面」分頁,不再是「更多」抽屜下的 `›` 子頁;
+  // 選擇器 [data-act="fontscale"] 本身沒變,只是容器換了,所以先切過去再點同一顆列。
+  const railB = page.locator('.view-rail [data-view="display"]');
+  if (await railB.isVisible()) await railB.tap();
+  else { await page.tap('#viewSettingsBtn'); await page.tap('.view-tabs [data-view="display"]'); }
+  await page.waitForTimeout(400);
+  // 真的點那一列、真的把面板開起來,不是查 CSS 算出什麼——elementFromPoint／computed style
+  // 答得出「命中誰」,答不出「做得到嗎」。
   await page.tap('.ms-row[data-act="fontscale"]'); await page.waitForTimeout(500);
   const opened = await read();
   ok(`B2 ${engine} 「更多」→ 字級 開得起「顯示與字級」面板`, opened.panelOpen && opened.prevPx > 0, JSON.stringify(opened));
@@ -339,7 +344,11 @@ async function sectionD(browser, engine) {
     msVal: (document.getElementById('msFontVal') || {}).textContent,
     lsFollow: localStorage.getItem('trainmap-fontfollow'),
   }));
-  await page.tap('#tabMore'); await page.waitForTimeout(350);
+  // v0914c 起「字級」列搬進觀看面板「畫面」分頁,選擇器本身沒變、只是容器換了。
+  const railD = page.locator('.view-rail [data-view="display"]');
+  if (await railD.isVisible()) await railD.tap();
+  else { await page.tap('#viewSettingsBtn'); await page.tap('.view-tabs [data-view="display"]'); }
+  await page.waitForTimeout(350);
   await page.tap('.ms-row[data-act="fontscale"]'); await page.waitForTimeout(450);
   ok(`D0 ${engine} 跟隨系統字級預設是開的`, (await state1()).follow);
   await setSysFont(30);
@@ -569,7 +578,16 @@ async function sectionF(browser, engine) {
         const sec = [...sheet.querySelectorAll('.ms-sec')].filter(vis)[0];
         const px = el => +getComputedStyle(el).fontSize.replace('px', '');
         const R = el => { const b = el.getBoundingClientRect(); return { x: +b.x.toFixed(1), y: +b.y.toFixed(1), w: +b.width.toFixed(1), h: +b.height.toFixed(1) }; };
-        const fsRow = sheet.querySelector('.ms-row[data-act="fontscale"]');
+        // 列高／段標題仍量「更多」本身(那批列還在),先把數值定住再切走,
+        // 不然等一下把面板切到觀看面板時這些列會被收起來、rect 全部歸零。
+        const n = rows.length, minH = Math.min(...rows.map(x => x.getBoundingClientRect().height)), secPx = sec ? px(sec) : null;
+        // v0914c 起「字級」列搬進觀看面板「畫面」分頁,不再掛在「更多」抽屜下(.more-sheet 作用域
+        // 查不到,會回 null)。切過去時 production 碼自己的 open() 第一步就是
+        // document.getElementById('moreClose').click(),不必自己重複關閉「更多」。
+        const railBtn = document.querySelector('.view-rail [data-view="display"]');
+        if (railBtn && railBtn.offsetParent !== null) railBtn.click();
+        else { document.getElementById('viewSettingsBtn').click(); document.querySelector('.view-tabs [data-view="display"]').click(); }
+        const fsRow = document.querySelector('#viewSettingsBody .ms-row[data-act="fontscale"]');
         // 🔴 標籤指名「不是列尾的那個 span」而不是 firstElementChild:2026-08-27 之前每一列
         //    最前面還有一顆單字圓章,照舊寫法量到的是【圓章】(12px)——判準會拿章當標籤,
         //    std 的主倍率被算成 0.89× 而恆紅。章拿掉了,這個寫法照樣對,而且列形再變也不會錯位。
@@ -577,9 +595,7 @@ async function sectionF(browser, engine) {
         const lab = R(labEl), val = R(fsRow.querySelector('#msFontVal')),
           chev = R(fsRow.querySelector('.ms-tail .chev')), rr = R(fsRow);
         return {
-          n: rows.length,
-          minH: Math.min(...rows.map(x => x.getBoundingClientRect().height)),
-          secPx: sec ? px(sec) : null,
+          n, minH, secPx,
           labPx: px(labEl),
           stacked: val.y >= lab.y + lab.h - 1,
           inline: Math.abs(val.y - lab.y) < 3,

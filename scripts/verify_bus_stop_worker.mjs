@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
-import worker, { _busStop } from '../worker.js';
+import worker, { _busStop, _busTransfer } from '../worker.js';
 import { BUS_STOP_INDEX_COLUMNS, parseProviderConfig } from './bus_live_core.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -75,12 +75,21 @@ globalThis.caches = {
 let authCalls = 0;
 const directCalls = [];
 const tdxCalls = [];
-globalThis.fetch = async requestLike => {
+// 每一發市府 blob 請求帶的 cache 模式（fetch 第二個參數或 Request 物件上的），給「Cloudflare 子請求快取」那段驗。
+const blobCacheModes = [];
+const cacheModeOf = (requestLike, init) => (init && init.cache) || (requestLike instanceof Request ? requestLike.cache : undefined);
+globalThis.fetch = async (requestLike, init) => {
   const url = new URL(requestLike instanceof URL ? requestLike.href : (typeof requestLike === 'string' ? requestLike : requestLike.url));
   if (url.hostname === 'auth.test') { authCalls += 1; return Response.json({ access_token: 'fixture-token', expires_in: 3600 }); }
   if (url.hostname === 'direct.test') {
     directCalls.push(url.pathname);
+    blobCacheModes.push({ path: url.pathname, cache: cacheModeOf(requestLike, init) });
     const body = url.pathname.endsWith('/route') ? DIRECT_ROUTE : DIRECT_ESTIMATE;
+    return new Response(gzipSync(Buffer.from(JSON.stringify(body))), { headers: { 'content-type': 'application/gzip' } });
+  }
+  if (url.hostname === 'seat.test') {
+    blobCacheModes.push({ path: url.pathname, cache: cacheModeOf(requestLike, init) });
+    const body = { EssentialInfo: { UpdateTime: SNAPSHOT_TEXT }, BusInfo: [] };
     return new Response(gzipSync(Buffer.from(JSON.stringify(body))), { headers: { 'content-type': 'application/gzip' } });
   }
   if (url.hostname === 'bus.test') {
@@ -121,7 +130,7 @@ const makeEnv = (overrides = {}) => ({
   ...overrides,
 });
 
-const reset = () => { _busStop.resetBusStopCaches(); edge.clear(); directCalls.length = 0; tdxCalls.length = 0; limiterCalls = 0; limiterAllow = Infinity; };
+const reset = () => { _busStop.resetBusStopCaches(); edge.clear(); directCalls.length = 0; tdxCalls.length = 0; blobCacheModes.length = 0; limiterCalls = 0; limiterAllow = Infinity; };
 const get = (url, env) => worker.fetch(new Request(url), env, {});
 
 // ── 設定檔就是端點的唯一來源 ──────────────────────────────────────────────
@@ -222,6 +231,29 @@ await check('direct-bulk 不取 TDX token（它不計 TDX 配額）', async () =
   assert.equal(authCalls, before, 'direct-bulk 路徑不該打 TDX auth');
 });
 
+// ── Cloudflare 子請求快取 ─────────────────────────────────────────────────
+// 🔴 2026-09-24 正式站：Worker 抓市府 .gz 沒帶 cache:'no-store'，被 railisland.tw 的 Cloudflare 快取
+//    預設留 120 分鐘，臺北站牌整列「資料已過期」。那一層快取本機（這裡的替身 fetch）與 workers.dev 都照不到，
+//    所以只能在這裡鎖住「請求本身有沒有叫 Cloudflare 別存」。
+await check('Cloudflare 子請求快取：direct-bulk 抓到站快照一律 cache:no-store', async () => {
+  reset();
+  await get('https://railisland.tw/api/bus-stop-live?stop=TPE-FIX-1', makeEnv());
+  const estimate = blobCacheModes.filter(c => c.path.endsWith('/estimate'));
+  // 正向對照：這一發真的打到上游了，否則「每一發都 no-store」會在零發時空過。
+  assert.equal(estimate.length, 1, `應該剛好打一次到站快照，實際 ${estimate.length}`);
+  assert.deepEqual(estimate.map(c => c.cache), ['no-store'], '到站快照沒帶 cache:no-store，會被 Cloudflare 快取 120 分鐘');
+});
+
+await check('Cloudflare 子請求快取：臺北擁擠度（BusSeatEvent）一律 cache:no-store', async () => {
+  reset();
+  const seat = await _busTransfer.fetchTaipeiBusSeat({ BUS_SEAT_URL_OVERRIDE: 'https://seat.test/BusSeatEvent.gz' });
+  // 正向對照：替身真的被叫到，回來的快照時間就是 fixture 那一份。
+  assert.equal(seat.updatedAt, SNAPSHOT_TEXT);
+  const calls = blobCacheModes.filter(c => c.path.endsWith('/BusSeatEvent.gz'));
+  assert.equal(calls.length, 1, `應該剛好打一次擁擠度，實際 ${calls.length}`);
+  assert.equal(calls[0].cache, 'no-store', '擁擠度沒帶 cache:no-store，會被 Cloudflare 快取 120 分鐘');
+});
+
 // ── tdx-per-stop ──────────────────────────────────────────────────────────
 await check('tdx-per-stop：以 StopUID 叢集查詢，濾條件只含本站 StopUID', async () => {
   reset();
@@ -309,8 +341,8 @@ await check('limiter 擋得住：超過上限回 429，且不再打任何上游'
   assert.equal(directCalls.length + tdxCalls.length, upstreamBefore, '被擋下之後不該再打上游');
 });
 
-await check('limiter 也掛在既有的 bus-transfer／bus-leg-live 上（本批補的那兩支）', () => {
-  for (const fn of ['async function busTransfer(', 'async function busLegLive(']) {
+await check('limiter 也掛在既有的 bus-transfer／bus-leg-live／bus-route-stops 上（補舊債的那三支）', () => {
+  for (const fn of ['async function busTransfer(', 'async function busLegLive(', 'async function busRouteStops(']) {
     const start = workerSource.indexOf(fn);
     assert(start > 0, `找不到 ${fn}`);
     const head = workerSource.slice(start, start + 1400);
@@ -319,6 +351,35 @@ await check('limiter 也掛在既有的 bus-transfer／bus-leg-live 上（本批
   // 正向對照：同一把尺套在一支「本來就沒有 limiter」的端點上必須失敗，證明這個檢查有牙。
   const noLimiter = workerSource.slice(workerSource.indexOf('async function thsrFreeSeat('), workerSource.indexOf('async function thsrFreeSeat(') + 1400);
   assert(!noLimiter.includes('rateLimited(env.BUS_LIMITER'), '正向對照失敗：對照組竟然也有 BUS_LIMITER');
+});
+
+// bus-route-stops 在快取未命中時會經 cachedBusTransferRaw 打 N1（與 bus-transfer 同一條成本路徑）。
+// 只驗「有掛」不夠：掛在那幾個呼叫之後，上游照打、限流形同虛設，所以順序也要驗。
+await check('bus-route-stops 超過上限回 429，且限流擋在任何上游呼叫之前', async () => {
+  reset();
+  limiterAllow = 0;
+  const url = 'https://railisland.tw/api/bus-route-stops?station=1000&arrival=fixture-key';
+  const blocked = await get(url, makeEnv());
+  assert.equal(blocked.status, 429, `超過上限應回 429，實際 ${blocked.status}`);
+  assert.deepEqual(await blocked.json(), { error: 'rate_limited' });
+  assert.equal(directCalls.length + tdxCalls.length, 0, '被擋下之後不該打任何上游');
+  // 正向對照：同一個請求放行時不能也是 429，否則上面那個 429 不見得是限流給的。
+  reset();
+  const allowed = await get(url, makeEnv());
+  assert.notEqual(allowed.status, 429, '正向對照失敗：放行時也回 429');
+  assert.equal(limiterCalls, 1, `放行那一發應該問過限流一次，實際 ${limiterCalls}`);
+  // 順序：限流呼叫必須排在三個會觸發上游的呼叫之前。
+  const start = workerSource.indexOf('async function busRouteStops(');
+  const body = workerSource.slice(start, workerSource.indexOf('\n}\n', start));
+  const at = {
+    limiter: body.indexOf('rateLimited(env.BUS_LIMITER, request)'),
+    stationData: body.indexOf('busTransferStationData('),
+    stationRaw: body.indexOf('cachedBusTransferRaw('),
+    routeRaw: body.indexOf('cachedBusRouteStopsRaw('),
+  };
+  assert(at.stationData > 0 && at.stationRaw > 0 && at.routeRaw > 0, `正向對照失敗：函式本體裡找不到上游呼叫 ${JSON.stringify(at)}`);
+  assert(at.limiter > 0 && at.limiter < Math.min(at.stationData, at.stationRaw, at.routeRaw),
+    `限流沒有擋在上游呼叫之前 ${JSON.stringify(at)}`);
 });
 
 await check('wrangler.jsonc 有宣告 BUS_LIMITER binding', () => {

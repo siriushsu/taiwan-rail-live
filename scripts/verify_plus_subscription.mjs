@@ -12,7 +12,8 @@
 //     - 每個 package 的價格由 plusPackagePrice 讀 pkg.webBillingProduct.currentPrice.formattedPrice。
 //       ★關鍵:UI 顯示的價格一律來自這裡(商店回傳),index.html 內不硬編任何金額。
 //     - purchase(pkg,email) → { customerInfo:{...active.plus...} }。
-//   · plusOpen 需 state.account.user 才會開購買畫面(否則轉登入);plusConfigured() 為真(有 test/native
+//   · plusOpen 一律先開面板(2026-09-10 588b8410 拆掉登入牆);購買鈕要有 state.account.user 才畫,
+//     未登入時有購買通道的平台畫登入 CTA(見 G10);plusConfigured() 為真(有 test/native
 //     adapter 或 webApiKey)才會 plusRefresh 初始化 billing——故「web 未配置(無 webApiKey、無 adapter)」
 //     時不會拿 undefined key 去 configure,改停在「請在 App 內訂閱」。
 //   · 主題:html[data-theme=dark];FOUC 腳本(index.html:1727)讀 localStorage['trainmap-appearance']
@@ -36,9 +37,9 @@ console.log(`[G0] index.html md5=${createHash('md5').update(readFileSync(path.jo
 // 可推導,不寫死 session scratchpad 路徑(每個 session 都要手改一次的坑,2026-08-02)。
 const SHOT_DIR = process.env.SHOT_DIR || path.join(os.tmpdir(), 'rail-plus-shots');
 mkdirSync(SHOT_DIR, { recursive: true });
-// 🔴 硬編埠位在 30+ 並行 worktree 的環境幾乎一定撞車（實測 EADDRINUSE:5207 讓整支腳本直接爆掉,
-//    看起來像「腳本壞了」而不是「埠被別人佔了」）。預設沿用 5207 保持既有行為,可用 VERIFY_PORT 讓開。
-const PORT = Number(process.env.VERIFY_PORT) || 5207;
+// 🔴 埠預設由系統挑(listen 0),比照出貨鏈其他閘門(d7e08580)。原本寫死 5207:30+ 並行 worktree 的環境
+//    幾乎一定撞車(實測 EADDRINUSE:5207 讓整支腳本直接爆掉),而網址寫 localhost 時瀏覽器會先連 ::1,
+//    別人留在同一埠的 server 就可能被當成自己的。VERIFY_PORT 仍可指定。
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -56,7 +57,8 @@ const server = createServer((req, res) => {
   res.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
   res.end(readFileSync(fp));
 });
-await new Promise(r => server.listen(PORT, '127.0.0.1', r));
+await new Promise(r => server.listen(Number(process.env.VERIFY_PORT) || 0, '127.0.0.1', r));
+const PORT = server.address().port;
 // 🔴 PLUS_ENABLED 的「關閉態」現在怎麼表達(2026-09-10 之後)——沿革與現況:
 //   ・2026-08-02~08-04:不分平台恆真的字面 true。當時 URL 參數本來就不影響這顆旗標,本檔只能靠
 //     ?__flagoff=1 動態改寫原始碼宣告來模擬關閉(FLAG_ON_DECL/FLAG_OFF_DECL/__flagoff)。
@@ -70,7 +72,7 @@ await new Promise(r => server.listen(PORT, '127.0.0.1', r));
 //   見下方 ANDROID_OFF_INIT / ANDROID_ON_INIT;G0b 與 KS 兩處都改走那條路。
 //   BASE 也因此不再帶 ?plus=1:留著一個不影響任何行為的參數,只會讓下一個人以為旗標還在讀它
 //   (整個 repo grep 過 get('plus') 零命中,實載也證實不帶它 PLUS_ENABLED 照樣是 true)。
-const BASE = `http://localhost:${PORT}/`;
+const BASE = `http://127.0.0.1:${PORT}/`; // 與 listen 同一個位址;index.html 的 LOCAL_DEV 對 localhost/127.0.0.1 一視同仁
 
 // 刻意用非真實佔位值:本 repo 公開,實際定價未拍板,不放進版控。
 // 判準只比「商店回傳什麼、UI 就顯示什麼」,不解析數值,故任何相異字串皆可。
@@ -414,7 +416,8 @@ await regression('375', { width: 375, height: 812, touch: true });
 //   第一段 無購買通道的平台,匿名訪客從 Plus 槽位開得了面板,看得到功能清單與「請在 App 內訂閱」,
 //          而且這一段全程零 Firebase、state.account 仍 undefined(未登入即可瀏覽的契約沒有被撤銷);
 //   第二段 面板內按下「已經在 App 訂閱了？登入以同步」之後,才出現 Google＋Apple 兩顆登入鈕。
-// 有購買通道的平台(App)不走這條:訂閱資格要綁帳號才能跨裝置恢復,維持「先登入再開面板」(見 G10)。
+// 有購買通道的平台(App)從 2026-09-10(588b8410,使用者裁示拆掉登入牆)起也是先開面板,
+// 登入延後到「要看價格或要訂閱」那一刻(見 G10)。
 //
 // 入口一律走真正的產品路徑(#plusBtn 的 click),不直接呼叫 plusOpen():直接呼叫會跳過
 // setupPlusEntry() 的接線,「誰把入口放上去、按下去接到哪」這半段就等於沒驗到。
@@ -554,10 +557,14 @@ function collectFirebaseReqs(page) {
   ok('G 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
-// G10:有購買通道的平台(App)必須維持舊行為——訂閱資格要綁軌島帳號才能跨裝置恢復,所以那條路
-// 仍然先登入再開面板。注入 RAIL_PLUS_TEST_ADAPTER 讓 plusConfigured() 轉真(＝App 的
-// RAIL_NATIVE_PLUS_ADAPTER 等價物,沿用本檔既有慣例),但刻意不注入 state.account:要驗的正是
-// 「未登入時往哪走」。Firebase 用既有的 RAIL_FIREBASE_TEST_MODULES 短路,不打真網路。
+// G10:有購買通道的平台(App)未登入時開通行證往哪走。2026-09-10 以前是「先登入再開面板」
+// (plusOpen 對 plusConfigured() 為真且未登入直接跳帳號視窗);588b8410 依使用者裁示拆掉那道
+// 登入牆,現在兩個平台一律先開面板。價格要登入後才拿得到(billing SDK 要先有 uid),所以這一格
+// 畫的是登入 CTA,不是購買鈕。這一格的完整守門人是 verify_plus_features.mjs 的 T9(兩個引擎、
+// 點 CTA 之後的狀態、沒碰 Firebase);這裡只留同一條路徑的核心事實。
+// 注入 RAIL_PLUS_TEST_ADAPTER 讓 plusConfigured() 轉真(＝App 的 RAIL_NATIVE_PLUS_ADAPTER 等價物,
+// 沿用本檔既有慣例),刻意不注入 state.account:要驗的正是「未登入時往哪走」。Firebase 仍用
+// RAIL_FIREBASE_TEST_MODULES 短路:萬一登入牆長回來(會 accountEnsureInit),也不會打真網路。
 {
   const { ctx, page } = await newPage(chromiumB);
   const errs = attach(page, 'G10');
@@ -578,54 +585,85 @@ function collectFirebaseReqs(page) {
       plusHidden: document.getElementById('plusModal').hidden,
       accountShown: !document.getElementById('accountModal').hidden,
       feats: document.querySelectorAll('.plus-feature').length,
+      loginBtns: document.querySelectorAll('#plusBody [data-plus="login"]').length,
+      buyBtns: document.querySelectorAll('#plusBody [data-plus="buy"]').length,
     };
   });
-  ok('G10 有購買通道的平台(App)匿名開 Plus → 維持先登入:帳號面板開、Plus 面板仍關、功能清單一項都沒畫',
-    r.configured === true && r.plusHidden === true && r.accountShown === true && r.feats === 0, JSON.stringify(r));
+  ok('G10 有購買通道的平台(App)未登入開通行證 → 直接開面板(09-10 拆掉登入牆):帳號面板不開、功能清單與 A 段基準等長、畫登入 CTA 不畫購買鈕',
+    r.configured === true && r.plusHidden === false && r.accountShown === false
+      && BASELINE_FEATS > 0 && r.feats === BASELINE_FEATS && r.loginBtns >= 1 && r.buyBtns === 0,
+    `基準=${BASELINE_FEATS} ` + JSON.stringify(r));
   ok('G10 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
 
-// ══════════════ T. 「Google 清單匯入」是 App 限定的 Plus 功能:文案這樣寫,實際就必須這樣 ══════════════
-// 開閘讓 plusConfigured() 在原生殼恆真,setupTakeoutUi() 的閘門本來就掛在它上面 ⇒ 匯入入口跟著現身,
-// 按下去走 plusRequire 進訂閱面板。它是 Plus 功能清單的一項,而付費視窗/terms/說明中心都把它標成
-// 「在 App」——那句話是可驗證宣稱,不是修辭,所以在這裡實測兩邊。
-// ⚠️「必須看不到」型斷言:同一支可見性探針對同工具列的 #shareBtn 做正向對照,證明它分得出可見與不可見。
-{
-  const { ctx, page } = await newPage(chromiumB);
-  const errs = attach(page, 'T-web');
+// ══════════════ T. 「Google 清單匯入」是通行證功能:入口看得到,按下去真的收資格 ══════════════
+// 沿革:2026-09-09 以前它是 App 限定——入口與點擊都以 plusConfigured()(這個平台賣不賣得成)分流,
+// 網站恆假 ⇒ 沒有入口,付費視窗/terms/說明中心也都標「在 App」。f76685dd 盤點後確認那不是能力差異
+// (解析全在瀏覽器端,零 Capacitor 依賴),把入口與點擊改掛 PLUS_ENABLED(這個平台有沒有通行證面)、
+// 三處文案拿掉 App 限定;7907d849(09-10,使用者裁示網站開通)之後網站也看得到入口。舊 T2/T3 斷言
+// 「網站看不到」,就是從那時起過期的。
+// 入口露出之後要守的是 f76685dd 點名的那個洞:點擊原本以 plusConfigured() 分流,網站恆假會走 else
+// 直接 takeoutOpen()——只改可見性,網站未訂閱者就能免費匯入。所以網站這一輪同時量「看得到」與
+// 「按下去被閘門攔住」(T8),並用同一顆鈕在已訂閱時真的開得出匯入當反向對照(T8b)。原生殼那半見下一輪。
+// ⚠️「必須看得到」型斷言:同一支可見性探針要量得出「看不到」(T2b、T3b),否則它恆回 true 也會全綠。
+// 兩個引擎各跑一輪:這一段量的是版面可見性與真點擊,App 的 WebView 在 iOS 是 WebKit、Android 是 Chromium。
+for (const [eng, browser] of [['chromium', chromiumB], ['webkit', webkitB]]) {
+  const { ctx, page } = await newPage(browser);
+  const errs = attach(page, `T-web-${eng}`);
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await waitReady(page);
   const w = await page.evaluate(async () => {
     const vis = el => { if (!el) return false; const st = getComputedStyle(el), r = el.getBoundingClientRect();
       return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
+    const rowVis = p => { const r = document.querySelector(`.ms-row[data-proxy="${p}"]`);
+      return { exists: !!r, visible: vis(r), label: r && r.querySelector('span') ? r.querySelector('span').textContent : null }; };
+    // T3b 的反向對照要在抽屜打開「之前」量:同一列、同一支探針,抽屜收著時必須量到看不見。
+    const importRowClosed = rowVis('importBtn');
     // 使用者看得到的結果要在「更多」抽屜真的打開之後才量:抽屜列的可見性由 syncMoreSheet() 在
     // 開啟當下依代理鈕重算(index.html 的 syncMoreSheet),開啟前那一格 inline display 只是中間態。
     const fab = document.getElementById('toolsFab') || document.getElementById('tabMore');
     if (fab) fab.click();
     await new Promise(r => setTimeout(r, 350));
-    const rowVis = p => { const r = document.querySelector(`.ms-row[data-proxy="${p}"]`); return { exists: !!r, visible: vis(r) }; };
     const out = { plusConfigured: plusConfigured(), accountConfigured: accountConfigured(),
       importVisible: vis(document.getElementById('importBtn')),
+      takeoutModalVisible: vis(document.getElementById('takeoutModal')),
       sheetOpen: vis(document.querySelector('.more-sheet')),
-      importRow: rowVis('importBtn'), shareRow: rowVis('shareBtn'),
-      shareVisible: vis(document.getElementById('shareBtn')) };
+      importRowClosed, importRow: rowVis('importBtn') };
     if (fab) fab.click(); // 收回抽屜,不影響後面的量測
     await new Promise(r => setTimeout(r, 200));
     return out;
   });
-  ok('T1 網站前置:帳號設定齊備但無購買通道(accountConfigured=true、plusConfigured=false)——否則下一條會為了錯的理由而綠',
+  ok(`T1(${eng}) 網站前置:帳號設定齊備但無購買通道(accountConfigured=true、plusConfigured=false)——否則下一條會為了錯的理由而綠`,
     w.accountConfigured === true && w.plusConfigured === false, JSON.stringify(w));
-  ok('T2 網站看不到匯入入口(文案標「在 App」的事實面)', w.importVisible === false, `importVisible=${w.importVisible}`);
-  ok('T2b 正向對照:同一支可見性探針在同一排工具列上量得到可見的鈕(#shareBtn)', w.shareVisible === true, `shareVisible=${w.shareVisible}`);
-  // T3 舊版只斷言 `importRowExists === false`——那是開機當下的中間態,量不到使用者到底看不看得到:
-  // 抽屜列就算留著,syncMoreSheet() 在開啟時也會依代理鈕把它設回 display:none。改成量「抽屜真的
-  // 打開之後,那一列在畫面上不存在」,並用同一支探針在同一張抽屜裡量到一列可見的鄰居當正向對照。
-  ok('T3 網站:「更多」抽屜真的打開後,匯入那一列在畫面上看不到(入口不長出來時不留一列點了靜默無反應的死列)',
-    w.sheetOpen === true && w.importRow.visible === false, JSON.stringify(w));
-  ok('T3b 正向對照:同一張抽屜、同一支探針量得到一列可見的鄰居(#shareBtn 那列)——證明它不是對整張抽屜都回 false',
-    w.shareRow.exists === true && w.shareRow.visible === true, JSON.stringify(w));
-  ok('T-web 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  ok(`T2(${eng}) 網站也看得到匯入入口(09-09 f76685dd 入口改掛 PLUS_ENABLED、09-10 7907d849 網站開通,不再是 App 限定)`,
+    w.importVisible === true, `importVisible=${w.importVisible}`);
+  ok(`T2b(${eng}) 反向對照:同一支可見性探針對帶 hidden 的 #takeoutModal 回 false(證明 T2 的「看得到」不是探針恆真)`,
+    w.takeoutModalVisible === false, `takeoutModalVisible=${w.takeoutModalVisible}`);
+  ok(`T3(${eng}) 網站:「更多」抽屜真的打開後,匯入那一列看得到且標成「Google 清單匯入」(手機唯一入口)`,
+    w.sheetOpen === true && w.importRow.visible === true && w.importRow.label === 'Google 清單匯入', JSON.stringify(w));
+  ok(`T3b(${eng}) 反向對照:同一列、同一支探針在抽屜收著時量到看不見(證明 T3 量的是抽屜打開後的實況)`,
+    w.importRowClosed.exists === true && w.importRowClosed.visible === false, JSON.stringify(w.importRowClosed));
+  // 未訂閱者按下去要被通行證閘門攔住:走真正的產品點擊。網站沒有購買通道,plusRequire 開的是
+  // 「請在 App 內訂閱」那張通行證面板(index.html plusRequire 的 PLUS_ENABLED 分支)。
+  const clicked = await page.click('#importBtn', { timeout: 5000 }).then(() => true).catch(() => false);
+  await page.waitForTimeout(600);
+  const gated = await page.evaluate(() => ({
+    takeoutOpen: !document.getElementById('takeoutModal').hidden,
+    plusOpen: !document.getElementById('plusModal').hidden,
+  }));
+  ok(`T8(${eng}) 網站未訂閱者按匯入 → 開的是通行證面板,匯入對話框沒開(入口露出之後不會免費放行)`,
+    clicked === true && gated.takeoutOpen === false && gated.plusOpen === true, `點得到=${clicked} ` + JSON.stringify(gated));
+  const opened = await page.evaluate(async () => {
+    accountClose(); plusClose();
+    state.plus = { active: true, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null };
+    document.getElementById('importBtn').click();
+    await new Promise(r => setTimeout(r, 250));
+    return { takeoutOpen: !document.getElementById('takeoutModal').hidden, plusOpen: !document.getElementById('plusModal').hidden };
+  });
+  ok(`T8b(${eng}) 反向對照:同一顆鈕在已訂閱狀態真的開出匯入對話框(證明 T8 的「沒開」是閘門擋的,不是這條路本身壞了)`,
+    opened.takeoutOpen === true && opened.plusOpen === false, JSON.stringify(opened));
+  ok(`T-web(${eng}) 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
 {
@@ -746,7 +784,8 @@ async function mobilePlusEntry(width, { sel = MOBILE_SEL, label = '軌島通行�
   await ctx.close();
 }
 for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w);
-// 同一套掃描套在新公開的「Google 清單匯入」抽屜列上(它是 App 限定,故整段跑在模擬原生殼下)。
+// 同一套掃描套在新公開的「Google 清單匯入」抽屜列上,整段跑在模擬原生殼下(寫這段時它是 App 限定;
+// 2026-09-09 f76685dd 起網站也有入口,網站那半的可見性與閘門由上面 T 段兩個引擎各量一輪)。
 for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL, label: 'Google 清單匯入', tag: 'NI', native: true });
 // N-tap:375 真觸控端到端——點下去要真的開出 Plus 面板,而且這一刻仍然零帳號系統。
 // 反向對照(另開一頁,避免狀態污染):同樣手勢點「上一列」不得開出 Plus 面板,證明「開了」是這一列
@@ -1080,7 +1119,11 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     };
   });
   ok('P2a accountSyncNow 回傳成功', r.result === true, `result=${r.result}`);
-  ok('P2b 四個 kind 都呼叫了 tx.set(pins/favs/rides/stations)', JSON.stringify(r.writeKinds) === JSON.stringify(['favs', 'pins', 'rides', 'stations']),
+  // 期望值刻意手寫成字面清單,不從 USER_DATA_COLLECTIONS／CHECKIN_SYNC_KINDS 讀:從產品常數推導的話,
+  // 常數少一個 kind 這條照樣綠(判準與實作同源)。加 kind 是規格變更,要有人來改這一行。
+  // 2026-09-23 d6aa04c9(#72)起打卡 checkins 與路段 segments 在同一筆交易上傳,所以是六個。
+  ok('P2b 六個 kind 都呼叫了 tx.set(pins/favs/rides/stations＋打卡 checkins/segments)',
+    JSON.stringify(r.writeKinds) === JSON.stringify(['checkins', 'favs', 'pins', 'rides', 'segments', 'stations']),
     `writeKinds=${JSON.stringify(r.writeKinds)}`);
   ok('P2c favs 寫入內容同時含本機那筆與雲端那筆(真的合併,不是只挑一邊)',
     !!r.favsWrite && r.favsWrite.data.items.some(x => x.id === `tra_sched|${r.localNo}`) && r.favsWrite.data.items.some(x => x.id === 'tra_sched|__CLOUD_ONLY_TRAIN__'),
@@ -1117,7 +1160,7 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
       plusText: plusSec ? (plusSec.textContent || '') : '',
       n90: d90.length,
       bad90: d90.filter(t => !/通行證/.test(t)),
-      // 舊的「儲存地點」那節也提到匯入(App 限定的 Plus 功能),同樣不得寫成無條件可用
+      // 舊的「儲存地點」那節也提到匯入(通行證功能),同樣不得寫成無條件可用
       pinText: (body.querySelector('.help-sec[data-sec="pin"]') || {}).textContent || '',
     };
   });
@@ -1128,8 +1171,9 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     h.n90 >= 1, `抓到 ${h.n90} 句`);
   ok('HP2b 每一句提到「90 天」的說明都標明需要通行證(不把付費內容講成免費)',
     h.bad90.length === 0, h.bad90.slice(0, 2).join(' | '));
-  ok('HP3 「儲存地點」那節提到的 Google 清單匯入標明了 App 與通行證(它是 App 限定的通行證功能)',
-    /匯入/.test(h.pinText) && /App/.test(h.pinText) && /通行證/.test(h.pinText), h.pinText.slice(0, 120));
+  // 2026-09-09 f76685dd 起網站也能匯入,這節的提示同輪拿掉了「在 App 內」,所以只要求標明通行證。
+  ok('HP3 「儲存地點」那節提到的 Google 清單匯入標明了需要通行證(不把付費內容講成免費)',
+    /匯入/.test(h.pinText) && /通行證/.test(h.pinText), (h.pinText.match(/[^。；]*匯入[^。；]*/) || [h.pinText.slice(0, 120)])[0]);
   ok('HP 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -1507,7 +1551,7 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
 
   const infoDown = await refreshWith(page, { ...OPTS, entKind: 'none', preActive: true, infoThrows: true });
   ok('SB6 資格讀取失敗 ⇒ 既有的 p.active 維持現狀不被改寫成 false（上游故障不等於沒訂閱），且有錯誤訊息',
-    infoDown.active === true && /無法讀取 Plus/.test(infoDown.error),
+    infoDown.active === true && /無法讀取通行證/.test(infoDown.error), // 2026-08-31 4922e643 起錯誤訊息的 Plus 改名為通行證
     JSON.stringify({ active: infoDown.active, error: infoDown.error }));
 
   const bothOk = await refreshWith(page, { ...OPTS, entKind: 'none' });
@@ -1568,9 +1612,14 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await waitReady(page); // 與其他情境一致等到 boot 完成:半途關頁會產生中止類的假錯誤,污染 K
   await page.evaluate(() => { setTimeout(() => { throw new Error('__collector_probe__'); }, 0); });
-  await page.waitForTimeout(400);
+  // 等「收到了」這個完成訊號,不是固定等 400ms。2026-09-26 同一棵樹、判準一字未改連跑兩次一紅一綠
+  // (紅的那次 400ms 當下收到 0 筆):機器滿載時頁面主執行緒會被拖住,例外晚於 400ms 才丟出來
+  // (實測在丟例外前排一個 700ms 長任務,固定 400ms 的寫法必紅、改等訊號 776ms 收到)。
+  // 這是正向對照,等久不會放寬它:收集器沒掛上時 10 秒到了照樣是紅的(同一實驗實測)。
+  const probeT0 = Date.now();
+  while (!errs.some(s => s.includes('__collector_probe__')) && Date.now() - probeT0 < 10000) await new Promise(r => setTimeout(r, 50));
   ok('Z0 錯誤收集器正向對照:故意丟的 pageerror 有被收到(證明上面所有「零例外」不是假綠)',
-    errs.some(s => s.includes('__collector_probe__')), `本輪收到 ${errs.length} 筆`);
+    errs.some(s => s.includes('__collector_probe__')), `本輪收到 ${errs.length} 筆,等了 ${Date.now() - probeT0}ms`);
   // 探針是刻意製造的,不能算進 K 的「全程為零」;摘除後比長度確認摘得剛好,避免摘太多把真錯誤一起吃掉。
   for (let i = allErrors.length - 1; i >= 0; i--) if (allErrors[i].includes('__collector_probe__')) allErrors.splice(i, 1);
   ok('Z0b 探針已從全程收集器摘乾淨(沒多摘也沒少摘)', allErrors.length === before,

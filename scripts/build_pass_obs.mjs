@@ -79,7 +79,17 @@ const PERF_RULES = [
   [/電車|區間/, { k: 'emu', a: 2.5, b: 3, v: 120 }],
 ];
 const PERF_BY_TYPE = { '區間車': { k: 'emu', a: 2.5, b: 3, v: 120 }, '區間快': { k: 'emu', a: 2.5, b: 3, v: 120 }, '自強': { k: 'tze', a: 1.8, b: 2.9, v: 130 }, '莒光/復興': { k: 'chu', a: 1.5, b: 2.6, v: 120 } };
-const resolvePerf = t => { const cn = t.carName || ''; for (const [re, p] of PERF_RULES) if (re.test(cn)) return p; return PERF_BY_TYPE[t.typeName] || { k: 'def', a: 1.5, b: 2.5, v: 110 }; };
+// 非電化支線的「區間車」其實是 DR1000 柴油客車(index.html PERF_DR1000／isDr1000):班表 carName 分不出來,
+// 照前端 specialOf 的取法用支線表認——第一條停靠站命中的支線屬於 DIESEL_BRANCH_IDS 才算。
+const PERF_DR1000 = { k: 'dr1000', a: 1.5, b: 2.448, v: 110 };
+const DIESEL_BRANCH_IDS = new Set(['pingxi', 'jiji', 'shenao', 'neiwan']);
+const BRANCH_LINES = JSON.parse(readFileSync(join(ROOT, 'data/tra_special_trains.json'), 'utf8')).branchLines
+  .map(b => ({ id: b.id, set: new Set(b.matchStations) }));
+const isDr1000 = t => {
+  const b = BRANCH_LINES.find(b => (t.stops || []).some(s => b.set.has(s.name)));
+  return !!b && DIESEL_BRANCH_IDS.has(b.id) && /區間/.test(t.typeName || t.carName || '');
+};
+const resolvePerf = t => { if (isDr1000(t)) return PERF_DR1000; const cn = t.carName || ''; for (const [re, p] of PERF_RULES) if (re.test(cn)) return p; return PERF_BY_TYPE[t.typeName] || { k: 'def', a: 1.5, b: 2.5, v: 110 }; };
 
 // ── 梯形曲線（與 index.html buildProfile / profProgToTime 逐字一致；僅用於第二層退回）
 function buildProfile(Lkm, T, aK, bK, vK) {

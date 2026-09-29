@@ -1,4 +1,4 @@
-import * as THREE from '../../../taiwan-3d/vendor/three.module.js';
+import * as THREE from '../../../../rail-3d/vendor/three.module.js';
 const $=id=>document.getElementById(id),stage=$('stage');const state={ready:false,id:null,lod:'near',angle:-.94,elevation:.55,zoom:1,spin:false,context:false,frames:0,view:'hero'};
 const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1;stage.append(renderer.domElement);
 const scene=new THREE.Scene();scene.background=new THREE.Color('#eee9dc');const camera=new THREE.OrthographicCamera(-100,100,100,-100,.1,100000);camera.up.set(0,0,1);scene.add(new THREE.HemisphereLight('#e7f2ff','#c0aa8c',2.3));const sun=new THREE.DirectionalLight('#fff4e0',3);sun.position.set(400,-600,900);scene.add(sun);const fill=new THREE.DirectionalLight('#c4e4ff',1.2);fill.position.set(-500,100,400);scene.add(fill);

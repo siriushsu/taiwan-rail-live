@@ -19,7 +19,7 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
   }
   records.sort((a,b)=>catalog.findIndex(e=>e.id===a.meta.id)-catalog.findIndex(e=>e.id===b.meta.id));
   const camera=new THREE.Camera(),projection=new THREE.Matrix4(),filters=new Map(),symbolFilters=new Map(),appliedSymbols=new Map();
-  let renderer,ownedSource,disposed=false,timer=0,viewTimer=0,sourceEpoch=0,maskEpoch=-1,maskKey='',contextKey='',labelKey='',lastVisible='',clock=0,engineeringMasks=[],engineeringMaskKey='',labelBounds=[];
+  let renderer,ownedSource,disposed=false,timer=0,viewTimer=0,sourceEpoch=0,maskEpoch=-1,maskKey='',contextKeys=[],labelKey='',lastVisible='',clock=0,engineeringMasks=[],engineeringMaskKey='',labelBounds=[];
   function primary(){return records.find(r=>r.entry.key===getState().place)||records.find(r=>r.stats.visible)||records[0];}
   function expandedBox(r,padding){const points=r.masks.flat(2),xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),dx=padding/(111320*Math.cos(r.meta.anchor[1]*Math.PI/180)),dy=padding/111320;return [Math.min(...xs)-dx,Math.min(...ys)-dy,Math.max(...xs)+dx,Math.max(...ys)+dy];}
   function rectangle([w,s,e,n]){return [[[w,s],[e,s],[e,n],[w,n],[w,s]]];}
@@ -27,36 +27,78 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
   // 圖磚還在就不必再解碼、再跑 owner()/blocked(),remainders 的 Feature 物件也直接留用。
   // 2026-09-08 桌面 6x 降速實測:一次重算 620ms,其中 blocked() 190ms、把一萬多個分件座標
   // JSON.stringify 兩遍 135ms、解碼 110ms;圖磚集合沒變時這些全是重複工。
-  // 快取在路線集合(clearance.revision)或工程遮罩改變時整批作廢,圖磚卸載時逐條淘汰。
+  // 解碼、owner() 只跟工程遮罩有關,快取只在工程遮罩改變時整批作廢,圖磚卸載時逐條淘汰;
+  // 路線集合(clearance.revision)變了只重判 blocked()。跟車時列車進出畫面就會改 revision,
+  // 原本整批作廢、下一次重算在同一幀重新解碼全部建物(2026-09-23 桌面 1x 實跟台鐵 132–229ms 長幀)。
   const partCache=new Map();let partCacheKey='';
+  // 待算的分件分片做,算滿預算就讓出主執行緒,全部進快取之後的下一片才一次套用。
+  // 一輪只 querySourceFeatures 一次,各片沿用同一份清單,套用結果與一次算完相同。
+  // 預算＝上一片結束到這一片開始(≈一幀)的 30%,夾在 6–20ms:幀本來就慢時每片只拉長三成,
+  // 固定 6ms 在桌面 4x 降速(一幀 150ms+、每幀只輪到一片)時台北車站整批冷算要 16s 以上才套用。
+  const MASK_SLICE_MS=6,MASK_SLICE_MAX_MS=20;let pending=null,maskSliced=false;
   // 只在新分件進快取時序列化一次；沿用原版的完整多邊形相等規則，不以短雜湊代替。
   function polygonHash(rings){return JSON.stringify(rings);}
   function maskBuildings(active){
-    const visibleKey=active.map(r=>r.meta.id).join(',')+':'+(clearance?.revision||0);if(maskEpoch===sourceEpoch&&visibleKey===lastVisible)return false;
-    maskEpoch=sourceEpoch;lastVisible=visibleKey;
-    const cacheKey=(clearance?.revision||0)+':'+engineeringMaskKey;if(cacheKey!==partCacheKey){partCacheKey=cacheKey;partCache.clear();}
-    const ids=new Set(),activeSet=new Set(active),candidates=[...records,...engineeringMasks];for(const r of candidates){r.stats.masked=r.stats.visible;r.stats.excludedFeatureIds=[];}
+    if(!pending){
+      const visibleKey=active.map(r=>r.meta.id).join(',')+':'+(clearance?.revision||0);if(maskEpoch===sourceEpoch&&visibleKey===lastVisible)return false;
+      maskEpoch=sourceEpoch;lastVisible=visibleKey;
+      if(engineeringMaskKey!==partCacheKey){partCacheKey=engineeringMaskKey;partCache.clear();}
+      pending={active,next:0,at:performance.now(),features:map.getSource('openmaptiles')&&(active.length||clearance)?map.querySourceFeatures('openmaptiles',{sourceLayer:'building'}):[]};
+    }
+    const {active:snapshot,features}=pending,ids=new Set(),activeSet=new Set(snapshot),candidates=[...records,...engineeringMasks];
     const polygons=f=>f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.type==='MultiPolygon'?f.geometry.coordinates:[];
     // 凹輪廓不能用中心放大當緩衝（凹角會把自己的頂點排除）。只容許 1.5m
     // 邊界量化差，並先以 bbox 淘汰遠處建物。歸屬對全部站房算(不只可見的),結果才能跨次重用。
     const owners=p=>candidates.filter(r=>p[0].every(q=>r.masks.some((mask,i)=>{const [w,s,e,n]=r.maskBounds[i];return q[0]>=w&&q[0]<=e&&q[1]>=s&&q[1]<=n&&(inPolygon(q[0],q[1],mask)||mask.some(ring=>ring.slice(1).some((b,k)=>distanceToSegment(q[0],q[1],ring[k],b)<1.5/111320)));})));
-    const features=map.getSource('openmaptiles')&&(active.length||clearance)?map.querySourceFeatures('openmaptiles',{sourceLayer:'building'}):[];
+    // 以分件為單位檢查預算:圖磚把整磚同屬性建物併成一個 MultiPolygon,一個 feature 可能有上百個分件。
+    // 做到一半的 feature 暫存在 pending.cur,整個做完才進快取;rev 記開始時的版本,中途路線變了下一輪會重判。
+    const start=performance.now(),budget=Math.min(MASK_SLICE_MAX_MS,Math.max(MASK_SLICE_MS,(start-pending.at)*.3));let worked=false;
+    const over=()=>{if(worked&&performance.now()-start>=budget){pending.at=performance.now();return true;}worked=true;return false;};
+    for(;pending.next<features.length;pending.next++){const f=features[pending.next];if(f.id===undefined)continue;
+      const key=f.tile.z+'/'+f.tile.x+'/'+f.tile.y+':'+f.id;
+      if(!pending.cur){const parts=partCache.get(key),rev=clearance?.revision||0;if(parts?.rev===rev)continue;if(over())return null;
+        pending.cur=parts?{parts,rev,i:0}:{parts:[],rev,polys:polygons(f),i:0};}
+      const cur=pending.cur,{parts,polys}=cur;
+      for(;cur.i<(polys||parts).length;cur.i++){if(over())return null;const i=cur.i;
+        // 圖磚緩衝區會讓同一分件在相鄰圖磚各出現一次(座標逐 byte 相同),sig 對整個多邊形雜湊,remainders 只畫一份。
+        if(polys){const p=polys[i];parts.push({owners:owners(p),key:key+':'+i,sig:f.id+':'+polygonHash(p),feature:{type:'Feature',properties:{...f.properties,station_original_id:f.id},geometry:{type:'Polygon',coordinates:p}}});}
+        parts[i].blocked=!!clearance?.blocked(parts[i].feature.geometry.coordinates);
+      }
+      parts.rev=cur.rev;if(polys)partCache.set(key,parts);pending.cur=null;
+    }
+    if(worked)return null;
+    pending=null;for(const r of candidates){r.stats.masked=r.stats.visible;r.stats.excludedFeatureIds=[];}
     // 圖磚會把站房和遠處建物合併成同一 MultiPolygon；拆出站房後，把其餘
     // 分件原位重畫，不能讓背景建物消失，也不能保留一個方塊蓋住新屋頂。
     const live=new Set(),remainders=[],entries=[],hit=x=>x.blocked||x.owners.some(r=>activeSet.has(r));
     for(const f of features){if(f.id===undefined)continue;const key=f.tile.z+'/'+f.tile.x+'/'+f.tile.y+':'+f.id;live.add(key);
-      let parts=partCache.get(key);
-      // 圖磚緩衝區會讓同一分件在相鄰圖磚各出現一次(座標逐 byte 相同),sig 對整個多邊形雜湊,remainders 只畫一份。
-      if(!parts){parts=polygons(f).map((p,i)=>({owners:owners(p),blocked:!!clearance?.blocked(p),key:key+':'+i,sig:f.id+':'+polygonHash(p),feature:{type:'Feature',properties:{...f.properties,station_original_id:f.id},geometry:{type:'Polygon',coordinates:p}}}));partCache.set(key,parts);}
-      entries.push([f.id,parts]);
+      const parts=partCache.get(key);entries.push([f.id,parts,key+':']);
       for(const x of parts)if(hit(x)){ids.add(f.id);const r=x.owners.find(r=>activeSet.has(r));if(r&&!r.stats.excludedFeatureIds.includes(f.id))r.stats.excludedFeatureIds.push(f.id);}
     }
     // 同一個 id 在相鄰圖磚的另一份可能剛好沒有被遮到的分件,但整個 id 已從 building-3d 排除,它的分件也要重畫。
-    for(const [id,parts] of entries)if(ids.has(id))for(const x of parts)if(!hit(x))remainders.push(x);
+    // 分件 key＝featureKey+':'+i,featureKey(z/x/y:id)只有一個冒號,所以照 key 字串排時同一 feature 的分件必相鄰:
+    // feature 之間照 (featureKey+':') 的字串序、feature 內照 String(i) 的字串序(0,1,10,11,…,2)。先排 feature 再照固定順序展開,
+    // 與原本把 1.4 萬分件逐一字串排序逐物件同序(離線隨機 3000 例與兩種突變驗過),桌面 4x 跟車省下整段排序(5–15ms)。
+    const picked=entries.filter(e=>ids.has(e[0])).sort((a,b)=>a[2]<b[2]?-1:a[2]>b[2]?1:0);
+    for(const [,parts] of picked){const order=indexOrder(parts.length);for(let j=0;j<order.length;j++){const x=parts[order[j]];if(!hit(x))remainders.push(x);}}
     for(const key of partCache.keys())if(!live.has(key))partCache.delete(key);
-    remainders.sort((a,b)=>a.key<b.key?-1:a.key>b.key?1:0);const sigs=new Set(),unique=remainders.filter(x=>!sigs.has(x.sig)&&sigs.add(x.sig)),nextContext=unique.map(x=>x.key).join('|');let changed=false;
-    if(nextContext!==contextKey){contextKey=nextContext;ownedSource.setData({type:'FeatureCollection',features:unique.map(x=>x.feature)});changed=true;}
-    const values=[...ids].sort((a,b)=>a-b),key=values.join(',');if(key!==maskKey){maskKey=key;for(const [id,original] of filters){const exclude=['!', ['in',['id'],['literal',values]]];map.setFilter(id,values.length?(original?['all',original,exclude]:exclude):original);}changed=true;}return changed;
+    const sigs=new Set(),unique=remainders.filter(x=>!sigs.has(x.sig)&&sigs.add(x.sig));let changed=false;
+    if(unique.length!==contextKeys.length||unique.some((x,i)=>x.key!==contextKeys[i])){contextKeys=unique.map(x=>x.key);setRemainders(unique);changed=true;}
+    // filter 形狀固定、由這裡組出,不必每次跑 style-spec 驗證(桌面 4x 每次套用 6–16ms,是 setFilter 的大宗)。
+    const values=[...ids].sort((a,b)=>a-b),key=values.join(',');if(key!==maskKey){maskKey=key;for(const [id,original] of filters){const exclude=['!', ['in',['id'],['literal',values]]];map.setFilter(id,values.length?(original?['all',original,exclude]:exclude):original,{validate:false});}rttPending=1;changed=true;}return changed;
+  }
+  const indexOrders=new Map();
+  function indexOrder(n){let o=indexOrders.get(n);if(!o){o=[...Array(n).keys()].sort((a,b)=>{const x=String(a),y=String(b);return x<y?-1:x>y?1:0;});indexOrders.set(n,o);}return o;}
+  // setData 會在主執行緒把整份 FeatureCollection JSON.stringify 一遍(1.4 萬分件約 6MB,桌面 4x 27–55ms、A54 18–30ms)。
+  // 分件建好後內容不變,JSON 只在第一次送出時算,之後用快取片段 join 成單一平坦字串(頭尾併進第一與最後一片,
+  // 免得 postMessage 再攤平一次)。只在這一次同步的 setData 期間,讓 JSON.stringify(這份 data) 直接回這串字;
+  // MapLibre 在 worker 忙時會延後序列化,那時已還原成原生 stringify,結果相同只是沒省到。
+  function setRemainders(unique){
+    const data={type:'FeatureCollection',features:unique.map(x=>x.feature)},json=unique.map(x=>x.json??=JSON.stringify(x.feature));
+    if(json.length){json[0]='{"type":"FeatureCollection","features":['+json[0];json[json.length-1]+=']}';}
+    const text=json.length?json.join(','):'{"type":"FeatureCollection","features":[]}',stringify=JSON.stringify;
+    JSON.stringify=function(value){return value===data&&arguments.length===1?text:stringify.apply(this,arguments);};
+    try{ownedSource.setData(data);}finally{JSON.stringify=stringify;}
   }
   function maskLabels(active){
     // 預留字幅及傾斜屋頂的投影範圍；透視仍不讓地名穿入站房，實體招牌保留。
@@ -70,7 +112,7 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
         if(lines.some(line=>line.some((p,i)=>{const q=line[i+1]||p;return boxes.some(([w,s,e,n])=>Math.min(p[0],q[0])<=e&&Math.max(p[0],q[0])>=w&&Math.min(p[1],q[1])<=n&&Math.max(p[1],q[1])>=s)})))for(const field of ['name','name:zh','name:zh-Hant'])if(f.properties[field])names.add(f.properties[field]);
       }lineNames.set(sourceLayer,[...names].sort());
     }
-    let changed=false;const apply=(id,value)=>{const key=JSON.stringify(value);if(appliedSymbols.get(id)===key)return;appliedSymbols.set(id,key);map.setFilter(id,value);changed=true;};
+    let changed=false;const apply=(id,value)=>{const key=JSON.stringify(value);if(appliedSymbols.get(id)===key)return;appliedSymbols.set(id,key);map.setFilter(id,value,{validate:false});changed=true;};
     for(const [id,{original,sourceLayer}] of symbolFilters){
       if(!boxes.length){apply(id,original);continue;}
       const clauses=[['!', ['within',geometry]]],names=lineNames.get(sourceLayer)||[];
@@ -98,9 +140,9 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
       }
       const visible=canShow&&!!r.model;r.maskActive=visible;let revision=r.stats.visible!==visible;
       if(r.model){r.model.visible=visible;if(visible){r.lastUsed=++clock;if(r.stats.groundM!==ground){r.model.position.z=ground;r.stats.groundM=ground;revision=true;}
-        // 複合園區逐棟貼地；同一個展示錨點不能把山坡上的煤場壓進地下。
+        // 複合園區逐棟貼地；相連的月台與棚架可共用地面錨點，避免棚柱懸空。
         if(r.meta.calibration){
-          const heights=new Map(r.meta.calibration.parts.map(p=>[p.id,state.terrain?map.queryTerrainElevation(p.anchor):0]));
+          const heights=new Map(r.meta.calibration.parts.map(p=>[p.id,state.terrain?map.queryTerrainElevation(p.terrainAnchor||p.anchor):(p.flatGroundOffsetM??0)]));
           r.model.traverse(mesh=>{if(!mesh.isMesh)return;const h=heights.get(mesh.userData.component);const ready=Number.isFinite(h);if(mesh.visible!==ready){mesh.visible=ready;revision=true;}if(ready&&mesh.position.z!==h-ground){mesh.position.z=h-ground;revision=true;}});
         }
         const inspect=!!state.stationInspection&&(state.stationInspectionAll||r.entry.key===state.place),appearance=JSON.stringify([inspect,r.stats.excludedComponents,!!state.stationSolidAppearance]);
@@ -125,11 +167,16 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
   const MASK_STILL_MS=400,MASK_DEFER_MS=15000;let maskTimer=0,maskDeferSince=0,lastMoveAt=0;
   function noteMove(){lastMoveAt=performance.now();}
   function runMasks(){
-    maskDeferSince=0;if(disposed||!ownedSource||map.getSource('station-building-remainders')!==ownedSource)return;
+    if(disposed||!ownedSource||map.getSource('station-building-remainders')!==ownedSource){maskDeferSince=0;pending=null;maskSliced=false;return;}
     const active=[...records.filter(r=>r.stats.visible),...engineeringMasks];
     let changed=maskBuildings(clearance?[...records.filter(r=>r.maskActive),...engineeringMasks]:active);
-    changed=maskLabels(active)||changed;
+    // 還沒算完:下一片照同一條規則排。maskDeferSince 留到算完才歸零,手指還在拖就先停,
+    // 跟車(相機一直在動)已過 15s 上限就接著算,不會每一片都再等 15s。
+    if(changed===null){maskSliced=true;scheduleMasks();return;}
+    maskDeferSince=0;changed=maskLabels(active)||changed;
     if(changed){onUpdate(primary()?.stats);map.triggerRepaint();}
+    // 分片期間進來的失效(新圖磚、路線或可見站房變了)被這一輪的快照蓋過,算完再排一次;沒變就在 maskBuildings 開頭返回。
+    if(maskSliced){maskSliced=false;scheduleMasks();}
   }
   function scheduleMasks(){
     if(maskTimer||disposed)return;
@@ -152,9 +199,20 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
     // 模型高度仍由獨立的 schedule 準時更新，新圖磚則由 sourceEpoch 即時失效。
     clearTimeout(viewTimer);viewTimer=setTimeout(()=>{viewTimer=0;maskEpoch=-1;labelKey='';schedule();},100);schedule();
   }
+  // 地形開著時,地面上的 2D 建物(building 的 fill 圖層)畫在地形貼圖(render-to-texture)裡。建物 filter 一變,
+  // MapLibre 5.9 在 style 事件當下就全清貼圖,但那時圖磚還是舊 filter 的內容,下一幀就用舊內容重畫;
+  // 新圖磚回來時逐磚的 freeRtt(tileID) 用 overscaledZ 判父子,openmaptiles 在 z14 以上是超採樣圖磚
+  // (overscaledZ 16、canonical 14),比不到 z15–16 的地形磚(0 張),輪廓就停在舊 filter(上游 main 同樣寫法)。
+  // 2026-09-23 地景＋地形台北車站:遮罩套用後的畫面與 freeRtt() 強迫重畫差 3.2 萬 px。
+  // 所以等重載真的開始(styledata 時 openmaptiles 未載完)、再等它全部載完的那個圖磚事件,全清一次。
+  // 全清後那一幀桌面 1x 中位數 +0.2ms、4x +1ms,不掉幀(CDP 量測);不看地形開關,地形關著時沒有貼圖可清。
+  let rttPending=0;
+  function styleChanged(){if(rttPending===1&&!map.isSourceLoaded('openmaptiles'))rttPending=2;}
   // MapLibre 5.9 的單張圖磚完成事件有 tile，但沒有 sourceDataType。
   // 只收 content 會漏掉拖回快取區域後的圖磚更新，使遮罩停在上一區。
-  function sourceChanged(e){if(e.sourceDataType!=='content'&&!e.tile)return;if(e.sourceId==='openmaptiles'){sourceEpoch++;schedule();}else if(e.sourceId==='terrain')schedule();}
+  function sourceChanged(e){if(e.sourceDataType!=='content'&&!e.tile)return;if(e.sourceId==='openmaptiles'){sourceEpoch++;
+    if(rttPending===2&&e.tile&&map.isSourceLoaded('openmaptiles')){rttPending=0;if(map.terrain){map.terrain.sourceCache.freeRtt();map.triggerRepaint();}}
+    schedule();}else if(e.sourceId==='terrain')schedule();}
   return {
     id:'island-stations',type:'custom',renderingMode:'3d',failures,refresh,
     setEngineeringMasks(collection){
@@ -174,12 +232,12 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
       const building=map.getStyle().layers.find(l=>l.id==='building-3d');
       if(building)map.addLayer({id:'station-building-context',type:'fill-extrusion',source:'station-building-remainders',minzoom:13,paint:building.paint},'building-3d');
       renderer=new THREE.WebGLRenderer({canvas:map.getCanvas(),context:gl});renderer.autoClear=false;
-      map.on('idle',schedule);map.on('moveend',viewChanged);map.on('sourcedata',sourceChanged);map.on('move',noteMove);refresh();
+      map.on('idle',schedule);map.on('moveend',viewChanged);map.on('sourcedata',sourceChanged);map.on('styledata',styleChanged);map.on('move',noteMove);refresh();
     },
     render(gl,args){labelBounds=[];const canvas=map.getCanvas();for(const r of records)if(r.stats.visible&&r.model){camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(r.transform));renderer.resetState();renderer.render(r.scene,camera);
       const points=[];for(const x of [r.labelBox.min.x,r.labelBox.max.x])for(const y of [r.labelBox.min.y,r.labelBox.max.y])for(const z of [r.labelBox.min.z,r.labelBox.max.z]){const p=new THREE.Vector3(x,y,z+r.stats.groundM).applyMatrix4(camera.projectionMatrix);if(p.z>=-1&&p.z<=1)points.push({x:(p.x+1)*canvas.clientWidth/2,y:(1-p.y)*canvas.clientHeight/2});}
       if(points.length){const xs=points.map(p=>p.x),ys=points.map(p=>p.y),x=Math.min(...xs),y=Math.min(...ys);labelBounds.push({id:r.meta.id,x,y,width:Math.max(...xs)-x,height:Math.max(...ys)-y});}
     }},
-    onRemove(){if(disposed)return;disposed=true;clearTimeout(timer);clearTimeout(viewTimer);clearTimeout(maskTimer);map.off('idle',schedule);map.off('moveend',viewChanged);map.off('sourcedata',sourceChanged);map.off('move',noteMove);if(ownedSource&&map.getSource('station-building-remainders')===ownedSource){for(const [id,f] of filters)if(map.getLayer(id))map.setFilter(id,f);for(const [id,{original}] of symbolFilters)if(map.getLayer(id))map.setFilter(id,original);if(map.getLayer('station-building-context'))map.removeLayer('station-building-context');if(map.getSource('station-building-remainders'))map.removeSource('station-building-remainders');}for(const r of records)if(r.model)disposeStation(r.model);renderer?.dispose();}
+    onRemove(){if(disposed)return;disposed=true;clearTimeout(timer);clearTimeout(viewTimer);clearTimeout(maskTimer);map.off('idle',schedule);map.off('moveend',viewChanged);map.off('sourcedata',sourceChanged);map.off('styledata',styleChanged);map.off('move',noteMove);if(ownedSource&&map.getSource('station-building-remainders')===ownedSource){for(const [id,f] of filters)if(map.getLayer(id))map.setFilter(id,f);for(const [id,{original}] of symbolFilters)if(map.getLayer(id))map.setFilter(id,original);if(map.getLayer('station-building-context'))map.removeLayer('station-building-context');if(map.getSource('station-building-remainders'))map.removeSource('station-building-remainders');}for(const r of records)if(r.model)disposeStation(r.model);renderer?.dispose();}
   };
 }

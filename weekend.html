@@ -102,6 +102,25 @@ var LANG = (function () {
 })();
 var T = STR[LANG];
 document.documentElement.lang = LANG === 'zh-TW' ? 'zh-Hant' : LANG;
+// 期間名是核心層(scripts/weekend_core.mjs spanLabel)的中文分類：本週末／假日／這個連假／<節日>／<節日>連假，
+// 節日名只來自 data/holiday_names.json 的短名 ⇒ 有限集合，逐一翻。查不到的(之後新增的節日)才退回中文原字，
+// 外語標題以前一律是「本週末 · Rail Events This Weekend」(2026-09-19)。譯名與 index.html 字典同一套。
+var SPAN = {
+  'en': { kind: 'Rail events', pair: '{h} long weekend', '本週末': 'This weekend', '假日': 'Holiday', '這個連假': 'This long weekend',
+          '春節': 'Lunar New Year', '和平紀念日': 'Peace Memorial Day', '兒童節與清明': 'Children’s Day & Tomb Sweeping Day',
+          '中秋': 'Mid-Autumn Festival', '國慶': 'National Day', '光復節': 'Retrocession Day', '行憲紀念日': 'Constitution Day' },
+  'ja': { kind: '鉄道イベント', pair: '{h}の連休', '本週末': '今週末', '假日': '休日', '這個連假': 'この連休',
+          '春節': '春節', '和平紀念日': '和平記念日', '兒童節與清明': '児童節・清明節',
+          '中秋': '中秋節', '國慶': '国慶日', '光復節': '光復節', '行憲紀念日': '行憲記念日' },
+};
+function spanTitle(label) {
+  var m = SPAN[LANG];
+  if (!m) return label;
+  var x = /^(.+)連假$/.exec(label);
+  var name = Object.prototype.hasOwnProperty.call(m, label) ? m[label]
+    : x && Object.prototype.hasOwnProperty.call(m, x[1]) ? m.pair.replace('{h}', m[x[1]]) : label;
+  return name + ' · ' + m.kind;
+}
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -147,7 +166,7 @@ fetch('/api/weekend', { cache: 'no-store' })
   .then(function (r) { return r.ok ? r.json() : null; })
   .then(function (j) {
     if (!j || !j.span) throw new Error('bad payload');
-    document.getElementById('h1').textContent = j.span.label + (LANG === 'zh-TW' ? '' : ' · ' + T.title);
+    document.getElementById('h1').textContent = spanTitle(j.span.label);
     document.getElementById('range').textContent =
       md(j.span.from) + (j.span.from === j.span.to ? '' : '–' + md(j.span.to)) + '（' + j.span.days + T.days + '）';
     var html = '';

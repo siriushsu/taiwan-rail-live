@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A 車模頭帶的底：上緣圓角與卡片紙面同弧（紙面 16dp、內縮 1dp ⇒ 15dp），下緣一條分隔線。
+     分隔線畫在 drawable 裡而不是另放一個 ImageView：頭帶顯示／收起時線跟著走，不會留一條孤線。 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:topLeftRadius="15dp" android:topRightRadius="15dp" />
+            <solid android:color="@color/wg_rule" />
+        </shape>
+    </item>
+    <item android:bottom="1dp">
+        <shape android:shape="rectangle">
+            <corners android:topLeftRadius="15dp" android:topRightRadius="15dp" />
+            <gradient android:angle="0" android:startColor="@color/wg_band_start" android:endColor="@color/wg_band_end" />
+        </shape>
+    </item>
+</layer-list>

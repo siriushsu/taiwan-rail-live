@@ -14,6 +14,7 @@
 //   · TDX 班次的 TrainTypeID/TrainTypeName 十班全 null,車種是本專案依起訖路線歸類的四類;
 //     前端用 typeName 做繪製 gate(state.visible.has),故 key 不可與台鐵車種相撞。
 import { readFileSync } from 'node:fs';
+import { createPlanBinding } from '../rail-3d/physical/plan-binding.js';
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -41,7 +42,8 @@ if (!process.env.PORT) {
 }
 for (let i = 0; ; i++) {                               // 等它真的聽得到,不用固定秒數
   try { const r = await fetch(BASE + '/index.html'); if (r.ok) break; } catch {}
-  if (i > 100) { console.error(`✗ dev server 起不來（${BASE}）`); child?.kill(); process.exit(1); }
+  // 上限 60 秒（原本 10 秒）：同一個等待寫法在 verify_issue19 於高負載時逾時擋下出貨，見該檔同處說明。
+  if (i > 600) { console.error(`✗ dev server 起不來（${BASE}）`); child?.kill(); process.exit(1); }
   await new Promise(r => setTimeout(r, 100));
 }
 let pass = 0, fail = 0;
@@ -303,6 +305,39 @@ const SUGAR_INDEP = {
   '新營糖廠': [23.2997, 120.3169],
   '橋頭糖廠': [22.7578, 120.3142],
 };
+
+// ── 祝山線觀日車的派車綁定(2026-09-12) ────────────────────────────────
+// 97/98 的發車時刻由前端依官方日出表逐旬推算,而配對鍵 physicalTrainKey 含起訖秒,
+// dispatch.json 只存得下一組寫死的時刻。不讓林鐵借路徑的話,一年裡只有恰好對上
+// 那兩天綁得到,其餘日子整班退回示意線形——而且沒有任何閘門會紅(當時 2/22)。
+// 判準掃「日出位移」而不是只驗今天:只驗單一日期正是這個缺陷藏住的原因。
+// 分母具名,少一個位移就是掃描範圍被改小了。
+{
+  const dispatch = JSON.parse(readFileSync('rail-3d/physical/dispatch.json', 'utf8'));
+  const bind = createPlanBinding(dispatch);
+  const mk = (train, sig, shift) => ({ sys: 'afr_sched', train, stops: sig.map(x => ({
+    name: x[0].split(':')[1], arrSec: x[1] + shift, depSec: x[2] + shift,
+    ...(x[1] === x[2] ? { stop: false } : {}) })) });
+  const SHIFTS = [0, -2400, -1800, -1200, -600, -300, 300, 600, 900, 1200, 1800, 2400];
+  const SEED = { '97': 'afr_sched:97:16800:18600', '98': 'afr_sched:98:23400:25200' };
+  let bound = 0, total = 0, worst = '';
+  for (const [no, key] of Object.entries(SEED)) {
+    const plan = dispatch.plans[key];
+    if (!plan) { worst = worst || `派車表缺 ${key}`; continue; }
+    const sig = JSON.parse(plan.stopSignature);
+    for (const shift of SHIFTS) {
+      total++;
+      const r = bind(mk(no, sig, shift));
+      if (r) bound++; else worst = worst || `${no} 位移 ${shift}s 綁不到`;
+    }
+  }
+  ok(total === SHIFTS.length * 2, `日出位移掃描分母 ${total}（${SHIFTS.length} 個位移 × 2 班）`);
+  ok(bound === total, `祝山線觀日車每個日出位移都綁得到派車（${bound}/${total}${worst ? '；首個失敗：' + worst : ''}）`);
+  // 正向對照:同一把尺對一個不存在的站序必須綁不到,否則這條斷言恆真。
+  const bogus = bind({ sys: 'afr_sched', train: '97', stops: [
+    { name: '阿里山', arrSec: 100, depSec: 200 }, { name: '嘉義', arrSec: 300, depSec: 400 }] });
+  ok(!bogus, `正向對照：不存在的站序（阿里山→嘉義）綁不到派車${bogus ? '，判準恆真' : ''}`);
+}
 
 console.log('\n═══ E. 端到端（Playwright 真引擎）═══');
 // 視窗尺寸一律在 newContext 就釘死,不用 setViewportSize:headless chromium 的視窗是
@@ -569,7 +604,9 @@ console.log('\n═══ H. 近景不可把軌道畫沒了（實體股道白名�
 //
 // 判準取兩個地點各量一次,兩邊都是正向斷言(「抽掉的系統都有替代」寫成通則會假紅——
 // visibleRoutes 只回視野內的股道,站在阿里山時台鐵本來就沒有替代幾何,那不是缺陷):
-//   · 阿里山近景:林鐵**不該**被抽換,四條示意線形要還在圖層 filter 裡。
+//   · 阿里山近景:林鐵**該**被抽換(2026-09-12 起 afr_sched 回到 PHYSICAL_SYSTEMS),而且
+//     要換得出 physical 路線回來——這一條才是當年那個缺陷的正向判準:「抽掉了換不出來」。
+//     原本寫成「林鐵不該被抽換」是把當時的權宜狀態當成規格,白名單一改就會假紅。
 //   · 台北近景:台鐵**該**被抽換,而且要換得出 physical 路線回來。
 // 只跑 chromium:量的是 frame payload 與圖層 filter(純 JS 判斷),不是各引擎的算繪差異。
 // ?scene=3d 是必要的——不強制 3D 場景時 renderer 不產生幀、capture() 的 replacedLineKeys 恆空,
@@ -581,7 +618,8 @@ console.log('\n═══ H. 近景不可把軌道畫沒了（實體股道白名�
   const p = await ctx.newPage();
   const read = async (z, at, tag) => {
     await p.goto(BASE + `/?g=all&scene=3d&lang=zh-TW&at=${at}&z=${z}&_cb=h${tag}`, { waitUntil: 'domcontentloaded' });
-    await p.waitForFunction(() => typeof state !== 'undefined' && state.ready && window.railIslandPhysical, { timeout: 120000 });
+    // 第二個參數是傳進頁面的 arg,options 要放第三個;放錯位置時 timeout 被忽略、只等預設 30s(09-24 高負載下 3D 開機逾時假紅)。
+    await p.waitForFunction(() => typeof state !== 'undefined' && state.ready && window.railIslandPhysical, null, { timeout: 120000 });
     await p.waitForTimeout(3000);
     return p.evaluate(() => {
       const I = window.railIslandIntegration, raw = window.__M.raw;
@@ -593,6 +631,7 @@ console.log('\n═══ H. 近景不可把軌道畫沒了（實體股道白名�
         replacedAfr: rep.filter(k => /^afr_sched\|/.test(k)).length,
         afrDrawn: drawn.filter(k => /^afr_sched\|/.test(k)).length,
         traPhysical: routes.filter(r => r.physical && r.systemId === 'tra_sched').length,
+        afrPhysical: routes.filter(r => r.physical && r.systemId === 'afr_sched').length,
       };
     });
   };
@@ -600,8 +639,8 @@ console.log('\n═══ H. 近景不可把軌道畫沒了（實體股道白名�
   const far = await read(13, ALISHAN, 'far'), near = await read(15, ALISHAN, 'near'), tpe = await read(15, TAIPEI, 'tpe');
   ok(far.afrDrawn >= 4, `[chromium] 遠景(raw ${far.raw})林鐵有 ${far.afrDrawn} 條軌道在畫（正向對照:判準量得到東西）`);
   ok(near.replaced > 0, `[chromium] 近景(raw ${near.raw})確實有在抽換示意線形（${near.replaced} 個 lineKey；為 0 表示下面兩條恆真）`);
-  ok(near.afrDrawn >= 4 && near.replacedAfr === 0,
-    `[chromium] 近景林鐵仍有 ${near.afrDrawn} 條軌道在畫、且沒被列為已抽換（被抽換 ${near.replacedAfr} 條；0 條在畫就是「放大後林鐵消失」那個回歸）`);
+  ok(near.replacedAfr > 0 && near.afrPhysical > 0,
+    `[chromium] 近景林鐵抽掉 ${near.replacedAfr} 條示意線形、換回 ${near.afrPhysical} 條實體股道（抽掉了卻換不出來就是「放大後林鐵消失」那個回歸；示意線形剩 ${near.afrDrawn} 條）`);
   ok(tpe.traPhysical > 0, `[chromium] 近景台北的台鐵換得出 ${tpe.traPhysical} 條實體股道（抽掉了卻換不出來就是同一個病）`);
   await ctx.close();
   await b.close();

@@ -344,11 +344,69 @@ const MODES = {
     //   轉乘接續納入機捷與高捷、機捷車種讀官方值、網站登入修復。
     //   why 三語寫其中六條；weblogin0910 是網站專屬（更新紀錄自己就寫著「App 內的登入不受影響」），
     //   不佔店頭 500 字元。
-    marketing: '1.6.2', build: '109', music: true, metroCore: true,
-    why: "軌島 1.6.2\n\n・通行證有自己的入口：手機從「更多」打開就在第二列，電腦在工具列上有一顆「通行證」\n・通行證不用先登入也看得到有哪些功能，要看價格或訂閱時才需要登入\n・網站也能用軌島通行證：用同一個軌島帳號登入，App 訂的資格在網站就生效\n・地下路段的列車可以顯示原本的車身顏色：「更多」的「透視顯示」切到「實體」\n・轉乘接續加入捷運：高鐵桃園、台北車站、左營等站會列出桃園機場捷運與高雄捷運紅線、橘線\n・桃園機場捷運的車種改讀官方時刻表，全線每一班都標得出直達車或普通車",
-    whyEn: "Rail Island 1.6.2\n\n• The Pass has its own entry: second row of the More drawer on phones, its own toolbar button on desktop\n• Open the Pass without signing in; sign in only for prices or to subscribe\n• Use the Pass on the website with the same Rail Island account\n• Underground trains in their real colors: set See-through view to Solid\n• Transfers now list Airport MRT and Kaohsiung MRT connections\n• Airport MRT runs are marked Express or Commuter from the official timetable",
-    whyJa: "軌島 1.6.2\n\n・パスに専用の入口を追加：スマートフォンは「その他」の 2 行目、パソコンはツールバーの「パス」\n・ログインしなくてもパスの内容を確認できます。価格の表示と購入のときだけログインが必要です\n・ウェブでも軌島パスが使えます：同じ軌島アカウントでログインすると App の権利が有効になります\n・地下区間の列車を本来の車体色で表示：「その他」の「透視表示」を「実体」に切り替え\n・乗り継ぎに地下鉄を追加：高鉄桃園、台北駅、左営などで桃園空港 MRT と高雄 MRT 紅線・橘線を表示\n・桃園空港 MRT の種別を公式時刻表から取得し、全列車を直達列車／普通列車で表示",
-
+    // 110／Android 50（2026-09-12 12:xx）：**1.6.2 已於 2026-09-11T16:37:44Z 上架**
+    //   （Apple lookup 帶 no-cache 實查 version=1.6.2；Play 商店頁也是 1.6.2）⇒ 1.6.2 train 已關，
+    //   行銷版號進到 1.6.3。Archives 底下沒有任何 1.6.3 的 archive，110 是這個號的第一份載貨（規則四）。
+    //   載貨＝origin/main 751f86ff（網站 BUILD v0912e）。31c395ec 當時的載貨是 52e83adc（v0912c），
+    //   之後 main 多出五條第一層更新紀錄正本：隧道洞門、都市立體地圖效能、同股道兩列車不再互穿、
+    //   開站不重複下載地形、平地假隧道與路基收窄。
+    //   🔴 why 三語不是互譯也不等長：中文 331／日文 354 還有 150 字元以上餘裕，**英文 489 只剩 11**
+    //   （Play 硬上限 500）。所以英文把「高架橋外觀」「近看軌道」「平地不畫隧道」併成一條、
+    //   三鶯線末班那條不寫；中日文照舊逐條列。要再加一條就得先從英文砍一條，不是三語一起加。
+    // 113／Android 53（2026-09-14）：**1.6.3 已於 2026-09-13T00:46:10Z 上架**
+    //   （Apple lookup 帶 no-cache 實查）⇒ 1.6.3 train 已關，行銷版號進到 1.6.4。
+    //   112／52 已各有載貨，規則四不重用號，因此進 113／53。載貨同時包含上一顆 App 專屬改動，
+    //   以及 9/13 上架後至 origin/main 087e909b（網站 BUILD v0914d）的全部更新；兩條來源均為
+    //   本次 merge commit 的祖先，並以已上架 1.6.3 (112) 的可見面聯集跑出貨回歸閘門。
+    // 114（2026-09-15）：Apple 公開 lookup 仍為 1.6.3，故沿用 1.6.4；113 已有 archive，
+    //   不重用載貨號。納入 v0915a：同向快車將追上慢車時，提早回找有足夠煞車距離的車站待避。
+    // 118／Android 56（2026-09-19）：Apple lookup 與 Play 實查線上都是 1.6.5 ⇒ 1.6.5 train 已關，行銷版號進到 1.6.6。
+    //   Archives 最新是 1.6.5 (117)、桌面最新 AAB 是 55 ⇒ 規則四進 118／56。載貨＝網站 v0919e（含 iOS 27 UIScene 修正 541719e4／0a39ac93）。
+    //   why 三語只寫 v0916c（117 的網頁層）之後的更新紀錄：英日補翻、台鐵不超極速＋待避交會安全間隔、DR1000 支線、
+    //   捷運班表（8/31 改點與接車修正）、附近車站收合、暗色關閉鈕與半透明開關、Android 地景與雙看板。
+    //   英文受 Play 500 字元上限（494），所以把暗色與 Android 併成一條。
+    // 119／Android 57（2026-09-19 08:3x）：118／56 已上傳，但帶著 ecaad67b 的「英→中切回，關閉鈕變『平』」回歸；
+    //   同一個 1.6.6 換載貨＝網站 v0919f（9c55ec99，英日文複審 16 項＋回歸修正）。三語 why 不變（修正本來就在「切換語言不再殘留」那條裡）。
+    // 120／Android 58（2026-09-20）：App Store 已於 09-19T15:16Z 上架 1.6.6，版本列進到 1.6.7。
+    //   119 archive 已存在且不重用。載貨進到 v0919l：App 長通知完整換行、可點外部收起；
+    //   任何傾斜視角的定位點不進截圖／錄影。出貨基線以 117／已上傳 118／上架 119 載貨聯集推進。
+    // 121／Android 59（2026-09-20）：Apple 與 Google Play 公開頁均已是 1.6.7，該版本列已關，
+    //   因此行銷版號進到 1.6.8；120／58 已各有上架載貨，不重用號。本顆載貨＝網站 v0920e：
+    //   南港展覽館停車點、火車站看板三小時完整班次、虛構專列標示，以及環狀線單線空資料時
+    //   從 Metro Core／官方名冊退到當日班表並明示誤差。四項都由 App bundle 閘門直接核對。
+    // 122／Android 60（2026-09-21）：Apple lookup 1.6.8 已於 09-20T18:10Z 上架、Play 同日 ⇒ 1.6.8 train 已關，
+    //   行銷版號進到 1.6.9；121／59 已上架不重用號。網頁載貨與 121 完全相同（v0920e，index.html／data 零 commit），
+    //   這顆只換原生小工具：台鐵班表窗剩 3 天就抓線上新窗（42a23542／12ee1fad iOS、e3782014 Android）——
+    //   原本「快取涵蓋今天就不抓」跟看板「剩 ≤3 天就提醒更新」沒對齊，每個 14 天窗的最後 3 天都叫人更新
+    //   卻不抓；而且快取放 Caches、更新 App 不清，剛打包的新窗還會輸給舊快取（使用者裝 1.6.8 仍看到 9/22）。
+    //   why 三語只寫這一條。
+    // 123／Android 61（2026-09-22）：Apple lookup 1.6.9 已於 09-21T23:12Z 上架、Play 同日 ⇒ 1.6.9 train 已關，
+    //   行銷版號進到 1.6.10；122／60 已上架不重用號。起因：Android 58／59／60 三顆都在缺
+    //   app/android/app/google-services.json（gitignored）的樹上打的——build.gradle 原本 try/catch 後只 logger.info，
+    //   build 全綠、APK 沒有 google_app_id、Firebase 沒初始化，使用者按登入才紅字
+    //   「"FirebaseAuthentication" plugin is not implemented on android」（08-31 的 Android 24 同一個坑）。
+    //   修法：補檔＋build.gradle 缺檔直接 GradleException。同顆另修 iPhone 更新提示：查線上版本原本
+    //   12 小時內走 localStorage 快取、再疊 WKWebView 與 Apple CDN 快取，新版上架後十幾個小時都不提示
+    //   （Android 走 Play Core 即時）⇒ 改成每次開機帶時間戳 no-store 問一次。網頁載貨含 v0922a
+    //   （機捷台灣設計展疏運班表 9/24–10/11）。
+    // 124／Android 63（2026-09-23）：兩平台都出。Apple lookup 1.6.10 已於 09-23T03:26Z 上架、Android 61 已上傳 Play
+    //   ⇒ 行銷版號 1.6.11。Android 62 曾照 470cba11（載貨 a46bfb6f）打過一顆未上傳、已作廢 ⇒ 這顆載貨不同，進位 63
+    //   （規則四）；iOS 124 此前沒有任何 archive。載貨＝origin/main 4c910f24（網站 v0923f，含跟車遮罩分片 1a16f605、
+    //   打卡／路段帳號同步 d6aa04c9——firestore.rules 已於 09-23 02:36Z 發布，線上與 main 逐字相同）
+    //   ＋小工具背景 A／C（iOS feat/widget-bg-ios-ac bb499f19、Android feat/widget-bg-android-ac c5b5a820，
+    //   含台鐵看板班數跟高度走的背景版）＋台鐵等站卡 B（feat/tra-wait-b-card 200a892e；伺服器端 v0923b 已上線）。
+    //   why 三語 09-23 使用者核准（202／497／306 字元）。
+    // 125／Android 64（2026-09-26）：Apple lookup 1.6.11 已於 09-24T05:52Z 上架、Play 1.6.11 (63) 09-23 已更新
+    //   ⇒ 行銷版號進到 1.6.12；124／63 已上架不重用號。載貨＝origin/main（網站 v0926b：台鐵班表窗 9/26–10/9、
+    //   寶可夢主題列車 v0925a／v0925c、左營站區平面、A4 層位、面板標題遮擋與長站名溢出、閘門改空埠）
+    //   ＋跟車卡台鐵／高鐵進站軌道（iOS 3c64ce49、Android 63be5384）＋iOS 捷運等車卡改用推播 tick（3cfd1e5e）。
+    //   why 三語待使用者核准（299／498／431 字元）。
+    // 126／Android 65（2026-09-28）：Apple lookup 確認 1.6.12 已上架；包含 v0926b 之後至 v0928c 的全部更新。
+    // 固定 KLRT 私有 runtime 0671cd3；公開 App 只帶播放／看板串接，不打包私有演算法。
+    marketing: '1.6.13', build: '126', music: true, metroCore: true, androidPlus: true,
+    why: '軌島 1.6.13\n\n・高雄輕軌依官方倒數顯示起點待發車，發車後可接續跟隨；站牌分開顯示順、逆時針來車\n・更新台鐵 10/3 起班表與平鎮臨時站資料，改善進站、彎道與同軌列車的呈現\n・更新北捷紅線、三鶯線軌道；切換立體地圖主題後保留建物透視設定\n・新增 27 首串流配樂\n・修正 iPhone 車次與時速對齊、長名稱溢出，改善手機橫向面板與切換系統的卡頓\n・修正車庫列車轉向，以及福森號、栩悅號的觀景端朝向',
+    whyEn: 'Rail Island 1.6.13\n\n• Kaohsiung LRT: origin departures and separate clockwise/counterclockwise boards\n• TRA: Oct 3 timetable, Pingzhen temporary station, improved track and arrival display\n• Updated Taipei Red Line and Sanying tracks; 3D see-through setting stays after theme changes\n• 27 new streaming music tracks\n• Fixed iPhone labels, long names, landscape panels and pauses when switching systems\n• Corrected garage train turns and scenic train orientation',
+    whyJa: '軌島 1.6.13\n\n・高雄ライトレールで公式の発車予告に合わせて始発待ちの列車を表示し、発車後も追従できるようにしました。時計回り・反時計回りの案内を分けて表示します\n・台鉄の10/3以降のダイヤと平鎮臨時駅を更新し、到着・カーブ・同一線路上の列車の表示を改善しました\n・台北MRT紅線・三鶯線の線路を更新し、3Dテーマ変更後も建物の透過設定を保持します\n・配信BGMを27曲追加しました\n・iPhoneの車番と速度の位置、長い名称、横画面のパネル、路線切替時の動作を改善しました\n・車庫の列車の向きと福森号・栩悦号の展望車側の向きを修正しました',
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
@@ -468,6 +526,17 @@ else delete env.RAIL_INCLUDE_LICENSED_MUSIC;
 env.RAIL_EXPECT_METRO_CORE = cfg.metroCore ? '1' : '0';
 if (cfg.metroCore) env.RAIL_ENABLE_METRO_CORE = '1';
 else delete env.RAIL_ENABLE_METRO_CORE;
+// Android 49 已上架通行證；正式模式自己保留設定，不能靠執行者記得額外傳環境變數。
+// 50 的 AAB 曾因漏傳而關掉入口。驗收 build 標記直接讀 Gradle，避免沿用舊號。
+if (cfg.androidPlus) {
+  const gradle = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
+  const code = /\bversionCode\s+(\d+)/.exec(gradle)?.[1];
+  if (!code) throw new Error('Android versionCode 缺失，無法設定正式通行證');
+  env.RAIL_ANDROID_PLUS_ENABLED = '1';
+  env.RAIL_EXPECT_ANDROID_PLUS = '1';
+  env.RAIL_ANDROID_PLUS_SANDBOX_POLICY = 'revenuecat-allowlist';
+  env.RAIL_ANDROID_PLUS_SANDBOX_BUILD = code;
+}
 // 本版「更新了什麼」內建文案＝why 本人。iTunes lookup 的 releaseNotes 是【線上版】的,
 // 剛裝的版比線上新時(每次送審前必然)彈到的是上一版的文——1.4.9 (74) 實踩。
 env.RAIL_WHATS_NEW = cfg.why;

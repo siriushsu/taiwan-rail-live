@@ -316,13 +316,22 @@ for (const [engine, launcher, cases] of [
       const blocked = await scrollableControlsReachable(page, '#moreBody');
       ok(engine + ' 平板「更多」所有控制項捲得到且點得到', blocked.length === 0,
         JSON.stringify(blocked));
-      const immersiveRow = '#moreBody .ms-row[data-proxy="immBtn"]';
+      // v0914c 起觀看設定從「更多」搬到獨立面板；進入沉浸時面板會主動收起，
+      // 所以退出前也要照使用者實際路徑重新打開「觀看」。
+      await page.tap('#moreClose');
+      await page.waitForFunction(() => !document.body.classList.contains('tools-open'));
+      await page.tap('#viewSettingsBtn');
+      await page.waitForFunction(() => window.railViewControls?.opened);
+      const immersiveRow = '#viewSettingsBody .ms-row[data-proxy="immBtn"]';
       await page.locator(immersiveRow).scrollIntoViewIfNeeded();
       await page.tap(immersiveRow);
       const on = await page.evaluate(() => document.body.classList.contains('immersive'));
+      await page.tap('#viewSettingsBtn');
+      await page.waitForFunction(() => window.railViewControls?.opened);
+      await page.locator(immersiveRow).scrollIntoViewIfNeeded();
       await page.tap(immersiveRow);
       const off = await page.evaluate(() => !document.body.classList.contains('immersive'));
-      ok(engine + ' 平板極簡沉浸可開可關', on && off, JSON.stringify({ on, off }));
+      ok(engine + ' 平板從「觀看」進出極簡沉浸', on && off, JSON.stringify({ on, off }));
       ok(engine + ' 平板「更多」互動零 pageerror', errors.length === 0, errors.join(' | '));
     } finally {
       await context.close();

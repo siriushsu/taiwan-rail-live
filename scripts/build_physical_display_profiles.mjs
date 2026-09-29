@@ -26,6 +26,19 @@ try{
  }
  const maxima=new Map();for(const w of network.ways){const e=entries[w.id],p=makePath(w.coordinates);for(let i=0;i<w.nodes.length;i++){const k=e.distances.indexOf(p.d[i]);if(k>=0)maxima.set(w.nodes[i],Math.max(maxima.get(w.nodes[i])??-Infinity,e.values[k]));}}
  for(const w of network.ways){const e=entries[w.id],p=makePath(w.coordinates);for(let i=0;i<w.nodes.length;i++){const k=e.distances.indexOf(p.d[i]);if(k>=0)e.values[k]=maxima.get(w.nodes[i]);}}
- fs.writeFileSync(new URL(process.env.OUT||'rail-3d/physical/display-profiles.json',root),JSON.stringify({version:1,railElevationM:null,source:{demSha256:dem.manifest.sha256,zoom:12,minimumClearanceM:2.5,method:'固定地形淨空與共用道岔節點；顯示高程，非實測橋隧標高'},entries}));
+ // distances 是沿線里程，原本整份 float64 寫出去——5 公尺一格寫成 4.968962155958168，
+ // 這個檔 67.7% 的字元都是這種尾數（實測數字元）。收到 0.1 公釐，顯示用途下比一個像素細幾百倍。
+ // 🔴 但不能整排直接收：道岔處會有兩個相距 1e-13 公尺、高度差 25 公釐的刻度，那個階梯是上面
+ //    第 27 行把節點拉成共用最大值刻意留下的。整排收會把那一對併成同一個值，階梯消失，
+ //    atHeight(way, path.d[i]) 就會取到階梯的下緣——實測 tra_sched:9748936112 的
+ //    「同股道節點高度不連續」正是這樣來的（verify_rail_levels 抓到）。
+ //    規則兩條：(1) 節點里程是查表的鍵（verify_rail_levels 用 atHeight(way, path.d[i]) 精確命中），
+ //    一律原樣保留；(2) 其餘刻度收完仍要嚴格夾在前後兩個刻度之間，否則原樣保留——這樣階梯不會被併掉，
+ //    順序也不會被四捨五入翻過去。
+ const nodeDistances=new Map(records.map(r=>[String(r.id),new Set(r.nodeDistances)]));
+ const trim=(d,exact)=>{const out=d.slice();for(let i=0;i<d.length;i++){if(exact.has(d[i]))continue;const v=+d[i].toFixed(4);
+   if(v>(i?out[i-1]:-Infinity)&&v<(i+1<d.length?d[i+1]:Infinity))out[i]=v;}return out;};
+ const rounded=Object.fromEntries(Object.entries(entries).map(([id,e])=>[id,{distances:trim(e.distances,nodeDistances.get(String(id))||new Set()),values:e.values}]));
+ fs.writeFileSync(new URL(process.env.OUT||'rail-3d/physical/display-profiles.json',root),JSON.stringify({version:1,railElevationM:null,source:{demSha256:dem.manifest.sha256,zoom:12,minimumClearanceM:2.5,method:'固定地形淨空與共用道岔節點；顯示高程，非實測橋隧標高'},entries:rounded}));
  console.log({ways:records.length,points:records.reduce((n,r)=>n+r.values.length,0)});
 }finally{dem.close();}

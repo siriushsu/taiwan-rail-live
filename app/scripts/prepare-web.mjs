@@ -161,7 +161,8 @@ for (const file of [
 // i18n 是首頁 runtime 的必要靜態資產，不是只供網站維護的資料。漏掉時 App 仍能啟動，
 // 語言按鈕也會改變 html lang，但英／日字典 404 後所有文字都安全 fallback 回繁中，
 // 真機看起來就像按鈕完全失效。與 assets/data 一樣只複製 git 已追蹤檔案。
-for (const dir of ['assets', 'data', 'i18n', 'rail-3d']) await copyTree(dir);
+// 歷史重播從更多選單以本機路徑開啟，必須連同封存資料與模型一起打包。
+for (const dir of ['assets', 'data', 'i18n', 'rail-3d', 'memories']) await copyTree(dir);
 // 舊 iOS 的 UTType 未必識別 mjs；App 以 js 副檔名載入相同模組，內容逐 byte 保留。
 await cp(join(out, 'rail-3d/environment/sun.mjs'), join(out, 'rail-3d/environment/sun.js'));
 // place_index.json 是本次 build 現場產物，尚未 git add 時不會通過 copyTree 的「只收 tracked」

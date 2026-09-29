@@ -35,7 +35,7 @@ import { extname, join, resolve } from 'node:path';
 import { chromium } from 'playwright';
 
 const ROOT = resolve(process.argv[2] || join(import.meta.dirname, '..'));
-const PORT = Number(process.env.BOOTSCHED_PORT || 43571);
+let PORT = Number(process.env.BOOTSCHED_PORT || 0);
 // 兩個注入點,走的是兩條不同的崩潰路徑,缺一不可:
 //   thsr 台鐵以外、無 special ⇒ 直接死在 applySchedSystems 的 `for (const tr of sys.data.trains)`
 //        ——這正是 2026-09-04 回報的 `sys.data.trains is not iterable`(高鐵班表走 /api/,
@@ -68,6 +68,7 @@ const server = createServer(async (rq, rs) => {
   } catch { rs.statusCode = 404; rs.end('nf'); }
 });
 await new Promise(r => server.listen(PORT, '127.0.0.1', r));
+PORT = server.address().port; // 預設 0＝系統挑空埠（原本 43571，別人同時手動跑就撞埠假紅）
 
 // 一次開機。breakSys 給 'tra'／'thsr' 時把該系統的班表換成 200 `{}`;給 null 就是控制組。
 async function boot(browser, breakSys) {

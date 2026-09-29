@@ -11,29 +11,67 @@ export function sameDerivedPasses(plan,tr){
  return old.length===tr.stops.length&&old.every((s,i)=>{
   const p=tr.stops[i];if(s[0]!==stationKey(tr.sys||tr.system,p.name))return false;
   if(s[1]===p.arrSec&&s[2]===p.depSec)return true;
-  return i>0&&i<old.length-1&&p.stop===false&&s[1]===s[2]&&p.arrSec===p.depSec&&Number.isFinite(p.arrSec);
+  return i>0&&i<old.length-1&&p.stop===false&&s[1]===s[2]&&Number.isFinite(p.arrSec)&&Number.isFinite(p.depSec)
+   &&(p.arrSec===p.depSec||p._plannedDwell===true&&p.depSec>p.arrSec);
  });
 }
+// own：沿用的是自己那份計畫時一併帶上「不可借給別班當模板」的標記（藍皮 5898／5899 的非電化股道靠它守）。
+const borrow=(pathIds,tr,own)=>{const holds=tr.stops.map(()=>({arrival:0,departure:0}));return {pathIds,holds,departureHolds:holds.map(()=>0),officialDelaySec:0,stopSignature:physicalStopSignature(tr),...(own?.templateEligible===false&&{templateEligible:false})};};
+const sameStations=(plan,tr)=>{let old;try{old=JSON.parse(plan.stopSignature);}catch{return false;}return old.length===tr.stops.length&&old.every((s,i)=>s[0]===stationKey(tr.sys||tr.system,tr.stops[i].name));};
+// 停靠型態：中途每站是停是過要與原計畫相同（原計畫的正式停靠一律有停留秒數，通過站到離同秒）。
+const sameStopPattern=(plan,tr)=>JSON.parse(plan.stopSignature).every((s,i,a)=>!i||i===a.length-1||(tr.stops[i].stop!==false)===(s[2]>s[1]));
+// 可向既有計畫借路徑的系統:台鐵加開車、高鐵當日班表(車次或時刻與派車表不同的班次)、
+// 林鐵祝山線觀日車(97/98 依官方日出表逐旬改發車時刻,而配對鍵含起訖秒,派車表只存得下一組
+// 寫死的時刻——不借路徑的話一年裡只有恰好對上那兩天綁得到,其餘日子整班退回示意線形)。
+const TEMPLATE_SYSTEMS=['tra_sched','thsr_sched','afr_sched'];
 export function createPlanBinding(dispatch){
- let templates=null;
- return tr=>{
-  const key=physicalTrainKey(tr),exact=dispatch.plans[key];
+ const templates=new Map(),byTrain=new Map(),known=new Map();
+ // 派車表沒有的台鐵中途站（2026-10 起的平鎮臨時站 1105）綁定時當作不存在：通過站直接略過，停靠站把前後兩段
+ // 併回原本那一段——車走派車表原本的股道，停在那一站投影到那一段路徑上的點（motion.js 的 cuts）。回傳的 stops 是綁定實際用的站序（原班表的站物件），
+ // stopIndexes 是它們在原班表的位置。起訖站不在派車表就不略過，照舊綁不到、退回示意線形。
+ // 2D 地圖、看板、小工具照官方站序，不經過這裡。
+ const knownOf=sys=>{let set=known.get(sys);if(!set){set=new Set();for(const [k,p] of Object.entries(dispatch.plans))if(k.startsWith(sys+':'))for(const s of JSON.parse(p.stopSignature))set.add(s[0]);known.set(sys,set);}return set;};
+ const bind=tr=>{
+  const sys=tr.sys||tr.system,key=physicalTrainKey(tr),exact=dispatch.plans[key];
   if(exact){if(exact.pathIds.length!==tr.stops.length-1)return null;
    if(exact.stopSignature===physicalStopSignature(tr))return {plan:exact,basis:'exact'};
-   return sameDerivedPasses(exact,tr)?{plan:exact,basis:'derived-pass-times'}:null;
+   if(sameDerivedPasses(exact,tr))return {plan:exact,basis:'derived-pass-times'};
+   if(!sameStations(exact,tr)||!validTimes(tr))return null;
+   // 高鐵當日班表只改了到離站時刻(同車次、同站序):沿用自己原本的股道,時間與待避一律用今天的。
+   // 台鐵改點(2026-10-03 起埔心、樹林、桃園幾班提早，首站發車與末站到站不變所以同鍵)同樣沿用自己的股道，
+   // 但停靠型態要相同、原計畫不得帶待避——待避是替舊時刻解的交會，歸零後可能重新互穿。
+   return sys==='thsr_sched'||sys==='tra_sched'&&noHolds(exact)&&sameStopPattern(exact,tr)?{basis:'retimed',sourceKey:key,plan:borrow(exact.pathIds,tr,exact)}:null;
+  }
+  // 台鐵改點改到首站發車或末站到站時鍵跟著變（2026-10-03 起 1248／1254 到基隆晚 1 分）：先找同車次、同站序、
+  // 同停靠型態、不帶待避的自己的計畫，沿用自己驗收過的股道。借別班的路徑會把替這班修好的站場進路退回去
+  // （1248 借 1128 會在汐止走回 09-13 修掉的舊股道、1254 借 1120 在鶯歌也是）。同車次有幾份就取時刻最接近的。
+  if(sys==='tra_sched'&&!tr.loop&&validTimes(tr)){
+   if(!byTrain.size)for(const [k,p] of Object.entries(dispatch.plans))if(k.startsWith(sys+':'))(byTrain.get(k.split(':')[1])||byTrain.set(k.split(':')[1],[]).get(k.split(':')[1])).push([k,p]);
+   const gap=p=>JSON.parse(p.stopSignature).reduce((n,s,i)=>n+Math.abs(s[1]-tr.stops[i].arrSec)+Math.abs(s[2]-tr.stops[i].depSec),0);
+   const own=(byTrain.get(String(tr.train))||[]).filter(([,p])=>p.pathIds.length===tr.stops.length-1&&noHolds(p)&&sameStations(p,tr)&&sameStopPattern(p,tr))
+    .map(([k,p])=>({k,p,gap:gap(p)})).sort((a,b)=>a.gap-b.gap||(a.k<b.k?-1:1))[0];
+   if(own)return {basis:'retimed',sourceKey:own.k,plan:borrow(own.p.pathIds,tr,own.p)};
   }
   // 加開車只借用完整、有序的既有路徑切片，不借用別班的時間、待避或接車關係。
-  if((tr.sys||tr.system)!=='tra_sched'||tr.loop||tr.stops.length<2||!validTimes(tr))return null;
-  if(!templates)templates=Object.entries(dispatch.plans).filter(([k])=>k.startsWith('tra_sched:')).map(([key,plan])=>({key,plan,stops:JSON.parse(plan.stopSignature)}));
-  const names=tr.stops.map(s=>stationKey('tra_sched',s.name));let best=null;
-  for(const t of templates)for(let start=0;start<=t.stops.length-names.length;start++){
+  if(!TEMPLATE_SYSTEMS.includes(sys)||tr.loop||tr.stops.length<2||!validTimes(tr))return null;
+  // 限定車種的站內股道（例如藍皮的非電化月台）不能被其他加開車借走。
+  if(!templates.has(sys))templates.set(sys,Object.entries(dispatch.plans).filter(([k,p])=>k.startsWith(sys+':')&&p.templateEligible!==false).map(([key,plan])=>({key,plan,stops:JSON.parse(plan.stopSignature)})));
+  const names=tr.stops.map(s=>stationKey(sys,s.name));let best=null;
+  for(const t of templates.get(sys))for(let start=0;start<=t.stops.length-names.length;start++){
    if(!names.every((name,i)=>t.stops[start+i][0]===name))continue;
    // 優先使用相同停靠型態、同長度區間；最後用穩定的來源 key 決勝，不依車輛接近而換軌。
    const mismatch=tr.stops.reduce((n,s,i)=>n+(i>0&&i<names.length-1&&((s.stop!==false)!==(t.stops[start+i][2]>t.stops[start+i][1]))?1:0),0),score=mismatch*10000+t.stops.length-names.length;
    if(!best||score<best.score||(score===best.score&&t.key<best.key))best={...t,start,score};
   }
   if(!best)return null;
-  const holds=tr.stops.map(()=>({arrival:0,departure:0}));
-  return {basis:'route-template',sourceKey:best.key,plan:{pathIds:best.plan.pathIds.slice(best.start,best.start+names.length-1),holds,departureHolds:holds.map(()=>0),officialDelaySec:0,stopSignature:physicalStopSignature(tr)}};
+  return {basis:'route-template',sourceKey:best.key,plan:borrow(best.plan.pathIds.slice(best.start,best.start+names.length-1),tr)};
+ };
+ return tr=>{
+  const sys=tr.sys||tr.system;if(sys!=='tra_sched'||tr.loop)return bind(tr);
+  const set=knownOf(sys),last=tr.stops.length-1,stopIndexes=[];
+  tr.stops.forEach((s,i)=>{if(!i||i===last||set.has(stationKey(sys,s.name)))stopIndexes.push(i);});
+  if(stopIndexes.length===tr.stops.length)return bind(tr);
+  const stops=stopIndexes.map(i=>tr.stops[i]),b=bind({...tr,stops});
+  return b&&{...b,stops,stopIndexes};
  };
 }

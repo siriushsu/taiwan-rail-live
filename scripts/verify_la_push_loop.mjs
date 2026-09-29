@@ -134,8 +134,9 @@ if (!env.APNS_KEY_P8) abort('目標 worktree 的 .dev.vars 沒有設定 APNS_KEY
 // P1host 區塊用 env 複本獨立測,不依賴這裡的狀態。
 if ('APNS_HOST' in env) delete env.APNS_HOST;
 const worker = await import(`${WT}/worker.js`);
-const { laPushAll } = worker._la;
+const { laPushAll, laPushWithHalf } = worker._la;
 if (typeof laPushAll !== 'function') abort('worker.js 沒有導出 _la.laPushAll,無法測試(檢查 worker.js 底部 export 區塊)');
+if (typeof laPushWithHalf !== 'function') abort('worker.js 沒有導出 _la.laPushWithHalf,無法測試半分鐘那一輪(檢查 worker.js 底部 export 區塊)');
 
 const fakeCtx = { waitUntil(p) { if (p && typeof p.catch === 'function') p.catch(() => {}); } };
 const BASE_URL = 'https://dummy.invalid';   // laPushAll 只用它組 Request URL,實際發哪支上游由上面的假 fetch 決定
@@ -189,6 +190,27 @@ async function insBatch(tokens, base) {
       apns_env: 'prod',
     });
   }
+}
+// cron 真正跑的那一條(跟車卡進站軌道契約,2026-09-23):第一輪＋同一次執行內 +30 秒那一輪
+// (worker.js waitCardHalfMinute,laPushWithHalf)。睡眠用假的:把假時鐘往前撥,並記下
+// 「第二輪起跑前已經打了幾次【非 APNs】的上游」——第二輪結束時多出來的就是第二輪自己打的
+// 上游(必須是 0,契約點 1:第二輪零上游呼叫,只吃第一輪 return 的 handoff)。
+// halfHook 在第二輪起跑前執行,方便造「兩輪之間狀態被改動」的情境(比照 verify_tra_wait_push.mjs)。
+let halfHook = null;
+async function tickHalf() {
+  calls.length = 0;
+  const sleeps = [];
+  const upstreamCount = () => calls.filter(c => !c.url.includes(APNS_FRAG)).length;
+  let upstreamBefore = null;
+  const sleep = async ms => {
+    sleeps.push(ms);
+    mockNowSec += ms / 1000;
+    if (halfHook) await halfHook();
+    upstreamBefore = upstreamCount();
+  };
+  const cap = await captureConsole(() => laPushWithHalf(env, fakeCtx, BASE_URL, sleep));
+  return { ...cap, calls: calls.slice(), sleeps,
+    halfUpstreamCalls: upstreamBefore == null ? null : upstreamCount() - upstreamBefore };
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -257,8 +279,12 @@ ok(`PSWIFT 前置(分母閘門):從 ${SWIFT_ATTRS_PATH.split('/').slice(-1)[0]} 
   swiftProps.length >= 5, `解到 ${swiftProps.length} 個:${JSON.stringify(swiftProps)}`);
 // 期望值獨立寫死一份(心得29:判準不可與被測物同源)——Swift 側與 worker.js 側都要對上它,
 // 三方任何一方漂移都會現形,而不是「兩邊一起改壞、對照組跟著錯」。
+// 🔴 跟車卡進站軌道契約(2026-09-23):新增 4 個欄位——tick(這一發的 epoch 秒,iOS 端拿它在
+// departedDate/arrivalDate 之間插補車的位置)、carModelOverride(交棒換車後的車型)、
+// plateLeft/plateRight(目前這一站站牌下緣的鄰站,Android 進度標記畫左灰右底色要用)。
 const CONTRACT_KEYS_EXPECT = ['arrivalDate', 'delaySec', 'departedDate', 'nextStop', 'terminus', 'notice',
-  'stopping', 'prevStop', 'trainNoOverride', 'kindOverride', 'sysOverride', 'colorOverride', 'transferWaiting'];
+  'stopping', 'prevStop', 'trainNoOverride', 'kindOverride', 'sysOverride', 'colorOverride', 'transferWaiting',
+  'tick', 'carModelOverride', 'plateLeft', 'plateRight'];
 const CONTRACT_KEYS_SORTED = CONTRACT_KEYS_EXPECT.slice().sort();
 ok('PSWIFT(跨行程契約)Swift ContentState 的屬性集合 === 後端 content-state 的契約欄位集合',
   JSON.stringify(swiftProps.slice().sort()) === JSON.stringify(CONTRACT_KEYS_SORTED),
@@ -277,7 +303,7 @@ ok('PSWIFT(跨行程契約)notice 在 Swift 側宣告成 Optional(String?)——
 // ══════════════════════════════════════════════════════════════════
 // 🔴 從【被測的那棵樹】拿 JS 側常數(與 worker.js 同一個 WT),不是從本檔所在的樹 import——
 //    否則會變成「拿手上這棵樹的常數去驗另一棵樹的 worker」(心得 32 的同族坑)。
-const { LA_STALE_GRACE_SEC, LA_ORPHAN_FALLBACK_SEC } = await import(`${WT}/scripts/la_push_core.mjs`);
+const { LA_STALE_GRACE_SEC, LA_ORPHAN_FALLBACK_SEC, laSchedIdx, laSchedStopping } = await import(`${WT}/scripts/la_push_core.mjs`);
 const swiftStale = (() => {
   try {
     const src = readFileSync(SWIFT_ATTRS_PATH, 'utf8');
@@ -1703,7 +1729,12 @@ const NOTICE_EXPECT = '即時資料中斷，位置為預估。實際動態請查
   await resetTable();
   mockNowSec = H_BASE + useSlot(11000, 'P37b');
   const base = mockNowSec;
-  const stops = [0, 1, 2, 3, 4].map(i => ({ name: 'S' + i, at: base + 600 + i * 600 }));
+  // 🔴 2026-09-23(跟車卡進站軌道契約):S4 的 at 刻意設成【已經過去】,不是 S0-S3 那種
+  // 「還沒到站」的未來時刻——這一格測的是觀測地板/單調閘門本身,不是契約點3的「行駛中每分鐘
+  // 必推」;S4 若在未來,這一列會被判成「行駛中」而每分鐘照推,「沒變就不推」的前提就不成立了,
+  // 兩件事會互相干擾。
+  const stops = [0, 1, 2, 3].map(i => ({ name: 'S' + i, at: base + 600 + i * 600 }))
+    .concat([{ name: 'S4', at: base - 100 }]);
   await insRow({ token: T, sys: 'tra_sched', train_no: '563', stops,
     staMap: { C0: 1, C1: 2, C2: 3, C3: 4 }, stopCodes: ['C0', 'C1', 'C2', 'C3', 'C4'],
     last_idx: 4, last_obs_idx: 4,        // 4 是【觀測】來的 ⇒ 閘門全額生效
@@ -1866,8 +1897,13 @@ const csOfTok = (tk) => {
 
   const base = warmBase + 900;
   mockNowSec = base;
+  // 🔴 2026-09-23(跟車卡進站軌道契約):A 的 at 原本在【過去】(base-600),那會讓 laSchedIdx
+  // 在第一輪就把 idx 推到 1(有 prev、還沒到站 B)⇒ 這一列變成「行駛中」,每分鐘必推——
+  // 這一格測的是「斷線持續、內容沒變」該不該推(C-1 陷阱守門),不是契約點3。改成 A 也在未來,
+  // idx 全程停在 0(沒有 prev)⇒ 不是行駛中,兩件事不會互相干擾;第一輪照樣會推,
+  // 那是靠 notice 旗標從 0 變 1(斷線【開始】),不是靠 idx 變化,見下面前置對照。
   await insRow({ token: Ttra, sys: 'tra_sched', train_no: '571',
-    stops: [{ name: 'A', at: base - 600 }, { name: 'B', at: base + 2040 }],
+    stops: [{ name: 'A', at: base + 9000 }, { name: 'B', at: base + 20000 }],
     staMap: { '5050': 0, '5000': 1 }, stopCodes: ['5050', '5000'],
     last_idx: 0, last_obs_idx: 0, last_delay: 0, bound_at: base, expire_at: base + 3600 });
   await insRow({ token: Tthsr, sys: 'thsr_sched', train_no: '9571',
@@ -2141,7 +2177,11 @@ const csOfTok = (tk) => {
   await resetTable();
   mockNowSec = H_BASE + useSlot(20000, 'P43');
   const base = mockNowSec;
-  const stops = [0, 1, 2, 3, 4, 5].map(i => ({ name: 'S' + i, at: base + 600 + i * 600 }));
+  // 🔴 2026-09-23(跟車卡進站軌道契約):S5(idx=5,這一列全程停在的那一站)的 at 刻意設成
+  // 【已經過去】,理由同 P37b——留在未來會讓這一列被判成「行駛中」,契約點3規定行駛中的列
+  // 每分鐘必推,直接淹沒這一格要測的「地板機制本身」(觀測序列單調不減、沒變就不推)。
+  const stops = [0, 1, 2, 3, 4].map(i => ({ name: 'S' + i, at: base + 600 + i * 600 }))
+    .concat([{ name: 'S5', at: base - 100 }]);
   const staMap = { C0: 0, C1: 1, C2: 2, C3: 3, C4: 4, C5: 5 };
   const stopCodes = ['C0', 'C1', 'C2', 'C3', 'C4', 'C5'];
   // last_idx=5 但 last_obs_idx=1:先前上游短暫不回報這班車、走表定推算推到第 5 站
@@ -2465,12 +2505,348 @@ const csOfTok = (tk) => {
   await resetTable();
 }
 
+// ══════════════════════════════════════════════════════════════════
+// PYFUNC:跟車卡進站軌道契約的 Y 語意——laSchedIdx/laSchedStopping 純函式,直接測(不經
+// laPushAll,零 D1/上游依賴)。三態:未到站／已到未開(停靠中)／已開(前進)，
+// 外加舊 binding(無 dep 欄位)的回歸控制組。期望值全部字面量算,不呼叫受測函式自己(心得29)。
+// ══════════════════════════════════════════════════════════════════
+{
+  const stops = [
+    { name: 'A', at: 1000, dep: 1060 },
+    { name: 'B', at: 2000, dep: 2060 },
+    { name: 'C', at: 3000 },   // 沒有 dep:laSchedIdx/laSchedStopping 都要退回 at
+  ];
+  ok('PYFUNC1 未到站(now<at):idx=0,stopping=false',
+    laSchedIdx(stops, 0, 999, -1) === 0 && laSchedStopping(stops, 0, 999, 0) === false,
+    `idx=${laSchedIdx(stops, 0, 999, -1)} stopping=${laSchedStopping(stops, 0, 999, 0)}`);
+  ok('PYFUNC2 已到站、還沒發車(at<=now<dep):idx 停在原站=0(不前進),stopping=true(Y 語意的核心)',
+    laSchedIdx(stops, 0, 1030, 0) === 0 && laSchedStopping(stops, 0, 1030, 0) === true,
+    `idx=${laSchedIdx(stops, 0, 1030, 0)} stopping=${laSchedStopping(stops, 0, 1030, 0)}`);
+  ok('PYFUNC3 已發車(now>=dep):idx 前進到 1,stopping=false(離開停靠狀態)',
+    laSchedIdx(stops, 0, 1060, 0) === 1 && laSchedStopping(stops, 0, 1060, 1) === false,
+    `idx=${laSchedIdx(stops, 0, 1060, 1)} stopping=${laSchedStopping(stops, 0, 1060, 1)}`);
+  ok('PYFUNC4(回歸控制組)舊 binding 沒有 dep 欄位的站(C):laSchedIdx 退回用 at 判斷過站,laSchedStopping 恆 false(與改版前逐字相同,不會冒出 Y 語意)',
+    laSchedIdx(stops, 0, 3000, 1) === 3 && laSchedStopping(stops, 0, 3500, 2) === false,
+    `idx=${laSchedIdx(stops, 0, 3000, 1)} stoppingAtC=${laSchedStopping(stops, 0, 3500, 2)}`);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PTRACK:跟車卡進站軌道契約——經 laPushAll 整條路徑(D1＋content-state)驗 Y 三態,並釘住
+// departedDate 改用 prev.dep(有的話)這條契約點 2。全程走表定退路(tra_sched,tdxBoard 裡沒有
+// 這班車的車次 ⇒ useObs 恆假),不觸碰觀測那一半邏輯——與 PYFUNC 互補:那邊測純函式本身,
+// 這裡測「cron 真的把這個語意接進 D1 寫回與 APNs body」。
+// ══════════════════════════════════════════════════════════════════
+{
+  const T = tok('ptrack');
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(25000, 'PTRACK');
+  const base = mockNowSec;
+  const stops = [
+    { name: 'A', at: base + 100, dep: base + 160 },
+    { name: 'B', at: base + 700, dep: base + 760 },
+    { name: 'C', at: base + 1300 },
+  ];
+  await insRow({
+    token: T, sys: 'tra_sched', train_no: '9911',
+    stops, staMap: {}, stopCodes: ['', '', ''],
+    last_idx: -1, last_obs_idx: -1, last_delay: 0, apns_env: 'prod',
+    bound_at: base, expire_at: base + 7200,
+  });
+  tdxBoard = [{ TrainNo: '9999999', DelayTime: 0, StationID: 'X', TrainStationStatus: 1 }];   // 不含 9911 ⇒ useObs 恆假
+
+  // 狀態①:還沒到 A(base+50)。
+  mockNowSec = base + 50;
+  calls.length = 0; apnsNextStatus = 200;
+  await laPushAll(env, fakeCtx, BASE_URL);
+  const cs1 = csOfTok(T);
+  ok('PTRACK1(未到站)nextStop=A、stopping=false',
+    !!cs1 && cs1.nextStop === 'A' && cs1.stopping === false, JSON.stringify(cs1));
+
+  // 狀態②:已到 A、還沒發車(base+130,介於 at=100 與 dep=160 之間)⇒ idx 停住、停靠中亮起。
+  mockNowSec = base + 130;
+  calls.length = 0;
+  await laPushAll(env, fakeCtx, BASE_URL);
+  const cs2 = csOfTok(T);
+  ok('PTRACK2(Y 語意核心)已到站未發車:idx 停在原站(nextStop 仍是 A),stopping=true',
+    !!cs2 && cs2.nextStop === 'A' && cs2.stopping === true, JSON.stringify(cs2));
+
+  // 狀態③:A 已發車(base+200,>dep=160)⇒ idx 前進到 B,stopping 熄滅,
+  //   departedDate 必須用 A 的【發車】(base+160),不是 A 的到站(base+100)。
+  mockNowSec = base + 200;
+  calls.length = 0;
+  await laPushAll(env, fakeCtx, BASE_URL);
+  const cs3 = csOfTok(T);
+  ok('PTRACK3(發車後前進)nextStop=B、prevStop=A、stopping=false',
+    !!cs3 && cs3.nextStop === 'B' && cs3.prevStop === 'A' && cs3.stopping === false, JSON.stringify(cs3));
+  ok('PTRACK3b(契約點2)departedDate = 上一站的【發車】prev.dep(base+160),不是抵達 prev.at(base+100)',
+    !!cs3 && cs3.departedDate === base + 160, cs3 ? `departedDate=${cs3.departedDate} expect=${base + 160}` : '(無內容)');
+  await resetTable();
+}
+{
+  // PTRACK4(回歸控制組):舊 binding 完全沒有 dep 欄位(laBind 改版前送出的形狀)——
+  // 已到站也不該冒出停靠中,departedDate 必須退回 prev.at,與改版前逐字相同。
+  const T = tok('ptrackold');
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(26000, 'PTRACK4');
+  const base = mockNowSec;
+  const stops = [{ name: 'X', at: base + 100 }, { name: 'Y', at: base + 700 }, { name: 'Z', at: base + 1300 }];
+  await insRow({
+    token: T, sys: 'tra_sched', train_no: '9912',
+    stops, staMap: {}, stopCodes: ['', '', ''],
+    last_idx: -1, last_obs_idx: -1, last_delay: 0, apns_env: 'prod',
+    bound_at: base, expire_at: base + 7200,
+  });
+  tdxBoard = [{ TrainNo: '9999999', DelayTime: 0, StationID: 'X', TrainStationStatus: 1 }];
+  mockNowSec = base + 150;   // 已過 X 的 at,舊語意此時就該前進到 Y(沒有「已到未開」這個中繼態)
+  calls.length = 0; apnsNextStatus = 200;
+  await laPushAll(env, fakeCtx, BASE_URL);
+  const cs = csOfTok(T);
+  ok('PTRACK4 舊 binding(無 dep)已過 X 的到站時刻 ⇒ 立刻前進到 Y,不會停在「停靠中」這個中繼態',
+    !!cs && cs.nextStop === 'Y' && cs.stopping === false, JSON.stringify(cs));
+  ok('PTRACK4b 舊 binding 的 departedDate 退回 prev.at(base+100,沒有 dep 可用),與改版前逐字相同',
+    !!cs && cs.departedDate === base + 100, cs ? `departedDate=${cs.departedDate} expect=${base + 100}` : '(無內容)');
+  await resetTable();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PCARMODEL(跟車卡進站軌道契約【訂正】2026-09-23,協調端補充):carModelOverride 不再是
+// 「只有交棒才送、一般送 null」,而是【永遠送目前這台車的車型】——iOS 的 Attributes.carModel
+// 只在開卡當下寫入、之後不能改,背景推播若送 null 會把 App 前景已經畫好的車圖蓋掉。
+// 優先序:交棒生效(identity)> 這個 binding 自己的 carModel(journey_state 頂層,laBind 存的)
+// > null(舊 binding,兩者都沒有)。
+// ══════════════════════════════════════════════════════════════════
+{
+  const T = tok('pcarmodel1');
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(26500, 'PCARMODEL1');
+  const base = mockNowSec;
+  const stops = [{ name: 'A', at: base + 600 }, { name: 'B', at: base + 1200 }];
+  await insRow({ token: T, sys: 'thsr_sched', train_no: '9931', stops,
+    journey_state: { carModel: 'EMU900' },   // 沒有交棒,journey_state 只裝這個 binding 自己的車型
+    last_idx: -1, last_delay: 0, apns_env: 'prod', bound_at: base, expire_at: base + 3600 });
+  calls.length = 0; apnsNextStatus = 200;
+  await laPushAll(env, fakeCtx, BASE_URL);
+  const cs1 = csOfTok(T);
+  ok('PCARMODEL1(契約訂正)沒有交棒的一般 binding,carModelOverride 要等於 binding 自己的 carModel(laBind 存進 journey_state 頂層的那顆)',
+    !!cs1 && cs1.carModelOverride === 'EMU900', JSON.stringify(cs1));
+  await resetTable();
+}
+{
+  const T = tok('pcarmodel2');
+  mockNowSec = H_BASE + useSlot(26600, 'PCARMODEL2');
+  const base = mockNowSec;
+  const stops = [{ name: 'A', at: base + 600 }, { name: 'B', at: base + 1200 }];
+  // journey_state 省略 ⇒ null(舊 binding,laBind 改版前綁的、或前端 laCarModel 快取還沒解出來)。
+  await insRow({ token: T, sys: 'thsr_sched', train_no: '9932', stops,
+    last_idx: -1, last_delay: 0, apns_env: 'prod', bound_at: base, expire_at: base + 3600 });
+  calls.length = 0;
+  await laPushAll(env, fakeCtx, BASE_URL);
+  const cs2 = csOfTok(T);
+  ok('PCARMODEL2(回歸控制組)舊 binding 沒有 carModel(journey_state 為 null)⇒ carModelOverride 送 null,不是編造一個值',
+    !!cs2 && cs2.carModelOverride === null, JSON.stringify(cs2));
+  await resetTable();
+}
+{
+  const T = tok('pcarmodel3');
+  mockNowSec = H_BASE + useSlot(26700, 'PCARMODEL3');
+  const base = mockNowSec;
+  const stops = [{ name: 'A', at: base + 600 }, { name: 'B', at: base + 1200 }];
+  // phase=active:頂層 carModel 是【原車】交棒前留下的舊值,identity(target)才是現在真的在跑的
+  // 接續車——優先序測的就是「這時候讀哪一個」。
+  await insRow({ token: T, sys: 'thsr_sched', train_no: '9933', stops,
+    journey_state: { phase: 'active', carModel: 'OLD_STALE',
+      target: { sys: 'thsr_sched', trainNo: '0001', kind: '高鐵', color: '#111111', terminus: '左營',
+        transferStop: '板橋', waitUntil: base, staMap: {}, stopCodes: [], carModel: 'HSR700T' } },
+    last_idx: -1, last_delay: 0, apns_env: 'prod', bound_at: base, expire_at: base + 3600 });
+  calls.length = 0;
+  await laPushAll(env, fakeCtx, BASE_URL);
+  const cs3 = csOfTok(T);
+  ok('PCARMODEL3(優先序)交棒已生效(phase=active)時,carModelOverride 用接續車 identity.carModel,不是頂層留下的原車舊值(OLD_STALE)',
+    !!cs3 && cs3.carModelOverride === 'HSR700T', JSON.stringify(cs3));
+  await resetTable();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PHALF:跟車卡進站軌道契約點 1/3——行駛中的列每分鐘推一發還不夠(iOS/Android 的圖不會自己動),
+// 同一次 cron 執行內 +30 秒再推一輪只挪車的(laPushWithHalf/waitCardHalfMinute),零額外上游呼叫。
+// 走 tra_sched(讓第一輪真的打一次 TDX)才量得出「第二輪零上游」這件事本身有沒有牙。
+// ══════════════════════════════════════════════════════════════════
+{
+  const Trun = tok('phalfrun'), Tstill = tok('phalfstill');
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(27000, 'PHALF1');
+  const base = mockNowSec;
+  const stopsRun = [
+    { name: 'A', at: base - 400, dep: base - 340 },
+    { name: 'B', at: base + 4500, dep: base + 4560 },   // 離現在夠遠,30 秒的視窗內不會前進
+    { name: 'C', at: base + 9000 },
+  ];
+  await insRow({
+    token: Trun, sys: 'tra_sched', train_no: '9921',
+    stops: stopsRun, staMap: {}, stopCodes: ['', '', ''],
+    // 🔴 last_idx/last_delay/last_notice/last_stopping 全部設成與這一輪【會算出來的值相同】
+    //   ——這樣「有推播」這件事只可能來自 running 旁路,不是 idx/內容真的變了(才叫真的測到
+    //   契約點 3,不是誤測到既有的「有變化就推」)。
+    last_idx: 1, last_obs_idx: -1, last_delay: 0, last_notice: 0, last_stopping: 0, apns_env: 'prod',
+    bound_at: base - 1800, expire_at: base + 7200,
+  });
+  // 控制組:idx=0(沒有 prev)⇒ running 恆假,即使同樣「內容完全沒變」也不該被每分鐘旁路推播。
+  const stopsStill = [
+    { name: 'P', at: base + 9999, dep: base + 10059 },
+    { name: 'Q', at: base + 20000 },
+  ];
+  await insRow({
+    token: Tstill, sys: 'tra_sched', train_no: '9922',
+    stops: stopsStill, staMap: {}, stopCodes: ['', ''],
+    last_idx: 0, last_obs_idx: -1, last_delay: 0, last_notice: 0, last_stopping: 0, apns_env: 'prod',
+    bound_at: base - 1800, expire_at: base + 7200,
+  });
+  tdxBoard = [{ TrainNo: '9999999', DelayTime: 0, StationID: 'X', TrainStationStatus: 1 }];   // 兩班車都不在板上 ⇒ 都走表定
+  apnsNextStatus = 200; apnsNextReason = '';
+  const r = await tickHalf();
+  const callsFor = (tk) => r.calls.filter(c => c.url.includes(APNS_FRAG + tk));
+  ok('PHALF1a(契約點3)行駛中的列即使 idx/誤點/告知/停靠中全部沒變,第一輪仍然推播(running 旁路)',
+    callsFor(Trun).filter(c => JSON.parse(c.init.body).aps.event === 'update').length >= 1,
+    JSON.stringify(callsFor(Trun).map(c => JSON.parse(c.init.body).aps['content-state'].tick)));
+  const firstUpdates = callsFor(Trun).filter(c => JSON.parse(c.init.body).aps.event === 'update');
+  ok('PHALF1b 第一輪、第二輪各推恰好一發,tick 分別是起跑時刻與 +30 秒(圖真的往前挪了,不是重送同一發)',
+    firstUpdates.length === 2 && JSON.parse(firstUpdates[0].init.body).aps['content-state'].tick === base
+      && JSON.parse(firstUpdates[1].init.body).aps['content-state'].tick === base + 30,
+    JSON.stringify(firstUpdates.map(c => JSON.parse(c.init.body).aps['content-state'].tick)));
+  ok('PHALF1c(控制組)idx=0、無 prev 的列(running 恆假)即使同樣「內容完全沒變」,兩輪都不推',
+    callsFor(Tstill).length === 0, `count=${callsFor(Tstill).length}`);
+  ok('PHALF1d(契約點1)第二輪零額外上游呼叫——只吃第一輪 return 的 handoff,不重打 TDX',
+    r.halfUpstreamCalls === 0, `halfUpstreamCalls=${r.halfUpstreamCalls}`);
+  ok('PHALF1e 第二輪只睡一次、恰好 30 秒(WAIT_HALF_TICK_MS,兩份 sleep 常數與等車卡共用)',
+    JSON.stringify(r.sleeps) === '[30000]', JSON.stringify(r.sleeps));
+  const rowAfter = await getRow(Trun);
+  ok('PHALF1f(契約點3)第二輪不寫 D1——last_idx/last_delay/last_notice/last_stopping 仍是第一輪(唯一一次 UPDATE)留下的值',
+    !!rowAfter && Number(rowAfter.last_idx) === 1 && Number(rowAfter.last_delay) === 0
+      && Number(rowAfter.last_notice) === 0 && Number(rowAfter.last_stopping) === 0,
+    rowAfter ? JSON.stringify({ idx: rowAfter.last_idx, delay: rowAfter.last_delay, notice: rowAfter.last_notice, stopping: rowAfter.last_stopping }) : '(查無列)');
+  await resetTable();
+}
+{
+  // PHALF2(契約點3):第二輪的 APNs 失敗不記 fail_streak(否則熔斷的連續失敗輪數會以兩倍速到頂)。
+  const T = tok('phalffail');
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(28000, 'PHALF2');
+  const base = mockNowSec;
+  const stops = [
+    { name: 'A', at: base - 400, dep: base - 340 },
+    { name: 'B', at: base + 4500, dep: base + 4560 },
+    { name: 'C', at: base + 9000 },
+  ];
+  await insRow({
+    token: T, sys: 'tra_sched', train_no: '9923',
+    stops, staMap: {}, stopCodes: ['', '', ''],
+    last_idx: 1, last_obs_idx: -1, last_delay: 0, last_notice: 0, last_stopping: 0, apns_env: 'prod',
+    bound_at: base - 1800, expire_at: base + 7200,
+  });
+  tdxBoard = [{ TrainNo: '9999999', DelayTime: 0, StationID: 'X', TrainStationStatus: 1 }];
+  apnsNextStatus = 200; apnsNextReason = '';
+  halfHook = async () => { apnsNextStatus = 410; apnsNextReason = 'Unregistered'; };
+  const r = await tickHalf();
+  halfHook = null; apnsNextStatus = 200; apnsNextReason = '';
+  const row = await getRow(T);
+  ok('PHALF2a 第二輪真的推了(前提,不然下面量不到東西)',
+    r.calls.some(c => c.url.includes(APNS_FRAG + T)), JSON.stringify(r.calls.filter(c => c.url.includes(APNS_FRAG)).map(c => c.url.slice(-8))));
+  ok('PHALF2b 第二輪的永久失敗(410 Unregistered)不刪列、fail_streak 不累加(仍是第一輪成功留下的 0)',
+    !!row && Number(row.fail_streak) === 0, row ? `fail_streak=${row.fail_streak}` : '列被刪了');
+  await resetTable();
+}
+{
+  // PHALF3(契約點3):第二輪自己重算出「這一列已經走完全程」時,不收卡、不刪列——
+  // 收卡這件事只留給下一次第一輪(避免半套的交棒/收卡狀態)。
+  const T = tok('phalfend');
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(29000, 'PHALF3');
+  const base = mockNowSec;
+  const stops = [
+    { name: 'A', at: base - 900, dep: base - 840 },
+    { name: 'B', at: base - 100, dep: base - 40 },
+    { name: 'C', at: base + 1300 },   // 沒有 dep ⇒ 退路用 at 當發車;+30 秒後(base+1330)會越過 1300
+  ];
+  await insRow({
+    token: T, sys: 'tra_sched', train_no: '9924',
+    stops, staMap: {}, stopCodes: ['', '', ''],
+    // 第一輪(base+1299,C 的 at 前 1 秒)算出的 idx 恰好還是 2(還沒過 C),與 last_idx 相同,
+    // running=true(prev=B、arrivalDate=C.at 還沒過)⇒ 第一輪照樣靠旁路推一發。
+    last_idx: 2, last_obs_idx: -1, last_delay: 0, last_notice: 0, last_stopping: 0, apns_env: 'prod',
+    bound_at: base - 1800, expire_at: base + 7200,
+  });
+  mockNowSec = base + 1299;
+  tdxBoard = [{ TrainNo: '9999999', DelayTime: 0, StationID: 'X', TrainStationStatus: 1 }];
+  apnsNextStatus = 200; apnsNextReason = '';
+  const r = await tickHalf();
+  const events = r.calls.filter(c => c.url.includes(APNS_FRAG + T)).map(c => JSON.parse(c.init.body).aps.event);
+  ok('PHALF3a 第一輪推的是 update(還沒走完),第二輪(+30 秒後已經過 C)完全不推(不是 update 也不是 end)',
+    JSON.stringify(events) === '["update"]', JSON.stringify(events));
+  ok('PHALF3b 第二輪就算自己重算出「已經走完全程」,也不收卡、不刪列——留給下一次第一輪',
+    !!(await getRow(T)), '列在第二輪之後應該還在,查無列');
+  await resetTable();
+}
+{
+  // PHALF4(契約點1,乾淨判別式):PHALF1d 的「halfUpstreamCalls===0」會被 traLive() 自己的
+  // isolate 記憶體快取(worker.js 的 mem/memAt,55 秒 TTL)悄悄救援——round1→round2 之間只隔
+  // 30 秒(< 55 秒),就算 laPushAll 的 if(half) 重用分支整支被拔掉、退化成每輪都重判斷要不要打,
+  // traLive 內部的快取仍可能吸收那次重打,讓 fetch() 從未真的被呼叫,量出來一樣是 0——這條看不出
+  // 契約點1的邏輯是否真的有牙(突變過一次證實:見稽核紀錄)。
+  // 這條刻意繞開那個混淆:第一輪只擺一班 thsr_sched(全程不含 tra_sched,laPushAll 判斷「要不要打
+  // TDX」時 rows.some(sys==='tra_sched') 恆假)⇒ 第一輪【完全不會呼叫 traLive】,mem/memAt 停在
+  // 更早的區塊(PHALF1-3,那裡的 mockNowSec 遠小於這裡)留下的舊值,對「現在」必然已經超過 55 秒
+  // ⇒ 不會有巧合的快取命中可以偽裝。halfHook 在第二輪起跑「前」才插入一筆 tra_sched 新列——
+  // 若 if(half) 正確生效,round2 完全不看 rows 就直接吃 round1 的 handoff(空的 live/{}),
+  // 這筆新列不會讓它觸發任何 TDX 呼叫;若退化成 else-if 重判斷,這筆新列會讓它判定要打,
+  // 而 mem 早已過期 ⇒ 真的呼叫 fetch() ⇒ halfUpstreamCalls 變成非 0,乾淨地轉紅。
+  const Trun4 = tok('phalf4run'), Tnew4 = tok('phalf4new');
+  await resetTable();
+  mockNowSec = H_BASE + useSlot(31000, 'PHALF4');
+  const base = mockNowSec;
+  await insRow({
+    token: Trun4, sys: 'thsr_sched', train_no: '9941',
+    stops: [{ name: 'A', at: base - 400 }, { name: 'B', at: base + 4500 }, { name: 'C', at: base + 9000 }],
+    last_idx: 1, last_obs_idx: -1, last_delay: 0, last_notice: 0, last_stopping: 0, apns_env: 'prod',
+    bound_at: base - 1800, expire_at: base + 7200,
+  });
+  tdxBoard = [{ TrainNo: '9999999', DelayTime: 0, StationID: 'X', TrainStationStatus: 1 }];
+  apnsNextStatus = 200; apnsNextReason = '';
+  halfHook = async () => {
+    await insRow({
+      token: Tnew4, sys: 'tra_sched', train_no: '9942',
+      stops: [{ name: 'P', at: base - 400 }, { name: 'Q', at: base + 4500 }],
+      last_idx: -1, last_obs_idx: -1, last_delay: 0, apns_env: 'prod',
+      bound_at: base, expire_at: base + 7200,
+    });
+  };
+  const r = await tickHalf();
+  halfHook = null;
+  ok('PHALF4(契約點1,乾淨判別式)第一輪全程沒有任何 tra_sched 列(不會打 TDX),第二輪起跑前才冒出一筆——round2 仍然零上游呼叫,證明是直接吃 round1 的 handoff,不是重新掃 rows 判斷要不要打(不受 traLive 自己的 55 秒快取干擾)',
+    r.halfUpstreamCalls === 0, `halfUpstreamCalls=${r.halfUpstreamCalls}`);
+  await resetTable();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// S0(出貨路徑,比照 verify_tra_wait_push.mjs/verify_metro_wait_push.mjs 的同名檢查):
+// cron 用的是帶半分鐘那一輪的版本,而且沒有留下舊的直接呼叫——這條測的是「接線」本身,
+// 漏接的症狀是正式站永遠只有每分鐘一發,PHALF 那一整組在本機測得再綠也看不出來。
+// ══════════════════════════════════════════════════════════════════
+{
+  const workerSrc = readFileSync(`${WT}/worker.js`, 'utf8');
+  ok('S0(出貨路徑)cron 用的是帶半分鐘那一輪的版本(laPushWithHalf),而且沒有留下舊的直接呼叫(laPushAll(env, ctx, \'https://railisland.tw\'))',
+    /laPushWithHalf\(env, ctx, 'https:\/\/railisland\.tw'\)/.test(workerSrc)
+    && !/laPushAll\(env, ctx, 'https:\/\/railisland\.tw'\)/.test(workerSrc),
+    `laPushWithHalf 命中=${/laPushWithHalf\(env, ctx, 'https:\/\/railisland\.tw'\)/.test(workerSrc)} 殘留 laPushAll 直呼=${/laPushAll\(env, ctx, 'https:\/\/railisland\.tw'\)/.test(workerSrc)}`);
+  ok('S0b _la 導出集合含 laPushWithHalf(測試腳本與 scheduled() 走同一顆,不是兩顆各自對付)',
+    typeof laPushWithHalf === 'function', typeof laPushWithHalf);
+}
+
 // 🔴 覆蓋率 gate(最終複審 C1-Minor-5,心得 37(d)):總斷言數本來只印在總計行、從無斷言。
 // 條件式區塊被跳過(例如「APNs 呼叫數不是 1」而該區塊沒寫 else 回填)會讓分母【無聲縮水】:
 // 實測某一發突變讓總計從 139 掉到 128,11 條斷言消失而沒有任何人報警。
 // 這條把「每一格都真的跑到了」變成具名斷言。改動本檔的斷言數時要一併更新這個常數。
 {
-  const EXPECT_TOTAL = 259;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 199;複審修復輪次1:→ 218;輪次2(N-1/N-2＋三個把關):→ 231;PTOK token 長度三條:→ 234;PSTOP 停靠中五條:→ 239;PENV 雙環境退路六條:→ 245;2026-08-19 stale-date：PSTALECONST 跨語言常數三條＋P1 一條＋PSTALE 兩格四條:→ 253;2026-09-04 跨車交棒六條:→ 259)
+  const EXPECT_TOTAL = 285;   // 不含本條;本條自己會讓總計 +1(2026-08-08 工項 A/B:181 → 199;複審修復輪次1:→ 218;輪次2(N-1/N-2＋三個把關):→ 231;PTOK token 長度三條:→ 234;PSTOP 停靠中五條:→ 239;PENV 雙環境退路六條:→ 245;2026-08-19 stale-date：PSTALECONST 跨語言常數三條＋P1 一條＋PSTALE 兩格四條:→ 253;2026-09-04 跨車交棒六條:→ 259;2026-09-23 跟車卡進站軌道契約:PYFUNC 四條＋PTRACK 六條＋PHALF 十條＋S0 兩條:→ 281;訂正 carModelOverride 優先序:PCARMODEL 三條:→ 284;PHALF4 乾淨判別式(不受 traLive 自身 55 秒快取干擾)一條:→ 285)
   ok(`COV 覆蓋率 gate:本輪斷言總數必須恰好等於預期 ${EXPECT_TOTAL}(區塊被跳過或條件式吞掉會讓分母無聲縮水)`,
     results.length === EXPECT_TOTAL, `actual=${results.length}`);
 }

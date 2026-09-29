@@ -13,6 +13,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
+import { createServer } from 'node:net';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
@@ -1201,9 +1202,12 @@ try {
 
 // ═══ R4:冷啟動等價(需 D1)——本機 wrangler,從乾淨 detached worktree 起 server ═══
 say('\n── R4:冷啟動等價(D1 round-trip,含認回 boundEpoch 延續)——起本機 wrangler,乾淨 detached worktree ──');
-const FIXTURE_PORT = Number(process.env.TRTC_BIND_FIXTURE_PORT || 43287);
-const WORKER_PORT = Number(process.env.TRTC_BIND_WORKER_PORT || 43289);
-const INSPECTOR_PORT = Number(process.env.TRTC_BIND_INSPECTOR_PORT || 43290);
+// 預設埠由系統挑(比照 verify_worker_runtime_smoke.mjs 的 freePort):寫死的預設埠在上一輪被訊號砍掉、留下孤兒
+// wrangler／fixture 時,這一輪新起的撞埠退出,waitForHttp 第一發卻可能先拿到孤兒的回應(2026-09-25 verify_thsr_seat 同型)。
+const freePort = () => new Promise(res => { const srv = createServer(); srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => res(port)); }); });
+const FIXTURE_PORT = Number(process.env.TRTC_BIND_FIXTURE_PORT) || await freePort();
+const WORKER_PORT = Number(process.env.TRTC_BIND_WORKER_PORT) || await freePort();
+const INSPECTOR_PORT = Number(process.env.TRTC_BIND_INSPECTOR_PORT) || await freePort();
 const FIXTURE = `http://127.0.0.1:${FIXTURE_PORT}`;
 const BASE = `https://127.0.0.1:${WORKER_PORT}`;
 
@@ -1243,6 +1247,8 @@ function findLedgerDb(dbDir) {
 }
 
 let vtree = null, fixtureProc = null, workerProc = null;
+process.on('exit', () => { fixtureProc?.kill('SIGTERM'); workerProc?.kill('SIGTERM'); }); // 例外從計時器或事件丟出、或中途 process.exit() 時 finally 收不到
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(1)); // 單打 pid 的 kill／pkill -f 不會觸發 'exit'，轉成 process.exit 讓上一行收得到
 if (process.env.TRTC_BIND_SKIP_R4 === '1') {
   note('R4 本輪跳過', 'TRTC_BIND_SKIP_R4=1(僅供快速迭代純函式段落用,正式驗收不得帶此旗標)');
 } else

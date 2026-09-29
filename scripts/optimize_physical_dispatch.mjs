@@ -2,9 +2,14 @@
 import fs from 'node:fs';import {createHash} from 'node:crypto';import {spawn} from 'node:child_process';import {createInterface} from 'node:readline';
 import {isScheduledTurnback} from '../rail-3d/physical/turnbacks.js';
 import {makeTopology} from '../rail-3d/physical/topology.js';import {stationKey,segmentTime} from '../rail-3d/physical/timing.js';import {vehicleReservations} from '../rail-3d/physical/reservations.js';
-const n=JSON.parse(fs.readFileSync('.cache/physical-tracks/routes.json')),g=makeTopology(JSON.parse(fs.readFileSync('.cache/physical-tracks/routed-source.json'))),all=JSON.parse(fs.readFileSync('.cache/physical-tracks/timetable.json'));
+import {attachThsrRunProfiles,thsrProfileFingerprint} from './lib/thsr_run_profiles.mjs';
+const timetableFile=process.env.TIMETABLE||'.cache/physical-tracks/timetable.json';
+const n=JSON.parse(fs.readFileSync('.cache/physical-tracks/routes.json')),g=makeTopology(JSON.parse(fs.readFileSync('.cache/physical-tracks/routed-source.json'))),all=JSON.parse(fs.readFileSync(timetableFile));
 if(process.env.DIRECTIONAL)Object.assign(n.pairs,JSON.parse(fs.readFileSync(process.env.DIRECTIONAL)).pairs);
 all.sort((a,b)=>a.stops[0].arrSec-b.stops[0].arrSec||a.id.localeCompare(b.id));const selected=(process.env.SYSTEM?all.filter(t=>t.system===process.env.SYSTEM):all).filter(t=>!process.env.TRAINS||process.env.TRAINS.split(',').includes(t.id.split(':')[1])),trains=process.env.COUNT?selected.slice(0,+process.env.COUNT):selected,pairs={},transitions={};
+// 高鐵每段掛上與瀏覽器逐字相同的跑段曲線:佔用模型(vehicleReservations→segmentTime)才與行車模型(motion.js)同源,
+// 否則班表沒有 rp 就退回等速內插,通過站的通過時刻會差到一分多鐘(2026-09-12 桃園 0108)。指紋隨結果寫出,出貨閘門重算比對。
+const thsrTrains=trains.filter(t=>t.system==='thsr_sched'),profileSha256=thsrTrains.length?thsrProfileFingerprint((console.log({thsrRunProfiles:attachThsrRunProfiles(thsrTrains)}),thsrTrains)):null;
 for(const tr of trains){tr.pairs=tr.stops.slice(1).map((b,i)=>stationKey(tr.system,tr.stops[i].name)+'>'+stationKey(tr.system,b.name));for(const key of tr.pairs)pairs[key]=n.pairs[key];for(let i=1;i<tr.pairs.length;i++){
  const before=tr.pairs[i-1],after=tr.pairs[i],key=before+'~'+after;if(transitions[key])continue;
  const allowed=[];for(const a of pairs[before])for(const b of pairs[after]){const x=n.paths[a],y=n.paths[b];if(x.to===y.from&&(isScheduledTurnback(tr.system,tr.stops[i].name,x,y)||g.canTurn(x.nodeIds.at(-2),x.to,y.nodeIds[1],g.edges.get(x.edgeIds.at(-1)),g.edges.get(y.edgeIds[0]))))allowed.push([a,b]);}if(!allowed.length)throw Error('整趟路徑無法連續 '+key);transitions[key]=allowed;
@@ -12,7 +17,7 @@ for(const tr of trains){tr.pairs=tr.stops.slice(1).map((b,i)=>stationKey(tr.syst
 const handoffs=[];for(let ai=0;ai<trains.length;ai++){const a=trains[ai],end=a.stops.at(-1);if(a.system!=='afr_sched'||end.depSec-end.arrSec<=180)continue;for(let bi=0;bi<trains.length;bi++){const b=trains[bi],start=b.stops[0];if(a===b||a.system!==b.system||end.name!==start.name||end.arrSec!==start.arrSec||end.depSec!==start.depSec||a.stops.at(-2).name!==b.stops[1]?.name)continue;const allowed=[];for(const x of pairs[a.pairs.at(-1)])for(const y of pairs[b.pairs[0]]){const p=n.paths[x],q=n.paths[y];if(p.to===q.from&&p.nodeIds.at(-2)===q.nodeIds[1])allowed.push([x,y]);}if(allowed.length)handoffs.push({a:ai,b:bi,allowed});}}
 const sameHandoff=(a,b)=>handoffs.some(h=>trains[h.a].id===a&&trains[h.b].id===b||trains[h.a].id===b&&trains[h.b].id===a);
 const networkSha256=createHash('sha256').update(fs.readFileSync('.cache/physical-tracks/routes.json')).digest('hex');
-const input='.cache/physical-tracks/optimization-input-'+(process.env.SYSTEM||'all')+'.json',hints=JSON.parse(fs.readFileSync('output/dispatch-coord-all.json')).plans;
+const input='.cache/physical-tracks/optimization-input-'+(process.env.SYSTEM||'all')+(process.env.RUN_TAG?'-'+process.env.RUN_TAG:'')+'.json',hints=JSON.parse(fs.readFileSync('output/dispatch-coord-all.json')).plans;
 if(process.env.WARM_PLANS)Object.assign(hints,JSON.parse(fs.readFileSync(process.env.WARM_PLANS)).plans);
 // 暖啟動缺少的車次先選一條全程連續的候選，沒有衝突的車保持原股道。
 for(const tr of trains)if(!hints[tr.id]){let states=[{id:null,pathIds:[],cost:0}];for(let i=0;i<tr.pairs.length;i++){const next=[];for(const id of pairs[tr.pairs[i]]){let best=null;for(const old of states){if(i&&!transitions[tr.pairs[i-1]+'~'+tr.pairs[i]].some(([a,b])=>a===old.id&&b===id))continue;const cost=old.cost+(n.paths[id].preference||0)+n.paths[id].lengthM*.00001;if(!best||cost<best.cost)best={id,pathIds:[...old.pathIds,id],cost};}if(best)next.push(best);}states=next;}if(!states.length)throw Error('缺少連續初始路徑 '+tr.id);hints[tr.id]=states.sort((a,b)=>a.cost-b.cost)[0];}
@@ -65,8 +70,8 @@ try{
   }
   conflicts=[...unique.values()];fs.appendFileSync(process.env.CONSTRAINT_OUT||'output/dispatch-optimizer-constraints.jsonl',JSON.stringify({round,conflicts})+'\n');
   console.log({round,status:result.status,constraints:result.constraints,collisions:found.length,added:conflicts.length,holdCost:result.objective,maxHoldSec:Math.max(...Object.values(result.plans).flatMap(p=>p.departureHolds))});
-  fs.writeFileSync('output/dispatch-optimizer-progress-'+(process.env.SYSTEM||'all')+'.json',JSON.stringify({round,conflicts:found.length,plans:result.plans}));
-  if(!found.length){final={plans:result.plans,failures:[],conflicts:0,networkSha256,source:n.source,nodeSource:n.nodeSource,handoffs:handoffs.map(h=>({from:trains[h.a].id,to:trains[h.b].id,basis:'matching-timetable-turnaround'}))};break;}
+  fs.writeFileSync('output/dispatch-optimizer-progress-'+(process.env.SYSTEM||'all')+(process.env.RUN_TAG?'-'+process.env.RUN_TAG:'')+'.json',JSON.stringify({round,conflicts:found.length,plans:result.plans}));
+  if(!found.length){final={plans:result.plans,failures:[],conflicts:0,networkSha256,profileSha256,profileModel:profileSha256?'index.html:assignRunProfiles':null,timetable:timetableFile.split('/').at(-1),source:n.source,nodeSource:n.nodeSource,handoffs:handoffs.map(h=>({from:trains[h.a].id,to:trains[h.b].id,basis:'matching-timetable-turnaround'}))};break;}
  }
  if(!final)throw Error('股道與放行安排尚未收斂');fs.writeFileSync(process.env.OUT||'output/dispatch-optimized.json',JSON.stringify(final));console.log('PASS',Object.keys(final.plans).length,'班完整車體、道岔、停靠與通過資源無重疊');
 }finally{processSolver.stdin.end(JSON.stringify({stop:true})+'\n');await new Promise(resolve=>processSolver.on('exit',resolve));}

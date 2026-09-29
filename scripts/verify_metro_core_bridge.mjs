@@ -8,8 +8,10 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const html = fs.readFileSync(path.resolve(HERE, '..', 'index.html'), 'utf8');
 const headers = fs.readFileSync(path.resolve(HERE, '..', '_headers'), 'utf8');
+const worker = fs.readFileSync(path.resolve(HERE, '..', 'worker.js'), 'utf8');
 const prepareWeb = fs.readFileSync(path.resolve(HERE, '..', 'app/scripts/prepare-web.mjs'), 'utf8');
 const verifyRelease = fs.readFileSync(path.resolve(HERE, '..', 'app/scripts/verify-release.mjs'), 'utf8');
+const krtcData = JSON.parse(fs.readFileSync(path.resolve(HERE, '..', 'data/krtc.json'), 'utf8'));
 const failures = [];
 const check = (condition, message) => { if (!condition) failures.push(message); };
 
@@ -33,6 +35,10 @@ check(sandbox.sample(increasing, 110).progress === 2.5, '里程遞增方向補�
 check(sandbox.sample(decreasing, 110).progress === 4.5, '里程遞減方向補間錯誤');
 check(sandbox.sample(increasing, 90).progress === 2, '發車前應鉗在第一個軌跡點');
 check(sandbox.sample(decreasing, 130).progress === 4, '退場前應鉗在最後一個軌跡點');
+
+const klrtLine = (krtcData.lines || []).find(line => line && line.id === 'C');
+check(klrtLine && klrtLine.loop === true && klrtLine.stations?.length === 38,
+  'KLRT C 靜態線形必須維持 38 個真實站且標為環線');
 
 const graceSandbox = {
   METRO_CORE_FOLLOW_GRACE_SEC: 30,
@@ -73,14 +79,44 @@ const contracts = [
   ['Core 跟隨有兩批寬限', /METRO_CORE_FOLLOW_GRACE_SEC = 30/],
   ['Core 上線後斷訊判斷不再讀背景 legacy 時戳', /function metroCoreTrtcFeedState[\s\S]*?failedFor >= 30[\s\S]*?ageSec >= TRTC_FEED_STALE_SEC/],
   ['進站文字查驗實際距離', /distanceM <= 25/],
-  ['失效時回到既有站牌', /if \(core\) \{ renderMetroCoreFreqBoard[\s\S]*?const official = trtcOfficialBoardView/],
+  ['失效時回到既有站牌',
+    /const core = metroCoreBoardView\([^;]+;[\s\S]*?if \(core\) return renderMetroCoreFreqBoard\([^;]+;[\s\S]*?const official = trtcOfficialBoardView/],
   // ── 2026-08-21 復原批次補上的九道基底防線（行為面另有 verify_metro_core_defense.mjs）──
   ['P0-1 某線 0 台回 null，不得用空陣列短路 legacy', /return out\.length \? out : null;/],
   ['P0-1 snapshot 缺該系統也回 null', /if \(!system\) return null; \/\/ 🔴 P0-1/],
   ['P0-2 逐線車數相對基線腰斬閘門', /const METRO_CORE_COUNT_DROP = 0\.5;[\s\S]*?function metroCoreEvaluateCounts\(/],
   ['P0-2 判為異常那一輪不進基線（防自我漂移）', /else \{ history\.push\(cur\);/],
-  ['P0-3 十一個合法 lineId 寫成常數', /const METRO_CORE_LINE_IDS = \{[\s\S]*?trtc: \['BR', 'R', 'R_XBT', 'G', 'G_XBT', 'O_XINZHUANG', 'O_LUZHOU', 'BL', 'Y'\][\s\S]*?krtc: \['KR', 'KO'\]/],
-  ['P0-3 未知 lineId 整包退回並指名', /if \(lineIdIssues\.unknown\.length\) \{[\s\S]*?throw new Error\('lineId 契約外：'/],
+  ['P0-3 十二個合法 lineId 寫成常數（含獨立 KLRT C）', /const METRO_CORE_LINE_IDS = \{[\s\S]*?trtc:\s*\['BR', 'R', 'R_XBT', 'G', 'G_XBT', 'O_XINZHUANG', 'O_LUZHOU', 'BL', 'Y'\][\s\S]*?krtc:\s*\['KR', 'KO'\][\s\S]*?klrt:\s*\['C'\]/],
+  ['KLRT C 映射到獨立 Core system，不混進 krtc',
+    /function metroCoreSystemIdForLine\(ln\)[\s\S]*?sys === 'krtc' && id === 'C' && ln && ln\.loop\) return 'klrt';/],
+  ['KLRT 虛擬 38 只在補間後映回真實站 0',
+    /function metroCoreKlrtLoop\(ln\)[\s\S]*?String\(ln\.id\) === 'C'[\s\S]*?metroCoreSystemIdForLine\(ln\) === 'klrt'[\s\S]*?function metroCoreFlatMax\(ln\)[\s\S]*?metroCoreKlrtLoop\(ln\) \? ln\.stations\.length : ln\.stations\.length - 1[\s\S]*?function metroCoreStationAt\(ln, flatIndex\)[\s\S]*?index === ln\.stations\.length\) return ln\.stations\[0\]/],
+  ['KLRT 站 0 逆行起點轉成虛擬 38',
+    /function metroCoreBoardFlatIndex\(ln, stationIndex, direction\)[\s\S]*?metroCoreKlrtLoop\(ln\) && index === 0 && Number\(direction\) === 1[\s\S]*?\? ln\.stations\.length : index/],
+  ['KLRT 37→38 用真實 37→0 補間且保留 raw progress',
+    /function metroCorePositionAt\(ln, train, epoch\)[\s\S]*?metroCoreSampleTrain\(train, epoch\)[\s\S]*?metroCoreFlatMax\(ln\)[\s\S]*?metroCoreStationAt\(ln, from\)[\s\S]*?metroCoreStationAt\(ln, to\)[\s\S]*?physicalTo[\s\S]*?posBetweenStations\(ln, physicalFrom, physicalTo, progress - from\)[\s\S]*?return pos \? \{ \.\.\.sampled, \.\.\.pos, progress,/],
+  ['Core C 看板用 flat adapter 取虛擬終點、rec 保留原 destinationStationIndex',
+    /function metroCoreBoardView\([\s\S]*?const destIndex = Number\(row\.destinationStationIndex\)[\s\S]*?dest\s*=\s*metroCoreStationAt\(entry\.ln, destIndex\)[\s\S]*?destinationStationIndex: destIndex/],
+  ['Core C 看板方向由 Core direction 2／1 對應順行／逆行',
+    /function metroCoreKlrtBoardRoute\(ln, stationIndex, direction\)[\s\S]*?metroCoreKlrtLoop\(ln\)[\s\S]*?step = direction === 2 \? 1 : -1[\s\S]*?return \{ direction: step, nextName: next\.name, viaName \}/],
+  ['Core C 看板沿用環線雙行 markup，且途經站不被目的地取代',
+    /function renderMetroCoreFreqBoard\([\s\S]*?const route = group\.klrtRoute;[\s\S]*?route\.direction === 1 \? '順行' : '逆行'[\s\S]*?class="row\$\{route \? ' klrt-board-row' : ''\}[\s\S]*?route \? t\('經 \{stations\}'/],
+  ['KLRT Core GPS 來源顯示衛星定位校正文案',
+    /(?:source\s*===\s*'gps'|case\s*'gps'\s*:)[\s\S]{0,300}?t\('● 已依官方列車衛星定位校正'\)/],
+  ['KLRT Core board 來源顯示逐站倒數推算文案',
+    /(?:source\s*===\s*'board'|case\s*'board'\s*:)[\s\S]{0,300}?t\('● 已依官方到站看板逐站倒數推算'\)/],
+  ['KLRT Core hold 來源明示沿用最後官方位置',
+    /(?:source\s*===\s*'hold'|case\s*'hold'\s*:)[\s\S]{0,300}?t\('官方資料暫時中斷，沿用最後一次官方位置'\)/],
+  ['KLRT Core 跟車卡保留環狀線循環語意',
+    /function metroCoreVehicleInfo\(rec\)[\s\S]*?return \{ ln, pos, loop: !!ln\.loop/],
+  ['KLRT 待發兩方向從 flat 0／38 推出真正下一站',
+    /function metroCoreVehicleInfo\(rec\)[\s\S]*?exactIndex !== destinationIndex[\s\S]*?exactIndex \+ step[\s\S]*?routeDirection: metroCoreKlrtLoop\(ln\) \? step : null/],
+  ['KLRT Core 跟車卡明示順行／逆行',
+    /const fcDirTxt = info\.loop[\s\S]*?info\.routeDirection === 1 \? t\('順行'\)[\s\S]*?info\.routeDirection === -1 \? t\('逆行'\)/],
+  ['KLRT 合法匿名倒數不觸發整個 system 的 match fallback',
+    /for \(const sysId in ratios\)[\s\S]*?if \(sysId === 'klrt'\) continue;[\s\S]*?r\.ratio < METRO_CORE_MATCH_MIN/],
+  ['P0-3 未知 lineId 只隔離所屬系統', /function metroCoreSystemLineIdError\(system\)[\s\S]*?return unknown\.length \? \{ reason: 'lineId', unknown \} : null/],
+  ['P0-3 schema 錯誤逐系統隔離', /function metroCorePrepareSnapshot\(snapshot\)[\s\S]*?isolatedSystems\[key\] = issue[\s\S]*?systems\.push\(system\)/],
   ['P0-3 建線時做 id 契約自檢', /function metroCoreSelfCheckLineIds\(\)[\s\S]*?state\.metroCore\.selfCheck = result/],
   ['P0-4 跟隨 30 秒寬限常數', /const METRO_CORE_FOLLOW_GRACE_SEC = 30;/],
   ['P0-4 每幀跟隨判定走寬限版', /function updateFreqFollowCamera[\s\S]*?metroCoreFollowRecordWithGrace\(f, Date\.now\(\) \/ 1000\)/],
@@ -108,6 +144,8 @@ const contracts = [
 for (const [label, pattern] of contracts) check(pattern.test(html), label);
 const appContracts = [
   ['正式站 CSP 放行 Core endpoint', /connect-src[^\n]*https:\/\/railisland-metro-core\.sirius1984\.workers\.dev/, headers],
+  ['KLRT 看板代理保留官方方向與來源時刻欄位',
+    /op === 'KLRT' \? ',TripHeadSign,SrcUpdateTime'[\s\S]*?encodeURIComponent\(select\)[\s\S]*?op === 'KLRT'[\s\S]*?TripHeadSign\.Zh_tw[\s\S]*?su: x\.SrcUpdateTime/, worker],
   ['App build 有明確環境旗標', /process\.env\.RAIL_ENABLE_METRO_CORE === '1'/, prepareWeb],
   ['App bundle 注入 Core 旗標', /window\.RAIL_METRO_CORE_ENABLED=\$\{enableMetroCore\}/, prepareWeb],
   ['App 發行閘門核對 Core 旗標', /expectMetroCore/, verifyRelease],

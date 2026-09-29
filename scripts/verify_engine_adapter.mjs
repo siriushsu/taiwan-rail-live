@@ -9,8 +9,7 @@ import { probeCentroids } from './probe_centroids.mjs';
 import { runEngineMatrix } from './lib/engine_matrix.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = 43537;
-const BASE = `http://127.0.0.1:${PORT}/index.html?lang=zh-TW`;
+let BASE = ''; // 埠由系統挑，server.listen 之後才填（見那一行）
 const STRICT = process.env.ENGINE_GATE_STRICT === '1';
 const fails = [];
 const ck = (ok, name, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); if (!ok) fails.push(name); };
@@ -178,7 +177,9 @@ const server = createServer((req, res) => {
   res.setHeader('content-type', MIME[path.extname(fp)] || 'application/octet-stream');
   res.end(readFileSync(fp));
 });
-await new Promise(resolve => server.listen(PORT, '127.0.0.1', resolve));
+await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+// 系統挑空埠：原本寫死 43537，別人手動跑同一支、或任何程序佔著就撞埠假紅。
+BASE = `http://127.0.0.1:${server.address().port}/index.html?lang=zh-TW`;
 
 async function boot(browser, url, initLs = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });

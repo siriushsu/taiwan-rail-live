@@ -20,6 +20,10 @@
     {
       "url": "https://afrch.forest.gov.tw/File.aspx?fno=83462",
       "use": "官方摺頁背面園區圖：第二代製材工場位於北端、動力室位於南端；主工場採目視屋頂外框"
+    },
+    {
+      "url": "https://afrch.forest.gov.tw/File.aspx?fno=78157",
+      "use": "官方園區圖：鋸屑室、煙囪遺構與動力室位置關係"
     }
   ],
   "priority": 1,
@@ -30,29 +34,33 @@
   ],
   "verifiedDimensionsM": {},
   "estimatedDimensionsM": {
-    "width": 84.1997423171997,
-    "depth": 116.21212196350098,
+    "width": 83.57740211486816,
+    "depth": 115.23502826690674,
     "height": 11.539455268532038,
     "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
   },
-  "referenceReviewDate": null,
+  "referenceReviewDate": "2026-09-12",
   "geometryStatus": "plan-calibrated-exterior-estimated",
-  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "scope": "依來源校正平面與補齊可確認附屬構件；尺寸與高度屬地圖外觀估計，非工程測繪",
   "railRelation": "沿線園區：嘉義—北門一帶；園內含產業舊線",
   "reviewedPhotos": [],
   "referenceStatus": "exterior-review-pending",
   "pendingChecks": [
     "高度測量與完整多面立面校正",
-    "正面方向複核",
-    "未定位附屬構件：煙囪基座遺構、鋸屑室架空斜板"
+    "正面方向複核"
   ],
+  "completionReview": {
+    "date": "2026-09-12",
+    "changes": [
+      "補鋸屑室與煙囪遺構",
+      "動力室改為兩層高窗、壁柱與低坡屋頂"
+    ],
+    "precision": "地圖外觀模型；無實測高度或完整多面立面，不視為工程測繪"
+  },
   "orientationMode": "ENU-baked",
   "absoluteGroundAltitudeM": null,
   "railElevationM": null,
-  "omittedUnlocatedComponents": [
-    "煙囪基座遺構",
-    "鋸屑室架空斜板"
-  ],
+  "omittedUnlocatedComponents": [],
   "mapEligible": true,
   "calibration": {
     "version": 2,
@@ -84,10 +92,42 @@
         ],
         "rotationDeg": 33.0,
         "scaleXY": [
-          0.8758275902173943,
-          1.209831719073241
+          0.9376638482152582,
+          1.001240066375728
         ],
         "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "鋸屑室",
+        "name": "鋸屑室",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.45053440889123,
+          23.486720694721548
+        ],
+        "rotationDeg": 31.476830296953594,
+        "scaleXY": [
+          0.6555696394831199,
+          1.2235304288216189
+        ],
+        "basis": "林鐵處園區圖確認動力室西北側鋸屑室；雙斜板、柱列依官方建物說明；屋頂或遺址邊緣依既有 Esri 底圖目視估計，非測量外框",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "煙囪遺構",
+        "name": "煙囪遺構",
+        "placementStatus": "site-anchor-estimated-outline",
+        "anchor": [
+          120.4507932420612,
+          23.486971613940284
+        ],
+        "rotationDeg": 29.981634607774005,
+        "scaleXY": [
+          1.0274931030865042,
+          0.9855947000461543
+        ],
+        "basis": "林鐵處園區圖確認動力室北側煙囪遺構；保留低矮殘存磚構；屋頂或遺址邊緣依既有 Esri 底圖目視估計，非測量外框",
         "facadeBearingDeg": null
       }
     ],
@@ -117,29 +157,29 @@
   "bounds": {
     "min": [
       -71.6492691040039,
-      -13.919488906860352,
+      -12.942395210266113,
       -0.0615137554705143
     ],
     "max": [
-      12.550472259521484,
+      11.928133010864258,
       102.29263305664062,
       11.477941513061523
     ]
   },
   "sizeM": [
-    84.19974136352539,
-    116.21212196350098,
+    83.57740211486816,
+    115.23502826690674,
     11.539455268532038
   ],
   "lods": {
     "near": {
       "file": "near.mesh.bin",
       "glb": "near.glb",
-      "sha256": "6df41d7d457c22988b351642907a887c67932e7825e8537e740f020dd3ff5010",
-      "glbSha256": "0a813e228ed3893de871c2f0972ae6148f6d7b38449e520fa2077bcd5efac49c",
+      "sha256": "3ec1a2251222ab28b4f21b5f9dde59d20b69fcc49707ebc0689becf441647ac4",
+      "glbSha256": "f3a15dd58b76c3fb4f0b09cc0a2595871786b3acabbe502a5c21f0d332d1439c",
       "strideBytes": 24,
-      "vertexCount": 24378,
-      "triangleCount": 8126,
+      "vertexCount": 32790,
+      "triangleCount": 10930,
       "drawGroups": [
         {
           "component": "第二代製材工場",
@@ -208,9 +248,22 @@
         },
         {
           "component": "動力室",
-          "name": "stone",
+          "name": "white",
           "start": 22200,
-          "count": 72,
+          "count": 36,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "動力室",
+          "name": "stone",
+          "start": 22236,
+          "count": 468,
           "color": [
             0.5840784311294556,
             0.5088813304901123,
@@ -221,13 +274,13 @@
         },
         {
           "component": "動力室",
-          "name": "cream",
-          "start": 22272,
-          "count": 864,
+          "name": "sage",
+          "start": 22704,
+          "count": 5220,
           "color": [
-            0.715693473815918,
-            0.6583748459815979,
-            0.533276379108429
+            0.18782077729701996,
+            0.3049873113632202,
+            0.2541520893573761
           ],
           "metalness": 0.05000000074505806,
           "roughness": 0.5699999928474426
@@ -235,8 +288,8 @@
         {
           "component": "動力室",
           "name": "dark",
-          "start": 23136,
-          "count": 954,
+          "start": 27924,
+          "count": 1728,
           "color": [
             0.040915198624134064,
             0.06480326503515244,
@@ -248,8 +301,8 @@
         {
           "component": "動力室",
           "name": "glass",
-          "start": 24090,
-          "count": 288,
+          "start": 29652,
+          "count": 1728,
           "color": [
             0.08437620848417282,
             0.1946178376674652,
@@ -257,18 +310,70 @@
           ],
           "metalness": 0.2199999988079071,
           "roughness": 0.30000001192092896
+        },
+        {
+          "component": "動力室",
+          "name": "brown",
+          "start": 31380,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "動力室",
+          "name": "roof",
+          "start": 31416,
+          "count": 714,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鋸屑室",
+          "name": "stone",
+          "start": 32130,
+          "count": 588,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "煙囪遺構",
+          "name": "red",
+          "start": 32718,
+          "count": 72,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
         }
       ],
-      "byteLength": 585072
+      "byteLength": 786960
     },
     "far": {
       "file": "far.mesh.bin",
       "glb": "far.glb",
-      "sha256": "c98f116431adf064d742cb20f3b521fb0d93945a1b3206b08cc1b5f5ac5576f0",
-      "glbSha256": "01df892c670871edc17a44d0f8e2d74a20fd72fae065456a974be4969009f367",
+      "sha256": "4d362788362c21d1d26626a17990a9354a61007927691ac8662f3e34a371e604",
+      "glbSha256": "a381bf52969d8a728182981f7c699675bcdb96c8c83f6c1880a485fadcab2cad",
       "strideBytes": 24,
-      "vertexCount": 12726,
-      "triangleCount": 4242,
+      "vertexCount": 18210,
+      "triangleCount": 6070,
       "drawGroups": [
         {
           "component": "第二代製材工場",
@@ -337,9 +442,22 @@
         },
         {
           "component": "動力室",
-          "name": "stone",
+          "name": "white",
           "start": 11472,
-          "count": 72,
+          "count": 36,
+          "color": [
+            0.7835378050804138,
+            0.7681511640548706,
+            0.6938717365264893
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "動力室",
+          "name": "stone",
+          "start": 11508,
+          "count": 468,
           "color": [
             0.5840784311294556,
             0.5088813304901123,
@@ -350,13 +468,13 @@
         },
         {
           "component": "動力室",
-          "name": "cream",
-          "start": 11544,
-          "count": 288,
+          "name": "sage",
+          "start": 11976,
+          "count": 1764,
           "color": [
-            0.715693473815918,
-            0.6583748459815979,
-            0.533276379108429
+            0.18782077729701996,
+            0.3049873113632202,
+            0.2541520893573761
           ],
           "metalness": 0.05000000074505806,
           "roughness": 0.5699999928474426
@@ -364,8 +482,8 @@
         {
           "component": "動力室",
           "name": "dark",
-          "start": 11832,
-          "count": 606,
+          "start": 13740,
+          "count": 1728,
           "color": [
             0.040915198624134064,
             0.06480326503515244,
@@ -377,8 +495,8 @@
         {
           "component": "動力室",
           "name": "glass",
-          "start": 12438,
-          "count": 288,
+          "start": 15468,
+          "count": 1728,
           "color": [
             0.08437620848417282,
             0.1946178376674652,
@@ -386,12 +504,64 @@
           ],
           "metalness": 0.2199999988079071,
           "roughness": 0.30000001192092896
+        },
+        {
+          "component": "動力室",
+          "name": "brown",
+          "start": 17196,
+          "count": 36,
+          "color": [
+            0.31398871541023254,
+            0.23074005544185638,
+            0.177888423204422
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "動力室",
+          "name": "roof",
+          "start": 17232,
+          "count": 318,
+          "color": [
+            0.3915724754333496,
+            0.4677838087081909,
+            0.46207699179649353
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "鋸屑室",
+          "name": "stone",
+          "start": 17550,
+          "count": 588,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "煙囪遺構",
+          "name": "red",
+          "start": 18138,
+          "count": 72,
+          "color": [
+            0.31398871541023254,
+            0.07036009430885315,
+            0.04666508734226227
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
         }
       ],
-      "byteLength": 305424
+      "byteLength": 437040
     }
   },
-  "nativeObjectCount": 997,
+  "nativeObjectCount": 1234,
   "sourcePhotosIncluded": false,
   "operatorLogoIncluded": false,
   "modelUse": "map-exterior",
@@ -422,10 +592,42 @@
       ],
       "rotationDeg": 33.0,
       "scaleXY": [
-        0.8758275902173943,
-        1.209831719073241
+        0.9376638482152582,
+        1.001240066375728
       ],
       "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "鋸屑室",
+      "name": "鋸屑室",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.45053440889123,
+        23.486720694721548
+      ],
+      "rotationDeg": 31.476830296953594,
+      "scaleXY": [
+        0.6555696394831199,
+        1.2235304288216189
+      ],
+      "basis": "林鐵處園區圖確認動力室西北側鋸屑室；雙斜板、柱列依官方建物說明；屋頂或遺址邊緣依既有 Esri 底圖目視估計，非測量外框",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "煙囪遺構",
+      "name": "煙囪遺構",
+      "placementStatus": "site-anchor-estimated-outline",
+      "anchor": [
+        120.4507932420612,
+        23.486971613940284
+      ],
+      "rotationDeg": 29.981634607774005,
+      "scaleXY": [
+        1.0274931030865042,
+        0.9855947000461543
+      ],
+      "basis": "林鐵處園區圖確認動力室北側煙囪遺構；保留低矮殘存磚構；屋頂或遺址邊緣依既有 Esri 底圖目視估計，非測量外框",
       "facadeBearingDeg": null
     }
   ]

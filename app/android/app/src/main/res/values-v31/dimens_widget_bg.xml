@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- API 31+：場景用 clipToOutline 裁成與卡片同樣的圓角，貼齊紙面（紙面內縮 1dp 讓出描邊，右側另讓 2dp 投影）。 -->
+<resources>
+    <dimen name="wg_scene_inset">1dp</dimen>
+    <dimen name="wg_scene_inset_end">3dp</dimen>
+    <dimen name="wg_scene_radius">15dp</dimen>
+</resources>

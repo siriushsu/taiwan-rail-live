@@ -131,6 +131,52 @@ export function assertAndroidBackButtonContract({ nativeBridgeSource, packagedBr
     'Android 返回鍵處理函式存在但沒有在 boot 掛上');
 }
 
+// Metro Core 單線缺資料時，App 會依序退到官方名冊、再退到班表。2026-09-20 環狀線上游
+// 中斷時，舊 App 把官方名冊的空陣列 [] 當成「官方確認零台」並短路，整條線因此消失。
+// 網站修好不等於 App 修好：index.html 會被烤進安裝包，所以發行閘門必須直接檢查 bundle。
+export function assertMetroSingleLineFallbackContract(html) {
+  const start = html.indexOf('function trtcOfficialItemsForLine(');
+  const end = start < 0 ? -1 : html.indexOf('\n}', start);
+  const source = start >= 0 && end > start ? html.slice(start, end + 2) : '';
+  assert(source.includes('return items && items.length ? items : null;'),
+    '北捷官方名冊單線 0 台時必須回 null，讓 Metro Core 退路繼續落到班表；不可回 [] 讓整條線消失');
+  assert(html.includes("t('{line}：班表推估'")
+      && html.includes('列車位置與到站時間可能有誤差'),
+    'App bundle 缺少捷運班表退路的推估與時間誤差標示');
+}
+
+// 1.6.8 是把網站 v0920a～e 一次帶進原生 App；只驗環狀線會讓「同一包也要帶進來」的
+// 南港停車點／車站資訊卡更新在 prepare-web 漏檔或誤用舊來源時照樣通過。HTML 行為與實體
+// 路網 JSON 都直接讀打包輸出，不以 repo 原檔或更新紀錄文字代替載貨證據。
+export function assertSep20AppPayload({ html, metroPack }) {
+  for (const marker of ['data-cl="nangangbrstop0920"', 'data-cl="boardall0920"',
+    'data-cl="virtualloops0920"', 'data-cl="yfallback0920"']) {
+    assert(html.includes(marker), `App bundle 缺少 1.6.8 載貨標記：${marker}`);
+  }
+  assert(html.includes('class="board-all-toggle"')
+      && html.includes("t('查看接下來 3 小時全部 {n} 班'")
+      && html.includes("t('收起完整班次')"),
+    'App bundle 缺少台鐵／高鐵／林鐵車站資訊卡的三小時完整班次展開與收合');
+  assert(html.includes("t('軌島虛構專列')") && html.includes("t('虛構專列')"),
+    'App bundle 缺少山海號／平原號的虛構專列標示');
+
+  const directions = [
+    { key: 'mrt:BR:1', pathId: 22, edge: 'to', nodeId: '7093644633', oldNodeId: 'metro-stop:310746645:16:59645382' },
+    { key: 'mrt:BR:-1', pathId: 23, edge: 'from', nodeId: '7093644634', oldNodeId: 'metro-stop:310746644:5:16565840' },
+  ];
+  for (const test of directions) {
+    const route = metroPack?.routes?.[test.key];
+    assert(route && route.pathIds?.includes(test.pathId),
+      `App 路網缺少文湖線南港展覽館 ${test.key} 的實體股道路徑 ${test.pathId}`);
+    assert(metroPack?.nodeTags?.[test.nodeId]?.public_transport === 'stop_position',
+      `App 路網的南港展覽館正式停車節點 ${test.nodeId} 缺少 stop_position`);
+    assert(metroPack?.paths?.[test.pathId]?.[test.edge] === test.nodeId,
+      `App 路網的 ${test.key} 仍未停在南港展覽館直線月台節點 ${test.nodeId}`);
+    assert(!metroPack?.nodeTags?.[test.oldNodeId],
+      `App 路網仍把南港展覽館西側彎道節點 ${test.oldNodeId} 標成停車點`);
+  }
+}
+
 // Android WebView <140 的 env(safe-area-inset-*) 有已知錯誤；Capacitor 8 會把正確值注入
 // --safe-area-inset-*。所有版面只准從 --sa-* 別名取值，否則三鍵導覽／手勢條會再次蓋住貼底控制。
 export function assertAndroidSafeAreaCssContract(html) {
@@ -325,9 +371,10 @@ export async function assertLicensedBuildAllowed({ includeLicensedMusic, include
       '音樂授權政策尚未核准，不可建立含 Suno 音樂的 App');
     const checklist = await readFile(join(appRoot, 'MUSIC_LICENSE_CHECKLIST.md'), 'utf8');
     const trackRows = checklist.split('\n').filter(line => /^\| .+\.mp3 \|/.test(line));
-    // 2026-08-27：曲庫由 29 首換成 57 首(六個歌單資料夾)。這個數字是硬編的,因為它的用途是
+    // 2026-08-27：免費曲庫由 29 首換成 57 首；2026-09-27 再把本批 27 首線上情境曲納入核對表。
+    // 這個數字是硬編的,因為它的用途是
     // 「有人動了曲庫卻沒回頭補核對表」的警報——跟著曲庫自動走就永遠不會響。
-    assert(trackRows.length === 57, `音樂核對表應有 57 首，目前是 ${trackRows.length} 首`);
+    assert(trackRows.length === 84, `音樂核對表應有 84 首（免費 57＋本批串流 27），目前是 ${trackRows.length} 首`);
     assert(trackRows.every(line => /\| 已核對 \|\s*$/.test(line)),
       '音樂核對表仍有未核對曲目');
   }
@@ -417,15 +464,15 @@ const TOAST_REVIEWED = new Map([
     '匯入結果:added/updated/skipped 全是匯入計數並經 i18nNumber'],
   [`label?t('',{label:escHtml(label)}):t('')`, '儲存地點提示:使用者地點名已 escHtml'],
   [`t('',{station:escHtml(stationName(f.name,f.metroSysId||f.sys))})`, '最愛車站跳轉提示:收藏站名經 stationName 後已 escHtml'],
-  [`j.why===''?t(''):t('',{station:escHtml(stationName(st.name,st.sys)),distance:i18nNumber(Math.round(j.distM)),radius:i18nNumber(j.r)})`,
+  [`j.why===''?t(''):t('',{station:escHtml(stationName(st.name,st._i18nSys||st.sys)),distance:i18nNumber(Math.round(j.distM)),radius:i18nNumber(j.r)})`,
     '單站打卡失敗:站名已 escHtml,距離與半徑是數字'],
-  [`t('',{station:escHtml(stationName(st.name,st.sys))})`, '單站打卡提示:站名已 escHtml'],
-  [`t('',{station:escHtml(stationName(st.name,st.sys)),count:e&&e.n>1?t('',{n:i18nNumber(e.n)},e.n):''})`,
+  [`t('',{station:escHtml(stationName(st.name,st._i18nSys||st.sys))})`, '單站打卡提示:站名已 escHtml'],
+  [`t('',{station:escHtml(stationName(st.name,st._i18nSys||st.sys)),count:e&&e.n>1?t('',{n:i18nNumber(e.n)},e.n):''})`,
     '單站打卡成功:站名已 escHtml,次數經 i18nNumber'],
-  [`t('',{from:escHtml(stationName(st.name,tr.sys)),to:escHtml(stationName(tr.stops[toIdx].name,tr.sys)),note:j.ok?'':t('')})`,
-    '開始搭乘:兩端站名已 escHtml,note 只選固定翻譯 key'],
-  [`t('',{from:escHtml(stationName(r.fromName,tr.sys)),to:escHtml(stationName(st.name,tr.sys)),n:i18nNumber(n)},n)`,
-    '完成搭乘:localStorage 起站與目的站皆已 escHtml,站數經 i18nNumber'],
+  [`t('',{from:escHtml(stationName(st.name,tr.sys)),to:escHtml(stationName(tr.stops[toIdx].name,tr.sys)),note:j.ok?'':t('')}),{wrap:true}`,
+    '開始搭乘:兩端站名已 escHtml,note 只選固定翻譯 key;wrap 僅控制完整換行'],
+  [`t('',{from:escHtml(stationName(r.fromName,tr.sys)),to:escHtml(stationName(st.name,tr.sys)),n:i18nNumber(n)},n),{wrap:true}`,
+    '完成搭乘:localStorage 起站與目的站皆已 escHtml,站數經 i18nNumber;wrap 僅控制完整換行'],
   [`t(res&&res.why===''?'':res&&res.why===''?'':'')`, '等車卡開卡結果:why 只被比較,三個固定翻譯 key 三選一'],
   [`t('',{station:escHtml(String(station||''))})`, '等車卡深連結站名屬外部輸入,已 escHtml'],
   [`t(canSat?'':''),{wrap:true}`, '底圖失效提示:canSat 只選兩個固定翻譯 key'],
@@ -434,6 +481,10 @@ const TOAST_REVIEWED = new Map([
   [`p.label?t('',{label:escHtml(p.label)}):t('')`, '預設啟動地點提示:使用者地點名已 escHtml'],
   [`t('',{system:escHtml(t(plan.targetSys===''?'':plan.targetSys===''?'':'')),train:escHtml(String(plan.targetTr.train||'')),})`,
     '轉乘交棒提示:系統名只選固定翻譯 key，車次即使來自班表也先轉字串並 escHtml；兩個插值皆已逸出'],
+  // 2026-09-19 登記(i18n 複審):懸賞三則提示包進 t() 之後的形狀。上面 `${pts}24`／`${pts}`／''+(j.error…)
+  // 是繁中字面時代的指紋,多語化後對不上,這道發行檢查從 60f3dd83 起就是紅的。值的來源沒變:
+  [`t('',{pts},pts)`, '懸賞認領(示範／成功／落盤失敗三則共用):pts 先經 bountyNum 收斂為有限非負整數;第三參數是英文單複數用的同一個數'],
+  [`t('',{reason:j.error===''?t(''):t('')})`, '懸賞認領失敗:API 的 error 只用來選兩個固定翻譯 key,回傳內容本身沒有插入'],
 ]);
 
 // 掃出每一個 showToast( 呼叫的完整參數（括號配對，不是 regex 抓一行）。
@@ -555,6 +606,7 @@ export async function verifyRelease({
   const relativeFiles = files.map(file => relative(output, file).replaceAll('\\', '/'));
   const indexPath = join(output, 'index.html');
   const html = await readFile(indexPath, 'utf8');
+  const metroPack = JSON.parse(await readFile(join(output, 'rail-3d/physical/metro-network.json'), 'utf8'));
   const nativeBridgeSource = await readFile(join(appRoot, 'src/native-bridge.mjs'), 'utf8');
   const packagedBridge = await readFile(join(output, 'native-bridge.js'), 'utf8');
   const androidManifest = await readFile(join(appRoot, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
@@ -565,6 +617,8 @@ export async function verifyRelease({
   for (const f of verifyWidgetPreviews({ log: false }).files) if (!relativeFiles.includes(f)) fail(`小工具預覽圖沒進 bundle：${f}`);
   assertAndroidPreciseLocationContract({ nativeBridgeSource, packagedBridge, androidManifest });
   assertAndroidBackButtonContract({ nativeBridgeSource, packagedBridge, html });
+  assertMetroSingleLineFallbackContract(html);
+  assertSep20AppPayload({ html, metroPack });
   assertAppLineageContent(html);
   assertWidgetPlusSyncSites(html);
 
@@ -743,7 +797,10 @@ export async function verifyRelease({
   assertAndroidPlusGate(html);
   const androidGradleForPlus = await readFile(join(appRoot, 'android/app/build.gradle'), 'utf8');
   const androidVersionCodeForPlus = /\bversionCode\s+(\d+)/.exec(androidGradleForPlus)?.[1] || '';
-  assertAndroidPlusReleaseConfig(html, androidVersionCodeForPlus);
+  const androidPlusReady = assertAndroidPlusReleaseConfig(html, androidVersionCodeForPlus);
+  if (process.env.RAIL_EXPECT_ANDROID_PLUS === '1') {
+    assert(androidPlusReady, '正式發行模式必須保留已上架的 Android 通行證入口');
+  }
 
   await assertLicensedBuildAllowed({
     includeLicensedMusic: musicEnabled,
@@ -855,6 +912,10 @@ export async function verifyRelease({
     const extra = [...shipped].filter(rel => !declared.includes(rel));
     assert(missing.length === 0, `內建曲目缺 ${missing.length} 首:${missing.slice(0, 3).join('、')}`);
     assert(extra.length === 0, `bundle 多出 ${extra.length} 首不在 MUSIC_BUNDLED:${extra.slice(0, 3).join('、')}`);
+    const bundledBytes = (await Promise.all(musicFiles.filter(file => /\.mp3$/i.test(file))
+      .map(file => lstat(join(output, file))))).reduce((sum, info) => sum + info.size, 0);
+    assert(bundledBytes <= 40 * 1024 * 1024,
+      `App 內建配樂 ${(bundledBytes / 1024 / 1024).toFixed(2)} MiB，超過 40 MiB 預算`);
 
     // 🔴 2026-08-27 補：把「授權核對表」綁到「實際會播的曲目」。
     //    為什麼非有不可：核對表的首數斷言(上面 readReleasePolicy 那段)只是核對表與一個常數
@@ -867,12 +928,21 @@ export async function verifyRelease({
     assert(!!allBlock, '含音樂 build 的 index.html 必須宣告 MUSIC_FILES');
     const allTracks = [...allBlock[1].matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"/g)]
       .map(m => (m[1] ?? m[2]).replace(/\\(.)/g, '$1'));
-    const noLicence = allTracks.filter(rel => !listed.has(rel));
-    const orphan = [...listed].filter(rel => !allTracks.includes(rel));
+    const freeListed = new Set([...listed].filter(rel => !rel.startsWith('_pass/')));
+    const streamedListed = [...listed].filter(rel => rel.startsWith('_pass/'));
+    const noLicence = allTracks.filter(rel => !freeListed.has(rel));
+    const orphan = [...freeListed].filter(rel => !allTracks.includes(rel));
     assert(noLicence.length === 0,
       `有 ${noLicence.length} 首會播但不在授權核對表裡:${noLicence.slice(0, 3).join('、')}`);
     assert(orphan.length === 0,
       `授權核對表有 ${orphan.length} 首已不在曲目清單裡(核對表沒跟上換庫):${orphan.slice(0, 3).join('、')}`);
+    const musicData = JSON.parse(await readFile(join(output, 'data/music.json'), 'utf8'));
+    const paidTracks = new Set((musicData.pools || []).flatMap(pool => (pool.tracks || []).map(track => track.src)));
+    const streamedOrphan = streamedListed.filter(rel => !paidTracks.has(rel));
+    assert(streamedListed.length === 27,
+      `本批串流情境曲授權核對表應有 27 首，目前是 ${streamedListed.length} 首`);
+    assert(streamedOrphan.length === 0,
+      `串流曲授權核對表有 ${streamedOrphan.length} 首不在 music.json:${streamedOrphan.slice(0, 3).join('、')}`);
 
     // 🔴 車聲圖層(2026-09-03):Envato 授權的鐵軌環境音 loop,只在含音樂 build 內建、不進 repo 不上網站。
     //    缺檔或旗標沒帶的症狀只有「車聲開關不見了」,沒有別的訊號;授權條目綁在同一份核對表上。

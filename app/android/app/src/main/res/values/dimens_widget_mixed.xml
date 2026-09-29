@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 雙看板（MixedWidgetRender）的高度預算：各列與各分區的最小高度。
+     🔴 layout 與 Java 讀同一組值：RemoteViews 不能量，列數是 Java 依卡片高度先算好的
+        （MixedWidgetRender.heightFor）。兩邊各寫一份就會漂移，漂了的症狀是
+        最後一列被切掉，或底部又空出一大塊。改列高只改這裡。
+     sp 的值 Java 一律照「線性」字級換算（值 × fontScale）：Android 14 起系統換算 sp 是非線性的，
+     大數值放大得少，照系統換算會低估字放大之後的列高（layout 那邊用 minHeight，列會跟著內容長）。 -->
+<resources>
+    <dimen name="wmx_pad_top">14dp</dimen>
+    <dimen name="wmx_pad_bottom">12dp</dimen>
+    <dimen name="wmx_title_h">28sp</dimen>
+    <dimen name="wmx_section_h">22sp</dimen>
+    <dimen name="wmx_divider_h">13dp</dimen>
+    <dimen name="wmx_metro_hero_h">56sp</dimen>
+    <dimen name="wmx_rail_hero_h">54sp</dimen>
+    <dimen name="wmx_follow_h">40sp</dimen>
+    <dimen name="wmx_note_h">18sp</dimen>
+</resources>

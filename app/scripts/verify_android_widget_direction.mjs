@@ -62,7 +62,11 @@ for (const f of readdirSync(join(RES, 'layout'))) {
   layouts.add(f.replace(/\.xml$/, ''));
   for (const m of readFileSync(join(RES, 'layout', f), 'utf8').matchAll(/@\+id\/(\w+)/g)) ids.add(m[1]);
 }
-for (const f of readdirSync(join(RES, 'drawable'))) drawables.add(f.replace(/\.(xml|png|webp|jpg)$/, ''));
+// 所有 drawable* 限定目錄都算（drawable-nodpi 的小工具背景點陣圖、drawable-night 的深色版）：
+// 只掃 res/drawable 會把真實存在的資源當成缺，出貨 Java 一引用就編不過。
+for (const dir of readdirSync(RES).filter(d => d === 'drawable' || d.startsWith('drawable-'))) {
+  for (const f of readdirSync(join(RES, dir))) drawables.add(f.replace(/\.(9\.png|xml|png|webp|jpg)$/, ''));
+}
 for (const dir of readdirSync(RES).filter(d => d.startsWith('values'))) {
   for (const f of readdirSync(join(RES, dir)).filter(n => n.endsWith('.xml'))) {
     for (const m of readFileSync(join(RES, dir, f), 'utf8').matchAll(/<color\s+name="(\w+)"/g)) colors.add(m[1]);

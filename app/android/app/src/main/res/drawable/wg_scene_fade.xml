@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 場景下緣淡入卡片紙色（mockup .fade：40% 以上不遮、底部全紙色），班次列才讀得清楚。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient android:angle="270" android:type="linear"
+        android:startColor="@color/wg_paper_clear" android:centerColor="@color/wg_paper_clear"
+        android:centerY="0.4" android:endColor="@color/wg_paper" />
+</shape>

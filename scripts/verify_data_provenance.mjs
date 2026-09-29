@@ -11,7 +11,7 @@
 //   P6 決定性:重跑 buildProvenance() 要與磁碟上的檔逐 byte 相同(＝資料改了卻沒重產,會紅)
 //   P7 手寫表無孤兒:GEOMETRY_SOURCE / HAND / SOURCE_FIELD 裡指到已不存在的檔要報出來
 //
-// 退出碼非 0 ⇒ 跑 `node scripts/build_data_provenance.mjs` 重產並一起 commit。
+// 退出碼非 0 ⇒ 跑 `npm run build-manifest`(manifest 與 provenance 一起重產)並一起 commit。
 // 用法:node scripts/verify_data_provenance.mjs [受測樹根目錄]
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -31,7 +31,7 @@ const ck = (name, ok, detail) => { console.log(`${ok ? '  ✓' : '  ✗'} ${name
 let onDisk;
 try { onDisk = JSON.parse(readFileSync(path.join(ROOT, 'data/data_provenance.json'), 'utf8')); }
 catch (e) {
-  console.error('❌ 讀不到 data/data_provenance.json —— 跑 `node scripts/build_data_provenance.mjs`');
+  console.error('❌ 讀不到 data/data_provenance.json —— 跑 `npm run build-manifest`');
   process.exit(1);
 }
 const manifest = buildManifest(ROOT);
@@ -110,7 +110,7 @@ const at = (j, dotted) => dotted.split('.').reduce((o, k) => (o == null ? o : o[
   try { rebuilt = JSON.stringify(buildProvenance(ROOT), null, 1) + '\n'; } catch (e) { err = e.message; }
   const cur = readFileSync(path.join(ROOT, 'data/data_provenance.json'), 'utf8');
   ck('P6 決定性:重跑 build 與磁碟上的檔逐 byte 相同', !err && rebuilt === cur,
-    err ? `build 直接拋錯:${err}` : (rebuilt === cur ? `${cur.length} bytes 完全一致` : '清單過期 —— 跑 node scripts/build_data_provenance.mjs 重產並一起 commit'));
+    err ? `build 直接拋錯:${err}` : (rebuilt === cur ? `${cur.length} bytes 完全一致` : '清單過期 —— 跑 npm run build-manifest 重產並一起 commit'));
 }
 
 // P7 手寫表無孤兒

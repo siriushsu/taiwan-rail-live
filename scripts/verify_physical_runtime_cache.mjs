@@ -1,6 +1,6 @@
 // 使用同一份真實班表與來源檔比較逐幀採樣，不把零衝突當作 gate。
 import assert from 'node:assert/strict';import fs from 'node:fs';import {execFileSync} from 'node:child_process';import {pathToFileURL} from 'node:url';import path from 'node:path';
-import {createPhysicalMotion} from '../rail-3d/physical/motion.js';import {makePath} from '../rail-3d/integration/train-path.js';
+import {createPhysicalMotion} from '../rail-3d/physical/motion.js';import {makePath} from '../rail-3d/integration/train-path.js';import {afrInitialFacing} from '../rail-3d/physical/afr-operation.js';
 const read=p=>JSON.parse(fs.readFileSync(p));const root=process.cwd();
 const original=async p=>{let s=execFileSync('git',['show','b5d7ff27:'+p],{encoding:'utf8'});s=s.replace(/from '([^']+)'/g,(_,rel)=>`from '${pathToFileURL(path.resolve(path.dirname(p),rel)).href}'`);return import('data:text/javascript;base64,'+Buffer.from(s).toString('base64'));};
 const oldPath=(await original('rail-3d/integration/train-path.js')).makePath,oldMotion=(await original('rail-3d/physical/motion.js')).createPhysicalMotion;
@@ -14,8 +14,10 @@ else {
 const pack=read('rail-3d/physical/network.json'),profiles=read('rail-3d/physical/display-profiles.json'),dispatch=read('rail-3d/physical/dispatch.json');
 const current=createPhysicalMotion(structuredClone(pack),profiles,dispatch),baseline=oldMotion(structuredClone(pack),profiles,dispatch);let samples=0,active=[],retained=0;
 const payload=p=>p&&({lat:p.lat,lon:p.lon,chainageM:p.chainageM,route:p.route.id,dwell:p.dwell,formationFacing:p.formationFacing,rawTime:p.rawTime});
+// 林鐵推拉方向（v0913e 的 afrInitialFacing）是 b5d7ff27 之後刻意改的：舊碼的 formationFacing 只有折返奇偶，比對前乘上初始方向；其餘欄位逐值相同。
+const oldPayload=(tr,p)=>{const v=payload(p);if(v&&(tr.sys||tr.system)==='afr_sched')v.formationFacing*=afrInitialFacing(tr)??1;return v;};
 // 新增覆蓋由綁定／連續性驗收負責；這裡逐值保護原本已套用股道的班次。
-for(const tr of trains){if(!baseline.has(tr))continue;for(const t of [tr.stops[0].depSec,28800,43200,tr.stops.at(-1).arrSec]){assert.deepEqual(payload(current.sample(tr,t)),payload(baseline.sample(tr,t)));samples++;}const p=current.sample(tr,28800);if(p)active.push([tr,p]);}
+for(const tr of trains){if(!baseline.has(tr))continue;for(const t of [tr.stops[0].depSec,28800,43200,tr.stops.at(-1).arrSec]){assert.deepEqual(payload(current.sample(tr,t)),oldPayload(tr,baseline.sample(tr,t)));samples++;}const p=current.sample(tr,28800);if(p)active.push([tr,p]);}
 assert(samples>0,'快取回歸必須涵蓋舊版已接受的班次');
 for(let frame=0;frame<5;frame++)for(const [tr,p]of active){const v=current.sample(tr,28800);assert.strictEqual(v.route,p.route,'活躍列車的路線不可因其他車擠滿 LRU 而每幀重建');retained++;}
 let locate=0;for(const w of pack.ways.filter(w=>w.coordinates.length>8).slice(0,30)){for(const coords of [w.coordinates,w.coordinates.toReversed()]){const a=oldPath(coords),b=makePath(coords);for(const f of [0,.1,.5,.9,1]){const at=a.at(a.length*f);for(const hint of [undefined,null,0,at.s,at.s-350,at.s+350,a.length+500,NaN]){assert.deepEqual(b.locate(at.coordinate,hint),a.locate(at.coordinate,hint));locate++;}}}}

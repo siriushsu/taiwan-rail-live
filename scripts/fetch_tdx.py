@@ -93,6 +93,15 @@ def main():
             try:
                 data = api_get(f"Rail/Metro/{name}/{op}", token)
                 fp = os.path.join(OUT, f"{op}_{name}.json")
+                # TDX 會間歇回 200＋空陣列(2026-09-18 實測 Shape 同端點 20 秒內 5↔0 來回跳),
+                # 空值蓋掉既有快照 = 靜默清掉整條線的資料 → 保留舊檔,留給人判斷是不是真的下架
+                if data == [] and os.path.exists(fp):
+                    try: prev = json.load(open(fp))
+                    except Exception: prev = None
+                    if isinstance(prev, list) and prev:
+                        print(f"  {name:14s} ⚠ 上游回空陣列,保留既有快照({len(prev)} records)", flush=True)
+                        time.sleep(1.2)
+                        continue
                 json.dump(data, open(fp, "w"), ensure_ascii=False)
                 n = len(data) if isinstance(data, list) else "?"
                 print(f"  {name:14s} -> {fp}  ({n} records)", flush=True)

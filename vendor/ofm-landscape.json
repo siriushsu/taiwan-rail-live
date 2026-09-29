@@ -1574,31 +1574,42 @@
       "filter": [
         "all",
         [
-          "match",
-          [
-            "geometry-type"
-          ],
-          [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
-        ],
-        [
           "all",
           [
-            "==",
+            "match",
             [
-              "get",
-              "class"
+              "geometry-type"
             ],
-            "rail"
+            [
+              "LineString",
+              "MultiLineString"
+            ],
+            true,
+            false
           ],
           [
-            "has",
-            "service"
+            "all",
+            [
+              "==",
+              [
+                "get",
+                "class"
+              ],
+              "rail"
+            ],
+            [
+              "has",
+              "service"
+            ]
           ]
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
         ]
       ],
       "layout": {
@@ -1618,28 +1629,39 @@
       "filter": [
         "all",
         [
-          "match",
+          "all",
           [
-            "geometry-type"
+            "match",
+            [
+              "geometry-type"
+            ],
+            [
+              "LineString",
+              "MultiLineString"
+            ],
+            true,
+            false
           ],
           [
-            "LineString",
-            "MultiLineString"
+            "==",
+            [
+              "get",
+              "class"
+            ],
+            "rail"
           ],
-          true,
-          false
+          [
+            "has",
+            "service"
+          ]
         ],
         [
-          "==",
+          "!=",
           [
             "get",
-            "class"
+            "brunnel"
           ],
-          "rail"
-        ],
-        [
-          "has",
-          "service"
+          "tunnel"
         ]
       ],
       "layout": {
@@ -1663,34 +1685,45 @@
       "filter": [
         "all",
         [
-          "match",
-          [
-            "geometry-type"
-          ],
-          [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
-        ],
-        [
           "all",
           [
-            "!",
+            "match",
             [
-              "has",
-              "service"
-            ]
+              "geometry-type"
+            ],
+            [
+              "LineString",
+              "MultiLineString"
+            ],
+            true,
+            false
           ],
           [
-            "==",
+            "all",
             [
-              "get",
-              "class"
+              "!",
+              [
+                "has",
+                "service"
+              ]
             ],
-            "rail"
+            [
+              "==",
+              [
+                "get",
+                "class"
+              ],
+              "rail"
+            ]
           ]
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
         ]
       ],
       "layout": {
@@ -1723,34 +1756,45 @@
       "filter": [
         "all",
         [
-          "match",
-          [
-            "geometry-type"
-          ],
-          [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
-        ],
-        [
           "all",
           [
-            "!",
+            "match",
             [
-              "has",
-              "service"
-            ]
+              "geometry-type"
+            ],
+            [
+              "LineString",
+              "MultiLineString"
+            ],
+            true,
+            false
           ],
           [
-            "==",
+            "all",
             [
-              "get",
-              "class"
+              "!",
+              [
+                "has",
+                "service"
+              ]
             ],
-            "rail"
+            [
+              "==",
+              [
+                "get",
+                "class"
+              ],
+              "rail"
+            ]
           ]
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
         ]
       ],
       "layout": {

@@ -153,6 +153,31 @@ const VALID_HANDOFF = {
     clear.status === 200 && !!cleared && cleared.journey_state == null,
     `HTTP ${clear.status} journey_state=${cleared && cleared.journey_state}`);
 }
+// B19–B21 跟車卡進站軌道契約（docs/follow-card-track-20260923.md 二）：stops 的 dep／pl／pr 與
+// body 的 carModel 要存得進去；dep／pl／pr 給了卻不合法要擋（B19 是 B20／B21 的正向對照，
+// 三者只差那一個欄位）。
+{
+  // 沿用 B15 綁過的 token（upsert，不新增列）：每個 uid 只留 LA_MAX_ROWS_PER_UID=3 列，多綁新 token
+  // 會把 B14 依賴的 VALID.token 那列擠掉——修法缺席時 B20／B21 會被收下，連帶弄紅 B14。
+  const token = 'cd'.repeat(32);
+  const trackStops = VALID.stops.map((s, i) => ({ ...s, dep: s.at + 60, pl: i ? '歸來' : '南州', pr: i ? null : '崁頂' }));
+  const r = await post('/api/la/bind', { ...VALID, token, stops: trackStops, carModel: 'emu3000' }, AUTH);
+  const row = d1FirstRow(`SELECT stops, journey_state FROM la_bindings WHERE token='${token}'`);
+  let saved = null, journey = null;
+  try { saved = row && JSON.parse(row.stops); journey = row && JSON.parse(row.journey_state || 'null'); } catch (e) {}
+  ok('B19 帶 dep／pl／pr 與 carModel 的 bind → 200，D1 原樣存下且 journey_state 帶 carModel',
+    r.status === 200 && !!saved && saved[0].dep === trackStops[0].dep && saved[0].pl === '南州'
+      && saved[0].pr === '崁頂' && saved[1].pr === null && !!journey && journey.carModel === 'emu3000',
+    `HTTP ${r.status} stops=${row && row.stops} journey_state=${row && row.journey_state}`);
+  const badPl = await post('/api/la/bind', {
+    ...VALID, token: token, stops: trackStops.map((s, i) => (i ? s : { ...s, pl: 123 })),
+  }, AUTH);
+  ok('B20 站牌鄰站 pl 不是字串被拒', badPl.status === 400, `HTTP ${badPl.status}`);
+  const badDep = await post('/api/la/bind', {
+    ...VALID, token: token, stops: trackStops.map((s, i) => (i ? s : { ...s, dep: 'x' })),
+  }, AUTH);
+  ok('B21 表定發車 dep 不是數字被拒（否則推播迴圈會拿到 NaN 跳站）', badDep.status === 400, `HTTP ${badDep.status}`);
+}
 // B9 stops 序列化超過大小上限 → 400(筆數上限只界定陣列長度,單一欄位仍可能被塞爆;
 // 只改 name 長度,shape/count/時間範圍都維持合法,隔離出「只有大小上限這條斷言」在擋)
 {

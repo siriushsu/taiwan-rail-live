@@ -56,6 +56,17 @@
 #    但那是 workerd 本機,不是 Cloudflare 邊緣——線上行為仍要由
 #    scripts/verify_music_headers.mjs 的 B 段實測把關:升正式站前一定要帶 MUSIC_HEADERS_BASE
 #    跑過,只過 A 段(字面檢查)不算驗證。
+# 地形分片：內容只在重新擷取 DEM 時整批換掉，平常一個位元組都不動。
+# 🔴 預設那條 max-age=0, must-revalidate 對這裡特別貴：client 是用 Range 讀的，而
+#    Cloudflare 靜態資產不支援 Range（要 16 KB 回 200 ＋整個 8 MB），帶 Range 的重新驗證
+#    等於整片重抓。給一天的新鮮期，重複開站就完全不連線。
+# 不寫 immutable、也不寫一年：地形若重產，檔名不變（00.bin…），只有 manifest.json 的 sha256 會變，
+#    一年的 immutable 會讓舊使用者永遠看到舊地形；一天的話最多差一天就自己追上。
+# ⚠️ 與 /suno musics/* 同族的風險：這條在 Cloudflare 邊緣有沒有真的命中，只能對正式站
+#    curl 實測（看 cache-control 是不是 max-age=86400），本機 workerd 過不算數。
+/rail-3d/terrain/*
+  Cache-Control: public, max-age=86400
+
 /suno musics/*
   Cache-Control: public, max-age=31536000, immutable
 # 🔴 2026-09-03 正式站實測(v0902e 上線後 curl):上面那條原樣空白的寫法在 Cloudflare 邊緣【沒有命中】,

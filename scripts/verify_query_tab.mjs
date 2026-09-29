@@ -890,6 +890,14 @@ sections.push({ name: 'G14 按下後重排仍開按到的站', run: async (brows
   await s2.ctx.close();
 }});
 
+// G16 等 helpRun 結果的逾時上限。helpRun 把動作排在 60 ms 計時器後,健康路徑約 80 ms 就到;
+// 這裡原本給 1 秒,2026-09-19 00:18 ship-web preflight 在 load average ~69(多個 session 同時跑
+// Playwright)下 G16g 等不到吐司而假紅({"dToast":false,"dHidden":true}),同 commit 單獨重跑 245/245,
+// 白白賠一輪 20 分鐘出貨。放寬成 8 秒(比照本檔等面板開的 8000 慣例)只影響「等多久」,斷言內容不變:
+// 條件成立就立刻往下走,健康路徑不會變慢;真的壞掉時照樣紅,只是紅得晚 8 秒。
+// 吐司在 DOM 裡留 5.45 秒(showToast 的 5000 ms＋450 ms 淡出),出現後才開始計,等再久也不會錯過。
+const HELP_RUN_WAIT = 8000;
+
 // G16 說明中心(task-6)：「查詢」節存在、緊接搜尋節之後；搜尋節提到底部「查詢」；沒有死掉的
 // 「試一次」；「查詢」節真的把試一次鈕渲染進 DOM(helpTryOk('query') 對這個只有 run 的鍵永遠
 // 回 true,dead 審計本身照不到,故另立 G16c2)；HELP_TRY.query 的兩句吐司 en/ja 都在；真點渲染
@@ -939,9 +947,9 @@ sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
   });
   if (qBtn && qBtn.w > 0 && qBtn.h > 0) await page.touchscreen.tap(qBtn.x, qBtn.y);
   // 等「面板開＋說明卡關」這個條件,不等固定秒數:helpRun 把動作排在 60 ms 計時器後,機器忙時會晚到,
-  // 固定 300 ms 曾在同一支腳本裡假紅過一次;逾時 1 秒(健康路徑 tap→開面板約 80 ms,仍有十倍餘裕)就讓底下的斷言照實紅(判斷力 rubric 第八節)。
+  // 固定 300 ms 曾在同一支腳本裡假紅過一次;逾時 HELP_RUN_WAIT(見其定義處的事故)就讓底下的斷言照實紅(判斷力 rubric 第八節)。
   // 等待條件與斷言相同(含「不是打字態」):等的條件若是斷言的真子集,斷言可能取樣到舊值。
-  await page.waitForFunction(() => !document.getElementById('searchPanel').hidden && document.getElementById('helpModal').hidden && !document.body.classList.contains('search-open'), null, { timeout: 1000 }).catch(() => {});
+  await page.waitForFunction(() => !document.getElementById('searchPanel').hidden && document.getElementById('helpModal').hidden && !document.body.classList.contains('search-open'), null, { timeout: HELP_RUN_WAIT }).catch(() => {});
   const s1 = await page.evaluate(() => ({
     panelHidden: document.getElementById('searchPanel').hidden,
     searchOpen: document.body.classList.contains('search-open'),
@@ -949,18 +957,22 @@ sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
   }));
   ok(`[${en}] G16e 真點「查詢」節的試一次 ⇒ 查詢面板開(瀏覽態)、說明卡已關`,
     !!qBtn && qBtn.w > 0 && qBtn.h > 0 && !s1.panelHidden && !s1.searchOpen && s1.helpHidden, JSON.stringify({ qBtn, s1 }));
-  // 面板已開時再試一次(牙:run 改回 tabSearch.click() 會把已開的面板當 toggle 點成關掉)
-  await page.evaluate(() => helpRun('query'));
-  await page.waitForTimeout(300);
+  // 面板已開時再試一次(牙:run 改回 tabSearch.click() 會把已開的面板當 toggle 點成關掉)。
+  // 不睡固定 300 ms 就量:機器忙時 60 ms 計時器晚於 300 ms 才跑,量到的是「動作還沒發生」的面板,
+  // toggle 突變照樣綠(假綠)。改等這一次呼叫的吐司真的出現(run() 的最後一步;closeSearchPanel 同步設
+  // hidden,所以吐司出現時面板動作已做完)再量。G16e 那次點擊留下的同句吐司還在 DOM 裡(5 秒才收),
+  // 先把現有吐司都標記掉,只認這次新長出來的那一則。
+  await page.evaluate(() => { document.querySelectorAll('#toasts .toast').forEach(el => { el.dataset.g16Old = '1'; }); helpRun('query'); });
+  const qToast2 = await page.waitForFunction(() => [...document.querySelectorAll('#toasts .toast')].some(el => !el.dataset.g16Old && el.textContent.includes('這就是查詢面板')), null, { timeout: HELP_RUN_WAIT }).then(() => true).catch(() => false);
   const panelHidden2 = await page.evaluate(() => document.getElementById('searchPanel').hidden);
-  ok(`[${en}] G16e2 面板已開時再試一次「查詢」⇒ 仍開著(不是被當 toggle 關掉)`, panelHidden2 === false, String(panelHidden2));
+  ok(`[${en}] G16e2 面板已開時再試一次「查詢」⇒ 吐司出現且面板仍開著(不是被當 toggle 關掉)`, qToast2 && panelHidden2 === false, JSON.stringify({ qToast2, panelHidden2 }));
 
   // 手機:面板關著時試一次「搜尋」⇒ 先開面板才 focus(牙:拿掉 openSearchPanel 那行,面板關著
   // 時 #trainSearch 不可 focus,原本的 i.focus() 是空操作,進不了打字態)
   await page.evaluate(() => closeSearchPanel({ user: true }));
   await page.waitForTimeout(200);
   await page.evaluate(() => helpRun('search'));
-  await page.waitForFunction(() => document.body.classList.contains('search-open') && !!document.getElementById('trainSearch').value, null, { timeout: 1000 }).catch(() => {}); // 同上:等打字態條件
+  await page.waitForFunction(() => document.body.classList.contains('search-open') && !!document.getElementById('trainSearch').value, null, { timeout: HELP_RUN_WAIT }).catch(() => {}); // 同上:等打字態條件
   const s3 = await page.evaluate(() => ({
     panelHidden: document.getElementById('searchPanel').hidden,
     searchOpen: document.body.classList.contains('search-open'),
@@ -980,7 +992,7 @@ sections.push({ name: 'G16 說明中心', run: async (browser, en) => {
   await dpage.evaluate(() => helpRun('query'));
   // 正向對照:桌面分支會吐司指路——等那則吐司真的出現在 #toasts(證明 helpRun 的桌面分支跑過了)再斷言面板仍關;
   // 只斷言 hidden===true 的話,「60 ms 計時器餓死、什麼都沒發生」也會是綠的(假綠,判準盲點 5)。
-  const dToast = await dpage.waitForFunction(() => ((document.getElementById('toasts') || {}).textContent || '').includes('桌面版沒有查詢面板'), null, { timeout: 1000 }).then(() => true).catch(() => false);
+  const dToast = await dpage.waitForFunction(() => ((document.getElementById('toasts') || {}).textContent || '').includes('桌面版沒有查詢面板'), null, { timeout: HELP_RUN_WAIT }).then(() => true).catch(() => false);
   const dHidden = await dpage.evaluate(() => document.getElementById('searchPanel').hidden);
   ok(`[${en}] G16g 桌面 helpRun('query') ⇒ 吐司指路、查詢面板仍關(hidden)`, dToast && dHidden === true, JSON.stringify({ dToast, dHidden }));
   await dctx.close();

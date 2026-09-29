@@ -39,19 +39,22 @@ const pageErrors = [];
 p.on('pageerror', e => pageErrors.push(String(e).slice(0, 200)));
 await p.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
 await p.goto(TARGET + (TARGET.includes('?') ? '&' : '?') + 'lang=zh-TW', { waitUntil: 'domcontentloaded' });
-await p.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 90000 });
-await p.waitForTimeout(3000);
+await p.waitForFunction(() => typeof state !== 'undefined' && state.ready === true &&
+  Array.isArray(state.trains) && state.trains.length > 0, null, { timeout: 90000 });
+await p.evaluate(() => selectGroup(GROUPS.find(g => g.id === 'tra')));
+await p.waitForFunction(() => state.mode === 'sched' && state.trains.some(tr => tr.sys === 'tra_sched'), null, { timeout: 30000 });
+await p.evaluate(() => { state.playing = false; setSimSec(8 * 3600); });
 
 // 🔴 突變一律【改原始碼】再重跑本腳本，不在頁面注入旗標：boardGroupOf／BOARD_TRUNK_LAT_SPAN
 //    都是 top-level 宣告，`window.X = ...` 蓋不到 renderBoard 內部走 lexical scope 的呼叫，
 //    注入式突變會「全綠」而讓人誤以為判準沒牙——其實是突變根本沒生效。用法見檔尾 MUTATIONS。
 
 // 讀一站的看板結構
-const readBoard = (name, sys, expand = false) => p.evaluate(([n, sy, ex]) => {
+const readBoard = (name, sys, showAll = false) => p.evaluate(([n, sy, all]) => {
   const st = (state.schedStations || []).find(s => s.name === n && s.sys === sy);
   if (!st) return { err: '找不到站 ' + n };
   const el = document.getElementById('board');
-  el.classList.toggle('expand', !!ex);
+  el.classList.toggle('show-all', !!all);
   state.boardStation = st;
   renderBoard();
   const groups = [...el.querySelectorAll('.bgrp')].map(n2 => {
@@ -66,8 +69,10 @@ const readBoard = (name, sys, expand = false) => p.evaluate(([n, sy, ex]) => {
     }
     return { label: n2.textContent, rows: c, mins, cls: n2.className, color: cs.color };
   });
-  return { groups, rows: el.querySelectorAll('.row').length };
-}, [name, sys, expand]);
+  const toggle = el.querySelector('.board-all-toggle');
+  return { groups, rows: el.querySelectorAll('.row').length,
+    toggle: toggle && { text: toggle.textContent, expanded: toggle.getAttribute('aria-expanded') } };
+}, [name, sys, showAll]);
 
 // ── D1 幹線／支線的身分（不是門檻數字）────────────────────────────
 const sides = await p.evaluate(() => {
@@ -112,13 +117,17 @@ for (const [name, sys] of [['集集', 'tra_sched'], ['竹中', 'tra_sched'], ['�
     g.length > 0 && !g.some(l => l.includes('南下') || l.includes('北上')), JSON.stringify(g));
 }
 
-// ── D5 逐組配額（一般 3、展開 6），且冷門方向不被熱門擠掉 ───────────
+// ── D5 預覽每組 3 班，按鈕展開 3 小時全量，且冷門方向不被熱門擠掉 ──
 const zn = await readBoard('竹南', 'tra_sched', false);
 ok('D5a 一般段每組至多 3 班', zn.groups.every(g => g.rows <= 3), JSON.stringify(zn.groups.map(g => g.rows)));
 const znx = await readBoard('竹南', 'tra_sched', true);
-ok('D5b 展開段每組至多 6 班', znx.groups.every(g => g.rows <= 6), JSON.stringify(znx.groups.map(g => g.rows)));
-ok('D5c 展開後總列數確實變多（配額真的有作用）', znx.rows > zn.rows, `${zn.rows} → ${znx.rows}`);
-ok('D5d 每一組都至少有一班（空組不畫）', znx.groups.every(g => g.rows >= 1), JSON.stringify(znx.groups.map(g => g.rows)));
+ok('D5b 預覽有「查看全部」入口且 aria-expanded=false',
+  !!zn.toggle && zn.toggle.expanded === 'false' && /全部.*班/.test(zn.toggle.text), JSON.stringify(zn.toggle));
+ok('D5c 展開後總列數確實變多（不是只換按鈕文案）', znx.rows > zn.rows, `${zn.rows} → ${znx.rows}`);
+ok('D5d 展開後每組列數都不少於預覽，且至少一組超過 3 班',
+  znx.groups.every((g, i) => g.rows >= zn.groups[i].rows) && znx.groups.some(g => g.rows > 3), JSON.stringify(znx.groups.map(g => g.rows)));
+ok('D5e 展開入口仍在且 aria-expanded=true，可直接收起',
+  !!znx.toggle && znx.toggle.expanded === 'true' && znx.toggle.text.includes('收起'), JSON.stringify(znx.toggle));
 
 // ── D10 「抵達本站」只列 60 分鐘內，終點站除外（2026-08-31 裁示 b＋2026-09-08 裁示）──
 // 判準刻意不寫死「應該有幾班」——班數是會漂移的量（心得 35）。改成：在同一個 tick 裡從
@@ -132,7 +141,7 @@ const arrScan = await p.evaluate((STN) => {
     const st = (state.schedStations || []).find(s => s.name === name && s.sys === 'tra_sched');
     if (!st) { res.push({ name, ex, err: '找不到站' }); continue; }
     const el = document.getElementById('board');
-    el.classList.toggle('expand', ex);
+    el.classList.toggle('show-all', ex);
     state.boardStation = st; renderBoard();
     const gs = [...el.querySelectorAll('.bgrp')].map(n2 => {
       const mins = []; let y = n2.nextElementSibling;
@@ -169,14 +178,14 @@ ok('D10c 反向對照：確實有非終點站的 60~180 分終到車被擋掉（
   JSON.stringify(arrScan.map(r => `${r.name}${r.term ? '(終)' : ''}:${r.beyond}`)));
 const listable = r => r.term ? r.within + r.beyond : r.within;   // 終點站豁免上限 ⇒ 分母含 60~180 分那些
 const bad10d = arrScan.filter(r => !r.err)
-  .filter(r => (arrOf(r)?.mins.filter(v => v != null).length || 0) !== Math.min(listable(r), r.ex ? 6 : 3));
-ok('D10d 抵達組班次數＝min(該站可列的終到車數, 每組配額)——是濾掉超時，不是整組砍半',
+  .filter(r => (arrOf(r)?.mins.filter(v => v != null).length || 0) !== (r.ex ? listable(r) : Math.min(listable(r), 3)));
+ok('D10d 抵達組班次數＝預覽 min(可列終到車,3)、完整模式全列——是濾掉超時，不是整組砍半',
   bad10d.length === 0,
   JSON.stringify(bad10d.map(r => [r.ex ? '展開' : '一般', r.name + (r.term ? '(終)' : ''), arrOf(r)?.mins ?? null, listable(r)])));
 // 終點站豁免（2026-09-08 裁示）的正向對照。只有「60 分內的班數還沒把配額吃滿、且真的有
 // 60~180 分的終到車」時，豁免才看得見——先具名把這種站篩出來（配額吃滿時畫出來的必然都在
 // 60 分內，那不是回歸）。分母用獨立重算的 within/beyond，不取畫面上的數字。
-const quotaOf = r => (r.ex ? 6 : 3);
+const quotaOf = r => (r.ex ? Infinity : 3);
 const exempt = arrScan.filter(r => !r.err && r.term && r.beyond > 0 && r.within < quotaOf(r));
 ok('D10f 覆蓋率：掃描裡至少有一個終點站，其 60 分外的終到車在配額內看得見（否則 D10g 空過）',
   exempt.length > 0,
@@ -202,7 +211,24 @@ for (const theme of ['light', 'dark']) {
     const r = { n: val(cs.getPropertyValue('--dir-north')), s: val(cs.getPropertyValue('--dir-south')) };
     probe.remove(); return r;
   });
-  const g = (await readBoard('二水', 'tra_sched')).groups;
+  let g = (await readBoard('二水', 'tra_sched')).groups;
+  // 暗色看板會把「目前選取」方向改成中性灰，這是 night-board.js 的閱讀層設計，
+  // 不代表方向色失效。切到另一方向後再量未選取的標題，才是這條斷言要驗的 CSS。
+  if (theme === 'dark') {
+    const colors = await p.evaluate(() => {
+      const buttons = [...document.querySelectorAll('#board .night-directions button')];
+      const read = cls => getComputedStyle(document.querySelector(`#board .bgrp.${cls}`)).color;
+      buttons.find(button => button.textContent.includes('南下'))?.click();
+      const north = read('dir-n');
+      buttons.find(button => button.textContent.includes('北上'))?.click();
+      const south = read('dir-s');
+      const branch = getComputedStyle(document.querySelector('#board .bgrp:not(.dir-n):not(.dir-s)')).color;
+      return { north, south, branch };
+    });
+    g = g.map(item => item.cls.includes('dir-n') ? { ...item, color: colors.north }
+      : item.cls.includes('dir-s') ? { ...item, color: colors.south }
+      : { ...item, color: colors.branch });
+  }
   const north = g.find(x => x.cls.includes('dir-n')), south = g.find(x => x.cls.includes('dir-s'));
   const branch = g.find(x => !/dir-[ns]/.test(x.cls));
   ok(`D6a ${theme}：北上是官方藍`, !!north && near(rgb(north.color), rgb(want.n)), `${north && north.color} vs ${want.n}`);
@@ -226,7 +252,7 @@ const d11 = await p.evaluate(() => {
     const st = (state.schedStations || []).find(s => s.name === name && s.sys === 'tra_sched');
     if (!st) return [{ label: '找不到站 ' + name, dests: [] }];
     const el = document.getElementById('board');
-    el.classList.add('expand'); state.boardStation = st; renderBoard();
+    el.classList.add('show-all'); state.boardStation = st; renderBoard();
     return [...el.querySelectorAll('.bgrp')].map(gn => {
       const dests = []; let x = gn.nextElementSibling;
       while (x && x.classList.contains('row')) {
@@ -267,7 +293,8 @@ const d11 = await p.evaluate(() => {
   for (const ln of (state.trackLines || [])) {
     const set = new Set((ln.stations || []).map(x => norm(x.name)));
     own.set(ln.id, set);
-    if (boardLineLatSpan(ln) < BOARD_TRUNK_LAT_SPAN) branchIds.push(ln.id);
+    // AFR_YARD_* 是站場裝飾軌，沒有營運班次，不是看板的幹／支線分類對象。
+    if (!String(ln.id).startsWith('AFR_YARD_') && boardLineLatSpan(ln) < BOARD_TRUNK_LAT_SPAN) branchIds.push(ln.id);
   }
   // 「沒有專屬區間」的支線＝兩站都在幹線上的短連絡線（成追線）。2026-09-06 裁示
   // 「不是支線的車就不要放在支線裡」之後，這種線【根本不該生出支線組】，所以 D11e 不再給豁免；
@@ -363,6 +390,7 @@ const metro = await p.evaluate(() => {
 });
 await p.waitForTimeout(2500);
 const metroBoard = await p.evaluate(() => {
+  state.playing = false; setSimSec(8 * 3600);
   const ln = (state.lines || [])[0]; const st = ln && (ln.stations || [])[1];
   if (!st) return { err: '沒有捷運站' };
   state.boardStation = st; renderBoard();
@@ -377,8 +405,11 @@ const en = await b.newContext({ locale: 'en-US', viewport: { width: 1280, height
 const ep = await en.newPage();
 await ep.addInitScript(() => { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} });
 await ep.goto(TARGET + (TARGET.includes('?') ? '&' : '?') + 'lang=en', { waitUntil: 'domcontentloaded' });
-await ep.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 90000 });
-await ep.waitForTimeout(2500);
+await ep.waitForFunction(() => typeof state !== 'undefined' && state.ready === true &&
+  Array.isArray(state.trains) && state.trains.length > 0, null, { timeout: 90000 });
+await ep.evaluate(() => selectGroup(GROUPS.find(g => g.id === 'tra')));
+await ep.waitForFunction(() => state.mode === 'sched' && state.trains.some(tr => tr.sys === 'tra_sched'), null, { timeout: 30000 });
+await ep.evaluate(() => { state.playing = false; setSimSec(8 * 3600); });
 const enLabels = await ep.evaluate(() => {
   const st = (state.schedStations || []).find(s => s.name === '竹南' && s.sys === 'tra_sched');
   state.boardStation = st; renderBoard();
@@ -398,7 +429,7 @@ console.log(`\n${fail ? '❌' : '✅'} 通過 ${pass}／${pass + fail}`);
 //   M1 BOARD_TRUNK_LAT_SPAN 改成 0        → 支線被當幹線 ⇒ D1b/D1c 與 D4 轉紅
 //   M2 BOARD_TRUNK_LAT_SPAN 改成 9        → 幹線被當支線 ⇒ D1a 與 D2a/D3a 轉紅
 //   M3 boardGroupLabel 的 sameDir 門檻 2→9 → 同方向多幹線不補線名 ⇒ D3a 轉紅
-//   M4 perGroup 改成 rows.length          → 逐組配額失效 ⇒ D5a/D5b 轉紅
+//   M4 perGroup 固定成 Infinity           → 預覽配額失效 ⇒ D5a/D5b 轉紅
 //   M5 拿掉 .bgrp.dir-n/.dir-s 兩條 CSS    → 方向色消失 ⇒ D6a/D6b 轉紅
 //   M6 boardGroupOf 一律回同一個 key      → 全部併成一組 ⇒ D2a/D3a/D3c 轉紅
 //   M7 刪掉 i18n 的 '南下' 鍵             → 英文殘留中文 ⇒ D8a/D8b 轉紅

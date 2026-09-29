@@ -19,6 +19,11 @@
     {
       "url": "https://cloud.hakka.gov.tw/Details?p=76273&pid=281393",
       "use": "坐西向東、陡斜切妻屋頂外觀"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/1056588489",
+      "use": "保存站區月台：現址輪廓",
+      "license": "ODbL-1.0"
     }
   ],
   "priority": 2,
@@ -29,14 +34,14 @@
   ],
   "verifiedDimensionsM": {},
   "estimatedDimensionsM": {
-    "width": 17.43716526031494,
-    "depth": 16.351722717285156,
+    "width": 54.01384258270264,
+    "depth": 116.58163070678711,
     "height": 6.5334343910217285,
     "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
   },
-  "referenceReviewDate": "2026-09-08",
+  "referenceReviewDate": "2026-09-12",
   "geometryStatus": "plan-calibrated-exterior-estimated",
-  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "scope": "依來源校正平面與補齊可確認附屬構件；尺寸與高度屬地圖外觀估計，非工程測繪",
   "railRelation": "**舊線地景**：舊山線，非現行臺鐵幹線站",
   "reviewedPhotos": [
     {
@@ -52,6 +57,13 @@
     "正面方向複核",
     "未定位附屬構件：舊月台、舊站棚"
   ],
+  "completionReview": {
+    "date": "2026-09-12",
+    "changes": [
+      "依現址月台輪廓補齊站區關係；無來源的通用長站棚不復原"
+    ],
+    "precision": "地圖外觀模型；無實測高度或完整多面立面，不視為工程測繪"
+  },
   "orientationMode": "ENU-baked",
   "absoluteGroundAltitudeM": null,
   "railElevationM": null,
@@ -78,6 +90,22 @@
           1.168508246825175
         ],
         "basis": "官方景點資料確認場域，衛星屋頂目視交叉比對的位置、尺度與軸向估計；非實測外框",
+        "facadeBearingDeg": null
+      },
+      {
+        "id": "保存站區月台",
+        "name": "保存站區月台",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          120.78157921607206,
+          24.38876140630679
+        ],
+        "rotationDeg": 102.25,
+        "scaleXY": [
+          1.4115364919604187,
+          0.6850631225269648
+        ],
+        "basis": "OSM way/1056588489 現址輪廓；高度與立面為外觀估計",
         "facadeBearingDeg": null
       }
     ],
@@ -106,30 +134,30 @@
   "engineeringDimensionsM": null,
   "bounds": {
     "min": [
-      -9.752775192260742,
+      -46.329444885253906,
       -8.175861358642578,
       0.0
     ],
     "max": [
       7.684389114379883,
-      8.175861358642578,
+      108.40576934814453,
       6.5334343910217285
     ]
   },
   "sizeM": [
-    17.437164306640625,
-    16.351722717285156,
+    54.01383399963379,
+    116.58163070678711,
     6.5334343910217285
   ],
   "lods": {
     "near": {
       "file": "near.mesh.bin",
       "glb": "near.glb",
-      "sha256": "bdb73c55e1d730ee95fc437ba0eff0a79396474846c854af6f43885bbd957963",
-      "glbSha256": "d194a8b09c18d4c4b6a879c5609e2d99d824d6dfcddfba71c8de9d3c8762a91e",
+      "sha256": "cd4acede67147c8e49a702399257c836cae6f602fc5d4beef1be6ca7004c55d9",
+      "glbSha256": "7c009d09c5bdf7abb19dcd2d77a3e108d7f3d30cd73e62386e6dd82feb7ebffb",
       "strideBytes": 24,
-      "vertexCount": 5232,
-      "triangleCount": 1744,
+      "vertexCount": 5340,
+      "triangleCount": 1780,
       "drawGroups": [
         {
           "component": "勝興站房",
@@ -208,18 +236,44 @@
           ],
           "metalness": 0.05000000074505806,
           "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存站區月台",
+          "name": "stone",
+          "start": 5232,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存站區月台",
+          "name": "cream",
+          "start": 5268,
+          "count": 72,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
         }
       ],
-      "byteLength": 125568
+      "byteLength": 128160
     },
     "far": {
       "file": "far.mesh.bin",
       "glb": "far.glb",
-      "sha256": "a97a7c4922cdc5223f02cdeee211bb9774639a962cba20eed847e400b51404ef",
-      "glbSha256": "946d20a478c9dc11782f537ada7b5d2f0c92660a0364ce9ead23d37d3e984051",
+      "sha256": "66fe281906a2d09eb82e664c56030d246add4122c9d2168039fb03d044ab4d92",
+      "glbSha256": "d4bcb45acf83531bdb9fe2a94441ee31d70c196a44bb92bbe9eb8af704f4a74f",
       "strideBytes": 24,
-      "vertexCount": 2736,
-      "triangleCount": 912,
+      "vertexCount": 2844,
+      "triangleCount": 948,
       "drawGroups": [
         {
           "component": "勝興站房",
@@ -298,12 +352,38 @@
           ],
           "metalness": 0.05000000074505806,
           "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存站區月台",
+          "name": "stone",
+          "start": 2736,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存站區月台",
+          "name": "cream",
+          "start": 2772,
+          "count": 72,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
         }
       ],
-      "byteLength": 65664
+      "byteLength": 68256
     }
   },
-  "nativeObjectCount": 213,
+  "nativeObjectCount": 216,
   "sourcePhotosIncluded": false,
   "operatorLogoIncluded": false,
   "modelUse": "map-exterior",
@@ -322,6 +402,22 @@
         1.168508246825175
       ],
       "basis": "官方景點資料確認場域，衛星屋頂目視交叉比對的位置、尺度與軸向估計；非實測外框",
+      "facadeBearingDeg": null
+    },
+    {
+      "id": "保存站區月台",
+      "name": "保存站區月台",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        120.78157921607206,
+        24.38876140630679
+      ],
+      "rotationDeg": 102.25,
+      "scaleXY": [
+        1.4115364919604187,
+        0.6850631225269648
+      ],
+      "basis": "OSM way/1056588489 現址輪廓；高度與立面為外觀估計",
       "facadeBearingDeg": null
     }
   ]

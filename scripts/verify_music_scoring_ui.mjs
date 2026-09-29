@@ -117,8 +117,8 @@ for (const [eng, launcher] of [['chromium', chromium], ['webkit', webkit]].filte
     ok(`${tag} A9 未上架的池狀態槽不含數字(標為尚未上架)`,
       !!slots.unshipped && !/\d/.test(slots.unshipped), JSON.stringify(slots));
     ok(`${tag} A10 免費那列狀態槽含 57`, /\b57\b/.test(slots.free || ''), JSON.stringify(slots));
-    ok(`${tag} A11 家族狀態槽報得出 0 可播 6 準備中`,
-      /0/.test(slots.fam || '') && /6/.test(slots.fam || ''), JSON.stringify(slots));
+    ok(`${tag} A11 開闊風景家族狀態槽報得出 3 可播 3 準備中`,
+      /3/.test(slots.fam || '') && (slots.fam.match(/3/g) || []).length >= 2, JSON.stringify(slots));
 
     // ── F. 付費界線:整份清單只講一次,而且那一次是有入口的 ─────────────────────────
     const band = await page.evaluate(() => {
@@ -179,7 +179,8 @@ for (const [eng, launcher] of [['chromium', chromium], ['webkit', webkit]].filte
     // 執行順序決定真假(判準盲點 3:別把判準綁在會漂移的量上)。
     const st = () => page.evaluate(() => ({ mode: state.music.mode.kind,
       open: document.querySelector('#musicPlBody [data-fam="quiet-hours"]').getAttribute('aria-expanded'),
-      pools: document.querySelectorAll('#musicPlBody .mpl-row.soon').length }));
+      // 黃昏斜光上架後 quiet-hours 已沒有 soon 列；數可點池才能繼續證明展開內容真的進出 DOM。
+      pools: document.querySelectorAll('#musicPlBody [data-mode^="pool:"]').length }));
     const b0 = await st();
     await page.click('#musicPlBody [data-fam="quiet-hours"]');
     const c3 = await st();

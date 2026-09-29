@@ -30,14 +30,14 @@
   ],
   "verifiedDimensionsM": {},
   "estimatedDimensionsM": {
-    "width": 18.26476287841797,
-    "depth": 12.442057132720947,
+    "width": 20.73443603515625,
+    "depth": 15.23936128616333,
     "height": 6.8779425621032715,
     "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
   },
-  "referenceReviewDate": "2026-09-08",
+  "referenceReviewDate": "2026-09-12",
   "geometryStatus": "plan-calibrated-exterior-estimated",
-  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "scope": "依來源校正平面與補齊可確認附屬構件；尺寸與高度屬地圖外觀估計，非工程測繪",
   "railRelation": "站區：臺鐵山佳，新舊站並存",
   "reviewedPhotos": [
     {
@@ -75,8 +75,15 @@
     "shortSideM": 6.1,
     "source": "OpenStreetMap contributors",
     "license": "ODbL-1.0",
-    "scope": "早期輪廓參考；本輪逐棟校正依 calibration.parts 與 placements-source.json",
+    "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
     "referenceFile": "source-layouts/shanjia-old.json"
+  },
+  "completionReview": {
+    "date": "2026-09-12",
+    "changes": [
+      "補站房附接低平台；沿既有站房座標與朝向估計，不混入現役站月台"
+    ],
+    "precision": "平台局部寬度與高度為外觀估計；未取得独立測量輪廓"
   },
   "orientationMode": "ENU-baked",
   "absoluteGroundAltitudeM": null,
@@ -85,6 +92,7 @@
     "舊月台",
     "舊站棚"
   ],
+  "mapEligible": true,
   "calibration": {
     "version": 2,
     "basis": "各部件獨立平面擬合；非工程測繪",
@@ -131,36 +139,36 @@
   "engineeringDimensionsM": null,
   "bounds": {
     "min": [
-      -9.132381439208984,
+      -11.602054595947266,
       -6.796367168426514,
       0.0
     ],
     "max": [
       9.132381439208984,
-      5.645689964294434,
+      8.4429931640625,
       6.8779425621032715
     ]
   },
   "sizeM": [
-    18.26476287841797,
-    12.442057132720947,
+    20.73443603515625,
+    15.239360332489014,
     6.8779425621032715
   ],
   "lods": {
     "near": {
       "file": "near.mesh.bin",
       "glb": "near.glb",
-      "sha256": "cc2cfe26c74166c7c1fec7c6875110ba85d0d50390e356c8cdcbec45436b4e67",
-      "glbSha256": "6b80e5ce0fb0737dc4500497576a7771f6171de449e40d9aace0d6bca905bcd5",
+      "sha256": "0d569d61bd485338399d2de1ca73b0b96815ddeb82a094e05c130fa9e7abe890",
+      "glbSha256": "3e86238d6d5377361161f7872b3092496259d45a23ff8153125b6a7a77459d79",
       "strideBytes": 24,
-      "vertexCount": 2406,
-      "triangleCount": 802,
+      "vertexCount": 2442,
+      "triangleCount": 814,
       "drawGroups": [
         {
           "component": "舊站房",
           "name": "stone",
           "start": 0,
-          "count": 72,
+          "count": 108,
           "color": [
             0.5840784311294556,
             0.5088813304901123,
@@ -172,7 +180,7 @@
         {
           "component": "舊站房",
           "name": "cream",
-          "start": 72,
+          "start": 108,
           "count": 864,
           "color": [
             0.715693473815918,
@@ -185,7 +193,7 @@
         {
           "component": "舊站房",
           "name": "dark",
-          "start": 936,
+          "start": 972,
           "count": 954,
           "color": [
             0.040915198624134064,
@@ -198,7 +206,7 @@
         {
           "component": "舊站房",
           "name": "glass",
-          "start": 1890,
+          "start": 1926,
           "count": 288,
           "color": [
             0.08437620848417282,
@@ -211,7 +219,7 @@
         {
           "component": "舊站房",
           "name": "brown",
-          "start": 2178,
+          "start": 2214,
           "count": 120,
           "color": [
             0.31398871541023254,
@@ -224,7 +232,7 @@
         {
           "component": "舊站房",
           "name": "white",
-          "start": 2298,
+          "start": 2334,
           "count": 108,
           "color": [
             0.7835378050804138,
@@ -235,22 +243,22 @@
           "roughness": 0.5699999928474426
         }
       ],
-      "byteLength": 57744
+      "byteLength": 58608
     },
     "far": {
       "file": "far.mesh.bin",
       "glb": "far.glb",
-      "sha256": "f66688fb0d253325183f81ad1819aa045bbc303e391cbd9f39734eee4e40811e",
-      "glbSha256": "d25180ea7dad8b6b4453125c675750b7321c571765612cfed914f948a4a0b9b6",
+      "sha256": "6dbc846807897c60cfa96ac5fe10c68b1d513482f6d0830a589ad574895574f5",
+      "glbSha256": "4c68800329ad76ffe9c5d7c0b9ab637195531de6d5cb95766cff62868dae5a64",
       "strideBytes": 24,
-      "vertexCount": 1530,
-      "triangleCount": 510,
+      "vertexCount": 1566,
+      "triangleCount": 522,
       "drawGroups": [
         {
           "component": "舊站房",
           "name": "stone",
           "start": 0,
-          "count": 72,
+          "count": 108,
           "color": [
             0.5840784311294556,
             0.5088813304901123,
@@ -262,7 +270,7 @@
         {
           "component": "舊站房",
           "name": "cream",
-          "start": 72,
+          "start": 108,
           "count": 288,
           "color": [
             0.715693473815918,
@@ -275,7 +283,7 @@
         {
           "component": "舊站房",
           "name": "dark",
-          "start": 360,
+          "start": 396,
           "count": 654,
           "color": [
             0.040915198624134064,
@@ -288,7 +296,7 @@
         {
           "component": "舊站房",
           "name": "glass",
-          "start": 1014,
+          "start": 1050,
           "count": 288,
           "color": [
             0.08437620848417282,
@@ -301,7 +309,7 @@
         {
           "component": "舊站房",
           "name": "brown",
-          "start": 1302,
+          "start": 1338,
           "count": 120,
           "color": [
             0.31398871541023254,
@@ -314,7 +322,7 @@
         {
           "component": "舊站房",
           "name": "white",
-          "start": 1422,
+          "start": 1458,
           "count": 108,
           "color": [
             0.7835378050804138,
@@ -325,10 +333,10 @@
           "roughness": 0.5699999928474426
         }
       ],
-      "byteLength": 36720
+      "byteLength": 37584
     }
   },
-  "nativeObjectCount": 105,
+  "nativeObjectCount": 106,
   "sourcePhotosIncluded": false,
   "operatorLogoIncluded": false,
   "modelUse": "map-exterior",
@@ -349,6 +357,5 @@
       "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
       "facadeBearingDeg": null
     }
-  ],
-  "mapEligible": true
+  ]
 }

@@ -41,6 +41,7 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
     private Spinner originSpinner;
     private Spinner destinationSpinner;
     private CheckBox readable;
+    private Spinner backgroundSpinner;
     private Button filtersButton;
     private FrameLayout preview;
     private TextView destinationLabel;
@@ -75,8 +76,10 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
         root.addView(hint, hintLp);
 
         preview = new FrameLayout(this);
+        // 高度取 Pixel 啟動器 5×2 中卡實測的 180dp：場景版的站名牌＋場景要吃掉一列，
+        // 預覽框比真卡矮的話，第二班會被切在半列，看起來像壞掉。
         LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, dp(158));
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(180));
         previewLp.bottomMargin = dp(20);
         root.addView(preview, previewLp);
 
@@ -98,6 +101,12 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
         filtersButton.setAllCaps(false);
         filtersButton.setText(RailNativeL10n.text(this, "只看這些（可留空）"));
         root.addView(filtersButton, matchWrap(dp(16)));
+
+        // 選項名稱與順序與 iOS 小工具的「背景」參數完全相同（WidgetBackground）。
+        root.addView(label("背景"), matchWrap(dp(16)));
+        backgroundSpinner = new Spinner(this);
+        backgroundSpinner.setAdapter(adapter(Arrays.asList(WidgetBackground.RAIL_LABELS)));
+        root.addView(backgroundSpinner, matchWrap(dp(4)));
 
         readable = new CheckBox(this);
         readable.setText(RailNativeL10n.text(this, "大字好讀版"));
@@ -126,6 +135,9 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
             @Override public void selected(int position) { refreshPreview(); }
         });
         readable.setOnCheckedChangeListener((button, checked) -> refreshPreview());
+        backgroundSpinner.setOnItemSelectedListener(new Selection() {
+            @Override public void selected(int position) { refreshPreview(); }
+        });
         filtersButton.setOnClickListener(view -> showFilters());
         done.setOnClickListener(view -> save());
 
@@ -159,6 +171,8 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
             }
         }
         readable.setChecked(prefs.getBoolean("readable_" + widgetId, false));
+        backgroundSpinner.setSelection(Arrays.asList(WidgetBackground.RAIL_VALUES)
+            .indexOf(WidgetBackground.read(prefs, widgetId, false)));
         selectedFilters.clear();
         try {
             JSONArray values = new JSONArray(prefs.getString("filters_" + widgetId, "[]"));
@@ -324,7 +338,14 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
             snapshot.rows.add(row);
         }
         RemoteViewsHost.attach(this, preview,
-            RailWidgetRender.board(this, R.layout.widget_rail_4x2, snapshot, 3, readable.isChecked(), false));
+            RailBoardWidgetProvider.medium(this, snapshot, readable.isChecked(),
+                readable.isChecked() || RailWidgetData.isPlace(snapshot.origin) ? WidgetBackground.PLAIN
+                    : selectedBackground()));
+    }
+
+    private String selectedBackground() {
+        int at = backgroundSpinner == null ? 0 : backgroundSpinner.getSelectedItemPosition();
+        return WidgetBackground.RAIL_VALUES[Math.max(0, at)];
     }
 
     private void save() {
@@ -337,6 +358,7 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
             .putString("destination_" + widgetId, destination)
             .putBoolean("readable_" + widgetId, readable.isChecked())
             .putString("filters_" + widgetId, new JSONArray(selectedFilters).toString())
+            .putString(WidgetBackground.key(widgetId), selectedBackground())
             .apply();
         AppWidgetManager manager = AppWidgetManager.getInstance(this);
         RailBoardWidgetProvider.updateOneAsync(this, manager, widgetId);
@@ -436,8 +458,14 @@ public final class RailWidgetConfigActivity extends AppCompatActivity {
 
     /** RemoteViews.apply 的小包裝，讓設定頁預覽與桌面共用出貨 binder。 */
     private static final class RemoteViewsHost {
+        /**
+         * 🔴 一定要用 application context 展開：AppCompatActivity 的 LayoutInflater 掛著 AppCompat 工廠，
+         *    會把 ImageView 換成 AppCompatImageView，而它覆寫的 setImageResource 沒有 @RemotableViewMethod
+         *    ⇒ setImageViewResource（車模、方向三角）一套上去就丟 ActionException，設定頁當場閃退、
+         *    桌面上剛放的格子被系統收回。桌面本身用的是 launcher 的 context，不會踩到，所以只有這裡要換。
+         */
         static void attach(Context context, FrameLayout host, android.widget.RemoteViews views) {
-            host.addView(views.apply(context, host));
+            host.addView(views.apply(context.getApplicationContext(), host));
         }
     }
 }

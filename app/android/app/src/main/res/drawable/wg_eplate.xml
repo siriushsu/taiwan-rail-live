@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- C 的琺瑯站名牌（mockup .eplate）：外圈 1dp＋框 2dp 同色、紙面由上往下三段漸層、底下一層硬投影
+     （與 wg_card 同一種「不模糊的位移影」，RemoteViews 不能用 elevation）。 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:top="3dp" android:left="1dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="9dp" />
+            <solid android:color="@color/wg_plate_shadow" />
+        </shape>
+    </item>
+    <item android:bottom="2dp" android:right="1dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="9dp" />
+            <solid android:color="@color/wg_plate_frame" />
+        </shape>
+    </item>
+    <item android:left="3dp" android:top="3dp" android:right="4dp" android:bottom="5dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="6dp" />
+            <gradient android:angle="270" android:startColor="@color/wg_plate_g1"
+                android:centerColor="@color/wg_plate_g2" android:centerY="0.72" android:endColor="@color/wg_plate_g3" />
+        </shape>
+    </item>
+</layer-list>

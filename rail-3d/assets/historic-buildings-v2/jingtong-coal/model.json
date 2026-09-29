@@ -25,6 +25,11 @@
       "url": "https://www.openstreetmap.org/way/281242237",
       "use": "選洗煤場：輪廓與位置",
       "license": "ODbL-1.0"
+    },
+    {
+      "url": "https://www.openstreetmap.org/way/281242246",
+      "use": "保存站區月台：現址輪廓",
+      "license": "ODbL-1.0"
     }
   ],
   "priority": 1,
@@ -35,14 +40,14 @@
   ],
   "verifiedDimensionsM": {},
   "estimatedDimensionsM": {
-    "width": 120.7547197341919,
+    "width": 139.0441551208496,
     "depth": 66.63879489898682,
     "height": 16.277942657470703,
     "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
   },
-  "referenceReviewDate": "2026-09-08",
+  "referenceReviewDate": "2026-09-12",
   "geometryStatus": "plan-calibrated-exterior-estimated",
-  "scope": "按來源輪廓校正平面位置與尺度；高度、立面細節及正面方向仍為外觀估計",
+  "scope": "依來源校正平面與補齊可確認附屬構件；尺寸與高度屬地圖外觀估計，非工程測繪",
   "railRelation": "站區：平溪線菁桐",
   "reviewedPhotos": [
     {
@@ -80,8 +85,15 @@
     "shortSideM": 9.17,
     "source": "OpenStreetMap contributors",
     "license": "ODbL-1.0",
-    "scope": "早期輪廓參考；本輪逐棟校正依 calibration.parts 與 placements-source.json",
+    "scope": "社群建物輪廓最小旋轉包圍框，非工程測繪；尚未用作地圖放樣",
     "referenceFile": "source-layouts/jingtong-coal.json"
+  },
+  "completionReview": {
+    "date": "2026-09-12",
+    "changes": [
+      "依現址月台輪廓補齊站區關係；無來源的通用長站棚不復原"
+    ],
+    "precision": "地圖外觀模型；無實測高度或完整多面立面，不視為工程測繪"
   },
   "orientationMode": "ENU-baked",
   "absoluteGroundAltitudeM": null,
@@ -90,6 +102,7 @@
     "舊月台",
     "舊站棚"
   ],
+  "mapEligible": true,
   "calibration": {
     "version": 2,
     "basis": "各部件獨立平面擬合；非工程測繪",
@@ -125,6 +138,22 @@
         ],
         "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
         "facadeBearingDeg": null
+      },
+      {
+        "id": "保存站區月台",
+        "name": "保存站區月台",
+        "placementStatus": "footprint-axis-calibrated",
+        "anchor": [
+          121.72384944586972,
+          25.023931245663363
+        ],
+        "rotationDeg": 11.75,
+        "scaleXY": [
+          0.9764241273837417,
+          1.4881260681612924
+        ],
+        "basis": "OSM way/281242246 現址輪廓；高度與立面為外觀估計",
+        "facadeBearingDeg": null
       }
     ],
     "verticalDatum": "terrain-relative",
@@ -157,13 +186,13 @@
       0.0
     ],
     "max": [
-      8.016667366027832,
+      26.306102752685547,
       58.514503479003906,
       16.277942657470703
     ]
   },
   "sizeM": [
-    120.7547197341919,
+    139.0441551208496,
     66.63879108428955,
     16.277942657470703
   ],
@@ -171,11 +200,11 @@
     "near": {
       "file": "near.mesh.bin",
       "glb": "near.glb",
-      "sha256": "0a9a86428f958b74e2ea2c661e7c3d38fed73ad02122ec97967992d8a8581901",
-      "glbSha256": "903180d3ea03b442366b4beaa8b8559ccf5baf23d880ec336b2000f478a2a739",
+      "sha256": "f7953573fdec0fe1b384f31d4ebafd02d1fa0acff4815dac49440014cda8fb19",
+      "glbSha256": "033a55e3dcb0f729feec01ce1464dea3ff39b0c8a7c49b14481d39545f23858c",
       "strideBytes": 24,
-      "vertexCount": 8634,
-      "triangleCount": 2878,
+      "vertexCount": 8742,
+      "triangleCount": 2914,
       "drawGroups": [
         {
           "component": "菁桐站房",
@@ -332,18 +361,44 @@
           ],
           "metalness": 0.44999998807907104,
           "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存站區月台",
+          "name": "stone",
+          "start": 8634,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存站區月台",
+          "name": "cream",
+          "start": 8670,
+          "count": 72,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
         }
       ],
-      "byteLength": 207216
+      "byteLength": 209808
     },
     "far": {
       "file": "far.mesh.bin",
       "glb": "far.glb",
-      "sha256": "287120a18ef8ae02fb9f25470b81bb94eef599c750c20efa7f359e4d30278fdd",
-      "glbSha256": "034c2a0a5e36aa1ace31036bf2581a8b9fb49de4f51829b0411a892b2d7d06b8",
+      "sha256": "4d7a66259940449500aa8c1e0beea845da60b25b9084b18fae17a33e1aa819ad",
+      "glbSha256": "76c6c46611eb450073eb1e67bebef7f2a540281056c2189b4e3a6d100a724405",
       "strideBytes": 24,
-      "vertexCount": 4890,
-      "triangleCount": 1630,
+      "vertexCount": 4998,
+      "triangleCount": 1666,
       "drawGroups": [
         {
           "component": "菁桐站房",
@@ -500,12 +555,38 @@
           ],
           "metalness": 0.44999998807907104,
           "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存站區月台",
+          "name": "stone",
+          "start": 4890,
+          "count": 36,
+          "color": [
+            0.5840784311294556,
+            0.5088813304901123,
+            0.38132601976394653
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
+        },
+        {
+          "component": "保存站區月台",
+          "name": "cream",
+          "start": 4926,
+          "count": 72,
+          "color": [
+            0.715693473815918,
+            0.6583748459815979,
+            0.533276379108429
+          ],
+          "metalness": 0.05000000074505806,
+          "roughness": 0.5699999928474426
         }
       ],
-      "byteLength": 117360
+      "byteLength": 119952
     }
   },
-  "nativeObjectCount": 354,
+  "nativeObjectCount": 357,
   "sourcePhotosIncluded": false,
   "operatorLogoIncluded": false,
   "modelUse": "map-exterior",
@@ -541,7 +622,22 @@
       ],
       "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
       "facadeBearingDeg": null
+    },
+    {
+      "id": "保存站區月台",
+      "name": "保存站區月台",
+      "placementStatus": "footprint-axis-calibrated",
+      "anchor": [
+        121.72384944586972,
+        25.023931245663363
+      ],
+      "rotationDeg": 11.75,
+      "scaleXY": [
+        0.9764241273837417,
+        1.4881260681612924
+      ],
+      "basis": "OSM way/281242246 現址輪廓；高度與立面為外觀估計",
+      "facadeBearingDeg": null
     }
-  ],
-  "mapEligible": true
+  ]
 }

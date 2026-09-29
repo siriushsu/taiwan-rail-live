@@ -303,8 +303,15 @@ async function allStationCoverage() {
     const metroResponse = page.waitForResponse(response => response.url().includes('/api/bus-transfer'));
     await page.getByRole('button', { name: '查看現在可搭公車' }).tap();
     await metroResponse;
-    assert.equal((await stats()).lastStation, 'RI:MRT_94D3C0FE', '官方名冊尚未收錄的新捷運站必須走穩定 fallback id');
-    pass('台鐵、高鐵、捷運與無附近站牌四種入口皆可用，且仍是點開才查');
+    assert.equal((await stats()).lastStation, 'TRTC:R01', '廣慈/奉天宮已由本批官方來源收錄，查詢必須使用更新後的站碼');
+    // 舊案例已升為官方站碼；改用仍走 fallback 的具名站保留原本的瀏覽器覆蓋。
+    await page.locator('#boardClose').tap();
+    await openStation(page, '台北小城', '台北小城', '安坑輕軌');
+    const fallbackResponse = page.waitForResponse(response => response.url().includes('/api/bus-transfer'));
+    await page.getByRole('button', { name: '查看現在可搭公車' }).tap();
+    await fallbackResponse;
+    assert.equal((await stats()).lastStation, 'RI:NTALRT_B5287A80', '台北小城仍須走穩定 fallback 站碼');
+    pass('台鐵、高鐵、捷運、無附近站牌與 fallback 五種入口皆可用，且仍是點開才查');
   } finally {
     await browser.close();
   }

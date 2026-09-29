@@ -33,6 +33,7 @@ const SHARED = [
   'MetroWaitStartIntent.swift',
   'MetroWidgetShared.swift',
   'RailFollowAttributes.swift',
+  'RailFollowEndIntent.swift',
   'TraWaitAttributes.swift',
   'TraWaitEndIntent.swift',
 ];

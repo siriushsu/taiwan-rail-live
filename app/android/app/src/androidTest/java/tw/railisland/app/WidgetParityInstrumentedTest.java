@@ -79,7 +79,7 @@ public final class WidgetParityInstrumentedTest {
         FrameLayout host = new FrameLayout(context);
         RemoteViews railViews = RailWidgetRender.board(context, R.layout.widget_rail_4x4, rail, 8, false, false);
         assertNotNull(railViews.apply(context, host));
-        RemoteViews mixedViews = MixedWidgetRender.board(context, rail, metro);
+        RemoteViews mixedViews = MixedWidgetRender.boardAt(context, rail, metro, 460f);
         assertNotNull(mixedViews.apply(context, host));
     }
 

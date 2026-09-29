@@ -4,9 +4,15 @@ const base=process.env.BASE_URL||'http://127.0.0.1:5228/',out='output/landscape-
 const results=[];function check(name,pass,detail){results.push({name,pass,detail});console.log((pass?'PASS ':'FAIL ')+name+' '+JSON.stringify(detail??''));}
 const snap=()=>({kind:M.getStyleKind(),sim:state.simSec,id:state.followTrain?.train,center:M.raw.getCenter().toArray(),zoom:M.raw.getZoom(),bearing:M.raw.getBearing(),pose:railIslandIntegration.renderer?.stats.poseSamples.find(p=>p.id===railIslandIntegration.capture().selectedVehicleId)?.coordinate,errors:railIslandIntegration.errors});
 async function settle(p,kind){await p.waitForFunction(k=>M.getStyleKind()===k&&window.railIslandIntegration?.renderer&&!window.railIslandIntegration?.loading,null===kind?'landscape':kind,{timeout:60000});}
+// 停下之後等林冠真的重建完（rebuilds 不再變動）才量，不是等固定秒數。
+async function treesSettled(p,timeout=40000){const t0=Date.now();let last=-1,stable=Date.now();
+ while(Date.now()-t0<timeout){const r=await p.evaluate(()=>railIslandIntegration?.renderer?.stats?.landscape?.rebuilds??-1);
+  if(r!==last){last=r;stable=Date.now();}if(last>0&&Date.now()-stable>1600)return true;await p.waitForTimeout(150);}
+ return false;}
 async function boot(p){await p.goto(base+'?map=landscape&scene=3d&g=all&train=117&t=12:00&lang=zh-TW');await settle(p,'landscape');await p.waitForFunction(()=>state.ready&&state.followTrain);await p.evaluate(()=>{state.playing=false;setSimSec(43200);M.raw.setZoom(17);});await p.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.models>0,null,{timeout:45000});}
 for(const [name,engine]of Object.entries(process.env.ENGINE?{[process.env.ENGINE]:({chromium,webkit})[process.env.ENGINE]}:{chromium,webkit})){
- const browser=await engine.launch({headless:process.env.HEADFUL!=='1'});const context=await browser.newContext({viewport:{width:1360,height:980},locale:'zh-TW'});
+ // 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走),不再提供開視窗的選項。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
+ const browser=await engine.launch(name==='chromium'?{channel:'chromium',headless:true}:{headless:true});const context=await browser.newContext({viewport:{width:1360,height:980},locale:'zh-TW'});
  await context.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','dark');});const p=await context.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
  // 固定營運資料退回班表，避免當下即時快照影響重複驗證；不偽造衛星授權。
  await p.route('**/api/**',r=>r.fulfill({status:503,contentType:'application/json',body:'{}'}));
@@ -19,13 +25,27 @@ for(const [name,engine]of Object.entries(process.env.ENGINE?{[process.env.ENGINE
     await p.evaluate(k=>chooseBasemap(k),kind);await settle(p,kind);await p.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.models>0);const s=await p.evaluate(snap);
     check(name+' 切換 '+kind+' 保留同車/時間/位置',s.id===initial.id&&s.sim===initial.sim&&JSON.stringify(s.pose)===JSON.stringify(initial.pose),{id:s.id,sim:s.sim,pose:s.pose});
   }
-  await p.evaluate(()=>state._setAppearance('light'));await p.locator('#toolsFab').click();await p.locator('#msBasemapSeg button[data-map=landscape]').scrollIntoViewIfNeeded();
+  await p.evaluate(()=>state._setAppearance('light'));
+  // v0914c 起地圖風格(msBasemapSeg 所在的 .ri-basemap-row)搬進觀看面板「地圖」分頁;
+  // 桌面版 #toolsFab 本身已被 CSS 藏死(display:none !important,見 index.html:699 註解「已由手機
+  // tab bar『更多』sheet 取代」),不再是可點的入口,這裡是桌面殼(無 isMobile)故直接點側欄分頁鈕。
+  await p.locator('.view-rail [data-view="map"]').click();await p.locator('#msBasemapSeg button[data-map=landscape]').scrollIntoViewIfNeeded();
   check(name+' 無衛星授權時入口明確停用',await p.locator('#msBasemapSeg button[data-map=sat]').isDisabled());
-  await p.locator('#moreClose').click();await p.evaluate(()=>{railIslandIntegration.setGroundMode('flat');M.raw.jumpTo({center:[121.5795,24.9968],zoom:16.5,pitch:55,bearing:0});});
-  await p.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.landscape.count>100,null,{timeout:30000});await p.waitForTimeout(1500);
-  const trees=await p.evaluate(()=>{const s=railIslandIntegration.renderer.stats.landscape;return {count:s.count,cap:s.cap,rebuilds:s.rebuilds,maxBuildMs:s.maxBuildMs,coordinates:s.coordinates};});
-  check(name+' 真正渲染林冠且有固定數量上限',trees.count>100&&trees.count<=trees.cap,{...trees,coordinates:undefined});
+  await p.locator('.view-close').click();await p.evaluate(()=>{railIslandIntegration.setGroundMode('flat');M.raw.jumpTo({center:[121.5795,24.9968],zoom:16.5,pitch:55,bearing:0});});
+  await p.waitForFunction(()=>window.railIslandIntegration?.renderer?.stats.landscape.count>20,null,{timeout:30000});await p.waitForTimeout(1500);
+  const trees=await p.evaluate(()=>{const s=railIslandIntegration.renderer.stats.landscape;return {count:s.count,cap:s.cap,patches:s.patches,broadSkipped:s.broadSkipped,rebuilds:s.rebuilds,maxBuildMs:s.maxBuildMs,coordinates:s.coordinates};});
+  check(name+' 小片林地照樣長樹且有固定數量上限',trees.count>20&&trees.count<=trees.cap&&trees.patches>0,{...trees,coordinates:undefined});
   await p.screenshot({path:out+'/'+name+'-river-forest.png'});
+  // 大片林地（山區、海岸、縱谷）底圖本來就是整片綠：只上色，不長樹。
+  // 反向判準配正向對照——同一畫面要量到 wood 圖層真的有畫，否則「0 株」只是沒林地。
+  await p.evaluate(()=>M.raw.jumpTo({center:[120.953,22.610],zoom:16.5,pitch:55,bearing:0}));
+  check(name+' 大片林地取樣有收斂',await treesSettled(p));
+  const broad=await p.evaluate(()=>{const s=railIslandIntegration.renderer.stats.landscape;
+   return {count:s.count,broadSkipped:s.broadSkipped,patches:s.patches,maxBuildMs:Math.round(s.maxBuildMs),
+    wood:M.raw.queryRenderedFeatures({layers:['landcover_wood','landscape-worldcover-wood'].filter(id=>M.raw.getLayer(id))}).length};});
+  check(name+' 大片林地只上色不長樹',broad.wood>0&&broad.broadSkipped>0&&broad.count===0,broad);
+  await p.screenshot({path:out+'/'+name+'-broad-forest.png'});
+  await p.evaluate(()=>M.raw.jumpTo({center:[121.5795,24.9968],zoom:16.5,pitch:55,bearing:0}));await treesSettled(p);
   await p.waitForTimeout(1400);const quiet=await p.evaluate(()=>railIslandIntegration.renderer.stats.landscape.rebuilds);
   await p.waitForTimeout(1000);check(name+' 靜止不重建樹木',await p.evaluate(n=>railIslandIntegration.renderer.stats.landscape.rebuilds===n,quiet));
   // 在真正的 move 事件期間核對延後重建，不只測計時器函式。
@@ -42,7 +62,11 @@ for(const [name,engine]of Object.entries(process.env.ENGINE?{[process.env.ENGINE
  for(const width of (process.env.WIDTHS?process.env.WIDTHS.split(',').map(Number):[360,375,390,414,520,768])){
   const ctx=await browser.newContext({viewport:{width,height:900},locale:'zh-TW',isMobile:true,hasTouch:true});await ctx.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','light');});const page=await ctx.newPage();await page.route('**/api/**',r=>r.fulfill({status:503,contentType:'application/json',body:'{}'}));
   try{
-   await boot(page);await page.tap('#tabMore');const b=page.locator('#msBasemapSeg [data-map=light]');await b.scrollIntoViewIfNeeded();await page.tap('#msBasemapSeg [data-map=light]');await settle(page,'light');await page.tap('#msBasemapSeg [data-map=landscape]');await settle(page,'landscape');
+   await boot(page);
+   // v0914c 起地圖風格搬進觀看面板「地圖」分頁,不再掛在「更多」抽屜下。
+   const railM=page.locator('.view-rail [data-view="map"]');
+   if(await railM.isVisible())await railM.tap();else{await page.tap('#viewSettingsBtn');await page.tap('.view-tabs [data-view="map"]');}
+   const b=page.locator('#msBasemapSeg [data-map=light]');await b.scrollIntoViewIfNeeded();await page.tap('#msBasemapSeg [data-map=light]');await settle(page,'light');await page.tap('#msBasemapSeg [data-map=landscape]');await settle(page,'landscape');
    check(name+' '+width+' 真觸控切換',await page.locator('#msBasemapSeg [data-map=landscape]').getAttribute('aria-pressed')==='true');
    for(const fullscreen of [false,true]){
     await page.evaluate(fs=>document.body.classList.toggle('fs',fs),fullscreen);await page.locator('#msBasemapSeg').scrollIntoViewIfNeeded();

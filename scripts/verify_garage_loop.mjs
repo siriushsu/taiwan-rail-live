@@ -28,8 +28,11 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
   await p.click('[data-view="loop"]');await p.waitForFunction(()=>document.querySelector('.g-view').dataset.mode==='loop');const start=await snap(p);await p.waitForTimeout(1500);await pause(p);const moved=await snap(p);
   check(engine+' UI 三節車確實沿環形向前行駛',moved.carCount==='3'&&+moved.distance>+start.distance+1&&moved.hash!==start.hash&&moved.poses.some((v,i)=>Math.hypot(v.x-start.poses[i].x,v.y-start.poses[i].y)>.8));
   await p.waitForTimeout(200);const still=await snap(p);check(engine+' 暫停停止位置及重畫',still.distance===moved.distance&&still.hash===moved.hash&&still.frames===moved.frames);
-  await p.click('.g-reverse');await settle(p);const reversed=await snap(p);check(engine+' 反向不瞬移三節車，只轉車身朝向',reversed.poses.every((v,i)=>Math.hypot(v.x-still.poses[i].x,v.y-still.poses[i].y)<1e-8&&Math.abs(Math.abs(v.heading-still.poses[i].heading)-Math.PI)<1e-8)&&reversed.hash!==still.hash);
-  await p.click('.g-auto');await p.waitForTimeout(1200);await pause(p);check(engine+' 逆向沿同一閉合跑道行駛',+(await snap(p)).distance<+reversed.distance-1);
+  // 反向＝整列掉頭：頭車換到編組另一端、車頭仍朝外並領頭。舊判準「位置不動、每節朝向差 π」會把頭尾車頭轉進車廂之間當成對的（9/26 截圖）。
+  const out=(s,i)=>{const v=s.poses[i],m=s.poses[1];return Math.cos(v.heading)*(v.x-m.x)+Math.sin(v.heading)*(v.y-m.y);},side=(a,b)=>(a.poses[0].x-a.poses[1].x)*(b.poses[0].x-b.poses[1].x)+(a.poses[0].y-a.poses[1].y)*(b.poses[0].y-b.poses[1].y);
+  await p.click('.g-reverse');await settle(p);const reversed=await snap(p);check(engine+' 反向整列掉頭，頭車換到另一端且車頭朝外',out(still,0)>0&&out(reversed,0)>0&&side(reversed,still)<0&&reversed.hash!==still.hash);
+  await p.click('.g-auto');await p.waitForTimeout(1200);await pause(p);const back=await snap(p),h=reversed.poses[0].heading;
+  check(engine+' 逆向沿同一閉合跑道行駛且頭車領頭',+back.distance<+reversed.distance-1&&Math.cos(h)*(back.poses[0].x-reversed.poses[0].x)+Math.sin(h)*(back.poses[0].y-reversed.poses[0].y)>0);
   const before=await snap(p);for(let i=0;i<12;i++)await p.click('.g-right');await settle(p);const rotated=await snap(p);check(engine+' 視角可以環繞完整一圈',Math.abs(+rotated.yaw-+before.yaw-Math.PI*2)<1e-8);
   for(let i=0;i<6;i++)await p.click('.g-up');await settle(p);const high=await snap(p);for(let i=0;i<8;i++)await p.click('.g-down');await settle(p);check(engine+' 俯仰範圍保護地面且可俯視',+high.elevation===1.35&&+(await snap(p)).elevation===.25);
   await p.click('.g-reset-view');await settle(p);check(engine+' 重設回環形場景起始視角',(await snap(p)).yaw==='-0.9'&&(await snap(p)).elevation==='0.8');

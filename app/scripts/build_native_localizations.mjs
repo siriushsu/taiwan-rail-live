@@ -56,7 +56,9 @@ const native = {
   '自動選站時不套用方向，這格可留空': ['Direction is not applied with automatic station; leave this blank', '自動選択時は方向を適用しません。空欄で構いません'],
   '正在讀取車站，先列出全部方向': ['Reading the station; showing all directions for now', '駅を読み込み中のため全方向を表示します'],
   '不限': ['Any', '指定なし'],
+  '背景': ['Background', '背景'], '車模': ['Train model', '車両モデル'], '場景': ['Scene', '情景'], '素色': ['Plain', '無地'],
   '不指定目的站（看全部）': ['Not set (show all)', '指定なし（すべて表示）'],
+  '背景（預設車模）': ['Background (default: train model)', '背景（既定：車両モデル）'],
   '接下來': ['Next up', 'この後'],
   '發車看板': ['Departure board', '発車案内'],
   '查看台鐵或高鐵接下來的直達、停靠與終到列車；想看通過本站不停靠的車，在「只看這些」打開「含通過列車」。': ['See upcoming direct, stopping and terminating TRA or HSR trains. To also show trains that pass without stopping, turn on "Include passing trains" under Filters.', '台湾鉄路・高鉄の直通・停車・終着列車を表示します。通過（停車しない）列車も表示するには「表示条件」で「通過列車も表示」をオンにしてください。'],
@@ -129,6 +131,10 @@ const native = {
   '表定': ['Scheduled', '予定'], '實際約': ['Est. actual', '実到着見込'],
   '表定 {time}': ['Scheduled {time}', '予定 {time}'],
   '{station} 車應已到': ['Train should have arrived at {station}', '{station}に到着した見込み'],
+  // 等站卡進站軌道（B 方案）：站名改由站牌說，右下只寫「車應已到」；上一站那個時刻是表定開車。
+  '車應已到': ['Should have arrived', '到着した見込み'],
+  '{time} 開': ['dep. {time}', '{time}発'],
+  '{time} 到': ['arr. {time}', '{time}着'],
   '舒適': ['Comfortable', '快適'], '普通': ['Moderate', '普通'],
   '略擠': ['Crowded', 'やや混雑'], '擁擠': ['Very crowded', '混雑'],
   '北上': ['Northbound', '北行'], '南下': ['Southbound', '南行'],
@@ -331,20 +337,27 @@ const catalog = { sourceLanguage: 'zh-Hant', strings, version: '1.0' };
 const output = path.join(root, 'app/ios/App/RailBoardWidget/Localizable.xcstrings');
 fs.writeFileSync(output, JSON.stringify(catalog, null, 2) + '\n');
 
+// 繁中權限說明的正本是 Info.plist；產 catalog 時直接帶入，避免 generator 自己留一份舊文案。
+const infoPlistSource = fs.readFileSync(path.join(root, 'app/ios/App/App/Info.plist'), 'utf8');
+const infoPlistValue = key => infoPlistSource.match(new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`))?.[1]
+  ?.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
 const info = {
   sourceLanguage: 'zh-Hant',
   strings: {
     CFBundleDisplayName: { localizations: {
       en: { stringUnit: { state: 'translated', value: 'Rail Island' } },
       ja: { stringUnit: { state: 'translated', value: '軌島' } },
+      'zh-Hant': { stringUnit: { state: 'translated', value: infoPlistValue('CFBundleDisplayName') } },
     } },
     NSLocationWhenInUseUsageDescription: { localizations: {
-      en: { stringUnit: { state: 'translated', value: 'Rail Island uses your location while the app is open to move the map near you and show nearby stations and trains. Raw coordinates stay on your device and are not uploaded. You can still explore the map manually if you decline.' } },
-      ja: { stringUnit: { state: 'translated', value: '軌島はAppの使用中、現在地付近へ地図を移動し、周辺の駅と列車を表示するために位置情報を使います。取得した座標は端末内だけで使用し、アップロードしません。許可しなくても地図を手動で利用できます。' } },
+      en: { stringUnit: { state: 'translated', value: 'Rail Island uses your location while you use the app to update your blue dot, center the map on you and show nearby stations. Your latest location is sent only if you separately turn on live location sharing for a trip, and only to people with the short-lived link; sharing stops when the app goes to the background or the screen locks.' } },
+      ja: { stringUnit: { state: 'translated', value: '軌島はAppの使用中、地図上の青い点、現在地へのカメラ移動、近くの駅の表示に位置情報を使います。旅程のリアルタイム位置共有を別途オンにした場合に限り、最新の位置が有効期限付きリンクを持つ人に送られます。バックグラウンドに移るか画面をロックすると停止します。' } },
+      'zh-Hant': { stringUnit: { state: 'translated', value: infoPlistValue('NSLocationWhenInUseUsageDescription') } },
     } },
     NSLocationAlwaysAndWhenInUseUsageDescription: { localizations: {
-      en: { stringUnit: { state: 'translated', value: 'Rail Island accesses location only while you use the app, to move the map near you and show nearby stations and trains. It does not track you continuously in the background or request Always access. Raw coordinates stay on your device and are not uploaded; you can still explore manually if you decline.' } },
-      ja: { stringUnit: { state: 'translated', value: '軌島はAppの使用中だけ位置情報を取得し、現在地付近へ地図を移動して周辺の駅と列車を表示します。バックグラウンドで継続的に追跡せず、「常に許可」も要求しません。座標は端末内だけで使用し、アップロードしません。許可しなくても手動で利用できます。' } },
+      en: { stringUnit: { state: 'translated', value: 'Rail Island never asks for Always access or tracks your location in the background. Your blue dot stays on your device; your latest location is sent only while the app is open, and only if you separately turn on live location sharing for a trip.' } },
+      ja: { stringUnit: { state: 'translated', value: '軌島は「常に許可」を求めず、バックグラウンドで位置情報を追跡しません。通常の青い点は端末内だけで使います。旅程のリアルタイム位置共有を別途オンにした場合に限り、Appが前面にある間だけ最新の位置を送信します。' } },
+      'zh-Hant': { stringUnit: { state: 'translated', value: infoPlistValue('NSLocationAlwaysAndWhenInUseUsageDescription') } },
     } },
   },
   version: '1.0',

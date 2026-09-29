@@ -348,7 +348,11 @@ for (const [engName, launcher] of ENGINES) {
     const { ctx, page, errors } = await boot(browser, { satRetina: true, viewport: { width: 375, height: 812 } });
     await page.waitForFunction(() => { try { return satTokenState === 'ready'; } catch (e) { return false; } }, null, { timeout: 20000 });
     await clearToasts(page);
-    await clickOk(page, '#tabMore', `[${engName}] S5a 開得了「更多」`);
+    // v0914c 起地圖風格(含衛星)搬進觀看面板「地圖」分頁,不再是「更多」抽屜下的列;
+    // 375px 寬必落在 mobile-shell(MOBILE_MQ 的 max-width:900px 那一支),固定走
+    // #viewSettingsBtn → .view-tabs 這條手機路徑,不必再判斷 .view-rail 可見與否。
+    await clickOk(page, '#viewSettingsBtn', `[${engName}] S5a 開得了觀看面板`);
+    await clickOk(page, '.view-tabs [data-view="map"]', `[${engName}] S5a2 切到「地圖」分頁`);
     await clickOk(page, '#msBasemapSeg button[data-map="sat"]', `[${engName}] S5b 抽屜裡的「衛星」點得到`);
     await page.waitForTimeout(150);
     const basemap = await page.evaluate(() => state.basemap);

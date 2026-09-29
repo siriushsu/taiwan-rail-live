@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小尺寸站名牌（mockup .eplate.sm）：框 2dp、圓角小一號，其餘同 wg_eplate。 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:top="2dp" android:left="1dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="7dp" />
+            <solid android:color="@color/wg_plate_shadow" />
+        </shape>
+    </item>
+    <item android:bottom="2dp" android:right="1dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="7dp" />
+            <solid android:color="@color/wg_plate_frame" />
+        </shape>
+    </item>
+    <item android:left="2dp" android:top="2dp" android:right="3dp" android:bottom="4dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="5dp" />
+            <gradient android:angle="270" android:startColor="@color/wg_plate_g1"
+                android:centerColor="@color/wg_plate_g2" android:centerY="0.72" android:endColor="@color/wg_plate_g3" />
+        </shape>
+    </item>
+</layer-list>

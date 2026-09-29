@@ -4,6 +4,7 @@ import {spawn} from 'node:child_process';
 import {createServer} from 'node:net';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {formationFor} from '../rail-3d/integration/formations.js';
 // 伺服器自己起、連接埠由 OS 指派:本機同時開著 30+ 個 worktree,寫死 5208 會安靜地去驗別人那棵樹
 // ——全綠也毫無意義。ROOT 由本檔路徑推導,結構上只可能服務自己這棵樹;BASE_URL 仍可覆寫,
 // 但那條路要自己負責樹對不對(沿用原本手動起 server 的用法)。
@@ -47,10 +48,14 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   await page.screenshot({path:`output/physical-browser/${name}-taipei.png`});
   // A54 已捕獲的六組車：在同一時間與股道上重放，直接量實際模型矩陣與地圖投影。
   const fixture=JSON.parse(fs.readFileSync('scripts/fixtures/physical-taipei-0908.json'));
+  const expectedCars=fixture.vehicles.reduce((n,v)=>n+formationFor(v).lengths.length,0);
   await page.evaluate(fixture=>{
    state.playing=false;clearFollow();clearFreqFollow();railIslandIntegration.render=()=>{};
-   const vehicles=fixture.vehicles.map(v=>{const g=v.systemId.endsWith('_sched')?railIslandPhysical.geometry:railIslandPhysical.metro.geometry;
-    return {...v,route:g.route(v.pathIds,v.systemId,v.color,v.extension),followed:false};});
+   const vehicles=fixture.vehicles.map(v=>{const g=v.systemId.endsWith('_sched')?railIslandPhysical.geometry:railIslandPhysical.metro.geometry,
+     route=g.route(v.pathIds,v.systemId,v.color,v.extension),point=route.path.at(v.chainageM);
+    // fixture 的經緯度是 09-08 路網快照；股道更新後固定 chainage 才是同一個重放位置。
+    // 直接用舊座標會超過 routeProfile 的 3 m 吸附界線，模型根本沒進到後面的貼軌判準。
+    return {...v,longitude:point.coordinate[0],latitude:point.coordinate[1],route,followed:false};});
    const frame=railIslandIntegration.capture();
    window.__ontrackVehicles=vehicles;
    window.__ontrackUpdate=()=>{railIslandIntegration.renderer.update({...frame,clock:{...frame.clock,simSec:fixture.simSec},vehicles,routes:vehicles.map(v=>v.route),followLock:false,selectedVehicleId:null,display:{...frame.display,enabled:true,modelMode:'all'}});return railIslandIntegration.renderer.stats.models;};
@@ -72,7 +77,7 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
     return {count,maxSourceM,maxScreenPx,models:r.stats.models};
    });
    // 對照來源股道 XY 與該車廂的實際顯示高度；橋隧不能再與地表投影比較。
-   check(name+' A54 Taipei cars align with source rails '+view.bearing,alignment.count===45&&alignment.maxSourceM<.00001&&alignment.maxScreenPx<1,alignment);
+   check(name+' A54 Taipei cars align with source rails '+view.bearing,alignment.count===expectedCars&&alignment.maxSourceM<.00001&&alignment.maxScreenPx<1,alignment);
   }
   await page.screenshot({path:`output/physical-browser/${name}-taipei-ontrack.png`});
 
@@ -153,8 +158,8 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   // 覆蓋率要具名,否則分母會無聲縮水:下面那圈是 for(stat 裡有的系統),某個系統一旦退出
   // client.js 的 PHYSICAL_SYSTEMS 白名單就整個不見,而「少驗一個系統」與「全部通過」長得一模一樣。
   // 🔴 改動 PHYSICAL_SYSTEMS 必須同輪改這一行——把 afr_sched 加回去時,林鐵那條斷言才會跟著活過來。
-  check(`${name} 吃實體股道的系統恰為 tra_sched／thsr_sched（實得 ${survey.covered.join('／')||'無'}，班表載到 ${survey.seen.join('／')}）`,
-   survey.covered.join()==='thsr_sched,tra_sched',{covered:survey.covered,seen:survey.seen});
+  check(`${name} 吃實體股道的系統恰為 afr_sched／thsr_sched／tra_sched（實得 ${survey.covered.join('／')||'無'}，班表載到 ${survey.seen.join('／')}）`,
+   survey.covered.join()==='afr_sched,thsr_sched,tra_sched',{covered:survey.covered,seen:survey.seen});
   for(const [sys,s] of Object.entries(survey.stat)){
    // 林鐵/高鐵的線形已經跟實體股道對齊過,一處都不准離線;台鐵還有 09-07 那批未修的路廊
    // (東澳雙坑、五堵、南港、山線),用比例當閘門而不是釘死顆數——台鐵班表每週重抓,
