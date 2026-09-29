@@ -21,7 +21,7 @@
 //   R1  一條線組的寫入＝一個 batch、四句（標記、點數、sample_count、關認領），標記一句
 //   R2  前次線組只讀最早／最晚時間；超量的車（批數、總長、第一段之後才灌進來）整班可疑、payload 不讀
 //   R3  一班車判定出錯：那一行 log 用 error 等級；出錯的班車記下來、同一發繼續判下一班，下一發判得過就刪記錄
-//   ISO 記下來的班車之後每一發排在最後（連可信身分也一樣）；D1 整個不能用（連記錄都寫不進去）才停手
+//   ISO 記下來的班車之後每一發排在最後（連可信身分也一樣）；D1 整個不能用（連記錄都寫不進去）才停手；每一發都會丟錯的壞班車不擋別人
 //   N4  一班車的點數上看十幾萬（4 MB 塞得下）：判定不把整班的點展開成函式引數（V8 約十二萬多個就丟 RangeError）
 //   N2  清單之後才灌進來的批次：讀這班車那一句依讀取順序累加長度截住，送回 Worker 的不超過 4 MB 再加一批，整班判可疑
 //   N3  租約被下一發接手之後，舊的那一發第③段整組不動任何列（點數、sample_count、關認領不會做兩次）
@@ -729,6 +729,32 @@ await attempt('ISO3', async () => {
     brk.broken && brk.failed === 3 && line.includes('1 班判定出錯') && line.includes('連記錄都寫不進 D1 而停手') &&
       q.pending(w) === q.count(w, 'bounty_samples') && strikes(w).length === 0 && !f.threw,
     J({ failed: brk.failed, line: line.slice(0, 220), pending: q.pending(w), sk: strikes(w).length, threw: f.threw }));
+});
+
+await attempt('ISO4', async () => {
+  // 每一發都會丟錯的壞班車（資料本身的問題，不是注入的 D1 錯誤）：payload 是 [null,null]——上傳端的清洗不會產生，只可能是直接寫庫或日後的缺陷，
+  // 判定組回整趟、依時間排序時讀 null.t 丟 TypeError。寫死次序下它排第一（actor 字母序最前、每人第 1 班）。
+  // 期望：第一發記下它、繼續判後面兩班（ok、各 1 顆）；第二發它是唯一 pending、排在最後照樣再丟一次、記錄仍恰一列、不停手。
+  const P = 'dev-iso4-000A', H = 'dev-iso4-000B';
+  const w = world({ seed: boardSql('山線'), env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
+  w.db.prepare("INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict,client)" +
+    " VALUES ('iso4-poison',?,'tra_sched','山線','P1',0,?,'[null,null]',NULL,?,'pending',?)").run(P, D28, NOW_MS - 3600e3, J(APP));
+  putBatches(w.db, { actor: H, trainNo: 'H1', pts: leg({ sec: 700 }) });
+  putBatches(w.db, { actor: H, trainNo: 'H2', pts: leg({ sec: 700, t0: 40000 }) });
+  const seen = listOf(w);
+  const st1 = await w.cron();
+  const sk1 = strikes(w);
+  let err1 = '';
+  try { err1 = String(JSON.parse(sk1[0].v).error); } catch (e) {}
+  ok('ISO4a [ISO] 壞班車排第一、判定丟 TypeError：記下恰一列（它的鍵）、同一發繼續判完後面兩班（ok、各 1 顆）；errors 1、stopBy 不是 error',
+    J((seen[0] || []).map(r => r.train)) === J(['P1', 'H1', 'H2']) && st1.errors === 1 && st1.stopBy === null && sk1.length === 1 && sk1[0].k === STRIKE(P, 'P1') &&
+      /null/.test(err1) && q.verdicts(w, P, 'P1') === 'pending' && q.verdicts(w, H, 'H1') === 'ok' && q.verdicts(w, H, 'H2') === 'ok' && q.bal(w, H) === 2,
+    J({ order: (seen[0] || []).map(r => r.train), errors: st1.errors, stopBy: st1.stopBy, sk1, p: q.verdicts(w, P, 'P1'), bal: q.bal(w, H) }));
+  const st2 = await w.cron({ BOUNTY_NOW: String(NOW_MS + 3600e3) });
+  const sk2 = strikes(w);
+  ok('ISO4b [ISO] 第二發：壞班車照樣丟錯、照樣記（仍恰一列）、不停手；仍 pending；H 的帳沒有變',
+    st2.errors === 1 && st2.stopBy === null && sk2.length === 1 && sk2[0].k === STRIKE(P, 'P1') && q.verdicts(w, P, 'P1') === 'pending' && q.bal(w, H) === 2,
+    J({ errors: st2.errors, stopBy: st2.stopBy, sk2: sk2.map(r => r.k), bal: q.bal(w, H) }));
 });
 
 // ═══ N4：一班車的點數上看十幾萬（4 MB 塞得下）══════════════════════════════════════
