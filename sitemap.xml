@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://railisland.tw/</loc><lastmod>2026-09-03</lastmod></url>
+  <url><loc>https://railisland.tw/en/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/</loc><lastmod>2026-09-29</lastmod></url>
   <url><loc>https://railisland.tw/about/</loc><lastmod>2026-09-03</lastmod></url>
   <url><loc>https://railisland.tw/accuracy/</loc><lastmod>2026-09-03</lastmod></url>
   <url><loc>https://railisland.tw/data-sources/</loc><lastmod>2026-09-03</lastmod></url>

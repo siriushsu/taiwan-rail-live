@@ -13,6 +13,10 @@
 <meta property="og:url" content="https://railisland.tw/" />
 <meta property="og:image" content="https://railisland.tw/og-1200x630.png" />
 <link rel="canonical" href="https://railisland.tw/" />
+<link rel="alternate" hreflang="zh-Hant" href="https://railisland.tw/" />
+<link rel="alternate" hreflang="en" href="https://railisland.tw/en/" />
+<link rel="alternate" hreflang="ja" href="https://railisland.tw/ja/" />
+<link rel="alternate" hreflang="x-default" href="https://railisland.tw/" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta name="twitter:card" content="summary_large_image" />
@@ -1811,6 +1815,10 @@
     background: var(--navy); color: var(--on-navy); font-size: calc(13px * var(--ui)); font-weight: 800;
   }
   .iab-hint .ih-btns button.ih-ghost { background: transparent; color: var(--navy); }
+  /* 網頁版語言提示:44px 的 × 貼右上角,按鈕列必須整條落在它下面(否則 × 與語言鈕相交);
+     桌面隨機跟隨膠囊在 bottom:86px 置中,提示抬到它上面 */
+  .lang-hint .ih-btns { margin-top: 15px; }
+  @media (min-width: 901px) { .lang-hint { bottom: calc(var(--sa-b) + 138px); } }
 
   /* ── 收集通知(toast):金框紙卡,自動消失 ── */
   .toasts {
@@ -5293,6 +5301,13 @@
       <div>誤點統計、提醒、車廂資訊已被裁切。轉回直式可讀完整內容。</div>
       <div class="ih-btns"><button type="button" id="landFsHintOk">知道了</button></div>
     </div>
+    <!-- 網頁版語言提示(en／ja 瀏覽器首訪才顯示,檔尾 IIFE 組字):沿用 .iab-hint 的卡樣式與 placeFsOverlays 讓位帳,
+         文字固定英／日文(給看不懂中文的人看),不走 zh 字典 -->
+    <div class="iab-hint lang-hint" id="langHint" role="region" aria-label="Language" hidden>
+      <button class="ih-close" id="langHintClose" type="button" aria-label="Dismiss">×</button>
+      <div class="ih-title" id="langHintTitle"></div>
+      <div class="ih-btns"><button type="button" id="langHintGo"></button></div>
+    </div>
     <div class="follow-panel" id="followPanel" hidden>
       <div class="fp-head">
         <span class="dot" id="fpDot"></span>
@@ -5612,6 +5627,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="langhint0929"><span class="d">9/29</span><span>網頁版首次開啟固定顯示繁體中文；英文、日文瀏覽器會出現可一鍵切換的語言提示</span></li>
         <li data-cl-of="seotitle0929"><span class="d">9/29</span><span>網頁標題與搜尋結果說明寫清楚：台鐵、高鐵、捷運即時地圖與時刻表</span></li>
         <li data-cl-of="klrtcore0928"><span class="d">9/28</span><span>高雄輕軌發車前先在籬仔內等候，發車後沿用同一班身分；衛星位置確認屬於同一班才校正，否則依官方倒數逐站推算</span></li>
         <li data-cl-of="trawait0928"><span class="d">9/28</span><span>修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面</span></li>
@@ -5619,7 +5635,6 @@
         <li data-cl-of="trackshape0927"><span class="d">9/27</span><span>北捷紅線與三鶯線的軌道改用官方最新線形，列車與車站沿更新後的路線行駛</span></li>
         <li data-cl-of="buildingopacity0927"><span class="d">9/27</span><span>立體建築剛出現的縮放範圍內，切換亮暗外觀後會保留「透視顯示」的透明度，不再突然變得不透明</span></li>
         <li data-cl-of="traphysicalstation0927"><span class="d">9/27</span><span>重新整理台鐵列車的行車方向與車站股道安排，減少對向共用同一股，以及列車在站內重疊或互穿的畫面</span></li>
-        <li data-cl-of="workerrecover0927"><span class="d">9/27</span><span>公車到站、台鐵月台與災害監看遇到官方來源沒回應時，會在限時內結束等待並於下一輪恢復</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6002,6 +6017,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="langhint0929"><span class="d">9/29</span><span>網頁版第一次開啟固定顯示繁體中文，不再依瀏覽器語言自動切換；英文或日文瀏覽器會出現一個小提示，按一下就能切換語言，也能關掉不再提示（App 仍依手機語言）。另新增英文與日文的獨立介紹頁，方便外國旅客搜尋到軌島</span></li>
         <li data-cl="seotitle0929"><span class="d">9/29</span><span>網頁標題與搜尋結果裡的網站說明改寫得更清楚，直接寫出「台鐵、高鐵、捷運即時列車地圖與時刻表」，在 Google 搜尋時比較容易認出軌島在做什麼</span></li>
         <li data-cl="buildingopacity0927"><span class="d">9/27</span><span>修正立體地圖剛放大到能看見建築、還沒顯示立體列車時，切換亮暗外觀會讓「透視顯示」的建築突然變得不透明；現在重新裝入建築後會立即套回所選的透明度</span></li>
         <li data-cl="tramground0919"><span class="d">9/19</span><span>修正高雄輕軌五節車身高低不一：沒有轉向架的中間車節曾被錯誤往下拉約 36 公分，現在全列共用同一條軌面基準，屋頂與窗帶恢復平順；淡海、安坑輕軌同步套用同一修正。另掃描全 62 款列車，其他一般車廂未發現同類問題</span></li>
@@ -6902,7 +6918,8 @@
 // v0928a：高雄輕軌看板按順逆行各保留班次，以實際後續停靠站提示方向，終點不再冒充方向。
 // v0928b：保留彎道速限，補回長跑段抵站前追越的官方停靠窗，避免多餘的提早待避。
 // v0928c：公開端接入 KLRT Core 原身分與攤平環線軌跡；待發、雙向看板、來源提示與逐系統退路一併補齊。
-const BUILD = 'v0929a';
+// v0929b：網頁版首次開啟固定繁中（?lang → 已存偏好 → zh-TW），英日語瀏覽器只給一條小提示；原生 App 仍依 navigator.languages。
+const BUILD = 'v0929b';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
@@ -6913,6 +6930,10 @@ const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 const I18N_STORAGE_KEY = 'trainmap-language';
 const I18N_LANGS = new Set(['zh-TW', 'en', 'ja']);
 const I18N_MESSAGES = window.RAIL_I18N_MESSAGES || { en: {}, ja: {} };
+// 網頁版首次開啟固定繁中，Googlebot（en-US）才會看到中文首頁；en／ja 瀏覽器改給一條小提示（見檔尾 #langHint）。
+// 沒有 ?lang、沒有已存偏好、且 navigator.languages 第一個可辨識語言是 en／ja 時才設值；原生 App 不走這條。
+let I18N_HINT_LANG = '';
+const I18N_HINT_DISMISS_KEY = 'trainmap-lang-hint-dismissed';
 let I18N_LANG = (() => {
   const normalize = value => {
     const v = String(value || '').toLowerCase();
@@ -6926,9 +6947,13 @@ let I18N_LANG = (() => {
     if (query) return query;
     const saved = normalize(localStorage.getItem(I18N_STORAGE_KEY));
     if (saved) return saved;
+    const native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
     for (const value of (navigator.languages || [navigator.language])) {
       const detected = normalize(value);
-      if (detected) return detected;
+      if (!detected) continue;
+      if (native) return detected;
+      if (detected !== 'zh-TW' && !localStorage.getItem(I18N_HINT_DISMISS_KEY)) I18N_HINT_LANG = detected;
+      break;
     }
   } catch (e) {}
   return 'zh-TW';
@@ -7341,6 +7366,7 @@ function setLanguage(lang) {
     const url = new URL(location.href); url.searchParams.set('lang', lang);
     history.replaceState(null, '', url);
   } catch (e) {}
+  const langHint = document.getElementById('langHint'); if (langHint) langHint.hidden = true; // 任何入口切了語言，首訪提示就沒有意義了
   I18N_SWITCH_SNAPSHOT = i18nSwitchSnapshot();
   try { i18nRefreshDynamic(); } finally { I18N_SWITCH_SNAPSHOT = null; }
   i18nSyncNativeLanguage(lang);
@@ -36026,7 +36052,7 @@ function setupMapTools() {
     // 不能共用 followVisible(否則捷運跟車時整張卡不會抬,膠囊展開 cexp 就整片蓋住)。
     const fc = document.getElementById('freqCard');
     const lc = document.querySelector('.follow-lock-ctl');
-    const ih = document.getElementById('iabHint');
+    const ih = ['iabHint', 'langHint'].map(id => document.getElementById(id)).find(el => el && !el.hidden) || document.getElementById('iabHint'); // 兩張提示同一個落點，互斥顯示
     const ctl = document.querySelector('.controls');
     const stR = document.querySelector('.stage').getBoundingClientRect();
     const shellOk = isMobile && !document.body.classList.contains('ambient');
@@ -36128,7 +36154,7 @@ function setupMapTools() {
       // (跟隨態每幀 recenterTo 自己會吃到新值);差量記帳重複呼叫安全,無變化時是 no-op
       requestAnimationFrame(() => { pending = false; placeFsOverlays(); reframeFocus(); });
     });
-    for (const el of [document.querySelector('.controls'), document.getElementById('iabHint'),
+    for (const el of [document.querySelector('.controls'), document.getElementById('iabHint'), document.getElementById('langHint'),
                       document.getElementById('followPanel'), document.getElementById('freqCard'),
                       document.getElementById('mapActions')]) if (el) ro.observe(el);
   }
@@ -38846,6 +38872,38 @@ window.addEventListener('load', boot);
       setTimeout(tryShow, 600);
     };
     setTimeout(tryShow, 1400);
+  } catch (e) {}
+})();
+
+// ── 網頁版語言提示(v0929b) ──
+// 網頁版首次開啟固定繁中(I18N_LANG IIFE),navigator.languages 第一個可辨識語言是 en／ja 的訪客改給這條小提示:
+// 按語言鈕＝setLanguage(它本來就存偏好＋改網址),按 × 記 localStorage 不再提示。
+// 提示文字固定英／日文,因為它是給看不懂中文的人看的;所以整段不走 t()、也不進 zh 字典。
+// 等首訪教學卡收掉再浮出(兩張卡不疊);落點沿用 .iab-hint 與 placeFsOverlays 的下緣家具帳,不另立一套。
+(function () {
+  try {
+    const lang = I18N_HINT_LANG;
+    if (!lang) return;
+    const box = document.getElementById('langHint'), title = document.getElementById('langHintTitle');
+    const go = document.getElementById('langHintGo'), x = document.getElementById('langHintClose');
+    if (!box || !title || !go || !x) return;
+    // i18n-literal-ok: 語言提示給看不懂中文的人看，固定英／日文，不走 zh 翻譯字典
+    const COPY = {
+      en: { q: 'View Rail Island in English?', go: 'English', close: 'Dismiss' },
+      ja: { q: 'Rail Island（軌島）を日本語で表示しますか？', go: '日本語', close: '閉じる' }, // i18n-literal-ok: 同上，日文提示
+    }[lang];
+    title.textContent = COPY.q; go.textContent = COPY.go; x.setAttribute('aria-label', COPY.close);
+    box.lang = lang;
+    go.onclick = () => { box.hidden = true; setLanguage(lang); };
+    x.onclick = () => { box.hidden = true; try { localStorage.setItem(I18N_HINT_DISMISS_KEY, '1'); } catch (e) {} };
+    const tryShow = () => {
+      if (I18N_LANG !== 'zh-TW') return; // 期間已用別的入口切過語言
+      const howto = document.getElementById('howtoWrap'), iab = document.getElementById('iabHint');
+      const booted = document.readyState === 'complete' && typeof state !== 'undefined' && state.ready;
+      if (booted && (!howto || howto.hidden) && (!iab || iab.hidden)) { box.hidden = false; return; }
+      setTimeout(tryShow, 600);
+    };
+    setTimeout(tryShow, 800);
   } catch (e) {}
 })();
 </script>

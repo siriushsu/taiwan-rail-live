@@ -21,7 +21,28 @@ const server = http.createServer((request, response) => {
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 const failures = [];
-const paths = ['/about/', '/accuracy/', '/data-sources/', '/stations/', '/stations/taipei/', '/stations/formosa-boulevard/'];
+const paths = ['/about/', '/accuracy/', '/data-sources/', '/stations/', '/stations/taipei/', '/stations/formosa-boulevard/', '/en/', '/ja/'];
+// 英日文著陸頁與首頁必須互相對應:同一組 hreflang、各自 canonical、CTA 帶 ?lang= 進即時地圖
+const hreflangExpected = { 'zh-Hant': 'https://railisland.tw/', en: 'https://railisland.tw/en/', ja: 'https://railisland.tw/ja/', 'x-default': 'https://railisland.tw/' };
+const landings = { '/en/': { lang: 'en', cta: '/?lang=en', titleRe: /Taiwan Train Map/, canonical: 'https://railisland.tw/en/' }, '/ja/': { lang: 'ja', cta: '/?lang=ja', titleRe: /台湾鉄道/, canonical: 'https://railisland.tw/ja/' } };
+async function hreflangSet(page) {
+  return page.evaluate(() => Object.fromEntries([...document.querySelectorAll('link[rel=alternate][hreflang]')].map(el => [el.getAttribute('hreflang'), el.getAttribute('href')])));
+}
+async function inspectLanding(page, pathname, label) {
+  const want = landings[pathname];
+  const info = await page.evaluate(() => ({
+    lang: document.documentElement.lang, title: document.title,
+    canonical: document.querySelector('link[rel=canonical]')?.href,
+    ctas: [...document.querySelectorAll('a.button:not(.secondary), a.nav-live')].map(el => el.getAttribute('href')),
+  }));
+  if (info.lang !== want.lang) failures.push(`${label} html lang=${info.lang}`);
+  if (!want.titleRe.test(info.title)) failures.push(`${label} title 不含搜尋字：${info.title}`);
+  if (info.canonical !== want.canonical) failures.push(`${label} canonical=${info.canonical}`);
+  if (info.ctas.length < 2 || info.ctas.some(href => href !== want.cta)) failures.push(`${label} CTA 連結不是 ${want.cta}：${info.ctas.join('、')}`);
+  const set = await hreflangSet(page);
+  if (JSON.stringify(set) !== JSON.stringify(hreflangExpected)) failures.push(`${label} hreflang 不完整或不對應：${JSON.stringify(set)}`);
+}
+
 const widths = [360, 375, 414, 768];
 
 async function inspect(page, label) {
@@ -83,6 +104,7 @@ try {
         const response = await page.goto(`${base}${pathname}`, { waitUntil: 'load' });
         if (!response?.ok()) failures.push(`${engineName} desktop ${pathname} HTTP ${response?.status()}`);
         await inspect(page, `${engineName} desktop ${pathname}`);
+        if (landings[pathname]) await inspectLanding(page, pathname, `${engineName} desktop ${pathname}`);
         await page.close();
       }
       await desktop.close();
@@ -95,6 +117,10 @@ try {
         });
         const rootPage = await mobile.newPage();
         await rootPage.goto(`${base}/`, { waitUntil: 'domcontentloaded' });
+        if (width === widths[0]) {
+          const rootSet = await hreflangSet(rootPage);
+          if (JSON.stringify(rootSet) !== JSON.stringify(hreflangExpected)) failures.push(`${engineName} 首頁 hreflang 不對應：${JSON.stringify(rootSet)}`);
+        }
         await rootPage.locator('#tabMore').tap();
         const aeoFooterLinks = rootPage.locator('.ms-aeo-links a');
         if (await aeoFooterLinks.count() !== 3) failures.push(`${engineName} ${width}px 手機「關於」區 AEO 入口不是 3 個`);
@@ -137,4 +163,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`AEO 瀏覽器驗收通過：Chromium + WebKit；桌面與 ${widths.join('/')}px 觸控寬度；${paths.length} 個代表頁面`);
+console.log(`AEO 瀏覽器驗收通過：Chromium + WebKit；桌面與 ${widths.join('/')}px 觸控寬度；${paths.length} 個代表頁面（含 /en/、/ja/ 的 lang／title／canonical／hreflang／CTA）`);

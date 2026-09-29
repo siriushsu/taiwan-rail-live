@@ -435,10 +435,177 @@ write('stations/index.html', renderPage({
   <section class="content-section"><div class="notice"><strong>沒有列出的車站不代表軌島沒有收錄。</strong>這是第一批供搜尋與引用的穩定資料頁；完整站點與當下發車資訊仍在即時地圖中。</div></section>`,
 }));
 
+// ── 英日文獨立著陸頁（2026-09-29，v0929b）──────────────────────────────────────────────
+// 首頁網頁版固定繁中（Googlebot 是 en-US，原本會被自動切成英文），外國旅客改由 /en/、/ja/ 進來，
+// 再由 CTA 帶 ?lang= 進即時地圖。內容只改寫自上面 about／accuracy／data-sources 三頁與首頁英日文字典，不新增功能宣稱。
+// 文案紅線：非 GPS 系統寫「依時刻表在地圖上跑」；高鐵沒有逐車誤點；不提收費與通行證；不寫錄影含音樂。
+const landingUpdated = '2026-09-29';
+const hreflangLinks = [
+  ['zh-Hant', `${siteUrl}/`], ['en', `${siteUrl}/en/`], ['ja', `${siteUrl}/ja/`], ['x-default', `${siteUrl}/`],
+];
+const landings = {
+  en: {
+    htmlLang: 'en', ogLocale: 'en_US', pathname: '/en/', live: '/?lang=en',
+    title: 'Taiwan Train Map: TRA, High Speed Rail, Taipei MRT & Airport MRT | Rail Island',
+    description: 'Rail Island is an animated map of Taiwan\'s trains: Taiwan Railway (TRA), Taiwan High Speed Rail, Taipei MRT, Taoyuan Airport MRT, Kaohsiung MRT, Taichung MRT, light rail and the Alishan Forest Railway, running from official timetables and live data where available.',
+    skip: 'Skip to main content', brandLabel: 'Rail Island home', nav: 'Main navigation',
+    switchLabel: [['中文', '/', 'zh-Hant'], ['日本語', '/ja/', 'ja']],
+    openMap: 'Open the live map',
+    eyebrow: 'RAIL ISLAND · TAIWAN TRAIN MAP',
+    h1: 'Rail Island: a live animated map of Taiwan\'s trains',
+    lede: 'See Taiwan Railway (TRA), Taiwan High Speed Rail, Taipei MRT, Taoyuan Airport MRT, Kaohsiung MRT, Taichung MRT, light rail and the Alishan Forest Railway on one map. Trains move along the tracks by official timetable, corrected with official real-time data wherever it is available.',
+    secondary: ['Accuracy and limits (Traditional Chinese)', '/accuracy/'],
+    sections: [
+      { h: 'Which railways are on the map', type: 'facts', rows: [
+        ['Taiwan Railway (TRA)', 'Intercity and commuter trains around the island, drawn from the official timetable. When official real-time delay data is available it is used to correct where each train is on the timeline.'],
+        ['Taiwan High Speed Rail', 'Drawn from the official timetable. Rail Island does not claim per-train GPS or official real-time delays for high speed rail.'],
+        ['Taipei MRT and Taoyuan Airport MRT', 'Taipei Metro lines and the Taoyuan Airport MRT, including the link between Taipei Main Station and the airport.'],
+        ['Kaohsiung MRT, Taichung MRT and New Taipei Circular Line', 'Other city metros, shown from the official schedules, headways or arrival countdowns each system makes available.'],
+        ['Light rail and Alishan Forest Railway', 'Light rail lines and the Alishan Forest Railway run from public timetables and route data.'],
+      ] },
+      { h: 'How to use it', type: 'cards', cards: [
+        ['Pick a system', 'Use the tabs at the top to choose which railway to watch: TRA, high speed rail, metro or all of them together.'],
+        ['Tap a train', 'The camera follows that train until its terminal.'],
+        ['Tap a station', 'See upcoming departures and countdowns for that station.'],
+      ] },
+      { h: 'How accurate is it?', type: 'answer', paras: [
+        'Most operators do not publish per-train GPS positions. A moving train on the map is usually placed by combining the official timetable, running times between stations, stop times and any real-time arrival signal that is available. Systems without a per-train GPS feed run on the timetable, or on official arrival countdowns where those exist.',
+        'Tunnels, temporary changes, upstream outages or a device with the wrong clock can make the screen differ from what is happening on the tracks.',
+      ] },
+      { h: 'Where the data comes from', type: 'facts', rows: [
+        ['Taiwan Railway OpenData', 'Daily timetables, station information and train type codes.'],
+        ['Ministry of Transportation TDX', 'TRA real-time delays and station information, plus routes, stop sequences, timetables or headways for high speed rail, metro and light rail, used under the Open Government Data License, version 1.'],
+        ['Operator public data', 'Arrival countdowns, train movements or service notices, used where licensing and technical conditions allow.'],
+        ['OpenStreetMap', 'Fills in some track geometry. Data by OpenStreetMap contributors under the ODbL.'],
+      ] },
+      { h: 'Open the map', type: 'cta', text: 'Rail Island opens in Traditional Chinese by default. The button below opens the live map in English.' },
+      { h: 'Not a replacement for official travel information', type: 'notice', lead: 'Important:', text: 'Rail Island is good for exploring the network, not as the only basis for catching a train, safety decisions or operations. Check the operator\'s app, website, station boards or announcements for temporary suspensions and platform changes.' },
+    ],
+    footer: 'Rail Island is an independently maintained, source-available animated map of Taiwan\'s railways and is not affiliated with any operator.',
+    footerLinks: [['Accuracy and limits (Traditional Chinese)', '/accuracy/'], ['Data sources (Traditional Chinese)', '/data-sources/'], ['GitHub source', 'https://github.com/siriushsu/taiwan-rail-live']],
+    schemaName: 'Rail Island: Taiwan Train Map',
+  },
+  ja: {
+    htmlLang: 'ja', ogLocale: 'ja_JP', pathname: '/ja/', live: '/?lang=ja',
+    title: '台湾鉄道ライブ地図｜台鉄・高鉄・台北MRT・桃園空港MRT｜軌島 Rail Island',
+    description: '軌島（Rail Island）は、台鉄（TRA）、台湾高速鉄道、台北MRT、桃園空港MRT、高雄MRT、台中MRT、ライトレール、阿里山森林鉄道の列車を、公式時刻表と利用できる公式リアルタイムデータで動かす台湾鉄道の地図です。',
+    skip: 'メインコンテンツへ', brandLabel: '軌島 ホーム', nav: 'メインナビゲーション',
+    switchLabel: [['中文', '/', 'zh-Hant'], ['English', '/en/', 'en']],
+    openMap: 'ライブ地図を開く',
+    eyebrow: 'RAIL ISLAND · 台湾鉄道ライブ地図',
+    h1: '軌島：台湾の列車が動くライブ地図',
+    lede: '台鉄（TRA）、台湾高速鉄道、台北MRT、桃園空港MRT、高雄MRT、台中MRT、ライトレール、阿里山森林鉄道をひとつの地図で。列車は公式時刻表にそって走り、公式のリアルタイムデータが使える場合はそれで位置を補正します。',
+    secondary: ['精度と限界（繁体字中国語）', '/accuracy/'],
+    sections: [
+      { h: '地図に載っている鉄道', type: 'facts', rows: [
+        ['台鉄（TRA）', '台湾一周の特急・通勤列車を公式時刻表から描きます。公式のリアルタイム遅延データが使える場合は、時間軸上の列車位置の補正に使います。'],
+        ['台湾高速鉄道（高鉄）', '公式時刻表から描きます。高鉄の列車ごとの GPS や公式リアルタイム遅延は扱っていません。'],
+        ['台北MRT・桃園空港MRT', '台北メトロの各路線と桃園空港MRT（台北駅と空港を結ぶ路線）です。'],
+        ['高雄MRT・台中MRT・新北環状線', 'そのほかの都市のメトロは、各システムが公開している公式の時刻、運転間隔、到着カウントダウンにもとづいて表示します。'],
+        ['ライトレール・阿里山森林鉄道', 'ライトレールと阿里山森林鉄道は、公開されている時刻表と路線データにもとづいて走ります。'],
+      ] },
+      { h: '使い方', type: 'cards', cards: [
+        ['システムを選ぶ', '画面上部のタブで、台鉄・高鉄・メトロ、またはすべてから見たい鉄道を選びます。'],
+        ['列車をタップ', 'カメラがその列車を終点まで追いかけます。'],
+        ['駅をタップ', 'その駅のこれからの発車と到着カウントダウンを見られます。'],
+      ] },
+      { h: '精度はどのくらい？', type: 'answer', paras: [
+        '多くの運行会社は、列車ごとの GPS 位置を公開していません。地図上で動く列車は、公式時刻表、駅間の走行時間、停車時間、利用できるリアルタイムの到着情報を組み合わせて位置を求めています。列車ごとの GPS がないシステムは時刻表どおりに、公式の到着カウントダウンがあればそれにそって走ります。',
+        'トンネル、臨時の運行変更、情報源の停止、端末の時計のずれなどで、画面が現場と異なることがあります。',
+      ] },
+      { h: 'データの出どころ', type: 'facts', rows: [
+        ['台鉄 OpenData', '毎日の時刻表、駅の基本情報、列車種別コードなど。'],
+        ['交通部 TDX', '台鉄のリアルタイム遅延と駅情報、高鉄・メトロ・ライトレールの路線、停車駅順、時刻表または運転間隔。政府資料オープンライセンス第1版にもとづいて利用しています。'],
+        ['運行会社の公開データ', '許諾と技術的な条件が許す範囲で、到着カウントダウン、列車の動き、運行のお知らせを使います。'],
+        ['OpenStreetMap', '一部の線路形状を補います。OpenStreetMap の貢献者によるデータで、ODbL にもとづいて利用しています。'],
+      ] },
+      { h: '地図を開く', type: 'cta', text: '軌島は初期状態では繁体字中国語で開きます。下のボタンからは日本語でライブ地図を開けます。' },
+      { h: '公式の運行情報の代わりにはなりません', type: 'notice', lead: '重要：', text: '軌島は路線網を眺めて理解するためのもので、電車に間に合うかどうかの判断や、安全上の判断、運行管理の唯一の根拠にはしないでください。臨時運休やホームの変更は、運行会社のアプリ、ウェブサイト、駅の案内、お知らせで確認してください。' },
+    ],
+    footer: '軌島は、独立して運営されているソースコード公開の台湾鉄道アニメーション地図で、各運行会社とは関係ありません。',
+    footerLinks: [['精度と限界（繁体字中国語）', '/accuracy/'], ['データの出どころ（繁体字中国語）', '/data-sources/'], ['GitHub ソースコード', 'https://github.com/siriushsu/taiwan-rail-live']],
+    schemaName: '軌島 Rail Island：台湾鉄道ライブ地図',
+  },
+};
+
+function landingHtml(config) {
+  const canonical = `${siteUrl}${config.pathname}`;
+  const schema = {
+    '@context': 'https://schema.org', '@type': 'WebPage', name: config.schemaName, description: config.description, url: canonical,
+    inLanguage: config.htmlLang, dateModified: landingUpdated, isPartOf: { '@type': 'WebSite', name: '軌島 Rail Island', url: `${siteUrl}/` },
+  };
+  const renderSection = section => {
+    const h2 = `<h2>${escapeHtml(section.h)}</h2>`;
+    if (section.type === 'facts') return `<section class="content-section">${h2}<div class="fact-table">${section.rows.map(([label, value]) => `<div class="fact-row"><div class="fact-label">${escapeHtml(label)}</div><div class="fact-value">${escapeHtml(value)}</div></div>`).join('')}</div></section>`;
+    if (section.type === 'cards') return `<section class="content-section">${h2}<div class="card-grid">${section.cards.map(([title, body]) => `<article class="card"><h3>${escapeHtml(title)}</h3><p>${escapeHtml(body)}</p></article>`).join('')}</div></section>`;
+    if (section.type === 'answer') return `<section class="content-section">${h2}<div class="answer-box">${section.paras.map(text => `<p>${escapeHtml(text)}</p>`).join('')}</div></section>`;
+    if (section.type === 'cta') return `<section class="content-section">${h2}<div class="answer-box"><p>${escapeHtml(section.text)}</p></div><p><a class="button" href="${config.live}">${escapeHtml(config.openMap)}</a></p></section>`;
+    return `<section class="content-section">${h2}<div class="notice"><strong>${escapeHtml(section.lead)}</strong> ${escapeHtml(section.text)}</div></section>`;
+  };
+  return `<!doctype html>
+<html lang="${config.htmlLang}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>${escapeHtml(config.title)}</title>
+  <meta name="description" content="${escapeHtml(config.description)}">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <link rel="canonical" href="${canonical}">
+${hreflangLinks.map(([code, href]) => `  <link rel="alternate" hreflang="${code}" href="${href}">`).join('\n')}
+  <meta property="og:locale" content="${config.ogLocale}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="軌島 Rail Island">
+  <meta property="og:title" content="${escapeHtml(config.title)}">
+  <meta property="og:description" content="${escapeHtml(config.description)}">
+  <meta property="og:url" content="${canonical}">
+  <meta property="og:image" content="${siteUrl}/og-1200x630.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-180.png">
+  <meta name="theme-color" content="#F2EDE2">
+  <link rel="stylesheet" href="/assets/aeo.css">
+  <script type="application/ld+json">${jsonLd(schema)}</script>
+</head>
+<body>
+  <a class="skip-link" href="#main">${escapeHtml(config.skip)}</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="${config.pathname}" aria-label="${escapeHtml(config.brandLabel)}"><span class="brand-mark" aria-hidden="true">軌</span><span>軌島 Rail Island</span></a>
+      <nav class="site-nav" aria-label="${escapeHtml(config.nav)}">
+        ${config.switchLabel.map(([label, href, code]) => `<a href="${href}" hreflang="${code}" lang="${code}">${escapeHtml(label)}</a>`).join('\n        ')}
+        <a class="nav-live" href="${config.live}">${escapeHtml(config.openMap)}</a>
+      </nav>
+    </div>
+  </header>
+  <main class="page-shell" id="main">
+    <section class="hero">
+      <p class="eyebrow">${escapeHtml(config.eyebrow)}</p>
+      <h1>${escapeHtml(config.h1)}</h1>
+      <p class="lede">${escapeHtml(config.lede)}</p>
+      <div class="hero-actions"><a class="button" href="${config.live}">${escapeHtml(config.openMap)}</a><a class="button secondary" href="${config.secondary[1]}" hreflang="zh-Hant">${escapeHtml(config.secondary[0])}</a></div>
+    </section>
+    ${config.sections.map(renderSection).join('\n    ')}
+  </main>
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div>${escapeHtml(config.footer)}</div>
+      <div class="footer-links">${config.footerLinks.map(([label, href]) => `<a href="${href}">${escapeHtml(label)}</a>`).join('')}</div>
+    </div>
+  </footer>
+</body>
+</html>
+`;
+}
+for (const [code, config] of Object.entries(landings)) write(`${code}/index.html`, landingHtml(config));
+
 write('robots.txt', `User-agent: OAI-SearchBot\nAllow: /\n\nUser-agent: *\nAllow: /\n\nSitemap: ${siteUrl}/sitemap.xml\n`);
 
 const sitemapPaths = [
   '/',
+  '/en/',
+  '/ja/',
   '/about/',
   '/accuracy/',
   '/data-sources/',
@@ -448,6 +615,6 @@ const sitemapPaths = [
   '/privacy.html',
   '/terms.html',
 ];
-write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapPaths.map(pathname => `  <url><loc>${siteUrl}${pathname}</loc><lastmod>${updated}</lastmod></url>`).join('\n')}\n</urlset>\n`);
+write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapPaths.map(pathname => `  <url><loc>${siteUrl}${pathname}</loc><lastmod>${pathname === '/en/' || pathname === '/ja/' ? landingUpdated : updated}</lastmod></url>`).join('\n')}\n</urlset>\n`);
 
-console.log(`AEO pages built: ${stations.length} station pages + 4 guide pages + robots/sitemap`);
+console.log(`AEO pages built: ${stations.length} station pages + 4 guide pages + en/ja landing pages + robots/sitemap`);

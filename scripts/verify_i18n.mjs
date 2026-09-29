@@ -467,14 +467,83 @@ async function desktopCore(browser, engine) {
   }
 }
 
+// 2026-09-29(v0929b):網頁版首次開啟不再依 navigator.languages 自動切語言——Googlebot 是 en-US,
+// 原本會把中文首頁算繪成英文頁。新行為:?lang → 已存偏好 → zh-TW;en／ja 瀏覽器只給一條小提示(#langHint)。
+// 原生 App(Capacitor.isNativePlatform())維持依 navigator.languages 自動切換,由 nativeDetection 對照。
 async function navigatorDetection(browser, engine) {
-  const context = await browser.newContext({ viewport: { width: 1024, height: 768 }, locale: 'ja-JP' });
-  const { page, pageErrors } = await preparePage(context);
+  for (const [locale, lang, hintRe, buttonText] of [['en-US', 'en', /View Rail Island in English\?/, 'English'], ['ja-JP', 'ja', /日本語で表示しますか/, '日本語']]) {
+    // (一)首次開啟:中文＋提示;點切換→該語言,且重新整理(沒有 ?lang)後仍是該語言,提示不再出現
+    const context = await browser.newContext({ viewport: { width: 1024, height: 768 }, locale });
+    const { page, pageErrors } = await preparePage(context);
+    try {
+      assert(await page.getAttribute('html', 'lang') === 'zh-TW', `${locale} 網頁版首次開啟不是繁中：${await page.getAttribute('html', 'lang')}`);
+      assert(/軌島｜台鐵/.test(await page.title()), `${locale} 首次開啟 title 不是中文版：${await page.title()}`);
+      const hint = page.locator('#langHint');
+      await hint.waitFor({ state: 'visible', timeout: 15_000 });
+      assert(hintRe.test(await hint.innerText()), `${locale} 提示文字不對：${await hint.innerText()}`);
+      assert(await page.getAttribute('#langHint', 'lang') === lang, `${locale} 提示沒標 lang`);
+      await page.locator('#langHintGo').click();
+      await page.waitForFunction(value => document.documentElement.lang === value, lang);
+      assert(await hint.isHidden(), `${locale} 按切換後提示沒收起來`);
+      assert(await page.evaluate(() => localStorage.getItem('trainmap-language')) === lang, `${locale} 沒存語言偏好`);
+      await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(() => window.__i18n?.catalogReady && typeof state !== 'undefined' && state.ready, null, { timeout: 90_000 });
+      assert(await page.getAttribute('html', 'lang') === lang, `${locale} 切換後重新整理沒有保持 ${lang}`);
+      await page.waitForTimeout(2500);
+      assert(await hint.isHidden(), `${locale} 已有偏好後提示又出現`);
+      assert(pageErrors.length === 0, `pageerror：${pageErrors.join(' | ')}`);
+      record(engine, `網頁版 ${locale} 首次繁中＋提示，點「${buttonText}」切換並持久`);
+    } finally { await context.close(); }
+    // (二)點 ×:不再出現(重新整理後仍是繁中、沒有提示)
+    const context2 = await browser.newContext({ viewport: { width: 1024, height: 768 }, locale });
+    const second = await preparePage(context2);
+    try {
+      const hint = second.page.locator('#langHint');
+      await hint.waitFor({ state: 'visible', timeout: 15_000 });
+      await second.page.locator('#langHintClose').click();
+      assert(await hint.isHidden(), `${locale} 按 × 後提示沒收起來`);
+      await second.page.goto(BASE, { waitUntil: 'domcontentloaded' });
+      await second.page.waitForFunction(() => window.__i18n?.catalogReady && typeof state !== 'undefined' && state.ready, null, { timeout: 90_000 });
+      await second.page.waitForTimeout(2500);
+      assert(await hint.isHidden(), `${locale} 按 × 後重新整理提示又出現`);
+      assert(await second.page.getAttribute('html', 'lang') === 'zh-TW', `${locale} 按 × 後重新整理不是繁中`);
+      assert(second.pageErrors.length === 0, `pageerror：${second.pageErrors.join(' | ')}`);
+      record(engine, `網頁版 ${locale} 點 × 後不再提示`);
+    } finally { await context2.close(); }
+  }
+  // (三)?lang= 優先於一切:en-US 瀏覽器帶 ?lang=ja 直接是日文、不出提示
+  const context3 = await browser.newContext({ viewport: { width: 1024, height: 768 }, locale: 'en-US' });
+  const third = await preparePage(context3);
   try {
-    assert(await page.getAttribute('html', 'lang') === 'ja', '首次開啟沒有依 navigator.language 選日文');
-    assert((await bodyText(page, '#lead')).length > 20, '日文首次首屏沒有內容');
-    assert(pageErrors.length === 0, `pageerror：${pageErrors.join(' | ')}`);
-    record(engine, '首次依 navigator.language 選語言');
+    await third.page.goto(new URL('?lang=ja', BASE).href, { waitUntil: 'domcontentloaded' });
+    await third.page.waitForFunction(() => window.__i18n?.catalogReady && typeof state !== 'undefined' && state.ready, null, { timeout: 90_000 });
+    assert(await third.page.getAttribute('html', 'lang') === 'ja', '?lang=ja 沒有優先');
+    await third.page.waitForTimeout(2500);
+    assert(await third.page.locator('#langHint').isHidden(), '?lang= 有值時不該出提示');
+    record(engine, '?lang= 優先於瀏覽器語言，且不出提示');
+  } finally { await context3.close(); }
+}
+
+// 原生分支對照:Capacitor.isNativePlatform() 為真時,首次開啟仍依 navigator.languages 自動切換(行為與改版前相同),且不出網頁版提示。
+// 替身只有 isNativePlatform;index.html 其餘讀 window.Capacitor 的地方都用 ?. 或先 try 包住,拿到替身不會丟錯,
+// 但原生模式會走 App 專屬分支(例如不載入部分網頁功能),所以這裡只等語言與 __i18n 就緒,不等列車出現。
+async function nativeDetection(browser, engine) {
+  const context = await browser.newContext({ viewport: { width: 1024, height: 768 }, locale: 'ja-JP' });
+  await context.addInitScript(() => {
+    localStorage.setItem('trainmap-howto-seen', '1');
+    window.Capacitor = { isNativePlatform: () => true };
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  try {
+    await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+    await page.waitForFunction(() => window.__i18n?.catalogReady, null, { timeout: 90_000 });
+    assert(await page.getAttribute('html', 'lang') === 'ja', '原生分支首次開啟沒有依 navigator.language 選日文');
+    await page.waitForTimeout(2500);
+    assert(await page.locator('#langHint').isHidden(), '原生分支不該出網頁版語言提示');
+    assert(pageErrors.length === 0, `原生替身 pageerror：${pageErrors.join(' | ')}`);
+    record(engine, '原生分支(Capacitor 替身)仍依 navigator.language 自動切語言');
   } finally {
     await context.close();
   }
@@ -674,6 +743,7 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
   const scenarios = [
     ...(engine === 'Chromium' ? [['desktopCore', () => desktopCore(browser, engine)]] : []),
     ['navigatorDetection', () => navigatorDetection(browser, engine)],
+    ['nativeDetection', () => nativeDetection(browser, engine)],
     ['legalPages', () => legalPages(browser, engine)],
     ...widths.map(width => [`mobile ${width}px`, () => mobileScenario(browser, engine, width)]),
   ];

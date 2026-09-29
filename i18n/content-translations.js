@@ -3447,3 +3447,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '網頁標題與搜尋結果說明寫清楚：台鐵、高鐵、捷運即時地圖與時刻表': 'ページタイトルと検索結果の説明を、台鉄・高鉄・メトロのライブ地図と時刻表だとわかる表現にしました',
 });
+// 2026-09-29 網頁版首次開啟固定繁中＋英日文獨立介紹頁（SEO）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '網頁版首次開啟固定顯示繁體中文；英文、日文瀏覽器會出現可一鍵切換的語言提示': 'On the web, the first visit now always opens in Traditional Chinese; English and Japanese browsers get a small one-tap language prompt',
+  '網頁版第一次開啟固定顯示繁體中文，不再依瀏覽器語言自動切換；英文或日文瀏覽器會出現一個小提示，按一下就能切換語言，也能關掉不再提示（App 仍依手機語言）。另新增英文與日文的獨立介紹頁，方便外國旅客搜尋到軌島': 'On the web, the first visit now always opens in Traditional Chinese instead of switching automatically to the browser language. English and Japanese browsers see a small prompt that switches language in one tap and can be dismissed for good (the app still follows the phone language). We also added standalone English and Japanese intro pages so travellers can find Rail Island in search.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '網頁版首次開啟固定顯示繁體中文；英文、日文瀏覽器會出現可一鍵切換的語言提示': 'Web 版は初回起動を常に繁体字中国語で表示し、英語・日本語のブラウザには 1 タップで切り替えられる言語のお知らせを表示します',
+  '網頁版第一次開啟固定顯示繁體中文，不再依瀏覽器語言自動切換；英文或日文瀏覽器會出現一個小提示，按一下就能切換語言，也能關掉不再提示（App 仍依手機語言）。另新增英文與日文的獨立介紹頁，方便外國旅客搜尋到軌島': 'Web 版は初回起動時にブラウザの言語へ自動で切り替えず、常に繁体字中国語で開くようにしました。英語・日本語のブラウザには、1 タップで言語を切り替えられる小さなお知らせが表示され、閉じれば二度と表示されません（アプリは従来どおり端末の言語に従います）。あわせて、海外からの旅行者が検索で見つけやすいよう、英語版・日本語版の紹介ページを追加しました。',
+});
