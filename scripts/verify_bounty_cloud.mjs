@@ -8,6 +8,16 @@
 //     主對話派工單的判讀，不是使用者逐字說的。
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準（突變表在回報裡）。
 //
+// ⚠️ 假 D1 的保真度（稽核 F20）：scripts/d1_local.mjs 的 batch() 是排隊序列化的，但 batch 之外的單句寫入
+//    可以插進另一個 batch 的交易中間；真的 D1 不會這樣。所以 S 組「兩個併發的請求」只證明「序列化之後的
+//    各種交錯」是安全的，證明不了真 D1 的行為。上線後要對正式庫做一次唯讀抽查（同一營運日兩列、
+//    重複的雲端籌碼 ref）。
+//
+// 稽核修補（身分與授權）之後：雲端搭乘會發籌碼、籌碼可以花，所以已併進帳號的裝置、或帳號（uid）本身送搭乘，
+// 都必須帶該帳號的 Bearer（G4）。P1a 原本拿 `Authorization: Bearer plus-token` 當「通行證標頭」的替身，
+// 現在 Bearer 是真的身分憑證（會被驗），所以替身換成 x-plus-token 系列標頭——被驗的東西不變（通行證與結果無關）。
+// 身分規則本身的驗收在 scripts/verify_bounty_auth.mjs。
+//
 // 分組：C 基本規則與冪等　S 籌碼結算（模擬器、補齊、併發）　T 車次驗證與時間窗（合成班表，逐邊界）
 //       X 四種系統各一個成功案例（讀真班表檔）　G 閘門與路由　P 通行證欄位不影響結果　D 白名單與 SYS_DEFS 對得上
 import { readFileSync, existsSync } from 'node:fs';
@@ -97,6 +107,14 @@ const post = (b, hdr = {}, method = 'POST') => req('/api/cloud-ride', {
   ...(method === 'GET' ? {} : { body: typeof b === 'string' ? b : JSON.stringify(b) }) });
 const ride = (w, b, hdr) => call(_bounty.cloudRide, post(b, hdr), w.env);
 const me = (w, actor) => call(_bounty.chipsMe, req('/api/chips-me?actor=' + actor), w.env);
+// Firebase 替身：只在 fn 執行期間換掉 fetch（其餘時間仍是「一律丟例外」），呼叫記在 calls、不記進 outbound——
+// outbound 專門抓「不該有的對外連線」（P1c／D2b 要求它全程為 0）。uid＝驗過會回的 uid，null＝Firebase 說 token 無效。
+async function withFirebase(uid, fn) {
+  const saved = globalThis.fetch, calls = [];
+  globalThis.fetch = async (u) => { calls.push(String(u));
+    return uid ? new Response(JSON.stringify({ users: [{ localId: uid }] }), { status: 200 }) : new Response('{}', { status: 400 }); };
+  try { return { out: await fn(), calls }; } finally { globalThis.fetch = saved; }
+}
 let rid = 0;
 const nextReq = () => 'req-' + String(++rid).padStart(6, '0');                        // 10 字元，過 8–64 的字元集規則
 // 預設是「今天的 101，09:40 上車、連續 600 秒」——合成班表裡 101 今天 10:00 開，窗從 09:30 起
@@ -617,12 +635,14 @@ await attempt('G3', async () => {
   ok('G3b 經 worker.fetch 路由：GET /api/cloud-ride → 405（不是 404、也不是 200）', g.status === 405, g.text);
 });
 await attempt('G4', async () => {
-  // 合併過的匿名 token：搭乘寫在 uid 名下（resolveActor 轉向）
-  const w = world({});
+  // 合併過的匿名 token：搭乘寫在 uid 名下（resolveActor 轉向）。
+  // 稽核 F3 改寫：必須帶 uid 的 Bearer（舊版不帶任何憑證就能替別人的帳發搭乘、發籌碼）；種子也補上正式合併會留下的 uid 帳號列
+  const w = world({ env: { FIREBASE_WEB_API_KEY: 'k' } });
   w.db.prepare("INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES ('dev-g4tomb01',NULL,0,'uid-g4real0001',1)").run();
-  const r = await ride(w, mb(TODAY, { actor: 'dev-g4tomb01' }));
-  ok('G4 已併進 uid 的 device token 送搭乘：列寫在 uid 名下，token 名下零列',
-    r.status === 200 && q.nRides(w, 'uid-g4real0001') === 1 && q.nRides(w, 'dev-g4tomb01') === 0, r.text);
+  w.db.prepare("INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES ('uid-g4real0001','uid-g4real0001',0,NULL,1)").run();
+  const { out: r, calls } = await withFirebase('uid-g4real0001', () => ride(w, mb(TODAY, { actor: 'dev-g4tomb01' }), { Authorization: 'Bearer tok-g4' }));
+  ok('G4 已併進 uid 的 device token 送搭乘（帶 uid 的 Bearer）：列寫在 uid 名下，token 名下零列；Firebase 恰好查 1 次',
+    r.status === 200 && q.nRides(w, 'uid-g4real0001') === 1 && q.nRides(w, 'dev-g4tomb01') === 0 && calls.length === 1, r.text);
 });
 
 // ═══ P 組：通行證欄位不影響結果（v2 §3.4：籌碼與通行證無關）═══════════════════════════
@@ -636,7 +656,7 @@ await attempt('P1', async () => {
     return { r, rows: q.rides(w, A).length, led: q.cloudLedger(w, A).map(x => x.ref), sql: w.sql.join('\n') };
   };
   const base = await run({});
-  const plus = await run({ plus: true, plusActive: true, isPlus: true, entitlement: 'plus', pass: 'active', 通行證: true }, { Authorization: 'Bearer plus-token', 'x-plus': '1' });
+  const plus = await run({ plus: true, plusActive: true, isPlus: true, entitlement: 'plus', pass: 'active', 通行證: true }, { 'x-plus-token': 'plus-token', 'x-plus': '1', 'x-entitlement': 'plus' });
   ok('P1a 帶滿通行證欄位與標頭的請求，結果與不帶的完全相同（同 status、同回應、同列數、同帳本）',
     base.r.status === 200 && plus.r.status === 200 && same(base.r.json, plus.r.json) && base.rows === plus.rows && same(base.led, plus.led) && base.r.json.chipAwarded === true,
     base.r.text + ' / ' + plus.r.text);

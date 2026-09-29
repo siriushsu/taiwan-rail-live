@@ -6122,7 +6122,10 @@ async function bountyRules(env) {
 
 // actor 白名單:crypto.randomUUID() 的形狀，或 Firebase uid（英數 28 碼上下）。
 // 不白名單化就等於讓任意字串進 D1 的主鍵欄位——那是 delayHistory 對車次號做過的同一件事。
-function isActorId(s) { return typeof s === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(s); }
+// 🔴 字面 'ephemeral' 一律不收：網頁在 localStorage 存不下 id 時，userDataDeviceId()（index.html）回的就是這個值，
+// 也就是「所有存不下 id 的裝置」共用同一個 actor。收下它，這些人的點數、籌碼、解鎖就全混在同一個身分底下，
+// 誰都讀得到、花得掉別人的。所有懸賞端點與刪帳號的 deviceActor 都過這個函式，擋在這裡就全擋。
+function isActorId(s) { return typeof s === 'string' && s !== 'ephemeral' && /^[A-Za-z0-9_-]{8,64}$/.test(s); }
 
 // Firebase ID token → uid。管線與 delayHistory（付費牆）／deleteAccountData（刪帳號）完全相同，
 // 抽成函式只是為了不再抄第三遍。驗不過一律回 null，呼叫端自己決定要回 401 還是降級。
@@ -6144,9 +6147,71 @@ async function firebaseUid(env, idToken) {
 // 合併過的 device token，後續寫入一律轉向 uid（規格 §6「身分與合併」）。
 // 只跟一跳:合併端點保證 merged_into 一定指向一個沒有 merged_into 的列(uid 列)，
 // 跟多跳等於默許鏈狀合併，而那會在合併失敗重試時繞成環。
+// 🔴 這個函式只回答「這個 token 的東西記在誰名下」，不回答「這個請求有沒有資格用那個帳號」：
+// 現在只剩驗證 cron 與 /api/bounty-me 的 ?actor= 讀取還走它；錢包端點（garage-redeem、cloud-ride、chips-me）與
+// 賺的端點（bounty-submit、bounty-claim）一律走下面的 bountyIdentity——merged_into 是任何人拿著 uid 都能替別人掛上的標記（稽核 F2），
+// 只靠它轉向就等於「知道 token 就能花掉帳號的錢」。
 async function resolveActor(env, actor) {
   const row = await env.DELAY_DB.prepare('SELECT merged_into FROM bounty_points WHERE actor=?').bind(actor).first();
   return (row && row.merged_into) ? String(row.merged_into) : actor;
+}
+
+// ── 懸賞身分：誰能用哪個 actor 做事（路段懸賞 v2 稽核 F2／F3）────────────────────────────────
+// 三條原則，這一區與 bountyMerge／chipsMe／bountyMe 共用：
+//   a. uid 不是祕密、永遠不是憑證：以某個 uid 的身分做事，一律要帶「那個 uid 的」Firebase Bearer。
+//   b. 匿名裝置的 installId 自己就是憑證；一旦併進帳號，帳號的錢包（兌換、雲端搭乘、讀籌碼）只認帳號的 Bearer。
+//   c. 趟次上傳（bounty-submit）與認領（bounty-claim）是「賺」不是「花」：併過的裝置不帶 Bearer 照樣記進帳號；
+//      只有 actor 自己就是帳號（uid）時才要 Bearer，否則任何人拿著別人的 uid 就能替他認領、灌樣本。
+// 「這個 actor 是帳號」＝bounty_points 有它的列、而且 uid 欄非 NULL（bountyMerge ① 與下面的 S0 建的 (uid, uid, 0, NULL)）；
+// 帳號身分只增不減：沒有任何路徑會把 uid 欄改回 NULL。「這個 actor 是併進別人的裝置」＝merged_into 非 NULL。
+
+// S0：確保 uid 的帳號列存在，且不掛著任何 merged_into。每個「帶著有效 Bearer 的寫入」在做任何身分判斷之前都先跑它。
+// 為什麼必須：後面所有規則都靠「bounty_points 有這個 actor 的列、uid 非 NULL」認出帳號。少了這一步，
+// 同一個瀏覽器換帳號登入（bountyMerge 回 409、帳號列沒被建出來）之後，用 Bearer 領到的籌碼會落在一個「不是帳號」的 key 底下，
+// 任何人不帶 token 只要知道那個 uid 就花得掉。順便把別人先前用 bountyMerge 掛在這個 uid 列上的 merged_into 清掉
+// （F2：攻擊者拿還沒出現過的 uid 當來源合併，等於預先佔位；本人第一次帶 Bearer 出現時在這裡收回）。
+// ON CONFLICT 帶 WHERE：列已經是「uid 對、沒有 merged_into」的常態就整句空操作，不為每個請求多寫一列 D1。
+// 冪等；updated_at 沒有任何讀者，所以只在真的改了列時才動它。
+async function bountyEnsureAccount(env, uid) {
+  await env.DELAY_DB.prepare(
+    'INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,?,0,NULL,?)' +
+    ' ON CONFLICT(actor) DO UPDATE SET uid = excluded.uid, merged_into = NULL, updated_at = excluded.updated_at' +
+    ' WHERE bounty_points.uid IS NOT excluded.uid OR bounty_points.merged_into IS NOT NULL'
+  ).bind(uid, uid, Number(env.BOUNTY_NOW) || Date.now()).run();
+}
+
+// 解析這一次請求「以誰的身分」寫入。回 { who }（用這個 key 讀寫）或 { res }（直接把這個錯誤回應丟給客戶端）。
+//   Authorization: Bearer 有帶 → 用 firebaseUid 驗；驗不過一律 401 unauthorized（不降級成匿名：帶了壞 token 多半是過期，
+//   悄悄當匿名處理會把使用者的兌換記到錯的 key 上）。驗過的 uid 先過 S0。
+//   mode 'wallet'（花／查餘額：garage-redeem、cloud-ride、chips-me ?actor=）：
+//     這個 actor 不是帳號、也沒併進任何人 → 它就是匿名裝置，who＝actor，不需要 token；
+//     是帳號、或併進了某個帳號 → 必須帶那個帳號的 Bearer：沒帶 401 auth_required、是別人的 403 wrong_account，通過則 who＝帳號。
+//   mode 'earn'（賺：bounty-submit、bounty-claim）：
+//     actor 自己就是帳號（uid）→ 必須帶自己的 Bearer（同上兩種錯誤），who＝actor；
+//     否則沿用 resolveActor 的行為（併過的裝置記進帳號，不需要 token；沒併過的記在自己名下）。
+// 🔴 呼叫端必須在「所有便宜的請求形狀檢查之後、第一次讀寫 D1 之前」呼叫（檢查早於任何寫入，但形狀錯的請求不必為它付 D1 讀取）。
+async function bountyIdentity(request, env, actor, mode) {
+  const m = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);
+  let uid = null;
+  if (m) {
+    uid = await firebaseUid(env, m[1]);
+    if (!uid) return { res: jsonRes({ error: 'unauthorized' }, 401, 'no-store') };
+    await bountyEnsureAccount(env, uid);
+  }
+  const row = await env.DELAY_DB.prepare('SELECT uid, merged_into FROM bounty_points WHERE actor=?').bind(actor).first();
+  const isAccount = !!(row && row.uid);
+  // 這個 actor 背後的帳號：自己就是帳號＝它的 uid；併進別人的裝置＝merged_into；都不是＝null（匿名裝置）
+  const acct = isAccount ? String(row.uid) : (row && row.merged_into ? String(row.merged_into) : null);
+  if (mode === 'earn') {
+    if (!isAccount) return { who: acct || actor };
+    if (!uid) return { res: jsonRes({ error: 'auth_required' }, 401, 'no-store') };
+    if (uid !== actor) return { res: jsonRes({ error: 'wrong_account' }, 403, 'no-store') };
+    return { who: actor };
+  }
+  if (acct === null) return { who: actor };
+  if (!uid) return { res: jsonRes({ error: 'auth_required' }, 401, 'no-store') };
+  if (uid !== acct) return { res: jsonRes({ error: 'wrong_account' }, 403, 'no-store') };
+  return { who: acct };
 }
 
 // 🔴 正向掃描整包 payload 有沒有任何經緯度欄位（規格 §11：正向掃 key，不是抽查特定欄位）。
@@ -6284,6 +6349,8 @@ async function bountyBoard(request, env) {
 // POST /api/bounty-claim：接下一張旅程卡。
 // 🔴 鎖的是價格，不是獨佔權（規格 §3）。第二個人照樣接得到、照樣計點——捷運段的採用門檻本來
 // 就需要多趟一致（N≥3），做成獨佔會直接擋掉自己需要的樣本。使用者只看到「已有 N 人接了這段」。
+// 身分：認領是「賺」不是「花」（bountyIdentity 'earn'）。併過的裝置不帶 Bearer 照樣記進帳號；actor 自己就是 uid 時
+// 必須帶那個 uid 的 Bearer——沒帶 401 auth_required、帶了別人的 403 wrong_account、Bearer 驗不過 401 unauthorized。
 async function bountyClaim(request, env) {
   // 節流擋在任何 D1 寫入之前（比照 delayHistory:被擋掉的請求若已經花掉錢，擋在後面等於沒擋）
   if (await rateLimited(env.BOUNTY_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
@@ -6298,7 +6365,11 @@ async function bountyClaim(request, env) {
   const dir = Number(dirStr);
   if (!(dir === 0 || dir === 1)) return jsonRes({ error: 'bad_card' }, 400, 'no-store');
   try {
-    const actor = await resolveActor(env, b.actor);
+    // 身分（見 bountyIdentity 'earn'）：認領是「賺」不是「花」——併過的裝置不帶 Bearer 照樣記進帳號（網頁的認領只送 actor＋cardId，
+    // 永遠不帶 Bearer）；只有 actor 自己就是 uid 時才必須帶那個 uid 的 Bearer。擋在第一次讀寫 D1 之前。
+    const idn = await bountyIdentity(request, env, b.actor, 'earn');
+    if (idn.res) return idn.res;
+    const actor = idn.who;
     const now = Date.now(), expires = now + 86400000;
     // 只認領還開著的單位。track 收滿就下架；dwell 收滿仍可接（獎勵衰減但不歸零）
     const rs = await env.DELAY_DB.prepare(
@@ -6330,8 +6401,11 @@ async function bountyClaim(request, env) {
 // 伺服器端寫入總閘（2026-07-29 稽核：「沒有伺服器功能總閘」）。出事時把 BOUNTY_WRITES 設成
 // 'off' 就能立刻停掉所有懸賞寫入，不必改前端、不必等 App 送審——前端把批次留在上傳佇列，
 // 恢復後照樣傳得上來。預設開著：沒設這個變數的環境行為完全不變。
-// 刻意不擋 /api/bounty-merge：那支要帶 Firebase token、只搬既有的列、不長資料，關掉它只會讓
-// 停機期間登入的人看不到自己登入前的貢獻。
+// 刻意不擋 /api/bounty-merge：它要帶有效的 Firebase token、還受 AUTH_LIMITER 限流，而且不「賺」任何新東西——
+// 點數與籌碼是把既有的列改名到帳號底下（總量守恆；雙胞胎解鎖的退款只是把重複那座已花的價格還回去）。
+// 它每次呼叫會新增的只有 bounty_points 的兩列（帳號列、來源的墓碑列），是有界的。關掉它的代價則是真的：
+// 停機期間登入的人合併不了、看不到自己登入前的貢獻，而且帳號列建不出來，後面的錢包規則（bountyIdentity）就認不得他。
+// （舊版寫「只搬既有的列、不長資料」——①b 加了墓碑列、S0 加了帳號列之後那句話已經不成立，理由改寫成上面這樣。）
 function bountyWritesOff(env) { return String(env.BOUNTY_WRITES || '').toLowerCase() === 'off'; }
 
 const BOUNTY_MAX_SAMPLES_PER_BATCH = 600;   // 60 秒批次 @1Hz ＝ 60 筆；600 給重試合併留十倍餘裕
@@ -6359,6 +6433,8 @@ const BOUNTY_LINE_ID_RE = /^[^|\u0000-\u001f\u007f]{1,32}$/u;
 const BOUNTY_REQUEST_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 // POST /api/bounty-submit：沿途每 60 秒一批。一批一列、不在寫入時合併——
 // 每批獨立可驗，斷線／沒電時已經傳出去的不會丟，這是「部分覆蓋也計點」的前提（規格 §5）。
+// 身分：上傳是「賺」不是「花」（bountyIdentity 'earn'）。併過的裝置不帶 Bearer 照樣記進帳號；actor 自己就是 uid 時
+// 必須帶那個 uid 的 Bearer——沒帶 401 auth_required、帶了別人的 403 wrong_account、Bearer 驗不過 401 unauthorized。
 async function bountySubmit(request, env) {
   if (await rateLimited(env.BOUNTY_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
   if (bountyWritesOff(env)) return jsonRes({ error: 'bounty_paused' }, 503, 'no-store');
@@ -6404,7 +6480,11 @@ async function bountySubmit(request, env) {
     catch (e) { return jsonRes({ error: 'not_ready' }, 503, 'no-store'); }
     if (!units || !units.lines || !units.lines[`${b.sys}|${b.lnId}`])
       return jsonRes({ error: 'unknown_line' }, 400, 'no-store');
-    const actor = await resolveActor(env, b.actor);
+    // 身分（見 bountyIdentity 'earn'）：上傳是「賺」不是「花」——併過的裝置不帶 Bearer 照樣記進帳號（App 的錄程上傳不帶 Bearer）；
+    // 只有 actor 自己就是 uid 時才必須帶那個 uid 的 Bearer，不然任何人拿著別人的 uid 就能往他名下灌樣本。擋在第一次讀寫 D1 之前。
+    const idn = await bountyIdentity(request, env, b.actor, 'earn');
+    if (idn.res) return idn.res;
+    const actor = idn.who;
     // 有 requestId 時樣本 id 是確定值：同一批重送（回應掉了、使用者連點）撞到同一個 id，DB 只會有一列。
     // 🔴 用「解析前」的 b.actor 而不是 resolveActor 之後的 actor：裝置 token 在兩次重送之間被併進 uid 時，
     // 解析後的 actor 會變，id 跟著變，去重就對不上；b.actor 是客戶端自己送的，兩次重送一定相同。
@@ -6448,17 +6528,21 @@ async function bountySubmit(request, env) {
 async function bountyMe(request, env) {
   const url = new URL(request.url);
   let who = url.searchParams.get('actor') || '';
+  let verified = false;        // Bearer 驗過的 uid 就是最終身分：不再過 resolveActor（見下）
   const auth = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);
   if (auth) {
     if (await rateLimited(env.AUTH_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
     const uid = await firebaseUid(env, auth[1]);
     if (!uid) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
-    who = uid;
+    who = uid; verified = true;
   }
   if (!isActorId(who)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
   try {
     const rules = await bountyRules(env);
-    const actor = await resolveActor(env, who);
+    // 🔴 Bearer 路徑不跟 merged_into：驗過的 uid 讀的就是它自己的帳。若還跟，別人只要把這個 uid 當「來源」併走
+    // （舊版 bountyMerge 不擋，列上就會被掛一個 merged_into），本人帶著自己的 Bearer 讀到的就是攻擊者的帳（稽核 F2）。
+    // ?actor= 路徑（網頁、匿名裝置）維持原行為：併過的裝置看到的是帳號的帳。
+    const actor = verified ? who : await resolveActor(env, who);
     const p = await env.DELAY_DB.prepare('SELECT points FROM bounty_points WHERE actor=?').bind(actor).first();
     // 白名單欄位：reject_code 連 SELECT 都不選進來，才不會有人日後手滑把整列丟出去
     const rs = await env.DELAY_DB.prepare(
@@ -6526,6 +6610,17 @@ async function bountyMe(request, env) {
 //   · 籌碼帳本：整批改名，ref 不動。
 // 每日上限（trip 籌碼、雲端搭乘每日 1 次）不回溯、不追討：兩邊各自領到的就是各自領到的。
 // 沒有 bounty_points 列的 token（只有籌碼／雲端搭乘）也要留下「併進誰」的標記，否則合併後它再寫的東西掉回 token 名下。
+//
+// 🔴 誰可以當「來源」（稽核 F2：合併劫持）：uid 不是祕密，所以來源只能是「匿名裝置」，絕不能是別人的帳號：
+//   · 來源列是帳號（uid 欄非 NULL）→ 400 not_a_device，什麼都不搬。舊版連別人的 uid 都肯當來源：
+//     把受害者的點數、籌碼、解鎖整包搬進攻擊者的帳，再把受害者的列標成「併進攻擊者」，之後受害者的 Bearer 讀取也被導向攻擊者的帳。
+//   · 來源已經併進「別的」uid（merged_into 非 NULL 且不等於這位呼叫者）→ 409 merged_elsewhere，什麼都不搬。
+//     （同一個瀏覽器換帳號登入：裝置早就併進前一個帳號了，後一個帳號不能把它拉走。）
+//   · 來源是還沒出現過的 uid：查不到任何東西可搬，只會被標成墓碑；本人第一次帶 Bearer 出現時，
+//     ①（本函式）或 S0（bountyEnsureAccount，其他寫入端點）把那列的 merged_into 清掉、恢復成帳號列。
+// 這些判斷不是「先讀一次再決定」（那是有 TOCTOU 的），而是寫在 batch 每一句的守衛裡（②③ 押「merged_into IS NULL AND uid IS NULL」，
+// ④⑤ 與 v2 四張表的每一句押 G），與 ③ 同一個交易；batch 之後再讀兩列，只用來決定回 400／409／200。
+// 所以 400／409 的請求除了 ①（S0：帳號列）與 ①b（來源的空列）之外一列都沒動。
 async function bountyMerge(request, env) {
   if (await rateLimited(env.AUTH_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
   let b;
@@ -6534,8 +6629,12 @@ async function bountyMerge(request, env) {
   const auth = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);
   const uid = auth ? await firebaseUid(env, auth[1]) : null;
   if (!uid) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
-  if (b.actor === uid) return jsonRes({ ok: true, uid, points: 0, merged: false }, 200, 'no-store');
   try {
+    if (b.actor === uid) {
+      // 自己併自己：沒有東西可搬。但它仍是「帶著有效 Bearer 的寫入」，S0 照做（帳號列必須存在）。
+      await bountyEnsureAccount(env, uid);
+      return jsonRes({ ok: true, uid, points: 0, merged: false }, 200, 'no-store');
+    }
     const now = Date.now(), db = env.DELAY_DB, dev = b.actor;
     // 語句順序有意義：② 必須排在 ③ 之前，否則來源已經被 ③ 歸零，② 讀到的永遠是 0；
     // v2 的四張表（籌碼帳本、車庫解鎖、雲端搭乘、去重貢獻）必須排在 ③ 之後——它們的守衛讀的是 ③ 標記的結果。
@@ -6543,32 +6642,37 @@ async function bountyMerge(request, env) {
     const stmts = [], at = {};
     const add = (name, st) => { at[name] = stmts.length; stmts.push(st); };
     // 「這個 token 現在歸這個 uid」：③ 標記之後 merged_into 等於 uid ⇔ 這次（或先前同一個 uid 的呼叫）消化了它。
-    // 已經併進「別的 uid」的 token 一列都不搬（那是別人帳號底下的資料，同 bountyPurgeUid 的 notElsewhere 守衛）。
+    // 已經併進「別的 uid」的 token 一列都不搬（那是別人帳號底下的資料，同 bountyPurgeUid 的 notElsewhere 守衛）；
+    // 帳號列（uid 非 NULL）也不搬——正常情況帳號列不會有 merged_into，但舊版的 F2 攻擊會留下「帳號列＋merged_into」的髒列，
+    // 沒有 uid IS NULL 的話，同一個攻擊者對那種列重跑一次，④⑤與 v2 四張表照樣搬得動。
     // 守衛寫在每一句寫入裡、與 ③ 同一個交易，不是事前讀一次再判斷（同一種併發窗，見上面 2026-07-29 稽核）。
-    const G = ' AND EXISTS (SELECT 1 FROM bounty_points WHERE actor=? AND merged_into=?)';
-    // ① 目的列先確保存在（第一次登入時還沒有）
+    const G = ' AND EXISTS (SELECT 1 FROM bounty_points WHERE actor=? AND merged_into=? AND uid IS NULL)';
+    // ① 目的列（＝S0）先確保存在（第一次登入時還沒有），並且清掉別人預先掛在它身上的 merged_into：
+    // 攻擊者拿「還沒出現過的 uid」當來源合併會把那列標成墓碑（F2），本人第一次帶 Bearer 合併時要在這裡收回帳號身分。
     add('uidRow', db.prepare(
       'INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,?,0,NULL,?)' +
-      ' ON CONFLICT(actor) DO UPDATE SET uid = excluded.uid, updated_at = excluded.updated_at'
+      ' ON CONFLICT(actor) DO UPDATE SET uid = excluded.uid, merged_into = NULL, updated_at = excluded.updated_at'
     ).bind(uid, uid, now));
     // ①b 來源列也先確保存在：只有籌碼／雲端搭乘、沒錄過程的裝置在 bounty_points 沒有列，③ 就沒有東西可標記，
     // 合併之後 resolveActor 認不出它併進了誰，它再寫的東西會掉回這個 token 名下而不是 uid。點數 0；merged_into 留給 ③ 標。
     add('devRow', db.prepare(
       'INSERT OR IGNORE INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,NULL,0,NULL,?)'
     ).bind(dev, now));
-    // ② 加點：來源值在交易內當場讀，且同押 merged_into IS NULL——已被別人合併過的來源加 0
+    // ② 加點：來源值在交易內當場讀，且同押 merged_into IS NULL AND uid IS NULL——
+    // 已被別人合併過的來源、或來源根本是個帳號，都加 0
     add('carry', db.prepare(
       'UPDATE bounty_points SET points = points + COALESCE(' +
-      '(SELECT points FROM bounty_points WHERE actor=? AND merged_into IS NULL), 0),' +
+      '(SELECT points FROM bounty_points WHERE actor=? AND merged_into IS NULL AND uid IS NULL), 0),' +
       ' updated_at=? WHERE actor=?'
     ).bind(dev, now, uid));
     // ③ 標記來源並歸零。changes=0 ⇔ ② 也必然加了 0（同一個守衛、同一筆交易），兩者不可能不一致
     add('mark', db.prepare(
-      'UPDATE bounty_points SET points=0, merged_into=?, updated_at=? WHERE actor=? AND merged_into IS NULL'
+      'UPDATE bounty_points SET points=0, merged_into=?, updated_at=? WHERE actor=? AND merged_into IS NULL AND uid IS NULL'
     ).bind(uid, now, dev));
-    // ④⑤ 樣本與認領也一起改名，否則 /api/bounty-me 查 uid 會看不到登入前的貢獻
-    add('samples', db.prepare('UPDATE bounty_samples SET actor=? WHERE actor=?').bind(uid, dev));
-    add('claims', db.prepare('UPDATE bounty_claims  SET actor=? WHERE actor=?').bind(uid, dev));
+    // ④⑤ 樣本與認領也一起改名，否則 /api/bounty-me 查 uid 會看不到登入前的貢獻。
+    // 🔴 與 v2 四張表同一個守衛 G：舊版這兩句沒有守衛，來源併進別人（或根本是別人的帳號）時，樣本與認領照樣被搬走。
+    add('samples', db.prepare('UPDATE bounty_samples SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
+    add('claims', db.prepare('UPDATE bounty_claims  SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
 
     // ── 路段懸賞 v2 的四張表：全部同一個交易，搬到 uid 名下；撞主鍵的兩邊併成一份 ──
     // 🔴 每日上限（trip 籌碼每人每日 dailyChipCap 顆、雲端搭乘每人每日 1 次）不回溯、不追討：
@@ -6629,10 +6733,16 @@ async function bountyMerge(request, env) {
     add('contribMove', db.prepare('UPDATE bounty_seg_contrib SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
     // 冪等：每一句都以 actor=dev 為來源，搬完 dev 名下就沒有列，重跑時全部是 0 列的空操作；退款另有 UNIQUE(kind, ref)＋OR IGNORE。
     const res = await db.batch(stmts);
-    // merged ＝「這一次呼叫真的消化掉了來源列」，直接讀 ③ 改了幾列，不再靠事前讀到的 carry 推論。
+    // batch 之後讀兩列，決定回 400／409／200。寫入的守衛都已經在 batch 裡（見函式開頭的說明），這裡只是「說結果」：
+    // 來源是帳號或併進別人時，上面每一句寫入都是 0 列的空操作（① 除外）。
+    const rows = await db.prepare('SELECT actor, uid, points, merged_into FROM bounty_points WHERE actor IN (?,?)').bind(uid, dev).all();
+    const row = a => (rows.results || []).find(r => String(r.actor) === a) || {};
+    const src = row(dev), me = row(uid);
+    if (src.uid) return jsonRes({ error: 'not_a_device' }, 400, 'no-store');
+    if (src.merged_into && String(src.merged_into) !== uid) return jsonRes({ error: 'merged_elsewhere' }, 409, 'no-store');
+    // merged ＝「這一次呼叫真的消化掉了來源列」，直接讀 ③ 改了幾列，不再靠事前讀到的 carry 推論；重跑的那次 ③ 是 0 列，所以是 false。
     const merged = Number(res[at.mark] && res[at.mark].meta && res[at.mark].meta.changes) > 0;
-    const p = await db.prepare('SELECT points FROM bounty_points WHERE actor=?').bind(uid).first();
-    return jsonRes({ ok: true, uid, points: Number(p && p.points) || 0, merged }, 200, 'no-store');
+    return jsonRes({ ok: true, uid, points: Number(me.points) || 0, merged }, 200, 'no-store');
   } catch (e) {
     return jsonRes({ error: 'merge_failed' }, 503, 'no-store');
   }
@@ -6653,31 +6763,38 @@ async function bountyMerge(request, env) {
 // 安全性：呼叫端要帶通過驗證的 Firebase ID token、限流 5 次/分鐘，而 device actor 是裝置上
 // crypto.randomUUID() 產生、從不對外顯示的值。要濫用得先知道別人的 device id，而且能做的只有
 // 「刪掉對方的校正紀錄」（讀不到任何東西）——與「真正的擁有者刪不掉自己的資料」相比，這個取捨划算。
-// 唯一守衛：已經併進「別的 uid」的 token 不刪，那是別人帳號底下的資料。
+// 守衛：已經併進「別的 uid」的 token 不刪，那是別人帳號底下的資料（deviceActor 是帳號的情形見下面另一條）。
+// 🔴 v2 四張表（籌碼帳本、車庫解鎖、雲端搭乘、去重貢獻）是錢包與購買紀錄，不吃 body 傳來的 deviceActor：
+// 那個值是呼叫端自己填的，拿別人還沒併進任何帳號的裝置 UUID 填進去，就能把對方買到的場景與籌碼一起刪掉（稽核 F3 同族）。
+// 所以 v2 只刪「這個 uid 自己」與「merged_into 就是這個 uid 的裝置」；沒併進來的 deviceActor 名下的 v2 資料原封不動。
+// v1 兩張明細表（樣本、認領）與 bounty_points 維持舊行為（刪掉的最多是別人的校正紀錄，不含錢包）。
+// 🔴 但 deviceActor 必須真的是「裝置」：它若是別人的帳號（bounty_points 的 uid 欄非 NULL），一列都不刪。
+// 不擋的話，body 填受害者的 uid 就能刪掉他的點數列——那一列就是「這是帳號」的標記，標記一沒，之後不帶 token 的 actor＝他的
+// 錢包請求就被當成匿名裝置放行（繞過 bountyIdentity）。同理「merged_into 指向我」只算裝置（uid 欄 NULL）：
+// 舊版 F2 攻擊留下的髒列（帳號列卻掛著 merged_into＝攻擊者）不是攻擊者的裝置，攻擊者刪自己的帳號時不能連它一起帶走。
 async function bountyPurgeUid(env, uid, deviceActor) {
   const db = env.DELAY_DB;
   if (!db) return { samples: 0, claims: 0, points: 0, chips: 0, unlocks: 0, cloudRides: 0, contrib: 0 };
   const dev = (deviceActor && deviceActor !== uid) ? String(deviceActor) : null;
-  const sub = 'SELECT actor FROM bounty_points WHERE merged_into=?';
-  // 「這個 token 沒有被併進別的 uid」。注意它讀的是 bounty_points，所以刪 bounty_points 的那句
+  const sub = 'SELECT actor FROM bounty_points WHERE merged_into=? AND uid IS NULL';
+  // 「這個 token 是裝置、而且沒有被併進別的 uid」。注意它讀的是 bounty_points，所以刪 bounty_points 的那句
   // 必須排在最後——提前刪掉就等於把自己的守衛拆了。
   const notElsewhere = ' AND NOT EXISTS (SELECT 1 FROM bounty_points' +
-    ' WHERE actor=? AND merged_into IS NOT NULL AND merged_into<>?)';
+    ' WHERE actor=? AND (uid IS NOT NULL OR (merged_into IS NOT NULL AND merged_into<>?)))';
   // 有 actor 欄的六張明細表（前兩張是 v1，後四張是路段懸賞 v2：籌碼帳本、車庫解鎖、雲端搭乘、每段去重貢獻）。
   // 🔴 bounty_board 的 distinct_ok_users／收滿狀態刻意不回扣：那是「每一段」的匿名彙總、沒有任何欄位指向人，
   // 回扣會讓別人看到的路段進度因為某個人刪帳號而倒退；被刪掉的只有「誰貢獻了」那一半（bounty_seg_contrib）。
-  const TABLES = [
-    ['samples', 'bounty_samples'], ['claims', 'bounty_claims'],
-    ['chips', 'chip_ledger'], ['unlocks', 'garage_unlocks'], ['cloudRides', 'cloud_rides'], ['contrib', 'bounty_seg_contrib'],
-  ];
+  const TABLES_V1 = [['samples', 'bounty_samples'], ['claims', 'bounty_claims']];
+  const TABLES_V2 = [['chips', 'chip_ledger'], ['unlocks', 'garage_unlocks'], ['cloudRides', 'cloud_rides'], ['contrib', 'bounty_seg_contrib']];
   const stmts = [], at = {};                       // at[名稱] ＝ 這個名稱的語句在 batch 裡的位置們（結果加總時用名字取，不寫死索引）
   const add = (name, st) => { (at[name] = at[name] || []).push(stmts.length); stmts.push(st); };
-  for (const [name, table] of TABLES) add(name, db.prepare(`DELETE FROM ${table} WHERE actor=? OR actor IN (${sub})`).bind(uid, uid));
-  if (dev) for (const [name, table] of TABLES) add(name, db.prepare(`DELETE FROM ${table} WHERE actor=?${notElsewhere}`).bind(dev, dev, uid));
+  for (const [name, table] of [...TABLES_V1, ...TABLES_V2]) add(name, db.prepare(`DELETE FROM ${table} WHERE actor=? OR actor IN (${sub})`).bind(uid, uid));
+  // 只有 v1 兩張表吃 body 的 deviceActor（見函式開頭：v2 是錢包，不信任呼叫端自己填的裝置 id）
+  if (dev) for (const [name, table] of TABLES_V1) add(name, db.prepare(`DELETE FROM ${table} WHERE actor=?${notElsewhere}`).bind(dev, dev, uid));
   add('points', dev
-    ? db.prepare('DELETE FROM bounty_points WHERE actor=? OR merged_into=?' +
-        ' OR (actor=? AND (merged_into IS NULL OR merged_into=?))').bind(uid, uid, dev, uid)
-    : db.prepare('DELETE FROM bounty_points WHERE actor=? OR merged_into=?').bind(uid, uid));
+    ? db.prepare('DELETE FROM bounty_points WHERE actor=? OR (merged_into=? AND uid IS NULL)' +
+        ' OR (actor=? AND uid IS NULL AND (merged_into IS NULL OR merged_into=?))').bind(uid, uid, dev, uid)
+    : db.prepare('DELETE FROM bounty_points WHERE actor=? OR (merged_into=? AND uid IS NULL)').bind(uid, uid));
   const res = await db.batch(stmts);
   const sum = name => at[name].reduce((a, i) => a + (Number(res[i] && res[i].meta && res[i].meta.changes) || 0), 0);
   return {
@@ -6710,7 +6827,12 @@ async function chipStateOf(db, actor) {
 const chipUnlockedView = list => list.map(({ scene, nth, at }) => ({ scene, nth, at }));
 
 // GET /api/chips-me：籌碼餘額、已解鎖場景、下一座的價格、雲端搭乘進度、今天已得的錄程籌碼。
-// 身分與限流與 bountyMe 完全相同（actor 查詢參數，或 Bearer Firebase idToken；只有 Bearer 那條走 AUTH_LIMITER）。
+// 身分：Bearer Firebase idToken（走 AUTH_LIMITER），或 actor 查詢參數（走 BOUNTY_LIMITER，稽核 F19：這條路徑以前完全不限流）。
+// 🔴 兩個都帶時 Bearer 贏、?actor= 被無視（不是「兩個都要對得上」）：驗過的 uid 就是最終身分，不再跟 merged_into——
+// 若還跟，別人把這個 uid 當來源合併走之後，本人帶自己的 Bearer 讀到的就是攻擊者的帳（稽核 F2）。
+// 🔴 ?actor= 路徑是錢包讀取，規則同 garage-redeem／cloud-ride（bountyIdentity 'wallet'）：匿名裝置憑 id 讀自己的帳；
+// actor 是帳號（uid）、或是併進帳號的裝置，就必須改帶那個帳號的 Bearer——不帶 401 auth_required。
+// （bounty-me 的 ?actor= 讀取不受這條影響：那裡是點數與趟次，不是錢包。）
 // 唯讀：寫入總閘 BOUNTY_WRITES=off 不擋這支（停機期間使用者仍看得到自己的餘額）。
 async function chipsMe(request, env) {
   const url = new URL(request.url);
@@ -6721,11 +6843,18 @@ async function chipsMe(request, env) {
     const uid = await firebaseUid(env, auth[1]);
     if (!uid) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
     who = uid;
+  } else if (await rateLimited(env.BOUNTY_LIMITER, request)) {
+    return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
   }
   if (!isActorId(who)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
   try {
     const chips = await bountyChipsRules(env);
-    const actor = await resolveActor(env, who);          // 合併過的匿名 token 看到的是 uid 的帳
+    let actor = who;                                     // Bearer 路徑：驗過的 uid 就是最終身分（不 resolveActor）
+    if (!auth) {                                         // ?actor= 路徑：沒帶 Bearer，所以只有「匿名裝置」讀得到
+      const idn = await bountyIdentity(request, env, who, 'wallet');
+      if (idn.res) return idn.res;
+      actor = idn.who;
+    }
     const st = await chipStateOf(env.DELAY_DB, actor);
     // 雲端搭乘次數只數非模擬器的列（模擬器的搭乘照寫進表、但不算進換籌碼的次數，見 cloudRide）
     const nRides = await cloudRideCount(env.DELAY_DB, actor);
@@ -6758,6 +6887,11 @@ async function chipsMe(request, env) {
 // 冪等：帳本 ref＝`<解析前的 b.actor>.<requestId>`（理由同 bountySubmit 的 fixedId：解析後的 actor 會因合併而變，
 // b.actor 是客戶端自己送的、重送一定相同；'.' 不在兩邊的字元集內，接出來的 ref 才是一對一，別人的 requestId 蓋不掉你的）。
 // UNIQUE(kind, ref) 保證同一個 requestId 只扣一次；重送（回應掉了、使用者連點）回與第一次同形狀的成功結果。
+// 重送的驗證（稽核 F14）：帳本列的 id＝`redeem|<場景>|<ref>`，所以重送時能知道「這個 requestId 當初兌換的是哪一座」——
+// 場景不同 → 409 conflict（不管另一座是不是剛好已經解鎖）；相同 → 200，cost 是當初扣的價（帳本 delta 的相反數），
+// nth／balance／unlocked 讀現況（合併重排過 nth 會變）。
+// 身分（稽核 F3）：兌換是「花」，走 bountyIdentity 'wallet'——匿名裝置憑 installId；帳號、或併進帳號的裝置必須帶該帳號的 Bearer
+// （沒帶 401 auth_required、是別人的 403 wrong_account）。
 async function garageRedeem(request, env) {
   // API_POST_ALLOWED 的粒度是路徑，其他方法也進得來——收斂成只收 POST（比照 passClaim）
   if (request.method !== 'POST') return jsonRes({ error: 'method' }, 405, 'no-store');
@@ -6777,20 +6911,37 @@ async function garageRedeem(request, env) {
   if (!chips.scenes.includes(scene)) return jsonRes({ error: 'unknown_scene' }, 400, 'no-store');
   try {
     const db = env.DELAY_DB;
-    const actor = await resolveActor(env, b.actor);
+    // 身分（見 bountyIdentity 'wallet'）：兌換是「花」。匿名裝置憑自己的 installId；actor 是帳號、或已經併進帳號，
+    // 就必須帶那個帳號的 Bearer——不然任何人只要知道（不是祕密的）uid，或拿到（已併走的）舊裝置 id，就能花別人的籌碼。
+    // 擋在第一次讀寫 D1 之前；有帶 Bearer 時先跑 S0。
+    const idn = await bountyIdentity(request, env, b.actor, 'wallet');
+    if (idn.res) return idn.res;
+    const actor = idn.who;
+    // 🔴 ref 用「解析前」的 b.actor（理由見函式開頭的冪等說明），不是身分解析後的 actor
     const ref = `${b.actor}.${b.requestId}`;
     const now = Number(env.BOUNTY_NOW) || Date.now();
-    const refExists = async () => !!(await db.prepare("SELECT 1 AS x FROM chip_ledger WHERE kind='redeem' AND ref=?").bind(ref).first());
-    // 成功的回應（第一次成功與重送共用同一個出口）：nth 與價格讀解鎖表的那一列，不用 JS 端算的值。
-    const done = async () => {
+    // 帳本列的 id＝`redeem|<場景>|<ref>`：把「這個 requestId 當初兌換的是哪一座」記在帳本上（chip_ledger 沒有場景欄）。
+    // 重送時據此驗場景——舊版只看「這個 ref 有沒有扣過款」，同一個 requestId 拿去兌換另一座「剛好已經解鎖過」的場景，
+    // 會被當成成功回（稽核 F14）。場景 id 不含 '|'（bounty_rules.json 的 chips.scenes），所以前後綴切得出來。
+    const ledgerId = `redeem|${scene}|${ref}`;
+    const priorRedeem = async () => db.prepare("SELECT id, delta FROM chip_ledger WHERE kind='redeem' AND ref=?").bind(ref).first();
+    // 成功的回應（第一次成功與重送共用同一個出口）：cost 是「當初扣的」（帳本 delta 的相反數），nth 讀解鎖表現況
+    // （合併重排過的話會與第一次不同），餘額與清單也是現況。
+    const done = async (led) => {
+      const pre = 'redeem|', suf = '|' + ref, id = String(led.id);
+      const firstScene = (id.startsWith(pre) && id.endsWith(suf) && id.length >= pre.length + suf.length)
+        ? id.slice(pre.length, id.length - suf.length) : null;
+      // 場景對不上（同一個 requestId 被拿去兌換別的場景，或舊格式的帳本列讀不出場景）：不當成功回。
+      if (firstScene !== scene) return jsonRes({ error: 'conflict' }, 409, 'no-store');
       const st = await chipStateOf(db, actor);
       const u = st.unlocked.find(x => x.scene === scene);
-      // 這個 ref 已經扣過款，但這一座不在解鎖清單：同一個 requestId 被拿去兌換別的場景（客戶端 bug）——不當成功回。
+      // 這個 ref 已經扣過款，但這一座不在解鎖清單（例如帳本列在、解鎖列沒寫進去）：也不當成功回。
       if (!u) return jsonRes({ error: 'conflict' }, 409, 'no-store');
-      return jsonRes({ ok: true, scene, nth: u.nth, cost: u.cost, balance: st.balance, unlocked: chipUnlockedView(st.unlocked) }, 200, 'no-store');
+      return jsonRes({ ok: true, scene, nth: u.nth, cost: -Number(led.delta), balance: st.balance, unlocked: chipUnlockedView(st.unlocked) }, 200, 'no-store');
     };
     for (let attempt = 0; attempt < 2; attempt++) {
-      if (await refExists()) return await done();
+      let led = await priorRedeem();
+      if (led) return await done(led);
       const st = await chipStateOf(db, actor);
       const can = canRedeem(scene, st.unlocked.map(u => u.scene), st.balance, chips);
       if (!can.ok) {
@@ -6806,7 +6957,7 @@ async function garageRedeem(request, env) {
           ' WHERE NOT EXISTS (SELECT 1 FROM garage_unlocks WHERE actor=? AND scene=?)' +
           ' AND (SELECT COUNT(*) FROM garage_unlocks WHERE actor=?) = ?' +
           ' AND (SELECT COALESCE(SUM(delta),0) FROM chip_ledger WHERE actor=?) >= ?'
-        ).bind(`redeem|${ref}`, actor, -cost, ref, now, actor, scene, actor, nth - 1, actor, cost),
+        ).bind(ledgerId, actor, -cost, ref, now, actor, scene, actor, nth - 1, actor, cost),
         db.prepare(
           'INSERT OR IGNORE INTO garage_unlocks (actor,scene,nth,cost,created_at)' +
           ' SELECT ?,?,?,?,?' +
@@ -6814,7 +6965,8 @@ async function garageRedeem(request, env) {
           ' AND (SELECT COUNT(*) FROM garage_unlocks WHERE actor=?) = ?'
         ).bind(actor, scene, nth, cost, now, ref, actor, -cost, actor, nth - 1),
       ]);
-      if (await refExists()) return await done();
+      led = await priorRedeem();
+      if (led) return await done(led);
       // 守衛沒過：這一輪讀到的現況在寫入前被別的兌換改掉了。下一輪重讀，可能變成 already／not_enough，也可能這次過。
     }
     return jsonRes({ error: 'conflict' }, 409, 'no-store');
@@ -6957,9 +7109,13 @@ async function cloudSettleChips(db, actor, chips, day, now) {
 // 200 {ok:true, day, rides, toNextChip, chipAwarded}：rides＝這個人算進換籌碼的總次數（不含模擬器）、
 // toNextChip＝再幾次換下一顆（與 chips-me 同一個算法）、chipAwarded＝這一次有沒有讓帳本多出籌碼。
 // 錯誤碼：400 bad_json／bad_actor／coordinates_not_accepted／app_only／bad_request_id／bad_day／bad_time／bad_sec／too_short／unknown_train；
+// 401 unauthorized（Bearer 驗不過）／auth_required（這個 actor 是帳號或併進了帳號，卻沒帶 Bearer）；403 wrong_account（帶的是別人的 Bearer）；
 // 405 method；409 already_today（這個營運日已經有一筆）、conflict（同一個 requestId 拿去送了別的營運日）；
 // 429 rate_limited；503 bounty_paused／not_ready／cloud_ride_failed。
+// 身分：雲端搭乘會發籌碼（可以花），走 bountyIdentity 'wallet'，規則同 garage-redeem（稽核 F3）。
 // 冪等：requestId 存在 cloud_rides.request_id，同一個 actor 同一個 requestId 重送回與第一次相同形狀的成功回應（不重寫、不重發籌碼）。
+// 🔴 重送的判斷排在「營運日必須是台北今天或昨天」之前（稽核 F15）：兩天後才到的重送要能補回第一次沒結算完的籌碼；
+// 那個窗口只用來擋「新的」搭乘。
 // 🔴 重送也會再跑一次「補齊籌碼」：搭乘寫進去、補籌碼之前失敗時，客戶端用同一個 requestId 重送就補得回來（結算是冪等的）。
 // simulator:true 的搭乘照寫進 cloud_rides（測試流程要能跑完、也占掉當天那一格）但 simulator=1，不算進次數、不發籌碼。
 async function cloudRide(request, env) {
@@ -6983,8 +7139,10 @@ async function cloudRide(request, env) {
   if (!(chips.cloud.minSec > 0)) return jsonRes({ error: 'not_ready' }, 503, 'no-store');
   const now = Number(env.BOUNTY_NOW) || Date.now();
   const day = typeof b.day === 'string' ? b.day : '';
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || (day !== taipeiDay(now) && day !== taipeiDay(now - 86400e3)))
-    return jsonRes({ error: 'bad_day' }, 400, 'no-store');
+  // 這裡只擋「日期長得不對」。營運日是不是「台北今天或昨天」的窗口檢查移到下面、重送判斷之後（稽核 F15）：
+  // 同一個 requestId 的重送（第一次的回應掉了、補籌碼要重試）可能在兩天之後才到，那時原本那一天早就出窗了，
+  // 若窗口檢查排在前面，重送永遠 400 bad_day，而且第一次「寫進去了但補籌碼失敗」的那筆再也補不回來。
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return jsonRes({ error: 'bad_day' }, 400, 'no-store');
   if (!Number.isSafeInteger(b.startedAt)) return jsonRes({ error: 'bad_time' }, 400, 'no-store');
   if (!Number.isSafeInteger(b.sec) || b.sec < 0 || b.sec > CLOUD_RIDE_MAX_SEC) return jsonRes({ error: 'bad_sec' }, 400, 'no-store');
   if (b.sec < chips.cloud.minSec) return jsonRes({ error: 'too_short' }, 400, 'no-store');
@@ -6993,7 +7151,12 @@ async function cloudRide(request, env) {
   const trainKey = typeof b.trainKey === 'string' ? b.trainKey : '';
   try {
     const db = env.DELAY_DB;
-    const actor = await resolveActor(env, b.actor);
+    // 身分（見 bountyIdentity 'wallet'）：雲端搭乘會發籌碼，而籌碼是可以花的——所以與兌換同一套規則：
+    // 匿名裝置憑 installId；帳號、或併進帳號的裝置必須帶該帳號的 Bearer（沒帶 401 auth_required、是別人的 403 wrong_account）。
+    // 擋在第一次讀寫 D1 之前；有帶 Bearer 時先跑 S0。
+    const idn = await bountyIdentity(request, env, b.actor, 'wallet');
+    if (idn.res) return idn.res;
+    const actor = idn.who;
     const respond = async (chipAwarded) => {
       const rides = await cloudRideCount(db, actor);
       return jsonRes({ ok: true, day, rides, toNextChip: chips.cloud.perChip - (rides % chips.cloud.perChip), chipAwarded }, 200, 'no-store');
@@ -7012,6 +7175,9 @@ async function cloudRide(request, env) {
       }
       return await respond(awarded);
     }
+    // 營運日窗口：只擋「新的」搭乘（重送已經在上面處理完）。合併把那筆搭乘丟掉的情況（兩邊同一天各有一筆，留了另一筆）
+    // 也走到這裡：prior 找不到，照新搭乘的規則往下走——同一天已有一筆就 409 already_today。
+    if (day !== taipeiDay(now) && day !== taipeiDay(now - 86400e3)) return jsonRes({ error: 'bad_day' }, 400, 'no-store');
     let known;
     try { known = await cloudRideTrainOk(env, trainKey, day, b.startedAt); }
     catch (e) { return jsonRes({ error: 'not_ready' }, 503, 'no-store'); }

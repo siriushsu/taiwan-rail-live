@@ -8,6 +8,15 @@
 //   ・其餘（併帳號時較晚那份解鎖退款、撞天的雲端搭乘留一筆、撞段的去重人數減 1、不追討）來自主對話派工單的判讀，不是使用者逐字說的。
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準（突變表在回報裡）。
 //
+// ⚠️ 假 D1 的保真度（稽核 F20）：scripts/d1_local.mjs 的 batch() 是排隊序列化的，但 batch 之外的單句寫入
+//    可以插進另一個 batch 的交易中間；真的 D1 不會這樣。所以下面「兩個併發的請求」這類判準只證明「序列化之後的
+//    各種交錯」是安全的，證明不了真 D1 的行為。上線後要對正式庫做一次唯讀抽查（重複的退款列、對不上的 nth、
+//    被減兩次的 distinct_ok_users）。
+//
+// 稽核修補（身分與授權）之後，這支腳本讀「已併進帳號的裝置／帳號本人」的錢包一律帶 Bearer（helper：bearer()／meAs()），
+// 原本不帶 token 也讀得到、花得掉的那幾條判準是被修掉的洞本身，已改成新行為（每一處都標了「稽核 F3／F2 改寫」）。
+// 身分規則本身的驗收在 scripts/verify_bounty_auth.mjs。
+//
 // 分組：M 合併（M1 餘額與解鎖　M2 撞座退款與重排　M3 撞天雲端搭乘　M4 撞段去重人數　M5 冪等與併發　M6 沒有點數列的裝置
 //       M7 已併進別人的 token 不搬　M8 合併後的雲端籌碼結算　M10 授權　M11 單一 batch　M12 每日上限不回溯）
 //       P 刪帳號（M9）
@@ -68,10 +77,14 @@ const merge = async (w, dev = DEV, uid = UID, hdr = { Authorization: 'Bearer t' 
   return fin(await _bounty.bountyMerge(postTo('/api/bounty-merge', { actor: dev }, hdr), w.env));
 };
 const me = async (w, actor) => { _bounty.bountyResetMemCaches(); return fin(await _bounty.chipsMe(req('/api/chips-me?actor=' + actor), w.env)); };
+// 帶 Bearer 的錢包讀取／搭乘：帳號（uid）與已併進帳號的裝置，讀餘額、送雲端搭乘都必須帶該帳號的 Bearer（稽核 F3）。
+// firebaseUid 是這支腳本的 Firebase 替身要回的 uid，所以取 Bearer 的同時把它設成這一位。
+const bearer = (uid = UID) => { firebaseUid = uid; return { Authorization: 'Bearer t' }; };
+const meAs = async (w, uid = UID, query = '') => { _bounty.bountyResetMemCaches(); return fin(await _bounty.chipsMe(req('/api/chips-me' + query, { headers: bearer(uid) }), w.env)); };
 let rid = 0;
 const nextReq = () => 'req-' + String(++rid).padStart(6, '0');
-const cloud = async (w, o) => { _bounty.bountyResetMemCaches(); return fin(await _bounty.cloudRide(postTo('/api/cloud-ride', {
-  actor: UID, day: TODAY, trainKey: 'mrt|BR|veh-0001', startedAt: at(TODAY, 9), sec: 600, requestId: nextReq(), client: APP, ...o }), w.env)); };
+const cloud = async (w, o, hdr = {}) => { _bounty.bountyResetMemCaches(); return fin(await _bounty.cloudRide(postTo('/api/cloud-ride', {
+  actor: UID, day: TODAY, trainKey: 'mrt|BR|veh-0001', startedAt: at(TODAY, 9), sec: 600, requestId: nextReq(), client: APP, ...o }, hdr), w.env)); };
 
 // ── 種子與讀庫（一律自己寫 SQL）────────────────────────────────────────────────
 const S = {
@@ -118,12 +131,16 @@ await attempt('M1', async () => {
     r.status === 200 && same(r.json, { ok: true, uid: UID, points: 0, merged: true }), r.text);
   ok('M1b uid 的餘額＝自己的 0（+4−4）＋裝置的 5＝5；裝置名下帳本 0 列（整批改名，不是複製）', q.bal(w, UID) === 5 && q.nLedger(w, DEV) === 0 && q.nLedger(w, UID) === 3, `bal=${q.bal(w, UID)} dev=${q.nLedger(w, DEV)} uid=${q.nLedger(w, UID)}`);
   ok('M1c uid 的解鎖仍是南迴第 1 座、花 4（沒被動）', same(q.unlocks(w, UID), [{ scene: 'south-coast', nth: 1, cost: 4, created_at: 1500 }]), JSON.stringify(q.unlocks(w, UID)));
-  const mu = await me(w, UID);
-  ok('M1d chips-me（uid）：balance 5、下一座 8（已解鎖 1 座，第 2 座的價）、unlocked 只有 south-coast',
+  const mu = await meAs(w, UID);
+  ok('M1d chips-me（uid 本人帶自己的 Bearer）：balance 5、下一座 8（已解鎖 1 座，第 2 座的價）、unlocked 只有 south-coast',
     mu.status === 200 && mu.json.balance === 5 && mu.json.nextCost === 8 && mu.json.unlocked.length === 1 && mu.json.unlocked[0].scene === 'south-coast', mu.text);
   const md = await me(w, DEV);
-  ok('M1e [驗收 B7] 舊 token 查 chips-me 看到的是 uid 的帳（resolveActor 轉向）：balance 5、同一份解鎖',
-    md.status === 200 && same(md.json, mu.json), md.text + ' vs ' + mu.text);
+  // 稽核 F3 改寫：舊版這裡是「舊 token 不帶任何憑證就看得到 uid 的帳（resolveActor 轉向）」——那正是被修掉的洞。
+  ok('M1e [驗收 B7；稽核 F3 改寫] 已併進 uid 的舊 token 不帶 Bearer 查 chips-me → 401 auth_required，回應裡沒有任何餘額或解鎖',
+    md.status === 401 && md.json && md.json.error === 'auth_required' && !('balance' in md.json) && !('unlocked' in md.json), md.text);
+  const md2 = await meAs(w, UID, '?actor=' + DEV);
+  ok('M1e2 [驗收 B7] uid 本人帶 Bearer、同時帶 ?actor=<舊 token>：Bearer 贏、?actor= 被無視，看到的是 uid 的帳（與 M1d 同一份）',
+    md2.status === 200 && same(md2.json, mu.json), md2.text + ' vs ' + mu.text);
   ok('M1f 裝置在 bounty_points 有一列標記「併進 uid」、點數 0（沒有列的裝置由合併補一列當墓碑）',
     same(q.point(w, DEV), { points: 0, merged_into: UID }), JSON.stringify(q.point(w, DEV)));
 });
@@ -199,7 +216,7 @@ await attempt('M3', async () => {
   ok('M3a [驗收 B3] 撞天各留一筆、其餘改名：07-10 dev／07-11 uid（較早）／07-12 dev（較早）／07-13 uid（平手）／07-14 uid（真機勝模擬器）／07-15 dev（真機勝模擬器）／07-16 uid',
     r.status === 200 && same(got, ['07-10:dev-r10:0', '07-11:uid-r11:0', '07-12:dev-r12:0', '07-13:uid-r13:0', '07-14:uid-r14:0', '07-15:dev-r15:0', '07-16:uid-r16:0']) && q.nRides(w, DEV) === 0,
     JSON.stringify(got));
-  const m = await me(w, UID);
+  const m = await meAs(w, UID);
   ok('M3b chips-me 的雲端次數＝留下來的非模擬器列數（7 列都是真機）→ rides 7、toNextChip 2', m.json.cloud.rides === 7 && m.json.cloud.toNextChip === 2, m.text);
 });
 
@@ -259,9 +276,14 @@ await attempt('M6', async () => {
   await merge(w);
   ok('M6b 合併後 bounty_points 有裝置的墓碑（merged_into＝uid、點數 0）', same(q.point(w, DEV), { points: 0, merged_into: UID }), JSON.stringify(q.point(w, DEV)));
   const md = await me(w, DEV);
-  ok('M6c 舊 token 的 chips-me 看到 uid 的帳（uid 自己的 2＋裝置搬來的 3＝5；只看得到裝置自己的話會是 3 或 0）', md.status === 200 && md.json.balance === 5, md.text);
-  const r = await cloud(w, { actor: DEV, day: TODAY });
-  ok('M6d 舊 token 之後送的雲端搭乘落在 uid 名下（uid 1 列、token 0 列）', r.status === 200 && q.nRides(w, UID) === 1 && q.nRides(w, DEV) === 0, r.text);
+  // 稽核 F3 改寫：舊版是「舊 token 不帶憑證就讀到 uid 的帳（5）」——那是洞。現在的判準反過來抓「墓碑有被認得」：
+  // 沒有墓碑的話它會被當成匿名裝置、回 200 與餘額 0（掉回 token 名下），而不是 401。
+  ok('M6c 沒有 bounty_points 列的裝置併完之後，它的墓碑讓舊 token 不帶 Bearer 讀 chips-me 得到 401 auth_required（若墓碑沒建，會被當匿名裝置回 200）',
+    md.status === 401 && md.json && md.json.error === 'auth_required', md.text);
+  const mu6 = await meAs(w, UID);
+  ok('M6c2 uid 本人帶 Bearer 讀到 uid 的帳（uid 自己的 2＋裝置搬來的 3＝5；只看得到裝置自己的話會是 3 或 0）', mu6.status === 200 && mu6.json.balance === 5, mu6.text);
+  const r = await cloud(w, { actor: DEV, day: TODAY }, bearer(UID));
+  ok('M6d 舊 token（帶 uid 的 Bearer）之後送的雲端搭乘落在 uid 名下（uid 1 列、token 0 列）', r.status === 200 && q.nRides(w, UID) === 1 && q.nRides(w, DEV) === 0, r.text);
 });
 
 // ═══ M7：已經併進「別的 uid」的 token 一列都不搬（那是別人帳號底下的資料）══════════════════════════════════════════════
@@ -275,8 +297,9 @@ await attempt('M7', async () => {
   S.ledger(w, UID, 'adjust', 1, 'm7-uid');
   const before = q.all(w);
   const r = await merge(w);
-  ok('M7 [守衛] 已併進別的 uid 的 token 再被拿來併：merged:false，四張表與看板一列都沒動（token 名下的東西仍在 token 名下）',
-    r.status === 200 && r.json.merged === false && q.all(w) === before && q.bal(w, DEV) === 9 && q.nUnlocks(w, DEV) === 1 && q.nRides(w, DEV) === 1 && q.board(w, S1)[0].d === 5,
+  // 稽核 F2 改寫：舊版回 200 {merged:false}（該搬的一列沒搬，但樣本與認領沒有守衛照樣被搬走）；現在明確回 409 merged_elsewhere
+  ok('M7 [守衛；稽核 F2 改寫] 已併進別的 uid 的 token 再被拿來併：409 merged_elsewhere，四張表與看板一列都沒動（token 名下的東西仍在 token 名下）',
+    r.status === 409 && r.json && r.json.error === 'merged_elsewhere' && q.all(w) === before && q.bal(w, DEV) === 9 && q.nUnlocks(w, DEV) === 1 && q.nRides(w, DEV) === 1 && q.board(w, S1)[0].d === 5,
     r.text + ' bal(dev)=' + q.bal(w, DEV));
 });
 
@@ -286,15 +309,15 @@ await attempt('M8a', async () => {
   const w = world();
   S.ride(w, DEV, '2026-07-10'); S.ride(w, DEV, '2026-07-11'); S.ride(w, UID, '2026-07-12'); S.ride(w, UID, '2026-07-13');
   await merge(w);
-  const m = await me(w, UID);
+  const m = await meAs(w, UID);
   ok('M8a1 併完：雲端 4 次（toNextChip 2）、balance 0（合併當下不結算，等下一次搭乘補齊）', m.json.balance === 0 && same(m.json.cloud, { rides: 4, toNextChip: 2 }), m.text);
   w.at(at(YESTERDAY, 16));
-  const r5 = await cloud(w, { day: YESTERDAY, startedAt: at(YESTERDAY, 9) });
+  const r5 = await cloud(w, { day: YESTERDAY, startedAt: at(YESTERDAY, 9) }, bearer(UID));
   ok('M8a2 [驗收 E-c] 第 5 次搭乘（5 不是 3 的倍數）補發第 1 顆：chipAwarded 真、rides 5、toNextChip 1、帳本 ref＝<uid>|cloud|1',
     r5.status === 200 && r5.json.chipAwarded === true && r5.json.rides === 5 && r5.json.toNextChip === 1 &&
     same(w.db.prepare("SELECT ref FROM chip_ledger WHERE actor=? AND kind='cloud'").all(UID).map(x => x.ref), [`${UID}|cloud|1`]), r5.text);
   w.at(at(TODAY, 16));
-  const r6 = await cloud(w, { day: TODAY, startedAt: at(TODAY, 9) });
+  const r6 = await cloud(w, { day: TODAY, startedAt: at(TODAY, 9) }, bearer(UID));
   ok('M8a3 第 6 次再發第 2 顆（應得 2－已得 1）：ref 接在後面 |cloud|2，餘額 2',
     r6.json.chipAwarded === true && r6.json.rides === 6 && q.bal(w, UID) === 2 &&
     same(w.db.prepare("SELECT ref FROM chip_ledger WHERE actor=? AND kind='cloud' ORDER BY ref").all(UID).map(x => x.ref), [`${UID}|cloud|1`, `${UID}|cloud|2`]), r6.text);
@@ -306,13 +329,13 @@ await attempt('M8b', async () => {
   for (const d of ['2026-07-13', '2026-07-14', '2026-07-15', '2026-07-16']) S.ride(w, DEV, d);        // 裝置 4 次
   S.ledger(w, UID, 'cloud', 1, `${UID}|cloud|1`, '2026-07-12'); S.ledger(w, DEV, 'cloud', 1, `${DEV}|cloud|1`, '2026-07-15');
   await merge(w);
-  const m = await me(w, UID);
+  const m = await meAs(w, UID);
   ok('M8b1 併完：雲端 7 次（toNextChip 2）、兩顆雲端籌碼都在 uid 名下（balance 2）', m.json.balance === 2 && same(m.json.cloud, { rides: 7, toNextChip: 2 }), m.text);
   w.at(at(YESTERDAY, 16));
-  const r8 = await cloud(w, { day: YESTERDAY, startedAt: at(YESTERDAY, 9) });
+  const r8 = await cloud(w, { day: YESTERDAY, startedAt: at(YESTERDAY, 9) }, bearer(UID));
   ok('M8b2 第 8 次：應得 2、已得 2（搬過來的也算）→ 不補發，chipAwarded 假、帳本仍 2 顆', r8.json.chipAwarded === false && r8.json.rides === 8 && q.bal(w, UID) === 2, r8.text);
   w.at(at(TODAY, 16));
-  const r9 = await cloud(w, { day: TODAY, startedAt: at(TODAY, 9) });
+  const r9 = await cloud(w, { day: TODAY, startedAt: at(TODAY, 9) }, bearer(UID));
   ok('M8b3 第 9 次：應得 3、已得 2 → 補第 3 顆，ref＝<uid>|cloud|3（不撞 uid 自己的 |1、也不撞搬來的 <裝置>|cloud|1），餘額 3',
     r9.json.chipAwarded === true && r9.json.rides === 9 && q.bal(w, UID) === 3 &&
     same(w.db.prepare("SELECT ref FROM chip_ledger WHERE actor=? AND kind='cloud' ORDER BY ref").all(UID).map(x => x.ref), [`${DEV}|cloud|1`, `${UID}|cloud|1`, `${UID}|cloud|3`]), r9.text);
@@ -330,7 +353,13 @@ await attempt('M10', async () => {
   ok('M10b actor 不合法 → 400 bad_actor', badActor.status === 400 && badActor.json.error === 'bad_actor', badActor.text);
   firebaseUid = UID;
   const self = await fin(await _bounty.bountyMerge(postTo('/api/bounty-merge', { actor: UID }, { Authorization: 'Bearer t' }), w.env));
-  ok('M10c actor 就是 uid 本人 → 200 {merged:false} 早退、什麼都不動', self.status === 200 && same(self.json, { ok: true, uid: UID, points: 0, merged: false }) && q.all(w) === before, self.text);
+  // 稽核 F2／S0 改寫：自己併自己仍然是「帶著有效 Bearer 的寫入」，帳號列必須存在——所以「什麼都不動」改成
+  // 「只多一列 uid 的帳號列（點數 0、沒有 merged_into）」，四張表、看板、其他人的列一列都沒動。
+  const snap = x => JSON.parse(x), noPoints = o => ({ ...o, points: null });
+  const sb = snap(before), sa = snap(q.all(w));
+  ok('M10c actor 就是 uid 本人 → 200 {merged:false} 早退；除了 S0 補出的那一列 uid 帳號列（點數 0、merged_into null），四張表／看板／點數一列都沒動',
+    self.status === 200 && same(self.json, { ok: true, uid: UID, points: 0, merged: false }) && same(noPoints(sa), noPoints(sb)) &&
+    same(sa.points, [...sb.points, { actor: UID, points: 0, merged_into: null }].sort((a, b) => (a.actor < b.actor ? -1 : 1))), self.text + ' ' + JSON.stringify(sa.points));
   // 別人的資料一列都不動
   const w2 = world();
   S.ledger(w2, OTHER, 'adjust', 7, 'o-1'); S.unlock(w2, OTHER, 'viaduct', 1, 4, 100); S.ride(w2, OTHER, '2026-07-11'); S.contrib(w2, 'tra_sched|南迴線|大武|太麻里', OTHER);
@@ -367,7 +396,7 @@ await attempt('M12', async () => {
   const w = world();
   for (let i = 1; i <= 4; i++) { S.ledger(w, DEV, 'trip', 1, `${DEV}|${TODAY}|t${i}`, TODAY); S.ledger(w, UID, 'trip', 1, `${UID}|${TODAY}|t${i}`, TODAY); }
   await merge(w);
-  const m = await me(w, UID);
+  const m = await meAs(w, UID);
   ok('M12 兩邊各自領滿的當日錄程籌碼併成 8 顆、不回溯追討（balance 8、today.chips 8 > 上限 4）', m.json.balance === 8 && m.json.today.chips === 8 && m.json.today.cap === 4, m.text);
 });
 
@@ -396,16 +425,20 @@ await attempt('P1', async () => {
   const res = await worker.fetch(postTo('/api/account-delete', { actor: DEV2 }, { Authorization: 'Bearer t' }), w.env, { waitUntil() {} });
   const b = await fin(res);
   const left = t => w.db.prepare(`SELECT DISTINCT actor FROM ${t} ORDER BY actor`).all().map(r => r.actor);
-  const want = [DEV3, OTHER].sort();
-  ok('P1a [驗收 B9] 刪帳號後四張表只剩別人與「併進別人的 token」：chip_ledger／garage_unlocks／cloud_rides／bounty_seg_contrib 各自只剩 DEV3 與 OTHER',
+  // 稽核 F3／S5 改寫：v2 四張表是錢包，不再吃 body 傳來的 deviceActor——DEV2 是「還沒併進 UID 的裝置」，它的 v2 資料留著
+  // （舊版連它一起刪：呼叫端自己填別人的裝置 id 就能刪掉對方買到的場景）。所以四張表剩 DEV2／DEV3／OTHER。
+  const want = [DEV2, DEV3, OTHER].sort();
+  ok('P1a [驗收 B9；稽核 S5 改寫] 刪帳號後四張表只剩：沒併進本人的 body deviceActor（DEV2）、「併進別人的 token」（DEV3）、別人（OTHER）',
     res.status === 200 && ['chip_ledger', 'garage_unlocks', 'cloud_rides', 'bounty_seg_contrib'].every(t => same(left(t), want)), JSON.stringify({ status: res.status, l: left('chip_ledger'), u: left('garage_unlocks'), r: left('cloud_rides'), c: left('bounty_seg_contrib') }));
-  ok('P1b [驗收 B9] 本人／併進本人的 token／本機當下 device 的任何一列都不在了（含刪帳號當下 device 的四張表）',
-    ['chip_ledger', 'garage_unlocks', 'cloud_rides', 'bounty_seg_contrib'].every(t => w.db.prepare(`SELECT COUNT(*) c FROM ${t} WHERE actor IN (?,?,?)`).get(UID, DEV, DEV2).c === 0));
+  ok('P1b [驗收 B9] 本人與併進本人的 token 的四張表任何一列都不在了',
+    ['chip_ledger', 'garage_unlocks', 'cloud_rides', 'bounty_seg_contrib'].every(t => w.db.prepare(`SELECT COUNT(*) c FROM ${t} WHERE actor IN (?,?)`).get(UID, DEV).c === 0));
+  ok('P1b2 [稽核 S5] 沒併進本人的 body deviceActor（DEV2）四張表的列數一列都沒少（3／1／1／2）——v2 錢包不能被別人填的裝置 id 刪掉',
+    q.nLedger(w, DEV2) === 3 && q.nUnlocks(w, DEV2) === 1 && q.nRides(w, DEV2) === 1 && q.nContrib(w, DEV2) === 2);
   ok('P1c 別人與「併進別人的 token」的列數一列都沒少（DEV3 2／2／2／2；OTHER 3／1／1／2）',
     q.nLedger(w, DEV3) === 2 && q.nUnlocks(w, DEV3) === 2 && q.nRides(w, DEV3) === 2 && q.nContrib(w, DEV3) === 2 &&
     q.nLedger(w, OTHER) === 3 && q.nUnlocks(w, OTHER) === 1 && q.nRides(w, OTHER) === 1 && q.nContrib(w, OTHER) === 2);
-  ok('P1d 回應如實回報刪了幾列：points 3（UID／DEV／DEV2）、chips 6、unlocks 4、cloudRides 4、contrib 6，samples／claims 0',
-    b.json && same(b.json.deleted, { samples: 0, claims: 0, points: 3, chips: 6, unlocks: 4, cloudRides: 4, contrib: 6 }), JSON.stringify(b.json && b.json.deleted));
+  ok('P1d 回應如實回報刪了幾列：points 3（UID／DEV／DEV2，v1 的 bounty_points 維持舊行為）、chips 3、unlocks 3、cloudRides 3、contrib 4（只算 UID 與 DEV），samples／claims 0',
+    b.json && same(b.json.deleted, { samples: 0, claims: 0, points: 3, chips: 3, unlocks: 3, cloudRides: 3, contrib: 4 }), JSON.stringify(b.json && b.json.deleted));
   const boardAfter = w.db.prepare('SELECT * FROM bounty_board ORDER BY seg_key').all().map(x => ({ ...x }));
   ok('P1e 看板的去重人數不回扣（5 列 bounty_board 逐列相同、distinct_ok_users 全都仍是 5；其中 3 列是被刪的人貢獻過的段）——那是匿名彙總，刪帳號不讓別人看到的進度倒退', same(boardAfter, boardBefore) && boardAfter.length === 5 && boardAfter.every(x => x.distinct_ok_users === 5), JSON.stringify(boardAfter));
   ok('P1f bounty_points：本人／併進本人的墓碑／本機 device 三列刪了，DEV3 的墓碑與 OTHER 留著', same(w.db.prepare('SELECT actor FROM bounty_points ORDER BY actor').all().map(r => r.actor), [DEV3, OTHER].sort()));

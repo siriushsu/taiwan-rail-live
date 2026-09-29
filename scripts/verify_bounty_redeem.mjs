@@ -9,6 +9,16 @@
 //     來自 data/bounty_rules.json 與主對話派工單的判讀，不是使用者逐字說的。
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準（突變表在回報裡）。
 //
+// ⚠️ 假 D1 的保真度（稽核 F20）：scripts/d1_local.mjs 的 batch() 是排隊序列化的，但 batch 之外的單句寫入
+//    可以插進另一個 batch 的交易中間；真的 D1 不會這樣。所以下面 C 組「兩個併發的請求」只證明「序列化之後的
+//    各種交錯」是安全的，證明不了真 D1 的行為。上線後要對正式庫做一次唯讀抽查（重複的 redeem 列、對不上的 nth、
+//    餘額變負）。
+//
+// 稽核修補（身分與授權）之後：帳號（uid）與已併進帳號的裝置，讀餘額與兌換都必須帶該帳號的 Bearer；
+// 原本不帶 token 也讀得到、花得掉的那幾條判準（M6、R7a、R7b）就是被修掉的洞，已改成新行為（標了「稽核 F3 改寫」）。
+// 「併進帳號」的種子（put.merge）與正式合併一樣，同時留下帳號列——沒有帳號列的 uid 在伺服器眼裡只是一個匿名 id。
+// 身分規則本身的驗收在 scripts/verify_bounty_auth.mjs。
+//
 // 分組：M 籌碼餘額（chips-me）　R 兌換（garage-redeem）　C 併發與競態　B 看板常青線　T 整段收滿　P 通行證對照組
 import { readFileSync } from 'node:fs';
 import worker, { _bounty } from '../worker.js';
@@ -113,7 +123,11 @@ const put = {
     .run(actor, scene, nth, cost, at ?? NOW_MS - 5000),
   ride: (db, actor, day) => db.prepare('INSERT INTO cloud_rides (actor,day,train_key,sec,request_id,created_at) VALUES (?,?,?,?,?,?)')
     .run(actor, day, 'tk-' + day, 700, null, NOW_MS - 1000),
-  merge: (db, from, to) => db.prepare('INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,NULL,0,?,1)').run(from, to),
+  // 與正式合併留下的狀態一樣：來源是墓碑（merged_into），目的地是帳號列（uid 欄有值）。只種墓碑的話，uid 在伺服器眼裡只是匿名 id。
+  merge: (db, from, to) => {
+    db.prepare('INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,NULL,0,?,1)').run(from, to);
+    db.prepare('INSERT OR IGNORE INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,?,0,NULL,1)').run(to, to);
+  },
 };
 // 一致的起始狀態：已解鎖 unlocked（依序第 1、2、3…座，各自花當時的價格）、剩下 balance 個籌碼。
 // 帳本：一筆 adjust（balance＋花掉的總額）再加每座一筆負數 redeem，加總＝balance。
@@ -222,7 +236,8 @@ await attempt('M4', async () => {
   ok('M4c [驗收8] 台北 07-30 00:30（UTC 07-29 16:30）：今天是 07-30 → 3（用 UTC 日算會得 1）', r3.json.today.chips === 3, r3.text);
 });
 
-// M5 身分：actor 查詢參數，或 Bearer Firebase idToken（uid 蓋過 actor 參數）；限流只在 Bearer 那條（與 bountyMe 相同）
+// M5 身分：actor 查詢參數，或 Bearer Firebase idToken（uid 蓋過 actor 參數）；Bearer 那條走 AUTH_LIMITER，
+// ?actor= 那條走 BOUNTY_LIMITER（稽核 F19：以前完全不限流；bountyMe 的 ?actor= 讀取仍不限流）
 await attempt('M5', async () => {
   const D = 'device-m5other1', U = 'uid-m5bearer01';
   const mk = env => { const w = world({ env }); give(w.db, U, { balance: 9 }); give(w.db, D, { balance: 2 }); return w; };
@@ -246,20 +261,26 @@ await attempt('M5', async () => {
   ok('M5e Bearer 且 AUTH_LIMITER 擋下 → 429 rate_limited，而且 Firebase 一次都沒打（限流在外連之前）',
     blk.out.status === 429 && blk.out.json.error === 'rate_limited' && blk.calls.length === 0, JSON.stringify({ s: blk.out.status, calls: blk.calls }));
   const plain = await me(wBlk, `?actor=${D}`);
-  ok('M5f 同一個被擋的 AUTH_LIMITER，走 actor 查詢參數那條照樣 200（限流只管 Bearer，與 bountyMe 相同）', plain.status === 200 && plain.json.balance === 2, plain.text);
+  ok('M5f 同一個被擋的 AUTH_LIMITER，走 actor 查詢參數那條照樣 200（AUTH_LIMITER 只管 Bearer；?actor= 那條走 BOUNTY_LIMITER，見 verify_bounty_auth 的 A14）', plain.status === 200 && plain.json.balance === 2, plain.text);
 });
 
-// M6 合併過的匿名 token：看到的是 uid 的帳（resolveActor）；舊 token 自己名下的帳不會被混進來
+// M6 合併過的匿名 token：帳號的帳只給帶著帳號 Bearer 的人看（稽核 F3）；舊 token 自己名下的帳不會被混進來
 await attempt('M6', async () => {
   const OLD = 'device-m6old001', NEW = 'uid-m6new00001';
-  const w = world();
+  const w = world({ env: { FIREBASE_WEB_API_KEY: 'k', AUTH_LIMITER: limiter(false) } });
   put.merge(w.db, OLD, NEW);
   put.ledger(w.db, OLD, 'adjust', 100, { ref: 'm6-old' });                       // 舊 token 名下的（不該出現）
   give(w.db, NEW, { balance: 6, unlocked: ['south-coast'] });
   const viaOld = await me(w, `?actor=${OLD}`), viaNew = await me(w, `?actor=${NEW}`);
-  ok('M6 舊 device token 與 uid 看到同一份：餘額 6（不是 100、不是 106）、已解鎖 south-coast、nextCost 8',
-    viaOld.status === 200 && viaOld.json.balance === 6 && viaOld.json.unlocked.length === 1 && viaOld.json.unlocked[0].scene === 'south-coast' &&
-      viaOld.json.nextCost === 8 && same(viaOld.json, viaNew.json), JSON.stringify([viaOld.json, viaNew.json]));
+  // 稽核 F3 改寫：舊版是「舊 token 與 uid 不帶任何憑證就看到同一份帳（resolveActor 轉向）」——那是洞。
+  ok('M6a [稽核 F3 改寫] 已併進 uid 的舊 device token、與 uid 本身，不帶 Bearer 讀 chips-me 一律 401 auth_required，本文沒有任何餘額或解鎖',
+    [viaOld, viaNew].every(r => r.status === 401 && same(r.json, { error: 'auth_required' })), JSON.stringify([viaOld.json, viaNew.json]));
+  const asUid = await withFirebase(NEW, () => me(w, '', { Authorization: 'Bearer tok-m6' }));
+  const asUidWithOld = await withFirebase(NEW, () => me(w, `?actor=${OLD}`, { Authorization: 'Bearer tok-m6' }));
+  const v = asUid.out;
+  ok('M6b uid 本人帶 Bearer：餘額 6（不是 100、不是 106——舊 token 名下的不會混進來）、已解鎖 south-coast、nextCost 8；同時帶 ?actor=<舊 token> 也是同一份（Bearer 贏）',
+    v.status === 200 && v.json.balance === 6 && v.json.unlocked.length === 1 && v.json.unlocked[0].scene === 'south-coast' &&
+      v.json.nextCost === 8 && same(v.json, asUidWithOld.out.json), JSON.stringify([v.json, asUidWithOld.out.json]));
 });
 
 // M7 每一種回應（200／400／401／429／503）都標 no-store
@@ -486,25 +507,27 @@ await attempt('R6', async () => {
 // R7 合併過的 token：兌換動的是 uid 的帳；重送靠「解析前的 actor」對得上同一筆（合併把帳搬去 uid 之後，重送仍是同一個結果）
 await attempt('R7', async () => {
   const OLD = 'device-r7old001', NEW = 'uid-r7new00001';
-  const w = world();
+  const w = world({ env: { FIREBASE_WEB_API_KEY: 'k' } });
   put.merge(w.db, OLD, NEW);
   put.ledger(w.db, NEW, 'adjust', 5, { ref: 'r7-new' });
-  const r = await redeem(w, body(OLD, 'south-coast', 'req-r7-00001'));
-  ok('R7a 舊 device token 兌換 → 扣的是 uid 的帳：uid 名下 1 座解鎖＋1 筆 redeem（−4），舊 token 名下什麼都沒有',
-    r.status === 200 && r.json.balance === 1 && q.nUnlock(w.db, NEW) === 1 && q.nRedeem(w.db, NEW) === 1 && q.nUnlock(w.db, OLD) === 0 && q.nLedger(w.db, OLD) === 0, r.text);
+  // 稽核 F3 改寫：已併進帳號的舊 token 兌換必須帶該帳號（NEW）的 Bearer；舊版不帶憑證就花得掉別人的籌碼
+  const { out: r, calls: r7calls } = await withFirebase(NEW, () => redeem(w, body(OLD, 'south-coast', 'req-r7-00001'), { Authorization: 'Bearer tok-r7' }));
+  ok('R7a 舊 device token 兌換（帶 uid 的 Bearer）→ 扣的是 uid 的帳：uid 名下 1 座解鎖＋1 筆 redeem（−4），舊 token 名下什麼都沒有；Firebase 恰好查 1 次',
+    r.status === 200 && r.json.balance === 1 && q.nUnlock(w.db, NEW) === 1 && q.nRedeem(w.db, NEW) === 1 && q.nUnlock(w.db, OLD) === 0 && q.nLedger(w.db, OLD) === 0 && r7calls.length === 1, r.text);
   ok('R7a2 帳本 ref 用的是「解析前」的 actor（客戶端送的那個舊 token）："<舊 token>.<requestId>"，不是解析後的 uid——'
     + '合併前後、換裝置重送，客戶端手上永遠只有它自己送出去的那個 actor，ref 才對得上',
     q.redeemRows(w.db, NEW).length === 1 && q.redeemRows(w.db, NEW)[0].ref === `${OLD}.req-r7-00001`, JSON.stringify(q.redeemRows(w.db, NEW)));
   // 重送＋合併：先用還沒合併的 device 兌換，之後合併（帳搬給 uid、ref 不變），舊 token 重送同一個 requestId
-  const w2 = world();
+  const w2 = world({ env: { FIREBASE_WEB_API_KEY: 'k' } });
   const OLD2 = 'device-r7old002', NEW2 = 'uid-r7new00002';
   put.ledger(w2.db, OLD2, 'adjust', 5, { ref: 'r7-old2' });
   const first = await redeem(w2, body(OLD2, 'south-coast', 'req-r7-00002'));
   w2.db.prepare('UPDATE chip_ledger SET actor=? WHERE actor=?').run(NEW2, OLD2);
   w2.db.prepare('UPDATE garage_unlocks SET actor=? WHERE actor=?').run(NEW2, OLD2);
   put.merge(w2.db, OLD2, NEW2);
-  const replay = await redeem(w2, body(OLD2, 'south-coast', 'req-r7-00002'));
-  ok('R7b 合併前兌換、合併後（帳搬給 uid）重送同一個 requestId → 200 與第一次同一份 {nth 1, cost 4, balance 1}，不是 409 already、也不會再扣',
+  // 稽核 F3 改寫：合併後 OLD2 已併進 NEW2，重送要帶 NEW2 的 Bearer（第一次是合併前、匿名兌換，不需要）
+  const replay = (await withFirebase(NEW2, () => redeem(w2, body(OLD2, 'south-coast', 'req-r7-00002'), { Authorization: 'Bearer tok-r7b' }))).out;
+  ok('R7b 合併前兌換、合併後（帳搬給 uid）帶 uid 的 Bearer 重送同一個 requestId → 200 與第一次同一份 {nth 1, cost 4, balance 1}，不是 409 already、也不會再扣',
     first.status === 200 && replay.status === 200 && replay.text === first.text && q.nRedeem(w2.db, NEW2) === 1 && q.bal(w2.db, NEW2) === 1, JSON.stringify([first.text, replay.text]));
   ok('R7c 合併搬帳只換 actor、ref 不動：搬過去的那筆 redeem 的 ref 仍是 "<舊 token>.<requestId>"（重送靠它對得上）',
     q.redeemRows(w2.db, NEW2).length === 1 && q.redeemRows(w2.db, NEW2)[0].ref === `${OLD2}.req-r7-00002`, JSON.stringify(q.redeemRows(w2.db, NEW2)));
