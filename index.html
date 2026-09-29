@@ -5627,6 +5627,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="traovertake0929"><span class="d">9/29</span><span>修正少數台鐵列車在車站空等不存在的後車，或出站後異常慢行的問題</span></li>
         <li data-cl-of="followcard0929"><span class="d">9/29</span><span>App 鎖定畫面跟車卡：Android 補上小列車、iPhone 改成三節車廂，從車站看板追下一班車時卡片會立刻出現</span></li>
         <li data-cl-of="langhint0929"><span class="d">9/29</span><span>網頁版首次開啟固定顯示繁體中文；英文、日文瀏覽器會出現可一鍵切換的語言提示</span></li>
         <li data-cl-of="seotitle0929"><span class="d">9/29</span><span>網頁標題與搜尋結果說明寫清楚：台鐵、高鐵、捷運即時地圖與時刻表</span></li>
@@ -5634,7 +5635,6 @@
         <li data-cl-of="trawait0928"><span class="d">9/28</span><span>修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面</span></li>
         <li data-cl-of="klrtboard0928"><span class="d">9/28</span><span>高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次</span></li>
         <li data-cl-of="trackshape0927"><span class="d">9/27</span><span>北捷紅線與三鶯線的軌道改用官方最新線形，列車與車站沿更新後的路線行駛</span></li>
-        <li data-cl-of="buildingopacity0927"><span class="d">9/27</span><span>立體建築剛出現的縮放範圍內，切換亮暗外觀後會保留「透視顯示」的透明度，不再突然變得不透明</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5642,6 +5642,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="traovertake0929"><span class="d">9/29</span><span>修正台鐵同向待避的兩個推估錯誤：前車照後車「還沒改過」的時刻在站上空等（例如 9/30 自強 145 在百福白等 163 秒，後車其實還在宜蘭線），以及被待避切開的長程專車出站後異常慢行再一路狂奔；現在後車真的通過後前車才放行</span></li>
         <li data-cl="klrtcore0928"><span class="d">9/28</span><span>高雄輕軌發車前先在籬仔內等候，發車後沿用同一班身分；衛星位置確認屬於同一班才校正，否則依官方倒數逐站推算</span></li>
         <li data-cl="trawait0928"><span class="d">9/28</span><span>修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面</span></li>
         <li data-cl="klrtboard0928"><span class="d">9/28</span><span>高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次</span></li>
@@ -6920,7 +6921,7 @@
 // v0928b：保留彎道速限，補回長跑段抵站前追越的官方停靠窗，避免多餘的提早待避。
 // v0928c：公開端接入 KLRT Core 原身分與攤平環線軌跡；待發、雙向看板、來源提示與逐系統退路一併補齊。
 // v0929b：網頁版首次開啟固定繁中（?lang → 已存偏好 → zh-TW），英日語瀏覽器只給一條小提示；原生 App 仍依 navigator.languages。
-const BUILD = 'v0929b';
+const BUILD = 'v0929c';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
@@ -11174,11 +11175,18 @@ function assignRunProfiles(s, perf, obs, zoneCls, pre) {
     // 先算實測折點,彎道節點要【疊在它上面】而不是取代它(理由見 speedZoneKnots)。
     let pts = null;
     if (!rp && obs && k1 - k0 >= 2) {
-      pts = []; let cum = 0;
-      for (let i = k0; i < k1 - 1; i++) {
-        cum += segKm[i - k0];
-        const nm = s[i + 1].name, f = obs[nm] ?? obs[nm.replace(/台/g, '臺')];
-        if (f != null) pts.push({ t: f / 1000 * runT, d: cum * 1000 });
+      // 實測千分比是「真停靠站到真停靠站」整個跑段的比例。預排待避把跑段切開時，要照切點自己的千分比
+      // 換算到子跑段；原本直接乘子跑段時長，6059 出永樂後 3 公里走了 24 分鐘、再一路狂奔（2026-09-30）。
+      // 切點沒有實測值就沒有依據換算，這個子跑段退回梯形。
+      const fOf = nm => obs[nm] ?? obs[nm.replace(/台/g, '臺')];
+      const f0 = s[k0]._plannedDwell ? fOf(s[k0].name) : 0, f1 = s[k1]._plannedDwell ? fOf(s[k1].name) : 1000;
+      if (f0 != null && f1 != null && f1 > f0) {
+        pts = []; let cum = 0;
+        for (let i = k0; i < k1 - 1; i++) {
+          cum += segKm[i - k0];
+          const f = fOf(s[i + 1].name);
+          if (f != null && f > f0 && f < f1) pts.push({ t: (f - f0) / (f1 - f0) * runT, d: cum * 1000 });
+        }
       }
     }
     // 地點式速限:只有真的咬得到的跑段會走這條(目前只有新馬與和仁兩處,且視車種而定),
@@ -11539,7 +11547,7 @@ function overtakeRunBuildable(tr, j, dep) {
   return can(a, j, s[j].arrSec - s[a].depSec) && can(j, b, s[b].arrSec - dep);
 }
 function planSameDirectionOvertakes(trains, union, sections) {
-  const stats = { planned: 0, tooClose: 0, unbuildable: 0, log: [] };
+  const stats = { planned: 0, tooClose: 0, unbuildable: 0, deferred: 0, log: [] };
   if (!Array.isArray(trains) || trains.length < 2) return stats;
   const keyOf = tr => tr.train + ':' + tr.stops[0].depSec + ':' + tr.stops[tr.stops.length - 1].arrSec;
   const days = new Map();
@@ -11584,7 +11592,7 @@ function planSameDirectionOvertakes(trains, union, sections) {
           if (tracked && !tracked.has(traSectionKey(st.name, st.name).split('|')[0])) continue;
           const dep = fst.depSec + OVERTAKE_CLEAR_SEC;
           if (dep - st.arrSec > OVERTAKE_MAX_WAIT_SEC) continue;
-          chosen = { tr: L, j: lc, dep, follower: String(F.train), station: st.name, lead, need, lookKm }; break;
+          chosen = { tr: L, j: lc, dep, follower: String(F.train), ftr: F, fj: fc, station: st.name, lead, need, lookKm }; break;
         }
         if (!chosen) { stats.tooClose++; continue; }
         const pk = keyOf(chosen.tr) + ':' + chosen.j, old = proposals.get(pk);
@@ -11594,15 +11602,26 @@ function planSameDirectionOvertakes(trains, union, sections) {
   }
   const grouped = new Map();
   for (const p of proposals.values()) (grouped.get(p.tr) || grouped.set(p.tr, []).get(p.tr)).push(p);
+  // 本輪的提議全是用本輪開始時的時刻算的；套用一筆就會重建那班車的剖面，下游通過時刻全部改變。
+  // 只有頭尾兩個停靠站的專車整條就是一個跑段，一次停等會改掉上百公里外的通過時刻。
+  // 2026-09-30 實測：6059（花蓮→南港，中途不停）先套永樂待避，百福通過時刻晚了 4 分多鐘，145 卻仍照
+  // 舊時刻在百福等它 163 秒——6059 那時還在宜蘭線上，145 白等完才出站；6059 在礁溪那筆也過期，
+  // 變成 0 秒的「待避」（照樣煞停再起步）；10/1–10/9 的 6652、6016、6725 則多等了 4–16 分鐘。
+  // 所以同一輪裡：被重建過的車不能再當別人待避的依據；已經有人照著它的時刻待避的車，本輪不准再重建；
+  // 同一班的下一筆要用重建後的到站時刻重驗。不合格的留到下一輪用新的時刻重算。
+  const rebuilt = new Set(), reliedOn = new Set();
   for (const [tr, ps] of grouped) {
     ps.sort((a, b) => a.j - b.j);
     for (const p of ps) {
       const st = tr.stops[p.j];
       if (st._plannedDwell && st.depSec >= p.dep) continue;
+      const fresh = !rebuilt.has(tr) || (p.dep > st.arrSec + 0.5 && p.dep - st.arrSec <= OVERTAKE_MAX_WAIT_SEC
+        && p.ftr.stops[p.fj].arrSec - st.arrSec >= p.need);
+      if (!fresh || rebuilt.has(p.ftr) || reliedOn.has(tr)) { stats.deferred++; continue; }
       if (!overtakeRunBuildable(tr, p.j, p.dep)) { stats.unbuildable++; continue; }
       if (st._overtakeDep0 == null) st._overtakeDep0 = st.depSec;
       st.depSec = Math.max(st.depSec, p.dep); st._plannedDwell = true; st._overtakeBy = p.follower;
-      stats.planned++;
+      stats.planned++; rebuilt.add(tr); reliedOn.add(p.ftr);
       if (stats.log.length < 200) stats.log.push({ no: String(tr.train), by: p.follower, station: p.station,
         arr: Math.round(st.arrSec), dep: Math.round(st.depSec), lead: Math.round(p.lead), need: Math.round(p.need), km: +p.lookKm.toFixed(1) });
       reassignTrainProfile(tr);               // 下一個候選要看這次停等重算後的通過時刻

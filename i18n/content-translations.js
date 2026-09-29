@@ -3463,3 +3463,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   'App 鎖定畫面跟車卡：Android 補上小列車、iPhone 改成三節車廂，從車站看板追下一班車時卡片會立刻出現': 'アプリのロック画面の追跡カード：Android でも小さな列車を表示し、iPhone は3両編成に。駅の発車案内から次の列車を追うと、カードがすぐに表示されます。',
 });
+// 2026-09-29 台鐵同向待避：過期提議與子跑段實測比例。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '修正少數台鐵列車在車站空等不存在的後車，或出站後異常慢行的問題': 'Fixed a few TRA trains waiting at stations for a following train that was not there, or crawling after departure',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '修正少數台鐵列車在車站空等不存在的後車，或出站後異常慢行的問題': '一部の台鉄列車が来ない後続列車を駅で待ったり、発車後に不自然に遅く走ったりする問題を修正しました',
+});
