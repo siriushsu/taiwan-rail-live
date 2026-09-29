@@ -12,6 +12,9 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const realFetch=globalThis.fetch;
 globalThis.fetch=async(url,opts)=>{const u=new URL(String(url));if(u.protocol!=='file:')return realFetch(url,opts);
  try{return new Response(fs.readFileSync(fileURLToPath(u)));}catch{return new Response('missing',{status:404});}};
+// garage-model 會建車燈（garage-train-lights.js 用 canvas 畫光暈貼圖）；Node 沒有 DOM，給一個什麼都接受的最小替身，只為了能擺車。
+if(!globalThis.document){const any=new Proxy(function(){},{get:(t,k)=>k===Symbol.toPrimitive?()=>0:any,apply:()=>any,set:()=>true});
+ globalThis.document={createElement:()=>({width:0,height:0,getContext:()=>any})};}
 const {loadGarageModel,createConsist}=await import(pathToFileURL(path.join(root,'rail-3d/garage-model.js')).href);
 const {createLoop}=await import(pathToFileURL(path.join(root,'rail-3d/garage-loop.js')).href);
 const THREE=await import(pathToFileURL(path.join(root,'rail-3d/vendor/three.module.js')).href);
@@ -20,7 +23,7 @@ const ids=Object.keys(manifest.models),loop=createLoop(),failures=[];let checked
 // 車燈重心離車體中心超過半長的一半才算有明確車頭端；兩端都有燈（雙頭機車、雙向單車）或沒有燈就不判。
 function cabEnd(asset){
  const pos=asset.geometry.getAttribute('position'),index=asset.geometry.index;let sum=0,n=0;
- for(const g of asset.geometry.groups){const m=asset.materials[g.materialIndex];if(m?.name!=='lamp')continue;
+ for(const g of asset.geometry.groups){const m=asset.materials[g.materialIndex];if(!/(^|:)lamp$/.test(m?.name||''))continue; // 分支 e6fd1e53 把車燈材質改名成 railLight:headFront:lamp 這類
   for(let k=g.start;k<g.start+g.count;k++){sum+=pos.getX(index?index.getX(k):k);n++;}}
  if(!n)return 0;const r=(sum/n-asset.center.x)/(asset.size.x/2);return r>.5?1:r<-.5?-1:0;
 }
