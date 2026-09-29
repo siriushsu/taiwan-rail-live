@@ -11,6 +11,13 @@
  *         **什麼都不畫**（站號徽章整顆消失，而且不是畫成白色，取樣到的就是卡片紙色）。
  *    兩者都是「靜態就看得出來」的，所以寫成 gate；狀態判定另有 verify_metro_plate_states.mjs。
  *
+ * 🔴 2026-09-19 修正三條過期判準：main 從 09-03（f763d244）起一直紅，但這支不在出貨鏈上，
+ *    紅了兩週多沒人看見——判準過期跟產品真的壞掉，從外面看一模一樣。三條都是這支寫好之後才加的東西：
+ *      · `<include>`（09-06 的挑選器示範列）：它是 LayoutInflater 的指令，不是類別，不經過類別過濾。
+ *      · 4×4 大張 widget_board_4x4 與它的 wl_* 列（09-02）：舊判準只認得 wg_／wb_／wm_ 三種前綴。
+ *      · 同一張 4×4 讓 provider 用到 7 張版面，舊判準寫死「剛好 6 張」。
+ *    現在掛在 verify-release.mjs（npm run build／npm run verify），緊接 verify_android_widget_parity。
+ *
  * 跑法：node app/scripts/verify_widget_layouts.mjs
  */
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
@@ -37,18 +44,38 @@ const ALLOWED = new Set([
 const layouts = readdirSync(LAYOUT_DIR).filter(f => f.startsWith('widget_') && f.endsWith('.xml'));
 ok(layouts.length >= 7, `小工具版面應有 7 張（三尺寸 × 兩版型 ＋ 訊息），實得 ${layouts.length}`);
 
+// <include> 跟 <merge> 一樣是 LayoutInflater 自己展開的指令，不經過 RemoteViews 的類別過濾；
+// 但【引入的內容照樣過濾】。2026-09-19 在 API 35 與 API 28 上實測 RemoteViews.apply：
+// 「<include> 引入 TextView」可以、「<include> 引入 <View>」一樣丟 Class not allowed，
+// 當時 23 張 widget_* 版面全部 inflate 成功。⇒ 放行 <include> 本身，並把它引入的版面
+// （遞迴、不論檔名前綴）一起納入下面每一項檢查——只放行不追進去，等於替共用版面開一個洞。
+const includedBy = new Map(layouts.map(f => [f, null]));   // 要掃的版面 → 誰 include 它（null＝本身就是 widget_*）
+const queue = [...layouts];
+while (queue.length) {
+  const file = queue.shift();
+  for (const [, attrs] of readFileSync(join(LAYOUT_DIR, file), 'utf8').matchAll(/<include\b([^>]*)>/g)) {
+    const target = /\blayout="@layout\/([a-z_0-9]+)"/.exec(attrs)?.[1];
+    ok(target, `${file}：<include${attrs}> 沒有 layout="@layout/…"`);
+    if (!target || includedBy.has(`${target}.xml`)) continue;
+    const exists = existsSync(join(LAYOUT_DIR, `${target}.xml`));
+    ok(exists, `${file}：<include> 引入的 @layout/${target} 不存在`);
+    if (exists) { includedBy.set(`${target}.xml`, file); queue.push(`${target}.xml`); }
+  }
+}
+
 const idsOf = new Map();      // 檔名 → Set(id)
 const tagsOf = new Map();     // 檔名 → [tag]
 
-for (const file of layouts) {
+for (const file of includedBy.keys()) {
+  const where = includedBy.get(file) ? `${file}（由 ${includedBy.get(file)} 以 <include> 引入）` : file;
   const xml = readFileSync(join(LAYOUT_DIR, file), 'utf8');
-  const tags = [...xml.matchAll(/<([A-Za-z][\w.]*)/g)].map(m => m[1]).filter(t => t !== 'merge');
+  const tags = [...xml.matchAll(/<([A-Za-z][\w.]*)/g)].map(m => m[1]).filter(t => t !== 'merge' && t !== 'include');
   tagsOf.set(file, tags);
   idsOf.set(file, new Set([...xml.matchAll(/android:id="@\+?id\/([a-z_0-9]+)"/g)].map(m => m[1])));
 
   for (const tag of new Set(tags)) {
     ok(ALLOWED.has(tag),
-      `${file}：<${tag}> 不在 RemoteViews 白名單裡——上裝置會丟 "Class not allowed to be inflated"`);
+      `${where}：<${tag}> 不在 RemoteViews 白名單裡——上裝置會丟 "Class not allowed to be inflated"`);
   }
 
   // ImageView × shape drawable × 非固定尺寸 ⇒ 量出 0，整塊消失
@@ -87,25 +114,48 @@ for (const [name, files] of Object.entries(groups)) {
   }
 }
 
-// binder 綁的每一個 id，都要真的存在於它那一組版面裡
+// binder 綁的每一個 id，都要真的存在於「會拿它來綁」的每一張版面裡。
+// 🔴 綁到版面裡沒有的 id 不會丟例外，只會靜默不顯示（2026-09-19 裝置實測：把 wl_* 綁到沒有它們的
+//    版面，七列全部無聲落空）——這一層只有靜態閘門擋得住。前綴 → 會拿它來綁的版面：
 const render = readFileSync(join(JAVA, 'MetroWidgetPlateRender.java'), 'utf8');
 const bound = new Set([...render.matchAll(/R\.id\.([a-z_0-9]+)/g)].map(m => m[1]));
 ok(bound.size >= 30, `binder 綁的 id 只有 ${bound.size} 個，少於預期（是不是抓錯檔案）`);
-const plateIds = idsOf.get('widget_plate_4x2.xml') ?? new Set();
-const boardIds = idsOf.get('widget_board_4x2.xml') ?? new Set();
-const messageIds = idsOf.get('widget_plate_message.xml') ?? new Set();
+const LARGE = 'widget_board_4x4.xml';
+const homes = {
+  wg_: { name: '琺瑯站牌', files: groups.琺瑯站牌 },
+  wb_: { name: '夜行看板', files: [...groups.夜行看板, LARGE] },   // 4×4 大張的 large() 先走一次 board()
+  wl_: { name: '4×4 大張', files: [LARGE] },                      // large() 的「接下來」七列
+  wm_: { name: '訊息版面', files: ['widget_plate_message.xml'] },
+};
+// large() 呼叫 board(…, maxRows, …)：超過 maxRows 的看板列，board() 只會把它設 GONE，而 4×4 本來就沒有
+// 那幾列——對版面裡沒有的 view 設 GONE 是 no-op（同一次裝置實測），所以只有那幾列可以不在 4×4 裡。
+// maxRows 從原始碼讀、不手打：哪天 large() 改成兩列，第 2 列就會變成必須在 4×4 裡。
+const largeRows = Number(/static RemoteViews large\([\s\S]*?\bboard\(\s*c\s*,\s*layoutRes\s*,\s*rows\s*,\s*(\d+)\s*,/.exec(render)?.[1]);
+ok(largeRows >= 1, 'binder 的 large() 裡找不到 board(c, layoutRes, rows, N, …)——讀不到 4×4 大張有幾列看板列，請更新本閘門');
 for (const id of bound) {
-  const home = id.startsWith('wb_') ? boardIds : id.startsWith('wm_') ? messageIds : plateIds;
-  const where = id.startsWith('wb_') ? '夜行看板' : id.startsWith('wm_') ? '訊息版面' : '琺瑯站牌';
-  ok(home.has(id), `binder 綁了 ${id}，但 ${where} 版面裡沒有這個 id`);
+  const prefix = Object.keys(homes).find(p => id.startsWith(p));
+  ok(prefix, `binder 綁了 ${id}，但前綴不在本閘門的前綴表裡（${Object.keys(homes).join('／')}）——先登記它住在哪幾張版面`);
+  if (!prefix) continue;
+  for (const file of homes[prefix].files) {
+    if (file === LARGE && Number(/^wb_r(\d+)(?:_|$)/.exec(id)?.[1]) > largeRows) continue;
+    ok(idsOf.get(file)?.has(id), `binder 綁了 ${id}，但${homes[prefix].name}的 ${file} 裡沒有這個 id`);
+  }
 }
 
-// provider 用到的每一張版面都要存在
+// provider 用到的版面＝前綴表登記、由 provider 交給 binder 的那幾張，一張不多一張不少。
+// 🔴 以前寫死「剛好 6 張」：09-02 加了 4×4 之後它只會說「實得 7」，那張 4×4 的 id 從此沒被核對過。
+//    多一張沒登記的＝它的 id 沒人驗；少一張＝provider 掉了一個尺寸。
 const provider = readFileSync(join(JAVA, 'MetroWidgetProvider.java'), 'utf8');
 const used = new Set([...provider.matchAll(/R\.layout\.(widget_[a-z_0-9]+)/g)].map(m => m[1]));
-ok(used.size === 6, `provider 應該用到 6 張版面（兩版型 × 三尺寸），實得 ${used.size}：${[...used]}`);
+const binderOwn = new Set([...render.matchAll(/R\.layout\.(widget_[a-z_0-9]+)/g)].map(m => m[1]));   // 訊息版面由 binder 自己開
+const registered = new Set(Object.values(homes).flatMap(h => h.files).map(f => f.replace(/\.xml$/, ''))
+  .filter(name => !binderOwn.has(name)));
 for (const name of used) {
   ok(layouts.includes(`${name}.xml`), `provider 用了 R.layout.${name}，但檔案不存在`);
+  ok(registered.has(name), `provider 用了 R.layout.${name}，但本閘門沒登記它由哪個 binder 入口綁、該有哪些 id（加進上面的前綴表）`);
+}
+for (const name of registered) {
+  ok(used.has(name), `前綴表登記了 ${name}，但 provider 沒用到它（provider 掉了一個尺寸，還是登記表過期？）`);
 }
 
 // 夜行看板的三列都要在版面裡（provider 明確傳 maxRows 決定顯示幾列）
@@ -121,4 +171,5 @@ if (fails.length) {
   for (const f of fails) console.error(' ✗ ' + f);
   process.exit(1);
 }
-console.log(`版面 gate 全過（${layouts.length} 張版面、${bound.size} 個綁定 id、白名單與 shape 尺寸都查過）`);
+console.log(`版面 gate 全過（${layouts.length} 張版面＋${includedBy.size - layouts.length} 張只經 <include> 引入、` +
+  `${bound.size} 個綁定 id、provider 的 ${used.size} 張版面都已登記、白名單與 shape 尺寸都查過）`);
