@@ -5627,6 +5627,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="placedup0925"><span class="d">9/29</span><span>地圖上站名旁邊的機場名稱也不再跟站名疊在一起，例如松山機場站旁的「臺北松山機場」</span></li>
         <li data-cl-of="tradistinct0929"><span class="d">9/29</span><span>立體地圖上台鐵列車在車站讓後車先過時，改停到旁邊的股道，後車不會再從停著的車身穿過去</span></li>
         <li data-cl-of="tainanfast0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：修正 App 裡點了打不開，網頁版下載量從約 11 MB 降到約 2 MB，開啟更快、全線視角更順</span></li>
         <li data-cl-of="trachain0929"><span class="d">9/29</span><span>10/3 環島專車這類比任何固定班次都跑得遠的台鐵專車，地圖上改沿真實股道行駛，不再整趟退回示意路線</span></li>
@@ -5634,7 +5635,6 @@
         <li data-cl-of="followcard0929"><span class="d">9/29</span><span>App 鎖定畫面跟車卡：Android 補上小列車、iPhone 改成三節車廂，從車站看板追下一班車時卡片會立刻出現</span></li>
         <li data-cl-of="langhint0929"><span class="d">9/29</span><span>網頁版首次開啟固定顯示繁體中文；英文、日文瀏覽器會出現可一鍵切換的語言提示</span></li>
         <li data-cl-of="seotitle0929"><span class="d">9/29</span><span>網頁標題與搜尋結果說明寫清楚：台鐵、高鐵、捷運即時地圖與時刻表</span></li>
-        <li data-cl-of="klrtcore0928"><span class="d">9/28</span><span>高雄輕軌發車前先在籬仔內等候，發車後沿用同一班身分；衛星位置確認屬於同一班才校正，否則依官方倒數逐站推算</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5642,6 +5642,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="placedup0925"><span class="d">9/29</span><span>地圖上站名旁邊若有同名的底圖地名（例如竹北站旁的「竹北市」「竹北里」），站名畫出來時就不再重複顯示；拉遠到還沒標出站名的時候，地名照樣看得到；9/29 起機場名稱也一樣（松山機場站旁的「臺北松山機場」）</span></li>
         <li data-cl="tradistinct0929"><span class="d">9/29</span><span>修正立體地圖上台鐵待避時後車直接穿過停著的前車（10/3 推估 14 次有 12 次同一股）：前車改停到後車不走、也沒有別班在用的股道；沒有這種股道的車站不排待避，改到前面有空股的站等。臺東線南平站的側線也能待避了</span></li>
         <li data-cl="tainanfast0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：修正 App 裡點了打不開；列車與站房模型改壓縮下載（內容不變），網頁版下載量從約 11 MB 降到約 2 MB，全線視角的繪製量也大幅減少</span></li>
         <li data-cl="trachain0929"><span class="d">9/29</span><span>比任何固定班次都跑得遠的台鐵專車（如 10/3 環島專車 6669、10/4 花蓮→新左營 6509），改成一段段接用既有班次走過的真實股道，交接站前後接得上；之前整趟退回示意路線</span></li>
@@ -5654,7 +5655,6 @@
         <li data-cl="pingzhenhold0927"><span class="d">9/27</span><span>台鐵誤點列車經過平鎮附近時，會穩定維持同一股道上的前後車順序，並依畫面上的實際編組長度保留距離，減少誤點追車時短暫重疊的畫面</span></li>
         <li data-cl="garagereverse0926"><span class="d">9/26</span><span>車庫環形試跑按 ⇄ 反向行駛時改成整列掉頭，車頭照樣在最前面帶著跑；原本頭尾兩節的車頭會轉進車廂中間，機車頭也會轉成對著自己拖的客車。福森號、栩悅號三節編組的兩端都改成觀景車頭，不再有一端露出貫通門</span></li>
         <li data-cl="remainingtracks0913"><span class="d">9/26</span><span>調整台鐵各站停靠與進出股道，減少待避重疊、追撞與對向互穿；9/14 再補回 97 站的站區股道，雙線區間依行車方向分股行駛（台北–萬華地下段不再兩向共用同一條軌道），並改善單線會車判斷；10/3 起台鐵調整時刻的 14 班照樣走這些股道</span></li>
-        <li data-cl="placedup0925"><span class="d">9/25</span><span>地圖上站名旁邊若有同名的底圖地名（例如竹北站旁的「竹北市」「竹北里」），站名畫出來時就不再重複顯示；拉遠到還沒標出站名的時候，地名照樣看得到</span></li>
         <li data-cl="pokemon0925"><span class="d">9/25</span><span>認得出寶可夢30周年主題列車（9/25–12/13）：每天跑哪幾班照台鐵公布的班表比對（感謝網友整理提供），當天那幾班地圖上的車牌會寫成「寶可夢 2183」這樣、列車卡會有介紹；今日亮點「特別列車出沒中」和搜尋「寶可夢」都列得出當天每一趟</span></li>
         <li data-cl="terrainrtt0923"><span class="d">9/23</span><span>地景地圖開啟地形時，立體車站周圍的地面不再殘留舊的建築輪廓</span></li>
         <li data-cl="perf3d0907"><span class="d">9/24</span><span>改善立體列車跟隨與地形畫面的流暢度，保留完整編組、模型細節與沿軌行駛；9/23 修正跟車時約每 15 秒頓一下：建築遮擋改成分段計算、資料不再來回多搬；9/24 再把那一下的計算量減半</span></li>
@@ -6926,7 +6926,10 @@
 // v0929b：網頁版首次開啟固定繁中（?lang → 已存偏好 → zh-TW），英日語瀏覽器只給一條小提示；原生 App 仍依 navigator.languages。
 // v0929f：台鐵預排待避：待避車換到另一股（rail-3d/physical/overtake-sidings.js），選站只選那個方向有空股的站
 //         （data/tra_overtake_tracks.json）；南平側線補打包路徑。
-const BUILD = 'v0929f';
+// v0929h：底圖地名去重擴及機場標籤（aerodrome_label 圖層，地景與淺色街圖的 airport）：機場名稱以站名結尾也算
+//         （臺北松山機場 vs 松山機場站、高雄國際機場同名）（守門：scripts/verify_basemap_label_dedup.mjs）。
+//         v0929g 已被 seo/homepage-title 分支佔用（未併 main），跳號避免撞號。
+const BUILD = 'v0929h';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
@@ -13472,6 +13475,11 @@ window.__glTracks = glTracks; // 守門人把手(verify_gl_tracks.mjs)
 // 原始 filter 重組,會把這一條洗掉。所以這裡不記原始值:每幀看圖層現在的 filter 是不是我們最後寫的那一份,
 // 不是就表示別人剛寫過,拿它(先剝掉我們舊的那一條)再疊一次。setFilter 會讓整個底圖來源重排,
 // 只在「畫哪些站」變了或別人寫過時才寫。
+// 09-29 起機場標籤也在內(source-layer aerodrome_label,地景與淺色街圖的 airport 圖層,飛機圖示加名字):文湖線
+// 「松山機場」站旁就是底圖的「臺北松山機場」,疊成重影(09-29 回報)。機場名稱常冠城市、站名不冠,所以機場圖層另外
+// 認「名字以站名結尾」,只限站名本身以「機場」結尾的站。09-29 普查 OFM 全台有 iata 的機場標籤(airport 圖層只畫這些):
+// 2 公里內有同名或只差城市前綴的車站,只有松山(544 公尺)與高雄國際機場(908 公尺)兩組。桃園機捷「機場第二航廈站」
+// 離「臺灣桃園國際機場」191 公尺但名字不同,清泉崗 3 公里內沒有車站,都不在此列。
 const PLACE_DEDUP_TAG = '__rail_place_dedup__'; // match 的第一個分支放這個認不到任何地名的標記,剝除時靠它認出是我們那一條
 const glPlaceDedup = { ids: null, hooked: false, inputs: [], clause: null, mine: new Map() };
 // 「畫哪些站」由這幾樣決定;任一樣變了才重組那一條(每幀比對,都是參照或短字串)
@@ -13496,18 +13504,24 @@ function glPlaceDedupClause() {
   }
   const lines = state.mode === 'sched' ? (state.deco && state.decoLines) || [] : (state.lines || []).filter(ln => state.visible.has(ln.id));
   for (const ln of lines) for (const st of ln.stations || []) add(st.name, st.lat, st.lon, isFavStationName(st.name) ? 11.5 : 13);
-  const used = new Set([PLACE_DEDUP_TAG]), branches = [[PLACE_DEDUP_TAG], false];
+  const used = new Set([PLACE_DEDUP_TAG]), branches = [[PLACE_DEDUP_TAG], false], tails = [];
+  const nameExpr = ['coalesce', ['get', 'name:nonlatin'], ['get', 'name:zh'], ['get', 'name'], ['get', 'name:latin']];
   for (const [k, g] of groups) {
+    const near = [...g].map(([z, pts]) => ['all', ['>=', ['zoom'], z], ['<', ['distance', { type: 'MultiPoint', coordinates: pts }], 2000]]);
+    const cond = near.length > 1 ? ['any', ...near] : near[0];
+    // 機場圖層:名字以站名結尾也算(臺北松山機場 vs 松山機場)。to-string 把沒有名字的機場變成空字串——slice 遇到
+    // null 會拋錯,整條 filter 退回預設的 false,那個機場連圖示都不畫
+    if (k.endsWith('機場')) for (const base of new Set([k, k.replace(/台/g, '臺')])) tails.push(['all', ['==', ['slice', ['to-string', nameExpr], -base.length], base], cond]);
     const labels = [];
     for (const base of new Set([k, k.replace(/台/g, '臺')])) for (const suf of ['', '市', '鄉', '鎮', '區', '里', '村']) {
       if (!used.has(base + suf)) { used.add(base + suf); labels.push(base + suf); }
     }
-    if (!labels.length) continue;
-    const near = [...g].map(([z, pts]) => ['all', ['>=', ['zoom'], z], ['<', ['distance', { type: 'MultiPoint', coordinates: pts }], 2000]]);
-    branches.push(labels, near.length > 1 ? ['any', ...near] : near[0]);
+    if (labels.length) branches.push(labels, cond);
   }
   if (branches.length === 2) return null;
-  return ['!', ['match', ['coalesce', ['get', 'name:nonlatin'], ['get', 'name:zh'], ['get', 'name'], ['get', 'name:latin']], ...branches, false]];
+  // 兩類圖層共用同一張站名表;match 對不上時地名圖層就是 false,機場圖層再比「名字以站名結尾」
+  const clause = otherwise => ['!', ['match', nameExpr, ...branches, otherwise]];
+  return { place: clause(false), aerodrome_label: clause(tails.length ? ['any', ...tails] : false) };
 }
 // 從別人寫進去的 filter 剝掉我們舊的那一條(station-layer 記下的原始值可能已經含著它,或包在它自己的 all 裡)
 function glPlaceDedupStrip(f) {
@@ -13521,7 +13535,7 @@ function glPlaceDedupSync() {
   const raw = M.raw, d = glPlaceDedup;
   if (!d.hooked) { d.hooked = true; M.onStyleLoad(() => { d.ids = null; d.mine.clear(); }); }
   if (!d.ids) {
-    d.ids = raw.getLayersOrder().filter(id => { const L = raw.getLayer(id); return L && L.type === 'symbol' && L.sourceLayer === 'place'; });
+    d.ids = raw.getLayersOrder().filter(id => { const L = raw.getLayer(id); return L && L.type === 'symbol' && (L.sourceLayer === 'place' || L.sourceLayer === 'aerodrome_label'); });
   }
   const inputs = glPlaceDedupInputs();
   const rebuilt = inputs.some((v, i) => v !== d.inputs[i]);
@@ -13529,8 +13543,8 @@ function glPlaceDedupSync() {
   for (const id of d.ids) {
     const L = raw.getLayer(id);
     if (!L || (!rebuilt && d.mine.has(id) && L.filter === d.mine.get(id))) continue;
-    const base = glPlaceDedupStrip(L.filter);
-    raw.setFilter(id, !d.clause ? base : base ? ['all', base, d.clause] : d.clause, { validate: false });
+    const base = glPlaceDedupStrip(L.filter), clause = d.clause && d.clause[L.sourceLayer];
+    raw.setFilter(id, !clause ? base : base ? ['all', base, clause] : clause, { validate: false });
     d.mine.set(id, raw.getLayer(id).filter);
   }
 }
@@ -17568,7 +17582,7 @@ function draw() {
   trainPaintQ = null; // 上一幀若中途拋例外,殘留佇列不可帶進這一幀(否則車會被收進去卻沒人畫)
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (glTracksActive()) glTracksSync(); // GL 軌道:狀態沒變就早退(簽名比對),有變才 setFilter/setPaintProperty
-  glPlaceDedupSync(); // 底圖地名跟站名同名就不畫底圖那個(竹北站旁的「竹北市」);沒變就早退
+  glPlaceDedupSync(); // 底圖地名、機場名跟站名同名就不畫底圖那個(竹北站旁的「竹北市」、松山機場站旁的「臺北松山機場」);沒變就早退
   if (state.mode === 'sched') { if (state.deco) drawDecoBase(w, h); drawSched(w, h, state.deco ? () => drawDecoTrains(w, h) : null); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
   drawMe(); // 「我的位置」畫最後=在所有軌道與列車之上,不會被蓋掉
   drawJourneyShareMarker(); // 收件端的分享位置同樣是移動元素：永遠畫在真實座標，不做碰撞位移

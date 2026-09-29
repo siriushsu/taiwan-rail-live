@@ -3493,3 +3493,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '立體地圖上台鐵列車在車站讓後車先過時，改停到旁邊的股道，後車不會再從停著的車身穿過去': '3D マップで、台鉄の列車が駅で後続列車の通過を待つときは隣の線路に停まるようになり、後続列車が停車中の列車を突き抜けて走ることがなくなりました',
 });
+// 2026-09-29 底圖地名去重擴及機場標籤（v0929h）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '地圖上站名旁邊的機場名稱也不再跟站名疊在一起，例如松山機場站旁的「臺北松山機場」': 'Airport names on the map no longer overlap the station labels next to them either, such as “Taipei Songshan Airport” beside Songshan Airport Station',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '地圖上站名旁邊的機場名稱也不再跟站名疊在一起，例如松山機場站旁的「臺北松山機場」': '地図で駅名のすぐ横に出ていた空港名（松山機場駅の横の「臺北松山機場」など）も、駅名と重なって表示されなくなりました',
+});
