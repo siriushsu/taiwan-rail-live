@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 車站收集・小（2×2 固定用 targetCell：兩格在任何格線都是兩格）。
+     Android 只做小、中兩款（使用者 2026-09-29 23:04 裁示「路線收集我覺得只需要做小跟中的版面就好 不用大的」）。
+     格數怎麼被 launcher 算出來、為什麼中卡寫 targetCellWidth=5，見 metro_board_widget_info.xml 與
+     memory android-widget-five-columns-launcher3-spans。
+     configuration_optional：使用者不選範圍也能直接放上桌面（預設全台，與 iOS 一致），之後長按「設定」再改；
+     reconfigurable：可重新設定範圍。initialLayout 是中性卡 widget_loading，示範版面只在 previewLayout。 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="tw.railisland.app.CollectionWidgetConfigActivity"
+    android:description="@string/collection_widget_small_description"
+    android:initialLayout="@layout/widget_loading"
+    android:minWidth="110dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="100dp"
+    android:previewLayout="@layout/widget_collect_small_preview"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable|configuration_optional" />

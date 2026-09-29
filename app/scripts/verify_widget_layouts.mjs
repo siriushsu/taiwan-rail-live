@@ -166,10 +166,82 @@ for (const file of groups.夜行看板) {
   }
 }
 
+// ── 車站收集（widget_collect_*）：binder 是 CollectionWidgetRender.java ───────────────────────────
+// 綁到版面裡沒有的 id 一樣是靜默不顯示；所以逐一登記「哪個 id 住在哪幾張版面」，binder 綁的每個 id 都要在表上、
+// 表上的每個 id 都要真的在那幾張版面裡、版面裡的 wc_* id 也都要有人綁（多的是死 id，通常代表改版改一半）。
+const collectRender = readFileSync(join(JAVA, 'CollectionWidgetRender.java'), 'utf8');
+const collectBound = new Set([...collectRender.matchAll(/R\.id\.(wc_[a-z_0-9]+)/g)].map(m => m[1]));
+ok(collectBound.size >= 20, `車站收集 binder 綁的 id 只有 ${collectBound.size} 個，少於預期（是不是抓錯檔案）`);
+const CS = 'widget_collect_small.xml', CM = 'widget_collect_medium.xml', CMSG = 'widget_collect_message.xml';
+const collectHomes = {
+  wc_root: [CS, CM, CMSG],
+  wc_title: [CS, CM, CMSG], wc_subtitle: [CS], wc_pct: [CS, CM], wc_count: [CS, CM], wc_remain: [CS],
+  wc_empty_title: [CS, 'widget_collect_empty.xml'], wc_empty_hint: [CS, 'widget_collect_empty.xml'],
+  wc_map_slot: [CS], wc_map_light: [CS, CM], wc_map_dark: [CS, CM], wc_rows: [CM], wc_message: [CMSG],
+  wc_row_label: ['widget_collect_sysrow.xml', 'widget_collect_sysrow_wide.xml'],
+  wc_row_bar: ['widget_collect_sysrow.xml', 'widget_collect_sysrow_wide.xml'],
+  wc_row_count: ['widget_collect_sysrow.xml', 'widget_collect_sysrow_wide.xml'],
+  wc_scope_bar: ['widget_collect_bar_row.xml'], wc_remain_line: ['widget_collect_remain.xml'],
+  wc_note_line: ['widget_collect_note.xml'],
+  wc_recent_date: ['widget_collect_recent.xml'], wc_recent_name: ['widget_collect_recent.xml'], wc_recent_line: ['widget_collect_recent.xml'],
+  wc_legend_solid: ['widget_collect_legend.xml'], wc_legend_follow: ['widget_collect_legend.xml'],
+};
+for (const id of collectBound) ok(collectHomes[id], `車站收集 binder 綁了 ${id}，但本閘門的 collectHomes 沒登記它住在哪幾張版面`);
+for (const [id, files] of Object.entries(collectHomes)) {
+  ok(collectBound.has(id), `collectHomes 登記了 ${id}，但 CollectionWidgetRender 沒綁它（死 id，或登記表過期）`);
+  for (const file of files) ok(idsOf.get(file)?.has(id), `車站收集：${file} 裡沒有 ${id}（binder 會對空氣設值）`);
+}
+// 版面裡出現的 wc_* id 也都要登記（版面新增了 id 卻沒人綁）
+for (const file of layouts.filter(f => f.startsWith('widget_collect_') && !f.endsWith('_preview.xml'))) {
+  for (const id of idsOf.get(file) ?? []) {
+    ok(collectHomes[id]?.includes(file), `車站收集：${file} 有 ${id}，但登記表沒把它列在這張版面（binder 不會碰它）`);
+  }
+}
+// 同一組列版面（中文 34dp／英文 62dp）id 要一樣，binder 只有一份
+{
+  const a = idsOf.get('widget_collect_sysrow.xml') ?? new Set(), b = idsOf.get('widget_collect_sysrow_wide.xml') ?? new Set();
+  ok(a.size > 0 && [...a].every(id => b.has(id)) && [...b].every(id => a.has(id)), 'widget_collect_sysrow 與 _wide 的 id 必須一致');
+}
+// binder 用到的每一張 widget_collect_* 都要存在；非預覽的每一張也都要被 binder 用到
+const collectUsed = new Set([...collectRender.matchAll(/R\.layout\.(widget_collect_[a-z_0-9]+)/g)].map(m => m[1]));
+for (const name of collectUsed) ok(layouts.includes(`${name}.xml`), `車站收集 binder 用了 R.layout.${name}，但檔案不存在`);
+for (const file of layouts.filter(f => f.startsWith('widget_collect_') && !f.endsWith('_preview.xml'))) {
+  ok(collectUsed.has(file.replace(/\.xml$/, '')), `${file} 沒有被 CollectionWidgetRender 用到（孤兒版面）`);
+}
+// 🔴 同 id 的 ProgressBar（全台列有好幾條）＋launcher 切深淺色／轉向時「以 id 還原 View 狀態」＝五條進度條變一樣長；
+//    saveEnabled=false 是唯一解，2026-09-30 真桌面踩到。所有 widget_collect_* 的 ProgressBar（含預覽）都要有。
+for (const file of layouts.filter(f => f.startsWith('widget_collect_'))) {
+  const xml = readFileSync(join(LAYOUT_DIR, file), 'utf8');
+  for (const [tag] of xml.matchAll(/<ProgressBar\b[^>]*>/g)) {
+    ok(/android:saveEnabled="false"/.test(tag), `${file}：ProgressBar 沒有 android:saveEnabled="false"（切深淺色後同 id 的進度條會被還原成一樣長）`);
+  }
+}
+// 🔴 launcher 對同一個 layout 的新 RemoteViews 是 reapply 到舊 View 樹：addView 會累加，所以往 wc_rows 加列之前
+//    一定要先 removeAllViews（2026-09-30 真桌面看到全台列重複兩列）。行為面的把關在 instrumentation reapplyTransitions。
+if (/addView\(\s*R\.id\.wc_rows/.test(collectRender)) {
+  ok(/removeAllViews\(\s*R\.id\.wc_rows\s*\)/.test(collectRender), 'CollectionWidgetRender 往 wc_rows addView，卻沒有先 removeAllViews(R.id.wc_rows)（reapply 後列會累加）');
+}
+// 地圖淺／深兩張 Bitmap 疊同一格：兩個 ImageView 的 alpha 必須分別綁到 wc_alpha_light／wc_alpha_dark，
+// 且 values 與 values-night 的兩個值相反（淺色 1／0，深色 0／1），少一個資料夾就會兩張同時露出或同時消失。
+for (const file of [CS, CM]) {
+  const xml = readFileSync(join(LAYOUT_DIR, file), 'utf8');
+  for (const [which, dimen] of [['wc_map_light', 'wc_alpha_light'], ['wc_map_dark', 'wc_alpha_dark']]) {
+    const tag = new RegExp(`<ImageView\\b[^>]*android:id="@\\+id/${which}"[^>]*>`).exec(xml)?.[0] ?? '';
+    ok(tag.includes(`android:alpha="@dimen/${dimen}"`), `${file}：${which} 的 alpha 沒有綁 @dimen/${dimen}`);
+  }
+}
+{
+  const dimenVal = (dir, name) => new RegExp(`<item name="${name}"[^>]*>([\\d.]+)</item>`).exec(
+    readFileSync(join(RES, dir, 'dimens_collect.xml'), 'utf8'))?.[1];
+  ok(dimenVal('values', 'wc_alpha_light') === '1' && dimenVal('values', 'wc_alpha_dark') === '0', 'values/dimens_collect.xml：淺色模式應為 淺=1、深=0');
+  ok(dimenVal('values-night', 'wc_alpha_light') === '0' && dimenVal('values-night', 'wc_alpha_dark') === '1', 'values-night/dimens_collect.xml：深色模式應為 淺=0、深=1');
+}
+
 if (fails.length) {
   console.error(`版面 gate 失敗 ${fails.length} 項：`);
   for (const f of fails) console.error(' ✗ ' + f);
   process.exit(1);
 }
 console.log(`版面 gate 全過（${layouts.length} 張版面＋${includedBy.size - layouts.length} 張只經 <include> 引入、` +
-  `${bound.size} 個綁定 id、provider 的 ${used.size} 張版面都已登記、白名單與 shape 尺寸都查過）`);
+  `${bound.size} 個綁定 id、provider 的 ${used.size} 張版面都已登記、白名單與 shape 尺寸都查過；` +
+  `車站收集 ${collectBound.size} 個綁定 id／${collectUsed.size} 張版面／saveEnabled／removeAllViews／深淺 alpha 都查過）`);

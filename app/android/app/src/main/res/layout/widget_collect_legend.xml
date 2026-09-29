@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 圖例一行：實心＝搭過／到訪、空心＝跟完（第二輪規格第 4 點，取代「淡色＝跟完」）。
+     中卡放得下才放；放不下就整行不放（CollectionWidgetRender 依高度預算決定）。
+     兩段文字用 3:2 的權重＋自動縮字（10sp→7sp）：繁中最短、日文「塗り＝乗車済み／訪問済み」最長，
+     360dp 寬的中卡三種語言都放得下；不用 wrap_content 是因為第一段會吃光空間、第二段被擠到折行被裁。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="3dp"
+    android:baselineAligned="false"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <ImageView
+        android:layout_width="8dp"
+        android:layout_height="8dp"
+        android:contentDescription="@null"
+        android:src="@drawable/wg_collect_dot_solid" />
+
+    <TextView
+        android:id="@+id/wc_legend_solid"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_weight="3"
+        android:autoSizeMaxTextSize="10sp"
+        android:autoSizeMinTextSize="7sp"
+        android:autoSizeTextType="uniform"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:textColor="@color/wg_ink_soft"
+        android:textSize="10sp" />
+
+    <ImageView
+        android:layout_width="8dp"
+        android:layout_height="8dp"
+        android:layout_marginStart="8dp"
+        android:contentDescription="@null"
+        android:src="@drawable/wg_collect_dot_ring" />
+
+    <TextView
+        android:id="@+id/wc_legend_follow"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_weight="2"
+        android:autoSizeMaxTextSize="10sp"
+        android:autoSizeMinTextSize="7sp"
+        android:autoSizeTextType="uniform"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:textColor="@color/wg_ink_soft"
+        android:textSize="10sp" />
+</LinearLayout>

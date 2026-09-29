@@ -52,6 +52,23 @@
         }
       }
     },
+    "，": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ", "
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "、"
+          }
+        }
+      }
+    },
     "，大概多久算不出來": {
       "extractionState": "manual",
       "localizations": {
@@ -4778,6 +4795,23 @@
         }
       }
     },
+    "三鶯": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sanying Line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "三鶯線"
+          }
+        }
+      }
+    },
     "三鶯線": {
       "extractionState": "manual",
       "localizations": {
@@ -7953,6 +7987,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "中原"
+          }
+        }
+      }
+    },
+    "中捷": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taichung Metro"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台中メトロ"
           }
         }
       }
@@ -18412,6 +18463,23 @@
         }
       }
     },
+    "安坑": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ankeng LRT"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安坑ライトレール"
+          }
+        }
+      }
+    },
     "安坑輕軌": {
       "extractionState": "manual",
       "localizations": {
@@ -18629,6 +18697,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "実績バッジ"
+          }
+        }
+      }
+    },
+    "收": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "収"
           }
         }
       }
@@ -21540,6 +21625,23 @@
         }
       }
     },
+    "把旅程護照的「車站 N 座」放上主畫面：點陣照真實位置排成台灣鐵道網，收過的站亮起線色。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Put the station count from your travel passport on your Home Screen. Dots placed at real locations form Taiwan's rail network, and stations you have collected light up in their line colors."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旅のパスポートの駅数をホーム画面に。実際の位置に並んだ点が台湾の鉄道網を描き、集めた駅が路線の色で光ります。"
+          }
+        }
+      }
+    },
     "把旅程護照裡的收集章，變成可以旋轉欣賞的小車。": {
       "extractionState": "manual",
       "localizations": {
@@ -22505,6 +22607,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "駅コレクション"
+          }
+        }
+      }
+    },
+    "車站收集（鎖定畫面）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station collection (Lock Screen)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅コレクション（ロック画面）"
+          }
+        }
+      }
+    },
+    "車站收集小工具": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station collection widget"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅コレクションウィジェット"
           }
         }
       }
@@ -26211,6 +26347,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "林辺"
+          }
+        }
+      }
+    },
+    "林鐵": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alishan Forest Railway"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "阿里山林業鉄道"
           }
         }
       }
@@ -35021,6 +35174,23 @@
         }
       }
     },
+    "高捷": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaohsiung Metro"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高雄メトロ"
+          }
+        }
+      }
+    },
     "高雄": {
       "extractionState": "manual",
       "localizations": {
@@ -37720,6 +37890,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "淡金鄧公"
+          }
+        }
+      }
+    },
+    "淡海": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Danhai LRT"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "淡海ライトレール"
           }
         }
       }
@@ -49777,6 +49964,23 @@
         }
       }
     },
+    "數字跟旅程護照的「車站 N 座」是同一個：跟完、搭過、到訪都算。地圖上實心是搭過或到訪、空心是跟完；在 App 裡蓋章後小工具會跟著更新。這項不需要通行證。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The number matches the station count in your travel passport: followed, travelled and visited stamps all count. On the map, solid dots are travelled or visited and hollow rings are followed. The widget updates after you collect a stamp in the app. No pass is required."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数字は旅のパスポートの駅数と同じです。追跡完了・乗車済み・訪問済みのスタンプをすべて数えます。地図では塗りつぶしが乗車済みまたは訪問済み、白抜きが追跡完了です。アプリでスタンプを押すとウィジェットも更新されます。軌島パスは不要です。"
+          }
+        }
+      }
+    },
     "暫時收不到定位；請讓 App 留在前景並把手機靠窗。": {
       "extractionState": "manual",
       "localizations": {
@@ -51222,6 +51426,23 @@
         }
       }
     },
+    "機捷": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Airport MRT"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空港MRT"
+          }
+        }
+      }
+    },
     "機捷 10/12 起改用台灣設計展結束後的班表：機場第一航廈到環北的區間加班車停開，南延直達車恢復停高鐵桃園站、開到環北": {
       "extractionState": "manual",
       "localizations": {
@@ -51779,6 +52000,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "駅名・列車番号・列車名を入力します（例：「台北」「152」「鳴日」）。駅をタップすると次の列車を、列車番号をタップするとその列車を追跡します。"
+          }
+        }
+      }
+    },
+    "選「車站收集」，有小、中兩種尺寸；加入時可以選全台或單一系統（台鐵、北捷、高捷……）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Station collection, in small or medium size. When adding it, pick all of Taiwan or a single system (TRA, Taipei Metro, Kaohsiung Metro…)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「駅コレクション」を選びます。サイズは小・中の2種類。追加するときに台湾全体か1つの路線網（台鉄、台北メトロ、高雄メトロ…）を選べます"
+          }
+        }
+      }
+    },
+    "選「車站收集」，有小、中兩種尺寸；長按小工具 →「編輯小工具」可以把範圍換成單一系統（台鐵、北捷、高捷……）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Station collection, in small or medium size. Touch and hold the widget, then Edit Widget to switch to a single system (TRA, Taipei Metro, Kaohsiung Metro…)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「駅コレクション」を選びます。サイズは小・中の2種類。ウィジェットを長押しして「ウィジェットを編集」から、1つの路線網（台鉄、台北メトロ、高雄メトロ…）に切り替えられます"
           }
         }
       }
@@ -53823,6 +54078,23 @@
         }
       }
     },
+    "點小工具會打開旅程護照": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap the widget to open your travel passport"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェットをタップすると旅のパスポートが開きます"
+          }
+        }
+      }
+    },
     "點北捷、高捷或機捷的車站打開看板": {
       "extractionState": "manual",
       "localizations": {
@@ -54788,6 +55060,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "ロック画面：ロック画面を長押し →「カスタマイズ」→ ウィジェットを追加（ロック画面に置けるのは今のところ「発車案内」だけです）"
+          }
+        }
+      }
+    },
+    "鎖定畫面也放得下，顯示收集百分比與進度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It also fits on the Lock Screen, showing your collection percentage and progress"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ロック画面にも置けます。収集率と進み具合を表示します"
           }
         }
       }

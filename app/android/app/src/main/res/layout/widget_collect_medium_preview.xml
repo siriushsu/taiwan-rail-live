@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 挑選器預覽（靜態）。🔴 示意資料（201／538，37%，全台），不是使用者的資料；系統列取示意 payload 裡
+     依總站數排的前五個（台鐵 77/241、北捷 85/119、高捷 14/75、機捷 9/22、中捷 6/18），「還有 2 個系統還沒去過」
+     也是同一份示意資料算出來的。進度條 progress 值＝round(1000×max(v/n,0.03))。版面照 widget_collect_medium.xml（地圖在左、文字欄在右，與實際卡片同）。
+     地圖 wg_collect_preview_map 淺／深各一張（drawable-nodpi／drawable-night-nodpi），由 CollectionMapRender 對示意 payload 畫出。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/wg_card"
+    android:baselineAligned="false"
+    android:clipToPadding="false"
+    android:orientation="horizontal"
+    android:paddingStart="14dp"
+    android:paddingTop="12dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="15dp">
+
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="30">
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:scaleType="fitStart"
+            android:src="@drawable/wg_collect_preview_map" />
+    </FrameLayout>
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="8dp"
+        android:layout_weight="70"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="車站收集"
+                android:textColor="@color/wg_ink"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="37%"
+                android:textColor="@color/wg_ink"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="已收集 201／538 座"
+            android:textColor="@color/wg_ink_soft"
+            android:textSize="10.5sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="5dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <TextView android:layout_width="34dp" android:layout_height="wrap_content" android:includeFontPadding="false" android:maxLines="1" android:text="台鐵" android:textColor="@color/wg_ink" android:textSize="11.5sp" android:textStyle="bold" />
+                <ProgressBar android:saveEnabled="false" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_height="6dp" android:layout_marginStart="4dp" android:layout_marginEnd="6dp" android:layout_weight="1" android:max="1000" android:progress="319" android:progressDrawable="@drawable/wg_collect_bar" />
+                <TextView android:layout_width="44dp" android:layout_height="wrap_content" android:gravity="end" android:includeFontPadding="false" android:maxLines="1" android:text="77/241" android:textColor="@color/wg_ink_soft" android:textSize="10.5sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <TextView android:layout_width="34dp" android:layout_height="wrap_content" android:includeFontPadding="false" android:maxLines="1" android:text="北捷" android:textColor="@color/wg_ink" android:textSize="11.5sp" android:textStyle="bold" />
+                <ProgressBar android:saveEnabled="false" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_height="6dp" android:layout_marginStart="4dp" android:layout_marginEnd="6dp" android:layout_weight="1" android:max="1000" android:progress="714" android:progressDrawable="@drawable/wg_collect_bar" />
+                <TextView android:layout_width="44dp" android:layout_height="wrap_content" android:gravity="end" android:includeFontPadding="false" android:maxLines="1" android:text="85/119" android:textColor="@color/wg_ink_soft" android:textSize="10.5sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <TextView android:layout_width="34dp" android:layout_height="wrap_content" android:includeFontPadding="false" android:maxLines="1" android:text="高捷" android:textColor="@color/wg_ink" android:textSize="11.5sp" android:textStyle="bold" />
+                <ProgressBar android:saveEnabled="false" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_height="6dp" android:layout_marginStart="4dp" android:layout_marginEnd="6dp" android:layout_weight="1" android:max="1000" android:progress="187" android:progressDrawable="@drawable/wg_collect_bar" />
+                <TextView android:layout_width="44dp" android:layout_height="wrap_content" android:gravity="end" android:includeFontPadding="false" android:maxLines="1" android:text="14/75" android:textColor="@color/wg_ink_soft" android:textSize="10.5sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <TextView android:layout_width="34dp" android:layout_height="wrap_content" android:includeFontPadding="false" android:maxLines="1" android:text="機捷" android:textColor="@color/wg_ink" android:textSize="11.5sp" android:textStyle="bold" />
+                <ProgressBar android:saveEnabled="false" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_height="6dp" android:layout_marginStart="4dp" android:layout_marginEnd="6dp" android:layout_weight="1" android:max="1000" android:progress="409" android:progressDrawable="@drawable/wg_collect_bar" />
+                <TextView android:layout_width="44dp" android:layout_height="wrap_content" android:gravity="end" android:includeFontPadding="false" android:maxLines="1" android:text="9/22" android:textColor="@color/wg_ink_soft" android:textSize="10.5sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <TextView android:layout_width="34dp" android:layout_height="wrap_content" android:includeFontPadding="false" android:maxLines="1" android:text="中捷" android:textColor="@color/wg_ink" android:textSize="11.5sp" android:textStyle="bold" />
+                <ProgressBar android:saveEnabled="false" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_height="6dp" android:layout_marginStart="4dp" android:layout_marginEnd="6dp" android:layout_weight="1" android:max="1000" android:progress="333" android:progressDrawable="@drawable/wg_collect_bar" />
+                <TextView android:layout_width="44dp" android:layout_height="wrap_content" android:gravity="end" android:includeFontPadding="false" android:maxLines="1" android:text="6/18" android:textColor="@color/wg_ink_soft" android:textSize="10.5sp" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="還有 2 個系統還沒去過"
+                android:textColor="@color/wg_ink_faint"
+                android:textSize="10.5sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <ImageView android:layout_width="8dp" android:layout_height="8dp" android:contentDescription="@null" android:src="@drawable/wg_collect_dot_solid" />
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_weight="3" android:includeFontPadding="false" android:maxLines="1" android:text="實心＝搭過／到訪" android:textColor="@color/wg_ink_soft" android:textSize="10sp" />
+                <ImageView android:layout_width="8dp" android:layout_height="8dp" android:layout_marginStart="8dp" android:contentDescription="@null" android:src="@drawable/wg_collect_dot_ring" />
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_weight="2" android:includeFontPadding="false" android:maxLines="1" android:text="空心＝跟完" android:textColor="@color/wg_ink_soft" android:textSize="10sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

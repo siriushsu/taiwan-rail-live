@@ -26,6 +26,9 @@ public final class RailWidgetPlugin extends Plugin {
         PROVIDERS.put("rail-medium", RailBoardWidgetProvider.class);
         PROVIDERS.put("rail-large", RailBoardWidgetLargeProvider.class);
         PROVIDERS.put("mixed-large", MixedBoardWidgetProvider.class);
+        // 車站收集只有小、中（使用者 2026-09-29：「只需要做小跟中的版面就好 不用大的」；iOS 的鎖定畫面兩款 Android 沒有）
+        PROVIDERS.put("collection-small", CollectionWidgetSmallProvider.class);
+        PROVIDERS.put("collection-medium", CollectionWidgetProvider.class);
     }
 
     private static boolean supported(Context ctx) {

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 圖例：空心＝跟完。圈外徑＝實心圓直徑（GradientDrawable 的筆畫畫在邊界內側），圈寬約半徑的 0.45 倍。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <size android:width="8dp" android:height="8dp" />
+    <stroke android:width="1.8dp" android:color="@color/wg_navy" />
+</shape>

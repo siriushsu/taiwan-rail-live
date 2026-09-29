@@ -22,6 +22,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(RailStorePlugin.class);
         registerPlugin(RailLanguagePlugin.class);
         registerPlugin(RailWidgetPlugin.class);
+        registerPlugin(RailCollectionPlugin.class);
         super.onCreate(savedInstanceState);
         Bridge b = getBridge();
         if (b != null) {

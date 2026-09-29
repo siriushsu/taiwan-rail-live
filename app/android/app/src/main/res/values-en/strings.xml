@@ -16,5 +16,9 @@
     <string name="rail_widget_large_description">The next trains, filling a full departure board</string>
     <string name="mixed_widget_name">Rail + metro board</string>
     <string name="mixed_widget_description">TRA or HSR departures and metro countdowns on one card</string>
+    <string name="collection_widget_name">Station collection · Medium</string>
+    <string name="collection_widget_description">How many rail stations you have collected, all of Taiwan or one system, dots at each station\'s real location</string>
+    <string name="collection_widget_small_name">Station collection · Small</string>
+    <string name="collection_widget_small_description">Collection progress and dot map, the smallest tile</string>
     <string name="widget_loading">Updating…</string>
 </resources>

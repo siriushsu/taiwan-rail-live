@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 車站收集・中。寬度「4 欄手機給 4、5 欄手機給 5」的做法（targetCellWidth 寫 5、minWidth 320dp、不寫 maxResizeWidth）
+     與 minHeight 110dp（三種格線都算成 2 列）同 metro_board_widget_info.xml，實測依據在那裡與 memory
+     android-widget-five-columns-launcher3-spans。Android 沒有大卡。
+     initialLayout 是中性卡 widget_loading，示範版面只在 previewLayout。 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="tw.railisland.app.CollectionWidgetConfigActivity"
+    android:description="@string/collection_widget_description"
+    android:initialLayout="@layout/widget_loading"
+    android:minWidth="320dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="5"
+    android:targetCellHeight="2"
+    android:minResizeWidth="250dp"
+    android:minResizeHeight="100dp"
+    android:previewLayout="@layout/widget_collect_medium_preview"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable|configuration_optional" />

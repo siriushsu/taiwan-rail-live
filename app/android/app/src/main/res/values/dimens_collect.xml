@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 車站收集小工具的地圖是 Canvas 畫的 Bitmap，像素不會跟著系統深淺色換——資源會。
+     所以淺色版、深色版兩張 Bitmap 疊在同一格，用資源限定的 alpha 決定露出哪一張：
+     淺色模式 淺=1／深=0，深色模式（values-night）相反。launcher 切換深淺色時會用新的資源重新 inflate，
+     不必等下一次 updateAppWidget。 -->
+<resources>
+    <item name="wc_alpha_light" type="dimen" format="float">1</item>
+    <item name="wc_alpha_dark" type="dimen" format="float">0</item>
+</resources>

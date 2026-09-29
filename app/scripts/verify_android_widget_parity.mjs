@@ -25,6 +25,10 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   const follow = read('app/android/app/src/main/java/tw/railisland/app/RailFollowNotification.java');
   const audio = read('app/android/app/src/main/java/tw/railisland/app/RailAudioService.java');
   const mixedRender = read('app/android/app/src/main/java/tw/railisland/app/MixedWidgetRender.java');
+  const collectionRender = read('app/android/app/src/main/java/tw/railisland/app/CollectionWidgetRender.java');
+  const collectionProvider = read('app/android/app/src/main/java/tw/railisland/app/CollectionWidgetProvider.java');
+  const collectionPlugin = read('app/android/app/src/main/java/tw/railisland/app/RailCollectionPlugin.java');
+  const widgetPlugin = read('app/android/app/src/main/java/tw/railisland/app/RailWidgetPlugin.java');
   // 挑選器預覽要等於「剛放上桌面的預設樣子」⇒ 跟著三個 info 檔的 previewLayout 走，不寫死檔名：
   // 2026-09-23 起預設背景是車模頭帶（WidgetBackground），預覽指向 *_model；寫死舊檔名的話，
   // previewLayout 一換，這裡就在驗一張挑選器根本不會顯示的版面、而且永遠綠。
@@ -44,6 +48,7 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
     ['RailBoardWidget()', [manifest, /android:name="\.RailBoardWidgetProvider"/]],
     ['MetroBoardWidget()', [manifest, /android:name="\.MetroWidgetProvider"/]],
     ['MixedBoardWidget()', [manifest, /android:name="\.MixedBoardWidgetProvider"/]],
+    ['CollectionWidget()', [manifest, /android:name="\.CollectionWidgetProvider"/]],
     ['RailFollowActivityWidget()', [main, /registerPlugin\(RailFollowLivePlugin\.class\)/]],
     ['MetroWaitActivityWidget()', [main, /registerPlugin\(RailMetroWaitPlugin\.class\)/]],
     ['TraWaitActivityWidget()', [main, /registerPlugin\(RailTraWaitPlugin\.class\)/]],
@@ -58,6 +63,47 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   });
   for (const ios of shipped.filter(name => !rules.has(name))) {
     results.push({ label: `${ios} 尚未定義 Android 對應規則`, pass: false });
+  }
+  // 車站收集（CollectionWidget）：iOS 的 supportedFamilies 逐一對到 Android provider，或明講「iOS 限定」。
+  // 🔴 不是「有 provider 就算過」：iOS 哪天多開一個 family（例如 .systemLarge），這裡要紅，逼人決定 Android 做不做；
+  //    Android 哪天多一個 provider 而 iOS 沒有對應 family（例如 CollectionWidgetLargeProvider）也要紅。
+  //    使用者 2026-09-29 裁示：Android 只做小、中；iOS 鎖定畫面兩款（accessory*）Android 沒有對應載體。
+  const collectionSwift = read('app/ios/App/RailBoardWidget/CollectionWidget.swift');
+  const collectionFamilies = [...(/\.supportedFamilies\(\[([^\]]*)\]\)/.exec(collectionSwift)?.[1] ?? '').matchAll(/\.(\w+)/g)].map(m => m[1]);
+  const COLLECTION_FAMILY_MAP = {
+    systemSmall: { provider: 'CollectionWidgetSmallProvider', info: 'collection_widget_small_info' },
+    systemMedium: { provider: 'CollectionWidgetProvider', info: 'collection_widget_info' },
+    accessoryRectangular: { iosOnly: '鎖定畫面小工具，Android 沒有對應載體' },
+    accessoryCircular: { iosOnly: '鎖定畫面小工具，Android 沒有對應載體' },
+  };
+  results.push({
+    label: `iOS CollectionWidget.supportedFamilies 解析得到 ${collectionFamilies.length} 個 family（要 ≥2，否則下面逐一對照是空的）：${collectionFamilies.join('、') || '(無)'}`,
+    pass: collectionFamilies.length >= 2
+  });
+  for (const family of collectionFamilies) {
+    const rule = COLLECTION_FAMILY_MAP[family];
+    if (!rule) {
+      results.push({ label: `iOS CollectionWidget 的 .${family} 尚未定義 Android 對應規則（做對應 provider，或在 COLLECTION_FAMILY_MAP 明講 iOS 限定）`, pass: false });
+    } else if (rule.iosOnly) {
+      results.push({ label: `iOS CollectionWidget .${family}：iOS 限定（${rule.iosOnly}），Android 不做`, pass: true });
+    } else {
+      const infoXml = (() => { try { return read(`app/android/app/src/main/res/xml/${rule.info}.xml`); } catch { return ''; } })();
+      results.push({
+        label: `iOS CollectionWidget .${family} ↔ Android ${rule.provider}：receiver 已註冊、指向 @xml/${rule.info}、info 是 appwidget-provider`,
+        pass: new RegExp(`android:name="\\.${rule.provider}"[\\s\\S]{0,600}?@xml/${rule.info}`).test(manifest)
+          && /<appwidget-provider/.test(infoXml)
+      });
+    }
+  }
+  {
+    const wanted = new Set(collectionFamilies.map(f => COLLECTION_FAMILY_MAP[f]?.provider).filter(Boolean));
+    const declared = new Set([...manifest.matchAll(/android:name="\.(CollectionWidget\w*Provider)"/g)].map(m => m[1]));
+    const extra = [...declared].filter(name => !wanted.has(name));
+    const missing = [...wanted].filter(name => !declared.has(name));
+    results.push({
+      label: `manifest 的 CollectionWidget*Provider 與 iOS 出貨的 system family 一一對應（多：${extra.join('、') || '無'}；少：${missing.join('、') || '無'}）`,
+      pass: extra.length === 0 && missing.length === 0
+    });
   }
   // iOS 藝廊每個看板都列 小／中／大;Android 選單一個 provider 只顯示一張 ⇒ 尺寸各自一個 provider
   // (使用者 2026-09-02 裁示「種類要跟 iOS 一樣多」)。receiver 與 provider info 都要在,少一個
@@ -75,7 +121,7 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
     });
   }
   // 五格寬:中／大 targetCellWidth 寫 5(5 欄採用、4 欄被 launcher 丟掉改走 minWidth),且不得再寫 maxResizeWidth(舊版 5 欄只佔 4 格的原因)。
-  for (const info of ['metro_board_widget_info', 'metro_board_widget_large_info', 'rail_board_widget_info', 'rail_board_widget_large_info', 'mixed_board_widget_info']) {
+  for (const info of ['metro_board_widget_info', 'metro_board_widget_large_info', 'rail_board_widget_info', 'rail_board_widget_large_info', 'mixed_board_widget_info', 'collection_widget_info']) {
     const xml = read(`app/android/app/src/main/res/xml/${info}.xml`).replace(/<!--[\s\S]*?-->/g, '');
     results.push({
       label: `${info} 五欄給五:targetCellWidth=5、無 maxResizeWidth、四欄退路 minWidth≥320dp`,
@@ -392,17 +438,62 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
       removeBeforeFirstAdd(mixedBoardBody, 'wmx_rail_rows')],
     // initialLayout／previewLayout 分家四條（必修 7）：分母用實際掃到的檔案數（見 widgetInfoFiles）
     // 而不是寫死清單長度，新增或刪掉一個 provider 不改這支腳本就會被 (d) 抓到。
-    [`res/xml/*_info.xml 掃到的 appwidget-provider 檔數＝${infoFileNames.length}（期望＝7）：${infoFileNames.join('、') || '(無)'}`,
-      infoFileNames.length === 7],
-    [`七個 info 檔的 initialLayout 全部指向中性卡 @layout/widget_loading：${infoFileNames.join('、') || '(無)'}`,
+    [`res/xml/*_info.xml 掃到的 appwidget-provider 檔數＝${infoFileNames.length}（期望＝9）：${infoFileNames.join('、') || '(無)'}`,
+      infoFileNames.length === 9],
+    [`九個 info 檔的 initialLayout 全部指向中性卡 @layout/widget_loading：${infoFileNames.join('、') || '(無)'}`,
       infoFileNames.length > 0 && infoFileNames.every(name => /android:initialLayout="@layout\/widget_loading"/.test(infoFileXml.get(name)))],
-    [`七個 info 檔的 previewLayout 存在、≠ widget_loading、且所指 layout 檔存在：${infoFileNames.join('、') || '(無)'}`,
+    [`九個 info 檔的 previewLayout 存在、≠ widget_loading、且所指 layout 檔存在：${infoFileNames.join('、') || '(無)'}`,
       infoFileNames.length > 0 && infoFileNames.every(name => {
         const m = infoFileXml.get(name).match(/android:previewLayout="@layout\/(\w+)"/);
         if (!m || m[1] === 'widget_loading') return false;
         try { read(`app/android/app/src/main/res/layout/${m[1]}.xml`); return true; }
         catch { return false; }
       })],
+    // ── 車站收集：資料通道、點擊、設定頁、reapply 安全 ──────────────────────────────
+    ['車站收集：RailCollectionPlugin 註冊（jsName RailCollection）、網頁橋掛在 iOS／Android 兩邊、sync 驗過才寫檔並刷新兩個 provider',
+      /registerPlugin\(RailCollectionPlugin\.class\)/.test(main)
+        && /@CapacitorPlugin\(name = "RailCollection"\)/.test(collectionPlugin)
+        && /registerPlugin\('RailCollection'\)/.test(bridge)
+        && /RAIL_NATIVE_COLLECTION\s*=\s*\{\s*sync:/.test(bridge)
+        && /CollectionStore\.validate\(/.test(collectionPlugin) && /CollectionStore\.write\(/.test(collectionPlugin)
+        && /CollectionWidgetProvider\.updateAll\(/.test(collectionPlugin)],
+    ['車站收集：網頁橋的 RAIL_NATIVE_COLLECTION 不在「只有 iOS」或「只有 Android」的條件裡（否則另一邊永遠收不到資料）',
+      (() => {
+        const at = bridge.indexOf("registerPlugin('RailCollection')");
+        if (at === -1) return false;
+        const before = bridge.slice(0, at);
+        const open = before.lastIndexOf("if (platform === 'ios' || platform === 'android')");
+        const onlyAndroid = before.lastIndexOf("if (platform === 'android')");
+        const onlyIos = before.lastIndexOf("if (platform === 'ios')");
+        return open !== -1 && open > onlyAndroid && open > onlyIos;
+      })()],
+    ['車站收集：RailWidgetPlugin 的 PROVIDERS 有 collection-small／collection-medium，沒有 collection-large',
+      /PROVIDERS\.put\("collection-small",\s*CollectionWidgetSmallProvider\.class\)/.test(widgetPlugin)
+        && /PROVIDERS\.put\("collection-medium",\s*CollectionWidgetProvider\.class\)/.test(widgetPlugin)
+        && !/collection-large/.test(widgetPlugin)],
+    ['車站收集：點小工具開 railisland://passport——manifest 的 intent-filter、RailMetroWaitPlugin 收 host passport 並轉 view:"passport"、provider 的 PendingIntent 帶同一個 URI',
+      /<data android:scheme="railisland" android:host="passport"\s*\/>/.test(manifest)
+        && /"passport"\.equals\(host\)/.test(read('app/android/app/src/main/java/tw/railisland/app/RailMetroWaitPlugin.java'))
+        && /data\.put\("view", "passport"\)/.test(read('app/android/app/src/main/java/tw/railisland/app/RailMetroWaitPlugin.java'))
+        && /railisland:\/\/passport/.test(collectionProvider)],
+    ['車站收集：設定頁註冊了 APPWIDGET_CONFIGURE，兩個 info 都指向它、可重新設定',
+      /android:name="\.CollectionWidgetConfigActivity"[\s\S]{0,600}?android\.appwidget\.action\.APPWIDGET_CONFIGURE/.test(manifest)
+        && ['collection_widget_info', 'collection_widget_small_info'].every(name => {
+          const xml = read(`app/android/app/src/main/res/xml/${name}.xml`).replace(/<!--[\s\S]*?-->/g, '');
+          return /android:configure="tw\.railisland\.app\.CollectionWidgetConfigActivity"/.test(xml) && /reconfigurable/.test(xml);
+        })],
+    ['CollectionWidgetRender.medium 對 R.id.wc_rows 在 addView 前先 removeAllViews（launcher 是 reapply 到舊 View 樹，不先清會累加）',
+      removeBeforeFirstAdd(extractFunctionBody(collectionRender, 'medium', 'CollectionWidgetRender.java'), 'wc_rows')],
+    ['CollectionWidgetRender.small 對每個會被切換的可見性兩個分支都明講（reapply 不會替沒提到的屬性還原）',
+      (() => {
+        const body = extractFunctionBody(collectionRender, 'small', 'CollectionWidgetRender.java');
+        // 每個 id 至少要有一次 VISIBLE 與一次 GONE 的設定（用三元運算式同時涵蓋兩邊也算）
+        return ['wc_pct', 'wc_count', 'wc_remain', 'wc_empty_title', 'wc_empty_hint', 'wc_map_slot', 'wc_subtitle'].every(id => {
+          const sets = [...body.matchAll(new RegExp(`setViewVisibility\\(R\\.id\\.${id},([^;]*)\\);`, 'g'))].map(m => m[1]);
+          const both = sets.some(x => /VISIBLE/.test(x) && /GONE/.test(x));
+          return both || (sets.some(x => /VISIBLE/.test(x) && !/GONE/.test(x)) && sets.some(x => /GONE/.test(x) && !/VISIBLE/.test(x)));
+        });
+      })()],
     ['widget_loading.xml 是中性卡：無 android:id、無 <include、無 demo-row、無時刻樣式（\\d{1,2}:\\d{2}）、無「往 」',
       (() => {
         const xml = read('app/android/app/src/main/res/layout/widget_loading.xml');

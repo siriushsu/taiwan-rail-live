@@ -332,6 +332,14 @@ Object.assign(native, {
   '實心＝搭過／到訪': ['Solid = Travelled / Visited', '塗り＝乗車済み／訪問済み'],
   // 2026-09-29 第二輪裁示：跟完改畫線色空心圈，圖例文字同步（取代「淡色＝跟完」）。
   '空心＝跟完': ['Hollow = Followed', '白抜き＝追跡完了'],
+  '車站收集小工具': ['Station collection widget', '駅コレクションウィジェット'],
+  // 範圍選單的退回清單（collection.json 還不存在時）用簡稱查字典；台鐵／高鐵／北捷網站字典已有，
+  // 其餘七個沿用同一份字典裡全名的譯法（機場捷運→Airport MRT…）。有資料後改用 payload 的 label。
+  '機捷': ['Airport MRT', '空港MRT'], '中捷': ['Taichung Metro', '台中メトロ'], '高捷': ['Kaohsiung Metro', '高雄メトロ'],
+  '淡海': ['Danhai LRT', '淡海ライトレール'], '安坑': ['Ankeng LRT', '安坑ライトレール'], '三鶯': ['Sanying Line', '三鶯線'],
+  '林鐵': ['Alishan Forest Railway', '阿里山林業鉄道'],
+  // Android TalkBack 句子的分隔（「。」網站字典已有）。
+  '，': [', ', '、'],
 });
 Object.assign(native, {
   '基隆市': ['Keelung City', '基隆市'], '臺北市': ['Taipei City', '台北市'], '新北市': ['New Taipei City', '新北市'],

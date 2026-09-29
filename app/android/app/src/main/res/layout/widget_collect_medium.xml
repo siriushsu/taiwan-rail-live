@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 車站收集・中（5×2／4×2）。與 iOS MediumCollectionView 同一個資訊層級：
+     左側整高的點陣地圖＋右欄（標題＋百分比同一行、已收集 v／n 座、中段內容）——地圖在左，與 iOS 中卡一致。
+     地圖欄 30%、文字欄 70%（權重），地圖 ImageView 用 fitStart 貼左上，高度／寬度誰先到頂就以誰為準。
+     中段（wc_rows）由 CollectionWidgetRender 依卡片高度預算逐列 addView：
+       全台：有收集的系統各一列（標籤＋進度條＋v/n）＋「還有 K 個系統還沒去過」；
+       單一系統：進度條＋「還有 N 座」＋最近蓋章；
+       空狀態：邀請文案。放得下才放圖例。
+     🔴 淺／深兩張地圖 Bitmap 疊同一格，資源限定 alpha 切換（見 dimens_collect.xml）。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wc_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/wg_card"
+    android:baselineAligned="false"
+    android:clipToPadding="false"
+    android:orientation="horizontal"
+    android:paddingStart="14dp"
+    android:paddingTop="12dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="15dp">
+
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="30">
+
+        <ImageView
+            android:id="@+id/wc_map_light"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="@dimen/wc_alpha_light"
+            android:contentDescription="@null"
+            android:scaleType="fitStart" />
+
+        <ImageView
+            android:id="@+id/wc_map_dark"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="@dimen/wc_alpha_dark"
+            android:contentDescription="@null"
+            android:scaleType="fitStart" />
+    </FrameLayout>
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="8dp"
+        android:layout_weight="70"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/wc_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:autoSizeMaxTextSize="14sp"
+                android:autoSizeMinTextSize="10sp"
+                android:autoSizeTextType="uniform"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/wg_ink"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/wc_pct"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/wg_ink"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/wc_count"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:autoSizeMaxTextSize="10.5sp"
+            android:autoSizeMinTextSize="8sp"
+            android:autoSizeTextType="uniform"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:textColor="@color/wg_ink_soft"
+            android:textSize="10.5sp" />
+
+        <LinearLayout
+            android:id="@+id/wc_rows"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="5dp"
+            android:layout_weight="1"
+            android:orientation="vertical" />
+    </LinearLayout>
+
+</LinearLayout>

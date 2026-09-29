@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 圖例：實心＝搭過／到訪。有 <size>，ImageView 用它當 src 才量得出尺寸（見 verify_widget_layouts）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <size android:width="8dp" android:height="8dp" />
+    <solid android:color="@color/wg_navy" />
+</shape>

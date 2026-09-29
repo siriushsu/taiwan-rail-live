@@ -36,6 +36,14 @@
                 <data android:scheme="railisland" android:host="pass" />
             </intent-filter>
 
+            <!-- 車站收集小工具點下去開旅程護照：railisland://passport（RailMetroWaitPlugin 轉成 waitOpen view:"passport"）。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="railisland" android:host="passport" />
+            </intent-filter>
+
         </activity>
 
         <activity
@@ -52,6 +60,17 @@
             android:name=".MixedWidgetConfigActivity"
             android:exported="true"
             android:theme="@style/AppTheme.NoActionBar" />
+
+        <!-- 車站收集的設定頁：官方文件要求宣告 APPWIDGET_CONFIGURE（launcher 實際用 provider info 的 configure 屬性開它，
+             走顯式 component，不靠這個 filter；宣告是保險，讓走隱式 intent 的 host 也找得到）。 -->
+        <activity
+            android:name=".CollectionWidgetConfigActivity"
+            android:exported="true"
+            android:theme="@style/AppTheme.NoActionBar">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
 
         <receiver
             android:name=".MetroWidgetProvider"
@@ -138,6 +157,32 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/rail_board_widget_large_info" />
+        </receiver>
+
+        <!-- 車站收集：Android 只做小、中兩款（不做大；iOS 的鎖定畫面兩款 Android 沒有）。
+             中＝CollectionWidgetProvider（邏輯全在這裡），小＝空殼子類，見 WidgetFamily。 -->
+        <receiver
+            android:name=".CollectionWidgetProvider"
+            android:label="@string/collection_widget_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/collection_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".CollectionWidgetSmallProvider"
+            android:label="@string/collection_widget_small_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/collection_widget_small_info" />
         </receiver>
 
         <receiver
