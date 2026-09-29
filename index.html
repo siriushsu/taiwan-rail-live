@@ -35582,6 +35582,8 @@ const HELP_GROUPS = [
         : ['長按主畫面空白處進入編輯，從加入小工具的入口搜尋「軌島」', '選「車站收集」，有小、中兩種尺寸；長按小工具 →「編輯小工具」可以把範圍換成單一系統（台鐵、北捷、高捷……）', '鎖定畫面也放得下，顯示收集百分比與進度', '點小工具會打開旅程護照'],
       tip: '數字跟旅程護照的「車站 N 座」是同一個：跟完、搭過、到訪都算。地圖上實心是搭過或到訪、空心是跟完；在 App 裡蓋章後小工具會跟著更新。這項不需要通行證。',
       widgets: helpIsAndroid ? [
+        { kind: 'collection-small', name: '車站收集', sizes: '2×2', img: 'assets/widgets/android/collect-small.webp', pin: true },
+        { kind: 'collection-medium', name: '車站收集', sizes: '5×2', img: 'assets/widgets/android/collect-medium.webp', pin: true },
       ] : [
         { kind: 'ios-collect-small', name: '車站收集', sizes: '小', img: 'assets/widgets/ios/collect-small.webp' },
         { kind: 'ios-collect-medium', name: '車站收集', sizes: '中', img: 'assets/widgets/ios/collect-medium.webp' },
