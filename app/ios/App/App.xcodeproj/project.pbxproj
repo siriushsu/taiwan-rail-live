@@ -34,6 +34,7 @@
 		56F5C66A30280000003C7FE0 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 56F5C66C30280000003C7FE0 /* Localizable.xcstrings */; };
 		56F5C66B30280000003C7FE0 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 56F5C66D30280000003C7FE0 /* InfoPlist.xcstrings */; };
 		56F5C66E30280000003C7FE0 /* RailLanguagePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C66F30280000003C7FE0 /* RailLanguagePlugin.swift */; };
+		56F5C6A1303A0000003C7FE0 /* RailCollectionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C6A0303A0000003C7FE0 /* RailCollectionPlugin.swift */; };
 		56F5C634301D0000003C7FE0 /* RailLiveActivityPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */; };
 		56F5C644301F0000003C7FE0 /* RailMetroWaitPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C643301F0000003C7FE0 /* RailMetroWaitPlugin.swift */; };
 		56F5C67730230000003C7FE0 /* RailTraWaitPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C67630230000003C7FE0 /* RailTraWaitPlugin.swift */; };
@@ -96,6 +97,7 @@
 		56F5C66C30280000003C7FE0 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = Localizable.xcstrings; path = RailBoardWidget/Localizable.xcstrings; sourceTree = SOURCE_ROOT; };
 		56F5C66D30280000003C7FE0 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		56F5C66F30280000003C7FE0 /* RailLanguagePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailLanguagePlugin.swift; sourceTree = "<group>"; };
+		56F5C6A0303A0000003C7FE0 /* RailCollectionPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailCollectionPlugin.swift; sourceTree = "<group>"; };
 		56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailLiveActivityPlugin.swift; sourceTree = "<group>"; };
 		56F5C626301A0000003C7FE0 /* RailBoardScheduleWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailBoardScheduleWriter.swift; sourceTree = "<group>"; };
 		504EC30C1FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
@@ -201,6 +203,7 @@
 				56F5C66C30280000003C7FE0 /* Localizable.xcstrings */,
 				56F5C66D30280000003C7FE0 /* InfoPlist.xcstrings */,
 				56F5C66F30280000003C7FE0 /* RailLanguagePlugin.swift */,
+				56F5C6A0303A0000003C7FE0 /* RailCollectionPlugin.swift */,
 				56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */,
 				56F5C643301F0000003C7FE0 /* RailMetroWaitPlugin.swift */,
 				56F5C67630230000003C7FE0 /* RailTraWaitPlugin.swift */,
@@ -398,6 +401,7 @@
 				56F5C68430240000003C7FE0 /* RailFollowEndIntent.swift in Sources */,
 				56F5C67730230000003C7FE0 /* RailTraWaitPlugin.swift in Sources */,
 				56F5C66E30280000003C7FE0 /* RailLanguagePlugin.swift in Sources */,
+				56F5C6A1303A0000003C7FE0 /* RailCollectionPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
