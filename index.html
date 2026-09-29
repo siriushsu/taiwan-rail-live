@@ -17448,11 +17448,20 @@ function collectionWidgetPayload(geo) {
   const pts = [];
   live.forEach((i, j) => per[i].forEach((pt, key) => pts.push([pt.x, pt.y, pt.color, S[(coll.get(key) || {}).s] || 0, j])));
   const total = new Set([...live.flatMap(i => [...per[i].keys()]), ...coll.keys()]).size;
-  const recent = [...coll.entries()].filter(([, v]) => v.d)
-    .sort((a, b) => (a[1].d < b[1].d ? 1 : a[1].d > b[1].d ? -1 : 0) || b[1].n - a[1].n || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
-    .slice(0, 4).map(([key, v]) => {
-      const i = live.find(x => per[x].has(key)), hit = i == null ? null : per[i].get(key);
-      const def = COLLECT_SYS[i != null ? i : COLLECT_SYS.findIndex(d => d.ck === v.sys)] || COLLECT_SYS[0]; // 清單外的站:退到同鍵系統的第一個
+  // recent(第二輪語意,欄位形狀不變):每個系統各取最近 4 筆,合併後整體再依同一規則排序——原生端單一系統範圍
+  // 才有得畫(全台範圍取前 4 筆、單一系統取 k 相符的前 4 筆)。排序:d 新到舊、同日 n 大到小、再依收集鍵字典序。
+  const byRecent = (a, b) => (a.e[1].d < b.e[1].d ? 1 : a.e[1].d > b.e[1].d ? -1 : 0) || b.e[1].n - a.e[1].n || (a.e[0] < b.e[0] ? -1 : a.e[0] > b.e[0] ? 1 : 0);
+  const recentBySys = new Map();
+  for (const e of coll.entries()) {
+    if (!e[1].d) continue;
+    const i = live.find(x => per[x].has(e[0])); // 系統歸屬:清單裡第一個有這把鍵的系統
+    const def = COLLECT_SYS[i != null ? i : COLLECT_SYS.findIndex(d => d.ck === e[1].sys)] || COLLECT_SYS[0]; // 清單外的站:退到同鍵系統的第一個
+    if (!recentBySys.has(def.k)) recentBySys.set(def.k, []);
+    recentBySys.get(def.k).push({ e, i, def });
+  }
+  const recent = [...recentBySys.values()].flatMap(g => g.sort(byRecent).slice(0, 4)).sort(byRecent)
+    .map(({ e: [key, v], i, def }) => {
+      const hit = i == null ? null : per[i].get(key);
       return {
         name: stationName(v.name, hit ? def.geo : v.sys), // 護照同一個寫法(stationName(name, sys))
         line: (hit && collectionLineName(def, hit.lineId)) || def.label[lang],
@@ -34060,6 +34069,9 @@ function ensureMetroWaitListener() {
       // 通行證閘門的 CTA 卡(railisland://pass):沒有站可開,直接把人送到方案面板。
       // 走與工具列同一個入口 plusOpen(),來源標成 widget 方便日後看轉換來自哪裡。
       if (evt && evt.view === 'pass') { plusOpen('widget'); return; }
+      // 車站收集小工具(railisland://passport):打開旅程護照(#ridePanel:完乘記錄與收集章,「車站 N 座」就在這),
+      // 不是通行證(pass)、也不是車站看板(station)。沒有站要找,直接開。
+      if (evt && evt.view === 'passport') { openRidePanel(); return; }
       const sys = evt && evt.sys, station = evt && evt.station;
       if (evt && evt.view === 'station') {
         if (!openWidgetRailStation(sys, station)) {

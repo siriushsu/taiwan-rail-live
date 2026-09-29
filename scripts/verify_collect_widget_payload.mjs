@@ -14,7 +14,8 @@
 // 判準對應：
 //   G0  第一道 gate：印出目標路徑＋index.html md5，並確認伺服器吐的就是那份
 //   J   空收集：total＝geojson 獨立重算（09-29 為 538）、n＝0、recent 空、點全灰
-//   A   開機推送：欄位名稱／型別逐欄符合契約；n＝護照函式；total／各系統 v／n／recent 順序／點陣與獨立重算一致
+//   A   開機推送：欄位名稱／型別逐欄符合契約；n＝護照函式；total／各系統 v／n／recent（每系統各取最近 4 筆，
+//       合併後整體再排序）／點陣與獨立重算一致；fixture 有系統超過 4 筆候選、有多個系統各有紀錄（具名前提斷言）
 //   B   完乘寫入（saveRides）→ 3 秒內新一包；follow→s=1
 //   C   打卡寫入（writeCheckin，含捷運同名併鍵）→ 3 秒內新一包
 //   D   rail-user-data-changed（帳號同步合併）→ 3 秒內新一包
@@ -24,6 +25,11 @@
 //   H   純網站（沒有 bridge）：零 geojson 請求、不註冊 listener、不留 schedule；對照 App 形態確實請求且多註冊 1 個
 //   I   開機落在捷運群組（state.schedStations 是 []）：total 仍＝清單座數，別名站不會多出來
 //   K   資料一致性：清單去別名後，台鐵站名全都在班表站名裡（別名表沒漏、沒錯）
+//   M   recent 每系統各取 4 筆（第二輪第 2 點）：專屬 fixture＝九個系統各有紀錄、兩個系統候選超過 4 筆、
+//       邊界同日（以 n 決勝）與同日同 n（以收集鍵字典序決勝）；literal 手算對照＋獨立重算
+//   P   護照深連結（第二輪第 6 點）：waitOpen 收到 {view:'passport'} → #ridePanel（旅程護照）真的在畫面上、看得見、
+//       沒被蓋住；對照 {view:'pass'} 仍開通行證面板（#plusModal）而不是護照；桌面 1280 與手機 375 各跑一次，
+//       含「原生冷啟動時事件在 listener 掛上瞬間就進來」與「別的面板開著／護照已開著」兩種狀態
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, writeFileSync } from 'node:fs';
@@ -135,10 +141,17 @@ function expectPayload(coll, lang) {
   const pts = [];
   ORDER.forEach((k, i) => { if (!per[i].size) return; per[i].forEach((pt, key) => pts.push([pt.x, pt.y, pt.color, STATUS_S[(coll.get(key) || {}).s] || 0, sys.findIndex(s => s.k === k)])); });
   const all = new Set([...per.flatMap(m => [...m.keys()]), ...coll.keys()]);
-  const cmp = (a, b) => (a[1].d < b[1].d ? 1 : a[1].d > b[1].d ? -1 : 0) || b[1].n - a[1].n || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
-  const recent = [...coll.entries()].filter(([, v]) => v.d).sort(cmp).slice(0, 4).map(([key, v]) => {
-    const i = per.findIndex(m => m.has(key)), hit = i >= 0 ? per[i].get(key) : null;
-    const k = i >= 0 ? ORDER[i] : ORDER.find(o => CK_OF(o) === v.sys) || 'tra';
+  // recent（第二輪語意）：每個系統各取最近 4 筆，合併後整體再依同一規則排序。
+  // 排序：d 新到舊、同日 n 大到小、再依收集鍵字典序。系統歸屬：清單裡第一個有這把鍵的系統；清單外的站退到同鍵系統的第一個。
+  const cmp = (a, b) => (a.e[1].d < b.e[1].d ? 1 : a.e[1].d > b.e[1].d ? -1 : 0) || b.e[1].n - a.e[1].n || (a.e[0] < b.e[0] ? -1 : a.e[0] > b.e[0] ? 1 : 0);
+  const cand = [...coll.entries()].filter(([, v]) => v.d).map(e => {
+    const i = per.findIndex(m => m.has(e[0]));
+    return { e, i, k: i >= 0 ? ORDER[i] : ORDER.find(o => CK_OF(o) === e[1].sys) || 'tra' };
+  });
+  const recentCand = {};
+  for (const k of ORDER) { const c = cand.filter(x => x.k === k).length; if (c) recentCand[k] = c; }
+  const recent = ORDER.flatMap(k => cand.filter(x => x.k === k).sort(cmp).slice(0, 4)).sort(cmp).map(({ e: [key, v], i, k }) => {
+    const hit = i >= 0 ? per[i].get(key) : null;
     const geoSys = GEO_OF[k];
     let line = LABEL[lang][ORDER.indexOf(k)];
     if (hit) {
@@ -148,7 +161,7 @@ function expectPayload(coll, lang) {
     const row = hit ? catRow(geoSys, v.name) : null;
     return { name: lang === 'zh-TW' || !row || !row[lang] ? v.name : foreign(row[lang]), line, k, d: v.d };
   });
-  return { n: coll.size, total: all.size, sys, pts, recent, listSizes: Object.fromEntries(ORDER.map((k, i) => [k, per[i].size])) };
+  return { n: coll.size, total: all.size, sys, pts, recent, recentCand, listSizes: Object.fromEntries(ORDER.map((k, i) => [k, per[i].size])) };
 }
 
 // ── 契約逐欄檢查（欄位名稱與型別）────────────────────────────────────────────
@@ -173,7 +186,12 @@ function schemaProblems(p, lang) {
     if (typeof s.label !== 'string' || !s.label) bad.push(`sys.label ${s.k}`);
     if (!isInt(s.v) || !isInt(s.n) || s.v > s.n) bad.push(`sys v/n ${s.k}`);
   }
-  if (!Array.isArray(p.recent) || p.recent.length > 4) bad.push('recent 超過 4 筆或不是陣列');
+  if (!Array.isArray(p.recent)) bad.push('recent 不是陣列');
+  else {
+    const per = {}; for (const r of p.recent) per[r.k] = (per[r.k] || 0) + 1;
+    if (Object.values(per).some(c => c > 4)) bad.push(`recent 有系統超過 4 筆 ${JSON.stringify(per)}`);
+    if (p.recent.some((r, i) => i && r.d > p.recent[i - 1].d)) bad.push('recent 沒有依 d 新到舊');
+  }
   for (const r of p.recent || []) {
     if (keys(r) !== 'd,k,line,name') bad.push(`recent 項欄位 ${keys(r)}`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(r.d)) bad.push(`recent.d ${r.d}`);
@@ -197,10 +215,16 @@ function schemaProblems(p, lang) {
 // ── 瀏覽器端 ──────────────────────────────────────────────────────────────
 const browser = await (ENGINE === 'webkit' ? webkit : chromium).launch({ headless: true });
 const pageErrors = [];
-async function open({ bridge, seed = {}, query = '?gltracks=0', tag }) {
+// mw：接一個 RailMetroWait 外掛替身（原生把 railisland://… 轉成 waitOpen 事件走的就是這條）；
+// mwCold：非 null 時，替身在 addListener('waitOpen') 掛上的瞬間就把這個事件送進來（原生 retainUntilConsumed 的冷啟動行為）。
+// mobile：375×812＋isMobile＋hasTouch（專案規定手機驗收不能只縮 viewport）。
+// slow：每個 /data/ 請求多等這麼多毫秒（模擬真機冷啟動 boot 要好幾秒；本機 boot 太快，冷啟動閘門不拖慢就量不出來）。
+async function open({ bridge, seed = {}, query = '?gltracks=0', tag, mw = false, mwCold = null, mobile = false, slow = 0 }) {
   // locale 固定 zh-TW：App 形態下頁面語言吃 navigator.languages（headless 預設 en-US），不釘住開機語言會是 en
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
-  await ctx.addInitScript(({ bridge, seed }) => {
+  const ctx = await browser.newContext(mobile
+    ? { viewport: { width: 375, height: 812 }, locale: 'zh-TW', isMobile: true, hasTouch: true }
+    : { viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
+  await ctx.addInitScript(({ bridge, seed, mw, mwCold }) => {
     try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
     if (!sessionStorage.getItem('__seeded')) {
       sessionStorage.setItem('__seeded', '1');
@@ -215,8 +239,32 @@ async function open({ bridge, seed = {}, query = '?gltracks=0', tag }) {
       window.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'ios', Plugins: {} };
       window.RAIL_NATIVE_COLLECTION = { sync(json) { window.__pushes.push({ t: Date.now(), type: typeof json, json }); return Promise.resolve(); } };
     }
-  }, { bridge, seed });
+    if (mw) {
+      window.Capacitor = window.Capacitor || { Plugins: {} };
+      window.Capacitor.Plugins = window.Capacitor.Plugins || {};
+      const listeners = window.__mwListeners = {};
+      window.__mwFire = (name, evt) => (listeners[name] || []).forEach(fn => fn(evt));
+      // 記下護照面板「第一次被打開」那一刻 boot 完成了沒（冷啟動閘門的可觀察後果：事件比 boot 早到，面板卻不能比 boot 早開）
+      window.__rideOpenedWhenReady = null;
+      document.addEventListener('DOMContentLoaded', () => {
+        const el = document.getElementById('ridePanel'); if (!el) return;
+        new MutationObserver(() => {
+          if (window.__rideOpenedWhenReady === null && !el.hidden) window.__rideOpenedWhenReady = (() => { try { return state.ready === true; } catch (e) { return false; } })();
+        }).observe(el, { attributes: true, attributeFilter: ['hidden'] });
+      });
+      window.Capacitor.Plugins.RailMetroWait = {
+        start: async () => ({ ok: true }), stop: async () => ({ ok: true }), status: async () => ({ active: false }), setPlus: async () => ({}),
+        addListener: (name, fn) => {
+          (listeners[name] = listeners[name] || []).push(fn);
+          if (name === 'waitOpen') window.__mwAttachAt = Date.now();
+          if (name === 'waitOpen' && mwCold) setTimeout(() => fn(mwCold), 0);
+          return { remove() {} };
+        },
+      };
+    }
+  }, { bridge, seed, mw, mwCold });
   const page = await ctx.newPage();
+  if (slow) await page.route(/\/data\//, async route => { await sleep(slow); try { await route.continue(); } catch (e) {} });
   const geoReqs = [];
   page.on('pageerror', e => pageErrors.push(`[${tag}] ${e}`));
   page.on('request', r => { if (/track_stations\.geojson/.test(r.url())) geoReqs.push(r.url()); });
@@ -244,7 +292,7 @@ async function step(page, id, before, lang, trigger, expectN, note) {
   ok(`${id} 觸發後 3 秒內送出新的一包`, !!got, got ? `${Date.now() - t0}ms` : '逾時');
   if (!got) return null;
   ok(`${id} bridge 收到的是字串（契約：json 是字串）`, got.type === 'string');
-  await checkPayload(page, id, got.payload, lang, expectN, note);
+  got.exp = await checkPayload(page, id, got.payload, lang, expectN, note);
   return got;
 }
 async function checkPayload(page, id, p, lang, expectN, note = '') {
@@ -261,12 +309,23 @@ async function checkPayload(page, id, p, lang, expectN, note = '') {
   ok(`${id} n ＝ 獨立重算`, p.n === exp.n, `${p.n} vs ${exp.n}`);
   ok(`${id} total ＝ 獨立重算（清單去重 ∪ 清單外已收集）`, p.total === exp.total, `${p.total} vs ${exp.total}`);
   ok(`${id} 各系統 k／label／v／n ＝ 獨立重算`, JSON.stringify(p.sys) === JSON.stringify(exp.sys), JSON.stringify(p.sys) === JSON.stringify(exp.sys) ? '' : `${JSON.stringify(p.sys)}\n     期望 ${JSON.stringify(exp.sys)}`);
-  ok(`${id} recent 順序與內容 ＝ 獨立重算（d 新到舊、同日 n 多到少）`, JSON.stringify(p.recent) === JSON.stringify(exp.recent), JSON.stringify(p.recent) === JSON.stringify(exp.recent) ? p.recent.map(r => r.name).join('/') : `${JSON.stringify(p.recent)}\n     期望 ${JSON.stringify(exp.recent)}`);
+  ok(`${id} recent 順序與內容 ＝ 獨立重算（每系統各取 4 筆、合併後 d 新到舊、同日 n 多到少）`, JSON.stringify(p.recent) === JSON.stringify(exp.recent), JSON.stringify(p.recent) === JSON.stringify(exp.recent) ? p.recent.map(r => r.name).join('/') : `${JSON.stringify(p.recent)}\n     期望 ${JSON.stringify(exp.recent)}`);
   ok(`${id} pts 數量與每點 x／y／色／s／sysIdx ＝ 獨立重算`, JSON.stringify(p.pts) === JSON.stringify(exp.pts), `${p.pts.length} 點` + (JSON.stringify(p.pts) === JSON.stringify(exp.pts) ? '' : ` 首個差異 ${p.pts.findIndex((x, i) => JSON.stringify(x) !== JSON.stringify(exp.pts[i]))}`));
   const direct = await page.evaluate(() => { const q = collectionWidgetPayload(); if (q) q.at = 0; return q; });
   const pushed = { ...p, at: 0 };
   ok(`${id} 直接呼叫 collectionWidgetPayload() ＝ 剛推送的內容（不含 at）`, JSON.stringify(direct) === JSON.stringify(pushed));
   return exp;
+}
+
+// 「每系統各取 4 筆」與「全系統只取 4 筆」要分得出來，fixture 必須真的有這兩種情況——用 Node 端算的候選筆數
+//（有蓋章日 d 的收集鍵，依系統歸屬）證明，並與手算的 literal 對照（不然判準是空過）。
+const perK = recent => { const c = {}; for (const r of recent) c[r.k] = (c[r.k] || 0) + 1; return c; };
+const sameObj = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort()); // 不看鍵的順序
+function recentPremise(id, exp, literal, minSys) {
+  const cand = exp.recentCand;
+  ok(`${id} 前提：有系統的候選超過 4 筆（不然「每系統各取 4 筆」與「全系統取 4 筆」測不出差別）`, Object.values(cand).some(c => c > 4), JSON.stringify(cand));
+  ok(`${id} 前提：至少 ${minSys} 個系統各有紀錄（不然「每系統」只是「一個系統」）`, Object.keys(cand).length >= minSys, `${Object.keys(cand).length} 個系統`);
+  ok(`${id} 前提：各系統候選筆數 ＝ 手算 ${JSON.stringify(literal)}（獨立重算的系統歸屬沒走偏）`, sameObj(cand, literal), JSON.stringify(cand));
 }
 
 // ── fixture ────────────────────────────────────────────────────────────────
@@ -353,7 +412,11 @@ let appListen = 0, appGeoReqs = 0;
   ok('A 手算：台鐵 v＝5（臺北、左營、新城、池上、花蓮；測試站不算）', sv('tra').v === 5, String(sv('tra').v));
   ok('A 手算：北捷 v＝4、機捷 v＝1、淡海 v＝1、三鶯 v＝1（同名捷運站在各系統都算）', sv('trtc').v === 4 && sv('tymc').v === 1 && sv('ntdlrt').v === 1 && sv('sanying').v === 1, `${sv('trtc').v}/${sv('tymc').v}/${sv('ntdlrt').v}/${sv('sanying').v}`);
   ok('A 前提：n ≠ Σ各系統 v（不然 n 的斷言分不出「護照函式」與「各系統加總」；突變 M6 就是這樣漏過一次）', p0.n !== p0.sys.reduce((a, x) => a + x.v, 0), `n=${p0.n} Σv=${p0.sys.reduce((a, x) => a + x.v, 0)}`);
-  ok('A 手算：recent ＝ 不存在捷運站、紅樹林、台北車站、花蓮（同日 n 多者在前，兩對都是）', JSON.stringify(p0.recent.map(r => r.name)) === JSON.stringify(['不存在捷運站', '紅樹林', '台北車站', '花蓮']), p0.recent.map(r => r.name).join('/'));
+  // 每系統各取最近 4 筆：台鐵候選 6 筆（花蓮、池上、臺北、新城 ∣ 左營、測試站 出局）、北捷候選 5 筆（不存在捷運站、紅樹林、台北車站、頂埔 ∣ 西門 出局）；
+  // 合併後再整體排序 ⇒ 兩系統的紀錄交錯（花蓮／池上／臺北 夾在 台北車站 與 頂埔 之間），沒有整體重排會露餡。
+  recentPremise('A', expA, { tra: 6, trtc: 5 }, 2);
+  ok('A 手算：recent ＝ 每系統各取 4 筆、合併後整體重排（8 筆；同日 n 多者在前：紅樹林>台北車站、花蓮>池上）', JSON.stringify(p0.recent.map(r => r.name + '@' + r.k)) === JSON.stringify(['不存在捷運站@trtc', '紅樹林@trtc', '台北車站@trtc', '花蓮@tra', '池上@tra', '臺北@tra', '頂埔@trtc', '新城@tra']), p0.recent.map(r => r.name + '@' + r.k).join('/'));
+  ok('A 手算：每系統筆數 ＝ tra 4、trtc 4；第 5 名（左營、西門）與清單外的測試站不在裡面', sameObj(perK(p0.recent), { tra: 4, trtc: 4 }) && !p0.recent.some(r => ['左營', '西門', '測試站'].includes(r.name)), JSON.stringify(perK(p0.recent)));
   ok('A 手算：recent 的線名是人看得懂的（紅樹林→淡水信義線、花蓮→臺東線；清單外→系統簡稱）', p0.recent[1].line === '淡水信義線' && p0.recent[3].line === '臺東線' && p0.recent[0].line === '北捷' && p0.recent[0].k === 'trtc', p0.recent.map(r => r.line + '/' + r.k).join(' '));
   ok('A 手算：三種章的 s 值（follow=1、搭過／到訪=2、未收集=0）在 A 階段只有 0 與 2', new Set(p0.pts.map(x => x[3])).size === 2);
   await sleep(3300);
@@ -367,8 +430,11 @@ let appListen = 0, appGeoReqs = 0;
     ok('B follow（只有完乘紀錄的站）→ s＝1：基隆、高鐵2、林鐵2、菁桐、三貂嶺 共 7 點', s1 === 7, String(s1));
     ok('B 高鐵 v＝2、林鐵 v＝2', got.payload.sys.find(s => s.k === 'thsr').v === 2 && got.payload.sys.find(s => s.k === 'afr').v === 2);
     ok('B total 不變（都在清單內）', got.payload.total === TOTAL0 + 2, String(got.payload.total));
-    ok('B recent ＝ 09-27 四站（高鐵台中、台北、三貂嶺、菁桐）', JSON.stringify(got.payload.recent.map(r => r.name + '@' + r.k)) === JSON.stringify(['台中@thsr', '台北@thsr', '三貂嶺@tra', '菁桐@tra']), got.payload.recent.map(r => r.name + '@' + r.k).join('/'));
-    ok('B 菁桐的線名是「平溪線」、不是代碼 PINGXI', got.payload.recent[3].line === '平溪線', got.payload.recent[3].line);
+    // B 起有四個系統各有紀錄：台鐵候選 9 筆只留 4（三貂嶺、菁桐、花蓮、池上；臺北掉出前 4）、高鐵 2、林鐵 2（全都比全域前 4 名舊，舊語意會整個消失）、北捷 4。
+    recentPremise('B', got.exp, { tra: 9, thsr: 2, trtc: 5, afr: 2 }, 4);
+    ok('B recent ＝ 四個系統各取最近 4 筆共 12 筆（09-27 高鐵台中／台北、台鐵三貂嶺／菁桐 → 北捷 → 林鐵 09-22 → 台鐵 09-21 → 北捷頂埔）', JSON.stringify(got.payload.recent.map(r => r.name + '@' + r.k)) === JSON.stringify(['台中@thsr', '台北@thsr', '三貂嶺@tra', '菁桐@tra', '不存在捷運站@trtc', '紅樹林@trtc', '台北車站@trtc', '嘉義@afr', '阿里山@afr', '花蓮@tra', '池上@tra', '頂埔@trtc']), got.payload.recent.map(r => r.name + '@' + r.k).join('/'));
+    ok('B 每系統筆數 ＝ tra 4、thsr 2、trtc 4、afr 2；林鐵兩筆都在（舊語意「全系統取 4 筆」會讓它消失）', sameObj(perK(got.payload.recent), { tra: 4, thsr: 2, trtc: 4, afr: 2 }) && got.payload.recent.filter(r => r.k === 'afr').length === 2, JSON.stringify(perK(got.payload.recent)));
+    ok('B 菁桐的線名是「平溪線」、不是代碼 PINGXI', (got.payload.recent.find(r => r.name === '菁桐') || {}).line === '平溪線', (got.payload.recent.find(r => r.name === '菁桐') || {}).line);
     before = await count(page);
   }
   // C 打卡寫入（真的 writeCheckin：台鐵一站、捷運同名併鍵一站）
@@ -484,6 +550,144 @@ let appListen = 0, appGeoReqs = 0;
   ok('L 切群組後小工具重送，n ＝ 護照', !!got && got.payload.n === size1, got ? `n=${got.payload.n}（班表就緒後 ${got.waited}ms）` : '沒有重送');
   await ctx.close();
 }
+
+// ══ M recent 每系統各取最近 4 筆（專屬 fixture）════════════════════════════════
+// 九個系統各有紀錄（淡海、安坑外的都有；安坑清單有站但沒蓋章）；高捷候選 6 筆、中捷候選 5 筆（都超過 4）。
+// 邊界故意做成兩種決勝：高捷第 4／5 名同日、以 n 決勝（獅甲 n2 進榜、三多商圈 n1 出局）；中捷五筆同日同 n、以收集鍵字典序決勝（舊社出局）。
+// 林鐵阿里山蓋章日最舊（全域排第 18）——舊語意「全系統只取 4 筆」下它會整個消失，單一系統範圍的小工具就沒有東西可畫。
+const CHECKINS_R = {
+  v: 2, sg: {}, st: Object.fromEntries([
+    ck('測試站', 'tra_sched', 'visit', 1, '2026-09-30'),          // 清單外的台鐵站 → 退路歸台鐵
+    ck('瑞芳', 'tra_sched', 'visit', 1, '2026-09-10'),
+    ck('十分', 'tra_sched', 'pass', 1, '2026-09-09'),
+    ck('台中', 'thsr_sched', 'pass', 1, '2026-09-29'),
+    ck('台北', 'thsr_sched', 'visit', 1, '2026-09-29'),
+    ck('南港展覽館', 'metro', 'pass', 1, '2026-09-29'),           // 北捷
+    ck('小港', 'metro', 'visit', 1, '2026-09-28'),                // 高捷 6 筆候選
+    ck('草衙', 'metro', 'visit', 3, '2026-09-28'),                // 與小港同日、n 較多 → 排在小港前
+    ck('凱旋', 'metro', 'pass', 1, '2026-09-24'),
+    ck('獅甲', 'metro', 'visit', 2, '2026-09-23'),                // 第 4 名：同日 n 較多 → 進榜
+    ck('三多商圈', 'metro', 'visit', 1, '2026-09-23'),            // 第 5 名：同日 n 較少 → 出局
+    ck('中央公園', 'metro', 'visit', 1, '2026-09-01'),            // 第 6 名
+    ck('北屯總站', 'metro', 'visit', 1, '2026-09-20'),            // 中捷 5 筆候選，同日同 n
+    ck('舊社', 'metro', 'visit', 1, '2026-09-20'),
+    ck('松竹', 'metro', 'visit', 1, '2026-09-20'),
+    ck('四維國小', 'metro', 'visit', 1, '2026-09-20'),
+    ck('文心崇德', 'metro', 'visit', 1, '2026-09-20'),
+    ck('淡江大學', 'metro', 'visit', 1, '2026-09-05'),            // 淡海
+    ck('鶯歌車站', 'metro', 'visit', 1, '2026-09-04'),            // 三鶯
+    ck('林口站', 'metro', 'visit', 1, '2026-09-03'),              // 機捷
+    ck('阿里山', 'afr_sched', 'visit', 1, '2026-09-01'),          // 林鐵：全域最舊
+  ]),
+};
+const N_R = 21; // 手算：台鐵3＋高鐵2＋高捷6＋北捷1＋中捷5＋淡海1＋三鶯1＋機捷1＋林鐵1
+const R_ALL = ['測試站@tra', '南港展覽館@trtc', '台中@thsr', '台北@thsr', '草衙@krtc', '小港@krtc', '凱旋@krtc', '獅甲@krtc', '北屯總站@tmrt', '四維國小@tmrt', '文心崇德@tmrt', '松竹@tmrt', '瑞芳@tra', '十分@tra', '淡江大學@ntdlrt', '鶯歌車站@sanying', '林口站@tymc', '阿里山@afr'];
+{
+  const { ctx, page } = await open({ bridge: true, seed: { 'trainmap-checkins-v1': JSON.stringify(CHECKINS_R) }, tag: 'M' });
+  const got = await waitPush(page, 0, 8000);
+  ok('M 開機有推送', !!got);
+  if (got) {
+    const p = got.payload, names = k => p.recent.filter(r => r.k === k).map(r => r.name);
+    const exp = await checkPayload(page, 'M', p, 'zh-TW', N_R);
+    recentPremise('M', exp, { tra: 3, thsr: 2, trtc: 1, tymc: 1, tmrt: 5, krtc: 6, ntdlrt: 1, sanying: 1, afr: 1 }, 9);
+    ok('M 手算：total ＝ 清單座數 ＋ 清單外 1 座（測試站）', p.total === TOTAL0 + 1, `${p.total}／應為 ${TOTAL0 + 1}`);
+    ok('M 手算：recent ＝ 九個系統各取最近 4 筆共 18 筆，合併後 d 新到舊、同日 n 多到少、再依鍵字典序', JSON.stringify(p.recent.map(r => r.name + '@' + r.k)) === JSON.stringify(R_ALL), p.recent.map(r => r.name + '@' + r.k).join('/'));
+    ok('M 手算：每系統筆數（高捷 4、中捷 4、台鐵 3、高鐵 2、其餘 1；沒紀錄的安坑不出現）', sameObj(perK(p.recent), { tra: 3, thsr: 2, trtc: 1, tymc: 1, tmrt: 4, krtc: 4, ntdlrt: 1, sanying: 1, afr: 1 }), JSON.stringify(perK(p.recent)));
+    ok('M 邊界（n 決勝）：高捷 獅甲（同日 n2）在榜、三多商圈（同日 n1）與第 6 名中央公園出局', JSON.stringify(names('krtc')) === JSON.stringify(['草衙', '小港', '凱旋', '獅甲']), names('krtc').join('/'));
+    ok('M 邊界（鍵字典序決勝）：中捷五筆同日同 n，留 北屯總站／四維國小／文心崇德／松竹、舊社出局', JSON.stringify(names('tmrt')) === JSON.stringify(['北屯總站', '四維國小', '文心崇德', '松竹']), names('tmrt').join('/'));
+    ok('M 全域最舊的系統仍有紀錄：林鐵阿里山（全域排第 18）在 recent 裡（舊語意下會消失）', p.recent.length === 18 && p.recent[17].name === '阿里山' && p.recent[17].k === 'afr');
+    ok('M 清單外的站退路：測試站歸台鐵（k＝tra、線名＝系統簡稱「台鐵」）', p.recent[0].name === '測試站' && p.recent[0].k === 'tra' && p.recent[0].line === '台鐵', JSON.stringify(p.recent[0]));
+    ok('M 原生端「單一系統範圍取 k 相符的前 4 筆」有東西可取：每個有紀錄的系統至少 1 筆、至多 4 筆', ['tra', 'thsr', 'trtc', 'tymc', 'tmrt', 'krtc', 'ntdlrt', 'sanying', 'afr'].every(k => names(k).length >= 1 && names(k).length <= 4) && names('ntalrt').length === 0);
+    ok('M 每個系統各自的列依 d 新到舊（單一系統取前 4 筆時順序就是對的）', ['tra', 'krtc', 'tmrt', 'thsr'].every(k => { const d = p.recent.filter(r => r.k === k).map(r => r.d); return d.every((x, i) => !i || x <= d[i - 1]); }));
+  }
+  await ctx.close();
+}
+
+// ══ P 護照深連結 ═══════════════════════════════════════════════════════════
+// 契約：原生把 railisland://passport 轉成 waitOpen 事件（data.view＝'passport'）；網頁收到 → openRidePanel()（旅程護照 #ridePanel）。
+// 量的是「畫面上真的看得見」：hidden 屬性、display／visibility／opacity、與視窗相交的面積、中心點 elementFromPoint 命中面板自己、
+// 標題文字與標題可命中；不是「函式有沒有被呼叫」。對照組是既有的 view:'pass'（通行證面板 #plusModal）：兩個入口要分得開。
+const measureFn = () => {
+  const box = el => {
+    if (!el) return { exists: false, shown: false, hiddenAttr: null };
+    const cs = getComputedStyle(el), r = el.getBoundingClientRect();
+    const x0 = Math.max(r.left, 0), x1 = Math.min(r.right, innerWidth), y0 = Math.max(r.top, 0), y1 = Math.min(r.bottom, innerHeight);
+    const w = x1 - x0, h = y1 - y0;
+    const top = w > 0 && h > 0 ? document.elementFromPoint(x0 + w / 2, y0 + h / 2) : null;
+    const hit = !!(top && el.contains(top));
+    return { exists: true, hiddenAttr: el.hidden, w: Math.round(w), h: Math.round(h), hit, display: cs.display, visibility: cs.visibility, opacity: cs.opacity,
+      shown: !el.hidden && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) > 0.5 && w >= 100 && h >= 80 && hit };
+  };
+  const ride = document.getElementById('ridePanel');
+  const h3 = ride && ride.querySelector(':scope > h3');
+  let titleHit = false;
+  if (h3) { const r = h3.getBoundingClientRect(); if (r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= innerHeight) { const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); titleHit = !!(e && h3.contains(e)); } }
+  return {
+    ride: box(ride), plus: box(document.getElementById('plusModal')), fav: box(document.getElementById('favPanel')),
+    rideTitle: h3 ? h3.textContent.replace(/[×\s]+$/, '').trim() : null, titleHit,
+    stats: !!(ride && ride.querySelector('.ride-stats')),
+    plusTitle: ((document.querySelector('#plusBody .plus-hero h3') || {}).textContent || '').trim(),
+  };
+};
+async function waitMeasure(page, pred, ms) {
+  const t0 = Date.now(); let m;
+  while (Date.now() - t0 < ms) { m = await page.evaluate(measureFn); if (pred(m)) return { m, ok: true, waited: Date.now() - t0 }; await sleep(100); }
+  return { m: m || await page.evaluate(measureFn), ok: false, waited: ms };
+}
+const shownStr = b => `${b.shown ? '看得見' : '看不見'}(hidden=${b.hiddenAttr} ${b.display}/${b.visibility}/op${b.opacity} 可見${b.w}×${b.h} 命中自己=${b.hit})`;
+async function deepLinkChecks(tag, mobile) {
+  const { ctx, page } = await open({ bridge: true, mw: true, mobile, tag });
+  const L = await page.evaluate(() => (window.__mwListeners.waitOpen || []).length);
+  ok(`${tag} 前提：waitOpen listener 真的接在外掛替身上（不然送事件是空過）`, L === 1, `${L} 個`);
+  let m = await page.evaluate(measureFn);
+  ok(`${tag} 前提：一開始護照與通行證都沒開（hidden、看不見）`, m.ride.hiddenAttr === true && !m.ride.shown && m.plus.hiddenAttr === true && !m.plus.shown, `護照 ${shownStr(m.ride)}／通行證 ${shownStr(m.plus)}`);
+  // 對照組：view:'pass' → 通行證，不是護照
+  await page.evaluate(() => window.__mwFire('waitOpen', { view: 'pass' }));
+  let r = await waitMeasure(page, x => x.plus.shown, 8000); m = r.m;
+  ok(`${tag} 對照：{view:'pass'} → 通行證面板出現在畫面上（標題含「通行證」）`, r.ok && /通行證/.test(m.plusTitle), `${shownStr(m.plus)} 標題「${m.plusTitle}」`);
+  ok(`${tag} 對照：{view:'pass'} 沒有打開護照`, m.ride.hiddenAttr === true && !m.ride.shown, shownStr(m.ride));
+  await page.evaluate(() => plusClose());
+  // 護照
+  await page.evaluate(() => window.__mwFire('waitOpen', { view: 'passport' }));
+  r = await waitMeasure(page, x => x.ride.shown, 8000);
+  await sleep(600); m = await page.evaluate(measureFn);
+  ok(`${tag} {view:'passport'} → 旅程護照面板出現在畫面上（沒 hidden、可見面積夠大、中心點沒被別的蓋住）`, r.ok && m.ride.shown, shownStr(m.ride));
+  ok(`${tag} 護照標題「旅程護照」、標題自己可命中（沒被蓋住）`, m.rideTitle === '旅程護照' && m.titleHit, `標題「${m.rideTitle}」命中=${m.titleHit}`);
+  ok(`${tag} 護照內容真的畫出來了（完乘／總里程／收集章 統計列）`, m.stats);
+  ok(`${tag} {view:'passport'} 沒有打開通行證`, m.plus.hiddenAttr === true && !m.plus.shown, shownStr(m.plus));
+  // 已開著再送一次不會把它關掉（rideBtn 是開關鈕，深連結不是）
+  await page.evaluate(() => window.__mwFire('waitOpen', { view: 'passport' }));
+  await sleep(1800); m = await page.evaluate(measureFn);
+  ok(`${tag} 護照已開著時再送一次 → 仍開著、仍看得見`, m.ride.shown, shownStr(m.ride));
+  // 別的面板開著（最愛）→ 深連結把它換成護照
+  await page.evaluate(() => { closeRidePanel(); openFavPanel(); });
+  m = await page.evaluate(measureFn);
+  ok(`${tag} 前提：最愛面板已開、護照已關`, m.fav.shown && m.ride.hiddenAttr === true, `最愛 ${shownStr(m.fav)}／護照 ${shownStr(m.ride)}`);
+  await page.evaluate(() => window.__mwFire('waitOpen', { view: 'passport' }));
+  r = await waitMeasure(page, x => x.ride.shown, 8000);
+  await sleep(400); m = await page.evaluate(measureFn);
+  ok(`${tag} 最愛面板開著時 {view:'passport'} → 護照看得見、最愛收起來`, r.ok && m.ride.shown && m.fav.hiddenAttr === true, `護照 ${shownStr(m.ride)}／最愛 hidden=${m.fav.hiddenAttr}`);
+  await ctx.close();
+}
+// 冷啟動：App 沒在跑、使用者點小工具 → 原生在 listener 掛上的瞬間就把事件送進來，而此刻 boot 還沒完成。
+async function coldDeepLinkChecks(tag, mobile) {
+  const { ctx, page, readyAt } = await open({ bridge: true, mw: true, mwCold: { view: 'passport' }, mobile, tag, slow: 1500 });
+  const attach = await page.evaluate(() => window.__mwAttachAt);
+  ok(`${tag} 前提：listener 掛上後 boot 還要 ≥ 900ms 才完成（比閘門後的 600ms 等待長；不然拿掉閘門也量不出差別）`, !!attach && readyAt - attach >= 900, `attach→ready ${readyAt - attach}ms`);
+  const r = await waitMeasure(page, x => x.ride.shown, 25000);
+  ok(`${tag} 冷啟動事件（listener 掛上瞬間送進來）→ 開機後護照出現在畫面上`, r.ok, `${shownStr(r.m.ride)}（ready 後 ${r.waited}ms）`);
+  await sleep(3500);
+  const m = await page.evaluate(measureFn);
+  ok(`${tag} 冷啟動：3.5 秒後護照仍開著、看得見（沒被開機後段的重繪／關面板洗掉）`, m.ride.shown && m.rideTitle === '旅程護照' && m.titleHit, `${shownStr(m.ride)} 標題「${m.rideTitle}」`);
+  ok(`${tag} 冷啟動：通行證沒被打開`, m.plus.hiddenAttr === true && !m.plus.shown);
+  const rw = await page.evaluate(() => window.__rideOpenedWhenReady);
+  ok(`${tag} 冷啟動：事件比 boot 早到，護照卻是 boot 完成（state.ready）之後才打開的（閘門沒被繞過）`, rw === true, `打開那一刻 state.ready＝${rw}`);
+  await ctx.close();
+}
+await deepLinkChecks('P 桌面 1280', false);
+await deepLinkChecks('P 手機 375', true);
+await coldDeepLinkChecks('P 冷啟動 桌面 1280', false);
+await coldDeepLinkChecks('P 冷啟動 手機 375', true);
 
 await finish();
 
