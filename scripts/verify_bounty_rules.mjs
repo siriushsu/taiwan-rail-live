@@ -27,8 +27,10 @@ ok('R4 prices 是非空正整數陣列', Array.isArray(c.prices) && c.prices.len
     bad.length === 0 && new Set(c.scenes).size === c.scenes.length,
     `場景表 ${sceneIds.size} 個 id；缺：${bad.join(',') || '無'}`);
 }
-ok('R6 events 是陣列，每筆有 id/from/to/multiplier', Array.isArray(c.events) &&
-  c.events.every(e => e.id && /^\d{4}-\d\d-\d\d$/.test(e.from) && /^\d{4}-\d\d-\d\d$/.test(e.to) && e.multiplier > 0));
+// multiplier 必須是正整數：帳本 delta 是 INTEGER，小數倍率會讓 tripChips 回小數、SQLite 存成 REAL。
+ok('R6 events 是陣列，每筆有 id/from/to、multiplier 是正整數', Array.isArray(c.events) &&
+  c.events.every(e => e.id && /^\d{4}-\d\d-\d\d$/.test(e.from) && /^\d{4}-\d\d-\d\d$/.test(e.to) &&
+    Number.isInteger(e.multiplier) && e.multiplier > 0));
 ok('R7 整數欄位都是正整數', ['perTrip', 'minTripSec', 'remoteMultiplier', 'dailyChipCap'].every(k => Number.isInteger(c[k]) && c[k] > 0) &&
   ['minSec', 'dailyMax', 'perChip'].every(k => c.cloud && Number.isInteger(c.cloud[k]) && c.cloud[k] > 0));
 ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|lifetime|訂閱/i.test(JSON.stringify(rules)));
