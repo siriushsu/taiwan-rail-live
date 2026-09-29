@@ -845,6 +845,15 @@ await attempt('K1', async () => {
       fenced.every(p => SAMPLES_PK.test(p) && !/idx_samples_pending/.test(p) && !/SCAN bounty_samples\b/.test(p) && KV_PK.test(p) && !/SCAN kv_blobs\b/.test(p)) &&
       /SEARCH chip_ledger USING INDEX idx_chip_ledger_actor_day \(actor=\? AND day=\?\)/.test(plans2.chips) && !/SCAN chip_ledger\b/.test(plans2.chips),
     J({ ...plans2, points: plans.points, count: plans.count, close: plans.close }));
+  // K1h：每一發開頭的出錯記錄清掃（第二輪 B4c／B4d）。kv_blobs 也放別的快取，這一句只能走主鍵的範圍掃描（出錯記錄那一段），
+  // 每一列再用 idx_samples_trip 吃滿三欄點查「那班車還有沒有 pending」——掃整張 kv_blobs 或整張樣本表，每一發都是全表級的讀取。
+  const sweep = sqlOf(/^DELETE FROM kv_blobs WHERE k >= \? AND k < \? AND NOT EXISTS \(SELECT 1 FROM bounty_samples s/);
+  const planSweep = sweep.length === 1 ? planOf(sweep[0]) : `（抓到 ${sweep.length} 句，應該剛好 1 句）`;
+  ok('K1h [第二輪 B4c／B4d 查詢計畫] 出錯記錄清掃：kv_blobs 走主鍵範圍（k>? AND k<?）、樣本走 idx_samples_trip 吃滿三欄，不掃 kv_blobs、不掃樣本表、不走 idx_samples_pending；租約圍欄走 kv_blobs 主鍵',
+    sweep.length === 1 && /SEARCH kv_blobs USING PRIMARY KEY \(k>\? AND k<\?\)/.test(planSweep) &&
+      /SEARCH s USING (COVERING )?INDEX idx_samples_trip \(actor=\? AND trip_date=\? AND train_no=\?\)/.test(planSweep) &&
+      !/SCAN (kv_blobs|s|bounty_samples)\b/.test(planSweep) && !/idx_samples_pending/.test(planSweep) && /SEARCH kv_blobs USING PRIMARY KEY \(k=\?\)/.test(planSweep),
+    planSweep);
   if (!CTL) return noCtl('K1a', '無法比對等價');
   const b = await runRich(CTL);
   const diffs = diffDump(a.dump, b.dump);
@@ -944,11 +953,11 @@ await attempt('K5', async () => {
   const w = a.w;
   const tot = w.db.prepare('SELECT SUM(sample_count) s, MIN(sample_count) lo, MAX(sample_count) hi, SUM(distinct_ok_users) d FROM bounty_board').get();
   // 手算：119 個區間 × 板價 1＋最後一段認領鎖 9＝128 點（＜ 每日上限 200）；每段 sample_count 1、去重人數 1；登記 120 段；一班車 12000 秒、一般線 → 1 顆。
-  // 子請求（第二輪獨立驗收之後）：固定 5（規則、題庫、租約、班車清單、釋放租約）＋每班固定 9（K4 的手算）＝14。
+  // 子請求（第二輪獨立驗收之後）：一發固定 6（FIXED：規則、題庫、租約、出錯記錄清掃、班車清單、釋放租約）＋每班固定 9（K4 的手算）＝15。
   // 寫入不分塊：標記、點數、sample_count、關認領是同一個 batch（一筆交易）；去重登記也是一個 batch（段鍵走 json_each）——不論幾段都是 1。
-  ok('K5p [S13a 100 參數上限] 覆蓋 120 段（＞100）的整條線一班車：流程不丟例外（沒有任何一句綁超過 100 個參數）、判 ok、點數 128、每段 sample_count 1／去重人數 1、登記 120 段、最後一句（關認領）寫進去了、入帳 1 顆、子請求恰 14',
+  ok('K5p [S13a 100 參數上限] 覆蓋 120 段（＞100）的整條線一班車：流程不丟例外（沒有任何一句綁超過 100 個參數）、判 ok、點數 128、每段 sample_count 1／去重人數 1、登記 120 段、最後一句（關認領）寫進去了、入帳 1 顆、子請求恰 15',
     a.err === null && q.verdicts(w.db, 'kx', 'X1') === 'ok' && q.points(w.db, 'kx') === 128 && tot.s === 120 && tot.lo === 1 && tot.hi === 1 && tot.d === 120 &&
-      q.nContrib(w.db, 'kx') === 120 && q.claim(w.db, 'cl-x').status === 'fulfilled' && a.st.chips === 1 && a.st.subreq === 14,
+      q.nContrib(w.db, 'kx') === 120 && q.claim(w.db, 'cl-x').status === 'fulfilled' && a.st.chips === 1 && a.st.subreq === 15,
     J({ err: a.err, v: q.verdicts(w.db, 'kx', 'X1'), points: q.points(w.db, 'kx'), tot, contrib: q.nContrib(w.db, 'kx'), cl: q.claim(w.db, 'cl-x'), st: a.st }));
   ok('K5d [S13a 100 參數上限] 前置：這條線真的讓覆蓋段超過 100（登記 120 段），而整個 cron 期間單句綁定參數最多 ≤ 100（測試端計數替身量到的最大值）；計數器＝測試端獨立計數',
     q.nContrib(w.db, 'kx') > 100 && w.tally.maxBind >= 1 && w.tally.maxBind <= 100 && a.st && a.st.subreq === w.tally.n, J({ contrib: q.nContrib(w.db, 'kx'), maxBind: w.tally.maxBind, subreq: a.st && a.st.subreq, tally: w.tally.n }));
@@ -962,12 +971,13 @@ await attempt('K5', async () => {
 // 前次已判定列 1、籌碼 1（身分、同班已入帳、當日已領、租約、樣本還在，全在寫帳本那一句裡）、去重登記 1（所有 ok 線組的段併成一個 batch，
 // 段鍵走 json_each）、認領 1、板價 1、這一組的寫入 1（標記＋點數＋sample_count＋關認領同一個 batch＝同一筆交易）＝9。
 // 這一條把「查詢量不隨覆蓋段數成長」釘成等式：日後任何人在逐段迴圈裡加一句查詢、或把合在一句裡的條件拆回好幾句，這條就會紅。
-// 一發的固定開銷是 5（規則、題庫、租約、班車清單、釋放租約；M0a）。
+// 一發的固定開銷是 FIXED＝6（規則、題庫、租約、出錯記錄清掃、班車清單、釋放租約；M0a）。
+const FIXED = 6;
 const perTrainExpect = () => 9;
 for (const tag of Object.keys(CAP)) {
   const cp = CAP[tag];
-  ok(`K4 ${tag} [S13a 查詢量] 真實整條線（覆蓋 ${cp.nCov} 項、計功 ${cp.nCred} 項）：每班車子請求＝${perTrainExpect(cp.nCov)}（固定，不隨段數），實測 ${cp.newN - 5}`,
-    cp.newN - 5 === perTrainExpect(cp.nCov), J(cp));
+  ok(`K4 ${tag} [S13a 查詢量] 真實整條線（覆蓋 ${cp.nCov} 項、計功 ${cp.nCred} 項）：每班車子請求＝${perTrainExpect(cp.nCov)}（固定，不隨段數），實測 ${cp.newN - FIXED}`,
+    cp.newN - FIXED === perTrainExpect(cp.nCov), J(cp));
 }
 
 // ═══ M 組：子請求預算、排序、共用計數器（S13b／c／d）═════════════════════════════════════
@@ -980,23 +990,23 @@ const U3 = { generatedAt: 1, schedDate: D28, lines: LINES, units: [
 await attempt('M0', async () => {
   const w = world({ tally: true });
   const st = await w.cron();
-  ok('M0a [S13b 手算] 沒有任何待判樣本的空跑：子請求恰 5 次（讀規則 1＋讀題庫 1＋拿租約 1＋班車清單 1＋釋放租約 1）、trains 0、budgetStop false；計數器＝測試端獨立計數',
-    st.subreq === 5 && w.tally.n === 5 && st.trains === 0 && st.budgetStop === false, J({ st, tally: w.tally.n }));
+  ok('M0a [S13b 手算] 沒有任何待判樣本的空跑：子請求恰 6 次（讀規則 1＋讀題庫 1＋拿租約 1＋出錯記錄清掃 1＋班車清單 1＋釋放租約 1）、trains 0、budgetStop false；計數器＝測試端獨立計數',
+    st.subreq === FIXED && w.tally.n === FIXED && st.trains === 0 && st.budgetStop === false, J({ st, tally: w.tally.n }));
 });
 await attempt('M1', async () => {
-  // 一班車、只有一條線：5＋9＝14（K4 的手算；寫入與去重登記各是一個 batch，不隨段數分塊）
+  // 一班車、只有一條線：FIXED＋9＝15（K4 的手算；寫入與去重登記各是一個 batch，不隨段數分塊）
   const run = async (seed, lnId, sec) => {
     const w = world({ tally: true, seed });
     putBatches(w.db, { actor: 'm1', trainNo: 'M1', lnId, pts: leg({ sec }) });
     const st = await w.cron();
     return { st, n: w.tally.n, nCov: q.nContrib(w.db, 'm1') };
   };
-  const a = await run(boardAll(['山線']), '山線', 700);                                // 7 段：5＋9＝14
-  ok(`M1a [S13b 手算] 7 段的一班車：子請求恰 14＝5＋9（實測 ${a.st.subreq}）；計數器＝測試端獨立計數`, a.st.subreq === 14 && a.n === 14 && a.nCov === 7, J(a));
-  const b = await run(boardSql('tra_sched', '長線', [{}], LONG_SEGS), '長線', 3900);      // 39 段：一樣 14（舊版登記每 26 段一個 batch＝18）
-  ok(`M1b [S13b 手算] 39 段的一班車：子請求恰 14＝5＋9，不隨段數（實測 ${b.st.subreq}）`, b.st.subreq === 14 && b.n === 14 && b.nCov === 39, J(b));
-  const c = await run(boardSql('tra_sched', '長線', [{}], LONG_SEGS), '長線', 4000);      // 40 段：一樣 14（更舊的版本寫入分塊時 81 句＝兩塊）
-  ok(`M1c [S13b 手算] 40 段的一班車（寫入 81 句仍是一個 batch）：子請求恰 14＝5＋9（實測 ${c.st.subreq}）`, c.st.subreq === 14 && c.n === 14 && c.nCov === 40, J(c));
+  const a = await run(boardAll(['山線']), '山線', 700);                                // 7 段：6＋9＝15
+  ok(`M1a [S13b 手算] 7 段的一班車：子請求恰 15＝6＋9（實測 ${a.st.subreq}）；計數器＝測試端獨立計數`, a.st.subreq === 15 && a.n === 15 && a.nCov === 7, J(a));
+  const b = await run(boardSql('tra_sched', '長線', [{}], LONG_SEGS), '長線', 3900);      // 39 段：一樣 15（舊版登記每 26 段一個 batch）
+  ok(`M1b [S13b 手算] 39 段的一班車：子請求恰 15＝6＋9，不隨段數（實測 ${b.st.subreq}）`, b.st.subreq === 15 && b.n === 15 && b.nCov === 39, J(b));
+  const c = await run(boardSql('tra_sched', '長線', [{}], LONG_SEGS), '長線', 4000);      // 40 段：一樣 15（更舊的版本寫入分塊時 81 句＝兩塊）
+  ok(`M1c [S13b 手算] 40 段的一班車（寫入 81 句仍是一個 batch）：子請求恰 15＝6＋9（實測 ${c.st.subreq}）`, c.st.subreq === 15 && c.n === 15 && c.nCov === 40, J(c));
 });
 await attempt('M2', async () => {
   // 三班車：MA（乘車日 07-27，actor m-zz）、MB（07-28、m-aa）、MC（07-28、m-mm）。每班 7 段、單獨夠發 1 顆。
@@ -1013,13 +1023,13 @@ await attempt('M2', async () => {
   };
   const vs = w => ['m-zz', 'm-aa', 'm-mm'].map(a => q.verdicts(w.db, a, { 'm-zz': 'MA', 'm-aa': 'MB', 'm-mm': 'MC' }[a]));
   const w = fx();
-  // 固定開銷 5（M0a）裡，第一班車開始前已用 4（規則、題庫、租約、清單；釋放租約在迴圈之後）→ 預算 5：4 ＜ 5 會做第一班；做完之後 ≥ 5 → 停
-  w.env.BOUNTY_SUBREQ_BUDGET = '5';
+  // 固定開銷 6（M0a）裡，第一班車開始前已用 5（規則、題庫、租約、出錯記錄清掃、清單；釋放租約在迴圈之後）→ 預算 6：5 ＜ 6 會做第一班；做完之後 ≥ 6 → 停
+  w.env.BOUNTY_SUBREQ_BUDGET = '6';
   const s1 = await w.cron();
-  ok('M2a [S13b 預算] 預算 5：第一班車做完就停——trains 1、budgetStop true、子請求 ≥ 預算；只有固定次序的第一班（m-zz／07-27）判掉、入帳 1，另兩班仍 pending',
-    s1.trains === 1 && s1.budgetStop === true && s1.subreq >= 5 && s1.chips === 1 && J(vs(w)) === J(['ok', 'pending', 'pending']), J({ s1, v: vs(w) }));
+  ok('M2a [S13b 預算] 預算 6：第一班車做完就停——trains 1、budgetStop true、子請求 ≥ 預算；只有固定次序的第一班（m-zz／07-27）判掉、入帳 1，另兩班仍 pending',
+    s1.trains === 1 && s1.budgetStop === true && s1.subreq >= 6 && s1.chips === 1 && J(vs(w)) === J(['ok', 'pending', 'pending']), J({ s1, v: vs(w) }));
   const s2 = await w.cron();
-  ok('M2b [S13c 續跑] 下一發（預算仍是 5）接著判：固定次序下剩下兩班 m-aa 先於 m-mm；只做 m-aa，m-mm 仍 pending；子請求 ≥ 預算、budgetStop true',
+  ok('M2b [S13c 續跑] 下一發（預算仍是 6）接著判：固定次序下剩下兩班 m-aa 先於 m-mm；只做 m-aa，m-mm 仍 pending；子請求 ≥ 預算、budgetStop true',
     s2.trains === 1 && s2.budgetStop === true && J(vs(w)) === J(['ok', 'ok', 'pending']), J({ s2, v: vs(w) }));
   delete w.env.BOUNTY_SUBREQ_BUDGET;
   const s3 = await w.cron();
@@ -1039,8 +1049,8 @@ await attempt('M3', async () => {
   putBatches(w.db, { actor: 'm3', trainNo: 'M3', lnId: '山線', pts: leg({ sec: 700 }) });
   w.env.BOUNTY_SUBREQ_BUDGET = '1';
   const s1 = await w.cron();
-  ok('M3a [S13b 預算] 預算 1（第一班車開始前已用 4）：一班都不做——trains 0、budgetStop true、子請求恰 5（含釋放租約）；樣本原封不動仍 pending、沒有帳本',
-    s1.trains === 0 && s1.budgetStop === true && s1.subreq === 5 && q.verdicts(w.db, 'm3', 'M3') === 'pending' && q.tripRows(w.db).length === 0, J({ s1, v: q.verdicts(w.db, 'm3', 'M3') }));
+  ok('M3a [S13b 預算] 預算 1（第一班車開始前已用 5）：一班都不做——trains 0、budgetStop true、子請求恰 6（含釋放租約）；樣本原封不動仍 pending、沒有帳本',
+    s1.trains === 0 && s1.budgetStop === true && s1.subreq === FIXED && q.verdicts(w.db, 'm3', 'M3') === 'pending' && q.tripRows(w.db).length === 0, J({ s1, v: q.verdicts(w.db, 'm3', 'M3') }));
   for (const bad of ['0', '-5', 'abc', '']) {
     const w2 = world({ seed: boardAll(['山線']) });
     putBatches(w2.db, { actor: 'm3', trainNo: 'M3', lnId: '山線', pts: leg({ sec: 700 }) });
@@ -1064,9 +1074,9 @@ await attempt('M4', async () => {
   w.env.BOUNTY_SUBREQ_BUDGET = String(valN + 1);
   const r = await fire(w, '30 19 * * *');
   const line = r.logs.find(l => l.includes('[cron bounty 驗證]')) || '';
-  // 判定這一段自己用 3（租約、班車清單、釋放租約；規則與題庫在同一發裡估值已讀過、有記憶體快取）→ log 印「估值用量＋3」
-  ok('M4a [S13b 共用] BOUNTY_CRON：預算＝估值用量＋1 → 估值之後判定一班都不做（樣本仍 pending）；驗證那行 log 印「0 班／0 線組」、「子請求 估值用量＋3」、預算用盡的警告',
-    q.verdicts(w.db, 'm4', 'M4') === 'pending' && line.includes('0 班／0 線組') && line.includes(`子請求 ${valN + 3}（`) && line.includes('預算用盡') && r.threw === null,
+  // 判定這一段自己用 4（租約、出錯記錄清掃、班車清單、釋放租約；規則與題庫在同一發裡估值已讀過、有記憶體快取）→ log 印「估值用量＋4」
+  ok('M4a [S13b 共用] BOUNTY_CRON：預算＝估值用量＋1 → 估值之後判定一班都不做（樣本仍 pending）；驗證那行 log 印「0 班／0 線組」、「子請求 估值用量＋4」、預算用盡的警告',
+    q.verdicts(w.db, 'm4', 'M4') === 'pending' && line.includes('0 班／0 線組') && line.includes(`子請求 ${valN + 4}（`) && line.includes('預算用盡') && r.threw === null,
     J({ valN, line, threw: r.threw }));
   ok('M4b [S13b 共用] 估值那一步照做（板上 3 列）——預算停的是判定、不是估值', w.db.prepare('SELECT COUNT(*) c FROM bounty_board').get().c === 3, '');
   // 對照：同樣的預算，直接呼叫判定（自己從 0 開始數）會照做——證明上面「一班都不做」是因為共用了估值的用量
@@ -1088,7 +1098,7 @@ await attempt('M4', async () => {
   const r4 = await fire(w4, '15 4 * * *');
   const line4 = r4.logs.find(l => l.includes('[cron bounty 驗證]')) || '';
   ok('M4e [S13b 共用] 舊分支 15 4 * * *：一樣估值＋判定共用計數器——預算＝估值用量＋1 → 判定 0 班、log 印子請求與預算用盡（每日 ingest 在這個環境離線失敗，照舊 rethrow，不影響懸賞那段）',
-    q.verdicts(w4.db, 'm4', 'M4') === 'pending' && line4.includes('0 班／0 線組') && line4.includes(`子請求 ${valN + 3}（`) && line4.includes('預算用盡'), J({ line4, threw: r4.threw }));
+    q.verdicts(w4.db, 'm4', 'M4') === 'pending' && line4.includes('0 班／0 線組') && line4.includes(`子請求 ${valN + 4}（`) && line4.includes('預算用盡'), J({ line4, threw: r4.threw }));
 });
 
 // ═══ M5：bountyCounted 直接驗（S13b）═══════════════════════════════════════════════════
@@ -1180,12 +1190,12 @@ await attempt('K8', async () => {
   await wv.valuation();
   const valN = wv.tally.n, valBy = { query: wv.tally.query, batch: wv.tally.batch, fetch: wv.tally.fetch };
   const BUDGET = 8000;
-  const room = BUDGET - valN - 5;                                    // 預設預算扣掉估值用量與判定的固定開銷（新版 5）
-  const perOf = tag => CAP[tag].newN - 5, oldOf = tag => (CAP[tag].oldN == null ? null : CAP[tag].oldN - 3);   // 對照版的固定開銷是 3
+  const room = BUDGET - valN - FIXED;                                // 預設預算扣掉估值用量與判定的固定開銷（FIXED）
+  const perOf = tag => CAP[tag].newN - FIXED, oldOf = tag => (CAP[tag].oldN == null ? null : CAP[tag].oldN - 3);   // 對照版的固定開銷是 3
   const cnt = per => Math.floor(room / per);
   const lines = [];
   lines.push(`估值（真題庫 ${REAL_UNITS.units.length} 個單位、第一次上架）：子請求 ${valN}（D1 查詢 ${valBy.query}＋batch ${valBy.batch}＋fetch ${valBy.fetch}）`);
-  lines.push(`判定空跑固定開銷 5；預設預算 ${BUDGET}，扣掉估值與固定開銷後每一發可用 ${room}`);
+  lines.push(`判定空跑固定開銷 ${FIXED}；預設預算 ${BUDGET}，扣掉估值與固定開銷後每一發可用 ${room}`);
   for (const tag of Object.keys(CAP)) {
     const cp = CAP[tag];
     lines.push(`${tag}（${cp.nSt} 站、${cp.nPts} 點、覆蓋 ${cp.nCov} 項）整條停站車：每班 ${perOf(tag)} 次子請求（新）／${oldOf(tag)} 次（舊）；一發約 ${cnt(perOf(tag))} 班（新）／${oldOf(tag) ? cnt(oldOf(tag)) : '?'} 班（舊）`);

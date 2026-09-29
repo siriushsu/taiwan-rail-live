@@ -23,6 +23,8 @@
 //   R2  前次線組只讀最早／最晚時間；超量的車（批數、總長、第一段之後才灌進來）整班可疑、payload 不讀
 //   R3  一班車判定出錯：那一行 log 用 error 等級；出錯的班車記下來、同一發繼續判下一班，下一發判得過就刪記錄
 //   ISO 記下來的班車之後每一發排在最後（連可信身分也一樣）；D1 整個不能用（連記錄都寫不進去）才停手；每一發都會丟錯的壞班車不擋別人
+//   ISO5／B5 出錯 2 次才排最後（錯過一次的誠實班車照常排）；SW 每一發開頭清掃沒有 pending 的出錯記錄；B4e 刪帳號一起刪出錯記錄；
+//   D4 出錯記錄的寫與刪都圍租約；B3e 系統性出錯時只印前 5 班（第二輪獨立驗收）
 //   N4  一班車的點數上看十幾萬（4 MB 塞得下）：判定不把整班的點展開成函式引數（V8 約十二萬多個就丟 RangeError）
 //   N2  清單之後才灌進來的批次：讀這班車那一句依讀取順序累加長度截住，送回 Worker 的不超過 4 MB 再加一批，整班判可疑
 //   N3  租約被下一發接手之後，舊的那一發第③段整組不動任何列（點數、sample_count、關認領不會做兩次）；N3d：② 的籌碼與登記也不動（第二輪 D2）
@@ -860,12 +862,13 @@ await attempt('R3', async () => {
 
 // ═══ ISO：記下來的班車之後每一發排在最後；D1 整個不能用才停手 ═══════════════════════════════════
 await attempt('ISO2', async () => {
-  // 帳號 U（可信）的 U1、匿名 a、b 各 1 班。沒有記錄時 U1 排第一（可信先）；U1 有記錄時排最後——連可信身分也一樣。兩種模式都驗。
+  // 帳號 U（可信）的 U1、匿名 a、b 各 1 班。沒有記錄時 U1 排第一（可信先）；U1 已出錯 2 次（n＝2，BOUNTY_VERIFY_STRIKES_TO_LAST）時排最後
+  // ——連可信身分也一樣。兩種模式都驗。只錯過 1 次的見 ISO5。
   const U = 'uid-iso-0000U', A = 'dev-iso-0000a', B = 'dev-iso-0000b';
   for (const mode of ['fixed', '']) {
     const order = async (withStrike) => {
       const w = world({ seed: boardSql('山線') + pointsSql([[U, U, 0, null]]) +
-        (withStrike ? `INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(U, 'U1')}','{"at":1,"error":"x"}','x');` : '') });
+        (withStrike ? `INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(U, 'U1')}','{"at":1,"error":"x","n":2}','x');` : '') });
       bulk(w.db, [{ actor: U, trainNo: 'U1', pts: TINY }, { actor: A, trainNo: 'A1', pts: TINY }, { actor: B, trainNo: 'B1', pts: TINY }]);
       const seen = listOf(w);
       await w.cron({ BOUNTY_SUBREQ_BUDGET: '5', ...(mode ? { BOUNTY_VERIFY_ORDER: mode } : {}) });
@@ -923,17 +926,124 @@ await attempt('ISO4', async () => {
   const seen = listOf(w);
   const st1 = await w.cron();
   const sk1 = strikes(w);
-  let err1 = '';
-  try { err1 = String(JSON.parse(sk1[0].v).error); } catch (e) {}
-  ok('ISO4a [ISO] 壞班車排第一、判定丟 TypeError：記下恰一列（它的鍵）、同一發繼續判完後面兩班（ok、各 1 顆）；errors 1、stopBy 不是 error',
-    J((seen[0] || []).map(r => r.train)) === J(['P1', 'H1', 'H2']) && st1.errors === 1 && st1.stopBy === null && sk1.length === 1 && sk1[0].k === STRIKE(P, 'P1') &&
+  let err1 = '', n1 = null;
+  try { const v = JSON.parse(sk1[0].v); err1 = String(v.error); n1 = v.n; } catch (e) {}
+  ok('ISO4a [ISO] 壞班車排第一、判定丟 TypeError：記下恰一列（它的鍵、出錯次數 n＝1）、同一發繼續判完後面兩班（ok、各 1 顆）；errors 1、stopBy 不是 error',
+    J((seen[0] || []).map(r => r.train)) === J(['P1', 'H1', 'H2']) && st1.errors === 1 && st1.stopBy === null && sk1.length === 1 && sk1[0].k === STRIKE(P, 'P1') && n1 === 1 &&
       /null/.test(err1) && q.verdicts(w, P, 'P1') === 'pending' && q.verdicts(w, H, 'H1') === 'ok' && q.verdicts(w, H, 'H2') === 'ok' && q.bal(w, H) === 2,
     J({ order: (seen[0] || []).map(r => r.train), errors: st1.errors, stopBy: st1.stopBy, sk1, p: q.verdicts(w, P, 'P1'), bal: q.bal(w, H) }));
   const st2 = await w.cron({ BOUNTY_NOW: String(NOW_MS + 3600e3) });
   const sk2 = strikes(w);
-  ok('ISO4b [ISO] 第二發：壞班車照樣丟錯、照樣記（仍恰一列）、不停手；仍 pending；H 的帳沒有變',
-    st2.errors === 1 && st2.stopBy === null && sk2.length === 1 && sk2[0].k === STRIKE(P, 'P1') && q.verdicts(w, P, 'P1') === 'pending' && q.bal(w, H) === 2,
-    J({ errors: st2.errors, stopBy: st2.stopBy, sk2: sk2.map(r => r.k), bal: q.bal(w, H) }));
+  let n2 = null;
+  try { n2 = JSON.parse(sk2[0].v).n; } catch (e) {}
+  ok('ISO4b [ISO] 第二發：壞班車照樣丟錯、照樣記（仍恰一列、出錯次數累加到 n＝2——之後每一發排最後）、不停手；仍 pending；H 的帳沒有變',
+    st2.errors === 1 && st2.stopBy === null && sk2.length === 1 && sk2[0].k === STRIKE(P, 'P1') && n2 === 2 && q.verdicts(w, P, 'P1') === 'pending' && q.bal(w, H) === 2,
+    J({ errors: st2.errors, stopBy: st2.stopBy, sk2, bal: q.bal(w, H) }));
+});
+
+// ═══ ISO5／B5：出錯 2 次才排最後（第二輪獨立驗收 B5）═════════════════════════════════════
+// 舊版錯過一次就排最後、記錄只在判過之後才刪：誠實班車被一次暫時錯誤（D1 連線中斷）記過之後，預算被塞滿的夜裡永遠輪不到。
+await attempt('ISO5', async () => {
+  // 帳號 U（可信）的 U1 與匿名 a、b 各 1 班（同 ISO2），U1 的記錄換成各種值。寫死次序：可信先 → 沒記錄時 U1 排第一。
+  const U = 'uid-iso5-000U', A = 'dev-iso5-000a', B = 'dev-iso5-000b';
+  const order = async v => {
+    const w = world({ seed: boardSql('山線') + pointsSql([[U, U, 0, null]]) +
+      (v === null ? '' : `INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(U, 'U1')}','${v}','x');`), env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
+    bulk(w.db, [{ actor: U, trainNo: 'U1', pts: TINY }, { actor: A, trainNo: 'A1', pts: TINY }, { actor: B, trainNo: 'B1', pts: TINY }]);
+    const seen = listOf(w);
+    await w.cron({ BOUNTY_SUBREQ_BUDGET: '1' });              // 只看清單的次序，一班都不判
+    return (seen[0] || []).map(r => r.train).join();
+  };
+  const r = { none: await order(null), n1: await order('{"at":1,"error":"x","n":1}'), legacy: await order('{"at":1,"error":"x"}'),
+    broken: await order('not json'), n2: await order('{"at":1,"error":"x","n":2}'), n5: await order('{"at":1,"error":"x","n":5}') };
+  ok('ISO5 [第二輪 B5] 出錯次數分級：沒有記錄、錯過 1 次（n＝1）、舊格式（沒有 n，算 1 次）、值壞掉（算 1 次）→ U1 照常排第一；n＝2、n＝5 → 排最後',
+    r.none === 'U1,A1,B1' && r.n1 === 'U1,A1,B1' && r.legacy === 'U1,A1,B1' && r.broken === 'U1,A1,B1' && r.n2 === 'A1,B1,U1' && r.n5 === 'A1,B1,U1', J(r));
+});
+await attempt('B5', async () => {
+  // 誠實班車 H 被一次暫時錯誤記過（n＝1）；同一發還有 3 班別人的車。預算只夠判 1 班：寫死次序下 H（actor 字母序最前）照常排第一 → 判到。
+  // 對照：H 已錯過 2 次（n＝2）→ 排最後、這一發判不到——證明預算真的只夠 1 班（上面判到不是因為預算夠大）。
+  const H = 'dev-b5-00000a', O = ['dev-b5-00000b', 'dev-b5-00000c', 'dev-b5-00000d'];
+  const run = async n => {
+    const w = world({ seed: boardSql('山線') + `INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(H, 'H1')}','{"at":1,"error":"Network connection lost","n":${n}}','x');`,
+      env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
+    putBatches(w.db, { actor: H, trainNo: 'H1', pts: leg({ sec: 700 }) });
+    for (const a of O) putBatches(w.db, { actor: a, trainNo: 'O1', pts: leg({ sec: 700 }) });
+    const st = await w.cron({ BOUNTY_SUBREQ_BUDGET: '7' });     // 第一班開始前已用 5（見 cron2 的 M2a），一班之後 ≥ 7 就停
+    return { trains: st.trains, h: q.verdicts(w, H, 'H1'), bal: q.bal(w, H), sk: strikes(w).length };
+  };
+  const one1 = await run(1), two = await run(2);
+  ok('B5 [第二輪 B5] 錯過 1 次的誠實班車照常排：預算只夠 1 班時判到的就是它（ok、1 顆、記錄隨即刪掉）；對照 n＝2：排最後、這一發判不到（仍 pending、記錄還在）',
+    one1.trains === 1 && one1.h === 'ok' && one1.bal === 1 && one1.sk === 0 && two.trains === 1 && two.h === 'pending' && two.sk === 1, J({ one1, two }));
+});
+
+// ═══ SW：每一發開頭的出錯記錄清掃（第二輪 B4c／B4d）═══════════════════════════════════════
+await attempt('SW', async () => {
+  // 記錄五列＋別的鍵三列：
+  //   orphan：那班車已判完（沒有 pending 列）——B4c（判得過的當下刪記錄那一句失敗、被吞掉）留下的形狀 → 刪
+  //   legacy：舊格式（沒有 n）、那班車也沒有 pending → 刪
+  //   merged：裝置 D 記過之後併進帳號 U（樣本已改名到 U，裝置鍵下沒有 pending）——B4d → 刪
+  //   live：那班車還有 pending（還沒判）→ 留著（n 不動）
+  //   liveU：同一班車改名後在 U 名下的記錄（還有 pending）→ 留著
+  //   別的鍵：'bounty_verify_strike'（沒有「|」，在範圍之前）、'bounty_verify_strike~x'（「~」在「}」之後）、'bounty_verify_lease' 以外的快取 → 不動
+  // 預算 1：一班都不判（清掃在清單之前），留下來的就只看清掃。
+  const A = 'dev-sw-00000A', D = 'dev-sw-00000D', U = 'uid-sw-00000U';
+  const w = world({ seed: boardSql('山線') + pointsSql([[U, U, 0, null], [D, null, 0, U]]) + 'INSERT INTO kv_blobs (k,v,updated) VALUES ' + [
+    [STRIKE(A, 'J1'), '{"at":1,"error":"x","n":1}'], [STRIKE(A, 'J2'), '{"at":1,"error":"x"}'], [STRIKE(D, 'M1'), '{"at":1,"error":"x","n":1}'],
+    [STRIKE(A, 'P1'), '{"at":1,"error":"x","n":1}'], [STRIKE(U, 'M1'), '{"at":1,"error":"x","n":1}'],
+    ['bounty_verify_strike', 'keep-1'], ['bounty_verify_strike~x', 'keep-2'], ['tra_delay_stats_30d', 'keep-3'],
+  ].map(([k, v]) => `('${k}','${v}','x')`).join(',') + ';' });
+  putBatches(w.db, { actor: A, trainNo: 'J1', pts: TINY });
+  w.db.exec("UPDATE bounty_samples SET verdict='ok' WHERE train_no='J1'");               // J1 已判完
+  putBatches(w.db, { actor: A, trainNo: 'P1', pts: TINY });                              // P1 還是 pending
+  putBatches(w.db, { actor: U, trainNo: 'M1', pts: TINY });                              // D 的 M1 併進 U 之後的樣子
+  const st = await w.cron({ BOUNTY_SUBREQ_BUDGET: '1' });
+  const left = rows(w, "SELECT k FROM kv_blobs WHERE k <> 'bounty_verify_lease' ORDER BY k").map(r => r.k);
+  ok('SWa [第二輪 B4c／B4d] 清掃：沒有 pending 的記錄（判完的、舊格式的、裝置併進帳號之後的）刪掉；還有 pending 的兩列留著；範圍外的三個鍵不動；這一發一班都沒判',
+    st.trains === 0 && J(left) === J(['bounty_verify_strike', STRIKE(A, 'P1'), STRIKE(U, 'M1'), 'bounty_verify_strike~x', 'tra_delay_stats_30d'].sort()), J({ left, trains: st.trains }));
+  // 圍欄：清掃那一句執行前租約被接手 → 一列都不刪
+  const w2 = world({ seed: `INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(A, 'J1')}','{"at":1,"error":"x","n":1}','x');` });
+  const other = J({ token: 'taken-over', until: Date.now() + 10 * 60e3 });
+  const h = hookOnce(w2.DELAY_DB, /^DELETE FROM kv_blobs WHERE k >= \?/, async () => { w2.db.prepare('UPDATE kv_blobs SET v=? WHERE k=?').run(other, LEASE); });
+  await w2.cron();
+  ok('SWb [第二輪 D4] 清掃那一句之前租約被接手：一列都不刪（孤兒記錄還在）；接手那一發的租約原封不動',
+    h.fired === 1 && strikes(w2).length === 1 && (q.lease(w2) || {}).v === other, J({ fired: h.fired, sk: strikes(w2), lease: q.lease(w2) }));
+});
+
+// ═══ D4：出錯記錄的寫與刪都圍租約（第二輪 D4）══════════════════════════════════════════════
+await attempt('D4', async () => {
+  const other = J({ token: 'taken-over', until: Date.now() + 10 * 60e3 });
+  // (a) 判得過就刪記錄那一句：這一發在第③段之前被接手（寫入全被擋、其實沒判到）→ 不能把記錄刪掉。記錄 n＝1（照常排、不是最後）。
+  const A = 'dev-d4-000001';
+  const w = world({ seed: boardSql('山線') + `INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(A, 'F1')}','{"at":1,"error":"x","n":1}','x');` });
+  putBatches(w.db, { actor: A, trainNo: 'F1', pts: leg({ sec: 700 }) });
+  const h = hookOnce(w.DELAY_DB, /FROM bounty_claims WHERE actor=COALESCE/, async () => { w.db.prepare('UPDATE kv_blobs SET v=? WHERE k=?').run(other, LEASE); });
+  await w.cron();
+  ok('D4a [第二輪 D4] 第③段之前被接手：這班車仍 pending，而且它的出錯記錄沒有被刪（舊版以為判過了、照刪）',
+    h.fired === 1 && q.verdicts(w, A, 'F1') === 'pending' && strikes(w).length === 1, J({ fired: h.fired, v: q.verdicts(w, A, 'F1'), sk: strikes(w) }));
+  // (b) 寫記錄那一句：這一發被接手之後才丟錯 → 不寫記錄（舊版照寫）。
+  const B = 'dev-d4-000002';
+  const w2 = world({ seed: boardSql('山線') });
+  putBatches(w2.db, { actor: B, trainNo: 'F2', pts: leg({ sec: 700 }) });
+  const h2 = hookOnce(w2.DELAY_DB, LOAD_RE, async () => { w2.db.prepare('UPDATE kv_blobs SET v=? WHERE k=?').run(other, LEASE); throw new Error('D1_ERROR: 模擬的暫時錯誤'); });
+  const st2 = await w2.cron();
+  ok('D4b [第二輪 D4] 被接手之後才丟錯：errors 1、不停手，但一列記錄都不寫；接手那一發的租約原封不動',
+    h2.fired === 1 && st2.errors === 1 && st2.stopBy === null && strikes(w2).length === 0 && (q.lease(w2) || {}).v === other, J({ st2: { errors: st2.errors, stopBy: st2.stopBy }, sk: strikes(w2) }));
+});
+
+// ═══ B3e：系統性出錯時只印前 5 班（第二輪 B3e）══════════════════════════════════════════════
+await attempt('B3e', async () => {
+  // 8 班壞車（同 ISO4 的 [null,null]，每一班都丟 TypeError）。期望：console.error 的逐班那一行恰 5 行（前 5 班）；
+  // 判定那一行寫 8 班出錯、已記下、「前 5 班」「其餘 3 班只記在 kv_blobs 的出錯記錄」；8 班都記下了。
+  const w = world({ seed: boardSql('山線') });
+  const ins = w.db.prepare("INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict,client)" +
+    " VALUES (?,?,'tra_sched','山線','P1',0,?,'[null,null]',NULL,?,'pending',?)");
+  for (let i = 1; i <= 8; i++) ins.run('b3e-poison-' + i, 'dev-b3e-00000' + i, D28, NOW_MS - 3600e3, J(APP));
+  const f = await fire(w);
+  const per = f.errs.filter(s => s.includes('這班車判定出錯'));
+  const line = f.errs.find(s => SUMMARY_RE.test(s)) || '';
+  ok('B3e [第二輪 B3e] 8 班都出錯：逐班的 console.error 恰 5 行；判定那一行寫「8 班判定出錯」「已記下」「前 5 班」「其餘 3 班只記在 kv_blobs 的出錯記錄」；8 班都記下；不丟例外',
+    per.length === 5 && line.includes('8 班判定出錯') && line.includes('已記下') && line.includes('前 5 班') && line.includes('其餘 3 班只記在 kv_blobs 的出錯記錄') &&
+      strikes(w).length === 8 && !f.threw, J({ per: per.length, line: line.slice(0, 300), sk: strikes(w).length, threw: f.threw }));
 });
 
 // ═══ N4：一班車的點數上看十幾萬（4 MB 塞得下）══════════════════════════════════════
@@ -1179,7 +1289,7 @@ const SYB = Array.from({ length: 12 }, (_, i) => 'dev-n1-syb' + String(i + 1).pa
 const N1H = 'dev-n1-honest', N1K = 'dev-n1-struck';
 function n1World() {
   const w = world({ seed: boardSql('山線') + SYB.map(s => ledgerSql(s, 'trip', 1, `${s}|2026-07-10|O1`, '2026-07-10')).join('') +
-    `INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(N1K, 'K1')}','{"at":1,"error":"x"}','x');`, env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
+    `INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(N1K, 'K1')}','{"at":1,"error":"x","n":2}','x');`, env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
   bulk(w.db, [...SYB.flatMap(s => Array.from({ length: 8 }, (_, k) => ['屏東線', '南迴線', '山線', '超長線'].map(ln => ({ actor: s, trainNo: 'G' + (k + 1), lnId: ln, pts: TINY }))).flat()),
     { actor: N1H, trainNo: 'N1', pts: leg({ sec: 700 }) }, { actor: N1K, trainNo: 'K1', pts: leg({ sec: 700 }) }]);
   const loads = [];                                          // 判定實際讀班車的次序（每班讀一次）
@@ -1289,6 +1399,24 @@ await attempt('M5b3', async () => {
     del.status === 200 && v1Of(w, DN) === J({ samples: 0, claims: 0, point: null }) &&
       J({ s: del.json.deleted.samples, c: del.json.deleted.claims, p: del.json.deleted.points }) === J({ s: 4, c: 2, p: 3 }),
     J({ del: del.json, dn: v1Of(w, DN) }));
+});
+
+// ═══ B4e：刪帳號一起刪出錯記錄（第二輪 B4e）═══════════════════════════════════════════════
+await attempt('B4e', async () => {
+  // m5bWorld 的身分：X（要刪的帳號）、DX（併進 X 的裝置）、DN（還沒併進任何帳號的裝置，body 帶它）、W（別人的帳號）、DW（併進 W 的裝置）。
+  // 每個身分各一列出錯記錄。期望：X、DX、DN 的刪掉；W、DW 的留著。回應的欄位不變（出錯記錄只刪不回報）。
+  const { w, X, W, DW, DN, DX } = m5bWorld();
+  w.db.exec('INSERT INTO kv_blobs (k,v,updated) VALUES ' + [X, DX, DN, W, DW].map(a => `('${STRIKE(a, 'P1')}','{"at":1,"error":"x","n":1}','x')`).join(',') + ';');
+  const del = await delAccount(w, { actor: DN }, X);
+  const left = strikes(w).map(r => r.k);
+  ok('B4ea [第二輪 B4e] 刪帳號 X（body 帶裝置 DN）：X、併進 X 的 DX、DN 的出錯記錄都刪掉；別人的帳號 W 與併進 W 的 DW 的留著；回應的欄位與以前相同',
+    del.status === 200 && J(left) === J([STRIKE(DW, 'P1'), STRIKE(W, 'P1')].sort()) &&
+      J(Object.keys(del.json.deleted).sort()) === J(['chips', 'claims', 'cloudRides', 'contrib', 'points', 'samples', 'unlocks']),
+    J({ status: del.status, left, deleted: del.json && del.json.deleted }));
+  const { w: w2, X: X2, DW: DW2 } = m5bWorld();
+  w2.db.exec(`INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(DW2, 'P1')}','{"at":1,"error":"x","n":1}','x');`);
+  const del2 = await delAccount(w2, { actor: DW2 }, X2);
+  ok('B4eb [第二輪 B4e 對照 M5b] body 帶「已併進別人（W）的裝置 DW」：它的出錯記錄不刪', del2.status === 200 && strikes(w2).length === 1, J({ status: del2.status, sk: strikes(w2) }));
 });
 
 ok('Z 整支腳本沒有任何非 Firebase 的對外連線', outbound.length === 0, J(outbound.slice(0, 3)));

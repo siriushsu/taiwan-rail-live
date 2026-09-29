@@ -6819,6 +6819,12 @@ async function bountyPurgeUid(env, uid, deviceActor) {
   for (const [name, table] of [...TABLES_V1, ...TABLES_V2]) add(name, db.prepare(`DELETE FROM ${table} WHERE actor=? OR actor IN (${sub})`).bind(uid, uid));
   // 只有 v1 兩張表吃 body 的 deviceActor（見函式開頭：v2 是錢包，不信任呼叫端自己填的裝置 id）
   if (dev) for (const [name, table] of TABLES_V1) add(name, db.prepare(`DELETE FROM ${table} WHERE actor=?${notElsewhere}`).bind(dev, dev, uid));
+  // 判定的出錯記錄（kv_blobs，鍵＝前綴＋actor|乘車日|車次）：鍵本身就是「這個身分在這天搭了這班車」，刪帳號要一起刪（第二輪獨立驗收 B4e）。
+  // 範圍同 v1 兩張表：uid 自己、併進這個 uid 的裝置；body 的 deviceActor 走同一個 notElsewhere 守衛。只刪、不回報（回傳的欄位不變）。
+  // 走 kv_blobs 主鍵的範圍掃描（BOUNTY_VERIFY_STRIKE_HI 的說明），不碰 kv_blobs 裡別的快取。
+  const sa = bountyStrikeParts('k').actor, SR = 'DELETE FROM kv_blobs WHERE k >= ? AND k < ? AND ';
+  add('strikes', db.prepare(SR + sa + ` IN (SELECT ? UNION ALL ${sub})`).bind(BOUNTY_VERIFY_STRIKE_PREFIX, BOUNTY_VERIFY_STRIKE_HI, uid, uid));
+  if (dev) add('strikes', db.prepare(SR + sa + '=?' + notElsewhere).bind(BOUNTY_VERIFY_STRIKE_PREFIX, BOUNTY_VERIFY_STRIKE_HI, dev, dev, uid));
   add('points', dev
     ? db.prepare('DELETE FROM bounty_points WHERE actor=? OR (merged_into=? AND uid IS NULL)' +
         ' OR (actor=? AND uid IS NULL AND (merged_into IS NULL OR merged_into=?))').bind(uid, uid, dev, uid)
@@ -7725,12 +7731,29 @@ const BOUNTY_VERIFY_LEASE_MS = 20 * 60 * 1000;
 //     「+verdict」的一元加號同 bountyVerifyTrain ③ 的標記那句：只走主鍵點查，不去掃 idx_samples_pending。
 const BOUNTY_VERIFY_HELD = ' AND EXISTS (SELECT 1 FROM kv_blobs WHERE k=? AND v=?)';
 const BOUNTY_VERIFY_PENDING = " AND (SELECT COUNT(*) FROM bounty_samples WHERE id IN (SELECT value FROM json_each(?)) AND +verdict='pending') = ?";
-// 判定時出過錯的班車（kv_blobs 一班一列，鍵＝這個前綴＋actor|乘車日|車次，值＝{at, error}）：之後每一發都排在清單最後。
+// 判定時出過錯的班車（kv_blobs 一班一列，鍵＝這個前綴＋actor|乘車日|車次，值＝{at, error, n}，n＝出錯幾次）：
+// 出錯 BOUNTY_VERIFY_STRIKES_TO_LAST 次起，之後每一發都排在清單最後。
 // 一班車的資料若會讓判定丟錯（任何資料相依的程式缺陷），它每一發都會丟同一個錯；排在前面的話每一發都卡在它、後面的誠實班車永遠輪不到
 // ——而且上傳者可以一次送很多班這種車（review-B 獨立驗收 N4）。記下來、排到最後，它就只花得到「別人都判完之後剩下的預算」。
 // 不自動判可疑：同一個錯也可能是暫時的 D1 錯誤或我們自己的程式缺陷（那時每一班都會出錯），判下去就是讓誠實的趟拿不到籌碼；
-// 這些列只是排序往後，修好之後自然判得過。持續出錯的班車看 console.error 的那一行（含這個鍵）人工處理。
+// 這些列只是排序往後，修好之後自然判得過。持續出錯的班車看 console.error 的那一行（含這個鍵）或直接查 kv_blobs 人工處理。
+// 記錄的清掃：判得過就刪（同一發）；每一發開頭另掃一次「那班車已經沒有 pending 列」的記錄（見 bountyVerifyCron）；刪帳號一起刪（bountyPurgeUid）。
 const BOUNTY_VERIFY_STRIKE_PREFIX = 'bounty_verify_strike|';
+// 出錯幾次才排到最後（第二輪獨立驗收 B5）：一次就排最後的話，被一次暫時錯誤（D1 連線中斷之類）記過的誠實班車，
+// 在預算被塞滿的夜裡永遠輪不到——記錄沒有過期、只在判過之後才刪（實測 20/20 次在 10 發內一次都沒判到）。
+// 兩次：真的會讓判定丟錯的班車每一發都丟同一個錯，第二發起就排最後，只多花一發它自己的量；同一班連兩次撞上暫時錯誤的機會小得多。
+const BOUNTY_VERIFY_STRIKES_TO_LAST = 2;
+// 一發最多印幾班的完整錯誤（console.error 帶 stack）；其餘只記在 kv_blobs 的出錯記錄、判定那一行寫總數（第二輪 B3e：
+// 系統性出錯——schema 漂移、我們自己的缺陷——時每一班都丟錯，四千班一發約 5.5 MB 的 log，之後每一發再來一次）。
+const BOUNTY_VERIFY_ERROR_LOGS = 5;
+// 出錯記錄的鍵範圍：鍵＝前綴＋actor|乘車日|車次，actor 只有 [A-Za-z0-9_-]（isActorId）、乘車日是 YYYY-MM-DD、車次是 [0-9A-Za-z]，都不含「|」。
+// 「}」是「|」的下一個字元，所以 [前綴, 前綴最後的「|」換成「}」) 恰好是所有出錯記錄——走 kv_blobs 主鍵的範圍掃描，不碰 kv_blobs 裡別的快取。
+const BOUNTY_VERIFY_STRIKE_HI = BOUNTY_VERIFY_STRIKE_PREFIX.slice(0, -1) + '}';
+// 從鍵拆回 actor／乘車日／車次的 SQL 片段（k＝鍵那一欄的寫法）。L＝actor 在鍵裡的起點（1 起算）；bar＝actor 後面那個「|」在前綴之後的位置。
+function bountyStrikeParts(k) {
+  const L = BOUNTY_VERIFY_STRIKE_PREFIX.length + 1, bar = `instr(substr(${k}, ${L}), '|')`;
+  return { actor: `substr(${k}, ${L}, ${bar} - 1)`, day: `substr(${k}, ${L} + ${bar}, 10)`, train: `substr(${k}, ${L} + ${bar} + 11)` };
+}
 // 路段懸賞的判定時段：UTC 19:30 ＝ 台北 03:30（前一營運日的列車都已收班）。scheduled() 對這個字串只跑
 // 估值＋驗證、不跑每日 ingest。正式環境的 trigger 由 owner 另外加（wrangler.jsonc 的 crons）——
 // 程式不認得的 cron 字串一律掉進每日 ingest 分支，所以光加 trigger、不靠這個獨立分流，判定一樣不會跑。
@@ -7811,7 +7834,9 @@ const bountyVerifyLine = q => q.locked
   (q.budgetStop ? `（⚠️ ${q.stopBy === 'wall' ? '牆鐘' : '子請求'}預算用盡：剩下的班車留 pending，下一發接著判）` : '') +
   (q.errors ? `（⚠️ ${q.errors} 班判定出錯` + (q.stopBy === 'error'
     ? '，最後一次連記錄都寫不進 D1 而停手：剩下的班車留 pending，下一發接著判'
-    : '：已記下、之後每一發排到最後，前面的 console.error 有車次') + `；最後一個錯誤：${q.error}）` : '') +
+    : `：已記下（同一班第 ${BOUNTY_VERIFY_STRIKES_TO_LAST} 次出錯起排到最後）` + (q.errors > BOUNTY_VERIFY_ERROR_LOGS
+      ? `，前 ${BOUNTY_VERIFY_ERROR_LOGS} 班的 console.error 有車次與 stack，其餘 ${q.errors - BOUNTY_VERIFY_ERROR_LOGS} 班只記在 kv_blobs 的出錯記錄`
+      : '，前面的 console.error 有車次')) + `；最後一個錯誤：${q.error}）` : '') +
   (q.headDeferred ? `（可信身分的班車用到份額：其餘 ${q.headDeferred} 班改排在其他人之後）` : '') +
   (q.truncated ? '（⚠️ pending 班車數超過單發上限：截斷，剩下的下一發）' : '') +
   (q.oversize ? `（批數超過每日上限、整班判可疑 ${q.oversize} 班）` : '');
@@ -7847,10 +7872,23 @@ async function bountyVerifyCron(env0) {
   if (!(Number(got && got.meta && got.meta.changes) > 0)) {
     stat.locked = true;
   } else try {
+    // ── 出錯記錄的清掃（第二輪獨立驗收 B4c／B4d）：那班車已經沒有任何 pending 列的記錄一律刪掉 ─────────────────
+    // 判得過的當下就會刪（見下面的迴圈），但有兩條路會留下永遠刪不掉的記錄：刪那一句自己失敗（吞掉了），那班車之後不再進清單；
+    // 記過之後裝置併進帳號（樣本改名到 uid），記錄的鍵還是裝置、清單裡再也沒有這個鍵。記錄只影響排序，留著不傷判定，
+    // 但鍵本身就是「這個身分在這天搭了這班車」，不該無限期留著。一句、範圍掃描 kv_blobs 主鍵、每列一次 idx_samples_trip 點查；
+    // 帶租約圍欄。失敗不要緊（下一發再掃），吞掉。
+    try {
+      const sp = bountyStrikeParts('kv_blobs.k');
+      await env.DELAY_DB.prepare(
+        'DELETE FROM kv_blobs WHERE k >= ? AND k < ? AND NOT EXISTS (SELECT 1 FROM bounty_samples s WHERE s.actor = ' + sp.actor +
+        ' AND s.trip_date = ' + sp.day + ' AND s.train_no = ' + sp.train + " AND +s.verdict = 'pending')" + BOUNTY_VERIFY_HELD
+      ).bind(BOUNTY_VERIFY_STRIKE_PREFIX, BOUNTY_VERIFY_STRIKE_HI, BOUNTY_VERIFY_LEASE_KEY, lease).run();
+    } catch (e) {}
     // ── 第一段：班車清單（一句，不讀 payload）─────────────────────────────────────────
     // 一列＝一班車（actor＋乘車日＋車次），附「記在誰名下」（who：與 resolveActor 同一條——帳號列回自己、併過的裝置回帳號）。
     // 排序（review-B B3）：
-    //   0. 以前判定時出過錯的班車（BOUNTY_VERIFY_STRIKE_PREFIX）一律排在最後，不論下面哪一條；
+    //   0. 以前判定時出過錯 BOUNTY_VERIFY_STRIKES_TO_LAST 次以上的班車（BOUNTY_VERIFY_STRIKE_PREFIX）一律排在最後，不論下面哪一條
+    //      （只錯過一次的照常排，第二輪 B5）；
     //   1. 可信身分（trusted：帳號、併進帳號的裝置、或以前入帳過錄程籌碼）的前 BOUNTY_VERIFY_TRUSTED_TRAINS 班最先（head）——
     //      但最多先用掉剩下預算的 BOUNTY_VERIFY_TRUSTED_SHARE，其餘的 head 排到 2. 之後（bountyVerifyOrder）；
     //   2. 其餘依「這個身分的第幾班」（rnd）輪流：每個人的第 1 班都排在任何人的第 2 班之前——一個身分灌再多班，一輪也只佔一格；
@@ -7872,13 +7910,15 @@ async function bountyVerifyCron(env0) {
       ' GROUP BY s.actor, s.trip_date, s.train_no' +
       '), r AS (' +
       ' SELECT t.*, ROW_NUMBER() OVER (PARTITION BY who ORDER BY trip_date, actor, train_no) AS rnd,' +
-      " (acct OR EXISTS (SELECT 1 FROM chip_ledger l WHERE l.actor = t.who AND l.kind = 'trip')) AS trusted FROM t" +
+      " (acct OR EXISTS (SELECT 1 FROM chip_ledger l WHERE l.actor = t.who AND l.kind = 'trip')) AS trusted," +
+      // 出錯次數：記錄的 n（舊格式沒有 n、或值不是 JSON，都算 1）；沒有記錄＝0。
+      " COALESCE((SELECT CASE WHEN json_valid(x.v) THEN COALESCE(json_extract(x.v, '$.n'), 1) ELSE 1 END FROM kv_blobs x" +
+      " WHERE x.k = '" + BOUNTY_VERIFY_STRIKE_PREFIX + "' || t.actor || '|' || t.trip_date || '|' || t.train_no), 0) AS strikes FROM t" +
       ')' +
-      ' SELECT actor, trip_date, train_no, n, bytes, who, (trusted AND rnd <= ?) AS head,' +
-      " EXISTS (SELECT 1 FROM kv_blobs x WHERE x.k = '" + BOUNTY_VERIFY_STRIKE_PREFIX + "' || r.actor || '|' || r.trip_date || '|' || r.train_no) AS struck FROM r" +
+      ' SELECT actor, trip_date, train_no, n, bytes, who, (trusted AND rnd <= ?) AS head, strikes, (strikes >= ?) AS struck FROM r' +
       ' ORDER BY struck, head DESC, rnd, trusted DESC, ' + (fixed ? 'trip_date, actor, train_no' : 'random()') +
       ' LIMIT ?'
-    ).bind(taipeiDay(now), BOUNTY_VERIFY_TRUSTED_TRAINS, BOUNTY_VERIFY_MAX_TRAINS + 1).all();
+    ).bind(taipeiDay(now), BOUNTY_VERIFY_TRUSTED_TRAINS, BOUNTY_VERIFY_STRIKES_TO_LAST, BOUNTY_VERIFY_MAX_TRAINS + 1).all();
     const list = cand.results || [];
     if (list.length > BOUNTY_VERIFY_MAX_TRAINS) { stat.truncated = true; list.length = BOUNTY_VERIFY_MAX_TRAINS; }
     // 可信名額的份額從這裡起算：這一發剩下的子請求與牆鐘預算，各 BOUNTY_VERIFY_TRUSTED_SHARE。
@@ -7894,28 +7934,35 @@ async function bountyVerifyCron(env0) {
       if (Date.now() - ctr.t0 >= ctr.wallMs) { stat.budgetStop = true; stat.stopBy = 'wall'; break; }
       // 一班車丟錯（review-B R3）：每一條線的標記與寫入是同一筆交易（見 bountyVerifyTrain 的第③段），丟錯的那一組整組留 pending，
       // 下一發重判；籌碼與去重是冪等的，重判不會多發。接著分兩種情形（review-B 獨立驗收 N4）：
-      //   · 這班車自己的問題（它的資料讓判定丟錯）：記下來（BOUNTY_VERIFY_STRIKE_PREFIX，之後每一發排到最後），繼續下一班——
-      //     停手的話，這班車下一發還排在同一段、再讓判定停一次，一班壞車就能讓判定天天停擺。
+      //   · 這班車自己的問題（它的資料讓判定丟錯）：記下來（BOUNTY_VERIFY_STRIKE_PREFIX，出錯次數 n＋1；第 BOUNTY_VERIFY_STRIKES_TO_LAST 次起
+      //     每一發排到最後），繼續下一班——停手的話，這班車下一發還排在同一段、再讓判定停一次，一班壞車就能讓判定天天停擺。
       //   · D1 整個不能用（暫時錯誤、平台的查詢上限——D1 文件另寫著「每次呼叫 1,000 個查詢」）：連「記下來」那一句都寫不進去，
       //     後面每一班也會在第一句就失敗，停手。
       const strikeKey = BOUNTY_VERIFY_STRIKE_PREFIX + `${c.actor}|${c.trip_date}|${c.train_no}`;
       try {
         await bountyVerifyTrain(env, rules, M, now, c, stat, lease);
-        // 以前出過錯、這次判得過：記錄刪掉（營運查這些列時，看到的只剩現在還判不過的班車）。刪不掉不要緊，它只影響排序、不影響判定。
-        if (Number(c.struck)) {
-          try { await env.DELAY_DB.prepare('DELETE FROM kv_blobs WHERE k=?').bind(strikeKey).run(); }
+        // 以前出過錯、這次判得過：記錄刪掉（營運查這些列時，看到的只剩現在還判不過的班車）。刪不掉不要緊，它只影響排序、不影響判定，
+        // 下一發開頭的清掃也會收掉。🔴 帶租約圍欄（第二輪 D4）：被接手的這一發的寫入全部落空、這班車其實沒判到，
+        // 不能把接手那一發剛為它寫的記錄刪掉。
+        if (Number(c.strikes) > 0) {
+          try { await env.DELAY_DB.prepare('DELETE FROM kv_blobs WHERE k=?' + BOUNTY_VERIFY_HELD).bind(strikeKey, BOUNTY_VERIFY_LEASE_KEY, lease).run(); }
           catch (e) {}
         }
       }
       catch (e) {
         stat.errors++;
         stat.error = String((e && e.message) || e).slice(0, 200);
-        console.error(`[cron bounty 驗證] 這班車判定出錯（${strikeKey}），記下來、之後排到最後：`, (e && e.stack) || String(e));
+        // 只印前 BOUNTY_VERIFY_ERROR_LOGS 班（第二輪 B3e）；其餘的鍵與錯誤都在 kv_blobs 的記錄裡，判定那一行寫總數。
+        if (stat.errors <= BOUNTY_VERIFY_ERROR_LOGS) {
+          console.error(`[cron bounty 驗證] 這班車判定出錯（${strikeKey}），記下來（同一班第 ${BOUNTY_VERIFY_STRIKES_TO_LAST} 次出錯起排到最後）：`, (e && e.stack) || String(e));
+        }
+        // 出錯次數累加（n）：新記錄 n＝1；已有記錄就在那一列的 n 上加 1（舊格式沒有 n、或值壞掉，都當 1）。帶租約圍欄（第二輪 D4）。
         try {
           await env.DELAY_DB.prepare(
-            "INSERT INTO kv_blobs (k, v, updated) VALUES (?, ?, datetime('now'))" +
-            ' ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated = excluded.updated'
-          ).bind(strikeKey, JSON.stringify({ at: Date.now(), error: stat.error })).run();
+            "INSERT INTO kv_blobs (k, v, updated) SELECT ?, ?, datetime('now') WHERE 1" + BOUNTY_VERIFY_HELD +
+            " ON CONFLICT(k) DO UPDATE SET v = json_set(excluded.v, '$.n'," +
+            " (CASE WHEN json_valid(kv_blobs.v) THEN COALESCE(json_extract(kv_blobs.v, '$.n'), 1) ELSE 1 END) + 1), updated = excluded.updated"
+          ).bind(strikeKey, JSON.stringify({ at: Date.now(), error: stat.error, n: 1 }), BOUNTY_VERIFY_LEASE_KEY, lease).run();
         } catch (e2) { stat.stopBy = 'error'; break; }
       }
     }
