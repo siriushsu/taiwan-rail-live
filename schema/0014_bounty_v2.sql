@@ -7,8 +7,18 @@
 --       chips-me／garage-redeem／cloud-ride／bounty-merge 一律 503。
 --    ③ 驗證 cron 在寫 bounty_seg_contrib／chip_ledger 那幾句丟錯；這兩件排在「標記已判定」之前，
 --       所以樣本留在 pending、補套之後下一發 cron 會重判，不會永久漏發。
+--    ④ /api/bounty-board【整個】回 503：看板的 SELECT 讀 bounty_board.distinct_ok_users，缺這一欄整句失敗；
+--       回應是 public, s-maxage=60，全站每個人的看板都會空掉（不是只有新功能壞）。
+--    ⑤ 每日估值 cron 丟錯：上架新單位的 INSERT 讀 bounty_seg_contrib，缺這張表整支估值中止——
+--       板上不會有新單位、也不會重算價格，而且只在 log 裡看得到。
 --    （比照 0012 漏套那次：schema 沒到位就先出 Worker，是這個專案踩過的坑。ship-web 2.4 的正式庫 schema
 --    守門人會擋下「正式庫缺 schema/*.sql 裡的表或欄」的出貨。）
+--
+-- 🔴 回滾提醒：Worker 若回滾到這一版「之前」的舊版，舊版不認得這四張新表——
+--    刪帳號（bountyPurgeUid）只刪 bounty_samples／bounty_claims／bounty_points 三張，不清籌碼帳本、車庫解鎖、雲端搭乘、
+--    每段貢獻（刪了帳號、這些個人資料仍留在庫裡，是隱私承諾的破口）；帳號合併（bountyMerge）也不搬這四張表
+--    （登入前的籌碼與解鎖會留在舊 token 名下）。回滾 Worker 時要一併處理這兩件事：回滾期間暫停刪帳號與合併，
+--    或回滾後對新表手動補刪／補搬。
 --
 -- 全部 CREATE 用 IF NOT EXISTS：cron 與新環境都會重跑同一份檔。
 -- 🔴 兩句 ALTER 一定放在檔尾：SQLite 沒有 ADD COLUMN IF NOT EXISTS，重套時第一句 ALTER 會丟
@@ -27,6 +37,9 @@ CREATE TABLE IF NOT EXISTS bounty_seg_contrib (
   first_ok_at INTEGER NOT NULL,
   PRIMARY KEY (seg_key, actor)
 );
+-- 帳號合併與刪帳號都是「以 actor 找列」（PK 的 actor 在第二欄，用不上主鍵索引）：沒有這個索引，
+-- 每次合併約掃 3 次全表、刪帳號 2 次，而這張表的列數＝段數×人數，D1 以讀取列數計費。
+CREATE INDEX IF NOT EXISTS idx_seg_contrib_actor ON bounty_seg_contrib (actor);
 
 -- ── 籌碼帳本：只進不改，餘額＝SUM(delta)，不另存一份餘額（避免兩份真相）──────────────
 -- kind：trip 合格錄程｜cloud 雲端搭乘換的｜redeem 兌換車庫場景（delta 為負）｜merge 合併帳號時的退款或搬移｜adjust 人工調整。

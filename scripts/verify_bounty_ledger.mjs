@@ -350,7 +350,9 @@ await attempt('C4', async () => {
   for (const n of ['101', '102', '103', '104', '105']) { addTrip(w.db, { actor: a, trainNo: n, lnId: '山線' }); await w.cron(); got.push(q.chips(w.db, a, TRIP_DATE)); }
   addTrip(w.db, { actor: a, trainNo: '106', lnId: '南迴線' }); await w.cron();
   const afterRemote = q.chips(w.db, a, TRIP_DATE);
-  addTrip(w.db, { actor: a, trainNo: '107', lnId: '山線', date: NEXT_DATE }); await w.cron();
+  // F24：判定只挑「乘車日早於台北今天」的樣本。07-29 的趟在 07-29 當天的 cron 不會被判（趟可能還在車上）——
+  // 所以隔天那一趟要等到 07-30 的 cron 才判。只把 cron 的時間往後推一天，斷言一個字沒動。
+  addTrip(w.db, { actor: a, trainNo: '107', lnId: '山線', date: NEXT_DATE }); await w.cron(NOW_MS + 86400e3);
   ok('C4a [驗收6] 同一天 5 趟一般 ok：累計 1、2、3、4、4（第 5 趟被上限擋下，帳本合計 4）', JSON.stringify(got) === '[1,2,3,4,4]', JSON.stringify(got));
   ok('C4b [驗收6] 已滿 4 之後再來一趟南迴（×2）→ 仍是 4', afterRemote === 4, String(afterRemote));
   ok('C4c [驗收6] 隔天（07-29）重新可得：+1；前一天的 4 不動', q.chips(w.db, a, NEXT_DATE) === 1 && q.chips(w.db, a, TRIP_DATE) === 4,
@@ -406,7 +408,10 @@ await attempt('C5', async () => {
   ok('C5 [驗收7] 同一批樣本重判一次：帳本列數與內容、contrib 列數、每段 distinct_ok_users 完全不變，且重判確實發生過（st2.trips=2）',
     nLedger === 2 && first === second && st2.trips === 2 && st2.chips === 0, JSON.stringify({ nLedger, st2, same: first === second }));
 });
-// C6 simulator（驗收 8）：走完整條路徑（POST → D1 → cron）。判定照跑、樣本照收、contrib 照進（我的選擇，見檔尾說明）、帳本 0。
+// C6 simulator（驗收 8）：走完整條路徑（POST → D1 → cron）。判定照跑、樣本照收，其餘一律不動：
+// 帳本 0、contrib 0、看板（sample_count／distinct_ok_users／covered_at）不動、舊點數不給。
+// （F23：原本 contrib 照進——每個模擬器安裝的 installId 都是新的，等於一個新的「不同的人」，會把正式環境每一段的
+// 收滿人數灌上去；收滿會讓卡片下架。判定結果仍寫回樣本列，讓 QA 看得到這趟判成什麼。）
 await attempt('C6', async () => {
   const w = world({ seed: boardSql('tra_sched', '南迴線', [{}]) });
   const SIM = { platform: 'ios', app: '1.6.13', simulator: true };
@@ -420,9 +425,12 @@ await attempt('C6', async () => {
   ok('C6b [驗收8] 判定照跑＝ok；帳本 0 列', q.verdicts(w.db, 'device-sim1') === 'ok' && q.ledger(w.db, 'device-sim1').length === 0,
     JSON.stringify({ v: q.verdicts(w.db, 'device-sim1'), n: q.ledger(w.db, 'device-sim1').length }));
   ok('C6c [驗收8 對照] 同樣的趟、simulator:false 的另一位 → 帳本 2 籌碼（南迴 ×2；0 不是因為整條路壞了）', q.chips(w.db, 'device-real') === 2, String(q.chips(w.db, 'device-real')));
-  ok('C6d [驗收8] 我的選擇：simulator 的 ok 趟 contrib 照進（7 段），distinct_ok_users 兩位（模擬器＋真機）',
-    q.contribAll(w.db, 'device-sim1') === 7 && q.board(w.db, K('S0|S1'))[0].distinct_ok_users === 2,
-    JSON.stringify({ contrib: q.contribAll(w.db, 'device-sim1'), board: q.board(w.db, K('S0|S1'))[0] }));
+  const simBoard = q.board(w.db, K('S0|S1'))[0];
+  const simPoints = w.db.prepare("SELECT COUNT(*) c FROM bounty_points WHERE actor='device-sim1'").get().c;
+  ok('C6d [驗收8 · F23] simulator 的 ok 趟不登記 contrib（0 段；對照真機那位 7 段）、看板只算真機那一位（distinct_ok_users 1、sample_count 1，不是 2）、沒有點數列',
+    q.contribAll(w.db, 'device-sim1') === 0 && q.contribAll(w.db, 'device-real') === 7 &&
+      simBoard.distinct_ok_users === 1 && simBoard.sample_count === 1 && simPoints === 0,
+    JSON.stringify({ contrib: q.contribAll(w.db, 'device-sim1'), real: q.contribAll(w.db, 'device-real'), board: simBoard, simPoints }));
 });
 // C6e 任何一批自報模擬器，整趟就不入帳（一趟有很多批，不能靠「混一批真機」洗掉旗標）
 await attempt('C6e', async () => {

@@ -113,7 +113,10 @@ async function e2e(actor, samples) {
     }),
   }), env);
   const submit = await submitRes.json();
-  const verify = await _bounty.bountyVerifyCron(env);
+  // F24：判定只挑「乘車日早於台北今天」的樣本；這趟的乘車日 07-29 ＝ BOUNTY_NOW 那一天，今天的趟不判。
+  // 所以 cron 的時鐘往後推一天（隔天那一發才會判到它）。只改時鐘，這支腳本的斷言一個字沒動；
+  // 上面的估值、認領、上傳仍用原本的 NOW（乘車日窗與認領有效期都以 NOW 為準）。
+  const verify = await _bounty.bountyVerifyCron({ ...env, BOUNTY_NOW: String(NOW + 86400000) });
   const after = db.prepare(
     "SELECT points,sample_count,covered_at FROM bounty_board WHERE seg_key=? AND train_kind='自強'" +
     " AND dir=0 AND kind='dwell' AND slot='peak'"

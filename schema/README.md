@@ -17,6 +17,7 @@
 | `0011_journey_share.sql` | ✅ **權威** | 短效整段旅程分享 `journey_shares`。只保存最新狀態與（使用者另行同意時）最新一筆手機座標，不保存位置歷史；公開讀取 id 與編輯憑證分離，最長 12 小時失效。**所有環境都要跑。** |
 | `0012_la_journey_handoff.sql` | ✅ **權威** | 跟車即時動態的跨車轉乘計畫。替既有 `la_bindings` 增加 `journey_state`，讓同一張鎖屏卡可在轉乘站由來源列車交棒給已選班次。**所有環境都要跑。** 🔴 正式庫漏套到 **2026-09-24 00:17** 才補（使用者 go）。 |
 | `0013_tra_wait_prev_dep.sql` | ✅ **權威** | 台鐵等站卡 B（進站軌道）：替 `tra_wait_bindings` 補 `prev_dep_sec`（上一個停靠站的表定發車時刻），伺服器據此在「上一站→本站」那段每分鐘推一發讓卡片上的車往前挪。**所有環境都要跑，新環境＝`0010` + `0013`。** |
+| `0014_bounty_v2.sql` | ✅ **權威** | 路段懸賞 v2：每段去重人數（新表 `bounty_seg_contrib`、`bounty_board.distinct_ok_users`）、籌碼帳本 `chip_ledger`、車庫解鎖 `garage_unlocks`、雲端搭乘 `cloud_rides`，以及 `bounty_samples.client`（上傳來源）。**所有環境都要跑，新環境＝`0002` + `0014`。** 🔴 先套 schema、再出會用到它的 Worker。Worker 回滾到這一版之前的副作用（刪帳號不清新表、合併不搬新表）見該檔檔頭。 |
 
 ## 套用到正式庫
 
@@ -28,6 +29,7 @@ arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --r
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0011_journey_share.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0012_la_journey_handoff.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0013_tra_wait_prev_dep.sql
+arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0014_bounty_v2.sql
 ```
 
 （`npx wrangler` 在這台機器是壞的，一律用上面的完整寫法。）
@@ -60,6 +62,16 @@ iPhone 跟車卡的伺服器推播全停，期間 `la_bindings` 一直是 0 列�
 `bind_failed`（前端靜默忽略、卡片照開），從此**連誤點更新都沒有**——比 0010 忘了套更隱蔽，
 因為舊版 Worker 在同一個庫上是好的。**先套 0013 再部署新 Worker**；0013 是 `ALTER TABLE`，
 重跑會報 `duplicate column name`（無害，代表已經套過）。
+
+🔴 **0014 忘了套的症狀**（一次壞一整片，不是只有新功能）：
+`/api/account-delete` 對**所有人**回 502（`bountyPurgeUid` 在同一個 batch 刪那四張新表，缺一張整批失敗，App 審查要求能刪帳號）；
+`/api/bounty-board` **整個**回 503（SELECT 讀 `distinct_ok_users`，回應是 `public, s-maxage=60`、全站的看板都空掉）；
+`/api/bounty-submit` 一律 503 `submit_failed`（INSERT 找不到 `bounty_samples.client`），`chips-me`／`garage-redeem`／`cloud-ride`／`bounty-merge` 一律 503；
+每日估值 cron 丟錯（上架新單位讀 `bounty_seg_contrib`），判定 cron 寫貢獻與帳本那幾句也丟錯。
+**先套 0014 再部署新 Worker**（ship-web 2.4 的正式庫 schema 守門人會擋下漏套）。0014 檔尾有兩句 `ALTER TABLE`，
+重跑時第一句 `ALTER` 會報 `duplicate column name`（代表已經套過；`CREATE` 都排在 `ALTER` 之前）。
+若正式庫在 `idx_seg_contrib_actor` 加進 0014 **之前**就套過它，另外單獨補這一句（可重複執行）：
+`CREATE INDEX IF NOT EXISTS idx_seg_contrib_actor ON bounty_seg_contrib (actor);`
 
 🔴 **只有「已經用舊版 0003 建過表」的環境才要再依序套 0004／0005／0006**（本機 `.wrangler`、
 開發庫）。`CREATE TABLE IF NOT EXISTS` 不會替既有的表補欄位，少了 `fail_streak` 會讓 cron

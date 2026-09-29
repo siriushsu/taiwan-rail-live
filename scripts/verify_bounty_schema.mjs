@@ -101,8 +101,13 @@ const { db } = openTestDb();
     'idx_board_open', 'idx_claims_actor', 'idx_claims_expiry', 'idx_claims_unit',
     'idx_samples_pending', 'idx_samples_trip',
     'idx_chip_ledger_actor_day',   // 0014：每日籌碼上限與餘額查詢都以 actor 起頭
+    'idx_seg_contrib_actor',       // 0014：合併與刪帳號都以 actor 找 bounty_seg_contrib 的列（PK 的 actor 在第二欄）
   ];
-  ok('A11 七個索引都在', want.every(n => idxNames.includes(n)), idxNames.join(','));
+  ok('A11 八個索引都在', want.every(n => idxNames.includes(n)), idxNames.join(','));
+  // 名字在不夠：索引建在錯的表或錯的欄，查詢照樣回對的結果只是不走索引。直接讀索引的定義。
+  const info = db.prepare("SELECT m.tbl_name AS t, ii.name AS c FROM sqlite_master m, pragma_index_info(m.name) ii WHERE m.type='index' AND m.name='idx_seg_contrib_actor'").all()
+    .map(r => `${r.t}.${r.c}`);
+  ok('A11b idx_seg_contrib_actor 建在 bounty_seg_contrib 的 actor 欄（且只有這一欄）', JSON.stringify(info) === '["bounty_seg_contrib.actor"]', JSON.stringify(info));
 }
 
 // A12 0001 重建表接得住 worker.js「現在」的真實查詢語句（複審 Important 1）——A1/A2 只驗表名存在，
@@ -280,12 +285,12 @@ const tryRun = (d, sql, ...p) => { try { d.prepare(sql).run(...p); return ''; } 
   try { applySchemaFiles(d); } catch (e) { threw = String(e.message || e); }
   const kept = d.prepare("SELECT delta FROM chip_ledger WHERE id='keep'").get();
   ok('A21a 帳本有資料時再套一次 schema：不炸、資料原封不動', threw === '' && kept && kept.delta === 3, threw || JSON.stringify(kept));
-  for (const t of NEW_TABLES) d.exec(`DROP TABLE ${t}`);      // DROP TABLE 連帶帶走 idx_chip_ledger_actor_day
+  for (const t of NEW_TABLES) d.exec(`DROP TABLE ${t}`);      // DROP TABLE 連帶帶走 idx_chip_ledger_actor_day、idx_seg_contrib_actor
   try { applySchemaFiles(d); } catch (e) { threw = String(e.message || e); }
   const names = d.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','index')").all().map(r => r.name);
   ok('A21b 新表與索引被砍掉後再套一次全部長回來（CREATE 全在 ALTER 之前，重套時沒被 duplicate column 的例外吞掉）',
-    NEW_TABLES.every(t => names.includes(t)) && names.includes('idx_chip_ledger_actor_day') && threw === '',
-    threw || names.filter(n => NEW_TABLES.includes(n) || n.startsWith('idx_chip')).join(','));
+    NEW_TABLES.every(t => names.includes(t)) && names.includes('idx_chip_ledger_actor_day') && names.includes('idx_seg_contrib_actor') && threw === '',
+    threw || names.filter(n => NEW_TABLES.includes(n) || n.startsWith('idx_chip') || n.startsWith('idx_seg_contrib')).join(','));
 }
 
 // A22 結構判準（與 A21b 不同源）：0014 檔內第一句 ALTER 之後不得再有 CREATE。
