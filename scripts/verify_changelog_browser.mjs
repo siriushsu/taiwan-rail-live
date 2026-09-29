@@ -86,7 +86,8 @@ const widths = [360, 375, 414, 768];
 // 9/28：高雄輕軌 Core、台鐵待避推估、高雄輕軌看板方向三條（445→448；當時沒跟著改，main 上這支一直是紅的）。
 // 9/29：首頁標題與搜尋說明一條（448→449）。
 // 9/29：網頁版首次開啟固定繁中＋英日獨立介紹頁一條（449→450）。
-const expectedHistoryCount = 450;
+// 9/29：App 跟車卡（Android 補畫列車、iPhone 三節車、看板追下一班立刻開卡）一條（450→451）。
+const expectedHistoryCount = 451;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

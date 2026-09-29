@@ -3456,3 +3456,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '網頁版首次開啟固定顯示繁體中文；英文、日文瀏覽器會出現可一鍵切換的語言提示': 'Web 版は初回起動を常に繁体字中国語で表示し、英語・日本語のブラウザには 1 タップで切り替えられる言語のお知らせを表示します',
   '網頁版第一次開啟固定顯示繁體中文，不再依瀏覽器語言自動切換；英文或日文瀏覽器會出現一個小提示，按一下就能切換語言，也能關掉不再提示（App 仍依手機語言）。另新增英文與日文的獨立介紹頁，方便外國旅客搜尋到軌島': 'Web 版は初回起動時にブラウザの言語へ自動で切り替えず、常に繁体字中国語で開くようにしました。英語・日本語のブラウザには、1 タップで言語を切り替えられる小さなお知らせが表示され、閉じれば二度と表示されません（アプリは従来どおり端末の言語に従います）。あわせて、海外からの旅行者が検索で見つけやすいよう、英語版・日本語版の紹介ページを追加しました。',
 });
+// 2026-09-29 跟車卡：Android 補畫列車、iPhone 三節車、看板追下一班立刻開卡——第一層更新紀錄那條的 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  'App 鎖定畫面跟車卡：Android 補上小列車、iPhone 改成三節車廂，從車站看板追下一班車時卡片會立刻出現': 'App lock-screen follow card: Android now shows the little train, iPhone shows three cars, and following the next train from a station board opens the card right away.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  'App 鎖定畫面跟車卡：Android 補上小列車、iPhone 改成三節車廂，從車站看板追下一班車時卡片會立刻出現': 'アプリのロック画面の追跡カード：Android でも小さな列車を表示し、iPhone は3両編成に。駅の発車案内から次の列車を追うと、カードがすぐに表示されます。',
+});
