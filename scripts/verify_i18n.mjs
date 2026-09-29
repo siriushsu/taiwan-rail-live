@@ -430,7 +430,7 @@ async function desktopCore(browser, engine) {
         t('我上車了'), t('我下車了 · 訂到 {station}', { station: stationName('臺北', 'tra_sched') }),
       ],
     }));
-    assert(immediate.title === '軌島｜台湾鉄道ライブ地図と時刻表：台鉄・高鉄・台北MRT・桃園空港MRT' && immediate.tabs.join('|') === '全|台鉄|高鉄|メトロ', `日文即時切換失敗：${JSON.stringify(immediate)}`);
+    assert(immediate.title === '軌島｜台湾鉄道ライブ地図と時刻表：台鉄・台湾新幹線・台北MRT・桃園空港MRT' && immediate.tabs.join('|') === '全|台鉄|高鉄|メトロ', `日文即時切換失敗：${JSON.stringify(immediate)}`);
     assert(immediate.station === '台北', `日文官方站名未套用：${immediate.station}`);
     assert(immediate.help.includes('駅・列車番号・列車名を検索') && immediate.help.includes('旅程パスポートと完乗スタンプ'), '已開啟使用說明沒有跟著即時切成日文');
     assert(immediate.named.includes('山嵐号') && immediate.named.includes('花東縦谷'), '已開啟觀光列車介紹沒有跟著即時切成日文');
