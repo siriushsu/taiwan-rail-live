@@ -6487,6 +6487,7 @@
 <script src="./i18n/bus-transfer-translations.js"></script>
 <script src="./bus-transfer-ui.js"></script>
 <script src="./train-garage-catalog.js"></script>
+<script src="./train-garage-scenes.js"></script>
 <script src="./train-garage.js"></script>
 <script src="./rail-discovery.js"></script>
 <script src="./night-map.js"></script>
@@ -14606,6 +14607,8 @@ const BOUNTY_ENABLED = (() => { try {
 } catch (e) { return false; } })();
 // 收集地圖同批下架。它其實不碰 GPS(資料來自既有乘車記錄),所以給它自己的旗標:要單獨復活只動這一行。
 const COLLECT_MAP_ENABLED = flagOnce('collectmap');
+// 車庫「一車一景」入口:預設關,?garagescene=1 才開(還有哪些車款有景,由 train-garage-scenes.js 的 RailGarageSceneLive 決定)。
+const GARAGE_SCENE_ENABLED = flagOnce('garagescene');
 const ACCOUNT_ENABLED = false; // 此旗標只控制帳號 UI 要不要 eager 初始化:false=帳號鈕預設隱藏、不對訪客載 Firebase。
 // 購買鏈不需要它——有購買通道的平台由 plusOpen() 先 accountEnsureInit() 延遲初始化,無購買通道的平台
 // (網站)由 Plus 面板內的「登入以同步」CTA 觸發。true 會讓 setupAccountUi()(互斥二選一)
@@ -21792,7 +21795,7 @@ function openTrainGarage(options = {}) {
   if (!state.ready) { showToast(t('收藏資料載入中，請稍後再試。')); return; }
   garageReturnFocus = document.activeElement;
   window.TrainGarage.open({
-    snapshot: garageSnapshot, t, lang: () => I18N_LANG, dark: () => !!state.mapDark,
+    snapshot: garageSnapshot, t, lang: () => I18N_LANG, dark: () => !!state.mapDark, scenes: GARAGE_SCENE_ENABLED,
     onClose: () => {
       const url = new URL(location.href); url.searchParams.delete('garage');
       history.replaceState(history.state, '', url);

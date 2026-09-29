@@ -1,4 +1,4 @@
-// 共用場景外框頁：garage-scene.html?car=<車款id>&lang=zh-TW|en|ja&period=day|night&embed=1
+// 共用場景外框頁：garage-scene.html?car=<車款id>&lang=zh-TW|en|ja&period=day|sunset|night&embed=1
 // 網站與原生 App（WebView）都嵌這一頁；外框負責進場、鎖、離開，場景本體由 rail-3d/garage-scenes/<scene>-view.js 掛載。
 const params=new URLSearchParams(location.search);
 const car=params.get('car')||'';
@@ -20,7 +20,7 @@ document.documentElement.lang=lang==='zh-TW'?'zh-Hant':lang;
 // ── 白天／夜晚（台灣時間 6–18 點為白天，寫法同 train-garage.js 的 scenePeriod）──
 function tpePeriod(){const h=(new Date().getUTCHours()+8)%24;return h>=6&&h<18?'day':'night';}
 const pq=params.get('period');
-const period=pq==='day'||pq==='night'?pq:tpePeriod();
+const period=pq==='day'||pq==='sunset'||pq==='night'?pq:tpePeriod();
 
 // ── 場景登錄表：新增場景只在這裡加一行，且要同時進 window.RailGarageSceneLive ──
 const SCENE_MODULES={

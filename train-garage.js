@@ -80,9 +80,9 @@
       $('.g-fallback').textContent=tr('小車載入失敗，請重試；收藏進度不受影響。');$('.g-fallback').hidden=false;$('.g-retry').hidden=false;
     }
   }
-  function requestDraw() { if (!raf && dialog?.open && inView && !document.hidden) raf=requestAnimationFrame(frame); }
+  function requestDraw() { if (!raf && !sceneEl && dialog?.open && inView && !document.hidden) raf=requestAnimationFrame(frame); }
   function frame(at) {
-    raf=0;if(!dialog.open||document.hidden||!inView)return;
+    raf=0;if(!dialog.open||document.hidden||!inView||sceneEl)return;
     // 精修網格試跑最多約 30 fps；離開展示台或切到背景後不持續佔用 GPU。
     if((auto||running)&&last&&at-last<32){requestDraw();return;}
     const dt=last?Math.min((at-last)/1000,.06):0;last=at;
@@ -103,6 +103,38 @@
     $('.g-auto').setAttribute('aria-pressed',String(mode!=='model'?running:auto));$('.g-auto').textContent=(mode!=='model'?running:auto)?'Ⅱ':'▷';
     $('.g-view-hint').textContent=mode==='track'?tr('頭城海岸・龜山島')+' · '+tr({sunrise:'日出',day:'藍天',sunset:'黃昏',night:'星空'}[period]):mode==='loop'?tr('環形試跑 · 拖曳旋轉，欣賞三節小車'):tr('上下左右拖曳，看看每一面');
   }
+  // 一車一景：哪台車進哪一景只准經過 sceneFor（對照表在 train-garage-scenes.js），這裡不寫死任何車款或場景名。
+  // 解鎖判斷在場景頁自己（garageSceneUnlocked），車庫只負責開 iframe、收 leave 訊息。
+  let sceneEl=null,sceneFrame=null,sceneBtn=null;
+  function sceneFor(row){
+    if(!host?.scenes||!row)return null;
+    const s=globalThis.RailGarageScenes?.[row.id];
+    return s&&(globalThis.RailGarageSceneLive||[]).includes(s.scene)?s:null;
+  }
+  function onSceneMessage(e){
+    if(!sceneEl||e.origin!==location.origin||e.source!==sceneFrame?.contentWindow)return;
+    if(e.data?.type==='railisland:garage-scene:leave')closeScene(true);
+  }
+  function openScene(row){
+    if(sceneEl||!dialog?.open)return;
+    sceneBtn=document.activeElement;
+    cancelAnimationFrame(raf);raf=0;
+    sceneEl=document.createElement('div');sceneEl.className='g-scene-overlay';
+    sceneFrame=document.createElement('iframe');
+    sceneFrame.setAttribute('allow','fullscreen');sceneFrame.title=tr('場景');
+    sceneFrame.src='garage-scene.html?car='+encodeURIComponent(row.id)+'&lang='+encodeURIComponent(host.lang())+'&period='+encodeURIComponent(period==='sunrise'?'day':period)+'&embed=1';
+    sceneEl.append(sceneFrame);dialog.append(sceneEl);
+    window.addEventListener('message',onSceneMessage);
+  }
+  function closeScene(restoreFocus){
+    if(!sceneEl)return;
+    window.removeEventListener('message',onSceneMessage);
+    try{sceneFrame.src='about:blank';}catch(e){}
+    sceneEl.remove();sceneEl=sceneFrame=null;
+    const b=sceneBtn;sceneBtn=null;last=0;
+    if(restoreFocus){const go=dialog?.querySelector('.g-scene-go');(go||b)?.focus?.({preventScroll:true});}
+    requestDraw();
+  }
   function showDetail() {
     const row=rows.find(r=>r.id===selected);
     $('.g-showcase').hidden=!row;
@@ -120,6 +152,14 @@
     $('.g-date').textContent=demo?tr('展示模式・不計入收藏'):row.date?tr('首次入庫：{date}',{date:row.date}):'';
     const action=$('.g-cta');action.hidden=!row.rule||demo;action.textContent=row.rule.category==='progress'?tr('查看旅程護照'):tr(row.owned?'再陪它跑一趟':'開始收集');
     action.onclick=()=>{const rule=row.rule;close();host.launch(rule);};
+    dialog.querySelector('.g-scene-entry')?.remove();
+    const sc=sceneFor(row);
+    if(sc){
+      const box=document.createElement('div');box.className='g-scene-entry';
+      const go=document.createElement('button');go.type='button';go.className='g-scene-go';go.textContent=tr('進入場景');
+      const place=document.createElement('small');place.textContent=tr(sc.place);
+      go.onclick=()=>openScene(row);box.append(go,place);action.after(box);
+    }
     $('.g-source-body').replaceChildren();
     for(const text of [tr('模型製作：軌島（Q 版示意）'),tr('收藏的是紀念模型，不代表曾搭乘這個實際車型或車號。'),tr('外觀依公開照片參考繪製；照片僅連結，未作為模型貼圖。')]) {
       const p=document.createElement('p');p.textContent=text;$('.g-source-body').append(p);
@@ -182,6 +222,7 @@
   function build() {
     data();resize?.disconnect();visibility?.disconnect();pointers.clear();pinch=drag=null;inView=true;
     dialog.lang=host.lang();
+    closeScene(false);
     dialog.classList.toggle('dark',host.dark());
     dialog.innerHTML=`<header class="g-top"><span class="g-brand">RAIL ISLAND / COLLECTION</span><button class="g-close" autofocus>${esc(tr('回到地圖'))} ↗</button></header>
       <main class="g-main"><div class="g-heading"><h1 id="garageTitle">${esc(tr('我的車庫'))}</h1>
@@ -227,7 +268,7 @@
   function cleanup() {
     if (!active) return;
     active = false;renderSession++;modelTicket++;loadedId='';
-    cancelAnimationFrame(raf);raf=0;auto=running=false;drag=pinch=null;pointers.clear();resize?.disconnect();visibility?.disconnect();
+    closeScene(false);cancelAnimationFrame(raf);raf=0;auto=running=false;drag=pinch=null;pointers.clear();resize?.disconnect();visibility?.disconnect();
     renderer?.dispose();renderer=null;
     host?.onClose();
   }

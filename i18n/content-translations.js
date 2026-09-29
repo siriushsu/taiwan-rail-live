@@ -3456,7 +3456,8 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '南迴海岸 · 微縮印象': 'South Link coast · miniature impression',
   '正在把小車搬到海邊…': 'Carrying the little train to the seaside…',
   '畫面暫時中斷，請重新開啟場景。': 'The view was interrupted. Please reopen the scene.',
-  '重新開啟': 'Reopen', '小車暫時無法載入。': 'The little train could not load.', '重新載入': 'Reload'
+  '重新開啟': 'Reopen', '小車暫時無法載入。': 'The little train could not load.', '重新載入': 'Reload',
+  '進入場景': 'Enter scene', '場景': 'Scene'
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '這一景還沒解鎖': 'このシーンはまだロックされています',
@@ -3472,5 +3473,6 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '南迴海岸 · 微縮印象': '南廻線の海岸 · ミニチュアの印象',
   '正在把小車搬到海邊…': '小さな列車を海辺へ運んでいます…',
   '畫面暫時中斷，請重新開啟場景。': '画面が一時的に中断されました。シーンを開き直してください。',
-  '重新開啟': '開き直す', '小車暫時無法載入。': '小さな列車を読み込めませんでした。', '重新載入': '再読み込み'
+  '重新開啟': '開き直す', '小車暫時無法載入。': '小さな列車を読み込めませんでした。', '重新載入': '再読み込み',
+  '進入場景': 'シーンに入る', '場景': 'シーン'
 });
