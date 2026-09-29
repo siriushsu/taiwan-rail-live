@@ -6073,6 +6073,7 @@
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
         <li><span class="d">7/11</span><span>可以安裝到主畫面（PWA），像 App 一樣全螢幕開啟</span></li>
         <li class="grp">資料校正</li>
+        <li data-cl="klrtja0929"><span class="d">9/29</span><span>日文版的高雄環狀輕軌改用高雄捷運官方日文路線名「ライトレール環状線」</span></li>
         <li data-cl="metrolead0929"><span class="d">9/29</span><span>捷運導言更正：「北北桃」與台北捷運的地圖導言，也改成台北捷運各線（含文湖線）的列車位置與車站倒數都來自官方逐班即時資料，不再把文湖線寫成班距推算</span></li>
         <li data-cl="subwayfloat0925"><span class="d">9/25</span><span>高捷紅線與臺北臺鐵地下化（板橋～南港）改回畫在地面下：原本只因沿線一小段靠山（半屏山、南港）就被當成山岳隧道，整段畫在地面上約 8 公尺，連帶把交會的新左營臺鐵、高雄車站地下段、高雄輕軌與南港高鐵頂高</span></li>
         <li data-cl="zuoyingflat0925"><span class="d">9/25</span><span>高鐵左營站區（到北緯 22.7011 為止）改回平面：官方橋隧圖資把站區畫成橋樑，但高鐵左營站是平面站、月台在 1 樓；北邊的高架照舊（謝謝網友回報）</span></li>
@@ -6935,7 +6936,9 @@
 //         v0929g 已被 seo/homepage-title 分支佔用（未併 main），跳號避免撞號。
 // v0929i：SEO 批次（首頁標題與描述、網頁固定繁中＋外語提示、/en/ /ja/ 與 hreflang、捷運路線圖頁三語 60 頁）。
 //         本分支原本佔 v0929g，併 main 時 v0929h 已上 main，改用 v0929i 讓版號維持遞增。
-const BUILD = 'v0929i';
+// v0929k：日文高雄輕軌改用高捷官方路線名「ライトレール環状線」（路線圖頁與 App 字典）；日文導言補「列車ごと」、倒數改「カウントダウン」。
+//         v0929j 已被台南重播分支佔用（c163c640，未併 main），跳號避免撞號。
+const BUILD = 'v0929k';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
