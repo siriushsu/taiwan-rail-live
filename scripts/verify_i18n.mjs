@@ -52,6 +52,18 @@ async function preparePage(context) {
   await page.waitForFunction(() => window.__i18n?.catalogReady && typeof state !== 'undefined' && state.ready && (state.trains.length || state.lines.length), null, { timeout: 90_000 });
   return { page, pageErrors };
 }
+// 重新整理前先等立體圖層載完。navigatorDetection 一到 state.ready 就重新整理，那時 rail-3d.js 的 attach()
+// （createLiveMap → createStationLayer → buildingCatalog）常常還在抓建築資產；2026-09-29 機器高負載時，WebKit 在
+// 這個時間點換頁連續三發都報出一串「…/rail-3d/assets/blender-buildings-v1/…/model.json due to access control checks」
+// pageerror（每個被擋的檔一筆；catalog.json、placement.json、各棟 model.json 輪流中），v0929e 與 v0929f 都重現。
+// attach() 本身有 try/catch，錯誤會記進 railIslandIntegration.errors，不是未處理的 rejection；這些 pageerror 是測試自己
+// 換頁的時機造成的。等載完（renderer 就緒或失敗已記錄）再換頁，「不准有 pageerror」的判準不變。
+async function settle3d(page) {
+  await page.waitForFunction(() => {
+    const r = window.railIslandIntegration;
+    return !!r && !r.loading && (!!r.renderer || r.errors.length > 0);
+  }, null, { timeout: 90_000 });
+}
 async function setLanguage(page, lang) {
   await page.evaluate(value => window.__i18n.setLanguage(value), lang);
   await page.waitForFunction(value => document.documentElement.lang === value, lang);
@@ -486,6 +498,7 @@ async function navigatorDetection(browser, engine) {
       await page.waitForFunction(value => document.documentElement.lang === value, lang);
       assert(await hint.isHidden(), `${locale} 按切換後提示沒收起來`);
       assert(await page.evaluate(() => localStorage.getItem('trainmap-language')) === lang, `${locale} 沒存語言偏好`);
+      await settle3d(page);
       await page.goto(BASE, { waitUntil: 'domcontentloaded' });
       await page.waitForFunction(() => window.__i18n?.catalogReady && typeof state !== 'undefined' && state.ready, null, { timeout: 90_000 });
       assert(await page.getAttribute('html', 'lang') === lang, `${locale} 切換後重新整理沒有保持 ${lang}`);
@@ -502,6 +515,7 @@ async function navigatorDetection(browser, engine) {
       await hint.waitFor({ state: 'visible', timeout: 15_000 });
       await second.page.locator('#langHintClose').click();
       assert(await hint.isHidden(), `${locale} 按 × 後提示沒收起來`);
+      await settle3d(second.page);
       await second.page.goto(BASE, { waitUntil: 'domcontentloaded' });
       await second.page.waitForFunction(() => window.__i18n?.catalogReady && typeof state !== 'undefined' && state.ready, null, { timeout: 90_000 });
       await second.page.waitForTimeout(2500);
