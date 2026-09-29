@@ -22,7 +22,7 @@ import {
   parseDirectBulkUpdateTime, parseProviderConfig, providerForCity, resolveDirectBulkStop, resolveTdxStop,
 } from './scripts/bus_live_core.mjs';
 import { twDayStr, nextHolidaySpan, weekendBody } from './scripts/weekend_core.mjs';
-import { tripChips, applyDailyChipCap } from './scripts/bounty_chips_core.mjs';
+import { tripChips, applyDailyChipCap, priceOfNth, canRedeem, taipeiDay } from './scripts/bounty_chips_core.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
@@ -5878,14 +5878,14 @@ const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
 // 不可以改成「全部放行」——擋掉的是「隨手對唯讀端點打 POST」這類探測,而那正是最便宜的防線。
 // ⚠️ 這道門的粒度是「路徑」不是「方法」：列進來等於該路徑的所有非 GET 方法都到得了處理函式。
 // /api/pass-admin 正是需要這樣（POST 匯入、DELETE 清批），它自己在函式內分派方法、未知的回 405。
-const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind', '/api/tra-wait/bind', '/api/tra-wait/unbind', '/api/pass-claim', '/api/pass-admin', '/api/journey-share']);
+const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/garage-redeem', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind', '/api/tra-wait/bind', '/api/tra-wait/unbind', '/api/pass-claim', '/api/pass-admin', '/api/journey-share']);
 // /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-platforms', 'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
   'klrt-position', 'bus-transfer', 'bus-leg-live', 'bus-route-stops', 'bus-stop-search', 'bus-stop-live', 'journey-share',
   'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'thsr-seat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
-  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'plus-status', 'revenuecat-webhook',
+  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'chips-me', 'garage-redeem', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
 ]);
 
@@ -6198,26 +6198,53 @@ function bountyClientOf(row) {
 // 端點名（枋寮／台東）刻意不在這裡算——排出一條路需要里程順序，那住在前端的 lineNetwork()。
 // 把線網拓樸複製進 worker 等於製造第二個真相源，改點時兩邊會不同步。
 // claimCounts 由呼叫端查好傳進來（純函式不碰 DB，才測得動）。
-function groupBoardRows(rows, claimCounts, coverN) {
+// v2 每張卡多三個欄位（舊欄位 samples／coverN 原樣保留給舊客端，它們數的是「趟」）：
+//   need        這一段要幾位「不同的人」才收滿（coverDistinct 過桶取；設定檔缺該家族的鍵就退回 coverN）
+//   distinctOk  這張卡各單位 distinct_ok_users 的最小值——最缺人的那一段決定這張卡還差多少
+//   covered     這張 track 卡的所有單位都已收滿（covered_at 有值）＝這張卡已經接不了了（bountyClaim 只接沒收滿的單位）。
+//               一般線的 track 收滿就下架、進不到這裡；只有常青線（chips.evergreen）收滿後還留在板上，所以 covered:true
+//               實際上只會是常青線的 track 卡。dwell 卡恆為 false：停站點收滿仍在架上、仍可接（獎勵衰減不歸零），行為不變。
+//               卡上還有沒收滿的單位時，已收滿的單位不算進這張卡（units／points／unitKeys／samples 只描述
+//               還接得了的那些，與 bountyClaim 實際會鎖的單位一致，也與一般線「收滿的單位不見了」相同）；
+//               整張卡都收滿了才把全部單位放回來給客端顯示。
+//               排序：未收滿的在前，收滿的排最後。
+function groupBoardRows(rows, claimCounts, coverN, coverDistinct) {
   const m = new Map();
-  for (const r of rows) {
-    const id = bountyCardId(r), ln = bountySegLine(r.seg_key);
-    let c = m.get(id);
-    if (!c) {
-      c = { id, sys: ln.sys, lnId: ln.lnId, dir: Number(r.dir), trainKind: r.train_kind,
-        kind: r.kind, slot: r.slot || '', unitKeys: [], units: 0, points: 0, samples: 0,
-        claimers: 0, coverN: (coverN && coverN[BOUNTY_SYS_BUCKET[ln.sys]]) || 1 };
-      m.set(id, c);
-    }
+  const add = (c, r) => {
     c.unitKeys.push(r.seg_key);
     c.units += 1;
     c.points += Number(r.points) || 0;
     c.samples += Number(r.sample_count) || 0;
+    c.distinctOk = Math.min(c.distinctOk, Number(r.distinct_ok_users) || 0);
     const k = `${r.seg_key}|${r.train_kind}|${r.dir}|${r.kind}|${r.slot || ''}`;
     c.claimers = Math.max(c.claimers, (claimCounts && claimCounts.get(k)) || 0);
+  };
+  const done = new Map();          // cardId → 已收滿的 track 列，先放旁邊，等看完整張卡再決定要不要放回來
+  for (const r of rows) {
+    const id = bountyCardId(r), ln = bountySegLine(r.seg_key);
+    let c = m.get(id);
+    if (!c) {
+      const bucket = BOUNTY_SYS_BUCKET[ln.sys];
+      const cn = (coverN && coverN[bucket]) || 1;
+      const dn = Number(coverDistinct && coverDistinct[bucket]);
+      c = { id, sys: ln.sys, lnId: ln.lnId, dir: Number(r.dir), trainKind: r.train_kind,
+        kind: r.kind, slot: r.slot || '', unitKeys: [], units: 0, points: 0, samples: 0,
+        claimers: 0, coverN: cn, need: dn > 0 ? dn : cn, distinctOk: Infinity, covered: false };
+      m.set(id, c);
+    }
+    if (r.kind === 'track' && Number(r.covered_at) > 0) {
+      if (!done.has(id)) done.set(id, []);
+      done.get(id).push(r);
+    } else add(c, r);
   }
-  // 點數高的排前面：那正是「還沒人跑、值得跑」的訊號，不必另外做推薦
-  return [...m.values()].sort((a, b) => b.points - a.points || a.id.localeCompare(b.id));
+  for (const [id, list] of done) {
+    const c = m.get(id);
+    if (c.units > 0) continue;     // 還有沒收滿的單位：收滿的那幾個不顯示，卡片照常開放
+    c.covered = true;
+    for (const r of list) add(c, r);
+  }
+  // 未收滿的排前面；同一組裡點數高的排前面：那正是「還沒人跑、值得跑」的訊號，不必另外做推薦
+  return [...m.values()].sort((a, b) => (a.covered - b.covered) || b.points - a.points || a.id.localeCompare(b.id));
 }
 
 // GET /api/bounty-board：公開、免驗證。網頁也讀得到（規格 §9：看得到、接不了）。
@@ -6230,18 +6257,23 @@ async function bountyBoard(request, env) {
     const rules = await bountyRules(env);
     const now = Date.now();
     // track 收滿就下架；dwell 收滿仍留在架上（規格 §4：停站點獎勵衰減但不歸零，
-    // 因為任何軌跡經過車站都自帶樣本，邊際成本近零）
+    // 因為任何軌跡經過車站都自帶樣本，邊際成本近零）。
+    // v2 例外：chips.evergreen 裡的線（南迴線、臺東線；鍵是 sys|lnId）收滿後照出——那兩條線的錄程籌碼有偏遠加成，
+    // 收滿了也仍是值得去跑的線，下架等於把使用者最該去的地方藏起來。比對用 substr 不用 LIKE：
+    // 'tra_sched' 裡的底線在 LIKE 是萬用字元。
+    const ever = (rules.chips && Array.isArray(rules.chips.evergreen) ? rules.chips.evergreen : [])
+      .filter(k => typeof k === 'string' && k);
     const rs = await env.DELAY_DB.prepare(
-      "SELECT seg_key, sys, train_kind, dir, kind, slot, points, sample_count FROM bounty_board" +
-      " WHERE kind='dwell' OR covered_at IS NULL"
-    ).all();
+      "SELECT seg_key, sys, train_kind, dir, kind, slot, points, sample_count, distinct_ok_users, covered_at FROM bounty_board" +
+      " WHERE kind='dwell' OR covered_at IS NULL" + ever.map(() => ' OR substr(seg_key, 1, length(?)) = ?').join('')
+    ).bind(...ever.flatMap(k => [k + '|', k + '|'])).all();
     const cs = await env.DELAY_DB.prepare(
       "SELECT seg_key, train_kind, dir, kind, slot, COUNT(DISTINCT actor) AS n FROM bounty_claims" +
       " WHERE status='open' AND expires_at > ? GROUP BY seg_key, train_kind, dir, kind, slot"
     ).bind(now).all();
     const counts = new Map((cs.results || []).map(r =>
       [`${r.seg_key}|${r.train_kind}|${r.dir}|${r.kind}|${r.slot || ''}`, Number(r.n) || 0]));
-    const cards = groupBoardRows(rs.results || [], counts, rules.coverN);
+    const cards = groupBoardRows(rs.results || [], counts, rules.coverN, rules.coverDistinct);
     // 板一天只重算一次，但 claimers 會隨時變——5 分鐘是「認領人數夠新」與「別把 D1 打爆」的折衷
     return await jsonResCached(edge, cacheKey, { at: now, coverN: rules.coverN, cards }, 200, 'public, s-maxage=300, stale-while-revalidate=900');
   } catch (e) {
@@ -6568,6 +6600,143 @@ async function bountyPurgeUid(env, uid, deviceActor) {
     : { samples: n(0), claims: n(1), points: n(2) };
 }
 
+// ── 路段懸賞 v2：籌碼餘額與車庫兌換端點（A-T6）─────────────────────────────────────────
+// 🔴 這一區（chipsMe、garageRedeem 與它們的輔助函式）完全不讀任何通行證欄位、不查通行證資格、回應裡也不帶：
+// 籌碼、價格、解鎖與通行證無關（v2 §3.4）。請求裡就算帶了 plus 之類的欄位也只是被無視。
+// 籌碼規則讀 data/bounty_rules.json 的 chips 區塊（bountyRules，ASSETS 綁定，與客端讀的是同一份檔），不設 fallback：
+// 設定缺漏就 throw，由呼叫端回 503 not_ready——寧可讓客戶端等一下，也不拿猜的價格去扣人家的籌碼。
+async function bountyChipsRules(env) {
+  const c = (await bountyRules(env)).chips;
+  if (!c || !Array.isArray(c.prices) || !c.prices.length || !Array.isArray(c.scenes) ||
+    !(c.dailyChipCap > 0) || !c.cloud || !(c.cloud.perChip > 0)) throw new Error('invalid bounty rule: chips');
+  return c;
+}
+// 餘額與解鎖清單。餘額＝帳本全部 delta 加總，不另存一份餘額（避免兩份真相，見 0014）。解鎖清單依 nth 排序。
+async function chipStateOf(db, actor) {
+  const u = await db.prepare('SELECT scene, nth, cost, created_at FROM garage_unlocks WHERE actor=? ORDER BY nth').bind(actor).all();
+  const b = await db.prepare('SELECT COALESCE(SUM(delta),0) AS n FROM chip_ledger WHERE actor=?').bind(actor).first();
+  return {
+    balance: Number(b && b.n) || 0,
+    unlocked: (u.results || []).map(r => ({ scene: String(r.scene), nth: Number(r.nth), cost: Number(r.cost), at: Number(r.created_at) })),
+  };
+}
+// 對外只給 {scene, nth, at}；cost 是兌換當下的價格，只放在兌換成功的那一層。
+const chipUnlockedView = list => list.map(({ scene, nth, at }) => ({ scene, nth, at }));
+
+// GET /api/chips-me：籌碼餘額、已解鎖場景、下一座的價格、雲端搭乘進度、今天已得的錄程籌碼。
+// 身分與限流與 bountyMe 完全相同（actor 查詢參數，或 Bearer Firebase idToken；只有 Bearer 那條走 AUTH_LIMITER）。
+// 唯讀：寫入總閘 BOUNTY_WRITES=off 不擋這支（停機期間使用者仍看得到自己的餘額）。
+async function chipsMe(request, env) {
+  const url = new URL(request.url);
+  let who = url.searchParams.get('actor') || '';
+  const auth = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);
+  if (auth) {
+    if (await rateLimited(env.AUTH_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+    const uid = await firebaseUid(env, auth[1]);
+    if (!uid) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
+    who = uid;
+  }
+  if (!isActorId(who)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
+  try {
+    const chips = await bountyChipsRules(env);
+    const actor = await resolveActor(env, who);          // 合併過的匿名 token 看到的是 uid 的帳
+    const st = await chipStateOf(env.DELAY_DB, actor);
+    const rides = await env.DELAY_DB.prepare('SELECT COUNT(*) AS n FROM cloud_rides WHERE actor=?').bind(actor).first();
+    // 今天＝台北今天；帳本 trip 列的 day 是「乘車日」（不是判定日），所以這裡數的是乘車日為今天的錄程籌碼
+    const day = taipeiDay(Number(env.BOUNTY_NOW) || Date.now());
+    const got = await env.DELAY_DB.prepare(
+      "SELECT COALESCE(SUM(delta),0) AS n FROM chip_ledger WHERE actor=? AND kind='trip' AND day=?").bind(actor, day).first();
+    const nRides = Number(rides && rides.n) || 0;
+    return jsonRes({
+      balance: st.balance,
+      unlocked: chipUnlockedView(st.unlocked),
+      nextCost: priceOfNth(st.unlocked.length + 1, chips),
+      cloud: { rides: nRides, toNextChip: chips.cloud.perChip - (nRides % chips.cloud.perChip) },
+      today: { chips: Number(got && got.n) || 0, cap: chips.dailyChipCap },
+    }, 200, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'not_ready' }, 503, 'no-store');
+  }
+}
+
+// POST /api/garage-redeem {actor, scene, requestId}：用籌碼解鎖一座車庫場景（永久，不綁通行證）。
+// 🔴 「扣籌碼」與「寫解鎖」不能在 JS 端先讀、判斷、再寫：兩個同時抵達的兌換（同一場景，或不同場景）會各自讀到
+// 「還沒解鎖、餘額夠」，結果超扣，或兩個場景都拿到「第一座」的價格（第一座 4、之後每座 8，少收一筆 8−4）。
+// 所以判斷要在資料庫裡跟寫入同一筆交易做完：
+//   ① 一個 D1 batch（單一交易）兩句條件式寫入——
+//      (1) 帳本寫一筆負數的 redeem，條件：這座還沒解鎖 AND 目前解鎖數＝nth−1 AND 目前餘額≥價格；
+//      (2) 解鎖表寫這一座，條件：剛才那筆 redeem 在 AND 目前解鎖數＝nth−1
+//          （(2) 也押解鎖數：同一個 requestId 併發重送時，第二個 batch 不會憑第一個的帳本列再多發一座）。
+//   ② batch 之後查帳本 ref 在不在來判斷成敗（不靠 meta.changes）；守衛沒過（被並發請求搶先）就重讀現況再試一次，
+//      仍失敗回 409 conflict，由客戶端重讀 chips-me 後讓使用者再按一次。
+// 冪等：帳本 ref＝`<解析前的 b.actor>.<requestId>`（理由同 bountySubmit 的 fixedId：解析後的 actor 會因合併而變，
+// b.actor 是客戶端自己送的、重送一定相同；'.' 不在兩邊的字元集內，接出來的 ref 才是一對一，別人的 requestId 蓋不掉你的）。
+// UNIQUE(kind, ref) 保證同一個 requestId 只扣一次；重送（回應掉了、使用者連點）回與第一次同形狀的成功結果。
+async function garageRedeem(request, env) {
+  // API_POST_ALLOWED 的粒度是路徑，其他方法也進得來——收斂成只收 POST（比照 passClaim）
+  if (request.method !== 'POST') return jsonRes({ error: 'method' }, 405, 'no-store');
+  // 節流與寫入總閘擋在任何 D1 存取之前（比照 bountyClaim）
+  if (await rateLimited(env.BOUNTY_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  if (bountyWritesOff(env)) return jsonRes({ error: 'bounty_paused' }, 503, 'no-store');
+  let b;
+  try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
+  if (!b || !isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
+  if (hasGeoKeys(b)) return jsonRes({ error: 'coordinates_not_accepted' }, 400, 'no-store');
+  // requestId 必填（不像 bountySubmit 可以省略）：兌換是扣錢的動作，沒有去重鍵，重送一次就多扣一次。
+  if (typeof b.requestId !== 'string' || !BOUNTY_REQUEST_ID_RE.test(b.requestId))
+    return jsonRes({ error: 'bad_request_id' }, 400, 'no-store');
+  let chips;
+  try { chips = await bountyChipsRules(env); } catch (e) { return jsonRes({ error: 'not_ready' }, 503, 'no-store'); }
+  const scene = typeof b.scene === 'string' ? b.scene : '';
+  if (!chips.scenes.includes(scene)) return jsonRes({ error: 'unknown_scene' }, 400, 'no-store');
+  try {
+    const db = env.DELAY_DB;
+    const actor = await resolveActor(env, b.actor);
+    const ref = `${b.actor}.${b.requestId}`;
+    const now = Number(env.BOUNTY_NOW) || Date.now();
+    const refExists = async () => !!(await db.prepare("SELECT 1 AS x FROM chip_ledger WHERE kind='redeem' AND ref=?").bind(ref).first());
+    // 成功的回應（第一次成功與重送共用同一個出口）：nth 與價格讀解鎖表的那一列，不用 JS 端算的值。
+    const done = async () => {
+      const st = await chipStateOf(db, actor);
+      const u = st.unlocked.find(x => x.scene === scene);
+      // 這個 ref 已經扣過款，但這一座不在解鎖清單：同一個 requestId 被拿去兌換別的場景（客戶端 bug）——不當成功回。
+      if (!u) return jsonRes({ error: 'conflict' }, 409, 'no-store');
+      return jsonRes({ ok: true, scene, nth: u.nth, cost: u.cost, balance: st.balance, unlocked: chipUnlockedView(st.unlocked) }, 200, 'no-store');
+    };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (await refExists()) return await done();
+      const st = await chipStateOf(db, actor);
+      const can = canRedeem(scene, st.unlocked.map(u => u.scene), st.balance, chips);
+      if (!can.ok) {
+        if (can.why === 'already') return jsonRes({ error: 'already' }, 409, 'no-store');
+        if (can.why === 'not_enough') return jsonRes({ error: 'not_enough', cost: can.cost, balance: st.balance }, 409, 'no-store');
+        return jsonRes({ error: 'unknown_scene' }, 400, 'no-store');
+      }
+      const nth = st.unlocked.length + 1, cost = can.cost;
+      await db.batch([
+        db.prepare(
+          'INSERT OR IGNORE INTO chip_ledger (id,actor,kind,delta,ref,day,created_at)' +
+          " SELECT ?,?,'redeem',?,?,NULL,?" +
+          ' WHERE NOT EXISTS (SELECT 1 FROM garage_unlocks WHERE actor=? AND scene=?)' +
+          ' AND (SELECT COUNT(*) FROM garage_unlocks WHERE actor=?) = ?' +
+          ' AND (SELECT COALESCE(SUM(delta),0) FROM chip_ledger WHERE actor=?) >= ?'
+        ).bind(`redeem|${ref}`, actor, -cost, ref, now, actor, scene, actor, nth - 1, actor, cost),
+        db.prepare(
+          'INSERT OR IGNORE INTO garage_unlocks (actor,scene,nth,cost,created_at)' +
+          ' SELECT ?,?,?,?,?' +
+          " WHERE EXISTS (SELECT 1 FROM chip_ledger WHERE kind='redeem' AND ref=? AND actor=? AND delta=?)" +
+          ' AND (SELECT COUNT(*) FROM garage_unlocks WHERE actor=?) = ?'
+        ).bind(actor, scene, nth, cost, now, ref, actor, -cost, actor, nth - 1),
+      ]);
+      if (await refExists()) return await done();
+      // 守衛沒過：這一輪讀到的現況在寫入前被別的兌換改掉了。下一輪重讀，可能變成 already／not_enough，也可能這次過。
+    }
+    return jsonRes({ error: 'conflict' }, 409, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'redeem_failed' }, 503, 'no-store');
+  }
+}
+
 // ── 估值:兩層乘數,兩層都從既有資料自動算,沒有任何一段的價格是人設的(規格 §4)──────────
 // 核心主張:不要手調每一段的價格。猜不對就會一直錯,而且錯了沒有回饋機制。
 function bountyMedian(nums) {
@@ -6872,16 +7041,35 @@ function bountyResetMemCaches() { bountyRulesMem = null; bountyUnitsMem = null; 
 // 也就不會出現「登記寫進去了、計數卻沒加」的半套狀態——那種狀態重跑補不回來：登記已經在了，
 // 之後每次都是「登過了」，這一段的人數就永遠少一個。
 // +1 落在該 seg_key 的「所有列」（不同車種／方向／時段各一列）：人數是「段」的屬性，不是單位的屬性。
-async function bountyRegisterContrib(env, actor, segKeys, now) {
+// 收滿也是「段」的屬性：登記完的同一個 batch 裡，該 seg_key 底下 distinct_ok_users 已達門檻的每一列（不同車種、
+// 另一個方向、不同時段）一起寫 covered_at。只動這一趟覆蓋到的 seg_key——別的段就算人數也剛好夠，這一趟沒經過就不動它。
+// 🔴 不能只寫「被計功的那一列」：人數是按 seg_key 計的，收滿卻按列寫，會讓同一段的別種車種列永遠留在板上、
+// 而該段的人數早就過了門檻，而且沒有任何錯誤訊息。
+async function bountyRegisterContrib(env, rules, actor, segKeys, now) {
   const bump = env.DELAY_DB.prepare(
     'UPDATE bounty_board SET distinct_ok_users = distinct_ok_users + 1 WHERE seg_key=?' +
     ' AND NOT EXISTS (SELECT 1 FROM bounty_seg_contrib WHERE seg_key=? AND actor=?)');
   const reg = env.DELAY_DB.prepare('INSERT OR IGNORE INTO bounty_seg_contrib (seg_key,actor,first_ok_at) VALUES (?,?,?)');
+  const cover = env.DELAY_DB.prepare(
+    'UPDATE bounty_board SET covered_at = COALESCE(covered_at, ?) WHERE seg_key=? AND distinct_ok_users >= ?');
   const keys = [...new Set(segKeys)];
-  const per = Math.floor(D1_BATCH_SIZE / 2);                 // 每段兩句，成對進同一個 batch，不拆開
+  const per = Math.floor(D1_BATCH_SIZE / 3);                 // 每段最多三句，同一段的語句一定同在一個 batch（同一筆交易）
   for (let i = 0; i < keys.length; i += per) {
-    await env.DELAY_DB.batch(keys.slice(i, i + per).flatMap(k => [bump.bind(k, k, actor), reg.bind(k, actor, now)]));
+    await env.DELAY_DB.batch(keys.slice(i, i + per).flatMap(k => {
+      const stmts = [bump.bind(k, k, actor), reg.bind(k, actor, now)];
+      const need = bountyDistinctNeed(rules, k);
+      if (need > 0) stmts.push(cover.bind(now, k, need));    // 設定檔沒有這個家族的鍵：不發，走逐列的舊路徑（見 bountyVerifyCron）
+      return stmts;
+    }));
   }
+}
+// 這一段收滿要幾位不同的人。回 0＝設定檔沒有這個家族的 coverDistinct 鍵（設定檔還沒升到 v2）。
+// 🔴 coverDistinct 的鍵是「系統家族」（TRA／THSR），seg_key 第一段是 SYS_DEFS 的 id（tra_sched…），
+// 兩者不同層次，一定要先過 BOUNTY_SYS_BUCKET 才查得到（同 integrityGate 的 speedCapMps）。
+// 直接拿 sys id 去查會恆常 undefined——這個專案在這個查表上已經踩過三次。
+function bountyDistinctNeed(rules, segKey) {
+  const n = Number(rules.coverDistinct && rules.coverDistinct[BOUNTY_SYS_BUCKET[bountySegLine(segKey).sys]]);
+  return n > 0 ? n : 0;
 }
 
 // 一趟的籌碼入帳。回傳這一趟實際入帳的籌碼數（0＝沒入帳）。
@@ -6978,8 +7166,9 @@ async function bountyVerifyCron(env) {
     // 登記 NOT EXISTS），所以中途失敗時這一趟仍是 pending、明天整趟重跑一次，不會重複發、也不會漏發。
     // 反過來排（先標已判定、再寫）的話，中途失敗的那一趟就永遠是「已判定、沒有籌碼」。
     // 籌碼對任何 verdict 都呼叫 tripChips（非 ok 回 0 ＝不寫）；去重登記只有 ok 才做（unusable／suspect 不算貢獻）。
+    // 整段收滿（covered_at）也在這一步、跟登記同一個 batch 裡寫（見 bountyRegisterContrib）。
     stat.chips += await bountyCreditTripChips(env, rules, rows, trip, v, cov, now);
-    if (v.verdict === 'ok') await bountyRegisterContrib(env, trip.actor, cov.map(c => c.key), now);
+    if (v.verdict === 'ok') await bountyRegisterContrib(env, rules, trip.actor, cov.map(c => c.key), now);
     const segsJson = JSON.stringify(cov);
     const upd = env.DELAY_DB.prepare(
       'UPDATE bounty_samples SET verdict=?, verdict_at=?, quality_code=?, reject_code=?, segs=? WHERE id=?');
@@ -7014,26 +7203,27 @@ async function bountyVerifyCron(env) {
       ' ON CONFLICT(actor) DO UPDATE SET points = points + excluded.points, updated_at = excluded.updated_at'
     ).bind(trip.actor, earned, now).run();
     if (v.verdict !== 'ok') continue;                         // ⬅ unusable 到此為止：不計入下架門檻
-    // 只有 ok 才推進 sample_count（歷史樣本照舊累加）；收滿與否（路段懸賞 v2）看「去重人數」，
-    // 不再看樣本趟數：distinct_ok_users 已在上面的 bountyRegisterContrib 更新過，這裡只讀它。
-    // 🔴 門檻 coverDistinct 的鍵是「系統家族」（TRA／THSR），trip.sys 是 SYS_DEFS 的 id（tra_sched…），
-    // 兩者不同層次，一定要先過 BOUNTY_SYS_BUCKET 才查得到（同 integrityGate 的 speedCapMps）。
-    // 直接拿 trip.sys 去查會恆常 undefined——這個專案在這個查表上已經踩過三次。
-    // coverDistinct 缺該家族鍵時退回舊行為：門檻取 coverN、比的是 sample_count+1（趟數，不去重）。
-    // 那是「設定檔還沒升到 v2」的降級路徑，不是常態；v2 的設定檔兩家族都有鍵。
-    const bucket = BOUNTY_SYS_BUCKET[trip.sys];
-    const distinctNeed = Number(rules.coverDistinct && rules.coverDistinct[bucket]);
-    const byDistinct = distinctNeed > 0;
-    const need = byDistinct ? distinctNeed : (rules.coverN[bucket] || rules.coverN.metro);
-    const coverCond = byDistinct ? 'distinct_ok_users >= ?' : 'sample_count + 1 >= ?';
+    // 只有 ok 才推進 sample_count（歷史樣本照舊逐列累加：被計功的那一列 +1）。
+    // 收滿與否（路段懸賞 v2）看「去重人數」而且是整段一起收，已在上面的 bountyRegisterContrib 寫完，這裡不再碰 covered_at。
+    // 唯一的例外是設定檔缺該家族的 coverDistinct 鍵（還沒升到 v2 的降級路徑，不是常態）：退回舊行為——
+    // 門檻取 coverN、比的是 sample_count+1（趟數，不去重）、只寫被計功的那一列。門檻查表的桶對照見 bountyDistinctNeed。
     for (const c of cov) {
       const trainKind = creditedKinds.get(`${c.key}|${c.dir}|${c.kind}|${c.slot}`);
       if (!trainKind) continue;
-      await env.DELAY_DB.prepare(
-        'UPDATE bounty_board SET sample_count = sample_count + 1,' +
-        ` covered_at = CASE WHEN ${coverCond} THEN COALESCE(covered_at, ?) ELSE covered_at END` +
-        ' WHERE seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?'
-      ).bind(need, now, c.key, trainKind, c.dir, c.kind, c.slot).run();
+      if (bountyDistinctNeed(rules, c.key) > 0) {
+        await env.DELAY_DB.prepare(
+          'UPDATE bounty_board SET sample_count = sample_count + 1' +
+          ' WHERE seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?'
+        ).bind(c.key, trainKind, c.dir, c.kind, c.slot).run();
+      } else {
+        const bucket = BOUNTY_SYS_BUCKET[bountySegLine(c.key).sys];
+        const need = rules.coverN[bucket] || rules.coverN.metro;
+        await env.DELAY_DB.prepare(
+          'UPDATE bounty_board SET sample_count = sample_count + 1,' +
+          ' covered_at = CASE WHEN sample_count + 1 >= ? THEN COALESCE(covered_at, ?) ELSE covered_at END' +
+          ' WHERE seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?'
+        ).bind(need, now, c.key, trainKind, c.dir, c.kind, c.slot).run();
+      }
       await env.DELAY_DB.prepare(
         "UPDATE bounty_claims SET status='fulfilled' WHERE actor=? AND status='open'" +
         ' AND seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?'
@@ -8128,6 +8318,8 @@ export default {
     else if (url.pathname === '/api/bounty-submit') res = await bountySubmit(request, env);
     else if (url.pathname === '/api/bounty-me') res = await bountyMe(request, env);
     else if (url.pathname === '/api/bounty-merge') res = await bountyMerge(request, env);
+    else if (url.pathname === '/api/chips-me') res = await chipsMe(request, env);
+    else if (url.pathname === '/api/garage-redeem') res = await garageRedeem(request, env);
     else if (url.pathname === '/api/pass-claim') res = await passClaim(request, env);
     else if (url.pathname === '/api/pass-admin') res = await passAdmin(request, env);
     else if (url.pathname === '/api/la/bind') res = await laBind(request, env);
@@ -8214,6 +8406,7 @@ export const _accountDelete = { deleteAccountData, deletePlusEntitlement };
 // D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。
 export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoard, isActorId, resolveActor,
   bountyClaim, hasGeoKeys, sanitizeSamples, sanitizeClient, bountySubmit, firebaseUid, bountyMe, bountyMerge, bountyPurgeUid,
+  chipsMe, garageRedeem,
   bountyMedian, bountyL1, bountyL2, bountyPointsOf, bountyUnlocked, bountyValuationCron,
   assembleTrip, integrityGate, qualityGate, verdictOf, coverageOf, bountyVerifyCron, bountyResetMemCaches };
 // 純函式導出,供離線回歸測試 import:trtcParse 雙路徑解析(含上游故障回 HTML 錯誤頁、

@@ -74,9 +74,10 @@ function world(over = {}) {
 }
 
 // 板上種段。opts：trainKind／dir／points／covered／distinct／sampleCount，一次可以種多列（同段不同車種）。
-const boardSql = (sys, lnId, rows) => {
+// segs 預設種 9 段；只想種其中幾段（例如「這一趟沒經過的那一段」）就傳自己的清單。
+const boardSql = (sys, lnId, rows, segs = SEGS10) => {
   const v = [];
-  for (const s of SEGS10) for (const r of rows) {
+  for (const s of segs) for (const r of rows) {
     v.push(`('${segKey(sys, lnId, s)}','${sys}','${r.trainKind || '自強'}',${r.dir ?? 0},'track','',1,1,${r.points ?? 3},10,1,1,` +
       `${r.sampleCount ?? 0},${r.covered ?? 'NULL'},${r.distinct ?? 0})`);
   }
@@ -233,19 +234,25 @@ await attempt('D5', async () => {
     JSON.stringify({ un: q.ledger(w.db, 'device-un').length, sp: q.ledger(w.db, 'device-sp').length, ok: q.chips(w.db, 'device-ok') }));
 });
 
-// D6 同一段有兩列（不同車種）時：人數是「段」的屬性（兩列都 +1），covered_at 只寫在被計功的那一列
-// （沿用舊行為：計功列＝claim 鎖的車種，沒有 claim 就是板價最高的那一列）。這條把選擇釘死——
-// 若日後要改成「整段一起收」，這條會紅，提醒改的人這是一個產品語意的改變、不只是實作細節。
+// D6 收滿是「段」的屬性（路段懸賞 v2 A2-T0）：同一個 seg_key 底下的每一列——另一個車種、另一個方向——
+// distinct_ok_users 到門檻時一起收滿；sample_count 仍是逐列累加（只有被計功的那一列 +1）。
+// 這一趟沒經過的 seg_key 不受影響：就算它的人數也剛好夠，也不會被順手收滿（收滿只發生在這一趟覆蓋到的段）。
+// 原本這條把「只寫被計功的那一列」釘死並註明「若日後改成整段一起收，這條會紅」——現在改成整段，所以改釘新語意。
 await attempt('D6', async () => {
   const w = world({ rules: STUB({ TRA: 1 }),
-    seed: boardSql('tra_sched', '南迴線', [{ trainKind: '自強', points: 3 }, { trainKind: '區間', points: 1 }]) });
+    seed: boardSql('tra_sched', '南迴線', [{ trainKind: '自強', points: 3 }, { trainKind: '區間', points: 1 }, { trainKind: '自強', dir: 1, points: 3 }], ['S0|S1']) +
+      boardSql('tra_sched', '南迴線', [{ trainKind: '自強', points: 3, distinct: 1 }], ['S8|S9']) });   // 這一趟蓋不到的段，人數 1 ≥ 門檻 1
   addTrip(w.db, { actor: 'device-d6', trainNo: '101' });
   await w.cron();
   const rows = q.board(w.db, K('S0|S1'));
-  const zq = rows.find(r => r.train_kind === '自強'), qj = rows.find(r => r.train_kind === '區間');
-  ok('D6 兩列的 distinct_ok_users 都是 1；covered_at 只在被計功的自強那一列（區間那列 sample_count=0、未收滿）',
-    zq.distinct_ok_users === 1 && qj.distinct_ok_users === 1 && zq.covered_at === NOW_MS && zq.sample_count === 1 &&
-    qj.covered_at === null && qj.sample_count === 0, JSON.stringify(rows));
+  const zq = rows.find(r => r.train_kind === '自強' && r.dir === 0), qj = rows.find(r => r.train_kind === '區間'), back = rows.find(r => r.dir === 1);
+  const far = q.board(w.db, K('S8|S9'))[0];
+  ok('D6a 同段三列（自強／區間／另一方向）distinct_ok_users 都是 1、covered_at 都是這一刻——整段一起收滿',
+    rows.length === 3 && rows.every(r => r.distinct_ok_users === 1 && r.covered_at === NOW_MS), JSON.stringify(rows));
+  ok('D6b sample_count 仍逐列累加：只有被計功的自強（dir0）那一列是 1，區間與另一方向都是 0',
+    zq.sample_count === 1 && qj.sample_count === 0 && back.sample_count === 0, JSON.stringify(rows));
+  ok('D6c 這一趟沒經過的段（S8|S9，人數 1 ≥ 門檻 1）不受影響：covered_at 仍是空',
+    far.covered_at === null && far.distinct_ok_users === 1, JSON.stringify(far));
 });
 
 // D7 dwell 與 track 走同一套去重（seg_key 相同就是同一段）：兩位不同的人停靠同一站 → dwell 列 2 位；同一位再停一次仍是 2

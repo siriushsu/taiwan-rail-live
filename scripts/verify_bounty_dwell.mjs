@@ -145,12 +145,15 @@ async function e2e(actor, samples) {
 }
 
 const stoppedE2e = await e2e('device-dwell-stop', stopped);
-ok('D4 真 D1 路徑：估值→認領→上傳→驗證後 dwell sample_count 加 1 且 covered_at 有值',
+// 🔴 2026-09-29（路段懸賞 v2 A2-T0）：收滿改成「整段」——人數是按 seg_key 計的，同站同時段的另一車種列（區間車）
+// 跟著一起收滿（covered_at 有值）；但 sample_count 仍是逐列累加，只有被計功的自強那一列 +1，區間車那列還是 0。
+// 原本這裡斷言區間車列 covered_at 為空（逐列語意）；改成釘新語意，不是放寬——「沒收滿」與「收滿」是相反的判準。
+ok('D4 真 D1 路徑：估值→認領→上傳→驗證後 dwell sample_count 加 1 且 covered_at 有值；同站另一車種列整段一起收滿（covered_at 有值），sample_count 仍逐列（0）',
   stoppedE2e.claimStatus === 200 && stoppedE2e.submitStatus === 200 &&
     stoppedE2e.sample.verdict === 'ok' && stoppedE2e.after.sample_count === 1 && !!stoppedE2e.after.covered_at &&
-    stoppedE2e.otherKindAfter.sample_count === 0 && !stoppedE2e.otherKindAfter.covered_at,
+    stoppedE2e.otherKindAfter.sample_count === 0 && stoppedE2e.otherKindAfter.covered_at === stoppedE2e.after.covered_at,
   JSON.stringify({ claim: stoppedE2e.claimStatus, submit: stoppedE2e.submitStatus,
-    verdict: stoppedE2e.sample.verdict, board: stoppedE2e.after }));
+    verdict: stoppedE2e.sample.verdict, board: stoppedE2e.after, otherKind: stoppedE2e.otherKindAfter }));
 ok('D5 同一路徑真的給點且只關閉該車種 dwell claim，另一車種同站 claim 保持 open',
   stoppedE2e.points.points > 0 && stoppedE2e.claimAfter.status === 'fulfilled' &&
     stoppedE2e.decoyClaimAfter.status === 'open',
