@@ -180,7 +180,7 @@ const tryRun = (d, sql, ...p) => { try { d.prepare(sql).run(...p); return ''; } 
   ok('A15c garage_unlocks 欄位', sameSet(colsOf(db, 'garage_unlocks'),
     ['actor', 'scene', 'nth', 'cost', 'created_at']), colsOf(db, 'garage_unlocks').join(','));
   ok('A15d cloud_rides 欄位', sameSet(colsOf(db, 'cloud_rides'),
-    ['actor', 'day', 'train_key', 'sec', 'request_id', 'created_at']), colsOf(db, 'cloud_rides').join(','));
+    ['actor', 'day', 'train_key', 'sec', 'request_id', 'created_at', 'simulator']), colsOf(db, 'cloud_rides').join(','));
 }
 
 // A16 主鍵（順序也算：複合主鍵的欄位順序決定前綴索引能服務哪種查詢）
@@ -235,7 +235,7 @@ const tryRun = (d, sql, ...p) => { try { d.prepare(sql).run(...p); return ''; } 
     chip_ledger: ['id', 'actor', 'kind', 'delta', 'ref', 'created_at'],
     bounty_seg_contrib: ['seg_key', 'actor', 'first_ok_at'],
     garage_unlocks: ['actor', 'scene', 'nth', 'cost', 'created_at'],
-    cloud_rides: ['actor', 'day', 'train_key', 'sec', 'created_at'],
+    cloud_rides: ['actor', 'day', 'train_key', 'sec', 'created_at', 'simulator'],
   };
   const bad = [];
   for (const [t, cs] of Object.entries(must)) for (const c of cs) if (!notNull(t, c)) bad.push(`${t}.${c} 應為 NOT NULL`);
@@ -255,6 +255,21 @@ const tryRun = (d, sql, ...p) => { try { d.prepare(sql).run(...p); return ''; } 
           VALUES ('tra_sched|山線|A|B','tra_sched','自強',0,'track','',1,1,1,4,1)`);
   const row = d.prepare('SELECT distinct_ok_users AS n FROM bounty_board').get();
   ok('A20 沒列 distinct_ok_users 的既有 INSERT 仍可用，預設值 0', row && row.n === 0, JSON.stringify(row));
+}
+
+// A20b cloud_rides.simulator 預設 0（一般搭乘不必列這一欄）、只有明寫 1 才是模擬器；欄位在 CREATE 裡（不是 ALTER），
+// 所以 A22「恰有兩句 ALTER」的期望不變
+{
+  const { db: d } = openTestDb();
+  d.exec("INSERT INTO cloud_rides (actor,day,train_key,sec,request_id,created_at) VALUES ('device-s','2026-10-10','tra_sched|123',700,NULL,1)");
+  d.exec("INSERT INTO cloud_rides (actor,day,train_key,sec,request_id,created_at,simulator) VALUES ('device-s','2026-10-11','tra_sched|123',700,NULL,1,1)");
+  const rows = d.prepare('SELECT day, simulator AS s FROM cloud_rides ORDER BY day').all().map(r => ({ ...r }));
+  const info = d.prepare('PRAGMA table_info(cloud_rides)').all().find(r => r.name === 'simulator');
+  ok('A20b cloud_rides.simulator：INTEGER NOT NULL、沒列時預設 0、明寫 1 留 1',
+    info && /INT/i.test(info.type) && info.notnull === 1 && JSON.stringify(rows) === '[{"day":"2026-10-10","s":0},{"day":"2026-10-11","s":1}]',
+    JSON.stringify({ info, rows }));
+  const m = tryRun(d, "INSERT INTO cloud_rides (actor,day,train_key,sec,request_id,created_at,simulator) VALUES ('device-s','2026-10-12','tra_sched|123',700,NULL,1,NULL)");
+  ok('A20c simulator 明寫 NULL 被 NOT NULL 擋下（查次數時 simulator=0 不會漏掉 NULL 列）', /NOT NULL/i.test(m), m);
 }
 
 // A21 重複套用：資料不掉；新表被砍掉後再套會長回來（證明 CREATE 都在檔內第一句 ALTER 之前）

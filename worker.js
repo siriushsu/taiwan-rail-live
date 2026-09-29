@@ -22,7 +22,7 @@ import {
   parseDirectBulkUpdateTime, parseProviderConfig, providerForCity, resolveDirectBulkStop, resolveTdxStop,
 } from './scripts/bus_live_core.mjs';
 import { twDayStr, nextHolidaySpan, weekendBody } from './scripts/weekend_core.mjs';
-import { tripChips, applyDailyChipCap, priceOfNth, canRedeem, taipeiDay } from './scripts/bounty_chips_core.mjs';
+import { tripChips, applyDailyChipCap, priceOfNth, canRedeem, taipeiDay, cloudRideCounts, cloudChipsEarned } from './scripts/bounty_chips_core.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
@@ -5878,14 +5878,14 @@ const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
 // 不可以改成「全部放行」——擋掉的是「隨手對唯讀端點打 POST」這類探測,而那正是最便宜的防線。
 // ⚠️ 這道門的粒度是「路徑」不是「方法」：列進來等於該路徑的所有非 GET 方法都到得了處理函式。
 // /api/pass-admin 正是需要這樣（POST 匯入、DELETE 清批），它自己在函式內分派方法、未知的回 405。
-const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/garage-redeem', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind', '/api/tra-wait/bind', '/api/tra-wait/unbind', '/api/pass-claim', '/api/pass-admin', '/api/journey-share']);
+const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/garage-redeem', '/api/cloud-ride', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind', '/api/tra-wait/bind', '/api/tra-wait/unbind', '/api/pass-claim', '/api/pass-admin', '/api/journey-share']);
 // /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-platforms', 'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'metro-live', 'ntmetro-live', 'trtc-live',
   'klrt-position', 'bus-transfer', 'bus-leg-live', 'bus-route-stops', 'bus-stop-search', 'bus-stop-live', 'journey-share',
   'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'thsr-seat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
-  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'chips-me', 'garage-redeem', 'plus-status', 'revenuecat-webhook',
+  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'chips-me', 'garage-redeem', 'cloud-ride', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
 ]);
 
@@ -6516,6 +6516,16 @@ async function bountyMe(request, env) {
 // 同一個寫鎖內，第二個併發請求進來時看到的必然是已標記的列，子查詢回 NULL → 加 0。
 // 順帶解掉稽核的第二半：樣本與認領改名以前在交易外，中途失敗會留下「點數搬走了、樣本還掛在
 // 舊 actor」的半套狀態；現在同批同交易，要嘛全成、要嘛全退。
+//
+// 路段懸賞 v2（A-T7）：同一個 batch 再多搬四張表——籌碼帳本、車庫解鎖、雲端搭乘、去重貢獻。
+// 兩邊撞到同一個主鍵時的併法（全部在同一個交易裡）：
+//   · 車庫解鎖：同一座兩邊都解過 → 留 created_at 較早的一份，較晚那份的價格用一筆 kind='merge'、
+//     ref='merge|<token>|<場景>' 的正數入帳退回；其餘改名，再依 created_at 重排 nth（cost 保留）。
+//   · 雲端搭乘：同一天兩邊都有 → 留一筆（算次數的勝過模擬器的、再比 created_at 較早），其餘改名。
+//   · 去重貢獻：同一段兩邊都貢獻過 → 刪 token 那列，該段所有看板列的 distinct_ok_users 減 1（下限 0，covered_at 不動）。
+//   · 籌碼帳本：整批改名，ref 不動。
+// 每日上限（trip 籌碼、雲端搭乘每日 1 次）不回溯、不追討：兩邊各自領到的就是各自領到的。
+// 沒有 bounty_points 列的 token（只有籌碼／雲端搭乘）也要留下「併進誰」的標記，否則合併後它再寫的東西掉回 token 名下。
 async function bountyMerge(request, env) {
   if (await rateLimited(env.AUTH_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
   let b;
@@ -6526,30 +6536,101 @@ async function bountyMerge(request, env) {
   if (!uid) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
   if (b.actor === uid) return jsonRes({ ok: true, uid, points: 0, merged: false }, 200, 'no-store');
   try {
-    const now = Date.now(), db = env.DELAY_DB;
-    // 語句順序有意義：② 必須排在 ③ 之前，否則來源已經被 ③ 歸零，② 讀到的永遠是 0。
-    const res = await db.batch([
-      // ① 目的列先確保存在（第一次登入時還沒有）
-      db.prepare(
-        'INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,?,0,NULL,?)' +
-        ' ON CONFLICT(actor) DO UPDATE SET uid = excluded.uid, updated_at = excluded.updated_at'
-      ).bind(uid, uid, now),
-      // ② 加點：來源值在交易內當場讀，且同押 merged_into IS NULL——已被別人合併過的來源加 0
-      db.prepare(
-        'UPDATE bounty_points SET points = points + COALESCE(' +
-        '(SELECT points FROM bounty_points WHERE actor=? AND merged_into IS NULL), 0),' +
-        ' updated_at=? WHERE actor=?'
-      ).bind(b.actor, now, uid),
-      // ③ 標記來源並歸零。changes=0 ⇔ ② 也必然加了 0（同一個守衛、同一筆交易），兩者不可能不一致
-      db.prepare(
-        'UPDATE bounty_points SET points=0, merged_into=?, updated_at=? WHERE actor=? AND merged_into IS NULL'
-      ).bind(uid, now, b.actor),
-      // ④⑤ 樣本與認領也一起改名，否則 /api/bounty-me 查 uid 會看不到登入前的貢獻
-      db.prepare('UPDATE bounty_samples SET actor=? WHERE actor=?').bind(uid, b.actor),
-      db.prepare('UPDATE bounty_claims  SET actor=? WHERE actor=?').bind(uid, b.actor),
-    ]);
+    const now = Date.now(), db = env.DELAY_DB, dev = b.actor;
+    // 語句順序有意義：② 必須排在 ③ 之前，否則來源已經被 ③ 歸零，② 讀到的永遠是 0；
+    // v2 的四張表（籌碼帳本、車庫解鎖、雲端搭乘、去重貢獻）必須排在 ③ 之後——它們的守衛讀的是 ③ 標記的結果。
+    // 結果陣列用名字找位置（at[name]），不寫死索引：中間加一句就不會讓後面的讀取靜默錯位。
+    const stmts = [], at = {};
+    const add = (name, st) => { at[name] = stmts.length; stmts.push(st); };
+    // 「這個 token 現在歸這個 uid」：③ 標記之後 merged_into 等於 uid ⇔ 這次（或先前同一個 uid 的呼叫）消化了它。
+    // 已經併進「別的 uid」的 token 一列都不搬（那是別人帳號底下的資料，同 bountyPurgeUid 的 notElsewhere 守衛）。
+    // 守衛寫在每一句寫入裡、與 ③ 同一個交易，不是事前讀一次再判斷（同一種併發窗，見上面 2026-07-29 稽核）。
+    const G = ' AND EXISTS (SELECT 1 FROM bounty_points WHERE actor=? AND merged_into=?)';
+    // ① 目的列先確保存在（第一次登入時還沒有）
+    add('uidRow', db.prepare(
+      'INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,?,0,NULL,?)' +
+      ' ON CONFLICT(actor) DO UPDATE SET uid = excluded.uid, updated_at = excluded.updated_at'
+    ).bind(uid, uid, now));
+    // ①b 來源列也先確保存在：只有籌碼／雲端搭乘、沒錄過程的裝置在 bounty_points 沒有列，③ 就沒有東西可標記，
+    // 合併之後 resolveActor 認不出它併進了誰，它再寫的東西會掉回這個 token 名下而不是 uid。點數 0；merged_into 留給 ③ 標。
+    add('devRow', db.prepare(
+      'INSERT OR IGNORE INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,NULL,0,NULL,?)'
+    ).bind(dev, now));
+    // ② 加點：來源值在交易內當場讀，且同押 merged_into IS NULL——已被別人合併過的來源加 0
+    add('carry', db.prepare(
+      'UPDATE bounty_points SET points = points + COALESCE(' +
+      '(SELECT points FROM bounty_points WHERE actor=? AND merged_into IS NULL), 0),' +
+      ' updated_at=? WHERE actor=?'
+    ).bind(dev, now, uid));
+    // ③ 標記來源並歸零。changes=0 ⇔ ② 也必然加了 0（同一個守衛、同一筆交易），兩者不可能不一致
+    add('mark', db.prepare(
+      'UPDATE bounty_points SET points=0, merged_into=?, updated_at=? WHERE actor=? AND merged_into IS NULL'
+    ).bind(uid, now, dev));
+    // ④⑤ 樣本與認領也一起改名，否則 /api/bounty-me 查 uid 會看不到登入前的貢獻
+    add('samples', db.prepare('UPDATE bounty_samples SET actor=? WHERE actor=?').bind(uid, dev));
+    add('claims', db.prepare('UPDATE bounty_claims  SET actor=? WHERE actor=?').bind(uid, dev));
+
+    // ── 路段懸賞 v2 的四張表：全部同一個交易，搬到 uid 名下；撞主鍵的兩邊併成一份 ──
+    // 🔴 每日上限（trip 籌碼每人每日 dailyChipCap 顆、雲端搭乘每人每日 1 次）不回溯、不追討：
+    // 兩個裝置同一天各自領滿的，併進來就是各自領到的那些；之後的入帳才照併後的合計去限。
+    // ⑥ 籌碼帳本：整批改名，ref 不動（UNIQUE(kind, ref) 照舊保證同一個來源只入帳一次）。
+    add('ledger', db.prepare('UPDATE chip_ledger SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
+    // ⑦ 車庫解鎖：兩邊解過同一座＝只留 created_at 較早的一份（平手留 uid 那份），較晚那份花掉的籌碼以一筆
+    // kind='merge' 的正數入帳退回。順序有意義：先寫退款（要讀較晚那列的 cost）→ 刪 uid 較晚的 → 刪 dev 剩下的孿生
+    // → 其餘改名 → 依 created_at 重排 nth。cost 保留：那是當時實際付的價，重排只動「第幾座」。
+    add('refund', db.prepare(
+      'INSERT OR IGNORE INTO chip_ledger (id,actor,kind,delta,ref,day,created_at)' +
+      " SELECT 'merge|merge|' || d.actor || '|' || d.scene, ?, 'merge'," +
+      ' CASE WHEN u.created_at > d.created_at THEN u.cost ELSE d.cost END,' +
+      " 'merge|' || d.actor || '|' || d.scene, NULL, ?" +
+      ' FROM garage_unlocks d JOIN garage_unlocks u ON u.actor=? AND u.scene=d.scene' +
+      ' WHERE d.actor=?' + G
+    ).bind(uid, now, uid, dev, dev, uid));
+    add('unlockDropLater', db.prepare(
+      'DELETE FROM garage_unlocks WHERE actor=?' + G +
+      ' AND EXISTS (SELECT 1 FROM garage_unlocks d WHERE d.actor=? AND d.scene=garage_unlocks.scene' +
+      ' AND d.created_at < garage_unlocks.created_at)'
+    ).bind(uid, dev, uid, dev));
+    add('unlockDropTwin', db.prepare(
+      'DELETE FROM garage_unlocks WHERE actor=?' + G +
+      ' AND EXISTS (SELECT 1 FROM garage_unlocks u WHERE u.actor=? AND u.scene=garage_unlocks.scene)'
+    ).bind(dev, dev, uid, uid));
+    add('unlockMove', db.prepare('UPDATE garage_unlocks SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
+    // nth＝同一個人裡「created_at 不晚於我」的列數（平手用 rowid 定序）。子查詢只讀 created_at／rowid／actor，
+    // 這句 UPDATE 不改它們，所以逐列改寫時彼此不會互相影響。
+    add('unlockRenumber', db.prepare(
+      'UPDATE garage_unlocks SET nth = (SELECT COUNT(*) FROM garage_unlocks g WHERE g.actor = garage_unlocks.actor' +
+      ' AND (g.created_at < garage_unlocks.created_at OR (g.created_at = garage_unlocks.created_at AND g.rowid <= garage_unlocks.rowid)))' +
+      ' WHERE actor=?' + G
+    ).bind(uid, dev, uid));
+    // ⑧ 雲端搭乘：同一天兩邊都有＝留一筆。「算次數」的那筆（simulator=0）勝過模擬器的；同類則 created_at 較早的勝，
+    // 平手留 uid 的。（(simulator, created_at) 是列值比較，小的勝。）其餘改名。
+    add('rideDropLater', db.prepare(
+      'DELETE FROM cloud_rides WHERE actor=?' + G +
+      ' AND EXISTS (SELECT 1 FROM cloud_rides d WHERE d.actor=? AND d.day=cloud_rides.day' +
+      ' AND (d.simulator, d.created_at) < (cloud_rides.simulator, cloud_rides.created_at))'
+    ).bind(uid, dev, uid, dev));
+    add('rideDropTwin', db.prepare(
+      'DELETE FROM cloud_rides WHERE actor=?' + G +
+      ' AND EXISTS (SELECT 1 FROM cloud_rides u WHERE u.actor=? AND u.day=cloud_rides.day)'
+    ).bind(dev, dev, uid, uid));
+    add('rideMove', db.prepare('UPDATE cloud_rides SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
+    // ⑨ 去重貢獻：兩邊都貢獻過同一段＝合併後是同一個人，那一段的去重人數要少 1（所有同 seg_key 的看板列，下限 0；
+    // covered_at 不動——「曾經收滿」是歷史事實，不因為併人而收回）。先減再刪（減的時候要靠 dev 那列找出撞段）。
+    add('contribDec', db.prepare(
+      'UPDATE bounty_board SET distinct_ok_users = MAX(0, distinct_ok_users - 1)' +
+      ' WHERE seg_key IN (SELECT d.seg_key FROM bounty_seg_contrib d JOIN bounty_seg_contrib u' +
+      ' ON u.seg_key=d.seg_key AND u.actor=? WHERE d.actor=?)' + G
+    ).bind(uid, dev, dev, uid));
+    add('contribDropTwin', db.prepare(
+      'DELETE FROM bounty_seg_contrib WHERE actor=?' + G +
+      ' AND EXISTS (SELECT 1 FROM bounty_seg_contrib u WHERE u.actor=? AND u.seg_key=bounty_seg_contrib.seg_key)'
+    ).bind(dev, dev, uid, uid));
+    add('contribMove', db.prepare('UPDATE bounty_seg_contrib SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
+    // 冪等：每一句都以 actor=dev 為來源，搬完 dev 名下就沒有列，重跑時全部是 0 列的空操作；退款另有 UNIQUE(kind, ref)＋OR IGNORE。
+    const res = await db.batch(stmts);
     // merged ＝「這一次呼叫真的消化掉了來源列」，直接讀 ③ 改了幾列，不再靠事前讀到的 carry 推論。
-    const merged = Number(res[2] && res[2].meta && res[2].meta.changes) > 0;
+    const merged = Number(res[at.mark] && res[at.mark].meta && res[at.mark].meta.changes) > 0;
     const p = await db.prepare('SELECT points FROM bounty_points WHERE actor=?').bind(uid).first();
     return jsonRes({ ok: true, uid, points: Number(p && p.points) || 0, merged }, 200, 'no-store');
   } catch (e) {
@@ -6564,6 +6645,7 @@ async function bountyMerge(request, env) {
 // 那些墓碑連同它們可能殘留的樣本一起留下。
 // 🔴 順序固定：兩張明細表都要用 bounty_points 的 merged_into 反查 token，所以 bounty_points 最後刪。
 // 一次 batch＝單一交易，不會出現「點數刪了、樣本還在」的半套狀態。
+// 路段懸賞 v2 的四張表（籌碼帳本、車庫解鎖、雲端搭乘、去重貢獻）在同一批一起刪，回傳的計數多了 chips／unlocks／cloudRides／contrib 四欄。
 //
 // 🔴 deviceActor 這個參數不是可有可無的（否則這支函式今天一列都刪不到）：前端的 bountyActor()
 // 目前送的是匿名裝置 UUID，/api/bounty-merge 還沒接進登入流程，所以 D1 裡現存的每一列 actor
@@ -6574,30 +6656,34 @@ async function bountyMerge(request, env) {
 // 唯一守衛：已經併進「別的 uid」的 token 不刪，那是別人帳號底下的資料。
 async function bountyPurgeUid(env, uid, deviceActor) {
   const db = env.DELAY_DB;
-  if (!db) return { samples: 0, claims: 0, points: 0 };
+  if (!db) return { samples: 0, claims: 0, points: 0, chips: 0, unlocks: 0, cloudRides: 0, contrib: 0 };
   const dev = (deviceActor && deviceActor !== uid) ? String(deviceActor) : null;
   const sub = 'SELECT actor FROM bounty_points WHERE merged_into=?';
   // 「這個 token 沒有被併進別的 uid」。注意它讀的是 bounty_points，所以刪 bounty_points 的那句
   // 必須排在最後——提前刪掉就等於把自己的守衛拆了。
   const notElsewhere = ' AND NOT EXISTS (SELECT 1 FROM bounty_points' +
     ' WHERE actor=? AND merged_into IS NOT NULL AND merged_into<>?)';
-  const stmts = [
-    db.prepare(`DELETE FROM bounty_samples WHERE actor=? OR actor IN (${sub})`).bind(uid, uid),
-    db.prepare(`DELETE FROM bounty_claims  WHERE actor=? OR actor IN (${sub})`).bind(uid, uid),
+  // 有 actor 欄的六張明細表（前兩張是 v1，後四張是路段懸賞 v2：籌碼帳本、車庫解鎖、雲端搭乘、每段去重貢獻）。
+  // 🔴 bounty_board 的 distinct_ok_users／收滿狀態刻意不回扣：那是「每一段」的匿名彙總、沒有任何欄位指向人，
+  // 回扣會讓別人看到的路段進度因為某個人刪帳號而倒退；被刪掉的只有「誰貢獻了」那一半（bounty_seg_contrib）。
+  const TABLES = [
+    ['samples', 'bounty_samples'], ['claims', 'bounty_claims'],
+    ['chips', 'chip_ledger'], ['unlocks', 'garage_unlocks'], ['cloudRides', 'cloud_rides'], ['contrib', 'bounty_seg_contrib'],
   ];
-  if (dev) stmts.push(
-    db.prepare(`DELETE FROM bounty_samples WHERE actor=?${notElsewhere}`).bind(dev, dev, uid),
-    db.prepare(`DELETE FROM bounty_claims  WHERE actor=?${notElsewhere}`).bind(dev, dev, uid),
-  );
-  stmts.push(dev
+  const stmts = [], at = {};                       // at[名稱] ＝ 這個名稱的語句在 batch 裡的位置們（結果加總時用名字取，不寫死索引）
+  const add = (name, st) => { (at[name] = at[name] || []).push(stmts.length); stmts.push(st); };
+  for (const [name, table] of TABLES) add(name, db.prepare(`DELETE FROM ${table} WHERE actor=? OR actor IN (${sub})`).bind(uid, uid));
+  if (dev) for (const [name, table] of TABLES) add(name, db.prepare(`DELETE FROM ${table} WHERE actor=?${notElsewhere}`).bind(dev, dev, uid));
+  add('points', dev
     ? db.prepare('DELETE FROM bounty_points WHERE actor=? OR merged_into=?' +
         ' OR (actor=? AND (merged_into IS NULL OR merged_into=?))').bind(uid, uid, dev, uid)
     : db.prepare('DELETE FROM bounty_points WHERE actor=? OR merged_into=?').bind(uid, uid));
   const res = await db.batch(stmts);
-  const n = i => Number(res[i] && res[i].meta && res[i].meta.changes) || 0;
-  return dev
-    ? { samples: n(0) + n(2), claims: n(1) + n(3), points: n(4) }
-    : { samples: n(0), claims: n(1), points: n(2) };
+  const sum = name => at[name].reduce((a, i) => a + (Number(res[i] && res[i].meta && res[i].meta.changes) || 0), 0);
+  return {
+    samples: sum('samples'), claims: sum('claims'), points: sum('points'),
+    chips: sum('chips'), unlocks: sum('unlocks'), cloudRides: sum('cloudRides'), contrib: sum('contrib'),
+  };
 }
 
 // ── 路段懸賞 v2：籌碼餘額與車庫兌換端點（A-T6）─────────────────────────────────────────
@@ -6641,12 +6727,12 @@ async function chipsMe(request, env) {
     const chips = await bountyChipsRules(env);
     const actor = await resolveActor(env, who);          // 合併過的匿名 token 看到的是 uid 的帳
     const st = await chipStateOf(env.DELAY_DB, actor);
-    const rides = await env.DELAY_DB.prepare('SELECT COUNT(*) AS n FROM cloud_rides WHERE actor=?').bind(actor).first();
+    // 雲端搭乘次數只數非模擬器的列（模擬器的搭乘照寫進表、但不算進換籌碼的次數，見 cloudRide）
+    const nRides = await cloudRideCount(env.DELAY_DB, actor);
     // 今天＝台北今天；帳本 trip 列的 day 是「乘車日」（不是判定日），所以這裡數的是乘車日為今天的錄程籌碼
     const day = taipeiDay(Number(env.BOUNTY_NOW) || Date.now());
     const got = await env.DELAY_DB.prepare(
       "SELECT COALESCE(SUM(delta),0) AS n FROM chip_ledger WHERE actor=? AND kind='trip' AND day=?").bind(actor, day).first();
-    const nRides = Number(rides && rides.n) || 0;
     return jsonRes({
       balance: st.balance,
       unlocked: chipUnlockedView(st.unlocked),
@@ -6734,6 +6820,217 @@ async function garageRedeem(request, env) {
     return jsonRes({ error: 'conflict' }, 409, 'no-store');
   } catch (e) {
     return jsonRes({ error: 'redeem_failed' }, 503, 'no-store');
+  }
+}
+
+// ── 路段懸賞 v2：雲端搭乘 POST /api/cloud-ride（A-T7）─────────────────────────────────────
+// 給海外或不能搭車的人的慢路：App 在前景跟同一班真實列車連續 chips.cloud.minSec 秒算 1 次、每個營運日最多 1 次、
+// 每 chips.cloud.perChip 次換 1 個籌碼。不需要定位權限，所以伺服器只驗得到「這班車那天有沒有開、那個時間點它有沒有可能在跑」，
+// 驗不到使用者是不是真的一直開著 App 在看它——sec 是客戶端自報的。這是已知的弱驗證：它的另一半防線是價值低
+// （每天最多 1 次、3 次才換 1 個籌碼）加上限流與寫入總閘，不是靠驗證。
+// 🔴 這一區同樣不讀任何通行證欄位（v2 §3.4）：請求裡帶了也只是被無視。
+//
+// trainKey 格式（客戶端與伺服器共讀這一個定義）：
+//   台鐵／高鐵／林鐵  `<sysId>|<車次>`            tra_sched|123、thsr_sched|0108（高鐵 4 碼補零，原樣比對）、afr_sched|1
+//   捷運／輕軌        `<sysId>|<線 id>|<車輛識別>`  沒有逐車次班表可驗，車輛識別只是不透明字串（1–64 字，不含 | 與控制字元）
+// 捷運的 sysId 全集是 index.html SYS_DEFS 裡 mode:'freq' 的系統（高雄輕軌併在 krtc 底下）；新增捷運系統時這裡要一起加，
+// scripts/verify_bounty_cloud.mjs 有一條會拿 SYS_DEFS 對這份名單，漂移會紅。
+const CLOUD_RIDE_METRO_SYS = new Set(['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying', 'krtc', 'tmrt']);
+const CLOUD_RIDE_SCHED_SYS = new Set(['tra_sched', 'thsr_sched', 'afr_sched']);
+const CLOUD_RIDE_WINDOW_SLACK_SEC = 30 * 60;      // 首站發車前、末站到站後各寬限 30 分鐘（誤點、班表與實際的落差）
+const CLOUD_RIDE_FUTURE_SLACK_MS = 60 * 1000;     // 搭乘結束時間最多比伺服器時鐘晚 60 秒（手機時鐘誤差）
+const CLOUD_RIDE_MAX_SEC = 86400;                 // 單次前景連續時間的上限：超過一整天的必然是壞資料
+const CLOUD_RIDE_NO_RE = /^[0-9A-Za-z]{1,8}$/;    // 車次字元集同 bountySubmit 的 trainNo
+const CLOUD_RIDE_VEHICLE_RE = /^[^|\u0000-\u001f\u007f]{1,64}$/u;
+const CLOUD_RIDE_KEY_MAX = 96;
+
+// 班表資產（ASSETS 綁定，模組層級快取）。讀不到就丟例外，由呼叫端回 503 not_ready——fail-closed，
+// 與 bountySubmit 的題庫同一個慣例：寧可讓客戶端留在佇列重試，也不收無法驗證的搭乘。
+const cloudRideAssetMem = {};
+async function cloudRideAsset(env, file) {
+  if (cloudRideAssetMem[file]) return cloudRideAssetMem[file];
+  const r = await env.ASSETS.fetch(new Request('https://railisland.tw/data/' + file));
+  if (!r.ok) throw new Error('cloud ride asset unavailable: ' + file + ' ' + r.status);
+  return (cloudRideAssetMem[file] = await r.json());
+}
+
+// startedAt（epoch 毫秒）落在營運日 day 的「台北 00:00＋首站秒−寬限」到「＋末站秒＋寬限」之間。
+// 班表秒數是距營運日台北 00:00 的秒，跨午夜的班次會超過 86400，所以窗是從營運日起算、不是從 startedAt 那天起算。
+function cloudRideInWindow(day, startedAt, firstSec, lastSec) {
+  if (firstSec == null || lastSec == null) return false;          // Number(null)＝0 會讓窗變成半夜 23:30 起，必須先擋
+  const a = Number(firstSec), z = Number(lastSec);
+  if (!Number.isFinite(a) || !Number.isFinite(z)) return false;
+  const t0 = Date.parse(day + 'T00:00:00Z') - 8 * 3600e3;
+  return startedAt >= t0 + (a - CLOUD_RIDE_WINDOW_SLACK_SEC) * 1000 && startedAt <= t0 + (z + CLOUD_RIDE_WINDOW_SLACK_SEC) * 1000;
+}
+
+// 高鐵：逐日班表在 D1（kv_blobs 的 thsr_sched，見 ingestThsrSchedule）。該日在 blob 裡＝嚴格驗（車次在那天開行＋時間窗）；
+// 該日不在（cron 停更、blob 缺、讀取失敗）＝降級成 data/thsr_schedule_dense.json（單日快照）「只驗車次存在」，
+// 與前端 /api/thsr-schedule 失敗時退回靜態檔是同一個退路。降級時週末加開車會被誤擋（快照那天沒有它）——這是刻意接受的代價。
+async function cloudRideThsrOk(env, no, day, startedAt) {
+  const dayKey = day.replace(/-/g, '');
+  let rs = null;
+  try {
+    const has = await env.DELAY_DB.prepare("SELECT json_type(v, '$.days.' || ?) AS t FROM kv_blobs WHERE k = ?")
+      .bind(dayKey, THSR_SCHED_BLOB_KEY).first();
+    if (has && has.t === 'object') {
+      rs = await env.DELAY_DB.prepare(
+        "SELECT json_extract(t.value, '$.stops[0].arrSec') AS a, json_extract(t.value, '$.stops[#-1].depSec') AS z" +
+        " FROM kv_blobs, json_each(kv_blobs.v, '$.days.' || ? || '.trains') AS t" +
+        " WHERE kv_blobs.k = ? AND json_extract(t.value, '$.train') = ?"
+      ).bind(dayKey, THSR_SCHED_BLOB_KEY, no).all();
+    }
+  } catch (e) { rs = null; }
+  if (rs) return (rs.results || []).some(r => cloudRideInWindow(day, startedAt, r.a, r.z));
+  const S = await cloudRideAsset(env, 'thsr_schedule_dense.json');
+  return ((S && S.trains) || []).some(t => t && String(t.train) === no);
+}
+
+// trainKey 過不過（格式＋這班車那天開行＋時間點合理）。丟例外＝班表資產讀不到。
+async function cloudRideTrainOk(env, trainKey, day, startedAt) {
+  const key = String(trainKey);
+  if (key.length > CLOUD_RIDE_KEY_MAX) return false;
+  const p = key.split('|');
+  const sys = p[0];
+  if (CLOUD_RIDE_METRO_SYS.has(sys)) {
+    // 捷運／輕軌沒有逐車次班表（班距制），驗不了「這班車」，只驗格式與時間點落在營運時段（05:00–次日 01:30）。
+    if (p.length !== 3 || !BOUNTY_LINE_ID_RE.test(p[1]) || !CLOUD_RIDE_VEHICLE_RE.test(p[2])) return false;
+    const off = startedAt - (Date.parse(day + 'T00:00:00Z') - 8 * 3600e3);
+    return off >= 5 * 3600e3 && off <= 25.5 * 3600e3;
+  }
+  if (!CLOUD_RIDE_SCHED_SYS.has(sys) || p.length !== 2 || !CLOUD_RIDE_NO_RE.test(p[1])) return false;
+  const no = p[1];
+  if (sys === 'thsr_sched') return cloudRideThsrOk(env, no, day, startedAt);
+  if (sys === 'tra_sched') {
+    // data/tra_widget_schedule.json：dates[日期]＝該日開行的 trains 索引；trains[i]＝[車次, 車種, [[站索引, 秒, 停站秒, 旗標],…]]。
+    // 車次在 trains 裡會重複（不同日的版本），所以一定要走 dates[day] 的索引，不能直接在 trains 找車次。
+    const S = await cloudRideAsset(env, 'tra_widget_schedule.json');
+    const trains = (S && S.trains) || [];
+    const idxs = S && S.dates && S.dates[day];
+    if (Array.isArray(idxs)) {
+      return idxs.some(i => {
+        const t = trains[i];
+        const st = t && t[2];
+        return !!t && String(t[0]) === no && Array.isArray(st) && st.length >= 2 &&
+          cloudRideInWindow(day, startedAt, st[0][1], st[st.length - 1][1]);
+      });
+    }
+    // 降級：班表檔過期（那一天不在檔內）——只驗這個車次在檔內任一天存在。過期是常態會發生的事（檔一次 14 天、隨版部署），
+    // 不降級的話，檔一過期整條雲端搭乘就對台鐵全部 400。
+    return trains.some(t => t && String(t[0]) === no);
+  }
+  // afr_sched：定期班表，每天相同，所以只看車次與時間窗，不查日期。
+  const S = await cloudRideAsset(env, 'afr_schedule_dense.json');
+  return ((S && S.trains) || []).some(t => t && String(t.train) === no && Array.isArray(t.stops) && t.stops.length >= 2 &&
+    cloudRideInWindow(day, startedAt, t.stops[0].arrSec, t.stops[t.stops.length - 1].depSec));
+}
+
+// 這個 actor 算進換籌碼的雲端搭乘次數（模擬器不算）。chipsMe 與 cloudRide 共用這一句，兩邊才會永遠同一個數字。
+async function cloudRideCount(db, actor) {
+  const r = await db.prepare('SELECT COUNT(*) AS n FROM cloud_rides WHERE actor=? AND simulator=0').bind(actor).first();
+  return Number(r && r.n) || 0;
+}
+
+// 依累計次數補齊雲端搭乘的籌碼：應得＝cloudChipsEarned(次數)，已得＝帳本 kind='cloud' 的 delta 加總，差額逐顆補。
+// 🔴 不用「剛好跨過 3 的倍數才發」：合併帳號會讓次數一次跳好幾格（兩邊各 2 次併成 4 次，中間沒有任何一次「剛好」是 3 的倍數），
+// 跨門檻判斷會永遠漏發；反過來兩邊各已領過的籌碼併進來之後，也不會多發。每顆的 ref＝`<actor>|cloud|<第幾顆>`，
+// UNIQUE(kind, ref)＋OR IGNORE 讓同時抵達的兩個請求算出同一段序號時只寫進一份。回傳這一次多寫了幾顆。
+// 差額用一句遞迴 CTE 一次補齊（不是 N 句 batch）：合併過的帳號可能一次差很多顆，D1 每個請求能下的查詢數有上限。
+// 序號一律 CAST 成 INTEGER 再串進 id／ref：綁定的 JS 數字在某些驅動（本機 node:sqlite）會變成 REAL，直接串會得到「…|cloud|1.0」，
+// 那樣 ref 就跟 cloud|1 對不上、UNIQUE 擋不住重複。
+async function cloudSettleChips(db, actor, chips, day, now) {
+  const total = await cloudRideCount(db, actor);
+  const ex = await db.prepare("SELECT COALESCE(SUM(delta),0) AS n FROM chip_ledger WHERE actor=? AND kind='cloud'").bind(actor).first();
+  const existing = Number(ex && ex.n) || 0;
+  const deserved = cloudChipsEarned(total, chips);
+  if (!(deserved > existing)) return 0;
+  const r = await db.prepare(
+    'WITH RECURSIVE seq(i) AS (SELECT CAST(? AS INTEGER) UNION ALL SELECT i + 1 FROM seq WHERE i < ?)' +
+    ' INSERT OR IGNORE INTO chip_ledger (id,actor,kind,delta,ref,day,created_at)' +
+    " SELECT 'cloud|' || ? || '|cloud|' || i, ?, 'cloud', 1, ? || '|cloud|' || i, ?, ? FROM seq"
+  ).bind(existing + 1, deserved, actor, actor, actor, day, now).run();
+  return Number(r && r.meta && r.meta.changes) || 0;
+}
+
+// POST /api/cloud-ride {actor, day, trainKey, startedAt, sec, requestId, client}
+// day 是「台北今天」或「台北昨天」（營運日）；startedAt 是前景連續跟車開始的 epoch 毫秒；sec 是連續秒數。
+// 200 {ok:true, day, rides, toNextChip, chipAwarded}：rides＝這個人算進換籌碼的總次數（不含模擬器）、
+// toNextChip＝再幾次換下一顆（與 chips-me 同一個算法）、chipAwarded＝這一次有沒有讓帳本多出籌碼。
+// 錯誤碼：400 bad_json／bad_actor／coordinates_not_accepted／app_only／bad_request_id／bad_day／bad_time／bad_sec／too_short／unknown_train；
+// 405 method；409 already_today（這個營運日已經有一筆）、conflict（同一個 requestId 拿去送了別的營運日）；
+// 429 rate_limited；503 bounty_paused／not_ready／cloud_ride_failed。
+// 冪等：requestId 存在 cloud_rides.request_id，同一個 actor 同一個 requestId 重送回與第一次相同形狀的成功回應（不重寫、不重發籌碼）。
+// 🔴 重送也會再跑一次「補齊籌碼」：搭乘寫進去、補籌碼之前失敗時，客戶端用同一個 requestId 重送就補得回來（結算是冪等的）。
+// simulator:true 的搭乘照寫進 cloud_rides（測試流程要能跑完、也占掉當天那一格）但 simulator=1，不算進次數、不發籌碼。
+async function cloudRide(request, env) {
+  // API_POST_ALLOWED 的粒度是路徑，其他方法也進得來——收斂成只收 POST（比照 garageRedeem）
+  if (request.method !== 'POST') return jsonRes({ error: 'method' }, 405, 'no-store');
+  // 節流與寫入總閘擋在任何 D1 存取之前（比照 garageRedeem）
+  if (await rateLimited(env.BOUNTY_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  if (bountyWritesOff(env)) return jsonRes({ error: 'bounty_paused' }, 503, 'no-store');
+  let b;
+  try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
+  if (!b || !isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
+  if (hasGeoKeys(b)) return jsonRes({ error: 'coordinates_not_accepted' }, 400, 'no-store');
+  // 雲端搭乘是 App 的功能（網頁沒有「前景連續跟車」的計時）：沒帶 client 或 platform 不是 ios／android 一律 400 app_only
+  const client = sanitizeClient(b.client);
+  if (!client) return jsonRes({ error: 'app_only' }, 400, 'no-store');
+  // requestId 必填：沒有去重鍵，重送一次就多算一次
+  if (typeof b.requestId !== 'string' || !BOUNTY_REQUEST_ID_RE.test(b.requestId))
+    return jsonRes({ error: 'bad_request_id' }, 400, 'no-store');
+  let chips;
+  try { chips = await bountyChipsRules(env); } catch (e) { return jsonRes({ error: 'not_ready' }, 503, 'no-store'); }
+  if (!(chips.cloud.minSec > 0)) return jsonRes({ error: 'not_ready' }, 503, 'no-store');
+  const now = Number(env.BOUNTY_NOW) || Date.now();
+  const day = typeof b.day === 'string' ? b.day : '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || (day !== taipeiDay(now) && day !== taipeiDay(now - 86400e3)))
+    return jsonRes({ error: 'bad_day' }, 400, 'no-store');
+  if (!Number.isSafeInteger(b.startedAt)) return jsonRes({ error: 'bad_time' }, 400, 'no-store');
+  if (!Number.isSafeInteger(b.sec) || b.sec < 0 || b.sec > CLOUD_RIDE_MAX_SEC) return jsonRes({ error: 'bad_sec' }, 400, 'no-store');
+  if (b.sec < chips.cloud.minSec) return jsonRes({ error: 'too_short' }, 400, 'no-store');
+  // 結束時間不可晚於「現在＋60 秒」：搭乘不能發生在未來
+  if (b.startedAt + b.sec * 1000 > now + CLOUD_RIDE_FUTURE_SLACK_MS) return jsonRes({ error: 'bad_time' }, 400, 'no-store');
+  const trainKey = typeof b.trainKey === 'string' ? b.trainKey : '';
+  try {
+    const db = env.DELAY_DB;
+    const actor = await resolveActor(env, b.actor);
+    const respond = async (chipAwarded) => {
+      const rides = await cloudRideCount(db, actor);
+      return jsonRes({ ok: true, day, rides, toNextChip: chips.cloud.perChip - (rides % chips.cloud.perChip), chipAwarded }, 200, 'no-store');
+    };
+    // 重送：同一個 actor（解析後——合併帳號之後列跟著改名成 uid，解析後才對得上）同一個 requestId 已經寫過
+    const prior = await db.prepare('SELECT day, simulator, created_at FROM cloud_rides WHERE actor=? AND request_id=?')
+      .bind(actor, b.requestId).first();
+    if (prior) {
+      if (prior.day !== day) return jsonRes({ error: 'conflict' }, 409, 'no-store');
+      let awarded = false;
+      if (Number(prior.simulator) !== 1) {
+        awarded = (await cloudSettleChips(db, actor, chips, day, now)) > 0;
+        // 第一次的回應掉了：那一次結算寫的列 created_at 與這筆搭乘相同（同一個 now），據此還原第一次的 chipAwarded
+        if (!awarded) awarded = !!(await db.prepare("SELECT 1 AS x FROM chip_ledger WHERE actor=? AND kind='cloud' AND created_at=?")
+          .bind(actor, Number(prior.created_at)).first());
+      }
+      return await respond(awarded);
+    }
+    let known;
+    try { known = await cloudRideTrainOk(env, trainKey, day, b.startedAt); }
+    catch (e) { return jsonRes({ error: 'not_ready' }, 503, 'no-store'); }
+    if (!known) return jsonRes({ error: 'unknown_train' }, 400, 'no-store');
+    // 同一個營運日已經有一筆（模擬器的也算，PK (actor, day) 一天只有一格）
+    const mine = await db.prepare('SELECT day FROM cloud_rides WHERE actor=? AND day=?').bind(actor, day).all();
+    if (!cloudRideCounts({ sec: b.sec, day }, (mine.results || []).map(r => r.day), chips))
+      return jsonRes({ error: 'already_today' }, 409, 'no-store');
+    const sim = client.simulator ? 1 : 0;
+    await db.prepare(
+      'INSERT OR IGNORE INTO cloud_rides (actor,day,train_key,sec,request_id,created_at,simulator) VALUES (?,?,?,?,?,?,?)'
+    ).bind(actor, day, trainKey, b.sec, b.requestId, now, sim).run();
+    // 讀回：兩個同時抵達的請求都看不到對方時，由主鍵擋下第二筆；輸的那個在這裡發現那一格不是自己的
+    const row = await db.prepare('SELECT request_id FROM cloud_rides WHERE actor=? AND day=?').bind(actor, day).first();
+    if (!row || row.request_id !== b.requestId) return jsonRes({ error: 'already_today' }, 409, 'no-store');
+    const awarded = sim ? false : (await cloudSettleChips(db, actor, chips, day, now)) > 0;
+    return await respond(awarded);
+  } catch (e) {
+    return jsonRes({ error: 'cloud_ride_failed' }, 503, 'no-store');
   }
 }
 
@@ -7032,7 +7329,10 @@ function verdictOf(ig, qg) {
 // 殘留,沒有這個問題;但同一支測試檔案若想在不同情境間換 ASSETS 內容重跑 bountyVerifyCron,
 // 第二個情境會讀到第一個情境快取住的舊值(Task 2 report 風險 #4、Task 5 report 風險 #1 都提過
 // 這個設計)。供測試在切換情境前呼叫清空,不供正式流程使用,production 路徑不 import 這個函式。
-function bountyResetMemCaches() { bountyRulesMem = null; bountyUnitsMem = null; }
+function bountyResetMemCaches() {
+  bountyRulesMem = null; bountyUnitsMem = null;
+  for (const k of Object.keys(cloudRideAssetMem)) delete cloudRideAssetMem[k];      // 雲端搭乘的班表資產快取（見 cloudRideAsset）
+}
 
 // ── 路段懸賞 v2：每段去重人數 ＋ 籌碼入帳（都由 bountyVerifyCron 呼叫）──────────────────────
 // 這一趟（ok）的每個覆蓋段登記一次「這個人交過 ok」，並讓該段的 distinct_ok_users 只在「第一次」+1。
@@ -8320,6 +8620,7 @@ export default {
     else if (url.pathname === '/api/bounty-merge') res = await bountyMerge(request, env);
     else if (url.pathname === '/api/chips-me') res = await chipsMe(request, env);
     else if (url.pathname === '/api/garage-redeem') res = await garageRedeem(request, env);
+    else if (url.pathname === '/api/cloud-ride') res = await cloudRide(request, env);
     else if (url.pathname === '/api/pass-claim') res = await passClaim(request, env);
     else if (url.pathname === '/api/pass-admin') res = await passAdmin(request, env);
     else if (url.pathname === '/api/la/bind') res = await laBind(request, env);
@@ -8406,7 +8707,7 @@ export const _accountDelete = { deleteAccountData, deletePlusEntitlement };
 // D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。
 export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoard, isActorId, resolveActor,
   bountyClaim, hasGeoKeys, sanitizeSamples, sanitizeClient, bountySubmit, firebaseUid, bountyMe, bountyMerge, bountyPurgeUid,
-  chipsMe, garageRedeem,
+  chipsMe, garageRedeem, cloudRide,
   bountyMedian, bountyL1, bountyL2, bountyPointsOf, bountyUnlocked, bountyValuationCron,
   assembleTrip, integrityGate, qualityGate, verdictOf, coverageOf, bountyVerifyCron, bountyResetMemCaches };
 // 純函式導出,供離線回歸測試 import:trtcParse 雙路徑解析(含上游故障回 HTML 錯誤頁、

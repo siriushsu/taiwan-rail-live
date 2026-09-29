@@ -1,10 +1,14 @@
 -- 路段懸賞 v2：每段「去重人數」、籌碼帳本、車庫解鎖、雲端搭乘，以及上傳時帶的 client 資訊。
 --
 -- 🔴 所有環境都要跑（新環境＝0002 + 0014）。先套 schema、再部署用到它的 Worker。忘了套的症狀：
---    新 Worker 的 bountySubmit 一律 503 submit_failed（INSERT 找不到 bounty_samples.client 欄）；
---    驗證 cron 更糟——它先把樣本標成已判定、之後才寫 bounty_seg_contrib／chip_ledger，缺表時那幾句失敗，
---    那幾趟就永遠是「已判定、沒有去重人數、沒有籌碼」，而且沒有任何重試機會。
---    （比照 0012 漏套那次：schema 沒到位就先出 Worker，是這個專案踩過的坑。）
+--    ① 最嚴重：/api/account-delete 對【所有人】回 502——bountyPurgeUid 在同一個 batch 刪這四張新表，
+--       缺任何一張整批失敗，刪帳號就做不成（App 審查要求能刪帳號）。
+--    ② bountySubmit 一律 503 submit_failed（INSERT 找不到 bounty_samples.client 欄）；
+--       chips-me／garage-redeem／cloud-ride／bounty-merge 一律 503。
+--    ③ 驗證 cron 在寫 bounty_seg_contrib／chip_ledger 那幾句丟錯；這兩件排在「標記已判定」之前，
+--       所以樣本留在 pending、補套之後下一發 cron 會重判，不會永久漏發。
+--    （比照 0012 漏套那次：schema 沒到位就先出 Worker，是這個專案踩過的坑。ship-web 2.4 的正式庫 schema
+--    守門人會擋下「正式庫缺 schema/*.sql 裡的表或欄」的出貨。）
 --
 -- 全部 CREATE 用 IF NOT EXISTS：cron 與新環境都會重跑同一份檔。
 -- 🔴 兩句 ALTER 一定放在檔尾：SQLite 沒有 ADD COLUMN IF NOT EXISTS，重套時第一句 ALTER 會丟
@@ -57,6 +61,8 @@ CREATE TABLE IF NOT EXISTS garage_unlocks (
 -- ── 雲端搭乘：一個人一天最多一筆 ───────────────────────────────────────────
 -- 前景跟同一班真實列車連續 10 分鐘算 1 次；PK (actor, day) 讓「每日 1 次」是結構保證。
 -- request_id：重送去重用（可空，舊客端沒有）。
+-- simulator：這一筆是不是模擬器送來的（client.simulator 為真才是 1）。模擬器的搭乘照寫進來（測試流程要能跑完、
+--   也占掉當天那一格），但不算進「換籌碼的次數」——查次數的地方一律要帶 simulator=0。
 CREATE TABLE IF NOT EXISTS cloud_rides (
   actor      TEXT    NOT NULL,
   day        TEXT    NOT NULL,
@@ -64,6 +70,7 @@ CREATE TABLE IF NOT EXISTS cloud_rides (
   sec        INTEGER NOT NULL,
   request_id TEXT,
   created_at INTEGER NOT NULL,
+  simulator  INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (actor, day)
 );
 

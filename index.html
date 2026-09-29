@@ -16221,6 +16221,37 @@ async function accountSignOut() {
     catch (e) { a.actionError = '登出失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
   } finally { a.loggingOut = false; }
 }
+// 路段懸賞 v2：登入之後，把這台裝置的匿名帳（點數、籌碼、車庫解鎖、雲端搭乘、每段去重貢獻）併進登入的帳號。
+// POST /api/bounty-merge，伺服器端整包冪等（見 worker.js bountyMerge）；這裡的任務只是「登入後恰好通知它一次」：
+//   · 只在懸賞開著（BOUNTY_ENABLED）時才打：懸賞下架期間沒有人產生那些資料，多打一支 Worker 是白花。
+//   · 每一組 (uid, 這台裝置) 成功一次就記一個旗標在 localStorage（key 帶 uid，換帳號登入各自再併一次）；
+//     失敗不記，下次登入或下次開機再試。旗標讀不到（localStorage 壞掉）就不送——沒有地方記「送過了」，每次開機都會打。
+//   · fire-and-forget：不擋登入、任何失敗都吞掉（呼叫端另外包了 try/catch，這裡連同步例外也不外漏）。
+//   · 🔴 userDataDeviceId() 在本機存不下 id 時回字面 'ephemeral'——那是「所有存不下 id 的裝置」共用的值，
+//     拿去併就是把不相干的人的資料併進這個帳號；不送。
+// 併發：onAuthStateChanged 可能連發兩次（session 還原＋登入事件），_busy 讓同一組只有一個請求在途。
+function bountyMergeOnLogin(user) {
+  if (!BOUNTY_ENABLED || !user || !user.uid) return;
+  const dev = bountyActor();
+  if (!dev || dev === 'ephemeral' || dev === user.uid) return;
+  const flagKey = 'trainmap-bounty-merged-' + user.uid;
+  try { if (localStorage.getItem(flagKey) === dev) return; } catch (e) { return; }
+  if (bountyMergeOnLogin._busy === flagKey) return;
+  bountyMergeOnLogin._busy = flagKey;
+  (async () => {
+    try {
+      const a = state.account;
+      const token = a && a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken();
+      const r = await fetch(apiUrl('api/bounty-merge'), {
+        method: 'POST', cache: 'no-store',
+        headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ actor: dev }),
+      });
+      if (r.ok) { try { localStorage.setItem(flagKey, dev); } catch (e) {} }
+    } catch (e) {
+    } finally { if (bountyMergeOnLogin._busy === flagKey) bountyMergeOnLogin._busy = ''; }
+  })();
+}
 // 刪除伺服器端的帳號資料：RevenueCat customer ＋ D1 的懸賞校正旅程資料（worker 的
 // /api/account-delete 兩件一起做）。
 // 🔴 這裡不可以再用 plusProjectConfigured() 當閘門（2026-07-29 稽核）：那個旗標問的是「有沒有
@@ -16345,6 +16376,8 @@ function accountEnsureInit() {
           // accountForgetIdentity 清掉,陌生人判斷才不會在真實登出之後失效)。
           userDataRenderAll();
           try { localStorage.setItem(ACCOUNT_UID_KEY, user.uid); localStorage.setItem(ACCOUNT_LAST_UID_KEY, user.uid); } catch (e) {}
+          // 路段懸賞 v2:登入後通知伺服器把這台裝置的匿名帳併進來(fire-and-forget,不 await——它的失敗與快慢都不該碰到登入流程)
+          try { bountyMergeOnLogin(user); } catch (e) {}
           await plusRefresh(); // 先確認資格再決定要不要同步;plusRefresh 自帶 !plusConfigured() 早退,不會在無購買通道的平台亂初始化 SDK
           await accountSyncNow('login');
           const pending = state.plusPending;
