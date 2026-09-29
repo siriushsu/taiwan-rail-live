@@ -232,6 +232,8 @@ function spyBatches(DELAY_DB) {
   return log;
 }
 const LIST_RE = /^WITH t AS \(/;                                            // 判定第一段：班車清單
+// 判定時讀這個人的認領那一句（第九批起寫 INDEXED BY idx_claims_actor；兩種寫法都認，才分得出「句子沒送出」與「計畫不對」——計畫由 CL4、K1e 看）
+const CLAIMS_READ_RE = /FROM bounty_claims (?:INDEXED BY idx_claims_actor )?WHERE actor=COALESCE/;
 const LOAD_RE = /^SELECT \* FROM \(SELECT \*, SUM\(length\(payload\)\) OVER/;   // 第二段：讀一班車（依讀取順序累加長度截住，見 N2）
 const PRIOR_RE = /verdict <> 'pending'/;                                  // 前次線組
 const MARK_RE = /^UPDATE bounty_samples SET verdict=\?/;                  // 標記已判定
@@ -432,7 +434,7 @@ await attempt('C2', async () => {
   const w = world({ seed: boardSql('山線') + claimSql({ id: 'claim-c2', actor: DEV, seg: KT('山線', 'S0|S1'), pts: 9 }) });
   putBatches(w.db, { actor: DEV, trainNo: 'C2', pts: leg({ sec: 700 }) });
   let mst = null;
-  const h = hookOnce(w.DELAY_DB, /FROM bounty_claims WHERE actor=COALESCE/, async () => { mst = (await merge(w, DEV, UID)).status; });
+  const h = hookOnce(w.DELAY_DB, CLAIMS_READ_RE, async () => { mst = (await merge(w, DEV, UID)).status; });
   await w.cron();
   const cl = one(w, "SELECT actor,status FROM bounty_claims WHERE id='claim-c2'");
   ok('C2 [B7 競態] 合併落在讀認領之前：UID 27 點、認領 {UID, fulfilled}、DEV 墓碑 0 點；籌碼 1 顆與登記 7 段在 UID、DEV 名下 0',
@@ -1020,7 +1022,7 @@ await attempt('D4', async () => {
   const A = 'dev-d4-000001';
   const w = world({ seed: boardSql('山線') + `INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(A, 'F1')}','{"at":1,"error":"x","n":1}','x');` });
   putBatches(w.db, { actor: A, trainNo: 'F1', pts: leg({ sec: 700 }) });
-  const h = hookOnce(w.DELAY_DB, /FROM bounty_claims WHERE actor=COALESCE/, async () => { w.db.prepare('UPDATE kv_blobs SET v=? WHERE k=?').run(other, LEASE); });
+  const h = hookOnce(w.DELAY_DB, CLAIMS_READ_RE, async () => { w.db.prepare('UPDATE kv_blobs SET v=? WHERE k=?').run(other, LEASE); });
   await w.cron();
   ok('D4a [第二輪 D4] 第③段之前被接手：這班車仍 pending，而且它的出錯記錄沒有被刪（舊版以為判過了、照刪）',
     h.fired === 1 && q.verdicts(w, A, 'F1') === 'pending' && strikes(w).length === 1, J({ fired: h.fired, v: q.verdicts(w, A, 'F1'), sk: strikes(w) }));
@@ -1119,7 +1121,7 @@ async function n3Run(rules) {
   const w = world({ seed: boardSql('山線') + claimSql({ id: 'claim-n3', actor: A, seg: KT('山線', 'S0|S1'), pts: 9 }), rules });
   putBatches(w.db, { actor: A, trainNo: 'F1', pts: leg({ sec: 700 }) });
   const other = J({ token: 'taken-over', until: Date.now() + 10 * 60e3 });
-  const h = hookOnce(w.DELAY_DB, /FROM bounty_claims WHERE actor=COALESCE/, async () => { w.db.prepare('UPDATE kv_blobs SET v=? WHERE k=?').run(other, LEASE); });
+  const h = hookOnce(w.DELAY_DB, CLAIMS_READ_RE, async () => { w.db.prepare('UPDATE kv_blobs SET v=? WHERE k=?').run(other, LEASE); });
   const look = () => ({ v: q.verdicts(w, A, 'F1'), point: q.point(w, A), sc: q.sampleCounts(w, '山線'),
     cov: rows(w, "SELECT covered_at IS NOT NULL c FROM bounty_board WHERE seg_key LIKE 'tra_sched|山線|%' ORDER BY seg_key").map(r => r.c),
     claim: one(w, "SELECT status FROM bounty_claims WHERE id='claim-n3'").status, bal: q.bal(w, A), contrib: q.contrib(w, A) });
@@ -1160,7 +1162,7 @@ async function n3eRun(rules) {
   const w = world({ seed: boardSql('山線') + claimSql({ id: 'claim-n3e', actor: A, seg: KT('山線', 'S0|S1'), pts: 9 }), rules });
   putBatches(w.db, { actor: A, trainNo: 'F1', pts: leg({ sec: 700 }) });
   let inner = null;
-  const h = hookOnce(w.DELAY_DB, /FROM bounty_claims WHERE actor=COALESCE/, async () => {
+  const h = hookOnce(w.DELAY_DB, CLAIMS_READ_RE, async () => {
     w.db.prepare("UPDATE kv_blobs SET v=json_set(v, '$.until', 0) WHERE k=?").run(LEASE);
     inner = await w.cron();
   });
@@ -1829,7 +1831,7 @@ await attempt('CL1', async () => {
   const w = world({ seed: boardSql('山線') + seed.join('') });
   putBatches(w.db, { actor: A, trainNo: 'C1', pts: leg({ sec: 700 }) });
   const got = [];
-  spyRows(w.DELAY_DB, (sql, rs) => { if (/FROM bounty_claims WHERE actor=COALESCE/.test(sql)) got.push(rs.length); });
+  spyRows(w.DELAY_DB, (sql, rs) => { if (CLAIMS_READ_RE.test(sql)) got.push(rs.length); });
   const st = await w.cron();
   ok('CL1 [第五輪 新洞①] 一個人 9 段各有 40 筆開著的認領：判定那一句只送回 7 列（每個覆蓋單位一筆；舊版 281 列）；點數用每個單位最近的那一筆（11＋6×7＝53，平手比 id）',
     q.verdicts(w, A, 'C1') === 'ok' && J(got) === J([7]) && q.points(w, A) === 53 && st.ok === 1,
@@ -1837,7 +1839,7 @@ await attempt('CL1', async () => {
 });
 // 在 S1（2 km）停 5 秒的一趟：10 m/s 巡航、20 秒減速到 0.5、5 秒 0.2 m/s（都卜勒 0.35／0.45）、20 秒加速回 10 m/s，一路開到 S2（4 km）。
 // 形狀照 verify_bounty_dwell.mjs 的 trajectory（同樣的雜訊，過得了防偽閘）。從 5 m 起跑：巡航剛好停在 1,895 m 開始減速，
-// 從 0 起跑的話中間會多一步 5 m、都卜勒從 5 跳到 9.5，被加速度上限判成 impossible_physics。
+// 從 0 起跑的話中間會多一步 5 m、都卜勒從 5 跳到 9.5——第九批之前的加速度上限（每秒 3.9 m/s）會判成 impossible_physics；現在的上限是 1.3×3×(Δt＋1)，形狀沿用。
 function dwellLeg(t0 = 30000) {
   const pts = [{ d: 5, t: t0, v: 10.4, acc: 8 }];
   let d = 5, t = t0, n = 0;
@@ -1864,7 +1866,7 @@ await attempt('CL1b', async () => {
     dw('cl1b-h', 'holiday', 9, 100) + dw('cl1b-p', 'peak', 1, 200) + dw('cl1b-o', 'off', 1, 300) });
   putBatches(w.db, { actor: A, trainNo: 'W1', date: D26, pts: dwellLeg() });
   const got = [];
-  spyRows(w.DELAY_DB, (sql, rs) => { if (/FROM bounty_claims WHERE actor=COALESCE/.test(sql)) got.push(rs.length); });
+  spyRows(w.DELAY_DB, (sql, rs) => { if (CLAIMS_READ_RE.test(sql)) got.push(rs.length); });
   await w.cron();
   const segs = JSON.parse((one(w, "SELECT segs FROM bounty_samples WHERE actor=? AND segs IS NOT NULL", A) || {}).segs || '[]');
   ok('CL1b [第五輪 新洞①] 分組鍵四欄都在：S0|S1 用 dir 0 的 7 點（不是較新的 dir 1）、S1|S1 用 holiday 的 9 點（不是較新的 peak／off）——點數 7＋3＋9＝19；那一句送回 5 列',
@@ -1904,6 +1906,27 @@ await attempt('CL2', async () => {
     del.length === 1 && /SEARCH bounty_claims USING INDEX idx_claims_actor \(actor=\? AND status=\?\)/.test(plan) && !/idx_claims_unit/.test(plan),
     J({ n: del.length, plan }));
 });
+await attempt('CL2d', async () => {
+  // E7／E8（第六輪 突變存活）：去重那一句只刪「同一個方向、同一個時段」的舊認領——兩個方向共用同一批段鍵、同一站的三個時段共用同一個站鍵，
+  // 刪除條件少了 dir 或 slot，再接一張卡就會把自己別的方向、別的時段的認領刪掉（CL2 的世界只有一個方向、只有 track 卡，照不到）。
+  // A 接山線自強 dir 0、dir 1 兩張 track 卡，與 S1 站 dwell 的 peak、off 兩張卡；一小時後再接 dir 0 track 與 dwell peak。
+  // 期望：dir 0 track 與 dwell peak 各自整組換成這一次的；dir 1 的 9 列、dwell off 那一列 id 逐列不變。
+  const A = 'dev-cl2d-0000A';
+  const T0 = 'tra_sched|山線|0|自強|track|', T1 = 'tra_sched|山線|1|自強|track|', DP = 'tra_sched|山線|0|自強|dwell|peak', DO = 'tra_sched|山線|0|自強|dwell|off';
+  const dwellSql = slot => boardSql('山線', ['S1|S1']).replace(",'track','',", `,'dwell','${slot}',`);
+  const w = world({ seed: boardSql('山線') + boardSql('山線').replaceAll(",'自強',0,'track',", ",'自強',1,'track',") + dwellSql('peak') + dwellSql('off') });
+  const first = await withClock(NOW_MS, async () => [await claim(w, A, T0), await claim(w, A, T1), await claim(w, A, DP), await claim(w, A, DO)]);
+  const idsOf = (dir, kind, slot) => rows(w, "SELECT id FROM bounty_claims WHERE actor=? AND dir=? AND kind=? AND slot=? AND status='open' ORDER BY id", A, dir, kind, slot).map(r => r.id);
+  const d1Before = idsOf(1, 'track', ''), offBefore = idsOf(0, 'dwell', 'off');
+  const again = await withClock(NOW_MS + 3600e3, async () => [await claim(w, A, T0), await claim(w, A, DP)]);
+  const d0After = idsOf(0, 'track', ''), peakAfter = idsOf(0, 'dwell', 'peak');
+  ok('CL2d [第六輪 E7／E8] 再接 dir 0 的 track 卡與 dwell peak 卡：那兩組整組換成這一次的；自己 dir 1 的 9 列（同一批段鍵）與 dwell off 那一列（同一個站鍵）一列不動',
+    [...first, ...again].every(r => r.status === 200) && d1Before.length === 9 && offBefore.length === 1 &&
+      J(idsOf(1, 'track', '')) === J(d1Before) && J(idsOf(0, 'dwell', 'off')) === J(offBefore) &&
+      d0After.length === 9 && d0After.every(id => id.startsWith(again[0].json.claimId + '|')) &&
+      peakAfter.length === 1 && peakAfter[0].startsWith(again[1].json.claimId + '|'),
+    J({ st: [...first, ...again].map(r => r.status), d1: [d1Before.length, idsOf(1, 'track', '').length], off: [offBefore, idsOf(0, 'dwell', 'off')], d0After: d0After.length, peakAfter }));
+});
 await attempt('CL3', async () => {
   // 帳號 U 與兩個裝置 D1、D2 都接過山線自強那張卡，時間 D1 < U < D2；D1 先併進 U、D2 再併。U 另有莒光那張與一筆已完成的舊認領。
   // 期望：每次合併之後 U 名下自強開著的認領恰 9 列＝最近的那一組（D1 併進來之後留 U 的、D2 併進來之後留 D2 的）；莒光與已完成的不動。
@@ -1936,11 +1959,27 @@ await attempt('CL3', async () => {
     m3.status === 409 && m3.json.error === 'merged_elsewhere' && J(snap3) === J([`cl3-dup1@${U}`, `cl3-dup2@${U}`, `cl3-v@${V}`]) &&
       m4.status === 200 && J(snap4) === J([`cl3-dup2@${U}`, `cl3-v@${V}`]),
     J({ m3: m3.text, snap3, m4: m4.status, snap4 }));
+  // M4（第六輪 突變存活）：去重只在「開著的」之間比新舊。U 在 S0|S1 有一筆較新的已完成、裝置 D4 有一筆較舊的開著——
+  // 併進來之後那筆開著的要留著（它是 U 在這個單位唯一開著的認領）；內層若把已完成的也排進來，開著的那筆會被當成「較舊的重複」刪掉。
+  const D4 = 'dev-cl3-000D4';
+  const w3 = world({ seed: boardSql('山線') + pointsSql([[U, U, 0, null]]) +
+    claimRow({ id: 'cl3c-done', actor: U, seg: KT('山線', 'S0|S1'), pts: 2, at: 200, status: 'fulfilled' }) +
+    claimRow({ id: 'cl3c-open', actor: D4, seg: KT('山線', 'S0|S1'), pts: 3, at: 100 }) });
+  const m5 = await merge(w3, D4, U);
+  const snap5 = rows(w3, 'SELECT id, actor, status FROM bounty_claims ORDER BY id').map(r => `${r.id}@${r.actor}/${r.status}`);
+  ok('CL3c [第六輪 M4] 帳號在同一個單位有較新的「已完成」、裝置帶來較舊的「開著」：合併之後那筆開著的留著（只在開著的之間去重）',
+    m5.status === 200 && J(snap5) === J([`cl3c-done@${U}/fulfilled`, `cl3c-open@${U}/open`]), J({ m5: m5.status, snap5 }));
 });
-// CL4（第八批）：讀／刪／關「這個人的」認領的三句，在表有統計資料的時候也只走 idx_claims_actor。
-// 沒有統計時 SQLite 本來就挑 idx_claims_actor（所以 CL2c 照不到拿掉 +seg_key 的突變）；統計偏斜——每個人的認領多、每個單位的認領少，
-// 早期少數重度使用者時跑 PRAGMA optimize 就會收到這種形狀——時，沒有加號的版本改走 idx_claims_unit＝讀這些段上所有人的認領。
-// 統計是手寫進 sqlite_stat1 再 ANALYZE sqlite_schema 讓規劃器重讀。對照組：同一份統計下把 +seg_key 拿掉，必須真的改走 idx_claims_unit（證明統計夠偏、判準有牙）。
+// CL4（第八、九批）：讀／刪／關「這個人的」認領的三句，加上合併時認領改名、去重兩句，不論表有沒有統計資料都只走 idx_claims_actor。
+// 沒有統計時 SQLite 本來就挑 idx_claims_actor（所以 CL2c 照不到）；表一旦有統計，兩種形狀會把它帶走：
+//   H1 手寫的偏斜——每個人的認領多、每個單位的認領少（早期少數重度使用者時跑 PRAGMA optimize 會收到的形狀）：改走 idx_claims_unit＝讀這些段上所有人的認領；
+//   R2 ANALYZE 自己算的——表裡只有一個身分、每個單位一筆開著的認領（上線初期只有自己在測）：actor 看起來毫無選擇性，改走全表掃描（第六輪獨立驗收 N6-1，
+//      第八批只用一元加號擋 idx_claims_unit，擋不住這一種）。
+// 第九批五句都寫 INDEXED BY idx_claims_actor。判準：句子裡有 INDEXED BY idx_claims_actor，而且三種狀態下碰到 bounty_claims 的每一步都走 idx_claims_actor；
+// 對照組（證明統計真的偏、判準有牙）：同一份統計下把 INDEXED BY 拿掉——R2 下不再走 idx_claims_actor（a、b、c、e），H1 下改走 idx_claims_unit（a、b、c）。
+// 合併改名那一句（d）在這裡的 SQLite（node 3.51.2）拿掉 INDEXED BY 也照樣走 idx_claims_actor 的覆蓋索引，量不出差別；D1（workerd）在 R2 下是全表掃描
+// （第六輪 V6/d2 的實測：rows_read 98,442），那個對照留在 workerd 的冒煙（d1_plan_probe）。這一句的判準因此多看「句子裡有 INDEXED BY」——計畫隨引擎版本變，寫法不會。
+// 計畫在只有 schema 的空庫裡看（計畫只看 schema 與統計，不看資料）；統計是手寫進 sqlite_stat1 再 ANALYZE sqlite_schema 讓規劃器重讀（H1），或真的跑 ANALYZE（R2）。
 const skewClaimStats = db => {
   db.exec('ANALYZE');
   db.exec("DELETE FROM sqlite_stat1 WHERE tbl='bounty_claims'");
@@ -1948,34 +1987,52 @@ const skewClaimStats = db => {
     " ('bounty_claims','idx_claims_unit','200000 20 2 1 1 1 1 1'), ('bounty_claims','idx_claims_expiry','200000 100000 2')");
   db.exec('ANALYZE sqlite_schema');
 };
+const soloClaimStats = db => {
+  const st = db.prepare('INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_locked,claimed_at,expires_at,status) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+  db.exec('BEGIN');
+  for (let i = 0; i < 3626; i++) st.run(`solo-${i}`, 'dev-solo-000001', KT('獨線', `X${i}|X${i + 1}`), '自強', i % 2, 'track', '', 3, 1, NOW_MS + DAY, 'open');
+  db.exec('COMMIT');
+  db.exec('ANALYZE');
+};
 const claimsPlan = (db, sql) => db.prepare('EXPLAIN QUERY PLAN ' + sql).all(...Array((sql.match(/\?/g) || []).length).fill(null))
-  .map(r => String(r.detail)).filter(d => /\bbounty_claims\b/.test(d)).join(' ; ');
+  .map(r => String(r.detail)).filter(d => /\bbounty_claims\b/.test(d));
 await attempt('CL4', async () => {
-  const A = 'dev-cl4-00000A', CARD = 'tra_sched|山線|0|自強|track|';
-  // 刪除那一句：認領端點（同一張卡接兩次）
-  const w1 = world({ seed: boardSql('山線') });
+  const A = 'dev-cl4-00000A', U = 'uid-cl4-0000U', CARD = 'tra_sched|山線|0|自強|track|';
+  // 刪除那一句：認領端點
+  const w1 = world({ seed: boardSql('山線') + pointsSql([[U, U, 0, null]]) });
   const log1 = spyBatches(w1.DELAY_DB);
   await withClock(NOW_MS, () => claim(w1, A, CARD));
-  const del = [...new Set(log1.flat().map(s => s.sql).filter(s => /^DELETE FROM bounty_claims/.test(s)))];
+  // 合併的改名、去重兩句：A（裝置）併進 U
+  await merge(w1, A, U);
+  const sqls1 = [...new Set(log1.flat().map(s => s.sql))];
+  const del = sqls1.filter(s => /^DELETE FROM bounty_claims (?:INDEXED BY idx_claims_actor )?WHERE actor=\? AND status='open' AND train_kind=\?/.test(s));
+  const ren = sqls1.filter(s => /^UPDATE bounty_claims (?:INDEXED BY idx_claims_actor )?SET actor=\?/.test(s));
+  const ded = sqls1.filter(s => /^DELETE FROM bounty_claims (?:INDEXED BY idx_claims_actor )?WHERE actor=\? AND status='open' AND id IN/.test(s));
   // 讀認領那一句與關認領那一句：一趟 700 秒 ok、每段一筆認領
   const w2 = world({ seed: boardSql('山線') + SEGS10.map((s, i) => claimRow({ id: `cl4|${i}`, actor: A, seg: KT('山線', s), pts: 5, at: 1000 })).join('') });
   putBatches(w2.db, { actor: A, trainNo: 'C4', pts: leg({ sec: 700 }) });
   const sel = new Set();
-  spyRows(w2.DELAY_DB, sql => { if (/FROM bounty_claims WHERE actor=COALESCE/.test(sql)) sel.add(sql); });
+  spyRows(w2.DELAY_DB, sql => { if (CLAIMS_READ_RE.test(sql)) sel.add(sql); });
   const log2 = spyBatches(w2.DELAY_DB);
   await w2.cron();
-  const upd = [...new Set(log2.flat().map(s => s.sql).filter(s => /^UPDATE bounty_claims SET status='fulfilled'/.test(s)))];
-  const cases = [['a 認領端點的刪除', del, s => s.replace('+seg_key IN', 'seg_key IN')], ['b 判定時讀認領', [...sel], s => s.replace('+seg_key IN', 'seg_key IN')],
-    ['c 判定 ok 之後關認領', upd, s => s.replace('(+seg_key, train_kind', '(seg_key, train_kind')]];
-  const before = cases.map(([, l]) => l.length === 1 ? claimsPlan(w2.db, l[0]) : '');
-  skewClaimStats(w2.db);
-  const after = cases.map(([, l]) => l.length === 1 ? claimsPlan(w2.db, l[0]) : '');
-  const ctrl = cases.map(([, l, strip]) => l.length === 1 && strip(l[0]) !== l[0] ? claimsPlan(w2.db, strip(l[0])) : '');
-  const ACTOR = /SEARCH bounty_claims USING INDEX idx_claims_actor \(actor=\? AND status=\?\)/;
-  cases.forEach(([name, l], i) => ok(`CL4${name[0]} [第八批] ${name.slice(2)}那一句：沒有統計、統計偏斜時都走 idx_claims_actor，不走 idx_claims_unit；` +
-    '對照——同一份統計下拿掉 +seg_key 就改走 idx_claims_unit',
-    l.length === 1 && ACTOR.test(before[i]) && ACTOR.test(after[i]) && !/idx_claims_unit/.test(before[i] + after[i]) && /idx_claims_unit/.test(ctrl[i]),
-    J({ n: l.length, before: before[i], after: after[i], ctrl: ctrl[i] })));
+  const upd = [...new Set(log2.flat().map(s => s.sql).filter(s => /^UPDATE bounty_claims (?:INDEXED BY idx_claims_actor )?SET status='fulfilled'/.test(s)))];
+  const cases = [['a 認領端點的刪除', del, 'unit'], ['b 判定時讀認領', [...sel], 'unit'], ['c 判定 ok 之後關認領', upd, 'unit'],
+    ['d 合併時認領改名', ren, 'none'], ['e 合併時認領去重', ded, 'r2']];
+  const DB0 = openTestDb('').db, DBH = openTestDb('').db, DBR = openTestDb('').db;
+  skewClaimStats(DBH); soloClaimStats(DBR);
+  const ACTOR = /^SEARCH bounty_claims USING (?:COVERING )?INDEX idx_claims_actor \(actor=\?(?: AND status=\?)?\)$/;   // 改名那句只有 actor=?（覆蓋索引）
+  const onActor = lines => lines.length > 0 && lines.every(l => ACTOR.test(l));
+  const strip = s => s.replaceAll(' INDEXED BY idx_claims_actor', '');
+  cases.forEach(([name, l, ctrl]) => {
+    const sql = l.length === 1 ? l[0] : null;
+    const [p0, pH, pR] = sql ? [DB0, DBH, DBR].map(db => claimsPlan(db, sql)) : [[], [], []];
+    const [cH, cR] = sql && strip(sql) !== sql ? [DBH, DBR].map(db => claimsPlan(db, strip(sql))) : [[], []];
+    ok(`CL4${name[0]} [第八、九批] ${name.slice(2)}那一句寫 INDEXED BY idx_claims_actor，沒有統計、H1、R2 三種統計下碰到 bounty_claims 的每一步都走 idx_claims_actor` +
+      (ctrl === 'none' ? '（對照在 workerd 冒煙，見上方說明）' : `；對照——同一份統計下拿掉 INDEXED BY：R2 下不再走 idx_claims_actor${ctrl === 'unit' ? '、H1 下改走 idx_claims_unit' : ''}`),
+      !!sql && sql.includes('bounty_claims INDEXED BY idx_claims_actor') && onActor(p0) && onActor(pH) && onActor(pR) &&
+        (ctrl === 'none' || (cR.length > 0 && !onActor(cR))) && (ctrl !== 'unit' || cH.some(x => /idx_claims_unit/.test(x))),
+      J({ n: l.length, p0, pH, pR, cH, cR }));
+  });
 });
 
 // ═══ PH：同一秒的點（第五輪獨立驗收）══════════════════════════════════════════════
@@ -1994,6 +2051,68 @@ await attempt('PH1', async () => {
     J({ up: r.status, v: q.verdicts(w, A, 'P1'), rej: q.rejects(w, A, 'P1'), points: q.points(w, A), sc: q.sampleCounts(w, '山線'), suspect: st.suspect }));
 });
 
+// ═══ PH2／PH3（第六輪）：t 取整到秒之後，誠實錄程不能被物理檢查誤殺；偽造軌跡的長期速度釘在上限以內。走真的上傳端點與判定 cron。
+// App 的錄程照 index.html：定位回呼約每秒一次（相位 0.93 秒、抖動 ±80 ms）、900 ms 節流、t 取 floor 到秒（nowSecOfDay）、
+// 沒有都卜勒速度送 null（上傳端存成 0）、d 取到 0.1 m。車：台鐵 130 km/h（36.1 m/s）巡航，在 S5（10 km）以 0.8 m/s² 減速、停 30 秒（回報速度 0）、
+// 0.6 m/s² 起步，開到 19.9 km。GPS 雜訊：慢變偏移 σ4 m（時間常數 5 秒）＋白雜訊 σ1.5 m；每 97 秒一次回呼晚 150 ms（多半讓下一次被節流丟掉＝漏一次回呼）；
+// 一成的點沒有都卜勒速度。固定亂數種子。reverse＝同一趟倒過來走（dir 1，里程遞減）。
+function appTrip(seed, reverse = false) {
+  let s = seed;
+  const rnd = () => { s = s + 0x6D2B79F5 | 0; let x = Math.imul(s ^ s >>> 15, 1 | s); x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; };
+  const gauss = () => Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(2 * Math.PI * rnd());
+  const V = 36.1, dA = 10000 - V * V / 1.6, tA = (dA - 100) / V, tB = V / 0.8, tD = V / 0.6;
+  const at = T => {                                           // 真實時刻 T（秒）→ [里程, 速度]
+    if (T < tA) return [100 + V * T, V];
+    if ((T -= tA) < tB) return [dA + V * T - 0.4 * T * T, V - 0.8 * T];
+    if ((T -= tB) < 30) return [10000, 0];
+    if ((T -= 30) < tD) return [10000 + 0.3 * T * T, 0.6 * T];
+    return [10000 + 0.3 * tD * tD + V * (T - tD), V];
+  };
+  const end = tA + tB + 30 + tD + (19900 - 10000 - 0.3 * tD * tD) / V;
+  const pts = []; let last = -Infinity, e = 0; const rho = Math.exp(-1 / 5);
+  for (let k = 0; k < end; k++) {
+    e = rho * e + Math.sqrt(1 - rho * rho) * 4 * gauss();
+    const T = k + 0.93 + (rnd() * 2 - 1) * 0.08 + (k % 97 === 40 ? 0.15 : 0);
+    const noise = e + gauss() * 1.5, vr = gauss() * 0.3, miss = rnd() < 0.1;
+    if (T > end || T - last < 0.9) continue;
+    last = T;
+    const [d, v] = at(T), dm = d + noise;
+    pts.push({ d: Math.round((reverse ? 20000 - dm : dm) * 10) / 10, t: 30000 + Math.floor(T),
+      v: miss ? null : v === 0 ? 0 : Math.round(Math.max(0, v + vr) * 100) / 100, acc: 8 + Math.floor(rnd() * 5) });
+  }
+  return pts;
+}
+await attempt('PH2', async () => {
+  const A = 'dev-ph2-00000A', B = 'dev-ph2-00000B';
+  const w = world({ seed: boardSql('山線') });
+  const up = async (actor, trainNo, dir, pts) => { const out = [];
+    for (let k = 0; k * 60 < pts.length; k++) out.push((await submit(w, actor, { trainNo, dir, samples: pts.slice(k * 60, k * 60 + 60), requestId: `ph2-${trainNo}-${k}` })).status);
+    return out; };
+  const fwd = appTrip(20260930), rev = appTrip(20260930, true);
+  const miss1 = pts => pts.filter((p, i) => i && p.t - pts[i - 1].t === 1 && Math.abs(p.d - pts[i - 1].d) > 41.63).length;
+  const shape = pts => ({ n: pts.length, over1: miss1(pts), nulls: pts.filter(p => p.v === null).length, zeros: pts.filter(p => p.v === 0).length });
+  const ups = [...await up(A, 'P2', 0, fwd), ...await up(B, 'P2', 1, rev)];
+  const st = await w.cron();
+  ok('PH2 [第六輪] App 形狀的誠實錄程（130 km/h、t 取 floor 到秒、900 ms 節流、漏回呼、GPS 雜訊、站停回報 0、一成沒有速度）兩個方向都判 ok；' +
+    '場景有牙：Δt＝1 而位移超過 41.63 m 的相鄰兩點兩趟都有（第五輪版會判 impossible_physics）',
+    ups.every(x => x === 200) && q.verdicts(w, A, 'P2') === 'ok' && q.verdicts(w, B, 'P2') === 'ok' && st.suspect === 0 &&
+      miss1(fwd) > 0 && miss1(rev) > 0 && shape(fwd).nulls > 0 && shape(fwd).zeros > 0,
+    J({ ups: [...new Set(ups)], v: [q.verdicts(w, A, 'P2'), q.verdicts(w, B, 'P2')], rej: [q.rejects(w, A, 'P2'), q.rejects(w, B, 'P2')], st: { ok: st.ok, suspect: st.suspect, unusable: st.unusable },
+      fwd: shape(fwd), rev: shape(rev) }));
+});
+await attempt('PH3', async () => {
+  // 一秒兩點、每秒前進 82.26 m（台鐵上限×1.15＝41.63 的兩倍少 1：第五輪版逐對都貼著上限、判 ok）→ 判 suspect（impossible_physics）。兩個方向。
+  const A = 'dev-ph3-00000A', B = 'dev-ph3-00000B';
+  const w = world({ seed: boardSql('山線') });
+  const two = Array.from({ length: 482 }, (_, i) => ({ d: Math.round((100 + Math.floor(i / 2) * 82.26 + (i % 2) * 41.13) * 10) / 10, t: 30000 + Math.floor(i / 2), v: 30, acc: 5 }));
+  const r = [await submit(w, A, { trainNo: 'P3', samples: two }), await submit(w, B, { trainNo: 'P3', dir: 1, samples: two.map(p => ({ ...p, d: Math.round((20000 - p.d) * 10) / 10 })) })];
+  const st = await w.cron();
+  ok('PH3 [第六輪] 一秒兩點、每秒前進 82 m 的偽造軌跡（走上傳端點）：兩個方向都判 suspect（impossible_physics）——不給點、不推 sample_count',
+    r.every(x => x.status === 200) && [A, B].every(a => q.verdicts(w, a, 'P3') === 'suspect' && q.rejects(w, a, 'P3') === 'impossible_physics' && !(q.points(w, a) > 0)) &&
+      J(q.sampleCounts(w, '山線')) === J(Array(9).fill(0)) && st.suspect === 2,
+    J({ up: r.map(x => x.status), v: [A, B].map(a => q.verdicts(w, a, 'P3')), rej: [A, B].map(a => q.rejects(w, a, 'P3')), sc: q.sampleCounts(w, '山線'), suspect: st.suspect }));
+});
+
 // ═══ SK：合併時出錯記錄跟著改名（第四、五輪獨立驗收的殘留）═══════════════════════════════
 // 舊版合併只把樣本改名到帳號，出錯記錄的鍵（前綴＋actor|乘車日|車次）還掛在裝置上，下一發開頭的清掃就把它刪掉（那班車已經沒有裝置名下的 pending），
 // 出錯次數等於歸零。期望：裝置的每一把改名到帳號、值不變；帳號已有同一班的記錄時留次數大的那份；裝置名下一把不剩；壞值照搬、合併不丟錯；
@@ -2004,7 +2123,10 @@ await attempt('SK', async () => {
   const w = world({ seed: boardSql('山線') + pointsSql([[U, U, 0, null], [X, X, 0, null], [V, null, 0, X]]) +
     kv(STRIKE(D, 'K1'), '{"at":1,"error":"d1","n":2}') + kv(STRIKE(D, 'K3'), '{"at":1,"error":"d3","n":1}') + kv(STRIKE(D, 'K5'), '{"at":1,"error":"d5","n":3}') +
     kv(STRIKE(D, 'K6'), 'not-json') + kv(STRIKE(U, 'K3'), '{"at":2,"error":"u3","n":3}') + kv(STRIKE(U, 'K5'), '{"at":2,"error":"u5","n":1}') +
-    kv(STRIKE(U, 'K4'), '{"at":2,"error":"u4","n":1}') + kv(STRIKE(V, 'K1'), '{"at":3,"error":"v1","n":2}') + kv(STRIKE(V, 'K7'), '{"at":3,"error":"v7","n":1}'),
+    kv(STRIKE(U, 'K4'), '{"at":2,"error":"u4","n":1}') + kv(STRIKE(V, 'K1'), '{"at":3,"error":"v1","n":2}') + kv(STRIKE(V, 'K7'), '{"at":3,"error":"v7","n":1}') +
+    // 第六輪 S5：前綴相近的別的裝置（D 後面多一個字元：字母、底線、連字號——比「|」小，鍵範圍放寬一點就會被掃進去）；S6：撞同一班、次數相同（K8）
+    kv(STRIKE(D + 'A', 'K1'), '{"at":4,"error":"pa","n":1}') + kv(STRIKE(D + '_', 'K2'), '{"at":4,"error":"pu","n":1}') + kv(STRIKE(D + '-', 'K3'), '{"at":4,"error":"pm","n":1}') +
+    kv(STRIKE(D, 'K8'), '{"at":1,"error":"d8","n":2}') + kv(STRIKE(U, 'K8'), '{"at":2,"error":"u8","n":2}'),
     env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
   bulk(w.db, [...['K1', 'K3', 'K5', 'K6'].map(t => ({ actor: D, trainNo: t, pts: TINY })), ...['K3', 'K4', 'K5'].map(t => ({ actor: U, trainNo: t, pts: TINY })),
     { actor: V, trainNo: 'K1', pts: TINY }, { actor: V, trainNo: 'K7', pts: TINY }]);
@@ -2012,8 +2134,10 @@ await attempt('SK', async () => {
   const got = Object.fromEntries(strikes(w).map(r => [r.k, r.v]));
   const want = { [STRIKE(U, 'K1')]: '{"at":1,"error":"d1","n":2}', [STRIKE(U, 'K3')]: '{"at":2,"error":"u3","n":3}', [STRIKE(U, 'K4')]: '{"at":2,"error":"u4","n":1}',
     [STRIKE(U, 'K5')]: '{"at":1,"error":"d5","n":3}', [STRIKE(U, 'K6')]: 'not-json', [STRIKE(V, 'K1')]: '{"at":3,"error":"v1","n":2}',
-    [STRIKE(V, 'K7')]: '{"at":3,"error":"v7","n":1}' };
-  ok('SKa [第四、五輪 殘留] 裝置併進帳號：出錯記錄逐把改名到帳號、值不變；撞同一班留次數大的（K3 留帳號的 3、K5 留裝置的 3）；壞值照搬；裝置名下一把不剩',
+    [STRIKE(V, 'K7')]: '{"at":3,"error":"v7","n":1}', [STRIKE(D + 'A', 'K1')]: '{"at":4,"error":"pa","n":1}', [STRIKE(D + '_', 'K2')]: '{"at":4,"error":"pu","n":1}',
+    [STRIKE(D + '-', 'K3')]: '{"at":4,"error":"pm","n":1}', [STRIKE(U, 'K8')]: '{"at":2,"error":"u8","n":2}' };
+  ok('SKa [第四、五輪 殘留；第六輪 S5／S6] 裝置併進帳號：出錯記錄逐把改名到帳號、值不變；撞同一班留次數大的（K3 留帳號的 3、K5 留裝置的 3），次數相同留帳號那份（K8）；' +
+    '壞值照搬；裝置名下一把不剩；前綴相近的三個裝置（D 後面多一個 A、_、-）原地不動',
     m.status === 200 && J(Object.keys(got).sort()) === J(Object.keys(want).sort()) && Object.entries(want).every(([k, v]) => got[k] === v),
     J({ m: m.status, got }));
   const m2 = await merge(w, V, U);

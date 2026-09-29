@@ -1,6 +1,6 @@
 // dwell 結構洞迴歸：真實單位／真實 line metadata／正式匯出函式／本機假 D1。
 // 跑法：node scripts/verify_bounty_dwell.mjs
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { _bounty } from '../worker.js';
 import { openTestDb } from './d1_local.mjs';
 
@@ -218,6 +218,7 @@ const out = {
   stoppedE2e,
   passedE2e,
 };
+mkdirSync('scratchpad', { recursive: true });   // scratchpad/ 被 .gitignore 忽略，乾淨的 worktree 裡沒有（第六輪獨立驗收 D-1：寫檔丟 ENOENT、整支假紅）
 writeFileSync('scratchpad/bounty_dwell_e2e_fixed.json', JSON.stringify(out, null, 2) + '\n');
 const pass = R.filter(x => x.pass).length;
 console.log(`\n${pass}/${R.length} 通過`);

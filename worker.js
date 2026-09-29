@@ -6398,12 +6398,15 @@ async function bountyClaim(request, env) {
     // 一個匿名身分接一千次同一張卡，判定時那一句要讀回幾萬列（不算讀取量、子請求也擋不住）。
     // 判定本來就只用「最近的那一筆」（claimed_at 最晚＝expires_at 也最晚，見 bountyVerifyTrain 的認領那一句），刪掉較舊的不改變任何判定結果；
     // 每人每個單位最多留一筆開著的，一個人的認領列數上界就是題庫的單位數。同一個 batch＝同一筆交易，先刪再插。
-    // 「+seg_key」的一元加號是刻意的：這一句只能走 idx_claims_actor（這個人自己的，有上界），不能走 idx_claims_unit
-    // （那個單位上所有人的 open 認領、含早就過期的——匿名身分免費，人數沒有上界）。守門人：verify_bounty_hardening.mjs 的 CL2（查詢計畫）。
+    // 「INDEXED BY idx_claims_actor」是刻意的：這一句只能走 idx_claims_actor（這個人自己的，有上界），不能走 idx_claims_unit
+    // （那個單位上所有人的 open 認領、含早就過期的——匿名身分免費，人數沒有上界），也不能全表掃描。
+    // 不用一元加號（+seg_key）去勸規劃器：統計若是在「表被單一身分占滿」時算的（上線初期只有自己在測、有人跑了 PRAGMA optimize），
+    // 規劃器認定 actor 毫無選擇性，加號擋掉 idx_claims_unit 之後它改走全表掃描（第六輪獨立驗收 N6-1）；INDEXED BY 不看統計。
+    // 索引被刪或改名時這一句會直接報錯，不會默默退回掃描。守門人：verify_bounty_hardening.mjs 的 CL2c、CL4a（兩種統計形狀）。
     await env.DELAY_DB.batch([
       env.DELAY_DB.prepare(
-        "DELETE FROM bounty_claims WHERE actor=? AND status='open' AND train_kind=? AND dir=? AND kind=? AND slot=?" +
-        ' AND +seg_key IN (SELECT value FROM json_each(?))'
+        "DELETE FROM bounty_claims INDEXED BY idx_claims_actor WHERE actor=? AND status='open' AND train_kind=? AND dir=? AND kind=? AND slot=?" +
+        ' AND seg_key IN (SELECT value FROM json_each(?))'
       ).bind(actor, trainKind, dir, kind, slot, JSON.stringify(units.map(u => u.seg_key))),
       ...units.map((u, i) =>
         stmt.bind(`${claimId}|${i}`, actor, u.seg_key, trainKind, dir, kind, slot, Number(u.points) || 0, now, expires))]);
@@ -6708,15 +6711,16 @@ async function bountyMerge(request, env) {
     // ④⑤ 樣本與認領也一起改名，否則 /api/bounty-me 查 uid 會看不到登入前的貢獻。
     // 🔴 與 v2 四張表同一個守衛 G：舊版這兩句沒有守衛，來源併進別人（或根本是別人的帳號）時，樣本與認領照樣被搬走。
     add('samples', db.prepare('UPDATE bounty_samples SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
-    add('claims', db.prepare('UPDATE bounty_claims  SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
+    // 認領的改名與下面的去重都寫 INDEXED BY idx_claims_actor：理由同認領端點（bountyClaim）那一句，統計偏斜時不能改走全表掃描（第六輪 N6-1）。
+    add('claims', db.prepare('UPDATE bounty_claims INDEXED BY idx_claims_actor SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
     // ⑤a 認領改名之後，uid 名下同一個單位可能有兩筆以上開著的（裝置與帳號各接過同一張卡、或好幾個裝置併進同一個帳號）：只留最近的一筆，
     // 與認領端點的去重同一條（見 bountyClaim）。不留的話，「很多個裝置各自接滿、再一個一個併進同一個帳號」就繞過端點的上界，
     // 判定那一句在 D1 端要掃的列數又變成外部放大得了的量（第五輪獨立驗收 新洞① 的合併路徑）。判定只用最近的那一筆，刪掉較舊的不改變判定結果。
     // 分組比判定那一句多一個 train_kind（端點是按車種去重的）：每一組最近的那筆一定也是判定那一句的第一筆。同一個守衛 G。
     add('claimsDedupe', db.prepare(
-      "DELETE FROM bounty_claims WHERE actor=? AND status='open' AND id IN (SELECT id FROM (SELECT id, ROW_NUMBER() OVER" +
+      "DELETE FROM bounty_claims INDEXED BY idx_claims_actor WHERE actor=? AND status='open' AND id IN (SELECT id FROM (SELECT id, ROW_NUMBER() OVER" +
       ' (PARTITION BY seg_key,train_kind,dir,kind,slot ORDER BY claimed_at DESC,id DESC) AS rn' +
-      " FROM bounty_claims WHERE actor=? AND status='open') WHERE rn>1)" + G
+      " FROM bounty_claims INDEXED BY idx_claims_actor WHERE actor=? AND status='open') WHERE rn>1)" + G
     ).bind(uid, uid, dev, uid));
     // ⑤b 判定的出錯記錄（kv_blobs，鍵＝前綴＋actor|乘車日|車次）跟著樣本改名到 uid（第四、五輪獨立驗收的殘留）：
     // 不搬的話，裝置那一把在下一發開頭被清掃（那班車的樣本已經掛在 uid 名下），出錯次數等於歸零，壞車多拿一輪正常的優先權。
@@ -7513,31 +7517,31 @@ function integrityGate(trip, ctx, rules) {
   if (td < addDays(upDay, -R.tripDateMaxAgeDays)) return { pass: false, code: 'stale_date' };
   const pts = trip.pts;
   if (pts.length < 2) return { pass: true, code: null };        // 太短交給品質閘判 too_short
-  // 第三重：物理可能——里程單調（同方向）、加速度上限、速度上限依系統
+  // 第三重：物理可能——往前不能快過速度上限、不能往後退、加速度上限；速度上限依系統。
   // 查表鍵是系統家族（TRA/THSR/metro），trip.sys 是 SYS_DEFS 的 id（tra_sched/…），要先過桶對照。
   // 直接拿 trip.sys 查會恆常 undefined 落到 default(36.2m/s=130km/h)，高鐵 300km/h 每趟都被判
   // impossible_physics；台鐵剛好卡在 130 邊界，GPS 抖動就誤判。
   const cap = R.speedCapMps[BOUNTY_SYS_BUCKET[trip.sys]] || R.speedCapMps.default;
-  // 🔴 同一秒的點（dt＝0）不能跳過（第五輪獨立驗收）：上傳端把 t 取整到秒、assembleTrip 依 t 排序，所以 dt 只會是 0 或正整數。
-  // 舊版 dt≤0 直接 continue，「所有點同一個 t」的錄程完全不受這一重檢查——整條線各站間放兩點、全部同一秒，判 ok、全線覆蓋。
-  // 同一秒裡的點跟「這一秒的第一個點」比，當成間隔 1 秒看：往前不能超過一秒的速度上限（同樣 15% 容差）、往後不能超過 50 m
-  // （同樣的 GPS 抖動容差）。跟前一個點比不夠：同一秒裡密密排的點，兩兩只差幾十公尺，加起來卻是一整條線。
-  // 誠實的錄程同一秒裡的點真實間隔不到 1 秒，位移比 1 秒的上限小；加速度這一項在同一秒裡不算（dt＝0 沒有意義）。
-  let secStart = pts[0];
-  for (let i = 1; i < pts.length; i++) {
-    const dt = pts[i].t - pts[i - 1].t, dd = pts[i].d - pts[i - 1].d;
-    if (dt <= 0) {
-      const fs = (Number(trip.dir) === 1 ? -1 : 1) * (pts[i].d - secStart.d);
-      if (fs < -50 || fs > cap * 1.15) return { pass: false, code: 'impossible_physics' };
-      continue;
-    }
-    secStart = pts[i];
-    const forwardDd = Number(trip.dir) === 1 ? -dd : dd;
-    if (forwardDd < -50) return { pass: false, code: 'impossible_physics' };     // 50m 容差吸收 GPS 抖動
-    const v = forwardDd / dt;
-    if (v > cap * 1.15) return { pass: false, code: 'impossible_physics' };      // 15% 容差吸收投影誤差
-    const dv = (Number(pts[i].v) || v) - (Number(pts[i - 1].v) || v);
-    if (Math.abs(dv / dt) > R.maxAccelMps2 * 3) return { pass: false, code: 'impossible_physics' };
+  // 🔴 t 是取整到秒的時刻（App 取 floor、上傳端再四捨五入），兩點的真實間隔只知道落在 (Δt−1, Δt+1) 秒之內，
+  // 所以往前的上界寫成「上限 ×（Δt＋1）」，不是「上限 × Δt」（第六輪獨立驗收）：App 以 900 ms 節流，漏掉一次定位回呼時
+  // Δt＝1 的一對點真實間隔可達約 1.9 秒，舊版拿 Δt 當分母，時速 79 km/h 以上就必判 impossible_physics（台鐵自強、高鐵的主要速度帶）；
+  // 1 Hz 在上限附近再加一點 GPS 雜訊也幾乎必紅。同一秒的點（Δt＝0）同一條：上限 × 1 秒。
+  // 🔴 比的是「任兩點」，不只相鄰兩點（第五、六輪）：只比相鄰的話，一秒塞兩個點、每一對都貼著上限，就能以兩倍多的上限前進；
+  // 任兩點都比，長時間的平均速度就釘在上限以內。做法是 O(n)：令 g＝往前里程 − 上限×t，
+  // 「每個較早的點 i 都滿足 往前(j) − 往前(i) ≤ 上限×(t_j − t_i + 1) ＋ 容差」等價於「g_j ≤ 較早各點 g 的最小值 ＋ 上限 ＋ 容差」，一路記最小值即可。
+  // 容差：上限多 15%（投影誤差），另加 50 m（GPS 抖動；往後退的容差同一個 50 m，只比相鄰兩點）。
+  // 🔴 加速度只在兩點都有都卜勒速度（v＞0）時才算（第六輪）：上傳端把「沒有速度」存成 0（Number(null)＝0），舊版又把 0 當缺值、
+  // 換成兩點的位置微分——位置微分在取整到秒的 t 上雜訊極大，站停起步時 GPS 飄幾公尺就判 impossible_physics；一邊有一邊沒有同理。上界同樣用 Δt＋1。
+  const sgn = Number(trip.dir) === 1 ? -1 : 1, lim = cap * 1.15, TOL = 50, aMax = R.maxAccelMps2 * 3;
+  let gMin = Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    const f = sgn * pts[i].d, g = f - lim * pts[i].t;
+    if (g > gMin + lim + TOL) return { pass: false, code: 'impossible_physics' };
+    if (g < gMin) gMin = g;
+    if (!i) continue;
+    if (f - sgn * pts[i - 1].d < -TOL) return { pass: false, code: 'impossible_physics' };
+    const v0 = Number(pts[i - 1].v), v1 = Number(pts[i].v);
+    if (v0 > 0 && v1 > 0 && Math.abs(v1 - v0) > aMax * (pts[i].t - pts[i - 1].t + 1)) return { pass: false, code: 'impossible_physics' };
   }
   // 第四重：都卜勒一致性。coords.speed 是都卜勒量測不是位置微分，真實資料兩者會有適度差異；
   // spoof 工具產出的兩者過度一致。相關係數高到接近 1 才判——這一重刻意只抓最粗糙的偽造。
@@ -8185,9 +8189,6 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   const WHO_SQL = BOUNTY_WHO_SQL;
   const IN_UNITS = "(seg_key, train_kind, dir, kind, slot) IN (SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]')," +
     " json_extract(value, '$[2]'), json_extract(value, '$[3]'), json_extract(value, '$[4]') FROM json_each(?))";
-  // 關認領那一句用的版本：第一欄寫成 +seg_key，讓它只能走 idx_claims_actor（這個人自己的、有上界），理由同判定時讀認領那一句的「+seg_key」。
-  // bounty_board 的兩句照舊用 IN_UNITS（那裡要的就是單位的索引）。
-  const IN_MY_UNITS = IN_UNITS.replace('(seg_key, train_kind', '(+seg_key, train_kind');
   // 🔴 租約圍欄（review-B 獨立驗收 N3）：③ 的每一句都帶「租約還是這一發的」這個條件（綁 BOUNTY_VERIFY_LEASE_KEY 與這一發的租約值）。
   // 租約比平台給一發的牆鐘上限長，正常不會有兩發同時寫；萬一這一發跑超過租約、被下一發接手，它之後的 batch 整組不動任何列
   // （同一筆交易裡每一句看到同一個租約值），那一組留 pending 給接手的那一發——點數與 sample_count 不會加兩次，標記也不會搶先把列標走。
@@ -8224,23 +8225,21 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     const claimAt = Date.parse(trip.tripDate + 'T00:00:00Z');
     const locks = new Map();
     if (cov.length) {
-      // 🔴 「+expires_at」的一元加號是刻意的，讓這個條件不能拿去走 idx_claims_expiry（status, expires_at）：
-      // 表沒有統計資料時（D1 文件要使用者建索引後自己跑 PRAGMA optimize；沒跑就沒有統計），SQLite 會挑 idx_claims_expiry ＝ 掃全站所有還沒過期的 open 認領、再逐列比對 actor
-      // （9,000 列的實測比走 idx_claims_actor 慢約 15 倍，而且隨全站認領數線性長）；加號之後走 idx_claims_actor（actor, status），只讀這個人自己的。
-      // 語意不變：expires_at 是整數欄位、claimAt 是整數毫秒，一元加號只是不讓它參與索引選擇。守門人：verify_bounty_cron2.mjs 的 K1e（查詢計畫）。
+      // 🔴 「INDEXED BY idx_claims_actor」是刻意的：這一句只讀這個人自己的認領（actor, status），不看表的統計。三種統計狀態都有過實例：
+      // 沒有統計時（D1 文件要使用者建索引後自己跑 PRAGMA optimize；沒跑就沒有統計），SQLite 會挑 idx_claims_expiry ＝ 掃全站所有還沒過期的 open 認領、
+      // 再逐列比對 actor（9,000 列的實測比走 idx_claims_actor 慢約 15 倍，而且隨全站認領數線性長）；統計是「每個人的認領多、每個單位的認領少」時
+      // （早期少數重度使用者），它改走 idx_claims_unit（seg_key…）＝讀這些段上「所有人」的認領；統計是在「表被單一身分占滿」時算的
+      // （上線初期只有自己在測），它認定 actor 毫無選擇性、改走全表掃描（第六輪獨立驗收 N6-1）。匿名身分免費、過期沒關的認領又從來不清，
+      // 後兩種的量外部放大得了，統計也不會自己更新。舊版用一元加號（+expires_at、+seg_key）擋前兩種，擋不住第三種。
       // 🔴 每個單位只送回最近的一筆（ROW_NUMBER，第五輪獨立驗收 新洞①）：舊版整包送回再在 JS 取第一筆，而一個人有幾筆開著的認領是
       // 上傳者決定的（舊版同一張卡接一千次＝幾萬列）——讀進 Worker 卻不算讀取量、子請求也擋不住，unusable 的車又不關認領，每一班都再讀一次。
-      // 現在送回的列數≤這一組覆蓋段的單位數；排序同舊版（claimed_at DESC, id DESC 的第一筆）。認領端點另外去重（bountyClaim）。
-      // 🔴 「+seg_key」同理，防的是有統計資料的時候：沒有統計時 SQLite 挑 idx_claims_actor；表一旦有統計（有人照 D1 文件跑了 PRAGMA optimize），
-      // 而統計當下「每個人的認領多、每個單位的認領少」（例如早期少數重度使用者），它會改走 idx_claims_unit（seg_key…）＝讀這些段上「所有人」的認領、
-      // 再逐列比 actor——匿名身分免費、過期沒關的認領又從來不清，那個量外部放大得了，統計也不會自己更新。加號之後只剩 idx_claims_actor 可走。
-      // 語意不變（seg_key 是 TEXT、json_each 的值也是 TEXT，一元加號只拿掉欄位的 affinity）。關認領那一句同樣處理（IN_MY_UNITS）。
-      // 守門人：verify_bounty_hardening.mjs 的 CL4（造一份偏斜的統計再看查詢計畫）。
+      // 現在送回的列數≤這一組覆蓋段的單位數；排序同舊版（claimed_at DESC, id DESC 的第一筆）。認領端點另外去重（bountyClaim）。關認領那一句同樣寫 INDEXED BY。
+      // 守門人：verify_bounty_cron2.mjs 的 K1e（沒有統計）、verify_bounty_hardening.mjs 的 CL4（兩種偏斜的統計）。
       const cr = await env.DELAY_DB.prepare(
         'SELECT seg_key,dir,kind,slot,train_kind,points_locked FROM (SELECT seg_key,dir,kind,slot,train_kind,points_locked,' +
         ' ROW_NUMBER() OVER (PARTITION BY seg_key,dir,kind,slot ORDER BY claimed_at DESC,id DESC) AS rn' +
-        ' FROM bounty_claims WHERE actor=' + WHO_SQL +
-        " AND status='open' AND +expires_at>=? AND +seg_key IN (SELECT value FROM json_each(?))) WHERE rn=1"
+        ' FROM bounty_claims INDEXED BY idx_claims_actor WHERE actor=' + WHO_SQL +
+        " AND status='open' AND expires_at>=? AND seg_key IN (SELECT value FROM json_each(?))) WHERE rn=1"
       ).bind(who, who, claimAt, JSON.stringify([...new Set(cov.map(c => c.key))])).all();
       keepFirst(locks, cr.results);
     }
@@ -8298,7 +8297,7 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
         ' covered_at = CASE WHEN sample_count + 1 >= ? THEN COALESCE(covered_at, ?) ELSE covered_at END WHERE ' + IN_UNITS + HELD + MARKED
       ).bind(need, now, JSON.stringify(list), BOUNTY_VERIFY_LEASE_KEY, lease, ...M));
       if (units.size) writes.push(env.DELAY_DB.prepare(
-        "UPDATE bounty_claims SET status='fulfilled' WHERE actor=" + WHO_SQL + " AND status='open' AND " + IN_MY_UNITS + HELD + MARKED
+        "UPDATE bounty_claims INDEXED BY idx_claims_actor SET status='fulfilled' WHERE actor=" + WHO_SQL + " AND status='open' AND " + IN_UNITS + HELD + MARKED
       ).bind(who, who, JSON.stringify([...units.values()]), BOUNTY_VERIFY_LEASE_KEY, lease, ...M));
     }
     if (marked(await env.DELAY_DB.batch(writes))) { stat.trips++; stat[v.verdict]++; judged++; }

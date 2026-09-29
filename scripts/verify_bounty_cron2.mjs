@@ -99,7 +99,7 @@ function stopGo({ d0 = 0, d1, stops = [], cruise = 10, t0 = 30000 }) {
   };
   for (const c of stops) {
     // 巡航到站前 105 m：把剩下的距離平均分給整數個步（速度微幅低於 cruise），不用「最後補一小步」——
-    // 補的那一小步會讓回報速度在 1 秒內掉 5 m/s 以上，超過加速度上限 1.3×3（防偽閘 impossible_physics）
+    // 補的那一小步會讓回報速度在 1 秒內掉 5 m/s 以上——第九批之前的加速度上限（1.3×3，每秒）會判 impossible_physics；現在的上限是 1.3×3×(Δt＋1)，形狀沿用
     const dist = c - 105 - d;
     if (dist > 0) { const k = Math.max(1, Math.ceil(dist / cruise)); for (let i = 0; i < k; i++) push(dist / k); }
     for (let j = 1; j <= 20; j++) push(cruise - (cruise - 0.5) * j / 20);
@@ -799,10 +799,10 @@ await attempt('K1', async () => {
     prior: sqlOf(/FROM bounty_samples s LEFT JOIN json_each\(/),          // 前次線組（獨立驗收 C4 之後在 SQL 裡依線彙總，樣本表別名 s）
     mark: sqlOf(/^UPDATE bounty_samples SET verdict=\?/),
     points: sqlOf(/^INSERT INTO bounty_points \(actor,uid,points,merged_into,updated_at\) SELECT/),
-    claims: sqlOf(/FROM bounty_claims WHERE actor=COALESCE\(.*status='open'.*json_each/),
+    claims: sqlOf(/FROM bounty_claims (?:INDEXED BY idx_claims_actor )?WHERE actor=COALESCE\(.*status='open'.*json_each/),
     board: sqlOf(/FROM bounty_board WHERE seg_key IN \(SELECT value FROM json_each/),
     count: sqlOf(/^UPDATE bounty_board SET sample_count = sample_count \+ 1 WHERE \(seg_key, train_kind, dir, kind, slot\) IN/),
-    close: sqlOf(/^UPDATE bounty_claims SET status='fulfilled' WHERE actor=COALESCE/),
+    close: sqlOf(/^UPDATE bounty_claims (?:INDEXED BY idx_claims_actor )?SET status='fulfilled' WHERE actor=COALESCE/),
   };
   const plans = Object.fromEntries(Object.entries(P).map(([k, v]) => [k, v.length === 1 ? planOf(v[0]) : `（抓到 ${v.length} 句，應該剛好 1 句）`]));
   ok('K1e [S13a 查詢計畫] 認領那句（讀與關）走 idx_claims_actor（actor, status 兩欄），不走 idx_claims_expiry（全站掃）；板價那句走主鍵（每個段鍵一次點查）；sample_count 那句吃滿主鍵五欄',
