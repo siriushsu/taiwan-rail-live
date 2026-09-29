@@ -98,7 +98,7 @@ for (const [sys, ops] of Object.entries(lineSources)) {
 Object.assign(out.routes.krtc ||= {}, {
   '紅線': { en: 'Red Line', ja: '赤線' },
   '橘線': { en: 'Orange Line', ja: 'オレンジ線' },
-  '環狀輕軌': { en: 'Circular Light Rail', ja: 'ライトレール' },
+  '環狀輕軌': { en: 'Circular Light Rail', ja: 'ライトレール環状線' },
 });
 addRoute('sanying', '三鶯線', 'Sanying Line', '三鶯線');
 addRoute('thsr_sched', '高鐵', 'Taiwan High Speed Rail', '台湾高速鉄道');

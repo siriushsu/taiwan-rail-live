@@ -57,7 +57,7 @@ const SYSTEMS = [
     title: N('台中捷運路線圖：綠線車站與營運時間｜軌島', 'Taichung MRT Map: Green Line Stations & Operating Hours | Rail Island', '台中MRT 路線図｜緑線の駅と運行時間｜軌島'),
     panels: [['TG']] },
   { id: 'kaohsiung', name: N('高雄捷運', 'Kaohsiung MRT', '高雄MRT'),
-    title: N('高雄捷運路線圖：紅線、橘線與環狀輕軌｜軌島', 'Kaohsiung MRT Map: Red Line, Orange Line & Circular Light Rail | Rail Island', '高雄MRT 路線図｜赤線・オレンジ線・環状ライトレール｜軌島'),
+    title: N('高雄捷運路線圖：紅線、橘線與環狀輕軌｜軌島', 'Kaohsiung MRT Map: Red Line, Orange Line & Circular Light Rail | Rail Island', '高雄MRT 路線図｜赤線・オレンジ線・ライトレール環状線｜軌島'),
     panels: [['KR', 'KO', 'C']] },
 ];
 
@@ -75,7 +75,7 @@ const LINE_PAGES = [
   { sys: 'taichung', slug: 'green', lines: ['TG'], name: N('綠線', 'Green Line', '緑線'), alias: N('烏日文心北屯線', 'Wuriwenxin Beitun Line', '烏日文心北屯線') },
   { sys: 'kaohsiung', slug: 'red', lines: ['KR'], name: N('紅線', 'Red Line', '赤線') },
   { sys: 'kaohsiung', slug: 'orange', lines: ['KO'], name: N('橘線', 'Orange Line', 'オレンジ線') },
-  { sys: 'kaohsiung', slug: 'circular-lrt', lines: ['C'], name: N('環狀輕軌', 'Circular Light Rail', '環状ライトレール') },
+  { sys: 'kaohsiung', slug: 'circular-lrt', lines: ['C'], name: N('環狀輕軌', 'Circular Light Rail', 'ライトレール環状線') },
 ];
 
 // 獨立短資料線（attached）與單獨資料線在圖例上的名稱（顏色不同才需要各自一格）
@@ -919,7 +919,7 @@ function runNote(lang, page) {
     return pick(lang,
       '高雄環狀輕軌有官方逐車 GPS 可用時，軌島用它校正各車位置；定位中斷時退回到站看板，列車仍依時刻表在地圖上跑。',
       'When the official per-train GPS of the Kaohsiung Circular Light Rail is available, Rail Island uses it to correct each train\'s position; when positioning drops out it falls back to the arrival boards, and trains keep running on the timetable on the map.',
-      '高雄環状ライトレールは、公式の列車ごとの GPS が使えるときはそれで各列車の位置を補正し、位置が取れないときは到着案内に戻ります。列車は時刻表どおりに地図上を走ります。');
+      '高雄のライトレール環状線では、公式の列車ごとの GPS が使えるときはその情報で各列車の位置を補正します。位置情報が途切れたときは駅の到着案内に戻りますが、列車は引き続き時刻表どおりに地図上を走ります。');
   }
   return pick(lang,
     '沒有逐車 GPS 的部分，列車依時刻表在地圖上跑；有官方到站倒數或列車動態時，軌島會用它校正畫面。',

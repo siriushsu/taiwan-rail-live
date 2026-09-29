@@ -156,11 +156,11 @@
     '（其他系統部分路線為班距推算）': ' (some routes on other systems are estimated from headways)',
     '中和新蘆線': 'Zhonghe–Xinlu Line',
     '新北捷運': 'New Taipei Metro', '桃園捷運': 'Taoyuan Metro',
-    '台北捷運、桃園機捷、新北捷運（環狀・淡海・安坑・三鶯）、台中捷運與高雄捷運（含輕軌）同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線與台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。': 'Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung metro and light-rail systems run together, with service hours corrected by official live information. All nine Taipei Metro lines take train positions and station countdowns from official per-train live data; Sanying and Taichung are estimated from headways. Choose systems above to show them together.',
+    '台北捷運、桃園機捷、新北捷運（環狀・淡海・安坑・三鶯）、台中捷運與高雄捷運（含輕軌）同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線與台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。': 'Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung metro and light-rail systems run together, with service hours corrected by official live information. On all nine Taipei Metro lines, train positions and station countdowns come from official per-train live data; the Sanying Line and Taichung Metro use headway-based estimates. Choose systems above to show them together.',
     '台鐵、高鐵與阿里山林鐵皆依真實時刻表運行（台鐵回到現在時刻自動套用即時誤點；林鐵依官方公告時刻表，無即時資訊）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。': 'TRA, high-speed rail and Alishan Forest Railway trains follow official timetables. TRA live delays apply at the current time; Alishan has no live data. Tap trains or stations, or open Highlights.',
-    '台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線為班距推算）— 可在上方勾選要同時顯示的系統，拖曳、縮放地圖看看。': 'Taipei, New Taipei and Taoyuan metro systems run together, with service hours corrected by official live information. All nine Taipei Metro lines take train positions and station countdowns from official per-train live data; Sanying is estimated from headways. Choose systems above, then drag or zoom the map.',
+    '台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線為班距推算）— 可在上方勾選要同時顯示的系統，拖曳、縮放地圖看看。': 'Taipei, New Taipei and Taoyuan metro systems run together, with service hours corrected by official live information. On all nine Taipei Metro lines, train positions and station countdowns come from official per-train live data; the Sanying Line uses headway-based estimates. Choose systems above, then drag or zoom the map.',
     '台中捷運與高雄捷運同框，高捷與輕軌營運時段依官方到站看板校正（台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。': 'Taichung and Kaohsiung metro systems run together. Kaohsiung Metro and light rail use official arrival-board corrections; Taichung is estimated from headways.',
-    '各線列車在城市裡穿梭，列車位置與車站倒數都是官方逐班即時（含文湖線、環狀線）— 拖曳、縮放看看。': 'On every line, including the Wenhu and Circular lines, train positions and station countdowns come from official per-train live data.',
+    '各線列車在城市裡穿梭，列車位置與車站倒數都是官方逐班即時（含文湖線、環狀線）— 拖曳、縮放看看。': 'Trains on every line run across the city, and their positions and station countdowns come from official per-train live data, Wenhu and Circular lines included. Drag or zoom the map to take a look.',
     '三鶯線串起土城、三峽與鶯歌（2026-06-30 通車，8/31 前為免費試營運，8/16 起每日 06:00–24:00 行駛，此時段外看不到車；無公開逐班時刻，班次依官方班距推算）— 拖曳、縮放看看。': 'The Sanying Line links Tucheng, Sanxia and Yingge. During the free trial through 31 August, service runs daily from 06:00 to 24:00; no per-train timetable is public, so trains are estimated from official headways.',
     '跟隨鎖定中：地圖固定列車置中——點擊或直接拖曳地圖解鎖，可自由瀏覽': 'Following locked: the map keeps the train centred. Tap or drag the map to unlock and browse freely.',
     '自由瀏覽中：點擊回到列車，恢復置中跟隨': 'Browsing freely: tap to return to the train and resume centred following.',
@@ -429,11 +429,11 @@
     '（其他系統部分路線為班距推算）': '（他事業者の一部路線は運転間隔から推定）',
     '中和新蘆線': '中和新蘆線',
     '新北捷運': '新北メトロ', '桃園捷運': '桃園メトロ',
-    '台北捷運、桃園機捷、新北捷運（環狀・淡海・安坑・三鶯）、台中捷運與高雄捷運（含輕軌）同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線與台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。': '台北・桃園・新北・台中・高雄のメトロとライトレールを同時表示し、運行時間帯は公式のリアルタイム情報で補正します。台北メトロ全9路線は列車位置も駅の到着秒数も公式のリアルタイム情報です。三鶯線・台中メトロは運転間隔から推定します。上部で同時に表示する交通機関を選べます。',
+    '台北捷運、桃園機捷、新北捷運（環狀・淡海・安坑・三鶯）、台中捷運與高雄捷運（含輕軌）同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線與台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。': '台北・桃園・新北・台中・高雄のメトロとライトレールを同時表示し、運行時間帯は公式のリアルタイム情報で補正します。台北メトロ全9路線は列車位置も駅のカウントダウンも公式の列車ごとのリアルタイム情報です。三鶯線・台中メトロは運転間隔から推定します。上部で同時に表示する交通機関を選べます。',
     '台鐵、高鐵與阿里山林鐵皆依真實時刻表運行（台鐵回到現在時刻自動套用即時誤點；林鐵依官方公告時刻表，無即時資訊）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。': '台湾鉄路・高速鉄道・阿里山森林鉄道は公式時刻表で運行します。現在時刻では台湾鉄路の遅延を反映し、阿里山森林鉄道にはリアルタイム情報がありません。列車や駅をタップするか、「選」で今日の見どころを表示できます。',
-    '台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線為班距推算）— 可在上方勾選要同時顯示的系統，拖曳、縮放地圖看看。': '台北・新北・桃園のメトロを同時表示し、運行時間帯は公式のリアルタイム情報で補正します。台北メトロ全9路線は列車位置も駅の到着秒数も公式のリアルタイム情報です。三鶯線は運転間隔から推定します。上部で表示する交通機関を選び、地図をドラッグ・ズームできます。',
+    '台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線為班距推算）— 可在上方勾選要同時顯示的系統，拖曳、縮放地圖看看。': '台北・新北・桃園のメトロを同時表示し、運行時間帯は公式のリアルタイム情報で補正します。台北メトロ全9路線は列車位置も駅のカウントダウンも公式の列車ごとのリアルタイム情報です。三鶯線は運転間隔から推定します。上部で表示する交通機関を選び、地図をドラッグ・ズームできます。',
     '台中捷運與高雄捷運同框，高捷與輕軌營運時段依官方到站看板校正（台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。': '台中メトロと高雄メトロを同時表示します。高雄メトロとライトレールは公式到着案内で補正し、台中メトロは運転間隔から推定します。',
-    '各線列車在城市裡穿梭，列車位置與車站倒數都是官方逐班即時（含文湖線、環狀線）— 拖曳、縮放看看。': '文湖線・環状線を含む全路線で、列車位置も駅の到着秒数も公式のリアルタイム情報です。',
+    '各線列車在城市裡穿梭，列車位置與車站倒數都是官方逐班即時（含文湖線、環狀線）— 拖曳、縮放看看。': '各線の列車が街を行き交います。列車位置も駅のカウントダウンも、文湖線・環状線を含め公式の列車ごとのリアルタイム情報です。地図をドラッグ・ズームしてみてください。',
     '三鶯線串起土城、三峽與鶯歌（2026-06-30 通車，8/31 前為免費試營運，8/16 起每日 06:00–24:00 行駛，此時段外看不到車；無公開逐班時刻，班次依官方班距推算）— 拖曳、縮放看看。': '三鶯線は土城・三峡・鶯歌を結びます。8月31日までの無料試運転期間は毎日06:00〜24:00に運行し、列車ごとの公開時刻表がないため公式運転間隔から推定します。',
     '跟隨鎖定中：地圖固定列車置中——點擊或直接拖曳地圖解鎖，可自由瀏覽': '追跡ロック中：列車を中央に固定します。タップまたはドラッグで解除し、自由に閲覧できます。',
     '自由瀏覽中：點擊回到列車，恢復置中跟隨': '自由閲覧中：タップすると列車へ戻り、中央追跡を再開します。',
@@ -3510,10 +3510,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '新增捷運路線圖頁（中、英、日文）：台北、桃園機場、新北、台中、高雄各系統與每條路線的路線圖、車站與轉乘、首末班車和班距，資料來源沒有逐班時刻表的路線只列營運時段與班距；頁面可一鍵在地圖上看列車，頁尾與手機版「更多」新增「捷運路線圖」入口': '台北・桃園空港・新北・台中・高雄の各システムと各路線について、路線図、駅と乗り換え、始発・終電、運転間隔をまとめたページを中国語・英語・日本語で追加しました（データソースに列車ごとの時刻表がない路線は運行時間帯と運転間隔のみ掲載）。各ページのボタンからライブ地図の列車を開けます。ページ下部とスマートフォン版の「その他」にも「メトロ路線図」へのリンクを追加しました。',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '日文版的高雄環狀輕軌改用高雄捷運官方日文路線名「ライトレール環状線」': 'The Japanese version now uses Kaohsiung MRT’s official Japanese line name for the Circular Light Rail.',
   '捷運導言更正：「北北桃」與台北捷運的地圖導言，也改成台北捷運各線（含文湖線）的列車位置與車站倒數都來自官方逐班即時資料，不再把文湖線寫成班距推算': 'Metro intro corrected: the Greater Taipei & Taoyuan and Taipei Metro map intros now also say that train positions and station countdowns on every Taipei Metro line, including the Wenhu Line, come from official per-train live data, and no longer describe the Wenhu Line as estimated from headways.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  '捷運導言更正：「北北桃」與台北捷運的地圖導言，也改成台北捷運各線（含文湖線）的列車位置與車站倒數都來自官方逐班即時資料，不再把文湖線寫成班距推算': 'メトロの説明文を訂正：「台北・新北・桃園」と台北メトロの地図の説明文でも、文湖線を含む台北メトロ全路線の列車位置と駅の到着秒数は公式のリアルタイム情報と記載し、文湖線を運転間隔からの推定とは書かないようにしました。',
+  '日文版的高雄環狀輕軌改用高雄捷運官方日文路線名「ライトレール環状線」': '日本語版で、高雄のライトレールの路線名を高雄MRT公式の「ライトレール環状線」に改めました。',
+  '捷運導言更正：「北北桃」與台北捷運的地圖導言，也改成台北捷運各線（含文湖線）的列車位置與車站倒數都來自官方逐班即時資料，不再把文湖線寫成班距推算': 'メトロの説明文を訂正：「台北・新北・桃園」と台北メトロの地図の説明文でも、文湖線を含む台北メトロ全路線の列車位置と駅のカウントダウンは公式の列車ごとのリアルタイム情報と記載し、文湖線を運転間隔からの推定とは書かないようにしました。',
 });
 
 // 2026-09-29 台南地面鐵道歷史重播：舊站房與列車真實比例重建、施工外罩開關、放大到 34 公尺。
