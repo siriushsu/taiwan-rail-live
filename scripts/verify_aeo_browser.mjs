@@ -400,6 +400,28 @@ try {
             if (!metroRoot.url().endsWith('/metro/')) failures.push(`${engineName} ${width}px 「捷運路線圖」入口觸控未成功`);
           }
           await metroRoot.close();
+          // 英日介面：兩處入口改指同語言版；另開 context，免得 ?lang= 記進 localStorage 影響後面的中文檢查
+          if (width === widths[0]) {
+            const langCtx = await browser.newContext({ viewport: { width, height: 900 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+            try {
+              for (const [lang, want] of [['en', 'en/metro/'], ['ja', 'ja/metro/']]) {
+                const langPage = await langCtx.newPage();
+                await langPage.goto(`${base}/?lang=${lang}`, { waitUntil: 'domcontentloaded' });
+                await waitAppReady(langPage);
+                const hrefs = await langPage.evaluate(() => [...document.querySelectorAll('a[data-metro-link]')].map(a => a.getAttribute('href')));
+                if (hrefs.length !== 2 || hrefs.some(h => h !== want)) failures.push(`${engineName} ${lang} 介面的「捷運路線圖」入口沒有指到 ${want}：${JSON.stringify(hrefs)}`);
+                else if (lang === 'en') {
+                  await langPage.locator('#tabMore').tap();
+                  const link = langPage.locator('.ms-aeo-links a[data-metro-link]');
+                  await link.scrollIntoViewIfNeeded();
+                  await link.tap();
+                  await langPage.waitForURL('**/en/metro/');
+                  if (!langPage.url().endsWith('/en/metro/')) failures.push(`${engineName} 英文介面「Metro maps」入口觸控未到 /en/metro/`);
+                }
+                await langPage.close();
+              }
+            } finally { await langCtx.close(); }
+          }
           for (const pathname of paths) {
             const page = await mobile.newPage();
             const response = await page.goto(`${base}${pathname}`, { waitUntil: 'load' });

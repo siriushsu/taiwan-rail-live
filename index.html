@@ -6022,7 +6022,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
-        <li data-cl="metropages0929"><span class="d">9/29</span><span>新增捷運路線圖頁（中、英、日文）：台北、桃園機場、新北、台中、高雄各系統與每條路線的路線圖、車站與轉乘、首末班車和班距，沒有公開逐班時刻表的路線只列營運時段；頁面可一鍵在地圖上看列車，頁尾新增「捷運路線圖」入口</span></li>
+        <li data-cl="metropages0929"><span class="d">9/29</span><span>新增捷運路線圖頁（中、英、日文）：台北、桃園機場、新北、台中、高雄各系統與每條路線的路線圖、車站與轉乘、首末班車和班距，資料來源沒有逐班時刻表的路線只列營運時段與班距；頁面可一鍵在地圖上看列車，頁尾與手機版「更多」新增「捷運路線圖」入口</span></li>
         <li data-cl="langhint0929"><span class="d">9/29</span><span>網頁版第一次開啟固定顯示繁體中文，不再依瀏覽器語言自動切換；英文或日文瀏覽器會出現一個小提示，按一下就能切換語言，也能關掉不再提示（App 仍依手機語言）。另新增英文與日文的獨立介紹頁，方便外國旅客搜尋到軌島</span></li>
         <li data-cl="seotitle0929"><span class="d">9/29</span><span>網頁標題與搜尋結果裡的網站說明改寫得更清楚，直接寫出「台鐵、高鐵、捷運即時列車地圖與時刻表」，在 Google 搜尋時比較容易認出軌島在做什麼</span></li>
         <li data-cl="buildingopacity0927"><span class="d">9/27</span><span>修正立體地圖剛放大到能看見建築、還沒顯示立體列車時，切換亮暗外觀會讓「透視顯示」的建築突然變得不透明；現在重新裝入建築後會立即套回所選的透明度</span></li>
@@ -6136,7 +6136,7 @@
       <a href="about/">關於軌島</a>
       <a href="accuracy/">準確度說明</a>
       <a href="stations/">車站索引</a>
-      <a href="metro/">捷運路線圖</a>
+      <a href="metro/" data-metro-link>捷運路線圖</a>
       <!-- APP_REPLACE_END aeo-links-foot -->
       <a class="report-open" href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">回報問題或建議</a>
       <a href="https://github.com/siriushsu/taiwan-rail-live" target="_blank" rel="noopener noreferrer">原始碼公開，歡迎貢獻</a>
@@ -6495,7 +6495,7 @@
       <a href="about/">關於軌島</a>
       <a href="accuracy/">準確度說明</a>
       <a href="stations/">車站索引</a>
-      <a href="metro/">捷運路線圖</a>
+      <a href="metro/" data-metro-link>捷運路線圖</a>
       <!-- APP_REPLACE_END aeo-links-ms -->
     </nav>
     <div class="ms-about-links">
@@ -7233,6 +7233,10 @@ function i18nSyncLanguageControl() {
 }
 function i18nSyncDocumentMeta() {
   document.title = t('軌島｜台鐵、高鐵、捷運即時列車地圖與時刻表');
+  // 捷運路線圖頁有中英日三版：頁尾與「更多」的入口跟著介面語言指到同語言那版。App build 會把這兩排換成
+  // 正式站絕對網址（app/scripts/prepare-web.mjs 的 aeoLinksHtml），那邊不帶 data-metro-link，這裡碰不到。
+  const metroHref = I18N_LANG === 'en' ? 'en/metro/' : I18N_LANG === 'ja' ? 'ja/metro/' : 'metro/';
+  for (const a of document.querySelectorAll('a[data-metro-link]')) a.setAttribute('href', metroHref);
   const description = document.querySelector('meta[name="description"]');
   if (description) description.content = t('台鐵、高鐵、捷運與輕軌列車依官方時刻表與即時資料在地圖上跑動，可查車站班次、捷運路線與台鐵誤點。軌島 railisland.tw，一張會動的台灣鐵道地圖。');
 }

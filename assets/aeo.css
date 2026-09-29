@@ -402,6 +402,7 @@ sup.nd { margin-left: 1px; color: var(--red); font-size: 10px; font-weight: 800;
 .rail-node .core { fill: var(--strong); }
 .stop-body { flex: 1; min-width: 0; padding: 5px 0 9px; }
 .stop-name { color: var(--strong); font-size: 17px; font-weight: 800; line-height: 1.35; overflow-wrap: anywhere; }
+.nb { white-space: nowrap; }
 .stop-code { display: inline-block; margin-left: 6px; padding: 0 7px; border: 1px solid var(--line); border-radius: 999px; background: var(--stage); color: var(--muted); font-size: 12.5px; font-weight: 800; vertical-align: 2px; }
 .stop-alt { margin-left: 8px; color: var(--muted); font-size: 14px; font-weight: 600; }
 .stop-xfer { margin-top: 2px; color: var(--muted); font-size: 14px; }

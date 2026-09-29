@@ -3503,9 +3503,9 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 // 2026-09-29 捷運路線圖頁（SEO 階段 A）。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '新增捷運路線圖頁：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車': 'New metro map pages for Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung: stations, transfers and first and last trains for every line',
-  '新增捷運路線圖頁（中、英、日文）：台北、桃園機場、新北、台中、高雄各系統與每條路線的路線圖、車站與轉乘、首末班車和班距，沒有公開逐班時刻表的路線只列營運時段；頁面可一鍵在地圖上看列車，頁尾新增「捷運路線圖」入口': 'New metro map pages in Chinese, English and Japanese for Taipei, Taoyuan Airport, New Taipei, Taichung and Kaohsiung: a route map, stations and transfers, first and last trains and headways for every line (lines without a published train-by-train timetable list only their operating hours). Each page has a button that opens the trains on the live map, and the footer has a new "Metro maps" link.',
+  '新增捷運路線圖頁（中、英、日文）：台北、桃園機場、新北、台中、高雄各系統與每條路線的路線圖、車站與轉乘、首末班車和班距，資料來源沒有逐班時刻表的路線只列營運時段與班距；頁面可一鍵在地圖上看列車，頁尾與手機版「更多」新增「捷運路線圖」入口': 'New metro map pages in Chinese, English and Japanese for Taipei, Taoyuan Airport, New Taipei, Taichung and Kaohsiung: a route map, stations and transfers, first and last trains and headways for every line (lines with no train-by-train timetable in the data sources list only operating hours and headways). Each page has a button that opens the trains on the live map, and the footer and the mobile "More" menu have a new "Metro maps" link.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '新增捷運路線圖頁：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車': '台北・桃園・新北・台中・高雄のメトロ路線図ページを追加しました。各路線の駅、乗り換え、始発・終電を確認できます',
-  '新增捷運路線圖頁（中、英、日文）：台北、桃園機場、新北、台中、高雄各系統與每條路線的路線圖、車站與轉乘、首末班車和班距，沒有公開逐班時刻表的路線只列營運時段；頁面可一鍵在地圖上看列車，頁尾新增「捷運路線圖」入口': '台北・桃園空港・新北・台中・高雄の各システムと各路線について、路線図、駅と乗り換え、始発・終電、運転間隔をまとめたページを中国語・英語・日本語で追加しました（列車ごとの時刻表が公開されていない路線は運行時間帯のみ掲載）。各ページのボタンからライブ地図の列車を開けます。ページ下部には「メトロ路線図」へのリンクも追加しました。',
+  '新增捷運路線圖頁（中、英、日文）：台北、桃園機場、新北、台中、高雄各系統與每條路線的路線圖、車站與轉乘、首末班車和班距，資料來源沒有逐班時刻表的路線只列營運時段與班距；頁面可一鍵在地圖上看列車，頁尾與手機版「更多」新增「捷運路線圖」入口': '台北・桃園空港・新北・台中・高雄の各システムと各路線について、路線図、駅と乗り換え、始発・終電、運転間隔をまとめたページを中国語・英語・日本語で追加しました（データソースに列車ごとの時刻表がない路線は運行時間帯と運転間隔のみ掲載）。各ページのボタンからライブ地図の列車を開けます。ページ下部とスマートフォン版の「その他」にも「メトロ路線図」へのリンクを追加しました。',
 });

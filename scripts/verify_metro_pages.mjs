@@ -114,6 +114,8 @@ const NOTICE = {
   ja: '臨時ダイヤや運行変更は、運営会社の発表を優先してください',
 };
 const RUNS_ON_TIMETABLE = { zh: /依時刻表在地圖上跑/, en: /run(?:ning)? on the timetable on the map/, ja: /時刻表どおりに地図上を走ります/ };
+// 台北捷運（含文湖線、環狀線）照站上導言：位置與車站倒數來自官方逐班即時資料（真值另在「入口頁」段驗 index.html 導言還這樣寫）
+const TRTC_LIVE = { zh: /官方逐班即時資料/, en: /official train-by-train live data/, ja: /公式の列車ごとのリアルタイムデータ/ };
 const RED_WORDS = /票價|運賃|料金|\bfares?\b|通行證|付費|訂閱|收費|錄影|録画|\brecord(?:ing)?\b/i;
 const RED_PRODUCT_WORDS = /\bPlus\b|\bPass\b|Islander/;
 const OPERATOR_WORDS = /新北捷運|New Taipei Metro|新北メトロ|營運商|運營商/;
@@ -234,7 +236,12 @@ for (const p of pages) {
   const bodyText = textOf(dropScripts(body));
   ok(!RED_WORDS.test(bodyText) && !RED_PRODUCT_WORDS.test(bodyText), `${tag} 沒有收費／通行證／錄影／票價字樣`, (bodyText.match(RED_WORDS) || bodyText.match(RED_PRODUCT_WORDS) || [])[0]);
   ok(bodyText.includes(NOTICE[p.lang]), `${tag} 有「${NOTICE.zh}」對應句`);
-  ok(RUNS_ON_TIMETABLE[p.lang].test(bodyText), `${tag} 有「依時刻表在地圖上跑」對應句`);
+  // 地圖上怎麼跑：台北捷運寫官方逐班即時、不准寫成「依時刻表在地圖上跑」（09-29 驗收抓到文湖線頁這樣寫＝不實）；
+  // 其餘系統要有「依時刻表在地圖上跑」；總覽兩句都要有
+  const isTaipei = p.key === 'taipei' || String(p.key || '').startsWith('taipei/');
+  if (p.kind === 'overview') ok(TRTC_LIVE[p.lang].test(bodyText) && RUNS_ON_TIMETABLE[p.lang].test(bodyText), `${tag} 總覽同時寫台北捷運官方逐班即時與其他系統依時刻表跑`);
+  else if (isTaipei) ok(TRTC_LIVE[p.lang].test(bodyText) && !RUNS_ON_TIMETABLE[p.lang].test(bodyText), `${tag} 台北捷運寫官方逐班即時資料、不寫「依時刻表在地圖上跑」`);
+  else ok(RUNS_ON_TIMETABLE[p.lang].test(bodyText) && !TRTC_LIVE[p.lang].test(bodyText), `${tag} 有「依時刻表在地圖上跑」對應句`);
   ok(genDateOf(p) !== null && /GitHub|github|資料來源|Data sources|データの出典/.test(bodyText), `${tag} 有資料來源與產生日期`);
   // 分段
   const secs = Object.fromEntries([...html.matchAll(/<section class="[^"]*" id="([\w-]+)">([\s\S]*?)<\/section>/g)].map(m => [m[1], m[2]]));
@@ -306,9 +313,11 @@ for (const lang of Object.keys(ROOTS)) {
     ok(sitemapAt.get(SITE + `/${rel.replace(/index\.html$/, '')}`)?.lastmod >= '2026-09-29', `${rel} 的 sitemap lastmod 已更新`);
   }
   const idx = read('index.html');
-  const idxLinks = idx.match(/<a href="metro\/">捷運路線圖<\/a>/g) || [];
+  const idxLinks = idx.match(/<a href="metro\/" data-metro-link>捷運路線圖<\/a>/g) || [];
   ok(idxLinks.length === 2, '首頁 .ms-aeo-links／頁尾兩處都有「捷運路線圖」入口', `${idxLinks.length} 處`);
   ok(/APP_REPLACE_START aeo-links-foot[\s\S]*?href="metro\/"[\s\S]*?APP_REPLACE_END aeo-links-foot/.test(idx) && /APP_REPLACE_START aeo-links-ms[\s\S]*?href="metro\/"[\s\S]*?APP_REPLACE_END aeo-links-ms/.test(idx), '入口放在 APP_REPLACE 區間內（App build 才會換成絕對網址）');
+  ok(idx.includes('台北捷運九線的列車位置與車站倒數都是官方逐班即時'), 'index.html 捷運頁導言仍寫台北捷運九線位置來自官方逐班即時（路線圖頁的「地圖上怎麼跑」照它寫；導言改了這裡就紅）');
+  ok(/\['metro', '捷運路線圖'\]/.test(read('app/scripts/prepare-web.mjs')), 'App build 的說明連結也有「捷運路線圖」（正式站絕對網址）');
   const tr = read('i18n/translations.js');
   ok(/'捷運路線圖': 'Metro maps'/.test(tr) && /'捷運路線圖': 'メトロ路線図'/.test(tr), 'i18n 有「捷運路線圖」的 en／ja 詞條');
   const pkg = readJson('package.json');
@@ -326,7 +335,8 @@ for (const lang of Object.keys(ROOTS)) {
   for (const lang of Object.keys(ROOTS)) {
     const p = pageAt(lang, 'taoyuan-airport/airport-mrt');
     const has = { zh: /設計展/, en: /Design Expo/, ja: /デザイン展/ }[lang].test(textOf(dropScripts(p.html)));
-    ok(has === !!op, `${lang} 機場捷運頁的特殊時段附註${op ? '存在（op 仍在 special_ops.json）' : '已隨 op 被刪而消失'}`);
+    const want = !!op && genDateOf(p) <= '2026-10-11'; // 疏運期最後一天（special_ops quote）；頁面日期越過它，附註要消失
+    ok(has === want, `${lang} 機場捷運頁的特殊時段附註${want ? '存在（op 仍在 special_ops.json、頁面日期未過 10/11）' : '不存在（op 已刪或頁面日期已過 10/11）'}`);
     const q = pageAt(lang, 'taipei/bannan');
     ok(!{ zh: /設計展/, en: /Design Expo/, ja: /デザイン展/ }[lang].test(textOf(dropScripts(q.html))), `${lang} 其他路線頁不出現機場的特殊時段附註`);
   }
@@ -504,7 +514,9 @@ for (const s of sample) {
         ok(!TIME_RE[lang].test(txt), `${lang} ${id} 估算路線不列首班／末班`);
         const hw = { zh: `尖峰約每 ${peak} 分鐘、離峰約每 ${off} 分鐘一班`, en: `peak about every ${peak} min, off-peak about every ${off} min`, ja: `ピーク時は約${peak}分おき、オフピーク時は約${off}分おき` }[lang];
         ok(txt.includes(hw) || new RegExp(`${peak}[^\\d]{1,20}${off}`).test(txt), `${lang} ${id} 資料標示的班距 尖峰 ${peak}／離峰 ${off}`, txt.slice(0, 200));
-        ok(/依班距推估|estimated from headways|運転間隔からの推定/.test(txt), `${lang} ${id} 標示「依班距推估」`);
+        ok(/軌島的資料來源沒有這條路線的逐班時刻表|no train-by-train timetable for this line|この路線の列車ごとの時刻表がない/.test(txt), `${lang} ${id} 註明資料來源沒有逐班時刻表`);
+        const flagged = !!exp.g.headway_estimated;
+        ok(/資料標示為估算|estimate in the data|データ上の推定値/.test(txt) === flagged, `${lang} ${id} 班距${flagged ? '標「資料標示為估算」（資料 headway_estimated）' : '不標估算（資料的班距不是估算值）'}`);
       }
       log(`    ${id}：營運時段 ${hmOf(first)}–${hmOf(last)}${last >= 86400 ? '(+1)' : ''}，班距 尖峰 ${peak}／離峰 ${off}（估算，不列首末班）`);
       continue;

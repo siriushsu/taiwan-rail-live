@@ -645,7 +645,8 @@ const metroPathSet = new Set(metro.paths);
 const lastmodOf = pathname => {
   if (metroPathSet.has(pathname)) return metro.date;
   if (pathname === '/en/' || pathname === '/ja/') return landingUpdated;
-  if (pathname === '/about/' || pathname === '/stations/') return metro.templateDate;
+  // 首頁的 title／description 與「捷運路線圖」入口跟捷運頁同一批（09-29）改過
+  if (pathname === '/' || pathname === '/about/' || pathname === '/stations/') return metro.templateDate;
   return updated;
 };
 write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapPaths.map(pathname => `  <url><loc>${siteUrl}${pathname}</loc><lastmod>${lastmodOf(pathname)}</lastmod></url>`).join('\n')}\n</urlset>\n`);
