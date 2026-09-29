@@ -233,7 +233,7 @@ await group('W', async () => {
   const lock = at('acquireShipLock({'), firstGate = at("'check_i18n.mjs'"), behind = at('`${sha}..origin/main`');
   const strip = at("'strip_ship_comments.mjs'"), upload = at("'versions', 'upload'"), deploy = at("'versions', 'deploy'");
   const pre = at("prodGate('上傳前')"), pre2 = at("prodGate('升版前'");
-  const nightDesign = at("'verify_night_design.mjs'");
+  const nightDesign = at("'verify_night_design.mjs'"), labelDedup = at("'verify_basemap_label_dedup.mjs'");
   ok('W1 出貨鎖在落後檢查與所有閘門之前拿', lock > 0 && lock < behind && lock < firstGate, `鎖@${lock}、落後檢查@${behind}、第一道閘門@${firstGate}`);
   ok('W2 鎖只在正式出貨拿,拿不到就停', /if \(!PREVIEW\) \{[^}]*acquireShipLock\(\{/.test(src) && /if \(!lock\.ok\) fail\(lock\.message\)/.test(src)
     && /'--git-common-dir'/.test(src), '要有 if (!PREVIEW) {…acquireShipLock、if (!lock.ok) fail(…)、--git-common-dir');
@@ -249,6 +249,10 @@ await group('W', async () => {
     nightDesign > firstGate && nightDesign < strip
       && /const nightDesign = spawnSync\('node', \[path\.join\(wt, 'scripts', 'verify_night_design\.mjs'\)\][^]*?if \(nightDesign\.status !== 0\) fail\(/.test(src),
     `night-design@${nightDesign}、strip@${strip}`);
+  ok('W8 底圖標籤去重守門人經帳本執行、清掉繼承的 BASE_URL、且失敗會在 strip 前擋下出貨',
+    labelDedup > firstGate && labelDedup < strip
+      && /const labelDedup = spawnSync\('node', \[path\.join\(wt, 'scripts', 'verify_basemap_label_dedup\.mjs'\)\],\s*\{[^}]*BASE_URL: ''[^]*?if \(labelDedup\.status !== 0\) fail\(/.test(src),
+    `label-dedup@${labelDedup}、strip@${strip}`);
 });
 
 fs.rmSync(TMP, { recursive: true, force: true });

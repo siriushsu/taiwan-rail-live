@@ -333,6 +333,16 @@ try {
   if (nightDesign.status !== 0) fail('夜間設計守門人未過——暗色 3D 建築、玻璃細線、來車看板或手機觸控版面回歸'
     + '（單獨重跑：node scripts/verify_night_design.mjs）');
 
+  // 底圖標籤去重（2026-09-29 掛上出貨鏈）：站名是 canvas 畫的、底圖地名與機場名是 MapLibre 畫的，兩邊互相避不開，
+  // 只能靠 index.html 的 glPlaceDedupSync 改底圖 place／aerodrome_label 圖層的 filter，而 rail-3d station-layer
+  // 也會改同一批 filter。腳本開無視窗 Chrome 驗地景與淺色兩種底圖的正反兩向（站名畫出時不畫、拉遠到站名未畫時照畫）
+  // 與 station-layer 共存，吃即時 OpenFreeMap 圖磚。BASE_URL／PORT 清空，免得繼承來的值讓它去驗別棵樹。
+  const labelDedup = spawnSync('node', [path.join(wt, 'scripts', 'verify_basemap_label_dedup.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, BASE_URL: '', PORT: '' } });
+  process.stdout.write(labelDedup.stdout || ''); process.stderr.write(labelDedup.stderr || '');
+  if (labelDedup.status !== 0) fail('底圖標籤去重未過——站名旁的同名地名或機場名又疊出來，或拉遠時該有的地名不見了'
+    + '（單獨重跑：npm run check-label-dedup）');
+
   // 三鶯線營運時段(2026-09-11 掛上出貨鏈)。它守的是全網唯一一條「時刻表用官方公告的營運時段
   // ＋班距合成出來」的線:兩端寫錯過三次,每次的症狀都是使用者才看得到的——時段太寬就整晚畫
   // 幽靈車(v0711j,7.5 小時),太窄就該有車的時段整段空白(08-16~08-18,四小時)。腳本自己起
