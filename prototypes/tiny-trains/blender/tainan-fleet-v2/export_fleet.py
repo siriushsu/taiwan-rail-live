@@ -18,6 +18,7 @@ if '--dest' in sys.argv:
 TMP = tempfile.mkdtemp(prefix='tainan-fleet-')   # 原始（未壓縮）.bin 只放系統暫存，跑完即刪，不留在 repo
 
 S = {
+    'manual3000': ('日立 EMU3000 運轉手冊（臺鐵高雄機務段指導股公開；車頂高 3,490、地板高 1,180、集電弓裝在轉向架上方）', 'https://sites.google.com/view/087889880/車輛科技/emu電聯車/emu-3000'),
     'hitachi': ('日立 EMU3000 設計頁（塗裝：白＋黑玻璃面罩、5 種點綴色）', 'https://www.hitachi.co.jp/rd/research/design/product/taiwan_tra/index.html'),
     'wiki3000': ('維基百科 台鐵EMU3000型電聯車（全長／全高、集電弓在第 3、7、10 節）', 'https://zh.wikipedia.org/wiki/台鐵EMU3000型電聯車'),
     'twrail3000': ('臺灣鐵道維基館 EMU3000（邊條紅／綠／藍分配、取消半開窗）', 'https://taiwanrailwiki.miraheze.org/wiki/附件:臺鐵EMU3000型電聯車'),
@@ -43,19 +44,24 @@ def src(*keys):
 
 # 每個網格的來源、採用尺寸與「推斷／查不到」清單（給 catalog 與網頁說明用）
 META = {
-    'emu3000': dict(name='EMU3000 新自強・駕駛車（ED）', role='driving', pitchM=21.35, bodyM=21.0, widthM=2.91, heightM=3.49, floorM=1.18,
-                    sources=src('wiki3000', 'hitachi', 'twrail3000'),
-                    adopted=['車體 21,000／連結器間距 21,350（body 為日立駕駛手冊，pitch 為維基）', '寬 2,910、車頂高 3,490、地板高 1,180'],
-                    conflicts=['維基全高「ED車 3,750」：推斷是 EP（集電弓降弓）的高度，採 3,490 作為 ED 車頂高'],
+    'emu3000': dict(name='EMU3000 新自強・駕駛車（ED）', role='driving', pitchM=21.35, bodyM=21.0, widthM=2.91, heightM=3.75, roofM=3.49, floorM=1.18,
+                    sources=src('manual3000', 'wiki3000', 'hitachi', 'twrail3000'),
+                    adopted=['車體 21,000／連結器間距 21,350（body 為日立駕駛手冊，pitch 為維基）', '寬 2,910、車頂高 3,490、地板高 1,180（日立駕駛手冊）',
+                             '含冷氣全高 3,750（維基 ED 車）'],
+                    conflicts=['維基 infobox 寫「全高 ED車 3,750／EM車 3,490」，原始出處查不到。3,490 與手冊的「車頂高」相同，照片上每節車頂的冷氣都凸出車頂，'
+                               '所以這裡把 3,490 當車頂、3,750 當含冷氣的全高，每節車同高；ED 是否真的比 EM 高沒有查證'],
                     inferred=['窗數與窗型、門位置、窄縫窗形狀、冷氣機數量位置、車頭黑面罩形狀（依側面與 3/4 照片估）'],
                     livery='白色車身、黑色玻璃面罩；側面上緣紅色邊條為代表色（實車 01～16 組紅、17～35 組綠、36～50 組藍），標為示意。'),
-    'emu3000-mid': dict(name='EMU3000 新自強・中間車（EM）', role='mid', pitchM=20.3, bodyM=19.6, widthM=2.91, heightM=3.49, floorM=1.18,
-                        sources=src('wiki3000', 'hitachi'), adopted=['車體 19,600／連結器間距 20,300、寬 2,910、車頂高 3,490'],
-                        conflicts=[], inferred=['每側 13 扇窄窗（依照片數）、每節每側 2 門在客室兩端、車頂冷氣 2 具'],
+    'emu3000-mid': dict(name='EMU3000 新自強・中間車（EM）', role='mid', pitchM=20.3, bodyM=19.6, widthM=2.91, heightM=3.75, roofM=3.49, floorM=1.18,
+                        sources=src('manual3000', 'wiki3000', 'hitachi'), adopted=['車體 19,600／連結器間距 20,300、寬 2,910、車頂高 3,490、含冷氣全高 3,750'],
+                        conflicts=['全高：同 emu3000（ED）的說明'], inferred=['每側 13 扇窄窗（依照片數）、每節每側 2 門在客室兩端、車頂冷氣 2 具'],
                         livery='同 ED。'),
-    'emu3000-ep': dict(name='EMU3000 新自強・中間車（EP，單臂集電弓）', role='mid', pitchM=20.3, bodyM=19.6, widthM=2.91, heightM=3.75, floorM=1.18,
-                       sources=src('wiki3000', 'twrail3000'), adopted=['單臂集電弓（PT-7183A）位於第 3、7、10 節；降弓全高 3,750（維基標為 ED 車，推斷實為 EP）'],
-                       conflicts=['3,750 的歸屬（ED 或 EP）來源未明，此處推斷屬 EP'], inferred=['集電弓在車上的縱向位置、車頂高壓設備位置'], livery='同 ED。'),
+    'emu3000-ep': dict(name='EMU3000 新自強・中間車（EP，單臂集電弓）', role='mid', pitchM=20.3, bodyM=19.6, widthM=2.91, heightM=3.97, roofM=3.49, floorM=1.18,
+                       sources=src('manual3000', 'wiki3000', 'twrail3000'),
+                       adopted=['單臂集電弓（PT-7183A）位於第 3、7、10 節，裝在轉向架上方（日立駕駛手冊 4.1.1）',
+                                '第 3、7 節的集電弓在靠 1 號車那端、第 10 節在靠 12 號車那端（維基編組表）'],
+                       conflicts=['全高：同 emu3000（ED）的說明'],
+                       inferred=['降弓高度（查不到，取折疊約 0.48 m，全高約 3.97）、冷氣與車頂高壓設備的縱向位置'], livery='同 ED。'),
     'emu800': dict(name='EMU800 區間車・駕駛車（ED，微笑號塗裝）', role='driving', pitchM=21.6, bodyM=21.25, widthM=2.89, heightM=3.99,
                    sources=src('n800', 'tc800'), adopted=['車體 21,250／間距 21,600、寬 2,890、全高 3,990（含冷氣）'],
                    conflicts=['日文維基註記 21,250 含連結器：與日車官網「車体寸法」不一致，採日車官網'],
@@ -103,23 +109,28 @@ META = {
 }
 
 # 五種編組（snapshot.json 的 formation.id）→ 逐輛網格；flip=1 表示繞 z 軸轉 180°。
+# 集電弓車的網格把集電弓放在 -X 端：flip=0 時在「往後」那端（靠編組尾），flip=1 時在「往前」那端（靠 1 號車）。
 def _emu3000():
     seq = [('emu3000', 0)] + [('emu3000-mid', 0)] * 10 + [('emu3000', 1)]
-    for idx in (2, 6, 9):                       # 第 3、7、10 節：單臂集電弓
-        seq[idx] = ('emu3000-ep', 0)
+    seq[2] = ('emu3000-ep', 1)                  # 第 3 節：集電弓靠 1 號車端
+    seq[6] = ('emu3000-ep', 1)                  # 第 7 節：靠 1 號車端
+    seq[9] = ('emu3000-ep', 0)                  # 第 10 節：靠 12 號車端
     return seq
 
 
 def _temu2000():
     seq = [('temu2000', 0)] + [('temu2000-mid', 0)] * 6 + [('temu2000', 1)]
-    seq[2] = ('temu2000-tep', 0)                # 第 3 節 TEP
-    seq[5] = ('temu2000-tep', 1)                # 第 6 節 TEP（後半 4 節單元轉向）
+    seq[2] = ('temu2000-tep', 1)                # 第 3 節 TEP：集電弓靠 1 號車端
+    seq[5] = ('temu2000-tep', 0)                # 第 6 節 TEP：集電弓靠 8 號車端
     return seq
 
 
 FORMATIONS = {
-    'emu3000': dict(name='EMU3000 新自強（12 節）', cars=_emu3000(), notes=['集電弓在第 3、7、10 節（EP 車）；第 7、10 節的朝向查不到，全部同向']),
-    'temu2000': dict(name='TEMU2000 普悠瑪（8 節）', cars=_temu2000(), notes=['TED‑TEMA‑TEP‑TEMB‑TEMB‑TEP‑TEMA‑TED；集電弓在第 3、6 節（第 6 節為背向單元，網格轉 180°）']),
+    'emu3000': dict(name='EMU3000 新自強（12 節）', cars=_emu3000(), listedFor='南下',
+                    notes=['車序從 1 號車排起；1 號車在屏東／高雄端（維基編組表「（逆行）屏東、高雄」），南下時 1 號車領頭，北上由網頁把車序反過來',
+                           '集電弓在第 3、7、10 節（EP 車）：第 3、7 節靠 1 號車端、第 10 節靠 12 號車端（維基編組表）']),
+    'temu2000': dict(name='TEMU2000 普悠瑪（8 節）', cars=_temu2000(),
+                     notes=['TED‑TEMA‑TEP‑TEMB‑TEMB‑TEP‑TEMA‑TED；集電弓在第 3 節靠 1 號車端、第 6 節靠 8 號車端（維基編組表），前後對稱，不分方向']),
     'emu800': dict(name='EMU800 區間車（3 節示意）', cars=[('emu800', 0), ('emu800-ep', 0), ('emu800', 1)], notes=['實車 ED+EMa+EP+EMb（4 節）×2；3 節示意取 ED＋EP＋ED，中間車畫成有集電弓的 EP']),
     'e1000': dict(name='PP 推拉式自強號（14 節；機車以 E500 呈現）',
                   cars=[('e500', 0), ('ppcoach-end', 0)] + [('ppcoach', 0)] * 10 + [('ppcoach-end', 1), ('e500', 1)],
@@ -170,7 +181,8 @@ def main():
         schema=2,
         note='座標：+X 車頭、+Y 左、z=0 為鋼軌面、x=0 為該車連結器間距（pitch）中心；1 單位＝1 公尺，網頁不再縮放車體。',
         lod=LOD, meshes=meshes,
-        formations={k: dict(name=v['name'], cars=[dict(mesh=m, flip=bool(fl)) for m, fl in v['cars']], notes=v['notes']) for k, v in FORMATIONS.items()},
+        formations={k: dict(name=v['name'], cars=[dict(mesh=m, flip=bool(fl)) for m, fl in v['cars']], **({'listedFor': v['listedFor']} if 'listedFor' in v else {}),
+                            notes=v['notes']) for k, v in FORMATIONS.items()},
         totals=dict(gzBytesAll=tot, gzBytesFar=boot, gzBytesNear=tot - boot))
     with open(os.path.join(DEST, 'catalog.json'), 'w', encoding='utf-8') as f:
         json.dump(catalog, f, ensure_ascii=False, separators=(',', ':'))

@@ -31,6 +31,10 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   assert.deepEqual(await wrapState(),[true,'拿掉外罩']);await click('#wrap');assert.deepEqual(await wrapState(),[false,'蓋回外罩']);await click('#wrap');assert.deepEqual(await wrapState(),[true,'拿掉外罩']);
   // 放大極限 34 公尺（使用者 2026-09-29「放大極限就用 34 公尺」）：從舊站近景連按放大，視野高度停在 34 m、不會更近。
   for(let i=0;i<8;i++)await click('#zoomin');assert.equal(await page.evaluate(()=>Math.round((tainanMemory.camera.top-tainanMemory.camera.bottom)*1000)/1000),34);await click('#station');
+  // EMU3000 集電弓車的位置與朝向（維基編組表：1 號車在屏東／高雄端，集電弓在第 3、7 節靠 1 號車端、第 10 節靠 12 號車端；
+  // 網格的集電弓在 -X 端，flip＝轉 180° 後集電弓朝行進前方）。期望值直接寫編組表推出來的結果，不照頁面的排法算。
+  const ep3000=await page.evaluate(()=>Object.fromEntries(['南下','北上'].map(d=>{const t=tainanMemory.data.trains.find(t=>t.formation.id==='emu3000'&&t.direction===d);return [d,tainanMemory.models.get(t.id).parts.map((p,i)=>p.mesh==='emu3000'?'ED'+(p.flip?'<':'>')+i:p.mesh==='emu3000-ep'?'EP'+(p.flip?'<':'>')+i:null).filter(Boolean)];})));
+  assert.deepEqual(ep3000,{南下:['ED>0','EP<2','EP<6','EP>9','ED<11'],北上:['ED>0','EP<2','EP>5','EP>9','ED<11']},'EMU3000 集電弓車的位置或朝向不對');
   await page.locator('#speed').selectOption('60');await page.locator('#time').fill('17:30:00');await page.locator('#time').dispatchEvent('change');assert.equal(await page.locator('#clock').textContent(),'17:30:00');
   const timeline=page.locator('#timeline');const b=await timeline.boundingBox();if(touch)await page.touchscreen.tap(b.x+b.width*.75,b.y+b.height/2);else await page.mouse.click(b.x+b.width*.75,b.y+b.height/2);assert.ok(await page.evaluate(()=>tainanMemory.state.sec>60000));
   if(height>520){await click('#about');for(const control of await page.locator('#details a,#details button').all()){await control.scrollIntoViewIfNeeded();assert.ok(await control.evaluate(e=>{const b=e.getBoundingClientRect(),h=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2);return b.height>=44&&(e===h||e.contains(h));}),'說明控件可捲到且可觸及');}await click('#details button');}
