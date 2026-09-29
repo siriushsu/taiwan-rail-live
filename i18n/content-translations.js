@@ -3500,3 +3500,13 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '地圖上站名旁邊的機場名稱也不再跟站名疊在一起，例如松山機場站旁的「臺北松山機場」': '地図で駅名のすぐ横に出ていた空港名（松山機場駅の横の「臺北松山機場」など）も、駅名と重なって表示されなくなりました',
 });
+
+// 2026-09-29 台南地面鐵道歷史重播：舊站房與列車真實比例重建、施工外罩開關、放大到 34 公尺。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，最多可放大到約 34 公尺，可拿掉站房的施工外罩': 'Tainan surface railway replay: the old station building and trains are rebuilt to real proportions, you can zoom in to about 34 m, and the construction wrap on the station can be taken off',
+  '台南地面鐵道歷史重播：舊站房依修復後的面磚與洗石子重建，預設蓋著修復工程的施工外罩、可一鍵拿掉；列車改用真實比例，集電弓畫在實際裝有的車廂，推拉式自強號改畫 7 月起接手的 E500 機車頭；最多可放大到約 34 公尺視野': 'Tainan surface railway replay: the old station building is rebuilt with its restored tiles and stone-chip plaster and is shown under the construction wrap from the restoration work by default (one tap takes it off); trains now use real proportions with pantographs on the cars that actually carry them, and the push–pull Tze-Chiang now shows the E500 locomotive that took over in July; you can zoom in to a view about 34 m across',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，最多可放大到約 34 公尺，可拿掉站房的施工外罩': '台南地上鉄道の歴史リプレイ：旧駅舎と列車を実寸の比率で作り直し、約 34 m まで拡大できるようにしました。駅舎の工事用シートも外せます',
+  '台南地面鐵道歷史重播：舊站房依修復後的面磚與洗石子重建，預設蓋著修復工程的施工外罩、可一鍵拿掉；列車改用真實比例，集電弓畫在實際裝有的車廂，推拉式自強號改畫 7 月起接手的 E500 機車頭；最多可放大到約 34 公尺視野': '台南地上鉄道の歴史リプレイ：旧駅舎を修復後のタイルと洗い出し仕上げで作り直し、修復工事の工事用シートを被せた状態を初期表示にしました（ワンタップで外せます）。列車は実寸の比率にし、パンタグラフは実際に載っている車両に付け、プッシュプル式自強号は 7 月から牽引を引き継いだ E500 形機関車で描きます。約 34 m の範囲まで拡大できます',
+});

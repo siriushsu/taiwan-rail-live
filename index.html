@@ -5627,6 +5627,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tainanmodel0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，最多可放大到約 34 公尺，可拿掉站房的施工外罩</span></li>
         <li data-cl-of="placedup0925"><span class="d">9/29</span><span>地圖上站名旁邊的機場名稱也不再跟站名疊在一起，例如松山機場站旁的「臺北松山機場」</span></li>
         <li data-cl-of="tradistinct0929"><span class="d">9/29</span><span>立體地圖上台鐵列車在車站讓後車先過時，改停到旁邊的股道，後車不會再從停著的車身穿過去</span></li>
         <li data-cl-of="tainanfast0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：修正 App 裡點了打不開，網頁版下載量從約 11 MB 降到約 2 MB，開啟更快、全線視角更順</span></li>
@@ -5634,7 +5635,6 @@
         <li data-cl-of="traovertake0929"><span class="d">9/29</span><span>修正少數台鐵列車在車站空等不存在的後車，或出站後異常慢行的問題</span></li>
         <li data-cl-of="followcard0929"><span class="d">9/29</span><span>App 鎖定畫面跟車卡：Android 補上小列車、iPhone 改成三節車廂，從車站看板追下一班車時卡片會立刻出現</span></li>
         <li data-cl-of="langhint0929"><span class="d">9/29</span><span>網頁版首次開啟固定顯示繁體中文；英文、日文瀏覽器會出現可一鍵切換的語言提示</span></li>
-        <li data-cl-of="seotitle0929"><span class="d">9/29</span><span>網頁標題與搜尋結果說明寫清楚：台鐵、高鐵、捷運即時地圖與時刻表</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5642,6 +5642,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="tainanmodel0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：舊站房依修復後的面磚與洗石子重建，預設蓋著修復工程的施工外罩、可一鍵拿掉；列車改用真實比例，集電弓畫在實際裝有的車廂，推拉式自強號改畫 7 月起接手的 E500 機車頭；最多可放大到約 34 公尺視野</span></li>
         <li data-cl="placedup0925"><span class="d">9/29</span><span>地圖上站名旁邊若有同名的底圖地名（例如竹北站旁的「竹北市」「竹北里」），站名畫出來時就不再重複顯示；拉遠到還沒標出站名的時候，地名照樣看得到；9/29 起機場名稱也一樣（松山機場站旁的「臺北松山機場」）</span></li>
         <li data-cl="tradistinct0929"><span class="d">9/29</span><span>修正立體地圖上台鐵待避時後車直接穿過停著的前車（10/3 推估 14 次有 12 次同一股）：前車改停到後車不走、也沒有別班在用的股道；沒有這種股道的車站不排待避，改到前面有空股的站等。臺東線南平站的側線也能待避了</span></li>
         <li data-cl="tainanfast0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：修正 App 裡點了打不開；列車與站房模型改壓縮下載（內容不變），網頁版下載量從約 11 MB 降到約 2 MB，全線視角的繪製量也大幅減少</span></li>
@@ -6929,7 +6930,9 @@
 // v0929h：底圖地名去重擴及機場標籤（aerodrome_label 圖層，地景與淺色街圖的 airport）：機場名稱以站名結尾也算
 //         （臺北松山機場 vs 松山機場站、高雄國際機場同名）（守門：scripts/verify_basemap_label_dedup.mjs）。
 //         v0929g 已被 seo/homepage-title 分支佔用（未併 main），跳號避免撞號。
-const BUILD = 'v0929h';
+// v0929j：台南地面鐵道歷史重播精修（memories/tainan-2026-09-12）：舊站房重建＋施工外罩開關、列車真實比例、放大極限 34 m
+//         （守門：scripts/verify_tainan_memory.mjs、verify_tainan_memory_browser.mjs）。v0929i 同樣已被 seo/homepage-title 佔用。
+const BUILD = 'v0929j';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);

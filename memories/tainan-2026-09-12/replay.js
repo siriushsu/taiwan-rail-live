@@ -2,7 +2,7 @@ import * as THREE from './vendor/three.module.js';
 import {makePath,formationPoses} from './vendor/train-path.js';
 import {createWenhuGeometry,createWenhuMaterial} from './vendor/mesh.js';
 const $=id=>document.getElementById(id), status=$('loading');
-const state={ready:false,sec:28800,playing:true,speed:10,follow:'',frames:0};
+const state={ready:false,nearReady:false,lod:'far',sec:28800,playing:true,speed:10,follow:'',frames:0};
 const clock=sec=>[Math.floor(sec/3600),Math.floor(sec/60)%60,Math.floor(sec)%60].map(v=>String(v).padStart(2,'0')).join(':');
 const cleanSec=s=>Math.max(0,Math.min(86399,Number.isFinite(s)?s:28800));
 const query=new URLSearchParams(location.search),timeQuery=query.get('t');
@@ -35,6 +35,8 @@ try{
   if(f.tags.highway)ribbons([f.coordinates],{primary:15,secondary:12,tertiary:9}[f.tags.highway]||6,.015,'#f7f5ee');
   else if(f.tags.railway==='platform')polygon(f.coordinates,.06,.82,'#bcbcb0');
   else if(f.tags.building==='roof')polygon(f.coordinates,4.2,.20,'#b6bdb4');
+  // 跨站橋（building=bridge）懸在軌道上方，只畫橋面；當成一般房子從地面擠出會變成列車穿過的實心方塊。
+  else if(f.tags.building==='bridge')polygon(f.coordinates,5.6,.5,'#d4d5ca');
   else if(f.tags.building&&f.id!==stationId&&!f.tags.construction&&f.tags.building!=='construction')polygon(f.coordinates,.03,Math.min(24,Math.max(3,parseFloat(f.tags.height)||parseFloat(f.tags['building:levels'])*3||6)),'#d4d5ca');
  }
  ribbons(data.rails.map(r=>r.coordinates),3.6,.05,'#aaa99b');flushBatches();
@@ -43,12 +45,28 @@ try{
  const stationData=new Float32Array(await bytes('station/near.mesh.bin')),buffer=new THREE.InterleavedBuffer(stationData,6),geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.InterleavedBufferAttribute(buffer,3,0));geometry.setAttribute('normal',new THREE.InterleavedBufferAttribute(buffer,3,3));const materials=[];
  for(const [i,g] of stationMeta.lods.near.drawGroups.entries()){geometry.addGroup(g.start,g.count,i);materials.push(new THREE.MeshStandardMaterial({color:new THREE.Color(...g.color),roughness:g.roughness,metalness:g.metalness}));}
  const building=new THREE.Mesh(geometry,materials);const stationXY=world(stationMeta.anchor);building.position.set(...stationXY,.04);building.rotation.z=stationMeta.rotationDeg*Math.PI/180;scene.add(building);
- const meshes=new Map(),carMaterial=createWenhuMaterial(THREE);
- const fleetMeshes=Object.entries(fleet.meshes);for(let i=0;i<fleetMeshes.length;i+=3)await Promise.all(fleetMeshes.slice(i,i+3).map(async([id,m])=>meshes.set(id,createWenhuGeometry(THREE,{data:new Float32Array(await bytes('fleet/'+m.file))}))));
+ // 9/12 當天二樓以上包著半透明施工外罩：另一份網格，與站房同位置，預設蓋上；「拿掉外罩」鈕可看整棟站房。
+ // 群組已依「不透明骨架在前、半透明布在後」排好，three.js 依群組順序畫半透明面，不另設 renderOrder。
+ const wrapMeta=stationMeta.lods.wrap;let wrap=null;
+ if(wrapMeta){const d=new Float32Array(await bytes('station/'+wrapMeta.file)),b=new THREE.InterleavedBuffer(d,6),g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.InterleavedBufferAttribute(b,3,0));g.setAttribute('normal',new THREE.InterleavedBufferAttribute(b,3,3));const mats=[];for(const [i,dg] of wrapMeta.drawGroups.entries()){g.addGroup(dg.start,dg.count,i);const o=dg.opacity??1;mats.push(new THREE.MeshStandardMaterial({color:new THREE.Color(...dg.color),roughness:dg.roughness,metalness:dg.metalness,transparent:o<1,opacity:o,side:wrapMeta.doubleSided?THREE.DoubleSide:THREE.FrontSide}));}
+  wrap=new THREE.Mesh(g,mats);wrap.position.copy(building.position);wrap.rotation.copy(building.rotation);wrap.visible=wrapMeta.defaultVisible!==false;scene.add(wrap);}
+ const wrapButton=$('wrap'),syncWrap=()=>{wrapButton.textContent=wrap.visible?'拿掉外罩':'蓋回外罩';};
+ if(wrap){syncWrap();wrapButton.onclick=()=>{wrap.visible=!wrap.visible;syncWrap();};}else wrapButton.hidden=true;
+ // 車廂網格分兩級：遠景檔（約 90 KB）開機就載；近景檔（約 0.6 MB）首幀之後才在背景載入，載完 state.nearReady=true。
+ // 車廂 1 單位＝1 公尺、一律不縮放；各車型真實連結器間距 pitchM 記在 fleet/catalog.json。
+ const carMaterial=createWenhuMaterial(THREE),lodGeo={far:new Map(),near:new Map()},fleetMeshes=Object.entries(fleet.meshes);
+ const loadLod=async kind=>{for(let i=0;i<fleetMeshes.length;i+=3)await Promise.all(fleetMeshes.slice(i,i+3).map(async([id,m])=>lodGeo[kind].set(id,createWenhuGeometry(THREE,{data:new Float32Array(await bytes('fleet/'+m[kind].file))}))));};
+ await loadLod('far');
  const paths=data.routes.map(r=>makePath(r.coordinates)),models=new Map(),labels=[];
  function label(text,coordinate,kind=''){const e=document.createElement('span');e.className='map-label '+kind;e.textContent=text;$('labels').append(e);const item={e,coordinate};labels.push(item);return item;}
  data.stations.forEach(s=>label(s.name,[s.lon,s.lat]));label('臺南舊站房',stationMeta.anchor);
- for(const tr of data.trains){const group=new THREE.Group(),cars=tr.formation.parts.map(part=>{const car=new THREE.Group(),mesh=new THREE.Mesh(meshes.get(part.mesh),carMaterial),meta=fleet.meshes[part.mesh],s=part.bodyLengthM/(meta.max[0]-meta.min[0]),w=tr.formation.widthM/(meta.max[1]-meta.min[1]);mesh.scale.set(s,w,w);mesh.position.set(-(meta.min[0]+meta.max[0])/2*s+part.bodyShiftM*(part.flip?-1:1),0,-meta.min[2]*w);if(part.flip)mesh.rotation.z=Math.PI;car.add(mesh);group.add(car);return car;});group.visible=false;scene.add(group);models.set(tr.id,{group,cars,label:label(tr.train+' '+tr.direction,null,'train-label')});}
+ // 依真實比例重排編組：每輛用該車型的連結器間距（pitchM）首尾相接，以編組中心為基準置中；車體不拉伸。
+ // 逐輛網格與轉向來自 catalog 的 formations（EP 集電弓車、機車端客車…），輛數必須與封存班表的編組一致。
+ function arrange(tr){const rule=fleet.formations[tr.formation.id];if(!rule||rule.cars.length!==tr.formation.parts.length)throw Error('缺少編組規則：'+tr.formation.id);
+  const parts=rule.cars.map(c=>({mesh:c.mesh,flip:c.flip,lengthM:fleet.meshes[c.mesh].pitchM,offsetM:0}));let front=parts.reduce((a,c)=>a+c.lengthM,0)/2;for(const c of parts){c.offsetM=front-c.lengthM/2;front-=c.lengthM;}return parts;}
+ for(const tr of data.trains){const group=new THREE.Group(),parts=arrange(tr),cars=parts.map(part=>{const car=new THREE.Group(),mesh=new THREE.Mesh(lodGeo.far.get(part.mesh),carMaterial);mesh.userData.mesh=part.mesh;if(part.flip)mesh.rotation.z=Math.PI;car.add(mesh);group.add(car);return car;});group.visible=false;scene.add(group);models.set(tr.id,{group,cars,parts,label:label(tr.train+' '+tr.direction,null,'train-label')});}
+ // 近景／遠景切換：只換每輛車的 geometry（catalog.lod 有門檻，中間帶保持現狀，避免縮放時來回跳）。
+ const setLod=next=>{if(next===state.lod)return;state.lod=next;for(const m of models.values())for(const car of m.cars){const mesh=car.children[0];mesh.geometry=lodGeo[next].get(mesh.userData.mesh);}};
  const byArrival=[...data.trains].sort((a,b)=>a.stops.find(s=>s.name.replace('台','臺')==='臺南').arrSec-b.stops.find(s=>s.name.replace('台','臺')==='臺南').arrSec);
  for(const tr of byArrival){const st=tr.stops.find(s=>s.name.replace('台','臺')==='臺南'),o=document.createElement('option');o.value=tr.id;o.textContent=clock(cleanSec(st.arrSec)).slice(0,5)+' · '+tr.train+' '+tr.typeName+' '+tr.direction;$('train').append(o);}
  function sample(tr,sec){const segment=tr.spans.find(s=>sec>=s.start&&sec<=s.start+s.s.length-1);if(!segment)return null;const f=sec-segment.start,i=Math.min(segment.s.length-1,Math.floor(f)),s=segment.s[i]+((segment.s[i+1]??segment.s[i])-segment.s[i])*(f-i),path=paths[segment.route],p=path.at(s);if(!p)return null;return {path,s,coordinate:p.coordinate,route:segment.route};}
@@ -56,7 +74,7 @@ try{
  function jump(sec){state.sec=cleanSec(sec);updateTime();}
  function stationView(){state.follow='';$('train').value='';target.set(stationXY[0]+18,stationXY[1],0);span=140;azimuth=3.6;view();}
  $('station').onclick=stationView;$('overview').onclick=()=>{state.follow='';$('train').value='';target.set(400,-3250,0);span=10500;view();};
- $('rotate').onclick=()=>{azimuth+=Math.PI/4;view();};$('zoomin').onclick=()=>{span=Math.max(80,span/1.5);view();};$('zoomout').onclick=()=>{span=Math.min(14000,span*1.5);view();};
+ $('rotate').onclick=()=>{azimuth+=Math.PI/4;view();};$('zoomin').onclick=()=>{span=Math.max(34,span/1.5);view();};$('zoomout').onclick=()=>{span=Math.min(14000,span*1.5);view();};
  $('timeline').oninput=e=>jump(Number(e.target.value));$('time').onchange=e=>{const [h,m,s=0]=e.target.value.split(':').map(Number);jump(h*3600+m*60+s);};
  $('play').onclick=()=>{state.playing=!state.playing;$('play').textContent=state.playing?'暫停':'播放';$('play').setAttribute('aria-label',state.playing?'暫停重播':'播放重播');};
  $('speed').onchange=e=>state.speed=Number(e.target.value);
@@ -65,15 +83,15 @@ try{
  $('about').onclick=()=>{$('details').showModal();};
  const pointers=new Map();let pinch=null;
  renderer.domElement.addEventListener('pointerdown',e=>{pointers.set(e.pointerId,[e.clientX,e.clientY]);renderer.domElement.setPointerCapture(e.pointerId);state.follow='';$('train').value='';});
- renderer.domElement.addEventListener('pointermove',e=>{const before=pointers.get(e.pointerId);if(!before)return;pointers.set(e.pointerId,[e.clientX,e.clientY]);if(pointers.size===2){const [a,b]=[...pointers.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(pinch)span=Math.max(80,Math.min(14000,span*pinch/d));pinch=d;}else{const dx=(e.clientX-before[0])*span/height,dy=(e.clientY-before[1])*span/height;const right=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0),up=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,1);target.addScaledVector(right,-dx);target.addScaledVector(up,dy/Math.max(.1,Math.hypot(up.x,up.y)));target.z=0;}view();});
+ renderer.domElement.addEventListener('pointermove',e=>{const before=pointers.get(e.pointerId);if(!before)return;pointers.set(e.pointerId,[e.clientX,e.clientY]);if(pointers.size===2){const [a,b]=[...pointers.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(pinch)span=Math.max(34,Math.min(14000,span*pinch/d));pinch=d;}else{const dx=(e.clientX-before[0])*span/height,dy=(e.clientY-before[1])*span/height;const right=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0),up=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,1);target.addScaledVector(right,-dx);target.addScaledVector(up,dy/Math.max(.1,Math.hypot(up.x,up.y)));target.z=0;}view();});
  for(const event of ['pointerup','pointercancel','lostpointercapture'])renderer.domElement.addEventListener(event,e=>{pointers.delete(e.pointerId);pinch=null;});
- renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();span=Math.max(80,Math.min(14000,span*Math.exp(e.deltaY*.001)));view();},{passive:false});
+ renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();span=Math.max(34,Math.min(14000,span*Math.exp(e.deltaY*.001)));view();},{passive:false});
  let last=performance.now(),lastSecond=-1;const active=[];
- function draw(now){requestAnimationFrame(draw);const dt=Math.min(.1,(now-last)/1000);last=now;if(document.hidden)return;if(state.playing&&!$('details').open)state.sec=(state.sec+dt*state.speed)%86400;active.length=0;
+ function draw(now){requestAnimationFrame(draw);const dt=Math.min(.1,(now-last)/1000);last=now;if(document.hidden)return;if(state.nearReady)setLod(span<fleet.lod.nearBelowSpan?'near':span>fleet.lod.farAboveSpan?'far':state.lod);if(state.playing&&!$('details').open)state.sec=(state.sec+dt*state.speed)%86400;active.length=0;
   const uncertain=new Set(uncertainty.intervals.filter(i=>state.sec>=i.start&&state.sec<=i.end).flatMap(i=>i.trains));
-  for(const tr of data.trains){const m=models.get(tr.id),p=sample(tr,state.sec);m.group.visible=!!p&&!uncertain.has(tr.id);m.label.coordinate=p?.coordinate||null;m.label.e.classList.toggle('uncertain',uncertain.has(tr.id));if(!p)continue;const poses=formationPoses(p.path,p.s,1,tr.formation.parts,()=>.16);if(!poses){m.group.visible=false;m.label.coordinate=null;continue;}active.push({id:tr.id,train:tr.train,direction:tr.direction,route:p.route,s:p.s,coordinate:p.coordinate,trackUncertain:uncertain.has(tr.id)});poses.forEach((pose,i)=>{const xy=world(pose.coordinate);m.cars[i].position.set(...xy,pose.height);m.cars[i].rotation.z=pose.angle;});if(state.follow===tr.id){target.set(...world(p.coordinate),0);view();}}
+  for(const tr of data.trains){const m=models.get(tr.id),p=sample(tr,state.sec);m.group.visible=!!p&&!uncertain.has(tr.id);m.label.coordinate=p?.coordinate||null;m.label.e.classList.toggle('uncertain',uncertain.has(tr.id));if(!p)continue;const poses=formationPoses(p.path,p.s,1,m.parts,()=>.16);if(!poses){m.group.visible=false;m.label.coordinate=null;continue;}active.push({id:tr.id,train:tr.train,direction:tr.direction,route:p.route,s:p.s,coordinate:p.coordinate,trackUncertain:uncertain.has(tr.id)});poses.forEach((pose,i)=>{const xy=world(pose.coordinate);m.cars[i].position.set(...xy,pose.height);m.cars[i].rotation.z=pose.angle;});if(state.follow===tr.id){target.set(...world(p.coordinate),0);view();}}
   const occupied=[];for(const l of labels){if(!l.coordinate){l.e.hidden=true;continue;}const xy=world(l.coordinate),p=new THREE.Vector3(...xy,7).project(camera),x=(p.x*.5+.5)*width,y=(-p.y*.5+.5)*height;const visible=p.z>=-1&&p.z<=1&&x>0&&x<width&&y>55&&y<height-30;l.e.hidden=!visible;if(visible){l.e.style.transform=`translate(${x}px,${y}px) translate(-50%,-100%)`;if(!l.e.classList.contains('train-label')){const b=l.e.getBoundingClientRect();if(occupied.some(a=>b.left<a.right&&b.right>a.left&&b.top<a.bottom&&b.bottom>a.top))l.e.hidden=true;else occupied.push(b);}}}
   renderer.render(scene,camera);state.frames++;if(Math.floor(state.sec)!==lastSecond){lastSecond=Math.floor(state.sec);updateTime();$('running').textContent='區間內 '+active.length+' 班';const pending=active.filter(t=>t.trackUncertain),follow=data.trains.find(t=>t.id===state.follow);$('caption').textContent=pending.length?'股道安排待確認：'+pending.map(t=>t.train).join('、')+' 次暫以車次標記呈現；位置仍依封存班表推演。':follow?follow.train+' 次 · '+follow.formation.caption+' · 依封存班表推演':'封存 '+data.trains.length+' 班 · 班表推演，非即時位置；未知編組採 3 節示意。';$('caption').classList.toggle('uncertain',!!pending.length);}}
  // 可重現的驗收介面：封存資料、時間與車廂沿軌座標均可核對，無外部寫入。
- window.tainanMemory={state,data,sample,paths,models,active,jump,stationView,renderer,camera,uncertainty};stationView();updateTime();state.ready=true;status.hidden=true;requestAnimationFrame(draw);
+ window.tainanMemory={state,data,sample,paths,models,active,jump,stationView,renderer,camera,uncertainty,fleet,wrap};stationView();updateTime();state.ready=true;status.hidden=true;requestAnimationFrame(draw);loadLod('near').then(()=>{state.nearReady=true;},e=>console.error(e));
 }catch(error){console.error(error);status.replaceChildren();const p=document.createElement('p');p.textContent='這份回憶暫時無法載入：'+error.message;const retry=document.createElement('button');retry.textContent='重新載入';retry.onclick=()=>location.reload();status.append(p,retry);}

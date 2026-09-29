@@ -11,15 +11,19 @@ const archived=f=>fs.existsSync(path.join(dir,f))?fs.readFileSync(path.join(dir,
 for(const [file,hash] of Object.entries(integrity.files))assert.equal(crypto.createHash('sha256').update(archived(file)).digest('hex'),hash,'封存檔案被改寫：'+file);
 const onDisk=[];(function visit(p){for(const e of fs.readdirSync(p,{withFileTypes:true})){const f=path.join(p,e.name);if(e.isDirectory())visit(f);else if(e.name!=='integrity.json')onDisk.push(path.relative(dir,f).replace(/\.gz$/,''));}})(dir);
 assert.deepEqual(onDisk.sort(),Object.keys(integrity.files).sort(),'封存目錄與雜湊清單不一致');
+// 列車網格（fleet/catalog.json）：每個封存編組都要有逐輛規則、輛數與班表一致、每輛網格的近遠兩檔都已封存。
+// 重播頁開機時同樣檢查輛數，不符就整頁打不開，所以這裡要先擋。排法與 replay.js 的 arrange() 相同：各車 pitchM 首尾相接、以編組中心置中。
+const fleet=read('fleet/catalog.json');
+const arranged=tr=>{const rule=fleet.formations[tr.formation.id];assert.ok(rule&&rule.cars.length===tr.formation.parts.length,'缺少編組規則或輛數與班表不符：'+tr.formation.id);const parts=rule.cars.map(c=>{const m=fleet.meshes[c.mesh];assert.ok(m&&m.pitchM>0,'編組引用了不存在的網格：'+c.mesh);for(const k of ['near','far'])assert.ok(integrity.files['fleet/'+m[k]?.file],'網格未封存：'+c.mesh+' '+k);return {mesh:c.mesh,flip:c.flip,lengthM:m.pitchM,offsetM:0};});let front=parts.reduce((a,c)=>a+c.lengthM,0)/2;for(const c of parts){c.offsetM=front-c.lengthM/2;front-=c.lengthM;}return parts;};
 assert.equal(data.date,'2026-09-12');assert.equal(data.trains.length,227);assert.equal(new Set(data.trains.map(t=>t.id)).size,227);
 assert.equal(data.trains.filter(t=>t.direction==='北上').length,114);assert.equal(data.trains.filter(t=>t.direction==='南下').length,113);assert.equal(data.trains.filter(t=>t.serviceDate==='2026-09-11').length,2);
 assert.ok(data.rails.length>30);assert.ok(data.rails.every(r=>r.tags.railway==='rail'&&!r.tags.construction&&!r.tags.tunnel));
-for(const tr of data.trains){assert.ok(sources.trains.some(s=>s.serviceDate===tr.serviceDate&&s.train===tr.train));
+for(const tr of data.trains){assert.ok(sources.trains.some(s=>s.serviceDate===tr.serviceDate&&s.train===tr.train));const shown=arranged(tr);
  for(const [i,span] of tr.spans.entries()){
   assert.ok(span.start>=0&&span.start+span.s.length-1<=86399);assert.ok(span.s.length>0);
   const route=paths[span.route];for(const [j,s] of span.s.entries()){assert.ok(Number.isFinite(s)&&s>=0&&s<=route.length);if(j)assert.ok(s>=span.s[j-1]-.001,'里程不能倒退：'+tr.train);}
   if(i){const last=tr.spans[i-1];if(span.start===last.start+last.s.length-1)assert.ok(distanceM(route.at(span.s[0]).coordinate,paths[last.route].at(last.s.at(-1)).coordinate)<.02,'路段切換跳位：'+tr.train);}
-  for(const s of [span.s[0],span.s[Math.floor(span.s.length/2)],span.s.at(-1)])assert.ok(formationPoses(route,s,1,tr.formation.parts),'編組落在未知路徑：'+tr.train);
+  for(const s of [span.s[0],span.s[Math.floor(span.s.length/2)],span.s.at(-1)]){assert.ok(formationPoses(route,s,1,tr.formation.parts),'編組落在未知路徑：'+tr.train);assert.ok(formationPoses(route,s,1,shown),'真實比例編組落在未知路徑：'+tr.train);}
  }
 }
 // 任意日期更新都不得讓歷史頁改去讀取網站的可變資料／API。

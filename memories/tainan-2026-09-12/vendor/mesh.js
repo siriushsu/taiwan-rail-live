@@ -26,7 +26,7 @@ export function createWenhuMaterial(THREE) {
     vertexShader:[
       'precision highp float; attribute vec3 color; attribute float gloss;',
       'varying vec3 rgb,nrm; varying float shine;',
-      'void main(){rgb=color;nrm=normal;shine=gloss;',
+      'void main(){rgb=color;nrm=mat3(modelMatrix)*normal;shine=gloss;',
       'gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}'
     ].join('\n'),
     fragmentShader:[

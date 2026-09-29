@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>台南重播列車網格檢視器</title>
+<style>html,body{margin:0;height:100%;background:#e5e7dc;overflow:hidden}canvas{display:block;width:100%;height:100%}#hud{position:fixed;left:8px;top:6px;font:12px/1.4 system-ui;color:#222;background:#fffc;padding:2px 6px;border-radius:4px}</style>
+<div id="hud">載入中…</div>
+<script type="module">
+// 開發用檢視器：用網頁同一支 shader（vendor/mesh.js）畫產生器輸出的 .bin／.bin.gz，所見即重播頁所見。
+// 參數：files=路徑:x偏移:flip（逗號分隔，相對本頁）；yaw／pitch（度）；span（正交視窗高度，公尺）；cx／cz（畫面中心）；
+//       persp=1 改用透視；rails=0 不畫鋼軌；bg=顏色。載入完成後 window.viewerReady=true。
+import * as THREE from '../../../../memories/tainan-2026-09-12/vendor/three.module.js';
+import {createWenhuGeometry,createWenhuMaterial} from '../../../../memories/tainan-2026-09-12/vendor/mesh.js';
+const q=new URLSearchParams(location.search),num=(k,d)=>q.has(k)?Number(q.get(k)):d;
+async function load(path){const r=await fetch(path);if(!r.ok)throw Error(path+' '+r.status);let b=await r.arrayBuffer();
+ if(path.endsWith('.gz'))b=await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();return new Float32Array(b);}
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setPixelRatio(num('dpr',Math.min(devicePixelRatio,2)));renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.setClearColor(q.get('bg')||'#e5e7dc');document.body.prepend(renderer.domElement);
+const scene=new THREE.Scene(),material=createWenhuMaterial(THREE);
+let tris=0;const files=(q.get('files')||'').split(',').filter(Boolean);
+for(const spec of files){const [path,x='0',flip='0']=spec.split(':');const data=await load(path);const mesh=new THREE.Mesh(createWenhuGeometry(THREE,{data}),material);
+ mesh.position.set(Number(x),0,0.0);if(flip==='1')mesh.rotation.z=Math.PI;scene.add(mesh);tris+=data.length/30;}
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(4000,4000),new THREE.MeshBasicMaterial({color:q.get('ground')||'#dcdfd2'}));ground.position.z=-0.02;scene.add(ground);
+if(q.get('rails')!=='0'){for(const y of [-.5335,.5335]){const m=new THREE.Mesh(new THREE.BoxGeometry(4000,.07,.13),new THREE.MeshBasicMaterial({color:'#6f746c'}));m.position.set(0,y,.065-.0);scene.add(m);}
+ const bed=new THREE.Mesh(new THREE.BoxGeometry(4000,3.4,.05),new THREE.MeshBasicMaterial({color:'#b9b8a8'}));bed.position.set(0,0,-.0);scene.add(bed);}
+const span=num('span',30),yaw=num('yaw',206)*Math.PI/180,pitch=num('pitch',40.4)*Math.PI/180,target=new THREE.Vector3(num('cx',0),num('cy',0),num('cz',1.6));
+const persp=q.get('persp')==='1';let camera;
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);const a=w/h;
+ if(persp){camera=new THREE.PerspectiveCamera(num('fov',28),a,.5,5000);const d=span/2/Math.tan(camera.fov*Math.PI/360);camera.up.set(0,0,1);camera.position.set(target.x+Math.cos(yaw)*Math.cos(pitch)*d,target.y+Math.sin(yaw)*Math.cos(pitch)*d,target.z+Math.sin(pitch)*d);}
+ else{camera=new THREE.OrthographicCamera(-span*a/2,span*a/2,span/2,-span/2,.1,50000);camera.up.set(0,0,1);const d=8000;camera.position.set(target.x+Math.cos(yaw)*Math.cos(pitch)*d,target.y+Math.sin(yaw)*Math.cos(pitch)*d,target.z+Math.sin(pitch)*d);}
+ camera.lookAt(target);camera.updateProjectionMatrix();renderer.render(scene,camera);}
+resize();addEventListener('resize',resize);
+document.getElementById('hud').textContent=(q.get('hud')||files.join(' '))+' · '+Math.round(tris)+' 三角形';if(q.get('hud')==='0')document.getElementById('hud').hidden=true;
+window.viewerReady=true;window.viewer={renderer,scene,camera,THREE};
+</script>
+</html>
