@@ -1,6 +1,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildMetroPages } from './build_metro_pages.mjs';
+
+// 預設：重產所有頁面並寫檔。--check：在記憶體重產，和磁碟逐 byte 比對，有差異就列出檔名並以非零離開（不寫檔）。
+const checkMode = process.argv.includes('--check');
+const unknownArgs = process.argv.slice(2).filter(arg => arg !== '--check');
+if (unknownArgs.length) {
+  console.error(`不認識的參數：${unknownArgs.join(' ')}（只支援 --check）`);
+  process.exit(2);
+}
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const siteUrl = 'https://railisland.tw';
@@ -175,10 +184,10 @@ function jsonLd(value) {
   return JSON.stringify(value).replace(/</g, '\\u003c');
 }
 
+// 所有輸出先收進記憶體，檔尾再依模式寫檔或比對。
+const outputs = new Map();
 function write(relative, content) {
-  const target = path.join(root, relative);
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, content);
+  outputs.set(relative, content);
 }
 
 function head({ title, description, pathname, schema }) {
@@ -231,11 +240,11 @@ function breadcrumbs(items) {
   return `<nav class="breadcrumbs" aria-label="麵包屑"><ol>${items.map((item, index) => `<li>${index === items.length - 1 ? escapeHtml(item.label) : `<a href="${item.href}">${escapeHtml(item.label)}</a>`}</li>`).join('')}</ol></nav>`;
 }
 
-function footer() {
+function footer(extraLinks = '') {
   return `<footer class="site-footer">
     <div class="site-footer-inner">
       <div>軌島是獨立維護、原始碼公開可查的台灣鐵道即時動畫地圖，與各營運機構無關。</div>
-      <div class="footer-links"><a href="/accuracy/">準確度與限制</a><a href="/data-sources/">資料來源</a><a href="https://github.com/siriushsu/taiwan-rail-live">GitHub 原始碼</a></div>
+      <div class="footer-links"><a href="/accuracy/">準確度與限制</a><a href="/data-sources/">資料來源</a><a href="https://github.com/siriushsu/taiwan-rail-live">GitHub 原始碼</a>${extraLinks}</div>
     </div>
   </footer>
 </body>
@@ -243,7 +252,7 @@ function footer() {
 `;
 }
 
-function pageSchema({ title, description, pathname, type = 'WebPage', extra = {} }) {
+function pageSchema({ title, description, pathname, type = 'WebPage', extra = {}, modified = updated }) {
   return {
     '@context': 'https://schema.org',
     '@type': type,
@@ -251,7 +260,7 @@ function pageSchema({ title, description, pathname, type = 'WebPage', extra = {}
     description,
     url: `${siteUrl}${pathname}`,
     inLanguage: 'zh-Hant',
-    dateModified: updated,
+    dateModified: modified,
     isPartOf: { '@type': 'WebSite', name: '軌島 Rail Island', url: `${siteUrl}/` },
     ...extra,
   };
@@ -273,6 +282,12 @@ ${header()}
 ${footer()}`;
 }
 
+// ── 捷運路線圖頁（階段 A，2026-09-29）：scripts/build_metro_pages.mjs，三語共 60 頁，全部由 data/ 產生 ──
+const metro = buildMetroPages(root, { stationPages: stations, zhShell: { header, footer }, escapeHtml });
+for (const [relative, html] of metro.files) write(relative, html);
+const metroLinkSection = ({ h, text, href, label }) => `<section class="content-section"><h2>${escapeHtml(h)}</h2><div class="answer-box"><p>${escapeHtml(text)}</p></div><p><a class="button secondary" href="${href}">${escapeHtml(label)}</a></p></section>`;
+const zhMetroSection = () => metroLinkSection({ h: metro.linkSectionText.zh.h, text: metro.linkSectionText.zh.text, href: metro.overviewHref('zh'), label: metro.linkSectionText.zh.link });
+
 const aboutDescription = '軌島是一張依官方時刻表與可用即時資料，呈現台灣台鐵、高鐵、捷運、輕軌與阿里山林鐵列車的動畫地圖，也能查看車站、班次與營運公告。';
 write('about/index.html', renderPage({
   title: '關於軌島：台灣鐵道即時動畫地圖',
@@ -281,12 +296,13 @@ write('about/index.html', renderPage({
   eyebrow: 'ABOUT RAIL ISLAND',
   heading: '軌島是什麼？',
   lede: aboutDescription,
-  schema: pageSchema({ title: '關於軌島：台灣鐵道即時動畫地圖', description: aboutDescription, pathname: '/about/', type: 'AboutPage' }),
+  schema: pageSchema({ title: '關於軌島：台灣鐵道即時動畫地圖', description: aboutDescription, pathname: '/about/', type: 'AboutPage', modified: metro.templateDate }),
   content: `<section class="content-section"><h2>它怎麼運作</h2><div class="card-grid">
     <article class="card"><h3>收進同一張地圖</h3><p>台鐵、高鐵、各地捷運與輕軌、阿里山林鐵使用不同資料格式；軌島先整理路線、車站與班表，再放到同一時間軸。</p><a class="card-link" href="/data-sources/">看資料來源 →</a></article>
     <article class="card"><h3>依證據區分即時與推估</h3><p>有官方即時訊號的系統會用來校正；沒有逐車 GPS 的系統，列車位置是依班表、站間時間或官方到站倒數推演。</p><a class="card-link" href="/accuracy/">看準確度說明 →</a></article>
     <article class="card"><h3>免費、原始碼公開、獨立維護</h3><p>這是個人興趣專案，不是營運機構的官方服務。原始碼依 source-available 授權公開，可供檢視與個人研究；網站基本地圖與列車資訊免費使用。</p><a class="card-link" href="https://github.com/siriushsu/taiwan-rail-live">查看原始碼與授權 →</a></article>
   </div></section>
+  ${zhMetroSection()}
   <section class="content-section"><h2>軌島適合回答什麼</h2><div class="answer-box"><ul class="answer-list">
     <li>現在地圖上有哪些台鐵、高鐵、捷運與輕軌列車？</li>
     <li>某個車站屬於哪些系統、可在哪裡轉乘？</li>
@@ -426,12 +442,14 @@ write('stations/index.html', renderPage({
     description: stationsDescription,
     pathname: '/stations/',
     type: 'CollectionPage',
+    modified: metro.templateDate,
     extra: { mainEntity: { '@type': 'ItemList', numberOfItems: stations.length, itemListElement: stations.map((station, index) => ({ '@type': 'ListItem', position: index + 1, name: station.title, url: `${siteUrl}/stations/${station.slug}/` })) } },
   }),
   content: `<section class="content-section"><h2>常查詢車站</h2><p class="section-intro">同名不一定同站。索引特別把台鐵與高鐵的桃園、新竹、台中、台南、嘉義分開，避免搜尋時把不同地點誤認成同一站。</p><div class="card-grid station-grid">${stations.map(station => {
     const details = stationDetails(station);
     return `<article class="card station-card"><div class="station-systems">${stationSystems(details).map(escapeHtml).join(' · ')}</div><h3>${escapeHtml(station.title)}</h3><p>${escapeHtml(station.summary)}</p><a class="card-link" href="/stations/${station.slug}/">查看車站資料 →</a></article>`;
   }).join('')}</div></section>
+  ${zhMetroSection()}
   <section class="content-section"><div class="notice"><strong>沒有列出的車站不代表軌島沒有收錄。</strong>這是第一批供搜尋與引用的穩定資料頁；完整站點與當下發車資訊仍在即時地圖中。</div></section>`,
 }));
 
@@ -528,6 +546,12 @@ const landings = {
   },
 };
 
+// /en/、/ja/ 第二段插入「捷運路線圖」入口（文字由 build_metro_pages.mjs 提供，和 zh 頁同一份來源）
+for (const code of ['en', 'ja']) {
+  const t = metro.linkSectionText[code];
+  landings[code].sections.splice(1, 0, { h: t.h, type: 'link', text: t.text, href: metro.overviewHref(code), label: t.link });
+}
+
 function landingHtml(config) {
   const canonical = `${siteUrl}${config.pathname}`;
   const schema = {
@@ -539,6 +563,7 @@ function landingHtml(config) {
     if (section.type === 'facts') return `<section class="content-section">${h2}<div class="fact-table">${section.rows.map(([label, value]) => `<div class="fact-row"><div class="fact-label">${escapeHtml(label)}</div><div class="fact-value">${escapeHtml(value)}</div></div>`).join('')}</div></section>`;
     if (section.type === 'cards') return `<section class="content-section">${h2}<div class="card-grid">${section.cards.map(([title, body]) => `<article class="card"><h3>${escapeHtml(title)}</h3><p>${escapeHtml(body)}</p></article>`).join('')}</div></section>`;
     if (section.type === 'answer') return `<section class="content-section">${h2}<div class="answer-box">${section.paras.map(text => `<p>${escapeHtml(text)}</p>`).join('')}</div></section>`;
+    if (section.type === 'link') return metroLinkSection(section);
     if (section.type === 'cta') return `<section class="content-section">${h2}<div class="answer-box"><p>${escapeHtml(section.text)}</p></div><p><a class="button" href="${config.live}">${escapeHtml(config.openMap)}</a></p></section>`;
     return `<section class="content-section">${h2}<div class="notice"><strong>${escapeHtml(section.lead)}</strong> ${escapeHtml(section.text)}</div></section>`;
   };
@@ -611,10 +636,58 @@ const sitemapPaths = [
   '/data-sources/',
   '/stations/',
   ...stations.map(station => `/stations/${station.slug}/`),
+  ...metro.paths,
   '/status.html',
   '/privacy.html',
   '/terms.html',
 ];
-write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapPaths.map(pathname => `  <url><loc>${siteUrl}${pathname}</loc><lastmod>${pathname === '/en/' || pathname === '/ja/' ? landingUpdated : updated}</lastmod></url>`).join('\n')}\n</urlset>\n`);
+const metroPathSet = new Set(metro.paths);
+const lastmodOf = pathname => {
+  if (metroPathSet.has(pathname)) return metro.date;
+  if (pathname === '/en/' || pathname === '/ja/') return landingUpdated;
+  // 首頁的 title／description 與「捷運路線圖」入口跟捷運頁同一批（09-29）改過
+  if (pathname === '/' || pathname === '/about/' || pathname === '/stations/') return metro.templateDate;
+  return updated;
+};
+write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapPaths.map(pathname => `  <url><loc>${siteUrl}${pathname}</loc><lastmod>${lastmodOf(pathname)}</lastmod></url>`).join('\n')}\n</urlset>\n`);
 
-console.log(`AEO pages built: ${stations.length} station pages + 4 guide pages + en/ja landing pages + robots/sitemap`);
+// ── 寫檔或比對 ────────────────────────────────────────────────────────────────────────
+// 捷運頁的目錄只由本腳本產生，所以磁碟上有、但這次沒產出的檔案＝孤兒（路線被拿掉或改 slug），寫檔模式會刪、--check 會報。
+const metroDirs = ['metro', 'en/metro', 'ja/metro'];
+function filesUnder(relativeDir) {
+  const dir = path.join(root, relativeDir);
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+    const child = `${relativeDir}/${entry.name}`;
+    return entry.isDirectory() ? filesUnder(child) : [child];
+  });
+}
+const orphans = metroDirs.flatMap(filesUnder).filter(relative => !outputs.has(relative)).sort();
+const metroSummary = `${metro.paths.length} metro pages (${Object.entries(metro.counts).map(([kind, n]) => `${kind} ${n}`).join(' / ')}), missing en/ja station names: ${metro.missingNames.length}`;
+
+if (checkMode) {
+  const problems = [];
+  for (const [relative, content] of outputs) {
+    const target = path.join(root, relative);
+    if (!fs.existsSync(target)) problems.push(`缺檔      ${relative}`);
+    else if (!fs.readFileSync(target).equals(Buffer.from(content, 'utf8'))) problems.push(`內容不同  ${relative}`);
+  }
+  for (const relative of orphans) problems.push(`多餘      ${relative}`);
+  if (problems.length) {
+    console.error(`AEO pages out of date（${problems.length} 個檔案和產生器輸出不同）：\n${problems.join('\n')}\n請執行 node scripts/build_aeo_pages.mjs 重產後一起 commit。`);
+    process.exit(1);
+  }
+  console.log(`AEO pages up to date: ${outputs.size} files checked, ${metroSummary}`);
+} else {
+  for (const [relative, content] of outputs) {
+    const target = path.join(root, relative);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content);
+  }
+  for (const relative of orphans) {
+    fs.unlinkSync(path.join(root, relative));
+    // 刪完若目錄空了就一併移除（只往上收到 metro 根目錄以內）
+    for (let dir = path.dirname(path.join(root, relative)); metroDirs.every(d => dir !== path.join(root, d)) && fs.readdirSync(dir).length === 0; dir = path.dirname(dir)) fs.rmdirSync(dir);
+  }
+  console.log(`AEO pages built: ${stations.length} station pages + 4 guide pages + en/ja landing pages + robots/sitemap + ${metroSummary}${orphans.length ? `; removed ${orphans.length} orphan files` : ''}`);
+}

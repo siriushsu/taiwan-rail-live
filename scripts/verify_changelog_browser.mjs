@@ -91,7 +91,8 @@ const widths = [360, 375, 414, 768];
 // 9/29：台鐵專車接力借股道（10/3 環島 6669）一條（452→453）。
 // 9/29：台南地面鐵道歷史重播 App 入口與壓縮下載一條（453→454；v0929e 當時沒跟著改，main 上這支是紅的），
 //       台鐵預排待避改停另一股一條（454→455）。
-const expectedHistoryCount = 455;
+// 9/29：捷運路線圖頁（三語 60 頁）與頁尾入口一條（455→456）；「北北桃」與台北捷運導言更正一條（456→457）。
+const expectedHistoryCount = 457;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

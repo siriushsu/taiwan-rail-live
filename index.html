@@ -3675,7 +3675,7 @@
        長清單已經住進 .foot-more,那層仍受上面的 44vh 節制。 */
     #msAbout .foot-recent { max-height: none; overflow: visible; }
     .ms-aeo-links {
-      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 8px;
       padding: 10px 14px 4px;
     }
     .ms-aeo-links a {
@@ -5628,13 +5628,13 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li data-cl-of="tainanmodel0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，最多可放大到約 34 公尺，可拿掉站房的施工外罩</span></li>
+        <li data-cl-of="metropages0929"><span class="d">9/29</span><span>新增捷運路線圖頁：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車</span></li>
         <li data-cl-of="placedup0925"><span class="d">9/29</span><span>地圖上站名旁邊的機場名稱也不再跟站名疊在一起，例如松山機場站旁的「臺北松山機場」</span></li>
         <li data-cl-of="tradistinct0929"><span class="d">9/29</span><span>立體地圖上台鐵列車在車站讓後車先過時，改停到旁邊的股道，後車不會再從停著的車身穿過去</span></li>
         <li data-cl-of="tainanfast0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：修正 App 裡點了打不開，網頁版下載量從約 11 MB 降到約 2 MB，開啟更快、全線視角更順</span></li>
         <li data-cl-of="trachain0929"><span class="d">9/29</span><span>10/3 環島專車這類比任何固定班次都跑得遠的台鐵專車，地圖上改沿真實股道行駛，不再整趟退回示意路線</span></li>
         <li data-cl-of="traovertake0929"><span class="d">9/29</span><span>修正少數台鐵列車在車站空等不存在的後車，或出站後異常慢行的問題</span></li>
         <li data-cl-of="followcard0929"><span class="d">9/29</span><span>App 鎖定畫面跟車卡：Android 補上小列車、iPhone 改成三節車廂，從車站看板追下一班車時卡片會立刻出現</span></li>
-        <li data-cl-of="langhint0929"><span class="d">9/29</span><span>網頁版首次開啟固定顯示繁體中文；英文、日文瀏覽器會出現可一鍵切換的語言提示</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5642,7 +5642,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
-        <li data-cl="tainanmodel0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：舊站房依修復後的面磚與洗石子重建，預設蓋著修復工程的施工外罩、可一鍵拿掉；列車改用真實比例，集電弓畫在實際裝有的車廂，推拉式自強號改畫 7 月起接手的 E500 機車頭；最多可放大到約 34 公尺視野</span></li>
+        <li data-cl="tainanmodel0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：舊站房依暖灰磁磚與米黃、土黃洗石子的色調重建，預設蓋著修復工程的施工外罩、可一鍵拿掉；列車改用真實比例，集電弓畫在實際裝有的車廂，推拉式自強號改畫 7 月起的 E500 機車頭；最多可放大到約 34 公尺視野</span></li>
         <li data-cl="placedup0925"><span class="d">9/29</span><span>地圖上站名旁邊若有同名的底圖地名（例如竹北站旁的「竹北市」「竹北里」），站名畫出來時就不再重複顯示；拉遠到還沒標出站名的時候，地名照樣看得到；9/29 起機場名稱也一樣（松山機場站旁的「臺北松山機場」）</span></li>
         <li data-cl="tradistinct0929"><span class="d">9/29</span><span>修正立體地圖上台鐵待避時後車直接穿過停著的前車（10/3 推估 14 次有 12 次同一股）：前車改停到後車不走、也沒有別班在用的股道；沒有這種股道的車站不排待避，改到前面有空股的站等。臺東線南平站的側線也能待避了</span></li>
         <li data-cl="tainanfast0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：修正 App 裡點了打不開；列車與站房模型改壓縮下載（內容不變），網頁版下載量從約 11 MB 降到約 2 MB，全線視角的繪製量也大幅減少</span></li>
@@ -6023,6 +6023,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="metropages0929"><span class="d">9/29</span><span>新增捷運路線圖頁（中、英、日文）：台北、桃園機場、新北、台中、高雄各系統與每條路線的路線圖、車站與轉乘、首末班車和班距，資料來源沒有逐班時刻表的路線只列營運時段與班距；頁面可一鍵在地圖上看列車，頁尾與手機版「更多」新增「捷運路線圖」入口</span></li>
         <li data-cl="langhint0929"><span class="d">9/29</span><span>網頁版第一次開啟固定顯示繁體中文，不再依瀏覽器語言自動切換；英文或日文瀏覽器會出現一個小提示，按一下就能切換語言，也能關掉不再提示（App 仍依手機語言）。另新增英文與日文的獨立介紹頁，方便外國旅客搜尋到軌島</span></li>
         <li data-cl="seotitle0929"><span class="d">9/29</span><span>網頁標題與搜尋結果裡的網站說明改寫得更清楚，直接寫出「台鐵、高鐵、捷運即時列車地圖與時刻表」，在 Google 搜尋時比較容易認出軌島在做什麼</span></li>
         <li data-cl="buildingopacity0927"><span class="d">9/27</span><span>修正立體地圖剛放大到能看見建築、還沒顯示立體列車時，切換亮暗外觀會讓「透視顯示」的建築突然變得不透明；現在重新裝入建築後會立即套回所選的透明度</span></li>
@@ -6073,6 +6074,7 @@
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
         <li><span class="d">7/11</span><span>可以安裝到主畫面（PWA），像 App 一樣全螢幕開啟</span></li>
         <li class="grp">資料校正</li>
+        <li data-cl="metrolead0929"><span class="d">9/29</span><span>捷運導言更正：「北北桃」與台北捷運的地圖導言，也改成台北捷運各線（含文湖線）的列車位置與車站倒數都來自官方逐班即時資料，不再把文湖線寫成班距推算</span></li>
         <li data-cl="subwayfloat0925"><span class="d">9/25</span><span>高捷紅線與臺北臺鐵地下化（板橋～南港）改回畫在地面下：原本只因沿線一小段靠山（半屏山、南港）就被當成山岳隧道，整段畫在地面上約 8 公尺，連帶把交會的新左營臺鐵、高雄車站地下段、高雄輕軌與南港高鐵頂高</span></li>
         <li data-cl="zuoyingflat0925"><span class="d">9/25</span><span>高鐵左營站區（到北緯 22.7011 為止）改回平面：官方橋隧圖資把站區畫成橋樑，但高鐵左營站是平面站、月台在 1 樓；北邊的高架照舊（謝謝網友回報）</span></li>
         <li data-cl="tengyun0925"><span class="d">9/25</span><span>EMU3000 新自強的車種介紹改成「多數班次有騰雲座艙（特仕車編組除外）」，不再寫得像每班都有（謝謝網友提問）</span></li>
@@ -6136,6 +6138,7 @@
       <a href="about/">關於軌島</a>
       <a href="accuracy/">準確度說明</a>
       <a href="stations/">車站索引</a>
+      <a href="metro/" data-metro-link>捷運路線圖</a>
       <!-- APP_REPLACE_END aeo-links-foot -->
       <a class="report-open" href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">回報問題或建議</a>
       <a href="https://github.com/siriushsu/taiwan-rail-live" target="_blank" rel="noopener noreferrer">原始碼公開，歡迎貢獻</a>
@@ -6494,6 +6497,7 @@
       <a href="about/">關於軌島</a>
       <a href="accuracy/">準確度說明</a>
       <a href="stations/">車站索引</a>
+      <a href="metro/" data-metro-link>捷運路線圖</a>
       <!-- APP_REPLACE_END aeo-links-ms -->
     </nav>
     <div class="ms-about-links">
@@ -6930,6 +6934,8 @@
 // v0929h：底圖地名去重擴及機場標籤（aerodrome_label 圖層，地景與淺色街圖的 airport）：機場名稱以站名結尾也算
 //         （臺北松山機場 vs 松山機場站、高雄國際機場同名）（守門：scripts/verify_basemap_label_dedup.mjs）。
 //         v0929g 已被 seo/homepage-title 分支佔用（未併 main），跳號避免撞號。
+// v0929i：SEO 批次（首頁標題與描述、網頁固定繁中＋外語提示、/en/ /ja/ 與 hreflang、捷運路線圖頁三語 60 頁）。
+//         本分支原本佔 v0929g，併 main 時 v0929h 已上 main，改用 v0929i 讓版號維持遞增。
 // v0929j：台南地面鐵道歷史重播精修（memories/tainan-2026-09-12）：舊站房重建＋施工外罩開關、列車真實比例、放大極限 34 m
 //         （守門：scripts/verify_tainan_memory.mjs、verify_tainan_memory_browser.mjs）。v0929i 同樣已被 seo/homepage-title 佔用。
 const BUILD = 'v0929j';
@@ -7231,6 +7237,10 @@ function i18nSyncLanguageControl() {
 }
 function i18nSyncDocumentMeta() {
   document.title = t('軌島｜台鐵、高鐵、捷運即時列車地圖與時刻表');
+  // 捷運路線圖頁有中英日三版：頁尾與「更多」的入口跟著介面語言指到同語言那版。App build 會把這兩排換成
+  // 正式站絕對網址（app/scripts/prepare-web.mjs 的 aeoLinksHtml），那邊不帶 data-metro-link，這裡碰不到。
+  const metroHref = I18N_LANG === 'en' ? 'en/metro/' : I18N_LANG === 'ja' ? 'ja/metro/' : 'metro/';
+  for (const a of document.querySelectorAll('a[data-metro-link]')) a.setAttribute('href', metroHref);
   const description = document.querySelector('meta[name="description"]');
   if (description) description.content = t('台鐵、高鐵、捷運與輕軌列車依官方時刻表與即時資料在地圖上跑動，可查車站班次、捷運路線與台鐵誤點。軌島 railisland.tw，一張會動的台灣鐵道地圖。');
 }
@@ -8192,7 +8202,7 @@ function pal() { return MAP_PAL[state.basemap === 'landscape' ? 'light' : state.
 
 // 各系統的站名牌／副標／導言文案(loadSystem 依系統套用)
 const SYS_META = {
-  mrt:       { plateL: '淡水', plateR: '象山', sub: 'TAIPEI METRO LIVE',    lead: '各線列車依當日實際時刻表在城市裡穿梭，營運時段依官方到站看板即時校正（含環狀線；文湖線為班距推算）— 拖曳、縮放看看。' },
+  mrt:       { plateL: '淡水', plateR: '象山', sub: 'TAIPEI METRO LIVE',    lead: '各線列車在城市裡穿梭，列車位置與車站倒數都是官方逐班即時（含文湖線、環狀線）— 拖曳、縮放看看。' },
   tymc:      { plateL: '台北車站', plateR: '老街溪', sub: 'TAOYUAN AIRPORT MRT LIVE', lead: '機場捷運直達車與普通車依當日實際時刻表連結雙北與桃園機場，營運時段依官方到站看板即時校正 — 拖曳、縮放看看。' },
   ntdlrt:    { plateL: '紅樹林', plateR: '漁人碼頭', sub: 'DANHAI LIGHT RAIL LIVE', lead: '淡海輕軌綠山線與藍海線依官方當日時刻表在淡水穿梭，營運時段依官方列車動態即時校正 — 拖曳、縮放看看。' },
   ntalrt:    { plateL: '雙城', plateR: '十四張', sub: 'ANKENG LIGHT RAIL LIVE', lead: '安坑輕軌依官方當日時刻表沿安康路串起新店丘陵，營運時段依官方列車動態即時校正 — 拖曳、縮放看看。' },
@@ -17969,7 +17979,7 @@ const GROUPS = [
       lead: '台鐵、高鐵與阿里山林鐵皆依真實時刻表運行（台鐵回到現在時刻自動套用即時誤點；林鐵依官方公告時刻表，無即時資訊）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。' } },
   { id: 'north', label: '北北桃', mode: 'freq', members: ['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying'],
     plate: { plateL: '淡水', plateR: '桃園機場', sub: 'GREATER TAIPEI RAIL',
-      lead: '台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，北捷、新北捷與機捷營運時段依官方即時資訊校正（三鶯線、文湖線為班距推算）— 可在上方勾選要同時顯示的系統,拖曳、縮放地圖看看。' } },
+      lead: '台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線為班距推算）— 可在上方勾選要同時顯示的系統，拖曳、縮放地圖看看。' } },
   { id: 'south', label: '中南部', mode: 'freq', members: ['tmrt', 'krtc'],
     plate: { plateL: '台中', plateR: '高雄', sub: 'CENTRAL & SOUTHERN METRO',
       lead: '台中捷運與高雄捷運同框，高捷與輕軌營運時段依官方到站看板校正（台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。' } },
