@@ -925,11 +925,11 @@ await attempt('K5', async () => {
   const w = a.w;
   const tot = w.db.prepare('SELECT SUM(sample_count) s, MIN(sample_count) lo, MAX(sample_count) hi, SUM(distinct_ok_users) d FROM bounty_board').get();
   // 手算：119 個區間 × 板價 1＋最後一段認領鎖 9＝128 點（＜ 每日上限 200）；每段 sample_count 1、去重人數 1；登記 120 段；一班車 12000 秒、一般線 → 1 顆。
-  // 子請求（review-B 之後）：固定 5（規則、題庫、租約、班車清單、釋放租約）＋每班 12＋登記 ⌈120/26⌉＝5 個 batch＝22。
+  // 子請求（review-B 之後）：固定 5（規則、題庫、租約、班車清單、釋放租約）＋每班 11＋登記 ⌈120/26⌉＝5 個 batch＝21。
   // 寫入不再分塊：標記、點數、sample_count、關認領是同一個 batch（一筆交易），不論幾段都是 1。
-  ok('K5p [S13a 100 參數上限] 覆蓋 120 段（＞100）的整條線一班車：流程不丟例外（沒有任何一句綁超過 100 個參數）、判 ok、點數 128、每段 sample_count 1／去重人數 1、登記 120 段、最後一句（關認領）寫進去了、入帳 1 顆、子請求恰 22',
+  ok('K5p [S13a 100 參數上限] 覆蓋 120 段（＞100）的整條線一班車：流程不丟例外（沒有任何一句綁超過 100 個參數）、判 ok、點數 128、每段 sample_count 1／去重人數 1、登記 120 段、最後一句（關認領）寫進去了、入帳 1 顆、子請求恰 21',
     a.err === null && q.verdicts(w.db, 'kx', 'X1') === 'ok' && q.points(w.db, 'kx') === 128 && tot.s === 120 && tot.lo === 1 && tot.hi === 1 && tot.d === 120 &&
-      q.nContrib(w.db, 'kx') === 120 && q.claim(w.db, 'cl-x').status === 'fulfilled' && a.st.chips === 1 && a.st.subreq === 22,
+      q.nContrib(w.db, 'kx') === 120 && q.claim(w.db, 'cl-x').status === 'fulfilled' && a.st.chips === 1 && a.st.subreq === 21,
     J({ err: a.err, v: q.verdicts(w.db, 'kx', 'X1'), points: q.points(w.db, 'kx'), tot, contrib: q.nContrib(w.db, 'kx'), cl: q.claim(w.db, 'cl-x'), st: a.st }));
   ok('K5d [S13a 100 參數上限] 前置：這條線真的讓覆蓋段超過 100（登記 120 段），而整個 cron 期間單句綁定參數最多 ≤ 100（測試端計數替身量到的最大值）；計數器＝測試端獨立計數',
     q.nContrib(w.db, 'kx') > 100 && w.tally.maxBind >= 1 && w.tally.maxBind <= 100 && a.st && a.st.subreq === w.tally.n, J({ contrib: q.nContrib(w.db, 'kx'), maxBind: w.tally.maxBind, subreq: a.st && a.st.subreq, tally: w.tally.n }));
@@ -938,16 +938,16 @@ await attempt('K5', async () => {
   const diffs = diffDump(a.dump, b.dump);
   ok('K5a [S13a 等價] 覆蓋 120 段（寫入 241 句、4 塊）：新舊六張表逐列相等（非空）', b.err === null && diffs.length === 0 && nonEmpty(a.dump), J({ oldErr: b.err, diffs, sizes: dumpSizes(a.dump) }));
 });
-// ═══ K4：每班車的子請求數＝固定 12 ＋ ⌈登記段數/26⌉（不隨段數線性成長）═════════════════════════
+// ═══ K4：每班車的子請求數＝固定 11 ＋ ⌈登記段數/26⌉（不隨段數線性成長）═════════════════════════
 // 手算（逐一數 bountyVerifyTrain 對每班車的 D1 呼叫；review-B 之後）：讀這班車的批次 1、逐線查逐站事件 1、身分解析 1、前次已判定列 1、
-// 籌碼（身分 1＋同班已入帳 1＋當日已領 1＋寫帳本 1）4、去重登記的身分解析 1、認領 1、板價 1、這一組的寫入 1（標記＋點數＋sample_count＋關認領
-// 同一個 batch＝同一筆交易，不論幾段都是 1）＝12；再加登記（每 26 段一個 batch）。
+// 籌碼（身分 1＋同班已入帳 1＋當日已領 1＋寫帳本 1）4、認領 1、板價 1、這一組的寫入 1（標記＋點數＋sample_count＋關認領
+// 同一個 batch＝同一筆交易，不論幾段都是 1）＝11；再加登記（每 26 段一個 batch）。去重登記的身分在登記那兩句的 SQL 裡解析，不另查（獨立驗收 V3）。
 // 這一條把「查詢量不隨覆蓋段數線性成長」釘成等式：日後任何人在逐段迴圈裡加一句查詢，這條就會紅。
 // 26＝⌊80/3⌋（登記每段最多三句、一批 80 句）。一發的固定開銷是 5（規則、題庫、租約、班車清單、釋放租約；M0a）。
-const perTrainExpect = nCov => 12 + Math.ceil(nCov / 26);
+const perTrainExpect = nCov => 11 + Math.ceil(nCov / 26);
 for (const tag of Object.keys(CAP)) {
   const cp = CAP[tag];
-  ok(`K4 ${tag} [S13a 查詢量] 真實整條線（覆蓋 ${cp.nCov} 項、計功 ${cp.nCred} 項）：每班車子請求＝${perTrainExpect(cp.nCov)}（12＋⌈${cp.nCov}/26⌉），實測 ${cp.newN - 5}`,
+  ok(`K4 ${tag} [S13a 查詢量] 真實整條線（覆蓋 ${cp.nCov} 項、計功 ${cp.nCred} 項）：每班車子請求＝${perTrainExpect(cp.nCov)}（11＋⌈${cp.nCov}/26⌉），實測 ${cp.newN - 5}`,
     cp.newN - 5 === perTrainExpect(cp.nCov), J(cp));
 }
 
@@ -965,19 +965,19 @@ await attempt('M0', async () => {
     st.subreq === 5 && w.tally.n === 5 && st.trains === 0 && st.budgetStop === false, J({ st, tally: w.tally.n }));
 });
 await attempt('M1', async () => {
-  // 一班車、只有一條線：5＋12＋⌈段/26⌉（K4 的手算；寫入是一個 batch，不隨段數分塊）
+  // 一班車、只有一條線：5＋11＋⌈段/26⌉（K4 的手算；寫入是一個 batch，不隨段數分塊）
   const run = async (seed, lnId, sec) => {
     const w = world({ tally: true, seed });
     putBatches(w.db, { actor: 'm1', trainNo: 'M1', lnId, pts: leg({ sec }) });
     const st = await w.cron();
     return { st, n: w.tally.n, nCov: q.nContrib(w.db, 'm1') };
   };
-  const a = await run(boardAll(['山線']), '山線', 700);                                // 7 段：5＋12＋1＝18
-  ok(`M1a [S13b 手算] 7 段的一班車：子請求恰 18＝5＋12＋⌈7/26⌉（實測 ${a.st.subreq}）；計數器＝測試端獨立計數`, a.st.subreq === 18 && a.n === 18 && a.nCov === 7, J(a));
-  const b = await run(boardSql('tra_sched', '長線', [{}], LONG_SEGS), '長線', 3900);      // 39 段：5＋12＋2＝19
-  ok(`M1b [S13b 手算] 39 段的一班車：子請求恰 19＝5＋12＋⌈39/26⌉（實測 ${b.st.subreq}）`, b.st.subreq === 19 && b.n === 19 && b.nCov === 39, J(b));
-  const c = await run(boardSql('tra_sched', '長線', [{}], LONG_SEGS), '長線', 4000);      // 40 段：5＋12＋2＝19（舊版寫入分塊時是 20：81 句＝兩塊）
-  ok(`M1c [S13b 手算] 40 段的一班車（寫入 81 句仍是一個 batch）：子請求恰 19＝5＋12＋⌈40/26⌉（實測 ${c.st.subreq}）`, c.st.subreq === 19 && c.n === 19 && c.nCov === 40, J(c));
+  const a = await run(boardAll(['山線']), '山線', 700);                                // 7 段：5＋11＋1＝17
+  ok(`M1a [S13b 手算] 7 段的一班車：子請求恰 17＝5＋11＋⌈7/26⌉（實測 ${a.st.subreq}）；計數器＝測試端獨立計數`, a.st.subreq === 17 && a.n === 17 && a.nCov === 7, J(a));
+  const b = await run(boardSql('tra_sched', '長線', [{}], LONG_SEGS), '長線', 3900);      // 39 段：5＋11＋2＝18
+  ok(`M1b [S13b 手算] 39 段的一班車：子請求恰 18＝5＋11＋⌈39/26⌉（實測 ${b.st.subreq}）`, b.st.subreq === 18 && b.n === 18 && b.nCov === 39, J(b));
+  const c = await run(boardSql('tra_sched', '長線', [{}], LONG_SEGS), '長線', 4000);      // 40 段：5＋11＋2＝18（舊版寫入分塊時多一個：81 句＝兩塊）
+  ok(`M1c [S13b 手算] 40 段的一班車（寫入 81 句仍是一個 batch）：子請求恰 18＝5＋11＋⌈40/26⌉（實測 ${c.st.subreq}）`, c.st.subreq === 18 && c.n === 18 && c.nCov === 40, J(c));
 });
 await attempt('M2', async () => {
   // 三班車：MA（乘車日 07-27，actor m-zz）、MB（07-28、m-aa）、MC（07-28、m-mm）。每班 7 段、單獨夠發 1 顆。

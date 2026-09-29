@@ -15,7 +15,7 @@
 //   B4  賺的端點帶了別的帳號的 Bearer → 403，一列不寫
 //   B5  帶 Bearer 讀取（chips-me／bounty-me）也跑 S0：別人預先掛上的 merged_into 被清掉
 //   B6  髒帳號列（uid 與 merged_into 都有值）：判定記在帳號本人，不跟 merged_into
-//   C2  合併落在判定途中（讀認領那一刻）：點數、認領都記對人
+//   C2  合併落在判定途中（讀認領那一刻）：點數、認領都記對人；C2b／C2c 落在寫帳本、去重登記的前一刻：籌碼與登記記對人（獨立驗收 V3）
 //   C3  判定途中第 k 次 D1 呼叫失敗（k 全掃）→ 重跑後六張表與一次跑完逐列相同（B7）
 //   LS  租約：兩發重疊不重複計點；過期可接手；別人的活租約不碰；只釋放自己那一份
 //   R1  一條線組的寫入＝一個 batch、四句（標記、點數、sample_count、關認領），標記一句
@@ -25,6 +25,7 @@
 //   N4  一班車的點數上看十幾萬（4 MB 塞得下）：判定不把整班的點展開成函式引數（V8 約十二萬多個就丟 RangeError）
 //   N2  清單之後才灌進來的批次：讀這班車那一句依讀取順序累加長度截住，送回 Worker 的不超過 4 MB 再加一批，整班判可疑
 //   N3  租約被下一發接手之後，舊的那一發第③段整組不動任何列（點數、sample_count、關認領不會做兩次）
+//   N1  可信名額最多先用掉剩下預算（子請求、牆鐘各算）的一半：養出來的可信分身擠不掉新使用者的第一趟；讓出來的名額排在別人之後照判
 //   M3  兌換的交易內餘額守衛的邊界（讀到之後被扣）——review-B Q8 說這一層只有 redeem C6 一條在守
 //   M5b 刪帳號時 body 的 deviceActor 若已併進別的帳號，一列不刪——review-B Q8 說這一層只有 auth A11d 一條在守
 import { readFileSync } from 'node:fs';
@@ -429,6 +430,43 @@ await attempt('C2', async () => {
     h.fired >= 1 && mst === 200 && q.points(w, UID) === 27 && J(q.point(w, DEV)) === J({ uid: null, points: 0, merged_into: UID }) &&
       J(cl) === J({ actor: UID, status: 'fulfilled' }) && q.bal(w, UID) === 1 && q.bal(w, DEV) === 0 && q.contrib(w, UID) === 7 && q.contrib(w, DEV) === 0,
     J({ fired: h.fired, merge: mst, uid: q.point(w, UID), dev: q.point(w, DEV), claim: cl, bal: [q.bal(w, UID), q.bal(w, DEV)], contrib: [q.contrib(w, UID), q.contrib(w, DEV)] }));
+});
+await attempt('C2b', async () => {
+  // 注入點：② 寫帳本那一句（身分、同班已入帳、當日上限都查完之後）。這一刻 DEV 被併進 UID（獨立驗收 V3 的 k=8–10）。
+  // 舊版把先前在 JS 解析出來的 DEV 綁進那一句：籌碼記在已併掉的 DEV（帳號讀不到）；期望：記在 UID，帳本列的 ref 前綴也是 UID。
+  const DEV = 'dev-c2b-race-01', UID = 'uid-c2b-race-01';
+  const w = world({ seed: boardSql('山線') });
+  putBatches(w.db, { actor: DEV, trainNo: 'C2B', pts: leg({ sec: 700 }) });
+  let mst = null;
+  const h = hookOnce(w.DELAY_DB, /^INSERT OR IGNORE INTO chip_ledger/, async () => { mst = (await merge(w, DEV, UID)).status; });
+  const st = await w.cron();
+  const led = rows(w, "SELECT actor, ref FROM chip_ledger WHERE kind='trip'");
+  ok('C2b [V3 競態] 合併落在寫帳本那一句之前：籌碼 1 顆記在 UID（帳本列 actor 與 ref 前綴都是 UID）、DEV 名下 0；登記 7 段也在 UID',
+    h.fired >= 1 && mst === 200 && st.chips === 1 && J(led) === J([{ actor: UID, ref: `${UID}|${D28}|C2B` }]) && q.bal(w, UID) === 1 && q.bal(w, DEV) === 0 &&
+      q.contrib(w, UID) === 7 && q.contrib(w, DEV) === 0,
+    J({ fired: h.fired, merge: mst, led, chips: st.chips, bal: [q.bal(w, UID), q.bal(w, DEV)], contrib: [q.contrib(w, UID), q.contrib(w, DEV)] }));
+});
+await attempt('C2c', async () => {
+  // 注入點：② 去重登記那個 batch 送出之前（獨立驗收 V3 的 k=12）。UID 以前用另一台裝置交過同一段：S0|S1…S6|S7 已有 UID 的登記、人數各 1。
+  // 這一刻 DEV 被併進 UID。舊版把先前在 JS 解析出來的 DEV 綁進 batch：7 段各多一列 DEV 的登記、人數變 2（同一個人算兩次）；
+  // 期望：登記只有 UID 那 7 列、人數仍各 1。籌碼在登記之前已記在 DEV，合併時一起搬到 UID。
+  const DEV = 'dev-c2c-race-01', UID = 'uid-c2c-race-01';
+  const seg7 = SEGS10.slice(0, 7).map(s => KT('山線', s));
+  const w = world({ seed: boardSql('山線') + pointsSql([[UID, UID, 0, null]]) +
+    seg7.map(k => `INSERT INTO bounty_seg_contrib (seg_key,actor,first_ok_at) VALUES ('${k}','${UID}',1);`).join('') +
+    `UPDATE bounty_board SET distinct_ok_users=1 WHERE seg_key IN (${seg7.map(k => `'${k}'`).join(',')});` });
+  putBatches(w.db, { actor: DEV, trainNo: 'C2C', pts: leg({ sec: 700 }) });
+  const hb = { fired: 0, merge: null };
+  const origBatch = w.DELAY_DB.batch.bind(w.DELAY_DB);
+  w.DELAY_DB.batch = async stmts => {
+    if (!hb.fired && stmts.some(s => /^INSERT OR IGNORE INTO bounty_seg_contrib/.test(String(s && s._sql)))) { hb.fired++; hb.merge = (await merge(w, DEV, UID)).status; }
+    return origBatch(stmts);
+  };
+  await w.cron();
+  const users = rows(w, "SELECT distinct_ok_users d FROM bounty_board WHERE seg_key LIKE 'tra_sched|山線|%' ORDER BY seg_key").map(r => r.d);
+  ok('C2c [V3 競態] 合併落在去重登記的 batch 之前：登記只有 UID 的 7 列、DEV 0 列；這 7 段的人數仍各 1（沒有把同一人算兩次）；籌碼 1 顆在 UID',
+    hb.fired === 1 && hb.merge === 200 && q.contrib(w, UID) === 7 && q.contrib(w, DEV) === 0 && J(users) === J(S7) && q.bal(w, UID) === 1 && q.bal(w, DEV) === 0,
+    J({ hb, contrib: [q.contrib(w, UID), q.contrib(w, DEV)], users, bal: [q.bal(w, UID), q.bal(w, DEV)] }));
 });
 
 // ═══ C3：第 k 次 D1 呼叫失敗（k 全掃）═══════════════════════════════════════════
@@ -855,6 +893,70 @@ await attempt('N3c', async () => {
     RULES.coverDistinct.TRA > 0 && r.mid.v === 'pending' && J(r.mid.sc) === J(Z9) && J(r.mid.cov) === J(Z9) &&
       r.end.v === 'ok' && J(r.end.sc) === J(S7) && J(r.end.cov) === J(S7),
     J({ mid: { sc: r.mid.sc, cov: r.mid.cov }, end: { sc: r.end.sc, cov: r.end.cov } }));
+});
+
+// ═══ N1：可信名額最多先用掉一半預算 ═══════════════════════════════════════════════
+// 攻擊（獨立驗收 N1 的形狀）：12 個「可信」匿名身分（帳本各有一筆舊的錄程籌碼——等速的合成錄程就養得出來）各灌 8 班垃圾車，
+// 每班在 4 條線各一批（一條線一組，比一般的車貴）；新來的誠實使用者 N 只有 1 班；另有一班出過錯的班車 K（有記錄，排最後）。寫死次序。
+// 舊版：可信名額（96 班）全排在 N 前面，預算判不完它們，N 每一發都判不到。現在：可信名額用到剩下預算的一半就讓出來。
+// 預算不寫死：先用夠大的預算跑同樣的世界，量出「全部判完」要幾個子請求（all），再用 all 的一半（判不完）與 all 多一點（判得完）各跑一次。
+const SYB = Array.from({ length: 12 }, (_, i) => 'dev-n1-syb' + String(i + 1).padStart(2, '0'));
+const N1H = 'dev-n1-honest', N1K = 'dev-n1-struck';
+function n1World() {
+  const w = world({ seed: boardSql('山線') + SYB.map(s => ledgerSql(s, 'trip', 1, `${s}|2026-07-10|O1`, '2026-07-10')).join('') +
+    `INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(N1K, 'K1')}','{"at":1,"error":"x"}','x');`, env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
+  bulk(w.db, [...SYB.flatMap(s => Array.from({ length: 8 }, (_, k) => ['屏東線', '南迴線', '山線', '超長線'].map(ln => ({ actor: s, trainNo: 'G' + (k + 1), lnId: ln, pts: TINY }))).flat()),
+    { actor: N1H, trainNo: 'N1', pts: leg({ sec: 700 }) }, { actor: N1K, trainNo: 'K1', pts: leg({ sec: 700 }) }]);
+  const loads = [];                                          // 判定實際讀班車的次序（每班讀一次）
+  spyRows(w.DELAY_DB, (sql, rs) => { if (LOAD_RE.test(sql) && rs.length) loads.push(String(rs[0].actor)); });
+  return { w, loads };
+}
+const sybPending = w => q.count(w, 'bounty_samples', "verdict='pending' AND actor LIKE 'dev-n1-syb%'");
+// 讓「讀一班車」那一句對選中的班車慢 ms 毫秒（D1 很慢的那一天）。pick(actor)：哪些班車要慢。
+function slowLoads(DELAY_DB, ms, pick) {
+  const orig = DELAY_DB.prepare.bind(DELAY_DB);
+  DELAY_DB.prepare = sql => {
+    const st = orig(sql);
+    if (!LOAD_RE.test(sql)) return st;
+    const wrapS = (s, p) => new Proxy(s, { get(t, k) {
+      if (k === 'bind') return (...a) => wrapS(t.bind(...a), a);
+      if (k === 'all') return async (...a) => { if (p && pick(String(p[0]))) await new Promise(r => setTimeout(r, ms)); return t.all(...a); };
+      const v = t[k];
+      return typeof v === 'function' ? v.bind(t) : v;
+    } });
+    return wrapS(st, null);
+  };
+}
+await attempt('N1', async () => {
+  const cal = n1World();
+  const st0 = await cal.w.cron({ BOUNTY_SUBREQ_BUDGET: '1000000' });
+  const all = st0.subreq;
+  ok('N1a0 [前提] 預算夠大：98 班全部判完；份額沒用到時 N 排在 96 班可信名額之後、K 最後——證明可信名額真的排在 N 前面',
+    st0.trains === 98 && q.pending(cal.w) === 0 && q.verdicts(cal.w, N1H, 'N1') === 'ok' && st0.headDeferred === 0 &&
+      cal.loads.length === 98 && cal.loads.slice(0, 96).every(x => SYB.includes(x)) && cal.loads[96] === N1H && cal.loads[97] === N1K,
+    J({ trains: st0.trains, all, deferred: st0.headDeferred, tail: cal.loads.slice(95) }));
+  const a = n1World();
+  const stA = await a.w.cron({ BOUNTY_SUBREQ_BUDGET: String(Math.floor(all / 2)) });
+  ok('N1a [N1] 預算只有全部判完的一半：可信名額用到份額就讓出來，N 這一發判到（ok、1 顆）；預算照樣用完（子請求停手）、垃圾還有留 pending',
+    q.verdicts(a.w, N1H, 'N1') === 'ok' && q.bal(a.w, N1H) === 1 && stA.budgetStop === true && stA.stopBy === 'subreq' && sybPending(a.w) > 0 && stA.headDeferred > 0,
+    J({ budget: Math.floor(all / 2), n: q.verdicts(a.w, N1H, 'N1'), stopBy: stA.stopBy, pending: sybPending(a.w), deferred: stA.headDeferred, pos: a.loads.indexOf(N1H) }));
+  const b = n1World();
+  const stB = await b.w.cron({ BOUNTY_SUBREQ_BUDGET: String(all + 10) });
+  const pos = b.loads.indexOf(N1H);
+  ok('N1b [N1] 預算夠判完全部：同一發 98 班全部判完（讓出來的可信名額排在 N 之後照判，預算沒有浪費）；N 夾在可信名額中間、' +
+    '排在它後面的可信名額恰是讓出的班數；出過錯的 K 仍在最後',
+    stB.trains === 98 && q.pending(b.w) === 0 && stB.budgetStop === false && b.loads.length === 98 && pos > 0 && pos < 96 && 96 - pos === stB.headDeferred &&
+      b.loads.slice(0, pos).every(x => SYB.includes(x)) && b.loads.slice(pos + 1, 97).every(x => SYB.includes(x)) && b.loads[97] === N1K,
+    J({ budget: all + 10, trains: stB.trains, pending: q.pending(b.w), pos, deferred: stB.headDeferred, last: b.loads[97] }));
+});
+await attempt('N1c', async () => {
+  // 牆鐘也算份額：可信名額的每一班讀取慢 30 ms、牆鐘預算 1.5 秒、子請求不設限。只看子請求的話，96 班 × 30 ms 就超過 1.5 秒，N 判不到。
+  const { w, loads } = n1World();
+  slowLoads(w.DELAY_DB, 30, actor => SYB.includes(actor));
+  const st = await w.cron({ BOUNTY_SUBREQ_BUDGET: '1000000', BOUNTY_WALL_BUDGET_MS: '1500' });
+  ok('N1c [N1] 牆鐘 1.5 秒、可信名額每班慢 30 ms：用到一半牆鐘就讓出來，N 判到（ok）；之後牆鐘停手、垃圾還有留 pending',
+    q.verdicts(w, N1H, 'N1') === 'ok' && st.budgetStop === true && st.stopBy === 'wall' && sybPending(w) > 0 && st.headDeferred > 0,
+    J({ n: q.verdicts(w, N1H, 'N1'), stopBy: st.stopBy, pending: sybPending(w), deferred: st.headDeferred, pos: loads.indexOf(N1H), ms: st.elapsedMs }));
 });
 
 // ═══ M3：兌換的交易內餘額守衛（邊界）════════════════════════════════════════════
