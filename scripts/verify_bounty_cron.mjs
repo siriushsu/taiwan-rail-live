@@ -241,14 +241,18 @@ await attempt('A4', async () => {
   ok('A4b [F1] 驗證壞掉不擋估值：驗證失敗有記 log、scheduled 不丟例外、估值照跑（板上 3 列）',
     r2.threw === null && r2.errs.some(e => e.includes('[cron bounty 驗證] 失敗')) && nBoard(w2.db) === 3,
     J({ threw: r2.threw, errs: r2.errs.map(e => e.slice(0, 40)), board: nBoard(w2.db) }));
-  // 一班車判到一半出錯（review-B R3：讀那班車的批次那句丟例外）：判定接住、停手、印 error 等級的那一行（含錯誤訊息），樣本留 pending 給下一發
-  const w3 = aWorld(); failOnPrepare(w3.DELAY_DB, /^SELECT \* FROM bounty_samples WHERE actor=\?/);
+  // 一班車判到一半出錯（review-B R3：讀那班車的批次那句丟例外）：判定接住、記下這一班（之後每一發排到最後）、繼續下一班；
+  // 判定那一行以 error 等級印（含錯誤訊息），另一行 error 指名是哪一班；樣本留 pending 給下一發
+  const w3 = aWorld(); failOnPrepare(w3.DELAY_DB, /^SELECT \* FROM \(SELECT \*, SUM\(length\(payload\)\) OVER/);
   const r3 = await fire(w3, '30 19 * * *');
-  const line3 = r3.errs.find(e => e.includes('[cron bounty 驗證]')) || '';
-  ok('A4c [R3] 一班車途中出錯：scheduled 不丟例外、估值照跑（板上 3 列）；驗證那行以 error 等級印出「判定途中出錯而停手」與錯誤訊息（injected）；樣本仍 pending、沒有帳本',
-    r3.threw === null && nBoard(w3.db) === 3 && line3.includes('判定途中出錯而停手') && line3.includes('injected') && !line3.includes('失敗:') &&
+  const line3 = r3.errs.find(e => /^\[cron bounty 驗證\] \d+ 班／/.test(e)) || '';
+  const which3 = r3.errs.find(e => e.includes('這班車判定出錯')) || '';
+  ok('A4c [R3] 一班車途中出錯：scheduled 不丟例外、估值照跑（板上 3 列）；判定那一行以 error 等級印出「1 班判定出錯」與錯誤訊息（injected），' +
+    '另一行指名那一班（cron-a 的 101）；樣本仍 pending、沒有帳本',
+    r3.threw === null && nBoard(w3.db) === 3 && line3.includes('1 班判定出錯') && line3.includes('injected') && !line3.includes('失敗:') &&
+      which3.includes('bounty_verify_strike|cron-a|') && which3.includes('|101）') &&
       q.verdicts(w3.db, 'cron-a', '101') === 'pending' && q.chips(w3.db, 'cron-a') === 0,
-    J({ threw: r3.threw, line3: line3.slice(0, 160), v: q.verdicts(w3.db, 'cron-a', '101') }));
+    J({ threw: r3.threw, line3: line3.slice(0, 200), which3: which3.slice(0, 120), v: q.verdicts(w3.db, 'cron-a', '101') }));
 });
 
 // ═══ B 組：只判「乘車日早於台北今天」的樣本（F24）══════════════════════════════
@@ -456,20 +460,24 @@ await attempt('C8', async () => {
     if (crash && stmts.some(s => /^UPDATE bounty_samples SET verdict/.test(s._sql))) throw new Error('injected: crash before marking');
     return origBatch(stmts);
   };
-  // review-B R3 之後一班車的錯誤在判定裡接住（不再整發丟例外）：stat.stopBy＝'error'、stat.error 帶錯誤訊息
+  // review-B R3 之後一班車的錯誤在判定裡接住（不再整發丟例外）：記下這一班（kv_blobs 一列）、繼續下一班（獨立驗收 N4 之後不再停手），
+  // stat.errors＝1、stat.error 帶錯誤訊息、stopBy 不是 error（只有連記錄都寫不進 D1 才停手）
   let threw = '', st1 = null;
   try { st1 = await w2.cron(); } catch (e) { threw = String(e.message || e); }
-  const mid = { pending: q.nPending(w2.db), ledger: q.tripRows(w2.db).length, contrib: q.nContrib(w2.db, 'c8x'), d: q.board(w2.db, KT('屏東線', 'S0|S1'))[0].distinct_ok_users };
+  const nStrike = () => w2.db.prepare("SELECT COUNT(*) c FROM kv_blobs WHERE k LIKE 'bounty_verify_strike|%'").get().c;
+  const mid = { pending: q.nPending(w2.db), ledger: q.tripRows(w2.db).length, contrib: q.nContrib(w2.db, 'c8x'), d: q.board(w2.db, KT('屏東線', 'S0|S1'))[0].distinct_ok_users,
+    strike: w2.db.prepare("SELECT COUNT(*) c FROM kv_blobs WHERE k LIKE 'bounty_verify_strike|c8x|%|F2'").get().c };
   crash = false;
   const st3 = await w2.cron(NOW_MS + 3600e3);
-  ok('C8b [F4 冪等] 標記那個 batch 壞掉：cron 接住、停手（stopBy error、錯誤訊息 injected）、樣本全留 pending，但籌碼 1 列與貢獻 14 段已寫（在標記之前）',
-    threw === '' && st1 && st1.stopBy === 'error' && /injected/.test(st1.error) && mid.pending === 8 && mid.ledger === 1 && mid.contrib === 14 && mid.d === 1,
-    J({ threw, stopBy: st1 && st1.stopBy, error: st1 && st1.error, mid }));
-  ok('C8c [F4 冪等] 補好之後下一發整班重跑：樣本全判成 ok、帳本仍只有 1 列（delta 2）、貢獻仍 14 段、每段人數仍 1（沒有重複入帳、重複 +1）；這次入帳 0',
+  ok('C8b [F4 冪等] 標記那個 batch 壞掉：cron 接住、記下這一班（1 列）、不停手（errors 1、stopBy 不是 error、錯誤訊息 injected）、樣本全留 pending，但籌碼 1 列與貢獻 14 段已寫（在標記之前）',
+    threw === '' && st1 && st1.errors === 1 && st1.stopBy === null && /injected/.test(st1.error) && mid.pending === 8 && mid.ledger === 1 && mid.contrib === 14 &&
+      mid.d === 1 && mid.strike === 1,
+    J({ threw, errors: st1 && st1.errors, stopBy: st1 && st1.stopBy, error: st1 && st1.error, mid }));
+  ok('C8c [F4 冪等] 補好之後下一發整班重跑：樣本全判成 ok、帳本仍只有 1 列（delta 2）、貢獻仍 14 段、每段人數仍 1（沒有重複入帳、重複 +1）；這次入帳 0；出錯記錄刪掉（0 列）',
     q.nPending(w2.db) === 0 && q.verdicts(w2.db, 'c8x', 'F2') === 'ok' && J(q.tripRows(w2.db).map(r => r.delta)) === '[2]' &&
       q.nContrib(w2.db, 'c8x') === 14 && q.board(w2.db, KT('屏東線', 'S0|S1'))[0].distinct_ok_users === 1 &&
-      q.board(w2.db, KT('南迴線', 'S6|S7'))[0].distinct_ok_users === 1 && st3.chips === 0,
-    J({ pending: q.nPending(w2.db), ledger: q.tripRows(w2.db), contrib: q.nContrib(w2.db, 'c8x'), st3 }));
+      q.board(w2.db, KT('南迴線', 'S6|S7'))[0].distinct_ok_users === 1 && st3.chips === 0 && nStrike() === 0,
+    J({ pending: q.nPending(w2.db), ledger: q.tripRows(w2.db), contrib: q.nContrib(w2.db, 'c8x'), st3, strike: nStrike() }));
 });
 
 // ═══ D 組：身分在入帳當下重新解析、同一班車不重複發（F10／F11）════════════════════════

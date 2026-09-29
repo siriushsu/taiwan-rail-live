@@ -3,7 +3,8 @@
 // 跑法：node scripts/verify_bounty_hardening.mjs
 //
 // 期望值一律寫死在這裡，不呼叫實作去產生期望（日期自己用 Date 算、點數與籌碼自己手算並寫出算式）。來源：
-//   ・缺陷與修法都是 review-B（主對話派的獨立審查）的發現與主對話的修補設計，不是使用者逐字裁示；沒有任何一條是使用者原話。
+//   ・缺陷與修法都是 review-B（主對話派的獨立審查）與修補之後那一輪獨立驗收（N2／N3／N4）的發現、加上主對話的修補設計，
+//     不是使用者逐字裁示；沒有任何一條是使用者原話。
 //   ・數字（每趟至少 600 秒、每日籌碼上限 4、第一座 4 之後每座 8、每日計點上限 200、日期窗 7 天、每人每日 720 批）
 //     來自 data/bounty_rules.json 與 worker.js 的常數，這裡照抄成字面。
 // 每一條判準寫的時候都先答「哪一個突變能讓它變紅」——突變表在 commit 訊息與回報裡。
@@ -19,7 +20,11 @@
 //   LS  租約：兩發重疊不重複計點；過期可接手；別人的活租約不碰；只釋放自己那一份
 //   R1  一條線組的寫入＝一個 batch、四句（標記、點數、sample_count、關認領），標記一句
 //   R2  前次線組只讀最早／最晚時間；超量的車（批數、總長、第一段之後才灌進來）整班可疑、payload 不讀
-//   R3  判定途中出錯停手：那一行 log 用 error 等級
+//   R3  一班車判定出錯：那一行 log 用 error 等級；出錯的班車記下來、同一發繼續判下一班，下一發判得過就刪記錄
+//   ISO 記下來的班車之後每一發排在最後（連可信身分也一樣）；D1 整個不能用（連記錄都寫不進去）才停手
+//   N4  一班車的點數上看十幾萬（4 MB 塞得下）：判定不把整班的點展開成函式引數（V8 約十二萬多個就丟 RangeError）
+//   N2  清單之後才灌進來的批次：讀這班車那一句依讀取順序累加長度截住，送回 Worker 的不超過 4 MB 再加一批，整班判可疑
+//   N3  租約被下一發接手之後，舊的那一發第③段整組不動任何列（點數、sample_count、關認領不會做兩次）
 //   M3  兌換的交易內餘額守衛的邊界（讀到之後被扣）——review-B Q8 說這一層只有 redeem C6 一條在守
 //   M5b 刪帳號時 body 的 deviceActor 若已併進別的帳號，一列不刪——review-B Q8 說這一層只有 auth A11d 一條在守
 import { readFileSync } from 'node:fs';
@@ -92,7 +97,8 @@ const chunk = (a, n) => { const o = []; for (let i = 0; i < a.length; i += n) o.
 
 function world(over = {}) {
   const { db, DELAY_DB } = openTestDb(over.seed || '');
-  const ASSETS = { fetch: async r => new Response(String((r && r.url) || r).includes('bounty_units') ? J(UNITS) : J(RULES), { status: 200 }) };
+  const rulesText = J(over.rules || RULES);                  // over.rules：換一份設定檔（N3c 的降級路徑）
+  const ASSETS = { fetch: async r => new Response(String((r && r.url) || r).includes('bounty_units') ? J(UNITS) : rulesText, { status: 200 }) };
   const env = { DELAY_DB, ASSETS, FIREBASE_WEB_API_KEY: 'k', AUTH_LIMITER: limiter, BOUNTY_LIMITER: limiter, DELETE_LIMITER: limiter,
     BOUNTY_NOW: String(over.now || NOW_MS), ...(over.env || {}) };
   const w = { db, DELAY_DB, env };
@@ -219,9 +225,12 @@ function spyBatches(DELAY_DB) {
   return log;
 }
 const LIST_RE = /^WITH t AS \(/;                                            // 判定第一段：班車清單
-const LOAD_RE = /^SELECT \* FROM bounty_samples WHERE actor=\? AND trip_date=\? AND train_no=\?/;   // 第二段：讀一班車
+const LOAD_RE = /^SELECT \* FROM \(SELECT \*, SUM\(length\(payload\)\) OVER/;   // 第二段：讀一班車（依讀取順序累加長度截住，見 N2）
 const PRIOR_RE = /verdict <> 'pending'/;                                  // 前次線組
 const MARK_RE = /^UPDATE bounty_samples SET verdict=\?/;                  // 標記已判定
+const SUMMARY_RE = /^\[cron bounty 驗證\] \d+ 班／/;                        // 判定那一行（一發一行；逐班出錯另有一行，含 STRIKE 的鍵）
+const STRIKE = (actor, trainNo, day = D28) => `bounty_verify_strike|${actor}|${day}|${trainNo}`;   // 判定出錯的班車記在 kv_blobs 的鍵
+const strikes = w => rows(w, "SELECT k, v FROM kv_blobs WHERE k LIKE 'bounty_verify_strike|%' ORDER BY k");
 
 // ═══ B1：上傳窗與防偽閘同一條台北日 ═══════════════════════════════════════════════
 // 乘車日 07-28。上傳窗＝上傳當天（台北）往前 7 天到明天；防偽閘用同一條（以上傳時間為基準）。
@@ -444,7 +453,9 @@ const snap = w => ({
 });
 await attempt('C3', async () => {
   // 直通車 T1（屏東線 700 秒＋南迴線 400 秒，兩個線組；屏東線 S0|S1 有 D 的認領鎖價 9）＋另一人 E 的 T2（山線）。
+  // 第一發寫死次序（D 的 T1 先、E 的 T2 後）：第 k 次呼叫每一輪都打在同一句上，掃描結果可以重現；也才看得出「T1 出錯之後 T2 照判」。
   const D = 'dev-c3-000001', E = 'dev-c3-000002';
+  const FIX = { BOUNTY_VERIFY_ORDER: 'fixed' };
   const seed = boardSql('屏東線') + boardSql('南迴線') + boardSql('山線') + claimSql({ id: 'claim-c3', actor: D, seg: KT('屏東線', 'S0|S1'), pts: 9 });
   const build = () => {
     const w = world({ seed });
@@ -456,7 +467,7 @@ await attempt('C3', async () => {
   const wc = build();
   const f0 = faulty(wc.DELAY_DB, -1);
   wc.env.DELAY_DB = f0.db;
-  const cleanSt = await wc.cron();
+  const cleanSt = await wc.cron(FIX);
   const N = f0.st.n, clean = snap(wc);
   const res = [];
   for (let k = 1; k <= N; k++) {
@@ -464,22 +475,30 @@ await attempt('C3', async () => {
     const f = faulty(w.DELAY_DB, k);
     w.env.DELAY_DB = f.db;
     let threw = null, st1 = null;
-    try { st1 = await w.cron(); } catch (e) { threw = String(e.message).slice(0, 40); }
+    try { st1 = await w.cron(FIX); } catch (e) { threw = String(e.message).slice(0, 40); }
     w.env.DELAY_DB = w.DELAY_DB;
+    const sk = strikes(w).map(r => r.k);                                     // 這一發記下了哪幾班
+    const t2Done = q.count(w, 'bounty_samples', "actor=? AND verdict='pending'", E) === 0;   // 排在後面的 T2 這一發判完了沒
     // 那一發若連租約都沒釋放（例外正好打在釋放那一句），真實世界裡 20 分鐘後自己過期；這裡直接讓它過期，模擬「隔天那一發」。
     expireLease(w);
     let reruns = 0;
     while (q.pending(w) > 0 && reruns < 3) { await w.cron({ BOUNTY_NOW: String(NOW_MS + 3600e3) }); expireLease(w); reruns++; }
     const s = snap(w);
-    res.push({ k, threw: !!threw, stopBy: st1 && st1.stopBy, reruns, pending: q.pending(w), diff: Object.keys(s).filter(key => s[key] !== clean[key]) });
+    res.push({ k, threw: !!threw, stopBy: st1 && st1.stopBy, errors: st1 ? st1.errors : null, sk, t2Done, reruns, pending: q.pending(w),
+      strikesAfter: strikes(w).length, diff: Object.keys(s).filter(key => s[key] !== clean[key]) });
   }
   const bad = res.filter(r => r.diff.length || r.pending);
   console.log(`   C3 乾淨一次跑完 ${N} 次 D1 呼叫（ok ${cleanSt.ok}／可惜 ${cleanSt.unusable}／籌碼 ${cleanSt.chips}）；逐一注入：` +
-    res.map(r => `${r.k}${r.threw ? '拋' : r.stopBy === 'error' ? '停' : '・'}`).join(' '));
+    res.map(r => `${r.k}${r.threw ? '拋' : r.errors ? '記' : '・'}`).join(' '));
   ok(`C3a [B7] ${N} 個中斷點全部重跑後，帳本、登記、點數、認領、看板、樣本六張表都與一次跑完逐列相同，而且沒有留 pending`,
     N >= 20 && bad.length === 0, J(bad.map(r => [r.k, r.diff.join('+'), r.pending])));
-  ok('C3b 中斷真的發生在班車裡面（至少一個中斷點是「這一班出錯、整發停手」而不是整發丟例外），也真的有整發丟例外的點（清單、租約那幾句）',
-    res.some(r => r.stopBy === 'error') && res.some(r => r.threw), J(res.map(r => [r.k, r.threw ? 'T' : r.stopBy || '-'])));
+  // 班車裡面出錯的中斷點：記下那一班（恰一列）、不停手；其中 T1 出錯的，同一發照樣判完 T2（舊寫法「出錯就停手」T2 會留 pending）
+  const inTrain = res.filter(r => r.errors), t1Faults = inTrain.filter(r => J(r.sk) === J([STRIKE(D, 'T1')]));
+  ok('C3b [ISO] 中斷真的發生在班車裡面、而且沒有讓整發停下：每個這種點都恰記下一班、stopBy 不是 error；T1 出錯的點同一發照樣判完 T2；也真的有整發丟例外的點（租約、清單那幾句）',
+    t1Faults.length > 0 && t1Faults.every(r => r.t2Done) && inTrain.every(r => r.errors === 1 && r.sk.length === 1 && r.stopBy === null) && res.some(r => r.threw),
+    J(res.map(r => [r.k, r.threw ? 'T' : r.errors ? r.sk.map(k => k.split('|').pop()).join() + (r.t2Done ? '+T2' : '') : '-'])));
+  ok('C3c [ISO] 重跑判得過之後，每一個中斷點留下的出錯記錄都刪掉了（0 列）', res.every(r => r.strikesAfter === 0),
+    J(res.filter(r => r.strikesAfter).map(r => [r.k, r.strikesAfter])));
 });
 
 // ═══ LS：租約 ═══════════════════════════════════════════════════════════════
@@ -525,14 +544,14 @@ await attempt('LSe', async () => {
   const other = J({ token: 'taken-over', until: Date.now() + 10 * 60e3 });
   hookOnce(w.DELAY_DB, /FROM tra_station_events/, async () => { w.db.prepare('UPDATE kv_blobs SET v=? WHERE k=?').run(other, LEASE); });
   const st = await w.cron();
-  ok('LSe [租約] 途中被接手：這一發照樣判完，收尾只刪自己的——接手那一發的租約列還在、值沒變',
+  ok('LSe [租約] 途中被接手：收尾只刪自己那一份——接手那一發的租約列還在、值沒變（被接手之後這一發的寫入不動任何列，見 N3）',
     st.trains === 1 && q.lease(w) && q.lease(w).v === other, J({ st: st.trains, lease: q.lease(w) }));
 });
 
 // ═══ R1：一條線組的寫入＝一個 batch ═══════════════════════════════════════════════
 await attempt('R1', async () => {
   // 超長線 120 段、一班 12,001 點（21 批）；板上 120 段都有、X000|X001 有這個人的認領（鎖價 9）。
-  // 期望：標記已判定只有一句（綁 6 個值，樣本 id 是一個 21 個元素的 JSON 陣列），跟點數、sample_count、關認領在同一個 batch（共 4 句）。
+  // 期望：標記已判定只有一句（綁 8 個值：6 個＋租約圍欄的鍵與值；樣本 id 是一個 21 個元素的 JSON 陣列），跟點數、sample_count、關認領在同一個 batch（共 4 句）。
   // 點數：119 段×3＋9＝366 → 每日計點上限 200。舊版一批一句標記（21 句、每句重綁整份覆蓋段），外加逐段各幾句。
   const A = 'dev-r1-000001';
   const w = world({ seed: boardSql('超長線', XL_SEGS) + claimSql({ id: 'claim-r1', actor: A, seg: KT('超長線', 'X000|X001'), pts: 9 }) });
@@ -549,8 +568,11 @@ await attempt('R1', async () => {
   const bindChars = g.reduce((a, s) => a + s.p.reduce((b, x) => b + String(x).length, 0), 0);
   ok('R1a [R1] 這一條線組（120 段）的寫入＝一個 batch、四句：標記、點數、sample_count、關認領',
     withMark.length === 1 && J(kinds) === J(['mark', 'points', 'sample_count', 'claims']), J({ batches: withMark.length, kinds }));
-  ok('R1b [R1] 標記只有一句、綁 6 個值，樣本 id 以一個 JSON 陣列帶 21 個（不是一批一句）；整個 batch 綁的字元數 < 64 KB',
-    !!mark && mark.p.length === 6 && ids.length === 21 && bindChars < 65536, J({ p: mark && mark.p.length, ids: ids.length, bindChars }));
+  let leaseTok = null;
+  try { leaseTok = JSON.parse(mark.p[7]).token; } catch (e) {}
+  ok('R1b [R1] 標記只有一句、綁 8 個值（最後兩個是租約圍欄：租約的鍵與這一發的租約值），樣本 id 以一個 JSON 陣列帶 21 個（不是一批一句）；整個 batch 綁的字元數 < 64 KB',
+    !!mark && mark.p.length === 8 && mark.p[6] === LEASE && typeof leaseTok === 'string' && leaseTok.length > 0 && ids.length === 21 && bindChars < 65536,
+    J({ p: mark && mark.p.length, fence: mark && mark.p.slice(6), ids: ids.length, bindChars }));
   ok('R1c 結果照舊：ok、點數 200（119×3＋9＝366 過每日上限 200）、120 段 sample_count 各 1、認領 fulfilled、籌碼 1 顆',
     q.verdicts(w, A, 'R1') === 'ok' && q.points(w, A) === 200 && q.sampleCounts(w, '超長線').length === 120 && q.sampleCounts(w, '超長線').every(n => n === 1) &&
       one(w, "SELECT status FROM bounty_claims WHERE id='claim-r1'").status === 'fulfilled' && st.chips === 1,
@@ -574,10 +596,10 @@ await attempt('R2a', async () => {
     J(got) === J([J([{ t: 30000 }, { t: 30199 }]), J([{ t: 30200 }, { t: 30399 }]), J([{ t: 30400 }, { t: 30400 }])]), J(got));
   ok('R2a2 籌碼判斷照舊看整班（前 400＋後 400＝801 秒 ≥ 600）：補發 1 顆', st2.chips === 1 && q.bal(w, A) === 1, J({ chips: st2.chips, bal: q.bal(w, A) }));
 });
-// 超量的車：看哪一句查詢把它的 payload 讀回了 Worker（spyRows 看每一句回的每一列）
+// 超量的車：看哪一句查詢把它的 payload 讀回了 Worker（spyRows 看每一句回的每一列；記整句 SQL，對照組拿 LOAD_RE 比）
 const payloadReads = (w, trainNo) => {
   const hits = [];
-  spyRows(w.DELAY_DB, (sql, rs) => { for (const r of rs) if ('payload' in r && String(r.train_no) === trainNo) hits.push(sql.slice(0, 40)); });
+  spyRows(w.DELAY_DB, (sql, rs) => { for (const r of rs) if ('payload' in r && String(r.train_no) === trainNo) hits.push(sql); });
   return hits;
 };
 for (const [tag, why, put, extra] of [
@@ -591,13 +613,15 @@ for (const [tag, why, put, extra] of [
     const w = world({ seed: boardSql('山線') });
     put(w);
     putBatches(w.db, { actor: H, trainNo: 'H1', pts: leg({ sec: 700 }) });      // 同一發裡另一班正常的車：照樣判
-    const hits = payloadReads(w, 'OV');
+    const hits = payloadReads(w, 'OV'), hitsH = payloadReads(w, 'H1');
     const st = await w.cron();
     ok(`${tag}0 [前提] fixture 真的是${why}`, extra(w), J(one(w, "SELECT COUNT(*) c, SUM(length(payload)) n FROM bounty_samples WHERE train_no='OV'")));
+    ok(`${tag}1 [對照] 同一個監聽器看得到正常那一班（H1）的 payload 由逐班讀取那一句讀回——下一條「OV 一句都沒讀回」不是因為監聽器或正規式比對不到`,
+      hitsH.some(s => LOAD_RE.test(s)), J(hitsH.map(s => s.slice(0, 50))));
     ok(`${tag} [R2] ${why}：整班 suspect（原因碼 oversize、覆蓋段空）、0 顆；這班車的 payload 沒有任何一句讀回 Worker；同一發另一班照樣 ok`,
       q.verdicts(w, A, 'OV') === 'suspect' && q.rejects(w, A, 'OV') === 'oversize' && q.count(w, 'bounty_samples', "train_no='OV' AND segs<>'[]'") === 0 &&
         q.bal(w, A) === 0 && hits.length === 0 && st.oversize === 1 && q.verdicts(w, H, 'H1') === 'ok',
-      J({ v: q.verdicts(w, A, 'OV'), rej: q.rejects(w, A, 'OV'), hits: hits.slice(0, 3), oversize: st.oversize, h: q.verdicts(w, H, 'H1') }));
+      J({ v: q.verdicts(w, A, 'OV'), rej: q.rejects(w, A, 'OV'), hits: hits.slice(0, 3).map(s => s.slice(0, 40)), oversize: st.oversize, h: q.verdicts(w, H, 'H1') }));
   });
 }
 await attempt('R2d', async () => {
@@ -625,18 +649,186 @@ await attempt('R2e', async () => {
     J({ loads, suspect: q.count(w, 'bounty_samples', "train_no='RC' AND verdict='suspect'"), st: st.oversize }));
 });
 
-// ═══ R3：判定途中出錯停手，log 用 error 等級 ═════════════════════════════════════════
+// ═══ R3：一班車判定出錯 → error 等級、記下來、同一發繼續判下一班；下一發判得過就刪記錄 ═══════════════════════
 await attempt('R3', async () => {
-  const w = world({ seed: boardSql('山線') });
-  putBatches(w.db, { actor: 'dev-r3-000001', trainNo: 'E1', pts: leg({ sec: 700 }) });
-  putBatches(w.db, { actor: 'dev-r3-000002', trainNo: 'E2', pts: leg({ sec: 700 }) });
-  hookOnce(w.DELAY_DB, LOAD_RE, async () => { throw new Error('D1_ERROR: 模擬的暫時錯誤'); });
+  // 寫死次序：E1（dev-r3-000001）先、E2 後。E1 讀樣本那一句丟錯（D1 的暫時錯誤）。
+  const E1 = 'dev-r3-000001', E2 = 'dev-r3-000002';
+  const w = world({ seed: boardSql('山線'), env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
+  putBatches(w.db, { actor: E1, trainNo: 'E1', pts: leg({ sec: 700 }) });
+  putBatches(w.db, { actor: E2, trainNo: 'E2', pts: leg({ sec: 700 }) });
+  const h = hookOnce(w.DELAY_DB, LOAD_RE, async () => { throw new Error('D1_ERROR: 模擬的暫時錯誤'); });
   const f = await fire(w);
-  const errLine = f.errs.find(s => s.includes('[cron bounty 驗證]')) || '';
-  ok('R3 [R3] 第一班讀樣本就出錯：那一行驗證 log 走 console.error、寫出「判定途中出錯而停手」與錯誤訊息；console.log 沒有驗證那一行；兩班都留 pending；租約已釋放',
-    errLine.includes('判定途中出錯而停手') && errLine.includes('D1_ERROR: 模擬的暫時錯誤') && !f.logs.some(s => s.includes('[cron bounty 驗證]')) &&
-      q.pending(w) === q.count(w, 'bounty_samples') && q.lease(w) === null && !f.threw,
-    J({ errLine: errLine.slice(0, 160), logs: f.logs.filter(s => s.includes('驗證')), pending: q.pending(w), lease: q.lease(w) }));
+  const line = f.errs.find(s => SUMMARY_RE.test(s)) || '';
+  const which = f.errs.find(s => s.includes('這班車判定出錯')) || '';
+  ok('R3a [R3] 第一班（E1）讀樣本就出錯：判定那一行走 console.error、寫出「1 班判定出錯」「已記下」與錯誤訊息；另一行 console.error 指名是哪一班（記錄的鍵）；' +
+    'console.log 沒有判定那一行；讀取那一句這一發執行了 2 次（E1 丟錯、E2 照讀）；scheduled 不丟例外',
+    h.fired === 2 && line.includes('1 班判定出錯') && line.includes('已記下') && line.includes('D1_ERROR: 模擬的暫時錯誤') &&
+      which.includes(STRIKE(E1, 'E1')) && !f.logs.some(s => SUMMARY_RE.test(s)) && !f.threw,
+    J({ fired: h.fired, line: line.slice(0, 200), which: which.slice(0, 120), logs: f.logs.filter(s => SUMMARY_RE.test(s)), threw: f.threw }));
+  const sk = strikes(w);
+  let skv = {};
+  try { skv = JSON.parse(sk[0].v); } catch (e) {}
+  ok('R3b [ISO] E1 留 pending、記下恰一列（鍵＝…|E1，值帶錯誤訊息）；同一發繼續判 E2：ok、1 顆；租約已釋放',
+    q.verdicts(w, E1, 'E1') === 'pending' && sk.length === 1 && sk[0].k === STRIKE(E1, 'E1') && String(skv.error).includes('D1_ERROR') &&
+      q.verdicts(w, E2, 'E2') === 'ok' && q.bal(w, E2) === 1 && q.lease(w) === null,
+    J({ e1: q.verdicts(w, E1, 'E1'), sk, e2: q.verdicts(w, E2, 'E2'), bal: q.bal(w, E2), lease: q.lease(w) }));
+  const f2 = await fire(w);
+  ok('R3c [ISO] 下一發（沒有故障）：E1 判成 ok、1 顆；它的記錄刪掉（0 列）；判定那一行回到 console.log、沒有任何 error 等級的判定 log',
+    q.verdicts(w, E1, 'E1') === 'ok' && q.bal(w, E1) === 1 && strikes(w).length === 0 && f2.logs.some(s => SUMMARY_RE.test(s)) &&
+      !f2.errs.some(s => s.includes('[cron bounty 驗證]')) && !f2.threw,
+    J({ e1: q.verdicts(w, E1, 'E1'), bal: q.bal(w, E1), sk: strikes(w), errs: f2.errs.map(s => s.slice(0, 80)) }));
+});
+
+// ═══ ISO：記下來的班車之後每一發排在最後；D1 整個不能用才停手 ═══════════════════════════════════
+await attempt('ISO2', async () => {
+  // 帳號 U（可信）的 U1、匿名 a、b 各 1 班。沒有記錄時 U1 排第一（可信先）；U1 有記錄時排最後——連可信身分也一樣。兩種模式都驗。
+  const U = 'uid-iso-0000U', A = 'dev-iso-0000a', B = 'dev-iso-0000b';
+  for (const mode of ['fixed', '']) {
+    const order = async (withStrike) => {
+      const w = world({ seed: boardSql('山線') + pointsSql([[U, U, 0, null]]) +
+        (withStrike ? `INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(U, 'U1')}','{"at":1,"error":"x"}','x');` : '') });
+      bulk(w.db, [{ actor: U, trainNo: 'U1', pts: TINY }, { actor: A, trainNo: 'A1', pts: TINY }, { actor: B, trainNo: 'B1', pts: TINY }]);
+      const seen = listOf(w);
+      await w.cron({ BOUNTY_SUBREQ_BUDGET: '5', ...(mode ? { BOUNTY_VERIFY_ORDER: mode } : {}) });
+      return (seen[0] || []).map(r => r.train);
+    };
+    const plain = await order(false), struck = await order(true);
+    ok(`ISO2${mode ? 'a' : 'b'} [ISO] 記錄過出錯的班車排在最後（${mode || '隨機'}）：沒記錄時 U1（可信）排第一；U1 有記錄時排第三` + (mode ? '（清單 A1、B1、U1）' : ''),
+      plain.length === 3 && plain[0] === 'U1' && struck.length === 3 && struck[2] === 'U1' && (mode !== 'fixed' || J(struck) === J(['A1', 'B1', 'U1'])),
+      J({ plain, struck }));
+  }
+});
+// 清單那一句執行完之後 D1 整個不能用：之後每一次查詢、每一個 batch 都丟錯（failed＝丟了幾次）。
+function breakAfter(DELAY_DB, re) {
+  const st = { broken: false, failed: 0 };
+  const orig = DELAY_DB.prepare.bind(DELAY_DB), origBatch = DELAY_DB.batch.bind(DELAY_DB);
+  const fail = () => { st.failed++; throw new Error('D1_ERROR: 資料庫整個不能用（測試注入）'); };
+  const wrapS = (s, trips) => new Proxy(s, { get(t, k) {
+    if (k === 'bind') return (...p) => wrapS(t.bind(...p), trips);
+    if (k === 'all' || k === 'first' || k === 'run' || k === 'raw') return async (...a) => {
+      if (st.broken) fail();
+      const r = await t[k](...a);
+      if (trips) st.broken = true;
+      return r;
+    };
+    const v = t[k];
+    return typeof v === 'function' ? v.bind(t) : v;
+  } });
+  DELAY_DB.prepare = sql => wrapS(orig(sql), re.test(sql));
+  DELAY_DB.batch = async stmts => { if (st.broken) fail(); return origBatch(stmts); };
+  return st;
+}
+await attempt('ISO3', async () => {
+  const w = world({ seed: boardSql('山線'), env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
+  for (const a of ['dev-iso3-0001', 'dev-iso3-0002', 'dev-iso3-0003']) putBatches(w.db, { actor: a, trainNo: 'K1', pts: leg({ sec: 700 }) });
+  const brk = breakAfter(w.DELAY_DB, LIST_RE);
+  const f = await fire(w);
+  const line = f.errs.find(s => SUMMARY_RE.test(s)) || '';
+  ok('ISO3 [ISO] 清單讀完之後 D1 整個不能用：第一班出錯、連記錄都寫不進去 → 停手，不再試後面兩班（清單之後恰 3 次失敗的呼叫：讀第一班、寫記錄、釋放租約）；' +
+    '判定那一行走 console.error、寫「連記錄都寫不進 D1 而停手」；3 班全留 pending、沒有任何記錄列；scheduled 不丟例外',
+    brk.broken && brk.failed === 3 && line.includes('1 班判定出錯') && line.includes('連記錄都寫不進 D1 而停手') &&
+      q.pending(w) === q.count(w, 'bounty_samples') && strikes(w).length === 0 && !f.threw,
+    J({ failed: brk.failed, line: line.slice(0, 220), pending: q.pending(w), sk: strikes(w).length, threw: f.threw }));
+});
+
+// ═══ N4：一班車的點數上看十幾萬（4 MB 塞得下）══════════════════════════════════════
+// 最小的點（{d:0,t:0,v:0,acc:300}，每點 30 字元上下）：4 MB 塞得下約 14 萬點，超過 V8 函式引數的上限（本機 node v24 實測約 12.4 萬個就丟 RangeError）。
+// acc 300 讓品質閘走「精確位置被關」那一支（會算整班誤差的範圍）；乘車日選週六，dwell 那一段才會算整趟與站附近的里程範圍。
+const flat = n => Array.from({ length: n }, () => ({ d: 0, t: 0, v: 0, acc: 300 }));
+const DSAT = '2026-07-25';                                   // 週六
+await attempt('N4a', async () => {
+  const pts = flat(400000);
+  let cov = null, qg = null, err = null;
+  try { cov = _bounty.coverageOf({ tripDate: DSAT, dir: 0, pts }, LINES['tra_sched|山線'], RULES, {}); } catch (e) { err = String(e && e.message); }
+  try { qg = _bounty.qualityGate({ trainNo: 'N4', pts }, { line: null, events: [] }, RULES); } catch (e) { err = (err ? err + ' / ' : '') + String(e && e.message); }
+  ok('N4a [N4] 40 萬點直接呼叫：coverageOf（週六、dwell 段）與 qualityGate（精確位置被關）都不丟例外；品質閘判 precise_off（誤差範圍 0）',
+    new Date(DSAT + 'T00:00:00Z').getUTCDay() === 6 && err === null && Array.isArray(cov) && qg && qg.pass === false && qg.code === 'precise_off',
+    J({ err, cov: cov && cov.length, qg }));
+});
+await attempt('N4b', async () => {
+  // 端到端：週六的一班車，232 批 × 600 點＝139,200 點、總長 < 4 MB（過得了超量閘）。舊版在展開整班的點時丟 RangeError：
+  // 這班車永遠 pending，而且每一發都停在它（獨立驗收的重現）。期望：判得出來（unusable／precise_off），沒有任何班車出錯；同一發另一班照樣 ok。
+  const A = 'dev-n4b-00001', H = 'dev-n4b-hon01', NPTS = 139200;
+  const w = world({ seed: boardSql('山線'), env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
+  putBatches(w.db, { actor: A, trainNo: 'N4', date: DSAT, pts: flat(NPTS), size: 600 });
+  putBatches(w.db, { actor: H, trainNo: 'H1', date: DSAT, pts: leg({ sec: 700 }) });
+  const fx = one(w, "SELECT COUNT(*) n, SUM(length(payload)) b FROM bounty_samples WHERE train_no='N4'");
+  ok('N4b0 [前提] fixture：232 批（≤ 720）、139,200 點（> 12.5 萬）、總長 < 4 MB（4,194,304）', fx.n === 232 && fx.b < 4 * 1024 * 1024 && NPTS > 125000, J(fx));
+  const t0 = Date.now();
+  const st = await w.cron();
+  const ms = Date.now() - t0;
+  const qc = rows(w, "SELECT DISTINCT quality_code c FROM bounty_samples WHERE train_no='N4'").map(r => r.c);
+  ok('N4b [N4] 端到端：這班車判得出來（unusable／precise_off，不是 pending），這一發沒有任何班車出錯、沒有記錄列；同一發 H1 照樣 ok',
+    q.verdicts(w, A, 'N4') === 'unusable' && J(qc) === J(['precise_off']) && st.errors === 0 && st.stopBy === null && strikes(w).length === 0 &&
+      q.verdicts(w, H, 'H1') === 'ok',
+    J({ v: q.verdicts(w, A, 'N4'), qc, errors: st.errors, error: st.error, stopBy: st.stopBy, h: q.verdicts(w, H, 'H1'), ms }));
+});
+
+// ═══ N2：清單之後才灌進來的批次，讀取那一句依長度截住 ════════════════════════════════════
+await attempt('N2', async () => {
+  // 清單那一刻這班車只有 10 批（每批 600 點、約 30 KB）；清單之後、讀這班車之前又灌進 180 批 → 190 批、總長超過 4 MB。
+  // 舊版讀取那一句只有批數上限（LIMIT 721），190 批全部送回 Worker（獨立驗收量到最壞 49 MB）；現在依讀取順序累加長度，
+  // 只送回「加到前一列為止還沒超過 4 MB」的列——最多 4 MB 再加一批，而且最後一列一定跨過上限，所以照樣判得出超量。
+  const A = 'dev-n2-000001', H = 'dev-n2-hon001';
+  const w = world({ seed: boardSql('山線'), env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
+  const big = leg({ sec: 113999 });                          // 114,000 點＝190 批 × 600
+  putBatches(w.db, { actor: A, trainNo: 'LB', pts: big.slice(0, 6000), size: 600 });
+  putBatches(w.db, { actor: H, trainNo: 'H1', pts: leg({ sec: 700 }) });
+  const loads = [];
+  spyRows(w.DELAY_DB, (sql, rs) => {
+    if (LOAD_RE.test(sql)) loads.push({ train: rs.length ? String(rs[0].train_no) : '', n: rs.length, bytes: rs.reduce((a, r) => a + String(r.payload).length, 0) });
+  });
+  const h = hookOnce(w.DELAY_DB, LOAD_RE, async () => { putBatches(w.db, { actor: A, trainNo: 'LB', pts: big.slice(6000), size: 600, first: 10 }); });
+  const st = await w.cron();
+  const fx = one(w, "SELECT COUNT(*) n, SUM(length(payload)) b, MAX(length(payload)) m FROM bounty_samples WHERE train_no='LB'");
+  const lb = loads.find(l => l.train === 'LB') || { n: 0, bytes: 0 };
+  const CAP = 4 * 1024 * 1024;
+  ok('N2a [前提] 清單之後、讀取之前灌進 180 批：這班車最後 190 批（≤ 720，批數閘擋不到）、總長超過 4 MB', h.fired >= 1 && fx.n === 190 && fx.b > CAP, J(fx));
+  ok('N2b [N2] 讀這班車那一句送回 Worker 的 payload：超過 4 MB（跨過上限的那一批有送回，才判得出超量）但不超過「4 MB 再加一批」；送回的批數少於 190',
+    lb.bytes > CAP && lb.bytes <= CAP + fx.m && lb.n < 190, J({ lb, cap: CAP, maxBatch: fx.m }));
+  ok('N2c [N2] 整班 190 批判可疑（oversize）、0 顆；同一發另一班 H1 照樣 ok',
+    q.count(w, 'bounty_samples', "train_no='LB' AND verdict='suspect' AND reject_code='oversize'") === 190 && st.oversize === 1 && q.bal(w, A) === 0 &&
+      q.verdicts(w, H, 'H1') === 'ok',
+    J({ suspect: q.count(w, 'bounty_samples', "train_no='LB' AND verdict='suspect'"), oversize: st.oversize, h: q.verdicts(w, H, 'H1') }));
+});
+
+// ═══ N3：租約被接手之後，舊的那一發第③段不動任何列 ═══════════════════════════════════
+// 注入點：第③段讀認領那一句（這一班 ② 的籌碼與登記已寫完、③ 的 batch 還沒送）→ 租約換成別人的（模擬這一發慢到超過 20 分鐘、被下一發接手）。
+// 之後把別人的租約刪掉（接手那一發跑完、釋放），再跑一發＝接手那一發該做的事。
+async function n3Run(rules) {
+  const A = 'dev-n3-000001';
+  const w = world({ seed: boardSql('山線') + claimSql({ id: 'claim-n3', actor: A, seg: KT('山線', 'S0|S1'), pts: 9 }), rules });
+  putBatches(w.db, { actor: A, trainNo: 'F1', pts: leg({ sec: 700 }) });
+  const other = J({ token: 'taken-over', until: Date.now() + 10 * 60e3 });
+  const h = hookOnce(w.DELAY_DB, /FROM bounty_claims WHERE actor=COALESCE/, async () => { w.db.prepare('UPDATE kv_blobs SET v=? WHERE k=?').run(other, LEASE); });
+  const look = () => ({ v: q.verdicts(w, A, 'F1'), point: q.point(w, A), sc: q.sampleCounts(w, '山線'),
+    cov: rows(w, "SELECT covered_at IS NOT NULL c FROM bounty_board WHERE seg_key LIKE 'tra_sched|山線|%' ORDER BY seg_key").map(r => r.c),
+    claim: one(w, "SELECT status FROM bounty_claims WHERE id='claim-n3'").status, bal: q.bal(w, A), contrib: q.contrib(w, A) });
+  await w.cron();
+  const mid = { ...look(), lease: (q.lease(w) || {}).v };
+  w.db.prepare('DELETE FROM kv_blobs WHERE k=?').run(LEASE);
+  await w.cron({ BOUNTY_NOW: String(NOW_MS + 3600e3) });
+  return { h, other, mid, end: look() };
+}
+const Z9 = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+await attempt('N3', async () => {
+  const r = await n3Run();
+  ok('N3a [N3] 租約在第③段之前被接手：舊的那一發第③段整組不動——樣本仍 pending、沒有點數列、sample_count 全 0、認領仍 open；' +
+    '② 的籌碼 1 顆與登記 7 段已寫（冪等）；接手那一發的租約原封不動',
+    r.h.fired >= 1 && r.mid.v === 'pending' && r.mid.point === null && J(r.mid.sc) === J(Z9) && r.mid.claim === 'open' &&
+      r.mid.bal === 1 && r.mid.contrib === 7 && r.mid.lease === r.other, J(r.mid));
+  ok('N3b [N3] 接手那一發把這一班判完、恰好記一次：ok、點數 27（6 段×3＋認領鎖價 9）、sample_count S0|S1…S6|S7 各 1、認領 fulfilled、籌碼仍 1 顆、登記仍 7 段',
+    r.end.v === 'ok' && r.end.point && r.end.point.points === 27 && J(r.end.sc) === J(S7) && r.end.claim === 'fulfilled' && r.end.bal === 1 && r.end.contrib === 7,
+    J(r.end));
+});
+await attempt('N3c', async () => {
+  // 同一個情境換成「設定檔缺台鐵的 coverDistinct」（降級路徑：sample_count 與收滿寫在同一句、門檻取 coverN 台鐵 1）：那一句也要圍住。
+  const rules = { ...RULES, coverDistinct: { THSR: RULES.coverDistinct.THSR } };
+  const r = await n3Run(rules);
+  ok('N3c [N3] 降級路徑（sample_count＋收滿同一句）：被接手的那一發 sample_count 全 0、沒有收滿；接手那一發之後 S0|S1…S6|S7 各 1、收滿（coverN 台鐵 1）',
+    RULES.coverDistinct.TRA > 0 && r.mid.v === 'pending' && J(r.mid.sc) === J(Z9) && J(r.mid.cov) === J(Z9) &&
+      r.end.v === 'ok' && J(r.end.sc) === J(S7) && J(r.end.cov) === J(S7),
+    J({ mid: { sc: r.mid.sc, cov: r.mid.cov }, end: { sc: r.end.sc, cov: r.end.cov } }));
 });
 
 // ═══ M3：兌換的交易內餘額守衛（邊界）════════════════════════════════════════════

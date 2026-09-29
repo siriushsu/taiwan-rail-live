@@ -795,9 +795,10 @@ await attempt('K1', async () => {
   // 標記改成一組一句（id IN json_each）；sample_count 與關認領改成一組一句（row value IN json_each）。
   const P = {
     list: sqlOf(/^WITH t AS \(/),
-    load: sqlOf(/^SELECT \* FROM bounty_samples WHERE actor=\? AND trip_date=\? AND train_no=\? AND verdict='pending'/),
+    load: sqlOf(/^SELECT \* FROM \(SELECT \*, SUM\(length\(payload\)\) OVER \(ORDER BY submitted_at, id ROWS UNBOUNDED PRECEDING\) AS cum_bytes FROM bounty_samples WHERE actor=\? AND trip_date=\? AND train_no=\? AND verdict='pending'\)/),
     prior: sqlOf(/FROM bounty_samples WHERE actor IN/),
     mark: sqlOf(/^UPDATE bounty_samples SET verdict=\?/),
+    points: sqlOf(/^INSERT INTO bounty_points \(actor,uid,points,merged_into,updated_at\) SELECT/),
     claims: sqlOf(/FROM bounty_claims WHERE actor=COALESCE\(.*status='open'.*json_each/),
     board: sqlOf(/FROM bounty_board WHERE seg_key IN \(SELECT value FROM json_each/),
     count: sqlOf(/^UPDATE bounty_board SET sample_count = sample_count \+ 1 WHERE \(seg_key, train_kind, dir, kind, slot\) IN/),
@@ -812,15 +813,19 @@ await attempt('K1', async () => {
       /SEARCH bounty_board USING (PRIMARY KEY|INDEX sqlite_autoindex_bounty_board_\d+) \(seg_key=\? AND train_kind=\? AND dir=\? AND kind=\? AND slot=\?\)/.test(plans.count),
     J({ claims: plans.claims, close: plans.close, board: plans.board, count: plans.count }));
   // 標記那句：沒有 +verdict 的一元加號，SQLite 會拿 verdict='pending' 走 idx_samples_pending、每一組掃一次全站 pending（K1f 的 mark）。
-  // 班車清單：pending 走 idx_samples_pending（verdict＋乘車日）、可信判斷的帳本子查詢走 idx_chip_ledger_actor_day（不掃整本帳）。
-  ok('K1f [S12／S13c／review-B 查詢計畫] 班車清單走 idx_samples_pending（verdict＋乘車日）且帳本子查詢走 idx_chip_ledger_actor_day；一班一班讀與前次列都走 idx_samples_trip 吃滿三欄；標記走主鍵（id），不走 idx_samples_pending',
+  // 班車清單：pending 走 idx_samples_pending（verdict＋乘車日）、可信判斷的帳本子查詢走 idx_chip_ledger_actor_day（不掃整本帳）、
+  // 「以前出過錯」的子查詢（kv_blobs x）與第③段每一句的租約圍欄都是 kv_blobs 主鍵點查（k=?），不掃整張 kv_blobs（它也放別的快取）。
+  const KV_PK = /SEARCH (x|kv_blobs)( EXISTS)? USING (PRIMARY KEY|INDEX sqlite_autoindex_kv_blobs_\d+) \(k=\?\)/;   // 點數那句 SQLite 寫成「SEARCH kv_blobs EXISTS USING …」
+  ok('K1f [S12／S13c／review-B 查詢計畫] 班車清單走 idx_samples_pending（verdict＋乘車日）、帳本子查詢走 idx_chip_ledger_actor_day、出錯記錄子查詢走 kv_blobs 主鍵；' +
+    '一班一班讀與前次列都走 idx_samples_trip 吃滿三欄；標記走主鍵（id），不走 idx_samples_pending；第③段各句的租約圍欄走 kv_blobs 主鍵、沒有任何一句掃 kv_blobs',
     Object.values(P).every(v => v.length === 1) &&
       /SEARCH s USING INDEX idx_samples_pending \(verdict=\? AND trip_date<\?\)/.test(plans.list) && /SEARCH l USING INDEX idx_chip_ledger_actor_day \(actor=\?/.test(plans.list) &&
-      !/SCAN (s|l|bounty_samples|chip_ledger)\b/.test(plans.list) &&
+      !/SCAN (s|l|x|bounty_samples|chip_ledger|kv_blobs)\b/.test(plans.list) && KV_PK.test(plans.list) &&
+      ['mark', 'points', 'count', 'close'].every(k => KV_PK.test(plans[k]) && !/SCAN kv_blobs\b/.test(plans[k])) &&
       /SEARCH bounty_samples USING INDEX idx_samples_trip \(actor=\? AND trip_date=\? AND train_no=\?\)/.test(plans.load) &&
       /SEARCH bounty_samples USING INDEX idx_samples_trip \(actor=\? AND trip_date=\? AND train_no=\?\)/.test(plans.prior) &&
       /SEARCH bounty_samples USING INDEX sqlite_autoindex_bounty_samples_\d+ \(id=\?\)/.test(plans.mark) && !/idx_samples_pending/.test(plans.mark),
-    J({ list: plans.list, load: plans.load, prior: plans.prior, mark: plans.mark }));
+    J({ list: plans.list, load: plans.load, prior: plans.prior, mark: plans.mark, points: plans.points, count: plans.count, close: plans.close }));
   if (!CTL) return noCtl('K1a', '無法比對等價');
   const b = await runRich(CTL);
   const diffs = diffDump(a.dump, b.dump);
