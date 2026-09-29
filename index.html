@@ -5,8 +5,8 @@
 <!-- 鎖頁面級縮放:手機誤觸 pinch 把頁面放大後,地圖佔滿全屏就再也捏不回來(地圖自己吃掉觸控)。
      地圖內縮放由地圖引擎自理不受影響。iOS Safari 會無視 user-scalable,另以 gesturestart 補擋(見檔尾) -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>軌島</title>
-<meta name="description" content="軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。" />
+<title>軌島｜台鐵、高鐵、捷運即時列車地圖與時刻表</title>
+<meta name="description" content="台鐵、高鐵、捷運與輕軌列車依官方時刻表與即時資料在地圖上跑動，可查車站班次、捷運路線與台鐵誤點。軌島 railisland.tw，一張會動的台灣鐵道地圖。" />
 <meta property="og:title" content="軌島" />
 <meta property="og:description" content="Taiwan's trains, moving live." />
 <meta property="og:type" content="website" />
@@ -5604,7 +5604,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/28</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/9/29</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5612,6 +5612,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="seotitle0929"><span class="d">9/29</span><span>網頁標題與搜尋結果說明寫清楚：台鐵、高鐵、捷運即時地圖與時刻表</span></li>
         <li data-cl-of="klrtcore0928"><span class="d">9/28</span><span>高雄輕軌發車前先在籬仔內等候，發車後沿用同一班身分；衛星位置確認屬於同一班才校正，否則依官方倒數逐站推算</span></li>
         <li data-cl-of="trawait0928"><span class="d">9/28</span><span>修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面</span></li>
         <li data-cl-of="klrtboard0928"><span class="d">9/28</span><span>高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次</span></li>
@@ -5619,7 +5620,6 @@
         <li data-cl-of="buildingopacity0927"><span class="d">9/27</span><span>立體建築剛出現的縮放範圍內，切換亮暗外觀後會保留「透視顯示」的透明度，不再突然變得不透明</span></li>
         <li data-cl-of="traphysicalstation0927"><span class="d">9/27</span><span>重新整理台鐵列車的行車方向與車站股道安排，減少對向共用同一股，以及列車在站內重疊或互穿的畫面</span></li>
         <li data-cl-of="workerrecover0927"><span class="d">9/27</span><span>公車到站、台鐵月台與災害監看遇到官方來源沒回應時，會在限時內結束等待並於下一輪恢復</span></li>
-        <li data-cl-of="pingzhenhold0927"><span class="d">9/27</span><span>台鐵誤點列車經過平鎮附近時，會穩定維持前後車順序，減少在同一股道短暫重疊的畫面</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6002,6 +6002,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="seotitle0929"><span class="d">9/29</span><span>網頁標題與搜尋結果裡的網站說明改寫得更清楚，直接寫出「台鐵、高鐵、捷運即時列車地圖與時刻表」，在 Google 搜尋時比較容易認出軌島在做什麼</span></li>
         <li data-cl="buildingopacity0927"><span class="d">9/27</span><span>修正立體地圖剛放大到能看見建築、還沒顯示立體列車時，切換亮暗外觀會讓「透視顯示」的建築突然變得不透明；現在重新裝入建築後會立即套回所選的透明度</span></li>
         <li data-cl="tramground0919"><span class="d">9/19</span><span>修正高雄輕軌五節車身高低不一：沒有轉向架的中間車節曾被錯誤往下拉約 36 公分，現在全列共用同一條軌面基準，屋頂與窗帶恢復平順；淡海、安坑輕軌同步套用同一修正。另掃描全 62 款列車，其他一般車廂未發現同類問題</span></li>
         <li data-cl="night200907"><span class="d">9/7</span><span>暗色 2.0：霓虹路線、透明藍色建築與玻璃面板；車站看板新增方向切換和大字倒數，亮色維持琺瑯風格。9/19 附近車站、平交道、糖鐵與儲存地點卡的關閉鈕與「存」改用亮字，暗色下看得見了</span></li>
@@ -6901,7 +6902,7 @@
 // v0928a：高雄輕軌看板按順逆行各保留班次，以實際後續停靠站提示方向，終點不再冒充方向。
 // v0928b：保留彎道速限，補回長跑段抵站前追越的官方停靠窗，避免多餘的提早待避。
 // v0928c：公開端接入 KLRT Core 原身分與攤平環線軌跡；待發、雙向看板、來源提示與逐系統退路一併補齊。
-const BUILD = 'v0928c';
+const BUILD = 'v0929a';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
@@ -7191,9 +7192,9 @@ function i18nSyncLanguageControl() {
   });
 }
 function i18nSyncDocumentMeta() {
-  document.title = t('軌島');
+  document.title = t('軌島｜台鐵、高鐵、捷運即時列車地圖與時刻表');
   const description = document.querySelector('meta[name="description"]');
-  if (description) description.content = t('軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。');
+  if (description) description.content = t('台鐵、高鐵、捷運與輕軌列車依官方時刻表與即時資料在地圖上跑動，可查車站班次、捷運路線與台鐵誤點。軌島 railisland.tw，一張會動的台灣鐵道地圖。');
 }
 let I18N_CHANGELOG_ZH_HTML = null;
 // 繁中原文要在第一次 i18nTranslateTree 之前拍下(boot() 開頭就呼叫):外語開機時整頁一開始就先翻過一輪,

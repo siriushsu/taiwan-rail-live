@@ -112,7 +112,7 @@ async function desktopCore(browser, engine) {
       metadata: GROUPS.map(group => t(group.plate?.lead || '')).filter(Boolean),
       official: METRO_OFFICIAL.map(item => t(item.label)),
     }));
-    assert(core.lang === 'en' && core.title === 'Rail Island', `英文基本狀態錯誤：${JSON.stringify(core)}`);
+    assert(core.lang === 'en' && core.title === 'Rail Island | Taiwan Live Train Map & Timetables: TRA, HSR, Taipei MRT, Airport MRT', `英文基本狀態錯誤：${JSON.stringify(core)}`);
     assert(core.tabs.join('|') === 'All|TRA|HSR|Metro', `英文分頁錯誤：${core.tabs.join('|')}`);
     assert(core.topTabs.join('|') === 'All|TRA|HSR|Metro', `英文頂部分頁錯誤：${core.topTabs.join('|')}`);
     assert(core.lead.includes('railways across Taiwan') && core.station === 'Taipei', `英文首屏或站名錯誤：${JSON.stringify(core)}`);
@@ -430,7 +430,7 @@ async function desktopCore(browser, engine) {
         t('我上車了'), t('我下車了 · 訂到 {station}', { station: stationName('臺北', 'tra_sched') }),
       ],
     }));
-    assert(immediate.title === '軌島' && immediate.tabs.join('|') === '全|台鉄|高鉄|メトロ', `日文即時切換失敗：${JSON.stringify(immediate)}`);
+    assert(immediate.title === '軌島｜台湾鉄道ライブ地図と時刻表：台鉄・高鉄・台北MRT・桃園空港MRT' && immediate.tabs.join('|') === '全|台鉄|高鉄|メトロ', `日文即時切換失敗：${JSON.stringify(immediate)}`);
     assert(immediate.station === '台北', `日文官方站名未套用：${immediate.station}`);
     assert(immediate.help.includes('駅・列車番号・列車名を検索') && immediate.help.includes('旅程パスポートと完乗スタンプ'), '已開啟使用說明沒有跟著即時切成日文');
     assert(immediate.named.includes('山嵐号') && immediate.named.includes('花東縦谷'), '已開啟觀光列車介紹沒有跟著即時切成日文');

@@ -83,7 +83,9 @@ const widths = [360, 375, 414, 768];
 // 9/27：台鐵方向與站區派軌重新整理一條（442→443）。
 // 9/27：立體建築重裝後保留透視透明度一條（443→444）。
 // 9/27：北捷紅線與三鶯線改用官方最新線形一條（444→445）。
-const expectedHistoryCount = 445;
+// 9/28：高雄輕軌 Core、台鐵待避推估、高雄輕軌看板方向三條（445→448；當時沒跟著改，main 上這支一直是紅的）。
+// 9/29：首頁標題與搜尋說明一條（448→449）。
+const expectedHistoryCount = 449;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

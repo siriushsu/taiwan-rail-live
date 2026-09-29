@@ -3440,3 +3440,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面': '一部の台鉄長距離列車の待避推定を修正しました。先行列車の予定停車時間を優先して使い、余分な待避の後に駅間で再び追い越す表示を減らします。',
   '高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次': '高雄ライトレールの到着案内で時計回り・反時計回りを分け、経由駅を表示します。すべてが籬仔内行きと表示されたり、反対方向の便が隠れたりしなくなりました。',
 });
+// 2026-09-29 首頁標題與搜尋說明（SEO）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '網頁標題與搜尋結果說明寫清楚：台鐵、高鐵、捷運即時地圖與時刻表': 'The page title and search description now say it plainly: a live map and timetables for TRA, high-speed rail and metro',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '網頁標題與搜尋結果說明寫清楚：台鐵、高鐵、捷運即時地圖與時刻表': 'ページタイトルと検索結果の説明を、台鉄・高鉄・メトロのライブ地図と時刻表だとわかる表現にしました',
+});
