@@ -1580,6 +1580,8 @@ export function buildMetroPages(root, { stationPages = [], zhShell, escapeHtml }
     files, paths, date: M.date, templateDate: METRO_TEMPLATE_DATE, counts,
     missingNames: [...M.missingNames].sort(),
     overviewHref: ovHref,
+    // 給車站時刻頁（build_aeo_pages.mjs）沿用同一套三語 head／頁首／頁尾／麵包屑；只回傳函式，不影響本模組任何輸出
+    shell: { headHtml, headerHtml, footerHtml, crumbsHtml, homeHref },
     // 給 /about/、/stations/、/en/、/ja/ 的入口區塊用
     linkSectionText: {
       zh: { h: '捷運路線圖', text: '台北、桃園、新北、台中、高雄的捷運與輕軌路線圖、車站順序、轉乘站、首末班車與班距，全部由軌島的路線與時刻表資料整理，並可一鍵在地圖上看列車。', link: '看台灣捷運路線圖' },

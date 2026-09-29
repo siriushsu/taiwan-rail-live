@@ -22,7 +22,7 @@ const server = http.createServer((request, response) => {
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 const failures = [];
-const paths = ['/about/', '/accuracy/', '/data-sources/', '/stations/', '/stations/taipei/', '/stations/formosa-boulevard/', '/en/', '/ja/'];
+const paths = ['/about/', '/accuracy/', '/data-sources/', '/stations/', '/stations/taipei/', '/stations/formosa-boulevard/', '/en/', '/ja/', '/en/stations/', '/ja/stations/', '/en/stations/taipei/', '/ja/stations/taipei/'];
 // 英日文著陸頁與首頁必須互相對應:同一組 hreflang、各自 canonical、CTA 帶 ?lang= 進即時地圖
 const hreflangExpected = { 'zh-Hant': 'https://railisland.tw/', en: 'https://railisland.tw/en/', ja: 'https://railisland.tw/ja/', 'x-default': 'https://railisland.tw/' };
 const landings = { '/en/': { lang: 'en', cta: '/?lang=en', titleRe: /Taiwan Train Map/, canonical: 'https://railisland.tw/en/' }, '/ja/': { lang: 'ja', cta: '/?lang=ja', titleRe: /台湾鉄道/, canonical: 'https://railisland.tw/ja/' } };
