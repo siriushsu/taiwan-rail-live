@@ -11525,7 +11525,7 @@ function clearPlannedOvertakes(trains) {
       if (st._trafficArr0 == null) { st._trafficArr0 = st.arrSec; st._trafficDep0 = st.depSec; }
       else { st.arrSec = st._trafficArr0; st.depSec = st._trafficDep0; }
     }
-    delete st._overtakeDep0; delete st._plannedDwell; delete st._overtakeBy;
+    delete st._overtakeDep0; delete st._plannedDwell; delete st._overtakeBy; delete st._overtakePeers;
   }
 }
 function reassignTrainProfile(tr) {
@@ -11547,9 +11547,40 @@ function overtakeRunBuildable(tr, j, dep) {
   };
   return can(a, j, s[j].arrSec - s[a].depSec) && can(j, b, s[b].arrSec - dep);
 }
-function planSameDirectionOvertakes(trains, union, sections) {
-  const stats = { planned: 0, tooClose: 0, unbuildable: 0, deferred: 0, log: [] };
-  if (!Array.isArray(trains) || trains.length < 2) return stats;
+// 待避站要有空股（2026-09-29 使用者裁示「改排到有空股的站」）：待避車那個方向要有一股超越車不走、待避期間也沒有
+// 別班佔著，否則立體地圖上超越車直接穿過停著的待避車（10/3 預排 14 筆有 12 筆兩車同一股）。tracks＝
+// data/tra_overtake_tracks.json 的 stations（scripts/build_tra_overtake_tracks.mjs 用立體地圖換股的同一支程式離線算）：
+// 每一站每一種動線（前站>後站|s 停靠或起訖／p 通過）派車表用過哪幾條路線、通過車可停哪幾股、每一股會被哪幾條路線擋住。
+// 同一種動線不同班次可能派在不同股道，所以要「待避期間同站每一班不論走它那種動線的哪一條路線，都還剩一股」才算；
+// 以擋住的股道集合做狀態逐班展開（股道數個位數，狀態不超過 2^股數）。同站另有先到的待避車（立體地圖讓它先選）、
+// 表上沒有的站或動線，都無從判斷 ⇒ 不排。
+const overtakeStationKey = n => String(n).replace(/臺/g, '台').replace(/\s*[（(].*?[）)]/g, '').replace(/-環島$/, '').trim();
+function overtakeTrackFree(tracks, at, tr, j, lo, hi) {
+  const st = tr.stops[j], here = tracks[overtakeStationKey(st.name)];
+  const nb = (t, k, step) => {
+    for (let i = k + step; i >= 0 && i < t.stops.length; i += step) { const n = overtakeStationKey(t.stops[i].name); if (tracks[n]) return n; }
+    return '';
+  };
+  const cands = here && here.dirs[nb(tr, j, -1) + '>' + nb(tr, j, 1)];
+  if (!cands || cands.length > 30) return false;
+  let reach = [0];
+  for (const [o, x, k] of at.get(st.name) || []) {
+    if (o === tr || x.depSec < lo || x.arrSec > hi) continue;
+    if (x._plannedDwell) {
+      if (x.arrSec < st.arrSec || (x.arrSec === st.arrSec && String(o.train) < String(tr.train))) return false;
+      continue;
+    }
+    const routes = here.moves[nb(o, k, -1) + '>' + nb(o, k, 1) + '|' + (!k || k === o.stops.length - 1 || x.stop !== false ? 's' : 'p')];
+    if (!routes) return false;
+    const next = new Set();
+    for (const r of routes) { const m = cands.reduce((acc, c, i) => c.includes(r) ? acc | 1 << i : acc, 0); for (const s of reach) next.add(s | m); }
+    reach = [...next];
+  }
+  return !reach.includes((1 << cands.length) - 1);
+}
+function planSameDirectionOvertakes(trains, union, sections, tracks) {
+  const stats = { planned: 0, tooClose: 0, unbuildable: 0, deferred: 0, noTrack: 0, log: [] };
+  if (!Array.isArray(trains) || trains.length < 2 || !tracks) return stats;
   const keyOf = tr => tr.train + ':' + tr.stops[0].depSec + ':' + tr.stops[tr.stops.length - 1].arrSec;
   const days = new Map();
   for (const [day, idxs] of Object.entries((union && union.dates) || {})) for (const i of idxs) {
@@ -11560,6 +11591,8 @@ function planSameDirectionOvertakes(trains, union, sections) {
   // 實體股道表沒有的站（2026-10 起的平鎮臨時站）派車表沒有它的站場股道，立體地圖的車停在主線上（rail-3d/physical/motion.js），
   // 沒有讓後車從旁邊超過去的待避線 ⇒ 不選它當待避站。站名正規化與 traSectionKey 同一套；沒有表就沒有依據，照舊。
   const tracked = sections ? new Set(Object.keys(sections).flatMap(k => k.split('|'))) : null;
+  const at = new Map();
+  for (const tr of trains) (tr.stops || []).forEach((st, k) => (at.get(st.name) || at.set(st.name, []).get(st.name)).push([tr, st, k]));
   const proposals = new Map();
   for (let ia = 0; ia < trains.length; ia++) {
     const A = trains[ia]; if (A.loop || !A.stops || A.stops.length < 2) continue;
@@ -11593,7 +11626,8 @@ function planSameDirectionOvertakes(trains, union, sections) {
           if (tracked && !tracked.has(traSectionKey(st.name, st.name).split('|')[0])) continue;
           const dep = fst.depSec + OVERTAKE_CLEAR_SEC;
           if (dep - st.arrSec > OVERTAKE_MAX_WAIT_SEC) continue;
-          chosen = { tr: L, j: lc, dep, follower: String(F.train), ftr: F, fj: fc, station: st.name, lead, need, lookKm }; break;
+          if (!overtakeTrackFree(tracks, at, L, lc, st.arrSec - OVERTAKE_CLEAR_SEC, dep + OVERTAKE_CLEAR_SEC)) { stats.noTrack++; continue; }
+          chosen ={ tr: L, j: lc, dep, follower: String(F.train), ftr: F, fj: fc, station: st.name, lead, need, lookKm }; break;
         }
         if (!chosen) { stats.tooClose++; continue; }
         const pk = keyOf(chosen.tr) + ':' + chosen.j, old = proposals.get(pk);
@@ -11619,6 +11653,8 @@ function planSameDirectionOvertakes(trains, union, sections) {
       const fresh = !rebuilt.has(tr) || (p.dep > st.arrSec + 0.5 && p.dep - st.arrSec <= OVERTAKE_MAX_WAIT_SEC
         && p.ftr.stops[p.fj].arrSec - st.arrSec >= p.need);
       if (!fresh || rebuilt.has(p.ftr) || reliedOn.has(tr)) { stats.deferred++; continue; }
+      // 本輪先套的待避改了別班的時刻或多了一班待避車：用現在的時刻重查一次空股。
+      if (!overtakeTrackFree(tracks, at, tr, p.j, st.arrSec - OVERTAKE_CLEAR_SEC, p.dep + OVERTAKE_CLEAR_SEC)) { stats.noTrack++; continue; }
       if (!overtakeRunBuildable(tr, p.j, p.dep)) { stats.unbuildable++; continue; }
       if (st._overtakeDep0 == null) st._overtakeDep0 = st.depSec;
       st.depSec = Math.max(st.depSec, p.dep); st._plannedDwell = true; st._overtakeBy = p.follower;
@@ -11635,13 +11671,27 @@ function planSameDirectionOvertakes(trains, union, sections) {
   }
   return stats;
 }
-function resolveTraTraffic(trains, union, sections) {
+// 待避期間同站的其他列車（停靠或通過，時段與待避窗重疊到放行間隔以內；超越車也在裡面）給立體地圖選待避線：
+// 待避車要換到這些車在這一站都不經過的那一股（rail-3d/physical/motion.js）。只有超越車不夠——待避線可能正停著
+// 別班（9/13 埔心 173 等 127，待避線上 1161 停 9 分鐘），待避中也可能不只一班從旁通過（汐科 5257 等 145，6037 也過）。
+// 要在所有通過時刻定案（含預算跑段重套）之後才算。不可列舉：車次物件互相引用，不能讓序列化或 structuredClone 帶著走。
+function attachOvertakePeers(trains) {
+  const at = new Map();
+  for (const tr of trains) for (const st of (tr.stops || [])) (at.get(st.name) || at.set(st.name, []).get(st.name)).push([tr, st]);
+  for (const tr of trains) for (const st of (tr.stops || [])) {
+    if (!st._plannedDwell) continue;
+    const lo = st.arrSec - OVERTAKE_CLEAR_SEC, hi = st.depSec + OVERTAKE_CLEAR_SEC;
+    const peers = at.get(st.name).filter(([o, x]) => o !== tr && x.depSec >= lo && x.arrSec <= hi).map(([o]) => o);
+    Object.defineProperty(st, '_overtakePeers', { value: peers, configurable: true, writable: true });
+  }
+}
+function resolveTraTraffic(trains, union, sections, tracks) {
   const out = { meet: [], overtake: [], planned: 0 };
   // 先套既有的對向交會／官方停靠約束，再讓同向待避自行收斂。交會只推一次：待避屬於當日
   // 車群的暫態決策，再把它反餵進多日聯集交會會讓沒有參與待避的列車也依載入日產生不同曲線。
   out.meet.push(inferMeetPassTimes(trains, union, sections));
   for (let round = 0; round < 8; round++) {
-    const p = planSameDirectionOvertakes(trains, union, sections); out.overtake.push(p); out.planned += p.planned;
+    const p = planSameDirectionOvertakes(trains, union, sections, tracks); out.overtake.push(p); out.planned += p.planned;
     if (!p.planned) break;
   }
   return out;
@@ -12401,7 +12451,7 @@ function applySchedSystems(sysList) {
         && cache.data === sys.data && cache.roster === roster
         && cache.denseTrains === sys.data._denseTrains && cache.dates === sys.data.dates
         && cache.trackLines === trackLines && cache.trackSections === state.trackSections
-        && cache.runProfiles === pre && cache.passObs === state.passObs
+        && cache.overtakeTracks === state.overtakeTracks && cache.runProfiles === pre && cache.passObs === state.passObs
         && cache.resolveTraffic === resolveTraTraffic
         && refSeqEq(cache.trains, trs) && refSeqEq(cache.trainStops, trs.map(tr => tr.stops))
         && refSeqEq(cache.lines, lns) && refSeqEq(cache.lineShapes, lns.map(ln => ln.shape))
@@ -12427,14 +12477,15 @@ function applySchedSystems(sysList) {
       state.runProfiles = null;
       if (lns.length) assignSchedShapePathsFor(trs, lns);
       if (lns.length)
-        state._meetStats = resolveTraTraffic(trs, { trains: sys.data._denseTrains || sys.data.trains, dates: sys.data.dates }, state.trackSections);
+        state._meetStats = resolveTraTraffic(trs, { trains: sys.data._denseTrains || sys.data.trains, dates: sys.data.dates }, state.trackSections, state.overtakeTracks);
       state.runProfiles = pre;
       // 缺預算檔時保留剛完成的交會曲線；有檔時才讓未待避列車換成等價預算。
       // 待避列車已在 planSameDirectionOvertakes 依新邊界重建完，不再碰它。
       if (pre) for (const tr of trs) if (!tr.stops.some(st => st._plannedDwell)) reassignTrainProfile(tr);
+      attachOvertakePeers(trs);
       sys._traTrafficCache = {
         data: sys.data, roster, denseTrains: sys.data._denseTrains, dates: sys.data.dates,
-        trackLines, trackSections: state.trackSections, runProfiles: pre, passObs: state.passObs,
+        trackLines, trackSections: state.trackSections, overtakeTracks: state.overtakeTracks, runProfiles: pre, passObs: state.passObs,
         resolveTraffic: resolveTraTraffic,
         trains: trs.slice(), trainStops: trs.map(tr => tr.stops),
         lines: lns.slice(), lineShapes: lns.map(ln => ln.shape), lineStations: lns.map(ln => ln.stations),
@@ -37667,6 +37718,7 @@ async function boot() {
   const passObsP   = _p(fetchJSON('./data/tra_pass_obs.json'));
   const runProfP   = _p(fetchJSON('./data/tra_run_profiles.json'));
   const sectionsP  = _p(fetchJSON('./data/tra_track_sections.json'));
+  const overtakeTracksP = _p(fetchJSON('./data/tra_overtake_tracks.json'));
   const specialP   = _p(fetchJSON('./data/tra_special_trains.json'));
 
   // 以下只是「收貨」,順序與改動前逐字相同(state.systems 仍照 SYS_DEFS 順序 push)
@@ -37709,6 +37761,9 @@ async function boot() {
   // 台鐵相鄰兩站之間單線／雙線(scripts/build_tra_track_sections.mjs 由 network.json 幾何產)。交會／待避
   // 推論(inferMeetPassTimes)的對向規則只在單線區間成立;缺檔 → null ⇒ 對向規則整個不套用,同向待避照常。
   state.trackSections = (await sectionsP)?.pairs || null;
+  // 台鐵各站各方向可待避的股道(scripts/build_tra_overtake_tracks.mjs 由實體路網與派車表產)。同向預排待避只排在有空股的站
+  // (planSameDirectionOvertakes);缺檔 → null ⇒ 無從判斷,不預排待避,後車照既有防追撞在站外減速跟著。
+  state.overtakeTracks = (await overtakeTracksP)?.stations || null;
   // 特別列車故事檔案(車型/具名觀光列車/支線);缺檔時 specialOf 回 null,退回內建簡版介紹
   state.special = await specialP;
   if (state.special) state.special.branchLines.forEach(b => { b._set = new Set(b.matchStations); });

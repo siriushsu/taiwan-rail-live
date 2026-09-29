@@ -90,6 +90,10 @@ for (const [key, plan] of Object.entries(dispatch.plans)) {
     rec.maxPath = Math.max(rec.maxPath, runtime.unfold(String(pid)).path.length);
   }
 }
+// 待避側線路徑（extend_tra_overtake_sidings.mjs 補的，派車表沒有）：待避車換股時也會畫在上面，只算進最長路徑。
+for (const e of net.extensions || []) for (const [pid, [a, b]] of Object.entries(e.overtakePaths || {})) {
+  const rec = pairs.get(sectionKey(a, b)); if (rec) rec.maxPath = Math.max(rec.maxPath, runtime.unfold(String(pid)).path.length);
+}
 // via＝派車表沒有、班表卻排在這個站對中間的站（2026-10 起的平鎮臨時站 1105）投影到這個站對每條派過路徑上，
 // 離鍵的第一站、第二站各最遠多少公尺（[第一站, 第二站]，進位規則同 maxPathM）。立體地圖讓官方停靠這種站的班次
 // 停在投影點、前後兩截各自照跑段剖面走（rail-3d/physical/motion.js，同一個 locate()）；index.html 拿它當那兩截的

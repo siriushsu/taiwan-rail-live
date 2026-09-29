@@ -92,9 +92,10 @@ for(let t=syn.stops[I].depSec;t+.5<=syn.stops[K+1].arrSec;t+=.5){const a=motion.
 assert(moving>100,`兩截行駛取樣 ${moving}`);
 // 同向待避不選實體股道表沒有的站（index.html planSameDirectionOvertakes）：拿現行資料第一天、照前端同一條每日管線選站，
 // 把選中的第一個待避站從股道表拿掉重跑，那一站就不能再被選；表不動時要選得到（對照組，證明這條檢查有牙）。
-const plannedOn=(day,secs)=>{const sc=JSON.parse(raw),ctx=makeSandbox('index.html');ctx.state.passObs=readPassObs('data/tra_pass_obs.json');ctx.state.trackSections=secs;
+const overtakeTracks=JSON.parse(fs.readFileSync('data/tra_overtake_tracks.json','utf8')).stations;
+const plannedOn=(day,secs)=>{const sc=JSON.parse(raw),ctx=makeSandbox('index.html');ctx.state.passObs=readPassObs('data/tra_pass_obs.json');ctx.state.trackSections=secs;ctx.state.overtakeTracks=overtakeTracks;
  for(const t of sc.trains)t.sys='tra_sched';ctx.trs=sc.dates[day].map(i=>sc.trains[i]);ctx.lines=lines;ctx.union={trains:sc.trains,dates:sc.dates};
- runInContext('canonicalizeAliasTrains(trs); clearPlannedOvertakes(trs); assignSchedShapePathsFor(trs, lines); resolveTraTraffic(trs, union, state.trackSections)',ctx);
+ runInContext('canonicalizeAliasTrains(trs); clearPlannedOvertakes(trs); assignSchedShapePathsFor(trs, lines); resolveTraTraffic(trs, union, state.trackSections, state.overtakeTracks)',ctx);
  return ctx.trs.flatMap(t=>t.stops.filter(s=>s._plannedDwell).map(s=>({no:String(t.train),station:s.name})));};
 const day=Object.keys(sched.dates).sort()[0],waits=plannedOn(day,sections);
 assert(waits.length>0,`${day} 要有預排待避（對照組）`);

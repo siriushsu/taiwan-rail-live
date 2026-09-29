@@ -298,6 +298,10 @@ try {
   const runProf = spawnSync('node', [path.join(wt, 'scripts', 'build_run_profiles.mjs'), '--check'], { cwd:wt, encoding:'utf8' });
   process.stdout.write(runProf.stdout || ''); process.stderr.write(runProf.stderr || '');
   if (runProf.status !== 0) fail('台鐵預算剖面表與目前的模型不符（前端會照舊表畫位置），或 MR1 交會推論棘輪退步（單獨重跑：node scripts/build_run_profiles.mjs --check）');
+  // 待避股道表過期同樣無聲：路網或派車表改了卻沒重產，前端照舊表選待避站、立體地圖照新路網換股，超越車又會穿過待避車。
+  const overtakeTracks = spawnSync('node', [path.join(wt, 'scripts', 'build_tra_overtake_tracks.mjs'), '--check'], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(overtakeTracks.stdout || ''); process.stderr.write(overtakeTracks.stderr || '');
+  if (overtakeTracks.status !== 0) fail('台鐵待避股道表與目前的路網／派車表不符（單獨重跑：node scripts/build_tra_overtake_tracks.mjs --check）');
   // 資料清單過期是無聲失效：網站宣稱什麼都沒變，App 就永遠不重抓那個檔。原本只有 App 的 prepare-web
   // 與每日巡檢會驗，網站出貨不驗——DR1000 那批重建了跑段剖面卻漏了重產清單，出貨前靠人工比對才發現。
   const manifest = spawnSync('node', [path.join(wt, 'scripts', 'verify_data_manifest.mjs'), wt], { cwd:wt, encoding:'utf8' });
@@ -352,6 +356,12 @@ try {
     { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '' } });
   process.stdout.write(overtakeStation.stdout || ''); process.stderr.write(overtakeStation.stderr || '');
   if (overtakeStation.status !== 0) fail('台鐵預排待避的煞車距離、站內停等或雙方向案例未通過');
+  // 預排待避的待避車要停另一股、超越車照走（10/3 預排 14 筆曾有 12 筆兩車同一股，超越車穿過停著的待避車）。
+  // 從今天起第一個有預排待避的日子逐筆驗：不同節點、車身不相交、停在同一點、不壓到同站他車（Chromium＋WebKit）。
+  const overtakeTrack = spawnSync('node', [path.join(wt, 'scripts', 'verify_overtake_distinct_track.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '' } });
+  process.stdout.write(overtakeTrack.stdout || ''); process.stderr.write(overtakeTrack.stderr || '');
+  if (overtakeTrack.status !== 0) fail('台鐵預排待避的待避車與超越車同一股、車身相交或壓到同站他車（單獨重跑：node scripts/verify_overtake_distinct_track.mjs）');
   const zoneArrival = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_zone_arrival.mjs')],
     { cwd: wt, encoding: 'utf8' });
   process.stdout.write(zoneArrival.stdout || ''); process.stderr.write(zoneArrival.stderr || '');
