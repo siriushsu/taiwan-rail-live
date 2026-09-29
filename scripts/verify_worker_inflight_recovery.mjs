@@ -160,11 +160,15 @@ for(const label of busKeys){
     assert.equal(beforeReclaim.ok,false);assert.equal(calls,1);
   });
   nowMs=1060;
-  const replacement=result(bus.sharedBusInflight(map,label,start,options));
+  // 接手者與搭車者的等候是真的 setTimeout（sharedBusInflight 沒有 timer 注入點），下面卻要跑三個真 tick 才放 NEW；
+  // 主執行緒卡住 20 ms 以上，它們就在 NEW 之前逾時（2026-09-29 自然跑 1/100 紅在 route S2）。這段驗接手與共乘，
+  // 等候上限上面已驗過，所以只放寬這兩發的 waitMaxMs。
+  const handover={...options,waitMaxMs:1000};
+  const replacement=result(bus.sharedBusInflight(map,label,start,handover));
   await tick();
   old.resolve('OLD');
   await tick();
-  const passenger=result(bus.sharedBusInflight(map,label,start,options));
+  const passenger=result(bus.sharedBusInflight(map,label,start,handover));
   await tick();
   check(`${label}：滿放掉門檻才開下一輪，並 abort 舊 owner`,()=>{
     assert.equal(calls,2);assert.equal(oldSignal.aborted,true);
