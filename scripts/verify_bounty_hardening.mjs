@@ -384,9 +384,12 @@ await attempt('B4b', async () => {
     s2.status === 200 && c2.status === 200 && q.count(w, 'bounty_samples', 'actor=?', A) === 1 && q.count(w, 'bounty_claims', 'actor=?', A) === 9 &&
       q.count(w, 'bounty_samples', 'actor<>?', A) === 0 && q.count(w, 'bounty_claims', 'actor<>?', A) === 0, J([s2.text, c2.text]));
   const s3 = await submit(w, D, {}), c3 = await claim(w, D, CARD);
-  ok('B4b3 不帶 Bearer（App 的錄程上傳、網頁的認領都不帶）：照舊 200、記在 A（樣本 2 列、認領 18 列）',
-    s3.status === 200 && c3.status === 200 && q.count(w, 'bounty_samples', 'actor=?', A) === 2 && q.count(w, 'bounty_claims', 'actor=?', A) === 18,
-    J([s3.text, c3.text]));
+  // 同一張卡再接一次＝取代舊的（第五輪獨立驗收 新洞①；舊版這裡是 18 列）：仍 9 列，而且 9 列全是這一次（c3）的 claimId。
+  const ids3 = rows(w, 'SELECT id FROM bounty_claims WHERE actor=?', A).map(r => r.id);
+  ok('B4b3 不帶 Bearer（App 的錄程上傳、網頁的認領都不帶）：照舊 200、記在 A（樣本 2 列；同一張卡再接一次取代舊的，認領仍 9 列、全是這一次的）',
+    s3.status === 200 && c3.status === 200 && q.count(w, 'bounty_samples', 'actor=?', A) === 2 && q.count(w, 'bounty_claims', 'actor=?', A) === 9 &&
+      !!(c3.json && c3.json.claimId) && ids3.length === 9 && ids3.every(id => id.startsWith(c3.json.claimId + '|')),
+    J([s3.text, c3.text, ids3.slice(0, 3)]));
 });
 
 // ═══ B5：帶 Bearer 讀取也跑 S0 ═════════════════════════════════════════════════
@@ -1544,12 +1547,15 @@ await attempt('N1f', async () => {
     '≥ 預算、扣掉一班最大的車就不到預算',
     K > 0 && st.bytes === judged.b && st.rows === judged.n && judged.b > 0 && cost >= budget && cost - maxCost < budget,
     J({ bytes: st.bytes, rows: st.rows, judged, K, cost, budget, maxCost }));
-  const f = await fire(mk({ BOUNTY_BYTES_BUDGET: String(budget) }));
+  const wf = mk({ BOUNTY_BYTES_BUDGET: String(budget) });
+  const f = await fire(wf);
   const line = f.logs.concat(f.errs).find(s => SUMMARY_RE.test(s)) || '';
   const mb = line.match(/讀取 ([\d.]+) MB（(\d+) 列）/);
-  ok('N1fc [第二輪 CPU] 判定那一行寫「讀取量預算用盡」與讀取量（MB，一位小數；括號裡是列數）',
-    line.includes('讀取量預算用盡') && !!mb && Math.abs(Number(mb[1]) - budget / 1048576) < 0.2 + maxTrain / 1048576 && Number(mb[2]) > 0,
-    line.slice(0, 260));
+  // 括號裡的列數＝這一發判到的列數、MB＝那些列的 payload（測試端 SQL；第五輪獨立驗收：舊判準只要求列數 > 0，印成班數照樣綠）。
+  const jf = one(wf, "SELECT COALESCE(SUM(length(payload)), 0) b, COUNT(*) n, COUNT(DISTINCT actor || '|' || train_no) t FROM bounty_samples WHERE verdict <> 'pending'");
+  ok('N1fc [第二輪 CPU／第五輪] 判定那一行寫「讀取量預算用盡」與讀取量：MB＝已判定列的 payload（一位小數）、括號裡＝已判定的列數（不是班數）',
+    line.includes('讀取量預算用盡') && !!mb && mb[1] === (jf.b / 1048576).toFixed(1) && Number(mb[2]) === jf.n && jf.n !== jf.t && jf.n > 0,
+    J({ line: line.slice(0, 260), sql: jf }));
   const w0 = mk({});
   const st0 = await w0.cron();
   ok('N1fd [第二輪 CPU 對照] 預設讀取量預算（128 MB）：同一個世界全部判完、沒有停手、沒有讓出', q.pending(w0) === 0 && st0.budgetStop === false && st0.stopBy === null && st0.headDeferred === 0,
@@ -1645,9 +1651,26 @@ await attempt('N1g', async () => {
   const n0 = ac.loads[0];
   let k = 0;
   while (k < ac.loads.length && ac.loads[k] - n0 < (B - n0) * 0.5) k++;
-  ok('N1ga [第四輪 E 缺口] 子請求份額恰是剩下的一半：U 連續判的班數＝測試端自己數的「份額起點之後已用 < (預算－起點)×0.5」的班數；之後 3 個新身分、再來 U 其餘；子請求停手',
-    cc.loads.length === 11 && k >= 2 && k < 8 && a.loads.length >= k + 3 && J(a.loads) === J(n1gExpect(k, a.loads.length)) && sta.stopBy === 'subreq',
-    J({ B, n0, c: cc.loads[1] - cc.loads[0], k, loads: a.loads.map(x => x === N1G_U ? 'U' : 'A'), stopBy: sta.stopBy }));
+  // 停手點（第五輪獨立驗收：「≥ 預算就停」缺一個恰好相等的格）：每班一樣貴（c），第 m 班開始前已用 n0＋m×c；恰好等於預算那一格就要停。
+  const c = cc.loads[1] - cc.loads[0], even = cc.loads.slice(1).every((x, i) => x - cc.loads[i] === c);
+  let m = 0;
+  while (n0 + m * c < B) m++;
+  ok('N1ga [第四輪 E 缺口／第五輪] 子請求份額恰是剩下的一半：U 連續判的班數＝測試端自己數的「份額起點之後已用 < (預算－起點)×0.5」的班數；之後 3 個新身分、再來 U 其餘；' +
+    '已用恰好等於預算的那個班車邊界就停（判 8 班）',
+    cc.loads.length === 11 && even && k >= 2 && k < 8 && m === 8 && a.loads.length === m && J(a.loads) === J(n1gExpect(k, m)) && sta.stopBy === 'subreq',
+    J({ B, n0, c, even, k, m, loads: a.loads.map(x => x === N1G_U ? 'U' : 'A'), stopBy: sta.stopBy }));
+  // N1ga2 下緣（第五輪獨立驗收：0.5 放在班車邊界正上方，只釘住上緣——0.4、0.45 都綠）：預算 n0＋13c，份額 6.5c 落在兩個班車邊界中間。
+  // 份額比例 s 下 U 先判的班數 kOf(s)＝校準那一發（預算不設限、U 的 8 班全在前面）裡「份額起點之後已用 < 13c×s」的 U 班數；
+  // 0.45 → 6、0.5 → 7、0.55 → 8，三個比例各給不同的次序。11 班 11c 用不完 13c：全部判完、不停手。
+  {
+    const c0 = cc.loads[0], B2 = c0 + 13 * c;
+    const kOf = s => cc.loads.slice(0, 8).filter(x => x - c0 < (B2 - c0) * s).length;
+    const a2 = n1gWorld({ BOUNTY_SUBREQ_BUDGET: String(B2) });
+    const st2 = await a2.w.cron();
+    ok('N1ga2 [第五輪] 子請求份額的下緣：預算 n0＋13c（份額 6.5c）——U 先判 7 班（比例 0.45 會是 6、0.55 會是 8），之後 3 個新身分、U 最後 1 班；11 班判完、沒有停手',
+      even && kOf(0.45) === 6 && kOf(0.5) === 7 && kOf(0.55) === 8 && J(a2.loads) === J(n1gExpect(7, 11)) && st2.stopBy === null,
+      J({ B2, k: [kOf(0.45), kOf(0.5), kOf(0.55)], loads: a2.loads.map(x => x === N1G_U ? 'U' : 'A'), stopBy: st2.stopBy }));
+  }
   // 牆鐘：假時鐘。WALL 600 秒、每讀一班 100 秒；PRE＝清單之前已花掉的時間（份額是「剩下的一半」，不是「總量的一半」）。
   const WALL = 600000, STEP = 100000;
   for (const PRE of [0, 200000]) {
@@ -1667,6 +1690,33 @@ await attempt('N1g', async () => {
       J(x.loads) === J(n1gExpect(kk, mm)) && stx.stopBy === 'wall',
       J({ PRE, kk, mm, loads: x.loads.map(y => y === N1G_U ? 'U' : 'A'), stopBy: stx.stopBy }));
   }
+  // 假時鐘跑一發：wall＝牆鐘預算覆寫值、step＝每讀一班撥快幾毫秒（清單之前不撥）。
+  const wallRun = async (wall, step) => {
+    const x = n1gWorld({ BOUNTY_WALL_BUDGET_MS: String(wall) });
+    const real = Date.now;
+    let fake = real.call(Date);
+    beforeEach(x.w.DELAY_DB, LOAD_RE, () => { fake += step; });
+    Date.now = () => fake;
+    try { return { loads: x.loads, st: await x.w.cron() }; } finally { Date.now = real; }
+  };
+  // N1gb3 下緣（第五輪獨立驗收，同 N1ga2）：牆鐘 520 秒、每班 40 秒——份額 260 秒落在兩個班車邊界中間（比例 0.45 → 6 班、0.5 → 7、0.55 → 8）。
+  // 11 班 440 秒用不完 520 秒：全部判完、不停手。
+  {
+    const WALL3 = 520000, STEP3 = 40000;
+    const kOf = s => { let k = 0; while (k * STEP3 < WALL3 * s) k++; return k; };
+    const r3 = await wallRun(WALL3, STEP3);
+    ok('N1gb3 [第五輪] 牆鐘份額的下緣：牆鐘 520 秒、每班 40 秒（份額 260 秒）——U 先判 7 班（0.45 會是 6、0.55 會是 8），之後新身分、U 最後 1 班；11 班判完、沒有停手',
+      kOf(0.45) === 6 && kOf(0.5) === 7 && kOf(0.55) === 8 && J(r3.loads) === J(n1gExpect(7, 11)) && r3.st.stopBy === null,
+      J({ k: [kOf(0.45), kOf(0.5), kOf(0.55)], loads: r3.loads.map(y => y === N1G_U ? 'U' : 'A'), stopBy: r3.st.stopBy }));
+  }
+  // N1gb4 牆鐘覆寫值的上限（第五輪獨立驗收）：覆寫成 1 小時也只算「租約 20 分鐘－5 分鐘」＝900 秒（規格寫死在這裡，不讀實作的常數）。
+  // 每班 100 秒：份額 450 秒 → U 先判 5 班；第 9 班讀完正好 900 秒 → 停在牆鐘。沒有上限的話 11 班 1,100 秒都判得完、U 的 8 班全在前面。
+  {
+    const r4 = await wallRun(3600000, 100000);
+    ok('N1gb4 [第五輪] 牆鐘預算覆寫成 1 小時也只用 900 秒（租約 20 分鐘－5 分鐘）：每班 100 秒——U 先判 5 班、之後新身分、U 1 班；9 班之後牆鐘停手',
+      J(r4.loads) === J(n1gExpect(5, 9)) && r4.st.stopBy === 'wall' && r4.st.budgetStop === true,
+      J({ loads: r4.loads.map(y => y === N1G_U ? 'U' : 'A'), stopBy: r4.st.stopBy }));
+  }
   // 讀取量：每班一樣大（C＝payload＋列數×每列折算）；預算 5.5C（份額 2.75C：一半判 3 班讓出，六成要判 4 班）。
   const y0 = n1gWorld({});
   const K = _bounty.BOUNTY_BYTES_PER_ROW;
@@ -1681,6 +1731,24 @@ await attempt('N1g', async () => {
   ok('N1gc [第四輪 E 缺口] 讀取量份額恰是剩下的一半：每班一樣大、預算 5.5 班，U 先判 3 班、之後新身分；共 6 班、讀取量停手',
     per.lo === per.hi && kb === 3 && mb === 6 && J(y.loads) === J(n1gExpect(kb, mb)) && sty.stopBy === 'bytes',
     J({ per, BB, kb, mb, loads: y.loads.map(z => z === N1G_U ? 'U' : 'A'), stopBy: sty.stopBy }));
+  // N1gc2 下緣（第五輪獨立驗收，同 N1ga2）：預算 13 班（份額 6.5 班，比例 0.45 → 6、0.5 → 7、0.55 → 8）；11 班用不完：全部判完、不停手。
+  {
+    const kOf = s => { let k = 0; while (k * per.hi < 13 * per.hi * s) k++; return k; };
+    const y2 = n1gWorld({ BOUNTY_BYTES_BUDGET: String(13 * per.hi) });
+    const st2 = await y2.w.cron();
+    ok('N1gc2 [第五輪] 讀取量份額的下緣：預算 13 班（份額 6.5 班）——U 先判 7 班（0.45 會是 6、0.55 會是 8），之後新身分、U 最後 1 班；11 班判完、沒有停手',
+      kOf(0.45) === 6 && kOf(0.5) === 7 && kOf(0.55) === 8 && J(y2.loads) === J(n1gExpect(7, 11)) && st2.stopBy === null,
+      J({ k: [kOf(0.45), kOf(0.5), kOf(0.55)], loads: y2.loads.map(z => z === N1G_U ? 'U' : 'A'), stopBy: st2.stopBy }));
+  }
+  // N1gc3 停手點恰好等於預算（第五輪獨立驗收：「≥ 預算就停」缺一個恰好相等的格）：預算恰是 4 班（份額 2 班）→ U、U、新身分、新身分，
+  // 第 4 班讀完讀取量＝預算，就停在那裡（「>」會再判第 5 班）。
+  {
+    const y3 = n1gWorld({ BOUNTY_BYTES_BUDGET: String(4 * per.hi) });
+    const st3 = await y3.w.cron();
+    ok('N1gc3 [第五輪] 讀取量恰好等於預算就停：預算恰是 4 班——U、U、新身分、新身分，第 4 班之後停手（stopBy bytes）；stat 的讀取量＝4 班',
+      J(y3.loads) === J(n1gExpect(2, 4)) && st3.stopBy === 'bytes' && st3.bytes + st3.rows * K === 4 * per.hi,
+      J({ loads: y3.loads.map(z => z === N1G_U ? 'U' : 'A'), stopBy: st3.stopBy, cost: st3.bytes + st3.rows * K, want: 4 * per.hi }));
+  }
   // 同一個規則換成每班 720 列、每列 1 點：payload 只佔這一班讀取量的一成不到，份額若只看位元組，U 的 8 班會全部先判完。
   const r0 = n1gWorld({}, true);
   const pr = one(r0.w, `SELECT MIN(c) lo, MAX(c) hi, MAX(b) b FROM (SELECT SUM(length(payload)) + COUNT(*) * ${K} c, SUM(length(payload)) b FROM bounty_samples GROUP BY actor, train_no)`);
@@ -1712,6 +1780,171 @@ await attempt('N1h', async () => {
       L.filter(r => r.head).length === 3995 && NEW.every(a => L.some(r => r.actor === a)),
     J({ truncated: st.truncated, list: L.length, struck: L.filter(r => KS.includes(r.actor)).length, head: L.filter(r => r.head).length,
       newIn: NEW.filter(a => L.some(r => r.actor === a)).length }));
+});
+
+// N1h2 截斷時，一般班車依輪次排、同一輪裡可信的才先（第五輪獨立驗收：N1d／N1h 的世界裡沒有「可信身分的非 head 班車」，
+// 把截斷排序的 rnd 與 trusted DESC 換序照樣全綠）。可信身分 T 傳 3,000 班＋2,000 個新身分各 1 班：共 5,000 班、截到 4,000。
+// 期望（自己照規格排）：T 的 head 8 班 → 各人第 1 輪（新身分 2,000 班；T 的第 1 輪是 head）→ T 的第 9 班起依輪次，截到 4,000 ＝ T 的 1,992 班。
+// 換序的話 T 的 2,992 班非 head 全排在新身分前面，新身分只剩 1,000 班進得了清單。
+await attempt('N1h2', async () => {
+  const T = 'dev-n1h2-trust1', NEW = Array.from({ length: 2000 }, (_, i) => 'dev-n1h2-n' + String(i).padStart(4, '0'));
+  const w = world({ seed: boardSql('山線') + gradSql([T]), env: { BOUNTY_VERIFY_ORDER: 'fixed', BOUNTY_SUBREQ_BUDGET: '60' } });
+  bulk(w.db, [...Array.from({ length: 3000 }, (_, k) => ({ actor: T, trainNo: 'T' + String(k + 1).padStart(4, '0'), pts: TINY })),
+    ...NEW.map(a => ({ actor: a, trainNo: 'N1', pts: TINY }))]);
+  const seen = [];
+  spyRows(w.DELAY_DB, (sql, rs) => { if (LIST_RE.test(sql)) seen.push(rs.map(r => ({ actor: String(r.actor), head: Number(r.head), rnd: Number(r.rnd) }))); });
+  const st = await w.cron();
+  const L = seen[0] || [];
+  const newIn = new Set(L.filter(r => r.actor !== T).map(r => r.actor)).size;
+  const tRnd = L.filter(r => r.actor === T && !r.head).map(r => r.rnd);
+  ok('N1h2 [第五輪] 5,000 班截到 4,000：新身分 2,000 班全在（同一輪的一般班車不因為 T 可信就被擠掉）；T 在清單裡＝head 8 班＋第 9–2,000 輪',
+    st.truncated === true && L.length === 4000 && newIn === 2000 && L.filter(r => r.head).length === 8 &&
+      tRnd.length === 1992 && Math.min(...tRnd) === 9 && Math.max(...tRnd) === 2000,
+    J({ truncated: st.truncated, list: L.length, newIn, head: L.filter(r => r.head).length, tNonHead: tRnd.length, tRange: tRnd.length ? [Math.min(...tRnd), Math.max(...tRnd)] : null }));
+});
+
+// ═══ CL：認領的上界（第五輪獨立驗收 新洞①）══════════════════════════════════════
+// 舊版：同一個 actor 同一張卡接幾次就多幾組列（不去重），判定時認領那一句整包送回 Worker（不算讀取量、子請求也擋不住），
+// unusable 的車又不關認領，每一班都再讀一次——第五輪用一個匿名身分 1,112 次認領＋1,200 班，本機一發 71 秒。
+// 修法三處：判定那一句在 SQL 裡先取每個單位最近的一筆（CL1）；認領端點同一張卡再接＝取代（CL2）；合併之後帳號名下也去重（CL3）。
+const claimRow = ({ id, actor, seg, pts, at, tk = '自強', status = 'open', exp = NOW_MS + DAY }) =>
+  'INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_locked,claimed_at,expires_at,status) VALUES ' +
+  `('${id}','${actor}','${seg}','${tk}',0,'track','',${pts},${at},${exp},'${status}');`;
+const boardSqlKind = (ln, tk) => boardSql(ln).replaceAll("'自強'", `'${tk}'`);
+// 認領端點用 Date.now()（不吃 BOUNTY_NOW）：同一毫秒接的兩組會在 claimed_at 平手、改比隨機的 claimId——時間要自己撥，結果才寫得死。
+const withClock = async (ms, fn) => { const real = Date.now; Date.now = () => ms; try { return await fn(); } finally { Date.now = real; } };
+await attempt('CL1', async () => {
+  // A 在山線 9 段各有 40 筆開著的認領（claimed_at 1000…1039；最新那筆 7 點、其餘 1 點）；S0|S1 另有一筆與最新同一刻、id 較大的 11 點
+  // （claimed_at 平手比 id：與舊版 ORDER BY claimed_at DESC, id DESC 的第一筆相同）。一趟 700 秒 ok 覆蓋 S0|S1…S6|S7（7 段）。
+  // 期望點數＝11（S0|S1）＋6×7＝53；判定那一句送回 7 列（每個覆蓋單位一筆；舊版 7×40＋1＝281 列）。
+  const A = 'dev-cl1-000001';
+  const seed = [];
+  for (const s of SEGS10) for (let k = 0; k < 40; k++)
+    seed.push(claimRow({ id: `cl1|${s}|${String(k).padStart(2, '0')}`, actor: A, seg: KT('山線', s), pts: k === 39 ? 7 : 1, at: 1000 + k }));
+  seed.push(claimRow({ id: 'cl1|S0|S1|zz', actor: A, seg: KT('山線', 'S0|S1'), pts: 11, at: 1039 }));
+  const w = world({ seed: boardSql('山線') + seed.join('') });
+  putBatches(w.db, { actor: A, trainNo: 'C1', pts: leg({ sec: 700 }) });
+  const got = [];
+  spyRows(w.DELAY_DB, (sql, rs) => { if (/FROM bounty_claims WHERE actor=COALESCE/.test(sql)) got.push(rs.length); });
+  const st = await w.cron();
+  ok('CL1 [第五輪 新洞①] 一個人 9 段各有 40 筆開著的認領：判定那一句只送回 7 列（每個覆蓋單位一筆；舊版 281 列）；點數用每個單位最近的那一筆（11＋6×7＝53，平手比 id）',
+    q.verdicts(w, A, 'C1') === 'ok' && J(got) === J([7]) && q.points(w, A) === 53 && st.ok === 1,
+    J({ v: q.verdicts(w, A, 'C1'), got, points: q.points(w, A), ok: st.ok }));
+});
+await attempt('CL2', async () => {
+  // A 接山線 dir 0 自強那張卡、再接莒光那張；B 也接自強那張。然後板價 3 → 5、時間往後 1 小時，A 再接一次自強那張。
+  // 另外種兩筆 A 的舊列：S0|S1 自強已完成（fulfilled）、S1|S2 自強開著但早就過期。
+  // 期望：A 的自強開著的認領恰 9 列、全是最後這一次的（點數 5、時間是 1 小時後）——過期但開著的那筆也被取代；
+  // 已完成的那筆、A 的莒光 9 列、B 的 9 列都原封不動；回應照舊（9 個單位、鎖 45 點、認領人數 2）。
+  const A = 'dev-cl2-00000A', B = 'dev-cl2-00000B';
+  const CARD = 'tra_sched|山線|0|自強|track|', CARD_K = 'tra_sched|山線|0|莒光|track|';
+  const w = world({ seed: boardSql('山線') + boardSqlKind('山線', '莒光') +
+    claimRow({ id: 'cl2-done', actor: A, seg: KT('山線', 'S0|S1'), pts: 2, at: 5, status: 'fulfilled' }) +
+    claimRow({ id: 'cl2-old', actor: A, seg: KT('山線', 'S1|S2'), pts: 2, at: 5, exp: 10 }) });
+  const log = spyBatches(w.DELAY_DB);
+  const [c1, k1, b1] = await withClock(NOW_MS, async () => [await claim(w, A, CARD), await claim(w, A, CARD_K), await claim(w, B, CARD)]);
+  const idsOf = (a, tk) => rows(w, 'SELECT id FROM bounty_claims WHERE actor=? AND train_kind=? ORDER BY id', a, tk).map(r => r.id);
+  const kBefore = idsOf(A, '莒光'), bBefore = idsOf(B, '自強');
+  w.db.exec("UPDATE bounty_board SET points=5 WHERE train_kind='自強'");
+  const c2 = await withClock(NOW_MS + 3600e3, () => claim(w, A, CARD));
+  const open = rows(w, "SELECT id, points_locked p, claimed_at at FROM bounty_claims WHERE actor=? AND train_kind='自強' AND status='open'", A);
+  const pre = c2.json && c2.json.claimId + '|';
+  ok('CL2a [第五輪 新洞①] 同一張卡再接一次＝取代：A 的自強開著的認領恰 9 列、全是這一次的（點數 5、時間 1 小時後），過期但開著的舊列也被取代',
+    [c1, k1, b1, c2].every(r => r.status === 200) && !!pre && open.length === 9 &&
+      open.every(r => r.id.startsWith(pre) && r.p === 5 && r.at === NOW_MS + 3600e3) && !one(w, "SELECT 1 x FROM bounty_claims WHERE id='cl2-old'"),
+    J({ st: [c1, k1, b1, c2].map(r => r.status), open: open.slice(0, 2), n: open.length }));
+  ok('CL2b 別的都不動：A 已完成的那筆還在（fulfilled）、A 的莒光 9 列與 B 的 9 列 id 逐列相同；回應照舊（9 個單位、鎖 45 點、認領人數 2）',
+    one(w, "SELECT status FROM bounty_claims WHERE id='cl2-done'")?.status === 'fulfilled' && kBefore.length === 9 && J(idsOf(A, '莒光')) === J(kBefore) &&
+      bBefore.length === 9 && J(idsOf(B, '自強')) === J(bBefore) && c2.json.units === 9 && c2.json.pointsLocked === 45 && c2.json.claimers === 2,
+    J({ done: one(w, "SELECT status FROM bounty_claims WHERE id='cl2-done'"), k: idsOf(A, '莒光').length, b: idsOf(B, '自強').length, res: c2.json }));
+  // 查詢計畫：去重那一句只能走 idx_claims_actor（這個人自己的，有上界），不能走 idx_claims_unit（那個單位所有人的，匿名身分免費、沒有上界）。
+  const del = [...new Set(log.flat().map(s => s.sql).filter(s => /^DELETE FROM bounty_claims/.test(s)))];
+  const plan = del.length === 1 ? w.db.prepare('EXPLAIN QUERY PLAN ' + del[0]).all(...Array((del[0].match(/\?/g) || []).length).fill(null)).map(r => String(r.detail)).join(' ; ') : '';
+  ok('CL2c [第五輪] 去重那一句走 idx_claims_actor（actor, status），不走 idx_claims_unit（單位上所有人的認領）',
+    del.length === 1 && /SEARCH bounty_claims USING INDEX idx_claims_actor \(actor=\? AND status=\?\)/.test(plan) && !/idx_claims_unit/.test(plan),
+    J({ n: del.length, plan }));
+});
+await attempt('CL3', async () => {
+  // 帳號 U 與兩個裝置 D1、D2 都接過山線自強那張卡，時間 D1 < U < D2；D1 先併進 U、D2 再併。U 另有莒光那張與一筆已完成的舊認領。
+  // 期望：每次合併之後 U 名下自強開著的認領恰 9 列＝最近的那一組（D1 併進來之後留 U 的、D2 併進來之後留 D2 的）；莒光與已完成的不動。
+  const U = 'uid-cl3-0000U', D1 = 'dev-cl3-000D1', D2 = 'dev-cl3-000D2';
+  const CARD = 'tra_sched|山線|0|自強|track|', CARD_K = 'tra_sched|山線|0|莒光|track|';
+  const w = world({ seed: boardSql('山線') + boardSqlKind('山線', '莒光') + pointsSql([[U, U, 0, null]]) +
+    claimRow({ id: 'cl3-done', actor: U, seg: KT('山線', 'S0|S1'), pts: 2, at: 5, status: 'fulfilled' }) });
+  const d1 = await withClock(NOW_MS, () => claim(w, D1, CARD));
+  const [u1, uk] = await withClock(NOW_MS + 60e3, async () => [await claim(w, U, CARD, bearer(U)), await claim(w, U, CARD_K, bearer(U))]);
+  const d2 = await withClock(NOW_MS + 120e3, () => claim(w, D2, CARD));
+  const openOf = a => rows(w, "SELECT id FROM bounty_claims WHERE actor=? AND train_kind='自強' AND status='open'", a).map(r => r.id);
+  const m1 = await merge(w, D1, U), after1 = openOf(U);
+  const m2 = await merge(w, D2, U), after2 = openOf(U);
+  const kIds = rows(w, "SELECT id FROM bounty_claims WHERE actor=? AND train_kind='莒光'", U).map(r => r.id);
+  ok('CL3a [第五輪 新洞①] 裝置併進帳號之後，帳號名下同一個單位只留最近的一筆：D1 併進來之後 9 列全是 U 自己的、D2 併進來之後 9 列全是 D2 的；莒光 9 列與已完成的那筆不動；裝置名下一列不剩',
+    [d1, u1, uk, d2, m1, m2].every(r => r.status === 200) && after1.length === 9 && after1.every(id => id.startsWith(u1.json.claimId + '|')) &&
+      after2.length === 9 && after2.every(id => id.startsWith(d2.json.claimId + '|')) && kIds.length === 9 && kIds.every(id => id.startsWith(uk.json.claimId + '|')) &&
+      one(w, "SELECT actor, status FROM bounty_claims WHERE id='cl3-done'")?.status === 'fulfilled' && q.count(w, 'bounty_claims', 'actor IN (?,?)', D1, D2) === 0,
+    J({ st: [d1, u1, uk, d2, m1, m2].map(r => r.status), after1: after1.length, after2: after2.length, k: kIds.length }));
+  // 守衛 G：來源 V 已經併進別人（X）→ 合併回 409，這一句一列都不刪（U 名下事先種的兩筆重複都還在）；
+  // 對照組：接著併一個新裝置 D3（守衛成立）→ U 名下那兩筆收成最近的一筆。
+  const X = 'uid-cl3-0000X', V = 'dev-cl3-0000V', D3 = 'dev-cl3-000D3';
+  const w2 = world({ seed: boardSql('山線') + pointsSql([[U, U, 0, null], [X, X, 0, null], [V, null, 0, X]]) +
+    claimRow({ id: 'cl3-dup1', actor: U, seg: KT('山線', 'S0|S1'), pts: 2, at: 10 }) + claimRow({ id: 'cl3-dup2', actor: U, seg: KT('山線', 'S0|S1'), pts: 3, at: 20 }) +
+    claimRow({ id: 'cl3-v', actor: V, seg: KT('山線', 'S0|S1'), pts: 4, at: 30 }) });
+  const all2 = () => rows(w2, 'SELECT id, actor FROM bounty_claims ORDER BY id').map(r => `${r.id}@${r.actor}`);
+  const m3 = await merge(w2, V, U), snap3 = all2();
+  const m4 = await merge(w2, D3, U), snap4 = all2();
+  ok('CL3b [第五輪] 合併去重也圍守衛 G：來源已併進別人 → 409、一列都不刪（U 的兩筆重複都在、V 的原地）；對照：併一個新裝置之後 U 的兩筆收成最近的那筆',
+    m3.status === 409 && m3.json.error === 'merged_elsewhere' && J(snap3) === J([`cl3-dup1@${U}`, `cl3-dup2@${U}`, `cl3-v@${V}`]) &&
+      m4.status === 200 && J(snap4) === J([`cl3-dup2@${U}`, `cl3-v@${V}`]),
+    J({ m3: m3.text, snap3, m4: m4.status, snap4 }));
+});
+
+// ═══ PH：同一秒的點（第五輪獨立驗收）══════════════════════════════════════════════
+// 上傳端把 t 取整到秒；舊版防偽閘第三重對 dt≤0 的點直接跳過，「整條線每個站間兩點、全部同一個 t」判 ok、全線覆蓋。
+// 這裡走真的上傳端點再跑判定（逐點的邊界在 verify_bounty_gates.mjs 的 F11–F16）。
+await attempt('PH1', async () => {
+  const A = 'dev-ph1-000001';
+  const w = world({ seed: boardSql('山線') });
+  const same = [];
+  for (let k = 0; k < 10; k++) for (const dd of [100, 1900]) same.push({ d: k * 2000 + dd, t: 30000, v: 20, acc: 5 });
+  const r = await submit(w, A, { trainNo: 'P1', samples: same });
+  const st = await w.cron();
+  ok('PH1 [第五輪] 整條線的點全部同一個 t（走上傳端點）：判 suspect（impossible_physics）——不給點、不推 sample_count、不入帳籌碼（舊版判 ok）',
+    r.status === 200 && q.verdicts(w, A, 'P1') === 'suspect' && q.rejects(w, A, 'P1') === 'impossible_physics' && !(q.points(w, A) > 0) &&
+      J(q.sampleCounts(w, '山線')) === J(Array(9).fill(0)) && q.count(w, 'chip_ledger', 'actor=?', A) === 0 && st.suspect === 1,
+    J({ up: r.status, v: q.verdicts(w, A, 'P1'), rej: q.rejects(w, A, 'P1'), points: q.points(w, A), sc: q.sampleCounts(w, '山線'), suspect: st.suspect }));
+});
+
+// ═══ SK：合併時出錯記錄跟著改名（第四、五輪獨立驗收的殘留）═══════════════════════════════
+// 舊版合併只把樣本改名到帳號，出錯記錄的鍵（前綴＋actor|乘車日|車次）還掛在裝置上，下一發開頭的清掃就把它刪掉（那班車已經沒有裝置名下的 pending），
+// 出錯次數等於歸零。期望：裝置的每一把改名到帳號、值不變；帳號已有同一班的記錄時留次數大的那份；裝置名下一把不剩；壞值照搬、合併不丟錯；
+// 下一發清單裡那班車（已掛在帳號名下）仍是錯滿 2 次（struck）。守衛 G：來源已併進別人時一把都不動。
+await attempt('SK', async () => {
+  const U = 'uid-sk-00000U', D = 'dev-sk-000000D', X = 'uid-sk-00000X', V = 'dev-sk-000000V';
+  const kv = (k, v) => `INSERT INTO kv_blobs (k,v,updated) VALUES ('${k}','${v}','x');`;
+  const w = world({ seed: boardSql('山線') + pointsSql([[U, U, 0, null], [X, X, 0, null], [V, null, 0, X]]) +
+    kv(STRIKE(D, 'K1'), '{"at":1,"error":"d1","n":2}') + kv(STRIKE(D, 'K3'), '{"at":1,"error":"d3","n":1}') + kv(STRIKE(D, 'K5'), '{"at":1,"error":"d5","n":3}') +
+    kv(STRIKE(D, 'K6'), 'not-json') + kv(STRIKE(U, 'K3'), '{"at":2,"error":"u3","n":3}') + kv(STRIKE(U, 'K5'), '{"at":2,"error":"u5","n":1}') +
+    kv(STRIKE(U, 'K4'), '{"at":2,"error":"u4","n":1}') + kv(STRIKE(V, 'K1'), '{"at":3,"error":"v1","n":2}'),
+    env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
+  bulk(w.db, [...['K1', 'K3', 'K5', 'K6'].map(t => ({ actor: D, trainNo: t, pts: TINY })), ...['K3', 'K4', 'K5'].map(t => ({ actor: U, trainNo: t, pts: TINY })),
+    { actor: V, trainNo: 'K1', pts: TINY }]);
+  const m = await merge(w, D, U);
+  const got = Object.fromEntries(strikes(w).map(r => [r.k, r.v]));
+  const want = { [STRIKE(U, 'K1')]: '{"at":1,"error":"d1","n":2}', [STRIKE(U, 'K3')]: '{"at":2,"error":"u3","n":3}', [STRIKE(U, 'K4')]: '{"at":2,"error":"u4","n":1}',
+    [STRIKE(U, 'K5')]: '{"at":1,"error":"d5","n":3}', [STRIKE(U, 'K6')]: 'not-json', [STRIKE(V, 'K1')]: '{"at":3,"error":"v1","n":2}' };
+  ok('SKa [第四、五輪 殘留] 裝置併進帳號：出錯記錄逐把改名到帳號、值不變；撞同一班留次數大的（K3 留帳號的 3、K5 留裝置的 3）；壞值照搬；裝置名下一把不剩',
+    m.status === 200 && J(Object.keys(got).sort()) === J(Object.keys(want).sort()) && Object.entries(want).every(([k, v]) => got[k] === v),
+    J({ m: m.status, got }));
+  const m2 = await merge(w, V, U);
+  ok('SKb 守衛 G：來源已併進別人（V → X）→ 409，V 的出錯記錄原地不動、帳號名下沒有多出 V 的那一班',
+    m2.status === 409 && strikes(w).some(r => r.k === STRIKE(V, 'K1')) && J(Object.fromEntries(strikes(w).map(r => [r.k, r.v]))) === J(got),
+    J({ m2: m2.text }));
+  const seen = [];
+  spyRows(w.DELAY_DB, (sql, rs) => { if (LIST_RE.test(sql)) seen.push(rs.map(r => ({ actor: String(r.actor), train: String(r.train_no), struck: Number(r.struck), strikes: Number(r.strikes) }))); });
+  await w.cron({ BOUNTY_SUBREQ_BUDGET: '1' });
+  const k1 = (seen[0] || []).find(r => r.actor === U && r.train === 'K1');
+  ok('SKc 下一發的清單裡，那班車（樣本已掛在帳號名下）仍是錯滿 2 次（struck）——清掃沒有把改名後的記錄刪掉（舊版這裡是 0 次）',
+    !!k1 && k1.strikes === 2 && k1.struck === 1 && strikes(w).some(r => r.k === STRIKE(U, 'K1')), J({ k1, list: (seen[0] || []).length }));
 });
 
 // ═══ M3：兌換的交易內餘額守衛（邊界）════════════════════════════════════════════

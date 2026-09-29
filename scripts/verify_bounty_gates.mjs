@@ -101,6 +101,55 @@ ok('F3 第一重 日期太舊 → suspect',
     tra.code === 'impossible_physics', JSON.stringify(tra));
 }
 
+// 🔴 F11–F16 第三重不跳過「同一秒」的點（第五輪獨立驗收）：上傳端把 t 取整到秒，所以相鄰兩點 dt 只會是 0 或正整數。
+// 舊版 dt≤0 直接跳過——「整條線每個站間兩點、全部同一個 t」的錄程完全不受物理檢查，判 ok、全線覆蓋（第五輪用 90 點、3.3 KB 做到）。
+// 規則（期望值自己算，不讀實作）：同一秒裡的點跟「這一秒的第一個點」比、當成間隔 1 秒——往前 ≤ 上限×1.15、往後 ≥ −50 m。
+// 台鐵上限 36.2 m/s → 同一秒往前最多 41.63 m；高鐵 83.4 m/s → 95.91 m。誠實的錄程同一秒裡真實間隔不到 1 秒，不會碰到。
+// 成對寫：F11/F12 是攻擊（舊版放行、新版擋），F13/F15 是誠實的高頻錄程（兩版都放行＝沒有誤殺），F14 是倒退的邊界。
+{
+  const tra = pts => integrityGate(cleanTrip({ pts }), CTX, RULES);
+  // F11：第五輪的形狀——10 個站間各放兩點（站後 100 m、站前 100 m），全部同一個 t。
+  const same = [];
+  for (let k = 0; k < 10; k++) for (const dd of [100, 1900]) same.push({ d: k * 2000 + dd, t: 30000, v: 20, acc: 5 });
+  ok('F11 第三重 整條線的點全部同一個 t（每個站間兩點、相隔約 2 km）→ impossible_physics（舊版跳過同一秒、判通過）',
+    tra(same).code === 'impossible_physics', JSON.stringify(tra(same)));
+  // F12：同一個 t、每點只差 40 m（兩兩相鄰都小於 41.63 m）——只跟前一個點比會放行，要跟這一秒的第一個點比才抓得到。
+  const dense = Array.from({ length: 50 }, (_, i) => ({ d: i * 40, t: 30000, v: 20, acc: 5 }));
+  ok('F12 第三重 同一個 t、每點只往前 40 m（兩兩相鄰都在一秒的上限內，累積 1,960 m）→ impossible_physics',
+    tra(dense).code === 'impossible_physics', JSON.stringify(tra(dense)));
+  // F13：誠實的 2 Hz 錄程、台鐵接近上限（35 m/s，0.5 秒 17.5 m），t 取整到秒、d 帶 ±3 m 雜訊 → 同一秒常有兩點。要放行。
+  const hz2 = [];
+  for (let i = 0; i <= 1200; i++) {
+    const tr = 30000.3 + i * 0.5;
+    hz2.push({ d: Math.round(tr * 35 - 30000 * 35 + Math.sin(i * 1.7) * 3), t: Math.round(tr), v: 35 + Math.sin(i / 9) * 0.4, acc: 6 });
+  }
+  const zeroGaps = hz2.filter((p, i) => i && p.t === hz2[i - 1].t).length;
+  ok('F13 第三重 誠實的 2 Hz 錄程（台鐵 35 m/s、t 取整到秒、±3 m 雜訊，同一秒兩點）照樣通過——不誤殺',
+    zeroGaps > 100 && tra(hz2).pass === true, JSON.stringify({ zeroGaps, r: tra(hz2) }));
+  // F14：同一秒往後退的邊界（GPS 抖動容差 50 m）：退 60 m 擋、退 30 m 放行。底座是 5 m/s 的慢車（1 Hz），第 300 秒那一秒多兩點：
+  // 往後退 m 公尺的一點、再來回到前方 2 m 的一點——下一秒跟「前方 2 m 那點」比只差 3 m，所以舊版（跳過同一秒）兩種都放行，
+  // 擋下來的只能是同一秒這一條。（只多一個倒退點的話，下一秒跟倒退點比會差 5＋m 公尺，被一般那一條擋，量不到同一秒這一條。）
+  const slow = cleanTrip().pts.map(p => ({ ...p, d: (p.t - 30000) * 5, v: 5 + Math.sin(p.t / 7) * 0.3 }));
+  const back = m => { const b = slow.slice(0, 301); const p = b[300]; b.push({ ...p, d: p.d - m }, { ...p, d: p.d + 2 }); return b.concat(slow.slice(301)); };
+  ok('F14 第三重 同一秒裡往後退 60 m → impossible_physics；退 30 m（GPS 抖動）→ 通過',
+    tra(back(60)).code === 'impossible_physics' && tra(back(30)).pass === true, JSON.stringify([tra(back(60)), tra(back(30))]));
+  // F15／F16：高鐵的上限（83.4 m/s → 同一秒 95.91 m）。誠實的 2 Hz 80 m/s（0.5 秒 40 m）放行；同一秒往前 100 m 擋。
+  const thsr = pts => integrityGate(cleanTrip({ sys: 'thsr_sched', pts }), CTX, RULES);
+  const h2 = [];
+  for (let i = 0; i <= 1200; i++) {
+    const tr = 30000.3 + i * 0.5;
+    h2.push({ d: Math.round((tr - 30000) * 80 + Math.sin(i * 1.3) * 3), t: Math.round(tr), v: 80 + Math.sin(i / 9) * 0.5, acc: 6 });
+  }
+  ok('F15 第三重 高鐵誠實的 2 Hz 錄程（80 m/s、同一秒兩點相隔約 40 m）照樣通過',
+    thsr(h2).pass === true, JSON.stringify(thsr(h2)));
+  const jump = cleanTrip().pts.map(p => ({ ...p, d: (p.t - 30000) * 70, v: 70 }));
+  jump.splice(301, 0, { ...jump[300], d: jump[300].d + 100 });
+  ok('F16 第三重 高鐵同一秒往前 100 m（超過 95.91 m）→ impossible_physics；同一條掛 96 m 以內的 90 m → 通過',
+    thsr(jump).code === 'impossible_physics' &&
+      thsr(jump.map((p, i) => i === 301 ? { ...p, d: jump[300].d + 90 } : p)).pass === true,
+    JSON.stringify([thsr(jump), thsr(jump.map((p, i) => i === 301 ? { ...p, d: jump[300].d + 90 } : p))]));
+}
+
 // ── G 組：品質閘七項 ──────────────────────────────────────────────────────
 ok('G1 乾淨樣本通過品質閘', qualityGate(cleanTrip(), CTX, RULES).pass === true,
   JSON.stringify(qualityGate(cleanTrip(), CTX, RULES)));

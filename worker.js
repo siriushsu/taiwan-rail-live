@@ -6394,8 +6394,19 @@ async function bountyClaim(request, env) {
     const stmt = env.DELAY_DB.prepare(
       'INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_locked,claimed_at,expires_at,status)' +
       " VALUES (?,?,?,?,?,?,?,?,?,?,'open')");
-    await env.DELAY_DB.batch(units.map((u, i) =>
-      stmt.bind(`${claimId}|${i}`, actor, u.seg_key, trainKind, dir, kind, slot, Number(u.points) || 0, now, expires)));
+    // 🔴 同一張卡再接一次＝取代這個人在這些單位上還開著的舊認領（第五輪獨立驗收 新洞①）：舊版每接一次就多一組列、不去重，
+    // 一個匿名身分接一千次同一張卡，判定時那一句要讀回幾萬列（不算讀取量、子請求也擋不住）。
+    // 判定本來就只用「最近的那一筆」（claimed_at 最晚＝expires_at 也最晚，見 bountyVerifyTrain 的認領那一句），刪掉較舊的不改變任何判定結果；
+    // 每人每個單位最多留一筆開著的，一個人的認領列數上界就是題庫的單位數。同一個 batch＝同一筆交易，先刪再插。
+    // 「+seg_key」的一元加號是刻意的：這一句只能走 idx_claims_actor（這個人自己的，有上界），不能走 idx_claims_unit
+    // （那個單位上所有人的 open 認領、含早就過期的——匿名身分免費，人數沒有上界）。守門人：verify_bounty_hardening.mjs 的 CL2（查詢計畫）。
+    await env.DELAY_DB.batch([
+      env.DELAY_DB.prepare(
+        "DELETE FROM bounty_claims WHERE actor=? AND status='open' AND train_kind=? AND dir=? AND kind=? AND slot=?" +
+        ' AND +seg_key IN (SELECT value FROM json_each(?))'
+      ).bind(actor, trainKind, dir, kind, slot, JSON.stringify(units.map(u => u.seg_key))),
+      ...units.map((u, i) =>
+        stmt.bind(`${claimId}|${i}`, actor, u.seg_key, trainKind, dir, kind, slot, Number(u.points) || 0, now, expires))]);
     const cnt = await env.DELAY_DB.prepare(
       "SELECT COUNT(DISTINCT actor) AS n FROM bounty_claims WHERE seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?" +
       " AND status='open' AND expires_at > ?"
@@ -6698,6 +6709,28 @@ async function bountyMerge(request, env) {
     // 🔴 與 v2 四張表同一個守衛 G：舊版這兩句沒有守衛，來源併進別人（或根本是別人的帳號）時，樣本與認領照樣被搬走。
     add('samples', db.prepare('UPDATE bounty_samples SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
     add('claims', db.prepare('UPDATE bounty_claims  SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
+    // ⑤a 認領改名之後，uid 名下同一個單位可能有兩筆以上開著的（裝置與帳號各接過同一張卡、或好幾個裝置併進同一個帳號）：只留最近的一筆，
+    // 與認領端點的去重同一條（見 bountyClaim）。不留的話，「很多個裝置各自接滿、再一個一個併進同一個帳號」就繞過端點的上界，
+    // 判定那一句在 D1 端要掃的列數又變成外部放大得了的量（第五輪獨立驗收 新洞① 的合併路徑）。判定只用最近的那一筆，刪掉較舊的不改變判定結果。
+    // 分組比判定那一句多一個 train_kind（端點是按車種去重的）：每一組最近的那筆一定也是判定那一句的第一筆。同一個守衛 G。
+    add('claimsDedupe', db.prepare(
+      "DELETE FROM bounty_claims WHERE actor=? AND status='open' AND id IN (SELECT id FROM (SELECT id, ROW_NUMBER() OVER" +
+      ' (PARTITION BY seg_key,train_kind,dir,kind,slot ORDER BY claimed_at DESC,id DESC) AS rn' +
+      " FROM bounty_claims WHERE actor=? AND status='open') WHERE rn>1)" + G
+    ).bind(uid, uid, dev, uid));
+    // ⑤b 判定的出錯記錄（kv_blobs，鍵＝前綴＋actor|乘車日|車次）跟著樣本改名到 uid（第四、五輪獨立驗收的殘留）：
+    // 不搬的話，裝置那一把在下一發開頭被清掃（那班車的樣本已經掛在 uid 名下），出錯次數等於歸零，壞車多拿一輪正常的優先權。
+    // 鍵範圍 [前綴＋dev＋'|', 前綴＋dev＋'}') 恰好是這個裝置的全部記錄（BOUNTY_VERIFY_STRIKE_HI 的說明）。uid 已有同一班的記錄就留次數大的那份
+    // （舊格式、壞掉的值算 1 次，與累加那一句同一條；json_valid 擋在 json_extract 前面，壞值不會讓整個合併丟錯）。同一個守衛 G。
+    {
+      const lo = BOUNTY_VERIFY_STRIKE_PREFIX + dev + '|', hi = BOUNTY_VERIFY_STRIKE_PREFIX + dev + '}';
+      const nOf = v => `(CASE WHEN json_valid(${v}) THEN COALESCE(json_extract(${v}, '$.n'), 1) ELSE 1 END)`;
+      add('strikes', db.prepare(
+        'INSERT INTO kv_blobs (k, v, updated) SELECT ? || substr(k, ?), v, updated FROM kv_blobs WHERE k >= ? AND k < ?' + G +
+        ` ON CONFLICT(k) DO UPDATE SET v = CASE WHEN ${nOf('excluded.v')} > ${nOf('kv_blobs.v')} THEN excluded.v ELSE kv_blobs.v END`
+      ).bind(BOUNTY_VERIFY_STRIKE_PREFIX + uid + '|', lo.length + 1, lo, hi, dev, uid));
+      add('strikesDrop', db.prepare('DELETE FROM kv_blobs WHERE k >= ? AND k < ?' + G).bind(lo, hi, dev, uid));
+    }
 
     // ── 路段懸賞 v2 的四張表：全部同一個交易，搬到 uid 名下；撞主鍵的兩邊併成一份 ──
     // 🔴 每日上限（trip 籌碼每人每日 dailyChipCap 顆、雲端搭乘每人每日 1 次）不回溯、不追討：
@@ -7485,9 +7518,20 @@ function integrityGate(trip, ctx, rules) {
   // 直接拿 trip.sys 查會恆常 undefined 落到 default(36.2m/s=130km/h)，高鐵 300km/h 每趟都被判
   // impossible_physics；台鐵剛好卡在 130 邊界，GPS 抖動就誤判。
   const cap = R.speedCapMps[BOUNTY_SYS_BUCKET[trip.sys]] || R.speedCapMps.default;
+  // 🔴 同一秒的點（dt＝0）不能跳過（第五輪獨立驗收）：上傳端把 t 取整到秒、assembleTrip 依 t 排序，所以 dt 只會是 0 或正整數。
+  // 舊版 dt≤0 直接 continue，「所有點同一個 t」的錄程完全不受這一重檢查——整條線各站間放兩點、全部同一秒，判 ok、全線覆蓋。
+  // 同一秒裡的點跟「這一秒的第一個點」比，當成間隔 1 秒看：往前不能超過一秒的速度上限（同樣 15% 容差）、往後不能超過 50 m
+  // （同樣的 GPS 抖動容差）。跟前一個點比不夠：同一秒裡密密排的點，兩兩只差幾十公尺，加起來卻是一整條線。
+  // 誠實的錄程同一秒裡的點真實間隔不到 1 秒，位移比 1 秒的上限小；加速度這一項在同一秒裡不算（dt＝0 沒有意義）。
+  let secStart = pts[0];
   for (let i = 1; i < pts.length; i++) {
     const dt = pts[i].t - pts[i - 1].t, dd = pts[i].d - pts[i - 1].d;
-    if (dt <= 0) continue;
+    if (dt <= 0) {
+      const fs = (Number(trip.dir) === 1 ? -1 : 1) * (pts[i].d - secStart.d);
+      if (fs < -50 || fs > cap * 1.15) return { pass: false, code: 'impossible_physics' };
+      continue;
+    }
+    secStart = pts[i];
     const forwardDd = Number(trip.dir) === 1 ? -dd : dd;
     if (forwardDd < -50) return { pass: false, code: 'impossible_physics' };     // 50m 容差吸收 GPS 抖動
     const v = forwardDd / dt;
@@ -7780,8 +7824,9 @@ const BOUNTY_WALL_BUDGET_MS = 10 * 60 * 1000;
 // 沒有這一項就又是 N1 的形狀：CPU 在可信名額上用完、新使用者判不到。所以它和子請求、牆鐘一樣：同一個停手點（每班車開始前）看，
 // 可信名額也只能先用掉剩下的一半。env.BOUNTY_BYTES_BUDGET 可覆寫（owner 調高 limits.cpu_ms 時一併調高）。
 // 預設 128 MB 的根據（09-30 本機實測，node 同一顆 V8、連 node:sqlite 讀列的成本一起算＝保守上界）：縱貫線南段整條停站車
-// （20,030 點、一班 1.3 MB）20 班，扣掉同樣 20 班短車的基準，每 MB 約 27–28 ms CPU——128 MB 約 3.6 秒，
-// 離 Workers 預設的 CPU 上限 30 秒有八倍的餘裕（平台機器較慢、同一發還有估值）。誠實的通勤一班約幾十 KB，這一項平常碰不到。
+// （20,030 點、一班 1.3 MB）20 班，扣掉同樣 20 班短車的基準，每 MB 約 27–28 ms CPU——128 MB 約 3.6 秒。
+// 對手刻意挑的點形狀更貴（第五輪獨立驗收：假日、整班洗亂、acc 亂數、每列 128 點，每 MB 約 42 ms），用預設預算直接跑一發約 5.3 秒，
+// 離 Workers 預設的 CPU 上限 30 秒約 5.7 倍的餘裕（平台機器較慢、同一發還有估值）。誠實的通勤一班約幾十 KB，這一項平常碰不到。
 const BOUNTY_BYTES_BUDGET = 128 * 1024 * 1024;
 // 讀取量的每列折算（第四輪獨立驗收 C(4)）：CPU 不只跟 payload 的位元組成正比，也跟「列數」成正比——每一列都要從 D1 的結果變成一個物件、
 // 各自 JSON.parse 一次、各自組樣本。一班 720 列、每列 1 點（上傳端點每人每乘車日 720 批的上限）的車，payload 只有約 27 KB，
@@ -7801,8 +7846,10 @@ function bountyCounted(env) {
   const want = Math.floor(Number(env && env.BOUNTY_SUBREQ_BUDGET));
   const wantWall = Math.floor(Number(env && env.BOUNTY_WALL_BUDGET_MS));
   const wantBytes = Math.floor(Number(env && env.BOUNTY_BYTES_BUDGET));
+  // 牆鐘預算的覆寫值不能長過「租約－5 分鐘」（第五輪獨立驗收）：租約過期就會被下一發接手，停手點要落在租約之內、
+  // 留 5 分鐘給最後那一班（與預設 10 分鐘對 Cron 15 分鐘上限留的餘裕相同）。
   const ctr = { n: 0, budget: want > 0 ? want : BOUNTY_SUBREQ_BUDGET, by: { query: 0, batch: 0, exec: 0, fetch: 0 },
-    t0: Date.now(), wallMs: wantWall > 0 ? wantWall : BOUNTY_WALL_BUDGET_MS,
+    t0: Date.now(), wallMs: Math.min(wantWall > 0 ? wantWall : BOUNTY_WALL_BUDGET_MS, BOUNTY_VERIFY_LEASE_MS - 5 * 60 * 1000),
     bytes: 0, rows: 0, bytesBudget: wantBytes > 0 ? wantBytes : BOUNTY_BYTES_BUDGET };   // bytes／rows 由 bountyVerifyTrain 讀完一班車時累加
   const tick = k => { ctr.n++; ctr.by[k]++; };
   const wrapStmt = st => new Proxy(st, { get(t, k) {
@@ -8167,7 +8214,8 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     const M = [JSON.stringify(trip.sampleIds), v.verdict, now, trip.sampleIds.length];
     // 🔴 查詢量（F5）：這一組的認領與板價各一句查完（舊版逐段各打 2–4 句，一趟 30 段約 130 句，一發只處理得了約 75 趟）。
     // 綁定參數不用 IN (?,?,…) 動態展開（D1 每句最多 100 個綁定參數，覆蓋段可能超過）；段鍵包成一個 JSON 陣列、以 json_each 展開。
-    // 「每個 (seg_key,dir,kind,slot) 取第一筆」在 JS 做，第一筆＝SQL 排序後最前面那筆，與逐段 LIMIT 1 語意完全相同。
+    // 「每個 (seg_key,dir,kind,slot) 取第一筆」：板價在 JS 做（第一筆＝SQL 排序後最前面那筆，與逐段 LIMIT 1 語意完全相同；
+    // 列數≤這條線的單位數，不是外部放大得了的量）；認領在 SQL 裡先做（見下面那一句），JS 的 keepFirst 照跑、拿到的是同一筆。
     const credKey = c => `${c.key}|${c.dir}|${c.kind}|${c.slot}`;
     const keepFirst = (map, rows) => { for (const r of rows || []) { const k = `${r.seg_key}|${r.dir}|${r.kind}|${r.slot}`; if (!map.has(k)) map.set(k, r); } return map; };
     const claimAt = Date.parse(trip.tripDate + 'T00:00:00Z');
@@ -8177,9 +8225,14 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
       // 表沒有統計資料時（D1 文件要使用者建索引後自己跑 PRAGMA optimize；沒跑就沒有統計），SQLite 會挑 idx_claims_expiry ＝ 掃全站所有還沒過期的 open 認領、再逐列比對 actor
       // （9,000 列的實測比走 idx_claims_actor 慢約 15 倍，而且隨全站認領數線性長）；加號之後走 idx_claims_actor（actor, status），只讀這個人自己的。
       // 語意不變：expires_at 是整數欄位、claimAt 是整數毫秒，一元加號只是不讓它參與索引選擇。守門人：verify_bounty_cron2.mjs 的 K1e（查詢計畫）。
+      // 🔴 每個單位只送回最近的一筆（ROW_NUMBER，第五輪獨立驗收 新洞①）：舊版整包送回再在 JS 取第一筆，而一個人有幾筆開著的認領是
+      // 上傳者決定的（舊版同一張卡接一千次＝幾萬列）——讀進 Worker 卻不算讀取量、子請求也擋不住，unusable 的車又不關認領，每一班都再讀一次。
+      // 現在送回的列數≤這一組覆蓋段的單位數；排序同舊版（claimed_at DESC, id DESC 的第一筆）。認領端點另外去重（bountyClaim）。
       const cr = await env.DELAY_DB.prepare(
-        'SELECT seg_key,dir,kind,slot,train_kind,points_locked FROM bounty_claims WHERE actor=' + WHO_SQL +
-        " AND status='open' AND +expires_at>=? AND seg_key IN (SELECT value FROM json_each(?)) ORDER BY claimed_at DESC,id DESC"
+        'SELECT seg_key,dir,kind,slot,train_kind,points_locked FROM (SELECT seg_key,dir,kind,slot,train_kind,points_locked,' +
+        ' ROW_NUMBER() OVER (PARTITION BY seg_key,dir,kind,slot ORDER BY claimed_at DESC,id DESC) AS rn' +
+        ' FROM bounty_claims WHERE actor=' + WHO_SQL +
+        " AND status='open' AND +expires_at>=? AND seg_key IN (SELECT value FROM json_each(?))) WHERE rn=1"
       ).bind(who, who, claimAt, JSON.stringify([...new Set(cov.map(c => c.key))])).all();
       keepFirst(locks, cr.results);
     }
