@@ -41,11 +41,13 @@ canvas{display:block;width:100%;height:100%;position:absolute;inset:0;touch-acti
 #frame:has(#stage[data-period=night]) .loading{background:#172c38cc;color:#c8d3d0}
 #frame:has(#stage[data-period=sunset]){background:#e9d6c3}
 #frame:has(#stage[data-period=sunset]) .title small,#frame:has(#stage[data-period=sunset]) .hint,#frame:has(#stage[data-period=sunset]) .caption{color:#4f5d57}
-@media(max-width:800px){.bar{padding:6px 10px}.cluster button{padding:0 10px}.view-tabs button{padding:0 11px}.tools{gap:6px}}
+.journey-status{position:absolute;top:16px;left:10px;font-size:11px;color:#546956;padding:9px 13px;background:#f7f4e9bd;border-radius:30px;margin:0;pointer-events:none}
+#frame:has(#stage[data-period=night]) .journey-status{background:#2b4543;color:#d7deca}
+@media(max-width:800px){.bar{padding:6px 10px}.cluster button{padding:0 10px}.view-tabs button{padding:0 11px}.tools{gap:6px}.journey-status{top:55px;left:12px;font-size:10px}}
 </style></head><body><div id="frame"></div>
 <script src="./i18n/translations.js"></script>
 <script src="./i18n/content-translations.js"></script>
 <script src="./train-garage-catalog.js"></script>
 <script src="./train-garage-scenes.js"></script>
-<script type="module" src="./garage-scene.js?revision=scene-frame-0929"></script>
+<script type="module" src="./garage-scene.js?revision=scene-views-0929"></script>
 </body></html>

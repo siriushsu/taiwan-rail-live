@@ -22,9 +22,62 @@ function tpePeriod(){const h=(new Date().getUTCHours()+8)%24;return h>=6&&h<18?'
 const pq=params.get('period');
 const period=pq==='day'||pq==='sunset'||pq==='night'?pq:tpePeriod();
 
-// ── 場景登錄表：新增場景只在這裡加一行，且要同時進 window.RailGarageSceneLive ──
+// ── 場景登錄表：新增場景只在這裡加一項（mount 模組＋stage 規格），且要同時進 window.RailGarageSceneLive ──
+// load：回傳該景 mount 函式的 Promise。
+// stage：場景本體周圍的 DOM 規格。控件 id／data-* 要對得上該景 mount 模組用 root.querySelector 找的東西；文字都用繁中原文（t() 的鍵）。
+//   label 區塊 aria；canvasLabel 畫布 aria（native 有值時它點名原生車款，換車時改用車款名）；views 視角分頁（第一個是預設）；
+//   extra 視角分頁後的附加元素；loading／loadingOther 載入字（loadingOther 給換車時用）；periods 三個時段鈕；
+//   look 特寫鈕（看月台／看老街／看折返，pressed:null 表示不帶 aria-pressed）；caption 底部說明。
 const SCENE_MODULES={
- 'south-coast':()=>import('./rail-3d/garage-scenes/south-coast-view.js?revision=scene-frame-0929').then(m=>m.mountSouthCoast)
+ 'south-coast':{
+  load:()=>import('./rail-3d/garage-scenes/south-coast-view.js?revision=scene-frame-0929').then(m=>m.mountSouthCoast),
+  stage:{
+   label:'南迴海岸微縮場景',native:['blue','bluecoach'],
+   canvasLabel:'藍皮三節列車行駛於南迴海岸微縮場景，可拖曳旋轉或以方向鍵調整',
+   views:[['world','山海全景'],['train','陪它走走']],
+   loading:'正在把小車搬到海邊…',
+   periods:[['day','晴日'],['sunset','夕照'],['night','入夜']],
+   look:{id:'platform',text:'看月台',label:'看月台',pressed:'false'},
+   caption:'南迴海岸 · 微縮印象'
+  }
+ },
+ 'viaduct':{
+  load:()=>import('./rail-3d/garage-scenes/viaduct-view.js?revision=scene-frame-0929').then(m=>m.mountViaduct),
+  stage:{
+   label:'西部幹線高架微縮場景',native:['emu3000'],
+   canvasLabel:'新自強三節列車行駛於西部幹線高架微縮場景，可拖曳旋轉或以方向鍵調整',
+   views:[['world','高架全景'],['train','陪它走走']],
+   loading:'正在把新自強送上高架…',loadingOther:'正在把小車送上高架…',
+   periods:[['day','平原晴日'],['sunset','黃昏側光'],['night','月台夜燈']],
+   look:{id:'platform',text:'看月台',label:'看月台停靠',pressed:'false'},
+   caption:'西部幹線高架 · 微縮印象'
+  }
+ },
+ 'shifen':{
+  load:()=>import('./rail-3d/garage-scenes/shifen-view.js?revision=scene-frame-0929').then(m=>m.mountShifen),
+  stage:{
+   label:'平溪線十分老街微縮場景',native:['dr1000'],
+   canvasLabel:'DR1000 三節支線小車穿過十分老街微縮場景，可拖曳旋轉或以方向鍵調整',
+   views:[['world','老街全景'],['train','陪它走走']],
+   loading:'正在把小車開進老街…',
+   periods:[['day','山谷晴日'],['sunset','黃昏放燈'],['night','老街夜燈']],
+   look:{id:'platform',text:'看老街',label:'看小車停在老街',pressed:null},
+   caption:'平溪線十分老街 · 微縮印象'
+  }
+ },
+ 'alishan':{
+  load:()=>import('./rail-3d/garage-scenes/alishan-view.js?revision=scene-frame-0929').then(m=>m.mountAlishan),
+  stage:{
+   label:'阿里山林鐵微縮場景',
+   canvasLabel:'林鐵三節列車行駛於阿里山林鐵微縮場景，可拖曳旋轉或以方向鍵調整',
+   views:[['world','山林全景'],['train','陪它走走']],
+   extra:[{tag:'p',cls:'journey-status',id:'journey-status',role:'status',text:'沿坡上山'}],
+   loading:'正在把小車帶進森林…',
+   periods:[['day','山中晴日'],['sunset','午後斜光'],['night','林間夜色']],
+   look:{id:'switchback',text:'看折返',label:'看之字形折返',pressed:null},
+   caption:'阿里山林鐵 · 微縮印象'
+  }
+ }
 };
 
 // ── 解鎖：所有「要不要掛 3D」的判斷只能經過 garageSceneUnlocked，不准另開繞道。解鎖單位是場景 id，不是車款 id。──
@@ -63,23 +116,28 @@ const body=el('div');body.style.cssText='flex:1;min-height:0;display:flex;flex-d
 frame.append(bar,body);
 if(entry)document.title=t(entry.place)+(carName?' · '+t(carName):'');
 
-function stageMarkup(){
- const s=el('section');s.id='stage';s.setAttribute('aria-label',t('南迴海岸微縮場景'));
+function stageMarkup(spec){
+ // 畫布 aria 與載入字點名的是原生車款；換了車就改用目前這款的名字，不誤導讀屏軟體。
+ const swapped=!!spec.native&&!spec.native.includes(car)&&!!carName;
+ const s=el('section');s.id='stage';s.setAttribute('aria-label',t(spec.label));
  const wrap=el('div','canvas-wrap');
- const canvas=el('canvas');canvas.id='scene';canvas.tabIndex=0;canvas.setAttribute('role','img');canvas.setAttribute('aria-label',t('藍皮三節列車行駛於南迴海岸微縮場景，可拖曳旋轉或以方向鍵調整'));
+ const canvas=el('canvas');canvas.id='scene';canvas.tabIndex=0;canvas.setAttribute('role','img');canvas.setAttribute('aria-label',swapped?t(carName)+t('三節列車行駛於')+t(spec.label)+t('，可拖曳旋轉或以方向鍵調整'):t(spec.canvasLabel));
  const tabs=el('nav','view-tabs');tabs.setAttribute('aria-label',t('觀賞視角'));
- for(const [v,zh,p] of [['world','山海全景','true'],['train','陪它走走','false']]){const b=el('button','',t(zh));b.type='button';b.dataset.view=v;b.setAttribute('aria-pressed',p);tabs.append(b);}
+ spec.views.forEach(([v,zh],i)=>{const b=el('button','',t(zh));b.type='button';b.dataset.view=v;b.setAttribute('aria-pressed',String(i===0));tabs.append(b);});
+ wrap.append(canvas,tabs);
+ for(const x of spec.extra||[]){const n=el(x.tag,x.cls,t(x.text));n.id=x.id;if(x.role)n.setAttribute('role',x.role);wrap.append(n);}
  const hint=el('p','hint',t('拖曳轉個角度 · 滾動或雙指縮放 · 右鍵拖曳或雙指拖曳移動鏡頭'));
- const loading=el('div','loading',t('正在把小車搬到海邊…'));loading.id='loading';loading.setAttribute('role','status');
- wrap.append(canvas,tabs,hint,loading);
+ const loading=el('div','loading',t(swapped&&spec.loadingOther||spec.loading));loading.id='loading';loading.setAttribute('role','status');
+ wrap.append(hint,loading);
  const tools=el('div','tools');
  const c1=el('div','cluster');c1.setAttribute('aria-label',t('時間'));
- for(const [p,zh] of [['day','晴日'],['sunset','夕照'],['night','入夜']]){const b=el('button','',t(zh));b.type='button';b.dataset.period=p;b.setAttribute('aria-pressed',String(p===period));c1.append(b);}
+ for(const [p,zh] of spec.periods){const b=el('button','',t(zh));b.type='button';b.dataset.period=p;b.setAttribute('aria-pressed',String(p===period));c1.append(b);}
  const c2=el('div','cluster');c2.setAttribute('aria-label',t('列車與視角控制'));
  const mk=(id,cls,text,label,pressed)=>{const b=el('button',cls,text);b.type='button';b.id=id;b.setAttribute('aria-label',label);if(pressed!=null)b.setAttribute('aria-pressed',pressed);c2.append(b);};
- mk('play','icon','Ⅱ',t('暫停行駛'),'true');mk('platform','',t('看月台'),t('看月台'),'false');mk('out','icon','−',t('縮小'));mk('in','icon','＋',t('放大'));mk('reset','icon','⌂',t('重設視角'));
+ const look=spec.look;
+ mk('play','icon','Ⅱ',t('暫停行駛'),'true');mk(look.id,'',t(look.text),t(look.label),look.pressed);mk('out','icon','−',t('縮小'));mk('in','icon','＋',t('放大'));mk('reset','icon','⌂',t('重設視角'));
  tools.append(c1,c2);
- s.append(wrap,tools,el('p','caption',t('南迴海岸 · 微縮印象')));
+ s.append(wrap,tools,el('p','caption',t(spec.caption)));
  return s;
 }
 function notice(heading,text){
@@ -103,11 +161,11 @@ async function enter(){
  setStatus('loading');body.replaceChildren();title.hidden=true;
  if(!entry||!live){setStatus('unavailable');body.append(notice(t(entry?entry.place:carName||car||'—'),t('這款車的專屬場景還沒開放。')));return state;}
  if(!garageSceneUnlocked(sceneId)){setStatus('locked');body.append(notice(t(entry.place),t('這一景還沒解鎖')));return state;}
- title.hidden=false;const stage=stageMarkup();body.append(stage);
+ title.hidden=false;const stage=stageMarkup(SCENE_MODULES[sceneId].stage);body.append(stage);
  try{
-  const mount=await SCENE_MODULES[sceneId]();
+  const mount=await SCENE_MODULES[sceneId].load();
   if(my!==token)return state;
-  const h=mount(stage,{car,period,t});handle=h;
+  const h=mount(stage,{car,period,t,params:entry.params});handle=h;
   const ok=await h.ready;
   if(my!==token)return state;
   setStatus(ok?'ready':'error',ok);
