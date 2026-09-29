@@ -1831,6 +1831,42 @@ await attempt('CL1', async () => {
     q.verdicts(w, A, 'C1') === 'ok' && J(got) === J([7]) && q.points(w, A) === 53 && st.ok === 1,
     J({ v: q.verdicts(w, A, 'C1'), got, points: q.points(w, A), ok: st.ok }));
 });
+// 在 S1（2 km）停 5 秒的一趟：10 m/s 巡航、20 秒減速到 0.5、5 秒 0.2 m/s（都卜勒 0.35／0.45）、20 秒加速回 10 m/s，一路開到 S2（4 km）。
+// 形狀照 verify_bounty_dwell.mjs 的 trajectory（同樣的雜訊，過得了防偽閘）。從 5 m 起跑：巡航剛好停在 1,895 m 開始減速，
+// 從 0 起跑的話中間會多一步 5 m、都卜勒從 5 跳到 9.5，被加速度上限判成 impossible_physics。
+function dwellLeg(t0 = 30000) {
+  const pts = [{ d: 5, t: t0, v: 10.4, acc: 8 }];
+  let d = 5, t = t0, n = 0;
+  const push = (s, dop = null) => { d += s; t += 1; n += 1; pts.push({ d, t, v: dop == null ? Math.max(0, s + Math.sin(n / 3) * 1.2) : dop, acc: 8 + (n % 3) }); };
+  while (d + 10 < 2000 - 105) push(10);
+  if (d < 2000 - 105) push(2000 - 105 - d);
+  for (let j = 1; j <= 20; j++) push(10 - 9.5 * j / 20);
+  for (let j = 0; j < 5; j++) push(0.2, 0.35 + (j % 2) * 0.1);
+  for (let j = 1; j <= 20; j++) push(0.5 + 9.5 * j / 20);
+  while (d + 10 <= 4000) push(10);
+  return pts;
+}
+await attempt('CL1b', async () => {
+  // 判定那一句的分組鍵是 (seg_key, dir, kind, slot) 四欄，少一欄就會拿別的方向／別的時段的認領蓋掉這一趟的（CL1 的世界只有一個方向、一個時段，量不到）。
+  // 乘車日 07-26（週日＝holiday 時段）：一趟 S0 → S2、在 S1 停 5 秒 → 覆蓋 S0|S1、S1|S2（track）＋ S1|S1（dwell, holiday）。
+  // 認領：S0|S1 dir 0 一筆 7 點（較舊）＋ dir 1 一筆 99 點（較新）；S1|S1 dwell 的 holiday 9 點（最舊）＋ peak、off 各 1 點（較新）。
+  // 期望點數＝7（S0|S1 用 dir 0 那筆）＋3（S1|S2 沒認領，板價 3）＋9（S1|S1 用 holiday 那筆）＝19；那一句送回 5 列（五個分組各一筆）。
+  const A = 'dev-cl1b-00001', D26 = '2026-07-26', ST = KT('山線', 'S1|S1');
+  const dw = (id, slot, pts, at) => `INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_locked,claimed_at,expires_at,status) VALUES ` +
+    `('${id}','${A}','${ST}','自強',0,'dwell','${slot}',${pts},${at},${NOW_MS + DAY},'open');`;
+  const w = world({ seed: boardSql('山線') +
+    claimRow({ id: 'cl1b-d0', actor: A, seg: KT('山線', 'S0|S1'), pts: 7, at: 100 }) +
+    claimRow({ id: 'cl1b-d1', actor: A, seg: KT('山線', 'S0|S1'), pts: 99, at: 200 }).replace(",'自強',0,'track'", ",'自強',1,'track'") +
+    dw('cl1b-h', 'holiday', 9, 100) + dw('cl1b-p', 'peak', 1, 200) + dw('cl1b-o', 'off', 1, 300) });
+  putBatches(w.db, { actor: A, trainNo: 'W1', date: D26, pts: dwellLeg() });
+  const got = [];
+  spyRows(w.DELAY_DB, (sql, rs) => { if (/FROM bounty_claims WHERE actor=COALESCE/.test(sql)) got.push(rs.length); });
+  await w.cron();
+  const segs = JSON.parse((one(w, "SELECT segs FROM bounty_samples WHERE actor=? AND segs IS NOT NULL", A) || {}).segs || '[]');
+  ok('CL1b [第五輪 新洞①] 分組鍵四欄都在：S0|S1 用 dir 0 的 7 點（不是較新的 dir 1）、S1|S1 用 holiday 的 9 點（不是較新的 peak／off）——點數 7＋3＋9＝19；那一句送回 5 列',
+    q.verdicts(w, A, 'W1') === 'ok' && segs.some(c => c.key === ST && c.kind === 'dwell' && c.slot === 'holiday') && q.points(w, A) === 19 && J(got) === J([5]),
+    J({ v: q.verdicts(w, A, 'W1'), rej: q.rejects(w, A, 'W1'), points: q.points(w, A), got, segs: segs.map(c => `${c.key.split('|').slice(2).join('|')}/${c.kind}/${c.slot}`) }));
+});
 await attempt('CL2', async () => {
   // A 接山線 dir 0 自強那張卡、再接莒光那張；B 也接自強那張。然後板價 3 → 5、時間往後 1 小時，A 再接一次自強那張。
   // 另外種兩筆 A 的舊列：S0|S1 自強已完成（fulfilled）、S1|S2 自強開著但早就過期。
