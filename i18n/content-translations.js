@@ -3517,3 +3517,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '日文版的高雄環狀輕軌改用高雄捷運官方日文路線名「ライトレール環状線」': '日本語版で、高雄のライトレールの路線名を高雄MRT公式の「ライトレール環状線」に改めました。',
   '捷運導言更正：「北北桃」與台北捷運的地圖導言，也改成台北捷運各線（含文湖線）的列車位置與車站倒數都來自官方逐班即時資料，不再把文湖線寫成班距推算': 'メトロの説明文を訂正：「台北・新北・桃園」と台北メトロの地図の説明文でも、文湖線を含む台北メトロ全路線の列車位置と駅のカウントダウンは公式の列車ごとのリアルタイム情報と記載し、文湖線を運転間隔からの推定とは書かないようにしました。',
 });
+// 2026-09-30 台鐵／高鐵車站時刻頁（SEO 階段 B 第一批）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '車站頁加上台鐵、高鐵時刻表：台北、板橋、台中等大站，列出兩週內每一班的開車時刻與行駛日': 'Station pages now include TRA and HSR timetables: major stations such as Taipei, Banqiao and Taichung list every departure over two weeks, with the days each train runs',
+  '車站頁加上台鐵、高鐵時刻表（中、英、日文）：台北、板橋、台中等 20 個大站，加上新開的高鐵苗栗、彰化、雲林站，依方向列出兩週內每一班的開車時刻與行駛日，每週更新': 'Station pages now include TRA and HSR timetables (in Chinese, English and Japanese): 20 major stations such as Taipei, Banqiao and Taichung, plus new pages for HSR Miaoli, Changhua and Yunlin, list every departure by direction over two weeks, with the days each train runs, updated weekly',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '車站頁加上台鐵、高鐵時刻表：台北、板橋、台中等大站，列出兩週內每一班的開車時刻與行駛日': '駅ページに台鉄・高鉄の時刻表を追加：台北、板橋、台中などの主要駅で、2週間分の全列車の発車時刻と運転日を掲載',
+  '車站頁加上台鐵、高鐵時刻表（中、英、日文）：台北、板橋、台中等 20 個大站，加上新開的高鐵苗栗、彰化、雲林站，依方向列出兩週內每一班的開車時刻與行駛日，每週更新': '駅ページに台鉄・高鉄の時刻表を追加（中国語・英語・日本語）：台北、板橋、台中など20の主要駅と、新設の高鉄苗栗・彰化・雲林駅で、方面別に2週間分の全列車の発車時刻と運転日を掲載（毎週更新）',
+});
