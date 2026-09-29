@@ -7670,6 +7670,12 @@ const BOUNTY_CRON = '30 19 * * *';
 // 「班車的邊界」，剩下的仍是 pending 留給下一發（籌碼入帳與去重登記都在標記已判定之前、冪等，所以只是延後，不會遺失、不會重複）。
 // 預設 8000＝官方預設上限 10,000 扣掉餘裕；env.BOUNTY_SUBREQ_BUDGET 可覆寫（測試用；日後 owner 調高 limits.subrequests 時一併調高）。
 const BOUNTY_SUBREQ_BUDGET = 8000;
+// 牆鐘預算：Cron 一發的牆鐘上限是 15 分鐘，官方明文把等待 D1 回應的時間也算進去。子請求預算管的是「次數」，管不到
+// 「D1 那天特別慢」——每次 100 ms 的話 8000 次就是 13 分鐘多，被平台從中間砍掉的那一班會停在半路（已標判定、點數沒寫完）。
+// 所以同一個停手點（每班車開始前）也看從這一發開始到現在過了多久：預設 10 分鐘就停，留 5 分鐘給最後那一班與收尾。
+// 計時起點是計數器建立的時候（scheduled() 包 env 那一刻，所以估值花的時間也算進去）。Workers 的 Date.now() 只在 I/O 之後前進，
+// 每一班車都有 D1 I/O，所以這裡讀得到真的經過時間。env.BOUNTY_WALL_BUDGET_MS 可覆寫（測試用）。
+const BOUNTY_WALL_BUDGET_MS = 10 * 60 * 1000;
 // 把 env 包一層：DELAY_DB 與 ASSETS 的每一次呼叫都會累加同一個計數器（env.__bountySubreq）。已經包過的 env 原樣回傳——
 // scheduled() 先包一次再交給估值與判定兩支，兩支共用同一個計數器；直接呼叫 bountyVerifyCron（測試）時，它自己包一個。
 // 為什麼不在每個呼叫點各自數：呼叫點散在十幾個函式裡（估值、判定、身分解析、籌碼、登記），漏數一處，預算就是假的。
@@ -7679,7 +7685,9 @@ const BOUNTY_SUBREQ_BUDGET = 8000;
 function bountyCounted(env) {
   if (env && env.__bountySubreq) return env;
   const want = Math.floor(Number(env && env.BOUNTY_SUBREQ_BUDGET));
-  const ctr = { n: 0, budget: want > 0 ? want : BOUNTY_SUBREQ_BUDGET, by: { query: 0, batch: 0, exec: 0, fetch: 0 } };
+  const wantWall = Math.floor(Number(env && env.BOUNTY_WALL_BUDGET_MS));
+  const ctr = { n: 0, budget: want > 0 ? want : BOUNTY_SUBREQ_BUDGET, by: { query: 0, batch: 0, exec: 0, fetch: 0 },
+    t0: Date.now(), wallMs: wantWall > 0 ? wantWall : BOUNTY_WALL_BUDGET_MS };
   const tick = k => { ctr.n++; ctr.by[k]++; };
   const wrapStmt = st => new Proxy(st, { get(t, k) {
     if (k === '_inner') return t;                             // batch 要交還真正的 prepared statement（真 D1 不收替身）
@@ -7711,8 +7719,9 @@ function bountyCounted(env) {
 }
 // 驗證那一行 log（BOUNTY_CRON 與舊的 15 4 分支共用）：營運上看這一行就知道這一發做了多少、有沒有被預算或截斷擋下來。
 const bountyVerifyLine = q =>
-  `[cron bounty 驗證] ${q.trains} 班／${q.trips} 線組 → 採用 ${q.ok}／可惜 ${q.unusable}／可疑 ${q.suspect}／入帳籌碼 ${q.chips}／子請求 ${q.subreq}` +
-  (q.budgetStop ? '（⚠️ 預算用盡：剩下的班車留 pending，下一發接著判）' : '') +
+  `[cron bounty 驗證] ${q.trains} 班／${q.trips} 線組 → 採用 ${q.ok}／可惜 ${q.unusable}／可疑 ${q.suspect}／入帳籌碼 ${q.chips}` +
+  `／經過 ${Math.round((Number(q.elapsedMs) || 0) / 1000)} 秒／子請求 ${q.subreq}` +
+  (q.budgetStop ? `（⚠️ ${q.stopBy === 'wall' ? '牆鐘' : '子請求'}預算用盡：剩下的班車留 pending，下一發接著判）` : '') +
   (q.truncated ? '（⚠️ pending 列數超過單發上限：截斷，剩下的下一發）' : '');
 
 // 隔日判定。BOUNTY_NOW 只給測試用（cron 沒辦法等時間流過，而三態的判定與時間有關）。
@@ -7769,12 +7778,14 @@ async function bountyVerifyCron(env0) {
     const lk = `${r.sys}|${r.ln_id}`;
     (t.lines.get(lk) || t.lines.set(lk, []).get(lk)).push(r);
   }
-  const stat = { trips: 0, trains: 0, ok: 0, unusable: 0, suspect: 0, truncated, chips: 0, subreq: 0, budgetStop: false };
+  const stat = { trips: 0, trains: 0, ok: 0, unusable: 0, suspect: 0, truncated, chips: 0, subreq: 0, budgetStop: false, stopBy: null, elapsedMs: 0 };
   for (const train of trains.values()) {
     // 🔴 預算（F5）：在「開始處理下一班車之前」檢查，不在班車中間停——停在中間的話，籌碼與貢獻已經寫了、樣本卻還是 pending，
     // 下一發整班重跑（冪等、不會出錯，但白花一次）。停手時剩下的班車原封不動仍是 pending，下一發接著判（最舊的乘車日先）。
     // 一班車自己的用量是有界的（幾十次），所以預算 8000 對官方上限 10,000 的餘裕足夠吸收「最後一班超出預算」。
-    if (ctr.n >= ctr.budget) { stat.budgetStop = true; break; }
+    // 牆鐘也在同一個停手點看（見 BOUNTY_WALL_BUDGET_MS）：子請求還沒用完、但 D1 慢到時間快不夠，一樣停在班車邊界。
+    if (ctr.n >= ctr.budget) { stat.budgetStop = true; stat.stopBy = 'subreq'; break; }
+    if (Date.now() - ctr.t0 >= ctr.wallMs) { stat.budgetStop = true; stat.stopBy = 'wall'; break; }
     stat.trains++;
     const { actor: readActor, trip_date: tripDate, train_no: trainNo } = train.rows[0];
     // ① 逐線判定（只讀不寫）：每一組用自己那條線的幾何算 verdict 與覆蓋段。
@@ -7921,6 +7932,7 @@ async function bountyVerifyCron(env0) {
     }
   }
   stat.subreq = ctr.n;
+  stat.elapsedMs = Date.now() - ctr.t0;
   return stat;
 }
 

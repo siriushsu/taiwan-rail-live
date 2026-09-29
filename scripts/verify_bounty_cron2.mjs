@@ -1067,6 +1067,55 @@ await attempt('M5', async () => {
   ok('M5e [S13b 預算] 沒設＝8000（官方預設上限 10,000 扣餘裕）；設 5＝5', dflt === 8000 && lo === 5, J({ dflt, lo }));
 });
 
+// ═══ M6：牆鐘預算（Cron 一發的牆鐘上限 15 分鐘，官方明文含等待 D1 的時間；見 worker.js 的 BOUNTY_WALL_BUDGET_MS）═══════
+// 假時鐘：Date.now 換成可撥的值，第一班車做第一個 batch 之後把時鐘往前撥（預設牆鐘預算 10 分鐘）。
+// 停手點與子請求預算同一個（每班車開始前），所以第一班照做完、第二班開始前停。
+await attempt('M6', async () => {
+  const realNow = Date.now;
+  const fx = (jumpMs, wallEnv) => {
+    const w = world({ seed: boardAll(['山線']) });
+    putBatches(w.db, { actor: 'm6-a', trainNo: 'M6A', date: D27, lnId: '山線', pts: leg({ sec: 700 }) });
+    putBatches(w.db, { actor: 'm6-b', trainNo: 'M6B', date: D28, lnId: '山線', pts: leg({ sec: 700 }) });
+    if (wallEnv !== undefined) w.env.BOUNTY_WALL_BUDGET_MS = wallEnv;
+    let fake = realNow.call(Date), jumped = false;
+    const db0 = w.env.DELAY_DB;
+    w.env.DELAY_DB = new Proxy(db0, { get(t, k) {
+      if (k === 'batch') return async stmts => { const r = await t.batch(stmts); if (!jumped) { jumped = true; fake += jumpMs; } return r; };
+      const v = t[k];
+      return typeof v === 'function' ? v.bind(t) : v;
+    } });
+    return { w, run: async () => { Date.now = () => fake; try { return await w.cron(); } finally { Date.now = realNow; } } };
+  };
+  const vs = w => [q.verdicts(w.db, 'm6-a', 'M6A'), q.verdicts(w.db, 'm6-b', 'M6B')];
+  {
+    const { w, run } = fx(11 * 60e3);
+    const s = await run();
+    ok('M6a [牆鐘] 第一班車途中時鐘往前 11 分鐘（預設預算 10 分鐘）：第一班照做完、第二班開始前停——trains 1、budgetStop true、stopBy wall；最舊乘車日那班 ok、另一班仍 pending',
+      s.trains === 1 && s.budgetStop === true && s.stopBy === 'wall' && s.elapsedMs >= 11 * 60e3 && J(vs(w)) === J(['ok', 'pending']), J({ s, v: vs(w) }));
+    const s2 = await run();   // 下一發：時鐘不再跳（只跳第一次）→ 把剩下那班做完
+    ok('M6b [牆鐘 續跑] 下一發時鐘正常：剩下那班做完——trains 1、budgetStop false、stopBy null；兩班都 ok、帳本 2 列（每班 1 顆、沒有重複入帳）',
+      s2.trains === 1 && s2.budgetStop === false && s2.stopBy === null && J(vs(w)) === J(['ok', 'ok']) && q.tripRows(w.db).length === 2, J({ s2, v: vs(w) }));
+  }
+  {
+    const { w, run } = fx(0);
+    const s = await run();
+    ok('M6c [牆鐘 對照] 時鐘不跳：一發做完兩班（trains 2、budgetStop false）——M6a 的停手確實來自時鐘，不是別的條件',
+      s.trains === 2 && s.budgetStop === false && s.stopBy === null && J(vs(w)) === J(['ok', 'ok']), J({ s, v: vs(w) }));
+  }
+  {
+    const { run } = fx(11 * 60e3, String(20 * 60e3));
+    const s = await run();
+    ok('M6d [牆鐘 覆寫] BOUNTY_WALL_BUDGET_MS＝20 分鐘：跳 11 分鐘仍在預算內，一發做完兩班', s.trains === 2 && s.budgetStop === false, J(s));
+  }
+  for (const bad of ['0', '-5', 'abc', '']) {
+    const { run } = fx(11 * 60e3, bad);
+    const s = await run();
+    ok(`M6e [牆鐘 覆寫] BOUNTY_WALL_BUDGET_MS＝${J(bad)}（不是正數）：退回預設 10 分鐘——跳 11 分鐘 → 第二班前停`, s.trains === 1 && s.stopBy === 'wall', J(s));
+  }
+  const d = _bounty.bountyCounted({ DELAY_DB: {}, ASSETS: {} }).__bountySubreq.wallMs;
+  ok('M6f [牆鐘 預設] 沒設＝10 分鐘（官方 Cron 牆鐘上限 15 分鐘，留 5 分鐘給最後一班與收尾）', d === 10 * 60e3, J({ d }));
+});
+
 // ═══ K8：容量（S13e，印數字）════════════════════════════════════════════════════
 await attempt('K8', async () => {
   const wv = world({ units: REAL_UNITS, tally: true });
