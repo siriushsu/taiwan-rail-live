@@ -24,8 +24,10 @@ const sameStopPattern=(plan,tr)=>JSON.parse(plan.stopSignature).every((s,i,a)=>!
 // 林鐵祝山線觀日車(97/98 依官方日出表逐旬改發車時刻,而配對鍵含起訖秒,派車表只存得下一組
 // 寫死的時刻——不借路徑的話一年裡只有恰好對上那兩天綁得到,其餘日子整班退回示意線形)。
 const TEMPLATE_SYSTEMS=['tra_sched','thsr_sched','afr_sched'];
-export function createPlanBinding(dispatch){
- const templates=new Map(),byTrain=new Map(),known=new Map();
+// canJoin(前一段路徑,下一段路徑)＝兩段在共用節點接不接得上（route-runtime.joinable）。給了才允許多班接力借路徑（見 bind 末段）；
+// 離線修補腳本不給，行為不變。
+export function createPlanBinding(dispatch,{canJoin}={}){
+ const templates=new Map(),startsAt=new Map(),byTrain=new Map(),known=new Map();
  // 派車表沒有的台鐵中途站（2026-10 起的平鎮臨時站 1105）綁定時當作不存在：通過站直接略過，停靠站把前後兩段
  // 併回原本那一段——車走派車表原本的股道，停在那一站投影到那一段路徑上的點（motion.js 的 cuts）。回傳的 stops 是綁定實際用的站序（原班表的站物件），
  // stopIndexes 是它們在原班表的位置。起訖站不在派車表就不略過，照舊綁不到、退回示意線形。
@@ -63,8 +65,30 @@ export function createPlanBinding(dispatch){
    const mismatch=tr.stops.reduce((n,s,i)=>n+(i>0&&i<names.length-1&&((s.stop!==false)!==(t.stops[start+i][2]>t.stops[start+i][1]))?1:0),0),score=mismatch*10000+t.stops.length-names.length;
    if(!best||score<best.score||(score===best.score&&t.key<best.key))best={...t,start,score};
   }
-  if(!best)return null;
-  return {basis:'route-template',sourceKey:best.key,plan:borrow(best.plan.pathIds.slice(best.start,best.start+names.length-1),tr)};
+  if(best)return {basis:'route-template',sourceKey:best.key,plan:borrow(best.plan.pathIds.slice(best.start,best.start+names.length-1),tr)};
+  // 沒有一班既有計畫跑完整條路線的專車（2026-10-03 環島 6669 新左營→南迴→東線→臺北→山線→新左營、10-04 6509 花蓮→新左營）
+  // 改成接力借：整條路線切成幾截、每截是某班既有計畫的連續切片，交接站前後兩截要接得上（canJoin：節點相同、道岔不倒車，
+  // route-runtime.joinable）。挑法與上面單一模板同一順位：停靠型態不符最少優先——交接站兩側各算一次（前一截、下一截在那站
+  // 各是停是過；切片起訖站對模板而言是停靠），其次截數最少；同分取先找到的（模板依 key 排序），結果穩定、不依車輛接近而換軌。
+  // 只取最長切片會拿站站停的區間車股道給通過的專車（6669 樹林→嘉義曾借 2173，中途 58 站有 55 站型態不符＝一路切進月台線）。
+  // 只有呼叫端給了 canJoin 才接（前端 motion.js）；離線修補腳本不給，照舊回 null 退示意線形。
+  if(!canJoin)return null;
+  if(!startsAt.has(sys)){const m=new Map();for(const t of [...templates.get(sys)].sort((a,b)=>a.key<b.key?-1:a.key>b.key?1:0))for(let j=0;j<t.stops.length-1;j++)(m.get(t.stops[j][0])||m.set(t.stops[j][0],[]).get(t.stops[j][0])).push([t,j]);startsAt.set(sys,m);}
+  const N=names.length,tStop=(t,j)=>j===0||j===t.stops.length-1||t.stops[j][2]>t.stops[j][1],off=(i,t,j)=>i>0&&i<N-1&&(tr.stops[i].stop!==false)!==tStop(t,j)?1:0;
+  // dp[i]：以「進第 i 站的那段路徑」為鍵，記到這裡為止最好的（不符數、截數）與回溯用的來源。
+  const dp=names.map(()=>new Map());dp[0].set(null,{cost:0,pieces:0});
+  for(let p=0;p<N-1;p++)for(const [last,v] of dp[p])for(const [t,j] of startsAt.get(sys).get(names[p])||[]){
+   const ids=t.plan.pathIds;if(last!==null&&!canJoin(last,ids[j]))continue;
+   let cost=v.cost+off(p,t,j);
+   for(let n=1;p+n<N&&j+n<t.stops.length&&t.stops[j+n][0]===names[p+n];n++){
+    cost+=off(p+n,t,j+n);const cur=dp[p+n].get(ids[j+n-1]);
+    if(!cur||cost<cur.cost||cost===cur.cost&&v.pieces+1<cur.pieces)dp[p+n].set(ids[j+n-1],{cost,pieces:v.pieces+1,from:p,last,t,j,n});
+   }
+  }
+  let end=null;for(const v of dp[N-1].values())if(!end||v.cost<end.cost||v.cost===end.cost&&v.pieces<end.pieces)end=v;
+  if(!end)return null;
+  const pieces=[];for(let v=end;v.t;v=dp[v.from].get(v.last))pieces.unshift({key:v.t.key,ids:v.t.plan.pathIds.slice(v.j,v.j+v.n)});
+  return {basis:'route-template-chain',sourceKey:pieces[0].key,sourceKeys:pieces.map(x=>x.key),mismatch:end.cost,plan:borrow(pieces.flatMap(x=>x.ids),tr)};
  };
  return tr=>{
   const sys=tr.sys||tr.system;if(sys!=='tra_sched'||tr.loop)return bind(tr);

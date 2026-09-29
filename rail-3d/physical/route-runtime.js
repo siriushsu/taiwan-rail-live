@@ -14,6 +14,12 @@ export function createRouteRuntime(pack,profiles){
   for(const [wi,start,count]of record.walk){const w=ways[wi],sign=Math.sign(count);for(let j=0;j<Math.abs(count);j++){const i=start+j*sign,a=i+(sign<0?1:0),b=i+(sign>0?1:0);if(!nodeIds.length){nodeIds.push(w.nodes[a]);coordinates.push(w.coordinates[a]);}else if(nodeIds.at(-1)!==w.nodes[a])throw Error('實體股道不連續');nodeIds.push(w.nodes[b]);coordinates.push(w.coordinates[b]);edges.push(edgeRecord(w,a,b));}}
   const path=makePath(coordinates),result={...record,id,coordinates,nodeIds,edges,path};paths.set(id,result);if(paths.size>512)paths.delete(paths.keys().next().value);return result;
  }
+ // 兩段路徑在共用節點接不接得上：節點相同、且道岔不得倒車、平面交叉只走直向（topology canTurn，與 scripts/lib/track_directions.mjs turnOK 同一條判準）。
+ // 只解碼頭尾那一條邊，不走 unfold：接力借路徑（plan-binding.js）要試上百段，不能洗掉算繪共用的 LRU。
+ const edgeAt=(record,last)=>{const [wi,start,count]=last?record.walk.at(-1):record.walk[0],w=ways[wi],sign=Math.sign(count),i=last?start+(Math.abs(count)-1)*sign:start,a=i+(sign<0?1:0),b=i+(sign>0?1:0);return {from:String(w.nodes[a]),to:String(w.nodes[b]),edgeId:w.id+':'+Math.min(a,b)};};
+ const joins=new Map();
+ function joinable(a,b){const A=pack.paths[a],B=pack.paths[b];if(!A||!B||A.to!==B.from)return false;const key=a+'>'+b;if(joins.has(key))return joins.get(key);
+  const g=topology(),x=edgeAt(A,true),y=edgeAt(B,false),e1=g.edges.get(x.edgeId),e2=g.edges.get(y.edgeId),ok=!!e1&&!!e2&&g.canTurn(x.from,x.to,y.to,e1,e2);joins.set(key,ok);return ok;}
  function topology(){if(!graph){const nodes={};for(const w of ways)w.nodes.forEach((id,i)=>nodes[id]=w.coordinates[i]);graph=makeTopology({nodes,nodeTags:pack.nodeTags,systemByWay:Object.fromEntries(ways.map(w=>[w.id,w.system])),ways});}return graph;}
  function extension(previous,current,incoming,length){const g=topology(),nodes=[],coordinates=[],edges=[];let walked=0,last=g.edges.get(incoming.edgeId);const seen=new Set([previous,current]);
   for(let n=0;walked<length&&n<2000;n++){
@@ -31,5 +37,5 @@ export function createRouteRuntime(pack,profiles){
   const result={id:'physical:'+key,systemId:system,routeId:'physical',coordinates,color,loop:false,physical:true,path,offsets,elevation,level,nodeIds,edges,prefixLength};routes.set(key,result);if(routes.size>128)routes.delete(routes.keys().next().value);return result;
  }
  const drawings=new Map();function drawingWays(system,color){const key=system+':'+color;if(!drawings.has(key))drawings.set(key,ways.filter(w=>w.system===system).map(w=>({id:'physical-way:'+w.id,systemId:system,routeId:w.id,physical:true,coordinates:w.coordinates,color,elevation:(s,mode)=>atHeight(w.id,s,mode),level:s=>levelAt(w.id,s)})));return drawings.get(key);}
- return {unfold,route,drawingWays,atHeight,levelAt,wayById};
+ return {unfold,route,drawingWays,atHeight,levelAt,wayById,joinable};
 }

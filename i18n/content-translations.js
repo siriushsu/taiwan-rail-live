@@ -3470,3 +3470,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '修正少數台鐵列車在車站空等不存在的後車，或出站後異常慢行的問題': '一部の台鉄列車が来ない後続列車を駅で待ったり、発車後に不自然に遅く走ったりする問題を修正しました',
 });
+// 2026-09-29 台鐵專車接力借股道（10/3 環島 6669、10/4 6509）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '10/3 環島專車這類比任何固定班次都跑得遠的台鐵專車，地圖上改沿真實股道行駛，不再整趟退回示意路線': 'Special TRA trains that run farther than any regular service, such as the 10/3 round-the-island train, now follow the real tracks on the map instead of a schematic route for the whole trip',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '10/3 環島專車這類比任何固定班次都跑得遠的台鐵專車，地圖上改沿真實股道行駛，不再整趟退回示意路線': '10/3 の環島列車のように、どの定期列車よりも長い区間を走る台鉄の臨時列車も、全区間を模式線ではなく実際の線路に沿って地図上を走るようになりました',
+});

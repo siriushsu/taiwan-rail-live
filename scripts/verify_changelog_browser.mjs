@@ -88,7 +88,8 @@ const widths = [360, 375, 414, 768];
 // 9/29：網頁版首次開啟固定繁中＋英日獨立介紹頁一條（449→450）。
 // 9/29：App 跟車卡（Android 補畫列車、iPhone 三節車、看板追下一班立刻開卡）一條（450→451）。
 // 9/29：台鐵同向待避過期提議與子跑段比例一條（451→452）。
-const expectedHistoryCount = 452;
+// 9/29：台鐵專車接力借股道（10/3 環島 6669）一條（452→453）。
+const expectedHistoryCount = 453;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

@@ -5,7 +5,7 @@ import {profileProgress,turnbackProgress} from './timing.js';
 import {createPlanBinding,physicalTrainKey,physicalStopSignature} from './plan-binding.js';
 export {physicalTrainKey,physicalStopSignature};
 export function createPhysicalMotion(pack,profiles,dispatch,{requireSignature=true}={}){
- const geometry=createRouteRuntime(pack,profiles),cache=new WeakMap(),bind=createPlanBinding(dispatch);
+ const geometry=createRouteRuntime(pack,profiles),cache=new WeakMap(),bind=createPlanBinding(dispatch,{canJoin:geometry.joinable});
  // stops＝綁定實際用的站序：略過派車表沒有的站之後的那一份（見 plan-binding.js），沒略過就是 tr.stops。
  function record(tr){if(cache.has(tr))return cache.get(tr);const binding=requireSignature?bind(tr):{plan:dispatch.plans[physicalTrainKey(tr)],basis:'unchecked'},plan=binding?.plan,stops=binding?.stops||tr.stops;
   if(!plan||plan.pathIds.length!==stops.length-1){cache.set(tr,null);return null;}
@@ -32,7 +32,7 @@ export function createPhysicalMotion(pack,profiles,dispatch,{requireSignature=tr
   // 跨夜判斷拿原班表的陣列：名冊把 _prevNight 等旗標掛在它上面（index.html schedWrapT）。首末站從不略過，時間範圍與綁定站序相同。
   const r=record(tr);if(!r)return undefined;const stops=r.stops,t=wrap(tr.stops,clockSec-officialDelaySec,r.maxHold),schedule=r.schedule;
   if(t<schedule[0].arrSec||t>schedule.at(-1).depSec)return null;
-  if(r.bindingBasis!=='route-template'&&dispatch.handoffs?.some(h=>h.from===physicalTrainKey(tr))&&t>=schedule.at(-1).arrSec)return null;
+  if(!r.bindingBasis.startsWith('route-template')&&dispatch.handoffs?.some(h=>h.from===physicalTrainKey(tr))&&t>=schedule.at(-1).arrSec)return null;
   let lo=0,hi=schedule.length-1;while(hi-lo>1){const m=(lo+hi)>>1;if(schedule[m].arrSec<=t)lo=m;else hi=m;}
   const i=t>=schedule[hi].arrSec?hi:lo,s=stops[i],dwell=t<=schedule[i].depSec;
   const segment=Math.min(i,r.plan.pathIds.length-1),legStart=r.reversals.filter(k=>k<=segment).at(-1)||0,legEnd=r.reversals.find(k=>k>segment)||r.plan.pathIds.length;
