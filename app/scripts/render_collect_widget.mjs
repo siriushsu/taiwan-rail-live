@@ -67,10 +67,16 @@ const OFF_GRAY = { light: 0.88, dark: 0.24 };
 const DOT_RADIUS_RATIO = 0.0075, DOT_RADIUS_FLOOR = 1.0, SOLID_SCALE = 1.3, RING_RATIO = 0.45;
 
 // ── payload 樣本 ───────────────────────────────────────────────────────────────────────
-const samplePath = join(repo, 'tmp/collect-widget/collection-widget-sample.json');
-const emptyPath = join(repo, 'tmp/collect-widget/collection-widget-sample-empty.json');
+// 樣本＝已進版控的 CollectionWidgetPreview.json（網頁 collectionWidgetPayload() 產生的示範 payload，recent 是下面
+// RECENT_BY_SYS 合成的每系統最近蓋章；withRecent 對它是冪等的，c 閘門因此抓得到「合成表與預覽檔漂移」）。
+// 空狀態＝同一份歸零：與網頁在沒有任何蓋章時送出的 payload 扣掉 at 逐欄相等（2026-09-30 對過）。
+// Android 的案例產生器（app/scripts/android-collect-widget/gen_cases.py）讀同一份，兩個平台的示範資料不會分岔。
+const samplePath = join(repo, 'app/ios/App/RailBoardWidget/CollectionWidgetPreview.json');
 const sample = JSON.parse(readFileSync(samplePath, 'utf8'));
-const emptyPayload = JSON.parse(readFileSync(emptyPath, 'utf8'));
+const emptyPayload = JSON.parse(JSON.stringify(sample));
+emptyPayload.n = 0;
+for (const sy of emptyPayload.sys) sy.v = 0;
+for (const pt of emptyPayload.pts) pt[3] = 0;
 
 /**
  * 每個系統各 4 筆以內的最近蓋章（規格第二輪第 2 點：payload 改成每系統各取最近 4 筆，
@@ -763,7 +769,7 @@ async function judge({ specs, results, out, src }) {
     const previewPath = join(realSrc, 'CollectionWidgetPreview.json');
     const preview = existsSync(previewPath) ? JSON.parse(readFileSync(previewPath, 'utf8')) : null;
     check('c', 'CollectionWidgetPreview.json', preview && JSON.stringify(preview) === JSON.stringify(sample),
-      'CollectionWidgetPreview.json 與本腳本的樣本（collection-widget-sample.json＋每系統最近蓋章）不同——圖庫預覽看到的不是驗過的那份');
+      'CollectionWidgetPreview.json 與本腳本的樣本（它自己＋RECENT_BY_SYS 合成的每系統最近蓋章）不同——RECENT_BY_SYS 改過就用 --emit-preview 重寫');
     if (preview) {
       const withRecents = preview.sys.filter(s => s.v > 0).every(s => preview.recent.some(r => r.k === s.k));
       check('c', 'CollectionWidgetPreview.json', withRecents, '內建示意資料：有收集的系統沒有最近蓋章（單一系統中卡會畫不出來）');
@@ -990,7 +996,7 @@ function summarize(counts) {
 
 async function main() {
   if (flag('--emit-preview')) {
-    // 把本腳本的樣本（collection-widget-sample.json＋每系統最近蓋章）寫成 CollectionWidgetPreview.json，
+    // 把本腳本的樣本（CollectionWidgetPreview.json＋RECENT_BY_SYS 合成的每系統最近蓋章）寫回 CollectionWidgetPreview.json，
     // 讓「小工具圖庫預覽看到的資料」與「閘門驗過的資料」是同一份；judge 的 c 閘門會比對兩者。
     if (LANG) throw new Error('--emit-preview 不能和 --lang 併用');
     writeFileSync(resolve(opt('--emit-preview')), JSON.stringify(sample));

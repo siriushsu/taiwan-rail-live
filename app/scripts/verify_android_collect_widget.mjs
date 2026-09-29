@@ -12,9 +12,10 @@
  *     （s=2 實心＝中心是線色；s=1 空心＝中心透明、外圈是線色；s=0 灰點）
  *   · 文字模板：自己讀 RailNativeL10n.json 查英／日字串
  *
- * 跑法（先由 tmp/collect-widget/android/run.sh 在 emulator 上產出 obs.json 與 PNG）：
+ * 跑法（先由 app/scripts/android-collect-widget/run.sh 在你自己的模擬器上產出案例、obs.json 與 PNG）：
+ *   ANDROID_SERIAL=<你的模擬器> zsh app/scripts/android-collect-widget/run.sh
  *   node app/scripts/verify_android_collect_widget.mjs [--out <collect-out 目錄>] [--cases <cases 目錄>]
- * 預設 out＝tmp/collect-widget/android/out/collect-out、cases＝tmp/collect-widget/android/cases。
+ * 預設 out＝tmp/collect-widget/android/out/collect-out、cases＝tmp/collect-widget/android/cases（run.sh 的輸出位置）。
  * 找不到觀察檔＝紅（不是跳過）：沒有觀察就沒有驗證。
  */
 import { readFileSync, existsSync } from 'node:fs';
@@ -41,7 +42,7 @@ function check(name, cond, detail) {
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 
 // ── 讀輸入 ───────────────────────────────────────────────────────────────────
-const need = file => { if (!existsSync(file)) { console.error(`找不到 ${file}——先在 emulator 跑 tmp/collect-widget/android/run.sh`); process.exit(2); } return file; };
+const need = file => { if (!existsSync(file)) { console.error(`找不到 ${file}——先在你自己的模擬器跑 ANDROID_SERIAL=<序號> zsh app/scripts/android-collect-widget/run.sh`); process.exit(2); } return file; };
 const obsAll = JSON.parse(readFileSync(need(join(OUT, 'obs.json')), 'utf8'));
 const cases = JSON.parse(readFileSync(need(join(CASES, 'cases.json')), 'utf8'));
 const l10n = JSON.parse(readFileSync(L10N_FILE, 'utf8')).languages;
