@@ -1319,6 +1319,54 @@ await attempt('B1f', async () => {
     h.fired === 1 && st.trains === 1 && st.trips === 1 && st.ok === 1 && st.errors === 1 && q.verdicts(w, A, 'T1') === 'pending' && q.verdicts(w, B, 'T2') === 'ok',
     J({ fired: h.fired, st: { trains: st.trains, trips: st.trips, ok: st.ok, errors: st.errors }, v: [q.verdicts(w, A, 'T1'), q.verdicts(w, B, 'T2')] }));
 });
+// MDL／MDT／PC：突變 v6 存活的三個（D5_marked_legacy、D5_marked_time、D5_pending_count）。
+// MDL：MD 的情境換成降級路徑（設定檔缺台鐵的 coverDistinct：sample_count 與收滿同一句）——那一句也要看 MARKED。
+// MDT：第③段送出之前，這一組已被標成「同一個判定、不同時間」（verdict＝ok、verdict_at 比這一發的 now 早 1 毫秒）：
+//      MARKED 要比 verdict_at，別人標的 ok 不算「這一句剛標上的」。租約之下目前的寫入者做不到這個形狀（只有持租約的那一發標得到），
+//      這一條釘住規格的「這一句剛標上」，是縱深防禦。
+// PC：寫帳本之前，這一班讀進來的樣本少了一列（其餘仍 pending）：「樣本還在」要比筆數，不是「還有任何一列」。
+//     目前的寫入者刪樣本都是整個身分一起刪（bountyPurgeUid），一班車不會只少幾列；這一條釘住規格的「讀進來的全部還是 pending」。
+//     這個形狀下標記那句照樣標掉剩下的列、但籌碼與點數都不給（保守的一邊）。
+async function fenceRun({ id, rules, before, sql }) {
+  const A = `dev-${id}-000001`;
+  const w = world({ seed: boardSql('山線') + claimSql({ id: `claim-${id}`, actor: A, seg: KT('山線', 'S0|S1'), pts: 9 }), rules });
+  putBatches(w.db, { actor: A, trainNo: 'F1', pts: leg({ sec: 700 }) });
+  const n0 = q.count(w, 'bounty_samples', 'actor=?', A);
+  const h = { fired: 0, changes: 0 };
+  const act = () => { h.fired++; h.changes = Number(w.db.prepare(sql).run(A).changes); };
+  if (before === 'chips') hookOnce(w.DELAY_DB, /^INSERT OR IGNORE INTO chip_ledger/, async () => { act(); });
+  else {
+    const ob = w.DELAY_DB.batch.bind(w.DELAY_DB);
+    w.DELAY_DB.batch = async stmts => { if (!h.fired && stmts.some(x => MARK_RE.test(String(x && x._sql)))) act(); return ob(stmts); };
+  }
+  const st = await w.cron();
+  const users = rows(w, "SELECT distinct_ok_users d FROM bounty_board WHERE seg_key LIKE 'tra_sched|山線|%' ORDER BY seg_key").map(r => r.d);
+  const cov = rows(w, "SELECT covered_at IS NOT NULL c FROM bounty_board WHERE seg_key LIKE 'tra_sched|山線|%' ORDER BY seg_key").map(r => r.c);
+  return { h, n0, trips: st.trips, v: q.verdicts(w, A, 'F1'), point: q.point(w, A), sc: q.sampleCounts(w, '山線'), cov, users,
+    claim: one(w, `SELECT status FROM bounty_claims WHERE id='claim-${id}'`).status, ledger: q.count(w, 'chip_ledger', 'actor=?', A), contrib: q.contrib(w, A) };
+}
+await attempt('MDL', async () => {
+  const r = await fenceRun({ id: 'mdl', before: 'mark', rules: { ...RULES, coverDistinct: { THSR: RULES.coverDistinct.THSR } },
+    sql: "UPDATE bounty_samples SET verdict='suspect', verdict_at=1, reject_code='oversize', segs='[]' WHERE actor=? AND train_no='F1'" });
+  ok('MDL [第二輪 D3(b)／D5] 降級路徑：第③段送出之前樣本已被標走——sample_count 全 0、沒有收滿、點數列沒有長出來、認領仍 open、判定數 0',
+    RULES.coverDistinct.TRA > 0 && r.h.fired === 1 && r.n0 > 1 && r.h.changes === r.n0 && r.v === 'suspect' && J(r.sc) === J(Z9) && J(r.cov) === J(Z9) &&
+      r.point === null && r.claim === 'open' && r.trips === 0, J(r));
+});
+await attempt('MDT', async () => {
+  const r = await fenceRun({ id: 'mdt', before: 'mark', sql: `UPDATE bounty_samples SET verdict='ok', verdict_at=${NOW_MS - 1} WHERE actor=? AND train_no='F1'` });
+  ok('MDT [第二輪 D5／規格「這一句剛標上」] 第③段送出之前這一組已被標成同一個判定 ok、時間早 1 毫秒：點數列沒有長出來、sample_count 全 0、認領仍 open、判定數 0；' +
+    '② 照常（籌碼 1、登記 7 段）',
+    r.h.fired === 1 && r.n0 > 1 && r.h.changes === r.n0 && r.v === 'ok' && r.point === null && J(r.sc) === J(Z9) && r.claim === 'open' && r.trips === 0 &&
+      r.ledger === 1 && r.contrib === 7, J(r));
+});
+await attempt('PC', async () => {
+  const r = await fenceRun({ id: 'pc', before: 'chips',
+    sql: "DELETE FROM bounty_samples WHERE id=(SELECT id FROM bounty_samples WHERE actor=? AND train_no='F1' ORDER BY submitted_at DESC, id DESC LIMIT 1)" });
+  ok('PC [第二輪 D5／規格「讀進來的全部還是 pending」] 寫帳本之前這一班讀進來的樣本少了一列（其餘仍 pending）：帳本 0 列、登記 0 段、人數全 0；' +
+    '點數列沒有長出來、sample_count 全 0、認領仍 open',
+    r.h.fired >= 1 && r.n0 > 1 && r.h.changes === 1 && r.ledger === 0 && r.contrib === 0 && J(r.users) === J(Z9) && r.point === null && J(r.sc) === J(Z9) &&
+      r.claim === 'open', J(r));
+});
 
 // ═══ N1：可信名額最多先用掉一半預算 ═══════════════════════════════════════════════
 // 攻擊（獨立驗收 N1 的形狀）：12 個「可信」匿名身分（帳本各有一筆舊的錄程籌碼——等速的合成錄程就養得出來）各灌 8 班垃圾車，
