@@ -208,6 +208,15 @@
    "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
    "checksum": "4e1f3d5ef2acb6975e0f63d7763f8360"
   },
+  "data/tra_overtake_tracks.json": {
+   "sourceDescription": "本站自算，無外部上游：由 rail-3d/physical/network.json 與 dispatch.json（派車表各站進出路徑）、rail-3d/physical/overtake-sidings.js（立體地圖待避換股）算出，data/tra.json 供站座標、data/tra_schedule_dens",
+   "sourceField": "source_notes",
+   "effectiveDate": null,
+   "effectiveDateField": null,
+   "geometrySource": null,
+   "coordinateBasis": null,
+   "checksum": "1484fc6c1d5765ec46d4374e8097e92a"
+  },
   "data/tra_pass_obs.json": {
    "sourceDescription": "TDX api/historical/v2 Historical/Rail/TRA/LiveTrainDelay",
    "sourceField": "source",
@@ -278,7 +287,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "6ca076590eca82606fa19454c5321860"
+   "checksum": "a9e00384839c728a85e0ac0738ec17f4"
   },
   "data/track_lines.geojson": {
    "sourceDescription": "由 data/{tra,thsr_track,afr,trtc,tymc,ntdlrt,ntalrt,sanying,krtc,tmrt}.json 的 lines[].shape 與 lines[].stations 轉成 GeoJSON([lon,lat],小數 6 位),scripts/build_track_g",
