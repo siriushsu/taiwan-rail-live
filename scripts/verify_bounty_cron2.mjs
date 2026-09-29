@@ -826,6 +826,25 @@ await attempt('K1', async () => {
       /SEARCH (s|bounty_samples) USING INDEX idx_samples_trip \(actor=\? AND trip_date=\? AND train_no=\?\)/.test(plans.prior) &&
       /SEARCH bounty_samples USING INDEX sqlite_autoindex_bounty_samples_\d+ \(id=\?\)/.test(plans.mark) && !/idx_samples_pending/.test(plans.mark),
     J({ list: plans.list, load: plans.load, prior: plans.prior, mark: plans.mark, points: plans.points, count: plans.count, close: plans.close }));
+  // K1g：第二輪獨立驗收之後新增的子查詢。② 的籌碼那句與登記那一批帶「樣本還在」（BOUNTY_VERIFY_PENDING）、第③段的點數／sample_count／關認領
+  // 帶「真的標到」（MARKED）：兩者都是 bounty_samples 的 id IN json_each，要走主鍵（每個 id 一次點查），不能拿 verdict 去走 idx_samples_pending
+  // （那是全站 pending 的掃描，每班、每組各掃一次，積壓越多越慢）；籌碼那句的帳本子查詢（這班入過帳沒、當日已領幾顆）走 idx_chip_ledger_actor_day 吃滿兩欄；
+  // 每一句的租約圍欄走 kv_blobs 主鍵。
+  const P2 = {
+    chips: sqlOf(/^INSERT OR IGNORE INTO chip_ledger/),
+    users: sqlOf(/^UPDATE bounty_board SET distinct_ok_users = distinct_ok_users \+ 1/),
+    contrib: sqlOf(/^INSERT OR IGNORE INTO bounty_seg_contrib/),
+    covered: sqlOf(/^UPDATE bounty_board SET covered_at = COALESCE\(covered_at, \?\)/),
+  };
+  const plans2 = Object.fromEntries(Object.entries(P2).map(([k, v]) => [k, v.length === 1 ? planOf(v[0]) : `（抓到 ${v.length} 句，應該剛好 1 句）`]));
+  const SAMPLES_PK = /SEARCH bounty_samples USING INDEX sqlite_autoindex_bounty_samples_\d+ \(id=\?\)/;
+  const fenced = [plans2.chips, plans2.users, plans2.contrib, plans2.covered, plans.points, plans.count, plans.close];
+  ok('K1g [第二輪 D2／D3／D5 查詢計畫] 籌碼那句、登記那一批三句、第③段的點數／sample_count／關認領：樣本子查詢走主鍵（id），不走 idx_samples_pending、不掃 bounty_samples；' +
+    '租約圍欄走 kv_blobs 主鍵；籌碼那句的帳本子查詢走 idx_chip_ledger_actor_day（actor＋day）、不掃帳本',
+    Object.values(P2).every(v => v.length === 1) &&
+      fenced.every(p => SAMPLES_PK.test(p) && !/idx_samples_pending/.test(p) && !/SCAN bounty_samples\b/.test(p) && KV_PK.test(p) && !/SCAN kv_blobs\b/.test(p)) &&
+      /SEARCH chip_ledger USING INDEX idx_chip_ledger_actor_day \(actor=\? AND day=\?\)/.test(plans2.chips) && !/SCAN chip_ledger\b/.test(plans2.chips),
+    J({ ...plans2, points: plans.points, count: plans.count, close: plans.close }));
   if (!CTL) return noCtl('K1a', '無法比對等價');
   const b = await runRich(CTL);
   const diffs = diffDump(a.dump, b.dump);

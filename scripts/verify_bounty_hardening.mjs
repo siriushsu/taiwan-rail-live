@@ -26,6 +26,8 @@
 //   N4  一班車的點數上看十幾萬（4 MB 塞得下）：判定不把整班的點展開成函式引數（V8 約十二萬多個就丟 RangeError）
 //   N2  清單之後才灌進來的批次：讀這班車那一句依讀取順序累加長度截住，送回 Worker 的不超過 4 MB 再加一批，整班判可疑
 //   N3  租約被下一發接手之後，舊的那一發第③段整組不動任何列（點數、sample_count、關認領不會做兩次）；N3d：② 的籌碼與登記也不動（第二輪 D2）
+//   D3  oversize 那一句也圍租約；MD 第③段只在標記真的標到時才給點數／sample_count／關認領；D5 判定途中刪帳號不會長回任何東西；
+//   B1f 統計只算真的寫進去的班（第二輪獨立驗收）
 //   N1  可信名額最多先用掉剩下預算（子請求、牆鐘各算）的一半：養出來的可信分身擠不掉新使用者的第一趟；讓出來的名額排在別人之後照判
 //   M3  兌換的交易內餘額守衛的邊界（讀到之後被扣）——review-B Q8 說這一層只有 redeem C6 一條在守
 //   M5b 刪帳號時 body 的 deviceActor 若已併進別的帳號，一列不刪——review-B Q8 說這一層只有 auth A11d 一條在守
@@ -690,10 +692,13 @@ await attempt('LSe', async () => {
   const w = world({ seed: boardSql('山線') });
   putBatches(w.db, { actor: A, trainNo: 'L1', pts: leg({ sec: 700 }) });
   const other = J({ token: 'taken-over', until: Date.now() + 10 * 60e3 });
-  hookOnce(w.DELAY_DB, /FROM tra_station_events/, async () => { w.db.prepare('UPDATE kv_blobs SET v=? WHERE k=?').run(other, LEASE); });
+  const h = hookOnce(w.DELAY_DB, /FROM tra_station_events/, async () => { w.db.prepare('UPDATE kv_blobs SET v=? WHERE k=?').run(other, LEASE); });
   const st = await w.cron();
-  ok('LSe [租約] 途中被接手：收尾只刪自己那一份——接手那一發的租約列還在、值沒變（被接手之後這一發的寫入不動任何列，見 N3）',
-    st.trains === 1 && q.lease(w) && q.lease(w).v === other, J({ st: st.trains, lease: q.lease(w) }));
+  // 這一發確實讀到了這一班（注入點那一句跑過）；被接手之後它的寫入全被圍欄擋下，所以判定數是 0——統計只算真的標到的（第二輪 B1f，
+  // 舊版讀完列就先加，這裡會是 1）。樣本仍 pending。
+  ok('LSe [租約] 途中被接手：收尾只刪自己那一份——接手那一發的租約列還在、值沒變；這一發讀到了這一班、但寫入不動任何列（見 N3），判定數 0、樣本仍 pending',
+    h.fired >= 1 && st.trains === 0 && st.trips === 0 && q.verdicts(w, A, 'L1') === 'pending' && q.lease(w) && q.lease(w).v === other,
+    J({ fired: h.fired, trains: st.trains, trips: st.trips, v: q.verdicts(w, A, 'L1'), lease: q.lease(w) }));
 });
 
 // ═══ R1：一條線組的寫入＝一個 batch ═══════════════════════════════════════════════
@@ -1072,6 +1077,97 @@ await attempt('N3d', async () => {
     J(b.mid));
   ok('N3dd [第二輪 D2] 接手那一發：登記 7 段、人數各 1（沒有加兩次）、帳本仍 1 列（同一班不再入帳）、ok',
     b.end.v === 'ok' && J(b.end.trips) === J(one1) && b.end.chips === 0 && b.end.contrib === 7 && J(b.end.users) === J(S7), J(b.end));
+});
+
+// ═══ D3／MD／D5／B1f：寫入只在「真的標到」時才算數（第二輪獨立驗收）══════════════════════════════
+// 同一個根因的四個面：oversize 那一句沒有圍欄（D3）；第③段的點數、sample_count、關認領不看標記那句有沒有真的標到（D3 (b)、D5）；
+// 統計在讀完列就先加（B1f）。
+const OV721 = Array.from({ length: 721 }, (_, i) => ({ d: i, t: 30000 + i, v: 1, acc: 5 }));   // 721 批、每批 1 點（每人每日上限 720＋1）
+await attempt('D3', async () => {
+  // 注入點：oversize 那一句執行前，租約換成別人的（這一發慢到超過 20 分鐘、被下一發接手）。
+  // 舊版那一句沒有圍欄：被接手的那一發照樣把整班標成 oversize——接手那一發若正在判同一班（D3 (b) 的交錯），它的標記改到 0 列。
+  const A = 'dev-d3-ov00001';
+  const w = world({ seed: boardSql('山線') });
+  putBatches(w.db, { actor: A, trainNo: 'OV', pts: OV721, size: 1 });
+  const other = J({ token: 'taken-over', until: Date.now() + 10 * 60e3 });
+  const h = hookOnce(w.DELAY_DB, /reject_code='oversize'/, async () => { w.db.prepare('UPDATE kv_blobs SET v=? WHERE k=?').run(other, LEASE); });
+  const st1 = await w.cron();
+  const mid = { fired: h.fired, pending: q.count(w, 'bounty_samples', "train_no='OV' AND verdict='pending'"), oversize: st1.oversize, trains: st1.trains, lease: (q.lease(w) || {}).v };
+  w.db.prepare('DELETE FROM kv_blobs WHERE k=?').run(LEASE);
+  const st2 = await w.cron({ BOUNTY_NOW: String(NOW_MS + 3600e3) });
+  const end = { ov: q.count(w, 'bounty_samples', "train_no='OV' AND verdict='suspect' AND reject_code='oversize'"), oversize: st2.oversize, trains: st2.trains };
+  ok('D3a [第二輪 D3] oversize 那一句之前租約被接手：被接手的那一發一列都不標（721 列仍 pending）、oversize 0、trains 0；接手那一發的租約原封不動',
+    mid.fired === 1 && mid.pending === 721 && mid.oversize === 0 && mid.trains === 0 && mid.lease === other, J(mid));
+  ok('D3b [第二輪 D3] 接手那一發：整班 721 列 suspect／oversize、oversize 1、trains 1', end.ov === 721 && end.oversize === 1 && end.trains === 1, J(end));
+});
+await attempt('MD', async () => {
+  // 注入點：第③段的 batch 送出之前，這一組的樣本已被別的寫入者標成 suspect／oversize（D3 (b) 的最後一步；D3 修掉之後這個形狀只剩縱深防禦）。
+  // 舊版：標記那句改到 0 列，同一個 batch 的點數、sample_count、關認領只看租約 → 照給（點數 27、7 段各 +1、認領 fulfilled）。
+  const A = 'dev-md-000001';
+  const w = world({ seed: boardSql('山線') + claimSql({ id: 'claim-md', actor: A, seg: KT('山線', 'S0|S1'), pts: 9 }) });
+  putBatches(w.db, { actor: A, trainNo: 'F1', pts: leg({ sec: 700 }) });
+  const h = { fired: 0 };
+  const ob = w.DELAY_DB.batch.bind(w.DELAY_DB);
+  w.DELAY_DB.batch = async stmts => {
+    if (!h.fired && stmts.some(x => MARK_RE.test(String(x && x._sql)))) {
+      h.fired++;
+      w.db.prepare("UPDATE bounty_samples SET verdict='suspect', verdict_at=1, reject_code='oversize', segs='[]' WHERE actor=? AND train_no='F1'").run(A);
+    }
+    return ob(stmts);
+  };
+  const st = await w.cron();
+  const look = { v: q.verdicts(w, A, 'F1'), rej: q.rejects(w, A, 'F1'), point: q.point(w, A), sc: q.sampleCounts(w, '山線'),
+    claim: one(w, "SELECT status FROM bounty_claims WHERE id='claim-md'").status, trains: st.trains, trips: st.trips, ok: st.ok };
+  ok('MD [第二輪 D3(b)] 第③段送出之前樣本已被標走：點數列沒有長出來、sample_count 全 0、認領仍 open；樣本維持別人標的 suspect／oversize；判定數 0',
+    h.fired === 1 && look.v === 'suspect' && look.rej === 'oversize' && look.point === null && J(look.sc) === J(Z9) && look.claim === 'open' &&
+      look.trains === 0 && look.trips === 0 && look.ok === 0, J(look));
+});
+// D5：判定途中刪帳號（bountyPurgeUid）。注入點一：② 寫帳本那一句之前；注入點二：第③段的 batch 之前。
+// 舊版：②、③ 只看租約，不看樣本還在不在、有沒有真的標到——刪完之後這個 uid 又長出點數列（uid 欄 NULL，看起來像匿名裝置）、籌碼、去重登記。
+async function d5Run(where) {
+  const UID = 'uid-d5-race-0001';
+  const w = world({ seed: boardSql('山線') + pointsSql([[UID, UID, 5, null]]) });
+  putBatches(w.db, { actor: UID, trainNo: 'P5', pts: leg({ sec: 700 }) });
+  const h = { fired: 0, del: null };
+  const kill = async () => { h.fired++; h.del = (await delAccount(w, {}, UID)).status; };
+  if (where === 'chips') hookOnce(w.DELAY_DB, /^INSERT OR IGNORE INTO chip_ledger/, kill);
+  else {
+    const ob = w.DELAY_DB.batch.bind(w.DELAY_DB);
+    w.DELAY_DB.batch = async stmts => { if (!h.fired && stmts.some(x => MARK_RE.test(String(x && x._sql)))) await kill(); return ob(stmts); };
+  }
+  await w.cron();
+  const users = rows(w, "SELECT distinct_ok_users d FROM bounty_board WHERE seg_key LIKE 'tra_sched|山線|%' ORDER BY seg_key").map(r => r.d);
+  return { h, left: { point: q.point(w, UID), ledger: q.count(w, 'chip_ledger', 'actor=?', UID), contrib: q.contrib(w, UID),
+    samples: q.count(w, 'bounty_samples', 'actor=?', UID), sc: q.sampleCounts(w, '山線'), users } };
+}
+await attempt('D5', async () => {
+  const a = await d5Run('chips');
+  ok('D5a [第二輪 D5] 刪帳號落在 ② 寫帳本之前：刪完之後這個 uid 沒有再長出任何東西——點數列、帳本、登記、樣本都是 0；看板 sample_count 與人數全 0',
+    a.h.fired === 1 && a.h.del === 200 && a.left.point === null && a.left.ledger === 0 && a.left.contrib === 0 && a.left.samples === 0 &&
+      J(a.left.sc) === J(Z9) && J(a.left.users) === J(Z9), J(a));
+  const b = await d5Run('mark');
+  // ② 在刪帳號之前已寫（籌碼、登記、人數 +1）；刪帳號刪掉帳本與登記，看板的人數刻意不回扣（bountyPurgeUid 的說明）。
+  ok('D5b [第二輪 D5] 刪帳號落在第③段之前：點數列沒有長回來（舊版會是 uid 欄 NULL 的 21 點）、sample_count 全 0；帳本、登記、樣本 0；人數維持 ② 寫的（刻意不回扣）',
+    b.h.fired === 1 && b.h.del === 200 && b.left.point === null && b.left.ledger === 0 && b.left.contrib === 0 && b.left.samples === 0 &&
+      J(b.left.sc) === J(Z9) && J(b.left.users) === J(S7), J(b));
+});
+await attempt('B1f', async () => {
+  // 統計只算真的寫進去的班（判定那一行的「幾班／幾線組」）。兩班（固定次序 T1 先）：T1 的第③段 batch 丟例外、T2 照判。
+  // 舊版讀完列就先加：trains 2、trips 2、ok 2——出錯那一班也算進「判了」。
+  const A = 'dev-b1f-000001', B = 'dev-b1f-000002';
+  const w = world({ seed: boardSql('山線') });
+  putBatches(w.db, { actor: A, trainNo: 'T1', pts: leg({ sec: 700 }) });
+  putBatches(w.db, { actor: B, trainNo: 'T2', pts: leg({ sec: 700 }) });
+  const h = { fired: 0 };
+  const ob = w.DELAY_DB.batch.bind(w.DELAY_DB);
+  w.DELAY_DB.batch = async stmts => {
+    if (!h.fired && stmts.some(x => MARK_RE.test(String(x && x._sql)) && String((x._p || [])[5]).includes(`${A}.T1.`))) { h.fired++; throw new Error('D1_ERROR: 模擬的暫時錯誤'); }
+    return ob(stmts);
+  };
+  const st = await w.cron({ BOUNTY_VERIFY_ORDER: 'fixed' });
+  ok('B1f [第二輪 B1f] 兩班、T1 的第③段 batch 丟例外：判定數只算 T2——trains 1、trips 1、ok 1、errors 1；T1 仍 pending、T2 ok',
+    h.fired === 1 && st.trains === 1 && st.trips === 1 && st.ok === 1 && st.errors === 1 && q.verdicts(w, A, 'T1') === 'pending' && q.verdicts(w, B, 'T2') === 'ok',
+    J({ fired: h.fired, st: { trains: st.trains, trips: st.trips, ok: st.ok, errors: st.errors }, v: [q.verdicts(w, A, 'T1'), q.verdicts(w, B, 'T2')] }));
 });
 
 // ═══ N1：可信名額最多先用掉一半預算 ═══════════════════════════════════════════════

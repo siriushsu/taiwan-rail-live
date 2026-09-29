@@ -7934,12 +7934,15 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   // 批數：上傳端點的額度檢查擋下之後還能多出來，只能是同時灌進來的請求鑽了「先數再寫」之間的空隙——誠實的客戶端一天錄不出這麼多批；
   // 總長：任何真的班車都到不了（見常數的說明）。整班一句標成 suspect（內部原因碼 oversize，不回給使用者），
   // payload 不讀：讀它正是這種車想做的事（review-B R2：一班車的量就是這一發記憶體的上限）。
+  // 🔴 這一句也圍租約（BOUNTY_VERIFY_HELD，第二輪獨立驗收 D3）：被下一發接手之後、同一班又灌進超量批次時，舊的這一發不能把接手那一發
+  // 正在判的列整班標成 oversize——那時接手那一發的標記改到 0 列，同一個 batch 的點數、認領、sample_count 卻照給（第③段另有 MARKED 擋這個形狀）。
+  // 統計只算真的標到的（第二輪 B1f）。
   const oversize = async () => {
-    await env.DELAY_DB.prepare(
+    const r = await env.DELAY_DB.prepare(
       "UPDATE bounty_samples SET verdict='suspect', verdict_at=?, quality_code=NULL, reject_code='oversize', segs='[]'" +
-      " WHERE actor=? AND trip_date=? AND train_no=? AND verdict='pending'"
-    ).bind(now, c.actor, c.trip_date, c.train_no).run();
-    stat.trains++; stat.oversize++;
+      " WHERE actor=? AND trip_date=? AND train_no=? AND verdict='pending'" + BOUNTY_VERIFY_HELD
+    ).bind(now, c.actor, c.trip_date, c.train_no, BOUNTY_VERIFY_LEASE_KEY, lease).run();
+    if (Number(r && r.meta && r.meta.changes) > 0) { stat.trains++; stat.oversize++; }
   };
   if (Number(c.n) > BOUNTY_MAX_BATCHES_PER_DAY || Number(c.bytes) > BOUNTY_VERIFY_MAX_TRAIN_BYTES) return oversize();
   // 讀取這一句本身也要有上界：第一段數完之後才灌進來的批次（同一個空隙）也不能讓它讀超過上限。批數靠 LIMIT；
@@ -7955,7 +7958,6 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   if (!rows.length) return;                // 第一段之後已被判掉（有租約，正常不會發生）
   if (rows.length > BOUNTY_MAX_BATCHES_PER_DAY ||
     Number(rows[rows.length - 1].cum_bytes) > BOUNTY_VERIFY_MAX_TRAIN_BYTES) return oversize();
-  stat.trains++;
   // 依線分：一條線一組判定（直通車跨線的每一條線都算同一班，籌碼整班算一次）。
   // 線的鍵是 sys|ln_id（與 M.lines 同一個鍵空間）：ln_id 單獨在現有資料沒有撞名，但不該賴這個巧合。
   const lines = new Map();
@@ -7967,7 +7969,6 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   // ① 逐線判定（只讀不寫）：每一組用自己那條線的幾何算 verdict 與覆蓋段。
   const groups = [];
   for (const lineRows of lines.values()) {
-    stat.trips++;
     const trip = assembleTrip(lineRows);
     const line = M.lines[`${trip.sys}|${trip.lnId}`] || null;
     // 第二重要用的獨立真相源：我們自己幾小時前存下的逐站觀測（台鐵才有）
@@ -7982,7 +7983,6 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     const uploadedAt = Math.max(0, ...lineRows.map(r => Number(r.submitted_at) || 0));
     const ctx = { line, events, now, uploadedAt };
     const v = verdictOf(integrityGate(trip, ctx, rules), qualityGate(trip, ctx, rules));
-    stat[v.verdict]++;
     const cov = (v.verdict === 'suspect' || !line) ? [] : coverageOf(trip, line, rules, M.peakHoursBySys)
       .filter(c => c.cov >= rules.quality.segCoverageMin);
     groups.push({ trip, v, cov });
@@ -8053,6 +8053,14 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   // （同一筆交易裡每一句看到同一個租約值），那一組留 pending 給接手的那一發——點數與 sample_count 不會加兩次，標記也不會搶先把列標走。
   // ② 的籌碼與登記也圍（同一道 BOUNTY_VERIFY_HELD，另加「樣本還在」）：冪等擋得住「同一班發兩次」，擋不住「兩發各自讀到今天還沒領、各自寫」。
   const HELD = BOUNTY_VERIFY_HELD;
+  // 🔴 MARKED：點數、sample_count、關認領另帶「這一組的樣本此刻全部是這一句剛標上的判定」（verdict 與 verdict_at＝這一發的 now，
+  // 筆數等於這一組的樣本數）。同一個 batch 的標記那句只標「還是 pending」的列；列若已被別人標走（第二輪 D3 的交錯：舊的一發把整班標成 oversize）
+  // 或已被刪掉（判定途中刪帳號，第二輪 D5），標記改到的少於這一組，後面三句就不動——不再「標記沒標到、點數照給」，也不替已刪的帳號長出點數列。
+  // 「+verdict」「+verdict_at」的一元加號同標記那句：只走主鍵點查（id IN json_each），不去掃 idx_samples_pending。
+  const MARKED = ' AND (SELECT COUNT(*) FROM bounty_samples WHERE id IN (SELECT value FROM json_each(?)) AND +verdict=? AND +verdict_at=?) = ?';
+  // 統計只算「標記那句真的標到列」的線組與班車（第二輪 B1f：舊版讀完列就先加，出錯或被接手的那一班也算進「判了幾班」）。
+  const marked = res => Number(res && res[0] && res[0].meta && res[0].meta.changes) > 0;
+  let judged = 0;
   for (const { trip, v, cov } of groups) {
     // 只標「此刻仍是 pending」的列（有租約，正常一定全是）。
     // 🔴「+verdict」的一元加號是刻意的（同認領那句的 +expires_at）：沒有它，SQLite 會拿 verdict='pending' 去走 idx_samples_pending，
@@ -8063,9 +8071,10 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
       " WHERE +verdict='pending' AND id IN (SELECT value FROM json_each(?))" + HELD
     ).bind(v.verdict, now, v.qualityCode, v.rejectCode, JSON.stringify(cov), JSON.stringify(trip.sampleIds), BOUNTY_VERIFY_LEASE_KEY, lease);
     if (sim || v.verdict === 'suspect') {                       // 模擬器：只留判定；suspect：不給章、不計點、不計入門檻
-      await env.DELAY_DB.batch([mark]);
+      if (marked(await env.DELAY_DB.batch([mark]))) { stat.trips++; stat[v.verdict]++; judged++; }
       continue;
     }
+    const M = [JSON.stringify(trip.sampleIds), v.verdict, now, trip.sampleIds.length];
     // 🔴 查詢量（F5）：這一組的認領與板價各一句查完（舊版逐段各打 2–4 句，一趟 30 段約 130 句，一發只處理得了約 75 趟）。
     // 綁定參數不用 IN (?,?,…) 動態展開（D1 每句最多 100 個綁定參數，覆蓋段可能超過）；段鍵包成一個 JSON 陣列、以 json_each 展開。
     // 「每個 (seg_key,dir,kind,slot) 取第一筆」在 JS 做，第一筆＝SQL 排序後最前面那筆，與逐段 LIMIT 1 語意完全相同。
@@ -8112,9 +8121,9 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     // 點數：即使這一組沒有任何覆蓋段（earned＝0）也照寫這一句——與舊版行為相同（會建出該 actor 的點數列）。
     // INSERT … SELECT 的 WHERE 1 不是贅字：upsert 接在 SELECT 後面時，SQLite 要求 SELECT 帶 WHERE 才分得清 ON CONFLICT 屬於誰。
     const writes = [mark, env.DELAY_DB.prepare(
-      'INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) SELECT ' + WHO_SQL + ', NULL, ?, NULL, ? WHERE 1' + HELD +
+      'INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) SELECT ' + WHO_SQL + ', NULL, ?, NULL, ? WHERE 1' + HELD + MARKED +
       ' ON CONFLICT(actor) DO UPDATE SET points = points + excluded.points, updated_at = excluded.updated_at'
-    ).bind(who, who, earned, now, BOUNTY_VERIFY_LEASE_KEY, lease)];
+    ).bind(who, who, earned, now, BOUNTY_VERIFY_LEASE_KEY, lease, ...M)];
     if (v.verdict === 'ok') {                                 // ⬅ unusable 到此為止：不計入下架門檻
       // 只有 ok 才推進 sample_count（歷史樣本照舊累加：被計功的那一列 +1；每個單位 (段, 車種, 方向, 種類, 時段) 一組最多 +1）。
       // 收滿與否（路段懸賞 v2）看「去重人數」而且是整段一起收，已在上面的 bountyRegisterContrib 寫完，這裡不再碰 covered_at。
@@ -8131,18 +8140,19 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
         (legacy.get(need) || legacy.set(need, []).get(need)).push(u);
       }
       if (distinct.length) writes.push(env.DELAY_DB.prepare(
-        'UPDATE bounty_board SET sample_count = sample_count + 1 WHERE ' + IN_UNITS + HELD
-      ).bind(JSON.stringify(distinct), BOUNTY_VERIFY_LEASE_KEY, lease));
+        'UPDATE bounty_board SET sample_count = sample_count + 1 WHERE ' + IN_UNITS + HELD + MARKED
+      ).bind(JSON.stringify(distinct), BOUNTY_VERIFY_LEASE_KEY, lease, ...M));
       for (const [need, list] of legacy) writes.push(env.DELAY_DB.prepare(
         'UPDATE bounty_board SET sample_count = sample_count + 1,' +
-        ' covered_at = CASE WHEN sample_count + 1 >= ? THEN COALESCE(covered_at, ?) ELSE covered_at END WHERE ' + IN_UNITS + HELD
-      ).bind(need, now, JSON.stringify(list), BOUNTY_VERIFY_LEASE_KEY, lease));
+        ' covered_at = CASE WHEN sample_count + 1 >= ? THEN COALESCE(covered_at, ?) ELSE covered_at END WHERE ' + IN_UNITS + HELD + MARKED
+      ).bind(need, now, JSON.stringify(list), BOUNTY_VERIFY_LEASE_KEY, lease, ...M));
       if (units.size) writes.push(env.DELAY_DB.prepare(
-        "UPDATE bounty_claims SET status='fulfilled' WHERE actor=" + WHO_SQL + " AND status='open' AND " + IN_UNITS + HELD
-      ).bind(who, who, JSON.stringify([...units.values()]), BOUNTY_VERIFY_LEASE_KEY, lease));
+        "UPDATE bounty_claims SET status='fulfilled' WHERE actor=" + WHO_SQL + " AND status='open' AND " + IN_UNITS + HELD + MARKED
+      ).bind(who, who, JSON.stringify([...units.values()]), BOUNTY_VERIFY_LEASE_KEY, lease, ...M));
     }
-    await env.DELAY_DB.batch(writes);
+    if (marked(await env.DELAY_DB.batch(writes))) { stat.trips++; stat[v.verdict]++; judged++; }
   }
+  if (judged) stat.trains++;
 }
 
 // ── 台鐵準點統計「每日增量」cron(scheduled handler) ────────────────────────
