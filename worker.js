@@ -7783,6 +7783,13 @@ const BOUNTY_WALL_BUDGET_MS = 10 * 60 * 1000;
 // （20,030 點、一班 1.3 MB）20 班，扣掉同樣 20 班短車的基準，每 MB 約 27–28 ms CPU——128 MB 約 3.6 秒，
 // 離 Workers 預設的 CPU 上限 30 秒有八倍的餘裕（平台機器較慢、同一發還有估值）。誠實的通勤一班約幾十 KB，這一項平常碰不到。
 const BOUNTY_BYTES_BUDGET = 128 * 1024 * 1024;
+// 讀取量的每列折算（第四輪獨立驗收 C(4)）：CPU 不只跟 payload 的位元組成正比，也跟「列數」成正比——每一列都要從 D1 的結果變成一個物件、
+// 各自 JSON.parse 一次、各自組樣本。一班 720 列、每列 1 點（上傳端點每人每乘車日 720 批的上限）的車，payload 只有約 27 KB，
+// 只數位元組的話，這種車一發可以判到子請求預算用完（約 1,600 班、本機 6.6 秒 CPU），計入的讀取量卻只有預算的三成，讀取量預算形同沒有。
+// 所以讀取量＝payload 位元組＋列數 × BOUNTY_BYTES_PER_ROW。384 的根據（09-30 本機實測，同一顆 V8、連 node:sqlite 讀列＝保守上界）：
+// id／actor 拉到上傳端點允許的最長（132／64 字元），40 班 × 720 列對 40 班 × 1 列，每多一列 7.9–12.2 µs CPU；
+// 同一個行程量的 payload 是每 MB 24–29 ms——一列折合 300–400 位元組，取 384。誠實的車每列是一批幾十到幾百個點（幾 KB），這一項約佔讀取量的一到兩成。
+const BOUNTY_BYTES_PER_ROW = 384;
 // 把 env 包一層：DELAY_DB 與 ASSETS 的每一次呼叫都會累加同一個計數器（env.__bountySubreq）。已經包過的 env 原樣回傳——
 // scheduled() 先包一次再交給估值與判定兩支，兩支共用同一個計數器；直接呼叫 bountyVerifyCron（測試）時，它自己包一個。
 // 為什麼不在每個呼叫點各自數：呼叫點散在十幾個函式裡（估值、判定、身分解析、籌碼、登記），漏數一處，預算就是假的。
@@ -7796,7 +7803,7 @@ function bountyCounted(env) {
   const wantBytes = Math.floor(Number(env && env.BOUNTY_BYTES_BUDGET));
   const ctr = { n: 0, budget: want > 0 ? want : BOUNTY_SUBREQ_BUDGET, by: { query: 0, batch: 0, exec: 0, fetch: 0 },
     t0: Date.now(), wallMs: wantWall > 0 ? wantWall : BOUNTY_WALL_BUDGET_MS,
-    bytes: 0, bytesBudget: wantBytes > 0 ? wantBytes : BOUNTY_BYTES_BUDGET };   // bytes 由 bountyVerifyTrain 讀完一班車時累加
+    bytes: 0, rows: 0, bytesBudget: wantBytes > 0 ? wantBytes : BOUNTY_BYTES_BUDGET };   // bytes／rows 由 bountyVerifyTrain 讀完一班車時累加
   const tick = k => { ctr.n++; ctr.by[k]++; };
   const wrapStmt = st => new Proxy(st, { get(t, k) {
     if (k === '_inner') return t;                             // batch 要交還真正的 prepared statement（真 D1 不收替身）
@@ -7847,7 +7854,7 @@ function* bountyVerifyOrder(list, room, stat) {
 const bountyVerifyLine = q => q.locked
   ? '[cron bounty 驗證] 跳過：另一發判定還在進行（租約未到期），這一發沒有動任何樣本'
   : `[cron bounty 驗證] ${q.trains} 班／${q.trips} 線組 → 採用 ${q.ok}／可惜 ${q.unusable}／可疑 ${q.suspect}／入帳籌碼 ${q.chips}` +
-  `／經過 ${Math.round((Number(q.elapsedMs) || 0) / 1000)} 秒／讀取 ${((Number(q.bytes) || 0) / 1048576).toFixed(1)} MB／子請求 ${q.subreq}` +
+  `／經過 ${Math.round((Number(q.elapsedMs) || 0) / 1000)} 秒／讀取 ${((Number(q.bytes) || 0) / 1048576).toFixed(1)} MB（${Number(q.rows) || 0} 列）／子請求 ${q.subreq}` +
   (q.budgetStop ? `（⚠️ ${{ wall: '牆鐘', bytes: '讀取量' }[q.stopBy] || '子請求'}預算用盡：剩下的班車留 pending，下一發接著判）` : '') +
   (q.errors ? `（⚠️ ${q.errors} 班判定出錯` + (q.stopBy === 'error'
     ? '，最後一次連記錄都寫不進 D1 而停手：剩下的班車留 pending，下一發接著判'
@@ -7876,7 +7883,7 @@ async function bountyVerifyCron(env0) {
   const CH = rules.chips;
   if (!CH || !(CH.perTrip > 0) || !(CH.minTripSec > 0) || !(CH.dailyChipCap > 0) ||
     !(CH.remoteMultiplier > 0) || !Array.isArray(CH.remoteLines)) throw new Error('invalid bounty rule: chips');
-  const stat = { trips: 0, trains: 0, ok: 0, unusable: 0, suspect: 0, truncated: false, chips: 0, subreq: 0, bytes: 0,
+  const stat = { trips: 0, trains: 0, ok: 0, unusable: 0, suspect: 0, truncated: false, chips: 0, subreq: 0, bytes: 0, rows: 0,
     budgetStop: false, stopBy: null, elapsedMs: 0, oversize: 0, locked: false, error: null, errors: 0, headDeferred: 0 };
   // 租約（見 BOUNTY_VERIFY_LEASE_MS）：拿不到＝另一發還在判，這一發什麼都不動就回。用真時鐘（不是 BOUNTY_NOW）：租約管的是
   // 真實世界裡兩發有沒有重疊，與「判定當作今天是哪天」無關。值整串當鑰匙，釋放時只刪自己那一份。
@@ -7949,10 +7956,12 @@ async function bountyVerifyCron(env0) {
     const list = cand.results || [];
     if (list.length && Number(list[0].total) > list.length) stat.truncated = true;
     // 可信名額的份額從這裡起算：這一發剩下的子請求、牆鐘、讀取量預算，各 BOUNTY_VERIFY_TRUSTED_SHARE。
-    const n0 = ctr.n, t0 = Date.now(), b0 = ctr.bytes;
+    // 讀取量＝payload 位元組＋列數 × BOUNTY_BYTES_PER_ROW（見該常數）。
+    const readCost = () => ctr.bytes + ctr.rows * BOUNTY_BYTES_PER_ROW;
+    const n0 = ctr.n, t0 = Date.now(), b0 = readCost();
     const headRoom = () => ctr.n - n0 < (ctr.budget - n0) * BOUNTY_VERIFY_TRUSTED_SHARE &&
       Date.now() - t0 < (ctr.wallMs - (t0 - ctr.t0)) * BOUNTY_VERIFY_TRUSTED_SHARE &&
-      ctr.bytes - b0 < (ctr.bytesBudget - b0) * BOUNTY_VERIFY_TRUSTED_SHARE;
+      readCost() - b0 < (ctr.bytesBudget - b0) * BOUNTY_VERIFY_TRUSTED_SHARE;
     for (const c of bountyVerifyOrder(list, headRoom, stat)) {
       // 🔴 預算（F5）：在「開始處理下一班車之前」檢查，不在班車中間停——停在中間的話，籌碼與貢獻已經寫了、樣本卻還是 pending，
       // 下一發整班重跑（冪等、不會出錯，但白花一次）。停手時剩下的班車原封不動仍是 pending，下一發依上面的排序接著判。
@@ -7960,7 +7969,7 @@ async function bountyVerifyCron(env0) {
       // 牆鐘也在同一個停手點看（見 BOUNTY_WALL_BUDGET_MS）：子請求還沒用完、但 D1 慢到時間快不夠，一樣停在班車邊界。
       if (ctr.n >= ctr.budget) { stat.budgetStop = true; stat.stopBy = 'subreq'; break; }
       if (Date.now() - ctr.t0 >= ctr.wallMs) { stat.budgetStop = true; stat.stopBy = 'wall'; break; }
-      if (ctr.bytes >= ctr.bytesBudget) { stat.budgetStop = true; stat.stopBy = 'bytes'; break; }
+      if (readCost() >= ctr.bytesBudget) { stat.budgetStop = true; stat.stopBy = 'bytes'; break; }
       // 一班車丟錯（review-B R3）：每一條線的標記與寫入是同一筆交易（見 bountyVerifyTrain 的第③段），丟錯的那一組整組留 pending，
       // 下一發重判；籌碼與去重是冪等的，重判不會多發。接著分兩種情形（review-B 獨立驗收 N4）：
       //   · 這班車自己的問題（它的資料讓判定丟錯）：記下來（BOUNTY_VERIFY_STRIKE_PREFIX，出錯次數 n＋1；第 BOUNTY_VERIFY_STRIKES_TO_LAST 次起
@@ -8001,6 +8010,7 @@ async function bountyVerifyCron(env0) {
   }
   stat.subreq = ctr.n;
   stat.bytes = ctr.bytes;
+  stat.rows = ctr.rows;
   stat.elapsedMs = Date.now() - ctr.t0;
   return stat;
 }
@@ -8033,9 +8043,9 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   ).bind(c.actor, c.trip_date, c.train_no, BOUNTY_VERIFY_MAX_TRAIN_BYTES, BOUNTY_MAX_BATCHES_PER_DAY + 1).all();
   const rows = rs.results || [];
   if (!rows.length) return;                // 第一段之後已被判掉（有租約，正常不會發生）
-  // 讀取量預算（BOUNTY_BYTES_BUDGET）：讀進來就算，不論之後判不判得下去。直接呼叫（沒包計數器）時不算。
+  // 讀取量預算（BOUNTY_BYTES_BUDGET）：讀進來就算，不論之後判不判得下去；位元組與列數都算（BOUNTY_BYTES_PER_ROW）。直接呼叫（沒包計數器）時不算。
   const ctr = env.__bountySubreq;
-  if (ctr) ctr.bytes += Number(rows[rows.length - 1].cum_bytes) || 0;
+  if (ctr) { ctr.bytes += Number(rows[rows.length - 1].cum_bytes) || 0; ctr.rows += rows.length; }
   if (rows.length > BOUNTY_MAX_BATCHES_PER_DAY ||
     Number(rows[rows.length - 1].cum_bytes) > BOUNTY_VERIFY_MAX_TRAIN_BYTES) return oversize();
   // 依線分：一條線一組判定（直通車跨線的每一條線都算同一班，籌碼整班算一次）。
@@ -9433,7 +9443,7 @@ export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoar
   bountyClaim, hasGeoKeys, sanitizeSamples, sanitizeClient, bountySubmit, firebaseUid, bountyMe, bountyMerge, bountyPurgeUid,
   chipsMe, garageRedeem, cloudRide,
   bountyMedian, bountyL1, bountyL2, bountyPointsOf, bountyUnlocked, bountyValuationCron,
-  assembleTrip, integrityGate, qualityGate, verdictOf, coverageOf, bountyVerifyCron, bountyResetMemCaches, bountyCounted };
+  assembleTrip, integrityGate, qualityGate, verdictOf, coverageOf, bountyVerifyCron, bountyResetMemCaches, bountyCounted, BOUNTY_BYTES_PER_ROW };
 // 純函式導出,供離線回歸測試 import:trtcParse 雙路徑解析(含上游故障回 HTML 錯誤頁、
 // HTTP 仍 200 那個坑應回 null)、trtcEpoch 台北時間換算、dedupeLatest 同車次抵站歷史去重
 // (文湖線 CarWeightBR 把歷史當現況回傳的真實坑,C1)。trtcCall 不是純函式(真的打上游),

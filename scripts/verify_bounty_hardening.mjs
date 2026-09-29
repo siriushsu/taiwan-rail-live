@@ -1528,25 +1528,190 @@ await attempt('N1f', async () => {
   };
   const probe = mk({});
   const headBytes = one(probe, "SELECT SUM(length(payload)) b FROM bounty_samples WHERE actor LIKE 'dev-n1g-%'").b;
+  // 讀取量＝payload 位元組＋列數 × 每列折算（第四輪獨立驗收 C(4)；折算值取實作導出的常數，這一條驗的是記帳與停手邊界，折算的大小由 N1fe 另外釘）
+  const K = _bounty.BOUNTY_BYTES_PER_ROW;
   const maxTrain = one(probe, "SELECT MAX(b) b FROM (SELECT SUM(length(payload)) b FROM bounty_samples GROUP BY actor, train_no)").b;
+  const maxCost = one(probe, `SELECT MAX(c) c FROM (SELECT SUM(length(payload)) + COUNT(*) * ${K} c FROM bounty_samples GROUP BY actor, train_no)`).c;
   const budget = Math.floor(headBytes / 2);
   const w = mk({ BOUNTY_BYTES_BUDGET: String(budget) });
   const st = await w.cron();
-  const judgedBytes = one(w, "SELECT COALESCE(SUM(length(payload)), 0) b FROM bounty_samples WHERE verdict <> 'pending'").b;
+  const judged = one(w, "SELECT COALESCE(SUM(length(payload)), 0) b, COUNT(*) n FROM bounty_samples WHERE verdict <> 'pending'");
+  const cost = st.bytes + st.rows * K;
   ok('N1fa [第二輪 CPU] 讀取量預算＝分身 payload 的一半：新身分 N 判到（ok）；讀取量用完停手（budgetStop、stopBy bytes）、分身還有留 pending、有讓出',
     q.verdicts(w, N, 'N1') === 'ok' && st.budgetStop === true && st.stopBy === 'bytes' && q.count(w, 'bounty_samples', "verdict='pending' AND actor LIKE 'dev-n1g-%'") > 0 && st.headDeferred > 0,
-    J({ n: q.verdicts(w, N, 'N1'), stopBy: st.stopBy, budgetStop: st.budgetStop, deferred: st.headDeferred, budget, bytes: st.bytes }));
-  ok('N1fb [第二輪 CPU] stat.bytes＝已判定列的 payload 總長（測試端 SQL）；停在「超過預算之後的第一個班車邊界」：bytes ≥ 預算、扣掉一班最大的車就不到預算',
-    st.bytes === judgedBytes && judgedBytes > 0 && st.bytes >= budget && st.bytes - maxTrain < budget, J({ bytes: st.bytes, judgedBytes, budget, maxTrain }));
+    J({ n: q.verdicts(w, N, 'N1'), stopBy: st.stopBy, budgetStop: st.budgetStop, deferred: st.headDeferred, budget, bytes: st.bytes, rows: st.rows }));
+  ok('N1fb [第二輪 CPU／第四輪 C(4)] stat.bytes＝已判定列的 payload 總長、stat.rows＝已判定列數（測試端 SQL）；讀取量（位元組＋列數×每列折算）停在「超過預算之後的第一個班車邊界」：' +
+    '≥ 預算、扣掉一班最大的車就不到預算',
+    K > 0 && st.bytes === judged.b && st.rows === judged.n && judged.b > 0 && cost >= budget && cost - maxCost < budget,
+    J({ bytes: st.bytes, rows: st.rows, judged, K, cost, budget, maxCost }));
   const f = await fire(mk({ BOUNTY_BYTES_BUDGET: String(budget) }));
   const line = f.logs.concat(f.errs).find(s => SUMMARY_RE.test(s)) || '';
-  const mb = line.match(/讀取 ([\d.]+) MB/);
-  ok('N1fc [第二輪 CPU] 判定那一行寫「讀取量預算用盡」與讀取量（MB，一位小數）', line.includes('讀取量預算用盡') && !!mb && Math.abs(Number(mb[1]) - budget / 1048576) < 0.2 + maxTrain / 1048576,
+  const mb = line.match(/讀取 ([\d.]+) MB（(\d+) 列）/);
+  ok('N1fc [第二輪 CPU] 判定那一行寫「讀取量預算用盡」與讀取量（MB，一位小數；括號裡是列數）',
+    line.includes('讀取量預算用盡') && !!mb && Math.abs(Number(mb[1]) - budget / 1048576) < 0.2 + maxTrain / 1048576 && Number(mb[2]) > 0,
     line.slice(0, 260));
   const w0 = mk({});
   const st0 = await w0.cron();
   ok('N1fd [第二輪 CPU 對照] 預設讀取量預算（128 MB）：同一個世界全部判完、沒有停手、沒有讓出', q.pending(w0) === 0 && st0.budgetStop === false && st0.stopBy === null && st0.headDeferred === 0,
     J({ pending: q.pending(w0), stopBy: st0.stopBy, deferred: st0.headDeferred, bytes: st0.bytes }));
+});
+
+// N1fe：讀取量把列數也算進去（第四輪獨立驗收 C(4)）。30 個新身分各 1 班、每班 720 列、每列 1 點（上傳端點每人每乘車日 720 批的上限）：
+// 30 班的 payload 全部加起來還不到預算——只數位元組的話一班都不會因讀取量停手（舊版就是這樣：判到子請求用完，CPU 跟列數走）。
+// 期望：讀取量用完就停（stopBy bytes）；判到的班數不超過「每列至少折 256 位元組」時的上限。256 是本機實測（每列 300–400 位元組等價）的保守下緣，
+// 不讀實作的常數——折算被拿掉或調低到量不到列的成本，這一條就紅。
+await attempt('N1fe', async () => {
+  const R = Array.from({ length: 30 }, (_, i) => 'dev-n1fe-r' + String(i).padStart(3, '0'));
+  const ONE = Array.from({ length: 720 }, () => TINY[0]);
+  const BB = 2 * 1024 * 1024;
+  const w = world({ seed: boardSql('山線'), env: { BOUNTY_VERIFY_ORDER: 'fixed', BOUNTY_SUBREQ_BUDGET: '1000000', BOUNTY_WALL_BUDGET_MS: '3600000', BOUNTY_BYTES_BUDGET: String(BB) } });
+  bulk(w.db, R.map(a => ({ actor: a, trainNo: 'R1', pts: ONE, size: 1 })));
+  const loads = [];
+  spyRows(w.DELAY_DB, (sql, rs) => { if (LOAD_RE.test(sql)) loads.push(rs.length); });
+  const per = one(w, "SELECT MAX(b) b, MIN(b) b0, MAX(n) n FROM (SELECT SUM(length(payload)) b, COUNT(*) n FROM bounty_samples GROUP BY actor, train_no)");
+  const total = one(w, 'SELECT SUM(length(payload)) b FROM bounty_samples').b;
+  const st = await w.cron();
+  const cap = Math.ceil(BB / (per.b + per.n * 256));
+  ok('N1fe [第四輪 C(4)] 每班 720 列、每列 1 點：30 班的 payload 合計不到預算（只數位元組不會停），讀取量照樣用完就停（stopBy bytes）；' +
+    `判到的班數 ≤ 每列折 256 位元組時的上限；stat.rows＝讀進來的列數`,
+    per.n === 720 && total < BB && st.budgetStop === true && st.stopBy === 'bytes' && loads.length > 0 && loads.length <= cap && loads.length < 30 &&
+      st.rows === loads.reduce((a, n) => a + n, 0) && st.bytes <= per.b * loads.length,
+    J({ perTrain: per, total, budget: BB, trains: loads.length, cap, rows: st.rows, bytes: st.bytes, stopBy: st.stopBy }));
+});
+
+// ═══ N1g：份額的比例（第四輪獨立驗收 E 的缺口）════════════════════════════════════════════
+// N1a–N1c、N1f 只驗「份額用到就讓出、新身分判得到」，把份額從一半改成六成照樣全綠（突變 share_subreq_60／share_wall_60／share_bytes_60）；
+// N1ea 的期望次序又拿實作自己回報的 headDeferred 切（同源）。這裡三種預算各一個世界，讓出點照規格自己算：
+// 可信名額的第 i 班，只在「份額起點之後已用掉的量 < 份額起點剩下的預算 × 一半」時才先判。已用掉的量由測試端自己量——
+// 子請求：countCalls（測試端自己數，定義同 bountyCounted：DELAY_DB 的 first／run／all／raw、batch、exec，ASSETS 的 fetch）；
+// 牆鐘：測試端的假時鐘（清單那一句之前撥快 PRE、每讀一班撥快 STEP）；讀取量：SQL 量每班的 payload 與列數。
+// 世界：可信帳號 U 8 班（都是 head）＋3 個新身分各 1 班（一般、第 1 輪）；寫死次序。讓出之後同一輪一般班車先，所以「U 連續判了幾班才輪到別人」就是讓出點。
+const N1G_U = 'dev-n1s-trust01', N1G_A = ['dev-n1s-anon01', 'dev-n1s-anon02', 'dev-n1s-anon03'];
+// rows720：每班改成 720 列、每列 1 點（N1gd：份額也要把列數算進去）。
+function n1gWorld(env, rows720 = false) {
+  const w = world({ seed: boardSql('山線') + gradSql([N1G_U]),
+    env: { BOUNTY_VERIFY_ORDER: 'fixed', BOUNTY_SUBREQ_BUDGET: '1000000', BOUNTY_WALL_BUDGET_MS: '3600000', ...env } });
+  const shape = rows720 ? { pts: Array.from({ length: 720 }, () => TINY[0]), size: 1 } : { pts: leg({ sec: 700 }) };
+  bulk(w.db, [...Array.from({ length: 8 }, (_, k) => ({ actor: N1G_U, trainNo: 'U' + (k + 1), ...shape })),
+    ...N1G_A.map(a => ({ actor: a, trainNo: 'A1', ...shape }))]);
+  const loads = [];
+  spyRows(w.DELAY_DB, (sql, rs) => { if (LOAD_RE.test(sql) && rs.length) loads.push(String(rs[0].actor)); });
+  return { w, loads };
+}
+// 期望的讀取次序：U 先判 k 班 → 3 個新身分 → U 其餘；總共判 m 班（m 由各自的停手規則算）。
+const n1gExpect = (k, m) => [...Array(k).fill(N1G_U), ...N1G_A, ...Array(8 - k).fill(N1G_U)].slice(0, m);
+function countCalls(w) {
+  const log = { n: 0, loads: [] };
+  let inBatch = 0;                                           // batch 裡面每一句的 run() 不另外算（一次 batch＝一個子請求）
+  const op = w.DELAY_DB.prepare.bind(w.DELAY_DB), ob = w.DELAY_DB.batch.bind(w.DELAY_DB), af = w.env.ASSETS.fetch;
+  const wrapS = (st, sql) => new Proxy(st, { get(t, k) {
+    if (k === 'bind') return (...a) => wrapS(t.bind(...a), sql);
+    if (k === 'first' || k === 'run' || k === 'all' || k === 'raw') return (...a) => {
+      if (!inBatch) { if (LOAD_RE.test(sql)) log.loads.push(log.n); log.n++; }
+      return t[k](...a);
+    };
+    const v = t[k];
+    return typeof v === 'function' ? v.bind(t) : v;
+  } });
+  w.DELAY_DB.prepare = sql => wrapS(op(sql), sql);
+  w.DELAY_DB.batch = async stmts => { log.n++; inBatch++; try { return await ob(stmts); } finally { inBatch--; } };
+  w.env.ASSETS.fetch = (...a) => { log.n++; return af(...a); };
+  return log;
+}
+// 在符合的句子每一次執行前呼叫 fn（同步）：假時鐘撥快用。
+function beforeEach(DELAY_DB, re, fn) {
+  const op = DELAY_DB.prepare.bind(DELAY_DB);
+  DELAY_DB.prepare = sql => {
+    const st = op(sql);
+    if (!re.test(sql)) return st;
+    const wrapS = s => new Proxy(s, { get(t, k) {
+      if (k === 'bind') return (...a) => wrapS(t.bind(...a));
+      if (k === 'all' || k === 'first' || k === 'run') return async (...a) => { fn(); return t[k](...a); };
+      const v = t[k];
+      return typeof v === 'function' ? v.bind(t) : v;
+    } });
+    return wrapS(st);
+  };
+}
+await attempt('N1g', async () => {
+  // 子請求：先用不設限的預算量出份額起點 n0 與一班的量 c，再把預算設成 n0＋8c（份額＝4c：一半在第 4 班之後讓出，六成要到第 5 班之後）。
+  const cal = n1gWorld({});
+  const cc = countCalls(cal.w);
+  await cal.w.cron();
+  const B = cc.loads[0] + 8 * (cc.loads[1] - cc.loads[0]);
+  const a = n1gWorld({ BOUNTY_SUBREQ_BUDGET: String(B) });
+  const ac = countCalls(a.w);
+  const sta = await a.w.cron();
+  const n0 = ac.loads[0];
+  let k = 0;
+  while (k < ac.loads.length && ac.loads[k] - n0 < (B - n0) * 0.5) k++;
+  ok('N1ga [第四輪 E 缺口] 子請求份額恰是剩下的一半：U 連續判的班數＝測試端自己數的「份額起點之後已用 < (預算－起點)×0.5」的班數；之後 3 個新身分、再來 U 其餘；子請求停手',
+    cc.loads.length === 11 && k >= 2 && k < 8 && a.loads.length >= k + 3 && J(a.loads) === J(n1gExpect(k, a.loads.length)) && sta.stopBy === 'subreq',
+    J({ B, n0, c: cc.loads[1] - cc.loads[0], k, loads: a.loads.map(x => x === N1G_U ? 'U' : 'A'), stopBy: sta.stopBy }));
+  // 牆鐘：假時鐘。WALL 600 秒、每讀一班 100 秒；PRE＝清單之前已花掉的時間（份額是「剩下的一半」，不是「總量的一半」）。
+  const WALL = 600000, STEP = 100000;
+  for (const PRE of [0, 200000]) {
+    const x = n1gWorld({ BOUNTY_WALL_BUDGET_MS: String(WALL) });
+    const real = Date.now;
+    let fake = real.call(Date);
+    beforeEach(x.w.DELAY_DB, LIST_RE, () => { fake += PRE; });
+    beforeEach(x.w.DELAY_DB, LOAD_RE, () => { fake += STEP; });
+    Date.now = () => fake;
+    let stx;
+    try { stx = await x.w.cron(); } finally { Date.now = real; }
+    let kk = 0;
+    while (kk * STEP < (WALL - PRE) * 0.5) kk++;
+    let mm = 0;
+    while (PRE + mm * STEP < WALL) mm++;
+    ok(`N1gb${PRE ? 2 : 1} [第四輪 E 缺口] 牆鐘份額恰是剩下的一半（清單之前已花 ${PRE / 1000} 秒、每班 ${STEP / 1000} 秒、牆鐘 ${WALL / 1000} 秒）：U 先判 ${kk} 班、之後新身分；共 ${mm} 班、牆鐘停手`,
+      J(x.loads) === J(n1gExpect(kk, mm)) && stx.stopBy === 'wall',
+      J({ PRE, kk, mm, loads: x.loads.map(y => y === N1G_U ? 'U' : 'A'), stopBy: stx.stopBy }));
+  }
+  // 讀取量：每班一樣大（C＝payload＋列數×每列折算）；預算 5.5C（份額 2.75C：一半判 3 班讓出，六成要判 4 班）。
+  const y0 = n1gWorld({});
+  const K = _bounty.BOUNTY_BYTES_PER_ROW;
+  const per = one(y0.w, `SELECT MIN(c) lo, MAX(c) hi FROM (SELECT SUM(length(payload)) + COUNT(*) * ${K} c FROM bounty_samples GROUP BY actor, train_no)`);
+  const BB = Math.floor(5.5 * per.hi);
+  const y = n1gWorld({ BOUNTY_BYTES_BUDGET: String(BB) });
+  const sty = await y.w.cron();
+  let kb = 0;
+  while (kb * per.hi < BB * 0.5) kb++;
+  let mb = 0;
+  while (mb * per.hi < BB) mb++;
+  ok('N1gc [第四輪 E 缺口] 讀取量份額恰是剩下的一半：每班一樣大、預算 5.5 班，U 先判 3 班、之後新身分；共 6 班、讀取量停手',
+    per.lo === per.hi && kb === 3 && mb === 6 && J(y.loads) === J(n1gExpect(kb, mb)) && sty.stopBy === 'bytes',
+    J({ per, BB, kb, mb, loads: y.loads.map(z => z === N1G_U ? 'U' : 'A'), stopBy: sty.stopBy }));
+  // 同一個規則換成每班 720 列、每列 1 點：payload 只佔這一班讀取量的一成不到，份額若只看位元組，U 的 8 班會全部先判完。
+  const r0 = n1gWorld({}, true);
+  const pr = one(r0.w, `SELECT MIN(c) lo, MAX(c) hi, MAX(b) b FROM (SELECT SUM(length(payload)) + COUNT(*) * ${K} c, SUM(length(payload)) b FROM bounty_samples GROUP BY actor, train_no)`);
+  const BR = Math.floor(5.5 * pr.hi);
+  const r = n1gWorld({ BOUNTY_BYTES_BUDGET: String(BR) }, true);
+  const str = await r.w.cron();
+  ok('N1gd [第四輪 C(4)] 份額也把列數算進去：每班 720 列、每列 1 點（payload 不到讀取量的一成），預算 5.5 班——U 仍只先判 3 班、之後新身分；共 6 班、讀取量停手',
+    pr.lo === pr.hi && pr.b * 10 < pr.hi && J(r.loads) === J(n1gExpect(3, 6)) && str.stopBy === 'bytes',
+    J({ pr, BR, loads: r.loads.map(z => z === N1G_U ? 'U' : 'A'), stopBy: str.stopBy }));
+});
+
+// ═══ N1h：清單截斷時，出錯過（錯滿 2 次）的班車最先被截（第四輪獨立驗收 E 的缺口）════════════════════════
+// N1d 的世界裡沒有出錯過的班車，把「struck」挪到截斷的排序鍵後面（突變 trunc_struck_kept）照樣全綠。
+// 500 個畢業分身各 8 班（head 4000）＋5 個新身分＋5 班錯滿 2 次的一般班車：共 4010 班、截到 4000——
+// 期望：出錯過的 5 班一班都不在清單裡；head 3995、新身分 5。（出錯過的班車本來就排最後，截斷先截它們。）
+await attempt('N1h', async () => {
+  const SY = syb('n1h', 500), NEW = Array.from({ length: 5 }, (_, i) => 'dev-n1h-new0' + i), KS = Array.from({ length: 5 }, (_, i) => 'dev-n1h-bad0' + i);
+  const w = world({ seed: boardSql('山線') + gradSql(SY) +
+    KS.map(a => `INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(a, 'K1')}','{"at":1,"error":"x","n":2}','x');`).join(''),
+    env: { BOUNTY_VERIFY_ORDER: 'fixed', BOUNTY_SUBREQ_BUDGET: '60' } });
+  bulk(w.db, [...SY.flatMap(s => Array.from({ length: 8 }, (_, k) => ({ actor: s, trainNo: 'G' + (k + 1), pts: TINY }))),
+    ...NEW.map(a => ({ actor: a, trainNo: 'N1', pts: TINY })), ...KS.map(a => ({ actor: a, trainNo: 'K1', pts: TINY }))]);
+  const seen = [];
+  spyRows(w.DELAY_DB, (sql, rs) => { if (LIST_RE.test(sql)) seen.push(rs.map(r => ({ actor: String(r.actor), head: Number(r.head), struck: Number(r.struck) }))); });
+  const st = await w.cron();
+  const L = seen[0] || [];
+  ok('N1h [第四輪 E 缺口] 4010 班截到 4000：錯滿 2 次的 5 班一班都不在清單裡（最先被截）；head 3995、新身分 5 班全在',
+    st.truncated === true && L.length === 4000 && L.filter(r => KS.includes(r.actor)).length === 0 && L.filter(r => r.struck).length === 0 &&
+      L.filter(r => r.head).length === 3995 && NEW.every(a => L.some(r => r.actor === a)),
+    J({ truncated: st.truncated, list: L.length, struck: L.filter(r => KS.includes(r.actor)).length, head: L.filter(r => r.head).length,
+      newIn: NEW.filter(a => L.some(r => r.actor === a)).length }));
 });
 
 // ═══ M3：兌換的交易內餘額守衛（邊界）════════════════════════════════════════════
