@@ -13,14 +13,29 @@
 
 | 項目 | 規則 | 伺服器 |
 |---|---|---|
-| `actor` | `/^[A-Za-z0-9_-]{8,64}$/`。原生用匿名 installId（重裝後不變），登入後以 `/api/bounty-merge` 併進帳號 uid | `isActorId`、`resolveActor` |
+| `actor` | `/^[A-Za-z0-9_-]{8,64}$/`，且不可為字面 `ephemeral`（網頁存不下裝置 id 時的共用值）。原生用匿名 installId（重裝後不變），登入後以 `/api/bounty-merge` 併進帳號 uid | `isActorId`、`resolveActor` |
+| 登入身分 | 見下方「身分規則」。已登入時，錢包端點（`garage-redeem`、`cloud-ride`、`chips-me`）與 `bounty-merge` 帶 `Authorization: Bearer <Firebase idToken>`；**錄程送交與認領不要帶**（用不到，而且伺服器每收到一個 Bearer 就要向 Firebase 驗一次，每 60 秒一批會多一次外部呼叫）。Bearer 帶了但無效（過期、偽造）→ 401 `unauthorized`，更新 idToken 後重送 | `firebaseUid` |
 | `requestId` | `/^[A-Za-z0-9_-]{8,64}$/`（不可含 `.`）。**同一個動作重送時必須不變**（同一批樣本、同一次兌換、同一次雲端搭乘），伺服器靠它去重 | `BOUNTY_REQUEST_ID_RE` |
-| `client` | `{platform:'ios'\|'android', app:'<版號，≤32 字>', simulator:boolean}`。沒帶或 platform 不是這兩個 → 400 `app_only`。`simulator` 由 App 自己判斷（iOS `targetEnvironment(simulator)`、Android `Build.FINGERPRINT` 等），為真時資料照收、**不發籌碼** | `sanitizeClient` |
+| `client` | 只有 `bounty-submit` 與 `cloud-ride` 要帶（兌換、合併、查詢不讀）。`{platform:'ios'\|'android', app:'<版號，≤32 字>', simulator:boolean}`。沒帶或 platform 不是這兩個 → 400 `app_only`。`simulator` 由 App 自己判斷（iOS `targetEnvironment(simulator)`、Android `Build.FINGERPRINT` 等），為真時資料照收、**不發籌碼** | `sanitizeClient` |
 | 座標 | 整包 payload 任何一層出現 `lat`／`lon`／`lng`／`latitude`／`longitude`／`coord(s)`／`position`／`geo` 鍵 → 400 `coordinates_not_accepted`。上傳的是沿線里程，不是座標 | `hasGeoKeys` |
 | 限流 | 429 `rate_limited`；客戶端退避重試 | `rateLimited` |
-| 暫停 | 懸賞寫入總閘關著時，寫入端點回 503 `bounty_paused`；讀取端點照常 | `bountyWritesOff` |
+| 暫停 | 懸賞寫入總閘關著時，寫入端點回 503 `bounty_paused`；讀取端點照常。`bounty-merge` 不受總閘影響（登入後的合併不該因為暫停而失敗） | `bountyWritesOff` |
 | 快取 | 個人資料端點一律 `Cache-Control: no-store` | — |
 | 通行證 | 籌碼、價格、解鎖**完全不看通行證**。客戶端不要送任何通行證欄位，送了伺服器也不讀 | — |
+
+### 身分規則（誰能動誰的籌碼）
+
+帳號（uid）的籌碼只認帳號本人的 Bearer；uid 不是秘密，不能拿來當憑證。
+
+| `actor` 是… | 錢包端點：`garage-redeem`、`cloud-ride`、`chips-me?actor=` | 錄程與認領：`bounty-submit`、`bounty-claim` |
+|---|---|---|
+| 還沒併進帳號的 installId | 照收，記在這個 installId 名下 | 照收 |
+| 已經併進帳號的 installId | 沒帶 Bearer → 401 `auth_required`；Bearer 是別的帳號 → 403 `wrong_account`；本人 Bearer → 照收，記在帳號名下 | 不必帶 Bearer，照收，記在帳號名下 |
+| 帳號 uid 本身 | 同上（要本人 Bearer） | 要本人 Bearer（401 `auth_required`／403 `wrong_account`） |
+
+- 客戶端收到 401 `auth_required`：請使用者登入（或更新 idToken）後重送，`requestId` 不變。
+- 收到 403 `wrong_account`，或 `bounty-merge` 回 409 `merged_elsewhere`：這台裝置的 installId 已經屬於另一個帳號（同一台裝置換帳號登入）→ 產生新的 installId、呼叫一次 `bounty-merge`，之後都用新的。
+- 已登入時讀籌碼一律用 Bearer 讀 `chips-me`，不要用 `?actor=`。網頁登出狀態不讀籌碼（同一個瀏覽器的裝置 id 可能屬於前一位登入者）。
 
 ## 1. `POST /api/bounty-submit`：錄程樣本（每 60 秒一批）
 
@@ -41,7 +56,7 @@
 
 | 欄位 | 規則 | 錯誤碼 |
 |---|---|---|
-| `sys` | 系統 id：`tra_sched`（台鐵）、`thsr_sched`（高鐵）、`afr_sched`（阿里山林鐵）。**捷運與輕軌不收**（題庫沒有捷運線） | `bad_line` |
+| `sys` | 系統 id：`tra_sched`（台鐵）、`thsr_sched`（高鐵）、`afr_sched`（阿里山林鐵）。**捷運與輕軌不收**（題庫沒有捷運線）。**每一批只能一條線**：直通車跨線（例如屏東線→南迴線、臺東線→北迴線）時，換線就換一批送，`trainNo`、`tripDate` 不變 | `bad_line`（形狀不對）、`unknown_line`（捷運／輕軌等題庫沒有的系統或線） |
 | `lnId` | 線 id，`sys\|lnId` 必須是 `data/bounty_units.json` 的 `lines` 鍵之一。台鐵是中文線名（`南迴線`、`縱貫線北段`…）、高鐵只有 `THSR`、林鐵是 `AFR_MAIN` 等 | `bad_line`、`unknown_line` |
 | `trainNo` | `/^[0-9A-Za-z]{1,8}$/` | `bad_train` |
 | `tripDate` | 台北日期 `YYYY-MM-DD`，列車的**營運日**（發車那天）。只收「今天往前 7 天」到「明天」 | `bad_date` |
@@ -56,19 +71,23 @@
 回應：
 - 200 `{ok:true, id, verdict:'pending', accepted, dropped}`。同一個 `requestId` 重送回同一個 `id`，資料庫只有一列（已收過的重送，就算當天批次額度剛好滿也回 200）。
 - 400 `bad_json`／`bad_actor`／`app_only`／`bad_request_id`／`bad_line`／`bad_train`／`bad_date`／`bad_dir`／`bad_samples`／`coordinates_not_accepted`／`unknown_line`。
+- 401 `auth_required`／`unauthorized`、403 `wrong_account`：只會在 `actor` 本身是帳號 uid 時出現（見「身分規則」）；原生照契約送 installId 不會碰到。
 - 429 `rate_limited`、`daily_quota`（每人每營運日 720 批）；503 `bounty_paused`、`not_ready`（題庫讀不到，留在佇列重試）、`submit_failed`。
-- **4xx（429 除外）不要重試；429／503 與網路失敗留在裝置佇列，下次前景重傳，`requestId` 不變。**
+- **4xx（401、429 除外）不要重試；401 等登入後重送；429／503 與網路失敗留在裝置佇列，下次前景重傳，`requestId` 不變。**
 
 ### 判定與籌碼（伺服器隔天做，客戶端只讀結果）
-- 一趟＝同一個 `actor`＋`tripDate`＋`trainNo` 的所有批次。判定結果 `ok`／`unusable`／`suspect`（`bountyVerifyCron`）。
-- 每一趟 `ok` 且長度（`max(t)−min(t)`）≥ `chips.minTripSec` 秒，得 `chips.perTrip` 籌碼；這一趟任何一段落在 `chips.remoteLines`（南迴線、臺東線）就 ×`chips.remoteMultiplier`；期間活動 `chips.events` 相乘。
-- 每個 actor 每個營運日的錄程籌碼上限 `chips.dailyChipCap`（算的是加倍之後的籌碼），超過的不給。
-- 看板上有沒有這一段、這一段收滿了沒，都不影響籌碼（滿板照發）。`simulator:true` 的趟不發。
-- 每段收滿的門檻是「交過 ok 的不同 actor 人數」≥ `coverDistinct`（台鐵 50、高鐵 15）；同一人同一段交幾趟都只算一人。
+- 判定每天台北 03:30 跑一次（`bountyVerifyCron`），只判 `tripDate` 早於台北今天的趟：還在車上的趟不會被切成兩半判。所以籌碼最快在乘車隔天清晨入帳。每一發有查詢量預算，量大時判不完的留到隔天接著判（最舊的乘車日先判）；上傳當下已經擋過日期窗，之後判定延後幾天不會讓誠實的趟變成可疑。
+- 一趟＝同一個人（併過帳號就以帳號計）＋`tripDate`＋`trainNo` 的所有批次。每條線各自判出 `ok`／`unusable`／`suspect`；直通車跨兩條線仍算**一趟**。
+- 一趟得籌碼的條件：至少一條線 `ok`、**沒有任何一條線 `suspect`**、長度（整班車所有批次 `max(t)−min(t)`）≥ `chips.minTripSec` 秒 → 得 `chips.perTrip`；`ok` 的那幾條線任何一段落在 `chips.remoteLines`（南迴線、臺東線）就 ×`chips.remoteMultiplier`；期間活動 `chips.events` 相乘。整班車只發一次。
+- 後半段隔天才傳上來（車上沒訊號、隔天才開 App）也沒關係：後一次判定會把同一班車之前判過的批次一起算長度，整班車合起來夠長就補發；之前已經發過就不再發。
+- 每個人每個營運日的錄程籌碼上限 `chips.dailyChipCap`（算的是加倍之後的籌碼），超過的不給。登入合併前後同一班車不會發兩次；合併之前各裝置同一天已領的不回溯。
+- 看板上有沒有這一段、這一段收滿了沒，都不影響籌碼（滿板照發）。
+- `simulator:true`：這一班車（任何一批自報模擬器）只留判定結果——不發籌碼、不算收滿人數、不動看板、不給舊點數。
+- 每段收滿的門檻是「交過 ok 的不同人數」≥ `coverDistinct`（台鐵 50、高鐵 15）；同一人同一段交幾趟都只算一人。
 
 ## 2. `GET /api/chips-me`：籌碼與解鎖現況
 
-身分：`?actor=<installId>`，或 `Authorization: Bearer <Firebase idToken>`（已登入）。
+身分：已登入用 `Authorization: Bearer <Firebase idToken>`（讀帳號本人的帳，不看 `?actor=`）；未登入用 `?actor=<installId>`。已經併進帳號的 installId 用 `?actor=` 讀 → 401 `auth_required`（見「身分規則」）。
 
 ```json
 {
@@ -83,7 +102,8 @@
 - `balance`：帳本加總（錄程、雲端搭乘、兌換扣除、合併退款）。
 - `unlocked`：依 `nth`（第幾座）排序；`at` 是 epoch 毫秒。
 - `nextCost`：下一座的價格（`priceOfNth`：第 1 座與之後每座的價格見 `chips.prices`，最後一格沿用）。全部場景都解鎖之後它仍回最後一格的價格；判斷「全解鎖」請比 `unlocked.length` 與 `chips.scenes.length`。
-- `today`：台北今天已得的錄程籌碼與每日上限。
+- `today`：`chips` 是乘車日＝台北今天、而且判定已經入帳的錄程籌碼；判定隔天清晨才跑，所以白天幾乎都是 0。**不要拿它算「今天還能賺幾顆」**，要顯示今日進度請客戶端自己數當天已完成的合格趟。`cap` 是每日上限。
+- 錯誤：400 `bad_actor`；401 `unauthorized`（Bearer 無效）／`auth_required`（`?actor=` 是帳號或已併進帳號的 installId）；429 `rate_limited`（兩條路徑都有限流）；503 `not_ready`。帶 Bearer 時一律讀那個帳號本人的帳，所以這支端點不會回 403。
 - 車庫判斷只看 `unlocked[].scene`；原生殼開嵌入的網頁場景時，把 scene 陣列注入 `window.RAIL_NATIVE_UNLOCKED_SCENES`。
 
 ## 3. `POST /api/garage-redeem`：用籌碼解鎖一座場景
@@ -93,9 +113,10 @@
 ```
 
 - `scene` 必須在 `chips.scenes`，否則 400 `unknown_scene`。`requestId` 必填。
-- 200 `{ok:true, scene, nth, cost, balance, unlocked}`（`unlocked` 形狀同 `chips-me`）。同一個 `requestId` 重送不重扣，回的 `scene`／`nth`／`cost` 與第一次相同，`balance`／`unlocked` 是重送當下的現況。
+- 已登入時帶 Bearer；已經併進帳號的 installId 或帳號 uid 不帶 Bearer → 401 `auth_required`、別人的 Bearer → 403 `wrong_account`（見「身分規則」）。網頁一律登入後才兌換，`actor` 送 `user.uid`。
+- 200 `{ok:true, scene, nth, cost, balance, unlocked}`（`unlocked` 形狀同 `chips-me`）。同一個 `requestId` 重送不重扣，回的 `scene`／`cost` 與第一次相同；`nth` 是這一座**現在**的第幾座（登入合併後會依解鎖時間重排，可能與第一次不同）；`balance`／`unlocked` 是重送當下的現況。
 - 同一個 `requestId` 拿去兌換別的場景 → 409 `conflict`（客戶端 bug；每次兌換都要產生新的 `requestId`）。
-- 其他：400 `bad_actor`／`bad_request_id`／`bad_json`／`coordinates_not_accepted`；405 `method`（只收 POST）；503 `bounty_paused`／`not_ready`／`redeem_failed`。
+- 其他：400 `bad_actor`／`bad_request_id`／`bad_json`／`coordinates_not_accepted`；401 `unauthorized`；405 `method`（只收 POST）；503 `bounty_paused`／`not_ready`／`redeem_failed`。
 - 409 `already`（已解鎖，不扣）、409 `not_enough`（附 `cost`、`balance`）、409 `conflict`（同時有別的兌換搶先，重讀 `chips-me` 後讓使用者再按一次）。
 - 解鎖永久；與通行證無關。
 
@@ -135,15 +156,18 @@ v2 新增的卡片欄位（舊欄位 `samples`、`coverN` 保留給舊客端）�
 - 捷運：只驗格式與台北時間 05:00–次日 01:30。伺服器本來就驗不到「前景連續 10 分鐘」，這是已知的信任邊界；每天只算一次讓它最多值 1/3 籌碼。
 
 回應：
-- 200 `{ok:true, day, rides, toNextChip, chipAwarded}`：`rides` 是算進換籌碼的累計次數（不含模擬器），`toNextChip` 是再幾次換下一顆（1–3），`chipAwarded` 是這一次有沒有讓籌碼 +1。同一個 `requestId` 重送回同形狀的 200、不重記。
-- 400 `bad_json`／`bad_actor`／`coordinates_not_accepted`／`app_only`／`bad_request_id`／`bad_day`／`bad_time`／`bad_sec`／`too_short`／`unknown_train`；405 `method`；409 `already_today`（這個營運日已經記過一次，模擬器的也佔格）、409 `conflict`（同一個 `requestId` 拿去送別天）；429 `rate_limited`；503 `bounty_paused`／`not_ready`（班表或規則讀不到）／`cloud_ride_failed`。
+- 已登入時帶 Bearer；已經併進帳號的 installId 或帳號 uid 不帶 Bearer → 401 `auth_required`、別人的 Bearer → 403 `wrong_account`（見「身分規則」）。
+- 200 `{ok:true, day, rides, toNextChip, chipAwarded}`：`rides` 是算進換籌碼的累計次數（不含模擬器），`toNextChip` 是再幾次換下一顆（1–3），`chipAwarded` 是這一次有沒有讓籌碼 +1。同一個 `requestId` 重送回同形狀的 200、不重記——**隔了幾天才重送也一樣**（伺服器先查重送、再查日期窗）。例外：那一筆在登入合併時因為帳號同一天已有一筆而被丟掉，重送就照一般流程判，通常回 409 `already_today`。
+- 400 `bad_json`／`bad_actor`／`coordinates_not_accepted`／`app_only`／`bad_request_id`／`bad_day`／`bad_time`／`bad_sec`／`too_short`／`unknown_train`；401 `unauthorized`；405 `method`；409 `already_today`（這個營運日已經記過一次，模擬器的也佔格）、409 `conflict`（同一個 `requestId` 拿去送別天）；429 `rate_limited`；503 `bounty_paused`／`not_ready`（班表或規則讀不到）／`cloud_ride_failed`。
 - `simulator:true`：照記、佔當天那格，但不計次、不發籌碼。
 - 換籌碼：累計次數每滿 `chips.cloud.perChip` 次得 1 顆，進同一個籌碼池。
 
 ## 5. `POST /api/bounty-merge`：匿名 installId 併進登入帳號
 
 - Header `Authorization: Bearer <Firebase idToken>`；body `{actor:<installId>}`（只有這一個欄位）。登入成功後呼叫一次；伺服器冪等，重呼叫不會重搬。
-- 200 `{ok:true, uid, points, merged}`：`merged` 是這次有沒有真的併了東西（重跑為 `false`）。installId 等於 uid 本人時直接回 `merged:false`。錯誤：400 `bad_json`／`bad_actor`、401 `unauthorized`、429 `rate_limited`、503 `merge_failed`。
-- 併過之後，用舊 installId 呼叫的所有端點都會轉到 uid 的帳（`resolveActor`）。
+- 200 `{ok:true, uid, points, merged}`：`merged` 是這次呼叫有沒有把這個 installId 新連到帳號（第一次 `true`，重跑 `false`；installId 從沒用過懸賞也算新連上，之後它送的東西都歸帳號）。installId 等於 uid 本人時直接回 `merged:false`（這時 `points` 固定回 0，不讀帳；要看餘額請讀 `chips-me`）。
+- 錯誤：400 `bad_json`／`bad_actor`；400 `not_a_device`（`actor` 是某個帳號的 uid，不是裝置——帳號不能被併走）；401 `unauthorized`；409 `merged_elsewhere`（這個 installId 已經併進別的帳號：同一台裝置換帳號登入 → 產生新的 installId 再呼叫一次）；429 `rate_limited`；503 `merge_failed`。不受懸賞寫入總閘影響。
+- 併過之後：錄程送交與認領用舊 installId 照收、記到帳號；錢包端點（兌換、雲端搭乘、`chips-me?actor=`）要帶帳號本人的 Bearer（見「身分規則」）。
 - 伺服器在同一筆交易裡搬：籌碼帳本、車庫解鎖、雲端搭乘、每段貢獻、舊點數與樣本。兩邊都解鎖同一座 → 保留較早那筆，較晚那筆的籌碼退回（帳本 `kind:'merge'`），第幾座依解鎖時間重排；同一天兩邊都有雲端搭乘 → 只留一筆；每日錄程籌碼上限不回溯。
-- 刪帳號（`/api/account-delete`）時，這個 uid 與併進來的 installId 在上述各表的資料一併刪除；路段的收滿人數是匿名彙總，不回扣。
+- 兩台裝置各自解鎖不同場景、各付了「第 1 座」的價，合併後不補差價（cost 保留當時實際付的價，只重排第幾座）。
+- 刪帳號（`/api/account-delete`）時，這個 uid 與**已經併進它**的 installId 在上述各表的資料一併刪除；請求裡帶的 installId 若沒有併進這個帳號，它的籌碼與解鎖不會被刪。路段的收滿人數是匿名彙總，不回扣。
