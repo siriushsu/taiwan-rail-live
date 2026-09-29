@@ -235,11 +235,20 @@ await attempt('A4', async () => {
   ok('A4a [F1] 估值壞掉（上架那句 INSERT 丟例外）不擋驗證：估值失敗有記 log、scheduled 不丟例外、樣本照判、帳本 +1',
     r1.threw === null && r1.errs.some(e => e.includes('[cron bounty 估值] 失敗')) && q.verdicts(w1.db, 'cron-a', '101') === 'ok' && q.chips(w1.db, 'cron-a') === 1,
     J({ threw: r1.threw, errs: r1.errs.map(e => e.slice(0, 40)), v: q.verdicts(w1.db, 'cron-a', '101') }));
-  const w2 = aWorld(); failOnPrepare(w2.DELAY_DB, /^SELECT \* FROM bounty_samples/);
+  // 驗證整支壞掉：review-B 之後判定分兩段，第一段「班車清單」那句壞掉＝整支失敗、往外丟（第二段一班一班判的錯誤會在裡面接住，見 A4c）
+  const w2 = aWorld(); failOnPrepare(w2.DELAY_DB, /^WITH t AS \(/);
   const r2 = await fire(w2, '30 19 * * *');
   ok('A4b [F1] 驗證壞掉不擋估值：驗證失敗有記 log、scheduled 不丟例外、估值照跑（板上 3 列）',
     r2.threw === null && r2.errs.some(e => e.includes('[cron bounty 驗證] 失敗')) && nBoard(w2.db) === 3,
     J({ threw: r2.threw, errs: r2.errs.map(e => e.slice(0, 40)), board: nBoard(w2.db) }));
+  // 一班車判到一半出錯（review-B R3：讀那班車的批次那句丟例外）：判定接住、停手、印 error 等級的那一行（含錯誤訊息），樣本留 pending 給下一發
+  const w3 = aWorld(); failOnPrepare(w3.DELAY_DB, /^SELECT \* FROM bounty_samples WHERE actor=\?/);
+  const r3 = await fire(w3, '30 19 * * *');
+  const line3 = r3.errs.find(e => e.includes('[cron bounty 驗證]')) || '';
+  ok('A4c [R3] 一班車途中出錯：scheduled 不丟例外、估值照跑（板上 3 列）；驗證那行以 error 等級印出「判定途中出錯而停手」與錯誤訊息（injected）；樣本仍 pending、沒有帳本',
+    r3.threw === null && nBoard(w3.db) === 3 && line3.includes('判定途中出錯而停手') && line3.includes('injected') && !line3.includes('失敗:') &&
+      q.verdicts(w3.db, 'cron-a', '101') === 'pending' && q.chips(w3.db, 'cron-a') === 0,
+    J({ threw: r3.threw, line3: line3.slice(0, 160), v: q.verdicts(w3.db, 'cron-a', '101') }));
 });
 
 // ═══ B 組：只判「乘車日早於台北今天」的樣本（F24）══════════════════════════════
@@ -380,16 +389,18 @@ await attempt('C6', async () => {
     J({ p: q.verdictsLn(w.db, 'c6', 'K1', '屏東線'), n: q.verdictsLn(w.db, 'c6', 'K1', '南迴線'), ledger: q.tripRows(w.db), st }));
 });
 await attempt('C7', async () => {
-  // 截斷（單次最多 4000 列 pending）必須切在「整班車」的邊界：3998 班單批的填充車＋最後一班三批的 ZZ 車，共 4001 列。
-  // 第 3999、4000 列是 ZZ 車的前兩批——若從中間切開，這兩批會被當成半班車判掉（約 500 秒 <600 → 0 顆），第三批隔天單獨判又是 0 顆。
+  // 截斷切在「整班車」的邊界。review-B 之後單發上限是 4000 班（班車清單的列數，不是樣本列數），一班車的批次是第二段一次讀齊的，
+  // 所以一班車不可能被切成兩半；這裡驗「超過上限的那一班整班留到下一發、下一發整班一起判」。
+  // 4000 班單批的填充車（f0001…f4000）＋一班三批的 ZZ 車，共 4001 班、4003 列。同一個 actor 的班車依（乘車日、actor、車次）排隊
+  // （同一個人的第幾班；隨機只用來打散不同人的同一輪），所以 zz01 一定是第 4001 班、被截掉。
   const w = world();
-  // 3998 班填充車在預設子請求預算（8000）下一發做不完（每班至少 5 個子請求，停在預算是 S13b 的新行為）；這一條驗的是「截斷切在班車邊界」，
+  // 4000 班填充車在預設子請求預算（8000）下一發做不完（停在預算是 S13b 的行為）；這一條驗的是截斷，
   // 所以把預算調到用不完，讓停手的原因只剩截斷（預算停手另有 verify_bounty_cron2.mjs 的 M 組專驗）。
   w.env.BOUNTY_SUBREQ_BUDGET = '1000000';
   w.db.exec('BEGIN');
   const ins = w.db.prepare("INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict,client)" +
     " VALUES (?,'trunc-a','tra_sched','山線',?,0,?,?,NULL,?,'pending',?)");
-  for (let i = 1; i <= 3998; i++) ins.run(`fill-${i}`, 'f' + String(i).padStart(4, '0'), D28, '[]', NOW_MS - 3600e3, J(APP));
+  for (let i = 1; i <= 4000; i++) ins.run(`fill-${i}`, 'f' + String(i).padStart(4, '0'), D28, '[]', NOW_MS - 3600e3, J(APP));
   w.db.exec('COMMIT');
   const zz = leg({ sec: 750, speed: 10 });                               // 751 點，切 3 批（251／251／249）＝ZZ 車
   putBatches(w.db, { actor: 'trunc-a', trainNo: 'zz01', lnId: '山線', pts: zz, size: 251 });
@@ -397,9 +408,9 @@ await attempt('C7', async () => {
   const s1 = await w.cron();
   const zzPending = w.db.prepare("SELECT COUNT(*) c FROM bounty_samples WHERE train_no='zz01' AND verdict='pending'").get().c;
   const filled = w.db.prepare("SELECT COUNT(*) c FROM bounty_samples WHERE train_no LIKE 'f%' AND verdict!='pending'").get().c;
-  ok('C7a [F4 截斷] 4001 列 pending：這一發截斷（truncated）、3998 班填充車判掉，ZZ 車三批一批都沒動（不是切成 2＋1）',
-    total === 4001 && s1.truncated === true && filled === 3998 && zzPending === 3 && q.chips(w.db, 'trunc-a') === 0,
-    J({ total, truncated: s1.truncated, filled, zzPending, chips: q.chips(w.db, 'trunc-a') }));
+  ok('C7a [F4 截斷] 4001 班（4003 列）pending：這一發截斷（truncated）、4000 班填充車判掉（trains 4000），ZZ 車三批一批都沒動',
+    total === 4003 && s1.truncated === true && s1.trains === 4000 && filled === 4000 && zzPending === 3 && q.chips(w.db, 'trunc-a') === 0,
+    J({ total, truncated: s1.truncated, trains: s1.trains, filled, zzPending, chips: q.chips(w.db, 'trunc-a') }));
   const s2 = await w.cron();
   ok('C7b [F4 截斷] 下一發只剩 ZZ 車：三批併成一趟一起判＝750 秒 ≥ 600 → 1 顆（ref＝trunc-a|乘車日|zz01）、不再截斷',
     q.verdicts(w.db, 'trunc-a', 'zz01') === 'ok' && s2.truncated === false && s2.trips === 1 &&
@@ -445,13 +456,15 @@ await attempt('C8', async () => {
     if (crash && stmts.some(s => /^UPDATE bounty_samples SET verdict/.test(s._sql))) throw new Error('injected: crash before marking');
     return origBatch(stmts);
   };
-  let threw = '';
-  try { await w2.cron(); } catch (e) { threw = String(e.message || e); }
+  // review-B R3 之後一班車的錯誤在判定裡接住（不再整發丟例外）：stat.stopBy＝'error'、stat.error 帶錯誤訊息
+  let threw = '', st1 = null;
+  try { st1 = await w2.cron(); } catch (e) { threw = String(e.message || e); }
   const mid = { pending: q.nPending(w2.db), ledger: q.tripRows(w2.db).length, contrib: q.nContrib(w2.db, 'c8x'), d: q.board(w2.db, KT('屏東線', 'S0|S1'))[0].distinct_ok_users };
   crash = false;
   const st3 = await w2.cron(NOW_MS + 3600e3);
-  ok('C8b [F4 冪等] 標記前壞掉：cron 丟例外、樣本全留 pending，但籌碼 1 列與貢獻 14 段已寫（在標記之前）',
-    /injected/.test(threw) && mid.pending === 8 && mid.ledger === 1 && mid.contrib === 14 && mid.d === 1, J({ threw, mid }));
+  ok('C8b [F4 冪等] 標記那個 batch 壞掉：cron 接住、停手（stopBy error、錯誤訊息 injected）、樣本全留 pending，但籌碼 1 列與貢獻 14 段已寫（在標記之前）',
+    threw === '' && st1 && st1.stopBy === 'error' && /injected/.test(st1.error) && mid.pending === 8 && mid.ledger === 1 && mid.contrib === 14 && mid.d === 1,
+    J({ threw, stopBy: st1 && st1.stopBy, error: st1 && st1.error, mid }));
   ok('C8c [F4 冪等] 補好之後下一發整班重跑：樣本全判成 ok、帳本仍只有 1 列（delta 2）、貢獻仍 14 段、每段人數仍 1（沒有重複入帳、重複 +1）；這次入帳 0',
     q.nPending(w2.db) === 0 && q.verdicts(w2.db, 'c8x', 'F2') === 'ok' && J(q.tripRows(w2.db).map(r => r.delta)) === '[2]' &&
       q.nContrib(w2.db, 'c8x') === 14 && q.board(w2.db, KT('屏東線', 'S0|S1'))[0].distinct_ok_users === 1 &&

@@ -16247,7 +16247,11 @@ function bountyMergeOnLogin(user) {
         headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
         body: JSON.stringify({ actor: dev }),
       });
-      if (r.ok) { try { localStorage.setItem(flagKey, dev); } catch (e) {} }
+      if (r.ok) {
+        try { localStorage.setItem(flagKey, dev); } catch (e) {}
+        // 併完才重讀：登入當下那一次讀取（onAuthStateChanged）可能早於合併完成，看到的是還沒併進來的帳
+        fetchBountyMe().then(() => { renderPassport(); renderRidePanel(); });
+      }
     } catch (e) {
     } finally { if (bountyMergeOnLogin._busy === flagKey) bountyMergeOnLogin._busy = ''; }
   })();
@@ -16378,6 +16382,8 @@ function accountEnsureInit() {
           try { localStorage.setItem(ACCOUNT_UID_KEY, user.uid); localStorage.setItem(ACCOUNT_LAST_UID_KEY, user.uid); } catch (e) {}
           // 路段懸賞 v2:登入後通知伺服器把這台裝置的匿名帳併進來(fire-and-forget,不 await——它的失敗與快慢都不該碰到登入流程)
           try { bountyMergeOnLogin(user); } catch (e) {}
+          // 登入後改用帳號（Bearer）重讀懸賞彙總：開機那一次是以匿名裝置讀的（登入還沒就緒），而併過的裝置用 ?actor= 讀會是 401（見 fetchBountyMe）
+          if (BOUNTY_ENABLED) fetchBountyMe().then(() => { renderPassport(); renderRidePanel(); });
           await plusRefresh(); // 先確認資格再決定要不要同步;plusRefresh 自帶 !plusConfigured() 早退,不會在無購買通道的平台亂初始化 SDK
           await accountSyncNow('login');
           const pending = state.plusPending;
@@ -23341,10 +23347,18 @@ let bountyMeMem = null;
 // buildCorrectSection() 對 !me 有專門的空狀態分支,呼叫端可以放心 .then() 接著重繪,
 // 不會因為這支函式失敗而把 renderPassport() 一起打斷(比照 bountySaveUploadQueue() 的反面教材:
 // 那支吞例外吞到呼叫端連「存失敗了」都不知道;這支吞例外但留下明確、可預期的降級狀態)。
+// 🔴 登入時一律帶 Bearer、不用 ?actor=（review-B B4）：伺服器對「帳號」與「併進帳號的裝置」的 ?actor= 讀取回 401——
+// 裝置 token 不是憑證，拿到它的人不該看得到帳號的點數與認領。未登入才用這台裝置的 ?actor=（從沒併過的匿名裝置照舊讀得到）。
+// 401 就清掉手上那份：那是「你現在看不到這個帳」，留著舊值會在登出後繼續顯示帳號的資料。取 token 手法同 accountDeleteServerData。
 async function fetchBountyMe() {
   try {
-    const r = await fetch(apiUrl('api/bounty-me?actor=' + encodeURIComponent(bountyActor())), { cache: 'no-store' });
+    const a = state.account, user = a && a.user;
+    const token = user ? (a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken()) : null;
+    const r = token
+      ? await fetch(apiUrl('api/bounty-me'), { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } })
+      : await fetch(apiUrl('api/bounty-me?actor=' + encodeURIComponent(bountyActor())), { cache: 'no-store' });
     if (r.ok) bountyMeMem = await r.json();
+    else if (r.status === 401) bountyMeMem = null;
   } catch (e) {}
   return bountyMeMem;
 }

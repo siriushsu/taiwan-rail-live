@@ -272,16 +272,40 @@ ok('H4 防偽不過時不看品質閘的結論（順序固定：先防偽後品�
     b3.coverN.TRA === 777, JSON.stringify(b3.coverN));
 }
 
-// ── L 組：驗證 cron 的單次處理上限（2026-07-29 稽核：SELECT * 沒有 LIMIT）────────────
-// 寫入端點是免登入的，所以「有多少 pending」是外部可控的數字。上限本身好加，難的是**切在哪裡**：
-// 從中間切開會讓那一趟被當成半趟送進品質閘 → 判 too_short。那是把資料判錯，不是延後一天。
-// 判準因此不是「有沒有截斷」，而是「有沒有任何一趟被切成一半」——這條在沒有邊界處理時必紅。
+// ── L 組：驗證 cron 的單次處理上限（2026-07-29 稽核：SELECT * 沒有 LIMIT；review-B R2 改成「一次只讀一班車」）────────────
+// 寫入端點是免登入的，所以「有多少 pending」是外部可控的數字。review-B 之前的上限是一句 SELECT * 讀 4,001 列（連 payload）：
+// 上限有了、切在班車邊界也做了，但一句讀進來的 payload 最多近 100 MB（每批 600 點），一個 Workers isolate 只有 128 MB。
+// 現在判定分兩段：第一段只列班車清單（不讀 payload），第二段一班一班讀。判準因此改成：
+//   L1 任何一句查詢帶回來的 payload 最多屬於一班車（記憶體上限是「一班」而不是「整發」）；
+//   L3 沒有任何一班車被切成一半；L4 這個量（1000 班）一發判完；
+//   L2 班車清單的上限（4000 班）：超過的整班留到下一發、stat.truncated 誠實回報，下一發補完。
 {
   const M = { generatedAt: 1, schedDate: '2026-07-28', lines: { 'tra_sched|南迴線': LINE }, units: [] };
   const ASSETS = { fetch: async r => new Response(String(r.url).includes('bounty_units')
     ? JSON.stringify(M) : readFileSync('data/bounty_rules.json', 'utf8'), { status: 200 }) };
-  // 4001 列 > BOUNTY_VERIFY_MAX_ROWS(4000)，分成 1000 趟、每趟 4 批，最後一趟只給 1 批，
-  // 讓「上限」正好落在某一趟的中間（4000 = 999 趟×4 + 第 1000 趟的第 1 批）。
+  // 探針：包住 DELAY_DB，記下每一句查詢帶回的列裡「有 payload 欄、而且不是空陣列」的那些列屬於幾班車（actor＋乘車日＋車次）、共幾列。
+  // 刻意不看 SQL 文字：不管 payload 從哪一句來，只要一句帶回兩班車的 payload，就是「一次讀多班」。
+  const probe = DB => {
+    const t = { maxTrains: 0, maxRows: 0, sawPayload: 0 };
+    const look = rows => {
+      const withP = (rows || []).filter(r => r && typeof r.payload === 'string' && r.payload.length > 2);
+      if (!withP.length) return;
+      t.sawPayload += withP.length;
+      t.maxRows = Math.max(t.maxRows, withP.length);
+      t.maxTrains = Math.max(t.maxTrains, new Set(withP.map(r => `${r.actor}|${r.trip_date}|${r.train_no}`)).size);
+    };
+    const wrapS = st => new Proxy(st, { get(o, k) {
+      if (k === 'bind') return (...a) => wrapS(o.bind(...a));
+      if (k === 'all') return async (...a) => { const r = await o.all(...a); look(r && r.results); return r; };
+      if (k === 'first') return async (...a) => { const r = await o.first(...a); look(r ? [r] : []); return r; };
+      const v = o[k]; return typeof v === 'function' ? v.bind(o) : v;
+    } });
+    return { t, db: new Proxy(DB, { get(o, k) {
+      if (k === 'prepare') return sql => wrapS(o.prepare(sql));
+      const v = o[k]; return typeof v === 'function' ? v.bind(o) : v;
+    } }) };
+  };
+  // 資料 A：1000 班、每班 4 批（最後一班 5 批）＝4001 列，每批都是完整的 601 點（review-B R2 的量級：舊版一句全讀進來）。
   const pts = JSON.stringify(cleanTrip().pts);
   const vals = [];
   for (let t = 0; t < 1000; t++) {
@@ -293,26 +317,39 @@ ok('H4 防偽不過時不看品質閘的結論（順序固定：先防偽後品�
   const { db, DELAY_DB } = openTestDb(
     `INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict) VALUES ${vals.join(',')};`);
   _bounty.bountyResetMemCaches();
-  // 預算調到用不完：1000 班 ok 趟在預設子請求預算（8000）下一發做不完，會早於截斷就停手；這一組驗的是「截斷切在班車邊界」，
-  // 停手的原因要只剩截斷（預算停手另有 verify_bounty_cron2.mjs 的 M 組專驗）。
-  const stat = await bountyVerifyCron({ DELAY_DB, ASSETS, BOUNTY_NOW: String(Date.parse('2026-07-29T02:00:00Z')), BOUNTY_SUBREQ_BUDGET: '1000000' });
+  // 預算調到用不完：1000 班 ok 趟在預設子請求預算（8000）下一發做不完，會早於「全部判完」就停手；這一組驗的是讀取的形狀與截斷，
+  // 停手的原因要只剩這兩件事（預算停手另有 verify_bounty_cron2.mjs 的 M 組專驗）。
+  const P = probe(DELAY_DB);
+  const stat = await bountyVerifyCron({ DELAY_DB: P.db, ASSETS, BOUNTY_NOW: String(Date.parse('2026-07-29T02:00:00Z')), BOUNTY_SUBREQ_BUDGET: '1000000' });
   const total = db.prepare('SELECT COUNT(*) c FROM bounty_samples').get().c;
   const done = db.prepare("SELECT COUNT(*) c FROM bounty_samples WHERE verdict<>'pending'").get().c;
-  // 核心判準：逐趟檢查「全判完」或「全還沒判」，不存在中間狀態
+  // 逐班檢查「全判完」或「全還沒判」，不存在中間狀態
   const split = db.prepare(
     "SELECT actor, SUM(CASE WHEN verdict='pending' THEN 1 ELSE 0 END) p, COUNT(*) n" +
     ' FROM bounty_samples GROUP BY actor, trip_date, train_no HAVING p > 0 AND p < n').all();
-  ok('L1 單次 cron 不會把所有 pending 一次讀進來（有上限，最壞情況是常數不是外部可控）',
-    done > 0 && done < total, `${done}/${total} 已判定`);
-  ok('L2 stat 誠實回報這次被截斷了（沒有這面旗，運維只會看到「今天判得比較少」）',
-    stat.truncated === true, JSON.stringify({ truncated: stat.truncated, trips: stat.trips }));
-  ok('L3 沒有任何一趟被切成一半（截斷切在趟的邊界上，不是切在列中間）',
+  // 探針本身要看得到 payload（不然「最多一班」是空對空）：4001 列全部被讀過一次
+  ok('L1 任何一句查詢帶回來的 payload 最多屬於一班車、最多 5 列（記憶體上限是一班，不是整發；舊版一句帶回 1000 班 4001 列）',
+    P.t.sawPayload === total && P.t.maxTrains === 1 && P.t.maxRows <= 5, JSON.stringify(P.t));
+  ok('L3 沒有任何一班車被切成一半（一班車的批次在第二段一次讀齊）',
     split.length === 0, split.length ? JSON.stringify(split.slice(0, 3)) : '零趟處於半判定狀態');
-  // 反向對照：剩下的下一次跑得完，不是永久卡住
-  const stat2 = await bountyVerifyCron({ DELAY_DB, ASSETS, BOUNTY_NOW: String(Date.parse('2026-07-30T02:00:00Z')) });
-  const left = db.prepare("SELECT COUNT(*) c FROM bounty_samples WHERE verdict='pending'").get().c;
-  ok('L4 沒判到的下一發補完（截斷是延後，不是遺失）',
-    left === 0 && stat2.truncated === false, JSON.stringify({ left, truncated2: stat2.truncated }));
+  ok('L4 1000 班（4001 列）一發判完：trains 1000、全部已判定、沒有截斷（上限是 4000 班，不是 4000 列）',
+    stat.trains === 1000 && done === total && total === 4001 && stat.truncated === false, JSON.stringify({ trains: stat.trains, done, total, truncated: stat.truncated }));
+  // 資料 B：4001 班、每班一批極小的 payload（兩點）：超過班車清單上限（4000 班）一班
+  const tiny = JSON.stringify(cleanTrip().pts.slice(0, 2));
+  const valsB = [];
+  for (let t = 0; t < 4001; t++) valsB.push(`('b${t}','dev-b${String(t).padStart(4, '0')}','tra_sched','南迴線','312',0,'2026-07-28','${tiny}',NULL,${Date.parse('2026-07-29T01:00:00Z')},'pending')`);
+  const B = openTestDb(`INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict) VALUES ${valsB.join(',')};`);
+  _bounty.bountyResetMemCaches();
+  const sB = await bountyVerifyCron({ DELAY_DB: B.DELAY_DB, ASSETS, BOUNTY_NOW: String(Date.parse('2026-07-29T02:00:00Z')), BOUNTY_SUBREQ_BUDGET: '1000000' });
+  const leftB = B.db.prepare("SELECT COUNT(*) c FROM bounty_samples WHERE verdict='pending'").get().c;
+  ok('L2 4001 班超過班車清單上限（4000）：stat 誠實回報截斷（沒有這面旗，運維只會看到「今天判得比較少」）、判了 4000 班、剩 1 班 pending',
+    sB.truncated === true && sB.trains === 4000 && leftB === 1, JSON.stringify({ truncated: sB.truncated, trains: sB.trains, leftB }));
+  // 反向對照：剩下的下一發跑得完，不是永久卡住
+  _bounty.bountyResetMemCaches();
+  const sB2 = await bountyVerifyCron({ DELAY_DB: B.DELAY_DB, ASSETS, BOUNTY_NOW: String(Date.parse('2026-07-30T02:00:00Z')) });
+  const leftB2 = B.db.prepare("SELECT COUNT(*) c FROM bounty_samples WHERE verdict='pending'").get().c;
+  ok('L2b 沒判到的那一班下一發補完（截斷是延後，不是遺失）：trains 1、不再截斷、pending 0',
+    leftB2 === 0 && sB2.truncated === false && sB2.trains === 1, JSON.stringify({ leftB2, truncated2: sB2.truncated, trains2: sB2.trains }));
 }
 
 const pass = R.filter(r => r.p).length;

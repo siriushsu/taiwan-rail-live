@@ -79,15 +79,23 @@ try {
   async function newSession(arg = {}, merge = 'ok') {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     await ctx.addInitScript(STUB, { uid: UID_A, ...arg });
-    const s = { ctx, merges: [], mode: { merge }, errors: [] };
+    const s = { ctx, merges: [], bme: [], seq: 0, mode: { merge, bme: 'ok' }, errors: [] };
     await ctx.route('**/*', async route => {
       const rq = route.request(), u = new URL(rq.url());
       if (u.hostname !== '127.0.0.1') return route.abort();                                  // 地圖磚、字型等外部資源一律不連
+      if (u.pathname === '/api/bounty-me') {                                                   // W10：誰、帶什麼去讀懸賞彙總
+        s.bme.push({ seq: ++s.seq, search: u.search, auth: rq.headers()['authorization'] || null });
+        if (s.mode.bme === '401') return route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"auth_required"}' });
+        if (s.mode.bme === '503') return route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"x"}' });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: '{"actor":"x","points":5,"corrected":{"segs":0,"adopted":0},"lines":[]}' });
+      }
       if (u.pathname === '/api/bounty-merge') {
-        s.merges.push({ method: rq.method(), path: u.pathname, auth: rq.headers()['authorization'], ct: rq.headers()['content-type'], body: rq.postData() });
+        const m = { seq: ++s.seq, method: rq.method(), path: u.pathname, auth: rq.headers()['authorization'], ct: rq.headers()['content-type'], body: rq.postData() };
+        s.merges.push(m);
         if (s.mode.merge === 'abort') return route.abort();
         if (s.mode.merge === '503') return route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"merge_failed"}' });
         if (s.mode.merge === 'slow') await sleep(700);
+        m.doneSeq = ++s.seq;                                                                   // W10：合併「完成」的時點（回應送出前）
         return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"uid":"x","points":0,"merged":true}' });
       }
       if (u.pathname === '/api/thsr-schedule') return route.fulfill({ status: 200, contentType: 'application/json', body: THSR });
@@ -216,6 +224,40 @@ try {
     ok('W9 [fixture＋驗收] auth 已解出「沒有登入」（user 為 null）、旗標開著：請求 0 次',
       (await s.page.evaluate(() => BOUNTY_ENABLED)) === true && (await s.page.evaluate(() => state.account.user)) === null && s.merges.length === 0, JSON.stringify(s.merges));
     await s.ctx.close();
+  });
+  // ═══ W10：懸賞彙總（/api/bounty-me）的讀法（review-B B4）═══════════════════════════════════════════════════
+  // 伺服器對「帳號」與「併進帳號的裝置」的 ?actor= 讀取回 401（裝置 token 不是憑證）。所以登入後一定要帶 Bearer 讀、
+  // 合併完成後要再讀一次（登入那一刻讀到的是還沒併進來的帳）；沒登入才用 ?actor=裝置 id。401 清掉手上那份，其他失敗保留。
+  await attempt('W10', async () => {
+    const s = await newSession({}, 'slow');                                   // 合併延遲 700ms：登入那一次讀取一定早於合併完成
+    await s.page.goto(BASE + '/?bounty=1');
+    await loggedIn(s.page);
+    await sleep(2000);
+    const d = await dev(s.page);
+    const bearer = s.bme.filter(x => x.auth === 'Bearer fake-id-token');
+    const doneSeq = (s.merges[0] || {}).doneSeq || 0;
+    ok('W10a [B4] 登入後讀懸賞彙總帶 Bearer、不帶 ?actor=；合併（延遲 700ms）完成之前讀過一次、完成之後再讀一次（登入那一刻讀到的是還沒併進來的帳）',
+      s.merges.length === 1 && doneSeq > 0 && bearer.length >= 2 && bearer.every(x => !/actor=/.test(x.search)) && bearer.some(x => x.seq > doneSeq) && bearer.some(x => x.seq < doneSeq),
+      JSON.stringify({ bme: s.bme, doneSeq }));
+    ok('W10b 登入後沒有任何「帶 ?actor= 卻不帶 Bearer」的讀取排在登入之後（開機那一次可能早於登入就緒，只允許出現在第一個 Bearer 讀取之前）',
+      s.bme.filter(x => !x.auth && x.seq > (bearer[0] || {}).seq).length === 0, JSON.stringify(s.bme));
+    await s.ctx.close();
+    const n = await newSession({ noUser: true });
+    await n.page.goto(BASE + '/?bounty=1');
+    await n.page.waitForFunction(() => { try { return window.__authFired >= 1 && state.account && state.account.ready === true; } catch (e) { return false; } }, null, { timeout: 30000 });
+    await sleep(1500);
+    const dn = await dev(n.page);
+    ok('W10c 沒登入：讀懸賞彙總用 ?actor=＜這台裝置的 id＞、不帶 Authorization',
+      n.bme.length >= 1 && n.bme.every(x => !x.auth && x.search === '?actor=' + encodeURIComponent(dn)), JSON.stringify({ bme: n.bme, dn }));
+    // 同一頁直接呼叫 fetchBountyMe：先 200（拿到 5 點）→ 503（保留 5 點：暫時性錯誤不清）→ 401（清成 null：你現在看不到這個帳）
+    const r200 = await n.page.evaluate(async () => { const m = await fetchBountyMe(); return m && m.points; });
+    n.mode.bme = '503';
+    const r503 = await n.page.evaluate(async () => { const m = await fetchBountyMe(); return m && m.points; });
+    n.mode.bme = '401';
+    const r401 = await n.page.evaluate(async () => fetchBountyMe());
+    ok('W10d 回應 200 拿到 5 點；503 保留原值 5（暫時性錯誤不清）；401 清成 null（登出後不再顯示帳號的資料）',
+      r200 === 5 && r503 === 5 && r401 === null && n.errors.length === 0, JSON.stringify({ r200, r503, r401, errors: n.errors }));
+    await n.ctx.close();
   });
 } finally {
   if (browser) await browser.close().catch(() => {});

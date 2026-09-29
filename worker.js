@@ -6151,9 +6151,12 @@ async function firebaseUid(env, idToken) {
 // 現在只剩驗證 cron 與 /api/bounty-me 的 ?actor= 讀取還走它；錢包端點（garage-redeem、cloud-ride、chips-me）與
 // 賺的端點（bounty-submit、bounty-claim）一律走下面的 bountyIdentity——merged_into 是任何人拿著 uid 都能替別人掛上的標記（稽核 F2），
 // 只靠它轉向就等於「知道 token 就能花掉帳號的錢」。
+// 🔴 帳號列（uid 欄非 NULL）一律回自己，不跟 merged_into（review-B B6）：v2 之後沒有路徑會讓帳號列掛上 merged_into，
+// 但舊版 bountyMerge 的 F2 攻擊可能在正式庫留下「帳號列＋merged_into＝攻擊者」的髒列；跟著它走，判定 cron 就會把
+// 受害者的籌碼、點數、去重貢獻全記給攻擊者。與 bountyIdentity「有 uid 就是帳號」同一個判準。
 async function resolveActor(env, actor) {
-  const row = await env.DELAY_DB.prepare('SELECT merged_into FROM bounty_points WHERE actor=?').bind(actor).first();
-  return (row && row.merged_into) ? String(row.merged_into) : actor;
+  const row = await env.DELAY_DB.prepare('SELECT uid, merged_into FROM bounty_points WHERE actor=?').bind(actor).first();
+  return (row && !row.uid && row.merged_into) ? String(row.merged_into) : actor;
 }
 
 // ── 懸賞身分：誰能用哪個 actor 做事（路段懸賞 v2 稽核 F2／F3）────────────────────────────────
@@ -6189,6 +6192,9 @@ async function bountyEnsureAccount(env, uid) {
 //   mode 'earn'（賺：bounty-submit、bounty-claim）：
 //     actor 自己就是帳號（uid）→ 必須帶自己的 Bearer（同上兩種錯誤），who＝actor；
 //     否則沿用 resolveActor 的行為（併過的裝置記進帳號，不需要 token；沒併過的記在自己名下）。
+//     🔴 但有帶 Bearer、而那台裝置已經併進「別的」帳號 → 403 wrong_account（review-B B4）：同一個瀏覽器換人登入，
+//     裝置還歸前一個帳號，後一位賺的會悄悄記到前一位名下；客戶端帶了自己的 Bearer 卻拿到 200，就無從察覺。
+//     （契約叫客戶端別帶 Bearer；帶了就得對得上，對不上就明說。）
 // 🔴 呼叫端必須在「所有便宜的請求形狀檢查之後、第一次讀寫 D1 之前」呼叫（檢查早於任何寫入，但形狀錯的請求不必為它付 D1 讀取）。
 async function bountyIdentity(request, env, actor, mode) {
   const m = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);
@@ -6203,7 +6209,10 @@ async function bountyIdentity(request, env, actor, mode) {
   // 這個 actor 背後的帳號：自己就是帳號＝它的 uid；併進別人的裝置＝merged_into；都不是＝null（匿名裝置）
   const acct = isAccount ? String(row.uid) : (row && row.merged_into ? String(row.merged_into) : null);
   if (mode === 'earn') {
-    if (!isAccount) return { who: acct || actor };
+    if (!isAccount) {
+      if (uid && acct && uid !== acct) return { res: jsonRes({ error: 'wrong_account' }, 403, 'no-store') };
+      return { who: acct || actor };
+    }
     if (!uid) return { res: jsonRes({ error: 'auth_required' }, 401, 'no-store') };
     if (uid !== actor) return { res: jsonRes({ error: 'wrong_account' }, 403, 'no-store') };
     return { who: actor };
@@ -6544,8 +6553,18 @@ async function bountyMe(request, env) {
     const rules = await bountyRules(env);
     // 🔴 Bearer 路徑不跟 merged_into：驗過的 uid 讀的就是它自己的帳。若還跟，別人只要把這個 uid 當「來源」併走
     // （舊版 bountyMerge 不擋，列上就會被掛一個 merged_into），本人帶著自己的 Bearer 讀到的就是攻擊者的帳（稽核 F2）。
-    // ?actor= 路徑（網頁、匿名裝置）維持原行為：併過的裝置看到的是帳號的帳。
-    const actor = verified ? who : await resolveActor(env, who);
+    // Bearer 路徑也跑 S0（review-B B5）：本人第一次帶 Bearer 出現就把帳號列建好、清掉別人預先掛上的 merged_into，
+    // 不必等到第一次錢包寫入。
+    // 🔴 ?actor= 路徑只讓匿名裝置讀自己的帳（review-B B4，與錢包讀取 chips-me 同一套 bountyIdentity 'wallet'）：
+    // actor 是帳號、或是併進帳號的裝置 → 401 auth_required，要改帶那個帳號的 Bearer。舊版跟著 merged_into 讀帳號的帳，
+    // 共用瀏覽器上前一位登出之後，任何人打開頁面就讀得到他的 uid 與最近 60 筆行程（乘車日、車次、線別）。
+    let actor = who;
+    if (verified) await bountyEnsureAccount(env, who);
+    else {
+      const idn = await bountyIdentity(request, env, who, 'wallet');
+      if (idn.res) return idn.res;
+      actor = idn.who;
+    }
     const p = await env.DELAY_DB.prepare('SELECT points FROM bounty_points WHERE actor=?').bind(actor).first();
     // 白名單欄位：reject_code 連 SELECT 都不選進來，才不會有人日後手滑把整列丟出去
     const rs = await env.DELAY_DB.prepare(
@@ -6835,7 +6854,7 @@ const chipUnlockedView = list => list.map(({ scene, nth, at }) => ({ scene, nth,
 // 若還跟，別人把這個 uid 當來源合併走之後，本人帶自己的 Bearer 讀到的就是攻擊者的帳（稽核 F2）。
 // 🔴 ?actor= 路徑是錢包讀取，規則同 garage-redeem／cloud-ride（bountyIdentity 'wallet'）：匿名裝置憑 id 讀自己的帳；
 // actor 是帳號（uid）、或是併進帳號的裝置，就必須改帶那個帳號的 Bearer——不帶 401 auth_required。
-// （bounty-me 的 ?actor= 讀取不受這條影響：那裡是點數與趟次，不是錢包。）
+// （bounty-me 的 ?actor= 讀取自 review-B B4 起也走同一條：行程史同樣不該讓拿著裝置 id 的任何人讀。）
 // 唯讀：寫入總閘 BOUNTY_WRITES=off 不擋這支（停機期間使用者仍看得到自己的餘額）。
 async function chipsMe(request, env) {
   const url = new URL(request.url);
@@ -6853,6 +6872,7 @@ async function chipsMe(request, env) {
   try {
     const chips = await bountyChipsRules(env);
     let actor = who;                                     // Bearer 路徑：驗過的 uid 就是最終身分（不 resolveActor）
+    if (auth) await bountyEnsureAccount(env, who);       // Bearer 路徑也跑 S0（review-B B5，理由見 bountyMe）
     if (!auth) {                                         // ?actor= 路徑：沒帶 Bearer，所以只有「匿名裝置」讀得到
       const idn = await bountyIdentity(request, env, who, 'wallet');
       if (idn.res) return idn.res;
@@ -7426,11 +7446,15 @@ function integrityGate(trip, ctx, rules) {
   // 這個窗本意就是「上傳窗」，上傳端點 bountySubmit 已經用上傳當下擋過一次（今天往前 7 天到明天）。
   // 用 cron 當下的時間比的話，積壓超過 7 天才輪到判的趟（cron 停擺、預算用盡一路延後）會被判 stale_date，
   // 把誠實的趟當成作弊。ctx 沒給上傳時間（直接呼叫這個函式的舊用法）就退回 now，行為不變。
+  // 🔴 比的是「台北日」字串，與 bountySubmit 的上傳窗逐字同一條（乘車日 ≥ 上傳當天往前 tripDateMaxAgeDays 天、≤ 上傳當天的明天；review-B B1）。
+  // 舊版拿「乘車日的 UTC 零點（＝台北 08:00）」加整數天去比毫秒：上傳端點收下的「第 7 天 08:00 之後」補傳，到了這裡被判 stale_date，
+  // 誠實的趟變成可疑、整班車（直通車也一起）0 顆；未來那一端則反過來差 8 小時。兩道閘只要基準不同，兩道之間就會有一段誠實資料被判成作弊。
   const dateRef = Number(ctx.uploadedAt) || now;
-  const tripMs = Date.parse(trip.tripDate + 'T00:00:00Z');
-  if (!Number.isFinite(tripMs)) return { pass: false, code: 'future_date' };
-  if (tripMs > dateRef + 86400000) return { pass: false, code: 'future_date' };
-  if (dateRef - tripMs > R.tripDateMaxAgeDays * 86400000) return { pass: false, code: 'stale_date' };
+  const td = String(trip.tripDate || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(td) || !Number.isFinite(Date.parse(td + 'T00:00:00Z'))) return { pass: false, code: 'future_date' };
+  const upDay = taipeiDay(dateRef);
+  if (td > addDays(upDay, 1)) return { pass: false, code: 'future_date' };
+  if (td < addDays(upDay, -R.tripDateMaxAgeDays)) return { pass: false, code: 'stale_date' };
   const pts = trip.pts;
   if (pts.length < 2) return { pass: true, code: null };        // 太短交給品質閘判 too_short
   // 第三重：物理可能——里程單調（同方向）、加速度上限、速度上限依系統
@@ -7655,9 +7679,27 @@ async function bountyCreditTripChips(env, rules, groups, prior, now) {
   return Number(res.meta && res.meta.changes) === 1 ? give : 0;
 }
 
-// 單次 cron 最多處理幾列 pending 樣本。4000 列 ≒ 66 小時的 1Hz 錄製，遠大於任何一天的真實
-// 上傳量，但把最壞情況變成一個常數。超出的部分留到明天那一發（它們還是 pending）。
-const BOUNTY_VERIFY_MAX_ROWS = 4000;
+// ── 判定 cron 一發處理哪些班車（review-B B3／R2）──────────────────────────────────────────
+// 第一段只列「班車清單」（每班一列：actor、乘車日、車次、批數、記在誰名下），不讀 payload；第二段才一班一班讀那班車的批次。
+// 舊版一句 SELECT * 最多 4,001 列連 payload 一起讀進記憶體（每批上限 600 點，最壞近 100 MB，Workers 一個 isolate 只有 128 MB），
+// 而且依「乘車日最舊、actor 字母序」排：任何人不需要憑證，每天送兩千批「乘車日＝上傳窗最舊那天、actor 取字母序在前」的垃圾，
+// 預算就全花在垃圾上，誠實的趟天天輪不到。
+// 單發最多列幾班進清單（一列約兩百位元組，四千班不到 1 MB）。實際判得了幾班由子請求／牆鐘預算決定、通常遠少於此；
+// 這個上限只防清單本身長到不合理，超過的留到下一發（它們還是 pending），stat.truncated 標出來。
+const BOUNTY_VERIFY_MAX_TRAINS = 4000;
+// 一班車 payload 的總長上限（payload 是純 ASCII 的 JSON，length() 的字元數＝位元組數）。誠實的一班車：客戶端每 60 秒送一批
+// 60 點（@1Hz，一點約 39 位元組），十二小時的車約 1.7 MB；4 MB 約 28 小時，任何真的班車都到不了。
+// 超過的整班判可疑、payload 不讀（同批數超量，見 bountyVerifyTrain）——一發同時留在記憶體的 payload 因此最多是「一班車 4 MB」，
+// 不是外部可控的量（review-B R2：舊版一句讀 4,001 批、每批 600 點，實測近 100 MB，Workers 一個 isolate 只有 128 MB）。
+const BOUNTY_VERIFY_MAX_TRAIN_BYTES = 4 * 1024 * 1024;
+// 「可信身分」每一發保證排在最前面的班數。可信＝帳號、併進帳號的裝置，或這個身分以前真的入帳過錄程籌碼
+// （垃圾灌不出這兩種：前者要真的登入，後者要先交出一趟判得過的錄程）。8 班比任何人一天真的搭的班次都多。
+const BOUNTY_VERIFY_TRUSTED_TRAINS = 8;
+// 判定的租約：同一時間只准一發在判（kv_blobs 一列，值是 {token, until}）。兩發重疊（平台重送、owner 手動觸發）時，
+// 籌碼與去重本來就只會記一次，但 v1 的點數與 sample_count 會各加一次（review-B 的 L5b 實測 21→42）。
+// 20 分鐘＞Cron 一發的牆鐘上限 15 分鐘：被平台中途砍掉、來不及釋放的租約，下一發一定已經過期、拿得到。
+const BOUNTY_VERIFY_LEASE_KEY = 'bounty_verify_lease';
+const BOUNTY_VERIFY_LEASE_MS = 20 * 60 * 1000;
 // 路段懸賞的判定時段：UTC 19:30 ＝ 台北 03:30（前一營運日的列車都已收班）。scheduled() 對這個字串只跑
 // 估值＋驗證、不跑每日 ingest。正式環境的 trigger 由 owner 另外加（wrangler.jsonc 的 crons）——
 // 程式不認得的 cron 字串一律掉進每日 ingest 分支，所以光加 trigger、不靠這個獨立分流，判定一樣不會跑。
@@ -7717,12 +7759,15 @@ function bountyCounted(env) {
   });
   return cenv;
 }
-// 驗證那一行 log（BOUNTY_CRON 與舊的 15 4 分支共用）：營運上看這一行就知道這一發做了多少、有沒有被預算或截斷擋下來。
-const bountyVerifyLine = q =>
-  `[cron bounty 驗證] ${q.trains} 班／${q.trips} 線組 → 採用 ${q.ok}／可惜 ${q.unusable}／可疑 ${q.suspect}／入帳籌碼 ${q.chips}` +
+// 驗證那一行 log（BOUNTY_CRON 與舊的 15 4 分支共用）：營運上看這一行就知道這一發做了多少、有沒有被預算、錯誤或截斷擋下來。
+const bountyVerifyLine = q => q.locked
+  ? '[cron bounty 驗證] 跳過：另一發判定還在進行（租約未到期），這一發沒有動任何樣本'
+  : `[cron bounty 驗證] ${q.trains} 班／${q.trips} 線組 → 採用 ${q.ok}／可惜 ${q.unusable}／可疑 ${q.suspect}／入帳籌碼 ${q.chips}` +
   `／經過 ${Math.round((Number(q.elapsedMs) || 0) / 1000)} 秒／子請求 ${q.subreq}` +
   (q.budgetStop ? `（⚠️ ${q.stopBy === 'wall' ? '牆鐘' : '子請求'}預算用盡：剩下的班車留 pending，下一發接著判）` : '') +
-  (q.truncated ? '（⚠️ pending 列數超過單發上限：截斷，剩下的下一發）' : '');
+  (q.stopBy === 'error' ? `（⚠️ 判定途中出錯而停手：${q.error}；剩下的班車留 pending，下一發接著判）` : '') +
+  (q.truncated ? '（⚠️ pending 班車數超過單發上限：截斷，剩下的下一發）' : '') +
+  (q.oversize ? `（批數超過每日上限、整班判可疑 ${q.oversize} 班）` : '');
 
 // 隔日判定。BOUNTY_NOW 只給測試用（cron 沒辦法等時間流過，而三態的判定與時間有關）。
 // 只判「乘車日早於台北今天」的樣本：今天的趟可能還在車上、後半段還沒傳，現在判會把一趟切成兩半各自判
@@ -7742,198 +7787,265 @@ async function bountyVerifyCron(env0) {
   const CH = rules.chips;
   if (!CH || !(CH.perTrip > 0) || !(CH.minTripSec > 0) || !(CH.dailyChipCap > 0) ||
     !(CH.remoteMultiplier > 0) || !Array.isArray(CH.remoteLines)) throw new Error('invalid bounty rule: chips');
-  // 🔴 一定要有 LIMIT（2026-07-29 稽核）：這支 cron 每天跑一次，舊版一句 SELECT * 就把所有
-  // pending 列連 payload（每列一整批里程序列）全讀進記憶體。寫入端點是免登入的，所以「有多少
-  // pending」是外部可控的數字——沒有上限就等於把 cron 的記憶體與 CPU 交給任何人決定。
-  // 多出來的下次再跑（它們仍是 pending），代價是延後一天，不是遺失。
-  // 🔴 排序是「最舊的乘車日先判」（trip_date 在最前面），不是依 actor：截斷（單發上限）與預算用盡（見 bountyCounted）都會把排在後面的
-  // 留給下一發，若依 actor 排，字母序在後面的人每一發都排在後面、永遠輪不到；依乘車日排，積壓的都是最舊的先清，晚一天的不會插隊。
-  const rs = await env.DELAY_DB.prepare(
-    "SELECT * FROM bounty_samples WHERE verdict='pending' AND trip_date < ?" +
-    " ORDER BY trip_date, actor, train_no, submitted_at LIMIT ?"
-  ).bind(taipeiDay(now), BOUNTY_VERIFY_MAX_ROWS + 1).all();
-  const fetched = rs.results || [];
-  // 🔴 截斷必須切在「整班車」的邊界上。ORDER BY 讓同一班車 (trip_date,actor,train_no) 的列相鄰（整班車的鍵是排序前綴）——
-  // 直通車跨線的每一條線都算同一班，切在線的邊界上會讓籌碼（整班算一次）只看到一半的批次。
-  // 從中間切開的那一班會被當成半班送去判定＝品質閘判 too_short、籌碼少算，那是把資料判錯，不是延後。
-  const trainKey = r => `${r.actor}|${r.trip_date}|${r.train_no}`;
-  const rows = fetched.slice(0, BOUNTY_VERIFY_MAX_ROWS);
-  let truncated = false;
-  if (fetched.length > BOUNTY_VERIFY_MAX_ROWS) {
-    truncated = true;
-    const lastKey = trainKey(rows[rows.length - 1]);
-    // 只在還剩得下東西時才砍尾——單一班就超過上限（不可能發生：一天 1Hz 最多 1440 批）時
-    // 全砍會讓 cron 每天原地空轉，永遠處理不完。那種情況寧可整班照跑。
-    let cut = rows.length;
-    while (cut > 0 && trainKey(rows[cut - 1]) === lastKey) cut--;
-    if (cut > 0) rows.length = cut;
-  }
-  // 先依整班車分、再依線分：一條線一組判定，同一班車的線組在下面接著處理。
-  // 線的鍵是 sys|ln_id（與 M.lines 同一個鍵空間）：ln_id 單獨在現有資料沒有撞名，但不該賴這個巧合。
-  const trains = new Map();
-  for (const r of rows) {
-    const tk = trainKey(r);
-    const t = trains.get(tk) || trains.set(tk, { rows: [], lines: new Map() }).get(tk);
-    t.rows.push(r);
-    const lk = `${r.sys}|${r.ln_id}`;
-    (t.lines.get(lk) || t.lines.set(lk, []).get(lk)).push(r);
-  }
-  const stat = { trips: 0, trains: 0, ok: 0, unusable: 0, suspect: 0, truncated, chips: 0, subreq: 0, budgetStop: false, stopBy: null, elapsedMs: 0 };
-  for (const train of trains.values()) {
-    // 🔴 預算（F5）：在「開始處理下一班車之前」檢查，不在班車中間停——停在中間的話，籌碼與貢獻已經寫了、樣本卻還是 pending，
-    // 下一發整班重跑（冪等、不會出錯，但白花一次）。停手時剩下的班車原封不動仍是 pending，下一發接著判（最舊的乘車日先）。
-    // 一班車自己的用量是有界的（幾十次），所以預算 8000 對官方上限 10,000 的餘裕足夠吸收「最後一班超出預算」。
-    // 牆鐘也在同一個停手點看（見 BOUNTY_WALL_BUDGET_MS）：子請求還沒用完、但 D1 慢到時間快不夠，一樣停在班車邊界。
-    if (ctr.n >= ctr.budget) { stat.budgetStop = true; stat.stopBy = 'subreq'; break; }
-    if (Date.now() - ctr.t0 >= ctr.wallMs) { stat.budgetStop = true; stat.stopBy = 'wall'; break; }
-    stat.trains++;
-    const { actor: readActor, trip_date: tripDate, train_no: trainNo } = train.rows[0];
-    // ① 逐線判定（只讀不寫）：每一組用自己那條線的幾何算 verdict 與覆蓋段。
-    const groups = [];
-    for (const lineRows of train.lines.values()) {
-      stat.trips++;
-      const trip = assembleTrip(lineRows);
-      const line = M.lines[`${trip.sys}|${trip.lnId}`] || null;
-      // 第二重要用的獨立真相源：我們自己幾小時前存下的逐站觀測（台鐵才有）
-      let events = [];
-      try {
-        const ev = await env.DELAY_DB.prepare(
-          'SELECT sta, delay, obs_at FROM tra_station_events WHERE service_date=? AND train_no=?'
-        ).bind(trip.tripDate, trip.trainNo).all();
-        events = ev.results || [];
-      } catch (e) {}
-      // uploadedAt：這一組批次裡最晚上傳的時間。防偽閘的日期窗以它為基準（S14，見 integrityGate）。
-      const uploadedAt = Math.max(0, ...lineRows.map(r => Number(r.submitted_at) || 0));
-      const ctx = { line, events, now, uploadedAt };
-      const v = verdictOf(integrityGate(trip, ctx, rules), qualityGate(trip, ctx, rules));
-      stat[v.verdict]++;
-      const cov = (v.verdict === 'suspect' || !line) ? [] : coverageOf(trip, line, rules, M.peakHoursBySys)
-        .filter(c => c.cov >= rules.quality.segCoverageMin);
-      groups.push({ rows: lineRows, trip, v, cov });
+  const stat = { trips: 0, trains: 0, ok: 0, unusable: 0, suspect: 0, truncated: false, chips: 0, subreq: 0,
+    budgetStop: false, stopBy: null, elapsedMs: 0, oversize: 0, locked: false, error: null };
+  // 租約（見 BOUNTY_VERIFY_LEASE_MS）：拿不到＝另一發還在判，這一發什麼都不動就回。用真時鐘（不是 BOUNTY_NOW）：租約管的是
+  // 真實世界裡兩發有沒有重疊，與「判定當作今天是哪天」無關。值整串當鑰匙，釋放時只刪自己那一份。
+  const lease = JSON.stringify({ token: crypto.randomUUID(), until: Date.now() + BOUNTY_VERIFY_LEASE_MS });
+  const got = await env.DELAY_DB.prepare(
+    "INSERT INTO kv_blobs (k, v, updated) VALUES (?, ?, datetime('now'))" +
+    ' ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated = excluded.updated' +
+    " WHERE COALESCE(json_extract(kv_blobs.v, '$.until'), 0) < ?"
+  ).bind(BOUNTY_VERIFY_LEASE_KEY, lease, Date.now()).run();
+  if (!(Number(got && got.meta && got.meta.changes) > 0)) {
+    stat.locked = true;
+  } else try {
+    // ── 第一段：班車清單（一句，不讀 payload）─────────────────────────────────────────
+    // 一列＝一班車（actor＋乘車日＋車次），附「記在誰名下」（who：與 resolveActor 同一條——帳號列回自己、併過的裝置回帳號）。
+    // 排序（review-B B3）：
+    //   1. 可信身分（trusted：帳號、併進帳號的裝置、或以前入帳過錄程籌碼）的前 BOUNTY_VERIFY_TRUSTED_TRAINS 班最先；
+    //   2. 其餘依「這個身分的第幾班」（rnd）輪流：每個人的第 1 班都排在任何人的第 2 班之前——一個身分灌再多班，一輪也只佔一格；
+    //      同一輪裡可信的先；
+    //   3. 同一格裡隨機（random()）。🔴 不可以用乘車日或 actor 當同輪的次序：兩者都是上傳者自己填的，舊版的「最舊乘車日、字母序在前」
+    //      正是攻擊者拿來插隊的那兩個欄位。
+    // rnd 的 PARTITION 用 who 不用 actor：一個帳號把一堆裝置併進來，或裝置併進帳號前後各傳一半，都還是同一個人、同一條隊伍。
+    // 每班車的批數（n）與 payload 總長（bytes）只用來擋超量的車（見 bountyVerifyTrain）；payload 本身一律等第二段一班一班讀，
+    // 記憶體只放一班的量。bytes 在 SQLite 裡算（要讀過 payload，但不送回 Worker）。
+    // BOUNTY_VERIFY_ORDER='fixed' 只給測試用：把同一格的隨機換成（乘車日、actor、車次），讓驗收的結果可以寫死。
+    const fixed = String(env.BOUNTY_VERIFY_ORDER || '') === 'fixed';
+    const cand = await env.DELAY_DB.prepare(
+      'WITH t AS (' +
+      ' SELECT s.actor AS actor, s.trip_date AS trip_date, s.train_no AS train_no, COUNT(*) AS n, SUM(length(s.payload)) AS bytes,' +
+      ' CASE WHEN p.uid IS NOT NULL THEN s.actor ELSE COALESCE(p.merged_into, s.actor) END AS who,' +
+      ' (p.uid IS NOT NULL OR p.merged_into IS NOT NULL) AS acct' +
+      ' FROM bounty_samples s LEFT JOIN bounty_points p ON p.actor = s.actor' +
+      " WHERE s.verdict = 'pending' AND s.trip_date < ?" +
+      ' GROUP BY s.actor, s.trip_date, s.train_no' +
+      '), r AS (' +
+      ' SELECT t.*, ROW_NUMBER() OVER (PARTITION BY who ORDER BY trip_date, actor, train_no) AS rnd,' +
+      " (acct OR EXISTS (SELECT 1 FROM chip_ledger l WHERE l.actor = t.who AND l.kind = 'trip')) AS trusted FROM t" +
+      ')' +
+      ' SELECT actor, trip_date, train_no, n, bytes, who FROM r' +
+      ' ORDER BY (trusted AND rnd <= ?) DESC, rnd, trusted DESC, ' + (fixed ? 'trip_date, actor, train_no' : 'random()') +
+      ' LIMIT ?'
+    ).bind(taipeiDay(now), BOUNTY_VERIFY_TRUSTED_TRAINS, BOUNTY_VERIFY_MAX_TRAINS + 1).all();
+    const list = cand.results || [];
+    if (list.length > BOUNTY_VERIFY_MAX_TRAINS) { stat.truncated = true; list.length = BOUNTY_VERIFY_MAX_TRAINS; }
+    for (const c of list) {
+      // 🔴 預算（F5）：在「開始處理下一班車之前」檢查，不在班車中間停——停在中間的話，籌碼與貢獻已經寫了、樣本卻還是 pending，
+      // 下一發整班重跑（冪等、不會出錯，但白花一次）。停手時剩下的班車原封不動仍是 pending，下一發依上面的排序接著判。
+      // 一班車自己的用量是有界的（幾十次），所以預算 8000 對官方上限 10,000 的餘裕足夠吸收「最後一班超出預算」。
+      // 牆鐘也在同一個停手點看（見 BOUNTY_WALL_BUDGET_MS）：子請求還沒用完、但 D1 慢到時間快不夠，一樣停在班車邊界。
+      if (ctr.n >= ctr.budget) { stat.budgetStop = true; stat.stopBy = 'subreq'; break; }
+      if (Date.now() - ctr.t0 >= ctr.wallMs) { stat.budgetStop = true; stat.stopBy = 'wall'; break; }
+      // 任何一班車丟錯（D1 暫時錯誤、平台的查詢上限——review-B R3：D1 文件另寫著「每次呼叫 1,000 個查詢」）就停手、記在 log：
+      // 每一條線的標記與寫入是同一筆交易（見 bountyVerifyTrain 的第③段），丟錯的那一組整組留 pending，下一發重判；
+      // 籌碼與去重是冪等的，重判不會多發。不繼續下一班：錯誤若是上限，後面每一班都會在第一句就失敗。
+      try { await bountyVerifyTrain(env, rules, M, now, c, stat); }
+      catch (e) { stat.stopBy = 'error'; stat.error = String((e && e.message) || e).slice(0, 200); break; }
     }
-    // 身分（S10）：這班車記在誰名下——一班車解析一次，之後第③段的舊點數、認領查詢、關認領一律用 who，不用讀樣本時的 trip.actor。
-    // 讀樣本與寫入之間，這個裝置可能剛好被併進帳號（POST /api/bounty-merge：樣本與認領整批改名到 uid，原 token 那一列歸零只當墓碑）：
-    // 拿舊 token 去寫，點數會記到已併掉的 token 名下、認領（已在 uid 名下）查不到也關不掉。
-    // 放在 ① 之後：讀樣本與這裡之間發生的合併也涵蓋得到；② 的籌碼與登記各自另有「入帳前重新解析」（見兩支函式的註解）。
-    const who = await resolveActor(env, readActor);
-    // 遲傳合併判（S12）：這班車先前已判定過的列（前一發 cron 判完的前半段）。actor 綁「讀樣本時的 actor」與「當下的身分」兩個：
-    // 前半段是裝置 token 時期判的、中間登入合併過，樣本列已改名到 uid（或反過來），兩個都要找。走 idx_samples_trip。
-    // 這些列只參與籌碼判斷（bountyPriorGroups 的說明）；同一班車前半段當時若已入帳，bountyCreditTripChips 的「已入過帳」查詢照舊擋住後半段。
-    const priorRs = await env.DELAY_DB.prepare(
-      "SELECT * FROM bounty_samples WHERE actor IN (?, ?) AND trip_date=? AND train_no=? AND verdict <> 'pending'"
-    ).bind(readActor, who, tripDate, trainNo).all();
-    const priorRows = priorRs.results || [];
-    const prior = bountyPriorGroups(priorRows);
-    // 模擬器（開發、審查、QA 用 GPX 重播）：這班車「本次或前次」任何一列自報模擬器，這班車只留判定結果（下面照寫 verdict 等欄），
-    // 不發籌碼、不登記去重、不動看板（sample_count／covered_at／人數）、不給舊點數、不關認領——
-    // 每個模擬器安裝都是新的 installId，算進去會把正式環境的收滿人數灌上去，而收滿會讓卡片下架。
-    // 前次也要看：模擬器的前半段先判掉、後半段換一批「乾淨」的列才到，不能靠分兩發洗掉旗標。
-    const isSim = r => bountyClientOf(r).simulator === true;
-    const sim = train.rows.some(isSim) || priorRows.some(isSim);
-    // ② v2 的兩件事（籌碼入帳、每段去重登記）刻意排在「標記已判定」之前：兩者都是冪等的（帳本 UNIQUE＋同班車查詢、
-    // 登記 NOT EXISTS），所以中途失敗時這一班車仍是 pending、明天整班重跑一次，不會重複發、也不會漏發。
-    // 反過來排（先標已判定、再寫）的話，中途失敗的那一班就永遠是「已判定、沒有籌碼」。
-    // 而且必須等「所有線組都判完」才入帳、再逐線標記：籌碼要看整班車（任一線 ok、任一段落在偏遠線 ×2、整班車的長度），
-    // 先標了其中一條線再失敗，重跑時那條線已不是 pending——這時前次線組（prior）就接手：重跑會把它讀成前次線組，籌碼判斷仍看得到它。
-    // 籌碼對整班車呼叫一次（沒有任何 ok 線組就是 0 ＝不寫；任何一組 suspect 也是 0）；去重登記只有 ok 的線組才做（unusable／suspect 不算貢獻）。
-    // 整段收滿（covered_at）也在這一步、跟登記同一個 batch 裡寫（見 bountyRegisterContrib）。
-    if (!sim) {
-      stat.chips += await bountyCreditTripChips(env, rules, groups, prior, now);
-      for (const g of groups) {
-        if (g.v.verdict === 'ok') await bountyRegisterContrib(env, rules, g.trip.actor, g.cov.map(c => c.key), now);
-      }
-    }
-    // ③ 逐線標記已判定，再照舊給點數、推進看板、關認領。
-    for (const { trip, v, cov } of groups) {
-      const segsJson = JSON.stringify(cov);
-      const upd = env.DELAY_DB.prepare(
-        'UPDATE bounty_samples SET verdict=?, verdict_at=?, quality_code=?, reject_code=?, segs=? WHERE id=?');
-      await env.DELAY_DB.batch(trip.sampleIds.map(id =>
-        upd.bind(v.verdict, now, v.qualityCode, v.rejectCode, segsJson, id)));
-      if (sim || v.verdict === 'suspect') continue;             // 模擬器：只留判定；suspect：不給章、不計點、不計入門檻
-      // 🔴 查詢量（F5）：這一組的認領與板價各一句查完，寫入收進 db.batch（依 D1_BATCH_SIZE 分塊）——
-      // 舊版逐段各打 2–4 句，一趟 30 段約 130 句，一發只處理得了約 75 趟。
-      // 綁定參數不用 IN (?,?,…) 動態展開（D1 每句最多 100 個綁定參數，覆蓋段可能超過）；段鍵包成一個 JSON 陣列、以 json_each 展開。
-      // 「每個 (seg_key,dir,kind,slot) 取第一筆」在 JS 做，第一筆＝SQL 排序後最前面那筆，與逐段 LIMIT 1 語意完全相同。
-      const credKey = c => `${c.key}|${c.dir}|${c.kind}|${c.slot}`;
-      const keepFirst = (map, rows) => { for (const r of rows || []) { const k = `${r.seg_key}|${r.dir}|${r.kind}|${r.slot}`; if (!map.has(k)) map.set(k, r); } return map; };
-      const claimAt = Date.parse(trip.tripDate + 'T00:00:00Z');
-      const locks = new Map();
-      if (cov.length) {
-        // 🔴 「+expires_at」的一元加號是刻意的，讓這個條件不能拿去走 idx_claims_expiry（status, expires_at）：
-        // 表沒有統計資料時（D1 文件要使用者建索引後自己跑 PRAGMA optimize；沒跑就沒有統計），SQLite 會挑 idx_claims_expiry ＝ 掃全站所有還沒過期的 open 認領、再逐列比對 actor
-        // （9,000 列的實測比走 idx_claims_actor 慢約 15 倍，而且隨全站認領數線性長）；加號之後走 idx_claims_actor（actor, status），只讀這個人自己的。
-        // 語意不變：expires_at 是整數欄位、claimAt 是整數毫秒，一元加號只是不讓它參與索引選擇。守門人：verify_bounty_cron2.mjs 的 K1e（查詢計畫）。
-        const cr = await env.DELAY_DB.prepare(
-          "SELECT seg_key,dir,kind,slot,train_kind,points_locked FROM bounty_claims WHERE actor=? AND status='open' AND +expires_at>=?" +
-          " AND seg_key IN (SELECT value FROM json_each(?)) ORDER BY claimed_at DESC,id DESC"
-        ).bind(who, claimAt, JSON.stringify([...new Set(cov.map(c => c.key))])).all();
-        keepFirst(locks, cr.results);
-      }
-      // 沒接懸賞就直接錄（跟車面板的第二個入口）：用當下的板價，不是 0。只查沒有認領的那些段。
-      const boards = new Map();
-      const unclaimed = [...new Set(cov.filter(c => !locks.has(credKey(c))).map(c => c.key))];
-      if (unclaimed.length) {
-        const br = await env.DELAY_DB.prepare(
-          'SELECT seg_key,kind,dir,slot,points,train_kind FROM bounty_board WHERE seg_key IN (SELECT value FROM json_each(?))' +
-          ' ORDER BY points DESC,train_kind'
-        ).bind(JSON.stringify(unclaimed)).all();
-        keepFirst(boards, br.results);
-      }
-      // 🔴 unusable 與 ok 在點數上完全一樣：排除作弊就照給（規格 §1 拍板 3、§8）
-      let earned = 0;
-      const creditedKinds = new Map();
-      for (const c of cov) {
-        const lock = locks.get(credKey(c));
-        if (lock) {
-          creditedKinds.set(credKey(c), String(lock.train_kind));
-          earned += Number(lock.points_locked) || 0;
-          continue;
-        }
-        const row = boards.get(credKey(c));
-        if (row) creditedKinds.set(credKey(c), String(row.train_kind));
-        earned += Number(row && row.points) || 0;
-      }
-      earned = Math.min(earned, rules.dailyPointsCap);          // 每人每日計點上限（規格 §7 其他防線）
-      // 點數用 who（S10）：即使這一組沒有任何覆蓋段（earned＝0）也照寫這一句——與舊版行為相同（會建出該 actor 的點數列）。
-      const writes = [env.DELAY_DB.prepare(
-        'INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,NULL,?,NULL,?)' +
-        ' ON CONFLICT(actor) DO UPDATE SET points = points + excluded.points, updated_at = excluded.updated_at'
-      ).bind(who, earned, now)];
-      if (v.verdict === 'ok') {                                 // ⬅ unusable 到此為止：不計入下架門檻
-        // 只有 ok 才推進 sample_count（歷史樣本照舊逐列累加：被計功的那一列 +1）。
-        // 收滿與否（路段懸賞 v2）看「去重人數」而且是整段一起收，已在上面的 bountyRegisterContrib 寫完，這裡不再碰 covered_at。
-        // 唯一的例外是設定檔缺該家族的 coverDistinct 鍵（還沒升到 v2 的降級路徑，不是常態）：退回舊行為——
-        // 門檻取 coverN、比的是 sample_count+1（趟數，不去重）、只寫被計功的那一列。門檻查表的桶對照見 bountyDistinctNeed。
-        for (const c of cov) {
-          const trainKind = creditedKinds.get(credKey(c));
-          if (!trainKind) continue;
-          if (bountyDistinctNeed(rules, c.key) > 0) {
-            writes.push(env.DELAY_DB.prepare(
-              'UPDATE bounty_board SET sample_count = sample_count + 1' +
-              ' WHERE seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?'
-            ).bind(c.key, trainKind, c.dir, c.kind, c.slot));
-          } else {
-            const bucket = BOUNTY_SYS_BUCKET[bountySegLine(c.key).sys];
-            const need = rules.coverN[bucket] || rules.coverN.metro;
-            writes.push(env.DELAY_DB.prepare(
-              'UPDATE bounty_board SET sample_count = sample_count + 1,' +
-              ' covered_at = CASE WHEN sample_count + 1 >= ? THEN COALESCE(covered_at, ?) ELSE covered_at END' +
-              ' WHERE seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?'
-            ).bind(need, now, c.key, trainKind, c.dir, c.kind, c.slot));
-          }
-          writes.push(env.DELAY_DB.prepare(
-            "UPDATE bounty_claims SET status='fulfilled' WHERE actor=? AND status='open'" +
-            ' AND seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?'
-          ).bind(who, c.key, trainKind, c.dir, c.kind, c.slot));
-        }
-      }
-      for (let i = 0; i < writes.length; i += D1_BATCH_SIZE) await env.DELAY_DB.batch(writes.slice(i, i + D1_BATCH_SIZE));
-    }
+  } finally {
+    try { await env.DELAY_DB.prepare('DELETE FROM kv_blobs WHERE k=? AND v=?').bind(BOUNTY_VERIFY_LEASE_KEY, lease).run(); }
+    catch (e) {}                          // 釋放失敗：租約 20 分鐘後自己過期，下一發（隔天）照樣拿得到
   }
   stat.subreq = ctr.n;
   stat.elapsedMs = Date.now() - ctr.t0;
   return stat;
+}
+
+// 判定一班車（第二段）：c 是第一段清單的一列。只判 c 這個 actor 名下、這一刻仍是 pending 的批次。
+async function bountyVerifyTrain(env, rules, M, now, c, stat) {
+  // 超量的車：批數超過每人每日上限（BOUNTY_MAX_BATCHES_PER_DAY）或 payload 總長超過 BOUNTY_VERIFY_MAX_TRAIN_BYTES。
+  // 批數：上傳端點的額度檢查擋下之後還能多出來，只能是同時灌進來的請求鑽了「先數再寫」之間的空隙——誠實的客戶端一天錄不出這麼多批；
+  // 總長：任何真的班車都到不了（見常數的說明）。整班一句標成 suspect（內部原因碼 oversize，不回給使用者），
+  // payload 不讀：讀它正是這種車想做的事（review-B R2：一班車的量就是這一發記憶體的上限）。
+  const oversize = async () => {
+    await env.DELAY_DB.prepare(
+      "UPDATE bounty_samples SET verdict='suspect', verdict_at=?, quality_code=NULL, reject_code='oversize', segs='[]'" +
+      " WHERE actor=? AND trip_date=? AND train_no=? AND verdict='pending'"
+    ).bind(now, c.actor, c.trip_date, c.train_no).run();
+    stat.trains++; stat.oversize++;
+  };
+  if (Number(c.n) > BOUNTY_MAX_BATCHES_PER_DAY || Number(c.bytes) > BOUNTY_VERIFY_MAX_TRAIN_BYTES) return oversize();
+  // LIMIT：第一段數完之後才灌進來的批次（同一個空隙）也不能讓這一句讀超過上限——讀到超量就照上面判可疑、不拿去判。
+  const rs = await env.DELAY_DB.prepare(
+    "SELECT * FROM bounty_samples WHERE actor=? AND trip_date=? AND train_no=? AND verdict='pending' ORDER BY submitted_at, id LIMIT ?"
+  ).bind(c.actor, c.trip_date, c.train_no, BOUNTY_MAX_BATCHES_PER_DAY + 1).all();
+  const rows = rs.results || [];
+  if (!rows.length) return;                // 第一段之後已被判掉（有租約，正常不會發生）
+  if (rows.length > BOUNTY_MAX_BATCHES_PER_DAY ||
+    rows.reduce((a, r) => a + String(r.payload == null ? '' : r.payload).length, 0) > BOUNTY_VERIFY_MAX_TRAIN_BYTES) return oversize();
+  stat.trains++;
+  // 依線分：一條線一組判定（直通車跨線的每一條線都算同一班，籌碼整班算一次）。
+  // 線的鍵是 sys|ln_id（與 M.lines 同一個鍵空間）：ln_id 單獨在現有資料沒有撞名，但不該賴這個巧合。
+  const lines = new Map();
+  for (const r of rows) {
+    const lk = `${r.sys}|${r.ln_id}`;
+    (lines.get(lk) || lines.set(lk, []).get(lk)).push(r);
+  }
+  const { actor: readActor, trip_date: tripDate, train_no: trainNo } = rows[0];
+  // ① 逐線判定（只讀不寫）：每一組用自己那條線的幾何算 verdict 與覆蓋段。
+  const groups = [];
+  for (const lineRows of lines.values()) {
+    stat.trips++;
+    const trip = assembleTrip(lineRows);
+    const line = M.lines[`${trip.sys}|${trip.lnId}`] || null;
+    // 第二重要用的獨立真相源：我們自己幾小時前存下的逐站觀測（台鐵才有）
+    let events = [];
+    try {
+      const ev = await env.DELAY_DB.prepare(
+        'SELECT sta, delay, obs_at FROM tra_station_events WHERE service_date=? AND train_no=?'
+      ).bind(trip.tripDate, trip.trainNo).all();
+      events = ev.results || [];
+    } catch (e) {}
+    // uploadedAt：這一組批次裡最晚上傳的時間。防偽閘的日期窗以它為基準（S14，見 integrityGate）。
+    const uploadedAt = Math.max(0, ...lineRows.map(r => Number(r.submitted_at) || 0));
+    const ctx = { line, events, now, uploadedAt };
+    const v = verdictOf(integrityGate(trip, ctx, rules), qualityGate(trip, ctx, rules));
+    stat[v.verdict]++;
+    const cov = (v.verdict === 'suspect' || !line) ? [] : coverageOf(trip, line, rules, M.peakHoursBySys)
+      .filter(c => c.cov >= rules.quality.segCoverageMin);
+    groups.push({ trip, v, cov });
+  }
+  // 身分（S10）：這班車記在誰名下——一班車解析一次，給前次線組的查詢用。
+  // 讀樣本與寫入之間，這個裝置可能剛好被併進帳號（POST /api/bounty-merge：樣本與認領整批改名到 uid，原 token 那一列歸零只當墓碑）；
+  // 第③段的讀寫因此不直接用這個 who，而是在每一句 SQL 裡當場再解析一跳（WHO_SQL），② 的籌碼與登記也各自另有「入帳前重新解析」。
+  const who = await resolveActor(env, readActor);
+  // 遲傳合併判（S12）：這班車先前已判定過的列（前一發 cron 判完的前半段）。actor 綁「讀樣本時的 actor」與「當下的身分」兩個：
+  // 前半段是裝置 token 時期判的、中間登入合併過，樣本列已改名到 uid（或反過來），兩個都要找。走 idx_samples_trip。
+  // 這些列只參與籌碼判斷（bountyPriorGroups 的說明）；同一班車前半段當時若已入帳，bountyCreditTripChips 的「已入過帳」查詢照舊擋住後半段。
+  // 🔴 不讀 payload（review-B R2）：前次線組在籌碼判斷裡只用得到「最早與最晚的樣本時間」（整班長度），所以在 SQL 裡把每一列的 payload
+  // 換成只含這兩點的陣列（[{t:最早},{t:最晚}]；讀不出來的 payload 當空陣列，與 assembleTrip 吞掉壞 JSON 同一個結果）。
+  // 前次的列最多還有一整天的額度那麼多（每批 600 點），連 payload 讀進來就又是一班車兩倍的記憶體。
+  const priorRs = await env.DELAY_DB.prepare(
+    'SELECT id, actor, sys, ln_id, train_no, dir, trip_date, verdict, segs, client,' +
+    " CASE WHEN json_valid(payload) THEN (SELECT CASE WHEN MIN(json_extract(j.value, '$.t')) IS NULL THEN '[]'" +
+    " ELSE json_array(json_object('t', MIN(json_extract(j.value, '$.t'))), json_object('t', MAX(json_extract(j.value, '$.t')))) END" +
+    " FROM json_each(bounty_samples.payload) j) ELSE '[]' END AS payload" +
+    " FROM bounty_samples WHERE actor IN (?, ?) AND trip_date=? AND train_no=? AND verdict <> 'pending'"
+  ).bind(readActor, who, tripDate, trainNo).all();
+  const priorRows = priorRs.results || [];
+  const prior = bountyPriorGroups(priorRows);
+  // 模擬器（開發、審查、QA 用 GPX 重播）：這班車「本次或前次」任何一列自報模擬器，這班車只留判定結果（下面照寫 verdict 等欄），
+  // 不發籌碼、不登記去重、不動看板（sample_count／covered_at／人數）、不給舊點數、不關認領——
+  // 每個模擬器安裝都是新的 installId，算進去會把正式環境的收滿人數灌上去，而收滿會讓卡片下架。
+  // 前次也要看：模擬器的前半段先判掉、後半段換一批「乾淨」的列才到，不能靠分兩發洗掉旗標。
+  const isSim = r => bountyClientOf(r).simulator === true;
+  const sim = rows.some(isSim) || priorRows.some(isSim);
+  // ② v2 的兩件事（籌碼入帳、每段去重登記）刻意排在「標記已判定」之前：兩者都是冪等的（帳本 UNIQUE＋同班車查詢、
+  // 登記 NOT EXISTS），所以中途失敗時這一班車仍是 pending、下一發整班重跑一次，不會重複發、也不會漏發。
+  // 反過來排（先標已判定、再寫）的話，中途失敗的那一班就永遠是「已判定、沒有籌碼」。
+  // 而且必須等「所有線組都判完」才入帳、再逐線標記：籌碼要看整班車（任一線 ok、任一段落在偏遠線 ×2、整班車的長度），
+  // 先標了其中一條線再失敗，重跑時那條線已不是 pending——這時前次線組（prior）就接手：重跑會把它讀成前次線組，籌碼判斷仍看得到它。
+  // 籌碼對整班車呼叫一次（沒有任何 ok 線組就是 0 ＝不寫；任何一組 suspect 也是 0）；去重登記只有 ok 的線組才做（unusable／suspect 不算貢獻）。
+  // 整段收滿（covered_at）也在這一步、跟登記同一個 batch 裡寫（見 bountyRegisterContrib）。
+  if (!sim) {
+    stat.chips += await bountyCreditTripChips(env, rules, groups, prior, now);
+    for (const g of groups) {
+      if (g.v.verdict === 'ok') await bountyRegisterContrib(env, rules, g.trip.actor, g.cov.map(c => c.key), now);
+    }
+  }
+  // ③ 逐線：先讀這一組的認領與板價，再用「一個 batch」同時做完標記已判定、給點數、推進 sample_count、關認領（review-B B7／R1）。
+  // 🔴 一個 batch＝一筆交易：舊版先標記、再另外寫點數與認領，中間任何一句失敗（D1 暫時錯誤、平台中止），這一組已經不是 pending、
+  // 重跑不會再處理，它的點數、sample_count、認領就永久漏掉（review-B C3 逐一在 34 個呼叫點注入例外，9 處重現）。
+  // 現在要嘛整組寫完、要嘛整組留 pending 等下一發。為了放得進一個 batch，所有「逐段一句」都改成「一組一句」：
+  // 標記用 json_each 帶整組的樣本 id（舊版一批一句、每句重複綁整份覆蓋段 JSON，一班長車可達數百句、數 MB——R1）；
+  // sample_count 與關認領用 (seg_key, train_kind, dir, kind, slot) IN (json_each) 一句做完整組。
+  // 🔴 身分在每一句裡當場解析（WHO_SQL）：讀認領、寫點數、關認領都用「此刻的」帳號——合併若剛好落在這一班的判定途中
+  // （樣本與認領已被改名到 uid），點數不會寫進已併掉的墓碑、認領也查得到關得掉（review-B B7 的競態）。
+  const WHO_SQL = 'COALESCE((SELECT merged_into FROM bounty_points WHERE actor=? AND uid IS NULL), ?)';
+  const IN_UNITS = "(seg_key, train_kind, dir, kind, slot) IN (SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]')," +
+    " json_extract(value, '$[2]'), json_extract(value, '$[3]'), json_extract(value, '$[4]') FROM json_each(?))";
+  for (const { trip, v, cov } of groups) {
+    // 只標「此刻仍是 pending」的列（有租約，正常一定全是）。
+    // 🔴「+verdict」的一元加號是刻意的（同認領那句的 +expires_at）：沒有它，SQLite 會拿 verdict='pending' 去走 idx_samples_pending，
+    // 把全站所有 pending 列掃一遍再用 id 過濾——每一組都掃一次，積壓越多越慢（四千班積壓就是四千次全表級的掃描）。
+    // 加號之後只能走主鍵（id IN json_each：每個 id 一次點查）。守門人：verify_bounty_cron2.mjs 的 K1f（查詢計畫）。
+    const mark = env.DELAY_DB.prepare(
+      'UPDATE bounty_samples SET verdict=?, verdict_at=?, quality_code=?, reject_code=?, segs=?' +
+      " WHERE +verdict='pending' AND id IN (SELECT value FROM json_each(?))"
+    ).bind(v.verdict, now, v.qualityCode, v.rejectCode, JSON.stringify(cov), JSON.stringify(trip.sampleIds));
+    if (sim || v.verdict === 'suspect') {                       // 模擬器：只留判定；suspect：不給章、不計點、不計入門檻
+      await env.DELAY_DB.batch([mark]);
+      continue;
+    }
+    // 🔴 查詢量（F5）：這一組的認領與板價各一句查完（舊版逐段各打 2–4 句，一趟 30 段約 130 句，一發只處理得了約 75 趟）。
+    // 綁定參數不用 IN (?,?,…) 動態展開（D1 每句最多 100 個綁定參數，覆蓋段可能超過）；段鍵包成一個 JSON 陣列、以 json_each 展開。
+    // 「每個 (seg_key,dir,kind,slot) 取第一筆」在 JS 做，第一筆＝SQL 排序後最前面那筆，與逐段 LIMIT 1 語意完全相同。
+    const credKey = c => `${c.key}|${c.dir}|${c.kind}|${c.slot}`;
+    const keepFirst = (map, rows) => { for (const r of rows || []) { const k = `${r.seg_key}|${r.dir}|${r.kind}|${r.slot}`; if (!map.has(k)) map.set(k, r); } return map; };
+    const claimAt = Date.parse(trip.tripDate + 'T00:00:00Z');
+    const locks = new Map();
+    if (cov.length) {
+      // 🔴 「+expires_at」的一元加號是刻意的，讓這個條件不能拿去走 idx_claims_expiry（status, expires_at）：
+      // 表沒有統計資料時（D1 文件要使用者建索引後自己跑 PRAGMA optimize；沒跑就沒有統計），SQLite 會挑 idx_claims_expiry ＝ 掃全站所有還沒過期的 open 認領、再逐列比對 actor
+      // （9,000 列的實測比走 idx_claims_actor 慢約 15 倍，而且隨全站認領數線性長）；加號之後走 idx_claims_actor（actor, status），只讀這個人自己的。
+      // 語意不變：expires_at 是整數欄位、claimAt 是整數毫秒，一元加號只是不讓它參與索引選擇。守門人：verify_bounty_cron2.mjs 的 K1e（查詢計畫）。
+      const cr = await env.DELAY_DB.prepare(
+        'SELECT seg_key,dir,kind,slot,train_kind,points_locked FROM bounty_claims WHERE actor=' + WHO_SQL +
+        " AND status='open' AND +expires_at>=? AND seg_key IN (SELECT value FROM json_each(?)) ORDER BY claimed_at DESC,id DESC"
+      ).bind(who, who, claimAt, JSON.stringify([...new Set(cov.map(c => c.key))])).all();
+      keepFirst(locks, cr.results);
+    }
+    // 沒接懸賞就直接錄（跟車面板的第二個入口）：用當下的板價，不是 0。只查沒有認領的那些段。
+    const boards = new Map();
+    const unclaimed = [...new Set(cov.filter(c => !locks.has(credKey(c))).map(c => c.key))];
+    if (unclaimed.length) {
+      const br = await env.DELAY_DB.prepare(
+        'SELECT seg_key,kind,dir,slot,points,train_kind FROM bounty_board WHERE seg_key IN (SELECT value FROM json_each(?))' +
+        ' ORDER BY points DESC,train_kind'
+      ).bind(JSON.stringify(unclaimed)).all();
+      keepFirst(boards, br.results);
+    }
+    // 🔴 unusable 與 ok 在點數上完全一樣：排除作弊就照給（規格 §1 拍板 3、§8）
+    let earned = 0;
+    const creditedKinds = new Map();
+    for (const c of cov) {
+      const lock = locks.get(credKey(c));
+      if (lock) {
+        creditedKinds.set(credKey(c), String(lock.train_kind));
+        earned += Number(lock.points_locked) || 0;
+        continue;
+      }
+      const row = boards.get(credKey(c));
+      if (row) creditedKinds.set(credKey(c), String(row.train_kind));
+      earned += Number(row && row.points) || 0;
+    }
+    earned = Math.min(earned, rules.dailyPointsCap);          // 每人每日計點上限（規格 §7 其他防線）
+    // 點數：即使這一組沒有任何覆蓋段（earned＝0）也照寫這一句——與舊版行為相同（會建出該 actor 的點數列）。
+    // INSERT … SELECT 的 WHERE 1 不是贅字：upsert 接在 SELECT 後面時，SQLite 要求 SELECT 帶 WHERE 才分得清 ON CONFLICT 屬於誰。
+    const writes = [mark, env.DELAY_DB.prepare(
+      'INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) SELECT ' + WHO_SQL + ', NULL, ?, NULL, ? WHERE 1' +
+      ' ON CONFLICT(actor) DO UPDATE SET points = points + excluded.points, updated_at = excluded.updated_at'
+    ).bind(who, who, earned, now)];
+    if (v.verdict === 'ok') {                                 // ⬅ unusable 到此為止：不計入下架門檻
+      // 只有 ok 才推進 sample_count（歷史樣本照舊累加：被計功的那一列 +1；每個單位 (段, 車種, 方向, 種類, 時段) 一組最多 +1）。
+      // 收滿與否（路段懸賞 v2）看「去重人數」而且是整段一起收，已在上面的 bountyRegisterContrib 寫完，這裡不再碰 covered_at。
+      // 唯一的例外是設定檔缺該家族的 coverDistinct 鍵（還沒升到 v2 的降級路徑，不是常態）：退回舊行為——
+      // 門檻取 coverN、比的是 sample_count+1（趟數，不去重）、只寫被計功的那一列。門檻查表的桶對照見 bountyDistinctNeed。
+      const units = new Map(), distinct = [], legacy = new Map();
+      for (const c of cov) {
+        const trainKind = creditedKinds.get(credKey(c));
+        if (!trainKind || units.has(credKey(c))) continue;
+        const u = [c.key, trainKind, c.dir, c.kind, c.slot];
+        units.set(credKey(c), u);
+        if (bountyDistinctNeed(rules, c.key) > 0) { distinct.push(u); continue; }
+        const need = rules.coverN[BOUNTY_SYS_BUCKET[bountySegLine(c.key).sys]] || rules.coverN.metro;
+        (legacy.get(need) || legacy.set(need, []).get(need)).push(u);
+      }
+      if (distinct.length) writes.push(env.DELAY_DB.prepare(
+        'UPDATE bounty_board SET sample_count = sample_count + 1 WHERE ' + IN_UNITS
+      ).bind(JSON.stringify(distinct)));
+      for (const [need, list] of legacy) writes.push(env.DELAY_DB.prepare(
+        'UPDATE bounty_board SET sample_count = sample_count + 1,' +
+        ' covered_at = CASE WHEN sample_count + 1 >= ? THEN COALESCE(covered_at, ?) ELSE covered_at END WHERE ' + IN_UNITS
+      ).bind(need, now, JSON.stringify(list)));
+      if (units.size) writes.push(env.DELAY_DB.prepare(
+        "UPDATE bounty_claims SET status='fulfilled' WHERE actor=" + WHO_SQL + " AND status='open' AND " + IN_UNITS
+      ).bind(who, who, JSON.stringify([...units.values()])));
+    }
+    await env.DELAY_DB.batch(writes);
+  }
 }
 
 // ── 台鐵準點統計「每日增量」cron(scheduled handler) ────────────────────────
@@ -8917,7 +9029,8 @@ export default {
       // 順序仍是先估值後驗證（驗證要用當下的板價）。
       try {
         const q = await bountyVerifyCron(cenv);
-        console.log(bountyVerifyLine(q));
+        // 判定途中出錯而停手（review-B R3）：錯誤已在判定裡接住、不再往外丟，這一行改用 error 等級印——與以前「整發丟例外」時同一個等級，警示照樣看得到
+        (q.stopBy === 'error' ? console.error : console.log)(bountyVerifyLine(q));
       } catch (e) { console.error('[cron bounty 驗證] 失敗:', (e && e.stack) || String(e)); }
       return;
     }
@@ -8954,7 +9067,7 @@ export default {
         // 獨立 try/catch,不影響上面估值的 catch 語意,也不影響上層 ingest 的 rethrow 語意。
         try {
           const q = await bountyVerifyCron(cenv);
-          console.log(bountyVerifyLine(q));
+          (q.stopBy === 'error' ? console.error : console.log)(bountyVerifyLine(q));   // 等級的理由同 BOUNTY_CRON 那一支
         } catch (e) { console.error('[cron bounty 驗證] 失敗:', (e && e.stack) || String(e)); }
       }
     }
