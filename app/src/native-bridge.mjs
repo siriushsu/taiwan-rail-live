@@ -46,6 +46,11 @@ if (native) {
       //    "not implemented" 的 rejection。
       fix: platform === 'android' ? (lat, lon, at) => RailPlaces.fix({ lat, lon, at }) : null
     };
+    // 車站收集桌面小工具：數字只在網頁算（stationCollection，護照同一個函式），
+    // 原生外掛只把這串 JSON 原樣寫進 collection.json 再刷新小工具。json 是字串，格式見
+    // docs/superpowers/plans/2026-09-29-車站收集小工具.md「資料格式 v1」。
+    const RailCollection = registerPlugin('RailCollection');
+    window.RAIL_NATIVE_COLLECTION = { sync: json => RailCollection.sync({ json }) };
   }
 
   if (platform === 'android') {

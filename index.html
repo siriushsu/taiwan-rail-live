@@ -7380,6 +7380,7 @@ function setLanguage(lang) {
   I18N_SWITCH_SNAPSHOT = i18nSwitchSnapshot();
   try { i18nRefreshDynamic(); } finally { I18N_SWITCH_SNAPSHOT = null; }
   i18nSyncNativeLanguage(lang);
+  try { nativeCollectionNotify(); } catch (e) {} // 桌面小工具的站名／線名要換成新語言
   glAttributionSync();
 }
 function i18nSyncNativeLanguage(lang = I18N_LANG) {
@@ -12408,6 +12409,7 @@ function applySchedSystems(sysList) {
     if (!seen.has(k)) seen.set(k, { name: st.name, lat: st.lat, lon: st.lon, sys: sys.id });
   }
   state.schedStations = [...seen.values()];
+  try { nativeCollectionNotify(); } catch (e) {} // 別名併回吃 schedStations,換群組後護照數字可能差 1～2 座,桌面小工具跟著重算(內容沒變不會送)
   // 站等分級(台鐵站等表僅台鐵;高鐵站退回停靠班次數啟發式)
   const CLS_TIER = { '特等': 0, '一等': 1, '二等': 2, '三等': 3 };
   const clsMap = state.stnClassMap || {};
@@ -16088,6 +16090,7 @@ function userDataRenderAll() {
   if (typeof renderFavStationMarkers === 'function') renderFavStationMarkers();
   if (typeof renderRidePanel === 'function') renderRidePanel();
   if (typeof renderPassport === 'function') renderPassport();
+  try { nativeCollectionNotify(); } catch (e) {} // 登出／刪帳號／換帳號後護照數字變了,桌面小工具跟著
 }
 // accountSyncNow 拆出來的實際交易邏輯——獨立成函式是為了讓 permission-denied 的重試
 // (見下方 catch)只重跑交易本身,不重新經過外層的 a.syncing/a.loggingOut/plusIsActive() 閘門。
@@ -17365,6 +17368,126 @@ const setupNativePlacesSync = (() => {
     if (started) return;
     started = true;
     push();
+    window.addEventListener('rail-user-data-changed', schedule);
+  };
+})();
+// ── 車站收集桌面小工具(iOS／Android):網頁算好整包資料,原生只畫 ──────────────────────────
+// 使用者裁示:小工具的「已收集 N 座」必須與護照「車站 N 座」同一個數字。所以 N 直接取
+// stationCollection(loadRides()).size(護照用的同一個函式),原生端不重算——別名合併吃
+// state.schedStations,那隨群組變,原生端另算會差 1～2 站。
+// 資料格式 v1(網頁、iOS、Android 三方共同契約,改這裡要三方同改):
+//   docs/superpowers/plans/2026-09-29-車站收集小工具.md 最後一節。
+// 只有原生橋接 window.RAIL_NATIVE_COLLECTION 存在才掛;純網站不 fetch geojson、不掛 listener、零副作用。
+const COLLECT_BOX = [120.15, 22.2, 122.0, 25.27]; // 投影框 lon0, lat0, lon1, lat1,固定值(原生端照這個框畫)
+// 固定順序。geo＝data/track_stations.geojson 的 sys;ck＝收集鍵的系統段(favStationKey 語意:捷運一律 'metro')。
+// label 是小工具晶片用的簡稱;字典裡的 台鐵／高鐵 是全名(High Speed Rail),晶片塞不下,所以自帶三語。
+const COLLECT_SYS = [
+  { k: 'tra', geo: 'tra_sched', ck: 'tra_sched', label: { 'zh-TW': '台鐵', en: 'TRA', ja: '台鉄' } },
+  { k: 'thsr', geo: 'thsr_sched', ck: 'thsr_sched', label: { 'zh-TW': '高鐵', en: 'THSR', ja: '高鉄' } },
+  { k: 'trtc', geo: 'mrt', ck: 'metro', label: { 'zh-TW': '北捷', en: 'Taipei', ja: '台北' } },
+  { k: 'tymc', geo: 'tymc', ck: 'metro', label: { 'zh-TW': '機捷', en: 'Airport', ja: '空港' } },
+  { k: 'tmrt', geo: 'tmrt', ck: 'metro', label: { 'zh-TW': '中捷', en: 'Taichung', ja: '台中' } },
+  { k: 'krtc', geo: 'krtc', ck: 'metro', label: { 'zh-TW': '高捷', en: 'Kaohsiung', ja: '高雄' } },
+  { k: 'ntdlrt', geo: 'ntdlrt', ck: 'metro', label: { 'zh-TW': '淡海', en: 'Danhai', ja: '淡海' } },
+  { k: 'ntalrt', geo: 'ntalrt', ck: 'metro', label: { 'zh-TW': '安坑', en: 'Ankeng', ja: '安坑' } },
+  { k: 'sanying', geo: 'sanying', ck: 'metro', label: { 'zh-TW': '三鶯', en: 'Sanying', ja: '三鶯' } },
+  { k: 'afr', geo: 'afr_sched', ck: 'afr_sched', label: { 'zh-TW': '林鐵', en: 'Alishan', ja: '阿里山' } },
+];
+const NATIVE_COLLECTION = { geo: null, geoP: null };
+let nativeCollectionSchedule = null; // setupNativeCollectionSync 開跑後才有值;純網站恆為 null
+function nativeCollectionNotify() { if (nativeCollectionSchedule) nativeCollectionSchedule(); }
+// 站點清單(分母)只在原生 App 才會抓,抓到就快取;抓不到下次觸發重抓。
+async function collectionGeo() {
+  const c = NATIVE_COLLECTION;
+  if (c.geo) return c.geo;
+  if (!c.geoP) c.geoP = fetchJSON('./data/track_stations.geojson');
+  const g = await c.geoP;
+  c.geoP = null;
+  if (g && Array.isArray(g.features)) c.geo = g;
+  return c.geo;
+}
+// 清單站名 → 收集鍵用的站名。geojson 還是舊名(左營(舊城)、新城 (太魯閣)),收集層存的是班表正名;
+// 一般走 checkinName(別名併回)。⚠開機落在捷運群組時 state.schedStations 是 [],checkinName 的括號別名
+// 併回會失效,清單會多出兩個永遠收不到的站(total 變 540)——沒載入時退回同一條規則的無查表版。
+function collectionListName(ck, name, alias) {
+  const n = checkinName(ck, name, alias);
+  return (ck === 'tra_sched' && !(state.schedStations || []).length) ? n.replace(/\s*[（(].*$/, '') : n;
+}
+function collectionLineName(def, lineId) {
+  const sys = (state.systems || []).find(s => s.id === def.geo);
+  const ln = (((sys && (sys._track || sys.data)) || {}).lines || []).find(l => l.id === lineId);
+  const base = String((ln && ln.name) || '').replace(/（[^（）]*）\s*$/, '').trim();
+  if (!base || /^[A-Za-z][A-Za-z0-9_]*$/.test(base)) return ''; // 沒線名、或線名長得像代碼(PINGXI)→ 退到系統簡稱
+  const r = routeName(base, def.geo);
+  return r !== base ? r : t(base); // 台鐵 routes 索引沒有,退到 t() 字典(同 metroBoardHeading 的做法)
+}
+// 產生小工具要的整包資料(同步;geo 是 collectionGeo() 抓到的 geojson)。
+function collectionWidgetPayload(geo) {
+  geo = geo || NATIVE_COLLECTION.geo;
+  if (!geo) return null;
+  const [lon0, lat0, lon1, lat1] = COLLECT_BOX;
+  const lang = COLLECT_SYS[0].label[I18N_LANG] ? I18N_LANG : 'zh-TW';
+  const coll = stationCollection(loadRides()), alias = checkinAliasMap();
+  const q = (v, a, b) => Math.max(0, Math.min(1000, Math.round((v - a) / (b - a) * 1000)));
+  const geoIdx = new Map(COLLECT_SYS.map((d, i) => [d.geo, i]));
+  const per = COLLECT_SYS.map(() => new Map()); // 每系統:收集鍵 → 點(同名捷運站在不同系統各一點)
+  for (const f of geo.features) {
+    const p = f.properties || {}, i = geoIdx.get(p.sys);
+    if (i == null || !f.geometry) continue;
+    const name = collectionListName(COLLECT_SYS[i].ck, p.name, alias), key = COLLECT_SYS[i].ck + '|' + name;
+    if (per[i].has(key)) continue; // 轉乘站一線一筆,只留第一筆(位置與線色)
+    const [lon, lat] = f.geometry.coordinates;
+    per[i].set(key, { name, x: q(lon, lon0, lon1), y: q(lat, lat1, lat0), color: p.color, lineId: p.lineId }); // y 由北到南:q(lat, 北緣, 南緣)
+  }
+  const live = COLLECT_SYS.map((d, i) => i).filter(i => per[i].size);
+  const sys = live.map(i => ({
+    k: COLLECT_SYS[i].k, label: COLLECT_SYS[i].label[lang],
+    v: [...per[i].keys()].filter(k => coll.has(k)).length, n: per[i].size,
+  }));
+  const S = { follow: 1, pass: 2, visit: 2 };
+  const pts = [];
+  live.forEach((i, j) => per[i].forEach((pt, key) => pts.push([pt.x, pt.y, pt.color, S[(coll.get(key) || {}).s] || 0, j])));
+  const total = new Set([...live.flatMap(i => [...per[i].keys()]), ...coll.keys()]).size;
+  const recent = [...coll.entries()].filter(([, v]) => v.d)
+    .sort((a, b) => (a[1].d < b[1].d ? 1 : a[1].d > b[1].d ? -1 : 0) || b[1].n - a[1].n || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+    .slice(0, 4).map(([key, v]) => {
+      const i = live.find(x => per[x].has(key)), hit = i == null ? null : per[i].get(key);
+      const def = COLLECT_SYS[i != null ? i : COLLECT_SYS.findIndex(d => d.ck === v.sys)] || COLLECT_SYS[0]; // 清單外的站:退到同鍵系統的第一個
+      return {
+        name: stationName(v.name, hit ? def.geo : v.sys), // 護照同一個寫法(stationName(name, sys))
+        line: (hit && collectionLineName(def, hit.lineId)) || def.label[lang],
+        k: def.k, d: v.d,
+      };
+    });
+  return {
+    v: 1, at: Date.now(), lang, box: COLLECT_BOX,
+    aspect: Math.round((lon1 - lon0) * Math.cos((lat0 + lat1) / 2 * Math.PI / 180) / (lat1 - lat0) * 1e4) / 1e4,
+    n: coll.size, total, sys, recent, pts,
+  };
+}
+// 推送(去抖 2 秒;內容不含 at 沒變就不送)。時機:開機資料就緒後、writeCheckin、完乘紀錄與帳號同步合併
+// (rail-user-data-changed)、切語言、userDataRenderAll(登出／刪帳號／換帳號)。
+// 護照在捷運群組會早退、本機打卡也不派事件,所以不能掛在 renderPassport 或只聽 rail-user-data-changed。
+const setupNativeCollectionSync = (() => {
+  const bridge = window.RAIL_NATIVE_COLLECTION;
+  if (!bridge || typeof bridge.sync !== 'function') return () => {};
+  let timer = null, started = false, last = '';
+  const push = async () => {
+    try {
+      const p = collectionWidgetPayload(await collectionGeo());
+      if (!p) return;
+      const sig = JSON.stringify(p, (k, v) => k === 'at' ? undefined : v);
+      if (sig === last) return;
+      last = sig; // 送出前先記:送的途中又觸發不會重複送同一包
+      try { await bridge.sync(JSON.stringify(p)); } catch (e) { last = ''; } // 失敗(舊版 App 沒這個外掛)下次觸發重送
+    } catch (e) {}
+  };
+  const schedule = () => { clearTimeout(timer); timer = setTimeout(push, 2000); };
+  return () => {
+    if (started) return;
+    started = true;
+    nativeCollectionSchedule = schedule;
+    schedule();
     window.addEventListener('rail-user-data-changed', schedule);
   };
 })();
@@ -22935,6 +23058,7 @@ function writeCheckin(st, status, opts) {
   if (status === 'visit') { if (o.low) e.lo = 1; else delete e.lo; } // 低信心只對「人在現場」的宣稱有意義
   e.u = userDataNow();   // 逐筆時間戳:多裝置合併時比這個決定誰贏(LWW)
   c.st[k] = e; saveCheckins(c); checkinsChanged();
+  nativeCollectionNotify(); // 本機打卡不派 rail-user-data-changed,桌面小工具要另外通知
   return true;
 }
 function doCheckin(st) {
@@ -37867,6 +37991,7 @@ async function boot() {
   void setupWebMcp(); // 支援的 ChatGPT 內建瀏覽器才註冊；一般瀏覽器立即 no-op
   i18nRefreshDynamic();
   setupNativePlacesSync();
+  setupNativeCollectionSync();
   // 錄製中的投影里程先於重新整理落在裝置端；線網就緒後接回同一趟並恢復前景取樣。
   // 沒有進行中的旅程也會順手重試先前斷線留下的批次，兩條路都只處理里程、不碰座標。
   if (!bountyRestoreRecording()) void bountyRetryPending();
