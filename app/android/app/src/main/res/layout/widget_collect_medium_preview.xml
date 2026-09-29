@@ -81,6 +81,9 @@
             android:layout_weight="1"
             android:orientation="vertical">
 
+            <!-- 伸縮間隔：與實際卡片（widget_collect_spacer）同一個垂直分配，圖例貼底、中段置中 -->
+            <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -146,6 +149,8 @@
                 android:text="還有 2 個系統還沒去過"
                 android:textColor="@color/wg_ink_faint"
                 android:textSize="10.5sp" />
+
+            <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
 
             <LinearLayout
                 android:layout_width="match_parent"

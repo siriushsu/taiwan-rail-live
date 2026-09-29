@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 中卡 wc_rows 裡的伸縮間隔（對應 iOS MediumCollectionView 的 Spacer）：中段前一個、圖例前一個，
+     讓圖例貼底、中段夾在標題與圖例中間。Pixel 桌面的 5×2 比 iOS 中卡高，全部貼頂會空出下半張卡。
+     高度 0＋權重 1＝最小高度 0，CollectionWidgetRender 的列高預算不用算它。RemoteViews 不收裸 View，所以用 FrameLayout。 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1" />

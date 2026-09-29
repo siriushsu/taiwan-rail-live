@@ -166,6 +166,9 @@ final class CollectionWidgetRender {
         // 🔴 addView 會「累加」：launcher 對同一個 layout 是 reapply 到舊 View 樹，不先清掉，
         //    每次更新（換範圍、收集新站、換語言）都會在舊的列後面再長出一份（2026-09-30 真桌面看到全台列重複）。
         v.removeAllViews(R.id.wc_rows);
+        // 垂直分配照 iOS MediumCollectionView：標題貼頂、中段前一個伸縮間隔、有圖例時圖例前再一個（圖例貼底）。
+        // 間隔最小高度 0，下面的列高預算不用算它。
+        addSpacer(c, v);
         // 高度預算（dp）：列容器可用高度；各列自然高度隨字級縮放（allRows／scopeRows 內乘 fs）。
         float avail = hDp - CARD_PAD_V - MEDIUM_HEAD * fs;
         String pkg = c.getPackageName();
@@ -268,7 +271,12 @@ final class CollectionWidgetRender {
         v.addView(R.id.wc_rows, note);
     }
 
+    private static void addSpacer(Context c, RemoteViews v) {
+        v.addView(R.id.wc_rows, new RemoteViews(c.getPackageName(), R.layout.widget_collect_spacer));
+    }
+
     private static void addLegend(Context c, RemoteViews v) {
+        addSpacer(c, v);
         RemoteViews legend = new RemoteViews(c.getPackageName(), R.layout.widget_collect_legend);
         legend.setTextViewText(R.id.wc_legend_solid, RailNativeL10n.text(c, "實心＝搭過／到訪"));
         legend.setTextViewText(R.id.wc_legend_follow, RailNativeL10n.text(c, "空心＝跟完"));
