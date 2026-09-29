@@ -1295,6 +1295,51 @@ const cr = await chromium.launch();
   await ctx.close();
 }
 
+// ══════════ T29：從車站看板追一班還沒發車的車(09-29 使用者裁示 A) ══════════
+// 有跟車卡(Plus＋原生)⇒ 時鐘留在現在、立刻開卡;未訂閱 ⇒ 照舊撥到發車前(時光機),當正向對照。
+for (const plus of [true, false]) {
+  const { ctx, page, errors } = await boot(cr, { plus });
+  await clearCalls(page);
+  // 看板只列最近幾班 ⇒ 由近到遠逐一試,取第一班真的列在起站看板上的。
+  const cands = await page.evaluate(() => {
+    const now = state.simSec, out = [];
+    for (const tr of state.trains || []) {
+      if (tr.sys !== 'tra_sched' || tr.loop) continue;
+      const first = (tr.stops || []).find(x => x.stop !== false);
+      if (!first || !Number.isFinite(first.depSec)) continue;
+      if (first.depSec > now + 120 && first.depSec < now + 10800) out.push({ no: String(tr.train), st: first.name, dep: first.depSec });
+    }
+    return out.sort((a, b) => a.dep - b.dep).slice(0, 15);
+  });
+  const tag = plus ? 'T29 有卡' : 'T29 對照(未訂閱)';
+  ok(`${tag} 前置:找到 2 分鐘–3 小時內從起站發車的台鐵車`, cands.length > 0, `候選 ${cands.length}`);
+  let pick = null, sel = '';
+  for (const c of cands) {
+    await page.evaluate(name => openBoard(state.schedStations.find(s => s.name === name && s.sys === 'tra_sched')), c.st);
+    sel = `#board .row[data-no="${c.no}"]`;
+    if (await page.$(sel)) { pick = c; break; }
+  }
+  {
+    const found = !!pick;
+    ok(`${tag} 前置:起站看板列出其中一班`, found, JSON.stringify(pick));
+    if (found) {
+      await page.click(sel);
+      await page.waitForTimeout(600);
+      const r = await page.evaluate(() => ({ now: state.clockAtNow, no: state.followTrain && String(state.followTrain.train) }));
+      const st = await calls(page, 'start');
+      ok(`${tag} 跟上的是點的那班車`, r.no === pick.no, JSON.stringify(r));
+      if (plus) {
+        ok(`${tag} 時鐘留在現在`, r.now === true, JSON.stringify(r));
+        ok(`${tag} 立刻開卡且是那班車`, st.length === 1 && st[0].p.trainNo === pick.no, JSON.stringify(st.map(c => c.p && c.p.trainNo)));
+      } else {
+        ok(`${tag} 時鐘照舊撥走(時光機仍在)`, r.now === false, JSON.stringify(r));
+      }
+    }
+  }
+  ok(`${tag} 無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 await cr.close();
 
 // ══════════ T12：更新紀錄兩條 li 的四寬度幾何(WebKit) ══════════
@@ -1345,7 +1390,7 @@ server.close();
 // 用途:條件式區塊整批消失時,分母跟著變小、收尾只印「N/N PASS」⇒ 會被當成全綠。
 // 注意 T4 走「找不到撞號車對」那一支時只產 2 條(其中一條刻意記 FAIL),這道閘門會跟著紅——
 // 那是預期行為:資料裡沒有撞號車對時,那條判準本來就沒被執行,不該當成通過。
-const EXPECTED_COUNTS = { G0: 1, T0: 2, T1: 8, T2: 3, T3: 4, T4: 4, T5: 5, T6: 4, T7: 5, T8: 7, T9: 4, T10a: 5, T10b: 4, T11: 6, T12: 3, T14a: 1, T14b: 1, T14: 6, T15: 2, T16: 2, T17: 2, T18: 1, T19: 2, T20: 4, T21: 2, T22: 3, T23: 2, T24: 1, T25: 7, T25b: 2, T26: 5, T27: 7, T28: 7 };
+const EXPECTED_COUNTS = { G0: 1, T0: 2, T1: 8, T2: 3, T3: 4, T4: 4, T5: 5, T6: 4, T7: 5, T8: 7, T9: 4, T10a: 5, T10b: 4, T11: 6, T12: 3, T14a: 1, T14b: 1, T14: 6, T15: 2, T16: 2, T17: 2, T18: 1, T19: 2, T20: 4, T21: 2, T22: 3, T23: 2, T24: 1, T25: 7, T25b: 2, T26: 5, T27: 7, T28: 7, T29: 11 };
 const actualCounts = {};
 // `T\d+[ab]?`:T10a/T10b 是兩個獨立情境(可回復 vs 不可回復),分開記數才不會互相掩護。
 // T14a/T14b 同理各自獨立記數;T14c/d/e/f 沒有 a/b 字尾,一律落回裸「T14」桶(見上面正規式)。

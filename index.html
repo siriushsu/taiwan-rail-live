@@ -32612,7 +32612,10 @@ function renderBoardBody() {
     const sys = row ? row.dataset.sys : el._downSys;
     el._downNo = null; el._downSys = null;
     // 手機:點班次列＝切到「這班車」,卡片留著(setFollow 內同一條規則);桌面照舊收板
-    if (no) { if (!uniMobile()) closeBoard(); followTrainNo(no, { sys }); }
+    // 🔴 09-29 使用者裁示 A:App＋通行證(會開跟車卡)時,從看板追一班還沒發車的車要停在「現在」,
+    //    卡片馬上出現、倒數到它進站;否則 setFollow 會把時鐘撥到發車前 20 秒,liveClock 不成立 ⇒ 不開卡。
+    //    網站與未訂閱者維持原本的時光機行為。
+    if (no) { if (!uniMobile()) closeBoard(); followTrainNo(no, { sys, keepNow: liveActivityAllowed() }); }
   };
 }
 
