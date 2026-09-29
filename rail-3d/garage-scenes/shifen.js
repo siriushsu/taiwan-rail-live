@@ -85,8 +85,10 @@ export function createScene(params = {}) {
  for(let x=streetX0,i=0;x<streetX1-1.4;i++){const w=Math.min(2.0+rand()*1.0,streetX1-x);
   props.townhouse(x+w/2,nearFront-1.3,groundZ,{floors:1,width:w,depth:2.6,tint:i*3+1+(i%4===0?1:0),facing:Math.PI,roof:i%2?'parapet':'pitched',ground:'shop',tanks:i%2,back:true});x+=w;}
  // 燈籠串橫過街心：一頭綁在遠排店屋的簷口，一頭綁在近側的燈桿。高度在車頂之上。
+ // 09-29 由 2.4 抬到 2.8：車庫讓全部台鐵車都能開進十分，最高的 E500 車頂在軌頂上 1.98（軌頂＝groundZ+.40），
+ // 舊高度的燈籠底緣只有軌頂上 1.73，E200／E300／E400／明日／E500／E1000 會撞進燈籠；抬高後燈籠底緣在軌頂上 2.13。
  const lanternGeo=geo(new THREE.CylinderGeometry(.5,.5,1,8));lanternGeo.rotateX(Math.PI/2);
- const stringZ=groundZ+2.4;
+ const stringZ=groundZ+2.8;
  for(let x=streetX0+1.2;x<streetX1-.5;x+=3.6){
   block(stringMat,[.03,3.5,.03],[x,trackY,stringZ]);
   block(postMat,[.09,.09,stringZ+.1-groundZ],[x,nearFront+.12,(groundZ+stringZ+.1)/2]);
@@ -261,9 +263,10 @@ export function createSkyLanterns(kit,scale,zone,params={}){
  const nSky=Math.max(0,cfg.count|0);
  let seed=cfg.seed;const rand=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
  const colors=['#e8503a','#f2a23a','#f4d35e','#e86f9a','#f5f0e6','#6fb1e8'];
- // H／releaseZ：回收高度／放飛起點，跟舊版程序化天燈同一個飛行包絡（維持不變）。FADE：淡出/淡入各佔
+ // H／releaseZ：回收高度／放飛起點。09-29 起放飛起點從 groundZ+1.3 抬到 groundZ+2.5（軌頂上 2.1，高過最高的
+ // 台鐵車頂 1.98）：舊起點在軌道正上方、車頂之下，車經過時天燈會從車頂冒出來；H 同步減 1.2，最高點維持原樣。FADE：淡出/淡入各佔
  // 的爬升量（世界單位）——循環重置前後這段距離內把 scale 收到 0，避免瞬移穿幫（十分-天燈升空判準）。
- const H=13,releaseZ=zone.groundZ+1.3,FADE=1.1;
+ const H=11.8,releaseZ=zone.groundZ+2.5,FADE=1.1;
  // phase 09-28 起改成「均分＋小抖動」而非純隨機：主對話要求任何時刻老街上方都同時看得到幾盞不同
  // 高度的天燈，純隨機在數量不多時容易洗出「這一刻剛好全部擠在同一段高度」的抽樣，均分能保證任何
  // 時刻都攤開在整個爬升週期的不同位置，抖動量壓在 ±7.5% 週期，維持「錯落」的手感不會看起來機械對齊。
