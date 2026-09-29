@@ -5,7 +5,17 @@
  const TEST_KEY='rail-garage-scene-unlock-test';
  // 本機測試開關：網址帶 ?unlock=1 打開、?unlock=0 關掉，記在同源 localStorage。
  // 車庫與場景 iframe 同源，所以兩邊看到同一個值。
+ // 只在本機與區網有效（localhost、127.0.0.1、*.localhost、*.test、10.／172.16–31.／192.168. 區網位址）：
+ // 正式站、預覽站、GitHub Pages 上網址帶 unlock=1 一律不理，不然任何人改個網址就能解開全部景（09-29 驗收 F3）。
+ // App 內嵌的 capacitor://localhost、https://localhost 也算本機，但 App 裡使用者改不到網址，不會被拿來開鎖。
+ function testSwitchAllowed(){
+  try{
+   const h=location.hostname;
+   return h==='localhost'||h==='127.0.0.1'||h==='[::1]'||h.endsWith('.localhost')||h.endsWith('.test')||/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h);
+  }catch{return false;}
+ }
  function garageSceneTestUnlock(sceneId){
+  if(!testSwitchAllowed())return false;
   try{
    const u=new URLSearchParams(location.search).get('unlock');
    if(u==='1')localStorage.setItem(TEST_KEY,'1');else if(u==='0')localStorage.removeItem(TEST_KEY);
