@@ -411,6 +411,7 @@ final class RailFollowNotification {
             state.put("kind", handoff.optString("kind", ""));
             state.put("sys", handoff.optString("sys", ""));
             state.put("color", handoff.optString("color", ""));
+            state.put("carModel", handoff.optString("carModel", ""));   // 交棒後畫接續車自己的車型
             state.put("terminus", handoff.optString("terminus", ""));
             state.put("remainingStops", new JSONArray(targetStops.toString()));
             JSONObject targetMap = handoff.optJSONObject("staMap");

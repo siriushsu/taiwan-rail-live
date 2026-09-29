@@ -301,6 +301,7 @@ const pieces = [
   extractDeclaration(waitSource, 'struct MetroWaitDisplay'),
   extractDeclaration(waitSource, 'struct MetroWaitThirdRow'),
   extractDeclaration(waitSource, 'struct MetroWaitTrack'),
+  extractDeclaration(waitSource, 'struct MetroWaitMiddleCar'),
   extractDeclaration(waitSource, 'struct MetroWaitPlate'),
   extractDeclaration(waitSource, 'struct MetroWaitSecondLine'),
   extractDeclaration(waitSource, 'struct MetroWaitLockView'),

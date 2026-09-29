@@ -509,14 +509,22 @@ struct MetroWaitTrack: View {
                     .overlay(Circle().strokeBorder(railColor, lineWidth: s(2)))
                     .frame(width: s(9), height: s(9))
                     .position(x: px, y: railC)
-                // 車：兩節（領頭那節車頭朝右＝朝本站，後面那節鏡像，讀起來是一列車）。
+                // 車：三節（領頭那節車頭朝右＝朝本站、中間一節平頭、最後一節鏡像）。
+                // 09-29 使用者：「高鐵現在兩節都是尖的頭尾看起來很奇怪」——兩節時頭尾兩個車鼻對在一起。
+                // 中間那節沒有另外的素材：取車圖不含車鼻的左半，再接一份鏡像，兩端都是平的。
                 if let nose {
                     let cw = carH * CGFloat(track.carAspect)
-                    ForEach(0..<2, id: \.self) { i in
-                        MetroWaitCarImage(model: track.carModel)
-                            .frame(width: cw, height: carH)
-                            .scaleEffect(x: i == 1 ? -1 : 1, y: 1)
-                            .offset(x: nose - cw * CGFloat(i + 1) - s(1.5) * CGFloat(i), y: railC - carH)
+                    ForEach(0..<3, id: \.self) { i in
+                        Group {
+                            if i == 1 {
+                                MetroWaitMiddleCar(model: track.carModel, width: cw, height: carH)
+                            } else {
+                                MetroWaitCarImage(model: track.carModel)
+                                    .frame(width: cw, height: carH)
+                                    .scaleEffect(x: i == 2 ? -1 : 1, y: 1)
+                            }
+                        }
+                        .offset(x: nose - cw * CGFloat(i + 1) - s(1.5) * CGFloat(i), y: railC - carH)
                     }
                 }
                 // 本站：路線色實心圓＋一圈卡片底色（把軌道切開），立柱撐著站名牌。
@@ -661,6 +669,26 @@ struct MetroWaitCarImage: View {
     let model: String
     var body: some View {
         Image("la-side-\(model)").resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+    }
+}
+
+/// 中間車廂：車圖左半（連結端＋車身，車鼻在右半）接上它自己的鏡像，兩端都是平的。
+struct MetroWaitMiddleCar: View {
+    let model: String
+    let width: CGFloat
+    let height: CGFloat
+    var body: some View {
+        HStack(spacing: 0) {
+            half
+            half.scaleEffect(x: -1, y: 1)
+        }
+        .frame(width: width, height: height)
+    }
+    private var half: some View {
+        MetroWaitCarImage(model: model)
+            .frame(width: width, height: height)
+            .frame(width: width / 2, height: height, alignment: .leading)
+            .clipped()
     }
 }
 

@@ -87,6 +87,9 @@ public final class RailFollowLivePlugin extends Plugin {
         copyString(call, out, "kind");
         copyString(call, out, "sys");
         copyString(call, out, "color");
+        // 跟車卡進站軌道要靠它選車圖（RailWaitTrack.traCarDrawable）；09-23 加軌道時漏抄，
+        // 通知端永遠讀到空字串 ⇒ 台鐵／高鐵跟車卡從來沒畫出車（09-29 使用者回報）。
+        copyString(call, out, "carModel");
         copyString(call, out, "nextStop");
         copyString(call, out, "prevStop");
         copyString(call, out, "terminus");

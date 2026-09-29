@@ -20946,11 +20946,22 @@ function liveActivityAllowed() {
 // formations.js)——但那是 async,laPayload/laBind/xferHandoffPlan 都得保持同步。用一個
 // 極簡快取墊著:第一次問某班車回 null(卡片這一發沒有車型,不畫車圖版即可,不痛),
 // 背景把 import 解出來之後寫進快取,下一發(≤10 秒後,或下一次 cron)自然就有。
+// 🔴 09-29 使用者回報「換追下一班車不會馬上顯示」:開卡那一發幾乎都是 null ⇒ iOS 要等下一發才換成
+//    有車的版面、Android 鎖屏後一直沒車。改成有原生殼就在開機時先把 formations.js(約 10KB、無相依)
+//    載好,之後同步算,開卡那一發就有車型;模組還沒載完的極短窗口才退回上面的「下一發補上」。
+let _laFormationFor = null;
+if (LIVE_ACTIVITY_ENABLED) import('./rail-3d/integration/formations.js')
+  .then(m => { _laFormationFor = m.formationFor; }).catch(() => {});
 const _laCarModelCache = {};
 function laCarModel(tr) {
   const key = String(tr.sys || '') + '#' + String(tr.train || '');
   const hit = _laCarModelCache[key];
   if (hit !== undefined) return hit;
+  if (_laFormationFor) {
+    let id = null;
+    try { id = carModelOf(_laFormationFor, tr); } catch (e) {}
+    return (_laCarModelCache[key] = id);
+  }
   _laCarModelCache[key] = null;   // 先佔位:resolve 前同一班車的呼叫都拿 null,不會重複觸發 import
   traWaitCarModel(tr).then(id => { _laCarModelCache[key] = id; }).catch(() => {});
   return null;
@@ -34007,13 +34018,16 @@ function traWaitHopOf(r, schedEpoch) {
 }
 // 車型：與網站 3D 列車同一份對照（formations.js baseFormation），卡片畫它的正側面。
 // 拿不到（模組載入失敗）就不送，卡片維持軌脊版——不猜一個車型。
+function carModelOf(formationFor, tr) {
+  const sp = specialOf(tr);
+  const f = formationFor({ systemId: tr.sys, carName: tr.carName, typeName: tr.typeName,
+    stockId: sp?.stock?.id, branchId: sp?.branch?.id, namedId: sp?.named?.id }, 'actual');
+  return f && f.id ? String(f.id) : null;
+}
 async function traWaitCarModel(tr) {
   try {
     const { formationFor } = await import('./rail-3d/integration/formations.js');
-    const sp = specialOf(tr);
-    const f = formationFor({ systemId: tr.sys, carName: tr.carName, typeName: tr.typeName,
-      stockId: sp?.stock?.id, branchId: sp?.branch?.id, namedId: sp?.named?.id }, 'actual');
-    return f && f.id ? String(f.id) : null;
+    return carModelOf(formationFor, tr);
   } catch (e) { return null; }
 }
 function traWaitDelayChip(trainNo) {
