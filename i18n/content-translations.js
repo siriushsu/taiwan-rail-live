@@ -3500,3 +3500,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '地圖上站名旁邊的機場名稱也不再跟站名疊在一起，例如松山機場站旁的「臺北松山機場」': '地図で駅名のすぐ横に出ていた空港名（松山機場駅の横の「臺北松山機場」など）も、駅名と重なって表示されなくなりました',
 });
+// 2026-09-29 捷運路線圖頁（SEO 階段 A）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '新增捷運路線圖頁：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車': 'New metro map pages for Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung: stations, transfers and first and last trains for every line',
+  '新增捷運路線圖頁（中、英、日文）：台北、桃園機場、新北、台中、高雄各系統與每條路線的路線圖、車站與轉乘、首末班車和班距，沒有公開逐班時刻表的路線只列營運時段；頁面可一鍵在地圖上看列車，頁尾新增「捷運路線圖」入口': 'New metro map pages in Chinese, English and Japanese for Taipei, Taoyuan Airport, New Taipei, Taichung and Kaohsiung: a route map, stations and transfers, first and last trains and headways for every line (lines without a published train-by-train timetable list only their operating hours). Each page has a button that opens the trains on the live map, and the footer has a new "Metro maps" link.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '新增捷運路線圖頁：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車': '台北・桃園・新北・台中・高雄のメトロ路線図ページを追加しました。各路線の駅、乗り換え、始発・終電を確認できます',
+  '新增捷運路線圖頁（中、英、日文）：台北、桃園機場、新北、台中、高雄各系統與每條路線的路線圖、車站與轉乘、首末班車和班距，沒有公開逐班時刻表的路線只列營運時段；頁面可一鍵在地圖上看列車，頁尾新增「捷運路線圖」入口': '台北・桃園空港・新北・台中・高雄の各システムと各路線について、路線図、駅と乗り換え、始発・終電、運転間隔をまとめたページを中国語・英語・日本語で追加しました（列車ごとの時刻表が公開されていない路線は運行時間帯のみ掲載）。各ページのボタンからライブ地図の列車を開けます。ページ下部には「メトロ路線図」へのリンクも追加しました。',
+});

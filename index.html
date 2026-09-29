@@ -3675,7 +3675,7 @@
        長清單已經住進 .foot-more,那層仍受上面的 44vh 節制。 */
     #msAbout .foot-recent { max-height: none; overflow: visible; }
     .ms-aeo-links {
-      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 8px;
       padding: 10px 14px 4px;
     }
     .ms-aeo-links a {
@@ -5627,6 +5627,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="metropages0929"><span class="d">9/29</span><span>新增捷運路線圖頁：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車</span></li>
         <li data-cl-of="placedup0925"><span class="d">9/29</span><span>地圖上站名旁邊的機場名稱也不再跟站名疊在一起，例如松山機場站旁的「臺北松山機場」</span></li>
         <li data-cl-of="tradistinct0929"><span class="d">9/29</span><span>立體地圖上台鐵列車在車站讓後車先過時，改停到旁邊的股道，後車不會再從停著的車身穿過去</span></li>
         <li data-cl-of="tainanfast0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：修正 App 裡點了打不開，網頁版下載量從約 11 MB 降到約 2 MB，開啟更快、全線視角更順</span></li>
@@ -5634,7 +5635,6 @@
         <li data-cl-of="traovertake0929"><span class="d">9/29</span><span>修正少數台鐵列車在車站空等不存在的後車，或出站後異常慢行的問題</span></li>
         <li data-cl-of="followcard0929"><span class="d">9/29</span><span>App 鎖定畫面跟車卡：Android 補上小列車、iPhone 改成三節車廂，從車站看板追下一班車時卡片會立刻出現</span></li>
         <li data-cl-of="langhint0929"><span class="d">9/29</span><span>網頁版首次開啟固定顯示繁體中文；英文、日文瀏覽器會出現可一鍵切換的語言提示</span></li>
-        <li data-cl-of="seotitle0929"><span class="d">9/29</span><span>網頁標題與搜尋結果說明寫清楚：台鐵、高鐵、捷運即時地圖與時刻表</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6022,6 +6022,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="metropages0929"><span class="d">9/29</span><span>新增捷運路線圖頁（中、英、日文）：台北、桃園機場、新北、台中、高雄各系統與每條路線的路線圖、車站與轉乘、首末班車和班距，沒有公開逐班時刻表的路線只列營運時段；頁面可一鍵在地圖上看列車，頁尾新增「捷運路線圖」入口</span></li>
         <li data-cl="langhint0929"><span class="d">9/29</span><span>網頁版第一次開啟固定顯示繁體中文，不再依瀏覽器語言自動切換；英文或日文瀏覽器會出現一個小提示，按一下就能切換語言，也能關掉不再提示（App 仍依手機語言）。另新增英文與日文的獨立介紹頁，方便外國旅客搜尋到軌島</span></li>
         <li data-cl="seotitle0929"><span class="d">9/29</span><span>網頁標題與搜尋結果裡的網站說明改寫得更清楚，直接寫出「台鐵、高鐵、捷運即時列車地圖與時刻表」，在 Google 搜尋時比較容易認出軌島在做什麼</span></li>
         <li data-cl="buildingopacity0927"><span class="d">9/27</span><span>修正立體地圖剛放大到能看見建築、還沒顯示立體列車時，切換亮暗外觀會讓「透視顯示」的建築突然變得不透明；現在重新裝入建築後會立即套回所選的透明度</span></li>
@@ -6135,6 +6136,7 @@
       <a href="about/">關於軌島</a>
       <a href="accuracy/">準確度說明</a>
       <a href="stations/">車站索引</a>
+      <a href="metro/">捷運路線圖</a>
       <!-- APP_REPLACE_END aeo-links-foot -->
       <a class="report-open" href="https://github.com/siriushsu/taiwan-rail-live/issues/new" target="_blank" rel="noopener noreferrer">回報問題或建議</a>
       <a href="https://github.com/siriushsu/taiwan-rail-live" target="_blank" rel="noopener noreferrer">原始碼公開，歡迎貢獻</a>
@@ -6493,6 +6495,7 @@
       <a href="about/">關於軌島</a>
       <a href="accuracy/">準確度說明</a>
       <a href="stations/">車站索引</a>
+      <a href="metro/">捷運路線圖</a>
       <!-- APP_REPLACE_END aeo-links-ms -->
     </nav>
     <div class="ms-about-links">
@@ -6929,7 +6932,9 @@
 // v0929h：底圖地名去重擴及機場標籤（aerodrome_label 圖層，地景與淺色街圖的 airport）：機場名稱以站名結尾也算
 //         （臺北松山機場 vs 松山機場站、高雄國際機場同名）（守門：scripts/verify_basemap_label_dedup.mjs）。
 //         v0929g 已被 seo/homepage-title 分支佔用（未併 main），跳號避免撞號。
-const BUILD = 'v0929h';
+// v0929i：SEO 批次（首頁標題與描述、網頁固定繁中＋外語提示、/en/ /ja/ 與 hreflang、捷運路線圖頁三語 60 頁）。
+//         本分支原本佔 v0929g，併 main 時 v0929h 已上 main，改用 v0929i 讓版號維持遞增。
+const BUILD = 'v0929i';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);

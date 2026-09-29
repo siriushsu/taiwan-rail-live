@@ -3,10 +3,10 @@
   <url><loc>https://railisland.tw/</loc><lastmod>2026-09-03</lastmod></url>
   <url><loc>https://railisland.tw/en/</loc><lastmod>2026-09-29</lastmod></url>
   <url><loc>https://railisland.tw/ja/</loc><lastmod>2026-09-29</lastmod></url>
-  <url><loc>https://railisland.tw/about/</loc><lastmod>2026-09-03</lastmod></url>
+  <url><loc>https://railisland.tw/about/</loc><lastmod>2026-09-29</lastmod></url>
   <url><loc>https://railisland.tw/accuracy/</loc><lastmod>2026-09-03</lastmod></url>
   <url><loc>https://railisland.tw/data-sources/</loc><lastmod>2026-09-03</lastmod></url>
-  <url><loc>https://railisland.tw/stations/</loc><lastmod>2026-09-03</lastmod></url>
+  <url><loc>https://railisland.tw/stations/</loc><lastmod>2026-09-29</lastmod></url>
   <url><loc>https://railisland.tw/stations/taipei/</loc><lastmod>2026-09-03</lastmod></url>
   <url><loc>https://railisland.tw/stations/banqiao/</loc><lastmod>2026-09-03</lastmod></url>
   <url><loc>https://railisland.tw/stations/nangang/</loc><lastmod>2026-09-03</lastmod></url>
@@ -27,6 +27,66 @@
   <url><loc>https://railisland.tw/stations/chiayi/</loc><lastmod>2026-09-03</lastmod></url>
   <url><loc>https://railisland.tw/stations/chiayi-hsr/</loc><lastmod>2026-09-03</lastmod></url>
   <url><loc>https://railisland.tw/stations/formosa-boulevard/</loc><lastmod>2026-09-03</lastmod></url>
+  <url><loc>https://railisland.tw/metro/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/taipei/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/taoyuan-airport/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/new-taipei/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/taichung/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/kaohsiung/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/taipei/wenhu/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/taipei/tamsui-xinyi/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/taipei/songshan-xindian/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/taipei/zhonghe-xinlu/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/taipei/bannan/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/taipei/circular/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/taoyuan-airport/airport-mrt/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/new-taipei/danhai/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/new-taipei/ankeng/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/new-taipei/sanying/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/taichung/green/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/kaohsiung/red/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/kaohsiung/orange/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/metro/kaohsiung/circular-lrt/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/taipei/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/taoyuan-airport/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/new-taipei/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/taichung/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/kaohsiung/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/taipei/wenhu/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/taipei/tamsui-xinyi/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/taipei/songshan-xindian/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/taipei/zhonghe-xinlu/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/taipei/bannan/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/taipei/circular/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/taoyuan-airport/airport-mrt/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/new-taipei/danhai/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/new-taipei/ankeng/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/new-taipei/sanying/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/taichung/green/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/kaohsiung/red/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/kaohsiung/orange/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/en/metro/kaohsiung/circular-lrt/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/taipei/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/taoyuan-airport/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/new-taipei/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/taichung/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/kaohsiung/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/taipei/wenhu/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/taipei/tamsui-xinyi/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/taipei/songshan-xindian/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/taipei/zhonghe-xinlu/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/taipei/bannan/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/taipei/circular/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/taoyuan-airport/airport-mrt/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/new-taipei/danhai/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/new-taipei/ankeng/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/new-taipei/sanying/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/taichung/green/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/kaohsiung/red/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/kaohsiung/orange/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ja/metro/kaohsiung/circular-lrt/</loc><lastmod>2026-09-29</lastmod></url>
   <url><loc>https://railisland.tw/status.html</loc><lastmod>2026-09-03</lastmod></url>
   <url><loc>https://railisland.tw/privacy.html</loc><lastmod>2026-09-03</lastmod></url>
   <url><loc>https://railisland.tw/terms.html</loc><lastmod>2026-09-03</lastmod></url>

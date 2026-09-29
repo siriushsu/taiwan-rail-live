@@ -334,6 +334,95 @@ h3 { margin: 0 0 8px; font-size: 20px; }
   .footer-links { justify-content: flex-start; }
 }
 
+/* ── 捷運路線圖頁（/metro/、/en/metro/、/ja/metro/；由 scripts/build_metro_pages.mjs 產生）── */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.metro-figure { margin: 0 0 18px; padding: 10px 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 2px 0 rgba(42, 74, 115, .10); }
+.metro-figure figcaption { margin: 0 4px 6px; color: var(--strong); font-weight: 800; }
+.geo-map { display: block; width: 100%; max-width: 540px; height: auto; max-height: 760px; margin-inline: auto; }
+.geo-map .casing { fill: none; stroke: var(--strong); stroke-opacity: .28; stroke-linecap: round; stroke-linejoin: round; }
+.geo-map .track { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.geo-map .dot { fill: var(--paper); stroke: var(--strong); stroke-width: 1.5; }
+.geo-map .dot.xfer { stroke-width: 2.6; }
+.geo-map .dot.end { fill: var(--strong); }
+.geo-map .leader { fill: none; stroke: var(--strong); stroke-width: .9; stroke-opacity: .65; }
+.geo-map .lbl { fill: var(--strong); font-family: var(--font); font-size: 12px; font-weight: 700; paint-order: stroke; stroke: var(--paper); stroke-width: 3.2px; stroke-linejoin: round; }
+.map-legend { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 12px 4px 0; padding: 0; list-style: none; }
+.map-legend a { display: inline-flex; min-height: 36px; align-items: center; gap: 8px; font-weight: 800; text-decoration: none; }
+.map-legend .swatch, .line-swatch { display: inline-block; flex: 0 0 auto; border-radius: 4px; box-shadow: 0 0 0 1px rgba(58, 50, 38, .35); }
+.map-legend .swatch { width: 22px; height: 7px; }
+.map-symbols { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 6px 4px 0; padding: 0; color: var(--muted); font-size: 13px; list-style: none; }
+.map-symbols .sym { display: inline-block; width: 11px; height: 11px; margin-right: 5px; border: 1.6px solid var(--strong); border-radius: 50%; background: var(--paper); vertical-align: -1px; }
+.map-symbols .sym.end { background: var(--strong); }
+.map-symbols .sym.xfer { border-width: 2.6px; }
+.map-note { margin: 10px 4px 0; color: var(--muted); font-size: 14px; }
+
+.line-index { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.line-index li { display: flex; gap: 12px; align-items: stretch; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 2px 0 rgba(42, 74, 115, .10); }
+.line-swatch { width: 9px; }
+.line-index .line-main { min-width: 0; flex: 1; }
+.line-index .line-title { font-size: 18px; font-weight: 800; }
+.line-index .line-meta { color: var(--muted); font-size: 14px; }
+.system-cards .card h3 a { text-decoration: none; }
+
+.time-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; }
+.time-card { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 2px 0 rgba(42, 74, 115, .10); }
+.time-card h3 { margin: 0; padding: 13px 16px 11px; font-size: 17px; }
+.time-card .svc-foot { margin: 0; padding: 9px 12px 11px; border-top: 1px solid var(--line-faint); color: var(--muted); font-size: 13.5px; }
+.time-card table, .stop-times table, .xfer-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.time-card th, .time-card td, .stop-times th, .stop-times td, .xfer-table th, .xfer-table td { padding: 9px 12px; border-top: 1px solid var(--line-faint); text-align: left; vertical-align: top; }
+.time-card thead th, .stop-times thead th, .xfer-table thead th { background: var(--stage); color: var(--muted); font-size: 13px; }
+.time-card th[scope="row"], .stop-times th[scope="row"], .xfer-table th[scope="row"] { font-weight: 700; }
+.xfer-table th[scope="row"] { min-width: 5.6em; }
+.t { font-variant-numeric: tabular-nums; white-space: nowrap; }
+sup.nd { margin-left: 1px; color: var(--red); font-size: 10px; font-weight: 800; }
+.facts-list { margin: 16px 0 0; padding-left: 1.25em; }
+.facts-list li + li { margin-top: 8px; }
+.table-note { margin: 10px 2px 0; color: var(--muted); font-size: 13.5px; }
+.stop-times details { margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.stop-times summary { min-height: 44px; padding: 11px 16px; color: var(--strong); font-weight: 800; cursor: pointer; }
+.stop-times .table-wrap { overflow-x: auto; }
+.stop-times h3 { margin: 22px 0 0; }
+.stop-times h3:first-of-type { margin-top: 0; }
+
+.stop-group { margin: 26px 0 0; }
+.stop-group:first-of-type { margin-top: 0; }
+.stop-group h3 { margin: 0 0 8px; }
+.stop-group .group-note { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
+.stop-list { margin: 0; padding: 0; list-style: none; }
+.stop { display: flex; gap: 6px; min-height: 48px; }
+.stop .rail { position: relative; flex: 0 0 40px; }
+.stop .rail-seg { position: absolute; top: -1px; left: 0; width: 40px; height: calc(100% + 2px); }
+.stop .rail-node { position: absolute; top: 7px; left: 10px; width: 20px; height: 20px; }
+.stop.is-first .rail-seg { top: 17px; height: calc(100% - 16px); }
+.stop.is-last .rail-seg { top: -1px; height: 18px; }
+.stop.is-first.is-last .rail-seg { display: none; }
+.rail-seg .cas { fill: var(--line); }
+.rail-node .ring { fill: var(--paper); stroke: var(--strong); stroke-width: 2.4; }
+.stop.is-xfer .rail-node .ring { stroke-width: 3; }
+.rail-node .core { fill: var(--strong); }
+.stop-body { flex: 1; min-width: 0; padding: 5px 0 9px; }
+.stop-name { color: var(--strong); font-size: 17px; font-weight: 800; line-height: 1.35; overflow-wrap: anywhere; }
+.stop-code { display: inline-block; margin-left: 6px; padding: 0 7px; border: 1px solid var(--line); border-radius: 999px; background: var(--stage); color: var(--muted); font-size: 12.5px; font-weight: 800; vertical-align: 2px; }
+.stop-alt { margin-left: 8px; color: var(--muted); font-size: 14px; font-weight: 600; }
+.stop-xfer { margin-top: 2px; color: var(--muted); font-size: 14px; }
+.stop-xfer a { font-weight: 700; }
+.stop-guide { display: inline-block; margin-top: 2px; font-size: 13px; font-weight: 700; }
+.loop-close { margin: 4px 0 0 46px; color: var(--muted); font-size: 14px; font-weight: 700; }
+
+.sibling-links { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.sibling-links a { display: inline-flex; min-height: 44px; align-items: center; gap: 8px; padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); font-weight: 800; text-decoration: none; }
+.sibling-links .sw { display: inline-block; flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(58, 50, 38, .35); }
+#related h3 { margin: 20px 0 10px; font-size: 17px; }
+#related h3:first-of-type { margin-top: 0; }
+.source-note { color: var(--muted); font-size: 14px; }
+
+@media (max-width: 560px) {
+  .metro-figure { padding: 8px 6px 12px; }
+  .time-card table, .stop-times table, .xfer-table { font-size: 14px; }
+  .time-card th, .time-card td, .stop-times th, .stop-times td, .xfer-table th, .xfer-table td { padding: 8px 9px; }
+  .stop-name { font-size: 16px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
