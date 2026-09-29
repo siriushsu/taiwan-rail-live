@@ -3486,3 +3486,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '台南地面鐵道歷史重播：修正 App 裡點了打不開，網頁版下載量從約 11 MB 降到約 2 MB，開啟更快、全線視角更順': '台南地上鉄道の歴史リプレイ：アプリで開けない問題を修正し、Web 版のダウンロード量を約 11 MB から約 2 MB に減らして、起動を速く、全線表示をなめらかにしました',
   '台南地面鐵道歷史重播：修正 App 裡點了打不開；列車與站房模型改壓縮下載（內容不變），網頁版下載量從約 11 MB 降到約 2 MB，全線視角的繪製量也大幅減少': '台南地上鉄道の歴史リプレイ：アプリで開けない問題を修正。列車と駅舎のモデルを圧縮して配信し（内容は同じ）、Web 版のダウンロード量を約 11 MB から約 2 MB に削減、全線表示の描画量も大きく減らしました',
 });
+// 2026-09-29 台鐵預排待避改停另一股（v0929f）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '立體地圖上台鐵列車在車站讓後車先過時，改停到旁邊的股道，後車不會再從停著的車身穿過去': 'On the 3D map, TRA trains that wait at a station for a following train to pass now pull onto another track, so the passing train no longer drives right through the waiting one',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '立體地圖上台鐵列車在車站讓後車先過時，改停到旁邊的股道，後車不會再從停著的車身穿過去': '3D マップで、台鉄の列車が駅で後続列車の通過を待つときは隣の線路に停まるようになり、後続列車が停車中の列車を突き抜けて走ることがなくなりました',
+});
