@@ -15,6 +15,7 @@ struct RailBoardWidgetBundle: WidgetBundle {
         RailFollowActivityWidget()
         MetroBoardWidget()
         MixedBoardWidget()
+        CollectionWidget()
         MetroWaitActivityWidget()
         TraWaitActivityWidget()
     }
