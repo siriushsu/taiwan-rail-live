@@ -3477,3 +3477,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '10/3 環島專車這類比任何固定班次都跑得遠的台鐵專車，地圖上改沿真實股道行駛，不再整趟退回示意路線': '10/3 の環島列車のように、どの定期列車よりも長い区間を走る台鉄の臨時列車も、全区間を模式線ではなく実際の線路に沿って地図上を走るようになりました',
 });
+// 2026-09-29 台南地面鐵道歷史重播：App 入口、壓縮下載、全線繪製量。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '台南地面鐵道歷史重播：修正 App 裡點了打不開，網頁版下載量從約 11 MB 降到約 2 MB，開啟更快、全線視角更順': 'Tainan surface railway replay: fixed it not opening in the app; the web version now downloads about 2 MB instead of about 11 MB, so it opens faster and the full-line view runs more smoothly',
+  '台南地面鐵道歷史重播：修正 App 裡點了打不開；列車與站房模型改壓縮下載（內容不變），網頁版下載量從約 11 MB 降到約 2 MB，全線視角的繪製量也大幅減少': 'Tainan surface railway replay: fixed it not opening in the app; train and station models now download compressed (content unchanged), cutting the web download from about 11 MB to about 2 MB, and the full-line view draws far less',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '台南地面鐵道歷史重播：修正 App 裡點了打不開，網頁版下載量從約 11 MB 降到約 2 MB，開啟更快、全線視角更順': '台南地上鉄道の歴史リプレイ：アプリで開けない問題を修正し、Web 版のダウンロード量を約 11 MB から約 2 MB に減らして、起動を速く、全線表示をなめらかにしました',
+  '台南地面鐵道歷史重播：修正 App 裡點了打不開；列車與站房模型改壓縮下載（內容不變），網頁版下載量從約 11 MB 降到約 2 MB，全線視角的繪製量也大幅減少': '台南地上鉄道の歴史リプレイ：アプリで開けない問題を修正。列車と駅舎のモデルを圧縮して配信し（内容は同じ）、Web 版のダウンロード量を約 11 MB から約 2 MB に削減、全線表示の描画量も大きく減らしました',
+});
