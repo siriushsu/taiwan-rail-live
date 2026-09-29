@@ -121,10 +121,17 @@ const RED_WORDS = /票價|運賃|料金|\bfares?\b|通行證|付費|訂閱|收�
 const RED_PRODUCT_WORDS = /\bPlus\b|\bPass\b|Islander/;
 // 09-29 使用者：「文湖線那句照你說的改成資料來源沒有」——頁面只寫「軌島的資料來源沒有……」，不斷言官方有沒有公開
 const NO_PUBLISH_CLAIM = {
-  zh: /(?:官方|營運單位|捷運公司)?(?:沒有|未|不)公開|無公開|未公布|沒有公布/,
-  en: /\b(?:does not|doesn't|do not|don't|did not|didn't|never) publish|\bnot (?:been )?(?:publicly )?published|\bunpublished\b/i,
-  ja: /(?:公開|公表)(?:し|して|されて)?(?:い)?ない|非公開|未公開/,
+  zh: /(?:沒有|未|不|無)(?:對外|向外)?(?:公開|公布|公佈)|尚未(?:對外)?(?:公開|公布)/,
+  en: /\b(?:no|not|never)\s+(?:yet\s+)?(?:been\s+)?(?:made\s+)?(?:publicly\s+|openly\s+)?(?:publish(?:ed)?|public|available|released|disclosed)\b|\b(?:isn't|aren't|wasn't|hasn't|haven't|doesn't|don't|didn't)\s+(?:been\s+)?(?:made\s+)?(?:publicly\s+)?(?:publish(?:ed)?|public|available|released)\b|\b(?:does|do|did)\s+not\s+publish\b|\bunpublished\b/i,
+  ja: /(?:公開|公表|公布)(?:し|され|さ)?(?:て)?(?:い|おり|お)?(?:ない|ません|らず|ず)|非公開|未公開/,
 };
+// 正例自我檢查：這些句子（含第一版被退的原句）一定要被擋；正規式被改鬆，這裡先紅
+const NO_PUBLISH_MUST_HIT = {
+  zh: ['這條路線沒有公開的逐班時刻表。', '官方沒有公開逐班時刻表', '官方尚未對外公開逐班時刻表', '營運單位不公開', '無公開的時刻表', '官方沒有公布'],
+  en: ['This line has no published train-by-train timetable.', 'The operator does not publish a timetable.', 'The timetable is not published.', 'There is no public train-by-train timetable for this line.', "The timetable isn't published by the operator.", 'The timetable has not been made public.'],
+  ja: ['この路線には列車ごとの時刻表が公開されていないため、', 'この路線には列車ごとの時刻表が公開されておらず、', '公式の時刻表は公開されていません。', '運営会社は時刻表を公表しておりません。'],
+};
+for (const [lang, list] of Object.entries(NO_PUBLISH_MUST_HIT)) for (const t of list) ok(NO_PUBLISH_CLAIM[lang].test(t), `「不斷言公開」正規式擋得到 ${lang} 正例「${t}」`);
 const OPERATOR_WORDS = /新北捷運|New Taipei Metro|新北メトロ|營運商|運營商/;
 
 for (const p of pages) {

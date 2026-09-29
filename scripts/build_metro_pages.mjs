@@ -57,7 +57,7 @@ const SYSTEMS = [
     title: N('台中捷運路線圖：綠線車站與營運時間｜軌島', 'Taichung MRT Map: Green Line Stations & Operating Hours | Rail Island', '台中MRT 路線図｜緑線の駅と運行時間｜軌島'),
     panels: [['TG']] },
   { id: 'kaohsiung', name: N('高雄捷運', 'Kaohsiung MRT', '高雄MRT'),
-    title: N('高雄捷運路線圖：紅線、橘線與環狀輕軌｜軌島', 'Kaohsiung MRT Map: Red Line, Orange Line & Circular Light Rail | Rail Island', '高雄MRT 路線図｜レッドライン・オレンジライン・環状ライトレール｜軌島'),
+    title: N('高雄捷運路線圖：紅線、橘線與環狀輕軌｜軌島', 'Kaohsiung MRT Map: Red Line, Orange Line & Circular Light Rail | Rail Island', '高雄MRT 路線図｜赤線・オレンジ線・環状ライトレール｜軌島'),
     panels: [['KR', 'KO', 'C']] },
 ];
 
@@ -73,8 +73,8 @@ const LINE_PAGES = [
   { sys: 'new-taipei', slug: 'ankeng', lines: ['K'], name: N('安坑輕軌', 'Ankeng LRT', '安坑ライトレール') },
   { sys: 'new-taipei', slug: 'sanying', lines: ['LB'], name: N('三鶯線', 'Sanying Line', '三鶯線') },
   { sys: 'taichung', slug: 'green', lines: ['TG'], name: N('綠線', 'Green Line', '緑線'), alias: N('烏日文心北屯線', 'Wuriwenxin Beitun Line', '烏日文心北屯線') },
-  { sys: 'kaohsiung', slug: 'red', lines: ['KR'], name: N('紅線', 'Red Line', 'レッドライン') },
-  { sys: 'kaohsiung', slug: 'orange', lines: ['KO'], name: N('橘線', 'Orange Line', 'オレンジライン') },
+  { sys: 'kaohsiung', slug: 'red', lines: ['KR'], name: N('紅線', 'Red Line', '赤線') },
+  { sys: 'kaohsiung', slug: 'orange', lines: ['KO'], name: N('橘線', 'Orange Line', 'オレンジ線') },
   { sys: 'kaohsiung', slug: 'circular-lrt', lines: ['C'], name: N('環狀輕軌', 'Circular Light Rail', '環状ライトレール') },
 ];
 
@@ -1251,7 +1251,7 @@ function timesSection(lang, page) {
   if (facts.length) body += `<ul class="facts-list">${facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul>`;
   const foot = page.estimated
     ? pick(lang, '「+1」表示次日凌晨。', '"+1" means after midnight (next day).', '「+1」は翌日の深夜を表します。')
-    : pick(lang, '「+1」表示次日凌晨。班距是起點站相鄰兩班發車間隔的中位數，依本站收錄的逐站時刻表計算。', '"+1" means after midnight (next day). Headway is the median gap between consecutive departures at the terminus, calculated from the station-by-station timetable used on this site.', '「+1」は翌日の深夜を表します。運転間隔は起点駅で隣り合う2本の発車間隔の中央値で、このサイトで使っている駅別時刻表から計算しています。');
+    : pick(lang, '「+1」表示次日凌晨。班距是起點站相鄰兩班發車間隔的中位數，依本站收錄的逐站時刻表計算。', '"+1" means after midnight (next day). Headway is the median gap between consecutive departures at the starting station, calculated from the station-by-station timetable used on this site.', '「+1」は翌日の深夜を表します。運転間隔は起点駅で隣り合う2本の発車間隔の中央値で、このサイトで使っている駅別時刻表から計算しています。');
   body += `<p class="table-note">${esc(foot)}</p>`;
   for (const note of specialNotesFor(lang, page)) body += `<div class="notice"><strong>${esc(pick(lang, '特殊時段：', 'Special period: ', '特別ダイヤ：'))}</strong>${esc(note.text)}</div>`;
   return section('times', page.estimated ? pick(lang, '營運時段與班距', 'Operating hours and headways', '運行時間帯と運転間隔') : pick(lang, '首末班車與班距明細', 'First and last trains and headways in detail', '始発・終電と運転間隔の詳細'), body);
@@ -1259,7 +1259,11 @@ function timesSection(lang, page) {
 
 function stationTimesSection(lang, page) {
   if (page.estimated) return '';
-  let body = `<p class="section-intro">${esc(pick(lang,
+  const loopLine = page.cfg.lines.some(id => M.lineModels[id].data.loop);
+  let body = `<p class="section-intro">${esc(loopLine ? pick(lang,
+    '環狀線各站往兩個方向的最早與最晚發車時間；某站沒有列車往該方向發車時以「—」表示。',
+    'The earliest and latest departure from each station in each direction around the loop. "—" means no train departs from that station in that direction.',
+    '環状線の各駅から、それぞれの方向へ出る最初と最後の発車時刻です。その駅からその方向へ出る列車がない場合は「—」です。') : pick(lang,
     '各站往某個方向的最早與最晚發車時間，含中途折返、不開到終點站的班次；某站沒有列車往該方向發車（例如終點站）以「—」表示。',
     'The earliest and latest departure from each station in one direction, including short-turn trains and trains that do not run to the end of the line. "—" means no train departs from that station in that direction (for example the terminus).',
     '各駅からその方向へ出る最初と最後の発車時刻で、途中折り返しの列車や終点まで行かない列車も含みます。その駅からその方向へ出る列車がない場合（終点など）は「—」です。'))}</p>`;
