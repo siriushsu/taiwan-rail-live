@@ -82,7 +82,10 @@ if (/Disallow:\s*\//.test(robots)) fail('robots.txt 意外封鎖全站');
 
 const sitemap = fs.readFileSync(path.join(root, 'sitemap.xml'), 'utf8');
 const locations = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
-if (locations.length !== 28) fail(`sitemap 應有 28 個網址，實際 ${locations.length}`);
+// 原本寫死 28 筆（09-03 上線當下的數量），09-29 加了 /en/、/ja/ 與捷運路線圖頁就結構性變紅。
+// 改驗「是什麼」：首頁在；每筆都指到存在的檔（下面迴圈）；本檔驗的每一頁 canonical 都在（再下一行）。
+// en／ja／metro 各頁是否收齊，由 build_aeo_pages.mjs --check（sitemap 逐 byte 重產比對）與 verify_metro_pages.mjs 負責。
+if (!locations.includes('https://railisland.tw/')) fail('sitemap 缺少首頁');
 if (new Set(locations).size !== locations.length) fail('sitemap 有重複網址');
 for (const location of locations) {
   const file = fileForUrl(location);
@@ -97,8 +100,10 @@ const rootLd = [...index.matchAll(/<script type="application\/ld\+json">([\s\S]*
 const rootTypes = new Set(rootLd.flatMap(item => item['@graph'] || [item]).map(item => item['@type']));
 if (!rootTypes.has('WebSite') || !rootTypes.has('SoftwareApplication')) fail('首頁 JSON-LD 缺少 WebSite 或 SoftwareApplication');
 for (const href of ['about/', 'accuracy/', 'stations/']) if (!index.includes(`href="${href}"`)) fail(`首頁未提供可見入口：${href}`);
-if (!index.includes('data-cl-of="aeo"') || !index.includes('data-cl="aeo"')) fail('公開更新紀錄未加入 AEO 最近項目與正本');
-if (!index.includes("const BUILD = 'v0903i'")) fail('BUILD 尚未更新為 v0903i');
+// 「最近更新」只放最近 8 條、會輪替，09-03 的 AEO 摘要早就被擠出去了；要守的是那次上線的正本仍在完整歷史裡。
+// 原本另有一行寫死 BUILD 必須是 'v0903i'——那是出貨當下的戳記，下一次改版就紅；版號由 ship_web 的
+// 「內容與正式站不同卻共用版號就停」檢查負責，不在這裡重複。
+if (!index.includes('data-cl="aeo"')) fail('完整更新歷史缺少 AEO 上線的正本（data-cl="aeo"）');
 
 const before = new Map([...pages, path.join(root, 'robots.txt'), path.join(root, 'sitemap.xml')].map(file => [file, fs.readFileSync(file)]));
 execFileSync(process.execPath, [path.join(root, 'scripts/build_aeo_pages.mjs')], { cwd: root, stdio: 'ignore' });
