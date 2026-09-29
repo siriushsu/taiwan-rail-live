@@ -74,8 +74,13 @@ ok('D3 dwell 卡即使沒有跟隨班次而先送 dir=0，完整反向軌跡仍�
 const asset = name => new Response(readFileSync(`data/${name}`, 'utf8'), {
   status: 200, headers: { 'content-type': 'application/json' },
 });
-const ASSETS = { fetch: async request =>
-  asset(new URL(request.url).pathname.endsWith('/bounty_units.json') ? 'bounty_units.json' : 'bounty_rules.json') };
+// 🔴 2026-09-29（路段懸賞 v2）：收滿改看「去重人數」，真設定是台鐵 50 人。這支 E2E 只有一個 actor，
+// 原本要驗的是「一趟 ok 就收滿、其他車種不受影響、之後估值衰減」這個情境（D4／D7），所以把 coverDistinct
+// 調成 1 人來維持它——只改門檻的數字，斷言本身一個字沒動。真設定（50）下的收滿行為在 verify_bounty_ledger.mjs。
+const STUB_RULES = JSON.stringify({ ...RULES, coverDistinct: { TRA: 1, THSR: 1 } });
+const ASSETS = { fetch: async request => new URL(request.url).pathname.endsWith('/bounty_units.json')
+  ? asset('bounty_units.json')
+  : new Response(STUB_RULES, { status: 200, headers: { 'content-type': 'application/json' } }) };
 const limiter = { limit: async () => ({ success: true }) };
 const NOW = Date.parse('2026-07-29T08:00:00Z');
 
@@ -104,6 +109,7 @@ async function e2e(actor, samples) {
     body: JSON.stringify({
       actor, sys: 'tra_sched', lnId: '山線', trainNo: 'T1',
       dir: 0, tripDate: '2026-07-29', batch: 1, samples,
+      client: { platform: 'ios', app: '1.6.13', simulator: false },   // v2：GPS 錄程限 App，沒帶會 400 app_only
     }),
   }), env);
   const submit = await submitRes.json();

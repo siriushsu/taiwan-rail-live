@@ -156,8 +156,12 @@ ok('H4 防偽不過時不看品質閘的結論（順序固定：先防偽後品�
 // H5–H10：整支 cron 跑一遍，斷言三態的四件事各自正確
 {
   const M = { generatedAt: 1, schedDate: '2026-07-28', lines: { 'tra_sched|南迴線': LINE }, units: [] };
+  // 🔴 2026-09-29（路段懸賞 v2）：收滿改看「去重人數」，真設定是台鐵 50 人，而這一組只有一位 ok 的 actor。
+  // H10b 要驗的是「下架門檻的查表有過系統家族桶對照」，情境是「一位 ok 就收滿」——所以把 coverDistinct 調成
+  // 1 人來維持這個情境，只改門檻的數字、斷言本身一個字沒動。真設定（50）下的收滿在 verify_bounty_ledger.mjs。
+  const STUB_RULES = JSON.stringify({ ...RULES, coverDistinct: { TRA: 1, THSR: 1 } });
   const ASSETS = { fetch: async r => new Response(String(r.url).includes('bounty_units')
-    ? JSON.stringify(M) : readFileSync('data/bounty_rules.json', 'utf8'), { status: 200 }) };
+    ? JSON.stringify(M) : STUB_RULES, { status: 200 }) };
   const board = LINE.stations.slice(1).map((s, i) =>
     `('tra_sched|南迴線|${LINE.stations[i].name}|${s.name}','tra_sched','自強',0,'track','',1,1,2,10,1,1,0,NULL)`).join(',');
   const mk = (id, actor, pts) => `('${id}','${actor}','tra_sched','南迴線','312',0,'2026-07-28','${JSON.stringify(pts)}',NULL,1,'pending')`;

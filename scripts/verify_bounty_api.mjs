@@ -24,6 +24,10 @@ const limiter = blocked => ({ limit: async () => ({ success: !blocked }) });
 const ASSETS = { fetch: async r => new Response(
   readFileSync(String(r.url).includes('bounty_units') ? 'data/bounty_units.json' : 'data/bounty_rules.json', 'utf8'),
   { status: 200 }) };
+// 🔴 2026-09-29（路段懸賞 v2）：GPS 錄程限 App——bountySubmit 沒帶 client、或 platform 不是 ios／android，
+// 一律 400 app_only。這支檔案的送交 body（C 組 OKBODY、L 組 OK）原本沒有這個欄位，改契約後全部吃 400；
+// 補上合法的 client 是 fixture 跟上契約，不是放寬任何斷言（沒帶 client 的負對照在 verify_bounty_ledger.mjs S 組）。
+const APP_CLIENT = { platform: 'ios', app: '1.6.13', simulator: false };
 // BOUNTY_NOW 釘死：bountySubmit 的乘車日窗（最近 7 天到明天）若跟著真實時鐘跑，這支測試會在
 // 今天全綠、下週自己變紅。台北時間 2026-07-29 10:00，窗＝[2026-07-22, 2026-07-30]。
 const NOW_MS = Date.parse('2026-07-29T02:00:00Z');
@@ -160,6 +164,7 @@ INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_lock
   // 吃 400 unknown_line——同一個 fixture 缺口，這次是被新的檢查照出來的（上一次是 C5b 的中文線名）。
   const OKBODY = {
     actor: 'device-x', sys: 'tra_sched', lnId: '南迴線', trainNo: '312', dir: 0, tripDate: '2026-07-28', batch: 1,
+    client: APP_CLIENT,
     samples: [{ d: 1000, t: 30000, v: 25, acc: 8 }, { d: 1025, t: 30001, v: 25.1, acc: 9 }],
   };
 
@@ -542,6 +547,7 @@ INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_lock
   });
   const OK = {
     actor: 'device-L', sys: 'tra_sched', lnId: '南迴線', trainNo: '312', dir: 0, tripDate: '2026-07-28',
+    client: APP_CLIENT,
     samples: [{ d: 1000, t: 30000, v: 25, acc: 8 }],
   };
 
