@@ -132,7 +132,7 @@
 #trainGarage .g-run-track::after{content:"";position:absolute;left:2px;top:2px;box-sizing:border-box;width:22px;height:22px;border-radius:50%;border:1px solid var(--g-line);background:var(--g-paper);transition:transform .15s}
 #trainGarage .g-run-switch[aria-checked=true] .g-run-track{background:var(--g-accent);border-color:var(--g-accent)}
 #trainGarage .g-run-switch[aria-checked=true] .g-run-track::after{transform:translateX(20px);border-color:transparent;background:#fffdf6}
-#trainGarage .g-run small{display:block;margin-top:-2px;font-size:12px;line-height:1.5;color:var(--g-muted)}
+#trainGarage .g-run small{display:block;margin-top:0;font-size:12px;line-height:1.5;color:var(--g-muted)}
 #trainGarage .g-making{display:flex;flex-direction:column;align-items:center;gap:4px;padding:20px 14px 10px;text-align:center}
 #trainGarage .g-making svg{color:var(--g-ink)}
 #trainGarage .g-making b{font-size:16px;line-height:1.4}
@@ -150,6 +150,8 @@
 #trainGarage .g-scene-state{display:flex}
 #trainGarage .g-scene-enter{margin-top:8px;padding:10px 20px;border-radius:10px;background:var(--g-accent);color:var(--g-paper);font-size:14px;line-height:1.4}
 #trainGarage .g-scene-lock{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:9px 12px;border:1px dashed var(--g-line);border-radius:10px;color:var(--g-muted);font-size:12px;line-height:1.4}
+#trainGarage .g-scene-note{margin:0;padding:0 12px 12px;font-size:12px;line-height:1.5;color:var(--g-muted)}
+#trainGarage .g-viewport>.g-fallback{inset:12px}
 #trainGarage .g-stage[data-panel=cards] .g-viewport,#trainGarage .g-stage[data-panel=cards] .g-fallback,#trainGarage .g-stage[data-panel=cards] .g-stage-foot{display:none}
 @media(prefers-reduced-motion:reduce){#trainGarage .g-run-track,#trainGarage .g-run-track::after{transition:none}}`;
   // 兩分頁版的 DOM：build() 先照舊組好三分頁，旗標開再由這裡改成「近看小車｜場景」並補上跑起來開關、卡片區、製作中區塊與標籤，
@@ -161,7 +163,10 @@
     $('.g-scene-bar').insertAdjacentHTML('afterend',
       `<div class="g-run"><div class="g-run-main"><button type="button" class="g-run-switch" role="switch" aria-checked="${loopOn}" aria-describedby="gRunHint"><span class="g-run-track" aria-hidden="true"></span><b>${esc(tr('跑起來'))}</b></button></div><small id="gRunHint">${esc(tr('開啟後小車繞圈跑'))}</small></div>`
       +`<div class="g-making" hidden>${MAKING_SVG}<b>${esc(tr('這款車的場景製作中'))}</b><small>${esc(tr('先用「海岸行旅」暫時展示'))}</small></div>`
-      +`<div class="g-scene-list" hidden></div>`);
+      +`<div class="g-scene-list" hidden></div><p class="g-scene-note" hidden>${esc(tr('這款車目前只有一景'))}</p>`);
+    // 「小車載入中…」卡片原本以整個展示框為範圍定位，會蓋住上面的跑起來列與製作中說明；兩分頁版改放進 3D 畫面框裡，只蓋畫面。
+    // ⇄ 反向鍵固定放在跑起來那一列（只有近看小車開著跑起來時用得到；場景卡片與製作中畫面那一列整個隱藏，⇄ 跟著不見）。
+    $('.g-viewport').append($('.g-fallback'));$('.g-run-main').append($('.g-reverse'));
     $('.g-viewport').insertAdjacentHTML('beforeend',`<span class="g-tag" hidden>${esc(tr('海岸行旅・暫時展示'))}</span>`);
     for(const b of dialog.querySelectorAll('[data-tab]'))b.onclick=()=>{if(tab===b.dataset.tab)return;tab=b.dataset.tab;showDetail();};
     $('.g-run-switch').onclick=()=>{loopOn=!loopOn;showDetail();};
@@ -177,8 +182,7 @@
     else if(panel==='making'){const box=$('.g-scene-list');if(box.dataset.key){box.replaceChildren();delete box.dataset.key;}} // 沒有景的車：不留上一台車的（隱藏）卡片
     $('.g-stage').dataset.panel=panel;
     $('.g-run').hidden=panel!=='model';$('.g-scene-list').hidden=!cardsUp;$('.g-making').hidden=panel!=='making';$('.g-tag').hidden=panel!=='making';
-    // 反向鍵跟著跑起來那一列走（分頁列寬度才不會在開關時縮放）；製作中沒有那一列，回分頁列旁。
-    const rev=$('.g-reverse'),slot=panel==='model'?$('.g-run-main'):$('.g-scene-bar');if(rev.parentNode!==slot)slot.append(rev);
+    $('.g-scene-note').hidden=!(cardsUp&&list.length===1);
   }
   function renderSceneCards(row,list){
     const box=$('.g-scene-list'),key=row.id+'|'+list.join(',');
