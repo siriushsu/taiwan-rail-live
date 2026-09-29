@@ -1,6 +1,6 @@
 import * as THREE from '../vendor/three.module.js';
 import {createKit,smooth} from './new-scene-kit.js';
-import {coastalPath,offsetPoint,ribbon,fence,hillside,tunnelRidge,staircase} from './scene-detail-kit.js?revision=scale-0929';
+import {coastalPath,offsetPoint,ribbon,fence,hillside,tunnelRidge,staircase} from './scene-detail-kit.js?revision=stairs-0929';
 import {personPose} from '../garage-people.js?revision=people-0927';
 // 遊客（garage-people-v1 的 Blender 零件＋garage-camera-v1 的相機）看經過的列車。
 // 比例：真實比例，跟南迴、高架、十分放人的做法一樣——零件庫的人是車模公尺（站姿包圍盒高 1.735），乘上與列車同一個比例尺。
@@ -125,7 +125,10 @@ export function createScene(kits=null){
  block(cream,[12.4,4.55,.24],[-5,8.2,6.78]);
  const deckH=RAIL_TOP-.0375; // 觀景層地板頂面 6.9；頂桿粗 .075
  for(const yy of [5.97,10.43]){for(let x=-11.1;x<=1.1;x+=.62)block(wood,[.07,.07,deckH-.005],[x,yy,6.905+(deckH-.005)/2]);for(const f of [.21,.62,1])beam(wood,[-11.15,yy,6.9+f*deckH],[1.15,yy,6.9+f*deckH],.075);}
- const stairs=[staircase(k,{x:2.6,y:4.3,z:4.5,steps:15,rise:.16,tread:.32,width:2.5,handHeight:.9*METER})];
+ // 樓梯用真實尺寸換算（2026-09-29 使用者裁示「樓梯也改成真實尺寸」；下面的公尺數是一般尺寸，不是使用者給的數字）：起點 (2.6,4.3,4.5)、總高 2.4（到觀景層地板 6.9）、總長 4.8、寬 2.5 都不動，
+ // 只把 15 階（一階 .38 m 高、.75 m 深）改成 36 階＝一階 .0667×.1333 單位＝.157 m 高、.313 m 深（METER .426）。三款車的每公尺單位數最多差 8%（藍皮 .4464、DR1000 .4193、EMU3000 .4124），
+ // 沒有任何整數階數能讓三款都嚴格落在 [.15,.18]×[.26,.32] m（藍皮要 ≤ 35 階、EMU3000 要 ≥ 37 階），36 階最差只偏 1.1%。立柱每 4 階一根＝1.25 m；踏階鼻條跟著縮成 15/36。
+ const STAIR_N=36,stairs=[staircase(k,{x:2.6,y:4.3,z:4.5,steps:STAIR_N,rise:2.4/STAIR_N,tread:4.8/STAIR_N,width:2.5,handHeight:.9*METER,postEvery:4,nosing:[.055*15/STAIR_N,.035*15/STAIR_N]})];
  block(cream,[4.0,1.25,.2],[1.85,9.72,6.80]);
  block(cream,[2.5,4.8,.85],[2.6,6.7,4.075]);
  const handZ=6.9+RAIL_TOP-.04; // 扶手粗 .08

@@ -5,6 +5,8 @@
 // 紅欄杆、觀景層木欄杆、藍立柱木扶手頂面 1.1 m、樓梯扶手頂面離踏階鼻 .9 m、長椅座面 .45 m／椅背頂 .85 m（各 ±10%，射線量畫出來的高度）；山側紅欄杆頂高／成人身高 ∈ [.55, .75]。
 // 站房門窗（2026-09-29 起，使用者裁示「門窗也一起改成真實尺寸」）：另建一份 createScene(null) 讀回門、窗、窗櫺的實例矩陣（×幾何包圍盒 8 個角），門窗正前方地面用 probeDown 量，
 // 門洞高 2.1～2.4 m、門寬 1.6～1.9 m、窗台離地 .8～1.0 m、窗高 1.2～1.5 m、每格玻璃寬 ≤ 1.0 m（各 ÷ 這款車畫出來的每公尺單位數，三款車各判一次）；窗櫺上下緣與窗差 ≤ .02、位置與組寬大致不動、貼牆且深度與修前相同、畫得出來。
+// 樓梯（2026-09-29 起，使用者裁示「樓梯也改成真實尺寸」）：另建一份 createScene(null) 讀回踏階、立柱的實例矩陣與扶手／地板的射線，級高 .15～.18 m、級深 .26～.32 m（各 ÷ 這款車的每公尺單位數，兩端各 2% 容差，理由在 readStairs 上方）、
+// 每階相等、起終點與寬度不動、扶手頂面離踏階鼻 .9 m ±10%、立柱間距 1.0～1.5 m、立柱腳站在踏面上且頂端伸進扶手。
 // 用法：node scripts/verify_garage_duoliang_watchers.mjs  （GARAGE_BASE_URL 預設 http://127.0.0.1:5255；無視窗，chromium 用 channel:'chrome'）
 //
 // 判準常數（寫死在這裡，場景改了常數就會紅）：
@@ -89,6 +91,112 @@ function judgeStation(st, ground, unit) {
   detail: {door: st.doorHit.map(h => h && [h.hex, r3(h.p[1])]), glass: st.glassHit.map(h => h && [h.hex, r3(h.p[1])])}};
  return out;
 }
+// @@STAIRS-BEGIN
+// ---- 樓梯（2026-09-29 使用者裁示「樓梯也改成真實尺寸」；公尺範圍是主對話訂的一般尺寸，不是使用者給的數字）
+// 量的是畫出來的東西：另建一份 createScene(null)（不放遊客），烘焙後讀每個 InstancedMesh 實例的 8 個角（實例矩陣 × 幾何包圍盒）取踏階與立柱的邊界；
+// 斜的扶手（beam 是斜擺、截面還會繞軸扭一個角，軸對齊包圍盒與截面推算都不準）、踏階前的步道面、樓梯後緣的觀景層地板都用射線量（向下打頂面、從立柱裡向上打扶手底面）。踏階＝石色 aaa997 且寬約 2.5 的方塊，立柱＝藍色 408eaa 且腳印 ≤ .12 的方塊，扶手＝木色 675f4f 且長 > 3 的斜梁。
+// 三款車的每公尺單位數各差 ±4.8%（藍皮 .4464、DR1000 .4193、EMU3000 .4124）：總高 2.4、總長 4.8 不動時，級高＝2.4/N、級深＝4.8/N 單位，
+// 藍皮要 N ≤ 35 才有級高 ≥ .15 m、EMU3000 要 N ≥ 37 才有級深 ≤ .32 m，沒有任何整數階數三款都嚴格落在範圍內；所以級高、級深的範圍兩端各給 2% 容差
+// （36 階最差偏 1.1%：藍皮級高 .1493 m、EMU3000 級深 .3234 m）。修前（15 階：級高 .36～.39 m、級深 .72～.78 m）離範圍 2 倍以上，2% 容差擋得住。
+const STAIR_M = {rise: [0.15, 0.18], tread: [0.26, 0.32], post: [1.0, 1.5], tol: 0.02};  // 級高、級深、立柱間距（公尺）；tol 只給級高、級深、立柱間距
+const STAIR_EQ = 0.002;                                                                    // 每一階級高、級深彼此的差（單位）
+const STAIR_END = {y0: 4.3, y1: 9.1, x: 2.6, width: 2.5, tol: 0.02};                       // 樓梯起點／終點的 y、水平位置、寬度（修前的值，這輪不動）；地板落差也用這個 tol
+const POST_TOL = 0.005;                                                                    // 立柱底離所踩踏面、頂端離扶手上下緣的容許（單位）
+function readStairs(T, S) {
+ const sc = S.createScene(null); sc.group.updateMatrixWorld(true);
+ const m4 = new T.Matrix4(), v3 = new T.Vector3(), all = [], near = (v, t, e) => Math.abs(v - t) <= e;
+ sc.group.traverse(o => {
+  if (!o.isInstancedMesh || !o.material.color) return;
+  o.geometry.computeBoundingBox();
+  const g = o.geometry.boundingBox, hex = o.material.color.getHexString();
+  for (let i = 0; i < o.count; i++) {
+   o.getMatrixAt(i, m4);
+   const pts = []; for (let c = 0; c < 8; c++) pts.push(v3.set(c & 1 ? g.max.x : g.min.x, c & 2 ? g.max.y : g.min.y, c & 4 ? g.max.z : g.min.z).applyMatrix4(m4).toArray());
+   all.push({hex, pts, min: [0, 1, 2].map(a => Math.min(...pts.map(p => p[a]))), max: [0, 1, 2].map(a => Math.max(...pts.map(p => p[a])))});
+  }
+ });
+ const ray = new T.Raycaster(), shoot = (x, y, z, dz) => {ray.set(new T.Vector3(x, y, z), new T.Vector3(0, 0, dz)); const h = ray.intersectObject(sc.group, true)[0]; return h ? h.point.z : null;}, down = (x, y) => shoot(x, y, 50, -1);
+ const steps = all.filter(i => i.hex === 'aaa997' && near((i.min[0] + i.max[0]) / 2, 2.6, 0.05) && i.max[0] - i.min[0] > 1 && i.max[1] - i.min[1] < 1).sort((a, b) => a.min[1] - b.min[1])
+  .map(i => ({x0: i.min[0], x1: i.max[0], y0: i.min[1], y1: i.max[1], z0: i.min[2], z1: i.max[2]}));
+ const ya = steps[0]?.y0 ?? 0, yb = steps.at(-1)?.y1 ?? 0, nS = steps.length;
+ // 扶手：頂面高在第 1、¼、½、¾、最後一階的中段各量一點；立柱：腳印邊界＋該處扶手頂面（向下射線）與扶手底面（從立柱裡向上射線；立柱頂若伸進扶手，射線仍會先穿過扶手底面）
+ const hands = all.filter(i => i.hex === '675f4f' && i.max[1] - i.min[1] > 3 && i.min[0] > 1 && i.max[0] < 4).sort((a, b) => a.min[0] - b.min[0]).map(i => {
+  const x = (i.min[0] + i.max[0]) / 2;
+  return {x, tops: [0, 0.25, 0.5, 0.75, 1].map(f => Math.round((nS - 1) * f)).map(k => {const y = (steps[k].y0 + steps[k].y1) / 2; return {i: k, y, z: down(x, y)};})};
+ });
+ const posts = hands.map(h => all.filter(i => i.hex === '408eaa' && near((i.min[0] + i.max[0]) / 2, h.x, 0.03) && i.max[1] - i.min[1] <= 0.12 && i.max[2] - i.min[2] > 0.05 && i.min[1] > ya - 0.2 && i.max[1] < yb + 0.2)
+  .sort((a, b) => a.min[1] - b.min[1]).map(i => {
+   // 立柱正好在扶手兩端時（第一根、最後一根），該點上打到的是扶手的端面不是頂面／底面：往扶手裡面挪到離端 .08，再依扶手斜率（頂面樣本量出來的）換算回立柱中心
+   const y = (i.min[1] + i.max[1]) / 2, yp = Math.min(Math.max(y, ya + 0.08), yb - 0.08), sl = (h.tops[4].z - h.tops[0].z) / (h.tops[4].y - h.tops[0].y), d = sl * (y - yp);
+   const t = down(h.x, yp), u = shoot(h.x, yp, i.max[2] - 0.12 - d, 1);
+   return {y0: i.min[1], y1: i.max[1], z0: i.min[2], z1: i.max[2], zt: t === null ? null : t + d, zu: u === null ? null : u + d};}));
+ const st = {steps, hands, posts, walk: steps.length ? down(2.6, ya - 0.1) : null, deck: steps.length ? down(2.6, yb + 0.15) : null};
+ sc.dispose();
+ return st;
+}
+// st：readStairs 的結果；unit：畫出來的每公尺幾單位（該款車）
+function judgeStairs(st, unit) {
+ const M = v => v / unit, r2 = v => +v.toFixed(2), r3 = v => +v.toFixed(3), out = {}, S = st.steps, n = S.length, T = STAIR_M.tol;
+ const inB = (v, [lo, hi], t = T) => Number.isFinite(v) && v >= lo * (1 - t) && v <= hi * (1 + t), spread = a => Math.max(...a) - Math.min(...a);
+ const okData = n >= 2 && Number.isFinite(st.walk) && Number.isFinite(st.deck) && st.hands.length === 2 && st.hands.every(h => h.tops.length === 5 && h.tops.every(t => Number.isFinite(t.z))) && st.posts.length === 2 && st.posts.every(l => l.every(p => Number.isFinite(p.zt) && Number.isFinite(p.zu)));
+ const rises = S.map((s, i) => s.z1 - (i ? S[i - 1].z1 : st.walk)), treads = S.map(s => s.y1 - s.y0), gaps = S.map((s, i) => i ? Math.abs(s.y0 - S[i - 1].y1) : 0);
+ const band = (a, b) => a.length ? [r3(M(Math.min(...a))), r3(M(Math.max(...a)))] : null;
+ out.rise = {pass: okData && rises.every(v => inB(M(v), STAIR_M.rise)) && spread(rises) <= STAIR_EQ, detail: {steps: n, riseM: band(rises), spreadU: +spread(rises).toFixed(5), riseU: n ? r3(rises[0]) : null}};
+ out.tread = {pass: okData && treads.every(v => inB(M(v), STAIR_M.tread)) && spread(treads) <= STAIR_EQ && Math.max(...gaps) <= STAIR_EQ, detail: {steps: n, treadM: band(treads), spreadU: +spread(treads).toFixed(5), treadU: n ? r3(treads[0]) : null, maxGapU: +Math.max(...gaps).toFixed(5)}};
+ const a = S[0], b = S[n - 1], E = STAIR_END;
+ const ends = okData ? {walk: r3(st.walk), base0: r3(a.z0), top: r3(b.z1), deck: r3(st.deck), y0: r3(a.y0), y1: r3(b.y1), width: r3(a.x1 - a.x0), xs: [r3(Math.min(...S.map(s => (s.x0 + s.x1) / 2))), r3(Math.max(...S.map(s => (s.x0 + s.x1) / 2)))]} : null;
+ out.ends = {pass: !!ends && Math.abs(ends.base0 - ends.walk) <= E.tol && Math.abs(ends.top - ends.deck) <= E.tol && Math.abs(ends.y0 - E.y0) <= E.tol && Math.abs(ends.y1 - E.y1) <= E.tol
+   && Math.abs(ends.width - E.width) <= E.tol && ends.xs.every(x => Math.abs(x - E.x) <= E.tol), detail: ends ?? {steps: n, hands: st.hands.length, posts: st.posts.length}};
+ // 扶手頂面離踏階鼻連線（垂直量）：連線＝第一階與最後一階踏階鼻（前緣頂）的連線；每側取第 1、¼、½、¾、最後一階的中段各量一點
+ const hrows = [], srows = [], prows = [], gaprows = [];
+ if (okData) {
+  const nose = y => a.z1 + (y - a.y0) * (b.z1 - a.z1) / (b.y0 - a.y0);
+  st.hands.forEach((h, k) => {
+   h.tops.forEach(t => hrows.push([`樓梯扶手 x${r2(h.x)} 第${t.i + 1}階`, t.z - nose(t.y), RAIL_M.hand]));
+   const list = st.posts[k];
+   list.forEach((p, j) => {
+    const yc = (p.y0 + p.y1) / 2;
+    if (j) gaprows.push({side: k, gapM: r3(M(yc - (list[j - 1].y0 + list[j - 1].y1) / 2))});
+    const under = S.filter(s => s.y1 > p.y0 + 1e-6 && s.y0 < p.y1 - 1e-6).map(s => s.z1), tr = under.length ? Math.max(...under) : NaN;
+    srows.push({side: k, i: j, y: r2(yc), footErr: r3(p.z0 - tr), toTop: r3(p.zt - p.z1), toBot: r3(p.z1 - p.zu)});
+   });
+  });
+ }
+ out.hand = {pass: hrows.length === 10 && hrows.every(([, h, t]) => Number.isFinite(h) && Math.abs(h / unit - t) <= RAIL_TOL * t), detail: hrows.map(([name, h, t]) => ({name, m: r3(M(h)), target: t}))};
+ const gm = gaprows.map(g => g.gapM);
+ out.postGap = {pass: okData && st.posts.every(l => l.length >= 3) && gm.length > 0 && gm.every(g => inB(g, STAIR_M.post)), detail: {posts: st.posts.map(l => l.length), gapM: gm.length ? [Math.min(...gm), Math.max(...gm)] : null}};
+ const bad = srows.filter(s => !(Math.abs(s.footErr) <= POST_TOL && s.toTop >= POST_TOL && s.toBot >= POST_TOL));
+ out.postStand = {pass: okData && srows.length >= 6 && !bad.length, detail: {posts: srows.length, worstFoot: srows.length ? Math.max(...srows.map(s => Math.abs(s.footErr))) : null, minToTop: srows.length ? Math.min(...srows.map(s => s.toTop)) : null, minToBot: srows.length ? Math.min(...srows.map(s => s.toBot)) : null, bad: bad.slice(0, 4)}};
+ return out;
+}
+// 判準自檢（純運算）：用「修前的樓梯」與「預期的新樓梯＋各種單點缺陷」合成 readStairs 的輸出餵進同一組判準；判準若被放寬到連缺陷都放行，這一項會紅。
+function synthStairs({n = 36, postEvery = 4, hand = 0.9 * 0.426, floatPost = 0, pokePost = 0, shortPost = 0, riseBump = 0, treadBump = 0, lastLift = 0, shiftY = 0, x = 2.6} = {}) {
+ const z = 4.5, y0 = 4.3 + shiftY, rise = 2.4 / n, tread = 4.8 / n, sl = rise / tread, half = 0.045 / Math.cos(Math.atan(sl));
+ const steps = Array.from({length: n}, (_, i) => ({x0: x - 1.25, x1: x + 1.25, y0: y0 + i * tread, y1: y0 + (i + 1) * tread + (i === 10 ? treadBump : 0), z0: z, z1: z + (i + 1) * rise + (i === 10 ? riseBump : 0) + (i === n - 1 ? lastLift : 0)}));
+ const nose = y => z + rise + (y - y0) * sl, ctr = y => nose(y) + hand - half;
+ const rail = xx => ({x: xx, tops: [0, 0.25, 0.5, 0.75, 1].map(f => Math.round((n - 1) * f)).map(k => {const y = y0 + (k + 0.5) * tread; return {i: k, y, z: ctr(y) + half};})});
+ const posts = xx => { const l = []; for (let i = 0; i <= n; i += postEvery) {const yy = y0 + i * tread, base = z + Math.min(i + 1, n) * rise + floatPost; l.push({y0: yy - 0.0325, y1: yy + 0.0325, z0: base, z1: ctr(yy) + pokePost - shortPost, zt: ctr(yy) + half, zu: ctr(yy) - half});} return l; };
+ return {steps, walk: z, deck: z + 2.4, hands: [rail(x - 1.2), rail(x + 1.2)], posts: [posts(x - 1.2), posts(x + 1.2)]};
+}
+function stairSelfCheck() {
+ const units = [1.25 / 2.8, 1.25 / 2.981, 1.25 / 3.031], allOf = j => Object.values(j).every(v => v.pass), red = (opts, keys) => units.every(u => {const j = judgeStairs(synthStairs(opts), u); return keys.every(k => !j[k].pass);});
+ const res = {
+  '預期的新樓梯（36 階、立柱每 4 階）三款車全綠': units.every(u => allOf(judgeStairs(synthStairs(), u))),
+  '修前（15 階、每階一根）：級高、級深、立柱間距判紅，起終點、扶手高、立柱站得住仍綠': units.every(u => {const j = judgeStairs(synthStairs({n: 15, postEvery: 1}), u); return !j.rise.pass && !j.tread.pass && !j.postGap.pass && j.ends.pass && j.hand.pass && j.postStand.pass;}),
+  '一階多 .004：級高判紅': red({riseBump: 0.004}, ['rise']),
+  '一階深多 .004：級深判紅': red({treadBump: 0.004}, ['tread']),
+  '最後一階高出地板 .05：起終點判紅': red({lastLift: 0.05}, ['ends']),
+  '整座樓梯往後挪 .05：起終點判紅': red({shiftY: 0.05}, ['ends']),
+  '立柱每 2 階一根（.6 m）：間距判紅': red({postEvery: 2}, ['postGap']),
+  '立柱每 6 階一根（1.9 m）：間距判紅': red({postEvery: 6}, ['postGap']),
+  '立柱浮空 .03：站得住判紅': red({floatPost: 0.03}, ['postStand']),
+  '立柱穿出扶手頂面 .06：判紅': red({pokePost: 0.06}, ['postStand']),
+  '立柱短了 .06（碰不到扶手）：判紅': red({shortPost: 0.06}, ['postStand']),
+  '扶手抬到 1.1 m：扶手高判紅': red({hand: 1.1 * 0.426}, ['hand'])
+ };
+ return res;
+}
+// @@STAIRS-END
 import {chromium, webkit} from 'playwright';
 import {mkdirSync, writeFileSync} from 'node:fs';
 const SITE = process.env.GARAGE_BASE_URL || 'http://127.0.0.1:5255';
@@ -109,6 +217,10 @@ const only = process.env.ONLY?.split(',');
   !j.door.pass && !j.win.pass && !j.pane.pass && !j.wall.pass && j.mullion.pass && j.layout.pass && j.visible.pass,
   Object.fromEntries(Object.entries(j).map(([k, v]) => [k, v.pass])));
 }
+{
+ const r = stairSelfCheck();
+ check('樓梯判準自檢：預期的新樓梯（36 階）全綠；修前（15 階、每階一根）與單點缺陷（級高、級深差 .004、末階高出地板、整座挪位、立柱太疏／太密、浮空、穿出、太短、扶手 1.1 m）各自判紅', Object.values(r).every(Boolean), r);
+}
 const engines = {chromium: () => chromium.launch({channel: 'chrome', headless: true}), webkit: () => webkit.launch({headless: true})};
 for (const [engine, launch] of Object.entries(engines)) {
  if (only && !only.includes(engine)) continue;
@@ -123,6 +235,8 @@ for (const [engine, launch] of Object.entries(engines)) {
   // 站房正面門窗：畫出來的幾何（實例矩陣）＋門窗正前方的地面（頁面上的 probeDown）；跟列車無關，每個引擎讀一次，換算成公尺在每款車裡各做一次
   const station = await page.evaluate(`(async () => {const T = await import('/rail-3d/vendor/three.module.js'), S = await import('/rail-3d/garage-scenes/duoliang.js'); return (${readStation.toString()})(T, S);})()`);
   station.glass.sort((a, b) => a.min[0] - b.min[0]);
+  // 樓梯：畫出來的踏階、立柱、扶手（實例矩陣＋射線）；跟列車無關，每個引擎讀一次，換算成公尺在每款車裡各做一次
+  const stairs = await page.evaluate(`(async () => {const T = await import('/rail-3d/vendor/three.module.js'), S = await import('/rail-3d/garage-scenes/duoliang.js'); return (${readStairs.toString()})(T, S);})()`);
   const ref = await page.evaluate(({xs, y}) => {const api = newScenePreview, p = api.samplePath(-7.1), h = p.heading; return {at: xs.map(x => api.probeDown([x, y, 50])), walk: api.probeDown([p.x - Math.sin(h) * 2.5, p.y + Math.cos(h) * 2.5, 50])};},
    {xs: [...station.door, ...station.glass].map(i => (i.min[0] + i.max[0]) / 2), y: station.wallY - 0.6});   // 門前 .6 處（站在牆前的地面）；walk＝山側步道頂面（只當對照，不是基準）
   const ground = {door: ref.at[0], win: ref.at.slice(1)};
@@ -221,7 +335,7 @@ for (const [engine, launch] of Object.entries(engines)) {
    const bad = footErr.map((e, i) => ({i, e: +e.toFixed(3), top: tops[i], foot: +sweep.bbox[i].min[2].toFixed(3)})).filter(x => !(x.e <= FOOT_TOL));
    check(`${tag} 腳底貼平台頂面（誤差 ≤ ${FOOT_TOL}，${n} 人，平台頂面用射線量）`, !bad.length, {ok: n - bad.length, of: n, bad: bad.slice(0, 4)});
    // ---- 欄杆、扶手、長椅（真實高度）：用射線量畫出來的頂面高度（多點取最大，地板取最小），除以畫出來的「每公尺幾單位」換成公尺再比
-   // 位置是場景佈局：紅欄杆在軌道法線 −2.45（海側窄月台）與 1.58（山側步道），觀景層前後欄杆 y 5.97／10.43，藍立柱木扶手 y 10.29，長椅在 x −9、−4，階梯在 x 2.6、起點 y 4.3、級深 .32；場景搬了佈局，這裡會因為射線打不到而紅。
+   // 位置是場景佈局：紅欄杆在軌道法線 −2.45（海側窄月台）與 1.58（山側步道），觀景層前後欄杆 y 5.97／10.43，藍立柱木扶手 y 10.29，長椅在 x −9、−4；場景搬了佈局，這裡會因為射線打不到而紅。階梯的位置、級深不寫死在這裡，改由 readStairs 從實例矩陣讀。
    const rail = await page.evaluate(() => {
     const api = newScenePreview, S = [-18, -14.3, -10.6, -6.9, -3.2, 0.5, 4.2, 7.9, 11.6, 15.3, 19], XS = [-10.3, -8.4, -6.5, -4.6, -2.7, -0.8];
     const pt = (s, n) => {const p = api.samplePath(s); return [p.x - Math.sin(p.heading) * n, p.y + Math.cos(p.heading) * n];}, down = (x, y) => api.probeDown([x, y, 50]), nz = (x, y) => {const v = down(x, y); return v === null ? NaN : v;};   // nz：打不到就是 NaN（不會被當成 0 算進去）
@@ -229,24 +343,27 @@ for (const [engine, launch] of Object.entries(engines)) {
     // 每個 s 量頂桿頂（取最大：兩段頂桿的接縫可能剛好沒打到），地板取最小（遊客的頭不算地板）
     const along = (n, floors) => {const top = hi(S.map(s => down(...pt(s, n)))), floor = lo(S.flatMap(s => floors.map(f => down(...pt(s, f)))));return {h: top - floor, floor};};
     const line = (y, xs, floors) => hi(xs.map(x => down(x, y))) - lo(xs.flatMap(x => floors.map(f => down(x, f))));
-    const tread = i => nz(2.6, 4.3 + i * 0.32 + 0.10), slope = (tread(14) - tread(0)) / (14 * 0.32);   // 踏階鼻連線的斜率（量出來的）
-    // 樓梯扶手：在各階踏階鼻往後 .10 處量扶手頂，扣掉踏階鼻連線在那 .10 上升的高度，再減踏面高＝扶手頂面離踏階鼻的垂直高度
-    const stair = [1.4, 3.8].flatMap(x => [0, 4, 8, 12, 14].map(i => ({x, i, h: nz(x, 4.3 + i * 0.32 + 0.10) - slope * 0.10 - tread(i)})));
     const bench = [-9, -4].map(x => {const floor = lo([down(x, 8.1), down(x - 0.5, 8.1), down(x + 0.5, 8.1)]); return {x, seat: nz(x, 9.25) - floor, back: nz(x, 9.68) - floor};});
     return {redSea: along(-2.45, [-1.9, -1.85, -1.8]), redMtn: along(1.58, [2.0, 2.05, 2.1]), deckFront: line(5.97, XS, [7.3, 7.4, 7.5]), deckBack: line(10.43, XS, [9.0, 9.05]),
-     blueRail: line(10.29, [1.6, 2.2, 3.0, 3.5], [9.6, 9.7]), stair, bench, slope};
+     blueRail: line(10.29, [1.6, 2.2, 3.0, 3.5], [9.6, 9.7]), bench};
    });
    const okRows = rows => rows.every(([, h, t]) => Number.isFinite(h) && Math.abs(h / unit - t) <= RAIL_TOL * t), outRows = rows => rows.map(([name, h, t]) => ({name, m: +(h / unit).toFixed(3), target: t}));
    const rows = {
     red: [['紅欄杆（海側）', rail.redSea.h, RAIL_M.fence], ['紅欄杆（山側）', rail.redMtn.h, RAIL_M.fence]],
     deck: [['觀景層前欄杆', rail.deckFront, RAIL_M.fence], ['觀景層後欄杆', rail.deckBack, RAIL_M.fence]],
     blue: [['藍立柱木扶手', rail.blueRail, RAIL_M.fence]],
-    stair: rail.stair.map(s => [`樓梯扶手 x${s.x} 第${s.i + 1}階`, s.h, RAIL_M.hand]),
     bench: rail.bench.flatMap(b => [[`長椅 x${b.x} 座面`, b.seat, RAIL_M.seat], [`長椅 x${b.x} 椅背頂`, b.back, RAIL_M.back]])};
    check(`${tag} 欄杆：紅欄杆（海側、山側）頂面高 ＝ ${RAIL_M.fence} m ±${RAIL_TOL * 100}%（射線頂高 ÷ 畫出來的每公尺 ${unit.toFixed(4)} 單位）`, okRows(rows.red), outRows(rows.red));
    check(`${tag} 欄杆：觀景層木欄杆（前、後）頂面高 ＝ ${RAIL_M.fence} m ±${RAIL_TOL * 100}%`, okRows(rows.deck), outRows(rows.deck));
    check(`${tag} 欄杆：階梯上端藍立柱＋木扶手頂面高 ＝ ${RAIL_M.fence} m ±${RAIL_TOL * 100}%`, okRows(rows.blue), outRows(rows.blue));
-   check(`${tag} 扶手：樓梯扶手頂面離踏階鼻 ＝ ${RAIL_M.hand} m ±${RAIL_TOL * 100}%（兩側各第 1、5、9、13、15 階，與踏階鼻連線平行）`, okRows(rows.stair), outRows(rows.stair));
+   // ---- 樓梯（真實尺寸）：readStairs 讀回的踏階、立柱、扶手 ÷ 這款車的每公尺單位數
+   const stj = judgeStairs(stairs, unit), sd = {unitPerM: +unit.toFixed(4)};
+   check(`${tag} 扶手：樓梯扶手頂面離踏階鼻 ＝ ${RAIL_M.hand} m ±${RAIL_TOL * 100}%（兩側各取第 1、¼、½、¾、最後一階，與踏階鼻連線平行）`, stj.hand.pass, {...sd, m: stj.hand.detail.map(d => d.m), target: RAIL_M.hand});
+   check(`${tag} 樓梯級高：每一階 ∈ [${STAIR_M.rise}] m（兩端各 ${STAIR_M.tol * 100}% 容差）且全部相等（差 ≤ ${STAIR_EQ} 單位；第一階從步道面起算）`, stj.rise.pass, {...stj.rise.detail, ...sd});
+   check(`${tag} 樓梯級深：每一階 ∈ [${STAIR_M.tread}] m（兩端各 ${STAIR_M.tol * 100}% 容差）、全部相等（差 ≤ ${STAIR_EQ} 單位）、階與階之間沒有縫`, stj.tread.pass, {...stj.tread.detail, ...sd});
+   check(`${tag} 樓梯起終點：第一階從步道面起、最後一階頂面＝觀景層地板（≤ ${STAIR_END.tol}）、起點 y ${STAIR_END.y0}、終點 y ${STAIR_END.y1}、寬 ${STAIR_END.width}、x ${STAIR_END.x}（都跟修前相同）`, stj.ends.pass, stj.ends.detail);
+   check(`${tag} 樓梯立柱：相鄰立柱間距 ∈ [${STAIR_M.post}] m（兩側各 ≥ 3 根，不是每階一根）`, stj.postGap.pass, {...stj.postGap.detail, ...sd});
+   check(`${tag} 樓梯立柱：腳站在所踩的踏面上（≤ ${POST_TOL}）、頂端伸進扶手（離扶手頂面、底面各 ≥ ${POST_TOL}：不浮空、不穿出、不太短）`, stj.postStand.pass, stj.postStand.detail);
    check(`${tag} 長椅：座面 ＝ ${RAIL_M.seat} m、椅背頂 ＝ ${RAIL_M.back} m（兩張，±${RAIL_TOL * 100}%）`, okRows(rows.bench), outRows(rows.bench));
    // ---- 站房正面門窗（真實尺寸）：實例矩陣讀回的門窗 ÷ 這款車畫出來的每公尺單位數；基準面＝門窗正前方地面（射線量），不是山側步道（步道頂面只到離牆 2.1 單位處；兩個高度都印在 detail）
    const sj = judgeStation(station, ground, unit), sdet = {unitPerM: +unit.toFixed(4), ground: ground.door, walkwayTop: ref.walk};

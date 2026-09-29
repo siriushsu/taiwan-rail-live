@@ -51,12 +51,14 @@ export function tunnelRidge(k,path,start,end){
 }
 // handHeight（可選）：扶手「頂面」在踏階鼻上方多高（垂直量）。給了，扶手與下橫桿就與踏階鼻連線平行（斜率 rise/tread），立柱從踏面頂立到扶手中心線；
 // 不給就是原本的樣子（立柱 .94、扶手離踏面約 1.0，扶手兩端與踏階鼻連線不平行——那組數字只在扶手很高的時候看不出來）。
-export function staircase(k,{x,y,z,width=2.4,steps=12,rise=.16,tread=.32,angle=0,railColor='#408eaa',handHeight}){
+// postEvery（可選，只在給了 handHeight 時有用）：立柱每幾階一根（i＝0、postEvery、2·postEvery…，最後一階的後緣一定有一根）；不給＝每階一根（原本的樣子）。
+// nosing（可選）：踏階鼻條 [深, 高]；不給＝[.055,.035]（原本的樣子）。階數變多、一階變小時要跟著縮小，不然條帶會比踏面還搶眼。
+export function staircase(k,{x,y,z,width=2.4,steps=12,rise=.16,tread=.32,angle=0,railColor='#408eaa',handHeight,postEvery=1,nosing=[.055,.035]}){
  const stone=k.mat('#aaa997'),edge=k.mat('#d5cfb9'),rail=k.mat(railColor),hand=k.mat('#675f4f'),transform=(a,b,c)=>[x+a*Math.cos(angle)-b*Math.sin(angle),y+a*Math.sin(angle)+b*Math.cos(angle),c];
- for(let i=0;i<steps;i++){const h=(i+1)*rise;k.block(stone,[width,tread,h],transform(0,(i+.5)*tread,z+h/2),[0,0,angle]);k.block(edge,[width,.055,.035],transform(0,i*tread+.04,z+h+.018),[0,0,angle]);}
+ for(let i=0;i<steps;i++){const h=(i+1)*rise;k.block(stone,[width,tread,h],transform(0,(i+.5)*tread,z+h/2),[0,0,angle]);k.block(edge,[width,nosing[0],nosing[1]],transform(0,i*tread+nosing[0]*.72727,z+h+nosing[1]*.51429),[0,0,angle]);}
  for(const side of [-1,1]){
   if(handHeight!==undefined){const lx=side*(width/2-.05),r0=z+rise,hc=handHeight-.045/Math.cos(Math.atan(rise/tread)),low=.27*handHeight; // r0＝踏階鼻連線在 y=0 的高（第一階踏面）；hc＝扶手中心線離連線的高（頂面再扣掉半個扶手粗）
-   for(let i=0;i<=steps;i++){const base=z+Math.min(i+1,steps)*rise,top=r0+i*rise+hc;k.block(rail,[.065,.065,top-base],transform(lx,i*tread,(base+top)/2));}
+   for(let i=0;i<=steps;i+=postEvery){const base=z+Math.min(i+1,steps)*rise,top=r0+i*rise+hc;k.block(rail,[.065,.065,top-base],transform(lx,i*tread,(base+top)/2));if(i<steps&&i+postEvery>steps){const b2=z+steps*rise,t2=r0+steps*rise+hc;k.block(rail,[.065,.065,t2-b2],transform(lx,steps*tread,(b2+t2)/2));}}
    k.beam(hand,transform(lx,0,r0+hc),transform(lx,steps*tread,r0+steps*rise+hc),.09);k.beam(rail,transform(lx,0,r0+low),transform(lx,steps*tread,r0+steps*rise+low),.07);continue;}
   for(let i=0;i<=steps;i++){const h=z+Math.min(i+1,steps)*rise;k.block(rail,[.065,.065,.94],transform(side*(width/2-.05),i*tread,h+.47));}k.beam(hand,transform(side*(width/2-.05),0,z+rise+1),transform(side*(width/2-.05),steps*tread,z+steps*rise+1),.09);k.beam(rail,transform(side*(width/2-.05),0,z+rise+.25),transform(side*(width/2-.05),steps*tread,z+steps*rise+.25),.07);}
  return{bottom:transform(0,0,z),top:transform(0,steps*tread,z+steps*rise),steps,rise,tread};
