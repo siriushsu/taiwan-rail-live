@@ -781,8 +781,10 @@ await attempt('T3', async () => {
     rows.length === 3 && zq.covered_at === NOW_MS && zq.sample_count === 1 && rows.filter(r => r !== zq).every(r => r.covered_at === null && r.sample_count === 0) && rows.every(r => r.distinct_ok_users === 1), JSON.stringify(rows));
 });
 
-// T4 長趟（60 段）：登記與收滿分批寫入。每個 batch ≤ 80 句（專案自訂的上限）；同一段的「登記、收滿」一定在同一個 batch 且收滿排在登記之後——
+// T4 長趟（60 段）：登記與收滿寫入。每個 batch ≤ 80 句（專案自訂的上限）；同一段的「登記、收滿」一定在同一個 batch 且收滿排在登記之後——
 // 收滿排在登記前面的話，這一位剛好補滿門檻的那一刻讀到的還是舊人數，整段要等下一位才收（差一位，沒有任何錯誤訊息）。
+// 第二輪獨立驗收之後，登記與收滿不再逐段各寫一句：段鍵包成一個 JSON 陣列走 json_each，整班車一個 batch、句數不隨段數成長
+// （舊版一段三句、60 段 180 句要拆成 3 批）。
 await attempt('T4', async () => {
   // 每公里一站＝60 段（里程單位是公里，軌跡的 d 才是公尺）。站名補零：區間鍵是字典序（'L10' 排在 'L9' 前面），不補零 L9|L10 會變成 L10|L9
   const nm = i => 'L' + String(i).padStart(2, '0');
@@ -792,12 +794,17 @@ await attempt('T4', async () => {
   const seed = bSeed(segs.map(sg => bRow(segKey('tra_sched', '山線', sg), '自強', 0, 'track', '', 3, 0, 0, null)));
   const w = world({ units, rules: { ...RULES, coverDistinct: { TRA: 1, THSR: 15 } }, seed });
   addTrip(w.db, { actor: 'device-t4aa0001', trainNo: '101', lnId: '山線', durationSec: 3000 });
+  const sizes = [];                                          // 每個 batch 幾句、是不是登記那一批（bountyCounted 交給 batch 的是真正的 prepared statement，讀得到 _sql）
+  const ob = w.env.DELAY_DB.batch;
+  w.env.DELAY_DB.batch = async st => { sizes.push({ n: st.length, contrib: st.some(x => /INTO bounty_seg_contrib/.test(String(x && x._sql))) }); return ob(st); };
   await w.cron();
   const rows = w.db.prepare('SELECT seg_key, distinct_ok_users d, covered_at c FROM bounty_board').all();
   ok('T4a 60 公里的長趟：60 段全部登記（distinct 1）且全部收滿（門檻調成 1 位）——分批寫入沒有漏掉任何一段、也沒有差一位',
     rows.length === 60 && rows.every(r => r.d === 1 && r.c === NOW_MS) && w.db.prepare('SELECT COUNT(*) c FROM bounty_seg_contrib').get().c === 60,
     JSON.stringify({ n: rows.length, bad: rows.filter(r => !(r.d === 1 && r.c === NOW_MS)).slice(0, 3) }));
-  ok('T4b 每個 batch 至多 80 句（60 段×3 句＝180 句必須拆成多批）', w.maxBatch <= 80 && w.batches >= 3, `maxBatch=${w.maxBatch} batches=${w.batches}`);
+  const cb = sizes.filter(x => x.contrib);
+  ok('T4b 每個 batch 至多 80 句；60 段的登記＋收滿是一個 batch、3 句（人數＋1、登記、台鐵家族收滿一句），不隨段數成長',
+    w.maxBatch <= 80 && cb.length === 1 && cb[0].n === 3, `maxBatch=${w.maxBatch} batches=${JSON.stringify(sizes)}`);
 });
 
 // ═══ P 組：通行證對照組（驗收 9）══════════════════════════════════════════

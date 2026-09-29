@@ -16,6 +16,7 @@
 //   B5  帶 Bearer 讀取（chips-me／bounty-me）也跑 S0：別人預先掛上的 merged_into 被清掉
 //   B6  髒帳號列（uid 與 merged_into 都有值）：判定記在帳號本人，不跟 merged_into
 //   C2  合併落在判定途中（讀認領那一刻）：點數、認領都記對人；C2b／C2c 落在寫帳本、去重登記的前一刻：籌碼與登記記對人（獨立驗收 V3）
+//   C2s 合併落在第二發的第 k 次 D1 呼叫之前（k 全掃）：同一班不發兩顆、當天不超過上限，結果與「最後才合併」逐列相同（第三輪 V3b 與日額窗）
 //   C3  判定途中第 k 次 D1 呼叫失敗（k 全掃）→ 重跑後六張表與一次跑完逐列相同（B7）
 //   LS  租約：兩發重疊不重複計點；過期可接手；別人的活租約不碰；只釋放自己那一份
 //   R1  一條線組的寫入＝一個 batch、四句（標記、點數、sample_count、關認領），標記一句
@@ -24,7 +25,7 @@
 //   ISO 記下來的班車之後每一發排在最後（連可信身分也一樣）；D1 整個不能用（連記錄都寫不進去）才停手；每一發都會丟錯的壞班車不擋別人
 //   N4  一班車的點數上看十幾萬（4 MB 塞得下）：判定不把整班的點展開成函式引數（V8 約十二萬多個就丟 RangeError）
 //   N2  清單之後才灌進來的批次：讀這班車那一句依讀取順序累加長度截住，送回 Worker 的不超過 4 MB 再加一批，整班判可疑
-//   N3  租約被下一發接手之後，舊的那一發第③段整組不動任何列（點數、sample_count、關認領不會做兩次）
+//   N3  租約被下一發接手之後，舊的那一發第③段整組不動任何列（點數、sample_count、關認領不會做兩次）；N3d：② 的籌碼與登記也不動（第二輪 D2）
 //   N1  可信名額最多先用掉剩下預算（子請求、牆鐘各算）的一半：養出來的可信分身擠不掉新使用者的第一趟；讓出來的名額排在別人之後照判
 //   M3  兌換的交易內餘額守衛的邊界（讀到之後被扣）——review-B Q8 說這一層只有 redeem C6 一條在守
 //   M5b 刪帳號時 body 的 deviceActor 若已併進別的帳號，一列不刪——review-B Q8 說這一層只有 auth A11d 一條在守
@@ -487,6 +488,97 @@ await attempt('C2f', async () => {
     J({ st1: st1.chips, fired: h.fired, mst, chips: st2.chips, trips: q.trips(w), v: q.verdicts(w, UID, 'L2') }));
 });
 
+// ═══ C2s：合併落在第二發的第 k 次 D1 呼叫之前（k 全掃）════════════════════════════════
+// C2／C2b／C2c／C2f 各釘一個注入點；第三輪獨立驗收的 V3b（合併落在「查這班入過帳沒」之前 → 同一班兩顆）與日額窗
+// （合併落在「查今天領了幾顆」之前 → 當天多發一班）都是「合併剛好落在某兩句之間」。這裡逐一掃過每一個間隙，不必猜哪兩句之間有窗。
+// 在第 k 次 D1 呼叫（first／all／run／raw、batch、exec 各算 1；同 C3 的 faulty）之前把 DEV 併進 UID。
+// 合併本身走沒包起來的 D1：不算進 k，也不被攔。
+function mergeAt(DB, k, doMerge) {
+  const st = { n: 0, k, status: null };
+  const hit = async () => { if (++st.n === st.k) st.status = await doMerge(); };
+  const wrap = s => ({ __real: s, bind: (...a) => wrap(s.bind(...a)),
+    first: async (...a) => { await hit(); return s.first(...a); }, all: async (...a) => { await hit(); return s.all(...a); },
+    run: async (...a) => { await hit(); return s.run(...a); }, raw: async (...a) => { await hit(); return s.raw(...a); } });
+  return { st, db: { prepare: sql => wrap(DB.prepare(sql)),
+    batch: async stmts => { await hit(); return DB.batch(stmts.map(x => (x && x.__real) || x)); },
+    exec: async sql => { await hit(); return DB.exec(sql); } } };
+}
+await attempt('C2s', async () => {
+  // 世界（全部是 DEV 錄的；UID 是帳號、自己沒有任何資料）：
+  //   X1（07-28 山線）：前半 610 秒前一發已判 ok、已入帳 1 顆（DEV 名下）；後半 380 秒這一發才判 → 不能再發（同一班已入帳）。
+  //   X2（07-28 屏東線）：前半 400 秒前一發已判 ok、0 顆（不到 600 秒）；後半 400 秒這一發才判 → 整班 801 秒，恰 1 顆。
+  //   X3（07-27 山線）：DEV 那天已領滿 4 顆（帳本種 4 列）；X3 700 秒單獨夠 1 顆 → 0 顆（併進帳號之後那天仍是 4 顆）。
+  // 基準＝同一個世界「第二發一次跑完、最後才合併」。每個 k：第二發（第 k 次呼叫前合併）跑完、租約過期、重跑到沒有 pending，
+  // 再與基準逐列比。帳本比 actor、kind、份量、ref 的尾巴（|乘車日|車次）與日期——ref 的前綴依合併的先後本來就不同（見 bountyCreditTripChips）。
+  const DEV = 'dev-c2s-race-01', UID = 'uid-c2s-race-01', D27 = '2026-07-27';
+  const FIX = { BOUNTY_VERIFY_ORDER: 'fixed' };
+  const seed = boardSql('山線') + boardSql('屏東線') + pointsSql([[UID, UID, 0, null]]) +
+    [1, 2, 3, 4].map(i => ledgerSql(DEV, 'trip', 1, `${DEV}|${D27}|P${i}`, D27)).join('');
+  const build = async () => {
+    const w = world({ seed });
+    putBatches(w.db, { actor: DEV, trainNo: 'X1', lnId: '山線', pts: leg({ sec: 610, t0: 30000 }), first: 0 });
+    putBatches(w.db, { actor: DEV, trainNo: 'X2', lnId: '屏東線', pts: leg({ sec: 400, t0: 40000 }), first: 0 });
+    const st1 = await w.cron(FIX);
+    putBatches(w.db, { actor: DEV, trainNo: 'X1', lnId: '山線', pts: leg({ sec: 380, t0: 30611, d0: 12220 }), first: 100 });
+    putBatches(w.db, { actor: DEV, trainNo: 'X2', lnId: '屏東線', pts: leg({ sec: 400, t0: 40401, d0: 8020 }), first: 100 });
+    putBatches(w.db, { actor: DEV, trainNo: 'X3', lnId: '山線', date: D27, pts: leg({ sec: 700 }), first: 0 });
+    return { w, st1 };
+  };
+  const mergeRaw = w => call(_bounty.bountyMerge, post('/api/bounty-merge', { actor: DEV }, bearer(UID)), { ...w.env, DELAY_DB: w.DELAY_DB }).then(r => r.status);
+  const T2 = { ...FIX, BOUNTY_NOW: String(NOW_MS + 3600e3) }, T3 = { ...FIX, BOUNTY_NOW: String(NOW_MS + 7200e3) };
+  const norm = w => ({
+    ledger: J(rows(w, "SELECT actor, kind, delta, substr(ref, instr(ref, '|')) AS tail, day FROM chip_ledger ORDER BY kind, day, tail, actor, delta")),
+    contrib: J(rows(w, 'SELECT seg_key, actor FROM bounty_seg_contrib ORDER BY seg_key, actor')),
+    points: J(rows(w, 'SELECT actor, uid, points, merged_into FROM bounty_points ORDER BY actor')),
+    board: J(rows(w, 'SELECT seg_key, sample_count, covered_at IS NOT NULL AS cov, distinct_ok_users FROM bounty_board ORDER BY seg_key')),
+    samples: J(rows(w, 'SELECT id, actor, verdict, quality_code, reject_code, segs FROM bounty_samples ORDER BY id')),
+  });
+  const tripsOf = (w, tail) => rows(w, "SELECT actor, delta FROM chip_ledger WHERE kind='trip' AND substr(ref, -length(?)) = ?", tail, tail);
+  const dayTotal = (w, a, day) => one(w, "SELECT COALESCE(SUM(delta), 0) n FROM chip_ledger WHERE actor=? AND kind='trip' AND day=?", a, day).n;
+  // 看板的人數＝登記列的人數（一段一個 seg_key；這個世界只有 DEV／UID 一個人，所以每段不是 0 就是 1，而且兩者要相等）
+  const usersMismatch = w => rows(w, 'SELECT b.seg_key, b.distinct_ok_users d, (SELECT COUNT(*) FROM bounty_seg_contrib c WHERE c.seg_key=b.seg_key) c FROM bounty_board b')
+    .filter(r => r.d !== r.c).map(r => r.seg_key);
+  // 基準
+  const b0 = await build();
+  const f0 = mergeAt(b0.w.DELAY_DB, -1, null);
+  b0.w.env.DELAY_DB = f0.db;
+  const bst = await b0.w.cron(T2);
+  b0.w.env.DELAY_DB = b0.w.DELAY_DB;
+  const bms = await mergeRaw(b0.w);
+  const base = norm(b0.w), N = f0.st.n;
+  const bx = { st1: b0.st1.chips, st2: bst.chips, merge: bms, x1: tripsOf(b0.w, `|${D28}|X1`), x2: tripsOf(b0.w, `|${D28}|X2`), x3: tripsOf(b0.w, `|${D27}|X3`),
+    d27: dayTotal(b0.w, UID, D27), devRows: q.count(b0.w, 'chip_ledger', 'actor=?', DEV), devContrib: q.contrib(b0.w, DEV), pending: q.pending(b0.w), users: usersMismatch(b0.w),
+    contrib: q.contrib(b0.w, UID) };
+  ok('C2s0 [第三輪 V3b 前置] 基準（第二發一次跑完、最後才合併）：前一發 X1 入帳 1 顆；這一發只有 X2 的 1 顆；X1、X2 各恰 1 列（UID、1 顆）、X3 沒有列、UID 的 07-27 仍是 4 顆；' +
+    'DEV 名下 0 列帳本、0 列登記；看板人數＝登記列數；沒有 pending；第二發至少 20 次 D1 呼叫',
+    bx.st1 === 1 && bx.st2 === 1 && bx.merge === 200 && J(bx.x1) === J([{ actor: UID, delta: 1 }]) && J(bx.x2) === J([{ actor: UID, delta: 1 }]) && bx.x3.length === 0 &&
+      bx.d27 === 4 && bx.devRows === 0 && bx.devContrib === 0 && bx.users.length === 0 && bx.pending === 0 && bx.contrib > 0 && N >= 20, J({ ...bx, N }));
+  const res = [];
+  for (let k = 1; k <= N; k++) {
+    const { w } = await build();
+    const f = mergeAt(w.DELAY_DB, k, () => mergeRaw(w));
+    w.env.DELAY_DB = f.db;
+    let threw = null;
+    try { await w.cron(T2); } catch (e) { threw = String((e && e.message) || e).slice(0, 60); }
+    w.env.DELAY_DB = w.DELAY_DB;
+    expireLease(w);
+    let reruns = 0;
+    while (q.pending(w) > 0 && reruns < 3) { await w.cron(T3); expireLease(w); reruns++; }
+    const s = norm(w);
+    res.push({ k, merged: f.st.status, threw, reruns, pending: q.pending(w), strikes: strikes(w).length,
+      x1: tripsOf(w, `|${D28}|X1`).length, x2: tripsOf(w, `|${D28}|X2`).length, d27: dayTotal(w, UID, D27), users: usersMismatch(w).length,
+      diff: Object.keys(s).filter(key => s[key] !== base[key]) });
+  }
+  const bad = res.filter(r => r.merged !== 200 || r.threw || r.pending || r.strikes || r.users || r.diff.length);
+  console.log(`   C2s 第二發 ${N} 次 D1 呼叫；逐一在第 k 次之前合併：` + res.map(r => `${r.k}${r.diff.length ? '✗' : '・'}`).join(' '));
+  ok(`C2sa [第三輪 V3b／日額窗] ${N} 個間隙逐一合併：每一個都與基準逐列相同（帳本、登記、點數、看板、樣本），合併都成功、沒有丟例外、沒有 pending、沒有出錯記錄、看板人數＝登記列數`,
+    res.length === N && bad.length === 0,
+    J(bad.map(r => ({ k: r.k, m: r.merged, t: r.threw, p: r.pending, s: r.strikes, u: r.users, diff: r.diff.join('+'), x1: r.x1, x2: r.x2, d27: r.d27 }))));
+  ok('C2sb [第三輪 V3b／日額窗] 分項（C2sa 紅的時候看這條就知道是哪一種）：每個間隙 X1、X2 都恰 1 列、UID 的 07-27 都是 4 顆',
+    res.every(r => r.x1 === 1 && r.x2 === 1 && r.d27 === 4),
+    J(res.filter(r => r.x1 !== 1 || r.x2 !== 1 || r.d27 !== 4).map(r => [r.k, r.x1, r.x2, r.d27])));
+});
+
 // ═══ C3：第 k 次 D1 呼叫失敗（k 全掃）═══════════════════════════════════════════
 // 在第 k 次 D1 呼叫（first／all／run／raw 各算 1、batch 算 1、exec 算 1）丟例外。包在 bountyCounted 的下面，不影響它的計數。
 function faulty(DB, k) {
@@ -937,6 +1029,49 @@ await attempt('N3c', async () => {
     RULES.coverDistinct.TRA > 0 && r.mid.v === 'pending' && J(r.mid.sc) === J(Z9) && J(r.mid.cov) === J(Z9) &&
       r.end.v === 'ok' && J(r.end.sc) === J(S7) && J(r.end.cov) === J(S7),
     J({ mid: { sc: r.mid.sc, cov: r.mid.cov }, end: { sc: r.end.sc, cov: r.end.cov } }));
+});
+
+// N3d：租約在 ② 被接手（第二輪獨立驗收 D2）。注入點一：寫帳本那一句之前；注入點二：去重登記的 batch 之前。
+// 舊版 ② 不圍（「兩者本來就冪等」）：冪等擋得住同一班入帳兩次，擋不住「兩發各自讀到今天還沒領、各自寫」——被接手的那一發照樣入帳、登記。
+async function n3dRun(where) {
+  const A = 'dev-n3d-000001';
+  const w = world({ seed: boardSql('山線') });
+  putBatches(w.db, { actor: A, trainNo: 'F1', pts: leg({ sec: 700 }) });
+  const other = J({ token: 'taken-over', until: Date.now() + 10 * 60e3 });
+  const take = () => { w.db.prepare('UPDATE kv_blobs SET v=? WHERE k=?').run(other, LEASE); };
+  const h = { fired: 0 };
+  if (where === 'chips') {
+    const hk = hookOnce(w.DELAY_DB, /^INSERT OR IGNORE INTO chip_ledger/, async () => { take(); });
+    Object.defineProperty(h, 'fired', { get: () => hk.fired });
+  } else {
+    const ob = w.DELAY_DB.batch.bind(w.DELAY_DB);
+    w.DELAY_DB.batch = async stmts => {
+      if (!h.fired && stmts.some(s => /^INSERT OR IGNORE INTO bounty_seg_contrib/.test(String(s && s._sql)))) { h.fired++; take(); }
+      return ob(stmts);
+    };
+  }
+  const users = () => rows(w, "SELECT distinct_ok_users d FROM bounty_board WHERE seg_key LIKE 'tra_sched|山線|%' ORDER BY seg_key").map(r => r.d);
+  const look = () => ({ v: q.verdicts(w, A, 'F1'), trips: q.trips(w), contrib: q.contrib(w, A), users: users(), point: q.point(w, A) });
+  const st1 = await w.cron();
+  const mid = { ...look(), chips: st1.chips, lease: (q.lease(w) || {}).v };
+  w.db.prepare('DELETE FROM kv_blobs WHERE k=?').run(LEASE);
+  const st2 = await w.cron({ BOUNTY_NOW: String(NOW_MS + 3600e3) });
+  return { fired: h.fired, other, mid, end: { ...look(), chips: st2.chips } };
+}
+await attempt('N3d', async () => {
+  const one1 = [{ actor: 'dev-n3d-000001', delta: 1, ref: `dev-n3d-000001|${D28}|F1`, day: D28 }];
+  const a = await n3dRun('chips');
+  ok('N3da [第二輪 D2] 租約在寫帳本之前被接手：被接手的那一發一顆都不入（帳本 0 列、這一發入帳 0）、也不登記（0 段、人數全 0）、第③段不動（仍 pending、沒有點數列）；接手那一發的租約原封不動',
+    a.fired >= 1 && a.mid.trips.length === 0 && a.mid.chips === 0 && a.mid.contrib === 0 && J(a.mid.users) === J(Z9) && a.mid.v === 'pending' && a.mid.point === null &&
+      a.mid.lease === a.other, J(a.mid));
+  ok('N3db [第二輪 D2] 接手那一發把這一班判完、恰好記一次：ok、帳本 1 列 1 顆、登記 7 段、人數 S0|S1…S6|S7 各 1',
+    a.end.v === 'ok' && J(a.end.trips) === J(one1) && a.end.chips === 1 && a.end.contrib === 7 && J(a.end.users) === J(S7), J(a.end));
+  const b = await n3dRun('contrib');
+  ok('N3dc [第二輪 D2] 租約在去重登記的 batch 之前被接手（籌碼那一句已寫）：被接手的那一發不登記（0 段、人數全 0）、第③段不動；接手那一發的租約原封不動',
+    b.fired === 1 && J(b.mid.trips) === J(one1) && b.mid.contrib === 0 && J(b.mid.users) === J(Z9) && b.mid.v === 'pending' && b.mid.point === null && b.mid.lease === b.other,
+    J(b.mid));
+  ok('N3dd [第二輪 D2] 接手那一發：登記 7 段、人數各 1（沒有加兩次）、帳本仍 1 列（同一班不再入帳）、ok',
+    b.end.v === 'ok' && J(b.end.trips) === J(one1) && b.end.chips === 0 && b.end.contrib === 7 && J(b.end.users) === J(S7), J(b.end));
 });
 
 // ═══ N1：可信名額最多先用掉一半預算 ═══════════════════════════════════════════════
