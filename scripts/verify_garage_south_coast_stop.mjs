@@ -10,8 +10,9 @@ import {createHash} from 'node:crypto';
 import * as THREE from '../rail-3d/vendor/three.module.js';
 import {createScene} from '../rail-3d/garage-scenes/south-coast.js';
 import {buildGarageParts} from '../rail-3d/garage-parts.js';
+const GARAGE_SITE=process.env.GARAGE_BASE_URL||'http://127.0.0.1:5251'; // 預設同舊版；共用驗收腳本可指到自己起的空埠 server
 // 頁面網址不命名為 URL：那會蓋掉 Node 的全域 URL 類別（檔尾要用 new URL() 讀原始碼）。
-const PAGE_URL='http://127.0.0.1:5251/prototypes/garage-south-coast/';
+const PAGE_URL=GARAGE_SITE+'/prototypes/garage-south-coast/';
 const results=[];function check(name,pass,detail){results.push({name,pass:!!pass});console.log(pass?'PASS':'FAIL',name,JSON.stringify(detail??'').slice(0,300));}
 
 // ── 純 Node（不需要瀏覽器）：棕櫚（位置／物種雜湊、高度、樹冠比例與形狀、葉色、椰子果、預算）、闊葉樹不變、

@@ -1,12 +1,13 @@
 import {chromium,webkit} from 'playwright';
 import {writeFileSync} from 'node:fs';
+const GARAGE_SITE=process.env.GARAGE_BASE_URL||'http://127.0.0.1:5251'; // 預設同舊版；共用驗收腳本可指到自己起的空埠 server
 const results=[];
 for(const [engine,type] of Object.entries({chromium,webkit})){
  if(process.env.TEST_ENGINE&&process.env.TEST_ENGINE!==engine)continue;
  const browser=await type.launch();
  try{
   const page=await browser.newPage({viewport:{width:1000,height:800},reducedMotion:'reduce',hasTouch:true,isMobile:true});
-  await page.goto('http://127.0.0.1:5251/prototypes/garage-south-coast/');
+  await page.goto(GARAGE_SITE+'/prototypes/garage-south-coast/');
   await page.waitForFunction(()=>window.southCoastPreview?.state.ready);
   await page.tap('[data-view="train"]');
   for(const width of [1000,375]){

@@ -1,7 +1,8 @@
 import {chromium,webkit} from 'playwright';
 import {panChecks} from './lib/garage_pan_checks.mjs';
 import {mkdirSync,writeFileSync} from 'node:fs';
-const OUT='output/south-coast',URL='http://127.0.0.1:5251/prototypes/garage-south-coast/';mkdirSync(OUT,{recursive:true});
+const GARAGE_SITE=process.env.GARAGE_BASE_URL||'http://127.0.0.1:5251'; // 預設同舊版；共用驗收腳本可指到自己起的空埠 server
+const OUT='output/south-coast',URL=GARAGE_SITE+'/prototypes/garage-south-coast/';mkdirSync(OUT,{recursive:true});
 const results=[];function check(name,pass,detail){results.push({name,pass:!!pass,detail});console.log(pass?'PASS':'FAIL',name,JSON.stringify(detail??''));}
 const state=p=>p.evaluate(()=>southCoastPreview.state);
 const settle=p=>p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));

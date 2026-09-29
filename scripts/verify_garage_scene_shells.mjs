@@ -1,11 +1,12 @@
 import {chromium,webkit} from 'playwright';
 import {mkdirSync,writeFileSync} from 'node:fs';
+const GARAGE_SITE=process.env.GARAGE_BASE_URL||'http://127.0.0.1:5251'; // 預設同舊版；共用驗收腳本可指到自己起的空埠 server
 const out='output/scene-shells';mkdirSync(out,{recursive:true});const results=[];
 for(const [engine,type] of Object.entries({chromium,webkit})){
  const browser=await type.launch();
  try{for(const name of ['viaduct','shifen']){
   const page=await browser.newPage({viewport:{width:1200,height:850},reducedMotion:'reduce',hasTouch:true,isMobile:true});const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(`http://127.0.0.1:5251/prototypes/garage-${name}/`);await page.waitForFunction(n=>window[n+'Preview']?.state.ready,name);
+  await page.goto(`${GARAGE_SITE}/prototypes/garage-${name}/`);await page.waitForFunction(n=>window[n+'Preview']?.state.ready,name);
   const facts=await page.evaluate(async name=>{
    const T=await import('/rail-3d/vendor/three.module.js'),S=await import(`/rail-3d/garage-scenes/${name}.js`),P=await import('/rail-3d/garage-scenes/props.js');
    const scene=S.createScene(),g=scene.group;g.updateMatrixWorld(true);const slab=g.getObjectByName('ground-slab');

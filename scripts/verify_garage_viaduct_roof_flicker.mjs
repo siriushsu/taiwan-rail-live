@@ -1,13 +1,14 @@
 import {chromium,webkit} from 'playwright';
 import {execFileSync} from 'node:child_process';
 import {mkdirSync,writeFileSync} from 'node:fs';
+const GARAGE_SITE=process.env.GARAGE_BASE_URL||'http://127.0.0.1:5251'; // 預設同舊版；共用驗收腳本可指到自己起的空埠 server
 const out='output/viaduct-roof-flicker';mkdirSync(out,{recursive:true});
 const before=execFileSync('git',['show','9f0bf1ec:rail-3d/garage-scenes/viaduct.js'],{encoding:'utf8'}),results=[];
 for(const [engine,type]of Object.entries({chromium,webkit})){
  const browser=await type.launch();try{
  const page=await browser.newPage({viewport:{width:1000,height:850},reducedMotion:'reduce'});
  await page.route('**/viaduct.js?before-roof',route=>route.fulfill({contentType:'text/javascript',body:before}));
- await page.goto('http://127.0.0.1:5251/prototypes/garage-viaduct/');await page.waitForFunction(()=>window.viaductPreview?.state.ready);
+ await page.goto(GARAGE_SITE+'/prototypes/garage-viaduct/');await page.waitForFunction(()=>window.viaductPreview?.state.ready);
  await page.click('[data-view="train"]');await page.click('#play');const start=await page.evaluate(()=>viaductPreview.state.distance);await page.waitForFunction(s=>viaductPreview.state.distance>s+.25,start);await page.click('#play');
  const report=await page.evaluate(async()=>{
   viaductPreview.dispose();
