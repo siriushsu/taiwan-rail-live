@@ -131,8 +131,8 @@ window.RailGarageScenes = {
 //  區間車從 seaside-platform 移過來），屬於配置調整，等裁示。
 //  參考照片與幾何筆記：~/Documents/軌島封存/車站參考照片-20260912/（不進 repo）
 
-// 已接進車庫（可由 garage-scene.html 掛載）的場景 id；其餘三景（alishan、viaduct、shifen）做好了但這一輪先不開。
-window.RailGarageSceneLive = ['south-coast'];
+// 已接進車庫（可由 garage-scene.html 掛載）的場景 id；四景的 mount 模組都在 rail-3d/garage-scenes/<景>-view.js。
+window.RailGarageSceneLive = ['south-coast','viaduct','shifen','alishan'];
 
 // 哪一類車可以開進哪幾景（以 train-garage-catalog.js 的 system 欄判斷）。主對話判讀：台鐵車進三座台鐵景、林鐵車進阿里山；
 // 捷運、輕軌、高鐵目前沒有合適的景。方向來自使用者 09-29 10:26「或者另一個方向，是讓所有的車子都能跑在現在有的場景中適合的景」、10:30「確認改這個方向」。
