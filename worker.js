@@ -8185,6 +8185,9 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   const WHO_SQL = BOUNTY_WHO_SQL;
   const IN_UNITS = "(seg_key, train_kind, dir, kind, slot) IN (SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]')," +
     " json_extract(value, '$[2]'), json_extract(value, '$[3]'), json_extract(value, '$[4]') FROM json_each(?))";
+  // 關認領那一句用的版本：第一欄寫成 +seg_key，讓它只能走 idx_claims_actor（這個人自己的、有上界），理由同判定時讀認領那一句的「+seg_key」。
+  // bounty_board 的兩句照舊用 IN_UNITS（那裡要的就是單位的索引）。
+  const IN_MY_UNITS = IN_UNITS.replace('(seg_key, train_kind', '(+seg_key, train_kind');
   // 🔴 租約圍欄（review-B 獨立驗收 N3）：③ 的每一句都帶「租約還是這一發的」這個條件（綁 BOUNTY_VERIFY_LEASE_KEY 與這一發的租約值）。
   // 租約比平台給一發的牆鐘上限長，正常不會有兩發同時寫；萬一這一發跑超過租約、被下一發接手，它之後的 batch 整組不動任何列
   // （同一筆交易裡每一句看到同一個租約值），那一組留 pending 給接手的那一發——點數與 sample_count 不會加兩次，標記也不會搶先把列標走。
@@ -8228,11 +8231,16 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
       // 🔴 每個單位只送回最近的一筆（ROW_NUMBER，第五輪獨立驗收 新洞①）：舊版整包送回再在 JS 取第一筆，而一個人有幾筆開著的認領是
       // 上傳者決定的（舊版同一張卡接一千次＝幾萬列）——讀進 Worker 卻不算讀取量、子請求也擋不住，unusable 的車又不關認領，每一班都再讀一次。
       // 現在送回的列數≤這一組覆蓋段的單位數；排序同舊版（claimed_at DESC, id DESC 的第一筆）。認領端點另外去重（bountyClaim）。
+      // 🔴 「+seg_key」同理，防的是有統計資料的時候：沒有統計時 SQLite 挑 idx_claims_actor；表一旦有統計（有人照 D1 文件跑了 PRAGMA optimize），
+      // 而統計當下「每個人的認領多、每個單位的認領少」（例如早期少數重度使用者），它會改走 idx_claims_unit（seg_key…）＝讀這些段上「所有人」的認領、
+      // 再逐列比 actor——匿名身分免費、過期沒關的認領又從來不清，那個量外部放大得了，統計也不會自己更新。加號之後只剩 idx_claims_actor 可走。
+      // 語意不變（seg_key 是 TEXT、json_each 的值也是 TEXT，一元加號只拿掉欄位的 affinity）。關認領那一句同樣處理（IN_MY_UNITS）。
+      // 守門人：verify_bounty_hardening.mjs 的 CL4（造一份偏斜的統計再看查詢計畫）。
       const cr = await env.DELAY_DB.prepare(
         'SELECT seg_key,dir,kind,slot,train_kind,points_locked FROM (SELECT seg_key,dir,kind,slot,train_kind,points_locked,' +
         ' ROW_NUMBER() OVER (PARTITION BY seg_key,dir,kind,slot ORDER BY claimed_at DESC,id DESC) AS rn' +
         ' FROM bounty_claims WHERE actor=' + WHO_SQL +
-        " AND status='open' AND +expires_at>=? AND seg_key IN (SELECT value FROM json_each(?))) WHERE rn=1"
+        " AND status='open' AND +expires_at>=? AND +seg_key IN (SELECT value FROM json_each(?))) WHERE rn=1"
       ).bind(who, who, claimAt, JSON.stringify([...new Set(cov.map(c => c.key))])).all();
       keepFirst(locks, cr.results);
     }
@@ -8290,7 +8298,7 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
         ' covered_at = CASE WHEN sample_count + 1 >= ? THEN COALESCE(covered_at, ?) ELSE covered_at END WHERE ' + IN_UNITS + HELD + MARKED
       ).bind(need, now, JSON.stringify(list), BOUNTY_VERIFY_LEASE_KEY, lease, ...M));
       if (units.size) writes.push(env.DELAY_DB.prepare(
-        "UPDATE bounty_claims SET status='fulfilled' WHERE actor=" + WHO_SQL + " AND status='open' AND " + IN_UNITS + HELD + MARKED
+        "UPDATE bounty_claims SET status='fulfilled' WHERE actor=" + WHO_SQL + " AND status='open' AND " + IN_MY_UNITS + HELD + MARKED
       ).bind(who, who, JSON.stringify([...units.values()]), BOUNTY_VERIFY_LEASE_KEY, lease, ...M));
     }
     if (marked(await env.DELAY_DB.batch(writes))) { stat.trips++; stat[v.verdict]++; judged++; }

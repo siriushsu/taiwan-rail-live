@@ -1523,10 +1523,10 @@ await attempt('N1e', async () => {
 // 之後讀取量用完停手（stopBy bytes），垃圾還有留 pending。stat.bytes＝已判定列的 payload 總長（測試端自己用 SQL 算）。
 await attempt('N1f', async () => {
   const SY = syb('n1g', 6), N = 'dev-n1f-new01';
-  const mk = env => {
+  const mk = (env, size) => {
     const w = world({ seed: boardSql('山線') + gradSql(SY), env: { BOUNTY_VERIFY_ORDER: 'fixed', BOUNTY_SUBREQ_BUDGET: '1000000', BOUNTY_WALL_BUDGET_MS: '3600000', ...env } });
-    bulk(w.db, [...SY.flatMap(s => Array.from({ length: 8 }, (_, k) => ({ actor: s, trainNo: 'G' + (k + 1), pts: leg({ sec: 1500, t0: 30000 + k * 2000 }) }))),
-      { actor: N, trainNo: 'N1', pts: leg({ sec: 700 }) }]);
+    bulk(w.db, [...SY.flatMap(s => Array.from({ length: 8 }, (_, k) => ({ actor: s, trainNo: 'G' + (k + 1), pts: leg({ sec: 1500, t0: 30000 + k * 2000 }), size }))),
+      { actor: N, trainNo: 'N1', pts: leg({ sec: 700 }), size }]);
     return w;
   };
   const probe = mk({});
@@ -1547,15 +1547,19 @@ await attempt('N1f', async () => {
     '≥ 預算、扣掉一班最大的車就不到預算',
     K > 0 && st.bytes === judged.b && st.rows === judged.n && judged.b > 0 && cost >= budget && cost - maxCost < budget,
     J({ bytes: st.bytes, rows: st.rows, judged, K, cost, budget, maxCost }));
-  const wf = mk({ BOUNTY_BYTES_BUDGET: String(budget) });
+  // 這一條的世界每列 20 點（其餘 200 點）：列數夠多，「位元組」與「位元組＋列數×折算」印出來的一位小數才分得開（差 ≥ 0.1 MB）。
+  // 舊世界 188 列 × 384 ≈ 0.07 MB，兩者都印 1.8——把 MB 換成讀取量照樣綠（第八批 突變 log_mb_is_cost 存活）。
+  const headF = one(mk({}, 20), "SELECT SUM(length(payload)) b FROM bounty_samples WHERE actor LIKE 'dev-n1g-%'").b;
+  const wf = mk({ BOUNTY_BYTES_BUDGET: String(Math.floor(headF / 2)) }, 20);
   const f = await fire(wf);
   const line = f.logs.concat(f.errs).find(s => SUMMARY_RE.test(s)) || '';
   const mb = line.match(/讀取 ([\d.]+) MB（(\d+) 列）/);
   // 括號裡的列數＝這一發判到的列數、MB＝那些列的 payload（測試端 SQL；第五輪獨立驗收：舊判準只要求列數 > 0，印成班數照樣綠）。
   const jf = one(wf, "SELECT COALESCE(SUM(length(payload)), 0) b, COUNT(*) n, COUNT(DISTINCT actor || '|' || train_no) t FROM bounty_samples WHERE verdict <> 'pending'");
   ok('N1fc [第二輪 CPU／第五輪] 判定那一行寫「讀取量預算用盡」與讀取量：MB＝已判定列的 payload（一位小數）、括號裡＝已判定的列數（不是班數）',
-    line.includes('讀取量預算用盡') && !!mb && mb[1] === (jf.b / 1048576).toFixed(1) && Number(mb[2]) === jf.n && jf.n !== jf.t && jf.n > 0,
-    J({ line: line.slice(0, 260), sql: jf }));
+    line.includes('讀取量預算用盡') && !!mb && mb[1] === (jf.b / 1048576).toFixed(1) && mb[1] !== ((jf.b + jf.n * K) / 1048576).toFixed(1) &&
+      Number(mb[2]) === jf.n && jf.n !== jf.t && jf.n > 0,
+    J({ line: line.slice(0, 260), sql: jf, costMb: ((jf.b + jf.n * K) / 1048576).toFixed(1) }));
   const w0 = mk({});
   const st0 = await w0.cron();
   ok('N1fd [第二輪 CPU 對照] 預設讀取量預算（128 MB）：同一個世界全部判完、沒有停手、沒有讓出', q.pending(w0) === 0 && st0.budgetStop === false && st0.stopBy === null && st0.headDeferred === 0,
@@ -1933,6 +1937,46 @@ await attempt('CL3', async () => {
       m4.status === 200 && J(snap4) === J([`cl3-dup2@${U}`, `cl3-v@${V}`]),
     J({ m3: m3.text, snap3, m4: m4.status, snap4 }));
 });
+// CL4（第八批）：讀／刪／關「這個人的」認領的三句，在表有統計資料的時候也只走 idx_claims_actor。
+// 沒有統計時 SQLite 本來就挑 idx_claims_actor（所以 CL2c 照不到拿掉 +seg_key 的突變）；統計偏斜——每個人的認領多、每個單位的認領少，
+// 早期少數重度使用者時跑 PRAGMA optimize 就會收到這種形狀——時，沒有加號的版本改走 idx_claims_unit＝讀這些段上所有人的認領。
+// 統計是手寫進 sqlite_stat1 再 ANALYZE sqlite_schema 讓規劃器重讀。對照組：同一份統計下把 +seg_key 拿掉，必須真的改走 idx_claims_unit（證明統計夠偏、判準有牙）。
+const skewClaimStats = db => {
+  db.exec('ANALYZE');
+  db.exec("DELETE FROM sqlite_stat1 WHERE tbl='bounty_claims'");
+  db.exec("INSERT INTO sqlite_stat1 (tbl, idx, stat) VALUES ('bounty_claims','idx_claims_actor','200000 20000 10000')," +
+    " ('bounty_claims','idx_claims_unit','200000 20 2 1 1 1 1 1'), ('bounty_claims','idx_claims_expiry','200000 100000 2')");
+  db.exec('ANALYZE sqlite_schema');
+};
+const claimsPlan = (db, sql) => db.prepare('EXPLAIN QUERY PLAN ' + sql).all(...Array((sql.match(/\?/g) || []).length).fill(null))
+  .map(r => String(r.detail)).filter(d => /\bbounty_claims\b/.test(d)).join(' ; ');
+await attempt('CL4', async () => {
+  const A = 'dev-cl4-00000A', CARD = 'tra_sched|山線|0|自強|track|';
+  // 刪除那一句：認領端點（同一張卡接兩次）
+  const w1 = world({ seed: boardSql('山線') });
+  const log1 = spyBatches(w1.DELAY_DB);
+  await withClock(NOW_MS, () => claim(w1, A, CARD));
+  const del = [...new Set(log1.flat().map(s => s.sql).filter(s => /^DELETE FROM bounty_claims/.test(s)))];
+  // 讀認領那一句與關認領那一句：一趟 700 秒 ok、每段一筆認領
+  const w2 = world({ seed: boardSql('山線') + SEGS10.map((s, i) => claimRow({ id: `cl4|${i}`, actor: A, seg: KT('山線', s), pts: 5, at: 1000 })).join('') });
+  putBatches(w2.db, { actor: A, trainNo: 'C4', pts: leg({ sec: 700 }) });
+  const sel = new Set();
+  spyRows(w2.DELAY_DB, sql => { if (/FROM bounty_claims WHERE actor=COALESCE/.test(sql)) sel.add(sql); });
+  const log2 = spyBatches(w2.DELAY_DB);
+  await w2.cron();
+  const upd = [...new Set(log2.flat().map(s => s.sql).filter(s => /^UPDATE bounty_claims SET status='fulfilled'/.test(s)))];
+  const cases = [['a 認領端點的刪除', del, s => s.replace('+seg_key IN', 'seg_key IN')], ['b 判定時讀認領', [...sel], s => s.replace('+seg_key IN', 'seg_key IN')],
+    ['c 判定 ok 之後關認領', upd, s => s.replace('(+seg_key, train_kind', '(seg_key, train_kind')]];
+  const before = cases.map(([, l]) => l.length === 1 ? claimsPlan(w2.db, l[0]) : '');
+  skewClaimStats(w2.db);
+  const after = cases.map(([, l]) => l.length === 1 ? claimsPlan(w2.db, l[0]) : '');
+  const ctrl = cases.map(([, l, strip]) => l.length === 1 && strip(l[0]) !== l[0] ? claimsPlan(w2.db, strip(l[0])) : '');
+  const ACTOR = /SEARCH bounty_claims USING INDEX idx_claims_actor \(actor=\? AND status=\?\)/;
+  cases.forEach(([name, l], i) => ok(`CL4${name[0]} [第八批] ${name.slice(2)}那一句：沒有統計、統計偏斜時都走 idx_claims_actor，不走 idx_claims_unit；` +
+    '對照——同一份統計下拿掉 +seg_key 就改走 idx_claims_unit',
+    l.length === 1 && ACTOR.test(before[i]) && ACTOR.test(after[i]) && !/idx_claims_unit/.test(before[i] + after[i]) && /idx_claims_unit/.test(ctrl[i]),
+    J({ n: l.length, before: before[i], after: after[i], ctrl: ctrl[i] })));
+});
 
 // ═══ PH：同一秒的點（第五輪獨立驗收）══════════════════════════════════════════════
 // 上傳端把 t 取整到秒；舊版防偽閘第三重對 dt≤0 的點直接跳過，「整條線每個站間兩點、全部同一個 t」判 ok、全線覆蓋。
@@ -1960,20 +2004,23 @@ await attempt('SK', async () => {
   const w = world({ seed: boardSql('山線') + pointsSql([[U, U, 0, null], [X, X, 0, null], [V, null, 0, X]]) +
     kv(STRIKE(D, 'K1'), '{"at":1,"error":"d1","n":2}') + kv(STRIKE(D, 'K3'), '{"at":1,"error":"d3","n":1}') + kv(STRIKE(D, 'K5'), '{"at":1,"error":"d5","n":3}') +
     kv(STRIKE(D, 'K6'), 'not-json') + kv(STRIKE(U, 'K3'), '{"at":2,"error":"u3","n":3}') + kv(STRIKE(U, 'K5'), '{"at":2,"error":"u5","n":1}') +
-    kv(STRIKE(U, 'K4'), '{"at":2,"error":"u4","n":1}') + kv(STRIKE(V, 'K1'), '{"at":3,"error":"v1","n":2}'),
+    kv(STRIKE(U, 'K4'), '{"at":2,"error":"u4","n":1}') + kv(STRIKE(V, 'K1'), '{"at":3,"error":"v1","n":2}') + kv(STRIKE(V, 'K7'), '{"at":3,"error":"v7","n":1}'),
     env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
   bulk(w.db, [...['K1', 'K3', 'K5', 'K6'].map(t => ({ actor: D, trainNo: t, pts: TINY })), ...['K3', 'K4', 'K5'].map(t => ({ actor: U, trainNo: t, pts: TINY })),
-    { actor: V, trainNo: 'K1', pts: TINY }]);
+    { actor: V, trainNo: 'K1', pts: TINY }, { actor: V, trainNo: 'K7', pts: TINY }]);
   const m = await merge(w, D, U);
   const got = Object.fromEntries(strikes(w).map(r => [r.k, r.v]));
   const want = { [STRIKE(U, 'K1')]: '{"at":1,"error":"d1","n":2}', [STRIKE(U, 'K3')]: '{"at":2,"error":"u3","n":3}', [STRIKE(U, 'K4')]: '{"at":2,"error":"u4","n":1}',
-    [STRIKE(U, 'K5')]: '{"at":1,"error":"d5","n":3}', [STRIKE(U, 'K6')]: 'not-json', [STRIKE(V, 'K1')]: '{"at":3,"error":"v1","n":2}' };
+    [STRIKE(U, 'K5')]: '{"at":1,"error":"d5","n":3}', [STRIKE(U, 'K6')]: 'not-json', [STRIKE(V, 'K1')]: '{"at":3,"error":"v1","n":2}',
+    [STRIKE(V, 'K7')]: '{"at":3,"error":"v7","n":1}' };
   ok('SKa [第四、五輪 殘留] 裝置併進帳號：出錯記錄逐把改名到帳號、值不變；撞同一班留次數大的（K3 留帳號的 3、K5 留裝置的 3）；壞值照搬；裝置名下一把不剩',
     m.status === 200 && J(Object.keys(got).sort()) === J(Object.keys(want).sort()) && Object.entries(want).every(([k, v]) => got[k] === v),
     J({ m: m.status, got }));
   const m2 = await merge(w, V, U);
-  ok('SKb 守衛 G：來源已併進別人（V → X）→ 409，V 的出錯記錄原地不動、帳號名下沒有多出 V 的那一班',
-    m2.status === 409 && strikes(w).some(r => r.k === STRIKE(V, 'K1')) && J(Object.fromEntries(strikes(w).map(r => [r.k, r.v]))) === J(got),
+  // V 的 K7 帳號名下沒有：改名那一句（INSERT…SELECT）漏了守衛的話會多出 U|K7（K1 跟帳號撞、n 相同，照不到；第八批 突變 merge_strike_no_G 存活後補）。
+  ok('SKb 守衛 G：來源已併進別人（V → X）→ 409，V 的出錯記錄原地不動（K1、K7）、帳號名下沒有多出 V 的那一班（K7）',
+    m2.status === 409 && strikes(w).some(r => r.k === STRIKE(V, 'K1')) && strikes(w).some(r => r.k === STRIKE(V, 'K7')) &&
+      !strikes(w).some(r => r.k === STRIKE(U, 'K7')) && J(Object.fromEntries(strikes(w).map(r => [r.k, r.v]))) === J(got),
     J({ m2: m2.text }));
   const seen = [];
   spyRows(w.DELAY_DB, (sql, rs) => { if (LIST_RE.test(sql)) seen.push(rs.map(r => ({ actor: String(r.actor), train: String(r.train_no), struck: Number(r.struck), strikes: Number(r.strikes) }))); });
