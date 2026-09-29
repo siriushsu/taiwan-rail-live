@@ -3,8 +3,10 @@
 // 跑法：node scripts/verify_bounty_schema.mjs
 // 註：node:sqlite 會印一行 ExperimentalWarning，那是正常輸出。
 import { openTestDb, applySchemaFiles } from './d1_local.mjs';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const R = [];
@@ -305,6 +307,31 @@ const tryRun = (d, sql, ...p) => { try { d.prepare(sql).run(...p); return ''; } 
     firstAlter > 0 && createAfter.length === 0 && alters.length === 2 &&
     /distinct_ok_users/.test(alters[0]) && /\bclient\b/.test(alters[1]),
     JSON.stringify({ firstAlter, createAfter: createAfter.length, alters: alters.length }));
+}
+
+// A23（2026-09-30）：出貨鏈的正式庫 schema 守門人（verify_remote_schema.mjs，ship-web 每一發都跑）要看得到索引。
+// 認領五句寫 INDEXED BY idx_claims_actor，索引不在時那幾句直接報錯（no such index）；只比表與欄位的舊版照不到這一種漏套。
+// 做法：把這顆本機庫的 sqlite_master（表＋索引）包成 `d1 execute --json` 的形狀，餵它的 --ddl 離線模式——
+// 完整的要過；拿掉 idx_claims_actor、或它建在別張表上，都要 exit 1 而且點名它（拿掉的那一種還要點名該補套的 0002_bounty.sql）。
+{
+  const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const rows = db.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE type IN ('table','index')").all().map(r => ({ ...r }));
+  const dir = mkdtempSync(join(tmpdir(), 'rschema-'));
+  const runGate = (tag, rs) => {
+    const f = join(dir, tag + '.json');
+    writeFileSync(f, JSON.stringify([{ results: rs, success: true }]));
+    const p = spawnSync(process.execPath, [join(ROOT, 'scripts', 'verify_remote_schema.mjs'), '--ddl', f], { cwd: ROOT, encoding: 'utf8' });
+    return { rc: p.status, out: (p.stdout || '') + (p.stderr || '') };
+  };
+  const full = runGate('full', rows);
+  const noIdx = runGate('no-idx', rows.filter(r => r.name !== 'idx_claims_actor'));
+  const wrongTbl = runGate('wrong-table', rows.map(r => r.name === 'idx_claims_actor' ? { ...r, tbl_name: 'bounty_board' } : r));
+  ok('A23a 正式庫 schema 守門人：本機庫的表＋索引全在 → exit 0，而且有比到 idx_claims_actor',
+    full.rc === 0 && /idx_claims_actor/.test(full.out) && rows.some(r => r.type === 'index' && r.name === 'idx_claims_actor'), full.out.trim().slice(-240));
+  ok('A23b 拿掉 idx_claims_actor（其餘不變）→ exit 1，點名 idx_claims_actor 與 0002_bounty.sql',
+    noIdx.rc === 1 && /idx_claims_actor/.test(noIdx.out) && /0002_bounty\.sql/.test(noIdx.out), noIdx.out.trim().slice(0, 300));
+  ok('A23c idx_claims_actor 建在別張表上 → exit 1，點名 idx_claims_actor',
+    wrongTbl.rc === 1 && /idx_claims_actor/.test(wrongTbl.out), wrongTbl.out.trim().slice(0, 300));
 }
 
 const pass = R.filter(r => r.p).length;
