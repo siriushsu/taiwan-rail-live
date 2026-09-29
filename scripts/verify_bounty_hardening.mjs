@@ -25,6 +25,7 @@
 //   ISO 記下來的班車之後每一發排在最後（連可信身分也一樣）；D1 整個不能用（連記錄都寫不進去）才停手；每一發都會丟錯的壞班車不擋別人
 //   ISO5／B5 出錯 2 次才排最後（錯過一次的誠實班車照常排）；SW 每一發開頭清掃沒有 pending 的出錯記錄；B4e 刪帳號一起刪出錯記錄；
 //   D4 出錯記錄的寫與刪都圍租約；B3e 系統性出錯時只印前 5 班（第二輪獨立驗收）
+//   N1d 清單截斷時可信名額最多佔一半（第三輪 N1b）；N1e 讓出的可信名額與一般班車按輪次交錯（第三輪 B(5)）；N1f 讀取量預算（第二輪 CPU）
 //   N4  一班車的點數上看十幾萬（4 MB 塞得下）：判定不把整班的點展開成函式引數（V8 約十二萬多個就丟 RangeError）
 //   N2  清單之後才灌進來的批次：讀這班車那一句依讀取順序累加長度截住，送回 Worker 的不超過 4 MB 再加一批，整班判可疑
 //   N3  租約被下一發接手之後，舊的那一發第③段整組不動任何列（點數、sample_count、關認領不會做兩次）；N3d：② 的籌碼與登記也不動（第二輪 D2）
@@ -1342,6 +1343,123 @@ await attempt('N1c', async () => {
   ok('N1c [N1] 牆鐘 1.5 秒、可信名額每班慢 30 ms：用到一半牆鐘就讓出來，N 判到（ok）；之後牆鐘停手、垃圾還有留 pending',
     q.verdicts(w, N1H, 'N1') === 'ok' && st.budgetStop === true && st.stopBy === 'wall' && sybPending(w) > 0 && st.headDeferred > 0,
     J({ n: q.verdicts(w, N1H, 'N1'), stopBy: st.stopBy, pending: sybPending(w), deferred: st.headDeferred, pos: loads.indexOf(N1H), ms: st.elapsedMs }));
+});
+
+// ═══ N1d：清單上限不能讓可信名額佔滿（第三輪獨立驗收 N1b）═══════════════════════════════════
+// 舊版清單依「head 最先」排好才截到 4000 班：約 500 個畢業分身各灌 8 班（head 恰 4000 班），新身分連清單都進不去，判定迴圈裡的份額完全不起作用。
+// 現在：截斷時 head 依輪次只保證前 2000 班（上限×份額），其餘位置先給一般班車；一般班車不夠填，head 照樣補滿。
+const syb = (tag, n) => Array.from({ length: n }, (_, i) => `dev-${tag}-s` + String(i).padStart(3, '0'));
+const gradSql = list => list.map(s => ledgerSql(s, 'trip', 1, `${s}|2026-07-10|O1`, '2026-07-10')).join('');
+const listRows = w => {
+  const seen = [];
+  spyRows(w.DELAY_DB, (sql, rs) => { if (LIST_RE.test(sql)) seen.push(rs.map(r => ({ actor: String(r.actor), train: String(r.train_no), head: Number(r.head) }))); });
+  return seen;
+};
+await attempt('N1d', async () => {
+  const SY = syb('n1d', 500), NEW = Array.from({ length: 5 }, (_, i) => 'dev-n1d-new0' + i);
+  const w = world({ seed: boardSql('山線') + gradSql(SY), env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
+  bulk(w.db, [...SY.flatMap(s => Array.from({ length: 8 }, (_, k) => ({ actor: s, trainNo: 'G' + (k + 1), pts: TINY }))),
+    ...NEW.map(a => ({ actor: a, trainNo: 'N1', pts: leg({ sec: 700 }) }))]);
+  const seen = listRows(w);
+  const st = await w.cron({ BOUNTY_SUBREQ_BUDGET: '300' });
+  const L = seen[0] || [];
+  const nHead = L.filter(r => r.head).length, newIn = NEW.filter(a => L.some(r => r.actor === a)).length;
+  const judged = NEW.filter(a => q.verdicts(w, a, 'N1') === 'ok').length;
+  ok('N1da [第三輪 N1b] 500 個畢業分身各 8 班（可信名額恰 4000 班＝清單上限）＋5 個新身分：清單截到 4000 班（truncated）＝可信名額 3995＋新身分 5；' +
+    '這一發 5/5 判到（ok）、分身還有留 pending',
+    st.truncated === true && L.length === 4000 && nHead === 3995 && newIn === 5 && judged === 5 &&
+      q.count(w, 'bounty_samples', "verdict='pending' AND actor LIKE 'dev-n1d-s%'") > 0,
+    J({ truncated: st.truncated, list: L.length, nHead, newIn, judged, headDeferred: st.headDeferred, subreq: st.subreq }));
+  // 一般班車夠多時 head 只保證一半：300 個分身各 8 班（2400）＋3000 個匿名身分各 1 班 → 清單 2000＋2000；
+  // head 依輪次截（每個分身至少前 6 班都在），不是依 actor 次序截（那樣會是前 250 個分身各 8 班、後 50 個 0 班）。預算 1：一班都不判，只看清單。
+  const SY2 = syb('n1e', 300);
+  const w2 = world({ seed: gradSql(SY2), env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
+  bulk(w2.db, [...SY2.flatMap(s => Array.from({ length: 8 }, (_, k) => ({ actor: s, trainNo: 'G' + (k + 1), pts: TINY }))),
+    ...Array.from({ length: 3000 }, (_, i) => ({ actor: 'dev-n1d-a' + String(i).padStart(4, '0'), trainNo: 'A1', pts: TINY }))]);
+  const seen2 = listRows(w2);
+  const st2 = await w2.cron({ BOUNTY_SUBREQ_BUDGET: '1' });
+  const L2 = seen2[0] || [];
+  const per = SY2.map(s => L2.filter(r => r.actor === s).length);
+  ok('N1db [第三輪 N1b] 一般班車夠多時：清單＝可信名額 2000＋一般 2000（truncated）；每個分身至少前 6 班都在（依輪次截）',
+    st2.truncated === true && L2.length === 4000 && L2.filter(r => r.head).length === 2000 && L2.filter(r => !r.head).length === 2000 && Math.min(...per) >= 6,
+    J({ truncated: st2.truncated, list: L2.length, head: L2.filter(r => r.head).length, minPer: Math.min(...per), maxPer: Math.max(...per) }));
+});
+
+// ═══ N1e：讓出的可信名額與一般班車按輪次交錯（第三輪獨立驗收 B(5)）═══════════════════════════
+// 20 個畢業分身各 8 班（TINY）、誠實帳號 U 8 班（ok 車）都是可信名額；匿名灌水者 F 12 班（一般，第 1…12 輪）；新身分 N 1 班。
+// 預算＝全部判完所需＋10：同一發全部判完，整條次序看得到。期望次序依規格自己算（不讀實作）：
+//   份額內的 head（清單次序的前 k 班，k＝head 總數－headDeferred）→ 其餘依輪次合併，同一輪一般班車先 → 出錯過的（本世界沒有）。
+// 舊版：讓出的 head 整批排在 F 的 12 班之後——U 被讓出的班次排在 F 的第 6…12 班後面。
+await attempt('N1e', async () => {
+  const SY = syb('n1f', 20), U = 'uid-n1e-0000U', F = 'dev-n1e-flood', N = 'dev-n1e-new01';
+  const mk = () => {
+    const w = world({ seed: boardSql('山線') + pointsSql([[U, U, 0, null]]) + gradSql(SY), env: { BOUNTY_VERIFY_ORDER: 'fixed' } });
+    bulk(w.db, [...SY.flatMap(s => Array.from({ length: 8 }, (_, k) => ({ actor: s, trainNo: 'G' + (k + 1), pts: TINY }))),
+      ...Array.from({ length: 8 }, (_, k) => ({ actor: U, trainNo: 'U' + (k + 1), pts: leg({ sec: 700 }) })),
+      ...Array.from({ length: 12 }, (_, k) => ({ actor: F, trainNo: 'F' + String(k + 1).padStart(2, '0'), pts: TINY })),
+      { actor: N, trainNo: 'N1', pts: leg({ sec: 700 }) }]);
+    const loads = [];
+    spyRows(w.DELAY_DB, (sql, rs) => { if (LOAD_RE.test(sql) && rs.length) loads.push(`${rs[0].actor}|${rs[0].train_no}`); });
+    return { w, loads };
+  };
+  const cal = mk();
+  const all = (await cal.w.cron({ BOUNTY_SUBREQ_BUDGET: '1000000' })).subreq;
+  const { w, loads } = mk();
+  const st = await w.cron({ BOUNTY_SUBREQ_BUDGET: String(all + 10) });
+  const T = [];
+  for (const s of SY) for (let k = 1; k <= 8; k++) T.push({ a: s, t: 'G' + k, rnd: k, head: 1 });
+  for (let k = 1; k <= 8; k++) T.push({ a: U, t: 'U' + k, rnd: k, head: 1 });
+  for (let k = 1; k <= 12; k++) T.push({ a: F, t: 'F' + String(k).padStart(2, '0'), rnd: k, head: 0 });
+  T.push({ a: N, t: 'N1', rnd: 1, head: 0 });
+  const byTie = (x, y) => x.rnd - y.rnd || (x.a < y.a ? -1 : x.a > y.a ? 1 : 0) || (x.t < y.t ? -1 : x.t > y.t ? 1 : 0);   // fixed：輪次、乘車日（同一天）、actor、車次
+  const head = T.filter(x => x.head).sort(byTie), rest = T.filter(x => !x.head).sort(byTie);
+  const k = head.length - st.headDeferred;
+  const merged = [];
+  for (let r = 1; r <= 12; r++) merged.push(...rest.filter(x => x.rnd === r), ...head.slice(k).filter(x => x.rnd === r));
+  const expect = [...head.slice(0, k), ...merged].map(x => `${x.a}|${x.t}`);
+  ok('N1ea [第三輪 B(5)] 同一發全部判完（181 班、pending 0）、有讓出（headDeferred＞0）；實際判定次序逐班等於「份額內 head → 依輪次合併（同一輪一般班車先）」',
+    st.headDeferred > 0 && q.pending(w) === 0 && loads.length === 181 && J(loads) === J(expect),
+    J({ deferred: st.headDeferred, pending: q.pending(w), n: loads.length, firstDiff: loads.findIndex((x, i) => x !== expect[i]), got: loads.slice(k, k + 8), want: expect.slice(k, k + 8) }));
+  const dU = head.slice(k).filter(x => x.a === U);
+  const at = key => loads.indexOf(key);
+  const good = dU.length > 0 && dU.every(x => T.filter(y => y.a === F).every(y => (y.rnd <= x.rnd) === (at(`${F}|${y.t}`) < at(`${U}|${x.t}`))));
+  ok('N1eb [第三輪 B(5)] 誠實帳號被讓出的每一班（第 r 輪）：灌水者第 r 輪以內的班在它前面、第 r＋1 輪起的在它後面（舊版灌水者 12 班全在前面）',
+    good, J({ deferredU: dU.map(x => x.t), pos: dU.map(x => at(`${U}|${x.t}`)), flood: T.filter(y => y.a === F).map(y => at(`${F}|${y.t}`)) }));
+});
+
+// ═══ N1f：讀取量預算（第二輪獨立驗收 CPU）═════════════════════════════════════════════
+// 判定的 CPU 與讀進來的 payload 量成正比，子請求與牆鐘都量不到。6 個畢業分身各 8 班大車（可信名額）＋新身分 N 1 班；
+// 讀取量預算＝分身全部 payload 的一半、子請求與牆鐘不設限。期望：可信名額先用掉一半（預算的一半）就讓出、N 判到；
+// 之後讀取量用完停手（stopBy bytes），垃圾還有留 pending。stat.bytes＝已判定列的 payload 總長（測試端自己用 SQL 算）。
+await attempt('N1f', async () => {
+  const SY = syb('n1g', 6), N = 'dev-n1f-new01';
+  const mk = env => {
+    const w = world({ seed: boardSql('山線') + gradSql(SY), env: { BOUNTY_VERIFY_ORDER: 'fixed', BOUNTY_SUBREQ_BUDGET: '1000000', BOUNTY_WALL_BUDGET_MS: '3600000', ...env } });
+    bulk(w.db, [...SY.flatMap(s => Array.from({ length: 8 }, (_, k) => ({ actor: s, trainNo: 'G' + (k + 1), pts: leg({ sec: 1500, t0: 30000 + k * 2000 }) }))),
+      { actor: N, trainNo: 'N1', pts: leg({ sec: 700 }) }]);
+    return w;
+  };
+  const probe = mk({});
+  const headBytes = one(probe, "SELECT SUM(length(payload)) b FROM bounty_samples WHERE actor LIKE 'dev-n1g-%'").b;
+  const maxTrain = one(probe, "SELECT MAX(b) b FROM (SELECT SUM(length(payload)) b FROM bounty_samples GROUP BY actor, train_no)").b;
+  const budget = Math.floor(headBytes / 2);
+  const w = mk({ BOUNTY_BYTES_BUDGET: String(budget) });
+  const st = await w.cron();
+  const judgedBytes = one(w, "SELECT COALESCE(SUM(length(payload)), 0) b FROM bounty_samples WHERE verdict <> 'pending'").b;
+  ok('N1fa [第二輪 CPU] 讀取量預算＝分身 payload 的一半：新身分 N 判到（ok）；讀取量用完停手（budgetStop、stopBy bytes）、分身還有留 pending、有讓出',
+    q.verdicts(w, N, 'N1') === 'ok' && st.budgetStop === true && st.stopBy === 'bytes' && q.count(w, 'bounty_samples', "verdict='pending' AND actor LIKE 'dev-n1g-%'") > 0 && st.headDeferred > 0,
+    J({ n: q.verdicts(w, N, 'N1'), stopBy: st.stopBy, budgetStop: st.budgetStop, deferred: st.headDeferred, budget, bytes: st.bytes }));
+  ok('N1fb [第二輪 CPU] stat.bytes＝已判定列的 payload 總長（測試端 SQL）；停在「超過預算之後的第一個班車邊界」：bytes ≥ 預算、扣掉一班最大的車就不到預算',
+    st.bytes === judgedBytes && judgedBytes > 0 && st.bytes >= budget && st.bytes - maxTrain < budget, J({ bytes: st.bytes, judgedBytes, budget, maxTrain }));
+  const f = await fire(mk({ BOUNTY_BYTES_BUDGET: String(budget) }));
+  const line = f.logs.concat(f.errs).find(s => SUMMARY_RE.test(s)) || '';
+  const mb = line.match(/讀取 ([\d.]+) MB/);
+  ok('N1fc [第二輪 CPU] 判定那一行寫「讀取量預算用盡」與讀取量（MB，一位小數）', line.includes('讀取量預算用盡') && !!mb && Math.abs(Number(mb[1]) - budget / 1048576) < 0.2 + maxTrain / 1048576,
+    line.slice(0, 260));
+  const w0 = mk({});
+  const st0 = await w0.cron();
+  ok('N1fd [第二輪 CPU 對照] 預設讀取量預算（128 MB）：同一個世界全部判完、沒有停手、沒有讓出', q.pending(w0) === 0 && st0.budgetStop === false && st0.stopBy === null && st0.headDeferred === 0,
+    J({ pending: q.pending(w0), stopBy: st0.stopBy, deferred: st0.headDeferred, bytes: st0.bytes }));
 });
 
 // ═══ M3：兌換的交易內餘額守衛（邊界）════════════════════════════════════════════
