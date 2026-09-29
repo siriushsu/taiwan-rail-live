@@ -8,7 +8,8 @@ globalThis.caches = { default: { match: async () => undefined, put: async () => 
 
 const RULES = JSON.parse(readFileSync('data/bounty_rules.json', 'utf8'));
 const UNITS = JSON.parse(readFileSync('data/bounty_units.json', 'utf8'));
-const CARD_ID = 'tra_sched|山線|0|其他|dwell|peak';
+// 車種用題庫裡真的有的卡（09-07 重產題庫後「其他」這個車種在新烏日尖峰已不存在，卡片 404）。
+const CARD_ID = 'tra_sched|山線|0|自強|dwell|peak';
 const DWELL_KEY = 'tra_sched|山線|新烏日|新烏日';
 const LINE = UNITS.lines['tra_sched|山線'];
 const R = [];
@@ -84,7 +85,7 @@ async function e2e(actor, samples) {
   _bounty.bountyResetMemCaches();
   const valuation = await _bounty.bountyValuationCron(env);
   const before = db.prepare(
-    "SELECT points,sample_count,covered_at FROM bounty_board WHERE seg_key=? AND train_kind='其他'" +
+    "SELECT points,sample_count,covered_at FROM bounty_board WHERE seg_key=? AND train_kind='自強'" +
     " AND dir=0 AND kind='dwell' AND slot='peak'"
   ).get(DWELL_KEY);
   const claimRes = await _bounty.bountyClaim(new Request('http://local.test/api/bounty-claim', {
@@ -92,7 +93,7 @@ async function e2e(actor, samples) {
     body: JSON.stringify({ actor, cardId: CARD_ID }),
   }), env);
   const claim = await claimRes.json();
-  // 同 actor、同站／時段故意再塞另一車種的 open claim。驗證後只能關這次真正接的「其他」，
+  // 同 actor、同站／時段故意再塞另一車種的 open claim。驗證後只能關這次真正接的「自強」，
   // 不可因 coverage 本身不帶 trainKind 就把兩張卡一起完成。
   db.prepare(
     "INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_locked,claimed_at,expires_at,status)" +
@@ -108,7 +109,7 @@ async function e2e(actor, samples) {
   const submit = await submitRes.json();
   const verify = await _bounty.bountyVerifyCron(env);
   const after = db.prepare(
-    "SELECT points,sample_count,covered_at FROM bounty_board WHERE seg_key=? AND train_kind='其他'" +
+    "SELECT points,sample_count,covered_at FROM bounty_board WHERE seg_key=? AND train_kind='自強'" +
     " AND dir=0 AND kind='dwell' AND slot='peak'"
   ).get(DWELL_KEY);
   const otherKindAfter = db.prepare(
@@ -127,7 +128,7 @@ async function e2e(actor, samples) {
   ).get(actor);
   const valuationAfterCovered = await _bounty.bountyValuationCron(env);
   const repriced = db.prepare(
-    "SELECT points,sample_count,covered_at FROM bounty_board WHERE seg_key=? AND train_kind='其他'" +
+    "SELECT points,sample_count,covered_at FROM bounty_board WHERE seg_key=? AND train_kind='自強'" +
     " AND dir=0 AND kind='dwell' AND slot='peak'"
   ).get(DWELL_KEY);
   return {
