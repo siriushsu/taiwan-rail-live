@@ -353,8 +353,9 @@ def _zip(G, f, ua, L, ub, R, mat, nN):
             j += 1
 
 
-def wall_f(G, f, u0, u1, v0, v1, holes, mat, reveal_mat=None):
-    """有洞口的牆面（只出朝外的面與洞口內壁）。holes：hole_* 傳回的 dict。"""
+def wall_f(G, f, u0, u1, v0, v1, holes, mat, reveal_mat=None, cuts=()):
+    """有洞口的牆面（只出朝外的面與洞口內壁）。holes：hole_* 傳回的 dict。
+    cuts：額外的鉛直分割線位置（u 座標）。相鄰的另一片牆在那個 u 上有頂點時，這裡也要有同一個頂點，否則兩片牆的共邊會是 T 字接縫（光柵化時可能漏出細縫）。"""
     reveal_mat = reveal_mat or mat
     info = []
     for h in holes:
@@ -365,7 +366,8 @@ def wall_f(G, f, u0, u1, v0, v1, holes, mat, reveal_mat=None):
             S.reverse()
         us = [q[0] for q in P]
         info.append((min(us), max(us), P, S, h['depth']))
-    bps = sorted({round(u0, 7), round(u1, 7)} | {round(q[0], 7) for (_, _, P, _, _) in info for q in P if u0 - 1e-9 <= q[0] <= u1 + 1e-9})
+    bps = sorted({round(u0, 7), round(u1, 7)} | {round(q[0], 7) for (_, _, P, _, _) in info for q in P if u0 - 1e-9 <= q[0] <= u1 + 1e-9}
+                 | {round(c, 7) for c in cuts if u0 + 1e-9 < c < u1 - 1e-9})
     nN = f.n(0, 0, 1)
 
     def V_at(u):

@@ -4,7 +4,7 @@ from common import *
 
 W2_ARCH_W = 1.1                     # 翼樓二層圓拱窗寬（照片 01：約主棟長窗的 0.75 倍）
 W2_SPRING = Z_SILL + 2.02           # 翼樓圓拱窗起拱高
-Z_W_ROOF = WH - 0.42                # 翼樓屋面（簷口下緣）
+Z_W_ROOF = WH - 0.52 * 0.8          # 翼樓屋面（簷口下緣）：簷口頂（+0.52×0.8）剛好等於牆頂 WH，牆面上緣不再比簷口頂高出幾毫米（那幾毫米從正面看是背向相機的細條）
 Z_G_ROOF = GH - 0.36                # 一層延伸屋面
 
 
@@ -64,7 +64,7 @@ def wings(G):
                   arches=[(y, W2_ARCH_W, Z_SILL, W2_SPRING) for y in ys],
                   rects=[(y, 1.2, 3.4, 1.4) for y in ys])
         trim(G, Wr, YB, WY1, Z_W_ROOF, 0.8, cornice=(False, False), course=(False, False), plinth=(False, False))
-        Wl = face(G, 'left', WX0, YB, WY1, GH - 0.1, WH,
+        Wl = face(G, 'left', WX0, YB, WY1, Z_G_ROOF - 0.02, WH,         # 牆腳落到一層延伸屋面（4.04）以下 2 cm：第一版停在 4.30，與屋面之間留了 26 cm×21 m 的縫
                   arches=[(y, W2_ARCH_W, Z_SILL, W2_SPRING) for y in ys])
         trim(G, Wl, YB, WY1, Z_W_ROOF, 0.8, cornice=(False, False), course=(False, False), plinth=None)
 
