@@ -30,6 +30,7 @@
 //   C11 護照深連結 { view: 'passport' } 同樣讓首次說明卡讓位，旗標仍 null
 //   C12 停在高鐵／捷運分頁時從小工具蓋章：那一次照樣切到全台，但「上次視野記憶」逐字不變（不改成全台、不改成蓋章時的地圖中心）；
 //       人自己真的點了頁籤才恢復記錄；本來就在全台的人記錄照舊
+//   C13 原生字串目錄（iOS Localizable.xcstrings、Android RailNativeL10n.json）的「蓋章」：繁中 key、英文 Stamp、日文 スタンプ
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -430,6 +431,22 @@ for (const [g, lat, lon] of [['hsr', 24.6, 120.8], ['metro', 25.05, 121.5]]) {
   const rec = JSON.parse(await lastView(page) || 'null'), c = await mapCenter(page);
   ok('C12 全台 本來就在全台 → 上次視野照常記錄（all、中心＝目前地圖中心）', !!rec && rec.g === 'all' && Math.abs(rec.lat - c.lat) < 2e-5 && Math.abs(rec.lon - c.lon) < 2e-5, JSON.stringify(rec));
   await ctx.close();
+}
+
+// ── C13 原生字串目錄裡的「蓋章」（原生小工具的蓋章鈕用）──────────────────────────
+// 蓋章鈕在 iOS 讀 Localizable.xcstrings（小工具 extension 的字串目錄）、在 Android 讀 RailNativeL10n.json；
+// 兩份都由 app/scripts/build_native_localizations.mjs 產生，來源語言是繁中（key 就是繁中原文）。
+// 產生器的 native 表把「蓋章」釘死（不靠網站字典碰巧有這個詞）；InfoPlist.xcstrings 只放權限說明，本來就沒有小工具字串，不在此列。
+{
+  const rd = rel => JSON.parse(readFileSync(path.join(ROOT, rel), 'utf8'));
+  const xc = rd('app/ios/App/RailBoardWidget/Localizable.xcstrings');
+  const an = rd('app/android/app/src/main/assets/RailNativeL10n.json');
+  const e = xc.strings['蓋章'];
+  ok('C13 iOS 小工具字串目錄：來源語言繁中，且有「蓋章」這個 key', xc.sourceLanguage === 'zh-Hant' && !!e, `sourceLanguage=${xc.sourceLanguage}`);
+  ok('C13 iOS 小工具字串目錄：「蓋章」英文是 Stamp', e?.localizations?.en?.stringUnit?.value === 'Stamp', JSON.stringify(e?.localizations?.en));
+  ok('C13 iOS 小工具字串目錄：「蓋章」日文是 スタンプ', e?.localizations?.ja?.stringUnit?.value === 'スタンプ', JSON.stringify(e?.localizations?.ja));
+  ok('C13 Android RailNativeL10n.json：來源語言繁中（zh-TW），英文「蓋章」是 Stamp', an.sourceLanguage === 'zh-TW' && an.languages?.en?.['蓋章'] === 'Stamp', `${an.sourceLanguage} / ${an.languages?.en?.['蓋章']}`);
+  ok('C13 Android RailNativeL10n.json：「蓋章」日文是 スタンプ', an.languages?.ja?.['蓋章'] === 'スタンプ', String(an.languages?.ja?.['蓋章']));
 }
 
 await browser.close();

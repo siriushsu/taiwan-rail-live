@@ -333,6 +333,9 @@ Object.assign(native, {
   // 2026-09-29 第二輪裁示：跟完改畫線色空心圈，圖例文字同步（取代「淡色＝跟完」）。
   '空心＝跟完': ['Hollow = Followed', '白抜き＝追跡完了'],
   '車站收集小工具': ['Station collection widget', '駅コレクションウィジェット'],
+  // 原生小工具的蓋章鈕用（iOS CollectionCard.swift 的 CollectionStampChip、Android CollectionWidgetRender.java 的標題列按鈕）。
+  // 網站字典本來就有「蓋章」，這一筆不會改變產物；釘在這裡是免得日後網站端改掉或刪掉那個詞，原生按鈕就無聲掉回繁中。
+  '蓋章': ['Stamp', 'スタンプ'],
   // 範圍選單的退回清單（collection.json 還不存在時）用簡稱查字典；台鐵／高鐵／北捷網站字典已有，
   // 其餘七個沿用同一份字典裡全名的譯法（機場捷運→Airport MRT…）。有資料後改用 payload 的 label。
   '機捷': ['Airport MRT', '空港MRT'], '中捷': ['Taichung Metro', '台中メトロ'], '高捷': ['Kaohsiung Metro', '高雄メトロ'],
