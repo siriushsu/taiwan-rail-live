@@ -169,11 +169,13 @@ function withRecent(p) {
 }
 withRecent(sample);
 withRecent(emptyPayload);
+/** 沒被 --lang 改寫過的樣本：c 閘門拿它比對 CollectionWidgetPreview.json（en／ja 也要比）。 */
+const samplePristine = JSON.parse(JSON.stringify(sample));
 
 /**
  * --lang en｜ja：把 payload 的系統簡稱換成網頁端 COLLECT_SYS 在該語言實際送出的 label（index.html），
- * 最近蓋章的站名換成較長的英文。用途只有一個：量英日文字串在各版面會不會被縮、被截、互疊。
- * 這個模式下 c 閘門（字串逐字比對，期望值是繁中）不適用，其餘閘門照跑。
+ * 最近蓋章的站名換成較長的英文。用途：量英日文字串在各版面會不會被縮、被截、互疊。
+ * 所有閘門照跑，含 c：c 的字串期望值改取目錄翻譯（見 tr），缺 key 或佔位符對不上就紅。
  */
 const LANG_LABELS = {
   en: ['TRA', 'THSR', 'Taipei', 'Airport', 'Taichung', 'Kaohsiung', 'Danhai', 'Ankeng', 'Sanying', 'Alishan'],
@@ -288,7 +290,7 @@ function expected(fix, scope) {
     scoped, v, total, pctNum, pctText: `${pctNum}%`, remain: Math.max(0, total - v),
     dots: own, vp, others, recent, top,
     untouched: fix.sys.filter(s => s.v === 0).length,
-    title: scoped ? fix.sys[idx].label : '全台',
+    title: scoped ? fix.sys[idx].label : tr('全台'),
     aspect: fix.aspect,
   };
 }
@@ -482,7 +484,7 @@ struct Harness {
 }
 `;
 
-function runHarness({ src, out, quick }) {
+function runHarness({ src, out, quick, l10nJson = L10N_JSON }) {
   rmSync(out, { recursive: true, force: true });
   mkdirSync(join(out, 'shots'), { recursive: true });
   mkdirSync(join(out, 'fix'), { recursive: true });
@@ -504,7 +506,7 @@ function runHarness({ src, out, quick }) {
     '-o', bin], { stdio: 'inherit' });
   execFileSync(bin, [join(out, 'cases.json'), join(out, 'shots')], {
     stdio: 'inherit',
-    env: LANG ? { ...process.env, RAIL_L10N_LANG: LANG, RAIL_L10N_JSON: join(repo, 'app/android/app/src/main/assets/RailNativeL10n.json') } : process.env,
+    env: LANG ? { ...process.env, RAIL_L10N_LANG: LANG, RAIL_L10N_JSON: l10nJson } : process.env,
   });
   const results = JSON.parse(readFileSync(join(out, 'shots/results.json'), 'utf8'));
   return { cases: specs, results };
@@ -724,7 +726,26 @@ enum MetroWaitPending { static var suite: UserDefaults? = UserDefaults(suiteName
 const GATES = ['a1', 'a2', 'b1', 'b2', 'b3', 'c', 'c2', 'd', 'e', 'h', 'v', 'r', 'u', 's', 'o1', 'o2', 'o3', 'o4', 'o5', 't'];
 /** 蓋章鈕上的字：繁中是 key 本身；en／ja 取生成的目錄 JSON（與 --lang 壓力測試餵給 RailNativeL10n 的同一份）。 */
 const L10N_JSON = join(repo, 'app/android/app/src/main/assets/RailNativeL10n.json');
-const STAMP_LABEL = LANG ? JSON.parse(readFileSync(L10N_JSON, 'utf8')).languages[LANG]['蓋章'] : '蓋章';
+/** 該語言的目錄表（key＝繁中原文）；繁中沒有表（key 就是字串）。突變測試會換成改壞的表。 */
+let L10N_TABLE = LANG ? JSON.parse(readFileSync(L10N_JSON, 'utf8')).languages[LANG] ?? {} : null;
+const L10N_KEYS_USED = new Set();
+const placeholders = s => [...new Set([...s.matchAll(/\{(\w+)\}/g)].map(m => m[1]))].sort();
+/**
+ * c 閘門的字串期望值：繁中＝key 本身；en／ja＝目錄譯文，再代入佔位符。
+ * 目錄缺 key 不退回繁中（Swift 端會默默退回，期望值不可以跟著退）——回傳一個不可能相等的標記，並由 judge 另記一條紅。
+ */
+function tr(key, vars = {}) {
+  L10N_KEYS_USED.add(key);
+  let text = key;
+  if (LANG) {
+    const t = L10N_TABLE[key];
+    if (typeof t !== 'string') return `⟪目錄缺「${key}」⟫`;
+    text = t;
+  }
+  for (const [name, value] of Object.entries(vars)) text = text.split(`{${name}}`).join(String(value));
+  return text;
+}
+const STAMP_LABEL = tr('蓋章');
 
 async function judge({ specs, results, out, src }) {
   const fails = [];
@@ -818,7 +839,7 @@ async function judge({ specs, results, out, src }) {
       const lockCirc = spec.fam === 'circ';
       check('c', n, (lockCirc || byId('unavailable').length === 1) && !map && byId('pct').length === 0,
         `沒有 collection.json 時應只有提示文字：unavailable=${byId('unavailable').length}、map=${!!map}、pct=${byId('pct').length}`);
-      if (!lockCirc) check('c', n, byId('unavailable')[0]?.text === '打開軌島一次，就會出現你的車站收集', '提示文案不對');
+      if (!lockCirc) check('c', n, byId('unavailable')[0]?.text === tr('打開軌島一次，就會出現你的車站收集'), '提示文案不對');
       continue;
     }
 
@@ -1009,22 +1030,22 @@ async function judge({ specs, results, out, src }) {
       expectText('pct', ex.pctText);
     } else if (isEmpty) {
       // 邀請文案（全灰地圖已由 b1 保證：off＝全部、follow／solid＝0）
-      check('c', n, byId('empty.title').length === 1 && byId('empty.title')[0].text === '還沒有收集的車站', '空狀態少了邀請標題');
+      check('c', n, byId('empty.title').length === 1 && byId('empty.title')[0].text === tr('還沒有收集的車站'), '空狀態少了邀請標題');
       if (spec.fam === 'small') expectAbsent('pct');
       else expectText('pct', '0%');
       if (spec.fam === 'medium') expectNums('countOf', [0, ex.total]);
       if (spec.fam === 'medium') { expectAbsent('legend.solid'); expectAbsent('legend.follow'); } // 空狀態沒有實心也沒有空心，不放圖例
     } else if (spec.fam === 'small') {
       expectText('pct', ex.pctText); expectNums('pct', nums(ex.pctText));
-      expectNums('count', [ex.v]); expectText('count', `已收集 ${ex.v} 座`);
-      expectNums('remain', [ex.remain]); expectText('remain', `還有 ${ex.remain} 座`);
+      expectNums('count', [ex.v]); expectText('count', tr('已收集 {n} 座', { n: ex.v }));
+      expectNums('remain', [ex.remain]); expectText('remain', tr('還有 {n} 座', { n: ex.remain }));
       expectText('title', ex.title);
     } else if (spec.fam === 'medium') {
       expectText('pct', ex.pctText); expectNums('pct', nums(ex.pctText));
-      expectNums('countOf', [ex.v, ex.total]); expectText('countOf', `已收集 ${ex.v}／${ex.total} 座`);
+      expectNums('countOf', [ex.v, ex.total]); expectText('countOf', tr('已收集 {v}／{n} 座', { v: ex.v, n: ex.total }));
       // 圖例：兩段都在（規格第二輪第 4 點：「實心＝搭過／到訪」「空心＝跟完」）
-      expectText('legend.solid', '實心＝搭過／到訪');
-      expectText('legend.follow', '空心＝跟完');
+      expectText('legend.solid', tr('實心＝搭過／到訪'));
+      expectText('legend.follow', tr('空心＝跟完'));
       if (!ex.scoped) {
         const ids = texts.filter(f => /^sys\.[a-z]+\.count$/.test(f.id)).map(f => f.id.split('.')[1]);
         check('c', n, JSON.stringify(ids) === JSON.stringify(ex.top.map(s => s.k)),
@@ -1034,7 +1055,7 @@ async function judge({ specs, results, out, src }) {
           expectText(`sys.${s.k}.count`, `${s.v}/${s.n}`);
           expectText(`sys.${s.k}.label`, s.label);
         }
-        if (ex.untouched > 0) { expectNums('untouched', [ex.untouched]); expectText('untouched', `還有 ${ex.untouched} 個系統還沒去過`); }
+        if (ex.untouched > 0) { expectNums('untouched', [ex.untouched]); expectText('untouched', tr('還有 {n} 個系統還沒去過', { n: ex.untouched })); }
         else expectAbsent('untouched');
         expectAbsent('recent.0.date'); // 全台中卡不畫最近蓋章
       } else {
@@ -1051,7 +1072,7 @@ async function judge({ specs, results, out, src }) {
     } else if (spec.fam === 'rect') {
       expectText('pct', ex.pctText);
       expectNums('countOf', [ex.v, ex.total]);
-      expectText('countOf', `已收集 ${ex.v}／${ex.total} 座`);
+      expectText('countOf', tr('已收集 {v}／{n} 座', { v: ex.v, n: ex.total }));
     }
     check('c', n, !texts.some(t => /已踩|今年新增|淡色/.test(t.text)), '出現了不准出現的文案（已踩／今年新增／淡色）');
     if (spec.fam !== 'medium') { expectAbsent('legend.solid'); expectAbsent('legend.follow'); }
@@ -1079,14 +1100,25 @@ async function judge({ specs, results, out, src }) {
   if (String(INSET) !== mine) fail('e', 'insets', `腳本的內距 ${INSET} 與原始碼 ${mine} 不同`);
 
   // 內建示意資料（小工具圖庫預覽與 placeholder 用）＝本腳本的樣本：兩邊不一致，圖庫看到的就不是驗過的那份
-  if (!LANG) {
+  {
     const previewPath = join(realSrc, 'CollectionWidgetPreview.json');
     const preview = existsSync(previewPath) ? JSON.parse(readFileSync(previewPath, 'utf8')) : null;
-    check('c', 'CollectionWidgetPreview.json', preview && JSON.stringify(preview) === JSON.stringify(sample),
+    check('c', 'CollectionWidgetPreview.json', preview && JSON.stringify(preview) === JSON.stringify(samplePristine),
       'CollectionWidgetPreview.json 與本腳本的樣本（它自己＋RECENT_BY_SYS 合成的每系統最近蓋章）不同——RECENT_BY_SYS 改過就用 --emit-preview 重寫');
     if (preview) {
       const withRecents = preview.sys.filter(s => s.v > 0).every(s => preview.recent.some(r => r.k === s.k));
       check('c', 'CollectionWidgetPreview.json', withRecents, '內建示意資料：有收集的系統沒有最近蓋章（單一系統中卡會畫不出來）');
+    }
+  }
+
+  // 目錄本身：c 閘門用到的每個 key，en／ja 都要有譯文，且佔位符集合與繁中 key 相同（譯者掉了 {n} 才抓得到）。
+  if (LANG) {
+    for (const key of [...L10N_KEYS_USED].sort()) {
+      const t = L10N_TABLE[key];
+      const has = typeof t === 'string' && t !== '';
+      check('c', `目錄「${key}」`, has && JSON.stringify(placeholders(t)) === JSON.stringify(placeholders(key)),
+        has ? `${LANG} 譯文「${t}」的佔位符 ${JSON.stringify(placeholders(t))} ≠ 繁中 key 的 ${JSON.stringify(placeholders(key))}`
+          : `${LANG} 目錄沒有這個 key（Swift 端會默默退回繁中）`);
     }
   }
 
@@ -1432,7 +1464,46 @@ const MUTATIONS = [
     replace: 'Button(intent: CollectCheckinIntent()) { chip.padding(2) }.buttonStyle(.plain)',
     expect: ['t'],
   },
+  {
+    id: 'M36 文案 key 換錯（「已收集 N 座」改用「還有 {n} 座」的 key）',
+    file: 'CollectionCard.swift',
+    find: 'RailNativeL10n.text("已收集 {n} 座", ["n": "\\(f.collected)"])',
+    replace: 'RailNativeL10n.text("還有 {n} 座", ["n": "\\(f.collected)"])',
+    expect: ['c'],
+  },
+  // 以下兩個改的是目錄（--lang en｜ja 才有）：gate 的 tr() 與 Swift 的 shim 讀同一份壞目錄，考的是 c 閘門對「目錄本身」的防線。
+  {
+    id: 'M37 目錄少了一個 key（Swift 端會默默退回繁中）',
+    catalog: t => { delete t['還有 {n} 座']; return t; },
+    expect: ['c'],
+  },
+  {
+    id: 'M38 譯文掉了佔位符（「{n} to go」變成固定字）',
+    catalog: t => { t['還有 {n} 座'] = t['還有 {n} 座'].replace(/\{n\}/g, '多'); return t; },
+    expect: ['c'],
+  },
 ];
+
+/**
+ * --lang：複本裡的 RailNativeL10n 改讀生成的目錄 JSON（裸 swiftc 沒有 lproj 可查）；真檔不動。
+ * 錨點必須在 RailNativeL10n.swift 恰好出現 1 次。stageSource 在 LANG 時自動套，所以突變測試也能跑 en／ja。
+ */
+function applyL10nShim(dest) {
+  const f = join(dest, 'RailNativeL10n.swift');
+  const text = readFileSync(f, 'utf8');
+  const anchor = 'var result = bundle.localizedString(forKey: key, value: key, table: nil)';
+  if (text.split(anchor).length !== 2) throw new Error('RailNativeL10n.text 的錨點不是恰好 1 次');
+  writeFileSync(f, text.replace(anchor, `var result = Self.shimTable[key] ?? key`).replace('static func text(', `static let shimTable: [String: String] = {
+      let env = ProcessInfo.processInfo.environment
+      guard let path = env["RAIL_L10N_JSON"], let lang = env["RAIL_L10N_LANG"],
+            let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+            let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let table = (root["languages"] as? [String: Any])?[lang] as? [String: String] else { return [:] }
+      return table
+  }()
+
+  static func text(`));
+}
 
 function stageSource(dest, mutation) {
   rmSync(dest, { recursive: true, force: true });
@@ -1441,6 +1512,7 @@ function stageSource(dest, mutation) {
     cpSync(join(realSrc, f), join(dest, f));
   }
   for (const f of ['RailMetroWaitPlugin.swift', 'CollectCheckinIntent.swift']) cpSync(join(appSrc, f), join(dest, f));
+  if (LANG) applyL10nShim(dest);
   if (mutation) {
     // 單處突變寫 file／find／replace；要同時改好幾處才成立的突變（例如「可點範圍縮到鈕本身」得動兩個呼叫端）寫 edits 陣列。
     for (const e of mutation.edits ?? [mutation]) {
@@ -1508,12 +1580,20 @@ async function main() {
     };
     let allOk = await control('before');
     const only = opt('--only')?.split(',');
-    for (const m of MUTATIONS.filter(x => !only || only.includes(x.id.split(' ')[0]))) {
+    for (const m of MUTATIONS.filter(x => (!only || only.includes(x.id.split(' ')[0])) && (!x.catalog || LANG))) {
       const dest = join(outRoot, 'mut-src');
-      stageSource(dest, m);
+      stageSource(dest, m.catalog ? null : m);
       const out = join(outRoot, `mut-${m.id.split(' ')[0]}`);
-      const run = runHarness({ src: dest, out, quick: true });
+      const savedTable = L10N_TABLE;
+      let l10nJson = L10N_JSON;
+      if (m.catalog) { // 目錄突變：gate 與 Swift 端讀同一份改壞的表
+        L10N_TABLE = m.catalog(structuredClone(savedTable));
+        l10nJson = join(outRoot, `${m.id.split(' ')[0]}-l10n.json`);
+        writeFileSync(l10nJson, JSON.stringify({ languages: { [LANG]: L10N_TABLE } }));
+      }
+      const run = runHarness({ src: dest, out, quick: true, l10nJson });
       const { fails, counts } = await judge({ ...run, specs: run.cases, out, src: dest });
+      L10N_TABLE = savedTable;
       const red = [...new Set(fails.map(f => f.gate))];
       const detected = m.expect.every(g => red.includes(g));
       allOk = allOk && detected;
@@ -1532,23 +1612,9 @@ async function main() {
 
   let src = resolve(opt('--src') ?? realSrc);
   if (LANG) {
-    // 英日文：複本裡的 RailNativeL10n 改讀生成的目錄 JSON（裸 swiftc 沒有 lproj 可查）；真檔不動。
+    // 英日文：複本裡的 RailNativeL10n 改讀生成的目錄 JSON（裸 swiftc 沒有 lproj 可查）；真檔不動。shim 由 stageSource 套。
     const dest = `${outRoot}-src`; // 不放進 outRoot：runHarness 開頭會清空它
     stageSource(dest, null);
-    const f = join(dest, 'RailNativeL10n.swift');
-    const text = readFileSync(f, 'utf8');
-    const anchor = 'var result = bundle.localizedString(forKey: key, value: key, table: nil)';
-    if (text.split(anchor).length !== 2) throw new Error('RailNativeL10n.text 的錨點不是恰好 1 次');
-    writeFileSync(f, text.replace(anchor, `var result = Self.shimTable[key] ?? key`).replace('static func text(', `static let shimTable: [String: String] = {
-        let env = ProcessInfo.processInfo.environment
-        guard let path = env["RAIL_L10N_JSON"], let lang = env["RAIL_L10N_LANG"],
-              let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let table = (root["languages"] as? [String: Any])?[lang] as? [String: String] else { return [:] }
-        return table
-    }()
-
-    static func text(`));
     src = dest;
   }
   for (const f of ['CollectionCard.swift', 'CollectionOutlineData.swift', 'RailWidgetKit.swift', 'RailNativeL10n.swift', 'RailBoardWidget.swift']) {
@@ -1557,7 +1623,7 @@ async function main() {
   const run = runHarness({ src, out: outRoot, quick: flag('--quick') });
   const judged = await judge({ ...run, specs: run.cases, out: outRoot, src });
   const counts = judged.counts;
-  const fails = LANG ? judged.fails.filter(f => f.gate !== 'c') : judged.fails; // 語言壓力測試：c 的期望值是繁中字串
+  const fails = judged.fails;
   writeFileSync(join(outRoot, 'gates.json'), JSON.stringify({ counts, fails, lang: LANG ?? 'zh-TW' }, null, 2));
   if (!flag('--quick')) {
     console.log('拼圖：', (await contactSheets(outRoot)).join('\n      '));
