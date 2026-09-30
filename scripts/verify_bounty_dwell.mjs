@@ -288,6 +288,27 @@ ok('D11 站心低速只維持 2 秒（慢速爬行通過）時不算錄到——
     got.missing === E && got.zero === E && got.half === E && got.one === 'no-throw' && got.real === 'no-throw', JSON.stringify(got));
 }
 
+// D16 位置微分往回看幾秒，照設定檔的 posSpeedWindowSec（第十七批）：同一趟 D14 a（回報 0、每點晃 ±8 m、停 12 秒），
+//   5（正式值）→ 算；1（跟前一點比，16 m/s 被否決）→ 不算；30（站窗裡沒有 30 秒前的點，跟站窗第一點比，停車的 12 秒都還在 10 上下）→ 不算。
+//   程式把 5 寫死、或自己乘了倍數，1 與 30 的結果就不會照著變。
+{
+  const c0 = Math.round(centerM);
+  const jstop = sg => {
+    const xs = [];
+    for (let k = 0; k <= 30; k++) xs.push(-600 + 20 * k);
+    for (let k = 1; k <= 12; k++) xs.push(k % 2 ? 8 : -8);
+    for (let k = 1; k <= 30; k++) xs.push(20 * k);
+    return xs.map((x, k) => ({ d: c0 + sg * x, t: 7 * 3600 + k, v: k > 30 && k <= 42 ? 0 : 20, acc: 8 }));
+  };
+  const withWin = w => ({ ...RULES, quality: { ...RULES.quality, dwell: { ...RULES.quality.dwell, posSpeedWindowSec: w } } });
+  const hitsWith = (pts, rules) => _bounty.coverageOf(trip(pts), LINE, rules, UNITS.peakHoursBySys).some(c => c.key === DWELL_KEY && c.kind === 'dwell');
+  const got = {};
+  for (const sg of [1, -1]) for (const w of [1, 5, 30]) got[`w${w}_${sg}`] = hitsWith(jstop(sg), withWin(w));
+  ok('D16 [第十七批] 位置微分往回看的秒數照設定檔：D14 a 那一趟，posSpeedWindowSec＝5 → 算；＝1 → 不算（跟前一點比被否決）；＝30 → 不算（跟站窗第一點比）（兩個方向）',
+    RULES.quality.dwell.posSpeedWindowSec === 5 && [1, -1].every(sg => got[`w5_${sg}`] === true && got[`w1_${sg}`] === false && got[`w30_${sg}`] === false),
+    JSON.stringify(got));
+}
+
 const out = {
   criterion: RULES.quality.dwell,
   cardId: CARD_ID,

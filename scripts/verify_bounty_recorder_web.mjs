@@ -164,11 +164,20 @@ try {
         } else for (let k = 0; k <= 40; k++) push(-600 + 30 * k, 30);
         return pts;
       };
-      const run = pts => {
+      const run = (pts, rs = rules) => {
         const ds = pts.map(p => p.d);
         const r = { card: { kind: 'dwell', unitKeys: [key] }, sys: 'tra_sched', lnId: '山線', _recent: pts, _dLo: Math.min(...ds), _dHi: Math.max(...ds), _cov: {} };
-        bountyUpdateDwellProgress(r, rules);
+        bountyUpdateDwellProgress(r, rs);
         return { cov: r._cov[key] || 0, missed: r._dwellMissed };
+      };
+      // D2 用：Worker D16 同一趟（回報 0、每點晃 ±8 m、停 12 秒，20 m/s 進出站）
+      const jstop = sg => {
+        const pts = [];
+        const push = (x, v) => pts.push({ d: Math.round((c + sg * x) * 10) / 10, t: 30000 + pts.length, v, acc: 8 });
+        for (let k = 0; k <= 30; k++) push(-600 + 20 * k, 20);
+        for (let k = 1; k <= 12; k++) push(k % 2 ? 8 : -8, 0);
+        for (let k = 1; k <= 30; k++) push(20 * k, 20);
+        return pts;
       };
       const out = {};
       const veto = x => ({ ...rules, quality: { ...rules.quality, dwell: { ...rules.quality.dwell, posSpeedVetoMps: x } } });
@@ -184,7 +193,9 @@ try {
         out[`zeroStop${sg}`] = run(trip(sg, true, 'zero'));
         out[`zeroFast${sg}`] = run(trip(sg, false, 'zero'));
         out[`smallFast${sg}`] = run(trip(sg, false, 'small'));
+        for (const w of [1, 5, 30]) out[`win${w}_${sg}`] = run(jstop(sg), win(w));
       }
+      out.realWin = rules.quality.dwell.posSpeedWindowSec;
       return out;
     }, ST);
     const want = { cov: 1, missed: false }, fast = { cov: 0, missed: true };
@@ -193,6 +204,9 @@ try {
         J(got[`zeroStop${sg}`]) === J(want) && J(got[`zeroFast${sg}`]) === J(fast) && J(got[`smallFast${sg}`]) === J(fast)) &&
         J(got.guard) === J({ missing: 'dwell rules unavailable', equal: 'dwell rules unavailable', real: 'no-throw',
           winMissing: 'dwell rules unavailable', winZero: 'dwell rules unavailable' }), J(got));
+    ok('D2 [第十七批] 前端停靠進度的位置微分往回看幾秒，照設定檔的 posSpeedWindowSec（與 Worker D16 同一趟：回報 0、每點晃 ±8 m、停 12 秒）：5 → 亮；1、30 → 不亮且判錯過（兩個方向）',
+      got.realWin === 5 && [1, -1].every(sg => J(got[`win5_${sg}`]) === J(want) && J(got[`win1_${sg}`]) === J(fast) && J(got[`win30_${sg}`]) === J(fast)),
+      J({ realWin: got.realWin, ...Object.fromEntries(Object.entries(got).filter(([k]) => k.startsWith('win'))) }));
   });
 
   await attempt('X', async () => {
