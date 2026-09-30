@@ -9,7 +9,7 @@ import WidgetKit
 // App Group `group.tw.railisland.app` 根目錄的 collection.json → 呼叫
 // `WidgetCenter.shared.reloadTimelines(ofKind: "CollectionWidget")`。這裡只讀，不重算任何數字。
 //
-// 點小工具：所有尺寸都開 railisland://passport（旅程護照）。使用者 09-29 裁示「打開旅程護照（建議）」。
+// 點小工具：所有尺寸都開 railisland://passport（旅程護照）。
 // RailMetroWaitPlugin.handleOpen 收 host `passport`、轉成 waitOpen 事件（data.view = "passport"），
 // 網頁端收到就開 openRidePanel()。只在下面 EntryView 的最外層掛一次 widgetURL，四種家族共用；
 // 驗收腳本 render_collect_widget.mjs 的 u 閘門靜態掃這裡（拿掉或改掛在單一家族分支上都會紅）。

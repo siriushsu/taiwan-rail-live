@@ -16,7 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * 「車站收集」小工具（Android 只做小、中兩款：使用者 2026-09-29 23:04「路線收集我覺得只需要做小跟中的版面就好 不用大的」；iOS 另有鎖定畫面兩款，Android 沒有）。
+ * 「車站收集」小工具（Android 只做小、中兩款，沒有大卡；iOS 另有鎖定畫面兩款，Android 沒有）。
  * 邏輯全在這個類別（＝中），小卡是空殼子類 CollectionWidgetSmallProvider，見 WidgetFamily。
  *
  * 資料流：網頁算好整包（同護照「車站 N 座」的同一個函式）→ RailCollectionPlugin 驗過原子寫入

@@ -329,7 +329,7 @@ Object.assign(native, {
   '還有 {n} 個系統還沒去過': ['Systems not visited yet: {n}', '未訪問の路線：{n}'],
   '最近蓋章': ['Recent stamps', '最近のスタンプ'],
   '實心＝搭過／到訪': ['Solid = Travelled / Visited', '塗り＝乗車済み／訪問済み'],
-  // 2026-09-29 第二輪裁示：跟完改畫線色空心圈，圖例文字同步（取代「淡色＝跟完」）。
+  // 跟完畫成線色空心圈，圖例文字同步（取代舊的「淡色＝跟完」）。
   '空心＝跟完': ['Hollow = Followed', '白抜き＝追跡完了'],
   '車站收集小工具': ['Station collection widget', '駅コレクションウィジェット'],
   // 原生小工具的蓋章鈕用（iOS CollectionCard.swift 的 CollectionStampChip、Android CollectionWidgetRender.java 的標題列按鈕）。

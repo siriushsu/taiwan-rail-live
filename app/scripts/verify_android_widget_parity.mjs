@@ -67,7 +67,7 @@ export function verifyAndroidWidgetParity({ log = true } = {}) {
   // 車站收集（CollectionWidget）：iOS 的 supportedFamilies 逐一對到 Android provider，或明講「iOS 限定」。
   // 🔴 不是「有 provider 就算過」：iOS 哪天多開一個 family（例如 .systemLarge），這裡要紅，逼人決定 Android 做不做；
   //    Android 哪天多一個 provider 而 iOS 沒有對應 family（例如 CollectionWidgetLargeProvider）也要紅。
-  //    使用者 2026-09-29 裁示：Android 只做小、中；iOS 鎖定畫面兩款（accessory*）Android 沒有對應載體。
+  //    Android 只做小、中；iOS 鎖定畫面兩款（accessory*）Android 沒有對應載體。
   const collectionSwift = read('app/ios/App/RailBoardWidget/CollectionWidget.swift');
   const collectionFamilies = [...(/\.supportedFamilies\(\[([^\]]*)\]\)/.exec(collectionSwift)?.[1] ?? '').matchAll(/\.(\w+)/g)].map(m => m[1]);
   const COLLECTION_FAMILY_MAP = {

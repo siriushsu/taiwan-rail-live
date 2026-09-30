@@ -2,7 +2,7 @@ import SwiftUI
 import WidgetKit
 
 // 「車站收集」小工具的資料模型與四種版面（小、中、鎖屏矩形、鎖屏圓形；純 SwiftUI，刻意不碰 UIKit／AppIntents）。
-// 2026-09-29 23:04 使用者：「路線收集我覺得只需要做小跟中的版面就好 不用大的」→ 大卡（systemLarge）整個拿掉。
+// 沒有大卡（systemLarge）。
 //
 // 為什麼獨立成一個檔：app/scripts/render_collect_widget.mjs 把這個檔【整檔逐字】連同
 // RailWidgetKit.swift、RailNativeL10n.swift 一起交給 swiftc 編成 macOS 執行檔算圖，

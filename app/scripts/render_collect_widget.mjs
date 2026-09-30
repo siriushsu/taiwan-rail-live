@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 把「車站收集」小工具的四種家族（小、中、鎖屏矩形、鎖屏圓形）算繪成 PNG，並用一組閘門判定紅綠——
-// 不必進模擬器、不必上手機。（2026-09-29 23:04 使用者裁示拿掉大卡，harness 的 large 案例與拼圖同步拿掉。）
+// 不必進模擬器、不必上手機。（沒有大卡，所以 harness 也沒有 large 案例與拼圖。）
 //
 // 做法（與 render_widget_kit.mjs 同型）：CollectionCard.swift 是純 SwiftUI 的版面檔（只依賴
 // RailWidgetKit／RailNativeL10n），整檔逐字交給 swiftc 編成 macOS 執行檔，用 ImageRenderer 出 PNG。
