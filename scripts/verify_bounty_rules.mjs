@@ -54,7 +54,7 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
   ok('R10 quality.dwell.posSpeedVetoMps 是有限數、而且大於 stopSpeedMaxMps（Android 沒有速度送 0 時靠它擋掉假停靠）',
     typeof D.posSpeedVetoMps === 'number' && Number.isFinite(D.posSpeedVetoMps) && D.posSpeedVetoMps > D.stopSpeedMaxMps,
     JSON.stringify({ posSpeedVetoMps: D.posSpeedVetoMps, stopSpeedMaxMps: D.stopSpeedMaxMps }));
-  // 位置微分跟「至少 posSpeedWindowSec 秒以前的那一點」比（第十六批）：少了或小於 1 兩邊一樣直接中止。
+  // 位置微分跟「至少 posSpeedWindowSec 秒以前的那一點」比（第十七批）：少了或小於 1 兩邊一樣直接中止。
   ok('R12 quality.dwell.posSpeedWindowSec 是 ≥1 的有限數（停靠判定的位置微分跟幾秒前的點比）',
     typeof D.posSpeedWindowSec === 'number' && Number.isFinite(D.posSpeedWindowSec) && D.posSpeedWindowSec >= 1,
     JSON.stringify({ posSpeedWindowSec: D.posSpeedWindowSec }));
@@ -85,7 +85,7 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
     nLines > 0 && nSts > 100 && bad.length === 0, `${nLines} 條線、${nSts} 站；不同：${bad.slice(0, 5).join('；') || '無'}${bad.length > 5 ? `（共 ${bad.length} 條）` : ''}`);
 }
 
-// 單位檔的 perDay 是「各日班次數的中位數」（第十六批，第十一輪獨立驗收 P2-4）：台鐵班表是 14 天逐日的聯集
+// 單位檔的 perDay 是「各日班次數的中位數」（第十七批，第十一輪獨立驗收 P2-4）：台鐵班表是 14 天逐日的聯集
 // （trains＝跨日去重的班次定義、dates＝日期 → 當天的班次索引），整份當成一天算的話，只開一天的臨時車、同車次改點的第二份定義
 // 都會被算成每天一班，還會把尖峰時段推走。拿一份手寫的小班表在暫存目錄跑 build_bounty_units.mjs，期望值是手算的常數：
 //   軌道檔一條線 甲(0)–乙(1)–丙(2)。五天（d1–d5）：
@@ -135,7 +135,7 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
     ['index', run({ date: '2026-01-05', trains, dates: { ...dates, '2026-01-09': [...dates['2026-01-09'], trains.length] } })],
     ['dup', run({ date: '2026-01-05', trains, dates: { ...dates, '2026-01-06': [...dates['2026-01-06'], base[0]] } })],
   ];
-  ok('R13 [第十六批 V11 P2-4] 單位檔的 perDay＝各日班次數的中位數：手寫的五天班表跑 build_bounty_units，只開一天的臨時車與兩天的車不出單位、改點的第二份定義不多算、尖峰照各日中位數切；三份壞班表（車次自帶行駛日、索引超出範圍、同一天重複）都非零離開',
+  ok('R13 [第十七批 V11 P2-4] 單位檔的 perDay＝各日班次數的中位數：手寫的五天班表跑 build_bounty_units，只開一天的臨時車與兩天的車不出單位、改點的第二份定義不多算、尖峰照各日中位數切；三份壞班表（車次自帶行駛日、索引超出範圍、同一天重複）都非零離開',
     good.status === 0 && JSON.stringify(got) === JSON.stringify(want) && JSON.stringify(peak) === '[6,7,8,17,18,19]' &&
       bad.every(([, r]) => r.status !== 0),
     JSON.stringify({ status: good.status, peak, extra: got.filter(x => !want.includes(x)), missing: want.filter(x => !got.includes(x)),

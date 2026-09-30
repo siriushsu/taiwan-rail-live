@@ -545,7 +545,7 @@ ok('F3 第一重 日期太舊 → suspect',
     r34.every(o => o.nul.r.code === TC && o.nul.s.n === 572 && o.zero.r.pass === true && o.zero.s.corr < CMAX), sh34(['nul', 'zero']));
   ok('F34e [第十五批 V10 P1-1] 都卜勒：GPS 平滑的誠實錄程（位置晃 ±0.125 m、逐點差中位數 0.25 m/s、相關係數＞0.995）→ 通過（兩個方向；門檻 0.5 會判 doppler_too_clean）',
     r34.every((o, i) => o.calm.r.pass === true && o.calm.r.dir === i && o.calm.s.corr > CMAX && o.calm.s.med === 0.25 && o.calm.s.n === 858), sh34(['calm']));
-  // F34f（第十六批，第十一輪獨立驗收 P2-2）：回報速度剛好 0、位置也一點沒動的點對不算進都卜勒那一重。
+  // F34f（第十七批，第十一輪獨立驗收 P2-2）：回報速度剛好 0、位置也一點沒動的點對不算進都卜勒那一重。
   //   車停著時 Android 會把定位凍住、速度報 0；停得比行進久，這些 0 對 0 的點對佔掉一半以上，逐點差中位數就變 0。
   //   錄程：起點停 900 秒（每點位置一樣、速度 0，停在第一個行進點後方 10 m）→ 接 F34 那條高鐵錄程。兩個方向。
   //   hold_honest：行進段是 F34a 的誠實錄程 → 通過。判準自己另算「把停著的點對也算進去」的舊算法：中位數 0、相關係數＞0.995，舊版會判 doppler_too_clean。
@@ -575,7 +575,7 @@ ok('F3 第一重 日期太舊 → suspect',
       hold_29: hold34(sg, gps34, k => dv34(gps34, k), 29), hold_30: hold34(sg, gps34, k => dv34(gps34, k), 30) };
     return Object.fromEntries(Object.entries(cs).map(([k, P]) => [k, { r: gate(P, 'thsr_sched', sg > 0 ? 0 : 1), s: stat34f(P) }]));
   });
-  ok('F34f [第十六批 V11 P2-2] 都卜勒不算「速度 0、位置沒動」的點對：停 900 秒再開的高鐵誠實錄程 → 通過（舊算法中位數 0、相關係數＞0.995 會判可疑）；同樣停法的偽造 → doppler_too_clean；停完只接 29 對偽造 → 不判、30 對 → doppler_too_clean（兩個方向）',
+  ok('F34f [第十七批 V11 P2-2] 都卜勒不算「速度 0、位置沒動」的點對：停 900 秒再開的高鐵誠實錄程 → 通過（舊算法中位數 0、相關係數＞0.995 會判可疑）；同樣停法的偽造 → doppler_too_clean；停完只接 29 對偽造 → 不判、30 對 → doppler_too_clean（兩個方向）',
     r34f.every((o, i) => o.hold_honest.r.pass === true && o.hold_honest.r.dir === i && o.hold_honest.s.n === 861 && o.hold_honest.s.med > 0.9 &&
       o.hold_honest.s.oldMed === 0 && o.hold_honest.s.oldCorr > CMAX &&
       o.hold_spoof.r.code === TC && o.hold_29.r.pass === true && o.hold_29.s.n === 29 && o.hold_30.r.code === TC && o.hold_30.s.n === 30),

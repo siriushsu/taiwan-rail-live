@@ -250,7 +250,7 @@ ok('D11 站心低速只維持 2 秒（慢速爬行通過）時不算錄到——
     got.missing === 'invalid bounty rule: quality.dwell' && got.equal === 'invalid bounty rule: quality.dwell' && got.real === 'no-throw', JSON.stringify(got));
 }
 
-// D14 位置微分跟「至少 posSpeedWindowSec（5 秒）以前的那一點」比（第十六批，第十一輪獨立驗收 P2-1）。
+// D14 位置微分跟「至少 posSpeedWindowSec（5 秒）以前的那一點」比（第十七批，第十一輪獨立驗收 P2-1）。
 // 第十五批跟前一點比：GPS 每一點獨立晃得大時，停著的位置微分就超過否決門檻 10，回報 0 的真停靠被否決掉。
 // 每秒一點、站心取整數公尺，GPS 晃動是逐點正負交替（5 秒前那一點的晃動方向一定相反），兩個方向：
 //   a 回報 0 的真停靠：20 m/s 從站前 600 m 開過來、停 12 秒（每點晃 ±8 m：跟前一點比 16 m/s，跟 5 秒前比 3.2 m/s）→ 算停靠。
@@ -274,17 +274,17 @@ ok('D11 站心低速只維持 2 秒（慢速爬行通過）時不算錄到——
     got[`b${sg}`] = hitsDwell(jitterPass(sg));
     got[`c${sg}`] = hitsDwell(stopWith(sg, 2, 30, 'null'));
   }
-  ok('D14 [第十六批 V11 P2-1] 位置微分跟 5 秒前那一點比：回報 0 的真停靠、GPS 每點晃 ±8 m → 算；回報 0、15 m/s 通過（同樣晃 ±8 m）→ 不算；沒有速度的真停靠、晃 ±2 m → 算（兩個方向；跟前一點比的話 a、c 都算不到）',
+  ok('D14 [第十七批 V11 P2-1] 位置微分跟 5 秒前那一點比：回報 0 的真停靠、GPS 每點晃 ±8 m → 算；回報 0、15 m/s 通過（同樣晃 ±8 m）→ 不算；沒有速度的真停靠、晃 ±2 m → 算（兩個方向；跟前一點比的話 a、c 都算不到）',
     [1, -1].every(sg => got[`a${sg}`] === true && got[`b${sg}`] === false && got[`c${sg}`] === true), JSON.stringify(got));
 }
 
-// D15 posSpeedWindowSec 少了或小於 1 就直接中止（第十六批）：找不到基準點，位置微分就沒有定義。對照：正式設定檔不丟。
+// D15 posSpeedWindowSec 少了或小於 1 就直接中止（第十七批）：找不到基準點，位置微分就沒有定義。對照：正式設定檔不丟。
 {
   const dwellWith = w => ({ ...RULES, quality: { ...RULES.quality, dwell: { ...RULES.quality.dwell, posSpeedWindowSec: w } } });
   const threw = rules => { try { _bounty.coverageOf(trip(stopped), LINE, rules, UNITS.peakHoursBySys); return 'no-throw'; } catch (e) { return String(e && e.message); } };
   const got = { missing: threw(dwellWith(undefined)), zero: threw(dwellWith(0)), half: threw(dwellWith(0.5)), one: threw(dwellWith(1)), real: threw(RULES) };
   const E = 'invalid bounty rule: quality.dwell';
-  ok('D15 [第十六批] quality.dwell.posSpeedWindowSec 不在、是 0 或 0.5 → coverageOf 丟 invalid bounty rule；1 與正式設定檔不丟',
+  ok('D15 [第十七批] quality.dwell.posSpeedWindowSec 不在、是 0 或 0.5 → coverageOf 丟 invalid bounty rule；1 與正式設定檔不丟',
     got.missing === E && got.zero === E && got.half === E && got.one === 'no-throw' && got.real === 'no-throw', JSON.stringify(got));
 }
 
