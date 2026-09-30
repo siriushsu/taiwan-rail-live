@@ -7432,11 +7432,23 @@ async function bountyValuationCron(env) {
 }
 
 // ── 判定：兩組閘門、三種結果（規格 §7）─────────────────────────────────────
+// 一班車的時間跨度一定不到半天（秒）。拿來認「台北當日秒」跨過了午夜：App 的 t 是 nowSecOfDay()，00:00 從 86399 回到 0，
+// 乘車日卻是開始錄的那一天（index.html 的 bountyOnFix 與 state.recording.tripDate），所以跨午夜的末班車，午夜之後的點 t 很小、乘車日照舊。
+const BOUNTY_HALF_DAY_SEC = 43200;
+// 最早與最晚的 t 差超過半天＝跨過午夜：小於半天的那些是隔天的，加 86400（就地改、回傳同一個陣列）。
+// 🔴 第七輪獨立驗收 B(2) T3：舊版照 t 排序，午夜之後的點排到最前面，整趟看起來倒退二十幾小時——誠實的跨午夜末班車 100% 判 impossible_physics。
+// 加一天之後的 t 會超過 86399；用到「幾點」的地方（覆蓋率的 dwell 時段）本來就取 % 86400。
+function bountyUnwrapMidnight(pts) {
+  const [lo, hi] = bountyMinMax(pts.map(p => Number(p.t)));
+  if (hi - lo > BOUNTY_HALF_DAY_SEC) for (const p of pts) if (Number(p.t) < BOUNTY_HALF_DAY_SEC) p.t = Number(p.t) + 86400;
+  return pts;
+}
 // 沿途每 60 秒一批、一批一列，判定時依 (actor, trip_date, train_no) 併回同一趟。
 function assembleTrip(rows) {
   const first = rows[0];
   const pts = [];
   for (const r of rows) { try { pts.push(...JSON.parse(r.payload)); } catch (e) {} }
+  bountyUnwrapMidnight(pts);
   pts.sort((a, b) => a.t - b.t);
   // 上傳的 dir 是錄製開始時的提示值；dwell 卡本身不分方向，使用者又不一定先跟隨一班車，
   // 所以不能拿它判真實軌跡是否「倒退」。完整趟已經組回來後，以首末里程判實際方向；
@@ -7553,7 +7565,7 @@ function integrityGate(trip, ctx, rules) {
   if (td > addDays(upDay, 1)) return { pass: false, code: 'future_date' };
   if (td < addDays(upDay, -R.tripDateMaxAgeDays)) return { pass: false, code: 'stale_date' };
   const pts = trip.pts;
-  if (pts.length < 2) return { pass: true, code: null };        // 太短交給品質閘判 too_short
+  if (pts.length < 2) return { pass: true, code: null, pts };   // 太短交給品質閘判 too_short
   // 第三重：物理可能——往前不能快過速度上限、不能往後退、加速度上限；速度上限依系統。
   // 查表鍵是系統家族（TRA/THSR/metro），trip.sys 是 SYS_DEFS 的 id（tra_sched/…），要先過桶對照。
   // 直接拿 trip.sys 查會恆常 undefined 落到 default(36.2m/s=130km/h)，高鐵 300km/h 每趟都被判
@@ -7569,24 +7581,51 @@ function integrityGate(trip, ctx, rules) {
   // 容差：上限多 15%（投影誤差），另加 50 m（GPS 抖動；往後退的容差同一個 50 m，只比相鄰兩點）。
   // 🔴 加速度只在兩點都有都卜勒速度（v＞0）時才算（第六輪）：上傳端把「沒有速度」存成 0（Number(null)＝0），舊版又把 0 當缺值、
   // 換成兩點的位置微分——位置微分在取整到秒的 t 上雜訊極大，站停起步時 GPS 飄幾公尺就判 impossible_physics；一邊有一邊沒有同理。上界同樣用 Δt＋1。
+  // 🔴 孤立的壞點丟掉、不判整班（第七輪獨立驗收 B(1)）：GPS 沿線方向單點跳 100 m（台鐵）、出隧道的第一個定位還是進隧道前的舊位置
+  // 或偏幾百公尺、冷啟動的頭幾個定位偏遠——舊版遇到一個就判 impossible_physics，整班可疑、不給點不發籌碼；V7 照 App 的取樣方式模擬，
+  // 這幾種誠實錄程的誤殺率 50–100%（南迴、北迴、臺東線隧道多，正是籌碼加倍的偏遠線）。現在逐點比「已收下的點」：
+  //   ・違反往前（任兩點）、往後、加速度任一條，就不收這一點——gMin 與「前一點」都不動；連續超過 PHYS_DROP_RUN 點、
+  //     或全程超過 max(PHYS_DROP_MIN, PHYS_DROP_SHARE×考慮過的點數) 點，才判 impossible_physics。
+  //   ・開頭、以及每個 Δt≥PHYS_GAP_SEC 秒的斷點（隧道）之後的前 PHYS_GAP_SKIP 點直接不收、不算違反：那幾個定位最不可靠，
+  //     被收下當基準的話，後面的好點會全被當成壞點（一個 +300 m 的出隧道點就讓之後十幾點都「往後退」）。
+  // 收下的點彼此仍滿足同一組上界（任兩點往前、相鄰兩點往後與加速度），平均速度的上界不變：丟點等於「那幾點沒送」，偽造者不會因此多出能力——
+  // 前提是被丟的點不能再拿去算任何東西（V7 的但書）。所以回傳收下的點（pts），判定端的品質閘、覆蓋率一律改用它（籌碼的整班長度照舊用原始的點，理由見 bountyVerifyTrain）；
+  // 下面第四重的都卜勒、第二重的逐站時刻也只看它（否則被丟的點仍能刷覆蓋、稀釋都卜勒的相關係數）。
+  // 數字是 V7 模擬過的那一組（F3：隧道出口、冷啟動、±100／±300 跳點的誤殺率都降到 0–1%）。
+  // App 端還有一個伺服器修不動的：t 是送達時刻不是定位時刻（JS 卡頓 3–5 秒時高鐵仍大量誤殺；計畫 §12 的 App 端建議）；t 在午夜歸零則已在 assembleTrip 補上。
   const sgn = Number(trip.dir) === 1 ? -1 : 1, lim = cap * 1.15, TOL = 50, aMax = R.maxAccelMps2 * 3;
-  let gMin = Infinity;
-  for (let i = 0; i < pts.length; i++) {
-    const f = sgn * pts[i].d, g = f - lim * pts[i].t;
-    if (g > gMin + lim + TOL) return { pass: false, code: 'impossible_physics' };
+  const PHYS_DROP_RUN = 5, PHYS_DROP_MIN = 5, PHYS_DROP_SHARE = 0.01, PHYS_GAP_SEC = 10, PHYS_GAP_SKIP = 2;
+  const kept = [];
+  let gMin = Infinity, last = null, prevT = null, skipLeft = PHYS_GAP_SKIP, run = 0, dropped = 0, seen = 0;
+  for (const p of pts) {
+    if (prevT != null && p.t - prevT >= PHYS_GAP_SEC) skipLeft = PHYS_GAP_SKIP;
+    prevT = p.t;
+    if (skipLeft > 0) { skipLeft--; continue; }
+    seen++;
+    const f = sgn * p.d, g = f - lim * p.t;
+    let bad = g > gMin + lim + TOL;
+    if (!bad && last) {
+      const v0 = Number(last.v), v1 = Number(p.v);
+      bad = f - sgn * last.d < -TOL || (v0 > 0 && v1 > 0 && Math.abs(v1 - v0) > aMax * (p.t - last.t + 1));
+    }
+    if (bad) {
+      dropped++;
+      if (++run > PHYS_DROP_RUN) return { pass: false, code: 'impossible_physics' };
+      continue;
+    }
+    run = 0;
     if (g < gMin) gMin = g;
-    if (!i) continue;
-    if (f - sgn * pts[i - 1].d < -TOL) return { pass: false, code: 'impossible_physics' };
-    const v0 = Number(pts[i - 1].v), v1 = Number(pts[i].v);
-    if (v0 > 0 && v1 > 0 && Math.abs(v1 - v0) > aMax * (pts[i].t - pts[i - 1].t + 1)) return { pass: false, code: 'impossible_physics' };
+    last = p;
+    kept.push(p);
   }
+  if (dropped > Math.max(PHYS_DROP_MIN, PHYS_DROP_SHARE * seen)) return { pass: false, code: 'impossible_physics' };
   // 第四重：都卜勒一致性。coords.speed 是都卜勒量測不是位置微分，真實資料兩者會有適度差異；
   // spoof 工具產出的兩者過度一致。相關係數高到接近 1 才判——這一重刻意只抓最粗糙的偽造。
   const a = [], b = [];
-  for (let i = 1; i < pts.length; i++) {
-    const dt = pts[i].t - pts[i - 1].t;
-    if (dt <= 0 || !Number.isFinite(pts[i].v)) continue;
-    a.push(pts[i].v); b.push(Math.abs(pts[i].d - pts[i - 1].d) / dt);
+  for (let i = 1; i < kept.length; i++) {
+    const dt = kept[i].t - kept[i - 1].t;
+    if (dt <= 0 || !Number.isFinite(kept[i].v)) continue;
+    a.push(kept[i].v); b.push(Math.abs(kept[i].d - kept[i - 1].d) / dt);
   }
   if (a.length >= 30) {
     const mA = a.reduce((s, x) => s + x, 0) / a.length, mB = b.reduce((s, x) => s + x, 0) / b.length;
@@ -7607,13 +7646,13 @@ function integrityGate(trip, ctx, rules) {
       if (!st) continue;
       // 樣本推得的通過時刻：里程最接近該站的那個點
       let best = null;
-      for (const p of pts) { const gap = Math.abs(p.d / 1000 - st.d); if (!best || gap < best.gap) best = { gap, t: p.t }; }
+      for (const p of kept) { const gap = Math.abs(p.d / 1000 - st.d); if (!best || gap < best.gap) best = { gap, t: p.t }; }
       if (!best || best.gap > 0.5) continue;                                   // 沒經過那一站就不比
       worst = Math.max(worst, Math.abs(best.t - (Number(e.schedSec) + Number(e.delay || 0) * 60)));
     }
     if (worst > R.delayMatchToleranceSec) return { pass: false, code: 'delay_mismatch' };
   }
-  return { pass: true, code: null };
+  return { pass: true, code: null, pts: kept };
 }
 // 品質閘：決定資料採不採用，不決定給不給章。每一項都有可以告知的原因與可以行動的建議
 // （文案在 data/bounty_rules.json 的 qualityText，前端錄製當下用的是同一份）。
@@ -7706,13 +7745,13 @@ function bountyDistinctNeed(rules, segKey) {
 // （見 bountyVerifyTrain 的前次查詢：worst、最早／最晚的樣本時間 t0／t1）。
 // 只給 bountyCreditTripChips 做籌碼判斷用——不重新登記去重、不重新標記、不給點數（那些在它自己那一發都做過了）。
 //   ・verdict：該組最壞的——有 suspect 就 suspect，否則有 ok 就 ok，否則 unusable（同一條線先後兩發判出不同結果時，寧可保守）。
-//   ・trip.pts：只有最早與最晚兩個時間（籌碼只用得到整班長度）；那條線沒有讀得出時間的點就是空的。
+//   ・trip.pts：只有最早與最晚兩個時間（籌碼只用得到整班長度）；那條線沒有讀得出時間的點就是空的。跨午夜的組用 u0／u1（見前次查詢）。
 //   ・cov 一律空：籌碼判斷只拿覆蓋段來看「落在哪一條線」（偏遠 ×2），而覆蓋段一定落在那一組自己的線上
 //     （coverageOf 的鍵是 line.sys|line.lnId 開頭，line 就是用這一組的 sys|ln_id 查的），ok 的組沒有覆蓋段時本來就退回自己的 sys|ln_id——
 //     結果相同，所以不把 segs 讀回來（獨立驗收 C4：segs 每列都帶整組的覆蓋段、列數沒有上界，一個帳號併十台裝置就是 75 MB）。
 function bountyPriorGroups(rows) {
   return rows.map(r => ({
-    trip: { sys: r.sys, lnId: r.ln_id, pts: r.t0 == null ? [] : [{ t: r.t0 }, { t: r.t1 }] },
+    trip: { sys: r.sys, lnId: r.ln_id, pts: r.t0 == null ? [] : Number(r.t1) - Number(r.t0) > BOUNTY_HALF_DAY_SEC ? [{ t: r.u0 }, { t: r.u1 }] : [{ t: r.t0 }, { t: r.t1 }] },
     v: { verdict: Number(r.worst) === 2 ? 'suspect' : Number(r.worst) === 1 ? 'ok' : 'unusable' },
     cov: [],
   }));
@@ -7724,7 +7763,7 @@ function bountyPriorGroups(rows) {
 //   ・判定：任何一條線 ok，這班車就算 ok；🔴 但任何一條線 suspect（防偽閘不過）整班就是 0 顆——
 //     單獨一條線的趟被判 suspect 本來就是 0 顆，整班車不能因為另一條線 ok 就照發（suspect 那段的時間也不該被算進長度）。
 //   ・lineKeys（偏遠 ×2 看的）：只取 ok 線組覆蓋段的線，任何一段落在偏遠線就 ×2；ok 但沒有覆蓋段的線組退回它自己的 sys|ln_id。
-//   ・長度：整班車所有批次（不分線）樣本 t（台北當日秒）的 max−min——兩條線各自不到 minTripSec、合起來夠長也算。
+//   ・長度：整班車所有批次（不分線）樣本 t（台北當日秒，跨午夜的加一天）的 max−min——兩條線各自不到 minTripSec、合起來夠長也算。
 // 🔴 遲傳：groups 是「這一發 cron 才讀到的（pending）線組」，prior 是「這一班車先前已判定過的線組」（前次線組，見 bountyPriorGroups）。
 // 車上沒訊號、隔天早上才開 App 的話，一班車前半段已在前一發判完（當時不到 minTripSec → 0 顆），後半段這一發才到；
 // 只看這一發的批次，整班車一顆都拿不到。籌碼判斷（任一 ok、suspect 否決、偏遠 ×2、整班長度）一律把兩邊合起來看；
@@ -7747,8 +7786,11 @@ async function bountyCreditTripChips(env, rules, groups, prior, now, who, fence)
     if (ks.length) for (const k of ks) lineKeys.add(k);
     else lineKeys.add(`${g.trip.sys}|${g.trip.lnId}`);
   }
+  // 跨午夜：各組各自已經加過一天（assembleTrip／前次查詢的 u0、u1），但「前半段在午夜前判完、後半段午夜後才到」的兩組各自都沒跨，
+  // 合起來才跨——所以合併之後再認一次（同一條 bountyUnwrapMidnight）；不然整班長度會是二十幾小時，不到 minTripSec 的短趟也發籌碼。
+  const ts = bountyUnwrapMidnight(all.flatMap(g => g.trip.pts.map(p => ({ t: Number(p.t) }))));
   let lo = Infinity, hi = -Infinity;
-  for (const g of all) for (const p of g.trip.pts) { const t = Number(p.t); if (t < lo) lo = t; if (t > hi) hi = t; }
+  for (const { t } of ts) { if (t < lo) lo = t; if (t > hi) hi = t; }
   const durationSec = hi >= lo ? hi - lo : 0;
   const { tripDate, trainNo } = groups[0].trip;
   const raw = tripChips({ verdict: 'ok', lineKeys: [...lineKeys], durationSec, day: tripDate }, chips);
@@ -8160,8 +8202,14 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     // uploadedAt：這一組批次裡最晚上傳的時間。防偽閘的日期窗以它為基準（S14，見 integrityGate）。
     const uploadedAt = Math.max(0, ...lineRows.map(r => Number(r.submitted_at) || 0));
     const ctx = { line, events, now, uploadedAt };
-    const v = verdictOf(integrityGate(trip, ctx, rules), qualityGate(trip, ctx, rules));
-    const cov = (v.verdict === 'suspect' || !line) ? [] : coverageOf(trip, line, rules, M.peakHoursBySys)
+    const ig = integrityGate(trip, ctx, rules);
+    // 防偽閘第三重丟掉的孤立壞點不再參與任何計算（等於那幾點沒送，理由見 integrityGate）：品質閘、覆蓋率都用收下的點。
+    // 籌碼的整班長度照舊用原始的點（assembleTrip 已認過午夜）：前次線組的長度是從存下的原始 payload 在 SQL 裡算的（下面 priorRs 的
+    // t0／t1／u0／u1），兩邊要同一個基準。長度也不是防偽的界線——t 沒有外部錨點（可以整段拉長，計畫 §12 的殘留），改用收下的點擋不住什麼，
+    // 只會讓每趟少掉開頭不收的 2 點（剛好 600 秒的趟變 598 秒、拿不到籌碼）。
+    const kept = ig.pts ? { ...trip, pts: ig.pts } : trip;
+    const v = verdictOf(ig, qualityGate(kept, ctx, rules));
+    const cov = (v.verdict === 'suspect' || !line) ? [] : coverageOf(kept, line, rules, M.peakHoursBySys)
       .filter(c => c.cov >= rules.quality.segCoverageMin);
     groups.push({ trip, v, cov });
   }
@@ -8184,6 +8232,9 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     'SELECT s.sys AS sys, s.ln_id AS ln_id,' +
     " MAX(CASE s.verdict WHEN 'suspect' THEN 2 WHEN 'ok' THEN 1 ELSE 0 END) AS worst," +
     " MIN(json_extract(j.value, '$.t')) AS t0, MAX(json_extract(j.value, '$.t')) AS t1," +
+    // u0／u1：同一組的 t 若跨過午夜（t1−t0 超過半天），改用「小於半天的加一天」之後的最早與最晚（與 assembleTrip 同一條，見 bountyUnwrapMidnight）
+    ` MIN(CASE WHEN json_extract(j.value, '$.t') < ${BOUNTY_HALF_DAY_SEC} THEN json_extract(j.value, '$.t') + 86400 ELSE json_extract(j.value, '$.t') END) AS u0,` +
+    ` MAX(CASE WHEN json_extract(j.value, '$.t') < ${BOUNTY_HALF_DAY_SEC} THEN json_extract(j.value, '$.t') + 86400 ELSE json_extract(j.value, '$.t') END) AS u1,` +
     " MAX(CASE WHEN json_valid(s.client) THEN json_type(s.client, '$.simulator') = 'true' END) AS sim" +
     " FROM bounty_samples s INDEXED BY idx_samples_trip LEFT JOIN json_each(CASE WHEN json_valid(s.payload) THEN s.payload ELSE '[]' END) j" +
     "  ON j.type = 'object' AND json_type(j.value, '$.t') IN ('integer', 'real')" +

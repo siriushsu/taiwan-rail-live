@@ -109,6 +109,10 @@ function stopGo({ d0 = 0, d1, stops = [], cruise = 10, t0 = 30000 }) {
   while (d + cruise <= d1) push(cruise);
   return pts;
 }
+// K 組用：前面補兩個與第一點同位置、同速度的點（t−2、t−1）。第十一批起判定端不收每趟開頭的 2 點（冷啟動，見 worker.js integrityGate），
+// 覆蓋率從第 3 點算起；補上這兩點，新版不收的剛好是補的那兩點，舊版（對照版）多收的兩點與第一點同位置、不改變任何區間的跨度——
+// 讓「批次化等價」的範圍不含這個刻意的改變（與 K 組開頭那段「範圍」說明同一個作法）。長度多 2 秒，兩版都是從原始的點算。
+const pad2 = pts => [{ ...pts[0], t: pts[0].t - 2 }, { ...pts[0], t: pts[0].t - 1 }, ...pts];
 const chunk = (a, n) => { const o = []; for (let i = 0; i < a.length; i += n) o.push(a.slice(i, i + n)); return o; };
 
 // ── 測試端獨立的子請求計數（在 worker 自己的計數器「下面」再包一層，兩邊各數各的、再比對）──────────────────────────
@@ -744,15 +748,15 @@ const K_CL = [
 ];
 // [actor, 車次, 乘車日, 線, 軌跡, dir, first]
 const K_TRAINS = [
-  ['k-a', 'K1', D28, '山線', leg({ sec: 700 }), 0, 0],
-  ['k-a', 'K2', D28, '山線', leg({ sec: 700, d0: 14000, reverse: true }), 1, 0],
-  ['k-b', 'K3', D28, '山線', stopGo({ d0: 0, d1: 14000, stops: [6000] }), 0, 0],       // S3 站（6000 m）停靠 → 有 dwell 覆蓋
-  ['k-c', 'K4', D28, '屏東線', leg({ sec: 700 }), 0, 0],                                // 屏東線沒有任何板上列
-  ['k-d', 'K5', D28, '南迴線', leg({ sec: 700 }), 0, 0],                                // 南迴線板上只有前 4 段
-  ['k-e', 'K6', D28, '山線', leg({ sec: 4 }), 0, 0],                                    // 5 點 → unusable
-  ['k-g', 'K7', D27, '山線', leg({ sec: 700 }), 0, 0],                                  // 前一天
-  ['k-f', 'K8', D28, '屏東線', leg({ sec: 400, t0: 30000 }), 0, 0],                     // 直通：屏東 400＋南迴 400
-  ['k-f', 'K8', D28, '南迴線', leg({ sec: 400, t0: 30401 }), 0, 100],
+  ['k-a', 'K1', D28, '山線', pad2(leg({ sec: 700 })), 0, 0],
+  ['k-a', 'K2', D28, '山線', pad2(leg({ sec: 700, d0: 14000, reverse: true })), 1, 0],
+  ['k-b', 'K3', D28, '山線', pad2(stopGo({ d0: 0, d1: 14000, stops: [6000] })), 0, 0],       // S3 站（6000 m）停靠 → 有 dwell 覆蓋
+  ['k-c', 'K4', D28, '屏東線', pad2(leg({ sec: 700 })), 0, 0],                                // 屏東線沒有任何板上列
+  ['k-d', 'K5', D28, '南迴線', pad2(leg({ sec: 700 })), 0, 0],                                // 南迴線板上只有前 4 段
+  ['k-e', 'K6', D28, '山線', pad2(leg({ sec: 4 })), 0, 0],                                    // 5 點 → unusable
+  ['k-g', 'K7', D27, '山線', pad2(leg({ sec: 700 })), 0, 0],                                  // 前一天
+  ['k-f', 'K8', D28, '屏東線', pad2(leg({ sec: 400, t0: 30000 })), 0, 0],                     // 直通：屏東 400＋南迴 400
+  ['k-f', 'K8', D28, '南迴線', pad2(leg({ sec: 400, t0: 30401 })), 0, 100],
 ];
 async function runRich(impl) {
   const w = world({ impl, units: UNITS_PEAK, tally: true, seed: boardRows(K_TB) + '\n' + K_CL.map(claimSql).join('\n') });
@@ -871,8 +875,8 @@ await attempt('K1', async () => {
 async function runLong(impl) {
   const claims = claimSql({ id: 'cl-39', actor: 'kc-39', seg: KT('長線', LONG_SEGS[38]), pts: 5 }) + '\n' + claimSql({ id: 'cl-40', actor: 'kc-40', seg: KT('長線', LONG_SEGS[39]), pts: 7 });
   const w = world({ impl, tally: true, seed: boardSql('tra_sched', '長線', [{}], LONG_SEGS) + '\n' + claims });
-  putBatches(w.db, { actor: 'kc-39', trainNo: 'C39', lnId: '長線', pts: leg({ sec: 3900 }) });     // 78 km → 39 段
-  putBatches(w.db, { actor: 'kc-40', trainNo: 'C40', lnId: '長線', pts: leg({ sec: 4000 }) });     // 80 km → 40 段
+  putBatches(w.db, { actor: 'kc-39', trainNo: 'C39', lnId: '長線', pts: pad2(leg({ sec: 3900 })) });     // 78 km → 39 段
+  putBatches(w.db, { actor: 'kc-40', trainNo: 'C40', lnId: '長線', pts: pad2(leg({ sec: 4000 })) });     // 80 km → 40 段
   const st = await w.cron();
   return { w, st, dump: dumpDb(w.db) };
 }
@@ -905,7 +909,7 @@ const seedRealBoard = db => {
 };
 const fullLine = key => {
   const sts = REAL_UNITS.lines[key].stations.slice().sort((a, b) => a.d - b.d);
-  return { nSt: sts.length, pts: stopGo({ d0: sts[0].d * 1000, d1: sts[sts.length - 1].d * 1000, stops: sts.slice(1, -1).map(s => s.d * 1000), t0: 21600 }) };
+  return { nSt: sts.length, pts: pad2(stopGo({ d0: sts[0].d * 1000, d1: sts[sts.length - 1].d * 1000, stops: sts.slice(1, -1).map(s => s.d * 1000), t0: 21600 })) };
 };
 const CAP = {};
 async function runReal(impl, key, actor) {
@@ -942,7 +946,7 @@ async function runXL(impl) {
   // review-B 之後關認領是一組一句，這張認領在那一句的 json_each 陣列最末）
   const claim = claimSql({ id: 'cl-x', actor: 'kx', seg: KT('超長線', XL_SEGS[119]), pts: 9 });
   const w = world({ impl, tally: true, seed: boardSql('tra_sched', '超長線', [{ points: 1 }], XL_SEGS) + '\n' + claim });
-  putBatches(w.db, { actor: 'kx', trainNo: 'X1', lnId: '超長線', pts: leg({ sec: 12000 }) });        // 240 km → 120 個區間
+  putBatches(w.db, { actor: 'kx', trainNo: 'X1', lnId: '超長線', pts: pad2(leg({ sec: 12000 })) });        // 240 km → 120 個區間
   let st = null, err = null;
   st = await w.cron();
   err = st.threw || null;                                                  // w.cron 接住例外、回 { threw }（見 world）

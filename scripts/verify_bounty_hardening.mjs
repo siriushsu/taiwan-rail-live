@@ -35,6 +35,7 @@
 //   M3  兌換的交易內餘額守衛的邊界（讀到之後被扣）——review-B Q8 說這一層只有 redeem C6 一條在守
 //   M5b 刪帳號時 body 的 deviceActor 若已併進別的帳號，一列不刪——review-B Q8 說這一層只有 auth A11d 一條在守
 //   PL  會隨使用者長大的六張表：每個端點與兩支 cron 實際送出的每一句，查詢計畫在八種統計形狀下都與沒有統計時相同（第十批，N6-1 同一族）
+//   PF  防偽閘丟掉／不收的點不進覆蓋率（孤立的遠點、斷點後的頭兩點）；跨午夜的班車照整班長度發籌碼（一次上傳、兩發、前次組本身跨午夜）（第十一批，V7 B(1)／B(2)）
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
@@ -753,8 +754,9 @@ await attempt('R2a', async () => {
   const prior = [];
   spyRows(w.DELAY_DB, (sql, rs) => { if (PRIOR_RE.test(sql)) prior.push(...rs.map(r => ({ ...r }))); });
   const st2 = await w.cron({ BOUNTY_NOW: String(NOW_MS + 3600e3) });
-  ok('R2a1 [R2／C4] 前次線組在 SQL 裡依線彙總：前半 3 批只回 1 列（山線）——最壞判定 ok（worst 1）、最早 30000、最晚 30400、不是模擬器；payload、segs 等其他欄都不送回',
-    J(prior) === J([{ sys: 'tra_sched', ln_id: '山線', worst: 1, t0: 30000, t1: 30400, sim: 0 }]), J(prior));
+  // u0／u1＝「小於半天的 t 加一天」之後的最早與最晚（跨午夜用，第十一批）：30000、30400 都小於 43200 → 116400、116800（這一組沒跨午夜，判定端用 t0／t1）
+  ok('R2a1 [R2／C4] 前次線組在 SQL 裡依線彙總：前半 3 批只回 1 列（山線）——最壞判定 ok（worst 1）、最早 30000、最晚 30400、跨午夜用的 u0／u1＝116400／116800、不是模擬器；payload、segs 等其他欄都不送回',
+    J(prior) === J([{ sys: 'tra_sched', ln_id: '山線', worst: 1, t0: 30000, t1: 30400, u0: 116400, u1: 116800, sim: 0 }]), J(prior));
   ok('R2a2 籌碼判斷照舊看整班（前 400＋後 400＝801 秒 ≥ 600）：補發 1 顆', st2.chips === 1 && q.bal(w, A) === 1, J({ chips: st2.chips, bal: q.bal(w, A) }));
 });
 await attempt('C4', async () => {
@@ -780,7 +782,7 @@ await attempt('C4', async () => {
   const st = await w.cron();
   const sent = J(prior).length;
   ok('C4 [C4] 前次 300 批（segs 合計 > 2 MB）：前次查詢只回 2 列（山線、南迴線，各 worst 1）、全部不到 1 KB、沒有 segs／payload 欄；整班 801 秒、南迴線偏遠 ×2 → 2 顆',
-    segBytes > 2e6 && prior.length === 2 && sent < 1024 && prior.every(r => J(Object.keys(r)) === J(['sys', 'ln_id', 'worst', 't0', 't1', 'sim']) && r.worst === 1) &&
+    segBytes > 2e6 && prior.length === 2 && sent < 1024 && prior.every(r => J(Object.keys(r)) === J(['sys', 'ln_id', 'worst', 't0', 't1', 'u0', 'u1', 'sim']) && r.worst === 1) &&
       J(prior.map(r => r.ln_id).sort()) === J(['南迴線', '山線'].sort()) && st.chips === 2 && J(q.trips(w)) === J([{ actor: A, delta: 2, ref: `${A}|${D28}|C4`, day: D28 }]),
     J({ segBytes, rows: prior.length, sent, prior, chips: st.chips, trips: q.trips(w) }));
 });
@@ -2440,6 +2442,78 @@ await attempt('B4e', async () => {
   w2.db.exec(`INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(DW2, 'P1')}','{"at":1,"error":"x","n":1}','x');`);
   const del2 = await delAccount(w2, { actor: DW2 }, X2);
   ok('B4eb [第二輪 B4e 對照 M5b] body 帶「已併進別人（W）的裝置 DW」：它的出錯記錄不刪', del2.status === 200 && strikes(w2).length === 1, J({ status: del2.status, sk: strikes(w2) }));
+});
+
+// ═══ PF：第十一批——防偽閘丟掉／不收的點不進覆蓋率；跨午夜的班車照整班長度發籌碼（端到端，走真的判定 cron）══════════════
+// 規則（期望值照規則手算，不呼叫實作）：防偽閘第三重逐點比「已收下的點」，違反往前（任兩點）／往後／加速度的點丟掉、不判整班；
+// 開頭與每個 Δt≥10 秒的斷點之後的前 2 點不收。被丟、不收的點不能再拿去算覆蓋率——否則在任一段丟兩個點就能刷覆蓋（V7 的但書）。
+// 覆蓋的定義（worker 的 coverageOf；這裡獨立再寫一次當對照）：區間 [lo, hi] 裡至少 2 點、(最大 − 最小)／區間長 ≥ segCoverageMin（0.6）。
+const coversKm = (pts, loKm, hiKm) => {
+  const ds = pts.map(p => p.d / 1000).filter(d => d >= loKm && d <= hiKm);
+  return ds.length >= 2 && (Math.max(...ds) - Math.min(...ds)) / (hiKm - loKm) >= RULES.quality.segCoverageMin;
+};
+const segsOf = (w, actor, trainNo) => [...new Set(rows(w, 'SELECT segs FROM bounty_samples WHERE actor=? AND train_no=?', actor, trainNo)
+  .flatMap(r => JSON.parse(r.segs || '[]').map(c => c.key)))].sort();
+await attempt('PF1', async () => {
+  // 誠實的一趟：山線 0 → 6 km（20 m/s、300 秒）＝ S0|S1、S1|S2、S2|S3。另外兩種「刷 S8|S9（16–18 km）」的手法：
+  //   a 孤立的遠點：第 100、200 秒各換成 16.1 km、17.9 km 的一點（比當時的位置往前十幾公里，違反任兩點的上界 → 不收；丟 2 點＜預算 5）；
+  //   b 斷點後不收的點：第 150 秒後斷 12 秒，出來的頭兩點放在 16.1、17.9 km（不收、不比），之後回到原位置繼續（停了 14 秒）。
+  // 期望：兩趟都判 ok、存下的覆蓋段只有 S0|S1…S2|S3、每人登記 3 段、S8|S9 的 sample_count 仍是 0。
+  // 對照：原始的點照覆蓋的定義算，S8|S9 是蓋到的（1.8／2＝0.9 ≥ 0.6）——判定端若拿原始的點算覆蓋，這兩趟就刷到了。
+  const base = leg({ sec: 300 });
+  const spikeA = base.map((p, i) => i === 100 ? { ...p, d: 16100 } : i === 200 ? { ...p, d: 17900 } : p);
+  const gapB = [...base.slice(0, 151), { ...base[150], t: base[150].t + 12, d: 16100 }, { ...base[150], t: base[150].t + 13, d: 17900 },
+    ...base.slice(151).map(p => ({ ...p, t: p.t + 13 }))];
+  const A = 'dev-pf1-a0001', B = 'dev-pf1-b0001';
+  const w = world({ seed: boardSql('山線') });
+  putBatches(w.db, { actor: A, trainNo: 'PFA', pts: spikeA });
+  putBatches(w.db, { actor: B, trainNo: 'PFB', pts: gapB });
+  await w.cron();
+  const want = J(['S0|S1', 'S1|S2', 'S2|S3'].map(x => KT('山線', x)));
+  const res = { a: [q.verdicts(w, A, 'PFA'), segsOf(w, A, 'PFA'), q.contrib(w, A)], b: [q.verdicts(w, B, 'PFB'), segsOf(w, B, 'PFB'), q.contrib(w, B)],
+    s89: one(w, 'SELECT sample_count c FROM bounty_board WHERE seg_key=?', KT('山線', 'S8|S9')).c, raw: [coversKm(spikeA, 16, 18), coversKm(gapB, 16, 18)] };
+  ok('PF1 [第十一批 V7] 不收的點不算覆蓋：孤立的遠點、斷點後的頭兩點都放在 S8|S9 → 兩趟都 ok、存下的覆蓋段只有 S0|S1…S2|S3、各登記 3 段、S8|S9 的 sample_count 0（對照：原始的點照覆蓋的定義蓋得到 S8|S9）',
+    res.raw.every(Boolean) && [res.a, res.b].every(([v, segs, c]) => v === 'ok' && J(segs) === want && c === 3) && res.s89 === 0, J(res));
+});
+await attempt('PF3', async () => {
+  // 跨午夜：App 的 t 是當天第幾秒、午夜歸零；乘車日是開始錄的那一天。規則：同一組點的 t 最大減最小超過半天＝跨午夜，小於半天的 t 加一天；
+  // 前後兩發判的兩段合起來再認一次（整班長度＝合起來的最晚 − 最早）。山線 20 m/s，籌碼門檻 600 秒、山線不是偏遠線（×1）。
+  //   a 一次上傳：t 86000–86399（午夜前 400 點）＋ 0–300 → 700 秒 → ok、1 顆（沒認午夜的話防偽閘整班判死，見 gates F30b）。
+  //   b 兩發：先只有午夜前 86000–86399（0 顆），後一發午夜後 0–300 → 合起來 700 秒 → 補 1 顆。
+  //   c 兩發：午夜前 86200–86399 ＋午夜後 0–300 → 500 秒 → 0 顆（合起來沒再認一次午夜的話，會算成 0–86399＝86399 秒、發 1 顆）。
+  //   d 前一發本身就跨午夜（86000–86399 ＋ 0–100，500 秒、0 顆），後一發 101–300 → 700 秒 → 1 顆
+  //     （前次組要用 u0／u1：拿原始的最早 0、最晚 86399，合起來再認午夜會變成 86399–86700＝301 秒、0 顆）。
+  //   e 清晨的趟（t 1000–1700，700 秒）不受影響 → 1 顆。
+  const mid = (k0, k1) => Array.from({ length: k1 - k0 + 1 }, (_, j) => {
+    const k = k0 + j;
+    return { d: k * 20, t: k < 400 ? 86000 + k : k - 400, v: 20 + Math.sin(k / 7) * 0.6, acc: 8 };
+  });
+  const run = async (actor, phases) => {
+    const w = world({ seed: boardSql('山線') });
+    for (const [i, pts] of phases.entries()) {
+      putBatches(w.db, { actor, trainNo: 'PF3', pts, first: i * 100 });
+      await w.cron(i ? { BOUNTY_NOW: String(NOW_MS + i * 3600e3) } : {});
+    }
+    return { v: q.verdicts(w, actor, 'PF3'), trips: q.trips(w) };
+  };
+  const got = {
+    a: await run('dev-pf3-a0001', [mid(0, 700)]),
+    b: await run('dev-pf3-b0001', [mid(0, 399), mid(400, 700)]),
+    c: await run('dev-pf3-c0001', [mid(200, 399), mid(400, 700)]),
+    d: await run('dev-pf3-d0001', [mid(0, 500), mid(501, 700)]),
+    e: await run('dev-pf3-e0001', [leg({ sec: 700, t0: 1000 })]),
+  };
+  const oneChip = a => J([{ actor: a, delta: 1, ref: `${a}|${D28}|PF3`, day: D28 }]);
+  ok('PF3a [第十一批 V7 B(2)] 跨午夜一次上傳（86000–86399＋0–300，700 秒）→ ok、1 顆',
+    got.a.v === 'ok' && J(got.a.trips) === oneChip('dev-pf3-a0001'), J(got.a));
+  ok('PF3b 跨午夜分兩發（午夜前 400 秒先判、0 顆；午夜後 300 秒後判）→ 合起來 700 秒、補 1 顆',
+    got.b.v === 'ok' && J(got.b.trips) === oneChip('dev-pf3-b0001'), J(got.b));
+  ok('PF3c 跨午夜分兩發、合起來只有 500 秒 → 0 顆（兩段合起來要再認一次午夜，不然會算成 86399 秒）',
+    got.c.v === 'ok' && got.c.trips.length === 0, J(got.c));
+  ok('PF3d 前一發本身就跨午夜（500 秒、0 顆）、後一發 200 秒 → 合起來 700 秒、1 顆（前次組用 u0／u1）',
+    got.d.v === 'ok' && J(got.d.trips) === oneChip('dev-pf3-d0001'), J(got.d));
+  ok('PF3e 對照：清晨的趟（t 1000–1700，700 秒）不受午夜規則影響 → 1 顆',
+    got.e.v === 'ok' && J(got.e.trips) === oneChip('dev-pf3-e0001'), J(got.e));
 });
 
 ok('Z 整支腳本沒有任何非 Firebase 的對外連線', outbound.length === 0, J(outbound.slice(0, 3)));
