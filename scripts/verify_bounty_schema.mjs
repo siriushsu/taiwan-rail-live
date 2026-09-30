@@ -305,10 +305,14 @@ const tryRun = (d, sql, ...p) => { try { d.prepare(sql).run(...p); return ''; } 
 
 // A22 結構判準（與 A21b 不同源）：0014 檔內第一句 ALTER 之後不得再有 CREATE。
 // 只看非註解行——註解裡講到 ALTER／CREATE 的字樣不算。
-const schemaStmts = f => readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'schema', f), 'utf8')
-  .split('\n').filter(l => !/^\s*--/.test(l)).join('\n').split(';').map(s => s.trim()).filter(Boolean);
+// 檔案不在回 null（判準照樣印 FAIL、後面的判準照樣跑，不是在這裡丟例外）。
+const schemaStmts = f => {
+  let src;
+  try { src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'schema', f), 'utf8'); } catch (e) { return null; }
+  return src.split('\n').filter(l => !/^\s*--/.test(l)).join('\n').split(';').map(s => s.trim()).filter(Boolean);
+};
 {
-  const stmts = schemaStmts('0014_bounty_v2.sql');
+  const stmts = schemaStmts('0014_bounty_v2.sql') || [];
   const firstAlter = stmts.findIndex(s => /^ALTER\s+TABLE/i.test(s));
   const createAfter = stmts.slice(firstAlter + 1).filter(s => /^CREATE\s/i.test(s));
   const alters = stmts.filter(s => /^ALTER\s+TABLE/i.test(s));
@@ -320,7 +324,7 @@ const schemaStmts = f => readFileSync(join(dirname(fileURLToPath(import.meta.url
   // 接在後面的欄位在那個庫永遠跑不到——所以另開一個只有這一句的檔。
   const s15 = schemaStmts('0015_bounty_retired.sql');
   ok('A22b 0015 恰好一句：ALTER TABLE bounty_board ADD COLUMN retired INTEGER NOT NULL DEFAULT 0',
-    s15.length === 1 && /^ALTER\s+TABLE\s+bounty_board\s+ADD\s+COLUMN\s+retired\s+INTEGER\s+NOT\s+NULL\s+DEFAULT\s+0$/i.test(s15[0]),
+    !!s15 && s15.length === 1 && /^ALTER\s+TABLE\s+bounty_board\s+ADD\s+COLUMN\s+retired\s+INTEGER\s+NOT\s+NULL\s+DEFAULT\s+0$/i.test(s15[0]),
     JSON.stringify(s15));
 }
 
@@ -331,12 +335,13 @@ const schemaStmts = f => readFileSync(join(dirname(fileURLToPath(import.meta.url
   const { db: d } = openTestDb();
   d.exec("INSERT INTO bounty_board (seg_key,sys,train_kind,dir,kind,slot,l1,l2,points,per_day,first_listed_at) " +
     "VALUES ('tra|WL|1001|1002','tra','自強',0,'track','peak',1,1,5,3,1)");
-  d.exec('ALTER TABLE bounty_board DROP COLUMN retired');
+  try { d.exec('ALTER TABLE bounty_board DROP COLUMN retired'); } catch (e) {}   // schema 根本沒有 retired 時這一句會丟錯；下面的判準照樣會紅
   const before = d.prepare('PRAGMA table_info(bounty_board)').all().some(r => r.name === 'retired');
   let threw = '';
   try { applySchemaFiles(d); } catch (e) { threw = String(e.message || e); }
   const info = d.prepare('PRAGMA table_info(bounty_board)').all().find(r => r.name === 'retired');
-  const rows = d.prepare('SELECT seg_key, retired FROM bounty_board').all().map(r => ({ ...r }));
+  // SELECT * 而不是點名 retired：欄位沒長回來的時候要印 FAIL 繼續往下跑，不是在這一句丟例外、後面的判準都沒跑到
+  const rows = d.prepare('SELECT * FROM bounty_board').all().map(r => ({ seg_key: r.seg_key, retired: r.retired }));
   ok('A24 套過 0014、沒有 retired 的庫再套一次全部 schema：retired 長回來（INTEGER NOT NULL DEFAULT 0）、既有的列還在且是 0',
     !before && threw === '' && info && /INT/i.test(info.type) && info.notnull === 1 && String(info.dflt_value) === '0' &&
       JSON.stringify(rows) === '[{"seg_key":"tra|WL|1001|1002","retired":0}]',
@@ -399,7 +404,7 @@ const schemaStmts = f => readFileSync(join(dirname(fileURLToPath(import.meta.url
   // A23j（第十九批）：正式庫套過 0014、還沒有 retired → 補法是套 0015（只有那一句 ALTER），不是重套 0014
   // （0014 會在自己的第一句 ALTER 就中斷，走不到後面）。DDL 取自一顆真的 DROP 掉 retired 的庫，不手改字串。
   const { db: d15 } = openTestDb();
-  d15.exec('ALTER TABLE bounty_board DROP COLUMN retired');
+  try { d15.exec('ALTER TABLE bounty_board DROP COLUMN retired'); } catch (e) {}   // 同 A24：schema 沒有 retired 時守門人本來就不會要它，A23j 照樣紅
   const noRetired = runGate('no-retired', d15.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE type IN ('table','index')").all().map(r => ({ ...r })));
   ok('A23j 正式庫的 bounty_board 缺 retired → exit 1，點名 bounty_board.retired（0015_bounty_retired.sql），補法是套 0015、不叫人重套 0014',
     noRetired.rc === 1 && /bounty_board\.retired（0015_bounty_retired\.sql）/.test(noRetired.out) &&
