@@ -277,6 +277,8 @@ for (const p of pages) {
     ok(!CJK.test(left), `${tag} 英文頁沒有漏譯的中日文`, (left.match(/.{0,12}[\u3040-\u30ff\u3400-\u9fff]+.{0,12}/) || [])[0]);
     ok(!CJK.test(title + desc), `${tag} 英文 title／description 沒有中日文`);
     ok(!FULLWIDTH_PUNCT.test(left) && !FULLWIDTH_PUNCT.test(title + desc), `${tag} 英文頁沒有全形／中日文標點`, (left.match(/.{0,20}[\u3000-\u303f\uff01-\uff5e].{0,20}/) || [])[0]);
+    // 「起點站」在英文頁只用一種說法（09-30：首末班說明原本寫 starting terminus、班距說明寫 starting station，同頁並存；環狀輕軌沒有 terminus，所以統一成 station）
+    ok(!/starting terminus/i.test(bodyText), `${tag} 英文頁不用「starting terminus」（統一寫 starting station）`);
   }
   if (p.lang === 'ja') ok(/[\u3040-\u309f\u30a0-\u30ff]/.test(textOf(secs.answer || secs.lines || '')), `${tag} 日文頁正文含假名`);
   if (p.lang !== 'en') ok(!ASCII_PUNCT_AFTER_CJK.test(bodyText), `${tag} 中日文頁沒有接在中日文字後的半形標點`, (bodyText.match(/.{0,20}(?:[\u3040-\u30ff\u3400-\u9fff\uff00-\uffef][,:;] |[\u3040-\u30ff\u3400-\u9fff]\.\s).{0,20}/) || [])[0]);
@@ -626,6 +628,45 @@ for (const s of SPEC) {
     ok(!!card && textOf(card[2]).includes(want), `${lang} ${s.sys} 系統頁「${s.slug}」卡片的營運時段 ${want}`, card ? textOf(card[2]) : '找不到卡片');
   }
   log(`  ${s.slug.padEnd(17)} ${hmOf(first)}–${hmOf(last)}${last >= 86400 ? '(+1)' : ''}${est ? '（估算線）' : ''}`);
+}
+
+// C. 來源差異附註：環狀線週六、週日、國定假日「新北產業園區 → 大坪林」末班（09-29 23:03 使用者「末班加註」）。
+// 頁面照資料（TDX）寫 00:34（+1）；營運單位官網另一份 PDF 時刻表寫 00:00（外部事實，2026-09-18／09-23 查過，記在下面常數）。
+// 期望值從 data/trtc_times.json 直接算，不看產生器；附註只陳述兩個來源各寫什麼、不判斷哪個對，也只出現在環狀線頁。
+console.log('C. 來源差異附註（環狀線假日末班，三語）');
+const OFFICIAL_PDF_LAST = '00:00';
+const DIFF_LABEL = { zh: '來源差異：', en: 'Source difference:', ja: '資料の相違：' };
+{
+  const tl = TIMES.trtc.lines.Y, g = geoLine('trtc', 'Y'), n = g.stations.length;
+  const setName = tl.holiday, days = daysOfSet(tl, setName);
+  ok(days.join() === '0,6' && n > 2, `環狀線的假日班表涵蓋週六、週日（${days.join()}）`);
+  const thru = (tl.sets[setName] || []).filter(t => t.length >= 4 && t[0] === n - 1 && t[t.length - 2] === 0);
+  ok(thru.length > 0, `環狀線假日班表有 ${g.stations[n - 1].name} → ${g.stations[0].name} 的班次`, `${thru.length} 班`);
+  const lastSec = Math.max(...thru.map(t => t[1]));
+  const dataLast = hmOf(lastSec);
+  ok(lastSec >= 86400 && dataLast !== OFFICIAL_PDF_LAST, `資料的假日末班（${dataLast}${lastSec >= 86400 ? ' +1' : ''}）與官網 PDF（${OFFICIAL_PDF_LAST}）確實不同——附註才有意義；資料換版變成一樣了，這條要連同產生器的 SOURCE_DIFFS 一起拿掉`);
+  const covered = [];
+  for (const lang of Object.keys(ROOTS)) {
+    const notices = [];
+    for (const p of pages.filter(x => x.lang === lang)) {
+      const found = [...p.html.matchAll(/<div class="notice" data-source-diff="([^"]*)"><strong>([\s\S]*?)<\/strong>([\s\S]*?)<\/div>/g)];
+      if (p.key === 'taipei/circular') for (const m of found) notices.push({ id: m[1], label: textOf(m[2]), text: textOf(m[3]) });
+      else ok(found.length === 0 && !textOf(dropScripts(p.html)).includes(DIFF_LABEL[lang]), `${lang} ${p.key || '(總覽)'} 不出現來源差異附註（只屬於環狀線頁）`);
+    }
+    if (!ok(notices.length === 1 && notices[0].id === 'y-holiday-last-bwd', `${lang} 環狀線頁恰有一條來源差異附註`, `${notices.length} 條`)) continue;
+    const { label, text } = notices[0];
+    const nextDay = NEXT_DAY[lang];
+    ok(label === DIFF_LABEL[lang], `${lang} 環狀線附註標籤「${DIFF_LABEL[lang]}」`, label);
+    ok(namesInOrder(lang, text, g.stations[n - 1].name, g.stations[0].name), `${lang} 環狀線附註指明方向 ${g.stations[n - 1].name} → ${g.stations[0].name}`, text.slice(0, 80));
+    ok(text.includes(dayLabel(lang, days, true)), `${lang} 環狀線附註指明班表日「${dayLabel(lang, days, true)}」`, text.slice(0, 120));
+    ok(text.includes(`${dataLast}${nextDay}`), `${lang} 環狀線附註寫出資料的末班 ${dataLast}${nextDay}`, text.slice(0, 200));
+    ok(text.includes(`${OFFICIAL_PDF_LAST}${nextDay}`), `${lang} 環狀線附註寫出官網 PDF 的末班 ${OFFICIAL_PDF_LAST}${nextDay}`, text.slice(0, 200));
+    ok(/TDX/.test(text) && /PDF/.test(text), `${lang} 環狀線附註同時點名兩個來源（TDX 資料、官網 PDF）`);
+    ok(!OPERATOR_WORDS.test(text) && !NO_PUBLISH_CLAIM[lang].test(text), `${lang} 環狀線附註不寫營運單位名、不斷言公開與否`);
+    covered.push(lang);
+  }
+  ok(covered.length === 3, `來源差異附註三語都驗到（${covered.join('／')}）`, `${covered.length}/3`);
+  console.log(`  環狀線假日 ${g.stations[n - 1].name} → ${g.stations[0].name} 末班：資料 ${dataLast}(+1)、官網 PDF ${OFFICIAL_PDF_LAST}；已驗頁：${covered.map(l => `${ROOTS[l]}/taipei/circular/`).join('、')}；其餘 ${pages.length - 3} 頁確認沒有附註`);
 }
 
 console.log('────');

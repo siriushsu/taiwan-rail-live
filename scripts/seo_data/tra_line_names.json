@@ -1,0 +1,17 @@
+{"source":"TDX v3 Rail/TRA/Line(LineName.Zh_tw / LineName.En 字面照抄;TDX 沒有日文)",
+"fetched_at":"2026-09-29T17:23:13Z",
+"tdx_update_time":"2026-09-15T20:35:26+08:00",
+"lines":{
+"CZ":{"zh":"成追線","en":"Chengzhui Line"},
+"EL":{"zh":"東部幹線","en":"Eastern Main Line"},
+"JJ":{"zh":"集集線","en":"Jiji Line"},
+"LJ":{"zh":"六家線","en":"Liujia Line"},
+"NW":{"zh":"內灣線","en":"Neiwan Line"},
+"PX":{"zh":"平溪線","en":"Pingxi Line"},
+"SA":{"zh":"深澳線","en":"Shenao Line"},
+"SH":{"zh":"沙崙線","en":"Shalun Line"},
+"SL":{"zh":"南迴線","en":"South Link Line"},
+"SU":{"zh":"蘇澳新-蘇澳","en":"Su'aoxin-Su'ao"},
+"WL":{"zh":"西部幹線","en":"Western Main Line"},
+"WL-C":{"zh":"西部幹線 (海線)","en":"Western Main Line (Coast Line)"}
+}}

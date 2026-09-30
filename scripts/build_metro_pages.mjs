@@ -15,6 +15,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const METRO_TEMPLATE_DATE = '2026-09-29';
+// 外觀跟主站用同一個設定（localStorage trainmap-appearance：亮／暗／自動，同網域共用），首繪前掛上 data-theme，
+// 邏輯照 index.html 的「外觀 FOUC 防護」。暗色色票在 assets/aeo.css 的 html[data-theme=dark]。
+export const THEME_BOOT = `<script>(function(){try{var a=localStorage.getItem('trainmap-appearance')||localStorage.getItem('trainmap-theme')||'auto';if(a!=='light'&&a!=='dark')a='auto';var d=a==='auto'?matchMedia('(prefers-color-scheme: dark)').matches:a==='dark';document.documentElement.setAttribute('data-theme',d?'dark':'light');var m=document.querySelector('meta[name=theme-color]');if(m)m.content=d?'#10141c':'#F2EDE2';}catch(e){}})();</script>`;
+// 頁首 logo 用主站同一張 icon（index.html 的 .tb-logo）。
+export const BRAND_MARK = '<img class="brand-mark" src="/favicon-192.png" alt="" width="40" height="40" decoding="async">';
 const LANGS = ['zh', 'en', 'ja'];
 const LANG_INFO = {
   zh: { html: 'zh-Hant', og: 'zh_TW', prefix: '' },
@@ -879,6 +884,31 @@ function specialNotesFor(lang, page) {
     .map(n => ({ opId: n.opId, text: n.text(lang, label(n.lineIds[0], n.fromIdx), label(n.lineIds[0], n.toIdx)) }));
 }
 
+// ── 來源差異附註（2026-09-30，使用者 09-29 23:03「末班加註」） ─────────────────────────────
+// 環狀線週六、週日、國定假日「新北產業園區 → 大坪林」的末班：本頁照 TDX 時刻表資料寫 00:34（+1），營運單位官網另有一份
+// PDF 時刻表寫 00:00（2026-09-18／09-23 查過：官網 Word 版＝TDX，PDF 是另一份；兩份都標 114/8/1 生效，查不出哪份新）。
+// 只陳述兩個來源各寫什麼，不判斷哪個對。頁面不寫營運單位（環狀線歸屬未定），所以寫「營運單位官網」。
+// 只有資料現在的值＝dataLast 才輸出：資料換版、數字變了，附註自己消失，不留過期的說法
+//（verify_metro_pages 期望它在，會因此變紅，逼人重看官網）。
+const SOURCE_DIFFS = [
+  { id: 'y-holiday-last-bwd', lineId: 'Y', dir: 'bwd', days: [0, 6], holiday: true, dataLast: '00:34', pdfLastSec: 86400,
+    text: (lang, route, days, dataLast, pdfLast) => pick(lang,
+      `末班，${route}（${days}）：本頁採用的 TDX 時刻表資料是 ${dataLast}，營運單位官網的 PDF 時刻表寫 ${pdfLast}。兩份來源不一致，實際末班請以營運單位公告為準。`,
+      `Last train, ${route} (${days}): the TDX timetable data used on this page gives ${dataLast}, while the PDF timetable on the operator's website gives ${pdfLast}. The two sources differ, so check the operator's announcements for the actual last train.`,
+      `終電、${route}（${days}）：このページで使っているTDXの時刻表データでは${dataLast}、運営会社の公式サイトにあるPDF時刻表では${pdfLast}となっています。2つの資料が一致していないため、実際の終電は運営会社の発表で確認してください。`) },
+];
+function sourceDiffsFor(lang, page) {
+  return SOURCE_DIFFS.flatMap(d => {
+    if (!page.dataLineIds.includes(d.lineId)) return [];
+    const a = page.analysis[d.lineId];
+    const set = a.sets.find(s => s.holiday === d.holiday && s.days.join() === d.days.join());
+    const svc = a.services.find(s => s.dir === d.dir);
+    const cell = set && svc && svc.bySet[set.name];
+    if (!cell || hmOf(cell.last).text !== d.dataLast || !hmOf(cell.last).next) return [];
+    return [{ id: d.id, text: d.text(lang, svcRoute(lang, page, d.lineId, svc), dayLabel(lang, set.days, set.holiday), timeText(cell.last, lang), timeText(d.pdfLastSec, lang)) }];
+  });
+}
+
 // ── 資料來源／日期 ────────────────────────────────────────────────────────────────────
 function fetchInfo(page) {
   const file = M.lineModels[page.cfg.lines[0]].file;
@@ -962,6 +992,7 @@ ${alt.map(([code, p]) => `  <link rel="alternate" hreflang="${code}" href="${abs
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-180.png">
   <meta name="theme-color" content="#F2EDE2">
+  ${THEME_BOOT}
   <link rel="stylesheet" href="/assets/aeo.css">
   <script type="application/ld+json">${jsonLd(schema)}</script>
 </head>`;
@@ -975,7 +1006,7 @@ function headerHtml(lang, alts) {
   <a class="skip-link" href="#main">${esc(pick(lang, '', 'Skip to main content', 'メインコンテンツへ'))}</a>
   <header class="site-header">
     <div class="header-inner">
-      <a class="brand" href="${homeHref(lang)}" aria-label="${esc(pick(lang, '', 'Rail Island home', '軌島 ホーム'))}"><span class="brand-mark" aria-hidden="true">軌</span><span>軌島 Rail Island</span></a>
+      <a class="brand" href="${homeHref(lang)}" aria-label="${esc(pick(lang, '', 'Rail Island home', '軌島 ホーム'))}">${BRAND_MARK}<span>軌島 Rail Island</span></a>
       <nav class="site-nav" aria-label="${esc(pick(lang, '', 'Main navigation', 'メインナビゲーション'))}">
         ${switchLinks.map(([label, href, code]) => `<a href="${href}" hreflang="${code}" lang="${code}">${esc(label)}</a>`).join('\n        ')}
         <a href="${ovHref(lang)}">${esc(pick(lang, '', 'Metro maps', 'メトロ路線図'))}</a>
@@ -1216,7 +1247,7 @@ function answerSection(lang, page) {
       'The line is a loop with no terminus: "first" and "last" are the earliest and latest departures from the station shown above, in each direction. Other day types and every station are further down.',
       '環状線には終点がないため、「始発」「終電」は上に示した駅から各方向へ出る最初と最後の列車の発車時刻です。ほかの曜日と各駅の時刻は下にあります。')
     : pick(lang, '「首班」「末班」是開到終點站的列車在起點站的最早與最晚發車時間；比這更早或更晚、只開到中途的班次另外標示；各班表日與各站時刻在下方。',
-      '"First" and "last" are the earliest and latest departures from the starting terminus of trains that run all the way to the other end; trains that stop short and leave earlier or later than these are listed separately. Other day types and every station are further down.',
+      '"First" and "last" are the earliest and latest departures from the starting station of trains that run all the way to the other end; trains that stop short and leave earlier or later than these are listed separately. Other day types and every station are further down.',
       '「始発」「終電」は、反対側の終点まで走る列車の起点駅での最初と最後の発車時刻です。それより早く、または遅く出る途中止まりの列車は別に示します。ほかの曜日と各駅の時刻は下にあります。');
   const h2 = page.estimated
     ? pick(lang, `${page.name.zh}的營運時間`, `${page.name.en} operating hours`, `${page.name.ja}の運行時間`)
@@ -1254,6 +1285,7 @@ function timesSection(lang, page) {
     : pick(lang, '「+1」表示次日凌晨。班距是起點站相鄰兩班發車間隔的中位數，依本站收錄的逐站時刻表計算。', '"+1" means after midnight (next day). Headway is the median gap between consecutive departures at the starting station, calculated from the station-by-station timetable used on this site.', '「+1」は翌日の深夜を表します。運転間隔は起点駅で隣り合う2本の発車間隔の中央値で、このサイトで使っている駅別時刻表から計算しています。');
   body += `<p class="table-note">${esc(foot)}</p>`;
   for (const note of specialNotesFor(lang, page)) body += `<div class="notice"><strong>${esc(pick(lang, '特殊時段：', 'Special period: ', '特別ダイヤ：'))}</strong>${esc(note.text)}</div>`;
+  for (const diff of sourceDiffsFor(lang, page)) body += `<div class="notice" data-source-diff="${diff.id}"><strong>${esc(pick(lang, '來源差異：', 'Source difference: ', '資料の相違：'))}</strong>${esc(diff.text)}</div>`;
   return section('times', page.estimated ? pick(lang, '營運時段與班距', 'Operating hours and headways', '運行時間帯と運転間隔') : pick(lang, '首末班車與班距明細', 'First and last trains and headways in detail', '始発・終電と運転間隔の詳細'), body);
 }
 
@@ -1554,6 +1586,8 @@ export function buildMetroPages(root, { stationPages = [], zhShell, escapeHtml }
     files, paths, date: M.date, templateDate: METRO_TEMPLATE_DATE, counts,
     missingNames: [...M.missingNames].sort(),
     overviewHref: ovHref,
+    // 給車站時刻頁（build_aeo_pages.mjs）沿用同一套三語 head／頁首／頁尾／麵包屑；只回傳函式，不影響本模組任何輸出
+    shell: { headHtml, headerHtml, footerHtml, crumbsHtml, homeHref },
     // 給 /about/、/stations/、/en/、/ja/ 的入口區塊用
     linkSectionText: {
       zh: { h: '捷運路線圖', text: '台北、桃園、新北、台中、高雄的捷運與輕軌路線圖、車站順序、轉乘站、首末班車與班距，全部由軌島的路線與時刻表資料整理，並可一鍵在地圖上看列車。', link: '看台灣捷運路線圖' },

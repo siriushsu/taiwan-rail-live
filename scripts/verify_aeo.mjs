@@ -7,16 +7,23 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const failures = [];
 const fail = message => failures.push(message);
 
-const generatedRoots = ['about', 'accuracy', 'data-sources', 'stations'];
+const generatedRoots = ['about', 'accuracy', 'data-sources', 'stations', 'en/stations', 'ja/stations'];
 const listHtml = directory => fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
   const target = path.join(directory, entry.name);
   return entry.isDirectory() ? listHtml(target) : entry.name.endsWith('.html') ? [target] : [];
 });
 const pages = generatedRoots.flatMap(name => listHtml(path.join(root, name)));
-const stationPages = pages.filter(file => file.includes(`${path.sep}stations${path.sep}`) && file !== path.join(root, 'stations/index.html'));
+// 中文車站頁（既有的內容斷言只針對這一組）；en／ja 車站頁另列，套用同一組結構檢查。
+const langOf = file => path.relative(root, file).startsWith(`en${path.sep}`) ? 'en' : path.relative(root, file).startsWith(`ja${path.sep}`) ? 'ja' : 'zh-Hant';
+const isStationPage = file => file.includes(`${path.sep}stations${path.sep}`) && path.basename(path.dirname(file)) !== 'stations';
+const stationPages = pages.filter(file => langOf(file) === 'zh-Hant' && isStationPage(file));
+const stationPagesByLang = { en: pages.filter(file => langOf(file) === 'en' && isStationPage(file)), ja: pages.filter(file => langOf(file) === 'ja' && isStationPage(file)) };
 
-if (pages.length !== 24) fail(`AEO HTML 應為 24 頁（4 個說明／索引 + 20 車站），實際 ${pages.length}`);
-if (stationPages.length !== 20) fail(`車站資料頁應為 20 頁，實際 ${stationPages.length}`);
+// 3 個說明頁 + 車站索引 1 + 車站 23（zh），en／ja 各 索引 1 + 車站 23。
+// 09-30 P2：車站頁 20 → 23（加苗栗、彰化、雲林三個高鐵站）、加 en／ja 兩套。
+if (pages.length !== 3 + 24 + 24 + 24) fail(`AEO HTML 應為 75 頁（3 個說明頁 + 三語各 1 個車站索引 + 三語各 23 車站），實際 ${pages.length}`);
+if (stationPages.length !== 23) fail(`中文車站資料頁應為 23 頁，實際 ${stationPages.length}`);
+for (const lang of ['en', 'ja']) if (stationPagesByLang[lang].length !== 23) fail(`${lang} 車站資料頁應為 23 頁，實際 ${stationPagesByLang[lang].length}`);
 
 function first(source, regex) { return regex.exec(source)?.[1]?.trim() || ''; }
 function text(source) { return source.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(); }
@@ -40,7 +47,7 @@ for (const file of pages) {
   const h1s = [...source.matchAll(/<h1\b[^>]*>/gi)].length;
   const ldBlocks = [...source.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi)];
   if (!/^<!doctype html>/i.test(source)) fail(`${relative} 缺少 doctype`);
-  if (!/<html lang="zh-Hant">/i.test(source)) fail(`${relative} 語言不是 zh-Hant`);
+  if (!source.includes(`<html lang="${langOf(file)}">`)) fail(`${relative} 語言不是 ${langOf(file)}`);
   if (!title) fail(`${relative} 缺少 title`);
   if (!description || description.length < 55) fail(`${relative} description 太短或不存在`);
   if (!/^https:\/\/railisland\.tw\//.test(canonical)) fail(`${relative} canonical 不正確：${canonical}`);
@@ -72,7 +79,22 @@ for (const required of ['轉乘與站體判讀', '軌島怎麼顯示這一站', 
   if (missing) fail(`${missing} 個車站頁缺少必要說明「${required}」`);
 }
 for (const required of ['台鐵桃園車站', '高鐵桃園站', '台鐵新竹車站', '高鐵新竹站', '台鐵台中車站', '高鐵台中站', '台鐵台南車站', '高鐵台南站', '嘉義車站', '高鐵嘉義站']) {
-  if (!stationBodies.some(source => source.includes(`<h1>${required}</h1>`))) fail(`缺少同名異站頁：${required}`);
+  // 09-30 P2：h1 由「站名」改成「站名＋時刻表：…」（頁面加了逐班時刻表），所以比對前綴而不是整句；
+  // 「同名異站要各有一頁」的意圖不變（台鐵桃園車站與高鐵桃園站仍是兩個不同的 h1）。
+  if (!stationBodies.some(source => source.includes(`<h1>${required}時刻表`))) fail(`缺少同名異站頁：${required}`);
+}
+
+// 09-30 P2：三語車站頁（含索引）互相指向——zh-Hant／en／ja 各一條、x-default＝中文，且 canonical 是自己那一語。
+for (const file of pages.filter(f => f.includes(`${path.sep}stations${path.sep}`))) {
+  const relative = path.relative(root, file);
+  const source = fs.readFileSync(file, 'utf8');
+  const tail = relative.replace(/^(en|ja)\//, '');
+  const url = prefix => `https://railisland.tw/${prefix}${tail.replace(/index\.html$/, '')}`;
+  const want = { 'zh-Hant': url(''), en: url('en/'), ja: url('ja/'), 'x-default': url('') };
+  const got = Object.fromEntries([...source.matchAll(/<link rel="alternate" hreflang="([^"]+)" href="([^"]+)">/g)].map(m => [m[1], m[2]]));
+  if (JSON.stringify(got) !== JSON.stringify(want)) fail(`${relative} hreflang 不符：${JSON.stringify(got)}`);
+  const canonical = first(source, /<link rel="canonical" href="([^"]+)"/i);
+  if (canonical !== want[langOf(file) === 'zh-Hant' ? 'zh-Hant' : langOf(file)]) fail(`${relative} canonical 不是自己那一語：${canonical}`);
 }
 
 const robots = fs.readFileSync(path.join(root, 'robots.txt'), 'utf8');
@@ -114,4 +136,4 @@ if (failures.length) {
   for (const message of failures) console.error(`- ${message}`);
   process.exit(1);
 }
-console.log(`AEO 靜態驗收通過：${pages.length} 頁、${stationPages.length} 車站、${locations.length} sitemap 網址`);
+console.log(`AEO 靜態驗收通過：${pages.length} 頁、${stationPages.length} 車站（en／ja 各 ${stationPagesByLang.en.length}／${stationPagesByLang.ja.length}）、${locations.length} sitemap 網址`);

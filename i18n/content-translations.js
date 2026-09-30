@@ -157,11 +157,11 @@
     '中和新蘆線': 'Zhonghe–Xinlu Line',
     '新北捷運': 'New Taipei Metro', '桃園捷運': 'Taoyuan Metro',
     '台北捷運、桃園機捷、新北捷運（環狀・淡海・安坑・三鶯）、台中捷運與高雄捷運（含輕軌）同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線與台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。': 'Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung metro and light-rail systems run together, with service hours corrected by official live information. On all nine Taipei Metro lines, train positions and station countdowns come from official per-train live data; the Sanying Line and Taichung Metro use headway-based estimates. Choose systems above to show them together.',
-    '台鐵、高鐵與阿里山林鐵皆依真實時刻表運行（台鐵回到現在時刻自動套用即時誤點；林鐵依官方公告時刻表，無即時資訊）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。': 'TRA, high-speed rail and Alishan Forest Railway trains follow official timetables. TRA live delays apply at the current time; Alishan has no live data. Tap trains or stations, or open Highlights.',
+    '台鐵、高鐵與阿里山林鐵皆依真實時刻表運行（台鐵回到現在時刻自動套用即時誤點；林鐵依官方公告時刻表，無即時資訊）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。': 'TRA, high-speed rail and Alishan Forest Railway trains follow official timetables. TRA live delays apply at the current time; Alishan has no live data. Tap a train to follow it or a station for arrivals, or use the button in the map corner for today’s highlights.',
     '台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線為班距推算）— 可在上方勾選要同時顯示的系統，拖曳、縮放地圖看看。': 'Taipei, New Taipei and Taoyuan metro systems run together, with service hours corrected by official live information. On all nine Taipei Metro lines, train positions and station countdowns come from official per-train live data; the Sanying Line uses headway-based estimates. Choose systems above, then drag or zoom the map.',
-    '台中捷運與高雄捷運同框，高捷與輕軌營運時段依官方到站看板校正（台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。': 'Taichung and Kaohsiung metro systems run together. Kaohsiung Metro and light rail use official arrival-board corrections; Taichung is estimated from headways.',
+    '台中捷運與高雄捷運同框，高捷與輕軌營運時段依官方到站看板校正（台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。': 'Taichung and Kaohsiung metro systems run together. Kaohsiung Metro and light rail use official arrival-board corrections; Taichung is estimated from headways. Choose systems above to show them together.',
     '各線列車在城市裡穿梭，列車位置與車站倒數都是官方逐班即時（含文湖線、環狀線）— 拖曳、縮放看看。': 'Trains on every line run across the city, and their positions and station countdowns come from official per-train live data, Wenhu and Circular lines included. Drag or zoom the map to take a look.',
-    '三鶯線串起土城、三峽與鶯歌（2026-06-30 通車，8/31 前為免費試營運，8/16 起每日 06:00–24:00 行駛，此時段外看不到車；無公開逐班時刻，班次依官方班距推算）— 拖曳、縮放看看。': 'The Sanying Line links Tucheng, Sanxia and Yingge. During the free trial through 31 August, service runs daily from 06:00 to 24:00; no per-train timetable is public, so trains are estimated from official headways.',
+    '三鶯線串起土城、三峽與鶯歌（2026-06-30 通車，8/31 前為免費試營運，8/16 起每日 06:00–24:00 行駛，此時段外看不到車；軌島的資料來源沒有逐班時刻，班次依官方班距推算）— 拖曳、縮放看看。': 'The Sanying Line links Tucheng, Sanxia and Yingge. During the free trial through 31 August, service runs daily from 06:00 to 24:00; Rail Island’s data sources have no per-train timetable, so trains are estimated from official headways.',
     '跟隨鎖定中：地圖固定列車置中——點擊或直接拖曳地圖解鎖，可自由瀏覽': 'Following locked: the map keeps the train centred. Tap or drag the map to unlock and browse freely.',
     '自由瀏覽中：點擊回到列車，恢復置中跟隨': 'Browsing freely: tap to return to the train and resume centred following.',
     '列車已離開官方即時名冊': 'The train has left the official live roster.',
@@ -185,7 +185,7 @@
     'OpenFreeMap（© OpenFreeMap © OpenMapTiles © OpenStreetMap，街道圖）、Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap，街道圖退路）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）': 'OpenFreeMap (© OpenFreeMap, © OpenMapTiles and © OpenStreetMap; street map), Stadia Maps (© Stadia Maps, © OpenMapTiles and © OpenStreetMap; street-map fallback), Esri World Imagery (satellite imagery), and Ministry of the Interior city and county boundaries (offline land-and-sea outline; Taiwan Government Data Open Licence 1.0).',
     '第三方軟體授權': 'Third-party software licences',
     '狀態': 'Status', '資料源連線狀態頁': 'Data-source status',
-    '本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。台鐵套用官方即時誤點；北捷與環狀線營運時段依北捷官方秒級到站倒數逐班校正位置（環狀線由新北捷運營運，其到站倒數同源於北捷到站看板）；高捷、桃園機捷與高雄輕軌依官方到站看板即時校正；新北捷運淡海輕軌與安坑輕軌依官方列車動態即時校正；其餘捷運／輕軌依當日官方時刻表推演（部分路線無公開逐班時刻，為班距推算）。實際到離站時刻請以各營運機構官方資訊為準。': 'Rail Island is an independent hobby project and is not affiliated with any railway operator. Supported systems use official live delay, arrival-board or train-movement data; others are simulated from official daily timetables or published headways. Always follow the operator’s official information for actual arrivals and departures.',
+    '本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。台鐵套用官方即時誤點；北捷與環狀線營運時段依北捷官方秒級到站倒數逐班校正位置（環狀線由新北捷運營運，其到站倒數同源於北捷到站看板）；高捷、桃園機捷與高雄輕軌依官方到站看板即時校正；新北捷運淡海輕軌與安坑輕軌依官方列車動態即時校正；其餘捷運／輕軌依當日官方時刻表推演（軌島的資料來源沒有部分路線的逐班時刻，這些路線為班距推算）。實際到離站時刻請以各營運機構官方資訊為準。': 'Rail Island is an independent hobby project and is not affiliated with any railway operator. Supported systems use official live delay, arrival-board or train-movement data; others are simulated from official daily timetables or published headways. Always follow the operator’s official information for actual arrivals and departures.',
     '原始碼公開，歡迎貢獻': 'Source available—contributions welcome',
     '覺得有幫助？請支持開發者': 'Enjoying Rail Island? Support its developer',
     '感謝你的支持！': 'Thank you for your support!', '或銀行轉帳': 'Or make a bank transfer', '複製': 'Copy',
@@ -430,11 +430,11 @@
     '中和新蘆線': '中和新蘆線',
     '新北捷運': '新北メトロ', '桃園捷運': '桃園メトロ',
     '台北捷運、桃園機捷、新北捷運（環狀・淡海・安坑・三鶯）、台中捷運與高雄捷運（含輕軌）同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線與台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。': '台北・桃園・新北・台中・高雄のメトロとライトレールを同時表示し、運行時間帯は公式のリアルタイム情報で補正します。台北メトロ全9路線は列車位置も駅のカウントダウンも公式の列車ごとのリアルタイム情報です。三鶯線・台中メトロは運転間隔から推定します。上部で同時に表示する交通機関を選べます。',
-    '台鐵、高鐵與阿里山林鐵皆依真實時刻表運行（台鐵回到現在時刻自動套用即時誤點；林鐵依官方公告時刻表，無即時資訊）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。': '台湾鉄路・高速鉄道・阿里山森林鉄道は公式時刻表で運行します。現在時刻では台湾鉄路の遅延を反映し、阿里山森林鉄道にはリアルタイム情報がありません。列車や駅をタップするか、「選」で今日の見どころを表示できます。',
+    '台鐵、高鐵與阿里山林鐵皆依真實時刻表運行（台鐵回到現在時刻自動套用即時誤點；林鐵依官方公告時刻表，無即時資訊）— 點列車跟隨、點車站看班次，或按地圖角落「探」看今日亮點。': '台湾鉄路・高速鉄道・阿里山森林鉄道は公式時刻表で運行します。現在時刻では台湾鉄路の遅延を反映し、阿里山森林鉄道にはリアルタイム情報がありません。列車をタップして追跡、駅をタップして到着案内を表示するか、地図の隅の「選」で今日の見どころを表示できます。',
     '台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線為班距推算）— 可在上方勾選要同時顯示的系統，拖曳、縮放地圖看看。': '台北・新北・桃園のメトロを同時表示し、運行時間帯は公式のリアルタイム情報で補正します。台北メトロ全9路線は列車位置も駅のカウントダウンも公式の列車ごとのリアルタイム情報です。三鶯線は運転間隔から推定します。上部で表示する交通機関を選び、地図をドラッグ・ズームできます。',
-    '台中捷運與高雄捷運同框，高捷與輕軌營運時段依官方到站看板校正（台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。': '台中メトロと高雄メトロを同時表示します。高雄メトロとライトレールは公式到着案内で補正し、台中メトロは運転間隔から推定します。',
+    '台中捷運與高雄捷運同框，高捷與輕軌營運時段依官方到站看板校正（台中捷運為班距推算）— 可在上方勾選要同時顯示的系統。': '台中メトロと高雄メトロを同時表示します。高雄メトロとライトレールは公式到着案内で補正し、台中メトロは運転間隔から推定します。上部で同時に表示する交通機関を選べます。',
     '各線列車在城市裡穿梭，列車位置與車站倒數都是官方逐班即時（含文湖線、環狀線）— 拖曳、縮放看看。': '各線の列車が街を行き交います。列車位置も駅のカウントダウンも、文湖線・環状線を含め公式の列車ごとのリアルタイム情報です。地図をドラッグ・ズームしてみてください。',
-    '三鶯線串起土城、三峽與鶯歌（2026-06-30 通車，8/31 前為免費試營運，8/16 起每日 06:00–24:00 行駛，此時段外看不到車；無公開逐班時刻，班次依官方班距推算）— 拖曳、縮放看看。': '三鶯線は土城・三峡・鶯歌を結びます。8月31日までの無料試運転期間は毎日06:00〜24:00に運行し、列車ごとの公開時刻表がないため公式運転間隔から推定します。',
+    '三鶯線串起土城、三峽與鶯歌（2026-06-30 通車，8/31 前為免費試營運，8/16 起每日 06:00–24:00 行駛，此時段外看不到車；軌島的資料來源沒有逐班時刻，班次依官方班距推算）— 拖曳、縮放看看。': '三鶯線は土城・三峡・鶯歌を結びます。8月31日までの無料試運転期間は毎日06:00〜24:00に運行し、軌島のデータソースには列車ごとの時刻表がないため、公式運転間隔から推定します。',
     '跟隨鎖定中：地圖固定列車置中——點擊或直接拖曳地圖解鎖，可自由瀏覽': '追跡ロック中：列車を中央に固定します。タップまたはドラッグで解除し、自由に閲覧できます。',
     '自由瀏覽中：點擊回到列車，恢復置中跟隨': '自由閲覧中：タップすると列車へ戻り、中央追跡を再開します。',
     '列車已離開官方即時名冊': '列車は公式リアルタイム名簿から離れました。',
@@ -458,7 +458,7 @@
     'OpenFreeMap（© OpenFreeMap © OpenMapTiles © OpenStreetMap，街道圖）、Stadia Maps（© Stadia Maps © OpenMapTiles © OpenStreetMap，街道圖退路）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）': 'OpenFreeMap（© OpenFreeMap、© OpenMapTiles、© OpenStreetMap・街路地図）、Stadia Maps（© Stadia Maps、© OpenMapTiles、© OpenStreetMap・街路地図のフォールバック）、Esri World Imagery（衛星画像）、内政部「直轄市・県市界」（オフライン海陸輪郭、政府資料開放授権条款第1版）を利用しています。',
     '第三方軟體授權': 'サードパーティソフトウェアのライセンス',
     '狀態': '稼働状況', '資料源連線狀態頁': 'データ接続状況',
-    '本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。台鐵套用官方即時誤點；北捷與環狀線營運時段依北捷官方秒級到站倒數逐班校正位置（環狀線由新北捷運營運，其到站倒數同源於北捷到站看板）；高捷、桃園機捷與高雄輕軌依官方到站看板即時校正；新北捷運淡海輕軌與安坑輕軌依官方列車動態即時校正；其餘捷運／輕軌依當日官方時刻表推演（部分路線無公開逐班時刻，為班距推算）。實際到離站時刻請以各營運機構官方資訊為準。': '軌島は個人運営の趣味プロジェクトで、各鉄道事業者とは関係ありません。対応路線では公式の遅延・到着案内・列車位置を反映し、それ以外は公式時刻表または運転間隔から推定します。実際の発着は各事業者の公式情報をご確認ください。',
+    '本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。台鐵套用官方即時誤點；北捷與環狀線營運時段依北捷官方秒級到站倒數逐班校正位置（環狀線由新北捷運營運，其到站倒數同源於北捷到站看板）；高捷、桃園機捷與高雄輕軌依官方到站看板即時校正；新北捷運淡海輕軌與安坑輕軌依官方列車動態即時校正；其餘捷運／輕軌依當日官方時刻表推演（軌島的資料來源沒有部分路線的逐班時刻，這些路線為班距推算）。實際到離站時刻請以各營運機構官方資訊為準。': '軌島は個人運営の趣味プロジェクトで、各鉄道事業者とは関係ありません。対応路線では公式の遅延・到着案内・列車位置を反映し、それ以外は公式時刻表または運転間隔から推定します。実際の発着は各事業者の公式情報をご確認ください。',
     '原始碼公開，歡迎貢獻': 'ソース公開・コントリビューション歓迎',
     '覺得有幫助？請支持開發者': '軌島を気に入ったら開発を応援してください',
     '感謝你的支持！': 'ご支援ありがとうございます！', '或銀行轉帳': '銀行振込', '複製': 'コピー',
@@ -3517,13 +3517,30 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '日文版的高雄環狀輕軌改用高雄捷運官方日文路線名「ライトレール環状線」': '日本語版で、高雄のライトレールの路線名を高雄MRT公式の「ライトレール環状線」に改めました。',
   '捷運導言更正：「北北桃」與台北捷運的地圖導言，也改成台北捷運各線（含文湖線）的列車位置與車站倒數都來自官方逐班即時資料，不再把文湖線寫成班距推算': 'メトロの説明文を訂正：「台北・新北・桃園」と台北メトロの地図の説明文でも、文湖線を含む台北メトロ全路線の列車位置と駅のカウントダウンは公式の列車ごとのリアルタイム情報と記載し、文湖線を運転間隔からの推定とは書かないようにしました。',
 });
-
-// 2026-09-29 台南地面鐵道歷史重播：舊站房與列車真實比例重建、施工外罩開關、放大到 34 公尺。
+// 2026-09-30 台南地面鐵道歷史重播精修：舊站房與列車真實比例、施工外罩開關、周邊建物低細節模型、自由轉向與傾斜、放大到 34 公尺。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  '台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，最多可放大到約 34 公尺，可拿掉站房的施工外罩': 'Tainan surface railway replay: the old station building and trains are rebuilt to real proportions, you can zoom in to about 34 m, and the construction wrap on the station can be taken off',
-  '台南地面鐵道歷史重播：舊站房依暖灰磁磚與米黃、土黃洗石子的色調重建，預設蓋著修復工程的施工外罩、可一鍵拿掉；列車改用真實比例，集電弓畫在實際裝有的車廂，推拉式自強號改畫 7 月起的 E500 機車頭；最多可放大到約 34 公尺視野': 'Tainan surface railway replay: the old station building is rebuilt in the tones reported for it, warm grey tiles with cream and ochre stone-chip plaster, and is shown under the construction wrap from the restoration work by default (one tap takes it off); trains now use real proportions with pantographs on the cars that actually carry them, and the push–pull Tze-Chiang now shows the E500 locomotive that took over in July; you can zoom in to a view about 34 m across',
+  '台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，周邊建築加上窗戶、店面、招牌與屋頂水塔，視角可自由轉向與傾斜，最多可放大到約 34 公尺，可拿掉站房的施工外罩': 'Tainan surface railway replay: the old station building and trains are rebuilt to real proportions, nearby buildings now have windows, shopfronts, signs and rooftop water tanks, the view can be freely turned and tilted, you can zoom in to about 34 m, and the construction wrap on the station can be taken off',
+  '台南地面鐵道歷史重播：舊站房依暖灰磁磚與米黃、土黃洗石子的色調重建，施工外罩可一鍵拿掉；列車改用真實比例，推拉式自強號改畫 7 月起的 E500 機車頭；周邊建築加上窗戶、店面與屋頂水塔，視角可自由轉向與傾斜，最多可放大到約 34 公尺視野': 'Tainan surface railway replay: the old station building is rebuilt in warm grey tiles with cream and ochre stone-chip plaster, and its construction wrap comes off with one tap; trains use real proportions, and the push–pull Tze-Chiang now shows the E500 locomotive used since July; nearby buildings get windows, shopfronts and rooftop water tanks, the view can be freely turned and tilted, and you can zoom in to a view about 34 m across',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  '台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，最多可放大到約 34 公尺，可拿掉站房的施工外罩': '台南地上鉄道の歴史リプレイ：旧駅舎と列車を実寸の比率で作り直し、約 34 m まで拡大できるようにしました。駅舎の工事用シートも外せます',
-  '台南地面鐵道歷史重播：舊站房依暖灰磁磚與米黃、土黃洗石子的色調重建，預設蓋著修復工程的施工外罩、可一鍵拿掉；列車改用真實比例，集電弓畫在實際裝有的車廂，推拉式自強號改畫 7 月起的 E500 機車頭；最多可放大到約 34 公尺視野': '台南地上鉄道の歴史リプレイ：旧駅舎を暖かみのあるグレーのタイルと、クリーム色・黄土色の洗い出し仕上げの色調で作り直し、修復工事の工事用シートを被せた状態を初期表示にしました（ワンタップで外せます）。列車は実寸の比率にし、パンタグラフは実際に載っている車両に付け、プッシュプル式自強号は 7 月から牽引を引き継いだ E500 形機関車で描きます。約 34 m の範囲まで拡大できます',
+  '台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，周邊建築加上窗戶、店面、招牌與屋頂水塔，視角可自由轉向與傾斜，最多可放大到約 34 公尺，可拿掉站房的施工外罩': '台南地上鉄道の歴史リプレイ：旧駅舎と列車を実寸の比率で作り直し、周辺の建物に窓・店舗・看板・屋上の給水タンクを加えました。視点は自由に回転・傾斜でき、約 34 m まで拡大できます。駅舎の工事用シートも外せます',
+  '台南地面鐵道歷史重播：舊站房依暖灰磁磚與米黃、土黃洗石子的色調重建，施工外罩可一鍵拿掉；列車改用真實比例，推拉式自強號改畫 7 月起的 E500 機車頭；周邊建築加上窗戶、店面與屋頂水塔，視角可自由轉向與傾斜，最多可放大到約 34 公尺視野': '台南地上鉄道の歴史リプレイ：旧駅舎を暖かみのあるグレーのタイルと、クリーム色・黄土色の洗い出し仕上げで作り直し、工事用シートはワンタップで外せます。列車は実寸の比率にし、プッシュプル式自強号は 7 月からの E500 形機関車で描きます。周辺の建物に窓・店舗・屋上の給水タンクを加え、視点は自由に回転・傾斜でき、約 34 m の範囲まで拡大できます',
+});
+// 2026-09-30 台鐵／高鐵車站時刻頁（SEO 階段 B 第一批）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '車站頁加上台鐵、高鐵時刻表：台北、板橋、台中等大站，列出兩週內每一班的開車時刻與行駛日': 'Station pages now include TRA and HSR timetables: major stations such as Taipei, Banqiao and Taichung list every departure over two weeks, with the days each train runs',
+  '車站頁加上台鐵、高鐵時刻表（中、英、日文）：台北、板橋、台中等 20 個大站，加上新開的高鐵苗栗、彰化、雲林站，依方向列出兩週內每一班的開車時刻與行駛日，每週更新；車站頁與捷運路線圖頁也換上軌島圖示，跟著地圖切換亮暗外觀': 'Station pages now include TRA and HSR timetables (in Chinese, English and Japanese): 20 major stations such as Taipei, Banqiao and Taichung, plus new pages for HSR Miaoli, Changhua and Yunlin, list every departure by direction over two weeks, with the days each train runs, updated weekly; station and metro map pages also get the Rail Island icon and follow the map’s light or dark appearance',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '車站頁加上台鐵、高鐵時刻表：台北、板橋、台中等大站，列出兩週內每一班的開車時刻與行駛日': '駅ページに台鉄・高鉄の時刻表を追加：台北、板橋、台中などの主要駅で、2週間分の全列車の発車時刻と運転日を掲載',
+  '車站頁加上台鐵、高鐵時刻表（中、英、日文）：台北、板橋、台中等 20 個大站，加上新開的高鐵苗栗、彰化、雲林站，依方向列出兩週內每一班的開車時刻與行駛日，每週更新；車站頁與捷運路線圖頁也換上軌島圖示，跟著地圖切換亮暗外觀': '駅ページに台鉄・高鉄の時刻表を追加（中国語・英語・日本語）：台北、板橋、台中など20の主要駅と、新設の高鉄苗栗・彰化・雲林駅で、方面別に2週間分の全列車の発車時刻と運転日を掲載（毎週更新）。駅ページと路線図ページにも軌島のアイコンを付け、地図のライト／ダーク表示に合わせて切り替わります',
+});
+// 2026-09-30 日文環島列車終點改短寫法（使用者裁示）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '日文介面：環島列車的終點改成簡短好懂的「台北（台湾一周）」': 'Japanese interface: the round-the-island train’s terminus now has a short, easy-to-read Japanese name',
+  '日文介面與日文車站頁：環島列車的終點原本寫成很長的「台北サラウンドアイランド」，改成簡短好懂的「台北（台湾一周）」': 'Japanese interface and Japanese station pages: the round-the-island train’s terminus, previously a long katakana name, now has a short, easy-to-read Japanese name',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '日文介面：環島列車的終點改成簡短好懂的「台北（台湾一周）」': '日本語表示：環島列車の終点を短く分かりやすい「台北（台湾一周）」に変更',
+  '日文介面與日文車站頁：環島列車的終點原本寫成很長的「台北サラウンドアイランド」，改成簡短好懂的「台北（台湾一周）」': '日本語表示と日本語の駅ページ：環島列車の終点を、長い「台北サラウンドアイランド」から短く分かりやすい「台北（台湾一周）」に変更',
 });

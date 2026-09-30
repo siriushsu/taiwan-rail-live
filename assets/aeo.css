@@ -87,17 +87,10 @@ a:hover { color: var(--red); }
 }
 
 .brand-mark {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  border: 2px solid var(--navy);
-  border-radius: 50%;
-  color: var(--white);
-  background: var(--navy);
-  box-shadow: inset 0 0 0 4px var(--paper);
-  font-size: 13px;
-  letter-spacing: 0;
+  display: block;
+  flex: none;
+  width: 40px;
+  height: 40px;
 }
 
 .site-nav {
@@ -417,6 +410,29 @@ sup.nd { margin-left: 1px; color: var(--red); font-size: 10px; font-weight: 800;
 #related h3:first-of-type { margin-top: 0; }
 .source-note { color: var(--muted); font-size: 14px; }
 
+/* ── 車站時刻頁（/stations/、/en/stations/、/ja/stations/；由 scripts/build_aeo_pages.mjs 產生）── */
+.tt h3[id], .st-anchor { scroll-margin-top: 84px; }
+.page-toc { margin-top: 28px; }
+.page-toc .toc-label { margin: 0 0 8px; color: var(--muted); font-size: 14px; font-weight: 800; }
+.dc-title { margin: 0 0 6px; color: var(--muted); font-size: 14px; font-weight: 700; }
+.dc-title:not(:first-child) { margin-top: 14px; }
+.day-counts { display: grid; grid-template-columns: repeat(auto-fill, minmax(11em, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.day-counts li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 10px; border: 1px solid var(--line-faint); border-radius: 8px; background: var(--paper); font-size: 14px; line-height: 1.6; }
+.day-counts li.off { background: var(--stage); }
+/* 「9/28 週一（放假）」「9/28（放假）」窄欄時不准斷在括號中間：日期＋括號註記由產生器包成 .nb（keep-all 在 WebKit 反而會斷在「（」後面，所以不用） */
+.nb { white-space: nowrap; }
+.day-counts b { font-variant-numeric: tabular-nums; }
+.tt .dir-block { margin-top: 26px; }
+.tt .dir-block h3 { margin: 0 0 10px; }
+.tt .dir-sub { margin-left: 6px; color: var(--muted); font-size: .72em; font-weight: 600; }
+.tt-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 2px 0 rgba(42, 74, 115, .10); }
+.tt table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.tt th, .tt td { padding: 9px 12px; border-top: 1px solid var(--line-faint); text-align: left; vertical-align: top; }
+.tt thead th { border-top: 0; background: var(--stage); color: var(--muted); font-size: 13px; }
+.tt th[scope="row"] { font-weight: 700; }
+.tt small.car { display: block; color: var(--muted); font-size: .8em; font-weight: 500; line-height: 1.4; }
+.tt tr.special td:last-child { color: var(--red); font-weight: 700; }
+
 @media (max-width: 560px) {
   .metro-figure { padding: 8px 6px 12px; }
   .time-card table, .stop-times table, .xfer-table { font-size: 14px; }
@@ -424,29 +440,55 @@ sup.nd { margin-left: 1px; color: var(--red); font-size: 10px; font-weight: 800;
   .stop-name { font-size: 16px; }
 }
 
+/* 桌面表格：時間與車次不斷行，才不會在 768 寬把「Tze-Chiang Limited Express」折成兩行 */
+@media (min-width: 701px) {
+  .tt th.t, .tt td.c-train, .tt td.c-to, .tt td.c-from { white-space: nowrap; }
+}
+.tt td.c-train { font-weight: 700; }
+.tt td.c-train small.car { font-weight: 500; }
+
+/* 手機：每列改成文字流——時間固定在左側欄，右邊「車次 車種 → 終點 · 行駛日」接著排、自然換行（表頭只留給讀屏）。
+   中文多半一行、英日文最多兩行；只有「車種＋終點＋一長串特定日期」同時很長的班次才會到三行。 */
+@media (max-width: 700px) {
+  .day-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tt table, .tt tbody { display: block; }
+  .tt thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .tt tr { display: block; position: relative; padding: 7px 10px; border-top: 1px solid var(--line-faint); line-height: 1.55; font-size: 14.5px; }
+  .tt tbody tr:first-child { border-top: 0; }
+  .tt th.t { display: inline; padding: 0; border: 0; margin-right: .5em; }
+  .tt td { display: inline; padding: 0; border: 0; white-space: normal; }
+  .tt small.car { display: inline; margin-left: .4em; font-size: .8em; }
+  .tt .c-to, .tt .c-from { margin-left: .45em; }
+  /* 箭頭與圓點只是視覺分隔，讀屏不該唸出來：content 的「/ ""」替代文字寫法（不支援的瀏覽器會丟掉第二行、留第一行） */
+  .tt .c-to::before { content: "→\00a0"; content: "→\00a0" / ""; color: var(--muted); }
+  .tt .c-from::before { content: "←\00a0"; content: "←\00a0" / ""; color: var(--muted); }
+  .tt .c-run { margin-left: .4em; color: var(--muted); font-size: .86em; }
+  .tt .c-run::before { content: "·\00a0"; content: "·\00a0" / ""; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --paper: #182536;
-    --page: #101a28;
-    --stage: #21334a;
-    --ink: #f3ead8;
-    --strong: #fff8e8;
-    --muted: #c9bea8;
-    --line: #49617e;
-    --line-faint: #334a65;
-    --navy: #6ca4dd;
-    --red: #ff725f;
-    --gold: #e6b94b;
-    --white: #101a28;
-    --shadow: 0 4px 0 rgba(0, 0, 0, .26);
-  }
-  .site-header { background: rgba(24, 37, 54, .94); }
-  .site-nav .nav-live { color: #fff8e8; background: #bd3f30; }
-  .button { color: #101a28; }
-  .button.secondary { color: var(--navy); }
+/* 暗色：跟主站同一組「夜間霓虹」色票（night-theme.css 的 html[data-theme=dark]）。data-theme 由頁首腳本依主站的外觀設定
+   （亮／暗／自動）掛上，所以在主站選了暗色，這些頁也是暗色。 */
+html[data-theme=dark] {
+  color-scheme: dark;
+  --paper: #0C1221;
+  --page: #080E19;
+  --stage: #0C1322;
+  --ink: #F4F7FD;
+  --strong: #F4F7FD;
+  --muted: #A9B8D4;
+  --line: rgba(146, 180, 235, .22);
+  --line-faint: rgba(146, 180, 235, .12);
+  --navy: #AFCBF5;
+  --red: #FF6B57;
+  --gold: #F5C242;
+  --white: #0C1322;
+  --shadow: 0 4px 0 rgba(0, 0, 0, .45);
 }
+html[data-theme=dark] .site-header { background: rgba(12, 18, 33, .94); }
+html[data-theme=dark] .site-nav .nav-live { color: #F4F7FD; background: #bd3f30; }
+html[data-theme=dark] .button { color: #0C1322; }
+html[data-theme=dark] .button.secondary { color: var(--navy); }

@@ -13,6 +13,12 @@ body.ambient .ri-formation-caption{display:none}
 .follow-panel.fp-min{max-width:calc(100% - 24px);min-height:44px;box-sizing:border-box}
 .follow-panel.fp-min .fp-head{flex-wrap:nowrap;gap:8px}
 .follow-panel.fp-min .fp-end{min-width:44px;min-height:44px;margin-left:0}
+/* Issue #73（9/30 複驗）：上一行的 44px「結束」把整列撐高。車次與時速在展開卡是 flex baseline 群
+   （index.html 的 .fp-head > b／.spd），baseline 群一律貼齊列頂，只有圓點與「結束」置中 ⇒ 文字比圓點高 13px。
+   膠囊改成四樣都置中：車次、時速、圓點、「結束」字的垂直中心相差 ≤0.7px（WebKit 亮暗×三字級實測），
+   代價是車次與時速的基線差 0.4～1.1px。「結束」改走 baseline 也試過，大字級文字仍比圓點高 2.5～4.4px。
+   守門人：verify_issue_73_follow_head.mjs 的 C4。 */
+.follow-panel.fp-min .fp-head > b,.follow-panel.fp-min .fp-head .spd{align-self:center}
 
 .ri-basemap-row{flex-wrap:wrap;gap:8px}
 #msBasemapSeg{display:flex;flex-wrap:wrap;gap:2px}
