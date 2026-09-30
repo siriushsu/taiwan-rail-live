@@ -1,7 +1,8 @@
 import * as THREE from '../vendor/three.module.js';
-import {createKit} from './new-scene-kit.js';
+import {createKit,smooth} from './new-scene-kit.js';
 import {personPose} from '../garage-people.js?revision=people-0927';
 import {METER,UNIT_PER_M,TORSO_LIMIT,TORSO_RATE,TAU,SEE_X} from './duoliang.js?revision=stairs-0929';
+import {createScooterRider} from '../garage-scooter.js?revision=guanghua-scooter-0930';
 // 台南光華街涵洞（中西區光華街鐵路橋下）微縮場景・粗模（2026-09-30 第一輪，只做骨架與比例，材質是色塊）。
 // 使用者原話（2026-09-30 08:16）：「附近有一個大家都在拍照的地下道 我希望做成一個3D車庫的景」；選項回覆：地下道＝光華街涵洞；時期＝地下化前（車從上面過）。
 // 場景概念（主對話判讀，不是使用者原話）：台鐵車在涵洞上方的雙線鐵路橋跑，橋下一條窄巷道壓低穿過涵洞，洞口有人拍照。
@@ -16,8 +17,14 @@ import {METER,UNIT_PER_M,TORSO_LIMIT,TORSO_RATE,TAU,SEE_X} from './duoliang.js?r
 //   改法（主對話判讀）：洞口前留一塊開闊鋪面空地（|x|<PX，一路到底座前緣不蓋房子），房子退到空地兩側；路堤正面貼一層灰色混凝土「擋土牆」面板（壓頂、扶壁、水漬），
 //   引道翼牆加高到橋面、牆頂接路堤與鐵道；拍照者站到空地上、不擋洞口；全景預設視角轉到看得見洞口（見 guanghua-view.js）。
 //   註：這份程式沒有任何「淡出」機制（不透明度只有底下接影子的地面板 ShadowMaterial 一處）；粗模截圖裡的半透明感是近處房子的淡色牆面、水塔與窗框堆疊的觀感，房子拿掉就沒了。
+// 【第三輪・接機車與夜燈，2026-09-30】派工單（主對話寫的，不是使用者原話）：機車＋騎士定時穿過涵洞、方向每圈交替；入夜涵洞頂一盞燈、空地兩盞路燈、機車前後燈亮、透天厝窗戶發亮。
+//   使用者原話（2026-09-30 選項回覆）：機車選「Blender 新做機車＋零件庫騎士」（該選項說明是主對話寫的）。以下數字與做法全是本輪自訂／主對話判讀：
+//   ・機車＝garage-scooter.js（Blender 資產＋沿用人零件庫 kits[0] 的騎士），真實比例 scale＝METER；位置是「時間的純函數」（暫停、拖時間、看涵洞快轉都對得上），時刻表綁列車圈時鐘：本線車心經過 x＝0 的那一刻＝機車經過涵洞中心，所以三款車每一圈都會有「列車在洞上、機車在洞裡」。
+//   ・靠右行駛：車身在行進方向右側、偏巷子中線 .4 m；涵洞前後與洞內約 15 km/h、其餘最多 25 km/h（smoothstep 加減速）。
+//   ・前後兩端在底座緣（y＝±Y）被剪裁面切掉（同列車在 ±CLIP 的做法），起訖時整台機車都在剪裁面外，所以不會憑空冒出來。
+//   ・點光源上限 3 盞（涵洞頂 1、路燈 2）；其餘夜間效果一律用自發光材質，不加點光源與光池圓盤。
 export {METER,UNIT_PER_M};
-export const LAP=130,SPEED=2.6,CLIP=26; // 環線長（單位）、巡航速度（單位／秒）、車體被裁掉的 x 界線（同 crossing：整列離景後才循環）；第二輪底座縮短，CLIP 由 35 縮到 26（主對話判讀）
+export const LAP=130,SPEED=2.6,CLIP=26,PHASE=-10; // 環線長（單位）、巡航速度（單位／秒）、車體被裁掉的 x 界線（同 crossing：整列離景後才循環）；第二輪底座縮短，CLIP 由 35 縮到 26（主對話判讀）；PHASE：時間 0 時本線車中心在 x＝-10（view 的 distanceAt 與機車時刻表共用這一個常數）
 export const THEMES={ // 同高架景那組色（viaduct.js），粗模沿用
  day:{background:'#e7e8e1',sun:'#fff2d4',ambient:'#c6d9e2',ground:'#84936c',power:3.0,exposure:1.04},
  sunset:{background:'#ecd9c6',sun:'#ffb974',ambient:'#d2b9b4',ground:'#74795e',power:2.9,exposure:.94},
@@ -109,6 +116,45 @@ function createPhotographers(kits,specs){
  return{group,update,inspect,get seen(){return seenCount;},count:list.length,dispose(){for(const {mesh} of meshes.values())mesh.dispose();peopleMat.dispose();cameraMat.dispose();group.clear();}};
 }
 
+// ── 機車路線與時刻表（本輪自訂）。巷子中線 C(q)：由前緣（−y）直行進涵洞，出洞後在 kink 前用圓弧右彎 TH 接後段直線；車身在行進方向右側偏 LANE（靠右行駛）。
+// 前進（往 +y）與返程（往 −y）各一張表：位置 (x,y)、路徑長 s、抵達時間 tt；速度是「離涵洞中心的路徑距離」的 smoothstep 函數（洞前後與洞內約 15 km/h、遠處 25 km/h）。
+// 機車位置只由時間決定（純函數）：第 n 圈本線車心經過 x＝0 的時刻＝機車經過涵洞中心，偶數圈往 +y、奇數圈往 −y。兩端各多留 PAD 單位在剪裁面外，起訖時整台都被切掉。
+const kmh=v=>v/3.6*METER; // 真實時速（km/h）→ 單位／秒（機車用結構尺 METER）
+function createScooterRun({YC,kinkY,TH,flatEnd,rampLen,ZG,clipY,wheelbase}){
+ const u=m=>m*METER,LANE=u(.4),R=u(9),PAD=1.4,STEP=.03,D1=u(12),D2=u(32),V_LO=kmh(15),V_HI=kmh(25),LOOK_Y=-1.8;
+ const tg=R*Math.tan(TH/2),ya=kinkY-tg,y0=-(clipY+PAD),L1=ya-y0,La=R*TH,L3=(clipY+PAD-(kinkY+tg*Math.cos(TH)))/Math.cos(TH),U=L1+La+L3;
+ const C=q=>{if(q<=L1)return{x:0,y:y0+q,phi:0};if(q<=L1+La){const phi=(q-L1)/R;return{x:R-R*Math.cos(phi),y:ya+R*Math.sin(phi),phi};}const w=q-L1-La;return{x:R*(1-Math.cos(TH))+w*Math.sin(TH),y:ya+R*Math.sin(TH)+w*Math.cos(TH),phi:TH};};
+ // 路面高（依實際網格）：洞內瀝青頂 .02、引道斜坡（先讓車輪貼 .02 直到斜坡升過它）、外側地面上的瀝青帶頂 ZG+.012
+ const roadZ=y=>{const a=Math.abs(y);return a<=flatEnd?.02:a<YC?Math.max(.02,ZG*(a-flatEnd)/rampLen):ZG+.012;};
+ const speedAt=d=>V_LO+(V_HI-V_LO)*smooth((d-D1)/(D2-D1));
+ function build(sign){
+  const n=Math.ceil(U/STEP),xs=[],ys=[];
+  for(let i=0;i<=n;i++){const c=C(Math.min(U,i*STEP)),o=sign*LANE;xs.push(c.x+o*Math.cos(c.phi));ys.push(c.y-o*Math.sin(c.phi));}
+  if(sign<0){xs.reverse();ys.reverse();}
+  const s=[0];for(let i=1;i<xs.length;i++)s.push(s[i-1]+Math.hypot(xs[i]-xs[i-1],ys[i]-ys[i-1]));
+  let ic=0;for(let i=1;i<ys.length;i++)if(Math.abs(ys[i])<Math.abs(ys[ic]))ic=i; // 涵洞中心（y＝0）那一格
+  const sc=s[ic],tt=[0];for(let i=1;i<s.length;i++)tt.push(tt[i-1]+(s[i]-s[i-1])/speedAt(Math.abs((s[i]+s[i-1])/2-sc)));
+  const find=(arr,v)=>{let lo=0,hi=arr.length-1;while(hi-lo>1){const m=(lo+hi)>>1;if(arr[m]<=v)lo=m;else hi=m;}return lo;};
+  const at=v=>{v=Math.max(0,Math.min(s[s.length-1],v));const i=find(s,v),f=(v-s[i])/((s[i+1]-s[i])||1);return{x:xs[i]+(xs[i+1]-xs[i])*f,y:ys[i]+(ys[i+1]-ys[i])*f};};
+  const sAt=tau=>{tau=Math.max(0,Math.min(tt[tt.length-1],tau));const i=find(tt,tau);return s[i]+(s[i+1]-s[i])*((tau-tt[i])/((tt[i+1]-tt[i])||1));};
+  const timeAtY=y=>{for(let i=0;i<ys.length-1;i++)if((ys[i]-y)*(ys[i+1]-y)<=0)return tt[i]+(tt[i+1]-tt[i])*((y-ys[i])/((ys[i+1]-ys[i])||1));return NaN;};
+  return{at,sAt,timeAtY,S:s[s.length-1],T:tt[tt.length-1],sc,tc:tt[ic],xs,ys};
+ }
+ const F=build(1),B=build(-1),P=LAP/SPEED,t0=-PHASE/SPEED; // 圈長（秒）、第 0 圈車心經過 x＝0 的時刻
+ const dirOf=n=>((n%2)+2)%2===0?1:-1;
+ const plan=t=>{const n=Math.round((t-t0)/P),dir=dirOf(n),D=dir>0?F:B,start=t0+n*P-D.tc,tau=t-start;return{n,dir,D,start,tau,active:tau>0&&tau<D.T};};
+ // 某一刻的姿態：兩個輪子各自貼路面（接地點沿路徑相距一個軸距，三維距離＝軸距），原點在兩接地點中點；yaw 朝前接地點、pitch 隨兩點高差。
+ function pose(t){
+  const p=plan(t);if(!p.active)return{active:false,n:p.n,dir:p.dir,tau:p.tau};
+  const D=p.D,s=D.sAt(p.tau);let h=wheelbase,a,b,dz,dh;
+  for(let k=0;k<4;k++){a=D.at(s-h/2);b=D.at(s+h/2);dz=roadZ(b.y)-roadZ(a.y);dh=Math.hypot(b.x-a.x,b.y-a.y);h*=wheelbase/Math.hypot(dh,dz);}
+  return{active:true,n:p.n,dir:p.dir,tau:p.tau,s,x:(a.x+b.x)/2,y:(a.y+b.y)/2,z:(roadZ(a.y)+roadZ(b.y))/2,psi:Math.atan2(b.y-a.y,b.x-a.x),theta:Math.atan2(dz,dh),speed:speedAt(Math.abs(s-D.sc)),rear:{...a,z:roadZ(a.y)},front:{...b,z:roadZ(b.y)}};
+ }
+ // 「看涵洞」的目標時刻：下一次機車經過洞口內側 y＝LOOK_Y（此時車心在 x＝0 附近，列車在洞上）。
+ const lookTime=now=>{const n0=Math.ceil((now-t0)/P)-1;for(let n=n0;n<n0+4;n++){const D=dirOf(n)>0?F:B,tt=t0+n*P-D.tc+D.timeAtY(LOOK_Y);if(tt>=now-1e-6)return tt;}return now;};
+ return{pose,plan,lookTime,roadZ,speedAt,F,B,period:P,t0,LANE,LOOK_Y,clipY,PAD,length:U};
+}
+
 export function createScene(kits=null){
  const k=createKit(),{group,mat,block,props,instance}=k,u=m=>m*METER;
  const HW=u(DIM.W)/2,ZS=u(DIM.H),ZD=u(DIM.DECK),ZB=u(DIM.BEAM),ZG=u(DIM.DIP),HB=u(DIM.BANK)/2,YT=u(DIM.SPACING)/2;
@@ -161,7 +207,7 @@ export function createScene(kits=null){
  for(const s of [-1,1])for(const sx of [-1,1])for(let i=0;i<5;i++){const y=s*(HB+.2+rnd()*(CUT-.5)),top=ZG+(u(DIM.WALL_H)-ZG)*(1-(Math.abs(y)-HB)/CUT)-.03,w=.04+rnd()*.06,h=.15+rnd()*.3;block(wstain,[.006,w,Math.min(h,top-.05)],[sx*(CX+.002),y,top-Math.min(h,top-.05)/2]);}
  // 涵洞外的巷子：外側地面上的瀝青帶；後端在 L1 之後右彎（遠端向右上彎出，依照片）。
  block(asphalt,[2*AH,Y-YC,.012],[0,-(YC+Y)/2,ZG+.006]);
- const L1=u(6),TH=35*Math.PI/180,L2=19,kink=[0,YC+L1];
+ const L1=u(6),TH=35*Math.PI/180,L2=20.2,kink=[0,YC+L1]; // L2 由 19 加長到 20.2（本輪自訂）：後段巷子一路鋪到底座後緣，機車才由後緣進出；遠端外角 y≈23.59 仍在鋪面邊緣 Y＝23.6 之內
  block(asphalt,[2*AH,L1,.012],[0,YC+L1/2,ZG+.006]);
  block(asphalt,[2*AH,L2,.012],[kink[0]+Math.sin(TH)*L2/2,kink[1]+Math.cos(TH)*L2/2,ZG+.006],[0,0,-TH]);
 
@@ -184,7 +230,8 @@ export function createScene(kits=null){
 // 洞口後（+y 側）照舊夾著巷子，後端的房子跟著巷子右彎轉角度。
  const hz=ZG,tints=[0,1,2,3,4],roofs=['tin','pitched','parapet','tin'],grounds=['plain','shop','plain','arcade'];
  let hi=0;
- const house=(x,y,facing,o={})=>{const i=hi++;props.townhouse(x,y,hz,{floors:o.floors??(2+(i%2)),width:o.width??2.6,depth:o.depth??3.2,tint:tints[(i*3)%5],facing,roof:roofs[i%4],ground:grounds[(i+1)%4],balcony:i%3?'rail':'cage',tanks:1,back:true});};
+ const houseList=[];
+ const house=(x,y,facing,o={})=>{const i=hi++;houseList.push({i,x,y,facing,floors:o.floors??(2+(i%2))});props.townhouse(x,y,hz,{floors:o.floors??(2+(i%2)),width:o.width??2.6,depth:o.depth??3.2,tint:tints[(i*3)%5],facing,roof:roofs[i%4],ground:grounds[(i+1)%4],balcony:i%3?'rail':'cage',tanks:1,back:true});};
  const PX=7; // 空地半寬（單位；本輪自訂：看涵洞鏡頭視野半寬約 3.6，再留餘裕；斜 ±20° 看洞口的視線在到底座前緣時側移約 8.4，所以內排只蓋到 y≈-17）
  // 房子從洞口前 6 單位以外才開始蓋：全景鏡頭抬高 26° 看，近處的房子會把後面的路堤正面整段擋住（本輪自訂）。
  for(let i=0;i<5;i++){const y=-(YC+6+i*2.7);if(i<3){house(-(PX+1.6),y,Math.PI/2);house(PX+1.6,y+.3,-Math.PI/2);}house(-(PX+4.8),y,-Math.PI/2);house(PX+4.8,y+.3,Math.PI/2);}
@@ -201,6 +248,13 @@ export function createScene(kits=null){
  }
  // 行道樹：空地邊緣幾棵（|x|≥5.5，在看涵洞鏡頭視野外）、兩排房子外側幾棵。
  for(const [x,y,h] of [[-6,-8.6,2.4],[6.1,-13.4,2.1],[-6.1,-18.9,2.5],[6,-6.4,2.2],[-16.5,-8,2.4],[18.5,-9,2.6],[-23,-12,2.2],[23.5,-7,2.4]])props.broadleaf(x,y,ZG,h);
+ // ── 夜燈（本輪自訂）：點光源只用 3 盞——涵洞頂 1 盞（照洞內路面）、空地路燈 2 盞（立在洞口前空地兩側、不擋看涵洞鏡頭）；燈泡是自發光材質，由 kit 的 illumination 統一調亮（夜 1、夕 .35、日 0）。
+ // 不加光池圓盤：每盞燈都已有真的點光源，底下再疊圓盤會重複；燈桿沿用電車線桿的材質（同一批實例，不多 draw call）。
+ const bulb=mat('#fff0cb',{emissive:'#ffd696',name:'lamp-bulb'});k.glowing.push(bulb);
+ const lamps=[],lampSpots=[];
+ const addLight=(x,y,z,peak,dist,name,decay=2)=>{const l=new THREE.PointLight('#ffd8a3',0,dist,decay);l.position.set(x,y,z);l.name=name;group.add(l);lamps.push({light:l,peak});lampSpots.push({name,x,y,z,peak,dist,decay});};
+ block(bulb,[.22,.1,.03],[0,0,ZS-.015]);addLight(0,0,ZS-.09,5.5,4.2,'culvert-lamp',1); // 涵洞頂燈：貼在洞頂板下緣、洞中央。本輪自訂：衰減取 1（非物理的 2），模擬沿洞頂的長燈管——10 m 長的洞只准 1 盞點光源，衰減 2 照不到兩端洞口
+ for(const [x,y,dir] of [[-4.4,-7.6,1],[4.6,-11.4,-1]]){const H=u(4.8),hx=x+dir*.36;block(pole,[.05,.05,H],[x,y,ZG+H/2]);block(pole,[.4,.04,.04],[x+dir*.2,y,ZG+H]);block(bulb,[.2,.1,.025],[hx,y,ZG+H-.03]);addLight(hx,y,ZG+H-.08,12,7.5,'street-lamp');} // 路燈：桿高 4.8 m、懸臂朝巷子
  k.bake();
 
  // ── 拍照者：洞口前空地上三位（站在切口盡頭外、偏離巷子軸線，不擋洞口），臉朝涵洞、頭朝列車。位置是本輪自訂（粗模時兩位站在洞裡／引道上，會擋住洞口）。
@@ -211,11 +265,26 @@ export function createScene(kits=null){
   {x:-2.1,y:-(YC+.3),z:ZG,yaw:aim(-2.1,-(YC+.3))+.12,color:'#c05d4a',hair:'short',torso:'shirt',rel:1}
  ]:[];
  const photographers=kits?createPhotographers(kits,specs):null;if(photographers)group.add(photographers.group);
+ // ── 機車＋騎士（本輪自訂）：kits[2] 是機車資產（kits[0] 的人零件庫沿用，不重複載）；沒給 kits（Node 端驗收）就不放。前後端用兩個 y 剪裁面在底座緣切掉（同列車在 ±CLIP 的做法）。
+ let scooter=null;
+ if(kits?.[2]){
+  const wb=(kits[2].rig.wheels.front[0]-kits[2].rig.wheels.rear[0])*METER,run=createScooterRun({YC,kinkY:kink[1],TH,flatEnd,rampLen,ZG,clipY:Y,wheelbase:wb});
+  const rider=createScooterRider({peopleKit:kits[0],scooterKit:kits[2],scale:METER}),clip=[new THREE.Plane(new THREE.Vector3(0,1,0),Y),new THREE.Plane(new THREE.Vector3(0,-1,0),Y)];
+  rider.group.traverse(o=>{if(o.material)for(const m of [].concat(o.material)){m.clippingPlanes=clip;m.clipShadows=true;}});
+  rider.group.visible=false;group.add(rider.group);
+  scooter={run,rider,group:rider.group,clip,pose:{active:false},last:null,wheelbase:wb};
+ }
  let state={};
- return{...k,path,opposingPath,kind:'guanghua',contactWireZ:WIRE_Z-.0125,focus:[0,0,1.2],photographers,
+ return{...k,path,opposingPath,kind:'guanghua',contactWireZ:WIRE_Z-.0125,focus:[0,0,1.2],photographers,scooter,lampSpots,houseList,
   // 尺寸（單位），給視圖／驗收讀；驗收的數字仍以實際網格量，不從這裡抄。
   dims:{HW,HB,ZS,ZD,ZB,ZG,YT,RAIL_Z,WIRE_Z,YC,CX,flatEnd,rampLen,mouthY:HB},
-  update(time,period,train={}){const light=k.illumination(period);photographers?.update(time,train.cars??[],train.scale??METER);state={lights:light,photographers:specs.length,watching:photographers?.seen??0,houses:hi};},
+  update(time,period,train={}){const light=k.illumination(period);for(const l of lamps)l.light.intensity=light*l.peak;photographers?.update(time,train.cars??[],train.scale??METER);
+   if(scooter){const p=scooter.run.pose(time),g=scooter.group;scooter.pose=p;g.visible=p.active;
+    if(p.active){g.position.set(p.x,p.y,p.z);g.rotation.set(0,-p.theta,p.psi,'ZYX');
+     if(scooter.last&&scooter.last.n===p.n&&Math.abs(p.s-scooter.last.s)<1)scooter.rider.update(1,p.s-scooter.last.s); // 輪子轉角＝走過距離／半徑（update(dt,speed) 的 dt×speed＝距離）
+     scooter.last={n:p.n,s:p.s};}else scooter.last=null;
+    scooter.rider.setNight(period!=='day');}
+   state={lights:light,photographers:specs.length,watching:photographers?.seen??0,houses:hi,scooter:scooter?{active:scooter.pose.active,trip:scooter.pose.n,dir:scooter.pose.dir,speedKmh:scooter.pose.active?scooter.pose.speed/METER*3.6:0,night:scooter.rider.state.night}:null};},
   get state(){return state;},inspect:()=>photographers?.inspect()??[],
-  dispose(){beamTex.dispose();k.dispose();photographers?.dispose();}};
+  dispose(){beamTex.dispose();k.dispose();photographers?.dispose();scooter?.rider.dispose();}};
 }

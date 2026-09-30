@@ -3,10 +3,11 @@
 // 列車怎麼跑照 crossing.js／prototypes/garage-new-scenes/main.js：直線環線、整列離景（x 超過 ±CLIP）後才循環，車身被兩個裁切面在 ±CLIP 切掉；涵洞橋那段是直線，車從上面過。
 // params.opposing＝true 時另一股軌道再跑一班對向車（預設不開，粗模先省 draw call）。
 import * as THREE from '../vendor/three.module.js';
-import {createScene,THEMES,LAP,SPEED,CLIP,METER,UNIT_PER_M} from './guanghua.js?revision=guanghua-rough-20260930';
+import {createScene,THEMES,LAP,SPEED,CLIP,PHASE,METER,UNIT_PER_M} from './guanghua.js?revision=guanghua-scooter-0930';
+import {loadScooterKit} from '../garage-scooter.js?revision=guanghua-scooter-0930';
 import {loadGarageModel,createConsist,loadGarageParts} from '../garage-model.js?revision=doors-0924';
 import {createTerrainFollower} from './consist-3d.js';
-const PHASE=-10,OPPOSE_DELAY=26; // 時間 0 時本線車中心在 x＝-10（快到涵洞上方，開頁就看得到主題；本輪自訂）；對向車晚 OPPOSE_DELAY 秒（本輪自訂）
+const OPPOSE_DELAY=26; // 對向車晚 OPPOSE_DELAY 秒（本輪自訂）；PHASE（時間 0 時本線車中心在 x＝-10，快到涵洞上方，開頁就看得到主題）改由 guanghua.js 匯出，機車時刻表共用同一個常數
 const distanceAt=t=>(((t*SPEED+PHASE+LAP/2)%LAP)+LAP)%LAP-LAP/2;
 // 三個視角的預設鏡頭：world 全景（正前方略偏右、抬高看，洞口正對鏡頭）、train 跟車、culvert 洞口低角度平視（鏡頭在巷子這一側，朝 +y 看洞口）。
 // 第二輪（主對話判讀）：world 由 yaw -1.2／elevation .62 轉成 -1.4／.42，鏡頭幾乎正對路堤正面；取景由半高 25 縮到約 11（半寬約 21.5，洞口與擋土牆才看得清楚；底座同輪縮成 54 寬，縮小到 .7 倍就整塊放得進去），洞口與擋土牆才看得到；數值皆本輪自訂。
@@ -56,8 +57,8 @@ function frame(at){raf=0;if(disposed||suspended||document.hidden)return;if(last&
 function reset(){zoom=1;pan.set(0,0,0);yaw=CAMERA[view].yaw;elevation=CAMERA[view].elevation;controls();schedule();}
 function setView(next){view=next;qa('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));const look=q('#culvert');if(look?.hasAttribute('aria-pressed'))look.setAttribute('aria-pressed',String(view==='culvert'));reset();}
 function setZoom(z){zoom=Math.max(.7,Math.min(1.8,z));controls();schedule();}
-// 看涵洞：把時間快轉到本線車中心在 x＝-6（整列大半在洞口正上方）的下一次；鏡頭切洞口低角度並開始播放（減少動態時不自動播放）。
-function lookTime(now){const at=-6-PHASE,n=Math.ceil((now*SPEED-at)/LAP);return (at+n*LAP)/SPEED;}
+// 看涵洞：把時間快轉到「機車經過洞口內側、本線車正在洞上」的下一次（時刻表綁列車圈時鐘，機車過洞中心＝車心過 x＝0，見 guanghua.js）；沒有機車資產時退回本線車中心在 x＝-6 的下一次。鏡頭切洞口低角度並開始播放（減少動態時不自動播放）。
+function lookTime(now){if(place?.scooter)return place.scooter.run.lookTime(now);const at=-6-PHASE,n=Math.ceil((now*SPEED-at)/LAP);return (at+n*LAP)/SPEED;}
 for(const b of qa('button[data-period]'))on(b,'click',()=>setTheme(b.dataset.period));
 for(const b of qa('[data-view]'))on(b,'click',()=>setView(b.dataset.view));
 function bind(sel,fn){const el=q(sel);if(el)on(el,'click',fn);}
@@ -117,7 +118,7 @@ try{
  renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});renderer.localClippingEnabled=true;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
  on(canvas,'webglcontextlost',e=>{e.preventDefault();const parent=loading;dispose();if(parent)showFailure(t('畫面暫時中斷，請重新開啟場景。'),t('重新開啟'),()=>location.reload());});
  const studio=new THREE.Scene();studio.background=new THREE.Color('#9dafb0');const pmrem=new THREE.PMREMGenerator(renderer);environment=pmrem.fromScene(studio,.1);scene.environment=environment.texture;pmrem.dispose();
- kits=await Promise.all(['garage-people-v1/people','garage-camera-v1/camera'].map(n=>loadGarageParts(new URL(`../assets/${n}.json`,import.meta.url))));if(disposed)throw Error('disposed');
+ kits=await Promise.all([...['garage-people-v1/people','garage-camera-v1/camera'].map(n=>loadGarageParts(new URL(`../assets/${n}.json`,import.meta.url))),loadScooterKit()]);if(disposed)throw Error('disposed'); // [人零件庫, 相機, 機車]：機車的騎士沿用同一份人零件庫
  place=createScene(kits);scene.add(place.group);
  primary=await loadGarageModel(car);if(disposed)throw Error('disposed');
  train=await createConsist(car,primary);if(disposed)throw Error('disposed');
