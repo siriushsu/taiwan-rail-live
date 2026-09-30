@@ -4,7 +4,9 @@
      格數怎麼被 launcher 算出來、為什麼中卡寫 targetCellWidth=5，見 metro_board_widget_info.xml 與
      memory android-widget-five-columns-launcher3-spans。
      configuration_optional：使用者不選範圍也能直接放上桌面（預設全台，與 iOS 一致），之後長按「設定」再改；
-     reconfigurable：可重新設定範圍。initialLayout 是中性卡 widget_loading，示範版面只在 previewLayout。 -->
+     reconfigurable：可重新設定範圍。initialLayout 是中性卡 widget_loading，示範版面只在 previewLayout。
+     updatePeriodMillis 6 小時（與 iOS 時間軸 .after(6 小時) 一致）：內容只在 App 寫 collection.json 或切語言時會變，
+     RailCollectionPlugin／RailLanguagePlugin 都直接重畫；週期只是保險（檔案被外力換掉時自癒）。 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:configure="tw.railisland.app.CollectionWidgetConfigActivity"
     android:description="@string/collection_widget_small_description"
@@ -17,6 +19,6 @@
     android:minResizeHeight="100dp"
     android:previewLayout="@layout/widget_collect_small_preview"
     android:resizeMode="horizontal|vertical"
-    android:updatePeriodMillis="1800000"
+    android:updatePeriodMillis="21600000"
     android:widgetCategory="home_screen"
     android:widgetFeatures="reconfigurable|configuration_optional" />

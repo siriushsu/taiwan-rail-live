@@ -21,7 +21,8 @@ import java.util.concurrent.Executors;
  *
  * 資料流：網頁算好整包（同護照「車站 N 座」的同一個函式）→ RailCollectionPlugin 驗過原子寫入
  * files/collection.json → CollectionWidgetProvider.updateAll。這裡只讀不算，沒有任何網路請求。
- * 內容只在 App 寫檔時才會變；updatePeriodMillis（30 分鐘）只是保險（檔案被外力換掉時自癒）。
+ * 內容只在 App 寫檔或切語言時才會變（RailCollectionPlugin／RailLanguagePlugin 都直接呼叫 updateAll）；
+ * updatePeriodMillis（6 小時，與 iOS 時間軸一致）只是保險（檔案被外力換掉時自癒）。
  *
  * 點小工具：開 railisland://passport（旅程護照），與 iOS 一致；RailMetroWaitPlugin 把它轉成 waitOpen 事件。
  * 「蓋章」按鈕（小卡在數字下方、中卡在百分比下方；wc_stamp 是膠囊，可點的是外面那層透明容器 wc_stamp_hit，約 48dp 寬）另綁 railisland://checkin：打開 App 後由網頁判定附近車站並蓋章，
