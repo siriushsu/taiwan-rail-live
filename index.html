@@ -5627,6 +5627,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="stations0930b"><span class="d">9/30</span><span>車站時刻表頁擴大到全部台鐵車站：每站列出兩週內每一班的開車時刻與行駛日；瑞芳、十分、菁桐等 7 站另有英日文，車站索引依縣市分組</span></li>
         <li data-cl-of="followalign0926"><span class="d">9/30</span><span>跟車小卡收合成膠囊時，車次與時速不再貼在上緣，跟圓點和「結束」排在同一條線上（謝謝網友回報）</span></li>
         <li data-cl-of="loopja0930"><span class="d">9/30</span><span>日文介面：環島列車的終點改成簡短好懂的「台北（台湾一周）」</span></li>
         <li data-cl-of="stations0930"><span class="d">9/30</span><span>車站頁加上台鐵、高鐵時刻表：台北、板橋、台中等大站，列出兩週內每一班的開車時刻與行駛日</span></li>
@@ -5634,7 +5635,6 @@
         <li data-cl-of="placedup0925"><span class="d">9/29</span><span>地圖上站名旁邊的機場名稱也不再跟站名疊在一起，例如松山機場站旁的「臺北松山機場」</span></li>
         <li data-cl-of="tradistinct0929"><span class="d">9/29</span><span>立體地圖上台鐵列車在車站讓後車先過時，改停到旁邊的股道，後車不會再從停著的車身穿過去</span></li>
         <li data-cl-of="tainanfast0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：修正 App 裡點了打不開，網頁版下載量從約 11 MB 降到約 2 MB，開啟更快、全線視角更順</span></li>
-        <li data-cl-of="trachain0929"><span class="d">9/29</span><span>10/3 環島專車這類比任何固定班次都跑得遠的台鐵專車，地圖上改沿真實股道行駛，不再整趟退回示意路線</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6023,6 +6023,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="stations0930b"><span class="d">9/30</span><span>車站時刻表頁擴大到兩週內有列車停靠的全部 239 個台鐵車站（新增 221 站，中文）：依方向列出每一班的開車時刻、終點與行駛日；瑞芳、十分、菁桐、礁溪、福隆、集集、知本另有英日文頁；車站索引依縣市列出全部台鐵車站</span></li>
         <li data-cl="stations0930"><span class="d">9/30</span><span>車站頁加上台鐵、高鐵時刻表（中、英、日文）：台北、板橋、台中等 20 個大站，加上新開的高鐵苗栗、彰化、雲林站，依方向列出兩週內每一班的開車時刻與行駛日，每週更新；車站頁與捷運路線圖頁也換上軌島圖示，跟著地圖切換亮暗外觀</span></li>
         <li data-cl="metropages0929"><span class="d">9/29</span><span>新增捷運路線圖頁（中、英、日文）：台北、桃園機場、新北、台中、高雄各系統與每條路線的路線圖、車站與轉乘、首末班車和班距，資料來源沒有逐班時刻表的路線只列營運時段與班距；頁面可一鍵在地圖上看列車，頁尾與手機版「更多」新增「捷運路線圖」入口</span></li>
         <li data-cl="langhint0929"><span class="d">9/29</span><span>網頁版第一次開啟固定顯示繁體中文，不再依瀏覽器語言自動切換；英文或日文瀏覽器會出現一個小提示，按一下就能切換語言，也能關掉不再提示（App 仍依手機語言）。另新增英文與日文的獨立介紹頁，方便外國旅客搜尋到軌島</span></li>
@@ -6944,7 +6945,7 @@
 // v0930c：日文的環島列車終點改成「台北（台湾一周）」（使用者 09-30 裁示）。v0930b 已被跟車卡分支 fix/issue73-capsule-align 佔用，跳號。
 // v0930e：Issue #73 複驗——收合的跟車膠囊裡車次與時速改為置中，跟圓點、「結束」同一條中線（rail-3d.css；守門：verify_issue_73_follow_head C4）。
 //         本分支原本佔 v0930b，併 main 時 v0930c 已上 main、v0930d 留給台南重播分支，改用 v0930e 讓版號維持遞增。
-const BUILD = 'v0930e';
+const BUILD = 'v0930g';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
