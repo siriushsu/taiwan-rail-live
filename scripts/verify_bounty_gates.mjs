@@ -292,8 +292,11 @@ ok('F3 第一重 日期太舊 → suspect',
     r24.every(ok24), JSON.stringify(r24.map(x => [x.S, x.a.code || x.a.pass, x.b.code || x.b.pass, ok24(x)])));
   // F25：連續丟點的上限（連續超過 5 點才判）：第 300 秒起連續 n 點各退 300 m——每一點都比最後收下的第 299 秒退 150 m 以上。
   //   n＝5 → 丟 5 點、通過；n＝6 → impossible_physics。兩個方向。
-  const burst = n => cleanTrip().pts.map((p, i) => i >= 300 && i < 300 + n ? { ...p, d: p.d - 300 } : p);
-  const r25 = [gate(burst(5)), gate(flip(burst(5), 20000), 'tra_sched', 1), gate(burst(6)), gate(flip(burst(6), 20000), 'tra_sched', 1)];
+  //   軌跡用 1201 點（考慮 1199 點、全程預算 11.99）：601 點的 cleanTrip 預算只有 5.99，連續 6 點同時也超過全程預算，
+  //   連續上限改成 6 照樣擋、這條量不到它本身（第十一批突變 run_6 是靠 F14／F16／F18 才抓到的）。
+  const long25 = () => Array.from({ length: 1201 }, (_, i) => ({ d: i * 25, t: 30000 + i, v: 25 + Math.sin(i / 7) * 0.6, acc: 8 }));
+  const burst = n => long25().map((p, i) => i >= 300 && i < 300 + n ? { ...p, d: p.d - 300 } : p);
+  const r25 = [gate(burst(5)), gate(flip(burst(5), 40000), 'tra_sched', 1), gate(burst(6)), gate(flip(burst(6), 40000), 'tra_sched', 1)];
   ok('F25 第三重 連續丟點：連續 5 點各退 300 m → 通過；連續 6 點 → impossible_physics（兩個方向）',
     r25[0].pass === true && r25[1].pass === true && r25[2].code === 'impossible_physics' && r25[3].code === 'impossible_physics',
     JSON.stringify(r25.map(r => r.code || r.pass)));
