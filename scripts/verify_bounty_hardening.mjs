@@ -2602,25 +2602,28 @@ await attempt('PF6', async () => {
   // 乘車日 07-26（週日＝holiday，停靠段才會算）。山線 30 m/s 從 500 m 一路開到 19,490 m、不停（每一站都高速通過），
   // 走真的 /api/bounty-submit（每批 200 點）→ 判定 cron。
   //   a 每一點 v、acc 都送 null → 存下來的每一點 v、acc 都是 null；判定 ok、覆蓋段裡沒有停靠段（kind dwell）。
-  //   b 對照：同一趟每一點送 v:0（裝置真的回報速度 0）→ S1…S9 九站都記成停靠段——這一趟確實經過每一站的判定範圍；
-  //     舊版把 null 存成 0，a 就會變成這個結果（V8 模擬：台鐵 130 km/h、整趟沒有速度的裝置每趟約 9 個假停靠）。
-  const D26 = '2026-07-26', A = 'dev-pf6-a0001', B = 'dev-pf6-b0001';
-  const trip = v => Array.from({ length: 634 }, (_, i) => ({ d: 500 + i * 30, t: 30000 + i, v, acc: v === null ? null : 8 }));
-  const run = async (actor, v) => {
+  //   b、c 對照（第十五批改寫）：8 m/s 從 500 m 開到 5,564 m（634 點，經過 S1、S2 的判定範圍）。
+  //     b 每一點送 v:0 → S1、S2 都記成停靠段：位置微分 8 m/s 沒超過否決門檻 posSpeedVetoMps（10），回報的 0 照信；
+  //     c 同一趟送 v:null → 沒有停靠段（位置微分 8 ＞ 1.5）。舊版把 null 存成 0，c 就會變成 b 的結果。
+  //     原本的對照是「30 m/s 送 v:0 → S1…S9 九站都記成停靠段」；第十五批起位置微分超過 10 m/s 就否決回報的低速（Android 沒有速度時送 0，見 PF11），
+  //     30 m/s 的 0 已經不會算停靠，對照只好降到否決門檻以下（V8 模擬：台鐵 130 km/h、整趟沒有速度的裝置每趟約 9 個假停靠，那是 a 在防的）。
+  const D26 = '2026-07-26';
+  const trip = (v, mps) => Array.from({ length: 634 }, (_, i) => ({ d: 500 + i * mps, t: 30000 + i, v, acc: v === null ? null : 8 }));
+  const run = async (actor, v, mps) => {
     const w = world({ seed: boardSql('山線') });
     const st = [];
-    for (const part of chunk(trip(v), 200)) st.push((await submit(w, actor, { trainNo: 'PF6', tripDate: D26, samples: part })).status);
+    for (const part of chunk(trip(v, mps), 200)) st.push((await submit(w, actor, { trainNo: 'PF6', tripDate: D26, samples: part })).status);
     const stored = rows(w, 'SELECT payload FROM bounty_samples WHERE actor=?', actor).flatMap(r => JSON.parse(r.payload));
     await w.cron();
     const segs = rows(w, 'SELECT DISTINCT segs FROM bounty_samples WHERE actor=?', actor).flatMap(r => JSON.parse(r.segs || '[]'));
     return { st, n: stored.length, vs: [...new Set(stored.map(p => p.v))], accs: [...new Set(stored.map(p => p.acc))], v: q.verdicts(w, actor, 'PF6'),
       dwell: segs.filter(c => c.kind === 'dwell').map(c => c.key.split('|').slice(2).join('|') + '/' + c.slot) };
   };
-  const res = { a: await run(A, null), b: await run(B, 0) };
-  const nine = Array.from({ length: 9 }, (_, i) => `S${i + 1}|S${i + 1}/holiday`);
-  ok('PF6 [第十三批 V8 E1] 沒有速度（v:null）走真的上傳端點 → 存成 null、ok、沒有停靠段；對照：送 v:0 → S1…S9 九站都記成停靠段',
+  const res = { a: await run('dev-pf6-a0001', null, 30), b: await run('dev-pf6-b0001', 0, 8), c: await run('dev-pf6-c0001', null, 8) };
+  ok('PF6 [第十三批 V8 E1] 沒有速度（v:null）走真的上傳端點 → 存成 null、ok、沒有停靠段；對照（第十五批改寫）：8 m/s 送 v:0 → S1、S2 記成停靠段，同一趟送 v:null → 沒有',
     J(res.a.st) === J([200, 200, 200, 200]) && res.a.n === 634 && J(res.a.vs) === J([null]) && J(res.a.accs) === J([null]) && res.a.v === 'ok' && res.a.dwell.length === 0 &&
-      J(res.b.st) === J([200, 200, 200, 200]) && J(res.b.vs) === J([0]) && res.b.v === 'ok' && J(res.b.dwell.sort()) === J(nine),
+      J(res.b.st) === J([200, 200, 200, 200]) && J(res.b.vs) === J([0]) && res.b.v === 'ok' && J(res.b.dwell.sort()) === J(['S1|S1/holiday', 'S2|S2/holiday']) &&
+      J(res.c.st) === J([200, 200, 200, 200]) && J(res.c.vs) === J([null]) && res.c.v === 'ok' && res.c.dwell.length === 0,
     J(res));
 });
 await attempt('PF7', async () => {
@@ -2691,7 +2694,7 @@ await attempt('PF9', async () => {
 await attempt('PF10', async () => {
   // 第十四批（V9）：品質閘的覆蓋率帶判定端同一份尖峰時段表。coverageOf 平日沒有這張表就不列停靠段；第十三批以前品質閘沒帶，
   // 平日只錄到停靠的錄程判 too_short（unusable、0 顆），假日同一趟卻是 ok，判定端存的覆蓋段裡又明明有那個停靠段。
-  // 單位產物帶真的尖峰時段表（data/bounty_units.json 的 peakHoursBySys：台鐵 7–9、17–19 時）。一趟只有停靠的錄程：5 m/s 進站 30 秒（S3 前 150 m → S3），
+  // 單位產物帶一份尖峰時段表（寫死台鐵 7–9、17–19 時；不讀 data/bounty_units.json，那份會隨班表重產而變）。一趟只有停靠的錄程：5 m/s 進站 30 秒（S3 前 150 m → S3），
   // 停 700 秒（都卜勒 0、GPS 晃 ±0.7 m 以內），共 731 點、730 秒 → 1 顆。t 從 08:20 起。唯一的區間段 S2|S3 只蓋到 7%（＜0.6），能過品質閘的只有停靠段。
   //   平日（07-28 週二）→ ok、停靠段 S3|S3/peak、1 顆；假日（07-26 週日）→ ok、S3|S3/holiday、1 顆——同一趟兩天的判定一樣，只差時段。兩個方向（從 S3 後方 150 m 進站）。
   //   ⚠️ 副作用（計畫 §12）：平日 10 分鐘以上、只有停靠的錄程從此跟假日一樣拿得到籌碼。
@@ -2714,6 +2717,31 @@ await attempt('PF10', async () => {
   ok('PF10 [第十四批 V9] 平日與假日同一趟只有停靠的錄程判定一致（品質閘帶尖峰時段表）：平日 → ok、S3|S3/peak、1 顆；假日 → ok、S3|S3/holiday、1 顆（兩個方向；第十三批平日 unusable（too_short）、0 顆）',
     ['wd0', 'wd1'].every(k => got[k].v === 'ok' && J(got[k].dwell) === J(['S3|S3/peak']) && got[k].chips === J([1])) &&
       ['ho0', 'ho1'].every(k => got[k].v === 'ok' && J(got[k].dwell) === J(['S3|S3/holiday']) && got[k].chips === J([1])), J(got));
+});
+await attempt('PF11', async () => {
+  // 第十五批（第十輪獨立驗收 P1-2）：Android 沒有速度時送 0.0（@capacitor/geolocation 2.2.0 不查 hasSpeed()），不是 null。
+  // 舊版把 0 當成真的「速度 0」，整趟送 0 的話通過的每一站都記成停靠；偽造者送 0 或任何小的數（例如 0.3）也一樣。
+  // 現在回報的速度再低，位置微分超過 posSpeedVetoMps（10 m/s）就不算低速。趟的形狀同 PF9（山線 20 m/s 到 S3、停 60 秒、再開到 S6，
+  // 07-26 週日），只換速度欄：a 每點送 0、b 每點送 0.3。走真的 /api/bounty-submit（每批 200 點）→ 判定 cron。兩個方向。
+  //   → 存成 0／0.3（不被改成 null）、ok、停靠段恰好一個 S3|S3/holiday、1 顆。舊版：S0–S6 通過的站全部記成停靠。
+  const D26 = '2026-07-26';
+  const f = k => 20 * (Math.min(k, 300) + Math.max(0, k - 360)) + (k > 300 && k < 360 ? (k % 2 ? 0.3 : -0.3) : 0);
+  const trip = (rev, v) => Array.from({ length: 661 }, (_, k) => ({ d: Math.round((rev ? 12000 - f(k) : f(k)) * 10) / 10, t: 30000 + k, v, acc: 8 }));
+  const got = {};
+  for (const [name, rev, v] of [['a0', false, 0], ['a1', true, 0], ['b0', false, 0.3], ['b1', true, 0.3]]) {
+    const actor = `dev-pf11-${name}0001`, w = world({ seed: boardSql('山線') }), st = [];
+    for (const part of chunk(trip(rev, v), 200)) st.push((await submit(w, actor, { trainNo: 'PF11', tripDate: D26, dir: rev ? 1 : 0, samples: part })).status);
+    const stored = rows(w, 'SELECT payload FROM bounty_samples WHERE actor=?', actor).flatMap(r => JSON.parse(r.payload));
+    await w.cron();
+    const segs = rows(w, 'SELECT DISTINCT segs FROM bounty_samples WHERE actor=?', actor).flatMap(r => JSON.parse(r.segs || '[]'));
+    got[name] = { st, n: stored.length, vs: J([...new Set(stored.map(p => p.v))]), v: q.verdicts(w, actor, 'PF11'),
+      dwell: [...new Set(segs.filter(c => c.kind === 'dwell').map(c => c.key.split('|').slice(2).join('|') + '/' + c.slot))].sort(),
+      chips: J(rows(w, "SELECT delta FROM chip_ledger WHERE kind='trip' AND actor=?", actor).map(r => r.delta)) };
+  }
+  ok('PF11 [第十五批 V10 P1-2] 整趟速度送 0（Android 沒有速度）或送 0.3 的錄程：通過的站不再記成停靠——存成 0／0.3、ok、停靠段恰好 S3|S3/holiday、1 顆（兩個方向；舊版 S0–S6 全部記成停靠）',
+    ['a0', 'a1', 'b0', 'b1'].every(k => J(got[k].st) === J([200, 200, 200, 200]) && got[k].n === 661 && got[k].v === 'ok' &&
+      J(got[k].dwell) === J(['S3|S3/holiday']) && got[k].chips === J([1])) &&
+      got.a0.vs === J([0]) && got.a1.vs === J([0]) && got.b0.vs === J([0.3]) && got.b1.vs === J([0.3]), J(got));
 });
 
 ok('Z 整支腳本沒有任何非 Firebase 的對外連線', outbound.length === 0, J(outbound.slice(0, 3)));

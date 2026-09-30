@@ -7511,7 +7511,8 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
   }
 
   const D = rules && rules.quality && rules.quality.dwell;
-  if (!D) throw new Error('invalid bounty rule: quality.dwell');
+  // posSpeedVetoMps 少了的話下面的比較式恆為假、否決等於關掉（Android 送 0 又回到每站都算停靠），所以跟 quality.dwell 一樣直接中止。
+  if (!D || !(D.posSpeedVetoMps > D.stopSpeedMaxMps)) throw new Error('invalid bounty rule: quality.dwell');
   const day = new Date(`${trip.tripDate}T00:00:00Z`).getUTCDay();
   const holiday = day === 0 || day === 6;
   const peakHours = peakHoursBySys && peakHoursBySys[line.sys];
@@ -7539,8 +7540,14 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
       // 改用這一點與前一點的位置微分判低速（第九輪獨立驗收 E-2(b)）：只看 v 的話，沒有速度的裝置連真的停靠都拿不到
       // （iOS 沒有有效速度時回報 −1，App 送 null）。速度欄本來就由客戶端自填，偽造者送 0 效果相同，這一條不增加能力。
       // 前一點沒有、或同一秒（Δt≤0）就不算低速。前端錄製當下的停靠進度（bountyUpdateDwellProgress）用同一條。
+      // 🔴 回報的速度再低，位置微分超過 posSpeedVetoMps（10 m/s＝36 km/h）就不信它（第十輪獨立驗收 P1-2）：Android 沒有速度時送的是 0.0
+      // 不是 null（@capacitor/geolocation 2.2.0 的 ION 直接呼叫 getSpeed()、不查 hasSpeed()），整趟送 0 的話通過的站約 99% 被記成停靠；
+      // 偽造者整趟送 0 或任何小的數也一樣。否決門檻刻意比 stopSpeedMaxMps 高得多：真的停著時 GPS 每秒會晃，只看前一點的位置微分常超過 1.5 m/s——
+      // 模擬（計畫驗收紀錄 s15）門檻用 1.5 的話，停著時回報剛好 0 的誠實裝置停靠召回掉到 21–45%；用 10，各種雜訊下召回都不掉、通過的站假停靠 0。
+      // 代價：以 36 km/h 以下慢慢通過、又回報 0 的那一站仍會算停靠（台鐵通過站的車速通常遠高於此）。
       const p = local[j], q = local[j - 1], t = Number(p.t), dt = q ? t - Number(q.t) : 0;
-      const v = p.v != null ? Number(p.v) : dt > 0 ? Math.abs(Number(p.d) - Number(q.d)) / dt : NaN;
+      const dv = dt > 0 ? Math.abs(Number(p.d) - Number(q.d)) / dt : NaN;
+      const v = p.v == null || dv > D.posSpeedVetoMps ? dv : Number(p.v);
       const low = Math.abs(Number(p.d) - centerM) <= D.stopRadiusM &&
         Number.isFinite(v) && v <= D.stopSpeedMaxMps;
       if (!low) { runStart = null; prevT = null; continue; }
@@ -7660,7 +7667,9 @@ function integrityGate(trip, ctx, rules) {
   // 🔴 只看相關係數會誤殺高速錄程（第九輪獨立驗收 A-1）：相關係數由整趟速度的變異量支配，高鐵 0–83 m/s 的變異大到誠實 GPS 的位置微分雜訊
   // （每秒 1 m/s 上下）幾乎不影響它——V9 照 App 形狀模擬，GPS 乾淨的高鐵誠實錄程相關係數中位數 0.9985–0.9987，三到七成被判可疑。
   // 偽造的特徵是「根本同一個數」：速度直接拿位置微分算，兩者只差上傳端的取整（d 到 0.1 m、v 到 0.01 m/s，Δt＝1 秒時逐點差 ≤0.1 m/s）。
-  // 所以再加一條逐點差的中位數 ≤ dopplerResidMaxMps（0.5 m/s）：誠實錄程的位置微分雜訊遠大於它，只會比舊版少判、不會多判。
+  // 所以再加一條逐點差的中位數 ≤ dopplerResidMaxMps（0.0625 m/s）：誠實錄程的位置微分雜訊遠大於它，只會比舊版少判、不會多判。
+  // 🔴 門檻原本是 0.5（第十四批），第十輪獨立驗收 P1-1 量到 GPS 平滑的誠實錄程（位置晃 ±0.3 m 以內）逐點差中位數只有 0.1–0.5，
+  // 五到六成仍被判；改 0.0625（二進位下精確，判準的邊界才比得出「剛好」）後模擬誤殺約 0，取整後的偽造（中位數約 0.03）仍全數抓到。
   // 門檻只用模擬校過；真的裝置有沒有「速度就是位置微分」的（例如沒有都卜勒時由定位差算速度），要用真錄程看（計畫 §12.1）。
   // 設定檔少了這個鍵時比較式恆為假、這一重等於關掉（寧可放行；verify_bounty_rules 的 R9 釘住它在設定檔裡）。
   const a = [], b = [];

@@ -208,6 +208,38 @@ for (let k = 2; k < lowIdx.length; k++) crawl[lowIdx[k]].v = RULES.quality.dwell
 ok('D11 站心低速只維持 2 秒（慢速爬行通過）時不算錄到——守住 stopMinSec',
   !hitsDwell(crawl), JSON.stringify({ 低速點數: lowIdx.length, dwell: covOf(crawl).filter(c => c.kind === 'dwell') }));
 
+// D12 守 posSpeedVetoMps（第十五批，第十輪獨立驗收 P1-2）：回報的速度再低，位置微分超過否決門檻（10 m/s）就不算低速。
+// Android 沒有速度時送 0.0（不是 null），整趟送 0 的話通過的站全都算停靠；偽造者送 0 或任何小的數也一樣。
+// 每秒一點、站心取整數公尺（位置微分在二進位下精確，邊界才比得出「剛好」），兩個方向：
+//   a 每點回報 0、等速 10 m/s 通過（位置微分剛好 10，不超過）→ 信回報的 0 → 算停靠
+//   b 每點回報 0、等速 10.5 m/s 通過 → 否決 → 不算；c 回報 0.3（不是剛好 0）、10.5 m/s → 一樣不算
+//   d 對照：沒有速度（null）、10 m/s → 位置微分 10 ＞ 1.5 → 不算（否決只影響「有回報低速」的點，null 本來就看位置微分）
+//   e 真的停靠：20 m/s 進站 → 停 60 秒（每點回報 0、GPS 每秒左右晃 ±2 m，位置微分 4 m/s）→ 20 m/s 離站 → 算停靠。
+//     否決門檻若設成 stopSpeedMaxMps（1.5）這一趟就算不到——停著時 GPS 晃動的位置微分常超過 1.5，那樣會把回報 0 的誠實裝置的真停靠也否決掉。
+{
+  const c0 = Math.round(centerM);
+  const steady = (sg, speed, v) => Array.from({ length: Math.floor(1200 / speed) + 1 },
+    (_, k) => ({ d: c0 + sg * (-600 + speed * k), t: 7 * 3600 + k, v, acc: 8 }));
+  const jitterStop = sg => {
+    const xs = [];
+    for (let k = 0; k <= 30; k++) xs.push(-600 + 20 * k);
+    for (let k = 1; k <= 60; k++) xs.push(k % 2 ? 2 : -2);
+    for (let k = 1; k <= 30; k++) xs.push(20 * k);
+    return xs.map((x, k) => ({ d: c0 + sg * x, t: 7 * 3600 + k, v: 0, acc: 8 }));
+  };
+  const got = {};
+  for (const sg of [1, -1]) {
+    got[`a${sg}`] = hitsDwell(steady(sg, 10, 0));
+    got[`b${sg}`] = hitsDwell(steady(sg, 10.5, 0));
+    got[`c${sg}`] = hitsDwell(steady(sg, 10.5, 0.3));
+    got[`d${sg}`] = hitsDwell(steady(sg, 10, null));
+    got[`e${sg}`] = hitsDwell(jitterStop(sg));
+  }
+  ok('D12 [第十五批 V10 P1-2] 回報低速、位置微分超過 10 m/s 就不算停靠：回報 0 等速 10 m/s 通過 → 算、10.5 m/s → 不算、回報 0.3 的 10.5 m/s → 不算；對照：沒有速度的 10 m/s → 不算；回報 0 的真停靠（GPS 晃 ±2 m）→ 算（兩個方向）',
+    [1, -1].every(sg => got[`a${sg}`] === true && got[`b${sg}`] === false && got[`c${sg}`] === false && got[`d${sg}`] === false && got[`e${sg}`] === true),
+    JSON.stringify(got));
+}
+
 const out = {
   criterion: RULES.quality.dwell,
   cardId: CARD_ID,

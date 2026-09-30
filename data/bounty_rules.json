@@ -31,6 +31,7 @@
       "sideMinM": 60,
       "stopRadiusM": 100,
       "stopSpeedMaxMps": 1.5,
+      "posSpeedVetoMps": 10,
       "stopMinSec": 3,
       "maxLowSpeedGapSec": 5
     }
@@ -40,7 +41,7 @@
     "maxAccelMps2": 1.3,
     "speedCapMps": { "default": 36.2, "THSR": 83.4, "metro": 22.3 },
     "dopplerCorrMax": 0.995,
-    "dopplerResidMaxMps": 0.5,
+    "dopplerResidMaxMps": 0.0625,
     "delayMatchToleranceSec": 300
   },
   "dailyPointsCap": 200,

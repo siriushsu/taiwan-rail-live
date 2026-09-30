@@ -130,6 +130,8 @@ ok('F3 第一重 日期太舊 → suspect',
 //   F32、F33 是這一批新增的，排在 F29 前面，讓 F29 一起檢查收下的點。
 // 🔴 第十四批（V9 A-1、A-4、C-2）：①原始方向判死也換方向重判（F35、F33f；第十三批只在「沒判死、淨位移往後」時換）；
 //   ②都卜勒改成「相關係數＞0.995 而且逐點差的中位數 ≤0.5 m/s」才判（F34a–d）。F34、F35、F33f 也排在 F29 前面；F30b 的對照照新行為改寫。
+// 🔴 第十五批（V10 P1-1）：逐點差中位數的門檻 0.5 → 0.0625 m/s。GPS 平滑的誠實錄程（位置晃 ±0.3 m 以內）逐點差中位數只有 0.1–0.5，
+//   0.5 的門檻誤殺五到六成；偽造（速度＝位置微分，照上傳端取整）的中位數約 0.03。F34c 的邊界照新門檻改寫，F34e 是這一批新增的。
 {
   // REC：F11 起每一次判定都記下來，F29 拿通過的那些檢查「收下的點本身合規」。
   const REC = [];
@@ -490,10 +492,12 @@ ok('F3 第一重 日期太舊 → suspect',
   //     逐點差中位數 1 m/s → 通過。
   //   b 偽造（速度＝位置微分本身）→ 逐點差 0 → doppler_too_clean；同一型偽造（位置另加非二進位的晃動）再照上傳端取整（里程 0.1 m、速度 0.01 m/s）
   //     → 逐點差中位數在 0 與 0.1 之間 → 仍是 doppler_too_clean（取整不會把偽造洗成誠實）。
-  //   c 邊界：逐點差中位數剛好等於門檻（≤ 門檻）→ doppler_too_clean；比門檻大一格 → 通過。兩邊都取二進位下精確的值。
+  //   c 邊界（第十五批改 0.0625）：逐點差中位數剛好等於門檻（≤ 門檻）→ doppler_too_clean；比門檻大一格 → 通過。兩邊都取二進位下精確的值。
   //   d null 跳過、0 照算（V9 C-2 NL_dop）：b 那一型有一部分的點沒有速度（null）→ 那些點跳過、其餘照算 → doppler_too_clean。
   //     對照組：同樣那些點是 0（0 是量測值、照算）→ 判定跟 null 那一例不同。釘在這裡的目的是：把 null 當成 0 的話，
   //     null 那一例就會跟對照組判成一樣（第十三批以前上傳端把 null 存成 0，就是這樣）。
+  //   e GPS 平滑的誠實錄程（第十五批 V10 P1-1）：位置每秒左右晃 ±0.125 m（位置微分逐點差 ±0.25 m/s），都卜勒速度同 a →
+  //     逐點差是 0.125／0.25／0.375 各三分之一、中位數 0.25 → 通過。門檻還是 0.5 的話它就被判 doppler_too_clean（V10 模擬的誤殺就是這一型）。
   //   兩個方向（倒過來走傳 dir 1）。
   const U34 = [];
   for (let u = 10; u < 80; u += 0.25) U34.push(u);
@@ -501,6 +505,7 @@ ok('F3 第一重 日期太舊 → suspect',
   for (let u = 80; u > 10; u -= 0.25) U34.push(u);
   const X34 = U34.reduce((xs, u) => (xs.push(xs[xs.length - 1] + u), xs), [0]);   // 真里程（每秒一點）
   const gps34 = k => X34[k] + (k % 2 ? 0.5 : -0.5), wob34 = k => X34[k] + 0.37 * Math.sin(k * 1.3);
+  const calm34 = k => X34[k] + (k % 2 ? 0.125 : -0.125);   // GPS 平滑（e）
   const dv34 = (pos, k) => k ? Math.abs(pos(k) - pos(k - 1)) : 10;   // 位置微分（Δt＝1）
   const mk34 = (sg, pos, vel) => X34.map((_, k) => ({ d: sg > 0 ? pos(k) : 60000 - pos(k), t: 30000 + k, v: vel(k), acc: 8 }));
   const pearson34 = (a, b) => {
@@ -519,8 +524,9 @@ ok('F3 第一重 日期太舊 → suspect',
     honest: mk34(sg, gps34, k => (k ? U34[k - 1] : 10) + [-0.125, 0, 0.125][k % 3]),
     spoof: mk34(sg, gps34, k => dv34(gps34, k)),
     rounded: mk34(sg, wob34, k => dv34(wob34, k)).map(p => ({ ...p, d: Math.round(p.d * 10) / 10, v: Math.round(p.v * 100) / 100 })),
-    b50: mk34(sg, gps34, k => dv34(gps34, k) + (k % 4 < 2 ? 0.5 : -0.5)),
-    b515: mk34(sg, gps34, k => dv34(gps34, k) + (k % 4 < 2 ? 0.515625 : -0.515625)),
+    b0625: mk34(sg, gps34, k => dv34(gps34, k) + (k % 4 < 2 ? 0.0625 : -0.0625)),
+    b078: mk34(sg, gps34, k => dv34(gps34, k) + (k % 4 < 2 ? 0.078125 : -0.078125)),
+    calm: mk34(sg, calm34, k => (k ? U34[k - 1] : 10) + [-0.125, 0, 0.125][k % 3]),
     nul: mk34(sg, gps34, k => k % 3 === 1 ? null : dv34(gps34, k)),
     zero: mk34(sg, gps34, k => k % 3 === 1 ? 0 : dv34(gps34, k)),
   });
@@ -532,11 +538,13 @@ ok('F3 第一重 日期太舊 → suspect',
   ok('F34b 都卜勒：速度＝位置微分的偽造 → doppler_too_clean；同一型偽造照上傳端取整（里程 0.1 m、速度 0.01 m/s）後逐點差中位數在 (0, 0.1] → 仍是 doppler_too_clean（兩個方向）',
     r34.every(o => o.spoof.r.code === TC && o.spoof.s.med === 0 && o.rounded.r.code === TC && o.rounded.s.med > 0 && o.rounded.s.med <= 0.1 && o.rounded.s.corr > CMAX),
     sh34(['spoof', 'rounded']));
-  ok('F34c 都卜勒的邊界：逐點差中位數剛好等於門檻 → doppler_too_clean；大一格 → 通過（兩個方向，相關係數都＞0.995）',
-    r34.every((o, i) => o.b50.r.code === TC && o.b50.s.med === 0.5 && o.b50.s.corr > CMAX &&
-      o.b515.r.pass === true && o.b515.r.dir === i && o.b515.s.med === 0.515625 && o.b515.s.corr > CMAX), sh34(['b50', 'b515']));
+  ok('F34c 都卜勒的邊界（第十五批）：逐點差中位數剛好等於門檻 → doppler_too_clean；大一格 → 通過（兩個方向，相關係數都＞0.995）',
+    r34.every((o, i) => o.b0625.r.code === TC && o.b0625.s.med === 0.0625 && o.b0625.s.corr > CMAX &&
+      o.b078.r.pass === true && o.b078.r.dir === i && o.b078.s.med === 0.078125 && o.b078.s.corr > CMAX), sh34(['b0625', 'b078']));
   ok('F34d [第十四批 V9 C-2] 都卜勒跳過 null、0 照算：一部分的點沒有速度（null）→ 那些點跳過、仍是 doppler_too_clean；對照組：同樣那些點是 0 → 照算，判定跟 null 那一例不同（兩個方向）',
     r34.every(o => o.nul.r.code === TC && o.nul.s.n === 572 && o.zero.r.pass === true && o.zero.s.corr < CMAX), sh34(['nul', 'zero']));
+  ok('F34e [第十五批 V10 P1-1] 都卜勒：GPS 平滑的誠實錄程（位置晃 ±0.125 m、逐點差中位數 0.25 m/s、相關係數＞0.995）→ 通過（兩個方向；門檻 0.5 會判 doppler_too_clean）',
+    r34.every((o, i) => o.calm.r.pass === true && o.calm.r.dir === i && o.calm.s.corr > CMAX && o.calm.s.med === 0.25 && o.calm.s.n === 858), sh34(['calm']));
   // F29：收下的點本身要是一趟合規的錄程——丟點＝那幾點沒送，偽造者不因此多出能力（V7 的但書）。F11 起每一個判通過的案例（含 F32、F33）：
   //   回傳的 pts 是原始點的子序列（t、d、v 逐欄相同），而且任兩點往前 ≤ 上限×1.15×(Δt＋1)＋50、相鄰兩點往後 ≤ 50、相鄰兩點都有速度時 |Δv| ≤ 1.3×3×(Δt＋1)、
   //   首末淨位移不往後超過 50 m——方向照防偽閘回的 r.dir（第十三批起收下的點整體往後退會換方向，收下的點只對它回的方向合規）。

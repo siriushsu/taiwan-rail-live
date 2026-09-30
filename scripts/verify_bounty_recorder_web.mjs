@@ -9,6 +9,11 @@
 //      0 → 0；12.345 → 12.35、8.6 → 9。
 //   D  bountyUpdateDwellProgress（錄製中的停靠進度）與 Worker coverageOf() 同一條：沒有速度的裝置真的停靠 60 秒 → 亮；
 //      沒有速度、30 m/s 高速通過 → 不亮、而且判「錯過」（兩側都過完了）；對照：有速度（停的時候 0）的同一趟 → 亮。兩個方向。
+//      第十五批（第十輪獨立驗收 P1-2）：速度送 0（Android 沒有速度時送 0.0）或 0.3、30 m/s 通過 → 不亮且判錯過（位置微分超過 10 m/s 否決回報的低速）；
+//      送 0 的真停靠 → 亮。
+//   X  （第十五批，第十輪獨立驗收 P2-8）同一批點同時餵前端 bountyUpdateDwellProgress 與 Worker coverageOf（node 端 import worker.js），
+//      逐站比「算不算停靠」：Worker 用它正式讀的 data/bounty_units.json 的山線站表，前端用它自己的 lineNetwork()（data/tra.json）。
+//      山線連續四站、四種停法（停 45 秒、GPS 晃 ±0.3 或 ±2 m／20 m/s 通過／8 m/s 慢速通過）× 五種速度欄（都卜勒、null、全送 0、全送 0.3、一半 null）× 兩個方向。
 // 判準驗【行為】：量的是「收下的那一點存成什麼」「停靠進度亮不亮」，不是原始碼裡有沒有那串字。
 // 頁面開機後直接呼叫錄程的函式（不經真的 GPS）；先證明前提成立（山線真的載入、挑到的站兩側 600 m 內沒有別站）。
 // 跑法：node scripts/verify_bounty_recorder_web.mjs（自己在空的埠起靜態伺服器、跑完自己關）
@@ -18,6 +23,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createReadStream, readFileSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { _bounty } from '../worker.js';
 
 // G0 自檢：ROOT 由本檔自身路徑推導，不吃任何 --root／env 參數，結構上不會誤驗到別的 worktree。
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -32,6 +38,8 @@ const attempt = async (name, fn) => {
 };
 const J = JSON.stringify;
 const THSR = readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json'));
+const RULES_NODE = JSON.parse(readFileSync(path.join(ROOT, 'data/bounty_rules.json'), 'utf8'));
+const UNITS_NODE = JSON.parse(readFileSync(path.join(ROOT, 'data/bounty_units.json'), 'utf8'));
 
 // ── 靜態伺服器：照 verify_bounty_merge_web.mjs（node http，backlog 511；只服 ROOT 底下的檔、/ 給 index.html、找不到 404）──
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json',
@@ -126,9 +134,11 @@ try {
     const got = await page.evaluate(async st => {
       const rules = await bountyRules(), c = st.d * 1000, key = `tra_sched|山線|${st.name}|${st.name}`;
       // sg＝1 往里程遞增、−1 遞減。停：20 m/s 跑 30 秒到站 → 停 60 秒（GPS 每秒晃 ±0.3 m）→ 20 m/s 跑 30 秒離站；不停：30 m/s 從前方 600 m 跑到後方 600 m。
-      const trip = (sg, stop, withV) => {
+      // vm：'v' 都卜勒（停的時候 0）、'null' 沒有速度、'zero' 每點送 0（Android 沒有速度）、'small' 每點送 0.3。
+      const trip = (sg, stop, vm) => {
         const pts = [];
-        const push = (x, v) => pts.push({ d: Math.round((c + sg * x) * 10) / 10, t: 30000 + pts.length, v: withV ? v : null, acc: 8 });
+        const push = (x, v) => pts.push({ d: Math.round((c + sg * x) * 10) / 10, t: 30000 + pts.length,
+          v: vm === 'v' ? v : vm === 'zero' ? 0 : vm === 'small' ? 0.3 : null, acc: 8 });
         if (stop) {
           for (let k = 0; k <= 30; k++) push(-600 + 20 * k, 20);
           for (let k = 1; k < 60; k++) push(k % 2 ? 0.3 : -0.3, 0);
@@ -144,15 +154,75 @@ try {
       };
       const out = {};
       for (const sg of [1, -1]) {
-        out[`nullStop${sg}`] = run(trip(sg, true, false));
-        out[`nullFast${sg}`] = run(trip(sg, false, false));
-        out[`vStop${sg}`] = run(trip(sg, true, true));
+        out[`nullStop${sg}`] = run(trip(sg, true, 'null'));
+        out[`nullFast${sg}`] = run(trip(sg, false, 'null'));
+        out[`vStop${sg}`] = run(trip(sg, true, 'v'));
+        out[`zeroStop${sg}`] = run(trip(sg, true, 'zero'));
+        out[`zeroFast${sg}`] = run(trip(sg, false, 'zero'));
+        out[`smallFast${sg}`] = run(trip(sg, false, 'small'));
       }
       return out;
     }, ST);
     const want = { cov: 1, missed: false }, fast = { cov: 0, missed: true };
-    ok('D [第十四批 V9 E-2(b)] 停靠進度與 Worker 同一條：沒有速度的裝置停 60 秒 → 亮；沒有速度、30 m/s 通過 → 不亮且判錯過；對照：有速度的同一趟停靠 → 亮（兩個方向；舊版 Number(null)＝0，高速通過也亮）',
-      [1, -1].every(sg => J(got[`nullStop${sg}`]) === J(want) && J(got[`nullFast${sg}`]) === J(fast) && J(got[`vStop${sg}`]) === J(want)), J(got));
+    ok('D [第十四批 V9 E-2(b)、第十五批 V10 P1-2] 停靠進度與 Worker 同一條：沒有速度的裝置停 60 秒 → 亮；沒有速度、30 m/s 通過 → 不亮且判錯過；對照：有速度的同一趟停靠 → 亮；速度送 0 或 0.3、30 m/s 通過 → 不亮且判錯過，送 0 的真停靠 → 亮（兩個方向；舊版 Number(null)＝0、送 0 照信，高速通過也亮）',
+      [1, -1].every(sg => J(got[`nullStop${sg}`]) === J(want) && J(got[`nullFast${sg}`]) === J(fast) && J(got[`vStop${sg}`]) === J(want) &&
+        J(got[`zeroStop${sg}`]) === J(want) && J(got[`zeroFast${sg}`]) === J(fast) && J(got[`smallFast${sg}`]) === J(fast)), J(got));
+  });
+
+  await attempt('X', async () => {
+    // 山線上挑連續四站、相鄰站距都 ≥ 1.2 km（站窗 250 m 不會混進別站的點），站表取前端 lineNetwork()。
+    const FE_STS = await page.evaluate(() => lineNetwork().get('tra_sched|山線').ln.stations.filter(s => s.name && s.d != null)
+      .map(s => ({ name: s.name, d: s.d })).sort((a, b) => a.d - b.d));
+    let i0 = -1;
+    for (let i = 0; i + 3 < FE_STS.length && i0 < 0; i++) if ([1, 2, 3].every(k => FE_STS[i + k].d - FE_STS[i + k - 1].d >= 1.2)) i0 = i;
+    const four = i0 >= 0 ? FE_STS.slice(i0, i0 + 4) : [];
+    const LINE_W = UNITS_NODE.lines['tra_sched|山線'];
+    const PLANS = [['stop', 'pass', 'slow', 'jstop'], ['pass', 'jstop', 'stop', 'slow'], ['slow', 'stop', 'pass', 'stop']];
+    const VMODES = ['v', 'null', 'zero', 'small', 'half'];
+    // u＝沿行進方向的座標（sg＝1 就是里程公尺；sg＝−1 用 −里程），每秒一點；d 照上傳端取整到 0.1 m。
+    const mk = (plan, sg, vm) => {
+      const cs = (sg > 0 ? four.map(s => s.d * 1000) : four.map(s => -s.d * 1000).reverse());
+      const pl = sg > 0 ? plan : plan.slice().reverse();
+      const pts = [];
+      let u = cs[0] - 400;
+      const push = spd => {
+        const k = pts.length, vv = vm === 'v' ? spd : vm === 'zero' ? 0 : vm === 'small' ? 0.3 : vm === 'half' ? (k % 2 ? null : spd) : null;
+        pts.push({ d: Math.round(sg * u * 10) / 10, t: 30000 + k, v: vv, acc: 8 });
+      };
+      const moveTo = (target, spd) => { while (u + spd < target) { u += spd; push(spd); } u = target; push(spd); };
+      push(20);
+      cs.forEach((c, k) => {
+        const how = pl[k];
+        if (how === 'stop' || how === 'jstop') {
+          moveTo(c, 20);
+          const amp = how === 'stop' ? 0.3 : 2;
+          for (let j = 1; j <= 45; j++) { u = c + (j % 2 ? amp : -amp); push(0); }
+          u = c;
+        } else if (how === 'slow') { moveTo(c - 300, 20); moveTo(c + 300, 8); }
+        else moveTo(c + 300, 20);
+      });
+      moveTo(cs[cs.length - 1] + 400, 20);
+      return pts;
+    };
+    const cases = [];
+    for (let p = 0; p < PLANS.length; p++) for (const vm of VMODES) for (const sg of [1, -1]) cases.push({ id: `P${p}/${vm}/${sg > 0 ? 'up' : 'down'}`, sg, pts: mk(PLANS[p], sg, vm) });
+    const fe = await page.evaluate(async cs => {
+      const rules = await bountyRules();
+      const keys = lineNetwork().get('tra_sched|山線').ln.stations.filter(s => s.name && s.d != null).map(s => `tra_sched|山線|${s.name}|${s.name}`);
+      return cs.map(({ pts }) => {
+        const ds = pts.map(p => p.d);
+        const r = { card: { kind: 'dwell', unitKeys: keys }, sys: 'tra_sched', lnId: '山線', _recent: pts, _dLo: Math.min(...ds), _dHi: Math.max(...ds), _cov: {} };
+        bountyUpdateDwellProgress(r, rules);
+        return Object.keys(r._cov).filter(k => r._cov[k] >= 1).map(k => k.split('|')[2]).sort();
+      });
+    }, cases.map(c => ({ pts: c.pts })));
+    const wk = cases.map(c => _bounty.coverageOf({ pts: c.pts, tripDate: '2026-07-26', dir: c.sg > 0 ? 0 : 1, sys: 'tra_sched', lnId: '山線' },
+      LINE_W, RULES_NODE, UNITS_NODE.peakHoursBySys).filter(x => x.kind === 'dwell').map(x => x.key.split('|')[2]).sort());
+    const diff = cases.map((c, i) => ({ id: c.id, fe: fe[i], wk: wk[i] })).filter(x => J(x.fe) !== J(x.wk));
+    const lit = wk.reduce((n, a) => n + a.length, 0), dark = cases.length * 4 - lit;
+    ok('X [第十五批 V10 P2-8] 同一批點同時餵前端 bountyUpdateDwellProgress 與 Worker coverageOf：30 趟（三種停法組合 × 五種速度欄 × 兩個方向）逐站的停靠判定完全相同（Worker 用 bounty_units.json 的站表、前端用 lineNetwork()）',
+      four.length === 4 && !!LINE_W && cases.length === 30 && diff.length === 0 && lit >= 30 && dark >= 30,
+      J({ four: four.map(s => s.name), lit, dark, diff: diff.slice(0, 3) }));
   });
 
   ok('W9 整個過程頁面沒有丟出未處理的例外', errors.length === 0, J(errors.slice(0, 3)));
