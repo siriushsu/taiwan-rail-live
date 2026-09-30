@@ -3,8 +3,9 @@
      🔴 這是【示意資料】（201／539，37%，全台），不是使用者的資料——與 iOS 圖庫預覽 CollectionWidgetPreview.json 同一組數字；
         地圖是用同一支 CollectionMapRender 對示意 payload 畫出來的圖（wg_collect_preview_map，淺／深各一張）。
      版面照 widget_collect_small.xml（58／42 權重欄、fitEnd 貼右下），不綁任何 id。
-     「蓋章」是靜態示意，位置照實際卡片：文字欄最下面、數字下方靠左。實際卡片在常見的 2×2 寬度（約 137dp 起）放不下副標「車站收集」時會先收掉它，
-     所以這裡直接不放副標，與實際卡片的常見樣子一致。 -->
+     「蓋章」是靜態示意的整條按鈕（契約〈畫法約定〉11），位置與大小照實際卡片：文字欄最下面、寬＝文字欄寬、28dp 高、字置中（上空隙 5dp）。
+     實際卡片在常見的 2×2 寬度（約 137dp 起）放不下副標「車站收集」時會先收掉它，所以這裡直接不放副標，與實際卡片的常見樣子一致。
+     本文列的上距 1dp＝實際卡片高度預算的標題保留量，整條按鈕比舊膠囊多占 9dp，158dp 高的卡剛好放得下。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -39,7 +40,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="1dp"
         android:layout_weight="1"
         android:baselineAligned="false"
         android:orientation="horizontal">
@@ -106,18 +107,18 @@
                 android:textSize="11sp" />
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="18dp"
-                android:layout_marginTop="6dp"
+                android:layout_width="match_parent"
+                android:layout_height="28dp"
+                android:layout_marginTop="5dp"
                 android:background="@drawable/wc_stamp_bg"
                 android:gravity="center"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
                 android:text="蓋章"
                 android:textColor="@color/wg_plate_band_ink"
-                android:textSize="10sp"
+                android:textSize="14sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
