@@ -690,9 +690,9 @@ async function nearbyCity(page, city) {
   }) : null;
   return { n, rows, info };
 }
-async function stampCity(page, city) { // 真的點那一列的「蓋章」鈕
+async function stampCity(page, city) { // 真的點那一列的「蓋章」鈕；鈕停用（兩座的鍵相撞時，第二座會顯示「今天已蓋 ✓」）就不點，讓呼叫端的 rowOk 判準記成 FAIL，不要卡 8 秒逾時、整支腳本崩潰
   const r = await nearbyCity(page, city);
-  if (r.n === 1) await r.rows.first().locator('.nx-ck').click({ timeout: 8000 });
+  if (r.n === 1 && r.info && !r.info.disabled) await r.rows.first().locator('.nx-ck').click({ timeout: 8000 });
   return r;
 }
 const rowOk = (r, label, btn) => r.n === 1 && !!r.info && r.info.label === label && (btn instanceof RegExp ? btn.test(r.info.btn || '') : r.info.btn === btn) && r.info.disabled === (btn === '今天已蓋 ✓');
