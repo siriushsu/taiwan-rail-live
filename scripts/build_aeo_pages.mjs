@@ -840,6 +840,7 @@ function secondConfig(key) {
   const config = {
     slug, key, name, title, members: [key], batch: 2, enJa,
     summary: zhSummary, transfer: segText(zhSegs), transferHtml: segHtml(zhSegs),
+    distanceNote: partners.length > 0 || Boolean(hsrPage),   // 轉乘段有公尺或公里數，才接「資料中的距離用於辨識…」那段（規則 3）
   };
   if (enJa) {
     if (partners.length) guard('en/ja', '轉乘夥伴');
@@ -929,6 +930,9 @@ const plainMd = md => { const cut = md.search(/[（(]/); return cut < 0 ? md : m
 // 「9/28 週一（放假）」「Sep 28 Mon (holiday)」「9月28日 月曜（休日）」。回傳 HTML：手機窄欄時括號註記不准斷在中間
 // （「（放／假）」），日期＋星期、括號註記各包成不斷行的單位（.nb），只允許在兩者之間換行。
 const nb = html => `<span class="nb">${html}</span>`;
+// TDX 路線名「西部幹線 (海線)」含半形空白與括號，手機窄欄會從名稱中間斷成「(海／線)」；把這類路線名包成不斷行的單位（字面不變）
+const PAREN_ROUTE_LABELS = Object.values(ttInputs.lineNames.lines).map(line => escapeHtml(line.zh)).filter(label => label.includes('('));
+const nbRoutes = html => PAREN_ROUTE_LABELS.reduce((out, label) => out.split(label).join(nb(label)), html);
 function dayCountLabel(lang, p) {
   const md = p.md[lang], plain = plainMd(md), note = md.slice(plain.length).trim(), wd = WD_NAMES[lang][p.weekday];
   const head = pick3(lang, `${plain} 週${wd}`, `${plain} ${wd}`, `${plain} ${wd}曜`);
@@ -1042,7 +1046,7 @@ function factsSection(lang, model) {
   const add = (label, value) => rows.push(`<div class="fact-row"><div class="fact-label">${escapeHtml(label)}</div><div class="fact-value">${value}</div></div>`);
   const sep = pick3(lang, '；', '; ', '；');
   add(FACT_LABEL.systems[lang], systemsOf(lang, model).map(escapeHtml).join(pick3(lang, '、', ', ', '、')));
-  add(FACT_LABEL.routes[lang], routesOf(lang, model).map(escapeHtml).join(pick3(lang, '、', ', ', '、')));
+  add(FACT_LABEL.routes[lang], routesOf(lang, model).map(route => nbRoutes(escapeHtml(route))).join(pick3(lang, '、', ', ', '、')));
   if (model.tts.length) {
     const perSystem = code => model.tts.find(rec => rec.item.system === code);
     const ranges = model.ttSystems.map(code => `${SYSTEM_SHORT[lang][code]}${pick3(lang, '：', ': ', '：')}${rangeText(lang, perSystem(code).tt)}`).join(sep);
@@ -1151,14 +1155,14 @@ ${sh.headerHtml(lang, alts)}
     <section class="hero">
       <p class="eyebrow">${hasTt ? 'STATION TIMETABLE' : 'STATION GUIDE'}</p>
       <h1>${escapeHtml(heading)}</h1>
-      <p class="lede">${escapeHtml(lede)}</p>
+      <p class="lede">${nbRoutes(escapeHtml(lede))}</p>
       <div class="tag-row">${tags.map(item => `<span class="tag">${escapeHtml(item)}</span>`).join('')}</div>
       <div class="hero-actions"><a class="button" href="${escapeHtml(liveHref(lang, model))}">${escapeHtml(pick3(lang, '在即時地圖查看', 'View on the live map', 'ライブ地図で見る'))}</a><a class="button secondary" href="${stationIndexHref(lang)}">${escapeHtml(pick3(lang, '回車站索引', 'Back to the station index', '駅の索引へ戻る'))}</a></div>
     </section>
     ${factsSection(lang, model)}
     ${toc}
     ${sections.map(section => section.html).join('\n    ')}
-    <section class="content-section st-anchor" id="transfer"><h2>${escapeHtml(pick3(lang, '轉乘與站體判讀', 'Transfers and how the stations relate', '乗り換えと駅の位置関係'))}</h2><div class="answer-box"><p>${transferHtmlOf(lang, config)}</p><p>${escapeHtml(pick3(lang, '資料中的距離用於辨識共站與步行轉乘關係，不是站內導航，也不等於月台之間的實際步行時間。', 'Distances in the data are only used to recognise shared stations and walking transfers. They are not in-station navigation and do not equal the actual walking time between platforms.', 'データ上の距離は、共用駅や徒歩での乗り換え関係を見分けるために使っているもので、駅構内の案内ではなく、ホーム間の実際の所要時間でもありません。'))}</p></div></section>
+    <section class="content-section st-anchor" id="transfer"><h2>${escapeHtml(pick3(lang, '轉乘與站體判讀', 'Transfers and how the stations relate', '乗り換えと駅の位置関係'))}</h2><div class="answer-box"><p>${nbRoutes(transferHtmlOf(lang, config))}</p>${config.distanceNote === false ? '' : `<p>${escapeHtml(pick3(lang, '資料中的距離用於辨識共站與步行轉乘關係，不是站內導航，也不等於月台之間的實際步行時間。', 'Distances in the data are only used to recognise shared stations and walking transfers. They are not in-station navigation and do not equal the actual walking time between platforms.', 'データ上の距離は、共用駅や徒歩での乗り換え関係を見分けるために使っているもので、駅構内の案内ではなく、ホーム間の実際の所要時間でもありません。'))}</p>`}</div></section>
     <section class="content-section st-anchor" id="how"><h2>${escapeHtml(pick3(lang, '軌島怎麼顯示這一站', 'How Rail Island shows this station', '軌島でのこの駅の表示'))}</h2><div class="answer-box">${howParagraphs(lang, model)}</div></section>
     ${relatedCards ? `<section class="content-section"><h2>${escapeHtml(pick3(lang, '附近的車站資料頁', 'Nearby station pages', '近くの駅のページ'))}</h2><div class="card-grid">${relatedCards}</div></section>` : ''}
   </main>
