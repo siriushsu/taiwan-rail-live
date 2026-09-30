@@ -6,8 +6,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import androidx.test.ext.junit.runners.AndroidJUnit4;
+import android.content.Context;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.platform.app.InstrumentationRegistry;
+
+import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -414,5 +418,125 @@ public final class CollectionDataInstrumentedTest {
         assertEquals("對照：北捷單一系統取前 4 筆", 4, d.figures("trtc", "全台").recent.size());
         assertEquals("對照：淡海單一系統 1 筆", 1, d.figures("ntdlrt", "全台").recent.size());
         assertTrue("全台的其他數字照舊", d.figures("all", "全台").isAll() && d.figures("all", "全台").collected == d.n);
+    }
+
+    // ── 深巢狀：壞資料不准讓 App 閃退（與上面的容錯同一個精神；解析發生在兩條路：存檔時 validate、小工具端 decode）──
+
+    /** decode／validate 丟出 StackOverflowError＝真機上整個 App 閃退；這裡轉成一行訊息的失敗，不讓上千行的堆疊灌爆測試輸出。 */
+    private static CollectionData decodeNoCrash(String json) {
+        try {
+            return CollectionData.decode(json);
+        } catch (StackOverflowError error) {
+            throw new AssertionError("CollectionData.decode 丟出 StackOverflowError（真機上會閃退）");
+        }
+    }
+
+    private static String validateNoCrash(String json) {
+        try {
+            return CollectionStore.validate(json);
+        } catch (StackOverflowError error) {
+            throw new AssertionError("CollectionStore.validate 丟出 StackOverflowError（真機上會閃退）");
+        }
+    }
+
+    private static CollectionData loadNoCrash(Context context) {
+        try {
+            return CollectionData.load(context);
+        } catch (StackOverflowError error) {
+            throw new AssertionError("CollectionData.load 丟出 StackOverflowError（真機上會閃退）");
+        }
+    }
+
+    private static String repeat(String s, int n) {
+        StringBuilder b = new StringBuilder(s.length() * n);
+        for (int i = 0; i < n; i++) b.append(s);
+        return b.toString();
+    }
+
+    /** 巢狀 depth 層的陣列 [[[…]]]。 */
+    private static String nestedArrays(int depth) {
+        return repeat("[", depth) + repeat("]", depth);
+    }
+
+    /** 巢狀 depth 層的物件 {"a":{"a":…}}（最內層是空物件）。 */
+    private static String nestedObjects(int depth) {
+        return repeat("{\"a\":", depth - 1) + "{}" + repeat("}", depth - 1);
+    }
+
+    @After
+    public void removeStoredFile() {
+        CollectionData.file(InstrumentationRegistry.getInstrumentation().getTargetContext()).delete();
+    }
+
+    @Test
+    public void nestingLimitIsExactlyMaxDepth() {
+        // 整份 payload 的深度＝最外層物件 1 層＋extra 裡的巢狀層數（正常 payload 最深 3 層）
+        for (boolean objects : new boolean[] { false, true }) {
+            String atLimit = doc("extra", objects ? nestedObjects(CollectionStore.MAX_DEPTH - 1) : nestedArrays(CollectionStore.MAX_DEPTH - 1));
+            String overLimit = doc("extra", objects ? nestedObjects(CollectionStore.MAX_DEPTH) : nestedArrays(CollectionStore.MAX_DEPTH));
+            String kind = objects ? "物件" : "陣列";
+            assertNull("剛好 MAX_DEPTH 層要收（存檔）：" + kind, validateNoCrash(atLimit));
+            assertNotNull("剛好 MAX_DEPTH 層要收（小工具端）：" + kind, decodeNoCrash(atLimit));
+            String problem = validateNoCrash(overLimit);
+            assertNotNull("MAX_DEPTH+1 層要拒（存檔）：" + kind, problem);
+            assertTrue("拒絕訊息沿用「不是 JSON 物件」：" + problem, problem.contains("not a JSON object"));
+            assertNull("MAX_DEPTH+1 層要拒（小工具端）：" + kind, decodeNoCrash(overLimit));
+        }
+        assertNull("正常 payload 不受影響（存檔）", validateNoCrash(doc()));
+        assertNotNull("正常 payload 不受影響（小工具端）", decodeNoCrash(doc()));
+    }
+
+    @Test
+    public void hugelyNestedPayloadIsRejectedOnBothPathsWithoutCrashing() {
+        // 10 萬層陣列＝20 萬字元；8 萬層物件＝約 48 萬位元組（壓在 512 KB 上限之下，才會走到深度檢查而不是被大小擋掉）
+        String arrays = doc("extra", nestedArrays(100_000));
+        String objects = doc("extra", nestedObjects(80_000));
+        assertTrue("測試前提：兩份都在 512 KB 之內", objects.getBytes(java.nio.charset.StandardCharsets.UTF_8).length < CollectionStore.MAX_BYTES);
+        for (String json : new String[] { arrays, objects }) {
+            String problem = validateNoCrash(json);
+            assertNotNull("存檔要拒絕", problem);
+            assertTrue("是被深度擋下、不是被大小擋下：" + problem, problem.contains("not a JSON object"));
+            assertNull("小工具端要回「沒有資料」", decodeNoCrash(json));
+        }
+    }
+
+    @Test
+    public void hostileFileOnDiskLoadsAsNoData() {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        assertTrue(CollectionStore.write(context, doc("extra", nestedArrays(100_000))));
+        assertNull("小工具讀到一個極深的檔案也只是沒有資料", loadNoCrash(context));
+        assertTrue(CollectionStore.write(context, doc()));
+        assertNotNull("換回正常的檔案就恢復", loadNoCrash(context));
+    }
+
+    @Test
+    public void bracketsInsideStringsDoNotCountAsNesting() {
+        // 站名裡有 200 個 [、一個被跳脫的引號、200 個 {、一個被跳脫的反斜線：都是字串內容，不是巢狀
+        String content = repeat("[", 200) + "\\\"" + repeat("{", 200) + "\\\\";       // JSON 文字（含跳脫）
+        String expected = repeat("[", 200) + "\"" + repeat("{", 200) + "\\";          // 解碼後的字元
+        String recent = "[{\"name\":\"" + content + "\",\"line\":\"L\",\"k\":\"trtc\",\"d\":\"2026-09-01\"}]";
+        String json = doc("recent", recent);
+        assertNull("字串裡的括號不算巢狀（存檔）", validateNoCrash(json));
+        CollectionData d = decodeNoCrash(json);
+        assertNotNull("字串裡的括號不算巢狀（小工具端）", d);
+        assertEquals(1, d.recent.size());
+        assertEquals(expected, d.recent.get(0).name);
+    }
+
+    @Test
+    public void escapedBackslashBeforeClosingQuoteEndsTheString() {
+        // "x":"\\" 的引號是結尾（反斜線被跳脫了）：後面真正的 75 層巢狀要被數到而拒收
+        String json = doc("x", "\"\\\\\"", "extra", nestedArrays(CollectionStore.MAX_DEPTH + 11));
+        assertNotNull("存檔要拒", validateNoCrash(json));
+        assertNull("小工具端要拒", decodeNoCrash(json));
+    }
+
+    @Test
+    public void lenientQuotingCannotCrashTheWidgetEither() {
+        // org.json 放行單引號字串：'"' 讓深度掃描的字串狀態錯位、把後面的 10 萬層當成字串內容而放行；
+        // 這時靠外層接住 StackOverflowError 保住不閃退（存檔那條用嚴格的 JsonReader，單引號一律拒收）
+        String crafted = doc("x", "'\"'", "y", nestedArrays(100_000), "z", "'\"'");
+        assertNull("小工具端回沒有資料、不閃退", decodeNoCrash(crafted));
+        assertNotNull("存檔端拒收單引號", validateNoCrash(crafted));
     }
 }

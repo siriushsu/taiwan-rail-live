@@ -77,6 +77,7 @@ final class CollectionData {
      */
     static CollectionData decode(String json) {
         if (json == null || json.isEmpty()) return null;
+        if (!CollectionStore.nestingWithinLimit(json)) return null;
         try {
             JSONObject root = new JSONObject(json);
             Integer version = intOf(root.opt("v"));
@@ -142,7 +143,8 @@ final class CollectionData {
                 d.pts.add(p);
             }
             return d;
-        } catch (Exception error) {
+        } catch (Exception | StackOverflowError error) {
+            // org.json 遞迴解析，深巢狀會 StackOverflowError（Error，不是 Exception）：上面的深度檢查是第一道，這是保險
             return null;
         }
     }
