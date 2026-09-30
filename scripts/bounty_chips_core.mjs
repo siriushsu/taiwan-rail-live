@@ -1,5 +1,5 @@
 // scripts/bounty_chips_core.mjs —— 籌碼規則的純函式。客端顯示與伺服器入帳共用這一份。
-// 規則正本：路段懸賞 v2 §3.2／§3.3／§3.8。數字全部讀 data/bounty_rules.json 的 chips 區塊。
+// 規則的數字全部讀 data/bounty_rules.json 的 chips 區塊。
 
 export function taipeiDay(epochMs) {
   const d = new Date(epochMs + 8 * 3600e3);
@@ -21,7 +21,7 @@ export function tripChips(trip, chips) {
   return chips.perTrip * mult;
 }
 
-// 每日籌碼上限（v2 §3.2「每日籌碼上限」）：數的是籌碼（×2 之後），超過的部分不給。
+// 每日籌碼上限：數的是籌碼（×2 之後），超過的部分不給。
 export function applyDailyChipCap(chipsForTrip, chipsAlreadyToday, chips) {
   return Math.max(0, Math.min(chipsForTrip, chips.dailyChipCap - chipsAlreadyToday));
 }

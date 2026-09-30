@@ -6271,8 +6271,8 @@ function sanitizeSamples(arr, max) {
   return { samples: out, dropped };
 }
 // 上傳端的來源資訊 {platform, app, simulator}（路段懸賞 v2）。回 null＝不合格，呼叫端回 400 app_only。
-// GPS 錄程只收 iOS／Android 的 App；網頁與其他來源一律不收（platform 由客戶端回報，
-// 這一關擋的是誠實的網頁客戶端與寫錯的客戶端）。
+// GPS 錄程只收 iOS／Android 的 App；網頁與其他來源一律不收（這一關是產品政策、管的是來源，
+// 不是防偽；防偽靠判定端的各重檢查）。
 // 只留這三個欄位，其他鍵丟掉；app 截到 32 字、simulator 只有嚴格的 true 才算（"true" 字串不算）。
 function sanitizeClient(c) {
   if (!c || typeof c !== 'object' || Array.isArray(c)) return null;
@@ -7593,16 +7593,16 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
       // （iOS 沒有有效速度時回報 −1，App 送 null）。速度欄本來就由客戶端自填，偽造者送 0 效果相同，這一條不增加能力。
       // 前一點沒有、或同一秒（Δt≤0）就不算低速。前端錄製當下的停靠進度（bountyUpdateDwellProgress）用同一條。
       // 🔴 回報的速度再低，位置微分超過 posSpeedVetoMps（10 m/s＝36 km/h）就不信它（第十輪獨立驗收 P1-2）：Android 沒有速度時送的是 0.0
-      // 不是 null（@capacitor/geolocation 2.2.0 的 ION 直接呼叫 getSpeed()、不查 hasSpeed()），整趟送 0 的話通過的站約 99% 被記成停靠；
+      // 不是 null（@capacitor/geolocation 2.2.0 的 ION 直接呼叫 getSpeed()、不查 hasSpeed()），整趟送 0 的話通過的站幾乎全被記成停靠；
       // 偽造者整趟送 0 或任何小的數也一樣。否決門檻刻意比 stopSpeedMaxMps 高得多：真的停著時 GPS 會晃——
       // 模擬裡門檻用 1.5 的話，停著時回報剛好 0 的誠實裝置停靠召回掉到 21–45%。
       // 🔴 位置微分跟「至少 posSpeedWindowSec（5 秒）以前的那一點」比，窗內還沒有那麼早的點就跟窗內第一點比（第十一輪獨立驗收 P2-1）：
       // 第十五批跟前一點比（1 秒），GPS 每一點獨立晃 10 m 時，停著的位置微分雜訊約 √2×10≈14 m/s、常超過 10，回報 0 的真停靠被否決掉，
       // 召回 99.3% → 71.6%（晃 6 m 時 95.6%）。跟 5 秒前比，雜訊除以 5。
-      // 否決門檻附近是模糊帶（第十二輪獨立驗收 P3-1；下緣第十三輪 P3-6 訂正）：App 記的 t 是整數秒（nowSecOfDay 取 floor），「5 秒前」實際是 4 到 6 秒，
-      // 位置微分可能低估也可能高估約兩成——12.5 m/s（45 km/h）以上通過的車照樣否決，約 8.3–12.5 m/s 的要看取整落在哪邊。
+      // 門檻附近有取整造成的誤差（第十二輪獨立驗收 P3-1；第十三輪 P3-6 訂正）：App 記的 t 是整數秒（nowSecOfDay 取 floor），「5 秒前」實際是 4 到 6 秒，
+      // 位置微分可能低估也可能高估約兩成。
       // 沒有速度的點同樣用這個位置微分判低速，比 1 秒的穩（第十輪獨立驗收 P2：沒速度的停靠召回隨雜訊掉到 17%）。
-      // 代價：以 45 km/h 以下慢慢通過、又回報 0 的那一站可能算停靠（台鐵通過站的車速通常遠高於此）；
+      // 代價：否決門檻刻意取得比停靠時 GPS 的晃動高，以停靠召回為優先；
       // 停下來的頭幾秒，5 秒前的點還在進站途中，沒有速度的點要等位置微分降到 1.5 以下才算低速。
       const p = local[j], t = Number(p.t);
       while (base + 1 < j && Number(local[base + 1].t) <= t - D.posSpeedWindowSec) base++;
@@ -7795,8 +7795,8 @@ function qualityGate(trip, ctx, rules, rawPts = trip.pts) {
   for (let i = 1; i < pts.length; i++) gaps.push(pts[i].t - pts[i - 1].t);
   if (median(gaps) > Q.sampleGapMedianSec) return { pass: false, code: 'too_sparse' };
   // 斷訊看原始的點，不看收下的點。防偽閘在開頭與每個 Δt≥10 秒的斷點之後不收頭兩點（見 integrityGate）：
-  // 斷訊在錄程頭尾時，旁邊那兩點一不收，斷訊就從收下的點裡消失了，籌碼的整班長度卻照原始的點算——一趟 5 分鐘的錄程
-  // 前面多送兩個十幾分鐘前的點，就成了「沒有斷訊、長度超過 10 分鐘」。斷訊在中間時則反過來，收下的點會把斷訊多算不收的那 2 秒，
+  // 斷訊在錄程頭尾時，旁邊那兩點一不收，斷訊就從收下的點裡消失了，籌碼的整班長度卻照原始的點算——兩邊基準不同，
+  // 斷訊檢查就管不到長度裡的那一段。斷訊在中間時則反過來，收下的點會把斷訊多算不收的那 2 秒，
   // 剛好 noFixGapSec 的隧道被判 underground。原始的點兩邊都對，也跟籌碼長度、跟第十一批以前同一個基準。
   for (let i = 1; i < rawPts.length; i++) if (rawPts[i].t - rawPts[i - 1].t > Q.noFixGapSec) return { pass: false, code: 'underground' };
   // 尖峰時段表跟判定端（bountyVerifyTrain）同一份（第九輪獨立驗收）：coverageOf 平日沒有這張表就不列停靠段，
@@ -7951,12 +7951,12 @@ async function bountyCreditTripChips(env, rules, groups, prior, now, who, fence)
 // ── 判定 cron 一發處理哪些班車（review-B B3／R2）──────────────────────────────────────────
 // 第一段只列「班車清單」（每班一列：actor、乘車日、車次、批數、記在誰名下），不讀 payload；第二段才一班一班讀那班車的批次。
 // 舊版一句 SELECT * 最多 4,001 列連 payload 一起讀進記憶體（每批上限 600 點，最壞近 100 MB，Workers 一個 isolate 只有 128 MB），
-// 而且依「乘車日最舊、actor 字母序」排：任何人不需要憑證，每天送兩千批「乘車日＝上傳窗最舊那天、actor 取字母序在前」的垃圾，
+// 而且依「乘車日最舊、actor 字母序」排，兩個欄位都由上傳者決定：不需要憑證就能把自己的垃圾排到最前面，
 // 預算就全花在垃圾上，誠實的趟天天輪不到。
 // 單發最多列幾班進清單（一列約兩百位元組，四千班不到 1 MB）。實際判得了幾班由子請求／牆鐘／讀取量預算決定、通常遠少於此；
 // 這個上限只防清單本身長到不合理，超過的留到下一發（它們還是 pending），stat.truncated 標出來。
 // 🔴 截斷時可信名額（head）最多佔清單的 BOUNTY_VERIFY_TRUSTED_SHARE，其餘位置先給一般班車（第三輪獨立驗收 N1b）：舊版依「head 最先」排好才截，
-// 約 500 個養出來的分身各灌 8 班（head 恰 4000 班）就讓新使用者連清單都進不去，判定迴圈裡的份額完全不起作用。一般班車不夠填的話 head 照樣補滿。
+// 可信身分夠多、各自灌滿名額時，新使用者連清單都進不去，判定迴圈裡的份額完全不起作用。一般班車不夠填的話 head 照樣補滿。
 const BOUNTY_VERIFY_MAX_TRAINS = 4000;
 // 一班車 payload 的總長上限（payload 是純 ASCII 的 JSON，length() 的字元數＝位元組數）。誠實的一班車：客戶端每 60 秒送一批
 // 60 點（@1Hz，一點約 39 位元組），十二小時的車約 1.7 MB；4 MB 約 28 小時，任何真的班車都到不了。
@@ -7965,10 +7965,10 @@ const BOUNTY_VERIFY_MAX_TRAINS = 4000;
 // 清單之後才灌進來的批次也一樣：逐班讀取那一句在 SQL 裡累加長度、超過就截住（獨立驗收 N2）。
 const BOUNTY_VERIFY_MAX_TRAIN_BYTES = 4 * 1024 * 1024;
 // 「可信身分」每一發排在最前面的班數。可信＝帳號、併進帳號的裝置，或這個身分以前真的入帳過錄程籌碼
-// （前者要真的登入，後者要先交出一趟判得過的錄程）。8 班比任何人一天真的搭的班次都多。
+// （前者要真的登入，後者要先有一趟錄程入帳過籌碼）。8 班比任何人一天真的搭的班次都多。
 const BOUNTY_VERIFY_TRUSTED_TRAINS = 8;
 // 可信名額最多先用掉這一發剩下預算（子請求、牆鐘、讀取量各算）的這個比例（獨立驗收 N1），清單截斷時最多佔清單的這個比例（第三輪 N1b）。可信資格不難取得
-// （交過一趟判得過的錄程就算）——不設上限的話，約 12 個可信身分各灌 8 班昂貴的垃圾車，可信名額就吃掉整發預算，新使用者的第一趟每一發都判不到。
+// （入帳過一次錄程籌碼就算）——不設上限的話，少數可信身分各灌滿名額的昂貴垃圾車，可信名額就吃掉整發預算，新使用者的第一趟每一發都判不到。
 // 用到份額之後，其餘的可信名額改與一般班車按輪次交錯排（同一輪裡一般班車先；別人都判完還有預算就接著判），見 bountyVerifyOrder。
 const BOUNTY_VERIFY_TRUSTED_SHARE = 0.5;
 // 判定的租約：同一時間只准一發在判（kv_blobs 一列，值是 {token, until}）。兩發重疊（平台重送、owner 手動觸發）時，

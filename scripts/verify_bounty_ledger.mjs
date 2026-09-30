@@ -261,7 +261,7 @@ await attempt('D6', async () => {
 await attempt('D7', async () => {
   const SAT = '2026-07-25';                                                    // 週六：holiday，coverageOf 才會產 dwell
   const centerM = 6000;                                                        // S3（d=6 km）
-  // 接近→煞停→靜止 6 秒→起步。速度變化 ≤3.9 m/s²（物理閘），v 帶雜訊（都卜勒閘）。
+  // 接近→煞停→靜止 6 秒→起步。速度變化在物理閘的上限內，v 帶量測誤差。
   function stopTraj() {
     const pts = []; let d = 4200, t = 30000, n = 0;
     const push = (dd, v) => { d += dd; t += 1; n += 1; pts.push({ d, t, v, acc: 8 + (n % 3) }); };

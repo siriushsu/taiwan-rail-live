@@ -7,7 +7,7 @@
 //     加上修補設計。
 //   ・數字（每趟至少 600 秒、每日籌碼上限 4、第一座 4 之後每座 8、每日計點上限 200、日期窗 7 天、每人每日 720 批）
 //     來自 data/bounty_rules.json 與 worker.js 的常數，這裡照抄成字面。
-// 每一條判準寫的時候都先答「哪一個突變能讓它變紅」——突變表在 commit 訊息與回報裡。
+// 每一條判準寫的時候都先答「哪一個突變能讓它變紅」。
 //
 // 分組（括號裡是 review-B 的編號）：
 //   B1  上傳窗與防偽閘同一條台北日（走真的上傳端點再跑判定）
@@ -1842,7 +1842,7 @@ await attempt('CL1', async () => {
     J({ v: q.verdicts(w, A, 'C1'), got, points: q.points(w, A), ok: st.ok }));
 });
 // 在 S1（2 km）停 5 秒的一趟：10 m/s 巡航、20 秒減速到 0.5、5 秒 0.2 m/s（都卜勒 0.35／0.45）、20 秒加速回 10 m/s，一路開到 S2（4 km）。
-// 形狀照 verify_bounty_dwell.mjs 的 trajectory（同樣的雜訊，過得了防偽閘）。從 5 m 起跑：巡航剛好停在 1,895 m 開始減速，
+// 形狀照 verify_bounty_dwell.mjs 的 trajectory（同樣的量測誤差）。從 5 m 起跑：巡航剛好停在 1,895 m 開始減速，
 // 從 0 起跑的話中間會多一步 5 m、都卜勒從 5 跳到 9.5——第九批之前的加速度上限（每秒 3.9 m/s）會判成 impossible_physics；現在的上限是 1.3×3×(Δt＋1)，形狀沿用。
 function dwellLeg(t0 = 30000) {
   const pts = [{ d: 5, t: t0, v: 10.4, acc: 8 }];
@@ -2253,7 +2253,7 @@ await attempt('PL', async () => {
 });
 
 // ═══ PH：同一秒的點（第五輪獨立驗收）══════════════════════════════════════════════
-// 上傳端把 t 取整到秒；舊版防偽閘第三重對 dt≤0 的點直接跳過，「整條線每個站間兩點、全部同一個 t」判 ok、全線覆蓋。
+// 上傳端把 t 取整到秒；舊版防偽閘第三重對 dt≤0 的點直接跳過，同一個 t 的點完全不受物理檢查、判 ok、全線覆蓋。
 // 這裡走真的上傳端點再跑判定（逐點的邊界在 verify_bounty_gates.mjs 的 F11–F16）。
 await attempt('PH1', async () => {
   const A = 'dev-ph1-000001';
@@ -2606,7 +2606,7 @@ await attempt('PF6', async () => {
   //     b 每一點送 v:0 → S1、S2 都記成停靠段：位置微分 8 m/s 沒超過否決門檻 posSpeedVetoMps（10），回報的 0 照信；
   //     c 同一趟送 v:null → 沒有停靠段（位置微分 8 ＞ 1.5）。舊版把 null 存成 0，c 就會變成 b 的結果。
   //     原本的對照是「30 m/s 送 v:0 → S1…S9 九站都記成停靠段」；第十五批起位置微分超過 10 m/s 就否決回報的低速（Android 沒有速度時送 0，見 PF11），
-  //     30 m/s 的 0 已經不會算停靠，對照只好降到否決門檻以下（V8 模擬：台鐵 130 km/h、整趟沒有速度的裝置每趟約 9 個假停靠，那是 a 在防的）。
+  //     30 m/s 的 0 已經不會算停靠，對照只好降到否決門檻以下（沒有否決門檻的話，整趟沒有速度的裝置每趟會多出好幾個假停靠，那是 a 在防的）。
   const D26 = '2026-07-26';
   const trip = (v, mps) => Array.from({ length: 634 }, (_, i) => ({ d: 500 + i * mps, t: 30000 + i, v, acc: v === null ? null : 8 }));
   const run = async (actor, v, mps) => {
@@ -2647,8 +2647,8 @@ await attempt('PF7', async () => {
     ['a', 'b'].every(k => got[k].v === 'ok' && got[k].chips === got[k].want), J(got));
 });
 await attempt('PF8', async () => {
-  // 第十三批（V8 E1 的另一半）：精度送 null 不算成 0 m。舊版 Number(null) 是 0——一半的點送 acc:null，精度中位數就被拉到
-  // 另一半的一半以下：另一半 110–129 m（遮蔽）的錄程，中位數變成 55 m，品質閘當成夠精確、判 ok。
+  // 第十三批（V8 E1 的另一半）：精度送 null 不算成 0 m。舊版 Number(null) 是 0——送 null 的點會把精度中位數往下拉，
+  // 遮蔽下精度很差的錄程也可能被品質閘當成夠精確、判 ok。
   // 走真的上傳端點 → 判定 cron。a 單數點 acc:null、雙數點 110–129 m → unusable（acc_blocked）；
   // 對照 b：同一趟每一點都是 110–129 m → 同樣 unusable（acc_blocked）——兩個同一個答案，null 沒有改變判定。
   const D26 = '2026-07-26';

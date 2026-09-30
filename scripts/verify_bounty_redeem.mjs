@@ -7,7 +7,7 @@
 //   ・產品規則：車庫第 1 座 4 籌碼、之後每座 8；捷運不列入懸賞。
 //   ・其餘數字（台鐵 50／高鐵 15 位不同的人收滿、一趟 1 籌碼、每日上限 4、雲端搭乘 3 次換 1 籌碼、四座場景 id）
 //     來自 data/bounty_rules.json，這裡照抄成字面。
-// 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準（突變表在回報裡）。
+// 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準。
 //
 // ⚠️ 假 D1 的保真度（稽核 F20）：scripts/d1_local.mjs 的 batch() 是排隊序列化的，但 batch 之外的單句寫入
 //    可以插進另一個 batch 的交易中間；真的 D1 不會這樣。所以下面 C 組「兩個併發的請求」只證明「序列化之後的
@@ -237,7 +237,7 @@ await attempt('M4', async () => {
 });
 
 // M5 身分：actor 查詢參數，或 Bearer Firebase idToken（uid 蓋過 actor 參數）；Bearer 那條走 AUTH_LIMITER，
-// ?actor= 那條走 BOUNTY_LIMITER（稽核 F19：以前完全不限流；bountyMe 的 ?actor= 讀取仍不限流）
+// ?actor= 那條走 BOUNTY_LIMITER（稽核 F19：以前完全不限流；bountyMe 的 ?actor= 讀取第十批起也走同一道限流，見 verify_bounty_auth.mjs 的 A14d）
 await attempt('M5', async () => {
   const D = 'device-m5other1', U = 'uid-m5bearer01';
   const mk = env => { const w = world({ env }); give(w.db, U, { balance: 9 }); give(w.db, D, { balance: 2 }); return w; };
