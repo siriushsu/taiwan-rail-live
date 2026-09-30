@@ -6966,12 +6966,16 @@
 //         地下道不畫在地面上（守門：scripts/verify_tainan_memory.mjs 的「馬路：」、verify_tainan_memory_browser.mjs）。v0930j 由 SEO 平鎮待通車站分支佔用。
 // v0930j：車站時刻頁略過待通車站（scripts/fetch_tra.py 的 PENDING_STATIONS，例：平鎮臨時站），平鎮進站序後、官方英文站名公布前重抓班表不再中斷
 //         （守門：scripts/verify_station_pages.mjs G10，另驗被名單比中的站不可已有官方英文站名；G2 解析器控制組改用固定日曆 9/27–10/10）。
+// v1001b：車站時刻頁略過待通車站（scripts/fetch_tra.py 的 PENDING_STATIONS，例：平鎮臨時站），平鎮進站序後、官方英文站名公布前重抓班表不再中斷
+//         （守門：scripts/verify_station_pages.mjs G10，另驗被名單比中的站不可已有官方英文站名；G2 解析器控制組改用固定日曆 9/27–10/10）。
+//         本分支原本佔 v0930j，併 main 時 v0930k–v0930m 已被佔用或上線、v1001a 被 codex/perf-release-1001 佔用，改用 v1001b 讓版號維持遞增。
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v0930a：減少近景離屏投影、重複方向計算與全台車輛身分掃描；同一視角重用靜態投影，3D 待機與暫停降頻。
 // v0930b：近景先篩除遠方路線與車輛，地下透視省去重複背面 pass；建物線條由螢幕中央優先，逐頂點只查一次 DEM。
-const BUILD = 'v1001a';
+// v1001c：整合雙平台車站收集、台南道路、平鎮 SEO 最終校稿與 3D 效能改善。
+const BUILD = 'v1001c';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
