@@ -3,16 +3,26 @@
 // 不開瀏覽器。頁面每週隨 `npm run fetch-schedule` 重產，沒有人逐頁看，所以這支要能「資料或程式一改壞就紅、
 // 而且紅在指名的那一條」。
 //
+// 兩批頁面：
+//   第一批 23 站（手寫內容，build_aeo_pages.mjs 的 stations 陣列）× 三語；
+//   第二批（B2）：台鐵每個有停靠的站各一頁中文（221 個，自動產生）＋其中 7 站再有英日文頁。
+//   第二批「哪些站必須有頁」不從產生器抓，而是從原始資料推：兩週內有停靠的台鐵站名
+//   − 「臺北-環島」（環島列車終點別名，不是站）− 第一批頁的台鐵成員（G10）。
+//
 // 獨立性（這支閘門最重要的性質）：
 //   期望值一律從原始資料自己算（data/tra_schedule_dense.json、scripts/seo_data/thsr_timetable.json、
-//   data/tw_daytype.json、data/holiday_names.json、i18n/stations.json、data/station_transfers.json），
+//   data/tw_daytype.json、data/holiday_names.json、i18n/stations.json、data/station_transfers.json、
+//   data/tra_station_info.json、data/tra_station_of_line.json、scripts/seo_data/tra_line_names.json），
 //   頁面的真相一律從產出的 HTML 解析。**不 import、也不複製** scripts/station_timetable.mjs 與
 //   scripts/build_aeo_pages.mjs 的邏輯——閘門與實作同源時，「相等」是零資訊。
 //   只有兩處讀了它們的「資料」而非「邏輯」：
-//     · build_aeo_pages.mjs 的 stations 陣列裡每站的 slug／members 常數（哪一站有哪些台鐵／高鐵成員）；
+//     · build_aeo_pages.mjs 的 stations 陣列裡每站的 slug／title／members 常數（第一批：哪一站有哪些台鐵／高鐵成員）；
 //     · station_timetable.mjs 檔頭註解裡的三語行駛日標籤語法（那是規格）。
+//   第二批的規格常數只有三個，寫在下面 SLUG_OVERRIDE／EN_JA_SECOND／SAME_NAME_HSR，出處是 B2_PLAN.md 頁面規則 1、2、6。
 //
-// 九條閘門（失敗訊息一律以 [G<n>] 開頭）：
+// 兩棵樹：原始資料與規格來源固定讀「腳本所在的樹」；被驗的頁面、sitemap、索引讀 --root（預設同一棵樹）。
+//
+// 十五條閘門（失敗訊息一律以 [G<n>] 開頭；G1–G9 是第一批就有的，G10–G15 是第二批新增）：
 //   G1 班次完整      每站每方向：頁面列數＝原始資料數出的不重複（車次、floor(開車秒/60)、終點）列數——一列的身分以「分」為單位，
 //                    逐列比時刻／車次／終點／車種；
 //                    到站表同理；表內時間遞增；小標與導言的班數＝列數
@@ -23,42 +33,89 @@
 //   G5 捨去          頁面時刻＝floor(秒/60)，不是四捨五入；指名一班秒數 %60 ≥ 30 的當正向對照（找不到就紅）
 //   G6 三語          英文頁不含中日文字；站名／車種／終點取 i18n/stations.json 的該語系值
 //   G7 不斷言公開    沿用 verify_metro_pages.mjs 的 NO_PUBLISH_CLAIM，車站頁不得命中
-//   G8 覆蓋率        印出並斷言 站 × 語 × 段 × 列；--all 時站數必須 23、語言必須 3；驗到的列數必須等於原始資料算出的總列數
+//   G8 覆蓋率        印出並斷言 站 × 語 × 段 × 列；--all 時語言必須 3；驗到的列數必須等於原始資料算出的總列數
 //   G9 資料窗        頁面寫的資料涵蓋區間＝各資料檔的 dateRange（台鐵 dense／高鐵 seo_data，不是 availableRange）
+//   G10 站清單獨立推導  第二批期望站＝原始資料兩週內有停靠的台鐵站 − 「臺北-環島」− 第一批台鐵成員；期望網址用自己寫的 slug 函式
+//                    ＋規格常數 {左營:'zuoying-tra'}；每個期望的頁都在、磁碟上沒有多出來的站頁、slug 不重複；/stations/zuoying/ 仍是第一批那頁
+//   G11 具名覆蓋率     zh／en／ja 站數必須剛好是 EXPECT_ZH／EN／JA_STATIONS（--all；推導出的站數任何模式都驗）；
+//                    各語逐列比對的列數印出，並斷言等於「從原始資料重算的總列數」且 > 0
+//   G12 hreflang       只有中文的頁 alternate 恰為 {zh-Hant, x-default} 且都指自己；有三語的頁四種互指；alternate 目標存在；
+//                    中文頁尾 English／日本語連結跟有沒有對應頁一致；sitemap 恰含全部車站頁與三個索引，不含不存在的網址；站頁內部連結目標存在
+//   G13 導言與轉乘事實  第二批頁：標題、導言（路線名＋縣市鄉鎮市區，地址由閘門自己解析）、轉乘夥伴（系統、站名、公尺數對 pairs）、
+//                    多路線句、同名高鐵站（公里數自己算、連結 slug）、沒有轉乘的那一句、事實表站點／地址／座標、附近車站（規則 5）；
+//                    英日文 7 站的導言與轉乘；英文頁的標題／描述／內文沒有漏譯中文
+//   G14 索引分組       中文索引「全部台鐵車站」分組：每站恰出現一次、歸在自己地址的縣市下、連結目標存在；23 張卡片、ItemList 網址集合、跳轉按鈕；英日文索引恰 30 張卡片
+//   G15 第一批反向連結  中文 miaoli-hsr／changhua-hsr／zuoying 的轉乘段各有一個連到 miaoli／changhua／zuoying-tra 的連結
 //
-// 用法：node scripts/verify_station_pages.mjs [--all] [--sample=<N>] [--seed=<字串>] [--quiet]
-//   預設：具名案例三站（taipei、zuoying、taichung-hsr）＋隨機 N 站（預設 3，seed 一定會印出來，失敗時原樣重跑）。
-//   --all：23 站 × 3 語全量。
+// 用法：node scripts/verify_station_pages.mjs [--all] [--sample=<N>] [--seed=<字串>] [--quiet] [--root <目錄>] [--max-fails=<N|all>]
+//   預設：具名案例六站（第一批 taipei、zuoying、taichung-hsr；第二批 zuoying-tra、ruifang、xinshi）＋隨機 N 站
+//        （預設 3，seed 一定會印出來，失敗時原樣重跑）；G10／G12／G14／G15 這類整體結構的檢查任何模式都跑全部頁。
+//   --all：第一批 23 站＋第二批 221 站（zh 244／en 30／ja 30 頁）全量。
+//   --root <目錄>：被驗的站台樹（頁面、sitemap.xml）；預設＝本腳本所在的樹。第一道就印出目標路徑與 stations/index.html 的 md5。
+//   --max-fails=<N|all>：每條閘門最多印出幾行 FAIL（預設 8；差異逐條歸因時用 all）。
+//   不認識的參數拒絕並以 2 離開。
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const rd = rel => JSON.parse(fs.readFileSync(path.join(root, rel), 'utf8'));
-const rdText = rel => fs.readFileSync(path.join(root, rel), 'utf8');
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');   // 原始資料與規格來源：腳本所在的樹
+const rd = rel => JSON.parse(fs.readFileSync(path.join(repo, rel), 'utf8'));
+const rdText = rel => fs.readFileSync(path.join(repo, rel), 'utf8');
 
-const opt = { all: false, sample: 3, seed: null, quiet: false };
-for (const a of process.argv.slice(2)) {
-  if (a === '--all') opt.all = true;
-  else if (a === '--quiet') opt.quiet = true;
-  else if (a.startsWith('--seed=')) opt.seed = a.slice(7);
-  else if (a.startsWith('--sample=')) opt.sample = Number(a.slice(9));
-  else { console.error(`未知參數：${a}`); process.exit(2); }
+const opt = { all: false, sample: 3, seed: null, quiet: false, root: null, maxFails: 8 };
+{
+  const argv = process.argv.slice(2);
+  for (let k = 0; k < argv.length; k++) {
+    const a = argv[k];
+    if (a === '--all') opt.all = true;
+    else if (a === '--quiet') opt.quiet = true;
+    else if (a === '--root') { const v = argv[++k]; if (!v || v.startsWith('--')) { console.error('--root 需要一個目錄'); process.exit(2); } opt.root = v; }
+    else if (a.startsWith('--root=')) { opt.root = a.slice(7); if (!opt.root) { console.error('--root 需要一個目錄'); process.exit(2); } }
+    else if (a.startsWith('--seed=')) opt.seed = a.slice(7);
+    else if (a.startsWith('--sample=')) opt.sample = Number(a.slice(9));
+    else if (a.startsWith('--max-fails=')) { const v = a.slice(12); opt.maxFails = v === 'all' ? Infinity : Number(v); if (!(opt.maxFails >= 1)) { console.error('--max-fails 要是正整數或 all'); process.exit(2); } }
+    else { console.error(`未知參數：${a}`); process.exit(2); }
+  }
 }
 if (!Number.isInteger(opt.sample) || opt.sample < 0) { console.error('--sample 要是非負整數'); process.exit(2); }
+const site = path.resolve(opt.root ?? repo);   // 被驗的站台樹
+if (!fs.existsSync(site) || !fs.statSync(site).isDirectory()) { console.error(`--root 不是目錄：${site}`); process.exit(2); }
+const siteFile = (...p) => path.join(site, ...p);
+{   // 第一道：印出目標（突變測試與對照靠這行確認驗的是哪一棵）
+  const f = siteFile('stations/index.html');
+  const md5 = fs.existsSync(f) ? crypto.createHash('md5').update(fs.readFileSync(f)).digest('hex') : '（不存在）';
+  console.log(`目標樹：${site}｜stations/index.html md5=${md5}｜原始資料與規格：${repo}`);
+}
 
 const LANGS = ['zh', 'en', 'ja'];
 const PAGE_DIR = { zh: 'stations', en: 'en/stations', ja: 'ja/stations' };
-const EXPECT_STATIONS = 23;   // 計畫的第一批：23 站（含只有捷運的美麗島）
 const EXPECT_LANGS = 3;
-const NAMED = ['taipei', 'zuoying', 'taichung-hsr'];
+const EXPECT_FIRST_BATCH = 23;   // 第一批：23 站（含只有捷運的美麗島）
+// 具名覆蓋率常數（B2_PLAN 閘門 11）：--all 時各語言的站頁數必須剛好是這三個數字；
+// 資料出現新站（例如 2026-10 通車的平鎮臨時站）時，推導出的站數會跟這裡對不上，那時要人工確認再改常數。
+const EXPECT_ZH_STATIONS = 244, EXPECT_EN_STATIONS = 30, EXPECT_JA_STATIONS = 30;
+const EXPECT_STATIONS = { zh: EXPECT_ZH_STATIONS, en: EXPECT_EN_STATIONS, ja: EXPECT_JA_STATIONS };
+const NAMED = ['taipei', 'zuoying', 'taichung-hsr'];          // 預設模式指名：第一批
+const NAMED2 = ['zuoying-tra', 'ruifang', 'xinshi'];           // 預設模式指名：第二批（左營撞名／多路線＋英日文／臺南市新市區的正向對照）
+// 第二批的規格常數（B2_PLAN 頁面規則 2、6）
+const SLUG_OVERRIDE = { 左營: 'zuoying-tra' };                                      // 台鐵左營跟第一批 /stations/zuoying/（左營轉乘站）撞名
+const EN_JA_SECOND = ['瑞芳', '十分', '菁桐', '礁溪', '福隆', '集集', '知本'];         // 第二批有英日文頁的 7 站
+const SAME_NAME_HSR = { 苗栗: ['miaoli-hsr', 'miaoli'], 彰化: ['changhua-hsr', 'changhua'], 左營: ['zuoying', 'zuoying-tra'] };   // 同名高鐵站在別處：[第一批頁 slug, 台鐵頁 slug]
+const LOOP_ALIAS = '臺北-環島';                                                       // 環島列車終點別名（站碼 1001），不是站
+const SITE_BASE = 'https://railisland.tw';
+const PREFIX = { zh: '/stations/', en: '/en/stations/', ja: '/ja/stations/' };
+const HTML_LANG = { zh: 'zh-Hant', en: 'en', ja: 'ja' };
 const THSR_ORDER = ['南港', '台北', '板橋', '桃園', '新竹', '苗栗', '台中', '彰化', '雲林', '嘉義', '台南', '左營'];   // 沿線站序（北→南），真實世界事實
 const MON_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WD = { zh: ['一', '二', '三', '四', '五', '六', '日'], en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], ja: ['月', '火', '水', '木', '金', '土', '日'] };
 const CJK = /[぀-ヿ㐀-䶿一-鿿豈-﫿]/;
 
 // ───────────────────────── 失敗登記 ─────────────────────────
-const GATE_NAME = { 1: '班次完整', 2: '行駛日可逆', 3: '每天班數', 4: '方向', 5: '捨去到分', 6: '三語', 7: '不斷言公開', 8: '覆蓋率', 9: '資料窗' };
+const GATE_NAME = {
+  1: '班次完整', 2: '行駛日可逆', 3: '每天班數', 4: '方向', 5: '捨去到分', 6: '三語', 7: '不斷言公開', 8: '覆蓋率', 9: '資料窗',
+  10: '站清單獨立推導', 11: '具名覆蓋率', 12: 'hreflang與sitemap', 13: '導言與轉乘事實', 14: '索引分組', 15: '第一批反向連結',
+};
 const gate = {};
 for (const n of Object.keys(GATE_NAME)) gate[n] = { checks: 0, fails: [] };
 function ok(g, cond, msg, detail = '') {
@@ -75,6 +132,9 @@ const daytype = rd('data/tw_daytype.json');
 const holidayNames = rd('data/holiday_names.json');
 const i18n = rd('i18n/stations.json');
 const transfers = rd('data/station_transfers.json');
+const traInfo = rd('data/tra_station_info.json');              // 台鐵站地址（G13、G14 的縣市／鄉鎮市區）
+const traLines = rd('data/tra_station_of_line.json').lines;    // 每條線的站序（規則 5「附近的車站」）
+const traLineNames = rd('scripts/seo_data/tra_line_names.json').lines;   // 路線英文名（TDX 字面）
 
 const pad2 = n => String(n).padStart(2, '0');
 const isoWeekday = iso => { const [y, m, d] = iso.split('-').map(Number); return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7; };   // 0=週一…6=週日
@@ -92,11 +152,21 @@ const DS = {
 };
 for (const s of Object.values(DS)) s.range = s.data.dateRange;
 
-// 站與成員：build_aeo_pages.mjs 的 stations 陣列常數（只讀資料，不 import）
+// 第一批站與成員：build_aeo_pages.mjs 的 stations 陣列常數（只讀資料，不 import；只取 slug／title／members 三個欄位）。
+// 範圍限在 `const stations = [` 到陣列結尾，第二批日後在產生器別處加的東西不會被誤抓；找不到陣列邊界才退回整檔。
 const buildSrc = rdText('scripts/build_aeo_pages.mjs');
 const STATIONS = [];
-for (const m of buildSrc.matchAll(/slug:\s*'([^']+)'[\s\S]{0,600}?members:\s*\[([^\]]*)\]/g)) {
-  STATIONS.push({ slug: m[1], members: [...m[2].matchAll(/'([^']+)'/g)].map(x => x[1]) });
+{
+  const a = buildSrc.indexOf('const stations = ['), b = a >= 0 ? buildSrc.indexOf('\n];', a) : -1;
+  const cfg = a >= 0 && b > a ? buildSrc.slice(a, b) : buildSrc;
+  const heads = [...cfg.matchAll(/slug:\s*'([^']+)'/g)];
+  heads.forEach((h, k) => {
+    const seg = cfg.slice(h.index, k + 1 < heads.length ? heads[k + 1].index : cfg.length);
+    const mem = seg.match(/members:\s*\[([^\]]*)\]/);
+    if (!mem) return;   // 沒有 members 的 slug 不是站設定
+    const ttl = (seg.match(/title:\s*'([^']*)'/) || [])[1] || null;   // 同一個物件裡第一個 title 是中文（en／ja 在後面）
+    STATIONS.push({ slug: h[1], title: ttl && CJK.test(ttl) ? ttl : null, members: [...mem[1].matchAll(/'([^']+)'/g)].map(x => x[1]) });
+  });
 }
 
 // NO_PUBLISH_CLAIM：從 verify_metro_pages.mjs 原始碼抽出字面量（該檔沒 export，import 會跑整支驗收）
@@ -134,6 +204,8 @@ const roundText = sec => floorText(Math.round(sec / 60) * 60);
 // 同車次改點前後只差幾秒、捨去到分後同一分鐘的，必須併成一列（行駛日取聯集）；否則頁面會出現顯示上一模一樣的兩列。
 const mergeMin = sec => Math.floor(sec / 60);
 
+const isStop = s => s.stop !== false;   // 有沒有停靠（資料裡每一筆都有明確的 true／false）
+
 // 某系統某站的期望結構：dirs（方向 → 列）、arrivals（到站列）、perDay（每天開出班數）
 function buildExpected(sys, stationName) {
   const { data, dates } = DS[sys];
@@ -141,7 +213,6 @@ function buildExpected(sys, stationName) {
   const perDayKeys = new Map(dates.map(d => [d, new Set()]));
   const perDayOcc = new Map(dates.map(d => [d, 0]));
   const anomalies = [];
-  const isStop = s => s.stop !== false;
   for (const date of dates) {
     for (const idx of data.dates[date]) {
       const t = data.trains[idx];
@@ -195,6 +266,59 @@ function memberInfo(member) {   // 'TRA:1000' → {sys, code, name}
   return { sys, code, name: rec.name, member };
 }
 
+// ───────────────────────── 站清單：第二批從原始資料推導（G10）─────────────────────────
+const norm = s => String(s).normalize('NFKC').replace(/臺/g, '台');
+const urlOf = (lang, slug) => `${SITE_BASE}${PREFIX[lang]}${slug ? `${slug}/` : ''}`;
+function slugOf(name) {   // 網址規則（B2_PLAN 頁面規則 6）：tra_sched[站名].en 轉小寫、非 [a-z0-9] 一律換 -、合併、去頭尾；覆寫表 SLUG_OVERRIDE
+  if (SLUG_OVERRIDE[name]) return SLUG_OVERRIDE[name];
+  const en = i18n.systems.tra_sched[name]?.en;
+  if (!en) return null;
+  return en.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || null;
+}
+function parseAddress(addr) {   // 規則 2：去掉開頭郵遞區號、取 3 字縣市；之後取「最短、以『區』結尾（2–4 字）」，沒有才取「最短、以『鄉／鎮／市』結尾」；取不到回 null
+  const a = String(addr || '').replace(/^\d+/, '');
+  const county = a.slice(0, 3), rest = a.slice(3).replace(/^\s+/, '');   // 資料裡有「新竹市 東區」這種縣市後面帶空白的寫法
+  if (!/[市縣]$/.test(county)) return null;
+  for (const suffix of [/區$/, /[鄉鎮市]$/]) for (let n = 2; n <= 4; n++) if (rest.length >= n && suffix.test(rest.slice(0, n))) return { county, town: rest.slice(0, n) };
+  return null;
+}
+const infoById = new Map(Object.values(traInfo).map(v => [v.id, v]));   // 用站碼取，不用站名：tra_station_info 的鍵是「台」、schedule／transfers 是「臺」（臺中港）
+const kmBetween = (p, q) => {   // 兩點直線距離（公里，haversine，R=6371）
+  const rad = x => x * Math.PI / 180, dLat = rad(q[0] - p[0]), dLon = rad(q[1] - p[1]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(p[0])) * Math.cos(rad(q[0])) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+};
+
+const traRecByName = new Map(), traNameDup = [];
+for (const [key, rec] of Object.entries(transfers.stations)) if (rec.system === 'TRA') { if (traRecByName.has(rec.name)) traNameDup.push(rec.name); traRecByName.set(rec.name, { key, ...rec }); }
+const thsrByNorm = new Map();
+for (const [key, rec] of Object.entries(transfers.stations)) if (rec.system === 'THSR') thsrByNorm.set(norm(rec.name), { key, ...rec });
+
+const traStopNames = new Set();   // 兩週內（dates 各日索引到的車次）有停靠的台鐵站名
+for (const date of DS.TRA.dates) for (const idx of tra.dates[date]) for (const s of tra.trains[idx].stops) if (isStop(s)) traStopNames.add(s.name);
+const firstTraSlug = new Map();   // 第一批頁的台鐵成員：站名 → slug
+for (const st of STATIONS) for (const m of st.members) if (m.startsWith('TRA:')) { const rec = transfers.stations[m]; if (rec) firstTraSlug.set(rec.name, st.slug); }
+
+const SECOND = [];   // 第二批期望站（含推不出網址的，由 G10 指名紅）
+for (const name of [...traStopNames].sort()) {
+  if (name === LOOP_ALIAS || firstTraSlug.has(name)) continue;
+  const rec = traRecByName.get(name);
+  SECOND.push({ name, code: rec ? rec.stationId : null, slug: slugOf(name) });
+}
+// 所有站頁：第一批 3 語；第二批只有中文，EN_JA_SECOND 那 7 站再有英日文
+const ALL = STATIONS.map(s => ({ slug: s.slug, batch: 1, title: s.title, name: null, members: s.members, langs: LANGS }));
+for (const s of SECOND) if (s.slug && s.code) ALL.push({ slug: s.slug, batch: 2, title: s.name in SLUG_OVERRIDE ? `台鐵${s.name}車站` : `${s.name}車站`, name: s.name, members: [`TRA:${s.code}`], langs: EN_JA_SECOND.includes(s.name) ? LANGS : ['zh'] });
+const stationsOf = lang => ALL.filter(s => s.langs.includes(lang));
+
+// 全部台鐵站（第一批成員＋第二批）：站名 → { slug, county, town }，G14 索引分組與規則 5 用
+const TRA_ALL = new Map();
+for (const name of traStopNames) {
+  if (name === LOOP_ALIAS) continue;
+  const rec = traRecByName.get(name);
+  const info = rec ? infoById.get(rec.stationId) : null;
+  TRA_ALL.set(name, { name, code: rec ? rec.stationId : null, slug: firstTraSlug.get(name) ?? slugOf(name), first: firstTraSlug.has(name), addr: info ? parseAddress(info.address) : null, info });
+}
+
 // ───────────────────────── 頁面解析 ─────────────────────────
 const decode = s => s.replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n)).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
   .replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
@@ -236,7 +360,29 @@ function parsePage(html) {
   // 事實表
   const facts = new Map();
   for (const m of main.matchAll(/<div class="fact-row"><div class="fact-label">([\s\S]*?)<\/div><div class="fact-value">([\s\S]*?)<\/div><\/div>/g)) facts.set(strip(m[1]), m[2]);
-  return { main, mainText: strip(main), sections, facts };
+  // 導言、轉乘段、附近車站卡片、內文連結（G12–G14 用）
+  const h1 = strip((main.match(/<h1>([\s\S]*?)<\/h1>/) || [, ''])[1]);
+  const lede = strip((main.match(/<p class="lede">([\s\S]*?)<\/p>/) || [, ''])[1]);
+  const tm = main.match(/<section class="content-section st-anchor" id="transfer">([\s\S]*?)<\/section>/);
+  const cards = [...main.matchAll(/<article class="card station-card">([\s\S]*?)<\/article>/g)].map(m => ({ href: (m[1].match(/<a class="card-link" href="([^"]+)"/) || [])[1] || null, title: strip((m[1].match(/<h3>([\s\S]*?)<\/h3>/) || [, ''])[1]) }));
+  return { main, mainText: strip(main), sections, facts, h1, lede, transferHtml: tm ? tm[1] : null, transferText: tm ? strip(tm[1]) : null, cards };
+}
+// 頁面的 head／頁尾（hreflang、canonical、頁尾語言連結、標題與描述）
+function parseMeta(html) {
+  const he = html.indexOf('</head>'), fs0 = html.lastIndexOf('</main>');
+  const head = he >= 0 ? html.slice(0, he) : '', foot = fs0 >= 0 ? html.slice(fs0) : '';
+  const attr = re => decode((head.match(re) || [, ''])[1]);
+  return {
+    head, foot,
+    htmlLang: (html.match(/<html[^>]*\blang="([^"]*)"/) || [])[1] ?? null,
+    titleTag: strip((head.match(/<title>([\s\S]*?)<\/title>/) || [, ''])[1]),
+    metaDesc: attr(/<meta name="description" content="([^"]*)"/), ogTitle: attr(/<meta property="og:title" content="([^"]*)"/), ogDesc: attr(/<meta property="og:description" content="([^"]*)"/),
+    canon: [...head.matchAll(/<link rel="canonical" href="([^"]+)">/g)].map(m => m[1]),
+    alts: [...head.matchAll(/<link rel="alternate" hreflang="([^"]+)" href="([^"]+)">/g)].map(m => [m[1], m[2]]),
+    footEn: (foot.match(/<a href="([^"]+)" hreflang="en" lang="en">English<\/a>/) || [])[1] ?? null,
+    footJa: (foot.match(/<a href="([^"]+)" hreflang="ja" lang="ja">日本語<\/a>/) || [])[1] ?? null,
+    stationLinks: [...html.matchAll(/href="(\/(?:(?:en|ja)\/)?stations\/[^"#?]*)/g)].map(m => m[1]),
+  };
 }
 
 // ───────────────────────── 行駛日標籤：展開回日期集合 ─────────────────────────
@@ -587,6 +733,380 @@ function verifyStation(st, lang, page, members, expByMember) {
   }
 }
 
+// ───────────────────────── 整體結構與第二批頁的檢查（G10–G15）─────────────────────────
+const clip = (arr, n = 60) => arr.length <= n ? arr.join('、') : `${arr.slice(0, n).join('、')}…（共 ${arr.length} 個）`;
+const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const urlToFile = url => (url.startsWith(SITE_BASE) ? siteFile(url.slice(SITE_BASE.length), 'index.html') : null);
+const setEq = (a, b) => a.size === b.size && [...a].every(x => b.has(x));
+
+// G10：站清單獨立推導＋磁碟上的站頁
+function checkStationList() {
+  ok(10, STATIONS.length === EXPECT_FIRST_BATCH, `第一批站設定（build_aeo_pages.mjs 的 stations 陣列）的站數必須是 ${EXPECT_FIRST_BATCH}`, `實際 ${STATIONS.length}`);
+  ok(10, new Set(STATIONS.map(s => s.slug)).size === STATIONS.length, '第一批站設定 slug 重複');
+  ok(10, traNameDup.length === 0, 'station_transfers.json 有同名的台鐵站，站名推不出唯一站碼', traNameDup.join('、'));
+  ok(10, traStopNames.has(LOOP_ALIAS), `原始資料沒有「${LOOP_ALIAS}」（規格要從清單扣掉的環島終點別名；資料變了要重新確認）`);
+  for (const n of firstTraSlug.keys()) ok(10, traStopNames.has(n), `第一批頁的台鐵成員「${n}」在兩週資料裡沒有停靠`);
+  for (const s of SECOND) {
+    ok(10, !!s.code, `station_transfers.json 沒有台鐵站「${s.name}」，推不出站碼`);
+    ok(10, !!s.slug, `i18n/stations.json 的 tra_sched 沒有「${s.name}」的英文名，推不出網址（要先補官方譯名）`);
+  }
+  for (const [n, x] of TRA_ALL) ok(10, !!x.addr, `台鐵站「${n}」的地址取不出縣市＋鄉鎮市區（tra_station_info.json）`, x.info ? x.info.address : '沒有這個站碼的紀錄');
+  for (const n of EN_JA_SECOND) ok(10, SECOND.some(s => s.name === n), `英日文站「${n}」不在推導出的第二批站清單裡`);
+  for (const n of Object.keys(SLUG_OVERRIDE)) ok(10, SECOND.some(s => s.name === n), `slug 覆寫表的「${n}」不在推導出的第二批站清單裡（覆寫過期？）`);
+  const bySlug = new Map();
+  for (const s of ALL) (bySlug.get(s.slug) || bySlug.set(s.slug, []).get(s.slug)).push(s.batch === 1 ? `第一批 ${s.slug}` : `第二批 ${s.name}`);
+  for (const [slug, who] of bySlug) ok(10, who.length === 1, `網址 slug「${slug}」重複（不准默默覆蓋）`, who.join('、'));
+  for (const slug of [...NAMED, ...NAMED2]) ok(10, ALL.some(s => s.slug === slug), `指名站 ${slug} 不在站清單裡`);
+  // 磁碟：每個期望的頁都在、沒有多出來的
+  for (const lang of LANGS) {
+    const dir = siteFile(PAGE_DIR[lang]);
+    const want = stationsOf(lang).map(s => s.slug);
+    const entries = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+    const dirs = entries.filter(n => fs.statSync(path.join(dir, n)).isDirectory());
+    const stray = entries.filter(n => !dirs.includes(n) && n !== 'index.html');
+    const missing = want.filter(s => !fs.existsSync(path.join(dir, s, 'index.html'))).sort();
+    const extra = dirs.filter(n => !want.includes(n)).sort();
+    ok(10, missing.length === 0, `${PAGE_DIR[lang]}/ 缺 ${missing.length} 個期望的站頁`, clip(missing));
+    ok(10, extra.length === 0, `${PAGE_DIR[lang]}/ 多出 ${extra.length} 個不該有的站頁資料夾`, clip(extra));
+    ok(10, stray.length === 0, `${PAGE_DIR[lang]}/ 底下有站資料夾以外的檔案`, clip(stray));
+  }
+  // /stations/zuoying/ 仍是第一批那頁（含高鐵左營時刻段）；zuoying-tra 只有台鐵
+  const zy = STATIONS.find(s => s.slug === 'zuoying');
+  ok(10, !!zy && zy.members.includes('THSR:1070') && zy.members.includes('TRA:4340'), '第一批 zuoying 的成員應含高鐵左營（THSR:1070）與台鐵新左營（TRA:4340）', zy ? zy.members.join(',') : '沒有 zuoying');
+  const zyf = siteFile('stations/zuoying/index.html'), ztf = siteFile('stations/zuoying-tra/index.html');
+  if (fs.existsSync(zyf)) { const ids = parsePage(fs.readFileSync(zyf, 'utf8')).sections.map(s => s.id); ok(10, ids.includes('thsr-1070') && ids.includes('tra-4340'), '/stations/zuoying/ 仍要是第一批那頁（含高鐵左營 thsr-1070 與台鐵新左營 tra-4340 時刻段）', `現在的時刻段：${ids.join(',') || '（無）'}`); }
+  if (fs.existsSync(ztf)) { const ids = parsePage(fs.readFileSync(ztf, 'utf8')).sections.map(s => s.id); ok(10, ids.length === 1 && ids[0] === 'tra-4350', '/stations/zuoying-tra/ 只該有台鐵左營（tra-4350）一段', `現在的時刻段：${ids.join(',') || '（無）'}`); }
+}
+
+// G11（推導模型的部分）：三個語言的站數＝具名常數
+function checkModelCounts() {
+  for (const lang of LANGS) ok(11, stationsOf(lang).length === EXPECT_STATIONS[lang], `推導出的 ${lang} 站頁數必須是 ${EXPECT_STATIONS[lang]}（具名覆蓋率常數）`, `推導 ${stationsOf(lang).length}（第一批 ${STATIONS.length}＋第二批 ${stationsOf(lang).length - STATIONS.length}）；資料出現新站或站名變動時要人工確認再改常數`);
+}
+
+// G12：每一頁的 hreflang／canonical／頁尾語言連結／內部連結，以及三個索引頁
+function expectedAlts(st) {
+  const zh = urlOf('zh', st.slug);
+  return st.langs.length === LANGS.length ? { 'zh-Hant': zh, en: urlOf('en', st.slug), ja: urlOf('ja', st.slug), 'x-default': zh } : { 'zh-Hant': zh, 'x-default': zh };
+}
+function checkAlts(tag, m, want, onlyZh) {
+  const got = new Map(); let dup = [];
+  for (const [hl, href] of m.alts) { if (got.has(hl)) dup.push(hl); got.set(hl, href); }
+  ok(12, dup.length === 0, `${tag} hreflang 重複`, dup.join('、'));
+  for (const hl of got.keys()) ok(12, hl in want, `${tag} 不該有 hreflang="${hl}" 的 alternate`, `${onlyZh ? '只有中文的頁 alternate 恰為 zh-Hant＋x-default；' : ''}指向 ${got.get(hl)}`);
+  for (const [hl, url] of Object.entries(want)) ok(12, got.get(hl) === url, `${tag} hreflang="${hl}" 應指向 ${url}`, `實際 ${got.get(hl) ?? '（沒有）'}`);
+  for (const [hl, url] of got) { const f = urlToFile(url); ok(12, !!f && fs.existsSync(f), `${tag} hreflang="${hl}" 的目標不存在`, url); }
+}
+function checkPagesMeta() {
+  for (const st of ALL) for (const lang of st.langs) {
+    const f = siteFile(PAGE_DIR[lang], st.slug, 'index.html');
+    if (!fs.existsSync(f)) continue;   // 缺頁由 G10 列出
+    const html = fs.readFileSync(f, 'utf8'), m = parseMeta(html), tag = `${lang} ${st.slug}`;
+    ok(12, m.htmlLang === HTML_LANG[lang], `${tag} <html lang> 應為 ${HTML_LANG[lang]}`, `實際 ${m.htmlLang}`);
+    ok(12, m.canon.length === 1 && m.canon[0] === urlOf(lang, st.slug), `${tag} canonical 應恰為自己的網址`, `實際 ${m.canon.join('、') || '（沒有）'}、應為 ${urlOf(lang, st.slug)}`);
+    checkAlts(tag, m, expectedAlts(st), st.langs.length < LANGS.length);
+    if (lang === 'zh') {   // 頁尾的 English／日本語連結：有對應頁連到對應頁，沒有就連到該語言的索引
+      const three = st.langs.length === LANGS.length;
+      ok(12, m.footEn === (three ? `${PREFIX.en}${st.slug}/` : PREFIX.en), `${tag} 頁尾 English 連結不符`, `實際 ${m.footEn ?? '（沒有）'}、應為 ${three ? `${PREFIX.en}${st.slug}/` : PREFIX.en}`);
+      ok(12, m.footJa === (three ? `${PREFIX.ja}${st.slug}/` : PREFIX.ja), `${tag} 頁尾 日本語 連結不符`, `實際 ${m.footJa ?? '（沒有）'}、應為 ${three ? `${PREFIX.ja}${st.slug}/` : PREFIX.ja}`);
+    }
+    const broken = [...new Set(m.stationLinks)].filter(l => !fs.existsSync(path.join(site, l, 'index.html')));
+    ok(12, broken.length === 0, `${tag} 內部連結指到不存在的站頁`, clip(broken, 12));
+  }
+  for (const lang of LANGS) {   // 三個索引頁：四個 alternate 互指、canonical 指自己
+    const f = siteFile(PAGE_DIR[lang], 'index.html');
+    if (!fs.existsSync(f)) { ok(12, false, `${lang} 索引頁不存在`, path.relative(site, f)); continue; }
+    const m = parseMeta(fs.readFileSync(f, 'utf8'));
+    ok(12, m.canon.length === 1 && m.canon[0] === urlOf(lang), `${lang} 索引 canonical 應為 ${urlOf(lang)}`, `實際 ${m.canon.join('、') || '（沒有）'}`);
+    checkAlts(`${lang} 索引`, m, { 'zh-Hant': urlOf('zh'), en: urlOf('en'), ja: urlOf('ja'), 'x-default': urlOf('zh') }, false);
+  }
+}
+function checkSitemap() {
+  const f = siteFile('sitemap.xml');
+  if (!ok(12, fs.existsSync(f), 'sitemap.xml 不存在')) return;
+  const locs = [...fs.readFileSync(f, 'utf8').matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => decode(m[1].trim()));
+  const dups = locs.filter((u, i) => locs.indexOf(u) !== i);
+  ok(12, dups.length === 0, 'sitemap 有重複的網址', clip([...new Set(dups)], 12));
+  const inStations = u => LANGS.some(l => u.startsWith(SITE_BASE + PREFIX[l]));
+  const got = new Set(locs.filter(inStations));
+  const want = new Set([...LANGS.map(l => urlOf(l)), ...ALL.flatMap(s => s.langs.map(l => urlOf(l, s.slug)))]);
+  const missing = [...want].filter(u => !got.has(u)).sort(), extra = [...got].filter(u => !want.has(u)).sort();
+  ok(12, missing.length === 0, `sitemap 漏了 ${missing.length} 個車站頁網址`, clip(missing.map(u => u.slice(SITE_BASE.length)), 40));
+  ok(12, extra.length === 0, `sitemap 多了 ${extra.length} 個不該有的車站網址`, clip(extra.map(u => u.slice(SITE_BASE.length)), 40));
+  const ghost = [...got].filter(u => { const p = urlToFile(u); return !p || !fs.existsSync(p); }).sort();
+  ok(12, ghost.length === 0, `sitemap 含 ${ghost.length} 個磁碟上不存在的網址`, clip(ghost.map(u => u.slice(SITE_BASE.length)), 40));
+  const wantCount = EXPECT_ZH_STATIONS + EXPECT_EN_STATIONS + EXPECT_JA_STATIONS + LANGS.length;
+  ok(12, got.size === wantCount, `sitemap 的車站網址數必須是 ${wantCount}（${EXPECT_ZH_STATIONS}＋${EXPECT_EN_STATIONS}＋${EXPECT_JA_STATIONS}＋${LANGS.length} 個索引）`, `實際 ${got.size}`);
+  log(`G12 sitemap：車站網址 ${got.size} 個（期望 ${wantCount}）；漏 ${missing.length}、多 ${extra.length}、磁碟上不存在 ${ghost.length}`);
+}
+
+// G13：第二批頁的導言與轉乘事實（期望值全部從原始資料算）
+const PARTNER_SYS = {   // 轉乘夥伴的系統名。規格：「照 build_metro_pages.mjs 既有寫法」——這裡收路線圖頁面用過的寫法與常見簡稱；產生器另選寫法時在這加一行
+  KRTC: ['高雄捷運', '高捷'],
+  TMRT: ['台中捷運', '臺中捷運', '中捷'],
+  KLRT: ['高雄捷運環狀輕軌', '高雄捷運', '高雄輕軌', '環狀輕軌', '輕軌'],
+  SANYING: ['新北捷運三鶯線', '新北捷運', '三鶯線'],
+};
+const traNameById = new Map([...traRecByName.values()].map(r => [r.stationId, r.name]));
+function secondFacts(st) {
+  const code = st.members[0].split(':')[1];
+  const rec = transfers.stations[`TRA:${code}`], info = infoById.get(code);
+  const routes = (rec.routes || []).map(k => { const ln = traLineNames[k.split(':')[1]]; return { key: k, zh: ln ? ln.zh : null, en: ln ? ln.en : null }; });   // 台鐵路線名一律取 TDX 官方字面（tra_line_names.json），不取 station_transfers.json 的 routes[].name（App 簡稱）
+  const ts = transfers.transferStations.find(t => t.members.includes(`TRA:${code}`));
+  const partners = [];
+  for (const p of ts ? ts.pairs : []) {
+    const other = p.a === `TRA:${code}` ? p.b : p.b === `TRA:${code}` ? p.a : null;
+    if (!other || other.startsWith('TRA:')) continue;
+    const o = transfers.stations[other];
+    partners.push({ key: other, sys: other.split(':')[0], name: o.name, norm: o.normalizedName, meters: Math.round(p.distanceM), raw: p.distanceM });
+  }
+  const th = thsrByNorm.get(norm(st.name));
+  const hsr = th && !partners.some(p => p.key === th.key) ? { key: th.key, name: th.name, km: Math.round(kmBetween(rec.position, th.position)) } : null;
+  return { code, rec, info, addr: info ? parseAddress(info.address) : null, routes, partners, hsr, none: partners.length === 0 && routes.length <= 1 && !hsr };
+}
+function neighborNames(name) {   // 規則 5：這一站經過的每條路線，前後各一個「有頁面的站」。兩種讀法都收：A 跳過沒頁面的站繼續往外找；B 只看緊鄰、緊鄰沒頁面就不放
+  const rec = traRecByName.get(name), A = new Set(), B = new Set();
+  for (const key of rec.routes || []) {
+    const line = traLines.find(l => l.lineId === key.split(':')[1]);
+    if (!line) continue;
+    const seq = [...line.stations].sort((a, b) => a.seq - b.seq), i = seq.findIndex(x => x.id === rec.stationId);
+    if (i < 0) continue;
+    for (const d of [-1, 1]) {
+      const nb = traNameById.get((seq[i + d] || {}).id);
+      if (nb && TRA_ALL.has(nb)) B.add(nb);
+      for (let j = i + d; seq[j]; j += d) { const n = traNameById.get(seq[j].id); if (n && TRA_ALL.has(n)) { A.add(n); break; } }
+    }
+  }
+  return { A, B };
+}
+const partnerText = p => `${(PARTNER_SYS[p.sys] || [p.sys])[0]}${/站$/.test(p.name) ? p.name : `${p.name}站`}`;   // 只給訊息用的示意寫法；實際比對見 partnerRe（多種寫法都收）
+const hrefToTraName = new Map([...TRA_ALL.values()].map(x => [`${PREFIX.zh}${x.slug}/`, x.name]));
+function partnerRe(p, tail, head = '') {   // 「{系統名}{站名}站」：站名本身已以「站」結尾（岡山車站、橋頭火車站）就不再加一個站
+  const sysAlt = (PARTNER_SYS[p.sys] || []).map(escRe).join('|');
+  const forms = [...new Set([`${p.norm}站`, `${p.name.replace(/(火車站|車站|站)$/, '')}站`, /站$/.test(p.name) ? p.name : `${p.name}站`])].map(escRe).join('|');
+  return sysAlt ? new RegExp(`${head}(?:${sysAlt})(?:${forms})${tail}`) : null;
+}
+
+const g13Branch = { zhPages: 0, enPages: 0, jaPages: 0, partner: 0, multi: 0, hsr: 0, none: 0 };   // 各分支實際被行使的次數（判準沒被行使＝沒驗）
+// 事實表「路線」的台鐵路線名（第一批與第二批的中文頁都跑）：一律等於 TDX 官方字面（tra_line_names.json 的 zh，如「西部幹線 (海線)」的半形括號），
+// 不是 station_transfers.json 的 routes[].name——那是 App 簡稱，TRA:WL 寫「西部幹線（山線）」但它涵蓋基隆到屏東，寫進站頁是事實錯誤。
+// 以「、」拆成集合比對，不用 includes：「海線」是「西部幹線 (海線)」的子字串，「西部幹線」是它的前綴。
+function checkTraRouteFact(tag, st, page) {
+  const keys = new Set(st.members.filter(m => m.startsWith('TRA:')).flatMap(m => ((transfers.stations[m] || {}).routes || [])).filter(k => k.startsWith('TRA:')));
+  const rawFact = strip(page.facts.get('路線') || ''), got = new Set(rawFact.split('、').map(s => s.trim()));
+  for (const k of keys) { const ln = traLineNames[k.split(':')[1]]; ok(13, !!ln && got.has(ln.zh), `${tag} 事實表「路線」缺台鐵官方路線名「${ln ? ln.zh : k}」（tra_line_names.json）`, rawFact); }
+  for (const [id, ln] of Object.entries(traLineNames)) if (!keys.has(`TRA:${id}`)) ok(13, !got.has(ln.zh), `${tag} 事實表「路線」多了不屬於本站的「${ln.zh}」`, rawFact);
+  const official = new Set(Object.values(traLineNames).map(ln => ln.zh));
+  for (const [k, v] of Object.entries(transfers.routes)) if (k.startsWith('TRA:') && !official.has(v.name)) ok(13, !got.has(v.name), `${tag} 事實表「路線」不得出現 App 簡稱「${v.name}」（不是 TDX 官方路線名）`, rawFact);
+}
+function verifySecondZh(st, page, html, F) {
+  const tag = `zh ${st.slug}`, meta = parseMeta(html);
+  g13Branch.zhPages++; if (F.partners.length) g13Branch.partner++; if (F.routes.length > 1) g13Branch.multi++; if (F.hsr) g13Branch.hsr++; if (F.none) g13Branch.none++;
+  // 標題（規則 1）
+  ok(13, page.h1.includes(st.title), `${tag} <h1> 應含標題「${st.title}」`, page.h1);
+  ok(13, meta.titleTag.includes(st.title), `${tag} <title> 應含「${st.title}」`, meta.titleTag);
+  if (st.name in SLUG_OVERRIDE) ok(13, !page.h1.includes('轉乘站'), `${tag} 台鐵${st.name}要跟「${st.name}轉乘站」分開寫，<h1> 不該出現「轉乘站」`, page.h1);
+  // 導言（規則 2）：每句追得到資料
+  const lede = page.lede;
+  ok(13, !!F.addr, `${tag} 地址解析不了（資料缺）`);
+  const rm = lede.match(/是台鐵(.+?)的車站，位於/);
+  if (ok(13, !!rm && lede.includes(`${st.name}車站是台鐵`), `${tag} 導言應為「${st.name}車站是台鐵…的車站，位於…。」句型`, lede.slice(0, 70))) {
+    const gotRoutes = new Set(rm[1].split('、')), wantRoutes = new Set(F.routes.map(r => r.zh));
+    ok(13, setEq(gotRoutes, wantRoutes), `${tag} 導言的路線名不符 routes`, `頁面「${[...gotRoutes].join('、')}」、資料「${[...wantRoutes].join('、')}」`);
+  }
+  if (F.addr) ok(13, lede.includes(`位於${F.addr.county}${F.addr.town}。`), `${tag} 導言的縣市＋鄉鎮市區應為「${F.addr.county}${F.addr.town}」`, `地址 ${F.info.address}；導言「${lede.slice(0, 80)}」`);
+  ok(13, F.partners.length === 0 ? !lede.includes('可步行轉乘') : true, `${tag} 沒有轉乘夥伴的站，導言不該寫「可步行轉乘」`, lede);
+  for (const p of F.partners) {
+    const re = partnerRe(p, '。', '可步行轉乘');
+    ok(13, !!re && re.test(lede), `${tag} 導言應有「可步行轉乘${partnerText(p)}。」（夥伴 ${p.key}；系統名容許 ${(PARTNER_SYS[p.sys] || []).join('／')}）`, `導言「${lede.slice(0, 100)}」`);
+  }
+  // 轉乘段（規則 3）
+  const T = page.transferText;
+  if (!ok(13, T !== null, `${tag} 沒有 id="transfer" 的轉乘段`)) return;
+  for (const p of F.partners) {
+    const re = partnerRe(p, '與台鐵站點在資料中相距約 (\\d+) 公尺，屬步行轉乘，不代表同一月台。');
+    if (!ok(13, !!re, `${tag} PARTNER_SYS 沒有系統 ${p.sys} 的寫法，驗不了轉乘句`)) continue;
+    const m = T.match(re);
+    if (ok(13, !!m, `${tag} 轉乘段缺「${partnerText(p)}與台鐵站點在資料中相距約 N 公尺，屬步行轉乘，不代表同一月台。」（夥伴 ${p.key}）`, T.slice(0, 120))) ok(13, +m[1] === p.meters, `${tag} 轉乘公尺數不符 pairs`, `頁面 ${m[1]} 公尺、pairs ${p.raw}（四捨五入 ${p.meters}）`);
+    ok(13, T.includes('資料中的距離用於辨識'), `${tag} 有轉乘夥伴的頁應保留「資料中的距離用於辨識…」那段`);
+  }
+  const mr = T.match(/本站同時屬於台鐵(.+?)。/);
+  if (F.routes.length > 1) {
+    if (ok(13, !!mr, `${tag} 多路線站（${F.routes.map(r => r.zh).join('、')}）轉乘段應有「本站同時屬於台鐵…。」`, T.slice(0, 100))) ok(13, setEq(new Set(mr[1].split(/與|、|及/)), new Set(F.routes.map(r => r.zh))), `${tag} 「本站同時屬於」的路線不符 routes`, `頁面「${mr[1]}」、資料「${F.routes.map(r => r.zh).join('、')}」`);
+  } else ok(13, !mr, `${tag} 單一路線的站不該寫「本站同時屬於台鐵…」`, mr ? mr[0] : '');
+  if (F.hsr) {
+    const [firstSlug, secondSlug] = SAME_NAME_HSR[st.name] || [];
+    const first = STATIONS.find(s => s.slug === firstSlug);
+    const m = T.match(new RegExp(`高鐵${escRe(F.hsr.name)}站是另一個車站，與本站在資料中直線相距約 (\\d+) 公里，請看〈(.+?)〉。`));
+    if (ok(13, !!m, `${tag} 轉乘段缺「高鐵${F.hsr.name}站是另一個車站，與本站在資料中直線相距約 N 公里，請看〈…〉。」`, T.slice(0, 100))) {
+      ok(13, +m[1] === F.hsr.km, `${tag} 到高鐵${F.hsr.name}站的公里數不符（閘門用 haversine 自己算）`, `頁面 ${m[1]}、算出 ${F.hsr.km}`);
+      ok(13, !!first && m[2] === first.title, `${tag} 〈…〉應是第一批頁標題「${first ? first.title : '（沒有這頁）'}」`, `頁面「${m[2]}」`);
+    }
+    ok(13, !!first && (page.transferHtml || '').includes(`href="${PREFIX.zh}${firstSlug}/"`), `${tag} 轉乘段應連到第一批頁 ${PREFIX.zh}${firstSlug}/`);
+    ok(13, secondSlug === st.slug, `${tag} 同名高鐵站的規格常數 SAME_NAME_HSR 與這頁的 slug 對不上`, `常數 ${secondSlug}、頁面 ${st.slug}`);
+  } else ok(13, !/高鐵.{1,8}站是另一個車站/.test(T), `${tag} 沒有同名高鐵站的頁不該寫「高鐵…站是另一個車站」`);
+  const noneS = '軌島的轉乘資料沒有列出本站與其他軌道系統的轉乘。';
+  ok(13, F.none === T.includes(noneS), `${tag} ${F.none ? '沒有任何轉乘的頁要有' : '有轉乘資訊的頁不該有'}「${noneS}」`, `該站夥伴 ${F.partners.length}、路線 ${F.routes.length}、同名高鐵 ${F.hsr ? 1 : 0}`);
+  // 事實表（規則 4，沿用第一批口徑）
+  const fv = label => strip(page.facts.get(label) || '');
+  ok(13, fv('軌島站點').includes(`台鐵 ${st.name}（${F.code}）`), `${tag} 事實表「軌島站點」應含「台鐵 ${st.name}（${F.code}）」`, fv('軌島站點'));
+  ok(13, !!F.info && fv('台鐵地址') === F.info.address, `${tag} 事實表「台鐵地址」應等於 tra_station_info.json 的地址`, `頁面「${fv('台鐵地址')}」、資料「${F.info ? F.info.address : '（無）'}」`);
+  ok(13, fv('參考座標') === `${F.rec.position[0].toFixed(6)}, ${F.rec.position[1].toFixed(6)}`, `${tag} 事實表「參考座標」應為 station_transfers 的座標（小數 6 位）`, `頁面「${fv('參考座標')}」、資料 ${F.rec.position.join(', ')}`);
+  checkTraRouteFact(tag, st, page);
+  // 附近的車站（規則 5）
+  const { A, B } = neighborNames(st.name), got = new Set();
+  for (const c of page.cards) {
+    const nm = hrefToTraName.get(c.href);
+    if (!ok(13, nm !== undefined, `${tag} 「附近的車站」連到不是台鐵站頁的網址`, String(c.href))) continue;
+    ok(13, !got.has(nm), `${tag} 「附近的車站」重複列了「${nm}」`);
+    got.add(nm);
+  }
+  ok(13, got.size >= 1 && got.size <= 4, `${tag} 「附近的車站」數量應為 1–4 個`, `實際 ${got.size}`);
+  const okSet = setEq(got, A) || setEq(got, B) || ((A.size > 4 || B.size > 4) && got.size === 4 && [...got].every(n => A.has(n) || B.has(n)));
+  ok(13, okSet, `${tag} 「附近的車站」應是同路線前後相鄰、有頁面的站（去重、最多 4 個）`, `頁面 ${[...got].join('、')}；期望（跳過沒頁面的）${[...A].join('、')}／（只看緊鄰）${[...B].join('、')}`);
+}
+
+function verifySecondEnJa(st, lang, html, page, F) {
+  const tag = `${lang} ${st.slug}`, meta = parseMeta(html);
+  g13Branch[`${lang}Pages`]++;
+  const nameL = tr(lang, 'station', st.name, 'TRA');
+  if (!ok(13, nameL !== null, `${tag} i18n 缺「${st.name}」的 ${lang} 站名`)) return;
+  ok(13, page.h1.includes(nameL), `${tag} <h1> 應含站名「${nameL}」`, page.h1);
+  ok(13, meta.titleTag.includes(nameL), `${tag} <title> 應含站名「${nameL}」`, meta.titleTag);
+  const lede = page.lede, T = page.transferText || '';
+  ok(13, page.transferText !== null, `${tag} 沒有 id="transfer" 的轉乘段`);
+  if (lang === 'en') {
+    const m = lede.match(/station on the ([^.]+)\./);
+    if (ok(13, lede.includes(`${nameL} Station is a Taiwan Railway (TRA) station on the `) && !!m, `${tag} 導言應為「${nameL} Station is a Taiwan Railway (TRA) station on the …」句型`, lede.slice(0, 90))) {
+      for (const r of F.routes) ok(13, m[1].includes(r.en), `${tag} 導言缺路線英文名「${r.en}」（tra_line_names.json）`, m[1]);
+      for (const [k, v] of Object.entries(traLineNames)) if (!F.routes.some(r => r.key === `TRA:${k}`)) ok(13, !m[1].includes(v.en) || F.routes.some(r => r.en && r.en.includes(v.en)), `${tag} 導言多了不屬於本站的路線「${v.en}」`, m[1]);
+    }
+    ok(13, !CJK.test(`${meta.titleTag} ${meta.metaDesc} ${meta.ogTitle} ${meta.ogDesc}`), `${tag} 英文頁的標題／描述不得含中日文字（漏譯）`, (`${meta.titleTag} ${meta.metaDesc}`.match(new RegExp(`.{0,12}${CJK.source}+.{0,12}`)) || [''])[0]);
+    ok(13, !CJK.test(lede + T), `${tag} 英文頁導言與轉乘段不得含中日文字（漏譯）`);
+    if (F.routes.length > 1) for (const r of F.routes) ok(13, T.includes(r.en), `${tag} 多路線站的轉乘段應寫出路線「${r.en}」`, T.slice(0, 100));
+    else if (F.none) ok(13, /transfer data does not list/i.test(T), `${tag} 沒有任何轉乘的頁，轉乘段要有「transfer data does not list…」那一句（沿用第一批高鐵彰化頁的英文措辭）`, T.slice(0, 100));
+  } else {
+    const m = lede.match(/駅は台鉄（TRA）の(.+?)の駅です。/);
+    if (ok(13, lede.includes(`${nameL}駅は台鉄（TRA）の`) && !!m, `${tag} 導言應為「${nameL}駅は台鉄（TRA）の…の駅です。」句型`, lede.slice(0, 70))) ok(13, setEq(new Set(m[1].split('・')), new Set(F.routes.map(r => r.zh))), `${tag} 導言的路線名不符 routes（日文照抄中文路線名，以「・」連接）`, `頁面「${m[1]}」、資料「${F.routes.map(r => r.zh).join('・')}」`);
+    if (F.addr) ok(13, !lede.includes(F.addr.county) && !lede.includes(F.addr.town), `${tag} 日文頁不寫縣市鄉鎮（沒有官方譯名來源）`, lede.slice(0, 80));
+    if (F.routes.length > 1) for (const r of F.routes) ok(13, T.includes(r.zh), `${tag} 多路線站的轉乘段應寫出路線「${r.zh}」`, T.slice(0, 100));
+    else if (F.none) ok(13, /乗り換えデータ[\s\S]*?載っていません/.test(T), `${tag} 沒有任何轉乘的頁，轉乘段要有「乗り換えデータ…載っていません」那一句（沿用第一批高鐵彰化頁的日文措辭）`, T.slice(0, 100));
+  }
+}
+
+// G14：三個索引頁
+function itemListOf(html) {
+  for (const m of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {
+    let j; try { j = JSON.parse(m[1]); } catch { continue; }
+    if (j.mainEntity && j.mainEntity['@type'] === 'ItemList') return j.mainEntity;
+  }
+  return null;
+}
+function checkIndexes() {
+  for (const lang of LANGS) {
+    const f = siteFile(PAGE_DIR[lang], 'index.html');
+    if (!ok(14, fs.existsSync(f), `${lang} 索引頁不存在`, path.relative(site, f))) continue;
+    const html = fs.readFileSync(f, 'utf8'), page = parsePage(html), tag = `${lang} 索引`;
+    const wantSt = stationsOf(lang), wantUrls = new Set(wantSt.map(s => urlOf(lang, s.slug)));
+    // ItemList：網址集合＝這個語言所有站頁、不重複
+    const il = itemListOf(html);
+    if (ok(14, !!il, `${tag} 缺 ItemList（JSON-LD）`)) {
+      const urls = (il.itemListElement || []).map(x => x.url), uniq = new Set(urls);
+      ok(14, urls.length === uniq.size, `${tag} ItemList 網址重複`, clip(urls.filter((u, i) => urls.indexOf(u) !== i), 10));
+      ok(14, il.numberOfItems === urls.length && urls.length === EXPECT_STATIONS[lang], `${tag} ItemList 必須恰 ${EXPECT_STATIONS[lang]} 個不重複網址且 numberOfItems 一致`, `numberOfItems=${il.numberOfItems}、實際 ${urls.length}、不重複 ${uniq.size}`);
+      const miss = [...wantUrls].filter(u => !uniq.has(u)), extra = [...uniq].filter(u => !wantUrls.has(u));
+      ok(14, miss.length === 0 && extra.length === 0, `${tag} ItemList 的網址集合應等於全部站頁`, `缺 ${clip(miss.map(u => u.slice(SITE_BASE.length)), 10)}；多 ${clip(extra.map(u => u.slice(SITE_BASE.length)), 10)}`);
+    }
+    // 卡片：中文＝原本 23 張（第一批），英日文＝30 張（不分組）
+    const wantCards = new Set((lang === 'zh' ? ALL.filter(s => s.batch === 1) : wantSt).map(s => `${PREFIX[lang]}${s.slug}/`));
+    const gotCards = page.cards.map(c => c.href);
+    ok(14, gotCards.length === wantCards.size && setEq(new Set(gotCards), wantCards), `${tag} 卡片應恰為 ${wantCards.size} 張（${lang === 'zh' ? '原本的第一批 23 張' : '英日文 30 站不分組'}）`, `實際 ${gotCards.length} 張；缺 ${clip([...wantCards].filter(u => !gotCards.includes(u)), 8)}；多 ${clip(gotCards.filter(u => !wantCards.has(u)), 8)}`);
+    const stale = { zh: /第一批/, en: /first (?:station pages|batch)/i, ja: /最初の駅ページ|第一弾|第1弾/ }[lang].exec(page.mainText);
+    ok(14, !stale, `${tag} 不該再有「這是第一批車站頁」這類字樣`, stale ? stale[0] : '');
+    if (lang !== 'zh') {
+      ok(14, !/id="all-stations"/.test(html), `${tag} 英日文索引不分組（不該有 id="all-stations"）`);
+      const anchors = [...page.main.matchAll(/<a\b([^>]*)>/g)].map(m => m[1]);
+      ok(14, anchors.some(a => /href="\/stations\/"/.test(a) && /hreflang="zh-Hant"/.test(a)), `${tag} 說明段要連到中文索引 /stations/（hreflang="zh-Hant"）`);
+    }
+  }
+  checkGroupedIndex();
+}
+// 中文索引「全部台鐵車站」分組區塊的最小結構約定（閘門只解析這些，其餘 markup 隨便）：
+//   <section … id="all-tra"> … <nav>…<a href="#tra-county-NN">縣市<small>N</small></a>…</nav>          ← 上方跳轉按鈕，每組一個
+//     <h3 id="tra-county-NN">縣市<small>N 站</small></h3> 後面接該組的站連結 <a href="/stations/{slug}/">站名</a>（到下一個 h3 為止）
+//   … </section>
+// 換分組方案（例如改成依路線）時，改這兩個常數與 checkGroupedIndex 的期望歸屬即可。
+const IDX_SECTION_ID = 'all-tra', IDX_GROUP_PREFIX = 'tra-county-';
+function checkGroupedIndex() {
+  const f = siteFile('stations/index.html');
+  if (!fs.existsSync(f)) return;
+  const html = fs.readFileSync(f, 'utf8'), page = parsePage(html), tag = 'zh 索引分組';
+  const sm = page.main.match(new RegExp(`<section\\b[^>]*\\bid="${IDX_SECTION_ID}"[^>]*>([\\s\\S]*?)</section>`));
+  if (!ok(14, !!sm, `${tag} 缺 <section id="${IDX_SECTION_ID}">（全部台鐵車站的分組區塊）`)) return;
+  const groups = [];
+  for (const part of sm[1].split(new RegExp(`<h3\\b[^>]*\\bid="${IDX_GROUP_PREFIX}`)).slice(1)) {
+    const id = `${IDX_GROUP_PREFIX}${part.slice(0, part.indexOf('"'))}`;
+    const hm = part.match(/^[^"]*"[^>]*>([\s\S]*?)<\/h3>/);
+    const rest = hm ? part.slice(hm[0].length) : part;
+    const title = hm ? strip(hm[1]).trim() : '';
+    groups.push({ id, title, county: norm(title).slice(0, 3), n: (title.match(/(\d+) 站/) || [])[1], links: [...rest.matchAll(/<a\b[^>]*?\bhref="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map(m => ({ href: m[1], text: strip(m[2]).trim() })) });
+  }
+  ok(14, groups.length > 0, `${tag} 沒有任何縣市分組（<h3 id="${IDX_GROUP_PREFIX}…">）`);
+  ok(14, new Set(groups.map(g => g.id)).size === groups.length, `${tag} 分組 id 重複`);
+  ok(14, new Set(groups.map(g => g.county)).size === groups.length, `${tag} 同一個縣市出現在兩個分組`, clip(groups.map(g => g.county).filter((c, i, a) => a.indexOf(c) !== i), 6));
+  for (const g of groups) {
+    ok(14, g.links.length > 0, `${tag} 「${g.title}」是空的分組`);
+    if (g.n !== undefined) ok(14, +g.n === g.links.length, `${tag} 「${g.county}」標題寫 ${g.n} 站、實際連結 ${g.links.length} 個`);
+  }
+  // 縣市集合＝台鐵站地址裡出現的縣市（從原始資料算）
+  const wantCounties = new Set([...TRA_ALL.values()].filter(x => x.addr).map(x => norm(x.addr.county)));
+  ok(14, setEq(new Set(groups.map(g => g.county)), wantCounties), `${tag} 分組的縣市集合應等於台鐵站地址裡的縣市（${wantCounties.size} 個）`, `缺 ${clip([...wantCounties].filter(c => !groups.some(g => g.county === c)), 8)}；多 ${clip(groups.map(g => g.county).filter(c => !wantCounties.has(c)), 8)}`);
+  ok(14, new RegExp(`(?<!\\d)${TRA_ALL.size}(?!\\d)`).test(strip(sm[1]).slice(0, 400)), `${tag} 分組區塊的說明要寫出台鐵站數 ${TRA_ALL.size}（不可寫死過期的數字）`, strip(sm[1]).slice(0, 120));
+  // 每個台鐵站恰出現一次、歸在自己地址的縣市下、第一批成員連到第一批頁、連結目標存在
+  const where = new Map();   // href → [{group, text}]
+  for (const g of groups) for (const l of g.links) (where.get(l.href) || where.set(l.href, []).get(l.href)).push({ g, text: l.text });
+  const wantHrefs = new Set();
+  for (const [name, x] of TRA_ALL) {
+    const href = `${PREFIX.zh}${x.slug}/`; wantHrefs.add(href);
+    const hits = where.get(href) || [];
+    if (!ok(14, hits.length === 1, `${tag} 台鐵「${name}」應恰出現一次（連到 ${href}${x.first ? '，第一批成員連到它所在的第一批頁' : ''}）`, `出現 ${hits.length} 次`)) continue;
+    const h = hits[0];
+    if (x.addr) ok(14, h.g.county === norm(x.addr.county), `${tag} 台鐵「${name}」應歸在「${x.addr.county}」下`, `頁面歸在「${h.g.title}」（地址 ${x.info.address}）`);
+    ok(14, norm(h.text).includes(norm(name)), `${tag} 台鐵「${name}」的連結文字應含站名`, `文字「${h.text}」`);
+    ok(14, fs.existsSync(siteFile(href.slice(1), 'index.html')), `${tag} 台鐵「${name}」的連結目標不存在`, href);
+  }
+  const unexpected = [...where.keys()].filter(h => !wantHrefs.has(h));
+  ok(14, unexpected.length === 0, `${tag} 分組區塊出現不是台鐵站的網址`, clip(unexpected, 10));
+  const total = [...where.values()].reduce((n, a) => n + a.length, 0);
+  ok(14, total === TRA_ALL.size, `${tag} 分組區塊的連結總數必須等於台鐵站數 ${TRA_ALL.size}`, `實際 ${total}`);
+  // 上方跳轉按鈕：每組一個 <a href="#tra-county-NN">，文字是該縣市（有 <small>N</small> 的要等於該組站數），目標存在
+  const jumps = [...page.main.matchAll(new RegExp(`<a\\b[^>]*?\\bhref="#(${IDX_GROUP_PREFIX}[^"]+)"[^>]*>([\\s\\S]*?)</a>`, 'g'))].map(m => ({ id: m[1], text: strip(m[2]).trim(), n: (m[2].match(/<small>(\d+)<\/small>/) || [])[1] }));
+  ok(14, jumps.length === groups.length && setEq(new Set(jumps.map(j => j.id)), new Set(groups.map(g => g.id))), `${tag} 跳轉按鈕（href="#${IDX_GROUP_PREFIX}…"）應與分組一一對應`, `按鈕 ${jumps.length}、分組 ${groups.length}；沒有按鈕的組 ${clip(groups.map(g => g.id).filter(i => !jumps.some(j => j.id === i)), 6)}；按鈕沒有目標 ${clip(jumps.map(j => j.id).filter(i => !groups.some(g => g.id === i)), 6)}`);
+  for (const j of jumps) {
+    const g = groups.find(x => x.id === j.id); if (!g) continue;
+    ok(14, norm(j.text).startsWith(g.county), `${tag} 跳轉按鈕「${j.text}」與它指向的分組「${g.county}」不符`);
+    if (j.n !== undefined) ok(14, +j.n === g.links.length, `${tag} 跳轉按鈕「${g.county}」標 ${j.n} 站、實際連結 ${g.links.length} 個`);
+  }
+  log(`G14 索引分組：${groups.length} 個縣市、${total} 個連結（台鐵站 ${TRA_ALL.size}）、跳轉按鈕 ${jumps.length}`);
+}
+
+// G15：第一批三頁的反向連結
+function checkReverseLinks() {
+  const derived = {};   // 由原始資料推：第二批站裡有同名高鐵站（不在同一轉乘組）的
+  for (const s of SECOND) { const F = s.code ? secondFacts({ name: s.name, members: [`TRA:${s.code}`] }) : null; if (F && F.hsr) derived[s.name] = F.hsr.key; }
+  ok(15, JSON.stringify(Object.keys(derived).sort()) === JSON.stringify(Object.keys(SAME_NAME_HSR).sort()), '由原始資料推出的「有同名高鐵站在別處」的台鐵站，應與規格常數 SAME_NAME_HSR 一致', `推導 ${Object.keys(derived).join('、')}；常數 ${Object.keys(SAME_NAME_HSR).join('、')}`);
+  for (const [name, [firstSlug, secondSlug]] of Object.entries(SAME_NAME_HSR)) {
+    const first = STATIONS.find(s => s.slug === firstSlug);
+    ok(15, !!first && first.members.includes(derived[name]), `第一批 ${firstSlug} 應是含高鐵${name}（${derived[name] || '?'}）的那一頁`, first ? first.members.join(',') : '沒有這個站設定');
+    ok(15, ALL.some(s => s.slug === secondSlug && s.name === name), `台鐵${name}頁的 slug 應為 ${secondSlug}`, `推導 ${slugOf(name)}`);
+    const f = siteFile('stations', firstSlug, 'index.html');
+    if (!ok(15, fs.existsSync(f), `第一批 ${firstSlug} 頁不存在`)) continue;
+    const page = parsePage(fs.readFileSync(f, 'utf8'));
+    const links = [...(page.transferHtml || '').matchAll(/<a\b[^>]*?\bhref="([^"]+)"/g)].map(m => m[1]);
+    ok(15, links.includes(`${PREFIX.zh}${secondSlug}/`), `中文 ${firstSlug} 轉乘段應有一個連到 ${PREFIX.zh}${secondSlug}/（台鐵${name}）的連結`, `轉乘段的連結：${links.join('、') || '（沒有）'}`);
+    ok(15, fs.existsSync(siteFile('stations', secondSlug, 'index.html')), `${firstSlug} 連到的 ${secondSlug} 頁不存在`);
+  }
+}
+
 // ───────────────────────── 主流程 ─────────────────────────
 function seededRng(seed) {   // mulberry32
   let a = 0; for (const ch of seed) a = (a * 31 + ch.charCodeAt(0)) >>> 0;
@@ -595,38 +1115,34 @@ function seededRng(seed) {   // mulberry32
 
 // 前置：站清單與資料一致性
 ok(8, STATIONS.length > 0, '從 build_aeo_pages.mjs 擷取不到任何站設定');
-ok(8, new Set(STATIONS.map(s => s.slug)).size === STATIONS.length, '站設定 slug 重複');
-for (const lang of LANGS) {
-  const dir = path.join(root, PAGE_DIR[lang]);
-  const onDisk = fs.existsSync(dir) ? fs.readdirSync(dir).filter(n => fs.statSync(path.join(dir, n)).isDirectory()).sort() : [];
-  const want = STATIONS.map(s => s.slug).sort();
-  ok(8, JSON.stringify(onDisk) === JSON.stringify(want), `${PAGE_DIR[lang]}/ 底下的站資料夾與站設定不一致`, `磁碟 ${onDisk.length}、設定 ${want.length}；差異 ${[...onDisk.filter(x => !want.includes(x)), ...want.filter(x => !onDisk.includes(x))].join(',') || '（順序）'}`);
-}
 for (const [sys, s] of Object.entries(DS)) {
   const first = s.dates[0], last = s.dates[s.dates.length - 1];
   ok(9, Array.isArray(s.range) && s.range[0] === first && s.range[1] === last, `${s.file} 自己的 dateRange 與 dates 鍵的首末日不一致`, `dateRange ${JSON.stringify(s.range)}、dates ${first}…${last}`);
   const days = s.dates.map(d => Date.UTC(...d.split('-').map((x, i) => (i === 1 ? +x - 1 : +x))));
   ok(9, days.every((t, k) => k === 0 || t - days[k - 1] === 86400000), `${s.file} 的 dates 不是逐日連續`);
 }
+checkStationList();   // G10：站清單獨立推導＋磁碟上的站頁
+checkModelCounts();   // G11：推導出的三個語言站數＝具名常數
 
 const rng = seededRng(opt.seed || String(Date.now()));
 const seed = opt.seed || 'random-' + Math.floor(rng() * 1e9);
-const allSlugs = STATIONS.map(s => s.slug);
+const allSlugs = ALL.map(s => s.slug);
+const stOf = slug => ALL.find(s => s.slug === slug);
+const namedSlugs = [...NAMED, ...NAMED2].filter(n => allSlugs.includes(n));
 let picked;
 if (opt.all) picked = allSlugs;
 else {
-  const pool = allSlugs.filter(s => !NAMED.includes(s));
+  const pool = allSlugs.filter(s => !namedSlugs.includes(s));
   const r2 = seededRng(seed);
   const shuffled = pool.map(s => [r2(), s]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
-  picked = [...NAMED.filter(n => allSlugs.includes(n)), ...shuffled.slice(0, opt.sample)];
+  picked = [...namedSlugs, ...shuffled.slice(0, opt.sample)];
 }
-log(`車站時刻頁閘門｜${opt.all ? '--all 全量' : `具名案例 ${NAMED.join('、')} ＋ 隨機 ${opt.sample} 站（seed=${seed}）`}｜共 ${picked.length} 站`);
+log(`車站時刻頁閘門｜${opt.all ? '--all 全量' : `具名案例 ${[...NAMED, ...NAMED2].join('、')} ＋ 隨機 ${opt.sample} 站（seed=${seed}）`}｜共 ${picked.length} 站（第一批 ${picked.filter(s => stOf(s).batch === 1).length}、第二批 ${picked.filter(s => stOf(s).batch === 2).length}）`);
 
 // 一次掃描資料，只算需要的站
 const expByMember = new Map();
 for (const slug of picked) {
-  const st = STATIONS.find(s => s.slug === slug);
-  for (const m of st.members) {
+  for (const m of stOf(slug).members) {
     const info = memberInfo(m);
     if (!info || expByMember.has(m)) continue;
     expByMember.set(m, buildExpected(info.sys, info.name));
@@ -636,21 +1152,42 @@ for (const [m, e] of expByMember) {
   ok(1, e.rowCount > 0, `${m}（${e.stationName}）在資料範圍內一班停靠的班次都沒有`);
   for (const a of e.anomalies) notes.push(`資料備註 ${m}：${a}`);
 }
+// 這一輪選定的站，各語言「從原始資料重算」的站數／段數／列數（G11 的分母；不靠頁面）
+const expTotal = Object.fromEntries(LANGS.map(l => [l, { stations: 0, sections: 0, rows: 0 }]));
+for (const slug of picked) {
+  const st = stOf(slug);
+  for (const lang of st.langs) {
+    expTotal[lang].stations++;
+    for (const m of st.members) { const e = expByMember.get(m); if (e) { expTotal[lang].sections += e.sectionCount; expTotal[lang].rows += e.rowCount; } }
+  }
+}
 
 for (const slug of picked) {
-  const st = STATIONS.find(s => s.slug === slug);
+  const st = stOf(slug);
   const members = st.members.map(memberInfo).filter(Boolean);
-  for (const lang of LANGS) {
-    const f = path.join(root, PAGE_DIR[lang], slug, 'index.html');
-    if (!ok(1, fs.existsSync(f), `${lang} ${slug} 頁面不存在`, path.relative(root, f))) continue;
-    const page = parsePage(fs.readFileSync(f, 'utf8'));
+  const F = st.batch === 2 ? secondFacts(st) : null;
+  for (const lang of st.langs) {
+    const f = siteFile(PAGE_DIR[lang], slug, 'index.html');
+    if (!fs.existsSync(f)) {   // 第二批的缺頁由 G10 統一列出；第一批維持原本 G1 的紅
+      if (st.batch === 1) ok(1, false, `${lang} ${slug} 頁面不存在`, path.relative(site, f));
+      continue;
+    }
+    const html = fs.readFileSync(f, 'utf8');
+    const page = parsePage(html);
     // G7
     const hit = page.mainText.match(NO_PUBLISH_CLAIM[lang]);
     ok(7, !hit, `${lang} ${slug} 不斷言官方有沒有公開（只寫軌島的資料來源沒有）`, hit ? hit[0] : '');
     if (lang === 'en') ok(6, !CJK.test(page.mainText), `en ${slug} 英文頁 <main> 不得含中日文字`, (page.mainText.match(new RegExp(`.{0,16}${CJK.source}+.{0,16}`)) || [''])[0]);
     verifyStation(st, lang, page, members, expByMember);
+    if (st.batch === 1 && lang === 'zh') checkTraRouteFact(`${lang} ${slug}`, st, page);
+    if (st.batch === 2) { if (lang === 'zh') verifySecondZh(st, page, html, F); else verifySecondEnJa(st, lang, html, page, F); }
   }
 }
+// 整體結構（任何模式都跑全部頁）：G12 hreflang／sitemap、G14 索引、G15 反向連結
+checkPagesMeta();
+checkSitemap();
+checkIndexes();
+checkReverseLinks();
 
 // G2 控制組：行駛日解析器自己要先過——手算的標籤展開結果（含「例外日」「缺席日」這兩個目前資料裡沒出現過、
 // 但規格有的語法）；解析器解錯或不認得，這裡先紅，不會讓 G2 因為「解析器太寬鬆」而空過。
@@ -688,6 +1225,20 @@ for (const [lang, s] of [['zh', '官方沒有公開逐班時刻表'], ['en', 'Th
   ok(7, NO_PUBLISH_CLAIM[lang].test(s), `NO_PUBLISH_CLAIM.${lang} 擋不到已知正例（正規式被改鬆或抽錯）`, s);
 }
 
+// G13 控制組：閘門自己的地址解析器要先過（規則 2）。臺南市新市區必須解析成「新市區」而不是「新市」——
+// 「新市」本身也是「以市結尾」，只要「區」的優先權被弄反就會錯；產生器與閘門各自實作，這裡守閘門這一邊。
+{
+  const cases = [
+    ['744004臺南市新市區新和里中華路 1 號', '臺南市', '新市區'], ['744008臺南市新市區大營里大營 287-300 號', '臺南市', '新市區'],
+    ['203001基隆市中山區中山一路 16 之 1 號', '基隆市', '中山區'], ['400005臺中市中區綠川里臺灣大道一段 1 號', '臺中市', '中區'],
+    ['950030臺東縣臺東市岩灣里岩灣路 101 巷 598 號', '臺東縣', '臺東市'], ['959001臺東縣太麻里鄉三和村1鄰', '臺東縣', '太麻里鄉'],
+    ['950042臺東縣卑南鄉溫泉村', '臺東縣', '卑南鄉'],
+  ];
+  for (const [addr, county, town] of cases) { const p = parseAddress(addr); ok(13, !!p && p.county === county && p.town === town, `地址解析器控制組：「${addr}」`, `解出 ${p ? p.county + p.town : 'null'}、應為 ${county}${town}`); }
+  ok(13, parseAddress('') === null && parseAddress(undefined) === null, '地址解析器控制組：空地址必須回 null（取不到就不能默默放行）');
+  for (const n of ['新市', '南科']) { const x = TRA_ALL.get(n); ok(13, !!x && !!x.addr && x.addr.county === '臺南市' && x.addr.town === '新市區', `具名案例：「${n}」（資料地址臺南市新市區）必須解析成「臺南市新市區」`, x && x.addr ? x.addr.county + x.addr.town : '解析失敗'); }
+}
+
 // G4 具名案例
 if (named.taipeiTraDirs) {
   const e = expByMember.get('TRA:1000');
@@ -705,31 +1256,38 @@ if (named.taichungThsr) {
 ok(5, !!g5Example, '找不到秒數 %60 ≥ 30 的班次當正向對照（判準沒被行使）');
 if (g5Example) log(`G5 指名對照：${g5Example.station} 車次 ${g5Example.train} 原始秒數 ${g5Example.sec}（${Math.floor(g5Example.sec / 3600)}:${pad2(Math.floor(g5Example.sec % 3600 / 60))}:${pad2(g5Example.sec % 60)}）→ 頁面 ${g5Example.page}（捨去 ${g5Example.floor}，四捨五入會是 ${g5Example.round}）`);
 
-// G8 覆蓋率
-const stationsVerified = picked.length;
+// G13 分支覆蓋：各種轉乘情形都要真的被驗到（預設模式靠指名案例保證前三種；夥伴分支只有 --all 才保證）
+log(`G13 第二批頁：中文 ${g13Branch.zhPages}、英文 ${g13Branch.enPages}、日文 ${g13Branch.jaPages}；分支——轉乘夥伴 ${g13Branch.partner}、多路線 ${g13Branch.multi}、同名高鐵站 ${g13Branch.hsr}、沒有任何轉乘 ${g13Branch.none}`);
+ok(13, g13Branch.multi >= 1 && g13Branch.hsr >= 1 && g13Branch.none >= 1, '第二批頁的三個基本分支（多路線、同名高鐵站、沒有任何轉乘）都要真的被驗到', JSON.stringify(g13Branch));
+if (opt.all) ok(13, g13Branch.partner >= 1, '--all 時轉乘夥伴分支必須被驗到（判準沒被行使）', JSON.stringify(g13Branch));
+
+// G8 覆蓋率＋G11 具名覆蓋率
 if (!opt.quiet) {
   console.log('覆蓋率（站 × 語 × 段 × 列）：');
   for (const lang of LANGS) {
     const c = cov[lang];
-    console.log(`  ${lang}：${c.stations} 站 × ${c.sections} 段 × ${c.rows} 列（列數比對成功 ${c.rowsMatched}／原始資料 ${c.expRows}；期望段數 ${c.expSections}）`);
+    console.log(`  ${lang}：${c.stations} 站 × ${c.sections} 段 × ${c.rows} 列（列數比對成功 ${c.rowsMatched}／原始資料重算 ${expTotal[lang].rows}；期望段數 ${expTotal[lang].sections}；具名常數 ${EXPECT_STATIONS[lang]} 站${opt.all ? '' : '，--all 才驗'}）`);
   }
 }
 for (const lang of LANGS) {
-  const c = cov[lang];
-  ok(8, c.stations === stationsVerified, `${lang} 實際驗到的站數應等於選定站數`, `驗到 ${c.stations}、選定 ${stationsVerified}`);
+  const c = cov[lang], e = expTotal[lang];
+  ok(8, c.stations === e.stations, `${lang} 實際驗到的站數應等於選定站數`, `驗到 ${c.stations}、選定 ${e.stations}`);
   ok(8, c.sections === c.expSections, `${lang} 驗到的段數應等於原始資料算出的段數（分母不得無聲縮水）`, `驗到 ${c.sections}、原始資料 ${c.expSections}`);
   ok(8, c.rows === c.expRows, `${lang} 頁面上的列數應等於原始資料算出的總列數`, `頁面 ${c.rows}、原始資料 ${c.expRows}`);
   ok(8, c.rowsMatched === c.expRows, `${lang} 逐列比對成功的列數應等於原始資料的總列數`, `成功 ${c.rowsMatched}、原始資料 ${c.expRows}`);
   ok(8, c.expRows > 0 && c.sections > 0, `${lang} 覆蓋率為零（判準沒被行使）`);
+  // G11：分母不靠頁面，直接從原始資料對「選定的站」重算——缺一頁、缺一段、缺一列都會讓這三個數字對不上
+  ok(11, e.rows > 0 && c.rows > 0, `${lang} 逐列比對的列數必須 > 0`, `頁面 ${c.rows}、重算 ${e.rows}`);
+  ok(11, c.rows === e.rows, `${lang} 逐列比對的列數必須等於閘門從原始資料重算的總列數`, `頁面 ${c.rows}、重算 ${e.rows}`);
+  ok(11, c.rowsMatched === e.rows, `${lang} 逐列比對「成功」的列數必須等於重算的總列數`, `成功 ${c.rowsMatched}、重算 ${e.rows}`);
+  ok(11, c.sections === e.sections, `${lang} 驗到的時刻段數必須等於重算的段數`, `驗到 ${c.sections}、重算 ${e.sections}`);
 }
 ok(8, LANGS.length === EXPECT_LANGS, `語言數應為 ${EXPECT_LANGS}`);
 if (opt.all) {
-  ok(8, stationsVerified === EXPECT_STATIONS, `--all 時站數必須是 ${EXPECT_STATIONS}`, `實際 ${stationsVerified}`);
-  ok(8, STATIONS.length === EXPECT_STATIONS, `站設定（build_aeo_pages.mjs）的站數必須是 ${EXPECT_STATIONS}`, `實際 ${STATIONS.length}`);
-  for (const lang of LANGS) ok(8, cov[lang].stations === EXPECT_STATIONS, `--all 時 ${lang} 的站數必須是 ${EXPECT_STATIONS}`, `實際 ${cov[lang].stations}`);
+  for (const lang of LANGS) ok(11, cov[lang].stations === EXPECT_STATIONS[lang], `--all 時 ${lang} 驗到的站數必須是 ${EXPECT_STATIONS[lang]}（具名覆蓋率常數）`, `實際 ${cov[lang].stations}`);
   ok(8, LANGS.filter(l => cov[l].stations > 0).length === EXPECT_LANGS, `--all 時語言必須是 ${EXPECT_LANGS}`);
 } else {
-  ok(8, stationsVerified >= NAMED.length, `預設至少要驗具名案例 ${NAMED.length} 站`, `實際 ${stationsVerified}`);
+  ok(8, picked.length >= NAMED.length + NAMED2.length, `預設至少要驗具名案例 ${NAMED.length + NAMED2.length} 站`, `實際 ${picked.length}`);
 }
 
 for (const n of notes) log(n);
@@ -744,8 +1302,8 @@ for (const n of Object.keys(GATE_NAME)) {
 }
 for (const n of Object.keys(GATE_NAME)) {
   const g = gate[n];
-  for (const f of g.fails.slice(0, 8)) console.log(`FAIL ${f}`);
-  if (g.fails.length > 8) console.log(`FAIL [G${n}] …另有 ${g.fails.length - 8} 項`);
+  for (const f of g.fails.slice(0, opt.maxFails)) console.log(`FAIL ${f}`);
+  if (g.fails.length > opt.maxFails) console.log(`FAIL [G${n}] …另有 ${g.fails.length - opt.maxFails} 項（--max-fails=all 全部列出）`);
 }
 const totalChecks = Object.values(gate).reduce((s, g) => s + g.checks, 0);
 console.log(`${totalFails ? 'FAIL' : 'PASS'}：${totalChecks} 個檢查，${totalFails} 項失敗（紅的閘門：${Object.keys(GATE_NAME).filter(n => gate[n].fails.length).map(n => `G${n}`).join('、') || '無'}）`);

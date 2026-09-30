@@ -3542,3 +3542,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '跟車小卡收合成膠囊時，車次與時速不再貼在上緣，跟圓點和「結束」排在同一條線上（謝謝網友回報）': '追跡カードを小さく折りたたんだとき、列車番号と速度が上端に寄らず、左の点や「終了」ボタンと同じ高さにそろうようになりました(ご報告ありがとうございます)。',
 });
+// 2026-09-30 車站時刻頁第二批（v0930g）：第一層與第二層更新紀錄那兩條的 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '車站時刻表頁擴大到全部台鐵車站：每站列出兩週內每一班的開車時刻與行駛日；瑞芳、十分、菁桐等 7 站另有英日文，車站索引依縣市分組': 'Station timetable pages now cover every TRA station, each listing every train\'s departure time and running days over two weeks. Ruifang, Shifen, Jingtong and four more stations also have English and Japanese pages, and the station index groups stations by city and county.',
+  '車站時刻表頁擴大到兩週內有列車停靠的全部 239 個台鐵車站（新增 221 站，中文）：依方向列出每一班的開車時刻、終點與行駛日；瑞芳、十分、菁桐、礁溪、福隆、集集、知本另有英日文頁；車站索引依縣市列出全部台鐵車站': 'Station timetable pages now cover all 239 TRA stations with trains in the two-week data (221 new stations, in Traditional Chinese), listing every train\'s departure time, destination and running days by direction. Ruifang, Shifen, Jingtong, Jiaoxi, Fulong, Jiji and Zhiben also have English and Japanese pages, and the station index lists every TRA station by city and county.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '車站時刻表頁擴大到全部台鐵車站：每站列出兩週內每一班的開車時刻與行駛日；瑞芳、十分、菁桐等 7 站另有英日文，車站索引依縣市分組': '駅の時刻表ページを台鉄の全駅に拡大：各駅で2週間分の列車ごとの発車時刻と運転日を掲載。瑞芳・十分・菁桐など7駅は英語・日本語ページもあり、駅の索引は県市別にまとめています。',
+  '車站時刻表頁擴大到兩週內有列車停靠的全部 239 個台鐵車站（新增 221 站，中文）：依方向列出每一班的開車時刻、終點與行駛日；瑞芳、十分、菁桐、礁溪、福隆、集集、知本另有英日文頁；車站索引依縣市列出全部台鐵車站': '駅の時刻表ページを、2週間のデータで列車が停車する台鉄の全239駅に拡大（新たに221駅、繁体字中国語）：方面別に列車ごとの発車時刻・行き先・運転日を掲載。瑞芳・十分・菁桐・礁渓・福隆・集集・知本は英語・日本語ページもあり、駅の索引は台鉄の全駅を県市別に載せています。',
+});

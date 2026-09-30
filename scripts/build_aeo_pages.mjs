@@ -671,16 +671,18 @@ function memberName(lang, item) {
   if (!hit) throw new Error(`i18n/stations.json 缺 ${item.system} 站名「${item.name}」的 ${lang} 譯名`);
   return hit.replace(/\s+/g, ' ').trim();
 }
-// 路線名：台鐵取 TDX Rail/TRA/Line 字面（en＝英文名，ja＝TDX 只有中文，照抄不自己翻）；其餘取 i18n/stations.json 的 routes
+// 路線名：台鐵三語都取 TDX Rail/TRA/Line 字面（zh／ja＝官方中文名，照抄不改寫，如「西部幹線 (海線)」的半形括號；en＝英文名；
+// TDX 沒有日文，ja 照抄中文）。不取 station_transfers.json 的 routes[].name：那是 App 用的簡稱，TRA:WL 寫成「西部幹線（山線）」
+// 但它涵蓋基隆到屏東，真正的山線只有竹南–彰化，寫進站頁會變成事實錯誤。其餘系統中文取 routeNames、en／ja 取 i18n/stations.json 的 routes
 function routeLabel(lang, key) {
-  if (lang === 'zh') return routeNames[key] || key;
-  if (key === 'THSR:THSR') return SYSTEM_NAMES[lang].THSR;
   const [sys, id] = key.split(':');
   if (sys === 'TRA') {
     const line = ttInputs.lineNames.lines[id];
     if (!line) throw new Error(`tra_line_names.json 缺台鐵路線 ${id}`);
     return lang === 'en' ? line.en : line.zh;
   }
+  if (lang === 'zh') return routeNames[key] || key;
+  if (key === 'THSR:THSR') return SYSTEM_NAMES[lang].THSR;
   const hit = i18nStations.routes[ROUTE_DICT[sys]]?.[routeNames[key]]?.[lang];
   if (!hit) throw new Error(`i18n/stations.json routes 缺 ${key}「${routeNames[key]}」的 ${lang} 譯名`);
   return hit;
@@ -728,9 +730,187 @@ function stationModel(config) {
 const tOf = (lang, config) => (lang === 'zh' ? config.title : config[lang].title);
 const summaryOf = (lang, config) => (lang === 'zh' ? config.summary : config[lang].summary);
 const transferOf = (lang, config) => (lang === 'zh' ? config.transfer : config[lang].transfer);
+// 轉乘段的 HTML：有 transferHtml（中文，內含連結）就用它，否則把純文字跳脫後輸出。transferHtml 的可見文字必須等於 transfer。
+const transferHtmlOf = (lang, config) => (lang === 'zh' && config.transferHtml) || escapeHtml(transferOf(lang, config));
 const systemsOf = (lang, model) => model.sysCodes.map(code => SYSTEM_NAMES[lang][code]);
 const routesOf = (lang, model) => [...new Set(model.routeKeys.map(key => routeLabel(lang, key)))];
 const shortsOf = (lang, model) => model.ttSystems.map(code => SYSTEM_SHORT[lang][code]);
+
+// ── 第二批：其餘台鐵站（2026-09-30，B2）──────────────────────────────────────────────────────
+// 中文頁＝資料裡兩週內有停靠的每一個台鐵站，扣掉第一批 23 頁已含的 18 站與環島別名（應為 221 站）；
+// 瑞芳、十分、菁桐、礁溪、福隆、集集、知本另有英日文頁。站清單、網址、導言、轉乘句、附近車站全部從 data/ 算，不寫站名清單
+// （換班表、新站、改站名都自動跟著變）；資料拿不到就 throw（缺英文站名、地址取不出縣市或鄉鎮市區、網址撞名），不編造。
+// 導言每一句都追得到資料：路線＝station_transfers 的 routes、縣市與鄉鎮市區＝tra_station_info 的地址、轉乘＝station_transfers 的 pairs。
+const TRA_ROUND_ISLAND_ALIAS = '臺北-環島';   // 環島列車的終點別名（站碼 1001），不是車站
+const SECOND_EN_JA = ['瑞芳', '十分', '菁桐', '礁溪', '福隆', '集集', '知本'];   // 外國旅客常去的站，第二批也做英日文頁
+const SECOND_SLUG_OVERRIDE = { 左營: 'zuoying-tra' };   // 台鐵左營（4350）的英文名 Zuoying 與第一批 /stations/zuoying/（左營轉乘站）撞名
+const SECOND_TITLE_OVERRIDE = { 左營: '台鐵左營車站' };   // 跟「左營轉乘站」分開
+const TRA_COUNTY_ORDER = ['基隆市', '臺北市', '新北市', '桃園市', '新竹市', '新竹縣', '苗栗縣', '臺中市', '彰化縣', '南投縣', '雲林縣', '嘉義市', '嘉義縣', '臺南市', '高雄市', '屏東縣', '臺東縣', '花蓮縣', '宜蘭縣'];
+// 轉乘夥伴的系統名（中文頁用）：KRTC、TMRT 沿用 systemNames；環狀輕軌與三鶯線照 build_metro_pages.mjs 的頁面標題寫法（headName：系統名＋路線名）
+const PARTNER_SYSTEM_ZH = { KRTC: systemNames.KRTC, TMRT: systemNames.TMRT, KLRT: '高雄捷運環狀輕軌', SANYING: '新北捷運三鶯線' };
+
+const traStopsOf = train => (typeof train.stops === 'string' ? JSON.parse(train.stops) : train.stops);
+const servedTraNames = new Set();
+for (const i of new Set(Object.values(ttInputs.tra.dates).flat())) for (const p of traStopsOf(ttInputs.tra.trains[i])) if (p.stop) servedTraNames.add(p.name);
+
+const traKeyByName = new Map();
+for (const [key, item] of Object.entries(transfers.stations)) {
+  if (item.system !== 'TRA') continue;
+  if (traKeyByName.has(item.name)) throw new Error(`station_transfers.json 有兩個台鐵站都叫「${item.name}」：${traKeyByName.get(item.name)}、${key}`);
+  traKeyByName.set(item.name, key);
+}
+const thsrKeyByName = new Map(Object.entries(transfers.stations).filter(([, item]) => item.system === 'THSR').map(([key, item]) => [item.name.replace(/台/g, '臺'), key]));
+const transferGroupById = new Map(transfers.transferStations.map(group => [group.id, group]));
+const traInfoById = new Map(Object.values(traInfo).map(rec => [String(rec.id), rec]));
+const traLineStations = new Map(JSON.parse(fs.readFileSync(path.join(root, 'data/tra_station_of_line.json'), 'utf8')).lines
+  .map(line => [line.lineId, [...line.stations].sort((a, b) => a.seq - b.seq)]));
+
+// 地址：去郵遞區號；縣市與區之間有空白的（「新竹市 東區」「嘉義市 西區」）一併去掉，否則區名會帶著前導空白
+const traAddressOf = item => String(traInfoById.get(String(item.stationId))?.address || '').replace(/^\d+/, '').replace(/\s+/g, '');
+function traCity(item) {
+  const city = traAddressOf(item).slice(0, 3);
+  if (!/^\S{2}[縣市]$/.test(city)) throw new Error(`台鐵「${item.name}」（${item.stationId}）的地址取不出縣市：「${traAddressOf(item)}」`);
+  return city;
+}
+// 鄉鎮市區：縣市之後先取「最短、以區結尾（2–4 字）」；沒有才取「最短、以鄉／鎮／市結尾（2–4 字）」。
+// 臺南市新市區必須是「新市區」，不是先被「市」截成「新市」。
+function traDistrict(item) {
+  const after = traAddressOf(item).slice(3);
+  const shortest = ends => { for (let n = 2; n <= 4; n++) if (after[n - 1] && ends.includes(after[n - 1])) return after.slice(0, n); return null; };
+  const district = shortest('區') || shortest('鄉鎮市');
+  if (!district) throw new Error(`台鐵「${item.name}」（${item.stationId}）的地址取不出鄉鎮市區：「${traAddressOf(item)}」`);
+  return district;
+}
+// 轉乘夥伴：同一轉乘組裡本站以外的成員，距離取 pairs（pairM 找不到就 throw）；夥伴也是台鐵站的形狀第二批沒有，遇到就停
+function traPartners(key) {
+  const groupId = transfers.stations[key].transferId;
+  const group = groupId && transferGroupById.get(groupId);
+  if (!group) return [];
+  return group.members.filter(member => member !== key).map(member => {
+    const item = transfers.stations[member];
+    if (item.system === 'TRA') throw new Error(`${key} 與台鐵站 ${member} 在同一轉乘組，第二批的轉乘句沒有處理這種形狀`);
+    if (!PARTNER_SYSTEM_ZH[item.system]) throw new Error(`轉乘夥伴 ${member} 的系統 ${item.system} 沒有中文系統名（PARTNER_SYSTEM_ZH）`);
+    return { key: member, item, m: pairM(key, member) };
+  });
+}
+const zhStop = name => (name.endsWith('站') ? name : `${name}站`);   // 夥伴站名有「橋頭火車站」「岡山車站」，不再多加一個「站」
+const partnerLabelZh = partner => `${PARTNER_SYSTEM_ZH[partner.item.system]}${zhStop(partner.item.name)}`;
+const segText = segs => segs.map(seg => (typeof seg === 'string' ? seg : seg.text)).join('');
+const segHtml = segs => segs.map(seg => (typeof seg === 'string' ? escapeHtml(seg) : `<a href="${seg.href}">${escapeHtml(seg.text)}</a>`)).join('');
+const slugOfEn = en => en.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+const firstBatchTraKeys = new Set(stations.flatMap(config => config.members).filter(key => key.startsWith('TRA:')));
+const secondKeys = [...servedTraNames].filter(name => name !== TRA_ROUND_ISLAND_ALIAS).map(name => {
+  const key = traKeyByName.get(name);
+  if (!key) throw new Error(`班表有停靠的站「${name}」在 station_transfers.json 找不到`);
+  return key;
+}).filter(key => !firstBatchTraKeys.has(key)).sort();   // 依站碼（四位數字字串）排序，決定性
+
+function secondConfig(key) {
+  const item = transfers.stations[key], name = item.name;
+  const enName = i18nStations.systems.tra_sched[name]?.en;
+  if (!enName) throw new Error(`i18n/stations.json 的 tra_sched 沒有「${name}」（${key}）的英文站名，無法產生網址；先在 scripts/build_i18n_station_names.mjs 補官方譯名`);
+  const slug = SECOND_SLUG_OVERRIDE[name] || slugOfEn(enName);
+  if (!slug) throw new Error(`「${name}」（${key}）的英文站名「${enName}」轉不出網址`);
+  const enJa = SECOND_EN_JA.includes(name);
+  const title = SECOND_TITLE_OVERRIDE[name] || `${name}車站`;
+  const routeKeys = item.routes;
+  if (!routeKeys.length) throw new Error(`station_transfers.json 的 ${key}（${name}）沒有路線`);
+  const partners = traPartners(key);
+  const hsrKey = thsrKeyByName.get(name.replace(/台/g, '臺'));
+  // 同名高鐵站在別處（苗栗、彰化、左營）：在同一轉乘組就是夥伴（上面處理過），不在才算「別處」
+  const hsrElsewhere = hsrKey && !partners.some(partner => partner.key === hsrKey) ? hsrKey : null;
+  let hsrPage = null;
+  if (hsrElsewhere) {
+    hsrPage = stations.find(config => config.members.includes(hsrElsewhere));
+    if (!hsrPage) throw new Error(`「${name}」有同名高鐵站 ${hsrElsewhere}，但第一批沒有頁面收它`);
+  }
+  const routes = lang => routeKeys.map(routeKey => routeLabel(lang, routeKey));
+  const guard = (lang, what) => { throw new Error(`第二批 ${lang}/${slug}：${what}的英日文措辭沒有寫（規格只涵蓋 ${SECOND_EN_JA.join('、')}，這些站沒有轉乘夥伴或同名高鐵站）`); };
+
+  // 中文：導言與轉乘段
+  const place = `${traCity(item)}${traDistrict(item)}`;
+  const zhSummary = `${name}車站是台鐵${routes('zh').join('、')}的車站，位於${place}。${partners.length ? `可步行轉乘${partners.map(partnerLabelZh).join('、')}。` : ''}`;
+  const zhSegs = [];
+  for (const partner of partners) zhSegs.push(`${partnerLabelZh(partner)}與台鐵站點在資料中相距約 ${partner.m} 公尺，屬步行轉乘，不代表同一月台。`);
+  if (routeKeys.length > 1) zhSegs.push(`本站同時屬於台鐵${routes('zh').slice(0, -1).join('、')}與${routes('zh').at(-1)}。`);
+  if (hsrPage) zhSegs.push(`高鐵${transfers.stations[hsrElsewhere].name}站是另一個車站，與本站在資料中直線相距約 ${kmBetween(hsrElsewhere, key)} 公里，請看〈`, { text: hsrPage.title, href: stationHref('zh', hsrPage.slug) }, '〉。');
+  if (!zhSegs.length) zhSegs.push('軌島的轉乘資料沒有列出本站與其他軌道系統的轉乘。');
+
+  const config = {
+    slug, key, name, title, members: [key], batch: 2, enJa,
+    summary: zhSummary, transfer: segText(zhSegs), transferHtml: segHtml(zhSegs),
+    distanceNote: partners.length > 0 || Boolean(hsrPage),   // 轉乘段有公尺或公里數，才接「資料中的距離用於辨識…」那段（規則 3）
+  };
+  if (enJa) {
+    if (partners.length) guard('en/ja', '轉乘夥伴');
+    if (hsrPage) guard('en/ja', '同名高鐵站');
+    const en = memberName('en', item), ja = memberName('ja', item);
+    const multi = routeKeys.length > 1;
+    config.en = {
+      title: `${en} Station`,
+      summary: `${en} Station is a Taiwan Railway (TRA) station on the ${joinList('en', routes('en'))}.`,
+      transfer: multi
+        ? `This station belongs to both the ${joinList('en', routes('en'))} of Taiwan Railway (TRA).`
+        : 'Rail Island\'s transfer data does not list any transfer between this station and other railway systems.',
+    };
+    config.ja = {
+      title: `${ja}駅`,
+      summary: `${ja}駅は台鉄（TRA）の${routes('ja').join('・')}の駅です。`,
+      transfer: multi
+        ? `この駅は台鉄（TRA）の${routes('ja').join('と')}の両方に属しています。`
+        : '軌島の乗り換えデータには、この駅とほかの鉄道システムとの乗り換え関係は載っていません。',
+    };
+  }
+  return config;
+}
+const secondBatch = secondKeys.map(secondConfig);
+{
+  const slugOwner = new Map(stations.map(config => [config.slug, config.title]));
+  for (const config of secondBatch) {
+    if (slugOwner.has(config.slug)) throw new Error(`車站網址撞名：/stations/${config.slug}/ 已是「${slugOwner.get(config.slug)}」，「${config.title}」（${config.key}）不能再用；到 SECOND_SLUG_OVERRIDE 指定另一個網址`);
+    slugOwner.set(config.slug, config.title);
+  }
+}
+
+// 第一批三頁（中文高鐵苗栗、高鐵彰化、左營轉乘站）的轉乘段提到的台鐵同名站，連到新開的頁；可見文字逐字不變，只加連結。
+for (const link of [
+  { slug: 'miaoli-hsr', station: '苗栗', before: '台鐵另有', phrase: '苗栗站' },
+  { slug: 'changhua-hsr', station: '彰化', before: '', phrase: '台鐵彰化站' },
+  { slug: 'zuoying', station: '左營', before: '「', phrase: '左營（舊城）' },
+]) {
+  const config = stations.find(item => item.slug === link.slug), target = secondBatch.find(item => item.name === link.station);
+  if (!config || !target) throw new Error(`反向連結：找不到第一批頁 ${link.slug} 或第二批的台鐵${link.station}站`);
+  const anchor = link.before + link.phrase, at = config.transfer.indexOf(anchor);
+  if (at < 0 || config.transfer.indexOf(anchor, at + 1) >= 0) throw new Error(`反向連結：${link.slug} 的轉乘段找不到唯一的「${anchor}」`);
+  const from = at + link.before.length, to = from + link.phrase.length;
+  config.transferHtml = `${escapeHtml(config.transfer.slice(0, from))}<a href="${stationHref('zh', target.slug)}">${escapeHtml(link.phrase)}</a>${escapeHtml(config.transfer.slice(to))}`;
+}
+
+// 每個語言有頁面的站（中文：第一批 23＋第二批 221；en／ja：第一批 23＋第二批的 7 站）
+const pageLangs = config => (config.enJa === false ? ['zh'] : LANGS3);
+const pagesIn = lang => [...stations, ...secondBatch].filter(config => pageLangs(config).includes(lang));
+// 台鐵站碼 → 該站的頁面設定（第一批成員連到它所在的第一批頁）
+const pageOfTraId = new Map();
+for (const config of [...stations, ...secondBatch]) for (const key of config.members) if (key.startsWith('TRA:')) pageOfTraId.set(String(transfers.stations[key].stationId), config);
+
+// 第二批頁的「附近的車站資料頁」：本站每條路線（station_transfers 的 routes 順序）在 tra_station_of_line 站序上，
+// 往前、往後各找第一個「這個語言有頁面」的站，去重，最多 4 個。
+function nearbyPages(config, lang) {
+  const item = transfers.stations[config.key], out = [];
+  for (const routeKey of item.routes) {
+    const seq = traLineStations.get(routeKey.replace(/^TRA:/, ''));
+    const at = seq ? seq.findIndex(station => String(station.id) === String(item.stationId)) : -1;
+    if (at < 0) throw new Error(`tra_station_of_line.json 的 ${routeKey} 找不到 ${config.key}（${config.name}）`);
+    for (const step of [-1, 1]) {
+      for (let j = at + step; j >= 0 && j < seq.length; j += step) {
+        const page = pageOfTraId.get(String(seq[j].id));
+        if (page && pageLangs(page).includes(lang)) { if (!out.includes(page)) out.push(page); break; }
+      }
+    }
+  }
+  return out.slice(0, 4);
+}
 
 // 深連結：/?g=<群組>&at=<lat>,<lon>&z=15（index.html 的 deepG／deepAt／deepZ）。群組只用 GROUPS 裡真有的 id：
 // 只有台鐵（含林鐵）→ tra、只有高鐵 → hsr、只有捷運 → metro，混合 → all（全台同框）。
@@ -750,6 +930,9 @@ const plainMd = md => { const cut = md.search(/[（(]/); return cut < 0 ? md : m
 // 「9/28 週一（放假）」「Sep 28 Mon (holiday)」「9月28日 月曜（休日）」。回傳 HTML：手機窄欄時括號註記不准斷在中間
 // （「（放／假）」），日期＋星期、括號註記各包成不斷行的單位（.nb），只允許在兩者之間換行。
 const nb = html => `<span class="nb">${html}</span>`;
+// TDX 路線名「西部幹線 (海線)」含半形空白與括號，手機窄欄會從名稱中間斷成「(海／線)」；把這類路線名包成不斷行的單位（字面不變）
+const PAREN_ROUTE_LABELS = Object.values(ttInputs.lineNames.lines).map(line => escapeHtml(line.zh)).filter(label => label.includes('('));
+const nbRoutes = html => PAREN_ROUTE_LABELS.reduce((out, label) => out.split(label).join(nb(label)), html);
 function dayCountLabel(lang, p) {
   const md = p.md[lang], plain = plainMd(md), note = md.slice(plain.length).trim(), wd = WD_NAMES[lang][p.weekday];
   const head = pick3(lang, `${plain} 週${wd}`, `${plain} ${wd}`, `${plain} ${wd}曜`);
@@ -863,7 +1046,7 @@ function factsSection(lang, model) {
   const add = (label, value) => rows.push(`<div class="fact-row"><div class="fact-label">${escapeHtml(label)}</div><div class="fact-value">${value}</div></div>`);
   const sep = pick3(lang, '；', '; ', '；');
   add(FACT_LABEL.systems[lang], systemsOf(lang, model).map(escapeHtml).join(pick3(lang, '、', ', ', '、')));
-  add(FACT_LABEL.routes[lang], routesOf(lang, model).map(escapeHtml).join(pick3(lang, '、', ', ', '、')));
+  add(FACT_LABEL.routes[lang], routesOf(lang, model).map(route => nbRoutes(escapeHtml(route))).join(pick3(lang, '、', ', ', '、')));
   if (model.tts.length) {
     const perSystem = code => model.tts.find(rec => rec.item.system === code);
     const ranges = model.ttSystems.map(code => `${SYSTEM_SHORT[lang][code]}${pick3(lang, '：', ': ', '：')}${rangeText(lang, perSystem(code).tt)}`).join(sep);
@@ -908,11 +1091,13 @@ function howParagraphs(lang, model) {
   return `<p>${escapeHtml(first.join(pick3(lang, '', ' ', '')))}</p><p>${escapeHtml(second)}</p>${metroLink}`;
 }
 
-function stationPageHtml(lang, config, index) {
+// related：「附近的車站資料頁」要放的設定（呼叫端決定：第一批是名單裡的前後輪，第二批是同路線相鄰站）。
+// alts 只放這一站真的有頁面的語言（第二批 214 站只有中文）：hreflang 只指向存在的頁面。
+function stationPageHtml(lang, config, related) {
   const model = stationModel(config);
   const slug = config.slug, title = tOf(lang, config), summary = summaryOf(lang, config);
   const pathname = stationHref(lang, slug);
-  const alts = Object.fromEntries(LANGS3.map(code => [code, stationHref(code, slug)]));
+  const alts = Object.fromEntries(pageLangs(config).map(code => [code, stationHref(code, slug)]));
   const shorts = shortsOf(lang, model), hasTt = model.tts.length > 0;
   // 標題／meta description 的長度是搜尋結果會不會被截斷的問題：英文 title ≤70、description ≤160，中日文 description ≤100 字。
   // 描述只留「站名＋時刻表＋系統＋資料涵蓋區間」，站的簡介（summary）留在頁面導言，不進 description。
@@ -954,7 +1139,6 @@ function stationPageHtml(lang, config, index) {
   ];
   const toc = hasTt
     ? `<nav class="page-toc" aria-label="${escapeHtml(pick3(lang, '本頁目錄', 'On this page', 'このページの内容'))}"><p class="toc-label">${escapeHtml(pick3(lang, '本頁目錄', 'On this page', 'このページの内容'))}</p><ul class="sibling-links">${tocItems.map(item => `<li><a href="#${item.id}">${escapeHtml(item.label)}</a></li>`).join('')}</ul></nav>` : '';
-  const related = [stations[(index + 1) % stations.length], stations[(index + stations.length - 1) % stations.length]];
   const relatedCards = related.map(item => {
     const itemHasTt = stationModel(item).tts.length > 0;
     return `<article class="card station-card"><div class="station-systems">${escapeHtml(itemHasTt ? pick3(lang, '車站時刻與資料', 'Timetable and station guide', '時刻表と駅ガイド') : pick3(lang, '車站資料', 'Station guide', '駅ガイド'))}</div><h3>${escapeHtml(tOf(lang, item))}</h3><p>${escapeHtml(summaryOf(lang, item))}</p><a class="card-link" href="${stationHref(lang, item.slug)}">${escapeHtml(pick3(lang, `查看 ${tOf(lang, item)} →`, `View ${tOf(lang, item)} →`, `${tOf(lang, item)}を見る →`))}</a></article>`;
@@ -971,61 +1155,89 @@ ${sh.headerHtml(lang, alts)}
     <section class="hero">
       <p class="eyebrow">${hasTt ? 'STATION TIMETABLE' : 'STATION GUIDE'}</p>
       <h1>${escapeHtml(heading)}</h1>
-      <p class="lede">${escapeHtml(lede)}</p>
+      <p class="lede">${nbRoutes(escapeHtml(lede))}</p>
       <div class="tag-row">${tags.map(item => `<span class="tag">${escapeHtml(item)}</span>`).join('')}</div>
       <div class="hero-actions"><a class="button" href="${escapeHtml(liveHref(lang, model))}">${escapeHtml(pick3(lang, '在即時地圖查看', 'View on the live map', 'ライブ地図で見る'))}</a><a class="button secondary" href="${stationIndexHref(lang)}">${escapeHtml(pick3(lang, '回車站索引', 'Back to the station index', '駅の索引へ戻る'))}</a></div>
     </section>
     ${factsSection(lang, model)}
     ${toc}
     ${sections.map(section => section.html).join('\n    ')}
-    <section class="content-section st-anchor" id="transfer"><h2>${escapeHtml(pick3(lang, '轉乘與站體判讀', 'Transfers and how the stations relate', '乗り換えと駅の位置関係'))}</h2><div class="answer-box"><p>${escapeHtml(transferOf(lang, config))}</p><p>${escapeHtml(pick3(lang, '資料中的距離用於辨識共站與步行轉乘關係，不是站內導航，也不等於月台之間的實際步行時間。', 'Distances in the data are only used to recognise shared stations and walking transfers. They are not in-station navigation and do not equal the actual walking time between platforms.', 'データ上の距離は、共用駅や徒歩での乗り換え関係を見分けるために使っているもので、駅構内の案内ではなく、ホーム間の実際の所要時間でもありません。'))}</p></div></section>
+    <section class="content-section st-anchor" id="transfer"><h2>${escapeHtml(pick3(lang, '轉乘與站體判讀', 'Transfers and how the stations relate', '乗り換えと駅の位置関係'))}</h2><div class="answer-box"><p>${nbRoutes(transferHtmlOf(lang, config))}</p>${config.distanceNote === false ? '' : `<p>${escapeHtml(pick3(lang, '資料中的距離用於辨識共站與步行轉乘關係，不是站內導航，也不等於月台之間的實際步行時間。', 'Distances in the data are only used to recognise shared stations and walking transfers. They are not in-station navigation and do not equal the actual walking time between platforms.', 'データ上の距離は、共用駅や徒歩での乗り換え関係を見分けるために使っているもので、駅構内の案内ではなく、ホーム間の実際の所要時間でもありません。'))}</p>`}</div></section>
     <section class="content-section st-anchor" id="how"><h2>${escapeHtml(pick3(lang, '軌島怎麼顯示這一站', 'How Rail Island shows this station', '軌島でのこの駅の表示'))}</h2><div class="answer-box">${howParagraphs(lang, model)}</div></section>
-    <section class="content-section"><h2>${escapeHtml(pick3(lang, '附近的車站資料頁', 'Nearby station pages', '近くの駅のページ'))}</h2><div class="card-grid">${relatedCards}</div></section>
+    ${relatedCards ? `<section class="content-section"><h2>${escapeHtml(pick3(lang, '附近的車站資料頁', 'Nearby station pages', '近くの駅のページ'))}</h2><div class="card-grid">${relatedCards}</div></section>` : ''}
   </main>
-${sh.footerHtml(lang, alts)}`;
+${sh.footerHtml(lang, alts, { en: stationIndexHref('en'), ja: stationIndexHref('ja') })}`;
 }
 
 // ── 車站索引（/stations/、/en/stations/、/ja/stations/）──
 const INDEX_TEXT = {
   zh: {
     title: '台灣鐵路車站時刻表與轉乘站索引｜軌島', h1: '車站時刻表與轉乘站索引',
-    description: n => `軌島車站索引整理 ${n} 個常查詢的台灣鐵路轉乘站與同名站，提供台鐵、高鐵逐班時刻與行駛日（每週更新），並說明路線、共站關係與資料限制。`,
+    description: ({ n, traAll }) => `軌島車站索引整理 ${n} 個常查詢的台灣鐵路轉乘站與同名站，並依縣市列出全部 ${traAll} 個台鐵車站，提供台鐵、高鐵逐班時刻與行駛日（每週更新），並說明路線、共站關係與資料限制。`,
     h2: '常查詢車站', intro: '同名不一定同站。索引特別把台鐵與高鐵的桃園、新竹、台中、台南、嘉義分開，避免搜尋時把不同地點誤認成同一站。',
     linkTt: '查看時刻表與車站資料 →', linkGuide: '查看車站資料 →',
-    noticeLead: '沒有列出的車站不代表軌島沒有收錄。', noticeText: '這是第一批車站頁，台鐵、高鐵的時刻表每週更新一次；完整站點與當下發車資訊仍在即時地圖中。',
+    noticeLead: '沒有列出的車站不代表軌島沒有收錄。', noticeText: '台鐵、高鐵的時刻表每週更新一次；完整站點與當下發車資訊仍在即時地圖中。',
     live: '打開即時地圖', second: '查車站資料', eyebrow: 'STATION INDEX',
   },
   en: {
     title: 'Taiwan Railway Station Timetables and Transfer Stations | Rail Island', h1: 'Station Timetables and Transfer Stations',
-    description: n => `Rail Island's station index covers ${n} frequently searched railway stations and same-name stations in Taiwan, with train-by-train TRA and HSR times and running days (updated weekly), plus lines, shared-station relationships and data limits.`,
-    metaDescription: n => `Timetables for ${n} frequently searched railway stations in Taiwan: train-by-train TRA and HSR times and running days, updated weekly.`,
+    description: ({ n }) => `Rail Island's station index covers ${n} frequently searched railway stations and same-name stations in Taiwan, with train-by-train TRA and HSR times and running days (updated weekly), plus lines, shared-station relationships and data limits.`,
+    metaDescription: ({ n }) => `Timetables for ${n} frequently searched railway stations in Taiwan: train-by-train TRA and HSR times and running days, updated weekly.`,
     h2: 'Frequently searched stations', intro: 'Same name does not always mean same station. The index keeps the TRA and HSR stations of Taoyuan, Hsinchu, Taichung, Tainan and Chiayi apart, so that different places are not mistaken for one station when searching.',
     linkTt: 'View timetable and station guide →', linkGuide: 'View station guide →',
-    noticeLead: 'A station that is not listed here is not necessarily missing from Rail Island.', noticeText: 'These are the first station pages. TRA and HSR timetables are updated once a week; the full list of stations and current departures are on the live map.',
+    noticeLead: 'A station that is not listed here is not necessarily missing from Rail Island.', noticeText: 'TRA and HSR timetables are updated once a week; the full list of stations and current departures are on the live map.',
+    // 英日文只有 n 站：完整的台鐵站清單在中文索引（連過去，標 hreflang zh-Hant）
+    zhIndexNote: n => `English and Japanese pages exist for ${n} stations. The complete list of TRA stations is in the <a href="/stations/" hreflang="zh-Hant">station index (Traditional Chinese)</a>.`,
     live: 'Open the live map', second: 'Station guides', eyebrow: 'STATION INDEX',
   },
   ja: {
     title: '台湾の鉄道駅 時刻表・乗り換え駅の索引｜軌島', h1: '駅の時刻表と乗り換え駅の索引',
-    description: n => `軌島の駅の索引では、台湾でよく検索される${n}の鉄道の乗り換え駅と同名駅について、台鉄・高鉄の列車ごとの時刻と運転日（毎週更新）、路線、駅の共用関係、データの限界を説明します。`,
+    description: ({ n }) => `軌島の駅の索引では、台湾でよく検索される${n}の鉄道の乗り換え駅と同名駅について、台鉄・高鉄の列車ごとの時刻と運転日（毎週更新）、路線、駅の共用関係、データの限界を説明します。`,
     h2: 'よく検索される駅', intro: '同じ名前でも同じ駅とは限りません。この索引では、桃園・新竹・台中・台南・嘉義の台鉄と高鉄の駅を分けて載せ、検索するときに別の場所を同じ駅と取り違えないようにしています。',
     linkTt: '時刻表と駅ガイドを見る →', linkGuide: '駅ガイドを見る →',
-    noticeLead: '載っていない駅が、軌島に収録されていないとは限りません。', noticeText: 'ここは最初の駅ページです。台鉄・高鉄の時刻表は週に1回更新しており、すべての駅と現在の発車情報はライブ地図で確認できます。',
+    noticeLead: '載っていない駅が、軌島に収録されていないとは限りません。', noticeText: '台鉄・高鉄の時刻表は週に1回更新しており、すべての駅と現在の発車情報はライブ地図で確認できます。',
+    zhIndexNote: n => `英語・日本語のページがある駅は${n}駅です。台鉄の全駅の一覧は、<a href="/stations/" hreflang="zh-Hant">駅の索引（繁体字中国語）</a>をご覧ください。`,
     live: 'ライブ地図を開く', second: '駅ガイド', eyebrow: 'STATION INDEX',
   },
 };
 
+// 全部台鐵車站（第一批成員＋第二批，每站一筆）：站名、縣市（取台鐵地址）、站碼、連結目標（第一批成員連到它所在的第一批頁）
+const traEntries = [...stations, ...secondBatch].flatMap(config => config.members.filter(key => key.startsWith('TRA:')).map(key => {
+  const item = transfers.stations[key];
+  return { key, id: String(item.stationId), name: item.name, city: traCity(item), page: config };
+}));
+
+// 中文索引的「全部台鐵車站」分組區塊（方案 A：依縣市，縣市內依站碼）。將來改成依路線分組，只要換掉這個函式。
+// 版面：上方一排縣市跳轉按鈕（純錨點，不用 JS），每個縣市一個 h3＋一排 .sibling-links 膠囊，每站一個連結。
+function traStationGroupsHtml() {
+  const byCounty = new Map(TRA_COUNTY_ORDER.map(county => [county, []]));
+  for (const entry of traEntries) {
+    if (!byCounty.has(entry.city)) throw new Error(`台鐵「${entry.name}」的縣市「${entry.city}」不在索引的縣市順序裡（TRA_COUNTY_ORDER）`);
+    byCounty.get(entry.city).push(entry);
+  }
+  const groups = [...byCounty].filter(([, list]) => list.length).map(([county, list], i) => ({
+    county, id: `tra-county-${String(i + 1).padStart(2, '0')}`, list: list.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+  }));
+  const jump = groups.map(g => `<li><a href="#${g.id}">${escapeHtml(g.county)}<small>${g.list.length}</small></a></li>`).join('');
+  const body = groups.map(g => `<h3 id="${g.id}">${escapeHtml(g.county)}<small>${g.list.length} 站</small></h3><ul class="sibling-links chips">${g.list.map(entry => `<li><a href="${stationHref('zh', entry.page.slug)}">${escapeHtml(entry.name)}</a></li>`).join('')}</ul>`).join('');
+  return `<section class="content-section tra-groups" id="all-tra"><h2>全部台鐵車站</h2><p class="section-intro">列出班表資料涵蓋的兩週內有列車停靠的 ${traEntries.length} 個台鐵車站，依所在縣市分組（縣市取自台鐵車站地址），縣市內依站碼排序；點站名可看該站的逐班時刻。</p><nav aria-label="依縣市跳轉"><ul class="sibling-links jump">${jump}</ul></nav>${body}</section>`;
+}
+
 function stationIndexHtml(lang) {
   const t = INDEX_TEXT[lang], pathname = stationIndexHref(lang);
   const alts = Object.fromEntries(LANGS3.map(code => [code, stationIndexHref(code)]));
-  const lede = t.description(stations.length);
-  const description = (t.metaDescription || t.description)(stations.length);   // en 的頁面導言較長，meta description 另用 ≤160 字元的短版
+  // 卡片：中文＝原本 23 張常查詢車站（其餘台鐵站在下面的分組區塊）；英日文＝30 站（第一批 23＋第二批 7），不分組。ItemList 收這個語言的每一頁。
+  const featured = lang === 'zh' ? stations : pagesIn(lang), listed = pagesIn(lang);
+  const counts = { n: featured.length, traAll: traEntries.length };
+  const lede = t.description(counts);
+  const description = (t.metaDescription || t.description)(counts);   // en 的頁面導言較長，meta description 另用 ≤160 字元的短版
   const schema = {
     '@context': 'https://schema.org', '@type': 'CollectionPage', name: t.title, description, url: `${siteUrl}${pathname}`,
     inLanguage: htmlLangOf[lang], dateModified: stationModified,
     isPartOf: { '@type': 'WebSite', name: '軌島 Rail Island', url: `${siteUrl}/` },
-    mainEntity: { '@type': 'ItemList', numberOfItems: stations.length, itemListElement: stations.map((station, i) => ({ '@type': 'ListItem', position: i + 1, name: tOf(lang, station), url: `${siteUrl}${stationHref(lang, station.slug)}` })) },
+    mainEntity: { '@type': 'ItemList', numberOfItems: listed.length, itemListElement: listed.map((station, i) => ({ '@type': 'ListItem', position: i + 1, name: tOf(lang, station), url: `${siteUrl}${stationHref(lang, station.slug)}` })) },
   };
-  const cards = stations.map(station => {
+  const cards = featured.map(station => {
     const model = stationModel(station);
     return `<article class="card station-card"><div class="station-systems">${systemsOf(lang, model).map(escapeHtml).join(' · ')}</div><h3>${escapeHtml(tOf(lang, station))}</h3><p>${escapeHtml(summaryOf(lang, station))}</p><a class="card-link" href="${stationHref(lang, station.slug)}">${escapeHtml(model.tts.length ? t.linkTt : t.linkGuide)}</a></article>`;
   }).join('');
@@ -1042,15 +1254,20 @@ ${sh.headerHtml(lang, alts)}
       <p class="lede">${escapeHtml(lede)}</p>
       <div class="hero-actions"><a class="button" href="${live}">${escapeHtml(t.live)}</a>${lang === 'zh' ? `<a class="button secondary" href="${pathname}">${escapeHtml(t.second)}</a>` : ''}</div>
     </section>
-    <section class="content-section"><h2>${escapeHtml(t.h2)}</h2><p class="section-intro">${escapeHtml(t.intro)}</p><div class="card-grid station-grid">${cards}</div></section>
+    <section class="content-section"><h2>${escapeHtml(t.h2)}</h2><p class="section-intro">${escapeHtml(t.intro)}</p><div class="card-grid station-grid">${cards}</div></section>${lang === 'zh' ? `\n    ${traStationGroupsHtml()}` : ''}
   ${metroLinkSection({ h: linkText.h, text: linkText.text, href: metro.overviewHref(lang), label: linkText.link })}
-  <section class="content-section"><div class="notice"><strong>${escapeHtml(t.noticeLead)}</strong>${lang === 'en' ? ' ' : ''}${escapeHtml(t.noticeText)}</div></section>
+  <section class="content-section"><div class="notice"><strong>${escapeHtml(t.noticeLead)}</strong>${lang === 'en' ? ' ' : ''}${[t.zhIndexNote ? t.zhIndexNote(featured.length) : '', escapeHtml(t.noticeText)].filter(Boolean).join(lang === 'en' ? ' ' : '')}</div></section>
   </main>
 ${sh.footerHtml(lang, alts)}`;
 }
 
+// 第一批頁的「附近的車站資料頁」＝名單裡的前後輪（照舊）；第二批頁＝同路線相鄰、這個語言有頁面的站（nearbyPages）
 for (const lang of LANGS3) {
-  for (const [index, station] of stations.entries()) write(outFile(stationHref(lang, station.slug)), stationPageHtml(lang, station, index));
+  for (const [index, station] of stations.entries()) {
+    const related = [stations[(index + 1) % stations.length], stations[(index + stations.length - 1) % stations.length]];
+    write(outFile(stationHref(lang, station.slug)), stationPageHtml(lang, station, related));
+  }
+  for (const station of secondBatch) if (pageLangs(station).includes(lang)) write(outFile(stationHref(lang, station.slug)), stationPageHtml(lang, station, nearbyPages(station, lang)));
   write(outFile(stationIndexHref(lang)), stationIndexHtml(lang));
 }
 
@@ -1245,14 +1462,14 @@ const sitemapPaths = [
   '/about/',
   '/accuracy/',
   '/data-sources/',
-  ...LANGS3.flatMap(lang => [stationIndexHref(lang), ...stations.map(station => stationHref(lang, station.slug))]),
+  ...LANGS3.flatMap(lang => [stationIndexHref(lang), ...pagesIn(lang).map(station => stationHref(lang, station.slug))]),
   ...metro.paths,
   '/status.html',
   '/privacy.html',
   '/terms.html',
 ];
 const metroPathSet = new Set(metro.paths);
-const stationPathSet = new Set(LANGS3.flatMap(lang => [stationIndexHref(lang), ...stations.map(station => stationHref(lang, station.slug))]));
+const stationPathSet = new Set(LANGS3.flatMap(lang => [stationIndexHref(lang), ...pagesIn(lang).map(station => stationHref(lang, station.slug))]));
 const lastmodOf = pathname => {
   if (metroPathSet.has(pathname)) return metro.date;
   if (stationPathSet.has(pathname)) return stationModified;
@@ -1301,5 +1518,5 @@ if (checkMode) {
     // 刪完若目錄空了就一併移除（只往上收到 metro 根目錄以內）
     for (let dir = path.dirname(path.join(root, relative)); metroDirs.every(d => dir !== path.join(root, d)) && fs.readdirSync(dir).length === 0; dir = path.dirname(dir)) fs.rmdirSync(dir);
   }
-  console.log(`AEO pages built: ${stations.length * LANGS3.length} station pages (${stations.length} x zh/en/ja) + ${LANGS3.length} station indexes + 3 guide pages + en/ja landing pages + robots/sitemap + ${metroSummary}${orphans.length ? `; removed ${orphans.length} orphan files` : ''}`);
+  console.log(`AEO pages built: ${LANGS3.reduce((n, lang) => n + pagesIn(lang).length, 0)} station pages (zh ${pagesIn('zh').length} / en ${pagesIn('en').length} / ja ${pagesIn('ja').length}) + ${LANGS3.length} station indexes + 3 guide pages + en/ja landing pages + robots/sitemap + ${metroSummary}${orphans.length ? `; removed ${orphans.length} orphan files` : ''}`);
 }

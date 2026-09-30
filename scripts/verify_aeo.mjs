@@ -19,11 +19,16 @@ const isStationPage = file => file.includes(`${path.sep}stations${path.sep}`) &&
 const stationPages = pages.filter(file => langOf(file) === 'zh-Hant' && isStationPage(file));
 const stationPagesByLang = { en: pages.filter(file => langOf(file) === 'en' && isStationPage(file)), ja: pages.filter(file => langOf(file) === 'ja' && isStationPage(file)) };
 
-// 3 個說明頁 + 車站索引 1 + 車站 23（zh），en／ja 各 索引 1 + 車站 23。
+// 3 個說明頁 + 車站索引 1 + 車站 ZH_STATIONS（zh），en／ja 各 索引 1 + 車站 ENJA_STATIONS。
 // 09-30 P2：車站頁 20 → 23（加苗栗、彰化、雲林三個高鐵站）、加 en／ja 兩套。
-if (pages.length !== 3 + 24 + 24 + 24) fail(`AEO HTML 應為 75 頁（3 個說明頁 + 三語各 1 個車站索引 + 三語各 23 車站），實際 ${pages.length}`);
-if (stationPages.length !== 23) fail(`中文車站資料頁應為 23 頁，實際 ${stationPages.length}`);
-for (const lang of ['en', 'ja']) if (stationPagesByLang[lang].length !== 23) fail(`${lang} 車站資料頁應為 23 頁，實際 ${stationPagesByLang[lang].length}`);
+// 09-30 B2：中文 23 → 244（第二批加 221 個台鐵站），en／ja 23 → 30（加瑞芳、十分、菁桐、礁溪、福隆、集集、知本）。
+// 這兩個是具名常數：站數變動（例如 2026-10 平鎮臨時站通車、班表多一個站）時要跟著改，
+// 改之前先確認新頁的網址（英文站名）、縣市與鄉鎮市區、轉乘句都對。
+const ZH_STATIONS = 244, ENJA_STATIONS = 30;
+const EXPECTED_PAGES = 3 + (1 + ZH_STATIONS) + 2 * (1 + ENJA_STATIONS);
+if (pages.length !== EXPECTED_PAGES) fail(`AEO HTML 應為 ${EXPECTED_PAGES} 頁（3 個說明頁 + 三語各 1 個車站索引 + 中文 ${ZH_STATIONS} 車站 + en／ja 各 ${ENJA_STATIONS} 車站），實際 ${pages.length}`);
+if (stationPages.length !== ZH_STATIONS) fail(`中文車站資料頁應為 ${ZH_STATIONS} 頁，實際 ${stationPages.length}`);
+for (const lang of ['en', 'ja']) if (stationPagesByLang[lang].length !== ENJA_STATIONS) fail(`${lang} 車站資料頁應為 ${ENJA_STATIONS} 頁，實際 ${stationPagesByLang[lang].length}`);
 
 function first(source, regex) { return regex.exec(source)?.[1]?.trim() || ''; }
 function text(source) { return source.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(); }
@@ -49,7 +54,9 @@ for (const file of pages) {
   if (!/^<!doctype html>/i.test(source)) fail(`${relative} 缺少 doctype`);
   if (!source.includes(`<html lang="${langOf(file)}">`)) fail(`${relative} 語言不是 ${langOf(file)}`);
   if (!title) fail(`${relative} 缺少 title`);
-  if (!description || description.length < 55) fail(`${relative} description 太短或不存在`);
+  // 下限 55 → 50（09-30 B2）：第二批有 2 字站名（八堵、百福…），中文 description ＝ 46 字＋班表日期區間。
+  // 現在的區間 9/27–10/10（10 字）是 56 字；但 1/3–1/16、8/2–8/15 這種單位數月日的區間只有 8 字＝54 字，55 會在那幾週的每週更新時無故轉紅。
+  if (!description || description.length < 50) fail(`${relative} description 太短或不存在`);
   if (!/^https:\/\/railisland\.tw\//.test(canonical)) fail(`${relative} canonical 不正確：${canonical}`);
   if (h1s !== 1) fail(`${relative} 應有且只有一個 h1，實際 ${h1s}`);
   if (!/<main\b[^>]*id="main"/i.test(source)) fail(`${relative} 缺少 main#main`);
@@ -85,12 +92,18 @@ for (const required of ['台鐵桃園車站', '高鐵桃園站', '台鐵新竹�
 }
 
 // 09-30 P2：三語車站頁（含索引）互相指向——zh-Hant／en／ja 各一條、x-default＝中文，且 canonical 是自己那一語。
+// 09-30 B2：只有中文的車站頁（第二批 214 站）只有 zh-Hant＋x-default；同一個 slug 存在哪幾語，就各有一條。
+// en 與 ja 必須成對出現、且一定有中文那一頁。
+const pageSet = new Set(pages.map(f => path.relative(root, f)));
 for (const file of pages.filter(f => f.includes(`${path.sep}stations${path.sep}`))) {
   const relative = path.relative(root, file);
   const source = fs.readFileSync(file, 'utf8');
   const tail = relative.replace(/^(en|ja)\//, '');
   const url = prefix => `https://railisland.tw/${prefix}${tail.replace(/index\.html$/, '')}`;
-  const want = { 'zh-Hant': url(''), en: url('en/'), ja: url('ja/'), 'x-default': url('') };
+  const has = prefix => pageSet.has(`${prefix}${tail}`);
+  if (has('en/') !== has('ja/')) fail(`${tail} 的 en／ja 頁沒有成對存在（en ${has('en/')}、ja ${has('ja/')}）`);
+  if ((has('en/') || has('ja/')) && !has('')) fail(`${tail} 有英日文頁卻沒有中文頁`);
+  const want = { 'zh-Hant': url(''), ...(has('en/') ? { en: url('en/') } : {}), ...(has('ja/') ? { ja: url('ja/') } : {}), 'x-default': url('') };
   const got = Object.fromEntries([...source.matchAll(/<link rel="alternate" hreflang="([^"]+)" href="([^"]+)">/g)].map(m => [m[1], m[2]]));
   if (JSON.stringify(got) !== JSON.stringify(want)) fail(`${relative} hreflang 不符：${JSON.stringify(got)}`);
   const canonical = first(source, /<link rel="canonical" href="([^"]+)"/i);
