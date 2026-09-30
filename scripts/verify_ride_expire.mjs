@@ -11,6 +11,7 @@
 //   E 車還在班表、紀錄日期是昨天（夜車過午夜）、還沒到抵達時間 ⇒ 留著（舊版會在午夜直接清掉）
 //   F startRiding 寫入 dueAt 與沿途站快照
 //   G 跟著別班車時按「搭乘中」鈕：確認 ⇒ 下車並回到「我上車了」；取消 ⇒ 仍在搭乘
+//   H 同車次號但下車站名對不上（別天的同號車）⇒ 不當成同一班
 //
 // 用法：node scripts/verify_ride_expire.mjs [目標目錄]
 //   INDEX_FILE=<路徑> 改用別份 index.html（跑控制組：舊版應在 A/C/E/G 紅）
@@ -139,6 +140,17 @@ async function runEngine(name, engine) {
   });
   ok(`${P} G 「搭乘中」鈕：取消仍在搭、確認就下車並回到「我上車了」`,
     !g.skip && /6556/.test(g.label0 || '') && g.keptOnCancel && g.cleared && g.label1 === '我上車了', JSON.stringify(g));
+
+  // H：同車次號但停站不同（別天的同號車）⇒ 不得拿來蓋章，當作車不在
+  const h = await page.evaluate(() => {
+    saveRiding(null);
+    const tr = state.trains.find(t => !t.loop && t.stops.length >= 3);
+    if (!tr) return { skip: true };
+    const rec = { sys: tr.sys, train: String(tr.train), fromIdx: 0, fromName: tr.stops[0].name, toIdx: 1, toName: '不存在的站',
+      atIdx: 0, bv: 0, startedAt: Date.now() - 600e3, dueAt: Date.now() + 3600e3 };
+    return { found: !!ridingTrainOf(rec), foundReal: !!ridingTrainOf({ ...rec, toName: tr.stops[1].name }) };
+  });
+  ok(`${P} H 同車次號但下車站對不上 ⇒ 不當成同一班`, !h.skip && !h.found && h.foundReal, JSON.stringify(h));
 
   ok(`${P} 沒有頁面例外`, errs.length === 0, errs.join(' | '));
   await browser.close();

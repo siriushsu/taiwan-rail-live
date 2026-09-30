@@ -23164,7 +23164,9 @@ function saveRiding(r) {
   try { r ? localStorage.setItem(RIDING_KEY, JSON.stringify(r)) : localStorage.removeItem(RIDING_KEY); } catch (e) {}
 }
 function ridingTrainOf(r) {
-  return r ? ((state.trains || []).find(t => String(t.train) === r.train && t.sys === r.sys) || null) : null;
+  // 下車站名也要對得上:車次號會跨日重用,別天停站不同的同號車不能拿來蓋章
+  return r ? ((state.trains || []).find(t => String(t.train) === r.train && t.sys === r.sys
+    && t.stops[r.toIdx] && t.stops[r.toIdx].name === r.toName) || null) : null;
 }
 // 搭乘模式一律讀真實時鐘:時刻尺可以拖、動畫可以快轉,但你人在的時間不會跟著跑。
 // 跨午夜映射比照 effT;誤點則把真實時間換算回表定時間軸(車誤點 10 分 → 現在等於表定的 10 分前)。
