@@ -1014,7 +1014,7 @@ await attempt('M1', async () => {
 });
 await attempt('M2', async () => {
   // 三班車：MA（乘車日 07-27，actor m-zz）、MB（07-28、m-aa）、MC（07-28、m-mm）。每班 7 段、單獨夠發 1 顆。
-  // 🔴 review-B B3 之後正式的次序是「每人輪流、同一輪隨機」（乘車日與 actor 都是上傳者自己填的，不能拿來排）；
+  // 🔴 正式的次序是「每人輪流、同一輪裡可信身分先、其餘先後隨機」（乘車日與 actor 都是上傳者自己填的，不能拿來排）；
   // 這三班分屬三個人、都不是可信身分，在正式次序下同一輪、先後隨機。BOUNTY_VERIFY_ORDER＝fixed（測試專用）把同一輪的隨機換成
   // （乘車日、actor、車次），這一組才寫得出「哪一班先」——這裡驗的是預算與續跑，不是排序（排序在 verify_bounty_hardening.mjs 的 B3 組）。
   const fx = () => {
