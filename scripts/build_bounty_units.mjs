@@ -2,7 +2,8 @@
 //
 // 為什麼是建置期而不是 cron:單位清單只在改點時才變,每天在 worker 裡重算等於
 // (a) 白燒 CPU (b) 把 index.html 的 lineNetwork() 線網拓樸複製一份進 worker——
-// 而那會製造第二個真相源,改點時兩邊會不同步。跟著 npm run fetch-schedule 一起跑。
+// 而那會製造第二個真相源,改點時兩邊會不同步。重抓班表（npm run fetch-schedule）之後另外跑 npm run build-bounty-units：
+// fetch-schedule 那一串沒有包含這一步。
 //
 // 區間切法逐字比照 index.html 的 lineNetwork()(9166)與 writeSegments()(9187):
 // 站依里程排序取相鄰對＝該線最細的「正規區間」;一段停靠區間攤成所有**中點落在其中**的正規區間。

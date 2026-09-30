@@ -283,13 +283,14 @@ ok('D11 站心低速只維持 2 秒（慢速爬行通過）時不算錄到——
 //   第十八批（第十二輪獨立驗收 P3-3）：字串 "5" 不收（舊版轉型成 5 照跑）；超過 10 秒也中止（60 秒的窗比停靠還長，沒有速度的停靠整段拿不到低速）。
 //   對照：1、10（兩端）與正式設定檔不丟。
 //   第十九批（第十三輪 P3-3）：加 10.5，案例改從 scripts/bounty_guard_cases.mjs 拿（網頁的 D 用同一份）。
+//   第二十批（第十四輪 P3-2）：加緊貼兩端外側的 0.9375、10.0625；這幾個值還在不在清單上，這裡另外手寫核對。
 {
   const dwellWith = w => ({ ...RULES, quality: { ...RULES.quality, dwell: { ...RULES.quality.dwell, posSpeedWindowSec: w } } });
   const threw = rules => { try { _bounty.coverageOf(trip(stopped), LINE, rules, UNITS.peakHoursBySys); return 'no-throw'; } catch (e) { return String(e && e.message); } };
   const got = { ...Object.fromEntries([...POS_SPEED_WINDOW_REJECT, ...POS_SPEED_WINDOW_ACCEPT].map(([k, w]) => [k, threw(dwellWith(w))])), real: threw(RULES) };
   const E = 'invalid bounty rule: quality.dwell';
-  ok('D15 [第十七批／第十八批 V12 P3-3／第十九批 V13 P3-3] quality.dwell.posSpeedWindowSec 不在、是 0、0.5、字串 "5"、10.5、60 或 Infinity → coverageOf 丟 invalid bounty rule；1、10 與正式設定檔不丟（案例與網頁的 D 共用）',
-    POS_SPEED_WINDOW_REJECT.some(([, w]) => w === 10.5) && POS_SPEED_WINDOW_REJECT.every(([k]) => got[k] === E) &&
+  ok('D15 [第十七批／第十八批 V12 P3-3／第十九批 V13 P3-3／第二十批 V14 P3-2] quality.dwell.posSpeedWindowSec 不在、是 0、0.5、0.9375、字串 "5"、10.0625、10.5、60 或 Infinity → coverageOf 丟 invalid bounty rule；1、10 與正式設定檔不丟（案例與網頁的 D 共用）',
+    [0.9375, 10.0625, 10.5].every(v => POS_SPEED_WINDOW_REJECT.some(([, w]) => w === v)) && POS_SPEED_WINDOW_REJECT.every(([k]) => got[k] === E) &&
       POS_SPEED_WINDOW_ACCEPT.every(([k]) => got[k] === 'no-throw') && got.real === 'no-throw', JSON.stringify(got));
 }
 
@@ -308,8 +309,10 @@ ok('D11 站心低速只維持 2 秒（慢速爬行通過）時不算錄到——
   };
   const withWin = w => ({ ...RULES, quality: { ...RULES.quality, dwell: { ...RULES.quality.dwell, posSpeedWindowSec: w } } });
   const hitsWith = (pts, rules) => _bounty.coverageOf(trip(pts), LINE, rules, UNITS.peakHoursBySys).some(c => c.key === DWELL_KEY && c.kind === 'dwell');
+  // 包 try（第二十批，第十四輪 P3-6）：守門被改緊（例如 1 秒也不收）時 coverageOf 會丟錯，這裡印 FAIL 繼續跑，不讓整支中止。
   const got = {};
-  for (const sg of [1, -1]) for (const w of [1, 5, 10]) got[`w${w}_${sg}`] = hitsWith(jstop(sg), withWin(w));
+  try { for (const sg of [1, -1]) for (const w of [1, 5, 10]) got[`w${w}_${sg}`] = hitsWith(jstop(sg), withWin(w)); }
+  catch (e) { got.threw = String((e && e.message) || e); }
   ok('D16 [第十七批] 位置微分往回看的秒數照設定檔：D14 a 的停法停 8 秒，posSpeedWindowSec＝5 → 算；＝1 → 不算（跟前一點比被否決）；＝10 → 不算（停 8 秒，10 秒前的點還在進站途中）（兩個方向）',
     RULES.quality.dwell.posSpeedWindowSec === 5 && [1, -1].every(sg => got[`w5_${sg}`] === true && got[`w1_${sg}`] === false && got[`w10_${sg}`] === false),
     JSON.stringify(got));

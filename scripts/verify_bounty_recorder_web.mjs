@@ -202,13 +202,13 @@ try {
       return out;
     }, [ST, POS_SPEED_WINDOW_REJECT, POS_SPEED_WINDOW_ACCEPT]);
     const want = { cov: 1, missed: false }, fast = { cov: 0, missed: true };
-    ok('D [第十四批 V9 E-2(b)、第十五批 V10 P1-2] 停靠進度與 Worker 同一條：沒有速度的裝置停 60 秒 → 亮；沒有速度、30 m/s 通過 → 不亮且判錯過；對照：有速度的同一趟停靠 → 亮；速度送 0 或 0.3、30 m/s 通過 → 不亮且判錯過，送 0 的真停靠 → 亮（兩個方向；舊版 Number(null)＝0、送 0 照信，高速通過也亮）；設定檔少了 posSpeedVetoMps、它等於停靠門檻、少了 posSpeedWindowSec、它是 0、0.5、字串 "5"、10.5、60 或 Infinity → 丟錯，1、10 不丟（案例與 Worker D15 共用同一份）',
+    ok('D [第十四批 V9 E-2(b)、第十五批 V10 P1-2] 停靠進度與 Worker 同一條：沒有速度的裝置停 60 秒 → 亮；沒有速度、30 m/s 通過 → 不亮且判錯過；對照：有速度的同一趟停靠 → 亮；速度送 0 或 0.3、30 m/s 通過 → 不亮且判錯過，送 0 的真停靠 → 亮（兩個方向；舊版 Number(null)＝0、送 0 照信，高速通過也亮）；設定檔少了 posSpeedVetoMps、它等於停靠門檻、少了 posSpeedWindowSec、它是 0、0.5、0.9375、字串 "5"、10.0625、10.5、60 或 Infinity → 丟錯，1、10 不丟（案例與 Worker D15 共用同一份）',
       [1, -1].every(sg => J(got[`nullStop${sg}`]) === J(want) && J(got[`nullFast${sg}`]) === J(fast) && J(got[`vStop${sg}`]) === J(want) &&
         J(got[`zeroStop${sg}`]) === J(want) && J(got[`zeroFast${sg}`]) === J(fast) && J(got[`smallFast${sg}`]) === J(fast)) &&
         J(got.guard) === J({ missing: 'dwell rules unavailable', equal: 'dwell rules unavailable', real: 'no-throw',
           ...Object.fromEntries(POS_SPEED_WINDOW_REJECT.map(([k]) => [`win_${k}`, 'dwell rules unavailable'])),
           ...Object.fromEntries(POS_SPEED_WINDOW_ACCEPT.map(([k]) => [`win_${k}`, 'no-throw'])) }) &&
-        POS_SPEED_WINDOW_REJECT.some(([, w]) => w === 10.5) &&
+        [0.9375, 10.0625, 10.5].every(v => POS_SPEED_WINDOW_REJECT.some(([, w]) => w === v)) &&
         J(got.recv) === J([...POS_SPEED_WINDOW_REJECT, ...POS_SPEED_WINDOW_ACCEPT].map(([k, w]) => [k, typeof w, String(w)])), J(got));
     ok('D2 [第十七批] 前端停靠進度的位置微分往回看幾秒，照設定檔的 posSpeedWindowSec（與 Worker D16 同一趟：回報 0、每點晃 ±8 m、停 8 秒）：5 → 亮；1、10 → 不亮且判錯過（兩個方向）',
       got.realWin === 5 && [1, -1].every(sg => J(got[`win5_${sg}`]) === J(want) && J(got[`win1_${sg}`]) === J(fast) && J(got[`win10_${sg}`]) === J(fast)),

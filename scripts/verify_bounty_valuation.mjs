@@ -176,6 +176,77 @@ if (existsSync('data/bounty_units.json')) {
     JSON.stringify({ r1: [r1.inserted, r1.retired], r2: [r2.inserted, r2.retired], got }));
 }
 
+// E20–E23（第二十批，第十四輪獨立驗收 P3-1）：清單只少一部分時的守門。某個系統這一發要退場的列至少 10 列、而且超過它現役列的一成，
+// 就在任何寫入之前丟錯：整張板一列都不動（同一份清單裡新增的單位也不上架）。BOUNTY_RETIRE_ACK 等於這份清單的 generatedAt，才照常退場。
+// 板上先放台鐵 200 列、高鐵 20 列。兩個門檻各釘兩端；比例要逐系統算——高鐵整個消失只佔全部的 20/220，合起來算不到一成。
+// 門檻是手寫的數字，不從 worker.js 拿（同源的判準改了也一起跟著改）。
+{
+  const K = (sys, ln, i) => ({ segKey: `${sys}|${ln}|站${String(i).padStart(3, '0')}|站${String(i + 1).padStart(3, '0')}`, sys, trainKind: '自強', dir: 0, kind: 'track', slot: '', perDay: 6 });
+  const TRA = Array.from({ length: 200 }, (_, i) => K('tra_sched', '南迴線', i));
+  const HSR = Array.from({ length: 20 }, (_, i) => K('thsr_sched', 'THSR', i));
+  const lines = { 'tra_sched|南迴線': { sys: 'tra_sched', lnId: '南迴線', name: '南迴線', stations: [] },
+    'thsr_sched|THSR': { sys: 'thsr_sched', lnId: 'THSR', name: 'THSR', stations: [] } };
+  const fresh = () => {
+    let cur = null;
+    const ASSETS = { fetch: async r => new Response(String(r.url).includes('bounty_units')
+      ? JSON.stringify(cur) : readFileSync('data/bounty_rules.json', 'utf8'), { status: 200 }) };
+    const { db, DELAY_DB } = openTestDb();
+    const run = async (units, gen, ack) => {
+      cur = { generatedAt: gen, schedDate: '2026-07-28', lines, units }; _bounty.bountyResetMemCaches();
+      try { return await bountyValuationCron({ DELAY_DB, ASSETS, ...(ack === undefined ? {} : { BOUNTY_RETIRE_ACK: ack }) }); }
+      catch (e) { return { threw: String(e && e.message) }; }
+    };
+    const snap = () => JSON.stringify(db.prepare('SELECT * FROM bounty_board ORDER BY seg_key').all());
+    const retiredBySys = () => db.prepare('SELECT sys, SUM(retired) AS n, COUNT(*) AS m FROM bounty_board GROUP BY sys ORDER BY sys').all()
+      .map(r => `${r.sys}=${r.n}/${r.m}`).join(',');
+    return { run, snap, retiredBySys };
+  };
+  const E = /^bounty_units shrink: /;
+  {
+    const a = fresh(); await a.run([...TRA, ...HSR], 1);
+    const ok20 = await a.run([...TRA.slice(20), ...HSR], 2);
+    const b = fresh(); await b.run([...TRA, ...HSR], 1);
+    const before = b.snap();
+    const bad21 = await b.run([...TRA.slice(21), ...HSR], 2);
+    ok('E20 比例那一端：台鐵 200 列少 20 列（剛好一成）照常退場 20；少 21 列 → 丟錯（訊息點名 tra_sched 21/200），整張板一列都沒動',
+      ok20.retired === 20 && a.retiredBySys() === 'thsr_sched=0/20,tra_sched=20/200' &&
+        E.test(bad21.threw || '') && /tra_sched 21\/200/.test(bad21.threw) && b.snap() === before,
+      JSON.stringify({ ok20, a: a.retiredBySys(), bad21, unchanged: b.snap() === before }));
+  }
+  {
+    const a = fresh(); await a.run([...TRA, ...HSR], 1);
+    const ok9 = await a.run([...TRA, ...HSR.slice(9)], 2);
+    const b = fresh(); await b.run([...TRA, ...HSR], 1);
+    const before = b.snap();
+    const bad10 = await b.run([...TRA, ...HSR.slice(10)], 2);
+    ok('E21 列數那一端：高鐵 20 列少 9 列（不到 10 列，雖然超過一成）照常退場 9；少 10 列 → 丟錯（thsr_sched 10/20），整張板一列都沒動',
+      ok9.retired === 9 && a.retiredBySys() === 'thsr_sched=9/20,tra_sched=0/200' &&
+        E.test(bad10.threw || '') && /thsr_sched 10\/20/.test(bad10.threw) && b.snap() === before,
+      JSON.stringify({ ok9, a: a.retiredBySys(), bad10, unchanged: b.snap() === before }));
+  }
+  {
+    const a = fresh(); await a.run([...TRA, ...HSR], 1);
+    const before = a.snap();
+    const extra = K('tra_sched', '南迴線', 500);
+    const gone = await a.run([...TRA, extra], 2);
+    ok('E22 比例逐系統算：高鐵 20 列整個不在清單上、台鐵完整（合起來只有 20/220）→ 丟錯（thsr_sched 20/20）；同一份清單新增的台鐵單位也沒上架',
+      E.test(gone.threw || '') && /thsr_sched 20\/20/.test(gone.threw) && !/tra_sched/.test(gone.threw) && a.snap() === before,
+      JSON.stringify({ gone, unchanged: a.snap() === before }));
+  }
+  {
+    const a = fresh(); await a.run([...TRA, ...HSR], 1);
+    const wrongAck = await a.run([...TRA, ...HSR.slice(10)], 2, '1');
+    const acked = await a.run([...TRA.slice(100), ...HSR], 3, '3');
+    const after = a.retiredBySys();
+    const bad11 = await a.run([...TRA.slice(111), ...HSR], 4);
+    ok('E23 BOUNTY_RETIRE_ACK：等於上一份清單的 generatedAt 不算數、照樣丟錯；等於這一份的 generatedAt → 照常退場（台鐵少 100 列、退場 100）；' +
+      '下一份清單沒有 ack，現役只剩 100 列的台鐵再少 11 列 → 丟錯（tra_sched 11/100，分母不含已退場的列）',
+      E.test(wrongAck.threw || '') && acked.retired === 100 && after === 'thsr_sched=0/20,tra_sched=100/200' &&
+        E.test(bad11.threw || '') && /tra_sched 11\/100/.test(bad11.threw),
+      JSON.stringify({ wrongAck, acked, after, bad11 }));
+  }
+}
+
 // ── F 組：seg_key 鍵空間硬 gate（controller 任務指令額外要求，brief 沒有給）───────────
 // 判準與 build_bounty_units.mjs 完全獨立重寫（不 import 它、不 import worker.js 的任何 canonicalSegs
 // 邏輯），真值來源＝index.html 的 lineNetwork()/segKey()（index.html:9099,9166——已用

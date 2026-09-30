@@ -7361,6 +7361,9 @@ async function bountyUnits(env) {
   return bountyUnitsMem;
 }
 
+// 估值的退場守門（見 bountyValuationCron）：某個系統這一發要退場的列至少 minCount 列、而且超過它現役列的 ratio，就中止。
+const BOUNTY_RETIRE_GUARD = { ratio: 0.1, minCount: 10 };
+
 // 每日估值:把清單裡的新單位補上架、清單已經沒有的單位退場,並重算所有還開著的單位的 l1／l2／points。
 // 冪等:重跑只會得到同一個結果(上架是 upsert、per_day 照清單覆寫;退場只做記號;update 全欄位重算),cron 補跑無害。
 async function bountyValuationCron(env) {
@@ -7379,9 +7382,27 @@ async function bountyValuationCron(env) {
   const med = bountyMedian(M.units.map(u => Number(u.perDay)));
   // 板上現有的列（含已退場的）。上架數與退場都拿這一份跟清單比。
   const unitKey = (segKey, trainKind, dir, kind, slot) => `${segKey}|${trainKind}|${Number(dir)}|${kind}|${slot || ''}`;
-  const onBoard = (await env.DELAY_DB.prepare('SELECT seg_key,train_kind,dir,kind,slot,retired FROM bounty_board').all()).results || [];
+  const onBoard = (await env.DELAY_DB.prepare('SELECT seg_key,sys,train_kind,dir,kind,slot,retired FROM bounty_board').all()).results || [];
   const had = new Set(onBoard.map(r => unitKey(r.seg_key, r.train_kind, r.dir, r.kind, r.slot)));
   const want = new Set(M.units.map(u => unitKey(u.segKey, u.trainKind, u.dir, u.kind, u.slot)));
+  // 要退場的列：板上還沒退場、這一份清單已經沒有的單位（換班表之後不再有的車種、時段、停站）。在任何寫入之前算好，下面的守門要看它。
+  const gone = onBoard.filter(r => !Number(r.retired) && !want.has(unitKey(r.seg_key, r.train_kind, r.dir, r.kind, r.slot)));
+  // 🔴 清單只少了一部分也中止（第十四輪獨立驗收 P3-1）：某個系統這一發要退場的列至少 10 列、而且超過它現役列的一成，
+  // 就在任何寫入之前丟錯，整張板不動，等人看過。上面的空清單擋得住「整份沒了」，擋不住「輸入檔都在、內容殘缺」
+  // （上游回了殘缺的班表，建置照樣成功）：這一發會把少掉的那一片全部退場，看板缺卡，沒接懸賞的錄程在那些段拿 0 點。
+  // 比例逐系統算：高鐵、林鐵的列數只有台鐵的零頭，整個系統消失，合起來算也到不了一成。
+  // 門檻的依據：main 上 11 次真實換班表（07-24～09-27），各系統這樣算出來的退場最多 0.5%（台鐵），高鐵、林鐵都是 0。
+  // 至少 10 列：小系統換班表退掉幾格是正常的，不值得擋。
+  // 真的是大改點（停駛、改點）時，確認清單沒問題，就把 Worker 的 BOUNTY_RETIRE_ACK 設成這份清單的 generatedAt（錯誤訊息裡有），
+  // 下一發照常退場。只對這一份清單有效，出了新清單就自動失效。
+  const activeBySys = new Map(), goneBySys = new Map();
+  for (const r of onBoard) if (!Number(r.retired)) activeBySys.set(r.sys, (activeBySys.get(r.sys) || 0) + 1);
+  for (const r of gone) goneBySys.set(r.sys, (goneBySys.get(r.sys) || 0) + 1);
+  const shrink = [...goneBySys].filter(([s, n]) => n >= BOUNTY_RETIRE_GUARD.minCount && n > activeBySys.get(s) * BOUNTY_RETIRE_GUARD.ratio);
+  if (shrink.length && !(M.generatedAt != null && String(env.BOUNTY_RETIRE_ACK) === String(M.generatedAt))) {
+    throw new Error('bounty_units shrink: ' + shrink.map(([s, n]) => `${s} ${n}/${activeBySys.get(s)}`).join(', ') +
+      `（確認是真的換班表，就把 BOUNTY_RETIRE_ACK 設成 ${M.generatedAt}）`);
+  }
   // distinct_ok_users 上架時就帶入該段「已經有幾個不同的人交過 ok」：人數是「段」的屬性（見 bountyRegisterContrib），
   // 同一段先上架的兄弟列已經是 N，晚上架的列（換班表新增的車種／時段）若從 0 起算，就會永遠少 N 位，而且沒有任何錯誤訊息。
   // 取「該段既有列的最大值」與「bounty_seg_contrib 的列數」的較大者，不只數貢獻列：刪帳號只刪貢獻列、不回扣板上人數
@@ -7404,11 +7425,10 @@ async function bountyValuationCron(env) {
         bountyPointsOf(l1, l2), Number(u.perDay) || 0, now, claimableFrom || null, u.segKey, u.segKey);
     }));
   }
-  // 退場：板上還沒退場、這一份清單已經沒有的單位（換班表之後不再有的車種、時段、停站）。只做記號、不刪列：
+  // 退場（gone，上面算好的）：只做記號、不刪列。
   // 看板、認領、沒接懸賞時的入帳價、下面的重算都跳過退場的列（各處的 retired=0）；已經接下的認領照舊用鎖定的價兌現（入帳先看認領）。
   // 之後的清單又有它，就由上面的 ON CONFLICT 復出，歷史欄位原封不動。
-  const gone = onBoard.filter(r => !Number(r.retired) && !want.has(unitKey(r.seg_key, r.train_kind, r.dir, r.kind, r.slot)));
-  const retire = env.DELAY_DB.prepare('UPDATE bounty_board SET retired=1 WHERE seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?');
+  const retire =env.DELAY_DB.prepare('UPDATE bounty_board SET retired=1 WHERE seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?');
   for (let i = 0; i < gone.length; i += 80) {
     await env.DELAY_DB.batch(gone.slice(i, i + 80).map(r => retire.bind(r.seg_key, r.train_kind, r.dir, r.kind, r.slot)));
   }
