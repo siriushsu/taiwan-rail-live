@@ -9,7 +9,15 @@ import { readFileSync } from 'node:fs';
 // verify_bounty_api.mjs/verify_rate_limit.mjs 既有慣例補一個永遠 miss 的替身。
 globalThis.caches = { default: { match: async () => undefined, put: async () => {} } };
 
-const { assembleTrip, integrityGate, qualityGate, verdictOf, coverageOf, bountyVerifyCron } = _bounty;
+const { assembleTrip, integrityGate: integrityGate0, qualityGate, verdictOf, coverageOf, bountyVerifyCron } = _bounty;
+// 第十一批起 integrityGate 回傳收下的點（pts，動輒上千點）。舊判準的訊息把整個結果 JSON.stringify，
+// 輸出到管道時 process.exit 會把還沒寫完的 stdout 截掉（突變測試讀到半份 log、FAIL 行不見）。
+// 設成不可列舉：訊息只印 pass／code／detail，判準照樣用 r.pts 讀。
+const integrityGate = (...a) => {
+  const r = integrityGate0(...a);
+  if (r && r.pts) Object.defineProperty(r, 'pts', { value: r.pts, enumerable: false });
+  return r;
+};
 const RULES = JSON.parse(readFileSync('data/bounty_rules.json', 'utf8'));
 const R = [];
 const ok = (n, p, msg = '') => { R.push({ n, p }); console.log(`${p ? '  ok ' : 'FAIL '} ${n}${msg ? ' — ' + msg : ''}`); };
