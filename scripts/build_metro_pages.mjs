@@ -966,9 +966,10 @@ function overviewRunNote(lang) {
 }
 
 // ── 版型：head／header／footer／麵包屑 ────────────────────────────────────────────────
+// alts 只放有頁面的語言：缺 en／ja 的頁（只有中文的車站頁）就不輸出那一條 hreflang；x-default 一律指中文（也就是自己）。
 function headHtml(lang, { title, description, pathname, alts, schema }) {
   const canonical = absUrl(pathname);
-  const alt = [['zh-Hant', alts.zh], ['en', alts.en], ['ja', alts.ja], ['x-default', alts.zh]];
+  const alt = [['zh-Hant', alts.zh], ['en', alts.en], ['ja', alts.ja], ['x-default', alts.zh]].filter(([, p]) => p);
   return `<!doctype html>
 <html lang="${LANG_INFO[lang].html}">
 <head>
@@ -1016,9 +1017,12 @@ function headerHtml(lang, alts) {
   </header>`;
 }
 
-function footerHtml(lang, alts) {
+// 中文頁尾的 English／日本語連結：該頁沒有對應語言的頁面時（只有中文的車站頁），改連 fallback 給的頁（例如車站索引）；兩者都沒有就 throw。
+function footerHtml(lang, alts, fallback = {}) {
   if (lang === 'zh') {
-    const extra = `<a href="${ovHref('zh')}">捷運路線圖</a><a href="${alts.en}" hreflang="en" lang="en">English</a><a href="${alts.ja}" hreflang="ja" lang="ja">日本語</a>`;
+    const en = alts.en || fallback.en, ja = alts.ja || fallback.ja;
+    if (!en || !ja) throw new Error(`中文頁尾缺 English／日本語連結的目標（alts.en／alts.ja／fallback 都沒有）`);
+    const extra = `<a href="${ovHref('zh')}">捷運路線圖</a><a href="${en}" hreflang="en" lang="en">English</a><a href="${ja}" hreflang="ja" lang="ja">日本語</a>`;
     return ZH_SHELL.footer(extra);
   }
   const links = [

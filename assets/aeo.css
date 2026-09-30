@@ -433,6 +433,15 @@ sup.nd { margin-left: 1px; color: var(--red); font-size: 10px; font-weight: 800;
 .tt small.car { display: block; color: var(--muted); font-size: .8em; font-weight: 500; line-height: 1.4; }
 .tt tr.special td:last-child { color: var(--red); font-weight: 700; }
 
+/* 車站索引的「全部台鐵車站」（依縣市分組）：跳轉按鈕與站名膠囊沿用 .sibling-links，這裡只調間距與縣市標題；顏色一律取色票變數，暗色自動跟著換。 */
+.tra-groups .jump { margin-bottom: 6px; }
+.tra-groups .chips a { min-height: 40px; padding: 4px 12px; font-weight: 700; }
+.tra-groups h3[id] { margin: 26px 0 10px; scroll-margin-top: 84px; }
+/* 跳轉後縣市標題不能被 sticky 標頭蓋住：標頭在 ≤560px 換成兩列（實測 109px）、≤360px 三列（151px），84px 不夠。 */
+@media (max-width: 560px) { .tra-groups h3[id] { scroll-margin-top: 124px; } }
+@media (max-width: 380px) { .tra-groups h3[id] { scroll-margin-top: 166px; } }
+.tra-groups small { margin-left: 4px; color: var(--muted); font-size: 12px; font-weight: 600; }
+
 @media (max-width: 560px) {
   .metro-figure { padding: 8px 6px 12px; }
   .time-card table, .stop-times table, .xfer-table { font-size: 14px; }
