@@ -14954,7 +14954,8 @@ function pushNativeGeoFix(loc, at) {
   if (!bridge || typeof bridge.fix !== 'function') return;
   try { Promise.resolve(bridge.fix(loc.lat, loc.lon, at)).catch(() => {}); } catch (e) {}
 }
-function acceptGeoFix(coords) {
+// fixAt:這筆定位「由系統算出來的時刻」(外掛 Position.timestamp,毫秒;iOS 可能給秒),只有小工具蓋章流程用它分辨新舊。
+function acceptGeoFix(coords, fixAt) {
   if (!coords || !inTaiwan(coords.latitude, coords.longitude)) return null;
   const loc = { lat: +coords.latitude, lon: +coords.longitude, acc: Math.max(0, +coords.accuracy || 0) };
   state.geoLoc = loc;
@@ -14978,6 +14979,7 @@ function acceptGeoFix(coords) {
   // 一般藍點只留在本機；只有使用者另行開啟「分享我的即時位置」時，這裡才會把
   // 同一筆前景定位送進短效分享。journeyShareSendPosition 硬限 15 秒一筆，未移動 50 公尺則降到每分鐘一筆。
   void journeyShareSendPosition(loc);
+  try { widgetCheckinOnFix(loc, fixAt); } catch (e) { console.error('小工具蓋章:處理新定位失敗', e); }
   return coords;
 }
 function stopForegroundGeoWatch() {
@@ -15003,7 +15005,8 @@ function startForegroundGeoWatch({ force = false } = {}) {
   if (state._geoWatchFirst) return state._geoWatchFirst;
   // 舊橋接／測試替身若沒有 watchPosition，仍保留一次性定位退路，不讓整個入口失效。
   if (typeof bridge.watchPosition !== 'function') {
-    return requestGeo(GEO_WATCH_OPTS).then(c => acceptGeoFix(c)).catch(err => {
+    // 一次性定位 maximumAge=0,回來的就是剛算出來的,fixAt 直接取現在
+    return requestGeo(GEO_WATCH_OPTS).then(c => acceptGeoFix(c, Date.now())).catch(err => {
       state._geoLastError = err; if (geoPermissionDenied(err)) state._geoWatchBlocked = true; return null;
     });
   }
@@ -15021,7 +15024,7 @@ function startForegroundGeoWatch({ force = false } = {}) {
   Promise.resolve(bridge.watchPosition(GEO_WATCH_OPTS, (pos, err) => {
     if (token !== state._geoWatchToken) return;
     if (pos && pos.coords) {
-      const accepted = acceptGeoFix(pos.coords);
+      const accepted = acceptGeoFix(pos.coords, pos.timestamp);
       if (accepted && state._geoWatchResolve) state._geoWatchResolve(accepted);
     }
     if (err) {
@@ -15149,6 +15152,7 @@ function openNearbyStations(lat, lon, acc) {
 }
 function closeNearbyStations() {
   if (!state.meLoc && document.getElementById('nearCard').hidden) return;
+  widgetCheckinCancel(); // 卡片被關掉＝使用者不要了;放在「沒開就直接 return」之後,免得流程開頭的內部呼叫誤取消
   state.meLoc = null;
   const el = document.getElementById('nearCard'); if (el) { el.hidden = true; el.innerHTML = ''; }
   updateSheetOpenClass();
@@ -15234,11 +15238,13 @@ function renderNearbyStations() {
       // 打卡鈕要在整列判定之前攔下:同一列點鈕是蓋章、點別處才是開看板
       const ckBtn = e.target.closest('.nx-ck');
       if (ckBtn) {
+        widgetCheckinCancel(); // 使用者自己點了站:別再等新定位替他自動蓋
         const cst = state._nearList && state._nearList[+ckBtn.dataset.i];
         if (cst) doCheckin(cst);
         return;
       }
       const row = e.target.closest('.nx-row'); if (!row) return;
+      widgetCheckinCancel();
       const st = state._nearList && state._nearList[+row.dataset.i];
       // 先開看板再算鏡頭:sheet 開了才知道地圖被遮多少,這一站才落在露出來那塊(見 focusCenter)
       if (st) { openBoard(st); M.panTo(focusCenter(st.lat, st.lon)); }
@@ -23126,8 +23132,68 @@ function doCheckin(st) {
   renderNearbyStations(); renderRidePanel(); renderPassport();
   return true;
 }
-// 小工具「蓋章」鈕的入口。這一階段只把附近車站清單開出來讓人自己點;自動蓋章(等新定位、單座直接蓋)接在後面。
-function widgetCheckinStart() { void showNearby(); }
+// ── 小工具「蓋章」鈕(railisland://checkin) ─────────────────────────────────────
+// 桌面小工具按蓋章 → App 打開 → 在「新的」定位上決定蓋哪一座:範圍內剛好一座直接蓋;好幾座停在附近車站清單讓人點;
+// 一座都沒有就對最近那座走既有的「離「X」還有 N 公尺」提示(不寫章)。定位、距離判定(checkinJudge)、
+// 一天一次(writeCheckin 的 dayOnce)全部沿用單站打卡那一套,這裡只管「等到可信的定位」與「選站」。
+// 定位保鮮:剛開 App 時 state.geoLoc／state.meLoc 多半是上次留下的快取(loadGeoCache),iOS 的連續定位也可能先吐系統快取的舊點,
+//   所以只收「時間戳 ≥ 處理事件那一刻(t0)」且精度到 CHECKIN_LOW_ACC_M 以內的定位;不夠就繼續等,不拿開卡當下的位置直接判。
+// 最多等 15 秒:Android 的 watch 沒設 interval,Capacitor 8 預設成 timeout(12 秒),t0 之後最壞要等 12 秒才有下一筆,
+//   再留 GPS 收斂的餘裕;iOS 約每秒一筆,通常 1–3 秒就決定。超過就停手——附近車站清單本來就在畫面上,人可以自己點。
+const WIDGET_CHECKIN_WAIT_MS = 15000;
+function widgetCheckinCancel() {
+  const w = state._wcWait;
+  if (!w) return;
+  clearTimeout(w.timer); state._wcWait = null;
+}
+function widgetCheckinStart() {
+  widgetCheckinCancel();
+  // 候選站必須是全台的:App 上次停在高鐵或捷運分頁時,附近清單只有那一頁的站,人在台鐵站按蓋章會找不到站。
+  // 選「先切回全台同框(App 的預設頁)」而不是另組一份全台候選——清單、站等半徑、別名併鍵、月台幾何全走同一條路,
+  // 不會出現「判定用的站」與「清單上看到的站」不同;代價只是頁籤跳到全台。
+  const all = GROUPS.find(g => g.id === 'all');
+  if (all && state.group !== all.id) selectGroup(all, true);
+  const w = state._wcWait = { t0: Date.now(), timer: null };
+  w.timer = setTimeout(() => { if (state._wcWait === w) state._wcWait = null; }, WIDGET_CHECKIN_WAIT_MS);
+  const hadLoc = !!(state.geoLoc || loadGeoCache());
+  void showNearby(); // 有位置:先用舊點把清單開出來、接回前景 watch;沒位置:走 locateMe 既有的權限／失敗流程
+  if (!hadLoc) return;
+  showToast(t('正在定位你的位置…'));
+  startForegroundGeoWatch({ force: true }).then(c => {
+    if (state._wcWait !== w || c || !state._geoLastError) return;
+    widgetCheckinCancel(); onLocateFail(state._geoLastError); // 定位失敗(多半是沒給權限):走既有的失敗說明
+  });
+}
+function widgetCheckinOnFix(loc, fixAt) {
+  const w = state._wcWait;
+  if (!w) return;
+  let at = +fixAt;
+  if (at > 0 && at < 1e11) at *= 1000; // iOS 外掛 timestamp 的單位沒有原始碼可證(秒或毫秒);< 1e11 不可能是毫秒(那是 1973 年),當秒換算
+  if (!(at >= w.t0)) return; // 沒時間戳,或早於處理事件那一刻:快取／舊點
+  if (!(loc.acc > 0 && loc.acc <= CHECKIN_LOW_ACC_M)) return; // 精度還沒收斂(0＝沒給):繼續等
+  widgetCheckinCancel();
+  widgetCheckinDecide(loc);
+}
+function widgetCheckinDecide(loc) {
+  const card = document.getElementById('nearCard');
+  if (!card || card.hidden) openNearbyStations(loc.lat, loc.lon, loc.acc); // 沒位置的路徑:清單還沒開
+  else state.meLoc = { lat: loc.lat, lon: loc.lon, acc: loc.acc };
+  const scored = nearbyStationCandidates()
+    .map(c => ({ st: c.st, km: haversineKm(loc, { lat: c.st.lat, lon: c.st.lon }) }))
+    .sort((a, b) => a.km - b.km);
+  // 範圍內的站(判定沿用 checkinJudge)再以收集鍵去重:候選層已用系統段|站名去過重,這裡是最後一道防線——
+  // 兩個候選若指到同一枚章,不該被當成「好幾座」而多讓人按一步。scored 已依距離排序,同鍵留較近那筆。
+  const seen = new Set(), hits = [];
+  for (const s of scored) {
+    if (!checkinJudge(s.st).ok) continue;
+    const k = checkinKey(s.st);
+    if (seen.has(k)) continue; seen.add(k);
+    hits.push(s.st);
+  }
+  renderNearbyStations(); // 清單用這一筆新定位重畫;好幾座時就停在這裡讓人點
+  if (hits.length === 1) doCheckin(hits[0]);
+  else if (!hits.length && scored.length) doCheckin(scored[0].st); // 一座都不到:doCheckin 走既有的「還差幾公尺」提示,不寫章
+}
 // ── 路段收集與完乘率(設計書 §2 三軸的「線」) ────────────────────────────────
 // 分母=每條線各自算(2026-07-26 使用者拍板)。一條線的「最細區間」=它自己的站列依沿線
 // 里程 d 排序後的相鄰兩站——不是列車的停靠區間,那會隨車種變動(自強跳站的「臺北–板橋」
