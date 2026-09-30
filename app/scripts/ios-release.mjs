@@ -17,12 +17,17 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { homedir } from 'node:os';
 
 const appRoot = dirname(dirname(fileURLToPath(import.meta.url)));      // …/app
 const repoRoot = dirname(appRoot);
 const scripts = join(appRoot, 'scripts');
+// 視覺閘門與網站出貨鏈一致：Chromium 使用真 GPU 的無視窗模式。
+const gpuPreload = pathToFileURL(join(repoRoot, 'scripts/pw_gpu_preload.mjs')).href;
+if (!(process.env.NODE_OPTIONS || '').includes(gpuPreload)) {
+  process.env.NODE_OPTIONS = [process.env.NODE_OPTIONS, `--import=${gpuPreload}`].filter(Boolean).join(' ');
+}
 const iosDir = join(appRoot, 'ios');
 // 兩個 ROOT 覆寫只給這支自己的突變測試用,正常出貨不要設。
 const ARCHIVES = process.env.RAIL_ARCHIVES_ROOT || join(homedir(), 'Library/Developer/Xcode/Archives');
