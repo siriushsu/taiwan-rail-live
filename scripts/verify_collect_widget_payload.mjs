@@ -779,13 +779,13 @@ async function cityTaichungOnly(group) {
   await ctx.close();
 }
 // 只有舊資料（S4）：存的是沒記錄城市的 metro|市政府（含舊版 App 同步進來的）→ 一律是台北
-async function cityLegacy() {
-  const tag = 'S[all] 只有舊資料';
+async function cityLegacy(group) {
+  const tag = `S[${group}] 只有舊資料`;
   const seed = { 'trainmap-checkins-v1': JSON.stringify({ v: 2, sg: {}, st: Object.fromEntries([ck('市政府', 'metro', 'visit', 1, '2026-09-20')]) }) };
-  const { ctx, page } = await openGroup(tag, 'all', seed);
+  const { ctx, page } = await openGroup(tag, group, seed);
   const first = await waitPush(page, 0, 8000);
   ok(`${tag} 開機有推送`, !!first);
-  if (first) await cityChecks('S4 只有舊資料[all]', page, 'all', first.payload, CITY_WANT.legacy);
+  if (first) await cityChecks(`S4 只有舊資料[${group}]`, page, group, first.payload, CITY_WANT.legacy);
   const rp = await nearbyCity(page, CITY.taipei), rc = await nearbyCity(page, CITY.taichung);
   ok(`${tag} S4 清單：台北那一列已有 1 次（「蓋章 · 第 2 次」）、台中那一列是全新的（「蓋章」）——舊章歸台北`, rowOk(rp, '台北捷運', /第 2 次/) && rowOk(rc, '台中捷運', '蓋章'), `台北 ${JSON.stringify(rp.info)}／台中 ${JSON.stringify(rc.info)}`);
   await ctx.close();
@@ -794,7 +794,8 @@ await cityChain('all');
 await cityChain('metro');
 await cityTaichungOnly('all');
 await cityTaichungOnly('metro');
-await cityLegacy();
+await cityLegacy('all');
+await cityLegacy('metro');
 
 // ══ T 清單不隨分頁變 ═════════════════════════════════════════════════════════
 // 清單（分母）是全台固定的一份，站名去別名的規則是靜態的。原本清單站名走 checkinName，而它吃當前分頁的 state.schedStations：
