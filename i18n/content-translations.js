@@ -3526,6 +3526,15 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，周邊建築從灰色方塊改成有外牆顏色、窗戶、店面與招牌，補上香格里拉飯店的塔樓，視角可自由轉向與傾斜，最多放大到 34 公尺': '台南地上鉄道の歴史リプレイ：旧駅舎と列車を実物どおりの比率で作り直し、周辺の建物はグレーの箱から外壁の色・窓・店舗・看板のある姿になり、シャングリ・ラ ホテルのタワーを加えました。視点は自由に回転・傾斜でき、34 m まで拡大できます',
   '台南地面鐵道歷史重播：舊站房與列車改用真實比例重建、施工外罩可一鍵拿掉，推拉式自強號改畫 7 月起的 E500 機車頭；周邊建築從灰色方塊改成有外牆顏色、窗戶、店面、招牌與水塔，補上香格里拉塔樓；視角可自由轉向與傾斜，最多放大到 34 公尺': '台南地上鉄道の歴史リプレイ：旧駅舎と列車を実物どおりの比率で作り直し、工事用シートはワンタップで外せます。プッシュプル式自強号は 7 月からの E500 形機関車で描きます。周辺の建物はグレーの箱から外壁の色・窓・店舗・看板・給水タンクのある姿になり、シャングリ・ラのタワーも加えました。視点は自由に回転・傾斜でき、34 m まで拡大できます',
 });
+// 2026-09-30 台南地面鐵道歷史重播：馬路改成柏油路面、車道線、中央黃線、有路緣的人行道（依 OpenStreetMap 標記推的示意）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '台南地面鐵道歷史重播：馬路改成柏油路面，畫上車道線、中央黃線與有路緣的人行道，放大就看得到': 'Tainan surface railway replay: roads are now asphalt with lane lines, yellow centre lines and kerbed pavements; zoom in to see them',
+  '台南地面鐵道歷史重播：馬路從米白色帶子改成柏油路面，路寬依 OpenStreetMap 標的車道數推算，畫上車道線、中央黃線與有路緣的人行道（依標記推的示意）；標線放大才出現，地下道不再畫在地面上': 'Tainan surface railway replay: roads are now asphalt instead of pale strips, with widths estimated from OpenStreetMap lane counts, plus lane lines, yellow centre lines and kerbed pavements (illustrative, based on map tags); markings appear as you zoom in, and underpasses are no longer drawn at street level',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '台南地面鐵道歷史重播：馬路改成柏油路面，畫上車道線、中央黃線與有路緣的人行道，放大就看得到': '台南地上鉄道の歴史リプレイ：道路をアスファルトにし、車線、黄色の中央線、縁石のある歩道を描きました（拡大すると見えます）',
+  '台南地面鐵道歷史重播：馬路從米白色帶子改成柏油路面，路寬依 OpenStreetMap 標的車道數推算，畫上車道線、中央黃線與有路緣的人行道（依標記推的示意）；標線放大才出現，地下道不再畫在地面上': '台南地上鉄道の歴史リプレイ：道路を淡い色の帯からアスファルトに変更し、道幅は OpenStreetMap の車線数から推定しました。車線、黄色の中央線、縁石のある歩道を描いています（地図のタグに基づくイメージ）。区画線は拡大すると表示され、地下道は地上に描かないようにしました',
+});
 // 2026-09-30 台鐵／高鐵車站時刻頁（SEO 階段 B 第一批）。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '車站頁加上台鐵、高鐵時刻表：台北、板橋、台中等大站，列出兩週內每一班的開車時刻與行駛日': 'Station pages now include TRA and HSR timetables: major stations such as Taipei, Banqiao and Taichung list every departure over two weeks, with the days each train runs',
