@@ -208,9 +208,9 @@ if (existsSync('data/bounty_units.json')) {
     const b = fresh(); await b.run([...TRA, ...HSR], 1);
     const before = b.snap();
     const bad21 = await b.run([...TRA.slice(21), ...HSR], 2);
-    ok('E20 比例那一端：台鐵 200 列少 20 列（剛好一成）照常退場 20；少 21 列 → 丟錯（訊息點名 tra_sched 21/200），整張板一列都沒動',
+    ok('E20 比例那一端：台鐵 200 列少 20 列（剛好一成）照常退場 20；少 21 列 → 丟錯（訊息點名 tra_sched 21/200，並寫出要設的 generatedAt），整張板一列都沒動',
       ok20.retired === 20 && a.retiredBySys() === 'thsr_sched=0/20,tra_sched=20/200' &&
-        E.test(bad21.threw || '') && /tra_sched 21\/200/.test(bad21.threw) && b.snap() === before,
+        E.test(bad21.threw || '') && /tra_sched 21\/200/.test(bad21.threw) && /BOUNTY_RETIRE_ACK 設成 2）/.test(bad21.threw) && b.snap() === before,
       JSON.stringify({ ok20, a: a.retiredBySys(), bad21, unchanged: b.snap() === before }));
   }
   {
@@ -244,6 +244,61 @@ if (existsSync('data/bounty_units.json')) {
       E.test(wrongAck.threw || '') && acked.retired === 100 && after === 'thsr_sched=0/20,tra_sched=100/200' &&
         E.test(bad11.threw || '') && /tra_sched 11\/100/.test(bad11.threw),
       JSON.stringify({ wrongAck, acked, after, bad11 }));
+  }
+  // E24–E26（第二十一批，第十五輪獨立驗收 P3-A）：逐線的守門。某條線（seg_key 的前兩段）這一發要退場的列至少 10 列、
+  // 而且超過那條線現役列的一半，也要丟錯。台鐵另外放屏東線 20 列、平溪線 12 列：整條線消失時，台鐵合起來只少 20/232 或 12/232，
+  // 系統那一道擋不到，要靠逐線那一道。
+  const PT = Array.from({ length: 20 }, (_, i) => K('tra_sched', '屏東線', i));
+  const PX = Array.from({ length: 12 }, (_, i) => K('tra_sched', '平溪線', i));
+  const ALL = [...TRA, ...PT, ...PX, ...HSR];
+  const SYS_ENTRY = /tra_sched \d/;   // 系統那一道的訊息是「tra_sched 11/232」，逐線的是「tra_sched|屏東線 11/20」
+  {
+    const a = fresh(); await a.run(ALL, 1);
+    const ok10 = await a.run([...TRA, ...PT.slice(10), ...PX, ...HSR], 2);
+    const b = fresh(); await b.run(ALL, 1);
+    const before = b.snap();
+    const bad11 = await b.run([...TRA, ...PT.slice(11), ...PX, ...HSR], 2);
+    ok('E24 逐線的比例那一端：屏東線 20 列少 10 列（剛好一半）照常退場 10；少 11 列 → 丟錯（訊息點名 tra_sched|屏東線 11/20，沒有點名整個台鐵），整張板一列都沒動',
+      ok10.retired === 10 && a.retiredBySys() === 'thsr_sched=0/20,tra_sched=10/232' &&
+        E.test(bad11.threw || '') && /tra_sched\|屏東線 11\/20/.test(bad11.threw) && !SYS_ENTRY.test(bad11.threw) && b.snap() === before,
+      JSON.stringify({ ok10, a: a.retiredBySys(), bad11, unchanged: b.snap() === before }));
+  }
+  {
+    const a = fresh(); await a.run(ALL, 1);
+    const ok9 = await a.run([...TRA, ...PT, ...PX.slice(9), ...HSR], 2);
+    const b = fresh(); await b.run(ALL, 1);
+    const before = b.snap();
+    const bad10 = await b.run([...TRA, ...PT, ...PX.slice(10), ...HSR], 2);
+    ok('E25 逐線的列數那一端：平溪線 12 列少 9 列（不到 10 列，雖然超過一半）照常退場 9；少 10 列 → 丟錯（tra_sched|平溪線 10/12），整張板一列都沒動',
+      ok9.retired === 9 && a.retiredBySys() === 'thsr_sched=0/20,tra_sched=9/232' &&
+        E.test(bad10.threw || '') && /tra_sched\|平溪線 10\/12/.test(bad10.threw) && !SYS_ENTRY.test(bad10.threw) && b.snap() === before,
+      JSON.stringify({ ok9, a: a.retiredBySys(), bad10, unchanged: b.snap() === before }));
+  }
+  {
+    const a = fresh(); await a.run(ALL, 1);
+    const half = await a.run([...TRA, ...PT.slice(10), ...PX, ...HSR], 2);
+    const rest = await a.run([...TRA, ...PX, ...HSR], 3);
+    const acked = await a.run([...TRA, ...PX, ...HSR], 3, '3');
+    ok('E26 逐線的分母只算沒退場的列：屏東線先退一半（10 列），下一份清單把剩下的 10 列也拿掉 → 丟錯（tra_sched|屏東線 10/10）；' +
+      '同一份清單的 ack 也放行逐線那一道（退場 10，台鐵共退 20）',
+      half.retired === 10 && E.test(rest.threw || '') && /tra_sched\|屏東線 10\/10/.test(rest.threw) &&
+        acked.retired === 10 && a.retiredBySys() === 'thsr_sched=0/20,tra_sched=20/232',
+      JSON.stringify({ half, rest, acked, after: a.retiredBySys() }));
+  }
+  // E27（第二十一批，第十五輪 P3-C、P3-D、P3-F）：清單沒有 generatedAt 時沒有任何 ack 放得行（沒設 ack、ack 寫成 undefined 都一樣），
+  // 訊息改叫人重建清單；ack 前後的空白與換行不算；寫成 3.0 不等於 3。
+  {
+    const a = fresh(); await a.run(ALL, 1);
+    const cut = [...TRA, ...PT, ...PX, ...HSR.slice(10)];
+    const noGen = await a.run(cut, undefined);
+    const noGenAck = await a.run(cut, undefined, 'undefined');
+    const spaced = await a.run(cut, 2, ' 2\n');
+    const decimal = await a.run([...TRA, ...PT, ...PX], 3, '3.0');
+    ok('E27 清單沒有 generatedAt：沒設 ack、ack 寫成 undefined 都丟錯，訊息叫人重建清單（不叫人設 ack）；ack 前後有空白換行照樣放行（退場 10）；寫成 3.0 → 丟錯',
+      E.test(noGen.threw || '') && /清單沒有 generatedAt/.test(noGen.threw) && !/BOUNTY_RETIRE_ACK 設成/.test(noGen.threw) &&
+        E.test(noGenAck.threw || '') && spaced.retired === 10 && a.retiredBySys() === 'thsr_sched=10/20,tra_sched=0/232' &&
+        E.test(decimal.threw || '') && /BOUNTY_RETIRE_ACK 設成 3）/.test(decimal.threw),
+      JSON.stringify({ noGen, noGenAck, spaced, decimal, after: a.retiredBySys() }));
   }
 }
 
