@@ -402,8 +402,10 @@ await attempt('M12', async () => {
 });
 
 // ═══ M13：首位校正者（/api/bounty-me 的 firsts）與合併撞段時的首次時間（第十批）═══════════════════════════════════
-// 「第一位」＝這一段的去重貢獻（bounty_seg_contrib）裡 first_ok_at 最早的人，同時刻取 actor 字序最前；樣本只決定
+// 「第一位」＝這一段的去重貢獻（bounty_seg_contrib）裡 first_ok_at 最早的人，同時刻的每一位都算（並列）；樣本只決定
 // 「這一段有沒有交過 ok」。模擬器的趟不寫貢獻，所以只有樣本、沒有貢獻列的段不算首位。這套語意是主對話判讀，不是使用者逐字說的。
+// 🔴 同時刻並列（第十三批）：first_ok_at 是那一發判定的 now，同一發判過的人時間都一樣。舊版取 actor 字序最前，
+// 等於看 token 長相決定，裝置併進帳號時首位還會換人（M13f）。
 // 合併撞段時留下的那一列取兩邊較早的 first_ok_at：併進帳號之後，裝置當年先跑的那一段仍算這個人先跑。
 const okSample = (w, actor, id, keys) => w.db.prepare("INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict,verdict_at) VALUES (?,?,?,?,?,?,?,?,?,?,'ok',1)")
   .run(id, actor, 'tra_sched', '南迴線', '123', 0, '2026-07-27', '[]', JSON.stringify(keys.map(key => ({ key, kind: 'track', slot: '', cov: 1 }))), 1);
@@ -415,19 +417,23 @@ await attempt('M13', async () => {
   const EARLY = 'dev-aaaa-0001', LATE = 'dev-zzzz-0001';     // 字序 EARLY < DEV（dev-merge-0001）< LATE
   const w = world();
   // K1 DEV 較早（對手字序較前）　K2 DEV 較晚（對手字序較後）：只照字序排的話兩段的答案都會反過來
-  // K3 同時刻、對手字序較前　K4 同時刻、對手字序較後　K5 只有樣本、沒有任何貢獻列（模擬器的趟）　K6 只有 DEV 一列（K5 的對照）
+  // K3 同時刻、對手字序較前　K4 同時刻、對手字序較後（同時刻兩邊都算，不看字序）　K5 只有樣本、沒有任何貢獻列（模擬器的趟）　K6 只有 DEV 一列（K5 的對照）
   S.contrib(w, K(1), DEV, 100); S.contrib(w, K(1), EARLY, 200);
   S.contrib(w, K(2), DEV, 200); S.contrib(w, K(2), LATE, 100);
   S.contrib(w, K(3), DEV, 150); S.contrib(w, K(3), EARLY, 150);
   S.contrib(w, K(4), DEV, 150); S.contrib(w, K(4), LATE, 150);
   S.contrib(w, K(6), DEV, 300);
   okSample(w, DEV, 'm13-a', [K(1), K(2), K(3)]); okSample(w, DEV, 'm13-b', [K(4), K(5), K(6)]);
-  const r = await boMe(w, DEV);
+  okSample(w, EARLY, 'm13-e', [K(1), K(3)]); okSample(w, LATE, 'm13-l', [K(2), K(4)]);   // 對手自己看到的（同時刻的另一邊）
+  const r = await boMe(w, DEV), re = await boMe(w, EARLY), rl = await boMe(w, LATE);
   const got = r.json && Array.isArray(r.json.firsts) ? [...r.json.firsts].sort() : null;
-  ok('M13a 首位校正者：first_ok_at 最早的人（K1 是、K2 不是——兩段的對手字序一前一後，只照字序排會兩段都錯）；同時刻取字序最前（K3 不是、K4 是）',
-    r.status === 200 && got && got.includes(K(1)) && !got.includes(K(2)) && !got.includes(K(3)) && got.includes(K(4)), r.text.slice(0, 300));
-  ok('M13b 只有樣本、沒有貢獻列的段不算首位（K5 不在、同形狀但有貢獻列的 K6 在）；firsts 恰好是 K1／K4／K6', got && !got.includes(K(5)) && got.includes(K(6)) && same(got, [K(1), K(4), K(6)].sort()),
+  const srt = x => x.json && Array.isArray(x.json.firsts) ? [...x.json.firsts].sort() : null;
+  ok('M13a 首位校正者：first_ok_at 最早的人（K1 是、K2 不是——兩段的對手字序一前一後，只照字序排會兩段都錯）；同時刻兩邊都算（K3、K4 都是，不看對手字序在前或在後）',
+    r.status === 200 && got && got.includes(K(1)) && !got.includes(K(2)) && got.includes(K(3)) && got.includes(K(4)), r.text.slice(0, 300));
+  ok('M13b 只有樣本、沒有貢獻列的段不算首位（K5 不在、同形狀但有貢獻列的 K6 在）；firsts 恰好是 K1／K3／K4／K6', got && !got.includes(K(5)) && got.includes(K(6)) && same(got, [K(1), K(3), K(4), K(6)].sort()),
     JSON.stringify(got));
+  ok('M13b2 同時刻的另一邊自己看也是第一位：EARLY 恰好是 K3（K1 比 DEV 晚）、LATE 恰好是 K2／K4（K2 比 DEV 早）',
+    re.status === 200 && rl.status === 200 && same(srt(re), [K(3)]) && same(srt(rl), [K(2), K(4)].sort()), JSON.stringify({ early: srt(re), late: srt(rl) }));
   // 合併：K8 裝置 50、帳號 300、OTHER 100——併完帳號這一列取 50，變成第一位；K9 帳號 30、裝置 80、OTHER 60——帳號留 30（不被較晚的 80 蓋掉），仍是第一位；
   // K10 只有裝置 70、OTHER 90——改名後帶著 70，帳號是第一位。樣本：帳號自己交過 K8／K9，K10 的樣本在裝置名下（合併時一起改名）。
   const w2 = world();
@@ -444,6 +450,18 @@ await attempt('M13', async () => {
     mg.status === 200 && mg.json.merged === true && fa[K(8)] === 50 && fa[K(9)] === 30 && fa[K(10)] === 70 && q.nContrib(w2, DEV) === 0 && q.nContrib(w2, OTHER) === 3,
     JSON.stringify({ merge: mg.json, fa, dev: q.nContrib(w2, DEV) }));
   ok('M13e 合併後帳號是 K8／K9／K10 三段的第一位', after.status === 200 && same([...after.json.firsts].sort(), [K(8), K(9), K(10)].sort()), after.text.slice(0, 300));
+  // M13f：同時刻＋合併不換人。K11 裝置與 LATE 同一發判過（都是 150）。舊版取字序：合併前裝置（dev-merge）排在 LATE（dev-zzzz）前面，是第一位；
+  // 併進帳號後 uid-merge 排到 LATE 後面，第一位就換成 LATE——同一個人同一趟車，登入之後徽章不見。
+  const w3 = world();
+  S.contrib(w3, K(11), DEV, 150); S.contrib(w3, K(11), LATE, 150);
+  okSample(w3, DEV, 'm13-f', [K(11)]); okSample(w3, LATE, 'm13-g', [K(11)]);
+  const f0 = await boMe(w3, DEV), g0 = await boMe(w3, LATE);
+  const mg3 = await merge(w3);
+  const f1 = await boMe(w3, UID, bearer(UID)), g1 = await boMe(w3, LATE);
+  ok('M13f 同時刻＋合併：合併前裝置與 LATE 都是 K11 的第一位；裝置併進帳號後，帳號與 LATE 仍都是（不因 uid 的字序排到 LATE 後面而換人），帳號這一列帶著 150',
+    f0.status === 200 && g0.status === 200 && same(f0.json.firsts, [K(11)]) && same(g0.json.firsts, [K(11)]) && mg3.status === 200 && mg3.json.merged === true &&
+      f1.status === 200 && g1.status === 200 && same(f1.json.firsts, [K(11)]) && same(g1.json.firsts, [K(11)]) && firstAt(w3, UID)[K(11)] === 150,
+    JSON.stringify({ f0: f0.json && f0.json.firsts, g0: g0.json && g0.json.firsts, merge: mg3.json, f1: f1.json && f1.json.firsts, g1: g1.json && g1.json.firsts }));
 });
 
 // ═══ P：刪帳號（bountyPurgeUid）清掉四張表——本人＋併進本人的 token＋本機當下的 device；別人的一列不動；看板人數不回扣 ═══════════════

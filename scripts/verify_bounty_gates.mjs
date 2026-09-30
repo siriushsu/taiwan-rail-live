@@ -379,6 +379,10 @@ ok('F3 第一重 日期太舊 → suspect',
   //     之後沒有點，直到第 630＋W 秒回到原位（比跳點退 100 m 不合規、比第 629 秒合規）：
   //     W＝10 → 離跳點 10 秒、回溯；下一秒又一點退 300 m（兩邊都不合規、丟，連丟從 1 算起）→ 通過。W＝11 → 超過時間窗、不回溯 → 連丟第 6 點 → impossible_physics。兩個方向。
   //   c 回溯也算一次丟點：站停中從第 604 秒起每 4 秒一個往前 100 m 的跳點（每個都被下一秒回溯掉、各丟 1 點）——12 個（丟 12 點 ≤ 12.59）→ 通過；13 個 → impossible_physics。
+  //   d 回溯之後的判定跟沒回溯過一樣（往前比的最小值要跟著退回去）：第 630 秒一個 +100 m 的跳點（第 631 秒回溯掉），第 640 秒起整段往前平移 150 m
+  //     （之後一直在新位置）：比第 639 秒多 150＞133.26、比第 638 秒 ≤ 41.63×3＋50＝174.89 → 回溯改丟第 639 秒、收第 640 秒 → 通過。
+  //     對照：沒有第 630 秒的跳點 → 第 638–641 秒的收法相同。最小值沒跟著退的話，第 640 秒比到的最小值少了第 639 秒 → 直接收下、第 639 秒也留著，
+  //     一秒往前 150 m 違反往前的上界（F29 的逐對檢查也會紅）。兩個方向。
   const stop32 = (mps = 20) => Array.from({ length: 1261 }, (_, k) => ({ d: mps * (Math.min(k, 600) + Math.max(0, k - 660)), t: 30000 + k,
     v: k < 600 || k > 660 ? Math.round((mps + Math.sin(k / 7) * 0.6) * 100) / 100 : 0, acc: 8 }));
   // m：第 k 秒（t−30000）的點加多少公尺；null＝拿掉那一點
@@ -405,6 +409,14 @@ ok('F3 第一重 日期太舊 → suspect',
   const r32c = [gate(spikes(12)), gate(spikes(13))];
   ok('F32c 回溯也算一次丟點：站停中 12 個往前 100 m 的跳點（各被回溯掉、丟 12 點 ≤ 預算 12.59）→ 通過；13 個 → impossible_physics',
     r32c[0].pass === true && r32c[0].pts.length === 1259 - 12 && r32c[1].code === 'impossible_physics', JSON.stringify(r32c.map(r => r.code || r.pass)));
+  const tele = spike => { const m = spike ? { 630: 100 } : {}; for (let k = 640; k <= 1260; k++) m[k] = 150; return edit(stop32(), m); };
+  const r32d = [true, false].flatMap(sp => [{ sp, dir: 0, r: gate(tele(sp)), at: dd => 12000 + dd },
+    { sp, dir: 1, r: gate(flip(tele(sp), 30000), 'tra_sched', 1), at: dd => 18000 - dd }]);
+  const pat32 = x => [638, 639, 640, 641].map(k => (has(x.r, { t: 30000 + k, d: x.at(k >= 640 ? 150 : 0) }) ? '+' : '-') + k).join(' ');
+  ok('F32d 回溯之後的判定跟沒回溯過一樣：第 630 秒的跳點被回溯後，第 640 秒起整段往前平移 150 m → 回溯改丟第 639 秒、收第 640 秒、通過（丟 2 點）；' +
+    '沒有第 630 秒跳點的對照第 638–641 秒收法相同（丟 1 點）（兩個方向）',
+    r32d.length === 4 && r32d.every(x => x.r.pass === true && pat32(x) === '+638 -639 +640 +641' && x.r.pts.length === 1259 - (x.sp ? 2 : 1)),
+    JSON.stringify(r32d.map(x => [x.sp, x.dir, x.r.code || x.r.pass, x.r.pts && x.r.pts.length, pat32(x)])));
 
   // ── 第十三批（V8 B(2) T5）：淨位移——收下的點首末要往 dir 的方向走；整體往後退超過 50 m 就換方向重判，兩個方向都不成立才判 ──
   // F33（傳進去的 dir＝上傳端／assembleTrip 給的方向；r.dir＝防偽閘回的方向，判定端的覆蓋段照它記）：

@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS bounty_seg_contrib (
 -- 帳號合併與刪帳號都是「以 actor 找列」（PK 的 actor 在第二欄，用不上主鍵索引）：沒有這個索引，
 -- 每次合併約掃 3 次全表、刪帳號 2 次，而這張表的列數＝段數×人數，D1 以讀取列數計費。
 CREATE INDEX IF NOT EXISTS idx_seg_contrib_actor ON bounty_seg_contrib (actor);
--- /api/bounty-me 的「首位校正者」：每一段找 first_ok_at 最早（同時刻取 actor 字序最前）的那一位，每段讀一列。
+-- /api/bounty-me 的「首位校正者」：每一段找 first_ok_at 最早的時刻（同時刻的每一位都算），每段讀一列。
 -- 沒有它，每段要讀遍這一段所有貢獻者再排序（worker.js 用 INDEXED BY 指名它，正式庫沒套時那一句直接報錯）。
 CREATE INDEX IF NOT EXISTS idx_seg_contrib_first ON bounty_seg_contrib (seg_key, first_ok_at, actor);
 

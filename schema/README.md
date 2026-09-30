@@ -70,8 +70,12 @@ iPhone 跟車卡的伺服器推播全停，期間 `la_bindings` 一直是 0 列�
 每日估值 cron 丟錯（上架新單位讀 `bounty_seg_contrib`），判定 cron 寫貢獻與帳本那幾句也丟錯。
 **先套 0014 再部署新 Worker**（ship-web 2.4 的正式庫 schema 守門人會擋下漏套）。0014 檔尾有兩句 `ALTER TABLE`，
 重跑時第一句 `ALTER` 會報 `duplicate column name`（代表已經套過；`CREATE` 都排在 `ALTER` 之前）。
-若正式庫在 `idx_seg_contrib_actor` 加進 0014 **之前**就套過它，另外單獨補這一句（可重複執行）：
+若正式庫在 `idx_seg_contrib_actor`／`idx_seg_contrib_first` 加進 0014 **之前**就套過它，另外單獨補這兩句（可重複執行；
+重套整支 0014 要靠檔尾的 `ALTER` 報錯才停，前面的 `CREATE INDEX` 會不會跟著回滾沒有驗過，不要拿重套代替）：
 `CREATE INDEX IF NOT EXISTS idx_seg_contrib_actor ON bounty_seg_contrib (actor);`
+`CREATE INDEX IF NOT EXISTS idx_seg_contrib_first ON bounty_seg_contrib (seg_key, first_ok_at, actor);`
+正式庫 schema 守門人（`scripts/verify_remote_schema.mjs`）缺哪一個索引就印哪一句的補法；主鍵／UNIQUE 的自動索引
+（`sqlite_autoindex_<表>_<n>`）沒有 `CREATE INDEX` 可補，缺了要重建整張表，先停手。
 
 🔴 **只有「已經用舊版 0003 建過表」的環境才要再依序套 0004／0005／0006**（本機 `.wrangler`、
 開發庫）。`CREATE TABLE IF NOT EXISTS` 不會替既有的表補欄位，少了 `fail_streak` 會讓 cron

@@ -6624,17 +6624,20 @@ async function bountyMe(request, env) {
     }
     // 首位校正者：只給 ok（規格 §8 的例外——那是對資料署名，不是對付出表揚）。
     // 只顯示給自己，不顯示別人的暱稱：顯示他人自填暱稱＝UGC，會觸發 Apple Guideline 1.2。
-    // 「第一位」＝這一段的去重貢獻（bounty_seg_contrib，判定 ok 時寫、合併時跟著改名、刪帳號時刪）裡 first_ok_at 最早的人，同時刻取 actor 字序最前。
+    // 「第一位」＝這一段的去重貢獻（bounty_seg_contrib，判定 ok 時寫、合併時跟著改名、刪帳號時刪）裡 first_ok_at 最早的人；同時刻的每一位都算（並列）。
+    // 🔴 同時刻不取 actor 字序（第八輪獨立驗收）：first_ok_at 是那一發判定的 now（bountyVerifyCron 一發共用一個），同一發判過的人時間都一樣；
+    // 取字序最前等於看 token 長相決定誰是第一位，裝置併進帳號（uid 與裝置 token 的字序不同）時首位還會換人。並列都算是主對話判讀，不是使用者逐字說的。
     // 舊版每一段各跑一句 segs LIKE '%段鍵%' … ORDER BY verdict_at：idx_samples_pending 只篩得出 verdict='ok'，之後逐列比 LIKE 再排序，
-    // 等於每段掃一次全站的 ok 列（計畫 D-T1 (5)）；段數多的人一次呼叫要上千句。現在一句、每段走 idx_seg_contrib_first 讀一列。
+    // 等於每段掃一次全站的 ok 列（計畫 D-T1 (5)）；段數多的人一次呼叫要上千句。現在一句、每段讀兩列：自己那一列走主鍵，最早的一列走 idx_seg_contrib_first。
     // 語意差別（主對話判讀）：模擬器的趟不寫貢獻，所以不再算首位（舊版會）；v1 時代的 ok 樣本不在這張表——v1 只能靠隱藏網址旗標打開，
     // 正式站從沒對一般使用者開過。
     if (segOk.size) {
       const fs = await env.DELAY_DB.prepare(
-        'SELECT j.value AS k, (SELECT c.actor FROM bounty_seg_contrib c INDEXED BY idx_seg_contrib_first WHERE c.seg_key = j.value' +
-        ' ORDER BY c.first_ok_at, c.actor LIMIT 1) AS first FROM json_each(?) j'
-      ).bind(JSON.stringify([...segOk])).all();
-      for (const f of fs.results || []) if (f.first === actor) firsts.push(f.k);
+        'SELECT j.value AS k FROM json_each(?) j WHERE' +
+        ' (SELECT c.first_ok_at FROM bounty_seg_contrib c INDEXED BY sqlite_autoindex_bounty_seg_contrib_1 WHERE c.seg_key = j.value AND c.actor = ?) =' +
+        ' (SELECT c.first_ok_at FROM bounty_seg_contrib c INDEXED BY idx_seg_contrib_first WHERE c.seg_key = j.value ORDER BY c.first_ok_at LIMIT 1)'
+      ).bind(JSON.stringify([...segOk]), actor).all();
+      for (const f of fs.results || []) firsts.push(f.k);
     }
     const trips = rows.map(r => ({
       id: r.id, tripDate: r.trip_date, trainNo: r.train_no, sys: r.sys, lnId: r.ln_id, verdict: r.verdict,

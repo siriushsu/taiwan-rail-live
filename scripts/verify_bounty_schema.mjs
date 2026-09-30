@@ -354,6 +354,21 @@ const tryRun = (d, sql, ...p) => { try { d.prepare(sql).run(...p); return ''; } 
   const noFirst = runGate('no-first', rows.filter(r => r.name !== 'idx_seg_contrib_first'));
   ok('A23f 正式庫沒有 idx_seg_contrib_first（0014 較早版本套過、這一版新加的索引還沒套）→ exit 1，點名它與 0014_bounty_v2.sql',
     noFirst.rc === 1 && /idx_seg_contrib_first/.test(noFirst.out) && /0014_bounty_v2\.sql/.test(noFirst.out), noFirst.out.trim().slice(0, 400));
+  // A23g–i（第十三批）：補法要對。表在、只缺一般索引 → 印那一句 CREATE INDEX（不叫人重套整支 0014：檔尾的 ALTER 會報錯，前面的 CREATE 會不會回滾沒驗過）；
+  // 缺主鍵的自動索引 → 叫人重建整張表、先停手（CREATE INDEX 與重套都補不回來）；整張表都不在 → 照舊重套 0014（單獨的 CREATE INDEX 沒有表會報錯）。
+  // 期望的那一句手寫在這裡、不從 schema 讀：從 schema 讀的話，schema 寫錯欄位順序時期望值跟著錯（欄位順序另由 A11c 釘）。
+  const FIRST_SQL = 'CREATE INDEX IF NOT EXISTS idx_seg_contrib_first ON bounty_seg_contrib (seg_key, first_ok_at, actor);';
+  const fileCmd = /--file=schema\/0014_bounty_v2\.sql/;
+  ok('A23g 缺 idx_seg_contrib_first 的補法：d1 execute --command 帶那一句 CREATE INDEX（原文）；不叫人重套整支 0014',
+    noFirst.rc === 1 && noFirst.out.includes(`d1 execute DELAY_DB --remote --command "${FIRST_SQL}"`) && !fileCmd.test(noFirst.out),
+    noFirst.out.trim().slice(0, 600));
+  ok('A23h 缺主鍵自動索引的補法：叫人照 0014 重建整張表、先停手；不印 CREATE INDEX 指令、也不叫人重套整支 0014',
+    noAuto.rc === 1 && /sqlite_autoindex_garage_unlocks_1 是 garage_unlocks 的主鍵／UNIQUE 自動索引/.test(noAuto.out) && /重建整張表/.test(noAuto.out) &&
+      !/--command/.test(noAuto.out) && !fileCmd.test(noAuto.out), noAuto.out.trim().slice(0, 600));
+  const noTable = runGate('no-table', rows.filter(r => r.tbl_name !== 'bounty_seg_contrib'));
+  ok('A23i 整張 bounty_seg_contrib 都不在（表與它的索引一起缺）→ 補法是重套 0014；不印單獨的 CREATE INDEX（沒有表那一句會報錯）',
+    noTable.rc === 1 && /整張表 bounty_seg_contrib/.test(noTable.out) && fileCmd.test(noTable.out) && !/--command/.test(noTable.out) &&
+      /idx_seg_contrib_first/.test(noTable.out), noTable.out.trim().slice(0, 600));
 }
 
 const pass = R.filter(r => r.p).length;

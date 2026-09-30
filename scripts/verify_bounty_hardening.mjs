@@ -2167,7 +2167,8 @@ const PL_PINS = [
   ['雲端搭乘：重送判斷', /FROM cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1 WHERE actor=\? AND request_id=\?/],
   ['合併：刪較晚與孿生的搭乘', /^DELETE FROM cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1 WHERE actor=\? AND EXISTS/, 2],
   ['合併：搭乘改名', /^UPDATE cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1 SET actor=\?/],
-  ['bounty-me：首位校正者', /FROM bounty_seg_contrib c INDEXED BY idx_seg_contrib_first WHERE c\.seg_key = j\.value ORDER BY c\.first_ok_at, c\.actor LIMIT 1/],
+  ['bounty-me：首位校正者（自己那一列）', /FROM bounty_seg_contrib c INDEXED BY sqlite_autoindex_bounty_seg_contrib_1 WHERE c\.seg_key = j\.value AND c\.actor = \?\) =/],
+  ['bounty-me：首位校正者（這一段最早的一列）', /= \(SELECT c\.first_ok_at FROM bounty_seg_contrib c INDEXED BY idx_seg_contrib_first WHERE c\.seg_key = j\.value ORDER BY c\.first_ok_at LIMIT 1\)$/],
   ['估值：這一段的貢獻人數', /\(SELECT COUNT\(\*\) FROM bounty_seg_contrib INDEXED BY sqlite_autoindex_bounty_seg_contrib_1 WHERE seg_key=\?\)/],
   ['合併：撞段扣人數', /FROM bounty_seg_contrib d INDEXED BY idx_seg_contrib_actor WHERE d\.actor=\? AND EXISTS/],
   ['合併：首次時間取較早', /^UPDATE bounty_seg_contrib INDEXED BY idx_seg_contrib_actor SET first_ok_at =/],
@@ -2640,6 +2641,24 @@ await attempt('PF7', async () => {
   }
   ok('PF7 [第十三批 V8 B(1)] 站停中單點往前跳 100 m 的誠實錄程 → ok、1 顆（兩個方向；舊版 suspect、0 顆）',
     ['a', 'b'].every(k => got[k].v === 'ok' && got[k].chips === got[k].want), J(got));
+});
+await attempt('PF8', async () => {
+  // 第十三批（V8 E1 的另一半）：精度送 null 不算成 0 m。舊版 Number(null) 是 0——一半的點送 acc:null，精度中位數就被拉到
+  // 另一半的一半以下：另一半 110–129 m（遮蔽）的錄程，中位數變成 55 m，品質閘當成夠精確、判 ok。
+  // 走真的上傳端點 → 判定 cron。a 單數點 acc:null、雙數點 110–129 m → unusable（acc_blocked）；
+  // 對照 b：同一趟每一點都是 110–129 m → 同樣 unusable（acc_blocked）——兩個同一個答案，null 沒有改變判定。
+  const D26 = '2026-07-26';
+  const trip = mixed => Array.from({ length: 634 }, (_, i) => ({ d: 500 + i * 30, t: 30000 + i, v: 30, acc: mixed && i % 2 ? null : 110 + (i % 20) }));
+  const got = {};
+  for (const [name, mixed] of [['a', true], ['b', false]]) {
+    const actor = `dev-pf8-${name}0001`, w = world({ seed: boardSql('山線') });
+    const st = [];
+    for (const part of chunk(trip(mixed), 200)) st.push((await submit(w, actor, { trainNo: 'PF8', tripDate: D26, samples: part })).status);
+    await w.cron();
+    got[name] = { st, v: q.verdicts(w, actor, 'PF8'), qc: rows(w, 'SELECT DISTINCT quality_code c FROM bounty_samples WHERE actor=?', actor).map(r => r.c).join() };
+  }
+  ok('PF8 [第十三批 V8 E1] 精度送 null 不算成 0 m：一半的點 acc:null、另一半 110–129 m → unusable（acc_blocked），與每一點都 110–129 m 的對照相同（舊版中位數 55 m、判 ok）',
+    ['a', 'b'].every(k => J(got[k].st) === J([200, 200, 200, 200]) && got[k].v === 'unusable' && got[k].qc === 'acc_blocked'), J(got));
 });
 
 ok('Z 整支腳本沒有任何非 Firebase 的對外連線', outbound.length === 0, J(outbound.slice(0, 3)));
