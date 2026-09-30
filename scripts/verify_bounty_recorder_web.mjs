@@ -15,6 +15,11 @@
 //      逐站比「算不算停靠」：Worker 用它正式讀的 data/bounty_units.json 的山線站表，前端用它自己的 lineNetwork()（data/tra.json）。
 //      山線連續四站、六種停法（停 45 秒、GPS 晃 ±0.3 或 ±2 m／20 m/s 通過／8、10、10.5 m/s 慢速通過）× 五種速度欄（都卜勒、null、全送 0、全送 0.3、一半 null）× 兩個方向。
 //      位置一律錨在整數公尺、速度取 0.5 的倍數（位置微分在二進位下精確），剛好 10 m/s 的那一站才比得出否決門檻的「＞」與「≥」。
+//   Y  （第十一輪獨立驗收 H）換版之後重新整理，bountyRules() 要拿到新的規則檔，不能吃瀏覽器快取裡的舊版。舊寫法是 force-cache：
+//      快取裡有就直接用、不回伺服器驗證——上一版的規則檔沒有 posSpeedVetoMps，D 的守門就每一拍丟錯。
+//      伺服器照正式站靜態資產的標頭送（max-age=0, must-revalidate＋ETag，條件請求命中回 304）。Playwright 掛了 route 就不走 HTTP 快取，
+//      所以 Y 另開一個不掛 route 的無視窗 Chromium，外部網域用 host-resolver-rules 擋掉。對照組：同一頁用 force-cache 抓同一個網址，
+//      要拿到舊版（證明快取裡真的有舊版、這個環境看得到「吃快取」）。
 // 判準驗【行為】：量的是「收下的那一點存成什麼」「停靠進度亮不亮」，不是原始碼裡有沒有那串字。
 // 頁面開機後直接呼叫錄程的函式（不經真的 GPS）；先證明前提成立（山線真的載入、挑到的站兩側 600 m 內沒有別站）。
 // 跑法：node scripts/verify_bounty_recorder_web.mjs（自己在空的埠起靜態伺服器、跑完自己關）
@@ -49,6 +54,9 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.
   '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.wasm': 'application/wasm', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json',
   '.mp3': 'audio/mpeg', '.txt': 'text/plain; charset=utf-8', '.xml': 'text/xml', '.webmanifest': 'application/manifest+json' };
 const served = { n: 0, missing: new Set() };
+// Y 用：規則檔換版前後的內容（null＝照磁碟送）。rulesLog 記每一次規則檔請求帶的 If-None-Match 與送出的版本。
+let rulesServe = null;
+const rulesLog = [];
 const server = createServer((req, res) => {
   served.n++;
   let f = null, p = req.url;
@@ -57,6 +65,15 @@ const server = createServer((req, res) => {
     f = path.join(ROOT, p === '/' ? 'index.html' : p);
     if (!f.startsWith(ROOT + path.sep) || !statSync(f).isFile()) f = null;
   } catch (e) { f = null; }
+  if (rulesServe && p === '/data/bounty_rules.json') {
+    const inm = req.headers['if-none-match'] || null;
+    rulesLog.push({ inm, etag: rulesServe.etag });
+    res.setHeader('content-type', 'application/json');
+    res.setHeader('cache-control', 'max-age=0, must-revalidate');
+    res.setHeader('etag', rulesServe.etag);
+    if (inm === rulesServe.etag) { res.statusCode = 304; return res.end(); }
+    return res.end(rulesServe.body);
+  }
   if (!f) { served.missing.add(p); res.statusCode = 404; return res.end('not found'); }
   res.setHeader('content-type', MIME[path.extname(f).toLowerCase()] || 'application/octet-stream');
   createReadStream(f).on('error', () => res.destroy()).pipe(res);
@@ -230,6 +247,37 @@ try {
     ok('X [第十五批 V10 P2-8] 同一批點同時餵前端 bountyUpdateDwellProgress 與 Worker coverageOf：40 趟（四種停法組合 × 五種速度欄 × 兩個方向）逐站的停靠判定完全相同（Worker 用 bounty_units.json 的站表、前端用 lineNetwork()）',
       four.length === 4 && !!LINE_W && cases.length === 40 && diff.length === 0 && lit >= 40 && dark >= 40,
       J({ four: four.map(s => s.name), lit, dark, diff: diff.slice(0, 3) }));
+  });
+
+  await attempt('Y', async () => {
+    const real = readFileSync(path.join(ROOT, 'data/bounty_rules.json'), 'utf8');
+    const old = JSON.parse(real);
+    delete old.quality.dwell.posSpeedVetoMps;                                   // 上一版（第十四批）的規則檔沒有這個鍵
+    const b2 = await chromium.launch({ headless: true, args: ['--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1'] });
+    try {
+      const p2 = await (await b2.newContext()).newPage();
+      const ready = () => p2.waitForFunction(() => typeof bountyRules === 'function', null, { timeout: 60000 });
+      const vetoOf = () => p2.evaluate(async () => (await bountyRules()).quality.dwell.posSpeedVetoMps ?? null);
+      rulesServe = { etag: '"old"', body: J(old) };
+      await p2.goto(BASE + '/'); await ready();
+      const first = await vetoOf();
+      rulesServe = { etag: '"new"', body: real };                              // 部署了新版
+      const n0 = rulesLog.length;
+      await p2.reload(); await ready();
+      const bootReq = rulesLog.length - n0;                                     // 開機本身不抓規則檔；抓了的話對照組就沒意義
+      const ctrl = await p2.evaluate(async () =>
+        (await (await fetch('./data/bounty_rules.json', { cache: 'force-cache' })).json()).quality.dwell.posSpeedVetoMps ?? null);
+      const n1 = rulesLog.length;
+      const after = await vetoOf();
+      const reval = rulesLog.slice(n1);
+      ok('Y [第十一輪 H] 規則檔換版之後重新整理：bountyRules() 帶上一版的 ETag 回伺服器驗證、拿到新版（有 posSpeedVetoMps）；對照組：同一頁用 force-cache 抓同一個網址仍是舊版（舊寫法就是這樣一直吃舊規則）',
+        first === null && bootReq === 0 && ctrl === null && n1 === n0 + bootReq &&
+          after === RULES_NODE.quality.dwell.posSpeedVetoMps && reval.length === 1 && reval[0].inm === '"old"',
+        J({ first, bootReq, ctrl, after, reval }));
+    } finally {
+      rulesServe = null;
+      await b2.close().catch(() => {});
+    }
   });
 
   ok('W9 整個過程頁面沒有丟出未處理的例外', errors.length === 0, J(errors.slice(0, 3)));

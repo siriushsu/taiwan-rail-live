@@ -26,7 +26,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "b76dfda21b2c3e8ccb9d97b793ecdd56"
+   "checksum": "ab028bf9ec2e26a3571c9dd5a276da0d"
   },
   "data/crossings.json": {
    "sourceDescription": "官方 XML 共 801 筆,含座標 415 筆(src:tra;與台鐵官方公布現役平交道數一致,無座標 386 筆為已裁撤/立體化)。座標投影取沿線位置(d,km,haversine 弧長,算法與站點 d 一致);",

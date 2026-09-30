@@ -24133,7 +24133,12 @@ function bountyStopSampling(r = state.recording) {
 }
 async function bountyRules() {
   if (bountyRulesMem) return bountyRulesMem;
-  const res = await fetch('./data/bounty_rules.json', { cache: 'force-cache' });
+  // 🔴 第十一輪獨立驗收：原本是 force-cache——快取裡有就直接用、不回伺服器驗證，換版後回訪者一直拿到舊規則
+  //    （Chromium 實測重新整理也一樣）；新規則多了 posSpeedVetoMps 這種鍵，下面的停靠進度守門就每一拍丟錯。
+  //    改跟其他 data/*.json 同一套（jsonCacheMode：每次帶 ETag 重新驗證，沒變回 304）。網址要維持單引號字面，
+  //    build_data_manifest.mjs 靠它掃出這個檔。
+  const url = './data/bounty_rules.json';
+  const res = await fetch(url, { cache: jsonCacheMode(url) });
   if (!res.ok) throw new Error('bounty rules ' + res.status);
   bountyRulesMem = await res.json();
   return bountyRulesMem;
