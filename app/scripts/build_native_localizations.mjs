@@ -311,6 +311,43 @@ Object.assign(native, {
   '還有 {h} 小時 {m} 分': ['{h} hr {m} min remaining', '残り{h}時間{m}分'],
   '顯示 {time} 最後資料': ['Showing the last data from {time}', '{time}の最終データを表示'],
 });
+// 車站收集小工具（app/ios/App/RailBoardWidget/CollectionCard.swift／CollectionWidget.swift／CollectionIntent.swift）。
+// 「車站收集」已在網站字典（Station collection／駅コレクション），這裡不重複。
+// 「跟完／搭過／到訪」的英日文沿用網站護照的三態用詞（Followed／Travelled／Visited、追跡完了／乗車済み／訪問済み）。
+// 🔴 「最近蓋章」不叫「最近打卡」：資料只有最後一次蓋章日，沒有第一次日期，也不做「今年新增」。
+Object.assign(native, {
+  '全台': ['All Taiwan', '台湾全体'],
+  '範圍': ['Scope', '範囲'],
+  '看你收集了幾成鐵道車站；範圍可選全台或單一系統。': ['See how many rail stations you have collected. Choose all of Taiwan or a single system.', '鉄道駅をどれだけ集めたかを表示します。範囲は台湾全体または単一の路線から選べます。'],
+  '看你收集了幾成全台鐵道車站。點陣照車站的真實位置排出鐵道網，收集過的站亮起線色；範圍可選全台或單一系統。': ['See how many rail stations across Taiwan you have collected. Dots sit at each station\'s real location and light up in line colors as you collect them; choose all of Taiwan or a single system.', '台湾の鉄道駅をどれだけ集めたかを表示します。ドットは各駅の実際の位置に並び、集めた駅は路線カラーで光ります。範囲は台湾全体または単一の路線から選べます。'],
+  '已收集 {n} 座': ['{n} collected', '{n}駅を収集'],
+  '已收集 {v}／{n} 座': ['{v} of {n} collected', '{v}／{n}駅を収集'],
+  '還有 {n} 座': ['{n} to go', '残り{n}駅'],
+  '還沒有收集的車站': ['No stations collected yet', 'まだ集めた駅がありません'],
+  '跟一班車到終點，或到車站打卡就會蓋章': ['Follow a train to its last stop or check in at a station to get a stamp.', '列車を終点まで追うか、駅でチェックインするとスタンプが押されます。'],
+  '打開軌島一次，就會出現你的車站收集': ['Open Rail Island once and your station collection will show up here.', '軌島を一度開くと、ここに駅コレクションが表示されます。'],
+  '還有 {n} 個系統還沒去過': ['Systems not visited yet: {n}', '未訪問の路線：{n}'],
+  '最近蓋章': ['Recent stamps', '最近のスタンプ'],
+  '實心＝搭過／到訪': ['Solid = Travelled / Visited', '塗り＝乗車済み／訪問済み'],
+  // 跟完畫成線色空心圈，圖例文字同步（取代舊的「淡色＝跟完」）。
+  '空心＝跟完': ['Hollow = Followed', '白抜き＝追跡完了'],
+  '車站收集小工具': ['Station collection widget', '駅コレクションウィジェット'],
+  // 原生小工具的蓋章鈕用（iOS CollectionCard.swift 的 CollectionStampChip、Android CollectionWidgetRender.java 的標題列按鈕）。
+  // 網站字典本來就有「蓋章」，這一筆不會改變產物；釘在這裡是免得日後網站端改掉或刪掉那個詞，原生按鈕就無聲掉回繁中。
+  '蓋章': ['Stamp', 'スタンプ'],
+  // 範圍選單（collection.json 還不存在時的退回清單，加上「全台」）的名稱：值＝網頁 COLLECT_SYS（index.html）的簡稱三語，
+  // 開 App 前後是同一組。key 加「範圍・」前綴，避開網站字典已有的 key（台鐵／高鐵／北捷譯的是全名：High Speed Rail、
+  // 台湾鉄路…，其他小工具在用，不能被簡稱覆寫）。繁中簡稱由各端程式給（key 去掉前綴就是它），目錄只放英日文。
+  // iOS 用法在 CollectionCard.swift 的 CollectionScopeName，Android 在 CollectionWidgetConfigActivity.scopeName；
+  // 守門：app/scripts/verify_collect_scope_names.mjs 逐一對 COLLECT_SYS。
+  '範圍・全台': ['All Taiwan', '台湾全体'],
+  '範圍・台鐵': ['TRA', '台鉄'], '範圍・高鐵': ['THSR', '高鉄'], '範圍・北捷': ['Taipei', '台北'],
+  '範圍・機捷': ['Airport', '空港'], '範圍・中捷': ['Taichung', '台中'], '範圍・高捷': ['Kaohsiung', '高雄'],
+  '範圍・淡海': ['Danhai', '淡海'], '範圍・安坑': ['Ankeng', '安坑'], '範圍・三鶯': ['Sanying', '三鶯'],
+  '範圍・林鐵': ['Alishan', '阿里山'],
+  // Android TalkBack 句子的分隔（「。」網站字典已有）。
+  '，': [', ', '、'],
+});
 Object.assign(native, {
   '基隆市': ['Keelung City', '基隆市'], '臺北市': ['Taipei City', '台北市'], '新北市': ['New Taipei City', '新北市'],
   '桃園市': ['Taoyuan City', '桃園市'], '新竹市': ['Hsinchu City', '新竹市'], '新竹縣': ['Hsinchu County', '新竹県'],

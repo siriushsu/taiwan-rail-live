@@ -29,11 +29,14 @@
 		56F5C66230220000003C7FE0 /* MetroWidgetShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C66030220000003C7FE0 /* MetroWidgetShared.swift */; };
 		56F5C66430220000003C7FE0 /* MetroWaitStartIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C66330220000003C7FE0 /* MetroWaitStartIntent.swift */; };
 		56F5C66530220000003C7FE0 /* MetroWaitStartIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C66330220000003C7FE0 /* MetroWaitStartIntent.swift */; };
+		56F5C6B1303C0000003C7FE0 /* CollectCheckinIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C6B0303C0000003C7FE0 /* CollectCheckinIntent.swift */; };
+		56F5C6B2303C0000003C7FE0 /* CollectCheckinIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C6B0303C0000003C7FE0 /* CollectCheckinIntent.swift */; };
 		56F5C66730220000003C7FE0 /* MetroBoardModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C66630220000003C7FE0 /* MetroBoardModel.swift */; };
 		56F5C66930220000003C7FE0 /* MetroWidgetData.json in Resources */ = {isa = PBXBuildFile; fileRef = 56F5C66830220000003C7FE0 /* MetroWidgetData.json */; };
 		56F5C66A30280000003C7FE0 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 56F5C66C30280000003C7FE0 /* Localizable.xcstrings */; };
 		56F5C66B30280000003C7FE0 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 56F5C66D30280000003C7FE0 /* InfoPlist.xcstrings */; };
 		56F5C66E30280000003C7FE0 /* RailLanguagePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C66F30280000003C7FE0 /* RailLanguagePlugin.swift */; };
+		56F5C6A1303A0000003C7FE0 /* RailCollectionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C6A0303A0000003C7FE0 /* RailCollectionPlugin.swift */; };
 		56F5C634301D0000003C7FE0 /* RailLiveActivityPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */; };
 		56F5C644301F0000003C7FE0 /* RailMetroWaitPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C643301F0000003C7FE0 /* RailMetroWaitPlugin.swift */; };
 		56F5C67730230000003C7FE0 /* RailTraWaitPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5C67630230000003C7FE0 /* RailTraWaitPlugin.swift */; };
@@ -91,11 +94,13 @@
 		56F5C67630230000003C7FE0 /* RailTraWaitPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailTraWaitPlugin.swift; sourceTree = "<group>"; };
 		56F5C66030220000003C7FE0 /* MetroWidgetShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetroWidgetShared.swift; sourceTree = "<group>"; };
 		56F5C66330220000003C7FE0 /* MetroWaitStartIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetroWaitStartIntent.swift; sourceTree = "<group>"; };
+		56F5C6B0303C0000003C7FE0 /* CollectCheckinIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectCheckinIntent.swift; sourceTree = "<group>"; };
 		56F5C66630220000003C7FE0 /* MetroBoardModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MetroBoardModel.swift; path = RailBoardWidget/MetroBoardModel.swift; sourceTree = SOURCE_ROOT; };
 		56F5C66830220000003C7FE0 /* MetroWidgetData.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = MetroWidgetData.json; path = RailBoardWidget/MetroWidgetData.json; sourceTree = SOURCE_ROOT; };
 		56F5C66C30280000003C7FE0 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = Localizable.xcstrings; path = RailBoardWidget/Localizable.xcstrings; sourceTree = SOURCE_ROOT; };
 		56F5C66D30280000003C7FE0 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		56F5C66F30280000003C7FE0 /* RailLanguagePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailLanguagePlugin.swift; sourceTree = "<group>"; };
+		56F5C6A0303A0000003C7FE0 /* RailCollectionPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailCollectionPlugin.swift; sourceTree = "<group>"; };
 		56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailLiveActivityPlugin.swift; sourceTree = "<group>"; };
 		56F5C626301A0000003C7FE0 /* RailBoardScheduleWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailBoardScheduleWriter.swift; sourceTree = "<group>"; };
 		504EC30C1FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
@@ -195,12 +200,14 @@
 				56F5C67330230000003C7FE0 /* TraWaitEndIntent.swift */,
 				56F5C68330240000003C7FE0 /* RailFollowEndIntent.swift */,
 				56F5C66330220000003C7FE0 /* MetroWaitStartIntent.swift */,
+				56F5C6B0303C0000003C7FE0 /* CollectCheckinIntent.swift */,
 				56F5C66030220000003C7FE0 /* MetroWidgetShared.swift */,
 				56F5C66630220000003C7FE0 /* MetroBoardModel.swift */,
 				56F5C66830220000003C7FE0 /* MetroWidgetData.json */,
 				56F5C66C30280000003C7FE0 /* Localizable.xcstrings */,
 				56F5C66D30280000003C7FE0 /* InfoPlist.xcstrings */,
 				56F5C66F30280000003C7FE0 /* RailLanguagePlugin.swift */,
+				56F5C6A0303A0000003C7FE0 /* RailCollectionPlugin.swift */,
 				56F5C633301D0000003C7FE0 /* RailLiveActivityPlugin.swift */,
 				56F5C643301F0000003C7FE0 /* RailMetroWaitPlugin.swift */,
 				56F5C67630230000003C7FE0 /* RailTraWaitPlugin.swift */,
@@ -389,6 +396,7 @@
 				56F5C641301E0000003C7FE0 /* MetroWaitAttributes.swift in Sources */,
 				56F5C651301E0000003C7FE0 /* MetroWaitEndIntent.swift in Sources */,
 				56F5C66430220000003C7FE0 /* MetroWaitStartIntent.swift in Sources */,
+				56F5C6B1303C0000003C7FE0 /* CollectCheckinIntent.swift in Sources */,
 				56F5C66130220000003C7FE0 /* MetroWidgetShared.swift in Sources */,
 				56F5C66730220000003C7FE0 /* MetroBoardModel.swift in Sources */,
 				56F5C634301D0000003C7FE0 /* RailLiveActivityPlugin.swift in Sources */,
@@ -398,6 +406,7 @@
 				56F5C68430240000003C7FE0 /* RailFollowEndIntent.swift in Sources */,
 				56F5C67730230000003C7FE0 /* RailTraWaitPlugin.swift in Sources */,
 				56F5C66E30280000003C7FE0 /* RailLanguagePlugin.swift in Sources */,
+				56F5C6A1303A0000003C7FE0 /* RailCollectionPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -409,6 +418,7 @@
 				56F5C642301E0000003C7FE0 /* MetroWaitAttributes.swift in Sources */,
 				56F5C652301E0000003C7FE0 /* MetroWaitEndIntent.swift in Sources */,
 				56F5C66530220000003C7FE0 /* MetroWaitStartIntent.swift in Sources */,
+				56F5C6B2303C0000003C7FE0 /* CollectCheckinIntent.swift in Sources */,
 				56F5C66230220000003C7FE0 /* MetroWidgetShared.swift in Sources */,
 				56F5C67230230000003C7FE0 /* TraWaitAttributes.swift in Sources */,
 				56F5C67530230000003C7FE0 /* TraWaitEndIntent.swift in Sources */,

@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 車站收集・中（5×2／4×2）。與 iOS MediumCollectionView 同一個資訊層級：
+     左側的地圖欄（點陣地圖＋最下面的蓋章鈕）＋右欄（標題＋百分比同一行、已收集 v／n 座、中段內容）——地圖在左，與 iOS 中卡一致。
+     地圖欄 30%、文字欄 70%（權重）。地圖欄由上往下：地圖格（吃掉剩下的高度）→ 蓋章鈕容器 wc_stamp_hit。
+     地圖 ImageView 用 fitCenter 在地圖格內置中（高度／寬度誰先到頂就以誰為準；中卡幾乎都是高度先到頂）。
+     標題（wc_title）：全台＝「車站收集」；單一系統＝「範圍 · 車站收集」放得下才用、放不下只留系統名（契約〈畫法約定〉8，由 Render 用 Paint 量）；
+        只剩一個名稱還放不下就 autoSize 縮字（下限 10.5sp＝14sp 的 75%）再截斷。
+     中段（wc_rows）由 CollectionWidgetRender 依卡片高度預算逐列 addView：
+       全台：有收集的系統各一列（標籤＋進度條＋v/n）＋「還有 K 個系統還沒去過」；
+       單一系統：進度條＋「還有 N 座」＋最近蓋章；
+       空狀態：邀請文案。放得下才放圖例。
+     「蓋章」是整條按鈕（契約〈畫法約定〉11，與 iOS 同一個版面）：放在地圖欄最下面、寬＝地圖欄寬、字置中；地圖縮高讓位（Render 算地圖高度時
+        扣掉按鈕區塊）。wc_stamp 是 28dp 高的實心膠囊（不可點），外面的透明容器 wc_stamp_hit 綁 railisland://checkin；
+        容器高＝上空隙（Render 依地圖高度設，至少 5dp，要容得下恆春半島畫到點陣框外的墨）＋膠囊 28＋下 15dp，所以可點範圍至少 48dp 高。
+        🔴 觸控命中只看「每一層祖先的邊界」：卡片下緣 15dp 的內距全部放在地圖欄與文字欄各自的 paddingBottom（根的下內距是 0），
+        容器用 -15dp 下邊距伸進地圖欄的內距，一路伸到卡片最下緣。
+        🔴 上空隙是 padding、不是 margin（RemoteViews 改得了 padding、改不了 margin），由 Render 每次都明講。
+     🔴 地圖 ImageView 用負邊距比地圖格大一圈、Bitmap 帶等量透明「出血」（見 widget_collect_small.xml 的說明與 dimens_collect.xml）；
+        地圖格與地圖欄都要 clipChildren／clipToPadding = false，出血才畫得出去。
+     🔴 淺／深兩張地圖 Bitmap 疊同一格，資源限定 alpha 切換（見 dimens_collect.xml）。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wc_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/wg_card"
+    android:baselineAligned="false"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:orientation="horizontal"
+    android:paddingStart="14dp"
+    android:paddingTop="12dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="0dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="30"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:orientation="vertical"
+        android:paddingBottom="15dp">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <ImageView
+                android:id="@+id/wc_map_light"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginStart="@dimen/wc_bleed_start_neg"
+                android:layout_marginTop="@dimen/wc_bleed_top_neg"
+                android:layout_marginEnd="@dimen/wc_bleed_end_neg"
+                android:layout_marginBottom="@dimen/wc_bleed_bottom_neg"
+                android:alpha="@dimen/wc_alpha_light"
+                android:contentDescription="@null"
+                android:scaleType="fitCenter" />
+
+            <ImageView
+                android:id="@+id/wc_map_dark"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginStart="@dimen/wc_bleed_start_neg"
+                android:layout_marginTop="@dimen/wc_bleed_top_neg"
+                android:layout_marginEnd="@dimen/wc_bleed_end_neg"
+                android:layout_marginBottom="@dimen/wc_bleed_bottom_neg"
+                android:alpha="@dimen/wc_alpha_dark"
+                android:contentDescription="@null"
+                android:scaleType="fitCenter" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/wc_stamp_hit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="-15dp"
+            android:paddingTop="11dp"
+            android:paddingBottom="15dp">
+
+            <TextView
+                android:id="@+id/wc_stamp"
+                android:layout_width="match_parent"
+                android:layout_height="28dp"
+                android:autoSizeMaxTextSize="14sp"
+                android:autoSizeMinTextSize="9sp"
+                android:autoSizeTextType="uniform"
+                android:background="@drawable/wc_stamp_bg"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:textColor="@color/wg_plate_band_ink"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="8dp"
+        android:layout_weight="70"
+        android:orientation="vertical"
+        android:paddingBottom="15dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/wc_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:autoSizeMaxTextSize="14sp"
+                android:autoSizeMinTextSize="10.5sp"
+                android:autoSizeTextType="uniform"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/wg_ink"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/wc_pct"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/wg_ink"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/wc_count"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:autoSizeMaxTextSize="10.5sp"
+            android:autoSizeMinTextSize="8sp"
+            android:autoSizeTextType="uniform"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:textColor="@color/wg_ink_soft"
+            android:textSize="10.5sp" />
+
+        <LinearLayout
+            android:id="@+id/wc_rows"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="2dp"
+            android:layout_weight="1"
+            android:orientation="vertical" />
+    </LinearLayout>
+
+</LinearLayout>

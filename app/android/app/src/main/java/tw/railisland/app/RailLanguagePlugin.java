@@ -18,6 +18,7 @@ public final class RailLanguagePlugin extends Plugin {
         MetroWidgetProvider.updateAll(getContext());
         RailBoardWidgetProvider.updateAll(getContext());
         MixedBoardWidgetProvider.updateAll(getContext());
+        CollectionWidgetProvider.updateAll(getContext());
         RailWaitNotification.refreshLanguage(getContext());
         RailFollowNotification.refreshLanguage(getContext());
         JSObject result = new JSObject();

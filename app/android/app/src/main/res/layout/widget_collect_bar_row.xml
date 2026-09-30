@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 中卡單一系統範圍：整條進度條（已收集／該系統全部）。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="8dp"
+    android:orientation="vertical">
+
+    <!-- 🔴 saveEnabled=false：同一張卡有好幾條同 id 的進度條。launcher 在螢幕方向／深淺色切換時會存下整棵 View 樹的狀態再還原，
+         還原是「以 id 對應」，同 id 的 ProgressBar 全被塞回最後一條的進度——實機切深淺色後五條進度條變成一樣長（2026-09-30 踩到）。 -->
+    <ProgressBar
+        android:id="@+id/wc_scope_bar"
+        android:saveEnabled="false"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:max="1000"
+        android:progressDrawable="@drawable/wg_collect_bar" />
+</LinearLayout>

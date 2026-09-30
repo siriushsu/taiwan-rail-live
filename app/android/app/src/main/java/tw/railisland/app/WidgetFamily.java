@@ -23,6 +23,8 @@ final class WidgetFamily {
 
     static final Class<?>[] METRO = { MetroWidgetProvider.class, MetroWidgetSmallProvider.class, MetroWidgetLargeProvider.class };
     static final Class<?>[] RAIL = { RailBoardWidgetProvider.class, RailBoardWidgetSmallProvider.class, RailBoardWidgetLargeProvider.class };
+    /** 車站收集只有小、中兩款，沒有大卡（iOS 的鎖定畫面兩款 Android 沒有）。 */
+    static final Class<?>[] COLLECTION = { CollectionWidgetProvider.class, CollectionWidgetSmallProvider.class };
 
     /** 同一家族三個 provider 綁著的全部 appWidgetId。 */
     static int[] ids(Context context, AppWidgetManager manager, Class<?>[] family) {

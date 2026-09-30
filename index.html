@@ -7413,6 +7413,7 @@ function setLanguage(lang) {
   I18N_SWITCH_SNAPSHOT = i18nSwitchSnapshot();
   try { i18nRefreshDynamic(); } finally { I18N_SWITCH_SNAPSHOT = null; }
   i18nSyncNativeLanguage(lang);
+  try { nativeCollectionNotify(true); } catch (e) {} // 桌面小工具的站名／線名要換成新語言(立刻送,不等 2 秒去抖:原生字串已經換了)
   glAttributionSync();
 }
 function i18nSyncNativeLanguage(lang = I18N_LANG) {
@@ -12441,6 +12442,7 @@ function applySchedSystems(sysList) {
     if (!seen.has(k)) seen.set(k, { name: st.name, lat: st.lat, lon: st.lon, sys: sys.id });
   }
   state.schedStations = [...seen.values()];
+  try { nativeCollectionNotify(); } catch (e) {} // 別名併回吃 schedStations,換群組後護照數字可能差 1～2 座,桌面小工具跟著重算(內容沒變不會送)
   // 站等分級(台鐵站等表僅台鐵;高鐵站退回停靠班次數啟發式)
   const CLS_TIER = { '特等': 0, '一等': 1, '二等': 2, '三等': 3 };
   const clsMap = state.stnClassMap || {};
@@ -14980,7 +14982,8 @@ function pushNativeGeoFix(loc, at) {
   if (!bridge || typeof bridge.fix !== 'function') return;
   try { Promise.resolve(bridge.fix(loc.lat, loc.lon, at)).catch(() => {}); } catch (e) {}
 }
-function acceptGeoFix(coords) {
+// fixAt:這筆定位「由系統算出來的時刻」(外掛 Position.timestamp,毫秒;iOS 可能給秒),只有小工具蓋章流程用它分辨新舊。
+function acceptGeoFix(coords, fixAt) {
   if (!coords || !inTaiwan(coords.latitude, coords.longitude)) return null;
   const loc = { lat: +coords.latitude, lon: +coords.longitude, acc: Math.max(0, +coords.accuracy || 0) };
   state.geoLoc = loc;
@@ -15004,6 +15007,7 @@ function acceptGeoFix(coords) {
   // 一般藍點只留在本機；只有使用者另行開啟「分享我的即時位置」時，這裡才會把
   // 同一筆前景定位送進短效分享。journeyShareSendPosition 硬限 15 秒一筆，未移動 50 公尺則降到每分鐘一筆。
   void journeyShareSendPosition(loc);
+  try { widgetCheckinOnFix(loc, fixAt); } catch (e) { console.error('小工具蓋章:處理新定位失敗', e); }
   return coords;
 }
 function stopForegroundGeoWatch() {
@@ -15029,7 +15033,8 @@ function startForegroundGeoWatch({ force = false } = {}) {
   if (state._geoWatchFirst) return state._geoWatchFirst;
   // 舊橋接／測試替身若沒有 watchPosition，仍保留一次性定位退路，不讓整個入口失效。
   if (typeof bridge.watchPosition !== 'function') {
-    return requestGeo(GEO_WATCH_OPTS).then(c => acceptGeoFix(c)).catch(err => {
+    // 一次性定位 maximumAge=0,回來的就是剛算出來的,fixAt 直接取現在
+    return requestGeo(GEO_WATCH_OPTS).then(c => acceptGeoFix(c, Date.now())).catch(err => {
       state._geoLastError = err; if (geoPermissionDenied(err)) state._geoWatchBlocked = true; return null;
     });
   }
@@ -15047,7 +15052,7 @@ function startForegroundGeoWatch({ force = false } = {}) {
   Promise.resolve(bridge.watchPosition(GEO_WATCH_OPTS, (pos, err) => {
     if (token !== state._geoWatchToken) return;
     if (pos && pos.coords) {
-      const accepted = acceptGeoFix(pos.coords);
+      const accepted = acceptGeoFix(pos.coords, pos.timestamp);
       if (accepted && state._geoWatchResolve) state._geoWatchResolve(accepted);
     }
     if (err) {
@@ -15175,17 +15180,20 @@ function openNearbyStations(lat, lon, acc) {
 }
 function closeNearbyStations() {
   if (!state.meLoc && document.getElementById('nearCard').hidden) return;
+  widgetCheckinCancel(); // 卡片被關掉＝使用者不要了;放在「沒開就直接 return」之後,免得流程開頭的內部呼叫誤取消
   state.meLoc = null;
   const el = document.getElementById('nearCard'); if (el) { el.hidden = true; el.innerHTML = ''; }
   updateSheetOpenClass();
 }
 // 目前檢視能看到的所有車站:sched(台鐵/高鐵/林鐵)取 schedStations,全台同框再併裝飾層捷運/輕軌站;
 // 單捷運分頁(freq)取 state.lines 的站。以 (系統|站名) 去重(共構站台鐵/捷運各留一筆,開各自看板)。
+// 去重鍵用收集鍵的系統段(collectSysSeg):捷運畫法代碼 freq／deco 各系統共用一個字串,同名但實體不同的站
+// (台北與台中的「市政府」)若只看 freq|站名 會被吃成一筆,排在後面的城市就永遠出不了清單、蓋不到章。
 function nearbyStationCandidates() {
   const out = [], seen = new Set();
   const push = (name, lat, lon, sys, label, i18nSys = sys) => {
     if (lat == null || lon == null || !name) return;
-    const k = sys + '|' + name;
+    const k = collectSysSeg(sys, name, i18nSys) + '|' + name;
     if (seen.has(k)) return; seen.add(k);
     out.push({ st: { name, lat, lon, sys, _i18nSys: i18nSys }, label });
   };
@@ -15258,11 +15266,13 @@ function renderNearbyStations() {
       // 打卡鈕要在整列判定之前攔下:同一列點鈕是蓋章、點別處才是開看板
       const ckBtn = e.target.closest('.nx-ck');
       if (ckBtn) {
+        widgetCheckinCancel(); // 使用者自己點了站:別再等新定位替他自動蓋
         const cst = state._nearList && state._nearList[+ckBtn.dataset.i];
         if (cst) doCheckin(cst);
         return;
       }
       const row = e.target.closest('.nx-row'); if (!row) return;
+      widgetCheckinCancel();
       const st = state._nearList && state._nearList[+row.dataset.i];
       // 先開看板再算鏡頭:sheet 開了才知道地圖被遮多少,這一站才落在露出來那塊(見 focusCenter)
       if (st) { openBoard(st); M.panTo(focusCenter(st.lat, st.lon)); }
@@ -16129,6 +16139,7 @@ function userDataRenderAll() {
   if (typeof renderFavStationMarkers === 'function') renderFavStationMarkers();
   if (typeof renderRidePanel === 'function') renderRidePanel();
   if (typeof renderPassport === 'function') renderPassport();
+  try { nativeCollectionNotify(); } catch (e) {} // 登出／刪帳號／換帳號後護照數字變了,桌面小工具跟著
 }
 // accountSyncNow 拆出來的實際交易邏輯——獨立成函式是為了讓 permission-denied 的重試
 // (見下方 catch)只重跑交易本身,不重新經過外層的 a.syncing/a.loggingOut/plusIsActive() 閘門。
@@ -17409,6 +17420,154 @@ const setupNativePlacesSync = (() => {
     window.addEventListener('rail-user-data-changed', schedule);
   };
 })();
+// ── 車站收集桌面小工具(iOS／Android):網頁算好整包資料,原生只畫 ──────────────────────────
+// 小工具的「已收集 N 座」必須與護照「車站 N 座」同一個數字。所以 N 直接取
+// stationCollection(loadRides()).size(護照用的同一個函式),原生端不重算——別名合併吃
+// state.schedStations,那隨群組變,原生端另算會差 1～2 站。
+// 資料格式 v1(網頁、iOS、Android 三方共同契約,改這裡要三方同改):
+//   docs/collect-widget-contract.md。
+// 只有原生橋接 window.RAIL_NATIVE_COLLECTION 存在才掛;純網站不 fetch geojson、不掛 listener、零副作用。
+const COLLECT_BOX = [120.15, 22.2, 122.0, 25.27]; // 投影框 lon0, lat0, lon1, lat1,固定值(原生端照這個框畫)
+// 固定順序。geo＝data/track_stations.geojson 的 sys;ck＝收集鍵的系統段(favStationKey 語意:捷運一律 'metro';
+// 同名不同站的例外由 collectSysSeg 依 geo 分開,現只有中捷的「市政府」)。
+// label 是小工具晶片用的簡稱;字典裡的 台鐵／高鐵 是全名(High Speed Rail),晶片塞不下,所以自帶三語。
+const COLLECT_SYS = [
+  { k: 'tra', geo: 'tra_sched', ck: 'tra_sched', label: { 'zh-TW': '台鐵', en: 'TRA', ja: '台鉄' } },
+  { k: 'thsr', geo: 'thsr_sched', ck: 'thsr_sched', label: { 'zh-TW': '高鐵', en: 'THSR', ja: '高鉄' } },
+  { k: 'trtc', geo: 'mrt', ck: 'metro', label: { 'zh-TW': '北捷', en: 'Taipei', ja: '台北' } },
+  { k: 'tymc', geo: 'tymc', ck: 'metro', label: { 'zh-TW': '機捷', en: 'Airport', ja: '空港' } },
+  { k: 'tmrt', geo: 'tmrt', ck: 'metro', label: { 'zh-TW': '中捷', en: 'Taichung', ja: '台中' } },
+  { k: 'krtc', geo: 'krtc', ck: 'metro', label: { 'zh-TW': '高捷', en: 'Kaohsiung', ja: '高雄' } },
+  { k: 'ntdlrt', geo: 'ntdlrt', ck: 'metro', label: { 'zh-TW': '淡海', en: 'Danhai', ja: '淡海' } },
+  { k: 'ntalrt', geo: 'ntalrt', ck: 'metro', label: { 'zh-TW': '安坑', en: 'Ankeng', ja: '安坑' } },
+  { k: 'sanying', geo: 'sanying', ck: 'metro', label: { 'zh-TW': '三鶯', en: 'Sanying', ja: '三鶯' } },
+  { k: 'afr', geo: 'afr_sched', ck: 'afr_sched', label: { 'zh-TW': '林鐵', en: 'Alishan', ja: '阿里山' } },
+];
+const NATIVE_COLLECTION = { geo: null, geoP: null };
+let nativeCollectionSchedule = null; // setupNativeCollectionSync 開跑後才有值;純網站恆為 null
+function nativeCollectionNotify(now) { if (nativeCollectionSchedule) nativeCollectionSchedule(now === true); } // now:true＝不等去抖立刻送(切語言用)
+// 站點清單(分母)只在原生 App 才會抓,抓到就快取;抓不到下次觸發重抓。
+async function collectionGeo() {
+  const c = NATIVE_COLLECTION;
+  if (c.geo) return c.geo;
+  if (!c.geoP) c.geoP = fetchJSON('./data/track_stations.geojson');
+  const g = await c.geoP;
+  c.geoP = null;
+  if (g && Array.isArray(g.features)) c.geo = g;
+  return c.geo;
+}
+// 清單站名 → 收集鍵用的站名。geojson 還是舊名(左營(舊城)、新城 (太魯閣)),收集層存的是班表正名。
+// 這條規則是靜態的,不看目前的分頁:清單(分母)是全台固定的一份,不能隨 state.schedStations 變。原本走 checkinName
+// (別名併回與括號別名都吃 schedStations),schedStations 只有當前分頁的站——捷運分頁是空的、高鐵分頁只有高鐵站,
+// 查不到台鐵別名,清單就多出兩個永遠收不到的站(total +1、台鐵已收 −1)。台北一族併成臺北、其餘台鐵舊名去掉括號別名。
+function collectionListName(ck, name) {
+  if (ck !== 'tra_sched') return name;
+  const n = String(name);
+  if (/^台北(?:[-－—]?環島)?$/.test(n.replace(/臺/g, '台').replace(/\s/g, ''))) return '臺北';
+  return n.replace(/\s*[（(].*$/, '');
+}
+function collectionLineName(def, lineId) {
+  const sys = (state.systems || []).find(s => s.id === def.geo);
+  const ln = (((sys && (sys._track || sys.data)) || {}).lines || []).find(l => l.id === lineId);
+  const base = String((ln && ln.name) || '').replace(/（[^（）]*）\s*$/, '').trim();
+  if (!base || /^[A-Za-z][A-Za-z0-9_]*$/.test(base)) return ''; // 沒線名、或線名長得像代碼(PINGXI)→ 退到系統簡稱
+  const r = routeName(base, def.geo);
+  return r !== base ? r : t(base); // 台鐵 routes 索引沒有,退到 t() 字典(同 metroBoardHeading 的做法)
+}
+// 產生小工具要的整包資料(同步;geo 是 collectionGeo() 抓到的 geojson)。
+function collectionWidgetPayload(geo) {
+  geo = geo || NATIVE_COLLECTION.geo;
+  if (!geo) return null;
+  const [lon0, lat0, lon1, lat1] = COLLECT_BOX;
+  const lang = COLLECT_SYS[0].label[I18N_LANG] ? I18N_LANG : 'zh-TW';
+  const coll = stationCollection(loadRides());
+  const q = (v, a, b) => Math.max(0, Math.min(1000, Math.round((v - a) / (b - a) * 1000)));
+  const geoIdx = new Map(COLLECT_SYS.map((d, i) => [d.geo, i]));
+  const per = COLLECT_SYS.map(() => new Map()); // 每系統:收集鍵 → 點(同名捷運站在不同系統各一點)
+  for (const f of geo.features) {
+    const p = f.properties || {}, i = geoIdx.get(p.sys);
+    if (i == null || !f.geometry) continue;
+    const name = collectionListName(COLLECT_SYS[i].ck, p.name), key = collectSysSeg(COLLECT_SYS[i].ck, name, COLLECT_SYS[i].geo) + '|' + name;
+    if (per[i].has(key)) continue; // 轉乘站一線一筆,只留第一筆(位置與線色)
+    const [lon, lat] = f.geometry.coordinates;
+    per[i].set(key, { name, x: q(lon, lon0, lon1), y: q(lat, lat1, lat0), color: p.color, lineId: p.lineId }); // y 由北到南:q(lat, 北緣, 南緣)
+  }
+  const live = COLLECT_SYS.map((d, i) => i).filter(i => per[i].size);
+  const sys = live.map(i => ({
+    k: COLLECT_SYS[i].k, label: COLLECT_SYS[i].label[lang],
+    v: [...per[i].keys()].filter(k => coll.has(k)).length, n: per[i].size,
+  }));
+  const S = { follow: 1, pass: 2, visit: 2 };
+  const pts = [];
+  live.forEach((i, j) => per[i].forEach((pt, key) => pts.push([pt.x, pt.y, pt.color, S[(coll.get(key) || {}).s] || 0, j])));
+  const total = new Set([...live.flatMap(i => [...per[i].keys()]), ...coll.keys()]).size;
+  // recent(第二輪語意):每個系統各取最近 4 筆,合併後整體再依同一規則排序——原生端單一系統範圍
+  // 才有得畫(單一系統取 k 相符、或 ks 含該系統的前 4 筆)。排序:d 新到舊、同日 n 大到小、再依收集鍵字典序。
+  // 轉乘站(同一把收集鍵出現在兩個以上系統的清單,例:紅樹林＝北捷＋淡海)算進它所屬的每個系統各自的前 4 筆:歸屬 k 仍是第一個系統,
+  // 另送選用欄位 ks＝全部所屬系統(固定順序、含 k)。只看歸屬系統的話,淡海範圍看不到紅樹林,北捷的前 4 筆也會把它擠掉。
+  const byRecent = (a, b) => (a.e[1].d < b.e[1].d ? 1 : a.e[1].d > b.e[1].d ? -1 : 0) || b.e[1].n - a.e[1].n || (a.e[0] < b.e[0] ? -1 : a.e[0] > b.e[0] ? 1 : 0);
+  const recentBySys = new Map();
+  for (const e of coll.entries()) {
+    if (!e[1].d) continue;
+    const mem = live.filter(x => per[x].has(e[0])); // 清單裡有這把鍵的系統(固定順序):第一個是歸屬,兩個以上＝轉乘站
+    const i = mem.length ? mem[0] : null;
+    const def = COLLECT_SYS[i != null ? i : COLLECT_SYS.findIndex(d => d.ck === e[1].sys || d.geo === e[1].sys)] || COLLECT_SYS[0]; // 清單外的站:退到同鍵系統的第一個(分開的鍵,系統段是那個系統自己的代碼)
+    const item = { e, i, def, ks: mem.length > 1 ? mem.map(x => COLLECT_SYS[x].k) : null };
+    for (const k of item.ks || [def.k]) {
+      if (!recentBySys.has(k)) recentBySys.set(k, []);
+      recentBySys.get(k).push(item);
+    }
+  }
+  const recent = [...new Set([...recentBySys.values()].flatMap(g => g.sort(byRecent).slice(0, 4)))].sort(byRecent) // Set:轉乘站可能被兩個系統各選一次,只留一筆
+    .map(({ e: [key, v], i, def, ks }) => {
+      const hit = i == null ? null : per[i].get(key);
+      return {
+        name: stationName(v.name, hit ? def.geo : v.sys), // 護照同一個寫法(stationName(name, sys))
+        line: (hit && collectionLineName(def, hit.lineId)) || def.label[lang],
+        k: def.k, ...(ks ? { ks } : {}), d: v.d,
+      };
+    });
+  return {
+    v: 1, at: Date.now(), lang, box: COLLECT_BOX,
+    aspect: Math.round((lon1 - lon0) * Math.cos((lat0 + lat1) / 2 * Math.PI / 180) / (lat1 - lat0) * 1e4) / 1e4,
+    n: coll.size, total, sys, recent, pts,
+  };
+}
+// 推送(去抖 2 秒,切語言與切到背景時排程中的立刻送;內容不含 at 沒變就不送)。時機:開機資料就緒後、writeCheckin、完乘紀錄與帳號同步合併
+// (rail-user-data-changed)、切語言、userDataRenderAll(登出／刪帳號／換帳號)。
+// 護照在捷運群組會早退、本機打卡也不派事件,所以不能掛在 renderPassport 或只聽 rail-user-data-changed。
+const setupNativeCollectionSync = (() => {
+  const bridge = window.RAIL_NATIVE_COLLECTION;
+  if (!bridge || typeof bridge.sync !== 'function') return () => {};
+  let timer = null, started = false, last = '';
+  const push = async () => {
+    try {
+      const p = collectionWidgetPayload(await collectionGeo());
+      if (!p) return;
+      const sig = JSON.stringify(p, (k, v) => k === 'at' ? undefined : v);
+      if (sig === last) return;
+      last = sig; // 送出前先記:送的途中又觸發不會重複送同一包
+      try { await bridge.sync(JSON.stringify(p)); } catch (e) { last = ''; } // 失敗(舊版 App 沒這個外掛)下次觸發重送
+    } catch (e) {}
+  };
+  // now:true＝不等去抖立刻送。切語言要這樣:原生字串已經換了,站名、線名不能再以舊語言留 2 秒,畫面會混雜。
+  const schedule = now => {
+    clearTimeout(timer); timer = null;
+    if (now === true) { push(); return; }
+    timer = setTimeout(() => { timer = null; push(); }, 2000);
+  };
+  // 切到背景(滑走 App、鎖屏、關閉)時,排程中的推送立刻送:WebView 被凍結後 2 秒的計時器等不到。沒有排程(內容沒動)就不送。
+  const flush = () => { if (timer !== null) schedule(true); };
+  return () => {
+    if (started) return;
+    started = true;
+    nativeCollectionSchedule = schedule;
+    schedule();
+    window.addEventListener('rail-user-data-changed', () => schedule());
+    document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
+    window.addEventListener('pagehide', flush);
+  };
+})();
 function pinSavedIdx(lat, lon) { return loadPins().findIndex(p => Math.abs(p.lat - lat) < 1e-6 && Math.abs(p.lon - lon) < 1e-6); }
 function openPinAt(lat, lon) { // 落/移釘 → 開卡(右上欄諸卡擇一)
   soloPanel('pin');
@@ -18327,8 +18486,11 @@ function groupInView(g) {
 // 重新框景會讓畫面整個跳一下（要跳到某地請用旁邊的「縣市」選單,那才是地區書籤）。
 // 收藏/搜尋導航等非頁籤的呼叫不傳,維持原本「切過去並框景」的語意。
 // 保留視野的前提是新群組在目前視窗裡真的看得到東西,否則(例:人在花蓮按「高」)照樣框景,免得切到空白地圖。
-function selectGroup(g, keepView) {
+// keepLastView:只有小工具蓋章流程(widgetCheckinStart)傳 true。其餘每一次呼叫(使用者點頁籤、從收藏／搜尋跳到別的群組)
+//   都代表人自己動手了,結束蓋章時凍住的「上次視野記憶」,恢復正常記錄——含目前群組＝目標群組的空轉呼叫(點已亮的那顆頁籤)。
+function selectGroup(g, keepView, keepLastView) {
   if (!state.systems.length) return; // 預渲染期(資料未載入)頁籤先不動作,boot 完成後恢復
+  if (!keepLastView) state._lastViewHold = false;
   if (state.group === g.id) return;
   const keep = !!keepView && groupInView(g);
   if (g.mode === 'all') loadAllGroup(g, keep);
@@ -22887,7 +23049,7 @@ function checkinAliasMap() {
   }
   return m;
 }
-// 打卡/收集用的正名站名;鍵一律走 favStationKey(捷運不分 freq/deco 視角,同站只有一枚章)
+// 打卡/收集用的正名站名;鍵見下方 collectSysSeg／checkinKey(捷運不分 freq/deco 視角,同站只有一枚章)
 function checkinName(sys, name, alias) {
   // 已移除的官方別名不再出現在站列，舊跟車／打卡章仍需併回臺北。
   if (sys === 'tra_sched' && /^台北(?:[-－—]?環島)?$/.test(String(name).replace(/臺/g, '台').replace(/\s/g, ''))) {
@@ -22904,7 +23066,35 @@ function checkinName(sys, name, alias) {
   }
   return name;
 }
-function checkinKey(st, alias) { return favStationKey({ sys: st.sys, name: checkinName(st.sys, st.name, alias) }); }
+// 收集鍵 ＝ 系統段|站名。系統段沿用 favStationKey 的語意(捷運畫法 freq／deco 一律 'metro',同一站只有一枚章),
+// 唯一的例外是「站名相同、實體是兩座」的站:台北與台中各有一座「市政府」(相距約 135 公里),合成一枚會讓
+// 收集少算一座、台中的章也無法單獨亮起,所以台中另立 'tmrt' 段。台北維持 metro|市政府——沒有記錄城市的舊資料
+// (含舊版 App 同步進來的)因此一律歸台北,不需要遷移。
+// realSys:畫法代碼背後的真實系統代碼。附近車站清單的站物件帶在 _i18nSys、小工具清單用 geojson 的 sys;
+// 已經是收集鍵系統段的('metro'、'tmrt')不必帶。favStationKey 不動:它同時是收藏車站的鍵。
+const COLLECT_SPLIT = new Set(['tmrt|市政府']);
+function collectSysSeg(sys, name, realSys) {
+  const seg = sys === 'freq' || sys === 'deco' ? 'metro' : sys;
+  const real = seg === 'metro' && realSys ? realSys : seg;
+  return COLLECT_SPLIT.has(real + '|' + name) ? real : seg;
+}
+// 分開的那一對同名站,兩把收集鍵各自背後「真正的系統代碼」(查譯名用)。台北那枚的鍵是 metro|市政府,'metro' 不是系統代碼:
+// stationName 拿它會掃全部捷運系統,兩個城市的譯名不同就退回繁中——英文版台北那枚因此一直沒翻;台中的鍵本身就是系統代碼。
+const COLLECT_SPLIT_REAL = { 'metro|市政府': 'mrt', 'tmrt|市政府': 'tmrt' };
+// 護照車站牆上的站名:一般站照舊 stationName。分開的那一對要讓人分得出是哪個城市——用真正的系統代碼查譯名
+// (英文 Taipei／Taichung City Hall、日文台北市政府),譯名裡已經有城市就直接用;沒有(繁中的「市政府」、日文台中那枚的「市政府」)
+// 才接系統簡稱(小工具晶片那份 COLLECT_SYS.label:北捷／中捷、台北／台中)。不新造詞,全部取自既有的譯名表與簡稱。
+function collectStampName(i) {
+  const real = COLLECT_SPLIT_REAL[i.sys + '|' + i.name];
+  if (!real) return stationName(i.name, i.sys);
+  const name = stationName(i.name, real), def = COLLECT_SYS.find(d => d.geo === real);
+  const lab = def && (def.label[I18N_LANG] || def.label['zh-TW']);
+  return lab && !name.includes(lab) ? `${name}（${lab}）` : name;
+}
+function checkinKey(st, alias) {
+  const name = checkinName(st.sys, st.name, alias);
+  return collectSysSeg(st.sys, name, st._i18nSys) + '|' + name;
+}
 // ── 單站打卡:判定與寫入(設計書 §3 B 路徑、§5 判定容忍值) ────────────────────
 // 半徑依站等給:特等站站體橫跨數百公尺,招呼站只有一座月台。
 // ⚠這五個數值是保守初值,設計書明列「待真機在地下/高架/平面站各取樣後才准定案」——別當定論。
@@ -22977,6 +23167,7 @@ function writeCheckin(st, status, opts) {
   if (status === 'visit') { if (o.low) e.lo = 1; else delete e.lo; } // 低信心只對「人在現場」的宣稱有意義
   e.u = userDataNow();   // 逐筆時間戳:多裝置合併時比這個決定誰贏(LWW)
   c.st[k] = e; saveCheckins(c); checkinsChanged();
+  nativeCollectionNotify(); // 本機打卡不派 rail-user-data-changed,桌面小工具要另外通知
   return true;
 }
 function doCheckin(st) {
@@ -23000,6 +23191,75 @@ function doCheckin(st) {
   }));
   renderNearbyStations(); renderRidePanel(); renderPassport();
   return true;
+}
+// ── 小工具「蓋章」鈕(railisland://checkin) ─────────────────────────────────────
+// 桌面小工具按蓋章 → App 打開 → 在「新的」定位上決定蓋哪一座:範圍內剛好一座直接蓋;好幾座停在附近車站清單讓人點;
+// 一座都沒有就對最近那座走既有的「離「X」還有 N 公尺」提示(不寫章)。定位、距離判定(checkinJudge)、
+// 一天一次(writeCheckin 的 dayOnce)全部沿用單站打卡那一套,這裡只管「等到可信的定位」與「選站」。
+// 定位保鮮:剛開 App 時 state.geoLoc／state.meLoc 多半是上次留下的快取(loadGeoCache),iOS 的連續定位也可能先吐系統快取的舊點,
+//   所以只收「時間戳 ≥ 處理事件那一刻(t0)」且精度到 CHECKIN_LOW_ACC_M 以內的定位;不夠就繼續等,不拿開卡當下的位置直接判。
+// 最多等 15 秒:Android 的 watch 沒設 interval,Capacitor 8 預設成 timeout(12 秒),t0 之後最壞要等 12 秒才有下一筆,
+//   再留 GPS 收斂的餘裕;iOS 約每秒一筆,通常 1–3 秒就決定。超過就停手——附近車站清單本來就在畫面上,人可以自己點。
+const WIDGET_CHECKIN_WAIT_MS = 15000;
+function widgetCheckinCancel() {
+  const w = state._wcWait;
+  if (!w) return;
+  clearTimeout(w.timer); state._wcWait = null;
+}
+function widgetCheckinStart() {
+  widgetCheckinCancel();
+  // 候選站必須是全台的:App 上次停在高鐵或捷運分頁時,附近清單只有那一頁的站,人在台鐵站按蓋章會找不到站。
+  // 選「先切回全台同框(App 的預設頁)」而不是另組一份全台候選——清單、站等半徑、別名併鍵、月台幾何全走同一條路,
+  // 不會出現「判定用的站」與「清單上看到的站」不同;代價只是頁籤跳到全台。
+  // 這次切換是為了看蓋章結果,不是使用者選的分頁:切換前先舉旗,讓 saveLastView 不把全台(與蓋章時的地圖中心)寫成
+  // 「上次視野」,下次開 App 仍回到原本的分頁。旗要在切換之前舉(切換途中的 moveend 也不能寫),
+  // selectGroup 第三個參數 true 讓這一次不被它自己放旗;沒切成就把旗收回。本來就在全台的人不進這一段,記錄照舊。
+  const all = GROUPS.find(g => g.id === 'all');
+  if (all && state.group !== all.id) {
+    state._lastViewHold = true;
+    selectGroup(all, true, true);
+    if (state.group !== all.id) state._lastViewHold = false;
+  }
+  const w = state._wcWait = { t0: Date.now(), timer: null };
+  w.timer = setTimeout(() => { if (state._wcWait === w) state._wcWait = null; }, WIDGET_CHECKIN_WAIT_MS);
+  const hadLoc = !!(state.geoLoc || loadGeoCache());
+  void showNearby(); // 有位置:先用舊點把清單開出來、接回前景 watch;沒位置:走 locateMe 既有的權限／失敗流程
+  if (!hadLoc) return;
+  showToast(t('正在定位你的位置…'));
+  startForegroundGeoWatch({ force: true }).then(c => {
+    if (state._wcWait !== w || c || !state._geoLastError) return;
+    widgetCheckinCancel(); onLocateFail(state._geoLastError); // 定位失敗(多半是沒給權限):走既有的失敗說明
+  });
+}
+function widgetCheckinOnFix(loc, fixAt) {
+  const w = state._wcWait;
+  if (!w) return;
+  let at = +fixAt;
+  if (at > 0 && at < 1e11) at *= 1000; // iOS 外掛 timestamp 的單位沒有原始碼可證(秒或毫秒);< 1e11 不可能是毫秒(那是 1973 年),當秒換算
+  if (!(at >= w.t0)) return; // 沒時間戳,或早於處理事件那一刻:快取／舊點
+  if (!(loc.acc > 0 && loc.acc <= CHECKIN_LOW_ACC_M)) return; // 精度還沒收斂(0＝沒給):繼續等
+  widgetCheckinCancel();
+  widgetCheckinDecide(loc);
+}
+function widgetCheckinDecide(loc) {
+  const card = document.getElementById('nearCard');
+  if (!card || card.hidden) openNearbyStations(loc.lat, loc.lon, loc.acc); // 沒位置的路徑:清單還沒開
+  else state.meLoc = { lat: loc.lat, lon: loc.lon, acc: loc.acc };
+  const scored = nearbyStationCandidates()
+    .map(c => ({ st: c.st, km: haversineKm(loc, { lat: c.st.lat, lon: c.st.lon }) }))
+    .sort((a, b) => a.km - b.km);
+  // 範圍內的站(判定沿用 checkinJudge)再以收集鍵去重:候選層已用系統段|站名去過重,這裡是最後一道防線——
+  // 兩個候選若指到同一枚章,不該被當成「好幾座」而多讓人按一步。scored 已依距離排序,同鍵留較近那筆。
+  const seen = new Set(), hits = [];
+  for (const s of scored) {
+    if (!checkinJudge(s.st).ok) continue;
+    const k = checkinKey(s.st);
+    if (seen.has(k)) continue; seen.add(k);
+    hits.push(s.st);
+  }
+  renderNearbyStations(); // 清單用這一筆新定位重畫;好幾座時就停在這裡讓人點
+  if (hits.length === 1) doCheckin(hits[0]);
+  else if (!hits.length && scored.length) doCheckin(scored[0].st); // 一座都不到:doCheckin 走既有的「還差幾公尺」提示,不寫章
 }
 // ── 路段收集與完乘率(設計書 §2 三軸的「線」) ────────────────────────────────
 // 分母=每條線各自算(2026-07-26 使用者拍板)。一條線的「最細區間」=它自己的站列依沿線
@@ -24461,6 +24721,8 @@ function setupBountyBrief() {
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) hide(); });
 }
 // 站的收集總表:rides 推導的「跟完」疊上 checkins 的真實打卡,鍵=sys|name(與 schedStations 同一套去重規則)
+// 鍵由每筆紀錄自己的 sys 與站名組成,不重算系統段:寫入時 checkinKey 已把系統段放進 sys(collectSysSeg),
+// 所以沒記錄城市的舊「市政府」(sys 'metro')自然是台北、存 'tmrt' 的是台中,新舊資料共用同一段程式。
 function stationCollection(rides) {
   const m = new Map(), alias = checkinAliasMap();
   const at = (sys0, name0) => {
@@ -24562,8 +24824,8 @@ function buildStationStamps(rides) {
     (sub ? `<span style="letter-spacing:0;font-weight:600">${escHtml(sub)}</span>` : '')) + `<div class="ph-stamps">` +
     shown.map(i => {
       const cls = 'stn-seal ' + i.s + (tierM.get(i.sys + '|' + i.name) === 0 ? ' t0' : '');
-      const tip = stationName(i.name, i.sys) + i18nSep() + t(STN_STATUS_LABEL[i.s]) + (i.n > 1 ? i18nSep(true) + t('{n} 次', { n: i18nNumber(i.n) }, i.n) : '') + (i.d ? i18nSep(true) + t('最近 {date}', { date: i.d }) : '');
-      return `<span class="${cls}" title="${escHtml(tip)}">${sealName(stationName(i.name, i.sys), 'stn')}` +
+      const tip = collectStampName(i) + i18nSep() + t(STN_STATUS_LABEL[i.s]) + (i.n > 1 ? i18nSep(true) + t('{n} 次', { n: i18nNumber(i.n) }, i.n) : '') + (i.d ? i18nSep(true) + t('最近 {date}', { date: i.d }) : '');
+      return `<span class="${cls}" title="${escHtml(tip)}">${sealName(collectStampName(i), 'stn')}` +
         (i.n > 1 ? `<small class="cnt">×${i18nNumber(i.n)}</small>` : `<small>${escHtml(t(STN_STATUS_LABEL[i.s]))}</small>`) + `</span>`;
     }).join('') + more + `</div>`;
 }
@@ -34135,6 +34397,13 @@ function openWidgetRailStation(sysName, name) {
   return true;
 }
 let _metroWaitListening = false;
+// 首次「怎麼玩」說明卡(#howtoWrap,z 800)會整片蓋住護照、附近車站卡、通行證面板、車站看板與等車卡,而小工具的深連結
+// (waitOpen 五種:passport、checkin、pass、station、沒有 view 的等車卡)是使用者明確要去的地方,所以先讓位。
+// 只收起、不寫已讀旗標:還沒讀過說明的人,下次正常開 App 仍會看到那張卡。
+function howtoYieldToWidget() {
+  const hw = document.getElementById('howtoWrap');
+  if (hw && !hw.hidden) hw.hidden = true;
+}
 // waitOpen:小工具點進來的深連結,boot 時掛(僅原生殼有此 plugin)。
 // view:'station' 是鐵路看板，必須以 sys 縮小範圍後再找站；沒有 view 才是捷運等車卡。
 // station 都用 replace(/臺/g,'台') 寬鬆比對;對不回就 toast 說明，
@@ -34158,9 +34427,19 @@ function ensureMetroWaitListener() {
         await new Promise(r => setTimeout(r, 300));
       }
       await new Promise(r => setTimeout(r, 600));
+      // 五種深連結都是使用者點小工具明確要去的地方,首次說明卡不能蓋在上面:統一在分流之前讓位,
+      // 不放進各分支——先前只有 passport、checkin 兩支各自呼叫,pass、station、等車卡三支漏掉,
+      // 第一次開 App 從那三種小工具進來,看板／方案面板／等車卡會被說明卡整片蓋住。
+      howtoYieldToWidget();
       // 通行證閘門的 CTA 卡(railisland://pass):沒有站可開,直接把人送到方案面板。
       // 走與工具列同一個入口 plusOpen(),來源標成 widget 方便日後看轉換來自哪裡。
       if (evt && evt.view === 'pass') { plusOpen('widget'); return; }
+      // 車站收集小工具(railisland://passport):打開旅程護照(#ridePanel:完乘記錄與收集章,「車站 N 座」就在這),
+      // 不是通行證(pass)、也不是車站看板(station)。沒有站要找,直接開。
+      if (evt && evt.view === 'passport') { openRidePanel(); return; }
+      // 車站收集小工具的「蓋章」鈕(railisland://checkin):打開 App 後在附近車站自動蓋章。
+      // 流程本體在 widgetCheckinStart(定位保鮮、精度等待、單座直接蓋／多座停在清單)。
+      if (evt && evt.view === 'checkin') { widgetCheckinStart(); return; }
       const sys = evt && evt.sys, station = evt && evt.station;
       if (evt && evt.view === 'station') {
         if (!openWidgetRailStation(sys, station)) {
@@ -35661,6 +35940,25 @@ const HELP_GROUPS = [
         { kind: 'ios-rail-large', name: '發車看板（台鐵／高鐵）', sizes: '大', img: 'assets/widgets/ios/rail-large.webp' },
         { kind: 'ios-rail-rect', name: '發車看板（鎖定畫面）', sizes: '矩形', img: 'assets/widgets/ios/rail-rect.webp' },
         { kind: 'ios-mixed-large', name: '鐵路＋捷運看板', sizes: '大', img: 'assets/widgets/ios/mixed-large.webp' },
+      ] },
+    // 車站收集小工具:avail 看 RAIL_NATIVE_COLLECTION——它跟 RailCollection 外掛、小工具同一顆 App 建置一起進來,
+    // 舊版 App 與網頁端這節不長。數字與護照「車站 N 座」同一個(stationCollection),文案照這個講。
+    // Android 的範圍那一步照實際流程寫:collection_widget_info.xml 是 widgetFeatures="reconfigurable|configuration_optional",
+    // API 31 以上加入時可以略過設定頁、從 App 釘到桌面也不會出現設定頁,要換範圍是之後長按小工具開設定,所以不寫「加入時選」。
+    // 蓋章鈕只有小、中尺寸有(鎖定畫面兩款太小不放)。兩個平台的鈕在卡片上的位置還沒統一,這節刻意不寫位置。
+    { key: 'collectwidget', ic: '收', nm: '車站收集小工具', badge: 'App', avail: () => !!window.RAIL_NATIVE_COLLECTION,
+      one: '把旅程護照的「車站 N 座」放上主畫面：點陣照真實位置排成台灣鐵道網，收過的站亮起線色。',
+      steps: helpIsAndroid
+        ? ['長按主畫面空白處進入編輯，從加入小工具的入口搜尋「軌島」', '選「車站收集」，有小、中兩種尺寸；範圍預設是全台，之後長按小工具開啟設定，就能換成單一系統（台鐵、北捷、高捷……）', '點小工具會打開旅程護照', '小、中尺寸上有「蓋章」鈕：按一下會打開軌島，直接在附近的車站蓋章；附近有好幾座車站時，讓你選要蓋哪一座']
+        : ['長按主畫面空白處進入編輯，從加入小工具的入口搜尋「軌島」', '選「車站收集」，有小、中兩種尺寸；長按小工具 →「編輯小工具」可以把範圍換成單一系統（台鐵、北捷、高捷……）', '鎖定畫面也放得下，顯示收集百分比與進度', '點小工具會打開旅程護照', '小、中尺寸上有「蓋章」鈕：按一下會打開軌島，直接在附近的車站蓋章；附近有好幾座車站時，讓你選要蓋哪一座'],
+      tip: '數字跟旅程護照的「車站 N 座」是同一個：跟完、搭過、到訪都算。地圖上實心是搭過或到訪、空心是跟完；在 App 裡蓋章後小工具會跟著更新。這項不需要通行證。',
+      widgets: helpIsAndroid ? [
+        { kind: 'collection-small', name: '車站收集', sizes: '2×2', img: 'assets/widgets/android/collect-small.webp', pin: true },
+        { kind: 'collection-medium', name: '車站收集', sizes: '5×2', img: 'assets/widgets/android/collect-medium.webp', pin: true },
+      ] : [
+        { kind: 'ios-collect-small', name: '車站收集', sizes: '小', img: 'assets/widgets/ios/collect-small.webp' },
+        { kind: 'ios-collect-medium', name: '車站收集', sizes: '中', img: 'assets/widgets/ios/collect-medium.webp' },
+        { kind: 'ios-collect-rect', name: '車站收集（鎖定畫面）', sizes: '矩形', img: 'assets/widgets/ios/collect-rect.webp' },
       ] },
     { key: 'metrowait', ic: '候', nm: '在這站等車：鎖定畫面倒數', badge: 'App', avail: () => metroWaitEnabled(),
       one: IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android'
@@ -38038,11 +38336,11 @@ async function boot() {
   // 分享連結進來的訪客絕不能被本機記憶/預設蓋掉；設了預設地點就蓋過「上次視野」。預設地點一律開在全台同框並置中。
   const defPlace = (deepG || deepAt || deepTrain || deepTrip || deepJourney) ? null : loadDefaultPlace();
   // 開機自動定位(App):geoBoot 由 startBootGeo 自己的守門決定(深連結/預設地點/非原生一律不發起),這裡直接沿用,
-  // 不重寫一份條件免得兩處漂移。定位有兩個時態——快取座標 0 秒可用,先落點蓋過「上次視野」;
+  // 不重寫一份條件免得兩處漂移。定位只決定地圖落點、不決定分頁:快取座標 0 秒可用,地圖先落在那裡,分頁與勾選照樣還原上次視野;
   // 真定位晚幾秒到再校正(applyBootGeo)。首開沒有快取時不空等,照舊落上次視野/全台同框,定位到了再飛過去。
   const geoBoot = !!state._bootGeo;
   const geoCache = geoBoot ? loadGeoCache() : null;
-  const lastView = (deepG || deepAt || deepTrain || deepTrip || deepJourney || defPlace || geoCache) ? null : loadLastView();
+  const lastView = (deepG || deepAt || deepTrain || deepTrip || deepJourney || defPlace) ? null : loadLastView();
   // 開場群組:分享連結帶 g 就開該群組;預設地點沿用全台同框(all,已是預設值);其次上次待的群組
   let bootGroup = GROUPS.find(g => g.id === 'all');
   if (deepG) { const gg = GROUPS.find(g => g.id === deepG); if (gg) bootGroup = gg; }
@@ -38093,6 +38391,7 @@ async function boot() {
   void setupWebMcp(); // 支援的 ChatGPT 內建瀏覽器才註冊；一般瀏覽器立即 no-op
   i18nRefreshDynamic();
   setupNativePlacesSync();
+  setupNativeCollectionSync();
   // 錄製中的投影里程先於重新整理落在裝置端；線網就緒後接回同一趟並恢復前景取樣。
   // 沒有進行中的旅程也會順手重試先前斷線留下的批次，兩條路都只處理里程、不碰座標。
   if (!bountyRestoreRecording()) void bountyRetryPending();
@@ -38119,6 +38418,9 @@ function saveLastView() {
   if (!state.ready) return;                          // 開機期間的框景不算(還原用的 setView 也在 ready 之前)
   if (state.autoTour || state._hotScene) return;     // 放空巡航/群車俯瞰的鏡頭自己會飄，存了下次開就被丟到隨機位置
   if (state.followTrain || state.freqFollow) return; // 跟車鏡頭同理
+  // 小工具蓋章把畫面切到全台的那一段(見 widgetCheckinStart)：那是為了讓人看到蓋章結果,不是他挑的分頁,
+  // 記下來的話下次開 App 會落在全台、地圖中心也變成蓋章那一刻的位置。旗會在人自己換群組時放掉(selectGroup)。
+  if (state._lastViewHold) return;
   const g = GROUPS.find(x => x.id === state.group);
   if (!g) return;
   const sel = g.mode === 'freq' ? state.freqSel : g.mode === 'sched' ? state.schedSel : null;

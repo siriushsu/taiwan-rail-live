@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 車站收集・小（2×2）。與 iOS SmallCollectionView 同一個資訊層級：
+     標題列（範圍名＋「車站收集」）→ 左下文字欄（百分比大字、已收集、還有）＋右下點陣地圖。
+     文字欄佔 58%、地圖欄佔 42%（權重）；地圖 ImageView 用 fitEnd 貼欄位右下，高度／寬度誰先到頂就以誰為準，
+     所以文字與地圖在任何格子形狀下都不會疊（Pixel 2×2 是 140×222dp 直長條，Samsung 是 150×207dp）。
+     地圖有淺／深兩張 Bitmap 疊在同一格，資源限定的 alpha 決定露出哪一張（見 dimens_collect.xml）。
+     🔴 只准用 RemoteViews 白名單裡的類別（verify_widget_layouts.mjs 會擋）；ProgressBar／View 之類見那支的註解。
+     「蓋章」是整條按鈕（契約〈畫法約定〉11，與 iOS 同一個版面）：在文字欄最下面、寬＝文字欄寬、字置中。wc_stamp 是 28dp 高的實心膠囊
+        （只管長相，不可點），外面包一層透明容器 wc_stamp_hit 自己綁一個 PendingIntent 開 railisland://checkin；容器以外的地方仍是開旅程護照。
+        容器高 48dp＝上 5dp 空隙＋膠囊 28＋下 15dp（往下伸進卡片下緣的留白），可點範圍 48dp 高、不蓋到任何一行字。
+        🔴 觸控命中只看「每一層祖先的邊界」：容器伸出去的部分必須還在祖先的邊界裡才點得到，所以卡片下緣 15dp 的內距全部放在
+        文字欄與地圖欄各自的 paddingBottom（根的下內距是 0），容器用 -15dp 下邊距伸進文字欄的內距，一路伸到卡片最下緣。
+        🔴 矮卡（110dp 高的 2×2）放不下「48dp 容器＋20sp 百分比」：CollectionWidgetRender 會用 setViewPadding 把根的上內距由 12dp 壓到最低 6dp（見該檔的 small()）。
+     🔴 地圖 ImageView 用負邊距（wc_bleed_top／end／bottom_neg）比欄位大一圈，Bitmap 帶等量的透明「出血」，全台輪廓的恆春半島南端畫在這一圈裡；
+        【左邊不出血】（沒有 start 負邊距，CollectionMapRender.bleed(res, true) 的 start＝0）：ImageView 從文字欄右緣開始，輪廓的墨不可能進到文字欄；
+        沿路的祖先要 clipChildren／clipToPadding = false 才畫得出去。
+     🔴 文字欄由下往上排（貼底），標題與文字欄之間的空隙不是 margin：文字欄從標題列底緣開始，空隙是「剩下的高度」自然產生的，
+        CollectionWidgetRender 的高度預算另留 HEAD_GAP；矮卡（110dp 高的 2×2）會把預算壓小，百分比才放得下。
+        已收集的上距 4dp 用 paddingTop（RemoteViews 改得了 padding、改不了 margin），矮卡時改成 0。地圖欄的 paddingTop＝原本的 margin 6＋padding 4。
+     🔴 空狀態（一站都還沒收集）與正常狀態共用這一張，由 CollectionWidgetRender 決定露出哪幾個 TextView；
+        兩者【id 完全相同】，binder 只有一份。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wc_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/wg_card"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:orientation="vertical"
+    android:paddingStart="14dp"
+    android:paddingTop="12dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="0dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/wc_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:textColor="@color/wg_ink"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/wc_subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:textColor="@color/wg_ink_soft"
+            android:textSize="11sp" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:baselineAligned="false"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="58"
+            android:gravity="bottom"
+            android:orientation="vertical"
+            android:paddingBottom="15dp">
+
+            <TextView
+                android:id="@+id/wc_pct"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/wg_ink"
+                android:textSize="34sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/wc_count"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:autoSizeMaxTextSize="11sp"
+                android:autoSizeMinTextSize="8sp"
+                android:autoSizeTextType="uniform"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:paddingTop="4dp"
+                android:textColor="@color/wg_ink"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/wc_remain"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:autoSizeMaxTextSize="11sp"
+                android:autoSizeMinTextSize="8sp"
+                android:autoSizeTextType="uniform"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/wg_ink_soft"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/wc_empty_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="3"
+                android:textColor="@color/wg_ink"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/wc_empty_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="4"
+                android:textColor="@color/wg_ink_soft"
+                android:textSize="11sp"
+                android:visibility="gone" />
+
+            <FrameLayout
+                android:id="@+id/wc_stamp_hit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="-15dp"
+                android:paddingTop="5dp"
+                android:paddingBottom="15dp">
+
+                <TextView
+                    android:id="@+id/wc_stamp"
+                    android:layout_width="match_parent"
+                    android:layout_height="28dp"
+                    android:autoSizeMaxTextSize="14sp"
+                    android:autoSizeMinTextSize="9sp"
+                    android:autoSizeTextType="uniform"
+                    android:background="@drawable/wc_stamp_bg"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:textColor="@color/wg_plate_band_ink"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/wc_map_slot"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="42"
+            android:clipToPadding="false"
+            android:paddingTop="10dp"
+            android:paddingBottom="15dp">
+
+            <ImageView
+                android:id="@+id/wc_map_light"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginTop="@dimen/wc_bleed_top_neg"
+                android:layout_marginEnd="@dimen/wc_bleed_end_neg"
+                android:layout_marginBottom="@dimen/wc_bleed_bottom_neg"
+                android:alpha="@dimen/wc_alpha_light"
+                android:contentDescription="@null"
+                android:scaleType="fitEnd" />
+
+            <ImageView
+                android:id="@+id/wc_map_dark"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginTop="@dimen/wc_bleed_top_neg"
+                android:layout_marginEnd="@dimen/wc_bleed_end_neg"
+                android:layout_marginBottom="@dimen/wc_bleed_bottom_neg"
+                android:alpha="@dimen/wc_alpha_dark"
+                android:contentDescription="@null"
+                android:scaleType="fitEnd" />
+        </FrameLayout>
+    </LinearLayout>
+</LinearLayout>

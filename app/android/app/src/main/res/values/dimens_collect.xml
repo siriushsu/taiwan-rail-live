@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 車站收集小工具的地圖是 Canvas 畫的 Bitmap，像素不會跟著系統深淺色換——資源會。
+     所以淺色版、深色版兩張 Bitmap 疊在同一格，用資源限定的 alpha 決定露出哪一張：
+     淺色模式 淺=1／深=0，深色模式（values-night）相反。launcher 切換深淺色時會用新的資源重新 inflate，
+     不必等下一次 updateAppWidget。 -->
+<resources>
+    <item name="wc_alpha_light" type="dimen" format="float">1</item>
+    <item name="wc_alpha_dark" type="dimen" format="float">0</item>
+    <!-- 地圖 Bitmap 的「出血」：點陣框（frame）四邊之外多畫的一圈透明邊，讓台灣輪廓（全台填色的恆春半島南端、西岸）伸得出點陣框，
+         版面的其他元素不必移動。ImageView 用等量的負邊距（*_neg）往外長，點陣框的位置與大小因此與沒有出血時相同。
+         🔴 三處要一起改：這裡、CollectionMapRender.bleed()（讀這四個值）、驗收預言機 verify_android_collect_widget.mjs 的 BLEED（手寫一份、不讀這裡：小卡左出血 0、中卡 8；預言機已認得出血，突變 M8 會抓到兩邊不一致）。
+         下緣 18dp：恆春半島南端超出點陣框約 10%（最高的地圖約 190dp 高 → 約 18dp）；左緣 8dp：西岸最西處約超出 6.6%（只有中卡用：中卡的地圖在左、左邊是卡片內距；
+         小卡的地圖在右、左邊就是文字欄，所以小卡的左出血固定為 0——見 CollectionMapRender.bleed(res, small)）。 -->
+    <dimen name="wc_bleed_start">8dp</dimen>
+    <dimen name="wc_bleed_top">2dp</dimen>
+    <dimen name="wc_bleed_end">3dp</dimen>
+    <dimen name="wc_bleed_bottom">18dp</dimen>
+    <dimen name="wc_bleed_start_neg">-8dp</dimen>
+    <dimen name="wc_bleed_top_neg">-2dp</dimen>
+    <dimen name="wc_bleed_end_neg">-3dp</dimen>
+    <dimen name="wc_bleed_bottom_neg">-18dp</dimen>
+</resources>

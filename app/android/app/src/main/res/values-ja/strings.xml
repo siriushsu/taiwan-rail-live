@@ -16,5 +16,9 @@
     <string name="rail_widget_large_description">直近の列車を並べるフルサイズの発車案内</string>
     <string name="mixed_widget_name">鉄道＋メトロ案内</string>
     <string name="mixed_widget_description">鉄道の発車とメトロの到着を1枚で表示します</string>
+    <string name="collection_widget_name">駅コレクション・中</string>
+    <string name="collection_widget_description">集めた鉄道駅の割合を台湾全体または単一の路線で表示。ドットは各駅の実際の位置</string>
+    <string name="collection_widget_small_name">駅コレクション・小</string>
+    <string name="collection_widget_small_description">収集の進み具合とドットマップを表示する最小サイズ</string>
     <string name="widget_loading">更新中…</string>
 </resources>

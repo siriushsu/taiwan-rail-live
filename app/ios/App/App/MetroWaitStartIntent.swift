@@ -25,7 +25,9 @@ enum MetroWaitPending {
     static let key = "metro.pendingWaitOpen"
     /// 保鮮期。與網頁端 _mwPendingOpen 同值:太舊的點擊補開出來只會是使用者早就不要的那一站。
     static let maxAgeSec: Double = 600
-    private static var suite: UserDefaults? { UserDefaults(suiteName: "group.tw.railisland.app") }
+    /// 兩個 target 共用的 App Group 開法(全檔唯一一處字面)。CollectCheckinPending 也走這一個,
+    /// 不另外寫一份字串——真機測試版是用字串替換換掉 App Group id,字面越少越不會漏。
+    static var suite: UserDefaults? { UserDefaults(suiteName: "group.tw.railisland.app") }
 
     static func write(sys: String, station: String, dest: String?) {
         suite?.set(["sys": sys, "station": station, "dest": dest ?? "",

@@ -52,6 +52,23 @@
         }
       }
     },
+    "，": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ", "
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "、"
+          }
+        }
+      }
+    },
     "，大概多久算不出來": {
       "extractionState": "manual",
       "localizations": {
@@ -473,6 +490,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "：駅リストがリアルタイムモデルと一致しないため、公式のカウントダウンを使用"
+          }
+        }
+      }
+    },
+    "：這個系統的即時資料格式異常，已隔離並改用官方名冊或班表": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ": this system’s live data has an invalid format; it has been isolated and now uses the official roster or timetable"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "：このシステムのリアルタイムデータ形式に異常があるため隔離し、公式名簿または時刻表を使用"
           }
         }
       }
@@ -3299,6 +3333,23 @@
         }
       }
     },
+    "● 已依官方列車衛星定位校正": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "● Corrected with official train GPS positioning"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "● 公式の列車GPS位置情報で補正済み"
+          }
+        }
+      }
+    },
     "● 已依官方到站看板校正": {
       "extractionState": "manual",
       "localizations": {
@@ -3312,6 +3363,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "● 公式到着案内で補正済み"
+          }
+        }
+      }
+    },
+    "● 已依官方到站看板逐站倒數推算": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "● Estimated from official station-by-station arrival-board countdowns"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "● 公式到着案内の各駅カウントダウンから推定"
           }
         }
       }
@@ -3703,6 +3771,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "1.5km以内に路線はありません"
+          }
+        }
+      }
+    },
+    "10/3 環島專車這類比任何固定班次都跑得遠的台鐵專車，地圖上改沿真實股道行駛，不再整趟退回示意路線": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Special TRA trains that run farther than any regular service, such as the 10/3 round-the-island train, now follow the real tracks on the map instead of a schematic route for the whole trip"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "10/3 の環島列車のように、どの定期列車よりも長い区間を走る台鉄の臨時列車も、全区間を模式線ではなく実際の線路に沿って地図上を走るようになりました"
           }
         }
       }
@@ -5866,6 +5951,23 @@
         }
       }
     },
+    "小、中尺寸上有「蓋章」鈕：按一下會打開軌島，直接在附近的車站蓋章；附近有好幾座車站時，讓你選要蓋哪一座": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The small and medium sizes have a “Stamp” button. Tap it to open Rail Island and stamp a nearby station right away; if several stations are nearby, you pick which one"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小・中サイズには「スタンプ」ボタンがあります。タップすると軌島が開き、近くの駅でそのままスタンプできます。近くに駅が複数あるときは、スタンプする駅を選べます"
+          }
+        }
+      }
+    },
     "小工具": {
       "extractionState": "manual",
       "localizations": {
@@ -6389,6 +6491,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "運行終了"
+          }
+        }
+      }
+    },
+    "已收集 {n} 座": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} collected"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n}駅を収集"
+          }
+        }
+      }
+    },
+    "已收集 {v}／{n} 座": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{v} of {n} collected"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{v}／{n}駅を収集"
           }
         }
       }
@@ -8671,6 +8807,23 @@
         }
       }
     },
+    "公車到站、台鐵月台與災害監看遇到官方來源沒回應時，會在限時內結束等待並於下一輪恢復": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When official sources stop responding, bus arrivals, TRA platform data and hazard monitoring now stop waiting within a fixed time and recover on the next refresh."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公式データ元から応答がない場合、バス到着情報・台鉄のホーム情報・災害監視は一定時間で待機を終え、次の更新で復旧するようになりました。"
+          }
+        }
+      }
+    },
     "公車站牌": {
       "extractionState": "manual",
       "localizations": {
@@ -10184,6 +10337,23 @@
         }
       }
     },
+    "日文版的高雄環狀輕軌改用高雄捷運官方日文路線名「ライトレール環状線」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Japanese version now uses Kaohsiung MRT’s official Japanese line name for the Circular Light Rail."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日本語版で、高雄のライトレールの路線名を高雄MRT公式の「ライトレール環状線」に改めました。"
+          }
+        }
+      }
+    },
     "日出": {
       "extractionState": "manual",
       "localizations": {
@@ -11081,6 +11251,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台北メトロ公式のリアルタイムカウントダウン"
+          }
+        }
+      }
+    },
+    "北捷紅線與三鶯線的軌道改用官方最新線形，列車與車站沿更新後的路線行駛": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Taipei Metro Red Line and the Sanying Line now use the latest official track alignments, and trains and stations follow the updated routes."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台北メトロ レッドラインと三鶯線の線路を公式の最新線形に更新し、列車と駅が新しいルートに沿って表示されるようにしました。"
           }
         }
       }
@@ -12026,30 +12213,30 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung metro and light-rail systems run together. All nine Taipei Metro lines take train positions and station countdowns from the same official per-train live feed; Sanying and Taichung are estimated from headways."
+            "value": "Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung metro and light-rail systems run together, with service hours corrected by official live information. On all nine Taipei Metro lines, train positions and station countdowns come from official per-train live data; the Sanying Line and Taichung Metro use headway-based estimates. Choose systems above to show them together."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "台北・桃園・新北・台中・高雄のメトロとライトレールを同時表示します。台北メトロ全9路線は列車位置も駅の到着秒数も公式のリアルタイム情報です。三鶯線・台中メトロは運転間隔から推定します。"
+            "value": "台北・桃園・新北・台中・高雄のメトロとライトレールを同時表示し、運行時間帯は公式のリアルタイム情報で補正します。台北メトロ全9路線は列車位置も駅のカウントダウンも公式の列車ごとのリアルタイム情報です。三鶯線・台中メトロは運転間隔から推定します。上部で同時に表示する交通機関を選べます。"
           }
         }
       }
     },
-    "台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，北捷、新北捷與機捷營運時段依官方即時資訊校正（三鶯線、文湖線為班距推算）— 可在上方勾選要同時顯示的系統,拖曳、縮放地圖看看。": {
+    "台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線為班距推算）— 可在上方勾選要同時顯示的系統，拖曳、縮放地圖看看。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Taipei, New Taipei and Taoyuan metro systems run together. Supported lines use official live corrections; Sanying and Wenhu are estimated from headways. Choose systems above, then drag or zoom the map."
+            "value": "Taipei, New Taipei and Taoyuan metro systems run together, with service hours corrected by official live information. On all nine Taipei Metro lines, train positions and station countdowns come from official per-train live data; the Sanying Line uses headway-based estimates. Choose systems above, then drag or zoom the map."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "台北・新北・桃園のメトロを同時表示します。対応路線は公式リアルタイム情報で補正し、三鶯線と文湖線は運転間隔から推定します。上部で表示する交通機関を選び、地図をドラッグ・ズームできます。"
+            "value": "台北・新北・桃園のメトロを同時表示し、運行時間帯は公式のリアルタイム情報で補正します。台北メトロ全9路線は列車位置も駅のカウントダウンも公式の列車ごとのリアルタイム情報です。三鶯線は運転間隔から推定します。上部で表示する交通機関を選び、地図をドラッグ・ズームできます。"
           }
         }
       }
@@ -12173,6 +12360,40 @@
         }
       }
     },
+    "台南地面鐵道歷史重播：修正 App 裡點了打不開，網頁版下載量從約 11 MB 降到約 2 MB，開啟更快、全線視角更順": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tainan surface railway replay: fixed it not opening in the app; the web version now downloads about 2 MB instead of about 11 MB, so it opens faster and the full-line view runs more smoothly"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台南地上鉄道の歴史リプレイ：アプリで開けない問題を修正し、Web 版のダウンロード量を約 11 MB から約 2 MB に減らして、起動を速く、全線表示をなめらかにしました"
+          }
+        }
+      }
+    },
+    "台南地面鐵道歷史重播：修正 App 裡點了打不開；列車與站房模型改壓縮下載（內容不變），網頁版下載量從約 11 MB 降到約 2 MB，全線視角的繪製量也大幅減少": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tainan surface railway replay: fixed it not opening in the app; train and station models now download compressed (content unchanged), cutting the web download from about 11 MB to about 2 MB, and the full-line view draws far less"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台南地上鉄道の歴史リプレイ：アプリで開けない問題を修正。列車と駅舎のモデルを圧縮して配信し（内容は同じ）、Web 版のダウンロード量を約 11 MB から約 2 MB に削減、全線表示の描画量も大きく減らしました"
+          }
+        }
+      }
+    },
     "台電大樓": {
       "extractionState": "manual",
       "localizations": {
@@ -12254,6 +12475,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台鉄で10月3日から時刻が変わる14本も、3D地図ではこれまでと同じ線路を走ります"
+          }
+        }
+      }
+    },
+    "台鐵、高鐵、捷運與輕軌列車依官方時刻表與即時資料在地圖上跑動，可查車站班次、捷運路線與台鐵誤點。軌島 railisland.tw，一張會動的台灣鐵道地圖。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rail Island is a live animated map of Taiwan’s railways, from TRA and high-speed rail to metro and light rail."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島は、台湾鉄路・高速鉄道・各都市のメトロとライトレールを一枚の地図で表示する鉄道アニメーションです。"
           }
         }
       }
@@ -12815,6 +13053,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "台湾鉄路の遅延情報は非リアルタイムです：{time}時点のデータから推定・{n}本が遅延中"
+          }
+        }
+      }
+    },
+    "台鐵誤點列車經過平鎮附近時，會穩定維持前後車順序，減少在同一股道短暫重疊的畫面": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When delayed TRA trains pass near Pingzhen, they now keep a stable front-to-back order, reducing brief overlaps on the same track."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "平鎮付近を通る遅延した台鉄列車が前後関係を安定して保つようになり、同じ線路上で一時的に重なって見える場面を減らしました。"
           }
         }
       }
@@ -13733,6 +13988,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "集めた車両を見に行く"
+          }
+        }
+      }
+    },
+    "打開軌島一次，就會出現你的車站收集": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Rail Island once and your station collection will show up here."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島を一度開くと、ここに駅コレクションが表示されます。"
           }
         }
       }
@@ -15522,6 +15794,23 @@
         }
       }
     },
+    "立體地圖上台鐵列車在車站讓後車先過時，改停到旁邊的股道，後車不會再從停著的車身穿過去": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On the 3D map, TRA trains that wait at a station for a following train to pass now pull onto another track, so the passing train no longer drives right through the waiting one"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D マップで、台鉄の列車が駅で後続列車の通過を待つときは隣の線路に停まるようになり、後続列車が停車中の列車を突き抜けて走ることがなくなりました"
+          }
+        }
+      }
+    },
     "立體地圖的高架橋不再跟著地形起伏，橋面、護欄與橋墩也畫得像真的高架橋": {
       "extractionState": "manual",
       "localizations": {
@@ -15603,6 +15892,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "立体地図で列車を追跡しているとき、沿線の建物を更新するたびの計算量をさらに半分にしました。"
+          }
+        }
+      }
+    },
+    "立體建築剛出現的縮放範圍內，切換亮暗外觀後會保留「透視顯示」的透明度，不再突然變得不透明": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At the zoom level where 3D buildings first appear, switching light or dark mode now keeps the selected See-through opacity instead of making buildings suddenly more opaque."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立体建物が表示され始めるズーム域で明暗テーマを切り替えても、選んだ「透視」の透明度を保ち、建物が急に不透明にならないようにしました。"
           }
         }
       }
@@ -15909,6 +16215,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "一日の運行本数"
+          }
+        }
+      }
+    },
+    "全台": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Taiwan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾全体"
           }
         }
       }
@@ -16916,19 +17239,19 @@
         }
       }
     },
-    "各線列車依當日實際時刻表在城市裡穿梭，營運時段依官方到站看板即時校正（含環狀線；文湖線為班距推算）— 拖曳、縮放看看。": {
+    "各線列車在城市裡穿梭，列車位置與車站倒數都是官方逐班即時（含文湖線、環狀線）— 拖曳、縮放看看。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Trains follow today’s timetable. Taipei Metro and the Circular Line use official live arrival-board corrections; the Wenhu Line is estimated from headways."
+            "value": "Trains on every line run across the city, and their positions and station countdowns come from official per-train live data, Wenhu and Circular lines included. Drag or zoom the map to take a look."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "各路線は当日の時刻表で運行します。台北メトロと環状線は公式到着案内でリアルタイム補正し、文湖線は運転間隔から推定します。"
+            "value": "各線の列車が街を行き交います。列車位置も駅のカウントダウンも、文湖線・環状線を含め公式の列車ごとのリアルタイム情報です。地図をドラッグ・ズームしてみてください。"
           }
         }
       }
@@ -17834,6 +18157,23 @@
         }
       }
     },
+    "地圖上站名旁邊的機場名稱也不再跟站名疊在一起，例如松山機場站旁的「臺北松山機場」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Airport names on the map no longer overlap the station labels next to them either, such as “Taipei Songshan Airport” beside Songshan Airport Station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地図で駅名のすぐ横に出ていた空港名（松山機場駅の横の「臺北松山機場」など）も、駅名と重なって表示されなくなりました"
+          }
+        }
+      }
+    },
     "地圖引擎預設改為 MapLibre：所有人打開都是可旋轉、傾斜、開 3D 建築的向量地圖，跟隨列車時行進方向朝上。": {
       "extractionState": "manual",
       "localizations": {
@@ -18323,6 +18663,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "実績バッジ"
+          }
+        }
+      }
+    },
+    "收": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "C"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "収"
           }
         }
       }
@@ -20384,6 +20741,23 @@
         }
       }
     },
+    "即將發車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Departing soon"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まもなく発車"
+          }
+        }
+      }
+    },
     "即將進站": {
       "extractionState": "manual",
       "localizations": {
@@ -21213,6 +21587,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "自宅・職場・撮影地点を保存し、近くを通る列車を確認します。"
+          }
+        }
+      }
+    },
+    "把旅程護照的「車站 N 座」放上主畫面：點陣照真實位置排成台灣鐵道網，收過的站亮起線色。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Put the station count from your travel passport on your Home Screen. Dots placed at real locations form Taiwan's rail network, and stations you have collected light up in their line colors."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旅のパスポートの駅数をホーム画面に。実際の位置に並んだ点が台湾の鉄道網を描き、集めた駅が路線の色で光ります。"
           }
         }
       }
@@ -22182,6 +22573,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "駅コレクション"
+          }
+        }
+      }
+    },
+    "車站收集（鎖定畫面）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station collection (Lock Screen)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅コレクション（ロック画面）"
+          }
+        }
+      }
+    },
+    "車站收集小工具": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station collection widget"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅コレクションウィジェット"
           }
         }
       }
@@ -23219,6 +23644,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "阿里山森林鉄道の公式時刻表（リアルタイム情報なし）"
+          }
+        }
+      }
+    },
+    "依既有路網與站場圖重新整理台鐵列車的行車方向、停靠與進出股道安排，讓更多對向、同時進站、停靠或通過的列車分開使用可用股道，減少共用同一股、停在同一位置或互相穿過的畫面": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Using the existing railway and station layouts, TRA running directions, stopping tracks and station approaches were reorganised so more opposing, arriving, stopped and passing trains use separate available tracks, reducing shared-track conflicts, overlaps and visual pass-throughs."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "既存の路線網と駅構内図に基づき、台鉄列車の進行方向、停車番線、進入・退出経路を見直しました。対向列車や同時に進入・停車・通過する列車が別々の線路を使いやすくなり、同一線路の共有、重なり、すり抜けを減らしました。"
           }
         }
       }
@@ -24273,6 +24715,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "公式の設計・車両資料"
+          }
+        }
+      }
+    },
+    "官方資料暫時中斷，沿用最後一次官方位置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official data is temporarily unavailable; using the last official position"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公式データが一時中断しているため、最後の公式位置を使用しています"
           }
         }
       }
@@ -26143,6 +26602,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "社頭"
+          }
+        }
+      }
+    },
+    "空心＝跟完": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hollow = Followed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "白抜き＝追跡完了"
           }
         }
       }
@@ -29105,6 +29581,40 @@
         }
       }
     },
+    "看你收集了幾成全台鐵道車站。點陣照車站的真實位置排出鐵道網，收集過的站亮起線色；範圍可選全台或單一系統。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See how many rail stations across Taiwan you have collected. Dots sit at each station's real location and light up in line colors as you collect them; choose all of Taiwan or a single system."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾の鉄道駅をどれだけ集めたかを表示します。ドットは各駅の実際の位置に並び、集めた駅は路線カラーで光ります。範囲は台湾全体または単一の路線から選べます。"
+          }
+        }
+      }
+    },
+    "看你收集了幾成鐵道車站；範圍可選全台或單一系統。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See how many rail stations you have collected. Choose all of Taiwan or a single system."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鉄道駅をどれだけ集めたかを表示します。範囲は台湾全体または単一の路線から選べます。"
+          }
+        }
+      }
+    },
     "看完整說明": {
       "extractionState": "manual",
       "localizations": {
@@ -30278,23 +30788,6 @@
         }
       }
     },
-    "軌島 railisland.tw。看台鐵此刻準點嗎、捷運怎麼穿梭全台，一張會動的台灣鐵道地圖。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rail Island is a live animated map of Taiwan’s railways, from TRA and high-speed rail to metro and light rail."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "軌島は、台湾鉄路・高速鉄道・各都市のメトロとライトレールを一枚の地図で表示する鉄道アニメーションです。"
-          }
-        }
-      }
-    },
     "軌島・等車中": {
       "extractionState": "manual",
       "localizations": {
@@ -30308,6 +30801,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "軌島・列車待ち"
+          }
+        }
+      }
+    },
+    "軌島｜台鐵、高鐵、捷運即時列車地圖與時刻表": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rail Island | Taiwan Live Train Map & Timetables: TRA, HSR, Taipei MRT, Airport MRT"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軌島｜台湾鉄道ライブ地図と時刻表：台鉄・台湾新幹線・台北MRT・桃園空港MRT"
           }
         }
       }
@@ -30805,6 +31315,23 @@
         }
       }
     },
+    "重新整理台鐵列車的行車方向與車站股道安排，減少對向共用同一股，以及列車在站內重疊或互穿的畫面": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refined TRA running directions and station track assignments, reducing opposite-direction track sharing and visual overlaps or pass-throughs inside stations."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台鉄列車の進行方向と駅構内の番線割り当てを見直し、対向列車の同一線路利用や、駅構内での重なり・すり抜けを減らしました。"
+          }
+        }
+      }
+    },
     "重播": {
       "extractionState": "manual",
       "localizations": {
@@ -31179,6 +31706,23 @@
         }
       }
     },
+    "修正少數台鐵列車在車站空等不存在的後車，或出站後異常慢行的問題": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed a few TRA trains waiting at stations for a following train that was not there, or crawling after departure"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一部の台鉄列車が来ない後続列車を駅で待ったり、発車後に不自然に遅く走ったりする問題を修正しました"
+          }
+        }
+      }
+    },
     "修正文湖線南港展覽館站的停車位置，列車會停在站體內的直線月台，不再停在西側彎道": {
       "extractionState": "manual",
       "localizations": {
@@ -31481,6 +32025,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "板橋など地下駅で高鐵の車両が一両ずつ折れ曲がり、地上と地下を跳ねる問題を修正"
+          }
+        }
+      }
+    },
+    "修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improved passing estimates for some long-distance TRA trains by using the leading train’s scheduled stop, reducing unnecessary extra waits followed by overtaking between stations."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一部の台鉄長距離列車の待避推定を修正しました。先行列車の予定停車時間を優先して使い、余分な待避の後に駅間で再び追い越す表示を減らします。"
           }
         }
       }
@@ -34460,6 +35021,23 @@
         }
       }
     },
+    "逆行": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Counterclockwise"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "反時計回り"
+          }
+        }
+      }
+    },
     "配樂情境": {
       "extractionState": "manual",
       "localizations": {
@@ -34766,6 +35344,23 @@
         }
       }
     },
+    "高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaohsiung LRT arrival boards now separate clockwise and counterclockwise services and show stops along the way, instead of labelling everything as bound for Lizihnei and hiding services in the other direction."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高雄ライトレールの到着案内で時計回り・反時計回りを分け、経由駅を表示します。すべてが籬仔内行きと表示されたり、反対方向の便が隠れたりしなくなりました。"
+          }
+        }
+      }
+    },
     "高雄輕軌的五節車身重新對齊，近看不再一節高、一節低": {
       "extractionState": "manual",
       "localizations": {
@@ -34779,6 +35374,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "高雄ライトレールの5つの連接車体を揃え、近くで見たときに車体が交互に上下しなくなりました。"
+          }
+        }
+      }
+    },
+    "高雄輕軌發車前先在籬仔內等候，發車後沿用同一班身分；衛星位置確認屬於同一班才校正，否則依官方倒數逐站推算": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaohsiung LRT trains now wait at Lizihnei before departure and keep the same trip identity after leaving. GPS positions are applied only after confirming they belong to that official trip; otherwise positions are estimated from official countdowns."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高雄ライトレールは発車前に籬仔内で待機し、発車後も同じ便の識別を保ちます。GPS 位置は公式の便と同一だと確認できた場合だけ補正に使い、それ以外は公式カウントダウンから順に推定します。"
           }
         }
       }
@@ -36568,6 +37180,23 @@
         }
       }
     },
+    "捷運路線圖": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metro maps"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロ路線図"
+          }
+        }
+      }
+    },
     "捷運與輕軌": {
       "extractionState": "manual",
       "localizations": {
@@ -36598,6 +37227,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "メトロとライトレールの複線を右側通行に修正し、往路と復路がそれぞれ正しい線路を走るようになりました。これまでは多くの路線で両方向が左右逆に描かれていました。"
+          }
+        }
+      }
+    },
+    "捷運導言更正：「北北桃」與台北捷運的地圖導言，也改成台北捷運各線（含文湖線）的列車位置與車站倒數都來自官方逐班即時資料，不再把文湖線寫成班距推算": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metro intro corrected: the Greater Taipei & Taoyuan and Taipei Metro map intros now also say that train positions and station countdowns on every Taipei Metro line, including the Wenhu Line, come from official per-train live data, and no longer describe the Wenhu Line as estimated from headways."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロの説明文を訂正：「台北・新北・桃園」と台北メトロの地図の説明文でも、文湖線を含む台北メトロ全路線の列車位置と駅のカウントダウンは公式の列車ごとのリアルタイム情報と記載し、文湖線を運転間隔からの推定とは書かないようにしました。"
           }
         }
       }
@@ -40155,6 +40801,23 @@
         }
       }
     },
+    "最近蓋章": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent stamps"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最近のスタンプ"
+          }
+        }
+      }
+    },
     "最長一趟": {
       "extractionState": "manual",
       "localizations": {
@@ -43215,6 +43878,23 @@
         }
       }
     },
+    "順行": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clockwise"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時計回り"
+          }
+        }
+      }
+    },
     "順序": {
       "extractionState": "manual",
       "localizations": {
@@ -44507,6 +45187,40 @@
         }
       }
     },
+    "新增捷運路線圖頁：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New metro map pages for Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung: stations, transfers and first and last trains for every line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台北・桃園・新北・台中・高雄のメトロ路線図ページを追加しました。各路線の駅、乗り換え、始発・終電を確認できます"
+          }
+        }
+      }
+    },
+    "新增捷運路線圖頁（中、英、日文）：台北、桃園機場、新北、台中、高雄各系統與每條路線的路線圖、車站與轉乘、首末班車和班距，資料來源沒有逐班時刻表的路線只列營運時段與班距；頁面可一鍵在地圖上看列車，頁尾與手機版「更多」新增「捷運路線圖」入口": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New metro map pages in Chinese, English and Japanese for Taipei, Taoyuan Airport, New Taipei, Taichung and Kaohsiung: a route map, stations and transfers, first and last trains and headways for every line (lines with no train-by-train timetable in the data sources list only operating hours and headways). Each page has a button that opens the trains on the live map, and the footer and the mobile \"More\" menu have a new \"Metro maps\" link."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台北・桃園空港・新北・台中・高雄の各システムと各路線について、路線図、駅と乗り換え、始発・終電、運転間隔をまとめたページを中国語・英語・日本語で追加しました（データソースに列車ごとの時刻表がない路線は運行時間帯と運転間隔のみ掲載）。各ページのボタンからライブ地図の列車を開けます。ページ下部とスマートフォン版の「その他」にも「メトロ路線図」へのリンクを追加しました。"
+          }
+        }
+      }
+    },
     "新增路線導覽與精選取景：沿線找站、點站看班次；空白搜尋也有可點的範例": {
       "extractionState": "manual",
       "localizations": {
@@ -45166,6 +45880,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "萬栄"
+          }
+        }
+      }
+    },
+    "經 {stations}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Via {stations}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{stations} 経由"
           }
         }
       }
@@ -45880,6 +46611,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "情報"
+          }
+        }
+      }
+    },
+    "跟一班車到終點，或到車站打卡就會蓋章": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow a train to its last stop or check in at a station to get a stamp."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車を終点まで追うか、駅でチェックインするとスタンプが押されます。"
           }
         }
       }
@@ -47244,6 +47992,23 @@
         }
       }
     },
+    "實心＝搭過／到訪": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solid = Travelled / Visited"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "塗り＝乗車済み／訪問済み"
+          }
+        }
+      }
+    },
     "實際到站時間請以各公車業者官方資訊為準": {
       "extractionState": "manual",
       "localizations": {
@@ -47682,6 +48447,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "台中メトロ緑線は列車ごとの公開時刻表がないため、公式の運転間隔と始発・終電時刻から推定します。"
+          }
+        }
+      }
+    },
+    "網頁版首次開啟固定顯示繁體中文；英文、日文瀏覽器會出現可一鍵切換的語言提示": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On the web, the first visit now always opens in Traditional Chinese; English and Japanese browsers get a small one-tap language prompt"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Web 版は初回起動を常に繁体字中国語で表示し、英語・日本語のブラウザには 1 タップで切り替えられる言語のお知らせを表示します"
+          }
+        }
+      }
+    },
+    "網頁版第一次開啟固定顯示繁體中文，不再依瀏覽器語言自動切換；英文或日文瀏覽器會出現一個小提示，按一下就能切換語言，也能關掉不再提示（App 仍依手機語言）。另新增英文與日文的獨立介紹頁，方便外國旅客搜尋到軌島": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On the web, the first visit now always opens in Traditional Chinese instead of switching automatically to the browser language. English and Japanese browsers see a small prompt that switches language in one tap and can be dismissed for good (the app still follows the phone language). We also added standalone English and Japanese intro pages so travellers can find Rail Island in search."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Web 版は初回起動時にブラウザの言語へ自動で切り替えず、常に繁体字中国語で開くようにしました。英語・日本語のブラウザには、1 タップで言語を切り替えられる小さなお知らせが表示され、閉じれば二度と表示されません（アプリは従来どおり端末の言語に従います）。あわせて、海外からの旅行者が検索で見つけやすいよう、英語版・日本語版の紹介ページを追加しました。"
+          }
+        }
+      }
+    },
+    "網頁標題與搜尋結果說明寫清楚：台鐵、高鐵、捷運即時地圖與時刻表": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The page title and search description now say it plainly: a live map and timetables for TRA, high-speed rail and metro"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ページタイトルと検索結果の説明を、台鉄・高鉄・メトロのライブ地図と時刻表だとわかる表現にしました"
           }
         }
       }
@@ -49131,6 +49947,23 @@
         }
       }
     },
+    "數字跟旅程護照的「車站 N 座」是同一個：跟完、搭過、到訪都算。地圖上實心是搭過或到訪、空心是跟完；在 App 裡蓋章後小工具會跟著更新。這項不需要通行證。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The number matches the station count in your travel passport: followed, travelled and visited stamps all count. On the map, solid dots are travelled or visited and hollow rings are followed. The widget updates after you collect a stamp in the app. No pass is required."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数字は旅のパスポートの駅数と同じです。追跡完了・乗車済み・訪問済みのスタンプをすべて数えます。地図では塗りつぶしが乗車済みまたは訪問済み、白抜きが追跡完了です。アプリでスタンプを押すとウィジェットも更新されます。軌島パスは不要です。"
+          }
+        }
+      }
+    },
     "暫時收不到定位；請讓 App 留在前景並把手機靠窗。": {
       "extractionState": "manual",
       "localizations": {
@@ -49654,6 +50487,210 @@
           "stringUnit": {
             "state": "translated",
             "value": "添付する情報を確認する（各項目を個別にオフにできます）"
+          }
+        }
+      }
+    },
+    "範圍": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scope"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "範囲"
+          }
+        }
+      }
+    },
+    "範圍・三鶯": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sanying"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "三鶯"
+          }
+        }
+      }
+    },
+    "範圍・中捷": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taichung"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台中"
+          }
+        }
+      }
+    },
+    "範圍・北捷": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taipei"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台北"
+          }
+        }
+      }
+    },
+    "範圍・台鐵": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台鉄"
+          }
+        }
+      }
+    },
+    "範圍・全台": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Taiwan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾全体"
+          }
+        }
+      }
+    },
+    "範圍・安坑": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ankeng"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安坑"
+          }
+        }
+      }
+    },
+    "範圍・林鐵": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alishan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "阿里山"
+          }
+        }
+      }
+    },
+    "範圍・高捷": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaohsiung"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高雄"
+          }
+        }
+      }
+    },
+    "範圍・高鐵": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "THSR"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高鉄"
+          }
+        }
+      }
+    },
+    "範圍・淡海": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Danhai"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "淡海"
+          }
+        }
+      }
+    },
+    "範圍・機捷": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Airport"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空港"
           }
         }
       }
@@ -51120,6 +52157,40 @@
         }
       }
     },
+    "選「車站收集」，有小、中兩種尺寸；長按小工具 →「編輯小工具」可以把範圍換成單一系統（台鐵、北捷、高捷……）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Station collection, in small or medium size. Touch and hold the widget, then Edit Widget to switch to a single system (TRA, Taipei Metro, Kaohsiung Metro…)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「駅コレクション」を選びます。サイズは小・中の2種類。ウィジェットを長押しして「ウィジェットを編集」から、1つの路線網（台鉄、台北メトロ、高雄メトロ…）に切り替えられます"
+          }
+        }
+      }
+    },
+    "選「車站收集」，有小、中兩種尺寸；範圍預設是全台，之後長按小工具開啟設定，就能換成單一系統（台鐵、北捷、高捷……）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Station collection, in small or medium size. The scope starts as all of Taiwan; later, touch and hold the widget to open its settings and switch it to a single system (TRA, Taipei Metro, Kaohsiung Metro…)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「駅コレクション」を選びます。サイズは小・中の2種類。範囲は最初は台湾全体で、あとからウィジェットを長押しして設定を開くと、1つの路線網（台鉄、台北メトロ、高雄メトロ…）に切り替えられます"
+          }
+        }
+      }
+    },
     "選「捷運看板」、「發車看板」或「鐵路＋捷運雙看板」，再挑要看的車站": {
       "extractionState": "manual",
       "localizations": {
@@ -52390,7 +53461,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ライトレール"
+            "value": "ライトレール環状線"
           }
         }
       }
@@ -52769,6 +53840,23 @@
         }
       }
     },
+    "還有 {n} 個系統還沒去過": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Systems not visited yet: {n}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未訪問の路線：{n}"
+          }
+        }
+      }
+    },
     "還有 {n} 個站牌": {
       "extractionState": "manual",
       "localizations": {
@@ -52782,6 +53870,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "あと{n}件のバス停"
+          }
+        }
+      }
+    },
+    "還有 {n} 座": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{n} to go"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り{n}駅"
           }
         }
       }
@@ -52833,6 +53938,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "大きな「鉄道＋メトロ案内」では台湾鉄路、高鉄、メトロの発車情報をまとめて表示します。押すと軌島でその駅を開きます。"
+          }
+        }
+      }
+    },
+    "還沒有收集的車站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No stations collected yet"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだ集めた駅がありません"
           }
         }
       }
@@ -52973,6 +54095,23 @@
         }
       }
     },
+    "鍵盤操作更完整：開啟面板會直接選到有名稱的關閉鈕，按 Esc 可關閉；公車搜尋、最愛車站與誤點履歷都能用 Tab 選到，桌面時鐘也能點開資料狀態": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keyboard access is more complete: opening a panel moves focus to its named Close button, and Escape closes it. Bus search results, favourite stations and delay history can all be reached with Tab. The desktop clock now opens Data status when clicked."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーボード操作を改善しました。パネルを開くと名前のある「閉じる」ボタンに移動し、Escで閉じられます。バス停の検索結果・お気に入り駅・遅延履歴はTabで選べます。デスクトップの時計からデータ状況も開けます。"
+          }
+        }
+      }
+    },
     "隱私": {
       "extractionState": "manual",
       "localizations": {
@@ -53088,6 +54227,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "「収集を始める」を押し、始発から終点まで追いかけます"
+          }
+        }
+      }
+    },
+    "點小工具會打開旅程護照": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap the widget to open your travel passport"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェットをタップすると旅のパスポートが開きます"
           }
         }
       }
@@ -54057,6 +55213,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "ロック画面：ロック画面を長押し →「カスタマイズ」→ ウィジェットを追加（ロック画面に置けるのは今のところ「発車案内」だけです）"
+          }
+        }
+      }
+    },
+    "鎖定畫面也放得下，顯示收集百分比與進度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It also fits on the Lock Screen, showing your collection percentage and progress"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ロック画面にも置けます。収集率と進み具合を表示します"
           }
         }
       }
@@ -55740,6 +56913,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "アプリの使い方にあるウィジェットのページを紹介ページにしました：各ウィジェットの実際の画面プレビューとサイズを掲載し、Android では「ホーム画面に追加」を押すだけでホーム画面にピン留めできます"
+          }
+        }
+      }
+    },
+    "App 鎖定畫面跟車卡：Android 補上小列車、iPhone 改成三節車廂，從車站看板追下一班車時卡片會立刻出現": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App lock-screen follow card: Android now shows the little train, iPhone shows three cars, and following the next train from a station board opens the card right away."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリのロック画面の追跡カード：Android でも小さな列車を表示し、iPhone は3両編成に。駅の発車案内から次の列車を追うと、カードがすぐに表示されます。"
           }
         }
       }

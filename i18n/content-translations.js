@@ -3560,3 +3560,18 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '車站時刻表頁擴大到全部台鐵車站：每站列出兩週內每一班的開車時刻與行駛日；瑞芳、十分、菁桐等 7 站另有英日文，車站索引依縣市分組': '駅の時刻表ページを台鉄の全駅に拡大：各駅で2週間分の列車ごとの発車時刻と運転日を掲載。瑞芳・十分・菁桐など7駅は英語・日本語ページもあり、駅の索引は県市別にまとめています。',
   '車站時刻表頁擴大到兩週內有列車停靠的全部 239 個台鐵車站（新增 221 站，中文）：依方向列出每一班的開車時刻、終點與行駛日；瑞芳、十分、菁桐、礁溪、福隆、集集、知本另有英日文頁；車站索引依縣市列出全部台鐵車站': '駅の時刻表ページを、2週間のデータで列車が停車する台鉄の全239駅に拡大（新たに221駅、繁体字中国語）：方面別に列車ごとの発車時刻・行き先・運転日を掲載。瑞芳・十分・菁桐・礁渓・福隆・集集・知本は英語・日本語ページもあり、駅の索引は台鉄の全駅を県市別に載せています。',
 });
+
+// 說明中心「車站收集小工具」一節（2026-09-30）
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"車站收集小工具": "Station collection widget", "收": "C", "把旅程護照的「車站 N 座」放上主畫面：點陣照真實位置排成台灣鐵道網，收過的站亮起線色。": "Put the station count from your travel passport on your Home Screen. Dots placed at real locations form Taiwan's rail network, and stations you have collected light up in their line colors.", "選「車站收集」，有小、中兩種尺寸；長按小工具 →「編輯小工具」可以把範圍換成單一系統（台鐵、北捷、高捷……）": "Choose Station collection, in small or medium size. Touch and hold the widget, then Edit Widget to switch to a single system (TRA, Taipei Metro, Kaohsiung Metro…)", "鎖定畫面也放得下，顯示收集百分比與進度": "It also fits on the Lock Screen, showing your collection percentage and progress", "點小工具會打開旅程護照": "Tap the widget to open your travel passport", "數字跟旅程護照的「車站 N 座」是同一個：跟完、搭過、到訪都算。地圖上實心是搭過或到訪、空心是跟完；在 App 裡蓋章後小工具會跟著更新。這項不需要通行證。": "The number matches the station count in your travel passport: followed, travelled and visited stamps all count. On the map, solid dots are travelled or visited and hollow rings are followed. The widget updates after you collect a stamp in the app. No pass is required.", "車站收集（鎖定畫面）": "Station collection (Lock Screen)"});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"車站收集小工具": "駅コレクションウィジェット", "收": "収", "把旅程護照的「車站 N 座」放上主畫面：點陣照真實位置排成台灣鐵道網，收過的站亮起線色。": "旅のパスポートの駅数をホーム画面に。実際の位置に並んだ点が台湾の鉄道網を描き、集めた駅が路線の色で光ります。", "選「車站收集」，有小、中兩種尺寸；長按小工具 →「編輯小工具」可以把範圍換成單一系統（台鐵、北捷、高捷……）": "「駅コレクション」を選びます。サイズは小・中の2種類。ウィジェットを長押しして「ウィジェットを編集」から、1つの路線網（台鉄、台北メトロ、高雄メトロ…）に切り替えられます", "鎖定畫面也放得下，顯示收集百分比與進度": "ロック画面にも置けます。収集率と進み具合を表示します", "點小工具會打開旅程護照": "ウィジェットをタップすると旅のパスポートが開きます", "數字跟旅程護照的「車站 N 座」是同一個：跟完、搭過、到訪都算。地圖上實心是搭過或到訪、空心是跟完；在 App 裡蓋章後小工具會跟著更新。這項不需要通行證。": "数字は旅のパスポートの駅数と同じです。追跡完了・乗車済み・訪問済みのスタンプをすべて数えます。地図では塗りつぶしが乗車済みまたは訪問済み、白抜きが追跡完了です。アプリでスタンプを押すとウィジェットも更新されます。軌島パスは不要です。", "車站收集（鎖定畫面）": "駅コレクション（ロック画面）"});
+
+// 說明中心「車站收集小工具」一節補充（2026-09-30）：Android 的範圍那一步照實際流程改寫（預設全台、之後長按小工具開設定換範圍），
+// 兩個平台各補一步「蓋章」鈕。上一組裡舊的 Android 範圍那一步（「加入時可以選全台或單一系統」）的 en／ja 已拿掉。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '選「車站收集」，有小、中兩種尺寸；範圍預設是全台，之後長按小工具開啟設定，就能換成單一系統（台鐵、北捷、高捷……）': 'Choose Station collection, in small or medium size. The scope starts as all of Taiwan; later, touch and hold the widget to open its settings and switch it to a single system (TRA, Taipei Metro, Kaohsiung Metro…)',
+  '小、中尺寸上有「蓋章」鈕：按一下會打開軌島，直接在附近的車站蓋章；附近有好幾座車站時，讓你選要蓋哪一座': 'The small and medium sizes have a “Stamp” button. Tap it to open Rail Island and stamp a nearby station right away; if several stations are nearby, you pick which one',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '選「車站收集」，有小、中兩種尺寸；範圍預設是全台，之後長按小工具開啟設定，就能換成單一系統（台鐵、北捷、高捷……）': '「駅コレクション」を選びます。サイズは小・中の2種類。範囲は最初は台湾全体で、あとからウィジェットを長押しして設定を開くと、1つの路線網（台鉄、台北メトロ、高雄メトロ…）に切り替えられます',
+  '小、中尺寸上有「蓋章」鈕：按一下會打開軌島，直接在附近的車站蓋章；附近有好幾座車站時，讓你選要蓋哪一座': '小・中サイズには「スタンプ」ボタンがあります。タップすると軌島が開き、近くの駅でそのままスタンプできます。近くに駅が複数あるときは、スタンプする駅を選べます',
+});

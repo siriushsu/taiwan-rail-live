@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 車站收集小工具：進度條的底色（與地圖上「未收集」的灰同一組，見 CollectionMapRender.OFF_*）。
+     🔴 要改灰階，兩邊一起改：這裡與 CollectionMapRender 的 OFF_LIGHT／OFF_DARK。 -->
+<resources>
+    <color name="wg_collect_off">#D2D2D2</color>
+</resources>
