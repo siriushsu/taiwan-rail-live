@@ -4778,23 +4778,6 @@
         }
       }
     },
-    "三鶯": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sanying Line"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "三鶯線"
-          }
-        }
-      }
-    },
     "三鶯線": {
       "extractionState": "manual",
       "localizations": {
@@ -7987,23 +7970,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "中原"
-          }
-        }
-      }
-    },
-    "中捷": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Taichung Metro"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "台中メトロ"
           }
         }
       }
@@ -18480,23 +18446,6 @@
         }
       }
     },
-    "安坑": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ankeng LRT"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "安坑ライトレール"
-          }
-        }
-      }
-    },
     "安坑輕軌": {
       "extractionState": "manual",
       "localizations": {
@@ -26364,23 +26313,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "林辺"
-          }
-        }
-      }
-    },
-    "林鐵": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Alishan Forest Railway"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "阿里山林業鉄道"
           }
         }
       }
@@ -35191,23 +35123,6 @@
         }
       }
     },
-    "高捷": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kaohsiung Metro"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "高雄メトロ"
-          }
-        }
-      }
-    },
     "高雄": {
       "extractionState": "manual",
       "localizations": {
@@ -37941,23 +37856,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "淡金鄧公"
-          }
-        }
-      }
-    },
-    "淡海": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Danhai LRT"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "淡海ライトレール"
           }
         }
       }
@@ -51694,23 +51592,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "1970年登場のオレンジ色の機関車牽引指定席列車で、運転本数は減少しています。"
-          }
-        }
-      }
-    },
-    "機捷": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Airport MRT"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "空港MRT"
           }
         }
       }
