@@ -34,6 +34,8 @@
 //   C14 護照車站牆：台北與台中兩枚「市政府」三語都分得出城市（字與 title），3 個一般站＋1 個共構站的名字不變
 //   C15 通行證（pass）、鐵路站看板（station）、捷運等車卡（沒有 view）三種深連結，桌面與手機都讓首次說明卡讓位：
 //       說明卡收起來、旗標仍是 null、面板真的開了且中心點命中面板自己、看板開的是事件指名的那一站
+//   C16 說明中心「車站收集小工具」一節（三語 × Android／iOS）：Android 有「範圍預設全台、之後長按小工具重新設定」那一步、iOS 有「編輯小工具」那一步、
+//       兩個平台都有蓋章鈕那一步（逐字、不寫位置）；英文沒有漏翻、日文是日文、沒有水平捲動
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -94,20 +96,21 @@ const browser = await (ENGINE === 'webkit' ? webkit : chromium).launch({ headles
 const pageErrors = [];
 // howto：'seen'＝已看過（旗標寫 1）、'unseen'＝沒看過（旗標不寫，首次說明卡會在開機時跳出來）。
 // deny：開機前就讓定位替身回「權限被拒」（開機時的第一次 watch 就失敗，之後每次重試也失敗）。
-async function open({ tag, seed = {}, howto = 'seen', mobile = false, deny = false }) {
+async function open({ tag, seed = {}, howto = 'seen', mobile = false, deny = false, platform = null }) {
   await guardMidnight();
   const ctx = await browser.newContext({ ...(mobile ? { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 800 } }), locale: 'zh-TW', timezoneId: 'Asia/Taipei' });
-  await ctx.addInitScript(({ seed, howto, deny }) => {
+  await ctx.addInitScript(({ seed, howto, deny, platform }) => {
     if (howto === 'seen') { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} }
     if (!sessionStorage.getItem('__seeded')) { sessionStorage.setItem('__seeded', '1'); for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, v); }
     const listeners = window.__mwListeners = {};
     window.__mwFire = (name, evt) => (listeners[name] || []).forEach(fn => fn(evt));
-    window.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'ios', Plugins: {} };
+    window.Capacitor = { isNativePlatform: () => true, getPlatform: () => platform || 'ios', Plugins: {} };
     window.RAIL_NATIVE_COLLECTION = { sync() { return Promise.resolve(); } };
     window.Capacitor.Plugins.RailMetroWait = {
       start: async () => ({ ok: true }), stop: async () => ({ ok: true }), status: async () => ({ active: false }), setPlus: async () => ({}),
       addListener: (name, fn) => { (listeners[name] = listeners[name] || []).push(fn); return { remove() {} }; },
     };
+    if (platform) window.Capacitor.Plugins.RailWidget = { pinSupported: async () => ({ supported: true }), pin: async () => ({ requested: true }) };
     // 定位替身：watchPosition 記下 callback；emit(lat, lon, acc, spec) 送一筆。spec：{ ago } 幾毫秒前算出的、{ sec } 時間戳給秒、{ none } 沒有時間戳。
     const geo = window.__geo = { cb: null, deny, calls: 0 };
     geo.emit = (lat, lon, acc, spec) => {
@@ -130,7 +133,7 @@ async function open({ tag, seed = {}, howto = 'seen', mobile = false, deny = fal
       new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) { const s = (n.textContent || '').trim(); if (s) window.__toasts.push(s); } })
         .observe(el, { childList: true }); // 每則 toast 是 #toasts 底下新增的一個 div.toast（innerHTML＝訊息）
     });
-  }, { seed, howto, deny });
+  }, { seed, howto, deny, platform });
   const page = await ctx.newPage();
   page.on('pageerror', e => pageErrors.push(`[${tag}] ${e}`));
   await page.goto(BASE + '?gltracks=0');
@@ -242,8 +245,11 @@ async function multiAndHowto(tag, mobile) {
   ok(`${tag} 沒有「蓋章成功」toast`, !(await toasts(page)).some(x => x.startsWith('蓋章成功')));
   // 真滑鼠：先證明點得到（命中自己），再點，量狀態改變
   const sel = '#nearCard .nx-ck[data-st="thsr_sched|台北"]';
-  await page.locator(sel).scrollIntoViewIfNeeded();
-  const box = await page.locator(sel).boundingBox();
+  // 鈕不存在或捲不進畫面（Playwright 預設會等 30 秒才逾時、整支腳本崩潰）：縮短等待，逾時記成這一條紅，其餘區塊照跑、總表照印
+  let box = null, boxWhy = '';
+  try { await page.locator(sel).scrollIntoViewIfNeeded({ timeout: 8000 }); box = await page.locator(sel).boundingBox({ timeout: 2000 }); } catch (e) { boxWhy = String(e.message || e).split('\n')[0].slice(0, 120); }
+  ok(`${tag} 前提：那顆鈕捲得進畫面、有位置可點（逾時或量不到位置＝紅，腳本不崩潰）`, !!box, boxWhy);
+  if (!box) { await ctx.close(); return; }
   const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
   const hitSelf = await page.evaluate(([x, yy, s]) => { const e = document.elementFromPoint(x, yy), b = document.querySelector(s); return !!(e && b && (e === b || b.contains(e))) && !b.disabled; }, [cx, cy, sel]);
   ok(`${tag} 前提：那顆鈕在畫面上、可點、點下去命中的就是它（沒被說明卡蓋住）`, hitSelf, `(${Math.round(cx)},${Math.round(cy)})`);
@@ -551,6 +557,53 @@ for (const mobile of [false, true]) {
     await ctx.close();
   }
 }
+
+// ── C16 說明中心「車站收集小工具」一節：三語 × 兩平台 ──────────────────────────────────
+// 這一節的步驟隨平台（Capacitor.getPlatform）與語言變，畫面上的文字就是使用者讀到的東西；期望值手寫逐字，不從頁面的字典取。
+// Android：範圍預設是全台，之後長按小工具重新設定才換成單一系統（小工具宣告了可重新設定、設定頁可略過）；
+// iOS：長按小工具 →「編輯小工具」換範圍；兩個平台的小、中尺寸都有「蓋章」鈕（步驟不寫按鈕在卡片的哪個位置，位置由各平台自己畫）。
+const HELP_SCOPE = {
+  android: {
+    'zh-TW': '選「車站收集」，有小、中兩種尺寸；範圍預設是全台，之後長按小工具開啟設定，就能換成單一系統（台鐵、北捷、高捷……）',
+    en: 'Choose Station collection, in small or medium size. The scope starts as all of Taiwan; later, touch and hold the widget to open its settings and switch it to a single system (TRA, Taipei Metro, Kaohsiung Metro…)',
+    ja: '「駅コレクション」を選びます。サイズは小・中の2種類。範囲は最初は台湾全体で、あとからウィジェットを長押しして設定を開くと、1つの路線網（台鉄、台北メトロ、高雄メトロ…）に切り替えられます',
+  },
+  ios: {
+    'zh-TW': '選「車站收集」，有小、中兩種尺寸；長按小工具 →「編輯小工具」可以把範圍換成單一系統（台鐵、北捷、高捷……）',
+    en: 'Choose Station collection, in small or medium size. Touch and hold the widget, then Edit Widget to switch to a single system (TRA, Taipei Metro, Kaohsiung Metro…)',
+    ja: '「駅コレクション」を選びます。サイズは小・中の2種類。ウィジェットを長押しして「ウィジェットを編集」から、1つの路線網（台鉄、台北メトロ、高雄メトロ…）に切り替えられます',
+  },
+};
+const HELP_STAMP = {
+  'zh-TW': '小、中尺寸上有「蓋章」鈕：按一下會打開軌島，直接在附近的車站蓋章；附近有好幾座車站時，讓你選要蓋哪一座',
+  en: 'The small and medium sizes have a “Stamp” button. Tap it to open Rail Island and stamp a nearby station right away; if several stations are nearby, you pick which one',
+  ja: '小・中サイズには「スタンプ」ボタンがあります。タップすると軌島が開き、近くの駅でそのままスタンプできます。近くに駅が複数あるときは、スタンプする駅を選べます',
+};
+const HELP_POSITION = /右上|左上|右下|左下|上方|下方|角落|標題列|旁邊|top right|top left|bottom|corner|upper|lower/i;
+const HELP_CJK = /[぀-ヿ㐀-鿿]/;
+async function helpChecks(platform) {
+  const { ctx, page } = await open({ tag: `C16 ${platform}`, platform, mobile: true });
+  for (const lang of ['zh-TW', 'en', 'ja']) {
+    const tag = `C16 ${platform} ${lang}`;
+    await page.evaluate(l => { closeHelp(); setLanguage(l); openHelp('collectwidget'); }, lang);
+    await sleep(500);
+    const steps = await page.evaluate(() => { const sec = document.querySelector('.help-sec[data-sec="collectwidget"]'); return sec ? [...sec.querySelectorAll('ol li')].map(li => li.textContent) : null; });
+    ok(`${tag} 說明中心有「車站收集小工具」這一節、有步驟`, !!steps && steps.length > 0, steps ? `${steps.length} 步` : '沒有這一節');
+    if (!steps) continue;
+    const scope = HELP_SCOPE[platform][lang], stamp = HELP_STAMP[lang], shown = steps.join(' ／ ').slice(0, 160);
+    ok(`${tag} ${platform === 'android' ? 'Android 有「範圍預設全台、之後長按小工具重新設定」那一步' : 'iOS 有「長按小工具 → 編輯小工具」那一步'}（逐字）`, steps.includes(scope), steps.includes(scope) ? '' : `畫面：${shown}`);
+    ok(`${tag} 有「蓋章」鈕那一步（小、中尺寸，逐字）`, steps.includes(stamp), steps.includes(stamp) ? '' : `畫面：${shown}`);
+    const stampStep = steps.find(x => /蓋章|Stamp|スタンプ/.test(x));
+    ok(`${tag} 蓋章那一步沒有寫按鈕在卡片的哪個位置`, !!stampStep && !HELP_POSITION.test(stampStep), stampStep ? stampStep.slice(0, 40) : '沒有蓋章那一步');
+    if (platform === 'android') ok(`${tag} Android 不再寫舊的「加入時可以選範圍」`, !/加入時可以選|When adding it, pick|追加するときに台湾全体/.test(steps.join('|')), shown);
+    if (lang === 'en') ok(`${tag} 英文版步驟沒有漏翻（不含中日文字）`, steps.every(x => !HELP_CJK.test(x.replace(/[「」“”]/g, ''))), steps.filter(x => HELP_CJK.test(x)).join(' | ').slice(0, 80));
+    if (lang === 'ja') ok(`${tag} 日文版蓋章那一步是日文（含假名）`, !!stampStep && /[぀-ヿ]/.test(stampStep));
+    ok(`${tag} 沒有水平捲動`, !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)));
+  }
+  await ctx.close();
+}
+await helpChecks('android');
+await helpChecks('ios');
 
 await browser.close();
 server.close();
