@@ -286,7 +286,9 @@ const check = (name, pass, detail) => { results.push({ name, pass }); console.lo
 // 🔴 判準本體抽出來共用：正判準與它的突變對照必須是【同一個表達式】。分開手寫兩份的話，
 //    改了一邊沒改另一邊，對照就不再證明「這條判準會因為這個缺陷轉紅」（心得 37 同族）。
 //    這三條讀的都是使用者眼睛看得到的那行字——語系已在 newPage 釘死 zh-TW，A0 負責看門。
-const badgeSaysLive = b => !!b && b.hidden === false && /官方即時/.test(b.text);
+// 8/21 語料沒有後來接入的 KLRT，且 KRTC 只有 7.8% 連結；其餘北捷即時正常時，
+// 徽章應明示 C/KR/KO 三條動畫備案，不可把這種局部退回誤判成全系統故障。
+const badgeSaysLive = b => !!b && b.hidden === false && (/官方即時/.test(b.text) || b.text === '3 線：班表推估');
 const badgeSaysAnom = b => !!b && b.anom === true && /異常/.test(b.text);
 const toastNamesRealCause = list => list.some(t => /不在即時模型中，已結束跟隨/.test(t)) &&
   !list.some(t => t.includes('官方名冊已更新'));
@@ -394,7 +396,7 @@ async function main() {
   console.log(`G0 target=${ROOT}\n   disk=${diskMd5}\n   serve=${servedMd5}`);
   if (diskMd5 !== servedMd5) { console.error('G0 FAIL：server 提供的不是這棵樹的 index.html'); process.exit(1); }
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
   let allErrors = [];
   // 只讀徽章的輕量探針：徽章類的突變對照要跑的是【同一個情境、同一個述詞】，
   // 只有 index.html 那一行不同。回傳 lineStats 的 badge，與正判準讀的是同一個來源。
@@ -435,7 +437,7 @@ async function main() {
       check('A2 北捷九線全部由 Core 驅動', coreLines.length === 9 && trtcLines.length === 9,
         `core 驅動 ${coreLines.length}/${trtcLines.length} 條：${coreLines.map(([k, v]) => k.slice(5) + '=' + v.core).join(' ')}`);
       check('A3 Core 畫得出足夠台數（分母正向對照）', coreTrains >= 40, `${coreTrains} 台`);
-      await page.evaluate(() => window.__map.setView([25.048, 121.545], 12, { animate: false })); // 把台北放進視窗，_freqHits 只收在畫面內的
+      await page.evaluate(() => window.__map.jumpTo({ center: [121.545, 25.048], zoom: 12 })); // MapLibre；_freqHits 只收在畫面內的
       await page.waitForTimeout(1200);
       const hits = await page.evaluate(() => (state._freqHits || []).filter(h => h.core).length);
       check('A4 畫面命中清單裡真的有 Core 車（不是只在資料層）', hits > 0, `_freqHits core=${hits}`);
@@ -444,11 +446,11 @@ async function main() {
       check('A5 P2-9 逐系統身分覆蓋率算得出來且分母>0',
         ratio.trtc && ratio.trtc.total > 0 && ratio.krtc && ratio.krtc.total > 0,
         `trtc ${ratio.trtc && ratio.trtc.matched}/${ratio.trtc && ratio.trtc.total}、krtc ${ratio.krtc && ratio.krtc.matched}/${ratio.krtc && ratio.krtc.total}`);
-      check('A6 P2-9 覆蓋率過門檻的系統不擋、不過的擋下（真語料：trtc 70.6% 過、krtc 7.8% 不過）',
+      check('A6 位置覆蓋率過門檻的系統不擋，不過的擋下（倒數獨立驗收）',
         !s.status.blockedSystems.trtc && !!s.status.blockedSystems.krtc &&
         Object.entries(s.lines).filter(([k]) => k.startsWith('krtc:')).every(([, v]) => v.core === null),
         `blockedSystems=${JSON.stringify(s.status.blockedSystems)}`);
-      check('A7 徽章顯示「官方即時」且不隱藏（(d) 的反向對照）', badgeSaysLive(s.badge), JSON.stringify(s.badge));
+      check('A7 徽章顯示即時或明確指出三線位置備案，不隱藏（(d) 的反向對照）', badgeSaysLive(s.badge), JSON.stringify(s.badge));
       allErrors = allErrors.concat(errors);
       await page.close();
     }
@@ -494,10 +496,13 @@ async function main() {
       const { page, errors } = await newPage(browser);
       const ok = await pollOnce(page);
       const s = await lineStats(page);
-      check('C1 契約外的 lineId 讓這包被退掉', ok === false && /lineId 契約外/.test(String(s.status.error)), `error=${s.status.error}`);
-      check('C2 警告裡指名是哪一條', s.status.lineIdWarn && s.status.lineIdWarn.unknown.includes('trtc:BLUE'),
-        JSON.stringify(s.status.lineIdWarn && s.status.lineIdWarn.unknown));
-      check('C3 退包後所有線都回到既有路徑', Object.values(s.lines).every(v => v.core === null),
+      const isolated = s.status.isolatedSystems && s.status.isolatedSystems.trtc;
+      check('C1 契約外 lineId 只隔離所屬系統', ok === true && isolated?.reason === 'lineId', JSON.stringify(isolated));
+      check('C2 隔離診斷指名是哪一條', isolated?.unknown?.includes('BLUE'), JSON.stringify(isolated));
+      check('C3 北捷被隔離，高捷仍獨立計算自己的位置門檻而非一併被隔離',
+        Object.entries(s.lines).filter(([k]) => k.startsWith('trtc:')).every(([, v]) => v.core === null)
+        && !s.status.isolatedSystems.krtc && s.status.matchRatio.krtc.total > 0
+        && s.status.blockedSystems.krtc?.reason === 'match',
         `core 驅動線數=${Object.values(s.lines).filter(v => v.core !== null).length}`);
       check('C4 徽章沒有隱藏、也沒有謊稱「官方即時」',
         s.badge && s.badge.hidden === false && !/^官方即時$/.test(s.badge.text), JSON.stringify(s.badge));
@@ -666,7 +671,7 @@ async function main() {
     const clickFollow = async () => {
       const { page, errors } = await newPage(browser);
       await pollOnce(page);
-      await page.evaluate(() => window.__map.setView([25.048, 121.545], 12, { animate: false }));
+      await page.evaluate(() => window.__map.jumpTo({ center: [121.545, 25.048], zoom: 12 }));
       await page.waitForTimeout(1200);
       const out = await page.evaluate(() => {
         const hit = (state._freqHits || []).find(h => h.core && h.vehicleId != null);

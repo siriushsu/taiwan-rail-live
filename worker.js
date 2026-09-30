@@ -789,26 +789,42 @@ async function metroLive(request, env, sys) {
 // ── 新北捷官網列車動態代理(trainstatus.ntmetro.com.tw,免金鑰) ──
 // 環狀線=逐車軌道區間佔用、淡海/安坑=逐站到站倒數。未文件化端點、無開放資料授權條款:
 // 尚未取得使用同意,如經對方表示反對即移除本段;失敗前端自動退回時刻表推演,零損害。
-// 快取後全站對上游=每端點約 55s 一次,遠低於其官網單一訪客的 10s 輪詢負載。
+// 淡海/安坑逐車倒數最多快取 18s，替前端 20s 輪詢保留傳輸餘裕，避免剛好命中上一輪而變 40s。
+// 不用 stale-while-revalidate 延長舊倒數；上游失敗仍回原 at，前端會自行判定過期。
 // Set 而非物件字面量:物件的 in/[] 查表吃原型鏈(sys='constructor'/'__proto__'/'toString' 會誤判 truthy),
 // Set.has() 只認自身成員,擋掉用原型成員名繞過白名單、把本 proxy 打成對新北捷官網的未快取放大代理。
 const NTM_LIVE_SYS = new Set(['circular', 'danhai', 'ankeng']);
+const NTM_LIVE_TTL_MS = 18e3;
 const ntmLiveMem = new Map(); // sys → { data, at }
 async function ntmetroLive(request, env, sys) {
   const cacheKey = new Request(new URL('/api/ntmetro-live?sys=' + sys, request.url), { method: 'GET' });
   const edge = caches.default;
   const hit = await edge.match(cacheKey);
-  if (hit) return hit;
+  if (hit) {
+    try {
+      const data = await hit.clone().json(), age = Date.now() - Date.parse(data.at);
+      const lifetime = data.src == null ? 15e3 : NTM_LIVE_TTL_MS;
+      if (Number.isFinite(age) && age >= 0 && age < lifetime) {
+        // Cache API 命中也不能把原始完整 TTL 再交給外層快取；舊部署留下的超齡快取直接略過。
+        const headers = new Headers(hit.headers);
+        headers.set('cache-control', 'public, s-maxage=' + Math.max(0, Math.floor((lifetime - age) / 1000)));
+        return new Response(hit.body, { status: hit.status, headers });
+      }
+    } catch (_) { /* 無法確認時間的邊緣資料不當成有效即時快取。 */ }
+  }
   const stale = ntmLiveMem.get(sys);
   try {
-    if (!stale || Date.now() - stale.at > 55e3) {
+    if (!stale || Date.now() - stale.at >= NTM_LIVE_TTL_MS) {
       const r = await fetch(`https://trainstatus.ntmetro.com.tw/roadmap/${sys}_data.php`,
         { headers: { 'user-agent': 'railisland.tw metro animation (+https://railisland.tw)' } });
       if (!r.ok) throw new Error('ntmetro ' + r.status);
       const d = await r.json();
       ntmLiveMem.set(sys, { data: { at: new Date().toISOString(), src: d && d.data != null ? d.data : null }, at: Date.now() });
     }
-    return await jsonResCached(edge, cacheKey, ntmLiveMem.get(sys).data, 200, 'public, s-maxage=50, stale-while-revalidate=120');
+    const cached = ntmLiveMem.get(sys);
+    // 每一層只交出來源批次真正剩下的壽命，非整秒部分向下取整，不能跨層續命。
+    const ttl = Math.max(0, Math.floor((NTM_LIVE_TTL_MS - (Date.now() - cached.at)) / 1000));
+    return await jsonResCached(edge, cacheKey, cached.data, 200, 'public, s-maxage=' + ttl);
   } catch (e) {
     if (stale) return jsonRes(stale.data, 200, 'public, s-maxage=15');
     // 軟失敗:回 200+src:null(前端 applyNtmLive 對 null 直接 no-op,退回時刻表推演),不回 5xx 免得訪客 console 留紅字。

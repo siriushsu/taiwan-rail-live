@@ -41,6 +41,7 @@ check(klrtLine && klrtLine.loop === true && klrtLine.stations?.length === 38,
   'KLRT C 靜態線形必須維持 38 個真實站且標為環線');
 
 const graceSandbox = {
+  ntmFeedForSystem: () => null,
   METRO_CORE_FOLLOW_GRACE_SEC: 30,
   metroCoreFollowRecord: () => graceSandbox.current,
   metroCorePositionAt: (ln, train, epoch) => epoch < train.retireAt ? { lat: epoch, lon: 0 } : null,
@@ -129,8 +130,8 @@ const contracts = [
   ['P1-8 錯誤要推到徽章，不只存在 state', /state\.metroCore\.error = String\(error && error\.message \|\| error\);\s*\n\s*updateMetroBadge\(\);/],
   ['P2-9 match 欄位真的被讀（不再只賦值）', /const declared = row\.match == null \? null : String\(row\.match\);/],
   ['P2-9 比例判準配正向對照（total 為 0 不判定）', /ratio: total \? matched \/ total : null/],
-  ['退回閘門同時作用在看板路徑',
-    /const usable = systemId && !metroCoreLineBlocked\(systemId, ln\.id\) && !!metroCoreSystem\(systemId\);[\s\S]*?systemId: usable \? systemId : null/],
+  ['核心看板仍遵守快照與退回閘門；獨立有效倒數不依賴核心',
+    /const usable = coreLive && systemId && !metroCoreLineBlocked\(systemId, ln\.id\) && !!metroCoreSystem\(systemId\);[\s\S]*?systemId: usable \? systemId : null[\s\S]*?metroSourceRowsForEntry\(entry, nowEpoch\)/],
   // ── 共站辨線（#7 9bc4348 的前端保護，以 v0821b 資料結構重寫）──
   ['共站辨線：看板列的線／方向／終點都要對得上它指到的車',
     /function metroCoreRowVehicleId\(system, board, row\)[\s\S]*?String\(train\.lineId\) !== String\(board\.lineId\)[\s\S]*?Number\(train\.direction\) !== Number\(row\.direction\)[\s\S]*?Number\(train\.destinationStationIndex\) !== Number\(row\.destinationStationIndex\)/],

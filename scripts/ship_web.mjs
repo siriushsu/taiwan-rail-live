@@ -138,6 +138,15 @@ try {
   if (copy.status !== 0) fail('更新紀錄字數未過——把列出的條目縮短再出貨（單獨重跑：npm run check-copy）');
 
   // ── 2.5 i18n 稽核閘門（漏譯不准出貨）──────────────────────────────────────
+  // 捷運官方倒數與逐車模型：純函式、隔離 mock worker，不呼叫正式即時 API。
+  // 必須在 strip 前驗前端接線，避免倒數再次被備援或動畫時鐘覆蓋。
+  for (const name of ['verify_ntm_live_model', 'verify_ntm_worker', 'verify_metro_countdown_source']) {
+    const check = spawnSync('node', [path.join(wt, 'scripts', name + '.mjs')],
+      { cwd: wt, encoding: 'utf8', env: { ...process.env, NTM_MODEL_MUTATION: '', METRO_COUNTDOWN_MUTATION: '' } });
+    process.stdout.write(check.stdout || ''); process.stderr.write(check.stderr || '');
+    if (check.status !== 0) fail(`捷運即時倒數守門未過：${name}`);
+  }
+
   // 🔴 位置不可移到 strip 之後:check_i18n 的 evaluateConstBlock 拿【註解】當區塊結束標記
   //    （'// 有精選特色'、'// 播放/速度/時間'），strip 把註解刪光之後它會報「找不到內容區塊」
   //    ——整條出貨鏈會每次都假紅卡死。2026-08-29 實測:同一顆 strip 前 exit 0、strip 後 exit 1。
