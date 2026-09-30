@@ -35,7 +35,7 @@
 //   M3  兌換的交易內餘額守衛的邊界（讀到之後被扣）——review-B Q8 說這一層只有 redeem C6 一條在守
 //   M5b 刪帳號時 body 的 deviceActor 若已併進別的帳號，一列不刪——review-B Q8 說這一層只有 auth A11d 一條在守
 //   PL  會隨使用者長大的六張表：每個端點與兩支 cron 實際送出的每一句，查詢計畫在八種統計形狀下都與沒有統計時相同（第十批，N6-1 同一族）
-//   PF  防偽閘丟掉／不收的點不進覆蓋率（孤立的遠點、斷點後的頭兩點）；跨午夜的班車照整班長度發籌碼（一次上傳、兩發、前次組本身跨午夜）（第十一批，V7 B(1)／B(2)）
+//   PF  防偽閘丟掉／不收的點不進覆蓋率（孤立的遠點、斷點後的頭兩點）、也不能拿去過品質閘；跨午夜的班車照整班長度發籌碼（一次上傳、兩發、前次組本身跨午夜）（第十一批，V7 B(1)／B(2)）
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
@@ -2474,6 +2474,22 @@ await attempt('PF1', async () => {
     s89: one(w, 'SELECT sample_count c FROM bounty_board WHERE seg_key=?', KT('山線', 'S8|S9')).c, raw: [coversKm(spikeA, 16, 18), coversKm(gapB, 16, 18)] };
   ok('PF1 [第十一批 V7] 不收的點不算覆蓋：孤立的遠點、斷點後的頭兩點都放在 S8|S9 → 兩趟都 ok、存下的覆蓋段只有 S0|S1…S2|S3、各登記 3 段、S8|S9 的 sample_count 0（對照：原始的點照覆蓋的定義蓋得到 S8|S9）',
     res.raw.every(Boolean) && [res.a, res.b].every(([v, segs, c]) => v === 'ok' && J(segs) === want && c === 3) && res.s89 === 0, J(res));
+});
+await attempt('PF2', async () => {
+  // 不收的點也不能拿去過品質閘：品質閘的「至少一段覆蓋 ≥ 0.6」同樣只看收下的點。否則一趟完全沒動的錄程（停在 S0 旁 700 秒），
+  // 斷 12 秒後塞兩個不收的點（2.1、3.9 km，S1|S2 的兩端），品質閘拿原始的點就會看到 S1|S2 蓋到 0.9 → 判 ok → 長度 700 多秒發 1 顆。
+  // 期望：unusable（too_short：收下的點一段都沒蓋到）、0 顆、存下的覆蓋段是空的。對照：原始的點照覆蓋的定義蓋得到 S1|S2。
+  const A = 'dev-pf2-a0001';
+  const still = Array.from({ length: 700 }, (_, k) => ({ d: 5, t: 30000 + k, v: 0, acc: 8 }));
+  const pts = [...still, { d: 2100, t: 30711, v: 0, acc: 8 }, { d: 3900, t: 30712, v: 0, acc: 8 },
+    ...Array.from({ length: 10 }, (_, k) => ({ d: 5, t: 30713 + k, v: 0, acc: 8 }))];
+  const w = world({ seed: boardSql('山線') });
+  putBatches(w.db, { actor: A, trainNo: 'PF2', pts });
+  await w.cron();
+  const res = { v: q.verdicts(w, A, 'PF2'), code: one(w, 'SELECT DISTINCT quality_code c FROM bounty_samples WHERE actor=?', A).c,
+    segs: segsOf(w, A, 'PF2'), trips: q.trips(w), raw: coversKm(pts, 2, 4) };
+  ok('PF2 [第十一批 V7] 不收的點不能讓一趟過品質閘：停著不動＋斷點後兩個不收的點（S1|S2 兩端）→ unusable（too_short）、0 顆、覆蓋段空（對照：原始的點蓋得到 S1|S2）',
+    res.raw && res.v === 'unusable' && res.code === 'too_short' && res.segs.length === 0 && res.trips.length === 0, J(res));
 });
 await attempt('PF3', async () => {
   // 跨午夜：App 的 t 是當天第幾秒、午夜歸零；乘車日是開始錄的那一天。規則：同一組點的 t 最大減最小超過半天＝跨午夜，小於半天的 t 加一天；
