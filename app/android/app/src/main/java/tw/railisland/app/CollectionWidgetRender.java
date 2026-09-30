@@ -11,8 +11,8 @@ import java.util.List;
 
 /**
  * 把 CollectionData 綁進 RemoteViews：小（2×2）、中（5×2／4×2）兩款。
- * 版面資訊層級照 iOS CollectionCard.swift（Small／Medium），畫法照第二輪規格
- * （docs/superpowers/plans/2026-09-29-車站收集小工具.md）：地圖 Canvas 畫成 Bitmap 放 ImageView、文字用 TextView。
+ * 版面資訊層級照 iOS CollectionCard.swift（Small／Medium），畫法照契約的〈畫法約定〉
+ * （docs/collect-widget-contract.md）：地圖 Canvas 畫成 Bitmap 放 ImageView、文字用 TextView。
  *
  * 🔴 這個類別只做「綁定與排版取捨」，不重算任何數字：n／total／v／n 一律照抄 payload，
  *    百分比字串與進度條比例來自 CollectionData 的兩個純顯示函式。

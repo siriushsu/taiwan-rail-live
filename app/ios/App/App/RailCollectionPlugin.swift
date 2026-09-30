@@ -3,7 +3,7 @@ import Foundation
 import WidgetKit
 
 /// 「車站收集」小工具的資料通道：網頁 JS 算好一包 JSON 字串（資料格式 v1，
-/// 見 docs/superpowers/plans/2026-09-29-車站收集小工具.md），這裡驗過就原樣寫進
+/// 見 docs/collect-widget-contract.md），這裡驗過就原樣寫進
 /// App Group 容器根目錄的 `collection.json`，再通知 CollectionWidget 重畫。
 ///
 /// 只做「驗形狀＋原子寫入」，不解碼內容：小工具端自己解碼，格式演進不用動這裡。

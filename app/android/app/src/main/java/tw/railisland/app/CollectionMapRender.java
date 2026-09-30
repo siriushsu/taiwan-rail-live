@@ -6,7 +6,7 @@ import android.graphics.Paint;
 
 /**
  * 「車站收集」點陣地圖：Canvas 畫成 ARGB_8888 Bitmap，交給 RemoteViews 的 ImageView。
- * 畫法與 iOS CollectionMapView 一致（第二輪規格 docs/superpowers/plans/2026-09-29-車站收集小工具.md）：
+ * 畫法與 iOS CollectionMapView 一致（docs/collect-widget-contract.md〈畫法約定〉）：
  *
  * · 座標都在 payload 的 0..1000 正規化空間；圖框寬 = 高 × aspect，所以「正方形視窗」＝真實比例不變形。
  * · 三態：s=2 搭過或到訪＝線色實心圓；s=1 跟完＝線色空心圈（圈寬＝半徑 0.45 倍，圈外徑＝實心圓直徑）；

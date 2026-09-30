@@ -17391,7 +17391,7 @@ const setupNativePlacesSync = (() => {
 // stationCollection(loadRides()).size(護照用的同一個函式),原生端不重算——別名合併吃
 // state.schedStations,那隨群組變,原生端另算會差 1～2 站。
 // 資料格式 v1(網頁、iOS、Android 三方共同契約,改這裡要三方同改):
-//   docs/superpowers/plans/2026-09-29-車站收集小工具.md 最後一節。
+//   docs/collect-widget-contract.md。
 // 只有原生橋接 window.RAIL_NATIVE_COLLECTION 存在才掛;純網站不 fetch geojson、不掛 listener、零副作用。
 const COLLECT_BOX = [120.15, 22.2, 122.0, 25.27]; // 投影框 lon0, lat0, lon1, lat1,固定值(原生端照這個框畫)
 // 固定順序。geo＝data/track_stations.geojson 的 sys;ck＝收集鍵的系統段(favStationKey 語意:捷運一律 'metro';

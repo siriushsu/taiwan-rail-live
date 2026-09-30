@@ -16,7 +16,7 @@ import java.util.List;
  *    「車站 N 座」用的那個函式；這裡【只讀不算】：n／total／各系統 v／n／recent／點位一律照抄。
  *    唯一自己算的是兩個純顯示量：百分比字串（含「<1%」「99%」邊界）與進度條填滿比例。
  *    驗收腳本（app/scripts/verify_android_collect_widget.mjs）從 payload 用另一份實作獨立重算比對。
- * 契約（資料格式 v1）：docs/superpowers/plans/2026-09-29-車站收集小工具.md。
+ * 契約（資料格式 v1）：docs/collect-widget-contract.md。
  * 與 iOS CollectionCard.swift（CollectionStore／CollectionScope）同一套規則，改任何一邊都要同步。
  */
 final class CollectionData {

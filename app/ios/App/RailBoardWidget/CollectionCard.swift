@@ -13,7 +13,7 @@ import WidgetKit
 // 也就是護照「車站 N 座」用的那個函式；網頁整包算好經外掛寫成 App Group 的 collection.json，
 // 這裡【只讀不算】：n／total／各系統 v／n／recent／點位一律照抄，唯一自己算的是
 // 「百分比字串」、「進度條填滿比例」與「單一系統的取景視窗」這三個純顯示量（由驗收腳本從 payload 獨立重算比對）。
-// 契約（資料格式 v1）：docs/superpowers/plans/2026-09-29-車站收集小工具.md。
+// 契約（資料格式 v1）：docs/collect-widget-contract.md。
 
 // MARK: - 資料模型（collection.json v1）
 

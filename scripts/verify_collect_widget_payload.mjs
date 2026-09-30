@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 驗「車站收集」桌面小工具的網頁端 payload（資料格式 v1，契約在
-// docs/superpowers/plans/2026-09-29-車站收集小工具.md 最後一節）。
+// docs/collect-widget-contract.md）。
 //
 // 使用者裁示：小工具的「已收集 N 座」必須跟護照的「車站 N 座」是同一個數字（跟完／搭過／到訪都算）。
 // 所以判準的重心是 N ＝ 頁面上真的在跑的 stationCollection(loadRides()).size；其餘欄位（分母、各系統數、

@@ -7,7 +7,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 /**
  * 「車站收集」小工具的資料通道：網頁 JS 算好一包 JSON 字串（資料格式 v1，
- * 見 docs/superpowers/plans/2026-09-29-車站收集小工具.md），這裡驗過就原樣寫進
+ * 見 docs/collect-widget-contract.md），這裡驗過就原樣寫進
  * App 私有儲存的 files/collection.json，再通知小、中兩個 provider 重畫。
  *
  * 與 iOS RailCollectionPlugin.swift 同一套驗證（見 CollectionStore.validate）。
