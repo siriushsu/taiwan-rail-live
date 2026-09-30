@@ -29,9 +29,11 @@ struct CollectionSnapshot: Decodable {
         let name: String
         let line: String
         let k: String?
+        /// 選用：這座站所屬的全部系統（轉乘站才有）。壞了（不是字串陣列）當沒有。
+        let ks: [String]?
         let d: String
 
-        private enum Keys: String, CodingKey { case name, line, k, d }
+        private enum Keys: String, CodingKey { case name, line, k, ks, d }
 
         /// name／line／d 不是字串（含 null）就丟出——外層的 Lossy 會略過這一筆；k 缺或型別不對＝沒有歸屬（契約「畫法約定」10）。
         init(from decoder: Decoder) throws {
@@ -40,6 +42,7 @@ struct CollectionSnapshot: Decodable {
             line = try c.decode(String.self, forKey: .line)
             d = try c.decode(String.self, forKey: .d)
             k = try? c.decodeIfPresent(String.self, forKey: .k)
+            ks = try? c.decodeIfPresent([String].self, forKey: .ks)
         }
     }
 
@@ -252,7 +255,7 @@ enum CollectionScope {
                 collected: sys.v, total: sys.n, percentNumber: percentNumber(sys.v, of: sys.n),
                 aspect: snap.aspect, dots: own, viewport: viewport, others: others,
                 systems: snap.sys,
-                recent: Array(snap.recent.filter { $0.k == sys.k }.prefix(4)),
+                recent: Array(snap.recent.filter { $0.k == sys.k || ($0.ks?.contains(sys.k) ?? false) }.prefix(4)),
                 topSystems: ranked, untouchedSystems: untouched)
         }
         return CollectionFigures(

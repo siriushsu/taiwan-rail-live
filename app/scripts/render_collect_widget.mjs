@@ -268,10 +268,16 @@ const DIRTY = dirtyPair();
 /** 結構壞了＝整包作廢（走「打開軌島一次」）：缺 sys；sys 有一筆的 v 為 null（pts 的 sysIdx 指向它，不能略過）。 */
 function brokenPayload() { const p = clone(sample); delete p.sys; return p; }
 function brokenSysPayload() { const p = clone(sample); p.sys[1].v = null; return p; }
+/** 轉乘站（契約 recent[].ks）：紅樹林屬北捷與淡海、日期最新；兩個單一系統範圍都要看得到它，全台版面不畫最近蓋章。 */
+function transferPayload() {
+  const p = clone(sample);
+  p.recent.unshift({ name: '紅樹林', line: '淡水信義線', k: 'trtc', ks: ['trtc', 'ntdlrt'], d: '2026-09-29' });
+  return p;
+}
 const FIXTURES = {
   sample, empty: emptyPayload, none: null, full: fullPayload(), one: onePayload(), almost: almostPayload(),
   solo: soloPayload(), states: statesPayload(), bare: barePayload(),
-  dirty: DIRTY.dirty, broken: brokenPayload(), brokenSys: brokenSysPayload(),
+  dirty: DIRTY.dirty, broken: brokenPayload(), brokenSys: brokenSysPayload(), transfer: transferPayload(),
 };
 /** 這些 fixture 送進 App 的樣子與期望值的來源不同（期望值取乾淨版）。 */
 const EXPECT_FROM = { dirty: DIRTY.clean };
@@ -306,7 +312,7 @@ function expected(fix, scope) {
   const own = fix.pts.filter(p => (scoped ? p[4] === idx : true));
   const vp = scoped && own.length ? windowOf(own) : null;
   const others = scoped ? fix.pts.filter(p => p[4] !== idx && (!vp || inWindow(vp, p))) : [];
-  const recent = (scoped ? fix.recent.filter(r => r.k === scope) : fix.recent).slice(0, 4);
+  const recent = (scoped ? fix.recent.filter(r => r.k === scope || (Array.isArray(r.ks) && r.ks.includes(scope))) : fix.recent).slice(0, 4);
   const top = fix.sys.map((s, i) => ({ ...s, i })).filter(s => s.v > 0)
     .sort((a, b) => b.n - a.n || a.i - b.i).slice(0, 5);
   const pctNum = pctNumber(v, total);
@@ -369,6 +375,8 @@ function buildCases(quick) {
     // 容錯（P3-7）：夾壞元素的 payload 照乾淨版畫；結構壞的整包作廢
     for (const [fam, scope] of [['small', null], ['small', 'tra'], ['medium', null], ['medium', 'tra']]) add(fam, scope, 'dirty', 'light', false, 430);
     for (const st of ['broken', 'brokenSys']) for (const fam of ['small', 'medium']) add(fam, null, st, 'light', false, 430);
+    // 轉乘站（P3-12）：淡海、北捷範圍的中卡看得到紅樹林；全台中卡不畫最近蓋章
+    for (const sc of ['ntdlrt', 'trtc', null]) add('medium', sc, 'transfer', 'light', false, 430);
     // 台灣輪廓（o1）：一個點都沒有的全台卡，小／中 × 淺／深
     for (const fam of ['small', 'medium']) for (const scheme of ['light', 'dark']) add(fam, null, 'bare', scheme, false, 430);
     return cases;
@@ -397,6 +405,7 @@ function buildCases(quick) {
     // 容錯（P3-7）：夾壞元素的 payload（全部家族）、結構壞的整包作廢（小、中）
     for (const [fam, scope] of famList) add(fam, scope, 'dirty', 'light', isLock(fam), width);
     for (const st of ['broken', 'brokenSys']) for (const fam of ['small', 'medium']) add(fam, null, st, 'light', false, width);
+    for (const sc of ['ntdlrt', 'trtc', null]) add('medium', sc, 'transfer', 'light', false, width);
   }
   // 著色（tinted／accented）：桌面兩種尺寸的淺色與深色，全台與單一系統
   for (const fam of ['small', 'medium']) {
@@ -1141,6 +1150,8 @@ async function judge({ specs, results, out, src }) {
     }
   }
 
+  // 轉乘站 fixture 的紅樹林在 payload 內恰一筆（閘門看得到它是因為 ks，不是因為它出現了兩次）
+  check('c', 'transfer', FIXTURES.transfer.recent.filter(r => r.name === '紅樹林').length === 1, 'transfer fixture 的紅樹林不是恰好一筆');
   // 目錄本身：c 閘門用到的每個 key，en／ja 都要有譯文，且佔位符集合與繁中 key 相同（譯者掉了 {n} 才抓得到）。
   if (LANG) {
     for (const key of [...L10N_KEYS_USED].sort()) {
@@ -1527,6 +1538,20 @@ const MUTATIONS = [
     file: 'CollectionCard.swift',
     find: 'name = try c.decode(String.self, forKey: .name)',
     replace: 'name = (try? c.decode(String.self, forKey: .name)) ?? ""',
+    expect: ['c'],
+  },
+  {
+    id: 'M43 單一系統的最近蓋章只看 k（轉乘站在另一個系統看不到）',
+    file: 'CollectionCard.swift',
+    find: '$0.k == sys.k || ($0.ks?.contains(sys.k) ?? false)',
+    replace: '$0.k == sys.k',
+    expect: ['c'],
+  },
+  {
+    id: 'M44 單一系統的最近蓋章只看 ks（沒有 ks 的站全消失）',
+    file: 'CollectionCard.swift',
+    find: '$0.k == sys.k || ($0.ks?.contains(sys.k) ?? false)',
+    replace: '($0.ks?.contains(sys.k) ?? false)',
     expect: ['c'],
   },
   // 以下兩個改的是目錄（--lang en｜ja 才有）：gate 的 tr() 與 Swift 的 shim 讀同一份壞目錄，考的是 c 閘門對「目錄本身」的防線。
