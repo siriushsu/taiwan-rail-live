@@ -28,15 +28,44 @@ import java.util.List;
 /**
  * 車站收集小工具的設定頁：只有一個選項「範圍」＝全台＋十個系統（存值與 iOS CollectionIntent 相同：`all` 或 sys[].k）。
  * 選單名稱優先用 collection.json 裡的 sys[].label（網頁當下語言）；還沒有檔案（App 沒開過）時退回固定的十個系統，
- * 讓使用者一加上小工具就能先選好。可重新設定（widgetFeatures=reconfigurable）：開頁時把這一格現在的選擇讀回來。
+ * 讓使用者一加上小工具就能先選好。退回清單與「全台」用網頁的簡稱（見 scopeName），開 App 前後看到的名稱一樣。
+ * 可重新設定（widgetFeatures=reconfigurable）：開頁時把這一格現在的選擇讀回來。
  * 預覽卡直接把真的 RemoteViews 貼進來，設定頁看到的就是桌面上會長出來的那張版面。
  */
 public final class CollectionWidgetConfigActivity extends AppCompatActivity {
-    /** collection.json v1 的系統順序與代碼（契約固定值，與 iOS CollectionScopeOptionsProvider.fallbackSystems 同一份）。 */
+    /** collection.json v1 的系統代碼與繁中簡稱，順序固定（契約固定值，與 iOS CollectionScopeName.systems 同一份）。 */
     static final String[][] FALLBACK_SYSTEMS = {
         { "tra", "台鐵" }, { "thsr", "高鐵" }, { "trtc", "北捷" }, { "tymc", "機捷" }, { "tmrt", "中捷" },
         { "krtc", "高捷" }, { "ntdlrt", "淡海" }, { "ntalrt", "安坑" }, { "sanying", "三鶯" }, { "afr", "林鐵" },
     };
+    static final String ALL_TAIWAN = "全台";
+    /**
+     * 範圍選單名稱在原生目錄裡的 key 前綴。網站字典已有「台鐵／高鐵／北捷」，譯的是全名（High Speed Rail、台湾鉄路…），
+     * 其他小工具在用，不能被簡稱覆寫，所以簡稱另開一組 key。
+     */
+    static final String SCOPE_KEY_PREFIX = "範圍・";
+
+    /**
+     * 繁中簡稱在 App 語言（RailNativeL10n.language：存的優先、沒存看系統語言）的寫法，三語與網頁 COLLECT_SYS 同一組。
+     * 繁中、或目錄查不到，一律回繁中簡稱本身，不露出帶前綴的 key。
+     */
+    static String scopeName(Context context, String zh) {
+        String key = SCOPE_KEY_PREFIX + zh;
+        String value = RailNativeL10n.text(context, key);
+        return value.equals(key) ? zh : value;
+    }
+
+    /** 選單項目 {存值, 名稱}：全台在最前面；有 payload 的系統名稱照抄，沒有才用退回清單。 */
+    static List<String[]> scopeMenu(Context context, CollectionData data) {
+        List<String[]> items = new ArrayList<>();
+        items.add(new String[] { CollectionData.ALL, scopeName(context, ALL_TAIWAN) });
+        if (data != null && !data.sys.isEmpty()) {
+            for (CollectionData.Sys s : data.sys) items.add(new String[] { s.k, s.label });
+        } else {
+            for (String[] s : FALLBACK_SYSTEMS) items.add(new String[] { s[0], scopeName(context, s[1]) });
+        }
+        return items;
+    }
 
     private int widgetId = AppWidgetManager.INVALID_APPWIDGET_ID;
     private final List<String> keys = new ArrayList<>();
@@ -59,14 +88,7 @@ public final class CollectionWidgetConfigActivity extends AppCompatActivity {
     private void loadScopes() {
         keys.clear();
         labels.clear();
-        keys.add(CollectionData.ALL);
-        labels.add(RailNativeL10n.text(this, "全台"));
-        CollectionData data = CollectionData.load(this);
-        if (data != null && !data.sys.isEmpty()) {
-            for (CollectionData.Sys s : data.sys) { keys.add(s.k); labels.add(s.label); }
-        } else {
-            for (String[] s : FALLBACK_SYSTEMS) { keys.add(s[0]); labels.add(RailNativeL10n.name(this, s[1])); }
-        }
+        for (String[] item : scopeMenu(this, CollectionData.load(this))) { keys.add(item[0]); labels.add(item[1]); }
     }
 
     private void buildUi() {
