@@ -169,7 +169,17 @@ async function dragMap(page, dx = 70, dy = 25) {
   const at = await page.evaluate(() => { const r = M.getContainer().getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
   const a = await mapCenter(page);
   await page.mouse.move(at.x, at.y); await page.mouse.down(); await page.mouse.move(at.x + dx, at.y + dy, { steps: 6 }); await page.mouse.up();
-  await sleep(500); // moveend 觸發後的寫入是同步的，這裡等的是地圖靜止
+  // 放手之後 MapLibre 還會慣性滑行一小段（實測 400 到 500 毫秒）才發 moveend、上次視野記錄才追上目前中心：
+  // 等地圖中心連續 300 毫秒不動（最多 5 秒）再量。不能用固定秒數——固定 500 毫秒在 webkit 全跑時量到滑行途中
+  // （中心已經動了、記錄還停在上一次 moveend），紅過一次。moveend 的寫入是同步的，最後多留一拍給事件派發。
+  let prev = await mapCenter(page), still = 0;
+  for (let i = 0; i < 50 && still < 3; i++) {
+    await sleep(100);
+    const cur = await mapCenter(page);
+    still = Math.abs(cur.lat - prev.lat) + Math.abs(cur.lon - prev.lon) < 1e-9 ? still + 1 : 0;
+    prev = cur;
+  }
+  await sleep(100);
   const b = await mapCenter(page);
   const n1 = await page.evaluate(() => window.__dragstarts.n);
   return n1 > n0 && Math.abs(b.lat - a.lat) + Math.abs(b.lon - a.lon) > 1e-4;
