@@ -31,6 +31,8 @@
 //   S   台北與台中的「市政府」各算一枚：只蓋台北／只蓋台中／兩座都蓋／只有舊資料（沒記錄城市，歸台北）四種情境，各在
 //       全台同框（裝飾層附近清單＋桌面護照）與捷運分頁（單捷運附近清單＋旅程護照面板）跑；蓋章走真實的附近清單點鈕，
 //       護照 N 讀畫面文字、鍵讀 localStorage 逐字、期望值手算；另含帳號同步的真實合併路徑（不重組鍵）
+//   T   清單不隨分頁變：T1 全／台／高／捷四個分頁各開機一次，清單裡每座站都蓋滿 → 每個分頁都收滿（n＝total＝清單座數、各系統
+//       v＝n、點全亮）且小工具內容逐字相同；T2 台鐵分頁蓋左營 → 切到高鐵分頁，total／台鐵那一列／左營那顆點都不變
 //   P   護照深連結（第二輪第 6 點）：waitOpen 收到 {view:'passport'} → #ridePanel（旅程護照）真的在畫面上、看得見、
 //       沒被蓋住；對照 {view:'pass'} 仍開通行證面板（#plusModal）而不是護照；桌面 1280 與手機 375 各跑一次，
 //       含「原生冷啟動時事件在 listener 掛上瞬間就進來」與「別的面板開著／護照已開著」兩種狀態
@@ -793,6 +795,72 @@ await cityChain('metro');
 await cityTaichungOnly('all');
 await cityTaichungOnly('metro');
 await cityLegacy();
+
+// ══ T 清單不隨分頁變 ═════════════════════════════════════════════════════════
+// 清單（分母）是全台固定的一份，站名去別名的規則是靜態的。原本清單站名走 checkinName，而它吃當前分頁的 state.schedStations：
+// 捷運分頁是空的、高鐵分頁只有高鐵站，查不到台鐵的別名，清單就留著 geojson 的舊名（左營(舊城)、新城 (太魯閣)），收集層存的卻是
+// 正名（左營、新城）——兩邊對不上：total 多 2、台鐵已收少 2、那兩顆點不亮。預設分頁（全、台）與 I（捷運分頁）都抓不到高鐵分頁。
+// T1 四個分頁各開機一次：把清單裡每一座站都蓋滿（收集鍵與正名來自獨立重算），每個分頁都要「收滿」——n＝total＝清單座數、
+//    每個系統 v＝n、每個點 s＝2——而且四個分頁的小工具內容逐字相同。
+// T2 停在高鐵分頁：台鐵分頁蓋左營 → 切到高鐵分頁 → 台鐵那一列、total、左營那顆點都跟切換前一樣。
+//    內容沒變時原本就不會重送，所以除了看最新一包，也直接呼叫 collectionWidgetPayload() 看「此刻會送什麼」。
+const EVERY = Object.fromEntries([...EMPTY0.listKeys].map(key => { const i = key.indexOf('|'); return ck(key.slice(i + 1), key.slice(0, i), 'visit', 1, '2026-09-20'); }));
+ok('T 前提：收滿 fixture 的座數 ＝ 獨立重算的清單座數（含左營、新城的正名與兩座市政府）', Object.keys(EVERY).length === TOTAL0 && 'tra_sched|左營' in EVERY && 'tra_sched|新城' in EVERY && 'tra_sched|臺北' in EVERY && 'metro|市政府' in EVERY && 'tmrt|市政府' in EVERY, `${Object.keys(EVERY).length}／${TOTAL0}`);
+const TABS = { all: s => s.includes('tra_sched'), tra: s => s.includes('tra_sched'), hsr: s => s.length > 0 && s.every(x => x === 'thsr_sched'), metro: s => s.length === 0 };
+const tabPayload = {};
+for (const g of Object.keys(TABS)) {
+  const tag = `T1[${g}]`;
+  const { ctx, page } = await open({ bridge: true, seed: { 'trainmap-checkins-v1': JSON.stringify({ v: 2, sg: {}, st: EVERY }) }, query: `?gltracks=0&g=${g}`, tag });
+  const got = await waitPush(page, 0, 8000);
+  ok(`${tag} 開機有推送`, !!got);
+  const sched = await page.evaluate(() => (state.schedStations || []).map(s => s.sys));
+  ok(`${tag} 前提：state.schedStations 是這個分頁該有的樣子（高鐵分頁只有高鐵站、捷運分頁是空的；不然這關是空過）`, TABS[g](sched), `${sched.length} 站，系統 ${[...new Set(sched)].join('/') || '（空）'}`);
+  if (got) {
+    const p = got.payload; tabPayload[g] = p;
+    ok(`${tag} 收滿：n ＝ total ＝ 獨立重算的清單座數 ${TOTAL0}（清單站名不隨分頁變，不會多出收集層對不上的站）`, p.n === TOTAL0 && p.total === TOTAL0, `n ${p.n}／total ${p.total}`);
+    ok(`${tag} 每個系統 v ＝ n ＝ 獨立重算的清單座數（台鐵 ${TRA0}）、點全亮（s＝2）、點數 ${PTS0}`, p.sys.length === EMPTY0.sys.length && p.sys.every((s, i) => s.k === EMPTY0.sys[i].k && s.v === s.n && s.n === EMPTY0.sys[i].n) && p.pts.length === PTS0 && p.pts.every(x => x[3] === 2),
+      p.sys.map(s => `${s.k}:${s.v}/${s.n}`).join(' '));
+    await checkPayload(page, tag, p, 'zh-TW', TOTAL0);
+  }
+  await ctx.close();
+}
+{
+  const strip = p => JSON.stringify({ ...p, at: 0 });
+  const base = tabPayload.all;
+  ok('T1 四個分頁的小工具內容逐字相同（不含 at）', !!base && Object.keys(TABS).every(g => tabPayload[g] && strip(tabPayload[g]) === strip(base)),
+    Object.keys(TABS).map(g => `${g}:${tabPayload[g] ? (strip(tabPayload[g]) === strip(base) ? '同' : '不同') : '無'}`).join(' '));
+}
+{
+  const tag = 'T2 停在高鐵分頁';
+  const gf = GEO.features.find(f => f.properties.sys === 'tra_sched' && f.properties.name === '左營(舊城)'); // 清單裡左營的座標（geojson 原檔）
+  const zx = Math.round((gf.geometry.coordinates[0] - 120.15) / (122.0 - 120.15) * 1000), zy = Math.round((25.27 - gf.geometry.coordinates[1]) / (25.27 - 22.2) * 1000);
+  const view = p => {
+    const tra = p.sys.find(s => s.k === 'tra') || {}, ti = p.sys.findIndex(s => s.k === 'tra');
+    const dots = p.pts.filter(x => x[0] === zx && x[1] === zy && x[4] === ti);
+    return { n: p.n, total: p.total, traV: tra.v, traN: tra.n, dots: dots.length === 1 ? dots[0][3] : `x${dots.length}`, lit: p.pts.filter(x => x[4] === ti && x[3] === 2).length };
+  };
+  const WANT = { n: 1, total: TOTAL0, traV: 1, traN: TRA0, dots: 2, lit: 1 };
+  const { ctx, page } = await open({ bridge: true, query: '?gltracks=0&g=tra', tag });
+  const first = await waitPush(page, 0, 8000);
+  ok(`${tag} 開機有推送（台鐵分頁、空收集）`, !!first && first.payload.n === 0);
+  const before = await count(page);
+  await page.evaluate(() => writeCheckin({ sys: 'tra_sched', name: '左營' }, 'visit')); // 台鐵分頁蓋左營（收集層的正名）
+  const s1 = await waitPush(page, before, 6000);
+  ok(`${tag} 台鐵分頁蓋左營後送出新的一包`, !!s1);
+  const v1 = s1 ? view(s1.payload) : null;
+  ok(`${tag} 切換前（台鐵分頁）：n／total／台鐵 v／n／左營點／台鐵亮點數 ＝ 手算 ${JSON.stringify(WANT)}`, !!v1 && JSON.stringify(v1) === JSON.stringify(WANT), JSON.stringify(v1));
+  await page.evaluate(() => selectGroup(GROUPS.find(g => g.id === 'hsr')));
+  await page.waitForFunction(() => { try { const s = state.schedStations || []; return state.group === 'hsr' && s.length > 0 && s.every(x => x.sys === 'thsr_sched'); } catch (e) { return false; } }, null, { timeout: 30000, polling: 100 });
+  const sched = await page.evaluate(() => [...new Set((state.schedStations || []).map(s => s.sys))].join('/'));
+  ok(`${tag} 前提：已切到高鐵分頁、state.schedStations 只剩高鐵站（不然這關是空過）`, sched === 'thsr_sched', sched);
+  await sleep(3500); // 給重送一個機會（內容沒變本來就不會送）
+  const last = await page.evaluate(() => JSON.parse(window.__pushes[window.__pushes.length - 1].json));
+  const direct = await page.evaluate(() => { const q = collectionWidgetPayload(); if (q) q.at = 0; return q; });
+  ok(`${tag} 切換後、此刻會送的內容（collectionWidgetPayload）：n／total／台鐵 v／n／左營點／台鐵亮點數 ＝ 手算 ${JSON.stringify(WANT)}`, JSON.stringify(view(direct)) === JSON.stringify(WANT), JSON.stringify(view(direct)));
+  ok(`${tag} 切換後、最新一包實際送出的內容：同上`, JSON.stringify(view(last)) === JSON.stringify(WANT), JSON.stringify(view(last)));
+  ok(`${tag} 切換前後小工具內容逐字相同（不含 at）`, !!s1 && JSON.stringify({ ...s1.payload, at: 0 }) === JSON.stringify(direct), '');
+  await ctx.close();
+}
 
 // ══ P 護照深連結 ═══════════════════════════════════════════════════════════
 // 契約：原生把 railisland://passport 轉成 waitOpen 事件（data.view＝'passport'）；網頁收到 → openRidePanel()（旅程護照 #ridePanel）。

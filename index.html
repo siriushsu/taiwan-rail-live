@@ -17422,12 +17422,15 @@ async function collectionGeo() {
   if (g && Array.isArray(g.features)) c.geo = g;
   return c.geo;
 }
-// 清單站名 → 收集鍵用的站名。geojson 還是舊名(左營(舊城)、新城 (太魯閣)),收集層存的是班表正名;
-// 一般走 checkinName(別名併回)。⚠開機落在捷運群組時 state.schedStations 是 [],checkinName 的括號別名
-// 併回會失效,清單會多出兩個永遠收不到的站(total 變 540)——沒載入時退回同一條規則的無查表版。
-function collectionListName(ck, name, alias) {
-  const n = checkinName(ck, name, alias);
-  return (ck === 'tra_sched' && !(state.schedStations || []).length) ? n.replace(/\s*[（(].*$/, '') : n;
+// 清單站名 → 收集鍵用的站名。geojson 還是舊名(左營(舊城)、新城 (太魯閣)),收集層存的是班表正名。
+// 這條規則是靜態的,不看目前的分頁:清單(分母)是全台固定的一份,不能隨 state.schedStations 變。原本走 checkinName
+// (別名併回與括號別名都吃 schedStations),schedStations 只有當前分頁的站——捷運分頁是空的、高鐵分頁只有高鐵站,
+// 查不到台鐵別名,清單就多出兩個永遠收不到的站(total +1、台鐵已收 −1)。台北一族併成臺北、其餘台鐵舊名去掉括號別名。
+function collectionListName(ck, name) {
+  if (ck !== 'tra_sched') return name;
+  const n = String(name);
+  if (/^台北(?:[-－—]?環島)?$/.test(n.replace(/臺/g, '台').replace(/\s/g, ''))) return '臺北';
+  return n.replace(/\s*[（(].*$/, '');
 }
 function collectionLineName(def, lineId) {
   const sys = (state.systems || []).find(s => s.id === def.geo);
@@ -17443,14 +17446,14 @@ function collectionWidgetPayload(geo) {
   if (!geo) return null;
   const [lon0, lat0, lon1, lat1] = COLLECT_BOX;
   const lang = COLLECT_SYS[0].label[I18N_LANG] ? I18N_LANG : 'zh-TW';
-  const coll = stationCollection(loadRides()), alias = checkinAliasMap();
+  const coll = stationCollection(loadRides());
   const q = (v, a, b) => Math.max(0, Math.min(1000, Math.round((v - a) / (b - a) * 1000)));
   const geoIdx = new Map(COLLECT_SYS.map((d, i) => [d.geo, i]));
   const per = COLLECT_SYS.map(() => new Map()); // 每系統:收集鍵 → 點(同名捷運站在不同系統各一點)
   for (const f of geo.features) {
     const p = f.properties || {}, i = geoIdx.get(p.sys);
     if (i == null || !f.geometry) continue;
-    const name = collectionListName(COLLECT_SYS[i].ck, p.name, alias), key = collectSysSeg(COLLECT_SYS[i].ck, name, COLLECT_SYS[i].geo) + '|' + name;
+    const name = collectionListName(COLLECT_SYS[i].ck, p.name), key = collectSysSeg(COLLECT_SYS[i].ck, name, COLLECT_SYS[i].geo) + '|' + name;
     if (per[i].has(key)) continue; // 轉乘站一線一筆,只留第一筆(位置與線色)
     const [lon, lat] = f.geometry.coordinates;
     per[i].set(key, { name, x: q(lon, lon0, lon1), y: q(lat, lat1, lat0), color: p.color, lineId: p.lineId }); // y 由北到南:q(lat, 北緣, 南緣)
