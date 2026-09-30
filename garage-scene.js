@@ -79,14 +79,14 @@ const SCENE_MODULES={
   }
  },
  'guanghua':{
-  load:()=>import('./rail-3d/garage-scenes/guanghua-view.js?revision=guanghua-scooter-0930').then(m=>m.mountGuanghua),
+  load:()=>import('./rail-3d/garage-scenes/guanghua-view.js?revision=guanghua-photo-0930').then(m=>m.mountGuanghua),
   stage:{
    label:'台南光華街涵洞微縮場景',
    canvasLabel:'台鐵列車行駛於台南光華街涵洞上方的鐵路橋，可拖曳旋轉或以方向鍵調整',
    views:[['world','涵洞全景'],['train','陪它走走']],
    loading:'正在把小車開上鐵路橋…',
    periods:[['day','晴日'],['sunset','夕照'],['night','入夜']],
-   look:{id:'culvert',text:'看涵洞',label:'看涵洞口低角度',pressed:null},
+   look:{id:'culvert',text:'看涵洞',label:'從巷子正面看涵洞口',pressed:null},
    caption:'台南光華街涵洞 · 微縮印象'
   }
  }

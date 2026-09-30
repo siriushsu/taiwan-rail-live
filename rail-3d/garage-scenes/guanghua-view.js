@@ -3,8 +3,8 @@
 // 列車怎麼跑照 crossing.js／prototypes/garage-new-scenes/main.js：直線環線、整列離景（x 超過 ±CLIP）後才循環，車身被兩個裁切面在 ±CLIP 切掉；涵洞橋那段是直線，車從上面過。
 // params.opposing＝true 時另一股軌道再跑一班對向車（預設不開，粗模先省 draw call）。
 import * as THREE from '../vendor/three.module.js';
-import {createScene,THEMES,LAP,SPEED,CLIP,PHASE,METER,UNIT_PER_M} from './guanghua.js?revision=guanghua-scooter-0930';
-import {loadScooterKit} from '../garage-scooter.js?revision=guanghua-scooter-0930';
+import {createScene,THEMES,LAP,SPEED,CLIP,PHASE,METER,UNIT_PER_M} from './guanghua.js?revision=guanghua-photo-0930';
+import {loadScooterKit} from '../garage-scooter.js?revision=guanghua-photo-0930';
 import {loadGarageModel,createConsist,loadGarageParts} from '../garage-model.js?revision=doors-0924';
 import {createTerrainFollower} from './consist-3d.js';
 const OPPOSE_DELAY=26; // 對向車晚 OPPOSE_DELAY 秒（本輪自訂）；PHASE（時間 0 時本線車中心在 x＝-10，快到涵洞上方，開頁就看得到主題）改由 guanghua.js 匯出，機車時刻表共用同一個常數

@@ -2,7 +2,7 @@ import * as THREE from '../vendor/three.module.js';
 import {createKit,smooth} from './new-scene-kit.js';
 import {personPose} from '../garage-people.js?revision=people-0927';
 import {METER,UNIT_PER_M,TORSO_LIMIT,TORSO_RATE,TAU,SEE_X} from './duoliang.js?revision=stairs-0929';
-import {createScooterRider} from '../garage-scooter.js?revision=guanghua-scooter-0930';
+import {createScooterRider} from '../garage-scooter.js?revision=guanghua-photo-0930';
 // 台南光華街涵洞（中西區光華街鐵路橋下）微縮場景・粗模（2026-09-30 第一輪，只做骨架與比例，材質是色塊）。
 // 使用者原話（2026-09-30 08:16）：「附近有一個大家都在拍照的地下道 我希望做成一個3D車庫的景」；選項回覆：地下道＝光華街涵洞；時期＝地下化前（車從上面過）。
 // 場景概念（主對話判讀，不是使用者原話）：台鐵車在涵洞上方的雙線鐵路橋跑，橋下一條窄巷道壓低穿過涵洞，洞口有人拍照。
