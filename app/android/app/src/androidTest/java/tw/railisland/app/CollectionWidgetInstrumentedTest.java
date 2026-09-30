@@ -662,7 +662,11 @@ public final class CollectionWidgetInstrumentedTest {
                 // 字形範圍（不是元素框）：文字實際畫到的地方
                 float gl = origin[0] + t.getCompoundPaddingLeft() + (minLeft == Float.MAX_VALUE ? 0 : minLeft);
                 float gr = origin[0] + t.getCompoundPaddingLeft() + maxRight;
-                float gt = origin[1] + t.getCompoundPaddingTop();
+                // 垂直對齊（gravity center_vertical／bottom）：文字比 view 矮時整塊往下位移（蓋章鈕的字就是這樣置中的），字形框要含這段位移
+                int vGravity = t.getGravity() & android.view.Gravity.VERTICAL_GRAVITY_MASK;
+                float spare = v.getHeight() - t.getCompoundPaddingTop() - t.getCompoundPaddingBottom() - layout.getHeight();
+                float vShift = spare <= 0 ? 0f : vGravity == android.view.Gravity.CENTER_VERTICAL ? spare / 2f : vGravity == android.view.Gravity.BOTTOM ? spare : 0f;
+                float gt = origin[1] + t.getCompoundPaddingTop() + vShift;
                 float gb = gt + layout.getHeight();
                 o.put("glyph", rect(gl, gt, gr, gb, density));
                 // 水平被裁：最寬的一行比可用寬度寬（沒有 ellipsize 的關鍵數字就是這樣被裁掉的）
@@ -725,6 +729,18 @@ public final class CollectionWidgetInstrumentedTest {
             float[] origin = originOf(v, root);
             o.put("box", rect(origin[0], origin[1], origin[0] + v.getWidth(), origin[1] + v.getHeight(), density));
             out.put(o);
+            // 容器所在的那一欄（小卡＝文字欄、中卡＝地圖欄）的框：整條按鈕的寬要等於這一欄的寬。用「容器的父層」取得，版面不必為此多加 id
+            // （verify_widget_layouts 規定版面裡的 wc_* id 都要有人綁）。
+            if (v.getParent() instanceof ViewGroup) {
+                ViewGroup col = (ViewGroup) v.getParent();
+                JSONObject c = new JSONObject();
+                c.put("kind", "group");
+                c.put("id", "wc_stamp_col");
+                c.put("visible", shown(col, root));
+                float[] co = originOf(col, root);
+                c.put("box", rect(co[0], co[1], co[0] + col.getWidth(), co[1] + col.getHeight(), density));
+                out.put(c);
+            }
         }
         if (v instanceof ViewGroup && name.equals("wc_rows")) {
             JSONObject o = new JSONObject();

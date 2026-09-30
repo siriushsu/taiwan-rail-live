@@ -165,21 +165,30 @@ const OUTLINE_PENINSULA = [['恆春半島（lon 120.8／lat 22.0）', 120.8, 22.
 const OUTLINE_SCOPED = ['tra', 'trtc', 'krtc'];
 /** 墨像素＝alpha ≥ 8（抗鋸齒的淡邊也算，不放寬）。 */
 const INK_ALPHA = 8;
-/** 蓋章膠囊尺寸（dp，改可點範圍前量到的值，尺寸不變）：高 17.9，寬依語言。 */
-const STAMP_W = { zh: 35.8, en: 45.3, ja: 55.6 };
+/** 舊版蓋章膠囊的高（dp，改成整條按鈕之前量到的值）：整條按鈕要比它大（放大是這次改版的目的），縮回去就紅。 */
+const OLD_PILL_H = 17.9;
+/** 契約〈畫法約定〉11：可點範圍高度至少 48dp（Android）。 */
+const HIT_MIN_DP = 48;
+/** 改成整條按鈕（蓋章鈕搬家）之前，單一系統中卡每一案畫了幾筆最近蓋章（改版前的程式碼在同一批案例上實跑的結果）：改版後不准比它少。 */
+const RECENT_BASE = JSON.parse(readFileSync(join(ROOT, 'app/scripts/android-collect-widget/recent-baseline.json'), 'utf8'));
 const totals = { land: 0, sea: 0, pen: 0, contrast: 0, inkBoxes: 0, scoped: 0, textPairs: 0, clipRegions: 0,
-  headSmallBoth: 0, headSmallDropAll: 0, headSmallDropScoped: 0, headMedBoth: 0, headMedDrop: 0, headShrunk: 0, recent4: 0, recentMax: 0, recentKs: 0 };
+  recentBase: 0, gapPct: 0, headSmallBoth: 0, headSmallDropAll: 0, headSmallDropScoped: 0, headMedBoth: 0, headMedDrop: 0, headShrunk: 0, recent4: 0, recentMax: 0, recentKs: 0 };
 /** 小卡標題與副標的間距（dp，版面宣告的 marginStart）；標題列「放得下」的判斷留 1.5dp 的取整帶（帶內兩種結果都收；Render 的餘裕是 1dp）。 */
 const GAP_SMALL = 4, FIT_BAND = 1.5;
 /** 最近蓋章「放得下再一列」的判斷：一列高在 0 筆時量不到，取 13sp 一行最矮的行高（拉丁字母，dp）。 */
 const MIN_ROW_H = 15;
-/** 取樣點覆蓋的下限＝2026-09-30 量到的實數（land 1080、sea 1350、pen 540、contrast 198、inkBoxes 2298、scoped 246）的約 90%：分母縮水就紅。 */
-const LAND_MIN = 950, SEA_MIN = 1200, PEN_MIN = 480, CON_MIN = 170, INK_MIN = 2050, SCOPED_MIN = 220;
-/** A9 版面關係的覆蓋下限（2026-09-30 量到 textPairs 8435、clipRegions 2193 的約 90%）。 */
-const PAIRS_MIN = 7500, CLIPS_MIN = 1950;
+/** Render 的列高預算是實測高度進位到整數（各項至少多估 0.6dp，寧可少放一列也不讓字被裁）：「放得下再一列」＝剩餘空間 ≥ 一列＋這個餘裕；餘裕內放不下是設計，不算少畫。 */
+const ROW_FIT_MARGIN = 1.0;
+/** 全台孤立實心點的每案下限：中卡地圖欄最下面放了整條蓋章鈕、地圖縮高（158dp 高的卡約 131→92dp），點更擠，實測最少 3（舊版 5）。 */
+const ISO_SOLID_MIN = 3;
+/** 取樣點覆蓋的下限＝2026-09-30（蓋章鈕改整條、加 50 個案例之後）量到的實數（land 1216、sea 1600、pen 640、contrast 248、inkBoxes 3152、scoped 302）的約 90%：分母縮水就紅。 */
+const LAND_MIN = 1090, SEA_MIN = 1440, PEN_MIN = 575, CON_MIN = 220, INK_MIN = 2830, SCOPED_MIN = 270;
+/** A9 版面關係的覆蓋下限（2026-09-30 蓋章鈕改版後量到 textPairs 13784、clipRegions 2931 的約 90%）。 */
+const PAIRS_MIN = 12400, CLIPS_MIN = 2630;
 /** 標題列各種畫法的覆蓋下限（2026-09-30 量到 小卡兩個都放 87／全台只留車站收集 42／單一系統只留系統名 19、中卡兩個都放 70／只留系統名 13、縮字 12 的約 90%）。 */
-const HEAD_MIN = { headSmallBoth: 75, headSmallDropAll: 38, headSmallDropScoped: 17, headMedBoth: 60, headMedDrop: 11, headShrunk: 10,
-  recent4: 11, recentMax: 42,   // 最近蓋章：畫滿 4 筆的案 13、算過最大性的案 47（2026-09-30）的約 85–90%
+const HEAD_MIN = { headSmallBoth: 92, headSmallDropAll: 45, headSmallDropScoped: 17, headMedBoth: 79, headMedDrop: 11, headShrunk: 10,
+  recent4: 14, recentMax: 48,   // 最近蓋章：畫滿 4 筆的案 16、算過最大性的案 60（2026-09-30 蓋章鈕改版後）的約 80–90%
+  recentBase: 89, gapPct: 142,  // 最近蓋章不少於改版前的案（量到 99）、小卡標題與百分比間距的案（量到 158）的約 90%
   recentKs: 2 };               // 預期清單裡有「只靠 ks 才屬於這個系統」的站（轉乘站 fixture 的淡海中卡）：實際 2 案（fixture 被拿掉就紅）
 /** 把 PNG 裁到點陣框：at(x,y)＝原圖 (x+start, y+top)；框外（出血區）用負座標或超過 w／h 取得。 */
 function framed(raw, family, dpr) {
@@ -205,6 +214,19 @@ function windowFor(payload, idx) {
   const pad = Math.max(0.12 * Math.max(w, h), 10);
   const size = Math.max(w + 2 * pad, h + 2 * pad, 40);
   return { x0: (minX + maxX) / 2 - size / 2, y0: (minY + maxY) / 2 - size / 2, size };
+}
+
+/** 最近蓋章「一列」的高（dp），每個語言各量一次＝該語言所有案裡畫出來的列的名稱框高的最小值。中日文的行高比拉丁字母高約 25%，
+ *  0 筆的案量不到自己的一列高，拿拉丁字母的 MIN_ROW_H 去量中日文卡，會把「其實放不下」的卡誤判成「放得下卻沒畫」。 */
+const ROW_H_BY_LANG = new Map();
+for (const c of cases) {
+  const o = obsById.get(c.id);
+  if (!o || c.family !== 'medium') continue;
+  for (const n of nodes(o, 'wc_recent_name')) {
+    if (!n.visible || !n.box) continue;
+    const l = c.lang ?? 'zh-TW';
+    ROW_H_BY_LANG.set(l, Math.min(ROW_H_BY_LANG.get(l) ?? Infinity, n.box[3] - n.box[1]));
+  }
 }
 
 // ── 逐案檢查 ─────────────────────────────────────────────────────────────────
@@ -298,6 +320,9 @@ for (const c of cases) {
         names.length <= Math.min(4, want.length) && names.every((t, i) => t === want[i]?.name) && dates.every((t, i) => t === shortDate(want[i]?.d ?? '')),
         () => `${tag}：畫面 ${names}／${dates}，期望前綴 ${want.map(r => r.name + '／' + shortDate(r.d))}`);
       if (names.length === 4) totals.recent4++;
+      // 蓋章鈕搬到地圖欄之後，文字欄的中段多出高度：放得下的筆數只會變多或不變，不准比改版前少
+      const baseN = RECENT_BASE[c.id];
+      if (baseN !== undefined) { totals.recentBase++; check('單一系統中卡最近蓋章的筆數不少於改版（蓋章鈕搬家）之前', names.length >= baseN, () => `${tag}：現在 ${names.length} 筆，改版前 ${baseN} 筆`); }
       // 只靠 ks 才屬於這個系統的站（k 不是這個系統）出現在預期清單裡的案：證明「只看 k」的實作會被抓到
       if (want.some(r => r.k !== e.sys.k)) totals.recentKs++;
       // 最大性：畫的筆數少於 min(4, 筆數)，就要證明剩下的空間（標題區塊與進度條之間的伸縮間隔＋最後一個元素到下一個元素的空隙）放不下再一列。
@@ -308,13 +333,13 @@ for (const c of cases) {
         const bar = one(obs, 'wc_scope_bar'), remainN = one(obs, 'wc_remain_line');
         const legendN = nodes(obs, 'wc_legend_solid').find(n => n.visible);
         if (rowsN && bar?.box && remainN?.box) {
-          const rowH = recN.length ? Math.max(...recN.map(n => n.box[3] - n.box[1])) : MIN_ROW_H;
+          const rowH = recN.length ? Math.max(...recN.map(n => n.box[3] - n.box[1])) : (ROW_H_BY_LANG.get(lang) ?? MIN_ROW_H);
           const lastBottom = Math.max(remainN.box[3], ...recN.map(n => n.box[3]));
           const nextTop = legendN ? legendN.box[1] : rowsN.box[3];
           const free = (bar.box[1] - rowsN.box[1]) + (nextTop - lastBottom);
           totals.recentMax++;
-          check('單一系統最近蓋章：畫的筆數已是放得下的最大值（剩餘空間放不下再一列）', free < rowH - 0.5,
-            () => `${tag}：只畫 ${names.length} 筆（可畫 ${Math.min(4, want.length)}），剩餘空間 ${free.toFixed(1)}dp ≥ 一列高 ${rowH.toFixed(1)}dp＝放得下卻沒畫`);
+          check('單一系統最近蓋章：畫的筆數已是放得下的最大值（剩餘空間放不下再一列）', free < rowH + ROW_FIT_MARGIN,
+            () => `${tag}：只畫 ${names.length} 筆（可畫 ${Math.min(4, want.length)}），剩餘空間 ${free.toFixed(1)}dp ≥ 一列高 ${rowH.toFixed(1)}dp＋餘裕 ${ROW_FIT_MARGIN}dp＝放得下卻沒畫`);
         }
       }
       if (c.hDp >= 200 && want.length > 0) check('夠高的單一系統中卡至少放 1 筆最近蓋章', names.length >= 1, `${tag}：沒有最近蓋章`);
@@ -324,6 +349,15 @@ for (const c of cases) {
         else if (lang.startsWith('zh')) check('繁中夠高的單一系統中卡一定放得下圖例', false, `${tag}：沒有圖例`);
       }
     }
+  }
+
+  // A2a 小卡：標題列與百分比之間至少留 1dp（字形框的距離）。高度預算的「標題與文字欄之間的保留量」就是為了這個空隙，
+  //    只比「不相交」（距離 > -0.5）看不出保留量被改小，矮卡壓縮時兩個字形框會剛好貼在一起。
+  if (small && e.collected > 0) {
+    const pctN = one(obs, 'wc_pct'), ttl = one(obs, 'wc_title'), sub = nodes(obs, 'wc_subtitle').find(n => n.visible);
+    const above = Math.max(ttl?.glyph?.[3] ?? -1e9, sub?.glyph?.[3] ?? -1e9);
+    totals.gapPct++;
+    check('小卡：標題列與百分比之間至少留 1dp（字形框）', !!pctN?.glyph && pctN.glyph[1] - above >= 1, () => `${tag}：百分比字形框頂 ${pctN?.glyph?.[1]?.toFixed(1)}，標題列字形框底 ${above.toFixed(1)}`);
   }
 
   // A2b 標題列省略順序（契約〈畫法約定〉8，不因語言另設特例）：
@@ -425,11 +459,14 @@ for (const c of cases) {
     }
   }
 
-  // A8 蓋章按鈕（小卡：文字欄最下面、數字下方靠左；中卡：「已收集」那一列右端）：看得到、在卡片內、尺寸不變、
-  //    不與【任何】可見文字（字形框）或進度條相交、位置對、可點容器包住膠囊且夠大。
-  //    舊版只比對白名單 id，把鈕往下推進 wc_rows 區（wc_row_label／wc_row_bar 不在白名單）就抓不到（突變 M1 漏網）。
+  // A8 蓋章按鈕（整條按鈕，契約〈畫法約定〉11）：小卡＝文字欄最下面、寬＝文字欄寬；中卡＝地圖欄最下面、寬＝地圖欄寬（地圖縮高讓位）。
+  //    判準寫「是什麼／怎麼排」，不手打像素：所在欄的框由裝置端回報（wc_stamp_col＝可點容器的父層，版面不必為此多加 id）。
+  //    · 看得到、在卡片內、整條（寬＝欄寬、比舊膠囊大）、字置中不截斷；
+  //    · 在所在欄的最下面：欄內其他可見文字與進度條都在膠囊之上，中卡的地圖格也在膠囊之上；
+  //    · 可點容器 wc_stamp_hit：包住膠囊、寬＝欄寬、高 ≥ 48dp、一路伸到欄的下緣，不與任何可見文字（字形框）或進度條相交（數字、標題、系統列都不會被蓋到）；
+  //    · 點陣地圖的墨不進膠囊（A7）。
   {
-    const st = one(obs, 'wc_stamp'), hitBox = one(obs, 'wc_stamp_hit');
+    const st = one(obs, 'wc_stamp'), hitBox = one(obs, 'wc_stamp_hit'), col = nodes(obs, 'wc_stamp_col')[0];
     const shown = !!st && st.visible === true && st.text === tr(lang, '蓋章');
     check('蓋章鈕：看得到，文字＝原生字串目錄的「蓋章」', shown, () => `${tag}：wc_stamp=${JSON.stringify(st?.text)} visible=${st?.visible}（期望 ${tr(lang, '蓋章')}）`);
     if (shown) {
@@ -437,34 +474,43 @@ for (const c of cases) {
       const f1 = v => v.toFixed(1);
       check('蓋章鈕：尺寸大於 0', r - l > 4 && b - t > 4, () => `${tag}：box [${st.box.map(f1)}]`);
       check('蓋章鈕：完全在小工具範圍內', l >= -0.5 && t >= -0.5 && r <= c.wDp + 0.5 && b <= c.hDp + 0.5, () => `${tag}：box [${st.box.map(f1)}] 超出 ${c.wDp}x${c.hDp}`);
-      check('蓋章鈕：膠囊尺寸不變（高 17.9±0.5dp、寬 zh 35.8／en 45.3／ja 55.6 ±0.8）', near(b - t, 17.9, 0.5) && near(r - l, STAMP_W[lang.split('-')[0]] ?? STAMP_W.zh, 0.8), () => `${tag}：膠囊 ${f1(r - l)}x${f1(b - t)}dp`);
-      let textBottom = -Infinity;
+      check('蓋章鈕：整條——寬＝所在欄的欄寬（小卡＝文字欄、中卡＝地圖欄）', !!col?.box && near(l, col.box[0], 0.5) && near(r, col.box[2], 0.5), () => `${tag}：膠囊 [${st.box.map(f1)}]，所在欄 [${col?.box?.map(f1)}]`);
+      check('蓋章鈕：高 ≥ 舊膠囊高的 1.4 倍（放大是這次改版的目的，縮回去就紅）', b - t >= OLD_PILL_H * 1.4 - 0.5, () => `${tag}：膠囊高 ${f1(b - t)}dp，舊版 ${OLD_PILL_H}dp`);
+      // 字置中：字形框（含垂直對齊的位移，裝置端回報）的中心＝膠囊的中心，且完全在膠囊內（三語都不截斷）
+      const gl = st.glyph;
+      check('蓋章鈕：字置中（水平差 ≤ 1dp、垂直差 ≤ 1.5dp）且完全在膠囊內', !!gl && gl[0] >= l - 0.5 && gl[2] <= r + 0.5 && gl[1] >= t - 0.5 && gl[3] <= b + 0.5
+        && near((gl[0] + gl[2]) / 2, (l + r) / 2, 1) && near((gl[1] + gl[3]) / 2, (t + b) / 2, 1.5), () => `${tag}：字形框 [${gl?.map(f1)}]，膠囊 [${st.box.map(f1)}]`);
+      // 在所在欄的最下面：水平範圍與這一欄相交的可見文字／進度條，下緣都不在膠囊上緣之下（文字欄的文字、中卡的系統列在另一欄，不受影響）
+      let lowest = -Infinity;
       for (const n of obs.nodes) {
-        if (!n.visible || !n.box || ['wc_stamp', 'wc_stamp_hit', 'wc_root'].includes(n.id)) continue;
+        if (!n.visible || !n.box || ['wc_stamp', 'wc_stamp_hit', 'wc_root', 'wc_stamp_col'].includes(n.id)) continue;
         const isText = n.kind === 'text' && (n.text ?? '') !== '';
         if (!isText && n.kind !== 'progress') continue;
         const g = isText ? (n.glyph ?? n.box) : n.box;
-        if (isText) textBottom = Math.max(textBottom, g[3]);
-        const ix = Math.min(r, g[2]) - Math.max(l, g[0]), iy = Math.min(b, g[3]) - Math.max(t, g[1]);
-        check('蓋章鈕不與任何可見文字（字形框）或進度條相交', !(ix > 0.5 && iy > 0.5), () => `${tag}：wc_stamp [${st.box.map(f1)}] 與 ${n.id}=${JSON.stringify(n.text ?? n.kind)} [${g.map(f1)}] 相交 ${f1(ix)}x${f1(iy)}dp`);
+        const ix = !!col?.box && Math.min(col.box[2], g[2]) - Math.max(col.box[0], g[0]);
+        if (!(ix > 0.5)) continue;
+        lowest = Math.max(lowest, g[3]);
+        const iy = Math.min(b, g[3]) - Math.max(t, g[1]), jx = Math.min(r, g[2]) - Math.max(l, g[0]);
+        check('蓋章鈕不與任何可見文字（字形框）或進度條相交', !(jx > 0.5 && iy > 0.5), () => `${tag}：wc_stamp [${st.box.map(f1)}] 與 ${n.id}=${JSON.stringify(n.text ?? n.kind)} [${g.map(f1)}] 相交 ${f1(jx)}x${f1(iy)}dp`);
       }
-      if (small) {
-        check('小卡蓋章鈕位置：左緣約 14dp、在標題與所有文字之下（數字下方靠左）', near(l, 14, 1.5) && t >= textBottom - 0.5, () => `${tag}：膠囊 [${st.box.map(f1)}]，文字最低 ${f1(textBottom)}`);
-      } else {
-        const pct = one(obs, 'wc_pct'), count = one(obs, 'wc_count');
-        const cy = (t + b) / 2;
-        check('中卡蓋章鈕位置：右緣約 W−16、在百分比之下、垂直落在「已收集」那一列', near(r, c.wDp - 16, 1.5) && !!pct?.glyph && t >= pct.glyph[3] - 0.5 && !!count?.box && cy >= count.box[1] - 3 && cy <= count.box[3] + 3, () => `${tag}：膠囊 [${st.box.map(f1)}]，百分比字形底 ${f1(pct?.glyph?.[3] ?? NaN)}，已收集列 [${count?.box?.[1]}, ${count?.box?.[3]}]`);
+      check('蓋章鈕在所在欄的最下面：欄內其他可見文字與進度條都在膠囊之上', lowest <= t + 0.5, () => `${tag}：欄內最低的文字／進度條下緣 ${f1(lowest)}，膠囊上緣 ${f1(t)}`);
+      if (!small) {
+        const mapN = one(obs, 'wc_map_light');
+        if (mapN?.box) check('中卡：地圖格在按鈕上方（地圖縮高讓位）', mapN.box[3] - BLEED.medium.bottom <= t + 0.5, () => `${tag}：地圖格下緣 ${f1(mapN.box[3] - BLEED.medium.bottom)}，膠囊上緣 ${f1(t)}`);
       }
-      const minW = 48, minH = small ? 36 : 26;
-      check('蓋章鈕可點容器 wc_stamp_hit：存在、包住膠囊、尺寸 ≥ 48×36（小）／48×26（中）', !!hitBox?.box && hitBox.box[0] <= l + 0.5 && hitBox.box[1] <= t + 0.5 && hitBox.box[2] >= r - 0.5 && hitBox.box[3] >= b - 0.5 && hitBox.box[2] - hitBox.box[0] >= minW - 0.5 && hitBox.box[3] - hitBox.box[1] >= minH - 0.5, () => `${tag}：容器 [${hitBox?.box?.map(f1)}] 膠囊 [${st.box.map(f1)}]`);
-      if (hitBox?.box) {
+      const hb = hitBox?.box;
+      check('蓋章鈕可點容器 wc_stamp_hit：存在、包住膠囊、寬＝欄寬、高 ≥ 48dp、一路伸到所在欄的下緣',
+        !!hb && !!col?.box && hb[0] <= l + 0.5 && hb[1] <= t + 0.5 && hb[2] >= r - 0.5 && hb[3] >= b - 0.5
+          && near(hb[0], col.box[0], 0.5) && near(hb[2], col.box[2], 0.5) && hb[3] - hb[1] >= HIT_MIN_DP - 0.5 && near(hb[3], col.box[3], 0.5),
+        () => `${tag}：容器 [${hb?.map(f1)}] 膠囊 [${st.box.map(f1)}] 所在欄 [${col?.box?.map(f1)}]`);
+      if (hb) {
         for (const n of obs.nodes) {
-          if (!n.visible || !n.box || ['wc_stamp', 'wc_stamp_hit', 'wc_root'].includes(n.id)) continue;
+          if (!n.visible || !n.box || ['wc_stamp', 'wc_stamp_hit', 'wc_root', 'wc_stamp_col'].includes(n.id)) continue;
           const isText = n.kind === 'text' && (n.text ?? '') !== '';
           if (!isText && n.kind !== 'progress') continue;
           const g = isText ? (n.glyph ?? n.box) : n.box;
-          const ix = Math.min(hitBox.box[2], g[2]) - Math.max(hitBox.box[0], g[0]), iy = Math.min(hitBox.box[3], g[3]) - Math.max(hitBox.box[1], g[1]);
-          check('蓋章鈕可點容器不與任何可見文字（字形框）或進度條相交', !(ix > 0.5 && iy > 0.5), () => `${tag}：wc_stamp_hit [${hitBox.box.map(f1)}] 與 ${n.id}=${JSON.stringify(n.text ?? n.kind)} [${g.map(f1)}] 相交 ${f1(ix)}x${f1(iy)}dp`);
+          const ix = Math.min(hb[2], g[2]) - Math.max(hb[0], g[0]), iy = Math.min(hb[3], g[3]) - Math.max(hb[1], g[1]);
+          check('蓋章鈕可點容器不與任何可見文字（字形框）或進度條相交', !(ix > 0.5 && iy > 0.5), () => `${tag}：wc_stamp_hit [${hb.map(f1)}] 與 ${n.id}=${JSON.stringify(n.text ?? n.kind)} [${g.map(f1)}] 相交 ${f1(ix)}x${f1(iy)}dp`);
         }
       }
     }
@@ -558,7 +604,11 @@ for (const c of cases) {
     if (which === 'light') {
       const has = s => scoped.some(p => p[3] === s);
       if (has(2) && c.scope !== 'all') check('單一系統：孤立的已收集點數 ≥1（否則像素判準是空的）', counts[2] >= 1 || scoped.filter(p => p[3] === 2).length < 2, `${tag}：沒有可驗的孤立實心點`);
-      if (has(2) && c.scope === 'all') check('全台：孤立的實心點數 ≥ min(5, 該範圍的實心點數)', counts[2] >= Math.min(5, scoped.filter(p => p[3] === 2).length), () => `${tag}：只有 ${counts[2]} 個`);
+      if (has(2) && c.scope === 'all') {
+        // 視窗裡九成以上都是實心點（全部收集／99%）時點互相蓋成一片，沒有孤立點是預期；像素判準由其他案驗。
+        const solids = scoped.filter(p => p[3] === 2).length, packed = solids >= 0.9 * scoped.length;
+        check('全台：孤立的實心點數 ≥ min(3, 該範圍的實心點數)（九成以上是實心點的擠滿案不要求）', packed || counts[2] >= Math.min(ISO_SOLID_MIN, solids), () => `${tag}：只有 ${counts[2]} 個（實心點 ${solids}／${scoped.length}）`);
+      }
     }
     // 視窗外的點不畫（單一系統）；其他系統的點在視窗內畫成更淡的灰
     if (e.idx >= 0) {
@@ -724,7 +774,7 @@ for (const c of cases) {
     check('點擊目標：兩個入口是兩顆不同的 PendingIntent', r.samePending === false, () => `${r.family}：兩個入口是同一顆`);
     check('點擊目標：命中蓋章鈕膠囊的是 wc_stamp_hit、命中標題文字的是 wc_root', r.pillHitId === 'wc_stamp_hit' && r.titleHitId === 'wc_root', () => `${r.family}：膠囊命中 ${r.pillHitId}／標題命中 ${r.titleHitId}`);
     const [el, et, er, eb] = r.effective ?? [0, 0, 0, 0];
-    check('點擊目標：實際可點範圍 ≥ 48×36.5dp（小）／48×26dp（中），且填滿（≥98%）', er - el >= 47.75 && eb - et >= (r.family === 'small' ? 36.25 : 25.75) && r.effectiveFilled >= 0.98, () => `${r.family}：可點 [${(r.effective ?? []).join(',')}] 填滿 ${r.effectiveFilled}`);
+    check('點擊目標：實際可點範圍（真的按下去會落到鈕容器的範圍）≥ 48×48dp（契約），且填滿（≥98%）', er - el >= HIT_MIN_DP - 0.25 && eb - et >= HIT_MIN_DP - 0.25 && r.effectiveFilled >= 0.98, () => `${r.family}：可點 [${(r.effective ?? []).join(',')}] 填滿 ${r.effectiveFilled}`);
     check('點擊目標：蓋章鈕的 PendingIntent 建立者是本 App', /^tw\.railisland\.app/.test(r.stampCreator), () => `${r.family}：creator=${r.stampCreator}`);
   }
 }

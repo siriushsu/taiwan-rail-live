@@ -31,9 +31,10 @@ final class CollectionWidgetRender {
     static final int DEFAULT_MEDIUM_W = 320, DEFAULT_MEDIUM_H = 110;
 
     // 版面度量（dp）。中卡左欄各列的自然高度（含 CJK 行高），實測值，見 CollectionWidgetInstrumentedTest 的列高量測。
-    private static final int CARD_PAD_V = 27;       // 上 12＋下 15
+    private static final int CARD_PAD_V = 27;       // 上 12＋下 15（下 15 在欄位的 paddingBottom；根的下內距是 0，蓋章鈕容器要伸進去）
     private static final int CARD_PAD_H = 30;       // 左 14＋右 16
-    private static final int MEDIUM_HEAD = 50;      // 標題列＋已收集行（含 26dp 高的蓋章鈕容器）＋間距＋列容器上緣（舊值 44 是蓋章鈕在標題列時量的；鈕搬進已收集那一列後該列由 17 變 26dp、wc_rows 上距 5→2dp，共 +6）
+    private static final int CARD_PAD_TOP = 12, PAD_TOP_MIN = 6;   // 根的上內距（dp）：小卡矮到放不下 48dp 高的鈕容器時壓到最低 6（只有小卡壓）
+    private static final int MEDIUM_HEAD = 38;      // 標題列（20.6）＋已收集行（15.2）＋列容器上距 2＝37.9 進位；蓋章鈕搬到地圖欄之後，已收集那一行只剩字（舊值 50 含 26dp 高的鈕容器）。各列常數都是實測進位，整體保守至少 0.6dp
     private static final int ROW_SYS = 17;
     private static final int ROW_NOTE = 18;         // 含 marginTop 3
     private static final int ROW_LEGEND = 17;       // 含 marginTop 3
@@ -42,13 +43,25 @@ final class CollectionWidgetRender {
     private static final int ROW_RECENT = 19;
     /** 單一系統中卡最近蓋章的筆數上限（契約〈畫法約定〉9）。 */
     private static final int MAX_RECENT = 4;
-    /** 整張卡的字都是拉丁字母時（英文）各列的高度（dp）：實測標題列＋已收集行 44.4、「還有 N 座」列 5＋14.5、最近蓋章一列 15.2；
+    /** 整張卡的字都是拉丁字母時（英文）各列的高度（dp）：實測標題列＋已收集行 28.6（標題 16.4＋已收集 12.6）加列容器上距 2、「還有 N 座」列 5＋14.5、最近蓋章一列 15.2；
      *  CJK 的行高高約 25%（見上面的 MEDIUM_HEAD／ROW_REMAIN／ROW_RECENT），用 CJK 的值估英文會少放一列（2026-09-30 英文 158dp 高的台鐵中卡剩 29dp 空著）。 */
-    private static final int MEDIUM_HEAD_LATIN = 46, ROW_REMAIN_LATIN = 20, ROW_RECENT_LATIN = 16;
-    /** 小卡文字欄最下面的蓋章鈕區塊高（dp）：與數字的間距 6＋膠囊 18（見 widget_collect_small.xml 的 wc_stamp_hit；實測 24.1）。 */
-    private static final int STAMP_BLOCK = 24;
-    /** 小卡高度預算：標題與文字欄之間留的空隙、百分比與「已收集」的間距（正常／矮卡壓縮後）。只有後者是版面真的會變的屬性（wc_count 的 paddingTop）。 */
-    private static final float HEAD_GAP = 6f, HEAD_GAP_TIGHT = 2f, COUNT_GAP = 4f;
+    private static final int MEDIUM_HEAD_LATIN = 31, ROW_REMAIN_LATIN = 20, ROW_RECENT_LATIN = 16;
+    /** 蓋章鈕（整條按鈕，契約〈畫法約定〉11）：膠囊高 28dp；容器＝上空隙＋膠囊＋下 15dp，下 15dp 用 -15dp 下邊距伸進欄位的 paddingBottom，
+     *  所以容器淨占欄位高度＝上空隙＋28，可點範圍高＝上空隙＋28＋15（空隙 5dp＝剛好 48dp）。
+     *  小卡：空隙固定 5dp（見 widget_collect_small.xml），淨占 STAMP_BLOCK＝33。
+     *  中卡：空隙隨地圖高度走（要容得下恆春半島畫到點陣框下緣之外的墨，約框高的 MAP_INK_BELOW），最少 STAMP_GAP_MIN。 */
+    private static final int STAMP_PILL = 28, STAMP_GAP_MIN = 5, STAMP_PAD_BOTTOM = 15;
+    private static final int STAMP_BLOCK = STAMP_GAP_MIN + STAMP_PILL;
+    private static final float MAP_INK_BELOW = 0.10f;
+    /** 中卡地圖高度的下限（dp）：矮到這個程度（110dp 高的中卡）地圖還是畫得出輪廓，不再縮。 */
+    private static final float MAP_MIN_DP = 40f;
+    /** 矮卡壓縮時百分比字級的下限（sp）：再矮就先壓根的上內距（最低 PAD_TOP_MIN），百分比才往下縮。 */
+    private static final float PCT_COMPACT = 16f;
+    /** 小卡高度預算：標題與文字欄之間留的空隙（預算用的保留量，版面裡沒有對應的 margin；百分比的行框上方本來就有字形外的空白）、
+     *  百分比與「已收集」的間距（正常／矮卡壓縮後）。只有後者是版面真的會變的屬性（wc_count 的 paddingTop）。
+     *  HEAD_GAP 由 6 降到 1：蓋章鈕變成 48dp 高的整條按鈕（淨占 33dp，舊的 24dp）之後，158dp 高的小卡剩下的餘裕只有約 1.7dp，
+     *  保留量再大就會為了鈕丟掉「還有 N 座」；標題與百分比的實際間距由預言機量（字形框至少 1dp）。 */
+    private static final float HEAD_GAP = 1f, HEAD_GAP_TIGHT = 2f, COUNT_GAP = 4f;
     /** 標題列放不放得下的取整餘裕（dp）：寧可收掉副標，也不讓字被「…」截斷。 */
     private static final float FIT_SLACK = 1f;
     /** 百分比大字一行的高度倍數（實測 20sp→23.7dp、34sp→40.0dp，取 1.2 留餘裕）、正常間距下的字級下限、再矮時的絕對下限（sp）。 */
@@ -111,10 +124,13 @@ final class CollectionWidgetRender {
             float need9 = Math.max(tightWidth(countText, 9 * fs) * 1.05f, tightWidth(remainText, 9 * fs));
             showMap = need9 <= colW;
         }
-        // 蓋章鈕（膠囊寬＝字寬加左右內距 16dp）也要放得進文字欄：放不下（日文「スタンプ」在 110dp 寬的卡上）就把地圖讓出來，
-        // 不讓膠囊的字折成兩行被裁掉。
-        showMap = showMap && tightWidth(stamp, 10 * fs) * 1.1f + 16f <= colW;
+        // 蓋章鈕（整條，寬＝文字欄寬；字會 autoSize 縮到 9sp，左右內距各 6dp）也要放得進文字欄：縮到 9sp 還放不下就把地圖讓出來，
+        // 不讓按鈕的字折成兩行被裁掉。
+        showMap = showMap && tightWidth(stamp, 9 * fs) * 1.1f + 12f <= colW;
         if (!showMap) colW = wDp - CARD_PAD_H;
+        // 根的上內距（dp）：平常 12；矮卡放不下 48dp 高的鈕容器時壓低（最低 PAD_TOP_MIN），兩個分支都在最後明講一次
+        float padTop = CARD_PAD_TOP;
+        float emptySp = 13f;
 
         // 🔴 launcher 收到同一個 layout 的新 RemoteViews 時是 reapply 到「舊的那棵 View 樹」上，不是重新 inflate：
         //    新 RemoteViews 沒提到的屬性會停在上一次的樣子。所以每個會被切換的可見性，兩個分支都要明講一次
@@ -132,6 +148,14 @@ final class CollectionWidgetRender {
             boolean hint = titleH + hintH + STAMP_BLOCK <= bodyH;
             v.setViewVisibility(R.id.wc_empty_hint, hint ? android.view.View.VISIBLE : android.view.View.GONE);
             v.setTextViewText(R.id.wc_empty_hint, emptyHint);
+            // 矮卡（110dp 高）：標題折成兩行再加 48dp 高的鈕容器放不下 → 先壓根的上內距，還不夠就把邀請標題縮到 12sp
+            float emptyRoom = hDp - CARD_PAD_V - 13 * LINE_H * fs;
+            if (titleH + STAMP_BLOCK > emptyRoom) {
+                float more = Math.min(CARD_PAD_TOP - PAD_TOP_MIN, titleH + STAMP_BLOCK - emptyRoom);
+                padTop = CARD_PAD_TOP - more;
+                if (titleH + STAMP_BLOCK > emptyRoom + more) emptySp = 12f;
+            }
+            v.setTextViewTextSize(R.id.wc_empty_title, android.util.TypedValue.COMPLEX_UNIT_SP, emptySp);
         } else {
             v.setViewVisibility(R.id.wc_pct, android.view.View.VISIBLE);
             v.setViewVisibility(R.id.wc_count, android.view.View.VISIBLE);
@@ -139,9 +163,10 @@ final class CollectionWidgetRender {
             v.setViewVisibility(R.id.wc_empty_hint, android.view.View.GONE);
             v.setTextViewText(R.id.wc_pct, bigPercent(f.percentLabel));
             float pctSp = percentSp(f.percentLabel, colW, fs);
-            // 高度預算（dp）：卡高扣掉上下內距（CARD_PAD_V，含文字欄底部 12）與標題列（13sp 一行，CJK 行高約 1.45 倍；拉丁字母較矮，取大的），
+            // 高度預算（dp）：卡高扣掉上下內距（CARD_PAD_V，含文字欄底部 15）與標題列（13sp 一行，CJK 行高約 1.45 倍；拉丁字母較矮，取大的），
             // 剩下給文字欄。文字欄由下往上排：蓋章區塊（STAMP_BLOCK）→「還有 N 座」（放得下才放）→ 已收集 → 百分比大字；標題與文字欄之間另留 HEAD_GAP。
-            // 先丟次要的「還有 N 座」；再放不下，百分比縮到 PCT_FLOOR；還是放不下（110dp 高的 2×2）就把兩段間距壓到最小、百分比再縮到放得下為止。
+            // 先丟次要的「還有 N 座」；再放不下，百分比縮到 PCT_FLOOR；還是放不下（約 124dp 以下）就把兩段間距壓到最小、百分比再縮到放得下為止；
+            // 縮到 PCT_COMPACT 還放不下（110dp 高的 2×2）就先把根的上內距由 12dp 壓到最低 PAD_TOP_MIN，百分比才再往下縮。
             // 🔴 標題、百分比、已收集、蓋章鈕都要完整看得見：寧可字小，也不讓任何一個被裁在文字欄外（2026-09-30 110dp 高的百分比上半被裁）。
             float room = hDp - CARD_PAD_V - 13 * LINE_H * fs;
             float lineH = 16 * fs;                        // 11sp 一行（CJK 行高，實測 16.0dp）
@@ -154,6 +179,11 @@ final class CollectionWidgetRender {
                 } else {
                     countGap = 0;
                     fit = (room - HEAD_GAP_TIGHT - lineH - STAMP_BLOCK) / (PCT_LH * fs);
+                    if (fit < PCT_COMPACT) {
+                        float more = Math.min(CARD_PAD_TOP - PAD_TOP_MIN, (PCT_COMPACT - fit) * PCT_LH * fs);
+                        padTop = CARD_PAD_TOP - more;
+                        fit += more / (PCT_LH * fs);
+                    }
                     pctSp = Math.max(PCT_MIN, Math.min(PCT_FLOOR, fit));
                 }
             }
@@ -165,10 +195,13 @@ final class CollectionWidgetRender {
             v.setViewVisibility(R.id.wc_remain, remain ? android.view.View.VISIBLE : android.view.View.GONE);
         }
 
+        // 根的內距：左 14、右 16、下 0（下 15dp 在欄位的 paddingBottom，鈕容器要伸進去），上 padTop。setViewPadding 四個值要一起給；每次都明講
+        float density0 = c.getResources().getDisplayMetrics().density;
+        v.setViewPadding(R.id.wc_root, Math.round(14 * density0), Math.round(padTop * density0), Math.round(16 * density0), 0);
         v.setViewVisibility(R.id.wc_map_slot, showMap ? android.view.View.VISIBLE : android.view.View.GONE);
         if (showMap) {
             float density = c.getResources().getDisplayMetrics().density;
-            float bodyH = Math.max(48, hDp - CARD_PAD_V - 16 - 6 - 4);
+            float bodyH = Math.max(48, hDp - padTop - (CARD_PAD_V - CARD_PAD_TOP) - 16 - 6 - 4);
             float slotW = (wDp - CARD_PAD_H) * 0.42f;
             float mapH = Math.min(bodyH, slotW / (float) f.aspect);
             setMaps(v, f, mapH, density, c.getResources(), true);
@@ -215,7 +248,7 @@ final class CollectionWidgetRender {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_collect_medium);
         String kicker = RailNativeL10n.text(c, "車站收集");
         // 標題列照契約〈畫法約定〉8：全台範圍的標題本來就只有「車站收集」；單一系統是「範圍 · 車站收集」，同一行（14sp 粗體）放得下才用，
-        // 放不下就只留系統名。標題欄寬（dp）＝文字欄寬 − 百分比 − 間距（蓋章鈕在下一列「已收集」的右端，不占標題列）；
+        // 放不下就只留系統名。標題欄寬（dp）＝文字欄寬 − 百分比 − 間距（蓋章鈕在地圖欄最下面，不占標題列與文字欄）；
         // 只剩一個名稱還放不下，由版面的 autoSize 縮字（下限 75%）再截斷。放不放得下用 Paint 量，不是估計。
         String stamp = RailNativeL10n.text(c, "蓋章");
         v.setTextViewText(R.id.wc_stamp, stamp);
@@ -257,9 +290,19 @@ final class CollectionWidgetRender {
         }
 
         float density = c.getResources().getDisplayMetrics().density;
-        float bodyH = Math.max(48, hDp - CARD_PAD_V);
+        // 地圖欄由上往下：地圖格（吃掉剩下的高度）→ 蓋章鈕容器。容器淨占＝上空隙＋STAMP_PILL（下 15dp 伸進欄位的下內距）；
+        // 上空隙要容得下恆春半島畫到點陣框下緣之外的墨（約框高的 MAP_INK_BELOW），所以空隙與地圖高度一起解（幾次迭代就收斂）。
+        // 空隙是容器的 paddingTop（RemoteViews 改得了 padding、改不了 margin），每次都明講（launcher 是 reapply 到舊 View 樹）。
+        float colH = Math.max(0f, hDp - CARD_PAD_V);
+        float gap = STAMP_GAP_MIN;
+        float slotH = colH - STAMP_PILL - gap;
+        for (int i = 0; i < 4; i++) {
+            gap = Math.max(STAMP_GAP_MIN, (float) Math.ceil(Math.max(MAP_MIN_DP, slotH) * MAP_INK_BELOW + 1f));
+            slotH = colH - STAMP_PILL - gap;
+        }
+        v.setViewPadding(R.id.wc_stamp_hit, 0, Math.round(gap * density), 0, Math.round(STAMP_PAD_BOTTOM * density));
         float slotW = (wDp - CARD_PAD_H - 8) * 0.30f;
-        float mapH = Math.min(bodyH, slotW / (float) f.aspect);
+        float mapH = Math.max(MAP_MIN_DP, Math.min(slotH, slotW / (float) f.aspect));
         setMaps(v, f, mapH, density, c.getResources(), false);
         v.setContentDescription(R.id.wc_root, describe(c, f));
         return v;

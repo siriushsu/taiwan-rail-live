@@ -5,11 +5,12 @@
      所以文字與地圖在任何格子形狀下都不會疊（Pixel 2×2 是 140×222dp 直長條，Samsung 是 150×207dp）。
      地圖有淺／深兩張 Bitmap 疊在同一格，資源限定的 alpha 決定露出哪一張（見 dimens_collect.xml）。
      🔴 只准用 RemoteViews 白名單裡的類別（verify_widget_layouts.mjs 會擋）；ProgressBar／View 之類見那支的註解。
-     「蓋章」按鈕在文字欄最下面、數字下方靠左（與 iOS 同位置）：wc_stamp 是 18dp 高的實心膠囊（只管長相，不可點），
-        外面包一層透明容器 wc_stamp_hit（寬至少 48dp、高 36dp＝上 6dp 空隙＋膠囊 18＋下 12dp，往下伸進卡片下緣的留白）自己綁一個
-        PendingIntent 開 railisland://checkin；容器以外的地方仍是開旅程護照。
-        🔴 觸控命中只看「每一層祖先的邊界」：容器伸出去的部分必須還在祖先的邊界裡才點得到，所以卡片下緣 15dp 的內距拆成
-        根 3dp（陰影）＋文字欄與地圖欄各自的 paddingBottom 12dp，容器用 -12dp 下邊距伸進文字欄的內距。
+     「蓋章」是整條按鈕（契約〈畫法約定〉11，與 iOS 同一個版面）：在文字欄最下面、寬＝文字欄寬、字置中。wc_stamp 是 28dp 高的實心膠囊
+        （只管長相，不可點），外面包一層透明容器 wc_stamp_hit 自己綁一個 PendingIntent 開 railisland://checkin；容器以外的地方仍是開旅程護照。
+        容器高 48dp＝上 5dp 空隙＋膠囊 28＋下 15dp（往下伸進卡片下緣的留白），可點範圍 48dp 高、不蓋到任何一行字。
+        🔴 觸控命中只看「每一層祖先的邊界」：容器伸出去的部分必須還在祖先的邊界裡才點得到，所以卡片下緣 15dp 的內距全部放在
+        文字欄與地圖欄各自的 paddingBottom（根的下內距是 0），容器用 -15dp 下邊距伸進文字欄的內距，一路伸到卡片最下緣。
+        🔴 矮卡（110dp 高的 2×2）放不下「48dp 容器＋20sp 百分比」：CollectionWidgetRender 會用 setViewPadding 把根的上內距由 12dp 壓到最低 6dp（見該檔的 small()）。
      🔴 地圖 ImageView 用負邊距（wc_bleed_top／end／bottom_neg）比欄位大一圈，Bitmap 帶等量的透明「出血」，全台輪廓的恆春半島南端畫在這一圈裡；
         【左邊不出血】（沒有 start 負邊距，CollectionMapRender.bleed(res, true) 的 start＝0）：ImageView 從文字欄右緣開始，輪廓的墨不可能進到文字欄；
         沿路的祖先要 clipChildren／clipToPadding = false 才畫得出去。
@@ -29,7 +30,7 @@
     android:paddingStart="14dp"
     android:paddingTop="12dp"
     android:paddingEnd="16dp"
-    android:paddingBottom="3dp">
+    android:paddingBottom="0dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -77,7 +78,7 @@
             android:layout_weight="58"
             android:gravity="bottom"
             android:orientation="vertical"
-            android:paddingBottom="12dp">
+            android:paddingBottom="15dp">
 
             <TextView
                 android:id="@+id/wc_pct"
@@ -142,24 +143,27 @@
 
             <FrameLayout
                 android:id="@+id/wc_stamp_hit"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:layout_marginBottom="-12dp"
-                android:minWidth="48dp">
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="-15dp"
+                android:paddingTop="5dp"
+                android:paddingBottom="15dp">
 
                 <TextView
                     android:id="@+id/wc_stamp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="18dp"
-                    android:layout_marginTop="6dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="28dp"
+                    android:autoSizeMaxTextSize="14sp"
+                    android:autoSizeMinTextSize="9sp"
+                    android:autoSizeTextType="uniform"
                     android:background="@drawable/wc_stamp_bg"
                     android:gravity="center"
                     android:includeFontPadding="false"
                     android:maxLines="1"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
                     android:textColor="@color/wg_plate_band_ink"
-                    android:textSize="10sp"
+                    android:textSize="14sp"
                     android:textStyle="bold" />
             </FrameLayout>
         </LinearLayout>
@@ -171,7 +175,7 @@
             android:layout_weight="42"
             android:clipToPadding="false"
             android:paddingTop="10dp"
-            android:paddingBottom="12dp">
+            android:paddingBottom="15dp">
 
             <ImageView
                 android:id="@+id/wc_map_light"

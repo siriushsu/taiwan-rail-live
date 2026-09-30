@@ -45,7 +45,7 @@ full['n'] = full['total']
 for s in full['sys']: s['v'] = s['n']
 dump('full.json', full)
 
-# 差 1 站收滿：537/538 → 四捨五入 100 但標「99%」
+# 差 1 站收滿：538/539 → 四捨五入 100 但標「99%」
 n99 = copy.deepcopy(full)
 n99['n'] = n99['total'] - 1
 last = next(i for i in range(len(n99['pts']) - 1, -1, -1) if n99['pts'][i][4] == 0)
@@ -72,6 +72,15 @@ dump('sample-en.json', en)
 transfer = copy.deepcopy(sample)
 transfer['recent'].insert(0, {'name': '紅樹林', 'line': '淡水信義線', 'k': 'trtc', 'ks': ['trtc', 'ntdlrt'], 'd': '2026-09-29'})
 dump('sample-transfer.json', transfer)
+
+# 單一系統 ≥6 筆最近蓋章：最近 20 筆幾乎全是台鐵時真實資料就長這樣。示意 payload 每個系統最多 4 筆，
+# 「上限 4」在測試資料下看不到（上限拿掉的突變會存活）；這份有 8 筆台鐵，夠高的中卡拿掉上限就會畫出第 5 筆以上。
+many = copy.deepcopy(sample)
+many['recent'] = [{'name': nm, 'line': ln, 'k': 'tra', 'd': d} for nm, ln, d in (
+    ('菁桐', '平溪線', '2026-09-27'), ('十分', '平溪線', '2026-09-27'), ('瑞芳', '宜蘭線', '2026-09-26'),
+    ('池上', '臺東線', '2026-09-21'), ('花蓮', '北迴線', '2026-09-20'), ('臺東', '臺東線', '2026-09-19'),
+    ('礁溪', '宜蘭線', '2026-09-18'), ('羅東', '宜蘭線', '2026-09-18'))]
+dump('sample-recent8.json', many)
 
 # 壞檔：v=2（widget 端應退回「打開軌島一次」）
 bad = copy.deepcopy(sample); bad['v'] = 2
@@ -158,5 +167,17 @@ for lang in ('zh-TW', 'en', 'ja'):
         for fam, stag, w, h in (('small', 's158', 158, 158), ('small', 's110', 110, 110), ('small', 'stall', 140, 222),
                                 ('medium', 'm360', 360, 158), ('medium', 'm320', 320, 110)):
             add(f'stamp-{tag}-{name}-all-{fam}-{stag}-light', stamp_payload(lang, name), 'all', fam, 'light', w, h, lang)
+# 高度 111–136dp 這一段：高度預算的常數（百分比行高係數、標題列高、緊縮空隙、中卡標題區預留…）只在這一段咬人——
+# 「正常排法→壓縮排法」的邊界在這裡，只測 110／137／158／222 時，這些常數放寬幾 dp 也看不出來（突變 M1d、M1f、M1g 因此存活）。
+# 小卡、中卡各四個高度 × 全台／台鐵 × 三語（英日文用各自的字串，行高與折行都不同）。
+for lang in ('zh-TW', 'en', 'ja'):
+    tag = lang.split('-')[0]
+    for hh in (116, 122, 128, 134):
+        for sc in ('all', 'tra'):
+            add(f'mid-{tag}-{sc}-small-h{hh}-light', stamp_payload(lang, 'sample'), sc, 'small', 'light', 158, hh, lang)
+            add(f'mid-{tag}-{sc}-medium-h{hh}-light', stamp_payload(lang, 'sample'), sc, 'medium', 'light', 320, hh, lang)
+# 單一系統 ≥6 筆最近蓋章（見 sample-recent8.json）：221dp 高放得下 5 筆以上，300dp 高放得下更多——上限 4 拿掉就會畫出第 5 筆
+add('recent8-tra-medium-m368h221-light', 'sample-recent8.json', 'tra', 'medium', 'light', 368, 221)
+add('recent8-tra-medium-m368h300-light', 'sample-recent8.json', 'tra', 'medium', 'light', 368, 300)
 json.dump(cases, open(os.path.join(OUT, 'cases.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 print(len(cases), 'cases →', OUT)

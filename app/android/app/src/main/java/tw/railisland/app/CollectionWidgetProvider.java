@@ -25,7 +25,8 @@ import java.util.concurrent.Executors;
  * updatePeriodMillis（6 小時，與 iOS 時間軸一致）只是保險（檔案被外力換掉時自癒）。
  *
  * 點小工具：開 railisland://passport（旅程護照），與 iOS 一致；RailMetroWaitPlugin 把它轉成 waitOpen 事件。
- * 「蓋章」按鈕（小卡在數字下方、中卡在百分比下方；wc_stamp 是膠囊，可點的是外面那層透明容器 wc_stamp_hit，約 48dp 寬）另綁 railisland://checkin：打開 App 後由網頁判定附近車站並蓋章，
+ * 「蓋章」按鈕（整條按鈕：小卡在文字欄最下面、中卡在地圖欄最下面，寬＝所在欄寬；wc_stamp 是 28dp 高的膠囊，可點的是外面那層透明容器
+ * wc_stamp_hit，至少 48dp 高）另綁 railisland://checkin：打開 App 後由網頁判定附近車站並蓋章，
  * 同樣經 RailMetroWaitPlugin 轉成 waitOpen { view: "checkin" }。
  */
 // 不是 final：小卡是空殼子類（CollectionWidgetSmallProvider），見 WidgetFamily。
