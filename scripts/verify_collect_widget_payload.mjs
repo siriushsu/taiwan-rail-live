@@ -28,6 +28,8 @@
 //       實體相距很遠（分開算的表剛好涵蓋它），total 因此比舊規則多 1
 //   M   recent 每系統各取 4 筆（第二輪第 2 點）：專屬 fixture＝九個系統各有紀錄、兩個系統候選超過 4 筆、
 //       邊界同日（以 n 決勝）與同日同 n（以收集鍵字典序決勝）；literal 手算對照＋獨立重算
+//   R   轉乘站（同一把收集鍵出現在兩個以上系統的清單）的最近蓋章：recent[] 送 ks（固定順序、含 k、第一個是歸屬 k），每個系統的前 4 筆看成員資格；
+//       專屬 fixture＝北捷／三鶯專屬站占滿名額、四座真實轉乘鍵較舊，期望值手寫（ks 內容與順序、專屬站沒有 ks、淡海只有轉乘站紀錄也選得到、兩邊都落選的頂埔不出現）
 //   S   台北與台中的「市政府」各算一枚：只蓋台北／只蓋台中／兩座都蓋／只有舊資料（沒記錄城市，歸台北）四種情境，各在
 //       全台同框（裝飾層附近清單＋桌面護照）與捷運分頁（單捷運附近清單＋旅程護照面板）跑；蓋章走真實的附近清單點鈕，
 //       護照 N 讀畫面文字、鍵讀 localStorage 逐字、期望值手算；另含帳號同步的真實合併路徑（不重組鍵）
@@ -158,13 +160,18 @@ function expectPayload(coll, lang, split = SPLIT_GEO) {
   // recent（第二輪語意）：每個系統各取最近 4 筆，合併後整體再依同一規則排序。
   // 排序：d 新到舊、同日 n 大到小、再依收集鍵字典序。系統歸屬：清單裡第一個有這把鍵的系統；清單外的站退到同鍵系統的第一個。
   const cmp = (a, b) => (a.e[1].d < b.e[1].d ? 1 : a.e[1].d > b.e[1].d ? -1 : 0) || b.e[1].n - a.e[1].n || (a.e[0] < b.e[0] ? -1 : a.e[0] > b.e[0] ? 1 : 0);
+  // 轉乘站（同一把鍵出現在兩個以上系統的清單）：歸屬 k 是第一個系統，另送 ks＝全部所屬系統（固定順序、含 k）；
+  // 每個系統的最近 4 筆看「成員資格」（轉乘站算進它所屬的每個系統），合併後同一筆只留一次，整體再排序。清單外的站只屬於退路系統。
+  const members = key => ORDER.filter((o, x) => per[x].has(key));
   const cand = [...coll.entries()].filter(([, v]) => v.d).map(e => {
-    const i = per.findIndex(m => m.has(e[0]));
-    return { e, i, k: i >= 0 ? ORDER[i] : ORDER.find(o => CK_OF(o) === e[1].sys || GEO_OF[o] === e[1].sys) || 'tra' };
+    const mem = members(e[0]), i = mem.length ? ORDER.indexOf(mem[0]) : -1;
+    return { e, i, mem, k: i >= 0 ? ORDER[i] : ORDER.find(o => CK_OF(o) === e[1].sys || GEO_OF[o] === e[1].sys) || 'tra' };
   });
   const recentCand = {};
   for (const k of ORDER) { const c = cand.filter(x => x.k === k).length; if (c) recentCand[k] = c; }
-  const recent = ORDER.flatMap(k => cand.filter(x => x.k === k).sort(cmp).slice(0, 4)).sort(cmp).map(({ e: [key, v], i, k }) => {
+  const inGroup = (x, k) => (x.mem.length ? x.mem.includes(k) : x.k === k);
+  const picked = new Set(ORDER.flatMap(k => cand.filter(x => inGroup(x, k)).sort(cmp).slice(0, 4)));
+  const recent = [...picked].sort(cmp).map(({ e: [key, v], i, k, mem }) => {
     const hit = i >= 0 ? per[i].get(key) : null;
     const geoSys = GEO_OF[k];
     let line = LABEL[lang][ORDER.indexOf(k)];
@@ -173,9 +180,12 @@ function expectPayload(coll, lang, split = SPLIT_GEO) {
       if (base) line = lang === 'zh-TW' ? base : ((CATALOG.routes[geoSys] || {})[base]?.[lang] ? foreign(CATALOG.routes[geoSys][base][lang]) : (MESSAGES[lang]?.[base] ?? base));
     }
     const row = hit ? catRow(geoSys, v.name) : null;
-    return { name: lang === 'zh-TW' || !row || !row[lang] ? v.name : foreign(row[lang]), line, k, d: v.d };
+    const o = { name: lang === 'zh-TW' || !row || !row[lang] ? v.name : foreign(row[lang]), line, k };
+    if (mem.length > 1) o.ks = mem;
+    o.d = v.d;
+    return o;
   });
-  return { n: coll.size, total: all.size, sys, pts, recent, recentCand, listSizes: Object.fromEntries(ORDER.map((k, i) => [k, per[i].size])), listKeys: new Set(per.flatMap(m => [...m.keys()])) };
+  return { n: coll.size, total: all.size, sys, pts, recent, recentCand, members, listSizes: Object.fromEntries(ORDER.map((k, i) => [k, per[i].size])), listKeys: new Set(per.flatMap(m => [...m.keys()])) };
 }
 
 // ── 契約逐欄檢查（欄位名稱與型別）────────────────────────────────────────────
@@ -202,12 +212,17 @@ function schemaProblems(p, lang) {
   }
   if (!Array.isArray(p.recent)) bad.push('recent 不是陣列');
   else {
-    const per = {}; for (const r of p.recent) per[r.k] = (per[r.k] || 0) + 1;
-    if (Object.values(per).some(c => c > 4)) bad.push(`recent 有系統超過 4 筆 ${JSON.stringify(per)}`);
+    const per = {}; for (const r of p.recent) if (!('ks' in r)) per[r.k] = (per[r.k] || 0) + 1; // 只屬一個系統的站：每個系統最多 4 筆（轉乘站可能被另一個系統選進來，不受這個上限）
+    if (Object.values(per).some(c => c > 4)) bad.push(`recent 有系統超過 4 筆（不含轉乘站） ${JSON.stringify(per)}`);
     if (p.recent.some((r, i) => i && r.d > p.recent[i - 1].d)) bad.push('recent 沒有依 d 新到舊');
   }
   for (const r of p.recent || []) {
-    if (keys(r) !== 'd,k,line,name') bad.push(`recent 項欄位 ${keys(r)}`);
+    if (keys(r) !== 'd,k,line,name' && keys(r) !== 'd,k,ks,line,name') bad.push(`recent 項欄位 ${keys(r)}`);
+    if ('ks' in r) { // ks（選用）：兩個以上不重複的系統代碼、照 sys 的固定順序、含 k、第一個就是歸屬 k
+      const idx = Array.isArray(r.ks) ? r.ks.map(x => (p.sys || []).findIndex(s => s.k === x)) : [];
+      if (!Array.isArray(r.ks) || r.ks.length < 2 || idx.some(x => x < 0) || idx.some((x, j) => j && x <= idx[j - 1])) bad.push(`recent.ks 不是「兩個以上、都在 sys、照 sys 順序」：${JSON.stringify(r.ks)}`);
+      else if (r.ks[0] !== r.k) bad.push(`recent.ks 第一個不是歸屬 k：${JSON.stringify(r.ks)} k=${r.k}`);
+    }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(r.d)) bad.push(`recent.d ${r.d}`);
     if (!p.sys.some(s => s.k === r.k)) bad.push(`recent.k ${r.k}`);
     if (typeof r.name !== 'string' || !r.name) bad.push('recent.name 空');
@@ -643,6 +658,64 @@ const R_ALL = ['測試站@tra', '南港展覽館@trtc', '台中@thsr', '台北@t
     ok('M 清單外的站退路：測試站歸台鐵（k＝tra、線名＝系統簡稱「台鐵」）', p.recent[0].name === '測試站' && p.recent[0].k === 'tra' && p.recent[0].line === '台鐵', JSON.stringify(p.recent[0]));
     ok('M 原生端「單一系統範圍取 k 相符的前 4 筆」有東西可取：每個有紀錄的系統至少 1 筆、至多 4 筆', ['tra', 'thsr', 'trtc', 'tymc', 'tmrt', 'krtc', 'ntdlrt', 'sanying', 'afr'].every(k => names(k).length >= 1 && names(k).length <= 4) && names('ntalrt').length === 0);
     ok('M 每個系統各自的列依 d 新到舊（單一系統取前 4 筆時順序就是對的）', ['tra', 'krtc', 'tmrt', 'thsr'].every(k => { const d = p.recent.filter(r => r.k === k).map(r => r.d); return d.every((x, i) => !i || x <= d[i - 1]); }));
+  }
+  await ctx.close();
+}
+
+// ══ R 轉乘站的最近蓋章（ks）═══════════════════════════════════════════════════════
+// 轉乘站＝同一把收集鍵出現在兩個以上系統的清單。真實資料只有四把：台北車站＝北捷＋機捷、紅樹林＝北捷＋淡海、頂埔＝北捷＋三鶯、十四張＝北捷＋安坑。
+// 舊做法只把轉乘站歸給第一個系統（北捷）：淡海範圍「已收集 1／14 座」卻沒有任何最近蓋章，北捷自己的前 4 筆也會把轉乘站擠掉。
+// 新做法：轉乘站算進每個所屬系統各自的前 4 筆，歸屬 k 仍是第一個系統，另送 ks＝全部所屬系統（固定順序、含 k）；只屬一個系統的站沒有 ks。
+// fixture（sys 全是 metro，期望值手寫）：北捷專屬 4 筆最新、三鶯專屬 4 筆次之，四座轉乘站都比它們舊——
+//   北捷前 4 筆被專屬站占滿，紅樹林／台北車站／十四張只有靠「所屬的另一個系統」才選得到（淡海、安坑只有轉乘站那一筆紀錄）；
+//   頂埔在三鶯也被 4 筆專屬站擠掉，兩邊都落選 ⇒ 不在 recent 裡；機捷專屬的林口站最舊，與台北車站同屬機捷的前 4 筆。
+const CHECKINS_X = {
+  v: 2, sg: {}, st: Object.fromEntries([
+    ck('南港展覽館', 'metro', 'pass', 1, '2026-09-29'),           // 北捷專屬
+    ck('西門', 'metro', 'visit', 1, '2026-09-28'),
+    ck('龍山寺', 'metro', 'visit', 1, '2026-09-27'),
+    ck('忠孝復興', 'metro', 'visit', 1, '2026-09-26'),
+    ck('鶯歌車站', 'metro', 'visit', 1, '2026-09-25'),            // 三鶯專屬
+    ck('三峽', 'metro', 'visit', 1, '2026-09-24'),
+    ck('龍埔', 'metro', 'visit', 1, '2026-09-23'),
+    ck('橫溪', 'metro', 'visit', 1, '2026-09-22'),
+    ck('紅樹林', 'metro', 'visit', 2, '2026-09-20'),              // 北捷＋淡海；淡海只有這一筆
+    ck('台北車站', 'metro', 'pass', 1, '2026-09-19'),             // 北捷＋機捷
+    ck('頂埔', 'metro', 'visit', 1, '2026-09-18'),                // 北捷＋三鶯；兩邊都被較新的專屬站擠掉
+    ck('十四張', 'metro', 'visit', 1, '2026-09-17'),              // 北捷＋安坑；安坑只有這一筆
+    ck('林口站', 'metro', 'visit', 1, '2026-09-15'),              // 機捷專屬
+  ]),
+};
+const N_X = 13;
+// [站名, k, ks, d]：合併後 d 新到舊。北捷歸屬 8 筆候選只有前 4 筆是專屬站的名額；紅樹林／台北車站／十四張是靠另一個系統選進來的。
+const X_RECENT = [
+  ['南港展覽館', 'trtc', null, '2026-09-29'], ['西門', 'trtc', null, '2026-09-28'], ['龍山寺', 'trtc', null, '2026-09-27'], ['忠孝復興', 'trtc', null, '2026-09-26'],
+  ['鶯歌車站', 'sanying', null, '2026-09-25'], ['三峽', 'sanying', null, '2026-09-24'], ['龍埔', 'sanying', null, '2026-09-23'], ['橫溪', 'sanying', null, '2026-09-22'],
+  ['紅樹林', 'trtc', ['trtc', 'ntdlrt'], '2026-09-20'], ['台北車站', 'trtc', ['trtc', 'tymc'], '2026-09-19'], ['十四張', 'trtc', ['trtc', 'ntalrt'], '2026-09-17'],
+  ['林口站', 'tymc', null, '2026-09-15'],
+];
+{
+  const { ctx, page } = await open({ bridge: true, seed: { 'trainmap-checkins-v1': JSON.stringify(CHECKINS_X) }, tag: 'R' });
+  const got = await waitPush(page, 0, 8000);
+  ok('R 開機有推送', !!got);
+  if (got) {
+    const p = got.payload, exp = await checkPayload(page, 'R', p, 'zh-TW', N_X);
+    // 前提（geojson 原檔，跟頁面實作無關）：這四把鍵在清單裡真的分屬兩個系統，專屬站只屬一個系統
+    const mem = k => exp.members(k).join('+');
+    ok('R 前提：四把轉乘鍵在清單裡分屬 台北車站＝trtc+tymc、紅樹林＝trtc+ntdlrt、頂埔＝trtc+sanying、十四張＝trtc+ntalrt', mem('metro|台北車站') === 'trtc+tymc' && mem('metro|紅樹林') === 'trtc+ntdlrt' && mem('metro|頂埔') === 'trtc+sanying' && mem('metro|十四張') === 'trtc+ntalrt',
+      ['台北車站', '紅樹林', '頂埔', '十四張'].map(n => `${n}＝${mem('metro|' + n)}`).join(' '));
+    ok('R 前提：專屬站只屬一個系統（北捷四筆、三鶯四筆、機捷林口站）', ['南港展覽館', '西門', '龍山寺', '忠孝復興'].every(n => mem('metro|' + n) === 'trtc') && ['鶯歌車站', '三峽', '龍埔', '橫溪'].every(n => mem('metro|' + n) === 'sanying') && mem('metro|林口站') === 'tymc');
+    recentPremise('R', exp, { trtc: 8, sanying: 4, tymc: 1 }, 3); // 北捷歸屬 8 筆候選 > 4：北捷的名額被專屬站占滿，轉乘站只能靠另一個系統
+    ok('R 手算：recent（名稱、歸屬 k、ks、日期）＝ 12 筆（頂埔兩邊都落選）', JSON.stringify(p.recent.map(r => [r.name, r.k, r.ks || null, r.d])) === JSON.stringify(X_RECENT), p.recent.map(r => `${r.name}@${r.k}${r.ks ? '[' + r.ks + ']' : ''}`).join('/'));
+    ok('R 手算：ks 只出現在轉乘站（紅樹林、台北車站、十四張）；其餘 9 筆沒有 ks 欄位', p.recent.filter(r => 'ks' in r).map(r => r.name).join('/') === '紅樹林/台北車站/十四張' && p.recent.filter(r => !('ks' in r)).length === 9);
+    ok('R 手算：ks 的順序是 sys 的固定順序（北捷在前）、第一個就是歸屬 k、不重複', p.recent.filter(r => r.ks).every(r => r.ks[0] === r.k && r.ks[0] === 'trtc' && new Set(r.ks).size === r.ks.length));
+    ok('R 手算：頂埔（北捷＋三鶯）兩邊都被較新的專屬站擠掉 → 不在 recent；每座站只出現一次', !p.recent.some(r => r.name === '頂埔') && new Set(p.recent.map(r => r.name)).size === p.recent.length);
+    ok('R 紅樹林的線名仍是歸屬系統（北捷）的「淡水信義線」，不因從淡海選進來而改', (p.recent.find(r => r.name === '紅樹林') || {}).line === '淡水信義線', (p.recent.find(r => r.name === '紅樹林') || {}).line);
+    // 原生端單一系統範圍取「k 相符、或 ks 含該系統」的前 4 筆（契約 recent 細節）——這裡照契約的規則篩，期望值手寫
+    const scope = s => p.recent.filter(r => r.k === s || (r.ks || []).includes(s)).slice(0, 4).map(r => r.name).join('/');
+    ok('R 淡海範圍：只有轉乘站紅樹林一筆紀錄，也選得到（舊做法是空的）', scope('ntdlrt') === '紅樹林', scope('ntdlrt') || '（空）');
+    ok('R 安坑範圍：十四張選得到；機捷範圍：台北車站、林口站；三鶯範圍：四筆專屬站（頂埔落選）', scope('ntalrt') === '十四張' && scope('tymc') === '台北車站/林口站' && scope('sanying') === '鶯歌車站/三峽/龍埔/橫溪', `${scope('ntalrt')}｜${scope('tymc')}｜${scope('sanying')}`);
+    ok('R 北捷範圍：前 4 筆是四座專屬站（轉乘站排在後面，沒有搶走名額）', scope('trtc') === '南港展覽館/西門/龍山寺/忠孝復興', scope('trtc'));
   }
   await ctx.close();
 }

@@ -17473,24 +17473,30 @@ function collectionWidgetPayload(geo) {
   const pts = [];
   live.forEach((i, j) => per[i].forEach((pt, key) => pts.push([pt.x, pt.y, pt.color, S[(coll.get(key) || {}).s] || 0, j])));
   const total = new Set([...live.flatMap(i => [...per[i].keys()]), ...coll.keys()]).size;
-  // recent(第二輪語意,欄位形狀不變):每個系統各取最近 4 筆,合併後整體再依同一規則排序——原生端單一系統範圍
-  // 才有得畫(全台範圍取前 4 筆、單一系統取 k 相符的前 4 筆)。排序:d 新到舊、同日 n 大到小、再依收集鍵字典序。
+  // recent(第二輪語意):每個系統各取最近 4 筆,合併後整體再依同一規則排序——原生端單一系統範圍
+  // 才有得畫(單一系統取 k 相符、或 ks 含該系統的前 4 筆)。排序:d 新到舊、同日 n 大到小、再依收集鍵字典序。
+  // 轉乘站(同一把收集鍵出現在兩個以上系統的清單,例:紅樹林＝北捷＋淡海)算進它所屬的每個系統各自的前 4 筆:歸屬 k 仍是第一個系統,
+  // 另送選用欄位 ks＝全部所屬系統(固定順序、含 k)。只看歸屬系統的話,淡海範圍看不到紅樹林,北捷的前 4 筆也會把它擠掉。
   const byRecent = (a, b) => (a.e[1].d < b.e[1].d ? 1 : a.e[1].d > b.e[1].d ? -1 : 0) || b.e[1].n - a.e[1].n || (a.e[0] < b.e[0] ? -1 : a.e[0] > b.e[0] ? 1 : 0);
   const recentBySys = new Map();
   for (const e of coll.entries()) {
     if (!e[1].d) continue;
-    const i = live.find(x => per[x].has(e[0])); // 系統歸屬:清單裡第一個有這把鍵的系統
+    const mem = live.filter(x => per[x].has(e[0])); // 清單裡有這把鍵的系統(固定順序):第一個是歸屬,兩個以上＝轉乘站
+    const i = mem.length ? mem[0] : null;
     const def = COLLECT_SYS[i != null ? i : COLLECT_SYS.findIndex(d => d.ck === e[1].sys || d.geo === e[1].sys)] || COLLECT_SYS[0]; // 清單外的站:退到同鍵系統的第一個(分開的鍵,系統段是那個系統自己的代碼)
-    if (!recentBySys.has(def.k)) recentBySys.set(def.k, []);
-    recentBySys.get(def.k).push({ e, i, def });
+    const item = { e, i, def, ks: mem.length > 1 ? mem.map(x => COLLECT_SYS[x].k) : null };
+    for (const k of item.ks || [def.k]) {
+      if (!recentBySys.has(k)) recentBySys.set(k, []);
+      recentBySys.get(k).push(item);
+    }
   }
-  const recent = [...recentBySys.values()].flatMap(g => g.sort(byRecent).slice(0, 4)).sort(byRecent)
-    .map(({ e: [key, v], i, def }) => {
+  const recent = [...new Set([...recentBySys.values()].flatMap(g => g.sort(byRecent).slice(0, 4)))].sort(byRecent) // Set:轉乘站可能被兩個系統各選一次,只留一筆
+    .map(({ e: [key, v], i, def, ks }) => {
       const hit = i == null ? null : per[i].get(key);
       return {
         name: stationName(v.name, hit ? def.geo : v.sys), // 護照同一個寫法(stationName(name, sys))
         line: (hit && collectionLineName(def, hit.lineId)) || def.label[lang],
-        k: def.k, d: v.d,
+        k: def.k, ...(ks ? { ks } : {}), d: v.d,
       };
     });
   return {
