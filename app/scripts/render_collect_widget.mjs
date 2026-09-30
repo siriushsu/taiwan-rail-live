@@ -33,6 +33,19 @@
 //   u  【點小工具開旅程護照】靜態掃 Swift 原始碼：四種家族共用的最外層掛且只掛一次
 //      widgetURL(railisland://passport)；supportedFamilies 沒有 systemLarge；RailMetroWaitPlugin 收 host passport
 //      並帶 view:"passport"（小工具 target 編不進 harness，動態量不到，靜態掃是唯一守門人）
+//   o1–o5  【台灣輪廓】每案例多算一張「只關掉輪廓」的圖（collectOutlineHidden），與出貨那張逐像素比。
+//      取樣點一律手寫經緯度、用契約的投影框（docs/collect-widget-contract.md：lon 120.15–122.0、lat 22.2–25.27）自己投影，
+//      期望色是設計值（填色淺 0.945／深 0.125、卡底淺 0.98／深 0.09、未收集灰淺 0.88／深 0.24），不從 Swift 讀：
+//      o1 全台（無點的 bare 樣本）：內陸的陸地取樣點＝填色、離岸的海上取樣點＝卡底、恆春半島南端（lon 120.8／lat 22.0，
+//         在點陣框底之下約 6%）＝填色（沒被裁到點陣框）
+//      o2 輪廓不侵入：與「關掉輪廓」那張比，文字框、進度條框、蓋章鈕框內一個像素都不能差；並配正向對照——
+//         輪廓確實有畫（全張至少 50 個像素不同），不然「沒有侵入」是空話；輪廓層要 allowsHitTesting(false)
+//      o3 對比：未收集灰點放在陸地填色上的 WCAG 對比 ≥ 放在卡底上的 0.9 倍（淺色、深色各一組，量合成三態樣本的出貨圖）
+//      o4 單一系統是細線不是填色：視窗中心附近的陸地內部取樣點＝卡底，且輪廓落墨面積 ≤ 地圖框的 15%（填色會有三成以上）
+//      o5 著色模式：輪廓有畫（離卡底 ≥ 0.06），但比已收集的點淡（≤ 該點離卡底距離的一半）；輪廓層不加 widgetAccentable
+//   t  【蓋章鈕可點範圍】harness 回報的 stamp.hit（Button／Link 的 label 框）：包住鈕、不出卡片、不與任何文字／進度條／地圖的框相交；
+//      尺寸達標（小卡 ≥ 44 寬，高 ≥ 44（430pt 機型）／≥ 40（393pt 機型）；中卡 ≥ 44 寬——中卡縱向被百分比與第一列系統列擋死，只驗包住鈕）；
+//      鈕本身的外觀尺寸與改點擊範圍前相同（繁中；小 40×22／36×19、中 38×16／34×15）；Button／Link 的 label 就是這顆鈕（靜態掃描）
 //
 // 用法：node app/scripts/render_collect_widget.mjs [輸出目錄] [--quick] [--src <小工具原始碼目錄>]
 //       node app/scripts/render_collect_widget.mjs --mutation-test [輸出目錄] [--only M18,M19]   （不帶 --only＝全部突變，前後各一次控制組）
@@ -76,6 +89,32 @@ const OFF_GRAY = { light: 0.88, dark: 0.24 };
  */
 const OUTLINE_FILL = { light: 0.945, dark: 0.125 };
 const monoOutlineFill = scheme => { const a = 0.85 * 0.05; return scheme === 'dark' ? a + (1 - a) * BG.dark : (1 - a) * BG.light; };
+
+// ── 輪廓閘門（o 系列）的取樣點：手寫經緯度，用契約的投影框自己投影，不讀 Swift、不讀輪廓資料 ──────────
+/** 契約的投影框：docs/collect-widget-contract.md 的 box＝[lon0, lat0, lon1, lat1]（固定值；網頁端 COLLECT_BOX 同值）。 */
+const BOX = [120.15, 22.2, 122.0, 25.27];
+/** 經緯度 → 整島框座標（0..1000，x 由西到東、y 由北到南；框外照算，不夾）。 */
+const lonLatToXY = (lon, lat) => [((lon - BOX[0]) / (BOX[2] - BOX[0])) * 1000, ((BOX[3] - lat) / (BOX[3] - BOX[1])) * 1000];
+/**
+ * 陸地取樣點：都在內陸，離海岸 ≥14 km；海上取樣點：都離岸 ≥14 km 且在點陣框內。
+ * （2026-09-30 寫的時候拿原始資料 data/taiwan_land.json 逐點驗過陸／海與離岸距離；在最小的地圖上，14 km 仍有 ≥4 px，
+ * 不會落在抗鋸齒的邊上。閘門本身不讀那份資料，期望值就是這張手寫表。）
+ */
+const OUTLINE_LAND = [['玉山', 120.957, 23.47], ['埔里', 120.967, 23.964], ['台中', 120.679, 24.138], ['潮州', 120.54, 22.55],
+  ['池上', 121.22, 23.12], ['宜蘭', 121.6, 24.75], ['嘉義', 120.45, 23.48], ['竹東', 121.09, 24.73]];
+const OUTLINE_SEA = [['台灣海峽中', 120.2, 24.2], ['太平洋', 121.95, 23.6], ['東南外海', 121.3, 22.23], ['北部外海', 121.2, 25.25], ['台灣海峽北', 120.25, 24.9]];
+/**
+ * 恆春半島南端：投影後 y≈1060–1065，在點陣框底（1000）之下約 6%——輪廓畫布要往下多開才畫得到，
+ * 裁到點陣框就會被切平（離海岸 5、7 km，最小的地圖上 ≥4 px）。
+ */
+const OUTLINE_PENINSULA = [['恆春半島（lon 120.8／lat 22.0）', 120.8, 22.0], ['恆春半島北一點', 120.78, 22.02]];
+/** 輪廓一定畫得出來的單一系統（視窗內看得到海岸線）；視窗中心都在陸地內部（離海岸 47／16／7 km，視窗放大後仍 ≥20pt）。 */
+const OUTLINE_SCOPED = ['tra', 'trtc', 'krtc'];
+/** 蓋章鈕改可點範圍前量到的外觀（pt，繁中）：[寬, 高, 左, 上]。尺寸與位置都不准變（2026-09-30 改前的出貨版量的）。 */
+const CHIP_BEFORE = { 'small-430': [40, 22, 16, 132], 'small-393': [36, 19, 16, 123], 'medium-430': [38, 16, 310, 33], 'medium-393': [34, 15, 288, 32] };
+/** 可點範圍的下限（pt）：寬 ≥44（HIG）；小卡高 430pt 機型 ≥44、393pt 機型 ≥40（下面到卡底、上面到文字框已是上限）；
+ *  中卡縱向被百分比文字框與第一列系統列擋死，只要求不小於鈕本身。 */
+const HIT_MIN = { 'small-430': [44, 44], 'small-393': [44, 40], 'medium-430': [44, 16], 'medium-393': [44, 15] };
 const DOT_RADIUS_RATIO = 0.0075, DOT_RADIUS_FLOOR = 1.0, SOLID_SCALE = 1.3, RING_RATIO = 0.45;
 
 // ── payload 樣本 ───────────────────────────────────────────────────────────────────────
@@ -198,9 +237,15 @@ function statesPayload() {
   p.n = 20; p.total = 30;
   return p;
 }
+/** 一個點都沒有（pts＝[]）：地圖上只剩台灣輪廓，o1 拿它量「陸地＝填色、海＝卡底」不被任何點干擾。 */
+function barePayload() {
+  const p = clone(emptyPayload);
+  p.pts = [];
+  return p;
+}
 const FIXTURES = {
   sample, empty: emptyPayload, none: null, full: fullPayload(), one: onePayload(), almost: almostPayload(),
-  solo: soloPayload(), states: statesPayload(),
+  solo: soloPayload(), states: statesPayload(), bare: barePayload(),
 };
 
 // ── 期望值：從 payload 獨立重算（不讀任何 Swift 端的數字）──────────────────────────────
@@ -247,13 +292,18 @@ const fillFrac = (v, n) => (n > 0 && v > 0 ? Math.min(1, Math.max(v / n, 0.03)) 
 const shortDate = d => { const m = d.split('-'); return m.length === 3 ? `${Number(m[1])}/${Number(m[2])}` : d; };
 const nums = s => (s ?? '').match(/\d+/g)?.map(Number) ?? [];
 
+/** 契約的座標公式：正規化 (u, v)（0..1 為地圖框內）→ 地圖框內座標（pt）。留出已收集點半徑當內距，框外照算不夾。 */
+function mapPoint(map, u, v) {
+  const inset = Math.max(DOT_RADIUS_FLOOR, map.h * DOT_RADIUS_RATIO) * SOLID_SCALE;
+  return [inset + u * (map.w - 2 * inset), inset + v * (map.h - 2 * inset)];
+}
 /** 點在地圖框內（Canvas 座標，pt）的期望圓心。公式是契約的一部分：留出已收集點半徑當內距；全台 u＝x/1000，單一系統 u＝(x−x0)/S。 */
 function expectedCenters(ex, map) {
-  const r = Math.max(DOT_RADIUS_FLOOR, map.h * DOT_RADIUS_RATIO), inset = r * SOLID_SCALE;
+  const r = Math.max(DOT_RADIUS_FLOOR, map.h * DOT_RADIUS_RATIO);
   const at = d => {
     const u = ex.vp ? (d[0] - ex.vp.x0) / ex.vp.S : d[0] / 1000;
     const v = ex.vp ? (d[1] - ex.vp.y0) / ex.vp.S : d[1] / 1000;
-    return [inset + u * (map.w - 2 * inset), inset + v * (map.h - 2 * inset)];
+    return mapPoint(map, u, v);
   };
   const out = { other: ex.others.map(at), off: [], follow: [], solid: [] };
   for (const d of ex.dots) out[['off', 'follow', 'solid'][d[3]]].push(at(d));
@@ -286,6 +336,8 @@ function buildCases(quick) {
       add('circ', null, st, 'light', true, 430);
     }
     for (const [scheme, mono] of [['light', false], ['dark', false], ['light', true], ['dark', true]]) add('small', null, 'states', scheme, mono, 430);
+    // 台灣輪廓（o1）：一個點都沒有的全台卡，小／中 × 淺／深
+    for (const fam of ['small', 'medium']) for (const scheme of ['light', 'dark']) add(fam, null, 'bare', scheme, false, 430);
     return cases;
   }
   const famList = [['small', null], ['small', 'tra'], ['medium', null], ['medium', 'tra'], ['rect', null], ['circ', null]];
@@ -307,6 +359,8 @@ function buildCases(quick) {
     for (const [fam, scope] of famList) {
       for (const state of ['full', 'one', 'almost']) add(fam, scope, state, 'light', isLock(fam), width);
     }
+    // 台灣輪廓（o1）：一個點都沒有的全台卡
+    for (const fam of ['small', 'medium']) for (const scheme of ['light', 'dark']) add(fam, null, 'bare', scheme, false, width);
   }
   // 著色（tinted／accented）：桌面兩種尺寸的淺色與深色，全台與單一系統
   for (const fam of ['small', 'medium']) {
@@ -500,6 +554,46 @@ function matchMaxDist(got, want) {
   return worst;
 }
 
+/** 兩張同尺寸圖在像素矩形 [x0,x1)×[y0,y1)（px）內「不同」的像素數：三通道差的總和 > 6/255 才算不同（濾掉量化雜訊）。 */
+function diffCount(a, b, x0, y0, x1, y1) {
+  if (a.w !== b.w || a.h !== b.h) throw new Error('diffCount：兩張圖尺寸不同');
+  let count = 0;
+  for (let y = Math.max(0, y0); y < Math.min(a.h, y1); y += 1) {
+    for (let x = Math.max(0, x0); x < Math.min(a.w, x1); x += 1) {
+      const i = (y * a.w + x) * a.ch;
+      if (Math.abs(a.data[i] - b.data[i]) + Math.abs(a.data[i + 1] - b.data[i + 1]) + Math.abs(a.data[i + 2] - b.data[i + 2]) > 6) count += 1;
+    }
+  }
+  return count;
+}
+/** WCAG 相對亮度與對比（灰階 sRGB 值 0..1）。 */
+const lumOf = v => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+const contrastOf = (a, b) => { const [hi, lo] = [lumOf(a), lumOf(b)].sort((p, q) => q - p); return (hi + 0.05) / (lo + 0.05); };
+const grayOf = p => (p[0] + p[1] + p[2]) / 3;
+/** 卡片座標（pt）處的像素。 */
+const cardPx = (img, [x, y]) => px(img, Math.round(x * SCALE), Math.round(y * SCALE));
+/** 經緯度 → 卡片座標（pt）：契約的投影框＋契約的地圖框座標公式（全台範圍）；地圖框外照算。 */
+function lonLatToCard(map, lon, lat) {
+  const [X, Y] = lonLatToXY(lon, lat);
+  const [x, y] = mapPoint(map, X / 1000, Y / 1000);
+  return [map.x + x, map.y + y];
+}
+/** 取樣點離所有已畫出的點的圓心都 ≥ 已收集點半徑＋gap（pt）才算乾淨：點會蓋在輪廓上面，取樣點不能落在點上。 */
+function isClear(exp, map, [x, y], gap) {
+  return [...exp.other, ...exp.off, ...exp.follow, ...exp.solid].every(([cx, cy]) => Math.hypot(map.x + cx - x, map.y + cy - y) >= exp.R + gap);
+}
+/** 從 target 往外一圈一圈（1pt 一格，最多 8 格）找第一個乾淨的取樣點；找不到回 null。 */
+function clearNear(exp, map, target, gap) {
+  for (let r = 0; r <= 8; r += 1) {
+    for (let dy = -r; dy <= r; dy += 1) for (let dx = -r; dx <= r; dx += 1) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const p = [target[0] + dx, target[1] + dy];
+      if (isClear(exp, map, p, gap)) return p;
+    }
+  }
+  return null;
+}
+
 // ── 靜態掃描（u 閘門）──────────────────────────────────────────────────────────────
 // 去掉 Swift 的行註解與區塊註解（不處理字串裡的雙斜線——這幾支檔的字串沒有）。
 const stripComments = text => text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\s\/\/[^\n"]*$/gm, '');
@@ -568,6 +662,27 @@ function staticGate(src, check) {
   const flush = plugin.slice(plugin.indexOf('static func flushPendingOpen'), plugin.indexOf('private func forwardOpen'));
   check('s', 'RailMetroWaitPlugin.swift', /CollectCheckinPending\.take\(\)/.test(flush) && /"view": "checkin"/.test(flush) && /CollectCheckinPending\.didWrite/.test(plugin),
     'flushPendingOpen 沒有把蓋章待辦轉成 waitOpen { view: "checkin" }，或沒有註冊 didWrite 通知');
+
+  // t（靜態部分）：可點範圍要真的掛在 Button／Link 的 label 上。harness 量的是鈕自己回報的 stamp.hit 框，
+  // 系統實際的點擊範圍卻是 Button／Link 的 label 框——label 若不是鈕本身（例如另包一層），兩者就脫鉤，動態量到的是假的。
+  check('t', 'CollectionWidget.swift', /Button\(intent: CollectCheckinIntent\(\)\) \{ chip \}/.test(widget) && /Link\(destination: CollectionStamp\.checkinURL\) \{ chip \}/.test(widget),
+    'Button／Link 的 label 不是鈕本身（{ chip }）——可點範圍不是鈕帶的那一圈，harness 量到的框與實際點擊範圍脫鉤');
+  const chipAt = card.indexOf('struct CollectionStampChip: View');
+  const chipBody = chipAt >= 0 ? card.slice(chipAt, matchBrace(card, card.indexOf('{', chipAt)) + 1) : '';
+  check('t', 'CollectionCard.swift', /\.padding\(hit\)\s*\.contentShape\(Rectangle\(\)\)/.test(chipBody),
+    'CollectionStampChip 沒有依序套 .padding(hit) 與 .contentShape(Rectangle())——外擴的內距不算進可點範圍');
+  const comp = count(card, 'stamp(chip).padding(chip.hitCompensation)');
+  check('t', 'CollectionCard.swift', comp === 2, `小卡與中卡各要套一次 .padding(chip.hitCompensation)（負內距抵銷，鈕的版面位置不變），實際 ${comp} 次`);
+
+  // o2／o5（靜態部分）：輪廓層只是墊圖——不吃點擊；不加 widgetAccentable（著色模式下它不該被染成強調色）
+  const outAt = card.indexOf('struct CollectionOutlineLayer: View');
+  const outBody = outAt >= 0 ? card.slice(outAt, matchBrace(card, card.indexOf('{', outAt)) + 1) : '';
+  check('o2', 'CollectionCard.swift', outBody.length > 0 && /\.allowsHitTesting\(false\)/.test(outBody),
+    'CollectionOutlineLayer 沒有 .allowsHitTesting(false)——輪廓（全台的畫布比地圖框大一圈）會吃掉蓋章鈕與整張卡的點擊');
+  const useAt = card.indexOf('CollectionOutlineLayer(viewport:');
+  const useTail = useAt >= 0 ? card.slice(useAt, card.indexOf('Canvas {', useAt)) : '';
+  check('o5', 'CollectionCard.swift', outBody.length > 0 && useAt >= 0 && !/widgetAccentable/.test(outBody) && !/widgetAccentable/.test(useTail),
+    'CollectionOutlineLayer（或它在 CollectionMapView 的使用處）帶了 widgetAccentable——著色模式下輪廓會被染成強調色，不再是淡淡的墊圖');
 }
 
 /** s（動態部分）：待辦的行為——寫一次只能讀一次、119 秒內有效、121 秒過期、過期的也要清掉。只靠靜態掃描量不到。 */
@@ -602,7 +717,7 @@ enum MetroWaitPending { static var suite: UserDefaults? = UserDefaults(suiteName
 }
 
 // ── 閘門 ────────────────────────────────────────────────────────────────────────────
-const GATES = ['a1', 'a2', 'b1', 'b2', 'b3', 'c', 'c2', 'd', 'e', 'h', 'v', 'r', 'u', 's'];
+const GATES = ['a1', 'a2', 'b1', 'b2', 'b3', 'c', 'c2', 'd', 'e', 'h', 'v', 'r', 'u', 's', 'o1', 'o2', 'o3', 'o4', 'o5', 't'];
 /** 蓋章鈕上的字：繁中是 key 本身；en／ja 取生成的目錄 JSON（與 --lang 壓力測試餵給 RailNativeL10n 的同一份）。 */
 const L10N_JSON = join(repo, 'app/android/app/src/main/assets/RailNativeL10n.json');
 const STAMP_LABEL = LANG ? JSON.parse(readFileSync(L10N_JSON, 'utf8')).languages[LANG]['蓋章'] : '蓋章';
@@ -667,6 +782,29 @@ async function judge({ specs, results, out, src }) {
         let glyph = 0;
         for (let y = Math.floor(label.y * SCALE); y < Math.ceil((label.y + label.h) * SCALE); y += 1) for (let x = Math.floor(label.x * SCALE); x < Math.ceil((label.x + label.w) * SCALE); x += 1) if (dist(px(img, x, y), fill) > 0.5) glyph += 1;
         check('s', n, glyph >= 12, `蓋章鈕上的字形墨跡只有 ${glyph} 個像素（<12）——字看不見`);
+
+        // t：可點範圍（stamp.hit＝Button／Link 的 label 框，含外擴的內距）
+        const hit = frames.find(f => f.id === 'stamp.hit');
+        if (!hit) fail('t', n, '缺 stamp.hit（可點範圍的框）');
+        else {
+          const key = `${spec.fam}-${spec.width}`, E = 0.05;
+          const f1 = v => v.toFixed(1);
+          check('t', n, hit.x <= chip.x + E && hit.y <= chip.y + E && hit.x + hit.w >= chip.x + chip.w - E && hit.y + hit.h >= chip.y + chip.h - E,
+            `可點範圍 x ${f1(hit.x)}–${f1(hit.x + hit.w)}、y ${f1(hit.y)}–${f1(hit.y + hit.h)} 沒有包住鈕 x ${f1(chip.x)}–${f1(chip.x + chip.w)}、y ${f1(chip.y)}–${f1(chip.y + chip.h)}`);
+          check('t', n, hit.x >= -E && hit.y >= -E && hit.x + hit.w <= spec.w + E && hit.y + hit.h <= spec.h + E,
+            `可點範圍超出卡片：x ${f1(hit.x)}–${f1(hit.x + hit.w)}、y ${f1(hit.y)}–${f1(hit.y + hit.h)}（卡 ${spec.w}×${spec.h}）`);
+          const [minW, minH] = HIT_MIN[key];
+          check('t', n, hit.w >= minW - E && hit.h >= minH - E, `可點範圍只有 ${f1(hit.w)}×${f1(hit.h)}pt，小於下限 ${minW}×${minH}pt`);
+          for (const o of frames.filter(f => !f.id.includes('#') && !f.id.endsWith('.fill') && !['stamp', 'stamp.chip', 'stamp.hit'].includes(f.id))) {
+            const ix = Math.min(hit.x + hit.w, o.x + o.w) - Math.max(hit.x, o.x), iy = Math.min(hit.y + hit.h, o.y + o.h) - Math.max(hit.y, o.y);
+            check('t', n, !(ix > E && iy > E), `可點範圍與 ${o.id}${o.text ? `「${o.text}」` : ''} 相交 ${f1(ix)}×${f1(iy)}pt（點擊範圍蓋到文字／進度條／地圖）`);
+          }
+          if (!LANG) { // 外觀尺寸與位置與改點擊範圍前相同（英日文的字寬不同，不比）
+            const [cw, ch, cx, cy] = CHIP_BEFORE[key];
+            check('t', n, Math.abs(chip.w - cw) <= 0.6 && Math.abs(chip.h - ch) <= 0.6 && Math.abs(chip.x - cx) <= 0.6 && Math.abs(chip.y - cy) <= 0.6,
+              `蓋章鈕 ${f1(chip.w)}×${f1(chip.h)} 位在 (${f1(chip.x)}, ${f1(chip.y)})，與改可點範圍前的 ${cw}×${ch} 位在 (${cx}, ${cy}) 不同（外觀或位置動了）`);
+          }
+        }
       }
     }
 
@@ -783,6 +921,69 @@ async function judge({ specs, results, out, src }) {
           if (weak.length) bad.push(`第${row}列 圈上 ${weak.join('、')}° 的像素不接近線色（圈不見或太細）`);
         }
         check('r', n, bad.length === 0, bad.slice(0, 4).join('；'));
+      }
+
+      // ── o：台灣輪廓。期望色是設計值，取樣點是手寫經緯度自己投影；與「關掉輪廓」那張（bare）逐像素比 ──
+      const bgv = BG[spec.scheme], fillv = spec.mono ? monoOutlineFill(spec.scheme) : OUTLINE_FILL[spec.scheme];
+      const g3 = v => [v, v, v];
+      const f3 = v => v.toFixed(3);
+
+      // o2：輪廓不侵入文字框、進度條框、蓋章鈕框；並配正向對照——輪廓確實有畫，不然「沒有侵入」是空話
+      for (const f of frames.filter(f => !f.id.includes('#') && f.id !== 'map' && f.id !== 'stamp.hit'
+        && (f.text !== null || f.id === 'stamp.chip' || f.id.endsWith('.track') || f.id.endsWith('.fill')))) {
+        const cnt = diffCount(shipped, bare, Math.floor(f.x * SCALE), Math.floor(f.y * SCALE), Math.ceil((f.x + f.w) * SCALE), Math.ceil((f.y + f.h) * SCALE));
+        check('o2', n, cnt === 0, `輪廓侵入 ${f.id}${f.text ? `「${f.text}」` : ''}：框內有 ${cnt} 個像素與「關掉輪廓」那張不同`);
+      }
+      if (!ex.scoped || OUTLINE_SCOPED.includes(spec.scope)) {
+        const drawn = diffCount(shipped, bare, 0, 0, shipped.w, shipped.h);
+        check('o2', n, drawn >= 50, `輪廓沒畫出來：出貨圖與「關掉輪廓」那張只有 ${drawn} 個像素不同（<50）；沒有輪廓的話「沒有侵入」是空話`);
+      }
+
+      // o1：全台、沒有任何點——陸地取樣點＝填色、海上＝卡底、恆春半島南端（框底之下）＝填色
+      if (spec.state === 'bare' && !spec.mono) {
+        const probes = [
+          ...OUTLINE_LAND.map(([name, lon, lat]) => [`${name}（內陸）`, lon, lat, fillv, '輪廓填色']),
+          ...OUTLINE_SEA.map(([name, lon, lat]) => [`${name}（海上）`, lon, lat, bgv, '卡底']),
+          ...OUTLINE_PENINSULA.map(([name, lon, lat]) => [name, lon, lat, fillv, '輪廓填色（在點陣框底之下，被裁掉了？）']),
+        ];
+        for (const [name, lon, lat, want, what] of probes) {
+          const p = cardPx(shipped, lonLatToCard(map, lon, lat));
+          check('o1', n, dist(p, g3(want)) <= 0.03, `${name}：像素 ${p.map(f3)} 應是${what} ${f3(want)}`);
+        }
+      }
+
+      // o3：未收集灰點放在陸地填色上的對比 ≥ 放在卡底上的 0.9 倍（合成三態樣本，淺色、深色）
+      // o5：著色模式——輪廓有畫、但比已收集的點淡
+      if (spec.state === 'states') {
+        const land = OUTLINE_LAND.map(([, lon, lat]) => lonLatToCard(map, lon, lat)).find(pt => isClear(exp, map, pt, 2.5));
+        const dotAt = list => (list.length ? cardPx(shipped, [map.x + list[0][0], map.y + list[0][1]]) : null);
+        if (!land) fail(spec.mono ? 'o5' : 'o3', n, '合成三態樣本裡找不到離所有點夠遠的陸地取樣點（樣本或取樣表壞了）');
+        else if (!spec.mono) {
+          const D = grayOf(dotAt(exp.off)), F = grayOf(cardPx(shipped, land)), B = grayOf(px(shipped, 1, 1));
+          check('o3', n, Math.abs(F - fillv) <= 0.02 && Math.abs(B - bgv) <= 0.02 && Math.abs(D - OFF_GRAY[spec.scheme]) <= 0.02,
+            `取樣像素不是預期的顏色：填色 ${f3(F)}（應 ${f3(fillv)}）、卡底 ${f3(B)}（應 ${f3(bgv)}）、灰點 ${f3(D)}（應 ${f3(OFF_GRAY[spec.scheme])}）`);
+          const onFill = contrastOf(D, F), onBg = contrastOf(D, B);
+          check('o3', n, onFill >= 0.9 * onBg, `灰點對填色的對比 ${f3(onFill)} 只有灰點對卡底 ${f3(onBg)} 的 ${f3(onFill / onBg)} 倍（<0.9）——輪廓把未收集的點蓋淡了`);
+        } else {
+          const F = grayOf(cardPx(shipped, land)), S = grayOf(dotAt(exp.solid));
+          const drawn = dist(g3(F), g3(bgv)), inkD = dist(g3(S), g3(bgv));
+          check('o5', n, drawn >= 0.06, `著色模式的輪廓看不見：填色像素 ${f3(F)} 離卡底 ${f3(bgv)} 只有 ${f3(drawn)}（<0.06）`);
+          check('o5', n, drawn <= 0.5 * inkD, `著色模式的輪廓（離卡底 ${f3(drawn)}）不比已收集的點（離卡底 ${f3(inkD)}）淡`);
+        }
+      }
+
+      // o4：單一系統是細線不是填色——視窗中心（陸地內部）＝卡底，落墨面積 ≤ 地圖框的 15%
+      if (ex.scoped && OUTLINE_SCOPED.includes(spec.scope)) {
+        const [mx, my] = mapPoint(map, 0.5, 0.5);
+        const probe = clearNear(exp, map, [map.x + mx, map.y + my], 2.5);
+        if (!probe) fail('o4', n, '地圖框中心附近找不到離所有點夠遠的取樣點');
+        else {
+          const p = cardPx(shipped, probe);
+          check('o4', n, dist(p, g3(bgv)) <= 0.03, `單一系統視窗中心（陸地內部）的像素 ${p.map(f3)} 不是卡底 ${f3(bgv)}——輪廓被填色了，單一系統要畫細線`);
+        }
+        const area = Math.round(map.w * SCALE) * Math.round(map.h * SCALE);
+        const ink = diffCount(shipped, bare, Math.floor(map.x * SCALE), Math.floor(map.y * SCALE), Math.ceil((map.x + map.w) * SCALE), Math.ceil((map.y + map.h) * SCALE));
+        check('o4', n, ink <= 0.15 * area, `單一系統的輪廓落墨佔地圖框 ${(100 * ink / area).toFixed(1)}%（>15%）——細線不會這麼多，像是填色`);
       }
     }
 
@@ -1119,6 +1320,114 @@ const MUTATIONS = [
     replace: '',
     expect: ['s'],
   },
+  // ── 台灣輪廓（o1–o5）與蓋章鈕可點範圍（t）。每個新閘門至少一個突變；o1 兩個（輪廓沒畫、南端被裁）、t 四個。──
+  {
+    id: 'M23 輪廓層拿掉（卡片背景沒有台灣）',
+    file: 'CollectionCard.swift',
+    find: '            CollectionOutlineLayer(viewport: viewport, hidden: hidden)\n',
+    replace: '',
+    expect: ['o1', 'o2', 'o3', 'o5'],
+  },
+  // M24 的第一版是把 overflowRatio 改成 0（畫布縮回地圖框）——第一次跑 o1 全綠：ImageRenderer 不會把 Canvas 裁在自己的邊界，
+  // 畫布縮回去在 harness 看不出差別（真機的 Canvas 裁不裁沒驗過，overflowRatio 只是防禦）。所以改成明確加 clip：
+  // 這才是「輪廓被裁到點陣框、南端被切平」這個缺陷本身，o1 的恆春半島取樣點要抓得到它。
+  {
+    id: 'M24 輪廓裁到點陣框（恆春半島南端被切平）',
+    file: 'CollectionCard.swift',
+    find: '            CollectionOutlineLayer(viewport: viewport, hidden: hidden)\n',
+    replace: '            CollectionOutlineLayer(viewport: viewport, hidden: hidden)\n                .clipped()\n',
+    expect: ['o1'],
+  },
+  {
+    id: 'M25 單一系統也畫成填色（不是細線）',
+    file: 'CollectionCard.swift',
+    find: `                    if viewport == nil {
+                        ctx.fill(path,`,
+    replace: `                    if true {
+                        ctx.fill(path,`,
+    expect: ['o4'],
+  },
+  {
+    id: 'M26 可點範圍縮回鈕本身（小卡、中卡兩個呼叫端都不外擴）',
+    edits: [
+      {
+        file: 'CollectionCard.swift',
+        find: 'let chip = CollectionStampChip(k: k, hit: EdgeInsets(top: gap, leading: 4, bottom: CollectionMetrics.inset, trailing: 4))',
+        replace: 'let chip = CollectionStampChip(k: k)',
+      },
+      {
+        file: 'CollectionCard.swift',
+        find: 'let chip = CollectionStampChip(k: k, compact: true, hit: EdgeInsets(top: 0, leading: 10, bottom: 1, trailing: 10))',
+        replace: 'let chip = CollectionStampChip(k: k, compact: true)',
+      },
+    ],
+    expect: ['t'],
+  },
+  {
+    id: 'M27 輪廓整張左移 60pt（侵入文字）',
+    file: 'CollectionCard.swift',
+    find: '                    ctx.translateBy(x: margin, y: margin)',
+    replace: '                    ctx.translateBy(x: margin - 60, y: margin)',
+    expect: ['o2'],
+  },
+  {
+    id: 'M28 輪廓填色太深（未收集灰點放上去對比掉到九成以下）',
+    file: 'CollectionCard.swift',
+    find: 'return scheme == .dark ? Color(white: 0.125) : Color(white: 0.945)',
+    replace: 'return scheme == .dark ? Color(white: 0.20) : Color(white: 0.90)',
+    expect: ['o3'],
+  },
+  {
+    id: 'M29 著色模式的輪廓跟已收集的點一樣重',
+    file: 'CollectionCard.swift',
+    find: 'if mono { return Color.primary.opacity(0.05) }',
+    replace: 'if mono { return Color.primary.opacity(0.9) }',
+    expect: ['o5'],
+  },
+  {
+    id: 'M30 輪廓層加 widgetAccentable（著色模式被染成強調色）',
+    file: 'CollectionCard.swift',
+    find: '            CollectionOutlineLayer(viewport: viewport, hidden: hidden)\n',
+    replace: '            CollectionOutlineLayer(viewport: viewport, hidden: hidden)\n                .widgetAccentable()\n',
+    expect: ['o5'],
+  },
+  {
+    id: 'M31 輪廓層拿掉 allowsHitTesting(false)（會吃點擊）',
+    file: 'CollectionCard.swift',
+    find: '        .allowsHitTesting(false)\n',
+    replace: '',
+    expect: ['o2'],
+  },
+  {
+    id: 'M32 小卡可點範圍往上多擴 14pt（蓋到「還有 N 座」）',
+    file: 'CollectionCard.swift',
+    find: 'hit: EdgeInsets(top: gap, leading: 4, bottom: CollectionMetrics.inset, trailing: 4)',
+    replace: 'hit: EdgeInsets(top: gap + 14, leading: 4, bottom: CollectionMetrics.inset, trailing: 4)',
+    expect: ['t'],
+  },
+  {
+    id: 'M33 小卡沒抵銷外擴的內距（鈕被推離原位）',
+    file: 'CollectionCard.swift',
+    find: `            numbers(f, k)
+            stamp(chip).padding(chip.hitCompensation)`,
+    replace: `            numbers(f, k)
+            stamp(chip)`,
+    expect: ['t'],
+  },
+  {
+    id: 'M34 蓋章鈕本身被放大（外觀尺寸變了）',
+    file: 'CollectionCard.swift',
+    find: '.padding(.horizontal, k.pt(compact ? 8 : 9))',
+    replace: '.padding(.horizontal, k.pt(compact ? 8 : 14))',
+    expect: ['t'],
+  },
+  {
+    id: 'M35 Button 的 label 不是鈕本身（外面另包一層）',
+    file: 'CollectionWidget.swift',
+    find: 'Button(intent: CollectCheckinIntent()) { chip }.buttonStyle(.plain)',
+    replace: 'Button(intent: CollectCheckinIntent()) { chip.padding(2) }.buttonStyle(.plain)',
+    expect: ['t'],
+  },
 ];
 
 function stageSource(dest, mutation) {
@@ -1129,11 +1438,14 @@ function stageSource(dest, mutation) {
   }
   for (const f of ['RailMetroWaitPlugin.swift', 'CollectCheckinIntent.swift']) cpSync(join(appSrc, f), join(dest, f));
   if (mutation) {
-    const path = join(dest, mutation.file);
-    const text = readFileSync(path, 'utf8');
-    const hits = text.split(mutation.find).length - 1;
-    if (hits !== 1) throw new Error(`突變「${mutation.id}」的錨點在原始碼裡出現 ${hits} 次（要恰好 1 次）：${mutation.find}`);
-    writeFileSync(path, text.replace(mutation.find, mutation.replace));
+    // 單處突變寫 file／find／replace；要同時改好幾處才成立的突變（例如「可點範圍縮到鈕本身」得動兩個呼叫端）寫 edits 陣列。
+    for (const e of mutation.edits ?? [mutation]) {
+      const path = join(dest, e.file);
+      const text = readFileSync(path, 'utf8');
+      const hits = text.split(e.find).length - 1;
+      if (hits !== 1) throw new Error(`突變「${mutation.id}」的錨點在原始碼裡出現 ${hits} 次（要恰好 1 次）：${e.find}`);
+      writeFileSync(path, text.replace(e.find, () => e.replace));
+    }
   }
 }
 
