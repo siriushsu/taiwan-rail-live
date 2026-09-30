@@ -97,9 +97,9 @@ const browser = await (ENGINE === 'webkit' ? webkit : chromium).launch(ENGINE ==
 const pageErrors = [];
 // howto：'seen'＝已看過（旗標寫 1）、'unseen'＝沒看過（旗標不寫，首次說明卡會在開機時跳出來）。
 // deny：開機前就讓定位替身回「權限被拒」（開機時的第一次 watch 就失敗，之後每次重試也失敗）。
-async function open({ tag, seed = {}, howto = 'seen', mobile = false, deny = false, platform = null }) {
+async function open({ tag, seed = {}, howto = 'seen', mobile = false, mobileWidth = 375, deny = false, platform = null }) {
   await guardMidnight();
-  const ctx = await browser.newContext({ ...(mobile ? { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 800 } }), locale: 'zh-TW', timezoneId: 'Asia/Taipei' });
+  const ctx = await browser.newContext({ ...(mobile ? { viewport: { width: mobileWidth, height: 812 }, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 800 } }), locale: 'zh-TW', timezoneId: 'Asia/Taipei' });
   await ctx.addInitScript(({ seed, howto, deny, platform }) => {
     if (howto === 'seen') { try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} }
     if (!sessionStorage.getItem('__seeded')) { sessionStorage.setItem('__seeded', '1'); for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, v); }
@@ -230,8 +230,8 @@ async function clickGroupTab(page, text, tag) {
 }
 
 // ── C2 好幾座停在清單 ＋ 首次說明卡讓位 ＋ 真滑鼠點擊 ────────────────────────────
-async function multiAndHowto(tag, mobile) {
-  const { ctx, page } = await open({ tag, howto: 'unseen', mobile });
+async function multiAndHowto(tag, mobile, mobileWidth = 375) {
+  const { ctx, page } = await open({ tag, howto: 'unseen', mobile, mobileWidth });
   const pre = await page.evaluate(() => { const w = document.getElementById('howtoWrap'); return { shown: !!w && !w.hidden, flag: localStorage.getItem('trainmap-howto-seen') }; });
   ok(`${tag} 前提：首次說明卡在開機時跳出來、已讀旗標是 null（不然讓位測不出差別）`, pre.shown && pre.flag === null, JSON.stringify(pre));
   await fireCheckin(page);
@@ -255,7 +255,7 @@ async function multiAndHowto(tag, mobile) {
   const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
   const hitSelf = await page.evaluate(([x, yy, s]) => { const e = document.elementFromPoint(x, yy), b = document.querySelector(s); return !!(e && b && (e === b || b.contains(e))) && !b.disabled; }, [cx, cy, sel]);
   ok(`${tag} 前提：那顆鈕在畫面上、可點、點下去命中的就是它（沒被說明卡蓋住）`, hitSelf, `(${Math.round(cx)},${Math.round(cy)})`);
-  await page.mouse.click(cx, cy);
+  if (mobile) await page.tap(sel); else await page.mouse.click(cx, cy);
   const clicked = await waitStamp(page, 'thsr_sched|台北');
   const after = await stamps(page);
   ok(`${tag} 真滑鼠點鈕 → 高鐵台北被蓋（次數 1、今天），其他站沒被蓋`, clicked && keysOf(after) === 'thsr_sched|台北' && after['thsr_sched|台北'].n === 1 && after['thsr_sched|台北'].d === todayTaipei(), keysOf(after));
@@ -265,7 +265,7 @@ async function multiAndHowto(tag, mobile) {
   await ctx.close();
 }
 await multiAndHowto('C2 桌面 1280', false);
-await multiAndHowto('C2 手機 375', true);
+for (const width of [360, 375, 390, 414, 520, 768]) await multiAndHowto(`C2 手機 ${width} 真觸控`, true, width);
 
 // ── C3 去重（替換候選層，塞兩筆同鍵）────────────────────────────────────────
 {
