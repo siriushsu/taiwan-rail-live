@@ -7969,7 +7969,7 @@ const BOUNTY_VERIFY_MAX_TRAIN_BYTES = 4 * 1024 * 1024;
 const BOUNTY_VERIFY_TRUSTED_TRAINS = 8;
 // 可信名額最多先用掉這一發剩下預算（子請求、牆鐘、讀取量各算）的這個比例（獨立驗收 N1），清單截斷時最多佔清單的這個比例（第三輪 N1b）。可信資格不難取得
 // （入帳過一次錄程籌碼就算）——不設上限的話，少數可信身分各灌滿名額的昂貴垃圾車，可信名額就吃掉整發預算，新使用者的第一趟每一發都判不到。
-// 用到份額之後，其餘的可信名額改與一般班車按輪次交錯排（同一輪裡一般班車先；別人都判完還有預算就接著判），見 bountyVerifyOrder。
+// 用到份額之後，其餘的可信名額改與一般班車按輪次交錯排（同一輪裡一般班車先；同一輪的一般班車判完、還有預算就接著判），見 bountyVerifyOrder。
 const BOUNTY_VERIFY_TRUSTED_SHARE = 0.5;
 // 判定的租約：同一時間只准一發在判（kv_blobs 一列，值是 {token, until}）。兩發重疊（平台重送、owner 手動觸發）時，
 // 籌碼與去重本來就只會記一次，但 v1 的點數與 sample_count 會各加一次（review-B 的 L5b 實測 21→42）。
@@ -8091,7 +8091,7 @@ function bountyCounted(env) {
 }
 // 判定的實際次序（獨立驗收 N1）：清單已經依 struck、head、rnd… 排好，這裡只把可信名額（head）切成兩段——
 // room() 為真的時候照清單最先判；用到份額（room() 轉假）之後，其餘的 head 與一般班車按輪次（rnd，這個人的第幾班）交錯，
-// 同一輪裡一般班車先，出過錯的班車仍在最後。
+// 同一輪裡一般班車先，出錯 BOUNTY_VERIFY_STRIKES_TO_LAST 次以上（struck）的班車仍在最後。
 // 為什麼交錯而不是整批排到一般班車之後（第三輪獨立驗收 B(5)）：整批排後面的話，一個匿名身分灌 60 班，它的第 2…60 班
 // 都排在誠實帳號被讓出的第 2 班前面——「一群分身＋一個灌水者」就把誠實帳號的當發判定量砍半。交錯之後灌水者一輪也只佔一格。
 // 新使用者的第一班（rnd＝1）仍在任何讓出的名額之前（同一輪一般班車先），N1 的保證不變。
@@ -8170,7 +8170,7 @@ async function bountyVerifyCron(env0) {
     //   0. 以前判定時出過錯 BOUNTY_VERIFY_STRIKES_TO_LAST 次以上的班車（BOUNTY_VERIFY_STRIKE_PREFIX）一律排在最後，不論下面哪一條
     //      （只錯過一次的照常排，第二輪 B5）；
     //   1. 可信身分（trusted：帳號、併進帳號的裝置、或以前入帳過錄程籌碼）的前 BOUNTY_VERIFY_TRUSTED_TRAINS 班最先（head）——
-    //      但最多先用掉剩下預算的 BOUNTY_VERIFY_TRUSTED_SHARE，其餘的 head 排到 2. 之後（bountyVerifyOrder）；
+    //      但最多先用掉剩下預算的 BOUNTY_VERIFY_TRUSTED_SHARE，其餘的 head 回到 2. 的輪次裡、同一輪排在一般班車之後（bountyVerifyOrder）；
     //   2. 其餘依「這個身分的第幾班」（rnd）輪流：每個人的第 1 班都排在任何人的第 2 班之前——一個身分灌再多班，一輪也只佔一格；
     //      同一輪裡可信的先；
     //   3. 同一格裡隨機（random()）。🔴 不可以用乘車日或 actor 當同輪的次序：兩者都是上傳者自己填的，舊版照這兩個欄位排，

@@ -241,7 +241,7 @@ await attempt('A4', async () => {
   ok('A4b [F1] 驗證壞掉不擋估值：驗證失敗有記 log、scheduled 不丟例外、估值照跑（板上 3 列）',
     r2.threw === null && r2.errs.some(e => e.includes('[cron bounty 驗證] 失敗')) && nBoard(w2.db) === 3,
     J({ threw: r2.threw, errs: r2.errs.map(e => e.slice(0, 40)), board: nBoard(w2.db) }));
-  // 一班車判到一半出錯（review-B R3：讀那班車的批次那句丟例外）：判定接住、記下這一班（之後每一發排到最後）、繼續下一班；
+  // 一班車判到一半出錯（讀那班車的批次那句丟例外）：判定接住、記下這一班（同一班第 2 次出錯起，之後每一發排到最後）、繼續下一班；
   // 判定那一行以 error 等級印（含錯誤訊息），另一行 error 指名是哪一班；樣本留 pending 給下一發
   const w3 = aWorld(); failOnPrepare(w3.DELAY_DB, /^SELECT \* FROM \(SELECT \*, SUM\(length\(payload\)\) OVER/);
   const r3 = await fire(w3, '30 19 * * *');
