@@ -249,10 +249,34 @@ function barePayload() {
   p.pts = [];
   return p;
 }
+/**
+ * 容錯閘門（契約「畫法約定」10）：dirty＝夾了壞元素的 payload（App 讀到的），DIRTY_CLEAN＝拿掉壞元素的乾淨版（期望值的來源）。
+ * 壞元素：recent 的 name 為 null（最新一筆、歸台鐵）、d 是數字 → 略過；pts 的 x 為 null、不是陣列、只有 3 個元素、
+ * s＝3（放在離台鐵外框很遠的東北角：誤算進視窗外框，視窗就會位移，v 閘門抓得到）→ 略過；
+ * color 為 null（s＝2、在台鐵範圍內）→ 用品牌色照畫、算一點（乾淨版給它一個合法色碼，位置與狀態相同）。
+ */
+function dirtyPair() {
+  const dirty = clone(sample), clean = clone(sample);
+  const anchor = sample.pts.find(pt => pt[4] === 0);
+  const colorless = [anchor[0] + 2, anchor[1] + 2, null, 2, 0];
+  dirty.recent = [{ name: null, line: '平溪線', k: 'tra', d: '2026-09-28' }, { name: '壞站', line: '平溪線', k: 'tra', d: 20260928 }, ...dirty.recent];
+  dirty.pts = [[null, 300, '#5D6D7E', 1, 0], 'oops', ...dirty.pts, [100, 100, '#5D6D7E'], [995, 5, '#5D6D7E', 3, 0], colorless];
+  clean.pts = [...clean.pts, [colorless[0], colorless[1], '#5D6D7E', 2, 0]];
+  return { dirty, clean };
+}
+const DIRTY = dirtyPair();
+/** 結構壞了＝整包作廢（走「打開軌島一次」）：缺 sys；sys 有一筆的 v 為 null（pts 的 sysIdx 指向它，不能略過）。 */
+function brokenPayload() { const p = clone(sample); delete p.sys; return p; }
+function brokenSysPayload() { const p = clone(sample); p.sys[1].v = null; return p; }
 const FIXTURES = {
   sample, empty: emptyPayload, none: null, full: fullPayload(), one: onePayload(), almost: almostPayload(),
   solo: soloPayload(), states: statesPayload(), bare: barePayload(),
+  dirty: DIRTY.dirty, broken: brokenPayload(), brokenSys: brokenSysPayload(),
 };
+/** 這些 fixture 送進 App 的樣子與期望值的來源不同（期望值取乾淨版）。 */
+const EXPECT_FROM = { dirty: DIRTY.clean };
+/** 讀不到有效資料的狀態：只該有「打開軌島一次」提示。 */
+const UNAVAILABLE = new Set(['none', 'broken', 'brokenSys']);
 
 // ── 期望值：從 payload 獨立重算（不讀任何 Swift 端的數字）──────────────────────────────
 /** 百分比數字部分（規格第二輪第 5 點）：四捨五入；有收集卻成 0 → '<1'；沒收滿卻成 100 → '99'。 */
@@ -342,6 +366,9 @@ function buildCases(quick) {
       add('circ', null, st, 'light', true, 430);
     }
     for (const [scheme, mono] of [['light', false], ['dark', false], ['light', true], ['dark', true]]) add('small', null, 'states', scheme, mono, 430);
+    // 容錯（P3-7）：夾壞元素的 payload 照乾淨版畫；結構壞的整包作廢
+    for (const [fam, scope] of [['small', null], ['small', 'tra'], ['medium', null], ['medium', 'tra']]) add(fam, scope, 'dirty', 'light', false, 430);
+    for (const st of ['broken', 'brokenSys']) for (const fam of ['small', 'medium']) add(fam, null, st, 'light', false, 430);
     // 台灣輪廓（o1）：一個點都沒有的全台卡，小／中 × 淺／深
     for (const fam of ['small', 'medium']) for (const scheme of ['light', 'dark']) add(fam, null, 'bare', scheme, false, 430);
     return cases;
@@ -367,6 +394,9 @@ function buildCases(quick) {
     }
     // 台灣輪廓（o1）：一個點都沒有的全台卡
     for (const fam of ['small', 'medium']) for (const scheme of ['light', 'dark']) add(fam, null, 'bare', scheme, false, width);
+    // 容錯（P3-7）：夾壞元素的 payload（全部家族）、結構壞的整包作廢（小、中）
+    for (const [fam, scope] of famList) add(fam, scope, 'dirty', 'light', isLock(fam), width);
+    for (const st of ['broken', 'brokenSys']) for (const fam of ['small', 'medium']) add(fam, null, st, 'light', false, width);
   }
   // 著色（tinted／accented）：桌面兩種尺寸的淺色與深色，全台與單一系統
   for (const fam of ['small', 'medium']) {
@@ -756,7 +786,7 @@ async function judge({ specs, results, out, src }) {
 
   for (const spec of specs) {
     const res = results.find(r => r.name === spec.name);
-    const fix = FIXTURES[spec.state];
+    const fix = UNAVAILABLE.has(spec.state) ? null : (EXPECT_FROM[spec.state] ?? FIXTURES[spec.state]);
     const frames = res.frames;
     const texts = frames.filter(f => !f.id.endsWith('#ideal') && f.text !== null);
     const byId = id => texts.filter(f => f.id === id);
@@ -790,7 +820,7 @@ async function judge({ specs, results, out, src }) {
     // ── s：蓋章鈕（小卡、中卡；鎖屏兩款不放）：有字、在框內、看得見、不壓到任何文字／進度條／地圖 ──
     if (spec.fam === 'small' || spec.fam === 'medium') {
       const chip = frames.find(f => f.id === 'stamp.chip'), label = byId('stamp')[0];
-      if (spec.state === 'none') check('s', n, !chip && !label, '沒有 collection.json 的提示卡不該有蓋章鈕');
+      if (UNAVAILABLE.has(spec.state)) check('s', n, !chip && !label, '沒有 collection.json 的提示卡不該有蓋章鈕');
       else if (!chip || !label) fail('s', n, `缺蓋章鈕（stamp.chip＝${!!chip}、stamp＝${!!label}）`);
       else {
         check('s', n, label.text === STAMP_LABEL, `鈕上的字「${label.text}」≠ 期望「${STAMP_LABEL}」`);
@@ -834,7 +864,7 @@ async function judge({ specs, results, out, src }) {
     }
 
     // ── 「沒有檔案」：只該有提示文字，沒有地圖、沒有數字 ──
-    if (spec.state === 'none') {
+    if (UNAVAILABLE.has(spec.state)) {
       // 圓形鎖屏只有一個「—」符號（圓環裡放不下句子），其餘家族要有那句提示。
       const lockCirc = spec.fam === 'circ';
       check('c', n, (lockCirc || byId('unavailable').length === 1) && !map && byId('pct').length === 0,
@@ -1469,6 +1499,34 @@ const MUTATIONS = [
     file: 'CollectionCard.swift',
     find: 'RailNativeL10n.text("已收集 {n} 座", ["n": "\\(f.collected)"])',
     replace: 'RailNativeL10n.text("還有 {n} 座", ["n": "\\(f.collected)"])',
+    expect: ['c'],
+  },
+  {
+    id: 'M39 容錯拿掉：Lossy 改回會 throw（一個壞元素整包作廢）',
+    file: 'CollectionCard.swift',
+    find: 'init(from decoder: Decoder) { value = try? T(from: decoder) }',
+    replace: 'init(from decoder: Decoder) throws { value = try T(from: decoder) }',
+    expect: ['c'],
+  },
+  {
+    id: 'M40 color 為 null 的點被略過（應該用品牌色照畫）',
+    file: 'CollectionCard.swift',
+    find: 'if case .string(let text) = items[2] { color = text } else { color = "" }',
+    replace: 'guard case .string(let text) = items[2] else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "color")) }; color = text',
+    expect: ['b1'],
+  },
+  {
+    id: 'M41 s 不驗 0／1／2（s＝3 的壞點留下來，撐大視窗外框）',
+    file: 'CollectionCard.swift',
+    find: 'case .number(let ps) = items[3], ps == 0 || ps == 1 || ps == 2',
+    replace: 'case .number(let ps) = items[3]',
+    expect: ['v'],
+  },
+  {
+    id: 'M42 recent 的 name 為 null 沒有略過那一筆（變成空站名）',
+    file: 'CollectionCard.swift',
+    find: 'name = try c.decode(String.self, forKey: .name)',
+    replace: 'name = (try? c.decode(String.self, forKey: .name)) ?? ""',
     expect: ['c'],
   },
   // 以下兩個改的是目錄（--lang en｜ja 才有）：gate 的 tr() 與 Swift 的 shim 讀同一份壞目錄，考的是 c 閘門對「目錄本身」的防線。

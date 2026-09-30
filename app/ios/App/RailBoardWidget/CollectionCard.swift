@@ -30,6 +30,17 @@ struct CollectionSnapshot: Decodable {
         let line: String
         let k: String?
         let d: String
+
+        private enum Keys: String, CodingKey { case name, line, k, d }
+
+        /// name／line／d 不是字串（含 null）就丟出——外層的 Lossy 會略過這一筆；k 缺或型別不對＝沒有歸屬（契約「畫法約定」10）。
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: Keys.self)
+            name = try c.decode(String.self, forKey: .name)
+            line = try c.decode(String.self, forKey: .line)
+            d = try c.decode(String.self, forKey: .d)
+            k = try? c.decodeIfPresent(String.self, forKey: .k)
+        }
     }
 
     /// pts 的每個元素是 [x, y, "#色碼", s, sysIdx] 的異質陣列。
@@ -41,14 +52,35 @@ struct CollectionSnapshot: Decodable {
         let s: Int
         let sys: Int
 
+        /// 先解成「永不 throw」的純量陣列再解讀（契約「畫法約定」10）：UnkeyedDecodingContainer.decode 失敗時游標不會前進，
+        /// 在迴圈裡 try? 重試會卡在同一個元素。不是至少 4 個元素的陣列、x／y 不是數字、s 不是 0／1／2 → 丟出（外層 Lossy 略過這一點）；
+        /// color 不是字串（含 null）→ 空字串，畫的時候解不出色碼就用品牌色；sysIdx 缺或不是整數 → -1（不屬於任何系統）。
         init(from decoder: Decoder) throws {
-            var c = try decoder.unkeyedContainer()
-            x = try c.decode(Double.self)
-            y = try c.decode(Double.self)
-            color = try c.decode(String.self)
-            s = try c.decode(Int.self)
-            sys = c.isAtEnd ? -1 : try c.decode(Int.self)
+            let items = try decoder.singleValueContainer().decode([Scalar].self)
+            guard items.count >= 4, case .number(let px) = items[0], case .number(let py) = items[1],
+                  case .number(let ps) = items[3], ps == 0 || ps == 1 || ps == 2
+            else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "pts 元素不合格")) }
+            x = px; y = py; s = Int(ps)
+            if case .string(let text) = items[2] { color = text } else { color = "" }
+            if items.count > 4, case .number(let i) = items[4], i == i.rounded(), abs(i) < 1e9 { sys = Int(i) } else { sys = -1 }
         }
+    }
+
+    /// pts 元素的一格：數字、字串；其他（null、布林、巢狀）都是 other。init 永不 throw。
+    private enum Scalar: Decodable {
+        case number(Double), string(String), other
+        init(from decoder: Decoder) {
+            let c = try? decoder.singleValueContainer()
+            if let d = try? c?.decode(Double.self) { self = .number(d) }
+            else if let t = try? c?.decode(String.self) { self = .string(t) }
+            else { self = .other }
+        }
+    }
+
+    /// 陣列元素壞了不拖垮整包：解不出來就是 nil，外層濾掉。init 永不 throw，游標照常前進。
+    private struct Lossy<T: Decodable>: Decodable {
+        let value: T?
+        init(from decoder: Decoder) { value = try? T(from: decoder) }
     }
 
     let v: Int
@@ -58,6 +90,21 @@ struct CollectionSnapshot: Decodable {
     let sys: [System]
     let recent: [Recent]
     let pts: [Point]
+
+    private enum CodingKeys: String, CodingKey { case v, aspect, n, total, sys, recent, pts }
+
+    /// 結構欄位（v、aspect、n、total、sys、recent、pts）缺或型別不對、sys 任一筆壞了＝丟出（整包作廢，走「打開軌島一次」）；
+    /// recent 與 pts 的元素壞了只略過那一個（契約「畫法約定」10）。
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        v = try c.decode(Int.self, forKey: .v)
+        aspect = try c.decode(Double.self, forKey: .aspect)
+        n = try c.decode(Int.self, forKey: .n)
+        total = try c.decode(Int.self, forKey: .total)
+        sys = try c.decode([System].self, forKey: .sys)
+        recent = try c.decode([Lossy<Recent>].self, forKey: .recent).compactMap(\.value)
+        pts = try c.decode([Lossy<Point>].self, forKey: .pts).compactMap(\.value)
+    }
 }
 
 enum CollectionStore {
