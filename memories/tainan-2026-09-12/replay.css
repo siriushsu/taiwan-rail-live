@@ -6,4 +6,4 @@ dialog[open]{display:flex;flex-direction:column;overflow:hidden}dialog h2,dialog
 
 select{appearance:none;-webkit-appearance:none;height:44px;min-height:44px;padding-right:25px;background-image:linear-gradient(45deg,transparent 50%,#516b5a 50%),linear-gradient(135deg,#516b5a 50%,transparent 50%);background-position:calc(100% - 13px) 19px,calc(100% - 9px) 19px;background-size:4px 4px;background-repeat:no-repeat}#speed{min-width:64px}
 
-#caption{min-height:30px}.map-label.uncertain{border:1px dashed #a87a31;color:#805b1d}#caption.uncertain{color:#805b1d}
+#caption{min-height:30px}.map-label.uncertain{border:1px dashed #a87a31;color:#805b1d}#caption.uncertain{color:#805b1d}.note-mouse{display:none}@media(hover:hover) and (pointer:fine){.note-touch{display:none}.note-mouse{display:inline}}

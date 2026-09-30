@@ -5627,6 +5627,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tainanmodel0929"><span class="d">9/30</span><span>台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，周邊建築從灰色方塊改成有外牆顏色、窗戶、店面與招牌，補上香格里拉飯店的塔樓，視角可自由轉向與傾斜，最多放大到 34 公尺</span></li>
         <li data-cl-of="ntmcache0930"><span class="d">9/30</span><span>淡海、安坑倒數每 20 秒檢查更新，避免多層快取延長舊資料；斷線不把舊倒數標成新資料</span></li>
         <li data-cl-of="ntmclock0930"><span class="d">9/30</span><span>淡海、安坑跟車卡保留官方到站時間，不再被動畫平順校正延後；超出官方倒數範圍時明確標示推估</span></li>
         <li data-cl-of="ntmvehicle0930"><span class="d">9/30</span><span>淡海、安坑依官方車號逐車校正；倒數連到同一台車，待發車不因秒值固定而消失，也不憑空發車</span></li>
@@ -5634,7 +5635,6 @@
         <li data-cl-of="stations0930b"><span class="d">9/30</span><span>車站時刻表頁擴大到全部台鐵車站：每站列出兩週內每一班的開車時刻與行駛日；瑞芳、十分、菁桐等 7 站另有英日文，車站索引依縣市分組</span></li>
         <li data-cl-of="followalign0926"><span class="d">9/30</span><span>跟車小卡收合成膠囊時，車次與時速不再貼在上緣，跟圓點和「結束」排在同一條線上（謝謝網友回報）</span></li>
         <li data-cl-of="loopja0930"><span class="d">9/30</span><span>日文介面：環島列車的終點改成簡短好懂的「台北（台湾一周）」</span></li>
-        <li data-cl-of="stations0930"><span class="d">9/30</span><span>車站頁加上台鐵、高鐵時刻表：台北、板橋、台中等大站，列出兩週內每一班的開車時刻與行駛日</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5642,6 +5642,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="tainanmodel0929"><span class="d">9/30</span><span>台南地面鐵道歷史重播：舊站房與列車改用真實比例重建、施工外罩可一鍵拿掉，推拉式自強號改畫 7 月起的 E500 機車頭；周邊建築從灰色方塊改成有外牆顏色、窗戶、店面、招牌與水塔，補上香格里拉塔樓；視角可自由轉向與傾斜，最多放大到 34 公尺</span></li>
         <li data-cl="ntmcache0930"><span class="d">9/30</span><span>淡海、安坑倒數每 20 秒檢查更新，避免多層快取延長舊資料；斷線不把舊倒數標成新資料</span></li>
         <li data-cl="ntmclock0930"><span class="d">9/30</span><span>淡海、安坑跟車卡保留官方到站時間，不再被動畫平順校正延後；超出官方倒數範圍時明確標示推估</span></li>
         <li data-cl="ntmvehicle0930"><span class="d">9/30</span><span>淡海、安坑依官方車號逐車校正；倒數連到同一台車，待發車不因秒值固定而消失，也不憑空發車</span></li>
@@ -6951,7 +6952,11 @@
 // v0930e：Issue #73 複驗——收合的跟車膠囊裡車次與時速改為置中，跟圓點、「結束」同一條中線（rail-3d.css；守門：verify_issue_73_follow_head C4）。
 //         本分支原本佔 v0930b，併 main 時 v0930c 已上 main、v0930d 留給台南重播分支，改用 v0930e 讓版號維持遞增。
 // v0930h：捷運官方倒數獨立保留、新北輕軌逐車銜接與 20 秒更新；保留主線跟車膠囊、日文與全台車站頁修正。
-const BUILD = 'v0930h';
+// v0930i：台南地面鐵道歷史重播精修（memories/tainan-2026-09-12）：舊站房重建＋施工外罩開關、列車真實比例、放大極限 34 m、
+//         周邊建物低細節模型（含封存輪廓漏收的香格里拉飯店塔身）、自由轉向與傾斜（守門：scripts/verify_tainan_memory.mjs、
+//         verify_tainan_memory_browser.mjs、verify_tainan_memory_camera.mjs）。分支預覽用過 v0929j、v0930a、v0930f，都沒上 main；
+//         v0930f 跟 codex/metro-countdown-repair-0930 撞號，v0930g、v0930h 又已先上 main，改用 v0930i 讓版號維持遞增。
+const BUILD = 'v0930i';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);

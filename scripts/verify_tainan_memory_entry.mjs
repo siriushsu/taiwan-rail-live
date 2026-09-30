@@ -6,12 +6,16 @@ fs.mkdirSync('output/tainan-memory',{recursive:true});
 for(const [engine,type] of Object.entries({chromium,webkit})){
  console.log('開始',engine);
  // 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走)。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
- const browser=await type.launch(engine==='chromium'?{channel:'chromium',headless:true}:{headless:true}),page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
- await page.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-map3d','0');localStorage.setItem('ri-trains-enabled','0');});
- await page.goto(base+'/?g=all&lang=zh-TW');await page.waitForFunction(()=>typeof state!=='undefined'&&state.ready&&state.trains?.length>0,null,{timeout:120000});
- await page.evaluate(()=>{state.playing=false;});
+ const browser=await type.launch(engine==='chromium'?{channel:'chromium',headless:true}:{headless:true});
+ // 每個寬度開一個新的手機分頁，不在同一分頁上改尺寸：Playwright 在 isMobile 分頁 setViewportSize 之後，
+ // (any-pointer: coarse) 有時會變成不成立且不恢復，頁面就把 mobile-shell 拿掉、1280 寬的列高變成桌面的 40 px
+ // （2026-09-29 實測：origin/main 原版同樣時有時無，與產品無關）。
+ const open=async(width,height)=>{const page=await browser.newPage({viewport:{width,height},isMobile:true,hasTouch:true});
+  await page.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-map3d','0');localStorage.setItem('ri-trains-enabled','0');});
+  await page.goto(base+'/?g=all&lang=zh-TW');await page.waitForFunction(()=>typeof state!=='undefined'&&state.ready&&state.trains?.length>0,null,{timeout:120000});
+  await page.evaluate(()=>{state.playing=false;});return page;};
  for(const width of [360,375,390,414,768,1280]){
-  await page.setViewportSize({width,height:900});
+  const page=await open(width,900);
   for(const full of [false,true])for(const banner of [false,true]){
    await page.evaluate(({full,banner})=>{document.body.classList.toggle('fs',full);const e=document.getElementById('alertBanner');e.hidden=!banner;e.textContent=banner?'驗收：營運公告橫幅':'';},{full,banner});
    const more=await page.locator('#tabMore').isVisible()?'#tabMore':'#toolsFab';await page.tap(more);await page.waitForFunction(()=>document.body.classList.contains('tools-open'));await page.locator('#tainanMemoryLink').scrollIntoViewIfNeeded();
@@ -21,10 +25,12 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
    assert.ok(check.hit&&check.inView&&!check.overflow&&check.height>=44,JSON.stringify({engine,width,full,banner,check}));assert.deepEqual(check.collisions,[]);rows.push({engine,width,full,banner,...check});fs.writeFileSync('output/tainan-memory/entry-results.json',JSON.stringify(rows,null,2));
    await page.tap('#moreClose');
   }
+  await page.close();
  }
+ const page=await open(390,844);
  // 真正從既有更多選單點入，不能只驗 href 存在。
  await page.evaluate(()=>{document.body.classList.remove('fs');document.getElementById('alertBanner').hidden=true;});
- await page.setViewportSize({width:390,height:844});await page.tap('#tabMore');await page.tap('#tainanMemoryLink');await page.waitForURL('**/memories/tainan-2026-09-12/index.html');try{await page.waitForFunction(()=>window.tainanMemory?.state.ready,null,{timeout:60000});}catch(e){console.log('歷史頁載入狀態',engine,page.url(),await page.locator('#loading').textContent());throw e;}
+ await page.tap('#tabMore');await page.tap('#tainanMemoryLink');await page.waitForURL('**/memories/tainan-2026-09-12/index.html');try{await page.waitForFunction(()=>window.tainanMemory?.state.ready,null,{timeout:60000});}catch(e){console.log('歷史頁載入狀態',engine,page.url(),await page.locator('#loading').textContent());throw e;}
  await page.tap('#live');await page.waitForURL(url=>url.pathname==='/'&&url.searchParams.get('at')==='22.99681,120.21295');
  await browser.close();
 }
