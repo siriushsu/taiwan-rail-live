@@ -91,11 +91,14 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
 //   軌道檔一條線 甲(0)–乙(1)–丙(2)。五天（d1–d5）：
 //   ・區間車：5–23 時每小時一班 甲→乙→丙（三站都停，同一小時內）；6、7、8、17、18、19 時再各加兩班。
 //     d4 那天 12 時那一班改點成 12:10（另一份定義，當天取代原本那一份）→ 甲|乙、乙|丙 每天 31 班，中位數 31（聯集會是 32）。
-//   ・其他：d4 才有的三班 20 時 甲→乙 → 中位數 0，不出單位（聯集會出一個 perDay 3 的單位，還會把 20 時變成尖峰）。
+//   ・其他：d4 才有的二十班 20 時 甲→乙（每兩分鐘一班，都在 20 時內）→ 中位數 0，不出單位（聯集會出一個 perDay 20 的單位、把 20 時變成尖峰；
+//     尖峰改拿各日加總來切的話，20 時一樣會被切進去）。
 //   ・自強：d1–d3 的 10 時 甲→丙、乙通過（stop:false）→ 中位數 1：甲|乙、乙|丙 各一個軌道單位；停站只有甲、丙。
 //   ・莒光：d1、d5 才有 → 中位數 0，不出單位。
 //   每小時停站數的中位數：尖峰 9、其他營運時段 3 → 尖峰＝6、7、8、17、18、19。
-//   另三份壞班表要讓腳本非零離開：車次自帶行駛日（days）、dates 裡有超出範圍的索引、同一天同一個索引出現兩次。
+//   另三份壞班表要讓腳本非零離開，而且是腳本自己的檢查擋下（錯誤訊息指名是哪一種、哪一天、哪個索引），不是跑到後面才崩：
+//   車次自帶行駛日（days）、dates 裡有超出範圍的索引、同一天同一個索引出現兩次。
+//   偶數天（台鐵實際是 14 天）另跑一份：四天裡兩天有莒光 → 中位數取中間兩個的平均 0.5，出單位（取下面那一個會是 0、不出）。
 {
   const SCRIPT = join(fileURLToPath(new URL('.', import.meta.url)), 'build_bounty_units.mjs');
   const TRACK = { lines: [{ id: 'L', name: 'L', stations: [{ name: '甲', d: 0 }, { name: '乙', d: 1 }, { name: '丙', d: 2 }] }] };
@@ -105,7 +108,7 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
   for (let h = 5; h <= 23; h++) base.push(trains.push(tr('區間車', h, ['甲', '乙', '丙'])) - 1);
   for (const h of [6, 7, 8, 17, 18, 19]) for (let k = 0; k < 2; k++) base.push(trains.push(tr('區間車', h, ['甲', '乙', '丙'], '', 20 + k)) - 1);
   const noon = base[7], noonMoved = trains.push(tr('區間車', 12, ['甲', '乙', '丙'], '', 10)) - 1;   // base[7]＝12 時那一班
-  const other = [0, 1, 2].map(k => trains.push(tr('其他', 20, ['甲', '乙'], '', 5 * k)) - 1);
+  const other = Array.from({ length: 20 }, (_, k) => trains.push(tr('其他', 20, ['甲', '乙'], '', 2 * k)) - 1);
   const tze = trains.push(tr('自強', 10, ['甲', '乙', '丙'], '乙', 30)) - 1;
   const kg = trains.push(tr('莒光', 14, ['甲', '乙', '丙'])) - 1;
   const dates = {
@@ -121,25 +124,34 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
       const p = spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8' });
       let out = null;
       try { out = JSON.parse(readFileSync(join(dir, 'data/bounty_units.json'), 'utf8')); } catch (e) {}
-      return { status: p.status, out, err: String(p.stderr || '').split('\n').find(l => /Error/.test(l)) || '' };
+      const se = String(p.stderr || '');
+      return { status: p.status, out, err: (se.match(/^Error: (.*)$/m) || [])[1] || se.split('\n').find(l => /Error/.test(l)) || '' };
     } finally { rmSync(dir, { recursive: true, force: true }); }
   };
-  const good = run({ date: '2026-01-05', trains, dates });
-  const got = good.out ? good.out.units.map(u => `${u.segKey.split('|').slice(2).join('')}|${u.trainKind}|${u.kind}|${u.dir}|${u.slot}=${u.perDay}`).sort() : [];
+  const list = r => r.out ? r.out.units.map(u => `${u.segKey.split('|').slice(2).join('')}|${u.trainKind}|${u.kind}|${u.dir}|${u.slot}=${u.perDay}`).sort() : [];
+  const good = run({ date: '2026-01-05', trains, dates }), got = list(good);
   const want = ['乙甲|區間車|track|0|=31', '丙乙|區間車|track|0|=31', '乙甲|自強|track|0|=1', '丙乙|自強|track|0|=1',   // segKey 兩站依字碼排序
     ...['甲甲', '乙乙', '丙丙'].flatMap(s => [`${s}|區間車|dwell|0|peak=18`, `${s}|區間車|dwell|0|off=13`, `${s}|區間車|dwell|0|holiday=31`]),
     ...['甲甲', '丙丙'].flatMap(s => [`${s}|自強|dwell|0|off=1`, `${s}|自強|dwell|0|holiday=1`])].sort();
   const peak = good.out && good.out.peakHoursBySys && good.out.peakHoursBySys.tra_sched;
+  const even = run({ date: '2026-01-05', trains, dates: { '2026-01-05': [...base, kg], '2026-01-06': [...base, kg], '2026-01-07': base, '2026-01-08': base } });
+  const gotEven = list(even), peakEven = even.out && even.out.peakHoursBySys && even.out.peakHoursBySys.tra_sched;
+  const wantEven = ['乙甲|區間車|track|0|=31', '丙乙|區間車|track|0|=31', '乙甲|莒光|track|0|=0.5', '丙乙|莒光|track|0|=0.5',
+    ...['甲甲', '乙乙', '丙丙'].flatMap(s => [`${s}|區間車|dwell|0|peak=18`, `${s}|區間車|dwell|0|off=13`, `${s}|區間車|dwell|0|holiday=31`,
+      `${s}|莒光|dwell|0|off=0.5`, `${s}|莒光|dwell|0|holiday=0.5`])].sort();
+  const WANT_ERR = { days: /帶了逐車行駛日/, index: new RegExp(`2026-01-09 有壞的班次索引：${trains.length}$`), dup: new RegExp(`2026-01-06 有壞的班次索引：${base[0]}$`) };
   const bad = [
     ['days', run({ date: '2026-01-05', trains: trains.map((t, i) => i ? t : { ...t, days: ['2026-01-05'] }), dates })],
     ['index', run({ date: '2026-01-05', trains, dates: { ...dates, '2026-01-09': [...dates['2026-01-09'], trains.length] } })],
     ['dup', run({ date: '2026-01-05', trains, dates: { ...dates, '2026-01-06': [...dates['2026-01-06'], base[0]] } })],
   ];
-  ok('R13 [第十七批 V11 P2-4] 單位檔的 perDay＝各日班次數的中位數：手寫的五天班表跑 build_bounty_units，只開一天的臨時車與兩天的車不出單位、改點的第二份定義不多算、尖峰照各日中位數切；三份壞班表（車次自帶行駛日、索引超出範圍、同一天重複）都非零離開',
+  ok('R13 [第十七批 V11 P2-4] 單位檔的 perDay＝各日班次數的中位數：手寫的五天班表跑 build_bounty_units，只開一天的臨時車與兩天的車不出單位、改點的第二份定義不多算、尖峰照各日中位數切；四天班表開兩天的車 perDay 0.5；三份壞班表（車次自帶行駛日、索引超出範圍、同一天重複）都由腳本自己的檢查擋下、非零離開',
     good.status === 0 && JSON.stringify(got) === JSON.stringify(want) && JSON.stringify(peak) === '[6,7,8,17,18,19]' &&
-      bad.every(([, r]) => r.status !== 0),
+      even.status === 0 && JSON.stringify(gotEven) === JSON.stringify(wantEven) && JSON.stringify(peakEven) === '[6,7,8,17,18,19]' &&
+      bad.every(([k, r]) => r.status !== 0 && WANT_ERR[k].test(r.err)),
     JSON.stringify({ status: good.status, peak, extra: got.filter(x => !want.includes(x)), missing: want.filter(x => !got.includes(x)),
-      bad: bad.map(([k, r]) => `${k}:${r.status}:${r.err.slice(0, 60)}`) }));
+      even: { status: even.status, peak: peakEven, extra: gotEven.filter(x => !wantEven.includes(x)), missing: wantEven.filter(x => !gotEven.includes(x)) },
+      bad: bad.map(([k, r]) => `${k}:${r.status}:${r.err.slice(0, 80)}`) }));
 }
 
 const failed = R.filter(r => !r.p);
