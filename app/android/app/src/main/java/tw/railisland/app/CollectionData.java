@@ -34,7 +34,8 @@ final class CollectionData {
     static final class Recent {
         String name = "";
         String line = "";
-        String k = "";
+        /** 歸屬系統；缺或不是字串＝沒有歸屬（null），任何單一系統範圍都不會因為它列這一筆。 */
+        String k;
         String d = "";
     }
 
@@ -58,52 +59,104 @@ final class CollectionData {
     /**
      * 只收 v == 1；版本不認得、寬高比不合理都當「沒有資料」，走「打開軌島一次」那個畫面，
      * 不畫一張長得像有資料、其實是壞的卡（與 iOS CollectionStore.decode 同一條件）。
+     *
+     * 容錯（契約〈畫法約定〉10，與 iOS 同一套）：
+     *  · 結構欄位（v、aspect、n、total、sys、recent、pts）缺或型別不對、sys 任一筆壞了＝整包作廢（回 null）；
+     *  · recent、pts 的元素壞了只略過那一個；color 壞了用品牌色照畫（解色碼在算圖端）；k、ks、sysIdx 壞了當沒有。
+     * 🔴 org.json 的 getString／optString 會把 JSON null 讀成字面 "null"、getInt 會把字串 "5" 與 5.7 當成 5，
+     *    所以這裡一律用 opt 取原值再自己判斷型別，不用 getXxx 的轉型。
      */
     static CollectionData decode(String json) {
         if (json == null || json.isEmpty()) return null;
         try {
             JSONObject root = new JSONObject(json);
+            Integer version = intOf(root.opt("v"));
+            Double ratio = numberOf(root.opt("aspect"));
+            Integer collected = intOf(root.opt("n"));
+            Integer total = intOf(root.opt("total"));
+            JSONArray sysArr = arrayOf(root.opt("sys"));
+            JSONArray recArr = arrayOf(root.opt("recent"));
+            JSONArray ptsArr = arrayOf(root.opt("pts"));
+            if (version == null || ratio == null || collected == null || total == null || sysArr == null || recArr == null || ptsArr == null) return null;
+            if (version != 1 || !(ratio > 0.1) || !(ratio < 10) || total < 0 || collected < 0) return null;
             CollectionData d = new CollectionData();
-            d.v = root.getInt("v");
-            d.aspect = root.getDouble("aspect");
-            d.n = root.getInt("n");
-            d.total = root.getInt("total");
-            if (d.v != 1 || !(d.aspect > 0.1) || !(d.aspect < 10) || d.total < 0 || d.n < 0) return null;
-            JSONArray sysArr = root.getJSONArray("sys");
+            d.v = version;
+            d.aspect = ratio;
+            d.n = collected;
+            d.total = total;
             for (int i = 0; i < sysArr.length(); i++) {
-                JSONObject o = sysArr.getJSONObject(i);
+                // pts[].sysIdx 指向這個陣列的索引，略過一筆會讓後面的索引全部錯位，所以壞了就整包作廢
+                JSONObject o = sysArr.optJSONObject(i);
+                if (o == null) return null;
+                String k = stringOf(o.opt("k"));
+                String label = stringOf(o.opt("label"));
+                Integer sv = intOf(o.opt("v"));
+                Integer sn = intOf(o.opt("n"));
+                if (k == null || label == null || sv == null || sn == null) return null;
                 Sys s = new Sys();
-                s.k = o.getString("k");
-                s.label = o.getString("label");
-                s.v = o.getInt("v");
-                s.n = o.getInt("n");
+                s.k = k;
+                s.label = label;
+                s.v = sv;
+                s.n = sn;
                 d.sys.add(s);
             }
-            JSONArray recArr = root.getJSONArray("recent");
             for (int i = 0; i < recArr.length(); i++) {
-                JSONObject o = recArr.getJSONObject(i);
+                JSONObject o = recArr.optJSONObject(i);
+                if (o == null) continue;
+                String name = stringOf(o.opt("name"));
+                String line = stringOf(o.opt("line"));
+                String day = stringOf(o.opt("d"));
+                if (name == null || line == null || day == null) continue;
                 Recent r = new Recent();
-                r.name = o.getString("name");
-                r.line = o.getString("line");
-                r.k = o.optString("k", "");
-                r.d = o.getString("d");
+                r.name = name;
+                r.line = line;
+                r.k = stringOf(o.opt("k"));
+                r.d = day;
                 d.recent.add(r);
             }
-            JSONArray ptsArr = root.getJSONArray("pts");
             for (int i = 0; i < ptsArr.length(); i++) {
-                JSONArray a = ptsArr.getJSONArray(i);
+                JSONArray a = ptsArr.optJSONArray(i);
+                if (a == null || a.length() < 4) continue;
+                Double x = numberOf(a.opt(0));
+                Double y = numberOf(a.opt(1));
+                Double state = numberOf(a.opt(3));
+                if (x == null || y == null || state == null || !(state == 0 || state == 1 || state == 2)) continue;
                 Pt p = new Pt();
-                p.x = (float) a.getDouble(0);
-                p.y = (float) a.getDouble(1);
-                p.color = a.getString(2);
-                p.s = a.getInt(3);
-                p.sys = a.length() > 4 ? a.getInt(4) : -1;
+                p.x = (float) (double) x;
+                p.y = (float) (double) y;
+                String color = stringOf(a.opt(2));
+                p.color = color == null ? "" : color;   // 空字串解不出色碼，算圖端用品牌色
+                p.s = (int) (double) state;
+                Integer idx = a.length() > 4 ? intOf(a.opt(4)) : null;
+                p.sys = idx != null && idx >= 0 && idx < d.sys.size() ? idx : -1;
                 d.pts.add(p);
             }
             return d;
         } catch (Exception error) {
             return null;
         }
+    }
+
+    private static String stringOf(Object o) {
+        return o instanceof String ? (String) o : null;
+    }
+
+    private static JSONArray arrayOf(Object o) {
+        return o instanceof JSONArray ? (JSONArray) o : null;
+    }
+
+    /** 有限的數字；不是數字（JSON null、字串、布林、陣列）回 null。 */
+    private static Double numberOf(Object o) {
+        if (!(o instanceof Number)) return null;
+        double x = ((Number) o).doubleValue();
+        return Double.isNaN(x) || Double.isInfinite(x) ? null : x;
+    }
+
+    /** int 範圍內的整數值（3 與 3.0 都算；3.5、字串、JSON null 不算）。 */
+    private static Integer intOf(Object o) {
+        Double x = numberOf(o);
+        if (x == null || x != Math.rint(x) || Math.abs(x) > Integer.MAX_VALUE) return null;
+        return (int) (double) x;
     }
 
     /** App 私有儲存 files/collection.json；沒有檔案（App 還沒開過）或壞檔一律回 null。 */
