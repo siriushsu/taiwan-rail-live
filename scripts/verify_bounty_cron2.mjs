@@ -116,7 +116,7 @@ const pad2 = pts => [{ ...pts[0], t: pts[0].t - 2 }, { ...pts[0], t: pts[0].t - 
 const chunk = (a, n) => { const o = []; for (let i = 0; i < a.length; i += n) o.push(a.slice(i, i + n)); return o; };
 
 // ── 測試端獨立的子請求計數（在 worker 自己的計數器「下面」再包一層，兩邊各數各的、再比對）──────────────────────────
-// 數法照派工規格：first／run／all／raw 各 1、batch 整批 1（不論幾句）、exec 1、ASSETS.fetch 1。
+// 數法：first／run／all／raw 各 1、batch 整批 1（不論幾句）、exec 1、ASSETS.fetch 1。
 // 刻意與 worker.js 的 bountyCounted 寫成兩份程式（不 import、不共用）：同一份程式量自己＝零資訊。
 function tallyEnv(env) {
   const t = { query: 0, batch: 0, exec: 0, fetch: 0, maxBind: 0, sqls: new Set(), get n() { return this.query + this.batch + this.exec + this.fetch; } };

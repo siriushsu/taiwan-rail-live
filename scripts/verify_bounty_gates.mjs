@@ -552,7 +552,7 @@ ok('F3 第一重 日期太舊 → suspect',
   //   hold_vs：同上，但停著時速度報 0.01／0.03／0.05（凍住的定位回報小數速度）→ 通過。判準另算第十七批的算法（只排除「速度剛好 0」的）：
   //     這些點對全留著、中位數 ≤ 門檻、相關係數＞0.995，會判可疑——第十二輪獨立驗收 P3-2 量到的就是這一型。
   //   hold_spoof：行進段是 F34b 的偽造（速度＝位置微分）→ 仍是 doppler_too_clean（停著的點對拿掉之後照樣抓得到）。
-  //   hold_29／hold_30：停 900 秒後只接偽造的 29／30 個行進點 → 行進中的點對 29 對不判（通過）、30 對判 doppler_too_clean（30 對算的是拿掉之後的）。
+  //   hold_29／hold_30：點對下限的兩端。停 900 秒後只接 29／30 個行進點 → 行進中的點對少於 30 對這一重不判、30 對起判（30 對算的是拿掉停著的點對之後的）。
   const hold34 = (sg, pos, vel, nMove, holdV = () => 0) => {
     const d0 = pos(0) - 10;
     const H = Array.from({ length: 900 }, (_, k) => ({ d: sg > 0 ? d0 : 60000 - d0, t: 30000 + k, v: holdV(k), acc: 8 }));
@@ -580,7 +580,7 @@ ok('F3 第一重 日期太舊 → suspect',
       hold_29: hold34(sg, gps34, k => dv34(gps34, k), 29), hold_30: hold34(sg, gps34, k => dv34(gps34, k), 30) };
     return Object.fromEntries(Object.entries(cs).map(([k, P]) => [k, { r: gate(P, 'thsr_sched', sg > 0 ? 0 : 1), s: stat34f(P) }]));
   });
-  ok('F34f [第十七批 V11 P2-2／第十八批 V12 P3-2] 都卜勒不算「位置沒動」的點對（不管回報速度）：停 900 秒再開的高鐵誠實錄程，停著時速度報 0（第十七批以前的算法會判可疑）或報 0.01–0.05（第十七批的算法會判可疑）→ 都通過；同樣停法的偽造 → doppler_too_clean；停完只接 29 對偽造 → 不判、30 對 → doppler_too_clean（兩個方向）',
+  ok('F34f [第十七批 V11 P2-2／第十八批 V12 P3-2] 都卜勒不算「位置沒動」的點對（不管回報速度）：停 900 秒再開的高鐵誠實錄程，停著時速度報 0（第十七批以前的算法會判可疑）或報 0.01–0.05（第十七批的算法會判可疑）→ 都通過；同樣停法的偽造 → doppler_too_clean；行進點對的下限是 30：停完只接 29 對 → 這一重不判、30 對 → doppler_too_clean（兩個方向）',
     r34f.every((o, i) => ['hold_honest', 'hold_vs'].every(k => o[k].r.pass === true && o[k].r.dir === i && o[k].s.n === 861 && o[k].s.med > 0.9) &&
       o.hold_honest.s.oldMed === 0 && o.hold_honest.s.oldCorr > CMAX &&
       o.hold_vs.s.v0Med <= RMAX && o.hold_vs.s.v0Corr > CMAX &&

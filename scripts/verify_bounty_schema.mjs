@@ -170,7 +170,7 @@ const { db } = openTestDb();
 }
 
 // ── 0014 路段懸賞 v2：去重貢獻、籌碼帳本、車庫解鎖、雲端搭乘 ──────────────────────
-// 期望值寫死在測試裡（來源：主對話派工單的欄位表），不從 schema 檔反推。
+// 期望值寫死在測試裡，不從 schema 檔反推。
 const NEW_TABLES = ['bounty_seg_contrib', 'chip_ledger', 'garage_unlocks', 'cloud_rides'];
 const colsOf = (d, t) => d.prepare(`PRAGMA table_info(${t})`).all().map(r => r.name).sort();
 const pkOf = (d, t) => d.prepare(`PRAGMA table_info(${t})`).all().filter(r => r.pk > 0)

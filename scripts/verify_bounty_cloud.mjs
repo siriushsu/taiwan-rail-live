@@ -522,7 +522,7 @@ await attempt('T4', async () => {
   ok('T4f 完全沒有 thsr_sched blob → 降級成靜態檔存在檢查 → 200', r.status === 200 && q.nRides(w2, 'dev-t4bbbb01') === 1, r.text);
 });
 
-// T5 捷運／輕軌：沒有逐車次班表，只驗格式與營運時段（05:00–次日 01:30）——弱驗證，邊界照樣釘住
+// T5 捷運／輕軌：沒有逐車次班表，驗的是格式與營運時段（05:00–次日 01:30），邊界照樣釘住
 await attempt('T5', async () => {
   const w = world({});
   let n = 0;

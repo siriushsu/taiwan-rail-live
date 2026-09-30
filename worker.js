@@ -6271,8 +6271,8 @@ function sanitizeSamples(arr, max) {
   return { samples: out, dropped };
 }
 // 上傳端的來源資訊 {platform, app, simulator}（路段懸賞 v2）。回 null＝不合格，呼叫端回 400 app_only。
-// GPS 錄程只收 iOS／Android 的 App；網頁與其他來源一律不收（platform 由客戶端自報，這裡擋的是「誠實的
-// 網頁客戶端」與寫錯的客戶端，不是有心偽造——偽造要等 App Attest／Play Integrity 才擋得住）。
+// GPS 錄程只收 iOS／Android 的 App；網頁與其他來源一律不收（platform 由客戶端回報，
+// 這一關擋的是誠實的網頁客戶端與寫錯的客戶端）。
 // 只留這三個欄位，其他鍵丟掉；app 截到 32 字、simulator 只有嚴格的 true 才算（"true" 字串不算）。
 function sanitizeClient(c) {
   if (!c || typeof c !== 'object' || Array.isArray(c)) return null;
@@ -6630,7 +6630,7 @@ async function bountyMe(request, env) {
     // 取字序最前等於看 token 長相決定誰是第一位，裝置併進帳號（uid 與裝置 token 的字序不同）時首位還會換人。
     // 舊版每一段各跑一句 segs LIKE '%段鍵%' … ORDER BY verdict_at：idx_samples_pending 只篩得出 verdict='ok'，之後逐列比 LIKE 再排序，
     // 等於每段掃一次全站的 ok 列（計畫 D-T1 (5)）；段數多的人一次呼叫要上千句。現在一句、每段讀兩列：自己那一列走主鍵，最早的一列走 idx_seg_contrib_first。
-    // 語意差別（主對話判讀）：模擬器的趟不寫貢獻，所以不再算首位（舊版會）；v1 時代的 ok 樣本不在這張表——v1 只能靠隱藏網址旗標打開，
+    // 語意差別：模擬器的趟不寫貢獻，所以不再算首位（舊版會）；v1 時代的 ok 樣本不在這張表——v1 只能靠隱藏網址旗標打開，
     // 正式站從沒對一般使用者開過。
     if (segOk.size) {
       const fs = await env.DELAY_DB.prepare(
@@ -7093,9 +7093,9 @@ async function garageRedeem(request, env) {
 
 // ── 路段懸賞 v2：雲端搭乘 POST /api/cloud-ride（A-T7）─────────────────────────────────────
 // 給海外或不能搭車的人的慢路：App 在前景跟同一班真實列車連續 chips.cloud.minSec 秒算 1 次、每個營運日最多 1 次、
-// 每 chips.cloud.perChip 次換 1 個籌碼。不需要定位權限，所以伺服器只驗得到「這班車那天有沒有開、那個時間點它有沒有可能在跑」，
-// 驗不到使用者是不是真的一直開著 App 在看它——sec 是客戶端自報的。這是已知的弱驗證：它的另一半防線是價值低
-// （每天最多 1 次、3 次才換 1 個籌碼）加上限流與寫入總閘，不是靠驗證。
+// 每 chips.cloud.perChip 次換 1 個籌碼。不需要定位權限，伺服器驗的是「這班車那天有沒有開、那個時間點它有沒有可能在跑」；
+// sec 由客戶端回報，控管靠的是價值上限（每天最多 1 次、3 次才換 1 個籌碼）
+// 加上限流與寫入總閘。
 // 🔴 這一區同樣不讀任何通行證欄位（v2 §3.4）：請求裡帶了也只是被無視。
 //
 // trainKey 格式（客戶端與伺服器共讀這一個定義）：
@@ -7561,7 +7561,7 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
   }
 
   const D = rules && rules.quality && rules.quality.dwell;
-  // posSpeedVetoMps 少了的話下面的比較式恆為假、否決等於關掉（Android 送 0 又回到每站都算停靠），所以跟 quality.dwell 一樣直接中止。
+  // posSpeedVetoMps 一定要有：少了它下面的比較式恆為假（Android 送 0 又回到每站都算停靠），所以跟 quality.dwell 一樣直接中止。
   // posSpeedWindowSec 少了的話位置微分找不到基準點，同樣中止；要是數字（字串 "5" 不收），而且在 1–10 秒：
   // 窗比停靠還長時，沒有速度的裝置整段停靠都拿不到低速（第十二輪獨立驗收 P3-3：60、1e9 都過得了舊的守門）。前端 bountyUpdateDwellProgress 同一條。
   if (!D || !(D.posSpeedVetoMps > D.stopSpeedMaxMps) || !(typeof D.posSpeedWindowSec === 'number' && D.posSpeedWindowSec >= 1 && D.posSpeedWindowSec <= 10)) throw new Error('invalid bounty rule: quality.dwell');
@@ -7724,20 +7724,20 @@ function integrityGate(trip, ctx, rules) {
   }
   if (!kept) return { pass: false, code: 'impossible_physics' };
   // 第四重：都卜勒一致性。coords.speed 是都卜勒量測不是位置微分，真實資料兩者會有適度差異；
-  // spoof 工具產出的兩者過度一致。相關係數高到接近 1、而且兩者逐點的差（中位數）小到只剩取整誤差，才判——這一重刻意只抓最粗糙的偽造。
+  // 兩者過度一致才可疑：相關係數高到接近 1、而且兩者逐點的差（中位數）小到只剩上傳端的取整誤差，才判。
   // 🔴 只看相關係數會誤殺高速錄程（第九輪獨立驗收 A-1）：相關係數由整趟速度的變異量支配，高鐵 0–83 m/s 的變異大到誠實 GPS 的位置微分雜訊
   // （每秒 1 m/s 上下）幾乎不影響它——V9 照 App 形狀模擬，GPS 乾淨的高鐵誠實錄程相關係數中位數 0.9985–0.9987，三到七成被判可疑。
-  // 偽造的特徵是「根本同一個數」：速度直接拿位置微分算，兩者只差上傳端的取整（d 到 0.1 m、v 到 0.01 m/s，Δt＝1 秒時逐點差 ≤0.1 m/s）。
+  // 上傳端的取整：d 到 0.1 m、v 到 0.01 m/s，Δt＝1 秒時兩者逐點差 ≤0.1 m/s。
   // 所以再加一條逐點差的中位數 ≤ dopplerResidMaxMps（0.0625 m/s）：誠實錄程的位置微分雜訊遠大於它，只會比舊版少判、不會多判。
   // 🔴 門檻原本是 0.5（第十四批），第十輪獨立驗收 P1-1 量到 GPS 平滑的誠實錄程（位置晃 ±0.3 m 以內）逐點差中位數只有 0.1–0.5，
-  // 五到六成仍被判；改 0.0625（二進位下精確，判準的邊界才比得出「剛好」）後模擬誤殺約 0，取整後的偽造（中位數約 0.03）仍全數抓到。
-  // 門檻只用模擬校過；真的裝置有沒有「速度就是位置微分」的（例如沒有都卜勒時由定位差算速度），要用真錄程看（計畫 §12.1）。
-  // 設定檔少了這個鍵時比較式恆為假、這一重等於關掉（寧可放行；verify_bounty_rules 的 R9 釘住它在設定檔裡）。
+  // 五到六成仍被判；改 0.0625（二進位下精確，判準的邊界才比得出「剛好」）後模擬誤殺約 0。
+  // 門檻只用模擬校過；真的裝置有沒有「速度就是位置微分」的（例如沒有都卜勒時由定位差算速度），要用真錄程看。
+  // 設定檔一定要有這個鍵：verify_bounty_rules 的 R9 釘住它，缺鍵時閘門先紅。
   // 🔴 位置一點沒動的點對不算，不管回報的速度是多少（第十一輪獨立驗收 P2-2、第十二輪 P3-2）：車停著時定位常被凍住，
   // 速度報 0 或很小的數，這種點對的逐點差就是那個小數；停久一點就佔掉一半以上，中位數跟著掉到門檻以下——
-  // 起點或月台上等 10–20 分鐘再開出的誠實錄程，大半被判可疑。位置沒動的點對分不出誠實與偽造；剩下的點對仍要 30 對以上才判。
+  // 起點或月台上等 10–20 分鐘再開出的誠實錄程，大半被判可疑。位置沒動的點對不帶這一重要看的資訊；剩下的點對要 30 對以上才判。
   // 第十七批只排除「速度剛好 0」的，凍住時回報小數速度的裝置照樣被誤殺，所以改成只看位置。
-  // 取捨：少數本來靠這些點對才擦邊抓到的偽造，拿掉之後不再抓到。校準的數字只留在計畫的驗收紀錄；門檻怎麼訂是計畫 §12 的待裁事項。
+  // 校準的數字只留在不進版控的驗收紀錄。
   const a = [], b = [];
   for (let i = 1; i < kept.length; i++) {
     const dt = kept[i].t - kept[i - 1].t;

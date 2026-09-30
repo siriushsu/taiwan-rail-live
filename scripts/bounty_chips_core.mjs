@@ -38,7 +38,7 @@ export function cloudChipsEarned(totalRides, chips) {
   return Math.floor(totalRides / chips.cloud.perChip);
 }
 
-// 第 N 座（1 起算）要花多少。超過價目表就沿用最後一格（09-29：第 1 座 4、之後每座 8）。
+// 第 N 座（1 起算）要花多少。超過價目表就沿用最後一格（價目表：第 1 座 4、之後每座 8）。
 export function priceOfNth(n, chips) {
   const p = chips.prices;
   return p[Math.min(n, p.length) - 1];
