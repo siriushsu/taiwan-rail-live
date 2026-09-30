@@ -451,6 +451,11 @@ enum CollectionMetrics {
     static let hollowRingRatio: CGFloat = 0.45
     /// 為文字欄預留給地圖的寬度佔（地圖高）的比例。台灣點陣寬高比 0.5516，取 0.6 留餘裕。
     static let mapReserveRatio: CGFloat = 0.6
+    /// 蓋章鈕的字級與高度（參考尺寸下的 pt，實際乘 RailScale）。高度固定、不隨字型行高走：
+    /// 中卡要替鈕讓出地圖的高度，行高會因語言而異，量到多高就預留多高的做法會在別的語言留縫或溢出。
+    /// 31＝15pt 粗體字的行高約 19pt，上下各留 6pt。
+    static let stampFontSize: CGFloat = 15
+    static let stampHeight: CGFloat = 31
 
     /// 一段文字的粗估寬度：CJK 一字一個字級寬，其餘（拉丁字母）取 0.62 個字級寬（半粗體平均，偏寬一點）。
     /// 只用來決定「系統名那一欄要多寬」——繁中兩字的簡稱估出來小於下限，版面與加這個函式之前一樣。
@@ -849,12 +854,16 @@ struct SmallCollectionView<Stamp: View>: View {
         // 文字欄與地圖是兩份獨立的預算：文字欄固定佔 58%，地圖靠右下；地圖寬過頭就會壓到字，
         // 那正是 harness 第一道閘門要抓的事。
         let textW = (size.width * 0.58).rounded()
+        // 文字欄右緣到地圖左緣的空隙（兩欄之間沒有別的東西）：蓋章鈕可點範圍往右最多補這麼多，再多就壓到地圖的框。
+        let gutter = max(0, size.width - textW - mapW)
 
         VStack(alignment: .leading, spacing: gap) {
             header(f, k)
             ZStack(alignment: .bottomTrailing) {
-                textColumn(f, k)
+                textColumn(f, k, hitTrailing: min(4, gutter))
                     .frame(width: textW, alignment: .leading)
+                    // 量測用：蓋章鈕所在那一欄（文字欄）自己的框，harness 判「鈕寬＝欄寬」要用；id 帶 # 的框不參與文字／進度條的相交判準。
+                    .collectReport("column#stamp")
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                 CollectionMapView(dots: f.dots, viewport: f.viewport, others: f.others)
                     .frame(width: mapW, height: mapH)
@@ -905,13 +914,15 @@ struct SmallCollectionView<Stamp: View>: View {
         }
     }
 
-    /// 文字欄：數字（或空狀態說明）在上，蓋章鈕接在最下面。整欄靠左下，地圖在右下，鈕不會碰到地圖。
-    private func textColumn(_ f: CollectionFigures, _ k: RailScale) -> some View {
+    /// 文字欄：數字（或空狀態說明）在上，蓋章鈕在最下面，寬度撐滿整個文字欄（契約畫法約定 11）。
+    /// 整欄靠左下，地圖在右下，鈕只佔文字欄的寬，不會碰到地圖。
+    /// `hitTrailing`：可點範圍往右補多少，由呼叫端依兩欄之間的空隙決定。
+    private func textColumn(_ f: CollectionFigures, _ k: RailScale, hitTrailing: CGFloat) -> some View {
         let gap = k.pt(6)
-        // 可點範圍（外觀不變）：上緣只能到文字欄的間距——再高就壓到「還有 N 座」那一行的框；
-        // 下緣延伸到卡片下緣（內距 16pt，下面沒有任何東西）；左右各補 4pt，430pt 機型 48pt 寬、393pt 機型 44pt 寬。
-        // 430pt 機型高 44pt（22＋6＋16）、393pt 機型 41pt。
-        let chip = CollectionStampChip(k: k, hit: EdgeInsets(top: gap, leading: 4, bottom: CollectionMetrics.inset, trailing: 4))
+        // 可點範圍：上緣只能到文字欄的間距——再高就壓到「還有 N 座」那一行的框；
+        // 下緣延伸到卡片下緣（內距 16pt，下面沒有任何東西）；左邊補 4pt（左邊是卡片邊，沒有鄰居）；右邊見 hitTrailing。
+        // 高度＝鈕高＋間距＋內距，430pt 機型 53pt（31＋6＋16），遠超過 44pt。
+        let chip = CollectionStampChip(k: k, hit: EdgeInsets(top: gap, leading: 4, bottom: CollectionMetrics.inset, trailing: hitTrailing))
         return VStack(alignment: .leading, spacing: gap) {
             numbers(f, k)
             stamp(chip).padding(chip.hitCompensation)
@@ -979,16 +990,33 @@ struct MediumCollectionView<Stamp: View>: View {
     @ViewBuilder
     private func dataBody(_ f: CollectionFigures, _ k: RailScale, _ size: CGSize) -> some View {
         let gap = k.pt(12)
-        let mapH = size.height
+        // 左欄（地圖＋蓋章鈕）的寬沿用原本地圖保留的寬：右邊文字欄的位置與寬度都不動。
+        let leftW = (size.height * CollectionMetrics.mapReserveRatio).rounded()
+        // 地圖貼左欄上緣、鈕貼左欄下緣（契約畫法約定 11），鈕高固定，所以地圖高＝整欄高減鈕高再減間距。
+        // 間距至少 10pt：全台輪廓的恆春半島會畫到地圖框下緣之外約 6%（地圖高 97pt 時約 6pt），
+        // 間距 8pt 時 393pt 機型的輪廓會碰到鈕。
+        let barGap = k.pt(10)
+        let barH = k.pt(CollectionMetrics.stampHeight)
+        let mapH = size.height - barH - barGap
         let mapW = (mapH * f.aspect).rounded()
-        let colW = (size.width - (mapH * CollectionMetrics.mapReserveRatio).rounded() - gap).rounded()
+        let colW = (size.width - leftW - gap).rounded()
+        // 可點範圍：上緣到地圖框的下緣（＝barGap）；下緣延伸到卡片下緣（內距 16pt，下面沒有任何東西）；
+        // 左右各補 4pt（左邊是卡片邊，右邊離文字欄還有 gap）。高度＝鈕高＋間距＋內距，430pt 機型 57pt（31＋10＋16）。
+        let chip = CollectionStampChip(k: k, hit: EdgeInsets(top: barGap, leading: 4, bottom: CollectionMetrics.inset, trailing: 4))
 
-        ZStack(alignment: .leading) {
+        ZStack(alignment: .topLeading) {
             column(f, k)
                 .frame(width: colW, alignment: .topLeading)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            CollectionMapView(dots: f.dots, viewport: f.viewport, others: f.others)
-                .frame(width: mapW, height: mapH)
+            VStack(spacing: 0) {
+                CollectionMapView(dots: f.dots, viewport: f.viewport, others: f.others)
+                    .frame(width: mapW, height: mapH)
+                Spacer(minLength: barGap)
+                stamp(chip).padding(chip.hitCompensation)
+            }
+            .frame(width: leftW, height: size.height)
+            // 量測用：蓋章鈕所在那一欄（地圖欄）自己的框，用途同小卡。
+            .collectReport("column#stamp")
         }
     }
 
@@ -1058,21 +1086,12 @@ struct MediumCollectionView<Stamp: View>: View {
     private func columnBody(_ f: CollectionFigures, _ k: RailScale, recentRows: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             titleRow(f, k)
-            // 蓋章鈕放在「已收集 N／M 座」這一列的右端：這一列橫向有大把空位（三種語言都是），
-            // 而縱向已經滿了（全台五列系統＋圖例），鈕不能另起一列。
-            // 可點範圍（外觀不變）：橫向左右各 10pt（左邊離「已收集」文字的框至少還有 12pt、右邊離卡片右緣有 16pt），
-            // 38pt 寬的鈕變 58pt；縱向擋死了——上面緊貼百分比的文字框（間距 0）、下面只剩約 2pt 就是第一列系統列或進度條，
-            // 只能往下多 1pt，所以高度 17pt。要縱向也到 44pt，得騰出版面，不是點擊範圍能解決的。
-            let chip = CollectionStampChip(k: k, compact: true, hit: EdgeInsets(top: 0, leading: 10, bottom: 1, trailing: 10))
-            HStack(spacing: k.pt(6)) {
-                CollectionText(
-                    id: "countOf", text: CollectionCopy.countOf(f),
-                    content: Text(CollectionCopy.countOf(f)).font(.system(size: k.pt(10.5))),
-                    key: true, tone: .secondary)
-                Spacer(minLength: 0)
-                stamp(chip).padding(chip.hitCompensation)
-            }
-            // 間距 2pt（原 3）：蓋章鈕讓「已收集」那一列多出約 1.5pt，全台中卡縱向本來就滿，靠這兩處各省 1pt 補回來。
+            // 蓋章鈕在左欄（地圖下面，見 dataBody），這一欄只有文字；「已收集 N／M 座」這一列回到只有一行字高。
+            CollectionText(
+                id: "countOf", text: CollectionCopy.countOf(f),
+                content: Text(CollectionCopy.countOf(f)).font(.system(size: k.pt(10.5))),
+                key: true, tone: .secondary)
+            // 這一行與圖例上面的間距都是 2pt：沿用加蓋章鈕那一版縮的值（鈕還在這一列的時候），鈕搬走後沒有放回去。
             Spacer(minLength: k.pt(2))
             middle(f, k, recentRows: recentRows)
             // 圖例：有收集的卡才有東西要解釋（空狀態沒有實心也沒有空心）。放不下時 e／h 兩道閘門會紅。
@@ -1234,13 +1253,12 @@ enum CollectionStamp {
     static let checkinURL = URL(string: "railisland://checkin")!
 }
 
-/// 蓋章鈕的外觀（純 SwiftUI，不含點擊行為）：膠囊＋一行字。點擊由外殼包上去——小卡包 Button(intent:)
+/// 蓋章鈕的外觀（純 SwiftUI，不含點擊行為）：整條的膠囊，一行字置中。寬撐滿呼叫端給的寬（小卡是文字欄、
+/// 中卡是地圖欄），高固定（CollectionMetrics.stampHeight）。點擊由外殼包上去——小卡包 Button(intent:)
 ///（AppIntents 不能進這個檔），中卡包 Link。字色一律用明確的 Color（品牌藍；著色模式用 primary），
 /// 不吃環境的階層色，免得被 Link／Button 的預設 tint 染成別的顏色。膠囊底加描邊，著色模式底色被系統壓平時仍看得見。
 struct CollectionStampChip: View {
     let k: RailScale
-    /// 中卡那一列只有一行字高，用矮一點的版本。
-    var compact = false
     /// 可點範圍往外擴的量（pt，四邊）。外觀（膠囊）不變，只有包在外面的 Button／Link 的 label 框變大——
     /// 系統的點擊範圍就是 label 的框，加上這裡的 contentShape。各邊能擴多少由呼叫端依鄰居決定
     /// （不准蓋到數字、標題、進度條的框），預設不外擴。
@@ -1261,14 +1279,16 @@ struct CollectionStampChip: View {
         let ink: Color = mono ? .primary : brand
         CollectionText(
             id: "stamp", text: label,
-            content: Text(label).font(.system(size: k.pt(compact ? 10.5 : 11), weight: .semibold)),
+            content: Text(label).font(.system(size: k.pt(CollectionMetrics.stampFontSize), weight: .semibold)),
             key: true)
             .foregroundStyle(ink)
-            .padding(.horizontal, k.pt(compact ? 8 : 9))
-            .padding(.vertical, k.pt(compact ? 0.75 : 3.5))
+            // 左右各留 8pt：膠囊兩端是半圓，字的上下緣只會被削進去約 3pt，不必留多。日文「スタンプ」在 393pt 機型的小卡要 53pt，
+            // 鈕寬 73pt：留 8pt 剩 58pt 放得下，留 12pt 只剩約 51pt 放不下（突變 M65，d 閘門的日文版會紅）。
+            .padding(.horizontal, k.pt(8))
+            .frame(maxWidth: .infinity)
+            .frame(height: k.pt(CollectionMetrics.stampHeight))
             .background(Capsule().fill(ink.opacity(mono ? 0.16 : 0.14)))
             .overlay(Capsule().strokeBorder(ink.opacity(0.55), lineWidth: 0.8))
-            .fixedSize()
             .collectReport("stamp.chip")
             .widgetAccentable()
             .padding(hit)

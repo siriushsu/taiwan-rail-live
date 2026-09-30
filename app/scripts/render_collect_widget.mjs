@@ -17,6 +17,7 @@
 //   b1 Canvas 真的畫了幾個點（探針每畫一個記一筆）＝ payload 依範圍濾出的點數（其他系統灰／未收集／跟完／實心各自）
 //   b2 每個應畫的點，畫面上那個座標的圓盤內有墨跡（位置對得上；空心圈的圓心是底色，所以量圓盤不量圓心）；b3 地圖寬高比＝payload.aspect
 //   c  各數字（百分比含「<1%」「99%」邊界、座數、各系統 v／n、最近蓋章）與 payload 一致；圖例文字；c2 進度條填滿比例；
+//      單一系統中卡的最近蓋章不少於蓋章鈕搬進地圖欄之前的筆數（文字欄內容不因按鈕刪減）；
 //      另含「內建示意資料 CollectionWidgetPreview.json ＝ 本腳本的樣本」
 //   d  關鍵數字沒有被縮放或截成「…」（實際寬 ≥ 不受限的理想寬）
 //   e  文字不超出內容框（16pt 內距；鎖屏 0）；h 文字與文字不互疊
@@ -47,8 +48,11 @@
 //      o4 單一系統是細線不是填色：視窗中心附近的陸地內部取樣點＝卡底，且輪廓落墨面積 ≤ 地圖框的 15%（填色會有三成以上）
 //      o5 著色模式：輪廓有畫（離卡底 ≥ 0.06），但比已收集的點淡（≤ 該點離卡底距離的一半）；輪廓層不加 widgetAccentable
 //   t  【蓋章鈕可點範圍】harness 回報的 stamp.hit（Button／Link 的 label 框）：包住鈕、不出卡片、不與任何文字／進度條／地圖的框相交；
-//      尺寸達標（小卡 ≥ 44 寬，高 ≥ 44（430pt 機型）／≥ 40（393pt 機型）；中卡 ≥ 44 寬——中卡縱向被百分比與第一列系統列擋死，只驗包住鈕）；
-//      鈕本身的外觀尺寸與改點擊範圍前相同（繁中；小 40×22／36×19、中 38×16／34×15）；Button／Link 的 label 就是這顆鈕（靜態掃描）
+//      寬與高都 ≥ 44pt（契約畫法約定 11；小卡、中卡、兩種機型一律）；Button／Link 的 label 就是這顆鈕（靜態掃描）
+//   t2 【蓋章鈕整條版面】契約畫法約定 11 的外觀：鈕的寬＝它所在那一欄的寬（欄框由 Swift 端的 column#stamp 回報：小卡是文字欄、中卡是地圖欄）、
+//      鈕貼內容框下緣；小卡的欄不跨進地圖、鈕之上沒有別的文字；中卡的地圖在欄內靠上緣、整個在鈕上方，兩者之間的空隙不比鈕還高（地圖沒有縮過頭）；
+//      鈕的字整個在膠囊內（含兩端半圓）、水平垂直置中、膠囊高 ≥ 字高 1.5 倍。
+//      （輪廓畫進鈕裡是墨跡問題，歸 o2；字被截斷歸 d——鈕的字是關鍵文字）
 //
 // 用法：node app/scripts/render_collect_widget.mjs [輸出目錄] [--quick] [--src <小工具原始碼目錄>]
 //       node app/scripts/render_collect_widget.mjs --mutation-test [輸出目錄] [--only M18,M19]   （不帶 --only＝全部突變，前後各一次控制組）
@@ -118,22 +122,24 @@ const OUTLINE_SEA = [['台灣海峽中', 120.2, 24.2], ['太平洋', 121.95, 23.
 const OUTLINE_PENINSULA = [['恆春半島（lon 120.8／lat 22.0）', 120.8, 22.0], ['恆春半島北一點', 120.78, 22.02]];
 /** 輪廓一定畫得出來的單一系統（視窗內看得到海岸線）；視窗中心都在陸地內部（離海岸 47／16／7 km，視窗放大後仍 ≥20pt）。 */
 const OUTLINE_SCOPED = ['tra', 'trtc', 'krtc'];
-/** 蓋章鈕改可點範圍前量到的外觀（pt，繁中）：[寬, 高, 左, 上]。尺寸與位置都不准變（2026-09-30 改前的出貨版量的）。 */
-const CHIP_BEFORE = { 'small-430': [40, 22, 16, 132], 'small-393': [36, 19, 16, 123], 'medium-430': [38, 16, 310, 33], 'medium-393': [34, 15, 288, 32] };
-/** 可點範圍的下限（pt）：寬 ≥44（HIG）；小卡高 430pt 機型 ≥44、393pt 機型 ≥40（下面到卡底、上面到文字框已是上限）；
- *  中卡縱向被百分比文字框與第一列系統列擋死，只要求不小於鈕本身。 */
-const HIT_MIN = { 'small-430': [44, 44], 'small-393': [44, 40], 'medium-430': [44, 16], 'medium-393': [44, 15] };
+/** 蓋章鈕可點範圍的下限（pt）：契約畫法約定 11「高度至少 44pt」，寬度同樣取 44（HIG 的最小點擊尺寸）。小卡、中卡、兩種機型都一樣。 */
+const HIT_MIN_PT = 44;
+/** 蓋章鈕的字要在膠囊裡留白：膠囊高至少是字高的這個倍數（量到的設計值：430pt 機型 31／19≈1.6，393pt 機型約 1.7）；
+ *  低於這個比例，鈕就變回貼著字的細條。 */
+const CHIP_TO_LABEL_MIN = 1.5;
 /**
- * 合成的較高中卡（只給最近蓋章的「放得下幾筆就畫幾筆」用，不是真機尺寸）：兩種真機尺寸的高度都只放得下 2 筆（第 3 筆要的空間不夠），
- * 「寫死 2 筆」與「放得下才畫」在它們上面長得一模一樣；加高到放得下 3、4 筆（180／195pt，量到的），兩種實作才分得出來。寬度同 430 機型（縮放比例與鈕的位置相同），
- * 所以鈕的外觀與可點範圍下限沿用 430 機型的值。
+ * 單一系統中卡的最近蓋章筆數：蓋章鈕搬進地圖欄之前（HEAD b151a60b，2026-09-30）量到的。430pt、393pt 機型都是 2，
+ * 合成的較高中卡 180pt 是 3、195pt 是 4（繁中量的；列高固定、筆數不隨語言變，英日文照用同一張表）。
+ * 新版面不准比這少——文字欄的內容不因按鈕刪減（契約畫法約定 11）；可用筆數不足時以可用筆數為準（三鶯、阿里山只有 1 筆）。
+ */
+const RECENT_BEFORE = { 430: 2, 393: 2, tall180: 3, tall195: 4 };
+/**
+ * 合成的較高中卡（只給最近蓋章的「放得下幾筆就畫幾筆」用，不是真機尺寸）：蓋章鈕搬進地圖欄之前，兩種真機尺寸的高度都只放得下 2 筆，
+ * 「寫死 2 筆」與「放得下才畫」在它們上面長得一模一樣；加高到放得下 3、4 筆（180／195pt，量到的），兩種實作才分得出來。
+ * 寬度同 430 機型（縮放比例與鈕的位置相同）。搬家之後 430pt 機型放得下 3 筆，195pt 仍是唯一放得下 4 筆的尺寸。
  */
 const TALL_HEIGHTS = [180, 195];
-for (const h of TALL_HEIGHTS) {
-  SIZES[`tall${h}`] = { medium: [SIZES[430].medium[0], h] };
-  HIT_MIN[`medium-tall${h}`] = HIT_MIN['medium-430'];
-  CHIP_BEFORE[`medium-tall${h}`] = CHIP_BEFORE['medium-430'];
-}
+for (const h of TALL_HEIGHTS) SIZES[`tall${h}`] = { medium: [SIZES[430].medium[0], h] };
 const DOT_RADIUS_RATIO = 0.0075, DOT_RADIUS_FLOOR = 1.0, SOLID_SCALE = 1.3, RING_RATIO = 0.45;
 
 // ── payload 樣本 ───────────────────────────────────────────────────────────────────────
@@ -805,7 +811,7 @@ enum MetroWaitPending { static var suite: UserDefaults? = UserDefaults(suiteName
 }
 
 // ── 閘門 ────────────────────────────────────────────────────────────────────────────
-const GATES = ['a1', 'a2', 'b1', 'b2', 'b3', 'c', 'c2', 'd', 'e', 'h', 'hd', 'v', 'r', 'u', 's', 'o1', 'o2', 'o3', 'o4', 'o5', 't'];
+const GATES = ['a1', 'a2', 'b1', 'b2', 'b3', 'c', 'c2', 'd', 'e', 'h', 'hd', 'v', 'r', 'u', 's', 'o1', 'o2', 'o3', 'o4', 'o5', 't', 't2'];
 /** 蓋章鈕上的字：繁中是 key 本身；en／ja 取生成的目錄 JSON（與 --lang 壓力測試餵給 RailNativeL10n 的同一份）。 */
 const L10N_JSON = join(repo, 'app/android/app/src/main/assets/RailNativeL10n.json');
 /** 該語言的目錄表（key＝繁中原文）；繁中沒有表（key 就是字串）。突變測試會換成改壞的表。 */
@@ -997,7 +1003,8 @@ async function judge({ specs, results, out, src }) {
         check('s', n, label.text === STAMP_LABEL, `鈕上的字「${label.text}」≠ 期望「${STAMP_LABEL}」`);
         check('s', n, chip.x >= inset - 0.6 && chip.y >= inset - 0.6 && chip.x + chip.w <= spec.w - inset + 0.6 && chip.y + chip.h <= spec.h - inset + 0.6,
           `蓋章鈕超出內容框：x ${chip.x.toFixed(1)}–${(chip.x + chip.w).toFixed(1)}、y ${chip.y.toFixed(1)}–${(chip.y + chip.h).toFixed(1)}`);
-        for (const o of frames.filter(f => !f.id.endsWith('#ideal') && !f.id.endsWith('.fill') && !['stamp', 'stamp.chip', 'stamp.hit'].includes(f.id))) {
+        // id 帶 # 的框（#ideal 理想寬、column#stamp 欄框）是量測用的輔助框，不是畫面上的東西
+        for (const o of frames.filter(f => !f.id.includes('#') && !f.id.endsWith('.fill') && !['stamp', 'stamp.chip', 'stamp.hit'].includes(f.id))) {
           const ix = Math.min(chip.x + chip.w, o.x + o.w) - Math.max(chip.x, o.x), iy = Math.min(chip.y + chip.h, o.y + o.h) - Math.max(chip.y, o.y);
           check('s', n, !(ix > 0.05 && iy > 0.05), `蓋章鈕與 ${o.id}${o.text ? `「${o.text}」` : ''} 相交 ${ix.toFixed(1)}×${iy.toFixed(1)}pt`);
         }
@@ -1013,23 +1020,60 @@ async function judge({ specs, results, out, src }) {
         const hit = frames.find(f => f.id === 'stamp.hit');
         if (!hit) fail('t', n, '缺 stamp.hit（可點範圍的框）');
         else {
-          const key = `${spec.fam}-${spec.width}`, E = 0.05;
+          const E = 0.05;
           const f1 = v => v.toFixed(1);
           check('t', n, hit.x <= chip.x + E && hit.y <= chip.y + E && hit.x + hit.w >= chip.x + chip.w - E && hit.y + hit.h >= chip.y + chip.h - E,
             `可點範圍 x ${f1(hit.x)}–${f1(hit.x + hit.w)}、y ${f1(hit.y)}–${f1(hit.y + hit.h)} 沒有包住鈕 x ${f1(chip.x)}–${f1(chip.x + chip.w)}、y ${f1(chip.y)}–${f1(chip.y + chip.h)}`);
           check('t', n, hit.x >= -E && hit.y >= -E && hit.x + hit.w <= spec.w + E && hit.y + hit.h <= spec.h + E,
             `可點範圍超出卡片：x ${f1(hit.x)}–${f1(hit.x + hit.w)}、y ${f1(hit.y)}–${f1(hit.y + hit.h)}（卡 ${spec.w}×${spec.h}）`);
-          const [minW, minH] = HIT_MIN[key];
-          check('t', n, hit.w >= minW - E && hit.h >= minH - E, `可點範圍只有 ${f1(hit.w)}×${f1(hit.h)}pt，小於下限 ${minW}×${minH}pt`);
+          check('t', n, hit.w >= HIT_MIN_PT - E && hit.h >= HIT_MIN_PT - E, `可點範圍只有 ${f1(hit.w)}×${f1(hit.h)}pt，小於下限 ${HIT_MIN_PT}×${HIT_MIN_PT}pt`);
           for (const o of frames.filter(f => !f.id.includes('#') && !f.id.endsWith('.fill') && !['stamp', 'stamp.chip', 'stamp.hit'].includes(f.id))) {
             const ix = Math.min(hit.x + hit.w, o.x + o.w) - Math.max(hit.x, o.x), iy = Math.min(hit.y + hit.h, o.y + o.h) - Math.max(hit.y, o.y);
             check('t', n, !(ix > E && iy > E), `可點範圍與 ${o.id}${o.text ? `「${o.text}」` : ''} 相交 ${f1(ix)}×${f1(iy)}pt（點擊範圍蓋到文字／進度條／地圖）`);
           }
-          if (!LANG) { // 外觀尺寸與位置與改點擊範圍前相同（英日文的字寬不同，不比）
-            const [cw, ch, cx, cy] = CHIP_BEFORE[key];
-            check('t', n, Math.abs(chip.w - cw) <= 0.6 && Math.abs(chip.h - ch) <= 0.6 && Math.abs(chip.x - cx) <= 0.6 && Math.abs(chip.y - cy) <= 0.6,
-              `蓋章鈕 ${f1(chip.w)}×${f1(chip.h)} 位在 (${f1(chip.x)}, ${f1(chip.y)})，與改可點範圍前的 ${cw}×${ch} 位在 (${cx}, ${cy}) 不同（外觀或位置動了）`);
+        }
+
+        // t2：整條按鈕的版面（契約畫法約定 11）。欄框 column#stamp 是 Swift 端回報的「鈕所在那一欄」：小卡＝文字欄、中卡＝地圖欄。
+        // 期望值只用量到的框、內容框（卡片尺寸減內距）與鈕自己，不含任何像素常數。
+        const col = frames.find(f => f.id === 'column#stamp');
+        if (!col) fail('t2', n, '缺 column#stamp（蓋章鈕所在那一欄的框）');
+        else {
+          const E = 0.6, f1 = v => v.toFixed(1);
+          const colName = spec.fam === 'small' ? '文字欄' : '地圖欄';
+          // 整條：寬＝欄寬、左緣對齊欄（不是只有字那麼寬的膠囊）
+          check('t2', n, Math.abs(chip.w - col.w) <= E && Math.abs(chip.x - col.x) <= E,
+            `鈕寬 ${f1(chip.w)}（x ${f1(chip.x)}）≠ ${colName}寬 ${f1(col.w)}（x ${f1(col.x)}）——不是撐滿整欄的整條按鈕`);
+          // 最下面：鈕的下緣就是內容框的下緣
+          check('t2', n, Math.abs(chip.y + chip.h - (spec.h - inset)) <= E,
+            `鈕下緣 ${f1(chip.y + chip.h)} ≠ 內容框下緣 ${f1(spec.h - inset)}——鈕不在${colName}最下面`);
+          if (spec.fam === 'small') {
+            if (map) check('t2', n, col.x + col.w <= map.x + 0.05, `文字欄右緣 ${f1(col.x + col.w)} 跨進地圖（地圖左緣 ${f1(map.x)}）`);
+            // 文字欄裡鈕之上才有內容：欄的水平範圍內，除了鈕自己的字，沒有任何文字的下緣低於鈕的上緣
+            for (const t of texts.filter(t => t.id !== 'stamp' && t.x < col.x + col.w && t.x + t.w > col.x)) {
+              check('t2', n, t.y + t.h <= chip.y + 0.05, `鈕下方還有文字 ${t.id}「${t.text}」（下緣 ${f1(t.y + t.h)}，鈕上緣 ${f1(chip.y)}）——鈕不是文字欄最下面的東西`);
+            }
+          } else if (map) {
+            // 中卡：地圖貼地圖欄上緣、整個在欄內、整個在鈕上方；兩者之間的空隙不比鈕還高（地圖讓位沒有讓過頭）；欄裡沒有文字
+            check('t2', n, Math.abs(map.y - col.y) <= E, `地圖上緣 ${f1(map.y)} ≠ 地圖欄上緣 ${f1(col.y)}——地圖沒有貼在欄的上緣`);
+            check('t2', n, map.x >= col.x - E && map.x + map.w <= col.x + col.w + E,
+              `地圖 x ${f1(map.x)}–${f1(map.x + map.w)} 超出地圖欄 x ${f1(col.x)}–${f1(col.x + col.w)}`);
+            check('t2', n, map.y + map.h <= chip.y + 0.05, `地圖下緣 ${f1(map.y + map.h)} 低於鈕上緣 ${f1(chip.y)}——地圖沒有縮高讓位，壓在鈕上`);
+            const gap = chip.y - (map.y + map.h);
+            check('t2', n, gap <= chip.h + 0.05, `地圖與鈕之間空了 ${f1(gap)}pt，比鈕（${f1(chip.h)}pt）還高——地圖讓位讓過頭了`);
+            for (const t of texts.filter(t => t.id !== 'stamp')) {
+              const ix = Math.min(col.x + col.w, t.x + t.w) - Math.max(col.x, t.x), iy = Math.min(col.y + col.h, t.y + t.h) - Math.max(col.y, t.y);
+              check('t2', n, !(ix > 0.05 && iy > 0.05), `地圖欄與文字 ${t.id}「${t.text}」相交 ${f1(ix)}×${f1(iy)}pt——欄越界到文字欄`);
+            }
           }
+          // 字：整個在膠囊內（含兩端半圓——膠囊是以線段 [R, W−R] 為骨架、半徑 R 的形狀）、水平垂直置中、膠囊比字高出一半以上
+          const R = chip.h / 2;
+          const inCapsule = (x, y) => Math.hypot(x - Math.min(Math.max(x, R), chip.w - R), y - R) <= R + 0.3;
+          const corners = [[label.x, label.y], [label.x + label.w, label.y], [label.x, label.y + label.h], [label.x + label.w, label.y + label.h]];
+          check('t2', n, corners.every(([x, y]) => inCapsule(x - chip.x, y - chip.y)),
+            `字的框 x ${f1(label.x)}–${f1(label.x + label.w)}、y ${f1(label.y)}–${f1(label.y + label.h)} 有角落落在膠囊（${f1(chip.w)}×${f1(chip.h)}）外`);
+          const dx = label.x + label.w / 2 - (chip.x + chip.w / 2), dy = label.y + label.h / 2 - (chip.y + chip.h / 2);
+          check('t2', n, Math.abs(dx) <= 1 && Math.abs(dy) <= 1, `字沒有置中：中心偏離膠囊中心 (${f1(dx)}, ${f1(dy)})pt`);
+          check('t2', n, chip.h >= CHIP_TO_LABEL_MIN * label.h, `膠囊高 ${f1(chip.h)} 不到字高 ${f1(label.h)} 的 ${CHIP_TO_LABEL_MIN} 倍——鈕變成貼著字的細條`);
         }
       }
     }
@@ -1260,16 +1304,20 @@ async function judge({ specs, results, out, src }) {
         check('c', n, !texts.some(f => f.id.startsWith('recent.')), '全台中卡不該畫最近蓋章（契約畫法約定 9）');
       } else {
         expectNums('remain', [ex.remain]);
-        // 單一系統的最近蓋章（契約畫法約定 9）：放得下幾筆就畫幾筆，上限 4，畫篩出來的前 N 筆。判準只用量到的框與 payload，
+        // 單一系統的最近蓋章（契約畫法約定 9）：放得下幾筆就畫幾筆，上限 4，畫篩出來的前 N 筆。(a)(b)(c) 只用量到的框與 payload，
         // 不含任何「畫 2 筆」之類的常數——放得下幾筆是各尺寸自己的事：
         //  (a) 畫出的筆數 N ≤ min(4, 可用筆數)；(b) 畫出的就是 ex.recent 的前 N 筆，日期／站名／線名逐列相符、順序對；
         //  (c) 最大性：還有沒畫的可用筆數時，最後一筆（一筆都沒畫就看「還有 N 座」）下緣到圖例上緣的空隙 < 再多一列要的高度，
         //      否則就是「放得下卻沒畫」。「再多一列要的高度」從量到的框推：兩列以上＝相鄰兩列的框差；只畫 1 筆＝那一列自己的高度加它與上一行的間距；
         //      一筆都沒畫＝取「還有 N 座」那一行的高度當下限（任何一列都不會比它矮）。
+        //  (d) 下限：不少於蓋章鈕搬進地圖欄之前量到的筆數（RECENT_BEFORE，版面改動的回歸基準，不是契約值）。
         const drawn = [];
         while (byId(`recent.${drawn.length}.date`).length > 0) drawn.push(drawn.length);
         const N = drawn.length, avail = Math.min(4, ex.recent.length);
         check('c', n, N <= avail, `最近蓋章畫了 ${N} 筆，多於 min(4, 可用 ${ex.recent.length} 筆) = ${avail}`);
+        // 不少於蓋章鈕搬進地圖欄之前的筆數（見 RECENT_BEFORE）：文字欄的內容不因按鈕刪減
+        const before = Math.min(avail, RECENT_BEFORE[spec.width] ?? 0);
+        check('c', n, N >= before, `最近蓋章只畫 ${N} 筆，少於蓋章鈕搬家之前的 ${before} 筆（文字欄的內容被按鈕刪掉了）`);
         ex.recent.slice(0, N).forEach((r, i) => {
           expectText(`recent.${i}.date`, shortDate(r.d));
           expectText(`recent.${i}.name`, r.name);
@@ -1556,17 +1604,20 @@ const MUTATIONS = [
   {
     id: 'M18 蓋章鈕疊到數字上（小卡把鈕與數字疊在同一格）',
     file: 'CollectionCard.swift',
-    find: `        VStack(alignment: .leading, spacing: k.pt(6)) {
+    find: `        return VStack(alignment: .leading, spacing: gap) {
             numbers(f, k)`,
-    replace: `        ZStack(alignment: .topLeading) {
+    replace: `        return ZStack(alignment: .topLeading) {
             numbers(f, k)`,
     expect: ['s'],
   },
   {
     id: 'M19 蓋章鈕拿掉（小卡不畫鈕）',
     file: 'CollectionCard.swift',
-    find: '            stamp(CollectionStampChip(k: k))\n',
-    replace: '',
+    find: `            numbers(f, k)
+            stamp(chip).padding(chip.hitCompensation)
+`,
+    replace: `            numbers(f, k)
+`,
     expect: ['s'],
   },
   {
@@ -1618,20 +1669,21 @@ const MUTATIONS = [
     expect: ['o4'],
   },
   {
-    id: 'M26 可點範圍縮回鈕本身（小卡、中卡兩個呼叫端都不外擴）',
+    id: 'M26 可點範圍砍到只剩鈕高（約 31pt；小卡、中卡兩個呼叫端都不外擴）——考 t 的「寬高都 ≥ 44」',
     edits: [
       {
         file: 'CollectionCard.swift',
-        find: 'let chip = CollectionStampChip(k: k, hit: EdgeInsets(top: gap, leading: 4, bottom: CollectionMetrics.inset, trailing: 4))',
+        find: 'let chip = CollectionStampChip(k: k, hit: EdgeInsets(top: gap, leading: 4, bottom: CollectionMetrics.inset, trailing: hitTrailing))',
         replace: 'let chip = CollectionStampChip(k: k)',
       },
       {
         file: 'CollectionCard.swift',
-        find: 'let chip = CollectionStampChip(k: k, compact: true, hit: EdgeInsets(top: 0, leading: 10, bottom: 1, trailing: 10))',
-        replace: 'let chip = CollectionStampChip(k: k, compact: true)',
+        find: 'let chip = CollectionStampChip(k: k, hit: EdgeInsets(top: barGap, leading: 4, bottom: CollectionMetrics.inset, trailing: 4))',
+        replace: 'let chip = CollectionStampChip(k: k)',
       },
     ],
     expect: ['t'],
+    detail: '小於下限',
   },
   {
     id: 'M27 輪廓整張左移 60pt（侵入文字）',
@@ -1669,27 +1721,30 @@ const MUTATIONS = [
     expect: ['o2'],
   },
   {
-    id: 'M32 小卡可點範圍往上多擴 14pt（蓋到「還有 N 座」）',
+    id: 'M32 小卡可點範圍往上多擴 14pt（蓋到「還有 N 座」）——考 t 的「不蓋到文字」',
     file: 'CollectionCard.swift',
-    find: 'hit: EdgeInsets(top: gap, leading: 4, bottom: CollectionMetrics.inset, trailing: 4)',
-    replace: 'hit: EdgeInsets(top: gap + 14, leading: 4, bottom: CollectionMetrics.inset, trailing: 4)',
+    find: 'hit: EdgeInsets(top: gap, leading: 4, bottom: CollectionMetrics.inset, trailing: hitTrailing)',
+    replace: 'hit: EdgeInsets(top: gap + 14, leading: 4, bottom: CollectionMetrics.inset, trailing: hitTrailing)',
     expect: ['t'],
+    detail: '可點範圍與',
   },
   {
-    id: 'M33 小卡沒抵銷外擴的內距（鈕被推離原位）',
+    id: 'M33 小卡沒抵銷外擴的內距（鈕被推離原位、變窄）——考 t 的靜態掃描與 t2 的「鈕寬＝欄寬」',
     file: 'CollectionCard.swift',
     find: `            numbers(f, k)
             stamp(chip).padding(chip.hitCompensation)`,
     replace: `            numbers(f, k)
             stamp(chip)`,
-    expect: ['t'],
+    expect: ['t', 't2'],
+    detail: '鈕寬',
   },
   {
-    id: 'M34 蓋章鈕本身被放大（外觀尺寸變了）',
+    id: 'M34 蓋章鈕變扁（鈕高 31 縮到 22pt，字級不變）——考 t2 的「膠囊高 ≥ 字高 1.5 倍」',
     file: 'CollectionCard.swift',
-    find: '.padding(.horizontal, k.pt(compact ? 8 : 9))',
-    replace: '.padding(.horizontal, k.pt(compact ? 8 : 14))',
-    expect: ['t'],
+    find: 'static let stampHeight: CGFloat = 31',
+    replace: 'static let stampHeight: CGFloat = 22',
+    expect: ['t2'],
+    detail: '膠囊高',
   },
   {
     id: 'M35 Button 的 label 不是鈕本身（外面另包一層）',
@@ -1697,6 +1752,154 @@ const MUTATIONS = [
     find: 'Button(intent: CollectCheckinIntent()) { chip }.buttonStyle(.plain)',
     replace: 'Button(intent: CollectCheckinIntent()) { chip.padding(2) }.buttonStyle(.plain)',
     expect: ['t'],
+  },
+  // ── 蓋章鈕整條版面（t2）、可點範圍（t）與文字欄不被刪減（c）：新判準每一道各一個突變，`detail` 指名考的是哪一道（失敗訊息要含這個字串）。──
+  {
+    id: 'M60 鈕寬縮回膠囊（不撐滿整欄，只有字那麼寬）——考 t2 的「鈕寬＝欄寬」',
+    file: 'CollectionCard.swift',
+    find: `            .frame(maxWidth: .infinity)
+            .frame(height: k.pt(CollectionMetrics.stampHeight))`,
+    replace: `            .fixedSize(horizontal: true, vertical: false)
+            .frame(height: k.pt(CollectionMetrics.stampHeight))`,
+    expect: ['t2'],
+    detail: '鈕寬',
+  },
+  {
+    id: 'M61 中卡鈕移回文字欄（「已收集 N／M 座」下面，不在地圖欄）——考 t2 的「中卡鈕＝地圖欄寬、貼內容框下緣」',
+    edits: [
+      {
+        file: 'CollectionCard.swift',
+        find: `                Spacer(minLength: barGap)
+                stamp(chip).padding(chip.hitCompensation)
+`,
+        replace: '',
+      },
+      {
+        file: 'CollectionCard.swift',
+        find: `                content: Text(CollectionCopy.countOf(f)).font(.system(size: k.pt(10.5))),
+                key: true, tone: .secondary)
+            // 這一行與圖例上面的間距`,
+        replace: `                content: Text(CollectionCopy.countOf(f)).font(.system(size: k.pt(10.5))),
+                key: true, tone: .secondary)
+            stamp(CollectionStampChip(k: k))
+            // 這一行與圖例上面的間距`,
+      },
+    ],
+    expect: ['t2'],
+    detail: '鈕寬',
+  },
+  {
+    id: 'M62 中卡地圖不縮高、鈕疊在地圖上——考 t2 的「地圖整個在鈕上方」（與 s 的相交）',
+    file: 'CollectionCard.swift',
+    find: `            VStack(spacing: 0) {
+                CollectionMapView(dots: f.dots, viewport: f.viewport, others: f.others)
+                    .frame(width: mapW, height: mapH)
+                Spacer(minLength: barGap)
+                stamp(chip).padding(chip.hitCompensation)
+            }`,
+    replace: `            ZStack(alignment: .bottom) {
+                CollectionMapView(dots: f.dots, viewport: f.viewport, others: f.others)
+                    .frame(width: (size.height * f.aspect).rounded(), height: size.height)
+                stamp(chip).padding(chip.hitCompensation)
+            }`,
+    expect: ['t2', 's'],
+    detail: '沒有縮高讓位',
+  },
+  {
+    id: 'M63 中卡地圖與鈕之間不留間距（恆春半島的輪廓畫進鈕裡，兩個框仍不相交）——考 o2 的「輪廓不侵入鈕」',
+    file: 'CollectionCard.swift',
+    find: 'let barGap = k.pt(10)',
+    replace: 'let barGap = k.pt(0)',
+    expect: ['o2'],
+  },
+  {
+    id: 'M64 鈕的字被截斷（左右內距 40pt，字被壓扁）——考 d 的「鈕上的字沒有被縮放或截斷」',
+    file: 'CollectionCard.swift',
+    find: '            .padding(.horizontal, k.pt(8))',
+    replace: '            .padding(.horizontal, k.pt(40))',
+    expect: ['d'],
+    detail: 'stamp',
+  },
+  {
+    id: 'M65 鈕左右內距放回 12pt（日文「スタンプ」在小卡放不下）——考 d，驗證鈕內距註解裡的說法',
+    file: 'CollectionCard.swift',
+    find: '            .padding(.horizontal, k.pt(8))',
+    replace: '            .padding(.horizontal, k.pt(12))',
+    expect: ['d'],
+    detail: 'stamp',
+    langs: ['ja'],
+  },
+  {
+    id: 'M66 鈕的字靠左（沒置中）——考 t2 的「字置中」',
+    file: 'CollectionCard.swift',
+    find: `            .frame(maxWidth: .infinity)
+            .frame(height: k.pt(CollectionMetrics.stampHeight))`,
+    replace: `            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: k.pt(CollectionMetrics.stampHeight))`,
+    expect: ['t2'],
+    detail: '置中',
+  },
+  {
+    id: 'M67 小卡文字欄整欄靠上（鈕不在文字欄最下面）——考 t2 的「鈕貼內容框下緣」',
+    file: 'CollectionCard.swift',
+    find: '                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)',
+    replace: '                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)',
+    expect: ['t2'],
+    detail: '鈕下緣',
+  },
+  {
+    id: 'M68 小卡文字欄比地圖左緣寬出 20pt（鈕撐進地圖欄）——考 t2 的「欄不跨進地圖」與 s 的相交',
+    file: 'CollectionCard.swift',
+    find: '                    .frame(width: textW, alignment: .leading)',
+    replace: '                    .frame(width: textW + 20, alignment: .leading)',
+    expect: ['t2', 's'],
+    detail: '跨進地圖',
+  },
+  {
+    id: 'M69 中卡鈕比地圖欄窄（左右各縮 10pt）——考 t2 的「鈕寬＝地圖欄寬」',
+    file: 'CollectionCard.swift',
+    find: `                Spacer(minLength: barGap)
+                stamp(chip).padding(chip.hitCompensation)`,
+    replace: `                Spacer(minLength: barGap)
+                stamp(chip).padding(chip.hitCompensation).padding(.horizontal, 10)`,
+    expect: ['t2'],
+    detail: '鈕寬',
+  },
+  {
+    id: 'M70 中卡地圖縮過頭（地圖與鈕之間空了一個鈕高以上）——考 t2 的「讓位不過頭」',
+    file: 'CollectionCard.swift',
+    find: 'let mapH = size.height - barH - barGap',
+    replace: 'let mapH = size.height - barH - barGap - barH - 4',
+    expect: ['t2'],
+    detail: '讓過頭',
+  },
+  {
+    id: 'M71 小卡鈕在數字上面（文字欄順序倒過來）——考 t2 的「鈕是文字欄最下面的東西」',
+    file: 'CollectionCard.swift',
+    find: `            numbers(f, k)
+            stamp(chip).padding(chip.hitCompensation)`,
+    replace: `            stamp(chip).padding(chip.hitCompensation)
+            numbers(f, k)`,
+    expect: ['t2'],
+    detail: '鈕下方還有文字',
+  },
+  {
+    id: 'M72 中卡可點範圍下緣伸出卡片外——考 t 的「不出卡片」',
+    file: 'CollectionCard.swift',
+    find: 'hit: EdgeInsets(top: barGap, leading: 4, bottom: CollectionMetrics.inset, trailing: 4)',
+    replace: 'hit: EdgeInsets(top: barGap, leading: 4, bottom: CollectionMetrics.inset + 10, trailing: 4)',
+    expect: ['t'],
+    detail: '超出卡片',
+  },
+  {
+    id: 'M73 中卡文字欄被吃掉 40pt 高度（最近蓋章少畫）——考 c 的「不少於搬家之前的筆數」',
+    file: 'CollectionCard.swift',
+    find: `            Spacer(minLength: k.pt(2))
+            middle(f, k, recentRows: recentRows)`,
+    replace: `            Spacer(minLength: k.pt(40))
+            middle(f, k, recentRows: recentRows)`,
+    expect: ['c'],
+    detail: '搬家之前',
   },
   {
     id: 'M36 文案 key 換錯（「已收集 N 座」改用「還有 {n} 座」的 key）',
@@ -2037,13 +2240,15 @@ async function main() {
       const { fails, counts } = await judge({ ...run, specs: run.cases, out, src: dest });
       L10N_TABLE = savedTable;
       const red = [...new Set(fails.map(f => f.gate))];
-      const detected = m.expect.every(g => red.includes(g));
+      // detail：失敗訊息要含這段字——閘門裡有好幾道判準共用同一個代號時，靠它確認被抓到的是「指名的那一道」。
+      const named = f => m.expect.includes(f.gate) && (!m.detail || f.detail.includes(m.detail));
+      const detected = m.expect.every(g => red.includes(g)) && fails.some(named);
       allOk = allOk && detected;
-      report.push({ id: m.id, expect: m.expect, red, ok: detected, summary: summarize(counts), sample: fails.filter(f => m.expect.includes(f.gate)).slice(0, 2) });
+      report.push({ id: m.id, expect: m.expect, detail: m.detail, red, ok: detected, summary: summarize(counts), sample: fails.filter(named).slice(0, 2) });
     }
     allOk = (await control('after')) && allOk;
     for (const r of report) {
-      console.log(`${r.ok ? '✓' : '✗'} ${r.id}${r.expect ? `（要紅 ${r.expect.join('、')}）` : '（要全綠）'} → 紅的閘門：${r.red.length ? r.red.join('、') : '無'}`);
+      console.log(`${r.ok ? '✓' : '✗'} ${r.id}${r.expect ? `（要紅 ${r.expect.join('、')}${r.detail ? `，訊息含「${r.detail}」` : ''}）` : '（要全綠）'} → 紅的閘門：${r.red.length ? r.red.join('、') : '無'}`);
       console.log(`    ${r.summary}`);
       for (const s of r.sample ?? []) console.log(`    · [${s.gate}] ${s.name}：${s.detail}`);
     }
