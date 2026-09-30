@@ -63,10 +63,29 @@
                 android:textSize="14sp"
                 android:textStyle="bold" />
 
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="已收集 201／539 座"
+                android:textColor="@color/wg_ink_soft"
+                android:textSize="10.5sp" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="18dp"
                 android:layout_marginStart="6dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
                 android:background="@drawable/wc_stamp_bg"
                 android:gravity="center"
                 android:includeFontPadding="false"
@@ -79,20 +98,10 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:includeFontPadding="false"
-            android:maxLines="1"
-            android:text="已收集 201／539 座"
-            android:textColor="@color/wg_ink_soft"
-            android:textSize="10.5sp" />
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_marginTop="5dp"
+            android:layout_marginTop="2dp"
             android:layout_weight="1"
             android:orientation="vertical">
 

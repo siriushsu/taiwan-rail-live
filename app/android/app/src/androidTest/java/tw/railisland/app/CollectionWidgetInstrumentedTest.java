@@ -329,21 +329,29 @@ public final class CollectionWidgetInstrumentedTest {
         outDir.mkdirs();
         RailNativeL10n.setLanguage(context, "zh-TW");
         assertTrue(CollectionStore.write(context, new String(readAll(new File(casesDir, "sample.json")), StandardCharsets.UTF_8)));
+        float density = context.getResources().getDisplayMetrics().density;
         JSONArray results = new JSONArray();
         int index = 0;
         for (String family : new String[] { WidgetFamily.MEDIUM, WidgetFamily.SMALL }) {
             int id = 9700 + index++;
-            RemoteViews views = CollectionWidgetProvider.views(context, id, family, "all", 368, 221);
+            boolean small = WidgetFamily.SMALL.equals(family);
+            int wDp = small ? 158 : 360, hDp = 158;
+            RemoteViews views = CollectionWidgetProvider.views(context, id, family, "all", wDp, hDp);
             // launcher 點擊時走 RemoteViews 預設處理：view.getContext().startIntentSender(pending.getIntentSender(), …)。
             // 這裡把 context 換成會「攔下 IntentSender、不真的開 App」的包裝，就能對每個點擊入口拿到它綁的那一顆。
             CapturingContext capture = new CapturingContext(context);
             View root = views.apply(capture, new FrameLayout(context));
+            int wPx = Math.round(wDp * density), hPx = Math.round(hDp * density);
+            root.measure(View.MeasureSpec.makeMeasureSpec(wPx, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(hPx, View.MeasureSpec.EXACTLY));
+            root.layout(0, 0, wPx, hPx);
             final android.content.IntentSender[] hit = new android.content.IntentSender[2];
+            View container = root.findViewById(R.id.wc_stamp_hit);
+            View pill = root.findViewById(R.id.wc_stamp);
+            assertNotNull("版面裡沒有 wc_stamp_hit：" + family, container);
+            assertNotNull("版面裡沒有 wc_stamp：" + family, pill);
             InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
-                View stampView = root.findViewById(R.id.wc_stamp);
-                assertNotNull("版面裡沒有 wc_stamp：" + family, stampView);
                 capture.last = null;
-                stampView.performClick();
+                container.performClick();       // 綁 PendingIntent 的是外面的透明容器，不是膠囊
                 hit[0] = capture.last;
                 capture.last = null;
                 root.performClick();
@@ -363,11 +371,47 @@ public final class CollectionWidgetInstrumentedTest {
             o.put("rootIsCheckin", hit[1] != null && hit[1].equals(checkin));
             o.put("samePending", hit[0] != null && hit[0].equals(hit[1]));
             o.put("stampCreator", hit[0] == null ? "" : hit[0].getCreatorPackage());
+            // 觸控命中：用【自己重做的一份 Android 命中規則】（點必須落在每一層祖先的邊界內、由上而下第一個可點的 view）
+            // 掃整張卡，量「按下去會落到膠囊容器」的實際範圍——不是量容器的框（伸出祖先邊界的部分點不到）。
+            float[] pillOrigin = originOf(pill, root);
+            o.put("pillHitId", idName(hitTest(root, pillOrigin[0] + pill.getWidth() / 2f, pillOrigin[1] + pill.getHeight() / 2f)));
+            View title = root.findViewById(R.id.wc_title);
+            float[] titleOrigin = originOf(title, root);
+            o.put("titleHitId", idName(hitTest(root, titleOrigin[0] + 4, titleOrigin[1] + title.getHeight() / 2f)));
+            float step = 0.5f * density;
+            float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -1, maxY = -1;
+            int count = 0;
+            for (float y = 0; y < hPx; y += step) {
+                for (float x = 0; x < wPx; x += step) {
+                    if (hitTest(root, x, y) != container) continue;
+                    count++;
+                    minX = Math.min(minX, x);
+                    maxX = Math.max(maxX, x + step);
+                    minY = Math.min(minY, y);
+                    maxY = Math.max(maxY, y + step);
+                }
+            }
+            o.put("effective", count == 0 ? new JSONArray() : rect(minX, minY, maxX, maxY, density));
+            o.put("effectiveFilled", count == 0 ? 0 : count * step * step / ((maxX - minX) * (maxY - minY)));
             results.put(o);
         }
         try (FileOutputStream out = new FileOutputStream(new File(outDir, "stamp.json"))) {
             out.write(results.toString(1).getBytes(StandardCharsets.UTF_8));
         }
+    }
+
+    /** Android 的觸控命中規則（ViewGroup.dispatchTouchEvent 的重做）：點在 v 的邊界內才往下找；子 view 由上（後加）往下；沒有子 view 接住才輪到 v 自己（可點才算）。 */
+    private static View hitTest(View v, float x, float y) {
+        if (x < 0 || y < 0 || x >= v.getWidth() || y >= v.getHeight() || v.getVisibility() != View.VISIBLE) return null;
+        if (v instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = g.getChildCount() - 1; i >= 0; i--) {
+                View c = g.getChildAt(i);
+                View hit = hitTest(c, x - c.getLeft() + g.getScrollX(), y - c.getTop() + g.getScrollY());
+                if (hit != null) return hit;
+            }
+        }
+        return v.isClickable() ? v : null;
     }
 
     /** 會攔下 startIntentSender 的 Context 包裝：RemoteViews 的點擊最後都走到這裡（測試裡不能真的開 App）。 */
@@ -591,6 +635,16 @@ public final class CollectionWidgetInstrumentedTest {
                 savePng(bmp, new File(outDir, file));
                 o.put("png", file);
             }
+            out.put(o);
+        }
+        if (v instanceof FrameLayout && name.equals("wc_stamp_hit")) {
+            JSONObject o = new JSONObject();
+            o.put("kind", "hit");
+            o.put("id", name);
+            o.put("visible", shown(v, root));
+            o.put("clickable", v.hasOnClickListeners());
+            float[] origin = originOf(v, root);
+            o.put("box", rect(origin[0], origin[1], origin[0] + v.getWidth(), origin[1] + v.getHeight(), density));
             out.put(o);
         }
         if (v instanceof ViewGroup) {

@@ -33,15 +33,17 @@ final class CollectionWidgetRender {
     // 版面度量（dp）。中卡左欄各列的自然高度（含 CJK 行高），實測值，見 CollectionWidgetInstrumentedTest 的列高量測。
     private static final int CARD_PAD_V = 27;       // 上 12＋下 15
     private static final int CARD_PAD_H = 30;       // 左 14＋右 16
-    private static final int MEDIUM_HEAD = 44;      // 標題列＋已收集行＋間距＋列容器上緣（2026-09-30 依 obs.json 量到的 wc_rows 上緣 54.9dp 校正：舊值 38 高估了 5.7dp）
+    private static final int MEDIUM_HEAD = 50;      // 標題列＋已收集行（含 26dp 高的蓋章鈕容器）＋間距＋列容器上緣（舊值 44 是蓋章鈕在標題列時量的；鈕搬進已收集那一列後該列由 17 變 26dp、wc_rows 上距 5→2dp，共 +6）
     private static final int ROW_SYS = 17;
     private static final int ROW_NOTE = 18;         // 含 marginTop 3
     private static final int ROW_LEGEND = 17;       // 含 marginTop 3
     private static final int ROW_BAR = 8;
     private static final int ROW_REMAIN = 23;       // 含 marginTop 5
     private static final int ROW_RECENT = 19;
-    /** 「蓋章」按鈕左右內距合計（dp，見 widget_collect_*.xml 的 wc_stamp：各 8）。 */
-    private static final int STAMP_PAD = 16;
+    /** 小卡文字欄最下面的蓋章鈕區塊高（dp）：與數字的間距 6＋膠囊 18（見 widget_collect_small.xml 的 wc_stamp_hit）。 */
+    private static final int STAMP_BLOCK = 24;
+    /** 單張地圖的點陣框高上限（dp）：出血（下緣 18dp）只夠最高約 190dp 的地圖把恆春半島南端畫完。 */
+    private static final float MAP_MAX_DP = 190f;
     /** CJK 行高約為字級的 1.45 倍（obs.json 量到 13sp→18.7dp、11sp→16dp）；拉丁字母較矮，一律取大的，寧可少放一行也不讓字被裁。 */
     private static final float LINE_H = 1.45f;
     /** 位元組上限保險：地圖 Bitmap 高度（像素）不超過這個值。 */
@@ -76,7 +78,10 @@ final class CollectionWidgetRender {
         float fs = fontScale(c);
         String kicker = RailNativeL10n.text(c, "車站收集");
         // 副標的可見性在這裡明講兩個分支（launcher 是 reapply 到舊 View 樹）；字級在 smallHeader 兩個分支都設
-        boolean kick = smallHeader(c, v, f, kicker, wDp, fs);
+        String stamp = RailNativeL10n.text(c, "蓋章");
+        v.setTextViewText(R.id.wc_stamp, stamp);
+        v.setContentDescription(R.id.wc_stamp_hit, stamp);   // 透明的可點容器（48dp 寬）：TalkBack 讀「蓋章」
+        boolean kick = smallHeader(v, f, kicker, wDp, fs);
         v.setViewVisibility(R.id.wc_subtitle, kick ? android.view.View.VISIBLE : android.view.View.GONE);
 
         // 文字欄寬（dp）：版面權重 58／42。窄到文字放不下（多半是 110dp 寬的 2×2）就整個放掉地圖，
@@ -95,6 +100,9 @@ final class CollectionWidgetRender {
             float need9 = Math.max(tightWidth(countText, 9 * fs) * 1.05f, tightWidth(remainText, 9 * fs));
             showMap = need9 <= colW;
         }
+        // 蓋章鈕（膠囊寬＝字寬加左右內距 16dp）也要放得進文字欄：放不下（日文「スタンプ」在 110dp 寬的卡上）就把地圖讓出來，
+        // 不讓膠囊的字折成兩行被裁掉。
+        showMap = showMap && tightWidth(stamp, 10 * fs) * 1.1f + 16f <= colW;
         if (!showMap) colW = wDp - CARD_PAD_H;
 
         // 🔴 launcher 收到同一個 layout 的新 RemoteViews 時是 reapply 到「舊的那棵 View 樹」上，不是重新 inflate：
@@ -110,7 +118,7 @@ final class CollectionWidgetRender {
             float bodyH = hDp - CARD_PAD_V - 22;
             float titleH = lineCount(emptyTitle, 13, true, colW, fs) * 13 * fs * LINE_H;
             float hintH = 4 + lineCount(emptyHint, 11, false, colW, fs) * 11 * fs * LINE_H;
-            boolean hint = titleH + hintH <= bodyH;
+            boolean hint = titleH + hintH + STAMP_BLOCK <= bodyH;
             v.setViewVisibility(R.id.wc_empty_hint, hint ? android.view.View.VISIBLE : android.view.View.GONE);
             v.setTextViewText(R.id.wc_empty_hint, emptyHint);
         } else {
@@ -122,12 +130,13 @@ final class CollectionWidgetRender {
             float pctSp = percentSp(f.percentLabel, colW, fs);
             // 高度預算：百分比（字級×1.2）＋已收集一行＋還有一行（各 16dp 量到的行高）。放不下先丟次要的「還有 N 座」，
             // 再放不下才縮百分比；關鍵數字（百分比與已收集）永遠留著。
+            // 蓋章鈕在文字欄最下面（STAMP_BLOCK），預算要先扣掉它：關鍵數字與鈕都要留，所以先丟「還有 N 座」，再縮百分比（下限 20sp）。
             float bodyH = hDp - CARD_PAD_V - 16 - 6;
             float textH = 4 + 16 * fs + 1 + 16 * fs;
-            boolean remain = pctSp * 1.2f * fs + textH <= bodyH;
+            boolean remain = pctSp * 1.2f * fs + textH + STAMP_BLOCK <= bodyH;
             if (!remain) {
                 textH = 4 + 16 * fs;
-                pctSp = Math.max(24f, Math.min(pctSp, (bodyH - textH) / (1.2f * fs)));
+                pctSp = Math.max(20f, Math.min(pctSp, (bodyH - textH - STAMP_BLOCK) / (1.2f * fs)));
             }
             v.setTextViewTextSize(R.id.wc_pct, android.util.TypedValue.COMPLEX_UNIT_SP, pctSp);
             v.setTextViewText(R.id.wc_count, countText);
@@ -141,32 +150,27 @@ final class CollectionWidgetRender {
             float bodyH = Math.max(48, hDp - CARD_PAD_V - 16 - 6 - 4);
             float slotW = (wDp - CARD_PAD_H) * 0.42f;
             float mapH = Math.min(bodyH, slotW / (float) f.aspect);
-            setMaps(v, f, mapH, density);
+            setMaps(v, f, mapH, density, c.getResources());
         }
         v.setContentDescription(R.id.wc_root, describe(c, f));
         return v;
     }
 
     /**
-     * 小卡標題列 [標題][副標][蓋章]（蓋章鈕固定 18dp 高、比標題矮，不會撐高這一列）。放不下時依序退讓：
-     * 先收副標（與 iOS ViewThatFits 同一個取捨）；標題加按鈕還是放不下，就把兩者字級一起縮（最多縮到 70%）。
-     * 回傳副標要不要顯示（可見性由 small() 明講兩個分支）。
+     * 小卡標題列 [標題][副標]（蓋章鈕已搬到文字欄最下面，標題列只剩這兩個）。放不下時：先收副標（與 iOS ViewThatFits 同一個取捨）；
+     * 標題自己還是放不下，就縮字級（最多縮到 70%）。回傳副標要不要顯示（可見性由 small() 明講兩個分支）。
      * 🔴 字級兩個分支都要明講：launcher 是 reapply 到舊 View 樹，沒提到的屬性會停在上一次的樣子。
      */
-    private static boolean smallHeader(Context c, RemoteViews v, CollectionData.Figures f, String kicker, int wDp, float fs) {
-        String stamp = RailNativeL10n.text(c, "蓋章");
+    private static boolean smallHeader(RemoteViews v, CollectionData.Figures f, String kicker, int wDp, float fs) {
         v.setTextViewText(R.id.wc_title, f.title);
         v.setTextViewText(R.id.wc_subtitle, kicker);
-        v.setTextViewText(R.id.wc_stamp, stamp);
         float rowW = wDp - CARD_PAD_H;
-        float stampText = tightWidth(stamp, 10 * fs) * 1.1f;           // 粗體加寬 10%
-        float stampW = stampText + STAMP_PAD + 6;                      // ＋左右內距＋與前一個元素的間距
-        boolean kick = estimatedWidth(f.title, 13 * fs) + 4 + estimatedWidth(kicker, 11 * fs) + stampW <= rowW;
+        // 標題（粗體，比估計寬約 5%）＋間距＋副標，再留 3dp：日文 137dp 寬的小卡實測「高捷」加副標剛好差 1dp 而被截成「…」
+        boolean kick = estimatedWidth(f.title, 13 * fs) * 1.05f + 4 + estimatedWidth(kicker, 11 * fs) + 3 <= rowW;
         float titleText = tightWidth(f.title, 13 * fs) * 1.1f;         // Latin 粗體比 0.5em 略寬，留 10%
         float scale = 1f;
-        if (!kick && titleText + stampW > rowW) scale = Math.max(0.7f, (rowW - STAMP_PAD - 6) / (titleText + stampText));
+        if (!kick && titleText > rowW) scale = Math.max(0.7f, rowW / titleText);
         v.setTextViewTextSize(R.id.wc_title, android.util.TypedValue.COMPLEX_UNIT_SP, 13 * scale);
-        v.setTextViewTextSize(R.id.wc_stamp, android.util.TypedValue.COMPLEX_UNIT_SP, 10 * scale);
         return kick;
     }
 
@@ -175,13 +179,13 @@ final class CollectionWidgetRender {
     private static RemoteViews medium(Context c, CollectionData.Figures f, int wDp, int hDp) {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_collect_medium);
         String kicker = RailNativeL10n.text(c, "車站收集");
-        // 標題欄寬（dp）＝文字欄寬 − 百分比 − 蓋章鈕 − 間距。「車站收集」或「範圍 · 車站收集」連 10sp 也放不下
-        // （英文、窄卡）就只留範圍名（全台＝「全台」）。
+        // 標題欄寬（dp）＝文字欄寬 − 百分比 − 間距（蓋章鈕在下一列「已收集」的右端，不占標題列）。「車站收集」或「範圍 · 車站收集」連 10sp 也放不下
+        // （單一系統的英文、窄卡）就只留範圍名。
         String stamp = RailNativeL10n.text(c, "蓋章");
         v.setTextViewText(R.id.wc_stamp, stamp);
+        v.setContentDescription(R.id.wc_stamp_hit, stamp);
         float fs0 = fontScale(c);
-        float stampW = tightWidth(stamp, 10 * fs0) * 1.1f + STAMP_PAD + 6;
-        float titleCol = (wDp - CARD_PAD_H - 8) * 0.70f - f.percentLabel.length() * 0.62f * 14 * fs0 - 6 - stampW;
+        float titleCol = (wDp - CARD_PAD_H - 8) * 0.70f - f.percentLabel.length() * 0.62f * 14 * fs0 - 6;
         String heading = f.isAll() ? kicker : f.title + " · " + kicker;
         if (tightWidth(heading, 10 * fs0) * 1.05f > titleCol) heading = f.title;
         v.setTextViewText(R.id.wc_title, heading);
@@ -220,7 +224,7 @@ final class CollectionWidgetRender {
         float bodyH = Math.max(48, hDp - CARD_PAD_V);
         float slotW = (wDp - CARD_PAD_H - 8) * 0.30f;
         float mapH = Math.min(bodyH, slotW / (float) f.aspect);
-        setMaps(v, f, mapH, density);
+        setMaps(v, f, mapH, density, c.getResources());
         v.setContentDescription(R.id.wc_root, describe(c, f));
         return v;
     }
@@ -312,11 +316,16 @@ final class CollectionWidgetRender {
 
     // ── 地圖 ───────────────────────────────────────────────────────────────────
 
-    /** 淺／深兩張 Bitmap 疊同一格，資源限定的 alpha 決定露出哪一張。高度取版面預期的地圖高（dp）換成像素。 */
-    private static void setMaps(RemoteViews v, CollectionData.Figures f, float mapHDp, float density) {
-        int px = Math.min(MAP_MAX_PX, Math.max(120, Math.round(mapHDp * density)));
-        Bitmap light = CollectionMapRender.render(f, false, px, density);
-        Bitmap dark = CollectionMapRender.render(f, true, px, density);
+    /**
+     * 淺／深兩張 Bitmap 疊同一格，資源限定的 alpha 決定露出哪一張。高度取版面預期的地圖高（dp）換成像素；
+     * Bitmap＝點陣框＋出血（框外一圈透明邊，輪廓的恆春半島南端與西岸畫在這裡），整張超過像素上限就把框縮小。
+     */
+    private static void setMaps(RemoteViews v, CollectionData.Figures f, float mapHDp, float density, android.content.res.Resources res) {
+        CollectionMapRender.Bleed bleed = CollectionMapRender.bleed(res);
+        int want = Math.min(MAP_MAX_PX, Math.max(120, Math.round(Math.min(mapHDp, MAP_MAX_DP) * density)));
+        int px = CollectionMapRender.frameHeightPx(f.aspect, want, bleed);
+        Bitmap light = CollectionMapRender.render(f, false, px, density, bleed);
+        Bitmap dark = CollectionMapRender.render(f, true, px, density, bleed);
         v.setImageViewBitmap(R.id.wc_map_light, light);
         v.setImageViewBitmap(R.id.wc_map_dark, dark);
     }

@@ -6,7 +6,10 @@
        全台：有收集的系統各一列（標籤＋進度條＋v/n）＋「還有 K 個系統還沒去過」；
        單一系統：進度條＋「還有 N 座」＋最近蓋章；
        空狀態：邀請文案。放得下才放圖例。
-     標題列最右是「蓋章」按鈕（wc_stamp），綁 railisland://checkin；固定 18dp 高，不會撐高標題列。
+     「蓋章」按鈕在「已收集 v／n 座」那一列的右端、百分比正下方（與 iOS 同位置）：wc_stamp 是 18dp 高的實心膠囊（不可點），
+        外面的透明容器 wc_stamp_hit（寬至少 48dp 往左伸、高至少 26dp）綁 railisland://checkin；
+        高度只能做到 26dp：上面是百分比、下面是系統列，再高就會蓋到文字。
+     🔴 地圖 ImageView 用負邊距比欄位大一圈、Bitmap 帶等量透明「出血」（見 widget_collect_small.xml 的說明與 dimens_collect.xml）。
      🔴 淺／深兩張地圖 Bitmap 疊同一格，資源限定 alpha 切換（見 dimens_collect.xml）。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/wc_root"
@@ -14,6 +17,7 @@
     android:layout_height="match_parent"
     android:background="@drawable/wg_card"
     android:baselineAligned="false"
+    android:clipChildren="false"
     android:clipToPadding="false"
     android:orientation="horizontal"
     android:paddingStart="14dp"
@@ -24,12 +28,17 @@
     <FrameLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
+        android:clipToPadding="false"
         android:layout_weight="30">
 
         <ImageView
             android:id="@+id/wc_map_light"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_marginStart="@dimen/wc_bleed_start_neg"
+            android:layout_marginTop="@dimen/wc_bleed_top_neg"
+            android:layout_marginEnd="@dimen/wc_bleed_end_neg"
+            android:layout_marginBottom="@dimen/wc_bleed_bottom_neg"
             android:alpha="@dimen/wc_alpha_light"
             android:contentDescription="@null"
             android:scaleType="fitStart" />
@@ -38,6 +47,10 @@
             android:id="@+id/wc_map_dark"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_marginStart="@dimen/wc_bleed_start_neg"
+            android:layout_marginTop="@dimen/wc_bleed_top_neg"
+            android:layout_marginEnd="@dimen/wc_bleed_end_neg"
+            android:layout_marginBottom="@dimen/wc_bleed_bottom_neg"
             android:alpha="@dimen/wc_alpha_dark"
             android:contentDescription="@null"
             android:scaleType="fitStart" />
@@ -82,46 +95,58 @@
                 android:textSize="14sp"
                 android:textStyle="bold" />
 
-            <Button
-                android:id="@+id/wc_stamp"
-                android:layout_width="wrap_content"
-                android:layout_height="18dp"
-                android:layout_marginStart="6dp"
-                android:background="@drawable/wc_stamp_bg"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:minWidth="0dp"
-                android:minHeight="0dp"
-                android:paddingStart="8dp"
-                android:paddingTop="0dp"
-                android:paddingEnd="8dp"
-                android:paddingBottom="0dp"
-                android:stateListAnimator="@null"
-                android:textAllCaps="false"
-                android:textColor="@color/wg_plate_band_ink"
-                android:textSize="10sp"
-                android:textStyle="bold" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/wc_count"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:autoSizeMaxTextSize="10.5sp"
-            android:autoSizeMinTextSize="8sp"
-            android:autoSizeTextType="uniform"
-            android:includeFontPadding="false"
-            android:maxLines="1"
-            android:textColor="@color/wg_ink_soft"
-            android:textSize="10.5sp" />
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/wc_count"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:autoSizeMaxTextSize="10.5sp"
+                android:autoSizeMinTextSize="8sp"
+                android:autoSizeTextType="uniform"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/wg_ink_soft"
+                android:textSize="10.5sp" />
+
+            <FrameLayout
+                android:id="@+id/wc_stamp_hit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:minWidth="48dp"
+                android:minHeight="26dp">
+
+                <TextView
+                    android:id="@+id/wc_stamp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="18dp"
+                    android:layout_gravity="end|center_vertical"
+                    android:background="@drawable/wc_stamp_bg"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:textColor="@color/wg_plate_band_ink"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+            </FrameLayout>
+        </LinearLayout>
 
         <LinearLayout
             android:id="@+id/wc_rows"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_marginTop="5dp"
+            android:layout_marginTop="2dp"
             android:layout_weight="1"
             android:orientation="vertical" />
     </LinearLayout>

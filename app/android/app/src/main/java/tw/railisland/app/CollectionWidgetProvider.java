@@ -24,7 +24,7 @@ import java.util.concurrent.Executors;
  * 內容只在 App 寫檔時才會變；updatePeriodMillis（30 分鐘）只是保險（檔案被外力換掉時自癒）。
  *
  * 點小工具：開 railisland://passport（旅程護照），與 iOS 一致；RailMetroWaitPlugin 把它轉成 waitOpen 事件。
- * 標題列右端的「蓋章」按鈕（wc_stamp，小、中卡都有）另綁 railisland://checkin：打開 App 後由網頁判定附近車站並蓋章，
+ * 「蓋章」按鈕（小卡在數字下方、中卡在百分比下方；wc_stamp 是膠囊，可點的是外面那層透明容器 wc_stamp_hit，約 48dp 寬）另綁 railisland://checkin：打開 App 後由網頁判定附近車站並蓋章，
  * 同樣經 RailMetroWaitPlugin 轉成 waitOpen { view: "checkin" }。
  */
 // 不是 final：小卡是空殼子類（CollectionWidgetSmallProvider），見 WidgetFamily。
@@ -80,7 +80,7 @@ public class CollectionWidgetProvider extends AppWidgetProvider {
         // 「打開軌島一次」訊息版面沒有按鈕，只有小、中兩張資料版面有
         int layout = views.getLayoutId();
         if (layout == R.layout.widget_collect_small || layout == R.layout.widget_collect_medium) {
-            views.setOnClickPendingIntent(R.id.wc_stamp, openCheckin(context, id));
+            views.setOnClickPendingIntent(R.id.wc_stamp_hit, openCheckin(context, id));
         }
         return views;
     }
