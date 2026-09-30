@@ -3,6 +3,7 @@
 // 這支不直接呼叫 setFollow() 製造卡片：它在真觸控 context 裡找一張可點的車牌，透過
 // page.tap() 點地圖，再等實際跟車狀態成立。WebKit 是原問題的引擎；Chromium 是零回歸對照。
 // MUTATE=1 會把車次改回 align-self:center，供突變驗證（WebKit 應紅，正常驗收勿帶）。
+// MUTATE=2 會把膠囊的車次與時速改回 baseline（9/30 複驗那一層），C4 應紅、B1 仍綠。
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,7 +12,9 @@ import { chromium, webkit } from 'playwright';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+const RAIL3D_CSS = fs.readFileSync(path.join(ROOT, 'rail-3d.css'), 'utf8');
 const MUTATE = process.env.MUTATE === '1';
+const MUTATE_END = process.env.MUTATE === '2';
 const ONLY = process.env.ONLY || '';
 const QUICK = process.env.QUICK === '1';
 const WIDTHS = process.env.TEST_WIDTH ? [Number(process.env.TEST_WIDTH)] : QUICK ? [390] : [360, 375, 390, 414, 768];
@@ -29,6 +32,9 @@ for (const [fragment, label] of [
   ['<span class="spd" id="fpSpd"></span>', '時速欄位'],
 ]) {
   if (!INDEX.includes(fragment)) throw new Error(`G0 找不到「${label}」：${fragment}`);
+}
+if (!RAIL3D_CSS.includes('.follow-panel.fp-min .fp-head > b,.follow-panel.fp-min .fp-head .spd{align-self:center}')) {
+  throw new Error('G0 rail-3d.css 找不到「膠囊的車次與時速改為置中」');
 }
 
 const server = http.createServer((request, response) => {
@@ -278,8 +284,63 @@ async function runCase(engineName, engine, width) {
       })(),
     }), { train: target.train, sys: target.sys });
     check(`${tag} C1 真 tap 關閉鈕會收卡但不取消跟車`, closeResult.compact && closeResult.same, JSON.stringify(closeResult));
-    check(`${tag} C2 膠囊態基線／溢出／結束鈕仍正常`, closeResult.baselineDelta <= 0.25
-      && closeResult.overflow <= 1 && closeResult.endReachable, JSON.stringify(closeResult));
+    // 膠囊不再比基線（改成置中，基線差 0.4～1.1px 是已知代價），對齊由下面的 C4 量墨水中心。
+    check(`${tag} C2 膠囊態溢出／結束鈕仍正常`, closeResult.overflow <= 1 && closeResult.endReachable, JSON.stringify(closeResult));
+
+    // 9/30 複驗：C2 只比「車次對時速」，兩者一起貼在列頂也照樣綠。膠囊的列高由 44px「結束」撐開，
+    // 要量的是文字跟圓點、「結束」字是否在同一個垂直中段。文字的中心取「基線 − 字形墨水高度的一半」，
+    // 墨水高度用同字型的 canvas measureText 量，不用行框（行框含行距，WebKit／Chromium 各算各的）。
+    if (MUTATE_END) await page.addStyleTag({ content: '.follow-panel.fp-min .fp-head > b, .follow-panel.fp-min .fp-head .spd { align-self:baseline !important; }' });
+    for (const theme of ['light', 'dark']) {
+      for (const font of ['std', 'large', 'xlarge']) {
+        await page.evaluate(({ theme, font }) => {
+          state._setAppearance(theme);
+          state._setFontScale(font);
+          M.resize(); reproject();
+        }, { theme, font });
+        await page.waitForTimeout(250);
+        const ink = await page.evaluate(() => {
+          const canvas = document.createElement('canvas').getContext('2d');
+          const baseline = element => {
+            const marker = document.createElement('i');
+            marker.style.cssText = 'display:inline-block;width:0;height:0;padding:0;margin:0;border:0;vertical-align:baseline';
+            element.appendChild(marker);
+            const y = marker.getBoundingClientRect().top;
+            marker.remove();
+            return y;
+          };
+          const inkCenter = element => {
+            const base = baseline(element);
+            const style = getComputedStyle(element);
+            canvas.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+            const text = [...element.childNodes].filter(node => node.nodeType === 3).map(node => node.textContent).join('').trim();
+            const metrics = canvas.measureText(text);
+            return base - (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2;
+          };
+          const boxCenter = element => { const r = element.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
+          const panel = document.getElementById('followPanel');
+          const end = document.getElementById('fpEnd');
+          const row = {
+            baselineDelta: Math.abs(baseline(document.getElementById('fpTrain')) - baseline(document.querySelector('#fpSpd > b'))),
+            dot: boxCenter(document.getElementById('fpDot')), train: inkCenter(document.getElementById('fpTrain')),
+            speed: inkCenter(document.querySelector('#fpSpd > b')), unit: inkCenter(document.getElementById('fpSpd')),
+            endLabel: inkCenter(end), endHeight: end.getBoundingClientRect().height,
+          };
+          return { ...row, compact: panel.classList.contains('fp-min'), theme: document.documentElement.getAttribute('data-theme'),
+            dataFs: document.documentElement.getAttribute('data-fs'), overflow: panel.scrollWidth - panel.clientWidth };
+        });
+        // km/h 是小一號的單位字、跟時速共用基線，墨水中心天生偏低，只列在 detail 不算進判準。
+        const textCenters = [ink.train, ink.speed];
+        const spread = Math.max(...textCenters, ink.dot, ink.endLabel) - Math.min(...textCenters, ink.dot, ink.endLabel);
+        const detail = `車次/時速/km/h/圓點/結束=${[ink.train, ink.speed, ink.unit, ink.dot, ink.endLabel].map(v => v.toFixed(2)).join('/')} 結束高=${ink.endHeight.toFixed(1)}`;
+        check(`${tag} C4 膠囊 ${theme}/${font} 前提成立（收合、主題、字級、44px 結束鈕）`, ink.compact && ink.theme === theme
+          && ink.dataFs === (font === 'std' ? null : font) && ink.endHeight >= 43.5, JSON.stringify(ink));
+        check(`${tag} C4 膠囊 ${theme}/${font} 車次、時速、圓點、結束字的垂直中心相差不超過 1.5px`, spread <= 1.5, `${detail} 差=${spread.toFixed(2)}`);
+        check(`${tag} C4 膠囊 ${theme}/${font} 車次與時速基線差不超過 1.5px`, ink.baselineDelta <= 1.5, `基線差=${ink.baselineDelta.toFixed(2)}`);
+        check(`${tag} C4 膠囊 ${theme}/${font} 無水平溢出`, ink.overflow <= 1, `panel=${ink.overflow}px`);
+      }
+    }
+    await page.evaluate(() => state._setAppearance('light'));
     check(`${tag} C3 零 pageerror／console.error`, errors.length === 0, errors.slice(0, 4).join(' | '));
     rows.push({ engine: engineName, width, train: `${target.sys}/${target.train}`,
       kmh: +target.kmh.toFixed(1), deltas: scenarioRows.map(row => +row.delta.toFixed(6)), errors: errors.length });
@@ -302,9 +363,9 @@ try {
 
 for (const row of rows) console.log(`CASE ${row.engine}/${row.width}px ${row.train} ${row.kmh}km/h 基線差=${row.deltas.join('/')}px errors=${row.errors}`);
 if (failures.length) {
-  console.error(`Issue #73 跟車卡驗收失敗：${failures.length} 項／${assertions} 個斷言${MUTATE ? '（突變模式）' : ''}`);
+  console.error(`Issue #73 跟車卡驗收失敗：${failures.length} 項／${assertions} 個斷言${MUTATE || MUTATE_END ? '（突變模式）' : ''}`);
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 const ranEngines = [...new Set(rows.map(row => row.engine))].join(' + ');
-console.log(`Issue #73 跟車卡驗收通過：${assertions}/${assertions}；${ranEngines}；${WIDTHS.join('/')}px；真觸控點車＋全畫面／公告／sheet 三態`);
+console.log(`Issue #73 跟車卡驗收通過：${assertions}/${assertions}；${ranEngines}；${WIDTHS.join('/')}px；真觸控點車＋全畫面／公告／sheet 三態＋膠囊亮暗×三字級`);
