@@ -69,6 +69,13 @@ const SCALE = 3;
 const BG = { light: 0.98, dark: 0.09 };
 /** 未收集灰（CollectionPalette.off）——r 閘門用；契約值，不是從 Swift 讀的。 */
 const OFF_GRAY = { light: 0.88, dark: 0.24 };
+/**
+ * 台灣輪廓的陸地填色（全台範圍）——09-30 比較圖量過對比後定案的設計值，契約值，不是從 Swift 讀的。
+ * 著色模式（mono）改用 primary 加低透明度：harness 跑在 macOS，`Color.primary` 是 alpha 0.85 的黑／白（同 lineColor 的說明），
+ * 填色 opacity 0.05 → 有效 alpha 0.0425 疊在卡底上。
+ */
+const OUTLINE_FILL = { light: 0.945, dark: 0.125 };
+const monoOutlineFill = scheme => { const a = 0.85 * 0.05; return scheme === 'dark' ? a + (1 - a) * BG.dark : (1 - a) * BG.light; };
 const DOT_RADIUS_RATIO = 0.0075, DOT_RADIUS_FLOOR = 1.0, SOLID_SCALE = 1.3, RING_RATIO = 0.45;
 
 // ── payload 樣本 ───────────────────────────────────────────────────────────────────────
@@ -395,6 +402,11 @@ struct Harness {
                                     w: w, h: h, scheme: scheme, mono: c.mono)
             try! hiddenPng.write(to: URL(fileURLWithPath: out + "/" + c.name + ".hidden.png"))
 
+            // D：只關掉台灣輪廓、點照畫——與 A 逐像素比，就知道輪廓實際落墨在哪；量點的位置也用這張。
+            let noOutline = pngData(makeView(c.fam, content).environment(\\.collectOutlineHidden, true),
+                                    w: w, h: h, scheme: scheme, mono: c.mono)
+            try! noOutline.write(to: URL(fileURLWithPath: out + "/" + c.name + ".nooutline.png"))
+
             results.append([
                 "name": c.name,
                 "probe": ["other": pts(probe.other), "off": pts(probe.off),
@@ -429,7 +441,8 @@ function runHarness({ src, out, quick }) {
   writeFileSync(harnessPath, harnessSwift);
   const bin = join(out, 'harness');
   execFileSync('swiftc', ['-O', '-parse-as-library', harnessPath,
-    join(src, 'CollectionCard.swift'), join(src, 'RailWidgetKit.swift'), join(src, 'RailNativeL10n.swift'),
+    join(src, 'CollectionCard.swift'), join(src, 'CollectionOutlineData.swift'),
+    join(src, 'RailWidgetKit.swift'), join(src, 'RailNativeL10n.swift'),
     '-o', bin], { stdio: 'inherit' });
   execFileSync(bin, [join(out, 'cases.json'), join(out, 'shots')], {
     stdio: 'inherit',
@@ -698,13 +711,16 @@ async function judge({ specs, results, out, src }) {
       check('b1', n, kinds.every(k => got[k].length === exp[k].length),
         `畫出的點數 其他系統灰/未收集/跟完/實心 = ${kinds.map(k => got[k].length).join('/')}，payload 應為 ${kinds.map(k => exp[k].length).join('/')}`);
 
-      // b2：每個點的座標圓盤內有墨跡（含視窗內的其他系統灰點）
+      // b2：每個點的座標圓盤內有墨跡（含視窗內的其他系統灰點）。
+      // 量「關掉輪廓」那張：台灣輪廓的填色（離卡底 0.105）與海岸線本身就是墨跡，留著的話，
+      // 位在陸地上的點就算沒畫出來，圓盤內也照樣「有墨跡」，這道閘門會失明。點與輪廓的疊放（點沒被輪廓蓋住）由 r 與 o3 量出貨那張。
       const shipped = await loadPixels(join(out, 'shots', `${n}.png`));
-      const sbg = px(shipped, 1, 1);
+      const bare = await loadPixels(join(out, 'shots', `${n}.nooutline.png`));
+      const sbg = px(bare, 1, 1);
       let missing = 0, total = 0;
       for (const k of kinds) for (const [lx, ly] of exp[k]) {
         total += 1;
-        if (!inkWithin(shipped, (map.x + lx) * SCALE, (map.y + ly) * SCALE, exp.R * SCALE + 0.5, sbg)) missing += 1;
+        if (!inkWithin(bare, (map.x + lx) * SCALE, (map.y + ly) * SCALE, exp.R * SCALE + 0.5, sbg)) missing += 1;
       }
       check('b2', n, missing === 0, `${missing}/${total} 個點的座標上是底色（位置對不上或沒畫）`);
 
@@ -735,6 +751,8 @@ async function judge({ specs, results, out, src }) {
         const bad = [];
         const r = exp.r, R = exp.R, ringMid = R - (R * RING_RATIO) / 2;
         const bgc = [BG[spec.scheme], BG[spec.scheme], BG[spec.scheme]];
+        const fillV = spec.mono ? monoOutlineFill(spec.scheme) : OUTLINE_FILL[spec.scheme];
+        const fillC = [fillV, fillV, fillV];
         const off = [OFF_GRAY[spec.scheme], OFF_GRAY[spec.scheme], OFF_GRAY[spec.scheme]];
         const cell = (x, y) => px(shipped, Math.floor(x), Math.floor(y));
         for (let row = 0; row < 10; row += 1) {
@@ -749,7 +767,10 @@ async function judge({ specs, results, out, src }) {
           const [c0, c1, c2] = [0, 1, 2].map(at);
           const p0 = cell(...c0), p1 = cell(...c1), p2 = cell(...c2);
           if (!(dist(p2, line) <= 0.12)) bad.push(`第${row}列 實心圓心 ${p2.map(v => v.toFixed(2))} 離線色 ${line.map(v => v.toFixed(2))} 太遠`);
-          if (!(dist(p1, bgc) <= 0.08)) bad.push(`第${row}列 空心圈圓心 ${p1.map(v => v.toFixed(2))} 不是底色（圈中間被填了）`);
+          // 空心圈的圓心是透明的，透出來的是圓心底下的東西：海上＝卡底，陸地上＝台灣輪廓的填色，海岸邊＝兩者的混色。
+          // 所以期望值是「卡底與輪廓填色之間」（±0.03）；被填成線色或未收集灰就落在這個區間外。
+          const lo = Math.min(bgc[0], fillC[0]) - 0.03, hi = Math.max(bgc[0], fillC[0]) + 0.03;
+          if (!p1.every(c => c >= lo && c <= hi)) bad.push(`第${row}列 空心圈圓心 ${p1.map(v => v.toFixed(2))} 不是底色或輪廓填色（圈中間被填了）`);
           if (!(dist(p0, off) <= 0.08)) bad.push(`第${row}列 未收集點圓心 ${p0.map(v => v.toFixed(2))} 不是未收集灰`);
           if (!(dist(p1, p2) >= 0.5 * gap)) bad.push(`第${row}列 空心圓心與實心圓心只差 ${dist(p1, p2).toFixed(2)}，分不出空心與實心`);
           // 圈上：圈寬中線半徑上、八個方向各取一點，都要比「一半」更接近線色
@@ -1103,7 +1124,7 @@ const MUTATIONS = [
 function stageSource(dest, mutation) {
   rmSync(dest, { recursive: true, force: true });
   mkdirSync(dest, { recursive: true });
-  for (const f of ['CollectionCard.swift', 'CollectionWidget.swift', 'RailWidgetKit.swift', 'RailNativeL10n.swift', 'RailBoardWidget.swift']) {
+  for (const f of ['CollectionCard.swift', 'CollectionOutlineData.swift', 'CollectionWidget.swift', 'RailWidgetKit.swift', 'RailNativeL10n.swift', 'RailBoardWidget.swift']) {
     cpSync(join(realSrc, f), join(dest, f));
   }
   for (const f of ['RailMetroWaitPlugin.swift', 'CollectCheckinIntent.swift']) cpSync(join(appSrc, f), join(dest, f));
@@ -1185,7 +1206,7 @@ async function main() {
     static func text(`));
     src = dest;
   }
-  for (const f of ['CollectionCard.swift', 'RailWidgetKit.swift', 'RailNativeL10n.swift', 'RailBoardWidget.swift']) {
+  for (const f of ['CollectionCard.swift', 'CollectionOutlineData.swift', 'RailWidgetKit.swift', 'RailNativeL10n.swift', 'RailBoardWidget.swift']) {
     if (!existsSync(join(src, f))) throw new Error(`找不到 ${join(src, f)}`);
   }
   const run = runHarness({ src, out: outRoot, quick: flag('--quick') });

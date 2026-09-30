@@ -242,6 +242,10 @@ struct CollectionMapHiddenKey: EnvironmentKey { static let defaultValue = false 
 /// 打開後，Canvas 每畫一個點就記一筆（量的是真的 fill／stroke 呼叫，不是事先算好的長度）：
 /// 筆數之外，連每個點的圓心（Canvas 座標，pt）一起記下，驗收腳本拿去跟 payload 獨立算出的座標比。
 struct CollectionProbeKey: EnvironmentKey { static let defaultValue: CollectionDrawProbe? = nil }
+/// 打開後，只關掉台灣輪廓（點照畫）：驗收腳本拿「有輪廓」與「關掉輪廓」兩張逐像素比，才量得到輪廓有沒有
+/// 侵入文字、進度條與蓋章鈕；量點的位置也用關掉輪廓的那張——輪廓的填色與海岸線本身就是離底色很遠的墨跡，
+/// 留著會讓「沒畫出來的點」被輪廓的墨跡蓋過去。
+struct CollectionOutlineHiddenKey: EnvironmentKey { static let defaultValue = false }
 
 final class CollectionDrawProbe: @unchecked Sendable {
     /// 各層畫出的圓心：other＝視窗內其他系統的淡灰點、off＝未收集、follow＝跟完（空心圈）、solid＝搭過／到訪。
@@ -263,6 +267,10 @@ extension EnvironmentValues {
     var collectProbe: CollectionDrawProbe? {
         get { self[CollectionProbeKey.self] }
         set { self[CollectionProbeKey.self] = newValue }
+    }
+    var collectOutlineHidden: Bool {
+        get { self[CollectionOutlineHiddenKey.self] }
+        set { self[CollectionOutlineHiddenKey.self] = newValue }
     }
 }
 
@@ -471,14 +479,20 @@ struct CollectionMapView: View {
     /// 點的畫面座標：0..1000（全台）或視窗內（單一系統）先正規化成 0..1，再留出已收集點的半徑當內距，
     /// 最邊上的點才不會被裁掉。全台與單一系統共用這一條公式，只差 u、v 的來源。
     static func center(_ dot: CollectionDot, in size: CGSize, viewport: CollectionViewport? = nil) -> CGPoint {
+        center(x: dot.x, y: dot.y, in: size, viewport: viewport)
+    }
+
+    /// 同一條公式的 (x, y) 版本：點（CollectionDot）與台灣輪廓（CollectionOutlineLayer）都走這裡，
+    /// 兩者的座標轉換因此在結構上就是同一份，輪廓不會跟點錯位。
+    static func center(x: Double, y: Double, in size: CGSize, viewport: CollectionViewport? = nil) -> CGPoint {
         let inset = radius(forHeight: size.height) * CollectionMetrics.solidScale
         let u: Double, v: Double
         if let vp = viewport {
-            u = (dot.x - vp.x0) / vp.size
-            v = (dot.y - vp.y0) / vp.size
+            u = (x - vp.x0) / vp.size
+            v = (y - vp.y0) / vp.size
         } else {
-            u = dot.x / 1000
-            v = dot.y / 1000
+            u = x / 1000
+            v = y / 1000
         }
         return CGPoint(x: inset + u * (size.width - 2 * inset),
                        y: inset + v * (size.height - 2 * inset))
@@ -493,6 +507,8 @@ struct CollectionMapView: View {
         let off = CollectionPalette.off(scheme)
         let otherOff = CollectionPalette.otherOff(scheme)
         ZStack {
+            // 最底層：台灣輪廓。座標公式與點相同；不加 widgetAccentable（著色模式下它只是淡淡的墊圖）。
+            CollectionOutlineLayer(viewport: viewport, hidden: hidden)
             // 底層：其他系統的淡灰點（單一系統視窗才有），再來是這個範圍未收集的中性灰。
             Canvas { ctx, size in
                 probe?.other = []
@@ -542,6 +558,112 @@ struct CollectionMapView: View {
             .widgetAccentable()
         }
         .collectReport("map")
+    }
+}
+
+// MARK: - 台灣輪廓（點陣地圖最底層的墊圖）
+
+// 使用者 09-30 11:41：「我覺得卡片的背景可能還是要有個輕輕的台灣輪廓」；看完比較圖後選了
+// 「全台填色，單一系統細線（建議）」。所以：全台範圍畫淡色陸地填色，單一系統範圍改畫細海岸線並把四邊淡出——
+// 單一系統放大到某個區域時，填色的邊緣會變成一塊柔邊方框，還會蓋掉其他系統的淡灰點。
+// 資料是 CollectionOutlineData.polygons（build_collect_outline.mjs 產生，iOS、Android 共用同一份多邊形）。
+
+enum CollectionOutlineMetrics {
+    /// 全台範圍：畫布往四邊各多開「地圖高 × 這個比例」，恆春半島南端（超出點陣框約 10%）與嘉南西岸才不會被切平。
+    /// 只是畫得出去；版面大小不變，也不接收點擊。
+    static let overflowRatio: CGFloat = 0.12
+    /// 單一系統範圍：輪廓只畫在地圖框內，四邊各淡出「地圖寬 × 這個比例」，不留硬邊方框。
+    static let fadeRatio: CGFloat = 0.16
+    /// 單一系統範圍的海岸線寬（pt）。
+    static let lineWidth: CGFloat = 0.75
+}
+
+enum CollectionOutlinePalette {
+    /// 全台的陸地填色：介於卡底（淺 0.98／深 0.09）與未收集灰點（淺 0.88／深 0.24）之間、靠近卡底，
+    /// 灰點放在填色上的對比仍有放在卡底上的九成以上。
+    /// 著色模式（mono）：系統會把顏色壓成單一色調，改用 primary 加低透明度，畫出來仍是淡淡的一層。
+    static func fill(_ scheme: ColorScheme, mono: Bool) -> Color {
+        if mono { return Color.primary.opacity(0.05) }
+        return scheme == .dark ? Color(white: 0.125) : Color(white: 0.945)
+    }
+
+    /// 單一系統的海岸線：比未收集灰點再淡一點（點是主角，線只是輪廓）。
+    static func line(_ scheme: ColorScheme, mono: Bool) -> Color {
+        if mono { return Color.primary.opacity(0.10) }
+        return scheme == .dark ? Color(white: 0.19) : Color(white: 0.905)
+    }
+}
+
+struct CollectionOutlineLayer: View {
+    /// nil＝整島框（全台，畫填色）；非 nil＝單一系統的取景視窗（畫細線、四邊淡出）。
+    /// 與 CollectionMapView 傳給點的是同一個視窗。
+    var viewport: CollectionViewport?
+    /// 地圖整個藏起來（驗收用）時輪廓也一起藏。
+    var hidden: Bool
+
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.railMonochrome) private var mono
+    @Environment(\.collectOutlineHidden) private var outlineHidden
+
+    var body: some View {
+        GeometryReader { geo in
+            let mapSize = geo.size
+            let margin = viewport == nil ? mapSize.height * CollectionOutlineMetrics.overflowRatio : 0
+            let scheme = self.scheme, mono = self.mono, viewport = self.viewport
+            let skip = hidden || outlineHidden
+            faded(
+                Canvas { ctx, _ in
+                    guard !skip else { return }
+                    // 畫布比地圖框大一圈（全台）：把座標系平移回地圖框的左上角，轉換公式才與點完全一致。
+                    ctx.translateBy(x: margin, y: margin)
+                    let path = Self.path(in: mapSize, viewport: viewport)
+                    if viewport == nil {
+                        ctx.fill(path, with: .color(CollectionOutlinePalette.fill(scheme, mono: mono)))
+                    } else {
+                        ctx.stroke(path, with: .color(CollectionOutlinePalette.line(scheme, mono: mono)),
+                                   style: StrokeStyle(lineWidth: CollectionOutlineMetrics.lineWidth,
+                                                      lineCap: .round, lineJoin: .round))
+                    }
+                }
+                .frame(width: mapSize.width + 2 * margin, height: mapSize.height + 2 * margin)
+                .offset(x: -margin, y: -margin),
+                in: mapSize)
+        }
+        .allowsHitTesting(false)
+    }
+
+    /// 單一系統範圍才淡出：橫向、縱向各一道漸層遮罩，四邊都柔和收掉；全台範圍原樣。
+    @ViewBuilder
+    private func faded<Content: View>(_ content: Content, in size: CGSize) -> some View {
+        if viewport == nil {
+            content
+        } else {
+            let d = size.width * CollectionOutlineMetrics.fadeRatio
+            content
+                .mask(Self.ramp(d / max(size.width, 1), .leading, .trailing))
+                .mask(Self.ramp(d / max(size.height, 1), .top, .bottom))
+        }
+    }
+
+    private static func ramp(_ f: CGFloat, _ from: UnitPoint, _ to: UnitPoint) -> LinearGradient {
+        LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: f),
+                               .init(color: .black, location: 1 - f), .init(color: .clear, location: 1)],
+                       startPoint: from, endPoint: to)
+    }
+
+    /// 所有多邊形串成一條路徑，每個頂點都走 CollectionMapView.center（與點同一條公式）。
+    static func path(in size: CGSize, viewport: CollectionViewport?) -> Path {
+        var path = Path()
+        for poly in CollectionOutlineData.polygons {
+            var i = 0
+            while i + 1 < poly.count {
+                let p = CollectionMapView.center(x: poly[i], y: poly[i + 1], in: size, viewport: viewport)
+                if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
+                i += 2
+            }
+            path.closeSubpath()
+        }
+        return path
     }
 }
 
