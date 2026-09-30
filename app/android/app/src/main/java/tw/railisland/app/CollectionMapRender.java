@@ -111,8 +111,13 @@ final class CollectionMapRender {
         }
     }
 
-    static Bleed bleed(Resources r) {
-        return new Bleed(Math.round(r.getDimension(R.dimen.wc_bleed_start)), Math.round(r.getDimension(R.dimen.wc_bleed_top)),
+    /**
+     * 小卡的地圖在右、文字欄在左：ImageView 從文字欄右緣開始，【左邊不出血】（start＝0）。Bitmap 的邊界就是 ImageView 的邊界，
+     * 輪廓的墨不可能越過文字欄右緣，所以不論字多寬、什麼語言、多大的字級，都不會落進任何文字的字形框（結構性保證，不靠估字寬）。
+     * 代價：西岸最西處（超出點陣框約 6.6% 寬）在小卡被切在點陣框左緣。中卡的地圖在左，左邊是卡片內距，仍出血 8dp。
+     */
+    static Bleed bleed(Resources r, boolean small) {
+        return new Bleed(small ? 0 : Math.round(r.getDimension(R.dimen.wc_bleed_start)), Math.round(r.getDimension(R.dimen.wc_bleed_top)),
             Math.round(r.getDimension(R.dimen.wc_bleed_end)), Math.round(r.getDimension(R.dimen.wc_bleed_bottom)));
     }
 

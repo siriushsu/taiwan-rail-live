@@ -150,7 +150,7 @@ final class CollectionWidgetRender {
             float bodyH = Math.max(48, hDp - CARD_PAD_V - 16 - 6 - 4);
             float slotW = (wDp - CARD_PAD_H) * 0.42f;
             float mapH = Math.min(bodyH, slotW / (float) f.aspect);
-            setMaps(v, f, mapH, density, c.getResources());
+            setMaps(v, f, mapH, density, c.getResources(), true);
         }
         v.setContentDescription(R.id.wc_root, describe(c, f));
         return v;
@@ -224,7 +224,7 @@ final class CollectionWidgetRender {
         float bodyH = Math.max(48, hDp - CARD_PAD_V);
         float slotW = (wDp - CARD_PAD_H - 8) * 0.30f;
         float mapH = Math.min(bodyH, slotW / (float) f.aspect);
-        setMaps(v, f, mapH, density, c.getResources());
+        setMaps(v, f, mapH, density, c.getResources(), false);
         v.setContentDescription(R.id.wc_root, describe(c, f));
         return v;
     }
@@ -320,8 +320,8 @@ final class CollectionWidgetRender {
      * 淺／深兩張 Bitmap 疊同一格，資源限定的 alpha 決定露出哪一張。高度取版面預期的地圖高（dp）換成像素；
      * Bitmap＝點陣框＋出血（框外一圈透明邊，輪廓的恆春半島南端與西岸畫在這裡），整張超過像素上限就把框縮小。
      */
-    private static void setMaps(RemoteViews v, CollectionData.Figures f, float mapHDp, float density, android.content.res.Resources res) {
-        CollectionMapRender.Bleed bleed = CollectionMapRender.bleed(res);
+    private static void setMaps(RemoteViews v, CollectionData.Figures f, float mapHDp, float density, android.content.res.Resources res, boolean small) {
+        CollectionMapRender.Bleed bleed = CollectionMapRender.bleed(res, small);
         int want = Math.min(MAP_MAX_PX, Math.max(120, Math.round(Math.min(mapHDp, MAP_MAX_DP) * density)));
         int px = CollectionMapRender.frameHeightPx(f.aspect, want, bleed);
         Bitmap light = CollectionMapRender.render(f, false, px, density, bleed);

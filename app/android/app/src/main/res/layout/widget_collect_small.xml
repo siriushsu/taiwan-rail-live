@@ -10,7 +10,8 @@
         PendingIntent 開 railisland://checkin；容器以外的地方仍是開旅程護照。
         🔴 觸控命中只看「每一層祖先的邊界」：容器伸出去的部分必須還在祖先的邊界裡才點得到，所以卡片下緣 15dp 的內距拆成
         根 3dp（陰影）＋文字欄與地圖欄各自的 paddingBottom 12dp，容器用 -12dp 下邊距伸進文字欄的內距。
-     🔴 地圖 ImageView 用負邊距（wc_bleed_*_neg）比欄位大一圈，Bitmap 帶等量的透明「出血」，全台輪廓的恆春半島南端與西岸畫在這一圈裡；
+     🔴 地圖 ImageView 用負邊距（wc_bleed_top／end／bottom_neg）比欄位大一圈，Bitmap 帶等量的透明「出血」，全台輪廓的恆春半島南端畫在這一圈裡；
+        【左邊不出血】（沒有 start 負邊距，CollectionMapRender.bleed(res, true) 的 start＝0）：ImageView 從文字欄右緣開始，輪廓的墨不可能進到文字欄；
         沿路的祖先要 clipChildren／clipToPadding = false 才畫得出去。
      🔴 空狀態（一站都還沒收集）與正常狀態共用這一張，由 CollectionWidgetRender 決定露出哪幾個 TextView；
         兩者【id 完全相同】，binder 只有一份。 -->
@@ -174,7 +175,6 @@
                 android:id="@+id/wc_map_light"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_marginStart="@dimen/wc_bleed_start_neg"
                 android:layout_marginTop="@dimen/wc_bleed_top_neg"
                 android:layout_marginEnd="@dimen/wc_bleed_end_neg"
                 android:layout_marginBottom="@dimen/wc_bleed_bottom_neg"
@@ -186,7 +186,6 @@
                 android:id="@+id/wc_map_dark"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_marginStart="@dimen/wc_bleed_start_neg"
                 android:layout_marginTop="@dimen/wc_bleed_top_neg"
                 android:layout_marginEnd="@dimen/wc_bleed_end_neg"
                 android:layout_marginBottom="@dimen/wc_bleed_bottom_neg"
