@@ -551,6 +551,38 @@ public final class CollectionWidgetInstrumentedTest {
         }
     }
 
+    /**
+     * 這個 view 實際會被畫出來的區域（root 座標、像素）：從自己一路往上到 root，
+     * 被父層 clipChildren 的 view 取自己的邊界（軟體繪製時每個孩子被裁在自己的邊界裡）；
+     * clipToPadding（預設 true）且有內距的祖先取內距框（dispatchDraw 會 clipRect 內距框）。
+     * 文字欄 paddingBottom 12dp＋clipToPadding 預設 true，就是這樣把溢出欄上緣的百分比裁掉的。
+     */
+    private static float[] visibleClip(View v, View root) {
+        float l = -1e9f, t = -1e9f, r = 1e9f, b = 1e9f;
+        for (View cur = v; cur != null; ) {
+            float[] o = originOf(cur, root);
+            if (cur.getParent() instanceof ViewGroup && ((ViewGroup) cur.getParent()).getClipChildren()) {
+                l = Math.max(l, o[0]);
+                t = Math.max(t, o[1]);
+                r = Math.min(r, o[0] + cur.getWidth());
+                b = Math.min(b, o[1] + cur.getHeight());
+            }
+            if (cur != v && cur instanceof ViewGroup) {
+                ViewGroup g = (ViewGroup) cur;
+                boolean padded = g.getPaddingLeft() != 0 || g.getPaddingTop() != 0 || g.getPaddingRight() != 0 || g.getPaddingBottom() != 0;
+                if (g.getClipToPadding() && padded) {
+                    l = Math.max(l, o[0] + g.getPaddingLeft());
+                    t = Math.max(t, o[1] + g.getPaddingTop());
+                    r = Math.min(r, o[0] + g.getWidth() - g.getPaddingRight());
+                    b = Math.min(b, o[1] + g.getHeight() - g.getPaddingBottom());
+                }
+            }
+            if (cur == root) break;
+            cur = cur.getParent() instanceof View ? (View) cur.getParent() : null;
+        }
+        return new float[] { l, t, r, b };
+    }
+
     private static JSONArray rect(float l, float t, float r, float b, float density) throws Exception {
         return new JSONArray().put(l / density).put(t / density).put(r / density).put(b / density);
     }
@@ -595,6 +627,9 @@ public final class CollectionWidgetInstrumentedTest {
                 // 垂直被裁：LinearLayout 給的高度比文字需要的矮
                 float need = layout.getHeight() + t.getCompoundPaddingTop() + t.getCompoundPaddingBottom();
                 o.put("clippedV", v.getHeight() + 0.5f < need);
+                // 祖先造成的裁切區（clippedV 只看 view 自己，看不到祖先把它裁掉）
+                float[] clip = visibleClip(v, root);
+                o.put("clip", rect(clip[0], clip[1], clip[2], clip[3], density));
             }
             out.put(o);
         } else if (v instanceof ProgressBar && !name.isEmpty()) {

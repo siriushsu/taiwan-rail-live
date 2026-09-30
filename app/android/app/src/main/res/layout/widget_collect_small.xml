@@ -13,6 +13,9 @@
      🔴 地圖 ImageView 用負邊距（wc_bleed_top／end／bottom_neg）比欄位大一圈，Bitmap 帶等量的透明「出血」，全台輪廓的恆春半島南端畫在這一圈裡；
         【左邊不出血】（沒有 start 負邊距，CollectionMapRender.bleed(res, true) 的 start＝0）：ImageView 從文字欄右緣開始，輪廓的墨不可能進到文字欄；
         沿路的祖先要 clipChildren／clipToPadding = false 才畫得出去。
+     🔴 文字欄由下往上排（貼底），標題與文字欄之間的空隙不是 margin：文字欄從標題列底緣開始，空隙是「剩下的高度」自然產生的，
+        CollectionWidgetRender 的高度預算另留 HEAD_GAP；矮卡（110dp 高的 2×2）會把預算壓小，百分比才放得下。
+        已收集的上距 4dp 用 paddingTop（RemoteViews 改得了 padding、改不了 margin），矮卡時改成 0。地圖欄的 paddingTop＝原本的 margin 6＋padding 4。
      🔴 空狀態（一站都還沒收集）與正常狀態共用這一張，由 CollectionWidgetRender 決定露出哪幾個 TextView；
         兩者【id 完全相同】，binder 只有一份。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -62,7 +65,6 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="6dp"
         android:layout_weight="1"
         android:baselineAligned="false"
         android:clipChildren="false"
@@ -91,12 +93,12 @@
                 android:id="@+id/wc_count"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
                 android:autoSizeMaxTextSize="11sp"
                 android:autoSizeMinTextSize="8sp"
                 android:autoSizeTextType="uniform"
                 android:includeFontPadding="false"
                 android:maxLines="1"
+                android:paddingTop="4dp"
                 android:textColor="@color/wg_ink"
                 android:textSize="11sp"
                 android:textStyle="bold" />
@@ -168,7 +170,7 @@
             android:layout_height="match_parent"
             android:layout_weight="42"
             android:clipToPadding="false"
-            android:paddingTop="4dp"
+            android:paddingTop="10dp"
             android:paddingBottom="12dp">
 
             <ImageView

@@ -166,9 +166,11 @@ const OUTLINE_SCOPED = ['tra', 'trtc', 'krtc'];
 const INK_ALPHA = 8;
 /** 蓋章膠囊尺寸（dp，改可點範圍前量到的值，尺寸不變）：高 17.9，寬依語言。 */
 const STAMP_W = { zh: 35.8, en: 45.3, ja: 55.6 };
-const totals = { land: 0, sea: 0, pen: 0, contrast: 0, inkBoxes: 0, scoped: 0 };
+const totals = { land: 0, sea: 0, pen: 0, contrast: 0, inkBoxes: 0, scoped: 0, textPairs: 0, clipRegions: 0 };
 /** 取樣點覆蓋的下限＝2026-09-30 量到的實數（land 1080、sea 1350、pen 540、contrast 198、inkBoxes 2298、scoped 246）的約 90%：分母縮水就紅。 */
 const LAND_MIN = 950, SEA_MIN = 1200, PEN_MIN = 480, CON_MIN = 170, INK_MIN = 2050, SCOPED_MIN = 220;
+/** A9 版面關係的覆蓋下限（2026-09-30 量到 textPairs 8435、clipRegions 2193 的約 90%）。 */
+const PAIRS_MIN = 7500, CLIPS_MIN = 1950;
 /** 把 PNG 裁到點陣框：at(x,y)＝原圖 (x+start, y+top)；框外（出血區）用負座標或超過 w／h 取得。 */
 function framed(raw, family, dpr) {
   const b = BLEED[family];
@@ -328,6 +330,30 @@ for (const c of cases) {
     if (n.glyph) {
       const [gl, gt, gr, gb] = n.glyph;
       check('字形在卡片範圍內', gl >= -0.5 && gt >= -0.5 && gr <= c.wDp + 0.5 && gb <= c.hDp + 0.5, () => `${tag}：${n.id} 字形 [${n.glyph.map(v => v.toFixed(1))}] 超出 ${c.wDp}x${c.hDp}`);
+    }
+  }
+
+  // A9 版面關係（不寫死任何尺寸，只看「誰跟誰不能碰」）：
+  //    · 任兩個可見文字的字形框不相交（110dp 小卡的百分比壓進標題列時，兩個字形框重疊 3.9dp，舊判準只比對 view 自己與它的字，看不到）
+  //    · 可見文字的字形框不超出祖先的裁切區（obs 的 clip：裝置端 harness 從實際 View 旗標算出來——clipToPadding 的祖先取內距框、
+  //      被 clipChildren 的 view 取自己的邊界；文字欄的 paddingBottom 12dp＋clipToPadding 預設 true，就是這樣把百分比上半裁在欄上緣的）
+  {
+    const texts = obs.nodes.filter(n => n.kind === 'text' && n.visible && (n.text ?? '') !== '' && n.glyph);
+    const f1 = v => v.toFixed(1);
+    for (let i = 0; i < texts.length; i++) {
+      const a = texts[i], g = a.glyph;
+      if (a.clip) {
+        totals.clipRegions++;
+        check('可見文字的字形框不超出祖先的裁切區（例：文字欄的內距框）', g[0] >= a.clip[0] - 0.5 && g[1] >= a.clip[1] - 0.5 && g[2] <= a.clip[2] + 0.5 && g[3] <= a.clip[3] + 0.5,
+          () => `${tag}：${a.id}=${JSON.stringify(a.text)} 字形 [${g.map(f1)}] 超出裁切區 [${a.clip.map(f1)}]`);
+      }
+      for (let j = i + 1; j < texts.length; j++) {
+        const b = texts[j], h = b.glyph;
+        const ix = Math.min(g[2], h[2]) - Math.max(g[0], h[0]), iy = Math.min(g[3], h[3]) - Math.max(g[1], h[1]);
+        totals.textPairs++;
+        check('任兩個可見文字的字形框不相交', !(ix > 0.5 && iy > 0.5),
+          () => `${tag}：${a.id}=${JSON.stringify(a.text)} [${g.map(f1)}] 與 ${b.id}=${JSON.stringify(b.text)} [${h.map(f1)}] 相交 ${f1(ix)}x${f1(iy)}dp`);
+      }
     }
   }
 
@@ -643,8 +669,9 @@ for (const [name, s] of [...stats].sort()) {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}（檢查 ${s.n} 次${s.bad ? `，失敗 ${s.bad}` : ''}）`);
 }
 check('地圖像素分析至少跑了 30 張', mapsChecked >= 30, `只跑了 ${mapsChecked} 張`);
-check('輪廓取樣點總數不縮水（內陸、海上、南端、對比、墨框、單一系統輪廓的取樣數都不低於量到的實數的約 90%）',
-  totals.land >= LAND_MIN && totals.sea >= SEA_MIN && totals.pen >= PEN_MIN && totals.contrast >= CON_MIN && totals.inkBoxes >= INK_MIN && totals.scoped >= SCOPED_MIN, () => `實際 ${JSON.stringify(totals)}`);
+check('取樣總數不縮水（輪廓的內陸、海上、南端、對比、墨框、單一系統，以及版面關係的文字對數、裁切區數，都不低於量到的實數的約 90%）',
+  totals.land >= LAND_MIN && totals.sea >= SEA_MIN && totals.pen >= PEN_MIN && totals.contrast >= CON_MIN && totals.inkBoxes >= INK_MIN && totals.scoped >= SCOPED_MIN
+    && totals.textPairs >= PAIRS_MIN && totals.clipRegions >= CLIPS_MIN, () => `實際 ${JSON.stringify(totals)}`);
 if (mapsChecked < 30) { red++; console.log(`FAIL 地圖像素分析至少跑了 30 張（只跑了 ${mapsChecked}）`); }
 if (failures.length) {
   console.error(`\n失敗明細（前 40 筆／共 ${failures.length}）：`);

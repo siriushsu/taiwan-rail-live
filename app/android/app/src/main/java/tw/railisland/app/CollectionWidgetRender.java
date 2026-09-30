@@ -40,8 +40,12 @@ final class CollectionWidgetRender {
     private static final int ROW_BAR = 8;
     private static final int ROW_REMAIN = 23;       // 含 marginTop 5
     private static final int ROW_RECENT = 19;
-    /** 小卡文字欄最下面的蓋章鈕區塊高（dp）：與數字的間距 6＋膠囊 18（見 widget_collect_small.xml 的 wc_stamp_hit）。 */
+    /** 小卡文字欄最下面的蓋章鈕區塊高（dp）：與數字的間距 6＋膠囊 18（見 widget_collect_small.xml 的 wc_stamp_hit；實測 24.1）。 */
     private static final int STAMP_BLOCK = 24;
+    /** 小卡高度預算：標題與文字欄之間留的空隙、百分比與「已收集」的間距（正常／矮卡壓縮後）。只有後者是版面真的會變的屬性（wc_count 的 paddingTop）。 */
+    private static final float HEAD_GAP = 6f, HEAD_GAP_TIGHT = 2f, COUNT_GAP = 4f;
+    /** 百分比大字一行的高度倍數（實測 20sp→23.7dp、34sp→40.0dp，取 1.2 留餘裕）、正常間距下的字級下限、再矮時的絕對下限（sp）。 */
+    private static final float PCT_LH = 1.2f, PCT_FLOOR = 20f, PCT_MIN = 12f;
     /** 單張地圖的點陣框高上限（dp）：出血（下緣 18dp）只夠最高約 190dp 的地圖把恆春半島南端畫完。 */
     private static final float MAP_MAX_DP = 190f;
     /** CJK 行高約為字級的 1.45 倍（obs.json 量到 13sp→18.7dp、11sp→16dp）；拉丁字母較矮，一律取大的，寧可少放一行也不讓字被裁。 */
@@ -128,16 +132,26 @@ final class CollectionWidgetRender {
             v.setViewVisibility(R.id.wc_empty_hint, android.view.View.GONE);
             v.setTextViewText(R.id.wc_pct, bigPercent(f.percentLabel));
             float pctSp = percentSp(f.percentLabel, colW, fs);
-            // 高度預算：百分比（字級×1.2）＋已收集一行＋還有一行（各 16dp 量到的行高）。放不下先丟次要的「還有 N 座」，
-            // 再放不下才縮百分比；關鍵數字（百分比與已收集）永遠留著。
-            // 蓋章鈕在文字欄最下面（STAMP_BLOCK），預算要先扣掉它：關鍵數字與鈕都要留，所以先丟「還有 N 座」，再縮百分比（下限 20sp）。
-            float bodyH = hDp - CARD_PAD_V - 16 - 6;
-            float textH = 4 + 16 * fs + 1 + 16 * fs;
-            boolean remain = pctSp * 1.2f * fs + textH + STAMP_BLOCK <= bodyH;
+            // 高度預算（dp）：卡高扣掉上下內距（CARD_PAD_V，含文字欄底部 12）與標題列（13sp 一行，CJK 行高約 1.45 倍；拉丁字母較矮，取大的），
+            // 剩下給文字欄。文字欄由下往上排：蓋章區塊（STAMP_BLOCK）→「還有 N 座」（放得下才放）→ 已收集 → 百分比大字；標題與文字欄之間另留 HEAD_GAP。
+            // 先丟次要的「還有 N 座」；再放不下，百分比縮到 PCT_FLOOR；還是放不下（110dp 高的 2×2）就把兩段間距壓到最小、百分比再縮到放得下為止。
+            // 🔴 標題、百分比、已收集、蓋章鈕都要完整看得見：寧可字小，也不讓任何一個被裁在文字欄外（2026-09-30 110dp 高的百分比上半被裁）。
+            float room = hDp - CARD_PAD_V - 13 * LINE_H * fs;
+            float lineH = 16 * fs;                        // 11sp 一行（CJK 行高，實測 16.0dp）
+            float countGap = COUNT_GAP;
+            boolean remain = pctSp * PCT_LH * fs + HEAD_GAP + COUNT_GAP + lineH + 1 + lineH + STAMP_BLOCK <= room;
             if (!remain) {
-                textH = 4 + 16 * fs;
-                pctSp = Math.max(20f, Math.min(pctSp, (bodyH - textH - STAMP_BLOCK) / (1.2f * fs)));
+                float fit = (room - HEAD_GAP - COUNT_GAP - lineH - STAMP_BLOCK) / (PCT_LH * fs);
+                if (fit >= PCT_FLOOR) {
+                    pctSp = Math.min(pctSp, fit);
+                } else {
+                    countGap = 0;
+                    fit = (room - HEAD_GAP_TIGHT - lineH - STAMP_BLOCK) / (PCT_LH * fs);
+                    pctSp = Math.max(PCT_MIN, Math.min(PCT_FLOOR, fit));
+                }
             }
+            // 已收集的上距用 padding（RemoteViews 改得了 padding、改不了 margin）；每次都明講（launcher 是 reapply 到舊 View 樹）
+            v.setViewPadding(R.id.wc_count, 0, Math.round(countGap * c.getResources().getDisplayMetrics().density), 0, 0);
             v.setTextViewTextSize(R.id.wc_pct, android.util.TypedValue.COMPLEX_UNIT_SP, pctSp);
             v.setTextViewText(R.id.wc_count, countText);
             v.setTextViewText(R.id.wc_remain, remainText);
