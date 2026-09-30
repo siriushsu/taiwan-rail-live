@@ -172,7 +172,17 @@ async function boot(browser, { bridge = true, plus = false, startResult = null, 
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror:' + String(e)));
-  page.on('console', m => { if (m.type() === 'error') errors.push('console:' + m.text().slice(0, 200)); });
+  page.on('console', m => {
+    if (m.type() !== 'error') return;
+    const location = m.location().url || '';
+    let origin = ''; try { origin = new URL(location).origin; } catch {}
+    // 此處驗 JavaScript／原生橋接契約；外部底圖的 HTTP 錯誤是瀏覽器網路訊息，
+    // 並非 JS 例外。仍記錄來源；本機 API 錯誤與真正的 console.error/pageerror 照樣判紅。
+    if (m.text().startsWith('Failed to load resource:') && origin && origin !== new URL(base).origin) {
+      console.log('外部網路訊息（LA 測試不連實際資料服務）：', origin, m.text()); return;
+    }
+    errors.push('console:' + m.text().slice(0, 200) + (origin ? ' @' + origin : ''));
+  });
   await page.goto(base, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 40000 });
   if (plus) await setPlus(page, true);
