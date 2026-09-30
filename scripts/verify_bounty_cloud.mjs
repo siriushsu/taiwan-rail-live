@@ -2,10 +2,10 @@
 // 離線：假 D1（scripts/d1_local.mjs，真 SQLite）＋ stub ASSETS（班表檔讀 data/、或換成合成的）＋ BOUNTY_NOW 釘死；不起伺服器、不碰網路。
 // 跑法：node scripts/verify_bounty_cloud.mjs
 //
-// 期望值全部寫死在這裡，不呼叫實作（連 scripts/bounty_chips_core.mjs 都不呼叫）去產生期望。來源分兩種，不混寫：
-//   ・使用者原話（09-29，逐字）：「捷運不用懸賞」「1跟2照你建議」。
-//   ・其餘數字（雲端搭乘連續 600 秒算 1 次、每日最多 1 次、3 次換 1 個籌碼）來自 data/bounty_rules.json 的 chips.cloud 與
-//     主對話派工單的判讀，不是使用者逐字說的。
+// 期望值全部寫死在這裡，不呼叫實作（連 scripts/bounty_chips_core.mjs 都不呼叫）去產生期望：
+//   ・產品規則：捷運不列入懸賞；每日上限 4 籌碼、一趟至少 10 分鐘。
+//   ・其餘數字（雲端搭乘連續 600 秒算 1 次、每日最多 1 次、3 次換 1 個籌碼）來自 data/bounty_rules.json 的 chips.cloud，
+//     這裡照抄成字面。
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準（突變表在回報裡）。
 //
 // ⚠️ 假 D1 的保真度（稽核 F20）：scripts/d1_local.mjs 的 batch() 是排隊序列化的，但 batch 之外的單句寫入

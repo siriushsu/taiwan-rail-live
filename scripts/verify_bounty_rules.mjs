@@ -1,5 +1,5 @@
 // 懸賞設定檔 v2 的結構檢查：每個線鍵真的在題庫裡、場景 id 真的在車庫場景表裡、價格是正整數、
-// 去重門檻不含捷運（09-29「捷運不用懸賞」）。跑法：node scripts/verify_bounty_rules.mjs
+// 去重門檻不含捷運（捷運不列入懸賞）。跑法：node scripts/verify_bounty_rules.mjs
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';

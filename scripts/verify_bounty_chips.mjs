@@ -1,5 +1,5 @@
 // 籌碼純函式驗收（路段懸賞 v2 籌碼規則）。跑法：node scripts/verify_bounty_chips.mjs
-// 期望值寫死在這裡，來源是使用者 09-29 的裁示（每日上限 4、一趟至少 10 分鐘、第 1 座 4 之後每座 8、
+// 期望值寫死在這裡，是定案的產品規則（每日上限 4、一趟至少 10 分鐘、第 1 座 4 之後每座 8、
 // 南迴與臺東線 ×2、雲端搭乘 10 分鐘／每日 1 次／3 次換 1），不從設定檔或實作反推。
 import { readFileSync } from 'node:fs';
 import { tripChips, applyDailyChipCap, cloudRideCounts, cloudChipsEarned, priceOfNth, canRedeem, taipeiDay }
@@ -11,8 +11,8 @@ const chips = JSON.parse(readFileSync(new URL('../data/bounty_rules.json', impor
 
 const trip = (lineKeys, extra = {}) => ({ verdict: 'ok', lineKeys, durationSec: 1800, day: '2026-10-10', ...extra });
 
-// C1 設定檔的數字就是裁示的數字（設定檔被改掉時先在這裡紅，而不是默默改變行為）
-ok('C1 設定＝裁示數字', chips.perTrip === 1 && chips.minTripSec === 600 && chips.dailyChipCap === 4 &&
+// C1 設定檔的數字就是定案的數字（設定檔被改掉時先在這裡紅，而不是默默改變行為）
+ok('C1 設定＝定案數字', chips.perTrip === 1 && chips.minTripSec === 600 && chips.dailyChipCap === 4 &&
   chips.remoteMultiplier === 2 && JSON.stringify(chips.prices) === '[4,8]' &&
   chips.cloud.minSec === 600 && chips.cloud.dailyMax === 1 && chips.cloud.perChip === 3,
   JSON.stringify({ perTrip: chips.perTrip, minTripSec: chips.minTripSec, cap: chips.dailyChipCap, prices: chips.prices, cloud: chips.cloud }));

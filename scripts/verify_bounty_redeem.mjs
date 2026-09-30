@@ -3,10 +3,10 @@
 // 離線：假 D1（scripts/d1_local.mjs，真 SQLite）＋ stub ASSETS ＋ BOUNTY_NOW 釘死；不起伺服器、不碰網路。
 // 跑法：node scripts/verify_bounty_redeem.mjs
 //
-// 期望值全部寫死在這裡，不呼叫實作（連 scripts/bounty_chips_core.mjs 都不呼叫）去產生期望。來源分兩種，不混寫：
-//   ・使用者原話（09-29，逐字）：「第一座4 後面都8 我不怕大家開的快」「捷運不用懸賞」。
+// 期望值全部寫死在這裡，不呼叫實作（連 scripts/bounty_chips_core.mjs 都不呼叫）去產生期望：
+//   ・產品規則：車庫第 1 座 4 籌碼、之後每座 8；捷運不列入懸賞。
 //   ・其餘數字（台鐵 50／高鐵 15 位不同的人收滿、一趟 1 籌碼、每日上限 4、雲端搭乘 3 次換 1 籌碼、四座場景 id）
-//     來自 data/bounty_rules.json 與主對話派工單的判讀，不是使用者逐字說的。
+//     來自 data/bounty_rules.json，這裡照抄成字面。
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準（突變表在回報裡）。
 //
 // ⚠️ 假 D1 的保真度（稽核 F20）：scripts/d1_local.mjs 的 batch() 是排隊序列化的，但 batch 之外的單句寫入
@@ -53,7 +53,7 @@ const TRIP_DATE = '2026-07-28';
 const APP = { platform: 'ios', app: '1.6.13', simulator: false };
 const limiter = blocked => ({ limit: async () => ({ success: !blocked }) });
 const throwingLimiter = { limit: async () => { throw new Error('limiter down'); } };
-// 價目表（使用者原話：第一座 4、後面都 8）——寫死，不呼叫實作
+// 價目表（第一座 4、之後每座 8）——寫死，不呼叫實作
 const PRICE = n => (n === 1 ? 4 : 8);
 
 // 三條合成的線（名字用真的鍵）：20 公里、每 2 公里一站（S0…S10），正規區間 10 段
