@@ -4,16 +4,20 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import android.appwidget.AppWidgetHost;
 import android.appwidget.AppWidgetManager;
+import android.appwidget.AppWidgetProviderInfo;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.ParcelFileDescriptor;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.SpinnerAdapter;
@@ -38,7 +42,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * 車站收集小工具設定頁（CollectionWidgetConfigActivity）的測試。
+ * 車站收集小工具設定頁（CollectionWidgetConfigActivity）的測試：範圍選單名稱（P3-11）、底部按鈕的字（P3-10）。
  *
  * 期望值全是手寫的（範圍名稱＝網頁 COLLECT_SYS 的簡稱三語），不從 Java 常數或字串目錄產生——同源時「相等」是零資訊。
  * 要開設定頁的案例會真的綁一個收集小工具：先用 `appwidget grantbind` 讓測試 App 能綁，收尾時刪掉 id 並撤銷（revokebind）。
@@ -150,6 +154,53 @@ public final class CollectionWidgetConfigInstrumentedTest {
         assertEquals(Arrays.asList("台湾全体", "北捷（payload）", "Danhai payload"), spinnerLabels(id));
     }
 
+    // ── P3-10：底部按鈕的字（新加「加到桌面」、重新設定「完成」）───────────────────
+
+    @Test
+    public void reconfigureIsInferredFromSavedScopeOrOptionalConfiguration() {
+        int reconf = AppWidgetProviderInfo.WIDGET_FEATURE_RECONFIGURABLE;
+        int optional = AppWidgetProviderInfo.WIDGET_FEATURE_CONFIGURATION_OPTIONAL;
+        // 新加：API 31 以前沒存過範圍（放上桌面時 launcher 一定先開設定頁；那時還沒有 configuration_optional）
+        assertFalse(CollectionWidgetConfigActivity.isReconfigure(false, 30, reconf | optional));
+        assertFalse(CollectionWidgetConfigActivity.isReconfigure(false, 24, 0));
+        // 新加：API 31 起但兩個旗標不齊（Launcher3 放上時照樣開設定頁）
+        assertFalse(CollectionWidgetConfigActivity.isReconfigure(false, 35, reconf));
+        assertFalse(CollectionWidgetConfigActivity.isReconfigure(false, 35, optional));
+        // 重新設定：存過範圍，不管版本與旗標
+        assertTrue(CollectionWidgetConfigActivity.isReconfigure(true, 24, 0));
+        assertTrue(CollectionWidgetConfigActivity.isReconfigure(true, 35, reconf | optional));
+        // 重新設定：API 31 起兩個旗標都有（放上時不開設定頁，開了就是事後按「設定」）
+        assertTrue(CollectionWidgetConfigActivity.isReconfigure(false, 31, reconf | optional));
+        assertTrue(CollectionWidgetConfigActivity.isReconfigure(false, 35, reconf | optional));
+    }
+
+    @Test
+    public void doneLabelDiffersBetweenNewAndReconfigureInAllThreeLanguages() {
+        String[][] expected = { { "加到桌面", "完成" }, { "Add to Home screen", "Done" }, { "ホーム画面に追加", "完了" } };
+        for (int l = 0; l < LANGS.length; l++) {
+            assertTrue(RailNativeL10n.setLanguage(context, LANGS[l]));
+            assertEquals(LANGS[l] + " 新加", expected[l][0], CollectionWidgetConfigActivity.doneLabel(context, false));
+            assertEquals(LANGS[l] + " 重新設定", expected[l][1], CollectionWidgetConfigActivity.doneLabel(context, true));
+        }
+    }
+
+    /** 真的開設定頁：兩款的 info 都宣告 configuration_optional，放上桌面時不開設定頁，所以開得到這一頁就是重新設定。 */
+    @Test
+    public void settingsScreenSaysDoneWhenReconfiguringAWidgetAlreadyOnTheHomeScreen() throws Exception {
+        assumeTrue("configuration_optional 從 API 31 起才有", Build.VERSION.SDK_INT >= Build.VERSION_CODES.S);
+        assertTrue(RailNativeL10n.setLanguage(context, "zh-TW"));
+        SharedPreferences prefs = context.getSharedPreferences(CollectionWidgetProvider.PREFS, Context.MODE_PRIVATE);
+        for (Class<?> provider : new Class<?>[] { CollectionWidgetProvider.class, CollectionWidgetSmallProvider.class }) {
+            int id = bindCollectionWidget(provider);
+            assertFalse("測試前提：這一格還沒存過範圍", prefs.contains(CollectionWidgetProvider.scopeKey(id)));
+            assertEquals(provider.getSimpleName() + " 第一次按「設定」", "完成", buttonText(id));
+            assertTrue(prefs.edit().putString(CollectionWidgetProvider.scopeKey(id), "trtc").commit());
+            assertEquals(provider.getSimpleName() + " 存過範圍後再開", "完成", buttonText(id));
+        }
+        assertTrue(RailNativeL10n.setLanguage(context, "en"));
+        assertEquals("Done", buttonText(bindCollectionWidget(CollectionWidgetProvider.class)));
+    }
+
     // ── 工具 ────────────────────────────────────────────────────────────────────
 
     private static List<String> column(List<String[]> rows, int index) {
@@ -209,6 +260,15 @@ public final class CollectionWidgetConfigInstrumentedTest {
             });
         }
         return out;
+    }
+
+    private String buttonText(int widgetId) {
+        String[] out = new String[1];
+        try (ActivityScenario<CollectionWidgetConfigActivity> scenario = open(widgetId)) {
+            assertEquals("設定頁應該開著", Lifecycle.State.RESUMED, scenario.getState());
+            scenario.onActivity(activity -> out[0] = String.valueOf(child(activity, Button.class).getText()));
+        }
+        return out[0];
     }
 
     private static String shell(String command) throws Exception {

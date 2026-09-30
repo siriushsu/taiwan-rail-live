@@ -1,9 +1,11 @@
 package tw.railisland.app;
 
 import android.appwidget.AppWidgetManager;
+import android.appwidget.AppWidgetProviderInfo;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -67,12 +69,40 @@ public final class CollectionWidgetConfigActivity extends AppCompatActivity {
         return items;
     }
 
+    /**
+     * 這次開設定頁是「重新設定已經在桌面上的小工具」，還是「剛拖上桌面、launcher 等設定完才放上去」。
+     * Android 沒有旗標分辨這兩種（launcher 都是帶同一個 appWidgetId 開這一頁），只能推：
+     *  - 這一格存過範圍＝設定過，一定是重新設定；
+     *  - API 31 起 provider 同時宣告 reconfigurable＋configuration_optional（兩款都有）：照這兩個旗標走的 launcher
+     *    （Launcher3 系）放上桌面時不開設定頁，沒存過範圍卻開了這一頁＝使用者事後按「設定」；
+     *  - API 31 以前沒有 configuration_optional，放上桌面時一定先開這一頁，沒存過範圍就是新加。
+     * 不理 configuration_optional、放上時仍開設定頁的 launcher，新加時也會看到「完成」——字義仍對，只是少了「加到桌面」的提示。
+     */
+    static boolean isReconfigure(boolean scopeSaved, int sdk, int widgetFeatures) {
+        if (scopeSaved) return true;
+        int optional = AppWidgetProviderInfo.WIDGET_FEATURE_RECONFIGURABLE | AppWidgetProviderInfo.WIDGET_FEATURE_CONFIGURATION_OPTIONAL;
+        return sdk >= Build.VERSION_CODES.S && (widgetFeatures & optional) == optional;
+    }
+
+    /** 底部按鈕的字：新加寫「加到桌面」；重新設定寫「完成」（小工具已經在桌面上，按了只是換範圍）。 */
+    static String doneLabel(Context context, boolean reconfigure) {
+        return RailNativeL10n.text(context, reconfigure ? "完成" : "加到桌面");
+    }
+
+    /** 這一格綁的 provider 宣告的 widgetFeatures；API 31 以前（沒有 configuration_optional）或查不到都當 0。 */
+    private static int widgetFeatures(Context context, int id) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return 0;
+        AppWidgetProviderInfo info = AppWidgetManager.getInstance(context).getAppWidgetInfo(id);
+        return info == null ? 0 : info.widgetFeatures;
+    }
+
     private int widgetId = AppWidgetManager.INVALID_APPWIDGET_ID;
     private final List<String> keys = new ArrayList<>();
     private final List<String> labels = new ArrayList<>();
     private Spinner scopeSpinner;
     private FrameLayout preview;
     private String family = WidgetFamily.MEDIUM;
+    private boolean reconfigure;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -81,6 +111,9 @@ public final class CollectionWidgetConfigActivity extends AppCompatActivity {
         widgetId = getIntent().getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
         if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) { finish(); return; }
         family = WidgetFamily.of(this, widgetId);
+        boolean scopeSaved = getSharedPreferences(CollectionWidgetProvider.PREFS, Context.MODE_PRIVATE)
+            .contains(CollectionWidgetProvider.scopeKey(widgetId));
+        reconfigure = isReconfigure(scopeSaved, Build.VERSION.SDK_INT, widgetFeatures(this, widgetId));
         loadScopes();
         buildUi();
     }
@@ -122,7 +155,7 @@ public final class CollectionWidgetConfigActivity extends AppCompatActivity {
         root.addView(scopeSpinner, matchWrap(dp(4)));
 
         Button done = new Button(this);
-        done.setText(RailNativeL10n.text(this, "加到桌面"));
+        done.setText(doneLabel(this, reconfigure));
         done.setTextSize(16);
         done.setTextColor(getColor(R.color.wg_on_accent));
         done.setAllCaps(false);
