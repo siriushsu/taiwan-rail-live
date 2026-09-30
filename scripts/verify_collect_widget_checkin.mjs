@@ -245,9 +245,10 @@ async function multiAndHowto(tag, mobile) {
   ok(`${tag} 沒有「蓋章成功」toast`, !(await toasts(page)).some(x => x.startsWith('蓋章成功')));
   // 真滑鼠：先證明點得到（命中自己），再點，量狀態改變
   const sel = '#nearCard .nx-ck[data-st="thsr_sched|台北"]';
-  // 鈕不存在或捲不進畫面（Playwright 預設會等 30 秒才逾時、整支腳本崩潰）：縮短等待，逾時記成這一條紅，其餘區塊照跑、總表照印
+  // 鈕不存在或捲不進畫面（Playwright 預設會等 30 秒才逾時、整支腳本崩潰）：兩步各等 10 秒（機器忙時頁面主執行緒會卡住、太短會假紅），
+  // 逾時記成這一條紅，其餘區塊照跑、總表照印
   let box = null, boxWhy = '';
-  try { await page.locator(sel).scrollIntoViewIfNeeded({ timeout: 8000 }); box = await page.locator(sel).boundingBox({ timeout: 2000 }); } catch (e) { boxWhy = String(e.message || e).split('\n')[0].slice(0, 120); }
+  try { await page.locator(sel).scrollIntoViewIfNeeded({ timeout: 10000 }); box = await page.locator(sel).boundingBox({ timeout: 10000 }); } catch (e) { boxWhy = String(e.message || e).split('\n')[0].slice(0, 120); }
   ok(`${tag} 前提：那顆鈕捲得進畫面、有位置可點（逾時或量不到位置＝紅，腳本不崩潰）`, !!box, boxWhy);
   if (!box) { await ctx.close(); return; }
   const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
