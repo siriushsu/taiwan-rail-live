@@ -24,14 +24,19 @@ for (const arg of process.argv.slice(2)) {
   const packed = unzipSync(readFileSync(archive), { filter: entry => entry.name.startsWith(prefix) });
   const failures = [];
   let gzipCount = 0;
+  let garageGzipCount = 0;
   for (const source of files) {
     const name = relative(sourceRoot, source).split('\\').join('/');
     const bytes = packed[prefix + name];
     if (!bytes) failures.push('缺檔：' + name);
     else if (!readFileSync(source).equals(Buffer.from(bytes))) failures.push('位元組不符：' + name);
-    if (name.endsWith('.gz')) gzipCount++;
+    if (name.endsWith('.gz')) {
+      gzipCount++;
+      if (name.startsWith('rail-3d/assets/garage-blender-v1/')) garageGzipCount++;
+    }
   }
-  if (gzipCount !== 62) throw Error(`車庫壓縮模型應有 62 份，來源只有 ${gzipCount}`);
+  // 台南歷史重播新增 30 份壓縮素材；車庫仍是 62 份，兩者都要逐檔驗封裝。
+  if (garageGzipCount !== 62) throw Error(`車庫壓縮模型應有 62 份，來源只有 ${garageGzipCount}`);
   if (failures.length) throw Error(`${archive}：${failures.length} 項錯誤\n${failures.slice(0, 8).join('\n')}`);
-  console.log(`Android 成品核對通過：${archive}，${files.length} 檔逐 byte 一致，${gzipCount} 份 gzip 模型完整保留。`);
+  console.log(`Android 成品核對通過：${archive}，${files.length} 檔逐 byte 一致，${gzipCount} 份 gzip 素材完整保留（車庫 ${garageGzipCount} 份）。`);
 }
