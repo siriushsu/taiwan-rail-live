@@ -28,6 +28,8 @@
 //   C9  沒有定位權限（有／沒有快取位置）→ 走既有的失敗說明，不蓋
 //   C10 等待中使用者自己點了站／關掉卡片 → 取消自動蓋章（之後的新定位不會替他蓋）
 //   C11 護照深連結 { view: 'passport' } 同樣讓首次說明卡讓位，旗標仍 null
+//   C12 停在高鐵／捷運分頁時從小工具蓋章：那一次照樣切到全台，但「上次視野記憶」逐字不變（不改成全台、不改成蓋章時的地圖中心）；
+//       人自己真的點了頁籤才恢復記錄；本來就在全台的人記錄照舊
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -149,6 +151,30 @@ async function waitStamp(page, key, ms = 4000) {
   const t0 = Date.now();
   while (Date.now() - t0 < ms) { if ((await stamps(page))[key]) return true; await sleep(80); }
   return false;
+}
+const lastView = page => page.evaluate(() => localStorage.getItem('trainmap-last-view'));
+const mapCenter = page => page.evaluate(() => { const c = M.getCenter(); return { lat: c.lat, lon: c.lng }; });
+const groupNow = page => page.evaluate(() => state.group);
+// 真滑鼠在地圖上拖一下，回傳「拖完地圖是不是真的動了」（不動就是拖到別的東西，後面的判準沒意義）
+async function dragMap(page, dx = 70, dy = 25) {
+  const at = await page.evaluate(() => { const r = M.getContainer().getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  const a = await mapCenter(page);
+  await page.mouse.move(at.x, at.y); await page.mouse.down(); await page.mouse.move(at.x + dx, at.y + dy, { steps: 6 }); await page.mouse.up();
+  await sleep(500); // moveend 觸發後的寫入是同步的，這裡等的是地圖靜止
+  const b = await mapCenter(page);
+  return Math.abs(b.lat - a.lat) + Math.abs(b.lon - a.lon) > 1e-4;
+}
+// 真滑鼠點頁籤列（桌面 #systems）上寫著 text 的那顆；先證明點得到（命中自己、沒停用）
+async function clickGroupTab(page, text, tag) {
+  const r = await page.evaluate(t => {
+    const b = [...document.querySelectorAll('#systems .gtab')].find(x => x.textContent === t);
+    if (!b) return null;
+    const q = b.getBoundingClientRect(), x = q.x + q.width / 2, y = q.y + q.height / 2, e = document.elementFromPoint(x, y);
+    return { x, y, hit: !!e && (e === b || b.contains(e)) && !b.disabled };
+  }, text);
+  ok(`${tag} 前提：「${text}」頁籤在畫面上、可點、點下去命中的就是它`, !!r && r.hit, r ? `(${Math.round(r.x)},${Math.round(r.y)})` : '找不到');
+  if (r) await page.mouse.click(r.x, r.y);
+  await sleep(400);
 }
 
 // ── C1 單座直接蓋 ＋ C7 同一天第二次 ─────────────────────────────────────────
@@ -366,6 +392,43 @@ for (const [label, seed] of [['沒有快取位置', {}], ['有快取位置', { '
   await sleep(1500);
   const r = await page.evaluate(() => ({ hidden: document.getElementById('howtoWrap').hidden, flag: localStorage.getItem('trainmap-howto-seen'), ride: !document.getElementById('ridePanel').hidden }));
   ok('C11 passport 深連結 → 說明卡收起來、旗標仍是 null、護照面板開著', r.hidden === true && r.flag === null && r.ride === true, JSON.stringify(r));
+  await ctx.close();
+}
+
+// ── C12 從小工具蓋章：那一次照樣切到全台，但「上次視野記憶」不被改寫成全台；人自己點頁籤才恢復記錄 ───────────
+// 使用者 09-30 選「下次開 App 回原本的分頁（建議）」。記錄的寫入點是地圖 moveend，所以每一格都用真滑鼠拖地圖來觸發它，
+// 並先量「拖完地圖真的動了」；沒有這一步，「沒被改寫」是零資訊（沒有任何寫入時機也會相同）。
+for (const [g, lat, lon] of [['hsr', 24.6, 120.8], ['metro', 25.05, 121.5]]) {
+  const seed = { 'trainmap-last-view': JSON.stringify({ g, lat, lon, z: 10, sel: null }) };
+  const { ctx, page } = await open({ tag: `C12 ${g}`, seed });
+  await sleep(600); // 開機還原視野的動作安定下來
+  const pre = await lastView(page);
+  ok(`C12 ${g} 前提：App 開在 ${g} 分頁，已存的上次視野也是 ${g}`, (await groupNow(page)) === g && !!pre && JSON.parse(pre).g === g, String(pre));
+  await fireCheckin(page);
+  ok(`C12 ${g} 流程開始 → 畫面切到全台（讓人看到蓋章結果）`, (await groupNow(page)) === 'all');
+  await fix(page, XS, 30);
+  ok(`C12 ${g} 蓋章那一次照樣完成（香山）`, await waitStamp(page, XS.key));
+  ok(`C12 ${g} 蓋完畫面在全台`, (await groupNow(page)) === 'all');
+  ok(`C12 ${g} 前提：真滑鼠拖地圖，地圖真的動了`, await dragMap(page));
+  ok(`C12 ${g} 蓋章與拖地圖之後，上次視野記憶跟蓋章前逐字相同（沒被改成全台、也沒被改成蓋章時的地圖中心）`, (await lastView(page)) === pre, `前 ${pre} ／後 ${await lastView(page)}`);
+  await clickGroupTab(page, '台', `C12 ${g}`);
+  ok(`C12 ${g} 人自己點了「台」頁籤 → 分頁真的換過去（tra）`, (await groupNow(page)) === 'tra');
+  ok(`C12 ${g} 前提：點完頁籤後再拖一次地圖，地圖真的動了`, await dragMap(page, -50, 30));
+  const after = JSON.parse(await lastView(page) || 'null'), c2 = await mapCenter(page);
+  ok(`C12 ${g} 恢復正常記錄：上次視野記成 tra、中心跟著目前地圖走（不再凍住）`, !!after && after.g === 'tra' && Math.abs(after.lat - c2.lat) < 2e-5 && Math.abs(after.lon - c2.lon) < 2e-5, JSON.stringify(after));
+  await ctx.close();
+}
+{
+  // 本來就停在全台的人：沒有切換、沒有凍結，記錄照舊
+  const { ctx, page } = await open({ tag: 'C12 全台' });
+  await sleep(600);
+  ok('C12 全台 前提：App 開在全台', (await groupNow(page)) === 'all');
+  await fireCheckin(page);
+  await fix(page, XS, 30);
+  ok('C12 全台 蓋章完成（香山）', await waitStamp(page, XS.key));
+  ok('C12 全台 前提：真滑鼠拖地圖，地圖真的動了', await dragMap(page));
+  const rec = JSON.parse(await lastView(page) || 'null'), c = await mapCenter(page);
+  ok('C12 全台 本來就在全台 → 上次視野照常記錄（all、中心＝目前地圖中心）', !!rec && rec.g === 'all' && Math.abs(rec.lat - c.lat) < 2e-5 && Math.abs(rec.lon - c.lon) < 2e-5, JSON.stringify(rec));
   await ctx.close();
 }
 

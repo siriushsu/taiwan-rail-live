@@ -18443,8 +18443,11 @@ function groupInView(g) {
 // 重新框景會讓畫面整個跳一下（要跳到某地請用旁邊的「縣市」選單,那才是地區書籤）。
 // 收藏/搜尋導航等非頁籤的呼叫不傳,維持原本「切過去並框景」的語意。
 // 保留視野的前提是新群組在目前視窗裡真的看得到東西,否則(例:人在花蓮按「高」)照樣框景,免得切到空白地圖。
-function selectGroup(g, keepView) {
+// keepLastView:只有小工具蓋章流程(widgetCheckinStart)傳 true。其餘每一次呼叫(使用者點頁籤、從收藏／搜尋跳到別的群組)
+//   都代表人自己動手了,結束蓋章時凍住的「上次視野記憶」,恢復正常記錄——含目前群組＝目標群組的空轉呼叫(點已亮的那顆頁籤)。
+function selectGroup(g, keepView, keepLastView) {
   if (!state.systems.length) return; // 預渲染期(資料未載入)頁籤先不動作,boot 完成後恢復
+  if (!keepLastView) state._lastViewHold = false;
   if (state.group === g.id) return;
   const keep = !!keepView && groupInView(g);
   if (g.mode === 'all') loadAllGroup(g, keep);
@@ -23151,8 +23154,15 @@ function widgetCheckinStart() {
   // 候選站必須是全台的:App 上次停在高鐵或捷運分頁時,附近清單只有那一頁的站,人在台鐵站按蓋章會找不到站。
   // 選「先切回全台同框(App 的預設頁)」而不是另組一份全台候選——清單、站等半徑、別名併鍵、月台幾何全走同一條路,
   // 不會出現「判定用的站」與「清單上看到的站」不同;代價只是頁籤跳到全台。
+  // 這次切換是為了看蓋章結果,不是使用者選的分頁:切換前先舉旗,讓 saveLastView 不把全台(與蓋章時的地圖中心)寫成
+  // 「上次視野」——使用者 09-30 選「下次開 App 回原本的分頁（建議）」。旗要在切換之前舉(切換途中的 moveend 也不能寫),
+  // selectGroup 第三個參數 true 讓這一次不被它自己放旗;沒切成就把旗收回。本來就在全台的人不進這一段,記錄照舊。
   const all = GROUPS.find(g => g.id === 'all');
-  if (all && state.group !== all.id) selectGroup(all, true);
+  if (all && state.group !== all.id) {
+    state._lastViewHold = true;
+    selectGroup(all, true, true);
+    if (state.group !== all.id) state._lastViewHold = false;
+  }
   const w = state._wcWait = { t0: Date.now(), timer: null };
   w.timer = setTimeout(() => { if (state._wcWait === w) state._wcWait = null; }, WIDGET_CHECKIN_WAIT_MS);
   const hadLoc = !!(state.geoLoc || loadGeoCache());
@@ -38159,6 +38169,9 @@ function saveLastView() {
   if (!state.ready) return;                          // 開機期間的框景不算(還原用的 setView 也在 ready 之前)
   if (state.autoTour || state._hotScene) return;     // 放空巡航/群車俯瞰的鏡頭自己會飄，存了下次開就被丟到隨機位置
   if (state.followTrain || state.freqFollow) return; // 跟車鏡頭同理
+  // 小工具蓋章把畫面切到全台的那一段(見 widgetCheckinStart)：那是為了讓人看到蓋章結果,不是他挑的分頁,
+  // 記下來的話下次開 App 會落在全台、地圖中心也變成蓋章那一刻的位置。旗會在人自己換群組時放掉(selectGroup)。
+  if (state._lastViewHold) return;
   const g = GROUPS.find(x => x.id === state.group);
   if (!g) return;
   const sel = g.mode === 'freq' ? state.freqSel : g.mode === 'sched' ? state.schedSel : null;
