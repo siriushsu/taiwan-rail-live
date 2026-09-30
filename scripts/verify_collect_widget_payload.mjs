@@ -9,7 +9,8 @@
 //
 // 用法：node scripts/verify_collect_widget_payload.mjs [驗哪個目錄，預設＝這個 repo 根目錄]
 //   ENGINE=chromium|webkit（預設 chromium，無視窗）；PAYLOAD_OUT=檔案路徑 → 把一包真實 fixture 的 payload 存下來。
-//   突變測試把 index.html 複製到別處改，再用第一個參數指過去（見 tmp/collect-widget/run-mutations.mjs）。
+//   突變測試：另建一個副本目錄，除 index.html 之外的頂層項目都用符號連結指回這個 repo，只改副本裡的 index.html，
+//   再把副本目錄當第一個參數傳進來重跑（G0 會印出目標路徑與 index.html 的 md5，確認驗的是副本）；沒有現成的驅動腳本。
 //
 // 判準對應：
 //   G0  第一道 gate：印出目標路徑＋index.html md5，並確認伺服器吐的就是那份
