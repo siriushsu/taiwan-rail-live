@@ -12,6 +12,14 @@ import WidgetKit
 // RailMetroWaitPlugin.handleOpen 收 host `passport`、轉成 waitOpen 事件（data.view = "passport"），
 // 網頁端收到就開 openRidePanel()。只在下面 EntryView 的最外層掛一次 widgetURL，四種家族共用；
 // 驗收腳本 render_collect_widget.mjs 的 u 閘門靜態掃這裡（拿掉或改掛在單一家族分支上都會紅）。
+//
+// 蓋章鈕（小卡、中卡）：鈕以外的地方照舊開護照，鈕本身進「附近車站」自動蓋章，兩者都是 waitOpen 事件，
+// data.view 分別是 "passport" 與 "checkin"。
+//   中卡：Link(railisland://checkin)（網址常數在 CollectionCard.swift 的 CollectionStamp）。
+//   小卡：systemSmall 只有 widgetURL 一個點擊範圍，改用 iOS 17 的 Button(intent: CollectCheckinIntent())；
+//         intent 把待辦記進 App Group 並把 App 帶到前景，由 RailMetroWaitPlugin 讀出後發同一個事件。
+//   鎖屏兩款太小，不放鈕，維持整張點了開護照。
+// 兩個包裝都不進 CollectionCard.swift：AppIntents 不能被 harness 編，ImageRenderer 也畫不出 Link；靠 s 閘門靜態掃這裡。
 
 extension CollectionStore {
     /// App Group 容器根目錄的 collection.json。
@@ -20,7 +28,8 @@ extension CollectionStore {
             forSecurityApplicationGroupIdentifier: RailBoardConstants.appGroupID))
     }
 
-    /// 小工具圖庫預覽與 placeholder 用的內建示意資料（201／538，示意收集）。
+    /// 小工具圖庫預覽與 placeholder 用的內建示意資料（201／538 是 09-29 當時的站數快照，示意收集）。
+    /// 真實總數以 collection.json 的 total 為準（09-30 台北與台中的市政府分開算後是 539）。
     /// 不是使用者的資料：只在 context.isPreview 與 placeholder 用，真實畫面一律讀 loadShared()。
     static func loadPreviewSample() -> CollectionSnapshot? {
         guard let url = Bundle.main.url(forResource: "CollectionWidgetPreview", withExtension: "json"),
@@ -70,10 +79,17 @@ struct CollectionEntryView: View {
     var body: some View {
         Group {
             switch family {
-            case .systemMedium: MediumCollectionView(content: entry.content)
+            case .systemMedium:
+                MediumCollectionView(content: entry.content) { chip in
+                    Link(destination: CollectionStamp.checkinURL) { chip }
+                }
             case .accessoryRectangular: RectangularCollectionView(content: entry.content)
             case .accessoryCircular: CircularCollectionView(content: entry.content)
-            default: SmallCollectionView(content: entry.content)
+            default:
+                SmallCollectionView(content: entry.content) { chip in
+                    // .plain：不加的話 Button 的預設樣式會把鈕染成強調色並加按壓底，與 Link 版的中卡外觀不一致。
+                    Button(intent: CollectCheckinIntent()) { chip }.buttonStyle(.plain)
+                }
             }
         }
         // 點小工具 → 旅程護照。掛在家族 switch 的外面：四種尺寸（含鎖屏兩款）一律生效。

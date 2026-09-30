@@ -588,8 +588,12 @@ enum CollectionCopy {
 
 // MARK: - Small（小卡）
 
-struct SmallCollectionView: View {
+struct SmallCollectionView<Stamp: View>: View {
     let content: CollectionContent
+    /// 蓋章鈕要怎麼「被點」由外殼決定：小卡只有 widgetURL 一個點擊範圍（Link 在小卡不生效），
+    /// 要讓鈕與其餘地方各走各的，只能包 iOS 17 的 Button(intent:)，而 AppIntents 不能進這個檔。
+    /// 算繪 harness 傳 { $0 }（只畫外觀），Widget 傳包了 Button(intent:) 的版本。
+    let stamp: (CollectionStampChip) -> Stamp
 
     var body: some View {
         GeometryReader { geo in
@@ -649,8 +653,16 @@ struct SmallCollectionView: View {
         .frame(height: k.pt(16))
     }
 
-    @ViewBuilder
+    /// 文字欄：數字（或空狀態說明）在上，蓋章鈕接在最下面。整欄靠左下，地圖在右下，鈕不會碰到地圖。
     private func textColumn(_ f: CollectionFigures, _ k: RailScale) -> some View {
+        VStack(alignment: .leading, spacing: k.pt(6)) {
+            numbers(f, k)
+            stamp(CollectionStampChip(k: k))
+        }
+    }
+
+    @ViewBuilder
+    private func numbers(_ f: CollectionFigures, _ k: RailScale) -> some View {
         if f.isEmpty {
             VStack(alignment: .leading, spacing: k.pt(4)) {
                 CollectionText(
@@ -684,8 +696,11 @@ struct SmallCollectionView: View {
 
 // MARK: - Medium（中卡）
 
-struct MediumCollectionView: View {
+struct MediumCollectionView<Stamp: View>: View {
     let content: CollectionContent
+    /// 蓋章鈕的點擊包裝，由外殼傳入：Widget 傳 Link(railisland://checkin)，算繪 harness 傳 { $0 }。
+    /// 不直接寫在這個檔裡是因為 ImageRenderer 畫不出 Link（會換成黃底的禁止符號），harness 就量不到鈕。
+    let stamp: (CollectionStampChip) -> Stamp
 
     var body: some View {
         GeometryReader { geo in
@@ -731,15 +746,22 @@ struct MediumCollectionView: View {
                     content: Text(f.percentText).font(.system(size: k.pt(14), weight: .bold)).monospacedDigit(),
                     key: true)
             }
-            CollectionText(
-                id: "countOf", text: CollectionCopy.countOf(f),
-                content: Text(CollectionCopy.countOf(f)).font(.system(size: k.pt(10.5))),
-                key: true, tone: .secondary)
-            Spacer(minLength: k.pt(3))
+            // 蓋章鈕放在「已收集 N／M 座」這一列的右端：這一列橫向有大把空位（三種語言都是），
+            // 而縱向已經滿了（全台五列系統＋圖例），鈕不能另起一列。
+            HStack(spacing: k.pt(6)) {
+                CollectionText(
+                    id: "countOf", text: CollectionCopy.countOf(f),
+                    content: Text(CollectionCopy.countOf(f)).font(.system(size: k.pt(10.5))),
+                    key: true, tone: .secondary)
+                Spacer(minLength: 0)
+                stamp(CollectionStampChip(k: k, compact: true))
+            }
+            // 間距 2pt（原 3）：蓋章鈕讓「已收集」那一列多出約 1.5pt，全台中卡縱向本來就滿，靠這兩處各省 1pt 補回來。
+            Spacer(minLength: k.pt(2))
             middle(f, k)
             // 圖例：有收集的卡才有東西要解釋（空狀態沒有實心也沒有空心）。放不下時 e／h 兩道閘門會紅。
             if !f.isEmpty {
-                Spacer(minLength: k.pt(3))
+                Spacer(minLength: k.pt(2))
                 CollectionLegend(k: k)
             }
         }
@@ -884,6 +906,45 @@ struct CollectionLegendDot: View {
         }
         .frame(width: d, height: d)
         .widgetAccentable()
+    }
+}
+
+// MARK: - 蓋章鈕（小卡、中卡）
+
+enum CollectionStamp {
+    /// 中卡的蓋章鈕點下去開這條深連結（CollectionWidget.swift 把它包成 Link）；小卡沒有 Link 可用，
+    /// 改走 Button(intent: CollectCheckinIntent())。兩條路在原生殼（RailMetroWaitPlugin）匯到同一個
+    /// waitOpen { view: "checkin" }。鈕以外的地方仍是最外層的 widgetURL（旅程護照）。
+    static let checkinURL = URL(string: "railisland://checkin")!
+}
+
+/// 蓋章鈕的外觀（純 SwiftUI，不含點擊行為）：膠囊＋一行字。點擊由外殼包上去——小卡包 Button(intent:)
+///（AppIntents 不能進這個檔），中卡包 Link。字色一律用明確的 Color（品牌藍；著色模式用 primary），
+/// 不吃環境的階層色，免得被 Link／Button 的預設 tint 染成別的顏色。膠囊底加描邊，著色模式底色被系統壓平時仍看得見。
+struct CollectionStampChip: View {
+    let k: RailScale
+    /// 中卡那一列只有一行字高，用矮一點的版本。
+    var compact = false
+
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.railMonochrome) private var mono
+
+    var body: some View {
+        let label = RailNativeL10n.text("蓋章")
+        let brand = RailTokens.colors(scheme).brand
+        let ink: Color = mono ? .primary : brand
+        CollectionText(
+            id: "stamp", text: label,
+            content: Text(label).font(.system(size: k.pt(compact ? 10.5 : 11), weight: .semibold)),
+            key: true)
+            .foregroundStyle(ink)
+            .padding(.horizontal, k.pt(compact ? 8 : 9))
+            .padding(.vertical, k.pt(compact ? 0.75 : 3.5))
+            .background(Capsule().fill(ink.opacity(mono ? 0.16 : 0.14)))
+            .overlay(Capsule().strokeBorder(ink.opacity(0.55), lineWidth: 0.8))
+            .fixedSize()
+            .collectReport("stamp.chip")
+            .widgetAccentable()
     }
 }
 

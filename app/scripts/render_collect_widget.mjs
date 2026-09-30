@@ -327,8 +327,10 @@ final class FrameBox { var frames: [CollectionFrameReport] = [] }
 
 func makeView(_ fam: String, _ content: CollectionContent) -> AnyView {
     switch fam {
-    case "small": return AnyView(SmallCollectionView(content: content))
-    case "medium": return AnyView(MediumCollectionView(content: content))
+    // 蓋章鈕在 harness 只畫外觀（{ $0 }）：小卡的 Button(intent:)、中卡的 Link 都在 CollectionWidget.swift
+    // （AppIntents 編不進來、ImageRenderer 畫不出 Link），由 s 閘門靜態掃。
+    case "small": return AnyView(SmallCollectionView(content: content) { $0 })
+    case "medium": return AnyView(MediumCollectionView(content: content) { $0 })
     case "rect": return AnyView(RectangularCollectionView(content: content))
     case "circ": return AnyView(CircularCollectionView(content: content))
     default: fatalError("unknown family \\(fam)")

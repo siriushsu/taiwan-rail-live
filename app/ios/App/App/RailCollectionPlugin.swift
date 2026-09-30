@@ -20,7 +20,7 @@ public final class RailCollectionPlugin: CAPPlugin, CAPBridgedPlugin {
     private static let appGroupID = "group.tw.railisland.app"
     private static let fileName = "collection.json"
     private static let widgetKind = "CollectionWidget"
-    /// 538 座站的 payload 約 20 KB；512 KB 是「明顯不對勁」的保險絲，不是預期值。
+    /// 539 座站的 payload 約 20 KB；512 KB 是「明顯不對勁」的保險絲，不是預期值。
     private static let maxBytes = 512 * 1024
     private static let supportedVersion = 1
 

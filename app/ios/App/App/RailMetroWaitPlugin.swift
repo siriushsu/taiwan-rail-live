@@ -32,10 +32,12 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
     // 一併由本 plugin 轉運成 "waitOpen" 事件(帶 view:"pass"),JS 端收到就開通行證面板。
     // 車站收集小工具的 widgetURL 是 railisland://passport(旅程護照,不是通行證方案頁 pass)——
     // 走同一條路,事件帶 view:"passport",JS 端收到就開旅程護照面板。
+    // 同一個小工具的「蓋章」鈕:中卡是 Link(railisland://checkin),事件帶 view:"checkin",
+    // JS 端收到就進「附近車站」自動蓋章;小卡沒有 Link 可用,走下面 flushPendingOpen 的待辦(同一個事件)。
     public static func handleOpen(url: URL) -> Bool {
         guard url.scheme == "railisland",
               url.host == "metro-wait" || url.host == "station" || url.host == "pass"
-                || url.host == "passport" else { return false }
+                || url.host == "passport" || url.host == "checkin" else { return false }
         if let p = shared { p.forwardOpen(url) } else { pendingOpenURL = url }
         return true
     }
@@ -45,10 +47,18 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
     // 🔴 兩個呼叫點缺一不可:load() 接冷啟動(App 那時還沒起來),didBecomeActive 接熱啟動
     //    (待辦是在 App 這個行程被背景喚醒之後才寫的,那時 load() 早就跑完了)。
     static func flushPendingOpen() {
-        guard let p = shared, let pend = MetroWaitPending.take() else { return }
-        var data: [String: Any] = ["sys": pend.sys, "station": pend.station]
-        if let d = pend.dest { data["dest"] = d }
-        p.notifyListeners("waitOpen", data: data, retainUntilConsumed: true)
+        guard let p = shared else { return }   // plugin 還沒載入就【不】讀待辦,留給 load() 那一次
+        if let pend = MetroWaitPending.take() {
+            var data: [String: Any] = ["sys": pend.sys, "station": pend.station]
+            if let d = pend.dest { data["dest"] = d }
+            p.notifyListeners("waitOpen", data: data, retainUntilConsumed: true)
+        }
+        // 車站收集小卡的「蓋章」鈕(CollectCheckinIntent)留下的待辦:讀一次就清,超過保鮮期就丟掉。
+        // 除了上面兩個呼叫點,perform() 寫完待辦還會發 didWrite 通知(見 load()),
+        // 因為 intent 有可能在 App 已經啟用、plugin 也已載入之後才執行,那時沒有任何生命週期事件會再來讀。
+        if CollectCheckinPending.take() {
+            p.notifyListeners("waitOpen", data: ["view": "checkin"], retainUntilConsumed: true)
+        }
     }
 
     private func forwardOpen(_ url: URL) {
@@ -57,6 +67,7 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
         for item in comps.queryItems ?? [] { data[item.name] = item.value ?? "" }
         if comps.host == "pass" { data["view"] = "pass" }
         if comps.host == "passport" { data["view"] = "passport" }
+        if comps.host == "checkin" { data["view"] = "checkin" }
         if comps.host == "station" { data["view"] = "station" }
         notifyListeners("waitOpen", data: data, retainUntilConsumed: true)
     }
@@ -65,6 +76,11 @@ public final class RailMetroWaitPlugin: CAPPlugin, CAPBridgedPlugin {
         Self.shared = self
         if let url = Self.pendingOpenURL { Self.pendingOpenURL = nil; forwardOpen(url) }
         Self.flushPendingOpen()
+        // 蓋章鈕的 intent 在 App 行程裡寫完待辦就發這個通知;已載入的 plugin 立刻把它交出去。
+        // 重複載入造成的重複註冊無害:take() 讀一次就清,第二次一定是 false。
+        NotificationCenter.default.addObserver(forName: CollectCheckinPending.didWrite, object: nil, queue: .main) { _ in
+            RailMetroWaitPlugin.flushPendingOpen()
+        }
         // 🔴 刻意【不】比照 RailFollowActivity 在啟動時掃孤兒卡:等車卡的倒數是官方絕對時刻,
         //    App 死掉之後卡片依然是真的;staleDate 一到系統自己標灰。使用者手動開的卡,
         //    在他重開 App 查個地圖時被我們收掉,才是 bug。單卡不變量由 start() 的先掃後開保證。
