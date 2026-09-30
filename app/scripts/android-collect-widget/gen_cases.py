@@ -139,15 +139,12 @@ for lang in ('zh-TW', 'en', 'ja'):
     for theme in ('light', 'dark'):
         for fam, sizes in (('small', SM), ('medium', MD)):
             for stag, w, h in sizes:
-                # 🔴 已知界線：110dp 寬的 2×2 在英文／日文放不下「範圍名＋蓋章鈕」（80dp 可用寬，標題會被截成「…」）；
-                #    這一格不進閘門，只留繁中（見進度檔）。137dp 以上三語都過。
-                if stag == 's110' and lang != 'zh-TW': continue
+                # 蓋章鈕搬到文字欄之後標題列只剩範圍名＋副標，110dp 寬的英日文也放回閘門（第三段 E1）。
                 for sc in ('all', 'krtc', 'tra'):
                     add(f'stamp-{tag}-{sc}-{fam}-{stag}-{theme}', stamp_payload(lang, 'sample'), sc, fam, theme, w, h, lang)
     for name in ('empty', 'one', 'full', 'n99'):
         for fam, stag, w, h in (('small', 's158', 158, 158), ('small', 's110', 110, 110), ('small', 'stall', 140, 222),
                                 ('medium', 'm360', 360, 158), ('medium', 'm320', 320, 110)):
-            if stag == 's110' and lang != 'zh-TW': continue   # 同上：110dp 寬的英日文已知放不下
             add(f'stamp-{tag}-{name}-all-{fam}-{stag}-light', stamp_payload(lang, name), 'all', fam, 'light', w, h, lang)
 json.dump(cases, open(os.path.join(OUT, 'cases.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 print(len(cases), 'cases →', OUT)
