@@ -5,7 +5,8 @@
 // 高速通過的站全都亮成「停到了」。伺服器端第十三批已不把 null 當 0、第十四批的停靠判定改用位置微分，這一支驗前端跟上：
 //   C  bountyCleanSample（存檔、重新整理後還原、鎖線時整批重洗都走它）：v、acc 是 null → 仍是 null；0 → 0；數字照收；
 //      存檔再讀回（bountyPersistRecording → bountyLoadPersistedRecording）之後 null 也還是 null。
-//   F  bountyOnFix（定位回呼）：speed、accuracy 是 null → 存 null；speed −1（iOS 沒有有效速度）→ null；0 → 0；12.345 → 12.35、8.6 → 9。
+//   F  bountyOnFix（定位回呼）：speed、accuracy 是 null → 存 null；speed −1（iOS 沒有有效速度）→ null；accuracy −1（iOS 的無效定位）→ null；
+//      0 → 0；12.345 → 12.35、8.6 → 9。
 //   D  bountyUpdateDwellProgress（錄製中的停靠進度）與 Worker coverageOf() 同一條：沒有速度的裝置真的停靠 60 秒 → 亮；
 //      沒有速度、30 m/s 高速通過 → 不亮、而且判「錯過」（兩側都過完了）；對照：有速度（停的時候 0）的同一趟 → 亮。兩個方向。
 // 判準驗【行為】：量的是「收下的那一點存成什麼」「停靠進度亮不亮」，不是原始碼裡有沒有那串字。
@@ -106,7 +107,7 @@ try {
         dNow: null, segs: {}, _cov: {}, points: 0, quality: 'none', _buf: [], _candidateBuf: {}, _perp: {}, _recent: [], _lastFix: 0,
         _lastFlush: Date.now(), _batch: 0, demo: false, _weakSince: 0, _nagOff: false, _dwellMissed: false, _dwellNagOff: false };
       const out = [];
-      for (const [speed, accuracy] of [[null, null], [-1, 8], [0, 0], [12.345, 8.6], [undefined, undefined]]) {
+      for (const [speed, accuracy] of [[null, null], [-1, 8], [0, 0], [12.345, 8.6], [undefined, undefined], [3.2, -1]]) {
         state.recording._lastFix = 0;                     // 900 ms 節流：每一發都當成離上一點夠久
         bountyOnFix({ latitude: st.lat, longitude: st.lon, speed, accuracy });
         const b = state.recording._buf, s = b[b.length - 1];
@@ -117,8 +118,8 @@ try {
       return out;
     }, ST);
     const vs = got.map(g => [g.n, g.v, g.acc]);
-    ok('F [第十四批 V9 E1] bountyOnFix：speed／accuracy 是 null → 存 null；speed −1 → null；0 → 0；12.345／8.6 → 12.35／9；沒給（undefined）→ null（每一發都收下、落在挑到的那一站）',
-      J(vs) === J([[1, null, null], [2, null, 8], [3, 0, 0], [4, 12.35, 9], [5, null, null]]) && got.every(g => Math.abs(g.dKm - ST.d) < 0.05), J(got));
+    ok('F [第十四批 V9 E1] bountyOnFix：speed／accuracy 是 null → 存 null；speed −1 → null；accuracy −1 → null；0 → 0；12.345／8.6 → 12.35／9；沒給（undefined）→ null（每一發都收下、落在挑到的那一站）',
+      J(vs) === J([[1, null, null], [2, null, 8], [3, 0, 0], [4, 12.35, 9], [5, null, null], [6, 3.2, null]]) && got.every(g => Math.abs(g.dKm - ST.d) < 0.05), J(got));
   });
 
   await attempt('D', async () => {
