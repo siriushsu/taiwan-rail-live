@@ -34170,8 +34170,9 @@ function openWidgetRailStation(sysName, name) {
   return true;
 }
 let _metroWaitListening = false;
-// 首次「怎麼玩」說明卡(#howtoWrap,z 800)會整片蓋住護照與附近車站卡,而小工具的深連結是使用者明確要去的地方,
-// 所以先讓位。只收起、不寫已讀旗標:還沒讀過說明的人,下次正常開 App 仍會看到那張卡。
+// 首次「怎麼玩」說明卡(#howtoWrap,z 800)會整片蓋住護照、附近車站卡、通行證面板、車站看板與等車卡,而小工具的深連結
+// (waitOpen 五種:passport、checkin、pass、station、沒有 view 的等車卡)是使用者明確要去的地方,所以先讓位。
+// 只收起、不寫已讀旗標:還沒讀過說明的人,下次正常開 App 仍會看到那張卡。
 function howtoYieldToWidget() {
   const hw = document.getElementById('howtoWrap');
   if (hw && !hw.hidden) hw.hidden = true;
@@ -34199,15 +34200,19 @@ function ensureMetroWaitListener() {
         await new Promise(r => setTimeout(r, 300));
       }
       await new Promise(r => setTimeout(r, 600));
+      // 五種深連結都是使用者點小工具明確要去的地方,首次說明卡不能蓋在上面:統一在分流之前讓位,
+      // 不放進各分支——先前只有 passport、checkin 兩支各自呼叫,pass、station、等車卡三支漏掉,
+      // 第一次開 App 從那三種小工具進來,看板／方案面板／等車卡會被說明卡整片蓋住。
+      howtoYieldToWidget();
       // 通行證閘門的 CTA 卡(railisland://pass):沒有站可開,直接把人送到方案面板。
       // 走與工具列同一個入口 plusOpen(),來源標成 widget 方便日後看轉換來自哪裡。
       if (evt && evt.view === 'pass') { plusOpen('widget'); return; }
       // 車站收集小工具(railisland://passport):打開旅程護照(#ridePanel:完乘記錄與收集章,「車站 N 座」就在這),
       // 不是通行證(pass)、也不是車站看板(station)。沒有站要找,直接開。
-      if (evt && evt.view === 'passport') { howtoYieldToWidget(); openRidePanel(); return; }
+      if (evt && evt.view === 'passport') { openRidePanel(); return; }
       // 車站收集小工具的「蓋章」鈕(railisland://checkin):打開 App 後在附近車站自動蓋章。
       // 流程本體在 widgetCheckinStart(定位保鮮、精度等待、單座直接蓋／多座停在清單)。
-      if (evt && evt.view === 'checkin') { howtoYieldToWidget(); widgetCheckinStart(); return; }
+      if (evt && evt.view === 'checkin') { widgetCheckinStart(); return; }
       const sys = evt && evt.sys, station = evt && evt.station;
       if (evt && evt.view === 'station') {
         if (!openWidgetRailStation(sys, station)) {

@@ -32,6 +32,8 @@
 //       人自己真的點了頁籤才恢復記錄；本來就在全台的人記錄照舊
 //   C13 原生字串目錄（iOS Localizable.xcstrings、Android RailNativeL10n.json）的「蓋章」：繁中 key、英文 Stamp、日文 スタンプ
 //   C14 護照車站牆：台北與台中兩枚「市政府」三語都分得出城市（字與 title），3 個一般站＋1 個共構站的名字不變
+//   C15 通行證（pass）、鐵路站看板（station）、捷運等車卡（沒有 view）三種深連結，桌面與手機都讓首次說明卡讓位：
+//       說明卡收起來、旗標仍是 null、面板真的開了且中心點命中面板自己、看板開的是事件指名的那一站
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -492,6 +494,40 @@ for (const [g, lat, lon] of [['hsr', 24.6, 120.8], ['metro', 25.05, 121.5]]) {
     const rest = seals.filter(s => s.cnt === '');
     ok(`C14 ${lang} 3 個一般站＋共構站（香山、左營、動物園、台北車站）的字一個字都沒變`, rest.map(s => strip(s.text)).sort().join('|') === w.others.map(strip).sort().join('|'), rest.map(s => s.text).join(' / '));
     ok(`C14 ${lang} 這四枚的 title 站名也沒變`, rest.map(s => first(s.title)).sort().join('|') === [...w.others].sort().join('|'), rest.map(s => first(s.title)).join(' / '));
+    await ctx.close();
+  }
+}
+
+// ── C15 通行證、鐵路站看板、捷運等車卡的深連結同樣讓首次說明卡讓位 ──────────────────────────
+// 小工具的深連結有五種（護照、蓋章、通行證、鐵路站看板、捷運等車卡），都是使用者點了明確要去的地方，
+// 首次說明卡（#howtoWrap，z 800）不能蓋在上面。C2／C11 已驗蓋章與護照；這裡驗另外三種，桌面與手機各一遍。
+// 每一格量：說明卡收起來、已讀旗標仍是 null（讓位不是讀過，沒讀過說明的人下次開 App 照常看得到）；
+// 該去的面板真的開了，而且面板中心點命中的是面板自己、不是說明卡；看板類再對站名（期望值手寫，取自事件本身）。
+// 事件的 sys／station 是原生小工具送來的字面：鐵路看板 sys＝tra、station＝香山；等車卡沒有 view、sys＝trtc、station＝台北車站。
+for (const mobile of [false, true]) {
+  const vp = mobile ? '手機' : '桌面';
+  const LINKS = [
+    { id: 'pass', evt: { view: 'pass' }, panel: '#plusModal', label: '通行證面板' },
+    { id: 'station', evt: { view: 'station', sys: 'tra', station: '香山' }, panel: '#board', label: '車站看板', stn: '香山' },
+    { id: 'wait', evt: { sys: 'trtc', station: '台北車站' }, panel: '#board', label: '車站看板（等車卡）', stn: '台北車站' },
+  ];
+  for (const L of LINKS) {
+    const tag = `C15 ${vp} ${L.id}`;
+    const { ctx, page } = await open({ tag, howto: 'unseen', mobile });
+    const pre = await page.evaluate(() => { const w = document.getElementById('howtoWrap'), b = w.getBoundingClientRect(); return { shown: !w.hidden && b.width > 0 && b.height > 0, flag: localStorage.getItem('trainmap-howto-seen') }; });
+    ok(`${tag} 前提：首次說明卡在畫面上、已讀旗標是 null`, pre.shown && pre.flag === null, JSON.stringify(pre));
+    await page.evaluate(e => window.__mwFire('waitOpen', e), L.evt);
+    // 等面板真的開了（等完成訊號，不等固定秒數）；等不到就往下讓判準去紅
+    await page.waitForFunction(sel => { const el = document.querySelector(sel); if (!el || el.hidden) return false; const b = el.getBoundingClientRect(); return b.width > 0 && b.height > 0; }, L.panel, { timeout: 15000, polling: 100 }).catch(() => {});
+    await sleep(400);
+    const r = await page.evaluate(sel => {
+      const hw = document.getElementById('howtoWrap'), p = document.querySelector(sel), b = p.getBoundingClientRect();
+      const e = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+      return { howtoHidden: hw.hidden, flag: localStorage.getItem('trainmap-howto-seen'), panelVisible: !p.hidden && b.width > 0 && b.height > 0, hitPanel: !!e && p.contains(e) && !hw.contains(e), stn: state.boardStation ? state.boardStation.name : null };
+    }, L.panel);
+    ok(`${tag} 深連結 → 說明卡收起來、已讀旗標仍是 null`, r.howtoHidden === true && r.flag === null, JSON.stringify(r));
+    ok(`${tag} ${L.label}真的開了，面板中心點命中面板自己（沒被說明卡蓋住）`, r.panelVisible && r.hitPanel, JSON.stringify(r));
+    if (L.stn) ok(`${tag} 開的是「${L.stn}」`, r.stn === L.stn, String(r.stn));
     await ctx.close();
   }
 }
