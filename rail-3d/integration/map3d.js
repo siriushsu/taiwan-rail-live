@@ -57,6 +57,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   function lightUniforms(mat,view,mesh){mat.uniforms.trainClipMatrix.value.multiplyMatrices(view.projectionMatrix,mesh.modelViewMatrix);const l=mesh.userData.trainLight;mat.uniforms.trainNight.value=nightAmount(globalThis.railIslandSunlight?.current);mat.uniforms.trainTunnel.value.fromArray(l?.tunnel||[0,0,0]);const box=mesh.geometry.boundingBox;mat.uniforms.trainBounds.value.set(box.min.x,box.max.x);mat.uniformsNeedUpdate=true;}
   material.onBeforeRender=(_renderer,_scene,view,_geometry,mesh)=>lightUniforms(material,view,mesh);
   const undergroundMaterial=material.clone();undergroundMaterial.transparent=true;undergroundMaterial.depthTest=true;undergroundMaterial.depthWrite=false;
+  // 車體已有自己的深度前置 pass，背面被深度擋住；不再為透明雙面車逐節重畫背／正面兩次。
+  undergroundMaterial.forceSinglePass=true;
   undergroundMaterial.uniforms.trainOpacity.value=.42;
   undergroundMaterial.onBeforeRender=(_renderer,_scene,view,_geometry,mesh)=>{lightUniforms(undergroundMaterial,view,mesh);};
   const vehicleDepthMaterial=material.clone();vehicleDepthMaterial.colorWrite=false;vehicleDepthMaterial.depthWrite=true;vehicleDepthMaterial.depthTest=true;
@@ -273,7 +275,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     return angle;
   }
   function routeProfile(v){const path=pathFor(v.route);if(!path)return null;const old=motion.get(v.id),hint=Number.isFinite(v.chainageM)?v.chainageM:old?.path===path?old.s:null;let nearest=path.locate([v.longitude,v.latitude],hint);if(!nearest||nearest.error>3)nearest=path.locate([v.longitude,v.latitude]);if(!nearest||nearest.error>3)return null;
-    const heading=getHeading?.(v),direction=Math.abs(v.railDirection)===1?v.railDirection:v.sourceKind==='timetable'&&v.systemId.endsWith('_sched')&&Math.abs(v.direction)===1?v.direction:heading!=null?(Math.cos(heading-nearest.angle)>=0?1:-1):old?.direction||1;
+    const knownDirection=Math.abs(v.railDirection)===1?v.railDirection:v.sourceKind==='timetable'&&v.systemId.endsWith('_sched')&&Math.abs(v.direction)===1?v.direction:null;
+    const heading=knownDirection===null?getHeading?.(v):null,direction=knownDirection??(heading!=null?(Math.cos(heading-nearest.angle)>=0?1:-1):old?.direction||1);
     motion.set(v.id,{path,s:nearest.s,direction,level:old?.level});const h=railHeight(path,nearest.s);
     return {...nearest,path,direction,height:h,distance:nearest.error,z:h===null?null:world([v.longitude,v.latitude],h)[2]};
   }
@@ -307,7 +310,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
           padX=(ve-vw)*.25,padY=(vn-vs)*.25;
     const onScreen=(c,v)=>v.followed||(c[0]>=vw-padX&&c[0]<=ve+padX&&c[1]>=vs-padY&&c[1]<=vn+padY);
     hits=[];stats.models=0;stats.undergroundModels=0;stats.poseSamples=[];stats.modelFallbacks=[];const arrowP=[],arrowC=[],beams=[],beamLimit=el.clientWidth<768?8:24;let beamMs=0;
-    next.vehicles.forEach((v,i)=>{const coord=[v.longitude,v.latitude],profile=near&&(terrainState.terrain||v.route?.level||wanted.has(v.id))&&Math.hypot(coord[0]-center.lng,coord[1]-center.lat)<.08?routeProfile(v):null,path=profile&&formationPath(v,profile),ratio=ml.MercatorCoordinate.fromLngLat(coord).meterInMercatorCoordinateUnits()/unit,
+    next.vehicles.forEach((v,i)=>{const coord=[v.longitude,v.latitude],profile=near&&onScreen(coord,v)&&(terrainState.terrain||v.route?.level||wanted.has(v.id))&&Math.hypot(coord[0]-center.lng,coord[1]-center.lat)<.08?routeProfile(v):null,path=profile&&formationPath(v,profile),ratio=ml.MercatorCoordinate.fromLngLat(coord).meterInMercatorCoordinateUnits()/unit,
       h=(profile?path===profile.path?profile.height:railHeight(path,profile.s):undefined)??(onScreen(coord,v)?height(coord):null),p=world(coord,h??.65),m=models.get(v.id),color=new THREE.Color(v.followed?'#d65130':v.color||'#287766');
       positions.set(p,i*3);colors.set([color.r,color.g,color.b],i*3);const hit={v,p,modelled:false};hits.push(hit);
       if(m?.group){const poses=profile&&h!==null&&(!terrainHeights()||path.elevation||path.level)?formationPoses(path,profile.s,profile.direction*(v.formationFacing||1),m.model.parts,s=>railHeight(path,s)):null;m.group.visible=!!poses;

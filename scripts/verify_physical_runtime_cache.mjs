@@ -7,7 +7,7 @@ const oldPath=(await original('rail-3d/integration/train-path.js')).makePath,old
 let trains;
 if(process.env.TRAINS_FIXTURE)trains=read(process.env.TRAINS_FIXTURE);
 else {
-  const {chromium}=await import('playwright'),browser=await chromium.launch();
+  const {chromium}=await import('playwright'),browser=await chromium.launch({channel:'chrome',headless:true});
   try {const page=await browser.newPage();await page.goto((process.env.BASE_URL||'http://127.0.0.1:5207/')+'?g=all&t=08:00');await page.waitForFunction(()=>state.ready&&state.trains.length>0&&window.railIslandPhysical);trains=await page.evaluate(()=>state.trains.map(tr=>({sys:tr.sys,train:tr.train,color:tr.color,stops:tr.stops.map(s=>({name:s.name,arrSec:s.arrSec,depSec:s.depSec,rp:s.rp,rpDep:s.rpDep,rpSegKm:s.rpSegKm,rpOff:s.rpOff}))})));}
   finally {await browser.close();}
 }

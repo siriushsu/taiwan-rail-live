@@ -5627,6 +5627,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="renderperf0930"><span class="d">9/30</span><span>改善地形與立體建物的流暢度：減少畫面外與車廂的重複繪製，靜止或暫停時降低負擔；建物線條改從畫面中央向外補齊</span></li>
         <li data-cl-of="railgravel0930"><span class="d">9/30</span><span>立體鐵軌改用淡灰碎石道床，收窄邊坡與軌道輪廓；近看保留細顆粒，遠看更低調，車站多股軌道不再糊成一片土色</span></li>
         <li data-cl-of="rideexpire0930"><span class="d">9/30</span><span>「我上車了」後沒按下車，搭的車又從班表消失（週五夜車過午夜、連假加班車）時，過了抵達時間會自動下車；跟著別班車時按「搭乘中」也能直接下車（謝謝網友回報）</span></li>
         <li data-cl-of="tainanroads0930"><span class="d">9/30</span><span>台南地面鐵道歷史重播：馬路改成柏油路面，畫上車道線、中央黃線與有路緣的人行道，放大就看得到</span></li>
@@ -5634,7 +5635,6 @@
         <li data-cl-of="ntmcache0930"><span class="d">9/30</span><span>淡海、安坑倒數每 20 秒檢查更新，避免多層快取延長舊資料；斷線不把舊倒數標成新資料</span></li>
         <li data-cl-of="ntmclock0930"><span class="d">9/30</span><span>淡海、安坑跟車卡保留官方到站時間，不再被動畫平順校正延後；超出官方倒數範圍時明確標示推估</span></li>
         <li data-cl-of="ntmvehicle0930"><span class="d">9/30</span><span>淡海、安坑依官方車號逐車校正；倒數連到同一台車，待發車不因秒值固定而消失，也不憑空發車</span></li>
-        <li data-cl-of="metrocountdown0930"><span class="d">9/30</span><span>捷運與輕軌看板優先保留官方倒數；修正高捷倒數被備案取代，以及淡海、安坑部分倒數的路線與時間偏差</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5964,6 +5964,7 @@
         <li data-cl="kbfocusselect0925"><span class="d">9/25</span><span>用鍵盤往回移動時，我的最愛、台鐵與高鐵車站看板（含跟車時）、軌道與路線、查詢面板選到的項目不再停在標題列底下；英文介面選到長站名時，iPhone 的「接公車」「我上車了」、到站提醒與 Mac Safari 的車站／地標導覽不再能左右拖動</span></li>
         <li data-cl="widgetbg0923"><span class="d">9/23</span><span>桌面小工具新增「背景」設定：台鐵／高鐵發車看板可選車模、場景或素色，捷運看板可選車模或素色；iPhone 與 Android 都有，App 1.6.11 起生效</span></li>
         <li data-cl="railboardrows0923"><span class="d">9/23</span><span>Android 桌面的台鐵發車看板改成卡片放得下幾班就列幾班：Samsung 等把小工具格子給得比較高的手機，卡片下方不再空一大截；小、中、大三種尺寸與大字版一起調整</span></li>
+        <li data-cl="renderperf0930"><span class="d">9/30</span><span>改善地形與立體建物的流暢度：減少畫面外與車廂的重複繪製，靜止或暫停時降低負擔；建物線條改從畫面中央向外補齊</span></li>
         <li data-cl="widgetrailjump0919"><span class="d">9/19</span><span>從台鐵發車看板或鐵路＋捷運雙看板點進軌島時，會回到正確的鐵路地圖與車站；臺北車站不會再被同名的捷運站截走</span></li>
         <li data-cl="cexpiostap0919"><span class="d">9/19</span><span>修正 iPhone／iPad 底部速度膠囊點不開：淡出把手點一下只會醒來，第二下常被誤導點到旁邊的暫停鍵；現在放開手指就直接展開，不再誤觸暫停。Android／桌面不受影響。</span></li>
         <li data-cl="updatebanner0919"><span class="d">9/19</span><span>App 有新版時，頂端的更新提示不再蓋住「觀看」按鈕：右側按鈕列載入後會變長，提示現在會跟著往下讓位</span></li>
@@ -6961,10 +6962,12 @@
 //         v0930f 跟 codex/metro-countdown-repair-0930 撞號，v0930g、v0930h 又已先上 main，改用 v0930i 讓版號維持遞增。
 // v0930k：台南地面鐵道歷史重播的馬路（memories/tainan-2026-09-12/roads.js）：柏油路面、依 OSM 車道數推算路寬、車道線與中央黃線、依人行道標記畫有路緣的人行道，
 //         地下道不畫在地面上（守門：scripts/verify_tainan_memory.mjs 的「馬路：」、verify_tainan_memory_browser.mjs）。v0930j 由 SEO 平鎮待通車站分支佔用。
-const BUILD = 'v1001a';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
+// v0930a：減少近景離屏投影、重複方向計算與全台車輛身分掃描；同一視角重用靜態投影，3D 待機與暫停降頻。
+// v0930b：近景先篩除遠方路線與車輛，地下透視省去重複背面 pass；建物線條由螢幕中央優先，逐頂點只查一次 DEM。
+const BUILD = 'v1001a';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -7719,6 +7722,7 @@ function createMaplibreEngine(containerId, view) {
   const raw = new maplibregl.Map({
     container: containerId, style: OFM_STYLE[styleKind],
     center: [c0.lng, c0.lat], zoom: view.zoom - ML_Z,
+    pixelRatio: Math.min(window.devicePixelRatio || 1, 2), // 與 overlay 同為 2× 上限，3× 螢幕不必繪製九倍像素。
     attributionControl: false, renderWorldCopies: false, fadeDuration: 0,
     dragRotate: true, pitchWithRotate: true, touchPitch: true, maxPitch: 75,
     transformRequest: (url, type) => {
@@ -12793,6 +12797,12 @@ function mapDetailPoint(ll) {
   const p = M.toScreen(ll);
   return { x: p.x, y: p.y, detailOpacity: M.detailOpacity(ll) };
 }
+// 近景先排除遠離視口的座標，再求含 DEM 的透視投影；保留半個視口餘裕與原本螢幕裁切。
+// 每次 draw 重取範圍，手勢與跟車仍使用本幀相機，沒有快取移動元素的位置。
+let detailArea = null;
+function inDetailArea(pos) {
+  return !detailArea || pos.lon >= detailArea[0] && pos.lon <= detailArea[2] && pos.lat >= detailArea[1] && pos.lat <= detailArea[3];
+}
 
 function drawFreq(w, h) {
   const P = pal();
@@ -12842,6 +12852,7 @@ function drawFreq(w, h) {
     const core = metroCoreItemsForLine(ln, officialNow);
     if (core !== null) {
       for (const item of core) {
+        if (!inDetailArea(item.pos)) continue;
         const cp = mapDetailPoint([item.pos.lat, item.pos.lon]);
         paintTrain(cp.x, cp.y, null, ln.id, () => drawMetroCoreVehicle(ln, item, showTrain, inView, true, officialNow));
       }
@@ -12850,6 +12861,7 @@ function drawFreq(w, h) {
     const official = trtcOfficialItemsForLine(ln, officialNow);
     if (official !== null) {
       for (const item of official) {
+        if (!inDetailArea(item.pos)) continue;
         const cp = mapDetailPoint([item.pos.lat, item.pos.lon]); // 只為排序取位置,實際還是由該函式自己算
         paintTrain(cp.x, cp.y, null, ln.id, () => drawTrtcOfficialVehicle(ln, item, showTrain, inView, true, officialNow));
       }
@@ -12858,7 +12870,7 @@ function drawFreq(w, h) {
     if (ln._tt) { // 實際時刻:當日班表逐班定位(跟 simSec 時鐘)
       for (const tr of ln._tt) {
         const pos = freqTrainPosAt(ln, tr, state.simSec);
-        if (!pos) continue; // 未發車/已到終點
+        if (!pos || !inDetailArea(pos)) continue; // 未發車/已到終點或遠離視口
         const cp = mapDetailPoint([pos.lat, pos.lon]);
         paintTrain(cp.x, cp.y, null, ln.id, () => {
           if (window.railIslandIntegration?.hasModel({ln,tr})) return;
@@ -12875,6 +12887,7 @@ function drawFreq(w, h) {
     if (!ln.sched) return; // 無時刻檔的線退回班距均勻撒車
     for (let k = 0; k < ln.n; k++) {
       const pos = posPeriodic(ln, tau + k * ln.period / ln.n);
+      if (!inDetailArea(pos)) continue;
       const cp = mapDetailPoint([pos.lat, pos.lon]);
       paintTrain(cp.x, cp.y, null, ln.id, () => {
         if (window.railIslandIntegration?.hasModel({ln,k})) return;
@@ -13269,6 +13282,7 @@ function drawDecoTrains(w, h) {
     const core = metroCoreItemsForLine(ln, officialNow);
     if (core !== null) {
       for (const item of core) {
+        if (!inDetailArea(item.pos)) continue;
         const cp = mapDetailPoint([item.pos.lat, item.pos.lon]);
         if (!inView(cp)) continue;
         paintTrain(cp.x, cp.y, null, ln.id, () => drawMetroCoreVehicle(ln, item, showTrain, inView, showTrain, officialNow));
@@ -13278,6 +13292,7 @@ function drawDecoTrains(w, h) {
     const official = trtcOfficialItemsForLine(ln, officialNow);
     if (official !== null) {
       for (const item of official) {
+        if (!inDetailArea(item.pos)) continue;
         const cp = mapDetailPoint([item.pos.lat, item.pos.lon]); // 只為排序取位置
         paintTrain(cp.x, cp.y, null, ln.id, () => drawTrtcOfficialVehicle(ln, item, showTrain, inView, showTrain, officialNow));
       }
@@ -13286,7 +13301,7 @@ function drawDecoTrains(w, h) {
     if (ln._tt) { // 實際時刻:與台鐵/高鐵共用 simSec 時鐘,同框時間軸一致
       for (const tr of ln._tt) {
         const pos = freqTrainPosAt(ln, tr, state.simSec);
-        if (!pos) continue;
+        if (!pos || !inDetailArea(pos)) continue;
         const cp = mapDetailPoint([pos.lat, pos.lon]);
         if (!inView(cp)) continue;
         if (showTrain) state._freqHits.push({ x: cp.x, y: cp.y, ln, tr }); // 命中測試與畫的順序無關,照舊即時收
@@ -13304,6 +13319,7 @@ function drawDecoTrains(w, h) {
     if (!ln.sched) continue;
     for (let k = 0; k < ln.n; k++) {
       const pos = posPeriodic(ln, tau + k * ln.period / ln.n);
+      if (!inDetailArea(pos)) continue;
       const cp = mapDetailPoint([pos.lat, pos.lon]);
       if (!inView(cp)) continue;
       // 全台同框的捷運也可點擊跟隨;只在畫車號牌的縮放才收命中(遠景是密集小點,誤點率太高)
@@ -13708,6 +13724,7 @@ function drawSched(w, h, paintDecoTrains) {
   // 車站圖示(依站等分級):圖示墊在列車下、站名最後畫在最上層,遠景時小站不畫
   const labelCands = [];
   for (const st of state.schedStations) {
+    if (!inDetailArea(st)) continue;
     const cp = mapDetailPoint([st.lat, st.lon]);
     if (!inView(cp)) continue;
     const tier = st.tier == null ? 4 : st.tier;
@@ -13726,6 +13743,7 @@ function drawSched(w, h, paintDecoTrains) {
     if (!isFollow && !state.visible.has(tr.typeName)) continue;
     const pos = trainPos(tr, state.simSec); if (!pos) continue;
     if (state.visible.has(tr.typeName)) n++;
+    if (!isFollow && !inDetailArea(pos)) continue;
     const cp = mapDetailPoint([pos.lat, pos.lon]);
     if (!inView(cp)) continue;
     if (window.railIslandIntegration?.hasModel({tr})) continue;
@@ -17776,6 +17794,8 @@ function draw() {
   if (!state.ready) return;
   state._drawCount = (state._drawCount || 0) + 1; // 省電節流的實測計數器(測試讀取繪製頻率用)
   const w = cv.width / state.dpr, h = cv.height / state.dpr;
+  if (M.getZoom() >= 14) { const b = M.getBounds().pad(.5), sw = b.getSouthWest(), ne = b.getNorthEast(); detailArea = [sw.lng, sw.lat, ne.lng, ne.lat]; }
+  else detailArea = null;
   ctx.clearRect(0, 0, w, h);
   state._trainHits = [];
   state._freqHits = [];
@@ -17880,7 +17900,7 @@ function tickCore(now) {
   // renderNow 同時閘住相機置中(updateFollowCamera/updateFreqFollowCamera)與 draw,故全速豁免會一起放行兩者,
   // 維持「相機與繪製同閘、列車不與底圖錯位」的既有約束(見下方 draw 節流)。與非省電路徑 fullRate 的 1.5s 窗一致。
   if (psActive) { renderNow = (now - (state._interactAt || 0) < 1500) || (now - (state._psAt || 0) >= 33); if (renderNow) state._psAt = now; }
-  if (renderNow && !document.hidden) window.railIslandIntegration?.render();
+  if (renderNow && !document.hidden) window.railIslandIntegration?.render(now);
   if (state.mode === 'sched' && state.followTrain) {
     if (renderNow) updateFollowCamera(); // 省電時降 30fps 置中(讀絕對位置,不積分,半速置中仍平順)
     state._evClock = (state._evClock || 0) + dt;
@@ -38143,7 +38163,15 @@ async function boot() {
   // 錄製還原刻意不放這裡：Task 4 的還原會一併啟動取樣，而取樣要投影到線形，
   // 必須等線網載完才有意義。實際呼叫點在下方 boot 尾段（線網就緒後）。
   await setupLocalNotifications();
-  M.on('move zoom resize', reproject);
+  let terrainProjectionEpoch = 0, projectedView = '';
+  const projectionKey = () => {
+    const size = M.getSize(), padding = M.raw.getPadding(), terrain = M.raw.getTerrain();
+    return [camKey(), M.raw.getCenterElevation(), size.x, size.y, padding.top, padding.right, padding.bottom, padding.left, terrain?.source || '', terrain?.exaggeration ?? 0, terrainProjectionEpoch].join('|');
+  };
+  const reprojectView = () => { reproject(); projectedView = projectionKey(); };
+  M.on('move zoom resize', reprojectView);
+  M.on('sourcedata', e => { if (e.sourceId === 'terrain' && (e.tile || e.sourceDataType === 'content')) terrainProjectionEpoch++; });
+  M.on('style.load', () => { terrainProjectionEpoch++; });
   // overlay 與底圖同幀落地:MapLibre 的 'render' 在 GL 畫完這一幀之後發,此刻的相機就是 GL 剛畫的那個,
   // 在那裡重投影+重繪 ⇒ 兩層永遠同幀。tick 那一幀的重繪跳過(_syncDrew),不重畫兩次;
   // tick 自己發的 setView(跟車鏡頭)不走這條(tick 尾端本來就會畫)。
@@ -38151,12 +38179,12 @@ async function boot() {
     if (!state.ready || state._inTick || document.hidden) return;
     // 同一個視圖連發的 move(零位移 move、_onZoomTransitionEnd 的補發)不重畫;判「同視圖」用投影狀態本身,
     // 不用時間窗——高更新率(120Hz／headless rAF 不鎖 vsync)下相鄰兩幀可能只差 3–5ms,時間窗會把真的位移漏掉
-    const key = camKey();
+    const key = projectionKey();
     if (key === state._syncDrawKey) return;
     state._syncDrawKey = key; state._syncDrawAt = state._drawAt = performance.now(); state._syncDrew = true;
     draw();
   };
-  const syncDrawMaplibre = () => { state._glKey = camKey(); state._glAt = performance.now(); reproject(); syncDraw(); }; // 'render' 在 GL 畫完這一幀之後發:此刻的相機就是 GL 剛畫的那個(tick 的 glPending 靠它判斷)
+  const syncDrawMaplibre = () => { state._glKey = camKey(); state._glAt = performance.now(); if (projectedView !== projectionKey()) reprojectView(); syncDraw(); }; // 'render' 在 GL 畫完這一幀之後發:相機、尺寸或 DEM 改變才重投影，列車仍逐幀定位。
   M.on('render', syncDrawMaplibre);
   // 省電:互動時標記時戳,tick 據此維持全速 1.5s(見 tick 節流)。map 'move'/'zoom' 覆蓋整段拖曳/縮放
   // (滑鼠拖曳中只有 pointermove 不重發,靠 map move 續命);pointerdown/wheel/touch 覆蓋點擊與觸控起手

@@ -115,7 +115,9 @@ function overlayRuntimeContract(text) {
       && !/M\.(?:leaflet|raw|_[A-Za-z])\b|window\.__map/.test(body),
     renderWires,
     // 09-04 起 render 接線多記 GL 剛畫的相機簽名(state._glKey/_glAt),tick 用它決定「GL 還沒畫到這個相機就不畫」(兩層同幀落地)
-    renderBody: text.includes("const syncDrawMaplibre = () => { state._glKey = camKey(); state._glAt = performance.now(); reproject(); syncDraw(); };"),
+    renderBody: text.includes("const syncDrawMaplibre = () => { state._glKey = camKey(); state._glAt = performance.now(); if (projectedView !== projectionKey()) reprojectView(); syncDraw(); };")
+      && text.includes("const reprojectView = () => { reproject(); projectedView = projectionKey(); };")
+      && text.includes("M.on('sourcedata', e => { if (e.sourceId === 'terrain' && (e.tile || e.sourceDataType === 'content')) terrainProjectionEpoch++; });"),
     // M4-B:原本是【正向】釘住 Leaflet-only 的 zoomanim 區塊必須存在。Leaflet 拔掉後改成【反向】——
     // 縮放動畫仿射整套(zoomanim 事件、_endZoomAnim)是 Leaflet 專屬,MapLibre 每幀真實更新相機,
     // 這些東西再冒出來就是有人把舊路徑併回來了。
@@ -215,7 +217,7 @@ function expectedBoundsZoom(sw, ne, size) {
 const MAPLIBRE_REASON = '此斷言直接讀 MapLibre style、canvas 或 raw map，是引擎專屬的內部契約';
 const FLAG_REASON = '此斷言驗引擎旗標已退場（?engine=／localStorage 舊值都要被忽略），只在 maplibre pass 執行一次';
 const NOLEAFLET_REASON = '此斷言證明頁面上完全沒有 Leaflet（M4-B 拔引擎的驗收），只在 maplibre pass 執行一次';
-const browser = await chromium.launch();
+const browser = await chromium.launch({channel:'chrome',headless:true});
 let matrix;
 try {
   matrix = await runEngineMatrix(async ({ engine, engineUrl, check, onlyFor }) => {

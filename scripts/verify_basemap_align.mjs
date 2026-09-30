@@ -55,7 +55,7 @@ await new Promise(resolve => server.listen(PORT, '127.0.0.1', resolve));
 BASE = `http://127.0.0.1:${server.address().port}/index.html?lang=zh-TW`;
 
 async function boot(launcher, url, { layerTimeout = 30000, allowLayerMissing = false } = {}) {
-  const browser = await launcher.launch();
+  const browser = await launcher.launch(launcher===chromium?{channel:'chrome',headless:true}:{headless:true});
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   try {
   await ctx.route('**/*', route => {

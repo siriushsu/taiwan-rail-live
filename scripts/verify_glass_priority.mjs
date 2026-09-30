@@ -1,4 +1,4 @@
-// 台北密集斜視：以同一份已載入圖磚 A/B 舊版，並直接讀 GL 像素驗近景線條。
+// 台北密集斜視：以同一份已載入圖磚 A/B 下緣優先版，直接讀 GL 像素驗中央線條。
 import {chromium,webkit} from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,7 +10,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const out=path.join(root,'output/glass-priority');fs.mkdirSync(out,{recursive:true});
 const instrument=s=>s.replace('const parts=','this.auditPicked=[];const parts=').replaceAll('parts.push(b.v);','this.auditPicked.push(b.hash);parts.push(b.v);');
 const current=instrument(fs.readFileSync(path.join(root,'night-map.js'),'utf8'));
-const old=instrument(execFileSync('git',['show','f08226df:night-map.js'],{cwd:root,encoding:'utf8'}));
+const old=instrument(execFileSync('git',['show','HEAD:night-map.js'],{cwd:root,encoding:'utf8'}));
 const method=s=>'({'+s.slice(s.indexOf('      rebuild() {'),s.indexOf('      render(gl,args)'))+'}).rebuild';
 const mime={'.html':'text/html','.js':'text/javascript','.json':'application/json','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.woff2':'font/woff2'};
 const server=createServer((req,res)=>{const u=new URL(req.url,'http://x');
@@ -30,8 +30,9 @@ return page.evaluate(({baseline})=>{
  const fresh=g.rebuild,legacy=(0,eval)(baseline);
  const stats=()=>{const selected=new Set(g.auditPicked),visible=[],all=[];const canvas=m.getCanvas(),w=canvas.clientWidth,h=canvas.clientHeight;
  for(const list of g.tiles.values())for(const b of list){const [west,south,east,north]=b.bounds,p=m.project([(west+east)/2,(south+north)/2]);if(p.x>=0&&p.x<=w&&p.y>=0&&p.y<=h){const item={key:b.hash,y:p.y,x:p.x,picked:selected.has(b.hash)};visible.push(item);}all.push(b);}
- const unique=[...new Map(visible.map(x=>[x.key,x])).values()],near=unique.filter(x=>x.y>h/2),bottom=unique.sort((a,b)=>b.y-a.y).slice(0,20);
- return {buildings:g.buildings,vertices:g.count,near:near.length,nearPicked:near.filter(x=>x.picked).length,bottom:bottom.length,bottomPicked:bottom.filter(x=>x.picked).length,selected:g.auditPicked};};
+ const unique=[...new Map(visible.map(x=>[x.key,x])).values()],central=unique.sort((a,b)=>(a.x-w/2)**2+(a.y-h/2)**2-((b.x-w/2)**2+(b.y-h/2)**2)).slice(0,20);
+ const selectedDistances=unique.filter(x=>x.picked).map(x=>Math.hypot(x.x-w/2,x.y-h/2));
+ return {buildings:g.buildings,vertices:g.count,central:central.length,centralPicked:central.filter(x=>x.picked).length,meanDistance:selectedDistances.reduce((a,b)=>a+b,0)/selectedDistances.length,selected:g.auditPicked};};
  legacy.call(g);const before=stats();const start=performance.now();fresh.call(g);const coldMs=performance.now()-start,after=stats();
  const times=[];for(let i=0;i<5;i++){const t=performance.now();fresh.call(g);times.push(performance.now()-t);}times.sort((a,b)=>a-b);
  const selected=JSON.stringify(g.auditPicked);const q=m.querySourceFeatures;m.querySourceFeatures=function(...args){return q.apply(this,args).reverse();};fresh.call(g);const orderIndependent=selected===JSON.stringify(g.auditPicked);m.querySourceFeatures=q;fresh.call(g);
@@ -40,10 +41,10 @@ return page.evaluate(({baseline})=>{
 }
 async function pixels(page){return page.evaluate(()=>new Promise(resolve=>{
 const m=M.raw,g=m.getLayer('building-glass-edges').implementation,original=g.render;
-g.render=function(gl,args){const w=gl.drawingBufferWidth,h=gl.drawingBufferHeight,a=new Uint8Array(w*h*4),b=new Uint8Array(w*h*4);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,a);original.call(this,gl,args);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,b);let changed=0,lower=0;for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=(y*w+x)*4;if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>12){changed++;if(y<h/2)lower++;}}g.render=original;resolve({changed,lower,width:w,height:h});};m.triggerRepaint();}));}
+g.render=function(gl,args){const w=gl.drawingBufferWidth,h=gl.drawingBufferHeight,a=new Uint8Array(w*h*4),b=new Uint8Array(w*h*4);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,a);original.call(this,gl,args);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,b);let changed=0,central=0;for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=(y*w+x)*4;if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>12){changed++;if(Math.abs(x-w/2)<w/4&&Math.abs(y-h/2)<h/4)central++;}}g.render=original;resolve({changed,central,width:w,height:h});};m.triggerRepaint();}));}
 let browser;
 try{for(const [engineName,engine] of Object.entries({chromium,webkit})){
-browser=await engine.launch({headless:true});
+browser=await engine.launch(engineName==='chromium'?{channel:'chrome',headless:true}:{headless:true});
 for(const mobile of [false,true]){
 const context=await browser.newContext({viewport:{width:mobile?375:1920,height:mobile?844:1080},isMobile:mobile,hasTouch:mobile,locale:'zh-TW'});
 await context.addInitScript(()=>{localStorage.setItem('trainmap-howto-seen','1');localStorage.setItem('trainmap-appearance','dark');});
@@ -54,9 +55,9 @@ for(const width of mobile?[360,375,390,414,520,768]:[1920]){
 await page.setViewportSize({width,height:mobile?844:1080});await page.evaluate(()=>M.raw.resize());
 for(const bearing of mobile?[0]:[0,180]){
 const a=await audit(page,bearing);const label=`${engineName} ${width}px bearing ${bearing}`;
-check(label+' 近景保留、額度與順序',a.after.buildings<=(mobile?700:1600)&&a.after.vertices<=161000&&a.after.bottomPicked===a.after.bottom&&a.orderIndependent,a);
-if(!mobile&&bearing===0)check(label+' 舊版漏線確實重現',a.before.bottomPicked<a.after.bottomPicked,a);
-const px=await pixels(page);check(label+' 近景實際像素',px.lower>20,px);
+check(label+' 中央優先、額度與順序',a.after.buildings<=(mobile?700:1600)&&a.after.vertices<=161000&&a.after.centralPicked===a.after.central&&a.orderIndependent,a);
+if(!mobile&&bearing===0)check(label+' 線條預算向中央集中',a.after.meanDistance<=a.before.meanDistance,a);
+const px=await pixels(page);check(label+' 中央實際像素',px.central>20,px);
 }
 if(mobile){
 for(const full of [false,true]){await page.evaluate(full=>{document.body.classList.toggle('fs',full);M.resize();},full);
@@ -68,7 +69,7 @@ const valid=await page.evaluate(()=>{const e=document.getElementById('map3dRow')
 check(`${engineName} ${width}px ${full?'全畫面':'一般'} 真觸控`,valid.off&&valid.hit&&!valid.overflow,valid);await page.tap('#map3dRow');
 // #map3dRow 不在 view-controls.js 的自動關閉清單(data-close/track/fontscale/immBtn)裡,面板點完不會自己收起,要手動關;可見才點,避免面板已被別的路徑關掉時撲空。
 const vc=page.locator('.view-close');if(await vc.isVisible())await vc.tap();}
-if(width===375){const dense=await audit(page,180,17);check(`${engineName} 手機密集市區`,dense.after.buildings===700&&dense.after.bottomPicked===dense.after.bottom&&dense.orderIndependent,dense);}
+if(width===375){const dense=await audit(page,180,17);check(`${engineName} 手機密集市區`,dense.after.buildings===700&&dense.after.centralPicked===dense.after.central&&dense.orderIndependent,dense);}
 }
 if(width===(mobile?375:1920))await page.screenshot({path:path.join(out,`${engineName}-${width}.png`)});
 }

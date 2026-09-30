@@ -86,16 +86,20 @@
         for(const k of tiles.keys())if(!live.has(k))tiles.delete(k);
         const bounds=raw.getBounds(), sw=bounds.getSouthWest(), ne=bounds.getNorthEast();
         const cap=matchMedia('(any-pointer:coarse)').matches?700:1600;
-        const point=(xy,height,alpha)=>{const ground=raw.getTerrain()?raw.queryTerrainElevation(xy):0;if(ground==null)return null;const p=maplibregl.MercatorCoordinate.fromLngLat(xy,height+ground);return [p.x-origin[0],p.y-origin[1],p.z,alpha];};
-        const edges=b=>{const out=[],ring=b.ring,edge=(a,c,ha,hb,alpha)=>{const p=point(a,ha,alpha),q=point(c,hb,alpha);if(p&&q)out.push(...p,...q);};
-          for(let i=0;i<ring.length-1;i++){edge(ring[i],ring[i+1],b.height,b.height,.40);edge(ring[i],ring[i],b.base,b.height,.24);
-            if(floors){const step=Math.max(4,Math.ceil((b.height-b.base)/10));for(let h=b.base+step;h<b.height-1;h+=step)edge(ring[i],ring[i+1],h,h,.10);}}
+        const edges=b=>{const out=[],ring=b.ring;
+          // 同一頂點的屋頂、垂直線和各層樓都站在同一地表，一次建置只查一次 DEM。
+          // 圖磚到貨仍由 schedule 清掉整份頂點快取，不跨不同地形資料保留高度。
+          const ground=ring.map((xy,i)=>i===ring.length-1&&xy[0]===ring[0][0]&&xy[1]===ring[0][1]?null:terrain?raw.queryTerrainElevation(xy):0);
+          if(ring.at(-1)[0]===ring[0][0]&&ring.at(-1)[1]===ring[0][1])ground[ring.length-1]=ground[0];
+          const point=(i,height,alpha)=>{if(ground[i]==null)return null;const p=maplibregl.MercatorCoordinate.fromLngLat(ring[i],height+ground[i]);return [p.x-origin[0],p.y-origin[1],p.z,alpha];};
+          const edge=(a,c,ha,hb,alpha)=>{const p=point(a,ha,alpha),q=point(c,hb,alpha);if(p&&q)out.push(...p,...q);};
+          for(let i=0;i<ring.length-1;i++){edge(i,i+1,b.height,b.height,.40);edge(i,i,b.base,b.height,.24);
+            if(floors){const step=Math.max(4,Math.ceil((b.height-b.base)/10));for(let h=b.base+step;h<b.height-1;h+=step)edge(i,i+1,h,h,.10);}}
           return new Float32Array(out);};
-        // 預算先分給畫面內的近景，不能由圖磚回傳順序決定；斜視時遠方圖磚可能先填滿上限。
-        // 下緣中央是可見地面的近端；俯視時用畫面中心。只在重建時投影／排序，逐幀仍只 drawArrays。
+        // 畫面內的線條由螢幕中央向外分配預算，不以相機地面位置或圖磚回傳順序決定。
+        // 只在重建時投影／排序，逐幀仍只 drawArrays。
         const canvas=raw.getCanvas(), width=canvas.clientWidth, height=canvas.clientHeight;
-        const near=raw.unproject([width/2,raw.getPitch()>0?height:height/2]);
-        const lngScale=Math.cos(center.lat*Math.PI/180), candidates=[],picked=new Set();
+        const candidates=[],picked=new Set();
         for(const k of order)for(const b of tiles.get(k)){
           const [bw,bs,be,bn]=b.bounds;
           if(be<sw.lng||bw>ne.lng||bn<sw.lat||bs>ne.lat||picked.has(b.hash))continue;
@@ -108,8 +112,7 @@
             visible=Math.max(...corners.map(p=>p.x))>=0&&Math.min(...corners.map(p=>p.x))<=width&&
               Math.max(...corners.map(p=>p.y))>=0&&Math.min(...corners.map(p=>p.y))<=height;
           }
-          const dx=(Math.max(bw,Math.min(be,near.lng))-near.lng)*lngScale;
-          const dy=Math.max(bs,Math.min(bn,near.lat))-near.lat;
+          const dx=p.x-width/2,dy=p.y-height/2;
           candidates.push({b,visible,distance:dx*dx+dy*dy});
         }
         candidates.sort((a,b)=>Number(b.visible)-Number(a.visible)||a.distance-b.distance||

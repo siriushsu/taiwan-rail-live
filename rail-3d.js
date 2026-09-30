@@ -30,8 +30,9 @@
   let landscapeGround=(params.get('ground')||read('ri-landscape-ground','terrain'))==='flat'?'flat':'terrain';
   const effectiveGround=()=>state.basemap==='landscape'?landscapeGround:groundMode;
   formationMode=formationMode==='three'?'three':'actual';groundMode=groundMode==='terrain'?'terrain':'flat';trainSizeMode=trainSizeMode==='scale'?'scale':'readable';
-  let renderer=null,lastFrame=null,loading=false,loadSerial=Promise.resolve(),epoch=0,manualTarget=null,appearanceKey='',noteAt=0,noteLang='';
-  const shapeCache=new WeakMap(),tripKeys=new WeakMap(),targets=new Map(),stationTargets=new Map(),motionItems=new Map(),headings=new Map(),errors=[];
+  let renderer=null,lastFrame=null,loading=false,loadSerial=Promise.resolve(),epoch=0,manualTarget=null,appearanceKey='',noteAt=0,renderAt=-Infinity,noteLang='';
+  let trainIds=new WeakMap(),lineIds=new WeakMap();
+  const shapeCache=new WeakMap(),lineBounds=new WeakMap(),tripKeys=new WeakMap(),targets=new Map(),stationTargets=new Map(),motionItems=new Map(),headings=new Map(),errors=[];
   const save=(key,value)=>{try{localStorage.setItem(key,String(value));}catch{}};
   function tripKey(tr){
     if(!tripKeys.has(tr)){let h=2166136261;for(const c of JSON.stringify(tr)){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}tripKeys.set(tr,(h>>>0).toString(36));}return tripKeys.get(tr);
@@ -46,11 +47,29 @@
     if(!coordinates){coordinates=shape?shape.map(c=>[c[1],c[0]]):(ln.stations||[]).map(s=>[s.lon,s.lat]);shapeCache.set(shape||ln,coordinates);}
     return {id:systemId+':'+ln.id,systemId,routeId:String(ln.id),lineKey:(ln._sys||ln.sys||systemId)+'|'+ln.id,color:ln.color||'#547466',coordinates,loop:!!ln.loop};
   }
-  function capture(){
+  function capture({cull=false}={}){
     const epoch=Date.now()/1000,day=taipeiServiceDayStr(),vehicles=[],routes=[],stations=[];
-    targets.clear();stationTargets.clear();motionItems.clear();
-    function add(id,pos,meta,target){if(target.ln&&window.railIslandPhysical?.metro){const dir=meta.railDirection||Math.sign(meta.direction||0);pos=railIslandPhysical.metro.sample(target.ln,pos,dir);if(pos?.physical)meta={...meta,route:pos.route,chainageM:pos.chainageM,railDirection:pos.railDirection};}if(!pos||!Number.isFinite(pos.lat)||!Number.isFinite(pos.lon))return;
-      targets.set(id,target);vehicles.push({id,longitude:pos.lon,latitude:pos.lat,railElevationM:null,...meta});}
+    // 近景只送附近車輛進 3D；遠方捷運不用每幀再反查線形、換算實體股道。
+    // 來源示意線與股道可能略有差距，邊界額外保留約兩公里，跟隨車一律保留。
+    const view=cull&&M.raw.getZoom()>=14?M.raw.getBounds():null;
+    const west=view?.getWest()-.02,east=view?.getEast()+.02,south=view?.getSouth()-.02,north=view?.getNorth()+.02;
+    const nearby=(pos,followed)=>!view||followed||pos.lon>=west&&pos.lon<=east&&pos.lat>=south&&pos.lat<=north;
+    const nearbyLine=ln=>{
+      const f=state.freqFollow,followed=f?.ln===ln||f?.vehicleId!=null&&String(f.lineId)===String(ln.id)&&(!f.core||String(f.systemId)===String(freqSysIdOf(ln)));
+      if(!view||followed)return true;
+      const key=ln.shape||ln;let box=lineBounds.get(key);
+      if(!box){const points=ln.shape||(ln.stations||[]).map(s=>[s.lat,s.lon]);if(!points.length)return true;
+        box=[Infinity,Infinity,-Infinity,-Infinity];for(const [lat,lon]of points){box[0]=Math.min(box[0],lon);box[1]=Math.min(box[1],lat);box[2]=Math.max(box[2],lon);box[3]=Math.max(box[3],lat);}lineBounds.set(key,box);}
+      return box[0]<=east&&box[2]>=west&&box[1]<=north&&box[3]>=south;
+    };
+    targets.clear();stationTargets.clear();motionItems.clear();trainIds=new WeakMap();lineIds=new WeakMap();
+    function add(id,pos,meta,target){if(!pos||!Number.isFinite(pos.lat)||!Number.isFinite(pos.lon)||!nearby(pos,meta.followed))return;
+      if(target.ln&&window.railIslandPhysical?.metro){const dir=meta.railDirection||Math.sign(meta.direction||0);pos=railIslandPhysical.metro.sample(target.ln,pos,dir);if(pos?.physical)meta={...meta,route:pos.route,chainageM:pos.chainageM,railDirection:pos.railDirection};}if(!pos||!Number.isFinite(pos.lat)||!Number.isFinite(pos.lon))return;
+      targets.set(id,target);
+      // canvas 的每一輛車都會問 hasModel；用來源身分索引，避免每次走訪整份全台列車名單。
+      if(target.ln){let ids=lineIds.get(target.ln);if(!ids)lineIds.set(target.ln,ids=new Map());const key=target.tr|| (target.vehicleId!=null?!!target.core+':'+String(target.vehicleId):target.k);if(!ids.has(key))ids.set(key,id);}
+      else if(!trainIds.has(target.tr))trainIds.set(target.tr,id);
+      vehicles.push({id,longitude:pos.lon,latitude:pos.lat,railElevationM:null,...meta});}
     function station(st,sys,ln){const board=ln?{name:st.name,lat:st.lat,lon:st.lon,sys:state.mode==='sched'?'deco':'freq',metroSysId:sys}:st;
       const id=[sys,st.id||st.name,st.lat,st.lon].join(':');if(stationTargets.has(id))return;stationTargets.set(id,board);stations.push({id,name:st.name,systemId:sys,longitude:st.lon,latitude:st.lat});}
     const pools=state.mode==='sched'?(state.deco?state.decoLines||[]:[]):state.lines||[];
@@ -59,7 +78,7 @@
       for(const st of state.schedStations||[])station(st,st.sys);
       if(!state.collectMap)for(const tr of state.trains){
         if(tr!==state.followTrain&&!state.visible.has(tr.typeName))continue;
-        const pos=trainPos(tr,state.simSec);if(!pos)continue;
+        const pos=trainPos(tr,state.simSec);if(!pos||!nearby(pos,state.followTrain===tr))continue;
         const g=trainSeg(tr,state.simSec-liveDelaySec(tr)-blockHoldSec(tr));
         const route=pos.physical?pos.route:g?.ln?lineRecord(g.ln,tr.sys):null;
         const id=[tr.sys,day,tr.train,tr.stops[0]?.depSec,tr.stops.at(-1)?.arrSec].join(':');
@@ -71,7 +90,7 @@
       if(state.mode!=='sched'&&!state.visible.has(ln.id))continue;
       const sys=freqSysIdOf(ln),route=lineRecord(ln,sys),common={systemId:sys,routeId:String(ln.id),route,color:ln.color,publicLabel:ln.abbr||ln.name};
       routes.push(route);for(const st of ln.stations||[])station(st,sys,ln);
-      if(state.collectMap)continue;
+      if(state.collectMap||!nearbyLine(ln))continue;
       const core=metroCoreItemsForLine(ln,epoch),official=core===null?trtcOfficialItemsForLine(ln,epoch):null;
       if(core!==null||official!==null){
         for(const item of core??official){const kind=core!==null?'core':'official',f=state.freqFollow;
@@ -119,7 +138,7 @@
 
   function sameTarget(a,b){return !!a&&!!b&&(a.ln?b.ln===a.ln&&(a.tr?a.tr===b.tr:a.vehicleId!=null?String(a.vehicleId)===String(b.vehicleId)&&!!a.core===!!b.core:a.k===b.k):a.tr===b.tr&&!b.ln);}
   function currentTarget(){return state.followTrain?{tr:state.followTrain}:state.freqFollow;}
-  function idFor(target){for(const [id,hit]of targets)if(sameTarget(target,hit))return id;return null;}
+  function idFor(target){if(!target)return null;return (target.ln?lineIds.get(target.ln)?.get(target.tr||(target.vehicleId!=null?!!target.core+':'+String(target.vehicleId):target.k)):trainIds.get(target.tr))??null;}
   function select(id){const hit=targets.get(id);if(!hit)return false;manualTarget=null;if(hit.ln)setFreqFollow(hit);else setFollow(hit.tr,false,true);return true;}
   // 編組說明寫在跟車小卡上;換語言後的第一幀不等 300ms 節流,否則小卡這一行會停在上一個語言(09-25)。
   function updateNote(){const lang=document.documentElement.lang;if(performance.now()-noteAt<300&&lang===noteLang)return;noteAt=performance.now();noteLang=lang;const v=lastFrame?.vehicles.find(v=>v.followed),spec=v&&formationFor(v,formationMode);
@@ -129,9 +148,19 @@
   let landscapeTransparent=read('ri-landscape-transparent','0')==='1';
   function inspectionEnabled(){return state.basemap==='landscape'?landscapeTransparent:state.basemap==='sat'?satelliteTransparent:transparent;}
   function syncAppearance(force=false){if(!renderer)return;const satellite=state.basemap==='sat',landscape=state.basemap==='landscape',inspection=inspectionEnabled(),key=[state.map3d,state.mapDark,satellite,landscape,inspection].join(':');if(!force&&key===appearanceKey)return;appearanceKey=key;renderer.setAppearance({buildings:state.map3d,dark:state.mapDark,transparent:inspection,satellite,landscape});syncUI();}
-  function render(){if(!renderer||!M.raw.getLayer('live-vehicles-3d')||!state.ready||document.hidden)return;try{
+  function render(now){if(!renderer||!M.raw.getLayer('live-vehicles-3d')||!state.ready||document.hidden)return;try{
+    // tick 才節流；選項呼叫 render() 時立即生效，暫停中的跳時也不受間隔限制。
+    // 相機有動作維持全速，同一視角的列車更新則與主 canvas 的待機頻率一致。
+    // 暫停時仍低頻檢查資料與模型到貨；官方即時捷運使用牆鐘，不能因回放暫停而降成靜態。
+    if(Number.isFinite(now)){
+      const fullRate=state.followTrain||state.freqFollow||state.ambient||renderer.interacting||M.raw.isMoving()||now-(state._interactAt||0)<1500;
+      const live=lastFrame?.vehicles.some(v=>v.sourceKind==='core'||v.sourceKind==='official');
+      const interval=fullRate?0:state.playing||live?30:250;
+      if(now-renderAt<interval&&(state.playing||lastFrame?.clock.simSec===state.simSec))return;
+    }
+    renderAt=Number.isFinite(now)?now:performance.now();
     if(M.raw.getZoom()<13.8&&!followHeadLocked()){if(lastFrame?.vehicles.length){lastFrame={...lastFrame,vehicles:[],selectedVehicleId:null};renderer.update(lastFrame);}return;}
-    lastFrame=capture();renderer.update(lastFrame);syncAppearance();updateNote();
+    lastFrame=capture({cull:true});renderer.update(lastFrame);syncAppearance();updateNote();
   }catch(e){if(errors.length<5){errors.push(String(e.stack||e));console.error('3D 顯示',e);}enabled=false;syncUI();}}
   // renderer.interacting 期間本來一律讓位;純旋轉／傾斜手勢改交給 followCoordinate 自己判斷
   // (它只在 gestureOrbited 且 followLock 時才續跟),免得落到平面 setView 去搶同一個中心。
