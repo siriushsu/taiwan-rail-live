@@ -21,6 +21,8 @@ import WidgetKit
 //         intent 把待辦記進 App Group 並把 App 帶到前景，由 RailMetroWaitPlugin 讀出後發同一個事件。
 //   鎖屏兩款太小，不放鈕，維持整張點了開護照。
 // 兩個包裝都不進 CollectionCard.swift：AppIntents 不能被 harness 編，ImageRenderer 也畫不出 Link；靠 s 閘門靜態掃這裡。
+// 可點範圍：兩個包裝的 label 都是 CollectionStampChip，它自己帶外擴的內距與 contentShape（外觀不變、算繪 harness 量得到），
+// 小卡、中卡的版面在外面套負內距把鈕的版面位置抵銷回來，所以這裡不必再處理點擊範圍；實際範圍與上限由 t 閘門看。
 
 extension CollectionStore {
     /// App Group 容器根目錄的 collection.json。

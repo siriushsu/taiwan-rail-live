@@ -656,7 +656,7 @@ async function judge({ specs, results, out, src }) {
         check('s', n, label.text === STAMP_LABEL, `鈕上的字「${label.text}」≠ 期望「${STAMP_LABEL}」`);
         check('s', n, chip.x >= inset - 0.6 && chip.y >= inset - 0.6 && chip.x + chip.w <= spec.w - inset + 0.6 && chip.y + chip.h <= spec.h - inset + 0.6,
           `蓋章鈕超出內容框：x ${chip.x.toFixed(1)}–${(chip.x + chip.w).toFixed(1)}、y ${chip.y.toFixed(1)}–${(chip.y + chip.h).toFixed(1)}`);
-        for (const o of frames.filter(f => !f.id.endsWith('#ideal') && !f.id.endsWith('.fill') && f.id !== 'stamp' && f.id !== 'stamp.chip')) {
+        for (const o of frames.filter(f => !f.id.endsWith('#ideal') && !f.id.endsWith('.fill') && !['stamp', 'stamp.chip', 'stamp.hit'].includes(f.id))) {
           const ix = Math.min(chip.x + chip.w, o.x + o.w) - Math.max(chip.x, o.x), iy = Math.min(chip.y + chip.h, o.y + o.h) - Math.max(chip.y, o.y);
           check('s', n, !(ix > 0.05 && iy > 0.05), `蓋章鈕與 ${o.id}${o.text ? `「${o.text}」` : ''} 相交 ${ix.toFixed(1)}×${iy.toFixed(1)}pt`);
         }

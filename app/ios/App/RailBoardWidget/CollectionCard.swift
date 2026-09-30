@@ -777,9 +777,14 @@ struct SmallCollectionView<Stamp: View>: View {
 
     /// 文字欄：數字（或空狀態說明）在上，蓋章鈕接在最下面。整欄靠左下，地圖在右下，鈕不會碰到地圖。
     private func textColumn(_ f: CollectionFigures, _ k: RailScale) -> some View {
-        VStack(alignment: .leading, spacing: k.pt(6)) {
+        let gap = k.pt(6)
+        // 可點範圍（外觀不變）：上緣只能到文字欄的間距——再高就壓到「還有 N 座」那一行的框；
+        // 下緣延伸到卡片下緣（內距 16pt，下面沒有任何東西）；左右各補 4pt，430pt 機型 48pt 寬、393pt 機型 44pt 寬。
+        // 430pt 機型高 44pt（22＋6＋16）、393pt 機型 41pt。
+        let chip = CollectionStampChip(k: k, hit: EdgeInsets(top: gap, leading: 4, bottom: CollectionMetrics.inset, trailing: 4))
+        return VStack(alignment: .leading, spacing: gap) {
             numbers(f, k)
-            stamp(CollectionStampChip(k: k))
+            stamp(chip).padding(chip.hitCompensation)
         }
     }
 
@@ -870,13 +875,17 @@ struct MediumCollectionView<Stamp: View>: View {
             }
             // 蓋章鈕放在「已收集 N／M 座」這一列的右端：這一列橫向有大把空位（三種語言都是），
             // 而縱向已經滿了（全台五列系統＋圖例），鈕不能另起一列。
+            // 可點範圍（外觀不變）：橫向左右各 10pt（左邊離「已收集」文字的框至少還有 12pt、右邊離卡片右緣有 16pt），
+            // 38pt 寬的鈕變 58pt；縱向擋死了——上面緊貼百分比的文字框（間距 0）、下面只剩約 2pt 就是第一列系統列或進度條，
+            // 只能往下多 1pt，所以高度 17pt。要縱向也到 44pt，得騰出版面，不是點擊範圍能解決的。
+            let chip = CollectionStampChip(k: k, compact: true, hit: EdgeInsets(top: 0, leading: 10, bottom: 1, trailing: 10))
             HStack(spacing: k.pt(6)) {
                 CollectionText(
                     id: "countOf", text: CollectionCopy.countOf(f),
                     content: Text(CollectionCopy.countOf(f)).font(.system(size: k.pt(10.5))),
                     key: true, tone: .secondary)
                 Spacer(minLength: 0)
-                stamp(CollectionStampChip(k: k, compact: true))
+                stamp(chip).padding(chip.hitCompensation)
             }
             // 間距 2pt（原 3）：蓋章鈕讓「已收集」那一列多出約 1.5pt，全台中卡縱向本來就滿，靠這兩處各省 1pt 補回來。
             Spacer(minLength: k.pt(2))
@@ -1047,6 +1056,16 @@ struct CollectionStampChip: View {
     let k: RailScale
     /// 中卡那一列只有一行字高，用矮一點的版本。
     var compact = false
+    /// 可點範圍往外擴的量（pt，四邊）。外觀（膠囊）不變，只有包在外面的 Button／Link 的 label 框變大——
+    /// 系統的點擊範圍就是 label 的框，加上這裡的 contentShape。各邊能擴多少由呼叫端依鄰居決定
+    /// （不准蓋到數字、標題、進度條的框），預設不外擴。
+    var hit = EdgeInsets()
+
+    /// 抵銷 hit 的負內距：呼叫端套在「已包好 Button／Link」的外面，鈕在版面上佔的位置與大小就跟沒外擴一樣，
+    /// 旁邊的元素不會被推開；外擴的部分只是伸出去的可點範圍。
+    var hitCompensation: EdgeInsets {
+        EdgeInsets(top: -hit.top, leading: -hit.leading, bottom: -hit.bottom, trailing: -hit.trailing)
+    }
 
     @Environment(\.colorScheme) private var scheme
     @Environment(\.railMonochrome) private var mono
@@ -1067,6 +1086,9 @@ struct CollectionStampChip: View {
             .fixedSize()
             .collectReport("stamp.chip")
             .widgetAccentable()
+            .padding(hit)
+            .contentShape(Rectangle())
+            .collectReport("stamp.hit")
     }
 }
 
