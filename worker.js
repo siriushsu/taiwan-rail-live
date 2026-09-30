@@ -6581,7 +6581,7 @@ async function bountyMe(request, env) {
     if (!uid) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
     who = uid; verified = true;
   } else if (await rateLimited(env.BOUNTY_LIMITER, request)) {
-    // ?actor= 路徑（不驗身分、免費）與 chips-me 同一道限流：舊版沒有，一個匿名 actor 連打這支就能大量燒 D1 讀取（計畫 D-T1 (5)）
+    // ?actor= 路徑（不驗身分、免費）與 chips-me 同一道限流：舊版沒有，一個匿名 actor 連打這支就能大量燒 D1 讀取
     return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
   }
   if (!isActorId(who)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
@@ -6629,7 +6629,7 @@ async function bountyMe(request, env) {
     // 🔴 同時刻不取 actor 字序（第八輪獨立驗收）：first_ok_at 是那一發判定的 now（bountyVerifyCron 一發共用一個），同一發判過的人時間都一樣；
     // 取字序最前等於看 token 長相決定誰是第一位，裝置併進帳號（uid 與裝置 token 的字序不同）時首位還會換人。
     // 舊版每一段各跑一句 segs LIKE '%段鍵%' … ORDER BY verdict_at：idx_samples_pending 只篩得出 verdict='ok'，之後逐列比 LIKE 再排序，
-    // 等於每段掃一次全站的 ok 列（計畫 D-T1 (5)）；段數多的人一次呼叫要上千句。現在一句、每段讀兩列：自己那一列走主鍵，最早的一列走 idx_seg_contrib_first。
+    // 等於每段掃一次全站的 ok 列；段數多的人一次呼叫要上千句。現在一句、每段讀兩列：自己那一列走主鍵，最早的一列走 idx_seg_contrib_first。
     // 語意差別：模擬器的趟不寫貢獻，所以不再算首位（舊版會）；v1 時代的 ok 樣本不在這張表——v1 只能靠隱藏網址旗標打開，
     // 正式站從沒對一般使用者開過。
     if (segOk.size) {
@@ -7595,7 +7595,7 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
       // 🔴 回報的速度再低，位置微分超過 posSpeedVetoMps（10 m/s＝36 km/h）就不信它（第十輪獨立驗收 P1-2）：Android 沒有速度時送的是 0.0
       // 不是 null（@capacitor/geolocation 2.2.0 的 ION 直接呼叫 getSpeed()、不查 hasSpeed()），整趟送 0 的話通過的站約 99% 被記成停靠；
       // 偽造者整趟送 0 或任何小的數也一樣。否決門檻刻意比 stopSpeedMaxMps 高得多：真的停著時 GPS 會晃——
-      // 模擬（計畫驗收紀錄 s15）門檻用 1.5 的話，停著時回報剛好 0 的誠實裝置停靠召回掉到 21–45%。
+      // 模擬裡門檻用 1.5 的話，停著時回報剛好 0 的誠實裝置停靠召回掉到 21–45%。
       // 🔴 位置微分跟「至少 posSpeedWindowSec（5 秒）以前的那一點」比，窗內還沒有那麼早的點就跟窗內第一點比（第十一輪獨立驗收 P2-1）：
       // 第十五批跟前一點比（1 秒），GPS 每一點獨立晃 10 m 時，停著的位置微分雜訊約 √2×10≈14 m/s、常超過 10，回報 0 的真停靠被否決掉，
       // 召回 99.3% → 71.6%（晃 6 m 時 95.6%）。跟 5 秒前比，雜訊除以 5。
@@ -7678,7 +7678,7 @@ function integrityGate(trip, ctx, rules) {
   // 前提是被丟的點不能再拿去算任何東西（V7 的但書）。所以回傳收下的點（pts），判定端的品質閘、覆蓋率一律改用它（籌碼的整班長度照舊用原始的點，理由見 bountyVerifyTrain）；
   // 下面第四重的都卜勒、第二重的逐站時刻也只看它（否則被丟的點仍能刷覆蓋、稀釋都卜勒的相關係數）。
   // 數字是 V7 模擬過的那一組（F3：隧道出口、冷啟動、±100／±300 跳點的誤殺率都降到 0–1%）。
-  // App 端還有一個伺服器修不動的：t 是送達時刻不是定位時刻（JS 卡頓更長時仍會誤殺；計畫 §12 的 App 端建議）；t 在午夜歸零則已在 assembleTrip 補上。
+  // App 端還有一個伺服器修不動的：t 是送達時刻不是定位時刻（JS 卡頓更長時仍會誤殺，要在 App 端改）；t 在午夜歸零則已在 assembleTrip 補上。
   const sgn = Number(trip.dir) === 1 ? -1 : 1, lim = cap * 1.15, TOL = 50, aMax = R.maxAccelMps2 * 3;
   const PHYS_DROP_RUN = 5, PHYS_DROP_MIN = 5, PHYS_DROP_SHARE = 0.01, PHYS_GAP_SEC = 10, PHYS_GAP_SKIP = 2, PHYS_BACK_SEC = 10;
   // 以 s 方向（+1＝里程遞增）判一次：回傳收下的點，判死回 null。
@@ -7707,9 +7707,9 @@ function integrityGate(trip, ctx, rules) {
     return dropped > Math.max(PHYS_DROP_MIN, PHYS_DROP_SHARE * seen) ? null : kept;
   };
   // 淨位移（第八輪獨立驗收 B(2) T5）：收下的點首末要往 dir 的方向走，不能整體往後退超過 TOL。
-  // dir 是 assembleTrip 拿原始的首末里程判的，而開頭兩點不收、壞點會丟——原始首末可以放在線頭定出方向，收下的點再每步退 49.9 m（往後只比相鄰兩點、容差 50 m）
-  // 從線尾掃回線頭：任何時間窗（含同一秒）都能蓋滿整條線，還記在反方向。t 現在沒有外部錨點，這一條沒有增加能領到的懸賞與籌碼；
-  // 等 t 有錨點（App Attest＋班表對時）那天它就是繞過錨點的捷徑，所以現在補上。
+  // dir 是 assembleTrip 拿原始的首末里程判的，而開頭兩點不收、壞點會丟，所以原始首末定出的方向不一定是收下的點真的走的方向。
+  // 相鄰兩點之間的往後檢查有容差；收下的點每一步都在容差內、整體卻往後退時，覆蓋段會記在錯的方向，
+  // 所以另外要求首末的淨位移不能往後超過 TOL。
   // 原始方向判死、或整體往後退時，換另一個方向重判一次，那個方向成立（沒判死、淨位移也不往後）就改用它，兩個方向都不成立才判 impossible_physics：
   // 原始首末定錯方向的誠實錄程——站停錄程開頭偏遠、之後 GPS 慢慢飄過 50 m（停靠卡整趟站著不動）、錄程最後一點是進隧道前的舊位置——
   // 不能因此判可疑；方向改由收下的點決定，偽造者本來就能用原始首末挑方向，換方向重判不給它多的能力，覆蓋段則從此一定記在軌跡真的走的方向。
@@ -7727,7 +7727,7 @@ function integrityGate(trip, ctx, rules) {
   // 兩者過度一致才可疑：相關係數高到接近 1、而且兩者逐點的差（中位數）小到只剩上傳端的取整誤差，才判。
   // 🔴 只看相關係數會誤殺高速錄程（第九輪獨立驗收 A-1）：相關係數由整趟速度的變異量支配，高鐵 0–83 m/s 的變異大到誠實 GPS 的位置微分雜訊
   // （每秒 1 m/s 上下）幾乎不影響它——V9 照 App 形狀模擬，GPS 乾淨的高鐵誠實錄程相關係數中位數 0.9985–0.9987，三到七成被判可疑。
-  // 上傳端的取整：d 到 0.1 m、v 到 0.01 m/s，Δt＝1 秒時兩者逐點差 ≤0.1 m/s。
+  // 上傳端的取整：d 到 0.1 m、v 到 0.01 m/s；兩者本來相同時，Δt＝1 秒的逐點差最多約 0.1 m/s（0.105）。
   // 所以再加一條逐點差的中位數 ≤ dopplerResidMaxMps（0.0625 m/s）：誠實錄程的位置微分雜訊遠大於它，只會比舊版少判、不會多判。
   // 🔴 門檻原本是 0.5（第十四批），第十輪獨立驗收 P1-1 量到 GPS 平滑的誠實錄程（位置晃 ±0.3 m 以內）逐點差中位數只有 0.1–0.5，
   // 五到六成仍被判；改 0.0625（二進位下精確，判準的邊界才比得出「剛好」）後模擬誤殺約 0。
@@ -7737,7 +7737,7 @@ function integrityGate(trip, ctx, rules) {
   // 速度報 0 或很小的數，這種點對的逐點差就是那個小數；停久一點就佔掉一半以上，中位數跟著掉到門檻以下——
   // 起點或月台上等 10–20 分鐘再開出的誠實錄程，大半被判可疑。位置沒動的點對不帶這一重要看的資訊；剩下的點對要 30 對以上才判。
   // 第十七批只排除「速度剛好 0」的，凍住時回報小數速度的裝置照樣被誤殺，所以改成只看位置。
-  // 校準的數字只留在不進版控的驗收紀錄。
+  // 其餘校準數字留在不進版控的驗收紀錄。
   const a = [], b = [];
   for (let i = 1; i < kept.length; i++) {
     const dt = kept[i].t - kept[i - 1].t;
@@ -7752,8 +7752,8 @@ function integrityGate(trip, ctx, rules) {
     const corr = (sa > 0 && sb > 0) ? sab / Math.sqrt(sa * sb) : 0;
     if (corr > R.dopplerCorrMax && median(a.map((x, i) => Math.abs(x - b[i]))) <= R.dopplerResidMaxMps) return { pass: false, code: 'doppler_too_clean' };
   }
-  // 第二重：對得上當時的獨立誤點回報——偽造者得同時猜中我們幾小時前存下來的值。
-  // 這一重的已知限制與待決事項在計畫 §12.2 第一條、§12.1 第 5 項。
+  // 第二重：對得上當時的獨立誤點回報：錄程推得的各站通過時刻，要對上我們在那個時刻存下的表定時刻加上誤點。
+  // 取各站差的最大值（下面的 worst），超過 delayMatchToleranceSec 判 delay_mismatch。
   // 🔴 沒有獨立紀錄時直接跳過，不判失敗：捷運沒有車次級誤點源（規格 §7 那個不對稱），
   // 在那裡判失敗等於把整個捷運的樣本全部殺掉，而捷運正是最需要收的地方。
   const events = (ctx.events || []).filter(e => Number.isFinite(Number(e.schedSec)));
@@ -7967,8 +7967,8 @@ const BOUNTY_VERIFY_MAX_TRAIN_BYTES = 4 * 1024 * 1024;
 // 「可信身分」每一發排在最前面的班數。可信＝帳號、併進帳號的裝置，或這個身分以前真的入帳過錄程籌碼
 // （前者要真的登入，後者要先交出一趟判得過的錄程）。8 班比任何人一天真的搭的班次都多。
 const BOUNTY_VERIFY_TRUSTED_TRAINS = 8;
-// 可信名額最多先用掉這一發剩下預算（子請求、牆鐘、讀取量各算）的這個比例（獨立驗收 N1），清單截斷時最多佔清單的這個比例（第三輪 N1b）。可信資格養得出來：等速的合成錄程判得過，
-// 交一趟就算可信——約 12 個這種身分各灌 8 班昂貴的垃圾車，可信名額就吃掉整發預算，新使用者的第一趟每一發都判不到。
+// 可信名額最多先用掉這一發剩下預算（子請求、牆鐘、讀取量各算）的這個比例（獨立驗收 N1），清單截斷時最多佔清單的這個比例（第三輪 N1b）。可信資格不難取得
+// （交過一趟判得過的錄程就算）——不設上限的話，約 12 個可信身分各灌 8 班昂貴的垃圾車，可信名額就吃掉整發預算，新使用者的第一趟每一發都判不到。
 // 用到份額之後，其餘的可信名額改與一般班車按輪次交錯排（同一輪裡一般班車先；別人都判完還有預算就接著判），見 bountyVerifyOrder。
 const BOUNTY_VERIFY_TRUSTED_SHARE = 0.5;
 // 判定的租約：同一時間只准一發在判（kv_blobs 一列，值是 {token, until}）。兩發重疊（平台重送、owner 手動觸發）時，
@@ -8332,8 +8332,8 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     // 防偽閘第三重丟掉的孤立壞點不再參與任何計算（等於那幾點沒送，理由見 integrityGate）：品質閘、覆蓋率都用收下的點，
     // 只有品質閘的斷訊檢查吃原始的點（第四個參數，理由見 qualityGate）。方向也用防偽閘回的（收下的點整體往後退時會換方向，見 integrityGate 的淨位移）。
     // 籌碼的整班長度照舊用原始的點（assembleTrip 已認過午夜）：前次線組的長度是從存下的原始 payload 在 SQL 裡算的（下面 priorRs 的
-    // t0／t1／u0／u1），兩邊要同一個基準。長度也不是防偽的界線——t 沒有外部錨點（可以整段拉長，計畫 §12 的殘留），改用收下的點擋不住什麼，
-    // 只會讓每趟少掉開頭不收的 2 點（剛好 600 秒的趟變 598 秒、拿不到籌碼）。
+    // t0／t1／u0／u1），兩邊要同一個基準。改用收下的點還會讓每趟少掉開頭不收的 2 點
+    // （剛好 600 秒的趟變 598 秒、拿不到籌碼）。
     const kept = ig.pts ? { ...trip, pts: ig.pts, dir: ig.dir } : trip;
     const v = verdictOf(ig, qualityGate(kept, ctx, rules, trip.pts));
     const cov = (v.verdict === 'suspect' || !line) ? [] : coverageOf(kept, line, rules, M.peakHoursBySys)
