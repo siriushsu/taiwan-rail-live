@@ -258,7 +258,7 @@ async function multiAndHowto(tag, mobile, mobileWidth = 375) {
   if (mobile) await page.tap(sel); else await page.mouse.click(cx, cy);
   const clicked = await waitStamp(page, 'thsr_sched|台北');
   const after = await stamps(page);
-  ok(`${tag} 真滑鼠點鈕 → 高鐵台北被蓋（次數 1、今天），其他站沒被蓋`, clicked && keysOf(after) === 'thsr_sched|台北' && after['thsr_sched|台北'].n === 1 && after['thsr_sched|台北'].d === todayTaipei(), keysOf(after));
+  ok(`${tag} ${mobile ? '真觸控' : '真滑鼠'}點鈕 → 高鐵台北被蓋（次數 1、今天），其他站沒被蓋`, clicked && keysOf(after) === 'thsr_sched|台北' && after['thsr_sched|台北'].n === 1 && after['thsr_sched|台北'].d === todayTaipei(), keysOf(after));
   const btn = await page.evaluate(s => { const b = document.querySelector(s); return b ? { cls: b.className, dis: b.disabled, txt: b.textContent } : null; }, sel);
   ok(`${tag} 點擊造成畫面變化：那顆鈕變成「今天已蓋 ✓」且停用`, !!btn && /done/.test(btn.cls) && btn.dis && btn.txt.includes('今天已蓋'), JSON.stringify(btn));
   ok(`${tag} 整段流程之後已讀旗標仍是 null`, (await flag(page)) === null);
