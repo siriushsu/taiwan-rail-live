@@ -107,7 +107,8 @@ const chunk = (a, n) => { const o = []; for (let i = 0; i < a.length; i += n) o.
 function world(over = {}) {
   const { db, DELAY_DB } = openTestDb(over.seed || '');
   const rulesText = J(over.rules || RULES);                  // over.rules：換一份設定檔（N3c 的降級路徑）
-  const ASSETS = { fetch: async r => new Response(String((r && r.url) || r).includes('bounty_units') ? J(UNITS) : rulesText, { status: 200 }) };
+  const unitsText = J(over.units || UNITS);                  // over.units：換一份單位產物（PF10 要帶尖峰時段表）
+  const ASSETS = { fetch: async r => new Response(String((r && r.url) || r).includes('bounty_units') ? unitsText : rulesText, { status: 200 }) };
   const env = { DELAY_DB, ASSETS, FIREBASE_WEB_API_KEY: 'k', AUTH_LIMITER: limiter, BOUNTY_LIMITER: limiter, DELETE_LIMITER: limiter,
     BOUNTY_NOW: String(over.now || NOW_MS), ...(over.env || {}) };
   const w = { db, DELAY_DB, env };
@@ -2659,6 +2660,60 @@ await attempt('PF8', async () => {
   }
   ok('PF8 [第十三批 V8 E1] 精度送 null 不算成 0 m：一半的點 acc:null、另一半 110–129 m → unusable（acc_blocked），與每一點都 110–129 m 的對照相同（舊版中位數 55 m、判 ok）',
     ['a', 'b'].every(k => J(got[k].st) === J([200, 200, 200, 200]) && got[k].v === 'unusable' && got[k].qc === 'acc_blocked'), J(got));
+});
+
+await attempt('PF9', async () => {
+  // 第十四批（V9 E-2(b)）：沒有都卜勒速度的裝置（v:null）真的停靠也要記得到停靠段——覆蓋率的停靠判定在 v 是 null 時改用位置微分（這一點與前一點）。
+  // 乘車日 07-26（週日＝holiday）。山線 20 m/s 跑 300 秒到 S3（6 km）→ 停 60 秒（GPS 每秒晃 ±0.3 m）→ 再跑 300 秒到 S6（12 km），共 661 點、660 秒 → 1 顆。
+  // 走真的 /api/bounty-submit（每批 200 點）→ 判定 cron。兩個方向（dir 1 從 12 km 往回開，停同一站）。
+  //   a 每一點 v 都送 null → 存成 null、ok、停靠段恰好一個（S3|S3/holiday）、1 顆。第十三批（只看 v）→ 沒有停靠段（V9：沒有速度的裝置拿不到真停靠）。
+  //   b 對照：同一趟送都卜勒速度（跑的時候 20 m/s 上下、停的時候 0）→ 同一個停靠段、1 顆。
+  //   高速通過不會因此被當成停靠：PF6 的 a（30 m/s 一路不停、v:null）仍然沒有停靠段。
+  const D26 = '2026-07-26';
+  const f = k => 20 * (Math.min(k, 300) + Math.max(0, k - 360)) + (k > 300 && k < 360 ? (k % 2 ? 0.3 : -0.3) : 0);
+  const trip = (rev, withV) => Array.from({ length: 661 }, (_, k) => ({ d: Math.round((rev ? 12000 - f(k) : f(k)) * 10) / 10, t: 30000 + k,
+    v: withV ? (k > 300 && k < 360 ? 0 : Math.round((20 + Math.sin(k / 7) * 0.6) * 100) / 100) : null, acc: 8 }));
+  const got = {};
+  for (const [name, rev, withV] of [['a0', false, false], ['a1', true, false], ['b0', false, true], ['b1', true, true]]) {
+    const actor = `dev-pf9-${name}0001`, w = world({ seed: boardSql('山線') }), st = [];
+    for (const part of chunk(trip(rev, withV), 200)) st.push((await submit(w, actor, { trainNo: 'PF9', tripDate: D26, dir: rev ? 1 : 0, samples: part })).status);
+    const stored = rows(w, 'SELECT payload FROM bounty_samples WHERE actor=?', actor).flatMap(r => JSON.parse(r.payload));
+    await w.cron();
+    const segs = rows(w, 'SELECT DISTINCT segs FROM bounty_samples WHERE actor=?', actor).flatMap(r => JSON.parse(r.segs || '[]'));
+    got[name] = { st, n: stored.length, vs: withV ? '有' : J([...new Set(stored.map(p => p.v))]), v: q.verdicts(w, actor, 'PF9'),
+      dwell: [...new Set(segs.filter(c => c.kind === 'dwell').map(c => c.key.split('|').slice(2).join('|') + '/' + c.slot))].sort(),
+      chips: J(rows(w, "SELECT delta FROM chip_ledger WHERE kind='trip' AND actor=?", actor).map(r => r.delta)) };
+  }
+  ok('PF9 [第十四批 V9 E-2(b)] 沒有速度（v:null）的裝置真的停靠 60 秒 → 存成 null、ok、停靠段恰好 S3|S3/holiday、1 顆；對照：送都卜勒速度的同一趟 → 同一個停靠段（兩個方向）',
+    ['a0', 'a1', 'b0', 'b1'].every(k => J(got[k].st) === J([200, 200, 200, 200]) && got[k].n === 661 && got[k].v === 'ok' &&
+      J(got[k].dwell) === J(['S3|S3/holiday']) && got[k].chips === J([1])) && got.a0.vs === J([null]) && got.a1.vs === J([null]), J(got));
+});
+await attempt('PF10', async () => {
+  // 第十四批（V9）：品質閘的覆蓋率帶判定端同一份尖峰時段表。coverageOf 平日沒有這張表就不列停靠段；第十三批以前品質閘沒帶，
+  // 平日只錄到停靠的錄程判 too_short（unusable、0 顆），假日同一趟卻是 ok，判定端存的覆蓋段裡又明明有那個停靠段。
+  // 單位產物帶真的尖峰時段表（data/bounty_units.json 的 peakHoursBySys：台鐵 7–9、17–19 時）。一趟只有停靠的錄程：5 m/s 進站 30 秒（S3 前 150 m → S3），
+  // 停 700 秒（都卜勒 0、GPS 晃 ±0.7 m 以內），共 731 點、730 秒 → 1 顆。t 從 08:20 起。唯一的區間段 S2|S3 只蓋到 7%（＜0.6），能過品質閘的只有停靠段。
+  //   平日（07-28 週二）→ ok、停靠段 S3|S3/peak、1 顆；假日（07-26 週日）→ ok、S3|S3/holiday、1 顆——同一趟兩天的判定一樣，只差時段。兩個方向（從 S3 後方 150 m 進站）。
+  //   ⚠️ 副作用（計畫 §12）：平日 10 分鐘以上、只有停靠的錄程從此跟假日一樣拿得到籌碼。
+  const PK = { ...UNITS, peakHoursBySys: { tra_sched: [7, 8, 9, 17, 18, 19], thsr_sched: [8, 9, 16, 17, 18, 19], afr_sched: [9, 10, 11, 13, 14, 15] } };
+  const e = k => 0.4 * Math.sin(k * 2.1) + 0.3 * Math.sin(k * 0.9);
+  const trip = rev => Array.from({ length: 731 }, (_, k) => {
+    const x = k <= 30 ? 5850 + 5 * k : 6000 + Math.round(e(k) * 100) / 100;
+    return { d: Math.round((rev ? 12000 - x : x) * 100) / 100, t: 30000 + k, v: k <= 30 ? Math.round((5 + Math.sin(k / 3) * 0.4) * 100) / 100 : 0, acc: 8 };
+  });
+  const got = {};
+  for (const [name, date, rev] of [['wd0', D28, false], ['wd1', D28, true], ['ho0', '2026-07-26', false], ['ho1', '2026-07-26', true]]) {
+    const actor = `dev-pf10-${name}0001`, w = world({ seed: boardSql('山線'), units: PK });
+    putBatches(w.db, { actor, trainNo: 'PF10', pts: trip(rev), date, dir: rev ? 1 : 0 });
+    await w.cron();
+    const segs = rows(w, 'SELECT DISTINCT segs FROM bounty_samples WHERE actor=?', actor).flatMap(r => JSON.parse(r.segs || '[]'));
+    got[name] = { v: q.verdicts(w, actor, 'PF10'), qc: rows(w, 'SELECT DISTINCT quality_code c FROM bounty_samples WHERE actor=?', actor).map(r => r.c).join(),
+      dwell: [...new Set(segs.filter(c => c.kind === 'dwell').map(c => c.key.split('|').slice(2).join('|') + '/' + c.slot))].sort(),
+      chips: J(rows(w, "SELECT delta FROM chip_ledger WHERE kind='trip' AND actor=?", actor).map(r => r.delta)) };
+  }
+  ok('PF10 [第十四批 V9] 平日與假日同一趟只有停靠的錄程判定一致（品質閘帶尖峰時段表）：平日 → ok、S3|S3/peak、1 顆；假日 → ok、S3|S3/holiday、1 顆（兩個方向；第十三批平日 unusable（too_short）、0 顆）',
+    ['wd0', 'wd1'].every(k => got[k].v === 'ok' && J(got[k].dwell) === J(['S3|S3/peak']) && got[k].chips === J([1])) &&
+      ['ho0', 'ho1'].every(k => got[k].v === 'ok' && J(got[k].dwell) === J(['S3|S3/holiday']) && got[k].chips === J([1])), J(got));
 });
 
 ok('Z 整支腳本沒有任何非 Firebase 的對外連線', outbound.length === 0, J(outbound.slice(0, 3)));

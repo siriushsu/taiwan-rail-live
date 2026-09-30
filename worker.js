@@ -7534,9 +7534,13 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
     if (!spatialPass) continue;
 
     let runStart = null, prevT = null, stopAt = null;
-    for (const p of local) {
-      // 沒有速度（null）不算低速：Number(null) 是 0，會把高速通過的點當成停著（見 sanitizeSamples）
-      const t = Number(p.t), v = p.v == null ? NaN : Number(p.v);
+    for (let j = 0; j < local.length; j++) {
+      // 沒有速度（null）不當成 0：Number(null) 是 0，會把高速通過的點當成停著（見 sanitizeSamples）。
+      // 改用這一點與前一點的位置微分判低速（第九輪獨立驗收 E-2(b)）：只看 v 的話，沒有速度的裝置連真的停靠都拿不到
+      // （iOS 沒有有效速度時回報 −1，App 送 null）。速度欄本來就由客戶端自填，偽造者送 0 效果相同，這一條不增加能力。
+      // 前一點沒有、或同一秒（Δt≤0）就不算低速。前端錄製當下的停靠進度（bountyUpdateDwellProgress）用同一條。
+      const p = local[j], q = local[j - 1], t = Number(p.t), dt = q ? t - Number(q.t) : 0;
+      const v = p.v != null ? Number(p.v) : dt > 0 ? Math.abs(Number(p.d) - Number(q.d)) / dt : NaN;
       const low = Math.abs(Number(p.d) - centerM) <= D.stopRadiusM &&
         Number.isFinite(v) && v <= D.stopSpeedMaxMps;
       if (!low) { runStart = null; prevT = null; continue; }
@@ -7586,8 +7590,8 @@ function integrityGate(trip, ctx, rules) {
   // 任兩點都比，長時間的平均速度就釘在上限以內。做法是 O(n)：令 g＝往前里程 − 上限×t，
   // 「每個較早的點 i 都滿足 往前(j) − 往前(i) ≤ 上限×(t_j − t_i + 1) ＋ 容差」等價於「g_j ≤ 較早各點 g 的最小值 ＋ 上限 ＋ 容差」，一路記最小值即可。
   // 容差：上限多 15%（投影誤差），另加 50 m（GPS 抖動；往後退的容差同一個 50 m，只比相鄰兩點）。
-  // 🔴 加速度只在兩點都有都卜勒速度（v＞0）時才算（第六輪）：上傳端把「沒有速度」存成 0（Number(null)＝0），舊版又把 0 當缺值、
-  // 換成兩點的位置微分——位置微分在取整到秒的 t 上雜訊極大，站停起步時 GPS 飄幾公尺就判 impossible_physics；一邊有一邊沒有同理。上界同樣用 Δt＋1。
+  // 🔴 加速度只在兩點都有都卜勒速度（v＞0）時才算（第六輪）：沒有速度的點上傳端存成 null（第十三批以前存成 0），Number(null) 是 0，一樣不比；
+  // 第五輪版把 0 當缺值、換成兩點的位置微分——位置微分在取整到秒的 t 上雜訊極大，站停起步時 GPS 飄幾公尺就判 impossible_physics；一邊有一邊沒有同理。上界同樣用 Δt＋1。
   // 🔴 孤立的壞點丟掉、不判整班（第七輪獨立驗收 B(1)）：GPS 沿線方向單點跳 100 m（台鐵）、出隧道的第一個定位還是進隧道前的舊位置
   // 或偏幾百公尺、冷啟動的頭幾個定位偏遠——舊版遇到一個就判 impossible_physics，整班可疑、不給點不發籌碼；V7 照 App 的取樣方式模擬，
   // 這幾種誠實錄程的誤殺率 50–100%（南迴、北迴、臺東線隧道多，正是籌碼加倍的偏遠線）。現在逐點比「已收下的點」：
@@ -7638,19 +7642,27 @@ function integrityGate(trip, ctx, rules) {
   // dir 是 assembleTrip 拿原始的首末里程判的，而開頭兩點不收、壞點會丟——原始首末可以放在線頭定出方向，收下的點再每步退 49.9 m（往後只比相鄰兩點、容差 50 m）
   // 從線尾掃回線頭：任何時間窗（含同一秒）都能蓋滿整條線，還記在反方向。t 現在沒有外部錨點，這一條沒有增加能領到的懸賞與籌碼；
   // 等 t 有錨點（App Attest＋班表對時）那天它就是繞過錨點的捷徑，所以現在補上。
-  // 整體往後退時換另一個方向重判一次，那個方向成立（沒判死、淨位移也不往後）就改用它，兩個方向都不成立才判 impossible_physics：
-  // 原始首末定錯方向的誠實錄程——站停錄程開頭偏遠、之後 GPS 慢慢飄過 50 m（停靠卡整趟站著不動）、錄程最後一點是大偏移——
+  // 原始方向判死、或整體往後退時，換另一個方向重判一次，那個方向成立（沒判死、淨位移也不往後）就改用它，兩個方向都不成立才判 impossible_physics：
+  // 原始首末定錯方向的誠實錄程——站停錄程開頭偏遠、之後 GPS 慢慢飄過 50 m（停靠卡整趟站著不動）、錄程最後一點是進隧道前的舊位置——
   // 不能因此判可疑；方向改由收下的點決定，偽造者本來就能用原始首末挑方向，換方向重判不給它多的能力，覆蓋段則從此一定記在軌跡真的走的方向。
+  // 🔴「原始方向判死」也要換（第九輪獨立驗收 A-4）：行進中的錄程在反方向上每一步都是往後退，一步 Δt≥2 秒（台鐵 25 m/s 以上）或高鐵任何一步
+  // 就退超過 50 m，原始方向先判死——舊版只在「沒判死、只是淨位移往後」時才換，最後一點是舊位置的行進錄程兩個方向都 100% 判可疑。
   const net = (k, s) => k.length < 2 ? 0 : s * (k[k.length - 1].d - k[0].d);
   let kept = physics(sgn), dir = trip.dir;
-  if (kept && net(kept, sgn) < -TOL) {
+  if (!kept || net(kept, sgn) < -TOL) {
     const alt = physics(-sgn);
     kept = alt && net(alt, -sgn) >= -TOL ? alt : null;
     dir = sgn === 1 ? 1 : 0;
   }
   if (!kept) return { pass: false, code: 'impossible_physics' };
   // 第四重：都卜勒一致性。coords.speed 是都卜勒量測不是位置微分，真實資料兩者會有適度差異；
-  // spoof 工具產出的兩者過度一致。相關係數高到接近 1 才判——這一重刻意只抓最粗糙的偽造。
+  // spoof 工具產出的兩者過度一致。相關係數高到接近 1、而且兩者逐點的差（中位數）小到只剩取整誤差，才判——這一重刻意只抓最粗糙的偽造。
+  // 🔴 只看相關係數會誤殺高速錄程（第九輪獨立驗收 A-1）：相關係數由整趟速度的變異量支配，高鐵 0–83 m/s 的變異大到誠實 GPS 的位置微分雜訊
+  // （每秒 1 m/s 上下）幾乎不影響它——V9 照 App 形狀模擬，GPS 乾淨的高鐵誠實錄程相關係數中位數 0.9985–0.9987，三到七成被判可疑。
+  // 偽造的特徵是「根本同一個數」：速度直接拿位置微分算，兩者只差上傳端的取整（d 到 0.1 m、v 到 0.01 m/s，Δt＝1 秒時逐點差 ≤0.1 m/s）。
+  // 所以再加一條逐點差的中位數 ≤ dopplerResidMaxMps（0.5 m/s）：誠實錄程的位置微分雜訊遠大於它，只會比舊版少判、不會多判。
+  // 門檻只用模擬校過；真的裝置有沒有「速度就是位置微分」的（例如沒有都卜勒時由定位差算速度），要用真錄程看（計畫 §12.1）。
+  // 設定檔少了這個鍵時比較式恆為假、這一重等於關掉（寧可放行；verify_bounty_rules 的 R9 釘住它在設定檔裡）。
   const a = [], b = [];
   for (let i = 1; i < kept.length; i++) {
     const dt = kept[i].t - kept[i - 1].t;
@@ -7662,9 +7674,10 @@ function integrityGate(trip, ctx, rules) {
     let sab = 0, sa = 0, sb = 0;
     for (let i = 0; i < a.length; i++) { const x = a[i] - mA, y = b[i] - mB; sab += x * y; sa += x * x; sb += y * y; }
     const corr = (sa > 0 && sb > 0) ? sab / Math.sqrt(sa * sb) : 0;
-    if (corr > R.dopplerCorrMax) return { pass: false, code: 'doppler_too_clean' };
+    if (corr > R.dopplerCorrMax && median(a.map((x, i) => Math.abs(x - b[i]))) <= R.dopplerResidMaxMps) return { pass: false, code: 'doppler_too_clean' };
   }
-  // 第二重：對得上當時的獨立誤點回報。這是最難繞的一重——偽造者得同時猜中我們幾小時前存下來的值。
+  // 第二重：對得上當時的獨立誤點回報——偽造者得同時猜中我們幾小時前存下來的值。
+  // 這一重的已知限制與待決事項在計畫 §12.2 第一條、§12.1 第 5 項。
   // 🔴 沒有獨立紀錄時直接跳過，不判失敗：捷運沒有車次級誤點源（規格 §7 那個不對稱），
   // 在那裡判失敗等於把整個捷運的樣本全部殺掉，而捷運正是最需要收的地方。
   const events = (ctx.events || []).filter(e => Number.isFinite(Number(e.schedSec)));
@@ -7710,7 +7723,9 @@ function qualityGate(trip, ctx, rules, rawPts = trip.pts) {
   // 前面多送兩個十幾分鐘前的點，就成了「沒有斷訊、長度超過 10 分鐘」。斷訊在中間時則反過來，收下的點會把斷訊多算不收的那 2 秒，
   // 剛好 noFixGapSec 的隧道被判 underground。原始的點兩邊都對，也跟籌碼長度、跟第十一批以前同一個基準。
   for (let i = 1; i < rawPts.length; i++) if (rawPts[i].t - rawPts[i - 1].t > Q.noFixGapSec) return { pass: false, code: 'underground' };
-  const cov = ctx.line ? coverageOf(trip, ctx.line, rules) : [];
+  // 尖峰時段表跟判定端（bountyVerifyTrain）同一份（第九輪獨立驗收）：coverageOf 平日沒有這張表就不列停靠段，
+  // 舊版這裡沒帶，平日只錄到停靠的錄程判 too_short、假日同一趟卻是 ok，判定端存的覆蓋段裡又明明有那個停靠段。
+  const cov = ctx.line ? coverageOf(trip, ctx.line, rules, ctx.peakHoursBySys) : [];
   if (!cov.length || !cov.some(c => c.cov >= Q.segCoverageMin)) return { pass: false, code: 'too_short' };
   return { pass: true, code: null };
 }
@@ -8236,7 +8251,7 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     } catch (e) {}
     // uploadedAt：這一組批次裡最晚上傳的時間。防偽閘的日期窗以它為基準（S14，見 integrityGate）。
     const uploadedAt = Math.max(0, ...lineRows.map(r => Number(r.submitted_at) || 0));
-    const ctx = { line, events, now, uploadedAt };
+    const ctx = { line, events, now, uploadedAt, peakHoursBySys: M.peakHoursBySys };
     const ig = integrityGate(trip, ctx, rules);
     // 防偽閘第三重丟掉的孤立壞點不再參與任何計算（等於那幾點沒送，理由見 integrityGate）：品質閘、覆蓋率都用收下的點，
     // 只有品質閘的斷訊檢查吃原始的點（第四個參數，理由見 qualityGate）。方向也用防偽閘回的（收下的點整體往後退時會換方向，見 integrityGate 的淨位移）。

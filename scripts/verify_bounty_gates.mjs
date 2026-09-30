@@ -128,6 +128,8 @@ ok('F3 第一重 日期太舊 → suspect',
 //   而且最後那個收下點是 10 秒內收的，就改丟最後那一點、收下這一點（照樣算一次丟點，連丟歸零）；②收下的點首末淨位移往後超過 50 m，就換另一個方向重判，
 //   那個方向也不成立才判 impossible_physics（回傳的 dir 是最後用的方向）。F14／F16／F18／F24／F27／F28 的期望值照回溯一層重算；
 //   F32、F33 是這一批新增的，排在 F29 前面，讓 F29 一起檢查收下的點。
+// 🔴 第十四批（V9 A-1、A-4、C-2）：①原始方向判死也換方向重判（F35、F33f；第十三批只在「沒判死、淨位移往後」時換）；
+//   ②都卜勒改成「相關係數＞0.995 而且逐點差的中位數 ≤0.5 m/s」才判（F34a–d）。F34、F35、F33f 也排在 F29 前面；F30b 的對照照新行為改寫。
 {
   // REC：F11 起每一次判定都記下來，F29 拿通過的那些檢查「收下的點本身合規」。
   const REC = [];
@@ -450,6 +452,91 @@ ok('F3 第一重 日期太舊 → suspect',
       r33.c0.pass === true && r33.c0.dir === 0 && r33.c1.pass === true && r33.c1.dir === 1 &&
       r33.d50.pass === true && r33.d50.dir === 0 && r33.d51.pass === true && r33.d51.dir === 1 && r33.e.code === 'impossible_physics',
     JSON.stringify(Object.fromEntries(Object.entries(r33).map(([k, r]) => [k, pd(r)]))));
+  // ── 第十四批（V9 A-4、C-2 NET_altthr0）：原始方向判死也換方向重判 ──
+  // F35：最後一點是起點後方的舊位置（V9 的 staleEnd：錄程結束時拿到的是進隧道前的舊定位）→ 原始首末把方向定反（assembleTrip 照首末里程定方向）。
+  //   台鐵 30 m/s、每 2 秒一點（每步 60 m）600 秒；高鐵 80 m/s、每秒一點 600 秒；最後一點在起點後方 5 km（t＝最後一點＋1、沒有速度、精度 65 m）。
+  //   原始方向（反的）：每一步都往後退 60／80 m（容差 50）→ 每一點都違反、唯一的收下點一直被回溯換掉 → 丟點遠超預算 → 判死。
+  //   第十三批只在「沒判死、淨位移往後」時換方向，這裡就停在 impossible_physics（V9：staleEnd 三格 100% 可疑）。
+  //   第十四批判死也換：真方向每步往前 60／80 m 在上限內，只有最後那一點往後 23／53 km 不收（丟 1 點）→ 通過、r.dir＝真方向、那一點不在收下的點裡。兩個方向。
+  const stale = (v, dt, n) => {
+    const P = Array.from({ length: n + 1 }, (_, k) => ({ d: k * v * dt, t: 30000 + k * dt, v: v + Math.sin(k / 7) * 0.6, acc: 8 }));
+    return [...P, { d: -5000, t: P[n].t + 1, v: null, acc: 65 }];
+  };
+  const sT = stale(30, 2, 300), sH = stale(80, 1, 600);
+  const r35 = { tra0: gate(sT, 'tra_sched', 1), tra1: gate(flip(sT, 30000), 'tra_sched', 0),
+    thsr0: gate(sH, 'thsr_sched', 1), thsr1: gate(flip(sH, 60000), 'thsr_sched', 0) };
+  const r35ok = (r, dir, P) => r.pass === true && r.dir === dir && !has(r, P[P.length - 1]) && r.pts.length === P.length - 3;
+  ok('F35 [第十四批 V9 A-4] 最後一點是起點後方 5 km 的舊位置（原始首末 → 方向定反）：台鐵 30 m/s 每 2 秒一點、高鐵 80 m/s 每秒一點 → 原始方向判死、換真方向通過、r.dir＝真方向、舊位置那一點不收（兩個方向）',
+    r35ok(r35.tra0, 0, sT) && r35ok(r35.tra1, 1, sT) && r35ok(r35.thsr0, 0, sH) && r35ok(r35.thsr1, 1, sH),
+    JSON.stringify(Object.fromEntries(Object.entries(r35).map(([k, r]) => [k, r.pass ? `ok/dir${r.dir}/${r.pts.length}` : r.code]))));
+  // F33f 反方向淨位移的邊界（V9 C-2：NET_altthr0 存活——F33 的 d50／d51 只釘原方向的 −50）：dir 0，頭兩點（不收）與第 3 點在 1000 m，
+  //   之後每 2 秒退 60 m 共 7 步（到 580 m，30 m/s），再每秒往前 47 m 共 10 步回到 1050 m。
+  //   dir 0：退的 7 步每步往後 60 m（容差 50）→ 每一點都回溯換錨、丟 7 點＞預算 5 → 判死 → 換 dir 1：退的 7 步變成往前 30 m/s（上限內）、
+  //   回來的 10 步每步往後 47 m（容差內）全收，收下點首末 1000 → 1050，dir 1 的淨位移 −50（不小於 −50）→ 通過、r.dir＝1。
+  //   回來的 10 步改成每步 47.1 m（到 1051 m）→ 淨位移 −51 → 兩個方向都不成立 → impossible_physics。兩個方向（倒過來走傳 dir 1）。
+  const altB = step => [{ d: 1000, t: 30000 }, { d: 1000, t: 30001 }, { d: 1000, t: 30002 },
+    ...Array.from({ length: 7 }, (_, k) => ({ d: 1000 - 60 * (k + 1), t: 30004 + 2 * k })),
+    ...Array.from({ length: 10 }, (_, k) => ({ d: Math.round((580 + step * (k + 1)) * 10) / 10, t: 30017 + k }))].map(p => ({ ...p, v: 0, acc: 8 }));
+  const r33f = { a50: gate(altB(47)), a51: gate(altB(47.1)), b50: gate(flip(altB(47), 2000), 'tra_sched', 1), b51: gate(flip(altB(47.1), 2000), 'tra_sched', 1) };
+  ok('F33f [第十四批 V9 C-2] 反方向淨位移的邊界：原始方向判死、反方向收下點淨位移剛好 −50 → 通過且方向改成反方向；−51 → impossible_physics（兩個方向）',
+    r33f.a50.pass === true && r33f.a50.dir === 1 && r33f.a50.pts.length === 18 && r33f.a51.code === 'impossible_physics' &&
+      r33f.b50.pass === true && r33f.b50.dir === 0 && r33f.b50.pts.length === 18 && r33f.b51.code === 'impossible_physics',
+    JSON.stringify(Object.fromEntries(Object.entries(r33f).map(([k, r]) => [k, pd(r)]))));
+  // ── 第十四批（V9 A-1、C-2 NL_dop）：都卜勒改成「相關係數＞0.995 而且逐點差的中位數 ≤ 0.5 m/s」才判 ──
+  // F34 用一條速度變異很大的高鐵錄程：10 → 80 m/s 每秒加 0.25、定速 80 m/s 300 秒、再每秒減 0.25 回 10 m/s（861 點）。
+  //   里程與速度都取 0.25 的倍數（二進位下精確，邊界才比得出「剛好 0.5」），GPS 回報的位置每秒左右晃 ±0.5 m（位置微分逐點差 ±1 m/s）。
+  //   相關係數與逐點差中位數由判準自己算（第 3 點起逐對：頭兩點不收；沒有速度的點跳過），不讀實作。
+  //   a 誠實：都卜勒速度＝真速度再加 −0.125／0／+0.125 的量測差 → 相關係數仍＞0.995（舊版的「只看相關係數」會判 doppler_too_clean，V9 誤殺三到七成的就是這一型）、
+  //     逐點差中位數 1 m/s → 通過。
+  //   b 偽造（速度＝位置微分本身）→ 逐點差 0 → doppler_too_clean；同一型偽造（位置另加非二進位的晃動）再照上傳端取整（里程 0.1 m、速度 0.01 m/s）
+  //     → 逐點差中位數在 0 與 0.1 之間 → 仍是 doppler_too_clean（取整不會把偽造洗成誠實）。
+  //   c 邊界：逐點差中位數剛好等於門檻（≤ 門檻）→ doppler_too_clean；比門檻大一格 → 通過。兩邊都取二進位下精確的值。
+  //   d null 跳過、0 照算（V9 C-2 NL_dop）：b 那一型有一部分的點沒有速度（null）→ 那些點跳過、其餘照算 → doppler_too_clean。
+  //     對照組：同樣那些點是 0（0 是量測值、照算）→ 判定跟 null 那一例不同。釘在這裡的目的是：把 null 當成 0 的話，
+  //     null 那一例就會跟對照組判成一樣（第十三批以前上傳端把 null 存成 0，就是這樣）。
+  //   兩個方向（倒過來走傳 dir 1）。
+  const U34 = [];
+  for (let u = 10; u < 80; u += 0.25) U34.push(u);
+  for (let k = 0; k < 300; k++) U34.push(80);
+  for (let u = 80; u > 10; u -= 0.25) U34.push(u);
+  const X34 = U34.reduce((xs, u) => (xs.push(xs[xs.length - 1] + u), xs), [0]);   // 真里程（每秒一點）
+  const gps34 = k => X34[k] + (k % 2 ? 0.5 : -0.5), wob34 = k => X34[k] + 0.37 * Math.sin(k * 1.3);
+  const dv34 = (pos, k) => k ? Math.abs(pos(k) - pos(k - 1)) : 10;   // 位置微分（Δt＝1）
+  const mk34 = (sg, pos, vel) => X34.map((_, k) => ({ d: sg > 0 ? pos(k) : 60000 - pos(k), t: 30000 + k, v: vel(k), acc: 8 }));
+  const pearson34 = (a, b) => {
+    const n = a.length, mA = a.reduce((s, x) => s + x, 0) / n, mB = b.reduce((s, x) => s + x, 0) / n;
+    let sab = 0, sa = 0, sb = 0;
+    for (let i = 0; i < n; i++) { const x = a[i] - mA, y = b[i] - mB; sab += x * y; sa += x * x; sb += y * y; }
+    return sa > 0 && sb > 0 ? sab / Math.sqrt(sa * sb) : 0;
+  };
+  const stat34 = pts => {
+    const a = [], b = [];
+    for (let i = 3; i < pts.length; i++) { if (pts[i].v == null) continue; a.push(pts[i].v); b.push(Math.abs(pts[i].d - pts[i - 1].d) / (pts[i].t - pts[i - 1].t)); }
+    const r = a.map((x, i) => Math.abs(x - b[i])).sort((x, y) => x - y), m = r.length;
+    return { corr: pearson34(a, b), med: m % 2 ? r[(m - 1) / 2] : (r[m / 2 - 1] + r[m / 2]) / 2, n: m };
+  };
+  const cases34 = sg => ({
+    honest: mk34(sg, gps34, k => (k ? U34[k - 1] : 10) + [-0.125, 0, 0.125][k % 3]),
+    spoof: mk34(sg, gps34, k => dv34(gps34, k)),
+    rounded: mk34(sg, wob34, k => dv34(wob34, k)).map(p => ({ ...p, d: Math.round(p.d * 10) / 10, v: Math.round(p.v * 100) / 100 })),
+    b50: mk34(sg, gps34, k => dv34(gps34, k) + (k % 4 < 2 ? 0.5 : -0.5)),
+    b515: mk34(sg, gps34, k => dv34(gps34, k) + (k % 4 < 2 ? 0.515625 : -0.515625)),
+    nul: mk34(sg, gps34, k => k % 3 === 1 ? null : dv34(gps34, k)),
+    zero: mk34(sg, gps34, k => k % 3 === 1 ? 0 : dv34(gps34, k)),
+  });
+  const r34 = [1, -1].map(sg => Object.fromEntries(Object.entries(cases34(sg)).map(([k, P]) => [k, { r: gate(P, 'thsr_sched', sg > 0 ? 0 : 1), s: stat34(P) }])));
+  const CMAX = RULES.integrity.dopplerCorrMax, TC = 'doppler_too_clean';
+  const sh34 = keys => JSON.stringify(r34.map(o => Object.fromEntries(keys.map(k => [k, { r: o[k].r.code || o[k].r.pass, corr: +o[k].s.corr.toFixed(5), med: +o[k].s.med.toFixed(4) }]))));
+  ok('F34a [第十四批 V9 A-1] 都卜勒：高變異的高鐵誠實錄程（相關係數＞0.995、逐點差中位數 1 m/s）→ 通過（兩個方向；只看相關係數的舊版會判 doppler_too_clean）',
+    r34.every((o, i) => o.honest.r.pass === true && o.honest.r.dir === i && o.honest.s.corr > CMAX && o.honest.s.med > 0.9 && o.honest.s.n === 858), sh34(['honest']));
+  ok('F34b 都卜勒：速度＝位置微分的偽造 → doppler_too_clean；同一型偽造照上傳端取整（里程 0.1 m、速度 0.01 m/s）後逐點差中位數在 (0, 0.1] → 仍是 doppler_too_clean（兩個方向）',
+    r34.every(o => o.spoof.r.code === TC && o.spoof.s.med === 0 && o.rounded.r.code === TC && o.rounded.s.med > 0 && o.rounded.s.med <= 0.1 && o.rounded.s.corr > CMAX),
+    sh34(['spoof', 'rounded']));
+  ok('F34c 都卜勒的邊界：逐點差中位數剛好等於門檻 → doppler_too_clean；大一格 → 通過（兩個方向，相關係數都＞0.995）',
+    r34.every((o, i) => o.b50.r.code === TC && o.b50.s.med === 0.5 && o.b50.s.corr > CMAX &&
+      o.b515.r.pass === true && o.b515.r.dir === i && o.b515.s.med === 0.515625 && o.b515.s.corr > CMAX), sh34(['b50', 'b515']));
+  ok('F34d [第十四批 V9 C-2] 都卜勒跳過 null、0 照算：一部分的點沒有速度（null）→ 那些點跳過、仍是 doppler_too_clean；對照組：同樣那些點是 0 → 照算，判定跟 null 那一例不同（兩個方向）',
+    r34.every(o => o.nul.r.code === TC && o.nul.s.n === 572 && o.zero.r.pass === true && o.zero.s.corr < CMAX), sh34(['nul', 'zero']));
   // F29：收下的點本身要是一趟合規的錄程——丟點＝那幾點沒送，偽造者不因此多出能力（V7 的但書）。F11 起每一個判通過的案例（含 F32、F33）：
   //   回傳的 pts 是原始點的子序列（t、d、v 逐欄相同），而且任兩點往前 ≤ 上限×1.15×(Δt＋1)＋50、相鄰兩點往後 ≤ 50、相鄰兩點都有速度時 |Δv| ≤ 1.3×3×(Δt＋1)、
   //   首末淨位移不往後超過 50 m——方向照防偽閘回的 r.dir（第十三批起收下的點整體往後退會換方向，收下的點只對它回的方向合規）。
@@ -482,7 +569,9 @@ ok('F3 第一重 日期太舊 → suspect',
 // 規則：同一組點的 t 最大減最小超過半天（43200 秒）＝跨午夜，小於半天的 t 加一天（86400）再排序。期望值照規則手算：
 //   25 m/s、700 秒：t 86000–86399（午夜前 400 點）接 0–300（午夜後 301 點），里程連續；兩批上傳、後半先到。
 //   → 組回來 701 點、t 86000–86700 依序；防偽閘通過（兩個方向）。
-//   對照：同一批點照原始 t 排（午夜後的點排到最前面）→ 過了午夜的點在里程上「退回」起點 → impossible_physics（舊版就是這樣整班判死）。
+//   對照：同一批點照原始 t 排（午夜後的點排到最前面）→ 過了午夜的點在里程上「退回」起點 → 照真正的方向判死（第十一批以前就是這樣整班判死）。
+//   第十四批起原方向判死會換方向重判：這組點在反方向上每步只退 25 m（容差 50 m 以內）、收下點首末只差 75 m，所以改在反方向通過——
+//   覆蓋會記在錯的方向，一樣是錯的。對照因此寫成「不會照真正的方向通過」，實際結果印在訊息裡。
 //   清晨的趟（t 300–1000）t 不變；半天的邊界：最大減最小剛好 43200 不動、43201 才加一天。
 {
   const row = (id, pts) => ({ id, actor: 'dev-x', trip_date: '2026-07-28', train_no: '312', sys: 'tra_sched', ln_id: '南迴線', dir: 0, payload: JSON.stringify(pts) });
@@ -496,8 +585,8 @@ ok('F3 第一重 日期太舊 → suspect',
   ok('F30a 跨午夜：午夜前 400 點＋午夜後 301 點（後半先到）→ 組回來 t 86000–86700 依序、防偽閘通過（兩個方向；方向照首末里程判 0／1）',
     res.every((r, i) => JSON.stringify(r.ts) === seq && r.ig.pass === true && r.dir === i),
     JSON.stringify(res.map(r => ({ dir: r.dir, t0: r.ts[0], t400: r.ts[400], tN: r.ts[r.ts.length - 1], ig: r.ig.code || r.ig.pass }))));
-  ok('F30b 對照：同一批點照原始 t 排（午夜後的排到最前面）→ impossible_physics（兩個方向）——跨午夜沒認的話整班判死',
-    res.every(r => r.raw.code === 'impossible_physics'), JSON.stringify(res.map(r => r.raw.code || r.raw.pass)));
+  ok('F30b 對照：同一批點照原始 t 排（午夜後的排到最前面）→ 不會照真正的方向通過（兩個方向）——跨午夜沒認的話，不是判死就是覆蓋記到反方向',
+    res.every((r, i) => !(r.raw.pass === true && r.raw.dir === i)), JSON.stringify(res.map(r => ({ pass: r.raw.pass, code: r.raw.code, dir: r.raw.dir }))));
   const early = assembleTrip([row('e1', Array.from({ length: 701 }, (_, k) => ({ d: k * 25, t: 300 + k, v: 25, acc: 8 })))]);
   const edge = n => assembleTrip([row('x1', [{ d: 0, t: 1000, v: 1, acc: 8 }, { d: 10, t: 1000 + n, v: 1, acc: 8 }])]).pts.map(p => p.t);
   ok('F30c 清晨的趟（t 300–1000）t 不變；半天的邊界：最大減最小剛好 43200 → 不動（1000、44200），43201 → 小的加一天（44201、87400）',

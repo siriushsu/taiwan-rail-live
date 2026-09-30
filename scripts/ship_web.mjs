@@ -527,9 +527,9 @@ try {
   if (thsrSeat.status !== 0) fail('高鐵對號座餘位／票價驗收未過（單獨重跑：npm run check-thsr-seat）');
 
   // ── 2.11c 路段懸賞＋籌碼守門（2026-09-30）───────────────────────────────
-  // 懸賞判定 cron、籌碼帳本、兌換、雲端搭乘、帳號合併都寫在 worker.js 裡；16 支驗收（含查詢計畫 PL 組與
-  // merge_web 真 Chromium 無視窗）原本只在懸賞分支上手動跑。掛上來之後，任何動到 worker.js、schema 或
-  // data/bounty_rules.json 的出貨都要過。純離線（假 D1 是 node:sqlite），15 支並行、merge_web 最後單跑。
+  // 懸賞判定 cron、籌碼帳本、兌換、雲端搭乘、帳號合併都寫在 worker.js 裡；17 支驗收（含查詢計畫 PL 組、
+  // merge_web 與 recorder_web 兩支真 Chromium 無視窗）原本只在懸賞分支上手動跑。掛上來之後，任何動到 worker.js、schema 或
+  // data/bounty_rules.json 的出貨都要過。純離線（假 D1 是 node:sqlite），15 支並行、兩支瀏覽器的最後逐支跑。
   const bounty = spawnSync('node', [path.join(wt, 'scripts', 'verify_bounty_all.mjs')], { cwd: wt, encoding: 'utf8' });
   process.stdout.write(bounty.stdout || ''); process.stderr.write(bounty.stderr || '');
   if (bounty.status !== 0) fail('路段懸賞＋籌碼驗收未過——判定、籌碼帳本、兌換、雲端搭乘或帳號合併有一條不符'

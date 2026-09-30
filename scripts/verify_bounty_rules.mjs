@@ -34,6 +34,15 @@ ok('R6 events 是陣列，每筆有 id/from/to、multiplier 是正整數', Array
 ok('R7 整數欄位都是正整數', ['perTrip', 'minTripSec', 'remoteMultiplier', 'dailyChipCap'].every(k => Number.isInteger(c[k]) && c[k] > 0) &&
   ['minSec', 'dailyMax', 'perChip'].every(k => c.cloud && Number.isInteger(c.cloud[k]) && c.cloud[k] > 0));
 ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|lifetime|訂閱/i.test(JSON.stringify(rules)));
+// 都卜勒那一重（worker.js integrityGate 第四重，第十四批）：相關係數＞dopplerCorrMax 而且逐點差中位數 ≤ dopplerResidMaxMps 才判。
+// 設定檔少了 dopplerResidMaxMps 時比較式恆為假、那一重等於關掉（寫法刻意寧可放行），所以在這裡釘住兩個鍵都在、而且是合理的數。
+{
+  const I = rules.integrity || {};
+  ok('R9 integrity.dopplerCorrMax 在 (0, 1)、dopplerResidMaxMps 是正的有限數（少了這個鍵，都卜勒那一重等於關掉）',
+    typeof I.dopplerCorrMax === 'number' && I.dopplerCorrMax > 0 && I.dopplerCorrMax < 1 &&
+      typeof I.dopplerResidMaxMps === 'number' && Number.isFinite(I.dopplerResidMaxMps) && I.dopplerResidMaxMps > 0,
+    JSON.stringify({ dopplerCorrMax: I.dopplerCorrMax, dopplerResidMaxMps: I.dopplerResidMaxMps }));
+}
 
 const failed = R.filter(r => !r.p);
 console.log(`\n${R.length - failed.length}/${R.length} passed`);

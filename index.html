@@ -23708,11 +23708,14 @@ const BOUNTY_MIN_GAP_MS = 900;
 const BOUNTY_RECORDING_KEY = 'trainmap-bounty-recording-v1';
 const BOUNTY_UPLOAD_KEY = 'trainmap-bounty-upload-v1';
 let bountyRulesMem = null, bountyUploadPromise = null;
+// 速度、精度是 null（裝置沒有都卜勒速度、沒有精度）就留 null：Number(null) 是 0，存檔／重新整理後還原、鎖線時整批重洗都走這裡，
+// 一洗就變成「速度 0＝停著」「精度 0 m＝很準」，伺服器會照單全收（第九輪獨立驗收 E1；Worker 的 sanitizeSamples 第十三批起已不把 null 當 0）。
+const bountyNumOrNaN = x => x == null ? NaN : Number(x);
 function bountyCleanSample(x) {
   if (!x || !Number.isFinite(Number(x.d)) || !Number.isFinite(Number(x.t))) return null;
   return { d: Number(x.d), t: Number(x.t),
-    v: Number.isFinite(Number(x.v)) ? Number(x.v) : null,
-    acc: Number.isFinite(Number(x.acc)) ? Number(x.acc) : null };
+    v: Number.isFinite(bountyNumOrNaN(x.v)) ? Number(x.v) : null,
+    acc: Number.isFinite(bountyNumOrNaN(x.acc)) ? Number(x.acc) : null };
 }
 function bountyCleanSamples(a, max = 1200) {
   return (Array.isArray(a) ? a : []).map(bountyCleanSample).filter(Boolean).slice(-max);
@@ -23872,8 +23875,11 @@ function bountyUpdateDwellProgress(r, rules) {
     const spatialPass = (!needBefore || hasBefore) && (!needAfter || hasAfter) && (hasBefore || hasAfter);
     if (!spatialPass) continue;
     let runStart = null, prevT = null, covered = false;
-    for (const p of local) {
-      const t = Number(p.t), v = Number(p.v);
+    for (let j = 0; j < local.length; j++) {
+      // 與 Worker coverageOf() 同一條：沒有速度（null）不當 0（那會把高速通過的點當成停著），改用這一點與前一點的位置微分；
+      // 前一點沒有、或同一秒就不算低速（第九輪獨立驗收 E-2(b)）
+      const p = local[j], q = local[j - 1], t = Number(p.t), dt = q ? t - Number(q.t) : 0;
+      const v = p.v != null ? Number(p.v) : dt > 0 ? Math.abs(Number(p.d) - Number(q.d)) / dt : NaN;
       const low = Math.abs(Number(p.d) - centerM) <= D.stopRadiusM &&
         Number.isFinite(v) && v <= D.stopSpeedMaxMps;
       if (!low) { runStart = null; prevT = null; continue; }
@@ -23908,9 +23914,10 @@ function bountyOnFix(coords) {
   if (r._lastFix && now - r._lastFix < BOUNTY_MIN_GAP_MS) return;
   const lat = Number(coords.latitude), lon = Number(coords.longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-  const speed = Number.isFinite(Number(coords.speed)) && Number(coords.speed) >= 0
-    ? Math.round(Number(coords.speed) * 100) / 100 : null;
-  const acc = Number.isFinite(Number(coords.accuracy)) ? Math.round(Number(coords.accuracy)) : null;
+  // 沒有速度／精度（null；iOS 沒有有效速度時是 −1）送 null，不送 0（理由見 bountyCleanSample）
+  const sp = bountyNumOrNaN(coords.speed), ac = bountyNumOrNaN(coords.accuracy);
+  const speed = Number.isFinite(sp) && sp >= 0 ? Math.round(sp * 100) / 100 : null;
+  const acc = Number.isFinite(ac) && ac >= 0 ? Math.round(ac) : null;
   const t = nowSecOfDay(activeTz());
   r._lastFix = now;
   const fixedRec = r.lnId ? lineNetwork().get(r.sys + '|' + r.lnId) : null;
