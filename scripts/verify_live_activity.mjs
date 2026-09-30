@@ -265,7 +265,7 @@ const followRunningTRA = async (page, pick = 0) => {
   }, pick);
 };
 
-const cr = await chromium.launch();
+const cr = await chromium.launch({ channel: 'chrome', headless: true });
 
 // ══════════ T0：橋接在位(後面所有斷言的前提) ══════════
 {
@@ -1309,10 +1309,24 @@ for (const plus of [true, false]) {
       if (!first || !Number.isFinite(first.depSec)) continue;
       if (first.depSec > now + 120 && first.depSec < now + 10800) out.push({ no: String(tr.train), st: first.name, dep: first.depSec });
     }
+    // 深夜未必有三小時內從起站發車的車。沿用上方行進案例的做法：
+    // 只平移真實班表輸入，不改真實時鐘、看板、開卡判斷或以下的正反對照。
+    if (!out.length) {
+      const tr = state.trains.find(t => t.sys === 'tra_sched' && !t.loop && t.stops?.length >= 5
+        && Number.isFinite(t.stops.find(x => x.stop !== false)?.depSec));
+      if (tr) {
+        const first = tr.stops.find(x => x.stop !== false), delta = now + 600 - first.depSec;
+        for (const stop of tr.stops) {
+          if (Number.isFinite(stop.arrSec)) stop.arrSec += delta;
+          if (Number.isFinite(stop.depSec)) stop.depSec += delta;
+        }
+        out.push({ no: String(tr.train), st: first.name, dep: first.depSec, fixtureShift: delta });
+      }
+    }
     return out.sort((a, b) => a.dep - b.dep).slice(0, 15);
   });
   const tag = plus ? 'T29 有卡' : 'T29 對照(未訂閱)';
-  ok(`${tag} 前置:找到 2 分鐘–3 小時內從起站發車的台鐵車`, cands.length > 0, `候選 ${cands.length}`);
+  ok(`${tag} 前置:找到 2 分鐘–3 小時內從起站發車的台鐵車`, cands.length > 0, `候選 ${cands.length}，平移案例 ${JSON.stringify(cands.filter(c => c.fixtureShift != null))}`);
   let pick = null, sel = '';
   for (const c of cands) {
     await page.evaluate(name => openBoard(state.schedStations.find(s => s.name === name && s.sys === 'tra_sched')), c.st);
@@ -1347,7 +1361,7 @@ await cr.close();
 // 變更都要掃 360/375/414/768 且至少一路 WebKit(macOS/iOS 使用者的引擎)。這一區沒有新控件,
 // 所以驗的是幾何與存在性,不做觸控命中測試。
 {
-  const wk = await webkit.launch();
+  const wk = await webkit.launch({ headless: true });
   const rows = [];
   for (const w of [360, 375, 414, 768]) {
     const { ctx, page } = await boot(wk, { plus: false, viewport: { width: w, height: 800 } });

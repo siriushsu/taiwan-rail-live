@@ -403,9 +403,10 @@ const MODES = {
     //   why 三語待使用者核准（299／498／431 字元）。
     // 126／Android 65（2026-09-28）：Apple lookup 確認 1.6.12 已上架；包含 v0926b 之後至 v0928c 的全部更新。
     // 固定 KLRT 私有 runtime 0671cd3；公開 App 只帶播放／看板串接，不打包私有演算法。
+    // 127／Android 66：納入 1.6.13 後所有主線更新、車站收集小工具、台南道路與 3D 效能改善。
     marketing: '1.6.14', build: '127', music: true, metroCore: true, androidPlus: true,
     why: "軌島 1.6.14\n\n・新增免費車站收集小工具，可查看收集進度、切換全台或單一系統，直接到附近車站蓋章\n・加強台南地面鐵道歷史重播：真實比例的舊站房與列車、周邊建物、施工外罩開關，以及柏油道路、標線與人行道\n・改善地形與立體建物的流暢度，建物輪廓線改從畫面中央向外補齊\n・修正淡海、安坑與其他捷運輕軌的即時倒數、待發車與跟隨顯示\n・新增全台鐵車站時刻表頁，改善搭乘自動下車、跟車卡對齊與立體道床顯示",
-    whyEn: "Rail Island 1.6.14\n\n• New free station collection widget with progress, system filters and a nearby check-in button\n• Enhanced Tainan railway replay: realistic station and train proportions, detailed surroundings, removable construction wrap, asphalt roads, markings and sidewalks\n• Smoother terrain and 3D buildings, with building outlines prioritized from the screen center\n• Fixed live countdowns, origin departures and tracking for Danhai, Ankeng and other metro/light rail systems\n• Timetable pages for all TRA stations, automatic ride completion fixes, aligned follow cards and clearer 3D track ballast",
+    whyEn: "Rail Island 1.6.14\n\n• Free station collection widget: progress, system filters and nearby check-in\n• Enhanced Tainan replay: realistic station and trains, detailed buildings, removable construction wrap, roads, markings and sidewalks\n• Smoother terrain and 3D buildings; outlines start at the screen center\n• Fixed metro/LRT live countdowns, origin departures and tracking\n• TRA station timetable pages, automatic ride completion, aligned follow cards and 3D track ballast",
     whyJa: "軌島 1.6.14\n\n・無料の駅コレクションウィジェットを追加。収集状況の確認、台湾全体・路線網の切替、近くの駅へのチェックインができます\n・台南地上鉄道の歴史リプレイを強化。旧駅舎・列車の実物比率、周辺建物、工事用シートの切替、舗装道路・路面標示・歩道を追加しました\n・地形と3D建物の動作を改善し、建物の輪郭線を画面中央から優先して表示します\n・淡海・安坑などのMRTとライトレールのリアルタイムカウントダウン、始発待ち、追従表示を修正しました\n・台鉄全駅の時刻表ページを追加し、自動下車・追従カードの位置・3D線路のバラスト表示を改善しました",
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的

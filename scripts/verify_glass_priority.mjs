@@ -10,7 +10,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const out=path.join(root,'output/glass-priority');fs.mkdirSync(out,{recursive:true});
 const instrument=s=>s.replace('const parts=','this.auditPicked=[];const parts=').replaceAll('parts.push(b.v);','this.auditPicked.push(b.hash);parts.push(b.v);');
 const current=instrument(fs.readFileSync(path.join(root,'night-map.js'),'utf8'));
-const old=instrument(execFileSync('git',['show','HEAD:night-map.js'],{cwd:root,encoding:'utf8'}));
+const old=instrument(execFileSync('git',['show',(process.env.GLASS_BASE_REV||'origin/main')+':night-map.js'],{cwd:root,encoding:'utf8'}));
 const method=s=>'({'+s.slice(s.indexOf('      rebuild() {'),s.indexOf('      render(gl,args)'))+'}).rebuild';
 const mime={'.html':'text/html','.js':'text/javascript','.json':'application/json','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.woff2':'font/woff2'};
 const server=createServer((req,res)=>{const u=new URL(req.url,'http://x');
