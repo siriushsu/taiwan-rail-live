@@ -33,7 +33,12 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   // 香格里拉飯店塔身（封存輪廓漏收、另依 OSM 部件補上的 255990928）也在。
   assert.deepEqual(await page.evaluate(()=>{const s=tainanMemory.surroundings,n=s?.meta?.lods?.near;return [!!s?.mesh?.parent,n?.drawGroups?.length>0&&s.mesh.geometry.groups.length===n.drawGroups.length,Array.isArray(s?.mesh?.material)&&s.mesh.material.length===n?.drawGroups?.length,s?.mesh?.geometry?.attributes?.position?.count===n?.vertexCount,!!s?.meta?.buildings?.some(b=>b.id===255990928&&b.minHeightM===24)];}),[true,true,true,true,true],'周邊建物網格沒有完整載入');
   // 放大極限 34 公尺（使用者 2026-09-29「放大極限就用 34 公尺」）：從舊站近景連按放大，視野高度停在 34 m、不會更近。
-  for(let i=0;i<8;i++)await click('#zoomin');assert.equal(await page.evaluate(()=>Math.round((tainanMemory.camera.top-tainanMemory.camera.bottom)*1000)/1000),34);await click('#station');
+  for(let i=0;i<8;i++)await click('#zoomin');assert.equal(await page.evaluate(()=>Math.round((tainanMemory.camera.top-tainanMemory.camera.bottom)*1000)/1000),34);
+  // 馬路（使用者 2026-09-30「連馬路、人行道細節也做更多一點」）：柏油、人行道、路緣、白線、黃線五層網格都在場景裡、不是空的；
+  // 標線只有 12～15 cm 寬，放大到 34 m 時完全不透明，切到全線時淡出、不畫（每個像素幾公尺，畫了只會閃爍）。
+  assert.deepEqual(await page.evaluate(()=>{const m=tainanMemory.roads?.meshes||{};return ['asphalt','sidewalk','curb','white','yellow'].map(k=>!!m[k]?.parent&&m[k].geometry.attributes.position.count>0).concat([m.white?.visible,m.white?.material.opacity,m.yellow?.material.opacity]);}),[true,true,true,true,true,true,1,1],'馬路網格或 34 m 的標線不對');
+  await click('#overview');assert.deepEqual(await page.evaluate(()=>{const m=tainanMemory.roads.meshes;return [m.white.visible,m.white.material.opacity,m.yellow.visible];}),[false,0,false],'全線視角的標線沒有淡出');
+  await click('#station');
   // EMU3000 集電弓車的位置與朝向（維基編組表：1 號車在屏東／高雄端，集電弓在第 3、7 節靠 1 號車端、第 10 節靠 12 號車端；
   // 網格的集電弓在 -X 端，flip＝轉 180° 後集電弓朝行進前方）。期望值直接寫編組表推出來的結果，不照頁面的排法算。
   const ep3000=await page.evaluate(()=>Object.fromEntries(['南下','北上'].map(d=>{const t=tainanMemory.data.trains.find(t=>t.formation.id==='emu3000'&&t.direction===d);return [d,tainanMemory.models.get(t.id).parts.map((p,i)=>p.mesh==='emu3000'?'ED'+(p.flip?'<':'>')+i:p.mesh==='emu3000-ep'?'EP'+(p.flip?'<':'>')+i:null).filter(Boolean)];})));

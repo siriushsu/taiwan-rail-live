@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import assert from 'node:assert/strict';
 import {makePath,distanceM,formationPoses} from '../memories/tainan-2026-09-12/vendor/train-path.js';
+import {buildRoads,ROAD} from '../memories/tainan-2026-09-12/roads.js';
 const dir=path.resolve(import.meta.dirname,'../memories/tainan-2026-09-12'),read=f=>JSON.parse(fs.readFileSync(path.join(dir,f),'utf8'));
 const integrity=read('integrity.json'),data=read('snapshot.json'),sources=read('source-schedule.json'),paths=data.routes.map(r=>makePath(r.coordinates));
 // 網格改存 .bin.gz（傳輸量），雜湊仍是解壓後的原始 .bin，所以封存內容逐 byte 不變。
@@ -180,4 +181,56 @@ const surroundings=(()=>{
  ok(/surroundingIds\.has\(f\.id\)/.test(replay),'features 迴圈沒有略過已進周邊網格的建物（會重複擠出灰色方塊）');
  return {buildings:sm.buildings.length,triangles:near.triangleCount,gzipBytes:near.gzipBytes,drawGroups:groups.length,sheds,tanks,minTriangleAreaM2:minArea};
 })();
-console.log(JSON.stringify({files:Object.keys(integrity.files).length,trains:data.trains.length,routes:paths.length,samples:data.trains.reduce((n,t)=>n+t.spans.reduce((a,s)=>a+s.s.length,0),0),directions:['北上','南下'],overnight:2,integrity:'pass',continuity:'pass',surroundings}));
+// ── 馬路（roads.js）：柏油、標線、人行道（使用者 2026-09-30「連馬路、人行道細節也做更多一點」，選 A：只用封存資料）。
+// 路寬、人行道側別、標線條數在這裡依 OSM 標籤獨立重算（不呼叫 roads.js 的判斷函式）；幾何另外逐三角形檢查：
+// 人行道與標線不准落在別條不平行道路的車道裡、不准離軌道中心 2 m 內，人行道只准出現在標了有的那一側，斷開也不能過頭。
+// 每條斷言的訊息都以「馬路：」開頭，突變測試靠它辨認是哪一條紅。
+const roads=(()=>{
+ const ok=(c,m)=>assert.ok(c,'馬路：'+m),has=v=>v==='yes'||v==='separate',byId=new Map(data.features.map(f=>[f.id,f]));
+ const sx=111320*Math.cos(data.origin[1]*Math.PI/180),world=p=>[(p[0]-data.origin[0])*sx,(p[1]-data.origin[1])*111320],rails=data.rails.map(r=>r.coordinates.map(world));
+ const r=buildRoads(data.features,world,rails),L=r.layers;
+ ok(r.ways.length===data.features.filter(f=>f.tags.highway).length,'道路條數與封存快照不同');
+ ok(Object.keys(L).join()==='asphalt,sidewalk,curb,white,yellow','圖層應為柏油、人行道、路緣、白線、黃線五層');
+ const side=(t,s)=>{const v=t['sidewalk:'+s],b=t['sidewalk:both'];if(has(v))return true;if(v==='no')return false;if(has(b))return true;if(b==='no')return false;return ['both','yes','separate',s].includes(t.sidewalk);};
+ const geo=new Map();
+ for(const w of r.ways){const t=byId.get(w.id).tags,n=parseInt(t.lanes,10)||0,one=t.oneway==='yes',tunnel=t.tunnel==='yes';
+  const W=n?n*3.3+1.2:({primary:one?10:15,secondary:one?9:12,tertiary:one?7:9}[t.highway]||6);
+  const left=!tunnel&&(one?t.sidewalk==='left'||has(t['sidewalk:left']):side(t,'left')),right=!tunnel&&side(t,'right');
+  const lines=t.lane_markings==='no'||tunnel?0:(W>=6?2:0)+(one?Math.max(0,n-1):n===1?0:(n>=4||(!n&&(t.highway==='primary'||t.highway==='secondary'))?2:1)+2*Math.max(0,Math.floor(n/2)-1));
+  ok(Math.abs(w.W-W)<1e-9,`路寬 ${w.id}（${t.name}）畫 ${w.W} m，依車道數與道路等級應為 ${W} m`);
+  ok(w.left===left&&w.right===right,`人行道側別 ${w.id}（${t.name}）畫 ${w.left}/${w.right}，依標籤應為 ${left}/${right}`);
+  ok(w.lines===lines,`標線條數 ${w.id}（${t.name}）畫 ${w.lines} 條，依標籤應為 ${lines} 條`);
+  if(tunnel)ok(Object.values(w.tri).every(([,c])=>c===0),`地下道 ${w.id}（${t.name}）不該畫在地面上`);
+  const P=[];for(const c of byId.get(w.id).coordinates){const p=world(c),q=P[P.length-1];if(!q||Math.hypot(p[0]-q[0],p[1]-q[1])>.01)P.push(p);}geo.set(w.id,{P,W,tunnel});}
+ const CELL=30,roadGrid=new Map(),railGrid=new Map(),cell=(x,y)=>Math.floor(x/CELL)+','+Math.floor(y/CELL);
+ const put=(g,a,b,pad,item)=>{for(let i=Math.floor((Math.min(a[0],b[0])-pad)/CELL);i<=Math.floor((Math.max(a[0],b[0])+pad)/CELL);i++)for(let j=Math.floor((Math.min(a[1],b[1])-pad)/CELL);j<=Math.floor((Math.max(a[1],b[1])+pad)/CELL);j++){const k=i+','+j;if(!g.has(k))g.set(k,[]);g.get(k).push(item);}};
+ for(const [id,g] of geo)if(!g.tunnel)for(let k=0;k<g.P.length-1;k++)put(roadGrid,g.P[k],g.P[k+1],g.W/2,[id,g.P[k],g.P[k+1],g.W]);
+ for(const rl of rails)for(let k=0;k<rl.length-1;k++)put(railGrid,rl[k],rl[k+1],3,[rl[k],rl[k+1]]);
+ const segDist=(x,y,a,b)=>{const dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy,u=L2?Math.max(0,Math.min(1,((x-a[0])*dx+(y-a[1])*dy)/L2)):0;return Math.hypot(x-a[0]-dx*u,y-a[1]-dy*u);};
+ const cosPar=Math.cos(25*Math.PI/180);
+ const onOther=(x,y,self,d)=>{for(const [id,a,b,W] of roadGrid.get(cell(x,y))||[]){if(id===self)continue;const l=Math.hypot(b[0]-a[0],b[1]-a[1]),ex=(b[0]-a[0])/l,ey=(b[1]-a[1])/l;if(Math.abs(ex*d[0]+ey*d[1])>cosPar)continue;const u=(x-a[0])*ex+(y-a[1])*ey;if(u>=0&&u<=l&&Math.abs((x-a[0])*ey-(y-a[1])*ex)<W/2-.3)return id;}return 0;};
+ const onRail=(x,y)=>(railGrid.get(cell(x,y))||[]).some(([a,b])=>segDist(x,y,a,b)<ROAD.railClearM-.2);
+ let checked=0,onRoad=0,nearRail=0,wrongSide=0,flagged=0,keptHalf=0,flagLen=0,keptLen=0;const eg=[];
+ for(const w of r.ways){const g=geo.get(w.id);
+  for(const layer of ['sidewalk','white','yellow']){const [s,c]=w.tri[layer],pos=L[layer].position;
+   for(let i=s;i<s+c;i++){const o=i*9,x=(pos[o]+pos[o+3]+pos[o+6])/3,y=(pos[o+1]+pos[o+4]+pos[o+7])/3;checked++;
+    let best=1e18,k0=0;for(let k=0;k<g.P.length-1;k++){const d=segDist(x,y,g.P[k],g.P[k+1]);if(d<best){best=d;k0=k;}}
+    const a=g.P[k0],b=g.P[k0+1],l=Math.hypot(b[0]-a[0],b[1]-a[1]),d=[(b[0]-a[0])/l,(b[1]-a[1])/l],other=onOther(x,y,w.id,d);
+    if(other){onRoad++;if(eg.length<4)eg.push(`${layer} ${w.id}→${other}`);}
+    if(onRail(x,y))nearRail++;
+    if(layer==='sidewalk'&&(d[0]*(y-a[1])-d[1]*(x-a[0])>0?!w.left:!w.right))wrongSide++;}}
+  let len=0;for(let k=1;k<g.P.length;k++)len+=Math.hypot(g.P[k][0]-g.P[k-1][0],g.P[k][1]-g.P[k-1][1]);
+  for(const sd of ['left','right'])if(w[sd]){const k=w.keep[sd].reduce((a,[p,q])=>a+q-p,0);flagLen+=len;keptLen+=k;if(len>=40){flagged++;if(k>=len/2)keptHalf++;}}}
+ // 三種幾何錯誤一次全列（突變測試看各自的數字，不靠斷言順序）
+ ok(onRoad===0&&nearRail===0&&wrongSide===0,`幾何：落在別條路車道 ${onRoad}、離軌道太近 ${nearRail}、畫錯邊 ${wrongSide} 個三角形（例：${eg.join('、')}）`);
+ // 斷開不能過頭：現況保留 96.2%、40 m 以上的 326 側全部過半；轉角退縮放大到約 8 m 就會低於 93%（突變 R8 放到 40 m：80.5%、282 側）。
+ ok(flagLen>0&&keptLen/flagLen>=.93&&flagged>=100&&keptHalf>=.95*flagged,`人行道斷開過頭：保留長度 ${(100*keptLen/flagLen).toFixed(1)}%（應 ≥ 93%），40 m 以上的 ${flagged} 側有 ${keptHalf} 側留下一半以上（應 ≥ 95%）`);
+ const total=Object.values(r.stats.triangles).reduce((a,b)=>a+b,0);ok(total<=90000,`三角形 ${total} 超過 9 萬`);
+ ok(L.white.position.length>0&&L.yellow.position.length>0&&L.sidewalk.position.length>0&&L.curb.position.length>0,'有一層是空的');
+ const replay=fs.readFileSync(path.join(dir,'replay.js'),'utf8'),about=fs.readFileSync(path.join(dir,'index.html'),'utf8');
+ ok(!/f\.tags\.highway\)ribbons/.test(replay),'replay.js 還在用舊的米白色帶子畫馬路');
+ ok(/\broads:\{meshes:roadMeshes/.test(replay),'window.tainanMemory 缺少 roads 鍵');
+ ok(/馬路依 OpenStreetMap/.test(about)&&/示意/.test(about.slice(about.indexOf('馬路依 OpenStreetMap'))),'「關於這一天」沒寫馬路的資料來源與示意');
+ return {ways:r.ways.length,tunnels:r.stats.tunnels,sidewalkSides:flagged,keptHalf,keptLengthPct:+(100*keptLen/flagLen).toFixed(1),marked:r.stats.marked,triangles:total,checked};
+})();
+console.log(JSON.stringify({files:Object.keys(integrity.files).length,trains:data.trains.length,routes:paths.length,samples:data.trains.reduce((n,t)=>n+t.spans.reduce((a,s)=>a+s.s.length,0),0),directions:['北上','南下'],overnight:2,integrity:'pass',continuity:'pass',surroundings,roads}));
