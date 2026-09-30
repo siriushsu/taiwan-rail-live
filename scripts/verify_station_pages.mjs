@@ -36,7 +36,8 @@
 //   G8 覆蓋率        印出並斷言 站 × 語 × 段 × 列；--all 時語言必須 3；驗到的列數必須等於原始資料算出的總列數
 //   G9 資料窗        頁面寫的資料涵蓋區間＝各資料檔的 dateRange（台鐵 dense／高鐵 seo_data，不是 availableRange）
 //   G10 站清單獨立推導  第二批期望站＝原始資料兩週內有停靠的台鐵站 − 「臺北-環島」− 第一批台鐵成員 − 待通車站；期望網址用自己寫的 slug 函式
-//                    ＋規格常數 {左營:'zuoying-tra'}；每個期望的頁都在、磁碟上沒有多出來的站頁、slug 不重複；/stations/zuoying/ 仍是第一批那頁
+//                    ＋規格常數 {左營:'zuoying-tra'}；每個期望的頁都在、磁碟上沒有多出來的站頁、slug 不重複；/stations/zuoying/ 仍是第一批那頁；
+//                    被待通車名單比中的站不可已有官方英文站名（忘了移除、或名單誤中真站）
 //   G11 具名覆蓋率     zh／en／ja 站數必須剛好是 EXPECT_ZH／EN／JA_STATIONS（--all；推導出的站數任何模式都驗）；
 //                    各語逐列比對的列數印出，並斷言等於「從原始資料重算的總列數」且 > 0
 //   G12 hreflang       只有中文的頁 alternate 恰為 {zh-Hant, x-default} 且都指自己；有三語的頁四種互指；alternate 目標存在；
@@ -294,9 +295,11 @@ for (const [key, rec] of Object.entries(transfers.stations)) if (rec.system === 
 const thsrByNorm = new Map();
 for (const [key, rec] of Object.entries(transfers.stations)) if (rec.system === 'THSR') thsrByNorm.set(norm(rec.name), { key, ...rec });
 
-// 待通車站＝scripts/fetch_tra.py 的 PENDING_STATIONS（產生器、班表抓取的待上架站閘門讀同一份；這裡自己解析、自己比對，不 import 產生器）。
+// 待通車站＝scripts/fetch_tra.py 的 PENDING_STATIONS（產生器、班表抓取的待上架站閘門讀同一份；這裡不 import 產生器）。
 // 班表有停靠也不期望有頁：站還在整合，官方英文站名、地址、轉乘表可能都還沒有（2026-09-30 平鎮臨時站）。
 // 比對照 fetch_tra_schedule.py：去括號後綴、臺→台、「包含」。那一筆移除後這站回到一般規則（缺譯名 G10 紅、站數變了 G11 紅）。
+// 注意：這段讀法與比對跟產生器相同，兩邊一起讀錯（名單誤中真站、忘了移除）時資料夾比對看不出來；
+// 擋這種錯的是 G10 另一條不看名單的斷言：被比中的站不可已有官方英文站名（真的待通車站還沒有）。
 const PENDING_TRA = (() => {
   const dict = rdText('scripts/fetch_tra.py').match(/^PENDING_STATIONS\b[^=\n]*=\s*\{([^}]*)\}/m);
   ok(10, !!dict, 'scripts/fetch_tra.py 找不到 PENDING_STATIONS（被改名或刪掉了？待通車站無從扣除）');
@@ -761,6 +764,7 @@ function checkStationList() {
     ok(10, !!s.code, `station_transfers.json 沒有台鐵站「${s.name}」，推不出站碼`);
     ok(10, !!s.slug, `i18n/stations.json 的 tra_sched 沒有「${s.name}」的英文名，推不出網址（要先補官方譯名）`);
   }
+  for (const n of traPendingStops) ok(10, !i18n.systems.tra_sched[n]?.en, `台鐵站「${n}」已有官方英文站名，卻仍被 scripts/fetch_tra.py 的 PENDING_STATIONS 比中、不產頁：整合完了就移除那一筆；不是待通車站就是名單誤中了真站`, `tra_sched 英文名 ${i18n.systems.tra_sched[n]?.en}`);
   for (const [n, x] of TRA_ALL) ok(10, !!x.addr, `台鐵站「${n}」的地址取不出縣市＋鄉鎮市區（tra_station_info.json）`, x.info ? x.info.address : '沒有這個站碼的紀錄');
   for (const n of EN_JA_SECOND) ok(10, SECOND.some(s => s.name === n), `英日文站「${n}」不在推導出的第二批站清單裡`);
   for (const n of Object.keys(SLUG_OVERRIDE)) ok(10, SECOND.some(s => s.name === n), `slug 覆寫表的「${n}」不在推導出的第二批站清單裡（覆寫過期？）`);

@@ -148,7 +148,11 @@ def official_station_names(path=INFO_PATH):
 # 三鶯線幽靈列車那種錯（把「未來規劃」當成現況）。使用者裁示過的判準是：不照媒體日期
 # 提前加站，判準是**上游資料真的有了**（memory trtc-xinyi-east-extension-0830）。
 # 所以這裡的站要先出現在官方站基本資料裡才納入站序。
-# 通車、資料上架、整條管線跑完之後，把該筆從這裡移除（留著只是每次多印一行）。
+# 通車、資料上架、整條管線跑完之後，把該筆從這裡移除。留著不只每次多印一行：SEO 車站時刻表頁
+# （scripts/build_aeo_pages.mjs）會一直略過名單上的站、不產頁；這站一有官方英文站名，閘門
+# scripts/verify_station_pages.mjs 的 G10 就轉紅提醒移除。移除前這站要有：i18n/stations.json tra_sched 的
+# 官方英日文站名、data/tra_station_info.json、data/station_transfers.json、data/tra_station_of_line.json
+# （缺一個車站頁產生器就 throw，不編造）。
 PENDING_STATIONS = {
     "平鎮": "臨時站；2026-09-12 完成履勘、預計 2026-10 通車。站碼預期 1105，"
             "但那是媒體與維基的說法、不是官方發布值，所以閘門認站名不認站碼。",
@@ -319,7 +323,7 @@ def main():
                 else:
                     print(f"  ▶ 待通車站「{name}」已上架，納入站序", file=sys.stderr)
                 notes.append(f"{line_def['id']}: 待通車站「{name}」已出現在官方站基本資料，本輪納入站序。")
-                print(f"     → 整條管線跑完後記得把它從 PENDING_STATIONS 移除", file=sys.stderr)
+                print(f"     → 整條管線跑完後記得把它從 PENDING_STATIONS 移除（SEO 車站時刻表頁要等移除後才產生；前置條件見名單註解）", file=sys.stderr)
             if st:
                 stations.append(st)
         lines_out.append(

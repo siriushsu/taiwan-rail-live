@@ -756,7 +756,7 @@ for (const i of new Set(Object.values(ttInputs.tra.dates).flat())) for (const p 
 // 待通車站＝scripts/fetch_tra.py 的 PENDING_STATIONS（班表抓取的待上架站閘門讀同一份；閘門 verify_station_pages.mjs 自己再解析一次）。
 // 站還在整合時（例：2026-10 平鎮臨時站），班表可能先有它的停靠，官方英文站名、地址、轉乘表卻還沒有：
 // 先不產它的頁、印一行警告、不 throw，否則每週重抓班表會在最後這一步中斷。站名比對照 fetch_tra_schedule.py：去括號後綴、臺→台、「包含」。
-// 整合完把那一筆從 PENDING_STATIONS 移除，這站就照一般規則產頁（仍缺官方譯名照樣 throw，不編造）。
+// 整合完把那一筆從 PENDING_STATIONS 移除，這站就照一般規則產頁（仍缺官方譯名照樣 throw，不編造；前置條件見 fetch_tra.py 名單的註解）。
 const pendingTraNames = (() => {
   const dict = fs.readFileSync(path.join(root, 'scripts/fetch_tra.py'), 'utf8').match(/^PENDING_STATIONS\b[^=\n]*=\s*\{([^}]*)\}/m);
   if (!dict) throw new Error('scripts/fetch_tra.py 找不到 PENDING_STATIONS（被改名或刪掉了？）');
@@ -765,7 +765,7 @@ const pendingTraNames = (() => {
 const traNameKey = name => name.replace(/\s*[（(].*$/, '').replace(/臺/g, '台');
 const isPendingTra = name => pendingTraNames.some(pending => traNameKey(name).includes(traNameKey(pending)));
 const pendingServed = [...servedTraNames].filter(isPendingTra).sort();
-if (pendingServed.length) console.warn(`⏸ 待通車站 ${pendingServed.join('、')} 班表已有停靠，仍在 scripts/fetch_tra.py 的 PENDING_STATIONS：先不產生車站頁（整合完、有官方譯名再移除那一筆）`);
+if (pendingServed.length) console.warn(`⏸ 待通車站 ${pendingServed.join('、')} 班表已有停靠，仍在 scripts/fetch_tra.py 的 PENDING_STATIONS：先不產生車站頁（整合完再移除那一筆，前置條件見那份名單的註解）`);
 
 const traKeyByName = new Map();
 for (const [key, item] of Object.entries(transfers.stations)) {

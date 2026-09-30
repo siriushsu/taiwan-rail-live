@@ -3562,10 +3562,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 });
 // 2026-09-30 車站時刻頁略過待通車站（v0930j）：第一層與第二層更新紀錄那兩條的 en/ja。平鎮的英日文站名官方還沒公布，譯文不寫站名，改寫「中壢〜埔心間的臨時站」。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  '車站時刻表頁遇到尚未公布官方英文站名的新站時先略過該站，其他車站照常每週更新': 'Station timetable pages now skip a new station until its official English name is published; all other stations keep updating weekly.',
-  '車站時刻表頁：每週更新班表時，若出現尚未公布官方英文站名的新站（例如平鎮臨時站），先略過該站，其他車站照常更新': 'Station timetable pages: when the weekly timetable update includes a new station whose official English name has not been published yet (such as the new temporary station between Zhongli and Puxin), that station is skipped for now and all other stations update as usual.',
+  '車站時刻表頁：平鎮臨時站要等官方公布英文站名後才會有頁面，其他車站照常每週更新': 'Station timetable pages: the new temporary station between Zhongli and Puxin will get its page once its official English name is published; all other stations keep updating weekly.',
+  '車站時刻表頁：中壢、埔心之間的平鎮臨時站要等官方公布英文站名後才會有頁面；在那之前每週更新班表時先略過它，其他車站照常更新': 'Station timetable pages: the new temporary station between Zhongli and Puxin will get its page once its official English name is published; until then the weekly timetable update skips it and refreshes all other stations as usual.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  '車站時刻表頁遇到尚未公布官方英文站名的新站時先略過該站，其他車站照常每週更新': '駅の時刻表ページ：公式の英語駅名がまだ公表されていない新駅はいったん掲載を見送り、ほかの駅は毎週どおり更新します。',
-  '車站時刻表頁：每週更新班表時，若出現尚未公布官方英文站名的新站（例如平鎮臨時站），先略過該站，其他車站照常更新': '駅の時刻表ページ：毎週の時刻表更新で、公式の英語駅名がまだ公表されていない新駅（中壢〜埔心間の臨時駅など）が出てきた場合は、その駅をいったん見送り、ほかの駅は通常どおり更新します。',
+  '車站時刻表頁：平鎮臨時站要等官方公布英文站名後才會有頁面，其他車站照常每週更新': '駅の時刻表ページ：中壢〜埔心間の新しい臨時駅は、公式の英語駅名が公表されてからページを作ります。ほかの駅は毎週どおり更新します。',
+  '車站時刻表頁：中壢、埔心之間的平鎮臨時站要等官方公布英文站名後才會有頁面；在那之前每週更新班表時先略過它，其他車站照常更新': '駅の時刻表ページ：中壢〜埔心間の新しい臨時駅は、公式の英語駅名が公表されてからページを作ります。それまでは毎週の時刻表更新でこの駅を見送り、ほかの駅は通常どおり更新します。',
 });
