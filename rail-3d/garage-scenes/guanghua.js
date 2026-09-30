@@ -36,16 +36,17 @@ export const DIM={
  H:2.1,        // 涵洞淨高（依照片估計）
  BANK:10.0,    // 穿越長度＝路堤頂寬（依照片估計 8～10 m 取上限：kit 的道床每股 5.3 m 寬，兩股要放得下）
  DECK:2.3,     // 橋面頂離涵洞路面（照片比對輪由 2.6 降到 2.3：軌頂跟著降 .3 m，護欄頂才剛好蓋住鋼軌、從人眼高度只看到車底，同使用者 09-30 貼的照片；數值是主對話依照片估計）
- BEAM:2.6,     // 黃黑斜紋梁頂（照片比對輪：斜紋約 .5 m 高，依照片估計；原本 2.95）
- FLANGE:2.8,   // 斜紋梁上的淺灰鋼梁翼板頂（依照片估計，約 .2 m 高）
- PARAPET:3.1,  // 灰色混凝土護欄頂（依照片估計：翼板上露出約 .3 m；比軌頂高一點點）
+ BEAM:2.67,    // 黃黑斜紋梁頂（照片比對輪：斜紋約 .5 m 高，依照片估計；原本 2.95。r6：兩張照片量到斜紋約 .57 m，主對話依照片估計）
+ FLANGE:2.9,   // 斜紋梁上的淺灰鋼梁翼板頂（依照片估計，約 .2 m 高；r6 量到約 .23 m）
+ PARAPET:3.22, // 灰色混凝土護欄頂（依照片估計：翼板上露出約 .3 m；比軌頂高一點點。r6 量到約 .32 m）
  PARAPET_T:.25,// 護欄厚（本輪自訂）
  BEAM_T:.35,   // 警示梁厚（本輪自訂）
  DIP:.6,       // 涵洞路面比外側低多少（依照片估計「低於外側」，數值本輪自訂）
  CUT:4.4,      // 洞口外的引道切口長（本輪自訂；粗模是 5.2，短一點翼牆坡度陡、斜角看洞口比較不被擋）
  FLAT:1.5,     // 切口裡先平 1.5 m 再爬坡（本輪自訂）
  WALL_T:.45,   // 翼牆厚（本輪自訂；粗模是 .3，擋土牆要有分量）
- WALL_H:2.6,   // 翼牆貼路堤那一端的高＝斜紋梁頂＝錐坡頂，往外斜降到外側地面（本輪自訂；粗模是 2.2）
+ WALL_H:2.67,  // 翼牆貼路堤那一端的高＝斜紋梁頂＝錐坡頂，往外斜降到外側地面（本輪自訂；粗模是 2.2）
+ ABUT:.8,      // 【r6】洞口兩側橋台正面寬：翼牆往外挪這麼多，露出貼洞口平面、正對鏡頭的鏽色橋台面（兩張照片裡緊貼開口的是這一面，主對話依照片估計）
  SPACING:4.0,  // 雙線線間距（本輪自訂：台鐵雙線一般約 4 m）
  ALLEY:4.0     // 涵洞外的巷寬（本輪自訂）
 };
@@ -59,18 +60,18 @@ function profile(k,pts,thick){
  return k.geo(g);
 }
 // 黃黑斜紋警示梁的立面＋正中紅框圓牌（一張貼圖；圓牌裡沒寫字，照片看不出）。w×h 是立面尺寸（單位），貼圖依比例開，斜紋才是 45°。
-function warningFace(w,h){
+function warningFace(w,h,cf=.5){ // cf：圓牌中心在立面寬的哪個比例
  const c=document.createElement('canvas'),W=1024,H=Math.max(64,Math.round(W*h/w));c.width=W;c.height=H;
- const g=c.getContext('2d');g.fillStyle='#dfb63a';g.fillRect(0,0,W,H);
- const p=H*.35,k=H*.55; // 黃、黑各一條的水平寬與斜紋上下兩端的水平位移（照片比對輪：依照片改窄、改陡，一組約 .35 m；原本 p＝H×.62、k＝H）
+ const g=c.getContext('2d');g.fillStyle='#c98f24';g.fillRect(0,0,W,H); // r6：黃改偏琥珀（評審：截圖偏檸檬黃、照片偏琥珀）
+ const p=H*.22,k=H*.55; // 黃、黑各一條的水平寬與斜紋上下兩端的水平位移（照片比對輪：依照片改窄、改陡，一組約 .35 m；原本 p＝H×.62、k＝H。r6：兩張照片量到一組約 .25 m，再改窄）
  g.fillStyle='#26282a';for(let x0=-H;x0<W+H;x0+=p*2){g.beginPath();g.moveTo(x0,H);g.lineTo(x0+p,H);g.lineTo(x0+p+k,0);g.lineTo(x0+k,0);g.closePath();g.fill();}
- const r=H*.43;g.fillStyle='#f3efe4';g.beginPath();g.arc(W/2,H/2,r,0,Math.PI*2);g.fill();
- g.lineWidth=r*.2;g.strokeStyle='#c4342b';g.beginPath();g.arc(W/2,H/2,r-g.lineWidth/2,0,Math.PI*2);g.stroke();
+ const r=H*.43;g.fillStyle='#f3efe4';g.beginPath();g.arc(W*cf,H/2,r,0,Math.PI*2);g.fill();
+ g.lineWidth=r*.2;g.strokeStyle='#c4342b';g.beginPath();g.arc(W*cf,H/2,r-g.lineWidth/2,0,Math.PI*2);g.stroke();
  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return t;
 }
 // 【照片比對】洞口周邊細節共用一張 1024² 貼圖（一個網格＝一次 draw call）：上 384 列是卵石錐坡（透明處露出底下草坡，外緣四分之一橢圓），下面是限高牌、黃黑桿、各色色塊。
 // 卵石的顏色與疏密依使用者 09-30 貼的照片二（深灰砂漿、橘褐卵石）估計；圓牌照片看不清字，這裡不寫字。
-const SWATCH={red:'#b4463c',grass:'#55683a',grass2:'#617541',flange:'#d3d5cf',yellow:'#d7b43a',bush:'#3a5429',bush2:'#4a6630',mirror:'#a3aaae',rim:'#43464a',blue:'#2d5d9c',white:'#eceae2'};
+const SWATCH={red:'#b4463c',grass:'#3b5227',grass2:'#39532a',flange:'#d3d5cf',yellow:'#d7b43a',bush:'#3a5429',bush2:'#4a6630',mirror:'#a3aaae',rim:'#43464a',blue:'#2d5d9c',white:'#eceae2'};
 function detailAtlas(rand){
  const c=document.createElement('canvas');c.width=c.height=1024;const g=c.getContext('2d'),S=384;
  g.fillStyle='#393b37';g.fillRect(0,0,1024,S);
@@ -190,12 +191,12 @@ function createScooterRun({YC,kinkY,TH,flatEnd,rampLen,ZG,clipY,wheelbase}){
 export function createScene(kits=null){
  const k=createKit(),{group,mat,block,props,instance}=k,u=m=>m*METER;
  const HW=u(DIM.W)/2,ZS=u(DIM.H),ZD=u(DIM.DECK),ZB=u(DIM.BEAM),ZG=u(DIM.DIP),HB=u(DIM.BANK)/2,YT=u(DIM.SPACING)/2;
- const WT=u(DIM.WALL_T),CUT=u(DIM.CUT),FLAT=u(DIM.FLAT),YC=HB+CUT,CX=HW+WT,BT=u(DIM.BEAM_T),AH=u(DIM.ALLEY)/2;
+ const WT=u(DIM.WALL_T),CUT=u(DIM.CUT),FLAT=u(DIM.FLAT),YC=HB+CUT,AB=u(DIM.ABUT),CX=HW+AB+WT,BT=u(DIM.BEAM_T),AH=u(DIM.ALLEY)/2;
  const RAIL_Z=ZD+STACK,WIRE_Z=RAIL_Z+1.95; // 電車線離軌頂 1.95：與 crossing／高架同一個高度，集電弓伸得到
  const X=27,Y=23.6; // 地面層比底座薄板內縮一點，圓角才不會被方塊角戳出去；第二輪把底座由 76 縮成 54 寬（主對話判讀：全景取景才能拉近到洞口與擋土牆看得清楚、又不裁到底座）
  // 材質：名字給驗收腳本（淨空、比例）辨認結構角色；房子與道具用 props 自己的材質。
- const concrete=mat('#6f706b',{name:'concrete'}),stain=mat('#3b3a36',{name:'stain'}),streak=mat('#94643f',{name:'streak'}),paving=mat('#a9a495',{name:'ground'}),asphalt=mat('#51534f',{name:'asphalt'}),asphaltIn=mat('#3c3d3a',{name:'asphalt'}); // 照片比對輪：混凝土調深、洞內水漬改成深色與鏽色（依照片）；第二輪再壓暗：洞內近乎黑、洞口是亮框，路面是深灰瀝青（主對話依照片估計）
- const wall=mat('#5b5a55',{name:'retaining-wall'}),wstain=mat('#6e4a30',{name:'retaining-wall-stain'}); // 引道翼牆（照片裡洞口兩旁那段帶鏽的混凝土）與牆上的鏽水痕：名字以 retaining-wall 開頭，驗收用名字認
+ const concrete=mat('#5d5e59',{name:'concrete'}),stain=mat('#262523',{name:'stain'}),streak=mat('#94643f',{name:'streak'}),paving=mat('#a9a495',{name:'ground'}),asphalt=mat('#51534f',{name:'asphalt'}),asphaltIn=mat('#1f201e',{name:'asphalt'}); // r6：洞內再壓暗（照片的洞口近乎全黑，評審量到開口區亮度中位數照片 20、截圖 68） // 照片比對輪：混凝土調深、洞內水漬改成深色與鏽色（依照片）；第二輪再壓暗：洞內近乎黑、洞口是亮框，路面是深灰瀝青（主對話依照片估計）
+ const wall=mat('#4b4a45',{name:'retaining-wall'}),wstain=mat('#6e4a30',{name:'retaining-wall-stain'}),abut=mat('#7a663b',{name:'retaining-wall-abutment'}),rust=mat('#5a4527',{name:'retaining-wall-rust'}); // r6：緊貼洞口的橋台正面改鏽黃（照片裡約 RGB 150,128,72）＋暗褐直向鏽流；翼牆改暗灰（照片裡橋台與卵石錐坡之間是一條暗灰帶）。顏色是主對話依照片估計 // 引道翼牆（照片裡洞口兩旁那段帶鏽的混凝土）與牆上的鏽水痕：名字以 retaining-wall 開頭，驗收用名字認
  const pole=mat('#3b4140',{name:'pole'}),trough=mat('#8d8b84',{name:'trough'}),hanger=mat('#bbb8a8',{name:'hanger'}),wire=mat('#4a5150',{name:'wire'});
 
  // ── 底座：三層薄板，頂面 z=0＝涵洞內的路面（同 crossing 的做法）。
@@ -212,31 +213,37 @@ export function createScene(kits=null){
  //   → 灰色混凝土護欄（橋面 ZD 起到 ZP，整條路堤長；翼板以外、錐坡頂 ZB 以上露出來）。護欄頂比軌頂略高，從人眼高度看只露出車底。
  //   第二輪那層「擋土牆面板＋扶壁＋壓頂」拿掉：照片裡洞口兩旁是卵石錐坡與草坡，不是整面直立的牆（主對話判讀）。
  const ZF=u(DIM.FLANGE),ZP=u(DIM.PARAPET),PT=u(DIM.PARAPET_T);
- const beamW=u(DIM.W+1.1),BX=-u(.3),beamH=ZB-ZS,beamTex=warningFace(beamW,beamH),beamMat=new THREE.MeshStandardMaterial({map:beamTex,roughness:.85});k.ownMaterial(beamMat);beamMat.name='warning-beam';
+ const beamW=u(DIM.W+1.1),BX=-u(.3),beamH=ZB-ZS, // r6：斜紋上的圓牌移到 x＝+.3 m（照片二在開口寬的 57％ 處，主對話依照片估計）
+  beamTex=warningFace(beamW,beamH,(u(.3)-(BX-beamW/2))/beamW),beamMat=new THREE.MeshStandardMaterial({map:beamTex,roughness:.85});k.ownMaterial(beamMat);beamMat.name='warning-beam';
  for(const s of [-1,1]){
   block(concrete,[beamW,BT,beamH],[BX,s*(HB-BT/2),(ZB+ZS)/2]); // 第二輪：斜紋梁左邊多伸 .85 m、右邊 .25 m（照片二的斜紋帶蓋過左橋台，主對話依照片估計）
   const face=k.mesh(new THREE.PlaneGeometry(beamW,beamH),beamMat,[BX,s*(HB+.004),(ZB+ZS)/2]);face.rotation.set(Math.PI/2,s>0?Math.PI:0,0);face.castShadow=false;face.name='warning-face';
   block(concrete,[2*X,PT,ZP-ZD],[0,s*(HB-PT/2),(ZP+ZD)/2]);
  }
+ const rnd=k.rand;
  // 洞內路面（瀝青）＋翼牆＋引道斜坡。翼牆截面：貼路堤那端高 WALL_H，往外斜降到外側地面高 ZG。
  const flatEnd=HB+FLAT,rampLen=YC-flatEnd;
  block(asphaltIn,[2*HW,2*HB,.02],[0,0,.01]); // 第二輪：洞頂下那段路面另用深色瀝青（照片裡洞內近乎黑）；洞口外到斜坡起點照舊
- for(const s of [-1,1])block(asphalt,[2*HW,flatEnd-HB,.02],[0,s*(HB+flatEnd)/2,.01]);
- const wingGeo=profile(k,[[0,0],[0,u(DIM.WALL_H)],[CUT,ZG],[CUT,0]],WT),rampGeo=profile(k,[[0,0],[rampLen,0],[rampLen,ZG]],2*HW);
+ for(const s of [-1,1])block(asphalt,[2*(HW+AB),flatEnd-HB,.02],[0,s*(HB+flatEnd)/2,.01]);
+ const wingGeo=profile(k,[[0,0],[0,u(DIM.WALL_H)],[CUT,ZG],[CUT,0]],WT),rampGeo=profile(k,[[0,0],[rampLen,0],[rampLen,ZG]],2*(HW+AB));
  for(const s of [-1,1]){
-  for(const sx of [-1,1])instance(wingGeo,wall,[sx*(HW+WT/2),s*HB,0],[1,1,1],[0,0,s>0?0:Math.PI]);
+  for(const sx of [-1,1])instance(wingGeo,wall,[sx*(HW+AB+WT/2),s*HB,0],[1,1,1],[0,0,s>0?0:Math.PI]);
+  // 【r6】橋台正面：貼洞口平面、從切口底到斜紋梁底的鏽黃面，加 4 條暗褐直向鏽流（照片二左 33–38％、右 77–87％ 寬那兩面，主對話依照片估計）
+  for(const sx of [-1,1]){block(abut,[AB,.006,ZS],[sx*(HW+AB/2),s*(HB+.003),ZS/2]);
+   for(let i=0;i<3;i++){const w=.012+rnd()*.012,h=ZS*(.5+rnd()*.3);block(rust,[w,.008,h],[sx*(HW+AB*(.2+.3*i+rnd()*.1)),s*(HB+.004),ZS-h/2]);}}
   instance(rampGeo,asphalt,[0,s*flatEnd,0],[1,1,1],[0,0,s>0?0:Math.PI]);
  }
  // 水漬：從邊緣往下的深淺條紋，貼在洞內側牆與翼牆（同一顆種子，每次一樣）；翼牆內面（朝巷子）加鏽水痕（照片比對輪新增，依照片）。
- const rnd=k.rand;
  for(const sx of [-1,1])block(stain,[.0015,2*HB,ZS],[sx*(HW-.00075),0,ZS/2]); // 照片比對輪：洞內側牆整面貼深色（照片裡洞內明顯比洞外暗；沿用水漬材質，不多 draw call）
  block(stain,[2*HW,2*HB,.0015],[0,0,ZS-.00075]); // 第二輪：洞頂也貼深色
  for(const sx of [-1,1])for(let i=0;i<14;i++){const w=.03+rnd()*.07,h=.2+rnd()*.5,y=(rnd()*2-1)*(HB-.15);block(rnd()<.7?stain:streak,[.006,w,h],[sx*(HW-.002),y,ZS-h/2]);}
  for(const s of [-1,1])for(const sx of [-1,1])for(let i=0;i<5;i++){const y=s*(HB+.2+rnd()*(CUT-.5)),top=ZG+(u(DIM.WALL_H)-ZG)*(1-(Math.abs(y)-HB)/CUT)-.03,w=.04+rnd()*.06,h=.15+rnd()*.3;block(wstain,[.006,w,Math.min(h,top-.05)],[sx*(CX+.002),y,top-Math.min(h,top-.05)/2]);}
- for(const s of [-1,1])for(const sx of [-1,1])for(let i=0;i<8;i++){const y=s*(HB+.05+rnd()*(CUT*.55)),top=ZG+(u(DIM.WALL_H)-ZG)*(1-(Math.abs(y)-HB)/CUT)-.02,w=.05+rnd()*.1,h=Math.min(top-.05,.3+rnd()*.5);block(rnd()<.75?wstain:stain,[.006,w,h],[sx*(HW-.002),y,top-h/2]);}
+ for(const s of [-1,1])for(const sx of [-1,1])for(let i=0;i<8;i++){const y=s*(HB+.05+rnd()*(CUT*.55)),top=ZG+(u(DIM.WALL_H)-ZG)*(1-(Math.abs(y)-HB)/CUT)-.02,w=.05+rnd()*.1,h=Math.min(top-.05,.3+rnd()*.5);block(rnd()<.75?wstain:stain,[.006,w,h],[sx*(HW+AB-.002),y,top-h/2]);}
  // 涵洞外的巷子：外側地面上的瀝青帶。照片比對輪把後段的右彎拉直（TH＝0）：OSM 光華街出洞後直行約 70 m、使用者 09-30 貼的照片一從洞口看出去也是一條直路（主對話判讀）。
  // 彎道的寫法（kink、TH）留著，機車路線與後段房子都照它算；TH＝0 時就是一直線，L2 鋪到底座後緣 Y。
- block(asphalt,[2*AH,Y-YC,.012],[0,-(YC+Y)/2,ZG+.006]);
+ // 【r6】洞口前（−y，照片角度那一側）的巷子收窄成 x∈[FL,FR]：兩張照片的畫面底邊，路只從左紅線左邊約 .5 m 鋪到右紅線（主對話依照片與機位擬合估計），其餘是草。
+ const FL=-u(1.7),FR=u(.6);
+ block(asphalt,[FR-FL,Y-YC,.012],[(FL+FR)/2,-(YC+Y)/2,ZG+.006]);
  const L1=u(6),TH=0,kink=[0,YC+L1],L2=Y-.01-kink[1];
  block(asphalt,[2*AH,L1,.012],[0,YC+L1/2,ZG+.006]);
  block(asphalt,[2*AH,L2,.012],[kink[0]+Math.sin(TH)*L2/2,kink[1]+Math.cos(TH)*L2/2,ZG+.006],[0,0,-TH]);
@@ -312,26 +319,31 @@ export function createScene(kits=null){
   c.setAttribute('position',new THREE.Float32BufferAttribute(idx.flatMap(i=>P[i]),3));c.setAttribute('uv',new THREE.Float32BufferAttribute(idx.flatMap(i=>U[i]),2));c.computeVertexNormals();parts.push(c);
  }
  for(const s of [-1,1])boxG('flange',[u(9.2),.07,ZF-ZB],[0,s*HB,(ZB+ZF)/2]);
- const RX=u(1.2),RW=u(.1),RT=.004,ramp=Math.atan2(ZG,rampLen),rl=Math.hypot(rampLen,ZG);
- for(const sx of [-1,1]){const x=sx*RX;
+ const RX=u(1.2),RW=u(.04),RT=.004,ramp=Math.atan2(ZG,rampLen),rl=Math.hypot(rampLen,ZG); // r6：線寬 .1 → .04 m（評審：截圖紅線粗了約 2.5 倍）
+ for(const sx of [-1,1]){const x=sx<0?-RX:u(.5); // r6：右紅線由 +1.2 移到 +.5（兩張照片的右紅線都在洞口寬約 2／3 處，主對話依照片估計）
   boxG('red',[RW,2*flatEnd,RT],[x,0,.02+RT/2]);
   for(const s of [-1,1]){boxG('red',[RW,rl,RT],[x,s*(flatEnd+rampLen/2),ZG/2+RT/2+.001],[s*ramp,0,0]);boxG('red',[RW,Y-YC,RT],[x,s*(YC+Y)/2,ZG+.012+RT/2]);}
  }
  for(const sx of [-1,1]){ // 洞口前（−y，看涵洞鏡頭那一側）兩側草地
   boxG('grass2',[u(5.5),YC-HB-SL+.02,.008],[sx*(CX+u(5.5)/2),-(HB+SL+YC)/2,ZG+.004]);
-  boxG('grass2',[u(6),u(16),.008],[sx*(AH+.03+u(6)/2),-(YC+u(8)),ZG+.004]);
+  const e=sx<0?-FL:FR,gw=AH+.03+u(6)-e-.02; // r6：草從收窄後的路緣鋪起，外緣照舊在離中線 AH＋6 m（再往外是路燈量光點所在的鋪面，驗收 V6 用）
+  boxG('grass2',[gw,u(16),.008],[sx*(e+.02+gw/2),-(YC+u(8)),ZG+.004]);
+  for(const s of [-1,1]){const ee=s<0?e:AH,cw=HW+AB-ee,cx=sx*(ee+cw/2); // r6：切口內也只留巷子，路緣到翼牆鋪草（照片裡洞口前兩側一路是草叢；洞後照舊接 ALLEY 寬）
+   boxG('grass2',[cw,flatEnd-HB,.008],[cx,s*(HB+flatEnd)/2,.024]);
+   boxG('grass2',[cw,rl,.008],[cx,s*(flatEnd+rampLen/2),ZG/2+.006],[s*ramp,0,0]);}
  }
  const bush=(x,y,z,r,c='bush')=>put(paint(new THREE.IcosahedronGeometry(1,1),c),[x,y,z],[0,0,0],[r,r,r*.75]);
  const dX=CX-.83; // 第二輪洞口加寬，洞口前與坡頂的草叢跟著翼牆外移（原座標是 CX＝.83 時定的）
  for(const [x,y,r,c] of [[-1.15,-3.45,.2,'bush2'],[-1.5,-3.2,.16,'bush'],[1.05,-3.5,.18,'bush2'],[1.45,-3.35,.2,'bush'],[-2.3,-3.15,.17,'bush2'],[2.2,-3.2,.15,'bush']])bush(x+Math.sign(x)*dX,y,ZG+r*.3,r,c);
  for(const [x,d,r] of [[-2.1,.2,.3],[-2.6,.15,.38],[-3.1,.12,.42],[-3.7,.2,.36]])bush(x-dX,-(HB+d),ZB-d+r*.3,r,'bush');
- const PY=-(HB+u(2.4)),poleG=(x,h)=>put(fitUV(new THREE.CylinderGeometry(u(.04),u(.04),h,10,1,true),atlas.uvRect('pole')),[x,PY,ZG+h/2],[Math.PI/2,0,0]);
- const LX=-(CX+u(.1)),MX=CX+u(.1); // 第二輪：限高牌與反光鏡貼著翼牆外側立（照片二裡兩根桿都緊挨洞口兩邊，主對話依照片估計；再往內會插進翼牆）
+ for(const [x,y,r] of [[1.75,.8,.34],[2.15,1.05,.28],[1.45,1.1,.24]])put(paint(new THREE.IcosahedronGeometry(1,1),'bush2'),[u(x),-(HB+u(y)),.02+u(r)*.5],[0,0,0],[u(r)*.8,u(r)*.8,u(r)*1.3]); // r6：洞口右前方一叢高草（照片一右下 88–100％ 寬的芒草、照片二反光鏡桿腳的草叢；位置是主對話依照片估計）
+ const PY=-(HB+u(1.2)),PZ=.02,poleG=(x,top)=>put(fitUV(new THREE.CylinderGeometry(u(.04),u(.04),top-PZ,10,1,true),atlas.uvRect('pole')),[x,PY,(PZ+top)/2],[Math.PI/2,0,0]); // r6：兩根桿立在切口平段（洞口前 1.2 m、路面 PZ），不再浮在外側地面高
+ const LX=-u(2.75),MX=u(2.05); // r6：依機位擬合反推（照片二限高牌在 29–33％ 寬、反光鏡 78–86％ 寬；照片一反光鏡被右緣切一半），主對話依照片估計
  const SZ=u(1.55),MZ=u(1.75); // 第二輪：牌面與鏡面降低（照片二裡圓牌在斜紋帶高度、反光鏡在翼板高度，主對話依照片估計）
- poleG(LX,SZ+u(.3));put(fitUV(new THREE.CylinderGeometry(u(.32),u(.32),u(.03),24),atlas.uvRect('sign')),[LX,PY-u(.05),ZG+SZ]); // 限高牌（照片看不清字，不寫字）
- poleG(MX,MZ);
- put(paint(new THREE.CylinderGeometry(u(.44),u(.44),u(.05),24),'rim'),[MX,PY-u(.07),ZG+MZ],[.15,0,-.35]); // 反光鏡：橘框＋鏡面，微朝巷子、略朝下
- put(paint(new THREE.CylinderGeometry(u(.4),u(.4),u(.06),24),'mirror'),[MX-u(.004),PY-u(.08),ZG+MZ],[.15,0,-.35]);
+ poleG(LX,ZG+SZ+u(.25));put(fitUV(new THREE.CylinderGeometry(u(.25),u(.25),u(.03),24),atlas.uvRect('sign')),[LX,PY-u(.05),ZG+SZ]); // r6：牌面半徑 .32 → .25 m（評審：比照片大 1.3 倍） // 限高牌（照片看不清字，不寫字）
+ poleG(MX,ZG+MZ);
+ put(paint(new THREE.CylinderGeometry(u(.4),u(.4),u(.05),24),'rim'),[MX,PY-u(.07),ZG+MZ],[.15,0,-.35]); // 反光鏡：橘框＋鏡面，微朝巷子、略朝下
+ put(paint(new THREE.CylinderGeometry(u(.36),u(.36),u(.06),24),'mirror'),[MX-u(.004),PY-u(.08),ZG+MZ],[.15,0,-.35]);
  boxG('blue',[u(.32),u(.03),u(.5)],[MX,PY-u(.06),ZG+u(1.03)]);boxG('white',[u(.28),u(.03),u(.36)],[MX,PY-u(.06),ZG+u(.58)]);
  const RH=u(.95),RP=u(1.6); // 路堤頂護欄上的黃色欄杆（照片二右上角是黃色欄杆、左上角是灌木，所以只放 +x 側，兩面都放；主對話判讀）
  for(const s of [-1,1])for(const sx of [1]){const a=CX+u(4),b=X-.3,y=s*(HB-u(.12));

@@ -16,11 +16,18 @@ const distanceAt=t=>(((t*SPEED+PHASE+LAP/2)%LAP)+LAP)%LAP-LAP/2;
 // 所以 culvert 視角改用透視鏡頭（遠處變小、洞內兩側牆看得到），其他視角照舊是正交的微縮俯視。這個視角裡：
 //   ・鏡頭繞著洞口面上 aim 公尺高的那一點轉；elevation 是「在人眼高度之上再抬多少」（0＝人眼高），yaw 照舊。
 //   ・「＋／−」與滾輪是前後移動：離洞口 d／zoom^power 公尺（zoom .7～1.8 ⇒ 約 31～10 m）。
-const CAMERA={world:{yaw:-1.4,elevation:.42},train:{yaw:-1.32,elevation:.4},culvert:{yaw:-Math.PI/2,elevation:0}};
+// 【r6】看涵洞的預設改成照片 A（橫幅那張）的機位：使用者 09-30 15:25「預設可以改照片Ａ」。
+//   以下是主對話判讀：數值用照片地標（洞口上緣兩角、斜紋頂、護欄頂、消失點、左紅線、車頂）擬合而來＝站在左紅線上方（x≈-1.4 m）、
+//   離洞口約 24 m、眼高離外側地面約 1.2 m、朝右偏 1°、仰約 4°。zoom／pan 的換算在桌面 照片比對/工具/fit_camera.mjs。
+const CAMERA={world:{yaw:-1.4,elevation:.42},train:{yaw:-1.32,elevation:.4},culvert:{yaw:-1.5908,elevation:-.0117,zoom:.8589,pan:[-.3745,0,-.0408]}};
 const PHOTO={hfov:24,d:20,power:1.25,eye:1.5,aim:3.7};
+// 【r6】照片角度白天的太陽改在鏡頭正後方偏左一點（主對話判讀：兩張照片都是順光，洞口兩側的鏽色橋台整面受光；原本的太陽從左前方來，左翼牆的影子會把左橋台整面蓋暗）。其他視角與夕陽、夜晚照舊。
+const SUN={day:[-25,-30,45],sunset:[-40,10,20],night:[-25,-30,45]},PHOTO_SUN=[-3,-39,45];
+const sunAt=(view,period)=>view==='culvert'&&period==='day'?PHOTO_SUN:SUN[period];
 const MIN_ELEVATION=.08,MAX_ELEVATION=1.2,elevationRange=v=>v==='culvert'?[-.12,1]:[MIN_ELEVATION,MAX_ELEVATION];
 // 照片角度的天空（主對話判讀：這個視角畫面上半是天空，照片裡是藍天；其他視角照舊用主題的平塗底色）。
-const SKY={day:['#7fa7d2','#b5cde0','#dde5e2'],sunset:['#9d93a8','#e6b99a','#f1d6bc'],night:['#070d18','#101b2c','#25324a']};
+const SKY={day:['#7fa7d2','#a9c2d4','#7e8b86'], // r6：白天下半段壓暗（這張貼圖只在照片角度當畫面背景，下半段只會從洞口看出去時露出來；照片裡洞口是一個暗洞，主對話判讀）
+ sunset:['#9d93a8','#e6b99a','#f1d6bc'],night:['#070d18','#101b2c','#25324a']};
 function skyTexture(stops){const c=document.createElement('canvas');c.width=2;c.height=256;const g=c.getContext('2d'),gr=g.createLinearGradient(0,0,0,256);gr.addColorStop(0,stops[0]);gr.addColorStop(.55,stops[1]);gr.addColorStop(1,stops[2]);g.fillStyle=gr;g.fillRect(0,0,2,256);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;}
 
 export function mountGuanghua(root,{car='emu3000',period:initialPeriod,t=s=>s,params={}}={}){
@@ -42,7 +49,7 @@ const clips=[new THREE.Plane(new THREE.Vector3(1,0,0),CLIP),new THREE.Plane(new 
 function controls(){const p=q('#play');if(p){p.textContent=running?'Ⅱ':'▷';p.setAttribute('aria-label',t(running?'暫停行駛':'開始行駛'));p.setAttribute('aria-pressed',String(running));}const i=q('#in'),o=q('#out');if(i)i.disabled=zoom>=1.8;if(o)o.disabled=zoom<=.7;}
 function schedule(){if(!raf&&!disposed&&!suspended&&!document.hidden&&ready)raf=requestAnimationFrame(frame);}
 function resize(){if(!renderer||disposed)return;const r=canvas.getBoundingClientRect();renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(Math.max(1,r.width),Math.max(1,r.height),false);schedule();}
-function setTheme(next){period=next;const th=THEMES[period];themeEl.dataset.period=period;plainSky=new THREE.Color(th.background);scene.background=plainSky;hemi.color.set(th.ambient);hemi.groundColor.set(th.ground);hemi.intensity=period==='night'?1.2:2;sun.color.set(th.sun);sun.intensity=th.power;sun.position.set(period==='sunset'?-40:-25,period==='sunset'?10:-30,period==='sunset'?20:45);if(renderer)renderer.toneMappingExposure=th.exposure;qa('[data-period]').forEach(b=>{if(b.tagName==='BUTTON')b.setAttribute('aria-pressed',String(b.dataset.period===period));});schedule();}
+function setTheme(next){period=next;const th=THEMES[period];themeEl.dataset.period=period;plainSky=new THREE.Color(th.background);scene.background=plainSky;hemi.color.set(th.ambient);hemi.groundColor.set(th.ground);hemi.intensity=period==='night'?1.2:2;sun.color.set(th.sun);sun.intensity=th.power;sun.position.set(...sunAt(view,period));if(renderer)renderer.toneMappingExposure=th.exposure;qa('[data-period]').forEach(b=>{if(b.tagName==='BUTTON')b.setAttribute('aria-pressed',String(b.dataset.period===period));});schedule();}
 // 一班車：依路徑擺好、更新集電弓與燈光、離景就隱藏（連頭燈精靈與聚光燈一起，它們不受裁切面管）。
 function drawTrain(consist,follow,path,d){
  follow(path,d);consist.updateParts?.();consist.lighting.update(period,1);
@@ -56,6 +63,7 @@ function draw(){
  drawTrain(train,follower,place.path,distance);if(opposing)drawTrain(opposing,opposingFollower,place.opposingPath,distanceAt(time-OPPOSE_DELAY));
  place.update(time,period,{cars:carPositions(),scale:UNIT_PER_M[car]??METER});
  const rect=canvas.getBoundingClientRect(),aspect=rect.width/Math.max(1,rect.height);
+ sun.position.set(...sunAt(view,period));
  if(view==='culvert'){ // 照片角度（透視）：見檔頭 PHOTO 的說明
   const d=place.dims,dist=METER*PHOTO.d/Math.pow(zoom,PHOTO.power),asin=v=>Math.asin(THREE.MathUtils.clamp(v,-1,1));
   target.set(0,-d.mouthY,METER*PHOTO.aim);focus.copy(target).add(pan);
@@ -75,7 +83,7 @@ function draw(){
  canvas.dataset.ready='true';canvas.dataset.distance=String(distance);canvas.dataset.period=period;canvas.dataset.view=view;
 }
 function frame(at){raf=0;if(disposed||suspended||document.hidden)return;if(last&&at-last<32){schedule();return;}const dt=last?Math.min((at-last)/1000,.08):0;last=at;if(running)time+=dt;draw();if(running)schedule();}
-function reset(){zoom=1;pan.set(0,0,0);yaw=CAMERA[view].yaw;elevation=CAMERA[view].elevation;controls();schedule();}
+function reset(){const c=CAMERA[view];zoom=c.zoom??1;pan.set(...(c.pan??[0,0,0]));yaw=c.yaw;elevation=c.elevation;controls();schedule();}
 function setView(next){view=next;qa('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));const look=q('#culvert');if(look?.hasAttribute('aria-pressed'))look.setAttribute('aria-pressed',String(view==='culvert'));reset();}
 function setZoom(z){zoom=Math.max(.7,Math.min(1.8,z));controls();schedule();}
 // 看涵洞：把時間快轉到「機車經過洞口內側、本線車正在洞上」的下一次（時刻表綁列車圈時鐘，機車過洞中心＝車心過 x＝0，見 guanghua.js）；沒有機車資產時退回本線車中心在 x＝-6 的下一次。鏡頭切洞口低角度並開始播放（減少動態時不自動播放）。
@@ -123,6 +131,20 @@ function dispose(){
 }
 function showFailure(message,buttonText,onClick){if(!loading)return;loading.hidden=false;loading.replaceChildren(document.createTextNode(message));const b=document.createElement('button');b.textContent=buttonText;b.onclick=onClick;loading.append(b);}
 const memory=()=>renderer?{geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,programs:renderer.info.programs?.length??0}:null;
+// 【r6 照片比對】車底深色設備帶：只在這個景加、不動共用車模。使用者 09-30 貼的兩張照片裡，車底是一整條深色設備（儲氣筒、箱體），車輪大半看不到；
+// 共用車模是玩具比例、車底是空的，從照片角度會整圈露出輪子、還從轉向架之間透出天空（評審 r5 第 4 項）。以下做法與數字是主對話判讀：
+// 只加在電聯車、自強號、客車這三類（manifest 的 family 是 railcar／express／coach；機車頭、蒸機、林鐵的輪子是主角，不遮）。
+// 每節一塊深色方塊：長 90％、寬 97％，上緣貼車底（從車底下往上打射線量到的最低點），下緣在車底離軌頂高度的 35％，車輪最多露出下緣約三分之一。
+const SKIRTED=new Set(['railcar','express','coach']);
+async function familyOf(id){try{const r=await fetch(new URL('../assets/blender-map-v1/manifest.json',import.meta.url));return (await r.json()).models?.[id]?.family??null;}catch{return null;}}
+function addSkirts(c){
+ const ray=new THREE.Raycaster(),o=new THREE.Vector3(),up=new THREE.Vector3(0,0,1),mat=new THREE.MeshStandardMaterial({color:'#24262a',roughness:.9,clippingPlanes:clips,clipShadows:true});mat.name='guanghua-skirt';
+ c.root.updateMatrixWorld(true);
+ for(const car of c.cars){const {x:L,y:W,z:H}=car.asset.size;let zu=Infinity;
+  for(const fx of [-.15,0,.15])for(const fy of [-.25,0,.25]){o.set(fx*L,fy*W,.01*H);car.car.localToWorld(o);ray.set(o,up);const h=ray.intersectObject(car.body,false)[0];if(h)zu=Math.min(zu,car.car.worldToLocal(h.point.clone()).z);}
+  if(!(zu>.02*H&&zu<.6*H))continue;
+  const zb=zu*.35,top=zu+.02*H,m=new THREE.Mesh(new THREE.BoxGeometry(L*.9,W*.97,top-zb),mat);m.position.set(0,0,(zb+top)/2);m.name='guanghua-skirt';m.castShadow=m.receiveShadow=true;car.car.add(m);}
+}
 function clipConsist(c){
  for(const car of c.cars){for(const m of [].concat(car.body.material)){m.clippingPlanes=clips;m.clipShadows=true;m.needsUpdate=true;}
   car.body.traverse(o=>{if(o.isMesh&&o!==car.body){o.material.clippingPlanes=clips;o.material.clipShadows=true;o.material.needsUpdate=true;}}); // 集電弓掛在車身底下，一起被裁
@@ -149,6 +171,7 @@ try{
  primary=await loadGarageModel(car);if(disposed)throw Error('disposed');
  train=await createConsist(car,primary);if(disposed)throw Error('disposed');
  if(params.opposing){opposing=await createConsist(car,primary);if(disposed)throw Error('disposed');}
+ if(SKIRTED.has(await familyOf(car))){if(disposed)throw Error('disposed');for(const c of [train,opposing].filter(Boolean))addSkirts(c);}
  for(const c of [train,opposing].filter(Boolean)){clipConsist(c);c.setContactWire?.(place.contactWireZ);c.root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});scene.add(c.root);}
  follower=createTerrainFollower(train);if(opposing)opposingFollower=createTerrainFollower(opposing);
  ready=true;if(loading)loading.hidden=true;setView(view);setTheme(period);controls();resize();draw();schedule();
