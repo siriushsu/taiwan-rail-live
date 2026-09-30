@@ -18,8 +18,9 @@ try{
   assert.equal(first.status,200);assert.equal(count,1);
   assert.match(first.headers.get('cache-control'),/s-maxage=20(?:,|$)/);
   assert(!first.headers.get('cache-control').includes('stale-while-revalidate'));
-  now+=19000;const b=await (await call('ankeng')).json();
+  now+=19000;const second=await call('ankeng'),b=await second.json();
   assert.equal(count,1);assert.equal(b.at,a.at,'快取不能改寫 at 續命');
+  assert.match(second.headers.get('cache-control'),/s-maxage=1(?:,|$)/,'分層快取不能多續一輪 20 秒');
   now+=1000;const c=await (await call('ankeng')).json();
   assert.equal(count,2);assert.equal(Date.parse(c.at)-Date.parse(a.at),20000);
   now+=20000;fail=true;const d=await(await call('ankeng')).json();

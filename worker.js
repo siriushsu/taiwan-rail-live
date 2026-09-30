@@ -809,7 +809,10 @@ async function ntmetroLive(request, env, sys) {
       const d = await r.json();
       ntmLiveMem.set(sys, { data: { at: new Date().toISOString(), src: d && d.data != null ? d.data : null }, at: Date.now() });
     }
-    return await jsonResCached(edge, cacheKey, ntmLiveMem.get(sys).data, 200, 'public, s-maxage=20');
+    const cached = ntmLiveMem.get(sys);
+    // 記憶體裡已經 19 秒的資料只能再快取 1 秒，不能在另一層又獲得完整 20 秒。
+    const ttl = Math.max(1, Math.min(20, 20 - Math.floor((Date.now() - cached.at) / 1000)));
+    return await jsonResCached(edge, cacheKey, cached.data, 200, 'public, s-maxage=' + ttl);
   } catch (e) {
     if (stale) return jsonRes(stale.data, 200, 'public, s-maxage=15');
     // 軟失敗:回 200+src:null(前端 applyNtmLive 對 null 直接 no-op,退回時刻表推演),不回 5xx 免得訪客 console 留紅字。
