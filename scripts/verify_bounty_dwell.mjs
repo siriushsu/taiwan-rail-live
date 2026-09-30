@@ -240,6 +240,16 @@ ok('D11 站心低速只維持 2 秒（慢速爬行通過）時不算錄到——
     JSON.stringify(got));
 }
 
+// D13 否決門檻少了或不合理就直接中止（第十五批）：posSpeedVetoMps 不在，coverageOf 裡的比較式恆為假、否決等於關掉，
+// Android 送 0 又會回到每站都算停靠——所以跟 quality.dwell 整段不在一樣丟 invalid bounty rule，不偷偷降級。等於 stopSpeedMaxMps 也丟（否決會蓋掉真的停靠）。
+{
+  const dwellWith = veto => ({ ...RULES, quality: { ...RULES.quality, dwell: { ...RULES.quality.dwell, posSpeedVetoMps: veto } } });
+  const threw = rules => { try { _bounty.coverageOf(trip(stopped), LINE, rules, UNITS.peakHoursBySys); return 'no-throw'; } catch (e) { return String(e && e.message); } };
+  const got = { missing: threw(dwellWith(undefined)), equal: threw(dwellWith(RULES.quality.dwell.stopSpeedMaxMps)), real: threw(RULES) };
+  ok('D13 [第十五批] quality.dwell.posSpeedVetoMps 不在、或不大於 stopSpeedMaxMps → coverageOf 丟 invalid bounty rule（對照：正式設定檔不丟）',
+    got.missing === 'invalid bounty rule: quality.dwell' && got.equal === 'invalid bounty rule: quality.dwell' && got.real === 'no-throw', JSON.stringify(got));
+}
+
 const out = {
   criterion: RULES.quality.dwell,
   cardId: CARD_ID,
