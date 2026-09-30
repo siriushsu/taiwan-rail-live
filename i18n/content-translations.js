@@ -3535,3 +3535,10 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '日文介面：環島列車的終點改成簡短好懂的「台北（台湾一周）」': '日本語表示：環島列車の終点を短く分かりやすい「台北（台湾一周）」に変更',
   '日文介面與日文車站頁：環島列車的終點原本寫成很長的「台北サラウンドアイランド」，改成簡短好懂的「台北（台湾一周）」': '日本語表示と日本語の駅ページ：環島列車の終点を、長い「台北サラウンドアイランド」から短く分かりやすい「台北（台湾一周）」に変更',
 });
+// 2026-09-30 Issue #73 跟車膠囊對齊（v0930e）：第一層更新紀錄那條的 en/ja（第二層正本走 RAIL_I18N_CHANGELOG）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '跟車小卡收合成膠囊時，車次與時速不再貼在上緣，跟圓點和「結束」排在同一條線上（謝謝網友回報）': 'When the follow card is collapsed into a pill, the train number and speed no longer sit at the top edge; they now line up with the dot and the “Stop” button. Thanks to the reader who reported it.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '跟車小卡收合成膠囊時，車次與時速不再貼在上緣，跟圓點和「結束」排在同一條線上（謝謝網友回報）': '追跡カードを小さく折りたたんだとき、列車番号と速度が上端に寄らず、左の点や「終了」ボタンと同じ高さにそろうようになりました(ご報告ありがとうございます)。',
+});
