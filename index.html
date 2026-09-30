@@ -5629,12 +5629,12 @@
         <li class="grp">最近更新</li>
         <li data-cl-of="collectwidget1001"><span class="d">10/1</span><span>新增車站收集小工具：主畫面直接看收集進度與台灣鐵道點陣圖，可選全台或單一系統，按「蓋章」就能在附近車站留下紀錄</span></li>
         <li data-cl-of="renderperf0930"><span class="d">10/1</span><span>改善地形與立體建物的流暢度：減少畫面外與車廂的重複繪製，靜止或暫停時降低負擔；建物線條改從畫面中央向外補齊</span></li>
+        <li data-cl-of="pendingstation0930"><span class="d">10/1</span><span>車站時刻表頁：平鎮臨時站要等官方公布英文站名後才會有頁面，其他車站照常每週更新</span></li>
         <li data-cl-of="railgravel0930"><span class="d">9/30</span><span>立體鐵軌改用淡灰碎石道床，收窄邊坡與軌道輪廓；近看保留細顆粒，遠看更低調，車站多股軌道不再糊成一片土色</span></li>
         <li data-cl-of="rideexpire0930"><span class="d">9/30</span><span>「我上車了」後沒按下車，搭的車又從班表消失（週五夜車過午夜、連假加班車）時，過了抵達時間會自動下車；跟著別班車時按「搭乘中」也能直接下車（謝謝網友回報）</span></li>
         <li data-cl-of="tainanroads0930"><span class="d">10/1</span><span>台南地面鐵道歷史重播：馬路改成柏油路面，畫上車道線、中央黃線與有路緣的人行道，放大就看得到</span></li>
         <li data-cl-of="tainanmodel0929"><span class="d">9/30</span><span>台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，周邊建築從灰色方塊改成有外牆顏色、窗戶、店面與招牌，補上香格里拉飯店的塔樓，視角可自由轉向與傾斜，最多放大到 34 公尺</span></li>
         <li data-cl-of="ntmcache0930"><span class="d">9/30</span><span>淡海、安坑倒數每 20 秒檢查更新，避免多層快取延長舊資料；斷線不把舊倒數標成新資料</span></li>
-        <li data-cl-of="ntmclock0930"><span class="d">9/30</span><span>淡海、安坑跟車卡保留官方到站時間，不再被動畫平順校正延後；超出官方倒數範圍時明確標示推估</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6033,6 +6033,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="pendingstation0930"><span class="d">10/1</span><span>車站時刻表頁：中壢、埔心之間的平鎮臨時站要等官方公布英文站名後才會有頁面；在那之前每週更新班表時先略過它，其他車站照常更新</span></li>
         <li data-cl="stations0930b"><span class="d">9/30</span><span>車站時刻表頁擴大到兩週內有列車停靠的全部 239 個台鐵車站（新增 221 站，中文）：依方向列出每一班的開車時刻、終點與行駛日；瑞芳、十分、菁桐、礁溪、福隆、集集、知本另有英日文頁；車站索引依縣市列出全部台鐵車站</span></li>
         <li data-cl="stations0930"><span class="d">9/30</span><span>車站頁加上台鐵、高鐵時刻表（中、英、日文）：台北、板橋、台中等 20 個大站，加上新開的高鐵苗栗、彰化、雲林站，依方向列出兩週內每一班的開車時刻與行駛日，每週更新；車站頁與捷運路線圖頁也換上軌島圖示，跟著地圖切換亮暗外觀</span></li>
         <li data-cl="metropages0929"><span class="d">9/29</span><span>新增捷運路線圖頁（中、英、日文）：台北、桃園機場、新北、台中、高雄各系統與每條路線的路線圖、車站與轉乘、首末班車和班距，資料來源沒有逐班時刻表的路線只列營運時段與班距；頁面可一鍵在地圖上看列車，頁尾與手機版「更多」新增「捷運路線圖」入口</span></li>
@@ -6963,6 +6964,8 @@
 //         v0930f 跟 codex/metro-countdown-repair-0930 撞號，v0930g、v0930h 又已先上 main，改用 v0930i 讓版號維持遞增。
 // v0930k：台南地面鐵道歷史重播的馬路（memories/tainan-2026-09-12/roads.js）：柏油路面、依 OSM 車道數推算路寬、車道線與中央黃線、依人行道標記畫有路緣的人行道，
 //         地下道不畫在地面上（守門：scripts/verify_tainan_memory.mjs 的「馬路：」、verify_tainan_memory_browser.mjs）。v0930j 由 SEO 平鎮待通車站分支佔用。
+// v0930j：車站時刻頁略過待通車站（scripts/fetch_tra.py 的 PENDING_STATIONS，例：平鎮臨時站），平鎮進站序後、官方英文站名公布前重抓班表不再中斷
+//         （守門：scripts/verify_station_pages.mjs G10，另驗被名單比中的站不可已有官方英文站名；G2 解析器控制組改用固定日曆 9/27–10/10）。
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);

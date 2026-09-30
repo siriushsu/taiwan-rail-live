@@ -96,8 +96,8 @@ const widths = [360, 375, 414, 768];
 //       （v0930g 全台車站時刻表頁 460→461；v0930h 淡海安坑倒數與捷運看板 4 條沒跟著改，main 上這支是紅的），465→466。
 // 9/30：搭乘模式過了抵達時間自動下車（issue #63／#70）一條（466→467）。
 // 9/30：台南地面鐵道歷史重播的馬路（柏油、標線、人行道）一條（466→467）。
-// 10/1：主線 468 條，加台南道路、效能改善與車站收集小工具，共 471 條。
-const expectedHistoryCount = 471;
+// 10/1：主線 468 條，加台南道路、效能改善與車站收集小工具，加平鎮 SEO，共 472 條。
+const expectedHistoryCount = 472;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

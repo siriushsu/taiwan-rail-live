@@ -7,12 +7,12 @@
 //   第一批 23 站（手寫內容，build_aeo_pages.mjs 的 stations 陣列）× 三語；
 //   第二批（B2）：台鐵每個有停靠的站各一頁中文（221 個，自動產生）＋其中 7 站再有英日文頁。
 //   第二批「哪些站必須有頁」不從產生器抓，而是從原始資料推：兩週內有停靠的台鐵站名
-//   − 「臺北-環島」（環島列車終點別名，不是站）− 第一批頁的台鐵成員（G10）。
+//   − 「臺北-環島」（環島列車終點別名，不是站）− 第一批頁的台鐵成員 − 待通車站（scripts/fetch_tra.py 的 PENDING_STATIONS）（G10）。
 //
 // 獨立性（這支閘門最重要的性質）：
 //   期望值一律從原始資料自己算（data/tra_schedule_dense.json、scripts/seo_data/thsr_timetable.json、
 //   data/tw_daytype.json、data/holiday_names.json、i18n/stations.json、data/station_transfers.json、
-//   data/tra_station_info.json、data/tra_station_of_line.json、scripts/seo_data/tra_line_names.json），
+//   data/tra_station_info.json、data/tra_station_of_line.json、scripts/seo_data/tra_line_names.json、scripts/fetch_tra.py 的 PENDING_STATIONS），
 //   頁面的真相一律從產出的 HTML 解析。**不 import、也不複製** scripts/station_timetable.mjs 與
 //   scripts/build_aeo_pages.mjs 的邏輯——閘門與實作同源時，「相等」是零資訊。
 //   只有兩處讀了它們的「資料」而非「邏輯」：
@@ -35,8 +35,9 @@
 //   G7 不斷言公開    沿用 verify_metro_pages.mjs 的 NO_PUBLISH_CLAIM，車站頁不得命中
 //   G8 覆蓋率        印出並斷言 站 × 語 × 段 × 列；--all 時語言必須 3；驗到的列數必須等於原始資料算出的總列數
 //   G9 資料窗        頁面寫的資料涵蓋區間＝各資料檔的 dateRange（台鐵 dense／高鐵 seo_data，不是 availableRange）
-//   G10 站清單獨立推導  第二批期望站＝原始資料兩週內有停靠的台鐵站 − 「臺北-環島」− 第一批台鐵成員；期望網址用自己寫的 slug 函式
-//                    ＋規格常數 {左營:'zuoying-tra'}；每個期望的頁都在、磁碟上沒有多出來的站頁、slug 不重複；/stations/zuoying/ 仍是第一批那頁
+//   G10 站清單獨立推導  第二批期望站＝原始資料兩週內有停靠的台鐵站 − 「臺北-環島」− 第一批台鐵成員 − 待通車站；期望網址用自己寫的 slug 函式
+//                    ＋規格常數 {左營:'zuoying-tra'}；每個期望的頁都在、磁碟上沒有多出來的站頁、slug 不重複；/stations/zuoying/ 仍是第一批那頁；
+//                    被待通車名單比中的站不可已有官方英文站名（忘了移除、或名單誤中真站）
 //   G11 具名覆蓋率     zh／en／ja 站數必須剛好是 EXPECT_ZH／EN／JA_STATIONS（--all；推導出的站數任何模式都驗）；
 //                    各語逐列比對的列數印出，並斷言等於「從原始資料重算的總列數」且 > 0
 //   G12 hreflang       只有中文的頁 alternate 恰為 {zh-Hant, x-default} 且都指自己；有三語的頁四種互指；alternate 目標存在；
@@ -294,8 +295,21 @@ for (const [key, rec] of Object.entries(transfers.stations)) if (rec.system === 
 const thsrByNorm = new Map();
 for (const [key, rec] of Object.entries(transfers.stations)) if (rec.system === 'THSR') thsrByNorm.set(norm(rec.name), { key, ...rec });
 
-const traStopNames = new Set();   // 兩週內（dates 各日索引到的車次）有停靠的台鐵站名
-for (const date of DS.TRA.dates) for (const idx of tra.dates[date]) for (const s of tra.trains[idx].stops) if (isStop(s)) traStopNames.add(s.name);
+// 待通車站＝scripts/fetch_tra.py 的 PENDING_STATIONS（產生器、班表抓取的待上架站閘門讀同一份；這裡不 import 產生器）。
+// 班表有停靠也不期望有頁：站還在整合，官方英文站名、地址、轉乘表可能都還沒有（2026-09-30 平鎮臨時站）。
+// 比對照 fetch_tra_schedule.py：去括號後綴、臺→台、「包含」。那一筆移除後這站回到一般規則（缺譯名 G10 紅、站數變了 G11 紅）。
+// 注意：這段讀法與比對跟產生器相同，兩邊一起讀錯（名單誤中真站、忘了移除）時資料夾比對看不出來；
+// 擋這種錯的是 G10 另一條不看名單的斷言：被比中的站不可已有官方英文站名（真的待通車站還沒有）。
+const PENDING_TRA = (() => {
+  const dict = rdText('scripts/fetch_tra.py').match(/^PENDING_STATIONS\b[^=\n]*=\s*\{([^}]*)\}/m);
+  ok(10, !!dict, 'scripts/fetch_tra.py 找不到 PENDING_STATIONS（被改名或刪掉了？待通車站無從扣除）');
+  return dict ? [...dict[1].matchAll(/(?:^|[{,])\s*(["'])([^"'\n]+)\1\s*:/gm)].map(m => m[2]) : [];
+})();
+const traKey = name => String(name).replace(/\s*[（(].*$/, '').replace(/臺/g, '台');
+const isPendingTra = name => PENDING_TRA.some(p => traKey(name).includes(traKey(p)));
+const traStopNames = new Set(), traPendingStops = new Set();   // 兩週內（dates 各日索引到的車次）有停靠的台鐵站名；待通車站另外收
+for (const date of DS.TRA.dates) for (const idx of tra.dates[date]) for (const s of tra.trains[idx].stops) if (isStop(s)) (isPendingTra(s.name) ? traPendingStops : traStopNames).add(s.name);
+if (traPendingStops.size) console.log(`⏸ 待通車站 ${[...traPendingStops].sort().join('、')} 在班表有停靠，仍在 PENDING_STATIONS：不期望有頁（磁碟上有它的頁，G10 會列為多出來的資料夾）`);
 const firstTraSlug = new Map();   // 第一批頁的台鐵成員：站名 → slug
 for (const st of STATIONS) for (const m of st.members) if (m.startsWith('TRA:')) { const rec = transfers.stations[m]; if (rec) firstTraSlug.set(rec.name, st.slug); }
 
@@ -750,6 +764,7 @@ function checkStationList() {
     ok(10, !!s.code, `station_transfers.json 沒有台鐵站「${s.name}」，推不出站碼`);
     ok(10, !!s.slug, `i18n/stations.json 的 tra_sched 沒有「${s.name}」的英文名，推不出網址（要先補官方譯名）`);
   }
+  for (const n of traPendingStops) ok(10, !i18n.systems.tra_sched[n]?.en, `台鐵站「${n}」已有官方英文站名，卻仍被 scripts/fetch_tra.py 的 PENDING_STATIONS 比中、不產頁：整合完了就移除那一筆；不是待通車站就是名單誤中了真站`, `tra_sched 英文名 ${i18n.systems.tra_sched[n]?.en}`);
   for (const [n, x] of TRA_ALL) ok(10, !!x.addr, `台鐵站「${n}」的地址取不出縣市＋鄉鎮市區（tra_station_info.json）`, x.info ? x.info.address : '沒有這個站碼的紀錄');
   for (const n of EN_JA_SECOND) ok(10, SECOND.some(s => s.name === n), `英日文站「${n}」不在推導出的第二批站清單裡`);
   for (const n of Object.keys(SLUG_OVERRIDE)) ok(10, SECOND.some(s => s.name === n), `slug 覆寫表的「${n}」不在推導出的第二批站清單裡（覆寫過期？）`);
@@ -1192,7 +1207,9 @@ checkReverseLinks();
 // G2 控制組：行駛日解析器自己要先過——手算的標籤展開結果（含「例外日」「缺席日」這兩個目前資料裡沒出現過、
 // 但規格有的語法）；解析器解錯或不認得，這裡先紅，不會讓 G2 因為「解析器太寬鬆」而空過。
 {
-  const cal = makeCal(DS.TRA.dates);   // 9/27（日）…10/10（六）；9/28 週一與 10/9 週五是放假日
+  // 手算的期望值是照 2026-09-27（日）…10/10（六）這 14 天寫的（9/28 週一與 10/9 週五是放假日），所以用這個固定日曆、不用資料當下的窗：
+  // 每週重抓後窗會移走，拿新窗展開這些日期會整組無故轉紅（2026-09-30 用 10/15–10/28 的窗實測紅 13 項）。
+  const cal = makeCal(Array.from({ length: 14 }, (_, k) => new Date(Date.UTC(2026, 8, 27 + k)).toISOString().slice(0, 10)));
   const want = (...md) => new Set(md.map(x => { const [m, d] = x.split('/').map(Number); return `2026-${pad2(m)}-${pad2(d)}`; }));
   const same = (a, b) => a.size === b.size && [...a].every(x => b.has(x));
   const cases = [

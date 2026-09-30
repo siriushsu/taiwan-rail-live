@@ -737,7 +737,7 @@ const routesOf = (lang, model) => [...new Set(model.routeKeys.map(key => routeLa
 const shortsOf = (lang, model) => model.ttSystems.map(code => SYSTEM_SHORT[lang][code]);
 
 // ── 第二批：其餘台鐵站（2026-09-30，B2）──────────────────────────────────────────────────────
-// 中文頁＝資料裡兩週內有停靠的每一個台鐵站，扣掉第一批 23 頁已含的 18 站與環島別名（應為 221 站）；
+// 中文頁＝資料裡兩週內有停靠的每一個台鐵站，扣掉第一批 23 頁已含的 18 站、環島別名與待通車站（見 pendingTraNames；應為 221 站）；
 // 瑞芳、十分、菁桐、礁溪、福隆、集集、知本另有英日文頁。站清單、網址、導言、轉乘句、附近車站全部從 data/ 算，不寫站名清單
 // （換班表、新站、改站名都自動跟著變）；資料拿不到就 throw（缺英文站名、地址取不出縣市或鄉鎮市區、網址撞名），不編造。
 // 導言每一句都追得到資料：路線＝station_transfers 的 routes、縣市與鄉鎮市區＝tra_station_info 的地址、轉乘＝station_transfers 的 pairs。
@@ -752,6 +752,20 @@ const PARTNER_SYSTEM_ZH = { KRTC: systemNames.KRTC, TMRT: systemNames.TMRT, KLRT
 const traStopsOf = train => (typeof train.stops === 'string' ? JSON.parse(train.stops) : train.stops);
 const servedTraNames = new Set();
 for (const i of new Set(Object.values(ttInputs.tra.dates).flat())) for (const p of traStopsOf(ttInputs.tra.trains[i])) if (p.stop) servedTraNames.add(p.name);
+
+// 待通車站＝scripts/fetch_tra.py 的 PENDING_STATIONS（班表抓取的待上架站閘門讀同一份；閘門 verify_station_pages.mjs 自己再解析一次）。
+// 站還在整合時（例：2026-10 平鎮臨時站），班表可能先有它的停靠，官方英文站名、地址、轉乘表卻還沒有：
+// 先不產它的頁、印一行警告、不 throw，否則每週重抓班表會在最後這一步中斷。站名比對照 fetch_tra_schedule.py：去括號後綴、臺→台、「包含」。
+// 整合完把那一筆從 PENDING_STATIONS 移除，這站就照一般規則產頁（仍缺官方譯名照樣 throw，不編造；前置條件見 fetch_tra.py 名單的註解）。
+const pendingTraNames = (() => {
+  const dict = fs.readFileSync(path.join(root, 'scripts/fetch_tra.py'), 'utf8').match(/^PENDING_STATIONS\b[^=\n]*=\s*\{([^}]*)\}/m);
+  if (!dict) throw new Error('scripts/fetch_tra.py 找不到 PENDING_STATIONS（被改名或刪掉了？）');
+  return [...dict[1].matchAll(/(?:^|[{,])\s*(["'])([^"'\n]+)\1\s*:/gm)].map(m => m[2]);
+})();
+const traNameKey = name => name.replace(/\s*[（(].*$/, '').replace(/臺/g, '台');
+const isPendingTra = name => pendingTraNames.some(pending => traNameKey(name).includes(traNameKey(pending)));
+const pendingServed = [...servedTraNames].filter(isPendingTra).sort();
+if (pendingServed.length) console.warn(`⏸ 待通車站 ${pendingServed.join('、')} 班表已有停靠，仍在 scripts/fetch_tra.py 的 PENDING_STATIONS：先不產生車站頁（整合完再移除那一筆，前置條件見那份名單的註解）`);
 
 const traKeyByName = new Map();
 for (const [key, item] of Object.entries(transfers.stations)) {
@@ -800,7 +814,7 @@ const segHtml = segs => segs.map(seg => (typeof seg === 'string' ? escapeHtml(se
 const slugOfEn = en => en.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
 const firstBatchTraKeys = new Set(stations.flatMap(config => config.members).filter(key => key.startsWith('TRA:')));
-const secondKeys = [...servedTraNames].filter(name => name !== TRA_ROUND_ISLAND_ALIAS).map(name => {
+const secondKeys = [...servedTraNames].filter(name => name !== TRA_ROUND_ISLAND_ALIAS && !isPendingTra(name)).map(name => {
   const key = traKeyByName.get(name);
   if (!key) throw new Error(`班表有停靠的站「${name}」在 station_transfers.json 找不到`);
   return key;

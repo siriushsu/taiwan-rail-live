@@ -71,7 +71,7 @@ TRA_PATH = "data/tra.json"
 # 「tra.json 有沒有這一站」只對待上架站用站名判：1001「臺北-環島」這種官方專用站碼的
 # 站名本來就對不上 tra.json（densify 靠座標把它吸到臺北），套成通用規則會誤丟。
 # 站碼表只能另記一份：站碼不是官方車站清單的值，是逐日時刻表先用上的（站名是推定）。
-# 站納入站序、整條管線跑完之後，這裡與 PENDING_STATIONS 的那一筆一起移除。
+# 站納入站序、整條管線跑完之後，這裡與 PENDING_STATIONS 的那一筆一起移除（移除前的前置條件見 fetch_tra.py 那份名單的註解）。
 PENDING_STATION_CODES = {"1105": "平鎮"}
 
 # 官方「CarClass列車種類代碼表」全文（devDoc PDF 第 8–9 頁手key）。
