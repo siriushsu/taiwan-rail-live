@@ -10,7 +10,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -330,5 +334,66 @@ public final class CollectionDataInstrumentedTest {
         assertEquals("台鐵範圍：自己的點 1 個、其他系統的點 2 個（只數合格的點）", 1, tra.dots.size());
         assertEquals(2, tra.others.size());
         assertEquals("北捷範圍：自己的點 2 個", 2, d.figures("trtc", "全台").dots.size());
+    }
+
+    // ── recent[].ks：轉乘站在每個所屬系統的單一系統範圍都看得到（契約〈recent 的細節〉） ──────────
+
+    /** 最近蓋章一筆；k、ks 用原樣的 JSON 寫，null＝不寫這個鍵。 */
+    private static String recRaw(String name, String kJson, String ksJson) {
+        StringBuilder b = new StringBuilder("{\"name\":\"").append(name).append("\",\"line\":\"L\"");
+        if (kJson != null) b.append(",\"k\":").append(kJson);
+        if (ksJson != null) b.append(",\"ks\":").append(ksJson);
+        return b.append(",\"d\":\"2026-09-01\"}").toString();
+    }
+
+    private static List<String> names(CollectionData.Figures f) {
+        List<String> out = new ArrayList<>();
+        for (CollectionData.Recent r : f.recent) out.add(r.name);
+        return out;
+    }
+
+    @Test
+    public void ksIsKeptOnlyWhenItIsAnArrayOfStrings() {
+        String recent = "[" +
+            recRaw("A", "\"trtc\"", "[\"trtc\",\"ntdlrt\"]") + "," +   // 合格
+            recRaw("B", "\"trtc\"", "[]") + "," +                        // 空陣列也是字串陣列
+            recRaw("C", "\"trtc\"", null) + "," +                        // 缺
+            recRaw("D", "\"trtc\"", "\"trtc\"") + "," +                  // 字串，不是陣列
+            recRaw("E", "\"trtc\"", "null") + "," +                      // JSON null
+            recRaw("F", "\"trtc\"", "5") + "," +                         // 數字
+            recRaw("G", "\"trtc\"", "{\"a\":1}") + "," +                 // 物件
+            recRaw("H", "\"trtc\"", "[\"trtc\",5]") + "," +              // 有一個不是字串：整個當沒有
+            recRaw("I", "\"trtc\"", "[\"trtc\",null]") + "," +
+            recRaw("J", "\"trtc\"", "[[\"trtc\"]]") + "]";
+        CollectionData d = CollectionData.decode(doc("recent", recent));
+        assertNotNull(d);
+        assertEquals("ks 壞了只是當沒有 ks，那一筆照留", 10, d.recent.size());
+        assertEquals(Arrays.asList("trtc", "ntdlrt"), d.recent.get(0).ks);
+        assertEquals(Collections.emptyList(), d.recent.get(1).ks);
+        for (int i = 2; i < 10; i++) assertNull("第 " + i + " 筆的 ks 當沒有", d.recent.get(i).ks);
+    }
+
+    @Test
+    public void singleSystemRecentIsKOrKsFirstFourInPayloadOrder() {
+        String sys = "[{\"k\":\"trtc\",\"label\":\"北捷\",\"v\":4,\"n\":119},{\"k\":\"ntdlrt\",\"label\":\"淡海\",\"v\":2,\"n\":14}," +
+            "{\"k\":\"tra\",\"label\":\"台鐵\",\"v\":1,\"n\":241}]";
+        String recent = "[" +
+            recRaw("紅樹林", "\"trtc\"", "[\"trtc\",\"ntdlrt\"]") + "," +   // 轉乘站：北捷＋淡海
+            recRaw("淡水", "\"trtc\"", null) + "," +
+            recRaw("漁人碼頭", "\"ntdlrt\"", null) + "," +
+            recRaw("菁桐", "\"tra\"", null) + "," +
+            recRaw("象山", "\"trtc\"", null) + "," +
+            recRaw("南港展覽館", "\"trtc\"", null) + "," +
+            recRaw("動物園", "\"trtc\"", null) + "," +
+            recRaw("只靠ks", null, "[\"ntdlrt\"]") + "," +                // 沒有 k，只靠 ks 歸屬
+            recRaw("k不在ks內", "\"trtc\"", "[\"ntdlrt\"]") + "," +       // k 與 ks 取聯集
+            recRaw("淡海第五筆", "\"ntdlrt\"", null) + "]";
+        CollectionData d = CollectionData.decode(doc("sys", sys, "recent", recent));
+        assertNotNull(d);
+        assertEquals("北捷：k 相符或 ks 含北捷的前 4 筆，照 payload 順序（動物園、k不在ks內 被 4 筆上限擋掉）",
+            Arrays.asList("紅樹林", "淡水", "象山", "南港展覽館"), names(d.figures("trtc", "全台")));
+        assertEquals("淡海：紅樹林靠 ks、漁人碼頭靠 k、只靠ks、k不在ks內 靠 ks；第 5 筆被上限擋掉",
+            Arrays.asList("紅樹林", "漁人碼頭", "只靠ks", "k不在ks內"), names(d.figures("ntdlrt", "全台")));
+        assertEquals("台鐵：只有菁桐", Arrays.asList("菁桐"), names(d.figures("tra", "全台")));
     }
 }

@@ -66,6 +66,13 @@ en['recent'] = [{'name': 'Jingtong', 'line': 'Pingxi Line', 'k': 'tra', 'd': '20
                 {'name': 'Terminal 1', 'line': 'Airport MRT', 'k': 'tymc', 'd': '2026-09-14'}]
 dump('sample-en.json', en)
 
+# 轉乘站 fixture（契約 recent[].ks）：紅樹林同時是北捷與淡海的站、日期最新（比樣本裡任何一筆都新）。
+# 北捷與淡海的單一系統範圍都要看得到它，全台範圍的中卡不畫最近蓋章。
+# 只看 k 會讓淡海少掉它；只看 ks 會讓北捷少掉其他沒送 ks 的站（北捷有 4 筆以上可畫）。
+transfer = copy.deepcopy(sample)
+transfer['recent'].insert(0, {'name': '紅樹林', 'line': '淡水信義線', 'k': 'trtc', 'ks': ['trtc', 'ntdlrt'], 'd': '2026-09-29'})
+dump('sample-transfer.json', transfer)
+
 # 壞檔：v=2（widget 端應退回「打開軌島一次」）
 bad = copy.deepcopy(sample); bad['v'] = 2
 dump('bad-v2.json', bad)
@@ -91,6 +98,11 @@ for sc in ('krtc', 'tra'):
     add(f'sample-{sc}-medium-m368h221-light', 'sample.json', sc, 'medium', 'light', 368, 221)
     add(f'sample-{sc}-medium-m368h221-dark', 'sample.json', sc, 'medium', 'dark', 368, 221)
     add(f'sample-{sc}-small-stall-light', 'sample.json', sc, 'small', 'light', 140, 222)
+# 轉乘站的最近蓋章：單一系統（淡海＝只靠 ks 看得到、北捷＝k 與 ks 都對）放得下幾筆畫幾筆，全台不畫
+for sc in ('ntdlrt', 'trtc'):
+    add(f'transfer-{sc}-medium-m368h221-light', 'sample-transfer.json', sc, 'medium', 'light', 368, 221)
+    add(f'transfer-{sc}-medium-m360-light', 'sample-transfer.json', sc, 'medium', 'light', 360, 158)
+add('transfer-all-medium-m368h221-light', 'sample-transfer.json', 'all', 'medium', 'light', 368, 221)
 add('empty-all-medium-m368h221-light', 'empty.json', 'all', 'medium', 'light', 368, 221)
 add('empty-all-small-stall-light', 'empty.json', 'all', 'small', 'light', 140, 222)
 add('full-all-medium-m368h221-light', 'full.json', 'all', 'medium', 'light', 368, 221)

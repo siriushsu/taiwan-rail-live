@@ -81,7 +81,8 @@ function expectFor(payload, scope) {
     remaining: Math.max(0, total - collected),
     ranked,
     untouched: payload.sys.filter(s => s.v === 0).length,
-    recents: sys ? payload.recent.filter(r => r.k === sys.k) : payload.recent,
+    // 契約〈recent 的細節〉：單一系統範圍＝「k 相符，或 ks 含該系統」（轉乘站才有 ks）；全台範圍的版面不畫最近蓋章。
+    recents: sys ? payload.recent.filter(r => r.k === sys.k || (Array.isArray(r.ks) && r.ks.includes(sys.k))) : [],
   };
 }
 
@@ -167,7 +168,7 @@ const INK_ALPHA = 8;
 /** 蓋章膠囊尺寸（dp，改可點範圍前量到的值，尺寸不變）：高 17.9，寬依語言。 */
 const STAMP_W = { zh: 35.8, en: 45.3, ja: 55.6 };
 const totals = { land: 0, sea: 0, pen: 0, contrast: 0, inkBoxes: 0, scoped: 0, textPairs: 0, clipRegions: 0,
-  headSmallBoth: 0, headSmallDropAll: 0, headSmallDropScoped: 0, headMedBoth: 0, headMedDrop: 0, headShrunk: 0, recent4: 0, recentMax: 0 };
+  headSmallBoth: 0, headSmallDropAll: 0, headSmallDropScoped: 0, headMedBoth: 0, headMedDrop: 0, headShrunk: 0, recent4: 0, recentMax: 0, recentKs: 0 };
 /** 小卡標題與副標的間距（dp，版面宣告的 marginStart）；標題列「放得下」的判斷留 1.5dp 的取整帶（帶內兩種結果都收；Render 的餘裕是 1dp）。 */
 const GAP_SMALL = 4, FIT_BAND = 1.5;
 /** 最近蓋章「放得下再一列」的判斷：一列高在 0 筆時量不到，取 13sp 一行最矮的行高（拉丁字母，dp）。 */
@@ -178,7 +179,8 @@ const LAND_MIN = 950, SEA_MIN = 1200, PEN_MIN = 480, CON_MIN = 170, INK_MIN = 20
 const PAIRS_MIN = 7500, CLIPS_MIN = 1950;
 /** 標題列各種畫法的覆蓋下限（2026-09-30 量到 小卡兩個都放 87／全台只留車站收集 42／單一系統只留系統名 19、中卡兩個都放 70／只留系統名 13、縮字 12 的約 90%）。 */
 const HEAD_MIN = { headSmallBoth: 75, headSmallDropAll: 38, headSmallDropScoped: 17, headMedBoth: 60, headMedDrop: 11, headShrunk: 10,
-  recent4: 11, recentMax: 42 };   // 最近蓋章：畫滿 4 筆的案 13、算過最大性的案 47（2026-09-30）的約 85–90%
+  recent4: 11, recentMax: 42,   // 最近蓋章：畫滿 4 筆的案 13、算過最大性的案 47（2026-09-30）的約 85–90%
+  recentKs: 2 };               // 預期清單裡有「只靠 ks 才屬於這個系統」的站（轉乘站 fixture 的淡海中卡）：實際 2 案（fixture 被拿掉就紅）
 /** 把 PNG 裁到點陣框：at(x,y)＝原圖 (x+start, y+top)；框外（出血區）用負座標或超過 w／h 取得。 */
 function framed(raw, family, dpr) {
   const b = BLEED[family];
@@ -296,6 +298,8 @@ for (const c of cases) {
         names.length <= Math.min(4, want.length) && names.every((t, i) => t === want[i]?.name) && dates.every((t, i) => t === shortDate(want[i]?.d ?? '')),
         () => `${tag}：畫面 ${names}／${dates}，期望前綴 ${want.map(r => r.name + '／' + shortDate(r.d))}`);
       if (names.length === 4) totals.recent4++;
+      // 只靠 ks 才屬於這個系統的站（k 不是這個系統）出現在預期清單裡的案：證明「只看 k」的實作會被抓到
+      if (want.some(r => r.k !== e.sys.k)) totals.recentKs++;
       // 最大性：畫的筆數少於 min(4, 筆數)，就要證明剩下的空間（標題區塊與進度條之間的伸縮間隔＋最後一個元素到下一個元素的空隙）放不下再一列。
       // 一列高取實際畫出來的名稱框高；0 筆時取 13sp 一行最矮的行高（拉丁字母）。
       if (names.length < Math.min(4, want.length)) {

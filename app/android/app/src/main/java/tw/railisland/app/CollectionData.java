@@ -23,6 +23,8 @@ final class CollectionData {
     static final String FILE_NAME = "collection.json";
     /** 設定裡「全台」的存值（與 iOS CollectionScope.allKey 相同）。其餘存值是 sys[].k。 */
     static final String ALL = "all";
+    /** 單一系統範圍最多取幾筆最近蓋章（契約〈畫法約定〉9；放得下幾筆由算圖端量）。 */
+    static final int RECENT_MAX = 4;
 
     static final class Sys {
         String k = "";
@@ -34,9 +36,16 @@ final class CollectionData {
     static final class Recent {
         String name = "";
         String line = "";
-        /** 歸屬系統；缺或不是字串＝沒有歸屬（null），任何單一系統範圍都不會因為它列這一筆。 */
+        /** 歸屬系統；缺或不是字串＝沒有歸屬（null）。 */
         String k;
+        /** 選用：這座站所屬的全部系統（轉乘站才有，例：紅樹林＝北捷＋淡海）；缺或不是字串陣列＝null（舊版網頁不送）。 */
+        List<String> ks;
         String d = "";
+
+        /** 單一系統範圍要不要列這一筆：k 相符，或 ks 含該系統（契約〈recent 的細節〉；兩個條件取聯集）。 */
+        boolean inSystem(String sysKey) {
+            return sysKey.equals(k) || (ks != null && ks.contains(sysKey));
+        }
     }
 
     /** pts 的每個元素是 [x, y, "#色碼", s, sysIdx]；x、y 為 0..1000；s：0 未收集、1 跟完、2 搭過或到訪。 */
@@ -111,6 +120,7 @@ final class CollectionData {
                 r.name = name;
                 r.line = line;
                 r.k = stringOf(o.opt("k"));
+                r.ks = stringListOf(o.opt("ks"));
                 r.d = day;
                 d.recent.add(r);
             }
@@ -143,6 +153,19 @@ final class CollectionData {
 
     private static JSONArray arrayOf(Object o) {
         return o instanceof JSONArray ? (JSONArray) o : null;
+    }
+
+    /** 字串陣列；不是陣列、或裡面有任何一個不是字串，整個當沒有（null）。 */
+    private static List<String> stringListOf(Object o) {
+        JSONArray a = arrayOf(o);
+        if (a == null) return null;
+        List<String> out = new ArrayList<>(a.length());
+        for (int i = 0; i < a.length(); i++) {
+            String s = stringOf(a.opt(i));
+            if (s == null) return null;
+            out.add(s);
+        }
+        return out;
     }
 
     /** 有限的數字；不是數字（JSON null、字串、布林、陣列）回 null。 */
@@ -220,7 +243,7 @@ final class CollectionData {
         /** 單一系統時，視窗內要畫成灰底的「其他系統」的點（全台為空）。 */
         final List<Pt> others = new ArrayList<>();
         List<Sys> systems = new ArrayList<>();
-        /** 最近蓋章：全台＝payload 全部（最多 4 筆）；單一系統＝只留 k 相符的。 */
+        /** 最近蓋章：單一系統＝「k 相符或 ks 含該系統」的前 RECENT_MAX 筆，payload 已排好序、不重排；全台＝payload 全部（最多 4 筆）。 */
         final List<Recent> recent = new ArrayList<>();
         /** 中卡的進度條：有收集的系統，依總站數大到小，最多 5 個。 */
         final List<Sys> topSystems = new ArrayList<>();
@@ -256,7 +279,10 @@ final class CollectionData {
             for (Pt p : pts) {
                 if (p.sys == index) f.dots.add(p); else f.others.add(p);
             }
-            for (Recent r : recent) if (s.k.equals(r.k)) f.recent.add(r);
+            for (Recent r : recent) {
+                if (f.recent.size() >= RECENT_MAX) break;
+                if (r.inSystem(s.k)) f.recent.add(r);
+            }
         } else {
             f.scopeKey = null;
             f.title = allTitle;
