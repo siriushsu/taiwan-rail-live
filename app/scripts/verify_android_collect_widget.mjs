@@ -246,8 +246,11 @@ for (const c of cases) {
     check('中卡「已收集 v／n 座」', count?.visible && count.text === tr(lang, '已收集 {v}／{n} 座', { v: e.collected, n: e.total }), () => `${tag}：${JSON.stringify(count?.text)}，期望 ${e.collected}／${e.total}`);
     const title = one(obs, 'wc_title');
     const kicker = tr(lang, '車站收集');
-    // 全台：放得下就寫「車站收集」；標題欄被蓋章鈕吃掉、放不下時退成範圍名「全台」（不縮到看不見）
-    const okTitle = isAllScope ? (title?.text === kicker || title?.text === tr(lang, '全台')) : (title?.text === `${e.sys.label} · ${kicker}` || title?.text === e.sys.label);
+    // 全台：一律恰為「車站收集」（zh 250／320／360／368、en、ja 全部量過，從沒退成「全台」）。
+    // 單一系統：寫「範圍 · 車站收集」；只有英文 250dp 寬的中卡放不下就只留範圍名——標題欄＝(250−38)×0.70−3 字×0.62×14−6≈116dp，
+    // "Kaohsiung · Station collection" 約 30 字×5dp×1.05≈158dp 放不下（zh、ja 各寬度都放得下完整標題）。
+    const okTitle = isAllScope ? title?.text === kicker
+      : (title?.text === `${e.sys.label} · ${kicker}` || (lang === 'en' && c.wDp <= 250 && title?.text === e.sys.label));
     check('中卡標題（全台＝車站收集；單一系統＝系統名［· 車站收集］）', okTitle, () => `${tag}：${JSON.stringify(title?.text)}`);
   }
 
@@ -350,9 +353,12 @@ for (const c of cases) {
   // A6 地圖：Bitmap 尺寸／位元組／深淺 alpha／像素
   const mapL = one(obs, 'wc_map_light'), mapD = one(obs, 'wc_map_dark');
   if (!mapL?.png || !mapD?.png || !mapL.visible) {
-    // 小卡窄到文字放不下時整個拿掉地圖（關鍵數字優先）；其餘情況有資料就一定有地圖
-    // 允許拿掉地圖的兩種小卡：窄卡（≤140dp）；空狀態的英日文（邀請文案比繁中長，58% 欄放不下就把整欄讓給文字，見 CollectionWidgetRender.small）
-    check('有資料就有地圖（只有窄小卡、英日文空狀態小卡可整個拿掉）', small && (c.wDp <= 140 || (e.collected === 0 && !lang.startsWith('zh'))), `${tag}：沒有地圖`);
+    // 允許拿掉地圖的小卡只有兩種：(1) 有資料、寬 110dp 的小卡（量到的實況：110×110 的資料卡沒地圖；137×137、140×222、158×158 的資料卡全有地圖）；
+    // (2) 空狀態且說明文放不進文字欄：預言機自己估（拉丁 0.5em、CJK 1em、粗體 +5%、除以 58% 欄寬），說明文 >3 行或標題 >2 行才准丟。
+    const colW = (c.wDp - 30) * 0.58;   // 文字欄寬（dp）：版面權重 58%、左右內距 14+16
+    const lines = (text, sp, bold) => { let em = 0; for (const ch of text) em += ch.codePointAt(0) >= 0x2E80 ? 1 : 0.5; return Math.ceil(em * sp * (bold ? 1.05 : 1) / colW); };
+    const emptyOverflow = e.collected === 0 && (lines(tr(lang, '跟一班車到終點，或到車站打卡就會蓋章'), 11, false) > 3 || lines(tr(lang, '還沒有收集的車站'), 13, true) > 2);
+    check('有資料就有地圖（只有 110dp 寬的資料小卡、或說明文放不進文字欄的空狀態小卡可整個拿掉）', small && ((e.collected > 0 && c.wDp <= 110) || emptyOverflow), () => `${tag}：沒有地圖（${c.wDp}x${c.hDp}dp，文字欄 ${colW.toFixed(1)}dp，collected=${e.collected}）`);
     continue;
   }
   check('淺／深 alpha（淺色模式露淺、深色模式露深）', near(mapL.alpha, light ? 1 : 0, 0.01) && near(mapD.alpha, light ? 0 : 1, 0.01), () => `${tag}：light=${mapL.alpha} dark=${mapD.alpha} theme=${c.theme}`);
