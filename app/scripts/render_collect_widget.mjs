@@ -222,7 +222,7 @@ function fullPayload() {
   for (const pt of p.pts) pt[3] = 2;
   return withRecent(p);
 }
-/** 只收 1 站：全台 1/538 與台鐵 1/241 都四捨五入成 0 → 「<1%」，進度條要靠 3% 下限才看得見。 */
+/** 只收 1 站：全台 1/539 與台鐵 1/241 都四捨五入成 0 → 「<1%」，進度條要靠 3% 下限才看得見。 */
 function onePayload() {
   const p = clone(emptyPayload);
   p.n = 1;
@@ -230,7 +230,7 @@ function onePayload() {
   p.pts.find(pt => pt[4] === 0)[3] = 2;
   return withRecent(p);
 }
-/** 只差 1 站收滿：全台 537/538＝99.81%、台鐵 240/241＝99.59%，都四捨五入成 100 → 顯示「99%」。 */
+/** 只差 1 站收滿：全台 538/539＝99.81%、台鐵 240/241＝99.59%，都四捨五入成 100 → 顯示「99%」。 */
 function almostPayload() {
   const p = clone(sample);
   p.n = p.total - 1;

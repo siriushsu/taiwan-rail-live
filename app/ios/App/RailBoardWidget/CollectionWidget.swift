@@ -31,7 +31,7 @@ extension CollectionStore {
             forSecurityApplicationGroupIdentifier: RailBoardConstants.appGroupID))
     }
 
-    /// 小工具圖庫預覽與 placeholder 用的內建示意資料（201／538 是 09-29 當時的站數快照，示意收集）。
+    /// 小工具圖庫預覽與 placeholder 用的內建示意資料（總數 539 是台北與台中的市政府分開算之後的站數；201 是示意的收集數）。
     /// 真實總數以 collection.json 的 total 為準（09-30 台北與台中的市政府分開算後是 539）。
     /// 不是使用者的資料：只在 context.isPreview 與 placeholder 用，真實畫面一律讀 loadShared()。
     static func loadPreviewSample() -> CollectionSnapshot? {
