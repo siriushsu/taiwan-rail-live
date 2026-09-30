@@ -257,8 +257,10 @@ if (existsSync('data/bounty_units.json')) {
     const ok10 = await a.run([...TRA, ...PT.slice(10), ...PX, ...HSR], 2);
     const b = fresh(); await b.run(ALL, 1);
     const before = b.snap();
-    const bad11 = await b.run([...TRA, ...PT.slice(11), ...PX, ...HSR], 2);
-    ok('E24 逐線的比例那一端：屏東線 20 列少 10 列（剛好一半）照常退場 10；少 11 列 → 丟錯（訊息點名 tra_sched|屏東線 11/20，沒有點名整個台鐵），整張板一列都沒動',
+    // 丟錯的那一份清單另外新增一個單位、改掉一列的 perDay（比照 E22）：守門若挪到上架之後，板上會多一列、per_day 會變，這裡才看得出來。
+    const bad11 = await b.run([...TRA.map((u, i) => i === 0 ? { ...u, perDay: 12 } : u), ...PT.slice(11), K('tra_sched', '屏東線', 500), ...PX, ...HSR], 2);
+    ok('E24 逐線的比例那一端：屏東線 20 列少 10 列（剛好一半）照常退場 10；少 11 列 → 丟錯（訊息點名 tra_sched|屏東線 11/20，沒有點名整個台鐵），' +
+      '整張板一列都沒動（同一份清單新增的單位沒上架、改了的 per_day 沒寫進去）',
       ok10.retired === 10 && a.retiredBySys() === 'thsr_sched=0/20,tra_sched=10/232' &&
         E.test(bad11.threw || '') && /tra_sched\|屏東線 11\/20/.test(bad11.threw) && !SYS_ENTRY.test(bad11.threw) && b.snap() === before,
       JSON.stringify({ ok10, a: a.retiredBySys(), bad11, unchanged: b.snap() === before }));
@@ -285,20 +287,41 @@ if (existsSync('data/bounty_units.json')) {
         acked.retired === 10 && a.retiredBySys() === 'thsr_sched=0/20,tra_sched=20/232',
       JSON.stringify({ half, rest, acked, after: a.retiredBySys() }));
   }
-  // E27（第二十一批，第十五輪 P3-C、P3-D、P3-F）：清單沒有 generatedAt 時沒有任何 ack 放得行（沒設 ack、ack 寫成 undefined 都一樣），
-  // 訊息改叫人重建清單；ack 前後的空白與換行不算；寫成 3.0 不等於 3。
+  // E27（第二十一批，第十五輪 P3-C、P3-D、P3-F；第二十二批補 null，第十六輪 P3-2）：清單沒有 generatedAt（缺鍵或是 null）時
+  // 沒有任何 ack 放得行（沒設 ack、ack 寫成 undefined 或 null 都一樣），訊息改叫人重建清單；ack 前後的空白與換行不算；寫成 3.0 不等於 3。
   {
     const a = fresh(); await a.run(ALL, 1);
     const cut = [...TRA, ...PT, ...PX, ...HSR.slice(10)];
     const noGen = await a.run(cut, undefined);
     const noGenAck = await a.run(cut, undefined, 'undefined');
+    const nullGen = await a.run(cut, null);
+    const nullGenAck = await a.run(cut, null, 'null');
     const spaced = await a.run(cut, 2, ' 2\n');
     const decimal = await a.run([...TRA, ...PT, ...PX], 3, '3.0');
-    ok('E27 清單沒有 generatedAt：沒設 ack、ack 寫成 undefined 都丟錯，訊息叫人重建清單（不叫人設 ack）；ack 前後有空白換行照樣放行（退場 10）；寫成 3.0 → 丟錯',
+    ok('E27 清單沒有 generatedAt（缺鍵或 null）：沒設 ack、ack 寫成 undefined／null 都丟錯，訊息叫人重建清單（不叫人設 ack）；' +
+      'ack 前後有空白換行照樣放行（退場 10）；寫成 3.0 → 丟錯',
       E.test(noGen.threw || '') && /清單沒有 generatedAt/.test(noGen.threw) && !/BOUNTY_RETIRE_ACK 設成/.test(noGen.threw) &&
-        E.test(noGenAck.threw || '') && spaced.retired === 10 && a.retiredBySys() === 'thsr_sched=10/20,tra_sched=0/232' &&
+        E.test(noGenAck.threw || '') &&
+        E.test(nullGen.threw || '') && /清單沒有 generatedAt/.test(nullGen.threw) && !/BOUNTY_RETIRE_ACK 設成/.test(nullGen.threw) &&
+        E.test(nullGenAck.threw || '') &&
+        spaced.retired === 10 && a.retiredBySys() === 'thsr_sched=10/20,tra_sched=0/232' &&
         E.test(decimal.threw || '') && /BOUNTY_RETIRE_ACK 設成 3）/.test(decimal.threw),
-      JSON.stringify({ noGen, noGenAck, spaced, decimal, after: a.retiredBySys() }));
+      JSON.stringify({ noGen, noGenAck, nullGen, nullGenAck, spaced, decimal, after: a.retiredBySys() }));
+  }
+  // E28（第二十二批，第十六輪獨立驗收 P3-3）：逐線比例的一半再釘緊一點。E24 的屏東線只有 20 列，比例放寬到 0.54 也看不出來。
+  // 這裡放一條 100 列的線（山線），台鐵另外有 500 列，系統那一道碰不到（51/600 不到一成）。
+  {
+    const BIG = Array.from({ length: 500 }, (_, i) => K('tra_sched', '南迴線', i));
+    const SHAN = Array.from({ length: 100 }, (_, i) => K('tra_sched', '山線', i));
+    const a = fresh(); await a.run([...BIG, ...SHAN], 1);
+    const ok50 = await a.run([...BIG, ...SHAN.slice(50)], 2);
+    const b = fresh(); await b.run([...BIG, ...SHAN], 1);
+    const before = b.snap();
+    const bad51 = await b.run([...BIG, ...SHAN.slice(51)], 2);
+    ok('E28 逐線比例的一半：100 列的線少 50 列照常退場 50；少 51 列 → 丟錯（tra_sched|山線 51/100；台鐵合起來只有 51/600），整張板一列都沒動',
+      ok50.retired === 50 && a.retiredBySys() === 'tra_sched=50/600' &&
+        E.test(bad51.threw || '') && /tra_sched\|山線 51\/100/.test(bad51.threw) && !SYS_ENTRY.test(bad51.threw) && b.snap() === before,
+      JSON.stringify({ ok50, a: a.retiredBySys(), bad51, unchanged: b.snap() === before }));
   }
 }
 
