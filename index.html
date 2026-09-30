@@ -17499,7 +17499,7 @@ function collectionWidgetPayload(geo) {
     n: coll.size, total, sys, recent, pts,
   };
 }
-// 推送(去抖 2 秒;內容不含 at 沒變就不送)。時機:開機資料就緒後、writeCheckin、完乘紀錄與帳號同步合併
+// 推送(去抖 2 秒,切到背景時排程中的立刻送;內容不含 at 沒變就不送)。時機:開機資料就緒後、writeCheckin、完乘紀錄與帳號同步合併
 // (rail-user-data-changed)、切語言、userDataRenderAll(登出／刪帳號／換帳號)。
 // 護照在捷運群組會早退、本機打卡也不派事件,所以不能掛在 renderPassport 或只聽 rail-user-data-changed。
 const setupNativeCollectionSync = (() => {
@@ -17516,13 +17516,17 @@ const setupNativeCollectionSync = (() => {
       try { await bridge.sync(JSON.stringify(p)); } catch (e) { last = ''; } // 失敗(舊版 App 沒這個外掛)下次觸發重送
     } catch (e) {}
   };
-  const schedule = () => { clearTimeout(timer); timer = setTimeout(push, 2000); };
+  const schedule = () => { clearTimeout(timer); timer = setTimeout(() => { timer = null; push(); }, 2000); };
+  // 切到背景(滑走 App、鎖屏、關閉)時,排程中的推送立刻送:WebView 被凍結後 2 秒的計時器等不到。沒有排程(內容沒動)就不送。
+  const flush = () => { if (timer === null) return; clearTimeout(timer); timer = null; push(); };
   return () => {
     if (started) return;
     started = true;
     nativeCollectionSchedule = schedule;
     schedule();
     window.addEventListener('rail-user-data-changed', schedule);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
+    window.addEventListener('pagehide', flush);
   };
 })();
 function pinSavedIdx(lat, lon) { return loadPins().findIndex(p => Math.abs(p.lat - lat) < 1e-6 && Math.abs(p.lon - lon) < 1e-6); }

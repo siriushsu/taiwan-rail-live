@@ -36,6 +36,8 @@
 //   P   護照深連結（第二輪第 6 點）：waitOpen 收到 {view:'passport'} → #ridePanel（旅程護照）真的在畫面上、看得見、
 //       沒被蓋住；對照 {view:'pass'} 仍開通行證面板（#plusModal）而不是護照；桌面 1280 與手機 375 各跑一次，
 //       含「原生冷啟動時事件在 listener 掛上瞬間就進來」與「別的面板開著／護照已開著」兩種狀態
+//   V   切到背景時補送：有排程中的推送時 visibilitychange→hidden、pagehide → 1 秒內送出、內容是新的（不等 2 秒去抖）；
+//       沒有排程（排程已走完、補送過後）→ 不送，且內容其實有變（證明不是「內容沒變」才沒送）；變回 visible 不補送
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, writeFileSync } from 'node:fs';
@@ -245,6 +247,9 @@ async function open({ bridge, seed = {}, query = '?gltracks=0', tag, mw = false,
     window.__listen = {};
     const add = window.addEventListener.bind(window);
     window.addEventListener = function (type, ...rest) { window.__listen[type] = (window.__listen[type] || 0) + 1; return add(type, ...rest); };
+    window.__listenDoc = {};
+    const addDoc = document.addEventListener.bind(document);
+    document.addEventListener = function (type, ...rest) { window.__listenDoc[type] = (window.__listenDoc[type] || 0) + 1; return addDoc(type, ...rest); };
     window.__pushes = [];
     if (bridge) {
       // App 形態：Capacitor 判定為原生＋桌面小工具橋接（純網站沒有 window.RAIL_NATIVE_COLLECTION）
@@ -432,7 +437,7 @@ const TOTAL_MERGED0 = expectPayload(new Map(), 'zh-TW', new Set()).total; // 對
 }
 
 // ══ A–G 主流程（一個 App 形態的頁面，資料一路累加）═══════════════════════════
-let appListen = 0, appGeoReqs = 0;
+let appListen = 0, appGeoReqs = 0, appPagehide = 0, appVis = 0;
 {
   const seed = { 'trainmap-checkins-v1': JSON.stringify(CHECKINS_A) };
   const { ctx, page, geoReqs, readyAt } = await open({ bridge: true, seed, tag: 'A' });
@@ -524,6 +529,8 @@ let appListen = 0, appGeoReqs = 0;
   appGeoReqs = geoReqs.length;
   ok('A–G 全程 geojson 只抓一次（快取；?gltracks=0 所以請求都是這個功能發的＝正向對照）', geoReqs.length === 1, `${geoReqs.length} 次`);
   appListen = await page.evaluate(() => window.__listen['rail-user-data-changed'] || 0);
+  appPagehide = await page.evaluate(() => window.__listen['pagehide'] || 0);
+  appVis = await page.evaluate(() => window.__listenDoc['visibilitychange'] || 0);
   ok('App 形態：schedule 已掛（nativeCollectionSchedule 是函式）', await page.evaluate(() => typeof nativeCollectionSchedule === 'function'));
   await ctx.close();
 }
@@ -543,9 +550,10 @@ let appListen = 0, appGeoReqs = 0;
   });
   await sleep(3500);
   ok('H 純網站：打卡／完乘／同步事件／登出落點／切語言之後仍零 geojson 請求', geoReqs.length === 0, `${geoReqs.length} 次`);
-  const st = await page.evaluate(() => ({ sched: nativeCollectionSchedule, bridge: typeof window.RAIL_NATIVE_COLLECTION, geo: NATIVE_COLLECTION.geo, geoP: NATIVE_COLLECTION.geoP, listen: window.__listen['rail-user-data-changed'] || 0 }));
+  const st = await page.evaluate(() => ({ sched: nativeCollectionSchedule, bridge: typeof window.RAIL_NATIVE_COLLECTION, geo: NATIVE_COLLECTION.geo, geoP: NATIVE_COLLECTION.geoP, listen: window.__listen['rail-user-data-changed'] || 0, pagehide: window.__listen['pagehide'] || 0, vis: window.__listenDoc['visibilitychange'] || 0 }));
   ok('H 純網站：沒有 bridge、schedule 是 null、沒快取 geojson', st.bridge === 'undefined' && st.sched === null && st.geo === null && st.geoP === null, JSON.stringify(st));
   ok('H 純網站：不註冊 rail-user-data-changed listener（App 形態恰好多 1 個）', appListen - st.listen === 1, `App ${appListen} − 網站 ${st.listen}`);
+  ok('H 純網站：不註冊切背景補送的 listener（App 形態的 pagehide、visibilitychange 各恰好多 1 個）', appPagehide - st.pagehide === 1 && appVis - st.vis === 1, `pagehide：App ${appPagehide} − 網站 ${st.pagehide}；visibilitychange：App ${appVis} − 網站 ${st.vis}`);
   ok('H 純網站：打卡等功能本身不受影響（n 仍算得出來）', (await page.evaluate(() => stationCollection(loadRides()).size)) === N_A + 2, '');
   await ctx.close();
 }
@@ -948,6 +956,73 @@ await deepLinkChecks('P 桌面 1280', false);
 await deepLinkChecks('P 手機 375', true);
 await coldDeepLinkChecks('P 冷啟動 桌面 1280', false);
 await coldDeepLinkChecks('P 冷啟動 手機 375', true);
+
+// ══ V 切到背景時補送排程中的推送 ══════════════════════════════════════════════════
+// 原生 App 被滑走、鎖屏之後 WebView 很快被凍結，2 秒的去抖計時器等不到：蓋章後 2 秒內離開 App，小工具要等下次開 App 才更新。
+// 補送只在「有排程中的推送」時發生；沒有排程（內容沒動、或動了但沒人通知）就什麼都不做；只有「變成看不見」才補送，變回看得見不補。
+// 無視窗的瀏覽器裡頁面永遠是 visible，所以覆寫 document.hidden／visibilityState 再派 visibilitychange 來模擬（同 verify_metro_wait_start），
+// pagehide 直接派在 window。量的是「送出的時間」：補送 < 1 秒、去抖要 2 秒，兩者分得開。
+{
+  const { ctx, page } = await open({ bridge: true, seed: { 'trainmap-checkins-v1': JSON.stringify(CHECKINS_A) }, tag: 'V' });
+  const first = await waitPush(page, 0, 8000);
+  ok('V 開機有推送', !!first);
+  if (first) {
+    await sleep(3300); // 開機那次的排程走完：此刻沒有排程中的推送
+    await page.evaluate(() => {
+      window.__fire = via => {
+        const t0 = Date.now();
+        if (via === 'pagehide') { window.dispatchEvent(new Event('pagehide')); return t0; }
+        const hidden = via === 'hidden';
+        Object.defineProperty(document, 'hidden', { get: () => hidden, configurable: true });
+        Object.defineProperty(document, 'visibilityState', { get: () => (hidden ? 'hidden' : 'visible'), configurable: true });
+        document.dispatchEvent(new Event('visibilitychange', { bubbles: true }));
+        delete document.hidden; delete document.visibilityState; // 還原成瀏覽器自己的值（不再派 visible 事件，免得別的功能被驚動）
+        return t0;
+      };
+    });
+    const stamp = (name, via) => page.evaluate(({ name, via }) => { writeCheckin({ sys: 'tra_sched', name }, 'visit'); return window.__fire(via); }, { name, via }); // 蓋章＝排程 2 秒去抖，同一個 evaluate 內立刻觸發
+    // 直接改 storage、不通知排程：內容真的變了（n +1），但沒有任何推送在排程中
+    const silent = name => page.evaluate(name => {
+      const c = JSON.parse(localStorage.getItem('trainmap-checkins-v1'));
+      c.st['tra_sched|' + name] = { name, sys: 'tra_sched', s: 'visit', n: 1, d: '2026-09-28', u: Date.now() };
+      localStorage.setItem('trainmap-checkins-v1', JSON.stringify(c));
+    }, name);
+    let before = await count(page), got, nExp = N_A;
+    // 0 開機那次的排程已經走完（計時器觸發過）：此刻 hidden 不送。內容其實變了，所以「沒送」不是因為內容沒變
+    await silent('三貂嶺'); nExp++;
+    await page.evaluate(() => window.__fire('hidden'));
+    await sleep(1200);
+    ok('V 排程已走完、沒有排程中的推送時 hidden → 不送（內容其實變了，只是沒人通知）', (await count(page)) === before, `${before} → ${await count(page)}`);
+    // 1 有排程時變成看不見 → 立刻送（< 1 秒，不等 2 秒去抖），內容是新的（含上一步悄悄改的那筆）
+    let t0 = await stamp('瑞芳', 'hidden'); nExp++;
+    got = await waitPush(page, before, 1800);
+    ok('V 有排程中的推送時 visibilitychange → hidden：1 秒內就送出新的一包（不等 2 秒去抖）', !!got && got.t - t0 < 1000, got ? `${got.t - t0}ms` : '1.8 秒內沒有送');
+    ok('V 補送的內容是新的（n＝蓋章後、最近蓋章第一筆是剛蓋的瑞芳）', !!got && got.payload.n === nExp && got.payload.recent[0].name === '瑞芳', got ? `n=${got.payload.n}/${nExp} 第一筆=${got.payload.recent[0].name}` : '');
+    before = await count(page);
+    // 2 補送過後排程已清掉：再次 hidden 不送（補送沒清掉排程旗標的話，這裡會把下面悄悄改的內容送出去）
+    await silent('平溪'); nExp++;
+    await page.evaluate(() => window.__fire('hidden'));
+    await sleep(1200);
+    ok('V 補送過後沒有排程了：再次 hidden → 不送', (await count(page)) === before, `${before} → ${await count(page)}`);
+    // 對照：同一個變更，正常通知（事件＋去抖）會送出來——證明上一格的「沒送」不是內容沒變
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('rail-user-data-changed', { detail: { source: 'remote' } })));
+    got = await waitPush(page, before, 3500);
+    ok('V 對照：同一個變更經正常通知（事件＋2 秒去抖）會送出，n 多 1', !!got && got.payload.n === nExp, got ? `n=${got.payload.n}/${nExp}，${got.waited}ms` : '沒有送');
+    before = await count(page);
+    // 3 pagehide 也補送
+    t0 = await stamp('十分', 'pagehide'); nExp++;
+    got = await waitPush(page, before, 1800);
+    ok('V 有排程中的推送時 pagehide：1 秒內就送出新的一包，內容是新的', !!got && got.t - t0 < 1000 && got.payload.n === nExp && got.payload.recent[0].name === '十分', got ? `${got.t - t0}ms n=${got.payload.n}/${nExp} 第一筆=${got.payload.recent[0].name}` : '1.8 秒內沒有送');
+    before = await count(page);
+    // 4 變回看得見（visible）不補送：有排程時派 visible，0.9 秒內不送；之後照常等去抖送出
+    t0 = await stamp('菁桐', 'visible'); nExp++;
+    await sleep(900);
+    ok('V 變回看得見（visible）不補送：排程中的推送要等去抖', (await count(page)) === before, `${before} → ${await count(page)}`);
+    got = await waitPush(page, before, 3500);
+    ok('V visible 之後排程照常由去抖送出（約 2 秒）', !!got && got.t - t0 >= 1500 && got.payload.n === nExp, got ? `${got.t - t0}ms n=${got.payload.n}/${nExp}` : '沒有送');
+  }
+  await ctx.close();
+}
 
 await finish();
 
