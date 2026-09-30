@@ -50,6 +50,10 @@
 // 用法：node app/scripts/render_collect_widget.mjs [輸出目錄] [--quick] [--src <小工具原始碼目錄>]
 //       node app/scripts/render_collect_widget.mjs --mutation-test [輸出目錄] [--only M18,M19]   （不帶 --only＝全部突變，前後各一次控制組）
 //       node app/scripts/render_collect_widget.mjs --emit-preview <路徑>   重寫 CollectionWidgetPreview.json（＝本腳本的樣本）
+//       node app/scripts/render_collect_widget.mjs [輸出目錄] --quick --emit-help-previews <目標目錄>   說明中心預覽圖重生：閘門全綠才寫，
+//         把 assets/widgets/ios/ 的 collect-small／collect-medium／collect-rect.webp 從「這一輪剛算繪的出貨 PNG」重生
+//         （不手動裁切；小卡 480×480、中卡 720×337、鎖屏矩形 480×216，尺寸沿用原檔，webp 品質從高往低找第一個 ≤28 KB 的；
+//         守門人 scripts/verify_widget_previews.mjs 每檔上限 30 KB）。目標目錄通常是 <repo>/assets/widgets/ios
 //       node app/scripts/render_collect_widget.mjs [輸出目錄] --lang en｜ja   英日文版面壓力測試：系統簡稱與文案換成該語言
 //         （RailNativeL10n 在複本裡改讀 RailNativeL10n.json），c 閘門（繁中字串比對）不適用，其餘照跑；PNG 要人眼看
 // 輸出：<目錄>/shots/*.png、contact-*.png、results.json、gates.json
@@ -68,7 +72,7 @@ const appSrc = join(repo, 'app/ios/App/App');
 const argv = process.argv.slice(2);
 const flag = name => argv.includes(name);
 const opt = name => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : null; };
-const positional = argv.filter((a, i) => !a.startsWith('--') && !['--src', '--lang', '--emit-preview', '--only'].includes(argv[i - 1]));
+const positional = argv.filter((a, i) => !a.startsWith('--') && !['--src', '--lang', '--emit-preview', '--only', '--emit-help-previews'].includes(argv[i - 1]));
 const LANG = opt('--lang'); // en｜ja：英日文版面壓力測試（見下方 langStress）
 const outRoot = resolve(positional[0] ?? join(repo, 'tmp/collect-widget/ios-shots'));
 
@@ -1449,6 +1453,35 @@ function stageSource(dest, mutation) {
   }
 }
 
+/**
+ * 說明中心（index.html 的 widgets[].img）三張預覽圖的來源：本腳本出貨路徑的 PNG，淺色小卡、淺色中卡、深色著色鎖屏矩形
+ * （都是 430pt 機型、內建示意資料）。尺寸沿用原檔——說明頁的版面不因此動。
+ */
+const HELP_PREVIEWS = [
+  { file: 'collect-small.webp', shot: 'small-sample-light-430', w: 480, h: 480 },
+  { file: 'collect-medium.webp', shot: 'medium-sample-light-430', w: 720, h: 337 },
+  { file: 'collect-rect.webp', shot: 'rect-sample-dark-tinted-430', w: 480, h: 216 },
+];
+const HELP_PREVIEW_MAX_BYTES = 28 * 1024; // 守門人上限 30 KB／檔，留 2 KB 餘裕
+
+/** 從 shotsDir 的出貨 PNG 重生三張 webp 到 destDir；回傳每張的 { file, bytes, quality }。 */
+async function emitHelpPreviews(shotsDir, destDir) {
+  mkdirSync(destDir, { recursive: true });
+  const made = [];
+  for (const p of HELP_PREVIEWS) {
+    let picked = null;
+    for (const quality of [92, 88, 84, 80, 76, 72, 68, 64]) {
+      const buf = await sharp(join(shotsDir, `${p.shot}.png`)).resize(p.w, p.h, { fit: 'fill' })
+        .webp({ quality, effort: 6, smartSubsample: true }).toBuffer();
+      if (buf.length <= HELP_PREVIEW_MAX_BYTES) { picked = { buf, quality }; break; }
+    }
+    if (!picked) throw new Error(`${p.file}：品質降到 64 仍 >${HELP_PREVIEW_MAX_BYTES} 位元組`);
+    writeFileSync(join(destDir, p.file), picked.buf);
+    made.push({ file: p.file, bytes: picked.buf.length, quality: picked.quality, from: p.shot });
+  }
+  return made;
+}
+
 function summarize(counts) {
   return GATES.map(g => `${g} ${counts[g].pass}/${counts[g].pass + counts[g].fail}`).join('  ');
 }
@@ -1538,6 +1571,12 @@ async function main() {
     process.exit(1);
   }
   console.log('閘門全綠。');
+  if (opt('--emit-help-previews')) {
+    if (LANG) throw new Error('--emit-help-previews 不能和 --lang 併用（說明中心預覽圖是繁中版）');
+    for (const m of await emitHelpPreviews(join(outRoot, 'shots'), resolve(opt('--emit-help-previews')))) {
+      console.log(`已重生 ${m.file}：${(m.bytes / 1024).toFixed(1)} KB（webp 品質 ${m.quality}，來源 ${m.from}.png）`);
+    }
+  }
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
