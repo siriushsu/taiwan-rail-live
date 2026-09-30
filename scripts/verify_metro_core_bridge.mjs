@@ -41,6 +41,7 @@ check(klrtLine && klrtLine.loop === true && klrtLine.stations?.length === 38,
   'KLRT C 靜態線形必須維持 38 個真實站且標為環線');
 
 const graceSandbox = {
+  ntmFeedForSystem: () => null,
   METRO_CORE_FOLLOW_GRACE_SEC: 30,
   metroCoreFollowRecord: () => graceSandbox.current,
   metroCorePositionAt: (ln, train, epoch) => epoch < train.retireAt ? { lat: epoch, lon: 0 } : null,

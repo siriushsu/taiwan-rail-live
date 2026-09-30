@@ -2,6 +2,11 @@
   'use strict';
   window.RAIL_I18N_MESSAGES = {
     en: {
+      "官方車號已確認；待發時間尚未確認": "Official vehicle confirmed; departure time is not yet confirmed",
+      "淡海、安坑改依官方車號逐車校正，不再把全線一起平移；有車號的倒數可連到同一台車，待發列車不憑空發車": "Danhai and Ankeng now use official vehicle numbers for individual corrections instead of shifting the whole line. Identified countdowns link to the same vehicle; waiting trains no longer depart without evidence.",
+      "官方車號已確認；倒數有變動，位置正平順校正中": "Official vehicle confirmed; position is adjusting smoothly to an updated countdown",
+      "官方車號與秒級倒數；站間位置、停站時間為推估": "Official vehicle numbers and second-level countdowns; positions between stations and dwell times are estimated",
+      "部分路線缺少可確認的官方車號，位置暫依班表；有效倒數仍保留": "Some lines lack identifiable official vehicles and temporarily use timetable positions; valid countdowns remain available",
       "捷運與輕軌看板優先保留官方倒數；修正高捷倒數被備案取代，以及淡海、安坑部分倒數的路線與時間偏差": "Metro and light rail boards prioritize official countdowns. Fixed Kaohsiung countdowns being replaced by fallback estimates, and route or timing errors in some Danhai and Ankeng countdowns.",
       "：列車位置依班表校正；有資料的站點保留官方倒數": ": train positions use timetable-based correction; stations with available data retain official countdowns",
       "約 {n} 分": "About {n} min",
@@ -592,6 +597,11 @@
       '已接續追蹤 {system} {train} 次': 'Now following {system} train {train}',
     },
     ja: {
+      "官方車號已確認；待發時間尚未確認": "公式の車両番号を確認済み。発車時刻は未確認です",
+      "淡海、安坑改依官方車號逐車校正，不再把全線一起平移；有車號的倒數可連到同一台車，待發列車不憑空發車": "淡海・安坑は路線全体の時刻補正から、公式の車両番号による個別補正に変更しました。車両を確認できる到着案内から同じ車両を追跡でき、発車情報のない待機列車はそのまま待機します。",
+      "官方車號已確認；倒數有變動，位置正平順校正中": "公式の車両番号を確認済み。到着予測の変更に合わせて位置を滑らかに補正中です",
+      "官方車號與秒級倒數；站間位置、停站時間為推估": "公式の車両番号と秒単位の到着予測を使用。駅間の位置と停車時間は推定です",
+      "部分路線缺少可確認的官方車號，位置暫依班表；有效倒數仍保留": "一部路線は公式の車両を確認できないため、位置を時刻表で推定します。有効な到着案内は引き続き表示します",
       "捷運與輕軌看板優先保留官方倒數；修正高捷倒數被備案取代，以及淡海、安坑部分倒數的路線與時間偏差": "メトロ・ライトレールの案内で公式到着予測を優先します。高雄の到着予測が代替推定に置き換わる問題と、淡海・安坑の一部予測の路線・時刻のずれを修正しました。",
       "：列車位置依班表校正；有資料的站點保留官方倒數": "：列車位置は時刻表を基に補正し、データのある駅では公式の到着案内を保持します",
       "約 {n} 分": "約{n}分",

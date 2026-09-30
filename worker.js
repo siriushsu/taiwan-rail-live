@@ -789,7 +789,8 @@ async function metroLive(request, env, sys) {
 // ── 新北捷官網列車動態代理(trainstatus.ntmetro.com.tw,免金鑰) ──
 // 環狀線=逐車軌道區間佔用、淡海/安坑=逐站到站倒數。未文件化端點、無開放資料授權條款:
 // 尚未取得使用同意,如經對方表示反對即移除本段;失敗前端自動退回時刻表推演,零損害。
-// 快取後全站對上游=每端點約 55s 一次,遠低於其官網單一訪客的 10s 輪詢負載。
+// 淡海/安坑逐車倒數最多快取 20s，低於官方頁面單一訪客的 10s 輪詢頻率。
+// 不用 stale-while-revalidate 延長舊倒數；上游失敗仍回原 at，前端會自行判定過期。
 // Set 而非物件字面量:物件的 in/[] 查表吃原型鏈(sys='constructor'/'__proto__'/'toString' 會誤判 truthy),
 // Set.has() 只認自身成員,擋掉用原型成員名繞過白名單、把本 proxy 打成對新北捷官網的未快取放大代理。
 const NTM_LIVE_SYS = new Set(['circular', 'danhai', 'ankeng']);
@@ -801,14 +802,14 @@ async function ntmetroLive(request, env, sys) {
   if (hit) return hit;
   const stale = ntmLiveMem.get(sys);
   try {
-    if (!stale || Date.now() - stale.at > 55e3) {
+    if (!stale || Date.now() - stale.at >= 20e3) {
       const r = await fetch(`https://trainstatus.ntmetro.com.tw/roadmap/${sys}_data.php`,
         { headers: { 'user-agent': 'railisland.tw metro animation (+https://railisland.tw)' } });
       if (!r.ok) throw new Error('ntmetro ' + r.status);
       const d = await r.json();
       ntmLiveMem.set(sys, { data: { at: new Date().toISOString(), src: d && d.data != null ? d.data : null }, at: Date.now() });
     }
-    return await jsonResCached(edge, cacheKey, ntmLiveMem.get(sys).data, 200, 'public, s-maxage=50, stale-while-revalidate=120');
+    return await jsonResCached(edge, cacheKey, ntmLiveMem.get(sys).data, 200, 'public, s-maxage=20');
   } catch (e) {
     if (stale) return jsonRes(stale.data, 200, 'public, s-maxage=15');
     // 軟失敗:回 200+src:null(前端 applyNtmLive 對 null 直接 no-op,退回時刻表推演),不回 5xx 免得訪客 console 留紅字。

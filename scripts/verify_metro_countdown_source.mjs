@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 let html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+let model = fs.readFileSync(new URL('../ntm-live-model.js', import.meta.url), 'utf8');
 const mutations = {
-  route: ['Number(row.timeRouteId == null ? row.routeId : row.timeRouteId)', 'Number(row.routeId)'],
-  clock: ['const nowSec = (at + 8 * 3600) % 86400, nowAbs = at * 1000;', 'const nowSec = (receivedAt / 1000 + 8 * 3600) % 86400, nowAbs = receivedAt;'],
+  route: ['row.timeRouteId==null?row.routeId:row.timeRouteId', 'row.routeId'],
+  clock: ['feed, src, at, receivedAt / 1000)', 'feed, src, receivedAt / 1000, receivedAt / 1000)'],
   gate: ['if (!stationLines.some(entry => entry.systemId || sources.get(entry).length)) return null;',
     'if (!stationLines.some(entry => entry.systemId)) return null;'],
   source: ['if (sourceRows.length) {', 'if (false) {'],
@@ -14,8 +15,13 @@ const mutations = {
 };
 if (process.env.METRO_COUNTDOWN_MUTATION) {
   const mutation = mutations[process.env.METRO_COUNTDOWN_MUTATION];
-  assert(mutation && html.includes(mutation[0]), '突變未命中');
-  html = html.replace(...mutation);
+  if (process.env.METRO_COUNTDOWN_MUTATION === 'route') {
+    assert(mutation && model.includes(mutation[0]), '突變未命中');
+    model = model.replace(...mutation);
+  } else {
+    assert(mutation && html.includes(mutation[0]), '突變未命中');
+    html = html.replace(...mutation);
+  }
 }
 const lines = html.split('\n');
 function fn(name) {
@@ -36,6 +42,7 @@ const sandbox = {
   freqSysIdOf: line => line._sys,
   metroCoreSystemIdForLine: line => line.id === 'KR' ? 'krtc' : null,
   metroCoreSnapshotLive: () => false, metroCoreSystem: () => null, metroCoreLineBlocked: () => null,
+  ntmFeedForSystem: id => id === 'ntalrt' ? 'ankeng' : id === 'ntdlrt' ? 'danhai' : null,
   trtcOfficialBoardRealNow: () => true,
   trtcOfficialStationName: name => String(name).replace(/臺/g, '台').replace(/站$/, ''),
   t: (value, args = {}) => value.replace(/\{(\w+)\}/g, (_, key) => args[key]), i18nNumber: String,
@@ -48,6 +55,7 @@ const sandbox = {
   buildArrIdx: () => new Map(), evalLineAnomaly: () => {},
 };
 vm.createContext(sandbox);
+vm.runInContext(model, sandbox);
 for (const name of ['metroSourceEpoch', 'metroSourceFresh', 'ntmCountdownRows', 'applyNtmLive',
   'metroSourceRowsForEntry', 'metroSourceRecordFresh', 'metroCoreBoardView', 'metroCoreCountdownText', 'metroCoreApplyGates',
   'metroCoreRowVehicleId', 'metroCoreSampleTrajectory', 'metroCoreSampleTrain']) {
@@ -81,12 +89,14 @@ test('快取倒數以來源時間校正，重複接收不重置；舊批次不�
   sandbox.metroLivePool = () => [k];
   const observed = [];
   sandbox.nearestArrDiff = (_idx, _si, _dir, time) => { observed.push(time); return 10; };
-  const src = { gpsData: [{ K01: { routeId: 1, time: 60 }, K02: { routeId: 1, time: 90 }, K03: { routeId: 1, time: 120 } }] };
+  const src = { gpsData: [{ K01: { routeId: 1, time: 60 }, K02: { routeId: 1, time: 90, carNum: '212' }, K03: { routeId: 1, time: 120 } }] };
   const at = new Date(epoch * 1000).toISOString();
   sandbox.applyNtmLive('ankeng', src, at, (epoch + 45) * 1000);
   const first = observed.slice();
-  assert.equal(k._liveShift.at, epoch * 1000);
-  assert.equal(first[1], (epoch + 28800) % 86400 + 90 + 15);
+  assert.equal(k._liveShift, undefined, '匿名預告不得再偏移全方向');
+  assert.equal(first.length, 0);
+  assert.equal(state.ntmLiveModel.feeds.ankeng.trains[0].sourceAt, epoch);
+  assert.equal(state.ntmLiveModel.feeds.ankeng.trains[0].calls[0].arrivalEpoch, epoch + 90);
   observed.length = 0;
   sandbox.applyNtmLive('ankeng', src, at, (epoch + 90) * 1000);
   assert.deepEqual(observed, first);

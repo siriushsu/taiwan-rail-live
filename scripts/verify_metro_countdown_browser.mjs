@@ -9,9 +9,9 @@ const root = path.resolve(import.meta.dirname, '..');
 const capture = process.env.METRO_CAPTURE_DIR;
 assert(capture, '請指定 METRO_CAPTURE_DIR：使用封存真實資料，不自製高分來源');
 const audit = JSON.parse(fs.readFileSync(path.join(capture, 'browser.json'), 'utf8'));
-const now = audit.frames.at(-1).at * 1000;
+const now = audit.frames[0].at * 1000;
 const payloads = new Map();
-for (const rec of audit.network) if (rec.status === 200 && rec.body) {
+for (const rec of audit.network) if (rec.status === 200 && rec.body && rec.receivedAt<=now/1000) {
   const url = new URL(rec.url);
   payloads.set(url.pathname + url.search, fs.readFileSync(path.join(capture, rec.body), 'utf8'));
 }
@@ -68,7 +68,7 @@ try {
             const ln = state.lines.find(l => l.id === id);
             state.visible.add(id);
             const choices = ln.stations.map((st, si) => ({ st, si, rows: metroSourceRowsForEntry({ ln, si, li: state.lines.indexOf(ln) }) }))
-              .filter(x => x.rows.length).sort((a, b) => b.rows.length - a.rows.length);
+              .filter(x => x.rows.length).sort((a, b) => b.rows.filter(r=>r.vehicleId).length-a.rows.filter(r=>r.vehicleId).length || b.rows.length-a.rows.length);
             if (!choices.length) { out.push({ line: id, missing: true }); continue; }
             const chosen = choices[0];
             const view = metroCoreBoardView(chosen.st, state.lines, false);
@@ -85,6 +85,8 @@ try {
         assert(sources.every(s => !s.missing && s.rows > 0 && s.exported === s.rows && s.exportTimesValid), JSON.stringify(sources));
         assert(sources.filter(s => ['KR', 'KO'].includes(s.line)).every(s => s.core === null && s.rows > 0),
           '本次真實語料的高捷位置應保留防護，但官方倒數不能跟著消失');
+        assert(sources.filter(s => ['V','VB','K'].includes(s.line)).every(s=>s.core>0&&s.linked>0),
+          '新北輕軌真實車號必須接到地圖與看板，不能只把未連結列藏起來：'+JSON.stringify(sources));
         for (const selected of sources) {
           await page.evaluate(({ line, index }) => {
             const ln = state.lines.find(l => l.id === line);
@@ -111,14 +113,42 @@ try {
           await page.locator('#boardClose').tap();
           assert.equal(await page.evaluate(() => state.boardStation), null, '手機關閉看板失效');
         }
+        const following=[];
+        // 即使遠端 Core 中斷，新北官方來源與其身分仍應獨立可用。
+        await page.evaluate(()=>{state.metroCore.snapshot=null;});
+        for(const selected of sources.filter(s=>['V','VB','K'].includes(s.line))){
+          await page.evaluate(({line,index})=>{const ln=state.lines.find(l=>l.id===line);openBoard({...ln.stations[index],sys:ln._sys});},selected);
+          const linked=page.locator('#board .row[data-core-vehicle]').first();
+          const id=await linked.getAttribute('data-core-vehicle');
+          assert(id?.startsWith('ntm:'));
+          await linked.tap();
+          await page.waitForFunction(id=>state._freqHits?.some(h=>h.core&&h.vehicleId===id),id,{timeout:10000});
+          const follow=await page.evaluate(()=>{
+            const f=state.freqFollow,r=metroCoreFollowRecord(f),info=metroCoreVehicleInfo(r);
+            const rendered=r&&metroCoreItemsForLine(r.ln)?.find(x=>x.vehicleId===f.vehicleId);
+            const valid=rendered&&Math.abs(rendered.pos.lat-r.pos.lat)<1e-10&&Math.abs(rendered.pos.lon-r.pos.lon)<1e-10;
+            return {id:f?.vehicleId,publicLabel:info.officialNo,valid:!!valid,status:document.getElementById('fcStatus').textContent,crowd:freqCrowdCars()};
+          });
+          assert.equal(follow.id,id);assert(follow.publicLabel);assert(follow.valid);
+          assert.match(follow.status,/官方車號/);assert.equal(follow.crowd,null);
+          if(process.env.METRO_SCREENSHOT_DIR && width===375 && selected.line==='K'){
+            fs.mkdirSync(process.env.METRO_SCREENSHOT_DIR,{recursive:true});
+            await page.screenshot({path:path.join(process.env.METRO_SCREENSHOT_DIR,`${engine}-375.png`)});
+          }
+          following.push(follow);await page.evaluate(()=>clearFreqFollow());
+        }
+        const travel=await page.evaluate(()=>{const save=state.simSec;state.simSec+=600;
+          const result=['V','VB','K'].map(id=>metroCoreItemsForLine(state.lines.find(l=>l.id===id)));state.simSec=save;return result;});
+        assert(travel.every(x=>x===null),'時間旅行不能沿用即時車輛');
         const stale = await page.evaluate(() => {
           window.__auditNow += 151000;
           const ln = state.lines.find(l => l.id === 'KR');
           return ln.stations.reduce((sum, _st, si) => sum + metroSourceRowsForEntry({ ln, si }).length, 0);
         });
         assert.equal(stale, 0, '過期來源仍偽裝成即時');
+        assert(await page.evaluate(()=>['V','VB','K'].every(id=>metroCoreItemsForLine(state.lines.find(l=>l.id===id))===null)), 'NTM 個別觀測過期必須降級');
         assert.deepEqual(errors, []);
-        const result = { engine, width, sources, errors, staleRows: stale };
+        const result = { engine, width, sources, following, errors, staleRows: stale };
         results.push(result);
         console.log(JSON.stringify(result));
         await context.close();

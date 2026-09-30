@@ -5627,6 +5627,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="ntmvehicle0930"><span class="d">9/30</span><span>淡海、安坑改依官方車號逐車校正，不再把全線一起平移；有車號的倒數可連到同一台車，待發列車不憑空發車</span></li>
         <li data-cl-of="metrocountdown0930"><span class="d">9/30</span><span>捷運與輕軌看板優先保留官方倒數；修正高捷倒數被備案取代，以及淡海、安坑部分倒數的路線與時間偏差</span></li>
         <li data-cl-of="stations0930"><span class="d">9/30</span><span>車站頁加上台鐵、高鐵時刻表：台北、板橋、台中等大站，列出兩週內每一班的開車時刻與行駛日</span></li>
         <li data-cl-of="metropages0929"><span class="d">9/29</span><span>新增捷運路線圖頁：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車</span></li>
@@ -5634,7 +5635,6 @@
         <li data-cl-of="tradistinct0929"><span class="d">9/29</span><span>立體地圖上台鐵列車在車站讓後車先過時，改停到旁邊的股道，後車不會再從停著的車身穿過去</span></li>
         <li data-cl-of="tainanfast0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：修正 App 裡點了打不開，網頁版下載量從約 11 MB 降到約 2 MB，開啟更快、全線視角更順</span></li>
         <li data-cl-of="trachain0929"><span class="d">9/29</span><span>10/3 環島專車這類比任何固定班次都跑得遠的台鐵專車，地圖上改沿真實股道行駛，不再整趟退回示意路線</span></li>
-        <li data-cl-of="traovertake0929"><span class="d">9/29</span><span>修正少數台鐵列車在車站空等不存在的後車，或出站後異常慢行的問題</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5642,6 +5642,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="ntmvehicle0930"><span class="d">9/30</span><span>淡海、安坑改依官方車號逐車校正，不再把全線一起平移；有車號的倒數可連到同一台車，待發列車不憑空發車</span></li>
         <li data-cl="metrocountdown0930"><span class="d">9/30</span><span>捷運與輕軌看板優先保留官方倒數；修正高捷倒數被備案取代，以及淡海、安坑部分倒數的路線與時間偏差</span></li>
         <li data-cl="placedup0925"><span class="d">9/29</span><span>地圖上站名旁邊若有同名的底圖地名（例如竹北站旁的「竹北市」「竹北里」），站名畫出來時就不再重複顯示；拉遠到還沒標出站名的時候，地名照樣看得到；9/29 起機場名稱也一樣（松山機場站旁的「臺北松山機場」）</span></li>
         <li data-cl="tradistinct0929"><span class="d">9/29</span><span>修正立體地圖上台鐵待避時後車直接穿過停著的前車（10/3 推估 14 次有 12 次同一股）：前車改停到後車不走、也沒有別班在用的股道；沒有這種股道的車站不排待避，改到前面有空股的站等。臺東線南平站的側線也能待避了</span></li>
@@ -6520,6 +6521,7 @@
 <script src="./rail-discovery.js"></script>
 <script src="./night-map.js"></script>
 <script src="./night-board.js"></script>
+<script src="./ntm-live-model.js"></script>
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
@@ -6941,7 +6943,7 @@
 // v0929k：日文高雄輕軌改用高捷官方路線名「ライトレール環状線」（路線圖頁與 App 字典）；日文導言補「列車ごと」、倒數改「カウントダウン」。
 //         v0929j 已被台南重播分支佔用（c163c640，未併 main），跳號避免撞號。
 // v0930a：SEO 階段 B 第一批（台鐵／高鐵車站時刻頁中英日 69 頁、環狀線假日末班加註、站上「無公開逐班時刻」說法改寫成資料來源沒有）。
-const BUILD = 'v0930b';
+const BUILD = 'v0930c';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
@@ -13010,6 +13012,7 @@ function freqCrowdCars() {
   if (!f) return null;
   let no = '';
   if (f.core) {
+    if (f.systemId !== 'trtc') return null; // 不同營運者可能共用數字車號，不能串用北捷擁擠度。
     const rec = metroCoreFollowRecord(f);
     no = rec && rec.train ? String(rec.train.publicLabel || '').trim() : '';
   } else if (f.official) {
@@ -13096,6 +13099,12 @@ function updateFreqCard(info) {
   const fStale = f.vehicleId != null && !f.core ? trtcOfficialStaleFor(ln.id) : null;
   if (f.core) {
     if (info.grace) { txt = t('即時名單更新中；暫沿用這台車上一批已確認的軌跡'); cls = 'warn'; }
+    else if (info.systemId === 'ntdlrt' || info.systemId === 'ntalrt') {
+      txt = t(info.source === 'ntm-pending' ? '官方車號已確認；待發時間尚未確認' : info.source === 'ntm-constrained'
+        ? '官方車號已確認；倒數有變動，位置正平順校正中'
+        : '官方車號與秒級倒數；站間位置、停站時間為推估');
+      cls = info.source === 'ntm-constrained' ? 'warn' : 'on';
+    }
     else if (info.systemId === 'klrt' && info.source === 'gps') {
       txt = t('● 已依官方列車衛星定位校正'); cls = 'on';
     } else if (info.systemId === 'klrt' && info.source === 'board') {
@@ -27679,9 +27688,16 @@ function metroCoreSystemIdForLine(ln) {
   if (sys === 'mrt' && TRTC_BOARD_LINES.has(id)) return 'trtc';
   if (sys === 'krtc' && (id === 'KR' || id === 'KO')) return 'krtc';
   if (sys === 'krtc' && id === 'C' && ln && ln.loop) return 'klrt';
+  if (sys === 'ntdlrt' && (id === 'V' || id === 'VB')) return sys;
+  if (sys === 'ntalrt' && id === 'K') return sys;
   return null;
 }
-function metroCoreSystem(systemId) {
+function ntmFeedForSystem(systemId) {
+  return systemId === 'ntdlrt' ? 'danhai' : systemId === 'ntalrt' ? 'ankeng' : null;
+}
+function metroCoreSystem(systemId, nowEpoch = Date.now() / 1000) {
+  const feed = ntmFeedForSystem(systemId);
+  if (feed) return trtcOfficialBoardRealNow() ? NtmLiveModel.system(state.ntmLiveModel, feed, nowEpoch) : null;
   const snapshot = state.metroCore && state.metroCore.snapshot;
   return snapshot && Array.isArray(snapshot.systems)
     ? snapshot.systems.find(system => system && system.systemId === systemId) || null : null;
@@ -27785,9 +27801,10 @@ function metroCoreLegacyCountForLine(ln, nowEpoch = Date.now() / 1000) {
 }
 function metroCoreItemsForLine(ln, nowEpoch = Date.now() / 1000) {
   const systemId = metroCoreSystemIdForLine(ln);
-  if (!systemId || !metroCoreSnapshotLive(nowEpoch)) return null;
-  if (metroCoreLineBlocked(systemId, ln.id)) return null; // P0-2/P0-3/P2-9:這條線已判退回
-  const system = metroCoreSystem(systemId);
+  const local = !!ntmFeedForSystem(systemId);
+  if (!systemId || !(local ? trtcOfficialBoardRealNow() : metroCoreSnapshotLive(nowEpoch))) return null;
+  if (!local && metroCoreLineBlocked(systemId, ln.id)) return null; // 遠端 Core 的防護不跨來源污染新北輕軌。
+  const system = metroCoreSystem(systemId, nowEpoch);
   if (!system) return null; // 🔴 P0-1:snapshot 裡沒有這個系統 ⇒ 讓路給既有路徑,不是「這系統沒車」
   const out = [];
   for (const train of system.trains) {
@@ -27802,10 +27819,13 @@ function metroCoreItemsForLine(ln, nowEpoch = Date.now() / 1000) {
   return out.length ? out : null;
 }
 function metroCoreFollowRecord(follow, nowEpoch = Date.now() / 1000) {
-  if (!follow || !follow.core || follow.vehicleId == null || !metroCoreSnapshotLive(nowEpoch)) return null;
-  const systemId = String(follow.systemId || ''), system = metroCoreSystem(systemId);
+  if (!follow || !follow.core || follow.vehicleId == null) return null;
+  const systemId = String(follow.systemId || ''), local = !!ntmFeedForSystem(systemId);
+  if (!(local ? trtcOfficialBoardRealNow() : metroCoreSnapshotLive(nowEpoch))) return null;
+  const system = metroCoreSystem(systemId, nowEpoch);
   const train = system && system.trains.find(item => String(item.vehicleId) === String(follow.vehicleId) &&
-    String(item.lineId) === String(follow.lineId));
+    (local || String(item.lineId) === String(follow.lineId)));
+  if (local && train) follow.lineId = train.lineId; // 同一官方車號在共用終點切換支線，跟隨不換車。
   const ln = train && metroCoreLineForId(systemId, follow.lineId);
   const pos = ln && train ? metroCorePositionAt(ln, train, nowEpoch) : null;
   return pos ? { systemId, train, ln, pos } : null;
@@ -27813,6 +27833,7 @@ function metroCoreFollowRecord(follow, nowEpoch = Date.now() / 1000) {
 // 🔴 P0-4 跟隨寬限(移植 9bc4348)。updateFreqFollowCamera 是【每幀】跑的,零寬限的版本
 // 只要單一幀解不出記錄就 clearFreqFollow(),使用者體感＝跟車隨機被踢掉。
 function metroCoreFollowRecordWithGrace(follow, nowEpoch = Date.now() / 1000) {
+  if (ntmFeedForSystem(follow && follow.systemId) && !trtcOfficialBoardRealNow()) return null;
   const current = metroCoreFollowRecord(follow, nowEpoch);
   if (current) {
     // lastRecord 只屬於目前這個 follow 物件；換車會建立新物件，不會把前一台的軌跡帶過來。
@@ -27851,7 +27872,7 @@ function metroCoreVehicleInfo(rec) {
     grace: !!rec.grace, systemId: String(rec.systemId || ''),
     source: String(train.quality && train.quality.source || ''), officialNo: String(train.publicLabel || ''),
     termName: terminal && terminal.name || '', nextName: next && next.name || '',
-    nextSec: train.nextCall && Number.isFinite(Number(train.nextCall.arrivalEpoch))
+    nextSec: !train.pending && train.nextCall && Number.isFinite(Number(train.nextCall.arrivalEpoch))
       ? metroCoreEpochSecOfDay(train.nextCall.arrivalEpoch) : null };
 }
 function drawMetroCoreVehicle(ln, item, showTrain, inView, collectHit, nowEpoch) {
@@ -29627,7 +29648,7 @@ function metroCoreFallenDetail(lines, timetableIds = new Set()) {
 function updateMetroBadge() {
   const el = document.getElementById('metroBadge');
   if (!el) return;
-  const corePool = metroLivePool().filter(ln => metroCoreSystemIdForLine(ln));
+  const corePool = metroLivePool().filter(ln => metroCoreSystemIdForLine(ln) && !ntmFeedForSystem(metroCoreSystemIdForLine(ln)));
   if (corePool.length && metroCoreSnapshotLive()) {
     const lists = corePool.map(ln => metroCoreItemsForLine(ln));
     const serving = lists.filter(list => list !== null);
@@ -29737,6 +29758,17 @@ function updateMetroBadge() {
     return;
   }
   const pool = metroLivePool();
+  const ntmLines = pool.filter(ln => ntmFeedForSystem(metroCoreSystemIdForLine(ln)));
+  if (ntmLines.length && ntmLines.length === pool.length && trtcOfficialBoardRealNow()) {
+    const lists = ntmLines.map(ln => metroCoreItemsForLine(ln));
+    const fallback = lists.some(list => list === null);
+    el.hidden = false;
+    el.classList.toggle('est', fallback); el.classList.toggle('anom', fallback);
+    el.textContent = t(fallback ? '班表備案' : '逐車校正');
+    el.title = t(fallback ? '部分路線缺少可確認的官方車號，位置暫依班表；有效倒數仍保留'
+      : '官方車號與秒級倒數；站間位置、停站時間為推估');
+    return;
+  }
   const anomLines = pool.filter(ln => anomalyOf(ln));
   const onLines = pool.filter(ln => metroLiveOn(ln));
   el.hidden = !(anomLines.length || onLines.length);
@@ -29766,10 +29798,10 @@ document.addEventListener('visibilitychange', () => {
   else { pollMetroCore(); pollTrtcLive(); pollMetroLive(); pollNtmLive(); pollKlrtPos(); }
 });
 
-// ── 新北捷即時校正(官方列車動態 trainstatus.ntmetro.com.tw,經 /api/ntmetro-live 代理,約每分鐘) ──
+// ── 新北捷即時校正(官方列車動態 trainstatus.ntmetro.com.tw,經 /api/ntmetro-live 代理,每 20 秒) ──
 // 環狀線=逐車軌道區間佔用碼(站台/站間段)換算預計到站時刻;淡海/安坑=逐站到站倒數秒。
-// 與 TDX LiveBoard 同一套最近事件匹配:樣本餵進 nearestArrDiff→逐線中位數,寫同一個 _liveShift,
-// 繪製/看板/徽章消費端零改動。碼表與段秒取自官方 roadmap 頁 JS(未文件化來源,已去函詢問,對方拒絕即移除)。
+// 淡海/安坑依官方車號逐車建軌跡，匿名預告只顯示看板、不再改整線中位數。
+// 環狀線維持原軌道碼校正。碼表與段秒取自官方 roadmap 頁 JS(未文件化來源,已去函詢問,對方拒絕即移除)。
 const NTM_LIVE_FEEDS = { // feed → 對象線(sys+line id 雙鍵定位,避免跨系統撞名)
   circular: { sys: 'mrt', lines: ['Y'] },
   danhai: { sys: 'ntdlrt', lines: ['V', 'VB'] },
@@ -29789,47 +29821,8 @@ const NTM_Y_TRACK = (() => {
 })();
 const NTM_Y_DN18 = { 1818: 1817, 1816: 1811, 1812: 1811, 1815: 1809, 1814: 1807, 1813: 1805 }; // Y19-Y20 並行軌依實際方向正規化(官方 JS 同款)
 const NTM_Y_UP18 = { 1813: 1806, 1814: 1808, 1815: 1810, 1816: 1812, 1811: 1812, 1817: 1818 };
-const NTM_ST_IDX = (() => { // 淡海/安坑站碼→本站站序:共線段 V01-V09 兩線同序;綠山尾段 V10/V11、藍海尾段 V28/V27/V26
-  const v = {}, vb = {}, kk = {};
-  for (let i = 1; i <= 9; i++) { v['V0' + i] = vb['V0' + i] = i - 1; kk['K0' + i] = i - 1; }
-  v.V10 = 9; v.V11 = 10; vb.V28 = 9; vb.V27 = 10; vb.V26 = 11;
-  return { V: v, VB: vb, K: kk };
-})();
 function ntmCountdownRows(feed, src, includeBranches = false) {
-  const rows = [];
-  if (!['danhai', 'ankeng'].includes(feed) || !Array.isArray(src && src.gpsData)) return rows;
-  src.gpsData.forEach((grp, gi) => {
-    if (!grp || typeof grp !== 'object' || gi >= (feed === 'ankeng' ? 2 : 6)) return;
-    const dir = (feed === 'ankeng' ? gi === 0 : gi <= 2) ? 1 : -1;
-    for (const [code, row] of Object.entries(grp)) {
-      if (!row || row.routeId == null) continue;
-      // 共線段的看板同時保留兩支線各自的預告；time3/time4 不是同一台車的兩個時間。
-      // 動畫校正仍只吃下一班的 time，不把另一支線的後續班次混成整線偏移樣本。
-      if (includeBranches && feed === 'danhai' && (gi === 0 || gi === 5)) {
-        let available = 0;
-        for (const [id, field] of [['V', 'time3'], ['VB', 'time4']]) {
-          const value = row[field], branchSi = NTM_ST_IDX[id][code];
-          if (branchSi == null || value == null || String(value).trim() === '') continue;
-          const branchSeconds = Number(value);
-          if (!Number.isFinite(branchSeconds) || branchSeconds < 0 || branchSeconds > 7200) continue;
-          rows.push({ lineId: id, si: branchSi, dir, seconds: branchSeconds, code });
-          available++;
-        }
-        if (available) continue;
-      }
-      if (row.time == null || String(row.time).trim() === '') continue;
-      const seconds = Number(row.time);
-      if (!Number.isFinite(seconds) || seconds < 0 || seconds > 7200) continue;
-      // routeId 屬於列車；timeRouteId 才是 time 這筆倒數的支線。
-      // 不以空車號拒絕有效倒數，也不把未知支線默認成綠山／藍海。
-      const route = Number(row.timeRouteId == null ? row.routeId : row.timeRouteId);
-      const lineId = feed === 'ankeng' ? 'K' : route === 3 ? 'V' : route === 4 ? 'VB' : null;
-      if (!lineId || (feed === 'ankeng' && row.routeId == null)) continue;
-      const si = NTM_ST_IDX[lineId][code];
-      if (si != null) rows.push({ lineId, si, dir, seconds, code });
-    }
-  });
-  return rows;
+  return NtmLiveModel.rows(feed, src, includeBranches);
 }
 function metroSourceEpoch(at) {
   if (typeof at !== 'string' || !at.trim()) return null;
@@ -29851,7 +29844,12 @@ function applyNtmLive(feed, src, sourceAt, receivedAt = Date.now()) {
     state._ntmLiveRaw = state._ntmLiveRaw || {};
     const previous = state._ntmLiveRaw[feed];
     if (previous && previous.at > at) return;
-    state._ntmLiveRaw[feed] = { at, rows: ntmCountdownRows(feed, src, true) };
+    state._ntmLiveRaw[feed] = { at, rows: NtmLiveModel.rows(feed, src, true) };
+    state.ntmLiveModel = state.ntmLiveModel || {};
+    NtmLiveModel.update(state.ntmLiveModel, feed, src, at, receivedAt / 1000);
+    // 不再讓無車號預告把全方向偏移；舊版狀態也不能殘留在備案上。
+    for (const ln of metroLivePool()) if (freqSysIdOf(ln) === cfg.sys && cfg.lines.includes(ln.id)) delete ln._liveShift;
+    return;
   }
   const byId = new Map();
   for (const ln of metroLivePool())
@@ -29899,7 +29897,7 @@ function applyNtmLive(feed, src, sourceAt, receivedAt = Date.now()) {
 }
 async function pollNtmLive() {
   const pool = metroLivePool();
-  if (document.hidden || !pool.length) return;
+  if (document.hidden || !pool.length || state._ntmPolling) return;
   if (Math.abs(state.simSec - nowSecOfDay()) > 120) return; // 時間旅行中不打 API 也不校正
   const feeds = new Set();
   for (const ln of pool) {
@@ -29907,18 +29905,21 @@ async function pollNtmLive() {
     const sys = freqSysIdOf(ln);
     for (const f in NTM_LIVE_FEEDS) { const c = NTM_LIVE_FEEDS[f]; if (c.sys === sys && c.lines.includes(ln.id)) feeds.add(f); }
   }
-  await Promise.all([...feeds].map(async f => {
+  state._ntmPolling = true;
+  try { await Promise.all([...feeds].map(async f => {
+    const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 12000);
     try {
-      const r = await fetch(apiUrl('api/ntmetro-live?sys=' + f), { cache: 'no-store' });
+      const r = await fetch(apiUrl('api/ntmetro-live?sys=' + f), { cache: 'no-store', signal: controller.signal });
       if (!r.ok) throw new Error(r.status);
       const d = await r.json();
       if (d && typeof d.at === 'string') applyNtmLive(f, d.src, d.at);
-    } catch (e) { /* 失敗保留舊 shift */ }
-  }));
+    } catch (e) { /* 失敗只保留尚未過期的觀測 */ }
+    finally { clearTimeout(timeout); }
+  })); } finally { state._ntmPolling = false; }
   updateMetroBadge();
   renderAlertBanner(); // 線級異常變更即時反映到橫幅
 }
-setInterval(pollNtmLive, 60e3);
+setInterval(pollNtmLive, 20e3);
 
 // ── 高雄環狀輕軌真 GPS 逐班校正(/api/klrt-position,約每分鐘) ─────────────────────────
 // KLRT 是全台捷運唯一提供逐車經緯度的系統(TRTC/KRTC/TYMC 打 LivePosition 一律 400)。
@@ -32872,7 +32873,7 @@ function metroCoreKlrtBoardRoute(ln, stationIndex, direction) {
 // 官方倒數與模型身分分開：有有效的來源列就保留 ETA，連不到車只是不提供跟隨。
 function metroSourceRowsForEntry(entry, nowEpoch = Date.now() / 1000) {
   const { ln, si } = entry, sys = freqSysIdOf(ln), out = [], seen = new Set();
-  const add = (at, seconds, direction, destIndex, precision, source) => {
+  const add = (at, seconds, direction, destIndex, precision, source, observation = null) => {
     const eta = at + seconds + (precision === 'minute' ? 30 : 0);
     if (!metroSourceFresh(at, nowEpoch) || eta - nowEpoch < -30 || eta - nowEpoch > 7200) return;
     const dest = ln.stations[destIndex];
@@ -32885,7 +32886,15 @@ function metroSourceRowsForEntry(entry, nowEpoch = Date.now() / 1000) {
       precision, source, vehicleId: null, match: 'unmatched', state: 'countdown' };
     // 只沿用核心已驗證的同線、同向、同終點連結；不另拿最近班表冒充車輛身分。
     const systemId = metroCoreSystemIdForLine(ln);
-    if (systemId && metroCoreSnapshotLive(nowEpoch) && !metroCoreLineBlocked(systemId, ln.id)) {
+    if (ntmFeedForSystem(systemId) && observation && observation.car) {
+      const system = metroCoreSystem(systemId, nowEpoch);
+      const train = system && system.trains.find(t => t.publicLabel === observation.car && t.lineId === ln.id
+        && t.direction === direction && t.destinationStationIndex === destIndex
+        && t.sourceAt === at && t.observation.si === si && t.observation.seconds === seconds);
+      if (train && metroCoreSampleTrain(train, nowEpoch)) {
+        rec.vehicleId = train.vehicleId; rec.systemId = systemId; rec.match = 'observed';
+      }
+    } else if (systemId && !ntmFeedForSystem(systemId) && metroCoreSnapshotLive(nowEpoch) && !metroCoreLineBlocked(systemId, ln.id)) {
       const system = metroCoreSystem(systemId);
       const board = system && system.boards.find(b => b.lineId === ln.id && b.stationIndex === si);
       const candidates = (board && board.rows || []).filter(row => row.state !== 'departed' && row.match !== 'unmatched'
@@ -32921,7 +32930,7 @@ function metroSourceRowsForEntry(entry, nowEpoch = Date.now() / 1000) {
     const raw = state._ntmLiveRaw && state._ntmLiveRaw[feed];
     if (!raw || !metroSourceFresh(raw.at, nowEpoch)) return out;
     for (const row of raw.rows) if (row.lineId === ln.id && row.si === si) {
-      add(raw.at, row.seconds, row.dir > 0 ? 2 : 1, row.dir > 0 ? ln.stations.length - 1 : 0, 'second', feed);
+      add(raw.at, row.seconds, row.dir > 0 ? 2 : 1, row.dir > 0 ? ln.stations.length - 1 : 0, 'second', feed, row);
     }
   }
   return out;
@@ -33092,14 +33101,14 @@ function renderMetroCoreFreqBoard(el, st, lines, isDeco, view, opts) {
     const followTitle = (route ? routeLabel + ' · ' + routeVia + ' · ' : '') + t('跟隨往 {station} 的班次', { station: destination });
     if (rec.kind === 'core' || rec.kind === 'source') {
       const index = records.push(rec) - 1, followable = !!rec.vehicleId;
-      const train = followable && metroCoreSystem(rec.systemId).trains.find(item => String(item.vehicleId) === rec.vehicleId);
+      const train = followable && metroCoreSystem(rec.systemId)?.trains.find(item => String(item.vehicleId) === rec.vehicleId);
       const label = train && String(train.publicLabel || '').trim();
       // 擁擠度:與官方板共用同一份逐車 join(state.trtcOfficialBoard.crowdByNo,由 pollTrtcLive
       // 每 15 秒無條件餵,與 Core 的名冊各自獨立)。publicLabel 就是官方車號,沒有就留白。
       // 🔴 08-29 之前擁擠度只長在官方板上,Core 板一格都沒有——於是每當板路徑在 CORE／官方／
       // 班表之間翻動,使用者就看到擁擠度忽有忽無(實測 86 秒內翻了 7 次)。兩條路徑要嘛都有、
       // 要嘛都沒有,不可以只有一條有。
-      const crowdHtml = trtcOfficialCrowdHtml(label);
+      const crowdHtml = rec.systemId === 'trtc' ? trtcOfficialCrowdHtml(label) : '';
       return `<div class="row${route ? ' klrt-board-row' : ''}${crowdHtml ? ' has-crowd' : ''}" data-core-record="${index}"${followable
         ? ` data-core-vehicle="${escHtml(rec.vehicleId)}" data-core-system="${escHtml(rec.systemId)}" data-core-line="${escHtml(group.ln.id)}" data-li="${group.li}" title="${escHtml(followTitle)}"` : ''}>` +
         `<span class="dot" style="background:${group.ln.color}"></span><b>${escHtml(direction)}</b>` +
