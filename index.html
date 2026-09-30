@@ -23852,7 +23852,8 @@ function bountyBestLine(r) {
 function bountyUpdateDwellProgress(r, rules) {
   if (!r.card || r.card.kind !== 'dwell') { r._dwellMissed = false; return; }
   const rec = lineNetwork().get(r.sys + '|' + r.lnId), D = rules.quality.dwell;
-  if (!rec || !D || !(D.posSpeedVetoMps > D.stopSpeedMaxMps) || !(D.posSpeedWindowSec >= 1)) throw new Error('dwell rules unavailable');
+  // posSpeedWindowSec 的範圍（數字、1–10 秒）與 Worker coverageOf() 的守門同一條（第十二輪獨立驗收 P3-3）。
+  if (!rec || !D || !(D.posSpeedVetoMps > D.stopSpeedMaxMps) || !(typeof D.posSpeedWindowSec === 'number' && D.posSpeedWindowSec >= 1 && D.posSpeedWindowSec <= 10)) throw new Error('dwell rules unavailable');
   const stations = (rec.ln.stations || []).filter(s => s.name && s.d != null).slice().sort((a, b) => a.d - b.d);
   const wanted = new Set((r.card.unitKeys || []).map(k => String(k).split('|'))
     .filter(p => p.length === 4 && p[2] === p[3]).map(p => p[2]));

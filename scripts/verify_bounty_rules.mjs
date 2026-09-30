@@ -54,9 +54,9 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
   ok('R10 quality.dwell.posSpeedVetoMps 是有限數、而且大於 stopSpeedMaxMps（Android 沒有速度送 0 時靠它擋掉假停靠）',
     typeof D.posSpeedVetoMps === 'number' && Number.isFinite(D.posSpeedVetoMps) && D.posSpeedVetoMps > D.stopSpeedMaxMps,
     JSON.stringify({ posSpeedVetoMps: D.posSpeedVetoMps, stopSpeedMaxMps: D.stopSpeedMaxMps }));
-  // 位置微分跟「至少 posSpeedWindowSec 秒以前的那一點」比（第十七批）：少了或小於 1 兩邊一樣直接中止。
-  ok('R12 quality.dwell.posSpeedWindowSec 是 ≥1 的有限數（停靠判定的位置微分跟幾秒前的點比）',
-    typeof D.posSpeedWindowSec === 'number' && Number.isFinite(D.posSpeedWindowSec) && D.posSpeedWindowSec >= 1,
+  // 位置微分跟「至少 posSpeedWindowSec 秒以前的那一點」比（第十七批）：少了、不是數字、或不在 1–10 秒，兩邊一樣直接中止（上限是第十八批加的）。
+  ok('R12 quality.dwell.posSpeedWindowSec 是 1–10 的數字（停靠判定的位置微分跟幾秒前的點比）',
+    typeof D.posSpeedWindowSec === 'number' && Number.isFinite(D.posSpeedWindowSec) && D.posSpeedWindowSec >= 1 && D.posSpeedWindowSec <= 10,
     JSON.stringify({ posSpeedWindowSec: D.posSpeedWindowSec }));
 }
 // 站表同源（第十輪獨立驗收 P1-3）：Worker 判停靠用 bounty_units.json 的 lines，前端錄製當下用軌道檔（lineNetwork()）——
@@ -96,8 +96,9 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
 //   ・自強：d1–d3 的 10 時 甲→丙、乙通過（stop:false）→ 中位數 1：甲|乙、乙|丙 各一個軌道單位；停站只有甲、丙。
 //   ・莒光：d1、d5 才有 → 中位數 0，不出單位。
 //   每小時停站數的中位數：尖峰 9、其他營運時段 3 → 尖峰＝6、7、8、17、18、19。
-//   另三份壞班表要讓腳本非零離開，而且是腳本自己的檢查擋下（錯誤訊息指名是哪一種、哪一天、哪個索引），不是跑到後面才崩：
-//   車次自帶行駛日（days）、dates 裡有超出範圍的索引、同一天同一個索引出現兩次。
+//   另七份壞班表要讓腳本非零離開，而且是腳本自己的檢查擋下（錯誤訊息指名是哪一種、哪一天、哪個索引），不是跑到後面才崩：
+//   車次自帶行駛日（days）、dates 裡有超出範圍的索引、同一天同一個索引出現兩次（第十七批）；
+//   dates 不是物件、dates 是空的、鍵不是日曆上的日期（2026-02-30）、某一天一班車都沒有（第十八批，第十二輪獨立驗收 P3-4）。
 //   偶數天（台鐵實際是 14 天）另跑一份：四天裡兩天有莒光 → 中位數取中間兩個的平均 0.5，出單位（取下面那一個會是 0、不出）。
 {
   const SCRIPT = join(fileURLToPath(new URL('.', import.meta.url)), 'build_bounty_units.mjs');
@@ -139,11 +140,16 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
   const wantEven = ['乙甲|區間車|track|0|=31', '丙乙|區間車|track|0|=31', '乙甲|莒光|track|0|=0.5', '丙乙|莒光|track|0|=0.5',
     ...['甲甲', '乙乙', '丙丙'].flatMap(s => [`${s}|區間車|dwell|0|peak=18`, `${s}|區間車|dwell|0|off=13`, `${s}|區間車|dwell|0|holiday=31`,
       `${s}|莒光|dwell|0|off=0.5`, `${s}|莒光|dwell|0|holiday=0.5`])].sort();
-  const WANT_ERR = { days: /帶了逐車行駛日/, index: new RegExp(`2026-01-09 有壞的班次索引：${trains.length}$`), dup: new RegExp(`2026-01-06 有壞的班次索引：${base[0]}$`) };
+  const WANT_ERR = { days: /帶了逐車行駛日/, index: new RegExp(`2026-01-09 有壞的班次索引：${trains.length}$`), dup: new RegExp(`2026-01-06 重複列了班次索引：${base[0]}$`),
+    notObj: /dates 不是「日期 → 班次索引」$/, empty: /dates 是空的$/, badKey: /dates 有不是日期的鍵：2026-02-30$/, emptyDay: /2026-01-07 一班車都沒有$/ };
   const bad = [
     ['days', run({ date: '2026-01-05', trains: trains.map((t, i) => i ? t : { ...t, days: ['2026-01-05'] }), dates })],
     ['index', run({ date: '2026-01-05', trains, dates: { ...dates, '2026-01-09': [...dates['2026-01-09'], trains.length] } })],
     ['dup', run({ date: '2026-01-05', trains, dates: { ...dates, '2026-01-06': [...dates['2026-01-06'], base[0]] } })],
+    ['notObj', run({ date: '2026-01-05', trains, dates: Object.values(dates) })],
+    ['empty', run({ date: '2026-01-05', trains, dates: {} })],
+    ['badKey', run({ date: '2026-01-05', trains, dates: { ...dates, '2026-02-30': base } })],
+    ['emptyDay', run({ date: '2026-01-05', trains, dates: { ...dates, '2026-01-07': [] } })],
   ];
   ok('R13 [第十七批 V11 P2-4] 單位檔的 perDay＝各日班次數的中位數：手寫的五天班表跑 build_bounty_units，只開一天的臨時車與兩天的車不出單位、改點的第二份定義不多算、尖峰照各日中位數切；四天班表開兩天的車 perDay 0.5；三份壞班表（車次自帶行駛日、索引超出範圍、同一天重複）都由腳本自己的檢查擋下、非零離開',
     good.status === 0 && JSON.stringify(got) === JSON.stringify(want) && JSON.stringify(peak) === '[6,7,8,17,18,19]' &&

@@ -7530,8 +7530,9 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
 
   const D = rules && rules.quality && rules.quality.dwell;
   // posSpeedVetoMps 少了的話下面的比較式恆為假、否決等於關掉（Android 送 0 又回到每站都算停靠），所以跟 quality.dwell 一樣直接中止。
-  // posSpeedWindowSec 少了的話位置微分找不到基準點，同樣中止。
-  if (!D || !(D.posSpeedVetoMps > D.stopSpeedMaxMps) || !(D.posSpeedWindowSec >= 1)) throw new Error('invalid bounty rule: quality.dwell');
+  // posSpeedWindowSec 少了的話位置微分找不到基準點，同樣中止；要是數字（字串 "5" 不收），而且在 1–10 秒：
+  // 窗比停靠還長時，沒有速度的裝置整段停靠都拿不到低速（第十二輪獨立驗收 P3-3：60、1e9 都過得了舊的守門）。前端 bountyUpdateDwellProgress 同一條。
+  if (!D || !(D.posSpeedVetoMps > D.stopSpeedMaxMps) || !(typeof D.posSpeedWindowSec === 'number' && D.posSpeedWindowSec >= 1 && D.posSpeedWindowSec <= 10)) throw new Error('invalid bounty rule: quality.dwell');
   const day = new Date(`${trip.tripDate}T00:00:00Z`).getUTCDay();
   const holiday = day === 0 || day === 6;
   const peakHours = peakHoursBySys && peakHoursBySys[line.sys];
@@ -7565,9 +7566,11 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
       // 模擬（計畫驗收紀錄 s15）門檻用 1.5 的話，停著時回報剛好 0 的誠實裝置停靠召回掉到 21–45%。
       // 🔴 位置微分跟「至少 posSpeedWindowSec（5 秒）以前的那一點」比，窗內還沒有那麼早的點就跟窗內第一點比（第十一輪獨立驗收 P2-1）：
       // 第十五批跟前一點比（1 秒），GPS 每一點獨立晃 10 m 時，停著的位置微分雜訊約 √2×10≈14 m/s、常超過 10，回報 0 的真停靠被否決掉，
-      // 召回 99.3% → 71.6%（晃 6 m 時 95.6%）。跟 5 秒前比，雜訊除以 5；以 10 m/s 以上通過的車，5 秒平均仍超過 10，照樣否決。
+      // 召回 99.3% → 71.6%（晃 6 m 時 95.6%）。跟 5 秒前比，雜訊除以 5。
+      // 否決門檻在 10–12.5 m/s 是模糊帶（第十二輪獨立驗收 P3-1）：App 記的 t 是整數秒（nowSecOfDay 取 floor），「5 秒前」實際是 4 到 6 秒，
+      // 位置微分最多低估約兩成——12.5 m/s（45 km/h）以上通過的車照樣否決，10–12.5 m/s 的要看取整落在哪邊。
       // 沒有速度的點同樣用這個位置微分判低速，比 1 秒的穩（第十輪獨立驗收 P2：沒速度的停靠召回隨雜訊掉到 17%）。
-      // 代價：以 36 km/h 以下慢慢通過、又回報 0 的那一站仍會算停靠（台鐵通過站的車速通常遠高於此）；
+      // 代價：以 45 km/h 以下慢慢通過、又回報 0 的那一站可能算停靠（台鐵通過站的車速通常遠高於此）；
       // 停下來的頭幾秒，5 秒前的點還在進站途中，沒有速度的點要等位置微分降到 1.5 以下才算低速。
       const p = local[j], t = Number(p.t);
       while (base + 1 < j && Number(local[base + 1].t) <= t - D.posSpeedWindowSec) base++;
@@ -7698,16 +7701,16 @@ function integrityGate(trip, ctx, rules) {
   // 五到六成仍被判；改 0.0625（二進位下精確，判準的邊界才比得出「剛好」）後模擬誤殺約 0，取整後的偽造（中位數約 0.03）仍全數抓到。
   // 門檻只用模擬校過；真的裝置有沒有「速度就是位置微分」的（例如沒有都卜勒時由定位差算速度），要用真錄程看（計畫 §12.1）。
   // 設定檔少了這個鍵時比較式恆為假、這一重等於關掉（寧可放行；verify_bounty_rules 的 R9 釘住它在設定檔裡）。
-  // 🔴 回報速度剛好 0、位置也一點沒動的點對不算（第十一輪獨立驗收 P2-2）：車停著時 Android 會把定位凍住、速度報 0，
-  // 這種點對的逐點差恰好是 0，停久一點就佔掉一半以上、中位數變 0——起點等 10–20 分鐘再開出的誠實錄程五到七成被判可疑。
-  // 停著的點對分不出誠實與偽造（兩邊都是 0 對 0）；剩下的點對（行進中）仍要 30 對以上才判。
+  // 🔴 位置一點沒動的點對不算，不管回報的速度是多少（第十一輪獨立驗收 P2-2、第十二輪 P3-2）：車停著時定位常被凍住，
+  // 速度報 0 或很小的數，這種點對的逐點差就是那個小數；停久一點就佔掉一半以上，中位數跟著掉到門檻以下——
+  // 起點或月台上等 10–20 分鐘再開出的誠實錄程，大半被判可疑。位置沒動的點對分不出誠實與偽造；剩下的點對仍要 30 對以上才判。
+  // 第十七批只排除「速度剛好 0」的，凍住時回報小數速度的裝置照樣被誤殺，所以改成只看位置。
   // 取捨：少數本來靠這些點對才擦邊抓到的偽造，拿掉之後不再抓到。校準的數字只留在計畫的驗收紀錄；門檻怎麼訂是計畫 §12 的待裁事項。
-  // 同一批點對讓「在月台上站著就開錄、定位凍住」的誠實錄程 720 趟有 552 趟被判可疑（同一份紀錄 A5），拿掉之後 0 趟。
   const a = [], b = [];
   for (let i = 1; i < kept.length; i++) {
     const dt = kept[i].t - kept[i - 1].t;
     if (dt <= 0 || !Number.isFinite(kept[i].v)) continue;
-    if (kept[i].v === 0 && kept[i].d === kept[i - 1].d) continue;
+    if (kept[i].d === kept[i - 1].d) continue;
     a.push(kept[i].v); b.push(Math.abs(kept[i].d - kept[i - 1].d) / dt);
   }
   if (a.length >= 30) {

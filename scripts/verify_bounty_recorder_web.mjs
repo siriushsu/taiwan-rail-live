@@ -170,12 +170,12 @@ try {
         bountyUpdateDwellProgress(r, rs);
         return { cov: r._cov[key] || 0, missed: r._dwellMissed };
       };
-      // D2 用：Worker D16 同一趟（回報 0、每點晃 ±8 m、停 12 秒，20 m/s 進出站）
+      // D2 用：Worker D16 同一趟（回報 0、每點晃 ±8 m、停 8 秒，20 m/s 進出站）
       const jstop = sg => {
         const pts = [];
         const push = (x, v) => pts.push({ d: Math.round((c + sg * x) * 10) / 10, t: 30000 + pts.length, v, acc: 8 });
         for (let k = 0; k <= 30; k++) push(-600 + 20 * k, 20);
-        for (let k = 1; k <= 12; k++) push(k % 2 ? 8 : -8, 0);
+        for (let k = 1; k <= 8; k++) push(k % 2 ? 8 : -8, 0);
         for (let k = 1; k <= 30; k++) push(20 * k, 20);
         return pts;
       };
@@ -185,7 +185,7 @@ try {
         catch (e) { return String(e && e.message); } };
       const win = x => ({ ...rules, quality: { ...rules.quality, dwell: { ...rules.quality.dwell, posSpeedWindowSec: x } } });
       out.guard = { missing: threw(veto(undefined)), equal: threw(veto(rules.quality.dwell.stopSpeedMaxMps)), real: threw(rules),
-        winMissing: threw(win(undefined)), winZero: threw(win(0)) };
+        winMissing: threw(win(undefined)), winZero: threw(win(0)), winStr: threw(win('5')), win60: threw(win(60)), winInf: threw(win(Infinity)) };
       for (const sg of [1, -1]) {
         out[`nullStop${sg}`] = run(trip(sg, true, 'null'));
         out[`nullFast${sg}`] = run(trip(sg, false, 'null'));
@@ -193,19 +193,20 @@ try {
         out[`zeroStop${sg}`] = run(trip(sg, true, 'zero'));
         out[`zeroFast${sg}`] = run(trip(sg, false, 'zero'));
         out[`smallFast${sg}`] = run(trip(sg, false, 'small'));
-        for (const w of [1, 5, 30]) out[`win${w}_${sg}`] = run(jstop(sg), win(w));
+        for (const w of [1, 5, 10]) out[`win${w}_${sg}`] = run(jstop(sg), win(w));
       }
       out.realWin = rules.quality.dwell.posSpeedWindowSec;
       return out;
     }, ST);
     const want = { cov: 1, missed: false }, fast = { cov: 0, missed: true };
-    ok('D [第十四批 V9 E-2(b)、第十五批 V10 P1-2] 停靠進度與 Worker 同一條：沒有速度的裝置停 60 秒 → 亮；沒有速度、30 m/s 通過 → 不亮且判錯過；對照：有速度的同一趟停靠 → 亮；速度送 0 或 0.3、30 m/s 通過 → 不亮且判錯過，送 0 的真停靠 → 亮（兩個方向；舊版 Number(null)＝0、送 0 照信，高速通過也亮）；設定檔少了 posSpeedVetoMps、它等於停靠門檻、少了 posSpeedWindowSec 或它是 0 → 丟錯',
+    ok('D [第十四批 V9 E-2(b)、第十五批 V10 P1-2] 停靠進度與 Worker 同一條：沒有速度的裝置停 60 秒 → 亮；沒有速度、30 m/s 通過 → 不亮且判錯過；對照：有速度的同一趟停靠 → 亮；速度送 0 或 0.3、30 m/s 通過 → 不亮且判錯過，送 0 的真停靠 → 亮（兩個方向；舊版 Number(null)＝0、送 0 照信，高速通過也亮）；設定檔少了 posSpeedVetoMps、它等於停靠門檻、少了 posSpeedWindowSec、它是 0、字串 "5"、60 或 Infinity → 丟錯（範圍與 Worker D15 同一條）',
       [1, -1].every(sg => J(got[`nullStop${sg}`]) === J(want) && J(got[`nullFast${sg}`]) === J(fast) && J(got[`vStop${sg}`]) === J(want) &&
         J(got[`zeroStop${sg}`]) === J(want) && J(got[`zeroFast${sg}`]) === J(fast) && J(got[`smallFast${sg}`]) === J(fast)) &&
         J(got.guard) === J({ missing: 'dwell rules unavailable', equal: 'dwell rules unavailable', real: 'no-throw',
-          winMissing: 'dwell rules unavailable', winZero: 'dwell rules unavailable' }), J(got));
-    ok('D2 [第十七批] 前端停靠進度的位置微分往回看幾秒，照設定檔的 posSpeedWindowSec（與 Worker D16 同一趟：回報 0、每點晃 ±8 m、停 12 秒）：5 → 亮；1、30 → 不亮且判錯過（兩個方向）',
-      got.realWin === 5 && [1, -1].every(sg => J(got[`win5_${sg}`]) === J(want) && J(got[`win1_${sg}`]) === J(fast) && J(got[`win30_${sg}`]) === J(fast)),
+          winMissing: 'dwell rules unavailable', winZero: 'dwell rules unavailable', winStr: 'dwell rules unavailable', win60: 'dwell rules unavailable',
+          winInf: 'dwell rules unavailable' }), J(got));
+    ok('D2 [第十七批] 前端停靠進度的位置微分往回看幾秒，照設定檔的 posSpeedWindowSec（與 Worker D16 同一趟：回報 0、每點晃 ±8 m、停 8 秒）：5 → 亮；1、10 → 不亮且判錯過（兩個方向）',
+      got.realWin === 5 && [1, -1].every(sg => J(got[`win5_${sg}`]) === J(want) && J(got[`win1_${sg}`]) === J(fast) && J(got[`win10_${sg}`]) === J(fast)),
       J({ realWin: got.realWin, ...Object.fromEntries(Object.entries(got).filter(([k]) => k.startsWith('win'))) }));
   });
 

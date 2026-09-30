@@ -278,34 +278,38 @@ ok('D11 站心低速只維持 2 秒（慢速爬行通過）時不算錄到——
     [1, -1].every(sg => got[`a${sg}`] === true && got[`b${sg}`] === false && got[`c${sg}`] === true), JSON.stringify(got));
 }
 
-// D15 posSpeedWindowSec 少了或小於 1 就直接中止（第十七批）：找不到基準點，位置微分就沒有定義。對照：正式設定檔不丟。
+// D15 posSpeedWindowSec 少了或小於 1 就直接中止（第十七批）：找不到基準點，位置微分就沒有定義。
+//   第十八批（第十二輪獨立驗收 P3-3）：字串 "5" 不收（舊版轉型成 5 照跑）；超過 10 秒也中止（60 秒的窗比停靠還長，沒有速度的停靠整段拿不到低速）。
+//   對照：1、10（兩端）與正式設定檔不丟。
 {
   const dwellWith = w => ({ ...RULES, quality: { ...RULES.quality, dwell: { ...RULES.quality.dwell, posSpeedWindowSec: w } } });
   const threw = rules => { try { _bounty.coverageOf(trip(stopped), LINE, rules, UNITS.peakHoursBySys); return 'no-throw'; } catch (e) { return String(e && e.message); } };
-  const got = { missing: threw(dwellWith(undefined)), zero: threw(dwellWith(0)), half: threw(dwellWith(0.5)), one: threw(dwellWith(1)), real: threw(RULES) };
+  const got = { missing: threw(dwellWith(undefined)), zero: threw(dwellWith(0)), half: threw(dwellWith(0.5)), str: threw(dwellWith('5')),
+    sixty: threw(dwellWith(60)), inf: threw(dwellWith(Infinity)), one: threw(dwellWith(1)), ten: threw(dwellWith(10)), real: threw(RULES) };
   const E = 'invalid bounty rule: quality.dwell';
-  ok('D15 [第十七批] quality.dwell.posSpeedWindowSec 不在、是 0 或 0.5 → coverageOf 丟 invalid bounty rule；1 與正式設定檔不丟',
-    got.missing === E && got.zero === E && got.half === E && got.one === 'no-throw' && got.real === 'no-throw', JSON.stringify(got));
+  ok('D15 [第十七批／第十八批 V12 P3-3] quality.dwell.posSpeedWindowSec 不在、是 0、0.5、字串 "5"、60 或 Infinity → coverageOf 丟 invalid bounty rule；1、10 與正式設定檔不丟',
+    ['missing', 'zero', 'half', 'str', 'sixty', 'inf'].every(k => got[k] === E) && got.one === 'no-throw' && got.ten === 'no-throw' && got.real === 'no-throw', JSON.stringify(got));
 }
 
-// D16 位置微分往回看幾秒，照設定檔的 posSpeedWindowSec（第十七批）：同一趟 D14 a（回報 0、每點晃 ±8 m、停 12 秒），
-//   5（正式值）→ 算；1（跟前一點比，16 m/s 被否決）→ 不算；30（站窗裡沒有 30 秒前的點，跟站窗第一點比，停車的 12 秒都還在 10 上下）→ 不算。
-//   程式把 5 寫死、或自己乘了倍數，1 與 30 的結果就不會照著變。
+// D16 位置微分往回看幾秒，照設定檔的 posSpeedWindowSec（第十七批）：D14 a 的停法（回報 0、每點晃 ±8 m），停 8 秒，
+//   5（正式值）→ 算（停下第 3 秒起，5 秒前的點已經在站前 40 m 內，連續 5 秒低速）；1（跟前一點比，16 m/s 被否決）→ 不算；
+//   10（守門的上限）→ 不算（10 秒前的點還在進站途中，只剩最後 2 秒低速，不到 stopMinSec 3 秒）。
+//   程式把 5 寫死、或自己乘了倍數（×2 或 ×½），1、5、10 至少有一個結果不會照著變。（第十八批以前用 12 秒的停法配 30 秒的窗；上限 10 之後改成這一組。）
 {
   const c0 = Math.round(centerM);
   const jstop = sg => {
     const xs = [];
     for (let k = 0; k <= 30; k++) xs.push(-600 + 20 * k);
-    for (let k = 1; k <= 12; k++) xs.push(k % 2 ? 8 : -8);
+    for (let k = 1; k <= 8; k++) xs.push(k % 2 ? 8 : -8);
     for (let k = 1; k <= 30; k++) xs.push(20 * k);
-    return xs.map((x, k) => ({ d: c0 + sg * x, t: 7 * 3600 + k, v: k > 30 && k <= 42 ? 0 : 20, acc: 8 }));
+    return xs.map((x, k) => ({ d: c0 + sg * x, t: 7 * 3600 + k, v: k > 30 && k <= 38 ? 0 : 20, acc: 8 }));
   };
   const withWin = w => ({ ...RULES, quality: { ...RULES.quality, dwell: { ...RULES.quality.dwell, posSpeedWindowSec: w } } });
   const hitsWith = (pts, rules) => _bounty.coverageOf(trip(pts), LINE, rules, UNITS.peakHoursBySys).some(c => c.key === DWELL_KEY && c.kind === 'dwell');
   const got = {};
-  for (const sg of [1, -1]) for (const w of [1, 5, 30]) got[`w${w}_${sg}`] = hitsWith(jstop(sg), withWin(w));
-  ok('D16 [第十七批] 位置微分往回看的秒數照設定檔：D14 a 那一趟，posSpeedWindowSec＝5 → 算；＝1 → 不算（跟前一點比被否決）；＝30 → 不算（跟站窗第一點比）（兩個方向）',
-    RULES.quality.dwell.posSpeedWindowSec === 5 && [1, -1].every(sg => got[`w5_${sg}`] === true && got[`w1_${sg}`] === false && got[`w30_${sg}`] === false),
+  for (const sg of [1, -1]) for (const w of [1, 5, 10]) got[`w${w}_${sg}`] = hitsWith(jstop(sg), withWin(w));
+  ok('D16 [第十七批] 位置微分往回看的秒數照設定檔：D14 a 的停法停 8 秒，posSpeedWindowSec＝5 → 算；＝1 → 不算（跟前一點比被否決）；＝10 → 不算（停 8 秒，10 秒前的點還在進站途中）（兩個方向）',
+    RULES.quality.dwell.posSpeedWindowSec === 5 && [1, -1].every(sg => got[`w5_${sg}`] === true && got[`w1_${sg}`] === false && got[`w10_${sg}`] === false),
     JSON.stringify(got));
 }
 

@@ -86,11 +86,16 @@ function scheduleDays(file, S) {
   const ds = Object.keys(S.dates).sort();
   if (!ds.length) throw new Error(`${file} 的 dates 是空的`);
   return ds.map(d => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new Error(`${file} 的 dates 有不是日期的鍵：${d}`);
+    // 格式對、日曆上也要有這一天（2026-13-45、2026-02-30 這種不收）
+    const ms = Date.parse(d + 'T00:00:00Z');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !Number.isFinite(ms) || new Date(ms).toISOString().slice(0, 10) !== d) throw new Error(`${file} 的 dates 有不是日期的鍵：${d}`);
     const idx = S.dates[d], seen = new Set();
     if (!Array.isArray(idx)) throw new Error(`${file} 的 ${d} 不是班次索引陣列`);
+    // 一班車都沒有的一天多半是抓班表那一步壞了；照算的話，各日中位數會被這一天拉低
+    if (!idx.length) throw new Error(`${file} 的 ${d} 一班車都沒有`);
     return [d, idx.map(i => {
-      if (!Number.isInteger(i) || i < 0 || i >= trains.length || seen.has(i)) throw new Error(`${file} 的 ${d} 有壞的班次索引：${i}`);
+      if (!Number.isInteger(i) || i < 0 || i >= trains.length) throw new Error(`${file} 的 ${d} 有壞的班次索引：${i}`);
+      if (seen.has(i)) throw new Error(`${file} 的 ${d} 重複列了班次索引：${i}`);
       seen.add(i);
       return trains[i];
     })];
