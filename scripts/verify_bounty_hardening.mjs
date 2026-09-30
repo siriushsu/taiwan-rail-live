@@ -2572,6 +2572,75 @@ await attempt('PF4', async () => {
     fixture && res.c0.v === 'ok' && res.c0.code === '-' && J(res.c0.chips) === J([{ delta: 1, ref: `${C0}|${D28}|PF4c` }]) && under(res.c1),
     J({ gaps: res.gaps, c0: res.c0, c1: res.c1 }));
 });
+await attempt('PF5', async () => {
+  // 第十三批（V8 B(2)）：覆蓋段記的方向＝防偽閘回的方向（判定端把 ig.dir 帶進覆蓋率），不是 assembleTrip 拿原始首末判的方向。
+  // 山線 20 m/s 往里程遞增走 700 秒（0 → 14 km），最後多送一點往後 14.5 km 的大偏移（−500 m）：原始首末 0 → −500 → dir 1（錯的）。
+  // 防偽閘：dir 1 下每步 −20 m 全收、偏移那點不收，收下的點淨位移往後 14 km → 換 dir 0 成立。
+  // → ok、覆蓋段全部記 dir 0，板上 dir 0 的 S0|S1…S6|S7 各 +1（板上只種了 dir 0 的單位）、1 顆（整班 701 秒）。
+  // 對照：同一趟不加偏移（原始首末本來就是 dir 0）→ 同樣的覆蓋段、同樣的 sample_count。
+  const A = 'dev-pf5-a0001', O = 'dev-pf5-o0001';
+  const base = leg({ sec: 700 });
+  const run = async (actor, pts) => {
+    const w = world({ seed: boardSql('山線') });
+    putBatches(w.db, { actor, trainNo: 'PF5', pts, dir: 0 });
+    await w.cron();
+    // 同一組的每一批都寫同一份覆蓋段，取 DISTINCT
+    const segs = rows(w, 'SELECT DISTINCT segs FROM bounty_samples WHERE actor=?', actor).flatMap(r => JSON.parse(r.segs || '[]'));
+    return { v: q.verdicts(w, actor, 'PF5'), dirs: [...new Set(segs.map(c => c.dir))], keys: segs.map(c => c.key.split('|').slice(2).join('|')).sort(),
+      counts: q.sampleCounts(w, '山線'), chips: rows(w, "SELECT delta FROM chip_ledger WHERE kind='trip' AND actor=?", actor).map(r => r.delta) };
+  };
+  const res = { a: await run(A, [...base, { d: -500, t: 30701, v: 20, acc: 8 }]), o: await run(O, base) };
+  ok('PF5 [第十三批 V8 B(2)] 原始首末定錯方向（最後一點大偏移）→ 防偽閘換回 dir 0：ok、覆蓋段全記 dir 0、板上 dir 0 的 S0|S1…S6|S7 各 +1、1 顆（與不加偏移的對照相同）',
+    res.a.v === 'ok' && J(res.a.dirs) === J([0]) && J(res.a.counts) === J(S7) && J(res.a.chips) === J([1]) &&
+      res.o.v === 'ok' && J(res.o.dirs) === J([0]) && J(res.a.keys) === J(res.o.keys) && J(res.o.counts) === J(S7),
+    J(res));
+});
+await attempt('PF6', async () => {
+  // 第十三批（V8 E1）：沒有都卜勒速度的裝置送 v:null——上傳端存成 null（不是 0），停靠判定不把 null 當停著。
+  // 乘車日 07-26（週日＝holiday，停靠段才會算）。山線 30 m/s 從 500 m 一路開到 19,490 m、不停（每一站都高速通過），
+  // 走真的 /api/bounty-submit（每批 200 點）→ 判定 cron。
+  //   a 每一點 v、acc 都送 null → 存下來的每一點 v、acc 都是 null；判定 ok、覆蓋段裡沒有停靠段（kind dwell）。
+  //   b 對照：同一趟每一點送 v:0（裝置真的回報速度 0）→ S1…S9 九站都記成停靠段——這一趟確實經過每一站的判定範圍；
+  //     舊版把 null 存成 0，a 就會變成這個結果（V8 模擬：台鐵 130 km/h、整趟沒有速度的裝置每趟約 9 個假停靠）。
+  const D26 = '2026-07-26', A = 'dev-pf6-a0001', B = 'dev-pf6-b0001';
+  const trip = v => Array.from({ length: 634 }, (_, i) => ({ d: 500 + i * 30, t: 30000 + i, v, acc: v === null ? null : 8 }));
+  const run = async (actor, v) => {
+    const w = world({ seed: boardSql('山線') });
+    const st = [];
+    for (const part of chunk(trip(v), 200)) st.push((await submit(w, actor, { trainNo: 'PF6', tripDate: D26, samples: part })).status);
+    const stored = rows(w, 'SELECT payload FROM bounty_samples WHERE actor=?', actor).flatMap(r => JSON.parse(r.payload));
+    await w.cron();
+    const segs = rows(w, 'SELECT DISTINCT segs FROM bounty_samples WHERE actor=?', actor).flatMap(r => JSON.parse(r.segs || '[]'));
+    return { st, n: stored.length, vs: [...new Set(stored.map(p => p.v))], accs: [...new Set(stored.map(p => p.acc))], v: q.verdicts(w, actor, 'PF6'),
+      dwell: segs.filter(c => c.kind === 'dwell').map(c => c.key.split('|').slice(2).join('|') + '/' + c.slot) };
+  };
+  const res = { a: await run(A, null), b: await run(B, 0) };
+  const nine = Array.from({ length: 9 }, (_, i) => `S${i + 1}|S${i + 1}/holiday`);
+  ok('PF6 [第十三批 V8 E1] 沒有速度（v:null）走真的上傳端點 → 存成 null、ok、沒有停靠段；對照：送 v:0 → S1…S9 九站都記成停靠段',
+    J(res.a.st) === J([200, 200, 200, 200]) && res.a.n === 634 && J(res.a.vs) === J([null]) && J(res.a.accs) === J([null]) && res.a.v === 'ok' && res.a.dwell.length === 0 &&
+      J(res.b.st) === J([200, 200, 200, 200]) && J(res.b.vs) === J([0]) && res.b.v === 'ok' && J(res.b.dwell.sort()) === J(nine),
+    J(res));
+});
+await attempt('PF7', async () => {
+  // 第十三批（V8 B(1)）：站停中 GPS 單點往前跳 100 m 的誠實錄程，端到端（真的判定 cron）整班 ok、照發籌碼，兩個方向。
+  // 山線 20 m/s：跑 350 秒（到 7 km）→ 停 60 秒（第 350–410 秒，速度 0；第 380 秒那一點往前跳 100 m）→ 再跑 300 秒，共 711 點、710 秒 → 1 顆。
+  // dir 1 那一趟從 20 km 往回開（同一個形狀、里程遞減）。
+  // 舊版（不回溯）：跳點在上界內被收下當基準，之後站著的點每一點都退 100 m → 連丟 6 點 → suspect（impossible_physics）、0 顆。
+  const trip = rev => Array.from({ length: 711 }, (_, k) => {
+    const f = 20 * (Math.min(k, 350) + Math.max(0, k - 410)) + (k === 380 ? 100 : 0);
+    return { d: rev ? 20000 - f : f, t: 30000 + k, v: k < 350 || k > 410 ? Math.round((20 + Math.sin(k / 7) * 0.6) * 100) / 100 : 0, acc: 8 };
+  });
+  const got = {};
+  for (const [name, rev] of [['a', false], ['b', true]]) {
+    const actor = `dev-pf7-${name}0001`, w = world({ seed: boardSql('山線') });
+    putBatches(w.db, { actor, trainNo: 'PF7', pts: trip(rev), dir: rev ? 1 : 0 });
+    await w.cron();
+    got[name] = { v: q.verdicts(w, actor, 'PF7'), rej: q.rejects(w, actor, 'PF7'), chips: J(rows(w, "SELECT delta, ref FROM chip_ledger WHERE kind='trip' AND actor=?", actor)),
+      want: J([{ delta: 1, ref: `${actor}|${D28}|PF7` }]) };
+  }
+  ok('PF7 [第十三批 V8 B(1)] 站停中單點往前跳 100 m 的誠實錄程 → ok、1 顆（兩個方向；舊版 suspect、0 顆）',
+    ['a', 'b'].every(k => got[k].v === 'ok' && got[k].chips === got[k].want), J(got));
+});
 
 ok('Z 整支腳本沒有任何非 Firebase 的對外連線', outbound.length === 0, J(outbound.slice(0, 3)));
 const bad = R.filter(r => !r.p);

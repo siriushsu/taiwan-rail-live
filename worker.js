@@ -6256,10 +6256,13 @@ function hasGeoKeys(v, depth) {
 // 只留 d(公尺) t(台北當日秒) v(m/s) acc(公尺) 四個數值欄位。多的欄位直接丟不報錯:
 // 前端日後多帶一個 debug 欄位不該讓整趟上傳失敗，但那個欄位也絕不該進 D1。
 // (夾帶座標是另一回事——那個要 400，見 hasGeoKeys。)
+// 🔴 沒有速度、沒有精度（null）存成 null，不是 0（第八輪獨立驗收 E1）：Number(null) 是 0，舊版把「沒有都卜勒速度」存成「速度 0」，
+// 停靠判定就把高速通過的每一站都當成停過（V8 模擬台鐵 130 km/h、整趟沒有速度的裝置每趟約 9 個假停靠），寫進人數與下架之後收不回。
 function sanitizeSamples(arr, max) {
   const out = []; let dropped = 0;
   for (const s of arr) {
-    const d = Number(s && s.d), t = Number(s && s.t), v = Number(s && s.v), acc = Number(s && s.acc);
+    const d = Number(s && s.d), t = Number(s && s.t);
+    const v = s && s.v != null ? Number(s.v) : NaN, acc = s && s.acc != null ? Number(s.acc) : NaN;
     if (!Number.isFinite(d) || !Number.isFinite(t)) { dropped++; continue; }
     out.push({ d: Math.round(d * 10) / 10, t: Math.round(t), v: Number.isFinite(v) ? Math.round(v * 100) / 100 : null,
       acc: Number.isFinite(acc) ? Math.round(acc) : null });
@@ -7529,7 +7532,8 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
 
     let runStart = null, prevT = null, stopAt = null;
     for (const p of local) {
-      const t = Number(p.t), v = Number(p.v);
+      // 沒有速度（null）不算低速：Number(null) 是 0，會把高速通過的點當成停著（見 sanitizeSamples）
+      const t = Number(p.t), v = p.v == null ? NaN : Number(p.v);
       const low = Math.abs(Number(p.d) - centerM) <= D.stopRadiusM &&
         Number.isFinite(v) && v <= D.stopSpeedMaxMps;
       if (!low) { runStart = null; prevT = null; continue; }
@@ -7565,7 +7569,7 @@ function integrityGate(trip, ctx, rules) {
   if (td > addDays(upDay, 1)) return { pass: false, code: 'future_date' };
   if (td < addDays(upDay, -R.tripDateMaxAgeDays)) return { pass: false, code: 'stale_date' };
   const pts = trip.pts;
-  if (pts.length < 2) return { pass: true, code: null, pts };   // 太短交給品質閘判 too_short
+  if (pts.length < 2) return { pass: true, code: null, pts, dir: trip.dir };   // 太短交給品質閘判 too_short
   // 第三重：物理可能——往前不能快過速度上限、不能往後退、加速度上限；速度上限依系統。
   // 查表鍵是系統家族（TRA/THSR/metro），trip.sys 是 SYS_DEFS 的 id（tra_sched/…），要先過桶對照。
   // 直接拿 trip.sys 查會恆常 undefined 落到 default(36.2m/s=130km/h)，高鐵 300km/h 每趟都被判
@@ -7584,41 +7588,64 @@ function integrityGate(trip, ctx, rules) {
   // 🔴 孤立的壞點丟掉、不判整班（第七輪獨立驗收 B(1)）：GPS 沿線方向單點跳 100 m（台鐵）、出隧道的第一個定位還是進隧道前的舊位置
   // 或偏幾百公尺、冷啟動的頭幾個定位偏遠——舊版遇到一個就判 impossible_physics，整班可疑、不給點不發籌碼；V7 照 App 的取樣方式模擬，
   // 這幾種誠實錄程的誤殺率 50–100%（南迴、北迴、臺東線隧道多，正是籌碼加倍的偏遠線）。現在逐點比「已收下的點」：
-  //   ・違反往前（任兩點）、往後、加速度任一條，就不收這一點——gMin 與「前一點」都不動；連續超過 PHYS_DROP_RUN 點、
+  //   ・違反往前（任兩點）、往後、加速度任一條，就不收這一點——收下的點都不動；連續超過 PHYS_DROP_RUN 點、
   //     或全程超過 max(PHYS_DROP_MIN, PHYS_DROP_SHARE×考慮過的點數) 點，才判 impossible_physics。
+  //   ・回溯一層（第八輪獨立驗收 B(1)）：一點違反時，若它對「去掉最後一個收下點」的其餘收下點完全合規（往前比其餘任兩點、往後與加速度比倒數第二點），
+  //     而且最後那個收下點是 PHYS_BACK_SEC 秒內收的，就改丟最後那一點、收下這一點（照樣算一次丟點，連丟歸零）。
+  //     站停時 GPS 單點往前跳 55 m 到「上限×2＋50」（台鐵 133 m、高鐵 242 m）之間，這一點在往前的上界內、會被收下當基準，
+  //     之後站著不動的好點全都比它退超過 50 m——舊版連丟 6 點判死，V8 照 App 的取樣方式模擬誤殺近 100%（站停中 ±100 m 單點約一半、冷啟動收斂 5–8 點 12–21%）；
+  //     回溯一層後站停跳點與 JS 卡頓 3–5 秒降到 0、冷啟動收斂慢降到 4–13%。
+  //     收下的每一點在收下當下都對它之前所有收下點驗過，拿掉其中一點只會少一條限制、不會讓別的收下點變違規，
+  //     所以回溯後收下的點仍是一組「原封不動交給不回溯的版本也會全收」的點：偽造者用回溯做得到的，本來就做得到；丟點的預算與連丟上限照算。
   //   ・開頭、以及每個 Δt≥PHYS_GAP_SEC 秒的斷點（隧道）之後的前 PHYS_GAP_SKIP 點直接不收、不算違反：那幾個定位最不可靠，
   //     被收下當基準的話，後面的好點會全被當成壞點（一個 +300 m 的出隧道點就讓之後十幾點都「往後退」）。
   // 收下的點彼此仍滿足同一組上界（任兩點往前、相鄰兩點往後與加速度），平均速度的上界不變：丟點等於「那幾點沒送」，偽造者不會因此多出能力——
   // 前提是被丟的點不能再拿去算任何東西（V7 的但書）。所以回傳收下的點（pts），判定端的品質閘、覆蓋率一律改用它（籌碼的整班長度照舊用原始的點，理由見 bountyVerifyTrain）；
   // 下面第四重的都卜勒、第二重的逐站時刻也只看它（否則被丟的點仍能刷覆蓋、稀釋都卜勒的相關係數）。
   // 數字是 V7 模擬過的那一組（F3：隧道出口、冷啟動、±100／±300 跳點的誤殺率都降到 0–1%）。
-  // App 端還有一個伺服器修不動的：t 是送達時刻不是定位時刻（JS 卡頓 3–5 秒時高鐵仍大量誤殺；計畫 §12 的 App 端建議）；t 在午夜歸零則已在 assembleTrip 補上。
+  // App 端還有一個伺服器修不動的：t 是送達時刻不是定位時刻（JS 卡頓更長時仍會誤殺；計畫 §12 的 App 端建議）；t 在午夜歸零則已在 assembleTrip 補上。
   const sgn = Number(trip.dir) === 1 ? -1 : 1, lim = cap * 1.15, TOL = 50, aMax = R.maxAccelMps2 * 3;
-  const PHYS_DROP_RUN = 5, PHYS_DROP_MIN = 5, PHYS_DROP_SHARE = 0.01, PHYS_GAP_SEC = 10, PHYS_GAP_SKIP = 2;
-  const kept = [];
-  let gMin = Infinity, last = null, prevT = null, skipLeft = PHYS_GAP_SKIP, run = 0, dropped = 0, seen = 0;
-  for (const p of pts) {
-    if (prevT != null && p.t - prevT >= PHYS_GAP_SEC) skipLeft = PHYS_GAP_SKIP;
-    prevT = p.t;
-    if (skipLeft > 0) { skipLeft--; continue; }
-    seen++;
-    const f = sgn * p.d, g = f - lim * p.t;
-    let bad = g > gMin + lim + TOL;
-    if (!bad && last) {
-      const v0 = Number(last.v), v1 = Number(p.v);
-      bad = f - sgn * last.d < -TOL || (v0 > 0 && v1 > 0 && Math.abs(v1 - v0) > aMax * (p.t - last.t + 1));
-    }
-    if (bad) {
+  const PHYS_DROP_RUN = 5, PHYS_DROP_MIN = 5, PHYS_DROP_SHARE = 0.01, PHYS_GAP_SEC = 10, PHYS_GAP_SKIP = 2, PHYS_BACK_SEC = 10;
+  // 以 s 方向（+1＝里程遞增）判一次：回傳收下的點，判死回 null。
+  const physics = s => {
+    const kept = [], gMin = [];   // gMin[i]＝kept[0..i] 的 g 最小值——回溯一層要退回前一個最小值，所以記整串
+    let prevT = null, skipLeft = PHYS_GAP_SKIP, run = 0, dropped = 0, seen = 0;
+    // p 對前 n 個收下點合不合規：往前比任兩點（g 的最小值），往後與加速度比第 n 個
+    const fits = (p, n) => {
+      if (!n) return true;
+      const f = s * p.d, last = kept[n - 1], v0 = Number(last.v), v1 = Number(p.v);
+      return f - lim * p.t <= gMin[n - 1] + lim + TOL && f - s * last.d >= -TOL &&
+        !(v0 > 0 && v1 > 0 && Math.abs(v1 - v0) > aMax * (p.t - last.t + 1));
+    };
+    const keep = p => { const g = s * p.d - lim * p.t; gMin.push(kept.length ? Math.min(gMin[kept.length - 1], g) : g); kept.push(p); };
+    for (const p of pts) {
+      if (prevT != null && p.t - prevT >= PHYS_GAP_SEC) skipLeft = PHYS_GAP_SKIP;
+      prevT = p.t;
+      if (skipLeft > 0) { skipLeft--; continue; }
+      seen++;
+      const n = kept.length;
+      if (fits(p, n)) { run = 0; keep(p); continue; }
       dropped++;
-      if (++run > PHYS_DROP_RUN) return { pass: false, code: 'impossible_physics' };
-      continue;
+      if (n && p.t - kept[n - 1].t <= PHYS_BACK_SEC && fits(p, n - 1)) { kept.pop(); gMin.pop(); run = 0; keep(p); continue; }
+      if (++run > PHYS_DROP_RUN) return null;
     }
-    run = 0;
-    if (g < gMin) gMin = g;
-    last = p;
-    kept.push(p);
+    return dropped > Math.max(PHYS_DROP_MIN, PHYS_DROP_SHARE * seen) ? null : kept;
+  };
+  // 淨位移（第八輪獨立驗收 B(2) T5）：收下的點首末要往 dir 的方向走，不能整體往後退超過 TOL。
+  // dir 是 assembleTrip 拿原始的首末里程判的，而開頭兩點不收、壞點會丟——原始首末可以放在線頭定出方向，收下的點再每步退 49.9 m（往後只比相鄰兩點、容差 50 m）
+  // 從線尾掃回線頭：任何時間窗（含同一秒）都能蓋滿整條線，還記在反方向。t 現在沒有外部錨點，這一條沒有增加能領到的懸賞與籌碼；
+  // 等 t 有錨點（App Attest＋班表對時）那天它就是繞過錨點的捷徑，所以現在補上。
+  // 整體往後退時換另一個方向重判一次，那個方向成立（沒判死、淨位移也不往後）就改用它，兩個方向都不成立才判 impossible_physics：
+  // 原始首末定錯方向的誠實錄程——站停錄程開頭偏遠、之後 GPS 慢慢飄過 50 m（停靠卡整趟站著不動）、錄程最後一點是大偏移——
+  // 不能因此判可疑；方向改由收下的點決定，偽造者本來就能用原始首末挑方向，換方向重判不給它多的能力，覆蓋段則從此一定記在軌跡真的走的方向。
+  const net = (k, s) => k.length < 2 ? 0 : s * (k[k.length - 1].d - k[0].d);
+  let kept = physics(sgn), dir = trip.dir;
+  if (kept && net(kept, sgn) < -TOL) {
+    const alt = physics(-sgn);
+    kept = alt && net(alt, -sgn) >= -TOL ? alt : null;
+    dir = sgn === 1 ? 1 : 0;
   }
-  if (dropped > Math.max(PHYS_DROP_MIN, PHYS_DROP_SHARE * seen)) return { pass: false, code: 'impossible_physics' };
+  if (!kept) return { pass: false, code: 'impossible_physics' };
   // 第四重：都卜勒一致性。coords.speed 是都卜勒量測不是位置微分，真實資料兩者會有適度差異；
   // spoof 工具產出的兩者過度一致。相關係數高到接近 1 才判——這一重刻意只抓最粗糙的偽造。
   const a = [], b = [];
@@ -7652,7 +7679,7 @@ function integrityGate(trip, ctx, rules) {
     }
     if (worst > R.delayMatchToleranceSec) return { pass: false, code: 'delay_mismatch' };
   }
-  return { pass: true, code: null, pts: kept };
+  return { pass: true, code: null, pts: kept, dir };
 }
 // 品質閘：決定資料採不採用，不決定給不給章。每一項都有可以告知的原因與可以行動的建議
 // （文案在 data/bounty_rules.json 的 qualityText，前端錄製當下用的是同一份）。
@@ -7662,7 +7689,7 @@ function qualityGate(trip, ctx, rules, rawPts = trip.pts) {
   const Q = rules.quality, pts = trip.pts;
   if (!trip.trainNo) return { pass: false, code: 'unknown_train' };
   if (pts.length < 10) return { pass: false, code: 'too_short' };
-  const accs = pts.map(p => Number(p.acc)).filter(Number.isFinite);
+  const accs = pts.filter(p => p.acc != null).map(p => Number(p.acc)).filter(Number.isFinite);   // 沒有精度（null）不算：Number(null) 是 0（見 sanitizeSamples）
   const accMed = median(accs);
   // 精確位置被關：誤差不只大，而且「平坦」——真實的遮蔽會忽好忽壞，關掉精確位置是恆定的粗略值
   if (accMed > Q.accMedianPreciseOffM) {
@@ -8209,11 +8236,11 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     const ctx = { line, events, now, uploadedAt };
     const ig = integrityGate(trip, ctx, rules);
     // 防偽閘第三重丟掉的孤立壞點不再參與任何計算（等於那幾點沒送，理由見 integrityGate）：品質閘、覆蓋率都用收下的點，
-    // 只有品質閘的斷訊檢查吃原始的點（第四個參數，理由見 qualityGate）。
+    // 只有品質閘的斷訊檢查吃原始的點（第四個參數，理由見 qualityGate）。方向也用防偽閘回的（收下的點整體往後退時會換方向，見 integrityGate 的淨位移）。
     // 籌碼的整班長度照舊用原始的點（assembleTrip 已認過午夜）：前次線組的長度是從存下的原始 payload 在 SQL 裡算的（下面 priorRs 的
     // t0／t1／u0／u1），兩邊要同一個基準。長度也不是防偽的界線——t 沒有外部錨點（可以整段拉長，計畫 §12 的殘留），改用收下的點擋不住什麼，
     // 只會讓每趟少掉開頭不收的 2 點（剛好 600 秒的趟變 598 秒、拿不到籌碼）。
-    const kept = ig.pts ? { ...trip, pts: ig.pts } : trip;
+    const kept = ig.pts ? { ...trip, pts: ig.pts, dir: ig.dir } : trip;
     const v = verdictOf(ig, qualityGate(kept, ctx, rules, trip.pts));
     const cov = (v.verdict === 'suspect' || !line) ? [] : coverageOf(kept, line, rules, M.peakHoursBySys)
       .filter(c => c.cov >= rules.quality.segCoverageMin);
