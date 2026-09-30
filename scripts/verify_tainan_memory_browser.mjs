@@ -29,6 +29,9 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   // 施工外罩預設蓋上，按鈕可拿掉再蓋回（使用者 2026-09-29 選「完整站房＋外罩可切換」）。
   const wrapState=()=>page.evaluate(()=>[tainanMemory.wrap?.visible,document.getElementById('wrap').textContent]);
   assert.deepEqual(await wrapState(),[true,'拿掉外罩']);await click('#wrap');assert.deepEqual(await wrapState(),[false,'蓋回外罩']);await click('#wrap');assert.deepEqual(await wrapState(),[true,'拿掉外罩']);
+  // 周邊建物改成低細節網格（使用者 2026-09-30「附近的建築物應該也要同樣建模 不需要太精細 但是不要是灰色方塊」）：網格在場景裡，群組、材質、頂點數與 model.json 一致，
+  // 香格里拉飯店塔身（封存輪廓漏收、另依 OSM 部件補上的 255990928）也在。
+  assert.deepEqual(await page.evaluate(()=>{const s=tainanMemory.surroundings,n=s?.meta?.lods?.near;return [!!s?.mesh?.parent,n?.drawGroups?.length>0&&s.mesh.geometry.groups.length===n.drawGroups.length,Array.isArray(s?.mesh?.material)&&s.mesh.material.length===n?.drawGroups?.length,s?.mesh?.geometry?.attributes?.position?.count===n?.vertexCount,!!s?.meta?.buildings?.some(b=>b.id===255990928&&b.minHeightM===24)];}),[true,true,true,true,true],'周邊建物網格沒有完整載入');
   // 放大極限 34 公尺（使用者 2026-09-29「放大極限就用 34 公尺」）：從舊站近景連按放大，視野高度停在 34 m、不會更近。
   for(let i=0;i<8;i++)await click('#zoomin');assert.equal(await page.evaluate(()=>Math.round((tainanMemory.camera.top-tainanMemory.camera.bottom)*1000)/1000),34);await click('#station');
   // EMU3000 集電弓車的位置與朝向（維基編組表：1 號車在屏東／高雄端，集電弓在第 3、7 節靠 1 號車端、第 10 節靠 12 號車端；

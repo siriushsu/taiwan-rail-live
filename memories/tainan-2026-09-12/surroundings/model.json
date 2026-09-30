@@ -1,0 +1,2639 @@
+{
+  "id": "tainan-surroundings",
+  "name": "臺南舊站周邊建物",
+  "kind": "tainan-surroundings",
+  "version": 1,
+  "snapshotDate": "2026-09-12",
+  "scope": "重播頁周邊的 OSM 封存建物輪廓（94 棟，不含舊站房本體、施工中、雨棚、跨站橋），加上封存輪廓漏掉的香格里拉飯店塔身（3 筆 OSM 部件），改成低細節模型：依類型分色的外牆、每層一條深色窗帶、朝街一樓的騎樓／店面帶與招牌、平屋頂的女兒牆與水塔／鐵皮加蓋、斜屋頂。只用顏色、不貼圖；外觀依 OSM 建物類型與 id 決定，每次打開都一樣。這是「像台灣市區房子」的示意，不是現場測繪：外牆色、窗、騎樓、招牌、水塔與鐵皮加蓋都不是逐棟調查的結果。",
+  "application": "tainan-memory-v1/surroundings.py（純 Python 3＋numpy＋shapely，不用 Blender）",
+  "axes": {
+    "up": "+Z",
+    "units": "meters",
+    "plan": "x=(lon−origin_lon)·111320·cos(origin_lat)、y=(lat−origin_lat)·111320（與 replay.js world() 相同）",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ]
+  },
+  "origin": [
+    120.21295,
+    22.99681
+  ],
+  "placement": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotationDeg": 0,
+    "wallBaseZ": 0.03
+  },
+  "bounds": {
+    "min": [
+      -357.2004699707031,
+      -242.11312866210938,
+      0.029999999329447746
+    ],
+    "max": [
+      245.7917938232422,
+      301.08721923828125,
+      152.92999267578125
+    ]
+  },
+  "lods": {
+    "near": {
+      "file": "near.mesh.bin",
+      "sha256": "622ee24e53ce274b18c98e1a3b9d6b0c5eb9811c5665e64908881b5903569ba3",
+      "strideBytes": 24,
+      "vertexCount": 55944,
+      "triangleCount": 18648,
+      "byteLength": 1342656,
+      "gzipBytes": 194348,
+      "bounds": {
+        "min": [
+          -357.2004699707031,
+          -242.11312866210938,
+          0.029999999329447746
+        ],
+        "max": [
+          245.7917938232422,
+          301.08721923828125,
+          152.92999267578125
+        ]
+      },
+      "drawGroups": [
+        {
+          "name": "wall_cream",
+          "label": "米白外牆（含白色飾帶、白招牌）",
+          "start": 0,
+          "count": 2100,
+          "color": [
+            0.8148465722161012,
+            0.7379104087727308,
+            0.5457244613701866
+          ],
+          "roughness": 0.92,
+          "metalness": 0.0
+        },
+        {
+          "name": "wall_gray",
+          "label": "淺灰磁磚外牆（含交通、倉庫、看台；也當部分屋面）",
+          "start": 2100,
+          "count": 5103,
+          "color": [
+            0.4851499400560704,
+            0.5028864580325687,
+            0.4793201831008268
+          ],
+          "roughness": 0.92,
+          "metalness": 0.0
+        },
+        {
+          "name": "wall_pink",
+          "label": "淡粉外牆",
+          "start": 7203,
+          "count": 558,
+          "color": [
+            0.7454042095403874,
+            0.45641102318040466,
+            0.39157247774972326
+          ],
+          "roughness": 0.92,
+          "metalness": 0.0
+        },
+        {
+          "name": "wall_tan",
+          "label": "淺褐外牆",
+          "start": 7761,
+          "count": 840,
+          "color": [
+            0.5457244613701866,
+            0.35153259950043936,
+            0.1946178304415758
+          ],
+          "roughness": 0.92,
+          "metalness": 0.0
+        },
+        {
+          "name": "wall_sage",
+          "label": "淡綠灰外牆（也當部分綠色防水漆屋面）",
+          "start": 8601,
+          "count": 1341,
+          "color": [
+            0.386429433787049,
+            0.5088813208549338,
+            0.3662525955988395
+          ],
+          "roughness": 0.92,
+          "metalness": 0.0
+        },
+        {
+          "name": "wall_office",
+          "label": "灰藍外牆（辦公）",
+          "start": 9942,
+          "count": 486,
+          "color": [
+            0.2704977910130658,
+            0.3762621229909065,
+            0.4793201831008268
+          ],
+          "roughness": 0.9,
+          "metalness": 0.0
+        },
+        {
+          "name": "wall_yellow",
+          "label": "米黃外牆（公家、學校、宿舍）",
+          "start": 10428,
+          "count": 480,
+          "color": [
+            0.7912979403326302,
+            0.5906188409193369,
+            0.2232279573168085
+          ],
+          "roughness": 0.92,
+          "metalness": 0.0
+        },
+        {
+          "name": "wall_brick",
+          "label": "紅磚外牆（公家、學校、宿舍；也當斜屋頂瓦色）",
+          "start": 10908,
+          "count": 102,
+          "color": [
+            0.3613067797835095,
+            0.07618538148130785,
+            0.03954623527673284
+          ],
+          "roughness": 0.95,
+          "metalness": 0.0
+        },
+        {
+          "name": "glass",
+          "label": "窗帶（深色玻璃）",
+          "start": 11010,
+          "count": 30732,
+          "color": [
+            0.04970656598412723,
+            0.11953842798834562,
+            0.16826940018969075
+          ],
+          "roughness": 0.3,
+          "metalness": 0.1
+        },
+        {
+          "name": "shopfront",
+          "label": "朝街一樓騎樓／店面帶（深色）",
+          "start": 41742,
+          "count": 240,
+          "color": [
+            0.042311410620809675,
+            0.03688945040110004,
+            0.03433980680868217
+          ],
+          "roughness": 0.85,
+          "metalness": 0.0
+        },
+        {
+          "name": "roof",
+          "label": "平屋頂與女兒牆（淺水泥色）",
+          "start": 41982,
+          "count": 5130,
+          "color": [
+            0.5840784178911641,
+            0.6038273388553378,
+            0.5906188409193369
+          ],
+          "roughness": 0.95,
+          "metalness": 0.0
+        },
+        {
+          "name": "roof_alt",
+          "label": "平屋頂與女兒牆（偏暖的淺水泥色）",
+          "start": 47112,
+          "count": 3360,
+          "color": [
+            0.6938717612919899,
+            0.6514056374198242,
+            0.5394794890121072
+          ],
+          "roughness": 0.95,
+          "metalness": 0.0
+        },
+        {
+          "name": "tank",
+          "label": "水塔與灰色鐵皮加蓋",
+          "start": 50472,
+          "count": 4296,
+          "color": [
+            0.2581828529215958,
+            0.2874408377269175,
+            0.30946892281750854
+          ],
+          "roughness": 0.45,
+          "metalness": 0.1
+        },
+        {
+          "name": "blue_metal",
+          "label": "藍色鐵皮（招牌與屋頂加蓋）",
+          "start": 54768,
+          "count": 726,
+          "color": [
+            0.07227185068231748,
+            0.25015828472995344,
+            0.5394794890121072
+          ],
+          "roughness": 0.7,
+          "metalness": 0.1
+        },
+        {
+          "name": "sign_red",
+          "label": "紅色招牌",
+          "start": 55494,
+          "count": 180,
+          "color": [
+            0.5775804404296506,
+            0.03954623527673284,
+            0.026241221894849898
+          ],
+          "roughness": 0.8,
+          "metalness": 0.0
+        },
+        {
+          "name": "sign_yellow",
+          "label": "黃色招牌",
+          "start": 55674,
+          "count": 270,
+          "color": [
+            0.7912979403326302,
+            0.4620769996544071,
+            0.024157632448504756
+          ],
+          "roughness": 0.8,
+          "metalness": 0.0
+        }
+      ]
+    }
+  },
+  "budget": {
+    "maxTriangles": 60000,
+    "maxGzipBytes": 350000,
+    "maxDrawGroups": 16
+  },
+  "heightRule": {
+    "formula": "3.6 + (層數 − 1) × 3.2",
+    "heightTagMaxM": 200.0,
+    "minHeight": "有 min_height 的部件（塔身、塔頂）牆腳從該高度起算，樓層數只算牆腳到牆頂這一段",
+    "defaultFloors": {
+      "yes": 3,
+      "residential": 4,
+      "house": 4,
+      "apartments": 4,
+      "dormitory": 5,
+      "retail": 3,
+      "commercial": 3,
+      "office": 6,
+      "government": 4,
+      "university": 4,
+      "school": 4,
+      "transportation": 2,
+      "other": 3,
+      "warehouse": "1 層、6 m",
+      "grandstand": "1 層、8 m"
+    }
+  },
+  "buildings": [
+    {
+      "id": 160312859,
+      "type": "office",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "levels"
+    },
+    {
+      "id": 160312861,
+      "type": "retail",
+      "floors": 13,
+      "heightM": 42.0,
+      "heightSource": "levels"
+    },
+    {
+      "id": 160314786,
+      "type": "office",
+      "floors": 10,
+      "heightM": 32.4,
+      "heightSource": "levels"
+    },
+    {
+      "id": 160314787,
+      "type": "yes",
+      "floors": 7,
+      "heightM": 22.8,
+      "heightSource": "levels"
+    },
+    {
+      "id": 160314789,
+      "type": "commercial",
+      "floors": 14,
+      "heightM": 45.2,
+      "heightSource": "levels"
+    },
+    {
+      "id": 203984821,
+      "type": "retail",
+      "floors": 13,
+      "heightM": 42.0,
+      "heightSource": "levels"
+    },
+    {
+      "id": 203984825,
+      "type": "yes",
+      "floors": 6,
+      "heightM": 19.6,
+      "heightSource": "levels"
+    },
+    {
+      "id": 203984828,
+      "type": "government",
+      "floors": 17,
+      "heightM": 54.8,
+      "heightSource": "levels"
+    },
+    {
+      "id": 203984831,
+      "type": "commercial",
+      "floors": 10,
+      "heightM": 32.4,
+      "heightSource": "levels"
+    },
+    {
+      "id": 203984833,
+      "type": "office",
+      "floors": 6,
+      "heightM": 19.6,
+      "heightSource": "levels"
+    },
+    {
+      "id": 203986618,
+      "type": "office",
+      "floors": 6,
+      "heightM": 19.6,
+      "heightSource": "default"
+    },
+    {
+      "id": 204078750,
+      "type": "office",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "levels"
+    },
+    {
+      "id": 204078756,
+      "type": "government",
+      "floors": 17,
+      "heightM": 54.8,
+      "heightSource": "levels"
+    },
+    {
+      "id": 204082375,
+      "type": "commercial",
+      "floors": 10,
+      "heightM": 32.4,
+      "heightSource": "levels"
+    },
+    {
+      "id": 204493488,
+      "type": "transportation",
+      "floors": 2,
+      "heightM": 6.8,
+      "heightSource": "default"
+    },
+    {
+      "id": 204493489,
+      "type": "transportation",
+      "floors": 2,
+      "heightM": 6.8,
+      "heightSource": "default"
+    },
+    {
+      "id": 204493490,
+      "type": "yes",
+      "floors": 1,
+      "heightM": 3.6,
+      "heightSource": "levels"
+    },
+    {
+      "id": 251595731,
+      "type": "dormitory",
+      "floors": 10,
+      "heightM": 32.4,
+      "heightSource": "levels"
+    },
+    {
+      "id": 255176311,
+      "type": "university",
+      "floors": 2,
+      "heightM": 6.8,
+      "heightSource": "levels"
+    },
+    {
+      "id": 255990927,
+      "type": "retail",
+      "floors": 7,
+      "heightM": 24.0,
+      "heightSource": "height"
+    },
+    {
+      "id": 273403245,
+      "type": "retail",
+      "floors": 1,
+      "heightM": 3.6,
+      "heightSource": "levels"
+    },
+    {
+      "id": 273403246,
+      "type": "commercial",
+      "floors": 6,
+      "heightM": 19.6,
+      "heightSource": "levels"
+    },
+    {
+      "id": 276533295,
+      "type": "office",
+      "floors": 6,
+      "heightM": 19.6,
+      "heightSource": "default"
+    },
+    {
+      "id": 279054089,
+      "type": "yes",
+      "floors": 5,
+      "heightM": 16.4,
+      "heightSource": "levels"
+    },
+    {
+      "id": 279054090,
+      "type": "yes",
+      "floors": 7,
+      "heightM": 22.8,
+      "heightSource": "levels"
+    },
+    {
+      "id": 296604304,
+      "type": "grandstand",
+      "floors": 1,
+      "heightM": 8.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 301210888,
+      "type": "apartments",
+      "floors": 5,
+      "heightM": 16.4,
+      "heightSource": "levels"
+    },
+    {
+      "id": 301210889,
+      "type": "warehouse",
+      "floors": 1,
+      "heightM": 3.6,
+      "heightSource": "levels"
+    },
+    {
+      "id": 359257694,
+      "type": "apartments",
+      "floors": 5,
+      "heightM": 16.4,
+      "heightSource": "levels"
+    },
+    {
+      "id": 359257701,
+      "type": "yes",
+      "floors": 2,
+      "heightM": 6.8,
+      "heightSource": "levels"
+    },
+    {
+      "id": 496168680,
+      "type": "apartments",
+      "floors": 7,
+      "heightM": 22.8,
+      "heightSource": "levels"
+    },
+    {
+      "id": 499082686,
+      "type": "retail",
+      "floors": 4,
+      "heightM": 152.0,
+      "heightSource": "height",
+      "minHeightM": 140.0
+    },
+    {
+      "id": 556031047,
+      "type": "residential",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 556031049,
+      "type": "residential",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 556031054,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 556031056,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 556031058,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 556031060,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 556031061,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716366,
+      "type": "commercial",
+      "floors": 8,
+      "heightM": 26.0,
+      "heightSource": "levels"
+    },
+    {
+      "id": 571716367,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716369,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716370,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716371,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716372,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716373,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716374,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716375,
+      "type": "retail",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716376,
+      "type": "residential",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716377,
+      "type": "retail",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716381,
+      "type": "retail",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716385,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716386,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716387,
+      "type": "retail",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716389,
+      "type": "retail",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716390,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716395,
+      "type": "retail",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 571716396,
+      "type": "residential",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 572138477,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 572138478,
+      "type": "residential",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 572138479,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 572138480,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 572138486,
+      "type": "retail",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 572138498,
+      "type": "retail",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 572138499,
+      "type": "retail",
+      "floors": 2,
+      "heightM": 6.8,
+      "heightSource": "levels"
+    },
+    {
+      "id": 572138500,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 572138501,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 572138502,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 572138503,
+      "type": "residential",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 572138504,
+      "type": "residential",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 572138505,
+      "type": "residential",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 572138506,
+      "type": "residential",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 572144113,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 572144114,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 572229838,
+      "type": "retail",
+      "floors": 2,
+      "heightM": 6.8,
+      "heightSource": "levels"
+    },
+    {
+      "id": 572229856,
+      "type": "residential",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 572229857,
+      "type": "residential",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 572229858,
+      "type": "residential",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 572229875,
+      "type": "retail",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 572229876,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 572229880,
+      "type": "residential",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 572229881,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 572229895,
+      "type": "residential",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 572229897,
+      "type": "residential",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 572229914,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 587397134,
+      "type": "apartments",
+      "floors": 8,
+      "heightM": 26.0,
+      "heightSource": "levels"
+    },
+    {
+      "id": 902369483,
+      "type": "government",
+      "floors": 4,
+      "heightM": 13.2,
+      "heightSource": "default"
+    },
+    {
+      "id": 1014432475,
+      "type": "retail",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 1014432476,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 1106741079,
+      "type": "retail",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 1170873284,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 1170873310,
+      "type": "retail",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 1178791655,
+      "type": "yes",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 1381329319,
+      "type": "train_station",
+      "floors": 3,
+      "heightM": 10.0,
+      "heightSource": "default"
+    },
+    {
+      "id": 255990928,
+      "type": "part",
+      "floors": 36,
+      "heightM": 140.0,
+      "heightSource": "height",
+      "minHeightM": 24.0
+    },
+    {
+      "id": 499151602,
+      "type": "part",
+      "floors": 44,
+      "heightM": 140.0,
+      "heightSource": "height"
+    },
+    {
+      "id": 499082689,
+      "type": "part",
+      "floors": 2,
+      "heightM": 146.8,
+      "heightSource": "levels",
+      "minHeightM": 140.0
+    }
+  ],
+  "excluded": [
+    {
+      "id": 563392540,
+      "type": "roof",
+      "reason": "roof"
+    },
+    {
+      "id": 563392543,
+      "type": "roof",
+      "reason": "roof"
+    },
+    {
+      "id": 572138487,
+      "type": "roof",
+      "reason": "roof"
+    },
+    {
+      "id": 575042589,
+      "type": "bridge",
+      "reason": "bridge"
+    }
+  ],
+  "roofItems": [
+    {
+      "building": 160314787,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -210.75,
+        33.998
+      ],
+      "sizeM": 1.2,
+      "baseZ": 22.83
+    },
+    {
+      "building": 203984825,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -240.225,
+        113.906
+      ],
+      "sizeM": 1.2,
+      "baseZ": 19.63
+    },
+    {
+      "building": 203984825,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -260.92,
+        105.149
+      ],
+      "sizeM": 1.2,
+      "baseZ": 19.63
+    },
+    {
+      "building": 279054089,
+      "kind": "shed",
+      "material": "blue_metal",
+      "center": [
+        -125.318,
+        -135.445
+      ],
+      "footprint": [
+        [
+          -126.628,
+          -133.316
+        ],
+        [
+          -126.996,
+          -137.299
+        ],
+        [
+          -124.008,
+          -137.575
+        ],
+        [
+          -123.641,
+          -133.592
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 16.43
+    },
+    {
+      "building": 279054089,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -123.633,
+        -128.069
+      ],
+      "sizeM": 1.2,
+      "baseZ": 16.43
+    },
+    {
+      "building": 279054089,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -132.419,
+        -130.773
+      ],
+      "sizeM": 1.2,
+      "baseZ": 16.43
+    },
+    {
+      "building": 279054090,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -114.433,
+        -80.949
+      ],
+      "sizeM": 1.2,
+      "baseZ": 22.83
+    },
+    {
+      "building": 279054090,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -118.401,
+        -76.856
+      ],
+      "sizeM": 1.2,
+      "baseZ": 22.83
+    },
+    {
+      "building": 301210888,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -82.226,
+        111.721
+      ],
+      "sizeM": 1.2,
+      "baseZ": 16.43
+    },
+    {
+      "building": 301210888,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -86.327,
+        108.95
+      ],
+      "sizeM": 1.2,
+      "baseZ": 16.43
+    },
+    {
+      "building": 359257694,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -31.879,
+        171.499
+      ],
+      "sizeM": 1.2,
+      "baseZ": 16.43
+    },
+    {
+      "building": 359257694,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -17.576,
+        200.437
+      ],
+      "sizeM": 1.2,
+      "baseZ": 16.43
+    },
+    {
+      "building": 496168680,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -225.945,
+        202.59
+      ],
+      "sizeM": 1.2,
+      "baseZ": 22.83
+    },
+    {
+      "building": 496168680,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -217.809,
+        202.372
+      ],
+      "sizeM": 1.2,
+      "baseZ": 22.83
+    },
+    {
+      "building": 556031047,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -237.046,
+        240.546
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 556031049,
+      "kind": "shed",
+      "material": "blue_metal",
+      "center": [
+        -223.367,
+        235.141
+      ],
+      "footprint": [
+        [
+          -222.451,
+          232.814
+        ],
+        [
+          -221.39,
+          236.671
+        ],
+        [
+          -224.283,
+          237.467
+        ],
+        [
+          -225.343,
+          233.61
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 13.23
+    },
+    {
+      "building": 556031049,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -226.621,
+        230.85
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 556031049,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -226.091,
+        232.778
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 556031054,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -285.193,
+        5.541
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 556031056,
+      "kind": "shed",
+      "material": "blue_metal",
+      "center": [
+        -277.453,
+        6.101
+      ],
+      "footprint": [
+        [
+          -276.356,
+          3.854
+        ],
+        [
+          -275.604,
+          7.783
+        ],
+        [
+          -278.55,
+          8.348
+        ],
+        [
+          -279.303,
+          4.419
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 10.03
+    },
+    {
+      "building": 556031056,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -276.909,
+        11.597
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 556031056,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -278.759,
+        9.915
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 556031058,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -270.043,
+        3.195
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 556031060,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -265.485,
+        3.551
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 556031061,
+      "kind": "shed",
+      "material": "blue_metal",
+      "center": [
+        -254.475,
+        5.406
+      ],
+      "footprint": [
+        [
+          -253.379,
+          3.159
+        ],
+        [
+          -252.625,
+          7.087
+        ],
+        [
+          -255.572,
+          7.652
+        ],
+        [
+          -256.325,
+          3.724
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 10.03
+    },
+    {
+      "building": 556031061,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -253.755,
+        1.195
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 556031061,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -256.554,
+        7.841
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716367,
+      "kind": "shed",
+      "material": "tank",
+      "center": [
+        -267.345,
+        -202.051
+      ],
+      "footprint": [
+        [
+          -266.786,
+          -204.488
+        ],
+        [
+          -265.162,
+          -200.832
+        ],
+        [
+          -267.903,
+          -199.614
+        ],
+        [
+          -269.527,
+          -203.27
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716367,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -269.476,
+        -209.311
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716369,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -240.146,
+        -166.837
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716369,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -237.206,
+        -182.636
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716370,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -229.628,
+        -205.075
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716371,
+      "kind": "shed",
+      "material": "blue_metal",
+      "center": [
+        -188.538,
+        -203.335
+      ],
+      "footprint": [
+        [
+          -186.897,
+          -205.222
+        ],
+        [
+          -187.187,
+          -201.232
+        ],
+        [
+          -190.179,
+          -201.449
+        ],
+        [
+          -189.889,
+          -205.439
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716371,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -192.556,
+        -210.144
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716372,
+      "kind": "shed",
+      "material": "tank",
+      "center": [
+        -186.745,
+        -178.3
+      ],
+      "footprint": [
+        [
+          -188.945,
+          -179.487
+        ],
+        [
+          -184.989,
+          -180.079
+        ],
+        [
+          -184.545,
+          -177.112
+        ],
+        [
+          -188.501,
+          -176.52
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716372,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -167.183,
+        -192.854
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716372,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -184.961,
+        -186.656
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716373,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -148.546,
+        -114.763
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716373,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -154.97,
+        -134.788
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716374,
+      "kind": "shed",
+      "material": "blue_metal",
+      "center": [
+        -135.613,
+        -87.588
+      ],
+      "footprint": [
+        [
+          -134.2,
+          -89.651
+        ],
+        [
+          -134.029,
+          -85.654
+        ],
+        [
+          -137.026,
+          -85.526
+        ],
+        [
+          -137.197,
+          -89.522
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716374,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -138.354,
+        -81.465
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716376,
+      "kind": "shed",
+      "material": "blue_metal",
+      "center": [
+        -159.445,
+        -149.346
+      ],
+      "footprint": [
+        [
+          -157.346,
+          -147.987
+        ],
+        [
+          -161.337,
+          -147.712
+        ],
+        [
+          -161.543,
+          -150.705
+        ],
+        [
+          -157.553,
+          -150.98
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 13.23
+    },
+    {
+      "building": 571716376,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -168.354,
+        -147.729
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 571716385,
+      "kind": "shed",
+      "material": "blue_metal",
+      "center": [
+        -57.584,
+        -197.403
+      ],
+      "footprint": [
+        [
+          -58.72,
+          -195.176
+        ],
+        [
+          -59.404,
+          -199.117
+        ],
+        [
+          -56.449,
+          -199.63
+        ],
+        [
+          -55.765,
+          -195.689
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716385,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -63.968,
+        -193.25
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716385,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -60.825,
+        -178.064
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716386,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -61.547,
+        -119.727
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716390,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -63.294,
+        -62.488
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 571716396,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -152.435,
+        -74.38
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 571716396,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -152.629,
+        -71.344
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572138477,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -185.471,
+        14.307
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572138478,
+      "kind": "shed",
+      "material": "tank",
+      "center": [
+        -264.504,
+        -14.628
+      ],
+      "footprint": [
+        [
+          -262.283,
+          -13.48
+        ],
+        [
+          -266.228,
+          -12.817
+        ],
+        [
+          -266.725,
+          -15.776
+        ],
+        [
+          -262.78,
+          -16.439
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572138478,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -277.068,
+        -4.913
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572138479,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -220.922,
+        -11.903
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572138479,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -224.36,
+        -13.099
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572138480,
+      "kind": "shed",
+      "material": "tank",
+      "center": [
+        -271.884,
+        -36.16
+      ],
+      "footprint": [
+        [
+          -269.512,
+          -36.949
+        ],
+        [
+          -271.79,
+          -33.662
+        ],
+        [
+          -274.256,
+          -35.371
+        ],
+        [
+          -271.978,
+          -38.658
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572138480,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -277.007,
+        -36.669
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572138480,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -268.438,
+        -34.988
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572138500,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -125.385,
+        142.936
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572138500,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -122.869,
+        135.942
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572138501,
+      "kind": "shed",
+      "material": "tank",
+      "center": [
+        -132.929,
+        170.577
+      ],
+      "footprint": [
+        [
+          -131.075,
+          172.254
+        ],
+        [
+          -135.058,
+          171.886
+        ],
+        [
+          -134.782,
+          168.899
+        ],
+        [
+          -130.799,
+          169.267
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572138501,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -137.678,
+        167.627
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572138501,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -136.414,
+        170.255
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572138502,
+      "kind": "shed",
+      "material": "blue_metal",
+      "center": [
+        -115.926,
+        152.075
+      ],
+      "footprint": [
+        [
+          -117.698,
+          153.838
+        ],
+        [
+          -117.121,
+          149.879
+        ],
+        [
+          -114.153,
+          150.312
+        ],
+        [
+          -114.73,
+          154.27
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572138502,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -115.421,
+        148.612
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572138503,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -106.173,
+        167.997
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572138503,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -102.186,
+        166.382
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572138504,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -145.354,
+        209.333
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572138504,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -143.027,
+        207.577
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572138505,
+      "kind": "shed",
+      "material": "blue_metal",
+      "center": [
+        -103.432,
+        188.765
+      ],
+      "footprint": [
+        [
+          -101.072,
+          189.591
+        ],
+        [
+          -104.885,
+          190.798
+        ],
+        [
+          -105.791,
+          187.938
+        ],
+        [
+          -101.978,
+          186.731
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572138505,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -96.925,
+        197.718
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572138505,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -97.108,
+        188.859
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572138506,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -135.617,
+        182.512
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572138506,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -140.178,
+        181.844
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572144113,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -13.683,
+        169.529
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572229856,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -140.639,
+        254.655
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572229857,
+      "kind": "shed",
+      "material": "tank",
+      "center": [
+        -134.979,
+        235.715
+      ],
+      "footprint": [
+        [
+          -132.806,
+          236.949
+        ],
+        [
+          -136.773,
+          237.456
+        ],
+        [
+          -137.153,
+          234.48
+        ],
+        [
+          -133.185,
+          233.974
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572229857,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -144.709,
+        238.469
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572229858,
+      "kind": "shed",
+      "material": "blue_metal",
+      "center": [
+        -110.835,
+        270.758
+      ],
+      "footprint": [
+        [
+          -112.024,
+          272.957
+        ],
+        [
+          -112.613,
+          269.0
+        ],
+        [
+          -109.645,
+          268.559
+        ],
+        [
+          -109.057,
+          272.515
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572229858,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -102.495,
+        221.494
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572229876,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -171.141,
+        247.484
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572229876,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -172.389,
+        242.104
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572229880,
+      "kind": "shed",
+      "material": "blue_metal",
+      "center": [
+        -206.158,
+        256.219
+      ],
+      "footprint": [
+        [
+          -208.492,
+          255.321
+        ],
+        [
+          -204.643,
+          254.231
+        ],
+        [
+          -203.825,
+          257.117
+        ],
+        [
+          -207.674,
+          258.208
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572229880,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -213.775,
+        253.181
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572229880,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -200.458,
+        256.163
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572229881,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -182.376,
+        252.205
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572229895,
+      "kind": "shed",
+      "material": "tank",
+      "center": [
+        -293.34,
+        252.952
+      ],
+      "footprint": [
+        [
+          -294.107,
+          255.332
+        ],
+        [
+          -295.409,
+          251.55
+        ],
+        [
+          -292.573,
+          250.573
+        ],
+        [
+          -291.27,
+          254.354
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572229895,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -283.48,
+        258.546
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572229895,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -286.201,
+        255.252
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572229897,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -295.899,
+        232.247
+      ],
+      "sizeM": 1.2,
+      "baseZ": 13.23
+    },
+    {
+      "building": 572229914,
+      "kind": "shed",
+      "material": "blue_metal",
+      "center": [
+        -291.445,
+        216.403
+      ],
+      "footprint": [
+        [
+          -293.856,
+          215.745
+        ],
+        [
+          -290.137,
+          214.272
+        ],
+        [
+          -289.033,
+          217.061
+        ],
+        [
+          -292.752,
+          218.534
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572229914,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -279.542,
+        211.152
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 572229914,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -298.418,
+        219.164
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 587397134,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        216.21,
+        -107.136
+      ],
+      "sizeM": 1.2,
+      "baseZ": 26.03
+    },
+    {
+      "building": 1014432476,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -119.561,
+        -71.545
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 1170873284,
+      "kind": "shed",
+      "material": "tank",
+      "center": [
+        -325.219,
+        38.285
+      ],
+      "footprint": [
+        [
+          -322.974,
+          39.385
+        ],
+        [
+          -326.904,
+          40.132
+        ],
+        [
+          -327.464,
+          37.184
+        ],
+        [
+          -323.534,
+          36.438
+        ]
+      ],
+      "wallM": 2.4,
+      "ridgeM": 0.6,
+      "baseZ": 10.03
+    },
+    {
+      "building": 1170873284,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -331.462,
+        34.89
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 1170873284,
+      "kind": "tank",
+      "shape": "octagon",
+      "material": "tank",
+      "center": [
+        -308.562,
+        29.522
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    },
+    {
+      "building": 1178791655,
+      "kind": "tank",
+      "shape": "box",
+      "material": "tank",
+      "center": [
+        -74.589,
+        -51.051
+      ],
+      "sizeM": 1.2,
+      "baseZ": 10.03
+    }
+  ],
+  "stats": {
+    "buildings": 97,
+    "sloped": 2,
+    "shopfronts": 40,
+    "windows": 5122,
+    "signs": 28,
+    "sheds": 21,
+    "tanks": 78,
+    "repaired": 0,
+    "byType": {
+      "apartments": 4,
+      "commercial": 5,
+      "dormitory": 1,
+      "government": 3,
+      "grandstand": 1,
+      "office": 6,
+      "part": 3,
+      "residential": 15,
+      "retail": 19,
+      "train_station": 1,
+      "transportation": 2,
+      "university": 1,
+      "warehouse": 1,
+      "yes": 35
+    },
+    "byHeightSource": {
+      "height": 4,
+      "levels": 30,
+      "default": 63
+    },
+    "skippedDegenerateTriangles": 0
+  },
+  "selfCheck": {
+    "minTriangleAreaM2": 0.06128172541502863,
+    "maxNormalError": 4.032432610046044e-08
+  },
+  "sources": [
+    {
+      "label": "OpenStreetMap 封存輪廓（2026-09-12 快照，memories/tainan-2026-09-12/snapshot.json 的 features）",
+      "url": "https://www.openstreetmap.org/",
+      "file": "snapshot.json",
+      "sha256": "a44fe0f875acaf98e4e548e8393989a5bba894dfe1ee7cf186f368e7e367b4df"
+    },
+    {
+      "label": "OpenStreetMap 部件：香格里拉台南遠東國際大飯店塔身與屋頂機房（封存輪廓範圍外，2026-09-30 逐筆補抓；形狀在 2026-09-12 封存前就沒再改過）",
+      "url": "https://www.openstreetmap.org/way/255990928",
+      "file": "prototypes/tiny-trains/blender/tainan-memory-v1/tower-parts-source.json",
+      "sha256": "bb04beb3c25710b15ad5889a0523625a4646ebba93240cb57326d9edcc915d5e"
+    }
+  ],
+  "estimates": [
+    "沒標樓層或高度的建物，樓高依 OSM 建物類型估計（yes 3 層、住宅／公寓 4 層、宿舍 5 層、零售／商業 3 層、辦公 6 層、公家／學校 4 層、交通 2 層、倉庫 6 m、看台 8 m、其他 3 層），共 63 棟；有 building:levels 的 30 棟用該層數、有 height 標記的 4 棟用該高度。樓高公式「3.6 m ＋ 每多一層 3.2 m」是示意，不是測繪。",
+    "OSM 標記自相矛盾：遠東百貨（id 255990927）同時標了 38 層與 height=24，這裡依規則取 height（24 m）。",
+    "香格里拉台南遠東國際大飯店：封存輪廓只有百貨裙樓（id 255990927，height=24）與塔頂（id 499082686，140～152 m），塔身（id 255990928，24～140 m）等 3 筆 OSM 部件的節點在封存範圍以東而沒收進來，這裡依同一份 OSM 資料補上（每筆的形狀在封存前就沒再改過）。塔頂的單斜屋頂畫成平頂；塔樓外牆色依 OSM 標的顏色取最接近的色組。",
+    "外牆顏色依建物類型分色組、組內用 id 雜湊選色（住宅與一般：米白、淺灰、淡粉、淺褐、淡綠灰；辦公：灰藍；公家／學校／宿舍：米黃或紅磚加白飾帶；交通／倉庫／看台：淺灰），是示意，不是現場色卡；OSM 有標外牆色的（只有塔樓部件）取最接近的色組。",
+    "窗是每層樓一條深色窗帶（不是逐扇窗，也不是真實窗位，共 5122 條）；朝街一樓的深色騎樓／店面帶（40 面）與招牌（28 塊，沒有文字、店名或真實顏色）只依「牆段中點沿外法線 15 m 內有 OSM 道路」判定。",
+    "平屋頂的女兒牆（高 0.9 m、厚 0.2 m）、水塔（78 個，1.2 m 的方塊或八角柱）與鐵皮屋頂加蓋（21 座，2.4 m 牆加 0.6 m 屋脊）只是「台灣屋頂常見物」的示意，位置與有無都不是現場調查；水塔與鐵皮屋只放在住宅類與一般建物（樓層 ≥ 2）的平屋頂上，鐵皮屋整座落在屋頂內縮 1 m 的範圍內。",
+    "斜屋頂（2 棟，OSM 標 roof:shape 為 gabled 或 hipped）：屋脊沿最小外接矩形長軸，坡度 22°（屋脊最高 3.5 m）與紅瓦色都是示意。",
+    "輪廓是封存的 OSM 描邊（航照描邊可能有 1 m 以上的視差偏差），不含 OSM 沒有的建物、地下層、騎樓實際深度與 layer 高低關係；當天施工中的建物、雨棚與跨站橋不在這份網格內。"
+  ],
+  "modelUse": "map-surroundings"
+}
