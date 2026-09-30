@@ -61,6 +61,7 @@
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 
@@ -748,12 +749,14 @@ function pendingGate(src, out, check) {
   const dir = join(out, 'pending-test');
   mkdirSync(dir, { recursive: true });
   const swift = join(dir, 'main.swift');
+  // suite 名字帶 pid：每次 run 專屬，兩個算圖腳本並行也不會互踩彼此的待辦（以前共用同一個名字，並行會假紅）。
+  const suite = `i2.collect.checkin.test.${process.pid}`;
   writeFileSync(swift, `import Foundation
 // 只替身這個檔唯一的外部依賴：App Group 的 suite（真的那個要 entitlement）。
-enum MetroWaitPending { static var suite: UserDefaults? = UserDefaults(suiteName: "i2.collect.checkin.test") }
+enum MetroWaitPending { static var suite: UserDefaults? = UserDefaults(suiteName: "${suite}") }
 @main struct T {
     static func main() {
-        MetroWaitPending.suite?.removePersistentDomain(forName: "i2.collect.checkin.test")
+        MetroWaitPending.suite?.removePersistentDomain(forName: "${suite}")
         let t0 = Date(timeIntervalSince1970: 1_000_000)
         var r: [String: Bool] = [:]
         r["never"] = CollectCheckinPending.take(now: t0)
@@ -762,7 +765,7 @@ enum MetroWaitPending { static var suite: UserDefaults? = UserDefaults(suiteName
         CollectCheckinPending.write(now: t0); r["expired"] = CollectCheckinPending.take(now: t0.addingTimeInterval(121))
         r["afterExpired"] = CollectCheckinPending.take(now: t0.addingTimeInterval(1))
         CollectCheckinPending.write(now: t0); r["clockBack"] = CollectCheckinPending.take(now: t0.addingTimeInterval(-5))
-        MetroWaitPending.suite?.removePersistentDomain(forName: "i2.collect.checkin.test")
+        MetroWaitPending.suite?.removePersistentDomain(forName: "${suite}")
         print(String(data: try! JSONSerialization.data(withJSONObject: r), encoding: .utf8)!)
     }
 }
@@ -770,6 +773,7 @@ enum MetroWaitPending { static var suite: UserDefaults? = UserDefaults(suiteName
   const bin = join(dir, 'pending');
   execFileSync('swiftc', ['-parse-as-library', swift, join(existsSync(join(src, 'CollectCheckinIntent.swift')) ? src : appSrc, 'CollectCheckinIntent.swift'), '-o', bin], { stdio: 'inherit' });
   const r = JSON.parse(execFileSync(bin, { encoding: 'utf8' }));
+  rmSync(join(homedir(), 'Library/Preferences', `${suite}.plist`), { force: true });
   const want = { never: false, fresh: true, again: false, expired: false, afterExpired: false, clockBack: false };
   for (const [k, v] of Object.entries(want)) check('s', 'pending.' + k, r[k] === v, `蓋章待辦 ${k}：實際 ${r[k]}，期望 ${v}`);
 }
