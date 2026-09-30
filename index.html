@@ -15155,11 +15155,13 @@ function closeNearbyStations() {
 }
 // 目前檢視能看到的所有車站:sched(台鐵/高鐵/林鐵)取 schedStations,全台同框再併裝飾層捷運/輕軌站;
 // 單捷運分頁(freq)取 state.lines 的站。以 (系統|站名) 去重(共構站台鐵/捷運各留一筆,開各自看板)。
+// 去重鍵用收集鍵的系統段(collectSysSeg):捷運畫法代碼 freq／deco 各系統共用一個字串,同名但實體不同的站
+// (台北與台中的「市政府」)若只看 freq|站名 會被吃成一筆,排在後面的城市就永遠出不了清單、蓋不到章。
 function nearbyStationCandidates() {
   const out = [], seen = new Set();
   const push = (name, lat, lon, sys, label, i18nSys = sys) => {
     if (lat == null || lon == null || !name) return;
-    const k = sys + '|' + name;
+    const k = collectSysSeg(sys, name, i18nSys) + '|' + name;
     if (seen.has(k)) return; seen.add(k);
     out.push({ st: { name, lat, lon, sys, _i18nSys: i18nSys }, label });
   };
@@ -17392,7 +17394,8 @@ const setupNativePlacesSync = (() => {
 //   docs/superpowers/plans/2026-09-29-車站收集小工具.md 最後一節。
 // 只有原生橋接 window.RAIL_NATIVE_COLLECTION 存在才掛;純網站不 fetch geojson、不掛 listener、零副作用。
 const COLLECT_BOX = [120.15, 22.2, 122.0, 25.27]; // 投影框 lon0, lat0, lon1, lat1,固定值(原生端照這個框畫)
-// 固定順序。geo＝data/track_stations.geojson 的 sys;ck＝收集鍵的系統段(favStationKey 語意:捷運一律 'metro')。
+// 固定順序。geo＝data/track_stations.geojson 的 sys;ck＝收集鍵的系統段(favStationKey 語意:捷運一律 'metro';
+// 同名不同站的例外由 collectSysSeg 依 geo 分開,現只有中捷的「市政府」)。
 // label 是小工具晶片用的簡稱;字典裡的 台鐵／高鐵 是全名(High Speed Rail),晶片塞不下,所以自帶三語。
 const COLLECT_SYS = [
   { k: 'tra', geo: 'tra_sched', ck: 'tra_sched', label: { 'zh-TW': '台鐵', en: 'TRA', ja: '台鉄' } },
@@ -17447,7 +17450,7 @@ function collectionWidgetPayload(geo) {
   for (const f of geo.features) {
     const p = f.properties || {}, i = geoIdx.get(p.sys);
     if (i == null || !f.geometry) continue;
-    const name = collectionListName(COLLECT_SYS[i].ck, p.name, alias), key = COLLECT_SYS[i].ck + '|' + name;
+    const name = collectionListName(COLLECT_SYS[i].ck, p.name, alias), key = collectSysSeg(COLLECT_SYS[i].ck, name, COLLECT_SYS[i].geo) + '|' + name;
     if (per[i].has(key)) continue; // 轉乘站一線一筆,只留第一筆(位置與線色)
     const [lon, lat] = f.geometry.coordinates;
     per[i].set(key, { name, x: q(lon, lon0, lon1), y: q(lat, lat1, lat0), color: p.color, lineId: p.lineId }); // y 由北到南:q(lat, 北緣, 南緣)
@@ -17468,7 +17471,7 @@ function collectionWidgetPayload(geo) {
   for (const e of coll.entries()) {
     if (!e[1].d) continue;
     const i = live.find(x => per[x].has(e[0])); // 系統歸屬:清單裡第一個有這把鍵的系統
-    const def = COLLECT_SYS[i != null ? i : COLLECT_SYS.findIndex(d => d.ck === e[1].sys)] || COLLECT_SYS[0]; // 清單外的站:退到同鍵系統的第一個
+    const def = COLLECT_SYS[i != null ? i : COLLECT_SYS.findIndex(d => d.ck === e[1].sys || d.geo === e[1].sys)] || COLLECT_SYS[0]; // 清單外的站:退到同鍵系統的第一個(分開的鍵,系統段是那個系統自己的代碼)
     if (!recentBySys.has(def.k)) recentBySys.set(def.k, []);
     recentBySys.get(def.k).push({ e, i, def });
   }
@@ -22990,7 +22993,7 @@ function checkinAliasMap() {
   }
   return m;
 }
-// 打卡/收集用的正名站名;鍵一律走 favStationKey(捷運不分 freq/deco 視角,同站只有一枚章)
+// 打卡/收集用的正名站名;鍵見下方 collectSysSeg／checkinKey(捷運不分 freq/deco 視角,同站只有一枚章)
 function checkinName(sys, name, alias) {
   // 已移除的官方別名不再出現在站列，舊跟車／打卡章仍需併回臺北。
   if (sys === 'tra_sched' && /^台北(?:[-－—]?環島)?$/.test(String(name).replace(/臺/g, '台').replace(/\s/g, ''))) {
@@ -23007,7 +23010,22 @@ function checkinName(sys, name, alias) {
   }
   return name;
 }
-function checkinKey(st, alias) { return favStationKey({ sys: st.sys, name: checkinName(st.sys, st.name, alias) }); }
+// 收集鍵 ＝ 系統段|站名。系統段沿用 favStationKey 的語意(捷運畫法 freq／deco 一律 'metro',同一站只有一枚章),
+// 唯一的例外是「站名相同、實體是兩座」的站:台北與台中各有一座「市政府」(相距約 135 公里),合成一枚會讓
+// 收集少算一座、台中的章也無法單獨亮起,所以台中另立 'tmrt' 段。台北維持 metro|市政府——沒有記錄城市的舊資料
+// (含舊版 App 同步進來的)因此一律歸台北,不需要遷移。
+// realSys:畫法代碼背後的真實系統代碼。附近車站清單的站物件帶在 _i18nSys、小工具清單用 geojson 的 sys;
+// 已經是收集鍵系統段的('metro'、'tmrt')不必帶。favStationKey 不動:它同時是收藏車站的鍵。
+const COLLECT_SPLIT = new Set(['tmrt|市政府']);
+function collectSysSeg(sys, name, realSys) {
+  const seg = sys === 'freq' || sys === 'deco' ? 'metro' : sys;
+  const real = seg === 'metro' && realSys ? realSys : seg;
+  return COLLECT_SPLIT.has(real + '|' + name) ? real : seg;
+}
+function checkinKey(st, alias) {
+  const name = checkinName(st.sys, st.name, alias);
+  return collectSysSeg(st.sys, name, st._i18nSys) + '|' + name;
+}
 // ── 單站打卡:判定與寫入(設計書 §3 B 路徑、§5 判定容忍值) ────────────────────
 // 半徑依站等給:特等站站體橫跨數百公尺,招呼站只有一座月台。
 // ⚠這五個數值是保守初值,設計書明列「待真機在地下/高架/平面站各取樣後才准定案」——別當定論。
@@ -24539,6 +24557,8 @@ function setupBountyBrief() {
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) hide(); });
 }
 // 站的收集總表:rides 推導的「跟完」疊上 checkins 的真實打卡,鍵=sys|name(與 schedStations 同一套去重規則)
+// 鍵由每筆紀錄自己的 sys 與站名組成,不重算系統段:寫入時 checkinKey 已把系統段放進 sys(collectSysSeg),
+// 所以沒記錄城市的舊「市政府」(sys 'metro')自然是台北、存 'tmrt' 的是台中,新舊資料共用同一段程式。
 function stationCollection(rides) {
   const m = new Map(), alias = checkinAliasMap();
   const at = (sys0, name0) => {

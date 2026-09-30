@@ -13,7 +13,7 @@
 //
 // 判準對應：
 //   G0  第一道 gate：印出目標路徑＋index.html md5，並確認伺服器吐的就是那份
-//   J   空收集：total＝geojson 獨立重算（09-29 為 538）、n＝0、recent 空、點全灰
+//   J   空收集：total＝geojson 獨立重算（09-29 為 538；09-30 台北與台中的市政府分開算後為 539）、n＝0、recent 空、點全灰
 //   A   開機推送：欄位名稱／型別逐欄符合契約；n＝護照函式；total／各系統 v／n／recent（每系統各取最近 4 筆，
 //       合併後整體再排序）／點陣與獨立重算一致；fixture 有系統超過 4 筆候選、有多個系統各有紀錄（具名前提斷言）
 //   B   完乘寫入（saveRides）→ 3 秒內新一包；follow→s=1
@@ -24,9 +24,13 @@
 //   G   userDataRenderAll（登出／換帳號的落點）→ 3 秒內新一包
 //   H   純網站（沒有 bridge）：零 geojson 請求、不註冊 listener、不留 schedule；對照 App 形態確實請求且多註冊 1 個
 //   I   開機落在捷運群組（state.schedStations 是 []）：total 仍＝清單座數，別名站不會多出來
-//   K   資料一致性：清單去別名後，台鐵站名全都在班表站名裡（別名表沒漏、沒錯）
+//   K   資料一致性：清單去別名後，台鐵站名全都在班表站名裡（別名表沒漏、沒錯）；K4 跨系統同名的捷運站裡只有「市政府」
+//       實體相距很遠（分開算的表剛好涵蓋它），total 因此比舊規則多 1
 //   M   recent 每系統各取 4 筆（第二輪第 2 點）：專屬 fixture＝九個系統各有紀錄、兩個系統候選超過 4 筆、
 //       邊界同日（以 n 決勝）與同日同 n（以收集鍵字典序決勝）；literal 手算對照＋獨立重算
+//   S   台北與台中的「市政府」各算一枚：只蓋台北／只蓋台中／兩座都蓋／只有舊資料（沒記錄城市，歸台北）四種情境，各在
+//       全台同框（裝飾層附近清單＋桌面護照）與捷運分頁（單捷運附近清單＋旅程護照面板）跑；蓋章走真實的附近清單點鈕，
+//       護照 N 讀畫面文字、鍵讀 localStorage 逐字、期望值手算；另含帳號同步的真實合併路徑（不重組鍵）
 //   P   護照深連結（第二輪第 6 點）：waitOpen 收到 {view:'passport'} → #ridePanel（旅程護照）真的在畫面上、看得見、
 //       沒被蓋住；對照 {view:'pass'} 仍開通行證面板（#plusModal）而不是護照；桌面 1280 與手機 375 各跑一次，
 //       含「原生冷啟動時事件在 listener 掛上瞬間就進來」與「別的面板開著／護照已開著」兩種狀態
@@ -99,6 +103,11 @@ const normName = (ck, n) => ck !== 'tra_sched' ? n
   : (/^台北(?:[-－—]?環島)?$/.test(String(n).replace(/臺/g, '台').replace(/\s/g, '')) ? '臺北' : (TRA_ALIAS[n] || n));
 const STATUS_S = { follow: 1, pass: 2, visit: 2 };
 const RANK = { follow: 0, pass: 1, visit: 2 };
+// 收集鍵的系統段：捷運一律 'metro'；唯一例外是「站名相同、實體是兩座」的站——台北與台中各有一座「市政府」，
+// 台中另立自己的系統段（'tmrt|市政府'），台北維持 metro|市政府，沒記錄城市的舊資料也歸台北。
+// 這張表是 gate 自己的一份（key＝geojson 的 sys|清單站名），與頁面的 COLLECT_SPLIT 各自獨立；K4 用 geojson 座標
+// 證明它剛好涵蓋「跨系統同名而且實體相距很遠」的站，不多不少（將來多出第二組同名站，K4 會紅、逼人做決定，不會無聲併掉）。
+const SPLIT_GEO = new Set(['tmrt|市政府']);
 
 // 獨立重算 stationCollection：只吃 localStorage 傾印（rides＋checkins）
 function oracleColl(rides, checkins) {
@@ -128,11 +137,12 @@ const catRow = (sysId, name) => {
 const foreign = v => String(v || '').replace(/_([^_]+)/g, ' ($1)').replace(/\s{2,}/g, ' ');
 const stripParen = s => String(s || '').replace(/（[^（）]*）\s*$/, '').trim();
 
-function expectPayload(coll, lang) {
+function expectPayload(coll, lang, split = SPLIT_GEO) {
   const per = ORDER.map(() => new Map());
   for (const f of GEO.features) {
     const k = K_OF_GEO[f.properties.sys]; if (!k) continue;
-    const i = ORDER.indexOf(k), ck = CK_OF(k), key = ck + '|' + normName(ck, f.properties.name);
+    const i = ORDER.indexOf(k), ck = CK_OF(k), nm = normName(ck, f.properties.name);
+    const key = (split.has(f.properties.sys + '|' + nm) ? f.properties.sys : ck) + '|' + nm;
     if (per[i].has(key)) continue;
     const [lon, lat] = f.geometry.coordinates;
     per[i].set(key, { name: normName(ck, f.properties.name), x: Math.round((lon - 120.15) / (122.0 - 120.15) * 1000), y: Math.round((25.27 - lat) / (25.27 - 22.2) * 1000), color: f.properties.color, lineId: f.properties.lineId });
@@ -146,7 +156,7 @@ function expectPayload(coll, lang) {
   const cmp = (a, b) => (a.e[1].d < b.e[1].d ? 1 : a.e[1].d > b.e[1].d ? -1 : 0) || b.e[1].n - a.e[1].n || (a.e[0] < b.e[0] ? -1 : a.e[0] > b.e[0] ? 1 : 0);
   const cand = [...coll.entries()].filter(([, v]) => v.d).map(e => {
     const i = per.findIndex(m => m.has(e[0]));
-    return { e, i, k: i >= 0 ? ORDER[i] : ORDER.find(o => CK_OF(o) === e[1].sys) || 'tra' };
+    return { e, i, k: i >= 0 ? ORDER[i] : ORDER.find(o => CK_OF(o) === e[1].sys || GEO_OF[o] === e[1].sys) || 'tra' };
   });
   const recentCand = {};
   for (const k of ORDER) { const c = cand.filter(x => x.k === k).length; if (c) recentCand[k] = c; }
@@ -161,7 +171,7 @@ function expectPayload(coll, lang) {
     const row = hit ? catRow(geoSys, v.name) : null;
     return { name: lang === 'zh-TW' || !row || !row[lang] ? v.name : foreign(row[lang]), line, k, d: v.d };
   });
-  return { n: coll.size, total: all.size, sys, pts, recent, recentCand, listSizes: Object.fromEntries(ORDER.map((k, i) => [k, per[i].size])) };
+  return { n: coll.size, total: all.size, sys, pts, recent, recentCand, listSizes: Object.fromEntries(ORDER.map((k, i) => [k, per[i].size])), listKeys: new Set(per.flatMap(m => [...m.keys()])) };
 }
 
 // ── 契約逐欄檢查（欄位名稱與型別）────────────────────────────────────────────
@@ -360,8 +370,10 @@ const N_B = N_A + 7;
 
 // 分母與點數從 geojson 獨立重算，不寫死：清單會長站（例：2026-10 平鎮臨時站），寫死 538 會在那天假紅。
 // 2026-09-29 當時：total 538（台鐵241＋高鐵12＋林鐵21＋捷運七系統同名併鍵264）、點數 543。
+// 2026-09-30 台北與台中的市政府分開算之後：total 539（捷運同名併鍵 265）、點數不變。
 const EMPTY0 = expectPayload(new Map(), 'zh-TW');
 const TOTAL0 = EMPTY0.total, PTS0 = EMPTY0.pts.length, TRA0 = EMPTY0.listSizes.tra;
+const TOTAL_MERGED0 = expectPayload(new Map(), 'zh-TW', new Set()).total; // 對照：不分開（舊規則）的座數
 
 // ══ K 資料一致性（不用瀏覽器）══════════════════════════════════════════════
 {
@@ -373,6 +385,28 @@ const TOTAL0 = EMPTY0.total, PTS0 = EMPTY0.pts.length, TRA0 = EMPTY0.listSizes.t
   const geoNames = k => new Set(GEO.features.filter(f => f.properties.sys === k).map(f => f.properties.name));
   ok('K2 fixture 用到的清單站都在 geojson（不然「清單內」的斷言是空的）', ['基隆', '菁桐', '三貂嶺', '池上', '花蓮', '十分', '瑞芳', '平溪'].every(n => geoNames('tra_sched').has(n)) && geoNames('thsr_sched').has('台北') && geoNames('thsr_sched').has('台中') && geoNames('afr_sched').has('嘉義') && geoNames('afr_sched').has('阿里山') && geoNames('mrt').has('南港展覽館') && geoNames('mrt').has('西門') && geoNames('mrt').has('頂埔') && geoNames('sanying').has('頂埔'));
   ok('K3 別名站確實在 geojson 裡是舊名（不然別名斷言是空的）', geoNames('tra_sched').has('左營(舊城)') && geoNames('tra_sched').has('新城 (太魯閣)') && !geoNames('tra_sched').has('左營'));
+  // K4：分開算的表要剛好涵蓋「跨系統同名、實體卻相距很遠」的捷運站。台北車站／紅樹林／頂埔／十四張是同一座站掛在兩個系統
+  // （相距不到 1 公里、該併成一枚章），市政府是台北與台中兩座不同的站（相距約 135 公里）。座標是 geojson 原檔，跟頁面實作無關。
+  const METRO_GEO = ['mrt', 'tymc', 'tmrt', 'krtc', 'ntdlrt', 'ntalrt', 'sanying'];
+  const km = (a, b) => { const r = x => x * Math.PI / 180, h = Math.sin(r(b[1] - a[1]) / 2) ** 2 + Math.cos(r(a[1])) * Math.cos(r(b[1])) * Math.sin(r(b[0] - a[0]) / 2) ** 2; return 12742 * Math.asin(Math.sqrt(h)); };
+  const bySys = new Map();
+  for (const f of GEO.features) {
+    if (!METRO_GEO.includes(f.properties.sys)) continue;
+    if (!bySys.has(f.properties.name)) bySys.set(f.properties.name, new Map());
+    const m = bySys.get(f.properties.name); if (!m.has(f.properties.sys)) m.set(f.properties.sys, f.geometry.coordinates);
+  }
+  const spread = []; // 跨系統同名的站：[站名, 系統們, 最遠兩點相距 km]
+  for (const [name, m] of bySys) {
+    if (m.size < 2) continue;
+    const pts = [...m.values()]; let mx = 0;
+    for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) mx = Math.max(mx, km(pts[i], pts[j]));
+    spread.push([name, [...m.keys()], mx]);
+  }
+  const far = spread.filter(x => x[2] > 5), near = spread.filter(x => x[2] <= 5);
+  ok('K4 跨系統同名的捷運站裡，實體相距很遠的只有「市政府」，其餘同名站相距都不到 1 公里（同一座站掛兩個系統）', far.length === 1 && far[0][0] === '市政府' && far[0][2] > 100 && near.length >= 3 && near.every(x => x[2] < 1),
+    `遠：${far.map(x => `${x[0]}(${x[1].join('+')}) ${x[2].toFixed(1)}km`).join('；')}／近：${near.map(x => `${x[0]} ${x[2].toFixed(2)}km`).join('、')}`);
+  ok('K4 gate 分開算的表恰好＝相距很遠那一組的台中那座（台北那座是預設，不用列）', SPLIT_GEO.size === 1 && far.length === 1 && far[0][1].includes('tmrt') && SPLIT_GEO.has('tmrt|' + far[0][0]), [...SPLIT_GEO].join(','));
+  ok('K4 分開算讓 total 剛好多 1（不分開＝舊規則的座數＋1；清單長站時兩邊一起漲，不會假紅）', TOTAL0 === TOTAL_MERGED0 + 1, `分開 ${TOTAL0}／不分開 ${TOTAL_MERGED0}（2026-09-30 當時 539／538）`);
 }
 
 // ══ J 空收集 ═══════════════════════════════════════════════════════════════
@@ -602,6 +636,163 @@ const R_ALL = ['測試站@tra', '南港展覽館@trtc', '台中@thsr', '台北@t
   }
   await ctx.close();
 }
+
+// ══ S 台北與台中的「市政府」各算一枚 ═══════════════════════════════════════════
+// 兩座站名相同、實體相距約 135 公里。蓋章、護照「車站 N 座」、小工具的 n／total／各系統 v／點，都要把它們當兩座；
+// 沒有記錄城市的舊資料（存的是 metro|市政府）一律是台北。
+// 為什麼這樣量：
+//   ・蓋章走真實流程——定位 → 附近車站清單 → 點「市政府」那一列的「蓋章」鈕，不直接呼叫 writeCheckin。附近清單的去重
+//     曾把排在後面的城市的同名站吃掉（台中那一列根本不在清單裡），只驗 writeCheckin 會漏。
+//   ・鍵不靠頁面函式：localStorage 的鍵與內容逐字比對；護照 N 讀畫面上真的畫出來的字，不呼叫 stationCollection。
+//   ・期望值每個情境各自手算寫死（N、各系統 v、兩顆點亮或暗、recent），total／各系統 n 用 geojson 獨立重算。
+//     不能拿「儲存內容」去算期望：兩座若都被存成同一把鍵，用它算出來的 N 也會是 1，跟頁面錯得一模一樣。
+// group：'all'＝全台同框（裝飾層捷運的附近清單＋桌面護照 #passport）；'metro'＝捷運分頁（單捷運 freq 的附近清單＋旅程護照面板 #ridePanel）。
+const cityPt = (geoSys, k) => {
+  const f = GEO.features.find(x => x.properties.sys === geoSys && x.properties.name === '市政府');
+  const [lon, lat] = f.geometry.coordinates;
+  return { k, lon, lat, x: Math.round((lon - 120.15) / (122.0 - 120.15) * 1000), y: Math.round((25.27 - lat) / (25.27 - 22.2) * 1000) };
+};
+const CITY = { taipei: cityPt('mrt', 'trtc'), taichung: cityPt('tmrt', 'tmrt') };
+const LIST_N = { trtc: EMPTY0.listSizes.trtc, tmrt: EMPTY0.listSizes.tmrt };
+const CITY_WANT = {
+  taipei: { n: 1, keys: ['metro|市政府'], trtcV: 1, tmrtV: 0, dotTP: 2, dotTC: 0, recent: ['市政府@trtc'] },
+  taichung: { n: 1, keys: ['tmrt|市政府'], trtcV: 0, tmrtV: 1, dotTP: 0, dotTC: 2, recent: ['市政府@tmrt'] },
+  both: { n: 2, keys: ['metro|市政府', 'tmrt|市政府'], trtcV: 1, tmrtV: 1, dotTP: 2, dotTC: 2, recent: ['市政府@trtc', '市政府@tmrt'] }, // 同日同 n：依收集鍵字典序 metro < tmrt
+  legacy: { n: 1, keys: ['metro|市政府'], trtcV: 1, tmrtV: 0, dotTP: 2, dotTC: 0, recent: ['市政府@trtc'] },
+};
+async function openGroup(tag, group, seed) {
+  const r = await open({ bridge: true, seed: seed || {}, query: `?gltracks=0&g=${group}`, tag });
+  if (group === 'all') await r.page.waitForFunction(() => { try { return !!(state.deco && state.decoLines && state.decoLines.length); } catch (e) { return false; } }, null, { timeout: 60000, polling: 100 });
+  return r;
+}
+// 護照畫面上真的畫出來的車站數：桌面護照 #passport 統計列的「車站 N 座」／旅程護照面板 #ridePanel 的「車站收集 N」
+async function passportShown(page, group) {
+  if (group === 'all') {
+    const txt = await page.evaluate(() => { const e = document.querySelector('#passport .ph-stats'); return e && !document.getElementById('passport').hidden ? e.textContent : ''; });
+    const m = /車站\s*(\d+)\s*座/.exec(txt);
+    return { n: m ? Number(m[1]) : 0, txt: txt.replace(/\s+/g, ' ').trim() };
+  }
+  await page.evaluate(() => { if (document.getElementById('ridePanel').hidden) openRidePanel(); else renderRidePanel(); });
+  const txt = await page.evaluate(() => { const e = document.querySelector('#ridePanel .ph-sec[data-sec="stn"]'); return e ? e.textContent : ''; });
+  const m = /車站收集\s*(\d+)/.exec(txt);
+  return { n: m ? Number(m[1]) : 0, txt: txt.replace(/\s+/g, ' ').trim().slice(0, 40) };
+}
+// 站在某座市政府、開附近車站清單：回「市政府」那一列（清單裡有幾列、標籤、蓋章鈕的字與狀態；此刻的狀態，還沒點）
+async function nearbyCity(page, city) {
+  await page.evaluate(([lat, lon]) => openNearbyStations(lat, lon, 30), [city.lat, city.lon]);
+  const rows = page.locator('#nearCard .nx-row').filter({ has: page.locator('.nx-name', { hasText: /^市政府$/ }) });
+  const n = await rows.count();
+  const info = n === 1 ? await rows.first().evaluate(r => {
+    const b = r.querySelector('.nx-ck');
+    return { label: ((r.querySelector('.nx-sub b') || {}).textContent || '').trim(), btn: b ? b.textContent.trim() : null, disabled: !!(b && b.disabled) };
+  }) : null;
+  return { n, rows, info };
+}
+async function stampCity(page, city) { // 真的點那一列的「蓋章」鈕
+  const r = await nearbyCity(page, city);
+  if (r.n === 1) await r.rows.first().locator('.nx-ck').click({ timeout: 8000 });
+  return r;
+}
+const rowOk = (r, label, btn) => r.n === 1 && !!r.info && r.info.label === label && (btn instanceof RegExp ? btn.test(r.info.btn || '') : r.info.btn === btn) && r.info.disabled === (btn === '今天已蓋 ✓');
+async function cityChecks(id, page, group, p, want) {
+  const entries = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('trainmap-checkins-v1')).st; } catch (e) { return null; } });
+  const keys = Object.keys(entries || {}).sort();
+  ok(`${id} localStorage 存的鍵 ＝ ${JSON.stringify(want.keys)}，每筆 name＝市政府、sys＝鍵的系統段（逐字，不經頁面函式）`,
+    JSON.stringify(keys) === JSON.stringify([...want.keys].sort()) && keys.every(k => entries[k].name === '市政府' && entries[k].sys === k.split('|')[0]), keys.join(','));
+  const shown = await passportShown(page, group);
+  ok(`${id} 護照畫面「車站 N 座」＝ ${want.n}（讀 DOM 文字）`, shown.n === want.n, `畫面「${shown.txt}」`);
+  ok(`${id} 小工具 n ＝ 護照畫面 N ＝ 手算 ${want.n}`, p.n === shown.n && p.n === want.n, `payload ${p.n}／畫面 ${shown.n}`);
+  ok(`${id} total ＝ 獨立重算 ${TOTAL0}（兩座市政府本來就各在清單裡，蓋章不改分母）`, p.total === TOTAL0, String(p.total));
+  const sv = k => p.sys.find(s => s.k === k) || {};
+  ok(`${id} 北捷 v／n ＝ ${want.trtcV}／${LIST_N.trtc}、中捷 v／n ＝ ${want.tmrtV}／${LIST_N.tmrt}`,
+    sv('trtc').v === want.trtcV && sv('trtc').n === LIST_N.trtc && sv('tmrt').v === want.tmrtV && sv('tmrt').n === LIST_N.tmrt, `北捷 ${sv('trtc').v}/${sv('trtc').n}、中捷 ${sv('tmrt').v}/${sv('tmrt').n}`);
+  const dot = c => { const h = p.pts.filter(pt => pt[0] === c.x && pt[1] === c.y && p.sys[pt[4]] && p.sys[pt[4]].k === c.k); return h.length === 1 ? h[0][3] : `x${h.length}`; };
+  ok(`${id} 兩顆市政府點（依 geojson 座標＋系統找）：台北 s＝${want.dotTP}、台中 s＝${want.dotTC}`, dot(CITY.taipei) === want.dotTP && dot(CITY.taichung) === want.dotTC, `台北 ${dot(CITY.taipei)}／台中 ${dot(CITY.taichung)}`);
+  ok(`${id} recent ＝ ${JSON.stringify(want.recent)}（各歸各的系統，台中的章不再掛成北捷）`, JSON.stringify(p.recent.map(r => r.name + '@' + r.k)) === JSON.stringify(want.recent), p.recent.map(r => r.name + '@' + r.k).join('/'));
+  await checkPayload(page, id, p, 'zh-TW', want.n);
+}
+// 台北 → 台中連蓋兩座（S1 只蓋台北、S3 兩座都蓋），全台同框再做帳號同步往返
+async function cityChain(group) {
+  const tag = `S[${group}] 台北→台中`;
+  const { ctx, page } = await openGroup(tag, group);
+  const first = await waitPush(page, 0, 8000);
+  ok(`${tag} 開機有推送（空收集，n＝0）`, !!first && first.payload.n === 0);
+  let before = await count(page);
+  let r = await stampCity(page, CITY.taipei);
+  ok(`${tag} S1 台北市政府那一列在清單裡（恰好一列、標籤台北捷運、蓋章鈕「蓋章」可按）`, rowOk(r, '台北捷運', '蓋章'), JSON.stringify(r.info));
+  let got = await waitPush(page, before, 6000);
+  ok(`${tag} S1 只蓋台北：蓋章後 6 秒內送出新的一包`, !!got);
+  if (got) { await cityChecks(`S1 只蓋台北[${group}]`, page, group, got.payload, CITY_WANT.taipei); before = await count(page); }
+  r = await stampCity(page, CITY.taichung);
+  ok(`${tag} S3 台北蓋過之後，台中市政府那一列還是「蓋章」可按（台北的章不算台中的；此刻的狀態）`, rowOk(r, '台中捷運', '蓋章'), JSON.stringify(r.info));
+  got = await waitPush(page, before, 6000);
+  ok(`${tag} S3 兩座都蓋：蓋章後 6 秒內送出新的一包`, !!got);
+  if (got) { await cityChecks(`S3 兩座都蓋[${group}]`, page, group, got.payload, CITY_WANT.both); before = await count(page); }
+  const rc = await nearbyCity(page, CITY.taichung), rp = await nearbyCity(page, CITY.taipei);
+  ok(`${tag} 兩座都蓋之後，兩列的蓋章鈕都是「今天已蓋 ✓」且停用`, rowOk(rc, '台中捷運', '今天已蓋 ✓') && rowOk(rp, '台北捷運', '今天已蓋 ✓'), `台中 ${JSON.stringify(rc.info)}／台北 ${JSON.stringify(rp.info)}`);
+  if (group === 'all') {
+    // R 帳號同步的真實合併路徑（accountSyncTxn 用的同一串函式：checkinsToCollections → userDataNormalizeCollection →
+    // userDataMergeCollection → collectionsToCheckins）：本機有台北＋台中兩枚，雲端是舊版 App 來的、只有 metro|市政府（n 較大、時間較新）。
+    // 沒有任何一步會重組鍵：三把鍵原樣留下、各自的 sys 不變，舊版的 metro|市政府贏的是台北那一筆、碰不到台中。
+    const rt = await page.evaluate(() => {
+      const localCols = checkinsToCollections(loadCheckins()), at = Date.now() + 60000;
+      const cloud = userDataNormalizeCollection('checkins', { items: [
+        { id: 'metro|市政府', value: { k: 'metro|市政府', name: '市政府', sys: 'metro', s: 'visit', n: 7, d: '2026-09-29' }, updatedAt: at },
+        { id: 'tra_sched|瑞芳', value: { k: 'tra_sched|瑞芳', name: '瑞芳', sys: 'tra_sched', s: 'pass', n: 1, d: '2026-09-28' }, updatedAt: at },
+      ], tombstones: [] });
+      const merged = userDataMergeCollection(userDataNormalizeCollection('checkins', localCols.checkins), cloud);
+      const back = collectionsToCheckins({ checkins: merged, segments: { items: [], tombstones: [] } });
+      saveCheckins(back);
+      userDataRenderAll(); // 帳號同步寫回後的落點
+      return back.st;
+    });
+    ok(`${tag} R 同步合併後鍵原樣留下：metro|市政府（舊版來的 n＝7 贏）、tmrt|市政府（n＝1、sys 仍是 tmrt）、tra_sched|瑞芳`,
+      JSON.stringify(Object.keys(rt).sort()) === JSON.stringify(['metro|市政府', 'tmrt|市政府', 'tra_sched|瑞芳'])
+      && rt['metro|市政府'].n === 7 && rt['metro|市政府'].sys === 'metro' && rt['tmrt|市政府'].n === 1 && rt['tmrt|市政府'].sys === 'tmrt' && rt['tmrt|市政府'].name === '市政府', JSON.stringify(Object.keys(rt).sort()));
+    got = await waitPush(page, before, 6000);
+    ok(`${tag} R 合併寫回後（userDataRenderAll）6 秒內送出新的一包`, !!got);
+    if (got) {
+      const p = got.payload, shown = await passportShown(page, group), sv = k => p.sys.find(s => s.k === k) || {};
+      ok(`${tag} R 護照畫面 N ＝ 小工具 n ＝ 3（台北、台中、瑞芳；不是 2 也不是 4）`, shown.n === 3 && p.n === 3, `畫面「${shown.txt}」／payload ${p.n}`);
+      ok(`${tag} R 北捷 v＝1、中捷 v＝1、台鐵 v＝1；total 不變`, sv('trtc').v === 1 && sv('tmrt').v === 1 && sv('tra').v === 1 && p.total === TOTAL0, `${sv('trtc').v}/${sv('tmrt').v}/${sv('tra').v} total ${p.total}`);
+      await checkPayload(page, `R 同步往返[${group}]`, p, 'zh-TW', 3);
+    }
+  }
+  await ctx.close();
+}
+// 只蓋台中（S2）：台北那一列與那顆點都不該亮
+async function cityTaichungOnly(group) {
+  const tag = `S[${group}] 只蓋台中`;
+  const { ctx, page } = await openGroup(tag, group);
+  const first = await waitPush(page, 0, 8000);
+  ok(`${tag} 開機有推送（空收集，n＝0）`, !!first && first.payload.n === 0);
+  const before = await count(page);
+  const r = await stampCity(page, CITY.taichung);
+  ok(`${tag} S2 台中市政府那一列在清單裡（恰好一列、標籤台中捷運、蓋章鈕「蓋章」可按；清單去重曾把它吃掉）`, rowOk(r, '台中捷運', '蓋章'), `${r.n} 列 ${JSON.stringify(r.info)}`);
+  const got = await waitPush(page, before, 6000);
+  ok(`${tag} S2 只蓋台中：蓋章後 6 秒內送出新的一包`, !!got);
+  if (got) await cityChecks(`S2 只蓋台中[${group}]`, page, group, got.payload, CITY_WANT.taichung);
+  const rp = await nearbyCity(page, CITY.taipei);
+  ok(`${tag} S2 台中蓋過之後，台北市政府那一列還是「蓋章」可按（台中的章不算台北的）`, rowOk(rp, '台北捷運', '蓋章'), JSON.stringify(rp.info));
+  await ctx.close();
+}
+// 只有舊資料（S4）：存的是沒記錄城市的 metro|市政府（含舊版 App 同步進來的）→ 一律是台北
+async function cityLegacy() {
+  const tag = 'S[all] 只有舊資料';
+  const seed = { 'trainmap-checkins-v1': JSON.stringify({ v: 2, sg: {}, st: Object.fromEntries([ck('市政府', 'metro', 'visit', 1, '2026-09-20')]) }) };
+  const { ctx, page } = await openGroup(tag, 'all', seed);
+  const first = await waitPush(page, 0, 8000);
+  ok(`${tag} 開機有推送`, !!first);
+  if (first) await cityChecks('S4 只有舊資料[all]', page, 'all', first.payload, CITY_WANT.legacy);
+  const rp = await nearbyCity(page, CITY.taipei), rc = await nearbyCity(page, CITY.taichung);
+  ok(`${tag} S4 清單：台北那一列已有 1 次（「蓋章 · 第 2 次」）、台中那一列是全新的（「蓋章」）——舊章歸台北`, rowOk(rp, '台北捷運', /第 2 次/) && rowOk(rc, '台中捷運', '蓋章'), `台北 ${JSON.stringify(rp.info)}／台中 ${JSON.stringify(rc.info)}`);
+  await ctx.close();
+}
+await cityChain('all');
+await cityChain('metro');
+await cityTaichungOnly('all');
+await cityTaichungOnly('metro');
+await cityLegacy();
 
 // ══ P 護照深連結 ═══════════════════════════════════════════════════════════
 // 契約：原生把 railisland://passport 轉成 waitOpen 事件（data.view＝'passport'）；網頁收到 → openRidePanel()（旅程護照 #ridePanel）。
