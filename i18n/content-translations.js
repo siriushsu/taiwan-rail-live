@@ -3560,3 +3560,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '車站時刻表頁擴大到全部台鐵車站：每站列出兩週內每一班的開車時刻與行駛日；瑞芳、十分、菁桐等 7 站另有英日文，車站索引依縣市分組': '駅の時刻表ページを台鉄の全駅に拡大：各駅で2週間分の列車ごとの発車時刻と運転日を掲載。瑞芳・十分・菁桐など7駅は英語・日本語ページもあり、駅の索引は県市別にまとめています。',
   '車站時刻表頁擴大到兩週內有列車停靠的全部 239 個台鐵車站（新增 221 站，中文）：依方向列出每一班的開車時刻、終點與行駛日；瑞芳、十分、菁桐、礁溪、福隆、集集、知本另有英日文頁；車站索引依縣市列出全部台鐵車站': '駅の時刻表ページを、2週間のデータで列車が停車する台鉄の全239駅に拡大（新たに221駅、繁体字中国語）：方面別に列車ごとの発車時刻・行き先・運転日を掲載。瑞芳・十分・菁桐・礁渓・福隆・集集・知本は英語・日本語ページもあり、駅の索引は台鉄の全駅を県市別に載せています。',
 });
+// 2026-09-30 車站時刻頁略過待通車站（v0930j）：第一層與第二層更新紀錄那兩條的 en/ja。平鎮的英日文站名官方還沒公布，譯文不寫站名，改寫「中壢〜埔心間的臨時站」。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '車站時刻表頁遇到尚未公布官方英文站名的新站時先略過該站，其他車站照常每週更新': 'Station timetable pages now skip a new station until its official English name is published; all other stations keep updating weekly.',
+  '車站時刻表頁：每週更新班表時，若出現尚未公布官方英文站名的新站（例如平鎮臨時站），先略過該站，其他車站照常更新': 'Station timetable pages: when the weekly timetable update includes a new station whose official English name has not been published yet (such as the new temporary station between Zhongli and Puxin), that station is skipped for now and all other stations update as usual.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '車站時刻表頁遇到尚未公布官方英文站名的新站時先略過該站，其他車站照常每週更新': '駅の時刻表ページ：公式の英語駅名がまだ公表されていない新駅はいったん掲載を見送り、ほかの駅は毎週どおり更新します。',
+  '車站時刻表頁：每週更新班表時，若出現尚未公布官方英文站名的新站（例如平鎮臨時站），先略過該站，其他車站照常更新': '駅の時刻表ページ：毎週の時刻表更新で、公式の英語駅名がまだ公表されていない新駅（中壢〜埔心間の臨時駅など）が出てきた場合は、その駅をいったん見送り、ほかの駅は通常どおり更新します。',
+});

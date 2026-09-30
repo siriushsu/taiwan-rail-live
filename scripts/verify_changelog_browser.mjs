@@ -94,7 +94,8 @@ const widths = [360, 375, 414, 768];
 // 9/29：捷運路線圖頁（三語 60 頁）與頁尾入口一條（455→456）；「北北桃」與台北捷運導言更正一條（456→457）。
 // 9/30：台南地面鐵道歷史重播精修（舊站房、列車真實比例、周邊建物、自由轉向與傾斜）一條。併 main 時 main 上已是 465 條
 //       （v0930g 全台車站時刻表頁 460→461；v0930h 淡海安坑倒數與捷運看板 4 條沒跟著改，main 上這支是紅的），465→466。
-const expectedHistoryCount = 466;
+// 9/30：車站時刻表頁略過尚未公布官方英文站名的新站一條（v0930j），466→467。
+const expectedHistoryCount = 467;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
