@@ -128,6 +128,13 @@ window.RAIL_NATIVE_COLLECTION = { sync: json => RailCollection.sync({ json }) };
     - Android 的 org.json 會把 JSON null 讀成字串 `"null"`，要當成「不是字串」處理。
     - 巢狀深度：Android 在存檔與解碼兩處都先掃一遍深度，超過 64 層就整包作廢（org.json 遞迴解析，極深巢狀會讓小工具更新整個閃退）。
       iOS 的系統解碼器不會因此閃退，沒有這條限制。正常 payload 最深 4 層，兩個平台結果相同。
+11. **蓋章鈕**（小卡、中卡；鎖定畫面兩款不放）：開 `railisland://checkin`，網頁 `waitOpen` 收到 `view === 'checkin'` 就在附近車站自動蓋章。
+    iOS 中卡用 `Link`；小卡用 `Button(intent:)`，在 App Group 記一筆待辦，App 回到前景時交給網頁（`CollectCheckinIntent.swift`）。
+    Android 用按鈕自己的明確 PendingIntent。按鈕以外的地方照舊開護照（第 6 條）。
+    - 外觀是整條按鈕、字置中。小卡放在文字欄最下面，寬＝文字欄寬。中卡放在地圖欄最下面，寬＝地圖欄寬；地圖縮高讓位，輪廓不准畫進按鈕。
+      文字欄的內容不因按鈕刪減。
+    - 可點範圍高度至少 44pt（iOS）／48dp（Android），不准蓋到數字、標題、進度條。
+    - 顏色與描邊各平台沿用自己原本膠囊的樣子；淺色、深色、著色都要看得到。
 
 ## 驗證
 
