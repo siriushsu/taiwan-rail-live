@@ -286,10 +286,27 @@ function transferPayload() {
   p.recent.unshift({ name: '紅樹林', line: '淡水信義線', k: 'trtc', ks: ['trtc', 'ntdlrt'], d: '2026-09-29' });
   return p;
 }
+/**
+ * 標題列名稱長度掃描（契約畫法約定 8）：台鐵的系統簡稱換成 N 個全形字的合成名稱。真實簡稱（繁中兩字、英文 TRA…Kaohsiung、日文兩三字）
+ * 只會落在「兩個名稱都放得下」與「只放得下系統名」兩個區間，縮字與截斷的路徑沒有任何真實案例走到；合成名稱補上它們。
+ * 全形字一字一個字級寬，所以各長度落在哪個區間由字級與欄寬決定、與語言無關（所有語言用同一串，語言只影響「車站收集」那半邊）。
+ * 長度是照 430pt 機型量到的（剛好放進去要縮到的比例 need ＝ 可用寬 ÷ 理想寬；小卡可用 138pt、標題 13pt，中卡可用約 192pt、標題 14pt）：
+ *   小卡：8 字 need 1.34（放得下）、12 字 0.89（縮字）、15 字 0.71（契約下限 75% 截斷；舊的 70% 下限會縮到 71% 放進去）、19 字 0.56、24 字 0.45（截斷）；
+ *   中卡：8 字 1.73、12 字 1.15（放得下）、15 字 0.92（縮字）、19 字 0.73（同上，下限 75% 截斷、70% 會縮到 73%）、24 字 0.58（截斷）。
+ * 判準不讀這些數字，落在哪個區間由量到的理想寬推；hd 閘門另有覆蓋率斷言，字級或版面改了讓任何一個區間沒有案例走到就紅，提醒重新量。
+ */
+const NAME_LENGTHS = [8, 12, 15, 19, 24];
+const NAME_CHARS = '甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥天地';
+function nameFixture(n) {
+  const p = clone(sample);
+  p.sys[0].label = NAME_CHARS.slice(0, n);
+  return p;
+}
 const FIXTURES = {
   sample, empty: emptyPayload, none: null, full: fullPayload(), one: onePayload(), almost: almostPayload(),
   solo: soloPayload(), states: statesPayload(), bare: barePayload(),
   dirty: DIRTY.dirty, broken: brokenPayload(), brokenSys: brokenSysPayload(), transfer: transferPayload(),
+  ...Object.fromEntries(NAME_LENGTHS.map(n => [`name${n}`, nameFixture(n)])),
 };
 /** 這些 fixture 送進 App 的樣子與期望值的來源不同（期望值取乾淨版）。 */
 const EXPECT_FROM = { dirty: DIRTY.clean };
@@ -392,6 +409,8 @@ function buildCases(quick) {
     for (const sc of ['ntdlrt', 'trtc', null]) add('medium', sc, 'transfer', 'light', false, 430);
     // 台灣輪廓（o1）：一個點都沒有的全台卡，小／中 × 淺／深
     for (const fam of ['small', 'medium']) for (const scheme of ['light', 'dark']) add(fam, null, 'bare', scheme, false, 430);
+    // 標題列（P3-3）：系統簡稱由短到長，走到「放得下兩個／只放系統名／縮字／截斷」各條路徑
+    for (const n of NAME_LENGTHS) for (const fam of ['small', 'medium']) add(fam, 'tra', `name${n}`, 'light', false, 430);
     return cases;
   }
   const famList = [['small', null], ['small', 'tra'], ['medium', null], ['medium', 'tra'], ['rect', null], ['circ', null]];
@@ -419,6 +438,8 @@ function buildCases(quick) {
     for (const [fam, scope] of famList) add(fam, scope, 'dirty', 'light', isLock(fam), width);
     for (const st of ['broken', 'brokenSys']) for (const fam of ['small', 'medium']) add(fam, null, st, 'light', false, width);
     for (const sc of ['ntdlrt', 'trtc', null]) add('medium', sc, 'transfer', 'light', false, width);
+    // 標題列（P3-3）：系統簡稱由短到長
+    for (const n of NAME_LENGTHS) for (const fam of ['small', 'medium']) add(fam, 'tra', `name${n}`, 'light', false, width);
   }
   for (const h of TALL_HEIGHTS) add('medium', 'tra', 'sample', 'light', false, `tall${h}`); // 合成的較高中卡（見 TALL_HEIGHTS）
   // 著色（tinted／accented）：桌面兩種尺寸的淺色與深色，全台與單一系統
@@ -779,7 +800,7 @@ enum MetroWaitPending { static var suite: UserDefaults? = UserDefaults(suiteName
 }
 
 // ── 閘門 ────────────────────────────────────────────────────────────────────────────
-const GATES = ['a1', 'a2', 'b1', 'b2', 'b3', 'c', 'c2', 'd', 'e', 'h', 'v', 'r', 'u', 's', 'o1', 'o2', 'o3', 'o4', 'o5', 't'];
+const GATES = ['a1', 'a2', 'b1', 'b2', 'b3', 'c', 'c2', 'd', 'e', 'h', 'hd', 'v', 'r', 'u', 's', 'o1', 'o2', 'o3', 'o4', 'o5', 't'];
 /** 蓋章鈕上的字：繁中是 key 本身；en／ja 取生成的目錄 JSON（與 --lang 壓力測試餵給 RailNativeL10n 的同一份）。 */
 const L10N_JSON = join(repo, 'app/android/app/src/main/assets/RailNativeL10n.json');
 /** 該語言的目錄表（key＝繁中原文）；繁中沒有表（key 就是字串）。突變測試會換成改壞的表。 */
@@ -802,6 +823,111 @@ function tr(key, vars = {}) {
   return text;
 }
 const STAMP_LABEL = tr('蓋章');
+const APP_NAME = tr('車站收集');
+
+/**
+ * hd：標題列的省略順序（契約畫法約定 8，小卡與中卡）。期望全部從量到的框與 payload 推，不讀實作常數，也不因語言開特例：
+ *  (1) 「兩個名稱放得下」＝ header#ideal（Swift 量測用的隱形標題列：兩個名稱並排的理想寬，版面與第一個候選是同一個函式，
+ *      不論最後畫了哪個都回報）≤ 可用寬。可用寬：小卡＝卡寬 − 2 × 內距（取自 spec）；中卡＝百分比右緣 − 標題列左緣（量到的框）。
+ *      放得下 ⟺ 兩個都在；放不下只剩一個，且剩下的是契約指定的那個：全台＝「車站收集」、單一系統＝系統名。
+ *      中卡全台的標題本來就只有「車站收集」，不必判取捨。邊界（差不到 0.4pt，版面寬度量化在 1/3pt）兩種都收，不下斷言。
+ *  (2) 只剩一個：靠左、不出可用寬；理想寬放得下就不准縮；放不下才縮，縮字不低於 75% 再截斷——縮了多少用行高量
+ *      （Text 縮字時行高跟著縮，且是整數 pt，所以下限留 0.6pt 容差）。全台留下的「車站收集」要是標題字級：
+ *      理想行高與範圍名（header.scope#ideal）的一樣。
+ *  (3) 兩個都在：範圍名靠左，兩者之間至少隔著版面自己要的最小間距（header#ideal 減兩個零件的理想寬）。
+ * 回傳這個案例走到哪個區間（覆蓋率斷言用）；量不到或邊界回傳 null。
+ */
+function headerGate({ spec, frames, byId, ex, check, fail }) {
+  const n = spec.name, small = spec.fam === 'small';
+  const one = id => frames.find(f => f.id === id);
+  const f1 = v => v.toFixed(1), TOL = 0.4;
+  const both = one('header#ideal');
+  if (!both) { fail('hd', n, '缺 header#ideal（量測用的標題列理想寬）'); return null; }
+  const titles = byId('title'), subs = byId('subtitle'), pctF = byId('pct')[0];
+  const rowLeft = both.x;
+  if (!small && !pctF) { fail('hd', n, '中卡缺 pct 框，量不到標題列的可用寬'); return null; }
+  const rowW = small ? spec.w - 2 * INSET : pctF.x + pctF.w - rowLeft;
+  if (small) check('hd', n, Math.abs(rowLeft - INSET) <= 0.6, `標題列左緣 ${f1(rowLeft)} ≠ 內距 ${INSET}`);
+  const scopeP = one(small ? 'header.scope#ideal' : 'header.title#ideal'), otherP = one(small ? 'header.app#ideal' : 'header.pct#ideal');
+  if (!scopeP || !otherP) { fail('hd', n, '缺標題列零件的理想寬（header.*#ideal）'); return null; }
+  const gapMin = both.w - scopeP.w - otherP.w; // 版面自己要的最小間距（小卡＝名稱之間；中卡＝標題與百分比之間）
+  check('hd', n, gapMin > 0, `兩個零件之間沒有最小間距（header#ideal ${f1(both.w)} − ${f1(scopeP.w)} − ${f1(otherP.w)} = ${f1(gapMin)}）`);
+  const scopeName = ex.title;
+  const fitsClear = both.w <= rowW - TOL, wideClear = both.w > rowW + TOL;
+  const why = `兩個名稱並排要 ${f1(both.w)}pt，可用 ${f1(rowW)}pt`;
+
+  // 只剩一個名稱時的檢查。avail＝這個名稱可用的寬；回傳區間。
+  const soleChecks = (surv, survId, wantText, avail) => {
+    const ideal = one(`${survId}#ideal`);
+    if (!ideal) { fail('hd', n, `缺 ${survId}#ideal（不受限時的理想寬）`); return null; }
+    check('hd', n, surv.text === wantText, `${survId} 文字「${surv.text}」≠ 期望「${wantText}」（${why}）`);
+    check('hd', n, Math.abs(surv.x - rowLeft) <= 0.6, `只剩的名稱 ${survId} 沒有靠左：x ${f1(surv.x)}，標題列左緣 ${f1(rowLeft)}`);
+    check('hd', n, surv.x + surv.w <= rowLeft + avail + 0.6, `${survId} 超出可用寬：右緣 ${f1(surv.x + surv.w)} > ${f1(rowLeft + avail)}`);
+    if (ideal.w <= avail - TOL) {
+      check('hd', n, Math.abs(surv.w - ideal.w) <= 0.6 && Math.abs(surv.h - ideal.h) <= 0.6,
+        `${survId} 理想寬 ${f1(ideal.w)} 放得進可用 ${f1(avail)}，卻被縮了：實際 ${f1(surv.w)}×${f1(surv.h)}，理想 ${f1(ideal.w)}×${f1(ideal.h)}`);
+      return 'fits';
+    }
+    if (ideal.w <= avail + TOL) return null;
+    const need = avail / ideal.w; // 剛好放進去要縮到的比例
+    check('hd', n, surv.h >= 0.75 * ideal.h - 0.6,
+      `${survId} 縮過頭：行高 ${f1(surv.h)}pt 是理想 ${f1(ideal.h)}pt 的 ${(100 * surv.h / ideal.h).toFixed(0)}%，低於 75%（放進去要縮到 ${(100 * need).toFixed(0)}%）`);
+    if (need >= 0.75 && need <= 0.92) {
+      check('hd', n, surv.h <= ideal.h - 0.4, `${survId} 該先縮字卻沒縮：放進去要縮到 ${(100 * need).toFixed(0)}%，行高仍是理想的 ${f1(ideal.h)}pt`);
+    }
+    return need >= 0.75 ? 'shrunk' : need > 0.70 ? 'window' : 'cut';
+  };
+
+  if (small) {
+    const t = titles[0], s = subs[0];
+    if (fitsClear) {
+      check('hd', n, titles.length === 1 && subs.length === 1, `放得下卻不是兩個都在（${why}）：title ${titles.length} 個、subtitle ${subs.length} 個`);
+      if (t && s) {
+        check('hd', n, t.text === scopeName && s.text === APP_NAME, `兩個名稱的文字「${t.text}」「${s.text}」≠ 期望「${scopeName}」「${APP_NAME}」`);
+        check('hd', n, Math.abs(t.x - rowLeft) <= 0.6, `範圍名沒有靠左：x ${f1(t.x)}，標題列左緣 ${f1(rowLeft)}`);
+        check('hd', n, s.x - (t.x + t.w) >= gapMin - 0.6, `兩個名稱間距 ${f1(s.x - (t.x + t.w))}pt 小於版面自己要的最小間距 ${f1(gapMin)}pt`);
+        check('hd', n, Math.abs(s.x + s.w - (rowLeft + rowW)) <= 0.6, `「車站收集」沒有靠右：右緣 ${f1(s.x + s.w)}，可用右緣 ${f1(rowLeft + rowW)}`);
+      }
+      return 'both';
+    }
+    if (wideClear) {
+      const survId = ex.scoped ? 'title' : 'subtitle', otherId = ex.scoped ? 'subtitle' : 'title';
+      check('hd', n, byId(survId).length === 1 && byId(otherId).length === 0,
+        `放不下（${why}）時該只剩${ex.scoped ? '系統名（title）' : '「車站收集」（subtitle）'}：title ${titles.length} 個、subtitle ${subs.length} 個`);
+      const surv = byId(survId)[0];
+      if (!surv) return null;
+      const regime = soleChecks(surv, survId, ex.scoped ? scopeName : APP_NAME, rowW);
+      if (!ex.scoped) {
+        const ideal = one('subtitle#ideal');
+        if (ideal) check('hd', n, Math.abs(ideal.h - scopeP.h) <= 0.7,
+          `全台只剩的「車站收集」不是標題字級：理想行高 ${f1(ideal.h)}pt，範圍名的標題字級行高 ${f1(scopeP.h)}pt`);
+      }
+      return regime;
+    }
+    // 邊界：只要求剩下的是契約指定的那個
+    if (titles.length + subs.length === 1) check('hd', n, byId(ex.scoped ? 'title' : 'subtitle').length === 1, `邊界（${why}）只剩一個名稱，卻不是契約指定的那個`);
+    return null;
+  }
+
+  // 中卡：標題只有一個 title（整段或只剩一個名稱），沒有 subtitle
+  check('hd', n, titles.length === 1 && subs.length === 0, `中卡標題列該恰有一個 title：title ${titles.length} 個、subtitle ${subs.length} 個`);
+  const t = titles[0];
+  if (!t) return null;
+  const avail = rowW - pctF.w - gapMin; // 標題可用寬：扣掉百分比與版面要的最小間距
+  if (!ex.scoped) return soleChecks(t, 'title', APP_NAME, avail);
+  if (fitsClear) {
+    const ideal = one('title#ideal');
+    check('hd', n, t.text.startsWith(scopeName) && t.text.endsWith(APP_NAME) && t.text.length > scopeName.length + APP_NAME.length,
+      `放得下（${why}）卻不是整段標題：「${t.text}」（期望「${scopeName}…${APP_NAME}」）`);
+    check('hd', n, Math.abs(t.x - rowLeft) <= 0.6, `標題沒有靠左：x ${f1(t.x)}，標題列左緣 ${f1(rowLeft)}`);
+    if (ideal) check('hd', n, Math.abs(t.w - ideal.w) <= 0.6 && Math.abs(t.h - ideal.h) <= 0.6, `整段標題被縮了：實際 ${f1(t.w)}×${f1(t.h)}，理想 ${f1(ideal.w)}×${f1(ideal.h)}`);
+    check('hd', n, pctF.x - (t.x + t.w) >= gapMin - 0.6, `標題與百分比間距 ${f1(pctF.x - (t.x + t.w))}pt 小於版面自己要的最小間距 ${f1(gapMin)}pt`);
+    return 'both';
+  }
+  if (wideClear) return soleChecks(t, 'title', scopeName, avail);
+  check('hd', n, t.text === scopeName || (t.text.startsWith(scopeName) && t.text.endsWith(APP_NAME)), `邊界（${why}）標題「${t.text}」既不是整段也不是只剩系統名`);
+  return null;
+}
 
 async function judge({ specs, results, out, src }) {
   const fails = [];
@@ -809,6 +935,7 @@ async function judge({ specs, results, out, src }) {
   const fail = (gate, name, detail) => { counts[gate].fail += 1; fails.push({ gate, name, detail }); };
   const ok = gate => { counts[gate].pass += 1; };
   const check = (gate, name, cond, detail) => (cond ? ok(gate) : fail(gate, name, detail));
+  const headerSeen = []; // hd 閘門每個案例走到的區間（覆蓋率斷言用）
 
   for (const spec of specs) {
     const res = results.find(r => r.name === spec.name);
@@ -841,6 +968,12 @@ async function judge({ specs, results, out, src }) {
       const ideal = frames.find(f => f.id === t.id + '#ideal');
       if (!ideal) continue;
       check('d', n, t.w >= ideal.w - 0.5, `${t.id}「${t.text}」實際寬 ${t.w.toFixed(1)} < 理想寬 ${ideal.w.toFixed(1)}（被縮或被截）`);
+    }
+
+    // ── hd：標題列的省略順序（契約畫法約定 8）──
+    if ((spec.fam === 'small' || spec.fam === 'medium') && !UNAVAILABLE.has(spec.state)) {
+      const regime = headerGate({ spec, frames, byId, ex, check, fail });
+      if (regime) headerSeen.push({ fam: spec.fam, scoped: ex.scoped, regime, name: n });
     }
 
     // ── s：蓋章鈕（小卡、中卡；鎖屏兩款不放）：有字、在框內、看得見、不壓到任何文字／進度條／地圖 ──
@@ -1095,7 +1228,6 @@ async function judge({ specs, results, out, src }) {
       expectText('pct', ex.pctText); expectNums('pct', nums(ex.pctText));
       expectNums('count', [ex.v]); expectText('count', tr('已收集 {n} 座', { n: ex.v }));
       expectNums('remain', [ex.remain]); expectText('remain', tr('還有 {n} 座', { n: ex.remain }));
-      expectText('title', ex.title);
     } else if (spec.fam === 'medium') {
       expectText('pct', ex.pctText); expectNums('pct', nums(ex.pctText));
       expectNums('countOf', [ex.v, ex.total]); expectText('countOf', tr('已收集 {v}／{n} 座', { v: ex.v, n: ex.total }));
@@ -1168,6 +1300,15 @@ async function judge({ specs, results, out, src }) {
       if (!tr || !fl) { fail('c2', n, `${id} 沒有回報軌道／填滿框`); continue; }
       const got = fl[axis] / tr[axis];
       check('c2', n, Math.abs(got - frac) < 0.004, `${id} 填滿 ${got.toFixed(3)} ≠ 期望 ${frac.toFixed(3)}（v/n，有收集至少 3%）`);
+    }
+  }
+
+  // hd 的覆蓋率：每個尺寸的單一系統都要各走過「兩個都放」「只放系統名（沒縮）」「縮到 75–92%」「縮到 70–75% 之間（契約下限 75% 與舊的 70% 只有這個區間分得出來）」
+  // 「縮到下限仍放不下而截斷」五條路徑；只把 N/M 印在 detail 不算 gate，分母會無聲縮水。
+  for (const fam of ['small', 'medium']) {
+    for (const regime of ['both', 'fits', 'shrunk', 'window', 'cut']) {
+      const hit = headerSeen.filter(h => h.fam === fam && h.scoped && h.regime === regime);
+      check('hd', `coverage ${fam}`, hit.length >= 1, `${fam} 的單一系統標題列沒有任何案例走到「${regime}」——合成名稱的長度（NAME_LENGTHS）或字級／版面變了，重新量再調`);
     }
   }
 
@@ -1621,6 +1762,138 @@ const MUTATIONS = [
 `,
     expect: ['c'],
   },
+  // ── 標題列（契約畫法約定 8）的突變：考 hd 閘門的每一層。langs＝這條突變考的路徑只在這些語言出現（全台小卡兩個名稱放不下只有英文），其他語言不跑。
+  {
+    id: 'M47 小卡省略順序對調（全台留「全台」、單一系統留「車站收集」）——考「剩下的是契約指定的那個」',
+    file: 'CollectionCard.swift',
+    find: '            (f.isAll ? soleApp : scope).frame(maxWidth: .infinity, alignment: .leading)',
+    replace: '            (f.isAll ? scope : soleApp).frame(maxWidth: .infinity, alignment: .leading)',
+    expect: ['hd'],
+  },
+  {
+    id: 'M48 小卡退讓改回舊行為（全台也留「全台」，單一系統照舊）——考全台那一半',
+    file: 'CollectionCard.swift',
+    find: '            (f.isAll ? soleApp : scope).frame(maxWidth: .infinity, alignment: .leading)',
+    replace: '            scope.frame(maxWidth: .infinity, alignment: .leading)',
+    expect: ['hd'],
+    langs: ['en'],
+  },
+  {
+    id: 'M49 中卡省略順序對調（單一系統放不下時留「車站收集」、不留系統名）',
+    file: 'CollectionCard.swift',
+    find: '                    Self.headRow(k, title: scopeTitle, pct: pct)',
+    replace: `                    Self.headRow(k, title: CollectionText(
+                        id: "title", text: RailNativeL10n.text("車站收集"),
+                        content: Text(RailNativeL10n.text("車站收集")).font(font), minScale: 0.75, reportIdeal: true), pct: pct)`,
+    expect: ['hd'],
+  },
+  {
+    id: 'M50 中卡標題縮字下限改回 0.7——考「縮字不低於 75%」',
+    edits: [
+      {
+        file: 'CollectionCard.swift',
+        find: '            id: "title", text: whole, content: Text(whole).font(font), minScale: 0.75, reportIdeal: true)',
+        replace: '            id: "title", text: whole, content: Text(whole).font(font), minScale: 0.7, reportIdeal: true)',
+      },
+      {
+        file: 'CollectionCard.swift',
+        find: '            id: "title", text: f.title, content: Text(f.title).font(font), minScale: 0.75, reportIdeal: true)',
+        replace: '            id: "title", text: f.title, content: Text(f.title).font(font), minScale: 0.7, reportIdeal: true)',
+      },
+    ],
+    expect: ['hd'],
+  },
+  {
+    id: 'M51 小卡標題縮字下限改回 0.7（範圍名與只剩的「車站收集」）',
+    edits: [
+      {
+        file: 'CollectionCard.swift',
+        find: '            id: "title", text: f.title, content: Text(f.title).font(scopeFont), minScale: 0.75, reportIdeal: true)',
+        replace: '            id: "title", text: f.title, content: Text(f.title).font(scopeFont), minScale: 0.7, reportIdeal: true)',
+      },
+      {
+        file: 'CollectionCard.swift',
+        find: '            id: "subtitle", text: name, content: Text(name).font(scopeFont), minScale: 0.75, reportIdeal: true)',
+        replace: '            id: "subtitle", text: name, content: Text(name).font(scopeFont), minScale: 0.7, reportIdeal: true)',
+      },
+    ],
+    expect: ['hd'],
+  },
+  {
+    id: 'M52 小卡兩個名稱之間不留最小間距——考「放得下」要算上最小間距',
+    file: 'CollectionCard.swift',
+    find: `        HStack(spacing: k.pt(4)) {
+            a.fixedSize()
+            Spacer(minLength: 2)
+            b.fixedSize()`,
+    replace: `        HStack(spacing: 0) {
+            a.fixedSize()
+            Spacer(minLength: 0)
+            b.fixedSize()`,
+    expect: ['hd'],
+  },
+  {
+    id: 'M53 中卡標題與百分比之間不留最小間距',
+    file: 'CollectionCard.swift',
+    find: `        HStack(alignment: .firstTextBaseline, spacing: k.pt(6)) {
+            title
+            Spacer(minLength: 0)
+            pct`,
+    replace: `        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            title
+            Spacer(minLength: 0)
+            pct`,
+    expect: ['hd'],
+  },
+  {
+    id: 'M54 小卡永遠兩個都放（不看放不放得下）——考「放不下只剩一個」',
+    file: 'CollectionCard.swift',
+    find: `        return ViewThatFits(in: .horizontal) {
+            Self.bothNames(k, scope, app)
+            (f.isAll ? soleApp : scope).frame(maxWidth: .infinity, alignment: .leading)
+        }`,
+    replace: `        return Group {
+            Self.bothNames(k, scope, app)
+        }`,
+    expect: ['hd'],
+  },
+  {
+    id: 'M55 小卡永遠只留一個（放得下也不放兩個）——考「放得下 ⟺ 兩個都在」',
+    file: 'CollectionCard.swift',
+    find: `        return ViewThatFits(in: .horizontal) {
+            Self.bothNames(k, scope, app)
+            (f.isAll ? soleApp : scope).frame(maxWidth: .infinity, alignment: .leading)
+        }`,
+    replace: `        return Group {
+            (f.isAll ? soleApp : scope).frame(maxWidth: .infinity, alignment: .leading)
+        }`,
+    expect: ['hd'],
+  },
+  {
+    id: 'M56 中卡永遠整段標題（不看放不放得下）',
+    file: 'CollectionCard.swift',
+    find: `                ViewThatFits(in: .horizontal) {
+                    Self.headRow(k, title: wholeTitle.fixedSize(), pct: pct)
+                    Self.headRow(k, title: scopeTitle, pct: pct)
+                }`,
+    replace: `                Self.headRow(k, title: wholeTitle.fixedSize(), pct: pct)`,
+    expect: ['hd'],
+  },
+  {
+    id: 'M57 全台留下的「車站收集」用副標字級（不是標題字級）——考「標題字級」',
+    file: 'CollectionCard.swift',
+    find: '            id: "subtitle", text: name, content: Text(name).font(scopeFont), minScale: 0.75, reportIdeal: true)',
+    replace: '            id: "subtitle", text: name, content: Text(name).font(appFont), minScale: 0.75, reportIdeal: true)',
+    expect: ['hd'],
+    langs: ['en'],
+  },
+  {
+    id: 'M58 只剩的名稱靠右（不是靠左）',
+    file: 'CollectionCard.swift',
+    find: '            (f.isAll ? soleApp : scope).frame(maxWidth: .infinity, alignment: .leading)',
+    replace: '            (f.isAll ? soleApp : scope).frame(maxWidth: .infinity, alignment: .trailing)',
+    expect: ['hd'],
+  },
   // 以下兩個改的是目錄（--lang en｜ja 才有）：gate 的 tr() 與 Swift 的 shim 讀同一份壞目錄，考的是 c 閘門對「目錄本身」的防線。
   {
     id: 'M37 目錄少了一個 key（Swift 端會默默退回繁中）',
@@ -1730,7 +2003,7 @@ async function main() {
     };
     let allOk = await control('before');
     const only = opt('--only')?.split(',');
-    for (const m of MUTATIONS.filter(x => (!only || only.includes(x.id.split(' ')[0])) && (!x.catalog || LANG))) {
+    for (const m of MUTATIONS.filter(x => (!only || only.includes(x.id.split(' ')[0])) && (!x.catalog || LANG) && (!x.langs || x.langs.includes(LANG ?? 'zh')))) {
       const dest = join(outRoot, 'mut-src');
       stageSource(dest, m.catalog ? null : m);
       const out = join(outRoot, `mut-${m.id.split(' ')[0]}`);

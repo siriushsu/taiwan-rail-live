@@ -426,6 +426,8 @@ struct CollectionText: View {
     var lines = 1
     var minScale: CGFloat = 0.8
     var tone: CollectionTone = .primary
+    /// 非關鍵文字也回報理想寬度（標題列的名稱：harness 要知道「不受限時它要多寬」，才判得出縮了多少、放不放得下）。
+    var reportIdeal = false
 
     @Environment(\.collectMeasure) private var measure
 
@@ -445,7 +447,7 @@ struct CollectionText: View {
             base
                 .background(CollectionReporter(id: id, text: text, key: key))
                 .overlay(alignment: .topLeading) {
-                    if key && lines == 1 {
+                    if (key || reportIdeal) && lines == 1 {
                         // 理想寬度：同一段文字不受任何限制時的寬，拿來對照實際寬度。
                         content.lineLimit(1).fixedSize().hidden()
                             .background(CollectionReporter(id: id + "#ideal", text: text, key: key))
@@ -762,6 +764,8 @@ struct SmallCollectionView<Stamp: View>: View {
     /// 算繪 harness 傳 { $0 }（只畫外觀），Widget 傳包了 Button(intent:) 的版本。
     let stamp: (CollectionStampChip) -> Stamp
 
+    @Environment(\.collectMeasure) private var measure
+
     var body: some View {
         GeometryReader { geo in
             let k = RailScale(width: geo.size.width, reference: RailScale.smallReference)
@@ -800,24 +804,46 @@ struct SmallCollectionView<Stamp: View>: View {
         }
     }
 
-    /// 標題列：範圍名＋「車站收集」。兩個放不下（英日文較長）就只留範圍名，不讓兩者互相擠。
+    /// 標題列（契約畫法約定 8）：範圍名＋「車站收集」，同一行放得下（理想寬度放得下，不靠縮字硬塞）就都放；
+    /// 放不下只留一個：全台省略「全台」、只留「車站收集」；單一系統省略「車站收集」、只留系統名。
+    /// 只剩的那一個用標題字級、靠左；它仍放不下才縮字（下限 75%）再截斷，不再省略。
     private func header(_ f: CollectionFigures, _ k: RailScale) -> some View {
-        let title = CollectionText(
-            id: "title", text: f.title,
-            content: Text(f.title).font(.system(size: k.pt(13), weight: .semibold)), minScale: 0.75)
         let name = RailNativeL10n.text("車站收集")
-        let subtitle = CollectionText(
-            id: "subtitle", text: name,
-            content: Text(name).font(.system(size: k.pt(11))), tone: .secondary)
+        let scopeFont = Font.system(size: k.pt(13), weight: .semibold)
+        let appFont = Font.system(size: k.pt(11))
+        let scope = CollectionText(
+            id: "title", text: f.title, content: Text(f.title).font(scopeFont), minScale: 0.75, reportIdeal: true)
+        let app = CollectionText(
+            id: "subtitle", text: name, content: Text(name).font(appFont), tone: .secondary, reportIdeal: true)
+        // 只剩一個時：全台留「車站收集」（id 仍叫 subtitle，harness 由 id 認出哪個名稱活下來），單一系統留系統名。
+        let soleApp = CollectionText(
+            id: "subtitle", text: name, content: Text(name).font(scopeFont), minScale: 0.75, reportIdeal: true)
         return ViewThatFits(in: .horizontal) {
-            HStack(spacing: k.pt(4)) {
-                title.fixedSize()
-                Spacer(minLength: 2)
-                subtitle.fixedSize()
+            Self.bothNames(k, scope, app)
+            (f.isAll ? soleApp : scope).frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .overlay(alignment: .topLeading) {
+            // 量測用：兩個名稱並排要的寬（與上面第一個候選同一個版面函式），不論最後畫了哪個都回報，
+            // harness 才判得出「放得下 ⟺ 兩個都在」。
+            if measure {
+                Self.bothNames(
+                    k,
+                    Text(f.title).font(scopeFont).background(CollectionReporter(id: "header.scope#ideal")),
+                    Text(name).font(appFont).background(CollectionReporter(id: "header.app#ideal")))
+                    .fixedSize().hidden()
+                    .background(CollectionReporter(id: "header#ideal"))
             }
-            title.frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(height: k.pt(16))
+    }
+
+    /// 兩個名稱並排的一行：範圍名靠左、「車站收集」靠右，中間至少留一點空。兩個都用理想寬度（fixedSize）。
+    private static func bothNames<A: View, B: View>(_ k: RailScale, _ a: A, _ b: B) -> some View {
+        HStack(spacing: k.pt(4)) {
+            a.fixedSize()
+            Spacer(minLength: 2)
+            b.fixedSize()
+        }
     }
 
     /// 文字欄：數字（或空狀態說明）在上，蓋章鈕接在最下面。整欄靠左下，地圖在右下，鈕不會碰到地圖。
@@ -874,6 +900,8 @@ struct MediumCollectionView<Stamp: View>: View {
     /// 不直接寫在這個檔裡是因為 ImageRenderer 畫不出 Link（會換成黃底的禁止符號），harness 就量不到鈕。
     let stamp: (CollectionStampChip) -> Stamp
 
+    @Environment(\.collectMeasure) private var measure
+
     var body: some View {
         GeometryReader { geo in
             let k = RailScale(width: geo.size.width, reference: RailScale.mediumReference)
@@ -923,19 +951,54 @@ struct MediumCollectionView<Stamp: View>: View {
         }
     }
 
+    /// 標題列（契約畫法約定 8）：全台只有「車站收集」；單一系統是「系統 · 車站收集」，同一行放得下
+    /// （理想寬度加上百分比放得進欄寬，不靠縮字硬塞）就整段放，放不下先省略「 · 車站收集」、只留系統名，
+    /// 只剩一個名稱仍放不下才縮字（下限 75%）再截斷，不再省略。
+    private func titleRow(_ f: CollectionFigures, _ k: RailScale) -> some View {
+        let font = Font.system(size: k.pt(14), weight: .bold)
+        let whole = CollectionCopy.heading(f)
+        let pctContent = Text(f.percentText).font(font).monospacedDigit()
+        let pct = CollectionText(id: "pct", text: f.percentText, content: pctContent, key: true)
+        let wholeTitle = CollectionText(
+            id: "title", text: whole, content: Text(whole).font(font), minScale: 0.75, reportIdeal: true)
+        let scopeTitle = CollectionText(
+            id: "title", text: f.title, content: Text(f.title).font(font), minScale: 0.75, reportIdeal: true)
+        return Group {
+            if f.isAll {
+                Self.headRow(k, title: wholeTitle, pct: pct)
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    Self.headRow(k, title: wholeTitle.fixedSize(), pct: pct)
+                    Self.headRow(k, title: scopeTitle, pct: pct)
+                }
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            // 量測用：整段標題加百分比並排要的寬（與單一系統第一個候選同一個版面函式），不論最後畫了哪個都回報，
+            // harness 才判得出「放得下 ⟺ 整段都在」；兩個零件的理想寬另報，用來推兩者之間最少要留多寬。
+            if measure {
+                Self.headRow(
+                    k,
+                    title: Text(whole).font(font).fixedSize().background(CollectionReporter(id: "header.title#ideal")),
+                    pct: pctContent.background(CollectionReporter(id: "header.pct#ideal")))
+                    .fixedSize().hidden()
+                    .background(CollectionReporter(id: "header#ideal"))
+            }
+        }
+    }
+
+    /// 標題列的一行：標題靠左、百分比靠右，中間的空白是彈性的。
+    private static func headRow<T: View, P: View>(_ k: RailScale, title: T, pct: P) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: k.pt(6)) {
+            title
+            Spacer(minLength: 0)
+            pct
+        }
+    }
+
     private func columnBody(_ f: CollectionFigures, _ k: RailScale, recentRows: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: k.pt(6)) {
-                let heading = CollectionCopy.heading(f)
-                CollectionText(
-                    id: "title", text: heading,
-                    content: Text(heading).font(.system(size: k.pt(14), weight: .bold)), minScale: 0.7)
-                Spacer(minLength: 0)
-                CollectionText(
-                    id: "pct", text: f.percentText,
-                    content: Text(f.percentText).font(.system(size: k.pt(14), weight: .bold)).monospacedDigit(),
-                    key: true)
-            }
+            titleRow(f, k)
             // 蓋章鈕放在「已收集 N／M 座」這一列的右端：這一列橫向有大把空位（三種語言都是），
             // 而縱向已經滿了（全台五列系統＋圖例），鈕不能另起一列。
             // 可點範圍（外觀不變）：橫向左右各 10pt（左邊離「已收集」文字的框至少還有 12pt、右邊離卡片右緣有 16pt），
