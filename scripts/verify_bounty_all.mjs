@@ -22,7 +22,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const NODE_SUITES = ['hardening', 'schema', 'valuation', 'gates', 'dwell', 'api', 'ledger', 'chips', 'rules',
   'redeem', 'cloud', 'merge', 'cron', 'auth', 'cron2'];
 const BROWSER_SUITES = ['merge_web', 'recorder_web'];
-const EXPECT = { hardening: 171, schema: 42, valuation: 41, gates: 76, dwell: 16, api: 88, ledger: 71, chips: 37, rules: 14,
+const EXPECT = { hardening: 171, schema: 42, valuation: 42, gates: 76, dwell: 16, api: 88, ledger: 71, chips: 37, rules: 14,
   redeem: 90, cloud: 124, merge: 58, cron: 66, auth: 89, cron2: 131, merge_web: 27, recorder_web: 8 };
 const TIMEOUT_MS = 15 * 60 * 1000;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bounty-all-'));

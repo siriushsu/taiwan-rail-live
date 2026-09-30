@@ -103,7 +103,8 @@ if (existsSync('data/bounty_units.json')) {
   ok('E12 剛到頂還沒滿 30 天 → 自動開關不開', nh3.unlocked_offer === 0, String(nh3.unlocked_offer));
 }
 
-// E13–E17 換班表（第十二輪獨立驗收 P2-1）：per_day 照新清單更新、清單外的單位退場、回到清單就復出而且歷史不歸零、空清單中止。
+// E13–E18 換班表（第十二輪獨立驗收 P2-1）：per_day 照新清單更新、清單外的單位退場、回到清單就復出而且歷史不歸零、
+// 已經退場的不再重算退場數、空清單中止。
 // 模組層級的清單快取每一發之前都歸零（bountyResetMemCaches），才讀得到換過的清單。期望值手算：
 //   清單 A＝{太麻里 4 班, 枋寮 60 班, 金崙 30 班} → 中位 30：太麻里 30/4 → 頂格 3、枋寮 1、金崙 1。
 //   清單 B＝{太麻里 60 班, 枋寮 60 班, 瀧溪 4 班}（金崙拿掉、瀧溪新增）→ 中位 60：太麻里 1、枋寮 1、瀧溪 3；
@@ -140,6 +141,11 @@ if (existsSync('data/bounty_units.json')) {
     c3.retired === 0 && c3.first_listed_at === a3.first_listed_at && c3.sample_count === 7 && c3.l2_capped_at === 123 &&
       c4.retired === 1 && rc.inserted === 0 && rc.retired === 1,
     JSON.stringify({ rc, c3: [c3.retired, c3.first_listed_at === a3.first_listed_at, c3.sample_count, c3.l2_capped_at], c4: c4.retired }));
+  const rd = await run(A);
+  const d4 = row('瀧溪');
+  ok('E18 清單還是 A：瀧溪上一發就退場了，這一發不再算進退場（新上架 0、退場 0），列照舊是退場',
+    rd.inserted === 0 && rd.retired === 0 && d4.retired === 1,
+    JSON.stringify({ rd, d4: d4.retired }));
   const snap = all();
   let threw = '';
   try { await run([]); } catch (e) { threw = String(e && e.message); }
