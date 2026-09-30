@@ -1,4 +1,4 @@
-// 路段懸賞 v2 · 網頁端「登入後併帳號」驗收（A-T7／T4）——Playwright 真引擎（無視窗）＋ python 靜態伺服器 ＋ 打樁的 Firebase 與 /api。
+// 路段懸賞 v2 · 網頁端「登入後併帳號」驗收（A-T7／T4）——Playwright 真引擎（無視窗）＋ node 靜態伺服器 ＋ 打樁的 Firebase 與 /api。
 //
 // 驗的是 index.html 的 bountyMergeOnLogin()：登入成功（onAuthStateChanged 解出 user）之後，只在 BOUNTY_ENABLED 時、
 // 對 POST /api/bounty-merge 恰好通知一次（帶裝置 id 與 Firebase idToken），失敗不影響登入、也不記「已併」旗標。
@@ -8,13 +8,12 @@
 //
 // 打樁慣例照 scripts/verify_metro_widget_plus_sync.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
 // localStorage['trainmap-account-uid'] 讓開機走 accountEnsureInit（回訪者分支）。
-// 跑法：node scripts/verify_bounty_merge_web.mjs（自己起 python3 -m http.server 在空的埠、跑完自己關）
+// 跑法：node scripts/verify_bounty_merge_web.mjs（自己在空的埠起靜態伺服器、跑完自己關）
 import { chromium } from 'playwright';
-import { spawn } from 'node:child_process';
-import net from 'node:net';
+import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
+import { createReadStream, readFileSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
 // G0 自檢：ROOT 由本檔自身路徑推導，不吃任何 --root／env 參數，結構上不會誤驗到別的 worktree。
@@ -33,21 +32,32 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const UID_A = 'uid-web-aaaa0001', UID_B = 'uid-web-bbbb0002';
 const THSR = readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json'));
 
-// ── 靜態伺服器（python3 -m http.server，空的埠，跑完由 finally 關掉——只關自己啟動的這一個）────────────────
-const port = await new Promise((res, rej) => {
-  const s = net.createServer();
-  s.on('error', rej);
-  s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => res(p)); });
+// ── 靜態伺服器（node http，空的埠，跑完由 finally 關掉）────────────────────────────────────────────
+// 原本用 python3 -m http.server：它的 listen backlog 只有 5（socketserver 的 request_queue_size），冷開機一次湧進上百個請求時，
+// 溢出的連線被 RST。機器忙的時候（出貨鏈、並行驗收）偶發 net::ERR_CONNECTION_RESET，W7 的 page.reload 直接丟例外。node 的 backlog 511。
+// 語意照 python：只服 ROOT 底下的檔、/ 給 index.html、query 不看、找不到 404；Content-Type 照副檔名。
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json',
+  '.geojson': 'application/geo+json', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.woff': 'font/woff',
+  '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.wasm': 'application/wasm', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json',
+  '.mp3': 'audio/mpeg', '.txt': 'text/plain; charset=utf-8', '.xml': 'text/xml', '.webmanifest': 'application/manifest+json' };
+const served = { n: 0, missing: new Set() };
+const server = createServer((req, res) => {
+  served.n++;
+  let f = null, p = req.url;
+  try {
+    p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    f = path.join(ROOT, p === '/' ? 'index.html' : p);
+    if (!f.startsWith(ROOT + path.sep) || !statSync(f).isFile()) f = null;
+  } catch (e) { f = null; }
+  if (!f) { served.missing.add(p); res.statusCode = 404; return res.end('not found'); }
+  res.setHeader('content-type', MIME[path.extname(f).toLowerCase()] || 'application/octet-stream');
+  createReadStream(f).on('error', () => res.destroy()).pipe(res);
 });
-const py = spawn('python3', ['-m', 'http.server', String(port), '--bind', '127.0.0.1'], { cwd: ROOT, stdio: 'ignore' });
+const port = await new Promise((res, rej) => { server.once('error', rej); server.listen(0, '127.0.0.1', () => res(server.address().port)); });
 const BASE = `http://127.0.0.1:${port}`;
 let browser = null;
 try {
-  for (let i = 0; ; i++) {
-    try { const r = await fetch(BASE + '/index.html'); if (r.ok) break; } catch (e) {}
-    if (i > 60) throw new Error('python 靜態伺服器 12 秒內沒起來');
-    await sleep(200);
-  }
   browser = await chromium.launch({ headless: true });
 
   // Firebase 替身與環境打樁。🔴 addInitScript 把函式序列化後在頁面裡跑，引用不到本檔的外層繫結 ⇒ 一切寫在函式體內，
@@ -261,7 +271,8 @@ try {
   });
 } finally {
   if (browser) await browser.close().catch(() => {});
-  py.kill();                                   // 只關本輪自己啟動的那一個 python 伺服器
+  server.closeAllConnections(); server.close();                        // 只關本輪自己起的這一個伺服器
+  console.log(`[G0] 靜態伺服器：${served.n} 個請求、404 ${served.missing.size} 個路徑${served.missing.size ? '：' + [...served.missing].sort().join(' ') : ''}`);
 }
 
 const pass = R.filter(r => r.p).length;
