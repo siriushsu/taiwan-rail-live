@@ -1956,23 +1956,6 @@
         }
       }
     },
-    "{scope} {total} 座 · 還有 {remain} 座": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "{scope}: {total} · {remain} to go"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "{scope} {total}駅・残り{remain}駅"
-          }
-        }
-      }
-    },
     "{segs} <span id=\"recUnitWord\">段</span>已覆蓋・{pts} 點已鎖定": {
       "extractionState": "manual",
       "localizations": {
@@ -5981,6 +5964,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "小"
+          }
+        }
+      }
+    },
+    "小、中尺寸上有「蓋章」鈕：按一下會打開軌島，直接在附近的車站蓋章；附近有好幾座車站時，讓你選要蓋哪一座": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The small and medium sizes have a “Stamp” button. Tap it to open Rail Island and stamp a nearby station right away; if several stations are nearby, you pick which one"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小・中サイズには「スタンプ」ボタンがあります。タップすると軌島が開き、近くの駅でそのままスタンプできます。近くに駅が複数あるときは、スタンプする駅を選べます"
           }
         }
       }
@@ -10371,6 +10371,23 @@
         }
       }
     },
+    "日文版的高雄環狀輕軌改用高雄捷運官方日文路線名「ライトレール環状線」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Japanese version now uses Kaohsiung MRT’s official Japanese line name for the Circular Light Rail."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日本語版で、高雄のライトレールの路線名を高雄MRT公式の「ライトレール環状線」に改めました。"
+          }
+        }
+      }
+    },
     "日出": {
       "extractionState": "manual",
       "localizations": {
@@ -12230,30 +12247,30 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung metro and light-rail systems run together. All nine Taipei Metro lines take train positions and station countdowns from the same official per-train live feed; Sanying and Taichung are estimated from headways."
+            "value": "Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung metro and light-rail systems run together, with service hours corrected by official live information. On all nine Taipei Metro lines, train positions and station countdowns come from official per-train live data; the Sanying Line and Taichung Metro use headway-based estimates. Choose systems above to show them together."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "台北・桃園・新北・台中・高雄のメトロとライトレールを同時表示します。台北メトロ全9路線は列車位置も駅の到着秒数も公式のリアルタイム情報です。三鶯線・台中メトロは運転間隔から推定します。"
+            "value": "台北・桃園・新北・台中・高雄のメトロとライトレールを同時表示し、運行時間帯は公式のリアルタイム情報で補正します。台北メトロ全9路線は列車位置も駅のカウントダウンも公式の列車ごとのリアルタイム情報です。三鶯線・台中メトロは運転間隔から推定します。上部で同時に表示する交通機関を選べます。"
           }
         }
       }
     },
-    "台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，北捷、新北捷與機捷營運時段依官方即時資訊校正（三鶯線、文湖線為班距推算）— 可在上方勾選要同時顯示的系統,拖曳、縮放地圖看看。": {
+    "台北捷運、新北捷運（環狀線・淡海・安坑・三鶯）與桃園機捷同框運行，營運時段依官方即時資訊校正（台北捷運九線的列車位置與車站倒數都是官方逐班即時；三鶯線為班距推算）— 可在上方勾選要同時顯示的系統，拖曳、縮放地圖看看。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Taipei, New Taipei and Taoyuan metro systems run together. Supported lines use official live corrections; Sanying and Wenhu are estimated from headways. Choose systems above, then drag or zoom the map."
+            "value": "Taipei, New Taipei and Taoyuan metro systems run together, with service hours corrected by official live information. On all nine Taipei Metro lines, train positions and station countdowns come from official per-train live data; the Sanying Line uses headway-based estimates. Choose systems above, then drag or zoom the map."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "台北・新北・桃園のメトロを同時表示します。対応路線は公式リアルタイム情報で補正し、三鶯線と文湖線は運転間隔から推定します。上部で表示する交通機関を選び、地図をドラッグ・ズームできます。"
+            "value": "台北・新北・桃園のメトロを同時表示し、運行時間帯は公式のリアルタイム情報で補正します。台北メトロ全9路線は列車位置も駅のカウントダウンも公式の列車ごとのリアルタイム情報です。三鶯線は運転間隔から推定します。上部で表示する交通機関を選び、地図をドラッグ・ズームできます。"
           }
         }
       }
@@ -17256,19 +17273,19 @@
         }
       }
     },
-    "各線列車依當日實際時刻表在城市裡穿梭，營運時段依官方到站看板即時校正（含環狀線；文湖線為班距推算）— 拖曳、縮放看看。": {
+    "各線列車在城市裡穿梭，列車位置與車站倒數都是官方逐班即時（含文湖線、環狀線）— 拖曳、縮放看看。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Trains follow today’s timetable. Taipei Metro and the Circular Line use official live arrival-board corrections; the Wenhu Line is estimated from headways."
+            "value": "Trains on every line run across the city, and their positions and station countdowns come from official per-train live data, Wenhu and Circular lines included. Drag or zoom the map to take a look."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "各路線は当日の時刻表で運行します。台北メトロと環状線は公式到着案内でリアルタイム補正し、文湖線は運転間隔から推定します。"
+            "value": "各線の列車が街を行き交います。列車位置も駅のカウントダウンも、文湖線・環状線を含め公式の列車ごとのリアルタイム情報です。地図をドラッグ・ズームしてみてください。"
           }
         }
       }
@@ -37248,6 +37265,23 @@
         }
       }
     },
+    "捷運路線圖": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metro maps"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロ路線図"
+          }
+        }
+      }
+    },
     "捷運與輕軌": {
       "extractionState": "manual",
       "localizations": {
@@ -37278,6 +37312,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "メトロとライトレールの複線を右側通行に修正し、往路と復路がそれぞれ正しい線路を走るようになりました。これまでは多くの路線で両方向が左右逆に描かれていました。"
+          }
+        }
+      }
+    },
+    "捷運導言更正：「北北桃」與台北捷運的地圖導言，也改成台北捷運各線（含文湖線）的列車位置與車站倒數都來自官方逐班即時資料，不再把文湖線寫成班距推算": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metro intro corrected: the Greater Taipei & Taoyuan and Taipei Metro map intros now also say that train positions and station countdowns on every Taipei Metro line, including the Wenhu Line, come from official per-train live data, and no longer describe the Wenhu Line as estimated from headways."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロの説明文を訂正：「台北・新北・桃園」と台北メトロの地図の説明文でも、文湖線を含む台北メトロ全路線の列車位置と駅のカウントダウンは公式の列車ごとのリアルタイム情報と記載し、文湖線を運転間隔からの推定とは書かないようにしました。"
           }
         }
       }
@@ -45238,6 +45289,40 @@
         }
       }
     },
+    "新增捷運路線圖頁：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New metro map pages for Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung: stations, transfers and first and last trains for every line"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台北・桃園・新北・台中・高雄のメトロ路線図ページを追加しました。各路線の駅、乗り換え、始発・終電を確認できます"
+          }
+        }
+      }
+    },
+    "新增捷運路線圖頁（中、英、日文）：台北、桃園機場、新北、台中、高雄各系統與每條路線的路線圖、車站與轉乘、首末班車和班距，資料來源沒有逐班時刻表的路線只列營運時段與班距；頁面可一鍵在地圖上看列車，頁尾與手機版「更多」新增「捷運路線圖」入口": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New metro map pages in Chinese, English and Japanese for Taipei, Taoyuan Airport, New Taipei, Taichung and Kaohsiung: a route map, stations and transfers, first and last trains and headways for every line (lines with no train-by-train timetable in the data sources list only operating hours and headways). Each page has a button that opens the trains on the live map, and the footer and the mobile \"More\" menu have a new \"Metro maps\" link."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台北・桃園空港・新北・台中・高雄の各システムと各路線について、路線図、駅と乗り換え、始発・終電、運転間隔をまとめたページを中国語・英語・日本語で追加しました（データソースに列車ごとの時刻表がない路線は運行時間帯と運転間隔のみ掲載）。各ページのボタンからライブ地図の列車を開けます。ページ下部とスマートフォン版の「その他」にも「メトロ路線図」へのリンクを追加しました。"
+          }
+        }
+      }
+    },
     "新增路線導覽與精選取景：沿線找站、點站看班次；空白搜尋也有可點的範例": {
       "extractionState": "manual",
       "localizations": {
@@ -50525,6 +50610,193 @@
         }
       }
     },
+    "範圍・三鶯": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sanying"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "三鶯"
+          }
+        }
+      }
+    },
+    "範圍・中捷": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taichung"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台中"
+          }
+        }
+      }
+    },
+    "範圍・北捷": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taipei"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台北"
+          }
+        }
+      }
+    },
+    "範圍・台鐵": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台鉄"
+          }
+        }
+      }
+    },
+    "範圍・全台": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Taiwan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台湾全体"
+          }
+        }
+      }
+    },
+    "範圍・安坑": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ankeng"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安坑"
+          }
+        }
+      }
+    },
+    "範圍・林鐵": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alishan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "阿里山"
+          }
+        }
+      }
+    },
+    "範圍・高捷": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaohsiung"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高雄"
+          }
+        }
+      }
+    },
+    "範圍・高鐵": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "THSR"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高鉄"
+          }
+        }
+      }
+    },
+    "範圍・淡海": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Danhai"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "淡海"
+          }
+        }
+      }
+    },
+    "範圍・機捷": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Airport"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空港"
+          }
+        }
+      }
+    },
     "衛": {
       "extractionState": "manual",
       "localizations": {
@@ -52004,23 +52276,6 @@
         }
       }
     },
-    "選「車站收集」，有小、中兩種尺寸；加入時可以選全台或單一系統（台鐵、北捷、高捷……）": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose Station collection, in small or medium size. When adding it, pick all of Taiwan or a single system (TRA, Taipei Metro, Kaohsiung Metro…)"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "「駅コレクション」を選びます。サイズは小・中の2種類。追加するときに台湾全体か1つの路線網（台鉄、台北メトロ、高雄メトロ…）を選べます"
-          }
-        }
-      }
-    },
     "選「車站收集」，有小、中兩種尺寸；長按小工具 →「編輯小工具」可以把範圍換成單一系統（台鐵、北捷、高捷……）": {
       "extractionState": "manual",
       "localizations": {
@@ -52034,6 +52289,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "「駅コレクション」を選びます。サイズは小・中の2種類。ウィジェットを長押しして「ウィジェットを編集」から、1つの路線網（台鉄、台北メトロ、高雄メトロ…）に切り替えられます"
+          }
+        }
+      }
+    },
+    "選「車站收集」，有小、中兩種尺寸；範圍預設是全台，之後長按小工具開啟設定，就能換成單一系統（台鐵、北捷、高捷……）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Station collection, in small or medium size. The scope starts as all of Taiwan; later, touch and hold the widget to open its settings and switch it to a single system (TRA, Taipei Metro, Kaohsiung Metro…)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「駅コレクション」を選びます。サイズは小・中の2種類。範囲は最初は台湾全体で、あとからウィジェットを長押しして設定を開くと、1つの路線網（台鉄、台北メトロ、高雄メトロ…）に切り替えられます"
           }
         }
       }
@@ -53308,7 +53580,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ライトレール"
+            "value": "ライトレール環状線"
           }
         }
       }
