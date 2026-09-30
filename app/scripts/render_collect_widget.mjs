@@ -119,6 +119,17 @@ const CHIP_BEFORE = { 'small-430': [40, 22, 16, 132], 'small-393': [36, 19, 16, 
 /** 可點範圍的下限（pt）：寬 ≥44（HIG）；小卡高 430pt 機型 ≥44、393pt 機型 ≥40（下面到卡底、上面到文字框已是上限）；
  *  中卡縱向被百分比文字框與第一列系統列擋死，只要求不小於鈕本身。 */
 const HIT_MIN = { 'small-430': [44, 44], 'small-393': [44, 40], 'medium-430': [44, 16], 'medium-393': [44, 15] };
+/**
+ * 合成的較高中卡（只給最近蓋章的「放得下幾筆就畫幾筆」用，不是真機尺寸）：兩種真機尺寸的高度都只放得下 2 筆（第 3 筆要的空間不夠），
+ * 「寫死 2 筆」與「放得下才畫」在它們上面長得一模一樣；加高到放得下 3、4 筆（180／195pt，量到的），兩種實作才分得出來。寬度同 430 機型（縮放比例與鈕的位置相同），
+ * 所以鈕的外觀與可點範圍下限沿用 430 機型的值。
+ */
+const TALL_HEIGHTS = [180, 195];
+for (const h of TALL_HEIGHTS) {
+  SIZES[`tall${h}`] = { medium: [SIZES[430].medium[0], h] };
+  HIT_MIN[`medium-tall${h}`] = HIT_MIN['medium-430'];
+  CHIP_BEFORE[`medium-tall${h}`] = CHIP_BEFORE['medium-430'];
+}
 const DOT_RADIUS_RATIO = 0.0075, DOT_RADIUS_FLOOR = 1.0, SOLID_SCALE = 1.3, RING_RATIO = 0.45;
 
 // ── payload 樣本 ───────────────────────────────────────────────────────────────────────
@@ -361,6 +372,7 @@ function buildCases(quick) {
     add('medium', null, 'sample', 'dark', false, 430);
     add('medium', null, 'sample', 'light', false, 393);
     for (const sc of ['tra', 'krtc']) add('medium', sc, 'sample', 'light', false, 430);
+    for (const h of TALL_HEIGHTS) add('medium', 'tra', 'sample', 'light', false, `tall${h}`); // 最近蓋章放得下 3、4 筆
     add('rect', null, 'sample', 'dark', true, 430);
     add('circ', null, 'sample', 'dark', true, 430);
     // 百分比兩個邊界（<1%、99%）：小／中／鎖屏矩形／鎖屏圓形，全台與單一系統
@@ -407,6 +419,7 @@ function buildCases(quick) {
     for (const st of ['broken', 'brokenSys']) for (const fam of ['small', 'medium']) add(fam, null, st, 'light', false, width);
     for (const sc of ['ntdlrt', 'trtc', null]) add('medium', sc, 'transfer', 'light', false, width);
   }
+  for (const h of TALL_HEIGHTS) add('medium', 'tra', 'sample', 'light', false, `tall${h}`); // 合成的較高中卡（見 TALL_HEIGHTS）
   // 著色（tinted／accented）：桌面兩種尺寸的淺色與深色，全台與單一系統
   for (const fam of ['small', 'medium']) {
     for (const scheme of ['light', 'dark']) { add(fam, null, 'sample', scheme, true, 430); add(fam, 'tra', 'sample', scheme, true, 430); }
@@ -1096,17 +1109,40 @@ async function judge({ specs, results, out, src }) {
         }
         if (ex.untouched > 0) { expectNums('untouched', [ex.untouched]); expectText('untouched', tr('還有 {n} 個系統還沒去過', { n: ex.untouched })); }
         else expectAbsent('untouched');
-        expectAbsent('recent.0.date'); // 全台中卡不畫最近蓋章
+        check('c', n, !texts.some(f => f.id.startsWith('recent.')), '全台中卡不該畫最近蓋章（契約畫法約定 9）');
       } else {
         expectNums('remain', [ex.remain]);
-        // 單一系統的最近蓋章：只取 k 相符的；中卡放得下 2 筆（放不下的量測見回報）
-        const rows = ex.recent.slice(0, 2);
-        rows.forEach((r, i) => {
+        // 單一系統的最近蓋章（契約畫法約定 9）：放得下幾筆就畫幾筆，上限 4，畫篩出來的前 N 筆。判準只用量到的框與 payload，
+        // 不含任何「畫 2 筆」之類的常數——放得下幾筆是各尺寸自己的事：
+        //  (a) 畫出的筆數 N ≤ min(4, 可用筆數)；(b) 畫出的就是 ex.recent 的前 N 筆，日期／站名／線名逐列相符、順序對；
+        //  (c) 最大性：還有沒畫的可用筆數時，最後一筆（一筆都沒畫就看「還有 N 座」）下緣到圖例上緣的空隙 < 再多一列要的高度，
+        //      否則就是「放得下卻沒畫」。「再多一列要的高度」從量到的框推：兩列以上＝相鄰兩列的框差；只畫 1 筆＝那一列自己的高度加它與上一行的間距；
+        //      一筆都沒畫＝取「還有 N 座」那一行的高度當下限（任何一列都不會比它矮）。
+        const drawn = [];
+        while (byId(`recent.${drawn.length}.date`).length > 0) drawn.push(drawn.length);
+        const N = drawn.length, avail = Math.min(4, ex.recent.length);
+        check('c', n, N <= avail, `最近蓋章畫了 ${N} 筆，多於 min(4, 可用 ${ex.recent.length} 筆) = ${avail}`);
+        ex.recent.slice(0, N).forEach((r, i) => {
           expectText(`recent.${i}.date`, shortDate(r.d));
           expectText(`recent.${i}.name`, r.name);
           expectText(`recent.${i}.line`, r.line);
         });
-        expectAbsent(`recent.${rows.length}.date`);
+        if (N < avail) {
+          const rowBox = i => {
+            const fs = ['date', 'name', 'line'].map(p => byId(`recent.${i}.${p}`)[0]).filter(Boolean);
+            return { top: Math.min(...fs.map(f => f.y)), bottom: Math.max(...fs.map(f => f.y + f.h)) };
+          };
+          const remainBox = byId('remain')[0], legendTop = Math.min(...['legend.solid', 'legend.follow'].flatMap(id => byId(id)).map(f => f.y));
+          if (!remainBox || !Number.isFinite(legendTop)) fail('c', n, '量不到「還有 N 座」或圖例的框，無法判斷最近蓋章畫滿了沒有');
+          else {
+            const lastBottom = N > 0 ? rowBox(N - 1).bottom : remainBox.y + remainBox.h;
+            const pitch = N >= 2 ? rowBox(N - 1).top - rowBox(N - 2).top
+              : N === 1 ? rowBox(0).bottom - rowBox(0).top + (rowBox(0).top - (remainBox.y + remainBox.h))
+                : remainBox.h;
+            const free = legendTop - lastBottom;
+            check('c', n, free < pitch, `最近蓋章只畫 ${N} 筆（可畫 ${avail} 筆），最後一筆下緣到圖例上緣還空 ${free.toFixed(1)}pt ≥ 再多一列要的 ${pitch.toFixed(1)}pt——放得下卻沒畫`);
+          }
+        }
       }
     } else if (spec.fam === 'rect') {
       expectText('pct', ex.pctText);
@@ -1114,7 +1150,7 @@ async function judge({ specs, results, out, src }) {
       expectText('countOf', tr('已收集 {v}／{n} 座', { v: ex.v, n: ex.total }));
     }
     check('c', n, !texts.some(t => /已踩|今年新增|淡色/.test(t.text)), '出現了不准出現的文案（已踩／今年新增／淡色）');
-    if (spec.fam !== 'medium') { expectAbsent('legend.solid'); expectAbsent('legend.follow'); }
+    if (spec.fam !== 'medium') { expectAbsent('legend.solid'); expectAbsent('legend.follow'); check('c', n, !texts.some(f => f.id.startsWith('recent.')), '小卡與鎖屏不畫最近蓋章（契約畫法約定 9）'); }
 
     // ── c2：填滿比例 ──
     const fills = [];
@@ -1552,6 +1588,33 @@ const MUTATIONS = [
     file: 'CollectionCard.swift',
     find: '$0.k == sys.k || ($0.ks?.contains(sys.k) ?? false)',
     replace: '($0.ks?.contains(sys.k) ?? false)',
+    expect: ['c'],
+  },
+  {
+    id: 'M45 最近蓋章的上限改成 1 筆（放得下也只畫 1 筆）',
+    file: 'CollectionCard.swift',
+    find: `                columnBody(f, k, recentRows: 4)
+                columnBody(f, k, recentRows: 3)
+                columnBody(f, k, recentRows: 2)
+                columnBody(f, k, recentRows: 1)
+`,
+    replace: `                columnBody(f, k, recentRows: 1)
+`,
+    expect: ['c'],
+  },
+  {
+    id: 'M46 最近蓋章改回寫死 2 筆（不看放不放得下）',
+    file: 'CollectionCard.swift',
+    find: `            ViewThatFits(in: .vertical) {
+                columnBody(f, k, recentRows: 4)
+                columnBody(f, k, recentRows: 3)
+                columnBody(f, k, recentRows: 2)
+                columnBody(f, k, recentRows: 1)
+                columnBody(f, k, recentRows: 0)
+            }
+`,
+    replace: `            columnBody(f, k, recentRows: 2)
+`,
     expect: ['c'],
   },
   // 以下兩個改的是目錄（--lang en｜ja 才有）：gate 的 tr() 與 Swift 的 shim 讀同一份壞目錄，考的是 c 閘門對「目錄本身」的防線。

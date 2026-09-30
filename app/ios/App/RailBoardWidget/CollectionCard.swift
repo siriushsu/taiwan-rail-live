@@ -910,7 +910,25 @@ struct MediumCollectionView<Stamp: View>: View {
         }
     }
 
+    /// 單一系統範圍的最近蓋章「放得下幾筆就畫幾筆」（契約畫法約定 9，上限 4）：整欄各備 4、3、2、1、0 筆的版本，
+    /// 由 ViewThatFits 取第一個高度放得下的（不手算高度）。選整欄而不只選那幾列：欄裡的 Spacer 是彈性的，
+    /// 只讓幾列自己去搶剩餘高度，會與 Spacer 平分，永遠少畫。全台範圍與空狀態沒有最近蓋章，不必選。
+    @ViewBuilder
     private func column(_ f: CollectionFigures, _ k: RailScale) -> some View {
+        if f.isAll || f.isEmpty {
+            columnBody(f, k, recentRows: 0)
+        } else {
+            ViewThatFits(in: .vertical) {
+                columnBody(f, k, recentRows: 4)
+                columnBody(f, k, recentRows: 3)
+                columnBody(f, k, recentRows: 2)
+                columnBody(f, k, recentRows: 1)
+                columnBody(f, k, recentRows: 0)
+            }
+        }
+    }
+
+    private func columnBody(_ f: CollectionFigures, _ k: RailScale, recentRows: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: k.pt(6)) {
                 let heading = CollectionCopy.heading(f)
@@ -939,7 +957,7 @@ struct MediumCollectionView<Stamp: View>: View {
             }
             // 間距 2pt（原 3）：蓋章鈕讓「已收集」那一列多出約 1.5pt，全台中卡縱向本來就滿，靠這兩處各省 1pt 補回來。
             Spacer(minLength: k.pt(2))
-            middle(f, k)
+            middle(f, k, recentRows: recentRows)
             // 圖例：有收集的卡才有東西要解釋（空狀態沒有實心也沒有空心）。放不下時 e／h 兩道閘門會紅。
             if !f.isEmpty {
                 Spacer(minLength: k.pt(2))
@@ -949,7 +967,7 @@ struct MediumCollectionView<Stamp: View>: View {
     }
 
     @ViewBuilder
-    private func middle(_ f: CollectionFigures, _ k: RailScale) -> some View {
+    private func middle(_ f: CollectionFigures, _ k: RailScale, recentRows: Int) -> some View {
         if f.isEmpty {
             VStack(alignment: .leading, spacing: k.pt(3)) {
                 CollectionText(
@@ -989,7 +1007,7 @@ struct MediumCollectionView<Stamp: View>: View {
                     id: "remain", text: CollectionCopy.remaining(f),
                     content: Text(CollectionCopy.remaining(f)).font(.system(size: k.pt(12), weight: .semibold)),
                     key: true)
-                ForEach(Array(f.recent.prefix(2).enumerated()), id: \.offset) { i, r in
+                ForEach(Array(f.recent.prefix(recentRows).enumerated()), id: \.offset) { i, r in
                     CollectionRecentRow(record: r, index: i, k: k)
                 }
             }
