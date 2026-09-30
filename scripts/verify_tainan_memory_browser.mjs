@@ -3,6 +3,13 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 const base=process.env.VURL||'http://127.0.0.1:5244',out='output/tainan-memory';fs.mkdirSync(out,{recursive:true});
 const results=[];
+// 正式站會由 Cloudflare 注入 Web Analytics；它不提供重播資料。
+// 只辨識正式網域上的兩個基礎設施端點，其他外部請求與 /api/* 仍不得出現。
+function isProductionTelemetry(url){
+ if(base!=='https://railisland.tw'&&base!=='https://www.railisland.tw')return false;
+ const u=new URL(url);
+ return (u.origin==='https://static.cloudflareinsights.com'&&/^\/beacon\.min\.js(?:\/[^/]+)?$/.test(u.pathname))||(u.origin===base&&u.pathname==='/cdn-cgi/rum');
+}
 async function controls(page,scope='body'){
  return page.evaluate(scope=>{
   const all=[...document.querySelector(scope).querySelectorAll('button,a,input,select')].filter(e=>e.getClientRects().length&&!e.closest('dialog:not([open])'));
@@ -69,9 +76,9 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   const followId=await page.evaluate(()=>tainanMemory.data.trains.find(t=>t.direction==='南下'&&t.serviceDate===tainanMemory.data.date).id);await page.locator('#train').selectOption(followId);assert.equal(await page.evaluate(()=>tainanMemory.state.follow),followId);await click('#station');
   const before=await page.evaluate(()=>tainanMemory.state.sec);await click('#play');await page.waitForFunction(before=>tainanMemory.state.sec>before+5,before);await click('#play');
   await page.locator('#time').fill('08:03:30');await page.locator('#time').dispatchEvent('change');await page.screenshot({path:`${out}/${engine}-${width}.png`});
-  assert.deepEqual(errors,[]);assert.ok(requests.every(u=>u.startsWith(base+'/memories/tainan-2026-09-12/')||u==='data:,'),'歷史頁讀取外部或即時資料');
+  assert.deepEqual(errors,[]);assert.ok(requests.every(u=>u.startsWith(base+'/memories/tainan-2026-09-12/')||u==='data:,'||isProductionTelemetry(u)),'歷史頁讀取外部或即時資料');
   assert.equal(await page.locator('#live').getAttribute('href'),'../../?scene=3d&g=all&at=22.99681,120.21295&z=17');
-  results.push({engine,width,height,controls:layout.count,requests:requests.length,...behavior});console.log('通過',engine,width);fs.writeFileSync(out+'/browser-results.json',JSON.stringify(results,null,2));await context.close();
+  results.push({engine,width,height,controls:layout.count,requests:requests.length,telemetryRequests:requests.filter(isProductionTelemetry).length,...behavior});console.log('通過',engine,width);fs.writeFileSync(out+'/browser-results.json',JSON.stringify(results,null,2));await context.close();
  }
  await browser.close();
 }
