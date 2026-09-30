@@ -12,6 +12,7 @@ const mutations={
   duplicate:['at<=previous.at','at<previous.at'],
   pending:['if(obs.si===origin){','if(false){'],
   sourceAnchor:['nextCall:!t.pending && t.sourceCall.arrivalEpoch>=now-30','nextCall:false'],
+  pendingFreshness:['const atOrigin=obs.si===(obs.dir>0?0:ROUTES[obs.lineId].codes.length-1);','const atOrigin=false;'],
 };
 const ctx={};
 let code=source;
@@ -91,6 +92,18 @@ test('凍結正倒數不能藉名冊逾期重新冒充新車',()=>{
   assert.equal(api.system(m,'ankeng',at+220).trains.length,0);
   api.update(m,'ankeng',packet('K',4,1,99),at+221,at+221);
   assert.equal(api.system(m,'ankeng',at+221).trains.length,1);
+});
+test('起點非零秒值反覆回報仍是待發，不可當行車倒數凍結而丟失車號',()=>{
+  for(const line of ['V','VB','K'])for(const dir of [1,-1])for(const seconds of [2,4,180]){
+    const m={},feed=api.ROUTES[line].feed,origin=dir>0?0:api.ROUTES[line].codes.length-1;
+    for(const offset of [0,55,110,165,220]){
+      api.update(m,feed,packet(line,origin,dir,seconds),at+offset,at+offset);
+      const t=get(m,feed,at+offset);assert(t,'新批次仍確認的待發車不能消失');
+      assert.equal(t.sourceAt,at+offset);assert(t.pending);assert.equal(t.calls.length,1);
+      assert.equal(t.calls[0].departureEpoch,null);assert.equal(api.sample(t,at+offset+149),origin);
+    }
+    assert.equal(api.system(m,feed,at+371),null,'整份來源逾期仍必須退場');
+  }
 });
 test('換批次起點連續、雙向不倒退，校正速度有上限',()=>{
   for(const dir of [1,-1]){

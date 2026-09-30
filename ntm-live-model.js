@@ -140,11 +140,12 @@
         old={...old,lineId:obs.lineId,direction:obs.dir>0?2:1,
           trajectory:[{epoch:now,progress:origin,stateAfter:'pending'}]};
       }
-      // 同車同站正倒數長期凍結時不把新的 proxy at 當新的車輛證據；到站/待發 0、1 不適用。
+      // 行車中正倒數長期凍結不能續命。起點本就只代表待發，不論秒值都不據此虛構發車。
       const signature=`${obs.lineId}/${obs.dir}/${obs.si}/${obs.seconds}`;
       const prior=signatures[car],since=prior?.signature===signature?prior.since:at;
       signatures[car]={signature,since,lastSeen:at};
-      if(obs.seconds>1 && at-since>45)continue;
+      const atOrigin=obs.si===(obs.dir>0?0:ROUTES[obs.lineId].codes.length-1);
+      if(!atOrigin && obs.seconds>1 && at-since>45)continue;
       // 連續的「已到站」不是每批又到站一次，不能每次重加一段停站時間。
       const priorCall=old?.lineId===obs.lineId && old.direction===(obs.dir>0?2:1)
         ? old.calls.find(c=>c.stationIndex===obs.si) : null;
