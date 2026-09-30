@@ -152,7 +152,8 @@ def official_station_names(path=INFO_PATH):
 # （scripts/build_aeo_pages.mjs）會一直略過名單上的站、不產頁；這站一有官方英文站名，閘門
 # scripts/verify_station_pages.mjs 的 G10 就轉紅提醒移除。移除前這站要有：i18n/stations.json tra_sched 的
 # 官方英日文站名、data/tra_station_info.json、data/station_transfers.json、data/tra_station_of_line.json
-# （缺一個車站頁產生器就 throw，不編造）。
+# （缺一個車站頁產生器就 throw，不編造）；移除的同一輪，把 verify_station_pages.mjs 的 EXPECT_ZH_STATIONS
+# 與 verify_aeo.mjs 的 ZH_STATIONS 各加 1（多了這站的頁）。
 PENDING_STATIONS = {
     "平鎮": "臨時站；2026-09-12 完成履勘、預計 2026-10 通車。站碼預期 1105，"
             "但那是媒體與維基的說法、不是官方發布值，所以閘門認站名不認站碼。",
