@@ -331,9 +331,11 @@ for (const c of cases) {
     }
   }
 
-  // A8 蓋章按鈕（小、中卡標題列右端）：看得到、在卡片內、不壓標題與數字、文字是字串目錄的「蓋章」
+  // A8 蓋章按鈕（小卡：文字欄最下面、數字下方靠左；中卡：「已收集」那一列右端）：看得到、在卡片內、尺寸不變、
+  //    不與【任何】可見文字（字形框）或進度條相交、位置對、可點容器包住膠囊且夠大。
+  //    舊版只比對白名單 id，把鈕往下推進 wc_rows 區（wc_row_label／wc_row_bar 不在白名單）就抓不到（突變 M1 漏網）。
   {
-    const st = one(obs, 'wc_stamp');
+    const st = one(obs, 'wc_stamp'), hitBox = one(obs, 'wc_stamp_hit');
     const shown = !!st && st.visible === true && st.text === tr(lang, '蓋章');
     check('蓋章鈕：看得到，文字＝原生字串目錄的「蓋章」', shown, () => `${tag}：wc_stamp=${JSON.stringify(st?.text)} visible=${st?.visible}（期望 ${tr(lang, '蓋章')}）`);
     if (shown) {
@@ -341,10 +343,34 @@ for (const c of cases) {
       const f1 = v => v.toFixed(1);
       check('蓋章鈕：尺寸大於 0', r - l > 4 && b - t > 4, () => `${tag}：box [${st.box.map(f1)}]`);
       check('蓋章鈕：完全在小工具範圍內', l >= -0.5 && t >= -0.5 && r <= c.wDp + 0.5 && b <= c.hDp + 0.5, () => `${tag}：box [${st.box.map(f1)}] 超出 ${c.wDp}x${c.hDp}`);
-      for (const id of ['wc_title', 'wc_subtitle', 'wc_pct', 'wc_count', 'wc_remain', 'wc_empty_title', 'wc_empty_hint']) {
-        for (const n of visibleText(obs, id)) {
-          const ix = Math.min(r, n.box[2]) - Math.max(l, n.box[0]), iy = Math.min(b, n.box[3]) - Math.max(t, n.box[1]);
-          check('蓋章鈕不與標題、數字的 view 相交', !(ix > 0.5 && iy > 0.5), () => `${tag}：wc_stamp [${st.box.map(f1)}] 與 ${id}=${JSON.stringify(n.text)} [${n.box.map(f1)}] 相交 ${f1(ix)}x${f1(iy)}dp`);
+      check('蓋章鈕：膠囊尺寸不變（高 17.9±0.5dp、寬 zh 35.8／en 45.3／ja 55.6 ±0.8）', near(b - t, 17.9, 0.5) && near(r - l, STAMP_W[lang.split('-')[0]] ?? STAMP_W.zh, 0.8), () => `${tag}：膠囊 ${f1(r - l)}x${f1(b - t)}dp`);
+      let textBottom = -Infinity;
+      for (const n of obs.nodes) {
+        if (!n.visible || !n.box || ['wc_stamp', 'wc_stamp_hit', 'wc_root'].includes(n.id)) continue;
+        const isText = n.kind === 'text' && (n.text ?? '') !== '';
+        if (!isText && n.kind !== 'progress') continue;
+        const g = isText ? (n.glyph ?? n.box) : n.box;
+        if (isText) textBottom = Math.max(textBottom, g[3]);
+        const ix = Math.min(r, g[2]) - Math.max(l, g[0]), iy = Math.min(b, g[3]) - Math.max(t, g[1]);
+        check('蓋章鈕不與任何可見文字（字形框）或進度條相交', !(ix > 0.5 && iy > 0.5), () => `${tag}：wc_stamp [${st.box.map(f1)}] 與 ${n.id}=${JSON.stringify(n.text ?? n.kind)} [${g.map(f1)}] 相交 ${f1(ix)}x${f1(iy)}dp`);
+      }
+      if (small) {
+        check('小卡蓋章鈕位置：左緣約 14dp、在標題與所有文字之下（數字下方靠左）', near(l, 14, 1.5) && t >= textBottom - 0.5, () => `${tag}：膠囊 [${st.box.map(f1)}]，文字最低 ${f1(textBottom)}`);
+      } else {
+        const pct = one(obs, 'wc_pct'), count = one(obs, 'wc_count');
+        const cy = (t + b) / 2;
+        check('中卡蓋章鈕位置：右緣約 W−16、在百分比之下、垂直落在「已收集」那一列', near(r, c.wDp - 16, 1.5) && !!pct?.glyph && t >= pct.glyph[3] - 0.5 && !!count?.box && cy >= count.box[1] - 3 && cy <= count.box[3] + 3, () => `${tag}：膠囊 [${st.box.map(f1)}]，百分比字形底 ${f1(pct?.glyph?.[3] ?? NaN)}，已收集列 [${count?.box?.[1]}, ${count?.box?.[3]}]`);
+      }
+      const minW = 48, minH = small ? 36 : 26;
+      check('蓋章鈕可點容器 wc_stamp_hit：存在、包住膠囊、尺寸 ≥ 48×36（小）／48×26（中）', !!hitBox?.box && hitBox.box[0] <= l + 0.5 && hitBox.box[1] <= t + 0.5 && hitBox.box[2] >= r - 0.5 && hitBox.box[3] >= b - 0.5 && hitBox.box[2] - hitBox.box[0] >= minW - 0.5 && hitBox.box[3] - hitBox.box[1] >= minH - 0.5, () => `${tag}：容器 [${hitBox?.box?.map(f1)}] 膠囊 [${st.box.map(f1)}]`);
+      if (hitBox?.box) {
+        for (const n of obs.nodes) {
+          if (!n.visible || !n.box || ['wc_stamp', 'wc_stamp_hit', 'wc_root'].includes(n.id)) continue;
+          const isText = n.kind === 'text' && (n.text ?? '') !== '';
+          if (!isText && n.kind !== 'progress') continue;
+          const g = isText ? (n.glyph ?? n.box) : n.box;
+          const ix = Math.min(hitBox.box[2], g[2]) - Math.max(hitBox.box[0], g[0]), iy = Math.min(hitBox.box[3], g[3]) - Math.max(hitBox.box[1], g[1]);
+          check('蓋章鈕可點容器不與任何可見文字（字形框）或進度條相交', !(ix > 0.5 && iy > 0.5), () => `${tag}：wc_stamp_hit [${hitBox.box.map(f1)}] 與 ${n.id}=${JSON.stringify(n.text ?? n.kind)} [${g.map(f1)}] 相交 ${f1(ix)}x${f1(iy)}dp`);
         }
       }
     }
