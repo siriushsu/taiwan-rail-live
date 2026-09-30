@@ -8,8 +8,9 @@ import {loadGarageModel,createConsist,loadGarageParts} from '../garage-model.js?
 import {createTerrainFollower} from './consist-3d.js';
 const PHASE=-10,OPPOSE_DELAY=26; // 時間 0 時本線車中心在 x＝-10（快到涵洞上方，開頁就看得到主題；本輪自訂）；對向車晚 OPPOSE_DELAY 秒（本輪自訂）
 const distanceAt=t=>(((t*SPEED+PHASE+LAP/2)%LAP)+LAP)%LAP-LAP/2;
-// 三個視角的預設鏡頭：world 全景（前右上方）、train 跟車、culvert 洞口低角度平視（鏡頭在巷子這一側，朝 +y 看洞口）。
-const CAMERA={world:{yaw:-1.2,elevation:.62},train:{yaw:-1.32,elevation:.4},culvert:{yaw:-Math.PI/2,elevation:.16}}; // 數值皆本輪自訂
+// 三個視角的預設鏡頭：world 全景（正前方略偏右、抬高看，洞口正對鏡頭）、train 跟車、culvert 洞口低角度平視（鏡頭在巷子這一側，朝 +y 看洞口）。
+// 第二輪（主對話判讀）：world 由 yaw -1.2／elevation .62 轉成 -1.4／.42，鏡頭幾乎正對路堤正面；取景由半高 25 縮到約 11（半寬約 21.5，洞口與擋土牆才看得清楚；底座同輪縮成 54 寬，縮小到 .7 倍就整塊放得進去），洞口與擋土牆才看得到；數值皆本輪自訂。
+const CAMERA={world:{yaw:-1.4,elevation:.42},train:{yaw:-1.32,elevation:.4},culvert:{yaw:-Math.PI/2,elevation:.16}};
 const MIN_ELEVATION=.08,MAX_ELEVATION=1.2;
 
 export function mountGuanghua(root,{car='emu3000',period:initialPeriod,t=s=>s,params={}}={}){
@@ -47,7 +48,7 @@ function draw(){
  else if(view==='culvert')target.set(0,-place.dims.mouthY,1.5);
  else target.set(...place.focus);
  focus.copy(target).add(pan);
- span=(view==='train'?Math.max(8,train.length*.7/aspect):view==='culvert'?Math.max(1.9,3.0/aspect):Math.max(25,37/aspect))/zoom;
+ span=(view==='train'?Math.max(8,train.length*.7/aspect):view==='culvert'?Math.max(1.9,3.0/aspect):Math.max(10.5,21.5/aspect))/zoom;
  Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});camera.position.set(focus.x+100*Math.cos(elevation)*Math.cos(yaw),focus.y+100*Math.cos(elevation)*Math.sin(yaw),focus.z+100*Math.sin(elevation));camera.lookAt(focus);camera.updateProjectionMatrix();camera.updateMatrixWorld();scene.updateMatrixWorld(true);renderer.render(scene,camera);draws++;
  canvas.dataset.ready='true';canvas.dataset.distance=String(distance);canvas.dataset.period=period;canvas.dataset.view=view;
 }
