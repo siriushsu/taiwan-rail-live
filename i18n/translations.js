@@ -2,6 +2,7 @@
   'use strict';
   window.RAIL_I18N_MESSAGES = {
     en: {
+      "安坑輕軌的後續到站推估納入班表站間時間，減少固定秒數的偏差；官方即時倒數保持原值": "Ankeng's onward arrival estimates now incorporate timetable intervals to reduce fixed-duration errors. Official live countdowns remain unchanged.",
       "淡海、安坑跟車卡保留官方到站時間，不再被動畫平順校正延後；超出官方倒數範圍時明確標示推估": "Danhai and Ankeng follow cards keep official arrival times unchanged during smooth position corrections. Times beyond the official countdown are clearly marked as estimates.",
       "官方車號已確認；下一站時間與位置為推估": "Official vehicle confirmed; next arrival time and position are estimated",
       "到站時間保留官方倒數；位置正平順校正中": "Arrival time follows the official countdown; position is adjusting smoothly",
@@ -600,6 +601,7 @@
       '已接續追蹤 {system} {train} 次': 'Now following {system} train {train}',
     },
     ja: {
+      "安坑輕軌的後續到站推估納入班表站間時間，減少固定秒數的偏差；官方即時倒數保持原值": "安坑ライトレールの後続駅への到着推定に時刻表の駅間時間を反映し、固定秒数によるずれを軽減します。公式のリアルタイム到着予測は変更しません。",
       "淡海、安坑跟車卡保留官方到站時間，不再被動畫平順校正延後；超出官方倒數範圍時明確標示推估": "淡海・安坑の追跡カードは、位置の滑らかな補正中も公式到着時刻を変更しません。公式到着予測の範囲外は推定と明示します。",
       "官方車號已確認；下一站時間與位置為推估": "公式の車両番号を確認済み。次駅の到着時刻と位置は推定です",
       "到站時間保留官方倒數；位置正平順校正中": "到着時刻は公式予測のまま、位置を滑らかに補正中です",

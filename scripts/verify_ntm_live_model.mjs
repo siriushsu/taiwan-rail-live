@@ -12,6 +12,7 @@ const mutations={
   duplicate:['at<=previous.at','at<previous.at'],
   pending:['if(obs.si===origin){','if(false){'],
   sourceAnchor:['nextCall:!t.pending && t.sourceCall.arrivalEpoch>=now-30','nextCall:false'],
+  timetable:['forecastRun(profile,obs.lineId,si,si+step)','run(obs.lineId,si,si+step)'],
 };
 const ctx={};
 let code=source;
@@ -28,6 +29,43 @@ function packet(line,si,dir,seconds,car='212'){
   return {gpsData:groups};
 }
 const get=(model,feed='ankeng',now=at)=>api.system(model,feed,now)?.trains[0];
+test('班表只弱校正未觀測站間，雙向官方倒數與進站位置不變',()=>{
+  for(const dir of [1,-1]){
+    const m={},plain={},trip=dir>0?[3,3600,4,3720,5,3960]:[6,3600,5,3720,4,3900];
+    api.setTimetable(m,'K',Array.from({length:8},()=>trip.slice()));
+    const key=dir>0?'4/5':'5/4',expected=dir>0?195:160,si=dir>0?4:5;
+    assert.equal(m.timing.K[key].seconds,expected);
+    api.update(m,'ankeng',packet('K',si,dir,100),at,at);
+    api.update(plain,'ankeng',packet('K',si,dir,100),at,at);
+    assert.equal(get(m).sourceCall.arrivalEpoch,at+100);
+    assert.equal(get(m).calls[0].arrivalEpoch,get(plain).calls[0].arrivalEpoch);
+    assert.equal(api.sample(get(m),at),api.sample(get(plain),at));
+    assert.equal(get(m).calls[1].arrivalEpoch,at+130+expected);
+  }
+});
+test('班表排除端點補時、內插秒、跨站、折返及非單調時間',()=>{
+  const m={},invalid=[[0,3600,1,3720,8,4800],[1,3601,2,3721,3,3841],
+    [1,3600,3,3840,5,4080],[3,3600,4,3720,3,3840],[3,3720,4,3600,5,3900],
+    [3,3600,4,NaN,5,3900],[3,3600,4,3720,99,3900]];
+  api.setTimetable(m,'K',invalid.flatMap(t=>Array.from({length:10},()=>t.slice())));
+  assert.equal(Object.keys(m.timing.K).length,0);
+});
+test('樣本不足或分布太散不校正，單一站間校正不超過 30 秒',()=>{
+  const m={},trip=[5,3600,6,3720,7,3900];
+  api.setTimetable(m,'K',Array.from({length:7},()=>trip.slice()));
+  assert.equal(Object.keys(m.timing.K).length,0);
+  api.setTimetable(m,'K',Array.from({length:8},()=>trip.slice()));
+  assert.equal(m.timing.K['6/7'].seconds,190);
+  api.setTimetable(m,'K',Array.from({length:8},(_,i)=>[5,3600,6,3720,7,i<4?3900:4140]));
+  assert(!m.timing.K['6/7']);
+});
+test('切換班表重新計算，不殘留舊日型的校正，也不影響別線',()=>{
+  const m={};api.setTimetable(m,'K',Array.from({length:8},()=>[3,3600,4,3720,5,3960]));
+  assert(Object.keys(m.timing.K).length>0);assert(!m.timing.V&&!m.timing.VB);
+  api.setTimetable(m,'K',null);assert.equal(Object.keys(m.timing.K).length,0);
+  api.update(m,'ankeng',packet('K',4,1,100),at,at);
+  assert.equal(get(m).calls[1].arrivalEpoch,at+130+api.run('K',4,5));
+});
 test('上下行標準站間秒各自正確，停站 30 秒不併入行車',()=>{
   assert.equal(api.run('K',4,5),180);assert.equal(api.run('K',5,4),170);
   for(const dir of [1,-1]){const m={};api.update(m,'ankeng',packet('K',4,dir,60),at,at);
