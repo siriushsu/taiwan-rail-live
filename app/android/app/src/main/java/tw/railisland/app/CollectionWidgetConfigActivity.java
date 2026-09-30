@@ -2,6 +2,7 @@ package tw.railisland.app;
 
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProviderInfo;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -32,6 +33,7 @@ import java.util.List;
  * 選單名稱優先用 collection.json 裡的 sys[].label（網頁當下語言）；還沒有檔案（App 沒開過）時退回固定的十個系統，
  * 讓使用者一加上小工具就能先選好。退回清單與「全台」用網頁的簡稱（見 scopeName），開 App 前後看到的名稱一樣。
  * 可重新設定（widgetFeatures=reconfigurable）：開頁時把這一格現在的選擇讀回來。
+ * 這一頁是 exported（launcher 要開得到），只收綁在車站收集兩款上的 appWidgetId，其餘當場 RESULT_CANCELED 關掉。
  * 預覽卡直接把真的 RemoteViews 貼進來，設定頁看到的就是桌面上會長出來的那張版面。
  */
 public final class CollectionWidgetConfigActivity extends AppCompatActivity {
@@ -89,6 +91,22 @@ public final class CollectionWidgetConfigActivity extends AppCompatActivity {
         return RailNativeL10n.text(context, reconfigure ? "完成" : "加到桌面");
     }
 
+    /** 這個 id 綁在本 App 的車站收集小工具（小或中）上嗎；沒綁、綁在別的小工具或別的 App 上都是 false。 */
+    static boolean isCollectionWidget(Context context, int id) {
+        if (id == AppWidgetManager.INVALID_APPWIDGET_ID) return false;
+        AppWidgetProviderInfo info = AppWidgetManager.getInstance(context).getAppWidgetInfo(id);
+        return info != null && isCollectionProvider(context, info.provider);
+    }
+
+    /** 是不是本 App 的車站收集兩款 provider 之一（WidgetFamily.COLLECTION）。 */
+    static boolean isCollectionProvider(Context context, ComponentName provider) {
+        if (provider == null || !context.getPackageName().equals(provider.getPackageName())) return false;
+        for (Class<?> cls : WidgetFamily.COLLECTION) {
+            if (cls.getName().equals(provider.getClassName())) return true;
+        }
+        return false;
+    }
+
     /** 這一格綁的 provider 宣告的 widgetFeatures；API 31 以前（沒有 configuration_optional）或查不到都當 0。 */
     private static int widgetFeatures(Context context, int id) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return 0;
@@ -109,7 +127,9 @@ public final class CollectionWidgetConfigActivity extends AppCompatActivity {
         super.onCreate(state);
         setResult(RESULT_CANCELED);
         widgetId = getIntent().getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
-        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) { finish(); return; }
+        // 別的 App 也能帶任意 id 開這一頁：不是收集小工具的 id 一律不收，否則存下的範圍與隨後的重畫
+        // 會落在別的小工具上（例如把本 App 的捷運小工具畫成收集卡）。
+        if (!isCollectionWidget(this, widgetId)) { finish(); return; }
         family = WidgetFamily.of(this, widgetId);
         boolean scopeSaved = getSharedPreferences(CollectionWidgetProvider.PREFS, Context.MODE_PRIVATE)
             .contains(CollectionWidgetProvider.scopeKey(widgetId));

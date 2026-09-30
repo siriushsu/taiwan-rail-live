@@ -6,6 +6,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
+import android.app.Activity;
 import android.appwidget.AppWidgetHost;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProviderInfo;
@@ -42,7 +43,8 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * 車站收集小工具設定頁（CollectionWidgetConfigActivity）的測試：範圍選單名稱（P3-11）、底部按鈕的字（P3-10）。
+ * 車站收集小工具設定頁（CollectionWidgetConfigActivity）的測試：範圍選單名稱（P3-11）、底部按鈕的字（P3-10）、
+ * 只收車站收集小工具的 id（P3-14）。
  *
  * 期望值全是手寫的（範圍名稱＝網頁 COLLECT_SYS 的簡稱三語），不從 Java 常數或字串目錄產生——同源時「相等」是零資訊。
  * 要開設定頁的案例會真的綁一個收集小工具：先用 `appwidget grantbind` 讓測試 App 能綁，收尾時刪掉 id 並撤銷（revokebind）。
@@ -199,6 +201,43 @@ public final class CollectionWidgetConfigInstrumentedTest {
         }
         assertTrue(RailNativeL10n.setLanguage(context, "en"));
         assertEquals("Done", buttonText(bindCollectionWidget(CollectionWidgetProvider.class)));
+    }
+
+    // ── P3-14：只收車站收集小工具的 id ──────────────────────────────────────────
+
+    @Test
+    public void providerCheckAcceptsOnlyTheTwoCollectionProvidersOfThisApp() {
+        assertTrue(CollectionWidgetConfigActivity.isCollectionProvider(context, new ComponentName(context, CollectionWidgetProvider.class)));
+        assertTrue(CollectionWidgetConfigActivity.isCollectionProvider(context, new ComponentName(context, CollectionWidgetSmallProvider.class)));
+        assertFalse(CollectionWidgetConfigActivity.isCollectionProvider(context, new ComponentName(context, MetroWidgetProvider.class)));
+        assertFalse(CollectionWidgetConfigActivity.isCollectionProvider(context, new ComponentName(context, RailBoardWidgetProvider.class)));
+        assertFalse(CollectionWidgetConfigActivity.isCollectionProvider(context, new ComponentName(context, MixedBoardWidgetProvider.class)));
+        assertFalse("別的 App 的同名類別", CollectionWidgetConfigActivity.isCollectionProvider(context,
+            new ComponentName("com.example.other", CollectionWidgetProvider.class.getName())));
+        assertFalse(CollectionWidgetConfigActivity.isCollectionProvider(context, null));
+    }
+
+    /** 別的 App 帶進來的 id：從沒配發過、配發了但沒綁、沒帶 id——設定頁當場 RESULT_CANCELED 關掉，也不寫範圍。 */
+    @Test
+    public void settingsScreenRejectsIdsThatAreNotCollectionWidgets() throws Exception {
+        SharedPreferences prefs = context.getSharedPreferences(CollectionWidgetProvider.PREFS, Context.MODE_PRIVATE);
+        if (host == null) host = new AppWidgetHost(context, HOST_ID);
+        int allocatedOnly = host.allocateAppWidgetId();
+        hostIds.add(allocatedOnly);
+        for (int id : new int[] { 2_000_000_000, allocatedOnly, AppWidgetManager.INVALID_APPWIDGET_ID }) {
+            assertFalse(id + " 不是收集小工具", CollectionWidgetConfigActivity.isCollectionWidget(context, id));
+            try (ActivityScenario<CollectionWidgetConfigActivity> scenario = open(id)) {
+                assertEquals(id + " 應該當場關掉", Lifecycle.State.DESTROYED, scenario.getState());
+                assertEquals(id + " 回 RESULT_CANCELED", Activity.RESULT_CANCELED, scenario.getResult().getResultCode());
+            }
+            assertFalse(id + " 不寫範圍", prefs.contains(CollectionWidgetProvider.scopeKey(id)));
+        }
+        // 對照組：綁在收集小工具上的 id 照常開啟
+        int good = bindCollectionWidget(CollectionWidgetSmallProvider.class);
+        assertTrue(CollectionWidgetConfigActivity.isCollectionWidget(context, good));
+        try (ActivityScenario<CollectionWidgetConfigActivity> scenario = open(good)) {
+            assertEquals(Lifecycle.State.RESUMED, scenario.getState());
+        }
     }
 
     // ── 工具 ────────────────────────────────────────────────────────────────────

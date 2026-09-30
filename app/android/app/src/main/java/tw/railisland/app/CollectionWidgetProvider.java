@@ -30,7 +30,6 @@ import java.util.concurrent.Executors;
 // 不是 final：小卡是空殼子類（CollectionWidgetSmallProvider），見 WidgetFamily。
 public class CollectionWidgetProvider extends AppWidgetProvider {
     static final String PREFS = "collection_widget";
-    static final String ACTION_REFRESH = "tw.railisland.app.REFRESH_COLLECTION_WIDGET";
     private static final String TAG = "CollectionWidget";
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
 
@@ -45,13 +44,6 @@ public class CollectionWidgetProvider extends AppWidgetProvider {
     @Override
     public void onAppWidgetOptionsChanged(Context context, AppWidgetManager manager, int id, Bundle options) {
         updateOneAsync(context, manager, id);
-    }
-
-    @Override
-    public void onReceive(Context context, Intent intent) {
-        super.onReceive(context, intent);
-        if (!ACTION_REFRESH.equals(intent.getAction())) return;
-        updateAll(context);
     }
 
     @Override
