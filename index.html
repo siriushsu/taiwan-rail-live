@@ -5627,6 +5627,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="followalign0926"><span class="d">9/30</span><span>跟車小卡收合成膠囊時，車次與時速不再貼在上緣，跟圓點和「結束」排在同一條線上（謝謝網友回報）</span></li>
         <li data-cl-of="loopja0930"><span class="d">9/30</span><span>日文介面：環島列車的終點改成簡短好懂的「台北（台湾一周）」</span></li>
         <li data-cl-of="stations0930"><span class="d">9/30</span><span>車站頁加上台鐵、高鐵時刻表：台北、板橋、台中等大站，列出兩週內每一班的開車時刻與行駛日</span></li>
         <li data-cl-of="metropages0929"><span class="d">9/29</span><span>新增捷運路線圖頁：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車</span></li>
@@ -5634,7 +5635,6 @@
         <li data-cl-of="tradistinct0929"><span class="d">9/29</span><span>立體地圖上台鐵列車在車站讓後車先過時，改停到旁邊的股道，後車不會再從停著的車身穿過去</span></li>
         <li data-cl-of="tainanfast0929"><span class="d">9/29</span><span>台南地面鐵道歷史重播：修正 App 裡點了打不開，網頁版下載量從約 11 MB 降到約 2 MB，開啟更快、全線視角更順</span></li>
         <li data-cl-of="trachain0929"><span class="d">9/29</span><span>10/3 環島專車這類比任何固定班次都跑得遠的台鐵專車，地圖上改沿真實股道行駛，不再整趟退回示意路線</span></li>
-        <li data-cl-of="traovertake0929"><span class="d">9/29</span><span>修正少數台鐵列車在車站空等不存在的後車，或出站後異常慢行的問題</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5833,8 +5833,8 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="followalign0926"><span class="d">9/30</span><span>iPhone 點列車後左下跟車卡的車次與時速對齊：9/26 展開的卡片改成同一條基線；9/30 收合成膠囊時，車次與時速不再貼在上緣、比圓點和「結束」高一截，四樣排在同一條中線上，三種字級與深色外觀都一樣（謝謝網友回報）</span></li>
         <li data-cl="followcard0929"><span class="d">9/29</span><span>App 鎖定畫面的跟車卡：Android 的台鐵、高鐵進站軌道現在會畫出列車；iPhone 改成車頭、中間車、車尾三節；開卡當下就有列車；從車站看板點還沒發車的車，會停在現在並立刻開卡倒數</span></li>
-        <li data-cl="followalign0926"><span class="d">9/26</span><span>修正 iPhone 點列車後，左下跟車卡的車次與時速在 WebKit 上沒有對齊的問題；標準、大、特大三種字級現在都排在同一條基線上</span></li>
         <li data-cl="fpnextwrap0926"><span class="d">9/26</span><span>跟車卡的「下一站」遇到較長的站名（例如英文介面的長榮大學、科工館）會換行顯示全名，整張卡不再能左右拖動、左邊被切掉；放空模式的精簡小卡維持一行，放不下的以「…」收尾</span></li>
         <li data-cl="followcard0925"><span class="d">9/25</span><span>跟車小卡：跟車時切換語言，車種、起訖、準點率和立體列車的編組說明會立刻換過來；虛構 8888 的「虛構」跟寶可夢列車一樣疊在車次上方，手機上的關閉鈕不再擠到第二行；第一次跟車時「車頭鎖定：開啟」的提示，不再被旁邊的空白提示框蓋掉最後一個字</span></li>
         <li data-cl="bustransferall"><span class="d">9/24</span><span>公車轉乘由三站擴至 239 座台鐵客運站；按下查詢才讀取 600 公尺內公車動態，選定路線後才查車牌、位置、站數與擁擠度。缺值照實留白，並可開 Google 地圖步行導航。9/24 修正臺北擁擠度超過 3 分鐘仍被當成即時資料顯示</span></li>
@@ -6942,7 +6942,9 @@
 //         v0929j 已被台南重播分支佔用（c163c640，未併 main），跳號避免撞號。
 // v0930a：SEO 階段 B 第一批（台鐵／高鐵車站時刻頁中英日 69 頁、環狀線假日末班加註、站上「無公開逐班時刻」說法改寫成資料來源沒有）。
 // v0930c：日文的環島列車終點改成「台北（台湾一周）」（使用者 09-30 裁示）。v0930b 已被跟車卡分支 fix/issue73-capsule-align 佔用，跳號。
-const BUILD = 'v0930c';
+// v0930e：Issue #73 複驗——收合的跟車膠囊裡車次與時速改為置中，跟圓點、「結束」同一條中線（rail-3d.css；守門：verify_issue_73_follow_head C4）。
+//         本分支原本佔 v0930b，併 main 時 v0930c 已上 main、v0930d 留給台南重播分支，改用 v0930e 讓版號維持遞增。
+const BUILD = 'v0930e';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
 const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
