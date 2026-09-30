@@ -126,6 +126,8 @@ window.RAIL_NATIVE_COLLECTION = { sync: json => RailCollection.sync({ json }) };
         `color` 不是字串或解不出色碼 → 用品牌色照畫；`sysIdx` 缺、不是整數或不是有效索引 → 當不屬於任何系統。
     - 百分比、進度條、各系統座數一律照 payload 的 `n`、`total`、`sys[].v`／`sys[].n`，不因略過元素而重算。
     - Android 的 org.json 會把 JSON null 讀成字串 `"null"`，要當成「不是字串」處理。
+    - 巢狀深度：Android 在存檔與解碼兩處都先掃一遍深度，超過 64 層就整包作廢（org.json 遞迴解析，極深巢狀會讓小工具更新整個閃退）。
+      iOS 的系統解碼器不會因此閃退，沒有這條限制。正常 payload 最深 4 層，兩個平台結果相同。
 
 ## 驗證
 
