@@ -12,6 +12,8 @@
 // 另比索引（2026-09-30 起）：worker.js 裡每一個 `INDEXED BY <名字>` 都要在 schema/*.sql 有 CREATE INDEX 宣告、
 // 正式庫也要有、而且建在同一張表上。INDEXED BY 指名的索引不在時那一句直接報錯（no such index），
 // 路段懸賞的認領、判定、合併整條壞掉——只比表與欄位照不到這一種漏套。
+// 主鍵／UNIQUE 的自動索引（sqlite_autoindex_<表>_<n>）沒有 CREATE INDEX：建表那一支 migration 就是它的宣告，
+// 正式庫的 sqlite_master 一樣列得出它（type='index'、sql 是 NULL）。編號寫錯的那一種本機驗收就會報錯（同一套 schema 建出同樣的名字），這裡不重算。
 //
 // 用法：node scripts/verify_remote_schema.mjs            # 查正式庫（要 wrangler 已登入）
 //       node scripts/verify_remote_schema.mjs --ddl <檔>  # 讀存下來的 `d1 execute --json` 輸出（離線、給突變測試用）
@@ -68,11 +70,16 @@ function expected() {
 function indexedByNeeds() {
   const code = fs.readFileSync(path.join(root, 'worker.js'), 'utf8').split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
   const names = [...new Set([...code.matchAll(/INDEXED BY\s+(\w+)/g)].map(m => m[1]))];
-  const declared = {};
+  const declared = {}, tableFile = {};
   const dir = path.join(root, 'schema');
   for (const f of fs.readdirSync(dir).filter(f => /^\d{4}_.*\.sql$/.test(f)).sort()) {
     const sql = stripComments(fs.readFileSync(path.join(dir, f), 'utf8'));
     for (const [, name, table] of sql.matchAll(/CREATE\s+(?:UNIQUE\s+)?INDEX(?:\s+IF NOT EXISTS)?\s+(\w+)\s+ON\s+(\w+)/gi)) declared[name] = { table, file: f };
+    for (const t of createdTables(sql)) if (!(t.table in tableFile)) tableFile[t.table] = f;
+  }
+  for (const index of names) {
+    const auto = /^sqlite_autoindex_(\w+)_\d+$/.exec(index);
+    if (auto && !declared[index] && tableFile[auto[1]]) declared[index] = { table: auto[1], file: tableFile[auto[1]] };
   }
   return names.map(index => ({ index, table: declared[index] ? declared[index].table : null, file: declared[index] ? declared[index].file : null }));
 }

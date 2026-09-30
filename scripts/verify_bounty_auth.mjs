@@ -20,7 +20,7 @@
 //   A10 上傳與認領（賺）：帳號 uid 要 Bearer、併過的裝置與匿名裝置不用（S4 earn）
 //   A11 刪帳號：body 傳來的 deviceActor 不能刪別人的 v2 錢包（S5）；也不能刪別人的帳號列與被髒標記指向自己的帳號（A11d–g）
 //   A12 兌換重送：同一個 requestId 不能拿去兌換另一座（S6）　A13 雲端搭乘重送：兩天後、合併之後都要對得上（S7）
-//   A14 chips-me ?actor= 限流（S8）　A15 壞 Bearer 一律 401、不降級成匿名　A16 帶著有效 Bearer 的寫入都先補帳號列（S0）
+//   A14 chips-me 與 bounty-me 的 ?actor= 限流（S8、計畫 D-T1 (5)）　A15 壞 Bearer 一律 401、不降級成匿名　A16 帶著有效 Bearer 的寫入都先補帳號列（S0）
 //
 // ⚠️ 假 D1 的保真度（稽核 F20）：scripts/d1_local.mjs 的 batch() 是排隊序列化的，但 batch 之外的單句寫入
 //    可以插進另一個 batch 的交易中間；真的 D1 不會這樣。這支腳本沒有併發判準；上線後對正式庫做一次唯讀抽查
@@ -545,7 +545,7 @@ await attempt('A13', async () => {
     f3.status === 200 && mg3.json.merged === true && q.nRides(w3, U) === 1 && r3.status === 409 && r3.json.error === 'already_today', r3.text);
 });
 
-// ═══ A14：chips-me ?actor= 限流（稽核 F19、S8）════════════════════════════════════════════════════════════════════
+// ═══ A14：chips-me 與 bounty-me 的 ?actor= 限流（稽核 F19、S8；bounty-me 是第十批）════════════════════════════════════════════════════════════════════
 await attempt('A14', async () => {
   const wBlk = world({ env: { BOUNTY_LIMITER: limiter(true) } });
   S.ledger(wBlk, DANON, 'adjust', 3, 'a14-anon'); S.acct(wBlk, U); S.ledger(wBlk, U, 'adjust', 6, 'a14-u');
@@ -557,6 +557,14 @@ await attempt('A14', async () => {
   S.ledger(wAuthBlk, DANON, 'adjust', 3, 'a14-anon2');
   const plain = await chipsMe(wAuthBlk, '?actor=' + DANON), bearerBlk = await chipsMe(wAuthBlk, '', as(U));
   ok('A14c [對照] AUTH_LIMITER 被擋：?actor= 路徑照樣 200（它不走 AUTH_LIMITER）；Bearer 那條 429', plain.status === 200 && plain.json.balance === 3 && bearerBlk.status === 429, JSON.stringify([plain.json, bearerBlk.json]));
+  // bounty-me 的 ?actor= 路徑（第十批，計畫 D-T1 (5)）：同樣不驗身分、免費，舊版沒有限流，一個匿名 actor 連打就能大量燒 D1 讀取
+  S.dev(wBlk, DANON, 4); S.dev(wAuthBlk, DANON, 4);
+  const meBlk = await boMe(wBlk, '?actor=' + DANON), meBearer = await boMe(wBlk, '', as(U));
+  ok('A14d [計畫 D-T1 (5)] bounty-me 的 ?actor= 路徑被 BOUNTY_LIMITER 擋下 → 429 rate_limited，本文沒有點數', meBlk.status === 429 && same(meBlk.json, { error: 'rate_limited' }), meBlk.text);
+  ok('A14e [對照] 同一個被擋的 BOUNTY_LIMITER 不影響 bounty-me 的 Bearer 那條 → 200、帳號 U 自己的帳', meBearer.status === 200 && meBearer.json.actor === U, meBearer.text.slice(0, 120));
+  const mePlain = await boMe(wAuthBlk, '?actor=' + DANON), meBearerBlk = await boMe(wAuthBlk, '', as(U));
+  ok('A14f [對照] AUTH_LIMITER 被擋：bounty-me 的 ?actor= 照樣 200（點數 4）；Bearer 那條 429', mePlain.status === 200 && mePlain.json.points === 4 && meBearerBlk.status === 429,
+    JSON.stringify([mePlain.status, mePlain.json && mePlain.json.points, meBearerBlk.status]));
 });
 
 // ═══ A15：壞 Bearer 一律 401 unauthorized，不降級成匿名（稽核 S4）═════════════════════════════════════════════════════

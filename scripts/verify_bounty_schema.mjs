@@ -104,12 +104,18 @@ const { db } = openTestDb();
     'idx_samples_pending', 'idx_samples_trip',
     'idx_chip_ledger_actor_day',   // 0014：每日籌碼上限與餘額查詢都以 actor 起頭
     'idx_seg_contrib_actor',       // 0014：合併與刪帳號都以 actor 找 bounty_seg_contrib 的列（PK 的 actor 在第二欄）
+    'idx_seg_contrib_first',       // 0014：bounty-me 的首位校正者，每段讀 first_ok_at 最早的一列
   ];
-  ok('A11 八個索引都在', want.every(n => idxNames.includes(n)), idxNames.join(','));
+  ok('A11 九個索引都在', want.every(n => idxNames.includes(n)), idxNames.join(','));
   // 名字在不夠：索引建在錯的表或錯的欄，查詢照樣回對的結果只是不走索引。直接讀索引的定義。
   const info = db.prepare("SELECT m.tbl_name AS t, ii.name AS c FROM sqlite_master m, pragma_index_info(m.name) ii WHERE m.type='index' AND m.name='idx_seg_contrib_actor'").all()
     .map(r => `${r.t}.${r.c}`);
   ok('A11b idx_seg_contrib_actor 建在 bounty_seg_contrib 的 actor 欄（且只有這一欄）', JSON.stringify(info) === '["bounty_seg_contrib.actor"]', JSON.stringify(info));
+  // 欄位順序就是用途：seg_key 等號、first_ok_at 排序、actor 同時刻的次序——順序錯了每段又要讀遍所有貢獻者再排序。
+  const first = db.prepare("SELECT m.tbl_name AS t, ii.name AS c FROM sqlite_master m, pragma_index_info(m.name) ii WHERE m.type='index' AND m.name='idx_seg_contrib_first' ORDER BY ii.seqno").all()
+    .map(r => `${r.t}.${r.c}`);
+  ok('A11c idx_seg_contrib_first 建在 bounty_seg_contrib 的 (seg_key, first_ok_at, actor)，順序照這樣',
+    JSON.stringify(first) === '["bounty_seg_contrib.seg_key","bounty_seg_contrib.first_ok_at","bounty_seg_contrib.actor"]', JSON.stringify(first));
 }
 
 // A12 0001 重建表接得住 worker.js「現在」的真實查詢語句（複審 Important 1）——A1/A2 只驗表名存在，
@@ -287,11 +293,12 @@ const tryRun = (d, sql, ...p) => { try { d.prepare(sql).run(...p); return ''; } 
   try { applySchemaFiles(d); } catch (e) { threw = String(e.message || e); }
   const kept = d.prepare("SELECT delta FROM chip_ledger WHERE id='keep'").get();
   ok('A21a 帳本有資料時再套一次 schema：不炸、資料原封不動', threw === '' && kept && kept.delta === 3, threw || JSON.stringify(kept));
-  for (const t of NEW_TABLES) d.exec(`DROP TABLE ${t}`);      // DROP TABLE 連帶帶走 idx_chip_ledger_actor_day、idx_seg_contrib_actor
+  for (const t of NEW_TABLES) d.exec(`DROP TABLE ${t}`);      // DROP TABLE 連帶帶走 idx_chip_ledger_actor_day、idx_seg_contrib_actor、idx_seg_contrib_first
   try { applySchemaFiles(d); } catch (e) { threw = String(e.message || e); }
   const names = d.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','index')").all().map(r => r.name);
   ok('A21b 新表與索引被砍掉後再套一次全部長回來（CREATE 全在 ALTER 之前，重套時沒被 duplicate column 的例外吞掉）',
-    NEW_TABLES.every(t => names.includes(t)) && names.includes('idx_chip_ledger_actor_day') && names.includes('idx_seg_contrib_actor') && threw === '',
+    NEW_TABLES.every(t => names.includes(t)) && names.includes('idx_chip_ledger_actor_day') && names.includes('idx_seg_contrib_actor') &&
+    names.includes('idx_seg_contrib_first') && threw === '',
     threw || names.filter(n => NEW_TABLES.includes(n) || n.startsWith('idx_chip') || n.startsWith('idx_seg_contrib')).join(','));
 }
 
@@ -332,6 +339,21 @@ const tryRun = (d, sql, ...p) => { try { d.prepare(sql).run(...p); return ''; } 
     noIdx.rc === 1 && /idx_claims_actor/.test(noIdx.out) && /0002_bounty\.sql/.test(noIdx.out), noIdx.out.trim().slice(0, 300));
   ok('A23c idx_claims_actor 建在別張表上 → exit 1，點名 idx_claims_actor',
     wrongTbl.rc === 1 && /idx_claims_actor/.test(wrongTbl.out), wrongTbl.out.trim().slice(0, 300));
+  // 第十批起六張會長大的表都釘 INDEXED BY，其中四張指名主鍵的自動索引（sqlite_autoindex_<表>_<n>，schema 裡沒有 CREATE INDEX 可比）。
+  // 正式庫的 sqlite_master 一樣列得出自動索引；守門人要把它們當成「建表那一支 migration 宣告的」，缺了照樣 exit 1、點名該補套的那一支。
+  const autos = rows.filter(r => r.type === 'index' && /^sqlite_autoindex_/.test(r.name)).map(r => r.name);
+  const needAuto = ['sqlite_autoindex_bounty_samples_1', 'sqlite_autoindex_garage_unlocks_1', 'sqlite_autoindex_cloud_rides_1',
+    'sqlite_autoindex_bounty_seg_contrib_1'];
+  ok('A23d 守門人比到的索引含四個主鍵自動索引與 idx_seg_contrib_first（worker.js 的 INDEXED BY 真的有指名它們，本機庫也真的有）',
+    full.rc === 0 && needAuto.every(n => full.out.includes(n) && autos.includes(n)) && /idx_seg_contrib_first/.test(full.out),
+    JSON.stringify({ rc: full.rc, autos, out: full.out.trim().slice(-400) }));
+  const noAuto = runGate('no-auto', rows.filter(r => r.name !== 'sqlite_autoindex_garage_unlocks_1'));
+  ok('A23e 正式庫沒有 sqlite_autoindex_garage_unlocks_1 → exit 1，點名它與建表的 0014_bounty_v2.sql（不是當成程式錯）',
+    noAuto.rc === 1 && /sqlite_autoindex_garage_unlocks_1（ON garage_unlocks/.test(noAuto.out) && /0014_bounty_v2\.sql/.test(noAuto.out),
+    noAuto.out.trim().slice(0, 400));
+  const noFirst = runGate('no-first', rows.filter(r => r.name !== 'idx_seg_contrib_first'));
+  ok('A23f 正式庫沒有 idx_seg_contrib_first（0014 較早版本套過、這一版新加的索引還沒套）→ exit 1，點名它與 0014_bounty_v2.sql',
+    noFirst.rc === 1 && /idx_seg_contrib_first/.test(noFirst.out) && /0014_bounty_v2\.sql/.test(noFirst.out), noFirst.out.trim().slice(0, 400));
 }
 
 const pass = R.filter(r => r.p).length;

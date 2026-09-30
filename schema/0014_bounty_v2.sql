@@ -30,7 +30,7 @@
 -- 同一個人在同一段跑十趟只算一個人（data/bounty_rules.json 的 coverDistinct：台鐵 50、高鐵 15）。
 -- seg_key 與 bounty_board.seg_key 同鍵空間（sys|lnId|A|B；dwell 是 sys|lnId|站|站）。
 -- 只有 verdict='ok' 的趟才寫進來：unusable／suspect 不算「貢獻」（付出與資料是兩本帳，見 0002）。
--- first_ok_at：這個人第一次在這一段交出 ok 的時間（判定當下），只供稽核。
+-- first_ok_at：這個人第一次在這一段交出 ok 的時間（判定當下）。/api/bounty-me 的「首位校正者」看它；帳號合併撞段時取兩邊較早的。
 CREATE TABLE IF NOT EXISTS bounty_seg_contrib (
   seg_key     TEXT    NOT NULL,
   actor       TEXT    NOT NULL,
@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS bounty_seg_contrib (
 -- 帳號合併與刪帳號都是「以 actor 找列」（PK 的 actor 在第二欄，用不上主鍵索引）：沒有這個索引，
 -- 每次合併約掃 3 次全表、刪帳號 2 次，而這張表的列數＝段數×人數，D1 以讀取列數計費。
 CREATE INDEX IF NOT EXISTS idx_seg_contrib_actor ON bounty_seg_contrib (actor);
+-- /api/bounty-me 的「首位校正者」：每一段找 first_ok_at 最早（同時刻取 actor 字序最前）的那一位，每段讀一列。
+-- 沒有它，每段要讀遍這一段所有貢獻者再排序（worker.js 用 INDEXED BY 指名它，正式庫沒套時那一句直接報錯）。
+CREATE INDEX IF NOT EXISTS idx_seg_contrib_first ON bounty_seg_contrib (seg_key, first_ok_at, actor);
 
 -- ── 籌碼帳本：只進不改，餘額＝SUM(delta)，不另存一份餘額（避免兩份真相）──────────────
 -- kind：trip 合格錄程｜cloud 雲端搭乘換的｜redeem 兌換車庫場景（delta 為負）｜merge 合併帳號時的退款或搬移｜adjust 人工調整。

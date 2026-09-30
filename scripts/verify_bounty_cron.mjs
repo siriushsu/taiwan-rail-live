@@ -457,7 +457,7 @@ await attempt('C8', async () => {
   const origBatch = w2.DELAY_DB.batch.bind(w2.DELAY_DB);
   let crash = true;
   w2.DELAY_DB.batch = async stmts => {
-    if (crash && stmts.some(s => /^UPDATE bounty_samples SET verdict/.test(s._sql))) throw new Error('injected: crash before marking');
+    if (crash && stmts.some(s => /^UPDATE bounty_samples (?:INDEXED BY \w+ )?SET verdict/.test(s._sql))) throw new Error('injected: crash before marking');
     return origBatch(stmts);
   };
   // review-B R3 之後一班車的錯誤在判定裡接住（不再整發丟例外）：記下這一班（kv_blobs 一列）、繼續下一班（獨立驗收 N4 之後不再停手），

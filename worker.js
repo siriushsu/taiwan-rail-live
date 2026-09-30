@@ -6161,6 +6161,18 @@ async function resolveActor(env, actor) {
 // 同一條規則的 SQL 版（兩個 ? 都綁同一個 actor）：放進「寫入的那一句」裡當場解析。先在 JS 解析、再把結果綁進寫入的話，
 // 合併若剛好落在兩者之間，寫進去的就是已併掉的裝置（判定 cron 的點數、認領、籌碼、去重登記都走這一條；review-B B7、獨立驗收 V3）。
 const BOUNTY_WHO_SQL = 'COALESCE((SELECT merged_into FROM bounty_points WHERE actor=? AND uid IS NULL), ?)';
+// ── 查詢計畫釘死（INDEXED BY；第十批，第六輪獨立驗收 N6-1 的同一族）────────────────────────────────
+// 會隨使用者一直長大的六張表（bounty_samples、bounty_claims、chip_ledger、garage_unlocks、cloud_rides、bounty_seg_contrib），
+// 逐人、逐班、逐組讀寫的每一句都寫 INDEXED BY，指名那一句該走的索引。不寫的話計畫由 sqlite_stat1 決定，而 D1 文件要使用者
+// 「建索引之後、每次改 schema 之後跑 PRAGMA optimize」：表只有幾列時跑過一次（上線前自己測、或之後任何一次改 schema），統計就說
+// 「整張表幾列」，規劃器改走全表掃描；表長大之後統計不會自己更新（optimize 要列數差十倍、而且要有人再跑一次）。
+// 實測（node 3.51.2 與 workerd 的 D1 一致）：樣本表一列時跑過 PRAGMA optimize，判定 cron 讀一班、前次列、標記、「真的標到」、
+// 清掃出錯記錄那幾句全部掃全表，每一發上千班、每班各掃一次；一位測試者 48 列時，班車清單改走 idx_samples_trip 的跳躍掃描
+// （讀遍所有歷史樣本）。其他五張表的逐人查詢（餘額、解鎖、雲端搭乘、合併、刪帳號）同樣會改走全表掃描。
+// INDEXED BY 不看統計；索引被刪、改名或正式庫沒套時那一句直接報錯（no such index），不會默默退回掃描——出貨鏈的
+// verify_remote_schema.mjs 逐一比對正式庫有沒有這些索引（主鍵的自動索引 sqlite_autoindex_<表>_<n> 也算）。
+// 不寫的只有「主鍵／UNIQUE 的每一欄都是等號」的點查（計畫固定是一列，統計改不動它），例如 WHERE id=?、cloud_rides 的 (actor, day)。
+// 守門人：verify_bounty_hardening.mjs 的 PL（攔下各端點實際送出的每一句，幾種統計形狀下的計畫都必須與沒有統計時相同）。
 
 // ── 懸賞身分：誰能用哪個 actor 做事（路段懸賞 v2 稽核 F2／F3）────────────────────────────────
 // 三條原則，這一區與 bountyMerge／chipsMe／bountyMe 共用：
@@ -6345,7 +6357,7 @@ async function bountyBoard(request, env) {
       " WHERE kind='dwell' OR covered_at IS NULL" + ever.map(() => ' OR substr(seg_key, 1, length(?)) = ?').join('')
     ).bind(...ever.flatMap(k => [k + '|', k + '|'])).all();
     const cs = await env.DELAY_DB.prepare(
-      "SELECT seg_key, train_kind, dir, kind, slot, COUNT(DISTINCT actor) AS n FROM bounty_claims" +
+      "SELECT seg_key, train_kind, dir, kind, slot, COUNT(DISTINCT actor) AS n FROM bounty_claims INDEXED BY idx_claims_expiry" +
       " WHERE status='open' AND expires_at > ? GROUP BY seg_key, train_kind, dir, kind, slot"
     ).bind(now).all();
     const counts = new Map((cs.results || []).map(r =>
@@ -6411,7 +6423,7 @@ async function bountyClaim(request, env) {
       ...units.map((u, i) =>
         stmt.bind(`${claimId}|${i}`, actor, u.seg_key, trainKind, dir, kind, slot, Number(u.points) || 0, now, expires))]);
     const cnt = await env.DELAY_DB.prepare(
-      "SELECT COUNT(DISTINCT actor) AS n FROM bounty_claims WHERE seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?" +
+      "SELECT COUNT(DISTINCT actor) AS n FROM bounty_claims INDEXED BY idx_claims_unit WHERE seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?" +
       " AND status='open' AND expires_at > ?"
     ).bind(units[0].seg_key, trainKind, dir, kind, slot, now).first();
     return jsonRes({
@@ -6526,7 +6538,7 @@ async function bountySubmit(request, env) {
     // 每人每日批次上限。idx_samples_trip (actor, trip_date, train_no) 正好服務這個 COUNT，
     // 而且擋在 INSERT 之前——擋在後面等於已經寫進去了才說不行。
     const used = await env.DELAY_DB.prepare(
-      'SELECT COUNT(*) AS n FROM bounty_samples WHERE actor=? AND trip_date=?'
+      'SELECT COUNT(*) AS n FROM bounty_samples INDEXED BY idx_samples_trip WHERE actor=? AND trip_date=?'
     ).bind(actor, String(b.tripDate)).first();
     if ((Number(used && used.n) || 0) >= BOUNTY_MAX_BATCHES_PER_DAY)
       return jsonRes({ error: 'daily_quota' }, 429, 'no-store');
@@ -6564,6 +6576,9 @@ async function bountyMe(request, env) {
     const uid = await firebaseUid(env, auth[1]);
     if (!uid) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
     who = uid; verified = true;
+  } else if (await rateLimited(env.BOUNTY_LIMITER, request)) {
+    // ?actor= 路徑（不驗身分、免費）與 chips-me 同一道限流：舊版沒有，一個匿名 actor 連打這支就能大量燒 D1 讀取（計畫 D-T1 (5)）
+    return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
   }
   if (!isActorId(who)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
   try {
@@ -6585,7 +6600,7 @@ async function bountyMe(request, env) {
     const p = await env.DELAY_DB.prepare('SELECT points FROM bounty_points WHERE actor=?').bind(actor).first();
     // 白名單欄位：reject_code 連 SELECT 都不選進來，才不會有人日後手滑把整列丟出去
     const rs = await env.DELAY_DB.prepare(
-      'SELECT id, ln_id, sys, train_no, trip_date, verdict, quality_code, segs FROM bounty_samples' +
+      'SELECT id, ln_id, sys, train_no, trip_date, verdict, quality_code, segs FROM bounty_samples INDEXED BY idx_samples_trip' +
       ' WHERE actor=? ORDER BY trip_date DESC, id DESC LIMIT 60').bind(actor).all();
     const rows = rs.results || [];
     const segSeen = new Set(), segOk = new Set(), byLine = new Map(), firsts = [];
@@ -6606,11 +6621,17 @@ async function bountyMe(request, env) {
     }
     // 首位校正者：只給 ok（規格 §8 的例外——那是對資料署名，不是對付出表揚）。
     // 只顯示給自己，不顯示別人的暱稱：顯示他人自填暱稱＝UGC，會觸發 Apple Guideline 1.2。
-    for (const key of segOk) {
-      const f = await env.DELAY_DB.prepare(
-        "SELECT actor FROM bounty_samples WHERE verdict='ok' AND segs LIKE ? ORDER BY verdict_at ASC LIMIT 1"
-      ).bind('%' + key + '%').first();
-      if (f && f.actor === actor) firsts.push(key);
+    // 「第一位」＝這一段的去重貢獻（bounty_seg_contrib，判定 ok 時寫、合併時跟著改名、刪帳號時刪）裡 first_ok_at 最早的人，同時刻取 actor 字序最前。
+    // 舊版每一段各跑一句 segs LIKE '%段鍵%' … ORDER BY verdict_at：idx_samples_pending 只篩得出 verdict='ok'，之後逐列比 LIKE 再排序，
+    // 等於每段掃一次全站的 ok 列（計畫 D-T1 (5)）；段數多的人一次呼叫要上千句。現在一句、每段走 idx_seg_contrib_first 讀一列。
+    // 語意差別（主對話判讀）：模擬器的趟不寫貢獻，所以不再算首位（舊版會）；v1 時代的 ok 樣本不在這張表——v1 只能靠隱藏網址旗標打開，
+    // 正式站從沒對一般使用者開過。
+    if (segOk.size) {
+      const fs = await env.DELAY_DB.prepare(
+        'SELECT j.value AS k, (SELECT c.actor FROM bounty_seg_contrib c INDEXED BY idx_seg_contrib_first WHERE c.seg_key = j.value' +
+        ' ORDER BY c.first_ok_at, c.actor LIMIT 1) AS first FROM json_each(?) j'
+      ).bind(JSON.stringify([...segOk])).all();
+      for (const f of fs.results || []) if (f.first === actor) firsts.push(f.k);
     }
     const trips = rows.map(r => ({
       id: r.id, tripDate: r.trip_date, trainNo: r.train_no, sys: r.sys, lnId: r.ln_id, verdict: r.verdict,
@@ -6709,8 +6730,9 @@ async function bountyMerge(request, env) {
       'UPDATE bounty_points SET points=0, merged_into=?, updated_at=? WHERE actor=? AND merged_into IS NULL AND uid IS NULL'
     ).bind(uid, now, dev));
     // ④⑤ 樣本與認領也一起改名，否則 /api/bounty-me 查 uid 會看不到登入前的貢獻。
+    // 這一段每一句的 INDEXED BY 見 BOUNTY_WHO_SQL 下面「查詢計畫釘死」的說明（統計在表很小時算的會讓以 actor 找列的句子掃全表）。
     // 🔴 與 v2 四張表同一個守衛 G：舊版這兩句沒有守衛，來源併進別人（或根本是別人的帳號）時，樣本與認領照樣被搬走。
-    add('samples', db.prepare('UPDATE bounty_samples SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
+    add('samples', db.prepare('UPDATE bounty_samples INDEXED BY idx_samples_trip SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
     // 認領的改名與下面的去重都寫 INDEXED BY idx_claims_actor：理由同認領端點（bountyClaim）那一句，統計偏斜時不能改走全表掃描（第六輪 N6-1）。
     add('claims', db.prepare('UPDATE bounty_claims INDEXED BY idx_claims_actor SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
     // ⑤a 認領改名之後，uid 名下同一個單位可能有兩筆以上開著的（裝置與帳號各接過同一張卡、或好幾個裝置併進同一個帳號）：只留最近的一筆，
@@ -6740,7 +6762,7 @@ async function bountyMerge(request, env) {
     // 🔴 每日上限（trip 籌碼每人每日 dailyChipCap 顆、雲端搭乘每人每日 1 次）不回溯、不追討：
     // 兩個裝置同一天各自領滿的，併進來就是各自領到的那些；之後的入帳才照併後的合計去限。
     // ⑥ 籌碼帳本：整批改名，ref 不動（UNIQUE(kind, ref) 照舊保證同一個來源只入帳一次）。
-    add('ledger', db.prepare('UPDATE chip_ledger SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
+    add('ledger', db.prepare('UPDATE chip_ledger INDEXED BY idx_chip_ledger_actor_day SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
     // ⑦ 車庫解鎖：兩邊解過同一座＝只留 created_at 較早的一份（平手留 uid 那份），較晚那份花掉的籌碼以一筆
     // kind='merge' 的正數入帳退回。順序有意義：先寫退款（要讀較晚那列的 cost）→ 刪 uid 較晚的 → 刪 dev 剩下的孿生
     // → 其餘改名 → 依 created_at 重排 nth。cost 保留：那是當時實際付的價，重排只動「第幾座」。
@@ -6749,50 +6771,62 @@ async function bountyMerge(request, env) {
       " SELECT 'merge|merge|' || d.actor || '|' || d.scene, ?, 'merge'," +
       ' CASE WHEN u.created_at > d.created_at THEN u.cost ELSE d.cost END,' +
       " 'merge|' || d.actor || '|' || d.scene, NULL, ?" +
-      ' FROM garage_unlocks d JOIN garage_unlocks u ON u.actor=? AND u.scene=d.scene' +
+      // 兩邊都指名主鍵：只指名 d 時，表很小時算的統計會讓規劃器把 u 排成外層、整張表掃過（第十批 PL 抓到）；兩邊都指名之後
+      // 不論哪一邊在外層，都是「某個人的解鎖」逐列＋另一邊全鍵點查。
+      ' FROM garage_unlocks d INDEXED BY sqlite_autoindex_garage_unlocks_1' +
+      ' JOIN garage_unlocks u INDEXED BY sqlite_autoindex_garage_unlocks_1 ON u.actor=? AND u.scene=d.scene' +
       ' WHERE d.actor=?' + G
     ).bind(uid, now, uid, dev, dev, uid));
     add('unlockDropLater', db.prepare(
-      'DELETE FROM garage_unlocks WHERE actor=?' + G +
+      'DELETE FROM garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1 WHERE actor=?' + G +
       ' AND EXISTS (SELECT 1 FROM garage_unlocks d WHERE d.actor=? AND d.scene=garage_unlocks.scene' +
       ' AND d.created_at < garage_unlocks.created_at)'
     ).bind(uid, dev, uid, dev));
     add('unlockDropTwin', db.prepare(
-      'DELETE FROM garage_unlocks WHERE actor=?' + G +
+      'DELETE FROM garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1 WHERE actor=?' + G +
       ' AND EXISTS (SELECT 1 FROM garage_unlocks u WHERE u.actor=? AND u.scene=garage_unlocks.scene)'
     ).bind(dev, dev, uid, uid));
-    add('unlockMove', db.prepare('UPDATE garage_unlocks SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
+    add('unlockMove', db.prepare('UPDATE garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1 SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
     // nth＝同一個人裡「created_at 不晚於我」的列數（平手用 rowid 定序）。子查詢只讀 created_at／rowid／actor，
     // 這句 UPDATE 不改它們，所以逐列改寫時彼此不會互相影響。
     add('unlockRenumber', db.prepare(
-      'UPDATE garage_unlocks SET nth = (SELECT COUNT(*) FROM garage_unlocks g WHERE g.actor = garage_unlocks.actor' +
+      'UPDATE garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1 SET nth = (SELECT COUNT(*) FROM garage_unlocks g INDEXED BY sqlite_autoindex_garage_unlocks_1' +
+      ' WHERE g.actor = garage_unlocks.actor' +
       ' AND (g.created_at < garage_unlocks.created_at OR (g.created_at = garage_unlocks.created_at AND g.rowid <= garage_unlocks.rowid)))' +
       ' WHERE actor=?' + G
     ).bind(uid, dev, uid));
     // ⑧ 雲端搭乘：同一天兩邊都有＝留一筆。「算次數」的那筆（simulator=0）勝過模擬器的；同類則 created_at 較早的勝，
     // 平手留 uid 的。（(simulator, created_at) 是列值比較，小的勝。）其餘改名。
     add('rideDropLater', db.prepare(
-      'DELETE FROM cloud_rides WHERE actor=?' + G +
+      'DELETE FROM cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1 WHERE actor=?' + G +
       ' AND EXISTS (SELECT 1 FROM cloud_rides d WHERE d.actor=? AND d.day=cloud_rides.day' +
       ' AND (d.simulator, d.created_at) < (cloud_rides.simulator, cloud_rides.created_at))'
     ).bind(uid, dev, uid, dev));
     add('rideDropTwin', db.prepare(
-      'DELETE FROM cloud_rides WHERE actor=?' + G +
+      'DELETE FROM cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1 WHERE actor=?' + G +
       ' AND EXISTS (SELECT 1 FROM cloud_rides u WHERE u.actor=? AND u.day=cloud_rides.day)'
     ).bind(dev, dev, uid, uid));
-    add('rideMove', db.prepare('UPDATE cloud_rides SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
+    add('rideMove', db.prepare('UPDATE cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1 SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
     // ⑨ 去重貢獻：兩邊都貢獻過同一段＝合併後是同一個人，那一段的去重人數要少 1（所有同 seg_key 的看板列，下限 0；
     // covered_at 不動——「曾經收滿」是歷史事實，不因為併人而收回）。先減再刪（減的時候要靠 dev 那列找出撞段）。
+    // 撞段寫成 EXISTS（全鍵點查），不寫成自連接：自連接時表很小時算的統計會讓規劃器把帳號那一邊排成外層、整個主鍵索引掃過
+    // （帳號那一邊只有 actor 可用，主鍵是 (seg_key, actor)；第十批 PL 抓到）。
     add('contribDec', db.prepare(
       'UPDATE bounty_board SET distinct_ok_users = MAX(0, distinct_ok_users - 1)' +
-      ' WHERE seg_key IN (SELECT d.seg_key FROM bounty_seg_contrib d JOIN bounty_seg_contrib u' +
-      ' ON u.seg_key=d.seg_key AND u.actor=? WHERE d.actor=?)' + G
-    ).bind(uid, dev, dev, uid));
+      ' WHERE seg_key IN (SELECT d.seg_key FROM bounty_seg_contrib d INDEXED BY idx_seg_contrib_actor WHERE d.actor=?' +
+      ' AND EXISTS (SELECT 1 FROM bounty_seg_contrib u WHERE u.seg_key=d.seg_key AND u.actor=?))' + G
+    ).bind(dev, uid, dev, uid));
+    // 撞段時留帳號那一列，但「第一次交出 ok 的時間」取兩邊較早的：bounty-me 的首位校正者看這一欄（排在刪裝置那列之前，刪了就讀不到）。
+    add('contribFirst', db.prepare(
+      'UPDATE bounty_seg_contrib INDEXED BY idx_seg_contrib_actor SET first_ok_at =' +
+      ' (SELECT d.first_ok_at FROM bounty_seg_contrib d WHERE d.seg_key=bounty_seg_contrib.seg_key AND d.actor=?)' +
+      ' WHERE actor=? AND first_ok_at > (SELECT d.first_ok_at FROM bounty_seg_contrib d WHERE d.seg_key=bounty_seg_contrib.seg_key AND d.actor=?)' + G
+    ).bind(dev, uid, dev, dev, uid));
     add('contribDropTwin', db.prepare(
-      'DELETE FROM bounty_seg_contrib WHERE actor=?' + G +
+      'DELETE FROM bounty_seg_contrib INDEXED BY idx_seg_contrib_actor WHERE actor=?' + G +
       ' AND EXISTS (SELECT 1 FROM bounty_seg_contrib u WHERE u.actor=? AND u.seg_key=bounty_seg_contrib.seg_key)'
     ).bind(dev, dev, uid, uid));
-    add('contribMove', db.prepare('UPDATE bounty_seg_contrib SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
+    add('contribMove', db.prepare('UPDATE bounty_seg_contrib INDEXED BY idx_seg_contrib_actor SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
     // 冪等：每一句都以 actor=dev 為來源，搬完 dev 名下就沒有列，重跑時全部是 0 列的空操作；退款另有 UNIQUE(kind, ref)＋OR IGNORE。
     const res = await db.batch(stmts);
     // batch 之後讀兩列，決定回 400／409／200。寫入的守衛都已經在 batch 裡（見函式開頭的說明），這裡只是「說結果」：
@@ -6849,11 +6883,14 @@ async function bountyPurgeUid(env, uid, deviceActor) {
   // 有 actor 欄的六張明細表（前兩張是 v1，後四張是路段懸賞 v2：籌碼帳本、車庫解鎖、雲端搭乘、每段去重貢獻）。
   // 🔴 bounty_board 的 distinct_ok_users／收滿狀態刻意不回扣：那是「每一段」的匿名彙總、沒有任何欄位指向人，
   // 回扣會讓別人看到的路段進度因為某個人刪帳號而倒退；被刪掉的只有「誰貢獻了」那一半（bounty_seg_contrib）。
-  const TABLES_V1 = [['samples', 'bounty_samples'], ['claims', 'bounty_claims']];
-  const TABLES_V2 = [['chips', 'chip_ledger'], ['unlocks', 'garage_unlocks'], ['cloudRides', 'cloud_rides'], ['contrib', 'bounty_seg_contrib']];
+  // 第二欄是 FROM 後面整段（表名＋INDEXED BY，理由見 BOUNTY_WHO_SQL 下面「查詢計畫釘死」）；「uid 自己或併進 uid 的裝置」寫成一個 IN，
+  // 不寫成 actor=? OR actor IN (…)——OR 的兩邊要各自走索引再合併，INDEXED BY 之下統計一偏就改成整個索引從頭掃到尾（第十批實測）。
+  const TABLES_V1 = [['samples', 'bounty_samples INDEXED BY idx_samples_trip'], ['claims', 'bounty_claims INDEXED BY idx_claims_actor']];
+  const TABLES_V2 = [['chips', 'chip_ledger INDEXED BY idx_chip_ledger_actor_day'], ['unlocks', 'garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1'],
+    ['cloudRides', 'cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1'], ['contrib', 'bounty_seg_contrib INDEXED BY idx_seg_contrib_actor']];
   const stmts = [], at = {};                       // at[名稱] ＝ 這個名稱的語句在 batch 裡的位置們（結果加總時用名字取，不寫死索引）
   const add = (name, st) => { (at[name] = at[name] || []).push(stmts.length); stmts.push(st); };
-  for (const [name, table] of [...TABLES_V1, ...TABLES_V2]) add(name, db.prepare(`DELETE FROM ${table} WHERE actor=? OR actor IN (${sub})`).bind(uid, uid));
+  for (const [name, table] of [...TABLES_V1, ...TABLES_V2]) add(name, db.prepare(`DELETE FROM ${table} WHERE actor IN (SELECT ? UNION ALL ${sub})`).bind(uid, uid));
   // 只有 v1 兩張表吃 body 的 deviceActor（見函式開頭：v2 是錢包，不信任呼叫端自己填的裝置 id）
   if (dev) for (const [name, table] of TABLES_V1) add(name, db.prepare(`DELETE FROM ${table} WHERE actor=?${notElsewhere}`).bind(dev, dev, uid));
   // 判定的出錯記錄（kv_blobs，鍵＝前綴＋actor|乘車日|車次）：鍵本身就是「這個身分在這天搭了這班車」，刪帳號要一起刪（第二輪獨立驗收 B4e）。
@@ -6887,8 +6924,8 @@ async function bountyChipsRules(env) {
 }
 // 餘額與解鎖清單。餘額＝帳本全部 delta 加總，不另存一份餘額（避免兩份真相，見 0014）。解鎖清單依 nth 排序。
 async function chipStateOf(db, actor) {
-  const u = await db.prepare('SELECT scene, nth, cost, created_at FROM garage_unlocks WHERE actor=? ORDER BY nth').bind(actor).all();
-  const b = await db.prepare('SELECT COALESCE(SUM(delta),0) AS n FROM chip_ledger WHERE actor=?').bind(actor).first();
+  const u = await db.prepare('SELECT scene, nth, cost, created_at FROM garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1 WHERE actor=? ORDER BY nth').bind(actor).all();
+  const b = await db.prepare('SELECT COALESCE(SUM(delta),0) AS n FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=?').bind(actor).first();
   return {
     balance: Number(b && b.n) || 0,
     unlocked: (u.results || []).map(r => ({ scene: String(r.scene), nth: Number(r.nth), cost: Number(r.cost), at: Number(r.created_at) })),
@@ -6933,7 +6970,7 @@ async function chipsMe(request, env) {
     // 今天＝台北今天；帳本 trip 列的 day 是「乘車日」（不是判定日），所以這裡數的是乘車日為今天的錄程籌碼
     const day = taipeiDay(Number(env.BOUNTY_NOW) || Date.now());
     const got = await env.DELAY_DB.prepare(
-      "SELECT COALESCE(SUM(delta),0) AS n FROM chip_ledger WHERE actor=? AND kind='trip' AND day=?").bind(actor, day).first();
+      "SELECT COALESCE(SUM(delta),0) AS n FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=? AND kind='trip' AND day=?").bind(actor, day).first();
     return jsonRes({
       balance: st.balance,
       unlocked: chipUnlockedView(st.unlocked),
@@ -7027,14 +7064,14 @@ async function garageRedeem(request, env) {
           'INSERT OR IGNORE INTO chip_ledger (id,actor,kind,delta,ref,day,created_at)' +
           " SELECT ?,?,'redeem',?,?,NULL,?" +
           ' WHERE NOT EXISTS (SELECT 1 FROM garage_unlocks WHERE actor=? AND scene=?)' +
-          ' AND (SELECT COUNT(*) FROM garage_unlocks WHERE actor=?) = ?' +
-          ' AND (SELECT COALESCE(SUM(delta),0) FROM chip_ledger WHERE actor=?) >= ?'
+          ' AND (SELECT COUNT(*) FROM garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1 WHERE actor=?) = ?' +
+          ' AND (SELECT COALESCE(SUM(delta),0) FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=?) >= ?'
         ).bind(ledgerId, actor, -cost, ref, now, actor, scene, actor, nth - 1, actor, cost),
         db.prepare(
           'INSERT OR IGNORE INTO garage_unlocks (actor,scene,nth,cost,created_at)' +
           ' SELECT ?,?,?,?,?' +
           " WHERE EXISTS (SELECT 1 FROM chip_ledger WHERE kind='redeem' AND ref=? AND actor=? AND delta=?)" +
-          ' AND (SELECT COUNT(*) FROM garage_unlocks WHERE actor=?) = ?'
+          ' AND (SELECT COUNT(*) FROM garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1 WHERE actor=?) = ?'
         ).bind(actor, scene, nth, cost, now, ref, actor, -cost, actor, nth - 1),
       ]);
       led = await priorRedeem();
@@ -7151,7 +7188,7 @@ async function cloudRideTrainOk(env, trainKey, day, startedAt) {
 
 // 這個 actor 算進換籌碼的雲端搭乘次數（模擬器不算）。chipsMe 與 cloudRide 共用這一句，兩邊才會永遠同一個數字。
 async function cloudRideCount(db, actor) {
-  const r = await db.prepare('SELECT COUNT(*) AS n FROM cloud_rides WHERE actor=? AND simulator=0').bind(actor).first();
+  const r = await db.prepare('SELECT COUNT(*) AS n FROM cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1 WHERE actor=? AND simulator=0').bind(actor).first();
   return Number(r && r.n) || 0;
 }
 
@@ -7164,7 +7201,7 @@ async function cloudRideCount(db, actor) {
 // 那樣 ref 就跟 cloud|1 對不上、UNIQUE 擋不住重複。
 async function cloudSettleChips(db, actor, chips, day, now) {
   const total = await cloudRideCount(db, actor);
-  const ex = await db.prepare("SELECT COALESCE(SUM(delta),0) AS n FROM chip_ledger WHERE actor=? AND kind='cloud'").bind(actor).first();
+  const ex = await db.prepare("SELECT COALESCE(SUM(delta),0) AS n FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=? AND kind='cloud'").bind(actor).first();
   const existing = Number(ex && ex.n) || 0;
   const deserved = cloudChipsEarned(total, chips);
   if (!(deserved > existing)) return 0;
@@ -7234,7 +7271,7 @@ async function cloudRide(request, env) {
       return jsonRes({ ok: true, day, rides, toNextChip: chips.cloud.perChip - (rides % chips.cloud.perChip), chipAwarded }, 200, 'no-store');
     };
     // 重送：同一個 actor（解析後——合併帳號之後列跟著改名成 uid，解析後才對得上）同一個 requestId 已經寫過
-    const prior = await db.prepare('SELECT day, simulator, created_at FROM cloud_rides WHERE actor=? AND request_id=?')
+    const prior = await db.prepare('SELECT day, simulator, created_at FROM cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1 WHERE actor=? AND request_id=?')
       .bind(actor, b.requestId).first();
     if (prior) {
       if (prior.day !== day) return jsonRes({ error: 'conflict' }, 409, 'no-store');
@@ -7242,7 +7279,7 @@ async function cloudRide(request, env) {
       if (Number(prior.simulator) !== 1) {
         awarded = (await cloudSettleChips(db, actor, chips, day, now)) > 0;
         // 第一次的回應掉了：那一次結算寫的列 created_at 與這筆搭乘相同（同一個 now），據此還原第一次的 chipAwarded
-        if (!awarded) awarded = !!(await db.prepare("SELECT 1 AS x FROM chip_ledger WHERE actor=? AND kind='cloud' AND created_at=?")
+        if (!awarded) awarded = !!(await db.prepare("SELECT 1 AS x FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=? AND kind='cloud' AND created_at=?")
           .bind(actor, Number(prior.created_at)).first());
       }
       return await respond(awarded);
@@ -7340,7 +7377,7 @@ async function bountyValuationCron(env) {
     'INSERT OR IGNORE INTO bounty_board (seg_key,sys,train_kind,dir,kind,slot,l1,l2,points,per_day,first_listed_at,first_claimable_at,distinct_ok_users)' +
     ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,' +
     'MAX((SELECT COALESCE(MAX(distinct_ok_users), 0) FROM bounty_board WHERE seg_key=?),' +
-    ' (SELECT COUNT(*) FROM bounty_seg_contrib WHERE seg_key=?)))');
+    ' (SELECT COUNT(*) FROM bounty_seg_contrib INDEXED BY sqlite_autoindex_bounty_seg_contrib_1 WHERE seg_key=?)))');
   let inserted = 0;
   for (let i = 0; i < M.units.length; i += 80) {          // 比照既有 D1_BATCH_SIZE:一批 80 句
     const chunk = M.units.slice(i, i + 80);
@@ -7734,9 +7771,9 @@ async function bountyCreditTripChips(env, rules, groups, prior, now, who, fence)
   const got = await env.DELAY_DB.prepare(
     "INSERT OR IGNORE INTO chip_ledger (id,actor,kind,delta,ref,day,created_at)" +
     " SELECT 'trip|' || w || ?, w, 'trip', g, w || ?, ?, ? FROM (" +
-    "SELECT w, MIN(?, ? - (SELECT COALESCE(SUM(delta), 0) FROM chip_ledger WHERE actor=w AND kind='trip' AND day=?)) AS g" +
+    "SELECT w, MIN(?, ? - (SELECT COALESCE(SUM(delta), 0) FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND kind='trip' AND day=?)) AS g" +
     ' FROM (SELECT ' + BOUNTY_WHO_SQL + ' AS w))' +
-    " WHERE g > 0 AND NOT EXISTS (SELECT 1 FROM chip_ledger WHERE actor=w AND kind='trip' AND day=? AND substr(ref, -length(?)) = ?)" +
+    " WHERE g > 0 AND NOT EXISTS (SELECT 1 FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND kind='trip' AND day=? AND substr(ref, -length(?)) = ?)" +
     BOUNTY_VERIFY_HELD + BOUNTY_VERIFY_PENDING + ' RETURNING delta'
   ).bind(tail, tail, tripDate, now, raw, chips.dailyChipCap, tripDate, who, who, tripDate, tail, tail,
     BOUNTY_VERIFY_LEASE_KEY, fence.lease, fence.ids, fence.n).first();
@@ -7778,9 +7815,9 @@ const BOUNTY_VERIFY_LEASE_MS = 20 * 60 * 1000;
 //     留給接手的那一發做——點數、sample_count 不會加兩次，籌碼不會兩發各自讀到「今天還沒領」再各自寫（獨立驗收 N3、第二輪 D2）。
 //   ・PENDING：這一班車讀進來的樣本此刻「全部還在、而且都還沒判」（綁那些 id 的 JSON 陣列與筆數）。判定途中帳號被刪（樣本已刪），
 //     或這些列已被別人判掉，籌碼與去重登記都不寫——刪掉的帳號不會再長出一筆帳（第二輪 D5）。
-//     「+verdict」的一元加號同 bountyVerifyTrain ③ 的標記那句：只走主鍵點查，不去掃 idx_samples_pending。
+//     INDEXED BY 主鍵的自動索引、「+verdict」的一元加號，理由同 bountyVerifyTrain ③ 的標記那句：只走主鍵點查，不去掃 idx_samples_pending、不掃全表。
 const BOUNTY_VERIFY_HELD = ' AND EXISTS (SELECT 1 FROM kv_blobs WHERE k=? AND v=?)';
-const BOUNTY_VERIFY_PENDING = " AND (SELECT COUNT(*) FROM bounty_samples WHERE id IN (SELECT value FROM json_each(?)) AND +verdict='pending') = ?";
+const BOUNTY_VERIFY_PENDING = " AND (SELECT COUNT(*) FROM bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 WHERE id IN (SELECT value FROM json_each(?)) AND +verdict='pending') = ?";
 // 判定時出過錯的班車（kv_blobs 一班一列，鍵＝這個前綴＋actor|乘車日|車次，值＝{at, error, n}，n＝出錯幾次）：
 // 出錯 BOUNTY_VERIFY_STRIKES_TO_LAST 次起，之後每一發都排在清單最後。
 // 一班車的資料若會讓判定丟錯（任何資料相依的程式缺陷），它每一發都會丟同一個錯；排在前面的話每一發都卡在它、後面的誠實班車永遠輪不到
@@ -7955,7 +7992,7 @@ async function bountyVerifyCron(env0) {
     try {
       const sp = bountyStrikeParts('kv_blobs.k');
       await env.DELAY_DB.prepare(
-        'DELETE FROM kv_blobs WHERE k >= ? AND k < ? AND NOT EXISTS (SELECT 1 FROM bounty_samples s WHERE s.actor = ' + sp.actor +
+        'DELETE FROM kv_blobs WHERE k >= ? AND k < ? AND NOT EXISTS (SELECT 1 FROM bounty_samples s INDEXED BY idx_samples_trip WHERE s.actor = ' + sp.actor +
         ' AND s.trip_date = ' + sp.day + ' AND s.train_no = ' + sp.train + " AND +s.verdict = 'pending')" + BOUNTY_VERIFY_HELD
       ).bind(BOUNTY_VERIFY_STRIKE_PREFIX, BOUNTY_VERIFY_STRIKE_HI, BOUNTY_VERIFY_LEASE_KEY, lease).run();
     } catch (e) {}
@@ -7983,12 +8020,12 @@ async function bountyVerifyCron(env0) {
       ' SELECT s.actor AS actor, s.trip_date AS trip_date, s.train_no AS train_no, COUNT(*) AS n, SUM(length(s.payload)) AS bytes,' +
       ' CASE WHEN p.uid IS NOT NULL THEN s.actor ELSE COALESCE(p.merged_into, s.actor) END AS who,' +
       ' (p.uid IS NOT NULL OR p.merged_into IS NOT NULL) AS acct' +
-      ' FROM bounty_samples s LEFT JOIN bounty_points p ON p.actor = s.actor' +
+      ' FROM bounty_samples s INDEXED BY idx_samples_pending LEFT JOIN bounty_points p ON p.actor = s.actor' +
       " WHERE s.verdict = 'pending' AND s.trip_date < ?" +
       ' GROUP BY s.actor, s.trip_date, s.train_no' +
       '), r AS (' +
       ' SELECT t.*, ROW_NUMBER() OVER (PARTITION BY who ORDER BY trip_date, actor, train_no) AS rnd,' +
-      " (acct OR EXISTS (SELECT 1 FROM chip_ledger l WHERE l.actor = t.who AND l.kind = 'trip')) AS trusted," +
+      " (acct OR EXISTS (SELECT 1 FROM chip_ledger l INDEXED BY idx_chip_ledger_actor_day WHERE l.actor = t.who AND l.kind = 'trip')) AS trusted," +
       // 出錯次數：記錄的 n（舊格式沒有 n、或值不是 JSON，都算 1）；沒有記錄＝0。
       " COALESCE((SELECT CASE WHEN json_valid(x.v) THEN COALESCE(json_extract(x.v, '$.n'), 1) ELSE 1 END FROM kv_blobs x" +
       " WHERE x.k = '" + BOUNTY_VERIFY_STRIKE_PREFIX + "' || t.actor || '|' || t.trip_date || '|' || t.train_no), 0) AS strikes FROM t" +
@@ -8077,7 +8114,7 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   // 統計只算真的標到的（第二輪 B1f）。
   const oversize = async () => {
     const r = await env.DELAY_DB.prepare(
-      "UPDATE bounty_samples SET verdict='suspect', verdict_at=?, quality_code=NULL, reject_code='oversize', segs='[]'" +
+      "UPDATE bounty_samples INDEXED BY idx_samples_trip SET verdict='suspect', verdict_at=?, quality_code=NULL, reject_code='oversize', segs='[]'" +
       " WHERE actor=? AND trip_date=? AND train_no=? AND verdict='pending'" + BOUNTY_VERIFY_HELD
     ).bind(now, c.actor, c.trip_date, c.train_no, BOUNTY_VERIFY_LEASE_KEY, lease).run();
     if (Number(r && r.meta && r.meta.changes) > 0) { stat.trains++; stat.oversize++; }
@@ -8089,7 +8126,7 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   // 最後一列的累加超過上限、或批數超過上限，就照上面判可疑、不拿去判。
   const rs = await env.DELAY_DB.prepare(
     'SELECT * FROM (SELECT *, SUM(length(payload)) OVER (ORDER BY submitted_at, id ROWS UNBOUNDED PRECEDING) AS cum_bytes' +
-    " FROM bounty_samples WHERE actor=? AND trip_date=? AND train_no=? AND verdict='pending')" +
+    " FROM bounty_samples INDEXED BY idx_samples_trip WHERE actor=? AND trip_date=? AND train_no=? AND verdict='pending')" +
     ' WHERE cum_bytes - length(payload) <= ? ORDER BY submitted_at, id LIMIT ?'
   ).bind(c.actor, c.trip_date, c.train_no, BOUNTY_VERIFY_MAX_TRAIN_BYTES, BOUNTY_MAX_BATCHES_PER_DAY + 1).all();
   const rows = rs.results || [];
@@ -8148,7 +8185,7 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     " MAX(CASE s.verdict WHEN 'suspect' THEN 2 WHEN 'ok' THEN 1 ELSE 0 END) AS worst," +
     " MIN(json_extract(j.value, '$.t')) AS t0, MAX(json_extract(j.value, '$.t')) AS t1," +
     " MAX(CASE WHEN json_valid(s.client) THEN json_type(s.client, '$.simulator') = 'true' END) AS sim" +
-    " FROM bounty_samples s LEFT JOIN json_each(CASE WHEN json_valid(s.payload) THEN s.payload ELSE '[]' END) j" +
+    " FROM bounty_samples s INDEXED BY idx_samples_trip LEFT JOIN json_each(CASE WHEN json_valid(s.payload) THEN s.payload ELSE '[]' END) j" +
     "  ON j.type = 'object' AND json_type(j.value, '$.t') IN ('integer', 'real')" +
     ' WHERE s.actor IN (?, ' + BOUNTY_WHO_SQL + ") AND s.trip_date=? AND s.train_no=? AND s.verdict <> 'pending'" +
     ' GROUP BY s.sys, s.ln_id'
@@ -8197,18 +8234,20 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   // 🔴 MARKED：點數、sample_count、關認領另帶「這一組的樣本此刻全部是這一句剛標上的判定」（verdict 與 verdict_at＝這一發的 now，
   // 筆數等於這一組的樣本數）。同一個 batch 的標記那句只標「還是 pending」的列；列若已被別人標走（第二輪 D3 的交錯：舊的一發把整班標成 oversize）
   // 或已被刪掉（判定途中刪帳號，第二輪 D5），標記改到的少於這一組，後面三句就不動——不再「標記沒標到、點數照給」，也不替已刪的帳號長出點數列。
-  // 「+verdict」「+verdict_at」的一元加號同標記那句：只走主鍵點查（id IN json_each），不去掃 idx_samples_pending。
-  const MARKED = ' AND (SELECT COUNT(*) FROM bounty_samples WHERE id IN (SELECT value FROM json_each(?)) AND +verdict=? AND +verdict_at=?) = ?';
+  // INDEXED BY 主鍵的自動索引、「+verdict」「+verdict_at」的一元加號，理由同標記那句：只走主鍵點查（id IN json_each），不去掃 idx_samples_pending、不掃全表。
+  const MARKED = ' AND (SELECT COUNT(*) FROM bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 WHERE id IN (SELECT value FROM json_each(?)) AND +verdict=? AND +verdict_at=?) = ?';
   // 統計只算「標記那句真的標到列」的線組與班車（第二輪 B1f：舊版讀完列就先加，出錯或被接手的那一班也算進「判了幾班」）。
   const marked = res => Number(res && res[0] && res[0].meta && res[0].meta.changes) > 0;
   let judged = 0;
   for (const { trip, v, cov } of groups) {
     // 只標「此刻仍是 pending」的列（有租約，正常一定全是）。
-    // 🔴「+verdict」的一元加號是刻意的（同認領那句的 +expires_at）：沒有它，SQLite 會拿 verdict='pending' 去走 idx_samples_pending，
-    // 把全站所有 pending 列掃一遍再用 id 過濾——每一組都掃一次，積壓越多越慢（四千班積壓就是四千次全表級的掃描）。
-    // 加號之後只能走主鍵（id IN json_each：每個 id 一次點查）。守門人：verify_bounty_cron2.mjs 的 K1f（查詢計畫）。
+    // 🔴 INDEXED BY 主鍵的自動索引是刻意的：這一句只能走主鍵（id IN json_each：每個 id 一次點查）。沒有統計時，SQLite 會拿
+    // verdict='pending' 去走 idx_samples_pending，把全站所有 pending 列掃一遍再用 id 過濾——每一組都掃一次，積壓越多越慢
+    // （四千班積壓就是四千次全表級的掃描）；舊版用「+verdict」的一元加號擋這一條，但表很小時算的統計（見 BOUNTY_WHO_SQL 下面
+    // 「查詢計畫釘死」）會讓規劃器改走全表掃描，加號擋不住（第十批實測；同認領那幾句在第九批從加號改成 INDEXED BY 的理由）。
+    // 加號留著無害。守門人：verify_bounty_cron2.mjs 的 K1f（沒有統計）、verify_bounty_hardening.mjs 的 PL（幾種統計形狀）。
     const mark = env.DELAY_DB.prepare(
-      'UPDATE bounty_samples SET verdict=?, verdict_at=?, quality_code=?, reject_code=?, segs=?' +
+      'UPDATE bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 SET verdict=?, verdict_at=?, quality_code=?, reject_code=?, segs=?' +
       " WHERE +verdict='pending' AND id IN (SELECT value FROM json_each(?))" + HELD
     ).bind(v.verdict, now, v.qualityCode, v.rejectCode, JSON.stringify(cov), JSON.stringify(trip.sampleIds), BOUNTY_VERIFY_LEASE_KEY, lease);
     if (sim || v.verdict === 'suspect') {                       // 模擬器：只留判定；suspect：不給章、不計點、不計入門檻

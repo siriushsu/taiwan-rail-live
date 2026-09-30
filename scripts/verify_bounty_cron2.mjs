@@ -795,9 +795,9 @@ await attempt('K1', async () => {
   // 標記改成一組一句（id IN json_each）；sample_count 與關認領改成一組一句（row value IN json_each）。
   const P = {
     list: sqlOf(/^WITH t AS \(/),
-    load: sqlOf(/^SELECT \* FROM \(SELECT \*, SUM\(length\(payload\)\) OVER \(ORDER BY submitted_at, id ROWS UNBOUNDED PRECEDING\) AS cum_bytes FROM bounty_samples WHERE actor=\? AND trip_date=\? AND train_no=\? AND verdict='pending'\)/),
-    prior: sqlOf(/FROM bounty_samples s LEFT JOIN json_each\(/),          // 前次線組（獨立驗收 C4 之後在 SQL 裡依線彙總，樣本表別名 s）
-    mark: sqlOf(/^UPDATE bounty_samples SET verdict=\?/),
+    load: sqlOf(/^SELECT \* FROM \(SELECT \*, SUM\(length\(payload\)\) OVER \(ORDER BY submitted_at, id ROWS UNBOUNDED PRECEDING\) AS cum_bytes FROM bounty_samples (?:INDEXED BY idx_samples_trip )?WHERE actor=\? AND trip_date=\? AND train_no=\? AND verdict='pending'\)/),
+    prior: sqlOf(/FROM bounty_samples s (?:INDEXED BY idx_samples_trip )?LEFT JOIN json_each\(/),          // 前次線組（獨立驗收 C4 之後在 SQL 裡依線彙總，樣本表別名 s）
+    mark: sqlOf(/^UPDATE bounty_samples (?:INDEXED BY sqlite_autoindex_bounty_samples_1 )?SET verdict=\?/),
     points: sqlOf(/^INSERT INTO bounty_points \(actor,uid,points,merged_into,updated_at\) SELECT/),
     claims: sqlOf(/FROM bounty_claims (?:INDEXED BY idx_claims_actor )?WHERE actor=COALESCE\(.*status='open'.*json_each/),
     board: sqlOf(/FROM bounty_board WHERE seg_key IN \(SELECT value FROM json_each/),
