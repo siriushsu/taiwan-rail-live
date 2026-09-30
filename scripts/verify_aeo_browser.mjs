@@ -7,6 +7,18 @@ import { SPEC, SYS_IDS, pageBBox } from './lib/metro_page_spec.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const types = { '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8' };
+// 車站時刻頁照正式站的 CSP 送標頭：取 _headers 的 /* 區塊（縮排行，到下一個頂格行為止）裡的 Content-Security-Policy。
+// 本機 server 不送 CSP 就照不到 CSP 違規（見 _headers 開頭註解）；找不到就是 null，車站頁矩陣會因為「回應沒有 CSP」而紅，不會空過。
+const siteCsp = (() => {
+  const lines = fs.readFileSync(path.join(root, '_headers'), 'utf8').split('\n');
+  const start = lines.findIndex(line => line === '/*');
+  if (start < 0) return null;
+  for (let i = start + 1; i < lines.length && (/^\s/.test(lines[i]) || !lines[i].trim()); i++) {
+    const m = lines[i].match(/^\s+Content-Security-Policy:\s*(.+?)\s*$/i);
+    if (m) return m[1];
+  }
+  return null;
+})();
 const server = http.createServer((request, response) => {
   const url = new URL(request.url, 'http://127.0.0.1');
   let target = path.join(root, decodeURIComponent(url.pathname));
@@ -15,7 +27,9 @@ const server = http.createServer((request, response) => {
     response.writeHead(404).end('Not found');
     return;
   }
-  response.writeHead(200, { 'content-type': types[path.extname(target)] || 'application/octet-stream' });
+  const headers = { 'content-type': types[path.extname(target)] || 'application/octet-stream' };
+  if (siteCsp && /^\/(?:en\/|ja\/)?stations\//.test(url.pathname) && path.extname(target) === '.html') headers['content-security-policy'] = siteCsp;
+  response.writeHead(200, headers);
   fs.createReadStream(target).pipe(response);
 });
 
@@ -54,6 +68,9 @@ const widths = [360, 375, 414, 768];
 // --only=<正規式> 只驗網址符合該正規式的捷運頁（例：--only=^/en/metro/taipei/$）。
 const metroAll = process.argv.includes('--metro-all');
 const metroOnly = process.argv.includes('--metro-only');
+const stationsOnly = process.argv.includes('--stations-only');   // 只跑車站頁矩陣（縮短迭代用，驗收與出貨不用）
+const stationFilter = (process.argv.find(a => a.startsWith('--st-filter=')) || '').slice('--st-filter='.length);   // 只跑標籤符合此正規式的車站頁組合，例：--st-filter="^chromium 375px light /stations/"
+const stationVerbose = process.argv.includes('--st-verbose');   // 每個組合印耗時
 const onlyFilter = (process.argv.find(a => a.startsWith('--only=')) || '').slice('--only='.length);
 const LANG_DIR = { zh: 'metro', en: 'en/metro', ja: 'ja/metro' };
 const APP_LANG = { zh: 'zh-TW', en: 'en', ja: 'ja' };
@@ -326,10 +343,138 @@ async function inspect(page, label) {
   if (errors.length) failures.push(`${label} pageerror：${errors.join('；')}`);
 }
 
+// ── 車站時刻頁（SEO 階段 B2）矩陣 ────────────────────────────────────────────────────────────────
+// 頁：三語索引、瑞芳中英日、十分中、台鐵左營（zuoying-tra）中、彰化中、台北中（第一批回歸）。
+// 矩陣＝Chromium＋WebKit × 360/375/414/768/1280 × 三種亮暗（亮色／localStorage trainmap-appearance=dark／系統 colorScheme=dark）。
+// 判準：(1) 無 console error／pageerror／CSP 違規（本機 server 照 _headers 送正式站的 CSP，並確認回應真的帶了）；(2) 無橫向捲動；
+// (3) 時刻表每一列不到 3 行（表格不擠）；(4) 暗色真的套上：data-theme 與 body 背景色＝assets/aeo.css 宣告的色票（期望值從檔案取，
+// 不用頁面自己量自己）；(5) 點索引縣市跳轉按鈕與頁內目錄連結後，目標標題落在 sticky 標頭下方且看得到（亮色每個寬度都點，375 三種亮暗都點）。
+const STATION_MATRIX_PAGES = [
+  ['三語索引 zh', '/stations/'], ['三語索引 en', '/en/stations/'], ['三語索引 ja', '/ja/stations/'],
+  ['瑞芳 zh', '/stations/ruifang/'], ['瑞芳 en', '/en/stations/ruifang/'], ['瑞芳 ja', '/ja/stations/ruifang/'],
+  ['十分 zh', '/stations/shifen/'], ['台鐵左營 zh', '/stations/zuoying-tra/'], ['彰化 zh', '/stations/changhua/'], ['台北 zh（第一批回歸）', '/stations/taipei/'],
+].map(([name, pathname]) => ({ name, pathname }));
+const STATION_WIDTHS = [360, 375, 414, 768, 1280];
+const STATION_SCHEMES = [{ id: 'light' }, { id: 'appearance-dark', storage: 'dark' }, { id: 'system-dark', colorScheme: 'dark' }];
+const aeoCss = fs.readFileSync(path.join(root, 'assets/aeo.css'), 'utf8');
+const pageTokenRgb = (re, what) => {
+  const m = aeoCss.match(re);
+  if (!m) throw new Error(`assets/aeo.css 找不到${what}的 --page 色票`);
+  const n = parseInt(m[1].slice(1), 16);
+  return `rgb(${n >> 16}, ${(n >> 8) & 255}, ${n & 255})`;
+};
+const LIGHT_PAGE_BG = pageTokenRgb(/:root\s*\{[^}]*--page:\s*(#[0-9a-fA-F]{6})/, '亮色');
+const DARK_PAGE_BG = pageTokenRgb(/html\[data-theme=dark\]\s*\{[^}]*--page:\s*(#[0-9a-fA-F]{6})/, '暗色');
+if (LIGHT_PAGE_BG === DARK_PAGE_BG) throw new Error('assets/aeo.css 的亮暗 --page 色票相同，暗色判準會空過');
+const stationStats = { loads: 0, taps: 0 };
+async function settleScroll(page) {   // 捲動位置連續 3 次（50ms）不變才量；不靠 rAF（閒置時可能不跑）
+  await page.evaluate(() => new Promise(resolve => {
+    let last = -1, still = 0;
+    const tick = () => { const y = scrollY; still = Math.abs(y - last) < 0.5 ? still + 1 : 0; last = y; if (still >= 3) resolve(); else setTimeout(tick, 50); };
+    setTimeout(tick, 50);
+  }));
+}
+async function tapAnchor(page, link, id, label, touch) {
+  // 先用「瞬間捲動」重置並把連結帶到畫面中央，再用座標點下去：省掉 Playwright 對 scroll-behavior:smooth 頁面的可點性等待（一次約 3 秒）。
+  // 錨點跳轉也改成瞬間捲動再量落點：scroll-behavior 只決定動畫，落點（含 scroll-margin-top）與平滑捲動完全相同，量測不用等動畫，整個矩陣才跑得完。
+  const point = await link.evaluate(element => {
+    const root = document.documentElement;
+    root.style.scrollBehavior = 'auto'; scrollTo(0, 0); element.scrollIntoView({ block: 'center', inline: 'nearest' });
+    const box = element.getBoundingClientRect(), x = box.left + box.width / 2, y = box.top + box.height / 2, hit = document.elementFromPoint(x, y);
+    return { x, y, hittable: Boolean(hit && (hit === element || element.contains(hit))) };
+  });
+  if (!point.hittable) { failures.push(`${label} 連結中心點被別的元素蓋住，點不到`); return; }
+  try { if (touch) await page.touchscreen.tap(point.x, point.y); else await page.mouse.click(point.x, point.y); } catch (error) { failures.push(`${label} 點不到：${String(error.message).split('\n')[0]}`); return; }
+  await settleScroll(page);
+  stationStats.taps++;
+  const r = await page.evaluate(targetId => {
+    const el = document.getElementById(targetId), header = document.querySelector('.site-header');
+    if (!el) return { missing: true };
+    const box = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(Math.min(Math.max(box.left + 8, 0), innerWidth - 1), Math.min(Math.max(box.top + box.height / 2, 0), innerHeight - 1));
+    document.documentElement.style.scrollBehavior = '';
+    return { top: box.top, bottom: box.bottom, headerBottom: header ? header.getBoundingClientRect().bottom : 0, vh: innerHeight, covered: !(hit && (hit === el || el.contains(hit))), hash: location.hash };
+  }, id);
+  if (r.missing) { failures.push(`${label} 目標 #${id} 不存在`); return; }
+  if (r.hash !== `#${id}`) failures.push(`${label} 點了之後網址是 ${r.hash}，應為 #${id}`);
+  if (r.top < r.headerBottom - 0.5) failures.push(`${label} 目標標題被標頭蓋住：標題上緣 ${r.top.toFixed(0)}px 在標頭下緣 ${r.headerBottom.toFixed(0)}px 之上`);
+  else if (r.bottom > r.vh + 0.5 || r.covered) failures.push(`${label} 目標標題看不到（下緣 ${r.bottom.toFixed(0)}px／視窗高 ${r.vh}px，被別的元素蓋住＝${r.covered}）`);
+}
+async function checkStationMatrix(browser, engineName) {
+  for (const width of STATION_WIDTHS) {
+    const touch = width < 1280;
+    for (const scheme of STATION_SCHEMES) {
+      const context = await browser.newContext({ viewport: { width, height: 900 }, ...(touch ? { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : {}), colorScheme: scheme.colorScheme || 'light' });
+      if (scheme.storage) await context.addInitScript(value => { try { localStorage.setItem('trainmap-appearance', value); } catch (error) { /* 沒有 localStorage 就是沒設定 */ } }, scheme.storage);
+      try {
+        for (const entry of STATION_MATRIX_PAGES) {
+          const label = `${engineName} ${width}px ${scheme.id} ${entry.pathname}`;
+          if (stationFilter && !new RegExp(stationFilter).test(label)) continue;
+          const startedAt = Date.now(), tapsBefore = stationStats.taps;
+          const page = await context.newPage();
+          const problems = [];
+          page.on('console', message => { if (message.type() === 'error') problems.push(`console.error ${message.text().slice(0, 160)}`); });
+          page.on('pageerror', error => problems.push(`pageerror ${error.message.slice(0, 160)}`));
+          await page.addInitScript(() => { window.__csp = []; document.addEventListener('securitypolicyviolation', event => window.__csp.push(`${event.violatedDirective} ${event.blockedURI}`)); });
+          const response = await page.goto(`${base}${entry.pathname}`, { waitUntil: 'load' });
+          stationStats.loads++;
+          if (!response?.ok()) failures.push(`${label} HTTP ${response?.status()}`);
+          if (!(response?.headers()['content-security-policy'] || '').includes("default-src 'self'")) failures.push(`${label} 回應沒有正式站的 Content-Security-Policy 標頭（本機 server 應照 _headers 的 /* 送）`);
+          const m = await page.evaluate(() => {
+            const doc = document.documentElement, rows = [...document.querySelectorAll('main .tt tbody tr')], longRows = [];
+            let maxLines = 0;
+            for (const tr of rows) {
+              const cells = getComputedStyle(tr).display === 'block' ? [tr] : [...tr.cells];   // ≤700px 每列是文字流（tr 自己是區塊）；桌面是真的表格
+              let lines = 0;
+              for (const cell of cells) {
+                const cs = getComputedStyle(cell), lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.5;
+                const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+                lines = Math.max(lines, Math.round((cell.getBoundingClientRect().height - pad) / lh));
+              }
+              maxLines = Math.max(maxLines, lines);
+              if (lines >= 3) longRows.push(`${tr.textContent.replace(/\s+/g, ' ').trim().slice(0, 48)}（${lines} 行）`);
+            }
+            return { theme: doc.getAttribute('data-theme'), bodyBg: getComputedStyle(document.body).backgroundColor, overflow: Math.max(doc.scrollWidth, document.body.scrollWidth) - doc.clientWidth, rows: rows.length, longRows, maxLines, csp: window.__csp || [] };
+          });
+          problems.push(...m.csp.map(item => `CSP 違規 ${item}`));
+          if (problems.length) failures.push(`${label} ${problems.join('；')}`);
+          if (m.overflow > 1) failures.push(`${label} 水平溢出 ${m.overflow}px`);
+          const wantDark = scheme.id !== 'light', wantBg = wantDark ? DARK_PAGE_BG : LIGHT_PAGE_BG;
+          if (m.theme !== (wantDark ? 'dark' : 'light')) failures.push(`${label} data-theme=${m.theme}，應為 ${wantDark ? 'dark' : 'light'}`);
+          if (m.bodyBg !== wantBg) failures.push(`${label} body 背景 ${m.bodyBg}，應為 ${wantBg}（assets/aeo.css 的 ${wantDark ? '暗色' : '亮色'} --page）`);
+          if (m.longRows.length) failures.push(`${label} 時刻表有 ${m.longRows.length}／${m.rows} 列擠成 3 行以上（最多 ${m.maxLines} 行），例：${m.longRows.slice(0, 3).join('｜')}`);
+          if (scheme.id === 'light' || width === 375) {
+            if (entry.pathname === '/stations/') {
+              const jumps = page.locator('.tra-groups nav a[href^="#tra-county-"]'), count = await jumps.count();
+              if (count < 10) failures.push(`${label} 縣市跳轉按鈕只有 ${count} 顆`);
+              for (const index of [...new Set([0, Math.floor(count / 2), count - 1])].filter(i => i >= 0 && i < count)) {
+                const link = jumps.nth(index);
+                await tapAnchor(page, link, (await link.getAttribute('href')).slice(1), `${label} 跳轉「${(await link.innerText()).trim().split(/\s+/)[0]}」`, touch);
+              }
+            }
+            const tocs = page.locator('.page-toc a[href^="#"]'), tocCount = await tocs.count();
+            for (let index = 0; index < tocCount; index++) {
+              const link = tocs.nth(index);
+              await tapAnchor(page, link, (await link.getAttribute('href')).slice(1), `${label} 目錄「${(await link.innerText()).trim().slice(0, 14)}」`, touch);
+            }
+          }
+          if (scheme.id === 'light') await inspect(page, label);   // 站頁共用的導覽被遮、重疊、h1 數量
+          await page.close();
+          if (stationVerbose) console.log(`  ${label}：${Date.now() - startedAt}ms，點擊 ${stationStats.taps - tapsBefore} 次，時刻表 ${m.rows} 列（最多 ${m.maxLines} 行）`);
+        }
+      } finally {
+        await context.close();
+      }
+    }
+  }
+}
+
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
     const browser = await engine.launch({ headless: true });
     try {
+      if (!metroOnly) await checkStationMatrix(browser, engineName);
+      if (stationsOnly) continue;
       const desktop = await browser.newContext({ viewport: { width: 1280, height: 900 } });
       for (const pathname of metroOnly ? [] : paths) {
         const page = await desktop.newPage();
@@ -492,6 +637,8 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
+const stationSummary = `車站頁矩陣 ${stationStats.loads} 筆（${STATION_MATRIX_PAGES.length} 頁 × ${STATION_WIDTHS.length} 寬 × ${STATION_SCHEMES.length} 種亮暗 × 2 引擎；跳轉／目錄點擊 ${stationStats.taps} 次）：console／pageerror／CSP、橫向捲動、時刻表列高、暗色色票、錨點落點`;
+if (stationsOnly) { console.log(`AEO 車站頁瀏覽器驗收通過：${stationSummary}`); process.exit(0); }
 const covers = metroPages.map(e => e.cover).filter(Boolean);
 const minCover = covers.length ? Math.min(...covers.flat()) : null;
-console.log(`AEO 瀏覽器驗收通過：Chromium + WebKit；桌面與 ${widths.join('/')}px 觸控寬度；${paths.length} 個代表頁面（含 /en/、/ja/ 的 lang／title／canonical／hreflang／CTA）；捷運路線圖頁 ${metroPages.length}／${allMetro.length} 頁${metroAll ? '（全部）' : '（總覽＋5 系統＋捷運 bannan／輕軌 danhai 各語言；--metro-all 驗全部）'}：版面矩陣、SVG 地圖標籤、深連結 CTA${minCover == null ? '' : `（可視範圍最低覆蓋 ${(minCover * 100).toFixed(0)}%）`}`);
+console.log(`AEO 瀏覽器驗收通過：Chromium + WebKit；桌面與 ${widths.join('/')}px 觸控寬度；${paths.length} 個代表頁面（含 /en/、/ja/ 的 lang／title／canonical／hreflang／CTA）；捷運路線圖頁 ${metroPages.length}／${allMetro.length} 頁${metroAll ? '（全部）' : '（總覽＋5 系統＋捷運 bannan／輕軌 danhai 各語言；--metro-all 驗全部）'}：版面矩陣、SVG 地圖標籤、深連結 CTA${minCover == null ? '' : `（可視範圍最低覆蓋 ${(minCover * 100).toFixed(0)}%）`}；${stationSummary}`);
