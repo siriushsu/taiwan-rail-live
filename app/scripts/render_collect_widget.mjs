@@ -291,11 +291,11 @@ function transferPayload() {
  * 只會落在「兩個名稱都放得下」與「只放得下系統名」兩個區間，縮字與截斷的路徑沒有任何真實案例走到；合成名稱補上它們。
  * 全形字一字一個字級寬，所以各長度落在哪個區間由字級與欄寬決定、與語言無關（所有語言用同一串，語言只影響「車站收集」那半邊）。
  * 長度是照 430pt 機型量到的（剛好放進去要縮到的比例 need ＝ 可用寬 ÷ 理想寬；小卡可用 138pt、標題 13pt，中卡可用約 192pt、標題 14pt）：
- *   小卡：8 字 need 1.34（放得下）、12 字 0.89（縮字）、15 字 0.71（契約下限 75% 截斷；舊的 70% 下限會縮到 71% 放進去）、19 字 0.56、24 字 0.45（截斷）；
- *   中卡：8 字 1.73、12 字 1.15（放得下）、15 字 0.92（縮字）、19 字 0.73（同上，下限 75% 截斷、70% 會縮到 73%）、24 字 0.58（截斷）。
+ *   小卡：8 字 need 1.34（放得下）、12 字 0.89（縮字放得進去）、15／19／22／24 字 0.71／0.56／0.49／0.45（縮到下限 75% 仍放不下，截斷）；
+ *   中卡：8 字 1.73、12 字 1.15（放得下）、15 字 0.92（縮字放得進去）、19／22／24 字 0.73／0.63／0.58（截斷）。
  * 判準不讀這些數字，落在哪個區間由量到的理想寬推；hd 閘門另有覆蓋率斷言，字級或版面改了讓任何一個區間沒有案例走到就紅，提醒重新量。
  */
-const NAME_LENGTHS = [8, 12, 15, 19, 24];
+const NAME_LENGTHS = [8, 12, 15, 19, 22, 24];
 const NAME_CHARS = '甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥天地';
 function nameFixture(n) {
   const p = clone(sample);
@@ -409,6 +409,8 @@ function buildCases(quick) {
     for (const sc of ['ntdlrt', 'trtc', null]) add('medium', sc, 'transfer', 'light', false, 430);
     // 台灣輪廓（o1）：一個點都沒有的全台卡，小／中 × 淺／深
     for (const fam of ['small', 'medium']) for (const scheme of ['light', 'dark']) add(fam, null, 'bare', scheme, false, 430);
+    // 標題列（P3-3）：真實簡稱最長的系統——英文 Kaohsiung（高捷，上面已有）、日文阿里山（林鐵，只有 solo 狀態有收集）；繁中十個都是兩字
+    for (const fam of ['small', 'medium']) add(fam, 'afr', 'solo', 'light', false, 430);
     // 標題列（P3-3）：系統簡稱由短到長，走到「放得下兩個／只放系統名／縮字／截斷」各條路徑
     for (const n of NAME_LENGTHS) for (const fam of ['small', 'medium']) add(fam, 'tra', `name${n}`, 'light', false, 430);
     return cases;
@@ -857,9 +859,11 @@ function headerGate({ spec, frames, byId, ex, check, fail }) {
   const why = `兩個名稱並排要 ${f1(both.w)}pt，可用 ${f1(rowW)}pt`;
 
   // 只剩一個名稱時的檢查。avail＝這個名稱可用的寬；回傳區間。
-  const soleChecks = (surv, survId, wantText, avail) => {
+  const soleChecks = (surv, survId, wantText, avail, partW = null) => {
     const ideal = one(`${survId}#ideal`);
     if (!ideal) { fail('hd', n, `缺 ${survId}#ideal（不受限時的理想寬）`); return null; }
+    // 量測用 overlay 與真正畫出來的是同一段字、同一個字級：兩邊各自量到的理想寬要一樣（overlay 做歪了這裡會紅）
+    if (partW !== null) check('hd', n, Math.abs(ideal.w - partW) <= 0.6, `${survId} 自己回報的理想寬 ${f1(ideal.w)} ≠ 量測用標題列裡同一段字的理想寬 ${f1(partW)}`);
     check('hd', n, surv.text === wantText, `${survId} 文字「${surv.text}」≠ 期望「${wantText}」（${why}）`);
     check('hd', n, Math.abs(surv.x - rowLeft) <= 0.6, `只剩的名稱 ${survId} 沒有靠左：x ${f1(surv.x)}，標題列左緣 ${f1(rowLeft)}`);
     check('hd', n, surv.x + surv.w <= rowLeft + avail + 0.6, `${survId} 超出可用寬：右緣 ${f1(surv.x + surv.w)} > ${f1(rowLeft + avail)}`);
@@ -870,12 +874,14 @@ function headerGate({ spec, frames, byId, ex, check, fail }) {
     }
     if (ideal.w <= avail + TOL) return null;
     const need = avail / ideal.w; // 剛好放進去要縮到的比例
-    check('hd', n, surv.h >= 0.75 * ideal.h - 0.6,
+    // 縮字的下限：要縮到 75% 以下才放得進去的（need < 0.75），實作該停在 75% 截斷，這時行高恰是 75% 那一檔；
+    // 下限若是 70%，行高會少一檔（中卡 14pt：13 → 12）。行高是整數 pt，容差 0.5。
+    check('hd', n, surv.h >= 0.75 * ideal.h - 0.5,
       `${survId} 縮過頭：行高 ${f1(surv.h)}pt 是理想 ${f1(ideal.h)}pt 的 ${(100 * surv.h / ideal.h).toFixed(0)}%，低於 75%（放進去要縮到 ${(100 * need).toFixed(0)}%）`);
     if (need >= 0.75 && need <= 0.92) {
       check('hd', n, surv.h <= ideal.h - 0.4, `${survId} 該先縮字卻沒縮：放進去要縮到 ${(100 * need).toFixed(0)}%，行高仍是理想的 ${f1(ideal.h)}pt`);
     }
-    return need >= 0.75 ? 'shrunk' : need > 0.70 ? 'window' : 'cut';
+    return need >= 0.75 ? 'shrunk' : 'cut';
   };
 
   if (small) {
@@ -885,6 +891,8 @@ function headerGate({ spec, frames, byId, ex, check, fail }) {
       if (t && s) {
         check('hd', n, t.text === scopeName && s.text === APP_NAME, `兩個名稱的文字「${t.text}」「${s.text}」≠ 期望「${scopeName}」「${APP_NAME}」`);
         check('hd', n, Math.abs(t.x - rowLeft) <= 0.6, `範圍名沒有靠左：x ${f1(t.x)}，標題列左緣 ${f1(rowLeft)}`);
+        check('hd', n, Math.abs(t.w - scopeP.w) <= 0.6 && Math.abs(s.w - otherP.w) <= 0.6,
+          `兩個名稱的實際寬 ${f1(t.w)}／${f1(s.w)} ≠ 量測用標題列裡的理想寬 ${f1(scopeP.w)}／${f1(otherP.w)}（放得下就不縮；量測用 overlay 也要與真正畫的一致）`);
         check('hd', n, s.x - (t.x + t.w) >= gapMin - 0.6, `兩個名稱間距 ${f1(s.x - (t.x + t.w))}pt 小於版面自己要的最小間距 ${f1(gapMin)}pt`);
         check('hd', n, Math.abs(s.x + s.w - (rowLeft + rowW)) <= 0.6, `「車站收集」沒有靠右：右緣 ${f1(s.x + s.w)}，可用右緣 ${f1(rowLeft + rowW)}`);
       }
@@ -896,7 +904,7 @@ function headerGate({ spec, frames, byId, ex, check, fail }) {
         `放不下（${why}）時該只剩${ex.scoped ? '系統名（title）' : '「車站收集」（subtitle）'}：title ${titles.length} 個、subtitle ${subs.length} 個`);
       const surv = byId(survId)[0];
       if (!surv) return null;
-      const regime = soleChecks(surv, survId, ex.scoped ? scopeName : APP_NAME, rowW);
+      const regime = soleChecks(surv, survId, ex.scoped ? scopeName : APP_NAME, rowW, ex.scoped ? scopeP.w : null);
       if (!ex.scoped) {
         const ideal = one('subtitle#ideal');
         if (ideal) check('hd', n, Math.abs(ideal.h - scopeP.h) <= 0.7,
@@ -921,6 +929,7 @@ function headerGate({ spec, frames, byId, ex, check, fail }) {
       `放得下（${why}）卻不是整段標題：「${t.text}」（期望「${scopeName}…${APP_NAME}」）`);
     check('hd', n, Math.abs(t.x - rowLeft) <= 0.6, `標題沒有靠左：x ${f1(t.x)}，標題列左緣 ${f1(rowLeft)}`);
     if (ideal) check('hd', n, Math.abs(t.w - ideal.w) <= 0.6 && Math.abs(t.h - ideal.h) <= 0.6, `整段標題被縮了：實際 ${f1(t.w)}×${f1(t.h)}，理想 ${f1(ideal.w)}×${f1(ideal.h)}`);
+    check('hd', n, Math.abs(t.w - scopeP.w) <= 0.6, `整段標題的實際寬 ${f1(t.w)} ≠ 量測用標題列裡的理想寬 ${f1(scopeP.w)}`);
     check('hd', n, pctF.x - (t.x + t.w) >= gapMin - 0.6, `標題與百分比間距 ${f1(pctF.x - (t.x + t.w))}pt 小於版面自己要的最小間距 ${f1(gapMin)}pt`);
     return 'both';
   }
@@ -1303,10 +1312,10 @@ async function judge({ specs, results, out, src }) {
     }
   }
 
-  // hd 的覆蓋率：每個尺寸的單一系統都要各走過「兩個都放」「只放系統名（沒縮）」「縮到 75–92%」「縮到 70–75% 之間（契約下限 75% 與舊的 70% 只有這個區間分得出來）」
-  // 「縮到下限仍放不下而截斷」五條路徑；只把 N/M 印在 detail 不算 gate，分母會無聲縮水。
+  // hd 的覆蓋率：每個尺寸的單一系統都要各走過「兩個都放」「只放系統名（沒縮）」「縮字放得進去」「縮到下限 75% 仍放不下而截斷」四條路徑
+  // （縮字下限 75% 與舊的 70% 只有截斷那條分得出來：截斷時字就停在下限那一檔）；只把 N/M 印在 detail 不算 gate，分母會無聲縮水。
   for (const fam of ['small', 'medium']) {
-    for (const regime of ['both', 'fits', 'shrunk', 'window', 'cut']) {
+    for (const regime of ['both', 'fits', 'shrunk', 'cut']) {
       const hit = headerSeen.filter(h => h.fam === fam && h.scoped && h.regime === regime);
       check('hd', `coverage ${fam}`, hit.length >= 1, `${fam} 的單一系統標題列沒有任何案例走到「${regime}」——合成名稱的長度（NAME_LENGTHS）或字級／版面變了，重新量再調`);
     }
@@ -1892,6 +1901,13 @@ const MUTATIONS = [
     file: 'CollectionCard.swift',
     find: '            (f.isAll ? soleApp : scope).frame(maxWidth: .infinity, alignment: .leading)',
     replace: '            (f.isAll ? soleApp : scope).frame(maxWidth: .infinity, alignment: .trailing)',
+    expect: ['hd'],
+  },
+  {
+    id: 'M59 量測用的標題列 overlay 與真正畫的脫鉤（範圍名字級不同）——考「放得下」的門檻要綁在真實版面上',
+    file: 'CollectionCard.swift',
+    find: '                    Text(f.title).font(scopeFont).background(CollectionReporter(id: "header.scope#ideal")),',
+    replace: '                    Text(f.title).font(appFont).background(CollectionReporter(id: "header.scope#ideal")),',
     expect: ['hd'],
   },
   // 以下兩個改的是目錄（--lang en｜ja 才有）：gate 的 tr() 與 Swift 的 shim 讀同一份壞目錄，考的是 c 閘門對「目錄本身」的防線。
