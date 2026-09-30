@@ -12,7 +12,7 @@
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準（突變表在回報裡）。
 //
 // 分組：A 排程分流（F1）　B 只判昨天以前（F24）　C 整班車一趟（F4）　D 身分與重複入帳（F10／F11）
-//       E 模擬器（F23）　F 估值上架帶人數（F12）　G 估值上架補收滿（F21）
+//       E 模擬器（F23）　F 估值上架帶人數（F12）　G 估值上架補收滿（F21）　H 換班表之後退場的單位（第十二輪獨立驗收 P2-1）
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import worker, { _bounty } from '../worker.js';
@@ -230,7 +230,7 @@ await attempt('A3', async () => {
     J({ threw: r.threw, board: nBoard(w.db), v: q.verdicts(w.db, 'cron-a', '101'), chips: q.chips(w.db, 'cron-a') }));
 });
 await attempt('A4', async () => {
-  const w1 = aWorld(); failOnPrepare(w1.DELAY_DB, /^INSERT OR IGNORE INTO bounty_board/);
+  const w1 = aWorld(); failOnPrepare(w1.DELAY_DB, /^INSERT INTO bounty_board/);
   const r1 = await fire(w1, '30 19 * * *');
   ok('A4a [F1] 估值壞掉（上架那句 INSERT 丟例外）不擋驗證：估值失敗有記 log、scheduled 不丟例外、樣本照判、帳本 +1',
     r1.threw === null && r1.errs.some(e => e.includes('[cron bounty 估值] 失敗')) && q.verdicts(w1.db, 'cron-a', '101') === 'ok' && q.chips(w1.db, 'cron-a') === 1,
@@ -656,6 +656,49 @@ await attempt('G1', async () => {
     stamped(rows(T50)) && rows(T49).every(r => r.c === null), J({ t50: rows(T50), t49: rows(T49) }));
   ok('G1c [F21] 高鐵：門檻取 THSR 的 15（不是台鐵的 50）——人數 15 的段兩列已收滿；14 的段兩列還開著',
     stamped(rows(H15)) && rows(H14).every(r => r.c === null), J({ h15: rows(H15), h14: rows(H14) }));
+});
+
+// ═══ H 組：換班表之後退場的單位（第十二輪獨立驗收 P2-1）═══════════════════════════════════
+// 山線 S0|S1…S8|S9 每段兩個車種：自強 30 班、區間車 2 班 → 中位 16：自強 16/30 → L1 1（點數 1）、區間車 16/2＝8 → 頂格 3（點數 3）。
+// 換班表之後清單只剩自強（中位 30 → 自強點數仍是 1）：區間車的 9 列退場。期望值手算寫死：
+// 沒接懸賞的人跑 S0→S7（前 7 段）拿 7×1＝7 點；退場的區間車若還算進板價（同一段取各車種最高價），會是 7×3＝21。
+await attempt('H1', async () => {
+  const unitsOf = kinds => SEGS10.flatMap(s => kinds.map(([trainKind, perDay]) =>
+    ({ segKey: KT('山線', s), sys: 'tra_sched', trainKind, dir: 0, kind: 'track', slot: '', perDay })));
+  const units = { generatedAt: 1, schedDate: D28, lines: LINES, units: unitsOf([['自強', 30], ['區間車', 2]]) };
+  const w = world({ units });
+  const board = async () => (await (await _bounty.bountyBoard(new Request('https://railisland.tw/api/bounty-board'), w.env)).json()).cards || [];
+  const claim = (actor, cardId) => _bounty.bountyClaim(new Request('https://railisland.tw/api/bounty-claim',
+    { method: 'POST', headers: { 'content-type': 'application/json' }, body: J({ actor, cardId }) }), w.env);
+  const LOCAL = 'tra_sched|山線|0|區間車|track|', EXP = 'tra_sched|山線|0|自強|track|';
+  const card = (cs, id) => cs.find(c => c.id === id);
+  await w.valuation();
+  const b0 = await board();
+  const c0 = await claim('h1-keeper-01', LOCAL);                       // 換班表之前接下區間車（鎖 3 點）
+  ok('H1a [P2-1 對照] 換班表之前：看板有區間車（9 段共 27 點）與自強（9 點）兩張卡，區間車接得下（200）',
+    !!card(b0, LOCAL) && card(b0, LOCAL).points === 27 && !!card(b0, EXP) && card(b0, EXP).points === 9 && c0.status === 200,
+    J({ cards: b0.map(c => [c.id, c.points]), claim: c0.status }));
+  units.units = unitsOf([['自強', 30]]);
+  const v = await w.valuation();
+  const b1 = await board();
+  const gone = w.db.prepare('SELECT train_kind, COUNT(*) n FROM bounty_board WHERE retired=1 GROUP BY train_kind').all().map(r => ({ ...r }));
+  ok('H1b [P2-1] 換班表之後：區間車 9 列退場（列還在、retired 1）、自強不動；估值回報退場 9、新上架 0；看板只剩自強那張（9 點）',
+    v.retired === 9 && v.inserted === 0 && J(gone) === J([{ train_kind: '區間車', n: 9 }]) && !card(b1, LOCAL) && !!card(b1, EXP) && card(b1, EXP).points === 9,
+    J({ v, gone, cards: b1.map(c => [c.id, c.points]) }));
+  const c1 = await claim('h1-late-0001', LOCAL), c2 = await claim('h1-late-0001', EXP);
+  const c1body = await c1.json();
+  ok('H1c [P2-1] 退場的區間車接不了（404 no_open_units）；同一個人接自強照常（200）',
+    c1.status === 404 && c1body.error === 'no_open_units' && c2.status === 200, J({ local: [c1.status, c1body.error], exp: c2.status }));
+  putBatches(w.db, { actor: 'h1-rider-01', trainNo: 'H1', lnId: '山線', pts: leg({ sec: 700 }) });
+  putBatches(w.db, { actor: 'h1-keeper-01', trainNo: 'H2', lnId: '山線', pts: leg({ sec: 700 }) });
+  const st = await w.cron();
+  const pts = a => (w.db.prepare('SELECT points FROM bounty_points WHERE actor=?').get(a) || {}).points;
+  ok('H1d [P2-1] 沒接懸賞直接錄 S0→S7：7 段各取板上沒退場的最高價（自強 1）＝7 點，不是退場區間車的 7×3＝21',
+    q.verdicts(w.db, 'h1-rider-01', 'H1') === 'ok' && pts('h1-rider-01') === 7, J({ v: q.verdicts(w.db, 'h1-rider-01', 'H1'), pts: pts('h1-rider-01'), st }));
+  const done = w.db.prepare("SELECT COUNT(*) c FROM bounty_claims WHERE actor='h1-keeper-01' AND status='fulfilled'").get().c;
+  ok('H1e [P2-1 對照] 退場之前就接下區間車的人：照鎖定價兌現（7 段×3＝21 點），那 7 段的認領關成 fulfilled',
+    q.verdicts(w.db, 'h1-keeper-01', 'H2') === 'ok' && pts('h1-keeper-01') === 21 && done === 7,
+    J({ v: q.verdicts(w.db, 'h1-keeper-01', 'H2'), pts: pts('h1-keeper-01'), done }));
 });
 
 const pass = R.filter(r => r.p).length;

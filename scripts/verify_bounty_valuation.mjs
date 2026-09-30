@@ -103,6 +103,49 @@ if (existsSync('data/bounty_units.json')) {
   ok('E12 剛到頂還沒滿 30 天 → 自動開關不開', nh3.unlocked_offer === 0, String(nh3.unlocked_offer));
 }
 
+// E13–E17 換班表（第十二輪獨立驗收 P2-1）：per_day 照新清單更新、清單外的單位退場、回到清單就復出而且歷史不歸零、空清單中止。
+// 模組層級的清單快取每一發之前都歸零（bountyResetMemCaches），才讀得到換過的清單。期望值手算：
+//   清單 A＝{太麻里 4 班, 枋寮 60 班, 金崙 30 班} → 中位 30：太麻里 30/4 → 頂格 3、枋寮 1、金崙 1。
+//   清單 B＝{太麻里 60 班, 枋寮 60 班, 瀧溪 4 班}（金崙拿掉、瀧溪新增）→ 中位 60：太麻里 1、枋寮 1、瀧溪 3；
+//   金崙若被重算會是 60/30＝2——退場的列不重算，要停在 1。
+{
+  const U = (b, perDay) => ({ segKey: `tra_sched|南迴線|大武|${b}`, sys: 'tra_sched', trainKind: '自強', dir: 0, kind: 'track', slot: '', perDay });
+  const lines = { 'tra_sched|南迴線': { sys: 'tra_sched', lnId: '南迴線', name: '南迴線', stations: [] } };
+  let cur = null;
+  const ASSETS = { fetch: async r => new Response(String(r.url).includes('bounty_units')
+    ? JSON.stringify(cur) : readFileSync('data/bounty_rules.json', 'utf8'), { status: 200 }) };
+  const { db, DELAY_DB } = openTestDb();
+  const run = units => { cur = { generatedAt: 1, schedDate: '2026-07-28', lines, units }; _bounty.bountyResetMemCaches(); return bountyValuationCron({ DELAY_DB, ASSETS }); };
+  const row = b => ({ ...db.prepare('SELECT * FROM bounty_board WHERE seg_key=?').get(`tra_sched|南迴線|大武|${b}`) });
+  const all = () => JSON.stringify(db.prepare('SELECT * FROM bounty_board ORDER BY seg_key').all());
+  const A = [U('太麻里', 4), U('枋寮', 60), U('金崙', 30)];
+  const B = [U('太麻里', 60), U('枋寮', 60), U('瀧溪', 4)];
+  const ra = await run(A);
+  const a1 = row('太麻里'), a3 = row('金崙');
+  ok('E13 清單 A：三列上架、都沒退場；太麻里 per_day 4 → L1 3',
+    ra.inserted === 3 && ra.retired === 0 && a1.per_day === 4 && a1.l1 === 3 && a1.retired === 0 && a3.retired === 0 && a3.l1 === 1,
+    JSON.stringify({ ra, a1: [a1.per_day, a1.l1, a1.retired], a3: [a3.l1, a3.retired] }));
+  db.prepare('UPDATE bounty_board SET sample_count=7, l2_capped_at=123 WHERE seg_key=?').run('tra_sched|南迴線|大武|金崙');   // 金崙累積一點歷史
+  const rb = await run(B);
+  const b1 = row('太麻里'), b3 = row('金崙'), b4 = row('瀧溪');
+  ok('E14 清單 B：已在板上的太麻里 per_day 換成 60、L1 照新中位重算成 1、點數 1，first_listed_at 不變（舊版 INSERT OR IGNORE 停在 4 與 3）',
+    b1.per_day === 60 && b1.l1 === 1 && b1.points === 1 && b1.first_listed_at === a1.first_listed_at,
+    JSON.stringify({ per_day: b1.per_day, l1: b1.l1, points: b1.points, f: [a1.first_listed_at, b1.first_listed_at] }));
+  ok('E15 清單 B 沒有金崙 → 退場（retired 1）：列還在，趟數 7、per_day 30、L1 1 原封不動（沒被重算成 2）；瀧溪新上架；回報新上架 1、退場 1',
+    b3.retired === 1 && b3.sample_count === 7 && b3.per_day === 30 && b3.l1 === 1 && b4.retired === 0 && b4.l1 === 3 && rb.inserted === 1 && rb.retired === 1,
+    JSON.stringify({ rb, b3: [b3.retired, b3.sample_count, b3.per_day, b3.l1], b4: [b4.retired, b4.l1] }));
+  const rc = await run(A);
+  const c3 = row('金崙'), c4 = row('瀧溪');
+  ok('E16 清單又回到 A：金崙復出（retired 0），first_listed_at、趟數 7、l2_capped_at 123 都是原本的值；瀧溪換成退場；復出不算新上架（新上架 0、退場 1）',
+    c3.retired === 0 && c3.first_listed_at === a3.first_listed_at && c3.sample_count === 7 && c3.l2_capped_at === 123 &&
+      c4.retired === 1 && rc.inserted === 0 && rc.retired === 1,
+    JSON.stringify({ rc, c3: [c3.retired, c3.first_listed_at === a3.first_listed_at, c3.sample_count, c3.l2_capped_at], c4: c4.retired }));
+  const snap = all();
+  let threw = '';
+  try { await run([]); } catch (e) { threw = String(e && e.message); }
+  ok('E17 空清單＝丟錯中止，整張板一列都沒動（不是當成「今天沒有任何單位」全部退場）', /bounty_units empty/.test(threw) && all() === snap, threw || '沒有丟錯');
+}
+
 // ── F 組：seg_key 鍵空間硬 gate（controller 任務指令額外要求，brief 沒有給）───────────
 // 判準與 build_bounty_units.mjs 完全獨立重寫（不 import 它、不 import worker.js 的任何 canonicalSegs
 // 邏輯），真值來源＝index.html 的 lineNetwork()/segKey()（index.html:9099,9166——已用

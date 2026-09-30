@@ -32,6 +32,7 @@ const { db } = openTestDb();
     'seg_key', 'sys', 'train_kind', 'dir', 'kind', 'slot', 'l1', 'l2', 'points', 'per_day',
     'first_listed_at', 'first_claimable_at', 'l2_capped_at', 'sample_count', 'covered_at', 'unlocked_offer',
     'distinct_ok_users',       // 0014（路段懸賞 v2）：每段去重貢獻人數
+    'retired',                 // 0014：最新一份單位清單已經沒有這個單位（換班表之後退場）
   ]), cols('bounty_board').join(','));
   ok('A4 bounty_claims 欄位', eq(cols('bounty_claims'), [
     'id', 'actor', 'seg_key', 'train_kind', 'dir', 'kind', 'slot', 'points_locked', 'claimed_at', 'expires_at', 'status',
@@ -310,9 +311,9 @@ const tryRun = (d, sql, ...p) => { try { d.prepare(sql).run(...p); return ''; } 
   const firstAlter = stmts.findIndex(s => /^ALTER\s+TABLE/i.test(s));
   const createAfter = stmts.slice(firstAlter + 1).filter(s => /^CREATE\s/i.test(s));
   const alters = stmts.filter(s => /^ALTER\s+TABLE/i.test(s));
-  ok('A22 0014：ALTER 全部排在檔尾（第一句 ALTER 之後沒有 CREATE），且恰有兩句（distinct_ok_users、client）',
-    firstAlter > 0 && createAfter.length === 0 && alters.length === 2 &&
-    /distinct_ok_users/.test(alters[0]) && /\bclient\b/.test(alters[1]),
+  ok('A22 0014：ALTER 全部排在檔尾（第一句 ALTER 之後沒有 CREATE），且恰有三句（distinct_ok_users、client、retired）',
+    firstAlter > 0 && createAfter.length === 0 && alters.length === 3 &&
+    /distinct_ok_users/.test(alters[0]) && /\bclient\b/.test(alters[1]) && /^ALTER\s+TABLE\s+bounty_board\s+ADD\s+COLUMN\s+retired\b/i.test(alters[2]),
     JSON.stringify({ firstAlter, createAfter: createAfter.length, alters: alters.length }));
 }
 

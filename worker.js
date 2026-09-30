@@ -6353,11 +6353,12 @@ async function bountyBoard(request, env) {
     // v2 例外：chips.evergreen 裡的線（南迴線、臺東線；鍵是 sys|lnId）收滿後照出——那兩條線的錄程籌碼有偏遠加成，
     // 收滿了也仍是值得去跑的線，下架等於把使用者最該去的地方藏起來。比對用 substr 不用 LIKE：
     // 'tra_sched' 裡的底線在 LIKE 是萬用字元。
+    // 退場的列（換班表之後清單已經沒有的單位，見 bountyValuationCron）一律不出，常青線也一樣。
     const ever = (rules.chips && Array.isArray(rules.chips.evergreen) ? rules.chips.evergreen : [])
       .filter(k => typeof k === 'string' && k);
     const rs = await env.DELAY_DB.prepare(
       "SELECT seg_key, sys, train_kind, dir, kind, slot, points, sample_count, distinct_ok_users, covered_at FROM bounty_board" +
-      " WHERE kind='dwell' OR covered_at IS NULL" + ever.map(() => ' OR substr(seg_key, 1, length(?)) = ?').join('')
+      " WHERE retired=0 AND (kind='dwell' OR covered_at IS NULL" + ever.map(() => ' OR substr(seg_key, 1, length(?)) = ?').join('') + ')'
     ).bind(...ever.flatMap(k => [k + '|', k + '|'])).all();
     const cs = await env.DELAY_DB.prepare(
       "SELECT seg_key, train_kind, dir, kind, slot, COUNT(DISTINCT actor) AS n FROM bounty_claims INDEXED BY idx_claims_expiry" +
@@ -6398,10 +6399,10 @@ async function bountyClaim(request, env) {
     if (idn.res) return idn.res;
     const actor = idn.who;
     const now = Date.now(), expires = now + 86400000;
-    // 只認領還開著的單位。track 收滿就下架；dwell 收滿仍可接（獎勵衰減但不歸零）
+    // 只認領還開著的單位。track 收滿就下架；dwell 收滿仍可接（獎勵衰減但不歸零）；退場的列（見 bountyValuationCron）不能接
     const rs = await env.DELAY_DB.prepare(
       "SELECT seg_key, points FROM bounty_board WHERE sys=? AND train_kind=? AND dir=? AND kind=? AND slot=?" +
-      " AND seg_key LIKE ? AND (kind='dwell' OR covered_at IS NULL)"
+      " AND seg_key LIKE ? AND retired=0 AND (kind='dwell' OR covered_at IS NULL)"
     ).bind(sys, trainKind, dir, kind, slot, sys + '|' + lnId + '|%').all();
     const units = rs.results || [];
     if (!units.length) return jsonRes({ error: 'no_open_units' }, 404, 'no-store');
@@ -7360,10 +7361,12 @@ async function bountyUnits(env) {
   return bountyUnitsMem;
 }
 
-// 每日估值:把清單裡的新單位補上架,並重算所有還開著的單位的 l1／l2／points。
-// 冪等:重跑只會得到同一個結果(insert 用 OR IGNORE、update 全欄位重算),cron 補跑無害。
+// 每日估值:把清單裡的新單位補上架、清單已經沒有的單位退場,並重算所有還開著的單位的 l1／l2／points。
+// 冪等:重跑只會得到同一個結果(上架是 upsert、per_day 照清單覆寫;退場只做記號;update 全欄位重算),cron 補跑無害。
 async function bountyValuationCron(env) {
   const M = await bountyUnits(env);
+  // 🔴 清單是空的就中止,不當成「今天沒有任何單位」:下面「清單沒有的單位一律退場」遇到空清單,會把整張板收掉。
+  if (!Array.isArray(M.units) || !M.units.length) throw new Error('bounty_units empty');
   const rules = await bountyRules(env);
   const dwellCoveredMultiplier = Number(rules.dwellReward && rules.dwellReward.coveredMultiplier);
   if (!(dwellCoveredMultiplier > 0 && dwellCoveredMultiplier <= 1)) {
@@ -7374,25 +7377,40 @@ async function bountyValuationCron(env) {
   // 未設定 → first_claimable_at 留 NULL → L2 恆 1。見 bountyL2 的註解。
   const claimableFrom = Number(env.BOUNTY_CLAIMABLE_FROM) || 0;
   const med = bountyMedian(M.units.map(u => Number(u.perDay)));
+  // 板上現有的列（含已退場的）。上架數與退場都拿這一份跟清單比。
+  const unitKey = (segKey, trainKind, dir, kind, slot) => `${segKey}|${trainKind}|${Number(dir)}|${kind}|${slot || ''}`;
+  const onBoard = (await env.DELAY_DB.prepare('SELECT seg_key,train_kind,dir,kind,slot,retired FROM bounty_board').all()).results || [];
+  const had = new Set(onBoard.map(r => unitKey(r.seg_key, r.train_kind, r.dir, r.kind, r.slot)));
+  const want = new Set(M.units.map(u => unitKey(u.segKey, u.trainKind, u.dir, u.kind, u.slot)));
   // distinct_ok_users 上架時就帶入該段「已經有幾個不同的人交過 ok」：人數是「段」的屬性（見 bountyRegisterContrib），
   // 同一段先上架的兄弟列已經是 N，晚上架的列（換班表新增的車種／時段）若從 0 起算，就會永遠少 N 位，而且沒有任何錯誤訊息。
   // 取「該段既有列的最大值」與「bounty_seg_contrib 的列數」的較大者，不只數貢獻列：刪帳號只刪貢獻列、不回扣板上人數
   // （bountyPurgeUid），只數貢獻列的話，刪帳號之後新上架的兄弟列會比舊列少那個人，同一段的列值就不一致。
-  // INSERT OR IGNORE：已經在板上的列這一步不動它。
+  // 已經在板上的列（ON CONFLICT）：per_day 換成這一份清單的值、退場的列復出（retired 回 0），其餘欄位一律不動——
+  // 人數、趟數、收滿、L2 的起算與到頂時間是這個單位的歷史，換班表不該把它歸零；l1／points 由下面的重算照新的 per_day 算。
+  // 舊版是 INSERT OR IGNORE：per_day 停在第一次上架那天，換班表之後價格一直照舊班表算（第十二輪獨立驗收 P2-1）。
   const ins = env.DELAY_DB.prepare(
-    'INSERT OR IGNORE INTO bounty_board (seg_key,sys,train_kind,dir,kind,slot,l1,l2,points,per_day,first_listed_at,first_claimable_at,distinct_ok_users)' +
+    'INSERT INTO bounty_board (seg_key,sys,train_kind,dir,kind,slot,l1,l2,points,per_day,first_listed_at,first_claimable_at,distinct_ok_users)' +
     ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,' +
     'MAX((SELECT COALESCE(MAX(distinct_ok_users), 0) FROM bounty_board WHERE seg_key=?),' +
-    ' (SELECT COUNT(*) FROM bounty_seg_contrib INDEXED BY sqlite_autoindex_bounty_seg_contrib_1 WHERE seg_key=?)))');
-  let inserted = 0;
+    ' (SELECT COUNT(*) FROM bounty_seg_contrib INDEXED BY sqlite_autoindex_bounty_seg_contrib_1 WHERE seg_key=?)))' +
+    ' ON CONFLICT(seg_key,train_kind,dir,kind,slot) DO UPDATE SET per_day=excluded.per_day, retired=0');
+  const inserted = M.units.filter(u => !had.has(unitKey(u.segKey, u.trainKind, u.dir, u.kind, u.slot))).length;
   for (let i = 0; i < M.units.length; i += 80) {          // 比照既有 D1_BATCH_SIZE:一批 80 句
     const chunk = M.units.slice(i, i + 80);
-    const res = await env.DELAY_DB.batch(chunk.map(u => {
+    await env.DELAY_DB.batch(chunk.map(u => {
       const l1 = bountyL1(u.perDay, med), l2 = bountyL2(now, claimableFrom);
       return ins.bind(u.segKey, u.sys, u.trainKind, u.dir, u.kind, u.slot || '', l1, l2,
         bountyPointsOf(l1, l2), Number(u.perDay) || 0, now, claimableFrom || null, u.segKey, u.segKey);
     }));
-    inserted += res.reduce((a, r) => a + ((r.meta && r.meta.changes) || 0), 0);
+  }
+  // 退場：板上還沒退場、這一份清單已經沒有的單位（換班表之後不再有的車種、時段、停站）。只做記號、不刪列：
+  // 看板、認領、沒接懸賞時的入帳價、下面的重算都跳過退場的列（各處的 retired=0）；已經接下的認領照舊用鎖定的價兌現（入帳先看認領）。
+  // 之後的清單又有它，就由上面的 ON CONFLICT 復出，歷史欄位原封不動。
+  const gone = onBoard.filter(r => !Number(r.retired) && !want.has(unitKey(r.seg_key, r.train_kind, r.dir, r.kind, r.slot)));
+  const retire = env.DELAY_DB.prepare('UPDATE bounty_board SET retired=1 WHERE seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?');
+  for (let i = 0; i < gone.length; i += 80) {
+    await env.DELAY_DB.batch(gone.slice(i, i + 80).map(r => retire.bind(r.seg_key, r.train_kind, r.dir, r.kind, r.slot)));
   }
   // 剛上架、人數已經達門檻的列，補寫收滿（covered_at）。收滿只在 bountyRegisterContrib 的登記那一步寫，而且只寫「這一趟覆蓋到的段」——
   // 人數早已夠的段，換班表新增的兄弟列若不在這裡補，會被看板當成開放單位（covered_at 為空），要等下一趟 ok 經過那一段才收。
@@ -7407,10 +7425,10 @@ async function bountyValuationCron(env) {
       ).bind(now, now, sys, need).run();
     }
   }
-  // 重算:只動還開著的(track 未收滿、dwell 恆算)。已下架的段留著歷史值,不必每天重寫。
+  // 重算:只動還開著的(track 未收滿、dwell 恆算)、而且沒退場的。已下架的段與退場的列留著歷史值,不必每天重寫。
   const rs = await env.DELAY_DB.prepare(
     "SELECT seg_key,train_kind,dir,kind,slot,per_day,l2_capped_at,sample_count,covered_at,first_claimable_at" +
-    " FROM bounty_board WHERE kind='dwell' OR covered_at IS NULL").all();
+    " FROM bounty_board WHERE retired=0 AND (kind='dwell' OR covered_at IS NULL)").all();
   const upd = env.DELAY_DB.prepare(
     'UPDATE bounty_board SET l1=?, l2=?, points=?, first_claimable_at=?, l2_capped_at=?, unlocked_offer=?' +
     ' WHERE seg_key=? AND train_kind=? AND dir=? AND kind=? AND slot=?');
@@ -7434,7 +7452,7 @@ async function bountyValuationCron(env) {
         r.seg_key, r.train_kind, r.dir, r.kind, r.slot);
     }));
   }
-  return { inserted, updated, capped, unlocked };
+  return { inserted, retired: gone.length, updated, capped, unlocked };
 }
 
 // ── 判定：兩組閘門、三種結果（規格 §7）─────────────────────────────────────
@@ -8408,11 +8426,12 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
       keepFirst(locks, cr.results);
     }
     // 沒接懸賞就直接錄（跟車面板的第二個入口）：用當下的板價，不是 0。只查沒有認領的那些段。
+    // 退場的列不算（retired=0）：同一段取各車種裡最高的價，而退場的列停在舊班表算的價，留著會把這一段的價墊高。
     const boards = new Map();
     const unclaimed = [...new Set(cov.filter(c => !locks.has(credKey(c))).map(c => c.key))];
     if (unclaimed.length) {
       const br = await env.DELAY_DB.prepare(
-        'SELECT seg_key,kind,dir,slot,points,train_kind FROM bounty_board WHERE seg_key IN (SELECT value FROM json_each(?))' +
+        'SELECT seg_key,kind,dir,slot,points,train_kind FROM bounty_board WHERE seg_key IN (SELECT value FROM json_each(?)) AND retired=0' +
         ' ORDER BY points DESC,train_kind'
       ).bind(JSON.stringify(unclaimed)).all();
       keepFirst(boards, br.results);
@@ -9445,7 +9464,7 @@ export default {
       const cenv = bountyCounted(env);
       try {
         const v = await bountyValuationCron(cenv);
-        console.log(`[cron bounty 估值] 新上架 ${v.inserted}, 重算 ${v.updated}, 首次到頂 ${v.capped}, 自動開關 ${v.unlocked}`);
+        console.log(`[cron bounty 估值] 新上架 ${v.inserted}, 退場 ${v.retired}, 重算 ${v.updated}, 首次到頂 ${v.capped}, 自動開關 ${v.unlocked}`);
       } catch (e) { console.error('[cron bounty 估值] 失敗:', (e && e.stack) || String(e)); }
       // 順序仍是先估值後驗證（驗證要用當下的板價）。
       try {
@@ -9483,7 +9502,7 @@ export default {
         const cenv = bountyCounted(env);
         try {
           const v = await bountyValuationCron(cenv);
-          console.log(`[cron bounty 估值] 新上架 ${v.inserted}, 重算 ${v.updated}, 首次到頂 ${v.capped}, 自動開關 ${v.unlocked}`);
+          console.log(`[cron bounty 估值] 新上架 ${v.inserted}, 退場 ${v.retired}, 重算 ${v.updated}, 首次到頂 ${v.capped}, 自動開關 ${v.unlocked}`);
         } catch (e) { console.error('[cron bounty 估值] 失敗:', (e && e.stack) || String(e)); }
         // 順序是先估值後驗證:驗證要用到板上的當下點數(沒接懸賞直接錄的那條路徑),先估值才是當天的價。
         // 獨立 try/catch,不影響上面估值的 catch 語意,也不影響上層 ingest 的 rethrow 語意。

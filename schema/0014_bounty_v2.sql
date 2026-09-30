@@ -7,7 +7,7 @@
 --       chips-me／garage-redeem／cloud-ride／bounty-merge 一律 503。
 --    ③ 驗證 cron 在寫 bounty_seg_contrib／chip_ledger 那幾句丟錯；這兩件排在「標記已判定」之前，
 --       所以樣本留在 pending、補套之後下一發 cron 會重判，不會永久漏發。
---    ④ /api/bounty-board【整個】回 503：看板的 SELECT 讀 bounty_board.distinct_ok_users，缺這一欄整句失敗；
+--    ④ /api/bounty-board【整個】回 503：看板的 SELECT 讀 bounty_board.distinct_ok_users／retired，缺欄整句失敗；
 --       回應是 public, s-maxage=60，全站每個人的看板都會空掉（不是只有新功能壞）。
 --    ⑤ 每日估值 cron 丟錯：上架新單位的 INSERT 讀 bounty_seg_contrib，缺這張表整支估值中止——
 --       板上不會有新單位、也不會重算價格，而且只在 log 裡看得到。
@@ -21,9 +21,11 @@
 --    或回滾後對新表手動補刪／補搬。
 --
 -- 全部 CREATE 用 IF NOT EXISTS：cron 與新環境都會重跑同一份檔。
--- 🔴 兩句 ALTER 一定放在檔尾：SQLite 沒有 ADD COLUMN IF NOT EXISTS，重套時第一句 ALTER 會丟
+-- 🔴 ALTER 一律放在檔尾：SQLite 沒有 ADD COLUMN IF NOT EXISTS，重套時第一句 ALTER 會丟
 --    「duplicate column name」，整檔 exec 就在那裡中斷（scripts/d1_local.mjs 的 applySchemaFiles
 --    吞掉這一種錯）——放在最前面會連帶吞掉後面所有 CREATE。
+--    同一個理由：這個檔一旦套進任何一個庫，之後要加欄就開新檔，不要再接在這裡——重套到第一句 ALTER 就中斷，
+--    後來接上的那句在那個庫永遠跑不到。
 
 -- ── 每段的去重貢獻者 ────────────────────────────────────────────────────────
 -- 「這一段有幾個不同的人交過合格（ok）錄程」＝COUNT(DISTINCT actor)。收滿門檻看的是人數，不是趟數：
@@ -96,3 +98,7 @@ CREATE TABLE IF NOT EXISTS cloud_rides (
 ALTER TABLE bounty_board ADD COLUMN distinct_ok_users INTEGER NOT NULL DEFAULT 0;
 -- client：上傳當下的 {platform, app, simulator} JSON 字串（只存這三個欄位）。舊列與直接寫入的測試列為 NULL。
 ALTER TABLE bounty_samples ADD COLUMN client TEXT;
+-- retired：1＝最新一份單位清單（data/bounty_units.json）已經沒有這個單位（換班表之後不再有的車種、時段、停站）。
+-- 每日估值 cron 寫：清單沒有就標 1、清單又有就回 0；列不刪，趟數、人數、收滿這些歷史欄位原封不動。
+-- 看板、認領、沒接懸賞時的入帳價、每日重算都只看 retired=0 的列。
+ALTER TABLE bounty_board ADD COLUMN retired INTEGER NOT NULL DEFAULT 0;
