@@ -177,6 +177,7 @@ const collectHomes = {
   wc_root: [CS, CM, CMSG],
   wc_title: [CS, CM, CMSG], wc_subtitle: [CS], wc_pct: [CS, CM], wc_count: [CS, CM], wc_remain: [CS],
   wc_empty_title: [CS, 'widget_collect_empty.xml'], wc_empty_hint: [CS, 'widget_collect_empty.xml'],
+  wc_stamp: [CS, CM],   // 標題列右端的「蓋章」按鈕，小、中卡各一顆，綁 railisland://checkin
   wc_map_slot: [CS], wc_map_light: [CS, CM], wc_map_dark: [CS, CM], wc_rows: [CM], wc_message: [CMSG],
   wc_row_label: ['widget_collect_sysrow.xml', 'widget_collect_sysrow_wide.xml'],
   wc_row_bar: ['widget_collect_sysrow.xml', 'widget_collect_sysrow_wide.xml'],

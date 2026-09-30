@@ -40,6 +40,8 @@ final class CollectionWidgetRender {
     private static final int ROW_BAR = 8;
     private static final int ROW_REMAIN = 23;       // 含 marginTop 5
     private static final int ROW_RECENT = 19;
+    /** 「蓋章」按鈕左右內距合計（dp，見 widget_collect_*.xml 的 wc_stamp：各 8）。 */
+    private static final int STAMP_PAD = 16;
     /** CJK 行高約為字級的 1.45 倍（obs.json 量到 13sp→18.7dp、11sp→16dp）；拉丁字母較矮，一律取大的，寧可少放一行也不讓字被裁。 */
     private static final float LINE_H = 1.45f;
     /** 位元組上限保險：地圖 Bitmap 高度（像素）不超過這個值。 */
@@ -73,11 +75,7 @@ final class CollectionWidgetRender {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_collect_small);
         float fs = fontScale(c);
         String kicker = RailNativeL10n.text(c, "車站收集");
-        v.setTextViewText(R.id.wc_title, f.title);
-        v.setTextViewText(R.id.wc_subtitle, kicker);
-        // 標題與副標放不下就只留範圍名（與 iOS ViewThatFits 同一個取捨）
-        float need = estimatedWidth(f.title, 13 * fs) + 4 + estimatedWidth(kicker, 11 * fs);
-        v.setViewVisibility(R.id.wc_subtitle, need <= wDp - CARD_PAD_H ? android.view.View.VISIBLE : android.view.View.GONE);
+        smallHeader(c, v, f, kicker, wDp, fs);
 
         // 文字欄寬（dp）：版面權重 58／42。窄到文字放不下（多半是 110dp 寬的 2×2）就整個放掉地圖，
         // 讓文字欄吃滿整張卡——「數字被裁」比「少一張地圖」糟得多，關鍵數字永遠優先。
@@ -147,16 +145,42 @@ final class CollectionWidgetRender {
         return v;
     }
 
+    /**
+     * 小卡標題列 [標題][副標][蓋章]（蓋章鈕固定 18dp 高、比標題矮，不會撐高這一列）。放不下時依序退讓：
+     * 先收副標（與 iOS ViewThatFits 同一個取捨）；標題加按鈕還是放不下，就把兩者字級一起縮（最多縮到 70%）。
+     * 🔴 字級兩個分支都要明講：launcher 是 reapply 到舊 View 樹，沒提到的屬性會停在上一次的樣子。
+     */
+    private static void smallHeader(Context c, RemoteViews v, CollectionData.Figures f, String kicker, int wDp, float fs) {
+        String stamp = RailNativeL10n.text(c, "蓋章");
+        v.setTextViewText(R.id.wc_title, f.title);
+        v.setTextViewText(R.id.wc_subtitle, kicker);
+        v.setTextViewText(R.id.wc_stamp, stamp);
+        float rowW = wDp - CARD_PAD_H;
+        float stampText = tightWidth(stamp, 10 * fs) * 1.1f;           // 粗體加寬 10%
+        float stampW = stampText + STAMP_PAD + 6;                      // ＋左右內距＋與前一個元素的間距
+        boolean kick = estimatedWidth(f.title, 13 * fs) + 4 + estimatedWidth(kicker, 11 * fs) + stampW <= rowW;
+        v.setViewVisibility(R.id.wc_subtitle, kick ? android.view.View.VISIBLE : android.view.View.GONE);
+        float titleText = tightWidth(f.title, 13 * fs) * 1.1f;         // Latin 粗體比 0.5em 略寬，留 10%
+        float scale = 1f;
+        if (!kick && titleText + stampW > rowW) scale = Math.max(0.7f, (rowW - STAMP_PAD - 6) / (titleText + stampText));
+        v.setTextViewTextSize(R.id.wc_title, android.util.TypedValue.COMPLEX_UNIT_SP, 13 * scale);
+        v.setTextViewTextSize(R.id.wc_stamp, android.util.TypedValue.COMPLEX_UNIT_SP, 10 * scale);
+    }
+
     // ── 中卡 ───────────────────────────────────────────────────────────────────
 
     private static RemoteViews medium(Context c, CollectionData.Figures f, int wDp, int hDp) {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_collect_medium);
         String kicker = RailNativeL10n.text(c, "車站收集");
-        // 標題欄寬（dp）＝文字欄寬 − 百分比 − 間距。「範圍 · 車站收集」連 10sp 也放不下（英文 Kaohsiung、窄卡）就只留範圍名。
+        // 標題欄寬（dp）＝文字欄寬 − 百分比 − 蓋章鈕 − 間距。「車站收集」或「範圍 · 車站收集」連 10sp 也放不下
+        // （英文、窄卡）就只留範圍名（全台＝「全台」）。
+        String stamp = RailNativeL10n.text(c, "蓋章");
+        v.setTextViewText(R.id.wc_stamp, stamp);
         float fs0 = fontScale(c);
-        float titleCol = (wDp - CARD_PAD_H - 8) * 0.70f - f.percentLabel.length() * 0.62f * 14 * fs0 - 6;
+        float stampW = tightWidth(stamp, 10 * fs0) * 1.1f + STAMP_PAD + 6;
+        float titleCol = (wDp - CARD_PAD_H - 8) * 0.70f - f.percentLabel.length() * 0.62f * 14 * fs0 - 6 - stampW;
         String heading = f.isAll() ? kicker : f.title + " · " + kicker;
-        if (!f.isAll() && tightWidth(heading, 10 * fs0) > titleCol) heading = f.title;
+        if (tightWidth(heading, 10 * fs0) * 1.05f > titleCol) heading = f.title;
         v.setTextViewText(R.id.wc_title, heading);
         v.setTextViewText(R.id.wc_pct, f.percentLabel);
         v.setTextViewText(R.id.wc_count, RailNativeL10n.text(c, "已收集 {v}／{n} 座",

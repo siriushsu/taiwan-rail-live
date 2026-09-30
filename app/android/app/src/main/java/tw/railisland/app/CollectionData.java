@@ -126,7 +126,7 @@ final class CollectionData {
 
     /**
      * 百分比字串（第二輪規格第 5 點）：n>0 且四捨五入為 0 → 「<1%」；n<total 且四捨五入為 100 → 「99%」；
-     * 其餘四捨五入。1/538 顯示「0%」等於說沒收集，537/538 顯示「100%」等於說收滿了——兩個都是謊。
+     * 其餘四捨五入。1/539 顯示「0%」等於說沒收集，538/539 顯示「100%」等於說收滿了——兩個都是謊。
      */
     static String percentLabel(int collected, int total) {
         int p = percent(collected, total);

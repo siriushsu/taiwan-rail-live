@@ -33,7 +33,8 @@ public final class RailMetroWaitPlugin extends Plugin {
         Uri uri = intent == null ? null : intent.getData();
         if (uri == null || !"railisland".equals(uri.getScheme())) return;
         String host = uri.getHost();
-        if (!"metro-wait".equals(host) && !"station".equals(host) && !"pass".equals(host) && !"passport".equals(host)) return;
+        if (!"metro-wait".equals(host) && !"station".equals(host) && !"pass".equals(host) && !"passport".equals(host)
+            && !"checkin".equals(host)) return;
         RailMetroWaitPlugin plugin = shared.get();
         if (plugin == null) pendingUri = uri;
         else plugin.forwardOpen(uri);
@@ -59,6 +60,8 @@ public final class RailMetroWaitPlugin extends Plugin {
         if ("pass".equals(uri.getHost())) data.put("view", "pass");
         // 車站收集小工具點下去＝旅程護照（railisland://passport）；網頁 waitOpen 收到 view:"passport" 開 openRidePanel()
         if ("passport".equals(uri.getHost())) data.put("view", "passport");
+        // 「蓋章」按鈕（railisland://checkin）：網頁 waitOpen 收到 view:"checkin" 就判定附近車站並蓋章；同樣保留到被取用為止
+        if ("checkin".equals(uri.getHost())) data.put("view", "checkin");
         if ("station".equals(uri.getHost())) data.put("view", "station");
         for (String name : uri.getQueryParameterNames()) data.put(name, uri.getQueryParameter(name));
         notifyListeners("waitOpen", data, true);

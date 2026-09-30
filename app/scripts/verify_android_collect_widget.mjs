@@ -208,7 +208,8 @@ for (const c of cases) {
     check('中卡「已收集 v／n 座」', count?.visible && count.text === tr(lang, '已收集 {v}／{n} 座', { v: e.collected, n: e.total }), () => `${tag}：${JSON.stringify(count?.text)}，期望 ${e.collected}／${e.total}`);
     const title = one(obs, 'wc_title');
     const kicker = tr(lang, '車站收集');
-    const okTitle = isAllScope ? title?.text === kicker : (title?.text === `${e.sys.label} · ${kicker}` || title?.text === e.sys.label);
+    // 全台：放得下就寫「車站收集」；標題欄被蓋章鈕吃掉、放不下時退成範圍名「全台」（不縮到看不見）
+    const okTitle = isAllScope ? (title?.text === kicker || title?.text === tr(lang, '全台')) : (title?.text === `${e.sys.label} · ${kicker}` || title?.text === e.sys.label);
     check('中卡標題（全台＝車站收集；單一系統＝系統名［· 車站收集］）', okTitle, () => `${tag}：${JSON.stringify(title?.text)}`);
   }
 
@@ -289,11 +290,31 @@ for (const c of cases) {
     }
   }
 
+  // A8 蓋章按鈕（小、中卡標題列右端）：看得到、在卡片內、不壓標題與數字、文字是字串目錄的「蓋章」
+  {
+    const st = one(obs, 'wc_stamp');
+    const shown = !!st && st.visible === true && st.text === tr(lang, '蓋章');
+    check('蓋章鈕：看得到，文字＝原生字串目錄的「蓋章」', shown, () => `${tag}：wc_stamp=${JSON.stringify(st?.text)} visible=${st?.visible}（期望 ${tr(lang, '蓋章')}）`);
+    if (shown) {
+      const [l, t, r, b] = st.box;
+      const f1 = v => v.toFixed(1);
+      check('蓋章鈕：尺寸大於 0', r - l > 4 && b - t > 4, () => `${tag}：box [${st.box.map(f1)}]`);
+      check('蓋章鈕：完全在小工具範圍內', l >= -0.5 && t >= -0.5 && r <= c.wDp + 0.5 && b <= c.hDp + 0.5, () => `${tag}：box [${st.box.map(f1)}] 超出 ${c.wDp}x${c.hDp}`);
+      for (const id of ['wc_title', 'wc_subtitle', 'wc_pct', 'wc_count', 'wc_remain', 'wc_empty_title', 'wc_empty_hint']) {
+        for (const n of visibleText(obs, id)) {
+          const ix = Math.min(r, n.box[2]) - Math.max(l, n.box[0]), iy = Math.min(b, n.box[3]) - Math.max(t, n.box[1]);
+          check('蓋章鈕不與標題、數字的 view 相交', !(ix > 0.5 && iy > 0.5), () => `${tag}：wc_stamp [${st.box.map(f1)}] 與 ${id}=${JSON.stringify(n.text)} [${n.box.map(f1)}] 相交 ${f1(ix)}x${f1(iy)}dp`);
+        }
+      }
+    }
+  }
+
   // A6 地圖：Bitmap 尺寸／位元組／深淺 alpha／像素
   const mapL = one(obs, 'wc_map_light'), mapD = one(obs, 'wc_map_dark');
   if (!mapL?.png || !mapD?.png || !mapL.visible) {
     // 小卡窄到文字放不下時整個拿掉地圖（關鍵數字優先）；其餘情況有資料就一定有地圖
-    check('有資料就有地圖（只有窄小卡可整個拿掉）', small && c.wDp <= 140, `${tag}：沒有地圖`);
+    // 允許拿掉地圖的兩種小卡：窄卡（≤140dp）；空狀態的英日文（邀請文案比繁中長，58% 欄放不下就把整欄讓給文字，見 CollectionWidgetRender.small）
+    check('有資料就有地圖（只有窄小卡、英日文空狀態小卡可整個拿掉）', small && (c.wDp <= 140 || (e.collected === 0 && !lang.startsWith('zh'))), `${tag}：沒有地圖`);
     continue;
   }
   check('淺／深 alpha（淺色模式露淺、深色模式露深）', near(mapL.alpha, light ? 1 : 0, 0.01) && near(mapD.alpha, light ? 0 : 1, 0.01), () => `${tag}：light=${mapL.alpha} dark=${mapD.alpha} theme=${c.theme}`);
@@ -447,6 +468,19 @@ for (const c of cases) {
   }
   const all = state.find(s => s.label === 'medium all');
   check('狀態還原測試量得到東西：全台中卡的進度條值不全相同', !!all && all.before.length >= 3 && new Set(all.before).size >= 3, () => `${JSON.stringify(all?.before)}`);
+}
+
+// ── 點擊目標：蓋章鈕綁 checkin、整張卡仍綁 passport ──────────────────────────────────────────
+{
+  const rows = JSON.parse(readFileSync(need(join(OUT, 'stamp.json')), 'utf8'));
+  check('點擊目標：小、中兩型都量到', rows.length === 2 && rows.some(r => r.family === 'small') && rows.some(r => r.family === 'medium'), `只有 ${rows.length} 筆`);
+  for (const r of rows) {
+    check('點擊目標：按鈕與整張卡都真的攔到 PendingIntent', r.stampClicked === true && r.rootClicked === true, () => `${r.family}：按鈕 ${r.stampClicked}／整張卡 ${r.rootClicked}`);
+    check('點擊目標：蓋章鈕綁 railisland://checkin（不是 passport）', r.stampIsCheckin === true && r.stampIsPassport === false, () => `${r.family}：isCheckin=${r.stampIsCheckin} isPassport=${r.stampIsPassport}（字面 checkin 存在=${r.literalCheckinExists}）`);
+    check('點擊目標：按鈕以外仍是開旅程護照（railisland://passport）', r.rootIsPassport === true && r.rootIsCheckin === false, () => `${r.family}：isPassport=${r.rootIsPassport} isCheckin=${r.rootIsCheckin}`);
+    check('點擊目標：兩個入口是兩顆不同的 PendingIntent', r.samePending === false, () => `${r.family}：兩個入口是同一顆`);
+    check('點擊目標：蓋章鈕的 PendingIntent 建立者是本 App', /^tw\.railisland\.app/.test(r.stampCreator), () => `${r.family}：creator=${r.stampCreator}`);
+  }
 }
 
 // ── 報表 ─────────────────────────────────────────────────────────────────────

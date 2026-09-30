@@ -24,7 +24,7 @@ import java.nio.charset.StandardCharsets;
 final class CollectionStore {
     private CollectionStore() {}
 
-    /** 538 座站的 payload 約 20 KB；512 KB 是「明顯不對勁」的保險絲，不是預期值。 */
+    /** 539 座站的 payload 約 20 KB；512 KB 是「明顯不對勁」的保險絲，不是預期值。 */
     static final int MAX_BYTES = 512 * 1024;
     static final int SUPPORTED_VERSION = 1;
     private static final Object LOCK = new Object();

@@ -5,6 +5,8 @@
      所以文字與地圖在任何格子形狀下都不會疊（Pixel 2×2 是 140×222dp 直長條，Samsung 是 150×207dp）。
      地圖有淺／深兩張 Bitmap 疊在同一格，資源限定的 alpha 決定露出哪一張（見 dimens_collect.xml）。
      🔴 只准用 RemoteViews 白名單裡的類別（verify_widget_layouts.mjs 會擋）；ProgressBar／View 之類見那支的註解。
+     標題列右端是「蓋章」按鈕（wc_stamp）：自己綁一個 PendingIntent 開 railisland://checkin，按鈕以外的地方仍是開旅程護照。
+        按鈕固定 18dp 高（比標題矮），所以不會把標題列撐高、也不會壓到下面的數字；寬度不夠時由 CollectionWidgetRender 依序收副標、縮字級。
      🔴 空狀態（一站都還沒收集）與正常狀態共用這一張，由 CollectionWidgetRender 決定露出哪幾個 TextView；
         兩者【id 完全相同】，binder 只有一份。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -47,6 +49,27 @@
             android:maxLines="1"
             android:textColor="@color/wg_ink_soft"
             android:textSize="11sp" />
+
+        <Button
+            android:id="@+id/wc_stamp"
+            android:layout_width="wrap_content"
+            android:layout_height="18dp"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/wc_stamp_bg"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:paddingStart="8dp"
+            android:paddingTop="0dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="0dp"
+            android:stateListAnimator="@null"
+            android:textAllCaps="false"
+            android:textColor="@color/wg_plate_band_ink"
+            android:textSize="10sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <LinearLayout

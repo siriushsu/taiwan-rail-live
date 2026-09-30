@@ -24,6 +24,8 @@ import java.util.concurrent.Executors;
  * 內容只在 App 寫檔時才會變；updatePeriodMillis（30 分鐘）只是保險（檔案被外力換掉時自癒）。
  *
  * 點小工具：開 railisland://passport（旅程護照），與 iOS 一致；RailMetroWaitPlugin 把它轉成 waitOpen 事件。
+ * 標題列右端的「蓋章」按鈕（wc_stamp，小、中卡都有）另綁 railisland://checkin：打開 App 後由網頁判定附近車站並蓋章，
+ * 同樣經 RailMetroWaitPlugin 轉成 waitOpen { view: "checkin" }。
  */
 // 不是 final：小卡是空殼子類（CollectionWidgetSmallProvider），見 WidgetFamily。
 public class CollectionWidgetProvider extends AppWidgetProvider {
@@ -75,6 +77,11 @@ public class CollectionWidgetProvider extends AppWidgetProvider {
         CollectionData data = CollectionData.load(context);
         RemoteViews views = CollectionWidgetRender.build(context, family, data, scope, widthDp, heightDp);
         views.setOnClickPendingIntent(R.id.wc_root, openPassport(context, id));
+        // 「打開軌島一次」訊息版面沒有按鈕，只有小、中兩張資料版面有
+        int layout = views.getLayoutId();
+        if (layout == R.layout.widget_collect_small || layout == R.layout.widget_collect_medium) {
+            views.setOnClickPendingIntent(R.id.wc_stamp, openCheckin(context, id));
+        }
         return views;
     }
 
@@ -115,13 +122,26 @@ public class CollectionWidgetProvider extends AppWidgetProvider {
 
     /**
      * 點小工具＝開旅程護照。request code 用 id+46000（既有的 41000～45000 已被其他小工具占用）。
-     * 🔴 URI 只有 scheme＋host，不帶任何參數：護照頁不需要參數，帶了 App 端還得處理。
      */
     static PendingIntent openPassport(Context context, int id) {
-        Uri uri = new Uri.Builder().scheme("railisland").authority("passport").build();
+        return openDeepLink(context, "passport", id + 46000);
+    }
+
+    /**
+     * 「蓋章」按鈕＝開 railisland://checkin（自動蓋附近車站）。request code 用 id+47000：其餘小工具已占用
+     * 31000～33000（看板）、41000～45000（混合看板）、46000（本類的護照）、48000／49000／81000（捷運小工具），
+     * 46300 以上另有兩則通知的固定碼；47000 段沒人用，且與護照那一顆的 URI 不同（PendingIntent 以 URI 區分），兩顆不會互相覆蓋。
+     */
+    static PendingIntent openCheckin(Context context, int id) {
+        return openDeepLink(context, "checkin", id + 47000);
+    }
+
+    /** 🔴 URI 只有 scheme＋host，不帶任何參數：網頁端不需要參數，帶了 App 端還得處理。指名 MainActivity、FLAG_IMMUTABLE。 */
+    private static PendingIntent openDeepLink(Context context, String host, int requestCode) {
+        Uri uri = new Uri.Builder().scheme("railisland").authority(host).build();
         Intent intent = new Intent(Intent.ACTION_VIEW, uri, context, MainActivity.class)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        return PendingIntent.getActivity(context, id + 46000, intent,
+        return PendingIntent.getActivity(context, requestCode, intent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 }

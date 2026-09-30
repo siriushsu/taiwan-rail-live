@@ -314,6 +314,86 @@ public final class CollectionWidgetInstrumentedTest {
         }
     }
 
+    // ── 點擊目標 ───────────────────────────────────────────────────────────────
+
+    /**
+     * 「蓋章」按鈕與整張卡各綁哪一顆 PendingIntent。用 RemoteViews.apply(…, InteractionHandler) 攔下 launcher 點擊時會送出的
+     * PendingIntent（handler 回 true＝不真的開 App），再拿去跟【測試自己用字面值建的】PendingIntent 比對：
+     * FLAG_NO_CREATE 只有系統端真的存在「同 request code＋同 Intent」那一筆才回非 null，PendingIntent.equals 比的是系統端同一筆記錄。
+     * 期望值不取自 CollectionWidgetProvider 的任何函式（同源時「相等」是零資訊）。結果寫進 files/collect-out/stamp.json。
+     */
+    @Test
+    public void stampBinding() throws Exception {
+        File casesDir = new File(context.getFilesDir(), "collect-cases");
+        File outDir = new File(context.getFilesDir(), "collect-out");
+        outDir.mkdirs();
+        RailNativeL10n.setLanguage(context, "zh-TW");
+        assertTrue(CollectionStore.write(context, new String(readAll(new File(casesDir, "sample.json")), StandardCharsets.UTF_8)));
+        JSONArray results = new JSONArray();
+        int index = 0;
+        for (String family : new String[] { WidgetFamily.MEDIUM, WidgetFamily.SMALL }) {
+            int id = 9700 + index++;
+            RemoteViews views = CollectionWidgetProvider.views(context, id, family, "all", 368, 221);
+            // launcher 點擊時走 RemoteViews 預設處理：view.getContext().startIntentSender(pending.getIntentSender(), …)。
+            // 這裡把 context 換成會「攔下 IntentSender、不真的開 App」的包裝，就能對每個點擊入口拿到它綁的那一顆。
+            CapturingContext capture = new CapturingContext(context);
+            View root = views.apply(capture, new FrameLayout(context));
+            final android.content.IntentSender[] hit = new android.content.IntentSender[2];
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+                View stampView = root.findViewById(R.id.wc_stamp);
+                assertNotNull("版面裡沒有 wc_stamp：" + family, stampView);
+                capture.last = null;
+                stampView.performClick();
+                hit[0] = capture.last;
+                capture.last = null;
+                root.performClick();
+                hit[1] = capture.last;
+            });
+            android.content.IntentSender checkin = sender(literal(id + 47000, "checkin"));
+            android.content.IntentSender passport = sender(literal(id + 46000, "passport"));
+            JSONObject o = new JSONObject();
+            o.put("family", family);
+            o.put("stampClicked", hit[0] != null);
+            o.put("rootClicked", hit[1] != null);
+            o.put("literalCheckinExists", checkin != null);
+            o.put("literalPassportExists", passport != null);
+            o.put("stampIsCheckin", hit[0] != null && hit[0].equals(checkin));
+            o.put("stampIsPassport", hit[0] != null && hit[0].equals(passport));
+            o.put("rootIsPassport", hit[1] != null && hit[1].equals(passport));
+            o.put("rootIsCheckin", hit[1] != null && hit[1].equals(checkin));
+            o.put("samePending", hit[0] != null && hit[0].equals(hit[1]));
+            o.put("stampCreator", hit[0] == null ? "" : hit[0].getCreatorPackage());
+            results.put(o);
+        }
+        try (FileOutputStream out = new FileOutputStream(new File(outDir, "stamp.json"))) {
+            out.write(results.toString(1).getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    /** 會攔下 startIntentSender 的 Context 包裝：RemoteViews 的點擊最後都走到這裡（測試裡不能真的開 App）。 */
+    private static final class CapturingContext extends android.content.ContextWrapper {
+        android.content.IntentSender last;
+
+        CapturingContext(Context base) { super(base); }
+
+        @Override
+        public void startIntentSender(android.content.IntentSender intent, android.content.Intent fill, int mask, int values, int extra,
+                                      android.os.Bundle options) { last = intent; }
+
+        @Override
+        public void startIntentSender(android.content.IntentSender intent, android.content.Intent fill, int mask, int values, int extra) { last = intent; }
+    }
+
+    private static android.content.IntentSender sender(android.app.PendingIntent pending) { return pending == null ? null : pending.getIntentSender(); }
+
+    /** 系統端是否已有「這個 request code＋railisland://host＋指名 MainActivity＋FLAG_IMMUTABLE」的 PendingIntent（沒有回 null，不新建）。 */
+    private android.app.PendingIntent literal(int requestCode, String host) {
+        android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW,
+            android.net.Uri.parse("railisland://" + host), context, MainActivity.class);
+        return android.app.PendingIntent.getActivity(context, requestCode, intent,
+            android.app.PendingIntent.FLAG_NO_CREATE | android.app.PendingIntent.FLAG_IMMUTABLE);
+    }
+
     // ── 逐案算圖 ───────────────────────────────────────────────────────────────
 
     private static byte[] readAll(File f) throws Exception {
@@ -342,7 +422,7 @@ public final class CollectionWidgetInstrumentedTest {
         File casesDir = new File(context.getFilesDir(), "collect-cases");
         File outDir = new File(context.getFilesDir(), "collect-out");
         outDir.mkdirs();
-        for (File old : outDir.listFiles()) if (!old.getName().equals("reapply.json") && !old.getName().equals("state.json")) old.delete();
+        for (File old : outDir.listFiles()) if (!old.getName().equals("reapply.json") && !old.getName().equals("state.json") && !old.getName().equals("stamp.json")) old.delete();
         JSONArray cases = new JSONArray(new String(readAll(new File(casesDir, "cases.json")), StandardCharsets.UTF_8));
         JSONArray results = new JSONArray();
         float density = context.getResources().getDisplayMetrics().density;

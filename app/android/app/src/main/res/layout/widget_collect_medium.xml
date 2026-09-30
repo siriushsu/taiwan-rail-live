@@ -6,6 +6,7 @@
        全台：有收集的系統各一列（標籤＋進度條＋v/n）＋「還有 K 個系統還沒去過」；
        單一系統：進度條＋「還有 N 座」＋最近蓋章；
        空狀態：邀請文案。放得下才放圖例。
+     標題列最右是「蓋章」按鈕（wc_stamp），綁 railisland://checkin；固定 18dp 高，不會撐高標題列。
      🔴 淺／深兩張地圖 Bitmap 疊同一格，資源限定 alpha 切換（見 dimens_collect.xml）。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/wc_root"
@@ -79,6 +80,27 @@
                 android:maxLines="1"
                 android:textColor="@color/wg_ink"
                 android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/wc_stamp"
+                android:layout_width="wrap_content"
+                android:layout_height="18dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/wc_stamp_bg"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:paddingStart="8dp"
+                android:paddingTop="0dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="0dp"
+                android:stateListAnimator="@null"
+                android:textAllCaps="false"
+                android:textColor="@color/wg_plate_band_ink"
+                android:textSize="10sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
