@@ -23126,6 +23126,8 @@ function doCheckin(st) {
   renderNearbyStations(); renderRidePanel(); renderPassport();
   return true;
 }
+// 小工具「蓋章」鈕的入口。這一階段只把附近車站清單開出來讓人自己點;自動蓋章(等新定位、單座直接蓋)接在後面。
+function widgetCheckinStart() { void showNearby(); }
 // ── 路段收集與完乘率(設計書 §2 三軸的「線」) ────────────────────────────────
 // 分母=每條線各自算(2026-07-26 使用者拍板)。一條線的「最細區間」=它自己的站列依沿線
 // 里程 d 排序後的相鄰兩站——不是列車的停靠區間,那會隨車種變動(自強跳站的「臺北–板橋」
@@ -34079,6 +34081,12 @@ function openWidgetRailStation(sysName, name) {
   return true;
 }
 let _metroWaitListening = false;
+// 首次「怎麼玩」說明卡(#howtoWrap,z 800)會整片蓋住護照與附近車站卡,而小工具的深連結是使用者明確要去的地方,
+// 所以先讓位。只收起、不寫已讀旗標:還沒讀過說明的人,下次正常開 App 仍會看到那張卡。
+function howtoYieldToWidget() {
+  const hw = document.getElementById('howtoWrap');
+  if (hw && !hw.hidden) hw.hidden = true;
+}
 // waitOpen:小工具點進來的深連結,boot 時掛(僅原生殼有此 plugin)。
 // view:'station' 是鐵路看板，必須以 sys 縮小範圍後再找站；沒有 view 才是捷運等車卡。
 // station 都用 replace(/臺/g,'台') 寬鬆比對;對不回就 toast 說明，
@@ -34107,7 +34115,10 @@ function ensureMetroWaitListener() {
       if (evt && evt.view === 'pass') { plusOpen('widget'); return; }
       // 車站收集小工具(railisland://passport):打開旅程護照(#ridePanel:完乘記錄與收集章,「車站 N 座」就在這),
       // 不是通行證(pass)、也不是車站看板(station)。沒有站要找,直接開。
-      if (evt && evt.view === 'passport') { openRidePanel(); return; }
+      if (evt && evt.view === 'passport') { howtoYieldToWidget(); openRidePanel(); return; }
+      // 車站收集小工具的「蓋章」鈕(railisland://checkin):打開 App 後在附近車站自動蓋章。
+      // 流程本體在 widgetCheckinStart(定位保鮮、精度等待、單座直接蓋／多座停在清單)。
+      if (evt && evt.view === 'checkin') { howtoYieldToWidget(); widgetCheckinStart(); return; }
       const sys = evt && evt.sys, station = evt && evt.station;
       if (evt && evt.view === 'station') {
         if (!openWidgetRailStation(sys, station)) {
