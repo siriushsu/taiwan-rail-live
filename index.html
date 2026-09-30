@@ -23034,6 +23034,19 @@ function collectSysSeg(sys, name, realSys) {
   const real = seg === 'metro' && realSys ? realSys : seg;
   return COLLECT_SPLIT.has(real + '|' + name) ? real : seg;
 }
+// 分開的那一對同名站,兩把收集鍵各自背後「真正的系統代碼」(查譯名用)。台北那枚的鍵是 metro|市政府,'metro' 不是系統代碼:
+// stationName 拿它會掃全部捷運系統,兩個城市的譯名不同就退回繁中——英文版台北那枚因此一直沒翻;台中的鍵本身就是系統代碼。
+const COLLECT_SPLIT_REAL = { 'metro|市政府': 'mrt', 'tmrt|市政府': 'tmrt' };
+// 護照車站牆上的站名:一般站照舊 stationName。分開的那一對要讓人分得出是哪個城市——用真正的系統代碼查譯名
+// (英文 Taipei／Taichung City Hall、日文台北市政府),譯名裡已經有城市就直接用;沒有(繁中的「市政府」、日文台中那枚的「市政府」)
+// 才接系統簡稱(小工具晶片那份 COLLECT_SYS.label:北捷／中捷、台北／台中)。不新造詞,全部取自既有的譯名表與簡稱。
+function collectStampName(i) {
+  const real = COLLECT_SPLIT_REAL[i.sys + '|' + i.name];
+  if (!real) return stationName(i.name, i.sys);
+  const name = stationName(i.name, real), def = COLLECT_SYS.find(d => d.geo === real);
+  const lab = def && (def.label[I18N_LANG] || def.label['zh-TW']);
+  return lab && !name.includes(lab) ? `${name}（${lab}）` : name;
+}
 function checkinKey(st, alias) {
   const name = checkinName(st.sys, st.name, alias);
   return collectSysSeg(st.sys, name, st._i18nSys) + '|' + name;
@@ -24741,8 +24754,8 @@ function buildStationStamps(rides) {
     (sub ? `<span style="letter-spacing:0;font-weight:600">${escHtml(sub)}</span>` : '')) + `<div class="ph-stamps">` +
     shown.map(i => {
       const cls = 'stn-seal ' + i.s + (tierM.get(i.sys + '|' + i.name) === 0 ? ' t0' : '');
-      const tip = stationName(i.name, i.sys) + i18nSep() + t(STN_STATUS_LABEL[i.s]) + (i.n > 1 ? i18nSep(true) + t('{n} 次', { n: i18nNumber(i.n) }, i.n) : '') + (i.d ? i18nSep(true) + t('最近 {date}', { date: i.d }) : '');
-      return `<span class="${cls}" title="${escHtml(tip)}">${sealName(stationName(i.name, i.sys), 'stn')}` +
+      const tip = collectStampName(i) + i18nSep() + t(STN_STATUS_LABEL[i.s]) + (i.n > 1 ? i18nSep(true) + t('{n} 次', { n: i18nNumber(i.n) }, i.n) : '') + (i.d ? i18nSep(true) + t('最近 {date}', { date: i.d }) : '');
+      return `<span class="${cls}" title="${escHtml(tip)}">${sealName(collectStampName(i), 'stn')}` +
         (i.n > 1 ? `<small class="cnt">×${i18nNumber(i.n)}</small>` : `<small>${escHtml(t(STN_STATUS_LABEL[i.s]))}</small>`) + `</span>`;
     }).join('') + more + `</div>`;
 }

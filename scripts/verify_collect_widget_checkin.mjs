@@ -31,6 +31,7 @@
 //   C12 停在高鐵／捷運分頁時從小工具蓋章：那一次照樣切到全台，但「上次視野記憶」逐字不變（不改成全台、不改成蓋章時的地圖中心）；
 //       人自己真的點了頁籤才恢復記錄；本來就在全台的人記錄照舊
 //   C13 原生字串目錄（iOS Localizable.xcstrings、Android RailNativeL10n.json）的「蓋章」：繁中 key、英文 Stamp、日文 スタンプ
+//   C14 護照車站牆：台北與台中兩枚「市政府」三語都分得出城市（字與 title），3 個一般站＋1 個共構站的名字不變
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -447,6 +448,52 @@ for (const [g, lat, lon] of [['hsr', 24.6, 120.8], ['metro', 25.05, 121.5]]) {
   ok('C13 iOS 小工具字串目錄：「蓋章」日文是 スタンプ', e?.localizations?.ja?.stringUnit?.value === 'スタンプ', JSON.stringify(e?.localizations?.ja));
   ok('C13 Android RailNativeL10n.json：來源語言繁中（zh-TW），英文「蓋章」是 Stamp', an.sourceLanguage === 'zh-TW' && an.languages?.en?.['蓋章'] === 'Stamp', `${an.sourceLanguage} / ${an.languages?.en?.['蓋章']}`);
   ok('C13 Android RailNativeL10n.json：「蓋章」日文是 スタンプ', an.languages?.ja?.['蓋章'] === 'スタンプ', String(an.languages?.ja?.['蓋章']));
+}
+
+// ── C14 護照車站牆：台北與台中的「市政府」兩枚分得出城市；其他站的名字一個字都不變 ──────────────
+// 種一本護照：兩枚市政府（收集鍵 metro|市政府＝台北、tmrt|市政府＝台中；用不同次數 ×3／×2 認人，牆上是依次數排序的）＋
+// 3 個一般站（台鐵香山、高鐵左營、北捷動物園）＋1 個共構站（台北車站）。牆上每一枚的字（seal）與 title 都要對。
+// 期望值手寫：市政府兩枚是規格（繁中「市政府（北捷）」「市政府（中捷）」、英文 Taipei／Taichung City Hall、日文「台北市政府」「市政府（台中）」）；
+// 其他站的期望值是這次修改之前，用同一份資料在舊程式上量到的字面，改動之後必須逐字相同。
+{
+  const CITY = 'metro|市政府', TAICHUNG = 'tmrt|市政府';
+  const st = {
+    [CITY]: { name: '市政府', sys: 'metro', s: 'visit', n: 3, d: '2026-09-29' },
+    [TAICHUNG]: { name: '市政府', sys: 'tmrt', s: 'visit', n: 2, d: '2026-09-29' },
+    'tra_sched|香山': { name: '香山', sys: 'tra_sched', s: 'visit', n: 1, d: '2026-09-29' },
+    'thsr_sched|左營': { name: '左營', sys: 'thsr_sched', s: 'visit', n: 1, d: '2026-09-29' },
+    'metro|動物園': { name: '動物園', sys: 'metro', s: 'visit', n: 1, d: '2026-09-29' },
+    'metro|台北車站': { name: '台北車站', sys: 'metro', s: 'visit', n: 1, d: '2026-09-29' },
+  };
+  const WALL = {
+    'zh-TW': { taipei: '市政府（北捷）', taichung: '市政府（中捷）', others: ['香山', '左營', '動物園', '台北車站'] },
+    en: { taipei: 'Taipei City Hall', taichung: 'Taichung City Hall', others: ['Xiangshan', 'Zuoying', 'Taipei Zoo', 'Taipei Main Station'] },
+    ja: { taipei: '台北市政府', taichung: '市政府（台中）', others: ['香山', '左營', '動物園', '台北駅'] },
+  };
+  const strip = s => String(s).replace(/\s/g, ''); // 牆上的字依圓內寬度折行、行尾空白會被吃掉，比對時兩邊都去掉空白
+  const first = title => String(title).split(/\s*[・·]\s*/)[0].trim(); // title＝「站名＋分隔＋狀態…」，取站名那一段
+  for (const lang of ['zh-TW', 'en', 'ja']) {
+    const { ctx, page } = await open({ tag: `C14 ${lang}`, seed: { 'trainmap-checkins-v1': JSON.stringify({ v: 1, st }) } });
+    if (lang !== 'zh-TW') await page.evaluate(l => setLanguage(l), lang);
+    await page.evaluate(() => openRidePanel());
+    await sleep(600);
+    const seals = await page.evaluate(() => [...document.querySelectorAll('#ridePanel .stn-seal')].map(el => {
+      const r = el.getBoundingClientRect();
+      return { text: el.querySelector('b').textContent, cnt: (el.querySelector('.cnt') || {}).textContent || '', title: el.getAttribute('title') || '', vis: r.width > 0 && r.height > 0 };
+    }));
+    const w = WALL[lang];
+    ok(`C14 ${lang} 前提：護照車站牆有 6 枚章、都看得見`, seals.length === 6 && seals.every(s => s.vis), `${seals.length} 枚`);
+    const tp = seals.find(s => s.cnt === '×3'), tc = seals.find(s => s.cnt === '×2');
+    ok(`C14 ${lang} 台北市政府那枚（×3）的字＝「${w.taipei}」`, !!tp && strip(tp.text) === strip(w.taipei), tp && tp.text);
+    ok(`C14 ${lang} 台北市政府那枚的 title 站名＝「${w.taipei}」`, !!tp && first(tp.title) === w.taipei, tp && tp.title);
+    ok(`C14 ${lang} 台中市政府那枚（×2）的字＝「${w.taichung}」`, !!tc && strip(tc.text) === strip(w.taichung), tc && tc.text);
+    ok(`C14 ${lang} 台中市政府那枚的 title 站名＝「${w.taichung}」`, !!tc && first(tc.title) === w.taichung, tc && tc.title);
+    ok(`C14 ${lang} 兩枚市政府的字不一樣（分得出城市）`, !!tp && !!tc && strip(tp.text) !== strip(tc.text));
+    const rest = seals.filter(s => s.cnt === '');
+    ok(`C14 ${lang} 3 個一般站＋共構站（香山、左營、動物園、台北車站）的字一個字都沒變`, rest.map(s => strip(s.text)).sort().join('|') === w.others.map(strip).sort().join('|'), rest.map(s => s.text).join(' / '));
+    ok(`C14 ${lang} 這四枚的 title 站名也沒變`, rest.map(s => first(s.title)).sort().join('|') === [...w.others].sort().join('|'), rest.map(s => first(s.title)).join(' / '));
+    await ctx.close();
+  }
 }
 
 await browser.close();
