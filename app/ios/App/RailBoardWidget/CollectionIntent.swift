@@ -20,27 +20,14 @@ struct CollectionIntent: AppIntent, WidgetConfigurationIntent {
 }
 
 /// 「範圍」選單：全台＋collection.json 裡有的系統。還沒有檔案（App 沒開過）時退回固定的十個系統，
-/// 讓使用者一加上小工具就能先選好；選單標題用 payload 的 label（網頁當下語言），退回時走原生目錄。
+/// 讓使用者一加上小工具就能先選好。名稱一律是網頁 COLLECT_SYS 的簡稱：有檔案照抄 payload 的 label（網頁當下語言），
+/// 沒檔案走原生目錄，語言跟 App 設定、沒設定才看系統語言——開 App 前後是同一組名稱。選單內容與語言的決定都在
+/// CollectionCard.swift 的 CollectionScopeName（純函式，給驗收腳本編）。
 struct CollectionScopeOptionsProvider: DynamicOptionsProvider {
-    /// collection.json v1 的系統順序與代碼（契約固定值）。
-    static let fallbackSystems: [(k: String, label: String)] = [
-        ("tra", "台鐵"), ("thsr", "高鐵"), ("trtc", "北捷"), ("tymc", "機捷"), ("tmrt", "中捷"),
-        ("krtc", "高捷"), ("ntdlrt", "淡海"), ("ntalrt", "安坑"), ("sanying", "三鶯"), ("afr", "林鐵"),
-    ]
-
     func results() async throws -> ItemCollection<String> {
-        let systems: [(k: String, label: String)]
-        if let snapshot = CollectionStore.loadShared(), !snapshot.sys.isEmpty {
-            systems = snapshot.sys.map { ($0.k, $0.label) }
-        } else {
-            systems = Self.fallbackSystems.map { ($0.k, RailNativeL10n.name($0.label)) }
-        }
-        var items = [IntentItem<String>(
-            CollectionScope.allKey,
-            title: LocalizedStringResource(stringLiteral: RailNativeL10n.text("全台")))]
-        items += systems.map {
-            IntentItem<String>($0.k, title: LocalizedStringResource(stringLiteral: $0.label))
-        }
+        let payload = CollectionStore.loadShared().map { $0.sys.map { (k: $0.k, label: $0.label) } }
+        let menu = CollectionScopeName.menu(payload: payload, language: CollectionScopeName.currentLanguage())
+        let items = menu.map { IntentItem<String>($0.k, title: LocalizedStringResource(stringLiteral: $0.title)) }
         return ItemCollection(sections: [IntentItemSection(items: items)])
     }
 }

@@ -335,8 +335,17 @@ Object.assign(native, {
   // 原生小工具的蓋章鈕用（iOS CollectionCard.swift 的 CollectionStampChip、Android CollectionWidgetRender.java 的標題列按鈕）。
   // 網站字典本來就有「蓋章」，這一筆不會改變產物；釘在這裡是免得日後網站端改掉或刪掉那個詞，原生按鈕就無聲掉回繁中。
   '蓋章': ['Stamp', 'スタンプ'],
-  // 範圍選單的退回清單（collection.json 還不存在時）用簡稱查字典；台鐵／高鐵／北捷網站字典已有，
-  // 其餘七個沿用同一份字典裡全名的譯法（機場捷運→Airport MRT…）。有資料後改用 payload 的 label。
+  // 範圍選單（collection.json 還不存在時的退回清單，加上「全台」）的名稱：值＝網頁 COLLECT_SYS（index.html）的簡稱三語，
+  // 開 App 前後是同一組。key 加「範圍・」前綴，避開網站字典已有的 key（台鐵／高鐵／北捷譯的是全名：High Speed Rail、
+  // 台湾鉄路…，其他小工具在用，不能被簡稱覆寫）。繁中簡稱由各端程式給（key 去掉前綴就是它），目錄只放英日文。
+  // iOS 用法在 CollectionCard.swift 的 CollectionScopeName；守門：app/scripts/verify_collect_scope_names.mjs 逐一對 COLLECT_SYS。
+  '範圍・全台': ['All Taiwan', '台湾全体'],
+  '範圍・台鐵': ['TRA', '台鉄'], '範圍・高鐵': ['THSR', '高鉄'], '範圍・北捷': ['Taipei', '台北'],
+  '範圍・機捷': ['Airport', '空港'], '範圍・中捷': ['Taichung', '台中'], '範圍・高捷': ['Kaohsiung', '高雄'],
+  '範圍・淡海': ['Danhai', '淡海'], '範圍・安坑': ['Ankeng', '安坑'], '範圍・三鶯': ['Sanying', '三鶯'],
+  '範圍・林鐵': ['Alishan', '阿里山'],
+  // 下面七個全名 key 是舊的退回清單用的（機場捷運→Airport MRT…），iOS 已改用上面的簡稱；
+  // 只剩 Android 設定頁的退回清單（CollectionWidgetConfigActivity.FALLBACK_SYSTEMS）還在查，Android 換成上面的 key 後刪。
   '機捷': ['Airport MRT', '空港MRT'], '中捷': ['Taichung Metro', '台中メトロ'], '高捷': ['Kaohsiung Metro', '高雄メトロ'],
   '淡海': ['Danhai LRT', '淡海ライトレール'], '安坑': ['Ankeng LRT', '安坑ライトレール'], '三鶯': ['Sanying Line', '三鶯線'],
   '林鐵': ['Alishan Forest Railway', '阿里山林業鉄道'],

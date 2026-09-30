@@ -268,6 +268,65 @@ enum CollectionScope {
     }
 }
 
+// MARK: - 設定畫面「範圍」選單的名稱
+
+/// 「範圍」選單：全台＋十個系統的簡稱，三語與網頁 COLLECT_SYS（index.html）同一組，開 App 前後看到的名稱一樣。
+/// 有 collection.json 時系統名稱照抄 payload 的 label（網頁當下的語言）；沒有檔案（App 沒開過）用這裡的退回清單。
+/// 「全台」沒有 payload，一律走這裡。
+/// 語言：App 存的語言優先（網頁 setLanguage 經 RailLanguagePlugin 寫進 App Group 的 rail.language），
+/// 沒存才看系統語言，都認不得就繁中。
+/// 繁中簡稱由這裡給；英日文查目錄，key 是「範圍・」加繁中簡稱。加前綴是因為網站字典已有「台鐵／高鐵／北捷」，
+/// 譯的是全名（High Speed Rail、台湾鉄路…），其他小工具在用，不能被簡稱覆寫。
+enum CollectionScopeName {
+    /// collection.json v1 的系統代碼與繁中簡稱，順序固定（契約）。
+    static let systems: [(k: String, zh: String)] = [
+        ("tra", "台鐵"), ("thsr", "高鐵"), ("trtc", "北捷"), ("tymc", "機捷"), ("tmrt", "中捷"),
+        ("krtc", "高捷"), ("ntdlrt", "淡海"), ("ntalrt", "安坑"), ("sanying", "三鶯"), ("afr", "林鐵"),
+    ]
+    static let allTaiwan = "全台"
+    static let catalogPrefix = "範圍・"
+
+    /// 存的語言（en／ja／zh-TW）優先；沒存才取系統語言偏好裡第一個認得的；其餘繁中。
+    /// 系統語言的對應與網頁 I18N_LANG 同一套（zh-* 一律繁中，App 只有繁中），App 第一次開啟網頁選出來的語言跟這裡一致。
+    static func resolveLanguage(stored: String?, preferred: [String]) -> String {
+        if let stored, ["zh-TW", "en", "ja"].contains(stored) { return stored }
+        for tag in preferred {
+            let v = tag.lowercased()
+            if v == "zh-tw" || v == "zh-hant" || v.hasPrefix("zh-") { return "zh-TW" }
+            if v == "ja" || v.hasPrefix("ja-") { return "ja" }
+            if v == "en" || v.hasPrefix("en-") { return "en" }
+        }
+        return "zh-TW"
+    }
+
+    /// 設定畫面現在該用的語言。
+    static func currentLanguage(suite: UserDefaults? = UserDefaults(suiteName: "group.tw.railisland.app"),
+                                preferred: [String] = Locale.preferredLanguages) -> String {
+        resolveLanguage(stored: suite?.string(forKey: "rail.language"), preferred: preferred)
+    }
+
+    /// 簡稱在該語言的寫法；目錄查不到就退回繁中簡稱（與 RailNativeL10n 的繁中 fallback 一致），不會露出帶前綴的 key。
+    static func name(_ zh: String, language: String) -> String {
+        guard language != "zh-TW",
+              let path = Bundle.main.path(forResource: language, ofType: "lproj"),
+              let bundle = Bundle(path: path) else { return zh }
+        let key = catalogPrefix + zh
+        let value = bundle.localizedString(forKey: key, value: key, table: nil)
+        return value == key ? zh : value
+    }
+
+    /// 選單項目（存值、名稱）：全台在最前面；有 payload 的系統名稱照抄，沒有才用退回清單。
+    static func menu(payload: [(k: String, label: String)]?, language: String) -> [(k: String, title: String)] {
+        var items: [(k: String, title: String)] = [(CollectionScope.allKey, name(allTaiwan, language: language))]
+        if let payload, !payload.isEmpty {
+            items += payload.map { (k: $0.k, title: $0.label) }
+        } else {
+            items += systems.map { (k: $0.k, title: name($0.zh, language: language)) }
+        }
+        return items
+    }
+}
+
 enum CollectionContent {
     /// 沒有 collection.json（App 還沒開過、或版本不認得）
     case unavailable
