@@ -159,14 +159,20 @@ async function waitStamp(page, key, ms = 4000) {
 const lastView = page => page.evaluate(() => localStorage.getItem('trainmap-last-view'));
 const mapCenter = page => page.evaluate(() => { const c = M.getCenter(); return { lat: c.lat, lon: c.lng }; });
 const groupNow = page => page.evaluate(() => state.group);
-// 真滑鼠在地圖上拖一下，回傳「拖完地圖是不是真的動了」（不動就是拖到別的東西，後面的判準沒意義）
+// 真滑鼠在地圖上拖一下，回傳「這一拖真的拖動了地圖」（沒拖動就是拖到別的東西，後面的判準沒意義）：
+// dragstart 要發（只有真的手動拖曳才會發，程式化的 setView／flyTo 不會），而且地圖中心真的變了。
+// 只看中心變了不夠：蓋章之後地圖自己的動畫也會讓中心變，滑鼠就算被透明蓋板擋住、根本沒拖到地圖，這一項照樣綠
+// （突變測試抓到的：擋住滑鼠，舊寫法沒紅）——那時「上次視野沒被改寫」就可能是零資訊。
 async function dragMap(page, dx = 70, dy = 25) {
+  await page.evaluate(() => { if (!window.__dragstarts) { window.__dragstarts = { n: 0 }; M.on('dragstart', () => { window.__dragstarts.n++; }); } });
+  const n0 = await page.evaluate(() => window.__dragstarts.n);
   const at = await page.evaluate(() => { const r = M.getContainer().getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
   const a = await mapCenter(page);
   await page.mouse.move(at.x, at.y); await page.mouse.down(); await page.mouse.move(at.x + dx, at.y + dy, { steps: 6 }); await page.mouse.up();
   await sleep(500); // moveend 觸發後的寫入是同步的，這裡等的是地圖靜止
   const b = await mapCenter(page);
-  return Math.abs(b.lat - a.lat) + Math.abs(b.lon - a.lon) > 1e-4;
+  const n1 = await page.evaluate(() => window.__dragstarts.n);
+  return n1 > n0 && Math.abs(b.lat - a.lat) + Math.abs(b.lon - a.lon) > 1e-4;
 }
 // 真滑鼠點頁籤列（桌面 #systems）上寫著 text 的那顆；先證明點得到（命中自己、沒停用）
 async function clickGroupTab(page, text, tag) {
