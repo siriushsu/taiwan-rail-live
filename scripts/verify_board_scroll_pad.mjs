@@ -262,6 +262,9 @@ const CLOSE_ALL = `(() => {
     try { if (typeof window[f] === 'function') window[f](); } catch (e) {}
   try { if (state.followTrain || state.freqFollow) clearFollow(); } catch (e) {}
   try { document.activeElement && document.activeElement.blur(); } catch (e) {}
+  // 前一段 Tab 走到常駐搜尋框會打開下拉；closeSearchPanel 只收手機搜尋面板。
+  // 要在清掉跟車與焦點之後收下拉，免得搜尋建議遮住下一張卡的滑鼠起點。
+  try { if (typeof closeSearchDrop === 'function') closeSearchDrop(); } catch (e) {}
 })()`;
 const settle = page => page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 30)))));
 
@@ -1120,8 +1123,8 @@ const fmtE = e => !e.setup ? `鍵盤走不到第 2 列(停在 ${e.at.k})` : `第
 // C:滑鼠按在 sel 上。until='repaint' ⇒ 按住到卡片真的重畫過一次(最多 2.5 秒)才放開;數字 ⇒ 按住那麼多毫秒
 async function xpPress(page, key, sel, until) {
   const root = CARDS2[key].root;
-  const t = await page.evaluate(([root, sel]) => { const b = document.querySelector(root + ' ' + sel); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, no: b.dataset.no || null }; }, [root, sel]);
-  if (!t) return { none: true };
+  const t = await page.evaluate(([root, sel]) => { const b = document.querySelector(root + ' ' + sel); if (!b) return null; const r = b.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2; return { x, y, hit: b.contains(document.elementFromPoint(x, y)), no: b.dataset.no || null }; }, [root, sel]);
+  if (!t || !t.hit) { console.error(`按住起點未命中 ${root} ${sel}`); return { none: true, during: 0, closed: false, followed: false, no: t?.no || null }; }
   await page.evaluate(root => { window.__xc = { reps: 0 }; window.__xcMO = new MutationObserver(recs => { if (recs.some(r => r.addedNodes.length)) __xc.reps++; }); __xcMO.observe(document.querySelector(root), { childList: true }); setSpeed(1); state.playing = true; }, root);
   await page.mouse.move(t.x, t.y); await page.mouse.down();
   await page.evaluate(() => { __xc.reps = 0; });   // 只數按住期間
