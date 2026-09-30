@@ -77,6 +77,18 @@ const SCENE_MODULES={
    look:{id:'switchback',text:'看折返',label:'看之字形折返',pressed:null},
    caption:'阿里山林鐵 · 微縮印象'
   }
+ },
+ 'guanghua':{
+  load:()=>import('./rail-3d/garage-scenes/guanghua-view.js?revision=guanghua-0930').then(m=>m.mountGuanghua),
+  stage:{
+   label:'台南光華街涵洞微縮場景',
+   canvasLabel:'台鐵列車行駛於台南光華街涵洞上方的鐵路橋，可拖曳旋轉或以方向鍵調整',
+   views:[['world','涵洞全景'],['train','陪它走走']],
+   loading:'正在把小車開上鐵路橋…',
+   periods:[['day','晴日'],['sunset','夕照'],['night','入夜']],
+   look:{id:'culvert',text:'看涵洞',label:'看涵洞口低角度',pressed:null},
+   caption:'台南光華街涵洞 · 微縮印象'
+  }
  }
 };
 

@@ -136,8 +136,9 @@ window.RailGarageSceneLive = ['south-coast','viaduct','shifen','alishan'];
 
 // 哪一類車可以開進哪幾景（以 train-garage-catalog.js 的 system 欄判斷）。主對話判讀：台鐵車進三座台鐵景、林鐵車進阿里山；
 // 捷運、輕軌、高鐵目前沒有合適的景。方向來自使用者 09-29 10:26「或者另一個方向，是讓所有的車子都能跑在現在有的場景中適合的景」、10:30「確認改這個方向」。
+// guanghua（台南光華街涵洞）來自使用者 09-30 08:16「附近有一個大家都在拍照的地下道 我希望做成一個3D車庫的景」；放進台鐵欄是主對話判讀，進 RailGarageSceneLive 前車庫不會列出它。
 window.RailGarageSceneFit = {
- '台鐵': ['south-coast','viaduct','shifen'],
+ '台鐵': ['south-coast','viaduct','shifen','guanghua'],
  '阿里山林鐵': ['alishan'],
 };
 
@@ -147,6 +148,7 @@ window.RailGarageSceneInfo = {
  viaduct:       {name:'高架車站',blurb:'高架月台・每圈進站停靠',place:'高架車站・站前街',preview:'rail-3d/assets/garage-scene-previews/viaduct.jpg'},
  shifen:        {name:'十分老街',blurb:'鐵道貼著老街穿過',place:'平溪線・十分老街',preview:'rail-3d/assets/garage-scene-previews/shifen.jpg'},
  alishan:       {name:'阿里山',blurb:'山林間的森林鐵道',place:'阿里山林鐵・之字形',preview:'rail-3d/assets/garage-scene-previews/alishan.jpg'},
+ guanghua:      {name:'光華街涵洞',blurb:'火車在上・巷子在下',place:'台南・光華街涵洞',preview:'rail-3d/assets/garage-scene-previews/guanghua.jpg'},
 };
 
 // 這台車可以開進哪幾景：只列已開放（RailGarageSceneLive）的景；本命景（上面對照表的 scene 欄）在清單裡就排第一。
