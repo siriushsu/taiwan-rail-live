@@ -137,6 +137,44 @@ const dist = (a, b) => Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Ma
 const lum = c => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 /** 飽和度：最大通道減最小通道。灰（含深色模式偏藍的灰）≤ 40；線色（紅、綠、藍…）都遠大於 40。 */
 const sat = c => Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]);
+/** WCAG 相對亮度與對比（sRGB 線性化）：從【量到的像素】算，不從常數算。 */
+const wl = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+const contrast = (a, b) => { const la = wl(a), lb = wl(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
+
+// ── 手寫的期望常數（不准讀 CollectionMapRender／dimens_collect.xml：同源時「相等」是零資訊）──────────────
+/** Bitmap 的「出血」（dp）：點陣框四邊之外的透明邊。小卡左邊不出血（地圖在右、左邊就是文字欄，墨越不過 ImageView 的邊界）；中卡地圖在左、左邊是卡片內距，出血 8dp。
+ *  三處要一起改：dimens_collect.xml、CollectionMapRender.bleed()、這裡。 */
+const BLEED = { small: { start: 0, top: 2, end: 3, bottom: 18 }, medium: { start: 8, top: 2, end: 3, bottom: 18 } };
+/** 顏色（手寫）：卡底 wg_paper、全台填色、單一系統細線、未收集灰點、其他系統灰。 */
+const PAPER = { light: [253, 251, 244], dark: [16, 28, 46] };
+const FILL = { light: [242, 241, 236], dark: [24, 35, 53] };
+const LINE = { light: [226, 225, 222], dark: [48, 58, 76] };
+const OFF = { light: [210, 210, 210], dark: [72, 81, 99] };
+const OTHER = { light: [231, 231, 231], dark: [43, 52, 68] };
+/** 契約的投影框 [lon0, lat0, lon1, lat1]（docs/collect-widget-contract.md；iOS 預言機 render_collect_widget.mjs 同值）與取樣點：
+ *  手寫經緯度自己投影，離岸 ≥14 km（最小的地圖上仍 ≥4 px）。恆春半島南端投影後在點陣框底之下約 6%——裁到框就會被切平。 */
+const BOX = [120.15, 22.2, 122.0, 25.27];
+const lonLat = (lon, lat) => [((lon - BOX[0]) / (BOX[2] - BOX[0])) * 1000, ((BOX[3] - lat) / (BOX[3] - BOX[1])) * 1000];
+const OUTLINE_LAND = [['玉山', 120.957, 23.47], ['埔里', 120.967, 23.964], ['台中', 120.679, 24.138], ['潮州', 120.54, 22.55],
+  ['池上', 121.22, 23.12], ['宜蘭', 121.6, 24.75], ['嘉義', 120.45, 23.48], ['竹東', 121.09, 24.73],
+  ['合歡山', 121.28, 24.14], ['阿里山', 120.8, 23.51], ['光復', 121.42, 23.67]];
+const OUTLINE_SEA = [['台灣海峽中', 120.2, 24.2], ['太平洋', 121.95, 23.6], ['東南外海', 121.3, 22.23], ['北部外海', 121.2, 25.25], ['台灣海峽北', 120.25, 24.9]];
+const OUTLINE_PENINSULA = [['恆春半島（lon 120.8／lat 22.0）', 120.8, 22.0], ['恆春半島北一點', 120.78, 22.02]];
+/** 視窗內看得到海岸線、視窗中心在陸地內部的單一系統。 */
+const OUTLINE_SCOPED = ['tra', 'trtc', 'krtc'];
+/** 墨像素＝alpha ≥ 8（抗鋸齒的淡邊也算，不放寬）。 */
+const INK_ALPHA = 8;
+/** 蓋章膠囊尺寸（dp，改可點範圍前量到的值，尺寸不變）：高 17.9，寬依語言。 */
+const STAMP_W = { zh: 35.8, en: 45.3, ja: 55.6 };
+const totals = { land: 0, sea: 0, pen: 0, contrast: 0, inkBoxes: 0, scoped: 0 };
+/** 取樣點覆蓋的下限＝2026-09-30 量到的實數（land 1080、sea 1350、pen 540、contrast 198、inkBoxes 2298、scoped 246）的約 90%：分母縮水就紅。 */
+const LAND_MIN = 950, SEA_MIN = 1200, PEN_MIN = 480, CON_MIN = 170, INK_MIN = 2050, SCOPED_MIN = 220;
+/** 把 PNG 裁到點陣框：at(x,y)＝原圖 (x+start, y+top)；框外（出血區）用負座標或超過 w／h 取得。 */
+function framed(raw, family, dpr) {
+  const b = BLEED[family];
+  const bs = Math.round(b.start * dpr), bt = Math.round(b.top * dpr), be = Math.round(b.end * dpr), bb = Math.round(b.bottom * dpr);
+  return { w: raw.w - bs - be, h: raw.h - bt - bb, at: (x, y) => raw.at(x + bs, y + bt) };
+}
 
 // ── 觀察資料的取用 ───────────────────────────────────────────────────────────
 const obsById = new Map(obsAll.map(o => [o.id, o]));
@@ -318,7 +356,10 @@ for (const c of cases) {
     continue;
   }
   check('淺／深 alpha（淺色模式露淺、深色模式露深）', near(mapL.alpha, light ? 1 : 0, 0.01) && near(mapD.alpha, light ? 0 : 1, 0.01), () => `${tag}：light=${mapL.alpha} dark=${mapD.alpha} theme=${c.theme}`);
-  check('Bitmap 寬＝高×aspect', near(mapL.bitmapW, mapL.bitmapH * payload.aspect, 1) && mapL.bitmapW === mapD.bitmapW && mapL.bitmapH === mapD.bitmapH, () => `${tag}：${mapL.bitmapW}x${mapL.bitmapH} aspect=${payload.aspect}`);
+  {
+    const fl = framed(pngOf(mapL.png), c.family, obs.density);
+    check('點陣框寬＝框高×aspect（扣掉手寫的出血後）；淺深兩張同尺寸、PNG 尺寸＝回報尺寸', fl.w > 0 && fl.h > 0 && near(fl.w, fl.h * payload.aspect, 0.6) && mapL.bitmapW === mapD.bitmapW && mapL.bitmapH === mapD.bitmapH && pngOf(mapL.png).w === mapL.bitmapW && pngOf(mapL.png).h === mapL.bitmapH, () => `${tag}：Bitmap ${mapL.bitmapW}x${mapL.bitmapH}，扣出血後框 ${fl.w}x${fl.h}，aspect=${payload.aspect}`);
+  }
   check('Bitmap 位元組＝寬×高×4', mapL.bitmapBytes === mapL.bitmapW * mapL.bitmapH * 4, () => `${tag}：${mapL.bitmapBytes}`);
   check('單張 Bitmap ≤ 560px 高且整卡兩張合計 ≤ 1 MB', mapL.bitmapH <= 560 && obs.bitmapBytes <= 1024 * 1024, () => `${tag}：h=${mapL.bitmapH} bytes=${obs.bitmapBytes}`);
 
@@ -326,7 +367,7 @@ for (const c of cases) {
   const win = windowFor(payload, e.idx);
   const dpr = obs.density;
   for (const [which, node] of [['light', mapL], ['dark', mapD]]) {
-    const img = pngOf(node.png);
+    const img = framed(pngOf(node.png), c.family, dpr);
     const H = img.h, W = img.w;
     const r = Math.max(dpr, H * 0.0075), rs = r * 1.3, inset = rs;
     const project = p => [inset + (p[0] - win.x0) / win.size * (W - 2 * inset), inset + (p[1] - win.y0) / win.size * (H - 2 * inset)];
@@ -370,7 +411,9 @@ for (const c of cases) {
       } else if (p[3] === 1) {
         const want = lineColor(p);
         const center = img.at(Math.round(x), Math.round(y));
-        check(`地圖 ${which}：s=1 跟完＝空心（中心透明）`, center[3] < 60, () => `${tag}：點 ${p[0]},${p[1]} 中心 alpha=${center[3]}（實心會是 255）`);
+        // 空心中心：透明，或露出底下的輪廓（全台填色／單一系統的細線）；絕不是線色（那是實心）
+        const hollow = (center[3] < 60 || dist(center, FILL[which]) <= 12 || dist(center, LINE[which]) <= 12) && !(center[3] > 200 && dist(center, want) <= 40);
+        check(`地圖 ${which}：s=1 跟完＝空心（中心透明或露出輪廓，不是線色）`, hollow, () => `${tag}：點 ${p[0]},${p[1]} 中心 ${center}（實心會是線色 ${want}）`);
         // 外圈：中心往外 [0.55rs, 1.15rs] 的環上找得到線色
         let ringHit = false;
         for (let a = 0; a < 360 && !ringHit; a += 15) {
@@ -382,7 +425,7 @@ for (const c of cases) {
         check(`地圖 ${which}：s=1 跟完＝外圈是線色`, ringHit, () => `${tag}：點 ${p[0]},${p[1]} 找不到外圈線色 ${want}`);
       } else {
         const px = around(x, y, q => q[3] > 200) ? img.at(Math.round(x), Math.round(y)) : [0, 0, 0, 0];
-        check(`地圖 ${which}：s=0 未收集＝灰色小點`, px[3] > 150 && sat(px) <= 40, () => `${tag}：點 ${p[0]},${p[1]} 中心 ${img.at(Math.round(x), Math.round(y))}`);
+        check(`地圖 ${which}：s=0 未收集＝灰色小點（手寫的灰）`, px[3] > 150 && dist(px, OFF[which]) <= 8, () => `${tag}：點 ${p[0]},${p[1]} 中心 ${img.at(Math.round(x), Math.round(y))} 期望 ${OFF[which]}`);
       }
     }
     // 沒有分母縮水：該範圍內至少各驗到一些孤立的實心點（有這種點的案才要求）
@@ -399,7 +442,7 @@ for (const c of cases) {
       for (const p of inside.slice(0, 40)) {
         const [x, y] = project(p);
         const px = img.at(Math.round(x), Math.round(y));
-        check(`地圖 ${which}：視窗內其他系統的點畫成灰`, px[3] > 150 && sat(px) <= 40, () => `${tag}：其他系統點 ${p[0]},${p[1]} 中心 ${px}`);
+        check(`地圖 ${which}：視窗內其他系統的點畫成灰（手寫的灰）`, px[3] > 150 && dist(px, OTHER[which]) <= 8, () => `${tag}：其他系統點 ${p[0]},${p[1]} 中心 ${px} 期望 ${OTHER[which]}`);
         midOther = px;
       }
       // 「更淡一階」＝跟背景的反差比未收集的灰小
@@ -420,9 +463,8 @@ for (const c of cases) {
         for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
           const px = img.at(x, y);
           if (px[3] < 200) continue;
-          const isGray = sat(px) <= 40;
-          // 系統自己的未收集灰也算（它們是該系統的點）；只排除比它更淡的「其他系統」灰
-          if (isGray && lum(px) > 225) continue;
+          // 系統自己的未收集灰也算（它們是該系統的點）；排除「其他系統」的灰與輪廓細線（都不是該系統的點）
+          if (dist(px, OTHER[which]) <= 8 || dist(px, LINE[which]) <= 8) continue;
           x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
         }
         const span = Math.max(x1 - x0, y1 - y0), shortSide = Math.min(W, H);
@@ -432,21 +474,96 @@ for (const c of cases) {
     } else if (which === 'light') {
       // 全台：整島。點外框佔地圖寬的大部分（台灣本島東西向約 0.95 之後被 inset 吃掉一點）
       let x0 = W, x1 = -1, y0 = H, y1 = -1;
-      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (img.at(x, y)[3] > 100) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+      // 只算「點」的像素：排除全台填色與透明（填色伸出點陣框，算進去外框就恆真）
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const px = img.at(x, y); if (px[3] > 200 && dist(px, FILL[which]) > 12) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } }
       check('全台：點外框涵蓋整張地圖（≥85% 寬、≥90% 高）', x1 - x0 >= 0.85 * W && y1 - y0 >= 0.9 * H, () => `${tag}：外框 ${x1 - x0}x${y1 - y0}／${W}x${H}`);
       mapsChecked++;
     }
+
+    // ── 輪廓：全台＝陸地填色（畫得出點陣框）、單一系統＝細線；期望色與取樣點都是手寫的 ──
+    // 取樣點要離所有畫出的點夠遠（點半徑 rs＋抗鋸齒 1.5px）；填色是均勻的不透明色，沒被點蓋到的像素就是填色本身
+    const clear = pos => drawnPos.every(q => Math.hypot(q[0] - pos[0], q[1] - pos[1]) > rs + 1.5);
+    const pxAt = pos => img.at(Math.round(pos[0]), Math.round(pos[1]));
+    if (e.idx < 0) {
+      let landN = 0, seaN = 0, penN = 0, F = null;
+      for (const [name, lon, lat] of OUTLINE_LAND) {
+        const pos = project(lonLat(lon, lat));
+        if (!clear(pos)) continue;
+        landN++;
+        const px = pxAt(pos);
+        F = F ?? px;
+        check(`輪廓 ${which}：全台內陸取樣點＝填色`, px[3] > 240 && dist(px, FILL[which]) <= 6, () => `${tag}：${name} 像素 ${px} 應是填色 ${FILL[which]}`);
+      }
+      for (const [name, lon, lat] of OUTLINE_SEA) {
+        const pos = project(lonLat(lon, lat));
+        if (!clear(pos)) continue;
+        seaN++;
+        const px = pxAt(pos);
+        check(`輪廓 ${which}：全台海上取樣點＝透明`, px[3] < INK_ALPHA, () => `${tag}：${name} 像素 ${px} 應是透明`);
+      }
+      for (const [name, lon, lat] of OUTLINE_PENINSULA) {
+        const pos = project(lonLat(lon, lat));
+        check('輪廓：恆春南端取樣點確實在點陣框底之下（取樣點自檢）', pos[1] > H + 2, () => `${tag}：${name} 投影 y=${pos[1].toFixed(1)}，框高 ${H}`);
+        if (!clear(pos)) continue;
+        penN++;
+        const px = pxAt(pos);
+        check(`輪廓 ${which}：恆春半島南端畫在點陣框外（沒被裁）＝填色`, px[3] > 240 && dist(px, FILL[which]) <= 6, () => `${tag}：${name} 框外像素 ${px} 應是填色 ${FILL[which]}（被切平了？）`);
+      }
+      totals.land += landN; totals.sea += seaN; totals.pen += penN;
+      check('輪廓取樣點覆蓋：每張全台圖至少驗到 2 個內陸、2 個海上、1 個南端點', landN >= 2 && seaN >= 2 && penN >= 1, () => `${tag} ${which}：內陸 ${landN}／海上 ${seaN}／南端 ${penN}`);
+      // 對比：灰點放在填色上，對比 ≥ 放在卡底上的 0.9 倍（量到的像素）；填色與卡底肉眼可分
+      const dotOff = scoped.find(q => q[3] === 0 && isolated(q));
+      if (dotOff && F) {
+        const D = pxAt(project(dotOff));
+        totals.contrast++;
+        check(`輪廓 ${which}：灰點對填色的對比 ≥ 灰點對卡底的 0.9 倍（量到的像素算 WCAG）`, contrast(D, F) >= 0.9 * contrast(D, PAPER[which]), () => `${tag}：灰點 ${D} 填色 ${F}：對填色 ${contrast(D, F).toFixed(3)} 對卡底 ${contrast(D, PAPER[which]).toFixed(3)}`);
+        check(`輪廓 ${which}：填色與卡底肉眼可分（亮度差 ≥ 3/255）`, Math.abs(lum(F) - lum(PAPER[which])) >= 3, () => `${tag}：填色 ${F} 卡底 ${PAPER[which]}`);
+      }
+    } else if (OUTLINE_SCOPED.includes(c.scope)) {
+      totals.scoped++;
+      let probe = null;
+      for (let ring = 0; ring <= 12 && !probe; ring++) for (let a = 0; a < 8 && !probe; a++) {
+        const pos = [W / 2 + Math.cos(a * Math.PI / 4) * ring * 3 * rs, H / 2 + Math.sin(a * Math.PI / 4) * ring * 3 * rs];
+        if (clear(pos)) probe = pos;
+      }
+      check(`輪廓 ${which}：單一系統視窗中心附近找得到離所有點夠遠的取樣點`, !!probe, `${tag}：找不到取樣點`);
+      if (probe) { const px = pxAt(probe); check(`輪廓 ${which}：單一系統是細線不是填色（視窗中心的陸地內部＝透明）`, px[3] < INK_ALPHA, () => `${tag}：中心附近像素 ${px}（被填色了？）`); }
+      let lineN = 0, fillN = 0;
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const px = img.at(x, y); if (px[3] >= 100 && dist(px, LINE[which]) <= 12) lineN++; if (px[3] > 240 && dist(px, FILL[which]) <= 3) fillN++; }
+      check(`輪廓 ${which}：單一系統的海岸線有畫（線色像素 ≥ 20）`, lineN >= 20, () => `${tag}：線色像素 ${lineN}`);
+      check(`輪廓 ${which}：單一系統沒有大片填色（填色像素 < 框面積 3%）`, fillN < 0.03 * W * H, () => `${tag}：填色像素 ${fillN}／${W * H}`);
+    }
   }
 
-  // A7 幾何：地圖畫出的矩形與可見文字不相交
+  // A7 輪廓與點的墨（alpha ≥ 8，抗鋸齒淡邊也算）不侵入任何可見文字的字形框、蓋章膠囊框、進度條框。判準不放寬：
+  //    小卡的地圖 ImageView 從文字欄右緣開始（左邊不出血），所以這條對所有寬度、語言都是結構性成立，不是這一格剛好過。
   {
     const mapNode = light ? mapL : mapD;
+    const raw = pngOf(mapNode.png);
     if (mapNode.drawn) {
       const [dl, dt, dr, db] = mapNode.drawn;
-      for (const n of obs.nodes.filter(n => n.kind === 'text' && n.visible && n.glyph)) {
-        const [gl, gt, gr, gb] = n.glyph;
-        const ix = Math.min(dr, gr) - Math.max(dl, gl), iy = Math.min(db, gb) - Math.max(dt, gt);
-        check('地圖與文字不重疊', !(ix > 1 && iy > 1), () => `${tag}：${n.id}=${JSON.stringify(n.text)} 字形 [${n.glyph.map(v => v.toFixed(1))}] 與地圖 [${mapNode.drawn.map(v => v.toFixed(1))}] 相交 ${ix.toFixed(1)}x${iy.toFixed(1)}dp`);
+      const sx = (dr - dl) / raw.w, sy = (db - dt) / raw.h;
+      let ink = 0;
+      for (let y = 0; y < raw.h; y++) for (let x = 0; x < raw.w; x++) if (raw.at(x, y)[3] >= INK_ALPHA) ink++;
+      check('墨像素量測有效：這張地圖確實有墨（否則「沒有侵入」是空話）', ink > 200 && sx > 0 && sy > 0, () => `${tag}：墨像素 ${ink}，drawn=${mapNode.drawn}`);
+      const boxes = [];
+      for (const n of obs.nodes) {
+        if (!n.visible || !n.box) continue;
+        if (n.id === 'wc_stamp') boxes.push(['wc_stamp（膠囊）', n.box]);
+        else if (n.kind === 'text' && (n.text ?? '') !== '') boxes.push([`${n.id}（字形）「${n.text}」`, n.glyph ?? n.box]);
+        else if (n.kind === 'progress') boxes.push([`${n.id}（進度條）`, n.box]);
+      }
+      for (const [name, [bl, bt, br, bb]] of boxes) {
+        const x0 = Math.max(0, Math.floor((bl - dl) / sx)), x1 = Math.min(raw.w - 1, Math.ceil((br - dl) / sx));
+        const y0 = Math.max(0, Math.floor((bt - dt) / sy)), y1 = Math.min(raw.h - 1, Math.ceil((bb - dt) / sy));
+        let hit = 0;
+        for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+          if (raw.at(x, y)[3] < INK_ALPHA) continue;
+          const px = dl + (x + 0.5) * sx, py = dt + (y + 0.5) * sy;
+          if (px >= bl && px <= br && py >= bt && py <= bb) hit++;
+        }
+        totals.inkBoxes++;
+        check('輪廓與點不侵入任何可見文字的字形框、蓋章膠囊框、進度條框（alpha≥8 的墨像素＝0）', hit === 0, () => `${tag}：${name} 框內有 ${hit} 個墨像素`);
       }
     }
   }
@@ -479,6 +596,9 @@ for (const c of cases) {
     check('點擊目標：蓋章鈕綁 railisland://checkin（不是 passport）', r.stampIsCheckin === true && r.stampIsPassport === false, () => `${r.family}：isCheckin=${r.stampIsCheckin} isPassport=${r.stampIsPassport}（字面 checkin 存在=${r.literalCheckinExists}）`);
     check('點擊目標：按鈕以外仍是開旅程護照（railisland://passport）', r.rootIsPassport === true && r.rootIsCheckin === false, () => `${r.family}：isPassport=${r.rootIsPassport} isCheckin=${r.rootIsCheckin}`);
     check('點擊目標：兩個入口是兩顆不同的 PendingIntent', r.samePending === false, () => `${r.family}：兩個入口是同一顆`);
+    check('點擊目標：命中蓋章鈕膠囊的是 wc_stamp_hit、命中標題文字的是 wc_root', r.pillHitId === 'wc_stamp_hit' && r.titleHitId === 'wc_root', () => `${r.family}：膠囊命中 ${r.pillHitId}／標題命中 ${r.titleHitId}`);
+    const [el, et, er, eb] = r.effective ?? [0, 0, 0, 0];
+    check('點擊目標：實際可點範圍 ≥ 48×36.5dp（小）／48×26dp（中），且填滿（≥98%）', er - el >= 47.75 && eb - et >= (r.family === 'small' ? 36.25 : 25.75) && r.effectiveFilled >= 0.98, () => `${r.family}：可點 [${(r.effective ?? []).join(',')}] 填滿 ${r.effectiveFilled}`);
     check('點擊目標：蓋章鈕的 PendingIntent 建立者是本 App', /^tw\.railisland\.app/.test(r.stampCreator), () => `${r.family}：creator=${r.stampCreator}`);
   }
 }
@@ -491,10 +611,13 @@ for (const [name, s] of [...stats].sort()) {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}（檢查 ${s.n} 次${s.bad ? `，失敗 ${s.bad}` : ''}）`);
 }
 check('地圖像素分析至少跑了 30 張', mapsChecked >= 30, `只跑了 ${mapsChecked} 張`);
+check('輪廓取樣點總數不縮水（內陸、海上、南端、對比、墨框、單一系統輪廓的取樣數都不低於量到的實數的約 90%）',
+  totals.land >= LAND_MIN && totals.sea >= SEA_MIN && totals.pen >= PEN_MIN && totals.contrast >= CON_MIN && totals.inkBoxes >= INK_MIN && totals.scoped >= SCOPED_MIN, () => `實際 ${JSON.stringify(totals)}`);
 if (mapsChecked < 30) { red++; console.log(`FAIL 地圖像素分析至少跑了 30 張（只跑了 ${mapsChecked}）`); }
 if (failures.length) {
   console.error(`\n失敗明細（前 40 筆／共 ${failures.length}）：`);
   for (const f of failures.slice(0, 40)) console.error(' ✗ ' + f);
 }
+console.log(`\n輪廓取樣點實數：${JSON.stringify(totals)}`);
 console.log(`\n車站收集 Android 預言機：${cases.length} 案、${[...stats.values()].reduce((a, s) => a + s.n, 0)} 次檢查、${red} 項斷言紅`);
 process.exit(red || failures.length ? 1 : 0);
