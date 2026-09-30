@@ -3,8 +3,8 @@
 // 跑法：node scripts/verify_bounty_hardening.mjs
 //
 // 期望值一律寫死在這裡，不呼叫實作去產生期望（日期自己用 Date 算、點數與籌碼自己手算並寫出算式）。來源：
-//   ・缺陷與修法都是 review-B（獨立審查）與修補之後那一輪獨立驗收（N2／N3／N4）的發現、
-//     加上修補設計。
+//   ・每一組對應一個修補項目（代號見各組標題），
+//     判準寫的是修補後應有的行為。
 //   ・數字（每趟至少 600 秒、每日籌碼上限 4、第一座 4 之後每座 8、每日計點上限 200、日期窗 7 天、每人每日 720 批）
 //     來自 data/bounty_rules.json 與 worker.js 的常數，這裡照抄成字面。
 // 每一條判準寫的時候都先答「哪一個突變能讓它變紅」。
@@ -284,7 +284,7 @@ const listOf = (w) => {
 };
 
 await attempt('B3a', async () => {
-  // review-B C1 的攻擊：一個 IP、不帶任何憑證，送兩千多班「乘車日＝上傳窗最舊那天、actor 字母序在前」的垃圾。
+  // C1 的攻擊：一個 IP、不帶任何憑證，送兩千多班刻意排在舊版判定清單最前面的垃圾。
   // 誠實的可信身分：帳號 U（3 班）、以前入帳過錄程籌碼的匿名裝置 R（1 班）、併進帳號 U2 的裝置 M（1 班）。
   // 預設預算（8000）、預設次序（同一輪隨機）：可信身分的前 8 班排在最前面，所以這 5 班一定先判；垃圾把預算用完，剩下的留 pending。
   // 垃圾一班成本＝讀一班 1＋逐站觀測 1＋身分 1＋前次 1＋寫入 batch 1＝5 → 預算 8000 判得了約 1,600 班 < 2,500 班，一定用完。
@@ -2606,7 +2606,7 @@ await attempt('PF6', async () => {
   //     b 每一點送 v:0 → S1、S2 都記成停靠段：位置微分 8 m/s 沒超過否決門檻 posSpeedVetoMps（10），回報的 0 照信；
   //     c 同一趟送 v:null → 沒有停靠段（位置微分 8 ＞ 1.5）。舊版把 null 存成 0，c 就會變成 b 的結果。
   //     原本的對照是「30 m/s 送 v:0 → S1…S9 九站都記成停靠段」；第十五批起位置微分超過 10 m/s 就否決回報的低速（Android 沒有速度時送 0，見 PF11），
-  //     30 m/s 的 0 已經不會算停靠，對照只好降到否決門檻以下（沒有否決門檻的話，整趟沒有速度的裝置每趟會多出好幾個假停靠，那是 a 在防的）。
+  //     30 m/s 的 0 已經不會算停靠，對照只好降到否決門檻以下（舊版把 null 存成 0 時，整趟沒有速度的裝置每趟會多出好幾個假停靠，那是 a 在防的）。
   const D26 = '2026-07-26';
   const trip = (v, mps) => Array.from({ length: 634 }, (_, i) => ({ d: 500 + i * mps, t: 30000 + i, v, acc: v === null ? null : 8 }));
   const run = async (actor, v, mps) => {
@@ -2661,7 +2661,7 @@ await attempt('PF8', async () => {
     await w.cron();
     got[name] = { st, v: q.verdicts(w, actor, 'PF8'), qc: rows(w, 'SELECT DISTINCT quality_code c FROM bounty_samples WHERE actor=?', actor).map(r => r.c).join() };
   }
-  ok('PF8 [第十三批 V8 E1] 精度送 null 不算成 0 m：一半的點 acc:null、另一半 110–129 m → unusable（acc_blocked），與每一點都 110–129 m 的對照相同（舊版中位數 55 m、判 ok）',
+  ok('PF8 [第十三批 V8 E1] 精度送 null 不算成 0 m：一半的點 acc:null、另一半 110–129 m → unusable（acc_blocked），與每一點都 110–129 m 的對照相同（舊版會判 ok）',
     ['a', 'b'].every(k => J(got[k].st) === J([200, 200, 200, 200]) && got[k].v === 'unusable' && got[k].qc === 'acc_blocked'), J(got));
 });
 

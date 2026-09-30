@@ -1,5 +1,5 @@
 // 路段懸賞 v2 後端驗收（六）：判定 cron 第二批——第③段身分（S10）、可疑整班不發（S11）、遲傳合併判（S12）、
-// 查詢量與子請求預算（S13）、日期窗以上傳時間為基準（S14）。（review-A 第二輪；第一批在 verify_bounty_cron.mjs 的 F1–F24）
+// 查詢量與子請求預算（S13）、日期窗以上傳時間為基準（S14）。（第一批在 verify_bounty_cron.mjs 的 F1–F24）
 // 離線：假 D1（scripts/d1_local.mjs，真 SQLite）＋ stub ASSETS ＋ BOUNTY_NOW 釘死，不起伺服器、不碰網路。
 // 跑法：node scripts/verify_bounty_cron2.mjs
 //
@@ -270,7 +270,7 @@ async function fire(w, cron) {
 }
 
 // ── 對照版（c2e81e3b）載入 ────────────────────────────────────────────────────
-// c2e81e3b＝review-A 第一批（F1／F24／F4／F10／F11／F23／F12／F21）修完、第二批（S10–S14）動工之前的 worker.js。
+// c2e81e3b＝F1／F24／F4／F10／F11／F23／F12／F21 修完、S10–S14 動工之前的 worker.js。
 // 換基準的方法：改這個常數；若日後歷史被改寫、這個 commit 取不到，K 組與 K0 組會紅並說明原因（換成當時的 tip 即可）。
 const CONTROL_SHA = 'c2e81e3b';
 let ctlDir = null;

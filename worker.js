@@ -6257,7 +6257,7 @@ function hasGeoKeys(v, depth) {
 // 前端日後多帶一個 debug 欄位不該讓整趟上傳失敗，但那個欄位也絕不該進 D1。
 // (夾帶座標是另一回事——那個要 400，見 hasGeoKeys。)
 // 🔴 沒有速度、沒有精度（null）存成 null，不是 0（第八輪獨立驗收 E1）：Number(null) 是 0，舊版把「沒有都卜勒速度」存成「速度 0」，
-// 停靠判定就把高速通過的每一站都當成停過（V8 模擬台鐵 130 km/h、整趟沒有速度的裝置每趟約 9 個假停靠），寫進人數與下架之後收不回。
+// 停靠判定就把高速通過的每一站都當成停過，寫進人數與下架之後收不回。
 function sanitizeSamples(arr, max) {
   const out = []; let dropped = 0;
   for (const s of arr) {
@@ -6483,7 +6483,7 @@ async function bountySubmit(request, env) {
   let b;
   try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
   if (!b || !isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
-  // 🔴 GPS 錄程限 App（路段懸賞 v2 §2.1）：沒帶 client、或 platform 不是 ios／android 一律 400 app_only。
+  // 🔴 GPS 錄程限 App：沒帶 client、或 platform 不是 ios／android 一律 400 app_only。
   // 擋在所有形狀檢查之前——這是「誰能上傳」的問題，不是「這批資料長怎樣」的問題。
   const client = sanitizeClient(b.client);
   if (!client) return jsonRes({ error: 'app_only' }, 400, 'no-store');
@@ -6920,7 +6920,7 @@ async function bountyPurgeUid(env, uid, deviceActor) {
 
 // ── 路段懸賞 v2：籌碼餘額與車庫兌換端點（A-T6）─────────────────────────────────────────
 // 🔴 這一區（chipsMe、garageRedeem 與它們的輔助函式）完全不讀任何通行證欄位、不查通行證資格、回應裡也不帶：
-// 籌碼、價格、解鎖與通行證無關（v2 §3.4）。請求裡就算帶了 plus 之類的欄位也只是被無視。
+// 籌碼、價格、解鎖與通行證無關。請求裡就算帶了 plus 之類的欄位也只是被無視。
 // 籌碼規則讀 data/bounty_rules.json 的 chips 區塊（bountyRules，ASSETS 綁定，與客端讀的是同一份檔），不設 fallback：
 // 設定缺漏就 throw，由呼叫端回 503 not_ready——寧可讓客戶端等一下，也不拿猜的價格去扣人家的籌碼。
 async function bountyChipsRules(env) {
@@ -7096,7 +7096,7 @@ async function garageRedeem(request, env) {
 // 每 chips.cloud.perChip 次換 1 個籌碼。不需要定位權限，伺服器驗的是「這班車那天有沒有開、那個時間點它有沒有可能在跑」；
 // sec 由客戶端回報，控管靠的是價值上限（每天最多 1 次、3 次才換 1 個籌碼）
 // 加上限流與寫入總閘。
-// 🔴 這一區同樣不讀任何通行證欄位（v2 §3.4）：請求裡帶了也只是被無視。
+// 🔴 這一區同樣不讀任何通行證欄位：請求裡帶了也只是被無視。
 //
 // trainKey 格式（客戶端與伺服器共讀這一個定義）：
 //   台鐵／高鐵／林鐵  `<sysId>|<車次>`            tra_sched|123、thsr_sched|0108（高鐵 4 碼補零，原樣比對）、afr_sched|1
@@ -7593,7 +7593,7 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
       // （iOS 沒有有效速度時回報 −1，App 送 null）。速度欄本來就由客戶端自填，偽造者送 0 效果相同，這一條不增加能力。
       // 前一點沒有、或同一秒（Δt≤0）就不算低速。前端錄製當下的停靠進度（bountyUpdateDwellProgress）用同一條。
       // 🔴 回報的速度再低，位置微分超過 posSpeedVetoMps（10 m/s＝36 km/h）就不信它（第十輪獨立驗收 P1-2）：Android 沒有速度時送的是 0.0
-      // 不是 null（@capacitor/geolocation 2.2.0 的 ION 直接呼叫 getSpeed()、不查 hasSpeed()），整趟送 0 的話通過的站幾乎全被記成停靠；
+      // 不是 null（@capacitor/geolocation 2.2.0 的 ION 直接呼叫 getSpeed()、不查 hasSpeed()），沒有這一條時整趟送 0 的話通過的站幾乎全被記成停靠；
       // 偽造者整趟送 0 或任何小的數也一樣。否決門檻刻意比 stopSpeedMaxMps 高得多：真的停著時 GPS 會晃——
       // 模擬裡門檻用 1.5 的話，停著時回報剛好 0 的誠實裝置停靠召回掉到 21–45%。
       // 🔴 位置微分跟「至少 posSpeedWindowSec（5 秒）以前的那一點」比，窗內還沒有那麼早的點就跟窗內第一點比（第十一輪獨立驗收 P2-1）：
@@ -7602,7 +7602,7 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
       // 門檻附近有取整造成的誤差（第十二輪獨立驗收 P3-1；第十三輪 P3-6 訂正）：App 記的 t 是整數秒（nowSecOfDay 取 floor），「5 秒前」實際是 4 到 6 秒，
       // 位置微分可能低估也可能高估約兩成。
       // 沒有速度的點同樣用這個位置微分判低速，比 1 秒的穩（第十輪獨立驗收 P2：沒速度的停靠召回隨雜訊掉到 17%）。
-      // 代價：否決門檻刻意取得比停靠時 GPS 的晃動高，以停靠召回為優先；
+      // 取捨：否決門檻刻意取得比停靠時 GPS 的晃動高，以停靠召回為優先。代價是
       // 停下來的頭幾秒，5 秒前的點還在進站途中，沒有速度的點要等位置微分降到 1.5 以下才算低速。
       const p = local[j], t = Number(p.t);
       while (base + 1 < j && Number(local[base + 1].t) <= t - D.posSpeedWindowSec) base++;
@@ -7654,7 +7654,7 @@ function integrityGate(trip, ctx, rules) {
   // 所以往前的上界寫成「上限 ×（Δt＋1）」，不是「上限 × Δt」（第六輪獨立驗收）：App 以 900 ms 節流，漏掉一次定位回呼時
   // Δt＝1 的一對點真實間隔可達約 1.9 秒，舊版拿 Δt 當分母，時速 79 km/h 以上就必判 impossible_physics（台鐵自強、高鐵的主要速度帶）；
   // 1 Hz 在上限附近再加一點 GPS 雜訊也幾乎必紅。同一秒的點（Δt＝0）同一條：上限 × 1 秒。
-  // 🔴 比的是「任兩點」，不只相鄰兩點（第五、六輪）：只比相鄰的話，一秒塞兩個點、每一對都貼著上限，就能以兩倍多的上限前進；
+  // 🔴 比的是「任兩點」，不只相鄰兩點（第五、六輪）：只比相鄰的話，一秒塞兩個點、每一對都貼著上限，就能超過上限前進；
   // 任兩點都比，長時間的平均速度就釘在上限以內。做法是 O(n)：令 g＝往前里程 − 上限×t，
   // 「每個較早的點 i 都滿足 往前(j) − 往前(i) ≤ 上限×(t_j − t_i + 1) ＋ 容差」等價於「g_j ≤ 較早各點 g 的最小值 ＋ 上限 ＋ 容差」，一路記最小值即可。
   // 容差：上限多 15%（投影誤差），另加 50 m（GPS 抖動；往後退的容差同一個 50 m，只比相鄰兩點）。
@@ -7895,8 +7895,8 @@ function bountyPriorGroups(rows) {
 // 只看這一發的批次，整班車一顆都拿不到。籌碼判斷（任一 ok、suspect 否決、偏遠 ×2、整班長度）一律把兩邊合起來看；
 // 前次線組只參與這個判斷——不重新登記去重、不重新標記、不給點數（那些在它自己那一發已經做過）。
 // 前半段當時若已入帳，下面寫帳本那一句的「這班車入過帳沒」條件照舊擋住，後半段不會再發。
-// 🔴 與看板有沒有這一段無關：板上沒有任何單位、或那一段已收滿下架，合格趟照發（v2 §2.4-1「滿板仍發籌碼」）。
-// 🔴 不讀任何 plus／通行證欄位：通行證沒有籌碼倍率（v2 §3.4）。
+// 🔴 與看板有沒有這一段無關：板上沒有任何單位、或那一段已收滿下架，合格趟照發（滿板仍發籌碼）。
+// 🔴 不讀任何 plus／通行證欄位：通行證沒有籌碼倍率。
 // 模擬器整班車不入帳的判斷在呼叫端（bountyVerifyCron，連去重登記與看板一併跳過），不在這裡。
 // groups 是這一班車每一條線的 { trip, v, cov }：trip 是 assembleTrip 的結果、v 是這條線的判定、cov 是這條線 ok 的覆蓋段。
 // who：這班車記在誰名下（bountyVerifyTrain 解析的，寫入那一句會再當場解析一跳）；fence：租約與「樣本還在」的綁定值（見 bountyVerifyTrain）。
