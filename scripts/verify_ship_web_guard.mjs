@@ -251,6 +251,17 @@ await group('W', async () => {
     `night-design@${nightDesign}、strip@${strip}`);
 });
 
+// ── WB 組:路段懸賞總閘門的接線(靜態)。16 支驗收只在分支上手動跑了一個月,拔掉這一段不會有任何別的東西變紅 ──
+await group('WB', async () => {
+  const src = fs.readFileSync(path.join(ROOT, 'scripts', 'ship_web.mjs'), 'utf8');
+  const at = s => src.indexOf(s);
+  const firstGate = at("'check_i18n.mjs'"), strip = at("'strip_ship_comments.mjs'"), bounty = at("'verify_bounty_all.mjs'");
+  ok('WB1 路段懸賞總閘門經帳本執行、cwd 是出貨樹、且失敗會在 strip 前擋下出貨',
+    bounty > firstGate && bounty < strip
+      && /const bounty = spawnSync\('node', \[path\.join\(wt, 'scripts', 'verify_bounty_all\.mjs'\)\],\s*\{[^}]*cwd: wt[^]*?if \(bounty\.status !== 0\) fail\(/.test(src),
+    `bounty@${bounty}、strip@${strip}`);
+});
+
 fs.rmSync(TMP, { recursive: true, force: true });
 const bad = R.filter(x => !x).length;
 console.log(`\n${R.length - bad}/${R.length} 通過`);
