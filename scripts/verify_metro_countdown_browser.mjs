@@ -57,7 +57,8 @@ try {
           return route.continue();
         });
         await page.goto(base, { waitUntil: 'domcontentloaded' });
-        await page.waitForFunction(() => typeof state !== 'undefined' && state.systems &&
+        // 路網資料可能比 boot 的預設群組切換更早就緒；等 ready 才操作，避免開機又把捷運頁切回全台。
+        await page.waitForFunction(() => typeof state !== 'undefined' && state.ready && state.systems &&
           ['krtc', 'ntdlrt', 'ntalrt', 'tymc'].every(id => state.systems.some(s => s.id === id && s.data && s._times)), null, { timeout: 45000 });
         await page.evaluate(async () => {
           selectGroup(GROUPS.find(g => g.id === 'metro'), true);
