@@ -250,6 +250,44 @@ ok('D11 站心低速只維持 2 秒（慢速爬行通過）時不算錄到——
     got.missing === 'invalid bounty rule: quality.dwell' && got.equal === 'invalid bounty rule: quality.dwell' && got.real === 'no-throw', JSON.stringify(got));
 }
 
+// D14 位置微分跟「至少 posSpeedWindowSec（5 秒）以前的那一點」比（第十六批，第十一輪獨立驗收 P2-1）。
+// 第十五批跟前一點比：GPS 每一點獨立晃得大時，停著的位置微分就超過否決門檻 10，回報 0 的真停靠被否決掉。
+// 每秒一點、站心取整數公尺，GPS 晃動是逐點正負交替（5 秒前那一點的晃動方向一定相反），兩個方向：
+//   a 回報 0 的真停靠：20 m/s 從站前 600 m 開過來、停 12 秒（每點晃 ±8 m：跟前一點比 16 m/s，跟 5 秒前比 3.2 m/s）→ 算停靠。
+//     停的頭兩點，5 秒前那一點還在進站途中（17.6、10.4 m/s）照樣否決，第三點起才低速。
+//     停得短是刻意的：位置微分若改成「跟站窗第一點比」，12 秒內都還超過 10（站窗從站前 250 m 起算），這一趟就算不到。
+//   b 回報 0、以 15 m/s 通過（同樣晃 ±8 m：5 秒內走 75 m ±16 m，11.8–18.2 m/s）→ 仍否決、不算。
+//   c 沒有速度（null）的真停靠：20 m/s 開過來、停 30 秒（每點晃 ±2 m：跟前一點比 4 m/s＞1.5，跟 5 秒前比 0.8）→ 算停靠。
+{
+  const c0 = Math.round(centerM);
+  const stopWith = (sg, amp, stopSec, v) => {
+    const xs = [];
+    for (let k = 0; k <= 30; k++) xs.push(-600 + 20 * k);
+    for (let k = 1; k <= stopSec; k++) xs.push(k % 2 ? amp : -amp);
+    for (let k = 1; k <= 30; k++) xs.push(20 * k);
+    return xs.map((x, k) => ({ d: c0 + sg * x, t: 7 * 3600 + k, v: v === 'null' ? null : k > 30 && k <= 30 + stopSec ? 0 : v, acc: 8 }));
+  };
+  const jitterPass = sg => Array.from({ length: 81 }, (_, k) => ({ d: c0 + sg * (-600 + 15 * k + (k % 2 ? 8 : -8)), t: 7 * 3600 + k, v: 0, acc: 8 }));
+  const got = {};
+  for (const sg of [1, -1]) {
+    got[`a${sg}`] = hitsDwell(stopWith(sg, 8, 12, 20));
+    got[`b${sg}`] = hitsDwell(jitterPass(sg));
+    got[`c${sg}`] = hitsDwell(stopWith(sg, 2, 30, 'null'));
+  }
+  ok('D14 [第十六批 V11 P2-1] 位置微分跟 5 秒前那一點比：回報 0 的真停靠、GPS 每點晃 ±8 m → 算；回報 0、15 m/s 通過（同樣晃 ±8 m）→ 不算；沒有速度的真停靠、晃 ±2 m → 算（兩個方向；跟前一點比的話 a、c 都算不到）',
+    [1, -1].every(sg => got[`a${sg}`] === true && got[`b${sg}`] === false && got[`c${sg}`] === true), JSON.stringify(got));
+}
+
+// D15 posSpeedWindowSec 少了或小於 1 就直接中止（第十六批）：找不到基準點，位置微分就沒有定義。對照：正式設定檔不丟。
+{
+  const dwellWith = w => ({ ...RULES, quality: { ...RULES.quality, dwell: { ...RULES.quality.dwell, posSpeedWindowSec: w } } });
+  const threw = rules => { try { _bounty.coverageOf(trip(stopped), LINE, rules, UNITS.peakHoursBySys); return 'no-throw'; } catch (e) { return String(e && e.message); } };
+  const got = { missing: threw(dwellWith(undefined)), zero: threw(dwellWith(0)), half: threw(dwellWith(0.5)), one: threw(dwellWith(1)), real: threw(RULES) };
+  const E = 'invalid bounty rule: quality.dwell';
+  ok('D15 [第十六批] quality.dwell.posSpeedWindowSec 不在、是 0 或 0.5 → coverageOf 丟 invalid bounty rule；1 與正式設定檔不丟',
+    got.missing === E && got.zero === E && got.half === E && got.one === 'no-throw' && got.real === 'no-throw', JSON.stringify(got));
+}
+
 const out = {
   criterion: RULES.quality.dwell,
   cardId: CARD_ID,

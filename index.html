@@ -23852,7 +23852,7 @@ function bountyBestLine(r) {
 function bountyUpdateDwellProgress(r, rules) {
   if (!r.card || r.card.kind !== 'dwell') { r._dwellMissed = false; return; }
   const rec = lineNetwork().get(r.sys + '|' + r.lnId), D = rules.quality.dwell;
-  if (!rec || !D || !(D.posSpeedVetoMps > D.stopSpeedMaxMps)) throw new Error('dwell rules unavailable');
+  if (!rec || !D || !(D.posSpeedVetoMps > D.stopSpeedMaxMps) || !(D.posSpeedWindowSec >= 1)) throw new Error('dwell rules unavailable');
   const stations = (rec.ln.stations || []).filter(s => s.name && s.d != null).slice().sort((a, b) => a.d - b.d);
   const wanted = new Set((r.card.unitKeys || []).map(k => String(k).split('|'))
     .filter(p => p.length === 4 && p[2] === p[3]).map(p => p[2]));
@@ -23874,12 +23874,15 @@ function bountyUpdateDwellProgress(r, rules) {
     const needAfter = tripHiM >= centerM + D.sideMinM;
     const spatialPass = (!needBefore || hasBefore) && (!needAfter || hasAfter) && (hasBefore || hasAfter);
     if (!spatialPass) continue;
-    let runStart = null, prevT = null, covered = false;
+    let runStart = null, prevT = null, covered = false, base = 0;
     for (let j = 0; j < local.length; j++) {
-      // 與 Worker coverageOf() 同一條：沒有速度（null）不當 0（那會把高速通過的點當成停著），改用這一點與前一點的位置微分；
+      // 與 Worker coverageOf() 同一條：沒有速度（null）不當 0（那會把高速通過的點當成停著），改用位置微分；
       // 前一點沒有、或同一秒就不算低速（第九輪獨立驗收 E-2(b)）。回報的速度再低，位置微分超過 posSpeedVetoMps 就不信它
-      // （第十輪獨立驗收 P1-2：Android 沒有速度時送 0.0，通過的站會全亮），理由與門檻見 Worker 那一段。
-      const p = local[j], q = local[j - 1], t = Number(p.t), dt = q ? t - Number(q.t) : 0;
+      // （第十輪獨立驗收 P1-2：Android 沒有速度時送 0.0，通過的站會全亮）。位置微分跟「至少 posSpeedWindowSec 秒以前的那一點」比，
+      // 窗內還沒有那麼早的點就跟窗內第一點比（第十一輪獨立驗收 P2-1：跟前一點比的話 GPS 晃大時真停靠被否決掉），理由與門檻見 Worker 那一段。
+      const p = local[j], t = Number(p.t);
+      while (base + 1 < j && Number(local[base + 1].t) <= t - D.posSpeedWindowSec) base++;
+      const q = j ? local[base] : null, dt = q ? t - Number(q.t) : 0;
       const dv = dt > 0 ? Math.abs(Number(p.d) - Number(q.d)) / dt : NaN;
       const v = p.v == null || dv > D.posSpeedVetoMps ? dv : Number(p.v);
       const low = Math.abs(Number(p.d) - centerM) <= D.stopRadiusM &&

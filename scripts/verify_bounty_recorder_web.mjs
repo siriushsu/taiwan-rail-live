@@ -174,7 +174,9 @@ try {
       const veto = x => ({ ...rules, quality: { ...rules.quality, dwell: { ...rules.quality.dwell, posSpeedVetoMps: x } } });
       const threw = rs => { try { bountyUpdateDwellProgress({ card: { kind: 'dwell', unitKeys: [key] }, sys: 'tra_sched', lnId: '山線', _recent: [], _cov: {} }, rs); return 'no-throw'; }
         catch (e) { return String(e && e.message); } };
-      out.guard = { missing: threw(veto(undefined)), equal: threw(veto(rules.quality.dwell.stopSpeedMaxMps)), real: threw(rules) };
+      const win = x => ({ ...rules, quality: { ...rules.quality, dwell: { ...rules.quality.dwell, posSpeedWindowSec: x } } });
+      out.guard = { missing: threw(veto(undefined)), equal: threw(veto(rules.quality.dwell.stopSpeedMaxMps)), real: threw(rules),
+        winMissing: threw(win(undefined)), winZero: threw(win(0)) };
       for (const sg of [1, -1]) {
         out[`nullStop${sg}`] = run(trip(sg, true, 'null'));
         out[`nullFast${sg}`] = run(trip(sg, false, 'null'));
@@ -186,10 +188,11 @@ try {
       return out;
     }, ST);
     const want = { cov: 1, missed: false }, fast = { cov: 0, missed: true };
-    ok('D [第十四批 V9 E-2(b)、第十五批 V10 P1-2] 停靠進度與 Worker 同一條：沒有速度的裝置停 60 秒 → 亮；沒有速度、30 m/s 通過 → 不亮且判錯過；對照：有速度的同一趟停靠 → 亮；速度送 0 或 0.3、30 m/s 通過 → 不亮且判錯過，送 0 的真停靠 → 亮（兩個方向；舊版 Number(null)＝0、送 0 照信，高速通過也亮）',
+    ok('D [第十四批 V9 E-2(b)、第十五批 V10 P1-2] 停靠進度與 Worker 同一條：沒有速度的裝置停 60 秒 → 亮；沒有速度、30 m/s 通過 → 不亮且判錯過；對照：有速度的同一趟停靠 → 亮；速度送 0 或 0.3、30 m/s 通過 → 不亮且判錯過，送 0 的真停靠 → 亮（兩個方向；舊版 Number(null)＝0、送 0 照信，高速通過也亮）；設定檔少了 posSpeedVetoMps、它等於停靠門檻、少了 posSpeedWindowSec 或它是 0 → 丟錯',
       [1, -1].every(sg => J(got[`nullStop${sg}`]) === J(want) && J(got[`nullFast${sg}`]) === J(fast) && J(got[`vStop${sg}`]) === J(want) &&
         J(got[`zeroStop${sg}`]) === J(want) && J(got[`zeroFast${sg}`]) === J(fast) && J(got[`smallFast${sg}`]) === J(fast)) &&
-        J(got.guard) === J({ missing: 'dwell rules unavailable', equal: 'dwell rules unavailable', real: 'no-throw' }), J(got));
+        J(got.guard) === J({ missing: 'dwell rules unavailable', equal: 'dwell rules unavailable', real: 'no-throw',
+          winMissing: 'dwell rules unavailable', winZero: 'dwell rules unavailable' }), J(got));
   });
 
   await attempt('X', async () => {

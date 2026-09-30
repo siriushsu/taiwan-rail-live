@@ -32,6 +32,7 @@
       "stopRadiusM": 100,
       "stopSpeedMaxMps": 1.5,
       "posSpeedVetoMps": 10,
+      "posSpeedWindowSec": 5,
       "stopMinSec": 3,
       "maxLowSpeedGapSec": 5
     }

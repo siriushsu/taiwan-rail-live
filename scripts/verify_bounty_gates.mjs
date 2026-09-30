@@ -545,6 +545,42 @@ ok('F3 第一重 日期太舊 → suspect',
     r34.every(o => o.nul.r.code === TC && o.nul.s.n === 572 && o.zero.r.pass === true && o.zero.s.corr < CMAX), sh34(['nul', 'zero']));
   ok('F34e [第十五批 V10 P1-1] 都卜勒：GPS 平滑的誠實錄程（位置晃 ±0.125 m、逐點差中位數 0.25 m/s、相關係數＞0.995）→ 通過（兩個方向；門檻 0.5 會判 doppler_too_clean）',
     r34.every((o, i) => o.calm.r.pass === true && o.calm.r.dir === i && o.calm.s.corr > CMAX && o.calm.s.med === 0.25 && o.calm.s.n === 858), sh34(['calm']));
+  // F34f（第十六批，第十一輪獨立驗收 P2-2）：回報速度剛好 0、位置也一點沒動的點對不算進都卜勒那一重。
+  //   車停著時 Android 會把定位凍住、速度報 0；停得比行進久，這些 0 對 0 的點對佔掉一半以上，逐點差中位數就變 0。
+  //   錄程：起點停 900 秒（每點位置一樣、速度 0，停在第一個行進點後方 10 m）→ 接 F34 那條高鐵錄程。兩個方向。
+  //   hold_honest：行進段是 F34a 的誠實錄程 → 通過。判準自己另算「把停著的點對也算進去」的舊算法：中位數 0、相關係數＞0.995，舊版會判 doppler_too_clean。
+  //   hold_spoof：行進段是 F34b 的偽造（速度＝位置微分）→ 仍是 doppler_too_clean（拿掉停著的點對，偽造者沒有多出能力）。
+  //   hold_29／hold_30：停 900 秒後只接偽造的 29／30 個行進點 → 行進中的點對 29 對不判（通過）、30 對判 doppler_too_clean（30 對算的是拿掉之後的）。
+  const hold34 = (sg, pos, vel, nMove) => {
+    const d0 = pos(0) - 10;
+    const H = Array.from({ length: 900 }, (_, k) => ({ d: sg > 0 ? d0 : 60000 - d0, t: 30000 + k, v: 0, acc: 8 }));
+    return H.concat(mk34(sg, pos, vel).slice(0, nMove).map(p => ({ ...p, t: p.t + 900 })));
+  };
+  const stat34f = pts => {
+    const pairs = [];
+    for (let i = 3; i < pts.length; i++) {
+      if (pts[i].v == null) continue;
+      pairs.push({ a: pts[i].v, b: Math.abs(pts[i].d - pts[i - 1].d) / (pts[i].t - pts[i - 1].t), still: pts[i].v === 0 && pts[i].d === pts[i - 1].d });
+    }
+    const st = ps => {
+      const r = ps.map(p => Math.abs(p.a - p.b)).sort((x, y) => x - y), m = r.length;
+      return { n: m, corr: pearson34(ps.map(p => p.a), ps.map(p => p.b)), med: m % 2 ? r[(m - 1) / 2] : (r[m / 2 - 1] + r[m / 2]) / 2 };
+    };
+    const now = st(pairs.filter(p => !p.still)), old = st(pairs);
+    return { n: now.n, med: now.med, corr: now.corr, oldN: old.n, oldMed: old.med, oldCorr: old.corr };
+  };
+  const honestV = k => (k ? U34[k - 1] : 10) + [-0.125, 0, 0.125][k % 3];
+  const r34f = [1, -1].map(sg => {
+    const cs = { hold_honest: hold34(sg, gps34, honestV, X34.length), hold_spoof: hold34(sg, gps34, k => dv34(gps34, k), X34.length),
+      hold_29: hold34(sg, gps34, k => dv34(gps34, k), 29), hold_30: hold34(sg, gps34, k => dv34(gps34, k), 30) };
+    return Object.fromEntries(Object.entries(cs).map(([k, P]) => [k, { r: gate(P, 'thsr_sched', sg > 0 ? 0 : 1), s: stat34f(P) }]));
+  });
+  ok('F34f [第十六批 V11 P2-2] 都卜勒不算「速度 0、位置沒動」的點對：停 900 秒再開的高鐵誠實錄程 → 通過（舊算法中位數 0、相關係數＞0.995 會判可疑）；同樣停法的偽造 → doppler_too_clean；停完只接 29 對偽造 → 不判、30 對 → doppler_too_clean（兩個方向）',
+    r34f.every((o, i) => o.hold_honest.r.pass === true && o.hold_honest.r.dir === i && o.hold_honest.s.n === 861 && o.hold_honest.s.med > 0.9 &&
+      o.hold_honest.s.oldMed === 0 && o.hold_honest.s.oldCorr > CMAX &&
+      o.hold_spoof.r.code === TC && o.hold_29.r.pass === true && o.hold_29.s.n === 29 && o.hold_30.r.code === TC && o.hold_30.s.n === 30),
+    JSON.stringify(r34f.map(o => Object.fromEntries(Object.entries(o).map(([k, x]) => [k, { r: x.r.code || x.r.pass, n: x.s.n, med: +x.s.med.toFixed(4),
+      oldMed: +x.s.oldMed.toFixed(4), oldCorr: +x.s.oldCorr.toFixed(5) }])))));
   // F29：收下的點本身要是一趟合規的錄程——丟點＝那幾點沒送，偽造者不因此多出能力（V7 的但書）。F11 起每一個判通過的案例（含 F32、F33）：
   //   回傳的 pts 是原始點的子序列（t、d、v 逐欄相同），而且任兩點往前 ≤ 上限×1.15×(Δt＋1)＋50、相鄰兩點往後 ≤ 50、相鄰兩點都有速度時 |Δv| ≤ 1.3×3×(Δt＋1)、
   //   首末淨位移不往後超過 50 m——方向照防偽閘回的 r.dir（第十三批起收下的點整體往後退會換方向，收下的點只對它回的方向合規）。

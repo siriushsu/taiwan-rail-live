@@ -7512,7 +7512,8 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
 
   const D = rules && rules.quality && rules.quality.dwell;
   // posSpeedVetoMps 少了的話下面的比較式恆為假、否決等於關掉（Android 送 0 又回到每站都算停靠），所以跟 quality.dwell 一樣直接中止。
-  if (!D || !(D.posSpeedVetoMps > D.stopSpeedMaxMps)) throw new Error('invalid bounty rule: quality.dwell');
+  // posSpeedWindowSec 少了的話位置微分找不到基準點，同樣中止。
+  if (!D || !(D.posSpeedVetoMps > D.stopSpeedMaxMps) || !(D.posSpeedWindowSec >= 1)) throw new Error('invalid bounty rule: quality.dwell');
   const day = new Date(`${trip.tripDate}T00:00:00Z`).getUTCDay();
   const holiday = day === 0 || day === 6;
   const peakHours = peakHoursBySys && peakHoursBySys[line.sys];
@@ -7534,18 +7535,25 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
     const spatialPass = (!needBefore || hasBefore) && (!needAfter || hasAfter) && (hasBefore || hasAfter);
     if (!spatialPass) continue;
 
-    let runStart = null, prevT = null, stopAt = null;
+    let runStart = null, prevT = null, stopAt = null, base = 0;
     for (let j = 0; j < local.length; j++) {
       // 沒有速度（null）不當成 0：Number(null) 是 0，會把高速通過的點當成停著（見 sanitizeSamples）。
-      // 改用這一點與前一點的位置微分判低速（第九輪獨立驗收 E-2(b)）：只看 v 的話，沒有速度的裝置連真的停靠都拿不到
+      // 改用位置微分判低速（第九輪獨立驗收 E-2(b)）：只看 v 的話，沒有速度的裝置連真的停靠都拿不到
       // （iOS 沒有有效速度時回報 −1，App 送 null）。速度欄本來就由客戶端自填，偽造者送 0 效果相同，這一條不增加能力。
       // 前一點沒有、或同一秒（Δt≤0）就不算低速。前端錄製當下的停靠進度（bountyUpdateDwellProgress）用同一條。
       // 🔴 回報的速度再低，位置微分超過 posSpeedVetoMps（10 m/s＝36 km/h）就不信它（第十輪獨立驗收 P1-2）：Android 沒有速度時送的是 0.0
       // 不是 null（@capacitor/geolocation 2.2.0 的 ION 直接呼叫 getSpeed()、不查 hasSpeed()），整趟送 0 的話通過的站約 99% 被記成停靠；
-      // 偽造者整趟送 0 或任何小的數也一樣。否決門檻刻意比 stopSpeedMaxMps 高得多：真的停著時 GPS 每秒會晃，只看前一點的位置微分常超過 1.5 m/s——
-      // 模擬（計畫驗收紀錄 s15）門檻用 1.5 的話，停著時回報剛好 0 的誠實裝置停靠召回掉到 21–45%；用 10，各種雜訊下召回都不掉、通過的站假停靠 0。
-      // 代價：以 36 km/h 以下慢慢通過、又回報 0 的那一站仍會算停靠（台鐵通過站的車速通常遠高於此）。
-      const p = local[j], q = local[j - 1], t = Number(p.t), dt = q ? t - Number(q.t) : 0;
+      // 偽造者整趟送 0 或任何小的數也一樣。否決門檻刻意比 stopSpeedMaxMps 高得多：真的停著時 GPS 會晃——
+      // 模擬（計畫驗收紀錄 s15）門檻用 1.5 的話，停著時回報剛好 0 的誠實裝置停靠召回掉到 21–45%。
+      // 🔴 位置微分跟「至少 posSpeedWindowSec（5 秒）以前的那一點」比，窗內還沒有那麼早的點就跟窗內第一點比（第十一輪獨立驗收 P2-1）：
+      // 第十五批跟前一點比（1 秒），GPS 每一點獨立晃 10 m 時，停著的位置微分雜訊約 √2×10≈14 m/s、常超過 10，回報 0 的真停靠被否決掉，
+      // 召回 99.3% → 71.6%（晃 6 m 時 95.6%）。跟 5 秒前比，雜訊除以 5；以 10 m/s 以上通過的車，5 秒平均仍超過 10，照樣否決。
+      // 沒有速度的點同樣用這個位置微分判低速，比 1 秒的穩（第十輪獨立驗收 P2：沒速度的停靠召回隨雜訊掉到 17%）。
+      // 代價：以 36 km/h 以下慢慢通過、又回報 0 的那一站仍會算停靠（台鐵通過站的車速通常遠高於此）；
+      // 停下來的頭幾秒，5 秒前的點還在進站途中，沒有速度的點要等位置微分降到 1.5 以下才算低速。
+      const p = local[j], t = Number(p.t);
+      while (base + 1 < j && Number(local[base + 1].t) <= t - D.posSpeedWindowSec) base++;
+      const q = j ? local[base] : null, dt = q ? t - Number(q.t) : 0;
       const dv = dt > 0 ? Math.abs(Number(p.d) - Number(q.d)) / dt : NaN;
       const v = p.v == null || dv > D.posSpeedVetoMps ? dv : Number(p.v);
       const low = Math.abs(Number(p.d) - centerM) <= D.stopRadiusM &&
@@ -7672,10 +7680,14 @@ function integrityGate(trip, ctx, rules) {
   // 五到六成仍被判；改 0.0625（二進位下精確，判準的邊界才比得出「剛好」）後模擬誤殺約 0，取整後的偽造（中位數約 0.03）仍全數抓到。
   // 門檻只用模擬校過；真的裝置有沒有「速度就是位置微分」的（例如沒有都卜勒時由定位差算速度），要用真錄程看（計畫 §12.1）。
   // 設定檔少了這個鍵時比較式恆為假、這一重等於關掉（寧可放行；verify_bounty_rules 的 R9 釘住它在設定檔裡）。
+  // 🔴 回報速度剛好 0、位置也一點沒動的點對不算（第十一輪獨立驗收 P2-2）：車停著時 Android 會把定位凍住、速度報 0，
+  // 這種點對的逐點差恰好是 0，停久一點就佔掉一半以上、中位數變 0——起點等 10–20 分鐘再開出的誠實錄程五到七成被判可疑。
+  // 停著的點對分不出誠實與偽造（兩邊都是 0 對 0），拿掉不給偽造者多的能力；剩下的點對（行進中）仍要 30 對以上才判。
   const a = [], b = [];
   for (let i = 1; i < kept.length; i++) {
     const dt = kept[i].t - kept[i - 1].t;
     if (dt <= 0 || !Number.isFinite(kept[i].v)) continue;
+    if (kept[i].v === 0 && kept[i].d === kept[i - 1].d) continue;
     a.push(kept[i].v); b.push(Math.abs(kept[i].d - kept[i - 1].d) / dt);
   }
   if (a.length >= 30) {
