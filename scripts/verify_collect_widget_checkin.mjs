@@ -346,6 +346,10 @@ await multiAndHowto('C2 手機 375', true);
   await fix(page, XS, 20, { sec: true, ago: 120000 });
   await sleep(700);
   ok('C6丙 舊的秒單位時間戳（兩分鐘前）→ 不算新', keysOf(await stamps(page)) === '');
+  // 秒單位的時間戳會被捨去到整秒（最多比實際早 999 毫秒），所以要算新，得落在處理事件那一刻（t0）之後的下一個整秒：
+  // 先等到 t0 後 1.05 秒再送。不等的話，依開始時刻落在秒內的哪裡，約一到兩成的機率會被當成舊點（webkit 全跑時紅過一次）。
+  const t0 = await page.evaluate(() => state._wcWait && state._wcWait.t0);
+  await sleep(Math.max(0, t0 + 1050 - Date.now()));
   await fix(page, XS, 20, { sec: true });
   ok('C6丙 新鮮的秒單位時間戳 → 算新、蓋香山', await waitStamp(page, XS.key));
   await ctx.close();
