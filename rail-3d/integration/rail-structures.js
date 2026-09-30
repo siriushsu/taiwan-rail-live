@@ -30,6 +30,13 @@ const PORTAL_T=1.2,PORTAL_EMBED=.8,PORTAL_DROP_MAX=45;
 import {PORTAL_DEPTH,PORTAL_WING} from './tunnel-portals.js';
 export function createRailStructures(scene){
   let geometry=new THREE.BufferGeometry();
+  // 預設用低對比碎石；original 留給比較頁作同角度對照。
+  const bedStyles={
+    original:{top:BED_TOP_W,bottom:BED_BOTTOM_W,slope:FILL_SLOPE,max:BED_BOTTOM_MAX,ballast:'#9d978b',bank:'#c6c0b1',steel:'#6f6a62',tie:'#a8a299'},
+    gravel:{top:3,bottom:3.6,slope:.35,max:7,ballast:'#b2b7b1',bank:'#cbd0c2',steel:'#73817e',tie:'#c2c5bc'}
+  };
+  let bedStyle='gravel',lastSet=null;
+  const gravelAmount={value:0};
   const clip={value:new THREE.Matrix4()};
   const material=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide}),mesh=new THREE.Mesh(geometry,material);
   material.onBeforeRender=(_r,_s,c,_g,m)=>clip.value.multiplyMatrices(c.projectionMatrix,m.modelViewMatrix);
@@ -38,22 +45,43 @@ export function createRailStructures(scene){
     shader.vertexShader='uniform mat4 structureClip;\n'+shader.vertexShader.replace('#include <project_vertex>', 'vec4 mvPosition=modelViewMatrix*vec4(transformed,1.); gl_Position=structureClip*vec4(transformed,1.);');
     shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nattribute float railGlow; varying float vRailGlow;').replace('#include <begin_vertex>','#include <begin_vertex>\nvRailGlow=railGlow;');
     shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying float vRailGlow;').replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=vec3(1.,.74,.38)*vRailGlow;');
+    shader.uniforms.railGravelAmount=gravelAmount;
+    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nattribute vec2 railBedUv; attribute float railBedSurface; varying vec2 vRailBedUv; varying float vRailBedSurface;').replace('#include <begin_vertex>','#include <begin_vertex>\nvRailBedUv=railBedUv; vRailBedSurface=railBedSurface;');
+    shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
+      uniform float railGravelAmount;
+      varying vec2 vRailBedUv; varying float vRailBedSurface;
+      vec2 bedHash(vec2 p){p=mod(p,512.);return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);}
+      float bedGrain(vec2 metres){
+        vec2 p=metres*8.,cell=floor(p),f=fract(p);float first=8.,second=8.,shade=.5;
+        for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){
+          vec2 offset=vec2(float(x),float(y)),h=bedHash(cell+offset),delta=offset+.2+.6*h-f;
+          float d=dot(delta,delta);
+          if(d<first){second=first;first=d;shade=h.x;}else if(d<second)second=d;
+        }
+        float edge=smoothstep(.015,.08,second-first);
+        float grain=mix(.91,1.05,shade)*mix(.91,1.,edge);
+        // 顆粒小於螢幕像素時退成平均色，縮遠或低角度移動不會閃成椒鹽。
+        float fade=1.-smoothstep(.5,1.4,max(fwidth(p.x),fwidth(p.y)));
+        return mix(1.,grain,fade);
+      }`).replace('#include <color_fragment>','#include <color_fragment>\nif(railGravelAmount>0. && vRailBedSurface>.5) diffuseColor.rgb*=mix(1.,bedGrain(vRailBedUv),railGravelAmount);');
   };
   mesh.frustumCulled=false;mesh.layers.enable(2);mesh.renderOrder=-1;scene.add(mesh);
-  const stats={decks:0,piers:0,caps:0,parapets:0,beds:0,rails:0,ties:0,portals:0,portalTracks:0,portalSamples:[],detail:0,vertices:0,samples:[],buildMs:0};
+  const stats={bedStyle,decks:0,piers:0,caps:0,parapets:0,beds:0,rails:0,ties:0,portals:0,portalTracks:0,portalSamples:[],detail:0,vertices:0,samples:[],buildMs:0};
   function set(segments,piers,detail=0,portals=[]){
-    const started=performance.now(),positions=[],colors=[],glows=[];
+    lastSet=[segments,piers,detail,portals];
+    gravelAmount.value=bedStyle==='gravel'&&detail>=2?1:0;
+    const style=bedStyles[bedStyle],started=performance.now(),positions=[],colors=[],glows=[],bedSurfaces=[];
     const deck=new THREE.Color('#b2ad9e'),side=new THREE.Color('#989588'),
-          ballast=new THREE.Color('#9d978b'),steel=new THREE.Color('#6f6a62'),tie=new THREE.Color('#a8a299'),
+          ballast=new THREE.Color(style.ballast),steel=new THREE.Color(style.steel),tie=new THREE.Color(style.tie),
           lining=new THREE.Color('#344b52'),parapet=new THREE.Color('#cfcab9'),
           // 填方邊坡自己一個色：道碴色畫到坡腳時，整座土堆會變成比地表暗三成的實心塊。
           // 坡面退到接近地表的淺色、只留道碴頂面那條深色，看到的才是一條軌道而不是一道土牆。
-          bank=new THREE.Color('#c6c0b1'),pierColor=new THREE.Color('#bdbbad'),pierSide=new THREE.Color('#b1afa2');
+          bank=new THREE.Color(style.bank),pierColor=new THREE.Color('#bdbbad'),pierSide=new THREE.Color('#b1afa2');
     stats.decks=stats.piers=stats.caps=stats.parapets=stats.beds=stats.rails=stats.ties=stats.portals=0;stats.detail=detail;stats.samples=[];stats.portalTracks=0;stats.portalSamples=[];
     let portalMasks=null,portalEmission=0;
     function quad(a,b,c,d,color){
       const polygons=portalMasks?outsidePortalClearance([a,b,c,d],portalMasks):[[a,b,c,d]];
-      for(const poly of polygons)for(let i=1;i<poly.length-1;i++)for(const p of [poly[0],poly[i],poly[i+1]]){positions.push(...p);colors.push(color.r,color.g,color.b);glows.push(portalEmission);}
+      for(const poly of polygons)for(let i=1;i<poly.length-1;i++)for(const p of [poly[0],poly[i],poly[i+1]]){positions.push(...p);colors.push(color.r,color.g,color.b);glows.push(portalEmission);bedSurfaces.push(color===ballast?1:0);}
     }
     const joins=new Map(),joinKey=p=>p.map(v=>Math.round(v*1000)).join(',');
     for(const {a,b} of segments){const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy);if(len<1e-5)continue;
@@ -121,8 +149,8 @@ export function createRailStructures(scene){
             prism([a[0]+ux*e*sign,a[1]+uy*e*sign,topA[2]+PARAPET_H*scale],[b[0]+ux*e*sign,b[1]+uy*e*sign,topB[2]+PARAPET_H*scale],PARAPET_W*scale,topA[2],topB[2],parapet);stats.parapets++;}}}
       }else{
         // 路基：離地愈高底愈寬（填方邊坡）；林口走廊的過渡段沿舊做法畫成薄板。
-        const widthAt=(top,ground)=>Math.min(BED_BOTTOM_MAX*scale,BED_BOTTOM_W*scale+2*FILL_SLOPE*Math.max(0,top-ground)),bottomW=widthAt(topA[2],groundA);
-        prism(topA,topB,BED_TOP_W*scale,transition?Math.max(groundA-.3*scale,topA[2]-1.15*scale):groundA-.3*scale,transition?Math.max(groundB-.3*scale,topB[2]-1.15*scale):groundB-.3*scale,ballast,transition?BED_BOTTOM_W*scale:bottomW,bank,{a,b,bottomEnd:transition?BED_BOTTOM_W*scale:widthAt(topB[2],groundB)});stats.beds++;
+        const widthAt=(top,ground)=>Math.min(style.max*scale,style.bottom*scale+2*style.slope*Math.max(0,top-ground)),bottomW=widthAt(topA[2],groundA);
+        prism(topA,topB,style.top*scale,transition?Math.max(groundA-.3*scale,topA[2]-1.15*scale):groundA-.3*scale,transition?Math.max(groundB-.3*scale,topB[2]-1.15*scale):groundB-.3*scale,ballast,transition?style.bottom*scale:bottomW,bank,{a,b,bottomEnd:transition?style.bottom*scale:widthAt(topB[2],groundB)});stats.beds++;
       }
       if(detail>=2)ties(topA,topB,topA[2],scale);
       if(detail>=1){const top=a[2]-(detail>=2?.15*scale:.2*scale);rail(topA,topB,GAUGE/2,top,scale,top+b[2]-a[2]);rail(topA,topB,-GAUGE/2,top,scale,top+b[2]-a[2]);}
@@ -187,7 +215,7 @@ export function createRailStructures(scene){
       // 洞口內的道床與鋼軌沿每股道實際取樣接續，不用共用拱門中心線替代兩股軌道。
       for(const member of members)for(let i=1;i<(member.samples?.length||0);i++){
         const a=member.samples[i-1],b=member.samples[i],k=member.scale||scale,aa=[a[0],a[1],a[2]-DECK_DROP*k],bb=[b[0],b[1],b[2]-DECK_DROP*k];
-        prism(aa,bb,BED_TOP_W*k,a[2]-.95*k,b[2]-.95*k,ballast);
+        prism(aa,bb,style.top*k,a[2]-.95*k,b[2]-.95*k,ballast);
         for(const offset of [-GAUGE/2,GAUGE/2])rail(aa,bb,offset,a[2]-.15*k,k,b[2]-.15*k);
         if(detail>=2)ties(aa,bb,aa[2],k);
       }
@@ -212,9 +240,16 @@ export function createRailStructures(scene){
     }
     // 先在雙精度移到畫面附近，再交給 GPU；跟車時不以全台公尺座標做浮點大數相減。
     const origin=segments[0]?.a||portals[0]?.p||piers[0]?.p||[0,0,0];
+    // 64m＝512 顆粒週期；重建時先用雙精度移到附近，保留世界座標的紋理相位。
+    const grainX=Math.floor(origin[0]/64)*64,grainY=Math.floor(origin[1]/64)*64,bedUvs=[];
+    for(let i=0;i<positions.length;i+=3)bedUvs.push(positions[i]-grainX,positions[i+1]-grainY);
     for(let i=0;i<positions.length;i+=3)for(let k=0;k<3;k++)positions[i+k]-=origin[k];
     mesh.position.fromArray(origin);
-    geometry.dispose();geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geometry.setAttribute('railGlow',new THREE.Float32BufferAttribute(glows,1));geometry.computeVertexNormals();mesh.geometry=geometry;stats.vertices=positions.length/3;stats.buildMs=performance.now()-started;
+    geometry.dispose();geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geometry.setAttribute('railGlow',new THREE.Float32BufferAttribute(glows,1));geometry.setAttribute('railBedUv',new THREE.Float32BufferAttribute(bedUvs,2));geometry.setAttribute('railBedSurface',new THREE.Float32BufferAttribute(bedSurfaces,1));geometry.computeVertexNormals();mesh.geometry=geometry;stats.vertices=positions.length/3;stats.buildMs=performance.now()-started;
   }
-  return {stats,set,setVisible(visible){mesh.visible=visible;},destroy(){scene.remove(mesh);geometry.dispose();material.dispose();}};
+  return {stats,set,setBedStyle(value){
+    if(!Object.hasOwn(bedStyles,value))throw new RangeError('未知道床樣式：'+value);
+    if(value===bedStyle)return;bedStyle=value;stats.bedStyle=value;gravelAmount.value=value==='gravel'?1:0;
+    if(lastSet)set(...lastSet);
+  },setVisible(visible){mesh.visible=visible;},destroy(){lastSet=null;scene.remove(mesh);geometry.dispose();material.dispose();}};
 }

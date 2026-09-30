@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>軌島・鐵軌樣式試作</title>
+<style>
+  *{box-sizing:border-box}html,body{margin:0;height:100%;font-family:system-ui,sans-serif;background:#f6f4ed;color:#334b43}
+  body{display:flex;flex-direction:column;height:100dvh}
+  header{flex:none;padding:12px 18px;border-bottom:1px solid #d8ddcf;background:#faf9f3;display:flex;gap:12px 20px;align-items:center;flex-wrap:wrap}
+  h1{font-size:17px;margin:0}p{margin:4px 0 0;font-size:12px;color:#657269}
+  .choices{display:flex;gap:5px;flex-wrap:wrap}button,select{min-height:44px;font:inherit;font-size:14px;border:1px solid #d5daca;border-radius:9px;background:#fffefa;color:#334b43;padding:8px 12px;cursor:pointer}
+  select{appearance:none;height:44px;padding-right:28px;background-image:linear-gradient(45deg,transparent 50%,#657269 50%),linear-gradient(135deg,#657269 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+  button[aria-pressed=true]{background:#426b59;color:white;border-color:#426b59}button:focus-visible,select:focus-visible{outline:3px solid #e4aa45;outline-offset:2px}
+  .place{display:flex;gap:8px;align-items:center;font-size:13px;margin-left:auto}
+  #status{flex-basis:100%;margin:0;font-size:12px;line-height:1.5;min-height:18px}
+  iframe{flex:1;min-height:0;width:100%;border:0;background:#e8e4d3}
+  @media(max-width:600px){header{padding:9px 10px;gap:8px}.title{width:100%}.choices{flex:1}.choices button{flex:1;padding:8px;font-size:13px}.place{margin-left:0;width:100%;justify-content:space-between}.place select{flex:1}#status{font-size:11px;height:33px}}
+</style>
+<header>
+  <div class="title"><h1>鐵軌樣式試作</h1><p>同一張地圖、同一個角度，直接比較。</p></div>
+  <div class="choices" role="group" aria-label="鐵軌樣式">
+    <button data-style="original" aria-pressed="false">原版</button>
+    <button data-style="gravel" aria-pressed="true">碎石版</button>
+  </div>
+  <div class="place"><label for="place">觀察位置</label><select id="place"><option value="彰化">彰化站場</option><option value="花蓮">花蓮站場</option><option value="一般">一般雙線路段</option></select><button id="close">近看</button></div>
+  <p id="status" role="status">正在載入地圖與股道…</p>
+</header>
+<iframe id="map" title="鐵軌樣式比較地圖" src="./?g=all&amp;scene=3d&amp;map=landscape&amp;ground=terrain&amp;at=24.081,120.539&amp;z=18&amp;t=12:00&amp;lang=zh-TW"></iframe>
+<script>
+  const viewer=document.getElementById('map'),status=document.getElementById('status'),place=document.getElementById('place');
+  const notes={original:'原版：土褐色道床與較寬邊坡。',gravel:'碎石版：淡灰道床、收窄邊坡與輪廓；近看有細碎石，遠看顆粒淡出。'};
+  let style=new URLSearchParams(location.search).get('style')||'gravel',close=false,renderer=null,ready=false;
+  if(!Object.hasOwn(notes,style))style='gravel';
+  function applyStyle(){if(renderer){renderer.setRailBedStyle(style);status.textContent=notes[style];}document.querySelectorAll('[data-style]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.style===style)));}
+  function showPlace(){
+    if(!ready)return;
+    const w=viewer.contentWindow,stations=w.railIslandIntegration.capture().stations;
+    const station=stations.find(s=>s.systemId==='tra_sched'&&s.name.replaceAll('臺','台')===(place.value==='一般'?'花蓮':place.value))||stations.find(s=>s.name===place.value);
+    if(!station){status.textContent='這個站場尚未載入，請稍後再選。';return;}
+    const center=[station.longitude,station.latitude];if(place.value==='一般')center[1]+=.012;
+    w.clearFollow();w.clearFreqFollow();
+    // 用目前班表在這個站的停靠時刻比較，讓畫面裡也有真實列車可當視覺主角。
+    const trains=w.eval('state.trains'),stops=trains.filter(t=>t.sys==='tra_sched').flatMap(t=>t.stops.filter(s=>s.name===station.name));
+    const stop=stops.filter(s=>Number.isFinite(s.arrSec)).sort((a,b)=>Math.abs(a.arrSec-43200)-Math.abs(b.arrSec-43200))[0];
+    if(stop)w.setSimSec(stop.arrSec+Math.min(10,Math.max(0,(stop.depSec-stop.arrSec)/2)));
+    renderer.map.jumpTo({center,zoom:close?19.3:17.4,pitch:close?60:50,bearing:place.value==='彰化'?25:5});
+  }
+  document.querySelectorAll('[data-style]').forEach(b=>b.onclick=()=>{style=b.dataset.style;applyStyle();});
+  place.onchange=showPlace;
+  document.getElementById('close').onclick=()=>{close=!close;document.getElementById('close').textContent=close?'看站場':'近看';showPlace();};
+  const poll=setInterval(()=>{
+    try{
+      const w=viewer.contentWindow,next=w.railIslandIntegration?.renderer;
+      const childState=w.eval('typeof state==="undefined"?null:state');
+      if(!childState?.ready||!w.railIslandPhysical||!next)return;
+      if(renderer!==next){renderer=next;applyStyle();}
+      if(!ready){ready=true;childState.playing=false;w.document.documentElement.requestFullscreen=undefined;childState._setFs(true);showPlace();}
+    }catch(e){status.textContent='預覽載入失敗：'+e.message;}
+  },400);
+  window.addEventListener('pagehide',()=>clearInterval(poll));
+</script>
+</html>
