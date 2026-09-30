@@ -671,16 +671,18 @@ function memberName(lang, item) {
   if (!hit) throw new Error(`i18n/stations.json 缺 ${item.system} 站名「${item.name}」的 ${lang} 譯名`);
   return hit.replace(/\s+/g, ' ').trim();
 }
-// 路線名：台鐵取 TDX Rail/TRA/Line 字面（en＝英文名，ja＝TDX 只有中文，照抄不自己翻）；其餘取 i18n/stations.json 的 routes
+// 路線名：台鐵三語都取 TDX Rail/TRA/Line 字面（zh／ja＝官方中文名，照抄不改寫，如「西部幹線 (海線)」的半形括號；en＝英文名；
+// TDX 沒有日文，ja 照抄中文）。不取 station_transfers.json 的 routes[].name：那是 App 用的簡稱，TRA:WL 寫成「西部幹線（山線）」
+// 但它涵蓋基隆到屏東，真正的山線只有竹南–彰化，寫進站頁會變成事實錯誤。其餘系統中文取 routeNames、en／ja 取 i18n/stations.json 的 routes
 function routeLabel(lang, key) {
-  if (lang === 'zh') return routeNames[key] || key;
-  if (key === 'THSR:THSR') return SYSTEM_NAMES[lang].THSR;
   const [sys, id] = key.split(':');
   if (sys === 'TRA') {
     const line = ttInputs.lineNames.lines[id];
     if (!line) throw new Error(`tra_line_names.json 缺台鐵路線 ${id}`);
     return lang === 'en' ? line.en : line.zh;
   }
+  if (lang === 'zh') return routeNames[key] || key;
+  if (key === 'THSR:THSR') return SYSTEM_NAMES[lang].THSR;
   const hit = i18nStations.routes[ROUTE_DICT[sys]]?.[routeNames[key]]?.[lang];
   if (!hit) throw new Error(`i18n/stations.json routes 缺 ${key}「${routeNames[key]}」的 ${lang} 譯名`);
   return hit;

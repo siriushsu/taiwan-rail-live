@@ -850,7 +850,7 @@ const traNameById = new Map([...traRecByName.values()].map(r => [r.stationId, r.
 function secondFacts(st) {
   const code = st.members[0].split(':')[1];
   const rec = transfers.stations[`TRA:${code}`], info = infoById.get(code);
-  const routes = (rec.routes || []).map(k => ({ key: k, zh: transfers.routes[k] ? transfers.routes[k].name : null, en: traLineNames[k.split(':')[1]] ? traLineNames[k.split(':')[1]].en : null }));
+  const routes = (rec.routes || []).map(k => { const ln = traLineNames[k.split(':')[1]]; return { key: k, zh: ln ? ln.zh : null, en: ln ? ln.en : null }; });   // 台鐵路線名一律取 TDX 官方字面（tra_line_names.json），不取 station_transfers.json 的 routes[].name（App 簡稱）
   const ts = transfers.transferStations.find(t => t.members.includes(`TRA:${code}`));
   const partners = [];
   for (const p of ts ? ts.pairs : []) {
@@ -887,6 +887,17 @@ function partnerRe(p, tail, head = '') {   // 「{系統名}{站名}站」：站
 }
 
 const g13Branch = { zhPages: 0, enPages: 0, jaPages: 0, partner: 0, multi: 0, hsr: 0, none: 0 };   // 各分支實際被行使的次數（判準沒被行使＝沒驗）
+// 事實表「路線」的台鐵路線名（第一批與第二批的中文頁都跑）：一律等於 TDX 官方字面（tra_line_names.json 的 zh，如「西部幹線 (海線)」的半形括號），
+// 不是 station_transfers.json 的 routes[].name——那是 App 簡稱，TRA:WL 寫「西部幹線（山線）」但它涵蓋基隆到屏東，寫進站頁是事實錯誤。
+// 以「、」拆成集合比對，不用 includes：「海線」是「西部幹線 (海線)」的子字串，「西部幹線」是它的前綴。
+function checkTraRouteFact(tag, st, page) {
+  const keys = new Set(st.members.filter(m => m.startsWith('TRA:')).flatMap(m => ((transfers.stations[m] || {}).routes || [])).filter(k => k.startsWith('TRA:')));
+  const rawFact = strip(page.facts.get('路線') || ''), got = new Set(rawFact.split('、').map(s => s.trim()));
+  for (const k of keys) { const ln = traLineNames[k.split(':')[1]]; ok(13, !!ln && got.has(ln.zh), `${tag} 事實表「路線」缺台鐵官方路線名「${ln ? ln.zh : k}」（tra_line_names.json）`, rawFact); }
+  for (const [id, ln] of Object.entries(traLineNames)) if (!keys.has(`TRA:${id}`)) ok(13, !got.has(ln.zh), `${tag} 事實表「路線」多了不屬於本站的「${ln.zh}」`, rawFact);
+  const official = new Set(Object.values(traLineNames).map(ln => ln.zh));
+  for (const [k, v] of Object.entries(transfers.routes)) if (k.startsWith('TRA:') && !official.has(v.name)) ok(13, !got.has(v.name), `${tag} 事實表「路線」不得出現 App 簡稱「${v.name}」（不是 TDX 官方路線名）`, rawFact);
+}
 function verifySecondZh(st, page, html, F) {
   const tag = `zh ${st.slug}`, meta = parseMeta(html);
   g13Branch.zhPages++; if (F.partners.length) g13Branch.partner++; if (F.routes.length > 1) g13Branch.multi++; if (F.hsr) g13Branch.hsr++; if (F.none) g13Branch.none++;
@@ -940,9 +951,7 @@ function verifySecondZh(st, page, html, F) {
   ok(13, fv('軌島站點').includes(`台鐵 ${st.name}（${F.code}）`), `${tag} 事實表「軌島站點」應含「台鐵 ${st.name}（${F.code}）」`, fv('軌島站點'));
   ok(13, !!F.info && fv('台鐵地址') === F.info.address, `${tag} 事實表「台鐵地址」應等於 tra_station_info.json 的地址`, `頁面「${fv('台鐵地址')}」、資料「${F.info ? F.info.address : '（無）'}」`);
   ok(13, fv('參考座標') === `${F.rec.position[0].toFixed(6)}, ${F.rec.position[1].toFixed(6)}`, `${tag} 事實表「參考座標」應為 station_transfers 的座標（小數 6 位）`, `頁面「${fv('參考座標')}」、資料 ${F.rec.position.join(', ')}`);
-  const routeFact = fv('路線');
-  for (const r of F.routes) ok(13, routeFact.includes(r.zh), `${tag} 事實表「路線」缺「${r.zh}」`, routeFact);
-  for (const [k, v] of Object.entries(transfers.routes)) if (k.startsWith('TRA:') && !F.routes.some(r => r.key === k)) ok(13, !routeFact.includes(v.name), `${tag} 事實表「路線」多了不屬於本站的「${v.name}」`, routeFact);
+  checkTraRouteFact(tag, st, page);
   // 附近的車站（規則 5）
   const { A, B } = neighborNames(st.name), got = new Set();
   for (const c of page.cards) {
@@ -1170,6 +1179,7 @@ for (const slug of picked) {
     ok(7, !hit, `${lang} ${slug} 不斷言官方有沒有公開（只寫軌島的資料來源沒有）`, hit ? hit[0] : '');
     if (lang === 'en') ok(6, !CJK.test(page.mainText), `en ${slug} 英文頁 <main> 不得含中日文字`, (page.mainText.match(new RegExp(`.{0,16}${CJK.source}+.{0,16}`)) || [''])[0]);
     verifyStation(st, lang, page, members, expByMember);
+    if (st.batch === 1 && lang === 'zh') checkTraRouteFact(`${lang} ${slug}`, st, page);
     if (st.batch === 2) { if (lang === 'zh') verifySecondZh(st, page, html, F); else verifySecondEnJa(st, lang, html, page, F); }
   }
 }
