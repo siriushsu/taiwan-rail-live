@@ -258,6 +258,7 @@ if (existsSync('data/bounty_units.json')) {
     const b = fresh(); await b.run(ALL, 1);
     const before = b.snap();
     // 丟錯的那一份清單另外新增一個單位、改掉一列的 perDay（比照 E22）：守門若挪到上架之後，板上會多一列、per_day 會變，這裡才看得出來。
+    // 新單位刻意放在屏東線本身（E22 放在別條線）：屏東線要退場 11 列、淨少 10 列，守門若改算淨減少就不會擋，這裡也看得出來。
     const bad11 = await b.run([...TRA.map((u, i) => i === 0 ? { ...u, perDay: 12 } : u), ...PT.slice(11), K('tra_sched', '屏東線', 500), ...PX, ...HSR], 2);
     ok('E24 逐線的比例那一端：屏東線 20 列少 10 列（剛好一半）照常退場 10；少 11 列 → 丟錯（訊息點名 tra_sched|屏東線 11/20，沒有點名整個台鐵），' +
       '整張板一列都沒動（同一份清單新增的單位沒上架、改了的 per_day 沒寫進去）',
