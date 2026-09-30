@@ -25,12 +25,17 @@
 //      單一系統（≥2 座站）的點陣外框至少撐開地圖框短邊的 50%；地圖框位置大小與同條件的全台卡一樣（版面不跳）
 //   r  【空心圈】規格第二輪第 4 點，用合成三態 payload 量像素：s=2 圓心＝線色；s=1 圓心接近底色、圈上接近線色；
 //      s=0 圓心＝未收集灰；淺色、深色、著色各驗一次。取代舊的 g（淡色 vs 實心；淡色已被空心圈取代）
+//   s  【蓋章鈕】小卡、中卡（鎖屏不放）× 淺色、深色、著色 × 繁中、英文、日文（--lang 各跑一次）：鈕有字（＝目錄裡「蓋章」該語言的值）、
+//      在內容框內、看得見（膠囊底與卡底有差、字形與膠囊底有對比，量出貨 PNG）、不與任何文字／進度條／地圖相交；沒有檔案的提示卡不放鈕。
+//      靜態掃描：小卡 Button(intent: CollectCheckinIntent())、中卡 Link(CollectionStamp.checkinURL＝railisland://checkin)、
+//      intent 有 openAppWhenRun、待辦保鮮 ≤120 秒且 take 先清再判斷、plugin 收 host checkin 並帶 view:"checkin"、待辦轉成 waitOpen。
+//      動態：把 CollectCheckinIntent.swift 連同 MetroWaitPending 的替身編成執行檔，量待辦「寫一次讀一次、119 秒有效、121 秒過期、過期也清、時間往回撥視為過期」。
 //   u  【點小工具開旅程護照】靜態掃 Swift 原始碼：四種家族共用的最外層掛且只掛一次
 //      widgetURL(railisland://passport)；supportedFamilies 沒有 systemLarge；RailMetroWaitPlugin 收 host passport
 //      並帶 view:"passport"（小工具 target 編不進 harness，動態量不到，靜態掃是唯一守門人）
 //
 // 用法：node app/scripts/render_collect_widget.mjs [輸出目錄] [--quick] [--src <小工具原始碼目錄>]
-//       node app/scripts/render_collect_widget.mjs --mutation-test [輸出目錄]
+//       node app/scripts/render_collect_widget.mjs --mutation-test [輸出目錄] [--only M18,M19]   （不帶 --only＝全部突變，前後各一次控制組）
 //       node app/scripts/render_collect_widget.mjs --emit-preview <路徑>   重寫 CollectionWidgetPreview.json（＝本腳本的樣本）
 //       node app/scripts/render_collect_widget.mjs [輸出目錄] --lang en｜ja   英日文版面壓力測試：系統簡稱與文案換成該語言
 //         （RailNativeL10n 在複本裡改讀 RailNativeL10n.json），c 閘門（繁中字串比對）不適用，其餘照跑；PNG 要人眼看
@@ -50,7 +55,7 @@ const appSrc = join(repo, 'app/ios/App/App');
 const argv = process.argv.slice(2);
 const flag = name => argv.includes(name);
 const opt = name => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : null; };
-const positional = argv.filter((a, i) => !a.startsWith('--') && !['--src', '--lang', '--emit-preview'].includes(argv[i - 1]));
+const positional = argv.filter((a, i) => !a.startsWith('--') && !['--src', '--lang', '--emit-preview', '--only'].includes(argv[i - 1]));
 const LANG = opt('--lang'); // en｜ja：英日文版面壓力測試（見下方 langStress）
 const outRoot = resolve(positional[0] ?? join(repo, 'tmp/collect-widget/ios-shots'));
 
@@ -526,10 +531,68 @@ function staticGate(src, check) {
   check('u', 'RailMetroWaitPlugin.swift', /url\.host == "passport"/.test(guardLine), 'handleOpen 沒有接受 host passport');
   check('u', 'RailMetroWaitPlugin.swift', /comps\.host == "passport"\s*\{\s*data\["view"\]\s*=\s*"passport"\s*\}/.test(plugin),
     'forwardOpen 沒有對 passport 帶 view:"passport"');
+
+  // s（靜態部分）：鈕的接線。小卡 Button(intent:)、中卡 Link 都在 CollectionWidget.swift（harness 編不進 AppIntents、畫不出 Link）
+  const intent = stripComments(srcFile(src, 'CollectCheckinIntent.swift'));
+  const count = (t, needle) => t.split(needle).length - 1;
+  const smallAt = widget.indexOf('SmallCollectionView(content: entry.content)'), medAt = widget.indexOf('MediumCollectionView(content: entry.content)');
+  const btnAt = widget.indexOf('Button(intent: CollectCheckinIntent())'), linkAt = widget.indexOf('Link(destination: CollectionStamp.checkinURL)');
+  check('s', 'CollectionWidget.swift', count(widget, 'Button(intent:') === 1 && btnAt > smallAt && smallAt >= 0 && (medAt < 0 || btnAt < medAt || smallAt > medAt),
+    '小卡的蓋章鈕不是恰好一個 Button(intent: CollectCheckinIntent())，或不在 SmallCollectionView 的包裝裡（小卡要用互動按鈕）');
+  check('s', 'CollectionWidget.swift', count(widget, 'Link(') === 1 && linkAt > medAt && medAt >= 0,
+    '中卡的蓋章鈕不是恰好一個 Link(destination: CollectionStamp.checkinURL)，或不在 MediumCollectionView 的包裝裡');
+  check('s', 'CollectionCard.swift', /static let checkinURL = URL\(string: "railisland:\/\/checkin"\)!/.test(card),
+    'CollectionStamp.checkinURL 不是 railisland://checkin（中卡的蓋章鈕會開錯地方）');
+  check('s', 'CollectCheckinIntent.swift', /struct CollectCheckinIntent: AppIntent/.test(intent) && /static let openAppWhenRun = true/.test(intent),
+    'CollectCheckinIntent 不是 AppIntent 或沒有 openAppWhenRun＝true（按了不會把 App 帶到前景）');
+  const maxAge = Number(intent.match(/maxAgeSec: Double = (\d+)/)?.[1] ?? NaN);
+  check('s', 'CollectCheckinIntent.swift', maxAge > 0 && maxAge <= 120, `蓋章待辦的保鮮期是 ${maxAge} 秒（要 ≤120）`);
+  const takeBody = intent.slice(intent.indexOf('static func take('));
+  check('s', 'CollectCheckinIntent.swift', takeBody.indexOf('removeObject(forKey: key)') > 0 && takeBody.indexOf('removeObject(forKey: key)') < takeBody.indexOf('let age'),
+    'take() 沒有先清待辦再判斷年紀（要讀一次就清，過期的也要清）');
+  check('s', 'RailMetroWaitPlugin.swift', /url\.host == "checkin"/.test(guardLine), 'handleOpen 沒有接受 host checkin');
+  check('s', 'RailMetroWaitPlugin.swift', /comps\.host == "checkin"\s*\{\s*data\["view"\]\s*=\s*"checkin"\s*\}/.test(plugin), 'forwardOpen 沒有對 checkin 帶 view:"checkin"');
+  const flush = plugin.slice(plugin.indexOf('static func flushPendingOpen'), plugin.indexOf('private func forwardOpen'));
+  check('s', 'RailMetroWaitPlugin.swift', /CollectCheckinPending\.take\(\)/.test(flush) && /"view": "checkin"/.test(flush) && /CollectCheckinPending\.didWrite/.test(plugin),
+    'flushPendingOpen 沒有把蓋章待辦轉成 waitOpen { view: "checkin" }，或沒有註冊 didWrite 通知');
+}
+
+/** s（動態部分）：待辦的行為——寫一次只能讀一次、119 秒內有效、121 秒過期、過期的也要清掉。只靠靜態掃描量不到。 */
+function pendingGate(src, out, check) {
+  const dir = join(out, 'pending-test');
+  mkdirSync(dir, { recursive: true });
+  const swift = join(dir, 'main.swift');
+  writeFileSync(swift, `import Foundation
+// 只替身這個檔唯一的外部依賴：App Group 的 suite（真的那個要 entitlement）。
+enum MetroWaitPending { static var suite: UserDefaults? = UserDefaults(suiteName: "i2.collect.checkin.test") }
+@main struct T {
+    static func main() {
+        MetroWaitPending.suite?.removePersistentDomain(forName: "i2.collect.checkin.test")
+        let t0 = Date(timeIntervalSince1970: 1_000_000)
+        var r: [String: Bool] = [:]
+        r["never"] = CollectCheckinPending.take(now: t0)
+        CollectCheckinPending.write(now: t0); r["fresh"] = CollectCheckinPending.take(now: t0.addingTimeInterval(119))
+        r["again"] = CollectCheckinPending.take(now: t0.addingTimeInterval(119))
+        CollectCheckinPending.write(now: t0); r["expired"] = CollectCheckinPending.take(now: t0.addingTimeInterval(121))
+        r["afterExpired"] = CollectCheckinPending.take(now: t0.addingTimeInterval(1))
+        CollectCheckinPending.write(now: t0); r["clockBack"] = CollectCheckinPending.take(now: t0.addingTimeInterval(-5))
+        MetroWaitPending.suite?.removePersistentDomain(forName: "i2.collect.checkin.test")
+        print(String(data: try! JSONSerialization.data(withJSONObject: r), encoding: .utf8)!)
+    }
+}
+`);
+  const bin = join(dir, 'pending');
+  execFileSync('swiftc', ['-parse-as-library', swift, join(existsSync(join(src, 'CollectCheckinIntent.swift')) ? src : appSrc, 'CollectCheckinIntent.swift'), '-o', bin], { stdio: 'inherit' });
+  const r = JSON.parse(execFileSync(bin, { encoding: 'utf8' }));
+  const want = { never: false, fresh: true, again: false, expired: false, afterExpired: false, clockBack: false };
+  for (const [k, v] of Object.entries(want)) check('s', 'pending.' + k, r[k] === v, `蓋章待辦 ${k}：實際 ${r[k]}，期望 ${v}`);
 }
 
 // ── 閘門 ────────────────────────────────────────────────────────────────────────────
-const GATES = ['a1', 'a2', 'b1', 'b2', 'b3', 'c', 'c2', 'd', 'e', 'h', 'v', 'r', 'u'];
+const GATES = ['a1', 'a2', 'b1', 'b2', 'b3', 'c', 'c2', 'd', 'e', 'h', 'v', 'r', 'u', 's'];
+/** 蓋章鈕上的字：繁中是 key 本身；en／ja 取生成的目錄 JSON（與 --lang 壓力測試餵給 RailNativeL10n 的同一份）。 */
+const L10N_JSON = join(repo, 'app/android/app/src/main/assets/RailNativeL10n.json');
+const STAMP_LABEL = LANG ? JSON.parse(readFileSync(L10N_JSON, 'utf8')).languages[LANG]['蓋章'] : '蓋章';
 
 async function judge({ specs, results, out, src }) {
   const fails = [];
@@ -569,6 +632,29 @@ async function judge({ specs, results, out, src }) {
       const ideal = frames.find(f => f.id === t.id + '#ideal');
       if (!ideal) continue;
       check('d', n, t.w >= ideal.w - 0.5, `${t.id}「${t.text}」實際寬 ${t.w.toFixed(1)} < 理想寬 ${ideal.w.toFixed(1)}（被縮或被截）`);
+    }
+
+    // ── s：蓋章鈕（小卡、中卡；鎖屏兩款不放）：有字、在框內、看得見、不壓到任何文字／進度條／地圖 ──
+    if (spec.fam === 'small' || spec.fam === 'medium') {
+      const chip = frames.find(f => f.id === 'stamp.chip'), label = byId('stamp')[0];
+      if (spec.state === 'none') check('s', n, !chip && !label, '沒有 collection.json 的提示卡不該有蓋章鈕');
+      else if (!chip || !label) fail('s', n, `缺蓋章鈕（stamp.chip＝${!!chip}、stamp＝${!!label}）`);
+      else {
+        check('s', n, label.text === STAMP_LABEL, `鈕上的字「${label.text}」≠ 期望「${STAMP_LABEL}」`);
+        check('s', n, chip.x >= inset - 0.6 && chip.y >= inset - 0.6 && chip.x + chip.w <= spec.w - inset + 0.6 && chip.y + chip.h <= spec.h - inset + 0.6,
+          `蓋章鈕超出內容框：x ${chip.x.toFixed(1)}–${(chip.x + chip.w).toFixed(1)}、y ${chip.y.toFixed(1)}–${(chip.y + chip.h).toFixed(1)}`);
+        for (const o of frames.filter(f => !f.id.endsWith('#ideal') && !f.id.endsWith('.fill') && f.id !== 'stamp' && f.id !== 'stamp.chip')) {
+          const ix = Math.min(chip.x + chip.w, o.x + o.w) - Math.max(chip.x, o.x), iy = Math.min(chip.y + chip.h, o.y + o.h) - Math.max(chip.y, o.y);
+          check('s', n, !(ix > 0.05 && iy > 0.05), `蓋章鈕與 ${o.id}${o.text ? `「${o.text}」` : ''} 相交 ${ix.toFixed(1)}×${iy.toFixed(1)}pt`);
+        }
+        // 看得見：膠囊底色與卡底有差，字形與膠囊底色有對比（量實際出貨的 PNG）
+        const img = await loadPixels(join(out, 'shots', `${n}.png`)), bg = px(img, 1, 1);
+        const fill = px(img, Math.round((chip.x + 4) * SCALE), Math.round((chip.y + chip.h / 2) * SCALE));
+        check('s', n, dist(fill, bg) > 0.05, `蓋章鈕的膠囊底色與卡底幾乎相同（差 ${dist(fill, bg).toFixed(3)}）——鈕看不見`);
+        let glyph = 0;
+        for (let y = Math.floor(label.y * SCALE); y < Math.ceil((label.y + label.h) * SCALE); y += 1) for (let x = Math.floor(label.x * SCALE); x < Math.ceil((label.x + label.w) * SCALE); x += 1) if (dist(px(img, x, y), fill) > 0.5) glyph += 1;
+        check('s', n, glyph >= 12, `蓋章鈕上的字形墨跡只有 ${glyph} 個像素（<12）——字看不見`);
+      }
     }
 
     // ── 「沒有檔案」：只該有提示文字，沒有地圖、沒有數字 ──
@@ -779,6 +865,7 @@ async function judge({ specs, results, out, src }) {
   }
 
   staticGate(src, check);
+  pendingGate(src, out, check);
   return { fails, counts };
 }
 
@@ -974,6 +1061,43 @@ const MUTATIONS = [
     replace: 'static let hollowRingRatio: CGFloat = 0.06',
     expect: ['r'],
   },
+  {
+    id: 'M18 蓋章鈕疊到數字上（小卡把鈕與數字疊在同一格）',
+    file: 'CollectionCard.swift',
+    find: `        VStack(alignment: .leading, spacing: k.pt(6)) {
+            numbers(f, k)`,
+    replace: `        ZStack(alignment: .topLeading) {
+            numbers(f, k)`,
+    expect: ['s'],
+  },
+  {
+    id: 'M19 蓋章鈕拿掉（小卡不畫鈕）',
+    file: 'CollectionCard.swift',
+    find: '            stamp(CollectionStampChip(k: k))\n',
+    replace: '',
+    expect: ['s'],
+  },
+  {
+    id: 'M20 蓋章連結改成 passport（中卡的鈕開到護照）',
+    file: 'CollectionCard.swift',
+    find: 'URL(string: "railisland://checkin")!',
+    replace: 'URL(string: "railisland://passport")!',
+    expect: ['s'],
+  },
+  {
+    id: 'M21 小卡的 Button(intent:) 拿掉（鈕只剩外觀，點了開護照）',
+    file: 'CollectionWidget.swift',
+    find: 'Button(intent: CollectCheckinIntent()) { chip }.buttonStyle(.plain)',
+    replace: 'chip',
+    expect: ['s'],
+  },
+  {
+    id: 'M22 待辦讀了不清（蓋章可以被重複觸發）',
+    file: 'CollectCheckinIntent.swift',
+    find: '        suite.removeObject(forKey: key)\n',
+    replace: '',
+    expect: ['s'],
+  },
 ];
 
 function stageSource(dest, mutation) {
@@ -982,7 +1106,7 @@ function stageSource(dest, mutation) {
   for (const f of ['CollectionCard.swift', 'CollectionWidget.swift', 'RailWidgetKit.swift', 'RailNativeL10n.swift', 'RailBoardWidget.swift']) {
     cpSync(join(realSrc, f), join(dest, f));
   }
-  cpSync(join(appSrc, 'RailMetroWaitPlugin.swift'), join(dest, 'RailMetroWaitPlugin.swift'));
+  for (const f of ['RailMetroWaitPlugin.swift', 'CollectCheckinIntent.swift']) cpSync(join(appSrc, f), join(dest, f));
   if (mutation) {
     const path = join(dest, mutation.file);
     const text = readFileSync(path, 'utf8');
@@ -1017,7 +1141,8 @@ async function main() {
       return fails.length === 0;
     };
     let allOk = await control('before');
-    for (const m of MUTATIONS) {
+    const only = opt('--only')?.split(',');
+    for (const m of MUTATIONS.filter(x => !only || only.includes(x.id.split(' ')[0]))) {
       const dest = join(outRoot, 'mut-src');
       stageSource(dest, m);
       const out = join(outRoot, `mut-${m.id.split(' ')[0]}`);
