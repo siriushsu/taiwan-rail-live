@@ -323,7 +323,6 @@ Object.assign(native, {
   '已收集 {n} 座': ['{n} collected', '{n}駅を収集'],
   '已收集 {v}／{n} 座': ['{v} of {n} collected', '{v}／{n}駅を収集'],
   '還有 {n} 座': ['{n} to go', '残り{n}駅'],
-  '{scope} {total} 座 · 還有 {remain} 座': ['{scope}: {total} · {remain} to go', '{scope} {total}駅・残り{remain}駅'],
   '還沒有收集的車站': ['No stations collected yet', 'まだ集めた駅がありません'],
   '跟一班車到終點，或到車站打卡就會蓋章': ['Follow a train to its last stop or check in at a station to get a stamp.', '列車を終点まで追うか、駅でチェックインするとスタンプが押されます。'],
   '打開軌島一次，就會出現你的車站收集': ['Open Rail Island once and your station collection will show up here.', '軌島を一度開くと、ここに駅コレクションが表示されます。'],

@@ -737,11 +737,6 @@ enum CollectionCopy {
         RailNativeL10n.text("還有 {n} 座", ["n": "\(f.remaining)"])
     }
 
-    static func totalLine(_ f: CollectionFigures) -> String {
-        RailNativeL10n.text("{scope} {total} 座 · 還有 {remain} 座",
-                            ["scope": f.title, "total": "\(f.total)", "remain": "\(f.remaining)"])
-    }
-
     /// 「37」大、「%」小的百分比。用 AttributedString 串，不用 Text + Text（macOS／iOS 26 起 `+` 標為棄用）。
     /// number 是 CollectionFigures.percentNumber（「37」「<1」「99」），不含「%」。
     static func bigPercent(_ number: String, big: CGFloat, small: CGFloat) -> Text {
