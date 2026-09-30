@@ -17,6 +17,8 @@ import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.text.Layout;
+import android.text.TextPaint;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -515,12 +517,54 @@ public final class CollectionWidgetInstrumentedTest {
             long[] bitmapBytes = { 0 };
             walk(root, root, density, nodes, outDir, id, bitmapBytes);
             obs.put("nodes", nodes);
+            obs.put("head", headMeasure(themedContext, family, c.optString("scope", "all"), root, density));
             obs.put("bitmapBytes", bitmapBytes[0]);
             results.put(obs);
         }
         try (FileOutputStream out = new FileOutputStream(new File(outDir, "obs.json"))) {
             out.write(results.toString(1).getBytes(StandardCharsets.UTF_8));
         }
+    }
+
+    /**
+     * 標題列的「自然寬度」（dp）：兩個名稱各自在版面 XML 宣告的基準字級與粗細下的 Paint.measureText。
+     * 只回報量到的寬度與那一行的可用寬（rowBox），放不放得下、該留哪一個，由預言機判斷（不讀實作的任何字寬估計或常數）。
+     * 小卡：範圍名（標題，粗體）、「車站收集」（副標，一般）、「車站收集」當標題（粗體）；中卡：「範圍 · 車站收集」（粗體）。
+     */
+    private JSONObject headMeasure(Context ctx, String family, String scope, View root, float density) throws Exception {
+        JSONObject o = new JSONObject();
+        CollectionData data = CollectionData.load(ctx);
+        View title = root.findViewById(R.id.wc_title);
+        if (data == null || title == null) return o;
+        CollectionData.Figures fg = data.figures(scope, RailNativeL10n.text(ctx, "全台"));
+        String kicker = RailNativeL10n.text(ctx, "車站收集");
+        boolean small = "small".equals(family);
+        View base = LayoutInflater.from(ctx).inflate(small ? R.layout.widget_collect_small : R.layout.widget_collect_medium, new FrameLayout(ctx), false);
+        // 基準字級取版面 XML 宣告的值（inflate 後的像素換回 sp，取最近的 0.5sp）；量寬度用「同一個 sp 換成浮點像素」的 Paint——
+        // Render 也是用 setTextViewTextSize 設浮點字級（XML 宣告的字級會被取整成整數像素，CJK 的字寬隨整數像素跳，實測差到 2.7dp）。
+        TextView baseTitle = base.findViewById(R.id.wc_title);
+        float titlePx = baseTitle.getAutoSizeMaxTextSize() > 0 ? baseTitle.getAutoSizeMaxTextSize() : baseTitle.getTextSize();
+        float titleSp = Math.round(titlePx / density * 2) / 2f;
+        android.util.DisplayMetrics dm = ctx.getResources().getDisplayMetrics();
+        TextPaint tp = new TextPaint(baseTitle.getPaint());
+        tp.setTextSize(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, titleSp, dm));
+        o.put("scope", fg.title);
+        o.put("kicker", kicker);
+        o.put("titleBaseSp", titleSp);
+        o.put("wScope", tp.measureText(fg.title) / density);
+        o.put("wKickerAsTitle", tp.measureText(kicker) / density);
+        if (small) {
+            TextView baseSub = base.findViewById(R.id.wc_subtitle);
+            TextPaint sp = new TextPaint(baseSub.getPaint());
+            sp.setTextSize(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, Math.round(baseSub.getTextSize() / density * 2) / 2f, dm));
+            o.put("wKicker", sp.measureText(kicker) / density);
+        } else {
+            o.put("wBoth", tp.measureText(fg.title + " · " + kicker) / density);
+        }
+        View row = small ? (View) title.getParent() : title;
+        float[] origin = originOf(row, root);
+        o.put("rowBox", rect(origin[0], origin[1], origin[0] + row.getWidth(), origin[1] + row.getHeight(), density));
+        return o;
     }
 
     private static boolean shown(View v, View root) {

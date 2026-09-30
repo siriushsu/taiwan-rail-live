@@ -166,11 +166,16 @@ const OUTLINE_SCOPED = ['tra', 'trtc', 'krtc'];
 const INK_ALPHA = 8;
 /** 蓋章膠囊尺寸（dp，改可點範圍前量到的值，尺寸不變）：高 17.9，寬依語言。 */
 const STAMP_W = { zh: 35.8, en: 45.3, ja: 55.6 };
-const totals = { land: 0, sea: 0, pen: 0, contrast: 0, inkBoxes: 0, scoped: 0, textPairs: 0, clipRegions: 0 };
+const totals = { land: 0, sea: 0, pen: 0, contrast: 0, inkBoxes: 0, scoped: 0, textPairs: 0, clipRegions: 0,
+  headSmallBoth: 0, headSmallDropAll: 0, headSmallDropScoped: 0, headMedBoth: 0, headMedDrop: 0, headShrunk: 0 };
+/** 小卡標題與副標的間距（dp，版面宣告的 marginStart）；標題列「放得下」的判斷留 1.5dp 的取整帶（帶內兩種結果都收；Render 的餘裕是 1dp）。 */
+const GAP_SMALL = 4, FIT_BAND = 1.5;
 /** 取樣點覆蓋的下限＝2026-09-30 量到的實數（land 1080、sea 1350、pen 540、contrast 198、inkBoxes 2298、scoped 246）的約 90%：分母縮水就紅。 */
 const LAND_MIN = 950, SEA_MIN = 1200, PEN_MIN = 480, CON_MIN = 170, INK_MIN = 2050, SCOPED_MIN = 220;
 /** A9 版面關係的覆蓋下限（2026-09-30 量到 textPairs 8435、clipRegions 2193 的約 90%）。 */
 const PAIRS_MIN = 7500, CLIPS_MIN = 1950;
+/** 標題列各種畫法的覆蓋下限（2026-09-30 量到 小卡兩個都放 87／全台只留車站收集 42／單一系統只留系統名 19、中卡兩個都放 70／只留系統名 13、縮字 12 的約 90%）。 */
+const HEAD_MIN = { headSmallBoth: 75, headSmallDropAll: 38, headSmallDropScoped: 17, headMedBoth: 60, headMedDrop: 11, headShrunk: 10 };
 /** 把 PNG 裁到點陣框：at(x,y)＝原圖 (x+start, y+top)；框外（出血區）用負座標或超過 w／h 取得。 */
 function framed(raw, family, dpr) {
   const b = BLEED[family];
@@ -240,20 +245,9 @@ for (const c of cases) {
       if (c.hDp >= 150) check('小卡夠高時有「還有 N 座」', remain?.visible && remain.text === tr(lang, '還有 {n} 座', { n: e.remaining }), () => `${tag}：${JSON.stringify(remain?.text)}，期望 剩 ${e.remaining}`);
       else if (remain?.visible) check('小卡「還有 N 座」數字', remain.text === tr(lang, '還有 {n} 座', { n: e.remaining }), () => `${tag}：${JSON.stringify(remain.text)}，期望 剩 ${e.remaining}`);
     }
-    const title = one(obs, 'wc_title');
-    const expTitle = isAllScope ? tr(lang, '全台') : e.sys.label;
-    check('小卡標題＝範圍名', title?.visible && title.text === expTitle, () => `${tag}：${JSON.stringify(title?.text)}，期望 ${expTitle}`);
   } else {
     const count = one(obs, 'wc_count');
     check('中卡「已收集 v／n 座」', count?.visible && count.text === tr(lang, '已收集 {v}／{n} 座', { v: e.collected, n: e.total }), () => `${tag}：${JSON.stringify(count?.text)}，期望 ${e.collected}／${e.total}`);
-    const title = one(obs, 'wc_title');
-    const kicker = tr(lang, '車站收集');
-    // 全台：一律恰為「車站收集」（zh 250／320／360／368、en、ja 全部量過，從沒退成「全台」）。
-    // 單一系統：寫「範圍 · 車站收集」；只有英文 250dp 寬的中卡放不下就只留範圍名——標題欄＝(250−38)×0.70−3 字×0.62×14−6≈116dp，
-    // "Kaohsiung · Station collection" 約 30 字×5dp×1.05≈158dp 放不下（zh、ja 各寬度都放得下完整標題）。
-    const okTitle = isAllScope ? title?.text === kicker
-      : (title?.text === `${e.sys.label} · ${kicker}` || (lang === 'en' && c.wDp <= 250 && title?.text === e.sys.label));
-    check('中卡標題（全台＝車站收集；單一系統＝系統名［· 車站收集］）', okTitle, () => `${tag}：${JSON.stringify(title?.text)}`);
   }
 
   // A3 中卡中段內容
@@ -303,6 +297,47 @@ for (const c of cases) {
     }
   }
 
+  // A2b 標題列省略順序（契約〈畫法約定〉8，不因語言另設特例）：
+  //   · 兩個名稱（範圍名、「車站收集」）在基準字級下的自然寬度加起來放得下那一行 → 兩個都在；
+  //   · 放不下 → 全台只留「車站收集」、單一系統只留系統名；
+  //   · 只剩一個名稱：放得下不縮字、放不下縮字（下限 75%）、縮到下限還放不下才准截斷。
+  //   自然寬度與可用寬都是裝置端量到的（obs.head：Paint.measureText 與實際那一行的寬），預言機不讀 Render 的字寬估計；
+  //   中卡全台的標題本來就只有「車站收集」。
+  {
+    const hd = obs.head;
+    const expScope = isAllScope ? tr(lang, '全台') : e.sys.label, expKicker = tr(lang, '車站收集');
+    const measured = !!hd && hd.scope === expScope && hd.kicker === expKicker && typeof hd.wScope === 'number' && Array.isArray(hd.rowBox);
+    check('標題列：裝置端量到了兩個名稱的自然寬度（名稱與預期一致）', measured, () => `${tag}：head=${JSON.stringify(hd)}，期望 ${expScope}／${expKicker}`);
+    const title = one(obs, 'wc_title');
+    check('標題列：標題看得到', !!title?.visible, () => `${tag}：wc_title=${JSON.stringify(title)}`);
+    if (measured && title?.visible) {
+      const rowW = hd.rowBox[2] - hd.rowBox[0], base = hd.titleBaseSp;
+      const sub = small ? nodes(obs, 'wc_subtitle').find(n => n.visible) : null;
+      const wantBoth = small || !isAllScope;   // 中卡全台本來就只有「車站收集」
+      const bothW = small ? hd.wScope + GAP_SMALL + hd.wKicker : hd.wBoth;
+      let expectText;
+      const mustBoth = wantBoth && bothW <= rowW - FIT_BAND, mustNot = wantBoth && bothW > rowW;
+      if (!wantBoth) expectText = expKicker;
+      else if (mustBoth) expectText = small ? expScope : `${expScope} · ${expKicker}`;
+      else if (mustNot) expectText = isAllScope ? expKicker : expScope;
+      if (expectText !== undefined) {
+        const expectSub = small && mustBoth;
+        check('標題列：兩個都放得下就都在；放不下全台只留「車站收集」、單一系統只留系統名', title.text === expectText && !!sub === expectSub,
+          () => `${tag}：畫面 標題=${JSON.stringify(title.text)} 副標=${JSON.stringify(sub?.text)}；自然寬度 合計 ${bothW.toFixed(1)} 對 可用 ${rowW.toFixed(1)}dp，期望 標題=${JSON.stringify(expectText)} 副標=${expectSub}`);
+      }
+      if (small && sub) check('標題列：副標與標題的間距＝版面宣告的 4dp（手寫值沒有飄）', near(sub.box[0] - title.box[2], GAP_SMALL, 0.6), () => `${tag}：間距 ${(sub.box[0] - title.box[2]).toFixed(2)}dp`);
+      // 覆蓋計數：每一種畫法都要真的被案例踩到（分母縮水就紅）
+      if (small) totals[sub ? 'headSmallBoth' : (isAllScope ? 'headSmallDropAll' : 'headSmallDropScoped')]++;
+      else if (!isAllScope) totals[title.text.includes(' · ') ? 'headMedBoth' : 'headMedDrop']++;
+      const nat = title.text === expKicker ? hd.wKickerAsTitle : title.text === expScope ? hd.wScope : hd.wBoth;
+      // 比例上界留 2%：版面 XML 宣告的字級（autoSize 的上限）會被取整成整數像素，實際字級比 sp 標稱值高最多約 1.5%
+      const availW = title.box[2] - title.box[0], scale = title.sp / base;
+      if (title.sp / base < 0.995) totals.headShrunk++;
+      check('標題列：能放就不縮字；放不下縮字（下限 75%），縮到下限還放不下才截斷', scale >= 0.75 - 0.01 && scale <= 1.02 && (nat <= availW - FIT_BAND ? scale >= 0.995 : (nat * scale <= availW + 0.5 || scale <= 0.76)),
+        () => `${tag}：${JSON.stringify(title.text)} 自然寬 ${nat.toFixed(1)}dp、可用 ${availW.toFixed(1)}dp、字級 ${title.sp.toFixed(2)}／基準 ${base.toFixed(2)}（比例 ${scale.toFixed(3)}）`);
+    }
+  }
+
   // A4 進度條像素：實際畫出來的填滿比例＝進度值（量的是像素，不是 setProgress 的參數）
   {
     const card = pngOf(`${c.id}.card.png`);
@@ -324,7 +359,11 @@ for (const c of cases) {
 
   // A5 文字完整性
   for (const n of obs.nodes.filter(n => n.kind === 'text' && n.visible)) {
-    check('文字沒有被「…」截斷', n.ellipsized !== true && !/…|\.\.\./.test(n.text), () => `${tag}：${n.id}=${JSON.stringify(n.text)}`);
+    // 標題只剩一個名稱、縮到 75% 還放不下時，契約允許截斷（畫法約定 8）；判斷用裝置端量到的自然寬度
+    const hd5 = obs.head;
+    const nat5 = n.id === 'wc_title' && hd5 ? (n.text === hd5.kicker ? hd5.wKickerAsTitle : n.text === hd5.scope ? hd5.wScope : n.text === (hd5.scope + ' · ' + hd5.kicker) ? hd5.wBoth : undefined) : undefined;
+    const truncOk = nat5 !== undefined && nat5 * 0.75 > (n.box[2] - n.box[0]) + 0.5;
+    check('文字沒有被「…」截斷', (n.ellipsized !== true || truncOk) && (truncOk || !/…|\.\.\./.test(n.text)), () => `${tag}：${n.id}=${JSON.stringify(n.text)}`);
     check('文字沒有被水平／垂直裁掉', n.clippedH !== true && n.clippedV !== true, () => `${tag}：${n.id}=${JSON.stringify(n.text)} clippedH=${n.clippedH} clippedV=${n.clippedV}`);
     check('文字沒有被折到看不見的行', (n.hiddenLines ?? 0) === 0, () => `${tag}：${n.id}=${JSON.stringify(n.text)} hiddenLines=${n.hiddenLines}`);
     if (n.glyph) {
@@ -671,7 +710,7 @@ for (const [name, s] of [...stats].sort()) {
 check('地圖像素分析至少跑了 30 張', mapsChecked >= 30, `只跑了 ${mapsChecked} 張`);
 check('取樣總數不縮水（輪廓的內陸、海上、南端、對比、墨框、單一系統，以及版面關係的文字對數、裁切區數，都不低於量到的實數的約 90%）',
   totals.land >= LAND_MIN && totals.sea >= SEA_MIN && totals.pen >= PEN_MIN && totals.contrast >= CON_MIN && totals.inkBoxes >= INK_MIN && totals.scoped >= SCOPED_MIN
-    && totals.textPairs >= PAIRS_MIN && totals.clipRegions >= CLIPS_MIN, () => `實際 ${JSON.stringify(totals)}`);
+    && totals.textPairs >= PAIRS_MIN && totals.clipRegions >= CLIPS_MIN && Object.entries(HEAD_MIN).every(([k, v]) => totals[k] >= v), () => `實際 ${JSON.stringify(totals)}`);
 if (mapsChecked < 30) { red++; console.log(`FAIL 地圖像素分析至少跑了 30 張（只跑了 ${mapsChecked}）`); }
 if (failures.length) {
   console.error(`\n失敗明細（前 40 筆／共 ${failures.length}）：`);

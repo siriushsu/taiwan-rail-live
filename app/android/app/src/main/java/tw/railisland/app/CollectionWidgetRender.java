@@ -44,6 +44,8 @@ final class CollectionWidgetRender {
     private static final int STAMP_BLOCK = 24;
     /** 小卡高度預算：標題與文字欄之間留的空隙、百分比與「已收集」的間距（正常／矮卡壓縮後）。只有後者是版面真的會變的屬性（wc_count 的 paddingTop）。 */
     private static final float HEAD_GAP = 6f, HEAD_GAP_TIGHT = 2f, COUNT_GAP = 4f;
+    /** 標題列放不放得下的取整餘裕（dp）：寧可收掉副標，也不讓字被「…」截斷。 */
+    private static final float FIT_SLACK = 1f;
     /** 百分比大字一行的高度倍數（實測 20sp→23.7dp、34sp→40.0dp，取 1.2 留餘裕）、正常間距下的字級下限、再矮時的絕對下限（sp）。 */
     private static final float PCT_LH = 1.2f, PCT_FLOOR = 20f, PCT_MIN = 12f;
     /** 單張地圖的點陣框高上限（dp）：出血（下緣 18dp）只夠最高約 190dp 的地圖把恆春半島南端畫完。 */
@@ -85,7 +87,7 @@ final class CollectionWidgetRender {
         String stamp = RailNativeL10n.text(c, "蓋章");
         v.setTextViewText(R.id.wc_stamp, stamp);
         v.setContentDescription(R.id.wc_stamp_hit, stamp);   // 透明的可點容器（48dp 寬）：TalkBack 讀「蓋章」
-        boolean kick = smallHeader(v, f, kicker, wDp, fs);
+        boolean kick = smallHeader(c, v, f, kicker, wDp);
         v.setViewVisibility(R.id.wc_subtitle, kick ? android.view.View.VISIBLE : android.view.View.GONE);
 
         // 文字欄寬（dp）：版面權重 58／42。窄到文字放不下（多半是 110dp 寬的 2×2）就整個放掉地圖，
@@ -171,21 +173,35 @@ final class CollectionWidgetRender {
     }
 
     /**
-     * 小卡標題列 [標題][副標]（蓋章鈕已搬到文字欄最下面，標題列只剩這兩個）。放不下時：先收副標（與 iOS ViewThatFits 同一個取捨）；
-     * 標題自己還是放不下，就縮字級（最多縮到 70%）。回傳副標要不要顯示（可見性由 small() 明講兩個分支）。
-     * 🔴 字級兩個分支都要明講：launcher 是 reapply 到舊 View 樹，沒提到的屬性會停在上一次的樣子。
+     * 小卡標題列 [範圍名][副標「車站收集」]，省略順序照契約〈畫法約定〉8：同一行放得下就都放；放不下，全台範圍只留「車站收集」
+     * （「全台」是預設值）、單一系統只留系統名；只剩一個名稱還放不下就縮字（下限 75%）再截斷。不因語言另設特例。
+     * 放不放得下用 Paint 量實際寬度（與 TextView 同一套字型），不是估計。回傳副標要不要顯示（可見性由 small() 明講兩個分支）。
+     * 🔴 標題的文字與字級兩個分支都要明講：launcher 是 reapply 到舊 View 樹，沒提到的屬性會停在上一次的樣子。
      */
-    private static boolean smallHeader(RemoteViews v, CollectionData.Figures f, String kicker, int wDp, float fs) {
-        v.setTextViewText(R.id.wc_title, f.title);
-        v.setTextViewText(R.id.wc_subtitle, kicker);
+    private static boolean smallHeader(Context c, RemoteViews v, CollectionData.Figures f, String kicker, int wDp) {
         float rowW = wDp - CARD_PAD_H;
-        // 標題（粗體，比估計寬約 5%）＋間距＋副標，再留 3dp：日文 137dp 寬的小卡實測「高捷」加副標剛好差 1dp 而被截成「…」
-        boolean kick = estimatedWidth(f.title, 13 * fs) * 1.05f + 4 + estimatedWidth(kicker, 11 * fs) + 3 <= rowW;
-        float titleText = tightWidth(f.title, 13 * fs) * 1.1f;         // Latin 粗體比 0.5em 略寬，留 10%
-        float scale = 1f;
-        if (!kick && titleText > rowW) scale = Math.max(0.7f, rowW / titleText);
+        float scopeW = measuredWidth(c, f.title, 13, true);
+        // 4＝副標的 marginStart；FIT_SLACK 留給取整，寧可收掉副標也不讓字被「…」截斷
+        boolean both = scopeW + 4 + measuredWidth(c, kicker, 11, false) + FIT_SLACK <= rowW;
+        String name = both || !f.isAll() ? f.title : kicker;
+        float nameW = both || !f.isAll() ? scopeW : measuredWidth(c, name, 13, true);
+        float scale = nameW + FIT_SLACK > rowW ? Math.max(0.75f, (rowW - FIT_SLACK) / nameW) : 1f;
+        v.setTextViewText(R.id.wc_title, name);
+        v.setTextViewText(R.id.wc_subtitle, kicker);
         v.setTextViewTextSize(R.id.wc_title, android.util.TypedValue.COMPLEX_UNIT_SP, 13 * scale);
-        return kick;
+        // 副標的字級也明講：版面 XML 宣告的 11sp 會被取整成整數像素，CJK 字寬隨整數像素跳（實測 7 個字差 2.7dp），
+        // 和上面 Paint 量的浮點字級對不上，「放得下」就會誤判
+        v.setTextViewTextSize(R.id.wc_subtitle, android.util.TypedValue.COMPLEX_UNIT_SP, 11);
+        return both;
+    }
+
+    /** 一段文字在 sp 字級下的實際寬度（dp）：Paint 量，粗體用系統粗體；sp 換像素走 TypedValue（含使用者的字級設定）。 */
+    static float measuredWidth(Context c, String text, float sp, boolean bold) {
+        android.util.DisplayMetrics dm = c.getResources().getDisplayMetrics();
+        android.text.TextPaint p = new android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        p.setTypeface(bold ? android.graphics.Typeface.DEFAULT_BOLD : android.graphics.Typeface.DEFAULT);
+        p.setTextSize(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, sp, dm));
+        return p.measureText(text) / dm.density;
     }
 
     // ── 中卡 ───────────────────────────────────────────────────────────────────
@@ -193,15 +209,15 @@ final class CollectionWidgetRender {
     private static RemoteViews medium(Context c, CollectionData.Figures f, int wDp, int hDp) {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_collect_medium);
         String kicker = RailNativeL10n.text(c, "車站收集");
-        // 標題欄寬（dp）＝文字欄寬 − 百分比 − 間距（蓋章鈕在下一列「已收集」的右端，不占標題列）。「車站收集」或「範圍 · 車站收集」連 10sp 也放不下
-        // （單一系統的英文、窄卡）就只留範圍名。
+        // 標題列照契約〈畫法約定〉8：全台範圍的標題本來就只有「車站收集」；單一系統是「範圍 · 車站收集」，同一行（14sp 粗體）放得下才用，
+        // 放不下就只留系統名。標題欄寬（dp）＝文字欄寬 − 百分比 − 間距（蓋章鈕在下一列「已收集」的右端，不占標題列）；
+        // 只剩一個名稱還放不下，由版面的 autoSize 縮字（下限 75%）再截斷。放不放得下用 Paint 量，不是估計。
         String stamp = RailNativeL10n.text(c, "蓋章");
         v.setTextViewText(R.id.wc_stamp, stamp);
         v.setContentDescription(R.id.wc_stamp_hit, stamp);
-        float fs0 = fontScale(c);
-        float titleCol = (wDp - CARD_PAD_H - 8) * 0.70f - f.percentLabel.length() * 0.62f * 14 * fs0 - 6;
-        String heading = f.isAll() ? kicker : f.title + " · " + kicker;
-        if (tightWidth(heading, 10 * fs0) * 1.05f > titleCol) heading = f.title;
+        float titleCol = (wDp - CARD_PAD_H - 8) * 0.70f - measuredWidth(c, f.percentLabel, 14, true) - 6;
+        String both = f.title + " · " + kicker;
+        String heading = f.isAll() ? kicker : (measuredWidth(c, both, 14, true) + FIT_SLACK <= titleCol ? both : f.title);
         v.setTextViewText(R.id.wc_title, heading);
         v.setTextViewText(R.id.wc_pct, f.percentLabel);
         v.setTextViewText(R.id.wc_count, RailNativeL10n.text(c, "已收集 {v}／{n} 座",

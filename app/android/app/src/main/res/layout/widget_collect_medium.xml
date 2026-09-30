@@ -2,6 +2,8 @@
 <!-- 車站收集・中（5×2／4×2）。與 iOS MediumCollectionView 同一個資訊層級：
      左側整高的點陣地圖＋右欄（標題＋百分比同一行、已收集 v／n 座、中段內容）——地圖在左，與 iOS 中卡一致。
      地圖欄 30%、文字欄 70%（權重），地圖 ImageView 用 fitStart 貼左上，高度／寬度誰先到頂就以誰為準。
+     標題（wc_title）：全台＝「車站收集」；單一系統＝「範圍 · 車站收集」放得下才用、放不下只留系統名（契約〈畫法約定〉8，由 Render 用 Paint 量）；
+        只剩一個名稱還放不下就 autoSize 縮字（下限 10.5sp＝14sp 的 75%）再截斷。
      中段（wc_rows）由 CollectionWidgetRender 依卡片高度預算逐列 addView：
        全台：有收集的系統各一列（標籤＋進度條＋v/n）＋「還有 K 個系統還沒去過」；
        單一系統：進度條＋「還有 N 座」＋最近蓋章；
@@ -75,7 +77,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:autoSizeMaxTextSize="14sp"
-                android:autoSizeMinTextSize="10sp"
+                android:autoSizeMinTextSize="10.5sp"
                 android:autoSizeTextType="uniform"
                 android:ellipsize="end"
                 android:includeFontPadding="false"
