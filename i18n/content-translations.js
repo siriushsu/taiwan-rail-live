@@ -3519,12 +3519,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 });
 // 2026-09-30 台南地面鐵道歷史重播精修：舊站房與列車真實比例、施工外罩開關、周邊建物低細節模型、自由轉向與傾斜、放大到 34 公尺。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  '台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，周邊建築加上窗戶、店面、招牌與屋頂水塔，視角可自由轉向與傾斜，最多可放大到約 34 公尺，可拿掉站房的施工外罩': 'Tainan surface railway replay: the old station building and trains are rebuilt to real proportions, nearby buildings now have windows, shopfronts, signs and rooftop water tanks, the view can be freely turned and tilted, you can zoom in to about 34 m, and the construction wrap on the station can be taken off',
-  '台南地面鐵道歷史重播：舊站房依暖灰磁磚與米黃、土黃洗石子的色調重建，施工外罩可一鍵拿掉；列車改用真實比例，推拉式自強號改畫 7 月起的 E500 機車頭；周邊建築加上窗戶、店面與屋頂水塔，視角可自由轉向與傾斜，最多可放大到約 34 公尺視野': 'Tainan surface railway replay: the old station building is rebuilt in warm grey tiles with cream and ochre stone-chip plaster, and its construction wrap comes off with one tap; trains use real proportions, and the push–pull Tze-Chiang now shows the E500 locomotive used since July; nearby buildings get windows, shopfronts and rooftop water tanks, the view can be freely turned and tilted, and you can zoom in to a view about 34 m across',
+  '台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，周邊建築從灰色方塊改成有外牆顏色、窗戶、店面與招牌，補上香格里拉飯店的塔樓，視角可自由轉向與傾斜，最多放大到 34 公尺': 'Tainan surface railway replay: the old station building and trains are rebuilt to real proportions, nearby buildings are no longer grey boxes but have wall colours, windows, shopfronts and signs, the Shangri-La hotel tower is added, the view can be freely turned and tilted, and you can zoom in to 34 m',
+  '台南地面鐵道歷史重播：舊站房與列車改用真實比例重建、施工外罩可一鍵拿掉，推拉式自強號改畫 7 月起的 E500 機車頭；周邊建築從灰色方塊改成有外牆顏色、窗戶、店面、招牌與水塔，補上香格里拉塔樓；視角可自由轉向與傾斜，最多放大到 34 公尺': 'Tainan surface railway replay: the old station building and trains are rebuilt to real proportions, the construction wrap comes off with one tap, and the push–pull Tze-Chiang now shows the E500 locomotive used since July; nearby buildings are no longer grey boxes but have wall colours, windows, shopfronts, signs and water tanks, and the Shangri-La tower is added; the view can be freely turned and tilted, and you can zoom in to 34 m',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  '台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，周邊建築加上窗戶、店面、招牌與屋頂水塔，視角可自由轉向與傾斜，最多可放大到約 34 公尺，可拿掉站房的施工外罩': '台南地上鉄道の歴史リプレイ：旧駅舎と列車を実寸の比率で作り直し、周辺の建物に窓・店舗・看板・屋上の給水タンクを加えました。視点は自由に回転・傾斜でき、約 34 m まで拡大できます。駅舎の工事用シートも外せます',
-  '台南地面鐵道歷史重播：舊站房依暖灰磁磚與米黃、土黃洗石子的色調重建，施工外罩可一鍵拿掉；列車改用真實比例，推拉式自強號改畫 7 月起的 E500 機車頭；周邊建築加上窗戶、店面與屋頂水塔，視角可自由轉向與傾斜，最多可放大到約 34 公尺視野': '台南地上鉄道の歴史リプレイ：旧駅舎を暖かみのあるグレーのタイルと、クリーム色・黄土色の洗い出し仕上げで作り直し、工事用シートはワンタップで外せます。列車は実寸の比率にし、プッシュプル式自強号は 7 月からの E500 形機関車で描きます。周辺の建物に窓・店舗・屋上の給水タンクを加え、視点は自由に回転・傾斜でき、約 34 m の範囲まで拡大できます',
+  '台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，周邊建築從灰色方塊改成有外牆顏色、窗戶、店面與招牌，補上香格里拉飯店的塔樓，視角可自由轉向與傾斜，最多放大到 34 公尺': '台南地上鉄道の歴史リプレイ：旧駅舎と列車を実物どおりの比率で作り直し、周辺の建物はグレーの箱から外壁の色・窓・店舗・看板のある姿になり、シャングリ・ラ ホテルのタワーを加えました。視点は自由に回転・傾斜でき、34 m まで拡大できます',
+  '台南地面鐵道歷史重播：舊站房與列車改用真實比例重建、施工外罩可一鍵拿掉，推拉式自強號改畫 7 月起的 E500 機車頭；周邊建築從灰色方塊改成有外牆顏色、窗戶、店面、招牌與水塔，補上香格里拉塔樓；視角可自由轉向與傾斜，最多放大到 34 公尺': '台南地上鉄道の歴史リプレイ：旧駅舎と列車を実物どおりの比率で作り直し、工事用シートはワンタップで外せます。プッシュプル式自強号は 7 月からの E500 形機関車で描きます。周辺の建物はグレーの箱から外壁の色・窓・店舗・看板・給水タンクのある姿になり、シャングリ・ラのタワーも加えました。視点は自由に回転・傾斜でき、34 m まで拡大できます',
 });
 // 2026-09-30 台鐵／高鐵車站時刻頁（SEO 階段 B 第一批）。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {

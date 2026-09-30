@@ -446,8 +446,9 @@ def wall_group(tags, bid):
     return pick(RES_WALLS, 'wall', bid)
 
 
-def build_building(mesh, feat, ring, floors, H, source, tree, geoms, stats, items, min_h=0.0):
-    """ring：逆時針外環（公尺，無重複點）。H：牆頂離地高；min_h：牆腳離地高（塔身、塔頂等部件）。回傳 None。"""
+def build_building(mesh, feat, ring, floors, H, source, tree, geoms, stats, items, min_h=0.0, capped=False):
+    """ring：逆時針外環（公尺，無重複點）。H：牆頂離地高；min_h：牆腳離地高（塔身、塔頂等部件）。
+    capped：頂上整個疊著另一個部件（牆腳＝這棟牆頂、輪廓蓋住這棟），不砌女兒牆、不放屋頂附屬物。回傳 None。"""
     bid, tags = feat['id'], feat['tags']
     kind = tags['building']
     poly = Polygon(ring)
@@ -460,7 +461,7 @@ def build_building(mesh, feat, ring, floors, H, source, tree, geoms, stats, item
     rcol = pick(ROOF_GROUPS, 'roof', bid)
     slope = Slope(tags['roof:shape'], poly) if tags.get('roof:shape') in ('gabled', 'hipped') else None
     flat = slope is None
-    parapet = flat and not small
+    parapet = flat and not small and not capped     # 被蓋住的女兒牆會跟上面那棟的外牆疊在同一個面上閃爍
     z0 = GROUND_Z + min_h              # 牆腳：一般建物在地面，部件從 min_height 起算
     top = GROUND_Z + H                 # 屋面（牆頂）標高
     ground = min_h == 0.0              # 騎樓／店面帶與招牌只給從地面蓋起的建物
@@ -682,20 +683,30 @@ def build(source, verbose=False):
     items = []
     records = []
     footprints = []
-    notes = {'heightIgnored': [], 'heightOverLevels': [], 'nested': []}
+    notes = {'heightIgnored': [], 'heightOverLevels': [], 'nested': [], 'capped': []}
+    shapes = []
     for f in included:
-        tags = f['tags']
         ring = clean_ring([world(p) for p in f['coordinates']])
         poly = Polygon(ring)
         if len(ring) < 3 or not poly.is_valid or poly.area < 1.0:
             raise SystemExit('輪廓不合法（id %s）：請先處理輸入' % f['id'])
-        floors, H, src, min_h = resolve_height(tags)
+        shapes.append((f, ring, poly) + tuple(resolve_height(f['tags'])))
+    # 頂上整個被另一個部件蓋住的建物：那個部件的牆腳＝這棟牆頂（差 5 cm 內），輪廓（外擴 5 cm）包住這棟
+    capped = {}
+    for f, ring, poly, floors, H, src, min_h in shapes:
+        for g, _ring, gpoly, _floors, _H, _src, g_min in shapes:
+            if g is not f and g_min > 0 and abs(g_min - H) <= 0.05 and gpoly.buffer(0.05).contains(poly):
+                capped.setdefault(f['id'], g['id'])
+    for f, ring, poly, floors, H, src, min_h in shapes:
+        tags = f['tags']
         if 'height' in tags and src != 'height':
             notes['heightIgnored'].append({'id': f['id'], 'height': tags['height'], 'min_height': tags.get('min_height'),
                                            'areaM2': round(poly.area, 1)})
         if src == 'height' and 'building:levels' in tags and min_h == 0:     # 部件的層數是整棟樓的層數（塔身 38 層到 140 m），不算矛盾
             notes['heightOverLevels'].append({'id': f['id'], 'name': tags.get('name'), 'height': tags['height'], 'levels': tags['building:levels']})
-        build_building(mesh, f, ring, floors, H, src, tree, hw, stats, items, min_h)
+        build_building(mesh, f, ring, floors, H, src, tree, hw, stats, items, min_h, capped=f['id'] in capped)
+        if f['id'] in capped:
+            notes['capped'].append({'id': f['id'], 'by': capped[f['id']]})
         rec = {'id': f['id'], 'type': tags['building'], 'floors': floors, 'heightM': round(H, 3), 'heightSource': src}
         if min_h > 0:
             rec['minHeightM'] = round(min_h, 3)
@@ -837,6 +848,9 @@ def estimates(result, by_src):
         out.append('香格里拉台南遠東國際大飯店：封存輪廓只有百貨裙樓（id 255990927，height=24）與塔頂（id 499082686，140～152 m），塔身（id 255990928，24～140 m）'
                    '等 %d 筆 OSM 部件的節點在封存範圍以東而沒收進來，這裡依同一份 OSM 資料補上（每筆的形狀在封存前就沒再改過）。塔頂的單斜屋頂畫成平頂；'
                    '塔樓外牆色依 OSM 標的顏色取最接近的色組。' % len(parts))
+    if notes['capped']:
+        out.append('頂上整個疊著另一個部件的 %d 棟不砌女兒牆（%s）：女兒牆會跟上面那棟的外牆疊在同一個面上、畫面閃爍。' % (
+            len(notes['capped']), '；'.join('id %s 上面是 id %s' % (n['id'], n['by']) for n in notes['capped'])))
     if notes['nested']:
         out.append('有 %d 棟的輪廓整個落在另一棟建物的輪廓之內（%s），被外面那棟擋住、畫面上看不到；仍照規則畫進網格。' % (
             len(notes['nested']), '；'.join('id %s 在 id %s 之內' % (n['id'], n['inside']) for n in notes['nested'])))

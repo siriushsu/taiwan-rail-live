@@ -50,6 +50,8 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
   check(engine,view,'右鍵拖曳右移 100 px：方位 −0.6 rad',Math.abs(dAng(c1.az,c0.az)+.6)<.03,dAng(c1.az,c0.az).toFixed(4));
   check(engine,view,'右鍵拖曳下移 60 px：仰角 +0.3 rad（更接近俯視）',Math.abs(c1.tilt-c0.tilt-.3)<.03,(c1.tilt-c0.tilt).toFixed(4));
   check(engine,view,'右鍵拖曳不改縮放',Math.abs(c1.span/c0.span-1)<1e-9);
+  // macOS／Linux 在按下右鍵當下就送 contextmenu（還沒拖曳）：等過拖曳後的 500 ms 攔截窗，只剩畫布自己的 handler 在擋
+  await page.waitForTimeout(600);
   const menu=await page.evaluate(()=>{const ev=new MouseEvent('contextmenu',{bubbles:true,cancelable:true});return !window.tainanMemory.renderer.domElement.dispatchEvent(ev);});
   check(engine,view,'畫布上不跳右鍵選單（contextmenu 被取消）',menu);
   await page.keyboard.down('Shift');await page.mouse.move(cx,cy);await page.mouse.down();await page.mouse.move(cx-100,cy-60,{steps:10});await page.mouse.up();await page.keyboard.up('Shift');
@@ -75,6 +77,13 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
   await page.click('#rotate');const ro=await cam(page);check(engine,view,'「旋轉」鈕仍是 +45°、仰角不變',Math.abs(dAng(ro.az,st.az)-Math.PI/4)<1e-3&&Math.abs(ro.tilt-st.tilt)<1e-9);
   await page.mouse.move(cx,cy);await page.mouse.wheel(0,300);await page.waitForTimeout(150);const wh=await cam(page);
   check(engine,view,'滾輪仍可縮放',wh.span/ro.span>1.2,(wh.span/ro.span).toFixed(3));
+  // Windows 在放開右鍵時才送 contextmenu、目標是游標底下的元素（驗收 09-30）：右鍵拖曳轉向到「旋轉」鈕上才放開，接著送的選單事件要被擋；
+  // 對照：過了 600 ms 在同一顆鈕上按右鍵，選單照常（不能把整頁的右鍵選單都關掉）
+  {const b=await page.locator('#rotate').boundingBox(),bx=b.x+b.width/2,by=b.y+b.height/2,menuAt=()=>page.evaluate(()=>!document.querySelector('#rotate').dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true})));
+   await page.mouse.move(cx,cy);await page.mouse.down({button:'right'});await page.mouse.move(bx,by,{steps:10});await page.mouse.up({button:'right'});const blocked=await menuAt();
+   await page.waitForTimeout(600);const normal=await menuAt();
+   check(engine,view,'Windows 右鍵：拖曳轉向後在按鈕上放開不跳選單',blocked);
+   check(engine,view,'Windows 右鍵對照：沒拖曳時按鈕上的右鍵選單照常',!normal);}
   check(engine,view,'零錯誤',errors.length===0,errors.slice(0,3).join(' | '));
   await context.close();}
  // ── 手機（390×844、觸控）──
@@ -110,6 +119,27 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
   let c3=await cam(page);
   check(engine,view,'雙指一起上推 60 px：仰角 −0.3 rad',Math.abs(c3.tilt-c2.tilt+.3)<.03,(c3.tilt-c2.tilt).toFixed(4));
   check(engine,view,'雙指上推：方位、縮放不變',Math.abs(dAng(c3.az,c2.az))<1e-9&&Math.abs(c3.span/c2.span-1)<1e-9);
+  // 快速推（驗收 09-30：每個事件每指走 17～25 px 時，第一指的事件自己就過判定門檻、另一指還是舊座標，舊版誤鎖成捏合，整個手勢沒反應）：先往下 4×17 px，再往上 3×25 px
+  await gesture(Array.from({length:5},(_,i)=>[[cx-50,cy-40+17*i],[cx+50,cy-40+17*i]]));
+  const c4=await cam(page);
+  check(engine,view,'雙指快速下推（每步 17 px）68 px：仰角 +0.34 rad',Math.abs(c4.tilt-c3.tilt-.34)<.03,(c4.tilt-c3.tilt).toFixed(4));
+  await gesture(Array.from({length:4},(_,i)=>[[cx-50,cy+40-25*i],[cx+50,cy+40-25*i]]));
+  const c5=await cam(page);
+  check(engine,view,'雙指快速上推（每步 25 px）75 px：仰角 −0.375 rad',Math.abs(c5.tilt-c4.tilt+.375)<.03,(c5.tilt-c4.tilt).toFixed(4));
+  check(engine,view,'雙指快速推：方位、縮放不變',Math.abs(dAng(c5.az,c3.az))<1e-9&&Math.abs(c5.span/c3.span-1)<1e-9);
+  // 三指（驗收 09-30：兩指捏合中第三指碰到、再抬起第一指，舊版剩下兩指沿用舊基準，1 px 的移動就讓方位跳 116°）：兩引擎都用合成 PointerEvent
+  const tf=await page.evaluate(([cx,cy])=>{const el=window.tainanMemory.renderer.domElement,c=window.tainanMemory.camera;
+   const fire=(type,id,x,y)=>el.dispatchEvent(new PointerEvent(type,{pointerId:id,clientX:x,clientY:y,pointerType:'touch',isPrimary:id===11,bubbles:true,cancelable:true,buttons:type==='pointerup'?0:1}));
+   const now=()=>{const e=c.matrixWorld.elements;return {tilt:Math.asin(e[10]),az:Math.atan2(e[9],e[8]),span:c.top-c.bottom};};
+   fire('pointerdown',11,cx-50,cy);fire('pointerdown',12,cx+50,cy);
+   for(let i=1;i<=4;i++){fire('pointermove',11,cx-50-5*i,cy);fire('pointermove',12,cx+50+5*i,cy);}      // 兩指先捏合開一點（100→140 px）
+   fire('pointerdown',13,cx,cy+120);fire('pointerup',11,cx-70,cy);
+   const a=now();fire('pointermove',12,cx+71,cy);const b=now();
+   const p2=[cx+71,cy],p3=[cx,cy+120];      // 剩下兩指：13 沿連線往內走到一半距離（往內捏，避開 34 m 的放大極限；這台手機此時約 50 m）
+   for(let i=1;i<=10;i++){const t=1-i/20;fire('pointermove',13,p2[0]+(p3[0]-p2[0])*t,p2[1]+(p3[1]-p2[1])*t);}
+   const d=now();fire('pointerup',12,...p2);fire('pointerup',13,p2[0]+(p3[0]-p2[0])*.5,p2[1]+(p3[1]-p2[1])*.5);return {a,b,d};},[cx,cy]);
+  check(engine,view,'三指：放下第三指再抬起第一指，剩下的指頭動 1 px 鏡頭不跳',Math.abs(dAng(tf.b.az,tf.a.az))<.01&&Math.abs(tf.b.span/tf.a.span-1)<.01&&Math.abs(tf.b.tilt-tf.a.tilt)<1e-9,`Δ方位 ${dAng(tf.b.az,tf.a.az).toFixed(4)}、span×${(tf.b.span/tf.a.span).toFixed(4)}`);
+  check(engine,view,'三指後剩下兩指照常捏合（距離減半→可見範圍加倍）',Math.abs(tf.d.span/tf.b.span-2)<.04&&Math.abs(dAng(tf.d.az,tf.b.az))<.03,`span×${(tf.d.span/tf.b.span).toFixed(3)}、Δ方位 ${dAng(tf.d.az,tf.b.az).toFixed(4)}`);
   // 單指平移：起點地面點停在手指下
   const start=[cx-10,cy+60],end=[cx+20,cy-40],g=await groundAt(page,...start);
   await gesture(Array.from({length:steps+1},(_,i)=>[lerp(start,end,i/steps)]));

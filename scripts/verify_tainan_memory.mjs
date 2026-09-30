@@ -108,8 +108,12 @@ const surroundings=(()=>{
  const segDist=(p,a,b)=>{const dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy,t=l?Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l)):0;return Math.hypot(p[0]-a[0]-t*dx,p[1]-a[1]-t*dy);};
  const edgeDist=(p,r)=>Math.min(...r.map((a,i)=>segDist(p,a,r[(i+1)%r.length]))),area=r=>Math.abs(r.reduce((s,a,i)=>{const b=r[(i+1)%r.length];return s+a[0]*b[1]-b[0]*a[1];},0))/2;
  const rec=new Map(sm.buildings.map(b=>[b.id,b]));let sheds=0,tanks=0;
+ // 頂上整個疊著另一個部件的建物（那個部件的牆腳＝這棟牆頂、差 5 cm 內，而且這棟輪廓的頂點與邊中點都在它輪廓內或 5 cm 內）：不砌女兒牆、不放屋頂附屬物
+ const ringOf=new Map(sm.buildings.map(b=>[b.id,byId.get(b.id).coordinates.map(world)]));
+ const covers=(outer,inner)=>inner.every((p,i)=>{const q=inner[(i+1)%inner.length];return [p,[(p[0]+q[0])/2,(p[1]+q[1])/2]].every(x=>inPoly(x,outer)||edgeDist(x,outer)<=.05);});
+ const capped=b=>sm.buildings.some(c=>c!==b&&c.minHeightM>0&&Math.abs(c.minHeightM-b.heightM)<=.05&&covers(ringOf.get(c.id),ringOf.get(b.id)));
  for(const it of sm.roofItems||[]){const b=rec.get(it.building),f=byId.get(it.building);ok(b&&f,'屋頂附屬物指向不存在的建物 '+it.building);const ring=f.coordinates.map(world);
-  ok(['residential','house','apartments','yes'].includes(b.type)&&b.floors>=2&&!['gabled','hipped'].includes(f.tags['roof:shape'])&&area(ring)>=20,'屋頂附屬物放在不該放的建物上：'+it.building);
+  ok(['residential','house','apartments','yes'].includes(b.type)&&b.floors>=2&&!['gabled','hipped'].includes(f.tags['roof:shape'])&&area(ring)>=20&&!capped(b),'屋頂附屬物放在不該放的建物上：'+it.building);
   if(it.kind==='shed'){sheds++;ok(it.wallM===2.4&&it.ridgeM===.6&&it.footprint?.length===4,'鐵皮屋尺寸不對：'+it.building);
    for(const c of it.footprint)ok(inPoly(c,ring)&&edgeDist(c,ring)>=1-2e-3,'鐵皮屋沒有整座落在屋頂內縮 1 m 的範圍內：'+it.building);
    const cx=it.footprint.reduce((s,p)=>s+p[0],0)/4,cy=it.footprint.reduce((s,p)=>s+p[1],0)/4,at=z=>tv.some(T=>T.p.some(p=>Math.abs(p[2]-z)<.011&&Math.hypot(p[0]-cx,p[1]-cy)<3.5));
@@ -121,7 +125,7 @@ const surroundings=(()=>{
  // 網格層級的建物高度（不信 model.json 自報，直接量網格）：
  // (a) 平屋頂：朝上、三個頂點都在輪廓內（容許 5 cm）、標高＝牆腳 0.03＋heightM 的面，面積合計要涵蓋輪廓 90% 以上；斜屋頂：朝上的面要有頂點落在簷口標高
  //     （用「存在」不用「最低點」：遠東百貨的輪廓裡整個包著另一棟 499082686，它的屋面比較低，最低點會誤報）
- // (b) 平屋頂：貼著輪廓、法線朝外、從這棟牆腳（0.03＋minHeightM）起的垂直面，最高點＝屋面＋女兒牆 0.9 m（輪廓 < 20 m² 不砌女兒牆）
+ // (b) 平屋頂：貼著輪廓、法線朝外、從這棟牆腳（0.03＋minHeightM）起的垂直面，最高點＝屋面＋女兒牆 0.9 m（輪廓 < 20 m² 或頂上整個疊著另一個部件的不砌女兒牆）
  //     （只看從這棟牆腳起的面：塔頂 499082686 與底下的 499151602 輪廓相同，不分開會量到上面那一棟的牆頂）
  {const signed=r=>r.reduce((s,a,i)=>{const c=r[(i+1)%r.length];return s+a[0]*c[1]-c[0]*a[1];},0)/2;
   for(const b of sm.buildings){const f=byId.get(b.id),ring=f.coordinates.map(world),xs=ring.map(p=>p[0]),ys=ring.map(p=>p[1]),X0=Math.min(...xs)-.06,X1=Math.max(...xs)+.06,Y0=Math.min(...ys)-.06,Y1=Math.max(...ys)+.06,sgn=signed(ring)>0?1:-1;
@@ -134,7 +138,39 @@ const surroundings=(()=>{
     const z0=.03+(b.minHeightM||0);for(const T of cand)if(Math.abs(T.n[2])<1e-3&&Math.abs(Math.min(...T.p.map(p=>p[2]))-z0)<.011&&T.p.every(p=>edgeDist(p,ring)<=.05)){const m=[0,1].map(i=>(T.p[0][i]+T.p[1][i]+T.p[2][i])/3);let best=1e9,en=null;
      ring.forEach((a,i)=>{const c=ring[(i+1)%ring.length],L=Math.hypot(c[0]-a[0],c[1]-a[1]);if(L<1e-6)return;const d=segDist(m,a,c);if(d<best){best=d;en=[sgn*(c[1]-a[1])/L,-sgn*(c[0]-a[0])/L];}});
      if(en&&T.n[0]*en[0]+T.n[1]*en[1]>=.999){nWall++;top=Math.max(top,...T.p.map(p=>p[2]));}}
-    const want=.03+b.heightM+(area(ring)>=20?.9:0);ok(nWall>0&&Math.abs(top-want)<.011,'網格外牆頂高度與 heightM 不符：'+b.id+' 網格 '+top+' 應為 '+want);}}}
+    const want=.03+b.heightM+(area(ring)>=20&&!capped(b)?.9:0);ok(nWall>0&&Math.abs(top-want)<.011,'網格外牆頂高度與 heightM 不符：'+b.id+' 網格 '+top+' 應為 '+want);}}}
+ // 不是灰色方塊（使用者 2026-09-30「不要是灰色方塊」）：外牆至少 6 種彼此分得開的顏色（sRGB 距離 ≥ 0.05）、中性灰（sRGB 最大最小差 < 0.04）的外牆
+ // 不超過外牆面積一半、窗帶顏色跟每一種外牆色都差 0.15 以上、窗帶面積至少是外牆的 15%。面積直接量網格裡的垂直面（外牆色組也拿來畫部分屋面，不算）。
+ {const srgb=c=>c.map(x=>x<=.0031308?x*12.92:1.055*x**(1/2.4)-.055),dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]),chroma=c=>Math.max(...c)-Math.min(...c);
+  const vArea=g=>{let s=0;for(let t=g.start/3;t<(g.start+g.count)/3;t++){const T=tv[t];if(Math.abs(T.n[2])>.01)continue;const a=[0,1,2].map(i=>T.p[1][i]-T.p[0][i]),b=[0,1,2].map(i=>T.p[2][i]-T.p[0][i]);s+=Math.hypot(a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0])/2;}return s;};
+  const walls=groups.filter(g=>g.name.startsWith('wall_')),glass=groups.find(g=>g.name==='glass');ok(walls.length>0&&glass,'找不到外牆（wall_*）或窗帶（glass）的材質組');
+  const distinct=[];for(const g of walls){const c=srgb(g.color);if(distinct.every(d=>dist(d,c)>=.05))distinct.push(c);}
+  ok(distinct.length>=6,'外牆只有 '+distinct.length+' 種分得開的顏色（至少 6 種，不能退回灰色方塊）');
+  const wallArea=walls.map(g=>[g,vArea(g)]),total=wallArea.reduce((s,[,a])=>s+a,0),grey=wallArea.filter(([g])=>chroma(srgb(g.color))<.04).reduce((s,[,a])=>s+a,0);
+  ok(total>0&&grey<=.5*total,'中性灰外牆佔外牆面積 '+(100*grey/total).toFixed(1)+'%（上限 50%，不能退回灰色方塊）');
+  const gc=srgb(glass.color),near=walls.filter(g=>dist(srgb(g.color),gc)<.15).map(g=>g.name);ok(near.length===0,'窗帶顏色跟外牆太像、看不出窗：'+near.join(','));
+  const ga=vArea(glass);ok(ga>=.15*total,'窗帶面積只有外牆的 '+(100*ga/total).toFixed(1)+'%（至少 15%）');}
+ // 看得到的共面重疊（z-fighting）：朝向相同（內積 > 0.9999）、同一平面（差 5 mm 內）、材質不同、投影重疊 > 0.01 m² 的兩個三角形，而且重疊區的質心或任一頂點
+ // （往質心縮 10%）沿法線往外 0.1 m 不在任何建物量體（輪廓內、牆腳～屋面）裡＝從外面看得到，會閃。材質是 FrontSide，朝向相反的共面不會互相閃，不算。
+ {const gid=new Int32Array(tris);groups.forEach((g,i)=>{for(let t=g.start/3;t<(g.start+g.count)/3;t++)gid[t]=i;});
+  const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+  const keyOf=(n,d)=>[Math.round(n[0]*50),Math.round(n[1]*50),Math.round(n[2]*50),Math.round(d*20)],buckets=new Map();
+  const planeD=tv.map((T,t)=>{const d=dot(T.n,T.p[0]),k=keyOf(T.n,d).join(',');if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(t);return d;});
+  const area2=P=>P.reduce((s,a,i)=>{const b=P[(i+1)%P.length];return s+a[0]*b[1]-b[0]*a[1];},0)/2;
+  const clip=(P,a,b)=>{const out=[],side=p=>(b[0]-a[0])*(p[1]-a[1])-(b[1]-a[1])*(p[0]-a[0]);for(let i=0;i<P.length;i++){const p=P[i],q=P[(i+1)%P.length],sp=side(p),sq=side(q);
+    if(sp>=0)out.push(p);if((sp>=0)!==(sq>=0)){const t=sp/(sp-sq);out.push([p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t]);}}return out;};
+  const vol=sm.buildings.map(b=>({ring:ringOf.get(b.id),z0:.03+(b.minHeightM||0),z1:.03+b.heightM})),enclosed=q=>vol.some(V=>q[2]>=V.z0-1e-6&&q[2]<=V.z1+1e-6&&inPoly(q,V.ring));
+  let pairs=0,overlap=0;const where=[];
+  for(let t=0;t<tris;t++){const A=tv[t],k=keyOf(A.n,planeD[t]);
+   for(let i=0;i<81;i++){const kk=[k[0]+(i%3)-1,k[1]+(Math.floor(i/3)%3)-1,k[2]+(Math.floor(i/9)%3)-1,k[3]+Math.floor(i/27)-1].join(','),list=buckets.get(kk);if(!list)continue;
+    for(const u of list){if(u<=t||gid[u]===gid[t])continue;const B=tv[u];if(dot(A.n,B.n)<.9999||Math.abs(planeD[u]-planeD[t])>.005)continue;
+     const r=Math.abs(A.n[2])<.9?[0,0,1]:[1,0,0],e1=(c=>c.map(x=>x/Math.hypot(...c)))(cross(A.n,r)),e2=cross(A.n,e1),pr=p=>[dot(p,e1),dot(p,e2)];
+     let P=A.p.map(pr),Q=B.p.map(pr);if(area2(P)<0)P.reverse();if(area2(Q)<0)Q.reverse();
+     for(let j=0;j<3&&P.length;j++)P=clip(P,Q[j],Q[(j+1)%3]);const ar=P.length>=3?Math.abs(area2(P)):0;if(ar<=.01)continue;
+     const c=[P.reduce((s,p)=>s+p[0],0)/P.length,P.reduce((s,p)=>s+p[1],0)/P.length],to3=q=>[0,1,2].map(j=>planeD[t]*A.n[j]+q[0]*e1[j]+q[1]*e2[j]+.1*A.n[j]);
+     if([c,...P.map(q=>[q[0]+(c[0]-q[0])*.1,q[1]+(c[1]-q[1])*.1])].every(q=>enclosed(to3(q))))continue;const c3=to3(c);
+     pairs++;overlap+=ar;if(where.length<3)where.push(groups[gid[t]].name+'／'+groups[gid[u]].name+' 在 ('+c3.map(x=>x.toFixed(1)).join(', ')+')');}}}
+  ok(pairs===0,'有看得到的共面重疊（不同材質疊在同一個面上會閃爍）：'+pairs+' 對、'+overlap.toFixed(1)+' m²，例如 '+where.join('；'));}
  ok(Array.isArray(sm.estimates)&&sm.estimates.length>=5&&sm.estimates.every(s=>typeof s==='string'&&s.length>10)&&Array.isArray(sm.sources)&&sm.sources.length>=1,'estimates／sources 缺漏（示意項目必須逐條揭露）');
  // 接線：重播頁要用這份網格，而且與站房網格並行下載（不排成先後）；驗收介面 tainanMemory.surroundings 要在
  const replay=fs.readFileSync(path.join(dir,'replay.js'),'utf8');
