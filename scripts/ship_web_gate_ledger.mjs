@@ -31,7 +31,7 @@ const ALWAYS_RUN = new Set([
   // 這支會讀 ship_web.mjs 做靜態接線檢查，那個被讀檔不是 import，不能只靠 import closure。
   'scripts/verify_ship_web_guard.mjs',
 ]);
-// 這三支是 composite gate：用 child_process 跑其他 verifier，而不是 import。只列明確的
+// 這幾支是 composite gate：用 child_process 跑其他 verifier，而不是 import。只列明確的
 // child，避免掃描註解裡所有 *.mjs 名字後把不相干的幾百支 gate 串成同一個 closure。
 const EXTRA_GATE_DEPENDENCIES = new Map([
   ['scripts/verify_bus_transfer_all.mjs', [
@@ -49,6 +49,14 @@ const EXTRA_GATE_DEPENDENCIES = new Map([
     'scripts/dev_server.mjs', 'scripts/verify_punctual.mjs', 'scripts/verify_my_trains.mjs',
   ]],
   ['scripts/check_voice.mjs', ['docs/voice-rules.json']],
+  ['scripts/verify_bounty_all.mjs', [
+    'scripts/verify_bounty_hardening.mjs', 'scripts/verify_bounty_schema.mjs', 'scripts/verify_bounty_valuation.mjs',
+    'scripts/verify_bounty_gates.mjs', 'scripts/verify_bounty_dwell.mjs', 'scripts/verify_bounty_api.mjs',
+    'scripts/verify_bounty_ledger.mjs', 'scripts/verify_bounty_chips.mjs', 'scripts/verify_bounty_rules.mjs',
+    'scripts/verify_bounty_redeem.mjs', 'scripts/verify_bounty_cloud.mjs', 'scripts/verify_bounty_merge.mjs',
+    'scripts/verify_bounty_cron.mjs', 'scripts/verify_bounty_auth.mjs', 'scripts/verify_bounty_cron2.mjs',
+    'scripts/verify_bounty_merge_web.mjs',
+  ]],
 ]);
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const posix = value => value.split(path.sep).join('/');

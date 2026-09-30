@@ -526,6 +526,15 @@ try {
   process.stdout.write(thsrSeat.stdout || ''); process.stderr.write(thsrSeat.stderr || '');
   if (thsrSeat.status !== 0) fail('高鐵對號座餘位／票價驗收未過（單獨重跑：npm run check-thsr-seat）');
 
+  // ── 2.11c 路段懸賞＋籌碼守門（2026-09-30）───────────────────────────────
+  // 懸賞判定 cron、籌碼帳本、兌換、雲端搭乘、帳號合併都寫在 worker.js 裡；16 支驗收（含查詢計畫 PL 組與
+  // merge_web 真 Chromium 無視窗）原本只在懸賞分支上手動跑。掛上來之後，任何動到 worker.js、schema 或
+  // data/bounty_rules.json 的出貨都要過。純離線（假 D1 是 node:sqlite），15 支並行、merge_web 最後單跑。
+  const bounty = spawnSync('node', [path.join(wt, 'scripts', 'verify_bounty_all.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(bounty.stdout || ''); process.stderr.write(bounty.stderr || '');
+  if (bounty.status !== 0) fail('路段懸賞＋籌碼驗收未過——判定、籌碼帳本、兌換、雲端搭乘或帳號合併有一條不符'
+    + '（單獨重跑：npm run check-bounty）');
+
   // ── 2.12 地圖引擎適配層閘門(換引擎 M0,2026-09-03)——純靜態、毫秒級:index.html 裡任何繞過適配層 M 直接
   // 呼叫 Leaflet `map.xxx(` 的程式碼都會在這裡擋下(否則 MapLibre 引擎一開就炸,而 Leaflet 路徑全綠照不到)。
   // 只跑靜態半段:動態半段(Playwright 開機比對)留給 npm run check-engine。

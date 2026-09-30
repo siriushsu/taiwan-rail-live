@@ -316,13 +316,18 @@ const viewChildren = ['verify_view_controls_immersive.mjs', 'verify_ground_size.
 const thsrClosure = dependencyFiles(ROOT, path.join(ROOT, 'scripts', 'verify_thsr_seat.mjs'));
 const thsrChildren = ['dev_server.mjs', 'verify_punctual.mjs', 'verify_my_trains.mjs'].map(name => `scripts/${name}`);
 const voiceClosure = dependencyFiles(ROOT, path.join(ROOT, 'scripts', 'check_voice.mjs'));
+const bountyClosure = dependencyFiles(ROOT, path.join(ROOT, 'scripts', 'verify_bounty_all.mjs'));
+const bountyChildren = ['hardening', 'schema', 'valuation', 'gates', 'dwell', 'api', 'ledger', 'chips', 'rules', 'redeem',
+  'cloud', 'merge', 'cron', 'auth', 'cron2', 'merge_web'].map(name => `scripts/verify_bounty_${name}.mjs`);
 ok('正式 composite gates 的 child verifier 都在 closure',
   busChildren.every(rel => busClosure.includes(rel)) && viewChildren.every(rel => viewClosure.includes(rel))
-    && thsrChildren.every(rel => thsrClosure.includes(rel)) && voiceClosure.includes('docs/voice-rules.json'),
+    && thsrChildren.every(rel => thsrClosure.includes(rel)) && voiceClosure.includes('docs/voice-rules.json')
+    && bountyChildren.every(rel => bountyClosure.includes(rel)),
   `bus=${busChildren.filter(rel => busClosure.includes(rel)).length}/${busChildren.length}, `
     + `view=${viewChildren.filter(rel => viewClosure.includes(rel)).length}/${viewChildren.length}, `
     + `thsr=${thsrChildren.filter(rel => thsrClosure.includes(rel)).length}/${thsrChildren.length}, `
-    + `voice=${voiceClosure.includes('docs/voice-rules.json') ? '1/1' : '0/1'}`);
+    + `voice=${voiceClosure.includes('docs/voice-rules.json') ? '1/1' : '0/1'}, `
+    + `bounty=${bountyChildren.filter(rel => bountyClosure.includes(rel)).length}/${bountyChildren.length}`);
 
 runner = make({ sha: 'f'.repeat(40) });
 failNext = true;
