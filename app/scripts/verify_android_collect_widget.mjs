@@ -167,15 +167,18 @@ const INK_ALPHA = 8;
 /** 蓋章膠囊尺寸（dp，改可點範圍前量到的值，尺寸不變）：高 17.9，寬依語言。 */
 const STAMP_W = { zh: 35.8, en: 45.3, ja: 55.6 };
 const totals = { land: 0, sea: 0, pen: 0, contrast: 0, inkBoxes: 0, scoped: 0, textPairs: 0, clipRegions: 0,
-  headSmallBoth: 0, headSmallDropAll: 0, headSmallDropScoped: 0, headMedBoth: 0, headMedDrop: 0, headShrunk: 0 };
+  headSmallBoth: 0, headSmallDropAll: 0, headSmallDropScoped: 0, headMedBoth: 0, headMedDrop: 0, headShrunk: 0, recent4: 0, recentMax: 0 };
 /** 小卡標題與副標的間距（dp，版面宣告的 marginStart）；標題列「放得下」的判斷留 1.5dp 的取整帶（帶內兩種結果都收；Render 的餘裕是 1dp）。 */
 const GAP_SMALL = 4, FIT_BAND = 1.5;
+/** 最近蓋章「放得下再一列」的判斷：一列高在 0 筆時量不到，取 13sp 一行最矮的行高（拉丁字母，dp）。 */
+const MIN_ROW_H = 15;
 /** 取樣點覆蓋的下限＝2026-09-30 量到的實數（land 1080、sea 1350、pen 540、contrast 198、inkBoxes 2298、scoped 246）的約 90%：分母縮水就紅。 */
 const LAND_MIN = 950, SEA_MIN = 1200, PEN_MIN = 480, CON_MIN = 170, INK_MIN = 2050, SCOPED_MIN = 220;
 /** A9 版面關係的覆蓋下限（2026-09-30 量到 textPairs 8435、clipRegions 2193 的約 90%）。 */
 const PAIRS_MIN = 7500, CLIPS_MIN = 1950;
 /** 標題列各種畫法的覆蓋下限（2026-09-30 量到 小卡兩個都放 87／全台只留車站收集 42／單一系統只留系統名 19、中卡兩個都放 70／只留系統名 13、縮字 12 的約 90%）。 */
-const HEAD_MIN = { headSmallBoth: 75, headSmallDropAll: 38, headSmallDropScoped: 17, headMedBoth: 60, headMedDrop: 11, headShrunk: 10 };
+const HEAD_MIN = { headSmallBoth: 75, headSmallDropAll: 38, headSmallDropScoped: 17, headMedBoth: 60, headMedDrop: 11, headShrunk: 10,
+  recent4: 11, recentMax: 42 };   // 最近蓋章：畫滿 4 筆的案 13、算過最大性的案 47（2026-09-30）的約 85–90%
 /** 把 PNG 裁到點陣框：at(x,y)＝原圖 (x+start, y+top)；框外（出血區）用負座標或超過 w／h 取得。 */
 function framed(raw, family, dpr) {
   const b = BLEED[family];
@@ -257,6 +260,7 @@ for (const c of cases) {
       check('空狀態：中卡有邀請文案', t?.visible && t.text === tr(lang, '還沒有收集的車站'), () => `${tag}：${JSON.stringify(t?.text)}`);
       check('空狀態：中卡沒有進度條', nodes(obs, 'wc_row_bar').length === 0 && nodes(obs, 'wc_scope_bar').length === 0, `${tag}：空狀態不該有進度條`);
     } else if (isAllScope) {
+      check('全台中卡不畫最近蓋章（位置給各系統進度條）', visibleText(obs, 'wc_recent_name').length === 0 && visibleText(obs, 'wc_recent_date').length === 0, () => `${tag}：全台中卡不該有最近蓋章`);
       const labels = nodes(obs, 'wc_row_label').filter(n => n.visible).map(n => n.text);
       const counts = nodes(obs, 'wc_row_count').filter(n => n.visible).map(n => n.text);
       const bars = nodes(obs, 'wc_row_bar').filter(n => n.visible);
@@ -286,8 +290,29 @@ for (const c of cases) {
       check('單一系統「還有 N 座」', remain?.visible && remain.text === tr(lang, '還有 {n} 座', { n: e.remaining }), () => `${tag}：${JSON.stringify(remain?.text)}，期望 剩 ${e.remaining}`);
       const names = nodes(obs, 'wc_recent_name').filter(n => n.visible).map(n => n.text);
       const dates = nodes(obs, 'wc_recent_date').filter(n => n.visible).map(n => n.text);
-      const want = e.recents.slice(0, 2);
-      check('單一系統最近蓋章＝該系統最近的前 ≤2 筆', names.length <= 2 && names.every((t, i) => t === want[i]?.name) && dates.every((t, i) => t === shortDate(want[i]?.d ?? '')), () => `${tag}：畫面 ${names}／${dates}，期望 ${want.map(r => r.name + '／' + shortDate(r.d))}`);
+      // 最近蓋章（契約〈畫法約定〉9）：放得下幾筆畫幾筆，上限 4、最少 0，畫篩出來的前 N 筆（順序照 payload，不重排）。
+      const want = e.recents.slice(0, 4);
+      check('單一系統最近蓋章＝篩出來的前 N 筆（N ≤ min(4, 筆數)，順序不變）',
+        names.length <= Math.min(4, want.length) && names.every((t, i) => t === want[i]?.name) && dates.every((t, i) => t === shortDate(want[i]?.d ?? '')),
+        () => `${tag}：畫面 ${names}／${dates}，期望前綴 ${want.map(r => r.name + '／' + shortDate(r.d))}`);
+      if (names.length === 4) totals.recent4++;
+      // 最大性：畫的筆數少於 min(4, 筆數)，就要證明剩下的空間（標題區塊與進度條之間的伸縮間隔＋最後一個元素到下一個元素的空隙）放不下再一列。
+      // 一列高取實際畫出來的名稱框高；0 筆時取 13sp 一行最矮的行高（拉丁字母）。
+      if (names.length < Math.min(4, want.length)) {
+        const recN = nodes(obs, 'wc_recent_name').filter(n => n.visible);
+        const rowsN = nodes(obs, 'wc_rows').find(n => n.kind === 'group' && n.visible);
+        const bar = one(obs, 'wc_scope_bar'), remainN = one(obs, 'wc_remain_line');
+        const legendN = nodes(obs, 'wc_legend_solid').find(n => n.visible);
+        if (rowsN && bar?.box && remainN?.box) {
+          const rowH = recN.length ? Math.max(...recN.map(n => n.box[3] - n.box[1])) : MIN_ROW_H;
+          const lastBottom = Math.max(remainN.box[3], ...recN.map(n => n.box[3]));
+          const nextTop = legendN ? legendN.box[1] : rowsN.box[3];
+          const free = (bar.box[1] - rowsN.box[1]) + (nextTop - lastBottom);
+          totals.recentMax++;
+          check('單一系統最近蓋章：畫的筆數已是放得下的最大值（剩餘空間放不下再一列）', free < rowH - 0.5,
+            () => `${tag}：只畫 ${names.length} 筆（可畫 ${Math.min(4, want.length)}），剩餘空間 ${free.toFixed(1)}dp ≥ 一列高 ${rowH.toFixed(1)}dp＝放得下卻沒畫`);
+        }
+      }
       if (c.hDp >= 200 && want.length > 0) check('夠高的單一系統中卡至少放 1 筆最近蓋章', names.length >= 1, `${tag}：沒有最近蓋章`);
       if (c.hDp >= 200) {
         const solid = one(obs, 'wc_legend_solid');

@@ -726,6 +726,15 @@ public final class CollectionWidgetInstrumentedTest {
             o.put("box", rect(origin[0], origin[1], origin[0] + v.getWidth(), origin[1] + v.getHeight(), density));
             out.put(o);
         }
+        if (v instanceof ViewGroup && name.equals("wc_rows")) {
+            JSONObject o = new JSONObject();
+            o.put("kind", "group");
+            o.put("id", name);
+            o.put("visible", shown(v, root));
+            float[] origin = originOf(v, root);
+            o.put("box", rect(origin[0], origin[1], origin[0] + v.getWidth(), origin[1] + v.getHeight(), density));
+            out.put(o);
+        }
         if (v instanceof ViewGroup) {
             ViewGroup g = (ViewGroup) v;
             for (int i = 0; i < g.getChildCount(); i++) walk(g.getChildAt(i), root, density, out, outDir, caseId, bytes);

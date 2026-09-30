@@ -40,6 +40,11 @@ final class CollectionWidgetRender {
     private static final int ROW_BAR = 8;
     private static final int ROW_REMAIN = 23;       // 含 marginTop 5
     private static final int ROW_RECENT = 19;
+    /** 單一系統中卡最近蓋章的筆數上限（契約〈畫法約定〉9）。 */
+    private static final int MAX_RECENT = 4;
+    /** 整張卡的字都是拉丁字母時（英文）各列的高度（dp）：實測標題列＋已收集行 44.4、「還有 N 座」列 5＋14.5、最近蓋章一列 15.2；
+     *  CJK 的行高高約 25%（見上面的 MEDIUM_HEAD／ROW_REMAIN／ROW_RECENT），用 CJK 的值估英文會少放一列（2026-09-30 英文 158dp 高的台鐵中卡剩 29dp 空著）。 */
+    private static final int MEDIUM_HEAD_LATIN = 46, ROW_REMAIN_LATIN = 20, ROW_RECENT_LATIN = 16;
     /** 小卡文字欄最下面的蓋章鈕區塊高（dp）：與數字的間距 6＋膠囊 18（見 widget_collect_small.xml 的 wc_stamp_hit；實測 24.1）。 */
     private static final int STAMP_BLOCK = 24;
     /** 小卡高度預算：標題與文字欄之間留的空隙、百分比與「已收集」的間距（正常／矮卡壓縮後）。只有後者是版面真的會變的屬性（wc_count 的 paddingTop）。 */
@@ -231,7 +236,8 @@ final class CollectionWidgetRender {
         // 間隔最小高度 0，下面的列高預算不用算它。
         addSpacer(c, v);
         // 高度預算（dp）：列容器可用高度；各列自然高度隨字級縮放（allRows／scopeRows 內乘 fs）。
-        float avail = hDp - CARD_PAD_V - MEDIUM_HEAD * fs;
+        boolean latin = !hasCjk(heading) && !hasCjk(RailNativeL10n.text(c, "已收集 {v}／{n} 座", "v", "0", "n", "0"));
+        float avail = hDp - CARD_PAD_V - (latin ? MEDIUM_HEAD_LATIN : MEDIUM_HEAD) * fs;
         String pkg = c.getPackageName();
         if (f.isEmpty()) {
             String title = RailNativeL10n.text(c, "還沒有收集的車站");
@@ -247,7 +253,7 @@ final class CollectionWidgetRender {
         } else if (f.isAll()) {
             allRows(c, v, f, avail, fs, legendFits(c, wDp, fs));
         } else {
-            scopeRows(c, v, f, avail, fs, legendFits(c, wDp, fs));
+            scopeRows(c, v, f, avail, fs, legendFits(c, wDp, fs), latin);
         }
 
         float density = c.getResources().getDisplayMetrics().density;
@@ -289,11 +295,16 @@ final class CollectionWidgetRender {
     }
 
     /** 單一系統：整條進度條＋「還有 N 座」＋最近蓋章（放得下幾筆就畫幾筆）＋圖例。 */
-    private static void scopeRows(Context c, RemoteViews v, CollectionData.Figures f, float avail, float fs, boolean legendOk) {
-        int recents = Math.min(2, f.recent.size());   // iOS 中卡單一系統放 2 筆最近蓋章
+    private static void scopeRows(Context c, RemoteViews v, CollectionData.Figures f, float avail, float fs, boolean legendOk, boolean latinHead) {
+        // 契約〈畫法約定〉9：放得下幾筆就畫幾筆，上限 MAX_RECENT、最少 0，畫篩出來的前 N 筆（recent 已排好序，不重排）；下面依高度預算由後往前丟
+        int recents = Math.min(MAX_RECENT, f.recent.size());
         boolean legend = legendOk;
-        int fixed = ROW_BAR + ROW_REMAIN;
-        while (need((fixed + recents * ROW_RECENT + (legend ? ROW_LEGEND : 0)) * fs, avail)) {
+        // 這張卡的列都是拉丁字母才用矮的行高；任何一個字串含 CJK 就照 CJK 估（寧可少放一列也不讓字被裁）
+        boolean latin = latinHead && !hasCjk(RailNativeL10n.text(c, "還有 {n} 座", "n", "0"));
+        for (int i = 0; i < recents && latin; i++) latin = !hasCjk(f.recent.get(i).name) && !hasCjk(f.recent.get(i).line);
+        int rowRecent = latin ? ROW_RECENT_LATIN : ROW_RECENT;
+        int fixed = ROW_BAR + (latin ? ROW_REMAIN_LATIN : ROW_REMAIN);
+        while (need((fixed + recents * rowRecent + (legend ? ROW_LEGEND : 0)) * fs, avail)) {
             if (legend) legend = false;
             else if (recents > 0) recents--;
             else break;
@@ -395,6 +406,12 @@ final class CollectionWidgetRender {
         return head + comma + f.percentLabel + comma
             + RailNativeL10n.text(c, "已收集 {n} 座", "n", String.valueOf(f.collected)) + comma
             + RailNativeL10n.text(c, "還有 {n} 座", "n", String.valueOf(f.remaining()));
+    }
+
+    /** 字串裡有沒有 CJK 字元（行高估計用：CJK 行高約 1.45 倍字級，拉丁字母約 1.2 倍）。 */
+    static boolean hasCjk(String text) {
+        for (int i = 0; i < text.length(); i++) if (text.charAt(i) >= 0x2E80) return true;
+        return false;
     }
 
     /** 標題用的較貼近實測的寬度估計：CJK 一字一個字級寬，其餘取 0.5 個字級寬（Roboto 粗體英文實測約 0.45）。只用來決定要不要收掉副標。 */
