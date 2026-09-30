@@ -2,6 +2,11 @@
   'use strict';
   window.RAIL_I18N_MESSAGES = {
     en: {
+      "捷運與輕軌看板優先保留官方倒數；修正高捷倒數被備案取代，以及淡海、安坑部分倒數的路線與時間偏差": "Metro and light rail boards prioritize official countdowns. Fixed Kaohsiung countdowns being replaced by fallback estimates, and route or timing errors in some Danhai and Ankeng countdowns.",
+      "：列車位置依班表校正；有資料的站點保留官方倒數": ": train positions use timetable-based correction; stations with available data retain official countdowns",
+      "約 {n} 分": "About {n} min",
+      "到站倒數依官方資料；列車位置另依可用資料估算": "Official arrival countdowns; train positions are estimated separately from available data",
+      "列車位置依即時模型估算；到站倒數優先使用官方資料": "Train positions use the live model; arrival countdowns prioritize official data",
       "臺北車站": "Taipei Main Station",
       "臺鐵臺中": "TRA Taichung",
       "高雄車站": "Kaohsiung Station",
@@ -587,6 +592,11 @@
       '已接續追蹤 {system} {train} 次': 'Now following {system} train {train}',
     },
     ja: {
+      "捷運與輕軌看板優先保留官方倒數；修正高捷倒數被備案取代，以及淡海、安坑部分倒數的路線與時間偏差": "メトロ・ライトレールの案内で公式到着予測を優先します。高雄の到着予測が代替推定に置き換わる問題と、淡海・安坑の一部予測の路線・時刻のずれを修正しました。",
+      "：列車位置依班表校正；有資料的站點保留官方倒數": "：列車位置は時刻表を基に補正し、データのある駅では公式の到着案内を保持します",
+      "約 {n} 分": "約{n}分",
+      "到站倒數依官方資料；列車位置另依可用資料估算": "到着案内は公式データ、列車位置は利用可能な情報から別途推定します",
+      "列車位置依即時模型估算；到站倒數優先使用官方資料": "列車位置はリアルタイムモデルで推定し、到着案内は公式データを優先します",
       "臺北車站": "台北駅",
       "臺鐵臺中": "台鉄台中駅",
       "高雄車站": "高雄駅",

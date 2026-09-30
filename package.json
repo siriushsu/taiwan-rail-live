@@ -1,5 +1,7 @@
 {
   "scripts": {
+    "check-metro-countdown": "node scripts/verify_metro_countdown_source.mjs",
+    "check-metro-countdown-browser": "node scripts/verify_metro_countdown_browser.mjs",
     "build-aeo": "node scripts/build_aeo_pages.mjs",
     "check-aeo": "node scripts/verify_aeo.mjs",
     "check-afr": "node scripts/verify_afr.mjs",
