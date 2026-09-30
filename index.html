@@ -7393,7 +7393,7 @@ function setLanguage(lang) {
   I18N_SWITCH_SNAPSHOT = i18nSwitchSnapshot();
   try { i18nRefreshDynamic(); } finally { I18N_SWITCH_SNAPSHOT = null; }
   i18nSyncNativeLanguage(lang);
-  try { nativeCollectionNotify(); } catch (e) {} // 桌面小工具的站名／線名要換成新語言
+  try { nativeCollectionNotify(true); } catch (e) {} // 桌面小工具的站名／線名要換成新語言(立刻送,不等 2 秒去抖:原生字串已經換了)
   glAttributionSync();
 }
 function i18nSyncNativeLanguage(lang = I18N_LANG) {
@@ -17417,7 +17417,7 @@ const COLLECT_SYS = [
 ];
 const NATIVE_COLLECTION = { geo: null, geoP: null };
 let nativeCollectionSchedule = null; // setupNativeCollectionSync 開跑後才有值;純網站恆為 null
-function nativeCollectionNotify() { if (nativeCollectionSchedule) nativeCollectionSchedule(); }
+function nativeCollectionNotify(now) { if (nativeCollectionSchedule) nativeCollectionSchedule(now === true); } // now:true＝不等去抖立刻送(切語言用)
 // 站點清單(分母)只在原生 App 才會抓,抓到就快取;抓不到下次觸發重抓。
 async function collectionGeo() {
   const c = NATIVE_COLLECTION;
@@ -17505,7 +17505,7 @@ function collectionWidgetPayload(geo) {
     n: coll.size, total, sys, recent, pts,
   };
 }
-// 推送(去抖 2 秒,切到背景時排程中的立刻送;內容不含 at 沒變就不送)。時機:開機資料就緒後、writeCheckin、完乘紀錄與帳號同步合併
+// 推送(去抖 2 秒,切語言與切到背景時排程中的立刻送;內容不含 at 沒變就不送)。時機:開機資料就緒後、writeCheckin、完乘紀錄與帳號同步合併
 // (rail-user-data-changed)、切語言、userDataRenderAll(登出／刪帳號／換帳號)。
 // 護照在捷運群組會早退、本機打卡也不派事件,所以不能掛在 renderPassport 或只聽 rail-user-data-changed。
 const setupNativeCollectionSync = (() => {
@@ -17522,15 +17522,20 @@ const setupNativeCollectionSync = (() => {
       try { await bridge.sync(JSON.stringify(p)); } catch (e) { last = ''; } // 失敗(舊版 App 沒這個外掛)下次觸發重送
     } catch (e) {}
   };
-  const schedule = () => { clearTimeout(timer); timer = setTimeout(() => { timer = null; push(); }, 2000); };
+  // now:true＝不等去抖立刻送。切語言要這樣:原生字串已經換了,站名、線名不能再以舊語言留 2 秒,畫面會混雜。
+  const schedule = now => {
+    clearTimeout(timer); timer = null;
+    if (now === true) { push(); return; }
+    timer = setTimeout(() => { timer = null; push(); }, 2000);
+  };
   // 切到背景(滑走 App、鎖屏、關閉)時,排程中的推送立刻送:WebView 被凍結後 2 秒的計時器等不到。沒有排程(內容沒動)就不送。
-  const flush = () => { if (timer === null) return; clearTimeout(timer); timer = null; push(); };
+  const flush = () => { if (timer !== null) schedule(true); };
   return () => {
     if (started) return;
     started = true;
     nativeCollectionSchedule = schedule;
     schedule();
-    window.addEventListener('rail-user-data-changed', schedule);
+    window.addEventListener('rail-user-data-changed', () => schedule());
     document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
     window.addEventListener('pagehide', flush);
   };

@@ -40,6 +40,7 @@
 //       含「原生冷啟動時事件在 listener 掛上瞬間就進來」與「別的面板開著／護照已開著」兩種狀態
 //   V   切到背景時補送：有排程中的推送時 visibilitychange→hidden、pagehide → 1 秒內送出、內容是新的（不等 2 秒去抖）；
 //       沒有排程（排程已走完、補送過後）→ 不送，且內容其實有變（證明不是「內容沒變」才沒送）；變回 visible 不補送
+//   W   切語言立即推送：切語言後 500ms 內 bridge.sync 就收到新語言的一包（不等 2 秒去抖），lang／簡稱／站名／線名都換
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, writeFileSync } from 'node:fs';
@@ -1093,6 +1094,30 @@ await coldDeepLinkChecks('P 冷啟動 手機 375', true);
     ok('V 變回看得見（visible）不補送：排程中的推送要等去抖', (await count(page)) === before, `${before} → ${await count(page)}`);
     got = await waitPush(page, before, 3500);
     ok('V visible 之後排程照常由去抖送出（約 2 秒）', !!got && got.t - t0 >= 1500 && got.payload.n === nExp, got ? `${got.t - t0}ms n=${got.payload.n}/${nExp}` : '沒有送');
+  }
+  await ctx.close();
+}
+
+// ══ W 切語言立即推送 ═══════════════════════════════════════════════════════════════
+// 切語言後，小工具的原生靜態字串馬上換了；payload 裡的站名、線名若還要等 2 秒去抖才換，畫面會有約 2 秒新舊語言混雜。
+// 所以切語言不等去抖、立刻送。量的是「bridge.sync 收到新語言那一包」距離切語言的時間（頁面內 Date.now() 相減）：500ms 內才算；
+// 內容（lang、簡稱、站名、線名、其餘欄位）仍用獨立重算逐項比對。
+{
+  const { ctx, page } = await open({ bridge: true, seed: { 'trainmap-checkins-v1': JSON.stringify(CHECKINS_A) }, tag: 'W' });
+  const first = await waitPush(page, 0, 8000);
+  ok('W 開機有推送', !!first);
+  if (first) {
+    await sleep(3300); // 開機那次的排程走完：此刻沒有排程中的推送，量到的時間只來自切語言本身
+    for (const lang of ['en', 'ja', 'zh-TW']) {
+      const before = await count(page);
+      const t0 = await page.evaluate(l => { const t = Date.now(); window.__i18n.setLanguage(l); return t; }, lang);
+      const got = await waitPush(page, before, 3000);
+      ok(`W(${lang}) 切語言後有新的一包`, !!got);
+      if (!got) continue;
+      ok(`W(${lang}) 500ms 內就收到新語言的一包（不等 2 秒去抖）`, got.t - t0 < 500, `${got.t - t0}ms`);
+      ok(`W(${lang}) 簡稱／語言欄位都已是新語言（lang、sys 簡稱）`, got.payload.lang === lang && got.payload.sys[0].label === LABEL[lang][0], `${got.payload.lang}／${got.payload.sys[0].label}`);
+      await checkPayload(page, `W(${lang})`, got.payload, lang, N_A); // 站名、線名（recent）與獨立重算逐項比對
+    }
   }
   await ctx.close();
 }
