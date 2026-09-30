@@ -38123,11 +38123,11 @@ async function boot() {
   // 分享連結進來的訪客絕不能被本機記憶/預設蓋掉；設了預設地點就蓋過「上次視野」。預設地點一律開在全台同框並置中。
   const defPlace = (deepG || deepAt || deepTrain || deepTrip || deepJourney) ? null : loadDefaultPlace();
   // 開機自動定位(App):geoBoot 由 startBootGeo 自己的守門決定(深連結/預設地點/非原生一律不發起),這裡直接沿用,
-  // 不重寫一份條件免得兩處漂移。定位有兩個時態——快取座標 0 秒可用,先落點蓋過「上次視野」;
+  // 不重寫一份條件免得兩處漂移。定位只決定地圖落點、不決定分頁:快取座標 0 秒可用,地圖先落在那裡,分頁與勾選照樣還原上次視野;
   // 真定位晚幾秒到再校正(applyBootGeo)。首開沒有快取時不空等,照舊落上次視野/全台同框,定位到了再飛過去。
   const geoBoot = !!state._bootGeo;
   const geoCache = geoBoot ? loadGeoCache() : null;
-  const lastView = (deepG || deepAt || deepTrain || deepTrip || deepJourney || defPlace || geoCache) ? null : loadLastView();
+  const lastView = (deepG || deepAt || deepTrain || deepTrip || deepJourney || defPlace) ? null : loadLastView();
   // 開場群組:分享連結帶 g 就開該群組;預設地點沿用全台同框(all,已是預設值);其次上次待的群組
   let bootGroup = GROUPS.find(g => g.id === 'all');
   if (deepG) { const gg = GROUPS.find(g => g.id === deepG); if (gg) bootGroup = gg; }

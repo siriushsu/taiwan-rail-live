@@ -29,7 +29,8 @@
 //   C10 等待中使用者自己點了站／關掉卡片 → 取消自動蓋章（之後的新定位不會替他蓋）
 //   C11 護照深連結 { view: 'passport' } 同樣讓首次說明卡讓位，旗標仍 null
 //   C12 停在高鐵／捷運分頁時從小工具蓋章：那一次照樣切到全台，但「上次視野記憶」逐字不變（不改成全台、不改成蓋章時的地圖中心）；
-//       人自己真的點了頁籤才恢復記錄；本來就在全台的人記錄照舊
+//       真的重開一次：分頁回到原本那頁、地圖落在蓋章留下的定位快取；人自己真的點了頁籤才恢復記錄；本來就在全台的人記錄照舊；
+//       沒有蓋章、單純開機（有定位快取＋上次停在高鐵）也一樣：開在高鐵、地圖在定位點
 //   C13 原生字串目錄（iOS Localizable.xcstrings、Android RailNativeL10n.json）的「蓋章」：繁中 key、英文 Stamp、日文 スタンプ
 //   C14 護照車站牆：台北與台中兩枚「市政府」三語都分得出城市（字與 title），3 個一般站＋1 個共構站的名字不變
 //   C15 通行證（pass）、鐵路站看板（station）、捷運等車卡（沒有 view）三種深連結，桌面與手機都讓首次說明卡讓位：
@@ -442,6 +443,20 @@ for (const [g, lat, lon] of [['hsr', 24.6, 120.8], ['metro', 25.05, 121.5]]) {
   ok(`C12 ${g} 蓋完畫面在全台`, (await groupNow(page)) === 'all');
   ok(`C12 ${g} 前提：真滑鼠拖地圖，地圖真的動了`, await dragMap(page));
   ok(`C12 ${g} 蓋章與拖地圖之後，上次視野記憶跟蓋章前逐字相同（沒被改成全台、也沒被改成蓋章時的地圖中心）`, (await lastView(page)) === pre, `前 ${pre} ／後 ${await lastView(page)}`);
+  // 記憶沒被改寫還不夠：開機時定位快取的優先序若蓋過上次視野，記憶再完整也回不去。所以真的重開一次，量開機後的分頁與地圖中心。
+  // 蓋章那一筆定位會留下定位快取（香山），重開時地圖應該落在那裡，分頁則回到蓋章前的那一頁。
+  const geoC = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('trainmap-last-geo') || 'null'); } catch (e) { return null; } });
+  ok(`C12 ${g} 前提：蓋章留下了定位快取（香山）`, !!geoC && Math.abs(geoC.lat - XS.lat) < 1e-4 && Math.abs(geoC.lon - XS.lon) < 1e-4, JSON.stringify(geoC));
+  // 蓋章會讓小工具資料重送，重送要先抓收集站點清單（track_stations.geojson）。換頁打斷這一抓，WebKit 會記一筆 pageerror，
+  // 所以等清單抓完、沒有進行中的請求才重開（Z 的零 pageerror 判準不放寬）。
+  const geoReady = await page.waitForFunction(() => { try { return !!NATIVE_COLLECTION.geo && NATIVE_COLLECTION.geoP === null; } catch (e) { return false; } }, null, { timeout: 20000, polling: 50 }).then(() => true, () => false);
+  ok(`C12 ${g} 前提：重開前收集站點清單已載完（不讓換頁打斷載入）`, geoReady);
+  await page.reload();
+  await page.waitForFunction(() => { try { return typeof state !== 'undefined' && state.ready === true; } catch (e) { return false; } }, null, { timeout: 60000, polling: 50 });
+  await sleep(600);
+  const rc = await mapCenter(page);
+  ok(`C12 ${g} 重開 App → 分頁回到 ${g}（不是蓋章時的全台）`, (await groupNow(page)) === g, await groupNow(page));
+  ok(`C12 ${g} 重開 App → 地圖中心在定位快取（香山，誤差 < 0.01 度），不是上次視野的中心`, Math.abs(rc.lat - XS.lat) < 0.01 && Math.abs(rc.lon - XS.lon) < 0.01, JSON.stringify(rc));
   await clickGroupTab(page, '台', `C12 ${g}`);
   ok(`C12 ${g} 人自己點了「台」頁籤 → 分頁真的換過去（tra）`, (await groupNow(page)) === 'tra');
   ok(`C12 ${g} 前提：點完頁籤後再拖一次地圖，地圖真的動了`, await dragMap(page, -50, 30));
@@ -460,6 +475,19 @@ for (const [g, lat, lon] of [['hsr', 24.6, 120.8], ['metro', 25.05, 121.5]]) {
   ok('C12 全台 前提：真滑鼠拖地圖，地圖真的動了', await dragMap(page));
   const rec = JSON.parse(await lastView(page) || 'null'), c = await mapCenter(page);
   ok('C12 全台 本來就在全台 → 上次視野照常記錄（all、中心＝目前地圖中心）', !!rec && rec.g === 'all' && Math.abs(rec.lat - c.lat) < 2e-5 && Math.abs(rec.lon - c.lon) < 2e-5, JSON.stringify(rec));
+  await ctx.close();
+}
+{
+  // 沒有蓋章、單純開機：有定位快取、上次停在高鐵 → 開在高鐵分頁，地圖放在定位快取的位置（不是上次視野的中心）
+  const seed = {
+    'trainmap-last-view': JSON.stringify({ g: 'hsr', lat: 24.6, lon: 120.8, z: 10, sel: null }),
+    'trainmap-last-geo': JSON.stringify({ lat: XS.lat, lon: XS.lon, acc: 30, t: Date.now() }),
+  };
+  const { ctx, page } = await open({ tag: 'C12 開機', seed });
+  await sleep(600);
+  const c = await mapCenter(page);
+  ok('C12 開機 有定位快取＋上次停在高鐵 → 開在高鐵分頁', (await groupNow(page)) === 'hsr', await groupNow(page));
+  ok('C12 開機 地圖中心＝定位快取（香山，誤差 < 0.01 度），不是上次視野的中心', Math.abs(c.lat - XS.lat) < 0.01 && Math.abs(c.lon - XS.lon) < 0.01, JSON.stringify(c));
   await ctx.close();
 }
 
