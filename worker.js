@@ -7657,7 +7657,8 @@ function integrityGate(trip, ctx, rules) {
 // 品質閘：決定資料採不採用，不決定給不給章。每一項都有可以告知的原因與可以行動的建議
 // （文案在 data/bounty_rules.json 的 qualityText，前端錄製當下用的是同一份）。
 // 順序照規格 §7 那張表：先講使用者控制得了的（精確位置、遮蔽、取樣頻率），再講環境的。
-function qualityGate(trip, ctx, rules) {
+// rawPts：防偽閘收下之前的原始點，只給斷訊檢查用（理由見下面那一行）；不給就跟 trip.pts 一樣。
+function qualityGate(trip, ctx, rules, rawPts = trip.pts) {
   const Q = rules.quality, pts = trip.pts;
   if (!trip.trainNo) return { pass: false, code: 'unknown_train' };
   if (pts.length < 10) return { pass: false, code: 'too_short' };
@@ -7674,7 +7675,11 @@ function qualityGate(trip, ctx, rules) {
   const gaps = [];
   for (let i = 1; i < pts.length; i++) gaps.push(pts[i].t - pts[i - 1].t);
   if (median(gaps) > Q.sampleGapMedianSec) return { pass: false, code: 'too_sparse' };
-  if (gaps.some(g => g > Q.noFixGapSec)) return { pass: false, code: 'underground' };
+  // 斷訊看原始的點，不看收下的點。防偽閘在開頭與每個 Δt≥10 秒的斷點之後不收頭兩點（見 integrityGate）：
+  // 斷訊在錄程頭尾時，旁邊那兩點一不收，斷訊就從收下的點裡消失了，籌碼的整班長度卻照原始的點算——一趟 5 分鐘的錄程
+  // 前面多送兩個十幾分鐘前的點，就成了「沒有斷訊、長度超過 10 分鐘」。斷訊在中間時則反過來，收下的點會把斷訊多算不收的那 2 秒，
+  // 剛好 noFixGapSec 的隧道被判 underground。原始的點兩邊都對，也跟籌碼長度、跟第十一批以前同一個基準。
+  for (let i = 1; i < rawPts.length; i++) if (rawPts[i].t - rawPts[i - 1].t > Q.noFixGapSec) return { pass: false, code: 'underground' };
   const cov = ctx.line ? coverageOf(trip, ctx.line, rules) : [];
   if (!cov.length || !cov.some(c => c.cov >= Q.segCoverageMin)) return { pass: false, code: 'too_short' };
   return { pass: true, code: null };
@@ -8203,12 +8208,13 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     const uploadedAt = Math.max(0, ...lineRows.map(r => Number(r.submitted_at) || 0));
     const ctx = { line, events, now, uploadedAt };
     const ig = integrityGate(trip, ctx, rules);
-    // 防偽閘第三重丟掉的孤立壞點不再參與任何計算（等於那幾點沒送，理由見 integrityGate）：品質閘、覆蓋率都用收下的點。
+    // 防偽閘第三重丟掉的孤立壞點不再參與任何計算（等於那幾點沒送，理由見 integrityGate）：品質閘、覆蓋率都用收下的點，
+    // 只有品質閘的斷訊檢查吃原始的點（第四個參數，理由見 qualityGate）。
     // 籌碼的整班長度照舊用原始的點（assembleTrip 已認過午夜）：前次線組的長度是從存下的原始 payload 在 SQL 裡算的（下面 priorRs 的
     // t0／t1／u0／u1），兩邊要同一個基準。長度也不是防偽的界線——t 沒有外部錨點（可以整段拉長，計畫 §12 的殘留），改用收下的點擋不住什麼，
     // 只會讓每趟少掉開頭不收的 2 點（剛好 600 秒的趟變 598 秒、拿不到籌碼）。
     const kept = ig.pts ? { ...trip, pts: ig.pts } : trip;
-    const v = verdictOf(ig, qualityGate(kept, ctx, rules));
+    const v = verdictOf(ig, qualityGate(kept, ctx, rules, trip.pts));
     const cov = (v.verdict === 'suspect' || !line) ? [] : coverageOf(kept, line, rules, M.peakHoursBySys)
       .filter(c => c.cov >= rules.quality.segCoverageMin);
     groups.push({ trip, v, cov });

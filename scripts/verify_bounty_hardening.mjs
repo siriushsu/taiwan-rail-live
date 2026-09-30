@@ -2531,6 +2531,47 @@ await attempt('PF3', async () => {
   ok('PF3e 對照：清晨的趟（t 1000–1700，700 秒）不受午夜規則影響 → 1 顆',
     got.e.v === 'ok' && J(got.e.trips) === oneChip('dev-pf3-e0001'), J(got.e));
 });
+await attempt('PF4', async () => {
+  // 第十二批：品質閘的斷訊（underground）看原始的點，不看防偽閘收下的點。防偽閘在開頭與每個 Δt≥10 秒的斷點之後不收頭兩點，
+  // 斷訊在錄程頭尾時，旁邊那兩點一不收、斷訊就從收下的點裡消失；籌碼的整班長度卻照原始的點算（籌碼門檻 600 秒、山線 ×1）。
+  //   a 前面掛兩點：一趟 300 秒的乾淨錄程（本身不到 600 秒），前面多送兩個 1000／999 秒前、同一位置的點 → 原始的點有 999 秒斷訊
+  //     → unusable（underground）、0 顆。斷訊若看收下的點：開頭兩點與斷點後兩點都不收、收下的點沒有斷訊 → ok、整班 1300 秒 → 1 顆。
+  //   b 後面掛兩點：同一趟、最後一點之後 1000／1001 秒再送兩點 → 同 a（原始的點有 1000 秒斷訊）。
+  //   o 對照：那趟 300 秒本身 → ok、0 顆（a、b 的 unusable 來自斷訊，不是錄程本身）。
+  //   c 中間的隧道：700 秒錄程在第 350 點之後斷 g 秒（車照 20 m/s 前進）。g＝noFixGapSec → ok、1 顆（整班 699＋g 秒）；
+  //     g＝noFixGapSec＋1 → unusable（underground）、0 顆。斷訊若看收下的點，會多算斷點後不收的 2 秒，g＝noFixGapSec 也被判 underground。
+  // 夾具自己先驗：四種錄程的原始最大間隔依序是 999、1000、noFixGapSec、noFixGapSec＋1。
+  const G = RULES.quality.noFixGapSec;
+  const base = leg({ sec: 300 }), last = base[base.length - 1];
+  const head = [{ ...base[0], t: base[0].t - 1000 }, { ...base[0], t: base[0].t - 999 }, ...base];
+  const tail = [...base, { ...last, t: last.t + 1000 }, { ...last, t: last.t + 1001 }];
+  const tunnel = g => leg({ sec: 700 }).map((p, i) => i <= 350 ? p : { ...p, t: p.t + g - 1, d: p.d + (g - 1) * 20 });
+  const maxGap = pts => Math.max(...pts.slice(1).map((p, i) => p.t - pts[i].t));
+  const A = 'dev-pf4-a0001', B = 'dev-pf4-b0001', O = 'dev-pf4-o0001', C0 = 'dev-pf4-c0001', C1 = 'dev-pf4-c1001';
+  const w = world({ seed: boardSql('山線') });
+  putBatches(w.db, { actor: A, trainNo: 'PF4a', pts: head });
+  putBatches(w.db, { actor: B, trainNo: 'PF4b', pts: tail });
+  putBatches(w.db, { actor: O, trainNo: 'PF4o', pts: base });
+  putBatches(w.db, { actor: C0, trainNo: 'PF4c', pts: tunnel(G) });
+  putBatches(w.db, { actor: C1, trainNo: 'PF4c', pts: tunnel(G + 1) });
+  await w.cron();
+  const got = (actor, trainNo) => ({ v: q.verdicts(w, actor, trainNo),
+    code: rows(w, 'SELECT DISTINCT quality_code c FROM bounty_samples WHERE actor=?', actor).map(r => r.c ?? '-').sort().join(),
+    chips: rows(w, "SELECT delta, ref FROM chip_ledger WHERE kind='trip' AND actor=?", actor) });
+  const res = { gaps: [head, tail, tunnel(G), tunnel(G + 1)].map(maxGap), a: got(A, 'PF4a'), b: got(B, 'PF4b'), o: got(O, 'PF4o'),
+    c0: got(C0, 'PF4c'), c1: got(C1, 'PF4c') };
+  const fixture = J(res.gaps) === J([999, 1000, G, G + 1]);
+  const under = r => r.v === 'unusable' && r.code === 'underground' && r.chips.length === 0;
+  ok('PF4a [第十二批] 斷訊在錄程開頭（1000／999 秒前兩點＋300 秒）→ unusable（underground）、0 顆（看收下的點斷訊會消失、整班 1300 秒發 1 顆）',
+    fixture && under(res.a), J({ gaps: res.gaps, a: res.a }));
+  ok('PF4b 斷訊在錄程結尾（300 秒＋1000／1001 秒後兩點）→ unusable（underground）、0 顆',
+    fixture && under(res.b), J({ gaps: res.gaps, b: res.b }));
+  ok('PF4o 對照：同一趟 300 秒本身 → ok、0 顆（不到 600 秒）',
+    res.o.v === 'ok' && res.o.code === '-' && res.o.chips.length === 0, J(res.o));
+  ok(`PF4c 隧道斷 ${G} 秒（＝noFixGapSec）→ ok、1 顆；斷 ${G + 1} 秒 → unusable（underground）、0 顆（看收下的點會多算不收的 2 秒）`,
+    fixture && res.c0.v === 'ok' && res.c0.code === '-' && J(res.c0.chips) === J([{ delta: 1, ref: `${C0}|${D28}|PF4c` }]) && under(res.c1),
+    J({ gaps: res.gaps, c0: res.c0, c1: res.c1 }));
+});
 
 ok('Z 整支腳本沒有任何非 Firebase 的對外連線', outbound.length === 0, J(outbound.slice(0, 3)));
 const bad = R.filter(r => !r.p);
