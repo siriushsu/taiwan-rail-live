@@ -90,19 +90,20 @@ try{
  $('train').onchange=e=>{state.follow=e.target.value;if(!state.follow)return;const tr=data.trains.find(t=>t.id===state.follow);if(!sample(tr,state.sec))jump(tr.spans[0].start);span=330;$('caption').textContent=tr.train+' 次 · '+tr.formation.caption+' · 依封存班表推演';};
  $('about').onclick=()=>{$('details').showModal();};
  // 手勢：單指或左鍵拖曳平移；雙指捏合縮放＋轉動改方位、雙指一起上下推改傾斜（兩指合計移動 16 px 後判定是哪一種，這次手勢就鎖定，判定前的位移在判定當下一次補上）。
- // 判定要等兩指都回報過移動：瀏覽器一指一個 pointermove 依序送，快推時第一指的事件自己就過門檻、另一指還是舊座標，會被誤判成捏合；
- // 只有一指在動（另一指按著不動）時，等那一指走到 48 px 再判定。三指以上不動鏡頭，回到兩指時用剩下的兩指重新起算。
+ // 判定要等兩指都離開起點 2 px 以上；只有一指在動（另一指按著不動）時，等那一指走到 48 px 再判定。傾斜＝兩指各自以上下為主、方向相同（同 MapLibre 的雙指傾斜）。
+ // 不看兩指連線的角度與距離：瀏覽器一指一個 pointermove 依序送，判定當下常是一指多走一步或先動，兩指靠近或上下疊著推時連線會斜、距離會變，會被誤判成捏合、推了沒反應。
+ // 三指以上不動鏡頭，回到兩指時用剩下的兩指重新起算。
  // 滑鼠右鍵（或按住 Shift／Ctrl／⌘／Alt）拖曳：左右改方位、上下改傾斜。往下推＝更接近俯視，往上推＝更接近地平。
  const pointers=new Map();let pair=null,rotating=false,menuBlockUntil=0;const ROT_PER_PX=.006,TILT_PER_PX=.005,turn=a=>Math.atan2(Math.sin(a),Math.cos(a));
  const twoFinger=()=>{const [a,b]=[...pointers.values()];return {a,b,d:Math.hypot(a[0]-b[0],a[1]-b[1]),angle:Math.atan2(b[1]-a[1],b[0]-a[0]),cy:(a[1]+b[1])/2};};
- const newPair=()=>{const g=twoFinger();return {start:g,last:g,mode:'',seen:new Set()};};
+ const newPair=()=>{const g=twoFinger();return {start:g,last:g,mode:''};};
  renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
  // Windows 在放開右鍵時才送 contextmenu、目標是游標底下的元素：右鍵拖曳轉向後在畫布外（按鈕、面板）放開，也不跳選單。
  addEventListener('contextmenu',e=>{if(rotating||performance.now()<menuBlockUntil)e.preventDefault();},true);
  renderer.domElement.addEventListener('pointerdown',e=>{pointers.set(e.pointerId,[e.clientX,e.clientY]);try{renderer.domElement.setPointerCapture(e.pointerId);}catch{}pair=pointers.size===2?newPair():null;state.follow='';$('train').value='';});
  renderer.domElement.addEventListener('pointermove',e=>{const before=pointers.get(e.pointerId);if(!before)return;pointers.set(e.pointerId,[e.clientX,e.clientY]);const mx=e.clientX-before[0],my=e.clientY-before[1];
-  if(pointers.size===2&&pair){const g=twoFinger(),s=pair.start,da=Math.hypot(g.a[0]-s.a[0],g.a[1]-s.a[1]),db=Math.hypot(g.b[0]-s.b[0],g.b[1]-s.b[1]);pair.seen.add(e.pointerId);
-   if(!pair.mode&&da+db>16&&(pair.seen.size===2||Math.max(da,db)>48)){const ay=g.a[1]-s.a[1],by=g.b[1]-s.b[1],ax=g.a[0]-s.a[0],bx=g.b[0]-s.b[0];pair.mode=ay*by>0&&Math.abs(ay)+Math.abs(by)>Math.abs(ax)+Math.abs(bx)&&Math.min(Math.abs(ay),Math.abs(by))>2*Math.abs(g.d-s.d)&&Math.abs(turn(g.angle-s.angle))<.15?'tilt':'pinch';pair.last=s;}
+  if(pointers.size===2&&pair){const g=twoFinger(),s=pair.start,da=Math.hypot(g.a[0]-s.a[0],g.a[1]-s.a[1]),db=Math.hypot(g.b[0]-s.b[0],g.b[1]-s.b[1]);
+   if(!pair.mode&&da+db>16&&(Math.min(da,db)>=2||Math.max(da,db)>48)){const ay=g.a[1]-s.a[1],by=g.b[1]-s.b[1],ax=g.a[0]-s.a[0],bx=g.b[0]-s.b[0];pair.mode=Math.min(da,db)>=2&&ay*by>0&&Math.abs(ay)>Math.abs(ax)&&Math.abs(by)>Math.abs(bx)?'tilt':'pinch';pair.last=s;}
    if(pair.mode==='tilt')tilt+=(g.cy-pair.last.cy)*TILT_PER_PX;else if(pair.mode==='pinch'){span=Math.max(34,Math.min(14000,span*pair.last.d/g.d));azimuth+=turn(g.angle-pair.last.angle);}
    pair.last=g;}
   else if(pointers.size===1&&e.pointerType==='mouse'&&(e.buttons&2||e.shiftKey||e.ctrlKey||e.metaKey||e.altKey)){azimuth-=mx*ROT_PER_PX;tilt+=my*TILT_PER_PX;rotating=true;}

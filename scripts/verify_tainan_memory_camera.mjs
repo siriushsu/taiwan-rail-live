@@ -127,6 +127,24 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
   const c5=await cam(page);
   check(engine,view,'雙指快速上推（每步 25 px）75 px：仰角 −0.375 rad',Math.abs(c5.tilt-c4.tilt+.375)<.03,(c5.tilt-c4.tilt).toFixed(4));
   check(engine,view,'雙指快速推：方位、縮放不變',Math.abs(dAng(c5.az,c3.az))<1e-9&&Math.abs(c5.span/c3.span-1)<1e-9);
+  // 判定當下一指多走一步或先動（第二輪驗收 09-30：兩指間距 50 px、每步 8 px 推，舊版看連線角度＞0.15 rad 就當捏合，整個手勢沒反應；上下疊著推則被距離變化擋掉）
+  await gesture(Array.from({length:9},(_,i)=>[[cx-25,cy-40+8*i],[cx+25,cy-40+8*i]]));
+  const c6=await cam(page);
+  check(engine,view,'雙指靠近（間距 50 px）每步 8 px 下推 64 px：仰角 +0.32 rad',Math.abs(c6.tilt-c5.tilt-.32)<.03,(c6.tilt-c5.tilt).toFixed(4));
+  await gesture(Array.from({length:7},(_,i)=>[[cx-25,cy+40-8*i],[cx+25,cy+40-8*i]]));
+  const c7=await cam(page);
+  check(engine,view,'雙指靠近（間距 50 px）每步 8 px 上推 48 px：仰角 −0.24 rad',Math.abs(c7.tilt-c6.tilt+.24)<.03,(c7.tilt-c6.tilt).toFixed(4));
+  await gesture(Array.from({length:9},(_,i)=>[[cx-45,cy-40+8*i],[cx+45,cy-40+8*Math.max(0,i-2)]]));
+  const c8=await cam(page);
+  check(engine,view,'一指先動兩步（間距 90 px、每步 8 px）下推：仰角 +0.28 rad',Math.abs(c8.tilt-c7.tilt-.28)<.03,(c8.tilt-c7.tilt).toFixed(4));
+  await gesture(Array.from({length:9},(_,i)=>[[cx,cy-90+8*i],[cx,cy+10+8*i]]));
+  const c9=await cam(page);
+  check(engine,view,'兩指上下疊著（相距 100 px）每步 8 px 下推 64 px：仰角 +0.32 rad',Math.abs(c9.tilt-c8.tilt-.32)<.03,(c9.tilt-c8.tilt).toFixed(4));
+  check(engine,view,'靠近／先動／疊著推：方位、縮放不變',Math.abs(dAng(c9.az,c5.az))<1e-9&&Math.abs(c9.span/c5.span-1)<1e-9);
+  // 對照：一指按著只抖 1 px、另一指往上移 60 px＝繞著按住的那指轉，不能當成傾斜
+  await gesture(Array.from({length:11},(_,i)=>[[cx-50,cy-(i?1:0)],[cx+50,cy-6*i]]));
+  const c10=await cam(page);
+  check(engine,view,'一指按著（只抖 1 px）、另一指上移 60 px：是轉動不是傾斜（仰角不變、方位 −0.533 rad）',Math.abs(c10.tilt-c9.tilt)<1e-9&&Math.abs(dAng(c10.az,c9.az)+.5326)<.03,`仰角 ${(c10.tilt-c9.tilt).toFixed(4)}、方位 ${dAng(c10.az,c9.az).toFixed(4)}`);
   // 三指（驗收 09-30：兩指捏合中第三指碰到、再抬起第一指，舊版剩下兩指沿用舊基準，1 px 的移動就讓方位跳 116°）：兩引擎都用合成 PointerEvent
   const tf=await page.evaluate(([cx,cy])=>{const el=window.tainanMemory.renderer.domElement,c=window.tainanMemory.camera;
    const fire=(type,id,x,y)=>el.dispatchEvent(new PointerEvent(type,{pointerId:id,clientX:x,clientY:y,pointerType:'touch',isPrimary:id===11,bubbles:true,cancelable:true,buttons:type==='pointerup'?0:1}));
