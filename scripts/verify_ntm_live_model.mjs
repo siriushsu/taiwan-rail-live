@@ -11,6 +11,7 @@ const mutations={
   stale:['now-at <= TTL','now-at <= 1800'],
   duplicate:['at<=previous.at','at<previous.at'],
   pending:['if(obs.si===origin){','if(false){'],
+  sourceAnchor:['nextCall:!t.pending && t.sourceCall.arrivalEpoch>=now-30','nextCall:false'],
 };
 const ctx={};
 let code=source;
@@ -109,6 +110,41 @@ test('同車矛盾列不任選；保留上一筆有效軌跡',()=>{
   const p=packet('K',5,1,100);Object.assign(p.gpsData[1],packet('K',3,-1,30).gpsData[1]);
   api.update(m,'ankeng',p,at+55,at+55);
   assert.equal(get(m,'ankeng',at+55).sourceAt,at);
+});
+test('官方倒數與動畫時鐘分離；平順追趕不能延後官方 ETA',()=>{
+  for(const line of ['V','VB','K'])for(const dir of [1,-1]){
+    const feed=api.ROUTES[line].feed,m={};
+    api.update(m,feed,packet(line,4,dir,100),at,at);
+    const prior=get(m,feed),now=at+30,old=api.sample(prior,now);
+    api.update(m,feed,packet(line,4,dir,5),now,now);
+    const t=get(m,feed,now);
+    assert.equal(api.sample(t,now),old,'不能為了對準 ETA 瞬移');
+    assert(t.calls[0].arrivalEpoch>now+5,'此案例須真的觸發動畫追趕延遲');
+    assert.equal(t.nextCall.arrivalEpoch,now+5);
+    assert.equal(t.nextCall.stationIndex,4);assert.equal(t.nextCall.basis,'official');
+    assert.equal(t.sourceCall.arrivalEpoch,now+5);
+    assert.notEqual(get(m,feed,now+36).nextCall.basis,'official','已過官方到站窗不能繼續冒充即時');
+  }
+});
+test('反覆到站保留動畫歷史，但跟車卡仍對準這一批的官方到站站點',()=>{
+  const m={};api.update(m,'ankeng',packet('K',3,1,10),at,at);
+  const original=get(m).calls[0].arrivalEpoch;
+  for(const offset of [20,40,60]){
+    api.update(m,'ankeng',packet('K',3,1,0),at+offset,at+offset);
+    const t=get(m,'ankeng',at+offset);
+    assert.equal(t.calls[0].arrivalEpoch,original,'重複 0 秒不是新的到站事件');
+    assert.equal(t.nextCall.stationIndex,3);assert.equal(t.nextCall.arrivalEpoch,at+offset);
+    assert.equal(t.nextCall.basis,'official');
+  }
+});
+test('官方時間不從接收時刻重算，也不因凍結或矛盾資料續命',()=>{
+  const m={};api.update(m,'ankeng',packet('K',4,1,100),at,at+25);
+  assert.equal(get(m,'ankeng',at+25).nextCall.arrivalEpoch,at+100);
+  api.update(m,'ankeng',packet('K',4,1,100),at+50,at+50);
+  assert.equal(get(m,'ankeng',at+50).sourceCall.sourceAt,at);
+  api.update(m,'ankeng',packet('K',4,-1,40),at+60,at+60);
+  assert.equal(get(m,'ankeng',at+60).sourceCall.sourceAt,at);
+  assert.equal(api.system(m,'ankeng',at+151).trains.length,0);
 });
 test('終點保留至資料逾期；跳過待發批次也可在同站折返',()=>{
   const m={};api.update(m,'ankeng',packet('K',8,1,0),at,at);

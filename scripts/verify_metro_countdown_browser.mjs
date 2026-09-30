@@ -10,6 +10,8 @@ const capture = process.env.METRO_CAPTURE_DIR;
 assert(capture, '請指定 METRO_CAPTURE_DIR：使用封存真實資料，不自製高分來源');
 const audit = JSON.parse(fs.readFileSync(path.join(capture, 'browser.json'), 'utf8'));
 const now = audit.frames[0].at * 1000;
+const ntmCapture = process.env.METRO_NTM_CAPTURE && JSON.parse(fs.readFileSync(process.env.METRO_NTM_CAPTURE,'utf8'));
+const ntmInputs = ntmCapture?.flatMap(r=>r.rows.filter(x=>x.kind==='proxy'&&x.status===200)).sort((a,b)=>a.received-b.received);
 const payloads = new Map();
 for (const rec of audit.network) if (rec.status === 200 && rec.body && rec.receivedAt<=now/1000) {
   const url = new URL(rec.url);
@@ -130,12 +132,81 @@ try {
             return {id:f?.vehicleId,publicLabel:info.officialNo,valid:!!valid,status:document.getElementById('fcStatus').textContent,crowd:freqCrowdCars()};
           });
           assert.equal(follow.id,id);assert(follow.publicLabel);assert(follow.valid);
-          assert.match(follow.status,/官方車號/);assert.equal(follow.crowd,null);
+          assert.match(follow.status,/官方(車號|倒數)/);assert.equal(follow.crowd,null);
           if(process.env.METRO_SCREENSHOT_DIR && width===375 && selected.line==='K'){
             fs.mkdirSync(process.env.METRO_SCREENSHOT_DIR,{recursive:true});
             await page.screenshot({path:path.join(process.env.METRO_SCREENSHOT_DIR,`${engine}-375.png`)});
           }
           following.push(follow);await page.evaluate(()=>clearFreqFollow());
+        }
+        let clockReplay=null;
+        if(ntmInputs){
+          // 第二份真實序列重播：官方時間要進入實際跟車卡，不能只檢查模型內的附加欄位。
+          clockReplay=await page.evaluate(inputs=>{
+            state.ntmLiveModel={};state._ntmLiveRaw={};
+            const failures=[],cases=[],checked=[];
+            for(const row of inputs){
+              window.__auditNow=row.received*1000;state.simSec=metroCoreEpochSecOfDay(row.received);
+              applyNtmLive(row.feed,row.body.src,row.body.at,row.received*1000);
+              const sourceAt=Date.parse(row.body.at)/1000,sys=NtmLiveModel.system(state.ntmLiveModel,row.feed,row.received);
+              for(const train of sys?.trains||[]){
+                const o=train.observation,eta=sourceAt+o.seconds;
+                if(train.pending||train.sourceAt!==sourceAt||eta<row.received-30)continue;
+                const ln=state.lines.find(l=>l.id===train.lineId),pos=metroCorePositionAt(ln,train,row.received);
+                const info=metroCoreVehicleInfo({ln,train,pos,systemId:sys.systemId});
+                checked.push(train.vehicleId);
+                if(info.nextBasis!=='official'||Math.abs(info.nextSec-metroCoreEpochSecOfDay(eta))>.001||info.nextName!==ln.stations[o.si].name)
+                  failures.push({car:o.car,eta,info});
+                if(o.seconds>1&&eta>=row.received&&train.calls[0].arrivalEpoch>eta+1)
+                  cases.push({line:ln.id,si:o.si,vehicleId:train.vehicleId,eta,received:row.received});
+              }
+            }
+            return {checked:checked.length,failures,cases};
+          },ntmInputs);
+          assert(clockReplay.checked>20);assert.deepEqual(clockReplay.failures,[]);
+          assert(clockReplay.cases.length>0,'真實資料必須包含動畫時鐘與官方 ETA 分離的案例');
+          const selected=clockReplay.cases.find(c=>c.line==='K')||clockReplay.cases[0];
+          await page.evaluate(({inputs,selected})=>{
+            state.ntmLiveModel={};state._ntmLiveRaw={};
+            for(const row of inputs.filter(r=>r.received<=selected.received)){
+              window.__auditNow=row.received*1000;state.simSec=metroCoreEpochSecOfDay(row.received);
+              applyNtmLive(row.feed,row.body.src,row.body.at,row.received*1000);
+            }
+            const ln=state.lines.find(l=>l.id===selected.line);openBoard({...ln.stations[selected.si],sys:ln._sys});
+          },{inputs:ntmInputs,selected});
+          const link=page.locator(`#board .row[data-core-vehicle="${selected.vehicleId}"]`);
+          await link.tap();
+          await page.waitForFunction(id=>state._freqHits?.some(h=>h.vehicleId===id),selected.vehicleId);
+          const displayed=await page.evaluate(()=>{
+            const rec=metroCoreFollowRecord(state.freqFollow),info=metroCoreVehicleInfo(rec);
+            return {next:info.nextSec,basis:info.nextBasis,text:document.getElementById('fcNext').textContent,
+              status:document.getElementById('fcStatus').textContent,overflow:document.documentElement.scrollWidth-innerWidth};
+          });
+          assert.equal(displayed.basis,'official');assert(Math.abs(displayed.next-((selected.eta+8*3600)%86400))<.001);
+          assert.match(displayed.status,/官方倒數/);assert(displayed.overflow<=2);
+          clockReplay.displayed=displayed;
+          if(process.env.METRO_SCREENSHOT_DIR&&width===375)await page.screenshot({path:path.join(process.env.METRO_SCREENSHOT_DIR,`${engine}-official-clock-375.png`)});
+          const motion=await page.evaluate(async selected=>{
+            const samples=[];
+            for(const elapsed of [0,.1,.25,.5,1,2,3]){
+              window.__auditNow=(selected.received+elapsed)*1000;state.simSec=metroCoreEpochSecOfDay(selected.received+elapsed);
+              await new Promise(requestAnimationFrame);
+              const rec=metroCoreFollowRecord(state.freqFollow);
+              samples.push({elapsed,progress:rec.pos.progress,direction:rec.train.direction,
+                drawn:state._freqHits.some(h=>h.vehicleId===selected.vehicleId)});
+            }
+            return samples;
+          },selected);
+          assert(motion.every(s=>s.drawn));
+          for(let i=1;i<motion.length;i++){
+            const d=motion[i].progress-motion[i-1].progress,dir=motion[i].direction===2?1:-1;
+            assert(dir*d>=-1e-8&&Math.abs(d)<.05,'動畫不能倒退或跳站');
+          }
+          clockReplay.motion=motion;
+          await page.evaluate(eta=>{window.__auditNow=(eta+31)*1000;state.simSec=metroCoreEpochSecOfDay(eta+31);},selected.eta);
+          await page.waitForFunction(()=>document.getElementById('fcStatus').textContent.includes('下一站時間與位置為推估'));
+          clockReplay.afterOfficialWindow=await page.locator('#fcStatus').textContent();
+          await page.evaluate(()=>clearFreqFollow());
         }
         const travel=await page.evaluate(()=>{const save=state.simSec;state.simSec+=600;
           const result=['V','VB','K'].map(id=>metroCoreItemsForLine(state.lines.find(l=>l.id===id)));state.simSec=save;return result;});
@@ -148,7 +219,7 @@ try {
         assert.equal(stale, 0, '過期來源仍偽裝成即時');
         assert(await page.evaluate(()=>['V','VB','K'].every(id=>metroCoreItemsForLine(state.lines.find(l=>l.id===id))===null)), 'NTM 個別觀測過期必須降級');
         assert.deepEqual(errors, []);
-        const result = { engine, width, sources, following, errors, staleRows: stale };
+        const result = { engine, width, sources, following, clockReplay, errors, staleRows: stale };
         results.push(result);
         console.log(JSON.stringify(result));
         await context.close();

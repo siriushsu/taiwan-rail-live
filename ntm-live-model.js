@@ -78,6 +78,8 @@
     }
     return {lineId:obs.lineId,direction:step>0?2:1,destinationStationIndex:dest,
       publicLabel:obs.car,sourceAt:at,observation:{...obs,at},trajectory,calls,
+      // 官方時間不可被動畫 join 的速度上限改寫；0 秒只代表此批回報到站，不是新到站事件。
+      sourceCall:{stationIndex:obs.si,arrivalEpoch:at+obs.seconds,departureEpoch:null,basis:'official',sourceAt:at},
       retireAt:at+TTL,pending:obs.si===origin,quality:{source:obs.si===origin?'ntm-pending':'ntm-observed',confidence:1}};
   }
   function travel(line, from, to) {
@@ -159,7 +161,8 @@
   function system(model,feed,now){
     const f=model?.feeds?.[feed];if(!f || !fresh(f.at,now))return null;
     const trains=f.trains.filter(t=>fresh(t.sourceAt,now) && sample(t,now)!=null).map(t=>({...t,
-      nextCall:t.calls.find(c=>c.departureEpoch==null?c.arrivalEpoch>=now:c.departureEpoch>=now)||t.calls[t.calls.length-1]}));
+      nextCall:!t.pending && t.sourceCall.arrivalEpoch>=now-30 ? t.sourceCall
+        : t.calls.find(c=>c.departureEpoch==null?c.arrivalEpoch>=now:c.departureEpoch>=now)||t.calls[t.calls.length-1]}));
     return {systemId:feed==='danhai'?'ntdlrt':'ntalrt',trains,boards:[],sourceAt:f.at};
   }
   const api={TTL,DWELL,ROUTES,fresh,rows,sample,run,update,system};
