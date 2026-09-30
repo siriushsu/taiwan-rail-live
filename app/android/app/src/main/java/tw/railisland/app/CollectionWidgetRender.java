@@ -75,7 +75,9 @@ final class CollectionWidgetRender {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_collect_small);
         float fs = fontScale(c);
         String kicker = RailNativeL10n.text(c, "車站收集");
-        smallHeader(c, v, f, kicker, wDp, fs);
+        // 副標的可見性在這裡明講兩個分支（launcher 是 reapply 到舊 View 樹）；字級在 smallHeader 兩個分支都設
+        boolean kick = smallHeader(c, v, f, kicker, wDp, fs);
+        v.setViewVisibility(R.id.wc_subtitle, kick ? android.view.View.VISIBLE : android.view.View.GONE);
 
         // 文字欄寬（dp）：版面權重 58／42。窄到文字放不下（多半是 110dp 寬的 2×2）就整個放掉地圖，
         // 讓文字欄吃滿整張卡——「數字被裁」比「少一張地圖」糟得多，關鍵數字永遠優先。
@@ -148,9 +150,10 @@ final class CollectionWidgetRender {
     /**
      * 小卡標題列 [標題][副標][蓋章]（蓋章鈕固定 18dp 高、比標題矮，不會撐高這一列）。放不下時依序退讓：
      * 先收副標（與 iOS ViewThatFits 同一個取捨）；標題加按鈕還是放不下，就把兩者字級一起縮（最多縮到 70%）。
+     * 回傳副標要不要顯示（可見性由 small() 明講兩個分支）。
      * 🔴 字級兩個分支都要明講：launcher 是 reapply 到舊 View 樹，沒提到的屬性會停在上一次的樣子。
      */
-    private static void smallHeader(Context c, RemoteViews v, CollectionData.Figures f, String kicker, int wDp, float fs) {
+    private static boolean smallHeader(Context c, RemoteViews v, CollectionData.Figures f, String kicker, int wDp, float fs) {
         String stamp = RailNativeL10n.text(c, "蓋章");
         v.setTextViewText(R.id.wc_title, f.title);
         v.setTextViewText(R.id.wc_subtitle, kicker);
@@ -159,12 +162,12 @@ final class CollectionWidgetRender {
         float stampText = tightWidth(stamp, 10 * fs) * 1.1f;           // 粗體加寬 10%
         float stampW = stampText + STAMP_PAD + 6;                      // ＋左右內距＋與前一個元素的間距
         boolean kick = estimatedWidth(f.title, 13 * fs) + 4 + estimatedWidth(kicker, 11 * fs) + stampW <= rowW;
-        v.setViewVisibility(R.id.wc_subtitle, kick ? android.view.View.VISIBLE : android.view.View.GONE);
         float titleText = tightWidth(f.title, 13 * fs) * 1.1f;         // Latin 粗體比 0.5em 略寬，留 10%
         float scale = 1f;
         if (!kick && titleText + stampW > rowW) scale = Math.max(0.7f, (rowW - STAMP_PAD - 6) / (titleText + stampText));
         v.setTextViewTextSize(R.id.wc_title, android.util.TypedValue.COMPLEX_UNIT_SP, 13 * scale);
         v.setTextViewTextSize(R.id.wc_stamp, android.util.TypedValue.COMPLEX_UNIT_SP, 10 * scale);
+        return kick;
     }
 
     // ── 中卡 ───────────────────────────────────────────────────────────────────
