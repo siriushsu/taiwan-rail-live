@@ -54,39 +54,7 @@
     const route=ROUTES[line];
     return route && Math.abs(to-from)===1 ? (to>from?route.up[from]:route.down[to]) : null;
   }
-  function setTimetable(model, line, trips) {
-    const route=ROUTES[line];if(!route)return;
-    const groups={},last=route.codes.length-1;
-    for(const trip of Array.isArray(trips)?trips:[]){
-      if(!Array.isArray(trip) || trip.length<6 || trip.length%2)continue;
-      const dir=Math.sign(trip[2]-trip[0]);
-      if(!dir || trip.some((v,i)=>!Number.isFinite(v) || (i%2===0 && (!Number.isInteger(v)||v<0||v>last))))continue;
-      let valid=true;
-      for(let i=2;i<trip.length;i+=2)if(dir*(trip[i]-trip[i-2])<=0 || trip[i+1]<=trip[i-1])valid=false;
-      if(!valid)continue;
-      for(let i=2;i<trip.length;i+=2){
-        const from=trip[i-2],to=trip[i],duration=trip[i+1]-trip[i-1],standard=run(line,from,to);
-        // 端點可能由建置器補時；跨站、內插秒及折返停等也不能當成站間測量。
-        if(from===0 || to===0 || from===last || to===last || !standard || trip[i-1]%60 || trip[i+1]%60 ||
-          duration<DWELL+standard*.5 || duration>DWELL+standard*2)continue;
-        (groups[`${from}/${to}`]||(groups[`${from}/${to}`]=[])).push(duration-DWELL);
-      }
-    }
-    const profile={};
-    for(const [key,values] of Object.entries(groups)){
-      if(values.length<8)continue;
-      values.sort((a,b)=>a-b);
-      if(values[Math.floor(values.length*.75)]-values[Math.floor(values.length*.25)]>60)continue;
-      const [from,to]=key.split('/').map(Number),standard=run(line,from,to),median=values[Math.floor(values.length/2)];
-      // 分鐘精度班表只作弱先驗，與路線圖標準秒等權；校正最多半個分鐘格，不覆蓋直接倒數。
-      profile[key]={seconds:standard+Math.max(-30,Math.min(30,(median-standard)/2)),samples:values.length};
-    }
-    (model.timing||(model.timing={}))[line]=profile;
-  }
-  function forecastRun(profile, line, from, to) {
-    return profile?.[`${from}/${to}`]?.seconds || run(line,from,to);
-  }
-  function baseTrain(obs, at, arrival = at+obs.seconds, profile) {
+  function baseTrain(obs, at, arrival = at+obs.seconds) {
     const route=ROUTES[obs.lineId],last=route.codes.length-1,step=obs.dir;
     const origin=step>0?0:last,dest=step>0?last:0,eta=arrival;
     const trajectory=[],calls=[];
@@ -102,7 +70,7 @@
       calls.push({stationIndex:obs.si,arrivalEpoch:eta,departureEpoch:obs.si===dest?null:departure});
       for(let si=obs.si;si!==dest;si+=step){
         put(departure,si,'running');
-        const arrival=departure+forecastRun(profile,obs.lineId,si,si+step);
+        const arrival=departure+run(obs.lineId,si,si+step);
         put(arrival,si+step,si+step===dest?'terminal':'dwelling');
         calls.push({stationIndex:si+step,arrivalEpoch:arrival,departureEpoch:si+step===dest?null:arrival+DWELL});
         departure=arrival+DWELL;
@@ -180,10 +148,9 @@
       // 連續的「已到站」不是每批又到站一次，不能每次重加一段停站時間。
       const priorCall=old?.lineId===obs.lineId && old.direction===(obs.dir>0?2:1)
         ? old.calls.find(c=>c.stationIndex===obs.si) : null;
-      // 畫面已完成的到站/停站不重做；來源的本批 0 秒另存 sourceCall，不當成新的精確到站事件。
       const arrival=obs.seconds<=1 && priorCall && priorCall.arrivalEpoch<=at
         ? Math.max(at-TTL,priorCall.arrivalEpoch) : at+obs.seconds;
-      const train=join(baseTrain(obs,at,arrival,model.timing?.[obs.lineId]),old,now);
+      const train=join(baseTrain(obs,at,arrival),old,now);
       train.vehicleId=`ntm:${feed}:${car}`;
       train.signature=signature;train.signatureSince=since;
       if(train.retireAt>now)trains.set(car,train);
@@ -198,7 +165,7 @@
         : t.calls.find(c=>c.departureEpoch==null?c.arrivalEpoch>=now:c.departureEpoch>=now)||t.calls[t.calls.length-1]}));
     return {systemId:feed==='danhai'?'ntdlrt':'ntalrt',trains,boards:[],sourceAt:f.at};
   }
-  const api={TTL,DWELL,ROUTES,fresh,rows,sample,run,setTimetable,update,system};
+  const api={TTL,DWELL,ROUTES,fresh,rows,sample,run,update,system};
   root.NtmLiveModel=api;
   if(typeof module==='object' && module.exports)module.exports=api;
 })(typeof globalThis==='object'?globalThis:this);

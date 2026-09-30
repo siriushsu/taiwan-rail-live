@@ -5627,7 +5627,6 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="ntmforecast0930"><span class="d">9/30</span><span>安坑輕軌的後續到站推估納入班表站間時間，減少固定秒數的偏差；官方即時倒數保持原值</span></li>
         <li data-cl-of="ntmclock0930"><span class="d">9/30</span><span>淡海、安坑跟車卡保留官方到站時間，不再被動畫平順校正延後；超出官方倒數範圍時明確標示推估</span></li>
         <li data-cl-of="ntmvehicle0930"><span class="d">9/30</span><span>淡海、安坑改依官方車號逐車校正，不再把全線一起平移；有車號的倒數可連到同一台車，待發列車不憑空發車</span></li>
         <li data-cl-of="metrocountdown0930"><span class="d">9/30</span><span>捷運與輕軌看板優先保留官方倒數；修正高捷倒數被備案取代，以及淡海、安坑部分倒數的路線與時間偏差</span></li>
@@ -5642,7 +5641,6 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
-        <li data-cl="ntmforecast0930"><span class="d">9/30</span><span>安坑輕軌的後續到站推估納入班表站間時間，減少固定秒數的偏差；官方即時倒數保持原值</span></li>
         <li data-cl="ntmclock0930"><span class="d">9/30</span><span>淡海、安坑跟車卡保留官方到站時間，不再被動畫平順校正延後；超出官方倒數範圍時明確標示推估</span></li>
         <li data-cl="ntmvehicle0930"><span class="d">9/30</span><span>淡海、安坑改依官方車號逐車校正，不再把全線一起平移；有車號的倒數可連到同一台車，待發列車不憑空發車</span></li>
         <li data-cl="metrocountdown0930"><span class="d">9/30</span><span>捷運與輕軌看板優先保留官方倒數；修正高捷倒數被備案取代，以及淡海、安坑部分倒數的路線與時間偏差</span></li>
@@ -6949,7 +6947,7 @@
 // v0930c：日文的環島列車終點改成「台北（台湾一周）」（使用者 09-30 裁示）。v0930b 已被跟車卡分支 fix/issue73-capsule-align 佔用，跳號。
 // v0930e：Issue #73 複驗——收合的跟車膠囊裡車次與時速改為置中，跟圓點、「結束」同一條中線（rail-3d.css；守門：verify_issue_73_follow_head C4）。
 //         本分支原本佔 v0930b，併 main 時 v0930c 已上 main、v0930d 留給台南重播分支，改用 v0930e 讓版號維持遞增。
-// v0930f：捷運官方倒數獨立保留、新北輕軌逐車銜接與 20 秒更新；安坑未觀測站間納入班表弱校正。
+// v0930f：捷運官方倒數獨立保留、新北輕軌逐車銜接與 20 秒更新；保留主線跟車膠囊與日文修正。
 const BUILD = 'v0930f';
 // rail-3d.js 開頭會 await dynamic import，同時 boot() 可能已經由 clearFollow() 清掉 query。
 // 所有 rail-3d 支援的 URL 參數在主程式第一批同步程式碼先完整快照，不重用會把 z 取整數的 deepZ。
@@ -29855,9 +29853,6 @@ function applyNtmLive(feed, src, sourceAt, receivedAt = Date.now()) {
     if (previous && previous.at > at) return;
     state._ntmLiveRaw[feed] = { at, rows: NtmLiveModel.rows(feed, src, true) };
     state.ntmLiveModel = state.ntmLiveModel || {};
-    // 安坑站間推估才使用此弱先驗；淡海分岔線保留既有模型，不用另一支線的班表校正。
-    for (const ln of metroLivePool()) if (ln.id === 'K' && freqSysIdOf(ln) === cfg.sys && !ln.times?.estimated)
-      NtmLiveModel.setTimetable(state.ntmLiveModel, ln.id, ln._tt);
     NtmLiveModel.update(state.ntmLiveModel, feed, src, at, receivedAt / 1000);
     // 不再讓無車號預告把全方向偏移；舊版狀態也不能殘留在備案上。
     for (const ln of metroLivePool()) if (freqSysIdOf(ln) === cfg.sys && cfg.lines.includes(ln.id)) delete ln._liveShift;
