@@ -93,7 +93,7 @@ async function guardMidnight() { // 「今天」以台北為準；離午夜不�
 }
 
 // ── 瀏覽器端 ──────────────────────────────────────────────────────────────
-const browser = await (ENGINE === 'webkit' ? webkit : chromium).launch({ headless: true });
+const browser = await (ENGINE === 'webkit' ? webkit : chromium).launch(ENGINE === 'webkit' ? { headless: true } : { channel: 'chrome', headless: true });
 const pageErrors = [];
 // howto：'seen'＝已看過（旗標寫 1）、'unseen'＝沒看過（旗標不寫，首次說明卡會在開機時跳出來）。
 // deny：開機前就讓定位替身回「權限被拒」（開機時的第一次 watch 就失敗，之後每次重試也失敗）。

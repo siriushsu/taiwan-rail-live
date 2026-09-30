@@ -244,7 +244,7 @@ function schemaProblems(p, lang) {
 }
 
 // ── 瀏覽器端 ──────────────────────────────────────────────────────────────
-const browser = await (ENGINE === 'webkit' ? webkit : chromium).launch({ headless: true });
+const browser = await (ENGINE === 'webkit' ? webkit : chromium).launch(ENGINE === 'webkit' ? { headless: true } : { channel: 'chrome', headless: true });
 const pageErrors = [];
 // mw：接一個 RailMetroWait 外掛替身（原生把 railisland://… 轉成 waitOpen 事件走的就是這條）；
 // mwCold：非 null 時，替身在 addListener('waitOpen') 掛上的瞬間就把這個事件送進來（原生 retainUntilConsumed 的冷啟動行為）。
