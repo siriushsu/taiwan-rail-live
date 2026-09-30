@@ -1,0 +1,13 @@
+-- 路段懸賞：看板上的單位退場。
+--
+-- retired：1＝最新一份單位清單（data/bounty_units.json）已經沒有這個單位（換班表之後不再有的車種、時段、停站）。
+-- 每日估值 cron 寫：清單沒有就標 1、清單又有就回 0；列不刪，趟數、人數、收滿這些歷史欄位原封不動。
+-- 看板、認領、沒接懸賞時的入帳價、每日重算都只看 retired=0 的列。
+--
+-- 🔴 所有環境都要跑（新環境＝0002 + 0014 + 0015）。先套 schema、再部署用到它的 Worker。忘了套的症狀：
+--    /api/bounty-board【整個】回 503（看板的 SELECT 讀 retired，缺欄整句失敗；回應是 public, s-maxage=60，全站的看板都空掉）；
+--    /api/bounty-claim 一律 503 claim_failed；每日估值 cron 讀板上現有列的第一句就丟錯（整支中止）；判定 cron 查板價那一句丟錯
+--    （排在標記已判定、點數、趟數之前，這三樣都不寫）。
+-- 自成一檔、只有這一句：0014 檔尾已經有 ALTER，重套 0014 會在它的第一句 ALTER 中斷，接在後面的欄位在套過 0014 的庫永遠跑不到。
+-- 重跑會報 duplicate column name（無害，代表已經套過）。
+ALTER TABLE bounty_board ADD COLUMN retired INTEGER NOT NULL DEFAULT 0;

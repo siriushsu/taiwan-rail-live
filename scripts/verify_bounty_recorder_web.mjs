@@ -30,6 +30,7 @@ import { fileURLToPath } from 'node:url';
 import { createReadStream, readFileSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { _bounty } from '../worker.js';
+import { POS_SPEED_WINDOW_REJECT, POS_SPEED_WINDOW_ACCEPT } from './bounty_guard_cases.mjs';
 
 // G0 自檢：ROOT 由本檔自身路徑推導，不吃任何 --root／env 參數，結構上不會誤驗到別的 worktree。
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -149,7 +150,7 @@ try {
   });
 
   await attempt('D', async () => {
-    const got = await page.evaluate(async st => {
+    const got = await page.evaluate(async ([st, winReject, winAccept]) => {
       const rules = await bountyRules(), c = st.d * 1000, key = `tra_sched|山線|${st.name}|${st.name}`;
       // sg＝1 往里程遞增、−1 遞減。停：20 m/s 跑 30 秒到站 → 停 60 秒（GPS 每秒晃 ±0.3 m）→ 20 m/s 跑 30 秒離站；不停：30 m/s 從前方 600 m 跑到後方 600 m。
       // vm：'v' 都卜勒（停的時候 0）、'null' 沒有速度、'zero' 每點送 0（Android 沒有速度）、'small' 每點送 0.3。
@@ -184,8 +185,10 @@ try {
       const threw = rs => { try { bountyUpdateDwellProgress({ card: { kind: 'dwell', unitKeys: [key] }, sys: 'tra_sched', lnId: '山線', _recent: [], _cov: {} }, rs); return 'no-throw'; }
         catch (e) { return String(e && e.message); } };
       const win = x => ({ ...rules, quality: { ...rules.quality, dwell: { ...rules.quality.dwell, posSpeedWindowSec: x } } });
-      out.guard = { missing: threw(veto(undefined)), equal: threw(veto(rules.quality.dwell.stopSpeedMaxMps)), real: threw(rules),
-        winMissing: threw(win(undefined)), winZero: threw(win(0)), winStr: threw(win('5')), win60: threw(win(60)), winInf: threw(win(Infinity)) };
+      out.guard = { missing: threw(veto(undefined)), equal: threw(veto(rules.quality.dwell.stopSpeedMaxMps)), real: threw(rules) };
+      // posSpeedWindowSec 的案例與 Worker D15 共用（scripts/bounty_guard_cases.mjs）；傳進頁面之後的型別也回報，確認 undefined／Infinity 沒被序列化成別的值
+      for (const [k, w] of [...winReject, ...winAccept]) out.guard[`win_${k}`] = threw(win(w));
+      out.recv = [...winReject, ...winAccept].map(([k, w]) => [k, typeof w, String(w)]);
       for (const sg of [1, -1]) {
         out[`nullStop${sg}`] = run(trip(sg, true, 'null'));
         out[`nullFast${sg}`] = run(trip(sg, false, 'null'));
@@ -197,14 +200,16 @@ try {
       }
       out.realWin = rules.quality.dwell.posSpeedWindowSec;
       return out;
-    }, ST);
+    }, [ST, POS_SPEED_WINDOW_REJECT, POS_SPEED_WINDOW_ACCEPT]);
     const want = { cov: 1, missed: false }, fast = { cov: 0, missed: true };
-    ok('D [第十四批 V9 E-2(b)、第十五批 V10 P1-2] 停靠進度與 Worker 同一條：沒有速度的裝置停 60 秒 → 亮；沒有速度、30 m/s 通過 → 不亮且判錯過；對照：有速度的同一趟停靠 → 亮；速度送 0 或 0.3、30 m/s 通過 → 不亮且判錯過，送 0 的真停靠 → 亮（兩個方向；舊版 Number(null)＝0、送 0 照信，高速通過也亮）；設定檔少了 posSpeedVetoMps、它等於停靠門檻、少了 posSpeedWindowSec、它是 0、字串 "5"、60 或 Infinity → 丟錯（範圍與 Worker D15 同一條）',
+    ok('D [第十四批 V9 E-2(b)、第十五批 V10 P1-2] 停靠進度與 Worker 同一條：沒有速度的裝置停 60 秒 → 亮；沒有速度、30 m/s 通過 → 不亮且判錯過；對照：有速度的同一趟停靠 → 亮；速度送 0 或 0.3、30 m/s 通過 → 不亮且判錯過，送 0 的真停靠 → 亮（兩個方向；舊版 Number(null)＝0、送 0 照信，高速通過也亮）；設定檔少了 posSpeedVetoMps、它等於停靠門檻、少了 posSpeedWindowSec、它是 0、0.5、字串 "5"、10.5、60 或 Infinity → 丟錯，1、10 不丟（案例與 Worker D15 共用同一份）',
       [1, -1].every(sg => J(got[`nullStop${sg}`]) === J(want) && J(got[`nullFast${sg}`]) === J(fast) && J(got[`vStop${sg}`]) === J(want) &&
         J(got[`zeroStop${sg}`]) === J(want) && J(got[`zeroFast${sg}`]) === J(fast) && J(got[`smallFast${sg}`]) === J(fast)) &&
         J(got.guard) === J({ missing: 'dwell rules unavailable', equal: 'dwell rules unavailable', real: 'no-throw',
-          winMissing: 'dwell rules unavailable', winZero: 'dwell rules unavailable', winStr: 'dwell rules unavailable', win60: 'dwell rules unavailable',
-          winInf: 'dwell rules unavailable' }), J(got));
+          ...Object.fromEntries(POS_SPEED_WINDOW_REJECT.map(([k]) => [`win_${k}`, 'dwell rules unavailable'])),
+          ...Object.fromEntries(POS_SPEED_WINDOW_ACCEPT.map(([k]) => [`win_${k}`, 'no-throw'])) }) &&
+        POS_SPEED_WINDOW_REJECT.some(([, w]) => w === 10.5) &&
+        J(got.recv) === J([...POS_SPEED_WINDOW_REJECT, ...POS_SPEED_WINDOW_ACCEPT].map(([k, w]) => [k, typeof w, String(w)])), J(got));
     ok('D2 [第十七批] 前端停靠進度的位置微分往回看幾秒，照設定檔的 posSpeedWindowSec（與 Worker D16 同一趟：回報 0、每點晃 ±8 m、停 8 秒）：5 → 亮；1、10 → 不亮且判錯過（兩個方向）',
       got.realWin === 5 && [1, -1].every(sg => J(got[`win5_${sg}`]) === J(want) && J(got[`win1_${sg}`]) === J(fast) && J(got[`win10_${sg}`]) === J(fast)),
       J({ realWin: got.realWin, ...Object.fromEntries(Object.entries(got).filter(([k]) => k.startsWith('win'))) }));

@@ -3,6 +3,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { _bounty } from '../worker.js';
 import { openTestDb } from './d1_local.mjs';
+import { POS_SPEED_WINDOW_REJECT, POS_SPEED_WINDOW_ACCEPT } from './bounty_guard_cases.mjs';
 
 globalThis.caches = { default: { match: async () => undefined, put: async () => {} } };
 
@@ -281,14 +282,15 @@ ok('D11 站心低速只維持 2 秒（慢速爬行通過）時不算錄到——
 // D15 posSpeedWindowSec 少了或小於 1 就直接中止（第十七批）：找不到基準點，位置微分就沒有定義。
 //   第十八批（第十二輪獨立驗收 P3-3）：字串 "5" 不收（舊版轉型成 5 照跑）；超過 10 秒也中止（60 秒的窗比停靠還長，沒有速度的停靠整段拿不到低速）。
 //   對照：1、10（兩端）與正式設定檔不丟。
+//   第十九批（第十三輪 P3-3）：加 10.5，案例改從 scripts/bounty_guard_cases.mjs 拿（網頁的 D 用同一份）。
 {
   const dwellWith = w => ({ ...RULES, quality: { ...RULES.quality, dwell: { ...RULES.quality.dwell, posSpeedWindowSec: w } } });
   const threw = rules => { try { _bounty.coverageOf(trip(stopped), LINE, rules, UNITS.peakHoursBySys); return 'no-throw'; } catch (e) { return String(e && e.message); } };
-  const got = { missing: threw(dwellWith(undefined)), zero: threw(dwellWith(0)), half: threw(dwellWith(0.5)), str: threw(dwellWith('5')),
-    sixty: threw(dwellWith(60)), inf: threw(dwellWith(Infinity)), one: threw(dwellWith(1)), ten: threw(dwellWith(10)), real: threw(RULES) };
+  const got = { ...Object.fromEntries([...POS_SPEED_WINDOW_REJECT, ...POS_SPEED_WINDOW_ACCEPT].map(([k, w]) => [k, threw(dwellWith(w))])), real: threw(RULES) };
   const E = 'invalid bounty rule: quality.dwell';
-  ok('D15 [第十七批／第十八批 V12 P3-3] quality.dwell.posSpeedWindowSec 不在、是 0、0.5、字串 "5"、60 或 Infinity → coverageOf 丟 invalid bounty rule；1、10 與正式設定檔不丟',
-    ['missing', 'zero', 'half', 'str', 'sixty', 'inf'].every(k => got[k] === E) && got.one === 'no-throw' && got.ten === 'no-throw' && got.real === 'no-throw', JSON.stringify(got));
+  ok('D15 [第十七批／第十八批 V12 P3-3／第十九批 V13 P3-3] quality.dwell.posSpeedWindowSec 不在、是 0、0.5、字串 "5"、10.5、60 或 Infinity → coverageOf 丟 invalid bounty rule；1、10 與正式設定檔不丟（案例與網頁的 D 共用）',
+    POS_SPEED_WINDOW_REJECT.some(([, w]) => w === 10.5) && POS_SPEED_WINDOW_REJECT.every(([k]) => got[k] === E) &&
+      POS_SPEED_WINDOW_ACCEPT.every(([k]) => got[k] === 'no-throw') && got.real === 'no-throw', JSON.stringify(got));
 }
 
 // D16 位置微分往回看幾秒，照設定檔的 posSpeedWindowSec（第十七批）：D14 a 的停法（回報 0、每點晃 ±8 m），停 8 秒，

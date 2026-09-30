@@ -96,9 +96,12 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
 //   ・自強：d1–d3 的 10 時 甲→丙、乙通過（stop:false）→ 中位數 1：甲|乙、乙|丙 各一個軌道單位；停站只有甲、丙。
 //   ・莒光：d1、d5 才有 → 中位數 0，不出單位。
 //   每小時停站數的中位數：尖峰 9、其他營運時段 3 → 尖峰＝6、7、8、17、18、19。
-//   另七份壞班表要讓腳本非零離開，而且是腳本自己的檢查擋下（錯誤訊息指名是哪一種、哪一天、哪個索引），不是跑到後面才崩：
+//   另十份壞班表要讓腳本非零離開，而且是腳本自己的檢查擋下（錯誤訊息指名是哪一種、哪一天、哪個索引），不是跑到後面才崩：
 //   車次自帶行駛日（days）、dates 裡有超出範圍的索引、同一天同一個索引出現兩次（第十七批）；
-//   dates 不是物件、dates 是空的、鍵不是日曆上的日期（2026-02-30）、某一天一班車都沒有（第十八批，第十二輪獨立驗收 P3-4）。
+//   dates 不是物件、dates 是空的、鍵不是日曆上的日期（2026-02-30）、某一天一班車都沒有（第十八批，第十二輪獨立驗收 P3-4）；
+//   台鐵的檔 dates 缺鍵（帶 dateRange）、台鐵的檔 dates 是 null、高鐵的檔帶 dateRange 卻沒有 dates（第十九批，第十三輪 P3-2）。
+//   擋下的時候舊的 data/bounty_units.json 原封不動（壞的一份不能寫出半套清單）。
+//   高鐵、林鐵的軌道檔與班表放空的（一條線、一班車都沒有）：六個輸入檔少一個腳本就停（見 R13b）。
 //   偶數天（台鐵實際是 14 天）另跑一份：四天裡兩天有莒光 → 中位數取中間兩個的平均 0.5，出單位（取下面那一個會是 0、不出）。
 {
   const SCRIPT = join(fileURLToPath(new URL('.', import.meta.url)), 'build_bounty_units.mjs');
@@ -116,17 +119,22 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
     '2026-01-05': [...base, tze, kg], '2026-01-06': [...base, tze], '2026-01-07': [...base, tze],
     '2026-01-08': [...base.filter(i => i !== noon), noonMoved, ...other], '2026-01-09': [...base, kg],
   };
-  const run = sched => {
+  const OLD = 'old-units-file';           // 預先放一份舊的單位檔：擋下的時候它要原封不動
+  const run = (sched, { omit = [], files = {} } = {}) => {
     const dir = mkdtempSync(join(tmpdir(), 'bounty-units-'));
     try {
       mkdirSync(join(dir, 'data'));
-      writeFileSync(join(dir, 'data/tra.json'), JSON.stringify(TRACK));
-      writeFileSync(join(dir, 'data/tra_schedule_dense.json'), JSON.stringify(sched));
+      const inputs = { 'data/tra.json': TRACK, 'data/tra_schedule_dense.json': sched,
+        'data/thsr_track.json': { lines: [] }, 'data/thsr_schedule_dense.json': { date: '', trains: [] },
+        'data/afr.json': { lines: [] }, 'data/afr_schedule_dense.json': { date: '', trains: [] }, ...files };
+      for (const [f, v] of Object.entries(inputs)) if (!omit.includes(f)) writeFileSync(join(dir, f), JSON.stringify(v));
+      writeFileSync(join(dir, 'data/bounty_units.json'), OLD);
       const p = spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8' });
+      const raw = readFileSync(join(dir, 'data/bounty_units.json'), 'utf8');
       let out = null;
-      try { out = JSON.parse(readFileSync(join(dir, 'data/bounty_units.json'), 'utf8')); } catch (e) {}
+      try { out = JSON.parse(raw); } catch (e) {}
       const se = String(p.stderr || '');
-      return { status: p.status, out, err: (se.match(/^Error: (.*)$/m) || [])[1] || se.split('\n').find(l => /Error/.test(l)) || '' };
+      return { status: p.status, out, kept: raw === OLD, err: (se.match(/^Error: (.*)$/m) || [])[1] || se.split('\n').find(l => /Error/.test(l)) || '' };
     } finally { rmSync(dir, { recursive: true, force: true }); }
   };
   const list = r => r.out ? r.out.units.map(u => `${u.segKey.split('|').slice(2).join('')}|${u.trainKind}|${u.kind}|${u.dir}|${u.slot}=${u.perDay}`).sort() : [];
@@ -141,7 +149,9 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
     ...['甲甲', '乙乙', '丙丙'].flatMap(s => [`${s}|區間車|dwell|0|peak=18`, `${s}|區間車|dwell|0|off=13`, `${s}|區間車|dwell|0|holiday=31`,
       `${s}|莒光|dwell|0|off=0.5`, `${s}|莒光|dwell|0|holiday=0.5`])].sort();
   const WANT_ERR = { days: /帶了逐車行駛日/, index: new RegExp(`2026-01-09 有壞的班次索引：${trains.length}$`), dup: new RegExp(`2026-01-06 重複列了班次索引：${base[0]}$`),
-    notObj: /dates 不是「日期 → 班次索引」$/, empty: /dates 是空的$/, badKey: /dates 有不是日期的鍵：2026-02-30$/, emptyDay: /2026-01-07 一班車都沒有$/ };
+    notObj: /dates 不是「日期 → 班次索引」$/, empty: /dates 是空的$/, badKey: /dates 有不是日期的鍵：2026-02-30$/, emptyDay: /2026-01-07 一班車都沒有$/,
+    noDates: /^data\/tra_schedule_dense\.json 沒有 dates：/, nullDates: /^data\/tra_schedule_dense\.json 沒有 dates：/,
+    thsrRange: /^data\/thsr_schedule_dense\.json 沒有 dates：/ };
   const bad = [
     ['days', run({ date: '2026-01-05', trains: trains.map((t, i) => i ? t : { ...t, days: ['2026-01-05'] }), dates })],
     ['index', run({ date: '2026-01-05', trains, dates: { ...dates, '2026-01-09': [...dates['2026-01-09'], trains.length] } })],
@@ -150,14 +160,25 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
     ['empty', run({ date: '2026-01-05', trains, dates: {} })],
     ['badKey', run({ date: '2026-01-05', trains, dates: { ...dates, '2026-02-30': base } })],
     ['emptyDay', run({ date: '2026-01-05', trains, dates: { ...dates, '2026-01-07': [] } })],
+    ['noDates', run({ date: '2026-01-05', trains, dateRange: ['2026-01-05', '2026-01-09'] })],
+    ['nullDates', run({ date: '2026-01-05', trains, dates: null })],
+    ['thsrRange', run({ date: '2026-01-05', trains, dates }, { files: { 'data/thsr_schedule_dense.json': { date: '', trains: [], dateRange: ['2026-01-05', '2026-01-09'] } } })],
   ];
-  ok('R13 [第十七批 V11 P2-4] 單位檔的 perDay＝各日班次數的中位數：手寫的五天班表跑 build_bounty_units，只開一天的臨時車與兩天的車不出單位、改點的第二份定義不多算、尖峰照各日中位數切；四天班表開兩天的車 perDay 0.5；三份壞班表（車次自帶行駛日、索引超出範圍、同一天重複）都由腳本自己的檢查擋下、非零離開',
+  ok('R13 [第十七批 V11 P2-4] 單位檔的 perDay＝各日班次數的中位數：手寫的五天班表跑 build_bounty_units，只開一天的臨時車與兩天的車不出單位、改點的第二份定義不多算、尖峰照各日中位數切；四天班表開兩天的車 perDay 0.5；' +
+    '十份壞班表（第十七批三份：車次自帶行駛日、索引超出範圍、同一天重複；第十八批四份：dates 不是物件、是空的、鍵不是日期、某天沒車；第十九批三份：台鐵缺 dates、台鐵 dates 是 null、高鐵帶 dateRange 卻沒有 dates）都由腳本自己的檢查擋下、非零離開，舊的單位檔原封不動',
     good.status === 0 && JSON.stringify(got) === JSON.stringify(want) && JSON.stringify(peak) === '[6,7,8,17,18,19]' &&
       even.status === 0 && JSON.stringify(gotEven) === JSON.stringify(wantEven) && JSON.stringify(peakEven) === '[6,7,8,17,18,19]' &&
-      bad.every(([k, r]) => r.status !== 0 && WANT_ERR[k].test(r.err)),
+      bad.length === 10 && bad.every(([k, r]) => r.status !== 0 && WANT_ERR[k].test(r.err) && r.kept),
     JSON.stringify({ status: good.status, peak, extra: got.filter(x => !want.includes(x)), missing: want.filter(x => !got.includes(x)),
       even: { status: even.status, peak: peakEven, extra: gotEven.filter(x => !wantEven.includes(x)), missing: wantEven.filter(x => !gotEven.includes(x)) },
-      bad: bad.map(([k, r]) => `${k}:${r.status}:${r.err.slice(0, 80)}`) }));
+      bad: bad.map(([k, r]) => `${k}:${r.status}:${r.kept ? 'kept' : 'OVERWRITTEN'}:${r.err.slice(0, 80)}`) }));
+  // R13b（第十九批，第十三輪 P3-5）：六個輸入檔少一個 → 停下來、點名缺哪一個、舊的單位檔原封不動。
+  // 舊版印「略過」照樣寫出清單：少掉的系統在下一發估值會整個退場。軌道檔與班表各缺一次，分屬不同系統。
+  const miss = [['data/thsr_track.json', run({ date: '2026-01-05', trains, dates }, { omit: ['data/thsr_track.json'] })],
+    ['data/afr_schedule_dense.json', run({ date: '2026-01-05', trains, dates }, { omit: ['data/afr_schedule_dense.json'] })]];
+  ok('R13b 輸入檔少一個（高鐵軌道檔、林鐵班表各試一次）→ 非零離開、錯誤訊息點名缺的那個檔、舊的單位檔原封不動',
+    miss.every(([f, r]) => r.status !== 0 && r.err.startsWith(`缺 ${f}：`) && r.kept),
+    JSON.stringify(miss.map(([f, r]) => `${f}:${r.status}:${r.kept ? 'kept' : 'OVERWRITTEN'}:${r.err.slice(0, 90)}`)));
 }
 
 const failed = R.filter(r => !r.p);

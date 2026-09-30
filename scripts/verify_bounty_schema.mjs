@@ -32,7 +32,7 @@ const { db } = openTestDb();
     'seg_key', 'sys', 'train_kind', 'dir', 'kind', 'slot', 'l1', 'l2', 'points', 'per_day',
     'first_listed_at', 'first_claimable_at', 'l2_capped_at', 'sample_count', 'covered_at', 'unlocked_offer',
     'distinct_ok_users',       // 0014（路段懸賞 v2）：每段去重貢獻人數
-    'retired',                 // 0014：最新一份單位清單已經沒有這個單位（換班表之後退場）
+    'retired',                 // 0015：最新一份單位清單已經沒有這個單位（換班表之後退場）
   ]), cols('bounty_board').join(','));
   ok('A4 bounty_claims 欄位', eq(cols('bounty_claims'), [
     'id', 'actor', 'seg_key', 'train_kind', 'dir', 'kind', 'slot', 'points_locked', 'claimed_at', 'expires_at', 'status',
@@ -305,16 +305,42 @@ const tryRun = (d, sql, ...p) => { try { d.prepare(sql).run(...p); return ''; } 
 
 // A22 結構判準（與 A21b 不同源）：0014 檔內第一句 ALTER 之後不得再有 CREATE。
 // 只看非註解行——註解裡講到 ALTER／CREATE 的字樣不算。
+const schemaStmts = f => readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'schema', f), 'utf8')
+  .split('\n').filter(l => !/^\s*--/.test(l)).join('\n').split(';').map(s => s.trim()).filter(Boolean);
 {
-  const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'schema', '0014_bounty_v2.sql'), 'utf8');
-  const stmts = src.split('\n').filter(l => !/^\s*--/.test(l)).join('\n').split(';').map(s => s.trim()).filter(Boolean);
+  const stmts = schemaStmts('0014_bounty_v2.sql');
   const firstAlter = stmts.findIndex(s => /^ALTER\s+TABLE/i.test(s));
   const createAfter = stmts.slice(firstAlter + 1).filter(s => /^CREATE\s/i.test(s));
   const alters = stmts.filter(s => /^ALTER\s+TABLE/i.test(s));
-  ok('A22 0014：ALTER 全部排在檔尾（第一句 ALTER 之後沒有 CREATE），且恰有三句（distinct_ok_users、client、retired）',
-    firstAlter > 0 && createAfter.length === 0 && alters.length === 3 &&
-    /distinct_ok_users/.test(alters[0]) && /\bclient\b/.test(alters[1]) && /^ALTER\s+TABLE\s+bounty_board\s+ADD\s+COLUMN\s+retired\b/i.test(alters[2]),
+  ok('A22 0014：ALTER 全部排在檔尾（第一句 ALTER 之後沒有 CREATE），且恰有兩句（distinct_ok_users、client）',
+    firstAlter > 0 && createAfter.length === 0 && alters.length === 2 &&
+    /distinct_ok_users/.test(alters[0]) && /\bclient\b/.test(alters[1]),
     JSON.stringify({ firstAlter, createAfter: createAfter.length, alters: alters.length }));
+  // 第十九批：retired 原本接在 0014 檔尾第三句。0014 一旦套進任何一個庫，重套會在它的第一句 ALTER 中斷，
+  // 接在後面的欄位在那個庫永遠跑不到——所以另開一個只有這一句的檔。
+  const s15 = schemaStmts('0015_bounty_retired.sql');
+  ok('A22b 0015 恰好一句：ALTER TABLE bounty_board ADD COLUMN retired INTEGER NOT NULL DEFAULT 0',
+    s15.length === 1 && /^ALTER\s+TABLE\s+bounty_board\s+ADD\s+COLUMN\s+retired\s+INTEGER\s+NOT\s+NULL\s+DEFAULT\s+0$/i.test(s15[0]),
+    JSON.stringify(s15));
+}
+
+// A24 已經套過 0014、還沒有 retired 的庫（第十九批以前的 0014 沒有這一欄；拿全套的庫 DROP COLUMN 模擬），
+// 照 cron 與新環境的做法把 schema/*.sql 全部再套一次：retired 要長回來、既有的列不掉、值是 0。
+// 對照：retired 若還接在 0014 檔尾，重套在 0014 的第一句 ALTER（distinct_ok_users 已存在）就中斷，retired 永遠補不上。
+{
+  const { db: d } = openTestDb();
+  d.exec("INSERT INTO bounty_board (seg_key,sys,train_kind,dir,kind,slot,l1,l2,points,per_day,first_listed_at) " +
+    "VALUES ('tra|WL|1001|1002','tra','自強',0,'track','peak',1,1,5,3,1)");
+  d.exec('ALTER TABLE bounty_board DROP COLUMN retired');
+  const before = d.prepare('PRAGMA table_info(bounty_board)').all().some(r => r.name === 'retired');
+  let threw = '';
+  try { applySchemaFiles(d); } catch (e) { threw = String(e.message || e); }
+  const info = d.prepare('PRAGMA table_info(bounty_board)').all().find(r => r.name === 'retired');
+  const rows = d.prepare('SELECT seg_key, retired FROM bounty_board').all().map(r => ({ ...r }));
+  ok('A24 套過 0014、沒有 retired 的庫再套一次全部 schema：retired 長回來（INTEGER NOT NULL DEFAULT 0）、既有的列還在且是 0',
+    !before && threw === '' && info && /INT/i.test(info.type) && info.notnull === 1 && String(info.dflt_value) === '0' &&
+      JSON.stringify(rows) === '[{"seg_key":"tra|WL|1001|1002","retired":0}]',
+    JSON.stringify({ before, threw, info, rows }));
 }
 
 // A23（2026-09-30）：出貨鏈的正式庫 schema 守門人（verify_remote_schema.mjs，ship-web 每一發都跑）要看得到索引。
@@ -370,6 +396,15 @@ const tryRun = (d, sql, ...p) => { try { d.prepare(sql).run(...p); return ''; } 
   ok('A23i 整張 bounty_seg_contrib 都不在（表與它的索引一起缺）→ 補法是重套 0014；不印單獨的 CREATE INDEX（沒有表那一句會報錯）',
     noTable.rc === 1 && /整張表 bounty_seg_contrib/.test(noTable.out) && fileCmd.test(noTable.out) && !/--command/.test(noTable.out) &&
       /idx_seg_contrib_first/.test(noTable.out), noTable.out.trim().slice(0, 600));
+  // A23j（第十九批）：正式庫套過 0014、還沒有 retired → 補法是套 0015（只有那一句 ALTER），不是重套 0014
+  // （0014 會在自己的第一句 ALTER 就中斷，走不到後面）。DDL 取自一顆真的 DROP 掉 retired 的庫，不手改字串。
+  const { db: d15 } = openTestDb();
+  d15.exec('ALTER TABLE bounty_board DROP COLUMN retired');
+  const noRetired = runGate('no-retired', d15.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE type IN ('table','index')").all().map(r => ({ ...r })));
+  ok('A23j 正式庫的 bounty_board 缺 retired → exit 1，點名 bounty_board.retired（0015_bounty_retired.sql），補法是套 0015、不叫人重套 0014',
+    noRetired.rc === 1 && /bounty_board\.retired（0015_bounty_retired\.sql）/.test(noRetired.out) &&
+      /--file=schema\/0015_bounty_retired\.sql/.test(noRetired.out) && !fileCmd.test(noRetired.out),
+    noRetired.out.trim().slice(0, 600));
 }
 
 const pass = R.filter(r => r.p).length;

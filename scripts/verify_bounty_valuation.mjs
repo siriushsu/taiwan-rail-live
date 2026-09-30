@@ -152,6 +152,30 @@ if (existsSync('data/bounty_units.json')) {
   ok('E17 空清單＝丟錯中止，整張板一列都沒動（不是當成「今天沒有任何單位」全部退場）', /bounty_units empty/.test(threw) && all() === snap, threw || '沒有丟錯');
 }
 
+// E19（第十九批，第十三輪 P3-3 W9）：退場只退清單上真的少掉的那一格，主鍵五欄都要比。E13–E18 的單位 seg_key 各不相同，
+// 退場那一句少比 slot、dir 或車種也看不出來。這裡同一個鍵放好幾格：大武站的自強停站尖峰／離峰／假日三格＋莒光尖峰一格，
+// 大武–金崙自強兩個方向各一格。第二份清單只拿掉自強尖峰（尖峰換了小時就是這個樣子）與反方向那一格 →
+// 只有這兩格退場；自強離峰、假日（同站同車種、別的時段）、莒光尖峰（同站同時段、別的車種）、順方向那一格都照舊。
+{
+  const D = (trainKind, slot) => ({ segKey: 'tra_sched|南迴線|大武|大武', sys: 'tra_sched', trainKind, dir: 0, kind: 'dwell', slot, perDay: 6 });
+  const T = dir => ({ segKey: 'tra_sched|南迴線|大武|金崙', sys: 'tra_sched', trainKind: '自強', dir, kind: 'track', slot: '', perDay: 6 });
+  const lines = { 'tra_sched|南迴線': { sys: 'tra_sched', lnId: '南迴線', name: '南迴線', stations: [] } };
+  let cur = null;
+  const ASSETS = { fetch: async r => new Response(String(r.url).includes('bounty_units')
+    ? JSON.stringify(cur) : readFileSync('data/bounty_rules.json', 'utf8'), { status: 200 }) };
+  const { db, DELAY_DB } = openTestDb();
+  const run = units => { cur = { generatedAt: 1, schedDate: '2026-07-28', lines, units }; _bounty.bountyResetMemCaches(); return bountyValuationCron({ DELAY_DB, ASSETS }); };
+  const full = [D('自強', 'peak'), D('自強', 'off'), D('自強', 'holiday'), D('莒光', 'peak'), T(0), T(1)];
+  const r1 = await run(full);
+  const r2 = await run(full.filter(u => !(u.trainKind === '自強' && u.slot === 'peak') && !(u.kind === 'track' && u.dir === 1)));
+  const got = db.prepare('SELECT train_kind, dir, kind, slot, retired FROM bounty_board ORDER BY kind, train_kind, dir, slot').all()
+    .map(r => `${r.kind}|${r.train_kind}|${r.dir}|${r.slot}=${r.retired}`);
+  const want = ['dwell|自強|0|holiday=0', 'dwell|自強|0|off=0', 'dwell|自強|0|peak=1', 'dwell|莒光|0|peak=0', 'track|自強|0|=0', 'track|自強|1|=1'];
+  ok('E19 同站同車種只少尖峰那一格、同段只少反方向那一格 → 只有那兩格退場（退場 2）；同站別的時段、同時段別的車種、同段順方向都照舊',
+    r1.inserted === 6 && r1.retired === 0 && r2.inserted === 0 && r2.retired === 2 && JSON.stringify(got) === JSON.stringify(want),
+    JSON.stringify({ r1: [r1.inserted, r1.retired], r2: [r2.inserted, r2.retired], got }));
+}
+
 // ── F 組：seg_key 鍵空間硬 gate（controller 任務指令額外要求，brief 沒有給）───────────
 // 判準與 build_bounty_units.mjs 完全獨立重寫（不 import 它、不 import worker.js 的任何 canonicalSegs
 // 邏輯），真值來源＝index.html 的 lineNetwork()/segKey()（index.html:9099,9166——已用

@@ -13,8 +13,11 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
 // [軌道檔, 班表檔, 系統代號]。班表為 null 的系統(捷運)沒有逐車班表,只出 dwell 不出 track——
 // 那些線的 track 單位要等捷運班表管線就緒再補,現在硬出會得到一個沒人驗得了的清單。
+// multiDay:這個系統的班表一定是逐日聯集(見 scheduleDays),檔案裡必須有 dates。
+// 🔴 六個檔都在版控裡,任何一個不在就停下來、不寫檔(第十三輪獨立驗收 P3-5):舊版印「略過」照樣寫出清單,
+// 少掉的那個系統在下一發估值會整個退場(看板消失、不能認領、沒接懸賞的入帳 0 點)。
 const SOURCES = [
-  { track: 'data/tra.json', sched: 'data/tra_schedule_dense.json', sys: 'tra_sched' },
+  { track: 'data/tra.json', sched: 'data/tra_schedule_dense.json', sys: 'tra_sched', multiDay: true },
   { track: 'data/thsr_track.json', sched: 'data/thsr_schedule_dense.json', sys: 'thsr_sched' },
   { track: 'data/afr.json', sched: 'data/afr_schedule_dense.json', sys: 'afr_sched' },
 ];
@@ -36,8 +39,10 @@ function canonicalSegs(sys, ln) {
 const lines = {};        // "sys|lnId" → {sys,lnId,name,stations}
 const lineSegs = {};     // "sys|lnId" → [{key,mid}]
 const byName = {};       // sys → 站名 → [{lk, d}]
+for (const src of SOURCES) for (const f of [src.track, src.sched]) {
+  if (!existsSync(f)) throw new Error(`缺 ${f}：少了它，清單會少掉整個 ${src.sys}，下一發估值會把那個系統全部退場——先把檔補回來再跑`);
+}
 for (const src of SOURCES) {
-  if (!existsSync(src.track)) { console.log(`  · 略過(缺軌道檔) ${src.track}`); continue; }
   const t = JSON.parse(readFileSync(src.track, 'utf8'));
   byName[src.sys] = byName[src.sys] || {};
   for (const ln of (t.lines || [])) {
@@ -79,9 +84,14 @@ const median = xs => { const a = xs.slice().sort((x, y) => x - y), m = a.length 
 // （trains 是跨日去重後的班次定義，dates 是「日期 → 當天行駛的 trains 索引」）。回傳 [[日期, 當天的班次], …]。
 // 🔴 第十一輪獨立驗收 P2-4：聯集整份當成一天算的話，只開一天的臨時車、同車次改點的第二份定義都被算成每天一班——
 // 09-30 那一版多出 225 個單位，219 個的車只開 4 天以內（其中 142 個只開 1 天），尖峰時段也跟著偏。
-function scheduleDays(file, S) {
+// 同一顆 bug 的另一個入口（第十三輪 P3-2）：逐日聯集的檔（台鐵；檔案帶 dateRange）dates 缺鍵或是 null，
+// 照單一服務日算就是把整份聯集當成一天——所以這兩種檔沒有 dates 一律擋下。
+function scheduleDays(file, S, multiDay) {
   const trains = S.trains || [];
-  if (S.dates == null) return [[S.date || '', trains]];
+  if (S.dates == null) {
+    if (multiDay || S.dateRange != null) throw new Error(`${file} 沒有 dates：這份班表是逐日聯集，缺了會把整份聯集當成一天算`);
+    return [[S.date || '', trains]];
+  }
   if (typeof S.dates !== 'object' || Array.isArray(S.dates)) throw new Error(`${file} 的 dates 不是「日期 → 班次索引」`);
   const ds = Object.keys(S.dates).sort();
   if (!ds.length) throw new Error(`${file} 的 dates 是空的`);
@@ -118,13 +128,12 @@ function peakHours(days) {
 }
 
 for (const src of SOURCES) {
-  if (!existsSync(src.sched)) { console.log(`  · 略過(缺班表) ${src.sched}`); continue; }
   const S = JSON.parse(readFileSync(src.sched, 'utf8'));
   const trains = S.trains || [];
   // 行駛日只認檔案層級的 dates（見 scheduleDays）。若日後改成逐車帶行駛日清單,perDay 就會靜默算錯——
   // 所以這裡直接擋下來吵一聲,而不是猜。
   if (trains.some(t => t.days || t.dates)) throw new Error(`${src.sched} 帶了逐車行駛日,perDay 的算法要重寫`);
-  const days = scheduleDays(src.sched, S), nDays = days.length;
+  const days = scheduleDays(src.sched, S, src.multiDay), nDays = days.length;
   daysBySys[src.sys] = nDays;
   schedDate = schedDate || S.date || '';
   nTrain += trains.length;

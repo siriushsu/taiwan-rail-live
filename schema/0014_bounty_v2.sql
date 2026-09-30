@@ -1,13 +1,13 @@
 -- 路段懸賞 v2：每段「去重人數」、籌碼帳本、車庫解鎖、雲端搭乘，以及上傳時帶的 client 資訊。
 --
--- 🔴 所有環境都要跑（新環境＝0002 + 0014）。先套 schema、再部署用到它的 Worker。忘了套的症狀：
+-- 🔴 所有環境都要跑（新環境＝0002 + 0014 + 0015）。先套 schema、再部署用到它的 Worker。忘了套的症狀：
 --    ① 最嚴重：/api/account-delete 對【所有人】回 502——bountyPurgeUid 在同一個 batch 刪這四張新表，
 --       缺任何一張整批失敗，刪帳號就做不成（App 審查要求能刪帳號）。
 --    ② bountySubmit 一律 503 submit_failed（INSERT 找不到 bounty_samples.client 欄）；
 --       chips-me／garage-redeem／cloud-ride／bounty-merge 一律 503。
 --    ③ 驗證 cron 在寫 bounty_seg_contrib／chip_ledger 那幾句丟錯；這兩件排在「標記已判定」之前，
 --       所以樣本留在 pending、補套之後下一發 cron 會重判，不會永久漏發。
---    ④ /api/bounty-board【整個】回 503：看板的 SELECT 讀 bounty_board.distinct_ok_users／retired，缺欄整句失敗；
+--    ④ /api/bounty-board【整個】回 503：看板的 SELECT 讀 bounty_board.distinct_ok_users（與 0015 的 retired），缺欄整句失敗；
 --       回應是 public, s-maxage=60，全站每個人的看板都會空掉（不是只有新功能壞）。
 --    ⑤ 每日估值 cron 丟錯：上架新單位的 INSERT 讀 bounty_seg_contrib，缺這張表整支估值中止——
 --       板上不會有新單位、也不會重算價格，而且只在 log 裡看得到。
@@ -98,7 +98,4 @@ CREATE TABLE IF NOT EXISTS cloud_rides (
 ALTER TABLE bounty_board ADD COLUMN distinct_ok_users INTEGER NOT NULL DEFAULT 0;
 -- client：上傳當下的 {platform, app, simulator} JSON 字串（只存這三個欄位）。舊列與直接寫入的測試列為 NULL。
 ALTER TABLE bounty_samples ADD COLUMN client TEXT;
--- retired：1＝最新一份單位清單（data/bounty_units.json）已經沒有這個單位（換班表之後不再有的車種、時段、停站）。
--- 每日估值 cron 寫：清單沒有就標 1、清單又有就回 0；列不刪，趟數、人數、收滿這些歷史欄位原封不動。
--- 看板、認領、沒接懸賞時的入帳價、每日重算都只看 retired=0 的列。
-ALTER TABLE bounty_board ADD COLUMN retired INTEGER NOT NULL DEFAULT 0;
+-- （bounty_board.retired 在 0015：這個檔不再接新的 ALTER，理由見檔頭。）
