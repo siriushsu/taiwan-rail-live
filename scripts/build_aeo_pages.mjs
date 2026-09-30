@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildMetroPages } from './build_metro_pages.mjs';
+import { buildMetroPages, THEME_BOOT, BRAND_MARK } from './build_metro_pages.mjs';
 import { loadStationTimetableInputs, traStationTimetable, thsrStationTimetable } from './station_timetable.mjs';
 
 // 預設：重產所有頁面並寫檔。--check：在記憶體重產，和磁碟逐 byte 比對，有差異就列出檔名並以非零離開（不寫檔）。
@@ -485,6 +485,7 @@ function head({ title, description, pathname, schema }) {
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-180.png">
   <meta name="theme-color" content="#F2EDE2">
+  ${THEME_BOOT}
   <link rel="stylesheet" href="/assets/aeo.css">
   <script type="application/ld+json">${jsonLd(schema)}</script>
 </head>`;
@@ -495,7 +496,7 @@ function header() {
   <a class="skip-link" href="#main">跳到主要內容</a>
   <header class="site-header">
     <div class="header-inner">
-      <a class="brand" href="/" aria-label="軌島首頁"><span class="brand-mark" aria-hidden="true">軌</span><span>軌島 Rail Island</span></a>
+      <a class="brand" href="/" aria-label="軌島首頁">${BRAND_MARK}<span>軌島 Rail Island</span></a>
       <nav class="site-nav" aria-label="主要導覽">
         <a href="/about/">關於</a>
         <a href="/accuracy/">準確度</a>
@@ -1199,6 +1200,7 @@ ${hreflangLinks.map(([code, href]) => `  <link rel="alternate" hreflang="${code}
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-180.png">
   <meta name="theme-color" content="#F2EDE2">
+  ${THEME_BOOT}
   <link rel="stylesheet" href="/assets/aeo.css">
   <script type="application/ld+json">${jsonLd(schema)}</script>
 </head>
@@ -1206,7 +1208,7 @@ ${hreflangLinks.map(([code, href]) => `  <link rel="alternate" hreflang="${code}
   <a class="skip-link" href="#main">${escapeHtml(config.skip)}</a>
   <header class="site-header">
     <div class="header-inner">
-      <a class="brand" href="${config.pathname}" aria-label="${escapeHtml(config.brandLabel)}"><span class="brand-mark" aria-hidden="true">軌</span><span>軌島 Rail Island</span></a>
+      <a class="brand" href="${config.pathname}" aria-label="${escapeHtml(config.brandLabel)}">${BRAND_MARK}<span>軌島 Rail Island</span></a>
       <nav class="site-nav" aria-label="${escapeHtml(config.nav)}">
         ${config.switchLabel.map(([label, href, code]) => `<a href="${href}" hreflang="${code}" lang="${code}">${escapeHtml(label)}</a>`).join('\n        ')}
         <a class="nav-live" href="${config.live}">${escapeHtml(config.openMap)}</a>

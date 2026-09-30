@@ -15,6 +15,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const METRO_TEMPLATE_DATE = '2026-09-29';
+// 外觀跟主站用同一個設定（localStorage trainmap-appearance：亮／暗／自動，同網域共用），首繪前掛上 data-theme，
+// 邏輯照 index.html 的「外觀 FOUC 防護」。暗色色票在 assets/aeo.css 的 html[data-theme=dark]。
+export const THEME_BOOT = `<script>(function(){try{var a=localStorage.getItem('trainmap-appearance')||localStorage.getItem('trainmap-theme')||'auto';if(a!=='light'&&a!=='dark')a='auto';var d=a==='auto'?matchMedia('(prefers-color-scheme: dark)').matches:a==='dark';document.documentElement.setAttribute('data-theme',d?'dark':'light');var m=document.querySelector('meta[name=theme-color]');if(m)m.content=d?'#10141c':'#F2EDE2';}catch(e){}})();</script>`;
+// 頁首 logo 用主站同一張 icon（index.html 的 .tb-logo）。
+export const BRAND_MARK = '<img class="brand-mark" src="/favicon-192.png" alt="" width="40" height="40" decoding="async">';
 const LANGS = ['zh', 'en', 'ja'];
 const LANG_INFO = {
   zh: { html: 'zh-Hant', og: 'zh_TW', prefix: '' },
@@ -987,6 +992,7 @@ ${alt.map(([code, p]) => `  <link rel="alternate" hreflang="${code}" href="${abs
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-180.png">
   <meta name="theme-color" content="#F2EDE2">
+  ${THEME_BOOT}
   <link rel="stylesheet" href="/assets/aeo.css">
   <script type="application/ld+json">${jsonLd(schema)}</script>
 </head>`;
@@ -1000,7 +1006,7 @@ function headerHtml(lang, alts) {
   <a class="skip-link" href="#main">${esc(pick(lang, '', 'Skip to main content', 'メインコンテンツへ'))}</a>
   <header class="site-header">
     <div class="header-inner">
-      <a class="brand" href="${homeHref(lang)}" aria-label="${esc(pick(lang, '', 'Rail Island home', '軌島 ホーム'))}"><span class="brand-mark" aria-hidden="true">軌</span><span>軌島 Rail Island</span></a>
+      <a class="brand" href="${homeHref(lang)}" aria-label="${esc(pick(lang, '', 'Rail Island home', '軌島 ホーム'))}">${BRAND_MARK}<span>軌島 Rail Island</span></a>
       <nav class="site-nav" aria-label="${esc(pick(lang, '', 'Main navigation', 'メインナビゲーション'))}">
         ${switchLinks.map(([label, href, code]) => `<a href="${href}" hreflang="${code}" lang="${code}">${esc(label)}</a>`).join('\n        ')}
         <a href="${ovHref(lang)}">${esc(pick(lang, '', 'Metro maps', 'メトロ路線図'))}</a>

@@ -3520,9 +3520,9 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 // 2026-09-30 台鐵／高鐵車站時刻頁（SEO 階段 B 第一批）。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '車站頁加上台鐵、高鐵時刻表：台北、板橋、台中等大站，列出兩週內每一班的開車時刻與行駛日': 'Station pages now include TRA and HSR timetables: major stations such as Taipei, Banqiao and Taichung list every departure over two weeks, with the days each train runs',
-  '車站頁加上台鐵、高鐵時刻表（中、英、日文）：台北、板橋、台中等 20 個大站，加上新開的高鐵苗栗、彰化、雲林站，依方向列出兩週內每一班的開車時刻與行駛日，每週更新': 'Station pages now include TRA and HSR timetables (in Chinese, English and Japanese): 20 major stations such as Taipei, Banqiao and Taichung, plus new pages for HSR Miaoli, Changhua and Yunlin, list every departure by direction over two weeks, with the days each train runs, updated weekly',
+  '車站頁加上台鐵、高鐵時刻表（中、英、日文）：台北、板橋、台中等 20 個大站，加上新開的高鐵苗栗、彰化、雲林站，依方向列出兩週內每一班的開車時刻與行駛日，每週更新；車站頁與捷運路線圖頁也換上軌島圖示，跟著地圖切換亮暗外觀': 'Station pages now include TRA and HSR timetables (in Chinese, English and Japanese): 20 major stations such as Taipei, Banqiao and Taichung, plus new pages for HSR Miaoli, Changhua and Yunlin, list every departure by direction over two weeks, with the days each train runs, updated weekly; station and metro map pages also get the Rail Island icon and follow the map’s light or dark appearance',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '車站頁加上台鐵、高鐵時刻表：台北、板橋、台中等大站，列出兩週內每一班的開車時刻與行駛日': '駅ページに台鉄・高鉄の時刻表を追加：台北、板橋、台中などの主要駅で、2週間分の全列車の発車時刻と運転日を掲載',
-  '車站頁加上台鐵、高鐵時刻表（中、英、日文）：台北、板橋、台中等 20 個大站，加上新開的高鐵苗栗、彰化、雲林站，依方向列出兩週內每一班的開車時刻與行駛日，每週更新': '駅ページに台鉄・高鉄の時刻表を追加（中国語・英語・日本語）：台北、板橋、台中など20の主要駅と、新設の高鉄苗栗・彰化・雲林駅で、方面別に2週間分の全列車の発車時刻と運転日を掲載（毎週更新）',
+  '車站頁加上台鐵、高鐵時刻表（中、英、日文）：台北、板橋、台中等 20 個大站，加上新開的高鐵苗栗、彰化、雲林站，依方向列出兩週內每一班的開車時刻與行駛日，每週更新；車站頁與捷運路線圖頁也換上軌島圖示，跟著地圖切換亮暗外觀': '駅ページに台鉄・高鉄の時刻表を追加（中国語・英語・日本語）：台北、板橋、台中など20の主要駅と、新設の高鉄苗栗・彰化・雲林駅で、方面別に2週間分の全列車の発車時刻と運転日を掲載（毎週更新）。駅ページと路線図ページにも軌島のアイコンを付け、地図のライト／ダーク表示に合わせて切り替わります',
 });
