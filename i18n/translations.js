@@ -2,6 +2,7 @@
   'use strict';
   window.RAIL_I18N_MESSAGES = {
     en: {
+      "「我上車了」後沒按下車，搭的車又從班表消失（週五夜車過午夜、連假加班車）時，過了抵達時間會自動下車；跟著別班車時按「搭乘中」也能直接下車（謝謝網友回報）": "If you tapped “I’m on board” but never got off and that train then left the timetable (Friday night trains after midnight, holiday extra trains), your ride now ends automatically once its arrival time has passed. You can also end a ride from the “Riding” button while following another train. (Thanks for the report.)",
       "淡海、安坑倒數每 20 秒檢查更新，避免多層快取延長舊資料；斷線不把舊倒數標成新資料": "Danhai and Ankeng countdowns check for updates every 20 seconds. Cache layers no longer extend old data, and outages do not make old countdowns appear new.",
       "淡海、安坑跟車卡保留官方到站時間，不再被動畫平順校正延後；超出官方倒數範圍時明確標示推估": "Danhai and Ankeng follow cards keep official arrival times unchanged during smooth position corrections. Times beyond the official countdown are clearly marked as estimates.",
       "官方車號已確認；下一站時間與位置為推估": "Official vehicle confirmed; next arrival time and position are estimated",
@@ -601,6 +602,7 @@
       '已接續追蹤 {system} {train} 次': 'Now following {system} train {train}',
     },
     ja: {
+      "「我上車了」後沒按下車，搭的車又從班表消失（週五夜車過午夜、連假加班車）時，過了抵達時間會自動下車；跟著別班車時按「搭乘中」也能直接下車（謝謝網友回報）": "「乗車中」のまま下車し忘れ、その列車が時刻表から消えた場合（金曜夜行の深夜0時以降、連休の臨時列車）、到着時刻を過ぎると自動で下車します。別の列車を追跡中でも「乗車中」ボタンから下車できます。（ご報告ありがとうございます）",
       "淡海、安坑倒數每 20 秒檢查更新，避免多層快取延長舊資料；斷線不把舊倒數標成新資料": "淡海・安坑の到着予測を20秒ごとに更新確認します。多層キャッシュによる古いデータの延長を防ぎ、通信断でも古い予測を新しい情報として扱いません。",
       "淡海、安坑跟車卡保留官方到站時間，不再被動畫平順校正延後；超出官方倒數範圍時明確標示推估": "淡海・安坑の追跡カードは、位置の滑らかな補正中も公式到着時刻を変更しません。公式到着予測の範囲外は推定と明示します。",
       "官方車號已確認；下一站時間與位置為推估": "公式の車両番号を確認済み。次駅の到着時刻と位置は推定です",
