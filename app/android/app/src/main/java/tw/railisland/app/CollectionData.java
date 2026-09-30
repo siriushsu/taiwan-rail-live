@@ -243,7 +243,10 @@ final class CollectionData {
         /** 單一系統時，視窗內要畫成灰底的「其他系統」的點（全台為空）。 */
         final List<Pt> others = new ArrayList<>();
         List<Sys> systems = new ArrayList<>();
-        /** 最近蓋章：單一系統＝「k 相符或 ks 含該系統」的前 RECENT_MAX 筆，payload 已排好序、不重排；全台＝payload 全部（最多 4 筆）。 */
+        /**
+         * 最近蓋章：單一系統＝「k 相符或 ks 含該系統」的前 RECENT_MAX 筆，payload 已排好序、不重排；
+         * 全台＝空（全台範圍的版面不畫最近蓋章，契約〈畫法約定〉9，原生不必另取）。
+         */
         final List<Recent> recent = new ArrayList<>();
         /** 中卡的進度條：有收集的系統，依總站數大到小，最多 5 個。 */
         final List<Sys> topSystems = new ArrayList<>();
@@ -289,7 +292,6 @@ final class CollectionData {
             f.collected = n;
             f.total = total;
             f.dots.addAll(pts);
-            f.recent.addAll(recent);
         }
         f.percentLabel = percentLabel(f.collected, f.total);
         return f;

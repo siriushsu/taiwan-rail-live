@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
@@ -395,5 +396,23 @@ public final class CollectionDataInstrumentedTest {
         assertEquals("淡海：紅樹林靠 ks、漁人碼頭靠 k、只靠ks、k不在ks內 靠 ks；第 5 筆被上限擋掉",
             Arrays.asList("紅樹林", "漁人碼頭", "只靠ks", "k不在ks內"), names(d.figures("ntdlrt", "全台")));
         assertEquals("台鐵：只有菁桐", Arrays.asList("菁桐"), names(d.figures("tra", "全台")));
+    }
+
+    // ── 全台範圍不取最近蓋章（契約〈畫法約定〉9） ─────────────────────────────────────
+
+    @Test
+    public void allScopeTakesNoRecentWhileSingleScopesStillDo() {
+        String recent = "[" + rec("淡水", "淡水信義線", "trtc", "2026-09-05") + "," + rec("象山", "淡水信義線", "trtc", "2026-09-04") + "," +
+            rec("漁人碼頭", "藍海線", "ntdlrt", "2026-09-03") + "," + rec("紅樹林", "淡水信義線", "trtc", "2026-09-02") + "," +
+            rec("北投", "淡水信義線", "trtc", "2026-09-01") + "," + rec("新北投", "新北投支線", "trtc", "2026-08-31") + "]";
+        CollectionData d = CollectionData.decode(doc("recent", recent));
+        assertNotNull(d);
+        assertEquals("測試前提：payload 有 6 筆最近蓋章（下面的「空」才不是空對空）", 6, d.recent.size());
+        assertEquals("全台", 0, d.figures("all", "全台").recent.size());
+        assertEquals("範圍存值是 null 也當全台", 0, d.figures(null, "全台").recent.size());
+        assertEquals("認不得的範圍退回全台", 0, d.figures("沒有這個系統", "全台").recent.size());
+        assertEquals("對照：北捷單一系統取前 4 筆", 4, d.figures("trtc", "全台").recent.size());
+        assertEquals("對照：淡海單一系統 1 筆", 1, d.figures("ntdlrt", "全台").recent.size());
+        assertTrue("全台的其他數字照舊", d.figures("all", "全台").isAll() && d.figures("all", "全台").collected == d.n);
     }
 }
