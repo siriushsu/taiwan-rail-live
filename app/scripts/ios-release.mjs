@@ -74,6 +74,7 @@ sh('npm', ['run', 'check-android-plus-gate'], { cwd: repoRoot });
 // 原生多語(小工具／動態島字串目錄、權限說明 InfoPlist)此前只在 package.json,沒有任何出檔流程會跑;
 // 2026-09-19 抓到權限說明缺繁中(中文系統顯示英文)、英日文停在舊版隱私說法,掛這裡讓每顆 iOS build 先驗。
 sh('npm', ['run', 'check-native-localizations'], { cwd: repoRoot });
+sh('node', [join(scripts, 'verify_overlay_frame_contract.mjs')], { cwd: repoRoot });
 // 車站收集小工具：雙引擎驗真實 payload、附近蓋章入口、冷啟動深連結與三語範圍名稱。
 sh('npm', ['run', 'check-collect-widget'], { cwd: repoRoot });
 

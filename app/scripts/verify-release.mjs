@@ -53,6 +53,29 @@ function javacHome() {
 }
 
 
+// 相機不變時重用投影；相機、尺寸與地形改變時仍在 GL render 同幀更新。
+// 不綁「必須每幀直接呼叫 reproject」的舊寫法，保留接線、快取失效與重畫契約。
+export function assertGlOverlaySameFrame(html) {
+  const flat = html.replace(/\s+/g, '');
+  assert((flat.match(/M\.on\(['"]render['"],syncDrawMaplibre\)/g) || []).length === 1,
+    'MapLibre render 必須唯一接到 overlay 同幀更新');
+  const body = /constsyncDrawMaplibre=\(\)=>\{([^}]+)\}/.exec(flat)?.[1] || '';
+  const direct = body.includes('reproject();') && body.includes('syncDraw();');
+  const cached = body.includes('if(projectedView!==projectionKey())reprojectView();syncDraw();')
+    && flat.includes('constreprojectView=()=>{reproject();projectedView=projectionKey();}');
+  assert(direct || cached, 'overlay 沒有在 GL render 幀內按視圖更新投影與重畫');
+  if (cached) {
+    const key = /constprojectionKey=\(\)=>\{([^}]+)\}/.exec(flat)?.[1] || '';
+    for (const part of ['camKey()', 'getCenterElevation()', 'size.x', 'size.y', 'padding.top',
+      'padding.right', 'padding.bottom', 'padding.left', 'terrain?.source', 'terrain?.exaggeration', 'terrainProjectionEpoch']) {
+      assert(key.includes(part), `overlay 投影快取缺少 ${part}，視圖變化可能沿用舊投影`);
+    }
+    assert(flat.includes("M.on('sourcedata',e=>{if(e.sourceId==='terrain'&&(e.tile||e.sourceDataType==='content'))terrainProjectionEpoch++;})")
+      && flat.includes("M.on('style.load',()=>{terrainProjectionEpoch++;})"),
+      '地形圖磚與樣式更新必須使 overlay 投影快取失效');
+  }
+}
+
 export function assertNativeBridgeLoggingDisabled(capacitorConfig) {
   assert(capacitorConfig?.loggingBehavior === 'none',
     'capacitor.config.json loggingBehavior 必須是 none——Firebase 原生登入結果含憑證，不可寫入 Android logcat');
@@ -715,8 +738,7 @@ export async function verifyRelease({
   // 所以這條改成驗那個結構——引擎被換掉、或 reproject 被搬出 render 幀,兩者都會在這裡先紅。
   assert(/new maplibregl\.Map\(\{/.test(html),
     'App 地圖必須用 MapLibre GL 建構(new maplibregl.Map)');
-  assert(/const syncDrawMaplibre = \(\) => \{[^}]*reproject\(\);/.test(html),
-    'overlay 沒有在 GL 的 render 幀內重投影——底圖與列車會用不同相機,看起來兩層分家');
+  assertGlOverlaySameFrame(html);
 
   // 版本號對**所有** build 模式都必須注入(不是只有授權底圖 build)——App 內的更新提示與評分
   // 全靠它判斷「手上這顆是哪一版」。刻意寫在模式分支之外:放進安全 build 的條件裡就漏掉另一半。
