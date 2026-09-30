@@ -2051,6 +2051,7 @@ await attempt('CL4', async () => {
 // PLb 穩定：碰到六張表的每一句，每一種統計形狀下的計畫都與沒有統計時逐行相同；沒有統計時也不掃六張表的全表（例外逐條列在 PL_SCAN_OK）。
 // PLc 指名：每一族句子寫的是指定的索引（拿掉 INDEXED BY 而 node 的計畫剛好沒變的那幾句靠這一條抓——workerd 的成本模型與 node 不同，第九批 CL4d 的前例）。
 // PLd 對照（統計真的偏、PLb 有牙）：同一份統計下把 INDEXED BY 全部拿掉，指名的幾句計畫會變。
+// PLc2／PLd2 覆蓋：每一句寫了 INDEXED BY 的都有族名；六張表每一張都有會翻的對照（兩張清單被刪空或跟不上新加的句子時，PLc／PLd 會空轉成綠）。
 const GROW6 = ['bounty_samples', 'bounty_claims', 'chip_ledger', 'garage_unlocks', 'cloud_rides', 'bounty_seg_contrib'];
 const PL_STAT_TABLES = [...GROW6, 'bounty_points', 'kv_blobs'];   // 會跟六張表 join 的兩張也寫統計（更刁）
 const PL_SHAPES = {
@@ -2230,14 +2231,21 @@ await attempt('PL', async () => {
   // PLc：指名
   const lack = PL_PINS.filter(([, re, n = 1]) => sqls.filter(s => re.test(s)).length < n).map(([name]) => name);
   ok(`PLc 指名：${PL_PINS.length} 族句子寫的是指定的索引（INDEXED BY 被拿掉、或改指別的索引，那一族就找不到）`, lack.length === 0, J(lack));
+  // PLc2：反方向——攔到的句子裡每一句寫了 INDEXED BY 的都歸在某一族。新加的 INDEXED BY 沒補族名、或 PL_PINS 被刪空時，PLc 會空轉成綠。
+  const unnamed = sqls.filter(s => s.includes('INDEXED BY') && !PL_PINS.some(([, re]) => re.test(s)));
+  ok('PLc2 指名的覆蓋：攔到的每一句寫了 INDEXED BY 的句子都屬於 PL_PINS 的某一族（沒有族名的那一句，改掉它指名的索引 PLc 也看不出來）',
+    sqls.some(s => s.includes('INDEXED BY')) && unnamed.length === 0, J(unnamed.map(s => s.slice(0, 120))));
   // PLd：對照。同一份統計下把每一句的 INDEXED BY 全部拿掉：指名的幾句至少在一種形狀下計畫會變（或掃全表）；
   // 另外至少一句被判成「掃六張表的全表」——證明 growScans 認得出掃描（不然 PLb 的「沒有全表掃描」是空的）。
   const strip = s => s.replace(/ INDEXED BY \w+/g, '');
   const flips = (sql) => Object.entries(DBS).filter(([, db]) => { const p = plPlan(db, strip(sql)); return J(p) !== J(plPlan(DB0, sql)) || growScans(sql, p).length > 0; }).map(([k]) => k);
-  const ctrl = PL_CTRL.map(([name, re]) => { const s = grow.find(x => re.test(x)); return { name, found: !!s, flips: s ? flips(s) : [] }; });
+  const ctrl = PL_CTRL.map(([name, re]) => { const s = grow.find(x => re.test(x)); return { name, sql: s || '', found: !!s, flips: s ? flips(s) : [] }; });
   const scanSeen = grow.filter(s => s.includes('INDEXED BY')).some(s => Object.values(DBS).some(db => growScans(s, plPlan(db, strip(s))).length > 0));
   ok(`PLd [對照] 同一份統計下把 INDEXED BY 拿掉：${PL_CTRL.length} 句指名的句子都至少在一種形狀下計畫會變；而且看得到「掃六張表的全表」（PLb 的掃描偵測不是空的）`,
-    ctrl.every(c => c.found && c.flips.length > 0) && scanSeen, J({ scanSeen, ctrl: ctrl.filter(c => !c.found || !c.flips.length) }));
+    ctrl.every(c => c.found && c.flips.length > 0) && scanSeen, J({ scanSeen, ctrl: ctrl.filter(c => !c.found || !c.flips.length).map(c => ({ name: c.name, found: c.found, flips: c.flips })) }));
+  // PLd2：對照要涵蓋六張表的每一張——某張表沒有一句會翻，那張表上的 PLb 綠燈就沒有證據說明統計真的偏得動它（PL_CTRL 被刪空時 PLd 也會空轉成綠）。
+  const noCtrl = GROW6.filter(t => !ctrl.some(c => c.found && c.flips.length > 0 && new RegExp(`\\b${t}\\b`).test(c.sql)));
+  ok('PLd2 [對照的覆蓋] 六張表每一張都至少有一句對照在拿掉 INDEXED BY 後計畫會變', noCtrl.length === 0, J(noCtrl));
 });
 
 // ═══ PH：同一秒的點（第五輪獨立驗收）══════════════════════════════════════════════
