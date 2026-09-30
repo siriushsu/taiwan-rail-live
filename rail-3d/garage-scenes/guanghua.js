@@ -239,12 +239,13 @@ export function createScene(kits=null){
  for(const sx of [-1,1])for(let i=0;i<14;i++){const w=.03+rnd()*.07,h=.2+rnd()*.5,y=(rnd()*2-1)*(HB-.15);block(rnd()<.7?stain:streak,[.006,w,h],[sx*(HW-.002),y,ZS-h/2]);}
  for(const s of [-1,1])for(const sx of [-1,1])for(let i=0;i<5;i++){const y=s*(HB+.2+rnd()*(CUT-.5)),top=ZG+(u(DIM.WALL_H)-ZG)*(1-(Math.abs(y)-HB)/CUT)-.03,w=.04+rnd()*.06,h=.15+rnd()*.3;block(wstain,[.006,w,Math.min(h,top-.05)],[sx*(CX+.002),y,top-Math.min(h,top-.05)/2]);}
  for(const s of [-1,1])for(const sx of [-1,1])for(let i=0;i<8;i++){const y=s*(HB+.05+rnd()*(CUT*.55)),top=ZG+(u(DIM.WALL_H)-ZG)*(1-(Math.abs(y)-HB)/CUT)-.02,w=.05+rnd()*.1,h=Math.min(top-.05,.3+rnd()*.5);block(rnd()<.75?wstain:stain,[.006,w,h],[sx*(HW+AB-.002),y,top-h/2]);}
- // 涵洞外的巷子：外側地面上的瀝青帶。照片比對輪把後段的右彎拉直（TH＝0）：OSM 光華街出洞後直行約 70 m、使用者 09-30 貼的照片一從洞口看出去也是一條直路（主對話判讀）。
- // 彎道的寫法（kink、TH）留著，機車路線與後段房子都照它算；TH＝0 時就是一直線，L2 鋪到底座後緣 Y。
+ // 涵洞外的巷子：外側地面上的瀝青帶。照片比對輪曾把後段的右彎拉直（TH＝0，依 OSM 光華街出洞後直行約 70 m，主對話判讀），r7 改成 7° 緩右彎（理由見 TH 那行）。
+ // 機車路線與後段房子都照彎道（kink、TH）算，L2 鋪到底座後緣 Y。
  // 【r6】洞口前（−y，照片角度那一側）的巷子收窄成 x∈[FL,FR]：兩張照片的畫面底邊，路只從左紅線左邊約 .5 m 鋪到右紅線（主對話依照片與機位擬合估計），其餘是草。
  const FL=-u(1.7),FR=u(.6);
  block(asphalt,[FR-FL,Y-YC,.012],[(FL+FR)/2,-(YC+Y)/2,ZG+.006]);
- const L1=u(6),TH=0,kink=[0,YC+L1],L2=Y-.01-kink[1];
+ // 【r7】後段改成緩右彎 7°：r6 評審量到照片一（B）遠處的路往右彎、消失點約在 57％ 寬，TH＝0 的截圖路盡頭在 25–39％ 寬；主對話以 B 機位實量水平視角 24° 換算兩者約差 6–7°，取 7°。先試的 35° 讓洞口正前方被轉角房子擋成死巷（r7 評審：照片 A 第 7 項 0 分）。
+ const L1=u(6),TH=7*Math.PI/180,kink=[0,YC+L1],L2=(Y-.01-kink[1]-AH*Math.sin(TH))/Math.cos(TH); // 斜的那段鋪到遠端外角剛好碰到底座後緣 Y（第一輪 TH＝35° 時約 20.2）
  block(asphalt,[2*AH,L1,.012],[0,YC+L1/2,ZG+.006]);
  block(asphalt,[2*AH,L2,.012],[kink[0]+Math.sin(TH)*L2/2,kink[1]+Math.cos(TH)*L2/2,ZG+.006],[0,0,-TH]);
 
@@ -269,7 +270,7 @@ export function createScene(kits=null){
  const hz=ZG,tints=[0,1,2,3,4],roofs=['tin','pitched','parapet','tin'],grounds=['plain','shop','plain','arcade'];
  let hi=0;
  const houseList=[];
- const house=(x,y,facing,o={})=>{const i=hi++;houseList.push({i,x,y,facing,floors:o.floors??(2+(i%2))});props.townhouse(x,y,hz,{floors:o.floors??(2+(i%2)),width:o.width??2.6,depth:o.depth??3.2,tint:tints[(i*3)%5],facing,roof:o.roof??roofs[i%4],ground:grounds[(i+1)%4],balcony:i%3?'rail':'cage',tanks:1,back:true});};
+ const house=(x,y,facing,o={})=>{const i=hi++;houseList.push({i,x,y,facing,floors:o.floors??(2+(i%2))});props.townhouse(x,y,hz,{floors:o.floors??(2+(i%2)),width:o.width??2.6,depth:o.depth??3.2,tint:o.tint??tints[(i*3)%5],facing,roof:o.roof??roofs[i%4],ground:o.ground??grounds[(i+1)%4],balcony:i%3?'rail':'cage',tanks:1,back:true});};
  const PX=7; // 空地半寬（單位；本輪自訂：看涵洞鏡頭視野半寬約 3.6，再留餘裕；斜 ±20° 看洞口的視線在到底座前緣時側移約 8.4，所以內排只蓋到 y≈-17）
  // 房子從洞口前 6 單位以外才開始蓋：全景鏡頭抬高 26° 看，近處的房子會把後面的路堤正面整段擋住（本輪自訂）。
  for(let i=0;i<5;i++){const y=-(YC+6+i*2.7);if(i<3){house(-(PX+1.6),y,Math.PI/2);house(PX+1.6,y+.3,-Math.PI/2);}house(-(PX+4.8),y,-Math.PI/2);house(PX+4.8,y+.3,Math.PI/2);}
@@ -277,7 +278,8 @@ export function createScene(kits=null){
  house(-2.45,YC+1.4,Math.PI/2,{floors:2,roof:'tin'});house(2.45,YC+1.4,-Math.PI/2,{floors:2,roof:'parapet'});house(-5.65,YC+1.4,-Math.PI/2,{floors:2,roof:'tin'});house(5.65,YC+1.4,Math.PI/2,{floors:2,roof:'parapet'});
  for(let i=0;i<6;i++){const s=1.6+i*2.7,cx=kink[0]+Math.sin(TH)*s,cy=kink[1]+Math.cos(TH)*s,ln=[-Math.cos(TH),Math.sin(TH)],rn=[Math.cos(TH),-Math.sin(TH)];
   const o={floors:2,roof:i%2?'tin':'parapet'}; // 照片比對輪：兩層平頂（照片角度看過去，三層與斜屋頂會從列車上方冒出來；主對話判讀）
-  house(cx+ln[0]*2.45,cy+ln[1]*2.45,Math.PI/2-TH,o);house(cx+rn[0]*(2.45+(i<1?1.6:0)),cy+rn[1]*(2.45+(i<1?1.6:0)),-Math.PI/2-TH,o);}
+  // r7：彎道後左側第一棟（i＝0 的左側）改淡綠牆、一樓不做店面玻璃（r7 評審描述照片一（B）出口「左邊的粉紅、黃綠房子沿著路排」，選淡綠是主對話判讀）
+  house(cx+ln[0]*2.45,cy+ln[1]*2.45,Math.PI/2-TH,i?o:{...o,tint:4,ground:'plain'});house(cx+rn[0]*(2.45+(i<1?1.6:0)),cy+rn[1]*(2.45+(i<1?1.6:0)),-Math.PI/2-TH,o);}
  // 洞口後、路堤兩側外側地面上各放一棟量體，擋住空曠的路堤腳（洞口前那兩棟拿掉了，那裡是空地）。
  for(const [x,y,f,fl] of [[-9.8,YC+.9,Math.PI,2],[9.8,YC+.9,Math.PI,3]])house(x,y,f,{floors:fl,width:3.4,depth:3.0});
  // ── 周邊補景（本輪自訂）：後側（+y）路堤外沿排低矮方塊當市街背景；前側（−y）只種行道樹——前側不放高過路堤的東西，低角度才看得到路堤面。
@@ -345,6 +347,9 @@ export function createScene(kits=null){
  put(paint(new THREE.CylinderGeometry(u(.4),u(.4),u(.05),24),'rim'),[MX,PY-u(.07),ZG+MZ],[.15,0,-.35]); // 反光鏡：橘框＋鏡面，微朝巷子、略朝下
  put(paint(new THREE.CylinderGeometry(u(.36),u(.36),u(.06),24),'mirror'),[MX-u(.004),PY-u(.08),ZG+MZ],[.15,0,-.35]);
  boxG('blue',[u(.32),u(.03),u(.5)],[MX,PY-u(.06),ZG+u(1.03)]);boxG('white',[u(.28),u(.03),u(.36)],[MX,PY-u(.06),ZG+u(.58)]);
+ {const f=Math.PI/2-TH,n=[Math.sin(f),-Math.cos(f)],t=[Math.cos(f),Math.sin(f)],h=houseList.find(h=>h.facing===f),c=[h.x+n[0]*1.6,h.y+n[1]*1.6]; // r7：彎道後左側第一棟正面的藍招牌與兩叢盆栽（r6 評審描述照片一（B）左側立面「綠色植物、藍招牌、黃綠牆」，位置與大小是主對話依照片估計）
+  boxG('blue',[1.1,.03,.32],[c[0]+n[0]*.03-t[0]*.45,c[1]+n[1]*.03-t[1]*.45,ZG+.95],[0,0,f]);
+  for(const a of [-1.05,.95])bush(c[0]+n[0]*.2+t[0]*a,c[1]+n[1]*.2+t[1]*a,ZG+.05,.18,'bush2');}
  const RH=u(.95),RP=u(1.6); // 路堤頂護欄上的黃色欄杆（照片二右上角是黃色欄杆、左上角是灌木，所以只放 +x 側，兩面都放；主對話判讀）
  for(const s of [-1,1])for(const sx of [1]){const a=CX+u(4),b=X-.3,y=s*(HB-u(.12));
   for(let x=a;x<=b+1e-6;x+=RP)boxG('yellow',[.03,.03,RH],[sx*x,y,ZP+RH/2]);
