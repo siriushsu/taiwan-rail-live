@@ -142,11 +142,19 @@ v2 新增的卡片欄位（舊欄位 `samples`、`coverN` 保留給舊客端）�
 - `covered`：只有 `chips.evergreen` 的線（南迴線、臺東線）會出現收滿的卡，這時為 `true`，排在未收滿的卡之後；**`covered:true` 的卡不能認領**（`/api/bounty-claim` 回 404 `no_open_units`），畫面上只當「還可以錄、照樣拿籌碼」的提示。一般線收滿的段直接不出現在板上。
 - 認領（`POST /api/bounty-claim`，回應形狀不變）：同一個人把同一張卡再接一次＝取代自己在那些單位上還開著的舊認領（鎖的點數與期限換成這一次的）；登入合併之後，帳號名下同一個單位也只留最近的一筆。判定一向只看每個單位最近的那一筆，所以結果不受影響。
 
-回應頂層另有 `retireBlock`：每日估值被單位清單的守門擋下（清單是空的、某個系統或某條線一次退場太多）的狀態。擋下期間整張板停在上一次估值的樣子，新單位不上架、沒接懸賞的錄程在缺卡的段拿 0 點，要有人處理。
-- `null`：沒有被擋下。
-- `{at, generatedAt, msg}`：擋下中。`at` 是最近一次擋下的毫秒時間戳；`generatedAt` 是被擋下的那份清單的 `generatedAt`（清單沒有就 `null`）；`msg` 是擋下的原因，與 cron 丟出的錯誤訊息同一句。估值正常跑完才會回到 `null`。
-- 欄位不存在：伺服器讀不到這個狀態（或還在跑舊版），不知道有沒有被擋下，不等於沒被擋。
-- 跟著看板一起被邊緣快取（`s-maxage=300`、`stale-while-revalidate=900`）：新鮮期 5 分鐘，過期後還有 15 分鐘可能先回舊內容，所以狀態變了之後，最久約 20 分鐘才會在這個欄位看到。
+回應頂層另有兩個欄位，讓讀的人分辨每日估值有沒有在正常跑：`retireBlock`（被單位清單的守門擋下的狀態）與 `valuationOk`（最後一次成功跑完的估值）。擋下期間停住的是估值的部分（點數、上架、退場）：新單位不上架、沒接懸賞的錄程在缺卡的段拿 0 點，要有人處理；判定照跑，認領人數、樣本數、收滿狀態仍會變。
+
+`retireBlock`：每日估值被單位清單的守門擋下（清單是空的、某個系統或某條線一次退場太多）的狀態。
+- `null`：目前沒有被擋下。**這不代表估值正常**：估值沒跑成（清單讀不到、規則檔壞了、排程沒觸發……）時，`retireBlock` 也可能是 `null`；要看估值有沒有在跑，看 `valuationOk`。
+- `{at, generatedAt, msg}`：擋下中。`at` 是最近一次擋下的毫秒時間戳；`generatedAt` 是被擋下的那份清單的 `generatedAt`（清單沒有就 `null`）；`msg` 是給維運看的診斷文字，措辭會變，不要顯示在畫面上、也不要拿來解析。估值正常跑完才會回到 `null`。
+
+`valuationOk`：最後一次成功跑完的估值。
+- `null`：從沒有任何一次成功跑完的紀錄（剛上線，或一直沒成功）。不是正常。
+- `{at, generatedAt}`：`at` 是那一次跑完的毫秒時間戳，`generatedAt` 是當時用的那份清單的 `generatedAt`（清單沒有就 `null`）。估值一天跑一次，`at` 過了一天多還沒更新就是估值停了，不論 `retireBlock` 是不是 `null`。判斷用的門檻在 `scripts/lib/bounty_retire_verdict.mjs`（`BOUNTY_VALUATION_MAX_AGE_MS`，26 小時：一天一次，留兩小時給排程延遲、執行時間與下面說的快取）。
+
+兩個欄位的共同規則：
+- 欄位不存在：伺服器讀不到這些狀態（讀取失敗時兩個欄位會**一起**省略，看板其餘內容照常回 200），或還在跑舊版（只有 `retireBlock`、沒有 `valuationOk`）。不知道有沒有被擋下、估值有沒有在跑，不等於沒被擋、也不等於正常。
+- 快取：兩個欄位跟著看板一起快取。看板走 Workers 的 Cache API，每個機房各自快取，狀態變化最多約 5 分鐘後看得到。回應標頭仍帶 `s-maxage=300`、`stale-while-revalidate=900`，但 Cloudflare 官方文件寫明 `cache.put`、`cache.match` 不支援 `stale-while-revalidate` 與 `stale-if-error`（https://developers.cloudflare.com/workers/runtime-apis/cache/），所以邊緣那一份過了 5 分鐘就重建，不會再多回一段舊內容。
 
 ## 4. `POST /api/cloud-ride`：雲端搭乘（前景跟同一班真實列車連續 `chips.cloud.minSec` 秒）
 
