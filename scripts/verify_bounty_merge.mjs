@@ -401,10 +401,10 @@ await attempt('M12', async () => {
   ok('M12 兩邊各自領滿的當日錄程籌碼併成 8 顆、不回溯追討（balance 8、today.chips 8 > 上限 4）', m.json.balance === 8 && m.json.today.chips === 8 && m.json.today.cap === 4, m.text);
 });
 
-// ═══ M13：首位校正者（/api/bounty-me 的 firsts）與合併撞段時的首次時間（第十批）═══════════════════════════════════
+// ═══ M13：首位校正者（/api/bounty-me 的 firsts）與合併撞段時的首次時間═══════════════════════════════════
 // 「第一位」＝這一段的去重貢獻（bounty_seg_contrib）裡 first_ok_at 最早的人，同時刻的每一位都算（並列）；樣本只決定
 // 「這一段有沒有交過 ok」。模擬器的趟不寫貢獻，所以只有樣本、沒有貢獻列的段不算首位。
-// 🔴 同時刻並列（第十三批）：first_ok_at 是那一發判定的 now，同一發判過的人時間都一樣。舊版取 actor 字序最前，
+// 🔴 同時刻並列：first_ok_at 是那一發判定的 now，同一發判過的人時間都一樣。舊版取 actor 字序最前，
 // 等於看 token 長相決定，裝置併進帳號時首位還會換人（M13f）。
 // 合併撞段時留下的那一列取兩邊較早的 first_ok_at：併進帳號之後，裝置當年先跑的那一段仍算這個人先跑。
 const okSample = (w, actor, id, keys) => w.db.prepare("INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict,verdict_at) VALUES (?,?,?,?,?,?,?,?,?,?,'ok',1)")

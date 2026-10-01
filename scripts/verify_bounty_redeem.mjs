@@ -237,7 +237,7 @@ await attempt('M4', async () => {
 });
 
 // M5 身分：actor 查詢參數，或 Bearer Firebase idToken（uid 蓋過 actor 參數）；Bearer 那條走 AUTH_LIMITER，
-// ?actor= 那條走 BOUNTY_LIMITER（稽核 F19：以前完全不限流；bountyMe 的 ?actor= 讀取第十批起也走同一道限流，見 verify_bounty_auth.mjs 的 A14d）
+// ?actor= 那條走 BOUNTY_LIMITER（稽核 F19：以前完全不限流；bountyMe 的 ?actor= 讀取現在也走同一道限流，見 verify_bounty_auth.mjs 的 A14d）
 await attempt('M5', async () => {
   const D = 'device-m5other1', U = 'uid-m5bearer01';
   const mk = env => { const w = world({ env }); give(w.db, U, { balance: 9 }); give(w.db, D, { balance: 2 }); return w; };
@@ -783,7 +783,7 @@ await attempt('T3', async () => {
 
 // T4 長趟（60 段）：登記與收滿寫入。每個 batch ≤ 80 句（專案自訂的上限）；同一段的「登記、收滿」一定在同一個 batch 且收滿排在登記之後——
 // 收滿排在登記前面的話，這一位剛好補滿門檻的那一刻讀到的還是舊人數，整段要等下一位才收（差一位，沒有任何錯誤訊息）。
-// 第二輪獨立驗收之後，登記與收滿不再逐段各寫一句：段鍵包成一個 JSON 陣列走 json_each，整班車一個 batch、句數不隨段數成長
+// 現在登記與收滿不再逐段各寫一句：段鍵包成一個 JSON 陣列走 json_each，整班車一個 batch、句數不隨段數成長
 // （舊版一段三句、60 段 180 句要拆成 3 批）。
 await attempt('T4', async () => {
   // 每公里一站＝60 段（里程單位是公里，軌跡的 d 才是公尺）。站名補零：區間鍵是字典序（'L10' 排在 'L9' 前面），不補零 L9|L10 會變成 L10|L9

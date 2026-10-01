@@ -41,7 +41,7 @@ ok('R7 整數欄位都是正整數', ['perTrip', 'minTripSec', 'remoteMultiplier
 ok('R7b chips.minTripMoveM 是正的有限數', typeof c.minTripMoveM === 'number' && Number.isFinite(c.minTripMoveM) && c.minTripMoveM > 0,
   JSON.stringify({ minTripMoveM: c.minTripMoveM }));
 ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|lifetime|訂閱/i.test(JSON.stringify(rules)));
-// 都卜勒那一重（worker.js integrityGate 第四重，第十四批）：相關係數＞dopplerCorrMax 而且逐點差中位數 ≤ dopplerResidMaxMps 才判。
+// 都卜勒那一重（worker.js integrityGate 第四重）：相關係數＞dopplerCorrMax 而且逐點差中位數 ≤ dopplerResidMaxMps 才判。
 // 設定檔一定要有 dopplerResidMaxMps：少了它比較式恆為假，所以在這裡釘住兩個鍵都在、而且是合理的數，缺鍵時閘門先紅。
 {
   const I = rules.integrity || {};
@@ -50,19 +50,19 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
       typeof I.dopplerResidMaxMps === 'number' && Number.isFinite(I.dopplerResidMaxMps) && I.dopplerResidMaxMps > 0,
     JSON.stringify({ dopplerCorrMax: I.dopplerCorrMax, dopplerResidMaxMps: I.dopplerResidMaxMps }));
 }
-// 停靠判定的位置微分否決（worker.js coverageOf 與 index.html bountyUpdateDwellProgress，第十五批）：回報的速度再低，位置微分超過 posSpeedVetoMps 就不信它。
+// 停靠判定的位置微分否決（worker.js coverageOf 與 index.html bountyUpdateDwellProgress）：回報的速度再低，位置微分超過 posSpeedVetoMps 就不信它。
 // 少了這個鍵兩邊都直接中止（Worker 丟 invalid bounty rule、前端丟 dwell rules unavailable）；比 stopSpeedMaxMps 小的話否決會蓋掉真的停靠。
 {
   const D = (rules.quality || {}).dwell || {};
   ok('R10 quality.dwell.posSpeedVetoMps 是有限數、而且大於 stopSpeedMaxMps（Android 沒有速度送 0 時靠它擋掉假停靠）',
     typeof D.posSpeedVetoMps === 'number' && Number.isFinite(D.posSpeedVetoMps) && D.posSpeedVetoMps > D.stopSpeedMaxMps,
     JSON.stringify({ posSpeedVetoMps: D.posSpeedVetoMps, stopSpeedMaxMps: D.stopSpeedMaxMps }));
-  // 位置微分跟「至少 posSpeedWindowSec 秒以前的那一點」比（第十七批）：少了、不是數字、或不在 1–10 秒，兩邊一樣直接中止（上限是第十八批加的）。
+  // 位置微分跟「至少 posSpeedWindowSec 秒以前的那一點」比：少了、不是數字、或不在 1–10 秒，兩邊一樣直接中止。
   ok('R12 quality.dwell.posSpeedWindowSec 是 1–10 的數字（停靠判定的位置微分跟幾秒前的點比）',
     typeof D.posSpeedWindowSec === 'number' && Number.isFinite(D.posSpeedWindowSec) && D.posSpeedWindowSec >= 1 && D.posSpeedWindowSec <= 10,
     JSON.stringify({ posSpeedWindowSec: D.posSpeedWindowSec }));
 }
-// 站表同源（第十輪獨立驗收 P1-3）：Worker 判停靠用 bounty_units.json 的 lines，前端錄製當下用軌道檔（lineNetwork()）——
+// 站表同源：Worker 判停靠用 bounty_units.json 的 lines，前端錄製當下用軌道檔（lineNetwork()）——
 // 兩邊的站里程只要差過站窗，同一趟車就一邊算停靠、一邊不算（09-14 改過 tra.json、units 沒重產，汐科差了 326 m）。
 // 期望值直接讀前端載入的那三份軌道檔（index.html SYS_DEFS 的 track），照 build_bounty_units.mjs 的篩法（有站名、有里程）排好比對。
 {
@@ -88,7 +88,7 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
     nLines > 0 && nSts > 100 && bad.length === 0, `${nLines} 條線、${nSts} 站；不同：${bad.slice(0, 5).join('；') || '無'}${bad.length > 5 ? `（共 ${bad.length} 條）` : ''}`);
 }
 
-// 單位檔的 perDay 是「各日班次數的中位數」（第十七批，第十一輪獨立驗收 P2-4）：台鐵班表是 14 天逐日的聯集
+// 單位檔的 perDay 是「各日班次數的中位數」：台鐵班表是 14 天逐日的聯集
 // （trains＝跨日去重的班次定義、dates＝日期 → 當天的班次索引），整份當成一天算的話，只開一天的臨時車、同車次改點的第二份定義
 // 都會被算成每天一班，還會把尖峰時段推走。拿一份手寫的小班表在暫存目錄跑 build_bounty_units.mjs，期望值是手算的常數：
 //   軌道檔一條線 甲(0)–乙(1)–丙(2)。五天（d1–d5）：
@@ -100,9 +100,9 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
 //   ・莒光：d1、d5 才有 → 中位數 0，不出單位。
 //   每小時停站數的中位數：尖峰 9、其他營運時段 3 → 尖峰＝6、7、8、17、18、19。
 //   另十份壞班表要讓腳本非零離開，而且是腳本自己的檢查擋下（錯誤訊息指名是哪一種、哪一天、哪個索引），不是跑到後面才崩：
-//   車次自帶行駛日（days）、dates 裡有超出範圍的索引、同一天同一個索引出現兩次（第十七批）；
-//   dates 不是物件、dates 是空的、鍵不是日曆上的日期（2026-02-30）、某一天一班車都沒有（第十八批，第十二輪獨立驗收 P3-4）；
-//   台鐵的檔 dates 缺鍵（帶 dateRange）、台鐵的檔 dates 是 null、高鐵的檔帶 dateRange 卻沒有 dates（第十九批，第十三輪 P3-2）。
+//   車次自帶行駛日（days）、dates 裡有超出範圍的索引、同一天同一個索引出現兩次；
+//   dates 不是物件、dates 是空的、鍵不是日曆上的日期（2026-02-30）、某一天一班車都沒有；
+//   台鐵的檔 dates 缺鍵（帶 dateRange）、台鐵的檔 dates 是 null、高鐵的檔帶 dateRange 卻沒有 dates。
 //   擋下的時候舊的 data/bounty_units.json 原封不動（壞的一份不能寫出半套清單）。
 //   高鐵、林鐵的軌道檔與班表放空的（一條線、一班車都沒有）：六個輸入檔少一個腳本就停（見 R13b）。
 //   偶數天（台鐵實際是 14 天）另跑一份：四天裡兩天有莒光 → 中位數取中間兩個的平均 0.5，出單位（取下面那一個會是 0、不出）。
@@ -167,15 +167,15 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
     ['nullDates', run({ date: '2026-01-05', trains, dates: null })],
     ['thsrRange', run({ date: '2026-01-05', trains, dates }, { files: { 'data/thsr_schedule_dense.json': { date: '', trains: [], dateRange: ['2026-01-05', '2026-01-09'] } } })],
   ];
-  ok('R13 [第十七批 V11 P2-4] 單位檔的 perDay＝各日班次數的中位數：手寫的五天班表跑 build_bounty_units，只開一天的臨時車與兩天的車不出單位、改點的第二份定義不多算、尖峰照各日中位數切；四天班表開兩天的車 perDay 0.5；' +
-    '十份壞班表（第十七批三份：車次自帶行駛日、索引超出範圍、同一天重複；第十八批四份：dates 不是物件、是空的、鍵不是日期、某天沒車；第十九批三份：台鐵缺 dates、台鐵 dates 是 null、高鐵帶 dateRange 卻沒有 dates）都由腳本自己的檢查擋下、非零離開，舊的單位檔原封不動',
+  ok('R13 單位檔的 perDay＝各日班次數的中位數：手寫的五天班表跑 build_bounty_units，只開一天的臨時車與兩天的車不出單位、改點的第二份定義不多算、尖峰照各日中位數切；四天班表開兩天的車 perDay 0.5；' +
+    '十份壞班表（三份：車次自帶行駛日、索引超出範圍、同一天重複；四份：dates 不是物件、是空的、鍵不是日期、某天沒車；三份：台鐵缺 dates、台鐵 dates 是 null、高鐵帶 dateRange 卻沒有 dates）都由腳本自己的檢查擋下、非零離開，舊的單位檔原封不動',
     good.status === 0 && JSON.stringify(got) === JSON.stringify(want) && JSON.stringify(peak) === '[6,7,8,17,18,19]' &&
       even.status === 0 && JSON.stringify(gotEven) === JSON.stringify(wantEven) && JSON.stringify(peakEven) === '[6,7,8,17,18,19]' &&
       bad.length === 10 && bad.every(([k, r]) => r.status !== 0 && WANT_ERR[k].test(r.err) && r.kept),
     JSON.stringify({ status: good.status, peak, extra: got.filter(x => !want.includes(x)), missing: want.filter(x => !got.includes(x)),
       even: { status: even.status, peak: peakEven, extra: gotEven.filter(x => !wantEven.includes(x)), missing: wantEven.filter(x => !gotEven.includes(x)) },
       bad: bad.map(([k, r]) => `${k}:${r.status}:${r.kept ? 'kept' : 'OVERWRITTEN'}:${r.err.slice(0, 80)}`) }));
-  // R13b（第十九批，第十三輪 P3-5）：六個輸入檔少一個 → 停下來、點名缺哪一個、舊的單位檔原封不動。
+  // R13b：六個輸入檔少一個 → 停下來、點名缺哪一個、舊的單位檔原封不動。
   // 舊版印「略過」照樣寫出清單：少掉的系統在下一發估值會整個退場。軌道檔與班表各缺一次，分屬不同系統。
   const miss = [['data/thsr_track.json', run({ date: '2026-01-05', trains, dates }, { omit: ['data/thsr_track.json'] })],
     ['data/afr_schedule_dense.json', run({ date: '2026-01-05', trains, dates }, { omit: ['data/afr_schedule_dense.json'] })]];

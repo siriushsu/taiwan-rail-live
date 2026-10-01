@@ -321,7 +321,7 @@ const schemaStmts = f => {
     firstAlter > 0 && createAfter.length === 0 && alters.length === 2 &&
     /distinct_ok_users/.test(alters[0]) && /\bclient\b/.test(alters[1]),
     JSON.stringify({ firstAlter, createAfter: createAfter.length, alters: alters.length }));
-  // 第十九批：retired 原本接在 0014 檔尾第三句。0014 一旦套進任何一個庫，重套會在它的第一句 ALTER 中斷，
+  // retired 原本接在 0014 檔尾第三句。0014 一旦套進任何一個庫，重套會在它的第一句 ALTER 中斷，
   // 接在後面的欄位在那個庫永遠跑不到——所以另開一個只有這一句的檔。
   const s15 = schemaStmts('0015_bounty_retired.sql');
   ok('A22b 0015 恰好一句：ALTER TABLE bounty_board ADD COLUMN retired INTEGER NOT NULL DEFAULT 0',
@@ -335,7 +335,7 @@ const schemaStmts = f => {
     JSON.stringify(s16));
 }
 
-// A24 已經套過 0014、還沒有 retired 的庫（第十九批以前的 0014 沒有這一欄；拿全套的庫 DROP COLUMN 模擬），
+// A24 已經套過 0014、還沒有 retired 的庫（先前的 0014 沒有這一欄；拿全套的庫 DROP COLUMN 模擬），
 // 照 cron 與新環境的做法把 schema/*.sql 全部再套一次：retired 要長回來、既有的列不掉、值是 0。
 // 對照：retired 若還接在 0014 檔尾，重套在 0014 的第一句 ALTER（distinct_ok_users 已存在）就中斷，retired 永遠補不上。
 {
@@ -378,7 +378,7 @@ const schemaStmts = f => {
     noIdx.rc === 1 && /idx_claims_actor/.test(noIdx.out) && /0002_bounty\.sql/.test(noIdx.out), noIdx.out.trim().slice(0, 300));
   ok('A23c idx_claims_actor 建在別張表上 → exit 1，點名 idx_claims_actor',
     wrongTbl.rc === 1 && /idx_claims_actor/.test(wrongTbl.out), wrongTbl.out.trim().slice(0, 300));
-  // 第十批起六張會長大的表都釘 INDEXED BY，其中四張指名主鍵的自動索引（sqlite_autoindex_<表>_<n>，schema 裡沒有 CREATE INDEX 可比）。
+  // 六張會長大的表都釘 INDEXED BY，其中四張指名主鍵的自動索引（sqlite_autoindex_<表>_<n>，schema 裡沒有 CREATE INDEX 可比）。
   // 正式庫的 sqlite_master 一樣列得出自動索引；守門人要把它們當成「建表那一支 migration 宣告的」，缺了照樣 exit 1、點名該補套的那一支。
   const autos = rows.filter(r => r.type === 'index' && /^sqlite_autoindex_/.test(r.name)).map(r => r.name);
   const needAuto = ['sqlite_autoindex_bounty_samples_1', 'sqlite_autoindex_garage_unlocks_1', 'sqlite_autoindex_cloud_rides_1',
@@ -393,7 +393,7 @@ const schemaStmts = f => {
   const noFirst = runGate('no-first', rows.filter(r => r.name !== 'idx_seg_contrib_first'));
   ok('A23f 正式庫沒有 idx_seg_contrib_first（0014 較早版本套過、這一版新加的索引還沒套）→ exit 1，點名它與 0014_bounty_v2.sql',
     noFirst.rc === 1 && /idx_seg_contrib_first/.test(noFirst.out) && /0014_bounty_v2\.sql/.test(noFirst.out), noFirst.out.trim().slice(0, 400));
-  // A23g–i（第十三批）：補法要對。表在、只缺一般索引 → 印那一句 CREATE INDEX（不叫人重套整支 0014：檔尾的 ALTER 會報錯，前面的 CREATE 會不會回滾沒驗過）；
+  // A23g–i：補法要對。表在、只缺一般索引 → 印那一句 CREATE INDEX（不叫人重套整支 0014：檔尾的 ALTER 會報錯，前面的 CREATE 會不會回滾沒驗過）；
   // 缺主鍵的自動索引 → 叫人重建整張表、先停手（CREATE INDEX 與重套都補不回來）；整張表都不在 → 照舊重套 0014（單獨的 CREATE INDEX 沒有表會報錯）。
   // 期望的那一句手寫在這裡、不從 schema 讀：從 schema 讀的話，schema 寫錯欄位順序時期望值跟著錯（欄位順序另由 A11c 釘）。
   const FIRST_SQL = 'CREATE INDEX IF NOT EXISTS idx_seg_contrib_first ON bounty_seg_contrib (seg_key, first_ok_at, actor);';
@@ -408,7 +408,7 @@ const schemaStmts = f => {
   ok('A23i 整張 bounty_seg_contrib 都不在（表與它的索引一起缺）→ 補法是重套 0014；不印單獨的 CREATE INDEX（沒有表那一句會報錯）',
     noTable.rc === 1 && /整張表 bounty_seg_contrib/.test(noTable.out) && fileCmd.test(noTable.out) && !/--command/.test(noTable.out) &&
       /idx_seg_contrib_first/.test(noTable.out), noTable.out.trim().slice(0, 600));
-  // A23j（第十九批）：正式庫套過 0014、還沒有 retired → 補法是套 0015（只有那一句 ALTER），不是重套 0014
+  // A23j：正式庫套過 0014、還沒有 retired → 補法是套 0015（只有那一句 ALTER），不是重套 0014
   // （0014 會在自己的第一句 ALTER 就中斷，走不到後面）。DDL 取自一顆真的 DROP 掉 retired 的庫，不手改字串。
   const { db: d15 } = openTestDb();
   try { d15.exec('ALTER TABLE bounty_board DROP COLUMN retired'); } catch (e) {}   // 同 A24：schema 沒有 retired 時守門人本來就不會要它，A23j 照樣紅

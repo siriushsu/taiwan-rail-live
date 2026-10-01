@@ -395,12 +395,12 @@ await attempt('A9', async () => {
   const rv = await chipsMe(w2, '', as(V)), mv = await boMe(w2, '', as(V));
   ok('A9e [稽核 F2、S3] 髒列（V 是帳號列、merged_into＝攻擊者）：V 帶自己的 Bearer 讀 chips-me 是自己的 6（不是攻擊者的 99）、讀 bounty-me 是自己的 40 點（不是 77）',
     rv.json.balance === 6 && mv.json.points === 40 && mv.json.actor === V, rv.text + ' | ' + mv.text);
-  // bounty-me 的 ?actor= 走同一條錢包規則（review-B B4）：舊版併進帳號的裝置不帶 Bearer 就讀得到帳號的點數與認領——
+  // bounty-me 的 ?actor= 走同一條錢包規則：舊版併進帳號的裝置不帶 Bearer 就讀得到帳號的點數與認領——
   // 裝置 token 是別人拿得到的字串（分享出去的舊網址、被看到的畫面），拿著它就能看帳號的東西。現在要帳號的 Bearer，與 chips-me 同一條。
   const w3 = world();
   S.acct(w3, U, 40); S.dev(w3, D, 0, U); S.dev(w3, DANON, 9);
   const viaDev = await boMe(w3, '?actor=' + D), viaUid = await boMe(w3, '?actor=' + U), viaAnon = await boMe(w3, '?actor=' + DANON), viaBearer = await boMe(w3, '', as(U));
-  ok('A9f [review-B B4] bounty-me 的 ?actor=：併進 U 的裝置 → 401 auth_required、帳號 uid → 401 auth_required（回應裡沒有點數）；匿名裝置 → 200 自己的 9；帶 U 的 Bearer → 200 帳號的 40',
+  ok('A9f bounty-me 的 ?actor=：併進 U 的裝置 → 401 auth_required、帳號 uid → 401 auth_required（回應裡沒有點數）；匿名裝置 → 200 自己的 9；帶 U 的 Bearer → 200 帳號的 40',
     [viaDev, viaUid].every(r => r.status === 401 && same(r.json, { error: 'auth_required' })) &&
       viaAnon.status === 200 && viaAnon.json.points === 9 && viaBearer.status === 200 && viaBearer.json.points === 40 && viaBearer.json.actor === U,
     [viaDev.text, viaUid.text, viaAnon.text.slice(0, 60), viaBearer.text.slice(0, 60)].join(' | '));
@@ -545,7 +545,7 @@ await attempt('A13', async () => {
     f3.status === 200 && mg3.json.merged === true && q.nRides(w3, U) === 1 && r3.status === 409 && r3.json.error === 'already_today', r3.text);
 });
 
-// ═══ A14：chips-me 與 bounty-me 的 ?actor= 限流（稽核 F19、S8；bounty-me 是第十批）════════════════════════════════════════════════════════════════════
+// ═══ A14：chips-me 與 bounty-me 的 ?actor= 限流（稽核 F19、S8）════════════════════════════════════════════════════════════════════
 await attempt('A14', async () => {
   const wBlk = world({ env: { BOUNTY_LIMITER: limiter(true) } });
   S.ledger(wBlk, DANON, 'adjust', 3, 'a14-anon'); S.acct(wBlk, U); S.ledger(wBlk, U, 'adjust', 6, 'a14-u');
@@ -557,7 +557,7 @@ await attempt('A14', async () => {
   S.ledger(wAuthBlk, DANON, 'adjust', 3, 'a14-anon2');
   const plain = await chipsMe(wAuthBlk, '?actor=' + DANON), bearerBlk = await chipsMe(wAuthBlk, '', as(U));
   ok('A14c [對照] AUTH_LIMITER 被擋：?actor= 路徑照樣 200（它不走 AUTH_LIMITER）；Bearer 那條 429', plain.status === 200 && plain.json.balance === 3 && bearerBlk.status === 429, JSON.stringify([plain.json, bearerBlk.json]));
-  // bounty-me 的 ?actor= 路徑（第十批）：同樣不驗身分、免費，舊版沒有限流，一個匿名 actor 連打就能大量燒 D1 讀取
+  // bounty-me 的 ?actor= 路徑：同樣不驗身分、免費，舊版沒有限流，一個匿名 actor 連打就能大量燒 D1 讀取
   S.dev(wBlk, DANON, 4); S.dev(wAuthBlk, DANON, 4);
   const meBlk = await boMe(wBlk, '?actor=' + DANON), meBearer = await boMe(wBlk, '', as(U));
   ok('A14d bounty-me 的 ?actor= 路徑被 BOUNTY_LIMITER 擋下 → 429 rate_limited，本文沒有點數', meBlk.status === 429 && same(meBlk.json, { error: 'rate_limited' }), meBlk.text);

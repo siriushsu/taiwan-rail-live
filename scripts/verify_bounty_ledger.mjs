@@ -213,7 +213,7 @@ await attempt('D4', async () => {
 await attempt('D5', async () => {
   const w = world({ seed: boardSql('tra_sched', '南迴線', [{}]) });
   const blocked = tripPts(700).map(p => ({ ...p, acc: 120 }));                 // acc 中位數 > 80 m → unusable（acc_blocked）
-  // 里程倒退而且之後一直留在後面（第 400 點起整段退回 6 km）→ suspect（impossible_physics）。第十一批起單一一點倒退只丟那一點、不判整班，
+  // 里程倒退而且之後一直留在後面（第 400 點起整段退回 6 km）→ suspect（impossible_physics）。現在單一一點倒退只丟那一點、不判整班，
   // 所以要連續倒退超過 5 點（這裡是之後的每一點）才是可疑。
   const jumped = tripPts(700).map((p, i) => i >= 400 ? { ...p, d: p.d - 6000 } : p);
   addTrip(w.db, { actor: 'device-un', trainNo: '201', pts: blocked });

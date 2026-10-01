@@ -1,5 +1,5 @@
-// 路段懸賞 v2 後端驗收（六）：判定 cron 第二批——第③段身分（S10）、可疑整班不發（S11）、遲傳合併判（S12）、
-// 查詢量與子請求預算（S13）、日期窗以上傳時間為基準（S14）。（第一批在 verify_bounty_cron.mjs 的 F1–F24）
+// 路段懸賞 v2 後端驗收（六）：判定 cron 的 S10–S14——第③段身分（S10）、可疑整班不發（S11）、遲傳合併判（S12）、
+// 查詢量與子請求預算（S13）、日期窗以上傳時間為基準（S14）。（F1–F24 在 verify_bounty_cron.mjs）
 // 離線：假 D1（scripts/d1_local.mjs，真 SQLite）＋ stub ASSETS ＋ BOUNTY_NOW 釘死，不起伺服器、不碰網路。
 // 跑法：node scripts/verify_bounty_cron2.mjs
 //
@@ -9,7 +9,7 @@
 //     來自 data/bounty_rules.json，這裡照抄成字面。
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準。
 //
-// 【對照版】K 組與 K0 組拿 c2e81e3b（第一批 F1／F24／F4…修完、S10–S14 動工前的 worker.js）當對照：
+// 【對照版】K 組與 K0 組拿 c2e81e3b（F1／F24／F4…修完、S10–S14 動工前的 worker.js）當對照：
 //   ・K1／K2／K3 批次化等價：新舊各從乾淨 DB 跑同一批資料，六張表逐列相等（S13a 只改「查詢怎麼打」，結果必須逐位元組相同）。
 //   ・K0 正向對照：H／I／J／L 這幾組場景也拿去跑對照版——「新行為」那幾條在對照版上必須紅（證明判準真的有牙、不是拿新版的輸出當期望），
 //     「舊行為本來就對」那幾條在對照版上必須綠（證明 fixture 本身沒壞）。
@@ -99,7 +99,7 @@ function stopGo({ d0 = 0, d1, stops = [], cruise = 10, t0 = 30000 }) {
   };
   for (const c of stops) {
     // 巡航到站前 105 m：把剩下的距離平均分給整數個步（速度微幅低於 cruise），不用「最後補一小步」——
-    // 補的那一小步會讓回報速度在 1 秒內掉 5 m/s 以上——第九批之前的加速度上限（1.3×3，每秒）會判 impossible_physics；現在的上限是 1.3×3×(Δt＋1)，形狀沿用
+    // 補的那一小步會讓回報速度在 1 秒內掉 5 m/s 以上——先前的加速度上限（1.3×3，每秒）會判 impossible_physics；現在的上限是 1.3×3×(Δt＋1)，形狀沿用
     const dist = c - 105 - d;
     if (dist > 0) { const k = Math.max(1, Math.ceil(dist / cruise)); for (let i = 0; i < k; i++) push(dist / k); }
     for (let j = 1; j <= 20; j++) push(cruise - (cruise - 0.5) * j / 20);
@@ -109,7 +109,7 @@ function stopGo({ d0 = 0, d1, stops = [], cruise = 10, t0 = 30000 }) {
   while (d + cruise <= d1) push(cruise);
   return pts;
 }
-// K 組用：前面補兩個與第一點同位置、同速度的點（t−2、t−1）。第十一批起判定端不收每趟開頭的 2 點（冷啟動，見 worker.js integrityGate），
+// K 組用：前面補兩個與第一點同位置、同速度的點（t−2、t−1）。判定端現在不收每趟開頭的 2 點（冷啟動，見 worker.js integrityGate），
 // 覆蓋率從第 3 點算起；補上這兩點，新版不收的剛好是補的那兩點，舊版（對照版）多收的兩點與第一點同位置、不改變任何區間的跨度——
 // 讓「批次化等價」的範圍不含這個刻意的改變（與 K 組開頭那段「範圍」說明同一個作法）。長度多 2 秒，兩版都是從原始的點算。
 const pad2 = pts => [{ ...pts[0], t: pts[0].t - 2 }, { ...pts[0], t: pts[0].t - 1 }, ...pts];
@@ -615,7 +615,7 @@ scn('L', async (impl, c) => {
   { const r = await run('l2', Date.parse('2026-08-06T01:00:00Z'), Date.parse('2026-08-10T02:00:00Z'));
     c('L2a [S14 對照] 上傳時間比乘車日晚 9 天（超過 7 天窗）：suspect、reject_code＝stale_date', r.v === 'suspect' && r.rej === 'stale_date', J({ v: r.v, rej: r.rej }));
     c('L2b [S14 對照] 可疑的趟不入帳（帳本 0 列）', r.led.length === 0, J(r.led));
-    // 邊界（review-B B1 起比「台北日」，與上傳端點同一條）：乘車日 07-28 → 上傳在台北 08-04（第 7 天）的最後一毫秒＝窗內；台北 08-05 零點＝窗外。
+    // 邊界（比的是「台北日」，與上傳端點同一條）：乘車日 07-28 → 上傳在台北 08-04（第 7 天）的最後一毫秒＝窗內；台北 08-05 零點＝窗外。
     // TRIP_MS 是乘車日的 UTC 零點＝台北 08:00，所以台北 08-05 零點＝TRIP_MS＋7 天＋16 小時。
     const e = await run('l2c', TRIP_MS + 7 * DAY + 16 * 3600e3 - 1, LATE);
     c('L2c [S14 邊界] 上傳在台北第 7 天 23:59:59.999：窗內，判 ok', e.v === 'ok', J({ v: e.v, rej: e.rej }));
@@ -684,7 +684,7 @@ const K0_EXPECT = {
     red: ['J1a', 'J2a', 'J3a', 'J3b', 'J4a', 'J6a', 'J6b', 'J7a', 'J8a', 'J8b', 'J11a', 'J11b', 'J12a', 'J13b', 'J14a'],
     green: ['J1p', 'J1b', 'J1c', 'J1d', 'J2b', 'J4p', 'J4b', 'J5a', 'J7p', 'J8p', 'J8bp', 'J9a', 'J9b', 'J9c', 'J12p', 'J13p', 'J13a', 'J14p'],
   },
-  // L2e／L3d 是 review-B B1 追加：對照版拿 cron 的 now 比（LATE 晚 10 天 → L2e 判 stale；NOW_MS 在乘車日之後 → L3d 放行）
+  // L2e／L3d 是後來追加的：對照版拿 cron 的 now 比（LATE 晚 10 天 → L2e 判 stale；NOW_MS 在乘車日之後 → L3d 放行）
   L: { red: ['L1a', 'L1b', 'L2c', 'L2e', 'L3a', 'L3c', 'L5a', 'L5d', 'L5e'], green: ['L2a', 'L2b', 'L2d', 'L3b', 'L3d', 'L4a', 'L5b', 'L5c'] },
 };
 await attempt('K0', async () => {
@@ -802,12 +802,12 @@ await attempt('K1', async () => {
   // 判準刻意不寫成「不能有 SCAN」而是點名「用哪個索引、用到哪幾欄」：走對索引但只用到前綴一欄（例如 idx_samples_trip 只吃 actor）也是慢。
   const sqlOf = re => [...w.tally.sqls].filter(x => re.test(x));
   const planOf = sql => w.db.prepare('EXPLAIN QUERY PLAN ' + sql).all(...Array((sql.match(/\?/g) || []).length).fill(null)).map(r => String(r.detail)).join(' ; ');
-  // review-B 之後的句子：認領的 actor 改成 SQL 裡當場解析（actor=COALESCE(...)）；pending 掃描拆成「班車清單」（WITH t AS）與「一班一班讀」兩句；
+  // 現行的句子：認領的 actor 改成 SQL 裡當場解析（actor=COALESCE(...)）；pending 掃描拆成「班車清單」（WITH t AS）與「一班一班讀」兩句；
   // 標記改成一組一句（id IN json_each）；sample_count 與關認領改成一組一句（row value IN json_each）。
   const P = {
     list: sqlOf(/^WITH t AS \(/),
     load: sqlOf(/^SELECT \* FROM \(SELECT \*, SUM\(length\(payload\)\) OVER \(ORDER BY submitted_at, id ROWS UNBOUNDED PRECEDING\) AS cum_bytes FROM bounty_samples (?:INDEXED BY idx_samples_trip )?WHERE actor=\? AND trip_date=\? AND train_no=\? AND verdict='pending'\)/),
-    prior: sqlOf(/FROM bounty_samples s (?:INDEXED BY idx_samples_trip )?LEFT JOIN json_each\(/),          // 前次線組（獨立驗收 C4 之後在 SQL 裡依線彙總，樣本表別名 s）
+    prior: sqlOf(/FROM bounty_samples s (?:INDEXED BY idx_samples_trip )?LEFT JOIN json_each\(/),          // 前次線組（現在在 SQL 裡依線彙總，樣本表別名 s）
     mark: sqlOf(/^UPDATE bounty_samples (?:INDEXED BY sqlite_autoindex_bounty_samples_1 )?SET verdict=\?/),
     points: sqlOf(/^INSERT INTO bounty_points \(actor,uid,points,merged_into,updated_at\) SELECT/),
     claims: sqlOf(/FROM bounty_claims (?:INDEXED BY idx_claims_actor )?WHERE actor=COALESCE\(.*status='open'.*json_each/),
@@ -827,7 +827,7 @@ await attempt('K1', async () => {
   // 班車清單：pending 走 idx_samples_pending（verdict＋乘車日）、可信判斷的帳本子查詢走 idx_chip_ledger_actor_day（不掃整本帳）、
   // 「以前出過錯」的子查詢（kv_blobs x）與第③段每一句的租約圍欄都是 kv_blobs 主鍵點查（k=?），不掃整張 kv_blobs（它也放別的快取）。
   const KV_PK = /SEARCH (x|kv_blobs)( EXISTS)? USING (PRIMARY KEY|INDEX sqlite_autoindex_kv_blobs_\d+) \(k=\?\)/;   // 點數那句 SQLite 寫成「SEARCH kv_blobs EXISTS USING …」
-  ok('K1f [S12／S13c／review-B 查詢計畫] 班車清單走 idx_samples_pending（verdict＋乘車日）、帳本子查詢走 idx_chip_ledger_actor_day、出錯記錄子查詢走 kv_blobs 主鍵；' +
+  ok('K1f [S12／S13c／查詢計畫] 班車清單走 idx_samples_pending（verdict＋乘車日）、帳本子查詢走 idx_chip_ledger_actor_day、出錯記錄子查詢走 kv_blobs 主鍵；' +
     '一班一班讀與前次列都走 idx_samples_trip 吃滿三欄；標記走主鍵（id），不走 idx_samples_pending；第③段各句的租約圍欄走 kv_blobs 主鍵、沒有任何一句掃 kv_blobs',
     Object.values(P).every(v => v.length === 1) &&
       /SEARCH s USING INDEX idx_samples_pending \(verdict=\? AND trip_date<\?\)/.test(plans.list) && /SEARCH l USING INDEX idx_chip_ledger_actor_day \(actor=\?/.test(plans.list) &&
@@ -837,7 +837,7 @@ await attempt('K1', async () => {
       /SEARCH (s|bounty_samples) USING INDEX idx_samples_trip \(actor=\? AND trip_date=\? AND train_no=\?\)/.test(plans.prior) &&
       /SEARCH bounty_samples USING INDEX sqlite_autoindex_bounty_samples_\d+ \(id=\?\)/.test(plans.mark) && !/idx_samples_pending/.test(plans.mark),
     J({ list: plans.list, load: plans.load, prior: plans.prior, mark: plans.mark, points: plans.points, count: plans.count, close: plans.close }));
-  // K1g：第二輪獨立驗收之後新增的子查詢。② 的籌碼那句與登記那一批帶「樣本還在」（BOUNTY_VERIFY_PENDING）、第③段的點數／sample_count／關認領
+  // K1g：後來新增的子查詢。② 的籌碼那句與登記那一批帶「樣本還在」（BOUNTY_VERIFY_PENDING）、第③段的點數／sample_count／關認領
   // 帶「真的標到」（MARKED）：兩者都是 bounty_samples 的 id IN json_each，要走主鍵（每個 id 一次點查），不能拿 verdict 去走 idx_samples_pending
   // （那是全站 pending 的掃描，每班、每組各掃一次，積壓越多越慢）；籌碼那句的帳本子查詢（這班入過帳沒、當日已領幾顆）走 idx_chip_ledger_actor_day 吃滿兩欄；
   // 每一句的租約圍欄走 kv_blobs 主鍵。
@@ -850,17 +850,17 @@ await attempt('K1', async () => {
   const plans2 = Object.fromEntries(Object.entries(P2).map(([k, v]) => [k, v.length === 1 ? planOf(v[0]) : `（抓到 ${v.length} 句，應該剛好 1 句）`]));
   const SAMPLES_PK = /SEARCH bounty_samples USING INDEX sqlite_autoindex_bounty_samples_\d+ \(id=\?\)/;
   const fenced = [plans2.chips, plans2.users, plans2.contrib, plans2.covered, plans.points, plans.count, plans.close];
-  ok('K1g [第二輪 D2／D3／D5 查詢計畫] 籌碼那句、登記那一批三句、第③段的點數／sample_count／關認領：樣本子查詢走主鍵（id），不走 idx_samples_pending、不掃 bounty_samples；' +
+  ok('K1g [查詢計畫] 籌碼那句、登記那一批三句、第③段的點數／sample_count／關認領：樣本子查詢走主鍵（id），不走 idx_samples_pending、不掃 bounty_samples；' +
     '租約圍欄走 kv_blobs 主鍵；籌碼那句的帳本子查詢走 idx_chip_ledger_actor_day（actor＋day）、不掃帳本',
     Object.values(P2).every(v => v.length === 1) &&
       fenced.every(p => SAMPLES_PK.test(p) && !/idx_samples_pending/.test(p) && !/SCAN bounty_samples\b/.test(p) && KV_PK.test(p) && !/SCAN kv_blobs\b/.test(p)) &&
       /SEARCH chip_ledger USING INDEX idx_chip_ledger_actor_day \(actor=\? AND day=\?\)/.test(plans2.chips) && !/SCAN chip_ledger\b/.test(plans2.chips),
     J({ ...plans2, points: plans.points, count: plans.count, close: plans.close }));
-  // K1h：每一發開頭的出錯記錄清掃（第二輪 B4c／B4d）。kv_blobs 也放別的快取，這一句只能走主鍵的範圍掃描（出錯記錄那一段），
+  // K1h：每一發開頭的出錯記錄清掃。kv_blobs 也放別的快取，這一句只能走主鍵的範圍掃描（出錯記錄那一段），
   // 每一列再用 idx_samples_trip 吃滿三欄點查「那班車還有沒有 pending」——掃整張 kv_blobs 或整張樣本表，每一發都是全表級的讀取。
   const sweep = sqlOf(/^DELETE FROM kv_blobs WHERE k >= \? AND k < \? AND NOT EXISTS \(SELECT 1 FROM bounty_samples s/);
   const planSweep = sweep.length === 1 ? planOf(sweep[0]) : `（抓到 ${sweep.length} 句，應該剛好 1 句）`;
-  ok('K1h [第二輪 B4c／B4d 查詢計畫] 出錯記錄清掃：kv_blobs 走主鍵範圍（k>? AND k<?）、樣本走 idx_samples_trip 吃滿三欄，不掃 kv_blobs、不掃樣本表、不走 idx_samples_pending；租約圍欄走 kv_blobs 主鍵',
+  ok('K1h [查詢計畫] 出錯記錄清掃：kv_blobs 走主鍵範圍（k>? AND k<?）、樣本走 idx_samples_trip 吃滿三欄，不掃 kv_blobs、不掃樣本表、不走 idx_samples_pending；租約圍欄走 kv_blobs 主鍵',
     sweep.length === 1 && /SEARCH kv_blobs USING PRIMARY KEY \(k>\? AND k<\?\)/.test(planSweep) &&
       /SEARCH s USING (COVERING )?INDEX idx_samples_trip \(actor=\? AND trip_date=\? AND train_no=\?\)/.test(planSweep) &&
       !/SCAN (kv_blobs|s|bounty_samples)\b/.test(planSweep) && !/idx_samples_pending/.test(planSweep) && /SEARCH kv_blobs USING PRIMARY KEY \(k=\?\)/.test(planSweep),
@@ -878,7 +878,7 @@ await attempt('K1', async () => {
 // ── K2：分塊邊界。長線 61 站、60 段：39 段的趟寫入 1＋2×39＝79 句（一塊）、40 段的趟 1＋2×40＝81 句（80＋1，兩塊；最後一句在第二塊）──
 // 每段兩句（sample_count＋關認領），最後一句＝最後一段的「關認領」——所以兩班車各在自己的最後一段掛一張認領（cl-39 鎖 5 點、cl-40 鎖 7 點）：
 // 最後一塊只有這一句時，它有沒有寫進去看認領有沒有被關成 fulfilled 就知道（沒有認領的話，最後一句寫不寫都看不出來）。
-// （review-B 之後寫入不再分塊：一組的標記、點數、sample_count、關認領是同一個 batch。這組照留，當「長趟的最後一段也寫進去了」與新舊等價的判準。）
+// （現在寫入不再分塊：一組的標記、點數、sample_count、關認領是同一個 batch。這組照留，當「長趟的最後一段也寫進去了」與新舊等價的判準。）
 async function runLong(impl) {
   const claims = claimSql({ id: 'cl-39', actor: 'kc-39', seg: KT('長線', LONG_SEGS[38]), pts: 5 }) + '\n' + claimSql({ id: 'cl-40', actor: 'kc-40', seg: KT('長線', LONG_SEGS[39]), pts: 7 });
   const w = world({ impl, tally: true, seed: boardSql('tra_sched', '長線', [{}], LONG_SEGS) + '\n' + claims });
@@ -950,7 +950,7 @@ for (const [key, actor] of [['tra_sched|縱貫線南段', 'real-a'], ['tra_sched
 // 所以段鍵包成一個 JSON 陣列、以 json_each 展開（每一句只綁 3 個以內）。假 D1 沒有這個上限——測試端的計數替身（tallyEnv）幫它擋：超過 100 就丟例外。
 async function runXL(impl) {
   // 最後一段掛一張認領（鎖 9 點）：它有沒有被關成 fulfilled＝最後一段有沒有寫進去（舊版分塊時是「241 句裡的最後一句、第 4 塊只有這一句」；
-  // review-B 之後關認領是一組一句，這張認領在那一句的 json_each 陣列最末）
+  // 現在關認領是一組一句，這張認領在那一句的 json_each 陣列最末）
   const claim = claimSql({ id: 'cl-x', actor: 'kx', seg: KT('超長線', XL_SEGS[119]), pts: 9 });
   const w = world({ impl, tally: true, seed: boardSql('tra_sched', '超長線', [{ points: 1 }], XL_SEGS) + '\n' + claim });
   putBatches(w.db, { actor: 'kx', trainNo: 'X1', lnId: '超長線', pts: pad2(leg({ sec: 12000 })) });        // 240 km → 120 個區間

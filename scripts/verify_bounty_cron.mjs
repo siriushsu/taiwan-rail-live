@@ -12,7 +12,7 @@
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準。
 //
 // 分組：A 排程分流（F1）　B 只判昨天以前（F24）　C 整班車一趟（F4）　D 身分與重複入帳（F10／F11）
-//       E 模擬器（F23）　F 估值上架帶人數（F12）　G 估值上架補收滿（F21）　H 換班表之後退場的單位（第十二輪獨立驗收 P2-1）
+//       E 模擬器（F23）　F 估值上架帶人數（F12）　G 估值上架補收滿（F21）　H 換班表之後退場的單位
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import worker, { _bounty } from '../worker.js';
@@ -237,7 +237,7 @@ await attempt('A4', async () => {
   ok('A4a [F1] 估值壞掉（上架那句 INSERT 丟例外）不擋驗證：估值失敗有記 log、scheduled 不丟例外、樣本照判、帳本 +1',
     r1.threw === null && r1.errs.some(e => e.includes('[cron bounty 估值] 失敗')) && q.verdicts(w1.db, 'cron-a', '101') === 'ok' && q.chips(w1.db, 'cron-a') === 1,
     J({ threw: r1.threw, errs: r1.errs.map(e => e.slice(0, 40)), v: q.verdicts(w1.db, 'cron-a', '101') }));
-  // 驗證整支壞掉：review-B 之後判定分兩段，第一段「班車清單」那句壞掉＝整支失敗、往外丟（第二段一班一班判的錯誤會在裡面接住，見 A4c）
+  // 驗證整支壞掉：判定分兩段，第一段「班車清單」那句壞掉＝整支失敗、往外丟（第二段一班一班判的錯誤會在裡面接住，見 A4c）
   const w2 = aWorld(); failOnPrepare(w2.DELAY_DB, /^WITH t AS \(/);
   const r2 = await fire(w2, '30 19 * * *');
   ok('A4b [F1] 驗證壞掉不擋估值：驗證失敗有記 log、scheduled 不丟例外、估值照跑（板上 3 列）',
@@ -395,7 +395,7 @@ await attempt('C6', async () => {
     J({ p: q.verdictsLn(w.db, 'c6', 'K1', '屏東線'), n: q.verdictsLn(w.db, 'c6', 'K1', '南迴線'), ledger: q.tripRows(w.db), st }));
 });
 await attempt('C7', async () => {
-  // 截斷切在「整班車」的邊界。review-B 之後單發上限是 4000 班（班車清單的列數，不是樣本列數），一班車的批次是第二段一次讀齊的，
+  // 截斷切在「整班車」的邊界。單發上限是 4000 班（班車清單的列數，不是樣本列數），一班車的批次是第二段一次讀齊的，
   // 所以一班車不可能被切成兩半；這裡驗「超過上限的那一班整班留到下一發、下一發整班一起判」。
   // 4000 班單批的填充車（f0001…f4000）＋一班三批的 ZZ 車，共 4001 班、4003 列。同一個 actor 的班車依（乘車日、actor、車次）排隊
   // （同一個人的第幾班；隨機只用來打散不同人的同一輪），所以 zz01 一定是第 4001 班、被截掉。
@@ -462,7 +462,7 @@ await attempt('C8', async () => {
     if (crash && stmts.some(s => /^UPDATE bounty_samples (?:INDEXED BY \w+ )?SET verdict/.test(s._sql))) throw new Error('injected: crash before marking');
     return origBatch(stmts);
   };
-  // review-B R3 之後一班車的錯誤在判定裡接住（不再整發丟例外）：記下這一班（kv_blobs 一列）、繼續下一班（獨立驗收 N4 之後不再停手），
+  // 一班車的錯誤在判定裡接住（不再整發丟例外）：記下這一班（kv_blobs 一列）、繼續下一班（不再停手），
   // stat.errors＝1、stat.error 帶錯誤訊息、stopBy 不是 error（只有連記錄都寫不進 D1 才停手）
   let threw = '', st1 = null;
   try { st1 = await w2.cron(); } catch (e) { threw = String(e.message || e); }
@@ -660,7 +660,7 @@ await attempt('G1', async () => {
     stamped(rows(H15)) && rows(H14).every(r => r.c === null), J({ h15: rows(H15), h14: rows(H14) }));
 });
 
-// ═══ H 組：換班表之後退場的單位（第十二輪獨立驗收 P2-1）═══════════════════════════════════
+// ═══ H 組：換班表之後退場的單位═══════════════════════════════════
 // 山線 S0|S1…S8|S9 每段兩個車種：自強 30 班、區間車 2 班 → 中位 16：自強 16/30 → L1 1（點數 1）、區間車 16/2＝8 → 頂格 3（點數 3）。
 // 換班表之後清單只剩自強（中位 30 → 自強點數仍是 1）：區間車的 9 列退場。期望值手算寫死：
 // 沒接懸賞的人跑 S0→S7（前 7 段）拿 7×1＝7 點；退場的區間車若還算進板價（同一段取各車種最高價），會是 7×3＝21。
@@ -677,28 +677,28 @@ await attempt('H1', async () => {
   await w.valuation();
   const b0 = await board();
   const c0 = await claim('h1-keeper-01', LOCAL);                       // 換班表之前接下區間車（鎖 3 點）
-  ok('H1a [P2-1 對照] 換班表之前：看板有區間車（9 段共 27 點）與自強（9 點）兩張卡，區間車接得下（200）',
+  ok('H1a [對照] 換班表之前：看板有區間車（9 段共 27 點）與自強（9 點）兩張卡，區間車接得下（200）',
     !!card(b0, LOCAL) && card(b0, LOCAL).points === 27 && !!card(b0, EXP) && card(b0, EXP).points === 9 && c0.status === 200,
     J({ cards: b0.map(c => [c.id, c.points]), claim: c0.status }));
   units.units = unitsOf([['自強', 30]]);
   const v = await w.valuation();
   const b1 = await board();
   const gone = w.db.prepare('SELECT train_kind, COUNT(*) n FROM bounty_board WHERE retired=1 GROUP BY train_kind').all().map(r => ({ ...r }));
-  ok('H1b [P2-1] 換班表之後：區間車 9 列退場（列還在、retired 1）、自強不動；估值回報退場 9、新上架 0；看板只剩自強那張（9 點）',
+  ok('H1b 換班表之後：區間車 9 列退場（列還在、retired 1）、自強不動；估值回報退場 9、新上架 0；看板只剩自強那張（9 點）',
     v.retired === 9 && v.inserted === 0 && J(gone) === J([{ train_kind: '區間車', n: 9 }]) && !card(b1, LOCAL) && !!card(b1, EXP) && card(b1, EXP).points === 9,
     J({ v, gone, cards: b1.map(c => [c.id, c.points]) }));
   const c1 = await claim('h1-late-0001', LOCAL), c2 = await claim('h1-late-0001', EXP);
   const c1body = await c1.json();
-  ok('H1c [P2-1] 退場的區間車接不了（404 no_open_units）；同一個人接自強照常（200）',
+  ok('H1c 退場的區間車接不了（404 no_open_units）；同一個人接自強照常（200）',
     c1.status === 404 && c1body.error === 'no_open_units' && c2.status === 200, J({ local: [c1.status, c1body.error], exp: c2.status }));
   putBatches(w.db, { actor: 'h1-rider-01', trainNo: 'H1', lnId: '山線', pts: leg({ sec: 700 }) });
   putBatches(w.db, { actor: 'h1-keeper-01', trainNo: 'H2', lnId: '山線', pts: leg({ sec: 700 }) });
   const st = await w.cron();
   const pts = a => (w.db.prepare('SELECT points FROM bounty_points WHERE actor=?').get(a) || {}).points;
-  ok('H1d [P2-1] 沒接懸賞直接錄 S0→S7：7 段各取板上沒退場的最高價（自強 1）＝7 點，不是退場區間車的 7×3＝21',
+  ok('H1d 沒接懸賞直接錄 S0→S7：7 段各取板上沒退場的最高價（自強 1）＝7 點，不是退場區間車的 7×3＝21',
     q.verdicts(w.db, 'h1-rider-01', 'H1') === 'ok' && pts('h1-rider-01') === 7, J({ v: q.verdicts(w.db, 'h1-rider-01', 'H1'), pts: pts('h1-rider-01'), st }));
   const done = w.db.prepare("SELECT COUNT(*) c FROM bounty_claims WHERE actor='h1-keeper-01' AND status='fulfilled'").get().c;
-  ok('H1e [P2-1 對照] 退場之前就接下區間車的人：照鎖定價兌現（7 段×3＝21 點），那 7 段的認領關成 fulfilled',
+  ok('H1e [對照] 退場之前就接下區間車的人：照鎖定價兌現（7 段×3＝21 點），那 7 段的認領關成 fulfilled',
     q.verdicts(w.db, 'h1-keeper-01', 'H2') === 'ok' && pts('h1-keeper-01') === 21 && done === 7,
     J({ v: q.verdicts(w.db, 'h1-keeper-01', 'H2'), pts: pts('h1-keeper-01'), done }));
 });

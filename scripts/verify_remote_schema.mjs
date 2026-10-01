@@ -14,7 +14,7 @@
 // 路段懸賞的認領、判定、合併整條壞掉——只比表與欄位照不到這一種漏套。
 // 主鍵／UNIQUE 的自動索引（sqlite_autoindex_<表>_<n>）沒有 CREATE INDEX：建表那一支 migration 就是它的宣告，
 // 正式庫的 sqlite_master 一樣列得出它（type='index'、sql 是 NULL）。編號寫錯的那一種本機驗收就會報錯（同一套 schema 建出同樣的名字），這裡不重算。
-// 缺索引的補法（第八輪獨立驗收）：表在、只缺一般索引時，印出 schema 裡那一句 CREATE INDEX 單獨補——它可重複執行、只動這一個索引；
+// 缺索引的補法：表在、只缺一般索引時，印出 schema 裡那一句 CREATE INDEX 單獨補——它可重複執行、只動這一個索引；
 // 叫人重套整支 migration 的話，0014 這種檔尾有 ALTER 的會在 ALTER 報 duplicate column，前面的 CREATE INDEX 會不會跟著回滾沒有驗過。
 // 主鍵／UNIQUE 的自動索引沒有 CREATE INDEX 可補（重套也不會：CREATE TABLE IF NOT EXISTS 不動既有的表），只能重建整張表——印出來叫人先停手。
 // 整張表都不在的，照舊重套建表那一支（表與索引一起建；這時單獨的 CREATE INDEX 反而會因為沒有表而報錯）。

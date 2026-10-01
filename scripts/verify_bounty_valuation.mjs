@@ -104,7 +104,7 @@ if (existsSync('data/bounty_units.json')) {
   ok('E12 剛到頂還沒滿 30 天 → 自動開關不開', nh3.unlocked_offer === 0, String(nh3.unlocked_offer));
 }
 
-// E13–E18 換班表（第十二輪獨立驗收 P2-1）：per_day 照新清單更新、清單外的單位退場、回到清單就復出而且歷史不歸零、
+// E13–E18 換班表：per_day 照新清單更新、清單外的單位退場、回到清單就復出而且歷史不歸零、
 // 已經退場的不再重算退場數、空清單中止。
 // 模組層級的清單快取每一發之前都歸零（bountyResetMemCaches），才讀得到換過的清單。期望值手算：
 //   清單 A＝{太麻里 4 班, 枋寮 60 班, 金崙 30 班} → 中位 30：太麻里 30/4 → 頂格 3、枋寮 1、金崙 1。
@@ -153,7 +153,7 @@ if (existsSync('data/bounty_units.json')) {
   ok('E17 空清單＝丟錯中止，整張板一列都沒動（不是當成「今天沒有任何單位」全部退場）', /bounty_units empty/.test(threw) && all() === snap, threw || '沒有丟錯');
 }
 
-// E19（第十九批，第十三輪 P3-3 W9）：退場只退清單上真的少掉的那一格，主鍵五欄都要比。E13–E18 的單位 seg_key 各不相同，
+// E19：退場只退清單上真的少掉的那一格，主鍵五欄都要比。E13–E18 的單位 seg_key 各不相同，
 // 退場那一句少比 slot、dir 或車種也看不出來。這裡同一個鍵放好幾格：大武站的自強停站尖峰／離峰／假日三格＋莒光尖峰一格，
 // 大武–金崙自強兩個方向各一格。第二份清單只拿掉自強尖峰（尖峰換了小時就是這個樣子）與反方向那一格 →
 // 只有這兩格退場；自強離峰、假日（同站同車種、別的時段）、莒光尖峰（同站同時段、別的車種）、順方向那一格都照舊。
@@ -177,7 +177,7 @@ if (existsSync('data/bounty_units.json')) {
     JSON.stringify({ r1: [r1.inserted, r1.retired], r2: [r2.inserted, r2.retired], got }));
 }
 
-// E20–E23（第二十批，第十四輪獨立驗收 P3-1）：清單只少一部分時的守門。某個系統這一發要退場的列至少 10 列、而且超過它現役列的一成，
+// E20–E23：清單只少一部分時的守門。某個系統這一發要退場的列至少 10 列、而且超過它現役列的一成，
 // 就在任何寫入之前丟錯：整張板一列都不動（同一份清單裡新增的單位也不上架）。BOUNTY_RETIRE_ACK 等於這份清單的 generatedAt，才照常退場。
 // 板上先放台鐵 200 列、高鐵 20 列。兩個門檻各釘兩端；比例要逐系統算——高鐵整個消失只佔全部的 20/220，合起來算不到一成。
 // 門檻是手寫的數字，不從 worker.js 拿（同源的判準改了也一起跟著改）。
@@ -246,7 +246,7 @@ if (existsSync('data/bounty_units.json')) {
         E.test(bad11.threw || '') && /tra_sched 11\/100/.test(bad11.threw),
       JSON.stringify({ wrongAck, acked, after, bad11 }));
   }
-  // E24–E26（第二十一批，第十五輪獨立驗收 P3-A）：逐線的守門。某條線（seg_key 的前兩段）這一發要退場的列至少 10 列、
+  // E24–E26：逐線的守門。某條線（seg_key 的前兩段）這一發要退場的列至少 10 列、
   // 而且超過那條線現役列的一半，也要丟錯。台鐵另外放屏東線 20 列、平溪線 12 列：整條線消失時，台鐵合起來只少 20/232 或 12/232，
   // 系統那一道擋不到，要靠逐線那一道。
   const PT = Array.from({ length: 20 }, (_, i) => K('tra_sched', '屏東線', i));
@@ -289,7 +289,7 @@ if (existsSync('data/bounty_units.json')) {
         acked.retired === 10 && a.retiredBySys() === 'thsr_sched=0/20,tra_sched=20/232',
       JSON.stringify({ half, rest, acked, after: a.retiredBySys() }));
   }
-  // E27（第二十一批，第十五輪 P3-C、P3-D、P3-F；第二十二批補 null，第十六輪 P3-2）：清單沒有 generatedAt（缺鍵或是 null）時
+  // E27：清單沒有 generatedAt（缺鍵或是 null）時
   // 沒有任何 ack 放得行（沒設 ack、ack 寫成 undefined 或 null 都一樣），訊息改叫人重建清單；ack 前後的空白與換行不算；寫成 3.0 不等於 3。
   {
     const a = fresh(); await a.run(ALL, 1);
@@ -310,7 +310,7 @@ if (existsSync('data/bounty_units.json')) {
         E.test(decimal.threw || '') && /BOUNTY_RETIRE_ACK 設成 3）/.test(decimal.threw),
       JSON.stringify({ noGen, noGenAck, nullGen, nullGenAck, spaced, decimal, after: a.retiredBySys() }));
   }
-  // E28（第二十二批，第十六輪獨立驗收 P3-3）：逐線比例的一半再釘緊一點。E24 的屏東線只有 20 列，比例放寬到 0.54 也看不出來。
+  // E28：逐線比例的一半再釘緊一點。E24 的屏東線只有 20 列，比例放寬到 0.54 也看不出來。
   // 這裡放一條 100 列的線（山線），台鐵另外有 500 列，系統那一道碰不到（51/600 不到一成）。
   {
     const BIG = Array.from({ length: 500 }, (_, i) => K('tra_sched', '南迴線', i));

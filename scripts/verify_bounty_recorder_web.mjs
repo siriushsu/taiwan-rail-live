@@ -1,21 +1,21 @@
 // 路段懸賞 · 錄程端（index.html，App 的 WebView 跑的就是這一份）驗收——Playwright 真引擎（無視窗 Chromium）＋ node 靜態伺服器。
 //
-// 第十四批（第九輪獨立驗收 E1、E-2(b)）：沒有都卜勒速度、沒有精度的裝置，定位回呼給的是 null。舊版用 Number(x) 判，
+// 沒有都卜勒速度、沒有精度的裝置，定位回呼給的是 null。舊版用 Number(x) 判，
 // Number(null) 是 0——null 一路被洗成「速度 0＝停著」「精度 0 m＝很準」送上伺服器；錄製中的停靠進度也把 null 當 0，
-// 高速通過的站全都亮成「停到了」。伺服器端第十三批已不把 null 當 0、第十四批的停靠判定改用位置微分，這一支驗前端跟上：
+// 高速通過的站全都亮成「停到了」。伺服器端已不把 null 當 0、停靠判定也改用位置微分，這一支驗前端跟上：
 //   C  bountyCleanSample（存檔、重新整理後還原、鎖線時整批重洗都走它）：v、acc 是 null → 仍是 null；0 → 0；數字照收；
 //      存檔再讀回（bountyPersistRecording → bountyLoadPersistedRecording）之後 null 也還是 null。
 //   F  bountyOnFix（定位回呼）：speed、accuracy 是 null → 存 null；speed −1（iOS 沒有有效速度）→ null；accuracy −1（iOS 的無效定位）→ null；
 //      0 → 0；12.345 → 12.35、8.6 → 9。
 //   D  bountyUpdateDwellProgress（錄製中的停靠進度）與 Worker coverageOf() 同一條：沒有速度的裝置真的停靠 60 秒 → 亮；
 //      沒有速度、30 m/s 高速通過 → 不亮、而且判「錯過」（兩側都過完了）；對照：有速度（停的時候 0）的同一趟 → 亮。兩個方向。
-//      第十五批（第十輪獨立驗收 P1-2）：速度送 0（Android 沒有速度時送 0.0）或 0.3、30 m/s 通過 → 不亮且判錯過（位置微分超過 10 m/s 否決回報的低速）；
+//      速度送 0（Android 沒有速度時送 0.0）或 0.3、30 m/s 通過 → 不亮且判錯過（位置微分超過 10 m/s 否決回報的低速）；
 //      送 0 的真停靠 → 亮。設定檔少了 posSpeedVetoMps、或它不大於 stopSpeedMaxMps → 丟 dwell rules unavailable（跟 Worker 一樣直接中止）。
-//   X  （第十五批，第十輪獨立驗收 P2-8）同一批點同時餵前端 bountyUpdateDwellProgress 與 Worker coverageOf（node 端 import worker.js），
+//   X  同一批點同時餵前端 bountyUpdateDwellProgress 與 Worker coverageOf（node 端 import worker.js），
 //      逐站比「算不算停靠」：Worker 用它正式讀的 data/bounty_units.json 的山線站表，前端用它自己的 lineNetwork()（data/tra.json）。
 //      山線連續四站、六種停法（停 45 秒、GPS 晃 ±0.3 或 ±2 m／20 m/s 通過／8、10、10.5 m/s 慢速通過）× 五種速度欄（都卜勒、null、全送 0、全送 0.3、一半 null）× 兩個方向。
 //      位置一律錨在整數公尺、速度取 0.5 的倍數（位置微分在二進位下精確），剛好 10 m/s 的那一站才比得出否決門檻的「＞」與「≥」。
-//   Y  （第十一輪獨立驗收 H）換版之後重新整理，bountyRules() 要拿到新的規則檔，不能吃瀏覽器快取裡的舊版。舊寫法是 force-cache：
+//   Y  換版之後重新整理，bountyRules() 要拿到新的規則檔，不能吃瀏覽器快取裡的舊版。舊寫法是 force-cache：
 //      快取裡有就直接用、不回伺服器驗證——上一版的規則檔沒有 posSpeedVetoMps，D 的守門就每一拍丟錯。
 //      伺服器照正式站靜態資產的標頭送（max-age=0, must-revalidate＋ETag，條件請求命中回 304）。Playwright 掛了 route 就不走 HTTP 快取，
 //      所以 Y 另開一個不掛 route 的無視窗 Chromium，外部網域用 host-resolver-rules 擋掉。對照組：同一頁用 force-cache 抓同一個網址，
@@ -123,7 +123,7 @@ try {
       return { one, buf: back && back._buf, recent: back && back._recent };
     });
     const want = [{ d: 1, t: 2, v: null, acc: null }, { d: 1, t: 2, v: 0, acc: 0 }, { d: 1, t: 2, v: 3.5, acc: 7 }, { d: 1, t: 2, v: null, acc: null }];
-    ok('C [第十四批 V9 E1] bountyCleanSample：v／acc 是 null → 仍是 null、0 → 0、數字照收；存檔再讀回之後 null 仍是 null、0 仍是 0（舊版 Number(null)＝0，一洗就成了「停著」「精度 0 m」）',
+    ok('C bountyCleanSample：v／acc 是 null → 仍是 null、0 → 0、數字照收；存檔再讀回之後 null 仍是 null、0 仍是 0（舊版 Number(null)＝0，一洗就成了「停著」「精度 0 m」）',
       J(got.one) === J(want) && J(got.buf) === J([{ d: 10, t: 100, v: null, acc: null }, { d: 20, t: 101, v: 0, acc: 0 }]) &&
         J(got.recent) === J([{ d: 10, t: 100, v: null, acc: null }]), J(got));
   });
@@ -145,7 +145,7 @@ try {
       return out;
     }, ST);
     const vs = got.map(g => [g.n, g.v, g.acc]);
-    ok('F [第十四批 V9 E1] bountyOnFix：speed／accuracy 是 null → 存 null；speed −1 → null；accuracy −1 → null；0 → 0；12.345／8.6 → 12.35／9；沒給（undefined）→ null（每一發都收下、落在挑到的那一站）',
+    ok('F bountyOnFix：speed／accuracy 是 null → 存 null；speed −1 → null；accuracy −1 → null；0 → 0；12.345／8.6 → 12.35／9；沒給（undefined）→ null（每一發都收下、落在挑到的那一站）',
       J(vs) === J([[1, null, null], [2, null, 8], [3, 0, 0], [4, 12.35, 9], [5, null, null], [6, 3.2, null]]) && got.every(g => Math.abs(g.dKm - ST.d) < 0.05), J(got));
   });
 
@@ -202,7 +202,7 @@ try {
       return out;
     }, [ST, POS_SPEED_WINDOW_REJECT, POS_SPEED_WINDOW_ACCEPT]);
     const want = { cov: 1, missed: false }, fast = { cov: 0, missed: true };
-    ok('D [第十四批 V9 E-2(b)、第十五批 V10 P1-2] 停靠進度與 Worker 同一條：沒有速度的裝置停 60 秒 → 亮；沒有速度、30 m/s 通過 → 不亮且判錯過；對照：有速度的同一趟停靠 → 亮；速度送 0 或 0.3、30 m/s 通過 → 不亮且判錯過，送 0 的真停靠 → 亮（兩個方向；舊版 Number(null)＝0、送 0 照信，高速通過也亮）；設定檔少了 posSpeedVetoMps、它等於停靠門檻、少了 posSpeedWindowSec、它是 0、0.5、0.9375、字串 "5"、10.0625、10.5、60 或 Infinity → 丟錯，1、10 不丟（案例與 Worker D15 共用同一份）',
+    ok('D 停靠進度與 Worker 同一條：沒有速度的裝置停 60 秒 → 亮；沒有速度、30 m/s 通過 → 不亮且判錯過；對照：有速度的同一趟停靠 → 亮；速度送 0 或 0.3、30 m/s 通過 → 不亮且判錯過，送 0 的真停靠 → 亮（兩個方向；舊版 Number(null)＝0、送 0 照信，高速通過也亮）；設定檔少了 posSpeedVetoMps、它等於停靠門檻、少了 posSpeedWindowSec、它是 0、0.5、0.9375、字串 "5"、10.0625、10.5、60 或 Infinity → 丟錯，1、10 不丟（案例與 Worker D15 共用同一份）',
       [1, -1].every(sg => J(got[`nullStop${sg}`]) === J(want) && J(got[`nullFast${sg}`]) === J(fast) && J(got[`vStop${sg}`]) === J(want) &&
         J(got[`zeroStop${sg}`]) === J(want) && J(got[`zeroFast${sg}`]) === J(fast) && J(got[`smallFast${sg}`]) === J(fast)) &&
         J(got.guard) === J({ missing: 'dwell rules unavailable', equal: 'dwell rules unavailable', real: 'no-throw',
@@ -210,7 +210,7 @@ try {
           ...Object.fromEntries(POS_SPEED_WINDOW_ACCEPT.map(([k]) => [`win_${k}`, 'no-throw'])) }) &&
         [0.9375, 10.0625, 10.5].every(v => POS_SPEED_WINDOW_REJECT.some(([, w]) => w === v)) &&
         J(got.recv) === J([...POS_SPEED_WINDOW_REJECT, ...POS_SPEED_WINDOW_ACCEPT].map(([k, w]) => [k, typeof w, String(w)])), J(got));
-    ok('D2 [第十七批] 前端停靠進度的位置微分往回看幾秒，照設定檔的 posSpeedWindowSec（與 Worker D16 同一趟：回報 0、每點晃 ±8 m、停 8 秒）：5 → 亮；1、10 → 不亮且判錯過（兩個方向）',
+    ok('D2 前端停靠進度的位置微分往回看幾秒，照設定檔的 posSpeedWindowSec（與 Worker D16 同一趟：回報 0、每點晃 ±8 m、停 8 秒）：5 → 亮；1、10 → 不亮且判錯過（兩個方向）',
       got.realWin === 5 && [1, -1].every(sg => J(got[`win5_${sg}`]) === J(want) && J(got[`win1_${sg}`]) === J(fast) && J(got[`win10_${sg}`]) === J(fast)),
       J({ realWin: got.realWin, ...Object.fromEntries(Object.entries(got).filter(([k]) => k.startsWith('win'))) }));
   });
@@ -267,7 +267,7 @@ try {
       LINE_W, RULES_NODE, UNITS_NODE.peakHoursBySys).filter(x => x.kind === 'dwell').map(x => x.key.split('|')[2]).sort());
     const diff = cases.map((c, i) => ({ id: c.id, fe: fe[i], wk: wk[i] })).filter(x => J(x.fe) !== J(x.wk));
     const lit = wk.reduce((n, a) => n + a.length, 0), dark = cases.length * 4 - lit;
-    ok('X [第十五批 V10 P2-8] 同一批點同時餵前端 bountyUpdateDwellProgress 與 Worker coverageOf：40 趟（四種停法組合 × 五種速度欄 × 兩個方向）逐站的停靠判定完全相同（Worker 用 bounty_units.json 的站表、前端用 lineNetwork()）',
+    ok('X 同一批點同時餵前端 bountyUpdateDwellProgress 與 Worker coverageOf：40 趟（四種停法組合 × 五種速度欄 × 兩個方向）逐站的停靠判定完全相同（Worker 用 bounty_units.json 的站表、前端用 lineNetwork()）',
       four.length === 4 && !!LINE_W && cases.length === 40 && diff.length === 0 && lit >= 40 && dark >= 40,
       J({ four: four.map(s => s.name), lit, dark, diff: diff.slice(0, 3) }));
   });
@@ -275,7 +275,7 @@ try {
   await attempt('Y', async () => {
     const real = readFileSync(path.join(ROOT, 'data/bounty_rules.json'), 'utf8');
     const old = JSON.parse(real);
-    delete old.quality.dwell.posSpeedVetoMps;                                   // 上一版（第十四批）的規則檔沒有這個鍵
+    delete old.quality.dwell.posSpeedVetoMps;                                   // 上一版的規則檔沒有這個鍵
     const b2 = await chromium.launch({ headless: true, args: ['--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1'] });
     try {
       const p2 = await (await b2.newContext()).newPage();
@@ -293,7 +293,7 @@ try {
       const n1 = rulesLog.length;
       const after = await vetoOf();
       const reval = rulesLog.slice(n1);
-      ok('Y [第十一輪 H] 規則檔換版之後重新整理：bountyRules() 帶上一版的 ETag 回伺服器驗證、拿到新版（有 posSpeedVetoMps）；對照組：同一頁用 force-cache 抓同一個網址仍是舊版（舊寫法就是這樣一直吃舊規則）',
+      ok('Y 規則檔換版之後重新整理：bountyRules() 帶上一版的 ETag 回伺服器驗證、拿到新版（有 posSpeedVetoMps）；對照組：同一頁用 force-cache 抓同一個網址仍是舊版（舊寫法就是這樣一直吃舊規則）',
         first === null && bootReq === 0 && ctrl === null && n1 === n0 + bootReq &&
           after === RULES_NODE.quality.dwell.posSpeedVetoMps && reval.length === 1 && reval[0].inm === '"old"',
         J({ first, bootReq, ctrl, after, reval }));

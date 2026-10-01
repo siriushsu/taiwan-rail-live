@@ -235,7 +235,7 @@ try {
       (await s.page.evaluate(() => BOUNTY_ENABLED)) === true && (await s.page.evaluate(() => state.account.user)) === null && s.merges.length === 0, JSON.stringify(s.merges));
     await s.ctx.close();
   });
-  // ═══ W10：懸賞彙總（/api/bounty-me）的讀法（review-B B4）═══════════════════════════════════════════════════
+  // ═══ W10：懸賞彙總（/api/bounty-me）的讀法═══════════════════════════════════════════════════
   // 伺服器對「帳號」與「併進帳號的裝置」的 ?actor= 讀取回 401（裝置 token 不是憑證）。所以登入後一定要帶 Bearer 讀、
   // 合併完成後要再讀一次（登入那一刻讀到的是還沒併進來的帳）；沒登入才用 ?actor=裝置 id。401 清掉手上那份，其他失敗保留。
   await attempt('W10', async () => {

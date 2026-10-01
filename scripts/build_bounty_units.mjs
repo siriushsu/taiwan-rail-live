@@ -15,7 +15,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 // [軌道檔, 班表檔, 系統代號]。班表為 null 的系統(捷運)沒有逐車班表,只出 dwell 不出 track——
 // 那些線的 track 單位要等捷運班表管線就緒再補,現在硬出會得到一個沒人驗得了的清單。
 // multiDay:這個系統的班表一定是逐日聯集(見 scheduleDays),檔案裡必須有 dates。
-// 🔴 六個檔都在版控裡,任何一個不在就停下來、不寫檔(第十三輪獨立驗收 P3-5):舊版印「略過」照樣寫出清單,
+// 🔴 六個檔都在版控裡,任何一個不在就停下來、不寫檔:舊版印「略過」照樣寫出清單,
 // 少掉的那個系統在下一發估值會整個退場(看板消失、不能認領、沒接懸賞的入帳 0 點)。
 const SOURCES = [
   { track: 'data/tra.json', sched: 'data/tra_schedule_dense.json', sys: 'tra_sched', multiDay: true },
@@ -83,9 +83,9 @@ const median = xs => { const a = xs.slice().sort((x, y) => x - y), m = a.length 
 
 // 班表有兩種形狀：單一服務日（高鐵、林鐵：trains 就是那一天的全部班次），或台鐵的 14 天逐日聯集
 // （trains 是跨日去重後的班次定義，dates 是「日期 → 當天行駛的 trains 索引」）。回傳 [[日期, 當天的班次], …]。
-// 🔴 第十一輪獨立驗收 P2-4：聯集整份當成一天算的話，只開一天的臨時車、同車次改點的第二份定義都被算成每天一班——
+// 🔴 聯集整份當成一天算的話，只開一天的臨時車、同車次改點的第二份定義都被算成每天一班——
 // 09-30 那一版多出 225 個單位，219 個的車只開 4 天以內（其中 142 個只開 1 天），尖峰時段也跟著偏。
-// 同一顆 bug 的另一個入口（第十三輪 P3-2）：逐日聯集的檔（台鐵；檔案帶 dateRange）dates 缺鍵或是 null，
+// 同一顆 bug 的另一個入口：逐日聯集的檔（台鐵；檔案帶 dateRange）dates 缺鍵或是 null，
 // 照單一服務日算就是把整份聯集當成一天——所以這兩種檔沒有 dates 一律擋下。
 function scheduleDays(file, S, multiDay) {
   const trains = S.trains || [];
