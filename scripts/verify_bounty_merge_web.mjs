@@ -246,7 +246,7 @@ try {
     const d = await dev(s.page);
     const bearer = s.bme.filter(x => x.auth === 'Bearer fake-id-token');
     const doneSeq = (s.merges[0] || {}).doneSeq || 0;
-    ok('W10a [B4] 登入後讀懸賞彙總帶 Bearer、不帶 ?actor=；合併（延遲 700ms）完成之前讀過一次、完成之後再讀一次（登入那一刻讀到的是還沒併進來的帳）',
+    ok('W10a 登入後讀懸賞彙總帶 Bearer、不帶 ?actor=；合併（延遲 700ms）完成之前讀過一次、完成之後再讀一次（登入那一刻讀到的是還沒併進來的帳）',
       s.merges.length === 1 && doneSeq > 0 && bearer.length >= 2 && bearer.every(x => !/actor=/.test(x.search)) && bearer.some(x => x.seq > doneSeq) && bearer.some(x => x.seq < doneSeq),
       JSON.stringify({ bme: s.bme, doneSeq }));
     ok('W10b 登入後沒有任何「帶 ?actor= 卻不帶 Bearer」的讀取排在登入之後（開機那一次可能早於登入就緒，只允許出現在第一個 Bearer 讀取之前）',

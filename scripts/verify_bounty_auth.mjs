@@ -8,19 +8,19 @@
 //     上傳與認領是「賺」不是「花」）來自設計原則。
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準（每一層防線都做過突變測試，指名由哪個檢查抓到）。
 //
-// 分組（每個 A 組對應稽核的一個洞；括號是被修的規格）：
-//   A1  以別人的 uid 當合併來源（S2a not_a_device）　A1b 舊版留下的髒列不能再被搬（G 的 uid IS NULL）
-//   A2  還沒出現過的 uid 被預先佔位，本人第一次合併要能收回（S2b）　A2b 收回也發生在非合併的寫入端點（S0）
-//   A3  裝置已併進 X，Y 不能把它拉走（S2a merged_elsewhere、S2d ④⑤ 守衛）　A3b 從沒合併過的帳號也會被 S0 認成帳號
+// 分組（每個 A 組對應一個被修掉的洞）：
+//   A1  以別人的 uid 當合併來源（回 not_a_device）　A1b 舊版留下的髒列不能再被搬（G 的 uid IS NULL）
+//   A2  還沒出現過的 uid 被預先佔位，本人第一次合併要能收回　A2b 收回也發生在非合併的寫入端點（S0）
+//   A3  裝置已併進 X，Y 不能把它拉走（回 merged_elsewhere、④⑤ 的守衛）　A3b 從沒合併過的帳號也會被 S0 認成帳號
 //       A3f 帶餘點的墓碑不能被搬（② 的 merged_into IS NULL 那一層）
-//   A4  merged 只在真的搬了才為真（S2e）　　A5  字面 'ephemeral' 一律不收（S1）
-//   A6  兌換：帳號 uid 沒帶自己的 Bearer 一律不准花（S4 錢包）　A7  兌換：併進帳號的裝置同上
-//   A8  雲端搭乘：同上，加上「替受害者佔掉當天那一格」的攻擊（C1）
-//   A9  chips-me：?actor= 的錢包規則、Bearer 不跟 merged_into（S3）
-//   A10 上傳與認領（賺）：帳號 uid 要 Bearer、併過的裝置與匿名裝置不用（S4 earn）
-//   A11 刪帳號：body 傳來的 deviceActor 不能刪別人的 v2 錢包（S5）；也不能刪別人的帳號列與被髒標記指向自己的帳號（A11d–g）
-//   A12 兌換重送：同一個 requestId 不能拿去兌換另一座（S6）　A13 雲端搭乘重送：兩天後、合併之後都要對得上（S7）
-//   A14 chips-me 與 bounty-me 的 ?actor= 限流（S8）　A15 壞 Bearer 一律 401、不降級成匿名　A16 帶著有效 Bearer 的寫入都先補帳號列（S0）
+//   A4  merged 只在真的搬了才為真　　A5  字面 'ephemeral' 一律不收
+//   A6  兌換：帳號 uid 沒帶自己的 Bearer 一律不准花（錢包規則）　A7  兌換：併進帳號的裝置同上
+//   A8  雲端搭乘：同上，加上「替受害者佔掉當天那一格」的攻擊
+//   A9  chips-me：?actor= 的錢包規則、Bearer 不跟 merged_into
+//   A10 上傳與認領（賺）：帳號 uid 要 Bearer、併過的裝置與匿名裝置不用
+//   A11 刪帳號：body 傳來的 deviceActor 不能刪別人的 v2 錢包；也不能刪別人的帳號列與被髒標記指向自己的帳號（A11d–g）
+//   A12 兌換重送：同一個 requestId 不能拿去兌換另一座　A13 雲端搭乘重送：兩天後、合併之後都要對得上
+//   A14 chips-me 與 bounty-me 的 ?actor= 限流　A15 壞 Bearer 一律 401、不降級成匿名　A16 帶著有效 Bearer 的寫入都先補帳號列（S0）
 //
 // ⚠️ 假 D1 的保真度：scripts/d1_local.mjs 的 batch() 是排隊序列化的，但 batch 之外的單句寫入
 //    可以插進另一個 batch 的交易中間；真的 D1 不會這樣。這支腳本沒有併發判準；上線後對正式庫做一次唯讀抽查
@@ -186,7 +186,7 @@ await attempt('A1', async () => {
 // ═══ A1b：舊版攻擊留下的髒列（帳號列＋merged_into 指向攻擊者）不能再被同一個攻擊者搬 ═══════════════════════════════
 await attempt('A1b', async () => {
   const w = world();
-  // 舊版的 F2 攻擊做完之後 V 的列長這樣：uid 是自己、卻掛著 merged_into＝攻擊者；V 名下的東西還在
+  // 舊版的合併劫持（拿別人的 uid 當合併來源）做完之後 V 的列長這樣：uid 是自己、卻掛著 merged_into＝攻擊者；V 名下的東西還在
   S.acct(w, V, 7, A);
   S.ledger(w, V, 'adjust', 10, 'a1b-adj'); S.unlock(w, V, 'shifen', 1, 4, 1000); S.ride(w, V, '2026-07-11', { requestId: 'a1b-r' });
   S.board(w, SEG, { distinct: 5 }); S.contrib(w, SEG, V); S.sample(w, V, 'a1b-s'); S.claim(w, V, 'a1b-c');
@@ -366,7 +366,7 @@ await attempt('A8', async () => {
   const ownU = await ride(w, U, {}, as(U)), ownD = await ride(w, D, { day: YESTERDAY, startedAt: at(YESTERDAY, 9) }, as(U));
   ok('A8c 帶 U 的 Bearer：actor＝U、actor＝D 都 200，兩筆搭乘（今天、昨天）都在 U 名下、D 名下 0 列、rides＝2',
     ownU.status === 200 && ownD.status === 200 && ownD.json.rides === 2 && q.nRides(w, U) === 2 && q.nRides(w, D) === 0, JSON.stringify([ownU.json, ownD.json]));
-  // C1：攻擊者不帶 token、用模擬器身分替受害者（V）送搭乘，想佔掉當天那一格（PK＝(actor, day)），讓受害者真正的搭乘吃 409 already_today
+  // 攻擊者不帶 token、用模擬器身分替受害者（V）送搭乘，想佔掉當天那一格（PK＝(actor, day)），讓受害者真正的搭乘吃 409 already_today
   const atk = await ride(w, V, { client: SIM, requestId: 'atk-req-0001' });
   ok('A8d 不帶 token、替受害者（帳號 V）送模擬器搭乘 → 401 auth_required，V 名下沒有多出任何一列', atk.status === 401 && atk.json.error === 'auth_required' && q.nRides(w, V) === 0, atk.text);
   const real = await ride(w, V, {}, as(V));
@@ -389,7 +389,7 @@ await attempt('A9', async () => {
   ok('A9c Bearer 與 ?actor= 都帶：Bearer 贏、?actor= 被無視（看到的是 U 的 6，不是匿名裝置的 3）', both.status === 200 && both.json.balance === 6, both.text);
   const bad = await chipsMe(w, '?actor=' + DANON, as(null));
   ok('A9d 壞 Bearer ＋ 匿名裝置的 ?actor= → 401 unauthorized（不降級成匿名讀取）', bad.status === 401 && bad.json.error === 'unauthorized', bad.text);
-  // 舊版 F2 攻擊留下的髒列：U2 的列是帳號列、卻掛著 merged_into＝攻擊者 A2；Bearer 讀取不能被導向 A2 的帳
+  // 舊版合併劫持留下的髒列：V 的列是帳號列、卻掛著 merged_into＝攻擊者 A；Bearer 讀取不能被導向 A 的帳
   const w2 = world();
   S.acct(w2, V, 40, A); S.acct(w2, A, 77); S.ledger(w2, V, 'adjust', 6, 'a9-v'); S.ledger(w2, A, 'adjust', 99, 'a9-a');
   const rv = await chipsMe(w2, '', as(V)), mv = await boMe(w2, '', as(V));
@@ -456,7 +456,7 @@ await attempt('A11', async () => {
 });
 await attempt('A11d', async () => {
   // body 的 deviceActor 填成「別人的帳號」（uid）：那是帳號不是裝置。它的 v1 樣本與認領、點數列（＝帳號身分的標記）不能被刪；
-  // 否則受害者的帳號標記被抹掉，下一次不帶 token 的 actor＝V 請求就被當成「匿名裝置」放行，S4 的錢包規則等於被繞過。
+  // 否則受害者的帳號標記被抹掉，下一次不帶 token 的 actor＝V 請求就被當成「匿名裝置」放行，錢包規則等於被繞過。
   const w = world();
   S.acct(w, X, 1); S.acct(w, V, 40); S.dev(w, DV, 0, V);
   S.sample(w, V, 'a11d-s'); S.claim(w, V, 'a11d-c'); S.ledger(w, V, 'adjust', 6, 'a11d-l'); S.unlock(w, V, 'shifen', 1, 4, 1000);
@@ -469,7 +469,7 @@ await attempt('A11d', async () => {
 });
 for (const [tag, body] of [['A11f', {}], ['A11g', { actor: DANON }]]) {
   await attempt(tag, async () => {
-    // 舊版 F2 攻擊留下的髒列：V 是帳號列（7 點），卻掛著 merged_into＝攻擊者 A。A 刪自己的帳號時，V 不是 A 的裝置，不能被一起帶走
+    // 舊版合併劫持留下的髒列：V 是帳號列（7 點），卻掛著 merged_into＝攻擊者 A。A 刪自己的帳號時，V 不是 A 的裝置，不能被一起帶走
     // （「merged_into 指向我」只算裝置：uid 欄 NULL 的列）。A11f 是不帶 body、A11g 是帶一個不相干的匿名裝置 DANON（兩條 SQL 路徑各一）。
     const w = world();
     S.acct(w, A, 3); S.acct(w, V, 7, A); S.dev(w, DANON, 2);

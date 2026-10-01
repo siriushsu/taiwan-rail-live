@@ -20,7 +20,7 @@
 // 分組：M 合併（M1 餘額與解鎖　M2 撞座退款與重排　M3 撞天雲端搭乘　M4 撞段去重人數　M5 冪等與併發　M6 沒有點數列的裝置
 //       M7 已併進別人的 token 不搬　M8 合併後的雲端籌碼結算　M10 授權　M11 單一 batch　M12 每日上限不回溯
 //       M13 首位校正者與撞段時的首次時間）
-//       P 刪帳號（M9）
+//       P 刪帳號
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import worker, { _bounty } from '../worker.js';
@@ -508,7 +508,7 @@ await attempt('P1', async () => {
   ok('P1f bounty_points：本人／併進本人的墓碑／本機 device 三列刪了，DEV3 的墓碑與 OTHER 留著', same(w.db.prepare('SELECT actor FROM bounty_points ORDER BY actor').all().map(r => r.actor), [DEV3, OTHER].sort()));
 });
 await attempt('P2', async () => {
-  // 不帶 deviceActor：只碰 uid 家族，不誤刪任何匿名 token 的四張表資料（比照 L10）
+  // 不帶 deviceActor：只碰 uid 家族，不誤刪任何匿名 token 的四張表資料（比照 verify_bounty_api 的 L10）
   const w = world();
   S.points(w, DEV, 5); S.ledger(w, DEV, 'adjust', 5, 'p2-dev'); S.unlock(w, DEV, 'shifen', 1, 4, 100);
   S.ledger(w, UID, 'adjust', 2, 'p2-uid');

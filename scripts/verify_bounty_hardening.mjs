@@ -3,7 +3,7 @@
 // 跑法：node scripts/verify_bounty_hardening.mjs
 //
 // 期望值一律寫死在這裡，不呼叫實作去產生期望（日期自己用 Date 算、點數與籌碼自己手算並寫出算式）。來源：
-//   ・每一組對應一個或幾個修補項目（代號見各組標題），
+//   ・每一組驗一個或幾個修補（各組標題寫它驗什麼），
 //     判準寫的是修補後應有的行為。
 //   ・數字（每趟至少 600 秒、每日籌碼上限 4、第一座 4 之後每座 8、每日計點上限 200、日期窗 7 天、每人每日 720 批）
 //     來自 data/bounty_rules.json 與 worker.js 的常數，這裡照抄成字面。
@@ -17,7 +17,7 @@
 //   B6  髒帳號列（uid 與 merged_into 都有值）：判定記在帳號本人，不跟 merged_into
 //   C2  合併落在判定途中（讀認領那一刻）：點數、認領都記對人；C2b／C2c 落在寫帳本、去重登記的前一刻：籌碼與登記記對人
 //   C2s 合併落在第二發的第 k 次 D1 呼叫之前（k 全掃）：同一班不發兩顆、當天不超過上限，結果與「最後才合併」逐列相同
-//   C3  判定途中第 k 次 D1 呼叫失敗（k 全掃）→ 重跑後六張表與一次跑完逐列相同（B7）
+//   C3  判定途中第 k 次 D1 呼叫失敗（k 全掃）→ 重跑後六張表與一次跑完逐列相同
 //   LS  租約：兩發重疊不重複計點；過期可接手；別人的活租約不碰；只釋放自己那一份
 //   R1  一條線組的寫入＝一個 batch、四句（標記、點數、sample_count、關認領），標記一句
 //   R2  前次線組只讀最早／最晚時間；超量的車（批數、總長、第一段之後才灌進來）整班可疑、payload 不讀
@@ -286,7 +286,7 @@ const listOf = (w) => {
 };
 
 await attempt('B3a', async () => {
-  // C1 的攻擊：一個 IP、不帶任何憑證，送兩千多班刻意排在舊版判定清單最前面的垃圾。
+  // 攻擊：一個 IP、不帶任何憑證，送兩千多班刻意排在舊版判定清單最前面的垃圾。
   // 誠實的可信身分：帳號 U（3 班）、以前入帳過錄程籌碼的匿名裝置 R（1 班）、併進帳號 U2 的裝置 M（1 班）。
   // 預設預算（8000）、預設次序（排序鍵相同時隨機）：可信身分的前 8 班排在最前面，所以這 5 班一定先判；垃圾把預算用完，剩下的留 pending。
   // 垃圾一班成本＝讀一班 1＋身分 1＋前次 1＋寫入 batch 1＝4 → 預算 8000 判得了約 2,000 班 < 2,500 班，一定用完。
@@ -402,7 +402,7 @@ await attempt('B4b', async () => {
 // ═══ B5：帶 Bearer 讀取也跑 S0 ═════════════════════════════════════════════════
 for (const [tag, read] of [['B5a', chipsMe], ['B5b', bountyMe]]) {
   await attempt(tag, async () => {
-    // 攻擊者 A 先前拿 V（還沒出現過的 uid）當「裝置」併進自己（F2 的預先佔位），V 的列是 {uid NULL, merged_into A}。
+    // 攻擊者 A 先前拿 V（還沒出現過的 uid）當「裝置」併進自己（合併劫持的預先佔位），V 的列是 {uid NULL, merged_into A}。
     // V 本人第一次帶 Bearer 出現、只是讀取：列要被收回成帳號列 {uid V, merged_into NULL}，讀到的是 V 自己的帳（0），不是 A 的。
     const A = 'uid-b5-00000A', V = 'uid-b5-00000V';
     const w = world({ seed: pointsSql([[A, A, 40, null], [V, null, 0, A]]) + ledgerSql(A, 'adjust', 6, 'b5-seed') });
@@ -419,7 +419,7 @@ for (const [tag, read] of [['B5a', chipsMe], ['B5b', bountyMe]]) {
 
 // ═══ B6：髒帳號列（uid 與 merged_into 都有值）判定記在本人 ═════════════════════════
 await attempt('B6', async () => {
-  // 舊版 F2 攻擊留下的髒列：V 是帳號（uid＝V），卻掛著 merged_into＝A。V 名下的樣本判完，籌碼、點數、去重貢獻都要記在 V。
+  // 舊版合併劫持留下的髒列：V 是帳號（uid＝V），卻掛著 merged_into＝A。V 名下的樣本判完，籌碼、點數、去重貢獻都要記在 V。
   // 期望：700 秒 ok → 1 顆；點數 7 段×3＝21；登記 7 段。A 一樣都沒有。
   const A = 'uid-b6-00000A', V = 'uid-b6-00000V';
   const w = world({ seed: boardSql('山線') + pointsSql([[A, A, 0, null], [V, V, 0, A]]) });
@@ -442,7 +442,7 @@ await attempt('C2', async () => {
   const h = hookOnce(w.DELAY_DB, CLAIMS_READ_RE, async () => { mst = (await merge(w, DEV, UID)).status; });
   await w.cron();
   const cl = one(w, "SELECT actor,status FROM bounty_claims WHERE id='claim-c2'");
-  ok('C2 [B7 競態] 合併落在讀認領之前：UID 27 點、認領 {UID, fulfilled}、DEV 墓碑 0 點；籌碼 1 顆與登記 7 段在 UID、DEV 名下 0',
+  ok('C2 [競態] 合併落在讀認領之前：UID 27 點、認領 {UID, fulfilled}、DEV 墓碑 0 點；籌碼 1 顆與登記 7 段在 UID、DEV 名下 0',
     h.fired >= 1 && mst === 200 && q.points(w, UID) === 27 && J(q.point(w, DEV)) === J({ uid: null, points: 0, merged_into: UID }) &&
       J(cl) === J({ actor: UID, status: 'fulfilled' }) && q.bal(w, UID) === 1 && q.bal(w, DEV) === 0 && q.contrib(w, UID) === 7 && q.contrib(w, DEV) === 0,
     J({ fired: h.fired, merge: mst, uid: q.point(w, UID), dev: q.point(w, DEV), claim: cl, bal: [q.bal(w, UID), q.bal(w, DEV)], contrib: [q.contrib(w, UID), q.contrib(w, DEV)] }));
@@ -653,7 +653,7 @@ await attempt('C3', async () => {
   const bad = res.filter(r => r.diff.length || r.pending);
   console.log(`   C3 乾淨一次跑完 ${N} 次 D1 呼叫（ok ${cleanSt.ok}／可惜 ${cleanSt.unusable}／籌碼 ${cleanSt.chips}）；逐一注入：` +
     res.map(r => `${r.k}${r.threw ? '拋' : r.errors ? '記' : '・'}`).join(' '));
-  ok(`C3a [B7] ${N} 個中斷點全部重跑後，帳本、登記、點數、認領、看板、樣本六張表都與一次跑完逐列相同，而且沒有留 pending`,
+  ok(`C3a ${N} 個中斷點全部重跑後，帳本、登記、點數、認領、看板、樣本六張表都與一次跑完逐列相同，而且沒有留 pending`,
     N >= 20 && bad.length === 0, J(bad.map(r => [r.k, r.diff.join('+'), r.pending])));
   // 班車裡面出錯的中斷點：記下那一班（恰一列）、不停手；其中 T1 出錯的，同一發照樣判完 T2（舊寫法「出錯就停手」T2 會留 pending）
   const inTrain = res.filter(r => r.errors), t1Faults = inTrain.filter(r => J(r.sk) === J([STRIKE(D, 'T1')]));
@@ -992,9 +992,9 @@ await attempt('B5', async () => {
 // ═══ SW：每一發開頭的出錯記錄清掃═══════════════════════════════════════
 await attempt('SW', async () => {
   // 記錄五列＋別的鍵三列：
-  //   orphan：那班車已判完（沒有 pending 列）——B4c（判得過的當下刪記錄那一句失敗、被吞掉）留下的形狀 → 刪
+  //   orphan：那班車已判完（沒有 pending 列）——判得過的當下刪記錄那一句失敗、被吞掉時留下的形狀 → 刪
   //   legacy：舊格式（沒有 n）、那班車也沒有 pending → 刪
-  //   merged：裝置 D 記過之後併進帳號 U（樣本已改名到 U，裝置鍵下沒有 pending）——B4d → 刪
+  //   merged：裝置 D 記過之後併進帳號 U（樣本已改名到 U，裝置鍵下沒有 pending）→ 刪
   //   live：那班車還有 pending（還沒判）→ 留著（n 不動）
   //   liveU：同一班車改名後在 U 名下的記錄（還有 pending）→ 留著
   //   別的鍵：'bounty_verify_strike'（沒有「|」，在範圍之前）、'bounty_verify_strike~x'（「~」在「}」之後）、'bounty_verify_lease' 以外的快取 → 不動
@@ -2425,7 +2425,7 @@ await attempt('M5b', async () => {
 await attempt('M5b3', async () => {
   const { w, X, DN } = m5bWorld();
   const del = await delAccount(w, { actor: DN }, X);
-  ok('M5b3 [對照 B8] body 帶「還沒併進任何帳號的裝置 DN」→ DN 的樣本、認領、點數列都刪了；回應 樣本 4、認領 2、點數列 3',
+  ok('M5b3 [對照] body 帶「還沒併進任何帳號的裝置 DN」→ DN 的樣本、認領、點數列都刪了；回應 樣本 4、認領 2、點數列 3',
     del.status === 200 && v1Of(w, DN) === J({ samples: 0, claims: 0, point: null }) &&
       J({ s: del.json.deleted.samples, c: del.json.deleted.claims, p: del.json.deleted.points }) === J({ s: 4, c: 2, p: 3 }),
     J({ del: del.json, dn: v1Of(w, DN) }));

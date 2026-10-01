@@ -168,7 +168,7 @@ ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|life
     ['thsrRange', run({ date: '2026-01-05', trains, dates }, { files: { 'data/thsr_schedule_dense.json': { date: '', trains: [], dateRange: ['2026-01-05', '2026-01-09'] } } })],
   ];
   ok('R13 單位檔的 perDay＝各日班次數的中位數：手寫的五天班表跑 build_bounty_units，只開一天的臨時車與兩天的車不出單位、改點的第二份定義不多算、尖峰照各日中位數切；四天班表開兩天的車 perDay 0.5；' +
-    '十份壞班表（三份：車次自帶行駛日、索引超出範圍、同一天重複；四份：dates 不是物件、是空的、鍵不是日期、某天沒車；三份：台鐵缺 dates、台鐵 dates 是 null、高鐵帶 dateRange 卻沒有 dates）都由腳本自己的檢查擋下、非零離開，舊的單位檔原封不動',
+    '十份壞班表（車次與班次索引三份：車次自帶行駛日、索引超出範圍、同一天重複；dates 欄位四份：不是物件、是空的、鍵不是日期、某天沒車；缺 dates 三份：台鐵缺 dates、台鐵 dates 是 null、高鐵帶 dateRange 卻沒有 dates）都由腳本自己的檢查擋下、非零離開，舊的單位檔原封不動',
     good.status === 0 && JSON.stringify(got) === JSON.stringify(want) && JSON.stringify(peak) === '[6,7,8,17,18,19]' &&
       even.status === 0 && JSON.stringify(gotEven) === JSON.stringify(wantEven) && JSON.stringify(peakEven) === '[6,7,8,17,18,19]' &&
       bad.length === 10 && bad.every(([k, r]) => r.status !== 0 && WANT_ERR[k].test(r.err) && r.kept),
