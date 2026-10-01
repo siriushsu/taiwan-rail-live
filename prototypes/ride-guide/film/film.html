@@ -717,6 +717,29 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
     };
   }
 
+  /* 對拍：配樂是 150 BPM（一拍 0.4 秒、一小節 1.6 秒，強拍在 0.8＋1.6k 秒）。
+     WARP 把「成片時間 T」對應到「動畫時間 t」：每個剪接點、重擊點都被移到拍點上，
+     兩個錨點之間線性伸縮；動畫速度在 0.75–1.5 倍之間，最快的兩段是靜止停留與甩鏡，看不出變速。[t, T] */
+  const WARP = [
+    [0, 0], [0.6, 0.8], [1.55, 1.6], [2.95, 2.8], [4.15, 4.0],          // Logo：牌子落下、軌字、印章、穿越轉場＝第一個重拍
+    [4.97, 4.8], [5.77, 5.6], [6.07, 6.0], [7.6, 7.0], [7.875, 7.2], [8.15, 7.4], // 標語逐字重擊、甩鏡在強拍
+    [9.5, 8.8], [12.75, 12.0],                                            // 掃 QR：閃白換頁在強拍
+    [14.65, 14.0], [15.55, 14.85], [15.9, 15.2],                         // 點十分、十分站名牌砸下
+    [20.6, 20.0], [27.0, 26.4], [28.7, 28.0], [29.55, 28.8], [31.6, 31.2], // 功能連發每鏡一小節、中英切換
+    [33.75, 33.2], [34.65, 34.0], [35.55, 34.8], [36.55, 36.0],          // 路網三個站名牌
+    [39.45, 39.2], [41.15, 40.8], [42.7, 42.4],                          // 三站：推進光復、甩到通霄
+    [43.42, 43.2], [44.07, 44.0], [44.72, 44.8], [47.55, 47.2],          // 三枚印章
+    [48.6, 48.4], [52.0, 52.0], [53.35, 53.6], [54.6, 54.8], [58.0, 58.0], // 車鉤扣上、Logo 收尾
+  ];
+  function warp(T) {
+    if (T <= 0) return 0;
+    for (let i = 0; i < WARP.length - 1; i++) {
+      const [t0, T0] = WARP[i], [t1, T1] = WARP[i + 1];
+      if (T <= T1) return t0 + (t1 - t0) * (T - T0) / (T1 - T0);
+    }
+    return WARP[WARP.length - 1][0];
+  }
+
   function renderAt(t) {
     for (const sc of scenes) {
       const on = t >= sc.t0 && t < sc.t1;
@@ -724,8 +747,8 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
       if (on) sc.render(t);
     }
   }
-  window.FILM = { DUR, renderAt };
-  // 預覽：?t=12.3 停在某一格；否則用真實時間播放
+  window.FILM = { DUR, renderAt, warp, WARP };
+  // 預覽：?t=12.3 停在動畫時間某一格、?T=12.3 停在成片時間某一格；否則依成片時間播放（與配樂同步）
   const q = new URLSearchParams(location.search);
   function fitPreview() { if (!q.has('render')) { const k = Math.min(innerWidth / 1920, innerHeight / 1080); stage.style.transformOrigin = '0 0'; stage.style.transform = `scale(${k})`; } }
   addEventListener('resize', fitPreview); fitPreview();
@@ -733,7 +756,8 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
   ready.then(() => {
     window.FILM.ready = true;
     if (q.has('t')) renderAt(+q.get('t'));
-    else if (!q.has('render')) { const t0 = performance.now(); (function loop() { renderAt(((performance.now() - t0) / 1000) % DUR); requestAnimationFrame(loop); })(); }
+    else if (q.has('T')) renderAt(warp(+q.get('T')));
+    else if (!q.has('render')) { const t0 = performance.now(); (function loop() { renderAt(warp(((performance.now() - t0) / 1000) % DUR)); requestAnimationFrame(loop); })(); }
   });
 })();
 </script>

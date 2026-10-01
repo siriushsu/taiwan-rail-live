@@ -1,6 +1,7 @@
 // 算繪發布影片：逐格呼叫 film.html 的 renderAt(t) 截圖，再用 ffmpeg 編成 MP4。
-// 用法：node prototypes/ride-guide/film/render_film.mjs [--fps 60] [--scale 1.3333] [--from 0] [--to 58]
-//   先跑 capture_assets.mjs 產生 assets/（原型真實畫面）。
+// 用法：node prototypes/ride-guide/film/render_film.mjs [--fps 60] [--scale 1.3333] [--from 0] [--to 58] [--audio 配樂.wav]
+//   先跑 capture_assets.mjs 產生 assets/（原型真實畫面）；配樂用 python3 score.py 產生（對準同一份剪接點）。
+//   時間以成片時間 T 計，每格先經 FILM.warp(T) 換成動畫時間，剪接點才會落在配樂拍點上。
 //   需要：playwright（或 PLAYWRIGHT_MODULE 指向全域安裝）、系統 ffmpeg（libx264）、本機 Noto Sans TC 字型。
 // 輸出：prototypes/ride-guide/_video/ride-guide-launch.mp4（2560×1440、60fps；_video/ 與 frames/ 都不進版控）
 //
@@ -17,6 +18,8 @@ const root = join(here, '..');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? Number(process.argv[i + 1]) : d; };
 const FPS = arg('fps', 60);
 const SCALE = arg('scale', 4 / 3); // 1920×1080 舞台 × 4/3 ＝ 2560×1440
+const ai = process.argv.indexOf('--audio');
+const AUDIO = ai > 0 ? process.argv[ai + 1] : null;
 const frameDir = join(here, 'frames');
 const outDir = join(root, '_video');
 await rm(frameDir, { recursive: true, force: true });
@@ -63,7 +66,7 @@ async function worker(w) {
   await page.waitForFunction(() => window.FILM && window.FILM.ready === true, null, { timeout: 60000 });
   const per = Math.ceil(total / WORKERS);
   for (let i = first + w * per; i < Math.min(last, first + (w + 1) * per); i++) {
-    await page.evaluate((t) => new Promise((r) => { window.FILM.renderAt(t); requestAnimationFrame(() => r()); }), i / FPS);
+    await page.evaluate((T) => new Promise((r) => { window.FILM.renderAt(window.FILM.warp(T)); requestAnimationFrame(() => r()); }), i / FPS);
     await page.screenshot({ path: join(frameDir, `${String(i - first).padStart(6, '0')}.jpg`), type: 'jpeg', quality: 95 });
     if (++done % 120 === 0) console.log(`${done}/${total} 格，${((Date.now() - t0) / 1000).toFixed(0)} 秒`);
   }
@@ -76,7 +79,9 @@ server.close();
 console.log(`算繪 ${total} 格完成，${((Date.now() - t0) / 1000).toFixed(0)} 秒`);
 
 const mp4 = join(outDir, 'ride-guide-launch.mp4');
-execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', join(frameDir, '%06d.jpg'),
-  '-c:v', 'libx264', '-preset', 'slow', '-crf', '16', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', mp4], { stdio: 'inherit' });
+const audioArgs = AUDIO ? ['-ss', String(from), '-t', String(to - from), '-i', AUDIO] : [];
+const audioOut = AUDIO ? ['-map', '0:v', '-map', '1:a', '-c:a', 'aac', '-b:a', '256k', '-shortest'] : [];
+execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', join(frameDir, '%06d.jpg'), ...audioArgs,
+  '-c:v', 'libx264', '-preset', 'slow', '-crf', '16', '-profile:v', 'high', '-pix_fmt', 'yuv420p', ...audioOut, '-movflags', '+faststart', mp4], { stdio: 'inherit' });
 await rm(frameDir, { recursive: true, force: true });
 console.log('寫出', mp4);

@@ -64,7 +64,7 @@ node prototypes/ride-guide/verify.mjs
 | `data/tour.js` | 委員簡報腳本（每一幕的畫面狀態、說明文字、秒數） |
 | `present.html` | 簡報舞台：左手機（實際操作原型）、右大字說明 |
 | `record_video.mjs` | 錄製簡報影片（1080p MP4，輸出到 `_video/`，不進版控） |
-| `film/` | 一分鐘功能發布影片：`film.html` 是逐格可重現的動畫（`renderAt(t)`），`capture_assets.mjs` 拍原型畫面，`render_film.mjs` 算繪成 2560×1440／60fps MP4 |
+| `film/` | 一分鐘功能發布影片：`film.html` 是逐格可重現的動畫（`renderAt(t)`），`capture_assets.mjs` 拍原型畫面，`render_film.mjs` 算繪成 2560×1440／60fps MP4，`score.py` 合成對準剪接點的配樂 |
 | `img/` | Wikimedia Commons 授權照片，`img/CREDITS.json` 記作者與授權 |
 | `verify.mjs` | Playwright 驗收 |
 
