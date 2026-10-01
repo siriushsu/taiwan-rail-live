@@ -905,14 +905,30 @@ section(SECTIONS[12]);
       && purchaseCalls().every(u => /[?&]environment=production(&|$)/.test(u)),
     'sandbox 購買（實測回應原文）出現在正式環境的查詢結果裡 ⇒ 不算（逐筆 environment 第二道）',
     JSON.stringify({ sandboxInProduction, calls: purchaseCalls() }));
-  // 正向對照：同一份回應走 TestFlight build 21 的 sandbox 回退，就是有效的測試資格。
+  // 正向對照：同一份回應走 TestFlight build 21 的 sandbox 回退，帳號在 sandbox UID allowlist 裡，就是有效的測試資格。
   const sandboxFallback = await runLifetime({ uid: ANDROID_UID, production: { body: androidOwned },
-    sandbox: { body: androidOwned }, request: req('21') });
+    sandbox: { body: androidOwned }, request: req('21'), env: LIFETIME_ENV({ REVENUECAT_SANDBOX_ALLOWED_UIDS: ANDROID_UID }) });
   const fallbackEnvs = purchaseCalls().map(u => new URL(u).searchParams.get('environment'));
   check(sandboxFallback.ok === true && sandboxFallback.entitlementEnvironment === 'sandbox'
       && fallbackEnvs.join(',') === 'production,sandbox',
-    '正向對照：同一份 sandbox 回應在 build 21 的 sandbox 回退 ⇒ 取得 sandbox 資格（先查正式、再查 sandbox）',
+    '正向對照：同一份 sandbox 回應在 build 21 的 sandbox 回退、帳號在 sandbox UID allowlist ⇒ 取得 sandbox 資格（先查正式、再查 sandbox）',
     JSON.stringify({ sandboxFallback, fallbackEnvs }));
+  // 舊 build 的 header 可偽造、不查 UID，sandbox 購買又不收錢：不在 allowlist 的帳號，sandbox 終身一律不算，
+  // 也不去查 sandbox /purchases。21、22 兩個舊 build 各驗一次。
+  for (const build of ['21', '22']) {
+    const outsider = await runLifetime({ uid: ANDROID_UID, production: { body: androidOwned },
+      sandbox: { body: androidOwned }, request: req(build) });
+    const outsiderEnvs = purchaseCalls().map(u => new URL(u).searchParams.get('environment'));
+    check(outsider.ok === false && outsider.status === 403 && outsiderEnvs.join(',') === 'production',
+      `build ${build}、帳號不在 sandbox UID allowlist ⇒ sandbox 終身不算（不查 sandbox /purchases）`,
+      JSON.stringify({ outsider, outsiderEnvs }));
+  }
+  // 限縮只針對終身：同一個不在 allowlist 的帳號，舊 build 的 sandbox 訂閱照舊有效（既有 TestFlight 驗收不受影響）。
+  const outsiderSub = await runLifetime({ uid: ANDROID_UID, request: req('21'),
+    subscriptions: { object: 'list', items: [sub({ customer_id: ANDROID_UID, environment: 'sandbox' })], next_page: null } });
+  check(outsiderSub.ok === true && outsiderSub.entitlementEnvironment === 'sandbox',
+    '正向對照：build 21、帳號不在 sandbox UID allowlist，但有 sandbox 訂閱 ⇒ 照舊取得 sandbox 資格',
+    JSON.stringify(outsiderSub));
 
   // allowlist 用換行或空白分隔也要認得（secret 常被貼成多行）。
   const spaced = await runLifetime({ uid: ANDROID_UID, production: { body: asProduction(androidOwned) },

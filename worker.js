@@ -2342,13 +2342,16 @@ function plusEnvironment(value) {
   return value === RC_ENV_SANDBOX ? RC_ENV_SANDBOX : RC_ENV_PRODUCTION;
 }
 
+function plusSandboxAllowedUids(env) {
+  return new Set(String(env.REVENUECAT_SANDBOX_ALLOWED_UIDS || '')
+    .split(/[\s,]+/).map(value => value.trim()).filter(Boolean));
+}
+
 function sandboxPlusRequested(request, uid, env) {
   const build = request.headers.get(PLUS_SANDBOX_TEST_HEADER) || '';
   if (PLUS_SANDBOX_LEGACY_BUILDS.has(build)) return true;
   if (!PLUS_SANDBOX_UID_ALLOWLIST_BUILDS.has(build)) return false;
-  const allowed = new Set(String(env.REVENUECAT_SANDBOX_ALLOWED_UIDS || '')
-    .split(/[\s,]+/).map(value => value.trim()).filter(Boolean));
-  return allowed.has(uid);
+  return plusSandboxAllowedUids(env).has(uid);
 }
 
 const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -2937,6 +2940,12 @@ async function fetchRevenueCatLifetimePurchases(uid, env, wantEntitlement, entit
   const lifetimeProductIds = plusLifetimeProductIds(env);
   if (!lifetimeProductIds.size) return { ok: true, purchases: { items: [] } };
   const selectedEnvironment = plusEnvironment(entitlementEnvironment);
+  // sandbox 終身只認 UID allowlist 裡的帳號。舊 TestFlight build 的 header 可偽造、也不查 UID，
+  // 而 sandbox 購買不收錢；訂閱在 sandbox 會自行停止續訂，終身不會，不限縮就等於永久免費。
+  // 放在這裡而不是 sandboxPlusRequested()，plus-status 與 webhook 兩條路才會同一套規則。
+  if (selectedEnvironment === RC_ENV_SANDBOX && !plusSandboxAllowedUids(env).has(uid)) {
+    return { ok: true, purchases: { items: [] } };
+  }
   const list = await fetchRevenueCatCustomerList(uid, env, 'purchases',
     purchase => purchaseMatchesPlusLifetime(purchase, wantEntitlement, lifetimeProductIds, selectedEnvironment),
     selectedEnvironment);

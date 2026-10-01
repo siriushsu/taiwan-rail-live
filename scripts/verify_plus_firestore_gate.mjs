@@ -922,7 +922,9 @@ section(SECTIONS[11]);
     JSON.stringify({ body: refunded.body, doc: refunded.doc }));
 
   // 12-3 webhook：用 RevenueCat 實際送來的 Request body，重查 /purchases 後寫資格文件。
-  const hook = async (file, uid, purchasesSandbox, env = LIFETIME_ENV(), subscriptions = EMPTY_LIST) => {
+  // sandbox 終身只認 sandbox UID allowlist 裡的帳號；下面的 webhook 正例都用兩個實測帳號都在名單內的設定。
+  const SANDBOX_LIFETIME_ENV = (over = {}) => LIFETIME_ENV({ REVENUECAT_SANDBOX_ALLOWED_UIDS: `${IOS_UID},${ANDROID_UID}`, ...over });
+  const hook = async (file, uid, purchasesSandbox, env = SANDBOX_LIFETIME_ENV(), subscriptions = EMPTY_LIST) => {
     resetIo();
     rcBody = subscriptions;
     rcPurchases = { [uid]: { sandbox: purchasesSandbox } };
@@ -944,6 +946,14 @@ section(SECTIONS[11]);
       && bought.purchaseQueries.join(',') === 'sandbox',
     '購買 webhook（iOS 1,490 實測 NON_RENEWING_PURCHASE）⇒ 重查 sandbox /purchases，只寫 sandboxEntitlements，active 且有界',
     JSON.stringify({ status: bought.response.status, writes: bought.writes.map(w => w.url), doc: bought.doc, purchaseQueries: bought.purchaseQueries }));
+  // 同一則購買事件，帳號不在 sandbox UID allowlist ⇒ 不查 sandbox /purchases，寫 inactive（正向對照是上一條）。
+  const outsider = await hook('ios_NON_RENEWING_PURCHASE_lifetime.json', IOS_UID, { body: iosBothOwned },
+    SANDBOX_LIFETIME_ENV({ REVENUECAT_SANDBOX_ALLOWED_UIDS: ANDROID_UID }));
+  check(outsider.response.status === 200 && outsider.writes.length === 1
+      && outsider.writes[0].url.includes(`/documents/sandboxEntitlements/${IOS_UID}`)
+      && outsider.doc.active.booleanValue === false && outsider.purchaseQueries.length === 0,
+    '購買 webhook（同一則 iOS 實測事件）但帳號不在 sandbox UID allowlist ⇒ sandbox 終身不算、不查 /purchases，寫 inactive',
+    JSON.stringify({ status: outsider.response.status, writes: outsider.writes.map(w => w.url), doc: outsider.doc, purchaseQueries: outsider.purchaseQueries }));
   const cancelled = await hook('android_CANCELLATION_refund_lifetime_upgrade.json', ANDROID_UID, { body: androidRefunded });
   check(cancelled.event.type === 'CANCELLATION' && cancelled.response.status === 200
       && cancelled.writes.length === 1 && cancelled.writes[0].url.includes(`/documents/sandboxEntitlements/${ANDROID_UID}`)
@@ -961,7 +971,7 @@ section(SECTIONS[11]);
   // 同一則事件、同一個 /purchases 500，但訂閱仍有效 ⇒ 照訂閱寫 active，不讓訂閱者跟著 503
   // （只會少給：到期取訂閱那一份）。上一條是它的反向對照：沒有訂閱時一樣得 503。
   const subEndMs = Date.now() + 30 * DAY_MS;
-  const subOnly = await hook('ios_NON_RENEWING_PURCHASE_lifetime.json', IOS_UID, { status: 500, body: {} }, LIFETIME_ENV(),
+  const subOnly = await hook('ios_NON_RENEWING_PURCHASE_lifetime.json', IOS_UID, { status: 500, body: {} }, SANDBOX_LIFETIME_ENV(),
     { object: 'list', items: [baseSubscription({ customer_id: IOS_UID, environment: 'sandbox',
       ends_at: subEndMs, current_period_ends_at: subEndMs })], next_page: null });
   const subOnlyUntil = Number(subOnly.doc.activeUntilMs && subOnly.doc.activeUntilMs.integerValue);
