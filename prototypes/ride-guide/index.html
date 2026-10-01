@@ -213,6 +213,12 @@ html[lang="en"] .tagline{font-size:20px;max-width:30ch}
 .prov-legend>span{display:inline-flex;align-items:center;gap:5px}
 .srcmark{font-weight:900;color:var(--navy)}
 
+/* 在地現況提醒（例：災後復原、封閉）：放在主視覺下方，旅客第一眼就看到 */
+.alert-card{border:2px solid var(--warn-line);background:var(--warn-bg);color:var(--ink);border-radius:var(--r-l);padding:14px 16px}
+.alert-card h2{display:flex;align-items:center;gap:8px;font-size:17px;color:var(--warn-ink);margin:0 0 6px}
+.alert-card h2 .ic{width:20px;height:20px}
+.alert-card p{margin:0;font-size:15px;line-height:1.6}
+
 /* 必看亮點：橫向卡片 */
 .hl-row{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px;padding:2px 16px 8px;scrollbar-width:none}
 .hl-row::-webkit-scrollbar{display:none}

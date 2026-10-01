@@ -387,6 +387,7 @@
     if (state.overlay === 'map' && isDesk()) state.overlay = null;
     render();
     // 覆蓋層開關時的焦點：開地圖移到「回到導覽」，關地圖回到原本的按鈕
+    if (state.tour) return; // 簡報導覽驅動時不搬焦點，畫面上不會殘留焦點框
     if (state.overlay === 'map' && prevOverlay !== 'map') focusKey('map-close');
     else if (prevOverlay === 'map' && state.overlay !== 'map' && state.overlay !== 'sheet') focusKey(mapReturnKey);
   }
@@ -875,6 +876,10 @@
     if (!s) return h + plateBlock(id) + (passed ? passNote(id) : '') + noGuideHtml(id) + '</div>';
 
     h += heroHtml(id, s);
+    if (s.notice) {
+      h += `<section class="alert-card" id="sec-alert" role="note" aria-labelledby="h-alert"><h2 id="h-alert">${icon('alert')}${esc(L(s.notice.title))}</h2>
+        <p>${esc(L(s.notice.text))}</p>${srcLine(s.notice.src, true)}</section>`;
+    }
     if (passed) h += passNote(id);
     const shops = shopsFor(id);
     const routes = routesOf(s);
@@ -980,7 +985,7 @@
   }
   // 模擬估算：直線距離 × 1.3（繞路係數）÷ 速度。步行每分鐘 75 公尺，單車每分鐘 220 公尺。
   function estMin(m, mode) {
-    const v = mode === 'bike' ? 220 : 75;
+    const v = mode === 'bike' ? 220 : mode === 'bus' ? 350 : 75;
     const x = (m * 1.3) / v;
     return x < 10 ? Math.max(1, Math.ceil(x)) : Math.round(x / 5) * 5;
   }
@@ -1031,7 +1036,7 @@
       const dist = haversineKm([pts[k].lat, pts[k].lon], [pts[k + 1].lat, pts[k + 1].lon]) * 1000;
       if (sp) { if (k === sp.from) total += sp.min; legInfo.push({ kind: k === sp.from ? 'span' : 'in-span', sp, dist, leg }); }
       else if (typeof leg.min === 'number') { total += leg.min; legInfo.push({ kind: 'src', min: leg.min, dist, leg }); }
-      else { const m = estMin(dist, mode); total += m; anySim = true; legInfo.push({ kind: 'sim', min: m, dist, leg }); }
+      else { const m = estMin(dist, leg.mode || mode); total += m; anySim = true; legInfo.push({ kind: 'sim', min: m, dist, leg }); }
     }
     const modeLabel = t.mode[mode] || t.mode.walk;
     let h = `<p class="lead" style="margin-bottom:10px"><b>${esc(L(w.name))}</b>${w.summary ? (state.lang === 'en' ? ': ' : '：') + esc(L(w.summary)) : ''}</p>`;
@@ -1048,11 +1053,12 @@
       }
       if (k < pts.length - 1) {
         const li = legInfo[k];
+        const legLabel = t.mode[li.leg.mode] || modeLabel; // 單段可換交通方式（例：公車兩段後步行）
         let time;
         if (li.kind === 'span') time = `${esc(t.spanMin(ptName(pts[li.sp.from]), ptName(pts[li.sp.to]), li.sp.min))}（${srcInline(li.sp.src)}）`;
         else if (li.kind === 'in-span') time = esc(t.spanIn);
-        else if (li.kind === 'src') time = `${esc(t.legMode(modeLabel, li.min))}${li.leg.src ? `（${srcInline(li.leg.src)}）` : ''}`;
-        else time = `${esc(t.legMode(modeLabel, li.min))} ${provChip('sim')}`;
+        else if (li.kind === 'src') time = `${esc(t.legMode(legLabel, li.min))}${li.leg.src ? `（${srcInline(li.leg.src)}）` : ''}`;
+        else time = `${esc(t.legMode(legLabel, li.min))} ${provChip('sim')}`;
         const note = li.leg.note ? ` · ${esc(L(li.leg.note))}${li.leg.src && li.kind !== 'src' ? `（${srcInline(li.leg.src)}）` : ''}` : '';
         h += `<li class="leg"><span class="rail" aria-hidden="true"></span><span class="lt">${time} · <span class="num">${esc(t.straight(Math.round(li.dist / 10) * 10))}</span>${note}</span></li>`;
       }
@@ -1101,6 +1107,8 @@
         <a class="shop-osm ext" href="https://www.openstreetmap.org/${esc(r.osm)}" target="_blank" rel="noopener" aria-label="${esc(r.name)}：OpenStreetMap">OSM</a>
       </li>`).join('')}</ol>`;
     if (list.length > 6) h += `<p style="margin:10px 0 0"><button class="btn small" data-act="shop-all" data-fk="shop-all">${esc(state.shopAll ? t.showLess : t.showAll(list.length))}</button></p>`;
+    const extra = C.stations[id] && C.stations[id].shopsNote;
+    if (extra) h += `<div class="tbd-box" style="margin-top:10px">${esc(L(extra))}</div>`;
     h += `<p class="src">${esc(t.shopsNote(PLACES.fetched))}</p>`;
     return h;
   }
@@ -1449,6 +1457,7 @@
   const ICONS = {
     map: '<path d="M9 4L3 6.5v13L9 17l6 3 6-2.5v-13L15 7 9 4z M9 4v13 M15 7v13"/>',
     pin: '<path d="M12 21s-6-5.6-6-11a6 6 0 1 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/>',
+    alert: '<path d="M12 3.5L2.5 20h19L12 3.5z M12 10v4.5 M12 17.2v.3"/>',
     walk: '<circle cx="13" cy="4.5" r="1.8"/><path d="M10 21l2-6-2.5-3 1-5 3 3 3 1 M12 15l3 6 M9.5 7.5L6.5 11"/>',
     bike: '<circle cx="6" cy="16" r="3.5"/><circle cx="18" cy="16" r="3.5"/><path d="M6 16l4-7h5l3 7 M10 9l3 7h-1 M14 6h3"/>',
     bus: '<rect x="5" y="3.5" width="14" height="14" rx="2.5"/><path d="M5 11h14 M8 20.5v-3 M16 20.5v-3"/><circle cx="8.5" cy="14.5" r=".8"/><circle cx="15.5" cy="14.5" r=".8"/>',

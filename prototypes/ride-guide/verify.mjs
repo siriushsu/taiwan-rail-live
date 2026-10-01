@@ -64,7 +64,7 @@ console.log('\n[1] 完整流程：進入示範旅程 → 選第一站 → 讀故
   ok((await text(page, '#jbar')).includes('往菁桐'), '頁首顯示方向 往菁桐');
   ok(await page.locator('.notice.info').count() === 1, '顯示「已從車廂 QR 帶入」提示');
   const chipIds = await page.$$eval('#dock .chip', (els) => els.map((e) => e.dataset.id));
-  const data = await page.evaluate(() => window.RIDE_ROUTE.trains.find((t) => t.no === '4816').stops.map((s) => s.id));
+  const data = await page.evaluate(() => window.RIDE_ROUTES.routes.pingxi.trains.find((t) => t.no === '4816').stops.map((s) => s.id));
   ok(JSON.stringify(chipIds) === JSON.stringify(data.slice(data.indexOf('ruifang') + 1)), `目的站只列這班車接下來會停的站：${chipIds.join(',')}`);
   await page.screenshot({ path: join(shots, '02-journey.png') });
 

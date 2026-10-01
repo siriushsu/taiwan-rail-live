@@ -75,5 +75,82 @@
     "source_url": "https://commons.wikimedia.org/wiki/File:Taiwan_DR1000,_Pingxi,_Pingxi_Line_(20181225b)_(53566149437).jpg",
     "date_taken": "2018-12-25 14:24",
     "modified": "resized to 1080px wide, re-encoded as JPEG, metadata stripped"
+  },
+  {
+    "file": "guangfu-hero.jpg",
+    "title_zh": "臺鐵臺東線光復車站站房（2024）",
+    "title_en": "Guangfu Station on the Taitung Line (2024)",
+    "author": "Taiwankengo",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "source_url": "https://commons.wikimedia.org/wiki/File:2024_TRC_Guangfu_Station.jpg",
+    "date_taken": "2024-03-05 10:58:23",
+    "modified": "resized to 1200px wide, re-encoded as JPEG, metadata stripped"
+  },
+  {
+    "file": "guangfu-sugar.jpg",
+    "title_zh": "花蓮糖廠製糖工場",
+    "title_en": "Sugar production plant, Hualien Sugar Factory",
+    "author": "Deepblue5042",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "source_url": "https://commons.wikimedia.org/wiki/File:%E8%8A%B1%E8%93%AE%E7%B3%96%E5%BB%A0%E8%A3%BD%E7%B3%96%E5%B7%A5%E5%A0%B4.jpg",
+    "date_taken": "2016-01-22 16:26:14",
+    "modified": "resized to 1200px wide, re-encoded as JPEG, metadata stripped"
+  },
+  {
+    "file": "guangfu-wetland.jpg",
+    "title_zh": "馬太鞍濕地公園",
+    "title_en": "Vataan (Mataian) Wetland Park",
+    "author": "Wei-Te Wong",
+    "license": "CC BY-SA 2.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/2.0/",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Wongwt_%E9%A6%AC%E5%A4%AA%E9%9E%8D%E6%BF%95%E5%9C%B0%E5%85%AC%E5%9C%92_(16137542854).jpg",
+    "date_taken": "2015-02-28 11:15",
+    "modified": "resized to 1080px wide, re-encoded as JPEG, metadata stripped"
+  },
+  {
+    "file": "guangfu-tribe.jpg",
+    "title_zh": "太巴塱的 Kakita'an 祖屋",
+    "title_en": "Kakita'an ancestral house, Tafalong (太巴塱)",
+    "author": "June Owen",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Kakita%27an%E7%A5%96%E5%B1%8B.JPG",
+    "date_taken": "2015-08-15",
+    "modified": "resized to 1200px wide, re-encoded as JPEG, metadata stripped"
+  },
+  {
+    "file": "tongxiao-hero.jpg",
+    "title_zh": "通霄車站站房（2013）",
+    "title_en": "Tongxiao Station building (2013)",
+    "author": "billy1125",
+    "license": "CC BY 2.0",
+    "license_url": "https://creativecommons.org/licenses/by/2.0/",
+    "source_url": "https://commons.wikimedia.org/wiki/File:%E9%80%9A%E9%9C%84%E7%81%AB%E8%BB%8A%E7%AB%99_(8454640797).jpg",
+    "date_taken": "2013-02-01 15:10",
+    "modified": "resized to 1200px wide, re-encoded as JPEG, metadata stripped"
+  },
+  {
+    "file": "tongxiao-shrine.jpg",
+    "title_zh": "通霄神社：參道、石燈籠與鳥居",
+    "title_en": "Tongxiao Shrine: approach path, stone lanterns and torii",
+    "author": "Comet115",
+    "license": "CC BY-SA 3.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "source_url": "https://commons.wikimedia.org/wiki/File:%E9%80%9A%E9%9C%84%E7%A5%9E%E7%A4%BE20130724.JPG",
+    "date_taken": "2013-07-24 12:14:06",
+    "modified": "resized to 1080px wide, re-encoded as JPEG, metadata stripped"
+  },
+  {
+    "file": "tongxiao-coast.jpg",
+    "title_zh": "通霄漁港（2016）",
+    "title_en": "Tongxiao Fishing Port (2016)",
+    "author": "Taiwankengo",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "source_url": "https://commons.wikimedia.org/wiki/File:2016%E5%B9%B4%E9%80%9A%E9%9C%84%E6%BC%81%E6%B8%AF.jpg",
+    "date_taken": "2016-08-27 15:22:56",
+    "modified": "resized to 1200px wide, re-encoded as JPEG, metadata stripped"
   }
 ]

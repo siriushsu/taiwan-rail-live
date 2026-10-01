@@ -92,14 +92,14 @@ window.RIDE_TOUR = {
       scene: { line: 'pingxi', train: '4816', dest: 'pingxi', view: 'along', scroll: 'content', focus: 'ol.tl .story' },
     },
     {
-      id: 'guangfu', layout: 'phone', dur: 7, chapter: '13', title: '同一套介面，換到花東',
+      id: 'guangfu', layout: 'phone', dur: 8, chapter: '13', title: '同一套介面，換到花東',
       body: '臺東線 4528 到光復：阿美族部落、糖廠、濕地。',
-      points: ['換路線只需要換內容，介面不必重做'],
-      scene: { line: 'huadong', train: '4528', dest: 'guangfu', scroll: 'content', focus: '.dhero' },
+      points: ['換路線只需要換內容，介面不必重做', '災後復原中的地方，先提醒旅客確認現況'],
+      scene: { line: 'huadong', train: '4528', dest: 'guangfu', scroll: 'content', focus: '.alert-card' },
     },
     {
       id: 'tongxiao', layout: 'phone', dur: 7, chapter: '14', title: '西部海線：通霄',
-      body: '海線 2527 到通霄，下車前就能看到之後的班次。',
+      body: '海線 2527 到通霄：神社遺跡、鹽業與虎頭山；下車前就能看到之後的班次。',
       points: ['班次取自臺鐵開放資料時刻表'],
       scene: { line: 'haixian', train: '2527', dest: 'tongxiao', scroll: 'sec-next', focus: '#sec-next' },
     },
