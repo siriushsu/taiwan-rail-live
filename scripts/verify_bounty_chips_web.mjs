@@ -26,7 +26,7 @@
 //   CH18 旗標關：看不到任何一句獎勵說法（新舊都沒有）、不讀規則檔、不打認領請求；對照：旗標開同一頁看得到
 //   CH19 手機版：360／375／414／768 × Chromium／WebKit，看板（有 ×N 標記）、說明卡、提示；兩兩相交掃描、沒有水平捲動、真觸控點「接下」、App 殼按「開始錄製」的更新提示在最上層、網頁點「接下」的提示在最上層
 //   CH20 ?demo=bounty 的示範看板：有一張偏遠線的卡、「籌碼 ×N」標記看得到（中英日、手機不用捲）；名單與倍率讀規則檔、換一份規則檔跟著翻；規則檔讀不到時維持原本 5 張卡；規則檔還沒回來就開板，板子先顯示載入中、規則檔一到第一次畫出來的卡就有標記；其他卡不變
-//   CH21 旗標開時的懸賞文案（看板、說明卡、護照校正貢獻、說明中心三節、接下的提示）第一人稱用單數，沒有「我們／We／私たち」；掃描規則自己咬得住；規則檔那一句登記為已知例外
+//   CH21 旗標開時的懸賞文案（看板、說明卡、護照校正貢獻、說明中心三節、接下的提示）第一人稱用單數，沒有「我們／We／私たち」；規則檔 qualityText 的中文也沒有，而且每一句在英日字典都有同一句當鍵、譯文也沒有複數；掃描規則自己咬得住
 //   CH22 規則檔一直不回來時：示範看板、真看板、護照籌碼都在「上限＋餘裕」之內畫出來（看板沒有標記、護照沒有「下一座」）；規則檔在上限之內到了，第一次畫就帶標記；之後才到，看板補上標記、不丟錯、不重複，關掉的看板不被畫、重開的看板不被舊的補畫蓋住
 //
 // 打樁慣例照 scripts/verify_bounty_merge_web.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
@@ -40,6 +40,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createReadStream, readFileSync, statSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import vm from 'node:vm';
 import { tripChips, applyDailyChipCap } from './bounty_chips_core.mjs';
 
 // G0 自檢：ROOT 由本檔自身路徑推導，不吃任何 --root／env 參數，結構上不會誤驗到別的 worktree。
@@ -1553,7 +1554,8 @@ try {
   // ═══ CH21：旗標開時，懸賞文案的第一人稱一律用單數（我／I），不出現「我們／We／私たち」 ═══════════════════════════════════
   // 讀的是旗標開、App 殼裡實際畫出來的字：看板（副標與每張卡）、出發前說明卡、護照「校正貢獻」那一節、說明中心三節懸賞、
   // 接下／已接下／存不下三句提示。每個畫面除了掃「沒有」，還要對一句已知的新寫法（證明讀到的是那個畫面，不是空字串）。
-  // 規則檔（data/bounty_rules.json）的 qualityText 還有一句用「我們」：CH21g 把它登記成已知例外（不是放行）；規則檔改掉那句時，這條要跟著拿掉例外。
+  // 規則檔（data/bounty_rules.json）的 qualityText 是伺服器原樣回給網頁、錄製中的提示也直接用的固定文案，畫面上拿它的中文原句當鍵查字典。
+  // 那幾句不會出現在下面的畫面流程裡（沒有帶品質原因的旅程）：CH21g 直接掃規則檔的中文、CH21h 對照字典的鍵與譯文，兩條都是零例外。
   if (want('CH21')) {
     const PL = {
       'zh-TW': /我們|咱們|我方/,
@@ -1612,9 +1614,46 @@ try {
     const GOOD = { 'zh-TW': ['我會告訴你', '我用它把那段路修準', '告訴我', '我手上的資料'], en: ['I’ll tell you why', 'my running data', 'tell me why', 'status and bonus', 'the running data I have'], ja: ['お伝えします', 'あなたのものです', '私は'] };
     ok('CH21f 掃描規則自己咬得住：已知的第一人稱複數寫法（中英日）都抓得到、單數與長得像的字都不誤報',
       Object.keys(PL).every(l => BAD[l].every(x => PL[l].test(x)) && GOOD[l].every(x => !PL[l].test(x))), JSON.stringify({ missed: Object.keys(PL).flatMap(l => BAD[l].filter(x => !PL[l].test(x))), false: Object.keys(PL).flatMap(l => GOOD[l].filter(x => PL[l].test(x))) }));
-    const qHits = Object.entries(RULES.qualityText || {}).flatMap(([code, v]) => Object.entries(v).filter(([, x]) => typeof x === 'string' && PL['zh-TW'].test(x)).map(([k]) => `${code}.${k}`));
-    ok('CH21g 規則檔 qualityText 的中文裡，第一人稱複數只剩已知的那一句（underground.how；該檔不在這次的改動範圍）——多出別句、或那句已改掉，這條都會紅（改掉時把這個例外拿掉）',
-      JSON.stringify(qHits) === JSON.stringify(['underground.how']), JSON.stringify(qHits));
+    // 先確認掃得到東西（每個代碼都有非空的 title 與 how），零命中才不是掃了個空
+    const qCodes = Object.entries(RULES.qualityText || {});
+    const qShape = qCodes.length > 0 && qCodes.every(([, v]) => v && ['title', 'how'].every(k => typeof v[k] === 'string' && v[k].trim() !== ''));
+    const qStrings = qCodes.flatMap(([code, v]) => Object.entries(v || {}).filter(([, x]) => typeof x === 'string').map(([k, x]) => ({ at: `${code}.${k}`, text: x })));
+    const qHits = qStrings.filter(x => PL['zh-TW'].test(x.text)).map(x => x.at);
+    ok('CH21g 規則檔 qualityText 的中文裡，沒有第一人稱複數（零例外）；每個代碼都有 title 與 how，掃到的不是空的',
+      qShape && qHits.length === 0, JSON.stringify({ codes: qCodes.length, strings: qStrings.length, hits: qHits }));
+    // 字典怎麼讀：頁面查 t() 時看到的表，是 index.html 依序載入 i18n/translations.js、content-translations.js、bus-transfer-translations.js
+    // 之後的 window.RAIL_I18N_MESSAGES（後面的 Object.assign 蓋前面的）。這裡照 scripts/check_i18n.mjs 的做法，在只有空 window 的 vm 裡依同樣順序
+    // 各執行一次，不開頁面、不切語言。「有譯文」＝照 t() 查表的方式（i18nLookup）拿這句中文當鍵查那一種語言的表，查到的是非空字串、而且不等於原文；
+    // 沒有、值是空的、或原樣抄回，t() 都會把中文直接顯示給英日介面的人看。
+    await attempt('CH21h', async () => {
+      const DICT = (() => {
+        const sandbox = { window: {} };
+        vm.createContext(sandbox);
+        for (const f of ['translations.js', 'content-translations.js', 'bus-transfer-translations.js'])
+          vm.runInContext(readFileSync(path.join(ROOT, 'i18n', f), 'utf8'), sandbox, { filename: `i18n/${f}` });
+        return sandbox.window.RAIL_I18N_MESSAGES || {};
+      })();
+      const has = (dict, lang, x) => { const v = (dict[lang] || {})[x]; return typeof v === 'string' && v.trim() !== '' && v !== x; };
+      const missing = (dict, lang, texts) => texts.filter(x => !has(dict, lang, x));
+      const zh = qStrings.map(x => x.text).filter(x => /\p{Script=Han}/u.test(x));
+      const lacks = { en: missing(DICT, 'en', zh), ja: missing(DICT, 'ja', zh) };
+      const plural = { en: zh.filter(x => has(DICT, 'en', x) && PL.en.test(DICT.en[x])), ja: zh.filter(x => has(DICT, 'ja', x) && PL.ja.test(DICT.ja[x])) };
+      ok('CH21h 規則檔 qualityText 的每一句中文（每個代碼的 title、how），在字典的 en 與 ja 都有同一句當鍵、值是真的譯文，而且英日譯文都沒有第一人稱複數——規則檔換了字、字典沒跟著換，這條會紅',
+        qShape && zh.length > 0 && Object.values(lacks).every(a => a.length === 0) && Object.values(plural).every(a => a.length === 0),
+        JSON.stringify({ strings: zh.length, lacks, plural }));
+      // 掃描自己要咬得住：真字典裡沒有的假句子要判成缺；小字典裡有譯文的不誤報；空字串、原文抄回、只有另一種語言才有的鍵，都判成缺
+      const FAKE = '這是一句字典裡不會有的假句子，只用來確認判準會把它判成缺';
+      const small = { en: { '甲': 'A', '空': '', '抄': '抄' }, ja: { '甲': 'あ' } };
+      const probes = [
+        ['真字典沒有的假句子（en）', missing(DICT, 'en', [FAKE]).length, 1],
+        ['真字典沒有的假句子（ja）', missing(DICT, 'ja', [FAKE]).length, 1],
+        ['小字典有譯文（en、ja）', missing(small, 'en', ['甲']).length + missing(small, 'ja', ['甲']).length, 0],
+        ['空字串值、原文抄回', missing(small, 'en', ['空', '抄']).length, 2],
+        ['只有另一種語言才有的鍵', missing(small, 'ja', ['空']).length, 1],
+      ];
+      ok('CH21i 字典的掃描自己咬得住：真字典裡沒有的假句子，en 與 ja 都判成缺；小字典裡有譯文的不誤報，空字串、原文抄回、只有另一種語言才有的鍵都判成缺',
+        probes.every(([, got, want]) => got === want), JSON.stringify(probes));
+    });
   }
   // ═══ CH22：規則檔一直不回來時，看板與護照不被它卡住 ═══════════════════════════════════════════════════════════════
   // 規則檔只決定卡片上的「籌碼 ×N」標記與護照的「下一座」那一格；手機在隧道裡，一個請求可以好幾分鐘既不回也不報錯。
