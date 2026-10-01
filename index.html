@@ -16160,8 +16160,11 @@ async function accountSignIn(providerName, legacy) {
 //                                 再靠銷毀資料達成——見帳號面板那句說明文案。
 //   accountClearLocal(uid)  刪除帳號:忘掉身分,並真的清除這台裝置上的私人收藏(該帳號分區＋
 //                                    共用匿名 key＋四個 legacy 陣列,三處缺一就是承諾跳票)。
-function accountForgetIdentity() {
+function accountForgetIdentity(uid) {
   if (state.account) state.account.gen = (state.account.gen || 0) + 1; // C-2 世代前進:仍在途的舊同步之後複查世代會發現對不上,結果被丟棄不寫本機(見 accountSyncTxn)
+  // 路段懸賞:離開的是哪個帳號由呼叫端傳進來(此時 state.account.user 可能已被清成 null)。
+  // 這台裝置的懸賞 actor 若已併進那個帳號就換掉；記憶體裡的個人資料與籌碼快取一併清掉。冪等,可重複呼叫。
+  bountyOnIdentityGone(uid);
   // 批二-B:cloudSyncReady(資格文件落地)綁在「這個身分」上,身分沒了就不再成立——下一個登入的人
   // 必須自己重新握手一次,不能繼承上一個人的落地結論。
   if (state.plus) { state.plus.active = false; state.plus.entitlementEnvironment = ''; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; state.plus.cloudSyncReady = false; state.plus.cloudSyncPromise = null; }
@@ -16189,12 +16192,12 @@ function accountForgetIdentity() {
   // 別人」,清掉的話等於每次登出都讓陌生人防護重新歸零。
   return teardown;
 }
-function accountEndSession() { accountForgetIdentity(); userDataRenderAll(); } // 登出:身分沒了,資料留著
+function accountEndSession(uid) { accountForgetIdentity(uid); userDataRenderAll(); } // 登出:身分沒了,資料留著
 // uid 由呼叫端明確傳入(刪除帳號當下的 state.account.user 可能已經被 onAuthStateChanged 提前清成
 // null——不能靠這裡重新去問「現在是誰」),否則會清錯分區(清到匿名分區,而不是剛被刪除那個帳號
 // 自己的分區)。
 function accountClearLocal(uid) {
-  accountForgetIdentity();
+  accountForgetIdentity(uid);
   const blank = () => { const e = userDataEmpty(); e.revision = 0; e.updatedAt = userDataNow(); return e; };
   userDataWrite(blank(), uid);  // 這個帳號自己的分區
   userDataWrite(blank(), null); // 共用匿名 key ＋ 四個 legacy 陣列(走 userDataWrite 的 if (!uid) 分支)
@@ -16217,7 +16220,7 @@ async function accountSignOut() {
   a.loggingOut = true; clearTimeout(a.syncTimer); a.syncTimer = 0; // C-2 登出序列化:先擋新排程(accountScheduleSync 會看 a.loggingOut)、清掉還沒觸發的 debounce timer
   try {
     await accountSyncNow('logout'); // 一定會做完最後一次同步,不會被 a.syncing 靜默跳過(見 accountSyncNow 內對 isLogout 的等待邏輯)
-    try { await a.fb.signOut(a.auth); accountEndSession(); accountClose(); }
+    try { await a.fb.signOut(a.auth); accountEndSession(uid); accountClose(); }
     catch (e) { a.actionError = '登出失敗：' + (e && e.message ? e.message : String(e)); accountRender(); }
   } finally { a.loggingOut = false; }
 }
@@ -16227,8 +16230,9 @@ async function accountSignOut() {
 //   · 每一組 (uid, 這台裝置) 成功一次就記一個旗標在 localStorage（key 帶 uid，換帳號登入各自再併一次）；
 //     失敗不記，下次登入或下次開機再試。旗標讀不到（localStorage 壞掉）就不送——沒有地方記「送過了」，每次開機都會打。
 //   · fire-and-forget：不擋登入、任何失敗都吞掉（呼叫端另外包了 try/catch，這裡連同步例外也不外漏）。
-//   · 🔴 userDataDeviceId() 在本機存不下 id 時回字面 'ephemeral'——那是「所有存不下 id 的裝置」共用的值，
+//   · 🔴 bountyActor() 在本機存不下 id 時回字面 'ephemeral'——那是「所有存不下 id 的裝置」共用的值，
 //     拿去併就是把不相干的人的資料併進這個帳號；不送。
+//   · 409 merged_elsewhere（這台裝置的 actor 已經併進別的帳號）：換新的 actor、再併一次，之後都用新的；同一次登入只換一次。
 // 併發：onAuthStateChanged 可能連發兩次（session 還原＋登入事件），_busy 讓同一組只有一個請求在途。
 function bountyMergeOnLogin(user) {
   if (!BOUNTY_ENABLED || !user || !user.uid) return;
@@ -16240,17 +16244,31 @@ function bountyMergeOnLogin(user) {
   bountyMergeOnLogin._busy = flagKey;
   (async () => {
     try {
-      const a = state.account;
-      const token = a && a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken();
-      const r = await fetch(apiUrl('api/bounty-merge'), {
-        method: 'POST', cache: 'no-store',
-        headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ actor: dev }),
-      });
-      if (r.ok) {
-        try { localStorage.setItem(flagKey, dev); } catch (e) {}
-        // 併完才重讀：登入當下那一次讀取（onAuthStateChanged）可能早於合併完成，看到的是還沒併進來的帳
-        fetchBountyMe().then(() => { renderPassport(); renderRidePanel(); });
+      let actor = dev;
+      // 最多兩發：第一發被伺服器說「這個 actor 已經併進別的帳號」（409 merged_elsewhere，同一台裝置換帳號登入）時，
+      // 換一個新的 actor 再併一次；之後都用新的。bountyRegenOnce 保證同一次登入只換一次，所以連續兩次 409 就停。
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const a = state.account;
+        const token = a && a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken();
+        const r = await fetch(apiUrl('api/bounty-merge'), {
+          method: 'POST', cache: 'no-store',
+          headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+          body: JSON.stringify({ actor }),
+        });
+        if (r.ok) {
+          // 回應回來時人已經登出（或換人）了：這個 actor 此刻已經屬於那個帳號，不能留給下一位匿名使用者
+          if (!(state.account && state.account.user && state.account.user.uid === user.uid)) {
+            if (bountyActor() === actor) bountyRegenActor();
+            return;
+          }
+          try { localStorage.setItem(flagKey, actor); } catch (e) {}
+          // 併完才重讀：登入當下那一次讀取（onAuthStateChanged）可能早於合併完成，看到的是還沒併進來的帳
+          Promise.all([fetchBountyMe(), fetchChipsMe()]).then(() => { renderPassport(); renderRidePanel(); });
+          return;
+        }
+        if (r.status !== 409 || !(await bountyErrorIs(r, 'merged_elsewhere'))) return;
+        actor = bountyRegenOnce();
+        if (!actor) return;
       }
     } catch (e) {
     } finally { if (bountyMergeOnLogin._busy === flagKey) bountyMergeOnLogin._busy = ''; }
@@ -16380,10 +16398,13 @@ function accountEnsureInit() {
           // accountForgetIdentity 清掉,陌生人判斷才不會在真實登出之後失效)。
           userDataRenderAll();
           try { localStorage.setItem(ACCOUNT_UID_KEY, user.uid); localStorage.setItem(ACCOUNT_LAST_UID_KEY, user.uid); } catch (e) {}
+          // 路段懸賞 v2:沒經過登出就直接換成另一個帳號(previousUid 是上一位)時,上一位的懸賞身分一樣要收掉
+          if (previousUid && previousUid !== user.uid) bountyOnIdentityGone(previousUid);
           // 路段懸賞 v2:登入後通知伺服器把這台裝置的匿名帳併進來(fire-and-forget,不 await——它的失敗與快慢都不該碰到登入流程)
           try { bountyMergeOnLogin(user); } catch (e) {}
-          // 登入後改用帳號（Bearer）重讀懸賞彙總：開機那一次是以匿名裝置讀的（登入還沒就緒），而併過的裝置用 ?actor= 讀會是 401（見 fetchBountyMe）
-          if (BOUNTY_ENABLED) fetchBountyMe().then(() => { renderPassport(); renderRidePanel(); });
+          // 登入後改用帳號（Bearer）重讀懸賞彙總與籌碼：開機那一次是以匿名裝置讀的（登入還沒就緒），而併過的裝置用 ?actor= 讀會是 401（見 fetchBountyMe）。
+          // 開機時 session 還原與使用者剛登入都走這一行；併完那一次另在 bountyMergeOnLogin 重讀。
+          if (BOUNTY_ENABLED) Promise.all([fetchBountyMe(), fetchChipsMe()]).then(() => { renderPassport(); renderRidePanel(); });
           await plusRefresh(); // 先確認資格再決定要不要同步;plusRefresh 自帶 !plusConfigured() 早退,不會在無購買通道的平台亂初始化 SDK
           await accountSyncNow('login');
           const pending = state.plusPending;
@@ -16419,7 +16440,10 @@ function accountEnsureInit() {
           //     副作用沒有意義,也不該讓從未註冊過的 listener 平白被拆一次。
           // accountForgetIdentity() 刻意完全不碰收藏資料(本機分區依 uid 留著,同一個帳號回來還在)
           // 也刻意不清 ACCOUNT_LAST_UID_KEY(陌生人判斷要撐過這次事件,只有刪除帳號才清)。
-          if (previousUid) await accountForgetIdentity();
+          if (previousUid) await accountForgetIdentity(previousUid);
+          // 路段懸賞:冷啟動就是沒登入時——上一個 session 若是沒登出就結束的(ACCOUNT_UID_KEY 還記著它的 uid),
+          // 籌碼快取與併進那個帳號的 actor 也照樣收掉。不動 bountyMeMem:開機時以匿名裝置讀的那一份仍然有效。
+          else { let lastUid = ''; try { lastUid = localStorage.getItem(ACCOUNT_UID_KEY) || ''; } catch (e) {} bountyForgetChips(); bountyRetireActor(lastUid); }
           // 🔴 2026-08-16:auth 明確解出 null 就是一個【明確答案】(不是「還沒解析」,那條走的是
           //    user 為真的分支)。上面那行有 previousUid 守衛,沒有 previousUid 的人不會走到
           //    accountForgetIdentity,旗標得在這裡自己收(見 metroWidgetSyncPlus)。
@@ -23173,9 +23197,81 @@ function bountyNum(x, max = 1e7) {
   const n = Math.trunc(Number(x));
   return Number.isFinite(n) && n >= 0 && n <= max ? n : 0;
 }
-// actor 直接用既有的 userDataDeviceId()：它已經在做規格 §6 要的事（首次使用產生隨機 id、
-// 存 trainmap-device-id）。再造一個只會讓「這個裝置是誰」有兩個答案。
-function bountyActor() { return userDataDeviceId(); }
+// 懸賞的 actor 另外存一把 key，不跟使用者資料同步共用的 userDataDeviceId()（trainmap-device-id）混用：
+// 伺服器會把 actor 併進登入的帳號，同一台裝置換帳號登入時舊 actor 就不能再用、得換新的；
+// 而 trainmap-device-id 同時是雲端同步的 deviceId，不能因為懸賞跟著換。
+// 第一次讀到時沿用 userDataDeviceId() 的值（舊版就是拿它當 actor，伺服器上已經記在它名下的帳不會斷），
+// 之後只有 bountyRegenActor() 會改這把 key；懸賞的程式碼不碰 trainmap-device-id。
+// 🔴 存不下（localStorage 壞掉、或值不合 actor 格式）一律回字面 'ephemeral'：那是「所有存不下的裝置」共用的值，
+//    呼叫端（bountyMergeOnLogin、fetchBountyMe）看到它就不併、不讀——拿共用值去併或去讀，就是動到不相干的人的帳。
+const BOUNTY_ACTOR_KEY = 'trainmap-bounty-actor-v1';
+const BOUNTY_ACTOR_RE = /^[A-Za-z0-9_-]{8,64}$/; // 契約的 actor 格式；字面 ephemeral 雖然合格式，伺服器一律拒絕
+function bountyActorOk(v) { return typeof v === 'string' && BOUNTY_ACTOR_RE.test(v) && v !== 'ephemeral'; }
+function bountyActor() {
+  try {
+    const stored = localStorage.getItem(BOUNTY_ACTOR_KEY);
+    if (bountyActorOk(stored)) return stored;
+    const dev = userDataDeviceId();
+    if (!bountyActorOk(dev)) return 'ephemeral';
+    // 旗標關著時不寫新的 key：下架期間網頁的行為要跟沒有這段程式時一樣
+    if (!BOUNTY_ENABLED) return dev;
+    localStorage.setItem(BOUNTY_ACTOR_KEY, dev);
+    return dev;
+  } catch (e) { return 'ephemeral'; }
+}
+// 換一個新的懸賞 actor（只在伺服器說這台裝置的 actor 已經屬於別的帳號時用）。成功回 true；存不下回 false，舊值原封不動。
+function bountyRegenActor() {
+  try {
+    const id = crypto.randomUUID ? crypto.randomUUID() : 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+    if (!bountyActorOk(id)) return false;
+    localStorage.setItem(BOUNTY_ACTOR_KEY, id);
+    return localStorage.getItem(BOUNTY_ACTOR_KEY) === id;
+  } catch (e) { return false; }
+}
+// 同一次登入最多換一次：記的是換的當下登入的 uid，登出（bountyOnIdentityGone）時清掉。
+// 沒有它，伺服器每次都說「已併進別的帳號」就會一路換下去、一路再併。
+let bountyRegenFor = '';
+function bountyRegenOnce() {
+  const uid = (state.account && state.account.user && state.account.user.uid) || '';
+  if (!uid || bountyRegenFor === uid) return '';
+  if (!bountyRegenActor()) return '';
+  bountyRegenFor = uid;
+  return bountyActor();
+}
+// 伺服器的錯誤回應是 {error:'<碼>'}；clone 一份讀，呼叫端手上的 Response 還能再讀。
+async function bountyErrorIs(r, code) {
+  try { const j = await r.clone().json(); return !!j && j.error === code; } catch (e) { return false; }
+}
+// 懸賞端點回 403 wrong_account：這台裝置的 actor 已經屬於另一個帳號。換新的，登入中就再併一次。
+function bountyOnWrongAccount() {
+  if (!bountyRegenOnce()) return;
+  const u = state.account && state.account.user;
+  try { if (u) bountyMergeOnLogin(u); } catch (e) {}
+}
+// 籌碼只屬於登入的人：記憶體與快取一併清掉，在途的籌碼請求靠 chipsMeSeq 作廢。
+function bountyForgetChips() {
+  chipsMeSeq++; chipsMeMem = null;
+  try { localStorage.removeItem(BOUNTY_CHIPS_KEY); } catch (e) {}
+}
+// 這台裝置的懸賞 actor 如果已經併進 uid 那個帳號，換一個新的——否則下一位匿名使用者的上傳與認領，會記到前一位名下。
+// 判斷依據是 bountyMergeOnLogin 登入時記的旗標（併成功才記，值是當時的 actor）。
+// 冪等：換過之後 actor 與旗標對不上，再呼叫什麼都不做。
+// 刻意不看 BOUNTY_ENABLED：旗標是每個分頁各自的，actor 那把 key 卻是整台裝置共用的。
+function bountyRetireActor(uid) {
+  if (!uid) return;
+  try {
+    const merged = localStorage.getItem('trainmap-bounty-merged-' + uid); // 沒併過就沒有旗標：不必碰 actor
+    if (merged && bountyActor() === merged) bountyRegenActor();
+  } catch (e) {}
+}
+// 身分沒了（登出、刪帳號、伺服器收回 session、直接換成另一個帳號）：
+// 該帳號的 actor 換掉、記憶體裡的個人資料（護照的校正貢獻、籌碼）與籌碼快取清掉。
+// 一次登出會走到這裡兩次（accountEndSession 與 onAuthStateChanged 的 null 分支），每一步都是冪等的。
+function bountyOnIdentityGone(uid) {
+  bountyIdEpoch++; bountyMeMem = null; bountyRegenFor = '';
+  bountyForgetChips();
+  bountyRetireActor(uid);
+}
 // 形狀第一版就是最終的 userData collection 形狀（規格 §6 硬條件）：Plus 上線接同步時是純上傳、
 // 零遷移。逐筆 u 是 LWW 的比較鍵，與 checkinsToCollections 同一套規則。
 function loadBounty() {
@@ -23350,17 +23446,64 @@ let bountyMeMem = null;
 // 🔴 登入時一律帶 Bearer、不用 ?actor=：伺服器對「帳號」與「併進帳號的裝置」的 ?actor= 讀取回 401——
 // 裝置 token 不是憑證，拿到它的人不該看得到帳號的點數與認領。未登入才用這台裝置的 ?actor=（從沒併過的匿名裝置照舊讀得到）。
 // 401 就清掉手上那份：那是「你現在看不到這個帳」，留著舊值會在登出後繼續顯示帳號的資料。取 token 手法同 accountDeleteServerData。
+// 🔴 存不下 actor（bountyActor() 回 'ephemeral'）時不讀：那個值是所有存不下的裝置共用的。
+// 回應回來時身分已經換了或登出了（bountyIdEpoch 變了）就丟掉——那份資料屬於上一個身分。
+// 403 wrong_account＝這台裝置的 actor 已經屬於另一個帳號：換新的（見 bountyOnWrongAccount）。
 async function fetchBountyMe() {
+  const epoch = bountyIdEpoch;
   try {
     const a = state.account, user = a && a.user;
     const token = user ? (a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken()) : null;
-    const r = token
-      ? await fetch(apiUrl('api/bounty-me'), { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } })
-      : await fetch(apiUrl('api/bounty-me?actor=' + encodeURIComponent(bountyActor())), { cache: 'no-store' });
-    if (r.ok) bountyMeMem = await r.json();
+    let r;
+    if (token) r = await fetch(apiUrl('api/bounty-me'), { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
+    else {
+      const actor = bountyActor();
+      if (actor === 'ephemeral') return bountyMeMem;
+      r = await fetch(apiUrl('api/bounty-me?actor=' + encodeURIComponent(actor)), { cache: 'no-store' });
+    }
+    if (epoch !== bountyIdEpoch) return bountyMeMem;
+    if (r.ok) { const j = await r.json(); if (epoch === bountyIdEpoch) bountyMeMem = j; }
     else if (r.status === 401) bountyMeMem = null;
+    else if (r.status === 403 && await bountyErrorIs(r, 'wrong_account')) bountyOnWrongAccount();
   } catch (e) {}
   return bountyMeMem;
+}
+// 籌碼（/api/chips-me：餘額、已解鎖的場景、下一座的價格、雲端搭乘進度）。
+// 只在懸賞開著、而且已登入時讀，一律帶 Bearer、永遠不用 ?actor=——同一個瀏覽器的裝置 id 可能屬於前一位登入者，
+// 登出狀態拿它去讀就是讀到別人的帳（契約的身分規則）。已登入的帳號第一次帶 Bearer 呼叫時伺服器才建帳號列，
+// 所以登入後一定要讀一次。
+// 成功就把回應原樣存進 BOUNTY_CHIPS_KEY（車庫的場景頁讀 unlocked[].scene 決定場景鎖不鎖）；
+// 401 清掉快取；其他失敗（限流、網路）留著上一份。回應回來時人已經換了、登出了，或後面又發了新的一發，就丟掉、不寫快取。
+const BOUNTY_CHIPS_KEY = 'trainmap-chips-me-v1';
+let chipsMeMem = null;
+let chipsMeSeq = 0;
+let bountyIdEpoch = 0; // 每次身分沒了（bountyOnIdentityGone）加一：在途的個人資料請求靠它判斷「這份回應還屬不屬於現在的人」
+function chipsMeShapeOk(j) {
+  return !!j && typeof j === 'object' && !Array.isArray(j) && Number.isFinite(Number(j.balance)) && Array.isArray(j.unlocked);
+}
+async function fetchChipsMe() {
+  if (!BOUNTY_ENABLED) return null;
+  const a = state.account, user = a && a.user;
+  if (!user) return null;
+  const seq = ++chipsMeSeq, uid = user.uid;
+  const still = () => seq === chipsMeSeq && !!state.account && !!state.account.user && state.account.user.uid === uid;
+  try {
+    const token = a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken();
+    const r = await fetch(apiUrl('api/chips-me'), { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
+    if (!still()) return chipsMeMem;
+    if (r.ok) {
+      const j = await r.json();
+      if (!still()) return chipsMeMem;
+      if (chipsMeShapeOk(j)) {
+        chipsMeMem = j;
+        try { localStorage.setItem(BOUNTY_CHIPS_KEY, JSON.stringify(j)); } catch (e) {}
+      }
+    } else if (r.status === 401) {
+      chipsMeMem = null;
+      try { localStorage.removeItem(BOUNTY_CHIPS_KEY); } catch (e) {}
+    } else if (r.status === 403 && await bountyErrorIs(r, 'wrong_account')) bountyOnWrongAccount();
+  } catch (e) {}
+  return chipsMeMem;
 }
 // 旅程卡的名字：伺服器只給計價單位，端點名在這裡算。
 // 🔴 為什麼不讓伺服器算：把 seg_key 排成一條路需要里程順序，而里程順序住在 lineNetwork()
@@ -23545,6 +23688,8 @@ async function bountyClaim(cardId) {
       body: JSON.stringify({ actor: bountyActor(), cardId }),
     });
     j = await r.json();
+    // 403 wrong_account＝這台裝置的 actor 已經屬於另一個帳號：換新的，下一次再按就用新的
+    if (r.status === 403 && j.error === 'wrong_account') bountyOnWrongAccount();
     if (!r.ok || !j.ok) { showToast(t('接不下來——{reason}', { reason: j.error === 'no_open_units' ? t('這段剛剛被收滿了') : t('等一下再試一次') })); return; }
   } catch (e) { showToast(t('接不下來——網路不通，等一下再試一次')); return; }
   // 伺服器回的值一律先收斂成有限整數再用（2026-07-28 Codex 審查 F-01）：pointsLocked 帶
@@ -24023,6 +24168,17 @@ async function bountyRetryPending() {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify(item.payload),
         });
+        // 旗標關著時下面這條不動：下架期間佇列的行為要跟沒有這段程式時一樣。
+        // 403 wrong_account：這批的 actor 已經屬於另一個帳號。換新的 actor，佇列裡還沒送的批次一律改用新的，下一輪重送。
+        if (BOUNTY_ENABLED && res.status === 403 && await bountyErrorIs(res, 'wrong_account')) {
+          bountyOnWrongAccount();
+          const fresh = bountyActor();
+          if (bountyActorOk(fresh) && fresh !== item.payload.actor) {
+            q.forEach(x => { x.payload.actor = fresh; });
+            bountySaveUploadQueue(q);
+          }
+          return false;
+        }
         if (!res.ok) throw new Error('submit ' + res.status);
         bountyMarkSubmitted(item.meta);
         q = q.filter(x => x.id !== item.id);
@@ -37802,6 +37958,8 @@ async function boot() {
   // no-op——併發呼叫兩邊比只呼叫 renderPassport() 更保險,不用賭使用者開 sheet 時 fetch 一定已經回來。
   // 2026-07-29 下架期間不打這支:那一節根本不渲染,每次開機還去問一次 /api/bounty-me 是白花的 Worker 呼叫。
   if (BOUNTY_ENABLED) fetchBountyMe().then(() => { renderPassport(); renderRidePanel(); });
+  // 懸賞關著時，上次開著留下的籌碼快取不能繼續留著(車庫的場景頁讀它決定場景鎖不鎖)；籌碼只在登入後由 onAuthStateChanged 讀
+  else { try { localStorage.removeItem(BOUNTY_CHIPS_KEY); } catch (e) {} }
   publishTrackContinuityAudit();
   if (window.__notifyMockLog) {
     const cross = state.systems.filter(s => s.id === 'tra_sched' || s.id === 'thsr_sched')
