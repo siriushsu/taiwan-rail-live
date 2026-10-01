@@ -3,7 +3,7 @@
 // ／?collectmap=1 把功能點亮；那兩支全綠完全不保證使用者看到的是藏起來的樣子。
 //
 // 判準寫成雙向，否則會是一支恆綠的假閘門（心得 35）：
-//   ・關掉時：三顆入口都不在、說明中心四節都不在、開機不打 /api/bounty-me、錄製不接回
+//   ・關掉時：三顆入口都不在、說明中心四節都不在、開機不打 /api/bounty-me、錄製不接回、護照沒有籌碼列
 //   ・點亮時：同樣那些東西都回得來（證明斷言真的在看那些元素，不是選擇器打錯永遠找不到）
 //   ・控制組：打卡站章／搭乘模式（刻意留著的）在兩種情況下都還在
 //
@@ -61,7 +61,9 @@ async function probe(qs, label) {
       const sg = {}; sg[rec.segs[0].key] = 1;
       localStorage.setItem('trainmap-checkins-v1', JSON.stringify({ v: 1, st: {}, sg }));
     }
+    localStorage.setItem('trainmap-passport-open', '1'); // 展開護照：收合時整個 .ph-body 都是 display:none，量「看不看得到」才有意義
     renderPassport();
+    const chipsEl = document.querySelector('#passport .ph-chips');
     const help = (typeof HELP_GROUPS !== 'undefined' ? HELP_GROUPS : [])
       .flatMap(g => g.secs || []).filter(it => !it.avail || it.avail()).map(it => it.key);
     return {
@@ -69,6 +71,8 @@ async function probe(qs, label) {
       bountyBtn: !!document.querySelector('#passport [data-act="bountyboard"]'),
       collectBtn: !!document.querySelector('#passport [data-act="collectmap"]'),
       correctSec: !!document.querySelector('#passport .ph-sec[data-sec="correct"]'),
+      chipsRow: !!chipsEl,
+      chipsRowShown: !!chipsEl && chipsEl.offsetParent !== null && chipsEl.getBoundingClientRect().height > 0,
       help,
       recording: !!state.recording,
       recordBarShown: !!(document.getElementById('recordBar') && !document.getElementById('recordBar').hidden),
@@ -108,6 +112,10 @@ ok('H11 點亮後說明中心四節回得來（H4 同理）',
   helpOn.length === HELP_KEYS.length, `看得到：${helpOn.join('、') || '無'}`);
 ok('H12 點亮後真的會接回錄製（H6 同理，證明是旗標擋的不是那筆資料壞了）',
   on.recording && on.recordBarShown, `state.recording=${on.recording} 常駐列=${on.recordBarShown}`);
+ok('H13 預設看不到護照的籌碼列（護照已展開：整列不在 DOM，也沒有任何看得到的籌碼列）',
+  !off.chipsRow && !off.chipsRowShown, `在 DOM=${off.chipsRow} 看得到=${off.chipsRowShown}`);
+ok('H14 點亮後籌碼列看得到（H13 同理，證明不是選擇器打錯的恆綠：護照展開、列在 DOM、有高度、沒被藏掉）',
+  on.chipsRow && on.chipsRowShown, `在 DOM=${on.chipsRow} 看得到=${on.chipsRowShown}`);
 
 await browser.close();
 const bad = R.filter(r => !r.p).length;

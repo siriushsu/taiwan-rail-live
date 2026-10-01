@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// 路段懸賞＋籌碼的出貨總閘門：15 支 node 驗收並行跑，merge_web、recorder_web（真 Chromium 無視窗）最後逐支跑。
+// 路段懸賞＋籌碼的出貨總閘門：15 支 node 驗收並行跑，merge_web、recorder_web（真 Chromium 無視窗）、chips_web（Chromium＋WebKit 無視窗，
+// 護照籌碼列、懸賞身分與快取）最後逐支跑。
 // - 每支的輸出直接寫進暫存檔、不經管道：子程序最後呼叫 process.exit 時，管道上還沒寫完的 stdout 會被丟掉
 //   （gates 曾因此只剩半份 log、後段的 FAIL 行不見）。自己也不呼叫 process.exit，只設 exitCode。
 // - 驗收讀 data/bounty_rules.json 用相對路徑，所以 cwd 一律是 repo 根目錄。
@@ -21,9 +22,9 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const NODE_SUITES = ['hardening', 'schema', 'valuation', 'gates', 'dwell', 'api', 'ledger', 'chips', 'rules',
   'redeem', 'cloud', 'merge', 'cron', 'auth', 'cron2'];
-const BROWSER_SUITES = ['merge_web', 'recorder_web'];
+const BROWSER_SUITES = ['merge_web', 'recorder_web', 'chips_web'];
 const EXPECT = { hardening: 183, schema: 47, valuation: 88, gates: 75, dwell: 16, api: 95, ledger: 71, chips: 40, rules: 16,
-  redeem: 90, cloud: 124, merge: 58, cron: 70, auth: 89, cron2: 131, merge_web: 27, recorder_web: 8 };
+  redeem: 90, cloud: 124, merge: 58, cron: 70, auth: 89, cron2: 131, merge_web: 27, recorder_web: 8, chips_web: 136 };
 const TIMEOUT_MS = 15 * 60 * 1000;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bounty-all-'));
 const children = new Set();

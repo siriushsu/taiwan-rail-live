@@ -55,7 +55,7 @@ const EXTRA_GATE_DEPENDENCIES = new Map([
     'scripts/verify_bounty_ledger.mjs', 'scripts/verify_bounty_chips.mjs', 'scripts/verify_bounty_rules.mjs',
     'scripts/verify_bounty_redeem.mjs', 'scripts/verify_bounty_cloud.mjs', 'scripts/verify_bounty_merge.mjs',
     'scripts/verify_bounty_cron.mjs', 'scripts/verify_bounty_auth.mjs', 'scripts/verify_bounty_cron2.mjs',
-    'scripts/verify_bounty_merge_web.mjs', 'scripts/verify_bounty_recorder_web.mjs',
+    'scripts/verify_bounty_merge_web.mjs', 'scripts/verify_bounty_recorder_web.mjs', 'scripts/verify_bounty_chips_web.mjs',
   ]],
 ]);
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
