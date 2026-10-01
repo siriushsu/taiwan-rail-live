@@ -7,10 +7,12 @@ export function taipeiDay(epochMs) {
 }
 
 // 一趟合格錄程值幾個籌碼（還沒套每日上限）。
-// trip: { verdict, lineKeys: ['tra_sched|南迴線', ...], durationSec, day: 'YYYY-MM-DD' }
+// trip: { verdict, lineKeys: ['tra_sched|南迴線', ...], durationSec, moveM, day: 'YYYY-MM-DD' }
+// moveM：沿線里程的跨距（公尺）。不到 chips.minTripMoveM（整趟停在一站）或缺值都是 0。
 export function tripChips(trip, chips) {
   if (!trip || trip.verdict !== 'ok') return 0;
   if (!(trip.durationSec >= chips.minTripSec)) return 0;
+  if (!(trip.moveM >= chips.minTripMoveM)) return 0;
   const remote = (trip.lineKeys || []).some(k => chips.remoteLines.includes(k));
   let mult = remote ? chips.remoteMultiplier : 1;
   for (const ev of chips.events || []) {

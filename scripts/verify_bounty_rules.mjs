@@ -37,6 +37,9 @@ ok('R6 events 是陣列，每筆有 id/from/to、multiplier 是正整數', Array
     Number.isInteger(e.multiplier) && e.multiplier > 0));
 ok('R7 整數欄位都是正整數', ['perTrip', 'minTripSec', 'remoteMultiplier', 'dailyChipCap'].every(k => Number.isInteger(c[k]) && c[k] > 0) &&
   ['minSec', 'dailyMax', 'perChip'].every(k => c.cloud && Number.isInteger(c.cloud[k]) && c.cloud[k] > 0));
+// 整趟停在一站不給籌碼（tripChips 比 moveM ≥ minTripMoveM）：少了這個鍵比較式恆為假，所有錄程都是 0 顆，所以釘住它是正的有限數。
+ok('R7b chips.minTripMoveM 是正的有限數', typeof c.minTripMoveM === 'number' && Number.isFinite(c.minTripMoveM) && c.minTripMoveM > 0,
+  JSON.stringify({ minTripMoveM: c.minTripMoveM }));
 ok('R8 設定檔不含金額欄位（PUBLIC repo）', !/price(Twd|NTD)|NT\$|lifetime|訂閱/i.test(JSON.stringify(rules)));
 // 都卜勒那一重（worker.js integrityGate 第四重，第十四批）：相關係數＞dopplerCorrMax 而且逐點差中位數 ≤ dopplerResidMaxMps 才判。
 // 設定檔一定要有 dopplerResidMaxMps：少了它比較式恆為假，所以在這裡釘住兩個鍵都在、而且是合理的數，缺鍵時閘門先紅。

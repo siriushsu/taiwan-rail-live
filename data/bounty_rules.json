@@ -7,6 +7,7 @@
     "note": "籌碼規則（路段懸賞 v2）。伺服器入帳與客端顯示共讀這一份；純函式在 scripts/bounty_chips_core.mjs。prices 最後一格沿用到之後每一座。",
     "perTrip": 1,
     "minTripSec": 600,
+    "minTripMoveM": 1000,
     "remoteLines": ["tra_sched|南迴線", "tra_sched|臺東線"],
     "remoteMultiplier": 2,
     "dailyChipCap": 4,
@@ -42,8 +43,7 @@
     "maxAccelMps2": 1.3,
     "speedCapMps": { "default": 36.2, "THSR": 83.4, "metro": 22.3 },
     "dopplerCorrMax": 0.995,
-    "dopplerResidMaxMps": 0.0625,
-    "delayMatchToleranceSec": 300
+    "dopplerResidMaxMps": 0.0625
   },
   "dailyPointsCap": 200,
   "qualityText": {

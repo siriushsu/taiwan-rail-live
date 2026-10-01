@@ -150,6 +150,8 @@ function failOnPrepare(DELAY_DB, re) {
   DELAY_DB.prepare = sql => { if (re.test(sql)) throw new Error('injected: ' + sql.slice(0, 48)); return orig(sql); };
 }
 // 在「符合的那句 SQL 第一次真的執行前」插入一段非同步動作＝競態注入點（等於在 cron 讀完樣本、入帳之前發生別的請求）。
+// 「讀完這班車的樣本之後、任何寫入之前」的注入點：身分解析那一句（bountyVerifyTrain 裡讀樣本之後的第一句 D1）。
+const AFTER_READ_RE = /^SELECT uid, merged_into FROM bounty_points WHERE actor=\?$/;
 function hookOnce(DELAY_DB, re, fn) {
   const orig = DELAY_DB.prepare.bind(DELAY_DB);
   const state = { fired: 0 };
@@ -530,20 +532,20 @@ await attempt('D6', async () => {
   putBatches(w.db, { actor: DEV, trainNo: '303', lnId: '山線', pts: leg({ sec: 750, speed: 10, t0: 30000, d0: 0 }) });
   const s1 = await w.cron();
   putBatches(w.db, { actor: DEV, trainNo: '303', lnId: '山線', pts: leg({ sec: 750, speed: 10, t0: 30751, d0: 7500 }), first: 100 });
-  const hook = hookOnce(w.DELAY_DB, /FROM tra_station_events WHERE service_date/, async () => { await mergeInto(w, DEV, UID); });
+  const hook = hookOnce(w.DELAY_DB, AFTER_READ_RE, async () => { await mergeInto(w, DEV, UID); });
   const s2 = await w.cron(NOW_MS + 3600e3);
   ok('D6 [F10＋F11] 後半趟讀完之後才合併：這班車已在 uid 名下入過帳 → 不再入帳（帳本仍 1 列 delta 1、這次入帳 0）；後半趟樣本照判 ok',
     s1.chips === 1 && hook.fired === 1 && s2.chips === 0 && q.tripRows(w.db).length === 1 && q.chips(w.db, UID) === 1 && q.verdicts(w.db, UID, '303') === 'ok',
     J({ s1: s1.chips, fired: hook.fired, s2: s2.chips, ledger: q.tripRows(w.db), v: q.verdicts(w.db, UID, '303') }));
 });
 await attempt('D4', async () => {
-  // 合併發生在「cron 讀完樣本」之後、「入帳」之前（注入點：第一次查逐站事件之前，那一步在判定迴圈裡、早於入帳與登記）。
+  // 合併發生在「cron 讀完樣本」之後、「入帳」之前（注入點：身分解析那一句之前，那一步在讀樣本之後、早於入帳與登記）。
   // 入帳與登記都要用「當下」的身分＝uid：帳本列掛 uid、貢獻掛 uid；uid 自己也交過同一段時人數不多算 1。
   const w = world({ seed: boardSql('tra_sched', '山線', [{ distinctOf: { 'S0|S1': 1 } }]) +
     `INSERT INTO bounty_seg_contrib (seg_key,actor,first_ok_at) VALUES ('${KT('山線', 'S0|S1')}','${UID}',1);` });
   putBatches(w.db, { actor: DEV, trainNo: '301', lnId: '山線', pts: leg({ sec: 700 }) });
   let mst = null;
-  const hook = hookOnce(w.DELAY_DB, /FROM tra_station_events WHERE service_date/, async () => { mst = await mergeInto(w, DEV, UID); });
+  const hook = hookOnce(w.DELAY_DB, AFTER_READ_RE, async () => { mst = await mergeInto(w, DEV, UID); });
   const st = await w.cron();
   ok('D4a [F10 注入] 合併確實發生在 cron 讀樣本之後（注入點觸發 1 次、合併 200）', hook.fired === 1 && mst === 200, J({ fired: hook.fired, mst }));
   ok('D4b [F10] 籌碼入在 uid 名下：帳本 1 列、actor＝uid、ref＝uid|乘車日|301、delta 1；裝置名下 0 列；stat.chips 1',
@@ -559,7 +561,7 @@ await attempt('D5', async () => {
   const seed = [1, 2, 3, 4].map(i => `INSERT INTO chip_ledger (id,actor,kind,delta,ref,day,created_at) VALUES ('seed-${i}','${UID}','trip',1,'seed${i}|${D28}|90${i}','${D28}',1);`).join('\n');
   const w = world({ seed: boardAll(['山線']) + '\n' + seed });
   putBatches(w.db, { actor: DEV, trainNo: '302', lnId: '山線', pts: leg({ sec: 700 }) });
-  hookOnce(w.DELAY_DB, /FROM tra_station_events WHERE service_date/, async () => { await mergeInto(w, DEV, UID); });
+  hookOnce(w.DELAY_DB, AFTER_READ_RE, async () => { await mergeInto(w, DEV, UID); });
   const st = await w.cron();
   ok('D5 [F10] uid 當天已滿 4 顆、裝置的趟在入帳前併進 uid：不入帳（uid 仍 4、沒有 302 那列、裝置名下 0 列、這次入帳 0）；樣本照判 ok',
     q.chips(w.db, UID, D28) === 4 && q.tripRows(w.db).length === 4 && !q.tripRows(w.db).some(r => r.ref.endsWith('|302')) &&

@@ -235,6 +235,9 @@ const S4b = segNames(4, 7);                                   // 第二段 400 �
 
 // ── 測試用注入點（同 verify_bounty_cron.mjs）──────────────────────────────────
 // 在「符合的那句 SQL 第一次真的執行前」插入一段非同步動作＝競態注入點（等於在 cron 讀完樣本、之後才發生別的請求）。
+// 「讀完這班車的樣本之後、任何寫入之前」的注入點。新版：身分解析那一句（bountyVerifyTrain 裡讀樣本之後的第一句 D1）；
+// 對照版沒有那一句，同一個位置是逐線查逐站事件那一句——兩個版本各自在「讀樣本之後、第一句寫入之前」觸發。
+const AFTER_READ_RE = /^SELECT uid, merged_into FROM bounty_points WHERE actor=\?$|FROM tra_station_events WHERE service_date=\? AND train_no=\?$/;
 function hookOnce(DELAY_DB, re, fn) {
   const orig = DELAY_DB.prepare.bind(DELAY_DB);
   const state = { fired: 0 };
@@ -279,7 +282,11 @@ async function loadControl() {
   ctlDir = mkdtempSync(join(tmpdir(), 'bounty-ctl-'));
   const file = join(ctlDir, `worker.${CONTROL_SHA}.mjs`);
   // worker.js 的 import 都是 './scripts/…'：搬到暫存目錄後要改成指回這個 repo 的絕對 file:// 位址
-  const fixed = src.replace(/from '\.\/(scripts\/[^']+)'/g, (m, p) => `from '${pathToFileURL(join(ROOT, p)).href}'`);
+  // 籌碼規則的純函式（bounty_chips_core.mjs）也取同一個 commit 的版本：對照版呼叫它時不帶後來才加的欄位，配新版的純函式會一律回 0。
+  const coreSrc = execFileSync('git', ['show', `${CONTROL_SHA}:scripts/bounty_chips_core.mjs`], { cwd: ROOT, encoding: 'utf8' });
+  const coreFile = join(ctlDir, `bounty_chips_core.${CONTROL_SHA}.mjs`);
+  writeFileSync(coreFile, coreSrc);
+  const fixed = src.replace(/from '\.\/(scripts\/[^']+)'/g, (m, p) => `from '${pathToFileURL(p === 'scripts/bounty_chips_core.mjs' ? coreFile : join(ROOT, p)).href}'`);
   if (/from '\.\//.test(fixed)) throw new Error('對照版還有沒改到的相對 import');
   writeFileSync(file, fixed);
   const mod = await import(pathToFileURL(file).href);
@@ -298,7 +305,7 @@ const DEV = 'dev-cron2-0001', UID = 'uid-cron2-0001';
 // ═══ H 組：第③段的身分（S10）══════════════════════════════════════════════════════
 // 第③段（給點數、查認領、關認領）舊版用「讀樣本當時」的 trip.actor。cron 讀完樣本之後、走到第③段之前，這個裝置若剛好被併進帳號
 // （POST /api/bounty-merge：樣本與認領整批改名到 uid、原 token 那一列歸零只當墓碑 merged_into＝uid），舊版會把點數記到墓碑上、
-// 認領（已在 uid 名下）查不到也關不掉。注入點：第一次查逐站事件之前（在判定迴圈裡，早於身分解析與第③段）。
+// 認領（已在 uid 名下）查不到也關不掉。注入點：AFTER_READ_RE（讀樣本之後、早於第③段）。
 scn('H', async (impl, c) => {
   const seed = boardSql('tra_sched', '山線', [{ trainKind: '自強', points: 3 }]);
   const CLAIM = { id: 'claim-h', actor: DEV, seg: KT('山線', 'S0|S1'), tk: '自強', dir: 0, pts: 9 };
@@ -309,7 +316,7 @@ scn('H', async (impl, c) => {
   };
   const racing = w => {
     const r = { mst: null };
-    r.hook = hookOnce(w.DELAY_DB, /FROM tra_station_events WHERE service_date/, async () => { r.mst = await mergeInto(w, DEV, UID); });
+    r.hook = hookOnce(w.DELAY_DB, AFTER_READ_RE, async () => { r.mst = await mergeInto(w, DEV, UID); });
     return r;
   };
   // H1：沒有認領。板價 3、覆蓋 S0|S1…S6|S7 共 7 段 → 7×3＝21 點，必須記在「當下的身分」uid 名下；墓碑（裝置 token 那一列）維持 0。
@@ -499,14 +506,14 @@ scn('J', async (impl, c) => {
     c('J8a [S12 身分] 合併之後晚到：前次列（uid 名下）併進來看 → 補發 1 顆，帳本在 uid 名下（ref＝uid|乘車日|J8A）',
       J(led(w)) === J([{ actor: UID, delta: 1, ref: ref(UID, 'J8A'), day: D28 }]) && s2.chips === 1, J({ ledger: led(w), chips: s2.chips }));
   }
-  // J8b：競態。後半段仍在裝置名下 pending，cron 讀完之後（第一次查逐站事件之前）才合併：讀樣本時的 actor 是裝置、當下的身分是 uid，
+  // J8b：競態。後半段仍在裝置名下 pending，cron 讀完之後（AFTER_READ_RE 那一句之前）才合併：讀樣本時的 actor 是裝置、當下的身分是 uid，
   // 前次列（前半段）已隨合併改名到 uid——前次查詢必須同時綁「讀樣本時的 actor」與「當下的身分」才找得到。
   { const w = world({ impl, seed: boardAll(['山線']) });
     half(w, DEV, 'J8B', { lnId: '山線', pts: leg({ sec: 400, t0: 30000 }), first: 0 });
     await w.cron();
     half(w, DEV, 'J8B', { lnId: '山線', pts: leg({ sec: 400, t0: 30401 }), first: 100 });
     let mst = null;
-    const hook = hookOnce(w.DELAY_DB, /FROM tra_station_events WHERE service_date/, async () => { mst = await mergeInto(w, DEV, UID); });
+    const hook = hookOnce(w.DELAY_DB, AFTER_READ_RE, async () => { mst = await mergeInto(w, DEV, UID); });
     const s2 = await w.cron(T2);
     c('J8bp [S12 前置] 合併發生在讀樣本之後（注入點觸發 1 次、合併回 200）；前半段的判定列已隨合併在 uid 名下', hook.fired === 1 && mst === 200 && q.verdicts(w.db, UID, 'J8B') === 'ok', J({ fired: hook.fired, mst, v: q.verdicts(w.db, UID, 'J8B') }));
     c('J8b [S12 身分×競態] 讀樣本後才合併：前次列（uid 名下）仍找得到 → 補發 1 顆，帳本在 uid 名下（ref＝uid|乘車日|J8B）',
@@ -564,7 +571,7 @@ scn('J', async (impl, c) => {
     half(w, 'j13', 'J13', { lnId: '山線', pts: leg({ sec: 200, t0: 30000 }), first: 0 });
     await w.cron();
     half(w, 'j13', 'J13', { lnId: '山線', pts: leg({ sec: 200, t0: 30201, d0: 4000 }), first: 100 });
-    const hook = hookOnce(w.DELAY_DB, /FROM tra_station_events WHERE service_date/, async () => { half(w, 'j13', 'J13', { lnId: '山線', pts: leg({ sec: 400, t0: 30402, d0: 8000 }), first: 200 }); });
+    const hook = hookOnce(w.DELAY_DB, AFTER_READ_RE, async () => { half(w, 'j13', 'J13', { lnId: '山線', pts: leg({ sec: 400, t0: 30402, d0: 8000 }), first: 200 }); });
     const s2 = await w.cron(T2);
     const v = [q.verdicts2(w.db, 'j13', 'J13', 0), q.verdicts2(w.db, 'j13', 'J13', 100), q.verdicts2(w.db, 'j13', 'J13', 200)];
     c('J13p [S12 前置] 注入點在讀樣本之後觸發 1 次：前半（前一發）與後半（這一發）判完 ok，晚寫進來的那批仍是 pending', hook.fired === 1 && J(v) === J(['ok', 'ok', 'pending']), J({ fired: hook.fired, v }));
@@ -957,11 +964,11 @@ await attempt('K5', async () => {
   const w = a.w;
   const tot = w.db.prepare('SELECT SUM(sample_count) s, MIN(sample_count) lo, MAX(sample_count) hi, SUM(distinct_ok_users) d FROM bounty_board').get();
   // 手算：119 個區間 × 板價 1＋最後一段認領鎖 9＝128 點（＜ 每日上限 200）；每段 sample_count 1、去重人數 1；登記 120 段；一班車 12000 秒、一般線 → 1 顆。
-  // 子請求（第二輪獨立驗收之後）：一發固定 6（FIXED：規則、題庫、租約、出錯記錄清掃、班車清單、釋放租約）＋每班固定 9（K4 的手算）＝15。
+  // 子請求：一發固定 6（FIXED：規則、題庫、租約、出錯記錄清掃、班車清單、釋放租約）＋每班固定 8（K4 的手算）＝14。
   // 寫入不分塊：標記、點數、sample_count、關認領是同一個 batch（一筆交易）；去重登記也是一個 batch（段鍵走 json_each）——不論幾段都是 1。
-  ok('K5p [S13a 100 參數上限] 覆蓋 120 段（＞100）的整條線一班車：流程不丟例外（沒有任何一句綁超過 100 個參數）、判 ok、點數 128、每段 sample_count 1／去重人數 1、登記 120 段、最後一句（關認領）寫進去了、入帳 1 顆、子請求恰 15',
+  ok('K5p 覆蓋 120 段（＞100）的整條線一班車：流程不丟例外（沒有任何一句綁超過 100 個參數）、判 ok、點數 128、每段 sample_count 1／去重人數 1、登記 120 段、最後一句（關認領）寫進去了、入帳 1 顆、子請求恰 14',
     a.err === null && q.verdicts(w.db, 'kx', 'X1') === 'ok' && q.points(w.db, 'kx') === 128 && tot.s === 120 && tot.lo === 1 && tot.hi === 1 && tot.d === 120 &&
-      q.nContrib(w.db, 'kx') === 120 && q.claim(w.db, 'cl-x').status === 'fulfilled' && a.st.chips === 1 && a.st.subreq === 15,
+      q.nContrib(w.db, 'kx') === 120 && q.claim(w.db, 'cl-x').status === 'fulfilled' && a.st.chips === 1 && a.st.subreq === 14,
     J({ err: a.err, v: q.verdicts(w.db, 'kx', 'X1'), points: q.points(w.db, 'kx'), tot, contrib: q.nContrib(w.db, 'kx'), cl: q.claim(w.db, 'cl-x'), st: a.st }));
   ok('K5d [S13a 100 參數上限] 前置：這條線真的讓覆蓋段超過 100（登記 120 段），而整個 cron 期間單句綁定參數最多 ≤ 100（測試端計數替身量到的最大值）；計數器＝測試端獨立計數',
     q.nContrib(w.db, 'kx') > 100 && w.tally.maxBind >= 1 && w.tally.maxBind <= 100 && a.st && a.st.subreq === w.tally.n, J({ contrib: q.nContrib(w.db, 'kx'), maxBind: w.tally.maxBind, subreq: a.st && a.st.subreq, tally: w.tally.n }));
@@ -970,14 +977,14 @@ await attempt('K5', async () => {
   const diffs = diffDump(a.dump, b.dump);
   ok('K5a [S13a 等價] 覆蓋 120 段（寫入 241 句、4 塊）：新舊六張表逐列相等（非空）', b.err === null && diffs.length === 0 && nonEmpty(a.dump), J({ oldErr: b.err, diffs, sizes: dumpSizes(a.dump) }));
 });
-// ═══ K4：每班車的子請求數＝固定 9（不隨覆蓋段數成長）════════════════════════════════════════
-// 手算（逐一數 bountyVerifyTrain 對「一條線」的一班車的 D1 呼叫；第二輪獨立驗收之後）：讀這班車的批次 1、逐線查逐站事件 1、身分解析 1、
+// ═══ K4：每班車的子請求數＝固定 8（不隨覆蓋段數成長）════════════════════════════════════════
+// 手算（逐一數 bountyVerifyTrain 對「一條線」的一班車的 D1 呼叫）：讀這班車的批次 1、身分解析 1、
 // 前次已判定列 1、籌碼 1（身分、同班已入帳、當日已領、租約、樣本還在，全在寫帳本那一句裡）、去重登記 1（所有 ok 線組的段併成一個 batch，
-// 段鍵走 json_each）、認領 1、板價 1、這一組的寫入 1（標記＋點數＋sample_count＋關認領同一個 batch＝同一筆交易）＝9。
+// 段鍵走 json_each）、認領 1、板價 1、這一組的寫入 1（標記＋點數＋sample_count＋關認領同一個 batch＝同一筆交易）＝8。
 // 這一條把「查詢量不隨覆蓋段數成長」釘成等式：日後任何人在逐段迴圈裡加一句查詢、或把合在一句裡的條件拆回好幾句，這條就會紅。
 // 一發的固定開銷是 FIXED＝6（規則、題庫、租約、出錯記錄清掃、班車清單、釋放租約；M0a）。
 const FIXED = 6;
-const perTrainExpect = () => 9;
+const perTrainExpect = () => 8;
 for (const tag of Object.keys(CAP)) {
   const cp = CAP[tag];
   ok(`K4 ${tag} [S13a 查詢量] 真實整條線（覆蓋 ${cp.nCov} 項、計功 ${cp.nCred} 項）：每班車子請求＝${perTrainExpect(cp.nCov)}（固定，不隨段數），實測 ${cp.newN - FIXED}`,
@@ -998,19 +1005,19 @@ await attempt('M0', async () => {
     st.subreq === FIXED && w.tally.n === FIXED && st.trains === 0 && st.budgetStop === false, J({ st, tally: w.tally.n }));
 });
 await attempt('M1', async () => {
-  // 一班車、只有一條線：FIXED＋9＝15（K4 的手算；寫入與去重登記各是一個 batch，不隨段數分塊）
+  // 一班車、只有一條線：FIXED＋8＝14（K4 的手算；寫入與去重登記各是一個 batch，不隨段數分塊）
   const run = async (seed, lnId, sec) => {
     const w = world({ tally: true, seed });
     putBatches(w.db, { actor: 'm1', trainNo: 'M1', lnId, pts: leg({ sec }) });
     const st = await w.cron();
     return { st, n: w.tally.n, nCov: q.nContrib(w.db, 'm1') };
   };
-  const a = await run(boardAll(['山線']), '山線', 700);                                // 7 段：6＋9＝15
-  ok(`M1a [S13b 手算] 7 段的一班車：子請求恰 15＝6＋9（實測 ${a.st.subreq}）；計數器＝測試端獨立計數`, a.st.subreq === 15 && a.n === 15 && a.nCov === 7, J(a));
-  const b = await run(boardSql('tra_sched', '長線', [{}], LONG_SEGS), '長線', 3900);      // 39 段：一樣 15（舊版登記每 26 段一個 batch）
-  ok(`M1b [S13b 手算] 39 段的一班車：子請求恰 15＝6＋9，不隨段數（實測 ${b.st.subreq}）`, b.st.subreq === 15 && b.n === 15 && b.nCov === 39, J(b));
-  const c = await run(boardSql('tra_sched', '長線', [{}], LONG_SEGS), '長線', 4000);      // 40 段：一樣 15（更舊的版本寫入分塊時 81 句＝兩塊）
-  ok(`M1c [S13b 手算] 40 段的一班車（寫入 81 句仍是一個 batch）：子請求恰 15＝6＋9（實測 ${c.st.subreq}）`, c.st.subreq === 15 && c.n === 15 && c.nCov === 40, J(c));
+  const a = await run(boardAll(['山線']), '山線', 700);                                // 7 段：6＋8＝14
+  ok(`M1a 7 段的一班車：子請求恰 14＝6＋8（實測 ${a.st.subreq}）；計數器＝測試端獨立計數`, a.st.subreq === 14 && a.n === 14 && a.nCov === 7, J(a));
+  const b = await run(boardSql('tra_sched', '長線', [{}], LONG_SEGS), '長線', 3900);      // 39 段：一樣 14（舊版登記每 26 段一個 batch）
+  ok(`M1b 39 段的一班車：子請求恰 14＝6＋8，不隨段數（實測 ${b.st.subreq}）`, b.st.subreq === 14 && b.n === 14 && b.nCov === 39, J(b));
+  const c = await run(boardSql('tra_sched', '長線', [{}], LONG_SEGS), '長線', 4000);      // 40 段：一樣 14（更舊的版本寫入分塊時 81 句＝兩塊）
+  ok(`M1c 40 段的一班車（寫入 81 句仍是一個 batch）：子請求恰 14＝6＋8（實測 ${c.st.subreq}）`, c.st.subreq === 14 && c.n === 14 && c.nCov === 40, J(c));
 });
 await attempt('M2', async () => {
   // 三班車：MA（乘車日 07-27，actor m-zz）、MB（07-28、m-aa）、MC（07-28、m-mm）。每班 7 段、單獨夠發 1 顆。

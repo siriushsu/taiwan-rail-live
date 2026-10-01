@@ -19,7 +19,7 @@ const { db } = openTestDb();
   const names = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(r => r.name);
   const want = ['bounty_board', 'bounty_claims', 'bounty_points', 'bounty_samples'];
   ok('A1 懸賞四張表都在', want.every(t => names.includes(t)), names.join(','));
-  // 既有三張表也要在——驗證閘的第二重要查 tra_station_events，測試環境沒有它就等於沒驗到
+  // 既有三張表也要在（tra_station_events 是逐站歷程的寫入與讀取用的），測試環境沒有它就等於沒驗到
   ok('A2 既有三張表也重建了',
     ['tra_delay_daily', 'tra_station_events', 'kv_blobs'].every(t => names.includes(t)), names.join(','));
 }

@@ -54,6 +54,11 @@ function spoofedPts(basePts) {
 const LINE = { sys: 'tra_sched', lnId: '南迴線', name: '測試線',
   stations: Array.from({ length: 11 }, (_, i) => ({ name: 'S' + i, d: i * 2 })) };
 const CTX = { line: LINE, events: [], now: Date.parse('2026-07-29T02:00:00Z') };
+// 都卜勒那一重只記錄、不判可疑：條件成立時照常放行、回傳 shadow 標記。flagged＝放行而且有標記；clean＝放行而且沒有標記。
+const TC0 = 'doppler_too_clean';
+const flagged = r => !!r && r.pass === true && r.shadow === TC0;
+const clean = r => !!r && r.pass === true && !r.shadow;
+const verdictOnly = r => r ? (r.pass ? (r.shadow ? 'pass+' + r.shadow : 'pass') : r.code) : null;
 
 // ── F 組：防偽閘四重 ──────────────────────────────────────────────────────
 ok('F1 乾淨樣本不被防偽閘擋', integrityGate(cleanTrip(), CTX, RULES).pass === true,
@@ -83,16 +88,14 @@ ok('F3 第一重 日期太舊 → suspect',
   // 第四重 都卜勒過度一致：把 v 寫成位置微分本身（spoof 工具的特徵）。底座用 wobblyPts()
   // 不用 cleanTrip().pts——理由見上方大段註解（直線位置的相關係数分母恆 0，測不出來）。
   const t = cleanTrip({ pts: spoofedPts(wobblyPts()) });
-  ok('F6 第四重 都卜勒與位置微分過度一致 → suspect',
-    integrityGate(t, CTX, RULES).code === 'doppler_too_clean', JSON.stringify(integrityGate(t, CTX, RULES)));
+  ok('F6 第四重 都卜勒與位置微分過度一致 → 照常放行、標記 doppler_too_clean（這一重只記錄）',
+    flagged(integrityGate(t, CTX, RULES)), verdictOnly(integrityGate(t, CTX, RULES)));
 }
 {
-  // 第二重 對得上當時的獨立誤點回報：我們自己幾小時前存下的到站時刻對不上
+  // 第二重（對誤點紀錄）不做：ctx 就算帶了一筆對不上的逐站紀錄，判定也不看它。
   const ctx = { ...CTX, events: [{ sta: 'S5', status: '到站', delay: 0, obs_at: '2026-07-28T00:00:00Z', schedSec: 20000 }] };
-  ok('F7 第二重 與獨立誤點紀錄差太多 → suspect',
-    integrityGate(cleanTrip(), ctx, RULES).code === 'delay_mismatch', JSON.stringify(integrityGate(cleanTrip(), ctx, RULES)));
-  ok('F8 第二重 沒有獨立紀錄時直接跳過這一重（捷運無車次級誤點源，不可因此判失敗）',
-    integrityGate(cleanTrip(), { ...CTX, events: [] }, RULES).pass === true);
+  ok('F7 第二重不做：帶了對不上的逐站紀錄，乾淨樣本照樣通過、沒有原因碼',
+    clean(integrityGate(cleanTrip(), ctx, RULES)) && integrityGate(cleanTrip(), ctx, RULES).code === null, verdictOnly(integrityGate(cleanTrip(), ctx, RULES)));
 }
 
 // 🔴 F9/F10 第三重的速度上限「依系統」——2026-07-28 修掉一個 P0 缺陷後補上的守門。
@@ -485,6 +488,7 @@ ok('F3 第一重 日期太舊 → suspect',
       r33f.b50.pass === true && r33f.b50.dir === 0 && r33f.b50.pts.length === 18 && r33f.b51.code === 'impossible_physics',
     JSON.stringify(Object.fromEntries(Object.entries(r33f).map(([k, r]) => [k, pd(r)]))));
   // ── 第十四批（V9 A-1、C-2 NL_dop）：都卜勒改成「相關係數＞0.995 而且逐點差的中位數 ≤ 0.5 m/s」才判 ──
+  // 這一重現在只記錄、不判可疑：下面說的「→ doppler_too_clean」一律是「照常放行、帶標記」（判準用 flagged／clean）。
   // F34 用一條速度變異很大的高鐵錄程：10 → 80 m/s 每秒加 0.25、定速 80 m/s 300 秒、再每秒減 0.25 回 10 m/s（861 點）。
   //   里程與速度都取 0.25 的倍數（二進位下精確，邊界才比得出「剛好 0.5」），GPS 回報的位置每秒左右晃 ±0.5 m（位置微分逐點差 ±1 m/s）。
   //   相關係數與逐點差中位數由判準自己算（第 3 點起逐對：頭兩點不收；沒有速度的點跳過），不讀實作。
@@ -531,20 +535,20 @@ ok('F3 第一重 日期太舊 → suspect',
     zero: mk34(sg, gps34, k => k % 3 === 1 ? 0 : dv34(gps34, k)),
   });
   const r34 = [1, -1].map(sg => Object.fromEntries(Object.entries(cases34(sg)).map(([k, P]) => [k, { r: gate(P, 'thsr_sched', sg > 0 ? 0 : 1), s: stat34(P) }])));
-  const CMAX = RULES.integrity.dopplerCorrMax, TC = 'doppler_too_clean';
-  const sh34 = keys => JSON.stringify(r34.map(o => Object.fromEntries(keys.map(k => [k, { r: o[k].r.code || o[k].r.pass, corr: +o[k].s.corr.toFixed(5), med: +o[k].s.med.toFixed(4) }]))));
+  const CMAX = RULES.integrity.dopplerCorrMax;
+  const sh34 = keys => JSON.stringify(r34.map(o => Object.fromEntries(keys.map(k => [k, verdictOnly(o[k].r)]))));
   ok('F34a [第十四批 V9 A-1] 都卜勒：高變異的高鐵誠實錄程（相關係數＞0.995、逐點差中位數 1 m/s）→ 通過（兩個方向；只看相關係數的舊版會判 doppler_too_clean）',
-    r34.every((o, i) => o.honest.r.pass === true && o.honest.r.dir === i && o.honest.s.corr > CMAX && o.honest.s.med > 0.9 && o.honest.s.n === 858), sh34(['honest']));
-  ok('F34b 都卜勒：速度＝位置微分的偽造 → doppler_too_clean；同一型偽造照上傳端取整（里程 0.1 m、速度 0.01 m/s）後逐點差中位數仍在門檻以下 → 仍是 doppler_too_clean（兩個方向）',
-    r34.every(o => o.spoof.r.code === TC && o.spoof.s.med === 0 && o.rounded.r.code === TC && o.rounded.s.med > 0 && o.rounded.s.med <= 0.1 && o.rounded.s.corr > CMAX),
+    r34.every((o, i) => clean(o.honest.r) && o.honest.r.dir === i && o.honest.s.corr > CMAX && o.honest.s.med > 0.9 && o.honest.s.n === 858), sh34(['honest']));
+  ok('F34b 都卜勒：速度＝位置微分 → 標記 doppler_too_clean、照常放行；照上傳端取整（里程 0.1 m、速度 0.01 m/s）後仍標記（兩個方向）',
+    r34.every(o => flagged(o.spoof.r) && o.spoof.s.med === 0 && flagged(o.rounded.r) && o.rounded.s.med > 0 && o.rounded.s.med <= 0.1 && o.rounded.s.corr > CMAX),
     sh34(['spoof', 'rounded']));
-  ok('F34c 都卜勒的邊界（第十五批）：逐點差中位數剛好等於門檻 → doppler_too_clean；大一格 → 通過（兩個方向，相關係數都＞0.995）',
-    r34.every((o, i) => o.b0625.r.code === TC && o.b0625.s.med === 0.0625 && o.b0625.s.corr > CMAX &&
-      o.b078.r.pass === true && o.b078.r.dir === i && o.b078.s.med === 0.078125 && o.b078.s.corr > CMAX), sh34(['b0625', 'b078']));
-  ok('F34d [第十四批 V9 C-2] 都卜勒跳過 null、0 照算：一部分的點沒有速度（null）→ 那些點跳過、仍是 doppler_too_clean；對照組：同樣那些點是 0 → 照算，判定跟 null 那一例不同（兩個方向）',
-    r34.every(o => o.nul.r.code === TC && o.nul.s.n === 572 && o.zero.r.pass === true && o.zero.s.corr < CMAX), sh34(['nul', 'zero']));
+  ok('F34c 都卜勒的邊界：逐點差中位數剛好等於門檻 → 標記 doppler_too_clean；大一格 → 不標記（兩個方向，相關係數都＞0.995，兩者都照常放行）',
+    r34.every((o, i) => flagged(o.b0625.r) && o.b0625.s.med === 0.0625 && o.b0625.s.corr > CMAX &&
+      clean(o.b078.r) && o.b078.r.dir === i && o.b078.s.med === 0.078125 && o.b078.s.corr > CMAX), sh34(['b0625', 'b078']));
+  ok('F34d 都卜勒跳過 null、0 照算：一部分的點沒有速度（null）→ 那些點跳過、仍標記 doppler_too_clean；對照組：同樣那些點是 0 → 照算、不標記（兩個方向）',
+    r34.every(o => flagged(o.nul.r) && o.nul.s.n === 572 && clean(o.zero.r) && o.zero.s.corr < CMAX), sh34(['nul', 'zero']));
   ok('F34e [第十五批 V10 P1-1] 都卜勒：GPS 平滑的誠實錄程（位置晃 ±0.125 m、逐點差中位數 0.25 m/s、相關係數＞0.995）→ 通過（兩個方向；門檻 0.5 會判 doppler_too_clean）',
-    r34.every((o, i) => o.calm.r.pass === true && o.calm.r.dir === i && o.calm.s.corr > CMAX && o.calm.s.med === 0.25 && o.calm.s.n === 858), sh34(['calm']));
+    r34.every((o, i) => clean(o.calm.r) && o.calm.r.dir === i && o.calm.s.corr > CMAX && o.calm.s.med === 0.25 && o.calm.s.n === 858), sh34(['calm']));
   // F34f（第十七批 V11 P2-2、第十八批 V12 P3-2）：位置一點沒動的點對不算進都卜勒那一重，不管回報的速度是多少。
   //   車停著時定位常被凍住、速度報 0 或很小的數；停得比行進久，這些點對佔掉一半以上，逐點差中位數就掉到門檻以下。
   //   錄程：起點停 900 秒（每點位置一樣，停在第一個行進點後方 10 m）→ 接 F34 那條高鐵錄程。兩個方向。
@@ -580,13 +584,12 @@ ok('F3 第一重 日期太舊 → suspect',
       hold_29: hold34(sg, gps34, k => dv34(gps34, k), 29), hold_30: hold34(sg, gps34, k => dv34(gps34, k), 30) };
     return Object.fromEntries(Object.entries(cs).map(([k, P]) => [k, { r: gate(P, 'thsr_sched', sg > 0 ? 0 : 1), s: stat34f(P) }]));
   });
-  ok('F34f [第十七批 V11 P2-2／第十八批 V12 P3-2] 都卜勒不算「位置沒動」的點對（不管回報速度）：停 900 秒再開的高鐵誠實錄程，停著時速度報 0（第十七批以前的算法會判可疑）或報 0.01–0.05（第十七批的算法會判可疑）→ 都通過；同樣停法的偽造 → doppler_too_clean；行進點對的下限是 30：停完只接 29 對 → 這一重不判、30 對 → doppler_too_clean（兩個方向）',
-    r34f.every((o, i) => ['hold_honest', 'hold_vs'].every(k => o[k].r.pass === true && o[k].r.dir === i && o[k].s.n === 861 && o[k].s.med > 0.9) &&
+  ok('F34f 都卜勒不算「位置沒動」的點對（不管回報速度）：停 900 秒再開的高鐵誠實錄程，停著時速度報 0 或 0.01–0.05 → 都不標記；同樣停法、速度＝位置微分 → 標記 doppler_too_clean；行進點對的下限是 30：停完只接 29 對 → 不標記、30 對 → 標記（兩個方向，全部照常放行）',
+    r34f.every((o, i) => ['hold_honest', 'hold_vs'].every(k => clean(o[k].r) && o[k].r.dir === i && o[k].s.n === 861 && o[k].s.med > 0.9) &&
       o.hold_honest.s.oldMed === 0 && o.hold_honest.s.oldCorr > CMAX &&
       o.hold_vs.s.v0Med <= RMAX && o.hold_vs.s.v0Corr > CMAX &&
-      o.hold_spoof.r.code === TC && o.hold_29.r.pass === true && o.hold_29.s.n === 29 && o.hold_30.r.code === TC && o.hold_30.s.n === 30),
-    JSON.stringify(r34f.map(o => Object.fromEntries(Object.entries(o).map(([k, x]) => [k, { r: x.r.code || x.r.pass, n: x.s.n, med: +x.s.med.toFixed(4),
-      v0Med: +x.s.v0Med.toFixed(4), v0Corr: +x.s.v0Corr.toFixed(5), oldMed: +x.s.oldMed.toFixed(4), oldCorr: +x.s.oldCorr.toFixed(5) }])))));
+      flagged(o.hold_spoof.r) && clean(o.hold_29.r) && o.hold_29.s.n === 29 && flagged(o.hold_30.r) && o.hold_30.s.n === 30),
+    JSON.stringify(r34f.map(o => Object.fromEntries(Object.entries(o).map(([k, x]) => [k, verdictOnly(x.r)])))));
   // F29：收下的點本身要是一趟合規的錄程——丟點＝那幾點沒送，偽造者不因此多出能力（V7 的但書）。F11 起每一個判通過的案例（含 F32、F33）：
   //   回傳的 pts 是原始點的子序列（t、d、v 逐欄相同），而且任兩點往前 ≤ 上限×1.15×(Δt＋1)＋50、相鄰兩點往後 ≤ 50、相鄰兩點都有速度時 |Δv| ≤ 1.3×3×(Δt＋1)、
   //   首末淨位移不往後超過 50 m——方向照防偽閘回的 r.dir（第十三批起收下的點整體往後退會換方向，收下的點只對它回的方向合規）。
@@ -645,7 +648,7 @@ ok('F3 第一重 日期太舊 → suspect',
     JSON.stringify({ early: [early.pts[0].t, early.pts[700].t], e0: edge(43200), e1: edge(43201) }));
 }
 
-// ── F31：被丟的點也不能拿去算都卜勒相關係數與逐站時刻（V7 的但書：否則丟掉的點仍能稀釋相關係數、仍能拿來對上誤點紀錄）────────────
+// ── F31：被丟的點也不能拿去算都卜勒相關係數（否則丟掉的點仍能稀釋相關係數）────────────
 {
   const pearson = (a, b) => {
     const n = a.length, mA = a.reduce((s, x) => s + x, 0) / n, mB = b.reduce((s, x) => s + x, 0) / n;
@@ -658,23 +661,12 @@ ok('F3 第一重 日期太舊 → suspect',
     for (let i = 1; i < pts.length; i++) { const dt = pts[i].t - pts[i - 1].t; if (dt <= 0) continue; a.push(pts[i].v); b.push(Math.abs(pts[i].d - pts[i - 1].d) / dt); }
     return pearson(a, b);
   };
-  // a：F6 的偽造（速度＝位置微分本身）再加 4 個孤立的 +300 m 跳點（第 100、250、400、550 秒）。跳點全部不收 → 收下的點相關係數仍＞0.995 → doppler_too_clean。
+  // a：F6 的形狀（速度＝位置微分本身）再加 4 個孤立的 +300 m 跳點（第 100、250、400、550 秒）。跳點全部不收 → 收下的點相關係數仍＞0.995 → 標記 doppler_too_clean。
   //    對照：原始的點（含跳點）照同一個定義算的相關係數＜0.995——判定端若拿原始的點算，這個偽造就過了。
   const spk = spoofedPts(wobblyPts()).map((p, i) => [100, 250, 400, 550].includes(i) ? { ...p, d: p.d + 300 } : p);
   const r31a = integrityGate(cleanTrip({ pts: spk }), CTX, RULES), raw31 = corrOf(spk);
-  ok('F31a 都卜勒只看收下的點：偽造軌跡加 4 個孤立跳點 → 仍判 doppler_too_clean（原始的點算出來的相關係數＜0.995，拿它算就會放行）',
-    r31a.code === 'doppler_too_clean' && raw31 < RULES.integrity.dopplerCorrMax, JSON.stringify({ r: r31a.code || r31a.pass, raw31 }));
-  // b：逐站時刻。誠實的軌跡 25 m/s、整段偏前 7 m（里程最接近 S5＝10 km 的點是第 400 秒的 10,007 m），獨立紀錄說 S5 的通過時刻是第 50 秒
-  //    → 差 350 秒＞容差 300 → delay_mismatch。另外在第 50 秒塞一個剛好在 S5（10,000 m）的點：比當時的位置往前 8.7 km、違反往前的上界 → 不收。
-  //    原始的點裡「里程最接近 S5」的就是這個 0 m 的假點、時刻剛好對上；只看收下的點 → 仍是 delay_mismatch。
-  const hon = cleanTrip().pts.map(p => ({ ...p, d: p.d + 7 }));
-  const fake = [...hon.slice(0, 51), { ...hon[50], d: 10000 }, ...hon.slice(51)];
-  const ctx31 = { ...CTX, events: [{ sta: 'S5', status: '到站', delay: 0, obs_at: '2026-07-28T00:00:00Z', schedSec: 30050 }] };
-  const best = pts => pts.reduce((m, p) => Math.abs(p.d / 1000 - 10) < m.gap ? { gap: Math.abs(p.d / 1000 - 10), t: p.t } : m, { gap: Infinity, t: null });
-  const r31b = [integrityGate(cleanTrip({ pts: hon }), ctx31, RULES), integrityGate(cleanTrip({ pts: fake }), ctx31, RULES)];
-  ok('F31b 逐站時刻只看收下的點：誠實軌跡對不上紀錄 → delay_mismatch；塞一個剛好在站上、剛好對上時刻的假點（不收）→ 仍是 delay_mismatch（原始的點裡最接近 S5 的就是那個假點）',
-    r31b[0].code === 'delay_mismatch' && r31b[1].code === 'delay_mismatch' && best(fake).t === 30050 && best(fake).gap === 0 && best(hon).t === 30400,
-    JSON.stringify({ r: r31b.map(r => r.code || r.pass), bestFake: best(fake), bestHon: best(hon) }));
+  ok('F31a 都卜勒只看收下的點：同一型軌跡加 4 個孤立跳點 → 仍標記 doppler_too_clean（拿原始的點算的相關係數不到門檻）',
+    flagged(r31a) && raw31 < RULES.integrity.dopplerCorrMax, verdictOnly(r31a));
 }
 
 // ── G 組：品質閘七項 ──────────────────────────────────────────────────────
@@ -713,6 +705,14 @@ ok('H1 兩閘都過 → ok', verdictOf({ pass: true }, { pass: true }).verdict =
   ok('H3 防偽不過 → suspect，帶 reject_code 不帶 quality_code',
     v.verdict === 'suspect' && v.rejectCode === 'doppler_too_clean' && v.qualityCode === null, JSON.stringify(v));
 }
+{
+  // 只記錄的那一重（ig.shadow）：verdict 照兩閘的結果走，標記寫進 rejectCode。ok 與 unusable 各一。
+  const vo = verdictOf({ pass: true, code: null, shadow: TC0 }, { pass: true });
+  const vu = verdictOf({ pass: true, code: null, shadow: TC0 }, { pass: false, code: 'acc_blocked' });
+  ok('H3b 影子標記不影響 verdict、會寫進 reject_code：兩閘都過 → ok、reject_code＝doppler_too_clean、沒有 quality_code；品質不過 → unusable、quality_code 照帶、reject_code＝doppler_too_clean',
+    vo.verdict === 'ok' && vo.rejectCode === TC0 && vo.qualityCode === null &&
+      vu.verdict === 'unusable' && vu.qualityCode === 'acc_blocked' && vu.rejectCode === TC0, JSON.stringify({ vo, vu }));
+}
 ok('H4 防偽不過時不看品質閘的結論（順序固定：先防偽後品質）',
   verdictOf({ pass: false, code: 'x' }, { pass: false, code: 'y' }).verdict === 'suspect');
 {
@@ -745,8 +745,8 @@ ok('H4 防偽不過時不看品質閘的結論（順序固定：先防偽後品�
   const mk = (id, actor, pts) => `('${id}','${actor}','tra_sched','南迴線','312',0,'2026-07-28','${JSON.stringify(pts)}',NULL,${Date.parse('2026-07-29T01:00:00Z')},'pending')`;
   const clean = cleanTrip().pts;
   const blocked = clean.map(p => ({ ...p, acc: 120 }));
-  // 同 F6：spoof 底座須用 wobblyPts()，clean.map(...) 會因直線位置零方差而測不出 doppler_too_clean。
-  const spoof = spoofedPts(wobblyPts());
+  // suspect 那一筆用 F4 的形狀（第 300 點起整段退回 5 km）→ impossible_physics。
+  const spoof = clean.map((p, i) => i >= 300 ? { ...p, d: p.d - 5000 } : p);
   const { db, DELAY_DB } = openTestDb(
     `INSERT INTO bounty_board (seg_key,sys,train_kind,dir,kind,slot,l1,l2,points,per_day,first_listed_at,first_claimable_at,sample_count,covered_at) VALUES ${board};
      INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict) VALUES

@@ -1,5 +1,5 @@
 // 籌碼純函式驗收（路段懸賞 v2 籌碼規則）。跑法：node scripts/verify_bounty_chips.mjs
-// 期望值寫死在這裡，是定案的產品規則（每日上限 4、一趟至少 10 分鐘、第 1 座 4 之後每座 8、
+// 期望值寫死在這裡，是定案的產品規則（每日上限 4、一趟至少 10 分鐘而且沿線至少移動 1000 m、第 1 座 4 之後每座 8、
 // 南迴與臺東線 ×2、雲端搭乘 10 分鐘／每日 1 次／3 次換 1），不從設定檔或實作反推。
 import { readFileSync } from 'node:fs';
 import { tripChips, applyDailyChipCap, cloudRideCounts, cloudChipsEarned, priceOfNth, canRedeem, taipeiDay }
@@ -9,13 +9,13 @@ const R = [];
 const ok = (n, p, msg = '') => { R.push({ n, p }); console.log(`${p ? '  ok ' : 'FAIL '} ${n}${msg ? ' — ' + msg : ''}`); };
 const chips = JSON.parse(readFileSync(new URL('../data/bounty_rules.json', import.meta.url), 'utf8')).chips;
 
-const trip = (lineKeys, extra = {}) => ({ verdict: 'ok', lineKeys, durationSec: 1800, day: '2026-10-10', ...extra });
+const trip = (lineKeys, extra = {}) => ({ verdict: 'ok', lineKeys, durationSec: 1800, moveM: 20000, day: '2026-10-10', ...extra });
 
 // C1 設定檔的數字就是定案的數字（設定檔被改掉時先在這裡紅，而不是默默改變行為）
-ok('C1 設定＝定案數字', chips.perTrip === 1 && chips.minTripSec === 600 && chips.dailyChipCap === 4 &&
+ok('C1 設定＝定案數字', chips.perTrip === 1 && chips.minTripSec === 600 && chips.minTripMoveM === 1000 && chips.dailyChipCap === 4 &&
   chips.remoteMultiplier === 2 && JSON.stringify(chips.prices) === '[4,8]' &&
   chips.cloud.minSec === 600 && chips.cloud.dailyMax === 1 && chips.cloud.perChip === 3,
-  JSON.stringify({ perTrip: chips.perTrip, minTripSec: chips.minTripSec, cap: chips.dailyChipCap, prices: chips.prices, cloud: chips.cloud }));
+  JSON.stringify({ perTrip: chips.perTrip, minTripSec: chips.minTripSec, minTripMoveM: chips.minTripMoveM, cap: chips.dailyChipCap, prices: chips.prices, cloud: chips.cloud }));
 
 // C2 一趟值幾個籌碼
 ok('C2a 一般趟（山線）＝1', tripChips(trip(['tra_sched|山線']), chips) === 1);
@@ -31,6 +31,13 @@ ok('C2j 599 秒＝0（未滿 10 分鐘）', tripChips(trip(['tra_sched|山線'],
 ok('C2k 剛好 600 秒＝1', tripChips(trip(['tra_sched|山線'], { durationSec: 600 }), chips) === 1);
 ok('C2l 沒有 durationSec＝0', tripChips(trip(['tra_sched|山線'], { durationSec: undefined }), chips) === 0);
 ok('C2m null trip＝0', tripChips(null, chips) === 0);
+// 整趟停在一站不給：沿線里程跨距（moveM）不到 1000 m 就是 0，剛好 1000 m 照發；缺值也是 0。偏遠線的停站錄程同樣是 0。
+ok('C2n 移動 999 m＝0、剛好 1000 m＝1', tripChips(trip(['tra_sched|山線'], { moveM: 999 }), chips) === 0 &&
+  tripChips(trip(['tra_sched|山線'], { moveM: 1000 }), chips) === 1);
+ok('C2o 沒有 moveM（或不是數字）＝0', tripChips(trip(['tra_sched|山線'], { moveM: undefined }), chips) === 0 &&
+  tripChips(trip(['tra_sched|山線'], { moveM: null }), chips) === 0 && tripChips(trip(['tra_sched|山線'], { moveM: NaN }), chips) === 0);
+ok('C2p 偏遠線（×2）只停一站＝0；同線移動夠＝2', tripChips(trip(['tra_sched|南迴線'], { moveM: 0 }), chips) === 0 &&
+  tripChips(trip(['tra_sched|南迴線'], { moveM: 1000 }), chips) === 2);
 
 // C3 每日上限（數的是 ×2 之後的籌碼）
 ok('C3a 已得 3、再來一趟南迴只給 1', applyDailyChipCap(2, 3, chips) === 1);
