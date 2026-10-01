@@ -146,7 +146,7 @@ v2 新增的卡片欄位（舊欄位 `samples`、`coverN` 保留給舊客端）�
 - `null`：沒有被擋下。
 - `{at, generatedAt, msg}`：擋下中。`at` 是最近一次擋下的毫秒時間戳；`generatedAt` 是被擋下的那份清單的 `generatedAt`（清單沒有就 `null`）；`msg` 是擋下的原因，與 cron 丟出的錯誤訊息同一句。估值正常跑完才會回到 `null`。
 - 欄位不存在：伺服器讀不到這個狀態（或還在跑舊版），不知道有沒有被擋下，不等於沒被擋。
-- 跟著看板一起被邊緣快取（`s-maxage=300`、`stale-while-revalidate=900`），狀態變了之後最多要等十幾分鐘才看得到。
+- 跟著看板一起被邊緣快取（`s-maxage=300`、`stale-while-revalidate=900`）：新鮮期 5 分鐘，過期後還有 15 分鐘可能先回舊內容，所以狀態變了之後，最久約 20 分鐘才會在這個欄位看到。
 
 ## 4. `POST /api/cloud-ride`：雲端搭乘（前景跟同一班真實列車連續 `chips.cloud.minSec` 秒）
 
