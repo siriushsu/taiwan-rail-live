@@ -26,6 +26,7 @@
 //   CH18 旗標關：看不到任何一句獎勵說法（新舊都沒有）、不讀規則檔、不打認領請求；對照：旗標開同一頁看得到
 //   CH19 手機版：360／375／414／768 × Chromium／WebKit，看板（有 ×N 標記）、說明卡、提示；兩兩相交掃描、沒有水平捲動、真觸控點「接下」、App 殼按「開始錄製」的更新提示在最上層、網頁點「接下」的提示在最上層
 //   CH20 ?demo=bounty 的示範看板：有一張偏遠線的卡、「籌碼 ×N」標記看得到（中英日、手機不用捲）；名單與倍率讀規則檔、換一份規則檔跟著翻；規則檔讀不到時維持原本 5 張卡；其他卡不變
+//   CH21 旗標開時的懸賞文案（看板、說明卡、護照校正貢獻、說明中心三節、接下的提示）第一人稱用單數，沒有「我們／We／私たち」；掃描規則自己咬得住；規則檔那一句登記為已知例外
 //
 // 打樁慣例照 scripts/verify_bounty_merge_web.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
 // localStorage['trainmap-account-uid'] 讓開機走 accountEnsureInit（回訪者分支）。
@@ -1520,6 +1521,72 @@ try {
         r.found && r.text === TAG20['zh-TW'](RULES.chips.remoteMultiplier) && r.inView && r.hitTag && r.scrolled === 0 && s.errors.length === 0, JSON.stringify({ r, errors: s.errors }));
       await s.ctx.close();
     });
+  }
+  // ═══ CH21：旗標開時，懸賞文案的第一人稱一律用單數（我／I），不出現「我們／We／私たち」 ═══════════════════════════════════
+  // 讀的是旗標開、App 殼裡實際畫出來的字：看板（副標與每張卡）、出發前說明卡、護照「校正貢獻」那一節、說明中心三節懸賞、
+  // 接下／已接下／存不下三句提示。每個畫面除了掃「沒有」，還要對一句已知的新寫法（證明讀到的是那個畫面，不是空字串）。
+  // 規則檔（data/bounty_rules.json）的 qualityText 還有一句用「我們」：CH21g 把它登記成已知例外（不是放行）；規則檔改掉那句時，這條要跟著拿掉例外。
+  if (want('CH21')) {
+    const PL = {
+      'zh-TW': /我們|咱們|我方/,
+      en: /\b(?:we|us|our|ours|ourselves)\b/i,
+      ja: /私たち|私達|我々|わたしたち|弊社|当社|当方|私ども|私共/,
+    };
+    // 改過的四句各自的新寫法（說明中心兩節的一句話、說明卡的承諾句、說明中心「護照裡的校正貢獻」那節的提示）；日文原本就沒有主語，沒動
+    const SENT = {
+      'zh-TW': { help: '有些路段我手上的行駛資料不夠準', rec: '我用它把那段路的位置推算修準', promise: '我會告訴你是什麼原因、下次怎麼改善。', tip: '而且我會寫出是什麼原因、下次怎麼改善' },
+      en: { help: 'the running data I have isn’t accurate enough yet', rec: 'and I use it to make train position estimates', promise: 'I’ll tell you why and how to do better next time.', tip: 'and I tell you why and how to do better next time' },
+      ja: { help: '走行データの精度が足りない区間があります', rec: '乗車のついでに記録してもらうと', promise: '理由と次回の改善点をお伝えします。', tip: '原因と次回の改善方法もお知らせします' },
+    };
+    const PASSPORT21 = { 'zh-TW': '章還是你的', en: 'even if the data can’t be used, the stamp is still yours', ja: 'データが使えなかった場合でも、スタンプはあなたのものです' };
+    const ME_EMPTY21 = { ...ME, points: 0, corrected: { segs: 0, adopted: 0 }, lines: [] };       // 護照「校正貢獻」的空狀態
+    const hitsOf = (lang, arr) => arr.filter(x => PL[lang].test(x));
+    for (const lang of ['zh-TW', 'en', 'ja']) await attempt(`CH21-${lang}`, async () => {
+      const s = await boardSession({}, { lang, me: ME_EMPTY21 });
+      const b = await readBoard(s.page);
+      const board = [b.sub, ...b.cards.map(c => c.text)];
+      await s.page.click(takeSel(CARD_R.id));
+      await briefOpen(s.page);
+      const br = await readBrief(s.page);
+      const toasts = [...br.toasts];
+      await s.page.click('#bountyBriefLater');
+      const again = await s.page.evaluate(async () => {                       // 已接下又再接一次
+        document.getElementById('toasts').innerHTML = '';
+        const keep = bountyBoardMem; bountyBoardMem = { cards: [] };
+        try { await bountyClaim('card-remote-open'); } finally { bountyBoardMem = keep; }
+        return [...document.querySelectorAll('#toasts .toast')].map(x => x.textContent.replace(/\s+/g, ' ').trim());
+      });
+      toasts.push(...again);
+      await s.page.evaluate(() => { window.__bountyKeyBlocked = true; document.getElementById('toasts').innerHTML = ''; });   // 這台裝置存不下認領
+      await s.page.click(takeSel(CARD_P.id));
+      await briefOpen(s.page);
+      await until(() => s.claims.length >= 2);
+      toasts.push(...(await readBrief(s.page)).toasts);
+      const passport = await s.page.evaluate(() => { const e = document.querySelector('#passport .ph-correct'); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; });
+      await s.page.evaluate(() => openHelp('bounty'));
+      const help = await s.page.evaluate(() => Object.fromEntries(['bounty', 'bountyrec', 'bountyme'].map(k => {
+        const e = document.querySelector(`#helpBody .help-sec[data-sec="${k}"]`); return [k, e ? e.textContent.replace(/\s+/g, ' ').trim() : '']; })));
+      const X = SENT[lang];
+      ok(`CH21a-${lang} 看板：副標與每張卡（${b.cards.length} 張）沒有第一人稱複數`,
+        b.cards.length === 3 && b.sub.length > 10 && hitsOf(lang, board).length === 0, JSON.stringify({ hits: hitsOf(lang, board), sub: b.sub }));
+      ok(`CH21b-${lang} 出發前說明卡：沒有第一人稱複數；承諾句寫成「${X.promise}」`,
+        br.text.includes(X.promise) && hitsOf(lang, [br.text]).length === 0, br.text);
+      ok(`CH21c-${lang} 護照「校正貢獻」那一節：沒有第一人稱複數（讀到的那一節有那句承諾：「${PASSPORT21[lang]}」）`,
+        passport.includes(PASSPORT21[lang]) && hitsOf(lang, [passport]).length === 0, passport);
+      ok(`CH21d-${lang} 說明中心「懸賞板」「錄一趟校正旅程」「護照裡的校正貢獻」三節：沒有第一人稱複數；三節各有改過的那一句（「${X.help}」「${X.rec}」「${X.tip}」）`,
+        help.bounty.includes(X.help) && help.bountyrec.includes(X.rec) && help.bountyme.includes(X.tip) && hitsOf(lang, Object.values(help)).length === 0, JSON.stringify(help));
+      ok(`CH21e-${lang} 接下／已接下又接／存不下三句提示：沒有第一人稱複數；頁面沒有未捕捉的例外`,
+        toasts.length === 3 && toasts.every(x => x.length > 4) && hitsOf(lang, toasts).length === 0 && s.errors.length === 0, JSON.stringify({ toasts, errors: s.errors }));
+      await s.ctx.close();
+    });
+    // 掃描規則自己要咬得住：已知的複數寫法抓得到（含 We’ll、our、us），單數與長得像的字（status、bonus）不誤報
+    const BAD = { 'zh-TW': ['我們會告訴你', '等我們維護', '咱們一起', '我方'], en: ['We’ll tell you', 'we use it', 'Tell us why', 'our running data', 'it is ours'], ja: ['私たちが', '我々は', '弊社では'] };
+    const GOOD = { 'zh-TW': ['我會告訴你', '我用它把那段路修準', '告訴我', '我手上的資料'], en: ['I’ll tell you why', 'my running data', 'tell me why', 'status and bonus', 'the running data I have'], ja: ['お伝えします', 'あなたのものです', '私は'] };
+    ok('CH21f 掃描規則自己咬得住：已知的第一人稱複數寫法（中英日）都抓得到、單數與長得像的字都不誤報',
+      Object.keys(PL).every(l => BAD[l].every(x => PL[l].test(x)) && GOOD[l].every(x => !PL[l].test(x))), JSON.stringify({ missed: Object.keys(PL).flatMap(l => BAD[l].filter(x => !PL[l].test(x))), false: Object.keys(PL).flatMap(l => GOOD[l].filter(x => PL[l].test(x))) }));
+    const qHits = Object.entries(RULES.qualityText || {}).flatMap(([code, v]) => Object.entries(v).filter(([, x]) => typeof x === 'string' && PL['zh-TW'].test(x)).map(([k]) => `${code}.${k}`));
+    ok('CH21g 規則檔 qualityText 的中文裡，第一人稱複數只剩已知的那一句（underground.how；該檔不在這次的改動範圍）——多出別句、或那句已改掉，這條都會紅（改掉時把這個例外拿掉）',
+      JSON.stringify(qHits) === JSON.stringify(['underground.how']), JSON.stringify(qHits));
   }
 } finally {
   if (wk) await wk.close().catch(() => {});
