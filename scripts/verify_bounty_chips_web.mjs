@@ -12,12 +12,13 @@
 //   CH4  請求：沒登入 0 次；登入後帶 Bearer、不帶 ?actor=；開機已登入／登入／合併完成各讀一次
 //   CH5  身分：409 merged_elsewhere 與 403 wrong_account → 換新的懸賞 actor、再併一次；同一次登入只換一次
 //   CH6  登出：併過的 actor 換新、籌碼快取與記憶體清掉；在途的回應不會在登出後寫回快取
-//   CH7  懸賞旗標關：開機清掉籌碼快取、沒有籌碼列、0 次 chips-me（含直接呼叫 fetchChipsMe()）、不寫新的 actor key
+//   CH7  懸賞旗標關：開機清掉籌碼快取、沒有籌碼列、0 次 chips-me／bounty-me（含直接呼叫 fetchChipsMe()、fetchBountyMe()）、不寫新的 actor key
 //   CH8  上傳佇列：400 app_only 是終態（清掉、不重送）；其他錯誤照舊保留
 //   CH9  看板收滿的卡：有「已收滿」說明、沒有接單鈕
 //   CH10 錄程入口：懸賞開著時不啟動定位取樣、改顯示「要用 App」的說明
 //   CH11 手機版：360／375／414／768 × Chromium／WebKit，真觸控點開護照（底部分頁列的「護照」）
 //   CH12 快取與 actor 的邊界（401 清、503 留、存不下、第一次沿用裝置 id、英文介面沒有漏翻）
+//   CH13 開機時序：登入結果比開機那一發 bounty-me 晚出來；401 晚到、200 晚到兩種先後，最後護照都要有登入者的段數
 //
 // 打樁慣例照 scripts/verify_bounty_merge_web.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
 // localStorage['trainmap-account-uid'] 讓開機走 accountEnsureInit（回訪者分支）。
@@ -135,6 +136,8 @@ try {
       getIdToken: async () => 'fake-id-token',
       onAuthStateChanged: (auth, cb) => {
         window.__authCb = cb;
+        // authManual：登入結果由測試在指定的時刻才放出來（window.__fireAuth），用來重現「開機比登入結果早」的時序
+        if (arg.authManual) { window.__fireAuth = () => { window.__authFired++; cb(arg.noUser ? null : user); }; return; }
         setTimeout(() => { window.__authFired++; cb(arg.noUser ? null : user); }, 50);
         if (arg.twice) setTimeout(() => { window.__authFired++; cb(arg.noUser ? null : user); }, 120);
       },
@@ -152,7 +155,9 @@ try {
     if (arg.app) await ctx.addInitScript(g => { Object.assign(window, g); }, APP_GLOBALS);
     const s = { ctx, merges: [], bme: [], chips: [], submits: [], seq: 0, errors: [],
       mode: { merge: 'ok', bme: 'ok', chips: 'ok', submit: 'app_only', ...mode },
-      chipsBody: CHIPS(), meBody: ME, board: BOARD };
+      chipsBody: CHIPS(), meBody: ME, board: BOARD, gates: {} };
+    // 測試持有的閘：hold('actor'|'bearer') 之後，那一種 bounty-me 的回應要等到 release() 才送出（先後由測試決定，不靠睡眠秒數）
+    s.hold = kind => { let release; const g = { promise: new Promise(r => { release = r; }), release: () => release() }; s.gates[kind] = g; return g; };
     const json = (route, status, body) => route.fulfill({ status, contentType: 'application/json', body: typeof body === 'string' ? body : JSON.stringify(body) });
     await ctx.route('**/*', async route => {
       const rq = route.request(), u = new URL(rq.url());
@@ -168,11 +173,17 @@ try {
         return json(route, 200, s.chipsBody);
       }
       if (u.pathname === '/api/bounty-me') {
-        s.bme.push({ seq: ++s.seq, search: u.search, auth });
+        // kind：這一發帶 Bearer 還是用 ?actor= 讀。回應可以被測試的閘（hold）扣住；doneSeq／status 記下它實際回出去的順序與結果
+        const ent = { seq: ++s.seq, search: u.search, auth, kind: auth ? 'bearer' : 'actor' };
+        s.bme.push(ent);
+        if (s.gates[ent.kind]) await s.gates[ent.kind].promise;
+        ent.doneSeq = ++s.seq;
         const m = s.mode.bme;
-        if (m === '401') return json(route, 401, { error: 'auth_required' });
-        if (m === '403') return json(route, 403, { error: 'wrong_account' });
-        if (m === '503') return json(route, 503, { error: 'not_ready' });
+        // merged：這台裝置的 actor 已經併進帳號——契約：用 ?actor= 讀回 401，帶 Bearer 讀回 200
+        if (m === '401' || (m === 'merged' && ent.kind === 'actor')) { ent.status = 401; return json(route, 401, { error: 'auth_required' }); }
+        if (m === '403') { ent.status = 403; return json(route, 403, { error: 'wrong_account' }); }
+        if (m === '503') { ent.status = 503; return json(route, 503, { error: 'not_ready' }); }
+        ent.status = 200;
         return json(route, 200, s.meBody);
       }
       if (u.pathname === '/api/bounty-merge') {
@@ -226,6 +237,12 @@ try {
     el.querySelectorAll('[data-k]').forEach(c => { cells[c.dataset.k] = { text: c.textContent.replace(/\s+/g, ' ').trim(), nums: [...c.querySelectorAll('b')].map(b => b.textContent.trim()) }; });
     return { text: el.textContent.replace(/\s+/g, ' ').trim(), off: el.classList.contains('off'), cells, shown: el.offsetParent !== null };
   }, scope);
+  // 讀護照「校正貢獻」節實際畫出來的內容：segs＝第一個數字（校正段數）；empty＝顯示的是「還沒有校正記錄」的空狀態
+  const corrInfo = (page) => page.evaluate(() => {
+    const el = document.querySelector('#passport .ph-correct');
+    const b = el && el.querySelector('.corr-nums b');
+    return { text: el ? el.textContent.replace(/\s+/g, ' ').trim() : null, segs: b ? b.textContent.trim() : null, empty: !!(el && el.querySelector('.ph-empty')) };
+  });
   const goBounty = (s, qs = '') => s.page.goto(`${BASE}/?bounty=1&lang=zh-TW${qs}`);
   const bootBounty = async (arg, mode, chipsOver) => {
     const s = await newSession(arg, mode);
@@ -465,6 +482,11 @@ try {
     await sleep(500);
     ok('CH7f 旗標關、已登入時直接呼叫 fetchChipsMe()：回 null、不丟例外、chips-me 請求仍是 0 次（擋的是函式自己的旗標檢查，不是「開機流程剛好沒有呼叫它」）',
       direct.r === null && !direct.threw && s.chips.length === 0, JSON.stringify({ direct, n: s.chips.length }));
+    // fetchBountyMe 同理：開機流程裡它的三個呼叫端（登入回呼、合併完成、開機）各自也看旗標，函式自己的那一道要直接呼叫才量得到。
+    const directMe = await s.page.evaluate(async () => { try { return { r: await fetchBountyMe(), threw: '' }; } catch (e) { return { r: 'x', threw: String((e && e.message) || e) }; } });
+    await sleep(500);
+    ok('CH7h 旗標關、已登入時直接呼叫 fetchBountyMe()：回 null、不丟例外、bounty-me 請求仍是 0 次（擋的是函式自己的旗標檢查，不是「開機流程剛好沒有呼叫它」）',
+      directMe.r === null && !directMe.threw && s.bme.length === 0, JSON.stringify({ directMe, n: s.bme.length }));
     await s.page.reload();
     await loggedIn(s.page); await sleep(1000);
     ok('CH7g 重新整理後仍然乾淨（沒有籌碼列、沒有請求）', (await s.page.evaluate(() => document.querySelectorAll('.ph-chips').length)) === 0 && s.chips.length === 0);
@@ -679,6 +701,67 @@ try {
       const rl = await rowInfo(lo.page);
       ok('CH12l 英文介面：登出時的提示沒有中文字', !!rl && rl.off && rl.text.length > 8 && !cjk.test(rl.text), rl && rl.text);
       await lo.ctx.close();
+    });
+  }
+
+  // ═══ CH13：開機時序——登入結果比開機那一發 bounty-me 晚出來，兩發的回應不照送出的順序回來 ═════════════════════════
+  // 已登入、這台裝置的 actor 已經併進帳號：開機時登入還沒就緒，那一發用 ?actor= 讀，伺服器對「併進帳號的 actor」回 401；
+  // 登入結果出來後再用 Bearer 讀一發（200，登入者的 12 段）。兩發的回應不保證照送出的順序回來：
+  // 晚到的 401 若蓋掉較新的 200，護照的校正貢獻就一直空著（已經併過，不會再重讀）。
+  // 登入結果由測試放出來（authManual），回應的先後由測試的閘決定（不靠睡眠秒數），所以兩種先後都能穩定重現。
+  if (want('CH13')) {
+    const DEV13 = 'merged-device-actor-0013';
+    const boot13 = async (holds) => {
+      const s = await newSession({ authManual: true, seed: { [KEY_ACTOR]: DEV13, ['trainmap-bounty-merged-' + UID_A]: DEV13 } }, { bme: 'merged' });
+      const gates = holds.map(k => s.hold(k));
+      await goBounty(s);
+      await bootDone(s.page);
+      await until(() => s.bme.some(x => x.kind === 'actor'));                                   // 開機那一發（登入還沒就緒）已經送出
+      await until(() => s.page.evaluate(() => typeof window.__fireAuth === 'function'));
+      await s.page.evaluate(() => window.__fireAuth());                                         // 現在才讓登入結果出來
+      await loggedIn(s.page);
+      return { s, gates };
+    };
+    const verdict13 = async (tag, s, order, mid) => {
+      const a = s.bme.filter(x => x.kind === 'actor'), b = s.bme.filter(x => x.kind === 'bearer');
+      ok(`CH13a-${tag} [fixture] 開機那一發用 ?actor=＜已併的 actor＞讀、被回 401；登入後那一發帶 Bearer 讀、回 200（各恰好 1 發，沒有第三發）`,
+        a.length === 1 && b.length === 1 && s.bme.length === 2 && a[0].search === '?actor=' + DEV13 && a[0].status === 401
+          && b[0].auth === 'Bearer fake-id-token' && !/actor=/.test(b[0].search) && b[0].status === 200, JSON.stringify(s.bme));
+      ok(`CH13b-${tag} [fixture] 兩發同時在途（Bearer 送出時開機那一發還沒回），回應的先後正是這一組要測的：` +
+        (order === 'bearer-first' ? '200（Bearer）先回、401 晚到，而且 200 已經套用進記憶體時那發 401 還沒回' : '401 先回、200（Bearer）晚到，而且 401 回完時那發 200 還沒回'),
+        !!a[0] && !!b[0] && b[0].seq < a[0].doneSeq && (order === 'bearer-first'
+          ? b[0].doneSeq < a[0].doneSeq && mid.aDone === false && mid.segs === 12
+          : a[0].doneSeq < b[0].doneSeq && mid.bDone === false), JSON.stringify({ mid, a: a[0], b: b[0] }));
+      const mem = await s.page.evaluate(() => bountyMeMem && bountyMeMem.corrected);
+      const c = await corrInfo(s.page);
+      ok(`CH13c-${tag} 兩發都回完之後：記憶體裡是登入者的彙總（校正 12 段、已採用 9 段），不是被 401 清掉的 null`,
+        !!mem && mem.segs === 12 && mem.adopted === 9, JSON.stringify(mem));
+      ok(`CH13d-${tag} 護照的校正貢獻節有登入者的段數（12 段、其中 9 段已採用），不是「還沒有校正記錄」`,
+        c.segs === '12' && !c.empty && /9/.test(c.text || '') && !/還沒有校正記錄/.test(c.text || ''), JSON.stringify(c));
+      ok(`CH13e-${tag} 頁面沒有未捕捉的例外`, s.errors.length === 0, JSON.stringify(s.errors));
+    };
+    await attempt('CH13-401晚到', async () => {
+      const { s, gates: [gA] } = await boot13(['actor']);
+      await until(() => s.page.evaluate(() => bountyMeMem !== null));                           // 登入後那一發（200）先回、已經套用
+      const mid = { aDone: !!s.bme.find(x => x.kind === 'actor').doneSeq, segs: await s.page.evaluate(() => bountyMeMem && bountyMeMem.corrected.segs) };
+      gA.release();                                                                              // 現在才放開機那一發：401 晚到
+      await until(() => s.bme.find(x => x.kind === 'actor').doneSeq);
+      await sleep(800);
+      await verdict13('401晚到', s, 'bearer-first', mid);
+      await s.ctx.close();
+    });
+    await attempt('CH13-200晚到', async () => {
+      const { s, gates: [gA, gB] } = await boot13(['actor', 'bearer']);
+      await until(() => s.bme.some(x => x.kind === 'bearer'));                                  // 登入後那一發也送出了：兩發同時在途
+      gA.release();                                                                              // 先放開機那一發：401 先回
+      await until(() => s.bme.find(x => x.kind === 'actor').doneSeq);
+      await sleep(800);
+      const mid = { bDone: !!s.bme.find(x => x.kind === 'bearer').doneSeq };
+      gB.release();                                                                              // 再放登入後那一發：200 晚到
+      await until(() => s.bme.find(x => x.kind === 'bearer').doneSeq);
+      await sleep(800);
+      await verdict13('200晚到', s, 'actor-first', mid);
+      await s.ctx.close();
     });
   }
 } finally {

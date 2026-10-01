@@ -23450,6 +23450,7 @@ async function fetchBountyBoard() {
   return r.json();
 }
 let bountyMeMem = null;
+let bountyMeSeq = 0; // 每呼叫一次 fetchBountyMe 加一：回應回來時只認最後送出的那一發
 // 護照「校正貢獻」節(規格 §8)要顯示的個人彙總。兩個數字(已校正段數／已採用段數)是伺服器
 // 算好才回,前端不逐筆 trips 反推——contract 見計畫 B Task 7。
 // 失敗行為明確但不外洩:讀不到或非 2xx 時 bountyMeMem 維持原值(通常是 null),不拋例外。
@@ -23461,9 +23462,15 @@ let bountyMeMem = null;
 // 401 就清掉手上那份：那是「你現在看不到這個帳」，留著舊值會在登出後繼續顯示帳號的資料。取 token 手法同 accountDeleteServerData。
 // 🔴 存不下 actor（bountyActor() 回 'ephemeral'）時不讀：那個值是所有存不下的裝置共用的。
 // 回應回來時身分已經換了或登出了（bountyIdEpoch 變了）就丟掉——那份資料屬於上一個身分。
+// 後面又發了新的一發（bountyMeSeq 不再是自己送出時那個號）也丟掉：開機那一發是在登入結果出來之前、以匿名裝置讀的
+// （併進帳號的 actor 會被回 401），登入後再用 Bearer 讀一發；兩發的回應不保證照送出的順序回來，
+// 晚到的舊回應（例如那發 401）不能蓋掉新的。登入一定會再發一次讀取，所以登入之前送出的匿名讀取，回來時必定不是最新一發。
+// 懸賞旗標關著時不讀（比照 fetchChipsMe）：現有的呼叫端各自也看旗標，這一道是給將來新增的呼叫端。
 // 403 wrong_account＝這台裝置的 actor 已經屬於另一個帳號：換新的（見 bountyOnWrongAccount）。
 async function fetchBountyMe() {
-  const epoch = bountyIdEpoch;
+  if (!BOUNTY_ENABLED) return null;
+  const epoch = bountyIdEpoch, seq = ++bountyMeSeq;
+  const still = () => epoch === bountyIdEpoch && seq === bountyMeSeq;
   try {
     const a = state.account, user = a && a.user;
     const token = user ? (a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken()) : null;
@@ -23474,8 +23481,8 @@ async function fetchBountyMe() {
       if (actor === 'ephemeral') return bountyMeMem;
       r = await fetch(apiUrl('api/bounty-me?actor=' + encodeURIComponent(actor)), { cache: 'no-store' });
     }
-    if (epoch !== bountyIdEpoch) return bountyMeMem;
-    if (r.ok) { const j = await r.json(); if (epoch === bountyIdEpoch) bountyMeMem = j; }
+    if (!still()) return bountyMeMem;
+    if (r.ok) { const j = await r.json(); if (still()) bountyMeMem = j; }
     else if (r.status === 401) bountyMeMem = null;
     else if (r.status === 403 && await bountyErrorIs(r, 'wrong_account')) bountyOnWrongAccount();
   } catch (e) {}
