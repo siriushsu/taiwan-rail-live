@@ -149,7 +149,7 @@ async function e2e(actor, samples) {
 }
 
 const stoppedE2e = await e2e('device-dwell-stop', stopped);
-// 🔴 2026-09-29（路段懸賞 v2 A2-T0）：收滿改成「整段」——人數是按 seg_key 計的，同站同時段的另一車種列（區間車）
+// 🔴 2026-09-29（路段懸賞 v2）：收滿改成「整段」——人數是按 seg_key 計的，同站同時段的另一車種列（區間車）
 // 跟著一起收滿（covered_at 有值）；但 sample_count 仍是逐列累加，只有被計功的自強那一列 +1，區間車那列還是 0。
 // 原本這裡斷言區間車列 covered_at 為空（逐列語意）；改成釘新語意，不是放寬——「沒收滿」與「收滿」是相反的判準。
 ok('D4 真 D1 路徑：估值→認領→上傳→驗證後 dwell sample_count 加 1 且 covered_at 有值；同站另一車種列整段一起收滿（covered_at 有值），sample_count 仍逐列（0）',

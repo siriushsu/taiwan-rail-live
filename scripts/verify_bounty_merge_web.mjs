@@ -1,4 +1,4 @@
-// 路段懸賞 v2 · 網頁端「登入後併帳號」驗收（A-T7／T4）——Playwright 真引擎（無視窗）＋ node 靜態伺服器 ＋ 打樁的 Firebase 與 /api。
+// 路段懸賞 v2 · 網頁端「登入後併帳號」驗收——Playwright 真引擎（無視窗）＋ node 靜態伺服器 ＋ 打樁的 Firebase 與 /api。
 //
 // 驗的是 index.html 的 bountyMergeOnLogin()：登入成功（onAuthStateChanged 解出 user）之後，只在 BOUNTY_ENABLED 時、
 // 對 POST /api/bounty-merge 恰好通知一次（帶裝置 id 與 Firebase idToken），失敗不影響登入、也不記「已併」旗標。
@@ -130,7 +130,7 @@ try {
     await sleep(1500);
     ok('W1a [fixture] 登入真的解出 user，而且 BOUNTY_ENABLED 是 false（沒帶 ?bounty=1）',
       (await uidOf(s.page)) === UID_A && (await s.page.evaluate(() => BOUNTY_ENABLED)) === false);
-    ok('W1b [驗收 C] 旗標關：登入後 /api/bounty-merge 請求 0 次（懸賞下架期間不打這支 Worker）', s.merges.length === 0, JSON.stringify(s.merges));
+    ok('W1b 旗標關：登入後 /api/bounty-merge 請求 0 次（懸賞下架期間不打這支 Worker）', s.merges.length === 0, JSON.stringify(s.merges));
     await s.ctx.close();
   });
 
@@ -142,12 +142,12 @@ try {
     const d = await dev(s.page);
     ok('W2a [fixture] 登入解出 user、BOUNTY_ENABLED 是 true、裝置 id 存在且不是 ephemeral',
       (await uidOf(s.page)) === UID_A && (await s.page.evaluate(() => BOUNTY_ENABLED)) === true && !!d && d !== 'ephemeral' && (await s.page.evaluate(() => bountyActor())) === d, String(d));
-    ok('W2b [驗收 C] 旗標開：登入後 /api/bounty-merge 恰好 1 次', s.merges.length === 1, JSON.stringify(s.merges));
+    ok('W2b 旗標開：登入後 /api/bounty-merge 恰好 1 次', s.merges.length === 1, JSON.stringify(s.merges));
     const m = s.merges[0] || {};
     let body = null; try { body = JSON.parse(m.body); } catch (e) {}
     ok('W2c 這 1 次是 POST、路徑 /api/bounty-merge、Authorization 是 Bearer＋Firebase idToken、內容是 JSON',
       m.method === 'POST' && m.path === '/api/bounty-merge' && m.auth === 'Bearer fake-id-token' && /application\/json/.test(m.ct || ''), JSON.stringify(m));
-    ok('W2d [驗收 C] body 恰好只有 actor、且等於 localStorage 的 trainmap-device-id（不是 uid、不含座標或其他欄位）',
+    ok('W2d body 恰好只有 actor、且等於 localStorage 的 trainmap-device-id（不是 uid、不含座標或其他欄位）',
       !!body && Object.keys(body).length === 1 && body.actor === d, JSON.stringify(body) + ' dev=' + d);
     ok('W2e 成功（200）後記下「這一組 (uid, 裝置) 併過了」的旗標：localStorage[trainmap-bounty-merged-<uid>]＝裝置 id', (await flagOf(s.page, UID_A)) === d, String(await flagOf(s.page, UID_A)));
 
@@ -157,7 +157,7 @@ try {
     await sleep(1500);
     ok('W3a [fixture] 重新整理後 BOUNTY_ENABLED 仍是 true、登入再次解出 user（不是因為旗標關了才沒送）',
       (await s.page.evaluate(() => BOUNTY_ENABLED)) === true && (await uidOf(s.page)) === UID_A);
-    ok('W3b [驗收 C] 重新整理後不再送：請求總數仍是 1', s.merges.length === 1, String(s.merges.length));
+    ok('W3b 重新整理後不再送：請求總數仍是 1', s.merges.length === 1, String(s.merges.length));
 
     // W4 換一個帳號登入同一台裝置：另一組 (uid, 裝置)，要再併一次；裝置 id 不變
     await s.page.evaluate(u => localStorage.setItem('__test_uid', u), UID_B);
@@ -181,7 +181,7 @@ try {
     await loggedIn(s.page);
     await sleep(1800);
     const fired = await s.page.evaluate(() => window.__authFired);
-    ok('W5 [驗收 C] 登入事件連發 2 次、第一個請求（延遲 700ms）還沒回來時第二次也到了：仍只送 1 個請求',
+    ok('W5 登入事件連發 2 次、第一個請求（延遲 700ms）還沒回來時第二次也到了：仍只送 1 個請求',
       fired >= 2 && s.merges.length === 1, JSON.stringify({ fired, merges: s.merges.length }));
     await s.ctx.close();
   });
@@ -193,7 +193,7 @@ try {
       await s.page.goto(BASE + '/?bounty=1');
       await loggedIn(s.page);
       await sleep(1200);
-      ok(`${tag}a [驗收 C] 合併請求失敗（${mode}）：登入不受影響（user 仍在）、頁面沒有任何未捕捉的例外、沒有記下已併旗標`,
+      ok(`${tag}a 合併請求失敗（${mode}）：登入不受影響（user 仍在）、頁面沒有任何未捕捉的例外、沒有記下已併旗標`,
         s.merges.length === 1 && (await uidOf(s.page)) === UID_A && s.errors.length === 0 && (await flagOf(s.page, UID_A)) === null,
         JSON.stringify({ merges: s.merges.length, errors: s.errors, flag: await flagOf(s.page, UID_A) }));
       await s.page.reload();

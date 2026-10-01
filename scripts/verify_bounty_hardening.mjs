@@ -1162,7 +1162,7 @@ await attempt('N3c', async () => {
 // N3e：接手那一發用「同一個 now」把同一班判完，之後被接手的那一發才送它第③段的 batch。
 // 第③段的 MARKED 看的是「這一組的樣本此刻全是 verdict＝這一發的判定、verdict_at＝這一發的 now」：接手那一發的 now 若恰好相同
 // （BOUNTY_NOW 固定，或兩發落在同一毫秒）、判定也相同，被接手那一發的 MARKED 照樣成立——這時只剩租約圍欄擋住點數、sample_count、收滿寫第二次。
-// N3a／N3c 的接手那一發是在被接手那一發跑完之後才跑（樣本還是 pending），MARKED 自己就擋住了，量不到租約圍欄（突變 v6 的 N3_legacy 因此存活）。
+// N3a／N3c 的接手那一發是在被接手那一發跑完之後才跑（樣本還是 pending），MARKED 自己就擋住了，量不到租約圍欄（先前的突變 N3_legacy 因此存活）。
 // 注入點同 N3：被接手那一發第③段讀認領那一句；在那裡把它的租約改成過期、整個跑完接手的那一發（同一個 now、同一份資料＝同一個判定），再讓它繼續。
 async function n3eRun(rules) {
   const A = 'dev-n3e-000001';
@@ -1331,7 +1331,7 @@ await attempt('B1f', async () => {
     h.fired === 1 && st.trains === 1 && st.trips === 1 && st.ok === 1 && st.errors === 1 && q.verdicts(w, A, 'T1') === 'pending' && q.verdicts(w, B, 'T2') === 'ok',
     J({ fired: h.fired, st: { trains: st.trains, trips: st.trips, ok: st.ok, errors: st.errors }, v: [q.verdicts(w, A, 'T1'), q.verdicts(w, B, 'T2')] }));
 });
-// MDL／MDT／PC：突變 v6 存活的三個（D5_marked_legacy、D5_marked_time、D5_pending_count）。
+// MDL／MDT／PC：先前存活的三個突變（D5_marked_legacy、D5_marked_time、D5_pending_count）。
 // MDL：MD 的情境換成降級路徑（設定檔缺台鐵的 coverDistinct：sample_count 與收滿同一句）——那一句也要看 MARKED。
 // MDT：第③段送出之前，這一組已被標成「同一個判定、不同時間」（verdict＝ok、verdict_at 比這一發的 now 早 1 毫秒）：
 //      MARKED 要比 verdict_at，別人標的 ok 不算「這一句剛標上的」。租約之下目前的寫入者做不到這個形狀（只有持租約的那一發標得到），
@@ -1977,7 +1977,7 @@ await attempt('CL3', async () => {
   ok('CL3c 帳號在同一個單位有較新的「已完成」、裝置帶來較舊的「開著」：合併之後那筆開著的留著（只在開著的之間去重）',
     m5.status === 200 && J(snap5) === J([`cl3c-done@${U}/fulfilled`, `cl3c-open@${U}/open`]), J({ m5: m5.status, snap5 }));
 });
-// CL4（第八、九批）：讀／刪／關「這個人的」認領的三句，加上合併時認領改名、去重兩句，不論表有沒有統計資料都只走 idx_claims_actor。
+// CL4：讀／刪／關「這個人的」認領的三句，加上合併時認領改名、去重兩句，不論表有沒有統計資料都只走 idx_claims_actor。
 // 沒有統計時 SQLite 本來就挑 idx_claims_actor（所以 CL2c 照不到）；表一旦有統計，兩種形狀會把它帶走：
 //   H1 手寫的偏斜——每個人的認領多、每個單位的認領少（早期少數重度使用者時跑 PRAGMA optimize 會收到的形狀）：改走 idx_claims_unit＝讀這些段上所有人的認領；
 //   R2 ANALYZE 自己算的——表裡只有一個身分、每個單位一筆開著的認領（上線初期只有自己在測）：actor 看起來毫無選擇性，改走全表掃描
@@ -2034,7 +2034,7 @@ await attempt('CL4', async () => {
     const sql = l.length === 1 ? l[0] : null;
     const [p0, pH, pR] = sql ? [DB0, DBH, DBR].map(db => claimsPlan(db, sql)) : [[], [], []];
     const [cH, cR] = sql && strip(sql) !== sql ? [DBH, DBR].map(db => claimsPlan(db, strip(sql))) : [[], []];
-    ok(`CL4${name[0]} [第八、九批] ${name.slice(2)}那一句寫 INDEXED BY idx_claims_actor，沒有統計、H1、R2 三種統計下碰到 bounty_claims 的每一步都走 idx_claims_actor` +
+    ok(`CL4${name[0]} ${name.slice(2)}那一句寫 INDEXED BY idx_claims_actor，沒有統計、H1、R2 三種統計下碰到 bounty_claims 的每一步都走 idx_claims_actor` +
       (ctrl === 'none' ? '（對照在 workerd 冒煙，見上方說明）' : `；對照——同一份統計下拿掉 INDEXED BY：R2 下不再走 idx_claims_actor${ctrl === 'unit' ? '、H1 下改走 idx_claims_unit' : ''}`),
       !!sql && sql.includes('bounty_claims INDEXED BY idx_claims_actor') && onActor(p0) && onActor(pH) && onActor(pR) &&
         (ctrl === 'none' || (cR.length > 0 && !onActor(cR))) && (ctrl !== 'unit' || cH.some(x => /idx_claims_unit/.test(x))),

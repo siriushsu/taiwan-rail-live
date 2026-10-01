@@ -6149,7 +6149,7 @@ async function firebaseUid(env, idToken) {
 // 跟多跳等於默許鏈狀合併，而那會在合併失敗重試時繞成環。
 // 🔴 這個函式只回答「這個 token 的東西記在誰名下」，不回答「這個請求有沒有資格用那個帳號」：
 // 現在只剩驗證 cron 與 /api/bounty-me 的 ?actor= 讀取還走它；錢包端點（garage-redeem、cloud-ride、chips-me）與
-// 賺的端點（bounty-submit、bounty-claim）一律走下面的 bountyIdentity——merged_into 是任何人拿著 uid 都能替別人掛上的標記（稽核 F2），
+// 賺的端點（bounty-submit、bounty-claim）一律走下面的 bountyIdentity——merged_into 是任何人拿著 uid 都能替別人掛上的標記，
 // 只靠它轉向就等於「知道 token 就能花掉帳號的錢」。
 // 🔴 帳號列（uid 欄非 NULL）一律回自己，不跟 merged_into：v2 之後沒有路徑會讓帳號列掛上 merged_into，
 // 但舊版 bountyMerge 的 F2 攻擊可能在正式庫留下「帳號列＋merged_into＝攻擊者」的髒列；跟著它走，判定 cron 就會把
@@ -6174,7 +6174,7 @@ const BOUNTY_WHO_SQL = 'COALESCE((SELECT merged_into FROM bounty_points WHERE ac
 // 不寫的只有「主鍵／UNIQUE 的每一欄都是等號」的點查（計畫固定是一列，統計改不動它），例如 WHERE id=?、cloud_rides 的 (actor, day)。
 // 守門人：verify_bounty_hardening.mjs 的 PL（攔下各端點實際送出的每一句，幾種統計形狀下的計畫都必須與沒有統計時相同）。
 
-// ── 懸賞身分：誰能用哪個 actor 做事（路段懸賞 v2 稽核 F2／F3）────────────────────────────────
+// ── 懸賞身分：誰能用哪個 actor 做事────────────────────────────────
 // 三條原則，這一區與 bountyMerge／chipsMe／bountyMe 共用：
 //   a. uid 不是祕密、永遠不是憑證：以某個 uid 的身分做事，一律要帶「那個 uid 的」Firebase Bearer。
 //   b. 匿名裝置的 installId 自己就是憑證；一旦併進帳號，帳號的錢包（兌換、雲端搭乘、讀籌碼）只認帳號的 Bearer。
@@ -6593,7 +6593,7 @@ async function bountyMe(request, env) {
   try {
     const rules = await bountyRules(env);
     // 🔴 Bearer 路徑不跟 merged_into：驗過的 uid 讀的就是它自己的帳。若還跟，別人只要把這個 uid 當「來源」併走
-    // （舊版 bountyMerge 不擋，列上就會被掛一個 merged_into），本人帶著自己的 Bearer 讀到的就是攻擊者的帳（稽核 F2）。
+    // （舊版 bountyMerge 不擋，列上就會被掛一個 merged_into），本人帶著自己的 Bearer 讀到的就是攻擊者的帳。
     // Bearer 路徑也跑 S0：本人第一次帶 Bearer 出現就把帳號列建好、清掉別人預先掛上的 merged_into，
     // 不必等到第一次錢包寫入。
     // 🔴 ?actor= 路徑只讓匿名裝置讀自己的帳（與錢包讀取 chips-me 同一套 bountyIdentity 'wallet'）：
@@ -6673,7 +6673,7 @@ async function bountyMe(request, env) {
 // 順帶解掉稽核的第二半：樣本與認領改名以前在交易外，中途失敗會留下「點數搬走了、樣本還掛在
 // 舊 actor」的半套狀態；現在同批同交易，要嘛全成、要嘛全退。
 //
-// 路段懸賞 v2（A-T7）：同一個 batch 再多搬四張表——籌碼帳本、車庫解鎖、雲端搭乘、去重貢獻。
+// 路段懸賞 v2：同一個 batch 再多搬四張表——籌碼帳本、車庫解鎖、雲端搭乘、去重貢獻。
 // 兩邊撞到同一個主鍵時的併法（全部在同一個交易裡）：
 //   · 車庫解鎖：同一座兩邊都解過 → 留 created_at 較早的一份，較晚那份的價格用一筆 kind='merge'、
 //     ref='merge|<token>|<場景>' 的正數入帳退回；其餘改名，再依 created_at 重排 nth（cost 保留）。
@@ -6683,7 +6683,7 @@ async function bountyMe(request, env) {
 // 每日上限（trip 籌碼、雲端搭乘每日 1 次）不回溯、不追討：兩邊各自領到的就是各自領到的。
 // 沒有 bounty_points 列的 token（只有籌碼／雲端搭乘）也要留下「併進誰」的標記，否則合併後它再寫的東西掉回 token 名下。
 //
-// 🔴 誰可以當「來源」（稽核 F2：合併劫持）：uid 不是祕密，所以來源只能是「匿名裝置」，絕不能是別人的帳號：
+// 🔴 誰可以當「來源」（合併劫持）：uid 不是祕密，所以來源只能是「匿名裝置」，絕不能是別人的帳號：
 //   · 來源列是帳號（uid 欄非 NULL）→ 400 not_a_device，什麼都不搬。舊版連別人的 uid 都肯當來源：
 //     把受害者的點數、籌碼、解鎖整包搬進攻擊者的帳，再把受害者的列標成「併進攻擊者」，之後受害者的 Bearer 讀取也被導向攻擊者的帳。
 //   · 來源已經併進「別的」uid（merged_into 非 NULL 且不等於這位呼叫者）→ 409 merged_elsewhere，什麼都不搬。
@@ -6720,7 +6720,7 @@ async function bountyMerge(request, env) {
     // 守衛寫在每一句寫入裡、與 ③ 同一個交易，不是事前讀一次再判斷（同一種併發窗，見上面 2026-07-29 稽核）。
     const G = ' AND EXISTS (SELECT 1 FROM bounty_points WHERE actor=? AND merged_into=? AND uid IS NULL)';
     // ① 目的列（＝S0）先確保存在（第一次登入時還沒有），並且清掉別人預先掛在它身上的 merged_into：
-    // 攻擊者拿「還沒出現過的 uid」當來源合併會把那列標成墓碑（F2），本人第一次帶 Bearer 合併時要在這裡收回帳號身分。
+    // 攻擊者拿「還沒出現過的 uid」當來源合併會把那列標成墓碑，本人第一次帶 Bearer 合併時要在這裡收回帳號身分。
     add('uidRow', db.prepare(
       'INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,?,0,NULL,?)' +
       ' ON CONFLICT(actor) DO UPDATE SET uid = excluded.uid, merged_into = NULL, updated_at = excluded.updated_at'
@@ -6873,7 +6873,7 @@ async function bountyMerge(request, env) {
 // 「刪掉對方的校正紀錄」（讀不到任何東西）——與「真正的擁有者刪不掉自己的資料」相比，這個取捨划算。
 // 守衛：已經併進「別的 uid」的 token 不刪，那是別人帳號底下的資料（deviceActor 是帳號的情形見下面另一條）。
 // 🔴 v2 四張表（籌碼帳本、車庫解鎖、雲端搭乘、去重貢獻）是錢包與購買紀錄，不吃 body 傳來的 deviceActor：
-// 那個值是呼叫端自己填的，拿別人還沒併進任何帳號的裝置 UUID 填進去，就能把對方買到的場景與籌碼一起刪掉（稽核 F3 同族）。
+// 那個值是呼叫端自己填的，拿別人還沒併進任何帳號的裝置 UUID 填進去，就能把對方買到的場景與籌碼一起刪掉。
 // 所以 v2 只刪「這個 uid 自己」與「merged_into 就是這個 uid 的裝置」；沒併進來的 deviceActor 名下的 v2 資料原封不動。
 // v1 兩張明細表（樣本、認領）與 bounty_points 維持舊行為：沒併進任何帳號的 deviceActor，名下的樣本——包括還沒判定的趟——
 // 與認領一起刪，那些趟之後不會再判、不會入帳（籌碼是判定時才發，所以刪掉的不只是校正紀錄，也是還沒發的籌碼）。
@@ -6923,7 +6923,7 @@ async function bountyPurgeUid(env, uid, deviceActor) {
   };
 }
 
-// ── 路段懸賞 v2：籌碼餘額與車庫兌換端點（A-T6）─────────────────────────────────────────
+// ── 路段懸賞 v2：籌碼餘額與車庫兌換端點─────────────────────────────────────────
 // 🔴 這一區（chipsMe、garageRedeem 與它們的輔助函式）完全不讀任何通行證欄位、不查通行證資格、回應裡也不帶：
 // 籌碼、價格、解鎖與通行證無關。請求裡就算帶了 plus 之類的欄位也只是被無視。
 // 籌碼規則讀 data/bounty_rules.json 的 chips 區塊（bountyRules，ASSETS 綁定，與客端讀的是同一份檔），不設 fallback：
@@ -6947,9 +6947,9 @@ async function chipStateOf(db, actor) {
 const chipUnlockedView = list => list.map(({ scene, nth, at }) => ({ scene, nth, at }));
 
 // GET /api/chips-me：籌碼餘額、已解鎖場景、下一座的價格、雲端搭乘進度、今天已得的錄程籌碼。
-// 身分：Bearer Firebase idToken（走 AUTH_LIMITER），或 actor 查詢參數（走 BOUNTY_LIMITER，稽核 F19：這條路徑以前完全不限流）。
+// 身分：Bearer Firebase idToken（走 AUTH_LIMITER），或 actor 查詢參數（走 BOUNTY_LIMITER，這條路徑以前完全不限流）。
 // 🔴 兩個都帶時 Bearer 贏、?actor= 被無視（不是「兩個都要對得上」）：驗過的 uid 就是最終身分，不再跟 merged_into——
-// 若還跟，別人把這個 uid 當來源合併走之後，本人帶自己的 Bearer 讀到的就是攻擊者的帳（稽核 F2）。
+// 若還跟，別人把這個 uid 當來源合併走之後，本人帶自己的 Bearer 讀到的就是攻擊者的帳。
 // 🔴 ?actor= 路徑是錢包讀取，規則同 garage-redeem／cloud-ride（bountyIdentity 'wallet'）：匿名裝置憑 id 讀自己的帳；
 // actor 是帳號（uid）、或是併進帳號的裝置，就必須改帶那個帳號的 Bearer——不帶 401 auth_required。
 // （bounty-me 的 ?actor= 讀取現在也走同一條：行程史同樣不該讓拿著裝置 id 的任何人讀。）
@@ -7008,10 +7008,10 @@ async function chipsMe(request, env) {
 // 冪等：帳本 ref＝`<解析前的 b.actor>.<requestId>`（理由同 bountySubmit 的 fixedId：解析後的 actor 會因合併而變，
 // b.actor 是客戶端自己送的、重送一定相同；'.' 不在兩邊的字元集內，接出來的 ref 才是一對一，別人的 requestId 蓋不掉你的）。
 // UNIQUE(kind, ref) 保證同一個 requestId 只扣一次；重送（回應掉了、使用者連點）回與第一次同形狀的成功結果。
-// 重送的驗證（稽核 F14）：帳本列的 id＝`redeem|<場景>|<ref>`，所以重送時能知道「這個 requestId 當初兌換的是哪一座」——
+// 重送的驗證：帳本列的 id＝`redeem|<場景>|<ref>`，所以重送時能知道「這個 requestId 當初兌換的是哪一座」——
 // 場景不同 → 409 conflict（不管另一座是不是剛好已經解鎖）；相同 → 200，cost 是當初扣的價（帳本 delta 的相反數），
 // nth／balance／unlocked 讀現況（合併重排過 nth 會變）。
-// 身分（稽核 F3）：兌換是「花」，走 bountyIdentity 'wallet'——匿名裝置憑 installId；帳號、或併進帳號的裝置必須帶該帳號的 Bearer
+// 身分：兌換是「花」，走 bountyIdentity 'wallet'——匿名裝置憑 installId；帳號、或併進帳號的裝置必須帶該帳號的 Bearer
 // （沒帶 401 auth_required、是別人的 403 wrong_account）。
 async function garageRedeem(request, env) {
   // API_POST_ALLOWED 的粒度是路徑，其他方法也進得來——收斂成只收 POST（比照 passClaim）
@@ -7043,7 +7043,7 @@ async function garageRedeem(request, env) {
     const now = Number(env.BOUNTY_NOW) || Date.now();
     // 帳本列的 id＝`redeem|<場景>|<ref>`：把「這個 requestId 當初兌換的是哪一座」記在帳本上（chip_ledger 沒有場景欄）。
     // 重送時據此驗場景——舊版只看「這個 ref 有沒有扣過款」，同一個 requestId 拿去兌換另一座「剛好已經解鎖過」的場景，
-    // 會被當成成功回（稽核 F14）。場景 id 不含 '|'（bounty_rules.json 的 chips.scenes），所以前後綴切得出來。
+    // 會被當成成功回。場景 id 不含 '|'（bounty_rules.json 的 chips.scenes），所以前後綴切得出來。
     const ledgerId = `redeem|${scene}|${ref}`;
     const priorRedeem = async () => db.prepare("SELECT id, delta FROM chip_ledger WHERE kind='redeem' AND ref=?").bind(ref).first();
     // 成功的回應（第一次成功與重送共用同一個出口）：cost 是「當初扣的」（帳本 delta 的相反數），nth 讀解鎖表現況
@@ -7096,7 +7096,7 @@ async function garageRedeem(request, env) {
   }
 }
 
-// ── 路段懸賞 v2：雲端搭乘 POST /api/cloud-ride（A-T7）─────────────────────────────────────
+// ── 路段懸賞 v2：雲端搭乘 POST /api/cloud-ride─────────────────────────────────────
 // 給海外或不能搭車的人的慢路：App 在前景跟同一班真實列車連續 chips.cloud.minSec 秒算 1 次、每個營運日最多 1 次、
 // 每 chips.cloud.perChip 次換 1 個籌碼。不需要定位權限，伺服器驗的是「這班車那天有沒有開、那個時間點它有沒有可能在跑」；
 // sec 由客戶端回報，控管靠的是價值上限（每天最多 1 次、3 次才換 1 個籌碼）
@@ -7233,9 +7233,9 @@ async function cloudSettleChips(db, actor, chips, day, now) {
 // 401 unauthorized（Bearer 驗不過）／auth_required（這個 actor 是帳號或併進了帳號，卻沒帶 Bearer）；403 wrong_account（帶的是別人的 Bearer）；
 // 405 method；409 already_today（這個營運日已經有一筆）、conflict（同一個 requestId 拿去送了別的營運日）；
 // 429 rate_limited；503 bounty_paused／not_ready／cloud_ride_failed。
-// 身分：雲端搭乘會發籌碼（可以花），走 bountyIdentity 'wallet'，規則同 garage-redeem（稽核 F3）。
+// 身分：雲端搭乘會發籌碼（可以花），走 bountyIdentity 'wallet'，規則同 garage-redeem。
 // 冪等：requestId 存在 cloud_rides.request_id，同一個 actor 同一個 requestId 重送回與第一次相同形狀的成功回應（不重寫、不重發籌碼）。
-// 🔴 重送的判斷排在「營運日必須是台北今天或昨天」之前（稽核 F15）：兩天後才到的重送要能補回第一次沒結算完的籌碼；
+// 🔴 重送的判斷排在「營運日必須是台北今天或昨天」之前：兩天後才到的重送要能補回第一次沒結算完的籌碼；
 // 那個窗口只用來擋「新的」搭乘。
 // 🔴 重送也會再跑一次「補齊籌碼」：搭乘寫進去、補籌碼之前失敗時，客戶端用同一個 requestId 重送就補得回來（結算是冪等的）。
 // simulator:true 的搭乘照寫進 cloud_rides（測試流程要能跑完、也占掉當天那一格）但 simulator=1，不算進次數、不發籌碼。
@@ -7260,7 +7260,7 @@ async function cloudRide(request, env) {
   if (!(chips.cloud.minSec > 0)) return jsonRes({ error: 'not_ready' }, 503, 'no-store');
   const now = Number(env.BOUNTY_NOW) || Date.now();
   const day = typeof b.day === 'string' ? b.day : '';
-  // 這裡只擋「日期長得不對」。營運日是不是「台北今天或昨天」的窗口檢查移到下面、重送判斷之後（稽核 F15）：
+  // 這裡只擋「日期長得不對」。營運日是不是「台北今天或昨天」的窗口檢查移到下面、重送判斷之後：
   // 同一個 requestId 的重送（第一次的回應掉了、補籌碼要重試）可能在兩天之後才到，那時原本那一天早就出窗了，
   // 若窗口檢查排在前面，重送永遠 400 bad_day，而且第一次「寫進去了但補籌碼失敗」的那筆再也補不回來。
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return jsonRes({ error: 'bad_day' }, 400, 'no-store');
@@ -7711,7 +7711,7 @@ function integrityGate(trip, ctx, rules) {
   // 所以往前的上界寫成「上限 ×（Δt＋1）」，不是「上限 × Δt」：App 以 900 ms 節流，漏掉一次定位回呼時
   // Δt＝1 的一對點真實間隔可達約 1.9 秒，舊版拿 Δt 當分母，時速 79 km/h 以上就必判 impossible_physics（台鐵自強、高鐵的主要速度帶）；
   // 1 Hz 在上限附近再加一點 GPS 雜訊也幾乎必紅。同一秒的點（Δt＝0）同一條：上限 × 1 秒。
-  // 🔴 比的是「任兩點」，不只相鄰兩點（第五、六輪）：只比相鄰的話，一秒塞兩個點、每一對都貼著上限，就能超過上限前進；
+  // 🔴 比的是「任兩點」，不只相鄰兩點：只比相鄰的話，一秒塞兩個點、每一對都貼著上限，就能超過上限前進；
   // 任兩點都比，長時間的平均速度就釘在上限以內。做法是 O(n)：令 g＝往前里程 − 上限×t，
   // 「每個較早的點 i 都滿足 往前(j) − 往前(i) ≤ 上限×(t_j − t_i + 1) ＋ 容差」等價於「g_j ≤ 較早各點 g 的最小值 ＋ 上限 ＋ 容差」，一路記最小值即可。
   // 容差：上限多 15%（投影誤差），另加 50 m（GPS 抖動；往後退的容差同一個 50 m，只比相鄰兩點）。
@@ -8287,7 +8287,7 @@ async function bountyVerifyCron(env0) {
       Date.now() - t0 < (ctr.wallMs - (t0 - ctr.t0)) * BOUNTY_VERIFY_TRUSTED_SHARE &&
       readCost() - b0 < (ctr.bytesBudget - b0) * BOUNTY_VERIFY_TRUSTED_SHARE;
     for (const c of bountyVerifyOrder(list, headRoom, stat)) {
-      // 🔴 預算（F5）：在「開始處理下一班車之前」檢查，不在班車中間停——停在中間的話，籌碼與貢獻已經寫了、樣本卻還是 pending，
+      // 🔴 預算：在「開始處理下一班車之前」檢查，不在班車中間停——停在中間的話，籌碼與貢獻已經寫了、樣本卻還是 pending，
       // 下一發整班重跑（冪等、不會出錯，但白花一次）。停手時剩下的班車原封不動仍是 pending，下一發依上面的排序接著判。
       // 一班車自己的用量是有界的（幾十次），所以預算 8000 對官方上限 10,000 的餘裕足夠吸收「最後一班超出預算」。
       // 牆鐘也在同一個停手點看（見 BOUNTY_WALL_BUDGET_MS）：子請求還沒用完、但 D1 慢到時間快不夠，一樣停在班車邊界。
@@ -8463,7 +8463,7 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   // 🔴 一個 batch＝一筆交易：舊版先標記、再另外寫點數與認領，中間任何一句失敗（D1 暫時錯誤、平台中止），這一組已經不是 pending、
   // 重跑不會再處理，它的點數、sample_count、認領就永久漏掉（逐一在 34 個呼叫點注入例外，9 處重現）。
   // 現在要嘛整組寫完、要嘛整組留 pending 等下一發。為了放得進一個 batch，所有「逐段一句」都改成「一組一句」：
-  // 標記用 json_each 帶整組的樣本 id（舊版一批一句、每句重複綁整份覆蓋段 JSON，一班長車可達數百句、數 MB——R1）；
+  // 標記用 json_each 帶整組的樣本 id（舊版一批一句、每句重複綁整份覆蓋段 JSON，一班長車可達數百句、數 MB）；
   // sample_count 與關認領用 (seg_key, train_kind, dir, kind, slot) IN (json_each) 一句做完整組。
   // 🔴 身分在每一句裡當場解析（BOUNTY_WHO_SQL）：讀認領、寫點數、關認領都用「此刻的」帳號——合併若剛好落在這一班的判定途中
   // （樣本與認領已被改名到 uid），點數不會寫進已併掉的墓碑、認領也查得到關得掉。
@@ -8500,7 +8500,7 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
       continue;
     }
     const M = [JSON.stringify(trip.sampleIds), v.verdict, now, trip.sampleIds.length];
-    // 🔴 查詢量（F5）：這一組的認領與板價各一句查完（舊版逐段各打 2–4 句，一趟 30 段約 130 句，一發只處理得了約 75 趟）。
+    // 🔴 查詢量：這一組的認領與板價各一句查完（舊版逐段各打 2–4 句，一趟 30 段約 130 句，一發只處理得了約 75 趟）。
     // 綁定參數不用 IN (?,?,…) 動態展開（D1 每句最多 100 個綁定參數，覆蓋段可能超過）；段鍵包成一個 JSON 陣列、以 json_each 展開。
     // 「每個 (seg_key,dir,kind,slot) 取第一筆」：板價在 JS 做（第一筆＝SQL 排序後最前面那筆，與逐段 LIMIT 1 語意完全相同；
     // 列數≤這條線的單位數，不是外部放大得了的量）；認領在 SQL 裡先做（見下面那一句），JS 的 keepFirst 照跑、拿到的是同一筆。

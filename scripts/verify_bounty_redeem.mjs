@@ -9,13 +9,13 @@
 //     來自 data/bounty_rules.json，這裡照抄成字面。
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準。
 //
-// ⚠️ 假 D1 的保真度（稽核 F20）：scripts/d1_local.mjs 的 batch() 是排隊序列化的，但 batch 之外的單句寫入
+// ⚠️ 假 D1 的保真度：scripts/d1_local.mjs 的 batch() 是排隊序列化的，但 batch 之外的單句寫入
 //    可以插進另一個 batch 的交易中間；真的 D1 不會這樣。所以下面 C 組「兩個併發的請求」只證明「序列化之後的
 //    各種交錯」是安全的，證明不了真 D1 的行為。上線後要對正式庫做一次唯讀抽查（重複的 redeem 列、對不上的 nth、
 //    餘額變負）。
 //
 // 稽核修補（身分與授權）之後：帳號（uid）與已併進帳號的裝置，讀餘額與兌換都必須帶該帳號的 Bearer；
-// 原本不帶 token 也讀得到、花得掉的那幾條判準（M6、R7a、R7b）就是被修掉的洞，已改成新行為（標了「稽核 F3 改寫」）。
+// 原本不帶 token 也讀得到、花得掉的那幾條判準（M6、R7a、R7b）就是被修掉的洞，已改成新行為（標了「改寫」）。
 // 「併進帳號」的種子（put.merge）與正式合併一樣，同時留下帳號列——沒有帳號列的 uid 在伺服器眼裡只是一個匿名 id。
 // 身分規則本身的驗收在 scripts/verify_bounty_auth.mjs。
 //
@@ -151,13 +151,13 @@ const q = {
 const snap = (db, a) => canon({ ledger: q.nLedger(db, a), bal: q.bal(db, a), unlocks: q.unlocks(db, a) });   // 「一個字都沒動」的比對用
 
 // ═══ M 組：GET /api/chips-me ═══════════════════════════════════════════════
-// M1 [驗收1] 種入 +5 → 餘額 5、下一座 4、沒有解鎖；五個欄位一個不多（多了就有東西漏出來）
+// M1 種入 +5 → 餘額 5、下一座 4、沒有解鎖；五個欄位一個不多（多了就有東西漏出來）
 await attempt('M1', async () => {
   const A = 'device-m1aa0001';
   const w = world();
   put.ledger(w.db, A, 'adjust', 5);
   const r = await me(w, `?actor=${A}`);
-  ok('M1a [驗收1] 種入 +5 → balance 5、nextCost 4、unlocked []、雲端 0 次（再 3 次換 1 個）、今天 0／上限 4，五個欄位一個不多',
+  ok('M1a 種入 +5 → balance 5、nextCost 4、unlocked []、雲端 0 次（再 3 次換 1 個）、今天 0／上限 4，五個欄位一個不多',
     r.status === 200 && same(r.json, { balance: 5, unlocked: [], nextCost: 4, cloud: { rides: 0, toNextChip: 3 }, today: { chips: 0, cap: 4 } }), r.text);
   ok('M1b 回應標 no-store（個人餘額不能進邊緣快取）', r.headers.get('cache-control') === 'no-store', String(r.headers.get('cache-control')));
   const r0 = await me(w, '?actor=device-m1zero001');
@@ -208,7 +208,7 @@ await attempt('M3', async () => {
   const days = ['2026-07-20', '2026-07-21', '2026-07-22', '2026-07-23'];
   got.push((await me(w, `?actor=${A}`)).json.cloud);
   for (const d of days) { put.ride(w.db, A, d); got.push((await me(w, `?actor=${A}`)).json.cloud); }
-  ok('M3 [驗收8] cloud 依序＝{0,3}、{1,2}、{2,1}、{3,3}、{4,2}（別人的搭乘不算、整除時是「再 3 次」不是 0）',
+  ok('M3 cloud 依序＝{0,3}、{1,2}、{2,1}、{3,3}、{4,2}（別人的搭乘不算、整除時是「再 3 次」不是 0）',
     canon(got) === canon([{ rides: 0, toNextChip: 3 }, { rides: 1, toNextChip: 2 }, { rides: 2, toNextChip: 1 }, { rides: 3, toNextChip: 3 }, { rides: 4, toNextChip: 2 }]),
     canon(got));
 });
@@ -222,22 +222,22 @@ await attempt('M4', async () => {
   put.ledger(w.db, A, 'cloud', 1, { day: '2026-07-29', ref: 'c-1' }); put.ledger(w.db, A, 'adjust', 5, { day: '2026-07-29', ref: 'a-1' });
   put.ledger(w.db, 'device-m4other01', 'trip', 4, { day: '2026-07-29', ref: 'o-1' });
   const r = await me(w, `?actor=${A}`);
-  ok('M4a [驗收8] 今天 2026-07-29：trip 的 1＋2＝3（前一天、明天、cloud、adjust、別人的都不算）；餘額仍是全部加總 1+2+2+1+1+5＝12',
+  ok('M4a 今天 2026-07-29：trip 的 1＋2＝3（前一天、明天、cloud、adjust、別人的都不算）；餘額仍是全部加總 1+2+2+1+1+5＝12',
     r.json.today.chips === 3 && r.json.today.cap === 4 && r.json.balance === 12, r.text);
   // 台北凌晨 01:30（UTC 還是前一天）：今天是 07-29，不是 07-28
   const w2 = world({ now: Date.parse('2026-07-28T17:30:00Z') });
   put.ledger(w2.db, A, 'trip', 2, { day: '2026-07-29', ref: 'b-1' }); put.ledger(w2.db, A, 'trip', 1, { day: '2026-07-28', ref: 'b-2' });
   const r2 = await me(w2, `?actor=${A}`);
-  ok('M4b [驗收8] 台北 07-29 01:30（UTC 07-28 17:30）：今天是 07-29 → 2（用 UTC 日算會得 1）', r2.json.today.chips === 2, r2.text);
+  ok('M4b 台北 07-29 01:30（UTC 07-28 17:30）：今天是 07-29 → 2（用 UTC 日算會得 1）', r2.json.today.chips === 2, r2.text);
   // 台北午夜剛過（UTC 還是同一天的下午）：今天是 07-30
   const w3 = world({ now: Date.parse('2026-07-29T16:30:00Z') });
   put.ledger(w3.db, A, 'trip', 1, { day: '2026-07-29', ref: 'c-2' }); put.ledger(w3.db, A, 'trip', 3, { day: '2026-07-30', ref: 'c-3' });
   const r3 = await me(w3, `?actor=${A}`);
-  ok('M4c [驗收8] 台北 07-30 00:30（UTC 07-29 16:30）：今天是 07-30 → 3（用 UTC 日算會得 1）', r3.json.today.chips === 3, r3.text);
+  ok('M4c 台北 07-30 00:30（UTC 07-29 16:30）：今天是 07-30 → 3（用 UTC 日算會得 1）', r3.json.today.chips === 3, r3.text);
 });
 
 // M5 身分：actor 查詢參數，或 Bearer Firebase idToken（uid 蓋過 actor 參數）；Bearer 那條走 AUTH_LIMITER，
-// ?actor= 那條走 BOUNTY_LIMITER（稽核 F19：以前完全不限流；bountyMe 的 ?actor= 讀取現在也走同一道限流，見 verify_bounty_auth.mjs 的 A14d）
+// ?actor= 那條走 BOUNTY_LIMITER（以前完全不限流；bountyMe 的 ?actor= 讀取現在也走同一道限流，見 verify_bounty_auth.mjs 的 A14d）
 await attempt('M5', async () => {
   const D = 'device-m5other1', U = 'uid-m5bearer01';
   const mk = env => { const w = world({ env }); give(w.db, U, { balance: 9 }); give(w.db, D, { balance: 2 }); return w; };
@@ -264,7 +264,7 @@ await attempt('M5', async () => {
   ok('M5f 同一個被擋的 AUTH_LIMITER，走 actor 查詢參數那條照樣 200（AUTH_LIMITER 只管 Bearer；?actor= 那條走 BOUNTY_LIMITER，見 verify_bounty_auth 的 A14）', plain.status === 200 && plain.json.balance === 2, plain.text);
 });
 
-// M6 合併過的匿名 token：帳號的帳只給帶著帳號 Bearer 的人看（稽核 F3）；舊 token 自己名下的帳不會被混進來
+// M6 合併過的匿名 token：帳號的帳只給帶著帳號 Bearer 的人看；舊 token 自己名下的帳不會被混進來
 await attempt('M6', async () => {
   const OLD = 'device-m6old001', NEW = 'uid-m6new00001';
   const w = world({ env: { FIREBASE_WEB_API_KEY: 'k', AUTH_LIMITER: limiter(false) } });
@@ -272,8 +272,8 @@ await attempt('M6', async () => {
   put.ledger(w.db, OLD, 'adjust', 100, { ref: 'm6-old' });                       // 舊 token 名下的（不該出現）
   give(w.db, NEW, { balance: 6, unlocked: ['south-coast'] });
   const viaOld = await me(w, `?actor=${OLD}`), viaNew = await me(w, `?actor=${NEW}`);
-  // 稽核 F3 改寫：舊版是「舊 token 與 uid 不帶任何憑證就看到同一份帳（resolveActor 轉向）」——那是洞。
-  ok('M6a [稽核 F3 改寫] 已併進 uid 的舊 device token、與 uid 本身，不帶 Bearer 讀 chips-me 一律 401 auth_required，本文沒有任何餘額或解鎖',
+  // 改寫：舊版是「舊 token 與 uid 不帶任何憑證就看到同一份帳（resolveActor 轉向）」——那是洞。
+  ok('M6a [改寫] 已併進 uid 的舊 device token、與 uid 本身，不帶 Bearer 讀 chips-me 一律 401 auth_required，本文沒有任何餘額或解鎖',
     [viaOld, viaNew].every(r => r.status === 401 && same(r.json, { error: 'auth_required' })), JSON.stringify([viaOld.json, viaNew.json]));
   const asUid = await withFirebase(NEW, () => me(w, '', { Authorization: 'Bearer tok-m6' }));
   const asUidWithOld = await withFirebase(NEW, () => me(w, `?actor=${OLD}`, { Authorization: 'Bearer tok-m6' }));
@@ -348,14 +348,14 @@ await attempt('M8f', async () => {
 });
 
 // ═══ R 組：POST /api/garage-redeem ═════════════════════════════════════════
-// R1 [驗收1] 成功一座：+5 → 兌換 south-coast → nth 1、cost 4、餘額 1；DB 恰一列解鎖、一筆負數 redeem（ref 是 <actor>.<requestId>）
+// R1 成功一座：+5 → 兌換 south-coast → nth 1、cost 4、餘額 1；DB 恰一列解鎖、一筆負數 redeem（ref 是 <actor>.<requestId>）
 await attempt('R1', async () => {
   const A = 'device-r1aa0001', RID = 'req-r1-0001';
   const w = world();
   put.ledger(w.db, A, 'adjust', 5, { ref: 'r1-seed' });
   const before = await me(w, `?actor=${A}`);
   const r = await redeem(w, body(A, 'south-coast', RID));
-  ok('R1a [驗收1] 種入 +5：chips-me＝{5, 4, []}；兌換 south-coast → 200 {ok, scene, nth 1, cost 4, balance 1, unlocked[{south-coast,1,此刻}]}',
+  ok('R1a 種入 +5：chips-me＝{5, 4, []}；兌換 south-coast → 200 {ok, scene, nth 1, cost 4, balance 1, unlocked[{south-coast,1,此刻}]}',
     before.json.balance === 5 && before.json.nextCost === 4 && before.json.unlocked.length === 0 && r.status === 200 &&
       same(r.json, { ok: true, scene: 'south-coast', nth: 1, cost: 4, balance: 1, unlocked: [{ scene: 'south-coast', nth: 1, at: NOW_MS }] }), r.text);
   ok('R1b 回應標 no-store', r.headers.get('cache-control') === 'no-store', String(r.headers.get('cache-control')));
@@ -368,7 +368,7 @@ await attempt('R1', async () => {
     same(after.json.unlocked, [{ scene: 'south-coast', nth: 1, at: NOW_MS }]), after.text);
 });
 
-// R2 [驗收2] 同一個 requestId 重送：200、同一份結果、餘額仍是 1、redeem 仍只有一筆
+// R2 同一個 requestId 重送：200、同一份結果、餘額仍是 1、redeem 仍只有一筆
 await attempt('R2', async () => {
   const A = 'device-r2aa0001', RID = 'req-r2-0001';
   const w = world();
@@ -376,7 +376,7 @@ await attempt('R2', async () => {
   const first = await redeem(w, body(A, 'south-coast', RID));
   const again = await redeem(w, body(A, 'south-coast', RID));
   const third = await redeem(w, body(A, 'south-coast', RID));
-  ok('R2a [驗收2] 重送兩次：都是 200，本文與第一次逐字相同（{nth 1, cost 4, balance 1}）',
+  ok('R2a 重送兩次：都是 200，本文與第一次逐字相同（{nth 1, cost 4, balance 1}）',
     first.status === 200 && again.status === 200 && third.status === 200 && again.text === first.text && third.text === first.text && first.json.balance === 1,
     JSON.stringify([first.text, again.text]));
   ok('R2b 重送不重複扣：redeem 恰一筆、解鎖恰一列、餘額 1', q.nRedeem(w.db, A) === 1 && q.nUnlock(w.db, A) === 1 && q.bal(w.db, A) === 1,
@@ -386,18 +386,18 @@ await attempt('R2', async () => {
   ok('R2c 對照組：換一個 requestId 再兌換同一座 → 409 already（重送與重複兌換是兩件事，不能混成一條）', other.status === 409 && other.json.error === 'already', other.text);
 });
 
-// R3 [驗收3] 價格：第 1 座 4、其後每座 8，價目表最後一格一直沿用；餘額剛好等於價格可以、少 1 不行
+// R3 價格：第 1 座 4、其後每座 8，價目表最後一格一直沿用；餘額剛好等於價格可以、少 1 不行
 await attempt('R3', async () => {
   const A = 'device-r3aa0001';
   const w = world();
   give(w.db, A, { balance: 7, unlocked: ['south-coast'] });
   const short = await redeem(w, body(A, 'shifen', 'req-r3-short01'));
-  ok('R3a [驗收3] 餘額 7＋已解鎖 1 座 → 第 2 座 409 not_enough {cost 8, balance 7}，什麼都沒扣（餘額仍 7、解鎖仍 1 座）',
+  ok('R3a 餘額 7＋已解鎖 1 座 → 第 2 座 409 not_enough {cost 8, balance 7}，什麼都沒扣（餘額仍 7、解鎖仍 1 座）',
     short.status === 409 && same(short.json, { error: 'not_enough', cost: 8, balance: 7 }) && q.bal(w.db, A) === 7 && q.nUnlock(w.db, A) === 1 && q.nRedeem(w.db, A) === 1, short.text);
   const B = 'device-r3bb0001';
   give(w.db, B, { balance: 16, unlocked: ['south-coast'] });
   const enough = await redeem(w, body(B, 'shifen', 'req-r3-enough1'));
-  ok('R3b [驗收3] 餘額 16＋已解鎖 1 座 → 第 2 座成功：nth 2、cost 8、餘額 8',
+  ok('R3b 餘額 16＋已解鎖 1 座 → 第 2 座成功：nth 2、cost 8、餘額 8',
     enough.status === 200 && enough.json.nth === 2 && enough.json.cost === 8 && enough.json.balance === 8 && q.unlocks(w.db, B)[1].cost === 8, enough.text);
   const C = 'device-r3cc0001';
   give(w.db, C, { balance: 8, unlocked: ['south-coast', 'shifen', 'viaduct'] });
@@ -411,7 +411,7 @@ await attempt('R3', async () => {
   give(w5.db, D5, { balance: 8, unlocked: ['south-coast', 'shifen', 'viaduct', 'alishan'] });
   const chk = await me(w5, `?actor=${D5}`);
   const fifth = await redeem(w5, body(D5, 'tunnel', 'req-r3-fifth001'));
-  ok('R3d [驗收3] 第 5 座（補一座場景）：nextCost 仍是 8、兌換 nth 5、cost 8、餘額 0——不會因為超出價目表就變成 0 或 undefined',
+  ok('R3d 第 5 座（補一座場景）：nextCost 仍是 8、兌換 nth 5、cost 8、餘額 0——不會因為超出價目表就變成 0 或 undefined',
     chk.json.nextCost === 8 && fifth.status === 200 && fifth.json.nth === 5 && fifth.json.cost === 8 && fifth.json.balance === 0, fifth.text);
   const E = 'device-r3ee0001', F = 'device-r3ff0001';
   put.ledger(w.db, E, 'adjust', 4, { ref: 'r3e' }); put.ledger(w.db, F, 'adjust', 3, { ref: 'r3f' });
@@ -422,20 +422,20 @@ await attempt('R3', async () => {
       minus1.status === 409 && same(minus1.json, { error: 'not_enough', cost: 4, balance: 3 }) && q.nUnlock(w.db, F) === 0, JSON.stringify([exact.text, minus1.text]));
 });
 
-// R4 [驗收4] 已解鎖 → 409 already，不扣款；「已解鎖」優先於「餘額不足」
+// R4 已解鎖 → 409 already，不扣款；「已解鎖」優先於「餘額不足」
 await attempt('R4', async () => {
   const A = 'device-r4aa0001', B = 'device-r4bb0001';
   const w = world();
   give(w.db, A, { balance: 20, unlocked: ['south-coast'] });
   const s0 = snap(w.db, A);
   const r = await redeem(w, body(A, 'south-coast', 'req-r4-new-01'));
-  ok('R4a [驗收4] 已解鎖的場景再兌換（新的 requestId）→ 409 {error:"already"}；帳本、餘額、解鎖表一個字都沒動', r.status === 409 && same(r.json, { error: 'already' }) && snap(w.db, A) === s0, r.text);
+  ok('R4a 已解鎖的場景再兌換（新的 requestId）→ 409 {error:"already"}；帳本、餘額、解鎖表一個字都沒動', r.status === 409 && same(r.json, { error: 'already' }) && snap(w.db, A) === s0, r.text);
   give(w.db, B, { balance: 0, unlocked: ['south-coast'] });
   const r2 = await redeem(w, body(B, 'south-coast', 'req-r4-new-02'));
   ok('R4b 已解鎖且餘額 0：回 already 不是 not_enough（別叫使用者去賺籌碼買他已經有的東西）', r2.status === 409 && r2.json.error === 'already', r2.text);
 });
 
-// R5 [驗收5] 輸入驗證：未知場景、requestId 必填且格式合法；全部零寫入
+// R5 輸入驗證：未知場景、requestId 必填且格式合法；全部零寫入
 await attempt('R5', async () => {
   const A = 'device-r5aa0001';
   const w = world();
@@ -446,14 +446,14 @@ await attempt('R5', async () => {
     const r = await redeem(w, { actor: A, scene: sc, requestId: 'req-r5-unk-01' });
     unk.push(r.status + ':' + (r.json && r.json.error));
   }
-  ok('R5a [驗收5] 未知場景（含大小寫不同、尾端空白、缺、數字、null、物件、陣列）→ 一律 400 unknown_scene', unk.every(x => x === '400:unknown_scene'), JSON.stringify(unk));
+  ok('R5a 未知場景（含大小寫不同、尾端空白、缺、數字、null、物件、陣列）→ 一律 400 unknown_scene', unk.every(x => x === '400:unknown_scene'), JSON.stringify(unk));
   const bads = [];
   for (const rid of [undefined, null, '', 'short', 'has space here', 'a.b.c.d.e.f.g.h', '中文的請求編號12', 'x'.repeat(65), 12345678, ['req-r5-00001']]) {
     const b = { actor: A, scene: 'south-coast' }; if (rid !== undefined) b.requestId = rid;
     const r = await redeem(w, b);
     bads.push(r.status + ':' + (r.json && r.json.error));
   }
-  ok('R5b [驗收5] requestId 缺、null、空、太短、含空白或點、CJK、65 字、數字、陣列 → 一律 400 bad_request_id（兌換是扣錢的動作，沒有去重鍵不能收）', bads.every(x => x === '400:bad_request_id'), JSON.stringify(bads));
+  ok('R5b requestId 缺、null、空、太短、含空白或點、CJK、65 字、數字、陣列 → 一律 400 bad_request_id（兌換是扣錢的動作，沒有去重鍵不能收）', bads.every(x => x === '400:bad_request_id'), JSON.stringify(bads));
   ok('R5c 上面十九個壞請求之後，帳本、解鎖表一個字都沒動', snap(w.db, A) === s0);
   const ok64 = await redeem(w, body(A, 'south-coast', 'x'.repeat(64)));
   const ok8 = await redeem(w, body(A, 'shifen', 'ab-_CD12'));
@@ -489,7 +489,7 @@ await attempt('R6', async () => {
   put.ledger(wOff.db, A, 'adjust', 5, { ref: 'r6-off' });
   const rd = await redeem(wOff, body(A, 'south-coast', 'req-r6-off001'));
   const rm = await me(wOff, `?actor=${A}`);
-  ok('R6d [驗收7] BOUNTY_WRITES=off：兌換 503 bounty_paused、什麼都沒寫（餘額仍 5、無解鎖）；同一個世界 chips-me 仍 200 讀得到餘額 5',
+  ok('R6d BOUNTY_WRITES=off：兌換 503 bounty_paused、什麼都沒寫（餘額仍 5、無解鎖）；同一個世界 chips-me 仍 200 讀得到餘額 5',
     rd.status === 503 && rd.json.error === 'bounty_paused' && q.bal(wOff.db, A) === 5 && q.nUnlock(wOff.db, A) === 0 && rm.status === 200 && rm.json.balance === 5,
     JSON.stringify([rd.text, rm.text]));
   const wOn = world({ env: { BOUNTY_WRITES: 'on' } });
@@ -510,7 +510,7 @@ await attempt('R7', async () => {
   const w = world({ env: { FIREBASE_WEB_API_KEY: 'k' } });
   put.merge(w.db, OLD, NEW);
   put.ledger(w.db, NEW, 'adjust', 5, { ref: 'r7-new' });
-  // 稽核 F3 改寫：已併進帳號的舊 token 兌換必須帶該帳號（NEW）的 Bearer；舊版不帶憑證就花得掉別人的籌碼
+  // 改寫：已併進帳號的舊 token 兌換必須帶該帳號（NEW）的 Bearer；舊版不帶憑證就花得掉別人的籌碼
   const { out: r, calls: r7calls } = await withFirebase(NEW, () => redeem(w, body(OLD, 'south-coast', 'req-r7-00001'), { Authorization: 'Bearer tok-r7' }));
   ok('R7a 舊 device token 兌換（帶 uid 的 Bearer）→ 扣的是 uid 的帳：uid 名下 1 座解鎖＋1 筆 redeem（−4），舊 token 名下什麼都沒有；Firebase 恰好查 1 次',
     r.status === 200 && r.json.balance === 1 && q.nUnlock(w.db, NEW) === 1 && q.nRedeem(w.db, NEW) === 1 && q.nUnlock(w.db, OLD) === 0 && q.nLedger(w.db, OLD) === 0 && r7calls.length === 1, r.text);
@@ -525,7 +525,7 @@ await attempt('R7', async () => {
   w2.db.prepare('UPDATE chip_ledger SET actor=? WHERE actor=?').run(NEW2, OLD2);
   w2.db.prepare('UPDATE garage_unlocks SET actor=? WHERE actor=?').run(NEW2, OLD2);
   put.merge(w2.db, OLD2, NEW2);
-  // 稽核 F3 改寫：合併後 OLD2 已併進 NEW2，重送要帶 NEW2 的 Bearer（第一次是合併前、匿名兌換，不需要）
+  // 改寫：合併後 OLD2 已併進 NEW2，重送要帶 NEW2 的 Bearer（第一次是合併前、匿名兌換，不需要）
   const replay = (await withFirebase(NEW2, () => redeem(w2, body(OLD2, 'south-coast', 'req-r7-00002'), { Authorization: 'Bearer tok-r7b' }))).out;
   ok('R7b 合併前兌換、合併後（帳搬給 uid）帶 uid 的 Bearer 重送同一個 requestId → 200 與第一次同一份 {nth 1, cost 4, balance 1}，不是 409 already、也不會再扣',
     first.status === 200 && replay.status === 200 && replay.text === first.text && q.nRedeem(w2.db, NEW2) === 1 && q.bal(w2.db, NEW2) === 1, JSON.stringify([first.text, replay.text]));
@@ -533,7 +533,7 @@ await attempt('R7', async () => {
     q.redeemRows(w2.db, NEW2).length === 1 && q.redeemRows(w2.db, NEW2)[0].ref === `${OLD2}.req-r7-00002`, JSON.stringify(q.redeemRows(w2.db, NEW2)));
 });
 
-// ═══ C 組：併發與競態（驗收 6）═══════════════════════════════════════════════
+// ═══ C 組：併發與競態═══════════════════════════════════════════════
 // 自然交錯（Promise.all）：兩個請求同時讀到「還沒解鎖、餘額夠」，靠 D1 端的條件式寫入分出勝負
 await attempt('C1', async () => {
   const A = 'device-c1aa0001';
@@ -542,7 +542,7 @@ await attempt('C1', async () => {
   const rs = await Promise.all([redeem(w, body(A, 'south-coast', 'req-c1-000001')), redeem(w, body(A, 'south-coast', 'req-c1-000002'))]);
   const st = rs.map(r => r.status).sort().join(',');
   const loser = rs.find(r => r.status !== 200);
-  ok('C1 [驗收6] 餘額 8、兩個不同 requestId 同時兌換「同一座」→ 恰一個 200、另一個 409 already；只扣一次（餘額 4）、一列解鎖、一筆 redeem',
+  ok('C1 餘額 8、兩個不同 requestId 同時兌換「同一座」→ 恰一個 200、另一個 409 already；只扣一次（餘額 4）、一列解鎖、一筆 redeem',
     st === '200,409' && loser.json.error === 'already' && q.bal(w.db, A) === 4 && q.nUnlock(w.db, A) === 1 && q.nRedeem(w.db, A) === 1,
     JSON.stringify({ st, loser: loser && loser.json, bal: q.bal(w.db, A), u: q.nUnlock(w.db, A), r: q.nRedeem(w.db, A) }));
 });
@@ -552,7 +552,7 @@ await attempt('C2', async () => {
   put.ledger(w.db, A, 'adjust', 12, { ref: 'c2-seed' });
   const rs = await Promise.all([redeem(w, body(A, 'south-coast', 'req-c2-000001')), redeem(w, body(A, 'shifen', 'req-c2-000002'))]);
   const un = q.unlocks(w.db, A), rd = q.redeemRows(w.db, A);
-  ok('C2 [驗收6] 餘額 12、同時兌換「兩座不同場景」→ 兩個都成功；一座是第 1 座（4）、一座是第 2 座（8），不是兩座都拿第 1 座的價格；餘額 0',
+  ok('C2 餘額 12、同時兌換「兩座不同場景」→ 兩個都成功；一座是第 1 座（4）、一座是第 2 座（8），不是兩座都拿第 1 座的價格；餘額 0',
     rs.every(r => r.status === 200) && canon(rs.map(r => r.json.nth).sort()) === '[1,2]' && q.bal(w.db, A) === 0 &&
       canon(un.map(u => [u.nth, u.cost])) === '[[1,4],[2,8]]' && canon(rd.map(r => r.delta)) === '[-8,-4]',
     JSON.stringify({ st: rs.map(r => r.status), nth: rs.map(r => r.json.nth), un, rd }));
@@ -563,7 +563,7 @@ await attempt('C3', async () => {
   put.ledger(w.db, A, 'adjust', 11, { ref: 'c3-seed' });
   const rs = await Promise.all([redeem(w, body(A, 'south-coast', 'req-c3-000001')), redeem(w, body(A, 'shifen', 'req-c3-000002'))]);
   const win = rs.find(r => r.status === 200), lose = rs.find(r => r.status !== 200);
-  ok('C3 [驗收6] 餘額 11、同時兌換兩座 → 恰一個成功（第 1 座 4）、另一個 409 not_enough {cost 8, balance 7}；餘額 7、不會是負的',
+  ok('C3 餘額 11、同時兌換兩座 → 恰一個成功（第 1 座 4）、另一個 409 not_enough {cost 8, balance 7}；餘額 7、不會是負的',
     !!win && !!lose && win.json.nth === 1 && win.json.cost === 4 && lose.status === 409 && same(lose.json, { error: 'not_enough', cost: 8, balance: 7 }) &&
       q.bal(w.db, A) === 7 && q.nUnlock(w.db, A) === 1, JSON.stringify({ st: rs.map(r => r.status), bodies: rs.map(r => r.json), bal: q.bal(w.db, A) }));
 });
@@ -605,7 +605,7 @@ await attempt('C6', async () => {
   put.ledger(w.db, A, 'adjust', 5, { ref: 'c6-seed' });
   w.beforeBatch = () => put.ledger(w.db, A, 'adjust', -3, { ref: 'c6-drain' });    // 讀到 5 之後、寫入之前，餘額被別的動作花到 2
   const r = await redeem(w, body(A, 'south-coast', 'req-c6-000001'));
-  ok('C6 [驗收6] 餘額守衛：我讀到餘額 5（夠）、寫入前被扣到 2 → 不能寫出負餘額。重讀後 409 not_enough {cost 4, balance 2}；沒有解鎖、沒有 redeem 帳',
+  ok('C6 餘額守衛：我讀到餘額 5（夠）、寫入前被扣到 2 → 不能寫出負餘額。重讀後 409 not_enough {cost 4, balance 2}；沒有解鎖、沒有 redeem 帳',
     w.batches >= 1 && r.status === 409 && same(r.json, { error: 'not_enough', cost: 4, balance: 2 }) && q.bal(w.db, A) === 2 && q.nUnlock(w.db, A) === 0 && q.nRedeem(w.db, A) === 0, JSON.stringify({ r: r.text, bal: q.bal(w.db, A), u: q.nUnlock(w.db, A) }));
 });
 await attempt('C7', async () => {
@@ -616,7 +616,7 @@ await attempt('C7', async () => {
     put.unlock(w.db, A, 'shifen', 1, 4, NOW_MS - 1234); put.ledger(w.db, A, 'redeem', -4, { ref: 'other-req-c7' });
   };
   const r = await redeem(w, body(A, 'south-coast', 'req-c7-000001'));
-  ok('C7 [驗收6] 名次守衛：我讀到「0 座已解鎖、我是第 1 座、4」、寫入前別人搶先解鎖了一座 → 不能用過期的價格 4 收我的錢。重讀後我是第 2 座、8：'
+  ok('C7 名次守衛：我讀到「0 座已解鎖、我是第 1 座、4」、寫入前別人搶先解鎖了一座 → 不能用過期的價格 4 收我的錢。重讀後我是第 2 座、8：'
     + '200 {nth 2, cost 8, balance 0, unlocked[shifen, south-coast]}',
     r.status === 200 && same(r.json, { ok: true, scene: 'south-coast', nth: 2, cost: 8, balance: 0,
       unlocked: [{ scene: 'shifen', nth: 1, at: NOW_MS - 1234 }, { scene: 'south-coast', nth: 2, at: NOW_MS }] }) &&
@@ -655,19 +655,19 @@ await attempt('B1', async () => {
   const r = await board(w);
   const cards = (r.json && r.json.cards) || [];
   const by = id => cards.find(c => c.id === id) || {};
-  ok('B1a [驗收10] 一般線收滿的單位不在板上（山線 S0|S1）；常青線（南迴線、臺東線）收滿的還在；名字只是開頭像的「南迴線二」收滿就下架；共 9 張卡、順序照手算',
+  ok('B1a 一般線收滿的單位不在板上（山線 S0|S1）；常青線（南迴線、臺東線）收滿的還在；名字只是開頭像的「南迴線二」收滿就下架；共 9 張卡、順序照手算',
     r.status === 200 && canon(cards.map(c => c.id)) === canon(BOARD_ORDER) && !cards.some(c => c.unitKeys.includes('tra_sched|山線|S0|S1') || c.unitKeys.some(k => k.includes('南迴線二'))),
     JSON.stringify(cards.map(c => c.id)));
   const ev = by('tra_sched|南迴線|0|自強|track|'), tt = by('tra_sched|臺東線|0|區間|track|');
-  ok('B1b [驗收10] 常青線整張收滿的卡：covered:true、單位全在（南迴 2 段共 18 點；臺東區間 1 段 4 點）、排在所有沒收滿的卡後面',
+  ok('B1b 常青線整張收滿的卡：covered:true、單位全在（南迴 2 段共 18 點；臺東區間 1 段 4 點）、排在所有沒收滿的卡後面',
     ev.covered === true && ev.units === 2 && ev.points === 18 && ev.samples === 9 && tt.covered === true && tt.units === 1 && tt.points === 4 &&
       cards.slice(-2).every(c => c.covered === true) && cards.slice(0, 7).every(c => c.covered === false), JSON.stringify([ev, tt]));
   const th = by('thsr_sched|THSR|0|標準|track|'), sl = by('tra_sched|山線|0|自強|track|'), af = by('afr_sched|阿里山線|0|一般|track|');
-  ok('B1c [驗收10] need：台鐵卡 50、高鐵卡 15、阿里山（歸台鐵家族）50——查表要先過系統家族的桶（用 sys id 直接查會全部落空）',
+  ok('B1c need：台鐵卡 50、高鐵卡 15、阿里山（歸台鐵家族）50——查表要先過系統家族的桶（用 sys id 直接查會全部落空）',
     sl.need === 50 && th.need === 15 && af.need === 50 && ev.need === 50, JSON.stringify({ sl: sl.need, th: th.need, af: af.need }));
-  ok('B1d [驗收10] distinctOk＝卡上各單位人數的最小值：高鐵 3、山線 7、阿里山 0、南迴收滿卡 min(60,55)＝55、臺東區間 51',
+  ok('B1d distinctOk＝卡上各單位人數的最小值：高鐵 3、山線 7、阿里山 0、南迴收滿卡 min(60,55)＝55、臺東區間 51',
     th.distinctOk === 3 && sl.distinctOk === 7 && af.distinctOk === 0 && ev.distinctOk === 55 && tt.distinctOk === 51, JSON.stringify({ th: th.distinctOk, sl: sl.distinctOk, af: af.distinctOk, ev: ev.distinctOk }));
-  ok('B1e [驗收10] 舊欄位原樣保留（samples 是趟數、coverN 是趟數門檻、units／points／claimers／unitKeys／id／sys／lnId／dir／trainKind／kind／slot），加上 need／distinctOk／covered，恰 16 個鍵',
+  ok('B1e 舊欄位原樣保留（samples 是趟數、coverN 是趟數門檻、units／points／claimers／unitKeys／id／sys／lnId／dir／trainKind／kind／slot），加上 need／distinctOk／covered，恰 16 個鍵',
     cards.every(c => canon(Object.keys(c).sort()) === canon(CARD_KEYS)) && sl.samples === 2 && sl.coverN === 1 && th.coverN === 1 && sl.units === 1 && sl.points === 5 && sl.claimers === 0 &&
       sl.sys === 'tra_sched' && sl.lnId === '山線' && sl.dir === 0 && sl.trainKind === '自強' && sl.kind === 'track' && sl.slot === '' &&
       canon(sl.unitKeys) === canon(['tra_sched|山線|S1|S2']) && r.json.coverN && r.json.coverN.metro === 3 && typeof r.json.at === 'number', JSON.stringify(sl));
@@ -735,7 +735,7 @@ function addTrip(db, { actor, trainNo, lnId = '南迴線', sys = 'tra_sched', du
 }
 const boardOf = (db, key) => db.prepare('SELECT train_kind, dir, sample_count, covered_at, distinct_ok_users FROM bounty_board WHERE seg_key=? ORDER BY train_kind, dir').all(key).map(r => ({ ...r }));
 const ROWS3 = [{ k: '自強', dir: 0, points: 3 }, { k: '區間', dir: 0, points: 1 }, { k: '自強', dir: 1, points: 3 }];
-// T1 [驗收11] 第 49 位不收、第 50 位（need 位）整段一起收（同段的別種車種、另一個方向都收）、第 51 位不改寫時間；這一趟沒經過的段不受影響
+// T1 第 49 位不收、第 50 位（need 位）整段一起收（同段的別種車種、另一個方向都收）、第 51 位不改寫時間；這一趟沒經過的段不受影響
 await attempt('T1', async () => {
   const TR = 'tra_sched', LN = '南迴線';
   const w = world({ seed: tBoard(TR, LN, ROWS3.map(r => ({ ...r, distinct: 48 })), SEGS9.slice(0, 8)) + tStuff(TR, LN, 48) +
@@ -744,13 +744,13 @@ await attempt('T1', async () => {
   const read = () => Object.fromEntries([...traversed, 'S7|S8', 'S8|S9'].map(s => [s, boardOf(w.db, segKey(TR, LN, s))]));
   addTrip(w.db, { actor: 'device-t1n49aa', trainNo: '101' }); await w.cron();
   const at49 = read();
-  ok('T1a [驗收11] 第 49 位到：蓋到的段（S0|S1、S3|S4、S6|S7）每一列（三列＝自強0／區間0／自強1）都是 49 位、covered_at 空——差 1 位不收',
+  ok('T1a 第 49 位到：蓋到的段（S0|S1、S3|S4、S6|S7）每一列（三列＝自強0／區間0／自強1）都是 49 位、covered_at 空——差 1 位不收',
     traversed.every(s => at49[s].length === 3 && at49[s].every(r => r.distinct_ok_users === 49 && r.covered_at === null)), JSON.stringify(at49['S0|S1']));
   addTrip(w.db, { actor: 'device-t1n50aa', trainNo: '102' }); await w.cron();
   const at50 = read();
-  ok('T1b [驗收11] 第 50 位到：蓋到的段的「三列全部」covered_at＝這一刻——被計功的自強0 收滿，同段的區間0、另一個方向的自強1 也一起收',
+  ok('T1b 第 50 位到：蓋到的段的「三列全部」covered_at＝這一刻——被計功的自強0 收滿，同段的區間0、另一個方向的自強1 也一起收',
     traversed.every(s => at50[s].length === 3 && at50[s].every(r => r.distinct_ok_users === 50 && r.covered_at === NOW_MS)), JSON.stringify(at50['S0|S1']));
-  ok('T1c [驗收11] 沒經過的段不受影響：S7|S8（人數停在 48）與 S8|S9（人數 60、已達門檻卻沒被這一趟蓋到）covered_at 仍是空、人數不變',
+  ok('T1c 沒經過的段不受影響：S7|S8（人數停在 48）與 S8|S9（人數 60、已達門檻卻沒被這一趟蓋到）covered_at 仍是空、人數不變',
     at50['S7|S8'].every(r => r.covered_at === null && r.distinct_ok_users === 48) && at50['S8|S9'].length === 1 && at50['S8|S9'][0].covered_at === null && at50['S8|S9'][0].distinct_ok_users === 60,
     JSON.stringify([at50['S7|S8'], at50['S8|S9']]));
   addTrip(w.db, { actor: 'device-t1n51aa', trainNo: '103' }); await w.cron(NOW_MS + 3600e3);
@@ -759,7 +759,7 @@ await attempt('T1', async () => {
     traversed.every(s => at51[s].every(r => r.distinct_ok_users === 51 && r.covered_at === NOW_MS)) &&
       at51['S0|S1'].find(r => r.train_kind === '自強' && r.dir === 0).sample_count === 3 && at51['S0|S1'].filter(r => !(r.train_kind === '自強' && r.dir === 0)).every(r => r.sample_count === 0), JSON.stringify(at51['S0|S1']));
 });
-// T2 [驗收11] 高鐵用高鐵的門檻（15）：同樣「已有 14 位」，高鐵再來 1 位整段收滿（含別種車種、別的方向），台鐵不會
+// T2 高鐵用高鐵的門檻（15）：同樣「已有 14 位」，高鐵再來 1 位整段收滿（含別種車種、別的方向），台鐵不會
 await attempt('T2', async () => {
   const w = world({ seed: tBoard('thsr_sched', 'THSR', [{ k: '標準', dir: 0, distinct: 14 }, { k: '南港', dir: 1, distinct: 14 }]) + tStuff('thsr_sched', 'THSR', 14) +
     tBoard('tra_sched', '南迴線', [{ k: '自強', dir: 0, distinct: 14 }, { k: '區間', dir: 1, distinct: 14 }]) + tStuff('tra_sched', '南迴線', 14) });
@@ -767,8 +767,8 @@ await attempt('T2', async () => {
   addTrip(w.db, { actor: 'device-t2t15aa', trainNo: '312', sys: 'tra_sched', lnId: '南迴線' });
   await w.cron();
   const hs = boardOf(w.db, segKey('thsr_sched', 'THSR', 'S0|S1')), tr = boardOf(w.db, segKey('tra_sched', '南迴線', 'S0|S1'));
-  ok('T2a [驗收11] 高鐵第 15 位到：同段兩列（不同車種、不同方向）都收滿（人數 15、covered_at＝此刻）', hs.length === 2 && hs.every(r => r.distinct_ok_users === 15 && r.covered_at === NOW_MS), JSON.stringify(hs));
-  ok('T2b [驗收11 對照] 台鐵同樣第 15 位：兩列都不收（要 50）——拿高鐵的門檻判台鐵就會誤收滿', tr.length === 2 && tr.every(r => r.distinct_ok_users === 15 && r.covered_at === null), JSON.stringify(tr));
+  ok('T2a 高鐵第 15 位到：同段兩列（不同車種、不同方向）都收滿（人數 15、covered_at＝此刻）', hs.length === 2 && hs.every(r => r.distinct_ok_users === 15 && r.covered_at === NOW_MS), JSON.stringify(hs));
+  ok('T2b [對照] 台鐵同樣第 15 位：兩列都不收（要 50）——拿高鐵的門檻判台鐵就會誤收滿', tr.length === 2 && tr.every(r => r.distinct_ok_users === 15 && r.covered_at === null), JSON.stringify(tr));
 });
 // T3 設定檔缺該家族的 coverDistinct 鍵 → 退回舊行為：門檻取 coverN、比趟數、只寫被計功的那一列（同段別的列不動）
 await attempt('T3', async () => {
@@ -807,7 +807,7 @@ await attempt('T4', async () => {
     w.maxBatch <= 80 && cb.length === 1 && cb[0].n === 3, `maxBatch=${w.maxBatch} batches=${JSON.stringify(sizes)}`);
 });
 
-// ═══ P 組：通行證對照組（驗收 9）══════════════════════════════════════════
+// ═══ P 組：通行證對照組══════════════════════════════════════════
 // 同一套操作跑兩個世界：一個乾淨、一個「處處都有通行證資料」——請求帶各種通行證旗標與標頭、假 D1 裡有通行證資格表、
 // 環境變數配了 RevenueCat／Firebase。兩邊的回應必須逐欄相同；整段過程零外連、零通行證相關 SQL、回應裡沒有通行證字樣。
 await attempt('P1', async () => {
@@ -835,7 +835,7 @@ await attempt('P1', async () => {
     return { w, out: seqs.map(r => `${r.status} ${canon(r.json)}`) };
   };
   const clean = await run(false), loaded = await run(true);
-  ok('P1a [驗收9] 乾淨世界與「處處有通行證」的世界：六次操作（餘額、兌換、餘額、第 2 座、餘額不足、重送）的狀態碼與本文逐欄相同', canon(clean.out) === canon(loaded.out), JSON.stringify({ clean: clean.out, loaded: loaded.out }));
+  ok('P1a 乾淨世界與「處處有通行證」的世界：六次操作（餘額、兌換、餘額、第 2 座、餘額不足、重送）的狀態碼與本文逐欄相同', canon(clean.out) === canon(loaded.out), JSON.stringify({ clean: clean.out, loaded: loaded.out }));
   // 對照組本身要有牙：乾淨世界的六次結果是寫死的預期（不是「兩邊一樣就好」——兩邊一起錯也會一樣）
   const exp0 = { balance: 13, unlocked: [], nextCost: 4, cloud: { rides: 0, toNextChip: 3 }, today: { chips: 0, cap: 4 } };
   const exp1 = { ok: true, scene: 'south-coast', nth: 1, cost: 4, balance: 9, unlocked: [{ scene: 'south-coast', nth: 1, at: NOW_MS }] };
@@ -863,7 +863,7 @@ await attempt('P2', async () => {
 // ═══ Z：全局掃描 ══════════════════════════════════════════════════════════
 await attempt('Z1', async () => {
   const bad = ALL.filter(t => /plus|通行證/i.test(t));
-  ok(`Z1 [驗收9] 本檔所有回應本文（${ALL.length} 個，含成功與各種錯誤）都沒有 plus／通行證字樣`, ALL.length > 100 && bad.length === 0, JSON.stringify(bad.slice(0, 2)));
+  ok(`Z1 本檔所有回應本文（${ALL.length} 個，含成功與各種錯誤）都沒有 plus／通行證字樣`, ALL.length > 100 && bad.length === 0, JSON.stringify(bad.slice(0, 2)));
 });
 
 const pass = R.filter(r => r.p).length;

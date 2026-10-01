@@ -1,4 +1,4 @@
-// 路段懸賞 v2 後端驗收（三）：雲端搭乘 POST /api/cloud-ride（A-T7）。
+// 路段懸賞 v2 後端驗收（三）：雲端搭乘 POST /api/cloud-ride。
 // 離線：假 D1（scripts/d1_local.mjs，真 SQLite）＋ stub ASSETS（班表檔讀 data/、或換成合成的）＋ BOUNTY_NOW 釘死；不起伺服器、不碰網路。
 // 跑法：node scripts/verify_bounty_cloud.mjs
 //
@@ -8,7 +8,7 @@
 //     這裡照抄成字面。
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準。
 //
-// ⚠️ 假 D1 的保真度（稽核 F20）：scripts/d1_local.mjs 的 batch() 是排隊序列化的，但 batch 之外的單句寫入
+// ⚠️ 假 D1 的保真度：scripts/d1_local.mjs 的 batch() 是排隊序列化的，但 batch 之外的單句寫入
 //    可以插進另一個 batch 的交易中間；真的 D1 不會這樣。所以 S 組「兩個併發的請求」只證明「序列化之後的
 //    各種交錯」是安全的，證明不了真 D1 的行為。上線後要對正式庫做一次唯讀抽查（同一營運日兩列、
 //    重複的雲端籌碼 ref）。
@@ -136,7 +136,7 @@ const seedRide = (w, actor, day, o = {}) => w.db.prepare('INSERT INTO cloud_ride
   .run(actor, day, o.trainKey || 'mrt|BR|seed', o.sec || 700, o.requestId === undefined ? null : o.requestId, o.at ?? NOW_MS - 1000, o.simulator ? 1 : 0);
 
 // ═══ C 組：基本規則與冪等（合成台鐵班表）═══════════════════════════════════════
-// C1 [驗收 A1] 600 秒剛好夠：200、rides 1、再 2 次換下一顆、這一次沒有籌碼；庫裡一列，欄位逐一核對
+// C1 600 秒剛好夠：200、rides 1、再 2 次換下一顆、這一次沒有籌碼；庫裡一列，欄位逐一核對
 await attempt('C1', async () => {
   const A = 'dev-c1aaaa01';
   const w = world({ files: { 'tra_widget_schedule.json': TRA_FIX } });
@@ -151,7 +151,7 @@ await attempt('C1', async () => {
   ok('C1c 只有 1 次不發籌碼：帳本 0 列、餘額 0', q.nLedger(w, A) === 0 && q.bal(w, A) === 0);
 });
 
-// C2 [驗收 A2] 599 秒差一秒 → 400 too_short，且零寫入（600 通過與 599 被擋是一對，缺一邊「一律 400」也會過）
+// C2 599 秒差一秒 → 400 too_short，且零寫入（600 通過與 599 被擋是一對，缺一邊「一律 400」也會過）
 await attempt('C2', async () => {
   const A = 'dev-c2aaaa01';
   const w = world({ files: { 'tra_widget_schedule.json': TRA_FIX } });
@@ -161,7 +161,7 @@ await attempt('C2', async () => {
   ok('C2b 同一個人改成 600 秒 → 200（前一筆被擋沒有占掉當天那一格）', r0.status === 200 && q.nRides(w, A) === 1, r0.text);
 });
 
-// C3 [驗收 A3] 同一天換一個 requestId 再送 → 409 already_today；庫裡仍是第一筆（requestId 沒被蓋掉）
+// C3 同一天換一個 requestId 再送 → 409 already_today；庫裡仍是第一筆（requestId 沒被蓋掉）
 await attempt('C3', async () => {
   const A = 'dev-c3aaaa01';
   const w = world({ files: { 'tra_widget_schedule.json': TRA_FIX } });
@@ -176,7 +176,7 @@ await attempt('C3', async () => {
   ok('C3b 換成昨天的營運日照樣收（每日 1 次押的是 (actor, day) 不是 actor）', r3.status === 200 && r3.json.rides === 2 && q.nRides(w, A) === 2, r3.text);
 });
 
-// C4 [驗收 A4] 同一個 requestId 重送 → 200、與第一次同形狀、庫裡仍一列；回應形狀含 chipAwarded／rides／toNextChip
+// C4 同一個 requestId 重送 → 200、與第一次同形狀、庫裡仍一列；回應形狀含 chipAwarded／rides／toNextChip
 await attempt('C4', async () => {
   const A = 'dev-c4aaaa01';
   const w = world({ files: { 'tra_widget_schedule.json': TRA_FIX } });
@@ -208,7 +208,7 @@ await attempt('C5', async () => {
     b1.text + ' / ' + b2.text);
 });
 
-// C6 [驗收 A10] 拒收的形狀：座標、沒帶 client、網頁 client、日期、時間、秒數、requestId、actor、壞 JSON——每一種都零寫入
+// C6 拒收的形狀：座標、沒帶 client、網頁 client、日期、時間、秒數、requestId、actor、壞 JSON——每一種都零寫入
 await attempt('C6', async () => {
   const w = world({ files: { 'tra_widget_schedule.json': TRA_FIX } });
   const A = 'dev-c6aaaa01';
@@ -239,7 +239,7 @@ await attempt('C6', async () => {
   await want('body 是 null', 'null', 400, 'bad_actor');
 });
 
-// C7 [驗收 A8] 搭乘不能發生在未來：結束時間＝startedAt＋sec×1000 不可晚於「現在＋60 秒」；邊界兩側各一點
+// C7 搭乘不能發生在未來：結束時間＝startedAt＋sec×1000 不可晚於「現在＋60 秒」；邊界兩側各一點
 await attempt('C7', async () => {
   const w = world({});
   // 用捷運的窗（05:00–25:30，16:00 上下都在窗內），把班表排除在外，只量時間上界
@@ -254,7 +254,7 @@ await attempt('C7', async () => {
 
 // ═══ S 組：籌碼結算 ═══════════════════════════════════════════════════════════
 // 三個營運日各一次（時鐘撥到各日 16:00），用捷運的窗（不依賴班表）。期望值：第 3 次才發第 1 顆。
-// S1 [驗收 A5] 三天各 1 次：rides 依序 1、2、3；toNextChip 依序 2、1、3；chipAwarded 只有第 3 次為真；帳本恰一列 cloud
+// S1 三天各 1 次：rides 依序 1、2、3；toNextChip 依序 2、1、3；chipAwarded 只有第 3 次為真；帳本恰一列 cloud
 await attempt('S1', async () => {
   const A = 'dev-s1aaaa01';
   const w = world({});
@@ -268,7 +268,7 @@ await attempt('S1', async () => {
     led.length === 1 && led[0].delta === 1 && led[0].ref === `${A}|cloud|1` && led[0].day === TODAY && led[0].created_at === at(TODAY, 16) &&
     led[0].actor === A, JSON.stringify(led));
   const m = await me(w, A);
-  ok('S1c [驗收 A5] chips-me：balance 1、cloud.rides 3、cloud.toNextChip 3；雲端籌碼不占錄程每日上限（today.chips 仍 0）',
+  ok('S1c chips-me：balance 1、cloud.rides 3、cloud.toNextChip 3；雲端籌碼不占錄程每日上限（today.chips 仍 0）',
     m.status === 200 && m.json.balance === 1 && same(m.json.cloud, { rides: 3, toNextChip: 3 }) && same(m.json.today, { chips: 0, cap: 4 }), m.text);
 });
 
@@ -287,7 +287,7 @@ await attempt('S2', async () => {
     same(q.cloudLedger(w, A).map(x => x.ref), [`${A}|cloud|1`, `${A}|cloud|2`]) && q.bal(w, A) === 2, JSON.stringify(q.cloudLedger(w, A)));
 });
 
-// S3 [驗收 A6] 模擬器：照寫、不算、不發。三次模擬器搭乘後：庫裡 3 列（simulator=1）、帳本 0 列、chips-me cloud.rides 0
+// S3 模擬器：照寫、不算、不發。三次模擬器搭乘後：庫裡 3 列（simulator=1）、帳本 0 列、chips-me cloud.rides 0
 await attempt('S3', async () => {
   const A = 'dev-s3aaaa01';
   const w = world({});
@@ -298,7 +298,7 @@ await attempt('S3', async () => {
   const rows = q.rides(w, A);
   ok('S3b 庫裡照寫 3 列且都 simulator=1；帳本 0 列、餘額 0', rows.length === 3 && rows.every(r => r.simulator === 1) && q.nLedger(w, A) === 0 && q.bal(w, A) === 0, JSON.stringify(rows));
   const m = await me(w, A);
-  ok('S3c [驗收 A6] chips-me 的 cloud.rides 排除模擬器（0）、toNextChip 3、balance 0', m.json.balance === 0 && same(m.json.cloud, { rides: 0, toNextChip: 3 }), m.text);
+  ok('S3c chips-me 的 cloud.rides 排除模擬器（0）、toNextChip 3、balance 0', m.json.balance === 0 && same(m.json.cloud, { rides: 0, toNextChip: 3 }), m.text);
   // 模擬器那天已經占掉那一格：同一天真機再送 → 409（PK (actor, day)）
   const r = await ride(w, mb(TODAY, { actor: A, client: APP }));
   ok('S3d 模擬器的搭乘占掉當天那一格：同一天真機再送 → 409 already_today', r.status === 409 && r.json.error === 'already_today', r.text);
@@ -425,7 +425,7 @@ await attempt('S9', async () => {
 });
 
 // ═══ T 組：車次驗證與時間窗（合成班表，逐邊界）═══════════════════════════════════
-// T1 [驗收 A7] 不存在的車：台鐵、高鐵、林鐵、格式錯誤、不認得的系統——都 400 unknown_train 且零寫入
+// T1 不存在的車：台鐵、高鐵、林鐵、格式錯誤、不認得的系統——都 400 unknown_train 且零寫入
 await attempt('T1', async () => {
   const w = world({ files: { 'tra_widget_schedule.json': TRA_FIX } });
   let n = 0;
@@ -452,7 +452,7 @@ await attempt('T1', async () => {
   await bad('trainKey 過長（>96 字）', 'mrt|BR|' + 'v'.repeat(90));
 });
 
-// T2 [驗收 A8] 台鐵：走「當天的索引」——同車次不同日的兩個版本、跨午夜、時間窗四個邊界
+// T2 台鐵：走「當天的索引」——同車次不同日的兩個版本、跨午夜、時間窗四個邊界
 await attempt('T2', async () => {
   const w = world({ files: { 'tra_widget_schedule.json': TRA_FIX } });
   let n = 0;
@@ -554,7 +554,7 @@ await attempt('X1', async () => {
   ok(`X1 [fixture] 真檔 ${D} 有可用的班次（首站 ≤ 22:13 且至少兩站）`, !!pick, D);
   const A = 'dev-x1aaaa01';
   const r = await ride(w, { actor: A, day: D, trainKey: 'tra_sched|' + pick[0], startedAt: t0(D) + pick[2][0][1] * 1000, sec: 600, requestId: nextReq(), client: APP });
-  ok(`X1a [驗收 A12] 台鐵真班表：${D} 的 ${pick[0]} 首站時間上車 → 200`, r.status === 200 && r.json.rides === 1 && q.nRides(w, A) === 1, r.text);
+  ok(`X1a 台鐵真班表：${D} 的 ${pick[0]} 首站時間上車 → 200`, r.status === 200 && r.json.rides === 1 && q.nRides(w, A) === 1, r.text);
   // 嚴格模式對真檔也成立：找一個檔內有、但 D 那天不開的車次（週間／週末班次不同）
   const onDNo = new Set(onD.map(t => t[0]));
   const other = RT.trains.find(t => !onDNo.has(t[0]));
@@ -571,7 +571,7 @@ await attempt('X2', async () => {
   const w = world({});
   const A = 'dev-x2aaaa01';
   const r = await ride(w, { actor: A, day: TODAY, trainKey: 'thsr_sched|' + no, startedAt: at(TODAY, 9), sec: 600, requestId: nextReq(), client: APP });
-  ok(`X2 [驗收 A12] 高鐵真班表（無 blob 降級）：${no} → 200`, r.status === 200 && q.nRides(w, A) === 1, r.text);
+  ok(`X2 高鐵真班表（無 blob 降級）：${no} → 200`, r.status === 200 && q.nRides(w, A) === 1, r.text);
 });
 await attempt('X3', async () => {
   const F = REAL('afr_schedule_dense.json');
@@ -580,7 +580,7 @@ await attempt('X3', async () => {
   const A = 'dev-x3aaaa01';
   ok('X3 [fixture] 真檔有可用的林鐵班次', !!t);
   const r = await ride(w, { actor: A, day: TODAY, trainKey: 'afr_sched|' + t.train, startedAt: t0(TODAY) + t.stops[0].arrSec * 1000, sec: 600, requestId: nextReq(), client: APP });
-  ok(`X3a [驗收 A12] 林鐵真班表：${t.train} 首站時間上車 → 200`, r.status === 200 && q.nRides(w, A) === 1, r.text);
+  ok(`X3a 林鐵真班表：${t.train} 首站時間上車 → 200`, r.status === 200 && q.nRides(w, A) === 1, r.text);
   const B = 'dev-x3bbbb01';
   const r2 = await ride(w, { actor: B, day: TODAY, trainKey: 'afr_sched|' + t.train, startedAt: t0(TODAY) + (t.stops[0].arrSec - 31 * 60) * 1000, sec: 600, requestId: nextReq(), client: APP });
   ok('X3b 林鐵：首站前 31 分鐘（窗外）→ 400 unknown_train', r2.status === 400 && r2.json.error === 'unknown_train' && q.nRides(w, B) === 0, r2.text);
@@ -589,7 +589,7 @@ await attempt('X4', async () => {
   const w = world({});
   const A = 'dev-x4aaaa01';
   const r = await ride(w, { actor: A, day: TODAY, trainKey: 'krtc|R|車輛-0042', startedAt: at(TODAY, 12), sec: 900, requestId: nextReq(), client: { platform: 'android', app: '1.6.13', simulator: false } });
-  ok('X4 [驗收 A12] 捷運（高雄捷運紅線、Android）→ 200，庫裡存的 sec 是 900、trainKey 原樣',
+  ok('X4 捷運（高雄捷運紅線、Android）→ 200，庫裡存的 sec 是 900、trainKey 原樣',
     r.status === 200 && q.rides(w, A).length === 1 && q.rides(w, A)[0].sec === 900 && q.rides(w, A)[0].train_key === 'krtc|R|車輛-0042', r.text);
 });
 
@@ -636,7 +636,7 @@ await attempt('G3', async () => {
 });
 await attempt('G4', async () => {
   // 合併過的匿名 token：搭乘寫在 uid 名下（resolveActor 轉向）。
-  // 稽核 F3 改寫：必須帶 uid 的 Bearer（舊版不帶任何憑證就能替別人的帳發搭乘、發籌碼）；種子也補上正式合併會留下的 uid 帳號列
+  // 改寫：必須帶 uid 的 Bearer（舊版不帶任何憑證就能替別人的帳發搭乘、發籌碼）；種子也補上正式合併會留下的 uid 帳號列
   const w = world({ env: { FIREBASE_WEB_API_KEY: 'k' } });
   w.db.prepare("INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES ('dev-g4tomb01',NULL,0,'uid-g4real0001',1)").run();
   w.db.prepare("INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES ('uid-g4real0001','uid-g4real0001',0,NULL,1)").run();
