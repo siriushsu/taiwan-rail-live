@@ -55,7 +55,8 @@ console.log('\n[1] 完整流程：進入示範旅程 → 選第一站 → 讀故
 {
   const page = await newPage(375, 740);
   await page.goto(BASE);
-  ok(await page.locator('[data-act="scan"]').count() === 3, '入口有三種 QR 模擬');
+  ok(await page.locator('.scan-list > li').count() === 3, '入口有三種 QR 模擬');
+  ok(await page.locator('[data-act="scan"][data-via="car"]').count() === 3, '車廂 QR 有三條示範路線可選');
   await page.screenshot({ path: join(shots, '01-entry.png'), fullPage: true });
 
   await tap(page, '[data-fk="scan-car"]');
@@ -70,8 +71,12 @@ console.log('\n[1] 完整流程：進入示範旅程 → 選第一站 → 讀故
   await tap(page, '[data-fk="chip-shifen"]');
   ok((await text(page, '.plate .pn')).includes('十分'), '選十分 → 站名牌換成十分');
   ok(await page.locator('#sec-stories .story').count() >= 2, '十分有 2 張以上故事卡');
-  ok(await page.locator('#sec-walk ol.steps .step').count() >= 3, '十分有散步路線（含車站與景點）');
-  const walkShifen = await text(page, '#sec-walk .lead');
+  ok(await page.locator('#sec-routes ol.steps .step').count() >= 3, '十分有推薦路線（含車站與景點）');
+  ok(await page.locator('.dhero .tagline').count() === 1 && await page.locator('#sec-highlights .hl').count() >= 3, '十分有主視覺主題句與 3 張以上亮點卡');
+  ok(await page.locator('#sec-shops .shop').count() >= 3, '十分列出 OSM 在地店家');
+  ok(await page.locator('#sec-shops .prov.sim').count() >= 1 && await page.locator('.prov-legend').count() === 1, '模擬值有標示，頁面有資料標示說明');
+  ok(await page.locator('#sec-next tbody tr').count() >= 3, '十分列出之後的班次');
+  const walkShifen = await text(page, '#sec-routes .lead');
   await page.screenshot({ path: join(shots, '03-shifen.png'), fullPage: true });
 
   const hBefore = await page.evaluate(() => history.length);
@@ -86,7 +91,7 @@ console.log('\n[1] 完整流程：進入示範旅程 → 選第一站 → 讀故
 
   await tap(page, '[data-fk="chip-pingxi"]');
   ok((await text(page, '.plate .pn')).includes('平溪'), '改選平溪 → 站名牌同步切換');
-  const walkPingxi = await text(page, '#sec-walk .lead');
+  const walkPingxi = await text(page, '#sec-routes .lead');
   ok(walkPingxi !== walkShifen, '散步建議同步切換');
   await page.screenshot({ path: join(shots, '05-pingxi.png'), fullPage: true });
 
@@ -170,6 +175,48 @@ console.log('\n[2] 網址攜帶路線／班次');
   ok((await text(page, '.plate .pn')).includes('Jingtong'), '#錨點深連結（Artifact 預覽用）帶入班次、目的站與語言');
   ok(page.errors.length === 0, `無 console 錯誤 ${page.errors.join(' | ')}`);
   await page.context().close();
+}
+
+/* ── 2b. 另外兩條示範路線 ── */
+console.log('\n[2b] 花東線、海線');
+{
+  const page = await newPage(390, 844);
+  await page.goto(BASE + '?line=huadong&train=4543');
+  const ids = await page.$$eval('#dock .chip', (els) => els.map((e) => e.dataset.id));
+  ok(!ids.includes('linrongshinkong'), `4543 不停林榮新光，目的站選擇器就不列（${ids.length} 站）`);
+  await page.goto(BASE + '?line=huadong&train=4528&dest=guangfu');
+  ok((await text(page, '.plate .pn')).includes('光復'), '花東 4528 → 光復導覽');
+  ok(await page.locator('#sec-shops .shop').count() >= 3, '光復列出 OSM 店家');
+  await page.goto(BASE + '?line=haixian&train=2527&dest=tongxiao');
+  ok((await text(page, '.plate .pn')).includes('通霄'), '海線 2527 → 通霄導覽');
+  ok((await text(page, '#jbar')).includes('往彰化'), '海線方向 往彰化');
+  ok(page.errors.length === 0, `無 console 錯誤 ${page.errors.join(' | ')}`);
+  await page.context().close();
+}
+
+/* ── 2c. 委員簡報舞台 ── */
+console.log('\n[2c] 簡報舞台 present.html');
+{
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', (e) => errs.push(String(e)));
+  page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.g/.test(m.location().url || '')) errs.push(m.text()); });
+  await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+  await page.goto(BASE + 'present.html');
+  await page.waitForFunction(() => window.__tourReady === true);
+  const n = await page.evaluate(() => window.RideTourStage.steps.length);
+  for (let k = 0; k < n; k++) { await page.evaluate((x) => window.RideTourStage.show(x), k); await page.waitForTimeout(250); }
+  ok(true, `逐一切過 ${n} 幕`);
+  const idx = await page.evaluate(() => window.RideTourStage.steps.findIndex((s) => s.id === 'dest'));
+  await page.evaluate((x) => window.RideTourStage.show(x), idx);
+  await page.waitForTimeout(900);
+  const app = page.frameLocator('#app');
+  ok((await app.locator('.plate .pn').first().innerText()).includes('十分'), '簡報第 04 幕：手機畫面切到十分');
+  await page.keyboard.press('ArrowRight'); await page.waitForTimeout(900);
+  ok(await page.evaluate(() => window.__tourStep) === idx + 1, '方向鍵切到下一幕');
+  ok(errs.length === 0, `簡報舞台無 console 錯誤 ${errs.join(' | ')}`);
+  await ctx.close();
 }
 
 /* ── 3. 各寬度：不橫捲、按鈕都有作用、觸控目標 ── */

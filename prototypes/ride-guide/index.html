@@ -183,6 +183,82 @@ main.content{padding-block:8px calc(var(--dock-h) + var(--sa-b) + 28px)}
 .jump a{flex:none;display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:var(--r-pill);border:1.5px solid var(--line);
   background:var(--paper);color:var(--ink-strong);font-size:14px;font-weight:700;text-decoration:none}
 
+.ic{width:18px;height:18px;flex:none;vertical-align:-3px}
+
+/* 目的站主視覺：照片＋疊上的琺瑯站名牌＋一句話主題 */
+.dhero{display:grid}
+.dhero-media{border-radius:var(--r-l);overflow:hidden;border:1.5px solid var(--line);aspect-ratio:4/3;background:var(--bg-stage)}
+.dhero-media img{width:100%;height:100%;object-fit:cover}
+.dhero-fallback{width:100%;height:100%;background:linear-gradient(160deg,var(--navy-soft),var(--bg-stage))}
+.dhero-body{display:grid;gap:12px;justify-items:center;text-align:center;margin-top:-58px;padding-inline:10px;position:relative}
+.dhero-body .plate{min-width:min(100%,280px)}
+.tagline{margin:4px 0 0;font-size:22px;font-weight:900;line-height:1.35;color:var(--ink-strong);text-wrap:balance;max-width:24ch}
+html[lang="en"] .tagline{font-size:20px;max-width:30ch}
+.themes{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.theme{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:800;color:var(--navy);background:var(--navy-soft);border-radius:var(--r-pill);padding:4px 11px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px;margin:0;width:100%}
+.facts div{background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-m);padding:8px 6px}
+.facts dt{font-size:12px;font-weight:800;color:var(--muted)}
+.facts dd{margin:0;font-size:17px;font-weight:900;color:var(--ink-strong);display:flex;flex-wrap:wrap;justify-content:center;align-items:baseline;gap:2px 6px}
+.facts dd small{font-size:11px;font-weight:700;color:var(--faint)}
+.credit{margin:0;font-size:11.5px;color:var(--faint);line-height:1.45}
+.credit a{color:var(--faint)}
+
+/* 資料出處標示：OSM＝綠框、模擬＝琥珀虛線框（與「已查證＋來源連結」區分） */
+.prov{display:inline-flex;align-items:center;font-size:11px;font-weight:800;line-height:1.5;border-radius:var(--r-s);padding:0 6px;white-space:nowrap;vertical-align:1px}
+.prov.osm{color:var(--ok);border:1.5px solid var(--ok)}
+.prov.sim{color:var(--warn-ink);border:1.5px dashed var(--warn-line);background:var(--warn-bg)}
+.prov-legend{margin:0;font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;justify-content:center;
+  border:1px dashed var(--line);border-radius:var(--r-m);padding:8px 10px}
+.prov-legend>span{display:inline-flex;align-items:center;gap:5px}
+.srcmark{font-weight:900;color:var(--navy)}
+
+/* 必看亮點：橫向卡片 */
+.hl-row{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px;padding:2px 16px 8px;scrollbar-width:none}
+.hl-row::-webkit-scrollbar{display:none}
+.hl{flex:none;width:min(74%,250px);scroll-snap-align:start;display:grid;grid-template-rows:auto 1fr;text-align:left;padding:0;overflow:hidden;
+  background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-l);box-shadow:var(--shadow-1)}
+.hl:active{transform:translateY(1px);box-shadow:none}
+.hl-media{display:block;aspect-ratio:16/10;background:var(--bg-stage);overflow:hidden}
+.hl-media img{width:100%;height:100%;object-fit:cover}
+.hl-tile{width:100%;height:100%;display:grid;place-items:center;color:var(--navy);background:linear-gradient(160deg,var(--navy-soft),var(--bg-stage))}
+.hl-tile .ic{width:44px;height:44px;stroke-width:1.4}
+.hl-body{display:grid;gap:4px;padding:10px 12px 12px;align-content:start}
+.hl-body b{font-size:16px;color:var(--ink-strong);line-height:1.35}
+.hl-desc{font-size:13.5px;color:var(--muted);line-height:1.5}
+.hl-meta{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;color:var(--navy)}
+.hl-meta .ic{width:14px;height:14px}
+
+/* 路線分頁、店家篩選 */
+.rtabs,.fchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.rtabs button,.fchip{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:var(--r-pill);border:1.5px solid var(--line);
+  background:var(--paper);font-weight:800;font-size:14px;color:var(--muted)}
+.rtabs button[aria-selected="true"],.fchip[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:var(--on-navy)}
+.walk-sum span{display:inline-flex;align-items:center;gap:5px}
+.walk-sum .ic{width:15px;height:15px}
+
+ol.shops{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
+.shop{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:start;border:1.5px solid var(--line-faint);border-radius:var(--r-m);padding:10px}
+.shop-n{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:900;border:2.5px solid currentColor;background:var(--paper)}
+.shop-n.cat-eat{color:var(--red)} .shop-n.cat-drink{color:var(--ok)} .shop-n.cat-buy{color:var(--warn-ink)}
+.shop-body{display:grid;gap:3px;min-width:0}
+.shop-body b{font-size:16px;color:var(--ink-strong);line-height:1.35}
+.shop-body .en{font-size:13px;color:var(--muted);font-weight:600}
+.shop-kind{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;color:var(--muted)}
+.shop-kind .ic{width:15px;height:15px}
+.shop-meta{font-size:13px;color:var(--muted)}
+.shop-osm{font-size:12px;font-weight:800;color:var(--muted);align-self:center;display:inline-flex;align-items:center;min-height:40px;min-width:40px;justify-content:center}
+table.tt.dep td{padding:8px 10px}
+table.tt.dep .type-pill{font-size:11.5px}
+
+/* 入口：車廂 QR 的三個情境 */
+.scan-opts{display:grid;gap:8px}
+.scan-opt{flex-direction:column;align-items:stretch;gap:0;min-height:56px;padding:6px 16px;border-radius:var(--r-l);text-align:left}
+.scan-opt small{font-size:12px;font-weight:600;opacity:.85}
+
+/* 簡報導覽：目前在解說的區塊 */
+.tour-focus{outline:4px solid var(--gold);outline-offset:4px;border-radius:var(--r-m);transition:outline-color .3s}
+
 figure.photo{margin:0 0 12px}
 figure.photo img{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:var(--r-m);border:1.5px solid var(--line);background:var(--bg-stage)}
 figure.photo figcaption{font-size:12px;color:var(--faint);margin-top:6px;line-height:1.45}
@@ -259,10 +335,10 @@ ol.tl>li.train-li{align-items:center;padding:0 0 14px}
 .routemap{background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-l);overflow:hidden}
 .routemap svg{display:block;width:100%;height:auto}
 .map-attr{font-size:11.5px;color:var(--faint);padding:6px 10px 8px;border-top:1px solid var(--line-faint);line-height:1.45}
-.sim{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-l);padding:10px}
-.sim .st{text-align:center;font-size:14px;line-height:1.35}
-.sim .st b{display:block;color:var(--ink-strong);font-size:15px}
-.sim button{min-width:48px;min-height:48px}
+.simctl{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-l);padding:10px}
+.simctl .st{text-align:center;font-size:14px;line-height:1.35}
+.simctl .st b{display:block;color:var(--ink-strong);font-size:15px}
+.simctl button{min-width:48px;min-height:48px}
 table.tt{width:100%;border-collapse:collapse;font-size:15px;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r-l);overflow:hidden}
 table.tt th,table.tt td{padding:9px 10px;text-align:left;border-top:1px solid var(--line-faint)}
 table.tt thead th{border-top:0;font-size:12px;color:var(--muted);font-weight:800;letter-spacing:.06em;background:var(--bg-stage)}
@@ -334,7 +410,8 @@ table.tt td .tag{margin-left:6px}
 <body>
 <div id="app" aria-live="off"></div>
 <noscript><p style="padding:16px">這個展示需要 JavaScript。</p></noscript>
-<script src="data/route-pingxi.js"></script>
+<script src="data/routes.js"></script>
+<script src="data/places.js"></script>
 <script src="data/content.js"></script>
 <script src="app.js"></script>
 </body>

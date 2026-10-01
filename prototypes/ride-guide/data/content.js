@@ -5,15 +5,13 @@
 window.RIDE_CONTENT = {
   checkedOn: '2026-10-01',
 
-  lines: { pingxi: { name: { zh: '平溪線', en: 'Pingxi Line' } } },
-
-  // 英文站名與 repo i18n/stations.json 一致
-  stationNames: {
-    badouzi: { zh: '八斗子', en: 'Badouzi' }, haikeguan: { zh: '海科館', en: 'Haikeguan' }, ruifang: { zh: '瑞芳', en: 'Ruifang' },
-    houtong: { zh: '猴硐', en: 'Houtong' }, sandiaoling: { zh: '三貂嶺', en: 'Sandiaoling' }, dahua: { zh: '大華', en: 'Dahua' },
-    shifen: { zh: '十分', en: 'Shifen' }, wanggu: { zh: '望古', en: 'Wanggu' }, lingjiao: { zh: '嶺腳', en: 'Lingjiao' },
-    pingxi: { zh: '平溪', en: 'Pingxi' }, jingtong: { zh: '菁桐', en: 'Jingtong' },
+  lines: {
+    pingxi: { name: { zh: '平溪線', en: 'Pingxi Line' }, desc: { zh: '八斗子—瑞芳—三貂嶺—菁桐直通車（深澳線、宜蘭線、平溪線）', en: 'Through trains Badouzi – Ruifang – Sandiaoling – Jingtong (Shen’ao, Yilan and Pingxi lines)' } },
+    huadong: { name: { zh: '臺東線（花東縱谷）', en: 'Taitung Line (East Rift Valley)' }, desc: { zh: '花蓮—玉里，沿花東縱谷南下', en: 'Hualien – Yuli, south through the East Rift Valley' } },
+    haixian: { name: { zh: '海線', en: 'Coast Line' }, desc: { zh: '竹南—彰化，沿台灣海峽的西部幹線海線', en: 'Zhunan – Changhua, the western main line along the Taiwan Strait' } },
   },
+
+  // 站名（中英）由 data/routes.js 提供，來源是 repo 的 i18n/stations.json
 
   sources: {
     'klzz-badouzi': { name: { zh: '基隆市中正區公所：八斗子車站', en: 'Zhongzheng District Office, Keelung: Badouzi Station (zh)' }, url: 'https://www.klzz.klcg.gov.tw/tw/klzz/973-99589.html' },
@@ -105,7 +103,29 @@ window.RIDE_CONTENT = {
     /* ═════════ 十分 ═════════ */
     shifen: {
       railisland: { zh: 'https://railisland.tw/stations/shifen/', en: 'https://railisland.tw/en/stations/shifen/' },
-      photo: 'shifen-hero',
+      hero: 'shifen-hero',
+      tagline: { zh: '火車從老街中間開過，台灣最寬的簾幕式瀑布就在附近', en: 'Trains down the old street, and Taiwan’s widest curtain waterfall nearby' },
+      themes: [{ icon: 'train', label: { zh: '火車門前過', en: 'Trains at the door' } }, { icon: 'water', label: { zh: '瀑布', en: 'Waterfall' } }, { icon: 'bridge', label: { zh: '運煤吊橋', en: 'Coal-era bridge' } }],
+      stay: { zh: '2–3 小時', en: '2–3 hours' },
+      highlights: [
+        { id: 'oldst', icon: 'train', lat: 25.04269, lon: 121.77667,
+          name: { zh: '十分老街', en: 'Shifen Old Street' },
+          teaser: { zh: '火車不時從街道中央緩緩駛過。', en: 'Trains roll slowly down the middle of the street.' },
+          desc: { zh: ['火車不時從十分老街中央緩緩駛過，形成「火車門前過」的景象。老街旁的十分廣場是每年平溪天燈節的主場之一。', '老街中間就是行車中的鐵軌，請遵照交通警示標示通行，不要隨意跨越鐵軌。'], en: ['Trains roll slowly down the middle of Shifen Old Street, right past people’s doors. Shifen Square beside it is one of the main venues of the annual Pingxi Sky Lantern Festival.', 'Live tracks run down the middle of the street. Follow the warning signs and do not cross the tracks at random.'] },
+          src: ['ntpc-shifen-oldst'] },
+        { id: 'falls', icon: 'water', photo: 'shifen-falls', lat: 25.04897, lon: 121.78746,
+          name: { zh: '十分瀑布公園', en: 'Shifen Waterfall Park' },
+          teaser: { zh: '高 20 公尺、寬 40 公尺，台灣最寬的簾幕式瀑布。', en: '20 m high and 40 m wide, Taiwan’s widest curtain waterfall.' },
+          desc: { zh: ['十分瀑布高 20 公尺、寬 40 公尺，是台灣最寬的簾幕式瀑布，有「台灣尼加拉瀑布」之稱。'], en: ['Shifen Waterfall is 20 m high and 40 m wide, the widest curtain-type waterfall in Taiwan, sometimes called “Taiwan’s Niagara”.'] },
+          travel: { text: { zh: '從老街步行約 20 分鐘', en: 'about 20 min on foot from the old street' }, src: ['ntpc-tour39'] },
+          hours: { text: { zh: '10–5 月 09:00–17:00、6–9 月 09:00–18:00；免費', en: 'Oct–May 09:00–17:00, Jun–Sep 09:00–18:00; free' }, src: ['ntpc-shifen-falls'] },
+          src: ['ntpc-shifen-area', 'ntpc-shifen-falls'] },
+        { id: 'jingan', icon: 'bridge', lat: 25.04129, lon: 121.77616,
+          name: { zh: '靜安吊橋', en: 'Jingan Suspension Bridge' },
+          teaser: { zh: '1947 年為運煤而建，全長 128 公尺。', en: 'Built in 1947 to carry coal, 128 m long.' },
+          desc: { zh: ['靜安吊橋全長 128 公尺，連接十分里與南山里，1947 年為了運送煤礦而建造。'], en: ['The Jingan Suspension Bridge is 128 m long and links Shifen and Nanshan villages. It was built in 1947 to carry coal.'] },
+          src: ['ntpc-jingan', 'pingxi-office-jingan'] },
+      ],
       intro: {
         text: {
           zh: '十分車站是平溪線的第一大站。車站周邊就是十分老街和靜安吊橋，火車不時從老街中央緩緩駛過；附近的十分瀑布高 20 公尺、寬 40 公尺，是台灣最寬的簾幕式瀑布。',
@@ -165,7 +185,6 @@ window.RIDE_CONTENT = {
         name: { zh: '老街、吊橋到十分瀑布', en: 'Old street, suspension bridge, waterfall' },
         summary: { zh: '依新北市官方推薦行程的順序', en: 'In the order of New Taipei’s official itinerary' },
         loop: true,
-        photo: 'shifen-falls',
         stops: [
           { name: { zh: '十分老街', en: 'Shifen Old Street' }, lat: 25.04269, lon: 121.77667,
             desc: { zh: '看火車從老街中央緩緩駛過。', en: 'Watch trains roll down the middle of the street.' }, src: ['ntpc-shifen-oldst'] },
@@ -212,7 +231,27 @@ window.RIDE_CONTENT = {
     /* ═════════ 平溪 ═════════ */
     pingxi: {
       railisland: { zh: 'https://railisland.tw/stations/pingxi/', en: null },
-      photo: 'pingxi-hero',
+      hero: 'pingxi-hero',
+      tagline: { zh: '放天燈的老街，火車從頭頂的鐵道橋轟隆駛過', en: 'A sky-lantern street with trains rumbling overhead' },
+      themes: [{ icon: 'lantern', label: { zh: '天燈', en: 'Sky lanterns' } }, { icon: 'train', label: { zh: '鐵道橋', en: 'Railway bridge' } }, { icon: 'mountain', label: { zh: '山城老街', en: 'Hill town' } }],
+      stay: { zh: '1–2 小時', en: '1–2 hours' },
+      highlights: [
+        { id: 'oldst', icon: 'train', lat: 25.02533, lon: 121.73882,
+          name: { zh: '平溪老街', en: 'Pingxi Old Street' },
+          teaser: { zh: '火車從老街上方高聳的鐵道橋駛過。', en: 'Trains cross a tall bridge above the street.' },
+          desc: { zh: ['每當火車通過老街上方高聳的鐵道橋，「轟隆轟隆」的聲響就是平溪老街的獨特環境音。這裡也是電影《那些年，我們一起追的女孩》放天燈許願的場景。'], en: ['When a train crosses the tall bridge above the street, its rumble is the sound of Pingxi Old Street. It is also where the leads of “You Are the Apple of My Eye” release a sky lantern.'] },
+          src: ['ntpc-pingxi-oldst', 'ntpc-tour38'] },
+        { id: 'postbox', icon: 'pin', lat: 25.02595, lon: 121.73853,
+          name: { zh: '平溪老郵筒', en: 'The old postbox' },
+          teaser: { zh: '區公所記載：相傳從日治時期用到現在。', en: 'Said by the district office to date from Japanese rule.' },
+          desc: { zh: ['平溪區公所介紹：平溪郵局前方的直立式郵筒相傳從日據時期使用至今，因為位在地勢較高的坡地而被保存下來。以上是區公所記載的相傳說法。'], en: ['The Pingxi District Office says the upright postbox in front of Pingxi Post Office is said to have been in use since Japanese rule and survived because it stands on higher ground. This is the office’s account of a local tradition.'] },
+          src: ['pingxi-office-mailbox', 'osm-pingxi-po'] },
+        { id: 'xiaozi', icon: 'mountain', lat: 25.02302, lon: 121.73945,
+          name: { zh: '孝子山', en: 'Xiaozi Mountain' },
+          teaser: { zh: '荒野探險型步道，不是輕鬆散步。', en: 'A wilderness trail, not a casual stroll.' },
+          desc: { zh: ['官方分級為「荒野探險型」步道，路線全長約 2.76 公里。'], en: ['Officially graded a “wilderness adventure” trail, about 2.76 km long.'] },
+          src: ['ntpc-xiaozi'] },
+      ],
       intro: {
         text: {
           zh: '平溪車站早年稱為「石底驛」。出站沿著中華街往下走就是平溪老街，火車從老街上方高聳的鐵道橋轟隆駛過；這裡也是電影《那些年，我們一起追的女孩》男女主角放天燈許願的場景。',
@@ -315,7 +354,33 @@ window.RIDE_CONTENT = {
     /* ═════════ 菁桐 ═════════ */
     jingtong: {
       railisland: { zh: 'https://railisland.tw/stations/jingtong/', en: 'https://railisland.tw/en/stations/jingtong/' },
-      photo: 'jingtong-hero',
+      hero: 'jingtong-hero',
+      tagline: { zh: '平溪線終點：木造古蹟車站與安靜的礦業小鎮', en: 'End of the line: a wooden heritage station and a quiet mining town' },
+      themes: [{ icon: 'shrine', label: { zh: '古蹟車站', en: 'Heritage station' } }, { icon: 'factory', label: { zh: '礦業遺跡', en: 'Mining heritage' } }, { icon: 'train', label: { zh: '終點站', en: 'End of the line' } }],
+      stay: { zh: '1–2 小時', en: '1–2 hours' },
+      highlights: [
+        { id: 'station', icon: 'shrine', photo: 'jingtong-hero', lat: 25.0238742, lon: 121.7239214,
+          name: { zh: '菁桐車站', en: 'Jingtong Station' },
+          teaser: { zh: '1929 年興建的木造站房，市定古蹟。', en: 'A 1929 wooden station, now a municipal monument.' },
+          desc: { zh: ['1929 年臺灣總督府鐵道部買下平溪線後，同年興建菁桐車站；2003 年指定為縣定古蹟，今為新北市市定古蹟。站內仍保有路牌閉塞器設施。'], en: ['The Railway Department bought the Pingxi Line in 1929 and built Jingtong Station that year. It was designated a monument in 2003 and still has its token block instruments.'] },
+          src: ['nchdb-jingtong-stn'] },
+        { id: 'museum', icon: 'factory', lat: 25.02396, lon: 121.72429,
+          name: { zh: '菁桐礦業生活館', en: 'Mining Industry Life Pavilion' },
+          teaser: { zh: '出站左轉就到，免費參觀。', en: 'Left out of the station; free.' },
+          desc: { zh: ['介紹菁桐礦業與礦工生活的展館，在菁桐車站下車，出車站左轉步行可達。'], en: ['A small museum of Jingtong’s mining life. Turn left out of the station.'] },
+          hours: { text: { zh: '週二至週日 09:30–17:00；週一、國定假日休館（來源頁 2021 年更新）', en: 'Tue–Sun 09:30–17:00; closed Mondays and national holidays (source page updated 2021)' }, src: ['museum-jingtong'] },
+          src: ['museum-jingtong', 'ntpc-mining-hall'] },
+        { id: 'coal', icon: 'factory', lat: 25.02484, lon: 121.72446,
+          name: { zh: '菁桐煤礦紀念公園', en: 'Jingtong Coal Memorial Park' },
+          teaser: { zh: '選洗煤場、石底大斜坑遺址。', en: 'Coal preparation plant and the Shidi inclined shaft.' },
+          desc: { zh: ['園區有選洗煤場、總辦事處遺址與石底大斜坑遺址。菁桐車站、選洗煤場與平溪招待所，在 2001 年被列入文建會「臺灣歷史百景」。'], en: ['The park holds the coal preparation plant, the former head office site and the Shidi inclined shaft. The station, the plant and the guest house were listed among Taiwan’s 100 historic scenes in 2001.'] },
+          src: ['ntpc-coal-park', 'ntpc-mining-hall'] },
+        { id: 'guesthouse', icon: 'shrine', lat: 25.022536, lon: 121.722198,
+          name: { zh: '平溪招待所（石底俱樂部）', en: 'Pingxi Guest House (Shidi Club)' },
+          teaser: { zh: '1939 年起建，西式玄關、和式貴賓室。', en: 'Built from 1939; Western entrance, Japanese guest rooms.' },
+          desc: { zh: ['臺陽公司的平溪招待所又稱「石底俱樂部」，1939 年開始興建，供職員休閒住宿與招待貴賓；今為新北市市定古蹟。入內參觀的方式待查核。'], en: ['Taiyang’s guest house, the Shidi Club, was begun in 1939 for staff and important guests. It is a municipal monument; current visiting arrangements are not yet verified.'] },
+          src: ['nchdb-guesthouse'] },
+      ],
       intro: {
         text: {
           zh: '菁桐是平溪線的終點站，比十分、平溪安靜。緊鄰老街的日式木造菁桐車站是市定古蹟；這裡出產的石底煤品質優良，曾被稱為「臺灣煤」的代表。',

@@ -1,27 +1,36 @@
 /* 軌島「乘車導覽模式」互動展示原型。
- * 不連任何即時 API：班次與停靠站來自 data/route-pingxi.js（臺鐵開放資料時刻表快照），
- * 列車位置是依時刻表手動推進的「示範位置」，地方內容來自 data/content.js（每則附來源）。
+ * 不連任何即時 API：班次與停靠站來自 data/routes.js（臺鐵開放資料時刻表快照），
+ * 列車位置是依時刻表手動推進的「示範位置」，地方內容來自 data/content.js（每則附來源），
+ * 店家來自 data/places.js（OpenStreetMap）。缺的欄位以「模擬」值補上並在畫面標示。
  * 狀態分兩種：
  *   導航狀態（畫面／路線／班次／覆蓋層）走 history，返回鍵可以一層層退；
  *   旅程狀態（目的站／語言／分頁／示範位置）不進 history——返回關掉地圖或故事時，選擇不會被倒回去。 */
 (function () {
   'use strict';
 
-  const ROUTE = window.RIDE_ROUTE;
+  const DATA = window.RIDE_ROUTES;
   const C = window.RIDE_CONTENT;
+  const PLACES = window.RIDE_PLACES || { stations: {} };
   const app = document.getElementById('app');
   // 資料檔沒載到時不要留白畫面：直接說哪裡壞了
-  if (!ROUTE || !C) {
-    app.innerHTML = '<p style="padding:24px 16px;max-width:40em">示範資料沒有載入（data/route-pingxi.js 或 data/content.js）。請重新整理頁面。<br>The demo data did not load. Please reload the page.</p>';
+  if (!DATA || !C) {
+    app.innerHTML = '<p style="padding:24px 16px;max-width:40em">示範資料沒有載入（data/routes.js 或 data/content.js）。請重新整理頁面。<br>The demo data did not load. Please reload the page.</p>';
     return;
   }
   const sheetRoot = document.createElement('div');
   document.body.appendChild(sheetRoot);
 
-  const LINE = 'pingxi';
-  const TRAINS = Object.fromEntries(ROUTE.trains.map((t) => [t.no, t]));
-  // 示範情境：車廂 QR 通常在剛上車時被掃到——往菁桐的車剛離開瑞芳（台北來的旅客在這裡轉乘），回程剛離開菁桐。
-  const START = { 4816: 'ruifang', 4827: 'jingtong' };
+  const LINES = Object.keys(DATA.routes);
+  const TRAINS = {};
+  const NAMES = {};
+  for (const [line, r] of Object.entries(DATA.routes)) {
+    r.trains.forEach((tr) => { TRAINS[tr.no] = { ...tr, line }; });
+    for (const [id, st] of Object.entries(r.stations)) NAMES[id] = { zh: st.zh, en: st.en };
+  }
+  // 示範情境：車廂 QR 通常在剛上車時被掃到——往菁桐的車剛離開瑞芳（台北來的旅客在這裡轉乘）；其他班次從起站剛開出。
+  const START = { 4816: 'ruifang' };
+  // 入口的「車廂 QR」：每條示範路線一班
+  const CAR_QR = [{ line: 'pingxi', train: '4816', fk: 'scan-car' }, { line: 'huadong', train: '4528', fk: 'scan-car-huadong' }, { line: 'haixian', train: '2527', fk: 'scan-car-haixian' }];
   const mqDesk = matchMedia('(min-width:1080px)');
   const mqReduce = matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -35,14 +44,13 @@
       entryEyebrow: 'RAIL ISLAND · 乘車導覽模式',
       entryTitle: '掃車廂 QR code，看這趟車目的站的地方故事',
       entryLead: '這是給鐵道業者、觀光單位與地方內容伙伴看的互動展示。旅客掃 QR code 後，依這班車的目的站切換地方介紹、歷史文化、散步建議和下車交通。下面三種 QR 模擬不同的進入方式。',
-      scanCarT: '車廂 QR', scanCarD: '帶路線與班次，直接進入這趟旅程。',
+      scanCarT: '車廂 QR', scanCarD: '帶路線與班次，直接進入這趟旅程。三條示範路線各有一班：',
       scanPlatT: '月台 QR', scanPlatD: '只帶路線，進入後選班次。',
       scanBareT: '一般連結', scanBareD: '沒有帶資訊，進入後選路線與班次。',
       scanBtn: '模擬掃描',
       qrNote: '示意，不可掃',
       aboutBtn: '關於這個展示：哪些是示範資料',
-      routeTitle: '選擇路線', routeLead: '第一版只做一條示範路線。',
-      routeName: '平溪線', routeDesc: '八斗子—瑞芳—三貂嶺—菁桐直通車（行經深澳線、宜蘭線、平溪線）',
+      routeTitle: '選擇路線', routeLead: '三條示範路線：北部支線、花東縱谷、西部海線。',
       trainTitle: '選擇班次',
       trainLead: (r) => `只列出示範資料裡的班次。時刻取自臺鐵開放資料，${r} 每日行駛。`,
       back: '返回',
@@ -61,8 +69,8 @@
       chooseTitle: '你要在哪一站下車？',
       chooseLead: '從畫面下方選目的站。這裡會換成那一站的介紹、故事、散步建議和下車交通。',
       chooseQuick: '這班車接下來會停、而且有導覽內容的站：',
-      sec: { intro: '認識這裡', stories: '歷史與文化', walk: '下車怎麼逛', access: '怎麼抵達', practical: '實用資訊', sources: '本站資料來源' },
-      secEn: { intro: 'About', stories: 'History & culture', walk: 'Walk', access: 'Getting there', practical: 'Good to know', sources: 'Sources' },
+      sec: { intro: '認識這裡', highlights: '必看亮點', routes: '推薦路線', shops: '在地店家', stories: '文化故事', next: '下一班車', access: '怎麼抵達', practical: '實用資訊', sources: '本站資料來源' },
+      secEn: { intro: 'About', highlights: 'Highlights', routes: 'Routes', shops: 'Local shops', stories: 'Culture', next: 'Next trains', access: 'Getting there', practical: 'Good to know', sources: 'Sources' },
       readMore: '閱讀全文 ›',
       source: '來源',
       checked: (d) => `查核日期 ${d}`,
@@ -118,6 +126,36 @@
       sourcesH: '來源',
       aboutTitle: '關於這個展示',
       tbd: '待補',
+      entryPlateL: '三條示範路線',
+      guidesAt: (x) => `導覽站：${x}`,
+      stopsCount: (n) => `停靠 ${n} 站`,
+      changeNote: '時間與班次可能變動，出發前請以官方來源為準。',
+      osmAttr: (d) => `店家資料：© OpenStreetMap 貢獻者（${d} 擷取）`,
+      factArr: '到站', factLeft: '距離', factStay: '建議停留',
+      stopsShort: (n) => `還有 ${n} 站`,
+      legendLead: '資料標示：',
+      legendSrc: '已查證，附來源',
+      legendOsm: '地圖資料，未逐一查證',
+      legendSim: '模擬值，正式版由業者或地圖服務提供',
+      provSim: '模擬',
+      meters: (n) => `${n} 公尺`, km: (n) => `${n} 公里`,
+      fromStation: (d) => `距車站 ${d}`,
+      fromStationH: '距車站（直線）',
+      hlNote: '距離為座標直線距離。點卡片看介紹與來源。',
+      mode: { walk: '步行', bike: '單車', bus: '公車' },
+      totalAbout: (m) => `合計約 ${m} 分鐘`,
+      legMode: (label, m) => `${label}約 ${m} 分鐘`,
+      cat: { all: '全部', eat: '吃', drink: '喝', buy: '買' },
+      shopsLead: (n) => `車站 1.5 公里內，地圖上有名字的在地店家 ${n} 家，依距離排序。`,
+      hours: '營業時間',
+      showAll: (n) => `顯示全部 ${n} 家`, showLess: '收合',
+      shopsNote: (d) => `店名與位置取自 OpenStreetMap（${d} 擷取），不是廣告，也沒有付費排序；營業時間標「模擬」的是示範值。連鎖超商與速食已排除。`,
+      kind: { restaurant: '餐廳', fast_food: '小吃', food_court: '美食街', cafe: '咖啡・茶飲', ice_cream: '冰品', bar: '酒吧', bakery: '麵包', confectionery: '糕餅', tea: '茶葉', gift: '伴手禮', farm: '農產', deli: '熟食', pastry: '糕點', beverages: '飲料', souvenir: '紀念品', craft: '工藝', seafood: '海產', greengrocer: '蔬果' },
+      cuisine: { breakfast: '早餐', taiwanese: '台菜', chinese: '中式', noodle: '麵食', amis: '阿美族料理', vietnamese: '越式', brunch: '早午餐', coffee_shop: '咖啡', bubble_tea: '手搖飲', ice_cream: '冰品', regional: '在地料理', vegetarian: '素食', '港式': '港式' },
+      nextLead: (t, d) => `示範列車 ${t} 到站後，從本站開出的班次（示範日 ${d} 時刻表）。`,
+      depTime: '開車', depTrain: '車次', depTo: '往',
+      typeName: { 區間車: '區間車', 區間快: '區間快', 自強: '自強', '莒光/復興': '莒光' },
+      hlOf: (x) => `${x}・必看亮點`,
     },
     en: {
       htmlLang: 'en',
@@ -127,14 +165,13 @@
       entryEyebrow: 'RAIL ISLAND · RIDE GUIDE MODE',
       entryTitle: 'Scan the QR code on board and read about where this train is taking you',
       entryLead: 'An interactive demo for rail operators, tourism bodies and local content partners. After scanning, riders see an introduction, history, a short walk and onward transport for the stop they choose on this train. The three QR codes below simulate different ways in.',
-      scanCarT: 'In-car QR', scanCarD: 'Carries the line and the train. Opens this journey directly.',
+      scanCarT: 'In-car QR', scanCarD: 'Carries the line and the train and opens the journey directly. One train per demo line:',
       scanPlatT: 'Platform QR', scanPlatD: 'Carries the line only. Pick a train next.',
       scanBareT: 'Plain link', scanBareD: 'Carries nothing. Pick a line and a train.',
       scanBtn: 'Simulate scan',
       qrNote: 'Mock-up, not scannable',
       aboutBtn: 'About this demo: what is sample data',
-      routeTitle: 'Choose a line', routeLead: 'This first version covers one demo line.',
-      routeName: 'Pingxi Line', routeDesc: 'Through trains Badouzi – Ruifang – Sandiaoling – Jingtong (Shen’ao, Yilan and Pingxi lines)',
+      routeTitle: 'Choose a line', routeLead: 'Three demo lines: a northern branch line, the East Rift Valley and the west coast.',
       trainTitle: 'Choose a train',
       trainLead: (r) => `Only trains in the demo data are listed. Times come from TRA open data and run daily ${r}.`,
       back: 'Back',
@@ -153,8 +190,8 @@
       chooseTitle: 'Where are you getting off?',
       chooseLead: 'Pick a stop at the bottom of the screen. This area switches to that stop’s introduction, stories, walk and onward transport.',
       chooseQuick: 'Upcoming stops on this train that have a guide:',
-      sec: { intro: 'About this place', stories: 'History & culture', walk: 'A short walk', access: 'Getting there', practical: 'Good to know', sources: 'Sources for this stop' },
-      secEn: { intro: '', stories: '', walk: '', access: '', practical: '', sources: '' },
+      sec: { intro: 'About this place', highlights: 'Highlights', routes: 'Suggested routes', shops: 'Local shops', stories: 'Culture & stories', next: 'Next trains', access: 'Getting there', practical: 'Good to know', sources: 'Sources for this stop' },
+      secEn: {},
       readMore: 'Read ›',
       source: 'Source',
       checked: (d) => `Checked ${d}`,
@@ -210,6 +247,36 @@
       sourcesH: 'Sources',
       aboutTitle: 'About this demo',
       tbd: 'to be added',
+      entryPlateL: 'Three demo lines',
+      guidesAt: (x) => `Guides: ${x}`,
+      stopsCount: (n) => `${n} stops`,
+      changeNote: 'Hours and schedules change. Check the official source before you go.',
+      osmAttr: (d) => `Shop data: © OpenStreetMap contributors (fetched ${d})`,
+      factArr: 'Arrives', factLeft: 'Distance', factStay: 'Suggested stay',
+      stopsShort: (n) => `${n} stops`,
+      legendLead: 'Data labels: ',
+      legendSrc: 'verified, with source',
+      legendOsm: 'map data, not individually checked',
+      legendSim: 'simulated; the real version would come from partners or a map service',
+      provSim: 'Simulated',
+      meters: (n) => `${n} m`, km: (n) => `${n} km`,
+      fromStation: (d) => `${d} from the station`,
+      fromStationH: 'From the station (straight line)',
+      hlNote: 'Distances are straight lines between coordinates. Tap a card for details and sources.',
+      mode: { walk: 'Walk', bike: 'Bike', bus: 'Bus' },
+      totalAbout: (m) => `About ${m} min in total`,
+      legMode: (label, m) => `${label} about ${m} min`,
+      cat: { all: 'All', eat: 'Eat', drink: 'Drink', buy: 'Shop' },
+      shopsLead: (n) => `${n} named local shops within 1.5 km of the station on the map, nearest first.`,
+      hours: 'Hours',
+      showAll: (n) => `Show all ${n}`, showLess: 'Show fewer',
+      shopsNote: (d) => `Names and locations from OpenStreetMap (fetched ${d}). Not advertising, no paid ranking. Hours marked “Simulated” are demo values. Chain convenience stores and fast food are excluded.`,
+      kind: { restaurant: 'Restaurant', fast_food: 'Quick eats', food_court: 'Food court', cafe: 'Café & drinks', ice_cream: 'Ice cream', bar: 'Bar', bakery: 'Bakery', confectionery: 'Sweets', tea: 'Tea', gift: 'Gifts', farm: 'Farm produce', deli: 'Deli', pastry: 'Pastries', beverages: 'Drinks', souvenir: 'Souvenirs', craft: 'Crafts', seafood: 'Seafood', greengrocer: 'Greengrocer' },
+      cuisine: { breakfast: 'breakfast', taiwanese: 'Taiwanese', chinese: 'Chinese', noodle: 'noodles', amis: 'Amis cuisine', vietnamese: 'Vietnamese', brunch: 'brunch', coffee_shop: 'coffee', bubble_tea: 'bubble tea', ice_cream: 'ice cream', regional: 'local', vegetarian: 'vegetarian', '港式': 'Hong Kong style' },
+      nextLead: (t, d) => `Departures from this station after the demo train arrives at ${t} (timetable for the demo day, ${d}).`,
+      depTime: 'Dep.', depTrain: 'Train', depTo: 'To',
+      typeName: { 區間車: 'Local', 區間快: 'Fast Local', 自強: 'Tze-Chiang', '莒光/復興': 'Chu-Kuang' },
+      hlOf: (x) => `${x} · Highlights`,
     },
   };
 
@@ -220,6 +287,8 @@
     notice: null,           // 一次性提示 {kind:'info'|'warn', text: fn(lang)}
     entryVia: null,         // 'car' | 'platform' | 'bare' | 'url'
     under: null,            // 故事面板開在地圖上時記住底下是地圖
+    routeTab: 0, shopCat: 'all', shopAll: false,
+    tour: false,            // 簡報導覽驅動中：不寫入 history，避免示範時返回鍵退出頁面
   };
   let busyUntil = 0;
   let lastFocusKey = null;
@@ -228,15 +297,16 @@
   const L = (o) => (o == null ? '' : typeof o === 'string' ? o : (o[state.lang] ?? o.zh ?? ''));
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const hhmm = (sec) => { const s = ((sec % 86400) + 86400) % 86400; return `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}`; };
-  const stName = (id) => L(C.stationNames[id]) || id;
+  const stName = (id) => L(NAMES[id]) || id;
+  const route = () => DATA.routes[state.line] || DATA.routes[(TRAINS[state.train] || {}).line];
   const train = () => TRAINS[state.train];
   const stops = () => train().stops;
   const idxOf = (id) => stops().findIndex((s) => s.id === id);
   const terminal = () => stops()[stops().length - 1];
   const dirText = () => T().to(stName(terminal().id));
-  const lineName = () => L(C.lines[LINE].name);
+  const lineName = () => L(C.lines[state.line].name);
   const fmtRange = () => {
-    const [a, b] = ROUTE.scheduleRange;
+    const [a, b] = DATA.scheduleRange;
     return state.lang === 'en' ? `${a} – ${b}` : `${a.replace(/-/g, '/')}～${b.slice(5).replace('-', '/')}`;
   };
   const isDesk = () => mqDesk.matches;
@@ -257,7 +327,7 @@
   function parseLocation() {
     const out = {};
     const q = new URLSearchParams(location.search);
-    for (const k of ['line', 'train', 'dest', 'lang', 'view']) if (q.get(k)) out[k] = q.get(k).trim();
+    for (const k of ['line', 'train', 'dest', 'lang', 'view', 'tour']) if (q.get(k)) out[k] = q.get(k).trim();
     // Artifact 預覽只帶得進 #純字元錨點：#pingxi-4816-shifen-en 這種逐段比對
     const h = location.hash.replace(/^#/, '');
     if (h && /^[A-Za-z0-9._~-]+$/.test(h)) {
@@ -265,7 +335,7 @@
         const k = tok.toLowerCase();
         if (C.lines[k]) out.line = k;
         else if (/^\d{3,5}$/.test(k)) out.train = k;
-        else if (C.stationNames[k]) out.dest = k;
+        else if (NAMES[k]) out.dest = k;
         else if (k === 'en' || k === 'zh') out.lang = k;
         else if (k === 'along') out.view = 'along';
       }
@@ -288,7 +358,7 @@
   }
 
   function writeHistory(entry, replace) {
-    const fn = replace ? 'replaceState' : 'pushState';
+    const fn = replace || state.tour ? 'replaceState' : 'pushState';
     try { history[fn](entry, '', urlFor(entry)); return; } catch (e) { /* 沙盒或 file:// 不給改網址 */ }
     try { history[fn](entry, ''); } catch (e) { /* 連 state 都不給就只靠頁內返回鈕 */ }
   }
@@ -347,7 +417,7 @@
     } else if (!params.train) {
       if (via === 'platform') state.notice = { kind: 'info', text: (t) => t.fromPlat(L(C.lines[params.line].name)) };
       nav = { screen: 'train', line: params.line };
-    } else if (!TRAINS[params.train]) {
+    } else if (!TRAINS[params.train] || TRAINS[params.train].line !== params.line) {
       state.notice = { kind: 'warn', text: (t) => t.badTrain(params.train) };
       nav = { screen: 'train', line: params.line };
     } else {
@@ -375,6 +445,7 @@
     state.dest = id;
     state.view = 'guide';
     state.notice = null;
+    state.routeTab = 0; state.shopCat = 'all'; state.shopAll = false;
     paintJourney({ fade: true });
     scrollToContent();
     syncUrl();
@@ -490,6 +561,9 @@
       case 'step': step(Number(el.dataset.dir)); break;
       case 'move-before': moveBefore(el.dataset.id); break;
       case 'dismiss': state.notice = null; paintJourney({}); break;
+      case 'route-tab': state.routeTab = Number(el.dataset.i) || 0; paintJourney({}); break;
+      case 'shop-cat': if (state.shopCat !== el.dataset.cat) { state.shopCat = el.dataset.cat; state.shopAll = false; paintJourney({}); } break;
+      case 'shop-all': state.shopAll = !state.shopAll; paintJourney({}); break;
       default: break;
     }
   }
@@ -545,10 +619,17 @@
   function entryScreen() {
     const t = T();
     const base = 'railisland.tw/ride/';
+    const carBtns = CAR_QR.map((c, i) => {
+      const tr = TRAINS[c.train];
+      const last = tr.stops[tr.stops.length - 1].id;
+      const guides = tr.stops.filter((x) => hasGuide(x.id)).map((x) => stName(x.id)).join(state.lang === 'en' ? ', ' : '・');
+      return `<button class="btn ${i === 0 ? 'primary' : ''} block scan-opt" data-act="scan" data-via="car" data-query="line=${c.line}&amp;train=${c.train}" data-fk="${c.fk}">
+        <span>${esc(L(C.lines[c.line].name))} <span class="num">${c.train}</span> ${esc(t.to(stName(last)))}</span><small>${esc(t.guidesAt(guides))}</small></button>`;
+    }).join('');
     const scans = [
-      { via: 'car', q: `line=${LINE}&train=4816`, title: t.scanCarT, desc: t.scanCarD, primary: true },
-      { via: 'platform', q: `line=${LINE}`, title: t.scanPlatT, desc: t.scanPlatD },
-      { via: 'bare', q: '', title: t.scanBareT, desc: t.scanBareD },
+      { via: 'car', title: t.scanCarT, desc: t.scanCarD, code: `${base}?line=pingxi&train=4816`, body: `<div class="scan-opts">${carBtns}</div>` },
+      { via: 'platform', title: t.scanPlatT, desc: t.scanPlatD, code: `${base}?line=huadong`, body: `<button class="btn block" data-act="scan" data-via="platform" data-query="line=huadong" data-fk="scan-platform">${esc(t.scanBtn)}：${esc(t.scanPlatT)}</button>` },
+      { via: 'bare', title: t.scanBareT, desc: t.scanBareD, code: base, body: `<button class="btn block" data-act="scan" data-via="bare" data-query="" data-fk="scan-bare">${esc(t.scanBtn)}：${esc(t.scanBareT)}</button>` },
     ];
     return `<div class="wrap entry" data-screen="entry">
       <div class="entry-head">
@@ -556,7 +637,7 @@
           <span class="eyebrow">${esc(t.entryEyebrow)}</span>${langToggle()}
         </div>
         <div class="plate" aria-hidden="true"><div class="pn">${state.lang === 'en' ? 'Ride Guide' : '乘車導覽'}</div><div class="ps">Rail Island</div>
-          <div class="plate-foot"><span>◀ ${esc(L(C.lines[LINE].name))}</span><span>${esc(t.demoShort)} ▶</span></div></div>
+          <div class="plate-foot"><span>◀ ${esc(t.entryPlateL)}</span><span>${esc(t.demoShort)} ▶</span></div></div>
         <h1 style="font-size:24px;line-height:1.35">${esc(t.entryTitle)}</h1>
         <p>${esc(t.entryLead)}</p>
         <span><span class="demo-badge">${esc(t.demoBadge)}</span></span>
@@ -568,8 +649,8 @@
           <div style="min-width:0">
             <h3>${esc(s.title)}</h3>
             <p>${esc(s.desc)}</p>
-            <code>${esc(base)}${s.q ? '?' + esc(s.q) : ''}</code>
-            <button class="btn ${s.primary ? 'primary' : ''} block" data-act="scan" data-via="${s.via}" data-query="${esc(s.q)}" data-fk="scan-${s.via}">${esc(t.scanBtn)}：${esc(s.title)}</button>
+            <code>${esc(s.code)}</code>
+            ${s.body}
           </div></li>`).join('')}
       </ul>
       <p class="foot-note"><button class="btn ghost small" data-act="about" data-fk="about-entry">ⓘ ${esc(t.aboutBtn)}</button></p>
@@ -583,24 +664,28 @@
       ${noticeHtml()}
       <h2>${esc(t.routeTitle)}</h2>
       <p style="margin:0;color:var(--muted)">${esc(t.routeLead)}</p>
-      <ul class="pick-list"><li><button class="pick" data-act="pick-line" data-line="${LINE}" data-fk="line-${LINE}">
-        <b>${esc(t.routeName)}</b><span class="meta">${esc(t.routeDesc)}</span></button></li></ul>
+      <ul class="pick-list">${LINES.map((l) => {
+        const guides = Object.keys(DATA.routes[l].stations).filter(hasGuide).map(stName).join(state.lang === 'en' ? ', ' : '・');
+        return `<li><button class="pick" data-act="pick-line" data-line="${l}" data-fk="line-${l}">
+          <b>${esc(L(C.lines[l].name))}</b><span class="meta">${esc(L(C.lines[l].desc))}</span><span class="meta">${esc(t.guidesAt(guides))}</span></button></li>`;
+      }).join('')}</ul>
       <p class="foot-note"><span class="demo-badge">${esc(t.demoBadge)}</span></p>
     </div>`;
   }
 
   function trainScreen() {
     const t = T();
-    const list = ROUTE.trains.map((tr) => {
+    const list = DATA.routes[state.line].trains.map((tr) => {
       const a = tr.stops[0], b = tr.stops[tr.stops.length - 1];
       return `<li><button class="pick" data-act="pick-train" data-train="${tr.no}" data-fk="train-${tr.no}">
-        <span class="row"><span class="type-pill">${esc(state.lang === 'en' ? 'Local' : tr.type)}</span><b class="num">${tr.no}</b><b>${esc(t.to(stName(b.id)))}</b><span class="demo-badge">${esc(t.demoShort)}</span></span>
-        <span class="meta num">${esc(t.runs(stName(a.id), hhmm(a.dep), stName(b.id), hhmm(b.arr)))}</span></button></li>`;
+        <span class="row"><span class="type-pill">${esc(state.lang === 'en' ? (t.typeName[tr.type] || tr.type) : tr.type)}</span><b class="num">${tr.no}</b><b>${esc(t.to(stName(b.id)))}</b><span class="demo-badge">${esc(t.demoShort)}</span></span>
+        <span class="meta num">${esc(t.runs(stName(a.id), hhmm(a.dep), stName(b.id), hhmm(b.arr)))}</span>
+        <span class="meta">${esc(t.stopsCount(tr.stops.length))}</span></button></li>`;
     }).join('');
     return `<div class="wrap entry" data-screen="train">
       <div class="back-row"><button class="btn small" data-act="back" data-fk="back">‹ ${esc(t.back)}</button><span style="flex:1"></span>${langToggle()}</div>
       ${noticeHtml()}
-      <h2>${esc(t.trainTitle)}・${esc(t.routeName)}</h2>
+      <h2>${esc(t.trainTitle)}・${esc(lineName())}</h2>
       <p style="margin:0;color:var(--muted)">${esc(t.trainLead(fmtRange()))}</p>
       <ul class="pick-list">${list}</ul>
     </div>`;
@@ -719,7 +804,7 @@
         </div>
         ${isDesk() ? `<div class="strip" aria-hidden="true">${strip}</div>`
           : `<button class="strip" data-act="map-open" data-fk="strip" aria-label="${esc(t.mapBtnLong)}">${strip}</button>`}
-        <p class="basis">${esc(t.basis(ROUTE.scheduleSnapshot))}</p>
+        <p class="basis">${esc(t.basis(DATA.scheduleSnapshot))}</p>
         <p class="about-row"><button class="btn ghost small" data-act="about" data-fk="about-card">ⓘ ${esc(t.aboutTitle)}</button></p>
       </section>`;
   }
@@ -776,76 +861,270 @@
       <div class="chips" role="group" aria-label="${esc(t.dockLabel)}">${chips}<span class="chips-end"></span></div></div>`;
   }
 
-  /* ───────── 目的站導覽 ───────── */
+  /* ───────── 目的站導覽 ─────────
+   * 觀光網站式的閱讀順序：主視覺（站名牌＋一句話主題）→ 認識這裡 → 必看亮點 → 推薦路線 → 在地店家
+   * → 文化故事 → 下一班車 → 怎麼抵達 → 實用資訊 → 來源。
+   * 每一筆資料都標出處：來源連結＝已查證；OSM＝地圖資料（未逐一查證）；模擬＝示範假設值。 */
   function guideHtml() {
     const t = T();
     if (!state.dest) return chooseHtml();
     const id = state.dest;
     const s = C.stations[id];
-    const i = idxOf(id);
-    const passed = i <= state.pos;
-    let h = `<div class="view">`;
-    h += plateBlock(id);
-    if (passed) {
-      h += `<div class="pass-note" role="status"><b>${esc(t.passedTitle(stName(id)))}</b><span>${esc(t.passedLead(stName(id)))}</span>
-        <span><button class="btn small" data-act="move-before" data-id="${id}" data-fk="move-before">${esc(t.passedBtn(stName(id)))}</button></span></div>`;
-    }
-    if (!s) return h + noGuideHtml(id) + '</div>';
+    const passed = idxOf(id) <= state.pos;
+    let h = '<div class="view">';
+    if (!s) return h + plateBlock(id) + (passed ? passNote(id) : '') + noGuideHtml(id) + '</div>';
+
+    h += heroHtml(id, s);
+    if (passed) h += passNote(id);
+    const shops = shopsFor(id);
+    const routes = routesOf(s);
+    const nexts = nextDepartures(id);
+    const keys = [
+      ['intro', 1], ['highlights', (s.highlights || []).length], ['routes', routes.length], ['shops', shops.length],
+      ['stories', (s.stories || []).length], ['next', nexts.length], ['access', (s.access || []).length], ['practical', (s.practical || []).length],
+    ].filter(([, n]) => n).map(([k]) => k);
+    h += `<nav class="jump" aria-label="${esc(stName(id))}">${keys.map((k) => `<a href="#sec-${k}" data-act="jump" data-target="sec-${k}">${esc(t.sec[k])}</a>`).join('')}</nav>`;
 
     const sec = (key, inner, extra = '') => `<section class="card" id="sec-${key}" aria-labelledby="h-${key}">
-      <div class="sec-h"><h2 id="h-${key}">${esc(t.sec[key])}</h2>${t.secEn[key] ? `<span class="en">${esc(t.secEn[key])}</span>` : ''}${extra}</div>${inner}</section>`;
+      <div class="sec-h"><h2 id="h-${key}">${esc(t.sec[key])}</h2>${extra || (t.secEn[key] ? `<span class="en">${esc(t.secEn[key])}</span>` : '')}</div>${inner}</section>`;
 
-    const jumps = [['intro', 1], ['stories', s.stories && s.stories.length], ['walk', 1], ['access', 1], ['practical', s.practical && s.practical.length]]
-      .filter(([, ok]) => ok).map(([k]) => `<a href="#sec-${k}" data-act="jump" data-target="sec-${k}">${esc(t.sec[k])}</a>`).join('');
-    h += `<nav class="jump" aria-label="${esc(stName(id))}">${jumps}</nav>`;
-
-    // 認識這裡
-    h += sec('intro', `${photoFigure(s.photo)}<p class="lead">${esc(L(s.intro.text))}</p>${srcLine(s.intro.src)}`);
-
-    // 歷史與文化
-    if (s.stories && s.stories.length) {
+    h += sec('intro', `<p class="lead">${esc(L(s.intro.text))}</p>${srcLine(s.intro.src)}`);
+    if (keys.includes('highlights')) h += sec('highlights', highlightsHtml(id, s));
+    if (keys.includes('routes')) h += sec('routes', routesHtml(id, routes));
+    if (keys.includes('shops')) h += sec('shops', shopsHtml(id, shops), `<span class="prov osm">OSM</span>`);
+    if (keys.includes('stories')) {
       h += sec('stories', `<div class="stories">${s.stories.map((st) => `<button class="story" data-act="story" data-kind="station-story" data-id="${id}:${st.id}" data-fk="story-${id}-${st.id}">
         <b>${esc(L(st.title))}</b><span>${esc(L(st.teaser))}</span><span class="more">${esc(t.readMore)}</span></button>`).join('')}</div>`);
     }
-
-    // 下車怎麼逛
-    h += sec('walk', walkHtml(id, s.walk));
-
-    // 怎麼抵達
-    h += sec('access', `<dl class="rows">${s.access.map((r) => `<div><dt>${esc(L(r.label))}</dt><dd>${r.tbd ? `<div class="tbd-box">${esc(L(r.text))}</div>` : esc(L(r.text))}${srcLine(r.src, true)}</dd></div>`).join('')}</dl>
-      ${linkRow(id)}`);
-
-    // 實用資訊（有才放）
-    if (s.practical && s.practical.length) {
-      h += sec('practical', `<dl class="rows">${s.practical.map((r) => `<div><dt>${esc(L(r.label))} <span class="checked">${esc(t.checked(r.checked || C.checkedOn))}</span></dt><dd>${r.tbd ? `<div class="tbd-box">${esc(L(r.text))}</div>` : esc(L(r.text))}${srcLine(r.src, true)}</dd></div>`).join('')}</dl>
-        <p class="src">${esc(state.lang === 'en' ? 'Hours and schedules change. Check the official source before you go.' : '時間與班次可能變動，出發前請以官方來源為準。')}</p>`);
+    if (keys.includes('next')) h += sec('next', departuresHtml(id, nexts));
+    if (keys.includes('access')) {
+      h += sec('access', `<dl class="rows">${s.access.map((r) => `<div><dt>${esc(L(r.label))}</dt><dd>${r.tbd ? `<div class="tbd-box">${esc(L(r.text))}</div>` : esc(L(r.text))}${r.prov === 'sim' ? ' ' + provChip('sim') : ''}${srcLine(r.src, true)}</dd></div>`).join('')}</dl>${linkRow(id)}`);
     }
-
-    // 本站資料來源
+    if (keys.includes('practical')) {
+      h += sec('practical', `<dl class="rows">${s.practical.map((r) => `<div><dt>${esc(L(r.label))} <span class="checked">${esc(t.checked(r.checked || C.checkedOn))}</span></dt><dd>${r.tbd ? `<div class="tbd-box">${esc(L(r.text))}</div>` : esc(L(r.text))}${srcLine(r.src, true)}</dd></div>`).join('')}</dl>
+        <p class="src">${esc(t.changeNote)}</p>`);
+    }
     const all = stationSourceIds(s);
     h += `<section class="card" aria-labelledby="h-sources"><div class="sec-h"><h2 id="h-sources" style="font-size:16px">${esc(t.sec.sources)}</h2></div>
-      <ul class="srclist" style="margin:0;padding-left:1.2em">${all.map((k) => `<li>${srcAnchor(k)}</li>`).join('')}</ul>
+      <ul class="srclist" style="margin:0;padding-left:1.2em">${all.map((k) => `<li>${srcAnchor(k)}</li>`).join('')}
+      ${shops.length ? `<li>${esc(t.osmAttr(PLACES.fetched))} <a class="ext" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">ODbL</a></li>` : ''}</ul>
       <p class="src">${esc(t.checked(C.checkedOn))}</p></section>`;
     return h + '</div>';
   }
 
-  function plateBlock(id) {
+  function passNote(id) {
+    const t = T();
+    return `<div class="pass-note" role="status"><b>${esc(t.passedTitle(stName(id)))}</b><span>${esc(t.passedLead(stName(id)))}</span>
+      <span><button class="btn small" data-act="move-before" data-id="${id}" data-fk="move-before">${esc(t.passedBtn(stName(id)))}</button></span></div>`;
+  }
+
+  function plateHtml(id) {
     const t = T();
     const s = stops();
     const i = idxOf(id);
     const prev = s[i - 1], nxt = s[i + 1];
+    const other = state.lang === 'en' ? (NAMES[id] && NAMES[id].zh) : (NAMES[id] && NAMES[id].en);
+    return `<div class="plate" role="heading" aria-level="1" aria-label="${esc(stName(id))}">
+        <div class="pn" aria-hidden="true">${esc(stName(id))}</div>
+        <div class="ps" aria-hidden="true">${esc(other || '')}</div>
+        <div class="plate-foot" aria-hidden="true"><span>${prev ? '◀ ' + esc(stName(prev.id)) : ''}</span><span class="dirmark">${esc(dirText())}</span><span>${nxt ? esc(stName(nxt.id)) + ' ▶' : esc(t.tagTerminal)}</span></div>
+      </div>`;
+  }
+
+  // 沒有導覽內容的站：只放站名牌＋到站時間
+  function plateBlock(id) {
+    const t = T();
+    const s = stops();
+    const i = idxOf(id);
     const st = s[i];
     const last = i === s.length - 1;
     const left = Math.max(0, i - state.pos);
-    const en = C.stationNames[id].en;
-    return `<div class="dest-hero">
-      <div class="plate" role="heading" aria-level="1" aria-label="${esc(stName(id))}">
-        <div class="pn" aria-hidden="true">${esc(stName(id))}</div>
-        <div class="ps" aria-hidden="true">${esc(state.lang === 'en' ? C.stationNames[id].zh : en)}</div>
-        <div class="plate-foot" aria-hidden="true"><span>${prev ? '◀ ' + esc(stName(prev.id)) : ''}</span><span class="dirmark">${esc(dirText())}</span><span>${nxt ? esc(stName(nxt.id)) + ' ▶' : esc(t.tagTerminal)}</span></div>
-      </div>
+    return `<div class="dest-hero">${plateHtml(id)}
       <div class="dest-meta num"><span><b>${esc(last ? t.termArr(hhmm(st.arr)) : t.arrDep(hhmm(st.arr), hhmm(st.dep)))}</b>（${esc(t.byTimetable)}）</span>${left > 0 ? `<span>${esc(t.stopsLeft(left))}</span>` : ''}</div>
     </div>`;
+  }
+
+  function heroHtml(id, s) {
+    const t = T();
+    const p = s.hero && C.photos[s.hero];
+    const i = idxOf(id);
+    const st = stops()[i];
+    const left = Math.max(0, i - state.pos);
+    return `<section class="dhero" aria-label="${esc(stName(id))}">
+      <div class="dhero-media">${p ? `<img src="${esc(p.file)}" alt="${esc(L(p.alt))}" decoding="async" width="1200" height="800">` : '<div class="dhero-fallback"></div>'}</div>
+      <div class="dhero-body">
+        ${plateHtml(id)}
+        ${s.tagline ? `<p class="tagline">${esc(L(s.tagline))}</p>` : ''}
+        ${s.themes ? `<div class="themes">${s.themes.map((th) => `<span class="theme">${icon(th.icon)}<span>${esc(L(th.label))}</span></span>`).join('')}</div>` : ''}
+        <dl class="facts num">
+          <div><dt>${esc(t.factArr)}</dt><dd>${hhmm(st.arr)}<small>${esc(t.byTimetable)}</small></dd></div>
+          <div><dt>${esc(t.factLeft)}</dt><dd>${left > 0 ? esc(t.stopsShort(left)) : '—'}</dd></div>
+          ${s.stay ? `<div><dt>${esc(t.factStay)}</dt><dd>${esc(L(s.stay))} ${provChip('sim')}</dd></div>` : ''}
+        </dl>
+        ${p ? `<p class="credit">${esc(L(p.caption))}・${esc(t.photo)}：${esc(p.author)}・<a href="${esc(p.licenseUrl)}" target="_blank" rel="noopener">${esc(p.license)}</a>・<a class="ext" href="${esc(p.sourceUrl)}" target="_blank" rel="noopener">Wikimedia Commons</a></p>` : ''}
+      </div>
+    </section>
+    <p class="prov-legend">${esc(t.legendLead)}<span><span class="srcmark">↗</span>${esc(t.legendSrc)}</span><span><span class="prov osm">OSM</span>${esc(t.legendOsm)}</span><span><span class="prov sim">${esc(t.provSim)}</span>${esc(t.legendSim)}</span></p>`;
+  }
+
+  function provChip(kind) {
+    const t = T();
+    if (kind === 'sim') return `<span class="prov sim" title="${esc(t.legendSim)}">${esc(t.provSim)}</span>`;
+    if (kind === 'osm') return `<span class="prov osm" title="${esc(t.legendOsm)}">OSM</span>`;
+    return '';
+  }
+
+  function fmtDist(m) {
+    const t = T();
+    return m < 1000 ? t.meters(Math.round(m / 10) * 10) : t.km((m / 1000).toFixed(1));
+  }
+  // 模擬估算：直線距離 × 1.3（繞路係數）÷ 速度。步行每分鐘 75 公尺，單車每分鐘 220 公尺。
+  function estMin(m, mode) {
+    const v = mode === 'bike' ? 220 : 75;
+    const x = (m * 1.3) / v;
+    return x < 10 ? Math.max(1, Math.ceil(x)) : Math.round(x / 5) * 5;
+  }
+  const stationLL = (id) => { const s = route().stations[id]; return [s.lat, s.lon]; };
+
+  /* 必看亮點：橫向卡片，點開看詳情 */
+  function highlightsHtml(id, s) {
+    const t = T();
+    const here = stationLL(id);
+    return `<div class="hl-row">${s.highlights.map((hl) => {
+      const p = hl.photo && C.photos[hl.photo];
+      const d = haversineKm(here, [hl.lat, hl.lon]) * 1000;
+      return `<button class="hl" data-act="story" data-kind="hl" data-id="${id}:${hl.id}" data-fk="hl-${id}-${hl.id}">
+        <span class="hl-media">${p ? `<img src="${esc(p.file)}" alt="" loading="lazy" decoding="async">` : `<span class="hl-tile">${icon(hl.icon || 'pin')}</span>`}</span>
+        <span class="hl-body"><b>${esc(L(hl.name))}</b><span class="hl-desc">${esc(L(hl.teaser || hl.desc))}</span>
+        <span class="hl-meta num">${icon('pin')}${esc(t.fromStation(fmtDist(d)))}</span></span></button>`;
+    }).join('')}</div><p class="src" style="margin-top:6px">${esc(t.hlNote)}</p>`;
+  }
+
+  /* 推薦路線：一站可有多條（步行／單車），分頁切換 */
+  function routesOf(s) {
+    if (s.routes) return s.routes;
+    return s.walk ? [{ id: 'walk', mode: 'walk', ...s.walk }] : [];
+  }
+  function routesHtml(id, routes) {
+    const t = T();
+    const k = Math.min(state.routeTab || 0, routes.length - 1);
+    const tabs = routes.length > 1 ? `<div class="rtabs" role="tablist">${routes.map((r, i) => `<button role="tab" aria-selected="${i === k}" data-act="route-tab" data-i="${i}" data-fk="rtab-${i}">${icon(r.mode)}<span>${esc(L(r.name))}</span></button>`).join('')}</div>` : '';
+    return tabs + routeHtml(id, routes[k]);
+  }
+  function routeHtml(id, w) {
+    const t = T();
+    const mode = w.mode || 'walk';
+    const stn = route().stations[id];
+    const stnName = stName(id) + (state.lang === 'en' ? ' Station' : '車站');
+    const pts = [{ station: true, lat: stn.lat, lon: stn.lon }, ...w.stops];
+    if (w.loop) pts.push({ station: true, lat: stn.lat, lon: stn.lon });
+    const ptName = (p) => (p.station ? stnName : L(p.name));
+    const legs = w.legs || [];
+    const spans = w.spans || [];
+    const spanOf = (k) => spans.find((sp) => k >= sp.from && k < sp.to);
+    // 合計：有來源的時間照用；沒有的用「模擬估算」補，並在合計標示含模擬
+    let total = 0, anySim = false;
+    const legInfo = [];
+    for (let k = 0; k < pts.length - 1; k++) {
+      const sp = spanOf(k);
+      const leg = legs[k] || {};
+      const dist = haversineKm([pts[k].lat, pts[k].lon], [pts[k + 1].lat, pts[k + 1].lon]) * 1000;
+      if (sp) { if (k === sp.from) total += sp.min; legInfo.push({ kind: k === sp.from ? 'span' : 'in-span', sp, dist, leg }); }
+      else if (typeof leg.min === 'number') { total += leg.min; legInfo.push({ kind: 'src', min: leg.min, dist, leg }); }
+      else { const m = estMin(dist, mode); total += m; anySim = true; legInfo.push({ kind: 'sim', min: m, dist, leg }); }
+    }
+    const modeLabel = t.mode[mode] || t.mode.walk;
+    let h = `<p class="lead" style="margin-bottom:10px"><b>${esc(L(w.name))}</b>${w.summary ? (state.lang === 'en' ? ': ' : '：') + esc(L(w.summary)) : ''}</p>`;
+    h += `<div class="walk-sum"><span>${icon(mode)} ${esc(modeLabel)}</span><span>${esc(t.totalAbout(total))}${anySim ? ' ' + provChip('sim') : ''}</span><span>${esc(t.walkPoints(w.stops.length))}</span>${w.loop ? `<span>${esc(t.walkLoop)}</span>` : ''}</div>`;
+    if (w.photo) h += photoFigure(w.photo);
+    h += `<div class="walk-map">${pointsMapSvg(id, w.stops.map((p) => ({ lat: p.lat, lon: p.lon })), { line: true, loop: w.loop, label: L(w.name) })}</div>
+      <p class="walk-map-note">${esc(t.walkMapNote)}${w.coordSrc ? ` ${esc(t.source)}：${srcInline(w.coordSrc)}` : ''}</p>`;
+    h += '<ol class="steps">';
+    pts.forEach((p, k) => {
+      if (p.station) {
+        h += `<li class="step"><span class="stamp stn" aria-hidden="true">${esc(state.lang === 'en' ? 'Stn' : '站')}</span><div><b>${esc(stnName)}</b></div></li>`;
+      } else {
+        h += `<li class="step"><span class="stamp" aria-hidden="true">${k}</span><div><b>${esc(L(p.name))}</b>${p.desc ? `<p>${esc(L(p.desc))}</p>` : ''}</div></li>`;
+      }
+      if (k < pts.length - 1) {
+        const li = legInfo[k];
+        let time;
+        if (li.kind === 'span') time = `${esc(t.spanMin(ptName(pts[li.sp.from]), ptName(pts[li.sp.to]), li.sp.min))}（${srcInline(li.sp.src)}）`;
+        else if (li.kind === 'in-span') time = esc(t.spanIn);
+        else if (li.kind === 'src') time = `${esc(t.legMode(modeLabel, li.min))}${li.leg.src ? `（${srcInline(li.leg.src)}）` : ''}`;
+        else time = `${esc(t.legMode(modeLabel, li.min))} ${provChip('sim')}`;
+        const note = li.leg.note ? ` · ${esc(L(li.leg.note))}${li.leg.src && li.kind !== 'src' ? `（${srcInline(li.leg.src)}）` : ''}` : '';
+        h += `<li class="leg"><span class="rail" aria-hidden="true"></span><span class="lt">${time} · <span class="num">${esc(t.straight(Math.round(li.dist / 10) * 10))}</span>${note}</span></li>`;
+      }
+    });
+    h += '</ol>';
+    if (w.src) h += srcLine(w.src);
+    return h;
+  }
+
+  /* 在地店家：OSM 真實店名與位置；缺的營業時間以模擬補上並標示。依距離排序，不是廣告。 */
+  const CAT_ORDER = ['eat', 'drink', 'buy'];
+  function shopsFor(id) {
+    const rows = (PLACES.stations && PLACES.stations[id]) || [];
+    const generic = /^(餐廳|小吃|小吃店|咖啡|早餐|飲料|商店|restaurant|cafe)$/i; // OSM 上只寫類別、沒有店名的點不列
+    return rows.filter((r) => r.distM <= 1500 && !generic.test(r.name.trim()));
+  }
+  function simHours(r) {
+    // 模擬值：依店型給一個常見時段（固定、可重現），畫面一律標「模擬」
+    if (r.cuisine && /breakfast/.test(r.cuisine)) return '06:00–12:00';
+    return { eat: '10:30–19:30', drink: '10:00–18:00', buy: '09:00–19:00' }[r.cat] || '10:00–18:00';
+  }
+  function fmtOsmHours(h) {
+    if (state.lang === 'en') return h;
+    const day = { Mo: '一', Tu: '二', We: '三', Th: '四', Fr: '五', Sa: '六', Su: '日' };
+    return h.replace(/24\/7/g, '24 小時').replace(/\b(Mo|Tu|We|Th|Fr|Sa|Su)\b/g, (d) => `週${day[d]}`).replace(/;\s*/g, '；').replace(/\s*-\s*/g, '–');
+  }
+  function shopsHtml(id, shops) {
+    const t = T();
+    const cat = state.shopCat || 'all';
+    const counts = Object.fromEntries(CAT_ORDER.map((c) => [c, shops.filter((r) => r.cat === c).length]));
+    const list = shops.filter((r) => cat === 'all' || r.cat === cat);
+    const shown = state.shopAll ? list : list.slice(0, 6);
+    const chips = [['all', shops.length], ...CAT_ORDER.map((c) => [c, counts[c]])].filter(([, n]) => n)
+      .map(([c, n]) => `<button class="fchip" aria-pressed="${cat === c}" data-act="shop-cat" data-cat="${c}" data-fk="shopcat-${c}">${c === 'all' ? '' : icon(c)}${esc(t.cat[c])} <span class="num">${n}</span></button>`).join('');
+    let h = `<p class="lead" style="font-size:14px;color:var(--muted);margin-bottom:10px">${esc(t.shopsLead(shops.length))}</p>`;
+    h += `<div class="fchips" role="group" aria-label="${esc(t.sec.shops)}">${chips}</div>`;
+    h += `<div class="walk-map">${pointsMapSvg(id, shown.map((r) => ({ lat: r.lat, lon: r.lon, cat: r.cat })), { line: false, label: t.sec.shops })}</div>`;
+    h += `<ol class="shops">${shown.map((r, i) => `<li class="shop">
+        <span class="shop-n cat-${r.cat}" aria-hidden="true">${i + 1}</span>
+        <div class="shop-body">
+          <b>${esc(r.name)}</b>${r.nameEn && state.lang === 'en' ? ` <span class="en">${esc(r.nameEn)}</span>` : ''}
+          <span class="shop-kind">${icon(r.cat)}${esc(kindLabel(r))}</span>
+          <span class="shop-meta num">${esc(fmtDist(r.distM))}・${esc(t.legMode(t.mode.walk, estMin(r.distM, 'walk')))} ${provChip('sim')}</span>
+          <span class="shop-meta num">${esc(t.hours)}：${r.hours ? `${esc(fmtOsmHours(r.hours))} ${provChip('osm')}` : `${esc(simHours(r))} ${provChip('sim')}`}</span>
+        </div>
+        <a class="shop-osm ext" href="https://www.openstreetmap.org/${esc(r.osm)}" target="_blank" rel="noopener" aria-label="${esc(r.name)}：OpenStreetMap">OSM</a>
+      </li>`).join('')}</ol>`;
+    if (list.length > 6) h += `<p style="margin:10px 0 0"><button class="btn small" data-act="shop-all" data-fk="shop-all">${esc(state.shopAll ? t.showLess : t.showAll(list.length))}</button></p>`;
+    h += `<p class="src">${esc(t.shopsNote(PLACES.fetched))}</p>`;
+    return h;
+  }
+  function kindLabel(r) {
+    const t = T();
+    const k = t.kind[r.kind] || t.cat[r.cat];
+    const c = r.cuisine && t.cuisine[r.cuisine.split(';')[0]];
+    return c ? `${k}・${c}` : k;
+  }
+
+  /* 下一班車：示範日在這站開出的班次（真實時刻表），從示範列車到站時間起算 */
+  function nextDepartures(id) {
+    const list = (route().departures || {})[id] || [];
+    const st = stops()[idxOf(id)];
+    if (!st) return [];
+    return list.filter((d) => d.dep >= st.arr && d.no !== state.train).slice(0, 6);
+  }
+  function departuresHtml(id, list) {
+    const t = T();
+    const color = { 區間車: '#2E6FB0', 區間快: '#16A085', 自強: '#C0392B', '莒光/復興': '#E8792B' };
+    return `<p class="lead" style="font-size:14px;color:var(--muted);margin-bottom:8px">${esc(t.nextLead(hhmm(stops()[idxOf(id)].arr), DATA.demoDate))}</p>
+      <table class="tt dep"><thead><tr><th>${esc(t.depTime)}</th><th>${esc(t.depTrain)}</th><th>${esc(t.depTo)}</th></tr></thead><tbody>
+      ${list.map((d) => `<tr><td class="t">${hhmm(d.dep)}</td><td><span class="type-pill" style="background:${color[d.type] || '#8E44AD'}">${esc(state.lang === 'en' ? (t.typeName[d.type] || d.type) : d.type)}</span> <span class="num">${esc(d.no)}</span></td><td>${esc(t.to(L(d.to)))}</td></tr>`).join('')}
+      </tbody></table>${srcLine(['tra-schedule'])}`;
   }
 
   function chooseHtml() {
@@ -870,56 +1149,6 @@
       ${story ? `<p>${esc(t.noContentAlong(stName(id)))}</p><button class="btn" data-act="story" data-kind="along" data-id="${esc(story.id)}" data-fk="nostory-${id}">${esc(t.readStory)}</button>` : ''}
       ${ahead.length ? `<p style="font-weight:700;color:var(--ink)">${esc(t.seeOthers)}</p><div class="quick">${ahead.map((s) => `<button class="btn primary" data-act="dest" data-id="${s.id}" data-fk="quick-${s.id}">${esc(stName(s.id))}</button>`).join('')}</div>` : ''}
     </div>`;
-  }
-
-  function walkHtml(id, w) {
-    const t = T();
-    if (!w || !w.stops || !w.stops.length) return `<div class="tbd-box">${esc(t.tbd)}</div>`;
-    const stn = ROUTE.stations[id];
-    const stnName = stName(id) + (state.lang === 'en' ? ' Station' : '車站');
-    const pts = [{ station: true, lat: stn.lat, lon: stn.lon }, ...w.stops];
-    if (w.loop) pts.push({ station: true, lat: stn.lat, lon: stn.lon });
-    const ptName = (p) => (p.station ? stnName : L(p.name));
-    const legs = w.legs || [];
-    const spans = w.spans || [];
-    const spanOf = (k) => spans.find((sp) => k >= sp.from && k < sp.to);
-    // 合計：每一段都要有來源時間（單段或跨段）才算得出來；算不出來就誠實說待查核
-    let total = 0, known = true, anyKnown = spans.length > 0;
-    for (let k = 0; k < pts.length - 1; k++) {
-      const sp = spanOf(k);
-      const leg = legs[k] || {};
-      if (sp) { if (k === sp.from) total += sp.min; }
-      else if (typeof leg.min === 'number') { total += leg.min; anyKnown = true; }
-      else known = false;
-    }
-    let h = `<p class="lead" style="margin-bottom:10px"><b>${esc(L(w.name))}</b>${w.summary ? (state.lang === 'en' ? ': ' : '：') + esc(L(w.summary)) : ''}</p>`;
-    h += `<div class="walk-sum"><span>${esc(known ? t.walkTotal(total) : anyKnown ? t.walkTotalPartial : t.walkTotalTbd)}</span><span>${esc(t.walkPoints(w.stops.length))}</span>${w.loop ? `<span>${esc(t.walkLoop)}</span>` : ''}</div>`;
-    if (w.photo) h += photoFigure(w.photo);
-    h += `<div class="walk-map">${walkMapSvg(id, w)}</div><p class="walk-map-note">${esc(t.walkMapNote)}${w.coordSrc ? ` ${esc(t.source)}：${srcInline(w.coordSrc)}` : ''}</p>`;
-    h += '<ol class="steps">';
-    pts.forEach((p, k) => {
-      if (p.station) {
-        h += `<li class="step"><span class="stamp stn" aria-hidden="true">${esc(state.lang === 'en' ? 'Stn' : '站')}</span><div><b>${esc(stnName)}</b></div></li>`;
-      } else {
-        h += `<li class="step"><span class="stamp" aria-hidden="true">${k}</span><div><b>${esc(L(p.name))}</b>${p.desc ? `<p>${esc(L(p.desc))}</p>` : ''}</div></li>`;
-      }
-      if (k < pts.length - 1) {
-        const leg = legs[k] || {};
-        const sp = spanOf(k);
-        const q = pts[k + 1];
-        let time;
-        if (sp && k === sp.from) time = `${esc(t.spanMin(ptName(pts[sp.from]), ptName(pts[sp.to]), sp.min))}（${srcInline(sp.src)}）`;
-        else if (sp) time = esc(t.spanIn);
-        else if (typeof leg.min === 'number') time = `${esc(t.legMin(leg.min))}${leg.src ? `（${srcInline(leg.src)}）` : ''}`;
-        else time = `<span class="tbd">${esc(t.legTbd)}</span>`;
-        const dist = Math.round(haversineKm([p.lat, p.lon], [q.lat, q.lon]) * 100) * 10;
-        const note = leg.note ? ` · ${esc(L(leg.note))}${leg.src && typeof leg.min !== 'number' ? `（${srcInline(leg.src)}）` : ''}` : '';
-        h += `<li class="leg"><span class="rail" aria-hidden="true"></span><span class="lt">${time} · <span class="num">${esc(t.straight(dist))}</span>${note}</span></li>`;
-      }
-    });
-    h += '</ol>';
-    if (w.src) h += srcLine(w.src);
-    return h;
   }
 
   function haversineKm(a, b) {
@@ -985,24 +1214,33 @@
         <button class="btn small primary mp-close" data-act="map-close" data-fk="map-close">${esc(t.backToGuide)}</button></div>
       <div class="mp-body"><div class="mp-inner">
         <div class="routemap">${routeMapSvg()}<div class="map-attr">${esc(t.mapAttr)}</div></div>
-        <div class="sim" role="group" aria-label="${esc(t.simPos)}">
+        <div class="simctl" role="group" aria-label="${esc(t.simPos)}">
           <button class="icon-btn" data-act="step" data-dir="-1" data-fk="step-prev" aria-label="${esc(t.stepPrev)}" ${state.pos <= 0 ? 'disabled' : ''}>◀</button>
           <div class="st"><span class="demo-badge">${esc(t.simPos)}</span><b>${esc(t.between(stName(cur.id), stName(nx.id)))}</b><span class="num" style="color:var(--muted);font-size:13px">${esc(t.depAt(hhmm(cur.dep)))} → ${esc(t.arrAt(hhmm(nx.arr)))}</span></div>
           <button class="icon-btn" data-act="step" data-dir="1" data-fk="step-next" aria-label="${esc(t.stepNext)}" ${state.pos >= s.length - 2 ? 'disabled' : ''}>▶</button>
         </div>
         <table class="tt"><thead><tr><th>${esc(t.ttStation)}</th><th>${esc(t.ttTime)}</th></tr></thead><tbody>${rows}</tbody></table>
-        <p class="src" style="margin:0">${esc(t.ttBasis(ROUTE.scheduleSnapshot, fmtRange()))}${srcAnchor('tra-schedule')}</p>
+        <p class="src" style="margin:0">${esc(t.ttBasis(DATA.scheduleSnapshot, fmtRange()))}${srcAnchor('tra-schedule')}</p>
       </div></div>`;
   }
 
-  // 路線里程累積（給列車位置內插用）
-  const PATH = ROUTE.path;
-  const CUM = PATH.reduce((out, p, i) => { out.push(i ? out[i - 1] + haversineKm(PATH[i - 1], p) : 0); return out; }, []);
+  // 路線里程累積（給列車位置內插用），每條路線算一次
+  const GEO = {};
+  function geo() {
+    const line = state.line;
+    if (!GEO[line]) {
+      const path = DATA.routes[line].path;
+      const cum = path.reduce((out, p, i) => { out.push(i ? out[i - 1] + haversineKm(path[i - 1], p) : 0); return out; }, []);
+      GEO[line] = { path, cum };
+    }
+    return GEO[line];
+  }
   function pointAtKm(km) {
-    const i = Math.max(1, CUM.findIndex((c) => c >= km));
-    if (CUM[CUM.length - 1] <= km) return PATH[PATH.length - 1];
-    const tt = (km - CUM[i - 1]) / (CUM[i] - CUM[i - 1] || 1);
-    return [PATH[i - 1][0] + (PATH[i][0] - PATH[i - 1][0]) * tt, PATH[i - 1][1] + (PATH[i][1] - PATH[i - 1][1]) * tt];
+    const { path, cum } = geo();
+    if (cum[cum.length - 1] <= km) return path[path.length - 1];
+    const i = Math.max(1, cum.findIndex((c) => c >= km));
+    const tt = (km - cum[i - 1]) / (cum[i] - cum[i - 1] || 1);
+    return [path[i - 1][0] + (path[i][0] - path[i - 1][0]) * tt, path[i - 1][1] + (path[i][1] - path[i - 1][1]) * tt];
   }
 
   // 等距圓柱投影（台灣緯度、幾十公里內足夠）。寬度固定，高度隨資料，但不超過 maxH；放不滿的方向置中。
@@ -1019,80 +1257,89 @@
     return { H, pxPerKm, xy: ([la, lo]) => [+(ox + (lo - minLon) * k * S).toFixed(1), +(oy + (maxLat - la) * S).toFixed(1)] };
   }
 
-  // 站名標籤位置（依實際地理手調，避免平溪線末段擠在一起）
+  // 平溪線站多且末段擠：依實際地理手調標籤位置。其他路線只標重點站（起訖、下一站、目的站、有導覽的站）。
   const LABEL = {
-    badouzi: [10, 4, 'start'], haikeguan: [-10, 4, 'end'], ruifang: [-11, 5, 'end'], houtong: [10, 5, 'start'],
-    sandiaoling: [10, 8, 'start'], dahua: [0, 22, 'middle'], shifen: [0, -12, 'middle'], wanggu: [0, 22, 'middle'],
-    lingjiao: [0, -12, 'middle'], pingxi: [2, 22, 'middle'], jingtong: [-2, -12, 'middle'],
+    pingxi: {
+      badouzi: [10, 4, 'start'], haikeguan: [-10, 4, 'end'], ruifang: [-11, 5, 'end'], houtong: [10, 5, 'start'],
+      sandiaoling: [10, 8, 'start'], dahua: [0, 22, 'middle'], shifen: [0, -12, 'middle'], wanggu: [0, 22, 'middle'],
+      lingjiao: [0, -12, 'middle'], pingxi: [2, 22, 'middle'], jingtong: [-2, -12, 'middle'],
+    },
   };
 
   function routeMapSvg() {
     const t = T();
     const W = 360;
-    const P = projector(PATH, W, 46, 84, 26, 40);
+    const { path, cum } = geo();
+    const P = projector(path, W, 46, 96, 26, 40, state.line === 'pingxi' ? 420 : 520);
     const s = stops();
-    const st = ROUTE.stations;
+    const st = route().stations;
     const di = state.dest ? idxOf(state.dest) : -1;
     const cur = st[s[state.pos].id], nx = st[s[state.pos + 1].id];
     const trainKm = (cur.km + nx.km) / 2;
-    // 已走過的部分（依行駛方向）
     const aKm = st[s[0].id].km;
     const lo = Math.min(aKm, trainKm), hi = Math.max(aKm, trainKm);
-    const seg = [pointAtKm(lo), ...PATH.filter((_, i) => CUM[i] > lo && CUM[i] < hi), pointAtKm(hi)];
+    const seg = [pointAtKm(lo), ...path.filter((_, i) => cum[i] > lo && cum[i] < hi), pointAtKm(hi)];
     const poly = (pts) => pts.map((p) => P.xy(p).join(',')).join(' ');
+    const manual = LABEL[state.line];
+    const keyStops = new Set([s[0].id, s[s.length - 1].id, s[state.pos + 1].id, state.dest].filter(Boolean));
+    s.forEach((x) => { if (hasGuide(x.id)) keyStops.add(x.id); });
     let g = `<rect x="0" y="0" width="${W}" height="${P.H}" fill="var(--paper)"/>`;
-    g += `<polyline points="${poly(PATH)}" fill="none" stroke="var(--navy)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    g += `<polyline points="${poly(path)}" fill="none" stroke="var(--navy)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>`;
     g += `<polyline points="${poly(seg)}" fill="none" stroke="var(--line)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>`;
     s.forEach((x, i) => {
       const [px, py] = P.xy([st[x.id].lat, st[x.id].lon]);
       const passed = i <= state.pos;
       if (i === di) g += `<circle cx="${px}" cy="${py}" r="11" fill="none" stroke="var(--red)" stroke-width="3"/>`;
-      g += `<circle cx="${px}" cy="${py}" r="5.5" fill="${passed ? 'var(--line)' : 'var(--paper)'}" stroke="var(--navy)" stroke-width="2.5"/>`;
+      g += `<circle cx="${px}" cy="${py}" r="${keyStops.has(x.id) ? 5.5 : 4}" fill="${passed ? 'var(--line)' : 'var(--paper)'}" stroke="var(--navy)" stroke-width="2.5"><title>${esc(stName(x.id))}</title></circle>`;
     });
     // 列車畫在站名下層：站名有底色描邊，壓在列車上仍讀得到
     const [tx, ty] = P.xy(pointAtKm(trainKm));
     g += `<g aria-label="${esc(t.trainHere)}"><rect x="${tx - 17}" y="${ty - 9}" width="34" height="18" rx="5" fill="var(--train)" stroke="var(--paper)" stroke-width="2"/><text x="${tx}" y="${ty + 4}" text-anchor="middle" font-size="10.5" font-weight="900" fill="#fff">${train().no}</text></g>`;
     s.forEach((x, i) => {
+      if (!manual && !keyStops.has(x.id)) return;
       const [px, py] = P.xy([st[x.id].lat, st[x.id].lon]);
       const passed = i <= state.pos;
-      const [dx, dy, anchor] = LABEL[x.id] || [8, 4, 'start'];
+      const [dx, dy, anchor] = (manual && manual[x.id]) || (px > W * 0.62 ? [-11, 4, 'end'] : [11, 4, 'start']);
       const isD = i === di;
       g += `<text x="${px + dx}" y="${py + dy}" text-anchor="${anchor}" font-size="${isD ? 13 : 12}" font-weight="${isD ? 900 : 700}" fill="${isD ? 'var(--red)' : passed ? 'var(--faint)' : 'var(--ink-strong)'}" paint-order="stroke" stroke="var(--paper)" stroke-width="3.5" stroke-linejoin="round">${isD ? '★ ' : ''}${esc(stName(x.id))}</text>`;
     });
     // 比例尺與指北
-    const km2 = 2 * P.pxPerKm;
-    g += `<g transform="translate(${(W - 60 - km2).toFixed(1)} ${P.H - 16})"><rect x="0" y="0" width="${km2.toFixed(1)}" height="4" fill="var(--ink-strong)"/><text x="${(km2 + 6).toFixed(1)}" y="5" font-size="11" fill="var(--muted)">${esc(t.scale(2))}</text></g>`;
+    const scaleKm = route().lengthKm > 40 ? 10 : 2;
+    const len = scaleKm * P.pxPerKm;
+    g += `<g transform="translate(${(W - 60 - len).toFixed(1)} ${P.H - 16})"><rect x="0" y="0" width="${len.toFixed(1)}" height="4" fill="var(--ink-strong)"/><text x="${(len + 6).toFixed(1)}" y="5" font-size="11" fill="var(--muted)">${esc(t.scale(scaleKm))}</text></g>`;
     g += `<g transform="translate(${W - 22} 24)"><path d="M0 -12 L6 4 L0 0 L-6 4Z" fill="var(--ink-strong)"/><text x="0" y="17" text-anchor="middle" font-size="10" font-weight="800" fill="var(--muted)">${esc(t.north)}</text></g>`;
     return `<svg viewBox="0 0 ${W} ${P.H}" role="img" aria-label="${esc(t.mapTitle)}">${g}</svg>`;
   }
 
-  // 散步示意圖：真實座標、直線連接
-  function walkMapSvg(id, w) {
+  // 站周邊示意圖：真實座標點。路線用紅色虛線連起來；店家只放編號點（顏色依類別）。
+  function pointsMapSvg(id, pts, { line = true, loop = false, label = '' } = {}) {
     const t = T();
-    const stn = ROUTE.stations[id];
-    const pts = [[stn.lat, stn.lon], ...w.stops.map((p) => [p.lat, p.lon])];
+    const stn = route().stations[id];
+    const all = [[stn.lat, stn.lon], ...pts.map((p) => [p.lat, p.lon])];
     const W = 340;
-    const P = projector(pts, W, 34, 34, 30, 34, 280, 170);
+    const P = projector(all, W, 34, 34, 30, 34, 280, 170);
     const H = P.H;
     const xy = P.xy;
     let g = `<rect x="0" y="0" width="${W}" height="${H}" fill="var(--bg-stage)"/>`;
-    // 鐵道（只畫附近：其餘被 viewBox 裁掉）
-    g += `<polyline points="${PATH.map((p) => xy(p).join(',')).join(' ')}" fill="none" stroke="var(--navy)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>`;
-    const seq = [[stn.lat, stn.lon], ...w.stops.map((p) => [p.lat, p.lon])];
-    if (w.loop) seq.push([stn.lat, stn.lon]);
-    g += `<polyline points="${seq.map((p) => xy(p).join(',')).join(' ')}" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-dasharray="2 6" stroke-linecap="round"/>`;
+    g += `<polyline points="${geo().path.map((p) => xy(p).join(',')).join(' ')}" fill="none" stroke="var(--navy)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>`;
+    if (line && pts.length) {
+      const seq = [[stn.lat, stn.lon], ...pts.map((p) => [p.lat, p.lon])];
+      if (loop) seq.push([stn.lat, stn.lon]);
+      g += `<polyline points="${seq.map((p) => xy(p).join(',')).join(' ')}" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-dasharray="2 6" stroke-linecap="round"/>`;
+    }
     const [sx, sy] = xy([stn.lat, stn.lon]);
     g += `<rect x="${sx - 13}" y="${sy - 11}" width="26" height="22" rx="5" fill="var(--navy)"/><text x="${sx}" y="${sy + 4.5}" text-anchor="middle" font-size="${state.lang === 'en' ? 9.5 : 12}" font-weight="900" fill="var(--on-navy)">${state.lang === 'en' ? 'Stn' : '站'}</text>`;
-    w.stops.forEach((p, k) => {
+    const catColor = { eat: 'var(--red)', drink: 'var(--ok)', buy: 'var(--gold)' };
+    pts.forEach((p, k) => {
       const [x, y] = xy([p.lat, p.lon]);
-      g += `<circle cx="${x}" cy="${y}" r="11" fill="var(--paper)" stroke="var(--red)" stroke-width="2.5"/><text x="${x}" y="${y + 4.5}" text-anchor="middle" font-size="12" font-weight="900" fill="var(--red)">${k + 1}</text>`;
+      const c = p.cat ? catColor[p.cat] : 'var(--red)';
+      g += `<circle cx="${x}" cy="${y}" r="11" fill="var(--paper)" stroke="${c}" stroke-width="2.5"/><text x="${x}" y="${y + 4.5}" text-anchor="middle" font-size="12" font-weight="900" fill="${c}">${k + 1}</text>`;
     });
-    // 比例尺：挑一個 100/200/500 m 的整數長度
     const m = [100, 200, 500, 1000].find((v) => (v / 1000) * P.pxPerKm >= 40) || 1000;
     const len = (m / 1000) * P.pxPerKm;
     g += `<g transform="translate(12 ${H - 14})"><rect x="0" y="0" width="${len.toFixed(1)}" height="3.5" fill="var(--ink-strong)"/><text x="${(len + 6).toFixed(1)}" y="5" font-size="11" fill="var(--muted)">${esc(m >= 1000 ? t.scale(m / 1000) : t.scaleM(m))}</text></g>`;
     g += `<g transform="translate(${W - 18} 20)"><path d="M0 -10 L5 3 L0 0 L-5 3Z" fill="var(--ink-strong)"/><text x="0" y="14" text-anchor="middle" font-size="9" font-weight="800" fill="var(--muted)">${esc(t.north)}</text></g>`;
-    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(L(w.name))}">${g}</svg>`;
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">${g}</svg>`;
   }
 
   /* ───────── 來源、照片 ───────── */
@@ -1110,8 +1357,9 @@
     const set = new Set();
     const add = (a) => (a || []).forEach((k) => set.add(k));
     add(s.intro.src);
+    (s.highlights || []).forEach((x) => { add(x.src); if (x.hours) add(x.hours.src); });
     (s.stories || []).forEach((x) => add(x.src));
-    if (s.walk) { add(s.walk.src); add(s.walk.coordSrc); (s.walk.stops || []).forEach((x) => add(x.src)); (s.walk.legs || []).forEach((x) => add(x.src)); }
+    routesOf(s).forEach((w) => { add(w.src); add(w.coordSrc); (w.stops || []).forEach((x) => add(x.src)); (w.legs || []).forEach((x) => add(x.src)); (w.spans || []).forEach((x) => add(x.src)); });
     (s.access || []).forEach((x) => add(x.src));
     (s.practical || []).forEach((x) => add(x.src));
     return [...set];
@@ -1140,6 +1388,11 @@
     if (kind === 'about') {
       k = t.demoBadge;
       body = aboutHtml();
+    } else if (kind === 'hl') {
+      const [sid, hid] = String(id).split(':');
+      const hl = C.stations[sid] && (C.stations[sid].highlights || []).find((x) => x.id === hid);
+      if (!hl) { k = t.close; body = `<p>${esc(t.tbd)}</p>`; }
+      else { k = t.hlOf(stName(sid)); body = hlBody(sid, hl); }
     } else if (kind === 'along') {
       const a = C.along.find((x) => x.id === id);
       if (!a) { k = t.close; body = `<p>${esc(t.tbd)}</p>`; }
@@ -1158,7 +1411,7 @@
         <div class="sheet-body" data-key="${esc(kind + ':' + id)}">${body}</div></div></div>`;
     sheetRoot.querySelector('.sheet-body').scrollTop = keepScroll;
     app.setAttribute('inert', '');
-    if (!prevOpen) sheetRoot.querySelector('[data-fk="sheet-close"]').focus({ preventScroll: true });
+    if (!prevOpen && !state.tour) sheetRoot.querySelector('[data-fk="sheet-close"]').focus({ preventScroll: true });
   }
 
   function storyBody(st) {
@@ -1170,6 +1423,20 @@
       <p class="src">${esc(t.checked(C.checkedOn))}</p>`;
   }
 
+  function hlBody(sid, hl) {
+    const t = T();
+    const st = DATA.routes[TRAINS[state.train].line].stations[sid];
+    const d = haversineKm([st.lat, st.lon], [hl.lat, hl.lon]) * 1000;
+    const paras = L(hl.desc);
+    return `<h2 id="sheet-title">${esc(L(hl.name))}</h2>${hl.photo ? photoFigure(hl.photo) : ''}
+      ${(Array.isArray(paras) ? paras : [paras]).map((p) => `<p>${esc(p)}</p>`).join('')}
+      <dl class="rows" style="margin-bottom:12px">
+        <div><dt>${esc(t.fromStationH)}</dt><dd class="num">${esc(fmtDist(d))}${hl.travel ? `・${esc(L(hl.travel.text))}${hl.travel.src ? `（${srcInline(hl.travel.src)}）` : ` ${provChip('sim')}`}` : `・${esc(t.legMode(t.mode.walk, estMin(d, 'walk')))} ${provChip('sim')}`}</dd></div>
+        ${hl.hours ? `<div><dt>${esc(t.hours)} <span class="checked">${esc(t.checked(C.checkedOn))}</span></dt><dd>${esc(L(hl.hours.text))}${hl.hours.src ? srcLine(hl.hours.src, true) : ' ' + provChip('sim')}</dd></div>` : ''}
+      </dl>
+      <h3>${esc(t.sourcesH)}</h3><ul class="srclist">${(hl.src || []).map((x) => `<li>${srcAnchor(x)}</li>`).join('')}</ul>`;
+  }
+
   function aboutHtml() {
     const t = T();
     const a = C.about;
@@ -1178,12 +1445,81 @@
       <p style="margin-top:16px"><button class="btn" data-act="restart" data-fk="restart">${esc(t.restart)}</button></p>`;
   }
 
+  // 單色線條圖示，吃 currentColor；亮暗主題都跟著字色走
+  const ICONS = {
+    map: '<path d="M9 4L3 6.5v13L9 17l6 3 6-2.5v-13L15 7 9 4z M9 4v13 M15 7v13"/>',
+    pin: '<path d="M12 21s-6-5.6-6-11a6 6 0 1 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/>',
+    walk: '<circle cx="13" cy="4.5" r="1.8"/><path d="M10 21l2-6-2.5-3 1-5 3 3 3 1 M12 15l3 6 M9.5 7.5L6.5 11"/>',
+    bike: '<circle cx="6" cy="16" r="3.5"/><circle cx="18" cy="16" r="3.5"/><path d="M6 16l4-7h5l3 7 M10 9l3 7h-1 M14 6h3"/>',
+    bus: '<rect x="5" y="3.5" width="14" height="14" rx="2.5"/><path d="M5 11h14 M8 20.5v-3 M16 20.5v-3"/><circle cx="8.5" cy="14.5" r=".8"/><circle cx="15.5" cy="14.5" r=".8"/>',
+    eat: '<path d="M7 3v8 M5 3v4a2 2 0 0 0 4 0V3 M7 11v10 M16 3c-2 1.5-2.5 4-2.5 7H17V21 M17 3v7"/>',
+    drink: '<path d="M6 8h11v5a5 5 0 0 1-5 5H11a5 5 0 0 1-5-5V8z M17 9h1.5a2.5 2.5 0 0 1 0 5H17 M9 3.5c0 1.5 1 1.5 1 3 M13 3.5c0 1.5 1 1.5 1 3 M5 21h13"/>',
+    buy: '<path d="M5 8h14l-1 12H6L5 8z M9 8V6a3 3 0 0 1 6 0v2"/>',
+    train: '<rect x="6" y="3" width="12" height="13" rx="3"/><path d="M6 10h12 M9 20l-2 1.5 M15 20l2 1.5 M8.5 16l-1.5 4h10l-1.5-4"/><circle cx="9.5" cy="13" r=".8"/><circle cx="14.5" cy="13" r=".8"/>',
+    leaf: '<path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14z M5 19l7-7"/>',
+    wave: '<path d="M3 10c2-2 4-2 6 0s4 2 6 0 4-2 6 0 M3 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>',
+    torii: '<path d="M3 6c6 1 12 1 18 0 M5 9.5h14 M7 6.5V21 M17 6.5V21"/>',
+    factory: '<path d="M3 21V11l5 3V11l5 3V5h4l1 9h3v7H3z M7 18h2 M12 18h2"/>',
+    lantern: '<path d="M8 6h8l1.5 9a3 3 0 0 1-3 3.5h-5a3 3 0 0 1-3-3.5L8 6z M10 3h4 M12 18.5V21"/>',
+    people: '<circle cx="8" cy="7" r="2.5"/><circle cx="16.5" cy="8" r="2"/><path d="M3.5 19c.5-4 2.5-6 4.5-6s4 2 4.5 6 M13 18.5c.4-3 1.8-4.5 3.5-4.5s3 1.5 3.5 4.5"/>',
+    mountain: '<path d="M2.5 19l6.5-11 4 6 2.5-3.5L21.5 19z"/>',
+    water: '<path d="M12 3s-6 7-6 11a6 6 0 0 0 12 0c0-4-6-11-6-11z"/>',
+    bridge: '<path d="M2 15h20 M4 15V9 M20 15V9 M4 9c4 4 12 4 16 0 M8 15v-3 M12 15v-2.5 M16 15v-3"/>',
+    salt: '<path d="M12 3l7 4v8l-7 4-7-4V7l7-4z M5 7l7 4 7-4 M12 11v8"/>',
+    shrine: '<path d="M3 10l9-6 9 6 M5 10v10h14V10 M10 20v-5h4v5"/>',
+  };
   function icon(name) {
-    if (name === 'map') return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6.5v13L9 17l6 3 6-2.5v-13L15 7 9 4z M9 4v13 M15 7v13" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
-    return '';
+    const p = ICONS[name];
+    return p ? `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>` : '';
   }
+
+  /* ───────── 簡報導覽：present.html 以 postMessage 送來畫面狀態 ─────────
+   * 每一幕都是「完整的目標狀態」而不是「上一步之後再做什麼」，所以可以任意跳前跳後，不會累積誤差。 */
+  function applyScene(sc) {
+    state.tour = true;
+    document.querySelectorAll('.tour-focus').forEach((el) => el.classList.remove('tour-focus'));
+    state.lang = sc.lang === 'en' ? 'en' : 'zh';
+    if (sc.screen === 'entry' || !sc.line) {
+      state.notice = null; state.train = null; state.dest = null; state.view = 'guide';
+      go({ screen: 'entry', line: null, train: null, overlay: null, sheet: null }, { replace: true });
+    } else {
+      state.train = sc.train;
+      resetTrainState();
+      state.dest = sc.dest || null;
+      state.view = sc.view || 'guide';
+      state.routeTab = sc.routeTab || 0; state.shopCat = 'all'; state.shopAll = false;
+      state.notice = sc.via === 'car' ? { kind: 'info', text: (t) => t.fromCar(lineName(), sc.train, dirText()) } : null;
+      // 先回到乾淨的旅程頁再套覆蓋層，避免上一幕的故事面板殘留
+      go({ screen: 'journey', line: sc.line, train: sc.train, overlay: null, sheet: null }, { replace: true });
+      paintJourney({});
+      if (sc.overlay === 'map') go({ overlay: 'map' }, { replace: true });
+    }
+    const smooth = mqReduce.matches ? 'auto' : 'smooth';
+    requestAnimationFrame(() => {
+      if (sc.scroll === 'content') {
+        const a = document.getElementById('content-anchor');
+        const bar = document.querySelector('.jbar');
+        if (a) window.scrollTo({ top: a.getBoundingClientRect().top + window.scrollY - (bar ? bar.getBoundingClientRect().height : 0), behavior: smooth });
+      } else if (sc.scroll) {
+        const el = document.getElementById(sc.scroll);
+        if (el) el.scrollIntoView({ behavior: smooth, block: 'start' });
+      } else {
+        window.scrollTo({ top: 0, behavior: smooth });
+      }
+      // 故事面板在捲動到位後才開，畫面上看得出是從哪張卡片點開的
+      if (sc.sheet) setTimeout(() => go({ overlay: 'sheet', sheet: sc.sheet }, { replace: true }), 650);
+      if (sc.focus) setTimeout(() => { const el = document.querySelector(sc.focus); if (el) el.classList.add('tour-focus'); }, 450);
+    });
+  }
+  window.addEventListener('message', (e) => {
+    const m = e.data;
+    if (!m || m.rideTour !== 1 || !m.scene) return;
+    applyScene(m.scene);
+  });
+  window.RideGuide = { applyScene };
 
   /* ───────── 開機 ───────── */
   const params = parseLocation();
+  if (params.tour) state.tour = true;
   enter(params, { via: 'url', push: false });
 })();
