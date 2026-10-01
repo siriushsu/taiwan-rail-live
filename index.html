@@ -23783,9 +23783,17 @@ function bountyRecordingDir(card, tr) {
   return ds.length >= 2 && ds[ds.length - 1] < ds[0] ? 1 : 0;
 }
 function startBountyRecording(card) {
-  // 懸賞開著時，網頁這一支不啟動定位取樣：伺服器只收原生 App 的錄程（上傳沒帶 App 身分一律回 400 app_only），
-  // 在這裡錄了也送不上去。?demo=bounty 是備援站看設計用的假資料流程（不上傳），照舊走完。旗標關著時行為不變。
-  if (BOUNTY_ENABLED && !DEMO_AS_APP) { showToast(t('錄程要用軌島 App。網頁可以看懸賞板與自己的籌碼')); return; }
+  // 懸賞開著時，網頁與現行 App 殼（網頁包成的那一版）都不啟動定位取樣：伺服器只收原生 App 的錄程
+  // （上傳沒帶 App 身分一律回 400 app_only），在這裡錄了也送不上去。?demo=bounty 是備援站看設計用的假資料流程
+  // （不上傳），照舊走完。旗標關著時行為不變。
+  // 提示依平台分兩句：網頁要改用 App；已經在 App 殼裡的人缺的是新版，叫他「要用 App」只會困惑，該告訴他更新。
+  // 平台判定用 IS_NATIVE_APP（兩個平台訊號的聯集，見定義處），不直接讀其中一個全域。
+  // showToast 的參數只放字面字串的 t() 呼叫：App 發行閘門（verify-release 的 showToast 注入審查）會把三元式裡的識別字當成動態插入。
+  if (BOUNTY_ENABLED && !DEMO_AS_APP) {
+    if (IS_NATIVE_APP) showToast(t('要錄程，請先把軌島 App 更新到最新版'));
+    else showToast(t('錄程要用軌島 App。網頁可以看懸賞板與自己的籌碼'));
+    return;
+  }
   if (!PHYSICAL_COLLECT_ENABLED) { showToast(t('GPS 校正旅程需要用 App')); return; }
   if (state.recording) { showToast(t('已經在錄了')); return; }
   const tr = state.followTrain;

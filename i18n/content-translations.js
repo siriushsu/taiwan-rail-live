@@ -3436,6 +3436,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '兩個數字不一樣是正常的——訊號不好的那幾趟資料用不上，但校正者章還是你的，而且我們會寫出是什麼原因、下次怎麼改善。某段如果是你第一個錄回來的，會標「首位校正者」。': 'It’s normal for the two numbers to differ: data from trips with a poor signal can’t be used, but you keep the calibrator stamp, and we tell you why and how to do better next time. If you were the first to record a segment, it’s marked “First calibrator”.',
   '{segs} <span id="recUnitWord">段</span>已覆蓋': '<span id="recUnitWord">Segments</span> covered: {segs}',
   '{segs} <span id="recUnitWord">站</span>已覆蓋': '<span id="recUnitWord">Stations</span> covered: {segs}',
+  '要錄程，請先把軌島 App 更新到最新版': 'To record a trip, please update the Rail Island app to the latest version.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '籌碼 ×{n}': 'チップ ×{n}',
@@ -3456,4 +3457,5 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '兩個數字不一樣是正常的——訊號不好的那幾趟資料用不上，但校正者章還是你的，而且我們會寫出是什麼原因、下次怎麼改善。某段如果是你第一個錄回來的，會標「首位校正者」。': '2つの数字が違うのは正常です。電波の悪かった記録は使えませんが、校正者スタンプはあなたのものです。原因と次回の改善方法もお知らせします。ある区間を最初に記録した場合は「最初の校正者」と表示されます。',
   '{segs} <span id="recUnitWord">段</span>已覆蓋': '{segs}<span id="recUnitWord">区間</span>を記録済み',
   '{segs} <span id="recUnitWord">站</span>已覆蓋': '{segs}<span id="recUnitWord">駅</span>を記録済み',
+  '要錄程，請先把軌島 App 更新到最新版': '旅程を記録するには、軌島アプリを最新版に更新してください。',
 });

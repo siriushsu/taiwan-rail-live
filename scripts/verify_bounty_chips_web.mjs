@@ -15,7 +15,7 @@
 //   CH7  懸賞旗標關：開機清掉籌碼快取、沒有籌碼列、0 次 chips-me／bounty-me（含直接呼叫 fetchChipsMe()、fetchBountyMe()）、不寫新的 actor key
 //   CH8  上傳佇列：旗標開時 400 app_only 是終態（清掉、不重送）；其他錯誤照舊保留；旗標關時 app_only 也照舊保留、下次開機重送
 //   CH9  看板收滿的卡：有「已收滿」說明、沒有接單鈕
-//   CH10 錄程入口：懸賞開著時不啟動定位取樣、改顯示「要用 App」的說明
+//   CH10 錄程入口：懸賞開著時不啟動定位取樣；網頁顯示「要用 App」、現行 App 殼顯示「請更新到最新版」（兩個平台訊號各自成立、英日文、旗標關與 ?demo=bounty 的對照）
 //   CH11 手機版：360／375／414／768 × Chromium／WebKit，真觸控點開護照（底部分頁列的「護照」）
 //   CH12 快取與 actor 的邊界（401 清、503 留、存不下、第一次沿用裝置 id、英文介面沒有漏翻）
 //   CH13 開機時序：登入結果比開機那一發 bounty-me 晚出來；401 晚到、200 晚到兩種先後，最後護照都要有登入者的段數
@@ -171,6 +171,8 @@ try {
     const ctx = await br.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW', ...(ctxOpts.ctx || {}) });
     await ctx.addInitScript(STUB, { uid: UID_A, ...arg });
     if (arg.app) await ctx.addInitScript(g => { Object.assign(window, g); }, APP_GLOBALS);
+    // 只有 Capacitor 那個平台訊號的 App 殼（沒有 RAIL_ONLINE_BASEMAPS_AVAILABLE）：IS_NATIVE_APP 是兩個訊號的聯集，各自單獨成立都要被認得
+    if (arg.capacitor) await ctx.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'ios' }; });
     // rules：null＝送真的規則檔；物件＝改送這一份；'404'＝讀不到。rulesReq 是規則檔被請求幾次。
     const s = { ctx, merges: [], bme: [], chips: [], submits: [], claims: [], rulesReq: 0, boardReq: 0, seq: 0, errors: [],
       mode: { merge: 'ok', bme: 'ok', chips: 'ok', submit: 'app_only', ...mode },
@@ -625,10 +627,22 @@ try {
   });
 
   // ═══ CH10：開始錄程入口 ═══════════════════════════════════════════════════════════════════════════════════════
+  // 懸賞開著時，網頁與現行 App 殼（網頁包成的那一版）都不啟動定位取樣；提示依平台分兩句：網頁「要用 App」、App 殼「請更新到最新版」。
+  // 兩句的全文就是規格，直接寫在這裡（不從頁面的字典或函式取，否則是自己驗自己）。
+  // 平台訊號有兩個，IS_NATIVE_APP 是它們的聯集：RAIL_ONLINE_BASEMAPS_AVAILABLE 這個鍵在不在、Capacitor.isNativePlatform() 回不回 true；
+  // 兩個各自單獨成立都要認得（只讀其中一個的寫法，另一個訊號的 App 殼就會拿到網頁那一句）。
   if (want('CH10')) {
-    const probe = async (qs, app) => {
-      const s = await newSession({ app });
-      await s.page.goto(`${BASE}/?lang=zh-TW${qs}`);
+    const WEB_PROMPT = { 'zh-TW': '錄程要用軌島 App。網頁可以看懸賞板與自己的籌碼',
+      en: 'Recording a trip needs the Rail Island app. The website lets you view the bounty board and your own chips.',
+      ja: '旅程の記録には軌島アプリが必要です。ウェブサイトでは懸賞板とご自身のチップを確認できます。' };
+    const APP_PROMPT = { 'zh-TW': '要錄程，請先把軌島 App 更新到最新版',
+      en: 'To record a trip, please update the Rail Island app to the latest version.',
+      ja: '旅程を記録するには、軌島アプリを最新版に更新してください。' };
+    const neither = text => !text.includes(WEB_PROMPT['zh-TW']) && !text.includes(APP_PROMPT['zh-TW']);   // 控制組：兩句都不是
+    const probe = async (qs, { app = false, capacitor = false, lang = 'zh-TW' } = {}) => {
+      const locale = lang === 'en' ? 'en-US' : lang === 'ja' ? 'ja-JP' : 'zh-TW';
+      const s = await newSession({ app, capacitor }, {}, { ctx: { locale } });
+      await s.page.goto(`${BASE}/?lang=${lang}${qs}`);
       await s.page.waitForFunction(() => typeof state !== 'undefined' && state.ready === true, null, { timeout: 40000 });
       await s.page.evaluate(() => {
         window.__sampling = 0;
@@ -639,22 +653,50 @@ try {
         document.getElementById('toasts').innerHTML = '';
         startBountyRecording(card);
         return { sampling: window.__sampling, recording: !!state.recording, toast: document.getElementById('toasts').textContent.replace(/\s+/g, ' ').trim(),
-          flag: BOUNTY_ENABLED, native: PHYSICAL_COLLECT_ENABLED };
+          flag: BOUNTY_ENABLED, native: IS_NATIVE_APP, demo: DEMO_AS_APP,
+          keySignal: typeof window.RAIL_ONLINE_BASEMAPS_AVAILABLE !== 'undefined',
+          capSignal: !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) };
       }, CARD_OPEN);
+      out.errors = s.errors.length;
       await s.ctx.close();
       return out;
     };
     await attempt('CH10', async () => {
-      const on = await probe('&bounty=1', true);
-      ok('CH10a [fixture] App 殼＋懸賞旗標開（沒有旗標的話，舊程式碼在 App 殼裡會啟動取樣）', on.flag === true && on.native === true, JSON.stringify(on));
-      ok('CH10b 旗標開：按開始錄程 → 定位取樣沒有被啟動（bountyStartSampling 0 次）、沒有進入錄製、顯示「錄程要用軌島 App」說明',
-        on.sampling === 0 && on.recording === false && on.toast.includes('錄程要用軌島 App'), JSON.stringify(on));
-      const off = await probe('', true);
-      ok('CH10c 對照：旗標關（同樣的 App 殼）→ 照舊啟動取樣（bountyStartSampling 1 次、進入錄製）——只有旗標開著才收斂',
-        off.flag === false && off.native === true && off.sampling === 1 && off.recording === true, JSON.stringify(off));
-      const demo = await probe('&demo=bounty', false);
-      ok('CH10d 對照：?demo=bounty（備援站看設計用，不上傳）不受影響——照舊走完錄製流程（取樣 1 次）',
-        demo.flag === true && demo.sampling === 1 && demo.recording === true && !demo.toast.includes('錄程要用軌島 App'), JSON.stringify(demo));
+      const L = 'zh-TW';
+      const on = await probe('&bounty=1', { app: true });
+      ok('CH10a [fixture] 現行 App 殼（只有「RAIL_ONLINE_BASEMAPS_AVAILABLE 這個鍵在」那個平台訊號）＋懸賞旗標開、不是 ?demo=bounty（沒有旗標的話，舊程式碼在 App 殼裡會啟動取樣）',
+        on.flag === true && on.native === true && on.demo === false && on.keySignal === true && on.capSignal === false, JSON.stringify(on));
+      ok('CH10b 現行 App 殼、旗標開：按開始錄程 → 定位取樣沒有被啟動（bountyStartSampling 0 次）、沒有進入錄製、提示整句是「請更新到最新版」那一句（不是網頁那一句）',
+        on.sampling === 0 && on.recording === false && on.toast === APP_PROMPT[L] && on.toast !== WEB_PROMPT[L], JSON.stringify(on));
+      const cap = await probe('&bounty=1', { capacitor: true });
+      ok('CH10c [fixture] 現行 App 殼（只有「Capacitor.isNativePlatform() 回 true」那個平台訊號，沒有 RAIL_ONLINE_BASEMAPS_AVAILABLE）＋懸賞旗標開，頁面沒有未捕捉的例外',
+        cap.flag === true && cap.native === true && cap.demo === false && cap.keySignal === false && cap.capSignal === true && cap.errors === 0, JSON.stringify(cap));
+      ok('CH10d 另一個平台訊號單獨成立也算 App 殼：沒有啟動取樣、沒有進入錄製、提示整句是「請更新到最新版」那一句',
+        cap.sampling === 0 && cap.recording === false && cap.toast === APP_PROMPT[L], JSON.stringify(cap));
+      const web = await probe('&bounty=1', {});
+      ok('CH10e 網頁、旗標開：沒有啟動取樣、沒有進入錄製、提示整句照舊是「錄程要用軌島 App。網頁可以看懸賞板與自己的籌碼」（不是更新那一句）',
+        web.flag === true && web.native === false && web.demo === false && web.sampling === 0 && web.recording === false &&
+          web.toast === WEB_PROMPT[L] && web.toast !== APP_PROMPT[L], JSON.stringify(web));
+      const off = await probe('', { app: true });
+      ok('CH10f 對照：旗標關（同樣的 App 殼）→ 照舊啟動取樣（bountyStartSampling 1 次、進入錄製）、新舊兩句提示都沒有——只有旗標開著才收斂',
+        off.flag === false && off.native === true && off.sampling === 1 && off.recording === true && neither(off.toast), JSON.stringify(off));
+      const offWeb = await probe('', {});
+      ok('CH10g 對照：旗標關、網頁 → 沒有啟動取樣，提示是既有的「GPS 校正旅程需要用 App」、新舊兩句都不是——旗標關時網頁的行為不變',
+        offWeb.flag === false && offWeb.native === false && offWeb.sampling === 0 && offWeb.recording === false && offWeb.toast === 'GPS 校正旅程需要用 App' && neither(offWeb.toast), JSON.stringify(offWeb));
+      const demo = await probe('&demo=bounty', {});
+      ok('CH10h 對照：?demo=bounty（網頁；備援站看設計用，不上傳）不受影響——照舊走完錄製流程（取樣 1 次、進入錄製）、新舊兩句提示都沒有',
+        demo.flag === true && demo.demo === true && demo.sampling === 1 && demo.recording === true && neither(demo.toast), JSON.stringify(demo));
+      const demoApp = await probe('&demo=bounty', { app: true });
+      ok('CH10i 對照：?demo=bounty 在 App 殼裡也不受影響（不會被「請更新」擋下）——取樣 1 次、進入錄製、新舊兩句提示都沒有',
+        demoApp.flag === true && demoApp.native === true && demoApp.demo === true && demoApp.sampling === 1 && demoApp.recording === true && neither(demoApp.toast), JSON.stringify(demoApp));
+      for (const lang of ['en', 'ja']) {
+        const name = lang === 'en' ? '英文' : '日文';
+        const a = await probe('&bounty=1', { app: true, lang }), w = await probe('&bounty=1', { lang });
+        ok(`CH10j-${lang} ${name}介面、現行 App 殼、旗標開：沒有啟動取樣、沒有進入錄製，提示整句是${name}的「請更新到最新版」`,
+          a.flag === true && a.native === true && a.sampling === 0 && a.recording === false && a.toast === APP_PROMPT[lang], JSON.stringify(a));
+        ok(`CH10k-${lang} ${name}介面、網頁、旗標開：沒有啟動取樣、沒有進入錄製，提示整句是${name}的「要用 App」`,
+          w.flag === true && w.native === false && w.sampling === 0 && w.recording === false && w.toast === WEB_PROMPT[lang], JSON.stringify(w));
+      }
     });
   }
 
@@ -772,7 +814,7 @@ try {
       const cov = await s.page.evaluate(id => { const c = [...document.querySelectorAll('#bountyList .bt-card')].find(x => x.dataset.card === id); return c ? c.querySelector('.bt-covered') ? c.querySelector('.bt-covered').textContent : '' : null; }, CARD_COVERED.id);
       ok('CH12j 英文介面：收滿的卡那句說明有譯文、沒有中文字', !!cov && cov.length > 8 && !cjk.test(cov), String(cov));
       const toast = await s.page.evaluate(card => { document.getElementById('toasts').innerHTML = ''; startBountyRecording(card); return document.getElementById('toasts').textContent.trim(); }, CARD_OPEN);
-      ok('CH12k 英文介面：錄程入口的 App 說明有譯文、沒有中文字', toast.length > 8 && !cjk.test(toast), toast);
+      ok('CH12k 英文介面（網頁）：錄程入口的「要用 App」說明有譯文、沒有中文字', toast.length > 8 && !cjk.test(toast), toast);
       await s.ctx.close();
       const lo = await newSession({ noUser: true }, {}, { ctx: { locale: 'en-US' } });
       await lo.page.goto(`${BASE}/?bounty=1&lang=en`);
