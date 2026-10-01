@@ -428,6 +428,41 @@ check('B7-ACCOUNT-DELETE-ENTITLEMENT', '行為', '刪帳號流程真的呼叫刪
   };
 });
 
+// 終身（一次性購買）資格不靠放寬 rules：firestore.rules 的寫入閘門仍是「active 且 activeUntilMs
+// 晚於現在」、沒有 ==0 的不設限分支（B2 驗規則那半邊）；這條驗行為那半邊——worker.js 對終身寫出的
+// 文件在這個閘門下現在放行、沒人重查就會在有限時間內失效、重查會再延長、退款就不放行。
+// 輸入用 fixtures/revenuecat-lifetime-20261001/ 的 sandbox 實測購買原文，判斷哪幾筆算終身時呼叫真正的
+// purchaseMatchesPlusLifetime()，不在這裡另寫一份篩選。閘門本身照規則字面在這裡求值（兩個子句都先
+// 從規則原文確認存在），不讀 worker.js 的任何常數。
+check('B9-LIFETIME-RULES-BOUNDED', '行為', '終身資格文件在現行 rules 閘門下：現在放行、不重查會在一週內失效、重查會延長、退款不放行（rules 不必為終身放寬）', async () => {
+  const gateActive = /\.data\.active\s*==\s*true/.test(activeRule);
+  const gateUnexpired = /activeUntilMs\s*>\s*request\.time\.toMillis\(\)/.test(activeRule) && !/activeUntilMs\s*==\s*0/.test(activeRule);
+  const rulesAllow = (doc, atMs) => doc.active === true && doc.activeUntilMs > atMs;
+  const workerModule = await import(pathToFileURL(path.join(ROOT, FILES.worker)).href);
+  const plus = workerModule._plus || {};
+  const makeDoc = plus.plusEntitlementDocument, matches = plus.purchaseMatchesPlusLifetime;
+  if (typeof makeDoc !== 'function' || typeof matches !== 'function')
+    return { pass: false, detail: '未讀到 _plus.plusEntitlementDocument／purchaseMatchesPlusLifetime 導出' };
+  const fixture = rel => JSON.parse(readFileSync(path.join(ROOT, 'fixtures/revenuecat-lifetime-20261001', rel), 'utf8')).body;
+  const owned = fixture('rest/active/t2sbx_android_user1__purchases_sandbox.json').items;
+  const refunded = fixture('rest/refunded/t2sbx_android_user1__purchases_sandbox.json').items;
+  const allowlist = new Set(owned.map(item => item.product_id));
+  const lifetimeOf = items => ({ items: items.filter(item => matches(item, 'plus', allowlist, 'sandbox')) });
+  const DAY = 24 * 3600_000;
+  const t0 = Date.now();
+  const doc0 = makeDoc({ items: [] }, 'plus', 'verify', t0, 'sandbox', lifetimeOf(owned));
+  const allowNow = rulesAllow(doc0, t0 + 1000);
+  const expiresWithinWeek = !rulesAllow(doc0, t0 + 7 * DAY + 1000);
+  const docRefreshed = makeDoc({ items: [] }, 'plus', 'verify', t0 + 6 * DAY, 'sandbox', lifetimeOf(owned));
+  const refreshExtends = rulesAllow(docRefreshed, t0 + 7 * DAY + 1000);
+  const docRefunded = makeDoc({ items: [] }, 'plus', 'verify', t0, 'sandbox', lifetimeOf(refunded));
+  const refundedDenied = !rulesAllow(docRefunded, t0 + 1000);
+  return {
+    pass: gateActive && gateUnexpired && allowNow && expiresWithinWeek && refreshExtends && refundedDenied,
+    detail: `規則子句 active==true=${gateActive}、activeUntilMs>現在且無==0=${gateUnexpired}；終身文件現在放行=${allowNow}；不重查一週後不放行=${expiresWithinWeek}；第 6 天重查後第 7 天仍放行=${refreshExtends}；退款後不放行=${refundedDenied}；文件=${JSON.stringify(doc0)}`,
+  };
+});
+
 const selected = ONLY ? assertions.filter(assertion => assertion.id === ONLY) : assertions;
 if (ONLY && selected.length === 0) {
   console.error(`FAIL UNKNOWN — 找不到判準 ${ONLY}`);

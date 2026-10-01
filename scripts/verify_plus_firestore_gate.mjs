@@ -39,6 +39,7 @@ const SECTIONS = [
   '9 TRANSFER 事件的雙主體處理',
   '10 查詢不完整／不合規時不得寫文件',
   '11 刪帳號一併刪除資格文件',
+  '12 終身資格文件（滾動窗）與購買／退款 webhook',
 ];
 const seen = new Map();
 let SECTION = '(未分段)';
@@ -78,6 +79,11 @@ let rcPages = null;
 // TRANSFER 有兩個主體，替身必須能對「不同 customer」回不同真相——否則測不出「轉出者寫
 // inactive、轉入者寫 active」這件事，也測不出兩邊各自打對了自己的 endpoint。
 let rcByCustomer = null;
+// 第 12 段專用：/purchases 依「customer → environment」回應；沒設定的組合回合規空清單。
+// /purchases 一律走這裡，不落到 /subscriptions 的替身形狀。
+let rcPurchases = {};
+// Firebase 替身回的 uid（第 12 段改成 sandbox 實測 fixture 的帳號，customer-scoped 守門要求兩者一致）。
+let identityUid = UID;
 let rcStatus = 200;
 let firestoreStatus = 200;
 let firestoreDoc = null;
@@ -95,9 +101,16 @@ globalThis.fetch = async (input, init = {}) => {
     return new Response(JSON.stringify({ access_token: `oauth-fixture-${oauthCount}`, expires_in: oauthExpiresIn }), { status: 200 });
   }
   if (url.includes('identitytoolkit.googleapis.com')) {
-    return new Response(JSON.stringify({ users: [{ localId: UID }] }), { status: 200 });
+    return new Response(JSON.stringify({ users: [{ localId: identityUid }] }), { status: 200 });
   }
   if (url.includes('api.revenuecat.com')) {
+    const purchasesPath = new URL(url).pathname.match(/\/customers\/([^/]+)\/purchases$/);
+    if (purchasesPath) {
+      const who = decodeURIComponent(purchasesPath[1]);
+      const entry = (rcPurchases[who] || {})[new URL(url).searchParams.get('environment')]
+        || { body: { object: 'list', items: [], next_page: null } };
+      return new Response(JSON.stringify(entry.body), { status: entry.status || 200 });
+    }
     if (rcByCustomer) {
       const matched = new URL(url).pathname.match(/\/customers\/([^/]+)\/subscriptions$/);
       const who = matched ? decodeURIComponent(matched[1]) : '';
@@ -157,6 +170,8 @@ function resetIo({ resetToken = true } = {}) {
   rcBody = { items: [baseSubscription()] };
   rcPages = null;
   rcByCustomer = null;
+  rcPurchases = {};
+  identityUid = UID;
   rcStatus = 200;
   firestoreStatus = 200;
   firestoreDoc = null;
@@ -807,6 +822,142 @@ section(SECTIONS[10]);
   check(response.status === 200 && callsTo('firestore.googleapis.com').length === 0,
     '正向對照：未設定 Firestore 的環境仍可正常刪帳號，且完全不打 Firestore（設定狀態不該綁架帳號刪除）',
     `status=${response.status} firestoreCalls=${callsTo('firestore.googleapis.com').length}`);
+}
+
+// ── 12. 終身資格文件（滾動窗）與購買／退款 webhook ──────────────────────────────────────
+// 真值來源是 fixtures/revenuecat-lifetime-20261001/ 的 sandbox 實測原文：REST 回應與 RevenueCat
+// 真的送給 Worker 的 webhook Request body。購買全是 sandbox；測正式環境時只改每筆的 environment
+// （asProduction），其餘不動。allowlist 的 prod… 從 fixture 的 offerings 依商店商品 ID 對照，不讀 worker.js。
+// 期待值裡的時間上限也不讀實作常數：
+//  · 上限 7 天：沒有新依據的資格文件不該活過一週（第 3 段 UNKNOWN_EXPIRY 用的同一條產品判斷）；
+//  · 下限 1 天：App 只在被 rules 擋下時才握手重查，窗若短到幾分鐘，終身買家的雲端同步會一直被擋。
+const FIXTURE_DIR = path.join(ROOT, 'fixtures/revenuecat-lifetime-20261001');
+const fixtureJson = (rel) => JSON.parse(readFileSync(path.join(FIXTURE_DIR, rel), 'utf8'));
+const clone = (value) => JSON.parse(JSON.stringify(value));
+const asProduction = (body) => {
+  const copy = clone(body);
+  for (const item of copy.items) item.environment = 'production';
+  return copy;
+};
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
+section(SECTIONS[11]);
+{
+  const products = [];
+  (function walk(node) {
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (!node || typeof node !== 'object') return;
+    if (node.object === 'product' && typeof node.store_identifier === 'string') products.push(node);
+    Object.values(node).forEach(walk);
+  })(fixtureJson('rest/ios-refunded/offerings.json').body);
+  const LIFETIME_STORE_IDS = [
+    'tw.railisland.app.plus.lifetime', 'tw.railisland.app.plus.lifetime_upgrade',
+    'railisland_pass_lifetime', 'railisland_pass_lifetime_upgrade',
+  ];
+  const lifetimeProd = LIFETIME_STORE_IDS.map(id => (products.find(p => p.store_identifier === id) || {}).id);
+  check(lifetimeProd.every(id => typeof id === 'string' && id.startsWith('prod')) && new Set(lifetimeProd).size === 4,
+    'fixture 自檢：四個終身商店商品 ID 在 offerings 裡各對到一個 prod…', JSON.stringify(lifetimeProd));
+  const LIFETIME_ENV = (over = {}) => ENV({ REVENUECAT_LIFETIME_PRODUCT_IDS: lifetimeProd.join(','), ...over });
+  const ANDROID_UID = 't2sbx_android_user1', IOS_UID = 't2sbx_ios_user3';
+  const androidOwned = fixtureJson('rest/active/t2sbx_android_user1__purchases_sandbox.json').body;
+  const androidRefunded = fixtureJson('rest/refunded/t2sbx_android_user1__purchases_sandbox.json').body;
+  const iosBothOwned = fixtureJson('rest/ios-owned/t2sbx_ios_user3__purchases_sandbox.json').body;
+  const iosOneRefunded = fixtureJson('rest/ios-refunded/t2sbx_ios_user3__purchases_sandbox.json').body;
+  const EMPTY_LIST = { object: 'list', items: [], next_page: null };
+
+  // 12-1 資格文件：終身＝有界的滾動窗，不是 0。
+  const life = { items: asProduction(androidOwned).items };
+  const lifeDoc = plusEntitlementDocument({ items: [] }, 'plus', 'plus-status', NOW_MS, 'production', life);
+  const windowMs = lifeDoc.activeUntilMs - NOW_MS;
+  check(lifeDoc.active === true && lifeDoc.activeUntilMs !== 0 && windowMs >= DAY_MS && windowMs <= WEEK_MS,
+    '只有終身（沒有訂閱）⇒ active，activeUntilMs 是從現在起 1～7 天內的有界時刻（不是 0＝不設限，rules 不必放寬）',
+    JSON.stringify({ lifeDoc, 窗長小時: windowMs / 3_600_000 }));
+  const laterMs = NOW_MS + 3 * DAY_MS;
+  const lifeDocLater = plusEntitlementDocument({ items: [] }, 'plus', 'plus-status', laterMs, 'production', life);
+  check(lifeDocLater.active === true && lifeDocLater.activeUntilMs - lifeDoc.activeUntilMs === laterMs - NOW_MS,
+    '滾動：三天後再重查，activeUntilMs 跟著往後推三天（從重查時刻起算，不錨定購買時間）',
+    JSON.stringify({ 第一次: lifeDoc.activeUntilMs, 三天後: lifeDocLater.activeUntilMs }));
+  const lifeExpiredSubDoc = plusEntitlementDocument({ items: [baseSubscription({ gives_access: false })] },
+    'plus', 'plus-status', NOW_MS, 'production', life);
+  check(lifeExpiredSubDoc.active === true && lifeExpiredSubDoc.activeUntilMs === lifeDoc.activeUntilMs,
+    '終身＋訂閱已失效 ⇒ 仍 active，到期時刻與只有終身時相同', JSON.stringify(lifeExpiredSubDoc));
+  const lifeLongSubDoc = plusEntitlementDocument({ items: [baseSubscription()] }, 'plus', 'plus-status', NOW_MS, 'production', life);
+  check(lifeLongSubDoc.active === true && lifeLongSubDoc.activeUntilMs === END_MS + 86_400_000,
+    '終身＋訂閱到期日比滾動窗更晚 ⇒ 取較晚的訂閱到期＋寬限（終身不會把既有到期日縮短）', JSON.stringify(lifeLongSubDoc));
+  const noLifeDoc = plusEntitlementDocument({ items: [] }, 'plus', 'plus-status', NOW_MS, 'production', { items: [] });
+  check(noLifeDoc.active === false && noLifeDoc.activeUntilMs === 0,
+    '反向對照：終身集合是空的、也沒有訂閱 ⇒ active=false、activeUntilMs=0', JSON.stringify(noLifeDoc));
+  let threw = false;
+  try { plusEntitlementDocument({ items: [] }, 'plus', 'plus-status', NOW_MS, 'production', { items: null }); }
+  catch (e) { threw = true; }
+  check(threw, '終身集合形狀錯（items 不是陣列）⇒ 直接拋錯，不折疊成「沒有終身」的 inactive 文件');
+
+  // 12-2 端到端：有終身＋訂閱已過期 ⇒ plus-status 回 true，資格文件落地且 rules 現在就會放行。
+  const expiredMs = Date.now() - 30 * DAY_MS;
+  const expiredSub = baseSubscription({ customer_id: ANDROID_UID, gives_access: false, status: 'expired',
+    ends_at: expiredMs, current_period_ends_at: expiredMs });
+  const statusWith = async (purchases) => {
+    resetIo();
+    identityUid = ANDROID_UID;
+    rcBody = { object: 'list', items: [expiredSub], next_page: null };
+    rcPurchases = { [ANDROID_UID]: { production: { body: purchases } } };
+    const response = await plusStatus(plusStatusRequest(), LIFETIME_ENV());
+    const body = await response.json();
+    const writes = firestoreWrites();
+    const doc = writes[0] ? JSON.parse(writes[0].body).fields : {};
+    return { response, body, writes, doc, checkedAt: Date.now() };
+  };
+  const owned = await statusWith(asProduction(androidOwned));
+  const ownedUntil = Number(owned.doc.activeUntilMs && owned.doc.activeUntilMs.integerValue);
+  check(owned.response.status === 200 && owned.body.active === true && owned.body.cloudSyncReady === true
+      && owned.writes.length === 1 && owned.writes[0].url.includes(`/documents/entitlements/${ANDROID_UID}`)
+      && owned.doc.active.booleanValue === true
+      && ownedUntil > owned.checkedAt && ownedUntil <= owned.checkedAt + WEEK_MS,
+    '端到端：有終身＋訂閱已過期 ⇒ /api/plus-status 回 active:true、cloudSyncReady:true，正式資格文件 active 且到期在一週內的未來',
+    JSON.stringify({ body: owned.body, writes: owned.writes.map(w => w.url), doc: owned.doc }));
+  const refunded = await statusWith(asProduction(androidRefunded));
+  check(refunded.response.status === 200 && refunded.body.active === false && refunded.body.cloudSyncReady === false
+      && refunded.writes.length === 1 && refunded.doc.active.booleanValue === false,
+    '端到端反向對照：終身已退款＋訂閱已過期 ⇒ active:false，資格文件立即寫成 inactive（不等滾動窗過期）',
+    JSON.stringify({ body: refunded.body, doc: refunded.doc }));
+
+  // 12-3 webhook：用 RevenueCat 實際送來的 Request body，重查 /purchases 後寫資格文件。
+  const hook = async (file, uid, purchasesSandbox, env = LIFETIME_ENV()) => {
+    resetIo();
+    rcBody = EMPTY_LIST;
+    rcPurchases = { [uid]: { sandbox: purchasesSandbox } };
+    const { event } = fixtureJson(`webhook/${file}`);
+    const response = await worker.fetch(webhookEventRequest(event), env, {});
+    const writes = firestoreWrites();
+    return {
+      event, response, writes,
+      doc: writes[0] ? JSON.parse(writes[0].body).fields : {},
+      purchaseQueries: callsTo('api.revenuecat.com').filter(c => new URL(c.url).pathname.endsWith('/purchases'))
+        .map(c => new URL(c.url).searchParams.get('environment')),
+    };
+  };
+  const bought = await hook('ios_NON_RENEWING_PURCHASE_lifetime.json', IOS_UID, { body: iosBothOwned });
+  const boughtUntil = Number(bought.doc.activeUntilMs && bought.doc.activeUntilMs.integerValue);
+  check(bought.event.type === 'NON_RENEWING_PURCHASE' && bought.response.status === 200
+      && bought.writes.length === 1 && bought.writes[0].url.includes(`/documents/sandboxEntitlements/${IOS_UID}`)
+      && bought.doc.active.booleanValue === true && boughtUntil > Date.now() && boughtUntil <= Date.now() + WEEK_MS
+      && bought.purchaseQueries.join(',') === 'sandbox',
+    '購買 webhook（iOS 1,490 實測 NON_RENEWING_PURCHASE）⇒ 重查 sandbox /purchases，只寫 sandboxEntitlements，active 且有界',
+    JSON.stringify({ status: bought.response.status, writes: bought.writes.map(w => w.url), doc: bought.doc, purchaseQueries: bought.purchaseQueries }));
+  const cancelled = await hook('android_CANCELLATION_refund_lifetime_upgrade.json', ANDROID_UID, { body: androidRefunded });
+  check(cancelled.event.type === 'CANCELLATION' && cancelled.response.status === 200
+      && cancelled.writes.length === 1 && cancelled.writes[0].url.includes(`/documents/sandboxEntitlements/${ANDROID_UID}`)
+      && cancelled.doc.active.booleanValue === false && cancelled.doc.activeUntilMs.integerValue === '0',
+    '退款 webhook（Android 實測 CANCELLATION）＋重查到 refunded ⇒ 立即寫 inactive（資格收回）',
+    JSON.stringify({ status: cancelled.response.status, writes: cancelled.writes.map(w => w.url), doc: cancelled.doc }));
+  const partial = await hook('ios_CANCELLATION_refund_lifetime_upgrade.json', IOS_UID, { body: iosOneRefunded });
+  check(partial.response.status === 200 && partial.writes.length === 1 && partial.doc.active.booleanValue === true,
+    '退款 webhook（iOS 退掉 990、1,490 還在）⇒ 仍寫 active（看的是「還有沒有任何一筆 owned」）',
+    JSON.stringify({ status: partial.response.status, doc: partial.doc }));
+  const broken = await hook('ios_NON_RENEWING_PURCHASE_lifetime.json', IOS_UID, { status: 500, body: {} });
+  check(broken.response.status === 503 && callsTo('firestore.googleapis.com').length === 0,
+    '購買 webhook 但 /purchases 上游 500 ⇒ 503 讓 RevenueCat 重試，且一行 Firestore 都沒寫',
+    `status=${broken.response.status} firestore=${callsTo('firestore.googleapis.com').length}`);
 }
 
 globalThis.fetch = realFetch;

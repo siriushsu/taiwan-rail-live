@@ -45,7 +45,7 @@ let fails = 0;
 // 每個宣告過的段落都真的跑過至少一條，段落整批消失時會有一條具名紅燈。
 const SECTIONS = ['1 環境判別', '2 存取權判別', '3 entitlement 比對', '4 端點與 query', '5 錯誤分流', '6 plus-status 端到端', '7 發版閘門', '8 分頁與跟頁',
   '9 回應 schema 守門(I-3／I-4)', '10 分頁 404 與 customer 綁定(I-1／I-5)', '11 TestFlight CORS 預檢',
-  '12 Firestore runtime 身分'];
+  '12 Firestore runtime 身分', '13 終身（一次性）購買'];
 const seen = new Map();
 let SECTION = '(未分段)';
 const section = (name) => { SECTION = name; console.log(`\n===== ${name} =====`); };
@@ -64,6 +64,12 @@ let rcThrow = false;
 // 重複最後一筆,用來模擬「next_page 一直不是 null」的情境以測翻頁上限)。與 rcBody/rcStatus
 // 互斥——設定 rcSeq 時忽略 rcBody/rcStatus,見 runPages()。
 let rcSeq = null;
+// 終身段落專用（第 13 段）：/purchases 依 environment query 回應；沒設定的環境回合規空清單。
+// /purchases 一律走這裡、不落到上面的 rcBody／rcSeq——那兩個是 /subscriptions 的形狀。
+let rcPurchasesByEnv = {};
+// Firebase 替身回的 uid。終身段落直接用 sandbox 實測 fixture，回應裡的 customer_id 是 fixture 的帳號，
+// customer-scoped 守門（I-5）要求兩者一致，所以那一段會暫時換成 fixture 的 uid。
+let identityUid = 'uid-under-test';
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (url) => {
   const u = String(url);
@@ -74,10 +80,15 @@ globalThis.fetch = async (url) => {
   try { new URL(u); } catch { upstream.push(u); throw new TypeError(`Failed to parse URL from ${u}`); }
   upstream.push(u);
   if (u.includes('identitytoolkit.googleapis.com')) {
-    return new Response(JSON.stringify({ users: [{ localId: 'uid-under-test' }] }), { status: 200 });
+    return new Response(JSON.stringify({ users: [{ localId: identityUid }] }), { status: 200 });
   }
   if (u.includes('api.revenuecat.com')) {
     if (rcThrow) throw new TypeError('network down');
+    if (new URL(u).pathname.endsWith('/purchases')) {
+      const entry = rcPurchasesByEnv[new URL(u).searchParams.get('environment')]
+        || { body: { object: 'list', items: [], next_page: null } };
+      return new Response(JSON.stringify(entry.body), { status: entry.status || 200 });
+    }
     if (rcSeq) {
       const n = upstream.filter(x => x.includes('api.revenuecat.com')).length - 1;
       const { status = 200, body = { items: [] } } = rcSeq[Math.min(n, rcSeq.length - 1)];
@@ -769,6 +780,194 @@ section(SECTIONS[11]);
     'wrangler runtime 同時帶 Firestore project ID 與已用現有 private key 完成 OAuth 驗證的 service-account email（缺任一個都會讓真機同步寫入失敗）',
     JSON.stringify({ hasProject, hasEmail }));
 }
+// ── 13. 終身（一次性）購買：只在 /purchases，用 allowlist 認，退款與環境都要擋 ───────────────
+// 真值來源是 fixtures/revenuecat-lifetime-20261001/ 的 sandbox 實測原文（REST 回應逐字），不是 worker.js。
+// 那批購買全是 sandbox；要測正式環境時只把每筆的 environment 改成 production，其餘欄位不動，
+// 這種改寫在下面一律寫成 asProduction()，一眼看得出哪些是改過的。
+// allowlist 的 prod… 值同樣從 fixture 讀：先寫死四個商店商品 ID（App Store／Play 後台建立的值），
+// 再到 fixture 的 offerings（expand=items.package.product）裡找對應的 prod…——不讀 worker.js 的任何常數。
+const FIXTURE_DIR = path.join(ROOT, 'fixtures/revenuecat-lifetime-20261001');
+const fixtureBody = (rel) => JSON.parse(readFileSync(path.join(FIXTURE_DIR, rel), 'utf8')).body;
+const clone = (value) => JSON.parse(JSON.stringify(value));
+const asProduction = (body) => {
+  const copy = clone(body);
+  for (const item of copy.items) item.environment = 'production';
+  return copy;
+};
+const LIFETIME_STORE_IDS = [
+  'tw.railisland.app.plus.lifetime', 'tw.railisland.app.plus.lifetime_upgrade',
+  'railisland_pass_lifetime', 'railisland_pass_lifetime_upgrade',
+];
+section(SECTIONS[12]);
+{
+  const products = [];
+  (function walk(node) {
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (!node || typeof node !== 'object') return;
+    if (node.object === 'product' && typeof node.store_identifier === 'string') products.push(node);
+    Object.values(node).forEach(walk);
+  })(fixtureBody('rest/ios-refunded/offerings.json'));
+  const lifetimeProd = LIFETIME_STORE_IDS.map(id => (products.find(p => p.store_identifier === id) || {}).id);
+  check(lifetimeProd.every(id => typeof id === 'string' && id.startsWith('prod')) && new Set(lifetimeProd).size === 4,
+    'fixture 自檢：四個終身商店商品 ID 在 offerings 裡各對到一個不同的 prod…（allowlist 的真值來源）',
+    JSON.stringify(Object.fromEntries(LIFETIME_STORE_IDS.map((id, i) => [id, lifetimeProd[i]]))));
+  const LIFETIME_ENV = (over = {}) => ENV({ REVENUECAT_LIFETIME_PRODUCT_IDS: lifetimeProd.join(','), ...over });
+
+  const ANDROID_UID = 't2sbx_android_user1', IOS_UID = 't2sbx_ios_user3';
+  const androidOwned = fixtureBody('rest/active/t2sbx_android_user1__purchases_sandbox.json');
+  const androidRefunded = fixtureBody('rest/refunded/t2sbx_android_user1__purchases_sandbox.json');
+  const iosBothOwned = fixtureBody('rest/ios-owned/t2sbx_ios_user3__purchases_sandbox.json');
+  const iosOneRefunded = fixtureBody('rest/ios-refunded/t2sbx_ios_user3__purchases_sandbox.json');
+  // fixture 自檢：下面每一條正反例都靠這些事實成立；fixture 若被換掉，先在這裡紅，不是讓判準空轉。
+  const statuses = (body) => body.items.map(item => `${item.status}:${item.entitlements.items.map(e => e.lookup_key).join('+') || '∅'}`).join(',');
+  check(statuses(androidOwned) === 'owned:plus' && statuses(androidRefunded) === 'refunded:∅'
+      && statuses(iosBothOwned) === 'owned:plus,owned:plus' && statuses(iosOneRefunded) === 'owned:plus,refunded:∅'
+      && androidOwned.items[0].product_id === androidRefunded.items[0].product_id
+      && iosOneRefunded.items[0].purchased_at < iosOneRefunded.items[1].purchased_at
+      && [androidOwned, iosOneRefunded].every(body => body.items.every(item => item.environment === 'sandbox')),
+    'fixture 自檢：Android 買→退是同一個商品、iOS 買兩筆後退掉較晚那筆、全部是 sandbox',
+    JSON.stringify({ androidOwned: statuses(androidOwned), androidRefunded: statuses(androidRefunded),
+      iosBothOwned: statuses(iosBothOwned), iosOneRefunded: statuses(iosOneRefunded) }));
+
+  const runLifetime = async ({ uid, production, sandbox, subscriptions = { object: 'list', items: [], next_page: null },
+    env = LIFETIME_ENV(), request = req() }) => {
+    upstream = []; rcBody = subscriptions; rcStatus = 200; rcThrow = false; rcSeq = null;
+    rcPurchasesByEnv = { ...(production ? { production } : {}), ...(sandbox ? { sandbox } : {}) };
+    identityUid = uid;
+    try { return await checkPlusEntitlement(request, env); }
+    finally { rcPurchasesByEnv = {}; identityUid = 'uid-under-test'; }
+  };
+  const purchaseCalls = () => upstream.filter(u => u.includes('api.revenuecat.com') && new URL(u).pathname.endsWith('/purchases'));
+
+  // 終身有效 → 有資格；打的是 /purchases，帶 environment=production 與 limit=100。
+  const owned = await runLifetime({ uid: ANDROID_UID, production: { body: asProduction(androidOwned) } });
+  const ownedCalls = purchaseCalls();
+  check(owned.ok === true && owned.entitlementEnvironment === 'production'
+      && owned.lifetimePurchases && owned.lifetimePurchases.items.length === 1,
+    '終身有效（Android 990 實測回應，只改 environment）＋沒有任何訂閱 ⇒ 有資格', JSON.stringify(owned));
+  check(ownedCalls.length === 1 && /[?&]environment=production(&|$)/.test(ownedCalls[0])
+      && /[?&]limit=100(&|$)/.test(ownedCalls[0])
+      && new URL(ownedCalls[0]).pathname === `/v2/projects/proj_x/customers/${ANDROID_UID}/purchases`
+      && upstream.every(u => !u.includes('active_entitlements')),
+    '終身查的是這個 customer 的 /purchases，query 帶 environment=production（上游先濾一次）與 limit=100；不打 /active_entitlements（它不分環境）',
+    JSON.stringify(ownedCalls));
+
+  const iosOwned = await runLifetime({ uid: IOS_UID, production: { body: asProduction(iosBothOwned) } });
+  check(iosOwned.ok === true, '正向對照：iOS 兩筆終身都 owned ⇒ 有資格', JSON.stringify(iosOwned));
+
+  // 終身已退款 → 無資格（同一個帳號、同一個商品，實測退款後的回應）。
+  const refunded = await runLifetime({ uid: ANDROID_UID, production: { body: asProduction(androidRefunded) } });
+  check(refunded.ok === false && refunded.status === 403 && refunded.error === 'not_entitled',
+    '終身已退款（同一筆實測回應：status=refunded、entitlements 清空）⇒ 403 not_entitled', JSON.stringify(refunded));
+
+  // 退款有兩個訊號（status 與 entitlements），各給一條只差一個欄位的樣本，兩道各自有牙。
+  const refundedStillEntitled = asProduction(androidRefunded);
+  refundedStillEntitled.items[0].entitlements = clone(androidOwned.items[0].entitlements);
+  const refundedEnt = await runLifetime({ uid: ANDROID_UID, production: { body: refundedStillEntitled } });
+  check(refundedEnt.ok === false && refundedEnt.status === 403,
+    'status=refunded 但 entitlements 還掛著 plus（RevenueCat 若晚一步清空）⇒ 仍然無資格（看的是 owned，不是只看 entitlements）',
+    JSON.stringify(refundedEnt));
+  const ownedNoEnt = asProduction(androidOwned);
+  ownedNoEnt.items[0].entitlements.items = [];
+  const ownedNoEntResult = await runLifetime({ uid: ANDROID_UID, production: { body: ownedNoEnt } });
+  check(ownedNoEntResult.ok === false && ownedNoEntResult.status === 403,
+    'status=owned 但 entitlements 是空陣列（商品被拿出 plus）⇒ 無資格', JSON.stringify(ownedNoEntResult));
+
+  // 不在 allowlist 的一次性購買 → 不算。同一份回應、只差 allowlist，對照才證明擋下的是 allowlist。
+  const ownedProd = androidOwned.items[0].product_id;
+  const notListed = await runLifetime({ uid: ANDROID_UID, production: { body: asProduction(androidOwned) },
+    env: LIFETIME_ENV({ REVENUECAT_LIFETIME_PRODUCT_IDS: lifetimeProd.filter(id => id !== ownedProd).join(',') }) });
+  check(notListed.ok === false && notListed.status === 403,
+    '同一筆 owned 購買，但它的商品不在 allowlist（另外三個都在）⇒ 不算終身', JSON.stringify(notListed));
+  const otherProduct = asProduction(androidOwned);
+  otherProduct.items[0].product_id = 'prod_other_one_time';
+  const otherResult = await runLifetime({ uid: ANDROID_UID, production: { body: otherProduct } });
+  check(otherResult.ok === false && otherResult.status === 403,
+    '別的一次性商品（owned、掛 plus、正式環境，只有 product_id 不在 allowlist）⇒ 不算終身（不從「沒有到期日」反推）',
+    JSON.stringify(otherResult));
+
+  // 買兩筆、退一筆 → 仍有資格。fixture 裡被退的是較晚那筆，只看最新一筆的寫法會在這裡紅；
+  // 再把順序倒過來，只看第一筆的寫法也會紅。
+  const twoOneRefunded = await runLifetime({ uid: IOS_UID, production: { body: asProduction(iosOneRefunded) } });
+  const reversed = asProduction(iosOneRefunded); reversed.items.reverse();
+  const twoOneRefundedReversed = await runLifetime({ uid: IOS_UID, production: { body: reversed } });
+  check(twoOneRefunded.ok === true && twoOneRefundedReversed.ok === true
+      && twoOneRefunded.lifetimePurchases.items.length === 1
+      && twoOneRefunded.lifetimePurchases.items[0].status === 'owned',
+    '買兩筆、退一筆（iOS 實測回應；列表順序正反各一次）⇒ 仍有資格，命中的是 owned 那一筆',
+    JSON.stringify({ twoOneRefunded: twoOneRefunded.ok, reversed: twoOneRefundedReversed.ok, hit: twoOneRefunded.lifetimePurchases }));
+
+  // sandbox 購買在正式環境 → 不算。上游若忽略 environment 參數、把 sandbox 那筆回給正式查詢，
+  // 逐筆 environment 這道仍要擋下。
+  const sandboxInProduction = await runLifetime({ uid: ANDROID_UID, production: { body: androidOwned } });
+  check(sandboxInProduction.ok === false && sandboxInProduction.status === 403
+      && purchaseCalls().every(u => /[?&]environment=production(&|$)/.test(u)),
+    'sandbox 購買（實測回應原文）出現在正式環境的查詢結果裡 ⇒ 不算（逐筆 environment 第二道）',
+    JSON.stringify({ sandboxInProduction, calls: purchaseCalls() }));
+  // 正向對照：同一份回應走 TestFlight build 21 的 sandbox 回退，就是有效的測試資格。
+  const sandboxFallback = await runLifetime({ uid: ANDROID_UID, production: { body: androidOwned },
+    sandbox: { body: androidOwned }, request: req('21') });
+  const fallbackEnvs = purchaseCalls().map(u => new URL(u).searchParams.get('environment'));
+  check(sandboxFallback.ok === true && sandboxFallback.entitlementEnvironment === 'sandbox'
+      && fallbackEnvs.join(',') === 'production,sandbox',
+    '正向對照：同一份 sandbox 回應在 build 21 的 sandbox 回退 ⇒ 取得 sandbox 資格（先查正式、再查 sandbox）',
+    JSON.stringify({ sandboxFallback, fallbackEnvs }));
+
+  // allowlist 沒設定 ⇒ 不認終身、也不打 /purchases（與只有訂閱時相同）。
+  const unconfigured = await runLifetime({ uid: ANDROID_UID, production: { body: asProduction(androidOwned) }, env: ENV() });
+  check(unconfigured.ok === false && unconfigured.status === 403 && purchaseCalls().length === 0,
+    'REVENUECAT_LIFETIME_PRODUCT_IDS 沒設定 ⇒ 不打 /purchases、不認終身（行為與只有訂閱時相同）',
+    JSON.stringify({ unconfigured, purchaseCalls: purchaseCalls().length }));
+
+  // 查不完整／不合規 ⇒ 503，不得當成「確定沒有終身」。
+  const realConsoleError = console.error;
+  const logs = [];
+  console.error = (...args) => { logs.push(args.join(' ')); };
+  try {
+    const p500 = await runLifetime({ uid: ANDROID_UID, production: { status: 500, body: {} } });
+    check(p500.ok === false && p500.status === 503,
+      '/purchases 上游 500 ⇒ 503（可重試），不當成「沒有終身」', JSON.stringify(p500));
+    const p500WithSub = await runLifetime({ uid: ANDROID_UID, production: { status: 500, body: {} },
+      subscriptions: { object: 'list', items: [sub({ customer_id: ANDROID_UID })], next_page: null } });
+    check(p500WithSub.ok === false && p500WithSub.status === 503,
+      '有效訂閱＋/purchases 500 ⇒ 仍是 503（真相只拿到一半，不用半份真相寫文件）', JSON.stringify(p500WithSub));
+    logs.length = 0;
+    const malformed = await runLifetime({ uid: ANDROID_UID, production: { body: { object: 'list', items: null, next_page: null } } });
+    check(malformed.ok === false && malformed.status === 503 && logs.some(line => line.includes('purchases') && line.includes('不符官方 schema')),
+      '/purchases 的 items 不是陣列 ⇒ 503，且由 schema 守門擋下並留下紀錄', JSON.stringify({ malformed, logs }));
+    const foreign = asProduction(androidOwned);
+    foreign.items[0].customer_id = 'someone-else';
+    const foreignResult = await runLifetime({ uid: ANDROID_UID, production: { body: foreign } });
+    check(foreignResult.ok === false && foreignResult.status === 503,
+      '/purchases 回了別人的 customer_id ⇒ 503（不把別人的終身算到這個 uid）', JSON.stringify(foreignResult));
+    const notFound = await runLifetime({ uid: ANDROID_UID,
+      production: { status: 404, body: { object: 'error', type: 'resource_missing', param: 'customer_id' } },
+      subscriptions: { object: 'list', items: [sub({ customer_id: ANDROID_UID })], next_page: null } });
+    check(notFound.ok === true,
+      '/purchases 第一頁 404（customer_id）＝沒有一次性購買，有效訂閱照樣有資格（不是任何 404 都變 503）', JSON.stringify(notFound));
+  } finally { console.error = realConsoleError; }
+
+  // 端到端：有終身＋訂閱已過期 ⇒ /api/plus-status 回 active:true。
+  const expiredSub = sub({ customer_id: ANDROID_UID, gives_access: false, status: 'expired',
+    ends_at: Date.now() - 30 * 86_400_000, current_period_ends_at: Date.now() - 30 * 86_400_000 });
+  const status = async (purchases) => {
+    upstream = []; rcBody = { object: 'list', items: [expiredSub], next_page: null }; rcStatus = 200; rcThrow = false; rcSeq = null;
+    rcPurchasesByEnv = { production: { body: purchases } }; identityUid = ANDROID_UID;
+    try {
+      const res = await plusStatus(req(), LIFETIME_ENV());
+      return { status: res.status, json: await res.json() };
+    } finally { rcPurchasesByEnv = {}; identityUid = 'uid-under-test'; }
+  };
+  const lifetimeExpiredSub = await status(asProduction(androidOwned));
+  check(lifetimeExpiredSub.status === 200 && lifetimeExpiredSub.json.active === true
+      && lifetimeExpiredSub.json.environment === 'production',
+    '端到端：有終身＋訂閱已過期 ⇒ /api/plus-status 回 200 {active:true, environment:production}',
+    JSON.stringify(lifetimeExpiredSub));
+  const refundedExpiredSub = await status(asProduction(androidRefunded));
+  check(refundedExpiredSub.status === 200 && refundedExpiredSub.json.active === false,
+    '端到端反向對照：終身已退款＋訂閱已過期 ⇒ 200 {active:false}', JSON.stringify(refundedExpiredSub));
+}
+
 globalThis.fetch = realFetch;
 
 // ── 收尾：段落完整性（整段被刪掉時要有具名紅燈，不是靜靜地少跑幾條還印「全部 PASS」）──

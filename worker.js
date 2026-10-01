@@ -2358,6 +2358,16 @@ const FIRESTORE_TOKEN_REFRESH_SKEW_MS = 60e3;
 // 資格文件的寬限取 24 小時：足以吸收 webhook 短暫漏送與兩端時鐘偏移，又不會在訂閱
 // 真正到期後留下長期權限。退款／撤銷事件正常送達時仍會立即寫 active:false，不等寬限。
 const PLUS_ENTITLEMENT_GRACE_MS = 24 * 60 * 60 * 1000;
+// 終身（一次性購買）資格文件的滾動窗。一次性購買沒有到期日，也不會像訂閱那樣每期送 RENEWAL
+// webhook 來延長文件，所以每次 /api/plus-status 或 webhook 重查到「仍持有」時，都改寫成「從這次
+// 重查起 7 天」。文件因此永遠有界，firestore.rules 不必為終身開 activeUntilMs==0 的例外。
+// 退款不靠這個窗收回：重查看到 refunded 就立即寫 inactive。窗只限制「退款通知沒送達、之後也沒人
+// 重查」時，舊文件最多再被信任多久。7 天與「沒有新依據的資格文件不該活過一週」的既有上限一致；
+// 正常使用時，網站回前景、App 被 rules 擋下後的握手、任何一則 webhook 都會重查並延長。
+const PLUS_LIFETIME_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+// /purchases 裡一次性購買的狀態值。只有 owned 算持有；退款後同一筆仍留在列表裡，狀態改成
+// refunded、entitlements 清空（fixtures/revenuecat-lifetime-20261001/ 的 sandbox 實測）。
+const RC_PURCHASE_STATUS_OWNED = 'owned';
 
 let firestoreAccessToken = null;
 let firestoreAccessTokenExpiresAtMs = 0;
@@ -2585,10 +2595,39 @@ function rcSubscriptionsPageError(body, expectCustomerId) {
 function subscriptionMatchesPlus(sub, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
   if (!sub || typeof sub !== 'object' || sub.gives_access !== true) return false;
   if (sub.environment !== plusEnvironment(entitlementEnvironment)) return false;
-  if (!Object.prototype.hasOwnProperty.call(sub, 'entitlements')) return true;   // 唯一的 fallback:真正缺席
-  const ents = sub.entitlements;
+  return plusEntitlementsInclude(sub, wantEntitlement);
+}
+
+// 條件 (3) 的三態判斷，訂閱與一次性購買共用（purchase 的 entitlements 與 subscription 同形狀）。
+function plusEntitlementsInclude(record, wantEntitlement) {
+  if (!Object.prototype.hasOwnProperty.call(record, 'entitlements')) return true;   // 唯一的 fallback:真正缺席
+  const ents = record.entitlements;
   if (!ents || typeof ents !== 'object' || Array.isArray(ents) || !Array.isArray(ents.items)) return false;
   return ents.items.some(e => e && e.lookup_key === wantEntitlement);
+}
+
+// 終身商品的 allowlist：RevenueCat 內部商品 ID（prod…），由 Worker secret
+// REVENUECAT_LIFETIME_PRODUCT_IDS 提供（逗號或空白分隔）。用 prod… 而不是商店商品 ID，是因為
+// /purchases 的 product_id 只給 prod…，而且 expand 只接受 items.redemption，帶 items.product 會回 400
+// （fixtures/revenuecat-lifetime-20261001/rest/expand-probe/）。
+// 沒設定時回空集合：不認任何終身、也不打 /purchases，行為與只有訂閱時相同。
+function plusLifetimeProductIds(env) {
+  return new Set(String(env.REVENUECAT_LIFETIME_PRODUCT_IDS || '')
+    .split(/[\s,]+/).map(value => value.trim()).filter(Boolean));
+}
+
+// 一筆 /purchases 的 purchase 算不算「持有終身 Plus」。四個條件全部要成立：
+//  (1) product_id 在 allowlist——不從「沒有到期日」反推終身（見 plusEntitlementDocument 上方 I-6）；
+//  (2) status === owned——退款後那一筆仍在列表裡，只是改成 refunded；
+//  (3) environment === 指定環境——與訂閱一樣是 query 參數＋逐筆欄位兩道；
+//  (4) entitlements 掛著要找的 lookup_key——三態規則同訂閱；退款後 RevenueCat 會清空它。
+// 買兩筆、退一筆時資格仍在，所以呼叫端看的是「還有沒有任何一筆」符合，不是最新那一筆。
+function purchaseMatchesPlusLifetime(purchase, wantEntitlement, lifetimeProductIds, entitlementEnvironment = RC_ENV_PRODUCTION) {
+  if (!purchase || typeof purchase !== 'object') return false;
+  if (!lifetimeProductIds.has(purchase.product_id)) return false;
+  if (purchase.status !== RC_PURCHASE_STATUS_OWNED) return false;
+  if (purchase.environment !== plusEnvironment(entitlementEnvironment)) return false;
+  return plusEntitlementsInclude(purchase, wantEntitlement);
 }
 
 // 🔴 2026-08-04 敵意稽核 I-4:這支是**純篩選**,前提是 body 已經通過 rcSubscriptionsPageError()。
@@ -2603,6 +2642,22 @@ function plusAccessSubscriptions(body, wantEntitlement, entitlementEnvironment =
 
 function plusEntitledFromSubscriptions(body, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
   return plusAccessSubscriptions(body, wantEntitlement, entitlementEnvironment).length > 0;
+}
+
+// lifetimePurchases 是 fetchRevenueCatLifetimePurchases() 已篩過的集合（{ items: [...] }）；
+// null／缺席＝沒有終身。形狀不對直接拋錯，理由同 plusAccessSubscriptions（I-4）：純 helper
+// 不准把 malformed 折疊成「確定沒有」。
+function plusLifetimeOwned(lifetimePurchases) {
+  if (lifetimePurchases === null || lifetimePurchases === undefined) return false;
+  if (typeof lifetimePurchases !== 'object' || !Array.isArray(lifetimePurchases.items))
+    throw new TypeError('revenuecat lifetime purchases malformed: items 不是陣列');
+  return lifetimePurchases.items.length > 0;
+}
+
+// 訂閱或終身任一成立就有資格。truth 是 fetchRevenueCatPlusTruth() 的成功結果。
+function plusEntitledFromTruth(truth, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
+  return plusEntitledFromSubscriptions(truth.subscriptions, wantEntitlement, entitlementEnvironment)
+    || plusLifetimeOwned(truth.lifetimePurchases);
 }
 
 // entitlements/{uid} 與 sandboxEntitlements/{uid} 共用固定契約：active(boolean)、activeUntilMs(number)、
@@ -2627,8 +2682,12 @@ function plusEntitledFromSubscriptions(body, wantEntitlement, entitlementEnviron
 //    到期後任何一次前端查詢都會重新問 RevenueCat。損害因此有界，且沒有可用性代價。
 //  · 若日後真的推出 lifetime 產品，必須用明確的產品／entitlement allowlist 來辨識，
 //    絕不可以從「到期欄位是 null」反推——那正是這條稽核發現的錯誤推論本身。
-function plusEntitlementDocument(body, wantEntitlement, source, nowMs = Date.now(), entitlementEnvironment = RC_ENV_PRODUCTION) {
+//    終身產品照這條做：只認 /purchases 裡 product_id 在 allowlist、仍為 owned 的那幾筆
+//    （purchaseMatchesPlusLifetime），由 lifetimePurchases 參數帶進來；它的 activeUntilMs 是
+//    「從這次重查起 PLUS_LIFETIME_WINDOW_MS」的有界滾動窗，不是 0。
+function plusEntitlementDocument(body, wantEntitlement, source, nowMs = Date.now(), entitlementEnvironment = RC_ENV_PRODUCTION, lifetimePurchases = null) {
   const access = plusAccessSubscriptions(body, wantEntitlement, entitlementEnvironment);
+  const lifetimeOwned = plusLifetimeOwned(lifetimePurchases);
   let activeUntilMs = 0;
   if (access.length) {
     const expirations = access.map(sub => {
@@ -2643,7 +2702,9 @@ function plusEntitlementDocument(body, wantEntitlement, source, nowMs = Date.now
       // Math.max(nowMs) 就是 nowMs ⇒ 最短情形是「從現在起一次寬限」，永遠是有界的正數。
       : Math.max(nowMs, ...known) + PLUS_ENTITLEMENT_GRACE_MS;
   }
-  return { active: access.length > 0, activeUntilMs, updatedAtMs: nowMs, source };
+  // 終身：每次重查都從現在起算一個窗；同時有訂閱時取兩者較晚的那個。
+  if (lifetimeOwned) activeUntilMs = Math.max(activeUntilMs, nowMs + PLUS_LIFETIME_WINDOW_MS);
+  return { active: access.length > 0 || lifetimeOwned, activeUntilMs, updatedAtMs: nowMs, source };
 }
 
 function firestoreEntitlementPayload(doc) {
@@ -2782,15 +2843,19 @@ async function writePlusEntitlement(uid, doc, env, nowMs = Date.now(), entitleme
 }
 
 // /api/plus-status 與 webhook 共用唯一一條 RevenueCat 讀取路徑：limit=100、逐頁累積所有
-// 符合資格的 subscription，且每一個 next_page 都由 resolveRcNextPage() 釘死 origin ＋ canonical
+// 符合資格的項目，且每一個 next_page 都由 resolveRcNextPage() 釘死 origin ＋ canonical
 // pathname（I-5）。為了讓 activeUntilMs 能取到所有頁的最晚到期日，命中後不提早回傳，會翻到自然
 // 結尾。每一頁在做任何業務判定之前都先過 rcSubscriptionsPageError()（I-3／I-4／I-5）：
 // 不符官方 schema 的 200 一律升成可重試的 503，絕不折疊成「確定沒訂閱」或「已翻到底」。
-async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
+// /subscriptions 與 /purchases（終身）共用這一份：兩者的 list 外殼（items、next_page）、逐筆
+// customer_id 與巢狀 entitlements 形狀相同（/purchases 的實際回應見
+// fixtures/revenuecat-lifetime-20261001/rest/），所以分頁、跟頁、schema 守門、404 分流只寫一份，
+// 不讓兩份加固過的邏輯各自漂移。resource 只會是程式內的字面值，不吃外部輸入。
+async function fetchRevenueCatCustomerList(uid, env, resource, itemMatches, entitlementEnvironment = RC_ENV_PRODUCTION) {
   const matches = [];
   const selectedEnvironment = plusEnvironment(entitlementEnvironment);
   // canonical endpoint：既是第一發請求的路徑，也是 I-5 用來認「下一頁還是不是同一個資源」的錨。
-  const canonicalPath = `/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/subscriptions`;
+  const canonicalPath = `/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}/${resource}`;
   let rcUrl = `${RC_ORIGIN}${canonicalPath}?environment=${selectedEnvironment}&limit=${RC_SUBS_LIMIT}`;
   for (let page = 0; page < RC_SUBS_MAX_PAGES; page++) {
     const rc = await fetch(rcUrl, {
@@ -2804,7 +2869,7 @@ async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement, entitleme
       // 這支函式其他分支已經遵守的原則:已有命中但集合不完整 ⇒ 503,不拿不完整集合寫文件。
       // 後續頁的 404 語意是「分頁游標失效／上游狀態改變」＝這次查詢失敗,不是「沒買過」。
       if (page > 0 || matches.length) {
-        console.error(`[plus] subscriptions 第 ${page + 1} 頁回 404(分頁失敗,不是 customer 不存在),已累積命中 ${matches.length} 筆,回 503 不清空`);
+        console.error(`[plus] ${resource} 第 ${page + 1} 頁回 404(分頁失敗,不是 customer 不存在),已累積命中 ${matches.length} 筆,回 503 不清空`);
         return { ok: false, status: 503, error: 'entitlement_unavailable' };
       }
       let param = null;
@@ -2813,40 +2878,73 @@ async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement, entitleme
         console.error('[plus] 上游 404 指出 project_id 有問題(REVENUECAT_PROJECT_ID 疑似設定錯誤),回 503 而非誤判為未訂閱');
         return { ok: false, status: 503, error: 'entitlement_unavailable' };
       }
-      return { ok: true, subscriptions: { items: [] } };
+      return { ok: true, items: [] };
     }
     if (!rc.ok) return { ok: false, status: 503, error: 'entitlement_unavailable' };
-    const subs = await rc.json();
+    const list = await rc.json();
     // 🔴 I-3／I-4／I-5:業務判定之前先驗 schema。不合規＝可重試的 503,不得寫任何資格文件。
-    const shapeError = rcSubscriptionsPageError(subs, uid);
+    const shapeError = rcSubscriptionsPageError(list, uid);
     if (shapeError) {
-      console.error(`[plus] subscriptions 第 ${page + 1} 頁不符官方 schema,判為 malformed 回 503(不寫資格文件):${shapeError}`);
+      console.error(`[plus] ${resource} 第 ${page + 1} 頁不符官方 schema,判為 malformed 回 503(不寫資格文件):${shapeError}`);
       return { ok: false, status: 503, error: 'entitlement_unavailable' };
     }
-    matches.push(...plusAccessSubscriptions(subs, wantEntitlement, selectedEnvironment));
+    matches.push(...list.items.filter(itemMatches));
 
     // 走到這裡 next_page 只可能是 null／缺席（＝翻到底）或合法非空字串（＝還有下一頁）。
-    if (subs.next_page === null || subs.next_page === undefined) {
-      return { ok: true, subscriptions: { items: matches } };
+    if (list.next_page === null || list.next_page === undefined) {
+      return { ok: true, items: matches };
     }
-    const resolvedNextPage = resolveRcNextPage(subs.next_page, canonicalPath);
+    const resolvedNextPage = resolveRcNextPage(list.next_page, canonicalPath);
     if (!resolvedNextPage) {
-      console.error(`[plus] next_page 解析後不是「同一個 customer 的 subscriptions 端點」(origin 或 pathname 不符),拒絕跟隨、停止翻頁:${subs.next_page}`);
+      console.error(`[plus] next_page 解析後不是「同一個 customer 的 ${resource} 端點」(origin 或 pathname 不符),拒絕跟隨、停止翻頁:${list.next_page}`);
       // 沒有命中時維持既有的 403 安全方向；若已有命中，activeUntilMs 可能還有後頁資料，
       // 改回可診斷、可重試的 503，不能拿不完整集合寫出看似成功的資格文件。
       return matches.length
         ? { ok: false, status: 503, error: 'entitlement_unavailable' }
-        : { ok: true, subscriptions: { items: [] } };
+        : { ok: true, items: [] };
     }
     rcUrl = resolvedNextPage;
   }
   // 翻頁上限用完仍有 next_page。無命中維持現行安全方向；已有命中則不能用不完整集合計算
   // activeUntilMs，回 503 讓 observability 與客戶端都看得出「查不完整」，不靜默寫錯文件。
   if (matches.length) {
-    console.error('[plus] subscriptions 翻頁達安全上限且已有資格命中,activeUntilMs 無法完整計算,回 503');
+    console.error(`[plus] ${resource} 翻頁達安全上限且已有資格命中,activeUntilMs 無法完整計算,回 503`);
     return { ok: false, status: 503, error: 'entitlement_unavailable' };
   }
-  return { ok: true, subscriptions: { items: [] } };
+  return { ok: true, items: [] };
+}
+
+async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
+  const selectedEnvironment = plusEnvironment(entitlementEnvironment);
+  const list = await fetchRevenueCatCustomerList(uid, env, 'subscriptions',
+    sub => subscriptionMatchesPlus(sub, wantEntitlement, selectedEnvironment), selectedEnvironment);
+  return list.ok ? { ok: true, subscriptions: { items: list.items } } : list;
+}
+
+// 終身只出現在 /purchases，/subscriptions 一筆都沒有（兩個環境都實測過，見
+// fixtures/revenuecat-lifetime-20261001/README.md）。不用 /active_entitlements：它沒有環境欄位，
+// sandbox 購買也會出現在那裡，正式環境不能拿它判資格（同 checkPlusEntitlement 上方的 C-3）。
+// allowlist 沒設定時連請求都不發，直接回空集合。
+async function fetchRevenueCatLifetimePurchases(uid, env, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
+  const lifetimeProductIds = plusLifetimeProductIds(env);
+  if (!lifetimeProductIds.size) return { ok: true, purchases: { items: [] } };
+  const selectedEnvironment = plusEnvironment(entitlementEnvironment);
+  const list = await fetchRevenueCatCustomerList(uid, env, 'purchases',
+    purchase => purchaseMatchesPlusLifetime(purchase, wantEntitlement, lifetimeProductIds, selectedEnvironment),
+    selectedEnvironment);
+  return list.ok ? { ok: true, purchases: { items: list.items } } : list;
+}
+
+// 一個環境的完整 Plus 真相：訂閱與終身兩支一起查，任一支查不完整就整個回失敗（呼叫端轉 503、
+// 不寫文件），不拿半份真相判資格。兩支互不依賴，所以並行送出，不多等一趟來回。
+async function fetchRevenueCatPlusTruth(uid, env, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
+  const [subscriptions, lifetime] = await Promise.all([
+    fetchRevenueCatSubscriptions(uid, env, wantEntitlement, entitlementEnvironment),
+    fetchRevenueCatLifetimePurchases(uid, env, wantEntitlement, entitlementEnvironment),
+  ]);
+  if (!subscriptions.ok) return subscriptions;
+  if (!lifetime.ok) return lifetime;
+  return { ok: true, subscriptions: subscriptions.subscriptions, lifetimePurchases: lifetime.purchases };
 }
 
 // 驗證 Firebase ID token → RevenueCat 訂閱存取權,供任何 Plus 付費牆端點共用。
@@ -2862,6 +2960,8 @@ async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement, entitleme
 // 與逐筆 environment 欄位雙重收斂。
 // 成功與明確無資格都會附上 uid、選中的環境與跨頁累積的命中 subscriptions，供資格文件使用；
 // 呼叫端自行決定 403(not_entitled)要不要原樣回傳，或(如 /api/plus-status)改寫成 200 {active:false}。
+// 終身（一次性購買）與訂閱同等：每個環境的真相由 fetchRevenueCatPlusTruth() 一次取訂閱＋終身，
+// 兩者任一成立就有資格；命中的終身購買以 lifetimePurchases／productionLifetimePurchases 附上。
 async function checkPlusEntitlement(request, env) {
   if (!env.FIREBASE_WEB_API_KEY || !env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY)
     return { ok: false, status: 503, error: 'entitlement_unavailable' };
@@ -2879,13 +2979,13 @@ async function checkPlusEntitlement(request, env) {
     // entitlement 的 lookup_key 與前端 revenuecat-config.js 的 entitlement 同一個值('plus');
     // 不是 secret,給 env 覆寫只是為了不把它寫死在兩個地方。
     const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
-    const productionTruth = await fetchRevenueCatSubscriptions(uid, env, wantEntitlement, RC_ENV_PRODUCTION);
+    const productionTruth = await fetchRevenueCatPlusTruth(uid, env, wantEntitlement, RC_ENV_PRODUCTION);
     if (!productionTruth.ok) return productionTruth;
     let entitlementEnvironment = RC_ENV_PRODUCTION;
     let truth = productionTruth;
-    if (!plusEntitledFromSubscriptions(productionTruth.subscriptions, wantEntitlement, RC_ENV_PRODUCTION)
+    if (!plusEntitledFromTruth(productionTruth, wantEntitlement, RC_ENV_PRODUCTION)
         && sandboxPlusRequested(request, uid, env)) {
-      const sandboxTruth = await fetchRevenueCatSubscriptions(uid, env, wantEntitlement, RC_ENV_SANDBOX);
+      const sandboxTruth = await fetchRevenueCatPlusTruth(uid, env, wantEntitlement, RC_ENV_SANDBOX);
       if (!sandboxTruth.ok) return sandboxTruth;
       entitlementEnvironment = RC_ENV_SANDBOX;
       truth = sandboxTruth;
@@ -2893,8 +2993,12 @@ async function checkPlusEntitlement(request, env) {
     // subscriptions 是跨頁累積後「所有符合資格的命中集合」，不是任一頁的原始 body；
     // plus-status 與 webhook 都用這份集合計算 activeUntilMs，避免有效訂閱在後頁時寫錯。
     const subscriptions = truth.subscriptions;
-    const common = { uid, subscriptions, entitlementEnvironment, productionSubscriptions: productionTruth.subscriptions };
-    if (!plusEntitledFromSubscriptions(subscriptions, wantEntitlement, entitlementEnvironment))
+    const common = {
+      uid, subscriptions, lifetimePurchases: truth.lifetimePurchases, entitlementEnvironment,
+      productionSubscriptions: productionTruth.subscriptions,
+      productionLifetimePurchases: productionTruth.lifetimePurchases,
+    };
+    if (!plusEntitledFromTruth(truth, wantEntitlement, entitlementEnvironment))
       return { ok: false, status: 403, error: 'not_entitled', ...common };
     return { ok: true, ...common };
   } catch (e) {
@@ -2975,14 +3079,15 @@ async function plusStatus(request, env) {
     // 正式文件永遠由正式真相自癒；TestFlight 回退到 sandbox 時再另外寫 sandboxEntitlements。
     // 兩份文件分開，sandbox webhook／到期不可能覆蓋正式購買資格。
     const productionDoc = plusEntitlementDocument(
-      check.productionSubscriptions, wantEntitlement, 'plus-status', nowMs, RC_ENV_PRODUCTION
+      check.productionSubscriptions, wantEntitlement, 'plus-status', nowMs, RC_ENV_PRODUCTION,
+      check.productionLifetimePurchases
     );
     try {
       const productionWrite = await writePlusEntitlement(check.uid, productionDoc, env, nowMs, RC_ENV_PRODUCTION);
       let selectedDoc = productionDoc, selectedWrite = productionWrite;
       if (selectedEnvironment === RC_ENV_SANDBOX) {
         selectedDoc = plusEntitlementDocument(
-          check.subscriptions, wantEntitlement, 'plus-status', nowMs, RC_ENV_SANDBOX
+          check.subscriptions, wantEntitlement, 'plus-status', nowMs, RC_ENV_SANDBOX, check.lifetimePurchases
         );
         selectedWrite = await writePlusEntitlement(check.uid, selectedDoc, env, nowMs, RC_ENV_SANDBOX);
       }
@@ -3034,7 +3139,7 @@ async function constantTimeHeaderEqual(actual, expected) {
 // 等於把重試額度燒在一個永遠不會成功的形狀上。
 //
 // 這裡只做最小正確處理：把「事件主體是誰」抽成一個函式，TRANSFER 取兩個陣列的聯集並去重。
-// 寫入時仍然一律用 fetchRevenueCatSubscriptions() 重查**正式環境**真相，不從事件內容推演資格——
+// 寫入時仍然一律用 fetchRevenueCatPlusTruth() 重查**正式環境**真相，不從事件內容推演資格——
 // 所以雙方各自寫到的都是當下的真相，順序與重複送達都不影響結果（冪等）。
 function webhookTargetUids(event) {
   if (!event || typeof event !== 'object') return [];
@@ -3053,9 +3158,14 @@ function webhookTargetUids(event) {
 
 // POST /api/revenuecat-webhook
 // RevenueCat dashboard 設定的 Authorization 完整值必須與 REVENUECAT_WEBHOOK_AUTH secret 完全相同。
-// webhook 本身只當喚醒訊號：事件一律用 fetchRevenueCatSubscriptions() 重查完整分頁真相再寫，
-// 退款、撤銷、到期不靠本地事件型別表推演。production 與 sandbox 寫入不同 collection，
+// webhook 本身只當喚醒訊號：事件一律用 fetchRevenueCatPlusTruth() 重查完整分頁真相（訂閱＋終身）
+// 再寫，退款、撤銷、到期不靠本地事件型別表推演。production 與 sandbox 寫入不同 collection，
 // 所以測試交易可以完整驗收續訂／到期，又不會蓋掉正式資格。
+// 終身的購買與退款也走這條：購買是 NON_RENEWING_PURCHASE，退款是 CANCELLATION（兩平台的實測
+// payload 在 fixtures/revenuecat-lifetime-20261001/webhook/），兩者的 entitlement_ids 都是 ["plus"]，
+// 只看事件分不出買或退；重查 /purchases 看到 owned／refunded 才是答案，退款因此當下就寫 inactive。
+// iOS 退款可能要等買家打開 App、RevenueCat 向 Apple 重查才知道，不能假設會即時送達；送達前
+// 文件最多再撐 PLUS_LIFETIME_WINDOW_MS（從最後一次重查起算）。
 async function revenueCatWebhook(request, env) {
   if (request.method !== 'POST') {
     const response = jsonRes({ error: 'method not allowed' }, 405, 'no-store');
@@ -3098,11 +3208,12 @@ async function revenueCatWebhook(request, env) {
     // 重試安全，因為每次都是重查當下真相再覆寫，不是套用事件內容。
     for (const targetUid of uids) {
       for (const entitlementEnvironment of entitlementEnvironments) {
-        const truth = await fetchRevenueCatSubscriptions(targetUid, env, wantEntitlement, entitlementEnvironment);
-        if (!truth.ok) throw new Error(`revenuecat subscriptions ${truth.status}`);
+        const truth = await fetchRevenueCatPlusTruth(targetUid, env, wantEntitlement, entitlementEnvironment);
+        if (!truth.ok) throw new Error(`revenuecat truth ${truth.status}`);
         const nowMs = Date.now();
         const doc = plusEntitlementDocument(
-          truth.subscriptions, wantEntitlement, 'revenuecat-webhook', nowMs, entitlementEnvironment
+          truth.subscriptions, wantEntitlement, 'revenuecat-webhook', nowMs, entitlementEnvironment,
+          truth.lifetimePurchases
         );
         await writePlusEntitlement(targetUid, doc, env, nowMs, entitlementEnvironment);
       }
@@ -8098,6 +8209,8 @@ export const _plus = {
   writePlusEntitlement, plusStatus, revenueCatWebhook,
   resolveRcNextPage, rcSubscriptionsPageError, webhookTargetUids, subscriptionMatchesPlus,
   sandboxPlusRequested, fetchRevenueCatSubscriptions,
+  plusLifetimeProductIds, purchaseMatchesPlusLifetime, fetchRevenueCatLifetimePurchases, fetchRevenueCatPlusTruth,
+  plusEntitledFromTruth,
 };
 // 供離線回歸測試 import:驗「節流擋在 outbound fetch 之前」。這兩個不是純函式,測試得自備
 // env 替身與 fetch 替身;導出的目的就是讓測試能數「被擋掉時到底有沒有打上游」。
