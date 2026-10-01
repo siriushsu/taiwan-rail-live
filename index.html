@@ -6292,7 +6292,7 @@
       <span id="recQualityText">等待定位</span>
     </div>
     <div class="rc-big"><span id="recKm">0.0</span><small>公里</small></div>
-    <div class="rc-row" id="recRow"><span id="recSegs">0</span> <span id="recUnitWord">段</span>已覆蓋・<span id="recPts">0</span> 點已鎖定</div>
+    <div class="rc-row" id="recRow"><span id="recSegs">0</span> <span id="recUnitWord">段</span>已覆蓋</div>
     <div class="rc-bar"><i id="recBar"></i></div>
   </div>
   <button class="rc-stop" id="recStop" type="button">停止錄製</button>
@@ -23603,21 +23603,45 @@ async function openBountyBoard() {
   const m = document.getElementById('bountyModal');
   m.hidden = false;
   document.getElementById('bountyList').innerHTML = `<div class="bt-empty">${escHtml(t('載入中…'))}</div>`;
+  // 卡片上的籌碼倍率標記要讀規則檔：跟看板請求一起讀，畫第一次就帶得到。讀不到只是不標倍率，不擋看板。
+  const rulesP = bountyRules().catch(() => null);
   try { bountyBoardMem = await fetchBountyBoard(); }
   catch (e) {
     document.getElementById('bountyList').innerHTML = `<div class="bt-empty">${escHtml(t('懸賞板暫時讀不到，等一下再試一次'))}</div>`;
     return;
   }
+  await rulesP;
   renderBountyBoard();
+}
+// 這張卡所在的線在規則檔的偏遠線名單裡，就回該線的籌碼倍率；不在、或規則檔還沒讀到就回 0。
+// 名單與倍率只讀規則檔（chips.remoteLines／remoteMultiplier），不在這裡另存一份；讀不到寧可不標，也不標錯。
+function bountyRemoteMult(card) {
+  const ch = bountyRulesMem && bountyRulesMem.chips;
+  if (!ch || !Array.isArray(ch.remoteLines) || !card) return 0;
+  const mult = ch.remoteLines.includes(card.sys + '|' + card.lnId) ? bountyNum(ch.remoteMultiplier) : 0;
+  return mult > 1 ? mult : 0;
+}
+// 說明卡的獎勵句：合格的一趟得幾顆、這條線是否加倍、每天最多幾顆。三個數字全讀規則檔
+// （chips.perTrip／remoteMultiplier／dailyChipCap），伺服器入帳讀的是同一份。
+// 規則檔沒讀到就整段不寫：不憑記憶補數字，也不寫伺服器不一定會給的東西。
+// 樣板裡的 <b> 是字典值的固定標記；插進去的只有 bountyNum() 收斂過的整數。
+function bountyRewardText(card) {
+  const ch = bountyRulesMem && bountyRulesMem.chips;
+  if (!ch) return '';
+  const perTrip = bountyNum(ch.perTrip), cap = bountyNum(ch.dailyChipCap), mult = bountyRemoteMult(card);
+  return i18nJoin(
+    perTrip > 0 ? t('合格的一趟得 <b>{n}</b> 顆籌碼。', { n: perTrip }) : '',
+    mult ? t('這條線的籌碼 ×<b>{n}</b>。', { n: mult }) : '',
+    cap > 0 ? t('每天最多 <b>{n}</b> 顆。', { n: cap }) : '');
 }
 function closeBountyBoard() { document.getElementById('bountyModal').hidden = true; }
 function renderBountyBoard() {
   const b = bountyBoardMem || { cards: [] };
   const el = document.getElementById('bountyList');
   // 兩句之間的空白英文要、中日文不要:i18nJoin 依語言決定,不寫死在任一句的譯文裡
-  document.getElementById('bountySub').textContent = i18nJoin(b.demo ? t('示範資料，僅供確認設計：這裡的路段與點數都是假的，接下來也不會真的錄。') : '',
+  document.getElementById('bountySub').textContent = i18nJoin(b.demo ? t('示範資料，僅供確認設計：這裡的路段都是假的，接下來也不會真的錄。') : '',
     PHYSICAL_COLLECT_ENABLED
-      ? t('接一張、搭那班車時開錄，把沿途的速度剖面測出來。全部免費，獎勵是榮譽。')
+      ? t('接一張、搭那班車時開錄，把沿途的速度剖面測出來。全部免費，合格的一趟可以得到籌碼，每天有上限。')
       : t('這些項目還沒有實測資料。用 App 才能接下來錄——網頁可以先看看有哪些。'));
   if (!b.cards.length) { el.innerHTML = `<div class="bt-empty">${escHtml(t('目前沒有待校正的項目——全部收滿了。'))}</div>`; return; }
   const claims = loadBounty().claims || {};
@@ -23637,18 +23661,22 @@ function renderBountyBoard() {
     const live = !!bountyLiveClaim(c.id, claims);
     const label = !PHYSICAL_COLLECT_ENABLED ? t('要用 App 才能接') : live ? t('已接下・看說明') :
       (nm.isDwell ? t('接下停站') : t('接下這段'));
+    // 偏遠線的卡標籌碼倍率，其他線不標。一趟給幾顆看的是那一趟，跟這張卡接下了沒有、收滿了沒有都無關，所以每種卡一視同仁。
+    const mult = bountyRemoteMult(c);
+    const tag = mult ? `<div class="bt-pt bt-chip">${escHtml(t('籌碼 ×{n}', { n: mult }))}</div>` : '';
     // covered:true＝這張卡的單位都收滿了（只有常青線的卡會留在板上）：認領會回 404，所以不給接單鈕，只說「照樣可以錄程拿籌碼」。
     if (c.covered === true) {
       return `<div class="bt-card" data-card="${escHtml(c.id)}">` +
         `<div class="bt-r">${escHtml(nm.title)}</div>` +
         `<div class="bt-meta">${escHtml(meta)}</div>` +
+        tag +
         `<div class="bt-covered">${escHtml(t('已收滿，照樣可以錄程拿籌碼'))}</div>` +
         `</div>`;
     }
     return `<div class="bt-card" data-card="${escHtml(c.id)}">` +
       `<div class="bt-r">${escHtml(nm.title)}</div>` +
       `<div class="bt-meta">${escHtml(meta)}</div>` +
-      `<div class="bt-pt">${escHtml(t('{n} 點', { n: bountyNum(c.points) }))}</div>` +
+      tag +
       `<button class="bt-take" type="button"${live ? ' data-claimed="1"' : ''}>${label}</button>` +
       `</div>`;
   }).join('');
@@ -23686,8 +23714,8 @@ async function bountyClaim(cardId) {
     const cl = bountyLiveClaim(cardId);
     if (cl) {
       const card = ((bountyBoardMem && bountyBoardMem.cards) || []).find(x => x.id === cardId);
-      if (card) showBountyBrief(card, { points: cl.points, expiresAt: cl.expiresAt });
-      else showToast(t('這段你已經接下了，鎖價還在'));
+      if (card) showBountyBrief(card);
+      else showToast(t('這段你已經接下了，還沒過期'));
       return;
     }
   }
@@ -23701,8 +23729,8 @@ async function bountyClaim(cardId) {
     const pts = bountyNum(c.points);
     b.claims[cardId] = { cardId, units: bountyNum(c.units), points: pts, expiresAt: exp, u: userDataNow() };
     if (!saveBounty(b)) { showToast(t('（示範）這台裝置存不下來，示範資料無法保留')); return; }
-    showToast(t('（示範）接下了・{pts} 點・24 小時內有效', { pts }, pts));
-    showBountyBrief(c, { points: pts, expiresAt: exp });
+    showToast(t('（示範）接下了・24 小時內有效'));
+    showBountyBrief(c);
     renderBountyBoard(); renderPassport(); renderRidePanel();
     return;
   }
@@ -23723,9 +23751,8 @@ async function bountyClaim(cardId) {
     if (r.status === 403 && j.error === 'wrong_account') bountyOnWrongAccount();
     if (!r.ok || !j.ok) { showToast(t('接不下來——{reason}', { reason: j.error === 'no_open_units' ? t('這段剛剛被收滿了') : t('等一下再試一次') })); return; }
   } catch (e) { showToast(t('接不下來——網路不通，等一下再試一次')); return; }
-  // 伺服器回的值一律先收斂成有限整數再用（2026-07-28 Codex 審查 F-01）：pointsLocked 帶
-  // '<img src=x onerror=…>' 時，下面那句 showToast() 會把它當 HTML 執行（showToast 走
-  // innerHTML，見 6568 既有註記）——實測 marker 真的被設起來。這一層同時擋住畫面與落盤兩個出口。
+  // 伺服器回的值一律先收斂成有限整數再用：pointsLocked／expiresAt 若帶 HTML 字串，
+  // 不能原樣落進本機認領紀錄，也不能原樣流進之後讀紀錄來畫的地方。
   const pts = bountyNum(j.pointsLocked), exp = bountyNum(j.expiresAt, 4e12);
   const b = loadBounty();
   // claimId 是伺服器發的認領識別，本機存著才有機會在「伺服器接下了、這台裝置沒存成」之後回頭查
@@ -23736,12 +23763,11 @@ async function bountyClaim(cardId) {
   // 磁碟上卻是 null，重新整理認領就沒了。伺服器那邊已經接下，所以話要說準：說明卡照開（使用者
   // 正要出發，那三件事得看得到），但把「這台裝置沒記住」明講出來，不能混在一般成功訊息裡。
   if (!saveBounty(b)) {
-    showToast(t('已在伺服器接下・{pts} 點，但這台裝置存不下來（可能是儲存空間滿了或無痕模式）——重新整理後認領不會留著', { pts }, pts));
+    showToast(t('已在伺服器接下，但這台裝置存不下來（可能是儲存空間滿了或無痕模式）——重新整理後認領不會留著'));
   } else {
-    showToast(t('接下了・{pts} 點・24 小時內有效', { pts }, pts));
+    showToast(t('接下了・24 小時內有效'));
   }
-  showBountyBrief(bountyBoardMem.cards.find(c => c.id === cardId) || { units: bountyNum(j.units), sys: '', lnId: '' },
-    { points: pts, expiresAt: exp });
+  showBountyBrief(bountyBoardMem.cards.find(c => c.id === cardId) || { units: bountyNum(j.units), sys: '', lnId: '' });
   renderBountyBoard(); renderPassport(); renderRidePanel();
 }
 // ── 錄製模式（規格 §5）─────────────────────────────────────────────────────
@@ -23845,12 +23871,12 @@ function renderRecordScreen() {
   const cov = r._cov || {};
   const done = Object.values(cov).filter(c => c >= 0.6).length;
   // 整列一句翻:拆成數字＋單位字就翻不對。繁中輸出與原本的靜態 HTML 逐字相同。
-  // 單複數依點數選(英文寫成「Segments covered: 2 · 30 pts」,段數那側不需要單複數,點數那側才要)。
+  // 只寫覆蓋了幾段／幾站;英文寫成「Segments covered: 2」,數字在冒號後面,單位字不必分單複數。
   document.getElementById('recRow').innerHTML = t(nm && nm.isDwell
-    ? '{segs} <span id="recUnitWord">站</span>已覆蓋・{pts} 點已鎖定'
-    : '{segs} <span id="recUnitWord">段</span>已覆蓋・{pts} 點已鎖定', {
-    segs: `<span id="recSegs">${done}</span>`, pts: `<span id="recPts">${escHtml(r.points)}</span>`,
-  }, Number(r.points) || 0);
+    ? '{segs} <span id="recUnitWord">站</span>已覆蓋'
+    : '{segs} <span id="recUnitWord">段</span>已覆蓋', {
+    segs: `<span id="recSegs">${done}</span>`,
+  });
   const total = (r.card && r.card.units) || Object.keys(cov).length || 1;
   document.getElementById('recBar').style.width = Math.min(100, done / total * 100) + '%';
   // 常駐列(規格覆審 2026-07-28):地圖預設可見,里程要不開詳細面板也看得到——單一事實來源
@@ -24476,18 +24502,16 @@ function bountySpanMinutes(sys, fromName, toName, trainKindHint) {
   return Math.round(use[Math.floor(use.length / 2)].mins); // 取中位數車次,不被單一極端車次代表
 }
 let bountyBriefCard = null;
-function showBountyBrief(card, claim) {
+function showBountyBrief(card) {
   bountyBriefCard = card;
   const nm = bountyCardName(card);
   const ug = bountyUndergroundHint(card);
   const mins = nm.isDwell ? null : bountySpanMinutes(card.sys, nm.from, nm.to, card.trainKind);
   const durTxt = nm.isDwell ? '' : mins != null ? t('，約 {mins} 分鐘', { mins: escHtml(mins) }, mins) : t('，大概多久算不出來');
   const unitTxt = escHtml(nm.unitText(card.units));
-  // 「，值 N 點。」屬於句子本身(英文是 worth、日文是「で」),整句一個樣板,不在外面接中文標點
-  const points = `<b>${escHtml(t('{n} 點', { n: claim.points }, claim.points))}</b>`;
   const taskTxt = nm.isDwell
-    ? t('錄 {title}（{line}・{slot}・{unit}），值 {points}。', { title: escHtml(nm.title), line: escHtml(nm.lineName), slot: escHtml(bountySlotName(card.slot)), unit: unitTxt, points })
-    : t('錄 {title}（{line}，{unit}{dur}），值 {points}。', { title: escHtml(nm.title), line: escHtml(nm.lineName), unit: unitTxt, dur: durTxt, points });
+    ? t('錄 {title}（{line}・{slot}・{unit}）。', { title: escHtml(nm.title), line: escHtml(nm.lineName), slot: escHtml(bountySlotName(card.slot)), unit: unitTxt })
+    : t('錄 {title}（{line}，{unit}{dur}）。', { title: escHtml(nm.title), line: escHtml(nm.lineName), unit: unitTxt, dur: durTxt });
   const timingTxt = nm.isDwell
     ? t('進站前就開始錄，列車停穩後繼續錄到出站；只通過、不停靠不算停站樣本。')
     : t('搭上那班車之後開始錄，到站就結束。');
@@ -24495,11 +24519,11 @@ function showBountyBrief(card, claim) {
   // 的既有做法——見 null 就改顯示純文字引導，不留一顆點了沒反應的鈕。
   const canOpen = !!(window.RAIL_NATIVE_GEOLOCATION && window.RAIL_NATIVE_GEOLOCATION.openSettings);
   document.getElementById('bountyBriefBody').innerHTML =
-    `<div class="bb-sec"><b>${escHtml(t('這趟要做什麼'))}</b><p>${i18nJoin(taskTxt, timingTxt, t('這個鎖價 <b>24 小時內有效</b>。'))}</p></div>` +
+    `<div class="bb-sec"><b>${escHtml(t('這趟要做什麼'))}</b><p>${i18nJoin(taskTxt, timingTxt, bountyRewardText(card), t('接下的卡 <b>24 小時內有效</b>。'))}</p></div>` +
       // 最終審查 C:期限原本只在接下當下的 toast 一閃即逝(showBountyBrief 這張常駐卡完全沒提)，
       // 使用者接了段之後回頭想確認期限就找不到。與 bountyClaim() 兩條路徑(demo/真實)的 toast
       // 用同一句「24 小時內有效」，不用 claim.expiresAt 另外算文字——避免兩個地方各自描述
-      // 同一件事卻可能用不同措辭。(三句之間英文要空一格,由上一行的 i18nJoin 決定)
+      // 同一件事卻可能用不同措辭。(句與句之間英文要空一格,由上一行的 i18nJoin 決定)
     `<div class="bb-sec"><b>${escHtml(t('三件事先做好'))}</b><ol>` +
       `<li>${t('打開<b>精確位置</b>')}` + (canOpen
         ? `<button id="bountyOpenSettings" type="button">${escHtml(t('開啟設定'))}</button>`
@@ -24510,7 +24534,7 @@ function showBountyBrief(card, claim) {
       (ug ? `<li>${escHtml(ug)}</li>` : '') +
       `<li>${t('錄到一半中斷沒關係，<b>錄到的部分照樣算</b>。')}</li>` +
       // 🔴 這一句是三態判定的直接承諾（規格 §7、§8），不可以只寫在規格裡不寫在 UI 上
-      `<li>${t('<b>即使這次的資料不能用，校正者章與點數還是你的。</b>我們會告訴你是什麼原因、下次怎麼改善。')}</li>` +
+      `<li>${t('<b>即使這次的資料不能用，校正者章還是你的。</b>我們會告訴你是什麼原因、下次怎麼改善。')}</li>` +
       `</ul></div>`;
   const st = document.getElementById('bountyOpenSettings');
   if (st) st.onclick = () => { try { window.RAIL_NATIVE_GEOLOCATION.openSettings(); } catch (e) {} };
@@ -24771,9 +24795,9 @@ function buildCorrectSection() {
   const n = me ? bountyNum(corrected.segs) : 0;
   let body;
   if (!me || !n) {
-    // 第二句的 <b> 是字典值裡的固定標記(比照「這個鎖價 <b>24 小時內有效</b>。」),字典是自家檔案。
+    // 第二句的 <b> 是字典值裡的固定標記(比照說明卡裡的「接下的卡 <b>24 小時內有效</b>。」),字典是自家檔案。
     body = '<div class="ph-empty">' + i18nJoin(escHtml(t('還沒有校正記錄——去懸賞板看看有哪些路段缺資料。')),
-      t('錄一趟就有校正者章，<b>即使資料不能用，章與點數還是你的</b>。')) + '</div>';
+      t('錄一趟就有校正者章，<b>即使資料不能用，章還是你的</b>。')) + '</div>';
   } else {
     // 逐線印章不沿用 .stn-seal(50px 圓章,為 2–4 字站名設計):線名連括號里程可以到 10 字以上
     // (「南迴線（枋寮–臺東）」),塞進圓章會裁到看不出是哪條線。這裡刻意印出 rec.name 全名
@@ -35555,7 +35579,7 @@ const HELP_GROUPS = [
     { key: 'bountyme', avail: () => BOUNTY_ENABLED, ic: '校', nm: '護照裡的校正貢獻',
       one: '你錄過幾段、其中有幾段真的被採用，都記在護照的「校正貢獻」。',
       steps: ['打開「護照」', '找到「校正貢獻」那一列', '上面寫「校正 N 段（其中 M 段已採用）」'],
-      tip: '兩個數字不一樣是正常的——訊號不好的那幾趟資料用不上，但校正者章與點數還是你的，而且我們會寫出是什麼原因、下次怎麼改善。某段如果是你第一個錄回來的，會標「首位校正者」。', try: 'ride' },
+      tip: '兩個數字不一樣是正常的——訊號不好的那幾趟資料用不上，但校正者章還是你的，而且我們會寫出是什麼原因、下次怎麼改善。某段如果是你第一個錄回來的，會標「首位校正者」。', try: 'ride' },
     { key: 'notify', ic: '', nm: '到站提醒', badge: 'App', avail: () => NOTIFY_LOCAL_ENABLED,
       one: '跟著車的時候可以排提醒，快到站前手機會響。',
       steps: ['先跟一班車', '卡片上的「提醒」選要提醒的站', '「更多」→「已排提醒」可以查看與取消'],

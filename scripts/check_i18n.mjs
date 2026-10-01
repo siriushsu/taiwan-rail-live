@@ -791,7 +791,7 @@ console.log(`sink 全文掃描：${Object.entries(sinkSites).map(([kind, count])
 // 一路吞掉後面的內容(分母無聲縮水),那也算紅。其餘對不上字典的只能進下面的豁免清單並寫理由;
 // 清單裡的字在 HTML 找不到了(或已經有譯文)也紅——豁免不准過期還掛著。
 const STATIC_HTML_EXEMPT = {
-  recRow: { texts: ['已覆蓋・', '點已鎖定'], why: '錄製畫面 #recordScreen 開機時隱藏，錄製一開始 renderRecordScreen 就用 t() 整列覆寫，這兩段只是佔位' },
+  recRow: { texts: ['已覆蓋'], why: '錄製畫面 #recordScreen 開機時隱藏，錄製一開始 renderRecordScreen 就用 t() 整列覆寫，這一段只是佔位' },
   notifyRepeatDays: { texts: ['一', '二', '三', '四', '五', '六', '日'], why: 'renderLocalReminderDraft 依介面語言用 Intl 重寫七顆星期鈕，HTML 裡的字只是沒有腳本時的退路' },
 };
 {

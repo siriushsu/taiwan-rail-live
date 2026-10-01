@@ -20,6 +20,11 @@
 //   CH12 快取與 actor 的邊界（401 清、503 留、存不下、第一次沿用裝置 id、英文介面沒有漏翻）
 //   CH13 開機時序：登入結果比開機那一發 bounty-me 晚出來；401 晚到、200 晚到兩種先後，最後護照都要有登入者的段數
 //   CH14 冷開機時 session 已經不見（磁碟上還記著已併的帳號）：已併的 actor 換新、裝置 id 不變、籌碼快取清掉
+//   CH15 看板卡片：偏遠線標「籌碼 ×N」、其他線沒有標記；名單與 N 讀規則檔（換一份規則檔，兩個方向都跟著翻）
+//   CH16 旗標開時，看板／說明卡／錄程列／接下時的提示都沒有拿「點」當獎勵單位；承諾句不再提點數；英日文介面同樣乾淨
+//   CH17 說明卡的獎勵句：每趟幾顆、偏遠線倍率、每天上限，與伺服器入帳用的純函式算出來的一致（真規則檔與另一份規則檔）
+//   CH18 旗標關：看不到任何一句獎勵說法（新舊都沒有）、不讀規則檔、不打認領請求；對照：旗標開同一頁看得到
+//   CH19 手機版：360／375／414／768 × Chromium／WebKit，看板（有 ×N 標記）、說明卡、提示；兩兩相交掃描、沒有水平捲動、真觸控點「接下」
 //
 // 打樁慣例照 scripts/verify_bounty_merge_web.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
 // localStorage['trainmap-account-uid'] 讓開機走 accountEnsureInit（回訪者分支）。
@@ -32,6 +37,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createReadStream, readFileSync, statSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { tripChips, applyDailyChipCap } from './bounty_chips_core.mjs';
 
 // G0 自檢：ROOT 由本檔自身路徑推導，不吃任何 --root／env 參數，結構上不會誤驗到別的 worktree。
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -74,6 +80,9 @@ const ME = { actor: 'x', points: 128, corrected: { segs: 12, adopted: 9 }, lines
 const CARD_OPEN = { id: 'card-open', sys: 'tra_sched', lnId: '南迴線', trainKind: '自強', dir: 0, kind: 'track', slot: '',
   unitKeys: ['tra_sched|南迴線|枋寮|加祿'], units: 1, points: 3, claimers: 0, samples: 0, coverN: 50, need: 50, distinctOk: 3 };
 const CARD_COVERED = { ...CARD_OPEN, id: 'card-covered', trainKind: '區間車', covered: true, distinctOk: 50 };
+// 伺服器認領回應裡的點數：刻意用 4 位數的標記值（看板卡片資料用 7357／7541），跟任何規則數字與畫面上的數字都對不上，
+// 畫面上若又把它們印出來，一出現就認得出。
+const CLAIM_POINTS = 7939;
 const BOARD = { at: 1791600000000, coverN: { TRA: 50, THSR: 15, metro: 3 }, cards: [CARD_OPEN, CARD_COVERED] };
 const qItem = (i, actor = 'seed-actor-0001') => ({ id: `q|${i}|1`,
   payload: { actor, sys: 'tra_sched', lnId: '南迴線', trainNo: '123', dir: 0, tripDate: '2026-10-01', batch: 1, samples: [{ d: 1000 + i, t: 100 + i, v: 20, acc: 8 }] },
@@ -119,6 +128,7 @@ try {
         if (k === 'trainmap-bounty-actor-v1') window.__writes.actor++;
         if (arg.deviceIdBlocked && k === 'trainmap-device-id') throw new Error('QuotaExceededError');
         if (arg.actorKeyBlocked && k === 'trainmap-bounty-actor-v1') throw new Error('QuotaExceededError');
+        if ((arg.bountyKeyBlocked || window.__bountyKeyBlocked) && k === 'trainmap-bounty-v1') throw new Error('QuotaExceededError');
       }
       return origSet.call(this, k, v);
     };
@@ -161,9 +171,10 @@ try {
     const ctx = await br.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW', ...(ctxOpts.ctx || {}) });
     await ctx.addInitScript(STUB, { uid: UID_A, ...arg });
     if (arg.app) await ctx.addInitScript(g => { Object.assign(window, g); }, APP_GLOBALS);
-    const s = { ctx, merges: [], bme: [], chips: [], submits: [], seq: 0, errors: [],
+    // rules：null＝送真的規則檔；物件＝改送這一份；'404'＝讀不到。rulesReq 是規則檔被請求幾次。
+    const s = { ctx, merges: [], bme: [], chips: [], submits: [], claims: [], rulesReq: 0, boardReq: 0, seq: 0, errors: [],
       mode: { merge: 'ok', bme: 'ok', chips: 'ok', submit: 'app_only', ...mode },
-      chipsBody: CHIPS(), meBody: ME, board: BOARD, gates: {} };
+      chipsBody: CHIPS(), meBody: ME, board: BOARD, gates: {}, rules: null };
     // 測試持有的閘：hold('actor'|'bearer') 之後，那一種 bounty-me 的回應要等到 release() 才送出（先後由測試決定，不靠睡眠秒數）
     s.hold = kind => { let release; const g = { promise: new Promise(r => { release = r; }), release: () => release() }; s.gates[kind] = g; return g; };
     const json = (route, status, body) => route.fulfill({ status, contentType: 'application/json', body: typeof body === 'string' ? body : JSON.stringify(body) });
@@ -215,7 +226,18 @@ try {
         if (md === 'bad_samples') return json(route, 400, { error: 'bad_samples' });
         return json(route, 400, { error: 'app_only' });
       }
-      if (u.pathname === '/api/bounty-board') return json(route, 200, s.board);
+      if (u.pathname === '/api/bounty-board') { s.boardReq++; return json(route, 200, s.board); }
+      if (u.pathname === '/api/bounty-claim') {
+        let body = null; try { body = JSON.parse(rq.postData()); } catch (e) {}
+        s.claims.push({ seq: ++s.seq, body, auth });
+        return json(route, 200, { ok: true, claimId: 'cl-' + s.claims.length, units: 1, pointsLocked: CLAIM_POINTS, expiresAt: Date.now() + 86400000 });
+      }
+      if (u.pathname === '/data/bounty_rules.json') {
+        s.rulesReq++;
+        if (s.rules === '404') return route.fulfill({ status: 404, contentType: 'text/plain', body: 'not found' });
+        if (s.rules) return json(route, 200, s.rules);
+        return route.continue();
+      }
       if (u.pathname === '/api/thsr-schedule') return route.fulfill({ status: 200, contentType: 'application/json', body: THSR });
       if (u.pathname.startsWith('/api/')) return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
       return route.continue();
@@ -851,6 +873,421 @@ try {
       ok('CH14e 對照：同樣的冷開機、但這個 actor 沒有併過（沒有已併旗標）→ actor 不換；籌碼快取照樣清掉（換 actor 是「併過」才有的後果）',
         !!pc && pc.uid === UID_A && pc.merged === null && pc.chips === true && (await lsGet(c.page, KEY_ACTOR)) === DEV14 && (await lsGet(c.page, KEY_CHIPS)) === null, JSON.stringify(pc));
       await c.ctx.close();
+    });
+  }
+  // ═══ 獎勵說法共用（CH15–CH19）═══════════════════════════════════════════════════════════════════════════════════
+  // 期望值只用本檔自己讀的規則檔（RULES）與伺服器入帳用的純函式（bounty_chips_core.mjs）算，不呼叫 index.html 的任何函式。
+  const KEY_NAN = 'tra_sched|南迴線', KEY_PT = 'tra_sched|屏東線';
+  // 另一份規則檔：每趟、倍率、每天上限、偏遠線名單都跟真的那份不同——畫面若寫死（或讀錯來源），換一份就對不上。
+  const RULES_ALT = { ...RULES, chips: { ...RULES.chips, perTrip: 3, remoteMultiplier: 5, dailyChipCap: 20, remoteLines: [KEY_PT] } };
+  // 伺服器會怎麼給：一趟合格的錄程，非偏遠線給 perTrip、偏遠線給 perTrip × 倍率；一天最多 dailyChipCap。
+  const expectOf = (rules, lineKey) => {
+    const c = rules.chips;
+    const trip = k => ({ verdict: 'ok', lineKeys: [k], durationSec: c.minTripSec, moveM: c.minTripMoveM, day: '2026-10-02' });
+    const base = tripChips(trip('none|不是偏遠線'), c), here = tripChips(trip(lineKey), c);
+    return { perTrip: base, mult: here / base, remote: here !== base, cap: applyDailyChipCap(1e9, 0, c) };
+  };
+  const CARD_R = { ...CARD_OPEN, id: 'card-remote-open', unitKeys: ['tra_sched|南迴線|加祿|枋寮'], points: 7357 };                  // 南迴線：真規則檔的偏遠線
+  const CARD_P = { ...CARD_OPEN, id: 'card-other-open', lnId: '屏東線', unitKeys: ['tra_sched|屏東線|民族|高雄'], points: 7541 };   // 屏東線：真規則檔不是，另一份規則檔才是
+  const CARD_RC = { ...CARD_COVERED, id: 'card-remote-covered' };                                                              // 南迴線、收滿
+  const BOARD_V2 = { ...BOARD, cards: [CARD_R, CARD_P, CARD_RC] };
+  const POINT_MARKS = /7357|7541|7939/;                                                  // 卡片資料與認領回應裡的點數標記值
+  const POINTS_RE = /\d\s*點|點數|鎖價|點已鎖定/;                                         // 繁中：拿點數當獎勵單位的寫法
+  const POINTS_RE_I18N = /\bpts?\b|\bpoints?\b|locked[- ]in|ポイント|ロック/i;            // 英日文同一類寫法
+  // App 殼、旗標開、已登入，打開看板等所有卡出來。桌面走護照上的「懸賞板」鈕。
+  const boardSession = async (arg = {}, { rules = null, board = BOARD_V2, lang = 'zh-TW', me = null } = {}) => {
+    const locale = lang === 'en' ? 'en-US' : lang === 'ja' ? 'ja-JP' : 'zh-TW';
+    const s = await newSession({ app: true, ...arg }, {}, { ctx: { locale } });
+    s.board = board; s.rules = rules; if (me) s.meBody = me;
+    await s.page.goto(`${BASE}/?bounty=1&lang=${lang}`);
+    await loggedIn(s.page);
+    await chipsLoaded(s.page);
+    await s.page.click('#passport [data-act="bountyboard"]');
+    await s.page.waitForFunction(n => document.querySelectorAll('#bountyList .bt-card').length >= n, board.cards.length, { timeout: 15000 });
+    return s;
+  };
+  const readBoard = page => page.evaluate(() => ({
+    sub: document.getElementById('bountySub').textContent.replace(/\s+/g, ' ').trim(),
+    cards: [...document.querySelectorAll('#bountyList .bt-card')].map(c => ({ id: c.dataset.card,
+      text: c.textContent.replace(/\s+/g, ' ').trim(),
+      tags: [...c.querySelectorAll('.bt-pt')].map(x => x.textContent.replace(/\s+/g, ' ').trim()),
+      take: c.querySelectorAll('.bt-take').length })) }));
+  const briefOpen = page => page.waitForFunction(() => { const m = document.getElementById('bountyBriefModal'); return !!m && !m.hidden && !!m.querySelector('#bountyBriefBody .bb-sec'); }, null, { timeout: 15000 });
+  const readBrief = page => page.evaluate(() => ({
+    text: document.getElementById('bountyBriefBody').textContent.replace(/\s+/g, ' ').trim(),
+    toasts: [...document.querySelectorAll('#toasts .toast')].map(x => x.textContent.replace(/\s+/g, ' ').trim()) }));
+  const takeSel = id => `#bountyList .bt-card[data-card="${id}"] .bt-take`;
+  // 說明卡獎勵句的字面（字典的譯文）；數字與單複數由期望值決定
+  const REWARD = {
+    'zh-TW': e => ({ per: `合格的一趟得 ${e.perTrip} 顆籌碼。`, mult: `這條線的籌碼 ×${e.mult}。`, cap: `每天最多 ${e.cap} 顆。` }),
+    en: e => ({ per: `A qualifying trip earns ${e.perTrip} chip${e.perTrip === 1 ? '' : 's'}.`, mult: `Chips are ×${e.mult} on this line.`, cap: `Up to ${e.cap} chip${e.cap === 1 ? '' : 's'} a day.` }),
+    ja: e => ({ per: `条件を満たした1回の乗車でチップを ${e.perTrip} 枚もらえます。`, mult: `この路線ではチップが ${e.mult} 倍になります。`, cap: `1日に獲得できるのは最大 ${e.cap} 枚です。` }),
+  };
+
+  // ═══ CH15：看板卡片的籌碼標記——偏遠線標「籌碼 ×N」、其他線沒有；名單與 N 讀規則檔 ═══════════════════════════════════
+  if (want('CH15')) {
+    const cardOf = (b, id) => b.cards.find(x => x.id === id) || { tags: null, text: '', take: -1 };
+    await attempt('CH15-real', async () => {
+      const s = await boardSession();
+      const b = await readBoard(s.page);
+      const eR = expectOf(RULES, KEY_NAN), eP = expectOf(RULES, KEY_PT);
+      ok('CH15a [fixture] 看板收到 3 張卡（南迴線一般卡、屏東線一般卡、南迴線收滿卡）；真規則檔裡南迴線是偏遠線、屏東線不是，伺服器入帳函式對這兩條線給的倍率也不同（有對照）',
+        b.cards.length === 3 && RULES.chips.remoteLines.includes(KEY_NAN) && !RULES.chips.remoteLines.includes(KEY_PT) && eR.remote && eR.mult > 1 && !eP.remote && eP.mult === 1,
+        JSON.stringify({ n: b.cards.length, eR, eP }));
+      ok(`CH15b 偏遠線的一般卡有且只有一個標記，寫成「籌碼 ×${eR.mult}」（倍率是伺服器入帳函式算的那個）`,
+        JSON.stringify(cardOf(b, CARD_R.id).tags) === JSON.stringify([`籌碼 ×${eR.mult}`]), JSON.stringify(cardOf(b, CARD_R.id)));
+      ok('CH15c 非偏遠線的卡沒有任何標記，卡面也沒有「×」或「籌碼」字樣（有標記的與沒標記的在同一塊板上）',
+        JSON.stringify(cardOf(b, CARD_P.id).tags) === '[]' && !/[×籌]/.test(cardOf(b, CARD_P.id).text), JSON.stringify(cardOf(b, CARD_P.id)));
+      ok(`CH15d 偏遠線的收滿卡也標「籌碼 ×${eR.mult}」，而且照樣沒有接單鈕`,
+        JSON.stringify(cardOf(b, CARD_RC.id).tags) === JSON.stringify([`籌碼 ×${eR.mult}`]) && cardOf(b, CARD_RC.id).take === 0, JSON.stringify(cardOf(b, CARD_RC.id)));
+      ok('CH15e 頁面沒有未捕捉的例外', s.errors.length === 0, JSON.stringify(s.errors));
+      await s.ctx.close();
+    });
+    await attempt('CH15-alt', async () => {
+      const s = await boardSession({}, { rules: RULES_ALT });
+      const b = await readBoard(s.page);
+      const probe = await s.page.evaluate(() => ({ mult: bountyRulesMem && bountyRulesMem.chips.remoteMultiplier, lines: bountyRulesMem && bountyRulesMem.chips.remoteLines }));
+      const aP = expectOf(RULES_ALT, KEY_PT), aR = expectOf(RULES_ALT, KEY_NAN);
+      ok('CH15f [fixture] 換成另一份規則檔：頁面讀到的就是它（倍率 5、偏遠線只剩屏東線）；伺服器入帳函式對它：屏東線 ×5、南迴線不加倍',
+        probe.mult === 5 && JSON.stringify(probe.lines) === JSON.stringify([KEY_PT]) && s.rulesReq >= 1 && aP.mult === 5 && !aR.remote, JSON.stringify({ probe, rulesReq: s.rulesReq, aP, aR }));
+      ok('CH15g 名單與倍率跟著規則檔走（不是寫死）：屏東線的卡標「籌碼 ×5」，南迴線的卡（一般與收滿）都沒有標記',
+        JSON.stringify(cardOf(b, CARD_P.id).tags) === JSON.stringify([`籌碼 ×${aP.mult}`]) && JSON.stringify(cardOf(b, CARD_R.id).tags) === '[]' && JSON.stringify(cardOf(b, CARD_RC.id).tags) === '[]',
+        JSON.stringify(b.cards.map(c => [c.id, c.tags])));
+      await s.ctx.close();
+    });
+    await attempt('CH15-404', async () => {
+      const s = await boardSession({}, { rules: '404' });
+      const b = await readBoard(s.page);
+      ok('CH15h 規則檔讀不到：看板照樣出來（3 張卡、一般卡有接單鈕），沒有任何標記（寧可不標，也不標錯），頁面沒有未捕捉的例外',
+        b.cards.length === 3 && cardOf(b, CARD_R.id).take === 1 && b.cards.every(c => c.tags.length === 0) && s.errors.length === 0, JSON.stringify({ cards: b.cards.map(c => [c.id, c.tags, c.take]), errors: s.errors }));
+      await s.ctx.close();
+    });
+  }
+
+  // ═══ CH16：旗標開時，畫面上沒有任何一句拿「點」當獎勵單位 ═══════════════════════════════════════════════════════
+  // 看板卡片資料與認領回應裡的點數用 4 位數的標記值（7357／7541／7939）：畫面上若又印出來，一眼認得出；
+  // 字面的「點」「鎖價」另用正則抓。範圍：看板副標與卡片、接下時的提示（接下／存不下／已接下／示範四條路徑）、
+  // 出發前說明卡、錄程列、護照空狀態那句承諾、說明中心那一則。中文、英文、日文各跑一遍。
+  if (want('CH16')) {
+    const TX = {
+      'zh-TW': { re: POINTS_RE, sub: [/籌碼/, /上限/], subNo: /榮譽/, subDemo: [/示範資料/, /都是假的/], tag: '籌碼 ×2',
+        claimed: '接下了・24 小時內有效', demoClaimed: '（示範）接下了・24 小時內有效',
+        saveFail: '已在伺服器接下，但這台裝置存不下來（可能是儲存空間滿了或無痕模式）——重新整理後認領不會留著',
+        again: '這段你已經接下了，還沒過期', expiry: '接下的卡 24 小時內有效。', promise: '即使這次的資料不能用，校正者章還是你的。',
+        passport: '章還是你的', tip: '校正者章還是你的', rowTrack: '0 段已覆蓋', rowDwell: '0 站已覆蓋' },
+      en: { re: POINTS_RE_I18N, sub: [/chips/, /daily limit/], subNo: /honou?r/i, subDemo: [/Demo data/, /fake/], tag: 'Chips ×2',
+        claimed: 'Claimed · valid for 24 hours', demoClaimed: '(Demo) Claimed · valid for 24 hours',
+        saveFail: 'Claimed on the server, but this device couldn’t save it (storage may be full, or you’re in private browsing) — the claim won’t persist after you refresh',
+        again: 'You’ve already claimed this segment, and it hasn’t expired yet', expiry: 'A claimed card is valid for 24 hours.', promise: 'Even if this data can’t be used, the calibrator stamp is still yours.',
+        passport: 'even if the data can’t be used, the stamp is still yours', tip: 'you keep the calibrator stamp', rowTrack: 'Segments covered: 0', rowDwell: 'Stations covered: 0' },
+      ja: { re: POINTS_RE_I18N, sub: [/チップ/, /上限/], subNo: /名誉/, subDemo: [/デモデータ/, /仮/], tag: 'チップ ×2',
+        claimed: '受け取りました・24時間有効', demoClaimed: '（デモ）受け取りました・24時間有効',
+        saveFail: 'サーバー側では受領済みですが、この端末には保存できませんでした（ストレージ不足またはプライベートブラウジングの可能性）。更新すると受領記録は残りません',
+        again: 'この区間はすでに受け取り済みで、まだ有効期限内です', expiry: '受け取ったカードは24時間有効です。', promise: '今回のデータが使えなくても、校正者スタンプはあなたのものです。',
+        passport: 'データが使えなかった場合でも、スタンプはあなたのものです', tip: '校正者スタンプはあなたのものです', rowTrack: '0区間を記録済み', rowDwell: '0駅を記録済み' },
+    };
+    const ME_EMPTY = { ...ME, points: 0, corrected: { segs: 0, adopted: 0 }, lines: [] };       // 護照「校正貢獻」的空狀態
+    const noPts = (x, re) => !re.test(x) && !POINT_MARKS.test(x);
+    for (const lang of ['zh-TW', 'en', 'ja']) {
+      const X = TX[lang];
+      await attempt(`CH16-app-${lang}`, async () => {
+        const s = await boardSession({}, { lang, me: ME_EMPTY });
+        const b = await readBoard(s.page);
+        const memPts = await s.page.evaluate(() => bountyBoardMem.cards.map(c => c.points));
+        ok(`CH16a-${lang} [fixture] 看板資料裡每張卡都帶點數（${memPts.join('、')}）——畫面不印它們才有意義；3 張卡都畫出來了`,
+          memPts.length === 3 && memPts.every(Number.isFinite) && b.cards.length === 3, JSON.stringify({ memPts, n: b.cards.length }));
+        ok(`CH16b-${lang} 看板副標講籌碼與每天上限、沒有寫成「只有榮譽」；副標與每張卡的字都沒有拿點當獎勵單位（沒有點數字樣、沒有卡片資料裡的 7357／7541）`,
+          X.sub.every(r => r.test(b.sub)) && !X.subNo.test(b.sub) && [b.sub, ...b.cards.map(c => c.text)].every(x => noPts(x, X.re)), JSON.stringify(b));
+        await s.page.click(takeSel(CARD_R.id));
+        await briefOpen(s.page);
+        const br = await readBrief(s.page);
+        ok(`CH16c-${lang} [fixture] 接下第一張卡：伺服器收到 1 發認領（cardId 對、有 actor）、說明卡開了、提示出現了`,
+          s.claims.length === 1 && !!s.claims[0].body && s.claims[0].body.cardId === CARD_R.id && typeof s.claims[0].body.actor === 'string' && br.toasts.length >= 1, JSON.stringify({ claims: s.claims.length, toasts: br.toasts }));
+        ok(`CH16d-${lang} 接下時的提示只有一句「${X.claimed}」：沒有點數、沒有伺服器回的 7939`, br.toasts.length === 1 && br.toasts[0] === X.claimed, JSON.stringify(br.toasts));
+        ok(`CH16e-${lang} 出發前說明卡沒有點數字樣（沒有點數字樣、沒有 7357／7939、沒有「值 N」）；有期限那句與承諾那句`,
+          noPts(br.text, X.re) && !/值\s*\d/.test(br.text) && br.text.includes(X.expiry) && br.text.includes(X.promise), br.text);
+        const live = await s.page.evaluate(() => !!document.querySelector('#bountyList .bt-card[data-card="card-remote-open"] .bt-take[data-claimed="1"]'));
+        const b2 = await readBoard(s.page);
+        ok(`CH16f-${lang} 接下之後看板重畫（那張卡標成已接下）：照樣沒有點數字樣`, live && b2.cards.length === 3 && b2.cards.every(c => noPts(c.text, X.re)), JSON.stringify({ live, b2 }));
+        await s.page.click('#bountyBriefLater');
+        // 本機有這張卡還沒過期的認領、看板上卻找不到它：再接一次不送第二發認領，提示照實說「已經接下了」
+        const again = await s.page.evaluate(async () => {
+          document.getElementById('toasts').innerHTML = '';
+          const keep = bountyBoardMem; bountyBoardMem = { cards: [] };
+          try { await bountyClaim('card-remote-open'); } finally { bountyBoardMem = keep; }
+          return [...document.querySelectorAll('#toasts .toast')].map(x => x.textContent.replace(/\s+/g, ' ').trim());
+        });
+        ok(`CH16g-${lang} [fixture] 已接下又再接一次：沒有送第二發認領（共 ${s.claims.length} 發）；提示是「${X.again}」`, s.claims.length === 1 && again.length === 1 && again[0] === X.again, JSON.stringify({ claims: s.claims.length, again }));
+        // 這台裝置存不下認領（無痕模式、空間滿）：伺服器已經接下，提示照實講，不報成功
+        await s.page.evaluate(() => { window.__bountyKeyBlocked = true; document.getElementById('toasts').innerHTML = ''; });
+        await s.page.click(takeSel(CARD_P.id));
+        await briefOpen(s.page);
+        await until(() => s.claims.length >= 2);
+        const br2 = await readBrief(s.page);
+        const saved = JSON.parse((await lsGet(s.page, 'trainmap-bounty-v1')) || '{}');
+        ok(`CH16h-${lang} [fixture] 第二張卡接下時這台裝置存不下（磁碟上只有第一張的認領）、伺服器收到第 2 發認領`,
+          s.claims.length === 2 && !!saved.claims && !!saved.claims[CARD_R.id] && !saved.claims[CARD_P.id], JSON.stringify({ claims: s.claims.length, saved: Object.keys(saved.claims || {}) }));
+        ok(`CH16i-${lang} 存不下時的提示照實說「伺服器接下了、這裡沒存成」、沒有點數、沒有 7939；說明卡照樣開了`,
+          br2.toasts.length === 1 && br2.toasts[0] === X.saveFail && noPts(br2.toasts[0], X.re) && br2.text.length > 40, JSON.stringify(br2.toasts));
+        const pp = await s.page.evaluate(() => { const e = document.querySelector('#passport .ph-correct .ph-empty'); return e ? e.textContent.replace(/\s+/g, ' ').trim() : null; });
+        ok(`CH16j-${lang} 護照「校正貢獻」空狀態那句承諾沒有提點數（「${X.passport}」在、沒有點數字樣）`, pp !== null && pp.includes(X.passport) && noPts(pp, X.re), String(pp));
+        await s.page.evaluate(() => openHelp('bountyme'));
+        const tip = await s.page.evaluate(() => { const e = document.querySelector('#helpBody .help-sec[data-sec="bountyme"] .tip'); return e ? e.textContent.replace(/\s+/g, ' ').trim() : null; });
+        ok(`CH16k-${lang} 說明中心「護照裡的校正貢獻」那一則沒有提點數（「${X.tip}」在、沒有點數字樣）`, tip !== null && tip.includes(X.tip) && noPts(tip, X.re), String(tip));
+        if (lang === 'en') ok('CH16l-en 英文介面：提示與承諾句沒有漏出中文（日文用漢字，這條只對英文有意義；日文那一輪靠上面的整句比對）', [br.toasts[0], br2.toasts[0], again[0], pp, tip].every(x => !/[㐀-鿿]/.test(x)), JSON.stringify([br.toasts[0], br2.toasts[0], again[0], pp, tip]));
+        ok(`CH16m-${lang} 頁面沒有未捕捉的例外`, s.errors.length === 0, JSON.stringify(s.errors));
+        await s.ctx.close();
+      });
+      await attempt(`CH16-demo-${lang}`, async () => {
+        // ?demo=bounty（備援站看設計用，不上傳）：假資料的看板、示範接下、說明卡、錄程列
+        const s = await newSession({ app: false }, {}, { ctx: { locale: lang === 'en' ? 'en-US' : lang === 'ja' ? 'ja-JP' : 'zh-TW' } });
+        await s.page.goto(`${BASE}/?lang=${lang}&demo=bounty`);
+        await bootDone(s.page);
+        await s.page.click('#passport [data-act="bountyboard"]');
+        await s.page.waitForFunction(() => document.querySelectorAll('#bountyList .bt-card').length >= 5, null, { timeout: 15000 });
+        const b = await readBoard(s.page);
+        const ids = await s.page.evaluate(() => ({ dwell: (bountyBoardMem.cards.find(c => c.kind === 'dwell') || {}).id, track: (bountyBoardMem.cards.find(c => c.kind === 'track') || {}).id,
+          pts: bountyBoardMem.cards.map(c => c.points), demo: DEMO_AS_APP && BOUNTY_ENABLED && !IS_NATIVE_APP }));
+        ok(`CH16n-${lang} [fixture] 示範看板：假資料的卡帶著點數（${ids.pts.join('、')}）、有停站卡與路段卡；是示範流程、不是 App 殼`,
+          ids.demo === true && ids.pts.length >= 5 && ids.pts.every(Number.isFinite) && !!ids.dwell && !!ids.track, JSON.stringify(ids));
+        ok(`CH16o-${lang} 示範副標有「示範、假的」與籌碼那句、不再說「路段與點數都是假的」；副標與每張卡沒有拿點當獎勵單位`,
+          X.subDemo.every(r => r.test(b.sub)) && X.sub.every(r => r.test(b.sub)) && !/點數|points/i.test(b.sub) && [b.sub, ...b.cards.map(c => c.text)].every(x => !X.re.test(x)), JSON.stringify(b));
+        await s.page.evaluate(() => { document.getElementById('toasts').innerHTML = ''; });
+        await s.page.click(takeSel(ids.dwell));
+        await briefOpen(s.page);
+        const br = await readBrief(s.page);
+        ok(`CH16p-${lang} 示範接下的提示是「${X.demoClaimed}」；說明卡沒有點數字樣、有期限與承諾那兩句`,
+          br.toasts.length === 1 && br.toasts[0] === X.demoClaimed && !X.re.test(br.text) && !/值\s*\d/.test(br.text) && br.text.includes(X.expiry) && br.text.includes(X.promise), JSON.stringify({ toasts: br.toasts, text: br.text }));
+        await s.page.click('#bountyBriefGo');
+        await s.page.waitForFunction(() => !!state.recording, null, { timeout: 15000 });
+        await s.page.evaluate(() => setRecordPanel(true));
+        const row = await s.page.evaluate(() => ({ dwell: document.getElementById('recRow').textContent.replace(/\s+/g, ' ').trim(),
+          open: !document.getElementById('recordScreen').hidden }));
+        const rowTrack = await s.page.evaluate(trackId => {            // 同一個錄製畫面、卡換成路段卡再畫一次（路段那條樣板）
+          const r = state.recording, keep = r.card;
+          r.card = bountyBoardMem.cards.find(c => c.id === trackId); renderRecordScreen();
+          const t1 = document.getElementById('recRow').textContent.replace(/\s+/g, ' ').trim();
+          r.card = keep; renderRecordScreen();
+          return t1;
+        }, ids.track);
+        ok(`CH16q-${lang} 錄程列只寫覆蓋了幾站／幾段（停站卡「${X.rowDwell}」、路段卡「${X.rowTrack}」），沒有「點已鎖定」；錄製畫面真的開了（列是樣板畫的、不是靜態佔位）`,
+          row.open && row.dwell === X.rowDwell && rowTrack === X.rowTrack && !X.re.test(row.dwell) && !X.re.test(rowTrack), JSON.stringify({ row, rowTrack }));
+        ok(`CH16r-${lang} 頁面沒有未捕捉的例外`, s.errors.length === 0, JSON.stringify(s.errors));
+        await s.ctx.close();
+      });
+    }
+  }
+
+  // ═══ CH17：說明卡的獎勵句——數字讀規則檔，偏遠線才有倍率句，與伺服器入帳用的純函式一致 ═══════════════════════════════════
+  // 規則檔換一份（每趟、倍率、上限、偏遠線名單都不同），句子的數字與有沒有倍率句都要跟著翻；兩個方向、中英日三種介面。
+  if (want('CH17')) {
+    const CASES = [
+      ['真規則檔·偏遠線', null, RULES, CARD_R, KEY_NAN],
+      ['真規則檔·非偏遠線', null, RULES, CARD_P, KEY_PT],
+      ['另一份規則檔·偏遠線', RULES_ALT, RULES_ALT, CARD_P, KEY_PT],
+      ['另一份規則檔·非偏遠線', RULES_ALT, RULES_ALT, CARD_R, KEY_NAN],
+    ];
+    for (const [tag, served, rules, card, key] of CASES) await attempt(`CH17-${tag}`, async () => {
+      const s = await boardSession({}, { rules: served });
+      const loaded = await s.page.evaluate(() => { const c = bountyRulesMem && bountyRulesMem.chips; return c ? { perTrip: c.perTrip, mult: c.remoteMultiplier, cap: c.dailyChipCap } : null; });
+      await s.page.click(takeSel(card.id));
+      await briefOpen(s.page);
+      const br = await readBrief(s.page);
+      const e = expectOf(rules, key), w = REWARD['zh-TW'](e);
+      ok(`CH17a-${tag} [fixture] 頁面讀到的規則就是這一輪該有的那份（每趟 ${rules.chips.perTrip}、倍率 ${rules.chips.remoteMultiplier}、上限 ${rules.chips.dailyChipCap}）；伺服器入帳函式對這條線：${e.remote ? `偏遠線、一趟 ×${e.mult}` : '不是偏遠線、不加倍'}`,
+        !!loaded && loaded.perTrip === rules.chips.perTrip && loaded.mult === rules.chips.remoteMultiplier && loaded.cap === rules.chips.dailyChipCap && e.perTrip === rules.chips.perTrip, JSON.stringify({ loaded, e }));
+      ok(`CH17b-${tag} 說明卡有「${w.per}」與「${w.cap}」（每趟與每天上限，數字＝伺服器入帳用的純函式算出來的）`, br.text.includes(w.per) && br.text.includes(w.cap), br.text);
+      ok(`CH17c-${tag} ${e.remote ? `偏遠線：有「${w.mult}」，位置在每趟那句與每天上限那句之間` : '不是偏遠線：沒有倍率那句（整段沒有「×」也沒有「這條線的籌碼」）'}`,
+        e.remote ? (br.text.includes(w.mult) && br.text.indexOf(w.per) < br.text.indexOf(w.mult) && br.text.indexOf(w.mult) < br.text.indexOf(w.cap)) : !/×|這條線的籌碼/.test(br.text), br.text);
+      await s.ctx.close();
+    });
+    await attempt('CH17-404', async () => {
+      const s = await boardSession({}, { rules: '404' });
+      await s.page.click(takeSel(CARD_R.id));
+      await briefOpen(s.page);
+      const br = await readBrief(s.page);
+      ok('CH17d 規則檔讀不到：說明卡照樣開、沒有任何獎勵句（寧可不寫，也不憑記憶補數字，或寫伺服器不一定會給的東西）；期限那句與承諾那句照在',
+        !/顆籌碼|每天最多|×|這條線的籌碼/.test(br.text) && br.text.includes('接下的卡 24 小時內有效。') && br.text.includes('即使這次的資料不能用，校正者章還是你的。'), br.text);
+      ok('CH17e 規則檔讀不到：頁面沒有未捕捉的例外', s.errors.length === 0, JSON.stringify(s.errors));
+      await s.ctx.close();
+    });
+    for (const lang of ['en', 'ja']) await attempt(`CH17-${lang}`, async () => {
+      for (const [tag, served, rules, card, key] of [CASES[0], CASES[3]]) {
+        const s = await boardSession({}, { rules: served, lang });
+        await s.page.click(takeSel(card.id));
+        await briefOpen(s.page);
+        const br = await readBrief(s.page);
+        const e = expectOf(rules, key), w = REWARD[lang](e);
+        ok(`CH17f-${lang}-${tag} 外文介面的獎勵句：「${w.per}」「${w.cap}」${e.remote ? `「${w.mult}」` : '（不是偏遠線：沒有倍率句）'}；數字與單複數照伺服器入帳函式算的`,
+          br.text.includes(w.per) && br.text.includes(w.cap) && (e.remote ? br.text.includes(w.mult) : !/×|倍/.test(br.text)), br.text);
+        await s.ctx.close();
+      }
+    });
+  }
+
+  // ═══ CH18：旗標關——看不到任何一句獎勵說法、不讀規則檔、不打看板與認領；對照：同一個 App 殼旗標開就看得到 ═══════════════════
+  if (want('CH18')) {
+    const SAYS = /合格的一趟|顆籌碼|這條線的籌碼|每天最多|每天有上限|校正者章|懸賞板|籌碼 ×/;
+    const look = async (s) => {
+      const st = await s.page.evaluate(() => ({ flag: BOUNTY_ENABLED, native: PHYSICAL_COLLECT_ENABLED, entry: !!document.querySelector('[data-act="bountyboard"]'),
+        text: document.body.innerText,
+        boxes: ['bountyModal', 'bountyBriefModal', 'recordScreen'].map(id => { const e = document.getElementById(id); return !!e && (e.hidden || getComputedStyle(e).display === 'none'); }),
+        rulesMem: typeof bountyRulesMem === 'undefined' ? 'undef' : bountyRulesMem }));
+      await s.page.evaluate(() => openHelp());
+      const help = await s.page.evaluate(() => ({ secs: document.querySelectorAll('#helpBody .help-sec[data-sec^="bounty"]').length, text: document.getElementById('helpBody').innerText }));
+      return { st, help };
+    };
+    await attempt('CH18-off', async () => {
+      const s = await newSession({ app: true });
+      s.board = BOARD_V2;
+      await s.page.goto(`${BASE}/?lang=zh-TW`);
+      await loggedIn(s.page);
+      await sleep(1000);
+      const { st, help } = await look(s);
+      ok('CH18a [fixture] 旗標關、App 殼（有登入）：不是示範流程', st.flag === false && st.native === true, JSON.stringify({ flag: st.flag, native: st.native }));
+      ok('CH18b 旗標關：沒有懸賞板入口、整頁看得到的字裡沒有任何一句獎勵說法（每趟幾顆、倍率、每天上限、校正者章、懸賞板、籌碼 ×N）、三個懸賞浮層都藏著',
+        st.entry === false && !SAYS.test(st.text) && st.boxes.every(Boolean), JSON.stringify({ entry: st.entry, boxes: st.boxes, hit: (st.text.match(SAYS) || [null])[0] }));
+      ok('CH18c 旗標關：說明中心沒有懸賞那幾節（bounty 開頭的節 0 個）、說明中心的字裡也沒有獎勵說法', help.secs === 0 && !SAYS.test(help.text), JSON.stringify({ secs: help.secs, hit: (help.text.match(SAYS) || [null])[0] }));
+      ok('CH18d 旗標關：不讀規則檔（0 次、記憶體裡沒有）、不打看板、認領、籌碼、彙總（各 0 次）',
+        s.rulesReq === 0 && st.rulesMem === null && s.boardReq === 0 && s.claims.length === 0 && s.chips.length === 0 && s.bme.length === 0, JSON.stringify({ rules: s.rulesReq, board: s.boardReq, claims: s.claims.length, chips: s.chips.length, bme: s.bme.length }));
+      ok('CH18e 頁面沒有未捕捉的例外', s.errors.length === 0, JSON.stringify(s.errors));
+      await s.ctx.close();
+    });
+    await attempt('CH18-on', async () => {
+      // 對照：同一個 App 殼、同一份看板，只差旗標——入口在、說明中心有懸賞那幾節、讀了規則檔、說明卡看得到獎勵句
+      const s = await boardSession();
+      const { st, help } = await look(s);
+      const hit = SAYS.test(st.text) || SAYS.test(help.text);
+      await s.page.evaluate(() => closeHelp());
+      await s.page.click(takeSel(CARD_R.id));
+      await briefOpen(s.page);
+      const br = await readBrief(s.page);
+      const e = expectOf(RULES, KEY_NAN), w = REWARD['zh-TW'](e);
+      ok('CH18f 對照：旗標開——有懸賞板入口、說明中心有 3 節懸賞的說明、讀了規則檔、看板打了、說明卡有獎勵句（所以 CH18b–d 的「沒有」是旗標造成的）',
+        st.flag === true && st.entry === true && help.secs === 3 && hit && s.rulesReq >= 1 && s.boardReq >= 1 && br.text.includes(w.per) && br.text.includes(w.cap),
+        JSON.stringify({ flag: st.flag, entry: st.entry, secs: help.secs, hit, rules: s.rulesReq, board: s.boardReq }));
+      await s.ctx.close();
+    });
+  }
+
+  // ═══ CH19：手機版——四個寬度 × 兩個引擎：看板（有 ×N 標記）、說明卡、接下時的提示 ═══════════════════════════════════════
+  // 真觸控（isMobile＋hasTouch、page.tap）從底部分頁列「護照」進、點「懸賞板」、點「接下」。量的是實際版面：
+  // 兩兩相交掃描（逐層裁掉捲動容器之外看不到的部分）、水平捲動、elementFromPoint 命中、提示卡在視窗內且沒被截。
+  if (want('CH19')) {
+    const MEASURE = ({ itemSel, scrollSels, reachSel }) => {
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const shown = el => { const cs = getComputedStyle(el); if (cs.display === 'none' || cs.visibility === 'hidden') return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+      // 會讓後代（fixed）或定位後代（absolute）以它為包含區塊的祖先：transform／filter 等、或已定位
+      const makesCB = (cs, absolute) => cs.transform !== 'none' || cs.filter !== 'none' || cs.perspective !== 'none' ||
+        /paint|layout|strict|content/.test(cs.contain) || /transform|perspective|filter/.test(cs.willChange) || (absolute && cs.position !== 'static');
+      const clip = el => {                                  // 這個元素實際看得到的矩形：往上逐層裁掉有捲動／裁切的容器
+        const r = el.getBoundingClientRect();
+        let l = Math.max(r.left, 0), t = Math.max(r.top, 0), rr = Math.min(r.right, vw), b = Math.min(r.bottom, vh);
+        // fixed／absolute 的元素不被「不是它包含區塊」的祖先的 overflow 裁掉：往上找到它的包含區塊那一層才開始裁
+        const pos = getComputedStyle(el).position;
+        let escaped = pos === 'fixed' || pos === 'absolute';
+        for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+          const cs = getComputedStyle(p);
+          if (escaped) { if (!makesCB(cs, pos === 'absolute')) continue; escaped = false; }
+          if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
+          const q = p.getBoundingClientRect();
+          l = Math.max(l, q.left); t = Math.max(t, q.top); rr = Math.min(rr, q.right); b = Math.min(b, q.bottom);
+        }
+        return { l, t, r: rr, b, full: r };
+      };
+      const name = el => (el.id ? '#' + el.id : '.' + String(el.className).split(' ')[0]) + ':' + el.textContent.replace(/\s+/g, ' ').trim().slice(0, 10);
+      const rects = [...document.querySelectorAll(itemSel)].filter(shown).map(el => ({ el, ...clip(el) })).filter(x => x.r - x.l > 0.5 && x.b - x.t > 0.5);
+      const pairs = [];
+      for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+        const a = rects[i], b = rects[j];
+        if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+        const w = Math.min(a.r, b.r) - Math.max(a.l, b.l), h = Math.min(a.b, b.b) - Math.max(a.t, b.t);
+        if (w > 0.5 && h > 0.5) pairs.push([name(a.el), name(b.el), Math.round(w), Math.round(h)]);
+      }
+      const reach = [...document.querySelectorAll(reachSel)].filter(shown).map(el => {
+        const c = clip(el); const x = (c.l + c.r) / 2, y = (c.t + c.b) / 2; const hit = document.elementFromPoint(x, y);
+        return { n: name(el), ok: !!hit && (hit === el || el.contains(hit)), vis: c.r - c.l > 0.5 && c.b - c.t > 0.5 };
+      }).filter(x => x.vis);
+      const hscroll = { doc: document.documentElement.scrollWidth - vw };
+      for (const sel of scrollSels) { const e = document.querySelector(sel); hscroll[sel] = e ? e.scrollWidth - e.clientWidth : null; }
+      return { vw, vh, n: rects.length, pairs, reach, hscroll,
+        out: rects.filter(x => x.full.left < -0.5 || x.full.right > vw + 0.5).map(x => name(x.el)) };
+    };
+    const BOARD_ITEMS = '#bountyModal .tk-head b, #bountyModal .tk-x, #bountyBriefModal .tk-x, #bountySub, #bountyList .bt-r, #bountyList .bt-meta, #bountyList .bt-pt, #bountyList .bt-take, #bountyList .bt-covered';
+    const BRIEF_ITEMS = '#bountyBriefModal .tk-head b, #bountyBriefModal .tk-x, #bountyBriefBody .bb-sec > b, #bountyBriefBody .bb-sec p, #bountyBriefBody .bb-sec li, #bountyBriefModal .tk-foot button';
+    const toastBox = page => page.evaluate(() => {
+      const els = [...document.querySelectorAll('#toasts .toast')]; const el = els[els.length - 1];
+      if (!el) return null;
+      const r = el.getBoundingClientRect(), vw = window.innerWidth;
+      return { text: el.textContent.replace(/\s+/g, ' ').trim(), l: Math.round(r.left), r: Math.round(r.right), w: Math.round(r.width), vw, inView: r.left >= -0.5 && r.right <= vw + 0.5 && r.width > 0,
+        clipped: el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1 };
+    });
+    const MOBILE19 = async (engineName, br, width) => {
+      const tag = `${engineName}-${width}`;
+      await attempt(`CH19-${tag}`, async () => {
+        const s = await newSession({ passportClosed: true, app: true }, {}, { browser: br, ctx: { viewport: { width, height: 800 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } });
+        s.board = BOARD_V2;
+        await goBounty(s); await loggedIn(s.page); await chipsLoaded(s.page); await sleep(300);
+        await s.page.tap('#tabRide');                                                      // 手機底部分頁列的「護照」
+        await s.page.waitForFunction(() => { const p = document.getElementById('ridePanel'); return p && !p.hidden && p.querySelector('[data-act="bountyboard"]'); }, null, { timeout: 15000 });
+        await s.page.evaluate(() => document.querySelector('#ridePanel [data-act="bountyboard"]').scrollIntoView({ block: 'center' }));
+        await sleep(300);
+        await s.page.tap('#ridePanel [data-act="bountyboard"]');                           // 手機上實際點得到的「懸賞板」入口
+        await s.page.waitForFunction(() => document.querySelectorAll('#bountyList .bt-card').length >= 3, null, { timeout: 15000 });
+        await sleep(400);
+        const bd = await readBoard(s.page);
+        const bm = await s.page.evaluate(MEASURE, { itemSel: BOARD_ITEMS, scrollSels: ['#bountyModal .tk-box', '#bountyList'], reachSel: '#bountyList .bt-take, #bountyModal .tk-x' });
+        // 籌碼標記要在自己那張卡的範圍內（沒裁過的矩形）：被拉出卡片的標記（fixed／absolute／位移）會蓋到別的東西
+        const inCard = await s.page.evaluate(() => [...document.querySelectorAll('#bountyList .bt-card')].flatMap(card => {
+          const c = card.getBoundingClientRect();
+          return [...card.querySelectorAll('.bt-pt')].map(tg => { const r = tg.getBoundingClientRect();
+            return { card: card.dataset.card, ok: r.left >= c.left - 0.5 && r.right <= c.right + 0.5 && r.top >= c.top - 0.5 && r.bottom <= c.bottom + 0.5 }; });
+        }));
+        const eR = expectOf(RULES, KEY_NAN);
+        const tagsOf = id => (bd.cards.find(c => c.id === id) || { tags: null }).tags;
+        ok(`CH19a-${tag} 看板 3 張卡、偏遠線的兩張（一般卡、收滿卡）各有一個「籌碼 ×${eR.mult}」、另一張沒有標記`,
+          bd.cards.length === 3 && JSON.stringify(tagsOf(CARD_R.id)) === JSON.stringify([`籌碼 ×${eR.mult}`]) && JSON.stringify(tagsOf(CARD_RC.id)) === JSON.stringify([`籌碼 ×${eR.mult}`]) && JSON.stringify(tagsOf(CARD_P.id)) === '[]', JSON.stringify(bd.cards.map(c => [c.id, c.tags])));
+        ok(`CH19b-${tag} 看板兩兩相交掃描：掃了 ${bm.n} 個可見元素、沒有任何兩個互相蓋住（標題、×、副標、每張卡的名稱／說明／籌碼標記／接單鈕／已收滿說明）；兩個籌碼標記都在自己那張卡的範圍內`,
+          bm.n >= 12 && bm.pairs.length === 0 && inCard.length === 2 && inCard.every(x => x.ok), JSON.stringify({ pairs: bm.pairs, inCard }));
+        ok(`CH19c-${tag} 看板沒有水平捲動（頁面、懸賞板框、卡片列表都不超寬）、沒有元素超出視窗左右邊`,
+          bm.hscroll.doc <= 1 && bm.hscroll['#bountyModal .tk-box'] <= 1 && bm.hscroll['#bountyList'] <= 1 && bm.out.length === 0, JSON.stringify({ h: bm.hscroll, out: bm.out, vw: bm.vw }));
+        ok(`CH19d-${tag} 每顆接單鈕與關閉鈕的中心點 elementFromPoint 回到它自己（${bm.reach.length} 顆）`, bm.reach.length >= 3 && bm.reach.every(x => x.ok), JSON.stringify(bm.reach.filter(x => !x.ok)));
+        if (SHOT_DIR) await s.page.screenshot({ path: path.join(SHOT_DIR, `bounty-board-${tag}.png`) });
+        // 真觸控點「接下」
+        await s.page.tap(takeSel(CARD_R.id));
+        await briefOpen(s.page);
+        await s.page.waitForFunction(() => !!document.querySelector('#toasts .toast.show'), null, { timeout: 5000 }).catch(() => {});
+        await sleep(450);
+        const t1 = await toastBox(s.page);
+        const brief = await readBrief(s.page);
+        const mm = await s.page.evaluate(MEASURE, { itemSel: BRIEF_ITEMS, scrollSels: ['#bountyBriefModal .tk-box', '#bountyBriefBody'], reachSel: '#bountyBriefGo, #bountyBriefLater, #bountyBriefX' });
+        const w = REWARD['zh-TW'](eR);
+        ok(`CH19e-${tag} 真觸控點「接下」：伺服器收到 1 發認領、說明卡開了、獎勵句（每趟、×${eR.mult}、每天上限）都在`,
+          s.claims.length === 1 && brief.text.includes(w.per) && brief.text.includes(w.mult) && brief.text.includes(w.cap), JSON.stringify({ claims: s.claims.length, text: brief.text.slice(0, 160) }));
+        ok(`CH19f-${tag} 說明卡兩兩相交掃描：掃了 ${mm.n} 個可見元素、沒有任何兩個互相蓋住；沒有水平捲動、沒有元素超出視窗左右邊`,
+          mm.n >= 8 && mm.pairs.length === 0 && mm.hscroll.doc <= 1 && mm.hscroll['#bountyBriefModal .tk-box'] <= 1 && mm.hscroll['#bountyBriefBody'] <= 1 && mm.out.length === 0, JSON.stringify({ pairs: mm.pairs, h: mm.hscroll, out: mm.out }));
+        ok(`CH19g-${tag} 說明卡的「開始錄製」「等一下再說」「×」中心點 elementFromPoint 回到它自己`, mm.reach.length === 3 && mm.reach.every(x => x.ok), JSON.stringify(mm.reach));
+        ok(`CH19h-${tag} 接下時的提示是「接下了・24 小時內有效」、整張卡在視窗內（左 ${t1 && t1.l}、右 ${t1 && t1.r}、視窗寬 ${width}）、字沒有被截掉`,
+          !!t1 && t1.text === '接下了・24 小時內有效' && t1.inView && !t1.clipped, JSON.stringify(t1));
+        if (SHOT_DIR) await s.page.screenshot({ path: path.join(SHOT_DIR, `bounty-brief-${tag}.png`) });
+        // 存不下認領（最長的那句提示）：關掉說明卡、讓這台裝置寫不進去、真觸控點第二張卡的「接下」
+        await s.page.tap('#bountyBriefLater');
+        await s.page.evaluate(() => { window.__bountyKeyBlocked = true; document.getElementById('toasts').innerHTML = ''; });
+        await s.page.tap(takeSel(CARD_P.id));
+        await briefOpen(s.page);
+        await s.page.waitForFunction(() => !!document.querySelector('#toasts .toast.show'), null, { timeout: 5000 }).catch(() => {});
+        await sleep(450);
+        const t2 = await toastBox(s.page);
+        ok(`CH19i-${tag} 存不下認領時最長的那句提示：照實說、整張卡在視窗內（左 ${t2 && t2.l}、右 ${t2 && t2.r}）、字沒有被截掉`,
+          !!t2 && t2.text.startsWith('已在伺服器接下，但這台裝置存不下來') && t2.inView && !t2.clipped, JSON.stringify(t2));
+        ok(`CH19j-${tag} 頁面沒有未捕捉的例外`, s.errors.length === 0, JSON.stringify(s.errors));
+        await s.ctx.close();
+      });
+    };
+    for (const w of [360, 375, 414, 768]) await MOBILE19('chromium', browser, w);
+    await attempt('CH19-webkit-launch', async () => {
+      if (!wk) wk = await webkit.launch({ headless: true });
+      for (const w of [360, 375, 414, 768]) await MOBILE19('webkit', wk, w);
     });
   }
 } finally {
