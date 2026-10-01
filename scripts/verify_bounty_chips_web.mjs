@@ -11,14 +11,15 @@
 //   CH3  籌碼列的字與通行證狀態無關（state.plus.active 真／假逐字相同）
 //   CH4  請求：沒登入 0 次；登入後帶 Bearer、不帶 ?actor=；開機已登入／登入／合併完成各讀一次
 //   CH5  身分：409 merged_elsewhere 與 403 wrong_account → 換新的懸賞 actor、再併一次；同一次登入只換一次
-//   CH6  登出：併過的 actor 換新、籌碼快取與記憶體清掉；在途的回應不會在登出後寫回快取
+//   CH6  登出：併過的 actor 換新、籌碼快取與記憶體清掉；在途的籌碼與 bounty-me 回應不會在登出後寫回
 //   CH7  懸賞旗標關：開機清掉籌碼快取、沒有籌碼列、0 次 chips-me／bounty-me（含直接呼叫 fetchChipsMe()、fetchBountyMe()）、不寫新的 actor key
-//   CH8  上傳佇列：400 app_only 是終態（清掉、不重送）；其他錯誤照舊保留
+//   CH8  上傳佇列：旗標開時 400 app_only 是終態（清掉、不重送）；其他錯誤照舊保留；旗標關時 app_only 也照舊保留、下次開機重送
 //   CH9  看板收滿的卡：有「已收滿」說明、沒有接單鈕
 //   CH10 錄程入口：懸賞開著時不啟動定位取樣、改顯示「要用 App」的說明
 //   CH11 手機版：360／375／414／768 × Chromium／WebKit，真觸控點開護照（底部分頁列的「護照」）
 //   CH12 快取與 actor 的邊界（401 清、503 留、存不下、第一次沿用裝置 id、英文介面沒有漏翻）
 //   CH13 開機時序：登入結果比開機那一發 bounty-me 晚出來；401 晚到、200 晚到兩種先後，最後護照都要有登入者的段數
+//   CH14 冷開機時 session 已經不見（磁碟上還記著已併的帳號）：已併的 actor 換新、裝置 id 不變、籌碼快取清掉
 //
 // 打樁慣例照 scripts/verify_bounty_merge_web.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
 // localStorage['trainmap-account-uid'] 讓開機走 accountEnsureInit（回訪者分支）。
@@ -66,8 +67,9 @@ const ACTOR_RE = /^[A-Za-z0-9_-]{8,64}$/;
 const APP_GLOBALS = { RAIL_MUSIC_AVAILABLE: true, RAIL_ONLINE_BASEMAPS_AVAILABLE: true, RAIL_APP_CONFIG: { satRetina: true } };
 const THSR = readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json'));
 const unlockedN = n => SCENES.slice(0, n).map((scene, i) => ({ scene, nth: i + 1, at: 1791600000000 + i }));
-// 刻意用跟規則檔裡任何一格都不同的數字（nextCost 7、cap 6）：期望值若是客戶端自己從規則檔算的，這裡就對不上
-const CHIPS = (over = {}) => ({ balance: 5, unlocked: unlockedN(1), nextCost: 7, cloud: { rides: 4, toNextChip: 2 }, today: { chips: 0, cap: 6 }, ...over });
+// 刻意用跟規則檔裡任何一格都不同的數字（nextCost 7、cap 6）：期望值若是客戶端自己從規則檔算的，這裡就對不上。
+// today.chips 刻意不是 0（3）：cap−chips（3）與 chips（3）都不等於 cap（6），上限格顯示的是 cap 還是 cap−chips 才分得出來。
+const CHIPS = (over = {}) => ({ balance: 5, unlocked: unlockedN(1), nextCost: 7, cloud: { rides: 4, toNextChip: 2 }, today: { chips: 3, cap: 6 }, ...over });
 const ME = { actor: 'x', points: 128, corrected: { segs: 12, adopted: 9 }, lines: [{ sys: 'tra_sched', lnId: '南迴線', segs: 8, adopted: 6 }], firsts: [], trips: [] };
 const CARD_OPEN = { id: 'card-open', sys: 'tra_sched', lnId: '南迴線', trainKind: '自強', dir: 0, kind: 'track', slot: '',
   unitKeys: ['tra_sched|南迴線|枋寮|加祿'], units: 1, points: 3, claimers: 0, samples: 0, coverN: 50, need: 50, distinctOk: 3 };
@@ -145,6 +147,12 @@ try {
       signOut: async () => { setTimeout(() => { window.__authFired++; window.__authCb && window.__authCb(null); }, 0); },
     };
     try { localStorage.setItem('trainmap-account-uid', uid); } catch (e) {}
+    // 頁面腳本開始跑之前，與身分有關的鍵各是什麼（冷開機的情境要先證明「上一個 session 的痕跡真的在」）
+    window.__preBoot = (() => { try {
+      const u = localStorage.getItem('trainmap-account-uid');
+      return { uid: u, actor: localStorage.getItem('trainmap-bounty-actor-v1'), dev: localStorage.getItem('trainmap-device-id'),
+        merged: u ? localStorage.getItem('trainmap-bounty-merged-' + u) : null, chips: localStorage.getItem('trainmap-chips-me-v1') !== null };
+    } catch (e) { return null; } })();
   };
 
   // 一個獨立情境：自己的 localStorage／sessionStorage、自己的 /api 打樁與請求紀錄。回應內容與模式在請求當下才讀，測試中途可以改。
@@ -265,6 +273,10 @@ try {
         !!r && !r.off && !!r.cells.balance && r.cells.balance.nums.length === 1 && r.cells.balance.nums[0] === String(bal), JSON.stringify(r));
       ok(`CH1c-${bal} 下一座＝7（讀回應的 nextCost，不是客戶端自己算）、雲端搭乘＝4 次、再 2 次、每日上限＝6（讀 today.cap）`,
         !!r && !!r.cells.next && r.cells.next.nums.join() === '7' && !!r.cells.cloud && r.cells.cloud.nums.join() === '4,2' && !!r.cells.cap && r.cells.cap.nums.join() === '6', JSON.stringify(r && r.cells));
+      ok(`CH1f-${bal} [fixture] 回應裡 today.chips＝3（不是 0）、cap＝6：cap−chips（3）與 chips（3）都不等於 cap，分得出上限格顯示的是哪一個`,
+        (await s.page.evaluate(() => chipsMeMem.today.chips === 3 && chipsMeMem.today.cap === 6 && chipsMeMem.today.cap - chipsMeMem.today.chips !== chipsMeMem.today.cap)) === true);
+      ok(`CH1g-${bal} 上限格裡只有一個數字、恰好是 today.cap（6）：不是 cap−chips、也不是 today.chips`,
+        !!r && !!r.cells.cap && r.cells.cap.nums.length === 1 && r.cells.cap.nums[0] === '6', JSON.stringify(r && r.cells.cap));
       const old = await s.page.evaluate(() => ({
         cell: !!document.querySelector('.corr-pt'),
         text: (document.querySelector('#passport .ph-correct') || { textContent: '' }).textContent.replace(/\s+/g, ' ').trim(),
@@ -463,6 +475,35 @@ try {
         (await lsGet(s.page, KEY_CHIPS)) === null && (await s.page.evaluate(() => chipsMeMem === null)) === true && s.chips.length >= 2);
       await s.ctx.close();
     });
+
+    await attempt('CH6-inflight-me', async () => {
+      // 在途的回應：bounty-me（護照的校正貢獻）還沒回來就登出 → 回來之後記憶體不能被寫回上一位的資料，護照也不能出現上一位的段數。
+      // 回應由測試的閘扣住，等登出完成之後才放行（不靠睡眠秒數）。
+      const s = await bootBounty({});
+      await chipsLoaded(s.page);
+      await until(async () => (await flagOf(s.page, UID_A)) !== null);                    // 登入後的合併與重讀都跑完了
+      await until(() => s.page.evaluate(() => bountyMeMem !== null));
+      await sleep(600);
+      const gate = s.hold('bearer');
+      const n0 = s.bme.length;
+      await s.page.evaluate(() => { window.__inflight = fetchBountyMe(); });
+      await until(() => s.bme.length > n0);                                               // 這一發已經送出、被扣在伺服器這邊
+      const ent = s.bme[s.bme.length - 1];
+      await s.page.evaluate(() => accountSignOut());
+      await s.page.waitForFunction(() => state.account.user === null, null, { timeout: 15000 });
+      await sleep(800);                                                                   // 讓兩次身分收尾都跑完
+      const mid = { doneEarly: !!ent.doneSeq, memNull: await s.page.evaluate(() => bountyMeMem === null) };
+      gate.release();                                                                     // 現在才讓那發 200（上一位的 12 段）回來
+      await until(() => ent.doneSeq);
+      await sleep(800);
+      const ret = await s.page.evaluate(async () => { const r = await window.__inflight; renderPassport(); return r; });
+      const c = await corrInfo(s.page);
+      ok('CH6h [fixture] 登出時那一發 bounty-me 還在途（登出完成時它還沒回）、登出後記憶體已是 null；它之後回的是 200（上一位的資料）',
+        mid.doneEarly === false && mid.memNull === true && ent.status === 200, JSON.stringify({ mid, ent }));
+      ok('CH6i 在途那發（200，上一位的 12 段）回來之後：記憶體仍是 null、函式回 null、護照的校正貢獻節是空狀態、找不到上一位的 12 段',
+        ret === null && (await s.page.evaluate(() => bountyMeMem === null)) === true && c.empty === true && c.segs === null && !/12/.test(c.text || ''), JSON.stringify({ ret, c }));
+      await s.ctx.close();
+    });
   }
 
   // ═══ CH7：懸賞旗標關 ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -525,6 +566,22 @@ try {
       await s.page.evaluate(() => bountyRetryPending());
       await sleep(800);
       ok('CH8d 同一個佇列改回 app_only → 兩筆都清掉', JSON.parse((await lsGet(s.page, KEY_QUEUE)) || '[]').length === 0);
+      await s.ctx.close();
+    });
+    await attempt('CH8e', async () => {
+      // 對照：旗標關（正式站現在的狀態）——400 app_only 不是終態，佇列照舊留著、下次開機照樣重送。
+      // 上傳佇列在開機時不看旗標就會重送，旗標關著時把舊佇列清掉，就改掉了還留著舊佇列的裝置的行為。
+      const s = await newSession({ seed: { [KEY_QUEUE]: JSON.stringify([qItem(1), qItem(2)]) } }, { submit: 'app_only' });
+      await s.page.goto(`${BASE}/?lang=zh-TW`); await loggedIn(s.page);
+      await until(() => s.submits.length >= 1);
+      await sleep(1200);
+      const q = JSON.parse((await lsGet(s.page, KEY_QUEUE)) || '[]');
+      ok('CH8e1 [fixture] 懸賞旗標是關的、佇列放了 2 筆、伺服器回 400 app_only、開機時真的送過',
+        (await s.page.evaluate(() => BOUNTY_ENABLED)) === false && s.mode.submit === 'app_only' && s.submits.length >= 1, JSON.stringify({ n: s.submits.length }));
+      ok('CH8e2 旗標關：400 app_only 不是終態——佇列 2 筆都還在、這一輪只送了隊首那一筆（共 1 發）', q.length === 2 && s.submits.length === 1, JSON.stringify({ q: q.length, submits: s.submits.length }));
+      await s.page.reload(); await loggedIn(s.page); await sleep(1500);
+      const q2 = JSON.parse((await lsGet(s.page, KEY_QUEUE)) || '[]');
+      ok('CH8e3 旗標關：下次開機照樣重送——重新整理後又送了 1 發（共 2 發）、佇列仍是 2 筆', s.submits.length === 2 && q2.length === 2, JSON.stringify({ q: q2.length, submits: s.submits.length }));
       await s.ctx.close();
     });
   }
@@ -762,6 +819,38 @@ try {
       await sleep(800);
       await verdict13('200晚到', s, 'actor-first', mid);
       await s.ctx.close();
+    });
+  }
+
+  // ═══ CH14：冷開機時 session 已經不見——上一個 session 沒登出就結束，這次 auth 直接解出「沒有登入」══════════════════
+  // 與登出不同：這個 session 的記憶體裡從來沒有登入過的人（沒有 previousUid），只有磁碟上的痕跡（ACCOUNT_UID_KEY 還記著已併的帳號）。
+  // 已併進那個帳號的 actor 若沒收掉，之後這台裝置的匿名讀取一律被伺服器回 401，匿名認領送出的也還是那個 actor。
+  if (want('CH14')) {
+    const DEV14 = 'cold-boot-device-0014';
+    const base14 = { [KEY_DEV]: DEV14, [KEY_ACTOR]: DEV14, [KEY_CHIPS]: JSON.stringify(CHIPS({ balance: 77 })) };
+    const cold = async (merged) => {
+      const s = await newSession({ noUser: true, seed: merged ? { ...base14, ['trainmap-bounty-merged-' + UID_A]: DEV14 } : base14 });
+      await goBounty(s);
+      await authResolvedNull(s.page);
+      await sleep(800);
+      return s;
+    };
+    await attempt('CH14', async () => {
+      const s = await cold(true);
+      const pre = await s.page.evaluate(() => window.__preBoot);
+      const st = await s.page.evaluate(() => ({ flag: BOUNTY_ENABLED, user: state.account.user, fired: window.__authFired, mem: chipsMeMem, actor: bountyActor() }));
+      ok('CH14a [fixture] 開機前：上一個 session 的痕跡都在（ACCOUNT_UID_KEY 記著帳號、懸賞 actor＝裝置 id、已併旗標記的就是這個 actor、籌碼快取在）；開機後 auth 只解出一次、解出「沒有登入」、懸賞旗標開',
+        !!pre && pre.uid === UID_A && pre.actor === DEV14 && pre.dev === DEV14 && pre.merged === DEV14 && pre.chips === true && st.flag === true && st.user === null && st.fired === 1, JSON.stringify({ pre, st }));
+      ok('CH14b 冷開機沒有登入：已併進那個帳號的懸賞 actor 換新（合格式、不等於舊的、不是 ephemeral）',
+        ACTOR_RE.test(st.actor || '') && st.actor !== DEV14 && st.actor !== 'ephemeral' && (await lsGet(s.page, KEY_ACTOR)) === st.actor, JSON.stringify({ actor: st.actor }));
+      ok('CH14c trainmap-device-id 沒變（懸賞的 actor 不跟同步用的裝置 id 混用）', (await lsGet(s.page, KEY_DEV)) === DEV14);
+      ok('CH14d 籌碼快取 trainmap-chips-me-v1 清掉、記憶體裡的籌碼是 null', (await lsGet(s.page, KEY_CHIPS)) === null && st.mem === null);
+      await s.ctx.close();
+      const c = await cold(false);
+      const pc = await c.page.evaluate(() => window.__preBoot);
+      ok('CH14e 對照：同樣的冷開機、但這個 actor 沒有併過（沒有已併旗標）→ actor 不換；籌碼快取照樣清掉（換 actor 是「併過」才有的後果）',
+        !!pc && pc.uid === UID_A && pc.merged === null && pc.chips === true && (await lsGet(c.page, KEY_ACTOR)) === DEV14 && (await lsGet(c.page, KEY_CHIPS)) === null, JSON.stringify(pc));
+      await c.ctx.close();
     });
   }
 } finally {
