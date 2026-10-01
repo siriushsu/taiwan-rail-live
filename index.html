@@ -1557,10 +1557,9 @@
     margin-left: 0;
   }
   /* 校正貢獻節內容(Task 6,規格 §8):兩個數字並列＋逐線印章＋unusable 原因與改善方式。
-     色系沿用既有 token,不新造顏色──corr-pt 用 --gold 呼應「點數是榮譽的量化形式」這個定位。 */
+     色系沿用既有 token,不新造顏色。 */
   .ph-correct .corr-nums { font-size: calc(15px * var(--ui)); margin: 2px 0 10px; }
   .ph-correct .corr-sub { opacity: .75; margin-left: 4px; font-size: calc(13px * var(--ui)); }
-  .ph-correct .corr-pt { float: right; font-weight: 800; color: var(--gold); }
   .ph-correct .seal-wall { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
   /* .corr-line 是可換行的長條 chip,不是 .stn-seal 圓章──圓章是為 2–4 字站名設計的定寬版面,
      線名含括號里程可以到 10 字以上,塞進圓章會裁到看不出是哪條線(見 buildCorrectSection() 的
@@ -1575,6 +1574,18 @@
     padding-left: 8px; border-left: 2px solid var(--line);
   }
   .ph-correct .corr-first { margin-top: 6px; font-size: calc(12px * var(--uis)); color: var(--muted); }
+  /* 籌碼列(buildChipsRow):長在「校正貢獻」標題列上方、不隨那一節收合。骨架照 .ph-founding(同樣的框與底),色系沿用既有 token:
+     數字用 --gold 呼應「籌碼是榮譽的量化形式」。可換行、字級走 --ui／--uis 字階，窄螢幕一格一行往下排，不橫向捲動。
+     沒登入時只有一句提示(.off)：虛線框、字色退成 --faint。 */
+  .passport .ph-chips, #ridePanel .ph-chips {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 14px; margin: 13px 0 6px; padding: 8px 12px;
+    border: 1px solid var(--line); border-radius: var(--r-m); background: var(--bg-stage);
+    font-size: calc(12.5px * var(--ui)); line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .passport .ph-chips.off, #ridePanel .ph-chips.off { border-style: dashed; color: var(--faint); }
+  .ph-chips .pc-i { min-width: 0; overflow-wrap: anywhere; }
+  .ph-chips .pc-l { font-weight: 800; color: var(--navy); }
+  .ph-chips b { font-size: calc(15px * var(--ui)); font-weight: 800; color: var(--gold); }
   .datestamp {
     display: inline-block; font-family: var(--mono); font-size: calc(11px * var(--uis)); font-weight: 700;
     color: var(--navy); border: 1.5px solid var(--navy); border-radius: 3px; padding: 0 5px;
@@ -3129,6 +3140,8 @@
     border: 1px solid var(--red-deep); background: var(--red); color: #fffdf6;
   }
   .bounty-modal .bt-empty { padding: 24px 12px; text-align: center; opacity: .7; }
+  /* 收滿的卡(常青線才會留在板上)：不能接，只說「照樣可以錄」。整列寬、不占接單鈕那一格。 */
+  .bounty-modal .bt-covered { grid-column: 1 / -1; font-size: calc(12px * var(--uis)); line-height: 1.5; color: var(--muted); }
   /* 出發前說明卡(#bountyBriefModal):brief 的 HTML 用了 .bb-sec/.bb-how/.tk-foot 這幾個新 class 名,
      同樣沒有對應 CSS——比照上面 .tk-box 家族的既有教訓(見那段註解),逐值照抄 .takeout-actions
      當 tk-foot 的殼、.bt-card 的虛線分隔當 bb-sec 的殼,不另創一套視覺語言。 */
@@ -23487,6 +23500,9 @@ async function fetchChipsMe() {
   if (!user) return null;
   const seq = ++chipsMeSeq, uid = user.uid;
   const still = () => seq === chipsMeSeq && !!state.account && !!state.account.user && state.account.user.uid === uid;
+  // 護照的「下一座」要比 unlocked 的數量與規則檔的場景數(buildChipsRow)：規則檔跟著一起讀，呼叫端讀完重繪時它就在記憶體裡了。
+  // 讀不到不影響籌碼本身（那一格就不顯示）。
+  const rulesP = bountyRules().catch(() => null);
   try {
     const token = a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken();
     const r = await fetch(apiUrl('api/chips-me'), { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
@@ -23502,7 +23518,7 @@ async function fetchChipsMe() {
       chipsMeMem = null;
       try { localStorage.removeItem(BOUNTY_CHIPS_KEY); } catch (e) {}
     } else if (r.status === 403 && await bountyErrorIs(r, 'wrong_account')) bountyOnWrongAccount();
-  } catch (e) {}
+  } catch (e) {} finally { await rulesP; }
   return chipsMeMem;
 }
 // 旅程卡的名字：伺服器只給計價單位，端點名在這裡算。
@@ -23614,6 +23630,14 @@ function renderBountyBoard() {
     const live = !!bountyLiveClaim(c.id, claims);
     const label = !PHYSICAL_COLLECT_ENABLED ? t('要用 App 才能接') : live ? t('已接下・看說明') :
       (nm.isDwell ? t('接下停站') : t('接下這段'));
+    // covered:true＝這張卡的單位都收滿了（只有常青線的卡會留在板上）：認領會回 404，所以不給接單鈕，只說「照樣可以錄程拿籌碼」。
+    if (c.covered === true) {
+      return `<div class="bt-card" data-card="${escHtml(c.id)}">` +
+        `<div class="bt-r">${escHtml(nm.title)}</div>` +
+        `<div class="bt-meta">${escHtml(meta)}</div>` +
+        `<div class="bt-covered">${escHtml(t('已收滿，照樣可以錄程拿籌碼'))}</div>` +
+        `</div>`;
+    }
     return `<div class="bt-card" data-card="${escHtml(c.id)}">` +
       `<div class="bt-r">${escHtml(nm.title)}</div>` +
       `<div class="bt-meta">${escHtml(meta)}</div>` +
@@ -23726,6 +23750,9 @@ function bountyRecordingDir(card, tr) {
   return ds.length >= 2 && ds[ds.length - 1] < ds[0] ? 1 : 0;
 }
 function startBountyRecording(card) {
+  // 懸賞開著時，網頁這一支不啟動定位取樣：伺服器只收原生 App 的錄程（上傳沒帶 App 身分一律回 400 app_only），
+  // 在這裡錄了也送不上去。?demo=bounty 是備援站看設計用的假資料流程（不上傳），照舊走完。旗標關著時行為不變。
+  if (BOUNTY_ENABLED && !DEMO_AS_APP) { showToast(t('錄程要用軌島 App。網頁可以看懸賞板與自己的籌碼')); return; }
   if (!PHYSICAL_COLLECT_ENABLED) { showToast(t('GPS 校正旅程需要用 App')); return; }
   if (state.recording) { showToast(t('已經在錄了')); return; }
   const tr = state.followTrain;
@@ -24168,7 +24195,7 @@ async function bountyRetryPending() {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify(item.payload),
         });
-        // 旗標關著時下面這條不動：下架期間佇列的行為要跟沒有這段程式時一樣。
+        // 旗標關著時下面兩條都不動：下架期間佇列的行為要跟沒有這段程式時一樣。
         // 403 wrong_account：這批的 actor 已經屬於另一個帳號。換新的 actor，佇列裡還沒送的批次一律改用新的，下一輪重送。
         if (BOUNTY_ENABLED && res.status === 403 && await bountyErrorIs(res, 'wrong_account')) {
           bountyOnWrongAccount();
@@ -24178,6 +24205,13 @@ async function bountyRetryPending() {
             bountySaveUploadQueue(q);
           }
           return false;
+        }
+        // 400 app_only：伺服器只收原生 App 的錄程，這一批永遠送不過去。當終態從佇列清掉——留著只會每次開機重送一次、
+        // 還卡死排在後面的批次。沒有標成已送出：它沒被收下。
+        if (BOUNTY_ENABLED && res.status === 400 && await bountyErrorIs(res, 'app_only')) {
+          q = q.filter(x => x.id !== item.id);
+          bountySaveUploadQueue(q);
+          continue;
         }
         if (!res.ok) throw new Error('submit ' + res.status);
         bountyMarkSubmitted(item.meta);
@@ -24754,12 +24788,11 @@ function buildCorrectSection() {
     const first = (me.firsts || []).length
       ? `<div class="corr-first">${t('首位校正者：<b>你</b>（{n} 段）', { n: (me.firsts || []).length })}</div>` : '';
     // 樣板裡的 <b>／<span class="corr-sub"> 是字典值的固定標記;插進去的只有 bountyNum() 收斂過的整數。
+    // 舊的「{n} 點」那一格不再顯示：獎勵換成籌碼，餘額在標題列上方的籌碼列(buildChipsRow)。校正段數、採用段數與章照舊。
     body =
-      `<div class="corr-nums">${t('校正 <b>{n}</b> 段<span class="corr-sub">（其中 <b>{adopted}</b> 段已採用）</span>', { n, adopted: bountyNum(corrected.adopted) })}` +
-      `<span class="corr-pt">${escHtml(t('{n} 點', { n: bountyNum(me.points) }))}</span></div>` +
+      `<div class="corr-nums">${t('校正 <b>{n}</b> 段<span class="corr-sub">（其中 <b>{adopted}</b> 段已採用）</span>', { n, adopted: bountyNum(corrected.adopted) })}</div>` +
       `<div class="seal-wall">${lines}</div>` + first + bad;
     // 兌換入口在沒有任何段開放時整個隱藏——不做「敬請期待」那種空頭 UI(規格 §8)。
-    // v1 的點數是榮譽的量化形式:累積、顯示,但沒有兌換入口。
   }
   // 節的形狀固定是「標題＋緊接一個內容 div」,收合靠 .ph-sec.closed + div{display:none}。
   // 新增節不維持這個形狀就收不掉(打卡那批踩過)。
@@ -24768,7 +24801,38 @@ function buildCorrectSection() {
   // 會讓「有校正記錄」的人這節自動展開,在車站牆龐大的重度使用者身上把護照總高度推過一個視窗高
   // (verify_checkin.mjs L10 的既有門檻,批次無關不可調);-1 是刻意選的哨兵值,讓 n <= autoCloseOver
   // 對任何非負 n 恆不成立、預設收合,使用者手動展開過仍會被記住。
-  return phSec('correct', n, -1, inner) + `<div class="ph-correct">${body}</div>`;
+  // 籌碼列長在標題列上方、自己獨立一塊：這節預設收合，餘額不該跟著藏起來。
+  return buildChipsRow() + phSec('correct', n, -1, inner) + `<div class="ph-correct">${body}</div>`;
+}
+// 護照的籌碼列：餘額、下一座要幾顆、雲端搭乘進度、每日上限。
+// 資料只來自 /api/chips-me 的回應（chipsMeMem，見 fetchChipsMe），與通行證無關：籌碼列的內容不看任何通行證狀態，有沒有訂閱字都一樣。
+// 數字一律過 bountyNum()：伺服器回的字串走 innerHTML 就是可執行的 HTML（比照 F-01）；樣板裡的 <b> 是字典值的固定標記。
+//   · 沒登入：不顯示餘額，只有一句提示——籌碼屬於帳號，沒登入就沒有東西可讀（見 fetchChipsMe）。
+//   · 已登入但還沒讀到（開機中、網路不通）：餘額格放破折號，不假裝是 0。
+//   · 「下一座」只在還有場景沒解鎖時才有意義。契約：全部解鎖之後 nextCost 仍回最後一格的價格，所以要比
+//     unlocked 的數量與規則檔 chips.scenes 的數量；規則檔還沒讀到就不顯示——寧可少一格，也不要對全解鎖的人寫「下一座要 8 顆」。
+//   · 每日上限顯示 today.cap 本身。today.chips 是判定入帳後才有的數字，白天幾乎都是 0，不能拿來算「今天還能賺幾顆」。
+function buildChipsRow() {
+  if (!(state.account && state.account.user)) return `<div class="ph-chips off">${escHtml(t('登入後看得到籌碼'))}</div>`;
+  const c = chipsMeMem;
+  const cell = (k, html) => `<span class="pc-i" data-k="${k}">${html}</span>`;
+  const label = `<span class="pc-l">${escHtml(t('籌碼'))}</span> `;
+  if (!c) return `<div class="ph-chips">${cell('balance', label + '<b>—</b>')}</div>`;
+  const parts = [cell('balance', label + `<b>${bountyNum(c.balance)}</b>`)];
+  const sceneN = ((bountyRulesMem && bountyRulesMem.chips && bountyRulesMem.chips.scenes) || []).length;
+  if (sceneN > 0 && (c.unlocked || []).length < sceneN) {
+    const n = bountyNum(c.nextCost);
+    parts.push(cell('next', t('下一座場景要 <b>{n}</b> 顆', { n }, n)));
+  }
+  if (c.cloud && typeof c.cloud === 'object') {
+    parts.push(cell('cloud', t('雲端搭乘 <b>{rides}</b> 次・再 <b>{left}</b> 次拿 1 顆',
+      { rides: bountyNum(c.cloud.rides), left: bountyNum(c.cloud.toNextChip) })));
+  }
+  if (c.today && typeof c.today === 'object') {
+    const cap = bountyNum(c.today.cap);
+    parts.push(cell('cap', t('錄程每天最多 <b>{n}</b> 顆', { n: cap }, cap)));
+  }
+  return `<div class="ph-chips">${parts.join(' ')}</div>`;
 }
 // 收集章(明星列車/車種圖鑑/支線行腳):完成與否皆掛點擊鉤子→got 章也可點重播;桌面與 sheet 逐字相同
 // opts.date=true:章面下緣印取得日期(設計 3g,護照 sheet 專用)。

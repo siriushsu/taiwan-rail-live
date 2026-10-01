@@ -3440,3 +3440,28 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '修正部分台鐵長途列車的待避推估，優先利用前車原有停站時間，減少多停一次後又在站間追越的畫面': '一部の台鉄長距離列車の待避推定を修正しました。先行列車の予定停車時間を優先して使い、余分な待避の後に駅間で再び追い越す表示を減らします。',
   '高雄輕軌來車看板分開顯示順行、逆行與途經方向，不再全部只寫往籬仔內，也不會漏掉另一方向的班次': '高雄ライトレールの到着案内で時計回り・反時計回りを分け、経由駅を表示します。すべてが籬仔内行きと表示されたり、反対方向の便が隠れたりしなくなりました。',
 });
+// 路段懸賞 v2 網頁端：護照籌碼列、收滿的懸賞卡、錄程只在 App。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '籌碼': 'Chips',
+  '登入後看得到籌碼': 'Sign in to see your chips',
+  '下一座場景要 <b>{n}</b> 顆': {
+    one: 'Next scene costs <b>{n}</b> chip',
+    other: 'Next scene costs <b>{n}</b> chips',
+  },
+  '雲端搭乘 <b>{rides}</b> 次・再 <b>{left}</b> 次拿 1 顆': 'Cloud rides <b>{rides}</b> · <b>{left}</b> more for 1 chip',
+  '錄程每天最多 <b>{n}</b> 顆': {
+    one: 'Recording earns up to <b>{n}</b> chip a day',
+    other: 'Recording earns up to <b>{n}</b> chips a day',
+  },
+  '已收滿，照樣可以錄程拿籌碼': 'Fully covered — you can still record a trip and earn chips',
+  '錄程要用軌島 App。網頁可以看懸賞板與自己的籌碼': 'Recording a trip needs the Rail Island app. The website lets you view the bounty board and your own chips.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '籌碼': 'チップ',
+  '登入後看得到籌碼': 'ログインするとチップが表示されます',
+  '下一座場景要 <b>{n}</b> 顆': '次の情景の解放に <b>{n}</b> 枚',
+  '雲端搭乘 <b>{rides}</b> 次・再 <b>{left}</b> 次拿 1 顆': 'クラウド乗車 <b>{rides}</b> 回・あと <b>{left}</b> 回で 1 枚',
+  '錄程每天最多 <b>{n}</b> 顆': '記録で獲得できるのは 1 日最大 <b>{n}</b> 枚',
+  '已收滿，照樣可以錄程拿籌碼': '収集済みですが、旅程を記録すればチップがもらえます',
+  '錄程要用軌島 App。網頁可以看懸賞板與自己的籌碼': '旅程の記録には軌島アプリが必要です。ウェブサイトでは懸賞板とご自身のチップを確認できます。',
+});
