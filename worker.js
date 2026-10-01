@@ -6367,8 +6367,13 @@ async function bountyBoard(request, env) {
     const counts = new Map((cs.results || []).map(r =>
       [`${r.seg_key}|${r.train_kind}|${r.dir}|${r.kind}|${r.slot || ''}`, Number(r.n) || 0]));
     const cards = groupBoardRows(rs.results || [], counts, rules.coverN, rules.coverDistinct);
-    // 板一天只重算一次，但 claimers 會隨時變——5 分鐘是「認領人數夠新」與「別把 D1 打爆」的折衷
-    return await jsonResCached(edge, cacheKey, { at: now, coverN: rules.coverN, cards }, 200, 'public, s-maxage=300, stale-while-revalidate=900');
+    const body = { at: now, coverN: rules.coverN, cards };
+    // 估值被清單的守門擋下的狀態（見 BOUNTY_RETIRE_BLOCK_KEY）：沒擋＝null，擋下中＝{at, generatedAt, msg}。
+    // 讀不到（D1 錯誤、值壞掉）就整個省略這個欄位，讀的人才分得出「沒擋」與「不知道」；這一句失敗不影響看板本身。
+    const retireBlock = await bountyReadRetireBlock(env);
+    if (retireBlock !== undefined) body.retireBlock = retireBlock;
+    // 板一天只重算一次，但 claimers 會隨時變——5 分鐘是「認領人數夠新」與「別把 D1 打爆」的折衷（retireBlock 跟著同一份快取）
+    return await jsonResCached(edge, cacheKey, body, 200, 'public, s-maxage=300, stale-while-revalidate=900');
   } catch (e) {
     return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
   }
@@ -7365,12 +7370,59 @@ async function bountyUnits(env) {
 // 或某條線至少 minCount 列、而且超過那條線現役列的 lineRatio，就中止。
 const BOUNTY_RETIRE_GUARD = { minCount: 10, sysRatio: 0.1, lineRatio: 0.5 };
 
+// 估值被清單的守門擋下時留的狀態：kv_blobs 一列（鍵 BOUNTY_RETIRE_BLOCK_KEY），值＝{at, generatedAt, msg}——
+// at＝這一次擋下的毫秒時間戳，generatedAt＝擋下的那份清單的 generatedAt（清單沒有就 null），msg＝丟出的錯誤訊息，同一句。
+// 為什麼要留：擋下只會丟一個錯、cron 印一行 log，沒有人會主動去翻；擋下期間新單位不上架、沒接懸賞的錄程在缺卡的段拿 0 點，
+// 當天或隔天就要有人處理。每小時的巡檢只打公開 API、不查 D1，所以這一列經 /api/bounty-board 的 retireBlock 欄位帶出去（見 bountyBoard）。
+// 涵蓋的是「清單有問題、整張板不動、要人處理」的守門（清單是空的、退場守門）；D1 錯誤，以及規則檔或清單檔讀不到，是別的問題，不寫。
+// 連續幾天都被擋，每次覆寫成最新一發；估值正常跑完才清掉（bountyValuationCron 的最後一步），任何丟錯的路都不動它。
+const BOUNTY_RETIRE_BLOCK_KEY = 'bounty_retire_block';
+// 寫、清、讀都走傳進來的 env（估值與判定共用的子請求計數器要數到）。
+// 寫入失敗只印 error、不往外丟：呼叫端接著要丟的是擋下的原因，寫入的錯不能蓋掉它。
+async function bountyRecordRetireBlock(env, generatedAt, msg) {
+  try {
+    await env.DELAY_DB.prepare(
+      "INSERT INTO kv_blobs (k, v, updated) VALUES (?, ?, datetime('now'))" +
+      ' ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated = excluded.updated'
+    ).bind(BOUNTY_RETIRE_BLOCK_KEY, JSON.stringify({ at: Date.now(), generatedAt, msg })).run();
+  } catch (e) {
+    console.error('[cron bounty 估值] 擋下的狀態寫不進 kv_blobs（照樣丟出擋下的原因）:', (e && e.stack) || String(e));
+  }
+}
+// 估值已經整張跑完，清除失敗不該讓這一發變成「失敗」：印 error，那一列留到下一次正常跑完再清。
+async function bountyClearRetireBlock(env) {
+  try {
+    await env.DELAY_DB.prepare('DELETE FROM kv_blobs WHERE k=?').bind(BOUNTY_RETIRE_BLOCK_KEY).run();
+  } catch (e) {
+    console.error('[cron bounty 估值] 估值已跑完，但清不掉擋下的狀態:', (e && e.stack) || String(e));
+  }
+}
+// 回 null＝沒有這一列（沒擋）；回物件＝擋下中；回 undefined＝讀不到（D1 錯誤、值不是 JSON 物件），看板據此省略欄位，
+// 讓讀的人分得出「沒擋」與「不知道」。只取三個欄位，值裡多出來的東西不外露。
+async function bountyReadRetireBlock(env) {
+  try {
+    const row = await env.DELAY_DB.prepare('SELECT v FROM kv_blobs WHERE k=?').bind(BOUNTY_RETIRE_BLOCK_KEY).first();
+    if (!row) return null;
+    const v = JSON.parse(row.v);
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+    return { at: v.at ?? null, generatedAt: v.generatedAt ?? null, msg: v.msg ?? null };
+  } catch (e) { return undefined; }
+}
+
 // 每日估值:把清單裡的新單位補上架、清單已經沒有的單位退場,並重算所有還開著的單位的 l1／l2／points。
 // 冪等:重跑只會得到同一個結果(上架是 upsert、per_day 照清單覆寫;退場只做記號;update 全欄位重算),cron 補跑無害。
 async function bountyValuationCron(env) {
   const M = await bountyUnits(env);
+  // 這份清單的 generatedAt（沒有或空白就是 ''）：BOUNTY_RETIRE_ACK 的比對用 gen；擋下的狀態帶清單原本的值，沒有就 null。
+  const gen = M.generatedAt == null ? '' : String(M.generatedAt).trim();
+  const generatedAt = gen === '' ? null : M.generatedAt;
   // 🔴 清單是空的就中止,不當成「今天沒有任何單位」:下面「清單沒有的單位一律退場」遇到空清單,會把整張板收掉。
-  if (!Array.isArray(M.units) || !M.units.length) throw new Error('bounty_units empty');
+  // 擋下之前先留狀態（BOUNTY_RETIRE_BLOCK_KEY）：板上一列都不動，但要讓人看得到這一發被擋了。
+  if (!Array.isArray(M.units) || !M.units.length) {
+    const msg = 'bounty_units empty';
+    await bountyRecordRetireBlock(env, generatedAt, msg);
+    throw new Error(msg);
+  }
   const rules = await bountyRules(env);
   const dwellCoveredMultiplier = Number(rules.dwellReward && rules.dwellReward.coveredMultiplier);
   if (!(dwellCoveredMultiplier > 0 && dwellCoveredMultiplier <= 1)) {
@@ -7389,7 +7441,7 @@ async function bountyValuationCron(env) {
   // 要退場的列：板上還沒退場、這一份清單已經沒有的單位（換班表之後不再有的車種、時段、停站）。在任何寫入之前算好，下面的守門要看它。
   const gone = onBoard.filter(r => !Number(r.retired) && !want.has(unitKey(r.seg_key, r.train_kind, r.dir, r.kind, r.slot)));
   // 🔴 清單只少了一部分也中止（第十四輪獨立驗收 P3-1、第十五輪 P3-A）：某個系統這一發要退場的列至少 10 列、而且超過它現役列的一成，
-  // 或某條線（seg_key 的前兩段「系統|線」）至少 10 列、而且超過那條線現役列的一半，就在任何寫入之前丟錯，整張板不動，等人看過。
+  // 或某條線（seg_key 的前兩段「系統|線」）至少 10 列、而且超過那條線現役列的一半，就在動 bounty_board 之前丟錯，整張板不動，等人看過。
   // 上面的空清單擋得住「整份沒了」，擋不住「輸入檔都在、內容殘缺」（上游回了殘缺的班表或軌道，建置照樣成功）：
   // 這一發會把少掉的那一片全部退場，看板缺卡，沒接懸賞的錄程在那些段拿 0 點。
   // 比例逐系統算：高鐵、林鐵的列數只有台鐵的零頭，整個系統消失，合起來算也到不了一成。
@@ -7398,7 +7450,9 @@ async function bountyValuationCron(env) {
   // - main 上 18 期班表兩兩比（07-24～09-27，同一支建置腳本），系統最多退 0.5%，單一條線最多 2.5%。
   // - 出過貨的清單之間（建置腳本也改過鍵、時段、車種），系統最多 3.8%，單一條線最多 12%。
   // 至少 10 列：小系統、小支線換班表退掉幾格是正常的，不值得擋。
-  // 擋下時整個估值停擺（新單位不上架，per_day、L1／L2 不重算）：同一發的判定照跑，用上一次估值留下的板價。只留一行 log，要盡快處理。
+  // 擋下時整個估值停擺（新單位不上架，per_day、L1／L2 不重算）：同一發的判定照跑，用上一次估值留下的板價。
+  // 要盡快處理：擋下期間新單位不上架，沒接懸賞的錄程在缺卡的段拿 0 點。擋下的當下除了 log 一行 error，還會在 kv_blobs 留一列狀態
+  // （BOUNTY_RETIRE_BLOCK_KEY），由 /api/bounty-board 的 retireBlock 欄位帶出去給巡檢讀；估值正常跑完才清掉，連續被擋就覆寫成最新一發。
   // 真的是大改點（停駛、改點）時，確認清單沒問題，就把 Worker 的 BOUNTY_RETIRE_ACK 設成這份清單的 generatedAt（錯誤訊息裡有；前後的空白不算），
   // 下一發照常退場。只對這一份清單有效，出了新清單就自動失效。
   const shrinkOf = (groupOf, ratio) => {
@@ -7409,11 +7463,12 @@ async function bountyValuationCron(env) {
   };
   const shrink = [...shrinkOf(r => r.sys, BOUNTY_RETIRE_GUARD.sysRatio),
     ...shrinkOf(r => r.seg_key.split('|', 2).join('|'), BOUNTY_RETIRE_GUARD.lineRatio)];
-  const gen = M.generatedAt == null ? '' : String(M.generatedAt).trim();
   if (shrink.length && !(gen !== '' && String(env.BOUNTY_RETIRE_ACK ?? '').trim() === gen)) {
-    throw new Error('bounty_units shrink: ' + shrink.join(', ') + (gen === ''
+    const msg = 'bounty_units shrink: ' + shrink.join(', ') + (gen === ''
       ? '（清單沒有 generatedAt，沒辦法放行：重建 bounty_units.json 再出貨）'
-      : `（確認是真的換班表，就把 BOUNTY_RETIRE_ACK 設成 ${gen}）`));
+      : `（確認是真的換班表，就把 BOUNTY_RETIRE_ACK 設成 ${gen}）`);
+    await bountyRecordRetireBlock(env, generatedAt, msg);
+    throw new Error(msg);
   }
   // distinct_ok_users 上架時就帶入該段「已經有幾個不同的人交過 ok」：人數是「段」的屬性（見 bountyRegisterContrib），
   // 同一段先上架的兄弟列已經是 N，晚上架的列（換班表新增的車種／時段）若從 0 起算，就會永遠少 N 位，而且沒有任何錯誤訊息。
@@ -7484,6 +7539,8 @@ async function bountyValuationCron(env) {
         r.seg_key, r.train_kind, r.dir, r.kind, r.slot);
     }));
   }
+  // 整張板都處理完了才清掉擋下的狀態：前面任何一處丟錯都到不了這裡，那一列原封不動；設了 BOUNTY_RETIRE_ACK 放行的那一發也走到這裡。
+  await bountyClearRetireBlock(env);
   return { inserted, retired: gone.length, updated, capped, unlocked };
 }
 

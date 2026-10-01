@@ -4,6 +4,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { _bounty } from '../worker.js';
 import { openTestDb } from './d1_local.mjs';
+import { bountyRetireVerdict } from './lib/bounty_retire_verdict.mjs';
 
 const { bountyMedian, bountyL1, bountyL2, bountyPointsOf, bountyUnlocked, bountyValuationCron } = _bounty;
 const R = [];
@@ -324,6 +325,237 @@ if (existsSync('data/bounty_units.json')) {
         E.test(bad51.threw || '') && /tra_sched\|山線 51\/100/.test(bad51.threw) && !SYS_ENTRY.test(bad51.threw) && b.snap() === before,
       JSON.stringify({ ok50, a: a.retiredBySys(), bad51, unchanged: b.snap() === before }));
   }
+}
+
+// E29–E39 估值被清單的守門擋下時的狀態：擋下就在 kv_blobs 留一列 bounty_retire_block（值 {at, generatedAt, msg}），
+// 估值正常跑完才清掉，看板的 retireBlock 欄位把它帶出去。鍵名、欄位名、訊息都是手寫的字面值，不從 worker.js 拿。
+// 板上先放台鐵 200 列、高鐵 20 列（比照 E20）；第二份清單少台鐵 21 列 → 退場守門擋下（tra_sched 21/200）。
+globalThis.caches = { default: { match: async () => undefined, put: async () => {} } };   // 看板用 Workers 的 Cache API，Node 沒有
+{
+  const K = (sys, ln, i) => ({ segKey: `${sys}|${ln}|站${String(i).padStart(3, '0')}|站${String(i + 1).padStart(3, '0')}`, sys, trainKind: '自強', dir: 0, kind: 'track', slot: '', perDay: 6 });
+  const TRA = Array.from({ length: 200 }, (_, i) => K('tra_sched', '南迴線', i));
+  const HSR = Array.from({ length: 20 }, (_, i) => K('thsr_sched', 'THSR', i));
+  const FULL = [...TRA, ...HSR];
+  const CUT = [...TRA.slice(21), ...HSR];            // 台鐵少 21 列：擋下
+  const lines = { 'tra_sched|南迴線': { sys: 'tra_sched', lnId: '南迴線', name: '南迴線', stations: [] },
+    'thsr_sched|THSR': { sys: 'thsr_sched', lnId: 'THSR', name: 'THSR', stations: [] } };
+  const KEY = 'bounty_retire_block';
+  // 一個全新的庫。run(清單, 這份清單的 generatedAt, env 覆寫)：丟錯就回 { threw: 訊息 }。
+  const fixture = () => {
+    let cur = null;
+    const ASSETS = { fetch: async r => new Response(String(r.url).includes('bounty_units')
+      ? JSON.stringify(cur) : readFileSync('data/bounty_rules.json', 'utf8'), { status: 200 }) };
+    const { db, DELAY_DB } = openTestDb();
+    const run = async (units, gen, over = {}) => {
+      cur = { generatedAt: gen, schedDate: '2026-07-28', lines, units }; _bounty.bountyResetMemCaches();
+      try { return await bountyValuationCron({ DELAY_DB, ASSETS, ...over }); }
+      catch (e) { return { threw: String(e && e.message) }; }
+    };
+    const raw = () => db.prepare('SELECT v, updated FROM kv_blobs WHERE k = ?').get(KEY);          // undefined＝沒有這一列
+    const row = () => { const r = raw(); return r ? JSON.parse(r.v) : null; };
+    const nKv = () => db.prepare('SELECT COUNT(*) c FROM kv_blobs WHERE k = ?').get(KEY).c;
+    const snap = () => JSON.stringify(db.prepare('SELECT * FROM bounty_board ORDER BY seg_key').all());
+    return { db, DELAY_DB, ASSETS, run, raw, row, nKv, snap };
+  };
+  // D1 替身：SQL 符合 re 的那一句（單句，或 batch 裡的任何一句）一律丟 'D1 注入的錯'，其餘照常。
+  const INJECTED = 'D1 注入的錯';
+  const failOn = (DB, re) => {
+    const bad = sql => re.test(String(sql));
+    const dead = sql => { const s = { _sql: sql, bind: () => s, run: async () => { throw new Error(INJECTED); }, all: async () => { throw new Error(INJECTED); }, first: async () => { throw new Error(INJECTED); } }; return s; };
+    return { prepare: sql => bad(sql) ? dead(sql) : DB.prepare(sql),
+      batch: async stmts => { if (stmts.some(s => bad(s._sql))) throw new Error(INJECTED); return DB.batch(stmts); },
+      exec: sql => DB.exec(sql) };
+  };
+  // 暫時接住 console.error（回傳收到的訊息；一定還原）
+  const captureErrors = async fn => {
+    const seen = [], orig = console.error;
+    console.error = (...x) => seen.push(x.map(String).join(' '));
+    try { await fn(); } finally { console.error = orig; }
+    return seen;
+  };
+  const board = async a => {
+    const res = await _bounty.bountyBoard(new Request('https://railisland.tw/api/bounty-board'), { DELAY_DB: a.DELAY_DB, ASSETS: a.ASSETS });
+    return { status: res.status, body: JSON.parse(await res.text()) };
+  };
+
+  {
+    const a = fixture(); await a.run(FULL, 1);
+    const before = a.row();
+    const t0 = Date.now();
+    const bad = await a.run(CUT, 2);
+    const t1 = Date.now();
+    const r = a.row();
+    ok('E29 退場守門擋下 → kv_blobs 有一列 bounty_retire_block，值正好三個欄位 {at, generatedAt, msg}：generatedAt 是這份清單的 2、msg 與丟出的錯誤訊息同一句、at 落在這一發的時間窗內；擋下之前沒有這一列',
+      before === null && !!r && JSON.stringify(Object.keys(r).sort()) === '["at","generatedAt","msg"]' && r.generatedAt === 2 && r.msg === bad.threw &&
+        /^bounty_units shrink: .*tra_sched 21\/200/.test(r.msg) && r.at >= t0 && r.at <= t1 && a.nKv() === 1,
+      JSON.stringify({ before, r, threw: bad.threw, t0, t1 }));
+  }
+  {
+    // 清單沒有 generatedAt 有三種寫法：缺鍵、null、只有空白——一律存 null（這時沒有任何 ack 放得行，訊息叫人重建清單）
+    const a = fixture(); await a.run(FULL, 1);
+    const got = [];
+    for (const gen of [undefined, null, '  ']) {
+      const bad = await a.run(CUT, gen);
+      got.push({ gen: gen === undefined ? 'undefined' : JSON.stringify(gen), threw: bad.threw, r: a.row() });
+    }
+    ok('E30 清單沒有 generatedAt（缺鍵、null、只有空白）擋下 → 那一列的 generatedAt 都是 null，msg 仍與丟出的錯誤訊息同一句（訊息叫人重建清單、不叫人設 ack）',
+      got.every(g => !!g.r && g.r.generatedAt === null && g.r.msg === g.threw && /^bounty_units shrink: .*清單沒有 generatedAt/.test(g.r.msg) && !/BOUNTY_RETIRE_ACK 設成/.test(g.r.msg)),
+      JSON.stringify(got));
+  }
+  {
+    const a = fixture(); await a.run(FULL, 1);
+    const before = a.snap();
+    const bad = await a.run([], 3);
+    const r = a.row();
+    ok('E31 清單是空的 → 丟 bounty_units empty，kv_blobs 有一列：generatedAt 是這份清單的 3、msg 就是那一句；板上一列都沒動',
+      bad.threw === 'bounty_units empty' && !!r && r.generatedAt === 3 && r.msg === 'bounty_units empty' && a.nKv() === 1 && a.snap() === before,
+      JSON.stringify({ bad, r }));
+  }
+  {
+    const a = fixture(); await a.run(FULL, 1);
+    const b1 = await a.run(CUT, 2);
+    const r1 = a.row();
+    await new Promise(res => setTimeout(res, 5));          // 讓第二發的時間戳一定比第一發大
+    const b2 = await a.run([...TRA.slice(22), ...HSR], 3);
+    const r2 = a.row();
+    ok('E32 連續兩發都被擋 → 還是一列，值是第二發的（generatedAt 3、msg 點名 tra_sched 22/200、at 比第一發晚）',
+      !!r1 && !!r2 && a.nKv() === 1 && r1.generatedAt === 2 && r2.generatedAt === 3 && r2.msg === b2.threw && r1.msg === b1.threw &&
+        /tra_sched 22\/200/.test(r2.msg) && r2.at > r1.at,
+      JSON.stringify({ r1, r2 }));
+  }
+  {
+    const a = fixture(); await a.run(FULL, 1);
+    // 別的 kv_blobs 列（判定的出錯記錄、統計 blob）：清除只准動 bounty_retire_block 那一列
+    const put = a.db.prepare("INSERT INTO kv_blobs (k, v, updated) VALUES (?, ?, 'x')");
+    put.run('bounty_verify_strike|device-aaaa|2026-07-28|123', '{"n":1}'); put.run('tra_delay_stats_30d', '{"a":1}');
+    await a.run(CUT, 2);
+    const blocked = a.nKv() === 1;
+    const done = await a.run(FULL, 4);
+    const others = a.db.prepare('SELECT k, v FROM kv_blobs ORDER BY k').all();
+    // 對照：從沒擋過的庫，跑完不會憑空冒出這一列
+    const c = fixture(); await c.run(FULL, 1); await c.run(FULL, 1);
+    ok('E33 估值正常跑完 → 擋下的那一列清掉，別的 kv_blobs 列原封不動；從沒擋過的庫跑完也不會冒出這一列',
+      blocked && done.threw === undefined && done.retired === 0 && done.updated === 220 && a.nKv() === 0 &&
+        JSON.stringify(others) === JSON.stringify([{ k: 'bounty_verify_strike|device-aaaa|2026-07-28|123', v: '{"n":1}' }, { k: 'tra_delay_stats_30d', v: '{"a":1}' }]) &&
+        c.nKv() === 0 && c.db.prepare('SELECT COUNT(*) c FROM kv_blobs').get().c === 0,
+      JSON.stringify({ blocked, done, others, c: c.nKv() }));
+  }
+  {
+    const a = fixture(); await a.run(FULL, 1);
+    const bad = await a.run(CUT, 2);
+    const had = a.nKv() === 1;
+    const acked = await a.run(CUT, 2, { BOUNTY_RETIRE_ACK: '2' });
+    ok('E34 設了 BOUNTY_RETIRE_ACK（等於這份清單的 generatedAt）放行 → 照常退場 21 列、跑完，擋下的那一列也清掉',
+      had && /^bounty_units shrink: /.test(bad.threw || '') && acked.threw === undefined && acked.retired === 21 && a.nKv() === 0,
+      JSON.stringify({ had, bad, acked, n: a.nKv() }));
+  }
+  {
+    const a = fixture(); await a.run(FULL, 1);
+    const before = a.snap();
+    let bad, empty;
+    const errs = await captureErrors(async () => {
+      bad = await a.run(CUT, 2, { DELAY_DB: failOn(a.DELAY_DB, /kv_blobs/) });
+      empty = await a.run([], 3, { DELAY_DB: failOn(a.DELAY_DB, /kv_blobs/) });
+    });
+    ok('E35 kv_blobs 寫入丟錯 → 丟出來的仍是擋下的原因（退場守門、清單是空的），不是寫入的錯；寫入失敗各印一行 error；板上一列都沒動、kv_blobs 沒有這一列',
+      /^bounty_units shrink: .*tra_sched 21\/200/.test(bad.threw || '') && empty.threw === 'bounty_units empty' &&
+        errs.length === 2 && errs.every(e => /kv_blobs/.test(e) && e.includes(INJECTED)) && a.snap() === before && a.nKv() === 0,
+      JSON.stringify({ bad, empty, errs: errs.map(e => e.slice(0, 80)) }));
+  }
+  {
+    const a = fixture(); await a.run(FULL, 1);
+    await a.run(CUT, 2);
+    const kept = a.raw();
+    const same = () => { const r = a.raw(); return !!r && !!kept && r.v === kept.v && r.updated === kept.updated; };
+    // 早：清單檔讀不到（ASSETS 回 500），守門之前就丟錯
+    const early = await a.run(FULL, 4, { ASSETS: { fetch: async () => new Response('x', { status: 500 }) } });
+    const sameEarly = same();
+    // 晚：守門過了、上架與退場都做完，最後重算那一句才失敗（D1 錯誤）
+    const late = await a.run(FULL, 4, { DELAY_DB: failOn(a.DELAY_DB, /UPDATE bounty_board SET l1=\?, l2=\?/) });
+    ok('E36 丟錯但不是被守門擋下（清單檔讀不到；守門過了、最後重算那一句 D1 失敗）→ 那一列原封不動（值與 updated 都沒變）：只有正常 return 的那條路才清',
+      /^bounty_units unavailable: 500/.test(early.threw || '') && sameEarly && late.threw === INJECTED && same(),
+      JSON.stringify({ early, sameEarly, late, same: same() }));
+  }
+  {
+    const a = fixture(); await a.run(FULL, 1);
+    await a.run(CUT, 2);
+    const kept = a.raw();
+    let r;
+    const errs = await captureErrors(async () => { r = await a.run(FULL, 4, { DELAY_DB: failOn(a.DELAY_DB, /DELETE FROM kv_blobs/) }); });
+    const stillThere = !!a.raw() && a.raw().v === kept.v;
+    const again = await a.run(FULL, 4);
+    ok('E37 清除那一句失敗 → 估值本身已跑完，這一發照樣正常回報（不丟錯、重算 220 列），印一行 error，那一列留著；下一次正常跑完才清掉',
+      r.threw === undefined && r.updated === 220 && errs.length === 1 && /kv_blobs|擋下/.test(errs[0]) && errs[0].includes(INJECTED) && stillThere &&
+        again.threw === undefined && a.nKv() === 0,
+      JSON.stringify({ r, errs: errs.map(e => e.slice(0, 80)), stillThere, n: a.nKv() }));
+  }
+  {
+    const a = fixture(); await a.run(FULL, 1);
+    const b0 = await board(a);
+    const bad = await a.run(CUT, 2);
+    const b1 = await board(a);
+    await a.run(FULL, 4);
+    const b2 = await board(a);
+    const rb = b1.body.retireBlock;
+    ok('E38 看板的 retireBlock：沒擋過＝null（欄位在）；擋下後是 {at, generatedAt, msg}、msg 與丟出的錯誤訊息同一句；估值正常跑完之後又回到 null；三次都是 200 且照常帶 cards',
+      b0.status === 200 && 'retireBlock' in b0.body && b0.body.retireBlock === null &&
+        b1.status === 200 && !!rb && rb.msg === bad.threw && rb.generatedAt === 2 && typeof rb.at === 'number' && rb.at > 0 &&
+        b2.status === 200 && 'retireBlock' in b2.body && b2.body.retireBlock === null &&
+        [b0, b1, b2].every(b => Array.isArray(b.body.cards) && b.body.cards.length > 0),
+      JSON.stringify({ b0: b0.body.retireBlock, rb, b2: b2.body.retireBlock, cards: [b0, b1, b2].map(b => b.body.cards && b.body.cards.length) }));
+  }
+  {
+    // 子請求計數：寫入、清除都走傳進來的 env，所以算進同一個計數器。測試端在計數器下面自己數一份（first／run／all 各 1、batch 整批 1、fetch 1），
+    // 兩邊的總數要一樣，而且擋下那一發、成功那一發各恰有一句 kv_blobs。
+    const a = fixture(); await a.run(FULL, 1);
+    const t = { n: 0, kv: 0 };
+    const wrap = st => ({ _inner: st, _sql: st._sql, bind: (...x) => wrap(st.bind(...x)),
+      first: (...x) => { t.n++; if (/kv_blobs/.test(st._sql)) t.kv++; return st.first(...x); },
+      run: (...x) => { t.n++; if (/kv_blobs/.test(st._sql)) t.kv++; return st.run(...x); },
+      all: (...x) => { t.n++; if (/kv_blobs/.test(st._sql)) t.kv++; return st.all(...x); } });
+    const db = { prepare: sql => wrap(a.DELAY_DB.prepare(sql)), batch: async stmts => { t.n++; return a.DELAY_DB.batch(stmts.map(s => s._inner || s)); }, exec: async sql => { t.n++; return a.DELAY_DB.exec(sql); } };
+    const assets = { fetch: (...x) => { t.n++; return a.ASSETS.fetch(...x); } };
+    const cenv = _bounty.bountyCounted({ DELAY_DB: db, ASSETS: assets });
+    const ctr = cenv.__bountySubreq;
+    const bad = await a.run(CUT, 2, { DELAY_DB: cenv.DELAY_DB, ASSETS: cenv.ASSETS });
+    const kvBlocked = t.kv, nBlocked = t.n, cBlocked = ctr.n;
+    t.kv = 0;
+    const done = await a.run(FULL, 4, { DELAY_DB: cenv.DELAY_DB, ASSETS: cenv.ASSETS });
+    ok('E39 擋下那一發與成功那一發的 kv_blobs 句子都算進子請求計數器（計數器＝測試端獨立計數，各恰一句 kv_blobs）',
+      /^bounty_units shrink: /.test(bad.threw || '') && done.threw === undefined && kvBlocked === 1 && t.kv === 1 &&
+        nBlocked > 0 && cBlocked === nBlocked && ctr.n === t.n && t.n > nBlocked,
+      JSON.stringify({ kvBlocked, kvDone: t.kv, afterBlocked: [cBlocked, nBlocked], afterDone: [ctr.n, t.n] }));
+  }
+}
+
+// G1–G8 verdict 純函式（scripts/lib/bounty_retire_verdict.mjs，給每小時的巡檢 import）：輸入 HTTP 狀態碼與解析後的 body，輸出 { level, line }。
+// 台北時間的期望值手算：2026-10-01 16:30 UTC ＝ 台北 2026-10-02 00:30（跨了日，UTC 的日期與台北的日期不同，轉錯時區會看出來）。
+{
+  const AT = Date.UTC(2026, 9, 1, 16, 30);
+  const MSG = 'bounty_units shrink: tra_sched 21/200（確認是真的換班表，就把 BOUNTY_RETIRE_ACK 設成 1790758089689）';
+  const V = bountyRetireVerdict;
+  const bad = V(200, { cards: [], retireBlock: { at: AT, generatedAt: 1790758089689, msg: MSG } });
+  ok('G1 200 且 retireBlock 是 null → ok', V(200, { cards: [], retireBlock: null }).level === 'ok', JSON.stringify(V(200, { retireBlock: null })));
+  ok('G2 200 且 retireBlock 是物件 → bad：line 帶台北時間 2026-10-02 00:30（不是 UTC 的 10-01 16:30）、generatedAt、擋下的原因（msg）',
+    bad.level === 'bad' && bad.line.includes('2026-10-02 00:30') && !bad.line.includes('2026-10-01 16:30') && bad.line.includes('1790758089689') && bad.line.includes(MSG),
+    JSON.stringify(bad));
+  const noGen = V(200, { retireBlock: { at: AT, generatedAt: null, msg: 'bounty_units empty' } });
+  ok('G3 擋下的那份清單沒有 generatedAt（null）→ 仍是 bad，line 寫「清單沒有 generatedAt」，不印出 null 或 undefined', noGen.level === 'bad' && /清單沒有 generatedAt/.test(noGen.line) &&
+    noGen.line.includes('bounty_units empty') && !/null|undefined/.test(noGen.line), JSON.stringify(noGen));
+  const unk = V(200, { at: 1, cards: [] });
+  ok('G4 200 但沒有 retireBlock 欄位 → unknown（不知道，不是沒被擋）', unk.level === 'unknown' && /沒有 retireBlock/.test(unk.line), JSON.stringify(unk));
+  const edge = [null, undefined, 'x', 0, [], {}].map(b => { try { return V(200, b).level; } catch (e) { return 'threw ' + e.message; } });
+  ok('G5 200 但 body 是 null（解析失敗）、undefined、字串、數字、陣列、空物件 → 一律 unknown，不丟例外', edge.every(l => l === 'unknown'), JSON.stringify(edge));
+  const na = [V(503, { error: 'not_ready' }), V(404, null), V(null, null), V(503, { retireBlock: null })];
+  ok('G6 非 200 → n/a，line 帶狀態碼（503、404、沒有狀態碼）；非 200 時就算 body 長得像 {retireBlock:null} 也不能判 ok',
+    na.every(r => r.level === 'n/a') && na[0].line.includes('503') && na[1].line.includes('404') && /沒有狀態碼/.test(na[2].line) && na[3].line.includes('503'),
+    JSON.stringify(na));
+  const odd = ['', 'x', 0, false, 7, []].map(retireBlock => V(200, { retireBlock }).level);
+  ok('G7 retireBlock 不是 null 也不是物件（空字串、字串、數字、false、陣列）→ unknown，不是 ok 也不是 bad', odd.every(l => l === 'unknown'), JSON.stringify(odd));
+  const noAt = [{ generatedAt: 5, msg: 'm' }, { at: 'abc', generatedAt: 5, msg: 'm' }, { at: NaN, msg: 'm' }, { at: 1e20, msg: 'm' }].map(retireBlock => {
+    try { const r = V(200, { retireBlock }); return { level: r.level, hasWhen: /時間不明/.test(r.line), hasMsg: r.line.includes('；m。') }; } catch (e) { return { threw: e.message }; }
+  });
+  ok('G8 擋下的物件缺 at（或 at 不是有效的毫秒數）→ 仍是 bad，line 寫「時間不明」並保留訊息，不丟例外', noAt.every(r => r.level === 'bad' && r.hasWhen && r.hasMsg), JSON.stringify(noAt));
 }
 
 // ── F 組：seg_key 鍵空間硬 gate（controller 任務指令額外要求，brief 沒有給）───────────
