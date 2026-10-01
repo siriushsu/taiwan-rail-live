@@ -16269,7 +16269,7 @@ function bountyMergeOnLogin(user) {
           body: JSON.stringify({ actor }),
         });
         if (r.ok) {
-          // 回應回來時人已經登出（或換人）了：這個 actor 此刻已經屬於那個帳號，不能留給下一位匿名使用者
+          // 回應回來時人已經登出（或換人）了：這個 actor 此刻已經屬於那個帳號，不能留給下一位匿名訪客
           if (!(state.account && state.account.user && state.account.user.uid === user.uid)) {
             if (bountyActor() === actor) bountyRegenActor();
             return;
@@ -16416,7 +16416,7 @@ function accountEnsureInit() {
           // 路段懸賞 v2:登入後通知伺服器把這台裝置的匿名帳併進來(fire-and-forget,不 await——它的失敗與快慢都不該碰到登入流程)
           try { bountyMergeOnLogin(user); } catch (e) {}
           // 登入後改用帳號（Bearer）重讀懸賞彙總與籌碼：開機那一次是以匿名裝置讀的（登入還沒就緒），而併過的裝置用 ?actor= 讀會是 401（見 fetchBountyMe）。
-          // 開機時 session 還原與使用者剛登入都走這一行；併完那一次另在 bountyMergeOnLogin 重讀。
+          // 開機時 session 還原與剛登入的人都走這一行；併完那一次另在 bountyMergeOnLogin 重讀。
           if (BOUNTY_ENABLED) Promise.all([fetchBountyMe(), fetchChipsMe()]).then(() => { renderPassport(); renderRidePanel(); });
           await plusRefresh(); // 先確認資格再決定要不要同步;plusRefresh 自帶 !plusConfigured() 早退,不會在無購買通道的平台亂初始化 SDK
           await accountSyncNow('login');
@@ -23210,7 +23210,7 @@ function bountyNum(x, max = 1e7) {
   const n = Math.trunc(Number(x));
   return Number.isFinite(n) && n >= 0 && n <= max ? n : 0;
 }
-// 懸賞的 actor 另外存一把 key，不跟使用者資料同步共用的 userDataDeviceId()（trainmap-device-id）混用：
+// 懸賞的 actor 另外存一把 key，不跟雲端資料同步共用的 userDataDeviceId()（trainmap-device-id）混用：
 // 伺服器會把 actor 併進登入的帳號，同一台裝置換帳號登入時舊 actor 就不能再用、得換新的；
 // 而 trainmap-device-id 同時是雲端同步的 deviceId，不能因為懸賞跟著換。
 // 第一次讀到時沿用 userDataDeviceId() 的值（舊版就是拿它當 actor，伺服器上已經記在它名下的帳不會斷），
@@ -23266,7 +23266,7 @@ function bountyForgetChips() {
   chipsMeSeq++; chipsMeMem = null;
   try { localStorage.removeItem(BOUNTY_CHIPS_KEY); } catch (e) {}
 }
-// 這台裝置的懸賞 actor 如果已經併進 uid 那個帳號，換一個新的——否則下一位匿名使用者的上傳與認領，會記到前一位名下。
+// 這台裝置的懸賞 actor 如果已經併進 uid 那個帳號，換一個新的——否則下一位匿名訪客的上傳與認領，會記到前一位名下。
 // 判斷依據是 bountyMergeOnLogin 登入時記的旗標（併成功才記，值是當時的 actor）。
 // 冪等：換過之後 actor 與旗標對不上，再呼叫什麼都不做。
 // 刻意不看 BOUNTY_ENABLED：旗標是每個分頁各自的，actor 那把 key 卻是整台裝置共用的。
@@ -23481,7 +23481,7 @@ async function fetchBountyMe() {
   } catch (e) {}
   return bountyMeMem;
 }
-// 籌碼（/api/chips-me：餘額、已解鎖的場景、下一座的價格、雲端搭乘進度）。
+// 籌碼（/api/chips-me：餘額、已解鎖的場景、下一座要幾顆、雲端搭乘進度）。
 // 只在懸賞開著、而且已登入時讀，一律帶 Bearer、永遠不用 ?actor=——同一個瀏覽器的裝置 id 可能屬於前一位登入者，
 // 登出狀態拿它去讀就是讀到別人的帳（契約的身分規則）。已登入的帳號第一次帶 Bearer 呼叫時伺服器才建帳號列，
 // 所以登入後一定要讀一次。
@@ -24809,7 +24809,7 @@ function buildCorrectSection() {
 // 數字一律過 bountyNum()：伺服器回的字串走 innerHTML 就是可執行的 HTML（比照 F-01）；樣板裡的 <b> 是字典值的固定標記。
 //   · 沒登入：不顯示餘額，只有一句提示——籌碼屬於帳號，沒登入就沒有東西可讀（見 fetchChipsMe）。
 //   · 已登入但還沒讀到（開機中、網路不通）：餘額格放破折號，不假裝是 0。
-//   · 「下一座」只在還有場景沒解鎖時才有意義。契約：全部解鎖之後 nextCost 仍回最後一格的價格，所以要比
+//   · 「下一座」只在還有場景沒解鎖時才有意義。契約：全部解鎖之後 nextCost 仍停在最後一格的顆數，所以要比
 //     unlocked 的數量與規則檔 chips.scenes 的數量；規則檔還沒讀到就不顯示——寧可少一格，也不要對全解鎖的人寫「下一座要 8 顆」。
 //   · 每日上限顯示 today.cap 本身。today.chips 是判定入帳後才有的數字，白天幾乎都是 0，不能拿來算「今天還能賺幾顆」。
 function buildChipsRow() {
