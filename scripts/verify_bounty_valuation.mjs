@@ -741,12 +741,16 @@ globalThis.caches = { default: { match: async () => undefined, put: async () => 
     noGen.line.includes('bounty_units empty') && !/null|undefined/.test(noGen.line), JSON.stringify(noGen));
   const miss = [{ valuationOk: OKV }, { retireBlock: null }, { retireBlock: undefined, valuationOk: undefined }, { at: 1, cards: [] }]
     .map(b => V(200, b, NOW));
-  ok('G4 200 但缺 retireBlock、或缺 valuationOk（舊版伺服器只有 retireBlock）、或兩個都缺 → unknown（不知道，不是正常）；line 點名缺的欄位',
-    miss.every(r => r.level === 'unknown') && /retireBlock/.test(miss[0].line) && !/valuationOk/.test(miss[0].line) &&
-      /valuationOk/.test(miss[1].line) && !/retireBlock/.test(miss[1].line) && /retireBlock、valuationOk/.test(miss[2].line) && /retireBlock、valuationOk/.test(miss[3].line),
+  ok('G4 200 但缺 retireBlock、或缺 valuationOk（舊版伺服器只有 retireBlock）、或兩個都缺 → unknown（不知道，不是正常）；line 說「沒有 … 欄位」並只點名缺的欄位（與「欄位的型別不認得」是兩種不同的說法）',
+    miss.every(r => r.level === 'unknown') && /沒有 retireBlock 欄位/.test(miss[0].line) && !/valuationOk/.test(miss[0].line) &&
+      /沒有 valuationOk 欄位/.test(miss[1].line) && !/retireBlock/.test(miss[1].line) &&
+      /沒有 retireBlock、valuationOk 欄位/.test(miss[2].line) && /沒有 retireBlock、valuationOk 欄位/.test(miss[3].line),
     JSON.stringify(miss));
-  const edge = [null, undefined, 'x', 0, [], {}].map(b => levelOf(200, b, NOW));
-  ok('G5 200 但 body 是 null（解析失敗）、undefined、字串、數字、陣列、空物件 → 一律 unknown，不丟例外', edge.every(l => l === 'unknown'), JSON.stringify(edge));
+  const edge = [null, undefined, 'x', 0, [], {}].map(b => { try { return V(200, b, NOW); } catch (e) { return { level: 'threw ' + e.message, line: '' }; } });
+  ok('G5 200 但 body 是 null（解析失敗）、undefined、字串、數字、陣列 → unknown，line 說「不是 JSON 物件」；空物件 → unknown，line 說沒有兩個欄位；一律不丟例外',
+    edge.every(r => r.level === 'unknown') && edge.slice(0, 5).every(r => /不是 JSON 物件/.test(r.line) && !/欄位/.test(r.line)) &&
+      /沒有 retireBlock、valuationOk 欄位/.test(edge[5].line) && !/不是 JSON 物件/.test(edge[5].line),
+    JSON.stringify(edge));
   const na = [V(503, { error: 'not_ready' }, NOW), V(404, null, NOW), V(null, null, NOW), V(503, body(), NOW), V(500, body({ retireBlock: BLOCK }), NOW)];
   ok('G6 非 200 → n/a，line 寫「看板沒有正常回應」並帶狀態碼（503、404、沒有狀態碼）；非 200 時就算 body 長得完全正常、或長得像被擋下，也不能判 ok 或 bad',
     na.every(r => r.level === 'n/a' && /看板沒有正常回應/.test(r.line)) && na[0].line.includes('HTTP 503') && na[1].line.includes('HTTP 404') && /沒有狀態碼/.test(na[2].line) &&
