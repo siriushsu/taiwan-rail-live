@@ -5,8 +5,10 @@
 //
 // 期望值全部寫死在這裡，不呼叫實作（連 scripts/bounty_chips_core.mjs 都不呼叫）去產生期望：
 //   ・產品規則：車庫第 1 座 4 籌碼、之後每座 8；捷運不列入懸賞。
-//   ・其餘數字（台鐵 50／高鐵 15 位不同的人收滿、一趟 1 籌碼、每日上限 4、雲端搭乘 3 次換 1 籌碼、四座場景 id）
+//   ・其餘數字（台鐵 50／高鐵 15 位不同的人收滿、一趟 1 籌碼、每日上限 4、雲端搭乘 3 次換 1 籌碼）
 //     來自 data/bounty_rules.json，這裡照抄成字面。
+//   ・場景 id 與場景數不抄成字面：讀規則檔的 chips.scenes（下面的 SCN）。規則檔加減場景時，「全部解鎖」「最後一座」
+//     這幾條判準跟著走，不必改這支；價格仍是上面寫死的那一份。
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準。
 //
 // ⚠️ 假 D1 的保真度：scripts/d1_local.mjs 的 batch() 是排隊序列化的，但 batch 之外的單句寫入
@@ -33,6 +35,7 @@ const outbound = [];
 globalThis.fetch = async (u) => { outbound.push(String(u)); throw new Error('offline: ' + String(u)); };
 
 const RULES = JSON.parse(readFileSync('data/bounty_rules.json', 'utf8'));
+const SCN = RULES.chips.scenes;           // 場景清單（讀規則檔，不寫字面）
 const R = [];
 const ok = (n, p, msg = '') => { R.push({ n, p }); console.log(`${p ? '  ok ' : 'FAIL '} ${n}${msg ? ' — ' + msg : ''}`); };
 // 例外也要記成 FAIL（而不是讓整支腳本崩潰、後面的判準全部沒跑）：突變測試時「紅」有兩種長相——
@@ -178,11 +181,11 @@ await attempt('M2', async () => {
     r.status === 200 && same(r.json, { balance: 8, unlocked: [{ scene: 'viaduct', nth: 1, at: NOW_MS - 9000 }, { scene: 'shifen', nth: 2, at: NOW_MS - 2000 }],
       nextCost: 8, cloud: { rides: 0, toNextChip: 3 }, today: { chips: 0, cap: 4 } }) &&
       JSON.stringify(r.json.unlocked.map(u => u.nth)) === '[1,2]', r.text);
-  give(w.db, B, { balance: 0, unlocked: ['south-coast', 'shifen', 'viaduct', 'alishan'] });
+  give(w.db, B, { balance: 0, unlocked: SCN });
   const r4 = await me(w, `?actor=${B}`);
-  ok('M2b 四座都解鎖了：nextCost 仍是 8（價目表最後一格沿用），unlocked 四項依序 1～4',
-    r4.status === 200 && r4.json.nextCost === 8 && JSON.stringify(r4.json.unlocked.map(u => u.scene + ':' + u.nth)) ===
-      '["south-coast:1","shifen:2","viaduct:3","alishan:4"]' && r4.json.balance === 0, r4.text);
+  ok(`M2b 規則檔的 ${SCN.length} 座都解鎖了：nextCost 仍是 ${PRICE(SCN.length + 1)}（價目表最後一格沿用），unlocked ${SCN.length} 項依序 1～${SCN.length}`,
+    r4.status === 200 && r4.json.nextCost === PRICE(SCN.length + 1) && JSON.stringify(r4.json.unlocked.map(u => u.scene + ':' + u.nth)) ===
+      JSON.stringify(SCN.map((s, i) => s + ':' + (i + 1))) && r4.json.balance === 0, r4.text);
 });
 
 // M2c 數字來自設定檔，不是寫死：價目表 [3,6]、每日上限 6、雲端每 5 次換 1 個
@@ -400,19 +403,25 @@ await attempt('R3', async () => {
   ok('R3b 餘額 16＋已解鎖 1 座 → 第 2 座成功：nth 2、cost 8、餘額 8',
     enough.status === 200 && enough.json.nth === 2 && enough.json.cost === 8 && enough.json.balance === 8 && q.unlocks(w.db, B)[1].cost === 8, enough.text);
   const C = 'device-r3cc0001';
-  give(w.db, C, { balance: 8, unlocked: ['south-coast', 'shifen', 'viaduct'] });
-  const fourth = await redeem(w, body(C, 'alishan', 'req-r3-fourth01'));
-  ok('R3c 已解鎖 3 座、餘額 8 → 第 4 座 alishan：nth 4、cost 8、餘額 0（價目表最後一格沿用，餘額剛好等於價格也可以）',
+  give(w.db, C, { balance: 8, unlocked: SCN.slice(0, 3) });
+  const fourth = await redeem(w, body(C, SCN[3], 'req-r3-fourth01'));
+  ok(`R3c 已解鎖 3 座、餘額 8 → 第 4 座 ${SCN[3]}：nth 4、cost 8、餘額 0（價目表最後一格沿用，餘額剛好等於價格也可以）`,
     fourth.status === 200 && fourth.json.nth === 4 && fourth.json.cost === 8 && fourth.json.balance === 0, fourth.text);
-  // 第 5 座：預設只有四座場景，補一座讓價目表的「沿用」看得見
-  const rules5 = { ...RULES, chips: { ...RULES.chips, scenes: [...RULES.chips.scenes, 'tunnel'] } };
-  const w5 = world({ rules: rules5 });
+  // 規則檔的場景全部解鎖之後，再補一座規則檔沒有的場景：價目表的「沿用」比規則檔的場景數多走一格，也要成立
+  const rulesPlus = { ...RULES, chips: { ...RULES.chips, scenes: [...SCN, 'tunnel'] } };
+  const wP = world({ rules: rulesPlus });
   const D5 = 'device-r3dd0001';
-  give(w5.db, D5, { balance: 8, unlocked: ['south-coast', 'shifen', 'viaduct', 'alishan'] });
-  const chk = await me(w5, `?actor=${D5}`);
-  const fifth = await redeem(w5, body(D5, 'tunnel', 'req-r3-fifth001'));
-  ok('R3d 第 5 座（補一座場景）：nextCost 仍是 8、兌換 nth 5、cost 8、餘額 0——不會因為超出價目表就變成 0 或 undefined',
-    chk.json.nextCost === 8 && fifth.status === 200 && fifth.json.nth === 5 && fifth.json.cost === 8 && fifth.json.balance === 0, fifth.text);
+  give(wP.db, D5, { balance: 8, unlocked: SCN });
+  const chk = await me(wP, `?actor=${D5}`);
+  const beyond = await redeem(wP, body(D5, 'tunnel', 'req-r3-fifth001'));
+  ok(`R3d 第 ${SCN.length + 1} 座（比規則檔多補一座場景）：nextCost 仍是 8、兌換 nth ${SCN.length + 1}、cost 8、餘額 0——不會因為超出價目表就變成 0 或 undefined`,
+    chk.json.nextCost === 8 && beyond.status === 200 && beyond.json.nth === SCN.length + 1 && beyond.json.cost === 8 && beyond.json.balance === 0, beyond.text);
+  // 規則檔的最後一座場景：前面的都解鎖之後兌換它。場景名單與價目表都讀規則檔，規則檔加了場景，這一條自己跟著走
+  const G = 'device-r3gg0001', lastScene = SCN[SCN.length - 1];
+  give(w.db, G, { balance: 8, unlocked: SCN.slice(0, -1) });
+  const lastR = await redeem(w, body(G, lastScene, 'req-r3-last0001'));
+  ok(`R3f 規則檔的最後一座場景（${lastScene}）：前面 ${SCN.length - 1} 座都解鎖、餘額 8 → 第 ${SCN.length} 座成功：nth ${SCN.length}、cost ${PRICE(SCN.length)}（價目表只有 ${RULES.chips.prices.length} 格，沿用最後一格）、餘額 0`,
+    SCN.length > RULES.chips.prices.length && lastR.status === 200 && lastR.json.nth === SCN.length && lastR.json.cost === PRICE(SCN.length) && lastR.json.balance === 0, lastR.text);
   const E = 'device-r3ee0001', F = 'device-r3ff0001';
   put.ledger(w.db, E, 'adjust', 4, { ref: 'r3e' }); put.ledger(w.db, F, 'adjust', 3, { ref: 'r3f' });
   const exact = await redeem(w, body(E, 'alishan', 'req-r3-exact001'));       // 第一座可以是任何一座，價格都是 4

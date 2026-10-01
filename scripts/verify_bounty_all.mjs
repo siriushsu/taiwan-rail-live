@@ -24,7 +24,7 @@ const NODE_SUITES = ['hardening', 'schema', 'valuation', 'gates', 'dwell', 'api'
   'redeem', 'cloud', 'merge', 'cron', 'auth', 'cron2'];
 const BROWSER_SUITES = ['merge_web', 'recorder_web', 'chips_web'];
 const EXPECT = { hardening: 183, schema: 47, valuation: 88, gates: 75, dwell: 16, api: 95, ledger: 71, chips: 40, rules: 16,
-  redeem: 90, cloud: 124, merge: 58, cron: 70, auth: 89, cron2: 131, merge_web: 27, recorder_web: 8, chips_web: 337 };
+  redeem: 91, cloud: 124, merge: 58, cron: 70, auth: 89, cron2: 131, merge_web: 27, recorder_web: 8, chips_web: 337 };
 const TIMEOUT_MS = 15 * 60 * 1000;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bounty-all-'));
 const children = new Set();
