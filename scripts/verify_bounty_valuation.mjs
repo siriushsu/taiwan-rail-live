@@ -713,7 +713,7 @@ globalThis.caches = { default: { match: async () => undefined, put: async () => 
   }
 }
 
-// G1–G18 verdict 純函式（scripts/lib/bounty_retire_verdict.mjs，預備給每小時的巡檢 import，巡檢還沒接上）：
+// G1–G18 verdict 純函式（scripts/lib/bounty_retire_verdict.mjs，預備給巡檢 import，巡檢還沒接上）：
 // 輸入 HTTP 狀態碼、解析後的 body 與現在的毫秒時間戳，輸出 { level, line }。
 // 台北時間的期望值手算：2026-10-01 16:30 UTC ＝ 台北 2026-10-02 00:30（跨了日，UTC 的日期與台北的日期不同，轉錯時區會看出來）；
 // 2026-10-02 03:15 UTC ＝ 台北 2026-10-02 11:15。門檻的毫秒數從匯出的常數取（邊界的比較方向要釘死），常數本身的合理範圍另有一條（G16）；

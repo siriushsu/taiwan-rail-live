@@ -7375,7 +7375,7 @@ const BOUNTY_RETIRE_GUARD = { minCount: 10, sysRatio: 0.1, lineRatio: 0.5 };
 // 估值被清單的守門擋下時留的狀態：kv_blobs 一列（鍵 BOUNTY_RETIRE_BLOCK_KEY），值＝{at, generatedAt, msg}——
 // at＝這一次擋下的毫秒時間戳，generatedAt＝擋下的那份清單的 generatedAt（清單沒有就 null），msg＝丟出的錯誤訊息，同一句。
 // 為什麼要留：擋下只會丟一個錯、cron 印一行 log，沒有人會主動去翻；擋下期間新單位不上架、沒接懸賞的錄程在缺卡的段拿 0 點，
-// 當天或隔天就要有人處理。每小時的巡檢只打公開 API、不查 D1，所以這一列經 /api/bounty-board 的 retireBlock 欄位帶出去（見 bountyBoard）；
+// 當天或隔天就要有人處理。巡檢只打公開 API、不查 D1，所以這一列經 /api/bounty-board 的 retireBlock 欄位帶出去（見 bountyBoard）；
 // 巡檢那一端的判定已經寫好（scripts/lib/bounty_retire_verdict.mjs），但還沒接上巡檢：目前沒有程式定時在讀這個欄位。
 // 涵蓋的是「清單有問題、整張板不動、要人處理」的守門（清單是空的、退場守門）。別的丟錯路不寫這一列：D1 錯誤、規則檔讀不到或內容無效、
 // 清單檔讀不到或不是 JSON、清單是 null——這些改由下面 BOUNTY_VALUATION_OK_KEY 那一列的新鮮度抓。

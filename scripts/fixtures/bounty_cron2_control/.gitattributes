@@ -1,0 +1,2 @@
+# md5 寫死在 scripts/verify_bounty_cron2.mjs 的 CONTROL_FILES：checkout 時不做換行轉換。
+* -text

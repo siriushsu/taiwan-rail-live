@@ -2,7 +2,7 @@
 // BOUNTY_VALUATION_OK_KEY）的判定。
 //
 // 抽成純函式的理由：判準如果只是巡檢裡內嵌的 if／else，就沒有辦法做突變測試，而「判準有沒有牙」只有突變測試答得出來
-// （同 tra_daily_verdict.mjs）。這支預備給每小時的巡檢 import，巡檢還沒接上：目前只有 scripts/verify_bounty_valuation.mjs 的 G 組在用它，
+// （同 tra_daily_verdict.mjs）。這支預備給巡檢 import，巡檢還沒接上：目前只有 scripts/verify_bounty_valuation.mjs 的 G 組在用它，
 // 判準也在那一組。
 //
 // 為什麼要看兩個欄位：「沒有被擋下」不等於「估值正常」。清單檔或規則檔讀不到、內容無效、D1 出錯、估值沒有觸發器、跑到一半被平台中止，
