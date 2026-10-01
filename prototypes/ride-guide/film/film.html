@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<title>乘車導覽發布影片</title>
+<style>
+/* 整支片是 renderAt(t) 的純函數：同一個 t 永遠畫出同一格，逐格算繪不掉格。
+   畫風只有一套：軌島明亮主題的琺瑯站名牌——米白紙、藏青、印章紅、警戒金、硬投影、鐵道粗線。 */
+:root{
+  --paper:#F3EBDA; --paper-hi:#FFFDF6; --navy:#2A4A73; --deep:#1E2C40; --band1:#2c4f86; --band2:#26497e; --band3:#1f3d6b;
+  --red:#D23C2A; --red-deep:#A92C1D; --gold:#D2A12A; --gold-hi:#E8B84B; --green:#1B8F4D; --amber:#A3641A; --amber-bg:#FBE9DF; --amber-line:#E0A37E;
+  --ink:#3A3226; --muted:#6B5F4A; --line:#C9B98F; --frame:#767061; --plate-ink:#26497E; --train:#2E6FB0;
+  --font:"Noto Sans TC","PingFang TC",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);overflow:hidden}
+#stage{position:relative;width:1920px;height:1080px;overflow:hidden;font-family:var(--font);color:var(--deep);
+  background:
+    radial-gradient(1400px 900px at 70% 20%, rgba(255,253,246,.85) 0%, rgba(255,253,246,0) 60%),
+    radial-gradient(1200px 800px at 10% 100%, rgba(201,185,143,.25) 0%, rgba(201,185,143,0) 60%),
+    var(--paper)}
+#grain{position:absolute;inset:0;pointer-events:none;opacity:.22;mix-blend-mode:multiply;z-index:50}
+.scene{position:absolute;inset:0;overflow:hidden;perspective:2000px}
+.cam{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0}
+.a{position:absolute;left:0;top:0;transform-origin:50% 50%;will-change:transform,opacity}
+.paperbg{background:radial-gradient(1400px 900px at 70% 20%, rgba(255,253,246,.85) 0%, rgba(255,253,246,0) 60%),radial-gradient(1200px 800px at 10% 100%, rgba(201,185,143,.25) 0%, rgba(201,185,143,0) 60%),var(--paper)}
+.navybg{background:linear-gradient(170deg,var(--band1) 0%,var(--band2) 55%,var(--band3) 100%)}
+
+/* 手機：全片同一款深藏青機框 */
+.phone{width:432px;height:898px;border-radius:64px;background:var(--deep);padding:16px;box-shadow:0 40px 80px rgba(30,44,64,.30),0 6px 0 #0f1a2b}
+.phone .scr{position:relative;width:400px;height:866px;border-radius:48px;overflow:hidden;background:var(--paper-hi)}
+.phone .scr img{position:absolute;left:0;top:0;width:400px;height:866px;display:block}
+.phone .flash{position:absolute;inset:0;background:#fff;opacity:0}
+
+/* 琺瑯站名牌 */
+.plate{display:grid;text-align:center;background:linear-gradient(178deg,#fff 0%,#F7F5EE 72%,#EDEBE0 100%);border:8px solid var(--frame);border-radius:28px;
+  box-shadow:0 0 0 3px var(--frame),0 22px 40px rgba(58,50,38,.22);overflow:hidden}
+.plate .pn{font-weight:900;color:var(--plate-ink);line-height:1.12}
+.plate .ps{font-weight:800;color:var(--plate-ink);opacity:.85;letter-spacing:.3em;text-indent:.3em}
+.plate .pf{display:flex;justify-content:space-between;align-items:center;gap:30px;background:linear-gradient(178deg,var(--band1) 0%,var(--band2) 55%,var(--band3) 100%);color:#fff8ec;font-weight:800}
+
+/* Logo（依 favicon／og 的琺瑯牌重建，島形與路網是正式站 logo 的向量） */
+.logo{width:600px;height:600px}
+.logo .fr{position:absolute;inset:0;border-radius:96px;background:linear-gradient(160deg,#A39E91,#7E796C)}
+.logo .pl{position:absolute;inset:22px;border-radius:78px;background:linear-gradient(178deg,#fff 0%,#F8F6EF 70%,#ECE9DF 100%);box-shadow:inset 0 0 0 3px #CFC9BB}
+.logo .rv{position:absolute;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#D9D5CB,#9C978A);box-shadow:0 1px 0 #77736A}
+.logo svg.isle{position:absolute;left:62px;top:86px;width:476px;height:192px;overflow:visible}
+.logo .nm{position:absolute;left:0;right:0;top:288px;display:flex;justify-content:center;gap:72px;font-size:136px;font-weight:900;color:var(--plate-ink);line-height:1}
+.logo .nm span{display:inline-block;transform-origin:50% 60%}
+.logo .en{position:absolute;left:0;right:0;top:446px;text-align:center;font-size:40px;font-weight:800;color:var(--plate-ink);white-space:nowrap}
+.logo .row{position:absolute;left:0;right:0;top:500px;display:flex;justify-content:center;align-items:center;gap:22px;font-size:44px;font-weight:900;color:var(--plate-ink)}
+.logo .row i{display:block;width:120px;height:4px;background:var(--plate-ink);position:relative;transform-origin:50% 50%}
+.logo .row i::before,.logo .row i::after{content:"";position:absolute;top:-8px;border:10px solid transparent}
+.logo .row i::before{left:-14px;border-right:14px solid var(--plate-ink);border-left:0}
+.logo .row i::after{right:-14px;border-left:14px solid var(--plate-ink);border-right:0}
+
+/* 文字 */
+.h{font-weight:900;line-height:1.1;white-space:nowrap;letter-spacing:.01em}
+.h span{display:inline-block;will-change:transform,opacity}
+.kick{display:inline-block;font-size:34px;font-weight:900;color:#fff;background:var(--red);border-radius:14px;padding:4px 18px;box-shadow:0 4px 0 var(--red-deep)}
+.sub{font-size:40px;font-weight:700;color:var(--muted);white-space:nowrap}
+.card{background:var(--paper-hi);border:4px solid var(--line);border-radius:22px;box-shadow:0 8px 0 rgba(30,44,64,.14)}
+.chip{display:inline-flex;align-items:center;gap:14px;font-size:40px;font-weight:900;color:var(--deep);background:var(--paper-hi);border:4px solid var(--line);border-radius:999px;padding:10px 30px;box-shadow:0 6px 0 rgba(30,44,64,.14);white-space:nowrap}
+.chip b{color:var(--red)}
+.ok{display:inline-grid;place-items:center;width:44px;height:44px;border-radius:50%;background:var(--green);color:#fff;font-size:28px}
+.train{width:132px;height:62px;border-radius:16px;background:var(--train);border:5px solid var(--paper-hi);box-shadow:0 6px 0 rgba(30,44,64,.2)}
+.train::after{content:"";position:absolute;right:26px;top:16px;border:12px solid transparent;border-left:18px solid #fff;border-right:0}
+.rail{height:16px;border-radius:8px;background:var(--navy);transform-origin:0 50%}
+.rail::after{content:"";position:absolute;left:0;right:0;top:6px;height:4px;background:repeating-linear-gradient(90deg,rgba(255,253,246,.9) 0 26px,transparent 26px 46px)}
+.stampc{width:280px;height:280px;border-radius:50%;border:14px solid var(--red);display:grid;place-items:center;color:var(--red);font-weight:900;text-align:center;line-height:1.05;background:rgba(255,253,246,.7)}
+.band{background:linear-gradient(178deg,var(--band1) 0%,var(--band2) 55%,var(--band3) 100%)}
+.ring{width:120px;height:120px;border-radius:50%;border:8px solid var(--gold)}
+.dchip{width:190px;height:150px;border-radius:24px;background:var(--paper-hi);border:4px solid var(--line);box-shadow:0 8px 0 rgba(30,44,64,.14);display:grid;place-items:center;align-content:center;gap:4px}
+.dchip b{font-size:56px;font-weight:900;color:var(--deep);line-height:1;display:flex;align-items:center;gap:8px}
+.dchip b i{display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--red)}
+.dchip small{font-size:30px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.dchip.on{background:var(--navy);border-color:var(--navy);box-shadow:0 8px 0 var(--deep)}
+.dchip.on b,.dchip.on small{color:#FFFDF6}
+.dchip.on b i{background:#FFFDF6}
+.pin{width:64px;height:64px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:6px solid #fff;box-shadow:0 6px 0 rgba(30,44,64,.18)}
+.board{width:560px;border-radius:24px;background:var(--deep);padding:22px 26px;box-shadow:0 14px 30px rgba(30,44,64,.35)}
+.board .r{display:grid;grid-template-columns:120px 110px 1fr;gap:16px;align-items:center;color:#FFFDF6;font-size:36px;font-weight:800;padding:10px 0;border-top:2px solid rgba(255,253,246,.15);font-variant-numeric:tabular-nums}
+.board .r:first-child{border-top:0}
+.board .r em{font-style:normal;font-size:24px;background:var(--train);border-radius:999px;padding:2px 12px;text-align:center}
+.seal{width:420px;height:270px;border-radius:30px;display:grid;place-items:center;align-content:center;gap:6px;text-align:center;background:rgba(255,253,246,.92)}
+.seal b{font-size:96px;font-weight:900;line-height:1}
+.seal small{font-size:34px;font-weight:800}
+.wipe{width:1700px;height:1500px;transform-origin:50% 50%}
+.wipe::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:10px;margin-left:-5px;background:repeating-linear-gradient(180deg,rgba(255,253,246,.85) 0 40px,transparent 40px 70px)}
+.toggle{width:640px;height:170px;border-radius:85px;background:var(--paper-hi);border:6px solid var(--line);box-shadow:0 10px 0 rgba(30,44,64,.14)}
+.toggle .kn{position:absolute;left:14px;top:14px;width:300px;height:130px;border-radius:65px;background:var(--navy);box-shadow:0 6px 0 var(--deep)}
+.toggle .lb{position:absolute;top:0;width:320px;height:158px;display:grid;place-items:center;font-size:76px;font-weight:900}
+.alertc{width:560px;border-radius:26px;border:5px solid var(--amber-line);background:var(--amber-bg);padding:26px 30px;box-shadow:0 8px 0 rgba(30,44,64,.12)}
+.alertc b{display:block;font-size:46px;font-weight:900;color:var(--amber)}
+.alertc span{font-size:32px;font-weight:700;color:var(--ink)}
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="grain" width="1920" height="1080" aria-hidden="true"><filter id="gr"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="7"/><feColorMatrix values="0 0 0 0 .45  0 0 0 0 .40  0 0 0 0 .32  0 0 0 .55 0"/></filter><rect width="1920" height="1080" filter="url(#gr)"/></svg>
+</div>
+<script src="logo-isle.js"></script>
+<script src="network.js"></script>
+<script src="../data/routes.js"></script>
+<script>
+(function () {
+  'use strict';
+  const DUR = 58;
+  const stage = document.getElementById('stage');
+
+  /* ───────── 時間工具 ───────── */
+  const E = {
+    lin: (x) => x,
+    oc: (x) => 1 - (1 - x) ** 3,
+    ic: (x) => x ** 3,
+    io: (x) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2),
+    oe: (x) => (x >= 1 ? 1 : 1 - 2 ** (-10 * x)),
+    ie: (x) => (x <= 0 ? 0 : 2 ** (10 * x - 10)),
+    ioe: (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x < 0.5 ? 2 ** (20 * x - 10) / 2 : (2 - 2 ** (-20 * x + 10)) / 2),
+    ob: (x) => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * (x - 1) ** 3 + c1 * (x - 1) ** 2; },
+    sp: (x) => (x >= 1 ? 1 : 1 - Math.exp(-6.5 * x) * Math.cos(11 * x)),
+  };
+  const cl = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+  const pr = (t, a, b, e = E.oc) => e(cl((t - a) / (b - a)));
+  const mix = (a, b, p) => a + (b - a) * p;
+  function kf(t, ks) {
+    if (t <= ks[0][0]) return ks[0][1];
+    for (let i = 0; i < ks.length - 1; i++) {
+      const [t0, v0, e] = ks[i], [t1, v1] = ks[i + 1];
+      if (t <= t1) return mix(v0, v1, (e || E.io)((t - t0) / (t1 - t0)));
+    }
+    return ks[ks.length - 1][1];
+  }
+  // 撞擊震動：固定公式，同一個 t 震出同一個位移
+  function shake(t, hits, amp = 14, dur = 0.16) {
+    let x = 0, y = 0;
+    for (const h of hits) { const p = (t - h) / dur; if (p >= 0 && p < 1) { const a = amp * (1 - p) ** 2; x += a * Math.sin(t * 173.1); y += a * Math.cos(t * 151.7); } }
+    return [x, y];
+  }
+
+  /* ───────── DOM 工具 ───────── */
+  function el(tag, cls, parent, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; (parent || stage).appendChild(e); return e; }
+  function put(e, o) {
+    const s = (o.s ?? 1);
+    e.style.transform = `translate(${(o.x ?? 0).toFixed(2)}px,${(o.y ?? 0).toFixed(2)}px) translate(-50%,-50%)${o.ry ? ` rotateY(${o.ry.toFixed(2)}deg)` : ''}${o.r ? ` rotate(${o.r.toFixed(2)}deg)` : ''} scale(${(s * (o.sx ?? 1)).toFixed(4)},${(s * (o.sy ?? 1)).toFixed(4)})`;
+    e.style.opacity = (o.o ?? 1).toFixed(3);
+    e.style.filter = o.blur > 0.3 ? `blur(${o.blur.toFixed(1)}px)` : 'none';
+  }
+  function cam(c, fx, fy, k, r = 0, cx = 960, cy = 540) {
+    c.style.transform = `translate(${cx}px,${cy}px) rotate(${r}deg) scale(${k.toFixed(4)}) translate(${-fx}px,${-fy}px)`;
+  }
+  function chars(parent, text, cls, style) {
+    const h = el('div', 'a h ' + (cls || ''), parent);
+    if (style) Object.assign(h.style, style);
+    const spans = [];
+    for (const part of text) {
+      const [txt, color] = Array.isArray(part) ? part : [part, null];
+      for (const ch of txt) { const sp = el('span', '', h, ch === ' ' ? '&nbsp;' : ch); if (color) sp.style.color = color; spans.push(sp); }
+    }
+    return { el: h, spans };
+  }
+  // 逐字彈入：從下方竄出＋放大回落
+  function popChars(k, t, t0, stg = 0.04, dur = 0.34, rise = 70) {
+    k.spans.forEach((sp, i) => {
+      const p = pr(t, t0 + i * stg, t0 + i * stg + dur, E.ob);
+      const o = pr(t, t0 + i * stg, t0 + i * stg + dur * 0.4);
+      sp.style.transform = `translateY(${((1 - p) * rise).toFixed(1)}px) scale(${mix(1.5, 1, p).toFixed(3)})`;
+      sp.style.opacity = o.toFixed(3);
+    });
+  }
+  function img(src, parent, cls) { const i = el('img', cls || '', parent); i.src = src; i.decoding = 'sync'; return i; }
+
+  function makePhone(parent, srcs) {
+    const p = el('div', 'a phone', parent);
+    const scr = el('div', 'scr', p);
+    const imgs = {};
+    srcs.forEach((s) => { imgs[s] = img(`assets/${s}.png`, scr); imgs[s].style.opacity = 0; });
+    const flash = el('div', 'flash', scr);
+    return { el: p, imgs, flash, view(map) { for (const k in imgs) imgs[k].style.opacity = (map[k] || 0).toFixed(3); } };
+  }
+  // 手機螢幕上的一點（u,v：0–1）換算成舞台座標
+  const phonePt = (px, py, s, u, v) => [px + (u - 0.5) * 400 * s, py + (v - 0.5) * 866 * s];
+
+  function makePlate(parent, { name, sub, left, mid, right, w, nameSize, subSize, footSize, gap }) {
+    const p = el('div', 'a plate', parent);
+    p.style.width = w + 'px';
+    p.innerHTML = `<div class="pn" style="font-size:${nameSize}px;letter-spacing:${gap || 0}px;text-indent:${gap || 0}px;padding-top:${Math.round(nameSize * 0.12)}px">${name}</div>
+      <div class="ps" style="font-size:${subSize}px;padding-bottom:${Math.round(subSize * 0.5)}px">${sub}</div>
+      <div class="pf" style="font-size:${footSize}px;padding:${Math.round(footSize * 0.35)}px ${Math.round(footSize * 0.8)}px"><span>${left}</span><span style="font-size:.7em;opacity:.85">${mid}</span><span>${right}</span></div>`;
+    return p;
+  }
+
+  function makeLogo(parent) {
+    const root = el('div', 'a logo', parent);
+    el('div', 'fr', root);
+    el('div', 'pl', root);
+    const rv = [[54, 54], [524, 54], [54, 524], [524, 524]].map(([x, y]) => { const r = el('i', 'rv', root); r.style.left = x + 'px'; r.style.top = y + 'px'; return r; });
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'isle'); svg.setAttribute('viewBox', '16.5 18.5 87 35');
+    svg.innerHTML = window.ISLE_G;
+    root.appendChild(svg);
+    const nm = el('div', 'nm', root, '<span>軌</span><span>島</span>');
+    const en = el('div', 'en', root, 'RAIL ISLAND');
+    const row = el('div', 'row', root, '<span>基隆</span><i></i><span>枋寮</span>');
+    const rails = [...svg.querySelectorAll('g[fill="none"] path')];
+    const solid = rails.filter((p) => !p.getAttribute('stroke-dasharray'));
+    const dashed = rails.filter((p) => p.getAttribute('stroke-dasharray'));
+    const lens = solid.map((p) => p.getTotalLength());
+    const marks = [...svg.querySelectorAll('rect, circle')];
+    const [rl, ra, rr] = [...row.children];
+    // p：從 logo 開始算的秒數；k：速度倍率（片尾用較快的版本）
+    function render(p, k = 1) {
+      const q = p * k;
+      put(root, { x: root._x, y: root._y, s: (root._s || 1) * mix(0.32, 1, pr(q, 0, 0.62, E.sp)), o: pr(q, 0, 0.14) });
+      rv.forEach((r, i) => { const a = pr(q, 0.32 + i * 0.04, 0.5 + i * 0.04, E.ob); r.style.transform = `scale(${a.toFixed(3)})`; r.style.opacity = cl(a).toFixed(2); });
+      const reveal = pr(q, 0.22, 0.95, E.io);
+      svg.style.clipPath = `inset(-10% ${((1 - reveal) * 100).toFixed(2)}% -10% -10%)`;
+      solid.forEach((path, i) => { const a = pr(q, 0.55 + i * 0.045, 0.95 + i * 0.045, E.io); path.style.strokeDasharray = lens[i]; path.style.strokeDashoffset = (lens[i] * (1 - a)).toFixed(2); });
+      dashed.forEach((path) => { path.style.opacity = pr(q, 1.0, 1.25).toFixed(2); });
+      marks.forEach((m, i) => { const a = pr(q, 1.1 + i * 0.06, 1.3 + i * 0.06, E.ob); m.style.transformBox = 'fill-box'; m.style.transformOrigin = 'center'; m.style.transform = `scale(${cl(a + 0.0001).toFixed(3)})`; });
+      [...nm.children].forEach((c, i) => {
+        const a = pr(q, 0.95 + i * 0.16, 1.3 + i * 0.16, E.ob);
+        c.style.transform = `translateY(${((1 - a) * -60).toFixed(1)}px) scale(${mix(2.4, 1, a).toFixed(3)})`;
+        c.style.opacity = pr(q, 0.95 + i * 0.16, 1.05 + i * 0.16).toFixed(3);
+      });
+      const e = pr(q, 1.3, 1.75, E.oc);
+      en.style.letterSpacing = `${mix(0.95, 0.34, e).toFixed(3)}em`; en.style.textIndent = en.style.letterSpacing; en.style.opacity = e.toFixed(3);
+      const r = pr(q, 1.5, 1.95, E.oc);
+      ra.style.transform = `scaleX(${r.toFixed(3)})`;
+      rl.style.transform = `translateX(${((1 - r) * 60).toFixed(1)}px)`; rr.style.transform = `translateX(${((1 - r) * -60).toFixed(1)}px)`;
+      rl.style.opacity = rr.style.opacity = r.toFixed(3);
+    }
+    return { root, render, at(x, y, s) { root._x = x; root._y = y; root._s = s; } };
+  }
+
+  function fakeQr(seed) {
+    let h = 0; for (const c of seed) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    const rnd = () => ((h = (h * 1103515245 + 12345) >>> 0) / 4294967296);
+    const N = 25; let r = '';
+    const finder = (x, y) => `<rect x="${x}" y="${y}" width="7" height="7" fill="#1E2C40"/><rect x="${x + 1}" y="${y + 1}" width="5" height="5" fill="#fff"/><rect x="${x + 2}" y="${y + 2}" width="3" height="3" fill="#1E2C40"/>`;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const inF = (x < 8 && y < 8) || (x > N - 9 && y < 8) || (x < 8 && y > N - 9);
+      if (!inF && rnd() > 0.5) r += `<rect x="${x}" y="${y}" width="1" height="1" fill="#1E2C40"/>`;
+    }
+    return `<svg viewBox="0 0 ${N} ${N}" width="300" height="300" shape-rendering="crispEdges">${r}${finder(0, 0)}${finder(N - 7, 0)}${finder(0, N - 7)}</svg>`;
+  }
+
+  const scenes = [];
+  // 甩鏡轉場（7.6–8.15）：side 0＝出場的場景，1＝進場的場景；速度最快時加動態模糊
+  const WHIP = [7.6, 8.15];
+  function whip(e, t, side) {
+    const p = pr(t, WHIP[0], WHIP[1], E.ioe);
+    e.style.transform = `translateX(${((side ? 1920 : 0) - p * 1920).toFixed(1)}px)`;
+    const b = Math.sin(Math.PI * cl((t - WHIP[0]) / (WHIP[1] - WHIP[0]))) * 22;
+    e.style.filter = b > 0.3 ? `blur(${b.toFixed(1)}px)` : 'none';
+  }
+  function scene(t0, t1, cls) { const s = el('div', 'scene ' + (cls || '')); const c = el('div', 'cam', s); const sc = { t0, t1, el: s, cam: c, render: null }; scenes.push(sc); return sc; }
+
+  /* ═════════ 1. Logo 開場 0–4.3 ═════════ */
+  {
+    const S = scene(0, 4.3);
+    const rail = el('div', 'a rail', S.cam); rail.style.width = '2300px';
+    const tr = el('div', 'a train', S.cam);
+    const logo = makeLogo(S.cam); logo.at(960, 520, 1.12);
+    const st = el('div', 'a stampc', S.cam, '<div><div style="font-size:64px">乘車</div><div style="font-size:64px">導覽</div><div style="font-size:30px;letter-spacing:.2em;margin-top:6px">NEW</div></div>');
+    S.render = (t) => {
+      rail.style.transform = `translate(-190px,532px) scaleX(${pr(t, 0, 0.6, E.io).toFixed(4)})`;
+      rail.style.opacity = (1 - pr(t, 0.62, 0.9)).toFixed(3);
+      put(tr, { x: kf(t, [[0, -220, E.io], [0.95, 2160]]), y: 540, o: t < 0.95 ? 1 : 0 });
+      logo.render(t - 0.42);
+      const sp = pr(t, 2.85, 3.07, E.ob);
+      put(st, { x: 1318, y: 830, s: mix(2.6, 1, sp), r: -12, o: pr(t, 2.85, 2.9) });
+      const [sx, sy] = shake(t, [2.95], 16);
+      // 鏡頭：慢推 → 穿越藏青島形放大轉場
+      const k = kf(t, [[0, 1], [2.55, 1, E.io], [3.5, 1.1, E.ie], [4.3, 22]]);
+      const fx = kf(t, [[0, 960], [3.5, 960, E.io], [4.15, 952]]);
+      const fy = kf(t, [[0, 540], [3.5, 540, E.io], [4.15, 392]]);
+      cam(S.cam, fx - sx, fy - sy, k);
+      S.el.style.opacity = 1 - pr(t, 4.12, 4.3);
+    };
+  }
+
+  /* ═════════ 2. 標語 4.15–8.15（藏青底） ═════════ */
+  {
+    const S = scene(4.15, 8.2, 'navybg');
+    const lines = [];
+    for (let i = 0; i < 7; i++) { const l = el('div', 'a', S.cam); l.style.cssText += `width:2600px;height:6px;background:rgba(255,253,246,.10);`; lines.push(l); }
+    const l1 = chars(S.cam, ['上了車，'], '', { fontSize: '168px', color: '#FFFDF6' });
+    const w1 = chars(S.cam, ['目的地'], '', { fontSize: '168px', color: '#FFFDF6' });
+    const w2 = chars(S.cam, ['就開始'], '', { fontSize: '168px', color: '#FFFDF6' });
+    const w3 = chars(S.cam, ['說故事'], '', { fontSize: '168px', color: '#E8B84B' });
+    const ring = el('div', 'a', S.cam); ring.style.cssText += 'width:556px;height:250px;border:14px solid #D23C2A;border-radius:130px;';
+    S.render = (t) => {
+      lines.forEach((l, i) => put(l, { x: 960 - ((t * 260 + i * 400) % 800), y: 140 + i * 140, r: -14, o: 1 }));
+      put(l1.el, { x: 556, y: 400, o: 1 }); popChars(l1, t, 4.3, 0.06, 0.38, 120);
+      const word = (k, t0, x) => { const p = pr(t, t0, t0 + 0.3, E.ob); put(k.el, { x, y: 640, s: mix(2.6, 1, p), o: pr(t, t0, t0 + 0.08), blur: (1 - pr(t, t0, t0 + 0.2)) * 14 }); };
+      word(w1, 4.85, 472); word(w2, 5.25, 986); word(w3, 5.65, 1500);
+      const rp = pr(t, 5.95, 6.25, E.ob);
+      put(ring, { x: 1508, y: 650, s: mix(1.6, 1, rp), r: -6, o: pr(t, 5.95, 6.02) });
+      const [sx, sy] = shake(t, [4.9, 5.3, 5.7, 6.0], 10);
+      const k = kf(t, [[4.15, 1.0], [7.5, 1.06, E.lin]]);
+      cam(S.cam, 960 - sx, 540 - sy, k);
+      // 甩鏡：整個藏青場景往左甩出，下一鏡帶著紙底從右邊接上
+      whip(S.el, t, 0);
+    };
+  }
+
+  /* ═════════ 3. 掃 QR 7.75–12.75 ═════════ */
+  {
+    const S = scene(7.6, 12.75, 'paperbg');
+    const head = chars(S.cam, ['掃一下，', ['班次自動帶入', '#D23C2A']], '', { fontSize: '100px' });
+    const qr = el('div', 'a card', S.cam, `<div style="padding:40px;display:grid;justify-items:center;gap:16px">${fakeQr('car')}<div style="font-size:34px;font-weight:900;color:#2A4A73">車廂 QR</div></div>`);
+    const scan = el('div', 'a', S.cam); scan.style.cssText += 'width:380px;height:12px;border-radius:6px;background:#E8B84B;box-shadow:0 0 30px 10px rgba(232,184,75,.55)';
+    const arc = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    arc.setAttribute('class', 'a'); arc.setAttribute('width', '1920'); arc.setAttribute('height', '1080'); arc.style.cssText += 'left:0;top:0;transform:none;overflow:visible';
+    arc.innerHTML = '<path d="M770 520 C 900 380, 1010 380, 1110 470" fill="none" stroke="#D2A12A" stroke-width="10" stroke-linecap="round" stroke-dasharray="4 22"/>';
+    S.cam.appendChild(arc);
+    const arcPath = arc.querySelector('path');
+    const ph = makePhone(S.cam, ['entry', 'journey']);
+    const okRows = ['路線：平溪線', '班次：4816 往菁桐', '不用再選，直接出發'].map((txt) => el('div', 'a chip', S.cam, `<span class="ok">✓</span>${txt}`));
+    const pulse = el('div', 'a ring', S.cam);
+    S.render = (t) => {
+      whip(S.el, t, 1);
+      const away = pr(t, 10.85, 11.25);
+      put(head.el, { x: 600, y: 170, o: 1 - away }); popChars(head, t, 8.15, 0.035, 0.32, 80);
+      const qrOut = pr(t, 9.7, 10.1, E.ic);
+      put(qr, { x: 560 - qrOut * 140, y: 600 + qrOut * 60, s: mix(1, 0.85, qrOut), o: 1 - qrOut });
+      arc.style.opacity = (1 - away).toFixed(3);
+      put(scan, { x: 560, y: kf(t, [[8.45, 455, E.io], [9.35, 760]]), o: t > 8.4 && t < 9.4 ? 1 : 0 });
+      arcPath.style.opacity = (pr(t, 9.0, 9.1) * (1 - pr(t, 9.7, 9.9))).toFixed(2);
+      arcPath.style.strokeDashoffset = (-t * 160).toFixed(1);
+      const pin = pr(t, 7.95, 8.8, E.oe);
+      put(ph.el, { x: mix(1700, 1330, pin), y: 560, s: mix(0.78, 1, pin), ry: mix(-58, 0, pin), o: pr(t, 7.95, 8.15) });
+      const sw = pr(t, 9.5, 9.62);
+      ph.view({ entry: 1 - sw, journey: sw });
+      ph.flash.style.opacity = (pr(t, 9.38, 9.5) * (1 - pr(t, 9.5, 9.75))).toFixed(3);
+      okRows.forEach((r, i) => { const p = pr(t, 9.95 + i * 0.22, 10.25 + i * 0.22, E.ob); put(r, { x: 560, y: 470 + i * 130, s: mix(0.6, 1, p), o: pr(t, 9.95 + i * 0.22, 10.05 + i * 0.22) * (1 - away) }); });
+      const [ux, uy] = phonePt(1330, 560, 1, 0.28, 0.298);
+      const pp = ((t - 11.2) % 0.8) / 0.8;
+      put(pulse, { x: ux, y: uy, s: mix(0.3, 1.3, pp), o: t > 11.2 ? 1 - pp : 0 });
+      // 推鏡：推進路線條
+      const k = kf(t, [[10.9, 1, E.io], [11.85, 2.5], [12.75, 2.7, E.lin]]);
+      const [fx, fy] = phonePt(1330, 560, 1, 0.5, 0.28);
+      const f = pr(t, 10.9, 11.85, E.io);
+      cam(S.cam, mix(960, fx, f), mix(540, fy, f), k);
+    };
+  }
+
+  /* ═════════ 4. 只列會停的站 12.6–15.75 ═════════ */
+  {
+    const S = scene(12.6, 15.75);
+    const h1 = chars(S.cam, ['只列這班車', ['會停的站', '#D23C2A']], '', { fontSize: '120px' });
+    const rail = el('div', 'a rail', S.cam); rail.style.width = '1900px';
+    const tr = el('div', 'a train', S.cam);
+    const stops = [['猴硐', '10:04'], ['三貂嶺', '10:14'], ['大華', '10:22'], ['十分', '10:30', 1], ['望古', '10:40'], ['嶺腳', '10:45'], ['平溪', '10:49', 1], ['菁桐', '10:55', 1]];
+    const chips = stops.map(([n, tm, g]) => el('div', 'a dchip', S.cam, `<b>${n}${g ? '<i></i>' : ''}</b><small>${tm}</small>`));
+    const ripple = el('div', 'a ring', S.cam);
+    const dot = el('div', 'a', S.cam); dot.style.cssText += 'width:54px;height:54px;border-radius:50%;background:rgba(30,44,64,.35);border:5px solid #fff';
+    S.render = (t) => {
+      put(h1.el, { x: 960, y: 260, o: 1 }); popChars(h1, t, 12.72, 0.04, 0.32, 90);
+      const pan = kf(t, [[12.6, 40], [15.2, -40, E.lin]]);
+      rail.style.transform = `translate(${10 + pan}px,872px) scaleX(${pr(t, 12.7, 13.3, E.io).toFixed(4)})`;
+      put(tr, { x: kf(t, [[12.9, -120, E.io], [14.6, 1100]]) + pan, y: 880, o: 1 });
+      chips.forEach((c, i) => {
+        const p = pr(t, 12.9 + i * 0.075, 13.25 + i * 0.075, E.ob);
+        put(c, { x: 123 + 95 + i * 212 + pan, y: 640, s: mix(0.2, 1, p) * (i === 3 ? mix(1, 1.12, pr(t, 14.65, 14.85, E.ob)) : 1), o: pr(t, 12.9 + i * 0.075, 13.0 + i * 0.075) });
+        c.classList.toggle('on', i === 3 && t >= 14.72);
+        const dd = c.querySelector('i'); if (dd) { const q = 1 + 0.25 * Math.max(0, Math.sin((t - 13.6) * 8)); dd.style.transform = `scale(${q.toFixed(3)})`; }
+      });
+      const cx = 123 + 95 + 3 * 212 + pan;
+      const rp = pr(t, 14.55, 15.05, E.oc);
+      put(ripple, { x: cx, y: 640, s: mix(0.3, 2.6, rp), o: t >= 14.55 ? 1 - rp : 0 });
+      put(dot, { x: cx + 30, y: mix(760, 660, pr(t, 14.3, 14.55, E.oc)), s: mix(1, 0.8, pr(t, 14.5, 14.6)), o: pr(t, 14.3, 14.4) * (1 - pr(t, 14.75, 14.9)) });
+      // 鑽進「十分」站卡轉場
+      const k = kf(t, [[15.1, 1, E.ie], [15.75, 7]]);
+      const f = pr(t, 15.1, 15.6, E.io);
+      cam(S.cam, mix(960, cx, f), mix(540, 640, f), k);
+      S.el.style.opacity = 1 - pr(t, 15.55, 15.75);
+    };
+  }
+
+  /* ═════════ 5. 十分登場 15.5–20.75 ═════════ */
+  {
+    const S = scene(15.5, 20.75);
+    const comp = el('div', 'a', S.cam); comp.style.cssText += 'width:1920px;height:1080px;overflow:hidden;border-radius:0';
+    const photo = img('../img/shifen-hero.jpg', comp, 'a'); photo.style.cssText += 'width:1920px;height:1280px;object-fit:cover';
+    const shade = el('div', 'a', comp); shade.style.cssText += 'width:1920px;height:1080px;background:linear-gradient(180deg,rgba(30,44,64,.0) 40%,rgba(30,44,64,.35) 100%)';
+    const tag = el('div', 'a card', comp); tag.style.cssText += 'padding:26px 44px;display:grid;gap:10px;justify-items:center';
+    const tagT = chars(tag, ['火車從老街中間開過'], '', { fontSize: '86px', position: 'static' });
+    tagT.el.style.transform = 'none';
+    const tagS = el('div', 'sub', tag, '台灣最寬的簾幕式瀑布就在附近');
+    const themes = ['火車門前過', '瀑布', '運煤吊橋'].map((x) => el('div', 'a chip', comp, x));
+    const plate = makePlate(S.cam, { name: '十分', sub: 'SHIFEN', left: '◀ 大華', mid: '往菁桐', right: '望古 ▶', w: 1180, nameSize: 270, subSize: 56, footSize: 64, gap: 120 });
+    const ph = makePhone(S.cam, ['shifen-top']);
+    const h2 = chars(S.cam, ['選一站，', ['整頁換成那裡', '#D23C2A']], '', { fontSize: '92px' });
+    S.render = (t) => {
+      const ps = pr(t, 15.55, 15.95, E.ob);
+      const shrink = pr(t, 16.25, 16.95, E.io);
+      put(plate, { x: 960, y: mix(540, 860, shrink), s: mix(2.4, 1, ps) * mix(1, 0.4, shrink), o: pr(t, 15.55, 15.62) * (1 - pr(t, 19.1, 19.4)) });
+      // 照片從中間撐開到滿版，緩推
+      const open = pr(t, 16.3, 17.0, E.io);
+      const ins = (1 - open) * 50;
+      put(comp, { x: 960, y: 540, o: 1 });
+      comp.style.clipPath = `inset(${ins.toFixed(2)}% ${ins.toFixed(2)}% round ${(40 * (1 - open)).toFixed(1)}px)`;
+      put(photo, { x: 960, y: 560, s: kf(t, [[16.3, 1.22], [19.2, 1.04, E.lin]]) });
+      put(shade, { x: 960, y: 540, o: 1 });
+      put(tag, { x: 960, y: 190, s: mix(0.7, 1, pr(t, 16.95, 17.25, E.ob)), o: pr(t, 16.95, 17.05) });
+      tagT.spans.forEach((sp, i) => { sp.style.opacity = t >= 17.1 + i * 0.07 ? 1 : 0; });
+      tagS.style.opacity = pr(t, 17.85, 18.1).toFixed(3);
+      themes.forEach((c, i) => put(c, { x: 650 + i * 310, y: 360, s: mix(0.4, 1, pr(t, 18.0 + i * 0.12, 18.3 + i * 0.12, E.ob)), o: pr(t, 18.0 + i * 0.12, 18.08 + i * 0.12) }));
+      // 拉遠成手機裡的導覽頁
+      const pull = pr(t, 18.75, 19.55, E.io);
+      const [sx, sy] = phonePt(1330, 560, 1, 0.5, 0.42);
+      comp.style.transform = `translate(${mix(960, sx, pull).toFixed(1)}px,${mix(540, sy, pull).toFixed(1)}px) translate(-50%,-50%) scale(${mix(1, 0.21, pull).toFixed(4)})`;
+      comp.style.opacity = (1 - pr(t, 19.25, 19.6)).toFixed(3);
+      ph.view({ 'shifen-top': 1 });
+      put(ph.el, { x: 1330, y: 560, s: mix(1.08, 1, pr(t, 19.1, 19.8, E.oc)), o: pr(t, 19.15, 19.5) });
+      put(h2.el, { x: 600, y: 540, o: 1 }); popChars(h2, t, 19.5, 0.035, 0.3, 80);
+      const [hx, hy] = shake(t, [15.95], 18);
+      cam(S.cam, 960 - hx, 540 - hy, 1);
+    };
+  }
+
+  /* ═════════ 6. 功能連發 20.55–28.65 ═════════ */
+  {
+    const S = scene(20.55, 28.65);
+    // 每鏡：左邊編號＋大字，右邊手機大特寫（u,v＝要對準的區塊在手機畫面上的位置）
+    const CUTS = [
+      { t: 20.6, no: '01', title: '必看亮點', sub: '每張都附距離與官方來源', asset: 'shifen-hl', v: 0.36, r: -3 },
+      { t: 22.2, no: '02', title: '推薦路線', sub: '景點順序、距離、時間一次看', asset: 'shifen-routes', v: 0.44, r: 2.5 },
+      { t: 23.8, no: '03', title: '在地店家', sub: '開放地圖，依距離排，不收廣告', asset: 'shifen-shops', v: 0.46, r: -2.5 },
+      { t: 25.4, no: '04', title: '文化故事', sub: '點開就讀，來源列在下面', asset: 'shifen-story', v: 0.62, r: 2.5 },
+      { t: 27.0, no: '05', title: '下一班車', sub: '下車前就知道怎麼回程', asset: 'shifen-next', v: 0.4, r: -2 },
+    ];
+    const ph = makePhone(S.cam, CUTS.map((c) => c.asset));
+    const txt = CUTS.map((c) => {
+      const kick = el('div', 'a kick', S.cam, c.no);
+      const title = chars(S.cam, [c.title], '', { fontSize: '150px' });
+      const sub = el('div', 'a sub', S.cam, c.sub);
+      return { kick, title, sub };
+    });
+    // 01 亮點小卡
+    const hl = ['十分老街', '十分瀑布公園', '靜安吊橋'].map((n) => el('div', 'a chip', S.cam, `<span style="color:#D23C2A">●</span> ${n}`));
+    // 02 路線小圖：紅色虛線畫出、編號蓋章
+    const mapc = el('div', 'a card', S.cam); mapc.style.cssText += 'width:460px;height:300px;overflow:hidden';
+    mapc.innerHTML = `<svg viewBox="0 0 460 300" width="460" height="300"><rect width="460" height="300" fill="#F7F0DD"/><path d="M-20 290 C 120 240, 230 190, 480 40" stroke="#2A4A73" stroke-width="9" fill="none" opacity=".45"/>
+      <path class="wk" d="M100 236 L 160 186 L 150 156 L 340 70" fill="none" stroke="#D23C2A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="80" y="218" width="40" height="36" rx="8" fill="#2A4A73"/><text x="100" y="243" font-size="22" font-weight="900" fill="#FFFDF6" text-anchor="middle" font-family="Noto Sans TC">站</text>
+      ${[[160, 186], [150, 156], [340, 70]].map(([x, y], i) => `<g class="stp"><circle cx="${x}" cy="${y}" r="24" fill="#FFFDF6" stroke="#D23C2A" stroke-width="6"/><text x="${x}" y="${y + 9}" font-size="26" font-weight="900" fill="#D23C2A" text-anchor="middle" font-family="Noto Sans TC">${i + 1}</text></g>`).join('')}</svg>`;
+    const wk = mapc.querySelector('.wk'); const wkLen = wk.getTotalLength();
+    const stp = [...mapc.querySelectorAll('.stp')];
+    const sim = el('div', 'a chip', S.cam, '合計約 50 分鐘 <span style="font-size:28px;color:#A3641A;border:4px dashed #E0A37E;background:#FBE9DF;border-radius:10px;padding:0 10px">模擬</span>');
+    // 03 店家小地圖：圖釘落下
+    const shopc = el('div', 'a card', S.cam); shopc.style.cssText += 'width:460px;height:300px;overflow:hidden';
+    shopc.innerHTML = `<svg viewBox="0 0 460 300" width="460" height="300" style="position:absolute;left:0;top:0"><rect width="460" height="300" fill="#F7F0DD"/><path d="M-20 260 C 140 230, 260 150, 480 90" stroke="#2A4A73" stroke-width="9" fill="none" opacity=".45"/>
+      <path d="M40 120 L 420 160 M 200 0 L 240 300" stroke="#E4D9BE" stroke-width="14" fill="none"/>
+      <rect x="196" y="176" width="40" height="36" rx="8" fill="#2A4A73"/><text x="216" y="201" font-size="22" font-weight="900" fill="#FFFDF6" text-anchor="middle" font-family="Noto Sans TC">站</text></svg>`;
+    const PINS = [[120, 120, '#D23C2A'], [300, 100, '#1B8F4D'], [360, 200, '#D2A12A'], [170, 230, '#D23C2A'], [270, 250, '#1B8F4D']];
+    const pins = PINS.map(([, , c]) => { const p = el('div', 'a pin', shopc); p.style.background = c; p.style.width = p.style.height = '46px'; p.style.borderWidth = '5px'; return p; });
+    const osm = el('div', 'a chip', S.cam, '<span style="color:#1B8F4D">OSM</span> 開放地圖');
+    // 04 故事
+    const quote = el('div', 'a card', S.cam, '<div style="padding:26px 34px;font-size:40px;font-weight:900;line-height:1.35">1986《戀戀風塵》<br><span style="color:#D23C2A">取景地</span></div><div style="padding:0 34px 22px;font-size:26px;font-weight:700;color:#6B5F4A">來源：新北市觀光旅遊網 ↗</div>');
+    // 05 時刻板
+    const board = el('div', 'a board', S.cam, [['10:35', '4715', '往八堵'], ['11:35', '4817', '往八斗子'], ['11:37', '4818', '往菁桐']].map(([a, b, c]) => `<div class="r"><span>${a}</span><em>${b}</em><span>${c}</span></div>`).join(''));
+    const rows = [...board.children];
+    const wipes = CUTS.slice(1).map(() => el('div', 'a wipe band', S.cam));
+    S.render = (t) => {
+      const ci = CUTS.findIndex((c, i) => t >= c.t && (i === CUTS.length - 1 || t < CUTS[i + 1].t));
+      const cur = CUTS[Math.max(0, ci)];
+      const lt = t - cur.t;
+      const view = {}; CUTS.forEach((c) => { view[c.asset] = c === cur ? 1 : 0; }); ph.view(view);
+      // 手機大特寫：每鏡從 1.32 推到 1.46，並把要講的區塊放在畫面垂直中央
+      const s = mix(1.32, 1.46, E.oc(cl(lt / 1.6)));
+      const enterY = (1 - pr(lt, 0, 0.32, E.oe)) * 160;
+      put(ph.el, { x: 1360, y: 540 - (cur.v - 0.5) * 866 * s + enterY, s, r: mix(cur.r * 1.8, cur.r, pr(lt, 0, 0.4, E.oc)), o: pr(t, 20.6, 20.75) });
+      txt.forEach((x, i) => {
+        const on = CUTS[i] === cur;
+        put(x.kick, { x: 245, y: 300, s: on ? mix(0.4, 1, pr(lt, 0, 0.25, E.ob)) : 1, o: on ? 1 : 0 });
+        put(x.title.el, { x: 470, y: 440, o: on ? 1 : 0 });
+        if (on) popChars(x.title, lt, 0.02, 0.05, 0.3, 90);
+        put(x.sub, { x: 470, y: 570, o: on ? pr(lt, 0.25, 0.45) : 0 });
+      });
+      // 01
+      const on1 = cur.no === '01';
+      hl.forEach((c, i) => put(c, { x: kf(lt, [[0.25 + i * 0.1, 1100, E.oe], [0.7 + i * 0.1, 470]]), y: 700 + i * 100, s: 0.9, o: on1 && lt > 0.25 + i * 0.1 ? 1 : 0 }));
+      // 02
+      const on2 = cur.no === '02';
+      put(mapc, { x: 470, y: 820, s: on2 ? mix(0.6, 1, pr(lt, 0.15, 0.45, E.ob)) : 1, o: on2 ? 1 : 0 });
+      wk.style.strokeDasharray = `${wkLen}`; wk.style.strokeDashoffset = (wkLen * (1 - pr(lt, 0.35, 1.15, E.io))).toFixed(1);
+      stp.forEach((g, i) => { const a = pr(lt, 0.5 + i * 0.22, 0.75 + i * 0.22, E.ob); g.style.transformBox = 'fill-box'; g.style.transformOrigin = 'center'; g.style.transform = `scale(${cl(a).toFixed(3)})`; });
+      put(sim, { x: 1360, y: 985, s: on2 ? mix(0.5, 1, pr(lt, 0.7, 0.95, E.ob)) : 1, o: on2 && lt > 0.7 ? 1 : 0 });
+      // 03
+      const on3 = cur.no === '03';
+      put(shopc, { x: 470, y: 820, s: on3 ? mix(0.6, 1, pr(lt, 0.1, 0.4, E.ob)) : 1, o: on3 ? 1 : 0 });
+      pins.forEach((p, i) => { const a = pr(lt, 0.3 + i * 0.1, 0.62 + i * 0.1, E.ob); put(p, { x: PINS[i][0], y: mix(-80, PINS[i][1], a), r: -45, o: lt > 0.3 + i * 0.1 ? 1 : 0 }); });
+      put(osm, { x: 1360, y: 985, s: on3 ? mix(0.5, 1, pr(lt, 0.75, 1.0, E.ob)) : 1, o: on3 && lt > 0.75 ? 1 : 0 });
+      // 04
+      const on4 = cur.no === '04';
+      put(quote, { x: 470, y: mix(1150, 800, pr(lt, 0.2, 0.55, E.oe)), r: mix(-6, -2, pr(lt, 0.2, 0.55)), o: on4 ? 1 : 0 });
+      // 05
+      const on5 = cur.no === '05';
+      put(board, { x: 500, y: 810, s: on5 ? mix(0.7, 1, pr(lt, 0.15, 0.4, E.ob)) : 1, o: on5 ? 1 : 0 });
+      rows.forEach((r, i) => { const a = pr(lt, 0.35 + i * 0.18, 0.6 + i * 0.18, E.oc); r.style.transform = `rotateX(${((1 - a) * 90).toFixed(1)}deg)`; r.style.opacity = a.toFixed(2); });
+      // 刷屏轉場：藏青帶斜切過畫面，中線是鐵道虛線；剛好蓋住換鏡那一格
+      wipes.forEach((w, i) => { const c = CUTS[i + 1].t; const p = pr(t, c - 0.22, c + 0.22, E.io); put(w, { x: mix(-1300, 3200, p), y: 540, r: 14, o: t > c - 0.22 && t < c + 0.22 ? 1 : 0 }); });
+      const [hx, hy] = shake(t, CUTS.map((c) => c.t + 0.08), 8);
+      cam(S.cam, 960 - hx, 540 - hy, 1);
+      S.el.style.opacity = pr(t, 20.55, 20.62);
+    };
+  }
+
+  /* ═════════ 7. 中英切換 28.55–31.7 ═════════ */
+  {
+    const S = scene(28.55, 31.7);
+    const flip = el('div', 'a', S.cam); flip.style.cssText += 'width:432px;height:898px;transform-style:preserve-3d';
+    const front = makePhone(flip, ['pingxi-zh']); front.view({ 'pingxi-zh': 1 });
+    const back = makePhone(flip, ['pingxi-en']); back.view({ 'pingxi-en': 1 });
+    [front.el, back.el].forEach((e) => { e.style.backfaceVisibility = 'hidden'; });
+    front.el.style.transform = 'translate(216px,449px) translate(-50%,-50%)';
+    back.el.style.transform = 'translate(216px,449px) translate(-50%,-50%) rotateY(180deg)';
+    // 跟原型同一個樣子的中文／EN 切換鍵，放大當主角
+    const tg = el('div', 'a toggle', S.cam);
+    const kn = el('div', 'kn', tg);
+    const lz = el('div', 'lb', tg, '中文'); lz.style.left = '0';
+    const le = el('div', 'lb', tg, 'EN'); le.style.left = '308px';
+    const head = chars(S.cam, ['一鍵切換英文，'], '', { fontSize: '84px' });
+    const head2 = chars(S.cam, [['選的站不跑掉', '#D23C2A']], '', { fontSize: '84px' });
+    const tap = el('div', 'a ring', S.cam);
+    const wipe = el('div', 'a wipe band', S.cam);
+    S.render = (t) => {
+      const f = pr(t, 29.45, 30.15, E.io);
+      const lift = Math.sin(Math.PI * f);
+      flip.style.transform = `translate(1340px,${(540 - lift * 30).toFixed(1)}px) translate(-50%,-50%) rotateY(${(f * 180).toFixed(2)}deg) scale(${(1.02 + lift * 0.08).toFixed(4)})`;
+      flip.style.opacity = pr(t, 28.6, 28.75).toFixed(3);
+      put(tg, { x: 560, y: 360, s: mix(0.5, 1, pr(t, 28.75, 29.05, E.ob)), o: pr(t, 28.75, 28.85) });
+      const kx = pr(t, 29.35, 29.65, E.ob);
+      kn.style.transform = `translateX(${(kx * 298).toFixed(1)}px)`;
+      lz.style.color = kx < 0.5 ? '#FFFDF6' : '#6B5F4A'; le.style.color = kx < 0.5 ? '#6B5F4A' : '#FFFDF6';
+      const tp = pr(t, 29.25, 29.7, E.oc);
+      put(tap, { x: 715, y: 360, s: mix(0.4, 2.0, tp), o: t > 29.25 ? 1 - tp : 0 });
+      put(head.el, { x: 560, y: 600, o: 1 }); popChars(head, t, 29.7, 0.035, 0.28, 60);
+      put(head2.el, { x: 560, y: 710, o: 1 }); popChars(head2, t, 30.05, 0.035, 0.28, 60);
+      const [hx, hy] = shake(t, [29.55], 10);
+      cam(S.cam, 960 - hx, 540 - hy, kf(t, [[28.55, 1], [31.7, 1.05, E.lin]]));
+      const p = pr(t, 28.48, 28.92, E.io); put(wipe, { x: mix(-1300, 3200, p), y: 540, r: 14, o: t < 28.92 ? 1 : 0 });
+    };
+  }
+
+  /* ═════════ 8. 全台路網 31.6–36.75 ═════════ */
+  {
+    const S = scene(31.6, 36.75);
+    const S0 = 286, LAT0 = 23.62, LON0 = 120.96, KX = Math.cos((23.7 * Math.PI) / 180);
+    const pj = ([la, lo]) => [960 + (lo - LON0) * S0 * KX, 540 - (la - LAT0) * S0];
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'a'); svg.setAttribute('width', '1920'); svg.setAttribute('height', '1080'); svg.setAttribute('viewBox', '0 0 1920 1080');
+    svg.style.cssText += 'overflow:visible';
+    const d = (pts) => 'M' + pts.map((p) => pj(p).map((v) => v.toFixed(1)).join(' ')).join('L');
+    svg.innerHTML = window.FILM_NETWORK.map((l) => `<path class="net" d="${d(l.pts)}" fill="none" stroke="#2A4A73" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`).join('')
+      + ['pingxi', 'huadong', 'haixian'].map((r) => `<path class="demo" d="${d(window.RIDE_ROUTES.routes[r].path)}" fill="none" stroke="#D23C2A" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+    S.cam.appendChild(svg);
+    const nets = [...svg.querySelectorAll('.net')].map((p) => ({ p, L: p.getTotalLength() }));
+    const demos = [...svg.querySelectorAll('.demo')].map((p) => ({ p, L: p.getTotalLength() }));
+    const GUIDES = [
+      { ll: [25.0411, 121.7751], line: '平溪線', st: '十分・平溪・菁桐', at: 33.75, dx: 300 },
+      { ll: [23.6663, 121.4212], line: '臺東線（花東縱谷）', st: '光復', at: 34.65, dx: 250 },
+      { ll: [24.4914, 120.6784], line: '海線', st: '通霄', at: 35.55, dx: -230 },
+    ];
+    const tags = GUIDES.map((g) => {
+      const e = el('div', 'a plate', S.cam);
+      e.innerHTML = `<div class="pn" style="font-size:52px;padding:8px 34px 4px;white-space:nowrap">${g.st}</div><div class="pf" style="font-size:28px;padding:8px 20px;justify-content:center;white-space:nowrap">${g.line}</div>`;
+      const dot = el('div', 'a', S.cam); dot.style.cssText += 'width:34px;height:34px;border-radius:50%;background:#FFFDF6;border:8px solid #D23C2A';
+      return { e, dot, xy: pj(g.ll), ...g };
+    });
+    const ph = makePhone(S.cam, ['map']); ph.view({ map: 1 });
+    const title = chars(stage, ['三條', ['示範路線', '#D23C2A']], '', { fontSize: '88px', background: 'rgba(255,253,246,.94)', padding: '10px 40px 16px', borderRadius: '24px', boxShadow: '0 8px 0 rgba(30,44,64,.12)' });
+    S.el.appendChild(title.el);
+    S.render = (t) => {
+      const z = pr(t, 31.65, 32.3, E.io);
+      put(ph.el, { x: 960, y: 540, s: mix(1, 0.22, z), o: 1 - pr(t, 32.05, 32.35) });
+      nets.forEach(({ p, L }, i) => { const a = pr(t, 31.95 + (i % 7) * 0.05, 32.9 + (i % 7) * 0.05, E.io); p.style.strokeDasharray = L; p.style.strokeDashoffset = (L * (1 - a)).toFixed(1); });
+      demos.forEach(({ p, L }, i) => { const a = pr(t, 32.85 + i * 0.12, 33.35 + i * 0.12, E.io); p.style.strokeDasharray = L; p.style.strokeDashoffset = (L * (1 - a)).toFixed(1); p.style.filter = 'drop-shadow(0 0 10px rgba(210,60,42,.6))'; });
+      tags.forEach((g) => {
+        const a = pr(t, g.at, g.at + 0.3, E.ob);
+        put(g.dot, { x: g.xy[0], y: g.xy[1], s: mix(0, 1, a), o: t > g.at ? 1 : 0 });
+        put(g.e, { x: g.xy[0] + g.dx, y: g.xy[1] - 70, s: mix(0.3, 0.9, a), o: t > g.at ? 1 : 0 });
+      });
+      // 鏡頭：北 → 東 → 西 → 拉回
+      const P = tags.map((g) => [g.xy[0] + g.dx * 0.5, g.xy[1] - 30]);
+      const fx = kf(t, [[31.6, 960], [33.3, 960, E.io], [33.95, P[0][0]], [34.25, P[0][0], E.io], [34.85, P[1][0]], [35.15, P[1][0], E.io], [35.75, P[2][0]], [36.1, P[2][0], E.io], [36.6, 960]]);
+      const fy = kf(t, [[31.6, 540], [33.3, 540, E.io], [33.95, P[0][1]], [34.25, P[0][1], E.io], [34.85, P[1][1]], [35.15, P[1][1], E.io], [35.75, P[2][1]], [36.1, P[2][1], E.io], [36.6, 540]]);
+      const k = kf(t, [[31.6, 1], [33.3, 1, E.io], [33.95, 2.1], [35.75, 2.1, E.io], [36.6, 1]]);
+      cam(S.cam, fx, fy, k);
+      put(title.el, { x: 330, y: 116, o: pr(t, 32.3, 32.4) }); popChars(title, t, 32.3, 0.05, 0.3, 70);
+    };
+  }
+
+  /* ═════════ 9. 三站並列 36.55–42.75 ═════════ */
+  {
+    const S = scene(36.55, 42.75);
+    const P = [
+      { x: 520, asset: ['shifen-top'], r: -8 },
+      { x: 960, asset: ['guangfu-top', 'guangfu-alert'], r: 0 },
+      { x: 1400, asset: ['tongxiao-top', 'tongxiao-next'], r: 8 },
+    ].map((p) => ({ ...p, ph: makePhone(S.cam, p.asset) }));
+    const head = chars(S.el, ['同一套介面，', ['換上在地內容就上線', '#D23C2A']], '', { fontSize: '76px' });
+    const panel = el('div', 'a', S.el); panel.style.cssText += 'width:960px;height:1200px;background:#F3EBDA;box-shadow:18px 0 40px rgba(30,44,64,.18)';
+    const k1 = el('div', 'a kick', S.el, '花東縱谷・光復');
+    const a1 = el('div', 'a alertc', S.el, '<b>在地現況，第一眼提醒</b><span>災後復原中的光復，頁面先請旅客確認現況</span>');
+    const k2 = el('div', 'a kick', S.el, '海線・通霄'); k2.style.background = '#2A4A73'; k2.style.boxShadow = '0 4px 0 #1E2C40';
+    const a2 = el('div', 'a alertc', S.el, '<b style="color:#2A4A73">下車前就知道下一班車</b><span>班次來自臺鐵開放資料時刻表</span>');
+    a2.style.borderColor = '#C9B98F'; a2.style.background = '#FFFDF6';
+    const flash = el('div', 'a', S.el); flash.style.cssText += 'width:1920px;height:1080px;background:#FFFDF6';
+    S.render = (t) => {
+      P.forEach((p, i) => {
+        const a = pr(t, 36.6 + i * 0.13, 37.25 + i * 0.13, E.oe);
+        put(p.ph.el, { x: p.x, y: mix(1500, 600, a), s: 0.82, r: mix(p.r * 2, p.r * 0.25, a), o: 1 });
+      });
+      P[0].ph.view({ 'shifen-top': 1 });
+      const g = pr(t, 39.2, 39.45); P[1].ph.view({ 'guangfu-top': 1 - g, 'guangfu-alert': g });
+      const n = pr(t, 41.0, 41.25); P[2].ph.view({ 'tongxiao-top': 1 - n, 'tongxiao-next': n });
+      put(head.el, { x: 960, y: 92, o: pr(t, 37.1, 37.15) * (1 - pr(t, 38.85, 39.05)) }); popChars(head, t, 37.1, 0.03, 0.28, 60);
+      // 鏡頭：推進光復 → 甩到通霄
+      const [gx, gy] = phonePt(960, 600, 0.82, 0.5, 0.35);
+      const [tx, ty] = phonePt(1400, 600, 0.82, 0.5, 0.45);
+      const fx = kf(t, [[38.8, 960, E.io], [39.45, gx], [40.75, gx, E.ioe], [41.15, tx]]);
+      const fy = kf(t, [[38.8, 540, E.io], [39.45, gy], [40.75, gy, E.ioe], [41.15, ty]]);
+      const k = kf(t, [[38.8, 1, E.io], [39.45, 1.75], [42.2, 1.85, E.lin]]);
+      const cx = kf(t, [[38.8, 960, E.io], [39.45, 1380]]);
+      cam(S.cam, fx, fy, k, 0, cx, 540);
+      put(panel, { x: kf(t, [[39.1, -500, E.oe], [39.55, 480]]), y: 540, o: 1 });
+      const o1 = pr(t, 39.55, 39.62) * (1 - pr(t, 40.75, 40.9));
+      put(k1, { x: 292, y: 360, s: mix(0.5, 1.35, pr(t, 39.5, 39.75, E.ob)), o: o1 });
+      put(a1, { x: 470, y: 580, s: mix(0.7, 1.3, pr(t, 39.55, 39.85, E.ob)), o: o1 });
+      const o2 = pr(t, 41.3, 41.37);
+      put(k2, { x: 246, y: 360, s: mix(0.5, 1.35, pr(t, 41.25, 41.5, E.ob)), o: o2 });
+      put(a2, { x: 470, y: 580, s: mix(0.7, 1.3, pr(t, 41.3, 41.6, E.ob)), o: o2 });
+      put(flash, { x: 960, y: 540, o: 1 - pr(t, 36.55, 36.8) });
+    };
+  }
+
+  /* ═════════ 10. 誠實標示 42.55–47.75 ═════════ */
+  {
+    const S = scene(42.55, 47.75);
+    const head = chars(S.cam, ['每一筆資料，', ['看得出來源', '#D23C2A']], '', { fontSize: '104px' });
+    const seals = [
+      { b: '已查證', s: '附官方來源 ↗', c: '#2A4A73', border: '10px solid #2A4A73', bg: 'rgba(255,253,246,.95)', x: 470, y: 580, r: -6, at: 43.3 },
+      { b: 'OSM', s: '開放地圖資料', c: '#1B8F4D', border: '10px solid #1B8F4D', bg: 'rgba(255,253,246,.95)', x: 960, y: 620, r: 4, at: 43.95 },
+      { b: '模擬', s: '估算・示範值', c: '#A3641A', border: '10px dashed #E0A37E', bg: '#FBE9DF', x: 1450, y: 580, r: -3, at: 44.6 },
+    ].map((x) => { const e = el('div', 'a seal', S.cam, `<b style="color:${x.c}">${x.b}</b><small style="color:${x.c}">${x.s}</small>`); e.style.border = x.border; e.style.background = x.bg; return { ...x, e }; });
+    const band = el('div', 'a band', S.cam, '<div style="padding:22px 60px;font-size:46px;font-weight:900;color:#FFFDF6;white-space:nowrap">示範班次・非即時位置・不放廣告</div>');
+    band.style.borderRadius = '20px';
+    const wipe = el('div', 'a wipe band', S.cam);
+    S.render = (t) => {
+      put(head.el, { x: 960, y: 210, o: 1 }); popChars(head, t, 42.75, 0.035, 0.3, 80);
+      seals.forEach((x) => { const a = pr(t, x.at, x.at + 0.24, E.ob); put(x.e, { x: x.x, y: x.y, s: mix(2.6, 1, a), r: x.r, o: pr(t, x.at, x.at + 0.05) }); });
+      put(band, { x: kf(t, [[45.25, -800, E.oe], [45.75, 960]]), y: 900, o: 1 });
+      const [sx, sy] = shake(t, seals.map((x) => x.at + 0.12), 14);
+      cam(S.cam, 960 - sx, 540 - sy, kf(t, [[42.55, 1], [47.7, 1.05, E.lin]]));
+      const p = pr(t, 42.48, 42.92, E.io); put(wipe, { x: mix(-1300, 3200, p), y: 540, r: 14, o: t < 42.92 ? 1 : 0 });
+    };
+  }
+
+  /* ═════════ 11. 合作模式 47.55–52.3 ═════════ */
+  {
+    const S = scene(47.55, 52.3);
+    const rail = el('div', 'a rail', S.cam); rail.style.width = '2000px';
+    const L = makePlate(S.cam, { name: '在地伙伴', sub: 'PARTNERS', left: '業者', mid: '觀光單位・地方', right: '提供內容', w: 760, nameSize: 120, subSize: 34, footSize: 40, gap: 12 });
+    const R = makePlate(S.cam, { name: '軌島', sub: 'RAIL ISLAND', left: '旅程', mid: '介面與呈現', right: '負責', w: 760, nameSize: 120, subSize: 34, footSize: 40, gap: 40 });
+    const link = el('div', 'a', S.cam); link.style.cssText += 'width:120px;height:46px;border-radius:23px;background:#1E2C40;border:6px solid #D2A12A';
+    const tr = el('div', 'a train', S.cam);
+    const head = chars(S.cam, ['在地伙伴提供內容，', ['軌島負責旅程介面', '#D23C2A']], '', { fontSize: '78px' });
+    const flash = el('div', 'a', S.cam); flash.style.cssText += 'width:1920px;height:1080px;background:#FFFDF6';
+    S.render = (t) => {
+      rail.style.transform = `translate(-40px,792px) scaleX(${pr(t, 47.7, 48.3, E.io).toFixed(4)})`;
+      const m = pr(t, 47.8, 48.6, E.oe);
+      put(L, { x: mix(-500, 560, m), y: 520, o: 1 });
+      put(R, { x: mix(2420, 1360, m), y: 520, o: 1 });
+      put(link, { x: 960, y: 520, s: mix(0.2, 1, pr(t, 48.55, 48.8, E.ob)), o: t > 48.55 ? 1 : 0 });
+      put(tr, { x: kf(t, [[48.9, -200, E.lin], [51.6, 2120]]), y: 800, o: 1 });
+      put(head.el, { x: 960, y: 180, o: 1 }); popChars(head, t, 48.8, 0.03, 0.28, 60);
+      const [sx, sy] = shake(t, [48.6], 18);
+      cam(S.cam, 960 - sx, 540 - sy, kf(t, [[47.55, 1.04], [52.3, 1, E.lin]]));
+      put(flash, { x: 960, y: 540, o: 1 - pr(t, 47.55, 47.8) });
+      S.el.style.opacity = 1 - pr(t, 52.0, 52.3);
+    };
+  }
+
+  /* ═════════ 12. Logo 收尾 52.0–58.0 ═════════ */
+  {
+    const S = scene(52.0, 58.0);
+    const rails = [0, 1, 2, 3].map(() => { const r = el('div', 'a rail', S.cam); r.style.width = '760px'; return r; });
+    const logo = makeLogo(S.cam); logo.at(960, 425, 1.0);
+    const band = el('div', 'a band', S.cam, '<div style="padding:18px 70px;font-size:56px;font-weight:900;color:#FFFDF6;letter-spacing:.12em;text-indent:.12em;white-space:nowrap">乘車導覽模式</div>');
+    band.style.borderRadius = '20px';
+    const note = el('div', 'a sub', S.cam, '互動展示原型・資料為示範');
+    const cred = el('div', 'a', S.cam, '照片（Wikimedia Commons）：AMN47 CC BY 3.0・lumoplank CC0・Solomon203 CC BY-SA 4.0・Taiwankengo CC BY 4.0・billy1125 CC BY 2.0<br>軌道線形與店家：© OpenStreetMap 貢獻者（ODbL）｜時刻表：臺鐵開放資料｜未使用任何業者標誌，不代表已與任何單位合作');
+    cred.style.cssText += 'font-size:20px;font-weight:700;color:#8A7C62;white-space:nowrap;text-align:center;line-height:1.6';
+    S.render = (t) => {
+      const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+      rails.forEach((r, i) => {
+        const a = pr(t, 52.05 + i * 0.05, 52.6 + i * 0.05, E.io);
+        const [dx, dy] = dirs[i];
+        const len = 760 * a;
+        r.style.width = `${len.toFixed(1)}px`;
+        const sx = dx < 0 ? 0 : 1920 - len;
+                r.style.transformOrigin = '0 0';
+        r.style.transform = dy ? `translate(${960 + 8}px,${dy < 0 ? 0 : 1080 - len}px) rotate(90deg)` : `translate(${sx}px,${425 - 8}px)`;
+        r.style.opacity = (1 - pr(t, 52.7, 53.0)).toFixed(2);
+      });
+      logo.render(t - 52.45, 1.25);
+      put(band, { x: 960, y: mix(1150, 832, pr(t, 54.3, 54.75, E.oe)), o: 1 });
+      put(note, { x: 960, y: 930, o: pr(t, 54.8, 55.1) });
+      put(cred, { x: 960, y: 1012, o: pr(t, 55.1, 55.5) });
+      cam(S.cam, 960, 540, kf(t, [[52.0, 1.0], [58.0, 1.04, E.lin]]));
+      S.el.style.opacity = (pr(t, 52.0, 52.25) * (1 - pr(t, 57.6, 58.0))).toFixed(3);
+    };
+  }
+
+  function renderAt(t) {
+    for (const sc of scenes) {
+      const on = t >= sc.t0 && t < sc.t1;
+      sc.el.style.display = on ? '' : 'none';
+      if (on) sc.render(t);
+    }
+  }
+  window.FILM = { DUR, renderAt };
+  // 預覽：?t=12.3 停在某一格；否則用真實時間播放
+  const q = new URLSearchParams(location.search);
+  function fitPreview() { if (!q.has('render')) { const k = Math.min(innerWidth / 1920, innerHeight / 1080); stage.style.transformOrigin = '0 0'; stage.style.transform = `scale(${k})`; } }
+  addEventListener('resize', fitPreview); fitPreview();
+  const ready = Promise.all([document.fonts.load('900 100px "Noto Sans TC"'), document.fonts.load('700 40px "Noto Sans TC"'), ...[...document.images].map((i) => i.decode().catch(() => null))]);
+  ready.then(() => {
+    window.FILM.ready = true;
+    if (q.has('t')) renderAt(+q.get('t'));
+    else if (!q.has('render')) { const t0 = performance.now(); (function loop() { renderAt(((performance.now() - t0) / 1000) % DUR); requestAnimationFrame(loop); })(); }
+  });
+})();
+</script>
+</body>
+</html>
