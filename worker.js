@@ -2949,7 +2949,12 @@ async function fetchRevenueCatLifetimePurchases(uid, env, wantEntitlement, entit
 async function fetchRevenueCatPlusTruth(uid, env, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
   const [subscriptions, lifetime] = await Promise.all([
     fetchRevenueCatSubscriptions(uid, env, wantEntitlement, entitlementEnvironment),
-    fetchRevenueCatLifetimePurchases(uid, env, wantEntitlement, entitlementEnvironment),
+    // 網路例外或回應不是 JSON 也算「查不完整」，走下面同一條判斷；不讓它直接 reject 整個 Promise.all，
+    // 否則訂閱者會因為 /purchases 的例外跟著 503。
+    fetchRevenueCatLifetimePurchases(uid, env, wantEntitlement, entitlementEnvironment).catch(error => {
+      console.error(`[plus] purchases 查詢例外：${error && error.message}`);
+      return { ok: false, status: 503, error: 'entitlement_unavailable' };
+    }),
   ]);
   if (!subscriptions.ok) return subscriptions;
   if (!lifetime.ok) {

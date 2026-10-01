@@ -87,7 +87,8 @@ globalThis.fetch = async (url) => {
     if (new URL(u).pathname.endsWith('/purchases')) {
       const entry = rcPurchasesByEnv[new URL(u).searchParams.get('environment')]
         || { body: { object: 'list', items: [], next_page: null } };
-      return new Response(JSON.stringify(entry.body), { status: entry.status || 200 });
+      if (entry.throws) throw new TypeError('network down (purchases)');
+      return new Response(entry.raw !== undefined ? entry.raw : JSON.stringify(entry.body), { status: entry.status || 200 });
     }
     if (rcSeq) {
       const n = upstream.filter(x => x.includes('api.revenuecat.com')).length - 1;
@@ -972,6 +973,24 @@ section(SECTIONS[12]);
         && p403NoSub.ok === false && p403NoSub.status === 503,
       '金鑰讀不到 /purchases（403）⇒ 訂閱者照常有資格，沒有訂閱的人 503（不當成「確定沒有終身」）',
       JSON.stringify({ p403WithSub, p403NoSub }));
+    // 例外（網路斷、回應不是 JSON）與錯誤狀態碼同一套：訂閱者照訂閱，沒有訂閱的人 503。
+    const withSub = { object: 'list', items: [sub({ customer_id: ANDROID_UID })], next_page: null };
+    const thrownWithSub = await runLifetime({ uid: ANDROID_UID, production: { throws: true }, subscriptions: withSub });
+    const thrownNoSub = await runLifetime({ uid: ANDROID_UID, production: { throws: true } });
+    const htmlWithSub = await runLifetime({ uid: ANDROID_UID, production: { raw: '<html>oops' }, subscriptions: withSub });
+    const htmlNoSub = await runLifetime({ uid: ANDROID_UID, production: { raw: '<html>oops' } });
+    check(thrownWithSub.ok === true && thrownWithSub.lifetimePurchases === null
+        && htmlWithSub.ok === true && htmlWithSub.lifetimePurchases === null
+        && thrownNoSub.ok === false && thrownNoSub.status === 503
+        && htmlNoSub.ok === false && htmlNoSub.status === 503,
+      '/purchases 網路例外或回應不是 JSON ⇒ 訂閱者照常有資格，沒有訂閱的人 503',
+      JSON.stringify({ thrownWithSub: thrownWithSub.ok, htmlWithSub: htmlWithSub.ok, thrownNoSub, htmlNoSub }));
+    // 「訂閱足以判定」要用跟正常路徑同一套條件：gives_access 但沒掛 plus 的訂閱不算，/purchases 查不到就 503。
+    const otherEntitlementSub = { object: 'list', next_page: null, items: [sub({ customer_id: ANDROID_UID,
+      entitlements: { items: [{ id: 'entl_2', lookup_key: 'other', display_name: 'Other', state: 'active' }] } })] };
+    const otherWith500 = await runLifetime({ uid: ANDROID_UID, production: { status: 500, body: {} }, subscriptions: otherEntitlementSub });
+    check(otherWith500.ok === false && otherWith500.status === 503,
+      '訂閱 gives_access 但沒掛 plus＋/purchases 500 ⇒ 503（不算「訂閱足以判定」）；正向對照是上面的有效訂閱＋500', JSON.stringify(otherWith500));
     logs.length = 0;
     const malformed = await runLifetime({ uid: ANDROID_UID, production: { body: { object: 'list', items: null, next_page: null } } });
     check(malformed.ok === false && malformed.status === 503 && logs.some(line => line.includes('purchases') && line.includes('不符官方 schema')),
