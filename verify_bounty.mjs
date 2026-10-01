@@ -594,11 +594,12 @@ const browser = await chromium.launch();
     return {
       km: document.getElementById('recKm').textContent,
       segs: document.getElementById('recSegs').textContent,
-      pts: document.getElementById('recPts').textContent,
+      row: document.getElementById('recRow').textContent,
     };
   });
-  ok('C3b 顯示值真的綁回 state.recording，不是憑空數字（12700mm→12.7km／2段命中≥0.6門檻／7點）',
-    c3b.km === '12.7' && c3b.segs === '2' && c3b.pts === '7', JSON.stringify(c3b));
+  // 覆蓋列只寫段數，不再顯示點數：state 裡的 points 照樣塞 7，整列文字必須只剩「2 段已覆蓋」，不能有任何點數字樣。
+  ok('C3b 顯示值真的綁回 state.recording，不是憑空數字（12700mm→12.7km／2段命中≥0.6門檻；點數不顯示）',
+    c3b.km === '12.7' && c3b.segs === '2' && c3b.row === '2 段已覆蓋', JSON.stringify(c3b));
 
   const c3c = await page.evaluate(() => {
     Object.assign(state.recording, { dNow: 0, segs: {}, _cov: {}, points: 0 });
@@ -606,12 +607,12 @@ const browser = await chromium.launch();
     return {
       km: document.getElementById('recKm').textContent,
       segs: document.getElementById('recSegs').textContent,
-      pts: document.getElementById('recPts').textContent,
+      row: document.getElementById('recRow').textContent,
       bar: document.getElementById('recBar').style.width,
     };
   });
   ok('C3c 開錄當下的真實狀態（全零）必須顯示 0，不殘留上一輪也不假裝已有進度',
-    c3c.km === '0.0' && c3c.segs === '0' && c3c.pts === '0' && c3c.bar === '0%', JSON.stringify(c3c));
+    c3c.km === '0.0' && c3c.segs === '0' && c3c.row === '0 段已覆蓋' && c3c.bar === '0%', JSON.stringify(c3c));
 
   // C4 黑底（省電＋視覺上明確標示正在錄製，規格 §5 之一的理由①③）
   const c4 = await page.evaluate(() => getComputedStyle(document.getElementById('recordScreen')).backgroundColor);

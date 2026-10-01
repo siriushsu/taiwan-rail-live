@@ -445,9 +445,6 @@ const TOAST_REVIEWED = new Map([
   ['`${st.name}${e&&e.n>1?`(${escHtml(e.n)})`:\'\'}`', '單站打卡成功:站名來自內建資料;e.n 從 localStorage 重讀且寫入失敗時可能保留髒值,故已逸出'],
   ['`${st.name}${tr.stops[toIdx].name}`+(j.ok?\'\':\'\')', '開始搭乘:兩個站名都來自 state.trains 的內建班表停靠站;j.ok 只選擇兩個寫死字串'],
   ['`${escHtml(r.fromName)}${st.name}${n}`', '完成搭乘:r.fromName 從 localStorage 還原故已逸出;st.name 由內建班表重建,n 是索引相減後的數字'],
-  ['`${pts}24`', '懸賞認領成功:示範卡與 API 點數都先經 bountyNum 收斂為有限非負整數'],
-  [`''+(j.error===''?'':'')`, '懸賞 API 的 error 只用來選擇兩個寫死字串,API 回傳內容本身沒有插入'],
-  ['`${pts}`', '懸賞認領落盤失敗提示:pts 已先經 bountyNum 收斂為有限非負整數'],
   ['`${escHtml(r.train)},`', '搭乘衝突提示:r.train 從 localStorage 還原,已在進入 innerHTML 前逸出'],
   // 2026-08-18 登記:北捷官方位置的兩則說明。兩者插入的**全部是我們自己算出來的數字**
   // (count/maxM 經 Math.round、mins/count/removed 經 Math.max/Math.round/Number),
@@ -481,9 +478,6 @@ const TOAST_REVIEWED = new Map([
   [`p.label?t('',{label:escHtml(p.label)}):t('')`, '預設啟動地點提示:使用者地點名已 escHtml'],
   [`t('',{system:escHtml(t(plan.targetSys===''?'':plan.targetSys===''?'':'')),train:escHtml(String(plan.targetTr.train||'')),})`,
     '轉乘交棒提示:系統名只選固定翻譯 key，車次即使來自班表也先轉字串並 escHtml；兩個插值皆已逸出'],
-  // 2026-09-19 登記(i18n 複審):懸賞三則提示包進 t() 之後的形狀。上面 `${pts}24`／`${pts}`／''+(j.error…)
-  // 是繁中字面時代的指紋,多語化後對不上,這道發行檢查從 60f3dd83 起就是紅的。值的來源沒變:
-  [`t('',{pts},pts)`, '懸賞認領(示範／成功／落盤失敗三則共用):pts 先經 bountyNum 收斂為有限非負整數;第三參數是英文單複數用的同一個數'],
   [`t('',{reason:j.error===''?t(''):t('')})`, '懸賞認領失敗:API 的 error 只用來選兩個固定翻譯 key,回傳內容本身沒有插入'],
 ]);
 
