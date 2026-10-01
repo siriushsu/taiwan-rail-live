@@ -1,4 +1,4 @@
-// 批次化之前的估值實作的 worker.js（去掉註解的副本）：只給 scripts/verify_bounty_cron2.mjs 的 K、K0 組當對照；不要修改、不要直接 import。
+// 批次化之前的判定實作的 worker.js（去掉註解的副本）：只給 scripts/verify_bounty_cron2.mjs 的 K、K0 組當對照；不要修改、不要直接 import。
 import {createPlatformProxy} from './scripts/tra_platform_proxy.mjs';
 import {
   TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
@@ -56,7 +56,7 @@ async function getToken(env) {
 const traPlatforms = createPlatformProxy({getToken,invalidateToken:()=>{tok=null;tokExp=0;}});
 
 let mem = null, memAt = 0;
-let traLiveInflight = null; 
+let traLiveInflight = null;
 const TRA_LIVE_MEM_TTL_MS = 55e3;
 const TRA_LIVE_WAIT_MAX_MS = 20e3;
 const TRA_LIVE_RECLAIM_MS = 60e3;
@@ -114,7 +114,7 @@ async function traLive(request, env, ctx) {
             headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, s-maxage=21600' },
           })).catch(() => {});
           if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(putLast);
-        })().finally(() => { if (traLiveInflight === mine) traLiveInflight = null; }); 
+        })().finally(() => { if (traLiveInflight === mine) traLiveInflight = null; });
         traLiveInflight = mine;
       }
       const ride = traLiveInflight;
@@ -141,7 +141,7 @@ async function traLive(request, env, ctx) {
 }
 
 const STATION_EVENT_UPSERT = 'INSERT INTO tra_station_events (service_date,train_no,sta,status,delay,delay_max,obs_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(service_date,train_no,sta,status) DO UPDATE SET delay_max = excluded.delay_max WHERE excluded.delay_max > tra_station_events.delay_max';
-let stEventsPrev = null; 
+let stEventsPrev = null;
 
 function twToday() { return isoFromDate(new Date(Date.now() + 8 * 3600 * 1000)); }
 function twDayFromMemAt(at) {
@@ -179,8 +179,8 @@ function snapshotTrains(trains) {
 function recordStationEvents(mem, env, ctx) {
   try {
     if (!env || !env.DELAY_DB || !mem || !Array.isArray(mem.trains)) return;
-    const changed = diffTrains(stEventsPrev, mem.trains); 
-    stEventsPrev = snapshotTrains(mem.trains);            
+    const changed = diffTrains(stEventsPrev, mem.trains);
+    stEventsPrev = snapshotTrains(mem.trains);
     if (!changed.length) return;
     const serviceDate = twDayFromMemAt(mem.at), obsAt = String(mem.at);
     const stmt = env.DELAY_DB.prepare(STATION_EVENT_UPSERT);
@@ -228,7 +228,7 @@ async function thsrAlert(request, env) {
   const hit = await edge.match(cacheKey);
   if (hit) return hit;
   try {
-    if (!thsrAlertMem || Date.now() - thsrAlertMemAt > 300e3) {   
+    if (!thsrAlertMem || Date.now() - thsrAlertMemAt > 300e3) {
       const r = await fetch(THSR_ALERT_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
       if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
       if (!r.ok) throw new Error('tdx api ' + r.status);
@@ -303,8 +303,8 @@ function normalizeNcdrHazards(feed, nowMs = Date.now()) {
     if (!entry || typeof entry !== 'object') continue;
     const status = ncdrText(ncdrField(entry, 'status'));
     const msgType = ncdrText(ncdrField(entry, 'msgType'));
-    if (status !== 'Actual') continue; 
-    if (!/^(Alert|Update)$/i.test(msgType)) continue; 
+    if (status !== 'Actual') continue;
+    if (!/^(Alert|Update)$/i.test(msgType)) continue;
     const type = ncdrHazardType(entry);
     if (!type) continue;
     const effective = ncdrText(ncdrField(entry, 'effective'));
@@ -313,7 +313,7 @@ function normalizeNcdrHazards(feed, nowMs = Date.now()) {
     if (!Number.isFinite(effectiveMs) || !Number.isFinite(expiresMs)) continue;
     if (effectiveMs > nowMs || expiresMs <= nowMs) continue;
     const id = ncdrText(entry.id);
-    if (!id) continue; 
+    if (!id) continue;
     hazards.push({
       id, type, title: ncdrText(entry.title) || type,
       updated: ncdrText(entry.updated), effective, expires,
@@ -349,7 +349,7 @@ function refreshHazardMem(env, {
     hazardRefresh = mine;
     let deadlineTimer;
     const work = Promise.resolve().then(async () => {
-      const sourceUrl = (env && env.NCDR_ALERT_URL) || NCDR_ACTIVE_HAZARD_URL; 
+      const sourceUrl = (env && env.NCDR_ALERT_URL) || NCDR_ACTIVE_HAZARD_URL;
       const r = await fetch(sourceUrl, { headers: { accept: 'application/json' }, signal: controller.signal });
       if (!r.ok) throw new Error('ncdr api ' + r.status);
       const d = await r.json();
@@ -447,7 +447,7 @@ const METRO_ALERT_OPS = [
   { op: 'TMRT', sys: 'tmrt', label: '台中捷運' },
 ];
 
-const metroAlertOpMem = new Map(); 
+const metroAlertOpMem = new Map();
 const METRO_ALERT_STALE_MS = 30 * 60e3;
 function metroAlertOpFallback(prev, nowMs) {
   if (prev && nowMs - prev.at <= METRO_ALERT_STALE_MS) return prev.list;
@@ -506,7 +506,7 @@ async function fetchTymcNewsAlerts(token) {
     tymcNewsMemAt = Date.now();
     return tymcNewsMem;
   } catch (e) {
-    return tymcNewsMem || []; 
+    return tymcNewsMem || [];
   }
 }
 
@@ -559,7 +559,7 @@ async function metroAlert(request, env) {
 }
 
 const METRO_LIVE_OPS = { mrt: ['TRTC'], krtc: ['KRTC', 'KLRT'], tymc: ['TYMC'] };
-const metroLiveMem = new Map(); 
+const metroLiveMem = new Map();
 async function metroLive(request, env, sys) {
   const cacheKey = new Request(new URL('/api/metro-live?sys=' + sys, request.url), { method: 'GET' });
   const edge = caches.default;
@@ -581,8 +581,8 @@ async function metroLive(request, env, sys) {
           l: x.LineID,
           s: (x.StationName && x.StationName.Zh_tw) || '',
           d: (x.DestinationStationName && x.DestinationStationName.Zh_tw) || '',
-          e: x.EstimateTime,   
-          st: x.ServiceStatus, 
+          e: x.EstimateTime,
+          st: x.ServiceStatus,
           ...(op === 'KLRT' ? {
             dir: x.TripHeadSign && typeof x.TripHeadSign === 'object'
               ? (x.TripHeadSign.Zh_tw || '') : (x.TripHeadSign || ''),
@@ -601,7 +601,7 @@ async function metroLive(request, env, sys) {
 }
 
 const NTM_LIVE_SYS = new Set(['circular', 'danhai', 'ankeng']);
-const ntmLiveMem = new Map(); 
+const ntmLiveMem = new Map();
 async function ntmetroLive(request, env, sys) {
   const cacheKey = new Request(new URL('/api/ntmetro-live?sys=' + sys, request.url), { method: 'GET' });
   const edge = caches.default;
@@ -623,7 +623,7 @@ async function ntmetroLive(request, env, sys) {
   }
 }
 
-let klrtPosMem = null; 
+let klrtPosMem = null;
 async function klrtPosition(request, env) {
   const cacheKey = new Request(new URL('/api/klrt-position', request.url), { method: 'GET' });
   const edge = caches.default;
@@ -634,17 +634,17 @@ async function klrtPosition(request, env) {
     if (!stale || Date.now() - stale.at > 35e3) {
       const token = await getToken(env);
       const r = await fetch('https://tdx.transportdata.tw/api/basic/v2/Rail/Metro/LivePosition/KLRT?%24format=JSON',
-        { headers: { authorization: 'Bearer ' + token }, redirect: 'manual' }); 
+        { headers: { authorization: 'Bearer ' + token }, redirect: 'manual' });
       if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
       if (!r.ok) throw new Error('tdx api ' + r.status);
       const d = await r.json();
       const rows = (d && Array.isArray(d.LivePositions) ? d.LivePositions : []).map(x => ({
-        t: String(x.TripID),                 
-        dir: x.Direction,                    
+        t: String(x.TripID),
+        dir: x.Direction,
         lat: x.TrainPosition && x.TrainPosition.PositionLat,
         lon: x.TrainPosition && x.TrainPosition.PositionLon,
         sp: x.Speed, az: x.Azimuth, st: x.TrainStatus,
-        gt: x.GPSTime,                       
+        gt: x.GPSTime,
       })).filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lon));
       klrtPosMem = { data: { at: new Date().toISOString(), src: 'tdx', up: d && d.UpdateTime, rows }, at: Date.now() };
     }
@@ -683,7 +683,7 @@ function trtcEpoch(s) {
   return Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) / 1000) - 8 * 3600;
 }
 function dedupeLatest(rows, timeField) {
-  const latest = new Map(); 
+  const latest = new Map();
   for (const r of rows) {
     const t = trtcEpoch(r[timeField]);
     if (t == null) continue;
@@ -696,9 +696,9 @@ const carsOf = (r, keys) => {
   const v = keys.map(k => Number(r[k]));
   return v.every(x => Number.isInteger(x) && x >= 1 && x <= 4) ? v : null;
 };
-let trtcMem = null; 
+let trtcMem = null;
 function trtcMemoStale(stale, now) { return !stale || now - stale.at > 15e3; }
-let trtcHwMem = null; 
+let trtcHwMem = null;
 const TRTC_HW_THROTTLE_MS = 60e3;
 function trtcHwStale(mem, now) { return !mem || now - mem.at > TRTC_HW_THROTTLE_MS; }
 function trtcHwFallbackUsable(mem, now) {
@@ -737,12 +737,12 @@ async function trtcFetchUpstream(env, now, hwMem) {
 export class TrtcPoller {
   constructor(state, env) {
     this.env = env;
-    this.frame = null;    
+    this.frame = null;
     this.hwMem = null;
     this.inflight = null;
     this.colo = null;
-    this.denied = null;   
-    this.noCreds = false; 
+    this.denied = null;
+    this.noCreds = false;
   }
   async detectColo() {
     if (this.colo) return this.colo;
@@ -764,7 +764,7 @@ export class TrtcPoller {
       this.frame = { at: now, body: JSON.stringify({ tk: r.tk, hw: r.hw, hwThisRound: r.hwThisRound, br: r.br, inService: r.inService }) };
     })();
     const clear = () => { if (this.inflight === run) this.inflight = null; };
-    run.then(clear, clear);           
+    run.then(clear, clear);
     this.inflight = run;
     return run;
   }
@@ -819,8 +819,8 @@ async function trtcLive(request, env) {
     if (trtcMemoStale(stale, Date.now())) {
       const officialRequestStartedAt = Date.now();
       const frame = await trtcRawFrame(env, officialRequestStartedAt);
-      const hwRaw = frame.hw;              
-      const hwThisRound = frame.hwThisRound; 
+      const hwRaw = frame.hw;
+      const hwThisRound = frame.hwThisRound;
       const brRaw = frame.br;
       const tkResult = frame.tk;
       const tk = tkResult.rows;
@@ -860,7 +860,7 @@ async function trtcLive(request, env) {
       for (const r of hw) {
         const m = meta.get(r.TrainNumber);
         const cars = carsOf(r, ['Cart1L', 'Cart2L', 'Cart3L', 'Cart4L', 'Cart5L', 'Cart6L']);
-        if (!cars) carsRejected++; 
+        if (!cars) carsRejected++;
         trains.push({ no: String(r.TrainNumber), sys: 'hw', dir: +r.CID, stn: r.StationID,
           at: trtcEpoch(r.utime), dest: m ? m.dest : null, path: m ? m.path : [], ...(cars ? { cars } : {}) });
       }
@@ -895,7 +895,7 @@ async function trtcLive(request, env) {
             brPathByNo.set(String(cw[fit.vOff + i].TrainNumber), derived[fit.dOff + i]);
             brSegStat.matched++;
           }
-          brSegStat.unaligned += derived.length - fit.n; 
+          brSegStat.unaligned += derived.length - fit.n;
         }
       } catch (e) {
         console.warn('[trtc br-seg] 倒數切段失敗(退回原路徑):', (e && e.message) || String(e));
@@ -905,7 +905,7 @@ async function trtcLive(request, env) {
         const segHit = brPathByNo.get(no);
         const m = meta.get(no);
         const cars = carsOf(r, ['Car1', 'Car2', 'Car3', 'Car4']);
-        if (!cars) carsRejected++; 
+        if (!cars) carsRejected++;
         trains.push({ no, sys: 'br', dir: segHit ? segHit.dir : +r.CID, stn: r.StationID,
           at: segHit && Number.isFinite(segHit.baseEpoch) ? segHit.baseEpoch : trtcEpoch(r.UpdateTime),
           dest: segHit ? segHit.destName : (m ? m.dest : null),
@@ -963,7 +963,7 @@ function trtcModelSources(env) {
   ]);
 }
 
-async function trtcLedgerModel(env) { 
+async function trtcLedgerModel(env) {
   if (trtcLedgerModelCache) return trtcLedgerModelCache;
   const [trtc, times, codes] = await trtcModelSources(env);
   const model = buildTrtcModel(trtc, times, codes, { includeY: true });
@@ -971,7 +971,7 @@ async function trtcLedgerModel(env) {
   return trtcLedgerModelCache;
 }
 
-async function trtcBoardModel(env) { 
+async function trtcBoardModel(env) {
   if (trtcBoardModelCache) return trtcBoardModelCache;
   const [trtc, times, codes] = await trtcModelSources(env);
   const model = buildTrtcModel(trtc, times, codes, { includeY: true });
@@ -980,15 +980,15 @@ async function trtcBoardModel(env) {
 }
 
 let trtcDayTypeTableCache = null;
-async function trtcDayTypeTable(env) { 
+async function trtcDayTypeTable(env) {
   if (trtcDayTypeTableCache) return trtcDayTypeTableCache;
   const table = await trtcLedgerAssetJson(env, 'data/tw_daytype.json');
   if (!trtcDayTypeTableCache) trtcDayTypeTableCache = table;
   return trtcDayTypeTableCache;
 }
 
-let trtcTripSetsCache = null; 
-let trtcTripBindingReconciledDay = null; 
+let trtcTripSetsCache = null;
+let trtcTripBindingReconciledDay = null;
 const TRTC_TRIP_BINDING_BATCH_SIZE = 80;
 async function trtcTripSetsForDay(env, day) {
   if (trtcTripSetsCache && trtcTripSetsCache.day === day) return trtcTripSetsCache;
@@ -1847,7 +1847,7 @@ async function getFirestoreAccessToken(env, nowMs = Date.now()) {
       grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
       assertion,
     }),
-    redirect: 'manual',                                        
+    redirect: 'manual',
   });
   if (!response.ok) throw new Error(`google oauth ${response.status}`);
   const body = await response.json();
@@ -1889,7 +1889,7 @@ function rcSubscriptionsPageError(body, expectCustomerId) {
     if (rcTypeName(sub) !== 'object') return `items 內含非物件成員(${rcTypeName(sub)})`;
     if (sub.customer_id !== expectCustomerId)
       return 'customer_id 與這次查詢的 customer 不一致(customer-scoped 端點不該回別人的訂閱)';
-    if (!Object.prototype.hasOwnProperty.call(sub, 'entitlements')) continue;   
+    if (!Object.prototype.hasOwnProperty.call(sub, 'entitlements')) continue;
     const ents = sub.entitlements;
     if (rcTypeName(ents) !== 'object') return `entitlements 存在但不是物件(${rcTypeName(ents)})`;
     if (!Array.isArray(ents.items)) return `entitlements.items 存在但不是陣列(${rcTypeName(ents.items)})`;
@@ -1903,7 +1903,7 @@ function rcSubscriptionsPageError(body, expectCustomerId) {
 function subscriptionMatchesPlus(sub, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
   if (!sub || typeof sub !== 'object' || sub.gives_access !== true) return false;
   if (sub.environment !== plusEnvironment(entitlementEnvironment)) return false;
-  if (!Object.prototype.hasOwnProperty.call(sub, 'entitlements')) return true;   
+  if (!Object.prototype.hasOwnProperty.call(sub, 'entitlements')) return true;
   const ents = sub.entitlements;
   if (!ents || typeof ents !== 'object' || Array.isArray(ents) || !Array.isArray(ents.items)) return false;
   return ents.items.some(e => e && e.lookup_key === wantEntitlement);
@@ -1929,7 +1929,7 @@ function plusEntitlementDocument(body, wantEntitlement, source, nowMs = Date.now
     });
     const known = expirations.filter(ms => ms > 0);
     activeUntilMs = known.length === expirations.length
-      ? Math.max(...known) + PLUS_ENTITLEMENT_GRACE_MS                 
+      ? Math.max(...known) + PLUS_ENTITLEMENT_GRACE_MS
       : Math.max(nowMs, ...known) + PLUS_ENTITLEMENT_GRACE_MS;
   }
   return { active: access.length > 0, activeUntilMs, updatedAtMs: nowMs, source };
@@ -1974,11 +1974,11 @@ async function writePlusEntitlement(uid, doc, env, nowMs = Date.now(), entitleme
   for (let attempt = 1; attempt <= FIRESTORE_CAS_MAX_ATTEMPTS; attempt += 1) {
     const current = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
-      redirect: 'manual',                                      
+      redirect: 'manual',
     });
     let precondition;
     if (current.status === 404) {
-      precondition = 'currentDocument.exists=false';          
+      precondition = 'currentDocument.exists=false';
     } else if (current.ok) {
       const existing = await current.json();
       const updateTime = existing && existing.updateTime;
@@ -1996,7 +1996,7 @@ async function writePlusEntitlement(uid, doc, env, nowMs = Date.now(), entitleme
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify(firestoreEntitlementPayload(doc)),
-      redirect: 'manual',                                      
+      redirect: 'manual',
     });
     if (response.ok) return { written: true, outcome: precondition.startsWith('currentDocument.exists') ? 'created' : 'updated' };
     let reason = '';
@@ -2020,7 +2020,7 @@ async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement, entitleme
   for (let page = 0; page < RC_SUBS_MAX_PAGES; page++) {
     const rc = await fetch(rcUrl, {
       headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
-      redirect: 'manual',                                      
+      redirect: 'manual',
     });
     if (rc.status === 404) {
       if (page > 0 || matches.length) {
@@ -2072,7 +2072,7 @@ async function checkPlusEntitlement(request, env) {
   try {
     const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
-      redirect: 'manual',                                      
+      redirect: 'manual',
     });
     if (!lookup.ok) return { ok: false, status: 401, error: 'unauthorized' };
     const identity = await lookup.json(), uid = identity && identity.users && identity.users[0] && identity.users[0].localId;
@@ -2095,7 +2095,7 @@ async function checkPlusEntitlement(request, env) {
       return { ok: false, status: 403, error: 'not_entitled', ...common };
     return { ok: true, ...common };
   } catch (e) {
-    return { ok: false, status: 503, error: 'entitlement_unavailable' };                         
+    return { ok: false, status: 503, error: 'entitlement_unavailable' };
   }
 }
 
@@ -2511,7 +2511,7 @@ const laApnsEnvName = host => (host === LA_APNS_SANDBOX ? 'sandbox' : 'prod');
 function laApnsHostOf(envName, env) {
   if (envName === 'sandbox') return LA_APNS_SANDBOX;
   if (envName === 'prod') return LA_APNS_PROD;
-  return laApnsDefaultHost(env);          
+  return laApnsDefaultHost(env);
 }
 async function laApnsOnce(env, jwt, token, body, host) {
   const res = await laFetchWithTimeout(`https://${host}/3/device/${token}`, {
@@ -2520,7 +2520,7 @@ async function laApnsOnce(env, jwt, token, body, host) {
       authorization: 'bearer ' + jwt,
       'apns-topic': 'tw.railisland.app.push-type.liveactivity',
       'apns-push-type': 'liveactivity',
-      'apns-priority': '5',        
+      'apns-priority': '5',
       'content-type': 'application/json',
     },
     body: JSON.stringify(body),
@@ -2576,9 +2576,9 @@ async function laPushAll(env, ctx, baseUrl, half = null) {
   const tag = half ? 'la-push 半分鐘' : 'la-push';
   if (!env.APNS_KEY_P8 || !env.DELAY_DB) {
     console.error(`[cron ${tag}] APNS_KEY_P8 或 DELAY_DB 未設定,cron 本輪整支跳過`);
-    return { sent: 0, dropped: 0, heldBack: 0, handoff: null };   
+    return { sent: 0, dropped: 0, heldBack: 0, handoff: null };
   }
-  const tickStartMs = Date.now();   
+  const tickStartMs = Date.now();
   const now = Math.floor(tickStartMs / 1000);
   const deadlineMs = half ? half.deadlineMs : tickStartMs + LA_TICK_BUDGET_MS;
   if (!half) await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE expire_at < ?').bind(now).run();
@@ -2595,7 +2595,7 @@ async function laPushAll(env, ctx, baseUrl, half = null) {
     console.error(`[cron la-push] 列數觸頂:本輪 ${rows.length}>${limit},已依到期時間排序只處理最快到期的前 ${limit} 列,較新的 ${rows.length - limit} 列本輪未推播(持續觸頂會延後,不保證下一輪一定處理到)`);
     rows = rows.slice(0, limit);
   }
-  if (!rows.length) return { sent: 0, dropped: 0, heldBack: 0, handoff: null };   
+  if (!rows.length) return { sent: 0, dropped: 0, heldBack: 0, handoff: null };
   const rotate = rows.length > 1 ? Math.floor(now / 60) % rows.length : 0;
   if (rotate) rows = rows.slice(rotate).concat(rows.slice(0, rotate));
 
@@ -2644,7 +2644,7 @@ async function laPushAll(env, ctx, baseUrl, half = null) {
       let schedFallbackBlocked = liveDown && activeSys === 'tra_sched' && !LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN;
       let useObs = !!t && !liveDown;
       let idx = useObs ? laNextIdx(String(t.sta), Number(t.status), staMap, stopCodes, row.last_idx, row.last_obs_idx)
-                    : schedFallbackBlocked ? row.last_idx      
+                    : schedFallbackBlocked ? row.last_idx
                     : laSchedIdx(stops, delaySec, now, row.last_idx);
       let obsResolved = useObs && laObsIdx(String(t.sta), Number(t.status), staMap, stopCodes) != null;
       let notice = (liveDown && activeSys === 'tra_sched' && !schedFallbackBlocked) ? LA_NOTICE_UPSTREAM_DOWN : null;
@@ -2682,7 +2682,7 @@ async function laPushAll(env, ctx, baseUrl, half = null) {
       }
       const transferWaiting = !!(identity && idx === 0 && now < Number(identity.waitUntil));
       if (transferWaiting) stopping = false;
-      if (idx >= stops.length) {                            
+      if (idx >= stops.length) {
         if (half) continue;
         await laPushEnd(env, jwt, row, stops, delaySec, now);
         await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(row.token).run();
@@ -2737,10 +2737,10 @@ async function laPushAll(env, ctx, baseUrl, half = null) {
         if (obsResolved && idx > Number(row.last_obs_idx)) {
           await env.DELAY_DB.prepare('UPDATE la_bindings SET last_obs_idx=? WHERE token=?').bind(idx, row.token).run();
         }
-        continue;   
+        continue;
       }
 
-      attempted++;   
+      attempted++;
       const r = await laApnsSend(env, jwt, row.token, body, row.apns_env);
       if (r.retried) apnsRetried++;
       if (r.ok) {
@@ -2873,7 +2873,7 @@ async function metroWaitPushAll(env, ctx, baseUrl, half = null) {
       const src = sources[String(row.sys)];
       let prev = null;
       try { prev = row.last_state ? JSON.parse(row.last_state) : null; }
-      catch (e) { prev = null; }   
+      catch (e) { prev = null; }
       if (half && !prev) { unchanged++; continue; }
       let picked = [], serviceOver = false, dataAt = null;
       if (src && src.ok) {
@@ -2886,7 +2886,7 @@ async function metroWaitPushAll(env, ctx, baseUrl, half = null) {
         }
       }
       if (now >= Number(row.end_at) || serviceOver) {
-        if (half) { unchanged++; continue; }   
+        if (half) { unchanged++; continue; }
         const endState = { ...mwContentState(row.sys, picked, src && src.crowdByNo, dataAt), ...(prev || {}), pushed: true };
         await metroWaitPushEnd(env, jwt, row, endState, now, serviceOver ? 'lastTrain' : 'endAt');
         await env.DELAY_DB.prepare('DELETE FROM metro_wait_bindings WHERE token=?').bind(row.token).run();
@@ -2991,7 +2991,7 @@ async function traWaitPushAll(env, ctx, baseUrl, half = null) {
     try {
       let prev = null;
       try { prev = row.last_state ? JSON.parse(row.last_state) : null; }
-      catch (e) { prev = null; }   
+      catch (e) { prev = null; }
       if (half && !prev) { unchanged++; continue; }
       const delay = twDelayFor(live, row.train_no, now);
       const holding = !delay.known && delay.fresh && !!prev && prev.delayMin != null;
@@ -3000,7 +3000,7 @@ async function traWaitPushAll(env, ctx, baseUrl, half = null) {
 
       const why = twShouldEnd(now, shownDelay == null ? null : eta, row.end_at);
       if (why) {
-        if (half) { unchanged++; continue; }   
+        if (half) { unchanged++; continue; }
         const endState = { ...twContentState(delay, delay.dataAt), ...(prev || {}), pushed: true };
         await metroWaitPushEnd(env, jwt, row, endState, now, why, 'tw-push');
         await env.DELAY_DB.prepare('DELETE FROM tra_wait_bindings WHERE token=?').bind(row.token).run();
@@ -3183,7 +3183,7 @@ async function basemapSession(request, env) {
     const r = await fetch(
       'https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/sessions/start'
       + '?styleFamily=arcgis&token=' + encodeURIComponent(env.ESRI_WEB_TOKEN),
-      { headers: { referer: 'https://railisland.tw/' }, redirect: 'manual' });   
+      { headers: { referer: 'https://railisland.tw/' }, redirect: 'manual' });
     const d = await r.json();
     if (!r.ok || !d || !d.sessionToken) return jsonRes({ error: 'upstream' }, 502, 'no-store');
     return jsonRes({ sessionToken: d.sessionToken, endTime: d.endTime }, 200, 'no-store');
@@ -3202,7 +3202,7 @@ async function deletePlusEntitlement(uid, env, nowMs = Date.now(), entitlementEn
   const response = await fetch(url, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
-    redirect: 'manual',                                        
+    redirect: 'manual',
   });
   if (response.ok || response.status === 404) return { deleted: true };
   throw new Error(`firestore entitlement delete ${response.status}`);
@@ -3221,7 +3221,7 @@ async function deleteAccountData(request, env) {
   try {
     const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
-      redirect: 'manual',                                      
+      redirect: 'manual',
     });
     if (!lookup.ok) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
     const identity = await lookup.json(), uid = identity && identity.users && identity.users[0] && identity.users[0].localId;
@@ -3232,7 +3232,7 @@ async function deleteAccountData(request, env) {
     if (env.REVENUECAT_PROJECT_ID && env.REVENUECAT_V2_SECRET_KEY) {
       const rc = await fetch(`https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}`, {
         method: 'DELETE', headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
-        redirect: 'manual',                                    
+        redirect: 'manual',
       });
       if (!(rc.ok || rc.status === 404)) return jsonRes({ error: 'purchase profile deletion failed' }, 502, 'no-store');
     }
@@ -3494,7 +3494,7 @@ async function cachedBusTransferRaw(request, env, station) {
   return await sharedBusInflight(busTransferInflight, station.id, async ({ signal, isCurrent }) => {
     let settled;
     try {
-      const token = await getToken(env); 
+      const token = await getToken(env);
       settled = await Promise.allSettled(station.scopes.map(scopeData => fetchBusN1(env, scopeData, token, signal)));
     } catch (error) {
       settled = station.scopes.map(() => ({ status: 'rejected', reason: error }));
@@ -3803,7 +3803,7 @@ const BUS_STOP_N1_SELECT = 'RouteUID,RouteID,RouteName,SubRouteUID,SubRouteID,Su
 
 let busProviderMem = null, busProviderMemAt = 0;
 let busStopIndexMem = null, busStopIndexMemAt = 0;
-const busDirectMem = new Map();     
+const busDirectMem = new Map();
 const busStopInflight = new Map();
 
 function resetBusStopCaches() {
@@ -4360,7 +4360,7 @@ async function passAdmin(request, env) {
   }
 }
 
-const PASS_MAX_IMPORT = 3000;   
+const PASS_MAX_IMPORT = 3000;
 function passParseCodes(raw) {
   const out = [], seen = new Set();
   for (const line of String(raw || '').split(/[\r\n]+/)) {
@@ -4405,7 +4405,7 @@ async function firebaseUid(env, idToken) {
   try {
     const lookup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_WEB_API_KEY)}`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }),
-      redirect: 'manual',                                      
+      redirect: 'manual',
     });
     if (!lookup.ok) return null;
     const identity = await lookup.json();
@@ -4422,7 +4422,7 @@ async function resolveActor(env, actor) {
 const GEO_KEY_RE = /^(lat|lon|lng|latitude|longitude|coords?|position|geo)$/i;
 function hasGeoKeys(v, depth) {
   if (v == null || typeof v !== 'object') return false;
-  if ((depth || 0) > 8) return true;                 
+  if ((depth || 0) > 8) return true;
   if (Array.isArray(v)) return v.some(x => hasGeoKeys(x, (depth || 0) + 1));
   for (const k of Object.keys(v)) {
     if (GEO_KEY_RE.test(k)) return true;
@@ -4462,7 +4462,7 @@ function groupBoardRows(rows, claimCounts, coverN, coverDistinct) {
     const k = `${r.seg_key}|${r.train_kind}|${r.dir}|${r.kind}|${r.slot || ''}`;
     c.claimers = Math.max(c.claimers, (claimCounts && claimCounts.get(k)) || 0);
   };
-  const done = new Map();          
+  const done = new Map();
   for (const r of rows) {
     const id = bountyCardId(r), ln = bountySegLine(r.seg_key);
     let c = m.get(id);
@@ -4482,7 +4482,7 @@ function groupBoardRows(rows, claimCounts, coverN, coverDistinct) {
   }
   for (const [id, list] of done) {
     const c = m.get(id);
-    if (c.units > 0) continue;     
+    if (c.units > 0) continue;
     c.covered = true;
     for (const r of list) add(c, r);
   }
@@ -4559,7 +4559,7 @@ async function bountyClaim(request, env) {
 
 function bountyWritesOff(env) { return String(env.BOUNTY_WRITES || '').toLowerCase() === 'off'; }
 
-const BOUNTY_MAX_SAMPLES_PER_BATCH = 600;   
+const BOUNTY_MAX_SAMPLES_PER_BATCH = 600;
 const BOUNTY_MAX_BATCHES_PER_DAY = 720;
 const BOUNTY_TRIP_DATE_BACK_DAYS = 7;
 const BOUNTY_LINE_ID_RE = /^[^|\u0000-\u001f\u007f]{1,32}$/u;
@@ -4646,7 +4646,7 @@ async function bountyMe(request, env) {
     for (const r of rows) {
       let cov = [];
       try { cov = JSON.parse(r.segs || '[]'); } catch (e) {}
-      if (r.verdict === 'suspect') continue;               
+      if (r.verdict === 'suspect') continue;
       const lk = `${r.sys}|${r.ln_id}`;
       const L = byLine.get(lk) || { sys: r.sys, lnId: r.ln_id, segs: 0, adopted: 0 };
       for (const c of cov) {
@@ -4773,7 +4773,7 @@ async function bountyPurgeUid(env, uid, deviceActor) {
     ['samples', 'bounty_samples'], ['claims', 'bounty_claims'],
     ['chips', 'chip_ledger'], ['unlocks', 'garage_unlocks'], ['cloudRides', 'cloud_rides'], ['contrib', 'bounty_seg_contrib'],
   ];
-  const stmts = [], at = {};                       
+  const stmts = [], at = {};
   const add = (name, st) => { (at[name] = at[name] || []).push(stmts.length); stmts.push(st); };
   for (const [name, table] of TABLES) add(name, db.prepare(`DELETE FROM ${table} WHERE actor=? OR actor IN (${sub})`).bind(uid, uid));
   if (dev) for (const [name, table] of TABLES) add(name, db.prepare(`DELETE FROM ${table} WHERE actor=?${notElsewhere}`).bind(dev, dev, uid));
@@ -4818,7 +4818,7 @@ async function chipsMe(request, env) {
   if (!isActorId(who)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
   try {
     const chips = await bountyChipsRules(env);
-    const actor = await resolveActor(env, who);          
+    const actor = await resolveActor(env, who);
     const st = await chipStateOf(env.DELAY_DB, actor);
     const nRides = await cloudRideCount(env.DELAY_DB, actor);
     const day = taipeiDay(Number(env.BOUNTY_NOW) || Date.now());
@@ -4897,10 +4897,10 @@ async function garageRedeem(request, env) {
 
 const CLOUD_RIDE_METRO_SYS = new Set(['mrt', 'tymc', 'ntdlrt', 'ntalrt', 'sanying', 'krtc', 'tmrt']);
 const CLOUD_RIDE_SCHED_SYS = new Set(['tra_sched', 'thsr_sched', 'afr_sched']);
-const CLOUD_RIDE_WINDOW_SLACK_SEC = 30 * 60;      
-const CLOUD_RIDE_FUTURE_SLACK_MS = 60 * 1000;     
-const CLOUD_RIDE_MAX_SEC = 86400;                 
-const CLOUD_RIDE_NO_RE = /^[0-9A-Za-z]{1,8}$/;    
+const CLOUD_RIDE_WINDOW_SLACK_SEC = 30 * 60;
+const CLOUD_RIDE_FUTURE_SLACK_MS = 60 * 1000;
+const CLOUD_RIDE_MAX_SEC = 86400;
+const CLOUD_RIDE_NO_RE = /^[0-9A-Za-z]{1,8}$/;
 const CLOUD_RIDE_VEHICLE_RE = /^[^|\u0000-\u001f\u007f]{1,64}$/u;
 const CLOUD_RIDE_KEY_MAX = 96;
 
@@ -4913,7 +4913,7 @@ async function cloudRideAsset(env, file) {
 }
 
 function cloudRideInWindow(day, startedAt, firstSec, lastSec) {
-  if (firstSec == null || lastSec == null) return false;          
+  if (firstSec == null || lastSec == null) return false;
   const a = Number(firstSec), z = Number(lastSec);
   if (!Number.isFinite(a) || !Number.isFinite(z)) return false;
   const t0 = Date.parse(day + 'T00:00:00Z') - 8 * 3600e3;
@@ -5061,7 +5061,7 @@ function bountyMedian(nums) {
 }
 function bountyL1(perDay, medianPerDay) {
   const n = Number(perDay);
-  if (!(n > 0)) return 3;                      
+  if (!(n > 0)) return 3;
   return Math.min(3, Math.max(1, Number(medianPerDay) / n));
 }
 function bountyL2(nowMs, firstClaimableAt) {
@@ -5102,7 +5102,7 @@ async function bountyValuationCron(env) {
     'MAX((SELECT COALESCE(MAX(distinct_ok_users), 0) FROM bounty_board WHERE seg_key=?),' +
     ' (SELECT COUNT(*) FROM bounty_seg_contrib WHERE seg_key=?)))');
   let inserted = 0;
-  for (let i = 0; i < M.units.length; i += 80) {          
+  for (let i = 0; i < M.units.length; i += 80) {
     const chunk = M.units.slice(i, i + 80);
     const res = await env.DELAY_DB.batch(chunk.map(u => {
       const l1 = bountyL1(u.perDay, med), l2 = bountyL2(now, claimableFrom);
@@ -5164,7 +5164,7 @@ const median = a => { const s = a.slice().sort((x, y) => x - y); const m = s.len
 function coverageOf(trip, line, rules, peakHoursBySys) {
   const sts = (line.stations || []).slice().sort((a, b) => a.d - b.d);
   const out = [];
-  const ds = trip.pts.map(p => p.d / 1000);          
+  const ds = trip.pts.map(p => p.d / 1000);
   if (!ds.length) return out;
   for (let i = 1; i < sts.length; i++) {
     const a = sts[i - 1], b = sts[i], lo = Math.min(a.d, b.d), hi = Math.max(a.d, b.d);
@@ -5195,8 +5195,8 @@ function coverageOf(trip, line, rules, peakHoursBySys) {
     const localDs = local.map(p => Number(p.d));
     const hasBefore = Math.min(...localDs) <= centerM - D.sideMinM;
     const hasAfter = Math.max(...localDs) >= centerM + D.sideMinM;
-    const needBefore = tripLoM <= centerM - D.sideMinM;   
-    const needAfter = tripHiM >= centerM + D.sideMinM;    
+    const needBefore = tripLoM <= centerM - D.sideMinM;
+    const needAfter = tripHiM >= centerM + D.sideMinM;
     const spatialPass = (!needBefore || hasBefore) && (!needAfter || hasAfter) && (hasBefore || hasAfter);
     if (!spatialPass) continue;
 
@@ -5224,15 +5224,15 @@ function integrityGate(trip, ctx, rules) {
   if (tripMs > now + 86400000) return { pass: false, code: 'future_date' };
   if (now - tripMs > R.tripDateMaxAgeDays * 86400000) return { pass: false, code: 'stale_date' };
   const pts = trip.pts;
-  if (pts.length < 2) return { pass: true, code: null };        
+  if (pts.length < 2) return { pass: true, code: null };
   const cap = R.speedCapMps[BOUNTY_SYS_BUCKET[trip.sys]] || R.speedCapMps.default;
   for (let i = 1; i < pts.length; i++) {
     const dt = pts[i].t - pts[i - 1].t, dd = pts[i].d - pts[i - 1].d;
     if (dt <= 0) continue;
     const forwardDd = Number(trip.dir) === 1 ? -dd : dd;
-    if (forwardDd < -50) return { pass: false, code: 'impossible_physics' };     
+    if (forwardDd < -50) return { pass: false, code: 'impossible_physics' };
     const v = forwardDd / dt;
-    if (v > cap * 1.15) return { pass: false, code: 'impossible_physics' };      
+    if (v > cap * 1.15) return { pass: false, code: 'impossible_physics' };
     const dv = (Number(pts[i].v) || v) - (Number(pts[i - 1].v) || v);
     if (Math.abs(dv / dt) > R.maxAccelMps2 * 3) return { pass: false, code: 'impossible_physics' };
   }
@@ -5258,7 +5258,7 @@ function integrityGate(trip, ctx, rules) {
       if (!st) continue;
       let best = null;
       for (const p of pts) { const gap = Math.abs(p.d / 1000 - st.d); if (!best || gap < best.gap) best = { gap, t: p.t }; }
-      if (!best || best.gap > 0.5) continue;                                   
+      if (!best || best.gap > 0.5) continue;
       worst = Math.max(worst, Math.abs(best.t - (Number(e.schedSec) + Number(e.delay || 0) * 60)));
     }
     if (worst > R.delayMatchToleranceSec) return { pass: false, code: 'delay_mismatch' };
@@ -5293,7 +5293,7 @@ function verdictOf(ig, qg) {
 
 function bountyResetMemCaches() {
   bountyRulesMem = null; bountyUnitsMem = null;
-  for (const k of Object.keys(cloudRideAssetMem)) delete cloudRideAssetMem[k];      
+  for (const k of Object.keys(cloudRideAssetMem)) delete cloudRideAssetMem[k];
 }
 
 async function bountyRegisterContrib(env, rules, actor, segKeys, now) {
@@ -5305,12 +5305,12 @@ async function bountyRegisterContrib(env, rules, actor, segKeys, now) {
   const cover = env.DELAY_DB.prepare(
     'UPDATE bounty_board SET covered_at = COALESCE(covered_at, ?) WHERE seg_key=? AND distinct_ok_users >= ?');
   const keys = [...new Set(segKeys)];
-  const per = Math.floor(D1_BATCH_SIZE / 3);                 
+  const per = Math.floor(D1_BATCH_SIZE / 3);
   for (let i = 0; i < keys.length; i += per) {
     await env.DELAY_DB.batch(keys.slice(i, i + per).flatMap(k => {
       const stmts = [bump.bind(k, k, actor), reg.bind(k, actor, now)];
       const need = bountyDistinctNeed(rules, k);
-      if (need > 0) stmts.push(cover.bind(now, k, need));    
+      if (need > 0) stmts.push(cover.bind(now, k, need));
       return stmts;
     }));
   }
@@ -5420,7 +5420,7 @@ async function bountyVerifyCron(env) {
         'UPDATE bounty_samples SET verdict=?, verdict_at=?, quality_code=?, reject_code=?, segs=? WHERE id=?');
       await env.DELAY_DB.batch(trip.sampleIds.map(id =>
         upd.bind(v.verdict, now, v.qualityCode, v.rejectCode, segsJson, id)));
-      if (sim || v.verdict === 'suspect') continue;             
+      if (sim || v.verdict === 'suspect') continue;
       let earned = 0;
       const creditedKinds = new Map();
       for (const c of cov) {
@@ -5441,12 +5441,12 @@ async function bountyVerifyCron(env) {
         if (row) creditedKinds.set(creditKey, String(row.train_kind));
         earned += Number(row && row.points) || 0;
       }
-      earned = Math.min(earned, rules.dailyPointsCap);          
+      earned = Math.min(earned, rules.dailyPointsCap);
       await env.DELAY_DB.prepare(
         'INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES (?,NULL,?,NULL,?)' +
         ' ON CONFLICT(actor) DO UPDATE SET points = points + excluded.points, updated_at = excluded.updated_at'
       ).bind(trip.actor, earned, now).run();
-      if (v.verdict !== 'ok') continue;                         
+      if (v.verdict !== 'ok') continue;
       for (const c of cov) {
         const trainKind = creditedKinds.get(`${c.key}|${c.dir}|${c.kind}|${c.slot}`);
         if (!trainKind) continue;
@@ -5477,10 +5477,10 @@ async function bountyVerifyCron(env) {
 const HIST_DELAY_URL = 'https://tdx.transportdata.tw/api/historical/v2/Historical/Rail/TRA/LiveTrainDelay';
 const DELAY_BLOB_KEY = 'tra_delay_stats_30d';
 const DELAY_BLOB_NOTE = 'a=平均最終誤點(分,1位小數) p=準點率%(final_delay≤5,四捨五入整數) d=有紀錄天數 m=單日最大誤點(分)。最終誤點=最後回報站(終點前一站)離站時誤點';
-const BLOB_WINDOW_DAYS = 30;   
-const SCAN_WINDOW_DAYS = 35;   
-const MAX_DATES_PER_RUN = 3;   
-const D1_BATCH_SIZE = 80;      
+const BLOB_WINDOW_DAYS = 30;
+const SCAN_WINDOW_DAYS = 35;
+const MAX_DATES_PER_RUN = 3;
+const D1_BATCH_SIZE = 80;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -5524,7 +5524,7 @@ function roundHalfUpStr(value, ndigits) {
   let frac = dot === -1 ? '' : s.slice(dot + 1);
   let roundUp = false;
   if (frac.length > ndigits) {
-    roundUp = frac.charCodeAt(ndigits) - 48 >= 5;   
+    roundUp = frac.charCodeAt(ndigits) - 48 >= 5;
     frac = frac.slice(0, ndigits);
   } else {
     frac = frac.padEnd(ndigits, '0');
@@ -5546,7 +5546,7 @@ function roundHalfUpStr(value, ndigits) {
 
 function parseDayEvents(text) {
   if (typeof text !== 'string') return [];
-  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);   
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
   const out = [];
   for (const raw of text.split('\n')) {
     const line = raw.trim();
@@ -5571,7 +5571,7 @@ function groupAndSort(events) {
     if (!arr) { arr = []; byTrain.set(trainNo, arr); }
     arr.push({ ms: tp.ms, hour: tp.hour, delay, station: String(r.StationID), src: r.SrcUpdateTime });
   }
-  for (const arr of byTrain.values()) arr.sort((a, b) => a.ms - b.ms);   
+  for (const arr of byTrain.values()) arr.sort((a, b) => a.ms - b.ms);
   return byTrain;
 }
 
@@ -5588,8 +5588,8 @@ function buildDayRows(serviceDate, events, prevDayRows) {
     let mergeNow = false, alreadyAbsorbed = false;
     if (p != null && early.length) {
       const pl = twParts(String(p.last_seen));
-      if (pl && pl.date === prevDate && pl.hour >= 22) mergeNow = true;             
-      else if (pl && pl.date === serviceDate && pl.hour < 3) alreadyAbsorbed = true; 
+      if (pl && pl.date === prevDate && pl.hour >= 22) mergeNow = true;
+      else if (pl && pl.date === serviceDate && pl.hour < 3) alreadyAbsorbed = true;
     }
     if (mergeNow) {
       const last = early[early.length - 1];
@@ -5665,7 +5665,7 @@ async function fetchHistDayWithTimeout(url, headers, dayIso) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), HIST_FETCH_TIMEOUT_MS);
   try {
-    const r = await fetch(url, { headers, redirect: 'manual', signal: controller.signal });   
+    const r = await fetch(url, { headers, redirect: 'manual', signal: controller.signal });
     const text = await r.text();
     return { status: r.status, ok: r.ok, text };
   } catch (e) {
@@ -5699,7 +5699,7 @@ async function ingestDelayHistory(env) {
   const db = env.DELAY_DB;
   const yesterday = isoFromDate(new Date(Date.now() + 8 * 3600 * 1000 - 24 * 3600 * 1000));
   const expected = [];
-  for (let i = SCAN_WINDOW_DAYS - 1; i >= 0; i--) expected.push(addDays(yesterday, -i));   
+  for (let i = SCAN_WINDOW_DAYS - 1; i >= 0; i--) expected.push(addDays(yesterday, -i));
   const since = expected[0];
   const existRes = await db.prepare('SELECT DISTINCT service_date FROM tra_delay_daily WHERE service_date >= ?').bind(since).all();
   const existing = new Set((existRes.results || []).map(r => String(r.service_date)));
@@ -5712,7 +5712,7 @@ async function ingestDelayHistory(env) {
     const token = await getToken(env);
     for (let i = 0; i < todo.length; i++) {
       const day = todo[i];
-      if (i > 0) await sleep(2000);   
+      if (i > 0) await sleep(2000);
       const text = await fetchDelayDay(token, day);
       const events = parseDayEvents(text);
       if (events.length === 0) { console.log(`[cron delay] ${day} 空回應(尚未發布),跳過`); continue; }
@@ -5773,9 +5773,9 @@ async function delaySelfHeal(event, env) {
 
 const THSR_SCHED_BLOB_KEY = 'thsr_sched';
 const THSR_SCHED_FETCH_DAYS = 7;
-const THSR_SCHED_KEEP_DAYS = 8;   
+const THSR_SCHED_KEEP_DAYS = 8;
 const THSR_BLOB_MAX_BYTES = 1_600_000;
-const THSR_COLOR = '#E85D0D';     
+const THSR_COLOR = '#E85D0D';
 
 function thsrHmsToSec(t) {
   const p = String(t).split(':').map(Number);
@@ -5811,7 +5811,7 @@ function thsrConvertDaily(daily, dateIso, stationMap) {
       const coord = stationMap.get(name);
       let arr = thsrHmsToSec(s.ArrivalTime || s.DepartureTime);
       let dep = thsrHmsToSec(s.DepartureTime || s.ArrivalTime);
-      while (arr < prev) arr += 86400;   
+      while (arr < prev) arr += 86400;
       while (dep < arr) dep += 86400;
       sched.push({ name, lat: coord.lat, lon: coord.lon, arr, dep });
       prev = dep;
@@ -5911,7 +5911,7 @@ async function ingestThsrSchedule(env) {
     return { results, written: false };
   }
 
-  const keys = Object.keys(days).sort();   
+  const keys = Object.keys(days).sort();
   while (keys.length > THSR_SCHED_KEEP_DAYS) { const drop = keys.shift(); delete days[drop]; delete metas[drop]; }
 
   let json = JSON.stringify({ fetchedAt: new Date().toISOString(), days, _meta: metas });
@@ -5927,7 +5927,7 @@ async function ingestThsrSchedule(env) {
 }
 
 const THSR_HEAL_EVERY_MIN = 5;
-const THSR_HEAL_FROM_HOUR = 5;   
+const THSR_HEAL_FROM_HOUR = 5;
 async function thsrSelfHeal(event, env) {
   const tw = new Date(((event && event.scheduledTime) || Date.now()) + 8 * 3600 * 1000);
   if (tw.getUTCMinutes() % THSR_HEAL_EVERY_MIN !== 0) return { skipped: 'cadence' };
@@ -5968,7 +5968,7 @@ async function traDailyTrains(request, env) {
   const edge = caches.default;
   const hit = await edge.match(cacheKey);
   if (hit) return hit;
-  const today = twToday();                                   
+  const today = twToday();
   const ymd = today.replace(/-/g, '');
   try {
     if (!traDailyMem || traDailyMem.date !== today || Date.now() - traDailyMemAt >= traDailyTtlMs(env)) {
@@ -6082,7 +6082,7 @@ function thsrConvertSeatList(raw) {
       if (!destName) continue;
       const std = isThsrSeatCode(s && s.StandardSeatStatus) ? s.StandardSeatStatus : null;
       const biz = isThsrSeatCode(s && s.BusinessSeatStatus) ? s.BusinessSeatStatus : null;
-      if (!std && !biz) continue; 
+      if (!std && !biz) continue;
       table[`${trainNo}|${originName}|${destName}`] = { std, biz };
     }
   }
@@ -6169,7 +6169,7 @@ export default {
         await journeySharePruneTask;
         await thsrHealTask;
         await delayHealTask;
-        return ledger; 
+        return ledger;
       }
       catch (e) {
         console.error('[cron trtc-ledger] 失敗:', (e && e.stack) || String(e));

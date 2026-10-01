@@ -9,16 +9,21 @@
 //     來自 data/bounty_rules.json，這裡照抄成字面。
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準。
 //
-// 【對照版】K 組與 K0 組拿「批次化之前的估值實作」當對照：第③段逐段各打 2–4 句 D1，也還沒有後來加的四件事
+// 【對照版】K 組與 K0 組拿「批次化之前的判定實作（判定 cron 第③段：計點、推進看板、關認領）」當對照：第③段逐段各打 2–4 句 D1，也還沒有後來加的四件事
 // （第③段用當下的身分、可疑整班不發籌碼、遲傳合併判、日期窗以上傳時間為基準）：
 //   ・K1／K2／K3 批次化等價：新舊各從乾淨 DB 跑同一批資料，六張表逐列相等（批次化只改「查詢怎麼打」，結果必須逐位元組相同）。
 //   ・K0 正向對照：H／I／J／L 這幾組場景也拿去跑對照版——「新行為」那幾條在對照版上必須紅（證明判準真的有牙、不是拿新版的輸出當期望），
 //     「舊行為本來就對」那幾條在對照版上必須綠（證明 fixture 本身沒壞）。
 //   對照版存在 scripts/fixtures/bounty_cron2_control/（worker.js.txt、bounty_chips_core.mjs.txt）：從分支歷史的 c2e81e3b 只刪註解而成，
 //   用 esbuild 重印原檔與 fixture，兩邊逐 byte 相同。跑的時候不再向 git 取檔：分支合併後會刪，新 clone、淺 clone、gc 之後都取不到那顆 commit。
+//   換對照時重產 fixture：去註解的做法同 scripts/strip_ship_comments.mjs（狀態機掃註解區間；整行註解連那一行一起刪、行尾註解只刪註解本身、
+//   跨行區塊註解換成一個換行），再刪掉每一行行尾的空白；出口檢查是 esbuild 重印原檔與 fixture，兩邊逐 byte 相同。
+//   原檔的 md5（那顆 commit 日後取不到時，仍可拿任何留存的副本核對出處）：worker.js d1336929b9356a2bf4cf3a04acb88498、
+//   scripts/bounty_chips_core.mjs 39b739e7b5ff4dfa60f173642c091ab3。
 //   跑的時候把 fixture 的相對 import 改成絕對路徑、寫進系統暫存目錄，跑完刪掉。載入時比對 md5（寫死在載入函式旁），
-//   fixture 被改過就丟例外：K 組與 K0a 會紅並說明是哪個檔，不會靜默略過。
-//   日後估值的行為若刻意改變，K 組的新舊等價會紅；那時要決定讓 K 組退休或換對照，不要改 fixture 去遷就。
+//   fixture 被改過就丟例外：K 組與 K0a 會紅並說明是哪個檔，不會靜默略過；這時 K0 各組與幾條前置判準不會跑，總數會變少，總閘門的條數棘輪抓得到。
+//   日後判定第③段的行為若刻意改變，K 組的新舊等價會紅；那時要決定讓 K 組退休或換對照，不要改 fixture 去遷就。
+//   估值（bountyValuationCron）不在 K 組範圍，對照版的估值不會被執行。
 //
 // 分組：H 第③段身分（S10）　I 可疑整班不發（S11）　J 遲傳合併判（S12）　L 日期窗基準（S14）
 //       K 批次化等價／查詢量（S13a；K1e／K1f＝新增查詢的查詢計畫；K5＝覆蓋段超過 D1 每句 100 個綁定參數）　M 子請求預算與排序（S13b／c／d；M5＝bountyCounted 直接驗）
@@ -281,12 +286,13 @@ async function fire(w, cron) {
 // 這裡讀進來、驗完 md5，把相對 import 改成絕對 file:// 位址，另存成 .mjs 寫進系統暫存目錄再 import。
 // 完整性：md5 寫死在 CONTROL_FILES。不符就丟例外，走下面「載入失敗 → K0a 紅並說明原因」的路徑（訊息寫明是哪個 fixture）。
 // 換對照（不是改 fixture 去遷就）時才改這兩個 md5：`md5 scripts/fixtures/bounty_cron2_control/*.txt`。
-// 已知的脆弱點：對照版的 worker 會 import 現行 scripts/ 的模組（tra_platform_proxy、trtc_official_roster、la_push_core、bus_transfer_core、weekend_core）。
-// 那些模組若改了匯出名稱，對照版載入會失敗，K 組與 K0a 紅並說明原因，不會靜默略過。
+// 已知的脆弱點：對照版的 worker 會 import bounty_chips_core 以外的現行 ./scripts/*.mjs 模組，以及它們間接載入的檔
+// （例如 tra_platform_proxy 讀的 data/tra_station_info.json、rail-platform.js）。K、K0 執行到的舊程式只用到 bounty_chips_core 的匯出
+// （那一支用 fixture 裡的副本），其他模組只有載入時的風險：匯出名稱不見了，對照版載入會失敗，K 組與 K0a 紅並說明原因，不會靜默略過。
 const CONTROL_DIR = 'scripts/fixtures/bounty_cron2_control';
 const CONTROL_FILES = {
-  worker: { name: 'worker.js.txt', md5: 'ef2edfba55d18f103588b72c20646039' },
-  core: { name: 'bounty_chips_core.mjs.txt', md5: '90fc345eddf63358435541affcf649ec' },
+  worker: { name: 'worker.js.txt', md5: 'dce1b0c97f0c1a17d09d69f447672bc4' },
+  core: { name: 'bounty_chips_core.mjs.txt', md5: 'c67f3474dcb8e4dbce112b75c77a091e' },
 };
 let ctlDir = null;
 function readControlFile({ name, md5 }) {
@@ -641,7 +647,7 @@ scn('L', async (impl, c) => {
     c('L2c [S14 邊界] 上傳在台北第 7 天 23:59:59.999：窗內，判 ok', e.v === 'ok', J({ v: e.v, rej: e.rej }));
     const f = await run('l2d', TRIP_MS + 7 * DAY + 16 * 3600e3, LATE);
     c('L2d [S14 邊界] 再 1 毫秒＝台北第 8 天零點：窗外，suspect／stale_date', f.v === 'suspect' && f.rej === 'stale_date', J({ v: f.v, rej: f.rej }));
-    // 晚到那一端：上傳端點收下的「第 7 天 08:00 之後」補傳（舊版拿乘車日 UTC 零點＋7 天比毫秒，這裡會判 stale_date）
+    // 晚到那一端：上傳端點收下的「第 7 天 08:00 之後」補傳（早先直接比毫秒的寫法拿乘車日 UTC 零點＋7 天來比，這裡會判 stale_date）
     const g = await run('l2e', TRIP_MS + 7 * DAY + 1, LATE);
     c('L2e 上傳在台北第 7 天 08:00:00.001（上傳端點收得下）：判 ok，不是 stale_date', g.v === 'ok' && g.rej === '', J({ v: g.v, rej: g.rej }));
   }
@@ -654,7 +660,7 @@ scn('L', async (impl, c) => {
     c('L3b [S14 邊界] 上傳在乘車日前一天（台北）的零點：允許（乘車日不得晚於「上傳當天的明天」），判 ok', e.v === 'ok', J({ v: e.v, rej: e.rej }));
     const f = await run('l3c', TRIP_MS - DAY - 8 * 3600e3 - 1, NOW_MS);
     c('L3c [S14 邊界] 再早 1 毫秒（台北前兩天的 23:59:59.999）：future_date、suspect', f.v === 'suspect' && f.rej === 'future_date', J({ v: f.v, rej: f.rej }));
-    // 提早那一端：舊版比毫秒時，台北 07-27 00:00～07:59:59.999 上傳的 07-28 趟被判 future_date（上傳端點卻收下）
+    // 提早那一端：早先直接比毫秒的寫法，台北 07-27 00:00～07:59:59.999 上傳的 07-28 趟被判 future_date（上傳端點卻收下）
     const g = await run('l3d', TRIP_MS - DAY - 1, NOW_MS);
     c('L3d 上傳在台北 07-27 07:59:59.999（上傳端點收得下）：判 ok，不是 future_date', g.v === 'ok' && g.rej === '', J({ v: g.v, rej: g.rej }));
   }
@@ -748,7 +754,7 @@ function diffDump(a, b) {
 }
 const STAT_KEYS = ['trips', 'ok', 'unusable', 'suspect', 'truncated', 'chips'];
 const statJ = st => J(STAT_KEYS.map(k => st[k]));
-const noCtl = (name, why) => ok(`${name}（對照版取不到）`, false, `${why}：${ctlErr}`);
+const noCtl = (name, why) => ok(`${name}（對照版載入失敗）`, false, `${why}：${ctlErr}`);
 
 // ── K1：小合成世界。多車種、雙方向、同段多筆認領（靠 claimed_at、靠 id 定序）、過期／別人的／已完成／方向不符的認領、同分要靠車種名定序、dwell ──
 const K_TB = [];

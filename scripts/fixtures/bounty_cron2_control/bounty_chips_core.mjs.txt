@@ -1,4 +1,4 @@
-// 批次化之前的估值實作所用的 bounty_chips_core.mjs（去掉註解的副本）：只給 scripts/verify_bounty_cron2.mjs 的 K、K0 組當對照；不要修改、不要直接 import。
+// 批次化之前的判定實作所用的 bounty_chips_core.mjs（去掉註解的副本）：只給 scripts/verify_bounty_cron2.mjs 的 K、K0 組當對照；不要修改、不要直接 import。
 
 export function taipeiDay(epochMs) {
   const d = new Date(epochMs + 8 * 3600e3);
