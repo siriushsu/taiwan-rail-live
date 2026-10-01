@@ -23790,8 +23790,12 @@ function startBountyRecording(card) {
   // 平台判定用 IS_NATIVE_APP（兩個平台訊號的聯集，見定義處），不直接讀其中一個全域。
   // showToast 的參數只放字面字串的 t() 呼叫：App 發行閘門（verify-release 的 showToast 注入審查）會把三元式裡的識別字當成動態插入。
   if (BOUNTY_ENABLED && !DEMO_AS_APP) {
-    if (IS_NATIVE_APP) showToast(t('要錄程，請先把軌島 App 更新到最新版'));
-    else showToast(t('錄程要用軌島 App。網頁可以看懸賞板與自己的籌碼'));
+    if (IS_NATIVE_APP) {
+      // 看板（modal）疊在吐司上面：手機上整片蓋住提示，按了像是沒反應；桌面則是被遮罩壓暗。
+      // 錄程真的開始時，下面的 closeBountyBoard() 本來就會收起看板；這裡沒開始，一樣先收起來，提示才看得到。
+      closeBountyBoard();
+      showToast(t('要錄程，請先把軌島 App 更新到最新版'));
+    } else showToast(t('錄程要用軌島 App。網頁可以看懸賞板與自己的籌碼'));
     return;
   }
   if (!PHYSICAL_COLLECT_ENABLED) { showToast(t('GPS 校正旅程需要用 App')); return; }

@@ -15,7 +15,7 @@
 //   CH7  懸賞旗標關：開機清掉籌碼快取、沒有籌碼列、0 次 chips-me／bounty-me（含直接呼叫 fetchChipsMe()、fetchBountyMe()）、不寫新的 actor key
 //   CH8  上傳佇列：旗標開時 400 app_only 是終態（清掉、不重送）；其他錯誤照舊保留；旗標關時 app_only 也照舊保留、下次開機重送
 //   CH9  看板收滿的卡：有「已收滿」說明、沒有接單鈕
-//   CH10 錄程入口：懸賞開著時不啟動定位取樣；網頁顯示「要用 App」、現行 App 殼顯示「請更新到最新版」（兩個平台訊號各自成立、英日文、旗標關與 ?demo=bounty 的對照）
+//   CH10 錄程入口：懸賞開著時不啟動定位取樣；網頁顯示「要用 App」、現行 App 殼顯示「請更新到最新版」（兩個平台訊號各自成立、英日文、旗標關與 ?demo=bounty 的對照；看板開著時提示要在最上層）
 //   CH11 手機版：360／375／414／768 × Chromium／WebKit，真觸控點開護照（底部分頁列的「護照」）
 //   CH12 快取與 actor 的邊界（401 清、503 留、存不下、第一次沿用裝置 id、英文介面沒有漏翻）
 //   CH13 開機時序：登入結果比開機那一發 bounty-me 晚出來；401 晚到、200 晚到兩種先後，最後護照都要有登入者的段數
@@ -24,7 +24,7 @@
 //   CH16 旗標開時，看板／說明卡／錄程列／接下時的提示都沒有拿「點」當獎勵單位；承諾句不再提點數；英日文介面同樣乾淨
 //   CH17 說明卡的獎勵句：每趟幾顆、偏遠線倍率、每天上限，與伺服器入帳用的純函式算出來的一致（真規則檔與另一份規則檔）
 //   CH18 旗標關：看不到任何一句獎勵說法（新舊都沒有）、不讀規則檔、不打認領請求；對照：旗標開同一頁看得到
-//   CH19 手機版：360／375／414／768 × Chromium／WebKit，看板（有 ×N 標記）、說明卡、提示；兩兩相交掃描、沒有水平捲動、真觸控點「接下」
+//   CH19 手機版：360／375／414／768 × Chromium／WebKit，看板（有 ×N 標記）、說明卡、提示；兩兩相交掃描、沒有水平捲動、真觸控點「接下」、App 殼按「開始錄製」的更新提示在最上層
 //
 // 打樁慣例照 scripts/verify_bounty_merge_web.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
 // localStorage['trainmap-account-uid'] 讓開機走 accountEnsureInit（回訪者分支）。
@@ -276,6 +276,21 @@ try {
     return { text: el ? el.textContent.replace(/\s+/g, ' ').trim() : null, segs: b ? b.textContent.trim() : null, empty: !!(el && el.querySelector('.ph-empty')) };
   });
   const goBounty = (s, qs = '') => s.page.goto(`${BASE}/?bounty=1&lang=zh-TW${qs}`);
+  // 吐司平常不接點擊（pointer-events:none），elementFromPoint 不會回它：量之前暫時讓它接得到，再問「提示矩形的左／中／右三點，最上面是誰」。
+  // 被看板或遮罩蓋住時，最上面是看板（或看板裡的卡片），不是這張提示。
+  const topIsToast = page => page.evaluate(() => {
+    const st = document.createElement('style'); st.textContent = '#toasts, #toasts .toast { pointer-events: auto !important; }'; document.head.appendChild(st);
+    const el = [...document.querySelectorAll('#toasts .toast.show')].pop();
+    let toast = null;
+    if (el) {
+      const r = el.getBoundingClientRect();
+      const pts = [[r.left + r.width / 2, r.top + r.height / 2], [r.left + 10, r.top + r.height / 2], [r.right - 10, r.top + r.height / 2]];
+      toast = { text: el.textContent.replace(/\s+/g, ' ').trim(), onTop: pts.every(([x, y]) => { const e = document.elementFromPoint(x, y); return !!(e && e.closest('.toast')); }),
+        inView: r.left >= -0.5 && r.right <= innerWidth + 0.5 && r.width > 0, clipped: el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1 };
+    }
+    st.remove();
+    return { toast, boardOpen: !document.getElementById('bountyModal').hidden, briefOpen: !document.getElementById('bountyBriefModal').hidden, recording: !!state.recording };
+  });
   const bootBounty = async (arg, mode, chipsOver) => {
     const s = await newSession(arg, mode);
     if (chipsOver) s.chipsBody = chipsOver;
@@ -697,6 +712,22 @@ try {
         ok(`CH10k-${lang} ${name}介面、網頁、旗標開：沒有啟動取樣、沒有進入錄製，提示整句是${name}的「要用 App」`,
           w.flag === true && w.native === false && w.sampling === 0 && w.recording === false && w.toast === WEB_PROMPT[lang], JSON.stringify(w));
       }
+    });
+    // 真實流程：看板開著、接下之後說明卡開在它上面，按「開始錄製」。上面幾條直接呼叫 startBountyRecording，看板沒開，量不到被蓋住。
+    await attempt('CH10l', async () => {
+      const s = await newSession({ app: true });
+      await goBounty(s);
+      await bootDone(s.page);
+      await s.page.evaluate(() => openBountyBoard());
+      await s.page.waitForFunction(() => document.querySelectorAll('#bountyList .bt-card').length >= 1, null, { timeout: 15000 });
+      await s.page.evaluate(card => showBountyBrief(card), CARD_OPEN);
+      await s.page.click('#bountyBriefGo');
+      await s.page.waitForFunction(() => !!document.querySelector('#toasts .toast.show'), null, { timeout: 5000 }).catch(() => {});
+      await sleep(450);
+      const r = await topIsToast(s.page);
+      ok('CH10l 現行 App 殼（桌面）：看板與說明卡開著時按「開始錄製」→ 沒有進入錄製、看板與說明卡都收起來、「請更新」那句在最上層（左／中／右三個點的 elementFromPoint 都是這張提示）、整張卡在視窗內',
+        !!r.toast && r.toast.text === APP_PROMPT['zh-TW'] && r.toast.onTop && r.toast.inView && !r.toast.clipped && !r.boardOpen && !r.briefOpen && !r.recording, JSON.stringify(r));
+      await s.ctx.close();
     });
   }
 
@@ -1322,6 +1353,14 @@ try {
         const t2 = await toastBox(s.page);
         ok(`CH19i-${tag} 存不下認領時最長的那句提示：照實說、整張卡在視窗內（左 ${t2 && t2.l}、右 ${t2 && t2.r}）、字沒有被截掉`,
           !!t2 && t2.text.startsWith('已在伺服器接下，但這台裝置存不下來') && t2.inView && !t2.clipped, JSON.stringify(t2));
+        // 現行 App 殼按「開始錄製」（說明卡還開在看板上面）：真觸控點下去。手機上看板整片蓋住吐司，要看實際最上層是誰
+        await s.page.evaluate(() => { document.getElementById('toasts').innerHTML = ''; });
+        await s.page.tap('#bountyBriefGo');
+        await s.page.waitForFunction(() => !!document.querySelector('#toasts .toast.show'), null, { timeout: 5000 }).catch(() => {});
+        await sleep(450);
+        const t3 = await topIsToast(s.page);
+        ok(`CH19k-${tag} 現行 App 殼按「開始錄製」：沒有進入錄製、看板與說明卡都收起來、「請更新到最新版」那句在最上層（左／中／右三個點的 elementFromPoint 都是這張提示）、整張卡在視窗內、字沒有被截掉`,
+          !!t3.toast && t3.toast.text === '要錄程，請先把軌島 App 更新到最新版' && t3.toast.onTop && t3.toast.inView && !t3.toast.clipped && !t3.boardOpen && !t3.briefOpen && !t3.recording, JSON.stringify(t3));
         ok(`CH19j-${tag} 頁面沒有未捕捉的例外`, s.errors.length === 0, JSON.stringify(s.errors));
         await s.ctx.close();
       });
