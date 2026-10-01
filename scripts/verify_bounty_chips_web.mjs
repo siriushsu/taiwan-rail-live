@@ -15,7 +15,7 @@
 //   CH7  懸賞旗標關：開機清掉籌碼快取、沒有籌碼列、0 次 chips-me／bounty-me（含直接呼叫 fetchChipsMe()、fetchBountyMe()）、不寫新的 actor key
 //   CH8  上傳佇列：旗標開時 400 app_only 是終態（清掉、不重送）；其他錯誤照舊保留；旗標關時 app_only 也照舊保留、下次開機重送
 //   CH9  看板收滿的卡：有「已收滿」說明、沒有接單鈕
-//   CH10 錄程入口：懸賞開著時不啟動定位取樣；網頁顯示「要用 App」、現行 App 殼顯示「請更新到最新版」（兩個平台訊號各自成立、英日文、旗標關與 ?demo=bounty 的對照；看板開著時提示要在最上層）
+//   CH10 錄程入口：懸賞開著時不啟動定位取樣；網頁顯示「要用 App」、現行 App 殼顯示「請更新到最新版」（兩個平台訊號各自成立、英日文、旗標關與 ?demo=bounty 的對照；看板開著時提示要在最上層，網頁點「接下」的那句也是）
 //   CH11 手機版：360／375／414／768 × Chromium／WebKit，真觸控點開護照（底部分頁列的「護照」）
 //   CH12 快取與 actor 的邊界（401 清、503 留、存不下、第一次沿用裝置 id、英文介面沒有漏翻）
 //   CH13 開機時序：登入結果比開機那一發 bounty-me 晚出來；401 晚到、200 晚到兩種先後，最後護照都要有登入者的段數
@@ -24,7 +24,7 @@
 //   CH16 旗標開時，看板／說明卡／錄程列／接下時的提示都沒有拿「點」當獎勵單位；承諾句不再提點數；英日文介面同樣乾淨
 //   CH17 說明卡的獎勵句：每趟幾顆、偏遠線倍率、每天上限，與伺服器入帳用的純函式算出來的一致（真規則檔與另一份規則檔）
 //   CH18 旗標關：看不到任何一句獎勵說法（新舊都沒有）、不讀規則檔、不打認領請求；對照：旗標開同一頁看得到
-//   CH19 手機版：360／375／414／768 × Chromium／WebKit，看板（有 ×N 標記）、說明卡、提示；兩兩相交掃描、沒有水平捲動、真觸控點「接下」、App 殼按「開始錄製」的更新提示在最上層
+//   CH19 手機版：360／375／414／768 × Chromium／WebKit，看板（有 ×N 標記）、說明卡、提示；兩兩相交掃描、沒有水平捲動、真觸控點「接下」、App 殼按「開始錄製」的更新提示在最上層、網頁點「接下」的提示在最上層
 //
 // 打樁慣例照 scripts/verify_bounty_merge_web.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
 // localStorage['trainmap-account-uid'] 讓開機走 accountEnsureInit（回訪者分支）。
@@ -729,6 +729,43 @@ try {
         !!r.toast && r.toast.text === APP_PROMPT['zh-TW'] && r.toast.onTop && r.toast.inView && !r.toast.clipped && !r.boardOpen && !r.briefOpen && !r.recording, JSON.stringify(r));
       await s.ctx.close();
     });
+    // 網頁（旗標開、不是 ?demo=bounty）真實流程：看板開著，點卡上的「接下」。網頁沒有認領這條路，只吐一句話；看板疊在吐司上面時那句話看不到。
+    const WEB_TAKE = 'GPS 校正旅程需要用 App。網頁可以看懸賞板與自己的成果';
+    await attempt('CH10m', async () => {
+      const s = await newSession({});
+      await goBounty(s);
+      await bootDone(s.page);
+      await s.page.evaluate(() => openBountyBoard());
+      await s.page.waitForFunction(() => document.querySelectorAll('#bountyList .bt-card .bt-take').length >= 1, null, { timeout: 15000 });
+      const opened = await s.page.evaluate(() => ({ board: !document.getElementById('bountyModal').hidden, native: IS_NATIVE_APP, demo: DEMO_AS_APP, flag: BOUNTY_ENABLED }));
+      await s.page.click('#bountyList .bt-card .bt-take');
+      await s.page.waitForFunction(() => !!document.querySelector('#toasts .toast.show'), null, { timeout: 5000 }).catch(() => {});
+      await sleep(450);
+      const r = await topIsToast(s.page);
+      ok('CH10m 網頁（桌面）、旗標開、看板開著時點「接下」→ 看板收起來、「GPS 校正旅程需要用 App」那句在最上層（左／中／右三個點的 elementFromPoint 都是這張提示）、整張卡在視窗內；沒有送認領、沒有進入錄製（點之前看板確實開著）',
+        opened.board === true && opened.native === false && opened.demo === false && opened.flag === true &&
+          !!r.toast && r.toast.text === WEB_TAKE && r.toast.onTop && r.toast.inView && !r.toast.clipped && !r.boardOpen && !r.briefOpen && !r.recording && s.claims.length === 0,
+        JSON.stringify({ opened, r, claims: s.claims.length }));
+      await s.ctx.close();
+    });
+    // 同一個網頁情境、看板開著時直接呼叫 startBountyRecording：畫面上走不到這條路（網頁點「接下」在說明卡之前就被擋下），
+    // 這條只守「兩個平台的提示前都先收起看板」這件事不會被改回只收一邊。
+    await attempt('CH10n', async () => {
+      const s = await newSession({});
+      await goBounty(s);
+      await bootDone(s.page);
+      await s.page.evaluate(() => openBountyBoard());
+      await s.page.waitForFunction(() => document.querySelectorAll('#bountyList .bt-card').length >= 1, null, { timeout: 15000 });
+      const opened = await s.page.evaluate(() => ({ board: !document.getElementById('bountyModal').hidden, native: IS_NATIVE_APP, demo: DEMO_AS_APP, flag: BOUNTY_ENABLED }));
+      await s.page.evaluate(card => startBountyRecording(card), CARD_OPEN);
+      await s.page.waitForFunction(() => !!document.querySelector('#toasts .toast.show'), null, { timeout: 5000 }).catch(() => {});
+      await sleep(450);
+      const r = await topIsToast(s.page);
+      ok('CH10n 網頁（桌面）、旗標開、看板開著時直接呼叫 startBountyRecording → 看板收起來、「錄程要用軌島 App」那句在最上層、沒有進入錄製（點之前看板確實開著）',
+        opened.board === true && opened.native === false && opened.demo === false && opened.flag === true &&
+          !!r.toast && r.toast.text === WEB_PROMPT['zh-TW'] && r.toast.onTop && r.toast.inView && !r.toast.clipped && !r.boardOpen && !r.recording, JSON.stringify({ opened, r }));
+      await s.ctx.close();
+    });
   }
 
   // ═══ CH11：手機版——四個寬度 × 兩個引擎，真觸控點開護照 ════════════════════════════════════════════════════════
@@ -1362,6 +1399,32 @@ try {
         ok(`CH19k-${tag} 現行 App 殼按「開始錄製」：沒有進入錄製、看板與說明卡都收起來、「請更新到最新版」那句在最上層（左／中／右三個點的 elementFromPoint 都是這張提示）、整張卡在視窗內、字沒有被截掉`,
           !!t3.toast && t3.toast.text === '要錄程，請先把軌島 App 更新到最新版' && t3.toast.onTop && t3.toast.inView && !t3.toast.clipped && !t3.boardOpen && !t3.briefOpen && !t3.recording, JSON.stringify(t3));
         ok(`CH19j-${tag} 頁面沒有未捕捉的例外`, s.errors.length === 0, JSON.stringify(s.errors));
+        await s.ctx.close();
+      });
+      // 網頁（旗標開、不是 App 殼）：同一個寬度，從底部分頁列的「護照」進看板，真觸控點卡上的「接下」。
+      // 網頁沒有認領這條路，只吐一句話；手機上看板整片蓋住吐司，沒收起來的話那句話看不到。
+      await attempt(`CH19w-${tag}`, async () => {
+        const s = await newSession({ passportClosed: true }, {}, { browser: br, ctx: { viewport: { width, height: 800 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } });
+        s.board = BOARD_V2;
+        await goBounty(s); await loggedIn(s.page); await sleep(300);
+        await s.page.tap('#tabRide');
+        await s.page.waitForFunction(() => { const p = document.getElementById('ridePanel'); return p && !p.hidden && p.querySelector('[data-act="bountyboard"]'); }, null, { timeout: 15000 });
+        await s.page.evaluate(() => document.querySelector('#ridePanel [data-act="bountyboard"]').scrollIntoView({ block: 'center' }));
+        await sleep(300);
+        await s.page.tap('#ridePanel [data-act="bountyboard"]');
+        await s.page.waitForFunction(() => document.querySelectorAll('#bountyList .bt-card').length >= 3, null, { timeout: 15000 });
+        await sleep(400);
+        const opened = await s.page.evaluate(() => ({ board: !document.getElementById('bountyModal').hidden, native: IS_NATIVE_APP, demo: DEMO_AS_APP, flag: BOUNTY_ENABLED }));
+        await s.page.evaluate(() => { document.getElementById('toasts').innerHTML = ''; });
+        await s.page.tap(takeSel(CARD_R.id));
+        await s.page.waitForFunction(() => !!document.querySelector('#toasts .toast.show'), null, { timeout: 5000 }).catch(() => {});
+        await sleep(450);
+        const t4 = await topIsToast(s.page);
+        ok(`CH19l-${tag} 網頁（旗標開）看板開著時真觸控點「接下」：看板收起來、「GPS 校正旅程需要用 App」那句在最上層（左／中／右三個點的 elementFromPoint 都是這張提示）、整張卡在視窗內、字沒有被截掉；沒有送認領、沒有進入錄製、頁面沒有未捕捉的例外（點之前看板確實開著）`,
+          opened.board === true && opened.native === false && opened.demo === false && opened.flag === true &&
+            !!t4.toast && t4.toast.text === 'GPS 校正旅程需要用 App。網頁可以看懸賞板與自己的成果' && t4.toast.onTop && t4.toast.inView && !t4.toast.clipped &&
+            !t4.boardOpen && !t4.briefOpen && !t4.recording && s.claims.length === 0 && s.errors.length === 0,
+          JSON.stringify({ opened, t4, claims: s.claims.length, errors: s.errors }));
         await s.ctx.close();
       });
     };
