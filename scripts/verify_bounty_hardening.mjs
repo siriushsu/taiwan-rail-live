@@ -888,7 +888,7 @@ await attempt('ISO2', async () => {
       return (seen[0] || []).map(r => r.train);
     };
     const plain = await order(false), struck = await order(true);
-    ok(`ISO2${mode ? 'a' : 'b'} [ISO] 錯滿 2 次的班車排在最後（${mode || '隨機'}）：沒記錄時 U1（可信）排第一；U1 有記錄時排第三` + (mode ? '（清單 A1、B1、U1）' : ''),
+    ok(`ISO2${mode ? 'a' : 'b'} [ISO] 錯滿 2 次的班車排在最後（${mode || '隨機'}）：沒記錄時 U1（可信）排第一；U1 錯滿 2 次時排第三` + (mode ? '（清單 A1、B1、U1）' : ''),
       plain.length === 3 && plain[0] === 'U1' && struck.length === 3 && struck[2] === 'U1' && (mode !== 'fixed' || J(struck) === J(['A1', 'B1', 'U1'])),
       J({ plain, struck }));
   }
