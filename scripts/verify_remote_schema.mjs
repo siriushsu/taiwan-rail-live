@@ -18,6 +18,8 @@
 // 叫人重套整支 migration 的話，0014 這種檔尾有 ALTER 的會在 ALTER 報 duplicate column，前面的 CREATE INDEX 會不會跟著回滾沒有驗過。
 // 主鍵／UNIQUE 的自動索引沒有 CREATE INDEX 可補（重套也不會：CREATE TABLE IF NOT EXISTS 不動既有的表），只能重建整張表——印出來叫人先停手。
 // 整張表都不在的，照舊重套建表那一支（表與索引一起建；這時單獨的 CREATE INDEX 反而會因為沒有表而報錯）。
+// 缺 ALTER 加的欄：同一支檔裡排在它前面的 ALTER 若有任何一句的欄已經在了，重套那一支會在那一句報 duplicate column 就中斷、
+// 走不到缺的這一句——這時印出那一句 ALTER 單獨補；前面的 ALTER 也全缺（或它就是第一句）才叫人套整支。
 //
 // 用法：node scripts/verify_remote_schema.mjs            # 查正式庫（要 wrangler 已登入）
 //       node scripts/verify_remote_schema.mjs --ddl <檔>  # 讀存下來的 `d1 execute --json` 輸出（離線、給突變測試用）
@@ -65,7 +67,9 @@ function expected() {
       need.push({ file: f, table: t.table, col: null });
       for (const c of t.cols) need.push({ file: f, table: t.table, col: c });
     }
-    for (const [, table, col] of sql.matchAll(/ALTER TABLE\s+(\w+)\s+ADD COLUMN\s+(\w+)/gi)) need.push({ file: f, table, col });
+    let ord = 0;
+    for (const [stmt, table, col] of sql.matchAll(/ALTER TABLE\s+(\w+)\s+ADD COLUMN\s+(\w+)[^;]*;/gi))
+      need.push({ file: f, table, col, alter: stmt.replace(/\s+/g, ' '), ord: ord++ });
   }
   return { files, need };
 }
@@ -163,9 +167,14 @@ if (gaps.length || ixGaps.length) {
   const ixCmds = ixFix.filter(g => g.stmt && !parsed.idx[g.index]);          // 表在、索引不在：單獨那一句
   const ixWrong = ixFix.filter(g => parsed.idx[g.index]);                    // 同名索引建在別張表上
   const ixRebuild = ixFix.filter(g => !g.stmt && !parsed.idx[g.index]);     // 主鍵／UNIQUE 的自動索引不在
-  const toApply = [...new Set([...gaps, ...ixGaps.filter(g => g.table && tableGone.has(g.table))].map(g => g.file).filter(Boolean))];
-  if (toApply.length || ixCmds.length) console.error('   補套（正式庫寫入，要使用者 go）：');
+  const gapSet = new Set(gaps);
+  const alterBlocked = g => g.alter && !tableGone.has(g.table) &&
+    need.some(n => n.alter && n.file === g.file && n.ord < g.ord && !gapSet.has(n));
+  const colCmds = gaps.filter(alterBlocked);
+  const toApply = [...new Set([...gaps.filter(g => !alterBlocked(g)), ...ixGaps.filter(g => g.table && tableGone.has(g.table))].map(g => g.file).filter(Boolean))];
+  if (toApply.length || ixCmds.length || colCmds.length) console.error('   補套（正式庫寫入，要使用者 go）：');
   for (const f of toApply) console.error(`   arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/${f}`);
+  for (const g of colCmds) console.error(`   arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --command "${g.alter}"`);
   for (const g of ixCmds) console.error(`   arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --command "${g.stmt}"`);
   for (const g of ixWrong) console.error(`   ⚠️ 正式庫的 ${g.index} 建在 ${parsed.idx[g.index]} 上（應在 ${g.table}）：先查是哪一支 migration 建的，不要直接 DROP，先停手找使用者`);
   for (const g of ixRebuild) console.error(`   ⚠️ ${g.index} 是 ${g.table} 的主鍵／UNIQUE 自動索引：CREATE INDEX 補不回來，重套 ${g.file} 也不會（CREATE TABLE IF NOT EXISTS 不動既有的表）——` +

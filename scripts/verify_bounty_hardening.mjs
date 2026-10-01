@@ -717,7 +717,7 @@ await attempt('LSe', async () => {
 // ═══ R1：一條線組的寫入＝一個 batch ═══════════════════════════════════════════════
 await attempt('R1', async () => {
   // 超長線 120 段、一班 12,001 點（21 批）；板上 120 段都有、X000|X001 有這個人的認領（鎖價 9）。
-  // 期望：標記已判定只有一句（綁 8 個值：6 個＋租約圍欄的鍵與值；樣本 id 是一個 21 個元素的 JSON 陣列），跟點數、sample_count、關認領在同一個 batch（共 4 句）。
+  // 期望：標記已判定只有一句（綁 10 個值：8 個（含收下點的里程範圍 kept_d0／kept_d1）＋租約圍欄的鍵與值；樣本 id 是一個 21 個元素的 JSON 陣列），跟點數、sample_count、關認領在同一個 batch（共 4 句）。
   // 點數：119 段×3＋9＝366 → 每日計點上限 200。舊版一批一句標記（21 句、每句重綁整份覆蓋段），外加逐段各幾句。
   const A = 'dev-r1-000001';
   const w = world({ seed: boardSql('超長線', XL_SEGS) + claimSql({ id: 'claim-r1', actor: A, seg: KT('超長線', 'X000|X001'), pts: 9 }) });
@@ -728,17 +728,17 @@ await attempt('R1', async () => {
   const g = withMark[0] || [];
   const mark = g.find(s => MARK_RE.test(s.sql));
   let ids = [];
-  try { ids = JSON.parse(mark.p[5]); } catch (e) {}
+  try { ids = JSON.parse(mark.p[7]); } catch (e) {}
   const kinds = g.map(s => /^UPDATE bounty_samples/.test(s.sql) ? 'mark' : /^INSERT INTO bounty_points/.test(s.sql) ? 'points'
     : /^UPDATE bounty_board SET sample_count/.test(s.sql) ? 'sample_count' : /^UPDATE bounty_claims/.test(s.sql) ? 'claims' : s.sql.slice(0, 30));
   const bindChars = g.reduce((a, s) => a + s.p.reduce((b, x) => b + String(x).length, 0), 0);
   ok('R1a [R1] 這一條線組（120 段）的寫入＝一個 batch、四句：標記、點數、sample_count、關認領',
     withMark.length === 1 && J(kinds) === J(['mark', 'points', 'sample_count', 'claims']), J({ batches: withMark.length, kinds }));
   let leaseTok = null;
-  try { leaseTok = JSON.parse(mark.p[7]).token; } catch (e) {}
-  ok('R1b [R1] 標記只有一句、綁 8 個值（最後兩個是租約圍欄：租約的鍵與這一發的租約值），樣本 id 以一個 JSON 陣列帶 21 個（不是一批一句）；整個 batch 綁的字元數 < 64 KB',
-    !!mark && mark.p.length === 8 && mark.p[6] === LEASE && typeof leaseTok === 'string' && leaseTok.length > 0 && ids.length === 21 && bindChars < 65536,
-    J({ p: mark && mark.p.length, fence: mark && mark.p.slice(6), ids: ids.length, bindChars }));
+  try { leaseTok = JSON.parse(mark.p[9]).token; } catch (e) {}
+  ok('R1b [R1] 標記只有一句、綁 10 個值（最後兩個是租約圍欄：租約的鍵與這一發的租約值），樣本 id 以一個 JSON 陣列帶 21 個（不是一批一句）；整個 batch 綁的字元數 < 64 KB',
+    !!mark && mark.p.length === 10 && mark.p[8] === LEASE && typeof leaseTok === 'string' && leaseTok.length > 0 && ids.length === 21 && bindChars < 65536,
+    J({ p: mark && mark.p.length, fence: mark && mark.p.slice(8), ids: ids.length, bindChars }));
   ok('R1c 結果照舊：ok、點數 200（119×3＋9＝366 過每日上限 200）、120 段 sample_count 各 1、認領 fulfilled、籌碼 1 顆',
     q.verdicts(w, A, 'R1') === 'ok' && q.points(w, A) === 200 && q.sampleCounts(w, '超長線').length === 120 && q.sampleCounts(w, '超長線').every(n => n === 1) &&
       one(w, "SELECT status FROM bounty_claims WHERE id='claim-r1'").status === 'fulfilled' && st.chips === 1,
@@ -758,9 +758,9 @@ await attempt('R2a', async () => {
   spyRows(w.DELAY_DB, (sql, rs) => { if (PRIOR_RE.test(sql)) prior.push(...rs.map(r => ({ ...r }))); });
   const st2 = await w.cron({ BOUNTY_NOW: String(NOW_MS + 3600e3) });
   // u0／u1＝「小於半天的 t 加一天」之後的最早與最晚（跨午夜用，第十一批）：30000、30400 都小於 43200 → 116400、116800（這一組沒跨午夜，判定端用 t0／t1）
-  // d0／d1＝最小與最大的里程（籌碼看「整趟停在一站」用）：20 m/s × 400 秒 → 0、8000。
-  ok('R2a1 前次線組在 SQL 裡依線彙總：前半 3 批只回 1 列（山線）——最壞判定 ok（worst 1）、最早 30000、最晚 30400、跨午夜用的 u0／u1＝116400／116800、里程 0–8000、不是模擬器；payload、segs 等其他欄都不送回',
-    J(prior) === J([{ sys: 'tra_sched', ln_id: '山線', worst: 1, t0: 30000, t1: 30400, u0: 116400, u1: 116800, d0: 0, d1: 8000, sim: 0 }]), J(prior));
+  // d0／d1＝前一發判定時寫下的收下點里程範圍（kept_d0／kept_d1；籌碼看「整趟停在一站」用）：20 m/s × 400 秒，開頭兩點（0、20）不收 → 40、8000。
+  ok('R2a1 前次線組在 SQL 裡依線彙總：前半 3 批只回 1 列（山線）——最壞判定 ok（worst 1）、最早 30000、最晚 30400、跨午夜用的 u0／u1＝116400／116800、里程 40–8000（收下的點）、不是模擬器；payload、segs 等其他欄都不送回',
+    J(prior) === J([{ sys: 'tra_sched', ln_id: '山線', worst: 1, t0: 30000, t1: 30400, u0: 116400, u1: 116800, d0: 40, d1: 8000, sim: 0 }]), J(prior));
   ok('R2a2 籌碼判斷照舊看整班（前 400＋後 400＝801 秒 ≥ 600）：補發 1 顆', st2.chips === 1 && q.bal(w, A) === 1, J({ chips: st2.chips, bal: q.bal(w, A) }));
 });
 await attempt('C4', async () => {
@@ -1323,7 +1323,7 @@ await attempt('B1f', async () => {
   const h = { fired: 0 };
   const ob = w.DELAY_DB.batch.bind(w.DELAY_DB);
   w.DELAY_DB.batch = async stmts => {
-    if (!h.fired && stmts.some(x => MARK_RE.test(String(x && x._sql)) && String((x._p || [])[5]).includes(`${A}.T1.`))) { h.fired++; throw new Error('D1_ERROR: 模擬的暫時錯誤'); }
+    if (!h.fired && stmts.some(x => MARK_RE.test(String(x && x._sql)) && String((x._p || [])[7]).includes(`${A}.T1.`))) { h.fired++; throw new Error('D1_ERROR: 模擬的暫時錯誤'); }
     return ob(stmts);
   };
   const st = await w.cron({ BOUNTY_VERIFY_ORDER: 'fixed' });
@@ -2787,24 +2787,102 @@ await attempt('MV3', async () => {
   ok('MV3 遲傳：前半段已判（移動 8000 m、400 秒、0 顆）、後半段這一發只停一站 300 秒 → 合起來照發 1 顆',
     s1.chips === 0 && s2.trips === 1 && s2.chips === 1 && q.bal(w, A) === 1, J({ s1: s1.chips, s2: { trips: s2.trips, chips: s2.chips, ok: s2.ok, unusable: s2.unusable }, bal: q.bal(w, A) }));
 });
-// 前次那一組的里程讀不出數字（沒有 d、或 d 是字串）：不因此多發。對照組：同樣的前次列、d 是數字 → 1 顆。
+// 前次那一組的移動距離只讀判定當下寫下的 kept_d0／kept_d1，不讀原始 payload 的 d：直接寫進一列已判 ok 的前次列（payload 的 d 從 0 走到 8000），
+// kept_d0／kept_d1 兩欄都是 NULL、或只有一欄有值 → 不貢獻移動距離（後半段只停一站）→ 0 顆。對照：同樣的前次列、kept_d0／kept_d1＝0／8000 → 1 顆。
 await attempt('MV4', async () => {
-  const run = async (tag, mk) => {
+  const run = async (tag, k0, k1) => {
     const A = `dev-mv4-${tag}`;
     const w = world({ seed: boardSql('山線') });
-    w.db.prepare("INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict,client)" +
-      " VALUES (?,?,'tra_sched','山線','MV4',0,?,?,'[]',?,'ok',?)").run(`${A}.p`, A, D28, J([mk(0, 30000), mk(8000, 30400)]), NOW_MS - 7200e3, J(APP));
+    w.db.prepare("INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict,client,kept_d0,kept_d1)" +
+      " VALUES (?,?,'tra_sched','山線','MV4',0,?,?,'[]',?,'ok',?,?,?)").run(`${A}.p`, A, D28,
+      J([{ d: 0, t: 30000, v: 20, acc: 8 }, { d: 8000, t: 30400, v: 20, acc: 8 }]), NOW_MS - 7200e3, J(APP), k0, k1);
     putBatches(w.db, { actor: A, trainNo: 'MV4', pts: MV_HOLD(30401, 8000, 300), first: 100 });
     const st = await w.cron();
     return { chips: st.chips, bal: q.bal(w, A), v: q.verdicts(w, A, 'MV4') };
   };
-  const got = {
-    none: await run('none', (d, t) => ({ t, v: 20, acc: 8 })),
-    str: await run('str', (d, t) => ({ d: String(d), t, v: 20, acc: 8 })),
-    num: await run('num', (d, t) => ({ d, t, v: 20, acc: 8 })),
+  const got = { none: await run('none', null, null), half: await run('half', 0, null), num: await run('num', 0, 8000) };
+  ok('MV4 前次 ok 列的 kept_d0／kept_d1 是 NULL（payload 的 d 照樣是 0–8000）或只有一欄有值 → 0 顆；對照：kept_d0／kept_d1＝0／8000 → 1 顆（後半段同樣只停一站）',
+    got.none.bal === 0 && got.half.bal === 0 && got.num.bal === 1, J(got));
+});
+
+// ═══ MV5–MV8：移動距離與上傳方式無關（同一份資料不論分幾次上傳、分在哪幾發判，籌碼相同）═══════════════════
+// 兩種上傳方式：one＝全部批次一發判完；split＝先傳 a、判一發，之後再傳 b、隔一小時再判一發。
+const MV_PD = '2026-07-26';
+const mvTwoWays = async (tag, seed, parts) => {
+  const out = {};
+  for (const split of [false, true]) {
+    const A = `dev-${tag}-${split ? 'sp' : 'one'}`, w = world({ seed });
+    const put = (list, k) => list.forEach((o, i) => putBatches(w.db, { actor: A, trainNo: tag, date: MV_PD, dir: 0, first: 1000 * k + 100 * i, ...o }));
+    put(parts[0], 0);
+    if (!split) put(parts[1], 1);
+    await w.cron();
+    if (split) { put(parts[1], 1); await w.cron({ BOUNTY_NOW: String(NOW_MS + 3600e3) }); }
+    out[split ? 'split' : 'one'] = { bal: q.bal(w, A), v: rows(w, 'SELECT ln_id, verdict, COUNT(*) n FROM bounty_samples WHERE actor=? GROUP BY ln_id, verdict ORDER BY ln_id, verdict', A) };
+  }
+  return out;
+};
+// MV5：開頭兩點（防偽閘一律不收）放在 5 km 外的 1000 m，其餘從 5850 m 開到 S3（6000 m）、停 700 秒——收下的點只移動 150 m。
+// 一次判完、與「先傳這一份、之後再補 1 點」兩種方式都是 0 顆（前次組只算收下的點，開頭那兩點分到前一發也不算）。
+const mvStop = (from, t0) => { const xs = [from, from, from]; for (let x = from; x < 6000;) { x = Math.min(6000, x + 5); xs.push(x); } for (let k = 0; k < 700; k++) xs.push(6000);
+  return xs.map((x, k) => ({ d: x, t: t0 + k, v: k > 2 && xs[k - 1] < 6000 ? 5 : 0, acc: 8 })); };
+await attempt('MV5', async () => {
+  const pts = [{ d: 1000, t: 30000, v: 0, acc: 8 }, { d: 1000, t: 30001, v: 0, acc: 8 }, ...mvStop(5850, 30002)];
+  const got = await mvTwoWays('mv5', boardSql('山線'), [[{ pts }], [{ pts: MV_HOLD(pts[pts.length - 1].t + 1, 6000, 0) }]]);
+  ok('MV5 開頭兩點在 5 km 外、其餘停站（收下的點只移動 150 m）：一次判完 0 顆；先傳一部分、之後再補 1 點也是 0 顆',
+    got.one.bal === 0 && got.split.bal === 0 && got.one.v.some(r => r.verdict === 'ok') && got.split.v.some(r => r.verdict === 'ok'), J(got));
+});
+// MV6：前一發 ok（停站、收下的點移動 150 m）→ 中間一發同一條線移動 2 km 但精度差（unusable）→ 最後再補 1 點：0 顆。
+// seeded：同一個流程，但中間那一發判完之後直接把它的列寫上 kept_d0／kept_d1（6000／8000）——前次查詢只取 ok 列，unusable 列寫了也不算。
+// 對照：同樣寫上、而且那幾列改成 ok → 1 顆（證明寫上的值真的會被讀到）。
+await attempt('MV6', async () => {
+  const run = async (tag, after2) => {
+    const A = `dev-mv6-${tag}`, w = world({ seed: boardSql('山線') });
+    putBatches(w.db, { actor: A, trainNo: 'MV6', date: MV_PD, pts: mvStop(5850, 30000) });
+    await w.cron();
+    putBatches(w.db, { actor: A, trainNo: 'MV6', date: MV_PD, first: 100, pts: Array.from({ length: 101 }, (_, k) => ({ d: 6000 + k * 20, t: 30800 + k, v: 20, acc: 150 })) });
+    await w.cron({ BOUNTY_NOW: String(NOW_MS + 3600e3) });
+    const mid = q.verdicts(w, A, 'MV6');
+    if (after2) after2(w, A);
+    putBatches(w.db, { actor: A, trainNo: 'MV6', date: MV_PD, first: 200, pts: MV_HOLD(30902, 8000, 0) });
+    await w.cron({ BOUNTY_NOW: String(NOW_MS + 7200e3) });
+    return { mid, bal: q.bal(w, A) };
   };
-  ok('MV4 前次那一組的里程讀不出數字（沒有 d、d 是字串）→ 0 顆；對照：d 是數字 → 1 顆（後半段同樣只停一站）',
-    got.none.bal === 0 && got.str.bal === 0 && got.num.bal === 1, J(got));
+  const seed = (verdict) => (w, A) => w.db.prepare("UPDATE bounty_samples SET kept_d0=6000, kept_d1=8000, verdict=? WHERE actor=? AND verdict='unusable'").run(verdict, A);
+  const got = { flow: await run('flow'), seeded: await run('seeded', seed('unusable')), ctrl: await run('ctrl', seed('ok')) };
+  ok('MV6 前一發 ok 停站、中間一發同線移動 2 km 但 unusable、最後補 1 點 → 0 顆；unusable 列就算帶著 kept_d0／kept_d1 也不算 → 0 顆；對照：那幾列是 ok → 1 顆',
+    got.flow.mid === 'ok,unusable' && got.flow.bal === 0 && got.seeded.bal === 0 && got.ctrl.bal === 1, J(got));
+});
+// MV7：同一條線、連續的一趟：前半段從 5400 m 開 600 m 到 S3 再停 700 秒；後半段再停 300 秒、開出 600 m 到 6600 m。合起來 1200 m。
+// 一次判完、拆兩發（前半先判）都是 1 顆：同一條線前後兩發的收下點範圍取聯集。
+// 不同線（直通車：前半在山線、後半在屏東線，各 600 m）→ 0 顆：各線里程基準不同，不相加。
+const mvA = t0 => mvStop(5400, t0);
+const mvB = t0 => { const o = []; let x = 6000, t = t0; for (let k = 0; k < 300; k++) o.push({ d: 6000, t: t++, v: 0, acc: 8 });
+  while (x < 6600) { x = Math.min(6600, x + 5); o.push({ d: x, t: t++, v: 5, acc: 8 }); } return o; };
+await attempt('MV7', async () => {
+  const a = mvA(30000), b = mvB(a[a.length - 1].t + 1);
+  const same = await mvTwoWays('mv7s', boardSql('山線'), [[{ pts: a }], [{ pts: b }]]);
+  const cross = await mvTwoWays('mv7x', boardSql('山線') + boardSql('屏東線'), [[{ pts: a }], [{ pts: b, lnId: '屏東線' }]]);
+  ok('MV7a 同一條線前半 600 m、後半 600 m：一次判完 1 顆、拆兩發也是 1 顆（兩半各自都判 ok）',
+    same.one.bal === 1 && same.split.bal === 1 && J(same.split.v.map(r => r.verdict)) === J(['ok']), J(same));
+  ok('MV7b 直通車兩條線各 600 m（兩條線都 ok）：一次判完、拆兩發都是 0 顆——不同線的里程不相加',
+    cross.one.bal === 0 && cross.split.bal === 0 && J(cross.one.v.map(r => r.verdict)) === J(['ok', 'ok']) && J(cross.split.v.map(r => r.verdict)) === J(['ok', 'ok']), J(cross));
+});
+// MV8：判定之後，ok 組每一列的 kept_d0／kept_d1＝那一組收下的點的最小與最大里程（開頭兩點不收：700 秒 @20 m/s 的乾淨軌跡 → 40、14000；
+// 倒著走的從 14000 往回 → 0、13960），四批每一批都一樣；unusable（精度差）、suspect（同一秒的點）、oversize 的組每一列都是 NULL。
+await attempt('MV8', async () => {
+  const w = world({ seed: boardSql('山線') });
+  putBatches(w.db, { actor: 'dev-mv8-ok', trainNo: 'K1', pts: leg({ sec: 700 }) });
+  putBatches(w.db, { actor: 'dev-mv8-rev', trainNo: 'K2', dir: 1, pts: leg({ sec: 700, d0: 14000, reverse: true }) });
+  putBatches(w.db, { actor: 'dev-mv8-un', trainNo: 'K3', pts: leg({ sec: 700, acc: 150 }) });
+  putBatches(w.db, { actor: 'dev-mv8-sus', trainNo: 'K4', pts: Array.from({ length: 20 }, (_, k) => ({ d: (k >> 1) * 2000 + (k % 2 ? 1900 : 100), t: 30000, v: 20, acc: 5 })) });
+  putBatches(w.db, { actor: 'dev-mv8-ov', trainNo: 'K5', pts: Array.from({ length: 721 }, (_, i) => ({ d: i, t: 30000 + i, v: 1, acc: 5 })), size: 1 });
+  await w.cron();
+  const got = Object.fromEntries(['ok', 'rev', 'un', 'sus', 'ov'].map(k => [k, rows(w,
+    'SELECT verdict, kept_d0, kept_d1, COUNT(*) n FROM bounty_samples WHERE actor=? GROUP BY verdict, kept_d0, kept_d1', `dev-mv8-${k}`)]));
+  ok('MV8 寫入：ok 組四批每一列 kept_d0／kept_d1＝收下點的最小／最大里程（40／14000；倒著走 0／13960）；unusable、suspect、oversize 每一列都是 NULL',
+    J(got.ok) === J([{ verdict: 'ok', kept_d0: 40, kept_d1: 14000, n: 4 }]) && J(got.rev) === J([{ verdict: 'ok', kept_d0: 0, kept_d1: 13960, n: 4 }]) &&
+      J(got.un) === J([{ verdict: 'unusable', kept_d0: null, kept_d1: null, n: 4 }]) && J(got.sus) === J([{ verdict: 'suspect', kept_d0: null, kept_d1: null, n: 1 }]) &&
+      J(got.ov) === J([{ verdict: 'suspect', kept_d0: null, kept_d1: null, n: 721 }]), J(got));
 });
 
 // ═══ SH：都卜勒那一重只記錄（影子標記寫進 reject_code、verdict 照走）═══════════════════════════

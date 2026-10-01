@@ -7862,14 +7862,23 @@ function bountyDistinctNeed(rules, segKey) {
 //   ・cov 一律空：籌碼判斷只拿覆蓋段來看「落在哪一條線」（偏遠 ×2），而覆蓋段一定落在那一組自己的線上
 //     （coverageOf 的鍵是 line.sys|line.lnId 開頭，line 就是用這一組的 sys|ln_id 查的），ok 的組沒有覆蓋段時本來就退回自己的 sys|ln_id——
 //     結果相同，所以不把 segs 讀回來（獨立驗收 C4：segs 每列都帶整組的覆蓋段、列數沒有上界，一個帳號併十台裝置就是 75 MB）。
-//   ・moveM：該組沿線里程的跨距（SQL 的 d0／d1，只算數字型的 d）；缺值記 0，不會因此多發。
+//   ・dr：該組 ok 列在判定當下寫下的「防偽閘收下的點」最小與最大沿線里程（SQL 的 d0／d1＝ok 列 kept_d0 的最小、kept_d1 的最大，
+//     只取數字）。不讀原始 payload：防偽閘不收的點（開頭兩點、斷點後兩點、丟掉的孤立壞點）不能因為分在前一發判就被算進移動距離；
+//     unusable／suspect 列不寫 kept_d0／kept_d1，也就不貢獻。缺值是 null，不會因此多發。
 function bountyPriorGroups(rows) {
   return rows.map(r => ({
-    moveM: r.d0 == null || r.d1 == null || !(Number(r.d1) >= Number(r.d0)) ? 0 : Number(r.d1) - Number(r.d0),
+    dr: bountyDRange(r.d0, r.d1),
     trip: { sys: r.sys, lnId: r.ln_id, pts: r.t0 == null ? [] : Number(r.t1) - Number(r.t0) > BOUNTY_HALF_DAY_SEC ? [{ t: r.u0 }, { t: r.u1 }] : [{ t: r.t0 }, { t: r.t1 }] },
     v: { verdict: Number(r.worst) === 2 ? 'suspect' : Number(r.worst) === 1 ? 'ok' : 'unusable' },
     cov: [],
   }));
+}
+
+// 沿線里程範圍 [lo, hi]：兩端都是有限數字而且 hi ≥ lo 才算，否則 null（不參與移動距離）。
+function bountyDRange(lo, hi) {
+  if (lo == null || hi == null) return null;
+  const a = Number(lo), b = Number(hi);
+  return Number.isFinite(a) && Number.isFinite(b) && b >= a ? [a, b] : null;
 }
 
 // 一班車（同一個 actor＋tripDate＋trainNo）＝一趟＝最多發一次錄程籌碼。回傳這一趟實際入帳的籌碼數（0＝沒入帳）。
@@ -7907,9 +7916,20 @@ async function bountyCreditTripChips(env, rules, groups, prior, now, who, fence)
   let lo = Infinity, hi = -Infinity;
   for (const { t } of ts) { if (t < lo) lo = t; if (t > hi) hi = t; }
   const durationSec = hi >= lo ? hi - lo : 0;
-  // 整趟停在一站不給籌碼：取 ok 線組（這一發與前次）各自沿線里程跨距的最大值，不到 chips.minTripMoveM 就是 0（見 tripChips）。
+  // 整趟停在一站不給籌碼（chips.minTripMoveM，見 tripChips）：移動距離＝同一條線（sys|ln_id）所有 ok 線組（這一發與前次）
+  // 收下的點的里程範圍取聯集之後的跨距，各線再取最大值。
+  //   ・只看 ok 的組、只看防偽閘收下的點：同一份資料不論分幾次上傳、分在哪幾發判，結果要相同——前次組用判定當下寫下的
+  //     kept_d0／kept_d1（見 bountyPriorGroups），與這一發的收下點同一個基準。
+  //   ・同一條線前後兩發合起來看（前半 600 m、後半 600 m 合起來 1200 m），不是各組跨距取最大。
+  //   ・不同線不相加：各線的里程基準不同，兩條線的數字放在一起沒有意義。
+  const span = new Map();
+  for (const g of oks) {
+    if (!g.dr) continue;
+    const k = `${g.trip.sys}|${g.trip.lnId}`, cur = span.get(k);
+    span.set(k, cur ? [Math.min(cur[0], g.dr[0]), Math.max(cur[1], g.dr[1])] : g.dr);
+  }
   let moveM = 0;
-  for (const g of oks) { const m = Number(g.moveM); if (m > moveM) moveM = m; }
+  for (const [lo, hi] of span.values()) if (hi - lo > moveM) moveM = hi - lo;
   const { tripDate, trainNo } = groups[0].trip;
   const raw = tripChips({ verdict: 'ok', lineKeys: [...lineKeys], durationSec, moveM, day: tripDate }, chips);
   if (!(raw > 0)) return 0;
@@ -8274,7 +8294,7 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   // 統計只算真的標到的（第二輪 B1f）。
   const oversize = async () => {
     const r = await env.DELAY_DB.prepare(
-      "UPDATE bounty_samples INDEXED BY idx_samples_trip SET verdict='suspect', verdict_at=?, quality_code=NULL, reject_code='oversize', segs='[]'" +
+      "UPDATE bounty_samples INDEXED BY idx_samples_trip SET verdict='suspect', verdict_at=?, quality_code=NULL, reject_code='oversize', segs='[]', kept_d0=NULL, kept_d1=NULL" +
       " WHERE actor=? AND trip_date=? AND train_no=? AND verdict='pending'" + BOUNTY_VERIFY_HELD
     ).bind(now, c.actor, c.trip_date, c.train_no, BOUNTY_VERIFY_LEASE_KEY, lease).run();
     if (Number(r && r.meta && r.meta.changes) > 0) { stat.trains++; stat.oversize++; }
@@ -8322,11 +8342,11 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     const v = verdictOf(ig, qualityGate(kept, ctx, rules, trip.pts));
     const cov = (v.verdict === 'suspect' || !line) ? [] : coverageOf(kept, line, rules, M.peakHoursBySys)
       .filter(c => c.cov >= rules.quality.segCoverageMin);
-    // moveM：這一組沿線里程的跨距（最大 d − 最小 d，公尺），只給籌碼判斷「整趟停在一站」用。用收下的點（防偽閘丟掉的孤立壞點不算），
-    // 與覆蓋段同一個基準；不 ok 的組不參與籌碼，記 0。
-    let moveM = 0;
-    if (v.verdict === 'ok') { const [lo, hi] = bountyMinMax(kept.pts.map(p => Number(p.d))); if (hi >= lo) moveM = hi - lo; }
-    groups.push({ trip, v, cov, moveM });
+    // dr：這一組收下的點的最小與最大沿線里程（公尺），只給籌碼判斷「整趟停在一站」用（防偽閘不收的點不算，與覆蓋段同一個基準）。
+    // 標記已判定那一句把它寫進這一組每一列（kept_d0／kept_d1），之後的發次讀前次組時用的就是這兩個值（見 bountyPriorGroups）。
+    // 不 ok 的組不參與籌碼，記 null（寫進庫也是 NULL）。
+    const dr = v.verdict === 'ok' ? bountyDRange(...bountyMinMax(kept.pts.map(p => Number(p.d)))) : null;
+    groups.push({ trip, v, cov, dr });
   }
   // 身分（S10）：這班車記在誰名下——一班車解析一次，給前次線組的查詢用。
   // 讀樣本與寫入之間，這個裝置可能剛好被併進帳號（POST /api/bounty-merge：樣本與認領整批改名到 uid，原 token 那一列歸零只當墓碑）；
@@ -8350,8 +8370,9 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     // u0／u1：同一組的 t 若跨過午夜（t1−t0 超過半天），改用「小於半天的加一天」之後的最早與最晚（與 assembleTrip 同一條，見 bountyUnwrapMidnight）
     ` MIN(CASE WHEN json_extract(j.value, '$.t') < ${BOUNTY_HALF_DAY_SEC} THEN json_extract(j.value, '$.t') + 86400 ELSE json_extract(j.value, '$.t') END) AS u0,` +
     ` MAX(CASE WHEN json_extract(j.value, '$.t') < ${BOUNTY_HALF_DAY_SEC} THEN json_extract(j.value, '$.t') + 86400 ELSE json_extract(j.value, '$.t') END) AS u1,` +
-    " MIN(CASE WHEN json_type(j.value, '$.d') IN ('integer', 'real') THEN json_extract(j.value, '$.d') END) AS d0," +
-    " MAX(CASE WHEN json_type(j.value, '$.d') IN ('integer', 'real') THEN json_extract(j.value, '$.d') END) AS d1," +
+    // d0／d1：ok 列在判定當下寫下的收下點里程範圍（kept_d0／kept_d1，只取數字）；不讀 payload 的 d（見 bountyPriorGroups）。
+    " MIN(CASE WHEN s.verdict = 'ok' AND typeof(s.kept_d0) IN ('integer', 'real') THEN s.kept_d0 END) AS d0," +
+    " MAX(CASE WHEN s.verdict = 'ok' AND typeof(s.kept_d1) IN ('integer', 'real') THEN s.kept_d1 END) AS d1," +
     " MAX(CASE WHEN json_valid(s.client) THEN json_type(s.client, '$.simulator') = 'true' END) AS sim" +
     " FROM bounty_samples s INDEXED BY idx_samples_trip LEFT JOIN json_each(CASE WHEN json_valid(s.payload) THEN s.payload ELSE '[]' END) j" +
     "  ON j.type = 'object' AND json_type(j.value, '$.t') IN ('integer', 'real')" +
@@ -8407,7 +8428,7 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   // 統計只算「標記那句真的標到列」的線組與班車（第二輪 B1f：舊版讀完列就先加，出錯或被接手的那一班也算進「判了幾班」）。
   const marked = res => Number(res && res[0] && res[0].meta && res[0].meta.changes) > 0;
   let judged = 0;
-  for (const { trip, v, cov } of groups) {
+  for (const { trip, v, cov, dr } of groups) {
     // 只標「此刻仍是 pending」的列（有租約，正常一定全是）。
     // 🔴 INDEXED BY 主鍵的自動索引是刻意的：這一句只能走主鍵（id IN json_each：每個 id 一次點查）。沒有統計時，SQLite 會拿
     // verdict='pending' 去走 idx_samples_pending，把全站所有 pending 列掃一遍再用 id 過濾——每一組都掃一次，積壓越多越慢
@@ -8415,9 +8436,10 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     // 「查詢計畫釘死」）會讓規劃器改走全表掃描，加號擋不住（第十批實測；同認領那幾句在第九批從加號改成 INDEXED BY 的理由）。
     // 加號留著無害。守門人：verify_bounty_cron2.mjs 的 K1f（沒有統計）、verify_bounty_hardening.mjs 的 PL（幾種統計形狀）。
     const mark = env.DELAY_DB.prepare(
-      'UPDATE bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 SET verdict=?, verdict_at=?, quality_code=?, reject_code=?, segs=?' +
+      'UPDATE bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 SET verdict=?, verdict_at=?, quality_code=?, reject_code=?, segs=?, kept_d0=?, kept_d1=?' +
       " WHERE +verdict='pending' AND id IN (SELECT value FROM json_each(?))" + HELD
-    ).bind(v.verdict, now, v.qualityCode, v.rejectCode, JSON.stringify(cov), JSON.stringify(trip.sampleIds), BOUNTY_VERIFY_LEASE_KEY, lease);
+    ).bind(v.verdict, now, v.qualityCode, v.rejectCode, JSON.stringify(cov), dr ? dr[0] : null, dr ? dr[1] : null,
+      JSON.stringify(trip.sampleIds), BOUNTY_VERIFY_LEASE_KEY, lease);
     if (sim || v.verdict === 'suspect') {                       // 模擬器：只留判定；suspect：不給章、不計點、不計入門檻
       if (marked(await env.DELAY_DB.batch([mark]))) { stat.trips++; stat[v.verdict]++; judged++; }
       continue;

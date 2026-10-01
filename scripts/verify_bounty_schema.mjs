@@ -41,6 +41,7 @@ const { db } = openTestDb();
     'id', 'actor', 'sys', 'ln_id', 'train_no', 'dir', 'trip_date', 'payload', 'segs',
     'submitted_at', 'verdict', 'verdict_at', 'quality_code', 'reject_code',
     'client',                 // 0014（路段懸賞 v2）：上傳當下的 {platform,app,simulator} JSON 字串
+    'kept_d0', 'kept_d1',     // 0014：判定當下這一組收下點的最小與最大沿線里程（只有 ok 組寫）
   ]), cols('bounty_samples').join(','));
   ok('A6 bounty_points 欄位', eq(cols('bounty_points'), ['actor', 'uid', 'points', 'merged_into', 'updated_at']),
     cols('bounty_points').join(','));
@@ -316,9 +317,9 @@ const schemaStmts = f => {
   const firstAlter = stmts.findIndex(s => /^ALTER\s+TABLE/i.test(s));
   const createAfter = stmts.slice(firstAlter + 1).filter(s => /^CREATE\s/i.test(s));
   const alters = stmts.filter(s => /^ALTER\s+TABLE/i.test(s));
-  ok('A22 0014：ALTER 全部排在檔尾（第一句 ALTER 之後沒有 CREATE），且恰有兩句（distinct_ok_users、client）',
-    firstAlter > 0 && createAfter.length === 0 && alters.length === 2 &&
-    /distinct_ok_users/.test(alters[0]) && /\bclient\b/.test(alters[1]),
+  ok('A22 0014：ALTER 全部排在檔尾（第一句 ALTER 之後沒有 CREATE），且恰有四句（distinct_ok_users、client、kept_d0、kept_d1）',
+    firstAlter > 0 && createAfter.length === 0 && alters.length === 4 &&
+    /distinct_ok_users/.test(alters[0]) && /\bclient\b/.test(alters[1]) && /\bkept_d0\s+REAL$/i.test(alters[2]) && /\bkept_d1\s+REAL$/i.test(alters[3]),
     JSON.stringify({ firstAlter, createAfter: createAfter.length, alters: alters.length }));
   // 第十九批：retired 原本接在 0014 檔尾第三句。0014 一旦套進任何一個庫，重套會在它的第一句 ALTER 中斷，
   // 接在後面的欄位在那個庫永遠跑不到——所以另開一個只有這一句的檔。
@@ -410,6 +411,16 @@ const schemaStmts = f => {
     noRetired.rc === 1 && /bounty_board\.retired（0015_bounty_retired\.sql）/.test(noRetired.out) &&
       /--file=schema\/0015_bounty_retired\.sql/.test(noRetired.out) && !fileCmd.test(noRetired.out),
     noRetired.out.trim().slice(0, 600));
+  // A23k：正式庫套過較早版本的 0014（distinct_ok_users、client 都在）、還沒有 kept_d0／kept_d1 → exit 1、點名這兩欄，
+  // 補法是單獨的兩句 ALTER（原文手寫在這裡），不叫人重套整支 0014（會在已存在的第一句 ALTER 中斷、走不到這兩句）。DDL 取自真的 DROP 掉兩欄的庫。
+  const { db: dk } = openTestDb();
+  for (const c of ['kept_d0', 'kept_d1']) { try { dk.exec(`ALTER TABLE bounty_samples DROP COLUMN ${c}`); } catch (e) {} }
+  const noKept = runGate('no-kept', dk.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE type IN ('table','index')").all().map(r => ({ ...r })));
+  ok('A23k 正式庫的 bounty_samples 缺 kept_d0／kept_d1 → exit 1，點名這兩欄（0014_bounty_v2.sql），補法是單獨的兩句 ALTER、不叫人重套 0014',
+    noKept.rc === 1 && /bounty_samples\.kept_d0（0014_bounty_v2\.sql）/.test(noKept.out) && /bounty_samples\.kept_d1（0014_bounty_v2\.sql）/.test(noKept.out) &&
+      noKept.out.includes('--command "ALTER TABLE bounty_samples ADD COLUMN kept_d0 REAL;"') &&
+      noKept.out.includes('--command "ALTER TABLE bounty_samples ADD COLUMN kept_d1 REAL;"') && !fileCmd.test(noKept.out),
+    noKept.out.trim().slice(0, 600));
 }
 
 const pass = R.filter(r => r.p).length;
