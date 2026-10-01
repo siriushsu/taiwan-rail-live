@@ -150,11 +150,11 @@ v2 新增的卡片欄位（舊欄位 `samples`、`coverN` 保留給舊客端）�
 
 `valuationOk`：最後一次成功跑完的估值。
 - `null`：從沒有任何一次成功跑完的紀錄（剛上線，或一直沒成功）。不是正常。
-- `{at, generatedAt}`：`at` 是那一次跑完的毫秒時間戳，`generatedAt` 是當時用的那份清單的 `generatedAt`（清單沒有就 `null`）。估值一天跑一次，`at` 過了一天多還沒更新就是估值停了，不論 `retireBlock` 是不是 `null`。判斷用的門檻在 `scripts/lib/bounty_retire_verdict.mjs`（`BOUNTY_VALUATION_MAX_AGE_MS`，26 小時：一天一次，留兩小時給排程延遲、執行時間與下面說的快取）。
+- `{at, generatedAt}`：`at` 是那一次跑完的毫秒時間戳，`generatedAt` 是當時用的那份清單的 `generatedAt`（清單沒有就 `null`）。估值排定一天跑一次，`at` 過了一天多還沒更新就是估值停了，不論 `retireBlock` 是不是 `null`；沒有排程時 `valuationOk` 會停在 `null`。判斷用的門檻在 `scripts/lib/bounty_retire_verdict.mjs`（`BOUNTY_VALUATION_MAX_AGE_MS`，26 小時：一天一次，留兩小時給排程延遲、執行時間與下面說的快取）。
 
 兩個欄位的共同規則：
 - 欄位不存在：伺服器讀不到這些狀態（讀取失敗時兩個欄位會**一起**省略，看板其餘內容照常回 200），或還在跑舊版（只有 `retireBlock`、沒有 `valuationOk`）。不知道有沒有被擋下、估值有沒有在跑，不等於沒被擋、也不等於正常。
-- 快取：兩個欄位跟著看板一起快取。看板走 Workers 的 Cache API，每個機房各自快取，狀態變化最多約 5 分鐘後看得到。回應標頭仍帶 `s-maxage=300`、`stale-while-revalidate=900`，但 Cloudflare 官方文件寫明 `cache.put`、`cache.match` 不支援 `stale-while-revalidate` 與 `stale-if-error`（https://developers.cloudflare.com/workers/runtime-apis/cache/），所以邊緣那一份過了 5 分鐘就重建，不會再多回一段舊內容。
+- 快取：兩個欄位跟著看板一起快取。看板走 Workers 的 Cache API（邊緣快取），每個機房各自快取、內容不會複製到其他機房，所以在這一層，狀態變化最多約 5 分鐘後看得到。回應標頭仍帶 `s-maxage=300`、`stale-while-revalidate=900`，但 Cloudflare 官方文件寫明 `cache.put`、`cache.match` 不支援 `stale-while-revalidate` 與 `stale-if-error`（https://developers.cloudflare.com/workers/runtime-apis/cache/），所以邊緣那一份過了 5 分鐘就重建，不會再多回一段舊內容。標頭既然帶了 `stale-while-revalidate=900`，瀏覽器、WebView 等下游的快取可能照它再多回一段舊內容，客戶端實際看到的狀態變化可能比 5 分鐘再晚一點。
 
 ## 4. `POST /api/cloud-ride`：雲端搭乘（前景跟同一班真實列車連續 `chips.cloud.minSec` 秒）
 

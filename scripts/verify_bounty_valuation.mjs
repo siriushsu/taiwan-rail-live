@@ -4,7 +4,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { _bounty } from '../worker.js';
 import { openTestDb } from './d1_local.mjs';
-import { bountyRetireVerdict, BOUNTY_VALUATION_MAX_AGE_MS } from './lib/bounty_retire_verdict.mjs';
+import { bountyRetireVerdict, BOUNTY_VALUATION_MAX_AGE_MS, BOUNTY_VALUATION_FUTURE_TOLERANCE_MS } from './lib/bounty_retire_verdict.mjs';
 
 const { bountyMedian, bountyL1, bountyL2, bountyPointsOf, bountyUnlocked, bountyValuationCron } = _bounty;
 const R = [];
@@ -713,10 +713,11 @@ globalThis.caches = { default: { match: async () => undefined, put: async () => 
   }
 }
 
-// G1–G16 verdict 純函式（scripts/lib/bounty_retire_verdict.mjs，預備給每小時的巡檢 import，巡檢還沒接上）：
+// G1–G18 verdict 純函式（scripts/lib/bounty_retire_verdict.mjs，預備給每小時的巡檢 import，巡檢還沒接上）：
 // 輸入 HTTP 狀態碼、解析後的 body 與現在的毫秒時間戳，輸出 { level, line }。
 // 台北時間的期望值手算：2026-10-01 16:30 UTC ＝ 台北 2026-10-02 00:30（跨了日，UTC 的日期與台北的日期不同，轉錯時區會看出來）；
-// 2026-10-02 03:15 UTC ＝ 台北 2026-10-02 11:15。門檻的毫秒數從匯出的常數取（邊界的比較方向要釘死），常數本身的合理範圍另有一條（G16）。
+// 2026-10-02 03:15 UTC ＝ 台北 2026-10-02 11:15。門檻的毫秒數從匯出的常數取（邊界的比較方向要釘死），常數本身的合理範圍另有一條（G16）；
+// 未來時間的容忍值用手寫的毫秒數釘（G17）。
 {
   const HOUR = 3600e3, T = BOUNTY_VALUATION_MAX_AGE_MS;
   const AT = Date.UTC(2026, 9, 1, 16, 30);                     // 擋下的時間
@@ -792,8 +793,27 @@ globalThis.caches = { default: { match: async () => undefined, put: async () => 
     noNow.every(r => r.level === 'unknown' && /沒有現在的時間/.test(r.line)) &&
       levelOf(200, body({ retireBlock: BLOCK }), undefined) === 'bad' && levelOf(200, body({ valuationOk: null }), undefined) === 'bad' && levelOf(503, body(), undefined) === 'n/a',
     JSON.stringify({ noNow: noNow.map(r => r.level) }));
-  ok('G16 門檻的合理範圍：比一天長（留給 cron 的延遲、估值的執行時間與看板 5 分鐘的邊緣快取，否則每天都誤報）、不超過兩天（錯過一整天的估值要抓得到）',
-    T > 24 * HOUR + 5 * 60e3 && T <= 48 * HOUR, String(T / HOUR) + ' 小時');
+  ok('G16 門檻的合理範圍：比一天長（留給 cron 的延遲、估值的執行時間與看板 5 分鐘的邊緣快取，否則每天都誤報）、不超過 26.5 小時' +
+    '（估值排在台北 03:30、巡檢 06–23 點每小時一次時，門檻超過約 26.5 小時，06:00 那次巡檢就抓不到一次漏跑，要拖到更晚的整點；現在的常數是 26 小時，這一條防止有人把它調大）',
+    T > 24 * HOUR + 5 * 60e3 && T <= 26.5 * HOUR, String(T / HOUR) + ' 小時');
+
+  // 未來時間：valuationOk.at 比現在晚（讀的這一端時鐘落後，或資料壞了）。容忍值用手寫的毫秒數釘（10 分鐘，涵蓋兩端的時鐘差），
+  // 不從匯出的常數推：從常數推的話，常數被調成一整天，邊界照樣全綠。
+  const fut = d => V(200, body({ valuationOk: { at: NOW + d, generatedAt: 1790758089689 } }), NOW);
+  const f1s = fut(1000), fEdge = fut(10 * 60e3), fOver = fut(10 * 60e3 + 1), f10y = fut(10 * 365 * DAY);
+  ok('G17 valuationOk.at 比現在晚：晚 1 秒 → ok（年齡當 0，印「0.0 小時前」不是負數）、剛好 10 分鐘 → ok、10 分鐘多 1 毫秒 → bad、晚 10 年 → bad；' +
+    'bad 的 line 寫「在未來」與「判不了」並帶 at 的台北時間；容忍值的匯出常數＝10 分鐘',
+    f1s.level === 'ok' && f1s.line.includes('（0.0 小時前）') && fEdge.level === 'ok' && fOver.level === 'bad' && f10y.level === 'bad' &&
+      [fOver, f10y].every(r => r.line.includes('在未來') && r.line.includes('判不了')) &&
+      fOver.line.includes('2026-10-02 14:25') && f10y.line.includes('2036-09-29 14:15') && BOUNTY_VALUATION_FUTURE_TOLERANCE_MS === 10 * 60e3,
+    JSON.stringify({ f1s, fEdge: fEdge.level, fOver, f10y: f10y.level }));
+
+  // 超過門檻的 line：年齡只印一位小數，門檻多 1 毫秒到約 3 分鐘會印成「26.0 小時」，跟門檻是同一個數字，單看數字像沒超過
+  const justOver = V(200, body(), OKAT + T + 1), justAt = V(200, body(), OKAT + T);
+  ok('G18 門檻多 1 毫秒 → bad，line 明寫「超過門檻」並帶門檻的小時數（單看年齡與門檻的小數是同一個數字，像沒超過）；剛好等於門檻（ok）的 line 不寫「超過」',
+    justOver.level === 'bad' && justOver.line.includes('超過門檻') && justOver.line.includes(String(T / HOUR) + ' 小時') &&
+      justAt.level === 'ok' && !justAt.line.includes('超過'),
+    JSON.stringify({ justOver, justAt }));
 }
 
 // ── F 組：seg_key 鍵空間硬 gate（controller 任務指令額外要求，brief 沒有給）───────────
