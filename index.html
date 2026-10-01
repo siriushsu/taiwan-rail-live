@@ -23430,8 +23430,8 @@ function bountyDemoBoard() {
   const lines = [...lineNetwork()].filter(([, rec]) => rec.segs && rec.segs.length >= 6);
   const cards = lines.slice(0, 4).map(([mapKey, rec], i) => trackCard(mapKey, rec, i));
   // 偏遠線的卡要有一張：不然示範板上永遠看不到「籌碼 ×N」標記，備援站就沒辦法確認那個設計。
-  // 偏遠線名單與倍率讀規則檔（openBountyBoard 在示範模式會先等規則檔讀完），挑卡用的是畫標記的同一個 bountyRemoteMult()，
-  // 標記照真看板的畫法畫，不在假資料裡另外寫。規則檔讀不到、或名單上的線都不在路網裡，就不加，板子維持原樣。
+  // 偏遠線名單與倍率讀規則檔（openBountyBoard 在示範模式會先等規則檔，等的時間有上限），挑卡用的是畫標記的同一個 bountyRemoteMult()，
+  // 標記照真看板的畫法畫，不在假資料裡另外寫。規則檔讀不到或逾時、或名單上的線都不在路網裡，就不加，板子維持原樣。
   if (!cards.some(c => bountyRemoteMult(c))) {
     const far = lines.slice(4).map(([mapKey, rec]) => trackCard(mapKey, rec, 4)).find(c => bountyRemoteMult(c));
     if (far) cards.splice(1, 0, far); // 放第二張：手機上不用捲就看得到
@@ -23516,7 +23516,7 @@ async function fetchChipsMe() {
   const seq = ++chipsMeSeq, uid = user.uid;
   const still = () => seq === chipsMeSeq && !!state.account && !!state.account.user && state.account.user.uid === uid;
   // 護照的「下一座」要比 unlocked 的數量與規則檔的場景數(buildChipsRow)：規則檔跟著一起讀，呼叫端讀完重繪時它就在記憶體裡了。
-  // 讀不到不影響籌碼本身（那一格就不顯示）。
+  // 讀不到不影響籌碼本身（那一格就不顯示）；等的時間有上限（bountyRulesWithin），等不到就照讀不到處理，之後才到的不補畫。
   const rulesP = bountyRules().catch(() => null);
   try {
     const token = a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken();
@@ -23533,7 +23533,7 @@ async function fetchChipsMe() {
       chipsMeMem = null;
       try { localStorage.removeItem(BOUNTY_CHIPS_KEY); } catch (e) {}
     } else if (r.status === 403 && await bountyErrorIs(r, 'wrong_account')) bountyOnWrongAccount();
-  } catch (e) {} finally { await rulesP; }
+  } catch (e) {} finally { await bountyRulesWithin(rulesP); }
   return chipsMeMem;
 }
 // 旅程卡的名字：伺服器只給計價單位，端點名在這裡算。
@@ -23607,21 +23607,27 @@ function bountySlotName(slot) {
   return ({ peak: t('平日尖峰'), off: t('平日離峰'), holiday: t('假日') })[slot] || '';
 }
 let bountyBoardMem = null;
+let bountyBoardSeq = 0; // 每開一次加一：規則檔晚到時的補畫，只補給「還是這一次開的」那張板
 async function openBountyBoard() {
   const m = document.getElementById('bountyModal');
   m.hidden = false;
+  const seq = ++bountyBoardSeq;
   document.getElementById('bountyList').innerHTML = `<div class="bt-empty">${escHtml(t('載入中…'))}</div>`;
-  // 卡片上的籌碼倍率標記要讀規則檔：跟看板請求一起讀，畫第一次就帶得到。讀不到只是不標倍率，不擋看板。
+  // 卡片上的籌碼倍率標記要讀規則檔：跟看板請求一起讀，上限之內讀到了，畫第一次就帶得到。讀不到只是不標倍率，不擋看板。
   const rulesP = bountyRules().catch(() => null);
   // 示範板要先讀到規則檔，才挑得出偏遠線的卡（見 bountyDemoBoard）；真看板照舊跟請求並行。
-  if (DEMO_MODE === 'bounty') await rulesP;
+  // 等不到（上限見 bountyRulesWithin）就照原本的 5 張畫，之後規則檔到了也不再重挑。
+  const demo = DEMO_MODE === 'bounty';
+  if (demo) await bountyRulesWithin(rulesP);
   try { bountyBoardMem = await fetchBountyBoard(); }
   catch (e) {
     document.getElementById('bountyList').innerHTML = `<div class="bt-empty">${escHtml(t('懸賞板暫時讀不到，等一下再試一次'))}</div>`;
     return;
   }
-  await rulesP;
+  // 真看板：看板資料到了才等規則檔，等不到就先畫不帶標記的卡。規則檔之後才到、這張板還開著，就補畫一次把標記補上。
+  const inTime = demo || await bountyRulesWithin(rulesP);
   renderBountyBoard();
+  if (!inTime) rulesP.then(r => { if (r && seq === bountyBoardSeq && !m.hidden) renderBountyBoard(); });
 }
 // 這張卡所在的線在規則檔的偏遠線名單裡，就回該線的籌碼倍率；不在、或規則檔還沒讀到就回 0。
 // 名單與倍率只讀規則檔（chips.remoteLines／remoteMultiplier），不在這裡另存一份；讀不到寧可不標，也不標錯。
@@ -24391,6 +24397,20 @@ async function bountyRules() {
   if (!res.ok) throw new Error('bounty rules ' + res.status);
   bountyRulesMem = await res.json();
   return bountyRulesMem;
+}
+// 看板、示範板、護照籌碼三處等規則檔，最多等這麼久（毫秒）。檔案不到三千位元組，正式站實測一次不到十分之一秒
+// （連帶 ETag 重驗的 304 也是）；它決定的只是「籌碼 ×N」標記與護照「下一座」那一格有沒有，不值得讓整個看板或護照停在載入中。
+// 手機在隧道裡，一個請求可以好幾分鐘既不回也不報錯；等到這麼久還沒回來，就照「讀不到」處理。
+const BOUNTY_RULES_WAIT_MS = 2000;
+// 參數是 bountyRules() 發出去的那個承諾（呼叫端先發請求，從這裡才開始計時，所以請求能跟別的請求並行）。
+// 回 true＝期限內讀到了；false＝讀不到或逾時。從不丟錯。逾時只是不再等：請求照舊在背景進行，
+// 之後成功的那一次照樣存進 bountyRulesMem（見 bountyRules）。
+function bountyRulesWithin(rulesP) {
+  return new Promise(resolve => {
+    const timer = setTimeout(() => resolve(false), BOUNTY_RULES_WAIT_MS);
+    const done = ok => { clearTimeout(timer); resolve(ok); };
+    rulesP.then(r => done(!!r), () => done(false));
+  });
 }
 function bountyMedian(a) {
   const s = a.filter(Number.isFinite).slice().sort((x, y) => x - y), m = s.length >> 1;

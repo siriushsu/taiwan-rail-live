@@ -27,6 +27,7 @@
 //   CH19 手機版：360／375／414／768 × Chromium／WebKit，看板（有 ×N 標記）、說明卡、提示；兩兩相交掃描、沒有水平捲動、真觸控點「接下」、App 殼按「開始錄製」的更新提示在最上層、網頁點「接下」的提示在最上層
 //   CH20 ?demo=bounty 的示範看板：有一張偏遠線的卡、「籌碼 ×N」標記看得到（中英日、手機不用捲）；名單與倍率讀規則檔、換一份規則檔跟著翻；規則檔讀不到時維持原本 5 張卡；規則檔還沒回來就開板，板子先顯示載入中、規則檔一到第一次畫出來的卡就有標記；其他卡不變
 //   CH21 旗標開時的懸賞文案（看板、說明卡、護照校正貢獻、說明中心三節、接下的提示）第一人稱用單數，沒有「我們／We／私たち」；掃描規則自己咬得住；規則檔那一句登記為已知例外
+//   CH22 規則檔一直不回來時：示範看板、真看板、護照籌碼都在「上限＋餘裕」之內畫出來（看板沒有標記、護照沒有「下一座」）；規則檔在上限之內到了，第一次畫就帶標記；之後才到，看板補上標記、不丟錯、不重複，關掉的看板不被畫、重開的看板不被舊的補畫蓋住
 //
 // 打樁慣例照 scripts/verify_bounty_merge_web.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
 // localStorage['trainmap-account-uid'] 讓開機走 accountEnsureInit（回訪者分支）。
@@ -230,7 +231,7 @@ try {
         if (md === 'bad_samples') return json(route, 400, { error: 'bad_samples' });
         return json(route, 400, { error: 'app_only' });
       }
-      if (u.pathname === '/api/bounty-board') { s.boardReq++; return json(route, 200, s.board); }
+      if (u.pathname === '/api/bounty-board') { s.boardReq++; if (s.gates.board) await s.gates.board.promise; return json(route, 200, s.board); }   // hold('board')：看板資料的回應也能由測試扣住
       if (u.pathname === '/api/bounty-claim') {
         let body = null; try { body = JSON.parse(rq.postData()); } catch (e) {}
         s.claims.push({ seq: ++s.seq, body, auth });
@@ -1531,8 +1532,9 @@ try {
       const gate = s.hold('rules');
       await s.page.goto(`${BASE}/?lang=zh-TW&demo=bounty`);
       await bootDone(s.page);
+      const reqBefore = s.rulesReq;
       await s.page.evaluate(() => { window.__openP = openBountyBoard(); });          // 不等它：它正卡在規則檔上
-      await sleep(900);
+      await until(() => s.rulesReq > reqBefore);                                      // 等到它真的把規則檔的請求發出去、卡在上面再讀（等待有上限，CH22 另外驗；這裡不靠睡固定秒數）
       const held = await s.page.evaluate(() => ({ hidden: document.getElementById('bountyModal').hidden, cards: document.querySelectorAll('#bountyList .bt-card').length,
         loading: !!document.querySelector('#bountyList .bt-empty') }));
       const reqHeld = s.rulesReq;
@@ -1542,9 +1544,9 @@ try {
       const want20 = TAG20['zh-TW'](RULES.chips.remoteMultiplier);
       const remote = d.cards.filter(c => remoteOf(RULES, c.id)), others = d.cards.filter(c => !remoteOf(RULES, c.id));
       ok('CH20f 規則檔還沒回來就開板：先顯示載入中、一張卡都沒有；規則檔一到，第一次畫出來的卡就有偏遠線那張、標「' + want20 + '」，其他卡沒有標記',
-        held.hidden === false && held.cards === 0 && held.loading && reqHeld >= 1 &&
+        held.hidden === false && held.cards === 0 && held.loading && reqHeld > reqBefore &&
           remote.length === 1 && remote[0].tags.length === 1 && remote[0].tags[0].text === want20 && others.length >= 5 && others.every(c => c.tags.length === 0) && s.errors.length === 0,
-        JSON.stringify({ held, rulesReq: reqHeld, remote: remote.map(c => [c.id, c.tags.map(x => x.text)]), others: others.length, errors: s.errors }));
+        JSON.stringify({ held, rulesReq: reqHeld, reqBefore, remote: remote.map(c => [c.id, c.tags.map(x => x.text)]), others: others.length, errors: s.errors }));
       await s.ctx.close();
     });
   }
@@ -1613,6 +1615,187 @@ try {
     const qHits = Object.entries(RULES.qualityText || {}).flatMap(([code, v]) => Object.entries(v).filter(([, x]) => typeof x === 'string' && PL['zh-TW'].test(x)).map(([k]) => `${code}.${k}`));
     ok('CH21g 規則檔 qualityText 的中文裡，第一人稱複數只剩已知的那一句（underground.how；該檔不在這次的改動範圍）——多出別句、或那句已改掉，這條都會紅（改掉時把這個例外拿掉）',
       JSON.stringify(qHits) === JSON.stringify(['underground.how']), JSON.stringify(qHits));
+  }
+  // ═══ CH22：規則檔一直不回來時，看板與護照不被它卡住 ═══════════════════════════════════════════════════════════════
+  // 規則檔只決定卡片上的「籌碼 ×N」標記與護照的「下一座」那一格；手機在隧道裡，一個請求可以好幾分鐘既不回也不報錯。
+  // 規則檔（與其中一組的看板資料）的回應由測試扣住（hold）、之後才放開，誰先誰後由測試持有的閘決定，不靠睡眠秒數。
+  // 「上限」讀頁面自己的常數（BOUNTY_RULES_WAIT_MS），畫出來的最長時間＝上限＋一點餘裕；另外釘一個絕對的地板與天花板，
+  // 因為只跟著頁面的常數走的話，上限被改得很長，判準也跟著放寬、照樣全綠；被改到接近 0，正常網路下標記就趕不上第一次畫。
+  if (want('CH22')) {
+    const CAP_FLOOR_MS = 1000, CAP_CEIL_MS = 5000, SLACK_MS = 2500;
+    const eR = expectOf(RULES, KEY_NAN), MARK = `籌碼 ×${eR.mult}`;
+    const capOf = page => page.evaluate(() => BOUNTY_RULES_WAIT_MS);
+    const limitOf = cap => Math.min(cap, CAP_CEIL_MS) + SLACK_MS;
+    const rulesInMem = page => page.evaluate(() => bountyRulesMem !== null);
+    // 開看板（不等它，它正卡在規則檔上）：在頁面裡記下開始的時刻；回頁面實際等了多久才畫出 n 張以上的卡（超過 limit 還沒畫出來：drawn＝false）
+    const openAndWait = async (page, n, limit) => {
+      await page.evaluate(() => { window.__t0 = performance.now(); window.__openErr = null; window.__openP = openBountyBoard().then(() => true, e => { window.__openErr = String((e && e.message) || e); return false; }); });
+      const drawn = await page.waitForFunction(k => document.querySelectorAll('#bountyList .bt-card').length >= k, n, { timeout: limit, polling: 25 }).then(() => true, () => false);
+      return { drawn, ms: await page.evaluate(() => Math.round(performance.now() - window.__t0)) };
+    };
+    // 開看板那一呼叫自己有沒有跑完：true＝跑完沒丟錯、false＝丟了錯、'pending'＝還卡著（不能直接 await，卡著的話會一直等下去）
+    const openState = (page, key = '__openP') => page.evaluate(k => Promise.race([window[k], new Promise(r => setTimeout(() => r('pending'), 200))]), key);
+    // 放開規則檔，等到它真的進了頁面的記憶體；再讓頁面多跑幾拍（若有人在補畫，這時早已畫完）
+    const releaseAndArrive = async (s, gate) => {
+      gate.release();
+      await s.page.waitForFunction(() => bountyRulesMem !== null, null, { timeout: 15000 });
+      await s.page.evaluate(() => new Promise(r => setTimeout(r, 300)));
+    };
+    const idsOf = b => b.cards.map(c => c.id);
+    const tagOf = (b, id) => (b.cards.find(c => c.id === id) || { tags: null }).tags;
+    const distinct = a => new Set(a).size === a.length;
+    const modalState = page => page.evaluate(() => ({ hidden: document.getElementById('bountyModal').hidden, html: document.getElementById('bountyList').innerHTML,
+      cards: document.querySelectorAll('#bountyList .bt-card').length, loading: !!document.querySelector('#bountyList .bt-empty') }));
+    // 真看板（旗標開、App 殼、已登入）：規則檔從開機前就扣住；看板資料照舊立刻回（南迴線兩張＝偏遠線、屏東線一張）
+    const realSession = async () => {
+      const s = await newSession({ app: true }, {}, { ctx: { locale: 'zh-TW' } });
+      s.board = BOARD_V2;
+      const gate = s.hold('rules');
+      await s.page.goto(`${BASE}/?bounty=1&lang=zh-TW`);
+      await loggedIn(s.page);
+      await chipsLoaded(s.page);
+      return { s, gate };
+    };
+    const REAL_IDS = [CARD_R.id, CARD_P.id, CARD_RC.id];
+
+    // ── 示範看板（?demo=bounty）：規則檔扣住 → 上限之內畫出原本的 5 張；之後才放開 → 不丟錯、不重挑、不重複
+    await attempt('CH22-demo', async () => {
+      const s = await newSession({ app: false }, {}, { ctx: { locale: 'zh-TW' } });
+      const gate = s.hold('rules');
+      await s.page.goto(`${BASE}/?lang=zh-TW&demo=bounty`);
+      await bootDone(s.page);
+      const cap = await capOf(s.page);
+      ok(`CH22a 等規則檔的上限（BOUNTY_RULES_WAIT_MS＝${cap} 毫秒）是個有限的數字，落在 ${CAP_FLOOR_MS}～${CAP_CEIL_MS} 毫秒：太長，看板與護照在隧道裡一直等；太短，正常網路下標記趕不上第一次畫`,
+        Number.isFinite(cap) && cap >= CAP_FLOOR_MS && cap <= CAP_CEIL_MS, String(cap));
+      const before = s.rulesReq;
+      const o = await openAndWait(s.page, 1, limitOf(cap));
+      const b1 = await readBoard(s.page);
+      const st = await s.page.evaluate(() => ({ rulesMem: bountyRulesMem !== null, kinds: bountyBoardMem ? bountyBoardMem.cards.map(c => c.kind) : null }));
+      const done = await openState(s.page);
+      ok(`CH22b 示範看板：規則檔一直扣住時，在上限＋餘裕（${limitOf(cap)} 毫秒）之內畫出原本的 5 張卡（4 張路段卡＋1 張停站卡）、沒有任何標記；開看板那一呼叫自己跑完了；規則檔此時確實還沒到（頁面問過、還在等）`,
+        o.drawn && o.ms <= limitOf(cap) && b1.cards.length === 5 && !!st.kinds && st.kinds.filter(k => k === 'track').length === 4 && st.kinds.filter(k => k === 'dwell').length === 1 &&
+          b1.cards.every(c => c.tags.length === 0) && done === true && st.rulesMem === false && s.rulesReq > before && s.errors.length === 0,
+        JSON.stringify({ cap, o, kinds: st.kinds, tags: b1.cards.map(c => c.tags.length), done, rulesMem: st.rulesMem, rulesReq: s.rulesReq, before, errors: s.errors }));
+      await releaseAndArrive(s, gate);
+      const b2 = await readBoard(s.page);
+      ok('CH22c 示範看板：規則檔之後才到——頁面沒有丟例外、板子還是原來那 5 張（編號與順序不變、沒有重複、沒有重挑出偏遠線那張）；規則檔確實進了記憶體',
+        (await rulesInMem(s.page)) && s.errors.length === 0 && b2.cards.length === 5 && JSON.stringify(idsOf(b2)) === JSON.stringify(idsOf(b1)) && distinct(idsOf(b2)),
+        JSON.stringify({ before: idsOf(b1), after: idsOf(b2), errors: s.errors }));
+      await s.ctx.close();
+    });
+
+    // ── 真看板：規則檔扣住 → 上限之內先畫不帶標記的卡；之後才放開 → 偏遠線的卡補上標記
+    await attempt('CH22-real', async () => {
+      const { s, gate } = await realSession();
+      const cap = await capOf(s.page);
+      const before = s.rulesReq;
+      const o = await openAndWait(s.page, 3, limitOf(cap));
+      const b1 = await readBoard(s.page);
+      const rulesMem1 = await rulesInMem(s.page);
+      const done = await openState(s.page);
+      ok(`CH22d 真看板：規則檔一直扣住（看板資料照舊回）時，在上限＋餘裕（${limitOf(cap)} 毫秒）之內畫出 3 張卡、沒有任何標記；開看板那一呼叫自己跑完了；規則檔此時確實還沒到（頁面問過、還在等）`,
+        o.drawn && o.ms <= limitOf(cap) && JSON.stringify(idsOf(b1)) === JSON.stringify(REAL_IDS) && b1.cards.every(c => c.tags.length === 0) && done === true && rulesMem1 === false && s.rulesReq > before && s.errors.length === 0,
+        JSON.stringify({ cap, o, ids: idsOf(b1), tags: b1.cards.map(c => c.tags.length), done, rulesMem: rulesMem1, rulesReq: s.rulesReq, before, errors: s.errors }));
+      gate.release();
+      const marked = await s.page.waitForFunction(() => document.querySelectorAll('#bountyList .bt-chip').length >= 1, null, { timeout: 10000 }).then(() => true, () => false);
+      await s.page.evaluate(() => new Promise(r => setTimeout(r, 300)));
+      const b2 = await readBoard(s.page);
+      ok(`CH22e 真看板：規則檔之後才到、看板還開著——偏遠線的兩張卡（南迴線一般卡與收滿卡）補上「${MARK}」、屏東線那張沒有；還是原來那 3 張（編號與順序不變、沒有重複）、頁面沒有丟例外`,
+        marked && JSON.stringify(tagOf(b2, CARD_R.id)) === JSON.stringify([MARK]) && JSON.stringify(tagOf(b2, CARD_RC.id)) === JSON.stringify([MARK]) && JSON.stringify(tagOf(b2, CARD_P.id)) === '[]' &&
+          JSON.stringify(idsOf(b2)) === JSON.stringify(REAL_IDS) && distinct(idsOf(b2)) && (await openState(s.page)) === true && s.errors.length === 0,
+        JSON.stringify({ marked, tags: b2.cards.map(c => [c.id, c.tags]), errors: s.errors }));
+      await s.ctx.close();
+    });
+
+    // ── 真看板，規則檔在上限之內到了：第一次畫出來的卡就帶標記（不是先畫一版沒標記的再補），而且一到就畫、不是照樣等滿上限
+    await attempt('CH22-intime', async () => {
+      const { s, gate } = await realSession();
+      const cap = await capOf(s.page);
+      const before = s.rulesReq;
+      await s.page.evaluate(() => {
+        window.__first = null; window.__t0 = performance.now();
+        new MutationObserver(() => {
+          const cs = document.querySelectorAll('#bountyList .bt-card');
+          if (!window.__first && cs.length >= 3) { window.__firstAt = Math.round(performance.now() - window.__t0); window.__first = [...cs].map(c => ({ id: c.dataset.card, tags: [...c.querySelectorAll('.bt-pt')].map(x => x.textContent.replace(/\s+/g, ' ').trim()) })); }
+        }).observe(document.getElementById('bountyList'), { childList: true, subtree: true });
+        window.__openErr = null;
+        window.__openP = openBountyBoard().then(() => true, e => { window.__openErr = String((e && e.message) || e); return false; });
+      });
+      await until(() => s.rulesReq > before);                                           // 頁面真的在等規則檔了（離上限還很遠），這時才放開
+      gate.release();
+      await s.page.waitForFunction(() => window.__first !== null, null, { timeout: 15000 });
+      const first = await s.page.evaluate(() => window.__first), firstAt = await s.page.evaluate(() => window.__firstAt);
+      const tags = id => (first.find(c => c.id === id) || { tags: null }).tags;
+      ok(`CH22f 真看板：規則檔在上限之內到了——第一次畫出來的卡就帶標記（南迴線兩張「${MARK}」、屏東線沒有），不是先畫一版沒標記的再補；而且在上限（${cap} 毫秒）到之前就畫了（${firstAt} 毫秒），不是照樣等滿上限`,
+        first.length === 3 && JSON.stringify(first.map(c => c.id)) === JSON.stringify(REAL_IDS) && JSON.stringify(tags(CARD_R.id)) === JSON.stringify([MARK]) && JSON.stringify(tags(CARD_RC.id)) === JSON.stringify([MARK]) &&
+          JSON.stringify(tags(CARD_P.id)) === '[]' && Number.isFinite(firstAt) && firstAt < cap && s.errors.length === 0, JSON.stringify({ first, firstAt, cap, errors: s.errors }));
+      await s.ctx.close();
+    });
+
+    // ── 真看板，看板關掉之後規則檔才到：不丟錯、不畫到關著的看板上
+    await attempt('CH22-closed', async () => {
+      const { s, gate } = await realSession();
+      const cap = await capOf(s.page);
+      const o = await openAndWait(s.page, 3, limitOf(cap));
+      await s.page.click('#bountyClose');
+      const snap = await modalState(s.page);
+      await releaseAndArrive(s, gate);
+      const after = await modalState(s.page);
+      const o2 = await openAndWait(s.page, 3, 10000);                                   // 對照：重開，規則檔已在記憶體，第一次畫就帶標記
+      const b3 = await readBoard(s.page);
+      ok('CH22g 真看板：看板關掉之後規則檔才到——頁面沒有丟例外、看板保持關閉、關著的看板裡的內容一個字沒變（沒有補上標記）；規則檔確實到了（重新開板，第一次畫就帶標記）',
+        o.drawn && snap.hidden === true && snap.cards === 3 && !/bt-chip/.test(snap.html) && after.hidden === true && after.html === snap.html && s.errors.length === 0 &&
+          o2.drawn && JSON.stringify(tagOf(b3, CARD_R.id)) === JSON.stringify([MARK]) && JSON.stringify(tagOf(b3, CARD_P.id)) === '[]',
+        JSON.stringify({ o, snapHidden: snap.hidden, snapCards: snap.cards, afterHidden: after.hidden, same: after.html === snap.html, o2, tags: b3.cards.map(c => [c.id, c.tags]), errors: s.errors }));
+      await s.ctx.close();
+    });
+
+    // ── 真看板，第一次開的補畫不能畫到第二次開的看板上：關掉再開（第二次的看板資料還沒回來、停在載入中），這時規則檔才到
+    await attempt('CH22-reopen', async () => {
+      const { s, gate } = await realSession();
+      const cap = await capOf(s.page);
+      const o1 = await openAndWait(s.page, 3, limitOf(cap));
+      await s.page.click('#bountyClose');
+      const bgate = s.hold('board');                                                    // 第二次開板的看板資料先扣住
+      await s.page.evaluate(() => { window.__openP2 = openBountyBoard().then(() => true, e => { window.__openErr = String((e && e.message) || e); return false; }); });
+      await until(() => s.boardReq >= 2);                                               // 第二次的看板請求已經發出、卡在閘上
+      const loading = await modalState(s.page);
+      await releaseAndArrive(s, gate);
+      const mid = await modalState(s.page);                                             // 規則檔到了、第二次的看板資料還沒到：還是「載入中…」，沒有被舊的補畫蓋成卡片
+      bgate.release();
+      const drawn2 = await s.page.waitForFunction(() => document.querySelectorAll('#bountyList .bt-card').length >= 3, null, { timeout: 15000 }).then(() => true, () => false);
+      const b = await readBoard(s.page);
+      ok('CH22j 真看板：第一次開的看板沒等到規則檔、關掉再開（第二次的看板資料還沒回來）時規則檔才到——第二次那塊「載入中…」沒有被第一次留下的補畫蓋成舊的卡片；看板資料一到，第二次畫的卡帶標記、沒有重複、沒有丟例外',
+        o1.drawn && loading.hidden === false && loading.cards === 0 && loading.loading && mid.hidden === false && mid.cards === 0 && mid.loading &&
+          drawn2 && JSON.stringify(idsOf(b)) === JSON.stringify(REAL_IDS) && JSON.stringify(tagOf(b, CARD_R.id)) === JSON.stringify([MARK]) && JSON.stringify(tagOf(b, CARD_P.id)) === '[]' && distinct(idsOf(b)) && s.errors.length === 0,
+        JSON.stringify({ loading: [loading.hidden, loading.cards, loading.loading], mid: [mid.hidden, mid.cards, mid.loading], drawn2, tags: b.cards.map(c => [c.id, c.tags]), errors: s.errors }));
+      await s.ctx.close();
+    });
+
+    // ── 護照：規則檔扣住 → 上限之內籌碼數字照樣畫出來（「下一座」那一格不顯示）；之後才放開 → 不丟錯
+    // 登入結果由測試放出來（authManual），所以「從登入到籌碼數字畫出來」的時間在頁面裡量得到起點。
+    await attempt('CH22-passport', async () => {
+      const s = await newSession({ authManual: true }, {}, { ctx: { locale: 'zh-TW' } });
+      const gate = s.hold('rules');
+      await goBounty(s);
+      await bootDone(s.page);
+      await until(() => s.page.evaluate(() => typeof window.__fireAuth === 'function'));
+      const cap = await capOf(s.page);
+      const before = s.rulesReq;
+      await s.page.evaluate(() => { window.__t0 = performance.now(); window.__fireAuth(); });
+      const drawn = await s.page.waitForFunction(() => { const b = document.querySelector('#passport .ph-chips [data-k="balance"] b'); return !!b && b.textContent.trim() === '5'; }, null, { timeout: limitOf(cap), polling: 25 }).then(() => true, () => false);
+      const ms = await s.page.evaluate(() => Math.round(performance.now() - window.__t0));
+      const r = await rowInfo(s.page);
+      const rulesMem1 = await rulesInMem(s.page);
+      ok(`CH22h 護照：規則檔一直扣住時，籌碼數字在上限＋餘裕（${limitOf(cap)} 毫秒）之內照樣畫出來（餘額 5）、「下一座」那一格不顯示（照規則檔讀不到處理）；規則檔此時確實還沒到（頁面問過、還在等）`,
+        drawn && ms <= limitOf(cap) && !!r && !r.off && !!r.cells.balance && r.cells.balance.nums.join() === '5' && !r.cells.next && rulesMem1 === false && s.rulesReq > before && s.errors.length === 0,
+        JSON.stringify({ cap, drawn, ms, cells: r && Object.keys(r.cells), rulesMem: rulesMem1, rulesReq: s.rulesReq, before, errors: s.errors }));
+      await releaseAndArrive(s, gate);
+      const r2 = await rowInfo(s.page);
+      ok('CH22i 護照：規則檔之後才到——頁面沒有丟例外、籌碼數字還在（餘額 5）；規則檔確實進了記憶體',
+        (await rulesInMem(s.page)) && s.errors.length === 0 && !!r2 && !r2.off && !!r2.cells.balance && r2.cells.balance.nums.join() === '5', JSON.stringify({ cells: r2 && r2.cells, errors: s.errors }));
+      await s.ctx.close();
+    });
   }
 } finally {
   if (wk) await wk.close().catch(() => {});
