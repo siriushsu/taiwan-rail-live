@@ -1,0 +1,761 @@
+{
+  "stamp": "2026-10-01T15:12:24.364Z",
+  "label": "offerings",
+  "data": {
+    "currentId": null,
+    "offeringIds": [
+      "plus"
+    ],
+    "plus": {
+      "identifier": "plus",
+      "packages": [
+        {
+          "identifier": "lifetime_upgrade",
+          "packageType": "CUSTOM",
+          "productIdentifier": "railisland_pass_lifetime_upgrade",
+          "productCategory": "NON_SUBSCRIPTION",
+          "productType": "CONSUMABLE",
+          "priceString": "NT$990.00",
+          "currencyCode": "TWD"
+        },
+        {
+          "identifier": "$rc_lifetime",
+          "packageType": "LIFETIME",
+          "productIdentifier": "railisland_pass_lifetime",
+          "productCategory": "NON_SUBSCRIPTION",
+          "productType": "CONSUMABLE",
+          "priceString": "NT$1,490.00",
+          "currencyCode": "TWD"
+        },
+        {
+          "identifier": "$rc_annual",
+          "packageType": "ANNUAL",
+          "productIdentifier": "railisland_pass:annual-autorenewing",
+          "productCategory": "SUBSCRIPTION",
+          "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+          "priceString": "NT$410.00",
+          "currencyCode": "TWD"
+        },
+        {
+          "identifier": "$rc_monthly",
+          "packageType": "MONTHLY",
+          "productIdentifier": "railisland_pass:monthly-autorenewing",
+          "productCategory": "SUBSCRIPTION",
+          "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+          "priceString": "NT$94.00",
+          "currencyCode": "TWD"
+        }
+      ]
+    },
+    "rawPlus": {
+      "identifier": "plus",
+      "serverDescription": "plus",
+      "metadata": {},
+      "availablePackages": [
+        {
+          "identifier": "lifetime_upgrade",
+          "packageType": "CUSTOM",
+          "product": {
+            "identifier": "railisland_pass_lifetime_upgrade",
+            "description": "Upgrade price for past pass subscribers",
+            "title": "Lifetime Pass (Upgrade) (Rail Island: Taiwan Rail Live)",
+            "price": 990,
+            "priceString": "NT$990.00",
+            "currencyCode": "TWD",
+            "introPrice": null,
+            "discounts": null,
+            "pricePerWeek": null,
+            "pricePerMonth": null,
+            "pricePerYear": null,
+            "pricePerWeekString": null,
+            "pricePerMonthString": null,
+            "pricePerYearString": null,
+            "productCategory": "NON_SUBSCRIPTION",
+            "productType": "CONSUMABLE",
+            "subscriptionPeriod": null,
+            "defaultOption": null,
+            "subscriptionOptions": null,
+            "presentedOfferingIdentifier": "plus",
+            "presentedOfferingContext": {
+              "offeringIdentifier": "plus",
+              "placementIdentifier": null,
+              "targetingContext": null
+            }
+          },
+          "offeringIdentifier": "plus",
+          "presentedOfferingContext": {
+            "offeringIdentifier": "plus",
+            "placementIdentifier": null,
+            "targetingContext": null
+          },
+          "webCheckoutUrl": null
+        },
+        {
+          "identifier": "$rc_lifetime",
+          "packageType": "LIFETIME",
+          "product": {
+            "identifier": "railisland_pass_lifetime",
+            "description": "Pass features for as long as Rail Island runs",
+            "title": "Lifetime Pass (Rail Island: Taiwan Rail Live)",
+            "price": 1490,
+            "priceString": "NT$1,490.00",
+            "currencyCode": "TWD",
+            "introPrice": null,
+            "discounts": null,
+            "pricePerWeek": null,
+            "pricePerMonth": null,
+            "pricePerYear": null,
+            "pricePerWeekString": null,
+            "pricePerMonthString": null,
+            "pricePerYearString": null,
+            "productCategory": "NON_SUBSCRIPTION",
+            "productType": "CONSUMABLE",
+            "subscriptionPeriod": null,
+            "defaultOption": null,
+            "subscriptionOptions": null,
+            "presentedOfferingIdentifier": "plus",
+            "presentedOfferingContext": {
+              "offeringIdentifier": "plus",
+              "placementIdentifier": null,
+              "targetingContext": null
+            }
+          },
+          "offeringIdentifier": "plus",
+          "presentedOfferingContext": {
+            "offeringIdentifier": "plus",
+            "placementIdentifier": null,
+            "targetingContext": null
+          },
+          "webCheckoutUrl": null
+        },
+        {
+          "identifier": "$rc_annual",
+          "packageType": "ANNUAL",
+          "product": {
+            "identifier": "railisland_pass:annual-autorenewing",
+            "description": "",
+            "title": "軌島通行證 (軌島 台灣鐵道動態地圖)",
+            "price": 410,
+            "priceString": "NT$410.00",
+            "currencyCode": "TWD",
+            "introPrice": null,
+            "discounts": null,
+            "pricePerWeek": 7.863013,
+            "pricePerMonth": 34.166666,
+            "pricePerYear": 410,
+            "pricePerWeekString": "NT$7.86",
+            "pricePerMonthString": "NT$34.16",
+            "pricePerYearString": "NT$410.00",
+            "productCategory": "SUBSCRIPTION",
+            "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+            "subscriptionPeriod": "P1Y",
+            "defaultOption": {
+              "id": "annual-autorenewing",
+              "storeProductId": "railisland_pass:annual-autorenewing",
+              "productId": "railisland_pass",
+              "pricingPhases": [
+                {
+                  "billingPeriod": {
+                    "unit": "YEAR",
+                    "value": 1,
+                    "iso8601": "P1Y"
+                  },
+                  "recurrenceMode": 1,
+                  "billingCycleCount": 0,
+                  "price": {
+                    "formatted": "NT$410.00",
+                    "amountMicros": 410000000,
+                    "currencyCode": "TWD"
+                  },
+                  "offerPaymentMode": null
+                }
+              ],
+              "tags": [],
+              "isBasePlan": true,
+              "billingPeriod": {
+                "unit": "YEAR",
+                "value": 1,
+                "iso8601": "P1Y"
+              },
+              "isPrepaid": false,
+              "fullPricePhase": {
+                "billingPeriod": {
+                  "unit": "YEAR",
+                  "value": 1,
+                  "iso8601": "P1Y"
+                },
+                "recurrenceMode": 1,
+                "billingCycleCount": 0,
+                "price": {
+                  "formatted": "NT$410.00",
+                  "amountMicros": 410000000,
+                  "currencyCode": "TWD"
+                },
+                "offerPaymentMode": null
+              },
+              "freePhase": null,
+              "introPhase": null,
+              "presentedOfferingIdentifier": "plus",
+              "presentedOfferingContext": {
+                "offeringIdentifier": "plus",
+                "placementIdentifier": null,
+                "targetingContext": null
+              },
+              "installmentsInfo": null
+            },
+            "subscriptionOptions": [
+              {
+                "id": "annual-autorenewing",
+                "storeProductId": "railisland_pass:annual-autorenewing",
+                "productId": "railisland_pass",
+                "pricingPhases": [
+                  {
+                    "billingPeriod": {
+                      "unit": "YEAR",
+                      "value": 1,
+                      "iso8601": "P1Y"
+                    },
+                    "recurrenceMode": 1,
+                    "billingCycleCount": 0,
+                    "price": {
+                      "formatted": "NT$410.00",
+                      "amountMicros": 410000000,
+                      "currencyCode": "TWD"
+                    },
+                    "offerPaymentMode": null
+                  }
+                ],
+                "tags": [],
+                "isBasePlan": true,
+                "billingPeriod": {
+                  "unit": "YEAR",
+                  "value": 1,
+                  "iso8601": "P1Y"
+                },
+                "isPrepaid": false,
+                "fullPricePhase": {
+                  "billingPeriod": {
+                    "unit": "YEAR",
+                    "value": 1,
+                    "iso8601": "P1Y"
+                  },
+                  "recurrenceMode": 1,
+                  "billingCycleCount": 0,
+                  "price": {
+                    "formatted": "NT$410.00",
+                    "amountMicros": 410000000,
+                    "currencyCode": "TWD"
+                  },
+                  "offerPaymentMode": null
+                },
+                "freePhase": null,
+                "introPhase": null,
+                "presentedOfferingIdentifier": "plus",
+                "presentedOfferingContext": {
+                  "offeringIdentifier": "plus",
+                  "placementIdentifier": null,
+                  "targetingContext": null
+                },
+                "installmentsInfo": null
+              }
+            ],
+            "presentedOfferingIdentifier": "plus",
+            "presentedOfferingContext": {
+              "offeringIdentifier": "plus",
+              "placementIdentifier": null,
+              "targetingContext": null
+            }
+          },
+          "offeringIdentifier": "plus",
+          "presentedOfferingContext": {
+            "offeringIdentifier": "plus",
+            "placementIdentifier": null,
+            "targetingContext": null
+          },
+          "webCheckoutUrl": null
+        },
+        {
+          "identifier": "$rc_monthly",
+          "packageType": "MONTHLY",
+          "product": {
+            "identifier": "railisland_pass:monthly-autorenewing",
+            "description": "",
+            "title": "軌島通行證 (軌島 台灣鐵道動態地圖)",
+            "price": 94,
+            "priceString": "NT$94.00",
+            "currencyCode": "TWD",
+            "introPrice": null,
+            "discounts": null,
+            "pricePerWeek": 21.632876,
+            "pricePerMonth": 94,
+            "pricePerYear": 1128,
+            "pricePerWeekString": "NT$21.63",
+            "pricePerMonthString": "NT$94.00",
+            "pricePerYearString": "NT$1,128.00",
+            "productCategory": "SUBSCRIPTION",
+            "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+            "subscriptionPeriod": "P1M",
+            "defaultOption": {
+              "id": "monthly-autorenewing",
+              "storeProductId": "railisland_pass:monthly-autorenewing",
+              "productId": "railisland_pass",
+              "pricingPhases": [
+                {
+                  "billingPeriod": {
+                    "unit": "MONTH",
+                    "value": 1,
+                    "iso8601": "P1M"
+                  },
+                  "recurrenceMode": 1,
+                  "billingCycleCount": 0,
+                  "price": {
+                    "formatted": "NT$94.00",
+                    "amountMicros": 94000000,
+                    "currencyCode": "TWD"
+                  },
+                  "offerPaymentMode": null
+                }
+              ],
+              "tags": [],
+              "isBasePlan": true,
+              "billingPeriod": {
+                "unit": "MONTH",
+                "value": 1,
+                "iso8601": "P1M"
+              },
+              "isPrepaid": false,
+              "fullPricePhase": {
+                "billingPeriod": {
+                  "unit": "MONTH",
+                  "value": 1,
+                  "iso8601": "P1M"
+                },
+                "recurrenceMode": 1,
+                "billingCycleCount": 0,
+                "price": {
+                  "formatted": "NT$94.00",
+                  "amountMicros": 94000000,
+                  "currencyCode": "TWD"
+                },
+                "offerPaymentMode": null
+              },
+              "freePhase": null,
+              "introPhase": null,
+              "presentedOfferingIdentifier": "plus",
+              "presentedOfferingContext": {
+                "offeringIdentifier": "plus",
+                "placementIdentifier": null,
+                "targetingContext": null
+              },
+              "installmentsInfo": null
+            },
+            "subscriptionOptions": [
+              {
+                "id": "monthly-autorenewing",
+                "storeProductId": "railisland_pass:monthly-autorenewing",
+                "productId": "railisland_pass",
+                "pricingPhases": [
+                  {
+                    "billingPeriod": {
+                      "unit": "MONTH",
+                      "value": 1,
+                      "iso8601": "P1M"
+                    },
+                    "recurrenceMode": 1,
+                    "billingCycleCount": 0,
+                    "price": {
+                      "formatted": "NT$94.00",
+                      "amountMicros": 94000000,
+                      "currencyCode": "TWD"
+                    },
+                    "offerPaymentMode": null
+                  }
+                ],
+                "tags": [],
+                "isBasePlan": true,
+                "billingPeriod": {
+                  "unit": "MONTH",
+                  "value": 1,
+                  "iso8601": "P1M"
+                },
+                "isPrepaid": false,
+                "fullPricePhase": {
+                  "billingPeriod": {
+                    "unit": "MONTH",
+                    "value": 1,
+                    "iso8601": "P1M"
+                  },
+                  "recurrenceMode": 1,
+                  "billingCycleCount": 0,
+                  "price": {
+                    "formatted": "NT$94.00",
+                    "amountMicros": 94000000,
+                    "currencyCode": "TWD"
+                  },
+                  "offerPaymentMode": null
+                },
+                "freePhase": null,
+                "introPhase": null,
+                "presentedOfferingIdentifier": "plus",
+                "presentedOfferingContext": {
+                  "offeringIdentifier": "plus",
+                  "placementIdentifier": null,
+                  "targetingContext": null
+                },
+                "installmentsInfo": null
+              }
+            ],
+            "presentedOfferingIdentifier": "plus",
+            "presentedOfferingContext": {
+              "offeringIdentifier": "plus",
+              "placementIdentifier": null,
+              "targetingContext": null
+            }
+          },
+          "offeringIdentifier": "plus",
+          "presentedOfferingContext": {
+            "offeringIdentifier": "plus",
+            "placementIdentifier": null,
+            "targetingContext": null
+          },
+          "webCheckoutUrl": null
+        }
+      ],
+      "lifetime": {
+        "identifier": "$rc_lifetime",
+        "packageType": "LIFETIME",
+        "product": {
+          "identifier": "railisland_pass_lifetime",
+          "description": "Pass features for as long as Rail Island runs",
+          "title": "Lifetime Pass (Rail Island: Taiwan Rail Live)",
+          "price": 1490,
+          "priceString": "NT$1,490.00",
+          "currencyCode": "TWD",
+          "introPrice": null,
+          "discounts": null,
+          "pricePerWeek": null,
+          "pricePerMonth": null,
+          "pricePerYear": null,
+          "pricePerWeekString": null,
+          "pricePerMonthString": null,
+          "pricePerYearString": null,
+          "productCategory": "NON_SUBSCRIPTION",
+          "productType": "CONSUMABLE",
+          "subscriptionPeriod": null,
+          "defaultOption": null,
+          "subscriptionOptions": null,
+          "presentedOfferingIdentifier": "plus",
+          "presentedOfferingContext": {
+            "offeringIdentifier": "plus",
+            "placementIdentifier": null,
+            "targetingContext": null
+          }
+        },
+        "offeringIdentifier": "plus",
+        "presentedOfferingContext": {
+          "offeringIdentifier": "plus",
+          "placementIdentifier": null,
+          "targetingContext": null
+        },
+        "webCheckoutUrl": null
+      },
+      "annual": {
+        "identifier": "$rc_annual",
+        "packageType": "ANNUAL",
+        "product": {
+          "identifier": "railisland_pass:annual-autorenewing",
+          "description": "",
+          "title": "軌島通行證 (軌島 台灣鐵道動態地圖)",
+          "price": 410,
+          "priceString": "NT$410.00",
+          "currencyCode": "TWD",
+          "introPrice": null,
+          "discounts": null,
+          "pricePerWeek": 7.863013,
+          "pricePerMonth": 34.166666,
+          "pricePerYear": 410,
+          "pricePerWeekString": "NT$7.86",
+          "pricePerMonthString": "NT$34.16",
+          "pricePerYearString": "NT$410.00",
+          "productCategory": "SUBSCRIPTION",
+          "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+          "subscriptionPeriod": "P1Y",
+          "defaultOption": {
+            "id": "annual-autorenewing",
+            "storeProductId": "railisland_pass:annual-autorenewing",
+            "productId": "railisland_pass",
+            "pricingPhases": [
+              {
+                "billingPeriod": {
+                  "unit": "YEAR",
+                  "value": 1,
+                  "iso8601": "P1Y"
+                },
+                "recurrenceMode": 1,
+                "billingCycleCount": 0,
+                "price": {
+                  "formatted": "NT$410.00",
+                  "amountMicros": 410000000,
+                  "currencyCode": "TWD"
+                },
+                "offerPaymentMode": null
+              }
+            ],
+            "tags": [],
+            "isBasePlan": true,
+            "billingPeriod": {
+              "unit": "YEAR",
+              "value": 1,
+              "iso8601": "P1Y"
+            },
+            "isPrepaid": false,
+            "fullPricePhase": {
+              "billingPeriod": {
+                "unit": "YEAR",
+                "value": 1,
+                "iso8601": "P1Y"
+              },
+              "recurrenceMode": 1,
+              "billingCycleCount": 0,
+              "price": {
+                "formatted": "NT$410.00",
+                "amountMicros": 410000000,
+                "currencyCode": "TWD"
+              },
+              "offerPaymentMode": null
+            },
+            "freePhase": null,
+            "introPhase": null,
+            "presentedOfferingIdentifier": "plus",
+            "presentedOfferingContext": {
+              "offeringIdentifier": "plus",
+              "placementIdentifier": null,
+              "targetingContext": null
+            },
+            "installmentsInfo": null
+          },
+          "subscriptionOptions": [
+            {
+              "id": "annual-autorenewing",
+              "storeProductId": "railisland_pass:annual-autorenewing",
+              "productId": "railisland_pass",
+              "pricingPhases": [
+                {
+                  "billingPeriod": {
+                    "unit": "YEAR",
+                    "value": 1,
+                    "iso8601": "P1Y"
+                  },
+                  "recurrenceMode": 1,
+                  "billingCycleCount": 0,
+                  "price": {
+                    "formatted": "NT$410.00",
+                    "amountMicros": 410000000,
+                    "currencyCode": "TWD"
+                  },
+                  "offerPaymentMode": null
+                }
+              ],
+              "tags": [],
+              "isBasePlan": true,
+              "billingPeriod": {
+                "unit": "YEAR",
+                "value": 1,
+                "iso8601": "P1Y"
+              },
+              "isPrepaid": false,
+              "fullPricePhase": {
+                "billingPeriod": {
+                  "unit": "YEAR",
+                  "value": 1,
+                  "iso8601": "P1Y"
+                },
+                "recurrenceMode": 1,
+                "billingCycleCount": 0,
+                "price": {
+                  "formatted": "NT$410.00",
+                  "amountMicros": 410000000,
+                  "currencyCode": "TWD"
+                },
+                "offerPaymentMode": null
+              },
+              "freePhase": null,
+              "introPhase": null,
+              "presentedOfferingIdentifier": "plus",
+              "presentedOfferingContext": {
+                "offeringIdentifier": "plus",
+                "placementIdentifier": null,
+                "targetingContext": null
+              },
+              "installmentsInfo": null
+            }
+          ],
+          "presentedOfferingIdentifier": "plus",
+          "presentedOfferingContext": {
+            "offeringIdentifier": "plus",
+            "placementIdentifier": null,
+            "targetingContext": null
+          }
+        },
+        "offeringIdentifier": "plus",
+        "presentedOfferingContext": {
+          "offeringIdentifier": "plus",
+          "placementIdentifier": null,
+          "targetingContext": null
+        },
+        "webCheckoutUrl": null
+      },
+      "sixMonth": null,
+      "threeMonth": null,
+      "twoMonth": null,
+      "monthly": {
+        "identifier": "$rc_monthly",
+        "packageType": "MONTHLY",
+        "product": {
+          "identifier": "railisland_pass:monthly-autorenewing",
+          "description": "",
+          "title": "軌島通行證 (軌島 台灣鐵道動態地圖)",
+          "price": 94,
+          "priceString": "NT$94.00",
+          "currencyCode": "TWD",
+          "introPrice": null,
+          "discounts": null,
+          "pricePerWeek": 21.632876,
+          "pricePerMonth": 94,
+          "pricePerYear": 1128,
+          "pricePerWeekString": "NT$21.63",
+          "pricePerMonthString": "NT$94.00",
+          "pricePerYearString": "NT$1,128.00",
+          "productCategory": "SUBSCRIPTION",
+          "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+          "subscriptionPeriod": "P1M",
+          "defaultOption": {
+            "id": "monthly-autorenewing",
+            "storeProductId": "railisland_pass:monthly-autorenewing",
+            "productId": "railisland_pass",
+            "pricingPhases": [
+              {
+                "billingPeriod": {
+                  "unit": "MONTH",
+                  "value": 1,
+                  "iso8601": "P1M"
+                },
+                "recurrenceMode": 1,
+                "billingCycleCount": 0,
+                "price": {
+                  "formatted": "NT$94.00",
+                  "amountMicros": 94000000,
+                  "currencyCode": "TWD"
+                },
+                "offerPaymentMode": null
+              }
+            ],
+            "tags": [],
+            "isBasePlan": true,
+            "billingPeriod": {
+              "unit": "MONTH",
+              "value": 1,
+              "iso8601": "P1M"
+            },
+            "isPrepaid": false,
+            "fullPricePhase": {
+              "billingPeriod": {
+                "unit": "MONTH",
+                "value": 1,
+                "iso8601": "P1M"
+              },
+              "recurrenceMode": 1,
+              "billingCycleCount": 0,
+              "price": {
+                "formatted": "NT$94.00",
+                "amountMicros": 94000000,
+                "currencyCode": "TWD"
+              },
+              "offerPaymentMode": null
+            },
+            "freePhase": null,
+            "introPhase": null,
+            "presentedOfferingIdentifier": "plus",
+            "presentedOfferingContext": {
+              "offeringIdentifier": "plus",
+              "placementIdentifier": null,
+              "targetingContext": null
+            },
+            "installmentsInfo": null
+          },
+          "subscriptionOptions": [
+            {
+              "id": "monthly-autorenewing",
+              "storeProductId": "railisland_pass:monthly-autorenewing",
+              "productId": "railisland_pass",
+              "pricingPhases": [
+                {
+                  "billingPeriod": {
+                    "unit": "MONTH",
+                    "value": 1,
+                    "iso8601": "P1M"
+                  },
+                  "recurrenceMode": 1,
+                  "billingCycleCount": 0,
+                  "price": {
+                    "formatted": "NT$94.00",
+                    "amountMicros": 94000000,
+                    "currencyCode": "TWD"
+                  },
+                  "offerPaymentMode": null
+                }
+              ],
+              "tags": [],
+              "isBasePlan": true,
+              "billingPeriod": {
+                "unit": "MONTH",
+                "value": 1,
+                "iso8601": "P1M"
+              },
+              "isPrepaid": false,
+              "fullPricePhase": {
+                "billingPeriod": {
+                  "unit": "MONTH",
+                  "value": 1,
+                  "iso8601": "P1M"
+                },
+                "recurrenceMode": 1,
+                "billingCycleCount": 0,
+                "price": {
+                  "formatted": "NT$94.00",
+                  "amountMicros": 94000000,
+                  "currencyCode": "TWD"
+                },
+                "offerPaymentMode": null
+              },
+              "freePhase": null,
+              "introPhase": null,
+              "presentedOfferingIdentifier": "plus",
+              "presentedOfferingContext": {
+                "offeringIdentifier": "plus",
+                "placementIdentifier": null,
+                "targetingContext": null
+              },
+              "installmentsInfo": null
+            }
+          ],
+          "presentedOfferingIdentifier": "plus",
+          "presentedOfferingContext": {
+            "offeringIdentifier": "plus",
+            "placementIdentifier": null,
+            "targetingContext": null
+          }
+        },
+        "offeringIdentifier": "plus",
+        "presentedOfferingContext": {
+          "offeringIdentifier": "plus",
+          "placementIdentifier": null,
+          "targetingContext": null
+        },
+        "webCheckoutUrl": null
+      },
+      "weekly": null,
+      "webCheckoutUrl": null
+    }
+  }
+}

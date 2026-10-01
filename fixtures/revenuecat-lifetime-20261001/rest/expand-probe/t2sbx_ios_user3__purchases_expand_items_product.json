@@ -1,0 +1,15 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/v2/projects/00000000/customers/t2sbx_ios_user3/purchases?environment=sandbox&expand=items.product"
+  },
+  "status": 400,
+  "body": {
+    "doc_url": "https://errors.rev.cat/parameter-error",
+    "message": "'items.product' is not one of ['items.redemption']",
+    "object": "error",
+    "param": "expand",
+    "retryable": false,
+    "type": "parameter_error"
+  }
+}

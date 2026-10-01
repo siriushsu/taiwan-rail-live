@@ -1,0 +1,25 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/v2/projects/00000000/customers/t2sbx_ios_user2"
+  },
+  "status": 200,
+  "body": {
+    "active_entitlements": {
+      "items": [],
+      "next_page": null,
+      "object": "list",
+      "url": "https://api.revenuecat.com/v2/projects/proj00000000/customers/t2sbx_ios_user2/active_entitlements"
+    },
+    "experiment": null,
+    "first_seen_at": 1790867659678,
+    "id": "t2sbx_ios_user2",
+    "last_seen_app_version": "1.6.14",
+    "last_seen_at": 1790867659678,
+    "last_seen_country": "TW",
+    "last_seen_platform": "iOS",
+    "last_seen_platform_version": "Version 26.5 (Build 23F77)",
+    "object": "customer",
+    "project_id": "proj00000000"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "api_version": "1.0",
+  "event": {
+    "aliases": [
+      "t2sbx_android_user1"
+    ],
+    "app_id": "app0000000001",
+    "app_user_id": "t2sbx_android_user1",
+    "cancel_reason": "CUSTOMER_SUPPORT",
+    "commission_percentage": 0.1429,
+    "country_code": "TW",
+    "currency": "TWD",
+    "entitlement_id": null,
+    "entitlement_ids": [
+      "plus"
+    ],
+    "environment": "SANDBOX",
+    "event_timestamp_ms": 1790868723112,
+    "expiration_at_ms": null,
+    "id": "00000000-0000-4000-8000-000000000001",
+    "is_family_share": false,
+    "metadata": null,
+    "offer_code": null,
+    "original_app_user_id": "t2sbx_android_user1",
+    "original_transaction_id": "GPA.0000-0000-0000-00001",
+    "period_type": "NORMAL",
+    "presented_offering_id": "plus",
+    "price": -31.05,
+    "price_in_purchased_currency": -990,
+    "product_id": "railisland_pass_lifetime_upgrade",
+    "purchased_at_ms": 1790867567821,
+    "renewal_number": null,
+    "store": "PLAY_STORE",
+    "subscriber_attributes": {},
+    "takehome_percentage": 0.85,
+    "tax_percentage": 0.0476,
+    "transaction_id": "GPA.0000-0000-0000-00001",
+    "type": "CANCELLATION"
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "stamp": "2026-10-01T15:13:35.031Z",
+  "label": "purchase lifetime_upgrade",
+  "data": {
+    "productIdentifier": "railisland_pass_lifetime_upgrade",
+    "transaction": {
+      "transactionIdentifier": "GPA.0000-0000-0000-00001",
+      "productIdentifier": "railisland_pass_lifetime_upgrade",
+      "purchaseDateMillis": 1790867567821,
+      "purchaseDate": "2026-10-01T15:12:47.821Z",
+      "purchaseToken": "REDACTED_1",
+      "originalJson": "{\"orderId\":\"GPA.0000-0000-0000-00001\",\"packageName\":\"tw.railisland.app\",\"productId\":\"railisland_pass_lifetime_upgrade\",\"purchaseTime\":1790867567821,\"purchaseState\":0,\"purchaseToken\":\"REDACTED_1\",\"obfuscatedAccountId\":\"REDACTED_2\",\"quantity\":1,\"acknowledged\":false}",
+      "signature": "REDACTED_3"
+    },
+    "customerInfo": {
+      "entitlements": {
+        "all": {
+          "plus": {
+            "identifier": "plus",
+            "isActive": true,
+            "willRenew": false,
+            "periodType": "NORMAL",
+            "latestPurchaseDateMillis": 1790867567000,
+            "latestPurchaseDate": "2026-10-01T15:12:47.000Z",
+            "originalPurchaseDateMillis": 1790867567000,
+            "originalPurchaseDate": "2026-10-01T15:12:47.000Z",
+            "expirationDateMillis": null,
+            "expirationDate": null,
+            "store": "PLAY_STORE",
+            "productIdentifier": "railisland_pass_lifetime_upgrade",
+            "productPlanIdentifier": null,
+            "isSandbox": true,
+            "unsubscribeDetectedAt": null,
+            "unsubscribeDetectedAtMillis": null,
+            "billingIssueDetectedAt": null,
+            "billingIssueDetectedAtMillis": null,
+            "ownershipType": "UNKNOWN",
+            "verification": "VERIFIED"
+          }
+        },
+        "active": {
+          "plus": {
+            "identifier": "plus",
+            "isActive": true,
+            "willRenew": false,
+            "periodType": "NORMAL",
+            "latestPurchaseDateMillis": 1790867567000,
+            "latestPurchaseDate": "2026-10-01T15:12:47.000Z",
+            "originalPurchaseDateMillis": 1790867567000,
+            "originalPurchaseDate": "2026-10-01T15:12:47.000Z",
+            "expirationDateMillis": null,
+            "expirationDate": null,
+            "store": "PLAY_STORE",
+            "productIdentifier": "railisland_pass_lifetime_upgrade",
+            "productPlanIdentifier": null,
+            "isSandbox": true,
+            "unsubscribeDetectedAt": null,
+            "unsubscribeDetectedAtMillis": null,
+            "billingIssueDetectedAt": null,
+            "billingIssueDetectedAtMillis": null,
+            "ownershipType": "UNKNOWN",
+            "verification": "VERIFIED"
+          }
+        },
+        "verification": "VERIFIED"
+      },
+      "activeSubscriptions": [],
+      "allPurchasedProductIdentifiers": [
+        "railisland_pass_lifetime_upgrade"
+      ],
+      "latestExpirationDate": null,
+      "latestExpirationDateMillis": null,
+      "firstSeen": "2026-10-01T14:13:27.000Z",
+      "firstSeenMillis": 1790864007000,
+      "originalAppUserId": "t2sbx_android_user1",
+      "requestDate": "2026-10-01T15:13:35.271Z",
+      "requestDateMillis": 1790867615271,
+      "allExpirationDates": {},
+      "allExpirationDatesMillis": {},
+      "allPurchaseDates": {
+        "railisland_pass_lifetime_upgrade": "2026-10-01T15:12:47.000Z"
+      },
+      "allPurchaseDatesMillis": {
+        "railisland_pass_lifetime_upgrade": 1790867567000
+      },
+      "originalApplicationVersion": null,
+      "managementURL": null,
+      "originalPurchaseDate": null,
+      "originalPurchaseDateMillis": null,
+      "nonSubscriptionTransactions": [
+        {
+          "transactionIdentifier": "o1_0000000000000000000001",
+          "revenueCatId": "o1_0000000000000000000001",
+          "productIdentifier": "railisland_pass_lifetime_upgrade",
+          "productId": "railisland_pass_lifetime_upgrade",
+          "purchaseDateMillis": 1790867567000,
+          "purchaseDate": "2026-10-01T15:12:47.000Z"
+        }
+      ],
+      "subscriptionsByProductIdentifier": {}
+    }
+  }
+}

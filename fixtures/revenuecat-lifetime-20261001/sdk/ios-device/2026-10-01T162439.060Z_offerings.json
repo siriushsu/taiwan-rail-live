@@ -1,0 +1,250 @@
+{
+  "stamp": "2026-10-01T16:24:39.060Z",
+  "label": "offerings",
+  "data": {
+    "offeringIds": [
+      "plus"
+    ],
+    "plus": {
+      "identifier": "plus",
+      "packages": [
+        {
+          "identifier": "lifetime_upgrade",
+          "packageType": "CUSTOM",
+          "productIdentifier": "tw.railisland.app.plus.lifetime_upgrade",
+          "productCategory": "NON_SUBSCRIPTION",
+          "productType": "NON_CONSUMABLE",
+          "priceString": "$990.00",
+          "currencyCode": "TWD"
+        },
+        {
+          "identifier": "$rc_lifetime",
+          "packageType": "LIFETIME",
+          "productIdentifier": "tw.railisland.app.plus.lifetime",
+          "productCategory": "NON_SUBSCRIPTION",
+          "productType": "NON_CONSUMABLE",
+          "priceString": "$1,490.00",
+          "currencyCode": "TWD"
+        },
+        {
+          "identifier": "$rc_annual",
+          "packageType": "ANNUAL",
+          "productIdentifier": "tw.railisland.app.plus.annual",
+          "productCategory": "SUBSCRIPTION",
+          "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+          "priceString": "$390.00",
+          "currencyCode": "TWD"
+        },
+        {
+          "identifier": "$rc_monthly",
+          "packageType": "MONTHLY",
+          "productIdentifier": "tw.railisland.app.plus.monthly",
+          "productCategory": "SUBSCRIPTION",
+          "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+          "priceString": "$90.00",
+          "currencyCode": "TWD"
+        }
+      ]
+    },
+    "rawPlus": {
+      "identifier": "plus",
+      "serverDescription": "plus",
+      "lifetime": {
+        "offeringIdentifier": "plus",
+        "presentedOfferingContext": {
+          "placementIdentifier": null,
+          "targetingContext": null,
+          "offeringIdentifier": "plus"
+        },
+        "webCheckoutUrl": null,
+        "product": {
+          "description": "一次購買，在軌島營運期間持續享有通行證功能",
+          "identifier": "tw.railisland.app.plus.lifetime",
+          "subscriptionPeriod": null,
+          "price": 1490,
+          "title": "終身通行證",
+          "productType": "NON_CONSUMABLE",
+          "discounts": [],
+          "priceString": "$1,490.00",
+          "currencyCode": "TWD",
+          "productCategory": "NON_SUBSCRIPTION",
+          "introPrice": null
+        },
+        "identifier": "$rc_lifetime",
+        "packageType": "LIFETIME"
+      },
+      "monthly": {
+        "product": {
+          "pricePerMonth": 90,
+          "pricePerYear": 1080,
+          "pricePerWeekString": "$20.71",
+          "pricePerMonthString": "$90.00",
+          "subscriptionPeriod": "P1M",
+          "price": 90,
+          "introPrice": null,
+          "discounts": [],
+          "pricePerWeek": 20.71,
+          "priceString": "$90.00",
+          "pricePerYearString": "$1,080.00",
+          "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+          "identifier": "tw.railisland.app.plus.monthly",
+          "description": "誤點履歷圖表、雲端同步、衛星底圖等進階功能",
+          "title": "軌島 Plus（月）",
+          "productCategory": "SUBSCRIPTION",
+          "currencyCode": "TWD"
+        },
+        "identifier": "$rc_monthly",
+        "presentedOfferingContext": {
+          "placementIdentifier": null,
+          "targetingContext": null,
+          "offeringIdentifier": "plus"
+        },
+        "webCheckoutUrl": null,
+        "offeringIdentifier": "plus",
+        "packageType": "MONTHLY"
+      },
+      "availablePackages": [
+        {
+          "identifier": "lifetime_upgrade",
+          "product": {
+            "title": "終身通行證（升級價）",
+            "subscriptionPeriod": null,
+            "priceString": "$990.00",
+            "identifier": "tw.railisland.app.plus.lifetime_upgrade",
+            "introPrice": null,
+            "currencyCode": "TWD",
+            "discounts": [],
+            "productType": "NON_CONSUMABLE",
+            "price": 990,
+            "description": "給付過費的島民：一次購買，在軌島營運期間持續享有通行證功能",
+            "productCategory": "NON_SUBSCRIPTION"
+          },
+          "packageType": "CUSTOM",
+          "webCheckoutUrl": null,
+          "offeringIdentifier": "plus",
+          "presentedOfferingContext": {
+            "offeringIdentifier": "plus",
+            "targetingContext": null,
+            "placementIdentifier": null
+          }
+        },
+        {
+          "offeringIdentifier": "plus",
+          "webCheckoutUrl": null,
+          "packageType": "LIFETIME",
+          "identifier": "$rc_lifetime",
+          "product": {
+            "price": 1490,
+            "introPrice": null,
+            "subscriptionPeriod": null,
+            "title": "終身通行證",
+            "currencyCode": "TWD",
+            "discounts": [],
+            "identifier": "tw.railisland.app.plus.lifetime",
+            "productCategory": "NON_SUBSCRIPTION",
+            "productType": "NON_CONSUMABLE",
+            "description": "一次購買，在軌島營運期間持續享有通行證功能",
+            "priceString": "$1,490.00"
+          },
+          "presentedOfferingContext": {
+            "targetingContext": null,
+            "placementIdentifier": null,
+            "offeringIdentifier": "plus"
+          }
+        },
+        {
+          "packageType": "ANNUAL",
+          "offeringIdentifier": "plus",
+          "presentedOfferingContext": {
+            "placementIdentifier": null,
+            "offeringIdentifier": "plus",
+            "targetingContext": null
+          },
+          "identifier": "$rc_annual",
+          "product": {
+            "pricePerMonthString": "$32.50",
+            "introPrice": null,
+            "pricePerMonth": 32.5,
+            "pricePerWeekString": "$7.47",
+            "priceString": "$390.00",
+            "discounts": [],
+            "description": "誤點履歷圖表、雲端同步、衛星底圖等進階功能",
+            "price": 390,
+            "productCategory": "SUBSCRIPTION",
+            "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+            "pricePerWeek": 7.47,
+            "pricePerYearString": "$390.00",
+            "title": "軌島 Plus（年）",
+            "currencyCode": "TWD",
+            "pricePerYear": 390,
+            "subscriptionPeriod": "P1Y",
+            "identifier": "tw.railisland.app.plus.annual"
+          },
+          "webCheckoutUrl": null
+        },
+        {
+          "presentedOfferingContext": {
+            "offeringIdentifier": "plus",
+            "placementIdentifier": null,
+            "targetingContext": null
+          },
+          "product": {
+            "title": "軌島 Plus（月）",
+            "pricePerWeek": 20.71,
+            "price": 90,
+            "introPrice": null,
+            "pricePerYear": 1080,
+            "pricePerMonthString": "$90.00",
+            "identifier": "tw.railisland.app.plus.monthly",
+            "currencyCode": "TWD",
+            "discounts": [],
+            "pricePerWeekString": "$20.71",
+            "productCategory": "SUBSCRIPTION",
+            "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+            "subscriptionPeriod": "P1M",
+            "description": "誤點履歷圖表、雲端同步、衛星底圖等進階功能",
+            "pricePerYearString": "$1,080.00",
+            "pricePerMonth": 90,
+            "priceString": "$90.00"
+          },
+          "packageType": "MONTHLY",
+          "offeringIdentifier": "plus",
+          "webCheckoutUrl": null,
+          "identifier": "$rc_monthly"
+        }
+      ],
+      "annual": {
+        "identifier": "$rc_annual",
+        "packageType": "ANNUAL",
+        "offeringIdentifier": "plus",
+        "webCheckoutUrl": null,
+        "presentedOfferingContext": {
+          "offeringIdentifier": "plus",
+          "placementIdentifier": null,
+          "targetingContext": null
+        },
+        "product": {
+          "title": "軌島 Plus（年）",
+          "discounts": [],
+          "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+          "subscriptionPeriod": "P1Y",
+          "description": "誤點履歷圖表、雲端同步、衛星底圖等進階功能",
+          "pricePerWeekString": "$7.47",
+          "introPrice": null,
+          "pricePerMonthString": "$32.50",
+          "productCategory": "SUBSCRIPTION",
+          "identifier": "tw.railisland.app.plus.annual",
+          "priceString": "$390.00",
+          "pricePerMonth": 32.5,
+          "pricePerWeek": 7.47,
+          "pricePerYear": 390,
+          "currencyCode": "TWD",
+          "pricePerYearString": "$390.00",
+          "price": 390
+        }
+      },
+      "webCheckoutUrl": null,
+      "metadata": {}
+    }
+  }
+}

@@ -1,0 +1,250 @@
+{
+  "stamp": "2026-10-01T15:14:21.746Z",
+  "label": "offerings",
+  "data": {
+    "offeringIds": [
+      "plus"
+    ],
+    "plus": {
+      "identifier": "plus",
+      "packages": [
+        {
+          "identifier": "lifetime_upgrade",
+          "packageType": "CUSTOM",
+          "productIdentifier": "tw.railisland.app.plus.lifetime_upgrade",
+          "productCategory": "NON_SUBSCRIPTION",
+          "productType": "NON_CONSUMABLE",
+          "priceString": "$29.99",
+          "currencyCode": "USD"
+        },
+        {
+          "identifier": "$rc_lifetime",
+          "packageType": "LIFETIME",
+          "productIdentifier": "tw.railisland.app.plus.lifetime",
+          "productCategory": "NON_SUBSCRIPTION",
+          "productType": "NON_CONSUMABLE",
+          "priceString": "$49.99",
+          "currencyCode": "USD"
+        },
+        {
+          "identifier": "$rc_annual",
+          "packageType": "ANNUAL",
+          "productIdentifier": "tw.railisland.app.plus.annual",
+          "productCategory": "SUBSCRIPTION",
+          "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+          "priceString": "$11.99",
+          "currencyCode": "USD"
+        },
+        {
+          "identifier": "$rc_monthly",
+          "packageType": "MONTHLY",
+          "productIdentifier": "tw.railisland.app.plus.monthly",
+          "productCategory": "SUBSCRIPTION",
+          "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+          "priceString": "$2.99",
+          "currencyCode": "USD"
+        }
+      ]
+    },
+    "rawPlus": {
+      "lifetime": {
+        "identifier": "$rc_lifetime",
+        "packageType": "LIFETIME",
+        "offeringIdentifier": "plus",
+        "product": {
+          "discounts": [],
+          "priceString": "$49.99",
+          "introPrice": null,
+          "description": "Pass features for as long as Rail Island runs",
+          "price": 49.99,
+          "productType": "NON_CONSUMABLE",
+          "subscriptionPeriod": null,
+          "productCategory": "NON_SUBSCRIPTION",
+          "title": "Lifetime Pass",
+          "currencyCode": "USD",
+          "identifier": "tw.railisland.app.plus.lifetime"
+        },
+        "presentedOfferingContext": {
+          "placementIdentifier": null,
+          "offeringIdentifier": "plus",
+          "targetingContext": null
+        },
+        "webCheckoutUrl": null
+      },
+      "metadata": {},
+      "serverDescription": "plus",
+      "identifier": "plus",
+      "webCheckoutUrl": null,
+      "annual": {
+        "packageType": "ANNUAL",
+        "offeringIdentifier": "plus",
+        "presentedOfferingContext": {
+          "offeringIdentifier": "plus",
+          "placementIdentifier": null,
+          "targetingContext": null
+        },
+        "webCheckoutUrl": null,
+        "identifier": "$rc_annual",
+        "product": {
+          "price": 11.99,
+          "introPrice": null,
+          "priceString": "$11.99",
+          "pricePerWeek": 0.22,
+          "pricePerYear": 11.99,
+          "pricePerWeekString": "$0.22",
+          "identifier": "tw.railisland.app.plus.annual",
+          "pricePerYearString": "$11.99",
+          "description": "誤點履歷圖表、雲端同步、衛星底圖等進階功能",
+          "subscriptionPeriod": "P1Y",
+          "productCategory": "SUBSCRIPTION",
+          "discounts": [],
+          "title": "軌島 Plus（年）",
+          "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+          "currencyCode": "USD",
+          "pricePerMonthString": "$0.99",
+          "pricePerMonth": 0.99
+        }
+      },
+      "availablePackages": [
+        {
+          "identifier": "lifetime_upgrade",
+          "packageType": "CUSTOM",
+          "product": {
+            "currencyCode": "USD",
+            "productType": "NON_CONSUMABLE",
+            "identifier": "tw.railisland.app.plus.lifetime_upgrade",
+            "introPrice": null,
+            "discounts": [],
+            "price": 29.99,
+            "priceString": "$29.99",
+            "description": "Upgrade price for past pass subscribers",
+            "productCategory": "NON_SUBSCRIPTION",
+            "subscriptionPeriod": null,
+            "title": "Lifetime Pass (Upgrade)"
+          },
+          "offeringIdentifier": "plus",
+          "presentedOfferingContext": {
+            "targetingContext": null,
+            "offeringIdentifier": "plus",
+            "placementIdentifier": null
+          },
+          "webCheckoutUrl": null
+        },
+        {
+          "packageType": "LIFETIME",
+          "identifier": "$rc_lifetime",
+          "product": {
+            "productType": "NON_CONSUMABLE",
+            "subscriptionPeriod": null,
+            "discounts": [],
+            "currencyCode": "USD",
+            "productCategory": "NON_SUBSCRIPTION",
+            "title": "Lifetime Pass",
+            "price": 49.99,
+            "description": "Pass features for as long as Rail Island runs",
+            "priceString": "$49.99",
+            "introPrice": null,
+            "identifier": "tw.railisland.app.plus.lifetime"
+          },
+          "webCheckoutUrl": null,
+          "presentedOfferingContext": {
+            "offeringIdentifier": "plus",
+            "placementIdentifier": null,
+            "targetingContext": null
+          },
+          "offeringIdentifier": "plus"
+        },
+        {
+          "webCheckoutUrl": null,
+          "product": {
+            "title": "軌島 Plus（年）",
+            "pricePerWeekString": "$0.22",
+            "currencyCode": "USD",
+            "description": "誤點履歷圖表、雲端同步、衛星底圖等進階功能",
+            "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+            "introPrice": null,
+            "pricePerYearString": "$11.99",
+            "pricePerYear": 11.99,
+            "identifier": "tw.railisland.app.plus.annual",
+            "productCategory": "SUBSCRIPTION",
+            "price": 11.99,
+            "subscriptionPeriod": "P1Y",
+            "pricePerWeek": 0.22,
+            "pricePerMonthString": "$0.99",
+            "pricePerMonth": 0.99,
+            "discounts": [],
+            "priceString": "$11.99"
+          },
+          "packageType": "ANNUAL",
+          "offeringIdentifier": "plus",
+          "identifier": "$rc_annual",
+          "presentedOfferingContext": {
+            "targetingContext": null,
+            "offeringIdentifier": "plus",
+            "placementIdentifier": null
+          }
+        },
+        {
+          "identifier": "$rc_monthly",
+          "presentedOfferingContext": {
+            "placementIdentifier": null,
+            "offeringIdentifier": "plus",
+            "targetingContext": null
+          },
+          "product": {
+            "pricePerYear": 35.88,
+            "identifier": "tw.railisland.app.plus.monthly",
+            "pricePerMonthString": "$2.99",
+            "title": "軌島 Plus（月）",
+            "pricePerWeekString": "$0.68",
+            "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+            "priceString": "$2.99",
+            "introPrice": null,
+            "subscriptionPeriod": "P1M",
+            "pricePerMonth": 2.99,
+            "description": "誤點履歷圖表、雲端同步、衛星底圖等進階功能",
+            "price": 2.99,
+            "currencyCode": "USD",
+            "discounts": [],
+            "pricePerWeek": 0.68,
+            "pricePerYearString": "$35.88",
+            "productCategory": "SUBSCRIPTION"
+          },
+          "packageType": "MONTHLY",
+          "offeringIdentifier": "plus",
+          "webCheckoutUrl": null
+        }
+      ],
+      "monthly": {
+        "packageType": "MONTHLY",
+        "identifier": "$rc_monthly",
+        "product": {
+          "pricePerYearString": "$35.88",
+          "productType": "AUTO_RENEWABLE_SUBSCRIPTION",
+          "pricePerWeekString": "$0.68",
+          "introPrice": null,
+          "subscriptionPeriod": "P1M",
+          "identifier": "tw.railisland.app.plus.monthly",
+          "pricePerMonth": 2.99,
+          "productCategory": "SUBSCRIPTION",
+          "price": 2.99,
+          "priceString": "$2.99",
+          "pricePerMonthString": "$2.99",
+          "currencyCode": "USD",
+          "description": "誤點履歷圖表、雲端同步、衛星底圖等進階功能",
+          "pricePerWeek": 0.68,
+          "pricePerYear": 35.88,
+          "title": "軌島 Plus（月）",
+          "discounts": []
+        },
+        "offeringIdentifier": "plus",
+        "presentedOfferingContext": {
+          "offeringIdentifier": "plus",
+          "placementIdentifier": null,
+          "targetingContext": null
+        },
+        "webCheckoutUrl": null
+      }
+    }
+  }
+}

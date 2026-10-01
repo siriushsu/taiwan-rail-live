@@ -1,0 +1,45 @@
+{
+  "api_version": "1.0",
+  "event": {
+    "aliases": [
+      "t2sbx_ios_user3"
+    ],
+    "app_id": "app0000000002",
+    "app_user_id": "t2sbx_ios_user3",
+    "cancel_reason": "CUSTOMER_SUPPORT",
+    "commission_percentage": 0.2771,
+    "country_code": "TW",
+    "currency": "TWD",
+    "entitlement_id": null,
+    "entitlement_ids": [
+      "plus"
+    ],
+    "environment": "SANDBOX",
+    "event_timestamp_ms": 1790872553729,
+    "expiration_at_ms": null,
+    "id": "00000000-0000-4000-8000-000000000003",
+    "is_family_share": false,
+    "metadata": null,
+    "offer_code": null,
+    "original_app_user_id": "t2sbx_ios_user3",
+    "original_transaction_id": "2000000000000002",
+    "period_type": "NORMAL",
+    "presented_offering_id": "plus",
+    "price": -31.051,
+    "price_in_purchased_currency": -990,
+    "product_id": "tw.railisland.app.plus.lifetime_upgrade",
+    "purchased_at_ms": 1790871916000,
+    "renewal_number": null,
+    "store": "APP_STORE",
+    "subscriber_attributes": {
+      "$attConsentStatus": {
+        "updated_at_ms": 1790871885603,
+        "value": "notDetermined"
+      }
+    },
+    "takehome_percentage": 0.7,
+    "tax_percentage": 0.0762,
+    "transaction_id": "2000000000000002",
+    "type": "CANCELLATION"
+  }
+}

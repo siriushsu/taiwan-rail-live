@@ -1,0 +1,43 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/v2/projects/00000000/customers/t2sbx_android_user1/purchases?environment=sandbox&limit=100"
+  },
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "country": "TW",
+        "customer_id": "t2sbx_android_user1",
+        "entitlements": {
+          "items": [],
+          "next_page": null,
+          "object": "list",
+          "url": "https://api.revenuecat.com/v2/projects/00000000/purchases/otp00000000000000000000000000000000001/entitlements"
+        },
+        "environment": "sandbox",
+        "id": "otp00000000000000000000000000000000001",
+        "object": "purchase",
+        "original_customer_id": "t2sbx_android_user1",
+        "ownership": "purchased",
+        "presented_offering_id": "ofrng0000000001",
+        "product_id": "prod0000000001",
+        "purchased_at": 1790867567821,
+        "quantity": 1,
+        "revenue_in_usd": {
+          "commission": 0,
+          "currency": "USD",
+          "gross": 0,
+          "proceeds": 0,
+          "tax": 0
+        },
+        "status": "refunded",
+        "store": "play_store",
+        "store_purchase_identifier": "GPA.0000-0000-0000-00001"
+      }
+    ],
+    "next_page": null,
+    "object": "list",
+    "url": "https://api.revenuecat.com/v2/projects/00000000/customers/t2sbx_android_user1/purchases"
+  }
+}

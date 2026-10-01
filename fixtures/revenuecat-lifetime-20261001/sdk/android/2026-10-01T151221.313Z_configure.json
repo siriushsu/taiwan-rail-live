@@ -1,0 +1,9 @@
+{
+  "stamp": "2026-10-01T15:12:21.313Z",
+  "label": "configure",
+  "data": {
+    "platform": "android",
+    "appUserID": "t2sbx_android_user1",
+    "apiKeyPrefix": "goog_"
+  }
+}

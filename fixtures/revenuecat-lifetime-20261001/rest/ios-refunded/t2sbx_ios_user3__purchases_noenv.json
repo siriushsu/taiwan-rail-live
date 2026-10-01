@@ -1,0 +1,82 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/v2/projects/00000000/customers/t2sbx_ios_user3/purchases?limit=100"
+  },
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "country": "TW",
+        "customer_id": "t2sbx_ios_user3",
+        "entitlements": {
+          "items": [
+            {
+              "created_at": 1785937917679,
+              "display_name": "島民通行證",
+              "id": "entl0000000001",
+              "lookup_key": "plus",
+              "object": "entitlement",
+              "project_id": "proj00000000",
+              "state": "active"
+            }
+          ],
+          "next_page": null,
+          "object": "list",
+          "url": "https://api.revenuecat.com/v2/projects/00000000/purchases/otp00000000000000000000000000000000002/entitlements"
+        },
+        "environment": "sandbox",
+        "id": "otp00000000000000000000000000000000002",
+        "object": "purchase",
+        "original_customer_id": "t2sbx_ios_user3",
+        "ownership": "purchased",
+        "presented_offering_id": "ofrng0000000001",
+        "product_id": "prod0000000003",
+        "purchased_at": 1790871897000,
+        "quantity": 1,
+        "revenue_in_usd": {
+          "commission": 12.95,
+          "currency": "USD",
+          "gross": 46.73,
+          "proceeds": 30.22,
+          "tax": 3.56
+        },
+        "status": "owned",
+        "store": "app_store",
+        "store_purchase_identifier": "2000000000000001"
+      },
+      {
+        "country": "TW",
+        "customer_id": "t2sbx_ios_user3",
+        "entitlements": {
+          "items": [],
+          "next_page": null,
+          "object": "list",
+          "url": "https://api.revenuecat.com/v2/projects/00000000/purchases/otp00000000000000000000000000000000003/entitlements"
+        },
+        "environment": "sandbox",
+        "id": "otp00000000000000000000000000000000003",
+        "object": "purchase",
+        "original_customer_id": "t2sbx_ios_user3",
+        "ownership": "purchased",
+        "presented_offering_id": "ofrng0000000001",
+        "product_id": "prod0000000002",
+        "purchased_at": 1790871916000,
+        "quantity": 1,
+        "revenue_in_usd": {
+          "commission": 0,
+          "currency": "USD",
+          "gross": 0,
+          "proceeds": 0,
+          "tax": 0
+        },
+        "status": "refunded",
+        "store": "app_store",
+        "store_purchase_identifier": "2000000000000002"
+      }
+    ],
+    "next_page": null,
+    "object": "list",
+    "url": "https://api.revenuecat.com/v2/projects/00000000/customers/t2sbx_ios_user3/purchases"
+  }
+}

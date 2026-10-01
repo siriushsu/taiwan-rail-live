@@ -1,0 +1,109 @@
+{
+  "stamp": "2026-10-01T16:25:04.291Z",
+  "label": "purchase $rc_lifetime",
+  "data": {
+    "productIdentifier": "tw.railisland.app.plus.lifetime",
+    "transaction": {
+      "transactionIdentifier": "2000000000000001",
+      "purchaseDateMillis": 1790871897000,
+      "signature": null,
+      "originalJson": null,
+      "revenueCatId": "2000000000000001",
+      "productId": "tw.railisland.app.plus.lifetime",
+      "productIdentifier": "tw.railisland.app.plus.lifetime",
+      "purchaseDate": "2026-10-01T16:24:57Z",
+      "purchaseToken": null
+    },
+    "customerInfo": {
+      "originalApplicationVersion": "1.0",
+      "allPurchaseDates": {
+        "tw.railisland.app.plus.lifetime": "2026-10-01T16:24:57Z"
+      },
+      "requestDate": "2026-10-01T16:25:03Z",
+      "allExpirationDates": {
+        "tw.railisland.app.plus.lifetime": null
+      },
+      "latestExpirationDate": null,
+      "allExpirationDatesMillis": {
+        "tw.railisland.app.plus.lifetime": null
+      },
+      "managementURL": null,
+      "originalPurchaseDate": "2013-08-01T07:00:00Z",
+      "firstSeen": "2013-08-01T07:00:00Z",
+      "firstSeenMillis": 1375340400000,
+      "requestDateMillis": 1790871903334,
+      "originalPurchaseDateMillis": 1375340400000,
+      "nonSubscriptionTransactions": [
+        {
+          "transactionIdentifier": "o1_0000000000000000000002",
+          "productIdentifier": "tw.railisland.app.plus.lifetime",
+          "productId": "tw.railisland.app.plus.lifetime",
+          "revenueCatId": "o1_0000000000000000000002",
+          "purchaseDateMillis": 1790871897000,
+          "purchaseDate": "2026-10-01T16:24:57Z"
+        }
+      ],
+      "activeSubscriptions": [],
+      "originalAppUserId": "t2sbx_ios_user3",
+      "allPurchasedProductIdentifiers": [
+        "tw.railisland.app.plus.lifetime"
+      ],
+      "subscriptionsByProductIdentifier": {},
+      "entitlements": {
+        "active": {
+          "plus": {
+            "periodType": "NORMAL",
+            "latestPurchaseDateMillis": 1790871897000,
+            "store": "APP_STORE",
+            "isSandbox": true,
+            "willRenew": false,
+            "originalPurchaseDateMillis": 1790871897000,
+            "billingIssueDetectedAtMillis": null,
+            "identifier": "plus",
+            "originalPurchaseDate": "2026-10-01T16:24:57Z",
+            "productPlanIdentifier": null,
+            "unsubscribeDetectedAt": null,
+            "latestPurchaseDate": "2026-10-01T16:24:57Z",
+            "verification": "VERIFIED",
+            "expirationDate": null,
+            "billingIssueDetectedAt": null,
+            "expirationDateMillis": null,
+            "isActive": true,
+            "ownershipType": "PURCHASED",
+            "productIdentifier": "tw.railisland.app.plus.lifetime",
+            "unsubscribeDetectedAtMillis": null
+          }
+        },
+        "verification": "VERIFIED",
+        "all": {
+          "plus": {
+            "originalPurchaseDate": "2026-10-01T16:24:57Z",
+            "willRenew": false,
+            "originalPurchaseDateMillis": 1790871897000,
+            "unsubscribeDetectedAtMillis": null,
+            "expirationDate": null,
+            "periodType": "NORMAL",
+            "expirationDateMillis": null,
+            "unsubscribeDetectedAt": null,
+            "productPlanIdentifier": null,
+            "identifier": "plus",
+            "billingIssueDetectedAt": null,
+            "verification": "VERIFIED",
+            "latestPurchaseDate": "2026-10-01T16:24:57Z",
+            "billingIssueDetectedAtMillis": null,
+            "store": "APP_STORE",
+            "productIdentifier": "tw.railisland.app.plus.lifetime",
+            "isActive": true,
+            "latestPurchaseDateMillis": 1790871897000,
+            "ownershipType": "PURCHASED",
+            "isSandbox": true
+          }
+        }
+      },
+      "latestExpirationDateMillis": null,
+      "allPurchaseDatesMillis": {
+        "tw.railisland.app.plus.lifetime": 1790871897000
+      }
+    }
+  }
+}

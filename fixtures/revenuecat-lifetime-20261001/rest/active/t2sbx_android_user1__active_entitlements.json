@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/v2/projects/00000000/customers/t2sbx_android_user1/active_entitlements"
+  },
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "entitlement_id": "entl0000000001",
+        "expires_at": null,
+        "object": "customer.active_entitlement"
+      }
+    ],
+    "next_page": null,
+    "object": "list",
+    "url": "https://api.revenuecat.com/v2/projects/00000000/customers/t2sbx_android_user1/active_entitlements"
+  }
+}

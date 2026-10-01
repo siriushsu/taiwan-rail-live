@@ -1,0 +1,324 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/v2/projects/00000000/offerings?expand=items.package.product&limit=20"
+  },
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "created_at": 1784556355287,
+        "display_name": "plus",
+        "id": "ofrng0000000001",
+        "is_current": false,
+        "lookup_key": "plus",
+        "metadata": null,
+        "object": "offering",
+        "packages": {
+          "items": [
+            {
+              "created_at": 1790861498026,
+              "display_name": "Lifetime upgrade price",
+              "id": "pkge0000000001",
+              "lookup_key": "lifetime_upgrade",
+              "object": "package",
+              "position": 0,
+              "products": {
+                "items": [
+                  {
+                    "eligibility_criteria": "google_sdk_ge_6",
+                    "product": {
+                      "app_id": "app0000000001",
+                      "created_at": 1790861271891,
+                      "display_name": null,
+                      "id": "prod0000000001",
+                      "object": "product",
+                      "one_time": {
+                        "is_consumable": false
+                      },
+                      "state": "active",
+                      "store_identifier": "railisland_pass_lifetime_upgrade",
+                      "subscription": null,
+                      "type": "one_time"
+                    }
+                  },
+                  {
+                    "eligibility_criteria": "all",
+                    "product": {
+                      "app_id": "app0000000002",
+                      "created_at": 1790861324460,
+                      "display_name": "終身通行證（升級價）",
+                      "id": "prod0000000002",
+                      "object": "product",
+                      "one_time": {
+                        "is_consumable": false
+                      },
+                      "state": "active",
+                      "store_identifier": "tw.railisland.app.plus.lifetime_upgrade",
+                      "subscription": null,
+                      "type": "non_consumable"
+                    }
+                  }
+                ],
+                "next_page": null,
+                "object": "list",
+                "url": "https://api.revenuecat.com/v2/projects/proj00000000/packages/pkge0000000001/products"
+              }
+            },
+            {
+              "created_at": 1790861498052,
+              "display_name": "Lifetime",
+              "id": "pkge0000000002",
+              "lookup_key": "$rc_lifetime",
+              "object": "package",
+              "position": 1,
+              "products": {
+                "items": [
+                  {
+                    "eligibility_criteria": "all",
+                    "product": {
+                      "app_id": "app0000000002",
+                      "created_at": 1790861303981,
+                      "display_name": "終身通行證",
+                      "id": "prod0000000003",
+                      "object": "product",
+                      "one_time": {
+                        "is_consumable": false
+                      },
+                      "state": "active",
+                      "store_identifier": "tw.railisland.app.plus.lifetime",
+                      "subscription": null,
+                      "type": "non_consumable"
+                    }
+                  },
+                  {
+                    "eligibility_criteria": "google_sdk_ge_6",
+                    "product": {
+                      "app_id": "app0000000001",
+                      "created_at": 1790861271851,
+                      "display_name": null,
+                      "id": "prod0000000004",
+                      "object": "product",
+                      "one_time": {
+                        "is_consumable": false
+                      },
+                      "state": "active",
+                      "store_identifier": "railisland_pass_lifetime",
+                      "subscription": null,
+                      "type": "one_time"
+                    }
+                  }
+                ],
+                "next_page": null,
+                "object": "list",
+                "url": "https://api.revenuecat.com/v2/projects/proj00000000/packages/pkge0000000002/products"
+              }
+            },
+            {
+              "created_at": 1784556355334,
+              "display_name": "Annual",
+              "id": "pkge0000000003",
+              "lookup_key": "$rc_annual",
+              "object": "package",
+              "position": 2,
+              "products": {
+                "items": [
+                  {
+                    "eligibility_criteria": "google_sdk_ge_6",
+                    "product": {
+                      "app_id": "app0000000001",
+                      "created_at": 1787820385122,
+                      "display_name": null,
+                      "id": "prod0000000005",
+                      "object": "product",
+                      "one_time": null,
+                      "state": "active",
+                      "store_identifier": "railisland_pass:annual-autorenewing",
+                      "subscription": {
+                        "duration": "P1Y",
+                        "grace_period_duration": "P14D",
+                        "trial_duration": null
+                      },
+                      "type": "subscription"
+                    }
+                  },
+                  {
+                    "eligibility_criteria": "all",
+                    "product": {
+                      "app_id": "app0000000002",
+                      "created_at": 1784555050470,
+                      "display_name": "軌島通行證年票",
+                      "id": "prod0000000006",
+                      "object": "product",
+                      "one_time": null,
+                      "state": "active",
+                      "store_identifier": "tw.railisland.app.plus.annual",
+                      "subscription": {
+                        "duration": "P1Y",
+                        "grace_period_duration": null,
+                        "trial_duration": null
+                      },
+                      "type": "subscription"
+                    }
+                  }
+                ],
+                "next_page": null,
+                "object": "list",
+                "url": "https://api.revenuecat.com/v2/projects/proj00000000/packages/pkge0000000003/products"
+              }
+            },
+            {
+              "created_at": 1784556355334,
+              "display_name": "Monthly",
+              "id": "pkge0000000004",
+              "lookup_key": "$rc_monthly",
+              "object": "package",
+              "position": 3,
+              "products": {
+                "items": [
+                  {
+                    "eligibility_criteria": "google_sdk_ge_6",
+                    "product": {
+                      "app_id": "app0000000001",
+                      "created_at": 1787820385168,
+                      "display_name": null,
+                      "id": "prod0000000007",
+                      "object": "product",
+                      "one_time": null,
+                      "state": "active",
+                      "store_identifier": "railisland_pass:monthly-autorenewing",
+                      "subscription": {
+                        "duration": "P1M",
+                        "grace_period_duration": "P7D",
+                        "trial_duration": null
+                      },
+                      "type": "subscription"
+                    }
+                  },
+                  {
+                    "eligibility_criteria": "all",
+                    "product": {
+                      "app_id": "app0000000002",
+                      "created_at": 1784555013129,
+                      "display_name": "軌島通行證月票",
+                      "id": "prod0000000008",
+                      "object": "product",
+                      "one_time": null,
+                      "state": "active",
+                      "store_identifier": "tw.railisland.app.plus.monthly",
+                      "subscription": {
+                        "duration": "P1M",
+                        "grace_period_duration": null,
+                        "trial_duration": null
+                      },
+                      "type": "subscription"
+                    }
+                  }
+                ],
+                "next_page": null,
+                "object": "list",
+                "url": "https://api.revenuecat.com/v2/projects/proj00000000/packages/pkge0000000004/products"
+              }
+            }
+          ],
+          "next_page": null,
+          "object": "list",
+          "url": "https://api.revenuecat.com/v2/projects/proj00000000/offerings/ofrng0000000001/packages"
+        },
+        "paywall_id": null,
+        "project_id": "proj00000000",
+        "state": "active"
+      },
+      {
+        "created_at": 1784536242623,
+        "display_name": "The standard set of packages",
+        "id": "ofrng0000000002",
+        "is_current": true,
+        "lookup_key": "default",
+        "metadata": null,
+        "object": "offering",
+        "packages": {
+          "items": [
+            {
+              "created_at": 1784536242635,
+              "display_name": "Monthly",
+              "id": "pkge0000000005",
+              "lookup_key": "$rc_monthly",
+              "object": "package",
+              "position": 0,
+              "products": {
+                "items": [
+                  {
+                    "eligibility_criteria": "all",
+                    "product": {
+                      "app_id": "app0000000003",
+                      "created_at": 1784536242517,
+                      "display_name": "Monthly",
+                      "id": "prod0000000009",
+                      "object": "product",
+                      "one_time": null,
+                      "state": "active",
+                      "store_identifier": "monthly",
+                      "subscription": {
+                        "duration": "P1M",
+                        "grace_period_duration": null,
+                        "trial_duration": null
+                      },
+                      "type": "subscription"
+                    }
+                  }
+                ],
+                "next_page": null,
+                "object": "list",
+                "url": "https://api.revenuecat.com/v2/projects/proj00000000/packages/pkge0000000005/products"
+              }
+            },
+            {
+              "created_at": 1784536242635,
+              "display_name": "Yearly",
+              "id": "pkge0000000006",
+              "lookup_key": "$rc_annual",
+              "object": "package",
+              "position": 1,
+              "products": {
+                "items": [
+                  {
+                    "eligibility_criteria": "all",
+                    "product": {
+                      "app_id": "app0000000003",
+                      "created_at": 1784536242553,
+                      "display_name": "Yearly",
+                      "id": "prod0000000010",
+                      "object": "product",
+                      "one_time": null,
+                      "state": "active",
+                      "store_identifier": "yearly",
+                      "subscription": {
+                        "duration": "P1Y",
+                        "grace_period_duration": null,
+                        "trial_duration": null
+                      },
+                      "type": "subscription"
+                    }
+                  }
+                ],
+                "next_page": null,
+                "object": "list",
+                "url": "https://api.revenuecat.com/v2/projects/proj00000000/packages/pkge0000000006/products"
+              }
+            }
+          ],
+          "next_page": null,
+          "object": "list",
+          "url": "https://api.revenuecat.com/v2/projects/proj00000000/offerings/ofrng0000000002/packages"
+        },
+        "paywall_id": null,
+        "project_id": "proj00000000",
+        "state": "active"
+      }
+    ],
+    "next_page": null,
+    "object": "list",
+    "url": "https://api.revenuecat.com/v2/projects/00000000/offerings"
+  }
+}
