@@ -9,20 +9,25 @@
 //     來自 data/bounty_rules.json，這裡照抄成字面。
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準。
 //
-// 【對照版】K 組與 K0 組拿「批次化之前的判定實作（判定 cron 第③段：計點、推進看板、關認領）」當對照：第③段逐段各打 2–4 句 D1，也還沒有後來加的四件事
+// 【對照版】K 組與 K0 組拿「批次化之前的判定實作」當對照。判定 cron 在 worker.js 裡用註解分成三段：① 逐線判定、② 籌碼入帳與每段去重登記、
+// ③ 標記已判定、給點數、推進 sample_count、關認領。批次化改的是第③段（舊版逐段各打 2–4 句 D1），但 K 組比的是整支判定 cron 跑完的結果
+// （六張表與 stat），①、② 寫下的東西也在裡面。對照版也還沒有後來加的四件事
 // （第③段用當下的身分、可疑整班不發籌碼、遲傳合併判、日期窗以上傳時間為基準）：
 //   ・K1／K2／K3 批次化等價：新舊各從乾淨 DB 跑同一批資料，六張表逐列相等（批次化只改「查詢怎麼打」，結果必須逐位元組相同）。
 //   ・K0 正向對照：H／I／J／L 這幾組場景也拿去跑對照版——「新行為」那幾條在對照版上必須紅（證明判準真的有牙、不是拿新版的輸出當期望），
 //     「舊行為本來就對」那幾條在對照版上必須綠（證明 fixture 本身沒壞）。
 //   對照版存在 scripts/fixtures/bounty_cron2_control/（worker.js.txt、bounty_chips_core.mjs.txt）：從分支歷史的 c2e81e3b 只刪註解而成，
 //   用 esbuild 重印原檔與 fixture，兩邊逐 byte 相同。跑的時候不再向 git 取檔：分支合併後會刪，新 clone、淺 clone、gc 之後都取不到那顆 commit。
-//   換對照時重產 fixture：去註解的做法同 scripts/strip_ship_comments.mjs（狀態機掃註解區間；整行註解連那一行一起刪、行尾註解只刪註解本身、
-//   跨行區塊註解換成一個換行），再刪掉每一行行尾的空白；出口檢查是 esbuild 重印原檔與 fixture，兩邊逐 byte 相同。
+//   換對照時重產 fixture：去註解的做法同 scripts/strip_ship_comments.mjs（狀態機掃註解區間；整行只有註解的連那一行一起刪，其餘的 // 註解
+//   只刪註解本身，區塊註解不跨行的換成一個空格、跨行的換成一個換行），再刪掉每一行行尾的空白，最前面另加一行檔頭註解；
+//   出口檢查是 esbuild 重印原檔與 fixture，兩邊逐 byte 相同。
 //   原檔的 md5（那顆 commit 日後取不到時，仍可拿任何留存的副本核對出處）：worker.js d1336929b9356a2bf4cf3a04acb88498、
 //   scripts/bounty_chips_core.mjs 39b739e7b5ff4dfa60f173642c091ab3。
 //   跑的時候把 fixture 的相對 import 改成絕對路徑、寫進系統暫存目錄，跑完刪掉。載入時比對 md5（寫死在載入函式旁），
-//   fixture 被改過就丟例外：K 組與 K0a 會紅並說明是哪個檔，不會靜默略過；這時 K0 各組與幾條前置判準不會跑，總數會變少，總閘門的條數棘輪抓得到。
-//   日後判定第③段的行為若刻意改變，K 組的新舊等價會紅；那時要決定讓 K 組退休或換對照，不要改 fixture 去遷就。
+//   fixture 被改過就丟例外：K0a、K1a、K2a、K3a、K5a 會紅並說明是哪個檔（K8a 也會紅，它的細節沒有檔名，原因看 [G0] 那一行），不會靜默略過；
+//   這時 K0a 以外的 K0 判準，以及要用對照版數字的 K1b、K1c、K3b 不會跑，總數會變少，總閘門的條數棘輪抓得到。
+//   日後判定 cron 的行為若刻意改變（不只第③段，①、② 的改動只要 K 組的資料走得到也算），K 組的新舊等價會紅；
+//   那時要決定讓 K 組退休或換對照，不要改 fixture 去遷就。
 //   估值（bountyValuationCron）不在 K 組範圍，對照版的估值不會被執行。
 //
 // 分組：H 第③段身分（S10）　I 可疑整班不發（S11）　J 遲傳合併判（S12）　L 日期窗基準（S14）
@@ -288,7 +293,8 @@ async function fire(w, cron) {
 // 換對照（不是改 fixture 去遷就）時才改這兩個 md5：`md5 scripts/fixtures/bounty_cron2_control/*.txt`。
 // 已知的脆弱點：對照版的 worker 會 import bounty_chips_core 以外的現行 ./scripts/*.mjs 模組，以及它們間接載入的檔
 // （例如 tra_platform_proxy 讀的 data/tra_station_info.json、rail-platform.js）。K、K0 執行到的舊程式只用到 bounty_chips_core 的匯出
-// （那一支用 fixture 裡的副本），其他模組只有載入時的風險：匯出名稱不見了，對照版載入會失敗，K 組與 K0a 紅並說明原因，不會靜默略過。
+// （那一支用 fixture 裡的副本），其他模組只有載入時的風險（匯出名稱不見了，或載入時就會執行的 createPlatformProxy 出錯）：
+// 對照版載入會失敗，哪幾條紅、哪幾條不跑都跟 md5 不符時相同（見檔頭【對照版】），不會靜默略過。
 const CONTROL_DIR = 'scripts/fixtures/bounty_cron2_control';
 const CONTROL_FILES = {
   worker: { name: 'worker.js.txt', md5: 'dce1b0c97f0c1a17d09d69f447672bc4' },
