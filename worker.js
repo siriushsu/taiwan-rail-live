@@ -7941,7 +7941,7 @@ function bountyDistinctNeed(rules, segKey) {
   return n > 0 ? n : 0;
 }
 
-// 「前次線組」（S12，遲傳合併判）：這一班車先前已判定過（verdict 不是 pending）的樣本，SQL 已經依 sys|ln_id 彙總成一條線一列
+// 「前次線組」（遲傳合併判）：這一班車先前已判定過（verdict 不是 pending）的樣本，SQL 已經依 sys|ln_id 彙總成一條線一列
 // （見 bountyVerifyTrain 的前次查詢：worst、最早／最晚的樣本時間 t0／t1）。
 // 只給 bountyCreditTripChips 做籌碼判斷用——不重新登記去重、不重新標記、不給點數（那些在它自己那一發都做過了）。
 //   ・verdict：該組最壞的——有 suspect 就 suspect，否則有 ok 就 ok，否則 unusable（同一條線先後兩發判出不同結果時，寧可保守）。
@@ -8415,7 +8415,7 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   for (const lineRows of lines.values()) {
     const trip = assembleTrip(lineRows);
     const line = M.lines[`${trip.sys}|${trip.lnId}`] || null;
-    // uploadedAt：這一組批次裡最晚上傳的時間。防偽閘的日期窗以它為基準（S14，見 integrityGate）。
+    // uploadedAt：這一組批次裡最晚上傳的時間。防偽閘的日期窗以它為基準（見 integrityGate）。
     const uploadedAt = Math.max(0, ...lineRows.map(r => Number(r.submitted_at) || 0));
     const ctx = { line, now, uploadedAt, peakHoursBySys: M.peakHoursBySys };
     const ig = integrityGate(trip, ctx, rules);
@@ -8434,11 +8434,11 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     const dr = v.verdict === 'ok' ? bountyDRange(...bountyMinMax(kept.pts.map(p => Number(p.d)))) : null;
     groups.push({ trip, v, cov, dr });
   }
-  // 身分（S10）：這班車記在誰名下——一班車解析一次，給前次線組的查詢用。
+  // 身分：這班車記在誰名下——一班車解析一次，給前次線組的查詢用。
   // 讀樣本與寫入之間，這個裝置可能剛好被併進帳號（POST /api/bounty-merge：樣本與認領整批改名到 uid，原 token 那一列歸零只當墓碑）；
   // 第③段的讀寫因此不直接用這個 who，而是在每一句 SQL 裡當場再解析一跳（BOUNTY_WHO_SQL）；② 的籌碼與登記也在寫入的那一句裡解析。
   const who = await resolveActor(env, readActor);
-  // 遲傳合併判（S12）：這班車先前已判定過的列（前一發 cron 判完的前半段）。actor 找「讀樣本時的 actor」與「此刻的身分」兩個：
+  // 遲傳合併判：這班車先前已判定過的列（前一發 cron 判完的前半段）。actor 找「讀樣本時的 actor」與「此刻的身分」兩個：
   // 前半段是裝置 token 時期判的、中間登入合併過，樣本列已改名到 uid（或反過來），兩個都要找。走 idx_samples_trip。
   // 🔴 此刻的身分在這一句裡當場解析（BOUNTY_WHO_SQL，從上面的 who 再解析一跳）：合併若剛好落在上面的 resolveActor 與這一句之間，
   // 前半段已經改名到帳號，只綁 JS 解析出來的舊 token 就查不到——只拿後半段判，籌碼少發，而且後半段隨即標成已判定，之後再也補不回來。

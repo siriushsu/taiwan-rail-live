@@ -1,4 +1,4 @@
-// 路段懸賞 v2 後端驗收（五）：身分與授權——誰能用哪個 actor 讀、賺、花、併、刪。
+// 路段懸賞 v2 後端驗收：身分與授權——誰能用哪個 actor 讀、賺、花、併、刪。
 // 離線：假 D1（scripts/d1_local.mjs，真 SQLite）＋ Firebase 替身；不起伺服器、不碰網路。
 // 跑法：node scripts/verify_bounty_auth.mjs
 //

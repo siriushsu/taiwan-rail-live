@@ -1,4 +1,4 @@
-// 路段懸賞 v2 後端驗收（五）：判定 cron 這一族——排程分流（F1）、只判昨天以前（F24）、整班車一趟（F4）、
+// 路段懸賞 v2 後端驗收：判定 cron 這一族——排程分流（F1）、只判昨天以前（F24）、整班車一趟（F4）、
 // 身分在入帳當下重新解析且同一班車不重複發（F10／F11）、模擬器只留判定（F23）、估值上架帶人數並補收滿（F12／F21）。
 // 離線：假 D1（scripts/d1_local.mjs，真 SQLite）＋ stub ASSETS ＋ BOUNTY_NOW 釘死，不起伺服器、不碰網路。
 // 跑法：node scripts/verify_bounty_cron.mjs
@@ -249,7 +249,7 @@ await attempt('A4', async () => {
   const r3 = await fire(w3, '30 19 * * *');
   const line3 = r3.errs.find(e => /^\[cron bounty 驗證\] \d+ 班／/.test(e)) || '';
   const which3 = r3.errs.find(e => e.includes('這班車判定出錯')) || '';
-  ok('A4c [R3] 一班車途中出錯：scheduled 不丟例外、估值照跑（板上 3 列）；判定那一行以 error 等級印出「1 班判定出錯」與錯誤訊息（injected），' +
+  ok('A4c 一班車途中出錯：scheduled 不丟例外、估值照跑（板上 3 列）；判定那一行以 error 等級印出「1 班判定出錯」與錯誤訊息（injected），' +
     '另一行指名那一班（cron-a 的 101）；樣本仍 pending、沒有帳本',
     r3.threw === null && nBoard(w3.db) === 3 && line3.includes('1 班判定出錯') && line3.includes('injected') && !line3.includes('失敗:') &&
       which3.includes('bounty_verify_strike|cron-a|') && which3.includes('|101）') &&
@@ -446,7 +446,7 @@ await attempt('C7', async () => {
   // 4000 班單批的填充車（f0001…f4000）＋一班三批的 ZZ 車，共 4001 班、4003 列。同一個 actor 的班車依（乘車日、actor、車次）排隊
   // （同一個人的第幾班；隨機只用來打散不同人的同一輪），所以 zz01 一定是第 4001 班、被截掉。
   const w = world();
-  // 4000 班填充車在預設子請求預算（8000）下一發做不完（停在預算是 S13b 的行為）；這一條驗的是截斷，
+  // 4000 班填充車在預設子請求預算（8000）下一發做不完（停在預算是 verify_bounty_cron2.mjs 的 S13b 驗的行為）；這一條驗的是截斷，
   // 所以把預算調到用不完，讓停手的原因只剩截斷（預算停手另有 verify_bounty_cron2.mjs 的 M 組專驗）。
   w.env.BOUNTY_SUBREQ_BUDGET = '1000000';
   w.db.exec('BEGIN');

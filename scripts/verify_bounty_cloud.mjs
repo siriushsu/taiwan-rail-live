@@ -1,4 +1,4 @@
-// 路段懸賞 v2 後端驗收（三）：雲端搭乘 POST /api/cloud-ride。
+// 路段懸賞 v2 後端驗收：雲端搭乘 POST /api/cloud-ride。
 // 離線：假 D1（scripts/d1_local.mjs，真 SQLite）＋ stub ASSETS（班表檔讀 data/、或換成合成的）＋ BOUNTY_NOW 釘死；不起伺服器、不碰網路。
 // 跑法：node scripts/verify_bounty_cloud.mjs
 //
@@ -13,7 +13,7 @@
 //    各種交錯」是安全的，證明不了真 D1 的行為。上線後要對正式庫做一次唯讀抽查（同一營運日兩列、
 //    重複的雲端籌碼 ref）。
 //
-// 稽核修補（身分與授權）之後：雲端搭乘會發籌碼、籌碼可以花，所以已併進帳號的裝置、或帳號（uid）本身送搭乘，
+// 身分與授權收緊之後：雲端搭乘會發籌碼、籌碼可以花，所以已併進帳號的裝置、或帳號（uid）本身送搭乘，
 // 都必須帶該帳號的 Bearer（G4）。P1a 原本拿 `Authorization: Bearer plus-token` 當「通行證標頭」的替身，
 // 現在 Bearer 是真的身分憑證（會被驗），所以替身換成 x-plus-token 系列標頭——被驗的東西不變（通行證與結果無關）。
 // 身分規則本身的驗收在 scripts/verify_bounty_auth.mjs。

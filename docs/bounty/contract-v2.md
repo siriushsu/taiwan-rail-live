@@ -65,7 +65,7 @@
 | `dir` | `0`＝里程遞增、`1`＝里程遞減。只是提示值：伺服器組回整趟後以首末里程重判 | `bad_dir` |
 | `batch` | 整數，客戶端自己排序用；伺服器不讀 | — |
 | `samples` | 1–600 筆；只留 `d`、`t`、`v`、`acc` 四個數值欄位，其他鍵丟掉不報錯 | `bad_samples` |
-| `samples[].d` | 沿線里程（公尺），以該線 shape 投影求得。**投影演算法必須與網頁 `projectOntoShape`（`index.html`）相同**＝railcore `Geo.projectOntoShape`（`geo/LineGeometry.kt`）。伺服器四捨五入到 0.1 m | `sanitizeSamples` |
+| `samples[].d` | 沿線里程（公尺），以該線 shape 投影求得。**App 端的投影演算法必須與網頁版 `projectOntoShape`（`index.html`）逐點相同**。伺服器四捨五入到 0.1 m | `sanitizeSamples` |
 | `samples[].t` | 距 `tripDate` 台北 00:00 的秒數（整數）。**跨午夜的班次繼續往上加（可以超過 86400），不要歸零**——伺服器按 `t` 排序把各批接成一趟，也用 `max(t)−min(t)` 算這一趟的長度 | `assembleTrip` |
 | `samples[].v` | 速度 m/s，可為 null | — |
 | `samples[].acc` | 定位精度（公尺），可為 null | — |
@@ -158,7 +158,7 @@ v2 新增的卡片欄位（舊欄位 `samples`、`coverN` 保留給舊客端）�
 
 ## 4. `POST /api/cloud-ride`：雲端搭乘（前景跟同一班真實列車連續 `chips.cloud.minSec` 秒）
 
-計時由客戶端做（railcore `CloudRide.tick`）：App 在前景、跟同一班車，連續滿 `chips.cloud.minSec` 秒才送；切背景、換車、兩次更新間隔過長都從 0 重來。**不需要定位權限。**
+計時由 App 端做：App 在前景、跟同一班車，連續滿 `chips.cloud.minSec` 秒才送；切背景、換車、兩次更新間隔過長都從 0 重來。**不需要定位權限。**
 
 ```json
 {

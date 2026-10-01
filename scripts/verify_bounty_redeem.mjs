@@ -1,4 +1,4 @@
-// 路段懸賞 v2 後端驗收（二）：籌碼餘額 GET /api/chips-me、車庫兌換 POST /api/garage-redeem、
+// 路段懸賞 v2 後端驗收：籌碼餘額 GET /api/chips-me、車庫兌換 POST /api/garage-redeem、
 // 看板常青線（bounty-board）、整段收滿（cron 的 covered_at）、通行證對照組。
 // 離線：假 D1（scripts/d1_local.mjs，真 SQLite）＋ stub ASSETS ＋ BOUNTY_NOW 釘死；不起伺服器、不碰網路。
 // 跑法：node scripts/verify_bounty_redeem.mjs
@@ -14,7 +14,7 @@
 //    各種交錯」是安全的，證明不了真 D1 的行為。上線後要對正式庫做一次唯讀抽查（重複的 redeem 列、對不上的 nth、
 //    餘額變負）。
 //
-// 稽核修補（身分與授權）之後：帳號（uid）與已併進帳號的裝置，讀餘額與兌換都必須帶該帳號的 Bearer；
+// 身分與授權收緊之後：帳號（uid）與已併進帳號的裝置，讀餘額與兌換都必須帶該帳號的 Bearer；
 // 原本不帶 token 也讀得到、花得掉的那幾條判準（M6、R7a、R7b）就是被修掉的洞，已改成新行為（標了「改寫」）。
 // 「併進帳號」的種子（put.merge）與正式合併一樣，同時留下帳號列——沒有帳號列的 uid 在伺服器眼裡只是一個匿名 id。
 // 身分規則本身的驗收在 scripts/verify_bounty_auth.mjs。

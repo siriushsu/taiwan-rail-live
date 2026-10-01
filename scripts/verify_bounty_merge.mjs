@@ -1,4 +1,4 @@
-// 路段懸賞 v2 後端驗收（四）：登入合併 POST /api/bounty-merge 與刪帳號 bountyPurgeUid 對 v2 四張表的處理。
+// 路段懸賞 v2 後端驗收：登入合併 POST /api/bounty-merge 與刪帳號 bountyPurgeUid 對 v2 四張表的處理。
 // 四張表＝chip_ledger（籌碼帳本）／garage_unlocks（車庫解鎖）／cloud_rides（雲端搭乘）／bounty_seg_contrib（每段去重貢獻）。
 // 離線：假 D1（scripts/d1_local.mjs，真 SQLite）＋ Firebase 替身；不起伺服器、不碰網路。
 // 跑法：node scripts/verify_bounty_merge.mjs
@@ -13,7 +13,7 @@
 //    各種交錯」是安全的，證明不了真 D1 的行為。上線後要對正式庫做一次唯讀抽查（重複的退款列、對不上的 nth、
 //    被減兩次的 distinct_ok_users）。
 //
-// 稽核修補（身分與授權）之後，這支腳本讀「已併進帳號的裝置／帳號本人」的錢包一律帶 Bearer（helper：bearer()／meAs()），
+// 身分與授權收緊之後，這支腳本讀「已併進帳號的裝置／帳號本人」的錢包一律帶 Bearer（helper：bearer()／meAs()），
 // 原本不帶 token 也讀得到、花得掉的那幾條判準是被修掉的洞本身，已改成新行為（每一處都標了「改寫」）。
 // 身分規則本身的驗收在 scripts/verify_bounty_auth.mjs。
 //

@@ -1,4 +1,4 @@
-// 路段懸賞 v2 後端驗收（八）：修補的端到端證明——下面分組列出的每一種攻擊與中斷，修補後逐條再跑一次，結果必須是「不再重現」。
+// 路段懸賞 v2 後端驗收：修補的端到端證明——下面分組列出的每一種攻擊與中斷，修補後逐條再跑一次，結果必須是「不再重現」。
 // 離線：假 D1（scripts/d1_local.mjs，真 SQLite）＋ stub ASSETS ＋ Firebase 替身 ＋ BOUNTY_NOW 釘死，不起伺服器、不碰網路。
 // 跑法：node scripts/verify_bounty_hardening.mjs
 //
@@ -235,7 +235,7 @@ function spyBatches(DELAY_DB) {
   return log;
 }
 const LIST_RE = /^WITH t AS \(/;                                            // 判定第一段：班車清單
-// 判定時讀這個人的認領那一句（現在寫 INDEXED BY idx_claims_actor；兩種寫法都認，才分得出「句子沒送出」與「計畫不對」——計畫由 CL4、K1e 看）
+// 判定時讀這個人的認領那一句（現在寫 INDEXED BY idx_claims_actor；兩種寫法都認，才分得出「句子沒送出」與「計畫不對」——計畫由本檔 CL4 與 verify_bounty_cron2.mjs 的 K1e 看）
 const CLAIMS_READ_RE = /FROM bounty_claims (?:INDEXED BY idx_claims_actor )?WHERE actor=COALESCE/;
 const LOAD_RE = /^SELECT \* FROM \(SELECT \*, SUM\(length\(payload\)\) OVER/;   // 第二段：讀一班車（依讀取順序累加長度截住，見 N2）
 const PRIOR_RE = /verdict <> 'pending'/;
@@ -1979,8 +1979,8 @@ await attempt('CL3', async () => {
 });
 // CL4：讀／刪／關「這個人的」認領的三句，加上合併時認領改名、去重兩句，不論表有沒有統計資料都只走 idx_claims_actor。
 // 沒有統計時 SQLite 本來就挑 idx_claims_actor（所以 CL2c 照不到）；表一旦有統計，兩種形狀會把它帶走：
-//   H1 手寫的偏斜——每個人的認領多、每個單位的認領少（早期少數重度使用者時跑 PRAGMA optimize 會收到的形狀）：改走 idx_claims_unit＝讀這些段上所有人的認領；
-//   R2 ANALYZE 自己算的——表裡只有一個身分、每個單位一筆開著的認領（上線初期只有自己在測）：actor 看起來毫無選擇性，改走全表掃描
+//   手寫偏斜——每個人的認領多、每個單位的認領少（早期少數重度使用者時跑 PRAGMA optimize 會收到的形狀）：改走 idx_claims_unit＝讀這些段上所有人的認領；
+//   ANALYZE 實算——表裡只有一個身分、每個單位一筆開著的認領（上線初期只有自己在測）：actor 看起來毫無選擇性，改走全表掃描
 //      （先前只用一元加號擋 idx_claims_unit，擋不住這一種）。
 // 現在五句都寫 INDEXED BY idx_claims_actor。判準：句子裡有 INDEXED BY idx_claims_actor，而且三種狀態下碰到 bounty_claims 的每一步都走 idx_claims_actor；
 // 對照組（證明統計真的偏、判準有牙）：同一份統計下把 INDEXED BY 拿掉——R2 下不再走 idx_claims_actor（a、b、c、e），H1 下改走 idx_claims_unit（a、b、c）。

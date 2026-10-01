@@ -251,7 +251,7 @@ await group('W', async () => {
     `night-design@${nightDesign}、strip@${strip}`);
 });
 
-// ── WB 組:路段懸賞總閘門的接線(靜態)。16 支驗收只在分支上手動跑了一個月,拔掉這一段不會有任何別的東西變紅 ──
+// ── WB 組:路段懸賞總閘門的接線(靜態)。各支驗收只在分支上手動跑了一個月,拔掉這一段不會有任何別的東西變紅 ──
 await group('WB', async () => {
   const src = fs.readFileSync(path.join(ROOT, 'scripts', 'ship_web.mjs'), 'utf8');
   const at = s => src.indexOf(s);

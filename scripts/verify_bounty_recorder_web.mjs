@@ -171,7 +171,7 @@ try {
         bountyUpdateDwellProgress(r, rs);
         return { cov: r._cov[key] || 0, missed: r._dwellMissed };
       };
-      // D2 用：Worker D16 同一趟（回報 0、每點晃 ±8 m、停 8 秒，20 m/s 進出站）
+      // D2 用：verify_bounty_dwell.mjs 的 D16 同一趟（回報 0、每點晃 ±8 m、停 8 秒，20 m/s 進出站）
       const jstop = sg => {
         const pts = [];
         const push = (x, v) => pts.push({ d: Math.round((c + sg * x) * 10) / 10, t: 30000 + pts.length, v, acc: 8 });
@@ -186,7 +186,7 @@ try {
         catch (e) { return String(e && e.message); } };
       const win = x => ({ ...rules, quality: { ...rules.quality, dwell: { ...rules.quality.dwell, posSpeedWindowSec: x } } });
       out.guard = { missing: threw(veto(undefined)), equal: threw(veto(rules.quality.dwell.stopSpeedMaxMps)), real: threw(rules) };
-      // posSpeedWindowSec 的案例與 Worker D15 共用（scripts/bounty_guard_cases.mjs）；傳進頁面之後的型別也回報，確認 undefined／Infinity 沒被序列化成別的值
+      // posSpeedWindowSec 的案例與 verify_bounty_dwell.mjs 的 D15 共用（scripts/bounty_guard_cases.mjs）；傳進頁面之後的型別也回報，確認 undefined／Infinity 沒被序列化成別的值
       for (const [k, w] of [...winReject, ...winAccept]) out.guard[`win_${k}`] = threw(win(w));
       out.recv = [...winReject, ...winAccept].map(([k, w]) => [k, typeof w, String(w)]);
       for (const sg of [1, -1]) {
