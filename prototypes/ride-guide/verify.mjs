@@ -1,7 +1,7 @@
 // 乘車導覽原型驗收：用真瀏覽器（Playwright Chromium）跑完整流程＋各寬度點擊檢查。
 // 用法：node prototypes/ride-guide/verify.mjs
 //   repo 沒裝 playwright 時，可指定全域安裝位置：PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs
-// 截圖輸出到 prototypes/ride-guide/_shots/（已列入 .gitignore 規則 _shot_* 以外，另見 README）
+// 截圖輸出到 prototypes/ride-guide/_shots/（本目錄 .gitignore 已排除，不進版控）
 import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
 import { dirname, join, extname, normalize } from 'node:path';
@@ -98,7 +98,7 @@ console.log('\n[1] 完整流程：進入示範旅程 → 選第一站 → 讀故
 
   await tap(page, '[data-fk="map-open"]');
   ok(await page.locator('#mappanel').isVisible(), '開地圖與旅程進度');
-  ok((await text(page, '#mappanel svg')).includes('Pingxi'), '地圖標出目的站');
+  ok((await page.locator('#mappanel svg').first().textContent()).includes('★ Pingxi'), '地圖以 ★ 標出目的站');
   ok((await text(page, '#mappanel table.tt')).includes('Pingxi'), '進度表列出停靠站');
   await page.screenshot({ path: join(shots, '07-map-en.png') });
   await tap(page, '[data-fk="map-close"]');
@@ -118,8 +118,9 @@ console.log('\n[1] 完整流程：進入示範旅程 → 選第一站 → 讀故
   await page.waitForTimeout(150);
   ok(await page.evaluate(() => history.length) === h0, '連點已選目的站／目前語言不增加 history');
   await page.locator('[data-fk="map-open"]').dblclick(); await page.waitForTimeout(150);
-  ok(await page.evaluate(() => history.length) === h0 + 1, '連點地圖鈕只開一層');
-  await tap(page, '[data-fk="map-close"]');
+  ok(await page.locator('#mappanel').isVisible(), '連點地圖鈕：地圖開著');
+  await page.goBack(); await page.waitForTimeout(150);
+  ok(!(await page.locator('#mappanel').isVisible()) && (await page.locator('[data-screen="journey"]').count()) === 1, '連點地圖鈕只開一層：按一次返回就關掉，仍在旅程頁');
 
   // 空白內容：選沒有建內容的站
   await tap(page, '[data-fk="chip-dahua"]');

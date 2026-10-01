@@ -67,9 +67,13 @@
       byTimetable: '依時刻表',
       walkTotal: (m) => `步行合計約 ${m} 分鐘`,
       walkTotalTbd: '步行合計待查核',
+      walkTotalPartial: '部分步行時間已查核，其餘待查核',
+      spanMin: (a, b, m) => `${a}到${b}合計約 ${m} 分鐘`,
+      spanIn: '含在上一段的時間內',
+      straight: (m) => `直線約 ${m} 公尺`,
       walkPoints: (n) => `${n} 個點`,
       walkLoop: '從車站出發、回到車站',
-      walkMapNote: '點與點之間以直線示意順序，不是實際步行路徑。',
+      walkMapNote: '點與點之間以直線示意順序，不是實際步行路徑；「直線約」是座標直線距離，不是步行路程。',
       legMin: (m) => `步行約 ${m} 分鐘`,
       legTbd: '步行時間待查核',
       station: '車站',
@@ -90,6 +94,7 @@
       mapAttr: '軌道線形：© OpenStreetMap 貢獻者（ODbL），由軌島整理。示意圖；列車位置為示範，不是即時位置。',
       stepPrev: '示範位置退一站', stepNext: '示範位置前進一站',
       ttStation: '車站', ttTime: '時刻（依時刻表）',
+      ttBasis: (d, r) => `時刻表快照 ${d} 抓取，適用 ${r}。`,
       close: '關閉',
       fromCar: (l, n, d) => `已從車廂 QR 帶入：${l}・${n} ${d}。不用重選，直接選目的站。`,
       fromPlat: (l) => `已從月台 QR 帶入路線：${l}。請選班次。`,
@@ -154,9 +159,13 @@
       byTimetable: 'timetable',
       walkTotal: (m) => `About ${m} min walking in total`,
       walkTotalTbd: 'Total walking time not yet verified',
+      walkTotalPartial: 'Some walking times verified, others not yet',
+      spanMin: (a, b, m) => `${a} to ${b}: about ${m} min in all`,
+      spanIn: 'included in the time above',
+      straight: (m) => `${m} m in a straight line`,
       walkPoints: (n) => `${n} stops`,
       walkLoop: 'Starts and ends at the station',
-      walkMapNote: 'Straight lines only show the order. They are not the actual walking path.',
+      walkMapNote: 'Straight lines only show the order, not the walking path. “In a straight line” distances are measured between coordinates, not along the route.',
       legMin: (m) => `About ${m} min on foot`,
       legTbd: 'Walking time not yet verified',
       station: 'Station',
@@ -177,6 +186,7 @@
       mapAttr: 'Track geometry: © OpenStreetMap contributors (ODbL), processed by Rail Island. Schematic; the train position is a demo, not live.',
       stepPrev: 'Move demo position back one stop', stepNext: 'Move demo position forward one stop',
       ttStation: 'Station', ttTime: 'Time (timetable)',
+      ttBasis: (d, r) => `Timetable snapshot fetched ${d}, valid ${r}. `,
       close: 'Close',
       fromCar: (l, n, d) => `Line and train came from the in-car QR: ${l} · ${n} ${d}. No need to choose again; pick your stop.`,
       fromPlat: (l) => `Line came from the platform QR: ${l}. Pick a train.`,
@@ -639,7 +649,8 @@
     document.getElementById('journey').innerHTML = journeyCardHtml();
     document.getElementById('tabs').innerHTML = tabsHtml();
     const content = document.getElementById('content');
-    content.innerHTML = state.view === 'along' ? alongHtml() : guideHtml();
+    content.innerHTML = (state.view === 'along' ? alongHtml() : guideHtml())
+      + `<div class="view-foot"><button class="btn ghost small" data-act="about" data-fk="about-foot">ⓘ ${esc(T().aboutBtn)}</button></div>`;
     content.setAttribute('aria-labelledby', `tab-${state.view}`);
     content.setAttribute('role', 'tabpanel');
     if (fade && !mqReduce.matches) { content.classList.remove('fade-in'); void content.offsetWidth; content.classList.add('fade-in'); }
@@ -679,7 +690,7 @@
     const nx = stops()[state.pos + 1];
     return `<div class="wrap">
       <div class="jbar-id">
-        <span class="l1"><span>${esc(lineName())}</span><button class="demo-badge" data-act="about" data-fk="about-bar" aria-label="${esc(t.aboutTitle)}">${esc(t.demoShort)} ⓘ</button></span>
+        <span class="l1"><span>${esc(lineName())}</span><span class="demo-badge">${esc(t.demoShort)}</span></span>
         <span class="l2 num"><span class="trno">${tr.no} ${esc(dirText())}</span> · ${esc(t.next)} ${esc(stName(nx.id))}</span>
       </div>
       <button class="icon-btn map-open-btn" data-act="map-open" data-fk="map-open" aria-label="${esc(t.mapBtnLong)}" aria-expanded="${state.overlay === 'map'}">${icon('map')}<span>${esc(t.mapBtn)}</span></button>
@@ -703,7 +714,8 @@
         </div>
         ${isDesk() ? `<div class="strip" aria-hidden="true">${strip}</div>`
           : `<button class="strip" data-act="map-open" data-fk="strip" aria-label="${esc(t.mapBtnLong)}">${strip}</button>`}
-        <p class="basis">${esc(t.basis(ROUTE.scheduleSnapshot))} <button class="btn ghost small" style="min-height:32px;padding:0 6px;font-size:12px;vertical-align:baseline" data-act="about" data-fk="about-card">ⓘ ${esc(t.aboutTitle)}</button></p>
+        <p class="basis">${esc(t.basis(ROUTE.scheduleSnapshot))}</p>
+        <p class="about-row"><button class="btn ghost small" data-act="about" data-fk="about-card">ⓘ ${esc(t.aboutTitle)}</button></p>
       </section>`;
   }
 
@@ -800,7 +812,8 @@
 
     // 實用資訊（有才放）
     if (s.practical && s.practical.length) {
-      h += sec('practical', `<dl class="rows">${s.practical.map((r) => `<div><dt>${esc(L(r.label))} <span class="checked">${esc(t.checked(r.checked || C.checkedOn))}</span></dt><dd>${esc(L(r.text))}${srcLine(r.src, true)}</dd></div>`).join('')}</dl>`);
+      h += sec('practical', `<dl class="rows">${s.practical.map((r) => `<div><dt>${esc(L(r.label))} <span class="checked">${esc(t.checked(r.checked || C.checkedOn))}</span></dt><dd>${r.tbd ? `<div class="tbd-box">${esc(L(r.text))}</div>` : esc(L(r.text))}${srcLine(r.src, true)}</dd></div>`).join('')}</dl>
+        <p class="src">${esc(state.lang === 'en' ? 'Hours and schedules change. Check the official source before you go.' : '時間與班次可能變動，出發前請以官方來源為準。')}</p>`);
     }
 
     // 本站資料來源
@@ -857,31 +870,58 @@
   function walkHtml(id, w) {
     const t = T();
     if (!w || !w.stops || !w.stops.length) return `<div class="tbd-box">${esc(t.tbd)}</div>`;
-    const pts = [{ station: true }, ...w.stops];
-    if (w.loop) pts.push({ station: true });
+    const stn = ROUTE.stations[id];
+    const stnName = stName(id) + (state.lang === 'en' ? ' Station' : '車站');
+    const pts = [{ station: true, lat: stn.lat, lon: stn.lon }, ...w.stops];
+    if (w.loop) pts.push({ station: true, lat: stn.lat, lon: stn.lon });
+    const ptName = (p) => (p.station ? stnName : L(p.name));
     const legs = w.legs || [];
-    const allKnown = legs.length === pts.length - 1 && legs.every((l) => typeof l.min === 'number');
-    const total = allKnown ? legs.reduce((a, l) => a + l.min, 0) : null;
-    let h = `<p class="lead" style="margin-bottom:10px"><b>${esc(L(w.name))}</b>${w.summary ? '：' + esc(L(w.summary)) : ''}</p>`;
-    h += `<div class="walk-sum"><span>${esc(total != null ? t.walkTotal(total) : t.walkTotalTbd)}</span><span>${esc(t.walkPoints(w.stops.length))}</span>${w.loop ? `<span>${esc(t.walkLoop)}</span>` : ''}</div>`;
-    h += `<div class="walk-map">${walkMapSvg(id, w)}</div><p class="walk-map-note">${esc(t.walkMapNote)}${w.coordSrc ? ' ' + srcInline(w.coordSrc) : ''}</p>`;
+    const spans = w.spans || [];
+    const spanOf = (k) => spans.find((sp) => k >= sp.from && k < sp.to);
+    // 合計：每一段都要有來源時間（單段或跨段）才算得出來；算不出來就誠實說待查核
+    let total = 0, known = true, anyKnown = spans.length > 0;
+    for (let k = 0; k < pts.length - 1; k++) {
+      const sp = spanOf(k);
+      const leg = legs[k] || {};
+      if (sp) { if (k === sp.from) total += sp.min; }
+      else if (typeof leg.min === 'number') { total += leg.min; anyKnown = true; }
+      else known = false;
+    }
+    let h = `<p class="lead" style="margin-bottom:10px"><b>${esc(L(w.name))}</b>${w.summary ? (state.lang === 'en' ? ': ' : '：') + esc(L(w.summary)) : ''}</p>`;
+    h += `<div class="walk-sum"><span>${esc(known ? t.walkTotal(total) : anyKnown ? t.walkTotalPartial : t.walkTotalTbd)}</span><span>${esc(t.walkPoints(w.stops.length))}</span>${w.loop ? `<span>${esc(t.walkLoop)}</span>` : ''}</div>`;
+    if (w.photo) h += photoFigure(w.photo);
+    h += `<div class="walk-map">${walkMapSvg(id, w)}</div><p class="walk-map-note">${esc(t.walkMapNote)}${w.coordSrc ? ` ${esc(t.source)}：${srcInline(w.coordSrc)}` : ''}</p>`;
     h += '<ol class="steps">';
     pts.forEach((p, k) => {
       if (p.station) {
-        h += `<li class="step"><span class="stamp stn" aria-hidden="true">${esc(state.lang === 'en' ? 'Stn' : '站')}</span><div><b>${esc(stName(id))}${state.lang === 'en' ? ' Station' : '車站'}</b></div></li>`;
+        h += `<li class="step"><span class="stamp stn" aria-hidden="true">${esc(state.lang === 'en' ? 'Stn' : '站')}</span><div><b>${esc(stnName)}</b></div></li>`;
       } else {
-        h += `<li class="step"><span class="stamp" aria-hidden="true">${k}</span><div><b>${esc(L(p.name))}</b>${p.desc ? `<p>${esc(L(p.desc))}</p>` : ''}${p.src ? srcLine(p.src, true) : ''}</div></li>`;
+        h += `<li class="step"><span class="stamp" aria-hidden="true">${k}</span><div><b>${esc(L(p.name))}</b>${p.desc ? `<p>${esc(L(p.desc))}</p>` : ''}</div></li>`;
       }
       if (k < pts.length - 1) {
         const leg = legs[k] || {};
-        h += `<li class="leg" aria-hidden="false"><span class="rail" aria-hidden="true"></span><span class="lt">${typeof leg.min === 'number'
-          ? `${esc(t.legMin(leg.min))}${leg.src ? ' · ' + srcInline(leg.src) : ''}`
-          : `<span class="tbd">${esc(t.legTbd)}</span>`}${leg.note ? ` · ${esc(L(leg.note))}` : ''}</span></li>`;
+        const sp = spanOf(k);
+        const q = pts[k + 1];
+        let time;
+        if (sp && k === sp.from) time = `${esc(t.spanMin(ptName(pts[sp.from]), ptName(pts[sp.to]), sp.min))}（${srcInline(sp.src)}）`;
+        else if (sp) time = esc(t.spanIn);
+        else if (typeof leg.min === 'number') time = `${esc(t.legMin(leg.min))}${leg.src ? `（${srcInline(leg.src)}）` : ''}`;
+        else time = `<span class="tbd">${esc(t.legTbd)}</span>`;
+        const dist = Math.round(haversineKm([p.lat, p.lon], [q.lat, q.lon]) * 100) * 10;
+        const note = leg.note ? ` · ${esc(L(leg.note))}${leg.src && typeof leg.min !== 'number' ? `（${srcInline(leg.src)}）` : ''}` : '';
+        h += `<li class="leg"><span class="rail" aria-hidden="true"></span><span class="lt">${time} · <span class="num">${esc(t.straight(dist))}</span>${note}</span></li>`;
       }
     });
     h += '</ol>';
     if (w.src) h += srcLine(w.src);
     return h;
+  }
+
+  function haversineKm(a, b) {
+    const r = (x) => (x * Math.PI) / 180;
+    const dLat = r(b[0] - a[0]), dLon = r(b[1] - a[1]);
+    const q = Math.sin(dLat / 2) ** 2 + Math.cos(r(a[0])) * Math.cos(r(b[0])) * Math.sin(dLon / 2) ** 2;
+    return 2 * 6371.0088 * Math.asin(Math.sqrt(q));
   }
 
   function linkRow(id) {
@@ -946,23 +986,13 @@
           <button class="icon-btn" data-act="step" data-dir="1" data-fk="step-next" aria-label="${esc(t.stepNext)}" ${state.pos >= s.length - 2 ? 'disabled' : ''}>▶</button>
         </div>
         <table class="tt"><thead><tr><th>${esc(t.ttStation)}</th><th>${esc(t.ttTime)}</th></tr></thead><tbody>${rows}</tbody></table>
-        <p class="src" style="margin:0">${esc(ROUTE.builtFrom.schedule)}</p>
+        <p class="src" style="margin:0">${esc(t.ttBasis(ROUTE.scheduleSnapshot, fmtRange()))}${srcAnchor('tra-schedule')}</p>
       </div></div>`;
   }
 
   // 路線里程累積（給列車位置內插用）
   const PATH = ROUTE.path;
-  const CUM = (() => {
-    const out = [0];
-    const r = (x) => (x * Math.PI) / 180;
-    for (let i = 1; i < PATH.length; i++) {
-      const [a, b] = [PATH[i - 1], PATH[i]];
-      const dLat = r(b[0] - a[0]), dLon = r(b[1] - a[1]);
-      const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a[0])) * Math.cos(r(b[0])) * Math.sin(dLon / 2) ** 2;
-      out.push(out[i - 1] + 2 * 6371.0088 * Math.asin(Math.sqrt(h)));
-    }
-    return out;
-  })();
+  const CUM = PATH.reduce((out, p, i) => { out.push(i ? out[i - 1] + haversineKm(PATH[i - 1], p) : 0); return out; }, []);
   function pointAtKm(km) {
     const i = Math.max(1, CUM.findIndex((c) => c >= km));
     if (CUM[CUM.length - 1] <= km) return PATH[PATH.length - 1];
@@ -1013,12 +1043,17 @@
       const passed = i <= state.pos;
       if (i === di) g += `<circle cx="${px}" cy="${py}" r="11" fill="none" stroke="var(--red)" stroke-width="3"/>`;
       g += `<circle cx="${px}" cy="${py}" r="5.5" fill="${passed ? 'var(--line)' : 'var(--paper)'}" stroke="var(--navy)" stroke-width="2.5"/>`;
+    });
+    // 列車畫在站名下層：站名有底色描邊，壓在列車上仍讀得到
+    const [tx, ty] = P.xy(pointAtKm(trainKm));
+    g += `<g aria-label="${esc(t.trainHere)}"><rect x="${tx - 17}" y="${ty - 9}" width="34" height="18" rx="5" fill="var(--train)" stroke="var(--paper)" stroke-width="2"/><text x="${tx}" y="${ty + 4}" text-anchor="middle" font-size="10.5" font-weight="900" fill="#fff">${train().no}</text></g>`;
+    s.forEach((x, i) => {
+      const [px, py] = P.xy([st[x.id].lat, st[x.id].lon]);
+      const passed = i <= state.pos;
       const [dx, dy, anchor] = LABEL[x.id] || [8, 4, 'start'];
       const isD = i === di;
       g += `<text x="${px + dx}" y="${py + dy}" text-anchor="${anchor}" font-size="${isD ? 13 : 12}" font-weight="${isD ? 900 : 700}" fill="${isD ? 'var(--red)' : passed ? 'var(--faint)' : 'var(--ink-strong)'}" paint-order="stroke" stroke="var(--paper)" stroke-width="3.5" stroke-linejoin="round">${isD ? '★ ' : ''}${esc(stName(x.id))}</text>`;
     });
-    const [tx, ty] = P.xy(pointAtKm(trainKm));
-    g += `<g aria-label="${esc(t.trainHere)}"><rect x="${tx - 17}" y="${ty - 9}" width="34" height="18" rx="5" fill="var(--train)" stroke="var(--paper)" stroke-width="2"/><text x="${tx}" y="${ty + 4}" text-anchor="middle" font-size="10.5" font-weight="900" fill="#fff">${train().no}</text></g>`;
     // 比例尺與指北
     const km2 = 2 * P.pxPerKm;
     g += `<g transform="translate(${(W - 60 - km2).toFixed(1)} ${P.H - 16})"><rect x="0" y="0" width="${km2.toFixed(1)}" height="4" fill="var(--ink-strong)"/><text x="${(km2 + 6).toFixed(1)}" y="5" font-size="11" fill="var(--muted)">${esc(t.scale(2))}</text></g>`;
