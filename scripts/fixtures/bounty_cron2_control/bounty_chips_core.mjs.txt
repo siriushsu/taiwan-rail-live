@@ -1,0 +1,46 @@
+// 批次化之前的估值實作所用的 bounty_chips_core.mjs（去掉註解的副本）：只給 scripts/verify_bounty_cron2.mjs 的 K、K0 組當對照；不要修改、不要直接 import。
+
+export function taipeiDay(epochMs) {
+  const d = new Date(epochMs + 8 * 3600e3);
+  return d.toISOString().slice(0, 10);
+}
+
+export function tripChips(trip, chips) {
+  if (!trip || trip.verdict !== 'ok') return 0;
+  if (!(trip.durationSec >= chips.minTripSec)) return 0;
+  const remote = (trip.lineKeys || []).some(k => chips.remoteLines.includes(k));
+  let mult = remote ? chips.remoteMultiplier : 1;
+  for (const ev of chips.events || []) {
+    if (trip.day < ev.from || trip.day > ev.to) continue;
+    if (ev.lines && !(trip.lineKeys || []).some(k => ev.lines.includes(k))) continue;
+    mult *= ev.multiplier;
+  }
+  return chips.perTrip * mult;
+}
+
+export function applyDailyChipCap(chipsForTrip, chipsAlreadyToday, chips) {
+  return Math.max(0, Math.min(chipsForTrip, chips.dailyChipCap - chipsAlreadyToday));
+}
+
+export function cloudRideCounts(ride, paidDays, chips) {
+  if (!ride || !(ride.sec >= chips.cloud.minSec)) return false;
+  const todayCount = paidDays.filter(d => d === ride.day).length;
+  return todayCount < chips.cloud.dailyMax;
+}
+
+export function cloudChipsEarned(totalRides, chips) {
+  return Math.floor(totalRides / chips.cloud.perChip);
+}
+
+export function priceOfNth(n, chips) {
+  const p = chips.prices;
+  return p[Math.min(n, p.length) - 1];
+}
+
+export function canRedeem(sceneId, unlocked, balance, chips) {
+  if (!chips.scenes.includes(sceneId)) return { ok: false, why: 'unknown_scene' };
+  if (unlocked.includes(sceneId)) return { ok: false, why: 'already' };
+  const cost = priceOfNth(unlocked.length + 1, chips);
+  if (balance < cost) return { ok: false, why: 'not_enough', cost };
+  return { ok: true, cost };
+}

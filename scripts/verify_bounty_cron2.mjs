@@ -9,18 +9,22 @@
 //     來自 data/bounty_rules.json，這裡照抄成字面。
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準。
 //
-// 【對照版】K 組與 K0 組拿 c2e81e3b（F1／F24／F4…修完、S10–S14 動工前的 worker.js）當對照：
-//   ・K1／K2／K3 批次化等價：新舊各從乾淨 DB 跑同一批資料，六張表逐列相等（S13a 只改「查詢怎麼打」，結果必須逐位元組相同）。
+// 【對照版】K 組與 K0 組拿「批次化之前的估值實作」當對照：第③段逐段各打 2–4 句 D1，也還沒有後來加的四件事
+// （第③段用當下的身分、可疑整班不發籌碼、遲傳合併判、日期窗以上傳時間為基準）：
+//   ・K1／K2／K3 批次化等價：新舊各從乾淨 DB 跑同一批資料，六張表逐列相等（批次化只改「查詢怎麼打」，結果必須逐位元組相同）。
 //   ・K0 正向對照：H／I／J／L 這幾組場景也拿去跑對照版——「新行為」那幾條在對照版上必須紅（證明判準真的有牙、不是拿新版的輸出當期望），
 //     「舊行為本來就對」那幾條在對照版上必須綠（證明 fixture 本身沒壞）。
-//   對照版由 `git show c2e81e3b:worker.js` 產生（相對 import 改成絕對路徑），寫在系統暫存目錄、跑完刪掉；取不到 git 歷史時 K 組會紅並說明原因，不會靜默略過。
+//   對照版存在 scripts/fixtures/bounty_cron2_control/（worker.js.txt、bounty_chips_core.mjs.txt）：從分支歷史的 c2e81e3b 只刪註解而成，
+//   用 esbuild 重印原檔與 fixture，兩邊逐 byte 相同。跑的時候不再向 git 取檔：分支合併後會刪，新 clone、淺 clone、gc 之後都取不到那顆 commit。
+//   跑的時候把 fixture 的相對 import 改成絕對路徑、寫進系統暫存目錄，跑完刪掉。載入時比對 md5（寫死在載入函式旁），
+//   fixture 被改過就丟例外：K 組與 K0a 會紅並說明是哪個檔，不會靜默略過。
+//   日後估值的行為若刻意改變，K 組的新舊等價會紅；那時要決定讓 K 組退休或換對照，不要改 fixture 去遷就。
 //
 // 分組：H 第③段身分（S10）　I 可疑整班不發（S11）　J 遲傳合併判（S12）　L 日期窗基準（S14）
 //       K 批次化等價／查詢量（S13a；K1e／K1f＝新增查詢的查詢計畫；K5＝覆蓋段超過 D1 每句 100 個綁定參數）　M 子請求預算與排序（S13b／c／d；M5＝bountyCounted 直接驗）
 //       K0 正向對照　K8 容量（S13e，印數字）
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -272,28 +276,44 @@ async function fire(w, cron) {
   return { logs, errs, threw };
 }
 
-// ── 對照版（c2e81e3b）載入 ────────────────────────────────────────────────────
-// c2e81e3b＝F1／F24／F4／F10／F11／F23／F12／F21 修完、S10–S14 動工之前的 worker.js。
-// 換基準的方法：改這個常數；若日後歷史被改寫、這個 commit 取不到，K 組與 K0 組會紅並說明原因（換成當時的 tip 即可）。
-const CONTROL_SHA = 'c2e81e3b';
+// ── 對照版載入 ────────────────────────────────────────────────────────────────
+// 來歷與用途見檔頭【對照版】。fixture 的副檔名是 .txt：掃 .js／.mjs 的工具與 import 都不會把它當成現行程式。
+// 這裡讀進來、驗完 md5，把相對 import 改成絕對 file:// 位址，另存成 .mjs 寫進系統暫存目錄再 import。
+// 完整性：md5 寫死在 CONTROL_FILES。不符就丟例外，走下面「載入失敗 → K0a 紅並說明原因」的路徑（訊息寫明是哪個 fixture）。
+// 換對照（不是改 fixture 去遷就）時才改這兩個 md5：`md5 scripts/fixtures/bounty_cron2_control/*.txt`。
+// 已知的脆弱點：對照版的 worker 會 import 現行 scripts/ 的模組（tra_platform_proxy、trtc_official_roster、la_push_core、bus_transfer_core、weekend_core）。
+// 那些模組若改了匯出名稱，對照版載入會失敗，K 組與 K0a 紅並說明原因，不會靜默略過。
+const CONTROL_DIR = 'scripts/fixtures/bounty_cron2_control';
+const CONTROL_FILES = {
+  worker: { name: 'worker.js.txt', md5: 'ef2edfba55d18f103588b72c20646039' },
+  core: { name: 'bounty_chips_core.mjs.txt', md5: '90fc345eddf63358435541affcf649ec' },
+};
 let ctlDir = null;
+function readControlFile({ name, md5 }) {
+  const rel = `${CONTROL_DIR}/${name}`;
+  let buf;
+  try { buf = readFileSync(join(ROOT, rel)); }
+  catch (e) { throw new Error(`對照版 fixture 讀不到：${rel}（${(e && e.code) || e}）`); }
+  const got = createHash('md5').update(buf).digest('hex');
+  if (got !== md5) throw new Error(`對照版 fixture 被改過：${rel} 的 md5 是 ${got}，應為 ${md5}（不要改 fixture 去遷就，見檔頭【對照版】）`);
+  return { rel, md5: got, text: buf.toString('utf8') };
+}
 async function loadControl() {
-  const src = execFileSync('git', ['show', `${CONTROL_SHA}:worker.js`], { cwd: ROOT, maxBuffer: 128 * 1024 * 1024, encoding: 'utf8' });
+  const src = readControlFile(CONTROL_FILES.worker), coreSrc = readControlFile(CONTROL_FILES.core);
   ctlDir = mkdtempSync(join(tmpdir(), 'bounty-ctl-'));
-  const file = join(ctlDir, `worker.${CONTROL_SHA}.mjs`);
-  // worker.js 的 import 都是 './scripts/…'：搬到暫存目錄後要改成指回這個 repo 的絕對 file:// 位址
-  // 籌碼規則的純函式（bounty_chips_core.mjs）也取同一個 commit 的版本：對照版呼叫它時不帶後來才加的欄位，配新版的純函式會一律回 0。
-  const coreSrc = execFileSync('git', ['show', `${CONTROL_SHA}:scripts/bounty_chips_core.mjs`], { cwd: ROOT, encoding: 'utf8' });
-  const coreFile = join(ctlDir, `bounty_chips_core.${CONTROL_SHA}.mjs`);
-  writeFileSync(coreFile, coreSrc);
-  const fixed = src.replace(/from '\.\/(scripts\/[^']+)'/g, (m, p) => `from '${pathToFileURL(p === 'scripts/bounty_chips_core.mjs' ? coreFile : join(ROOT, p)).href}'`);
+  const file = join(ctlDir, 'worker.mjs');
+  // 對照版 worker 的 import 都是 './scripts/…'：搬到暫存目錄後要改成指回這個 repo 的絕對 file:// 位址
+  // 籌碼規則的純函式（bounty_chips_core.mjs）也用對照版那份：對照版呼叫它時不帶後來才加的欄位，配新版的純函式會一律回 0。
+  const coreFile = join(ctlDir, 'bounty_chips_core.mjs');
+  writeFileSync(coreFile, coreSrc.text);
+  const fixed = src.text.replace(/from '\.\/(scripts\/[^']+)'/g, (m, p) => `from '${pathToFileURL(p === 'scripts/bounty_chips_core.mjs' ? coreFile : join(ROOT, p)).href}'`);
   if (/from '\.\//.test(fixed)) throw new Error('對照版還有沒改到的相對 import');
   writeFileSync(file, fixed);
   const mod = await import(pathToFileURL(file).href);
-  return { name: `對照版 ${CONTROL_SHA}`, api: mod._bounty, md5: createHash('md5').update(src).digest('hex') };
+  return { name: '對照版', api: mod._bounty, files: [src, coreSrc].map(({ rel, md5 }) => ({ rel, md5 })) };
 }
 let CTL = null, ctlErr = null;
-try { CTL = await loadControl(); console.log(`[G0] 對照版 ${CONTROL_SHA} 載入完成（git show 原文 md5=${CTL.md5}）`); }
+try { CTL = await loadControl(); console.log(`[G0] 對照版載入完成（兩個 fixture 的 md5 與寫死的相符）：${CTL.files.map(f => `${f.rel} md5=${f.md5}`).join('；')}`); }
 catch (e) { ctlErr = String((e && e.message) || e).split('\n')[0]; console.log(`[G0] 對照版載入失敗：${ctlErr}`); }
 process.on('exit', () => { if (ctlDir) try { rmSync(ctlDir, { recursive: true, force: true }); } catch (e) {} });
 
