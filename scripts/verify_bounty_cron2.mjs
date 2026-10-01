@@ -1,4 +1,4 @@
-// 路段懸賞 v2 後端驗收（六）：判定 cron 的 S10–S14——第③段身分（S10）、可疑整班不發（S11）、遲傳合併判（S12）、
+// 路段懸賞 v2 後端驗收：判定 cron 的 S10–S14——第③段身分（S10）、可疑整班不發（S11）、遲傳合併判（S12）、
 // 查詢量與子請求預算（S13）、日期窗以上傳時間為基準（S14）。（F1–F24 在 verify_bounty_cron.mjs）
 // 離線：假 D1（scripts/d1_local.mjs，真 SQLite）＋ stub ASSETS ＋ BOUNTY_NOW 釘死，不起伺服器、不碰網路。
 // 跑法：node scripts/verify_bounty_cron2.mjs
@@ -641,9 +641,9 @@ scn('L', async (impl, c) => {
     c('L2c [S14 邊界] 上傳在台北第 7 天 23:59:59.999：窗內，判 ok', e.v === 'ok', J({ v: e.v, rej: e.rej }));
     const f = await run('l2d', TRIP_MS + 7 * DAY + 16 * 3600e3, LATE);
     c('L2d [S14 邊界] 再 1 毫秒＝台北第 8 天零點：窗外，suspect／stale_date', f.v === 'suspect' && f.rej === 'stale_date', J({ v: f.v, rej: f.rej }));
-    // B1 原案：上傳端點收下的「第 7 天 08:00 之後」補傳（舊版拿乘車日 UTC 零點＋7 天比毫秒，這裡會判 stale_date）
+    // 晚到那一端：上傳端點收下的「第 7 天 08:00 之後」補傳（舊版拿乘車日 UTC 零點＋7 天比毫秒，這裡會判 stale_date）
     const g = await run('l2e', TRIP_MS + 7 * DAY + 1, LATE);
-    c('L2e [B1] 上傳在台北第 7 天 08:00:00.001（上傳端點收得下）：判 ok，不是 stale_date', g.v === 'ok' && g.rej === '', J({ v: g.v, rej: g.rej }));
+    c('L2e 上傳在台北第 7 天 08:00:00.001（上傳端點收得下）：判 ok，不是 stale_date', g.v === 'ok' && g.rej === '', J({ v: g.v, rej: g.rej }));
   }
   // L3：上傳時間早於乘車日太多（未來日期）：以上傳時間為基準判 future_date；舊版拿 cron 的 now 比，乘車日早已過去，放行
   { const r = await run('l3', Date.parse('2026-07-25T01:00:00Z'), NOW_MS);
@@ -654,9 +654,9 @@ scn('L', async (impl, c) => {
     c('L3b [S14 邊界] 上傳在乘車日前一天（台北）的零點：允許（乘車日不得晚於「上傳當天的明天」），判 ok', e.v === 'ok', J({ v: e.v, rej: e.rej }));
     const f = await run('l3c', TRIP_MS - DAY - 8 * 3600e3 - 1, NOW_MS);
     c('L3c [S14 邊界] 再早 1 毫秒（台北前兩天的 23:59:59.999）：future_date、suspect', f.v === 'suspect' && f.rej === 'future_date', J({ v: f.v, rej: f.rej }));
-    // B1 未來端：舊版比毫秒時，台北 07-27 00:00～07:59:59.999 上傳的 07-28 趟被判 future_date（上傳端點卻收下）
+    // 提早那一端：舊版比毫秒時，台北 07-27 00:00～07:59:59.999 上傳的 07-28 趟被判 future_date（上傳端點卻收下）
     const g = await run('l3d', TRIP_MS - DAY - 1, NOW_MS);
-    c('L3d [B1] 上傳在台北 07-27 07:59:59.999（上傳端點收得下）：判 ok，不是 future_date', g.v === 'ok' && g.rej === '', J({ v: g.v, rej: g.rej }));
+    c('L3d 上傳在台北 07-27 07:59:59.999（上傳端點收得下）：判 ok，不是 future_date', g.v === 'ok' && g.rej === '', J({ v: g.v, rej: g.rej }));
   }
   // L4：同一組有多批、上傳時間不同：以「最晚」的那批為準（max）。第一批上傳在乘車日當天（窗內），第二批 13 天後才傳 → 這一組的上傳時間是第二批 → stale_date
   { const w = world({ impl, seed });
