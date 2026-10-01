@@ -25,7 +25,7 @@
 //   CH17 說明卡的獎勵句：每趟幾顆、偏遠線倍率、每天上限，與伺服器入帳用的純函式算出來的一致（真規則檔與另一份規則檔）
 //   CH18 旗標關：看不到任何一句獎勵說法（新舊都沒有）、不讀規則檔、不打認領請求；對照：旗標開同一頁看得到
 //   CH19 手機版：360／375／414／768 × Chromium／WebKit，看板（有 ×N 標記）、說明卡、提示；兩兩相交掃描、沒有水平捲動、真觸控點「接下」、App 殼按「開始錄製」的更新提示在最上層、網頁點「接下」的提示在最上層
-//   CH20 ?demo=bounty 的示範看板：有一張偏遠線的卡、「籌碼 ×N」標記看得到（中英日、手機不用捲）；名單與倍率讀規則檔、換一份規則檔跟著翻；規則檔讀不到時維持原本 5 張卡；其他卡不變
+//   CH20 ?demo=bounty 的示範看板：有一張偏遠線的卡、「籌碼 ×N」標記看得到（中英日、手機不用捲）；名單與倍率讀規則檔、換一份規則檔跟著翻；規則檔讀不到時維持原本 5 張卡；規則檔還沒回來就開板，板子先顯示載入中、規則檔一到第一次畫出來的卡就有標記；其他卡不變
 //   CH21 旗標開時的懸賞文案（看板、說明卡、護照校正貢獻、說明中心三節、接下的提示）第一人稱用單數，沒有「我們／We／私たち」；掃描規則自己咬得住；規則檔那一句登記為已知例外
 //
 // 打樁慣例照 scripts/verify_bounty_merge_web.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
@@ -238,6 +238,7 @@ try {
       }
       if (u.pathname === '/data/bounty_rules.json') {
         s.rulesReq++;
+        if (s.gates.rules) await s.gates.rules.promise;                                      // 測試扣住規則檔的回應（hold('rules')），放開之前一律不回
         if (s.rules === '404') return route.fulfill({ status: 404, contentType: 'text/plain', body: 'not found' });
         if (s.rules) return json(route, 200, s.rules);
         return route.continue();
@@ -1519,6 +1520,31 @@ try {
       });
       ok(`CH20e-${w} 手機 ${w}×${h}：開板後不捲動，「${TAG20['zh-TW'](RULES.chips.remoteMultiplier)}」標記就在視窗內、中心點最上面就是它`,
         r.found && r.text === TAG20['zh-TW'](RULES.chips.remoteMultiplier) && r.inView && r.hitTag && r.scrolled === 0 && s.errors.length === 0, JSON.stringify({ r, errors: s.errors }));
+      await s.ctx.close();
+    });
+
+    // 規則檔還沒回來就開板：示範板的偏遠線那張要等規則檔讀到才挑得出來（見 openBountyBoard 對示範模式的那一行等待），
+    // 所以板子先停在「載入中…」、一張卡都沒有；規則檔一到，第一次畫出來的卡就有那張與標記，不是先畫一版沒標記的。
+    // 規則檔的回應由測試扣住再放開（不靠睡眠秒數決定誰先誰後）；開機前就扣住，所以開機時的那幾次讀取也一起等著。
+    await attempt('CH20f', async () => {
+      const s = await newSession({ app: false }, {}, { ctx: { locale: 'zh-TW' } });
+      const gate = s.hold('rules');
+      await s.page.goto(`${BASE}/?lang=zh-TW&demo=bounty`);
+      await bootDone(s.page);
+      await s.page.evaluate(() => { window.__openP = openBountyBoard(); });          // 不等它：它正卡在規則檔上
+      await sleep(900);
+      const held = await s.page.evaluate(() => ({ hidden: document.getElementById('bountyModal').hidden, cards: document.querySelectorAll('#bountyList .bt-card').length,
+        loading: !!document.querySelector('#bountyList .bt-empty') }));
+      const reqHeld = s.rulesReq;
+      gate.release();
+      await s.page.waitForFunction(() => document.querySelectorAll('#bountyList .bt-card').length >= 5, null, { timeout: 15000 });
+      const d = await readDemo(s.page);                                                // 卡一出現就讀：之後有沒有補畫都不影響這一條
+      const want20 = TAG20['zh-TW'](RULES.chips.remoteMultiplier);
+      const remote = d.cards.filter(c => remoteOf(RULES, c.id)), others = d.cards.filter(c => !remoteOf(RULES, c.id));
+      ok('CH20f 規則檔還沒回來就開板：先顯示載入中、一張卡都沒有；規則檔一到，第一次畫出來的卡就有偏遠線那張、標「' + want20 + '」，其他卡沒有標記',
+        held.hidden === false && held.cards === 0 && held.loading && reqHeld >= 1 &&
+          remote.length === 1 && remote[0].tags.length === 1 && remote[0].tags[0].text === want20 && others.length >= 5 && others.every(c => c.tags.length === 0) && s.errors.length === 0,
+        JSON.stringify({ held, rulesReq: reqHeld, remote: remote.map(c => [c.id, c.tags.map(x => x.text)]), others: others.length, errors: s.errors }));
       await s.ctx.close();
     });
   }
