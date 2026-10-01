@@ -80,49 +80,62 @@ INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_lock
   ok('A11 回應帶 coverN 供前端顯示「已有 1/3 趟」', b.coverN && b.coverN.metro === 3, JSON.stringify(b.coverN));
 }
 
-// A12–A16 retireBlock：估值被清單的守門擋下的狀態（kv_blobs 的 bounty_retire_block 一列，由估值 cron 寫，寫的那端見 verify_bounty_valuation.mjs E29–E39）。
-// 沒有這一列＝null；有就是 {at, generatedAt, msg}；讀不到（D1 錯誤、值壞掉）＝整個省略這個欄位，讀的人才分得出「沒擋」與「不知道」。
-// 鍵名、欄位名手寫，不從 worker.js 拿。
+// A12–A18 retireBlock、valuationOk：估值的兩個狀態（kv_blobs 的 bounty_retire_block、bounty_valuation_ok 兩列，由估值 cron 寫，寫的那端見 verify_bounty_valuation.mjs E29–E46）。
+// 沒有那一列＝null；有就是 retireBlock {at, generatedAt, msg}、valuationOk {at, generatedAt}；讀不到（D1 錯誤、任何一列的值壞掉）＝兩個欄位一起省略，
+// 讀的人才分得出「沒有」與「不知道」。鍵名、欄位名手寫，不從 worker.js 拿。
 {
-  const KEY = 'bounty_retire_block';
+  const KEY = 'bounty_retire_block', OKKEY = 'bounty_valuation_ok';
   const get = async DB => { const res = await _bounty.bountyBoard(req('/api/bounty-board'), ENV(DB)); return { status: res.status, b: await body(res) }; };
-  const put = (db, v) => db.prepare("INSERT INTO kv_blobs (k, v, updated) VALUES (?, ?, 'x') ON CONFLICT(k) DO UPDATE SET v = excluded.v").run(KEY, v);
+  const put = (db, v, k = KEY) => db.prepare("INSERT INTO kv_blobs (k, v, updated) VALUES (?, ?, 'x') ON CONFLICT(k) DO UPDATE SET v = excluded.v").run(k, v);
+  const del = (db, k) => db.prepare('DELETE FROM kv_blobs WHERE k = ?').run(k);
+  const BLOCK_MSG = 'bounty_units shrink: tra_sched 21/200（確認是真的換班表，就把 BOUNTY_RETIRE_ACK 設成 1790758000000）';
 
   const { db, DELAY_DB } = openTestDb(SEED);
   const none = await get(DELAY_DB);
-  ok('A12 kv_blobs 沒有 bounty_retire_block 這一列 → 200，retireBlock 是 null（欄位在、值是 null），cards 照常',
-    none.status === 200 && 'retireBlock' in none.b && none.b.retireBlock === null && Array.isArray(none.b.cards) && none.b.cards.length > 0,
-    JSON.stringify({ status: none.status, rb: none.b.retireBlock, keys: Object.keys(none.b) }));
+  ok('A12 kv_blobs 沒有這兩列 → 200，retireBlock 與 valuationOk 都是 null（兩個欄位都在、值都是 null），cards 照常',
+    none.status === 200 && 'retireBlock' in none.b && none.b.retireBlock === null && 'valuationOk' in none.b && none.b.valuationOk === null &&
+      Array.isArray(none.b.cards) && none.b.cards.length > 0,
+    JSON.stringify({ status: none.status, rb: none.b.retireBlock, vo: none.b.valuationOk, keys: Object.keys(none.b) }));
 
-  // 值裡多出來的欄位不外露：只回 at、generatedAt、msg 三個
-  put(db, JSON.stringify({ at: 1790758089689, generatedAt: 1790758000000, msg: 'bounty_units shrink: tra_sched 21/200（確認是真的換班表，就把 BOUNTY_RETIRE_ACK 設成 1790758000000）', extra: 'x' }));
+  // 值裡多出來的欄位不外露：retireBlock 只回 at、generatedAt、msg 三個，valuationOk 只回 at、generatedAt 兩個
+  put(db, JSON.stringify({ at: 1790758089689, generatedAt: 1790758000000, msg: BLOCK_MSG, extra: 'x' }));
+  put(db, JSON.stringify({ at: 1790758089000, generatedAt: 1790757000000, extra: 'y' }), OKKEY);
   const withGen = await get(DELAY_DB);
   put(db, JSON.stringify({ at: 1790758089690, generatedAt: null, msg: 'bounty_units empty' }));
+  put(db, JSON.stringify({ at: 1790758089001, generatedAt: null }), OKKEY);
   const noGen = await get(DELAY_DB);
-  ok('A13 有這一列 → 200，retireBlock 正好是 {at, generatedAt, msg}（值照寫進去的；generatedAt 為 null 時仍是 null；多出來的欄位不外露）',
-    withGen.status === 200 && JSON.stringify(withGen.b.retireBlock) === JSON.stringify({ at: 1790758089689, generatedAt: 1790758000000, msg: 'bounty_units shrink: tra_sched 21/200（確認是真的換班表，就把 BOUNTY_RETIRE_ACK 設成 1790758000000）' }) &&
+  ok('A13 有這兩列 → 200，retireBlock 正好是 {at, generatedAt, msg}、valuationOk 正好是 {at, generatedAt}（值照寫進去的；generatedAt 為 null 時仍是 null；多出來的欄位不外露）',
+    withGen.status === 200 && JSON.stringify(withGen.b.retireBlock) === JSON.stringify({ at: 1790758089689, generatedAt: 1790758000000, msg: BLOCK_MSG }) &&
+      JSON.stringify(withGen.b.valuationOk) === JSON.stringify({ at: 1790758089000, generatedAt: 1790757000000 }) &&
       noGen.status === 200 && JSON.stringify(noGen.b.retireBlock) === JSON.stringify({ at: 1790758089690, generatedAt: null, msg: 'bounty_units empty' }) &&
+      JSON.stringify(noGen.b.valuationOk) === JSON.stringify({ at: 1790758089001, generatedAt: null }) &&
       Array.isArray(withGen.b.cards) && withGen.b.cards.length > 0,
-    JSON.stringify({ withGen: withGen.b.retireBlock, noGen: noGen.b.retireBlock }));
+    JSON.stringify({ withGen: [withGen.b.retireBlock, withGen.b.valuationOk], noGen: [noGen.b.retireBlock, noGen.b.valuationOk] }));
 
-  // 讀 kv_blobs 丟錯：看板照樣 200、cards 照常，只是沒有 retireBlock 這個欄位（不是 503，也不是 null）
+  // 讀 kv_blobs 丟錯：看板照樣 200、cards 照常，只是兩個欄位都沒有（不是 503，也不是 null，也不是只省略其中一個）
   const dead = { _sql: '', bind() { return this; }, run: async () => { throw new Error('D1 注入的錯'); }, all: async () => { throw new Error('D1 注入的錯'); }, first: async () => { throw new Error('D1 注入的錯'); } };
   const failing = { prepare: sql => /kv_blobs/.test(sql) ? dead : DELAY_DB.prepare(sql), batch: s => DELAY_DB.batch(s), exec: s => DELAY_DB.exec(s) };
   const broken = await get(failing);
-  ok('A14 讀 kv_blobs 丟錯 → 看板照樣 200、cards 照常帶，但沒有 retireBlock 這個欄位（不是 503、也不是 null）',
-    broken.status === 200 && !('retireBlock' in broken.b) && Array.isArray(broken.b.cards) && broken.b.cards.length > 0 && broken.b.coverN && broken.b.coverN.metro === 3,
+  ok('A14 讀 kv_blobs 丟錯 → 看板照樣 200、cards 照常帶，但 retireBlock 與 valuationOk 兩個欄位都沒有（不是 503、不是 null、也不是只省略其中一個）',
+    broken.status === 200 && !('retireBlock' in broken.b) && !('valuationOk' in broken.b) && Array.isArray(broken.b.cards) && broken.b.cards.length > 0 &&
+      broken.b.coverN && broken.b.coverN.metro === 3,
     JSON.stringify({ status: broken.status, keys: Object.keys(broken.b) }));
 
-  // 那一列在、但值讀不出物件（不是 JSON、JSON 但不是物件）：同樣當「不知道」，省略欄位
+  // 那一列在、但值讀不出物件（不是 JSON、JSON 但不是物件）：同樣當「不知道」，兩個欄位一起省略——只壞 retireBlock、只壞 valuationOk、兩列都壞各一遍
+  const GOOD_BLOCK = JSON.stringify({ at: 1790758089689, generatedAt: 1790758000000, msg: 'bounty_units empty' });
+  const GOOD_OK = JSON.stringify({ at: 1790758089000, generatedAt: 1790757000000 });
   const odd = [];
   for (const v of ['not json', '"str"', '123', '[1]', 'null', '']) {
-    put(db, v);
-    const r = await get(DELAY_DB);
-    odd.push({ v, status: r.status, has: 'retireBlock' in r.b });
+    for (const [which, bv, ov] of [['retireBlock 壞', v, GOOD_OK], ['valuationOk 壞', GOOD_BLOCK, v], ['兩列都壞', v, v]]) {
+      put(db, bv); put(db, ov, OKKEY);
+      const r = await get(DELAY_DB);
+      odd.push({ v, which, status: r.status, retireBlock: 'retireBlock' in r.b, valuationOk: 'valuationOk' in r.b });
+    }
   }
-  ok('A15 那一列的值不是 JSON 物件（壞掉的字串、字串、數字、陣列、null、空字串）→ 看板照樣 200，省略 retireBlock', odd.every(o => o.status === 200 && o.has === false), JSON.stringify(odd));
+  ok('A15 任何一列的值不是 JSON 物件（壞掉的字串、字串、數字、陣列、null、空字串；只壞 retireBlock、只壞 valuationOk、兩列都壞）→ 看板照樣 200，兩個欄位一起省略（不會只剩其中一個）',
+    odd.length === 18 && odd.every(o => o.status === 200 && o.retireBlock === false && o.valuationOk === false), JSON.stringify(odd.filter(o => o.status !== 200 || o.retireBlock || o.valuationOk)));
 
-  // 快取：retireBlock 跟著看板同一份邊緣快取（寫進快取的內容就是回給呼叫端的內容），標頭沿用原本的 5 分鐘＋15 分鐘
+  // 快取：兩個欄位跟著看板同一份邊緣快取（寫進快取的內容就是回給呼叫端的內容），標頭沿用原本的 5 分鐘＋15 分鐘
   const CC = 'public, s-maxage=300, stale-while-revalidate=900';
   const capture = async DB => {
     const puts = [], edge = globalThis.caches.default, orig = edge.put;
@@ -132,17 +145,42 @@ INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_lock
       return { status: res.status, cc: res.headers.get('cache-control'), text: await res.text(), puts };
     } finally { edge.put = orig; }
   };
-  db.prepare('DELETE FROM kv_blobs WHERE k = ?').run(KEY);
+  del(db, KEY); del(db, OKKEY);
   const cNone = await capture(DELAY_DB);
   put(db, JSON.stringify({ at: 1790758089689, generatedAt: 1790758000000, msg: 'bounty_units empty' }));
+  put(db, GOOD_OK, OKKEY);
   const cBlock = await capture(DELAY_DB);
   const cOmit = await capture(failing);
   const cached = c => c.puts.length === 1 && c.puts[0].cc === CC && c.puts[0].text === c.text && c.status === 200 && c.cc === CC;
-  ok('A16 retireBlock 跟看板同一份邊緣快取：三種狀態（沒擋＝null、擋下中、讀不到＝省略欄位）都是 200，回給呼叫端的與寫進快取的是同一份內容，Cache-Control 都是 public, s-maxage=300, stale-while-revalidate=900',
-    cached(cNone) && JSON.parse(cNone.puts[0].text).retireBlock === null &&
-      cached(cBlock) && JSON.stringify(JSON.parse(cBlock.puts[0].text).retireBlock) === JSON.stringify({ at: 1790758089689, generatedAt: 1790758000000, msg: 'bounty_units empty' }) &&
-      cached(cOmit) && !('retireBlock' in JSON.parse(cOmit.puts[0].text)),
+  const inCache = c => JSON.parse(c.puts[0].text);
+  ok('A16 retireBlock、valuationOk 跟看板同一份邊緣快取：三種狀態（兩列都沒有＝兩個 null、兩列都在、讀不到＝兩個欄位都省略）都是 200，回給呼叫端的與寫進快取的是同一份內容，Cache-Control 都是 public, s-maxage=300, stale-while-revalidate=900',
+    cached(cNone) && inCache(cNone).retireBlock === null && inCache(cNone).valuationOk === null &&
+      cached(cBlock) && JSON.stringify(inCache(cBlock).retireBlock) === JSON.stringify({ at: 1790758089689, generatedAt: 1790758000000, msg: 'bounty_units empty' }) &&
+        JSON.stringify(inCache(cBlock).valuationOk) === GOOD_OK &&
+      cached(cOmit) && !('retireBlock' in inCache(cOmit)) && !('valuationOk' in inCache(cOmit)),
     JSON.stringify([cNone, cBlock, cOmit].map(c => ({ status: c.status, cc: c.cc, puts: c.puts.length, same: c.puts[0] && c.puts[0].text === c.text }))));
+
+  // A17：兩列用一句主鍵查詢讀——看板這一發碰 kv_blobs 的 SQL 恰好一句（不是兩句），拿同一句在庫上跑 EXPLAIN QUERY PLAN，只走 PRIMARY KEY、沒有 SCAN
+  const seen = [];
+  const spy = { prepare: sql => { if (/kv_blobs/.test(sql)) seen.push(sql); return DELAY_DB.prepare(sql); }, batch: s => DELAY_DB.batch(s), exec: s => DELAY_DB.exec(s) };
+  await get(spy);
+  const nParam = seen[0] ? (seen[0].match(/\?/g) || []).length : 0;
+  const plan = seen[0] ? db.prepare('EXPLAIN QUERY PLAN ' + seen[0]).all(...Array(nParam).fill('probe')).map(r => String(r.detail)) : [];
+  ok('A17 看板讀這兩列只用一句查詢（碰 kv_blobs 的 SQL 恰好一句），而且是主鍵查詢（EXPLAIN QUERY PLAN 全是 USING PRIMARY KEY、沒有 SCAN）',
+    seen.length === 1 && plan.length > 0 && plan.every(d => /USING PRIMARY KEY/.test(d)) && !plan.some(d => /SCAN/.test(d)), JSON.stringify({ seen, plan }));
+
+  // A18：兩個欄位各讀各的——四種組合（兩列都沒有、只有擋下、只有成功、兩列都有）各自對得上，互不影響
+  const BLOCK = { at: 5, generatedAt: 6, msg: 'm' }, OKV = { at: 7, generatedAt: 8 };
+  const combos = [];
+  for (const [hasBlock, hasOk] of [[false, false], [true, false], [false, true], [true, true]]) {
+    del(db, KEY); del(db, OKKEY);
+    if (hasBlock) put(db, JSON.stringify(BLOCK));
+    if (hasOk) put(db, JSON.stringify(OKV), OKKEY);
+    const r = await get(DELAY_DB);
+    combos.push({ hasBlock, hasOk, rb: JSON.stringify(r.b.retireBlock), vo: JSON.stringify(r.b.valuationOk) });
+  }
+  ok('A18 兩個欄位各讀各的：兩列都沒有＝null／null、只有擋下＝物件／null、只有成功＝null／物件、兩列都有＝物件／物件，互不影響',
+    combos.every(c => c.rb === JSON.stringify(c.hasBlock ? BLOCK : null) && c.vo === JSON.stringify(c.hasOk ? OKV : null)), JSON.stringify(combos));
 }
 
 // ── B 組：POST /api/bounty-claim ──────────────────────────────────────────

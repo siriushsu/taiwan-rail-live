@@ -22,8 +22,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const NODE_SUITES = ['hardening', 'schema', 'valuation', 'gates', 'dwell', 'api', 'ledger', 'chips', 'rules',
   'redeem', 'cloud', 'merge', 'cron', 'auth', 'cron2'];
 const BROWSER_SUITES = ['merge_web', 'recorder_web'];
-const EXPECT = { hardening: 183, schema: 47, valuation: 71, gates: 75, dwell: 16, api: 93, ledger: 71, chips: 40, rules: 16,
-  redeem: 90, cloud: 124, merge: 58, cron: 66, auth: 89, cron2: 131, merge_web: 27, recorder_web: 8 };
+const EXPECT = { hardening: 183, schema: 47, valuation: 86, gates: 75, dwell: 16, api: 95, ledger: 71, chips: 40, rules: 16,
+  redeem: 90, cloud: 124, merge: 58, cron: 70, auth: 89, cron2: 131, merge_web: 27, recorder_web: 8 };
 const TIMEOUT_MS = 15 * 60 * 1000;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bounty-all-'));
 const children = new Set();

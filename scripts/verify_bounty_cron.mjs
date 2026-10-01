@@ -257,6 +257,52 @@ await attempt('A4', async () => {
     J({ threw: r3.threw, line3: line3.slice(0, 200), which3: which3.slice(0, 120), v: q.verdicts(w3.db, 'cron-a', '101') }));
 });
 
+// A5／A6 估值的狀態紀錄經正式入口 scheduled() 接線：兩支會跑估值的 cron 字串（BOUNTY_CRON 與原本的 15 4 * * *）各走一遍。
+// 縮水的清單 → 退場守門擋下：kv_blobs 有 bounty_retire_block（msg 與 cron 印出的 error log 是同一句）、沒有 bounty_valuation_ok；
+// 換正常清單再跑 → bounty_retire_block 不見、bounty_valuation_ok 出現。
+// 直接呼叫估值函式的判準（verify_bounty_valuation.mjs）管不到這一層：兩支 cron 的 catch 若把狀態清掉、或根本沒接上估值，只有這裡看得出來。
+// 板上先放台鐵 200 列、高鐵 20 列；縮水的那份清單少台鐵 21 列（超過一成，退場守門擋下）。
+const KV_BLOCK = 'bounty_retire_block', KV_OK = 'bounty_valuation_ok';
+const kvRow = (db, k) => { const r = db.prepare('SELECT v FROM kv_blobs WHERE k=?').get(k); return r ? JSON.parse(r.v) : null; };
+const mkUnit = (sys, ln, i) => ({ segKey: `${sys}|${ln}|站${String(i).padStart(3, '0')}|站${String(i + 1).padStart(3, '0')}`, sys, trainKind: '自強', dir: 0, kind: 'track', slot: '', perDay: 6 });
+const FULL_UNITS = [...Array.from({ length: 200 }, (_, i) => mkUnit('tra_sched', '南迴線', i)), ...Array.from({ length: 20 }, (_, i) => mkUnit('thsr_sched', 'THSR', i))];
+const CUT_UNITS = FULL_UNITS.slice(21);
+for (const [tag, cron] of [['A5', '30 19 * * *'], ['A6', '15 4 * * *']]) {
+  await attempt(tag, async () => {
+    let cur = null;
+    const w = world();
+    const rulesText = J(RULES);
+    w.env.ASSETS = { fetch: async r => new Response(String(r.url).includes('bounty_units') ? J(cur) : rulesText, { status: 200 }) };
+    const setUnits = (units, gen) => { cur = { generatedAt: gen, schedDate: D28, lines: LINES, units }; };
+    setUnits(FULL_UNITS, 1);
+    await w.valuation();                                                         // 先把板鋪好（220 列）
+    w.db.prepare('DELETE FROM kv_blobs WHERE k=?').run(KV_OK);                   // 從「還沒有任何一次成功」開始
+    const realFetch = globalThis.fetch;
+    if (cron === '15 4 * * *') globalThis.fetch = async () => { throw new Error('offline: 每日 ingest 在這裡快速失敗'); };
+    const ingestFails = cron === '15 4 * * *';
+    try {
+      setUnits(CUT_UNITS, 2);
+      const r1 = await fire(w, cron);
+      const blk = kvRow(w.db, KV_BLOCK);
+      const errLine = r1.errs.find(l => l.startsWith('[cron bounty 估值] 失敗')) || '';
+      const retired = w.db.prepare('SELECT COUNT(*) c FROM bounty_board WHERE retired=1').get().c;
+      ok(`${tag}a [接線] ${J(cron)} 縮水的清單：kv_blobs 有 bounty_retire_block（generatedAt 2、msg 是退場守門那一句 tra_sched 21/200），msg 與印出的 error log 是同一句；沒有 bounty_valuation_ok；板上一列都沒退場` +
+        (ingestFails ? '；每日 ingest 照樣失敗（scheduled 往外丟），估值那一段仍照跑' : '；scheduled 正常結束'),
+        !!blk && J(Object.keys(blk).sort()) === '["at","generatedAt","msg"]' && blk.generatedAt === 2 && /^bounty_units shrink: .*tra_sched 21\/200/.test(blk.msg) &&
+          errLine.includes(blk.msg) && kvRow(w.db, KV_OK) === null && retired === 0 && (ingestFails ? r1.threw !== null : r1.threw === null),
+        J({ blk, errLine: errLine.slice(0, 120), ok: kvRow(w.db, KV_OK), retired, threw: r1.threw }));
+      setUnits(FULL_UNITS, 3);
+      const r2 = await fire(w, cron);
+      const okv = kvRow(w.db, KV_OK);
+      ok(`${tag}b [接線] ${J(cron)} 換正常的清單再跑：bounty_retire_block 不見、bounty_valuation_ok 出現（generatedAt 3、at 是毫秒時間戳），估值那一行 log 照印、沒有估值失敗的 error` +
+        (ingestFails ? '；每日 ingest 照樣失敗' : ''),
+        kvRow(w.db, KV_BLOCK) === null && !!okv && okv.generatedAt === 3 && typeof okv.at === 'number' && okv.at > 0 &&
+          r2.logs.some(l => l.includes('[cron bounty 估值]')) && !r2.errs.some(l => l.startsWith('[cron bounty 估值] 失敗')) && (ingestFails ? r2.threw !== null : r2.threw === null),
+        J({ block: kvRow(w.db, KV_BLOCK), okv, logs: r2.logs.filter(l => l.includes('[cron bounty')).map(l => l.slice(0, 80)), threw: r2.threw }));
+    } finally { globalThis.fetch = realFetch; }
+  });
+}
+
 // ═══ B 組：只判「乘車日早於台北今天」的樣本（F24）══════════════════════════════
 await attempt('B1', async () => {
   const w = world();

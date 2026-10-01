@@ -6152,7 +6152,7 @@ async function firebaseUid(env, idToken) {
 // 賺的端點（bounty-submit、bounty-claim）一律走下面的 bountyIdentity——merged_into 是任何人拿著 uid 都能替別人掛上的標記，
 // 只靠它轉向就等於「知道 token 就能花掉帳號的錢」。
 // 🔴 帳號列（uid 欄非 NULL）一律回自己，不跟 merged_into：v2 之後沒有路徑會讓帳號列掛上 merged_into，
-// 但舊版 bountyMerge 的 F2 攻擊可能在正式庫留下「帳號列＋merged_into＝攻擊者」的髒列；跟著它走，判定 cron 就會把
+// 但舊版 bountyMerge 的合併劫持可能在正式庫留下「帳號列＋merged_into＝攻擊者」的髒列；跟著它走，判定 cron 就會把
 // 受害者的籌碼、點數、去重貢獻全記給攻擊者。與 bountyIdentity「有 uid 就是帳號」同一個判準。
 async function resolveActor(env, actor) {
   const row = await env.DELAY_DB.prepare('SELECT uid, merged_into FROM bounty_points WHERE actor=?').bind(actor).first();
@@ -6187,7 +6187,7 @@ const BOUNTY_WHO_SQL = 'COALESCE((SELECT merged_into FROM bounty_points WHERE ac
 // 為什麼必須：後面所有規則都靠「bounty_points 有這個 actor 的列、uid 非 NULL」認出帳號。少了這一步，
 // 同一個瀏覽器換帳號登入（bountyMerge 回 409、帳號列沒被建出來）之後，用 Bearer 領到的籌碼會落在一個「不是帳號」的 key 底下，
 // 任何人不帶 token 只要知道那個 uid 就花得掉。順便把別人先前用 bountyMerge 掛在這個 uid 列上的 merged_into 清掉
-// （F2：攻擊者拿還沒出現過的 uid 當來源合併，等於預先佔位；本人第一次帶 Bearer 出現時在這裡收回）。
+// （合併劫持：攻擊者拿還沒出現過的 uid 當來源合併，等於預先佔位；本人第一次帶 Bearer 出現時在這裡收回）。
 // ON CONFLICT 帶 WHERE：列已經是「uid 對、沒有 merged_into」的常態就整句空操作，不為每個請求多寫一列 D1。
 // 冪等；updated_at 沒有任何讀者，所以只在真的改了列時才動它。
 async function bountyEnsureAccount(env, uid) {
@@ -6368,11 +6368,13 @@ async function bountyBoard(request, env) {
       [`${r.seg_key}|${r.train_kind}|${r.dir}|${r.kind}|${r.slot || ''}`, Number(r.n) || 0]));
     const cards = groupBoardRows(rs.results || [], counts, rules.coverN, rules.coverDistinct);
     const body = { at: now, coverN: rules.coverN, cards };
-    // 估值被清單的守門擋下的狀態（見 BOUNTY_RETIRE_BLOCK_KEY）：沒擋＝null，擋下中＝{at, generatedAt, msg}。
-    // 讀不到（D1 錯誤、值壞掉）就整個省略這個欄位，讀的人才分得出「沒擋」與「不知道」；這一句失敗不影響看板本身。
-    const retireBlock = await bountyReadRetireBlock(env);
-    if (retireBlock !== undefined) body.retireBlock = retireBlock;
-    // 板一天只重算一次，但 claimers 會隨時變——5 分鐘是「認領人數夠新」與「別把 D1 打爆」的折衷（retireBlock 跟著同一份快取）
+    // 估值的兩個狀態（一句查詢讀兩列，見 BOUNTY_RETIRE_BLOCK_KEY、BOUNTY_VALUATION_OK_KEY）：
+    // retireBlock：沒擋＝null，擋下中＝{at, generatedAt, msg}；valuationOk：從沒成功過＝null，否則是最後一次成功估值的 {at, generatedAt}。
+    // 「沒擋下」不等於「估值正常」，要看估值有沒有在跑得看 valuationOk 有多新。
+    // 讀不到（D1 錯誤、值壞掉）就把兩個欄位一起省略，讀的人才分得出「沒有」與「不知道」；這一句失敗不影響看板本身。
+    const state = await bountyReadValuationState(env);
+    if (state !== undefined) { body.retireBlock = state.retireBlock; body.valuationOk = state.valuationOk; }
+    // 板一天只重算一次，但 claimers 會隨時變——5 分鐘是「認領人數夠新」與「別把 D1 打爆」的折衷（retireBlock、valuationOk 跟著同一份快取）
     return await jsonResCached(edge, cacheKey, body, 200, 'public, s-maxage=300, stale-while-revalidate=900');
   } catch (e) {
     return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
@@ -6715,9 +6717,9 @@ async function bountyMerge(request, env) {
     const add = (name, st) => { at[name] = stmts.length; stmts.push(st); };
     // 「這個 token 現在歸這個 uid」：③ 標記之後 merged_into 等於 uid ⇔ 這次（或先前同一個 uid 的呼叫）消化了它。
     // 已經併進「別的 uid」的 token 一列都不搬（那是別人帳號底下的資料，同 bountyPurgeUid 的 notElsewhere 守衛）；
-    // 帳號列（uid 非 NULL）也不搬——正常情況帳號列不會有 merged_into，但舊版的 F2 攻擊會留下「帳號列＋merged_into」的髒列，
+    // 帳號列（uid 非 NULL）也不搬——正常情況帳號列不會有 merged_into，但舊版的合併劫持會留下「帳號列＋merged_into」的髒列，
     // 沒有 uid IS NULL 的話，同一個攻擊者對那種列重跑一次，④⑤與 v2 四張表照樣搬得動。
-    // 守衛寫在每一句寫入裡、與 ③ 同一個交易，不是事前讀一次再判斷（同一種併發窗，見上面 2026-07-29 稽核）。
+    // 守衛寫在每一句寫入裡、與 ③ 同一個交易，不是事前讀一次再判斷（同一種併發窗，見上面「冪等不等於併發安全」那段）。
     const G = ' AND EXISTS (SELECT 1 FROM bounty_points WHERE actor=? AND merged_into=? AND uid IS NULL)';
     // ① 目的列（＝S0）先確保存在（第一次登入時還沒有），並且清掉別人預先掛在它身上的 merged_into：
     // 攻擊者拿「還沒出現過的 uid」當來源合併會把那列標成墓碑，本人第一次帶 Bearer 合併時要在這裡收回帳號身分。
@@ -6783,7 +6785,7 @@ async function bountyMerge(request, env) {
       " SELECT 'merge|merge|' || d.actor || '|' || d.scene, ?, 'merge'," +
       ' CASE WHEN u.created_at > d.created_at THEN u.cost ELSE d.cost END,' +
       " 'merge|' || d.actor || '|' || d.scene, NULL, ?" +
-      // 兩邊都指名主鍵：只指名 d 時，表很小時算的統計會讓規劃器把 u 排成外層、整張表掃過（PL 抓到）；兩邊都指名之後
+      // 兩邊都指名主鍵：只指名 d 時，表很小時算的統計會讓規劃器把 u 排成外層、整張表掃過（verify_bounty_hardening.mjs 的 PL 判準抓到）；兩邊都指名之後
       // 不論哪一邊在外層，都是「某個人的解鎖」逐列＋另一邊全鍵點查。
       ' FROM garage_unlocks d INDEXED BY sqlite_autoindex_garage_unlocks_1' +
       ' JOIN garage_unlocks u INDEXED BY sqlite_autoindex_garage_unlocks_1 ON u.actor=? AND u.scene=d.scene' +
@@ -6822,7 +6824,7 @@ async function bountyMerge(request, env) {
     // ⑨ 去重貢獻：兩邊都貢獻過同一段＝合併後是同一個人，那一段的去重人數要少 1（所有同 seg_key 的看板列，下限 0；
     // covered_at 不動——「曾經收滿」是歷史事實，不因為併人而收回）。先減再刪（減的時候要靠 dev 那列找出撞段）。
     // 撞段寫成 EXISTS（全鍵點查），不寫成自連接：自連接時表很小時算的統計會讓規劃器把帳號那一邊排成外層、整個主鍵索引掃過
-    // （帳號那一邊只有 actor 可用，主鍵是 (seg_key, actor)；PL 抓到）。
+    // （帳號那一邊只有 actor 可用，主鍵是 (seg_key, actor)；verify_bounty_hardening.mjs 的 PL 判準抓到）。
     add('contribDec', db.prepare(
       'UPDATE bounty_board SET distinct_ok_users = MAX(0, distinct_ok_users - 1)' +
       ' WHERE seg_key IN (SELECT d.seg_key FROM bounty_seg_contrib d INDEXED BY idx_seg_contrib_actor WHERE d.actor=?' +
@@ -6882,7 +6884,7 @@ async function bountyMerge(request, env) {
 // 🔴 但 deviceActor 必須真的是「裝置」：它若是別人的帳號（bounty_points 的 uid 欄非 NULL），一列都不刪。
 // 不擋的話，body 填受害者的 uid 就能刪掉他的點數列——那一列就是「這是帳號」的標記，標記一沒，之後不帶 token 的 actor＝他的
 // 錢包請求就被當成匿名裝置放行（繞過 bountyIdentity）。同理「merged_into 指向我」只算裝置（uid 欄 NULL）：
-// 舊版 F2 攻擊留下的髒列（帳號列卻掛著 merged_into＝攻擊者）不是攻擊者的裝置，攻擊者刪自己的帳號時不能連它一起帶走。
+// 舊版合併劫持留下的髒列（帳號列卻掛著 merged_into＝攻擊者）不是攻擊者的裝置，攻擊者刪自己的帳號時不能連它一起帶走。
 async function bountyPurgeUid(env, uid, deviceActor) {
   const db = env.DELAY_DB;
   if (!db) return { samples: 0, claims: 0, points: 0, chips: 0, unlocks: 0, cloudRides: 0, contrib: 0 };
@@ -7373,11 +7375,21 @@ const BOUNTY_RETIRE_GUARD = { minCount: 10, sysRatio: 0.1, lineRatio: 0.5 };
 // 估值被清單的守門擋下時留的狀態：kv_blobs 一列（鍵 BOUNTY_RETIRE_BLOCK_KEY），值＝{at, generatedAt, msg}——
 // at＝這一次擋下的毫秒時間戳，generatedAt＝擋下的那份清單的 generatedAt（清單沒有就 null），msg＝丟出的錯誤訊息，同一句。
 // 為什麼要留：擋下只會丟一個錯、cron 印一行 log，沒有人會主動去翻；擋下期間新單位不上架、沒接懸賞的錄程在缺卡的段拿 0 點，
-// 當天或隔天就要有人處理。每小時的巡檢只打公開 API、不查 D1，所以這一列經 /api/bounty-board 的 retireBlock 欄位帶出去（見 bountyBoard）。
-// 涵蓋的是「清單有問題、整張板不動、要人處理」的守門（清單是空的、退場守門）；D1 錯誤，以及規則檔或清單檔讀不到，是別的問題，不寫。
-// 連續幾天都被擋，每次覆寫成最新一發；估值正常跑完才清掉（bountyValuationCron 的最後一步），任何丟錯的路都不動它。
+// 當天或隔天就要有人處理。每小時的巡檢只打公開 API、不查 D1，所以這一列經 /api/bounty-board 的 retireBlock 欄位帶出去（見 bountyBoard）；
+// 巡檢那一端的判定已經寫好（scripts/lib/bounty_retire_verdict.mjs），但還沒接上巡檢：目前沒有程式定時在讀這個欄位。
+// 涵蓋的是「清單有問題、整張板不動、要人處理」的守門（清單是空的、退場守門）。別的丟錯路不寫這一列：D1 錯誤、規則檔讀不到或內容無效、
+// 清單檔讀不到或不是 JSON、清單是 null——這些改由下面 BOUNTY_VALUATION_OK_KEY 那一列的新鮮度抓。
+// 連續幾天都被擋，每次覆寫成最新一發；估值正常跑完才清掉（bountyValuationCron 的最後一步）。守門以外的丟錯路都不動它；
+// 守門那兩處（清單是空的、退場守門）會把它覆寫成這一發。
 const BOUNTY_RETIRE_BLOCK_KEY = 'bounty_retire_block';
-// 寫、清、讀都走傳進來的 env（估值與判定共用的子請求計數器要數到）。
+// 最後一次成功的估值：kv_blobs 一列（鍵 BOUNTY_VALUATION_OK_KEY），值＝{at, generatedAt}——at＝估值整張跑完的毫秒時間戳，
+// generatedAt＝那一發用的清單的 generatedAt（清單沒有就 null）。只有正常跑完才寫，任何丟錯的路都不寫；經 /api/bounty-board 的 valuationOk 欄位帶出去。
+// 為什麼要有它：「沒被擋下」不等於「估值有在跑」。規則檔或清單檔壞掉、D1 出錯、估值根本沒有觸發器、跑到一半被平台中止，retireBlock 都是 null；
+// 只有「最近一次成功是什麼時候」看得出估值停了。估值一天一次，判定端拿它跟現在比新鮮度（門檻在 scripts/lib/bounty_retire_verdict.mjs）。
+// 刻意不在 scheduled() 兩支估值 cron 的 catch 裡另外記失敗：新鮮度已經涵蓋所有失敗（含沒有觸發器、被平台中止，那兩種 catch 根本接不到），
+// 在 catch 裡記還要動兩支 cron 分支，多一份要跟著維護、卻沒有多抓到任何一種。
+const BOUNTY_VALUATION_OK_KEY = 'bounty_valuation_ok';
+// 寫、清、讀都走傳進來的 env：寫與清在 cron 裡（估值與判定共用的子請求計數器要數到）；讀在看板的請求路徑上，沒有這個計數器。
 // 寫入失敗只印 error、不往外丟：呼叫端接著要丟的是擋下的原因，寫入的錯不能蓋掉它。
 async function bountyRecordRetireBlock(env, generatedAt, msg) {
   try {
@@ -7389,23 +7401,40 @@ async function bountyRecordRetireBlock(env, generatedAt, msg) {
     console.error('[cron bounty 估值] 擋下的狀態寫不進 kv_blobs（照樣丟出擋下的原因）:', (e && e.stack) || String(e));
   }
 }
-// 估值已經整張跑完，清除失敗不該讓這一發變成「失敗」：印 error，那一列留到下一次正常跑完再清。
-async function bountyClearRetireBlock(env) {
+// 估值已經整張跑完：同一次 batch 清掉擋下的狀態、記下這一次成功（兩句一起成功或一起失敗，不會留下只做了一半的狀態）。
+// 已經整張跑完，這一步失敗不該讓這一發變成「失敗」：印 error，兩列都維持原樣，留到下一次正常跑完再更新。
+async function bountyRecordValuationOk(env, generatedAt) {
   try {
-    await env.DELAY_DB.prepare('DELETE FROM kv_blobs WHERE k=?').bind(BOUNTY_RETIRE_BLOCK_KEY).run();
+    await env.DELAY_DB.batch([
+      env.DELAY_DB.prepare('DELETE FROM kv_blobs WHERE k=?').bind(BOUNTY_RETIRE_BLOCK_KEY),
+      env.DELAY_DB.prepare(
+        "INSERT INTO kv_blobs (k, v, updated) VALUES (?, ?, datetime('now'))" +
+        ' ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated = excluded.updated'
+      ).bind(BOUNTY_VALUATION_OK_KEY, JSON.stringify({ at: Date.now(), generatedAt })),
+    ]);
   } catch (e) {
-    console.error('[cron bounty 估值] 估值已跑完，但清不掉擋下的狀態:', (e && e.stack) || String(e));
+    console.error('[cron bounty 估值] 估值已跑完，但記不下這一次成功、也清不掉擋下的狀態:', (e && e.stack) || String(e));
   }
 }
-// 回 null＝沒有這一列（沒擋）；回物件＝擋下中；回 undefined＝讀不到（D1 錯誤、值不是 JSON 物件），看板據此省略欄位，
-// 讓讀的人分得出「沒擋」與「不知道」。只取三個欄位，值裡多出來的東西不外露。
-async function bountyReadRetireBlock(env) {
+// 一句查詢（主鍵查詢）讀兩列，回 { retireBlock, valuationOk }：各自是 null＝沒有這一列、物件＝有；
+// 整個回 undefined＝讀不到（D1 錯誤、任何一列的值不是 JSON 物件），看板據此把兩個欄位一起省略，讓讀的人分得出「沒有」與「不知道」。
+// 只取該有的欄位（retireBlock 三個、valuationOk 兩個），值裡多出來的東西不外露。
+async function bountyReadValuationState(env) {
   try {
-    const row = await env.DELAY_DB.prepare('SELECT v FROM kv_blobs WHERE k=?').bind(BOUNTY_RETIRE_BLOCK_KEY).first();
-    if (!row) return null;
-    const v = JSON.parse(row.v);
-    if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
-    return { at: v.at ?? null, generatedAt: v.generatedAt ?? null, msg: v.msg ?? null };
+    const rs = await env.DELAY_DB.prepare('SELECT k, v FROM kv_blobs WHERE k IN (?, ?)')
+      .bind(BOUNTY_RETIRE_BLOCK_KEY, BOUNTY_VALUATION_OK_KEY).all();
+    const raw = new Map((rs.results || []).map(r => [r.k, r.v]));
+    const parse = key => {
+      if (!raw.has(key)) return null;
+      const v = JSON.parse(raw.get(key));
+      if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('not an object');
+      return v;
+    };
+    const block = parse(BOUNTY_RETIRE_BLOCK_KEY), ok = parse(BOUNTY_VALUATION_OK_KEY);
+    return {
+      retireBlock: block && { at: block.at ?? null, generatedAt: block.generatedAt ?? null, msg: block.msg ?? null },
+      valuationOk: ok && { at: ok.at ?? null, generatedAt: ok.generatedAt ?? null },
+    };
   } catch (e) { return undefined; }
 }
 
@@ -7452,7 +7481,8 @@ async function bountyValuationCron(env) {
   // 至少 10 列：小系統、小支線換班表退掉幾格是正常的，不值得擋。
   // 擋下時整個估值停擺（新單位不上架，per_day、L1／L2 不重算）：同一發的判定照跑，用上一次估值留下的板價。
   // 要盡快處理：擋下期間新單位不上架，沒接懸賞的錄程在缺卡的段拿 0 點。擋下的當下除了 log 一行 error，還會在 kv_blobs 留一列狀態
-  // （BOUNTY_RETIRE_BLOCK_KEY），由 /api/bounty-board 的 retireBlock 欄位帶出去給巡檢讀；估值正常跑完才清掉，連續被擋就覆寫成最新一發。
+  // （BOUNTY_RETIRE_BLOCK_KEY），由 /api/bounty-board 的 retireBlock 欄位帶出去（預備給巡檢讀，巡檢還沒接上）；
+  // 估值正常跑完才清掉，連續被擋就覆寫成最新一發。
   // 真的是大改點（停駛、改點）時，確認清單沒問題，就把 Worker 的 BOUNTY_RETIRE_ACK 設成這份清單的 generatedAt（錯誤訊息裡有；前後的空白不算），
   // 下一發照常退場。只對這一份清單有效，出了新清單就自動失效。
   const shrinkOf = (groupOf, ratio) => {
@@ -7539,8 +7569,9 @@ async function bountyValuationCron(env) {
         r.seg_key, r.train_kind, r.dir, r.kind, r.slot);
     }));
   }
-  // 整張板都處理完了才清掉擋下的狀態：前面任何一處丟錯都到不了這裡，那一列原封不動；設了 BOUNTY_RETIRE_ACK 放行的那一發也走到這裡。
-  await bountyClearRetireBlock(env);
+  // 整張板都處理完了才清掉擋下的狀態、記下這一次成功：前面任何一處丟錯都到不了這裡，兩列都不動
+  // （只有守門那兩處會先把擋下的狀態覆寫成那一發，其餘的丟錯路都原封不動）；設了 BOUNTY_RETIRE_ACK 放行的那一發也走到這裡。
+  await bountyRecordValuationOk(env, generatedAt);
   return { inserted, retired: gone.length, updated, capped, unlocked };
 }
 
@@ -7734,7 +7765,7 @@ function integrityGate(trip, ctx, rules) {
   // 收下的點彼此仍滿足同一組上界（任兩點往前、相鄰兩點往後與加速度），平均速度的上界不變：丟點等於「那幾點沒送」，偽造者不會因此多出能力——
   // 前提是被丟的點不能再拿去算任何東西。所以回傳收下的點（pts），判定端的品質閘、覆蓋率一律改用它（籌碼的整班長度照舊用原始的點，理由見 bountyVerifyTrain）；
   // 下面第四重的都卜勒也只看它（否則被丟的點仍能刷覆蓋、稀釋都卜勒的相關係數）。
-  // 數字是模擬過的那一組（F3：隧道出口、冷啟動、±100／±300 跳點的誤殺率都降到 0–1%）。
+  // 數字是模擬過的那一組（隧道出口、冷啟動、±100／±300 跳點的誤殺率都降到 0–1%）。
   // App 端還有一個伺服器修不動的：t 是送達時刻不是定位時刻（JS 卡頓更長時仍會誤殺，要在 App 端改）；t 在午夜歸零則已在 assembleTrip 補上。
   const sgn = Number(trip.dir) === 1 ? -1 : 1, lim = cap * 1.15, TOL = 50, aMax = R.maxAccelMps2 * 3;
   const PHYS_DROP_RUN = 5, PHYS_DROP_MIN = 5, PHYS_DROP_SHARE = 0.01, PHYS_GAP_SEC = 10, PHYS_GAP_SKIP = 2, PHYS_BACK_SEC = 10;
@@ -7794,7 +7825,6 @@ function integrityGate(trip, ctx, rules) {
   // 速度報 0 或很小的數，這種點對的逐點差就是那個小數；停久一點就佔掉一半以上，中位數跟著掉到門檻以下——
   // 起點或月台上等 10–20 分鐘再開出的誠實錄程，大半被判可疑。位置沒動的點對不帶這一重要看的資訊；剩下的點對要 30 對以上才判。
   // 先前只排除「速度剛好 0」的，凍住時回報小數速度的裝置照樣被誤殺，所以改成只看位置。
-  // 其餘校準數字留在不進版控的驗收紀錄。
   // 🔴 這一重目前只記錄、不判可疑：先收真機資料再決定門檻。條件成立時照常放行，回傳的 shadow 標記由 verdictOf 寫進 reject_code。
   let shadow = null;
   const a = [], b = [];
@@ -8098,7 +8128,7 @@ const BOUNTY_WALL_BUDGET_MS = 10 * 60 * 1000;
 // 讀取量預算：一發讀進 Worker 的 payload 總長（位元組）。判定的 CPU 幾乎全花在解析與比對讀進來的點上，
 // 與讀進來的量成正比；子請求與牆鐘都量不到它（Workers 的 Date.now() 在純運算時不前進，CPU 上限到了是整發被平台砍掉，
 // 不是停在班車邊界）。一班車的上限是 4 MB（BOUNTY_VERIFY_MAX_TRAIN_BYTES），可信名額若全是 4 MB 的垃圾車，
-// 沒有這一項就又是 N1 的形狀：CPU 在可信名額上用完、新使用者判不到。所以它和子請求、牆鐘一樣：同一個停手點（每班車開始前）看，
+// 沒有這一項就會重演 verify_bounty_hardening.mjs 的 N1 守的那件事：預算（這裡是 CPU）在可信名額上用完、新使用者判不到。所以它和子請求、牆鐘一樣：同一個停手點（每班車開始前）看，
 // 可信名額也只能先用掉剩下的一半。env.BOUNTY_BYTES_BUDGET 可覆寫（owner 調高 limits.cpu_ms 時一併調高）。
 // 預設 128 MB 的根據（09-30 本機實測，node 同一顆 V8、連 node:sqlite 讀列的成本一起算＝保守上界）：縱貫線南段整條停站車
 // （20,030 點、一班 1.3 MB）20 班，扣掉同樣 20 班短車的基準，每 MB 約 27–28 ms CPU——128 MB 約 3.6 秒。
@@ -8162,7 +8192,7 @@ function bountyCounted(env) {
 // 同一輪裡一般班車先，出錯 BOUNTY_VERIFY_STRIKES_TO_LAST 次以上（struck）的班車仍在最後。
 // 為什麼交錯而不是整批排到一般班車之後：整批排後面的話，一個匿名身分灌 60 班，它的第 2…60 班
 // 都排在誠實帳號被讓出的第 2 班前面——「一群分身＋一個灌水者」就把誠實帳號的當發判定量砍半。交錯之後灌水者一輪也只佔一格。
-// 新使用者的第一班（rnd＝1）仍在任何讓出的名額之前（同一輪一般班車先），N1 的保證不變。
+// 新使用者的第一班（rnd＝1）仍在任何讓出的名額之前（同一輪一般班車先），所以 verify_bounty_hardening.mjs 的 N1 守的保證不變：可信名額最多先用掉剩下預算的一半，新使用者的第一班判得到。
 // 產生器是「要取下一班」那一刻才看 room()，看的是到目前為止真的花掉的預算。stat.headDeferred：被讓出的 head 班數。
 // 排序是穩定的：同一輪裡各自保留清單原本的次序（一般班車的可信先、隨機；讓出的 head 依清單次序）。
 function* bountyVerifyOrder(list, room, stat) {
