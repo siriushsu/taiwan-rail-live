@@ -24,7 +24,7 @@
 //   R3  一班車判定出錯：那一行 log 用 error 等級；出錯的班車記下來、同一發繼續判下一班，下一發判得過就刪記錄
 //   ISO 錯滿 2 次的班車之後每一發排在最後（連可信身分也一樣）；D1 整個不能用（連記錄都寫不進去）才停手；每一發都會丟錯的壞班車不擋別人
 //   ISO5／B5 出錯 2 次才排最後（錯過一次的誠實班車照常排）；SW 每一發開頭清掃沒有 pending 的出錯記錄；B4e 刪帳號一起刪出錯記錄；
-//   D4 出錯記錄的寫與刪都圍租約；B3e 系統性出錯時只印前 5 班
+//   D4 出錯記錄的寫與刪都圍租約；LOG1 系統性出錯時只印前 5 班
 //   N1d 清單截斷時可信名額最多佔一半；N1e 讓出的可信名額與一般班車按輪次交錯；N1f 讀取量預算
 //   N4  一班車的點數上看十幾萬（4 MB 塞得下）：判定不把整班的點展開成函式引數（V8 約十二萬多個就丟 RangeError）
 //   N2  清單之後才灌進來的批次：讀這班車那一句依讀取順序累加長度截住，送回 Worker 的不超過 4 MB 再加一批，整班判可疑
@@ -888,7 +888,7 @@ await attempt('ISO2', async () => {
       return (seen[0] || []).map(r => r.train);
     };
     const plain = await order(false), struck = await order(true);
-    ok(`ISO2${mode ? 'a' : 'b'} [ISO] 記錄過出錯的班車排在最後（${mode || '隨機'}）：沒記錄時 U1（可信）排第一；U1 有記錄時排第三` + (mode ? '（清單 A1、B1、U1）' : ''),
+    ok(`ISO2${mode ? 'a' : 'b'} [ISO] 錯滿 2 次的班車排在最後（${mode || '隨機'}）：沒記錄時 U1（可信）排第一；U1 有記錄時排第三` + (mode ? '（清單 A1、B1、U1）' : ''),
       plain.length === 3 && plain[0] === 'U1' && struck.length === 3 && struck[2] === 'U1' && (mode !== 'fixed' || J(struck) === J(['A1', 'B1', 'U1'])),
       J({ plain, struck }));
   }
@@ -1043,8 +1043,8 @@ await attempt('D4', async () => {
     h2.fired === 1 && st2.errors === 1 && st2.stopBy === null && strikes(w2).length === 0 && (q.lease(w2) || {}).v === other, J({ st2: { errors: st2.errors, stopBy: st2.stopBy }, sk: strikes(w2) }));
 });
 
-// ═══ B3e：系統性出錯時只印前 5 班══════════════════════════════════════════════
-await attempt('B3e', async () => {
+// ═══ LOG1：系統性出錯時只印前 5 班══════════════════════════════════════════════
+await attempt('LOG1', async () => {
   // 8 班壞車（同 ISO4 的 [null,null]，每一班都丟 TypeError）。期望：console.error 的逐班那一行恰 5 行（前 5 班）；
   // 判定那一行寫 8 班出錯、已記下、「前 5 班」「其餘 3 班只記在 kv_blobs 的出錯記錄」；8 班都記下了。
   const w = world({ seed: boardSql('山線') });
@@ -1054,7 +1054,7 @@ await attempt('B3e', async () => {
   const f = await fire(w);
   const per = f.errs.filter(s => s.includes('這班車判定出錯'));
   const line = f.errs.find(s => SUMMARY_RE.test(s)) || '';
-  ok('B3e 8 班都出錯：逐班的 console.error 恰 5 行；判定那一行寫「8 班判定出錯」「已記下」「前 5 班」「其餘 3 班只記在 kv_blobs 的出錯記錄」；8 班都記下；不丟例外',
+  ok('LOG1 8 班都出錯：逐班的 console.error 恰 5 行；判定那一行寫「8 班判定出錯」「已記下」「前 5 班」「其餘 3 班只記在 kv_blobs 的出錯記錄」；8 班都記下；不丟例外',
     per.length === 5 && line.includes('8 班判定出錯') && line.includes('已記下') && line.includes('前 5 班') && line.includes('其餘 3 班只記在 kv_blobs 的出錯記錄') &&
       strikes(w).length === 8 && !f.threw, J({ per: per.length, line: line.slice(0, 300), sk: strikes(w).length, threw: f.threw }));
 });
