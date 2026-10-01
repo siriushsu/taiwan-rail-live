@@ -10,6 +10,11 @@
   const ROUTE = window.RIDE_ROUTE;
   const C = window.RIDE_CONTENT;
   const app = document.getElementById('app');
+  // 資料檔沒載到時不要留白畫面：直接說哪裡壞了
+  if (!ROUTE || !C) {
+    app.innerHTML = '<p style="padding:24px 16px;max-width:40em">示範資料沒有載入（data/route-pingxi.js 或 data/content.js）。請重新整理頁面。<br>The demo data did not load. Please reload the page.</p>';
+    return;
+  }
   const sheetRoot = document.createElement('div');
   document.body.appendChild(sheetRoot);
 
