@@ -150,7 +150,7 @@ v2 新增的卡片欄位（舊欄位 `samples`、`coverN` 保留給舊客端）�
 
 `valuationOk`：最後一次成功跑完的估值。
 - `null`：從沒有任何一次成功跑完的紀錄（剛上線，或一直沒成功）。不是正常。
-- `{at, generatedAt}`：`at` 是那一次跑完的毫秒時間戳，`generatedAt` 是當時用的那份清單的 `generatedAt`（清單沒有就 `null`）。估值排定一天跑一次，`at` 過了一天多還沒更新就是估值停了，不論 `retireBlock` 是不是 `null`；沒有排程時 `valuationOk` 會停在 `null`。判斷用的門檻在 `scripts/lib/bounty_retire_verdict.mjs`（`BOUNTY_VALUATION_MAX_AGE_MS`，26 小時：一天一次，留兩小時給排程延遲、執行時間與下面說的快取）。
+- `{at, generatedAt}`：`at` 是那一次跑完的毫秒時間戳，`generatedAt` 是當時用的那份清單的 `generatedAt`（清單沒有就 `null`）。估值排定一天跑一次，`at` 過了一天多還沒更新就是估值停了，不論 `retireBlock` 是不是 `null`；從沒排過排程、或排了但從沒成功過時，`valuationOk` 是 `null`，排程拿掉之後則停在最後一次成功的值，過了門檻就看得出估值停了。判斷用的門檻在 `scripts/lib/bounty_retire_verdict.mjs`（`BOUNTY_VALUATION_MAX_AGE_MS`，26 小時：一天一次，留兩小時給排程延遲、執行時間與下面說的快取）。
 
 兩個欄位的共同規則：
 - 欄位不存在：伺服器讀不到這些狀態（讀取失敗時兩個欄位會**一起**省略，看板其餘內容照常回 200），或還在跑舊版（只有 `retireBlock`、沒有 `valuationOk`）。不知道有沒有被擋下、估值有沒有在跑，不等於沒被擋、也不等於正常。

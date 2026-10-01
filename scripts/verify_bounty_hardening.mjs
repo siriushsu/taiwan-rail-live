@@ -1983,10 +1983,10 @@ await attempt('CL3', async () => {
 //   ANALYZE 實算——表裡只有一個身分、每個單位一筆開著的認領（上線初期只有自己在測）：actor 看起來毫無選擇性，改走全表掃描
 //      （先前只用一元加號擋 idx_claims_unit，擋不住這一種）。
 // 現在五句都寫 INDEXED BY idx_claims_actor。判準：句子裡有 INDEXED BY idx_claims_actor，而且三種狀態下碰到 bounty_claims 的每一步都走 idx_claims_actor；
-// 對照組（證明統計真的偏、判準有牙）：同一份統計下把 INDEXED BY 拿掉——R2 下不再走 idx_claims_actor（a、b、c、e），H1 下改走 idx_claims_unit（a、b、c）。
-// 合併改名那一句（d）在這裡的 SQLite（node 3.51.2）拿掉 INDEXED BY 也照樣走 idx_claims_actor 的覆蓋索引，量不出差別；D1（workerd）在 R2 下是全表掃描
+// 對照組（證明統計真的偏、判準有牙）：同一份統計下把 INDEXED BY 拿掉——ANALYZE 實算下不再走 idx_claims_actor（a、b、c、e），手寫偏斜下改走 idx_claims_unit（a、b、c）。
+// 合併改名那一句（d）在這裡的 SQLite（node 3.51.2）拿掉 INDEXED BY 也照樣走 idx_claims_actor 的覆蓋索引，量不出差別；D1（workerd）在 ANALYZE 實算下是全表掃描
 // （實測：rows_read 98,442），那個對照留在 workerd 的冒煙（d1_plan_probe）。這一句的判準因此多看「句子裡有 INDEXED BY」——計畫隨引擎版本變，寫法不會。
-// 計畫在只有 schema 的空庫裡看（計畫只看 schema 與統計，不看資料）；統計是手寫進 sqlite_stat1 再 ANALYZE sqlite_schema 讓規劃器重讀（H1），或真的跑 ANALYZE（R2）。
+// 計畫在只有 schema 的空庫裡看（計畫只看 schema 與統計，不看資料）；統計是手寫進 sqlite_stat1 再 ANALYZE sqlite_schema 讓規劃器重讀（手寫偏斜），或真的跑 ANALYZE（ANALYZE 實算）。
 const skewClaimStats = db => {
   db.exec('ANALYZE');
   db.exec("DELETE FROM sqlite_stat1 WHERE tbl='bounty_claims'");
@@ -2034,8 +2034,8 @@ await attempt('CL4', async () => {
     const sql = l.length === 1 ? l[0] : null;
     const [p0, pH, pR] = sql ? [DB0, DBH, DBR].map(db => claimsPlan(db, sql)) : [[], [], []];
     const [cH, cR] = sql && strip(sql) !== sql ? [DBH, DBR].map(db => claimsPlan(db, strip(sql))) : [[], []];
-    ok(`CL4${name[0]} ${name.slice(2)}那一句寫 INDEXED BY idx_claims_actor，沒有統計、H1、R2 三種統計下碰到 bounty_claims 的每一步都走 idx_claims_actor` +
-      (ctrl === 'none' ? '（對照在 workerd 冒煙，見上方說明）' : `；對照——同一份統計下拿掉 INDEXED BY：R2 下不再走 idx_claims_actor${ctrl === 'unit' ? '、H1 下改走 idx_claims_unit' : ''}`),
+    ok(`CL4${name[0]} ${name.slice(2)}那一句寫 INDEXED BY idx_claims_actor，沒有統計、手寫偏斜、ANALYZE 實算三種統計下碰到 bounty_claims 的每一步都走 idx_claims_actor` +
+      (ctrl === 'none' ? '（對照在 workerd 冒煙，見上方說明）' : `；對照——同一份統計下拿掉 INDEXED BY：ANALYZE 實算下不再走 idx_claims_actor${ctrl === 'unit' ? '、手寫偏斜下改走 idx_claims_unit' : ''}`),
       !!sql && sql.includes('bounty_claims INDEXED BY idx_claims_actor') && onActor(p0) && onActor(pH) && onActor(pR) &&
         (ctrl === 'none' || (cR.length > 0 && !onActor(cR))) && (ctrl !== 'unit' || cH.some(x => /idx_claims_unit/.test(x))),
       J({ n: l.length, p0, pH, pR, cH, cR }));

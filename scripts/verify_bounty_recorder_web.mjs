@@ -210,7 +210,7 @@ try {
           ...Object.fromEntries(POS_SPEED_WINDOW_ACCEPT.map(([k]) => [`win_${k}`, 'no-throw'])) }) &&
         [0.9375, 10.0625, 10.5].every(v => POS_SPEED_WINDOW_REJECT.some(([, w]) => w === v)) &&
         J(got.recv) === J([...POS_SPEED_WINDOW_REJECT, ...POS_SPEED_WINDOW_ACCEPT].map(([k, w]) => [k, typeof w, String(w)])), J(got));
-    ok('D2 前端停靠進度的位置微分往回看幾秒，照設定檔的 posSpeedWindowSec（與 Worker D16 同一趟：回報 0、每點晃 ±8 m、停 8 秒）：5 → 亮；1、10 → 不亮且判錯過（兩個方向）',
+    ok('D2 前端停靠進度的位置微分往回看幾秒，照設定檔的 posSpeedWindowSec（與 verify_bounty_dwell.mjs 的 D16 同一趟：回報 0、每點晃 ±8 m、停 8 秒）：5 → 亮；1、10 → 不亮且判錯過（兩個方向）',
       got.realWin === 5 && [1, -1].every(sg => J(got[`win5_${sg}`]) === J(want) && J(got[`win1_${sg}`]) === J(fast) && J(got[`win10_${sg}`]) === J(fast)),
       J({ realWin: got.realWin, ...Object.fromEntries(Object.entries(got).filter(([k]) => k.startsWith('win'))) }));
   });

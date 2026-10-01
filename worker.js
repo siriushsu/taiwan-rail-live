@@ -7386,7 +7386,7 @@ const BOUNTY_RETIRE_BLOCK_KEY = 'bounty_retire_block';
 // generatedAt＝那一發用的清單的 generatedAt（清單沒有就 null）。只有正常跑完才寫，任何丟錯的路都不寫；經 /api/bounty-board 的 valuationOk 欄位帶出去。
 // 為什麼要有它：「沒被擋下」不等於「估值有在跑」。規則檔或清單檔壞掉、D1 出錯、估值根本沒有觸發器、跑到一半被平台中止，retireBlock 不會因此出現
 // （可能是 null，也可能停在上一次擋下）；只有「最近一次成功是什麼時候」看得出估值停了。估值一天一次，判定端拿它跟現在比新鮮度（門檻在 scripts/lib/bounty_retire_verdict.mjs）。
-// 刻意不在 scheduled() 兩支估值 cron 的 catch 裡另外記失敗：新鮮度抓得到所有一天以上沒有成功的情況（含沒有觸發器、被平台中止，那兩種 catch 根本接不到）；
+// 刻意不在 scheduled() 兩支估值 cron 的 catch 裡另外記失敗：新鮮度抓得到所有超過門檻（26 小時）沒有成功的情況（含沒有觸發器、被平台中止，那兩種 catch 根本接不到）；
 // 在 catch 裡另記只會更早看到，不會多抓到，卻要動兩支 cron 分支，多一份要跟著維護。
 const BOUNTY_VALUATION_OK_KEY = 'bounty_valuation_ok';
 // 寫、清、讀都走傳進來的 env：寫與清在 cron 裡（估值與判定共用的子請求計數器要數到）；讀在看板的請求路徑上，沒有這個計數器。
@@ -8128,7 +8128,7 @@ const BOUNTY_WALL_BUDGET_MS = 10 * 60 * 1000;
 // 讀取量預算：一發讀進 Worker 的 payload 總長（位元組）。判定的 CPU 幾乎全花在解析與比對讀進來的點上，
 // 與讀進來的量成正比；子請求與牆鐘都量不到它（Workers 的 Date.now() 在純運算時不前進，CPU 上限到了是整發被平台砍掉，
 // 不是停在班車邊界）。一班車的上限是 4 MB（BOUNTY_VERIFY_MAX_TRAIN_BYTES），可信名額若全是 4 MB 的垃圾車，
-// 沒有這一項就會重演 N1 那種失敗（verify_bounty_hardening.mjs 的 N1f 守的就是這一項）：預算（這裡是 CPU）在可信名額上用完、新使用者判不到。所以它和子請求、牆鐘一樣：同一個停手點（每班車開始前）看，
+// 沒有這一項就會重演 verify_bounty_hardening.mjs 的 N1 那種失敗（同檔的 N1f 守的就是這一項）：預算（這裡是 CPU）在可信名額上用完、新使用者判不到。所以它和子請求、牆鐘一樣：同一個停手點（每班車開始前）看，
 // 可信名額也只能先用掉剩下的一半。env.BOUNTY_BYTES_BUDGET 可覆寫（owner 調高 limits.cpu_ms 時一併調高）。
 // 預設 128 MB 的根據（09-30 本機實測，node 同一顆 V8、連 node:sqlite 讀列的成本一起算＝保守上界）：縱貫線南段整條停站車
 // （20,030 點、一班 1.3 MB）20 班，扣掉同樣 20 班短車的基準，每 MB 約 27–28 ms CPU——128 MB 約 3.6 秒。

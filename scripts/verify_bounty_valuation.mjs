@@ -793,9 +793,9 @@ globalThis.caches = { default: { match: async () => undefined, put: async () => 
     noNow.every(r => r.level === 'unknown' && /沒有現在的時間/.test(r.line)) &&
       levelOf(200, body({ retireBlock: BLOCK }), undefined) === 'bad' && levelOf(200, body({ valuationOk: null }), undefined) === 'bad' && levelOf(503, body(), undefined) === 'n/a',
     JSON.stringify({ noNow: noNow.map(r => r.level) }));
-  ok('G16 門檻的合理範圍：比一天長（留給 cron 的延遲、估值的執行時間與看板 5 分鐘的邊緣快取，否則每天都誤報）、不超過 26.5 小時' +
-    '（估值排在台北 03:30、巡檢 06–23 點每小時一次時，門檻超過約 26.5 小時，06:00 那次巡檢就抓不到一次漏跑，要拖到更晚的整點；現在的常數是 26 小時，這一條防止有人把它調大）',
-    T > 24 * HOUR + 5 * 60e3 && T <= 26.5 * HOUR, String(T / HOUR) + ' 小時');
+  ok('G16 門檻的合理範圍：比一天長（留給 cron 的延遲、估值的執行時間與看板 5 分鐘的邊緣快取，否則每天都誤報）、小於 26.5 小時' +
+    '（估值排在台北 03:30，第一次巡檢在 06:00；verdict 要年齡嚴格大於門檻才判 bad，所以門檻要小於 26.5 小時，還要再扣掉估值跑完所需的時間，06:00 那次巡檢才抓得到一次漏跑；現在的常數是 26 小時，這一條防止有人把它調大）',
+    T > 24 * HOUR + 5 * 60e3 && T < 26.5 * HOUR, String(T / HOUR) + ' 小時');
 
   // 未來時間：valuationOk.at 比現在晚（讀的這一端時鐘落後，或資料壞了）。容忍值用手寫的毫秒數釘（10 分鐘，涵蓋兩端的時鐘差），
   // 不從匯出的常數推：從常數推的話，常數被調成一整天，邊界照樣全綠。

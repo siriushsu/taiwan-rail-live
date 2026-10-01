@@ -91,7 +91,7 @@ export function bountyRetireVerdict(status, body, now) {
   if (age > BOUNTY_VALUATION_MAX_AGE_MS) {
     // 年齡只印一位小數，多 1 毫秒到約 3 分鐘會印成跟門檻同一個數字、讀起來像沒超過，所以「超過門檻」要寫出來
     return { level: 'bad',
-      line: `懸賞估值已經 ${hoursOf(age)} 小時沒有成功跑完（最後一次成功：台北時間 ${when}；已超過門檻 ${BOUNTY_VALUATION_MAX_AGE_MS / 3600000} 小時）：` +
+      line: `懸賞估值已經 ${hoursOf(age)} 小時沒有成功跑完（最後一次成功：台北時間 ${when}），超過門檻（${BOUNTY_VALUATION_MAX_AGE_MS / 3600000} 小時）：` +
         '估值可能停了（清單或規則檔壞掉、D1 出錯、沒有觸發、被平台中止都會這樣），新單位不上架、沒接懸賞的錄程在缺卡的段拿 0 點，要盡快處理' };
   }
   return { level: 'ok', line: `懸賞估值正常：沒有被守門擋下，最後一次成功是台北時間 ${when}（${hoursOf(Math.max(0, age))} 小時前）` };
