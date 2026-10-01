@@ -12,7 +12,7 @@
 //   CH4  請求：沒登入 0 次；登入後帶 Bearer、不帶 ?actor=；開機已登入／登入／合併完成各讀一次
 //   CH5  身分：409 merged_elsewhere 與 403 wrong_account → 換新的懸賞 actor、再併一次；同一次登入只換一次
 //   CH6  登出：併過的 actor 換新、籌碼快取與記憶體清掉；在途的回應不會在登出後寫回快取
-//   CH7  懸賞旗標關：開機清掉籌碼快取、沒有籌碼列、0 次 chips-me、不寫新的 actor key
+//   CH7  懸賞旗標關：開機清掉籌碼快取、沒有籌碼列、0 次 chips-me（含直接呼叫 fetchChipsMe()）、不寫新的 actor key
 //   CH8  上傳佇列：400 app_only 是終態（清掉、不重送）；其他錯誤照舊保留
 //   CH9  看板收滿的卡：有「已收滿」說明、沒有接單鈕
 //   CH10 錄程入口：懸賞開著時不啟動定位取樣、改顯示「要用 App」的說明
@@ -460,9 +460,14 @@ try {
     ok('CH7c 旗標關：護照裡沒有籌碼列（桌面護照與手機護照面板都沒有）', (await s.page.evaluate(() => document.querySelectorAll('.ph-chips').length)) === 0);
     ok('CH7d 旗標關：chips-me 請求 0 次、bounty-merge 0 次、bounty-me 0 次', s.chips.length === 0 && s.merges.length === 0 && s.bme.length === 0, JSON.stringify({ c: s.chips.length, m: s.merges.length, b: s.bme.length }));
     ok('CH7e 旗標關：不寫新的懸賞 actor key、不產生籌碼快取', (await lsGet(s.page, KEY_ACTOR)) === null && (await s.page.evaluate(() => window.__writes.actor)) === 0);
+    // 開機流程裡呼叫 fetchChipsMe 的每一處各自也看旗標；只看開機流程的話，函式自己的那一道檢查被拿掉也不會紅，所以直接呼叫一次。
+    const direct = await s.page.evaluate(async () => { try { return { r: await fetchChipsMe(), threw: '' }; } catch (e) { return { r: 'x', threw: String((e && e.message) || e) }; } });
+    await sleep(500);
+    ok('CH7f 旗標關、已登入時直接呼叫 fetchChipsMe()：回 null、不丟例外、chips-me 請求仍是 0 次（擋的是函式自己的旗標檢查，不是「開機流程剛好沒有呼叫它」）',
+      direct.r === null && !direct.threw && s.chips.length === 0, JSON.stringify({ direct, n: s.chips.length }));
     await s.page.reload();
     await loggedIn(s.page); await sleep(1000);
-    ok('CH7f 重新整理後仍然乾淨（沒有籌碼列、沒有請求）', (await s.page.evaluate(() => document.querySelectorAll('.ph-chips').length)) === 0 && s.chips.length === 0);
+    ok('CH7g 重新整理後仍然乾淨（沒有籌碼列、沒有請求）', (await s.page.evaluate(() => document.querySelectorAll('.ph-chips').length)) === 0 && s.chips.length === 0);
     await s.ctx.close();
   });
 
