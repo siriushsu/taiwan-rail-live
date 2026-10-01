@@ -33,6 +33,7 @@ arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --r
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0013_tra_wait_prev_dep.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0014_bounty_v2.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0015_bounty_retired.sql
+arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0016_bounty_kept_range.sql
 ```
 
 （`npx wrangler` 在這台機器是壞的，一律用上面的完整寫法。）
