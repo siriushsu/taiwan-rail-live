@@ -7,7 +7,6 @@
 --       chips-me／garage-redeem／cloud-ride／bounty-merge 一律 503。
 --    ③ 驗證 cron 在寫 bounty_seg_contrib／chip_ledger 那幾句丟錯；這兩件排在「標記已判定」之前，
 --       所以樣本留在 pending、補套之後下一發 cron 會重判，不會永久漏發。
---       缺 bounty_samples.kept_d0／kept_d1 時，每一班車在讀前次線組那一句就丟錯（同樣留 pending，補上之後下一發重判）。
 --    ④ /api/bounty-board【整個】回 503：看板的 SELECT 讀 bounty_board.distinct_ok_users（與 0015 的 retired），缺欄整句失敗；
 --       回應是 public, s-maxage=60，全站每個人的看板都會空掉（不是只有新功能壞）。
 --    ⑤ 每日估值 cron 丟錯：上架新單位的 INSERT 讀 bounty_seg_contrib，缺這張表整支估值中止——
@@ -27,9 +26,6 @@
 --    吞掉這一種錯）——放在最前面會連帶吞掉後面所有 CREATE。
 --    同一個理由：這個檔一旦套進任何一個庫，之後要加欄就開新檔，不要再接在這裡——重套到第一句 ALTER 就中斷，
 --    後來接上的那句在那個庫永遠跑不到。
---    例外：檔尾的 bounty_samples.kept_d0／kept_d1 是這個檔還沒套進正式庫時接上的。已經套過較早版本 0014 的庫（本機、開發庫）
---    重套這個檔補不到這兩欄，要單獨跑那兩句 ALTER（正式庫 schema 守門人 scripts/verify_remote_schema.mjs 缺哪一欄就印哪一句）。
---    正式庫套過之後，這個例外就不再成立：之後的欄一律開新檔。
 
 -- ── 每段的去重貢獻者 ────────────────────────────────────────────────────────
 -- 「這一段有幾個不同的人交過合格（ok）錄程」＝COUNT(DISTINCT actor)。收滿門檻看的是人數，不是趟數：
@@ -102,9 +98,4 @@ CREATE TABLE IF NOT EXISTS cloud_rides (
 ALTER TABLE bounty_board ADD COLUMN distinct_ok_users INTEGER NOT NULL DEFAULT 0;
 -- client：上傳當下的 {platform, app, simulator} JSON 字串（只存這三個欄位）。舊列與直接寫入的測試列為 NULL。
 ALTER TABLE bounty_samples ADD COLUMN client TEXT;
--- kept_d0／kept_d1：判定當下，這一列所屬線組「防偽閘收下的點」的最小與最大沿線里程（公尺），同一組每一列值相同。
--- 只有 ok 的組寫；unusable／suspect（含 oversize）、pending、判定這兩欄出現之前就判過的舊列都是 NULL。
--- 遲傳合併判籌碼時，前次組的移動距離讀這兩欄、不從原始 payload 重算：同一份資料不論分幾次上傳、分在哪幾發判，結果要相同。
-ALTER TABLE bounty_samples ADD COLUMN kept_d0 REAL;
-ALTER TABLE bounty_samples ADD COLUMN kept_d1 REAL;
--- （bounty_board.retired 在 0015：理由見檔頭。kept_d0／kept_d1 接在這裡的例外與已套過舊版 0014 的庫怎麼補，也見檔頭。）
+-- （bounty_board.retired 在 0015：這個檔不再接新的 ALTER，理由見檔頭。）

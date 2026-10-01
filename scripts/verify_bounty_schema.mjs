@@ -41,7 +41,7 @@ const { db } = openTestDb();
     'id', 'actor', 'sys', 'ln_id', 'train_no', 'dir', 'trip_date', 'payload', 'segs',
     'submitted_at', 'verdict', 'verdict_at', 'quality_code', 'reject_code',
     'client',                 // 0014（路段懸賞 v2）：上傳當下的 {platform,app,simulator} JSON 字串
-    'kept_d0', 'kept_d1',     // 0014：判定當下這一組收下點的最小與最大沿線里程（只有 ok 組寫）
+    'kept_d0', 'kept_d1',     // 0016：判定當下這一組收下點的最小與最大沿線里程（只有 ok 組寫）
   ]), cols('bounty_samples').join(','));
   ok('A6 bounty_points 欄位', eq(cols('bounty_points'), ['actor', 'uid', 'points', 'merged_into', 'updated_at']),
     cols('bounty_points').join(','));
@@ -317,9 +317,9 @@ const schemaStmts = f => {
   const firstAlter = stmts.findIndex(s => /^ALTER\s+TABLE/i.test(s));
   const createAfter = stmts.slice(firstAlter + 1).filter(s => /^CREATE\s/i.test(s));
   const alters = stmts.filter(s => /^ALTER\s+TABLE/i.test(s));
-  ok('A22 0014：ALTER 全部排在檔尾（第一句 ALTER 之後沒有 CREATE），且恰有四句（distinct_ok_users、client、kept_d0、kept_d1）',
-    firstAlter > 0 && createAfter.length === 0 && alters.length === 4 &&
-    /distinct_ok_users/.test(alters[0]) && /\bclient\b/.test(alters[1]) && /\bkept_d0\s+REAL$/i.test(alters[2]) && /\bkept_d1\s+REAL$/i.test(alters[3]),
+  ok('A22 0014：ALTER 全部排在檔尾（第一句 ALTER 之後沒有 CREATE），且恰有兩句（distinct_ok_users、client）',
+    firstAlter > 0 && createAfter.length === 0 && alters.length === 2 &&
+    /distinct_ok_users/.test(alters[0]) && /\bclient\b/.test(alters[1]),
     JSON.stringify({ firstAlter, createAfter: createAfter.length, alters: alters.length }));
   // 第十九批：retired 原本接在 0014 檔尾第三句。0014 一旦套進任何一個庫，重套會在它的第一句 ALTER 中斷，
   // 接在後面的欄位在那個庫永遠跑不到——所以另開一個只有這一句的檔。
@@ -327,6 +327,12 @@ const schemaStmts = f => {
   ok('A22b 0015 恰好一句：ALTER TABLE bounty_board ADD COLUMN retired INTEGER NOT NULL DEFAULT 0',
     !!s15 && s15.length === 1 && /^ALTER\s+TABLE\s+bounty_board\s+ADD\s+COLUMN\s+retired\s+INTEGER\s+NOT\s+NULL\s+DEFAULT\s+0$/i.test(s15[0]),
     JSON.stringify(s15));
+  // 0016：判定當下存下收下點里程範圍的兩欄，同樣自成一檔（0014、0015 已套進正式庫）
+  const s16 = schemaStmts('0016_bounty_kept_range.sql');
+  ok('A22c 0016 恰好兩句：ALTER TABLE bounty_samples ADD COLUMN kept_d0 REAL／kept_d1 REAL',
+    !!s16 && s16.length === 2 && /^ALTER\s+TABLE\s+bounty_samples\s+ADD\s+COLUMN\s+kept_d0\s+REAL$/i.test(s16[0]) &&
+      /^ALTER\s+TABLE\s+bounty_samples\s+ADD\s+COLUMN\s+kept_d1\s+REAL$/i.test(s16[1]),
+    JSON.stringify(s16));
 }
 
 // A24 已經套過 0014、還沒有 retired 的庫（第十九批以前的 0014 沒有這一欄；拿全套的庫 DROP COLUMN 模擬），
@@ -411,15 +417,14 @@ const schemaStmts = f => {
     noRetired.rc === 1 && /bounty_board\.retired（0015_bounty_retired\.sql）/.test(noRetired.out) &&
       /--file=schema\/0015_bounty_retired\.sql/.test(noRetired.out) && !fileCmd.test(noRetired.out),
     noRetired.out.trim().slice(0, 600));
-  // A23k：正式庫套過較早版本的 0014（distinct_ok_users、client 都在）、還沒有 kept_d0／kept_d1 → exit 1、點名這兩欄，
-  // 補法是單獨的兩句 ALTER（原文手寫在這裡），不叫人重套整支 0014（會在已存在的第一句 ALTER 中斷、走不到這兩句）。DDL 取自真的 DROP 掉兩欄的庫。
+  // A23k：正式庫套過 0014、0015、還沒有 kept_d0／kept_d1 → exit 1、點名這兩欄，補法是套 0016（只有那兩句 ALTER），
+  // 不叫人重套 0014。DDL 取自一顆真的 DROP 掉兩欄的庫，不手改字串。
   const { db: dk } = openTestDb();
-  for (const c of ['kept_d0', 'kept_d1']) { try { dk.exec(`ALTER TABLE bounty_samples DROP COLUMN ${c}`); } catch (e) {} }
+  for (const c of ['kept_d0', 'kept_d1']) { try { dk.exec(`ALTER TABLE bounty_samples DROP COLUMN ${c}`); } catch (e) {} }   // 同 A23j：schema 沒有這兩欄時守門人本來就不會要它，A23k 照樣紅
   const noKept = runGate('no-kept', dk.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE type IN ('table','index')").all().map(r => ({ ...r })));
-  ok('A23k 正式庫的 bounty_samples 缺 kept_d0／kept_d1 → exit 1，點名這兩欄（0014_bounty_v2.sql），補法是單獨的兩句 ALTER、不叫人重套 0014',
-    noKept.rc === 1 && /bounty_samples\.kept_d0（0014_bounty_v2\.sql）/.test(noKept.out) && /bounty_samples\.kept_d1（0014_bounty_v2\.sql）/.test(noKept.out) &&
-      noKept.out.includes('--command "ALTER TABLE bounty_samples ADD COLUMN kept_d0 REAL;"') &&
-      noKept.out.includes('--command "ALTER TABLE bounty_samples ADD COLUMN kept_d1 REAL;"') && !fileCmd.test(noKept.out),
+  ok('A23k 正式庫的 bounty_samples 缺 kept_d0／kept_d1 → exit 1，點名這兩欄（0016_bounty_kept_range.sql），補法是套 0016、不叫人重套 0014',
+    noKept.rc === 1 && /bounty_samples\.kept_d0（0016_bounty_kept_range\.sql）/.test(noKept.out) && /bounty_samples\.kept_d1（0016_bounty_kept_range\.sql）/.test(noKept.out) &&
+      /--file=schema\/0016_bounty_kept_range\.sql/.test(noKept.out) && !fileCmd.test(noKept.out),
     noKept.out.trim().slice(0, 600));
 }
 

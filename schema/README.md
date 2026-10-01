@@ -17,8 +17,9 @@
 | `0011_journey_share.sql` | ✅ **權威** | 短效整段旅程分享 `journey_shares`。只保存最新狀態與（使用者另行同意時）最新一筆手機座標，不保存位置歷史；公開讀取 id 與編輯憑證分離，最長 12 小時失效。**所有環境都要跑。** |
 | `0012_la_journey_handoff.sql` | ✅ **權威** | 跟車即時動態的跨車轉乘計畫。替既有 `la_bindings` 增加 `journey_state`，讓同一張鎖屏卡可在轉乘站由來源列車交棒給已選班次。**所有環境都要跑。** 🔴 正式庫漏套到 **2026-09-24 00:17** 才補（使用者 go）。 |
 | `0013_tra_wait_prev_dep.sql` | ✅ **權威** | 台鐵等站卡 B（進站軌道）：替 `tra_wait_bindings` 補 `prev_dep_sec`（上一個停靠站的表定發車時刻），伺服器據此在「上一站→本站」那段每分鐘推一發讓卡片上的車往前挪。**所有環境都要跑，新環境＝`0010` + `0013`。** |
-| `0014_bounty_v2.sql` | ✅ **權威** | 路段懸賞 v2：每段去重人數（新表 `bounty_seg_contrib`、`bounty_board.distinct_ok_users`）、籌碼帳本 `chip_ledger`、車庫解鎖 `garage_unlocks`、雲端搭乘 `cloud_rides`，以及 `bounty_samples.client`（上傳來源）、`bounty_samples.kept_d0`／`kept_d1`（判定當下收下點的里程範圍，籌碼的移動距離用）。**所有環境都要跑，新環境＝`0002` + `0014` + `0015`。** 🔴 先套 schema、再出會用到它的 Worker。Worker 回滾到這一版之前的副作用（刪帳號不清新表、合併不搬新表）見該檔檔頭。 |
-| `0015_bounty_retired.sql` | ✅ **權威** | 路段懸賞：替 `bounty_board` 補 `retired`（最新一份單位清單已經沒有這個單位＝退場；每日估值 cron 寫，看板、認領、入帳價、重算都只看 `retired=0`）。只有這一句 `ALTER`，刻意不接在 0014 檔尾（見 0014 檔頭）。**所有環境都要跑，新環境＝`0002` + `0014` + `0015`。** 🔴 先套 schema、再出會用到它的 Worker。 |
+| `0014_bounty_v2.sql` | ✅ **權威** | 路段懸賞 v2：每段去重人數（新表 `bounty_seg_contrib`、`bounty_board.distinct_ok_users`）、籌碼帳本 `chip_ledger`、車庫解鎖 `garage_unlocks`、雲端搭乘 `cloud_rides`，以及 `bounty_samples.client`（上傳來源）。**所有環境都要跑，新環境＝`0002` + `0014` + `0015` + `0016`。** 🔴 先套 schema、再出會用到它的 Worker。Worker 回滾到這一版之前的副作用（刪帳號不清新表、合併不搬新表）見該檔檔頭。 |
+| `0015_bounty_retired.sql` | ✅ **權威** | 路段懸賞：替 `bounty_board` 補 `retired`（最新一份單位清單已經沒有這個單位＝退場；每日估值 cron 寫，看板、認領、入帳價、重算都只看 `retired=0`）。只有這一句 `ALTER`，刻意不接在 0014 檔尾（見 0014 檔頭）。**所有環境都要跑，新環境＝`0002` + `0014` + `0015` + `0016`。** 🔴 先套 schema、再出會用到它的 Worker。 |
+| `0016_bounty_kept_range.sql` | ✅ **權威** | 路段懸賞：替 `bounty_samples` 補 `kept_d0`／`kept_d1`（判定當下防偽閘收下點的最小與最大里程，籌碼的移動距離由此算，同一份資料不論分幾次上傳結果相同）。只有這兩句 `ALTER`，自成一檔（0014、0015 已套進正式庫）。**所有環境都要跑，新環境＝`0002` + `0014` + `0015` + `0016`。** 🔴 先套 schema、再出會用到它的 Worker；正式庫套用順序 0014 → 0015 → 0016。 |
 
 ## 套用到正式庫
 
@@ -70,13 +71,8 @@ iPhone 跟車卡的伺服器推播全停，期間 `la_bindings` 一直是 0 列�
 `/api/bounty-board` **整個**回 503（SELECT 讀 `distinct_ok_users`，回應是 `public, s-maxage=60`、全站的看板都空掉）；
 `/api/bounty-submit` 一律 503 `submit_failed`（INSERT 找不到 `bounty_samples.client`），`chips-me`／`garage-redeem`／`cloud-ride`／`bounty-merge` 一律 503；
 每日估值 cron 丟錯（上架新單位讀 `bounty_seg_contrib`），判定 cron 寫貢獻與帳本那幾句也丟錯。
-缺 `bounty_samples.kept_d0`／`kept_d1` 時，判定 cron 每一班車在讀前次線組那一句就丟錯（樣本留 pending，補上之後下一發重判）。
-**先套 0014 再部署新 Worker**（ship-web 2.4 的正式庫 schema 守門人會擋下漏套）。0014 檔尾有四句 `ALTER TABLE`，
+**先套 0014 再部署新 Worker**（ship-web 2.4 的正式庫 schema 守門人會擋下漏套）。0014 檔尾有兩句 `ALTER TABLE`，
 重跑時第一句 `ALTER` 會報 `duplicate column name`（代表已經套過；`CREATE` 都排在 `ALTER` 之前）。
-`kept_d0`／`kept_d1` 是 0014 還沒套進正式庫時接在檔尾的：已經套過較早版本 0014 的庫（本機、開發庫）重套整支補不到這兩欄，
-要單獨補這兩句（守門人缺哪一欄就印哪一句；前面的 `ALTER` 都還沒套的庫照舊套整支）：
-`ALTER TABLE bounty_samples ADD COLUMN kept_d0 REAL;`
-`ALTER TABLE bounty_samples ADD COLUMN kept_d1 REAL;`
 若正式庫在 `idx_seg_contrib_actor`／`idx_seg_contrib_first` 加進 0014 **之前**就套過它，另外單獨補這兩句（可重複執行；
 重套整支 0014 要靠檔尾的 `ALTER` 報錯才停，前面的 `CREATE INDEX` 會不會跟著回滾沒有驗過，不要拿重套代替）：
 `CREATE INDEX IF NOT EXISTS idx_seg_contrib_actor ON bounty_seg_contrib (actor);`
@@ -88,6 +84,12 @@ iPhone 跟車卡的伺服器推播全停，期間 `la_bindings` 一直是 0 列�
 `/api/bounty-claim` 一律 503 `claim_failed`、每日估值 cron 讀板的第一句就丟錯（整支中止）、判定 cron 查板價那一句丟錯。
 **先套 0015 再部署新 Worker**；0015 只有一句 `ALTER TABLE`，重跑會報 `duplicate column name`（無害，代表已經套過）。
 已經套過 0014 的庫**不要拿重套 0014 代替**：0014 會在它自己的第一句 `ALTER` 就中斷，走不到任何接在後面的東西。
+
+🔴 **0016 忘了套的症狀**：判定 cron 每一班車讀前次線組那一句、超量車標 suspect 那一句、標記已判定那一句都讀寫 `kept_d0`／`kept_d1`，缺欄整句失敗——
+都排在點數、趟數、籌碼入帳之前，所以那班車什麼都不寫、樣本留在 pending、記一次出錯，補套之後下一發 cron 重判（不會永久漏發），
+但套之前整支判定 cron 判不出任何一班車（路段懸賞的點數與籌碼全停）。
+**先套 0016 再部署新 Worker**（ship-web 2.4 的正式庫 schema 守門人缺這兩欄會擋、印出套 0016）；0016 只有兩句 `ALTER TABLE`，重跑會報 `duplicate column name`（無害）。
+套用順序：0014 → 0015 → 0016。
 
 🔴 **只有「已經用舊版 0003 建過表」的環境才要再依序套 0004／0005／0006**（本機 `.wrangler`、
 開發庫）。`CREATE TABLE IF NOT EXISTS` 不會替既有的表補欄位，少了 `fail_streak` 會讓 cron
