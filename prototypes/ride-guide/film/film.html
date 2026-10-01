@@ -91,6 +91,11 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
 .toggle{width:640px;height:170px;border-radius:85px;background:var(--paper-hi);border:6px solid var(--line);box-shadow:0 10px 0 rgba(30,44,64,.14)}
 .toggle .kn{position:absolute;left:14px;top:14px;width:300px;height:130px;border-radius:65px;background:var(--navy);box-shadow:0 6px 0 var(--deep)}
 .toggle .lb{position:absolute;top:0;width:320px;height:158px;display:grid;place-items:center;font-size:76px;font-weight:900}
+/* 真實頁面的放大特寫：從原型截圖直接裁切，不重畫介面 */
+.lens{overflow:hidden;border-radius:22px;background:var(--paper-hi);border:5px solid #fff;box-shadow:0 0 0 3px var(--line),0 26px 50px rgba(30,44,64,.28)}
+.lens img{position:absolute;max-width:none;display:block}
+.lens.bare{border:0;box-shadow:0 18px 36px rgba(30,44,64,.22);border-radius:18px}
+.srcbox{border:5px solid var(--gold-hi);border-radius:14px;box-shadow:0 0 0 6px rgba(232,184,75,.25)}
 .alertc{width:560px;border-radius:26px;border:5px solid var(--amber-line);background:var(--amber-bg);padding:26px 30px;box-shadow:0 8px 0 rgba(30,44,64,.12)}
 .alertc b{display:block;font-size:46px;font-weight:900;color:var(--amber)}
 .alertc span{font-size:32px;font-weight:700;color:var(--ink)}
@@ -102,6 +107,8 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
 </div>
 <script src="logo-isle.js"></script>
 <script src="network.js"></script>
+<script src="land.js"></script>
+<script src="assets/dock.js"></script>
 <script src="../data/routes.js"></script>
 <script>
 (function () {
@@ -135,7 +142,7 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
   // 撞擊震動：固定公式，同一個 t 震出同一個位移
   function shake(t, hits, amp = 14, dur = 0.16) {
     let x = 0, y = 0;
-    for (const h of hits) { const p = (t - h) / dur; if (p >= 0 && p < 1) { const a = amp * (1 - p) ** 2; x += a * Math.sin(t * 173.1); y += a * Math.cos(t * 151.7); } }
+    for (const h of hits) { const p = (t - h) / dur; if (p >= 0 && p < 1) { const a = amp * 0.55 * (1 - p) ** 2; x += a * Math.sin(t * 173.1); y += a * Math.cos(t * 151.7); } }
     return [x, y];
   }
 
@@ -178,6 +185,21 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
     srcs.forEach((s) => { imgs[s] = img(`assets/${s}.png`, scr); imgs[s].style.opacity = 0; });
     const flash = el('div', 'flash', scr);
     return { el: p, imgs, flash, view(map) { for (const k in imgs) imgs[k].style.opacity = (map[k] || 0).toFixed(3); } };
+  }
+  // 真實頁面放大特寫：rect＝原型畫面（390×844）上的 CSS 座標，z＝放大倍率
+  function makeLens(parent, src, rect, z, cls, W = 390, H = 844) {
+    const [x, y, w, h] = rect;
+    const L = el('div', 'a lens ' + (cls || ''), parent);
+    L.style.width = `${w * z}px`; L.style.height = `${h * z}px`;
+    const im = img(src, L);
+    im.style.cssText += `left:${-x * z}px;top:${-y * z}px;width:${W * z}px;height:${H * z}px`;
+    return L;
+  }
+  // 原型畫面上的一點（390×844 的 CSS 座標）在已擺好的手機上的舞台座標（手機中心 x,y、縮放 s、旋轉 r 度）
+  function screenToStage(px, py, s, r, cx, cy) {
+    const dx = (cx * 400 / 390 + 16 - 216) * s, dy = (cy * 866 / 844 + 16 - 449) * s;
+    const a = (r * Math.PI) / 180;
+    return [px + dx * Math.cos(a) - dy * Math.sin(a), py + dx * Math.sin(a) + dy * Math.cos(a)];
   }
   // 手機螢幕上的一點（u,v：0–1）換算成舞台座標
   const phonePt = (px, py, s, u, v) => [px + (u - 0.5) * 400 * s, py + (v - 0.5) * 866 * s];
@@ -318,7 +340,7 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
     S.cam.appendChild(arc);
     const arcPath = arc.querySelector('path');
     const ph = makePhone(S.cam, ['entry', 'journey']);
-    const okRows = ['路線：平溪線', '班次：4816 往菁桐', '不用再選，直接出發'].map((txt) => el('div', 'a chip', S.cam, `<span class="ok">✓</span>${txt}`));
+    const notice = makeLens(S.cam, 'assets/journey.png', [16, 73, 358, 67], 1.75);  // 頁面上真的提示：已從車廂 QR 帶入
     const pulse = el('div', 'a ring', S.cam);
     S.render = (t) => {
       whip(S.el, t, 1);
@@ -335,7 +357,7 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
       const sw = pr(t, 9.5, 9.62);
       ph.view({ entry: 1 - sw, journey: sw });
       ph.flash.style.opacity = (pr(t, 9.38, 9.5) * (1 - pr(t, 9.5, 9.75))).toFixed(3);
-      okRows.forEach((r, i) => { const p = pr(t, 9.95 + i * 0.22, 10.25 + i * 0.22, E.ob); put(r, { x: 560, y: 470 + i * 130, s: mix(0.6, 1, p), o: pr(t, 9.95 + i * 0.22, 10.05 + i * 0.22) * (1 - away) }); });
+      { const p = pr(t, 9.95, 10.35, E.ob); put(notice, { x: 560, y: mix(640, 590, p), s: mix(0.55, 1, p), r: mix(-4, -1.5, p), o: pr(t, 9.95, 10.05) * (1 - away) }); }
       const [ux, uy] = phonePt(1330, 560, 1, 0.28, 0.298);
       const pp = ((t - 11.2) % 0.8) / 0.8;
       put(pulse, { x: ux, y: uy, s: mix(0.3, 1.3, pp), o: t > 11.2 ? 1 - pp : 0 });
@@ -350,32 +372,32 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
   /* ═════════ 4. 只列會停的站 12.6–15.75 ═════════ */
   {
     const S = scene(12.6, 15.75);
+    // 原型底部的目的站列（寬畫面拍下的真實元件）：先整條升起，再逐站亮起，點下「十分」
+    const DK = window.FILM_DOCK['dock-none'];
+    const DW = DK.clip.width, DH = DK.clip.height, DZ = 2.55;
     const h1 = chars(S.cam, ['只列這班車', ['會停的站', '#D23C2A']], '', { fontSize: '120px' });
-    const rail = el('div', 'a rail', S.cam); rail.style.width = '1900px';
-    const tr = el('div', 'a train', S.cam);
-    const stops = [['猴硐', '10:04'], ['三貂嶺', '10:14'], ['大華', '10:22'], ['十分', '10:30', 1], ['望古', '10:40'], ['嶺腳', '10:45'], ['平溪', '10:49', 1], ['菁桐', '10:55', 1]];
-    const chips = stops.map(([n, tm, g]) => el('div', 'a dchip', S.cam, `<b>${n}${g ? '<i></i>' : ''}</b><small>${tm}</small>`));
+    const bar0 = makeLens(S.cam, 'assets/dock-none.png', [0, 0, DW, DH], DZ, '', DW, DH);
+    const bar1 = makeLens(S.cam, 'assets/dock-shifen.png', [0, 0, DW, DH], DZ, '', DW, DH);
+    const X0 = 960 - (DW * DZ) / 2, Y0 = 640 - (DH * DZ) / 2;
+    const hl = DK.chips.map(([x, y, w, h]) => { const b = el('div', 'a srcbox', S.cam); b.style.width = `${w * DZ + 14}px`; b.style.height = `${h * DZ + 14}px`; return { b, cx: X0 + (x + w / 2) * DZ, cy: Y0 + (y + h / 2) * DZ }; });
     const ripple = el('div', 'a ring', S.cam);
     const dot = el('div', 'a', S.cam); dot.style.cssText += 'width:54px;height:54px;border-radius:50%;background:rgba(30,44,64,.35);border:5px solid #fff';
     S.render = (t) => {
-      put(h1.el, { x: 960, y: 260, o: 1 }); popChars(h1, t, 12.72, 0.04, 0.32, 90);
-      const pan = kf(t, [[12.6, 40], [15.2, -40, E.lin]]);
-      rail.style.transform = `translate(${10 + pan}px,872px) scaleX(${pr(t, 12.7, 13.3, E.io).toFixed(4)})`;
-      put(tr, { x: kf(t, [[12.9, -120, E.io], [14.6, 1100]]) + pan, y: 880, o: 1 });
-      chips.forEach((c, i) => {
-        const p = pr(t, 12.9 + i * 0.075, 13.25 + i * 0.075, E.ob);
-        put(c, { x: 123 + 95 + i * 212 + pan, y: 640, s: mix(0.2, 1, p) * (i === 3 ? mix(1, 1.12, pr(t, 14.65, 14.85, E.ob)) : 1), o: pr(t, 12.9 + i * 0.075, 13.0 + i * 0.075) });
-        c.classList.toggle('on', i === 3 && t >= 14.72);
-        const dd = c.querySelector('i'); if (dd) { const q = 1 + 0.25 * Math.max(0, Math.sin((t - 13.6) * 8)); dd.style.transform = `scale(${q.toFixed(3)})`; }
-      });
-      const cx = 123 + 95 + 3 * 212 + pan;
+      put(h1.el, { x: 960, y: 300, o: 1 }); popChars(h1, t, 12.72, 0.04, 0.32, 90);
+      const up = pr(t, 12.75, 13.15, E.oe);
+      const sel = pr(t, 14.7, 14.8);
+      put(bar0, { x: 960, y: 640 + (1 - up) * 260, o: up * (1 - sel) });
+      put(bar1, { x: 960, y: 640 + (1 - up) * 260, o: up * sel, s: 1 });
+      // 逐站亮起一圈金框（這班車接下來會停的每一站）
+      hl.forEach((c, i) => { const a = pr(t, 13.1 + i * 0.09, 13.32 + i * 0.09, E.ob); put(c.b, { x: c.cx, y: c.cy, s: mix(1.25, 1, a), o: t > 13.1 + i * 0.09 ? 1 - pr(t, 13.4 + i * 0.09, 13.7 + i * 0.09) : 0 }); });
+      const sf = hl[3];
       const rp = pr(t, 14.55, 15.05, E.oc);
-      put(ripple, { x: cx, y: 640, s: mix(0.3, 2.6, rp), o: t >= 14.55 ? 1 - rp : 0 });
-      put(dot, { x: cx + 30, y: mix(760, 660, pr(t, 14.3, 14.55, E.oc)), s: mix(1, 0.8, pr(t, 14.5, 14.6)), o: pr(t, 14.3, 14.4) * (1 - pr(t, 14.75, 14.9)) });
+      put(ripple, { x: sf.cx, y: sf.cy, s: mix(0.3, 2.6, rp), o: t >= 14.55 ? 1 - rp : 0 });
+      put(dot, { x: sf.cx + 30, y: mix(sf.cy + 140, sf.cy + 20, pr(t, 14.3, 14.55, E.oc)), s: mix(1, 0.8, pr(t, 14.5, 14.6)), o: pr(t, 14.3, 14.4) * (1 - pr(t, 14.75, 14.9)) });
       // 鑽進「十分」站卡轉場
       const k = kf(t, [[15.1, 1, E.ie], [15.75, 7]]);
       const f = pr(t, 15.1, 15.6, E.io);
-      cam(S.cam, mix(960, cx, f), mix(540, 640, f), k);
+      cam(S.cam, mix(960, sf.cx, f), mix(540, sf.cy, f), k);
       S.el.style.opacity = 1 - pr(t, 15.55, 15.75);
     };
   }
@@ -386,11 +408,7 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
     const comp = el('div', 'a', S.cam); comp.style.cssText += 'width:1920px;height:1080px;overflow:hidden;border-radius:0';
     const photo = img('../img/shifen-hero.jpg', comp, 'a'); photo.style.cssText += 'width:1920px;height:1280px;object-fit:cover';
     const shade = el('div', 'a', comp); shade.style.cssText += 'width:1920px;height:1080px;background:linear-gradient(180deg,rgba(30,44,64,.0) 40%,rgba(30,44,64,.35) 100%)';
-    const tag = el('div', 'a card', comp); tag.style.cssText += 'padding:26px 44px;display:grid;gap:10px;justify-items:center';
-    const tagT = chars(tag, ['火車從老街中間開過'], '', { fontSize: '86px', position: 'static' });
-    tagT.el.style.transform = 'none';
-    const tagS = el('div', 'sub', tag, '台灣最寬的簾幕式瀑布就在附近');
-    const themes = ['火車門前過', '瀑布', '運煤吊橋'].map((x) => el('div', 'a chip', comp, x));
+    const tag = makeLens(comp, 'assets/shifen-top.png', [26, 476, 338, 116], 2.45);   // 頁面上真的主題句與主題標籤
     const plate = makePlate(S.cam, { name: '十分', sub: 'SHIFEN', left: '◀ 大華', mid: '往菁桐', right: '望古 ▶', w: 1180, nameSize: 270, subSize: 56, footSize: 64, gap: 120 });
     const ph = makePhone(S.cam, ['shifen-top']);
     const h2 = chars(S.cam, ['選一站，', ['整頁換成那裡', '#D23C2A']], '', { fontSize: '92px' });
@@ -405,10 +423,8 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
       comp.style.clipPath = `inset(${ins.toFixed(2)}% ${ins.toFixed(2)}% round ${(40 * (1 - open)).toFixed(1)}px)`;
       put(photo, { x: 960, y: 560, s: kf(t, [[16.3, 1.22], [19.2, 1.04, E.lin]]) });
       put(shade, { x: 960, y: 540, o: 1 });
-      put(tag, { x: 960, y: 190, s: mix(0.7, 1, pr(t, 16.95, 17.25, E.ob)), o: pr(t, 16.95, 17.05) });
-      tagT.spans.forEach((sp, i) => { sp.style.opacity = t >= 17.1 + i * 0.07 ? 1 : 0; });
-      tagS.style.opacity = pr(t, 17.85, 18.1).toFixed(3);
-      themes.forEach((c, i) => put(c, { x: 650 + i * 310, y: 360, s: mix(0.4, 1, pr(t, 18.0 + i * 0.12, 18.3 + i * 0.12, E.ob)), o: pr(t, 18.0 + i * 0.12, 18.08 + i * 0.12) }));
+      put(tag, { x: 960, y: 230, s: mix(0.7, 1, pr(t, 16.95, 17.25, E.ob)), r: -1.5, o: pr(t, 16.95, 17.05) });
+      tag.style.clipPath = `inset(0 ${((1 - pr(t, 17.0, 17.9, E.io)) * 100).toFixed(2)}% 0 0 round 22px)`;
       // 拉遠成手機裡的導覽頁
       const pull = pr(t, 18.75, 19.55, E.io);
       const [sx, sy] = phonePt(1330, 560, 1, 0.5, 0.42);
@@ -425,85 +441,71 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
   /* ═════════ 6. 功能連發 20.55–28.65 ═════════ */
   {
     const S = scene(20.55, 28.65);
-    // 每鏡：左邊編號＋大字，右邊手機大特寫（u,v＝要對準的區塊在手機畫面上的位置）
+    // 每鏡：左上編號＋大字；右邊手機大特寫；頁面上那一塊用金框標出，放大鏡把「真的那一塊畫面」拉到左邊
+    // rect＝原型畫面（390×844）上的 CSS 座標，z＝放大倍率
     const CUTS = [
-      { t: 20.6, no: '01', title: '必看亮點', sub: '每張都附距離與官方來源', asset: 'shifen-hl', v: 0.36, r: -3 },
-      { t: 22.2, no: '02', title: '推薦路線', sub: '景點順序、距離、時間一次看', asset: 'shifen-routes', v: 0.44, r: 2.5 },
-      { t: 23.8, no: '03', title: '在地店家', sub: '開放地圖，依距離排，不收廣告', asset: 'shifen-shops', v: 0.46, r: -2.5 },
-      { t: 25.4, no: '04', title: '文化故事', sub: '點開就讀，來源列在下面', asset: 'shifen-story', v: 0.62, r: 2.5 },
-      { t: 27.0, no: '05', title: '下一班車', sub: '下車前就知道怎麼回程', asset: 'shifen-next', v: 0.4, r: -2 },
-    ];
+      { t: 20.6, no: '01', title: '必看亮點', sub: '每張都附距離與官方來源', asset: 'shifen-hl', rect: [17, 192, 356, 273], z: 2.0, r: -3 },
+      { t: 22.2, no: '02', title: '推薦路線', sub: '景點順序、距離、時間一次看', asset: 'shifen-routes', rect: [33, 252, 324, 320], z: 1.72, r: 2.5 },
+      { t: 23.8, no: '03', title: '在地店家', sub: '開放地圖，依距離排，不收廣告', asset: 'shifen-shops', rect: [33, 302, 324, 394], z: 1.42, r: -2.5 },
+      { t: 25.4, no: '04', title: '文化故事', sub: '點開就讀，來源列在下面', asset: 'shifen-story', rect: [19, 425, 352, 195], z: 2.0, r: 2.5 },
+      { t: 27.0, no: '05', title: '下一班車', sub: '下車前就知道怎麼回程', asset: 'shifen-next', rect: [33, 244, 324, 285], z: 1.9, r: -2 },
+    ].map((c) => ({ ...c, v: (c.rect[1] + c.rect[3] / 2) / 844 }));
+    const beam = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    beam.setAttribute('class', 'a'); beam.setAttribute('width', '1920'); beam.setAttribute('height', '1080');
+    beam.style.cssText += 'left:0;top:0;transform:none;overflow:visible';
+    beam.innerHTML = '<polygon fill="rgba(232,184,75,.22)"/>';
+    S.cam.appendChild(beam);
+    const poly = beam.querySelector('polygon');
     const ph = makePhone(S.cam, CUTS.map((c) => c.asset));
-    const txt = CUTS.map((c) => {
-      const kick = el('div', 'a kick', S.cam, c.no);
-      const title = chars(S.cam, [c.title], '', { fontSize: '150px' });
-      const sub = el('div', 'a sub', S.cam, c.sub);
-      return { kick, title, sub };
-    });
-    // 01 亮點小卡
-    const hl = ['十分老街', '十分瀑布公園', '靜安吊橋'].map((n) => el('div', 'a chip', S.cam, `<span style="color:#D23C2A">●</span> ${n}`));
-    // 02 路線小圖：紅色虛線畫出、編號蓋章
-    const mapc = el('div', 'a card', S.cam); mapc.style.cssText += 'width:460px;height:300px;overflow:hidden';
-    mapc.innerHTML = `<svg viewBox="0 0 460 300" width="460" height="300"><rect width="460" height="300" fill="#F7F0DD"/><path d="M-20 290 C 120 240, 230 190, 480 40" stroke="#2A4A73" stroke-width="9" fill="none" opacity=".45"/>
-      <path class="wk" d="M100 236 L 160 186 L 150 156 L 340 70" fill="none" stroke="#D23C2A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-      <rect x="80" y="218" width="40" height="36" rx="8" fill="#2A4A73"/><text x="100" y="243" font-size="22" font-weight="900" fill="#FFFDF6" text-anchor="middle" font-family="Noto Sans TC">站</text>
-      ${[[160, 186], [150, 156], [340, 70]].map(([x, y], i) => `<g class="stp"><circle cx="${x}" cy="${y}" r="24" fill="#FFFDF6" stroke="#D23C2A" stroke-width="6"/><text x="${x}" y="${y + 9}" font-size="26" font-weight="900" fill="#D23C2A" text-anchor="middle" font-family="Noto Sans TC">${i + 1}</text></g>`).join('')}</svg>`;
-    const wk = mapc.querySelector('.wk'); const wkLen = wk.getTotalLength();
-    const stp = [...mapc.querySelectorAll('.stp')];
-    const sim = el('div', 'a chip', S.cam, '合計約 50 分鐘 <span style="font-size:28px;color:#A3641A;border:4px dashed #E0A37E;background:#FBE9DF;border-radius:10px;padding:0 10px">模擬</span>');
-    // 03 店家小地圖：圖釘落下
-    const shopc = el('div', 'a card', S.cam); shopc.style.cssText += 'width:460px;height:300px;overflow:hidden';
-    shopc.innerHTML = `<svg viewBox="0 0 460 300" width="460" height="300" style="position:absolute;left:0;top:0"><rect width="460" height="300" fill="#F7F0DD"/><path d="M-20 260 C 140 230, 260 150, 480 90" stroke="#2A4A73" stroke-width="9" fill="none" opacity=".45"/>
-      <path d="M40 120 L 420 160 M 200 0 L 240 300" stroke="#E4D9BE" stroke-width="14" fill="none"/>
-      <rect x="196" y="176" width="40" height="36" rx="8" fill="#2A4A73"/><text x="216" y="201" font-size="22" font-weight="900" fill="#FFFDF6" text-anchor="middle" font-family="Noto Sans TC">站</text></svg>`;
-    const PINS = [[120, 120, '#D23C2A'], [300, 100, '#1B8F4D'], [360, 200, '#D2A12A'], [170, 230, '#D23C2A'], [270, 250, '#1B8F4D']];
-    const pins = PINS.map(([, , c]) => { const p = el('div', 'a pin', shopc); p.style.background = c; p.style.width = p.style.height = '46px'; p.style.borderWidth = '5px'; return p; });
-    const osm = el('div', 'a chip', S.cam, '<span style="color:#1B8F4D">OSM</span> 開放地圖');
-    // 04 故事
-    const quote = el('div', 'a card', S.cam, '<div style="padding:26px 34px;font-size:40px;font-weight:900;line-height:1.35">1986《戀戀風塵》<br><span style="color:#D23C2A">取景地</span></div><div style="padding:0 34px 22px;font-size:26px;font-weight:700;color:#6B5F4A">來源：新北市觀光旅遊網 ↗</div>');
-    // 05 時刻板
-    const board = el('div', 'a board', S.cam, [['10:35', '4715', '往八堵'], ['11:35', '4817', '往八斗子'], ['11:37', '4818', '往菁桐']].map(([a, b, c]) => `<div class="r"><span>${a}</span><em>${b}</em><span>${c}</span></div>`).join(''));
-    const rows = [...board.children];
+    const box = el('div', 'a srcbox', S.cam);
+    const txt = CUTS.map((c) => ({
+      kick: el('div', 'a kick', S.cam, c.no),
+      title: chars(S.cam, [c.title], '', { fontSize: '132px' }),
+      sub: el('div', 'a sub', S.cam, c.sub),
+      lens: makeLens(S.cam, `assets/${c.asset}.png`, c.rect, c.z),
+    }));
     const wipes = CUTS.slice(1).map(() => el('div', 'a wipe band', S.cam));
+    const LX = 480, LY = 700;
     S.render = (t) => {
       const ci = CUTS.findIndex((c, i) => t >= c.t && (i === CUTS.length - 1 || t < CUTS[i + 1].t));
       const cur = CUTS[Math.max(0, ci)];
       const lt = t - cur.t;
       const view = {}; CUTS.forEach((c) => { view[c.asset] = c === cur ? 1 : 0; }); ph.view(view);
-      // 手機大特寫：每鏡從 1.32 推到 1.46，並把要講的區塊放在畫面垂直中央
-      const s = mix(1.32, 1.46, E.oc(cl(lt / 1.6)));
+      // 手機大特寫：每鏡從 1.3 推到 1.42，要講的那一塊放在畫面垂直中央
+      const s = mix(1.3, 1.42, E.oc(cl(lt / 1.6)));
       const enterY = (1 - pr(lt, 0, 0.32, E.oe)) * 160;
-      put(ph.el, { x: 1360, y: 540 - (cur.v - 0.5) * 866 * s + enterY, s, r: mix(cur.r * 1.8, cur.r, pr(lt, 0, 0.4, E.oc)), o: pr(t, 20.6, 20.75) });
-      txt.forEach((x, i) => {
+      const r = mix(cur.r * 1.8, cur.r, pr(lt, 0, 0.4, E.oc));
+      const py = 540 - (cur.v - 0.5) * 866 * s + enterY;
+      put(ph.el, { x: 1380, y: py, s, r, o: pr(t, 20.6, 20.75) });
+      // 金框：頁面上那一塊
+      const [x, y, w, h] = cur.rect;
+      const [bx, by] = screenToStage(1380, py, s, r, x + w / 2, y + h / 2);
+      const bw = w * (400 / 390) * s, bh = h * (866 / 844) * s;
+      box.style.width = `${bw + 16}px`; box.style.height = `${bh + 16}px`;
+      const bo = pr(lt, 0.12, 0.25);
+      put(box, { x: bx, y: by, r, s: mix(1.08, 1, pr(lt, 0.12, 0.3, E.ob)), o: bo });
+      // 放大鏡：從金框的位置飛到左邊放大
+      const fly = pr(lt, 0.22, 0.62, E.oe);
+      const lw = w * cur.z, lh = h * cur.z;
+      const ls = mix(bw / lw, 1, fly);
+      const lx = mix(bx, LX, fly), ly = mix(by, LY, fly), lr = mix(r, -1.2, fly);
+      txt.forEach((o, i) => {
         const on = CUTS[i] === cur;
-        put(x.kick, { x: 245, y: 300, s: on ? mix(0.4, 1, pr(lt, 0, 0.25, E.ob)) : 1, o: on ? 1 : 0 });
-        put(x.title.el, { x: 470, y: 440, o: on ? 1 : 0 });
-        if (on) popChars(x.title, lt, 0.02, 0.05, 0.3, 90);
-        put(x.sub, { x: 470, y: 570, o: on ? pr(lt, 0.25, 0.45) : 0 });
+        put(o.kick, { x: 110 + o.kick.offsetWidth / 2, y: 112, s: on ? mix(0.4, 1, pr(lt, 0, 0.25, E.ob)) : 1, o: on ? 1 : 0 });
+        put(o.title.el, { x: 106 + o.title.el.offsetWidth / 2, y: 222, o: on ? 1 : 0 });
+        if (on) popChars(o.title, lt, 0.02, 0.05, 0.3, 90);
+        put(o.sub, { x: 112 + o.sub.offsetWidth / 2, y: 334, o: on ? pr(lt, 0.25, 0.45) : 0 });
+        put(o.lens, on ? { x: lx, y: ly, s: ls, r: lr, o: pr(lt, 0.22, 0.3) } : { o: 0 });
       });
-      // 01
-      const on1 = cur.no === '01';
-      hl.forEach((c, i) => put(c, { x: kf(lt, [[0.25 + i * 0.1, 1100, E.oe], [0.7 + i * 0.1, 470]]), y: 700 + i * 100, s: 0.9, o: on1 && lt > 0.25 + i * 0.1 ? 1 : 0 }));
-      // 02
-      const on2 = cur.no === '02';
-      put(mapc, { x: 470, y: 820, s: on2 ? mix(0.6, 1, pr(lt, 0.15, 0.45, E.ob)) : 1, o: on2 ? 1 : 0 });
-      wk.style.strokeDasharray = `${wkLen}`; wk.style.strokeDashoffset = (wkLen * (1 - pr(lt, 0.35, 1.15, E.io))).toFixed(1);
-      stp.forEach((g, i) => { const a = pr(lt, 0.5 + i * 0.22, 0.75 + i * 0.22, E.ob); g.style.transformBox = 'fill-box'; g.style.transformOrigin = 'center'; g.style.transform = `scale(${cl(a).toFixed(3)})`; });
-      put(sim, { x: 1360, y: 985, s: on2 ? mix(0.5, 1, pr(lt, 0.7, 0.95, E.ob)) : 1, o: on2 && lt > 0.7 ? 1 : 0 });
-      // 03
-      const on3 = cur.no === '03';
-      put(shopc, { x: 470, y: 820, s: on3 ? mix(0.6, 1, pr(lt, 0.1, 0.4, E.ob)) : 1, o: on3 ? 1 : 0 });
-      pins.forEach((p, i) => { const a = pr(lt, 0.3 + i * 0.1, 0.62 + i * 0.1, E.ob); put(p, { x: PINS[i][0], y: mix(-80, PINS[i][1], a), r: -45, o: lt > 0.3 + i * 0.1 ? 1 : 0 }); });
-      put(osm, { x: 1360, y: 985, s: on3 ? mix(0.5, 1, pr(lt, 0.75, 1.0, E.ob)) : 1, o: on3 && lt > 0.75 ? 1 : 0 });
-      // 04
-      const on4 = cur.no === '04';
-      put(quote, { x: 470, y: mix(1150, 800, pr(lt, 0.2, 0.55, E.oe)), r: mix(-6, -2, pr(lt, 0.2, 0.55)), o: on4 ? 1 : 0 });
-      // 05
-      const on5 = cur.no === '05';
-      put(board, { x: 500, y: 810, s: on5 ? mix(0.7, 1, pr(lt, 0.15, 0.4, E.ob)) : 1, o: on5 ? 1 : 0 });
-      rows.forEach((r, i) => { const a = pr(lt, 0.35 + i * 0.18, 0.6 + i * 0.18, E.oc); r.style.transform = `rotateX(${((1 - a) * 90).toFixed(1)}deg)`; r.style.opacity = a.toFixed(2); });
-      // 刷屏轉場：藏青帶斜切過畫面，中線是鐵道虛線；剛好蓋住換鏡那一格
-      wipes.forEach((w, i) => { const c = CUTS[i + 1].t; const p = pr(t, c - 0.22, c + 0.22, E.io); put(w, { x: mix(-1300, 3200, p), y: 540, r: 14, o: t > c - 0.22 && t < c + 0.22 ? 1 : 0 }); });
+      // 光束：金框左緣 → 放大鏡右緣
+      const a = (r * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
+      const bl = [bx + (-bw / 2) * ca - (-bh / 2) * sa, by + (-bw / 2) * sa + (-bh / 2) * ca];
+      const bl2 = [bx + (-bw / 2) * ca - (bh / 2) * sa, by + (-bw / 2) * sa + (bh / 2) * ca];
+      const lr2 = [lx + (lw * ls) / 2, ly - (lh * ls) / 2], lr3 = [lx + (lw * ls) / 2, ly + (lh * ls) / 2];
+      poly.setAttribute('points', [bl, bl2, lr3, lr2].map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' '));
+      poly.style.opacity = (pr(lt, 0.3, 0.5) * 0.9).toFixed(3);
+      // 刷屏轉場：藏青帶斜切過畫面，剛好蓋住換鏡那一格
+      wipes.forEach((wp, i) => { const c = CUTS[i + 1].t; const p = pr(t, c - 0.22, c + 0.22, E.io); put(wp, { x: mix(-1300, 3200, p), y: 540, r: 14, o: t > c - 0.22 && t < c + 0.22 ? 1 : 0 }); });
       const [hx, hy] = shake(t, CUTS.map((c) => c.t + 0.08), 8);
       cam(S.cam, 960 - hx, 540 - hy, 1);
       S.el.style.opacity = pr(t, 20.55, 20.62);
@@ -513,32 +515,36 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
   /* ═════════ 7. 中英切換 28.55–31.7 ═════════ */
   {
     const S = scene(28.55, 31.7);
-    const flip = el('div', 'a', S.cam); flip.style.cssText += 'width:432px;height:898px;transform-style:preserve-3d';
-    const front = makePhone(flip, ['pingxi-zh']); front.view({ 'pingxi-zh': 1 });
-    const back = makePhone(flip, ['pingxi-en']); back.view({ 'pingxi-en': 1 });
-    [front.el, back.el].forEach((e) => { e.style.backfaceVisibility = 'hidden'; });
-    front.el.style.transform = 'translate(216px,449px) translate(-50%,-50%)';
-    back.el.style.transform = 'translate(216px,449px) translate(-50%,-50%) rotateY(180deg)';
-    // 跟原型同一個樣子的中文／EN 切換鍵，放大當主角
-    const tg = el('div', 'a toggle', S.cam);
-    const kn = el('div', 'kn', tg);
-    const lz = el('div', 'lb', tg, '中文'); lz.style.left = '0';
-    const le = el('div', 'lb', tg, 'EN'); le.style.left = '308px';
+    // 手機翻面：正反兩面各自算角度（不靠 3D 背面隱藏，逐格算繪也穩定）
+    const front = makePhone(S.cam, ['pingxi-zh']); front.view({ 'pingxi-zh': 1 });
+    const back = makePhone(S.cam, ['pingxi-en']); back.view({ 'pingxi-en': 1 });
+    // 原型右上角真的「中文｜EN」切換鍵（8 倍解析度拍下）
+    const TW = 93, TH = 42, TZ = 5.4;
+    const tz = makeLens(S.cam, 'assets/lang-zh.png', [0, 0, TW, TH], TZ, 'bare', TW, TH);
+    const te = makeLens(S.cam, 'assets/lang-en.png', [0, 0, TW, TH], TZ, 'bare', TW, TH);
+    [tz, te].forEach((e) => { e.style.borderRadius = `${(TH * TZ) / 2}px`; });
     const head = chars(S.cam, ['一鍵切換英文，'], '', { fontSize: '84px' });
     const head2 = chars(S.cam, [['選的站不跑掉', '#D23C2A']], '', { fontSize: '84px' });
     const tap = el('div', 'a ring', S.cam);
     const wipe = el('div', 'a wipe band', S.cam);
     S.render = (t) => {
       const f = pr(t, 29.45, 30.15, E.io);
-      const lift = Math.sin(Math.PI * f);
-      flip.style.transform = `translate(1340px,${(540 - lift * 30).toFixed(1)}px) translate(-50%,-50%) rotateY(${(f * 180).toFixed(2)}deg) scale(${(1.02 + lift * 0.08).toFixed(4)})`;
-      flip.style.opacity = pr(t, 28.6, 28.75).toFixed(3);
-      put(tg, { x: 560, y: 360, s: mix(0.5, 1, pr(t, 28.75, 29.05, E.ob)), o: pr(t, 28.75, 28.85) });
-      const kx = pr(t, 29.35, 29.65, E.ob);
-      kn.style.transform = `translateX(${(kx * 298).toFixed(1)}px)`;
-      lz.style.color = kx < 0.5 ? '#FFFDF6' : '#6B5F4A'; le.style.color = kx < 0.5 ? '#6B5F4A' : '#FFFDF6';
+      const ang = f * 180, lift = Math.sin(Math.PI * f);
+      const sc = 1.02 + lift * 0.08, y = 540 - lift * 30;
+      const face = (e, deg, on) => {
+        e.style.transform = `translate(1340px,${y.toFixed(1)}px) translate(-50%,-50%) perspective(2200px) rotateY(${deg.toFixed(2)}deg) scale(${sc.toFixed(4)})`;
+        e.style.opacity = on ? pr(t, 28.6, 28.75).toFixed(3) : '0';
+        e.style.filter = 'none';
+      };
+      face(front.el, ang, ang < 90);
+      face(back.el, ang - 180, ang >= 90);
+      const pop = pr(t, 28.75, 29.05, E.ob);
+      const sw = pr(t, 29.4, 29.5);
+      const bump = 1 + 0.06 * Math.sin(Math.PI * pr(t, 29.4, 29.7));
+      put(tz, { x: 560, y: 360, s: mix(0.5, 1, pop) * bump, o: pr(t, 28.75, 28.85) * (1 - sw) });
+      put(te, { x: 560, y: 360, s: mix(0.5, 1, pop) * bump, o: pr(t, 28.75, 28.85) * sw });
       const tp = pr(t, 29.25, 29.7, E.oc);
-      put(tap, { x: 715, y: 360, s: mix(0.4, 2.0, tp), o: t > 29.25 ? 1 - tp : 0 });
+      put(tap, { x: 560 + (TW * TZ) / 4, y: 360, s: mix(0.4, 2.0, tp), o: t > 29.25 ? 1 - tp : 0 });
       put(head.el, { x: 560, y: 600, o: 1 }); popChars(head, t, 29.7, 0.035, 0.28, 60);
       put(head2.el, { x: 560, y: 710, o: 1 }); popChars(head2, t, 30.05, 0.035, 0.28, 60);
       const [hx, hy] = shake(t, [29.55], 10);
@@ -556,10 +562,15 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
     svg.setAttribute('class', 'a'); svg.setAttribute('width', '1920'); svg.setAttribute('height', '1080'); svg.setAttribute('viewBox', '0 0 1920 1080');
     svg.style.cssText += 'overflow:visible';
     const d = (pts) => 'M' + pts.map((p) => pj(p).map((v) => v.toFixed(1)).join(' ')).join('L');
-    svg.innerHTML = window.FILM_NETWORK.map((l) => `<path class="net" d="${d(l.pts)}" fill="none" stroke="#2A4A73" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`).join('')
+    // 台灣底圖：內政部縣市界線消去內部邊界的海岸線（政府資料開放授權），淡藍海面＋米白陸地
+    const landD = window.FILM_LAND.map((ring) => d(ring) + 'Z').join('');
+    svg.innerHTML = `<rect class="sea" x="-3000" y="-2000" width="7920" height="5080" fill="#DCE7E6"/>`
+      + `<path class="land" d="${landD}" fill="#FFFDF6" stroke="#B9A87C" stroke-width="3" stroke-linejoin="round" style="filter:drop-shadow(0 10px 18px rgba(30,44,64,.16))"/>`
+      + window.FILM_NETWORK.map((l) => `<path class="net" d="${d(l.pts)}" fill="none" stroke="#2A4A73" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`).join('')
       + ['pingxi', 'huadong', 'haixian'].map((r) => `<path class="demo" d="${d(window.RIDE_ROUTES.routes[r].path)}" fill="none" stroke="#D23C2A" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
     S.cam.appendChild(svg);
     const nets = [...svg.querySelectorAll('.net')].map((p) => ({ p, L: p.getTotalLength() }));
+    const sea = svg.querySelector('.sea'), land = svg.querySelector('.land');
     const demos = [...svg.querySelectorAll('.demo')].map((p) => ({ p, L: p.getTotalLength() }));
     const GUIDES = [
       { ll: [25.0411, 121.7751], line: '平溪線', st: '十分・平溪・菁桐', at: 33.75, dx: 300 },
@@ -578,6 +589,10 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
     S.render = (t) => {
       const z = pr(t, 31.65, 32.3, E.io);
       put(ph.el, { x: 960, y: 540, s: mix(1, 0.22, z), o: 1 - pr(t, 32.05, 32.35) });
+      sea.style.opacity = pr(t, 31.75, 32.25).toFixed(3);
+      land.style.opacity = pr(t, 31.8, 32.2).toFixed(3);
+      land.style.transformBox = 'fill-box'; land.style.transformOrigin = 'center';
+      land.style.transform = `scale(${mix(0.92, 1, pr(t, 31.8, 32.4, E.oe)).toFixed(4)})`;
       nets.forEach(({ p, L }, i) => { const a = pr(t, 31.95 + (i % 7) * 0.05, 32.9 + (i % 7) * 0.05, E.io); p.style.strokeDasharray = L; p.style.strokeDashoffset = (L * (1 - a)).toFixed(1); });
       demos.forEach(({ p, L }, i) => { const a = pr(t, 32.85 + i * 0.12, 33.35 + i * 0.12, E.io); p.style.strokeDasharray = L; p.style.strokeDashoffset = (L * (1 - a)).toFixed(1); p.style.filter = 'drop-shadow(0 0 10px rgba(210,60,42,.6))'; });
       tags.forEach((g) => {
@@ -606,10 +621,9 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
     const head = chars(S.el, ['同一套介面，', ['換上在地內容就上線', '#D23C2A']], '', { fontSize: '76px' });
     const panel = el('div', 'a', S.el); panel.style.cssText += 'width:960px;height:1200px;background:#F3EBDA;box-shadow:18px 0 40px rgba(30,44,64,.18)';
     const k1 = el('div', 'a kick', S.el, '花東縱谷・光復');
-    const a1 = el('div', 'a alertc', S.el, '<b>在地現況，第一眼提醒</b><span>災後復原中的光復，頁面先請旅客確認現況</span>');
+    const a1 = makeLens(S.el, 'assets/guangfu-alert.png', [16, 134, 358, 293], 1.6);   // 頁面上真的災後提醒卡
     const k2 = el('div', 'a kick', S.el, '海線・通霄'); k2.style.background = '#2A4A73'; k2.style.boxShadow = '0 4px 0 #1E2C40';
-    const a2 = el('div', 'a alertc', S.el, '<b style="color:#2A4A73">下車前就知道下一班車</b><span>班次來自臺鐵開放資料時刻表</span>');
-    a2.style.borderColor = '#C9B98F'; a2.style.background = '#FFFDF6';
+    const a2 = makeLens(S.el, 'assets/tongxiao-next.png', [33, 244, 324, 285], 1.62);  // 頁面上真的下一班車
     const flash = el('div', 'a', S.el); flash.style.cssText += 'width:1920px;height:1080px;background:#FFFDF6';
     S.render = (t) => {
       P.forEach((p, i) => {
@@ -630,11 +644,11 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
       cam(S.cam, fx, fy, k, 0, cx, 540);
       put(panel, { x: kf(t, [[39.1, -500, E.oe], [39.55, 480]]), y: 540, o: 1 });
       const o1 = pr(t, 39.55, 39.62) * (1 - pr(t, 40.75, 40.9));
-      put(k1, { x: 292, y: 360, s: mix(0.5, 1.35, pr(t, 39.5, 39.75, E.ob)), o: o1 });
-      put(a1, { x: 470, y: 580, s: mix(0.7, 1.3, pr(t, 39.55, 39.85, E.ob)), o: o1 });
+      put(k1, { x: 300, y: 230, s: mix(0.5, 1.35, pr(t, 39.5, 39.75, E.ob)), o: o1 });
+      put(a1, { x: 470, y: 600, s: mix(0.6, 1, pr(t, 39.55, 39.85, E.ob)), r: -1, o: o1 });
       const o2 = pr(t, 41.3, 41.37);
-      put(k2, { x: 246, y: 360, s: mix(0.5, 1.35, pr(t, 41.25, 41.5, E.ob)), o: o2 });
-      put(a2, { x: 470, y: 580, s: mix(0.7, 1.3, pr(t, 41.3, 41.6, E.ob)), o: o2 });
+      put(k2, { x: 254, y: 230, s: mix(0.5, 1.35, pr(t, 41.25, 41.5, E.ob)), o: o2 });
+      put(a2, { x: 470, y: 600, s: mix(0.6, 1, pr(t, 41.3, 41.6, E.ob)), r: -1, o: o2 });
       put(flash, { x: 960, y: 540, o: 1 - pr(t, 36.55, 36.8) });
     };
   }
@@ -644,17 +658,26 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
     const S = scene(42.55, 47.75);
     const head = chars(S.cam, ['每一筆資料，', ['看得出來源', '#D23C2A']], '', { fontSize: '104px' });
     const seals = [
-      { b: '已查證', s: '附官方來源 ↗', c: '#2A4A73', border: '10px solid #2A4A73', bg: 'rgba(255,253,246,.95)', x: 470, y: 580, r: -6, at: 43.3 },
-      { b: 'OSM', s: '開放地圖資料', c: '#1B8F4D', border: '10px solid #1B8F4D', bg: 'rgba(255,253,246,.95)', x: 960, y: 620, r: 4, at: 43.95 },
-      { b: '模擬', s: '估算・示範值', c: '#A3641A', border: '10px dashed #E0A37E', bg: '#FBE9DF', x: 1450, y: 580, r: -3, at: 44.6 },
-    ].map((x) => { const e = el('div', 'a seal', S.cam, `<b style="color:${x.c}">${x.b}</b><small style="color:${x.c}">${x.s}</small>`); e.style.border = x.border; e.style.background = x.bg; return { ...x, e }; });
+      { b: '已查證', s: '附官方來源 ↗', c: '#2A4A73', border: '10px solid #2A4A73', bg: 'rgba(255,253,246,.95)', x: 470, y: 430, r: -6, at: 43.3, ex: ['shifen-story', [19, 697, 352, 113], 1.2] },
+      { b: 'OSM', s: '開放地圖資料', c: '#1B8F4D', border: '10px solid #1B8F4D', bg: 'rgba(255,253,246,.95)', x: 960, y: 450, r: 4, at: 43.95, ex: ['shifen-shops', [33, 581, 324, 115], 1.3] },
+      { b: '模擬', s: '估算・示範值', c: '#A3641A', border: '10px dashed #E0A37E', bg: '#FBE9DF', x: 1450, y: 430, r: -3, at: 44.6, ex: ['shifen-routes', [33, 252, 324, 64], 1.3] },
+    ].map((x) => {
+      const e = el('div', 'a seal', S.cam, `<b style="color:${x.c}">${x.b}</b><small style="color:${x.c}">${x.s}</small>`); e.style.border = x.border; e.style.background = x.bg;
+      const lens = makeLens(S.cam, `assets/${x.ex[0]}.png`, x.ex[1], x.ex[2]);   // 頁面上真的例子
+      return { ...x, e, lens };
+    });
     const band = el('div', 'a band', S.cam, '<div style="padding:22px 60px;font-size:46px;font-weight:900;color:#FFFDF6;white-space:nowrap">示範班次・非即時位置・不放廣告</div>');
     band.style.borderRadius = '20px';
     const wipe = el('div', 'a wipe band', S.cam);
     S.render = (t) => {
-      put(head.el, { x: 960, y: 210, o: 1 }); popChars(head, t, 42.75, 0.035, 0.3, 80);
-      seals.forEach((x) => { const a = pr(t, x.at, x.at + 0.24, E.ob); put(x.e, { x: x.x, y: x.y, s: mix(2.6, 1, a), r: x.r, o: pr(t, x.at, x.at + 0.05) }); });
-      put(band, { x: kf(t, [[45.25, -800, E.oe], [45.75, 960]]), y: 900, o: 1 });
+      put(head.el, { x: 960, y: 150, o: 1 }); popChars(head, t, 42.75, 0.035, 0.3, 80);
+      seals.forEach((x) => {
+        const a = pr(t, x.at, x.at + 0.24, E.ob);
+        put(x.e, { x: x.x, y: x.y, s: mix(2.2, 0.82, a), r: x.r, o: pr(t, x.at, x.at + 0.05) });
+        const b = pr(t, x.at + 0.18, x.at + 0.5, E.oe);
+        put(x.lens, { x: x.x, y: mix(780, 720, b), s: mix(0.8, 1, b), r: x.r * 0.3, o: pr(t, x.at + 0.18, x.at + 0.28) });
+      });
+      put(band, { x: kf(t, [[45.25, -800, E.oe], [45.75, 960]]), y: 950, o: 1 });
       const [sx, sy] = shake(t, seals.map((x) => x.at + 0.12), 14);
       cam(S.cam, 960 - sx, 540 - sy, kf(t, [[42.55, 1], [47.7, 1.05, E.lin]]));
       const p = pr(t, 42.48, 42.92, E.io); put(wipe, { x: mix(-1300, 3200, p), y: 540, r: 14, o: t < 42.92 ? 1 : 0 });
@@ -694,7 +717,7 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
     const band = el('div', 'a band', S.cam, '<div style="padding:18px 70px;font-size:56px;font-weight:900;color:#FFFDF6;letter-spacing:.12em;text-indent:.12em;white-space:nowrap">乘車導覽模式</div>');
     band.style.borderRadius = '20px';
     const note = el('div', 'a sub', S.cam, '互動展示原型・資料為示範');
-    const cred = el('div', 'a', S.cam, '照片（Wikimedia Commons）：AMN47 CC BY 3.0・lumoplank CC0・Solomon203 CC BY-SA 4.0・Taiwankengo CC BY 4.0・billy1125 CC BY 2.0<br>軌道線形與店家：© OpenStreetMap 貢獻者（ODbL）｜時刻表：臺鐵開放資料｜未使用任何業者標誌，不代表已與任何單位合作');
+    const cred = el('div', 'a', S.cam, '照片（Wikimedia Commons）：AMN47 CC BY 3.0・lumoplank CC0・Solomon203 CC BY-SA 4.0・Taiwankengo CC BY 4.0・billy1125 CC BY 2.0<br>軌道線形與店家：© OpenStreetMap 貢獻者（ODbL）｜台灣底圖：內政部縣市界線（政府資料開放授權條款）｜時刻表：臺鐵開放資料<br>畫面均為互動展示原型實際截圖；配樂為程式合成原創｜未使用任何業者標誌，不代表已與任何單位合作');
     cred.style.cssText += 'font-size:20px;font-weight:700;color:#8A7C62;white-space:nowrap;text-align:center;line-height:1.6';
     S.render = (t) => {
       const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
@@ -709,9 +732,9 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
         r.style.opacity = (1 - pr(t, 52.7, 53.0)).toFixed(2);
       });
       logo.render(t - 52.45, 1.25);
-      put(band, { x: 960, y: mix(1150, 832, pr(t, 54.3, 54.75, E.oe)), o: 1 });
-      put(note, { x: 960, y: 930, o: pr(t, 54.8, 55.1) });
-      put(cred, { x: 960, y: 1012, o: pr(t, 55.1, 55.5) });
+      put(band, { x: 960, y: mix(1150, 805, pr(t, 54.3, 54.75, E.oe)), o: 1 });
+      put(note, { x: 960, y: 890, o: pr(t, 54.8, 55.1) });
+      put(cred, { x: 960, y: 1000, o: pr(t, 55.1, 55.5) });
       cam(S.cam, 960, 540, kf(t, [[52.0, 1.0], [58.0, 1.04, E.lin]]));
       S.el.style.opacity = (pr(t, 52.0, 52.25) * (1 - pr(t, 57.6, 58.0))).toFixed(3);
     };
