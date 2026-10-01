@@ -2805,6 +2805,27 @@ await attempt('MV4', async () => {
     got.none.bal === 0 && got.half.bal === 0 && got.num.bal === 1, J(got));
 });
 
+// 前次 ok 列的 kept_d0／kept_d1 是 NULL 時不貢獻範圍（不是當成 0 或任何數值）：這一發自己收下的點只在 7400–8000 m 附近（跨距不到 600 m），
+// 前次列（NULL）不加進來 → 0 顆；若把 NULL 當 0 會變成 0–8000 m 而誤發。對照：前次列 kept＝4000／4500 → 聯集 4000–8000 m → 1 顆。
+// 開頭三點（防偽閘不收）之後 5 m 一步從 7400 m 開到 S4（8000 m）、再停 300 秒：收下的點約 7415–8000 m（跨距不到 600 m）。
+const mv4bPts = (() => { const xs = [7400, 7400, 7400]; for (let x = 7400; x < 8000;) { x = Math.min(8000, x + 5); xs.push(x); } for (let k = 0; k < 300; k++) xs.push(8000);
+  return xs.map((x, k) => ({ d: x, t: 30401 + k, v: k > 2 && xs[k - 1] < 8000 ? 5 : 0, acc: 8 })); })();
+await attempt('MV4b', async () => {
+  const run = async (tag, k0, k1) => {
+    const A = `dev-mv4b-${tag}`;
+    const w = world({ seed: boardSql('山線') });
+    w.db.prepare("INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict,client,kept_d0,kept_d1)" +
+      " VALUES (?,?,'tra_sched','山線','MV4b',0,?,?,'[]',?,'ok',?,?,?)").run(`${A}.p`, A, '2026-07-26',
+      J([{ d: 4000, t: 30000, v: 2, acc: 8 }, { d: 4500, t: 30400, v: 2, acc: 8 }]), NOW_MS - 7200e3, J(APP), k0, k1);
+    putBatches(w.db, { actor: A, trainNo: 'MV4b', date: '2026-07-26', dir: 0, pts: mv4bPts, first: 100 });
+    const st = await w.cron();
+    return { chips: st.chips, bal: q.bal(w, A), v: q.verdicts(w, A, 'MV4b') };
+  };
+  const got = { none: await run('none', null, null), num: await run('num', 4000, 4500) };
+  ok('MV4b 前次 ok 列的 kept 是 NULL、這一發自己收下的點只跨不到 600 m → 0 顆（NULL 不是 0）；對照：前次 kept＝4000／4500 → 聯集 4000–8000 m → 1 顆',
+    got.none.bal === 0 && got.num.bal === 1, J(got));
+});
+
 // ═══ MV5–MV8：移動距離與上傳方式無關（同一份資料不論分幾次上傳、分在哪幾發判，籌碼相同）═══════════════════
 // 兩種上傳方式：one＝全部批次一發判完；split＝先傳 a、判一發，之後再傳 b、隔一小時再判一發。
 const MV_PD = '2026-07-26';

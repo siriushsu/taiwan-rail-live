@@ -7918,7 +7918,7 @@ async function bountyCreditTripChips(env, rules, groups, prior, now, who, fence)
   const durationSec = hi >= lo ? hi - lo : 0;
   // 整趟停在一站不給籌碼（chips.minTripMoveM，見 tripChips）：移動距離＝同一條線（sys|ln_id）所有 ok 線組（這一發與前次）
   // 收下的點的里程範圍取聯集之後的跨距，各線再取最大值。
-  //   ・只看 ok 的組、只看防偽閘收下的點：同一份資料不論分幾次上傳、分在哪幾發判，結果要相同——前次組用判定當下寫下的
+  //   ・只看 ok 的組、只看防偽閘收下的點：只看 ok 發次的收下點，同一條線各發的 ok 範圍合起來算（分幾次上傳本身不影響；單獨判成不採用的一發不計入）——前次組用判定當下寫下的
   //     kept_d0／kept_d1（見 bountyPriorGroups），與這一發的收下點同一個基準。
   //   ・同一條線前後兩發合起來看（前半 600 m、後半 600 m 合起來 1200 m），不是各組跨距取最大。
   //   ・不同線不相加：各線的里程基準不同，兩條線的數字放在一起沒有意義。
