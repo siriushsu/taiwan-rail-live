@@ -2611,9 +2611,17 @@ function plusEntitlementsInclude(record, wantEntitlement) {
 // /purchases 的 product_id 只給 prod…，而且 expand 只接受 items.redemption，帶 items.product 會回 400
 // （fixtures/revenuecat-lifetime-20261001/rest/expand-probe/）。
 // 沒設定時回空集合：不認任何終身、也不打 /purchases，行為與只有訂閱時相同。
+// 名單填錯（商店 ID、帶引號、JSON 陣列）時比對不到任何購買，終身買家會全部被判無資格而且沒有錯誤；
+// 所以不像 prod… 的值要留紀錄。只記錄、不改判定：這裡猜錯格式的代價只是一行多餘的 log。
+const RC_PRODUCT_ID_PATTERN = /^prod[0-9A-Za-z_]+$/;
 function plusLifetimeProductIds(env) {
-  return new Set(String(env.REVENUECAT_LIFETIME_PRODUCT_IDS || '')
-    .split(/[\s,]+/).map(value => value.trim()).filter(Boolean));
+  const ids = String(env.REVENUECAT_LIFETIME_PRODUCT_IDS || '')
+    .split(/[\s,]+/).map(value => value.trim()).filter(Boolean);
+  const malformed = ids.filter(id => !RC_PRODUCT_ID_PATTERN.test(id));
+  if (malformed.length) {
+    console.error(`[plus] REVENUECAT_LIFETIME_PRODUCT_IDS 有 ${malformed.length} 個值不是 RevenueCat 商品 ID（prod…），比對不到任何終身購買`);
+  }
+  return new Set(ids);
 }
 
 // 一筆 /purchases 的 purchase 算不算「持有終身 Plus」。四個條件全部要成立：
@@ -2935,15 +2943,21 @@ async function fetchRevenueCatLifetimePurchases(uid, env, wantEntitlement, entit
   return list.ok ? { ok: true, purchases: { items: list.items } } : list;
 }
 
-// 一個環境的完整 Plus 真相：訂閱與終身兩支一起查，任一支查不完整就整個回失敗（呼叫端轉 503、
-// 不寫文件），不拿半份真相判資格。兩支互不依賴，所以並行送出，不多等一趟來回。
+// 一個環境的完整 Plus 真相：訂閱與終身兩支一起查。訂閱查不完整就整個回失敗（呼叫端轉 503、
+// 不寫文件）；終身查不完整時，只有訂閱已經足以判定有資格才照訂閱判定，其餘一樣回失敗——
+// 「查不到」不能當成「沒有」。兩支互不依賴，所以並行送出，不多等一趟來回。
 async function fetchRevenueCatPlusTruth(uid, env, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
   const [subscriptions, lifetime] = await Promise.all([
     fetchRevenueCatSubscriptions(uid, env, wantEntitlement, entitlementEnvironment),
     fetchRevenueCatLifetimePurchases(uid, env, wantEntitlement, entitlementEnvironment),
   ]);
   if (!subscriptions.ok) return subscriptions;
-  if (!lifetime.ok) return lifetime;
+  if (!lifetime.ok) {
+    // 例：/purchases 權限不足或暫時 5xx 時，訂閱者照常可用；到期時間取訂閱那一份，只會少給、不會多給。
+    if (!plusEntitledFromSubscriptions(subscriptions.subscriptions, wantEntitlement, entitlementEnvironment)) return lifetime;
+    console.error('[plus] purchases 查詢失敗，但訂閱已足以判定有資格，本次只依訂閱判定');
+    return { ok: true, subscriptions: subscriptions.subscriptions, lifetimePurchases: null };
+  }
   return { ok: true, subscriptions: subscriptions.subscriptions, lifetimePurchases: lifetime.purchases };
 }
 

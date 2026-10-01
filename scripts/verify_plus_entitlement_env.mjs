@@ -913,6 +913,35 @@ section(SECTIONS[12]);
     '正向對照：同一份 sandbox 回應在 build 21 的 sandbox 回退 ⇒ 取得 sandbox 資格（先查正式、再查 sandbox）',
     JSON.stringify({ sandboxFallback, fallbackEnvs }));
 
+  // allowlist 用換行或空白分隔也要認得（secret 常被貼成多行）。
+  const spaced = await runLifetime({ uid: ANDROID_UID, production: { body: asProduction(androidOwned) },
+    env: LIFETIME_ENV({ REVENUECAT_LIFETIME_PRODUCT_IDS: ` ${lifetimeProd.join('\n ')}\n` }) });
+  check(spaced.ok === true && spaced.lifetimePurchases && spaced.lifetimePurchases.items.length === 1,
+    'allowlist 以換行＋空白分隔 ⇒ 一樣認得終身', JSON.stringify(spaced));
+  // 名單填錯格式（帶引號的 JSON 陣列、商店 ID）⇒ 認不到，但要留下紀錄；格式正確時不留（正向對照）。
+  {
+    const realError = console.error;
+    const seen = [];
+    console.error = (...args) => { seen.push(args.join(' ')); };
+    try {
+      const quoted = await runLifetime({ uid: ANDROID_UID, production: { body: asProduction(androidOwned) },
+        env: LIFETIME_ENV({ REVENUECAT_LIFETIME_PRODUCT_IDS: JSON.stringify(lifetimeProd) }) });
+      const quotedLogged = seen.some(line => line.includes('REVENUECAT_LIFETIME_PRODUCT_IDS') && line.includes('prod'));
+      seen.length = 0;
+      const storeIds = await runLifetime({ uid: ANDROID_UID, production: { body: asProduction(androidOwned) },
+        env: LIFETIME_ENV({ REVENUECAT_LIFETIME_PRODUCT_IDS: LIFETIME_STORE_IDS.join(',') }) });
+      const storeLogged = seen.some(line => line.includes('REVENUECAT_LIFETIME_PRODUCT_IDS'));
+      seen.length = 0;
+      const good = await runLifetime({ uid: ANDROID_UID, production: { body: asProduction(androidOwned) } });
+      const goodLogged = seen.some(line => line.includes('REVENUECAT_LIFETIME_PRODUCT_IDS'));
+      check(quoted.ok === false && quoted.status === 403 && quotedLogged
+          && storeIds.ok === false && storeIds.status === 403 && storeLogged
+          && good.ok === true && !goodLogged,
+        'allowlist 填成 JSON 陣列或商店 ID ⇒ 不認（不放寬比對）但留下設定錯誤紀錄；填對時不留紀錄',
+        JSON.stringify({ quoted: quoted.status, quotedLogged, storeIds: storeIds.status, storeLogged, good: good.ok, goodLogged }));
+    } finally { console.error = realError; }
+  }
+
   // allowlist 沒設定 ⇒ 不認終身、也不打 /purchases（與只有訂閱時相同）。
   const unconfigured = await runLifetime({ uid: ANDROID_UID, production: { body: asProduction(androidOwned) }, env: ENV() });
   check(unconfigured.ok === false && unconfigured.status === 403 && purchaseCalls().length === 0,
@@ -929,8 +958,20 @@ section(SECTIONS[12]);
       '/purchases 上游 500 ⇒ 503（可重試），不當成「沒有終身」', JSON.stringify(p500));
     const p500WithSub = await runLifetime({ uid: ANDROID_UID, production: { status: 500, body: {} },
       subscriptions: { object: 'list', items: [sub({ customer_id: ANDROID_UID })], next_page: null } });
-    check(p500WithSub.ok === false && p500WithSub.status === 503,
-      '有效訂閱＋/purchases 500 ⇒ 仍是 503（真相只拿到一半，不用半份真相寫文件）', JSON.stringify(p500WithSub));
+    check(p500WithSub.ok === true && p500WithSub.entitlementEnvironment === 'production'
+        && p500WithSub.lifetimePurchases === null && p500WithSub.subscriptions.items.length === 1
+        && logs.some(line => line.includes('purchases 查詢失敗') && line.includes('只依訂閱判定')),
+      '有效訂閱＋/purchases 500 ⇒ 照訂閱判定有資格（終身記為未知，不是「有」），並留下紀錄；上一條是沒有訂閱時的反向對照',
+      JSON.stringify({ p500WithSub, logs }));
+    const p403WithSub = await runLifetime({ uid: ANDROID_UID,
+      production: { status: 403, body: { object: 'error', type: 'authorization_error' } },
+      subscriptions: { object: 'list', items: [sub({ customer_id: ANDROID_UID })], next_page: null } });
+    const p403NoSub = await runLifetime({ uid: ANDROID_UID,
+      production: { status: 403, body: { object: 'error', type: 'authorization_error' } } });
+    check(p403WithSub.ok === true && p403WithSub.lifetimePurchases === null
+        && p403NoSub.ok === false && p403NoSub.status === 503,
+      '金鑰讀不到 /purchases（403）⇒ 訂閱者照常有資格，沒有訂閱的人 503（不當成「確定沒有終身」）',
+      JSON.stringify({ p403WithSub, p403NoSub }));
     logs.length = 0;
     const malformed = await runLifetime({ uid: ANDROID_UID, production: { body: { object: 'list', items: null, next_page: null } } });
     check(malformed.ok === false && malformed.status === 503 && logs.some(line => line.includes('purchases') && line.includes('不符官方 schema')),

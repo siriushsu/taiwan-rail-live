@@ -922,9 +922,9 @@ section(SECTIONS[11]);
     JSON.stringify({ body: refunded.body, doc: refunded.doc }));
 
   // 12-3 webhook：用 RevenueCat 實際送來的 Request body，重查 /purchases 後寫資格文件。
-  const hook = async (file, uid, purchasesSandbox, env = LIFETIME_ENV()) => {
+  const hook = async (file, uid, purchasesSandbox, env = LIFETIME_ENV(), subscriptions = EMPTY_LIST) => {
     resetIo();
-    rcBody = EMPTY_LIST;
+    rcBody = subscriptions;
     rcPurchases = { [uid]: { sandbox: purchasesSandbox } };
     const { event } = fixtureJson(`webhook/${file}`);
     const response = await worker.fetch(webhookEventRequest(event), env, {});
@@ -958,6 +958,18 @@ section(SECTIONS[11]);
   check(broken.response.status === 503 && callsTo('firestore.googleapis.com').length === 0,
     '購買 webhook 但 /purchases 上游 500 ⇒ 503 讓 RevenueCat 重試，且一行 Firestore 都沒寫',
     `status=${broken.response.status} firestore=${callsTo('firestore.googleapis.com').length}`);
+  // 同一則事件、同一個 /purchases 500，但訂閱仍有效 ⇒ 照訂閱寫 active，不讓訂閱者跟著 503
+  // （只會少給：到期取訂閱那一份）。上一條是它的反向對照：沒有訂閱時一樣得 503。
+  const subEndMs = Date.now() + 30 * DAY_MS;
+  const subOnly = await hook('ios_NON_RENEWING_PURCHASE_lifetime.json', IOS_UID, { status: 500, body: {} }, LIFETIME_ENV(),
+    { object: 'list', items: [baseSubscription({ customer_id: IOS_UID, environment: 'sandbox',
+      ends_at: subEndMs, current_period_ends_at: subEndMs })], next_page: null });
+  const subOnlyUntil = Number(subOnly.doc.activeUntilMs && subOnly.doc.activeUntilMs.integerValue);
+  check(subOnly.response.status === 200 && subOnly.writes.length === 1
+      && subOnly.writes[0].url.includes(`/documents/sandboxEntitlements/${IOS_UID}`)
+      && subOnly.doc.active.booleanValue === true && subOnlyUntil > subEndMs && subOnlyUntil <= subEndMs + 2 * DAY_MS,
+    '有效訂閱＋購買 webhook 但 /purchases 上游 500 ⇒ 照訂閱寫 active（到期取訂閱那一份），不回 503',
+    JSON.stringify({ status: subOnly.response.status, writes: subOnly.writes.map(w => w.url), doc: subOnly.doc, subEndMs }));
 }
 
 globalThis.fetch = realFetch;
