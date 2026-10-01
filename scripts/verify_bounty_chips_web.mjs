@@ -25,6 +25,7 @@
 //   CH17 說明卡的獎勵句：每趟幾顆、偏遠線倍率、每天上限，與伺服器入帳用的純函式算出來的一致（真規則檔與另一份規則檔）
 //   CH18 旗標關：看不到任何一句獎勵說法（新舊都沒有）、不讀規則檔、不打認領請求；對照：旗標開同一頁看得到
 //   CH19 手機版：360／375／414／768 × Chromium／WebKit，看板（有 ×N 標記）、說明卡、提示；兩兩相交掃描、沒有水平捲動、真觸控點「接下」、App 殼按「開始錄製」的更新提示在最上層、網頁點「接下」的提示在最上層
+//   CH20 ?demo=bounty 的示範看板：有一張偏遠線的卡、「籌碼 ×N」標記看得到（中英日、手機不用捲）；名單與倍率讀規則檔、換一份規則檔跟著翻；規則檔讀不到時維持原本 5 張卡；其他卡不變
 //
 // 打樁慣例照 scripts/verify_bounty_merge_web.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
 // localStorage['trainmap-account-uid'] 讓開機走 accountEnsureInit（回訪者分支）。
@@ -1432,6 +1433,92 @@ try {
     await attempt('CH19-webkit-launch', async () => {
       if (!wk) wk = await webkit.launch({ headless: true });
       for (const w of [360, 375, 414, 768]) await MOBILE19('webkit', wk, w);
+    });
+  }
+
+  // ═══ CH20：?demo=bounty 的示範看板——有一張偏遠線的卡，「籌碼 ×N」標記看得到 ═══════════════════════════════════════════
+  // 備援站沒有 /api/*，示範看板由頁面自己合成。偏遠線名單與倍率讀規則檔；挑卡與畫標記都走真看板那一套（bountyRemoteMult／renderBountyBoard），
+  // 假資料裡沒有另外寫標記。規則檔讀不到時，板子維持原本的 5 張卡、沒有標記；其他卡（內容、順序）不因為多了這一張而變。
+  if (want('CH20')) {
+    const TAG20 = { 'zh-TW': n => `籌碼 ×${n}`, en: n => `Chips ×${n}`, ja: n => `チップ ×${n}` };
+    const lineKeyOf = id => id.split('|').slice(0, 2).join('|');            // 示範卡的 id 是「系統|線名|…」，前兩段就是規則檔名單裡的寫法
+    const demoSession = async (lang, rules, ctxOpts = {}) => {
+      const locale = lang === 'en' ? 'en-US' : lang === 'ja' ? 'ja-JP' : 'zh-TW';
+      const s = await newSession({ app: false }, {}, { ctx: { locale, ...ctxOpts } });
+      s.rules = rules;                                                       // null＝送真的規則檔；物件＝改送這一份；'404'＝讀不到
+      await s.page.goto(`${BASE}/?lang=${lang}&demo=bounty`);
+      await bootDone(s.page);
+      return s;
+    };
+    const openDemoBoard = async (s, viaPassport) => {
+      if (viaPassport) await s.page.click('#passport [data-act="bountyboard"]'); else await s.page.evaluate(() => openBountyBoard());
+      await s.page.waitForFunction(() => document.querySelectorAll('#bountyList .bt-card').length >= 5, null, { timeout: 15000 });
+      await sleep(300);
+    };
+    const readDemo = page => page.evaluate(() => ({
+      cards: [...document.querySelectorAll('#bountyList .bt-card')].map(c => ({ id: c.dataset.card, text: c.textContent.replace(/\s+/g, ' ').trim(),
+        tags: [...c.querySelectorAll('.bt-pt')].map(x => ({ text: x.textContent.replace(/\s+/g, ' ').trim(), html: x.outerHTML })) })) }));
+    const remoteOf = (rules, id) => rules.chips.remoteLines.includes(lineKeyOf(id));
+    let fallback = null;                                                     // 規則檔讀不到時的板子（原本的那 5 張），給 CH20c 當對照
+
+    await attempt('CH20b', async () => {
+      const s = await demoSession('zh-TW', '404');
+      await openDemoBoard(s, true);
+      fallback = await readDemo(s.page);
+      const kinds = await s.page.evaluate(() => bountyBoardMem.cards.map(c => c.kind));
+      ok('CH20b 規則檔讀不到（404）：示範看板照樣出得來、維持原本的 5 張卡（4 張路段卡＋1 張停站卡）、沒有任何標記、頁面沒有未捕捉的例外（規則檔真的被問過）',
+        s.rulesReq >= 1 && fallback.cards.length === 5 && kinds.filter(k => k === 'track').length === 4 && kinds.filter(k => k === 'dwell').length === 1 &&
+          fallback.cards.every(c => c.tags.length === 0) && s.errors.length === 0, JSON.stringify({ rulesReq: s.rulesReq, kinds, tags: fallback.cards.map(c => c.tags.length), errors: s.errors }));
+      await s.ctx.close();
+    });
+
+    for (const lang of ['zh-TW', 'en', 'ja']) await attempt(`CH20a-${lang}`, async () => {
+      const s = await demoSession(lang, null);
+      await openDemoBoard(s, true);
+      const d = await readDemo(s.page);
+      const want20 = TAG20[lang](RULES.chips.remoteMultiplier);
+      const remote = d.cards.filter(c => remoteOf(RULES, c.id)), others = d.cards.filter(c => !remoteOf(RULES, c.id));
+      ok(`CH20a-${lang} 示範看板有偏遠線的卡（名單讀規則檔：${RULES.chips.remoteLines.join('、')}）、每張都標「${want20}」（倍率讀規則檔）、標記的寫法跟真看板一模一樣；其他卡沒有標記；頁面沒有未捕捉的例外`,
+        remote.length >= 1 && remote.every(c => c.tags.length === 1 && c.tags[0].text === want20 && c.tags[0].html === `<div class="bt-pt bt-chip">${want20}</div>`) &&
+          others.length >= 5 && others.every(c => c.tags.length === 0) && s.errors.length === 0,
+        JSON.stringify({ remote: remote.map(c => [c.id, c.tags]), others: others.length, errors: s.errors }));
+      if (lang === 'zh-TW') {
+        // 其他卡沒有因為多了這一張而變：把偏遠線那張拿掉，剩下的內容與順序就是規則檔讀不到時的那 5 張
+        ok('CH20c 多出來的只有偏遠線那一張：拿掉它之後，其餘的卡（編號與卡面的字、順序）與規則檔讀不到時的 5 張完全相同',
+          !!fallback && remote.length === 1 && JSON.stringify(others.map(c => [c.id, c.text])) === JSON.stringify(fallback.cards.map(c => [c.id, c.text])),
+          JSON.stringify({ remote: remote.map(c => c.id), others: others.map(c => c.id), fallback: fallback && fallback.cards.map(c => c.id) }));
+      }
+      await s.ctx.close();
+    });
+
+    await attempt('CH20d', async () => {
+      const s = await demoSession('zh-TW', RULES_ALT);                      // 另一份規則檔：偏遠線改成屏東線、倍率 5
+      await openDemoBoard(s, true);
+      const d = await readDemo(s.page);
+      const tagged = d.cards.filter(c => c.tags.length > 0);
+      const want20 = TAG20['zh-TW'](RULES_ALT.chips.remoteMultiplier);
+      ok(`CH20d 名單與倍率跟著規則檔走（不是寫死）：換一份規則檔，標記的卡換成屏東線、標「${want20}」，南迴線的卡不再有標記`,
+        tagged.length === 1 && lineKeyOf(tagged[0].id) === KEY_PT && tagged[0].tags[0].text === want20 &&
+          d.cards.every(c => remoteOf(RULES_ALT, c.id) === (c.tags.length > 0)) && !d.cards.some(c => lineKeyOf(c.id) === KEY_NAN && c.tags.length > 0) && s.errors.length === 0,
+        JSON.stringify({ tagged: tagged.map(c => [c.id, c.tags.map(x => x.text)]), errors: s.errors }));
+      await s.ctx.close();
+    });
+
+    // 手機：開板之後不用捲，標記就在視窗裡、點得到（量的是「中心點最上面是誰」，被別的東西蓋住或被捲動容器裁掉都會是別人）
+    for (const [w, h] of [[360, 640], [390, 844]]) await attempt(`CH20e-${w}`, async () => {
+      const s = await demoSession('zh-TW', null, { viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+      await openDemoBoard(s, false);
+      await sleep(400);
+      const r = await s.page.evaluate(() => {
+        const tag = document.querySelector('#bountyList .bt-chip');
+        if (!tag) return { found: false };
+        const q = tag.getBoundingClientRect(), hit = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2);
+        return { found: true, text: tag.textContent.trim(), inView: q.left >= 0 && q.right <= innerWidth && q.top >= 0 && q.bottom <= innerHeight, hitTag: !!(hit && hit.closest('.bt-chip')),
+          scrolled: document.getElementById('bountyList').scrollTop };
+      });
+      ok(`CH20e-${w} 手機 ${w}×${h}：開板後不捲動，「${TAG20['zh-TW'](RULES.chips.remoteMultiplier)}」標記就在視窗內、中心點最上面就是它`,
+        r.found && r.text === TAG20['zh-TW'](RULES.chips.remoteMultiplier) && r.inView && r.hitTag && r.scrolled === 0 && s.errors.length === 0, JSON.stringify({ r, errors: s.errors }));
+      await s.ctx.close();
     });
   }
 } finally {

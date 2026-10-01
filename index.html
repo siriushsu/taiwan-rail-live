@@ -23418,15 +23418,23 @@ function bountyDemoBoard() {
   // 外語介面才查得到 trainTypeName() 的目錄譯名;舊值「區間」「莒光」不是契約值,英日文會原樣露出中文。
   const KINDS = ['自強', '區間車', '莒光/復興', '自強', '區間車'];
   const CLAIMERS = [0, 2, 0, 1, 0], SAMPLES = [0, 1, 0, 0, 2];
-  const cards = [];
-  for (const [mapKey, rec] of lineNetwork()) {
-    if (cards.length >= 4 || !rec.segs || rec.segs.length < 6) continue;
-    const i = cards.length, p = mapKey.split('|');
+  // 第 i 張路段卡：車種、方向、段數、已接人數都由 i 決定。
+  const trackCard = (mapKey, rec, i) => {
+    const p = mapKey.split('|');
     const take = rec.segs.slice(i, i + 3 + (i % 3)); // 各卡段數不同
-    cards.push({ id: `${mapKey}|${i % 2}|${KINDS[i]}|track|`, sys: p[0], lnId: p[1],
+    return { id: `${mapKey}|${i % 2}|${KINDS[i]}|track|`, sys: p[0], lnId: p[1],
       trainKind: KINDS[i], dir: i % 2, kind: 'track', slot: '',
       unitKeys: take.map(s => s.key), units: take.length, points: take.length * 3,
-      claimers: CLAIMERS[i], samples: SAMPLES[i], coverN: 1 });
+      claimers: CLAIMERS[i], samples: SAMPLES[i], coverN: 1 };
+  };
+  const lines = [...lineNetwork()].filter(([, rec]) => rec.segs && rec.segs.length >= 6);
+  const cards = lines.slice(0, 4).map(([mapKey, rec], i) => trackCard(mapKey, rec, i));
+  // 偏遠線的卡要有一張：不然示範板上永遠看不到「籌碼 ×N」標記，備援站就沒辦法確認那個設計。
+  // 偏遠線名單與倍率讀規則檔（openBountyBoard 在示範模式會先等規則檔讀完），挑卡用的是畫標記的同一個 bountyRemoteMult()，
+  // 標記照真看板的畫法畫，不在假資料裡另外寫。規則檔讀不到、或名單上的線都不在路網裡，就不加，板子維持原樣。
+  if (!cards.some(c => bountyRemoteMult(c))) {
+    const far = lines.slice(4).map(([mapKey, rec]) => trackCard(mapKey, rec, 4)).find(c => bountyRemoteMult(c));
+    if (far) cards.splice(1, 0, far); // 放第二張：手機上不用捲就看得到
   }
   // 示範板也必須含 dwell：不然備援站唯一可走的端到端設計驗收永遠只測得到 track，
   // 這次兩個 dwell 結構洞就會再次在「全綠」測試外復發。
@@ -23605,6 +23613,8 @@ async function openBountyBoard() {
   document.getElementById('bountyList').innerHTML = `<div class="bt-empty">${escHtml(t('載入中…'))}</div>`;
   // 卡片上的籌碼倍率標記要讀規則檔：跟看板請求一起讀，畫第一次就帶得到。讀不到只是不標倍率，不擋看板。
   const rulesP = bountyRules().catch(() => null);
+  // 示範板要先讀到規則檔，才挑得出偏遠線的卡（見 bountyDemoBoard）；真看板照舊跟請求並行。
+  if (DEMO_MODE === 'bounty') await rulesP;
   try { bountyBoardMem = await fetchBountyBoard(); }
   catch (e) {
     document.getElementById('bountyList').innerHTML = `<div class="bt-empty">${escHtml(t('懸賞板暫時讀不到，等一下再試一次'))}</div>`;
