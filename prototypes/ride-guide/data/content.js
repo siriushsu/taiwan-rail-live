@@ -138,6 +138,8 @@ window.RIDE_CONTENT = {
   photos: {
     'shifen-hero': { file: 'img/shifen-hero.jpg', author: 'AMN47', license: 'CC BY 3.0', licenseUrl: 'https://creativecommons.org/licenses/by/3.0/', sourceUrl: 'https://commons.wikimedia.org/wiki/File:TRA_DRC1027_on_Shifen_Old_Street_20101024.jpg',
       caption: { zh: '平溪線列車行經十分老街（2010）', en: 'A Pingxi Line train in Shifen Old Street (2010)' }, alt: { zh: '黃色柴油客車沿著十分老街店家門前的鐵軌停靠，上方掛著天燈造型燈籠', en: 'A yellow diesel railcar on the track running between shopfronts on Shifen Old Street, with lantern-shaped lights overhead' }, modified: { zh: '已縮圖', en: 'resized' } },
+    'shifen-oldst': { file: 'img/shifen-oldst.jpg', author: 'Chainwit.', license: 'CC BY 4.0', licenseUrl: 'https://creativecommons.org/licenses/by/4.0/', sourceUrl: 'https://commons.wikimedia.org/wiki/File:New_Taipei_-_Shifen_Old_Street_%E5%8D%81%E5%88%86%E8%80%81%E8%A1%97_(2025)_-_IMG_13.jpg',
+      caption: { zh: '十分老街，鐵軌從店家中間穿過（2025）', en: 'Shifen Old Street, with the track between the shops (2025)' }, alt: { zh: '平溪線鐵軌從十分老街兩側店家之間穿過，遊客在軌道旁拍照', en: 'The Pingxi Line track running between the shops of Shifen Old Street, with visitors taking photos beside it' }, modified: { zh: '已縮圖', en: 'resized' } },
     'shifen-falls': { file: 'img/shifen-falls.jpg', author: 'lumoplank', license: 'CC0', licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/', sourceUrl: 'https://commons.wikimedia.org/wiki/File:Shifen_-_Shifen4812.jpg',
       caption: { zh: '十分瀑布', en: 'Shifen Waterfall' }, alt: { zh: '從高處看寬闊的簾幕式十分瀑布與下方的基隆河', en: 'The wide curtain of Shifen Waterfall and the Keelung River seen from above' }, modified: { zh: '已縮圖', en: 'resized' } },
     'pingxi-hero': { file: 'img/pingxi-hero.jpg', author: 'Solomon203', license: 'CC BY-SA 4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/', sourceUrl: 'https://commons.wikimedia.org/wiki/File:TRA_Pingxi_Station_outside_stairs_20190914a.jpg',
@@ -176,7 +178,7 @@ window.RIDE_CONTENT = {
       themes: [{ icon: 'train', label: { zh: '火車門前過', en: 'Trains at the door' } }, { icon: 'water', label: { zh: '瀑布', en: 'Waterfall' } }, { icon: 'bridge', label: { zh: '運煤吊橋', en: 'Coal-era bridge' } }],
       stay: { zh: '2–3 小時', en: '2–3 hours' },
       highlights: [
-        { id: 'oldst', icon: 'train', lat: 25.04269, lon: 121.77667,
+        { id: 'oldst', icon: 'train', photo: 'shifen-oldst', lat: 25.04269, lon: 121.77667,
           name: { zh: '十分老街', en: 'Shifen Old Street' },
           teaser: { zh: '火車不時從街道中央緩緩駛過。', en: 'Trains roll slowly down the middle of the street.' },
           desc: { zh: ['火車不時從十分老街中央緩緩駛過，形成「火車門前過」的景象。老街旁的十分廣場是每年平溪天燈節的主場之一。', '老街中間就是行車中的鐵軌，請遵照交通警示標示通行，不要隨意跨越鐵軌。'], en: ['Trains roll slowly down the middle of Shifen Old Street, right past people’s doors. Shifen Square beside it is one of the main venues of the annual Pingxi Sky Lantern Festival.', 'Live tracks run down the middle of the street. Follow the warning signs and do not cross the tracks wherever you please.'] },

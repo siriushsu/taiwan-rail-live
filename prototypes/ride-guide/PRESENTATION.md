@@ -6,7 +6,7 @@
 |---|---|---|
 | 現場簡報 | 開 `present.html`（全螢幕 F11），← → 換頁，空白鍵自動播放／暫停 | 邊講邊停、回答提問 |
 | 影片 | `node prototypes/ride-guide/record_video.mjs` 產出 `_video/ride-guide-demo.mp4`（1920×1080，約 2 分鐘，無配音） | 會前寄送、現場備援 |
-| 發布短片 | `node prototypes/ride-guide/film/capture_assets.mjs` 後 `node prototypes/ride-guide/film/render_film.mjs`，產出 `_video/ride-guide-launch.mp4`（2560×1440、60fps、58 秒；配樂用 `film/score.py` 合成，重拍對準剪接點） | 開場播放、會後轉寄，一分鐘抓到重點 |
+| 發布短片 | `node prototypes/ride-guide/film/capture_assets.mjs` 後 `node prototypes/ride-guide/film/render_film.mjs`，產出 `_video/ride-guide-launch.mp4`（2560×1440、60fps、72.5 秒；配樂用 `film/score.py` 合成，重拍對準剪接點） | 開場播放、會後轉寄，一分鐘抓到重點 |
 
 兩者用同一份腳本 `data/tour.js`：改一處，現場版與影片一起改。
 左邊手機是**真的原型在操作**，不是截圖；現場可以停在任何一頁、直接在手機畫面上點給委員看。

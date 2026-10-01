@@ -113,7 +113,9 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
 <script>
 (function () {
   'use strict';
-  const DUR = 58;
+  // 節奏：WARP 用 150 BPM 的「譜面時間」寫；TEMPO＝150／實際 BPM，成片時間＝譜面時間 × TEMPO（score.py 的 K 必須相同）
+  const TEMPO = 1.25;   // 120 BPM，全片 72.5 秒
+  const DUR = 58 * TEMPO;
   const stage = document.getElementById('stage');
 
   /* ───────── 時間工具 ───────── */
@@ -717,7 +719,7 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
     const band = el('div', 'a band', S.cam, '<div style="padding:18px 70px;font-size:56px;font-weight:900;color:#FFFDF6;letter-spacing:.12em;text-indent:.12em;white-space:nowrap">乘車導覽模式</div>');
     band.style.borderRadius = '20px';
     const note = el('div', 'a sub', S.cam, '互動展示原型・資料為示範');
-    const cred = el('div', 'a', S.cam, '照片（Wikimedia Commons）：AMN47 CC BY 3.0・lumoplank CC0・Solomon203 CC BY-SA 4.0・Taiwankengo CC BY 4.0・billy1125 CC BY 2.0<br>軌道線形與店家：© OpenStreetMap 貢獻者（ODbL）｜台灣底圖：內政部縣市界線（政府資料開放授權條款）｜時刻表：臺鐵開放資料<br>畫面均為互動展示原型實際截圖；配樂為程式合成原創｜未使用任何業者標誌，不代表已與任何單位合作');
+    const cred = el('div', 'a', S.cam, '照片（Wikimedia Commons）：AMN47 CC BY 3.0・Chainwit. CC BY 4.0・lumoplank CC0・Solomon203 CC BY-SA 4.0・Taiwankengo CC BY 4.0・billy1125 CC BY 2.0<br>軌道線形與店家：© OpenStreetMap 貢獻者（ODbL）｜台灣底圖：內政部縣市界線（政府資料開放授權條款）｜時刻表：臺鐵開放資料<br>畫面均為互動展示原型實際截圖；配樂為程式合成原創｜未使用任何業者標誌，不代表已與任何單位合作');
     cred.style.cssText += 'font-size:20px;font-weight:700;color:#8A7C62;white-space:nowrap;text-align:center;line-height:1.6';
     S.render = (t) => {
       const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
@@ -740,8 +742,9 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
     };
   }
 
-  /* 對拍：配樂是 150 BPM（一拍 0.4 秒、一小節 1.6 秒，強拍在 0.8＋1.6k 秒）。
-     WARP 把「成片時間 T」對應到「動畫時間 t」：每個剪接點、重擊點都被移到拍點上，
+  /* 對拍：WARP 以 150 BPM 的譜面時間撰寫（一拍 0.4 秒、一小節 1.6 秒，強拍在 0.8＋1.6k 秒），
+     實際播放再整體乘上 TEMPO（120 BPM：一拍 0.5 秒、一小節 2.0 秒）。
+     WARP 把「譜面時間 T」對應到「動畫時間 t」：每個剪接點、重擊點都被移到拍點上，
      兩個錨點之間線性伸縮；動畫速度在 0.75–1.5 倍之間，最快的兩段是靜止停留與甩鏡，看不出變速。[t, T] */
   const WARP = [
     [0, 0], [0.6, 0.8], [1.55, 1.6], [2.95, 2.8], [4.15, 4.0],          // Logo：牌子落下、軌字、印章、穿越轉場＝第一個重拍
@@ -755,6 +758,7 @@ html,body{margin:0;background:var(--paper);overflow:hidden}
     [48.6, 48.4], [52.0, 52.0], [53.35, 53.6], [54.6, 54.8], [58.0, 58.0], // 車鉤扣上、Logo 收尾
   ];
   function warp(T) {
+    T /= TEMPO;   // 成片時間 → 譜面時間
     if (T <= 0) return 0;
     for (let i = 0; i < WARP.length - 1; i++) {
       const [t0, T0] = WARP[i], [t1, T1] = WARP[i + 1];

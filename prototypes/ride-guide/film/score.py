@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""乘車導覽發布影片的配樂（輕快版）：150 BPM、D 大調，馬林巴、鐵琴、電鋼琴反拍與沙鈴，重音對準剪接點。
+"""乘車導覽發布影片的配樂（輕快版）：120 BPM、D 大調，馬林巴、鐵琴、電鋼琴反拍與沙鈴，重音對準剪接點。
 
 全部用程式合成（鼓、貝斯、和弦、鐵琴、音效都是數學產生），沒有取樣、沒有外部音檔，所以沒有授權問題。
 刻意不用低頻撞擊與厚重合成器：剪接點用輕的鈸、拍手與鐵琴和弦標出來。
-剪接點與 film.html 的 WARP 是同一份時間表：一拍 0.4 秒、一小節 1.6 秒，強拍在 0.8＋1.6k 秒。
+剪接點與 film.html 的 WARP 是同一份時間表。程式裡的時間一律寫成「譜面時間」（一拍 0.4 秒、一小節 1.6 秒、
+強拍在 0.8＋1.6k 秒），輸出時整體乘上 K＝150／BPM：120 BPM 時一拍 0.5 秒、一小節 2.0 秒，全片 72.5 秒。
 
 用法：python3 prototypes/ride-guide/film/score.py [輸出.wav]
       預設輸出 prototypes/ride-guide/_video/score.wav（不進版控），需要 numpy、scipy。
@@ -16,7 +17,9 @@ import numpy as np
 from scipy import signal
 
 SR = 48000
-DUR = 58.0
+BPM = 120
+K = 150 / BPM              # 譜面時間 → 成片時間（film.html 的 TEMPO 必須相同）
+DUR = 58.0 * K
 N = int(SR * DUR)
 BEAT, BAR, D0 = 0.4, 1.6, 0.8
 S16 = BEAT / 4
@@ -92,7 +95,7 @@ KICKS = []
 
 
 def add(bus, x, t0, gain=1.0, pan=0.0, verb=0.0):
-    i = int(round(t0 * SR))
+    i = int(round(t0 * K * SR))   # t0 是譜面時間
     if i >= N:
         return
     x = np.asarray(x, dtype=float)
@@ -237,10 +240,11 @@ def bass(m, dur, cutoff=1100):
 
 # ───────────── 音效 ─────────────
 def whoosh(dur, peak=0.7, f0=300, f1=3200, f2=600, pan0=-0.8, pan1=0.8):
+    dur *= K                       # 轉場音效跟著節拍伸縮，峰值才會落在剪接點
     n = int(dur * SR)
-    t = np.arange(n) / dur / SR
+    t = np.arange(n) / n
     fc = np.where(t < peak, f0 * (f1 / f0) ** (t / peak), f1 * (f2 / f1) ** ((t - peak) / (1 - peak)))
-    x = tvfilt(noise(dur), fc, 'bandpass', 1.6)
+    x = tvfilt(noise(dur)[:n], fc, 'bandpass', 1.6)
     amp = np.where(t < peak, (t / peak) ** 2.2, np.exp(-(t - peak) / (1 - peak) * 4))
     x *= amp
     pan = pan0 + (pan1 - pan0) * t
@@ -255,13 +259,13 @@ def lift(t0, t1, gain=1.0, base=74):
     for i in range(n):
         p = i / max(n - 1, 1)
         add('music', marimba(base + scale[i % len(scale)] + 12 * (i // len(scale)), 0.25), t0 + i * S16 / 2, 0.14 * gain * (0.5 + 0.5 * p), pan=-0.4 + 0.8 * p, verb=0.15)
-    d = t1 - t0
+    d = (t1 - t0) * K
     nz = tvfilt(noise(d), 2500 * 4 ** (np.arange(int(d * SR)) / (d * SR)), 'bandpass', 1.8) * (np.arange(int(d * SR)) / (d * SR)) ** 2
     add('fx', nz, t0, 0.10 * gain)
 
 
 def reverse_crash(dur=0.6):
-    c = mk_crash()[:, :int(dur * SR)][:, ::-1]
+    c = mk_crash()[:, :int(dur * K * SR)][:, ::-1]
     return c * np.linspace(0, 1, c.shape[1]) ** 2
 
 
@@ -344,7 +348,7 @@ def arrange():
         span = BAR - (t0 - b) + (0.6 if k == 35 else 0.0)
         if a.get('pad'):
             att = 0.6 if k in (-1, 34, 35) else 0.3
-            add('music', pad(ch, span + 0.3, cutoff=a['pad'], a=att, r=0.35), t0, 0.32 if not a.get('soft') else 0.42, verb=0.35)
+            add('music', pad(ch, (span + 0.3) * K, cutoff=a['pad'], a=att, r=0.35), t0, 0.32 if not a.get('soft') else 0.42, verb=0.35)
         if a.get('comp'):
             for i in (2, 6, 10, 14):
                 add('music', ep(ch, 0.12, 1.15 if i in (6, 14) else 0.95), b + i * S16, 0.5, pan=-0.15, verb=0.12)
@@ -355,7 +359,7 @@ def arrange():
                 add('music', bass(m, 0.13), b + i * S16, 0.42 if i % 4 == 0 else 0.3)
         elif a.get('bass') == 'root':
             for i in (0, 8):
-                add('music', bass(r, 0.5), b + i * S16, 0.42)
+                add('music', bass(r, 0.5 * K), b + i * S16, 0.42)
         if a.get('hook'):
             pat = HOOK_A if k % 2 == 0 else HOOK_B
             tones = [tri[0] + 12, tri[1] + 12, tri[2] + 12, tri[0] + 24]
@@ -414,8 +418,9 @@ def events():
     accent(7.2, 0.8)
 
     # 3. 掃 QR（7.2–12.0）
-    t = tt(0.95)
-    scan = np.sin(2 * np.pi * np.cumsum(1100 * 2 ** (t / 0.95)) / SR) * (0.6 + 0.4 * np.sin(2 * np.pi * 18 * t)) * np.minimum(1, t / 0.1) * np.minimum(1, (0.95 - t) / 0.1)
+    sd = 0.95 * K
+    t = tt(sd)
+    scan = np.sin(2 * np.pi * np.cumsum(1100 * 2 ** (t / sd)) / SR) * (0.6 + 0.4 * np.sin(2 * np.pi * 18 * t)) * np.minimum(1, t / 0.1) * np.minimum(1, (sd - t) / 0.1)
     add('fx', scan, 7.7, 0.035, pan=-0.3)                                          # 掃描線
     accent(8.8, 0.8)
     add('fx', filt(noise(0.25), 'highpass', 4000) * np.exp(-tt(0.25) / 0.025), 8.78, 0.18)   # 閃白
@@ -536,7 +541,7 @@ def events():
 def sidechain():
     g = np.ones(N)
     for t, v in KICKS:
-        i = int(t * SR)
+        i = int(t * K * SR)
         if i >= N:
             continue
         n = min(int(0.3 * SR), N - i)
@@ -585,7 +590,7 @@ def main():
         w.setsampwidth(2)
         w.setframerate(SR)
         w.writeframes(pcm.tobytes())
-    print('寫出', out, f'{DUR:.1f} 秒')
+    print('寫出', out, f'{DUR:.1f} 秒，{BPM} BPM')
 
 
 if __name__ == '__main__':
