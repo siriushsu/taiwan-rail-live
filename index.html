@@ -23347,7 +23347,7 @@ let bountyMeMem = null;
 // buildCorrectSection() 對 !me 有專門的空狀態分支,呼叫端可以放心 .then() 接著重繪,
 // 不會因為這支函式失敗而把 renderPassport() 一起打斷(比照 bountySaveUploadQueue() 的反面教材:
 // 那支吞例外吞到呼叫端連「存失敗了」都不知道;這支吞例外但留下明確、可預期的降級狀態)。
-// 🔴 登入時一律帶 Bearer、不用 ?actor=（review-B B4）：伺服器對「帳號」與「併進帳號的裝置」的 ?actor= 讀取回 401——
+// 🔴 登入時一律帶 Bearer、不用 ?actor=：伺服器對「帳號」與「併進帳號的裝置」的 ?actor= 讀取回 401——
 // 裝置 token 不是憑證，拿到它的人不該看得到帳號的點數與認領。未登入才用這台裝置的 ?actor=（從沒併過的匿名裝置照舊讀得到）。
 // 401 就清掉手上那份：那是「你現在看不到這個帳」，留著舊值會在登出後繼續顯示帳號的資料。取 token 手法同 accountDeleteServerData。
 async function fetchBountyMe() {
@@ -23709,7 +23709,7 @@ const BOUNTY_RECORDING_KEY = 'trainmap-bounty-recording-v1';
 const BOUNTY_UPLOAD_KEY = 'trainmap-bounty-upload-v1';
 let bountyRulesMem = null, bountyUploadPromise = null;
 // 速度、精度是 null（裝置沒有都卜勒速度、沒有精度）就留 null：Number(null) 是 0，存檔／重新整理後還原、鎖線時整批重洗都走這裡，
-// 一洗就變成「速度 0＝停著」「精度 0 m＝很準」，伺服器會照單全收（第九輪獨立驗收 E1；Worker 的 sanitizeSamples 第十三批起已不把 null 當 0）。
+// 一洗就變成「速度 0＝停著」「精度 0 m＝很準」，伺服器會照單全收（Worker 的 sanitizeSamples 已不把 null 當 0）。
 const bountyNumOrNaN = x => x == null ? NaN : Number(x);
 function bountyCleanSample(x) {
   if (!x || !Number.isFinite(Number(x.d)) || !Number.isFinite(Number(x.t))) return null;
@@ -23852,7 +23852,7 @@ function bountyBestLine(r) {
 function bountyUpdateDwellProgress(r, rules) {
   if (!r.card || r.card.kind !== 'dwell') { r._dwellMissed = false; return; }
   const rec = lineNetwork().get(r.sys + '|' + r.lnId), D = rules.quality.dwell;
-  // posSpeedWindowSec 的範圍（數字、1–10 秒）與 Worker coverageOf() 的守門同一條（第十二輪獨立驗收 P3-3）。
+  // posSpeedWindowSec 的範圍（數字、1–10 秒）與 Worker coverageOf() 的守門同一條。
   if (!rec || !D || !(D.posSpeedVetoMps > D.stopSpeedMaxMps) || !(typeof D.posSpeedWindowSec === 'number' && D.posSpeedWindowSec >= 1 && D.posSpeedWindowSec <= 10)) throw new Error('dwell rules unavailable');
   const stations = (rec.ln.stations || []).filter(s => s.name && s.d != null).slice().sort((a, b) => a.d - b.d);
   const wanted = new Set((r.card.unitKeys || []).map(k => String(k).split('|'))
@@ -23878,9 +23878,9 @@ function bountyUpdateDwellProgress(r, rules) {
     let runStart = null, prevT = null, covered = false, base = 0;
     for (let j = 0; j < local.length; j++) {
       // 與 Worker coverageOf() 同一條：沒有速度（null）不當 0（那會把高速通過的點當成停著），改用位置微分；
-      // 前一點沒有、或同一秒就不算低速（第九輪獨立驗收 E-2(b)）。回報的速度再低，位置微分超過 posSpeedVetoMps 就不信它
-      // （第十輪獨立驗收 P1-2：Android 沒有速度時送 0.0，通過的站會全亮）。位置微分跟「至少 posSpeedWindowSec 秒以前的那一點」比，
-      // 窗內還沒有那麼早的點就跟窗內第一點比（第十一輪獨立驗收 P2-1：跟前一點比的話 GPS 晃大時真停靠被否決掉），理由與門檻見 Worker 那一段。
+      // 前一點沒有、或同一秒就不算低速。回報的速度再低，位置微分超過 posSpeedVetoMps 就不信它
+      // （Android 沒有速度時送 0.0，通過的站會全亮）。位置微分跟「至少 posSpeedWindowSec 秒以前的那一點」比，
+      // 窗內還沒有那麼早的點就跟窗內第一點比（跟前一點比的話 GPS 晃大時真停靠被否決掉），理由與門檻見 Worker 那一段。
       const p = local[j], t = Number(p.t);
       while (base + 1 < j && Number(local[base + 1].t) <= t - D.posSpeedWindowSec) base++;
       const q = j ? local[base] : null, dt = q ? t - Number(q.t) : 0;
@@ -24137,7 +24137,7 @@ function bountyStopSampling(r = state.recording) {
 }
 async function bountyRules() {
   if (bountyRulesMem) return bountyRulesMem;
-  // 🔴 第十一輪獨立驗收：原本是 force-cache——快取裡有就直接用、不回伺服器驗證，換版後回訪者一直拿到舊規則
+  // 🔴 原本是 force-cache——快取裡有就直接用、不回伺服器驗證，換版後回訪者一直拿到舊規則
   //    （Chromium 實測重新整理也一樣）；新規則多了 posSpeedVetoMps 這種鍵，下面的停靠進度守門就每一拍丟錯。
   //    改跟其他 data/*.json 同一套（jsonCacheMode：每次帶 ETag 重新驗證，沒變回 304）。網址要維持單引號字面，
   //    build_data_manifest.mjs 靠它掃出這個檔。
