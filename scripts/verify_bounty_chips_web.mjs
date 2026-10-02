@@ -1149,19 +1149,19 @@ try {
         claimed: '接下了・24 小時內有效', demoClaimed: '（示範）接下了・24 小時內有效',
         saveFail: '已在伺服器接下，但這台裝置存不下來（可能是儲存空間滿了或無痕模式）——重新整理後認領不會留著',
         again: '這段你已經接下了，還沒過期', expiry: '接下的卡 24 小時內有效。', promise: '即使這次的資料不能用，只要錄得夠完整，校正者章還是你的。',
-        passport: '還不能錄程，要更新到最新版才行', tip: '校正者章還是你的', rowTrack: '0 段已覆蓋', rowDwell: '0 站已覆蓋',
+        passport: '還不能錄程，要更新到最新版才行', tip: '前面是你校正的段數', tipGone: '校正者章還是你的', rowTrack: '0 段已覆蓋', rowDwell: '0 站已覆蓋',
         subShell: '這些項目還沒有實測資料。這一版還不能接，要更新到最新版的軌島 App 才能接下來錄——現在可以先看看有哪些。' },
       en: { re: POINTS_RE_I18N, sub: [/chips/, /daily limit/], subNo: /honou?r/i, subDemo: [/Demo data/, /fake/], tag: 'Chips ×2',
         claimed: 'Claimed · valid for 24 hours', demoClaimed: '(Demo) Claimed · valid for 24 hours',
         saveFail: 'Claimed on the server, but this device couldn’t save it (storage may be full, or you’re in private browsing) — the claim won’t persist after you refresh',
         again: 'You’ve already claimed this segment, and it hasn’t expired yet', expiry: 'A claimed card is valid for 24 hours.', promise: 'Even if this data can’t be used, the calibrator stamp is still yours as long as you recorded enough of it.',
-        passport: 'update to the latest version to record', tip: 'you keep the calibrator stamp', rowTrack: 'Segments covered: 0', rowDwell: 'Stations covered: 0',
+        passport: 'update to the latest version to record', tip: 'the first is the number of segments you calibrated', tipGone: 'you keep the calibrator stamp', rowTrack: 'Segments covered: 0', rowDwell: 'Stations covered: 0',
         subShell: 'These items don’t have real measurement data yet. This version can’t claim them — update the Rail Island app to the latest version to claim and record. For now, you can browse what’s available.' },
       ja: { re: POINTS_RE_I18N, sub: [/チップ/, /上限/], subNo: /名誉/, subDemo: [/デモデータ/, /仮/], tag: 'チップ ×2',
         claimed: '受け取りました・24時間有効', demoClaimed: '（デモ）受け取りました・24時間有効',
         saveFail: 'サーバー側では受領済みですが、この端末には保存できませんでした（ストレージ不足またはプライベートブラウジングの可能性）。更新すると受領記録は残りません',
         again: 'この区間はすでに受け取り済みで、まだ有効期限内です', expiry: '受け取ったカードは24時間有効です。', promise: '今回のデータが使えなくても、十分に記録できていれば、校正者スタンプはあなたのものです。',
-        passport: '最新版に更新してください', tip: '校正者スタンプはあなたのものです', rowTrack: '0区間を記録済み', rowDwell: '0駅を記録済み',
+        passport: '最新版に更新してください', tip: '最初の数字は校正した区間の数', tipGone: '校正者スタンプはあなたのものです', rowTrack: '0区間を記録済み', rowDwell: '0駅を記録済み',
         subShell: 'これらの項目にはまだ実測データがありません。このバージョンでは受け取れません。軌島アプリを最新版に更新すると、受け取って記録できます。今は内容を確認できます。' },
     };
     const ME_EMPTY = { ...ME, points: 0, corrected: { segs: 0, adopted: 0 }, lines: [] };       // 護照「校正貢獻」的空狀態
@@ -1211,7 +1211,7 @@ try {
         ok(`CH16j-${lang} 護照「校正貢獻」空狀態（現行 App 殼：請更新那句，不許諾錄就有章）沒有提點數（「${X.passport}」在、沒有點數字樣）`, pp !== null && pp.includes(X.passport) && noPts(pp, X.re), String(pp));
         await s.page.evaluate(() => openHelp('bountyme'));
         const tip = await s.page.evaluate(() => { const e = document.querySelector('#helpBody .help-sec[data-sec="bountyme"] .tip'); return e ? e.textContent.replace(/\s+/g, ' ').trim() : null; });
-        ok(`CH16k-${lang} 說明中心「護照裡的校正貢獻」那一則沒有提點數（「${X.tip}」在、沒有點數字樣）`, tip !== null && tip.includes(X.tip) && noPts(tip, X.re), String(tip));
+        ok(`CH16k-${lang} 說明中心「護照裡的校正貢獻」那一則（現行 App 殼：只講兩個數字各是什麼意思）沒有提點數（「${X.tip}」在、承諾句「${X.tipGone}」不在、沒有點數字樣）`, tip !== null && tip.includes(X.tip) && !tip.includes(X.tipGone) && noPts(tip, X.re), String(tip));
         if (lang === 'en') ok('CH16l-en 英文介面：提示與承諾句沒有漏出中文（日文用漢字，這條只對英文有意義；日文那一輪靠上面的整句比對）', [br.toasts[0], br2.toasts[0], again[0], pp, tip].every(x => !/[㐀-鿿]/.test(x)), JSON.stringify([br.toasts[0], br2.toasts[0], again[0], pp, tip]));
         ok(`CH16m-${lang} 頁面沒有未捕捉的例外`, s.errors.length === 0, JSON.stringify(s.errors));
         await s.ctx.close();
@@ -1632,9 +1632,9 @@ try {
     };
     // 改過的四句各自的新寫法（說明中心兩節的一句話、說明卡的承諾句、說明中心「護照裡的校正貢獻」那節的提示）；日文原本就沒有主語，沒動
     const SENT = {
-      'zh-TW': { help: '有些路段我手上的行駛資料不夠準', rec: '我用它把那段路的位置推算修準', promise: '我會告訴你是什麼原因、下次怎麼改善。', tip: '而且我會寫出是什麼原因、下次怎麼改善' },
-      en: { help: 'the running data I have isn’t accurate enough yet', rec: 'and I use it to make train position estimates', promise: 'I’ll tell you why and how to do better next time.', tip: 'and I tell you why and how to do better next time' },
-      ja: { help: '走行データの精度が足りない区間があります', rec: '乗車のついでに記録してもらうと', promise: '理由と次回の改善点をお伝えします。', tip: '原因と次回の改善方法もお知らせします' },
+      'zh-TW': { help: '有些路段我手上的行駛資料不夠準', rec: '我用它把那段路的位置推算修準', promise: '我會告訴你是什麼原因、下次怎麼改善。', tip: '前面是你校正的段數' },
+      en: { help: 'the running data I have isn’t accurate enough yet', rec: 'and I use it to make train position estimates', promise: 'I’ll tell you why and how to do better next time.', tip: 'the first is the number of segments you calibrated' },
+      ja: { help: '走行データの精度が足りない区間があります', rec: '乗車のついでに記録してもらうと', promise: '理由と次回の改善点をお伝えします。', tip: '最初の数字は校正した区間の数' },
     };
     const PASSPORT21 = { 'zh-TW': '還不能錄程，要更新到最新版才行', en: 'update to the latest version to record', ja: '最新版に更新してください' };   // 現行 App 殼的空狀態
     const ME_EMPTY21 = { ...ME, points: 0, corrected: { segs: 0, adopted: 0 }, lines: [] };       // 護照「校正貢獻」的空狀態
@@ -1671,7 +1671,7 @@ try {
         br.text.includes(X.promise) && hitsOf(lang, [br.text]).length === 0, br.text);
       ok(`CH21c-${lang} 護照「校正貢獻」那一節（現行 App 殼）：沒有第一人稱複數（讀到的那一節有請更新那一句：「${PASSPORT21[lang]}」）`,
         passport.includes(PASSPORT21[lang]) && hitsOf(lang, [passport]).length === 0, passport);
-      ok(`CH21d-${lang} 說明中心「懸賞板」「錄一趟校正旅程」「護照裡的校正貢獻」三節：沒有第一人稱複數；三節各有改過的那一句（「${X.help}」「${X.rec}」「${X.tip}」）`,
+      ok(`CH21d-${lang} 說明中心（現行 App 殼）「懸賞板」「錄一趟校正旅程」「護照裡的校正貢獻」三節：沒有第一人稱複數；三節各有改過的那一句（「${X.help}」「${X.rec}」「${X.tip}」）`,
         help.bounty.includes(X.help) && help.bountyrec.includes(X.rec) && help.bountyme.includes(X.tip) && hitsOf(lang, Object.values(help)).length === 0, JSON.stringify(help));
       ok(`CH21e-${lang} 接下／已接下又接／存不下三句提示：沒有第一人稱複數；頁面沒有未捕捉的例外`,
         toasts.length === 3 && toasts.every(x => x.length > 4) && hitsOf(lang, toasts).length === 0 && s.errors.length === 0, JSON.stringify({ toasts, errors: s.errors }));
