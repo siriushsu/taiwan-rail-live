@@ -3601,3 +3601,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '車站時刻表頁：平鎮臨時站要等官方公布英文站名後才會有頁面，其他車站照常每週更新': '駅の時刻表ページ：中壢〜埔心間の新しい臨時駅は、公式の英語駅名が公表されるまでページを作りません。ほかの駅は毎週どおり更新します。',
   '車站時刻表頁：中壢、埔心之間的平鎮臨時站要等官方公布英文站名後才會有頁面；在那之前每週更新班表時先略過它，其他車站照常更新': '駅の時刻表ページ：中壢〜埔心間の新しい臨時駅は、公式の英語駅名が公表されるまでページを作りません。それまでは毎週の時刻表更新でこの駅を見送り、ほかの駅は通常どおり更新します。',
 });
+
+// 2026-10-02 查詢分頁答案區四列上限（v1002b）：第一層更新紀錄那條的 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '查詢分頁：方向多的車站，答案區固定顯示四列，其餘往下捲，更新時不會跳回頂端': 'Lookup tab: at stations with many directions, the answer area now shows four rows; scroll for the rest, and it no longer jumps back to the top when it updates',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '查詢分頁：方向多的車站，答案區固定顯示四列，其餘往下捲，更新時不會跳回頂端': '「調べる」タブ：方面の多い駅では回答欄に4行まで表示し、残りはスクロールで見られます。更新しても先頭に戻りません',
+});

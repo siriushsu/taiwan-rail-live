@@ -450,6 +450,44 @@ sections.push({ name: 'G4 四列上限', run: async (browser, en) => {
     return { before, after };
   });
   ok(`[${en}] G4b 重畫不洗掉區內捲動(${s1.before} → ${s1.after})`, s1.before > 0 && s1.after === s1.before, JSON.stringify(s1));
+  // G4c:上限要用對齊後的列高量。boardAlignColumns 依新內容切換 #queryAnswer 的 data-wrap2(整板單行↔兩行),
+  // 換內容那一刻旗標還是上一次內容留下的。G4 會不會碰上「上一次與這一次需要的版面不同」要看跑的時刻,
+  // 這裡直接把旗標翻成相反再重畫。前提先證明翻旗標真的改變列高(不然這條沒有牙)。
+  // 牙:上限只在對齊前量 ⇒ max-height 用的是另一種列高 ⇒ 紅。
+  const s2 = await page.evaluate(() => {
+    const wrap = document.getElementById('queryAnswer');
+    const rowH = () => wrap.querySelector('.qa-stn .qa-rows .row').getBoundingClientRect().height;
+    wrap.querySelector('.qa-stn .qa-rows').scrollTop = 0; // G4b 把這格捲到底了;可見列數要從頂端數
+    const h0 = rowH();
+    const flippedTo = wrap.dataset.wrap2 ? 'single' : 'wrap2';
+    if (flippedTo === 'wrap2') wrap.dataset.wrap2 = '1'; else delete wrap.dataset.wrap2;
+    const h1 = rowH();
+    wrap._html = null;
+    renderQueryAnswer();
+    const box = wrap.querySelector('.qa-stn .qa-rows');
+    const rows = [...box.querySelectorAll('.row')];
+    const br = box.getBoundingClientRect();
+    const want = rows[4].getBoundingClientRect().top - br.top + box.scrollTop;
+    const visible = rows.filter(r => { const q = r.getBoundingClientRect(); return q.top >= br.top - 1 && q.bottom <= br.bottom + 1; }).length;
+    return { h0, h1, flippedTo, after: wrap.dataset.wrap2 ? 'wrap2' : 'single', maxHeight: parseFloat(box.style.maxHeight), want: Math.round(want * 10) / 10, visible, scrollable: box.scrollHeight > box.clientHeight + 1 };
+  });
+  ok(`[${en}] G4c 前提:翻 data-wrap2 會改變列高`, Math.abs(s2.h1 - s2.h0) > 1, JSON.stringify({ h0: s2.h0, h1: s2.h1, flippedTo: s2.flippedTo }));
+  ok(`[${en}] G4c 對齊切換單行／兩行之後,上限仍是第 5 列的頂(${s2.flippedTo} → ${s2.after})`, Math.abs(s2.maxHeight - s2.want) <= 1 && s2.visible <= 4 && s2.scrollable, JSON.stringify(s2));
+  // G4d:還原捲動要排在最後那次量上限之後。要造出「用兩行列高量的上限,對齊時內容暫時變矮」:單行站捲到底後
+  // 翻成兩行再重畫;兩行站不必翻——對齊量寬時本來就會暫時拿掉 data-wrap2。不把兩行翻成單行:內容一縮就不能捲,
+  // 捲動在重畫前已經被夾回 0,量不到東西,還會在正確的程式上假紅。牙:還原放回對齊之前 ⇒ 捲動被夾回 0 ⇒ 紅。
+  const s3 = await page.evaluate(() => {
+    const wrap = document.getElementById('queryAnswer');
+    const natural = wrap.dataset.wrap2 ? 'wrap2' : 'single';
+    const box = wrap.querySelector('.qa-stn .qa-rows');
+    box.scrollTop = box.scrollHeight;
+    const before = box.scrollTop;
+    if (natural === 'single') wrap.dataset.wrap2 = '1';
+    wrap._html = null;
+    renderQueryAnswer();
+    return { natural, before, after: wrap.querySelector('.qa-stn .qa-rows').scrollTop };
+  });
+  ok(`[${en}] G4d 重畫時區內捲動照樣保留(自然狀態 ${s3.natural}${s3.natural === 'single' ? ',先翻成兩行' : ''};${s3.before} → ${s3.after})`, s3.before > 0 && s3.after === s3.before, JSON.stringify(s3));
   await ctx.close();
 }});
 

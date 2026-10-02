@@ -5627,6 +5627,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="querytab0906"><span class="d">10/2</span><span>查詢分頁：方向多的車站，答案區固定顯示四列，其餘往下捲，更新時不會跳回頂端</span></li>
         <li data-cl-of="pingzhen1002"><span class="d">10/2</span><span>新車站：中壢、埔心之間的平鎮臨時站 10/3 啟用，地圖與時刻表照官方班表停靠，到站可以蓋章</span></li>
         <li data-cl-of="collectwidget1001"><span class="d">10/1</span><span>新增車站收集小工具：主畫面直接看收集進度與台灣鐵道點陣圖，可選全台或單一系統，按「蓋章」就能在附近車站留下紀錄</span></li>
         <li data-cl-of="renderperf0930"><span class="d">10/1</span><span>改善地形與立體建物的流暢度：減少畫面外與車廂的重複繪製，靜止或暫停時降低負擔；建物線條改從畫面中央向外補齊</span></li>
@@ -5634,7 +5635,6 @@
         <li data-cl-of="railgravel0930"><span class="d">9/30</span><span>立體鐵軌改用淡灰碎石道床，收窄邊坡與軌道輪廓；近看保留細顆粒，遠看更低調，車站多股軌道不再糊成一片土色</span></li>
         <li data-cl-of="rideexpire0930"><span class="d">9/30</span><span>「我上車了」後沒按下車，搭的車又從班表消失（週五夜車過午夜、連假加班車）時，過了抵達時間會自動下車；跟著別班車時按「搭乘中」也能直接下車（謝謝網友回報）</span></li>
         <li data-cl-of="tainanroads0930"><span class="d">10/1</span><span>台南地面鐵道歷史重播：馬路改成柏油路面，畫上車道線、中央黃線與有路緣的人行道，放大就看得到</span></li>
-        <li data-cl-of="tainanmodel0929"><span class="d">9/30</span><span>台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，周邊建築從灰色方塊改成有外牆顏色、窗戶、店面與招牌，補上香格里拉飯店的塔樓，視角可自由轉向與傾斜，最多放大到 34 公尺</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5864,7 +5864,7 @@
         <li data-cl="mrttrainno0908"><span class="d">9/8</span><span>跟隨捷運列車時，資訊卡上方會顯示車次：只在官方即時資料真的有給車次時顯示，文湖線、環狀線與其他沒有公開車次的系統維持留白，不會用內部編號充數</span></li>
         <li data-cl="boardcardfix0908"><span class="d">9/8</span><span>修正車站看板與跟車卡三處顯示問題：只有一條線經過的捷運站不再多出一整條線名標題；看板列上沒有線名時，車號前不再多一個全形空格造成左緣參差；跟車時拖動地圖，下方的列車卡不再被壓扁到看不見下一站與到站時間</span></li>
         <li data-cl="widgethelp0906"><span class="d">9/6</span><span>App 說明中心的小工具頁改成介紹頁：每種小工具都有實際畫面預覽與尺寸；Android 可以直接按「加到桌面」把小工具釘到主畫面</span></li>
-        <li data-cl="querytab0906"><span class="d">9/6</span><span>手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現</span></li>
+        <li data-cl="querytab0906"><span class="d">9/6</span><span>手機底部「搜尋」改為「查詢」：半高面板先給離你最近的站各方向下一班，再列提醒、今日動態、附近車站與小工具入口；在車站附近開 App 會自動出現。10/2 修正：方向多的車站，答案區固定顯示四列，其餘往下捲，更新時不會跳回頂端</span></li>
         <li data-cl="xferlivehandoff"><span class="d">9/4</span><span>跟車時選好下一班台鐵或高鐵後，列車抵達轉乘站，鎖定畫面與動態島會接手顯示接續班次與發車倒數；開車後繼續顯示下一站，不再留在上一班車。</span></li>
         <li data-cl="webmcp"><span class="d">9/2</span><span>在 ChatGPT Work 或 Codex 的內建瀏覽器中，可查軌島畫面、車站看板、火車狀態與營運公告，也能開啟看板或跟隨指定火車；一般瀏覽器不受影響。</span></li>
         <li data-cl="crowdcard"><span class="d">9/2</span><span>跟隨台北捷運列車時，卡片會顯示逐節車廂擁擠度；無法確認車號或沒有官方資料時留白。</span></li>
@@ -6976,7 +6976,7 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v0930a：減少近景離屏投影、重複方向計算與全台車輛身分掃描；同一視角重用靜態投影，3D 待機與暫停降頻。
 // v0930b：近景先篩除遠方路線與車輛，地下透視省去重複背面 pass；建物線條由螢幕中央優先，逐頂點只查一次 DEM。
 // v1001c：整合雙平台車站收集、台南道路、平鎮 SEO 最終校稿與 3D 效能改善。
-const BUILD = 'v1002a';
+const BUILD = 'v1002b';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -31755,16 +31755,21 @@ function renderQueryAnswer() {
   wrap.hidden = false;
   // 可見上限:量第 5 列的頂到容器頂的距離當 max-height(從量到的推導,不寫死 px);不足 5 列就不限
   // (量法用 box.scrollTop,這裡要用新節點天生的 0 去量,還原捲動要等這段量完才做)
-  for (const box of wrap.querySelectorAll('.qa-rows')) {
-    const rows = box.querySelectorAll('.row');
-    box.style.maxHeight = rows.length > QUERY_ANSWER_ROWS_MAX ? (rows[QUERY_ANSWER_ROWS_MAX].getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop) + 'px' : '';
-  }
+  const capRows = () => {
+    for (const box of wrap.querySelectorAll('.qa-rows')) {
+      const rows = box.querySelectorAll('.row');
+      box.style.maxHeight = rows.length > QUERY_ANSWER_ROWS_MAX ? (rows[QUERY_ANSWER_ROWS_MAX].getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop) + 'px' : '';
+    }
+  };
+  capRows(); // 照原本順序先套一次:捲軸會佔寬的平台,對齊量「單行放不放得下」時要把區內捲軸算進去
+  boardAlignColumns(wrap);
+  // 對齊會依新內容切換 data-wrap2(整板單行↔兩行),列高跟著變;上面那次量到的還是上一次內容留下的版面,對齊後再量一次
+  capRows();
   for (const box of wrap.querySelectorAll('.qa-rows')) {
     const blk = box.closest('.qa-stn');
     const saved = blk && scrollByKey.get(blk.dataset.sys + '|' + blk.dataset.name);
     if (saved) box.scrollTop = saved;
   }
-  boardAlignColumns(wrap);
   // 區內約每模擬秒重畫一次(高倍速時更快),按下到放開之間列可能被換掉、click 目標變成容器(wrap 本身)、
   // .closest('.qa-stn') 落空——比照看板 el.onpointerdown/onclick 的作法(≈28124):按下先記,click 撈不到列時用記的補。
   wrap.onpointerdown = e => {
