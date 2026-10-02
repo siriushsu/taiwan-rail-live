@@ -220,11 +220,11 @@
   "data/tra_pass_obs.json": {
    "sourceDescription": "TDX api/historical/v2 Historical/Rail/TRA/LiveTrainDelay",
    "sourceField": "source",
-   "effectiveDate": "2026-10-02T02:07:07.246Z",
+   "effectiveDate": "2026-10-02T02:40:50.816Z",
    "effectiveDateField": "built_at",
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "3613d1404350629938dc7c2e59899daa"
+   "checksum": "979a5baea3e0a6c2f5a56b3f4ae6d044"
   },
   "data/tra_platforms.json": {
    "sourceDescription": "OpenStreetMap contributors — way[railway=platform／public_transport=platform／railway=platform_edge] 與 node[stop_position／railway=stop]，經 Overpass API 取得",
@@ -242,7 +242,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "4137b5a43cb739fb20fbb2e535e086cb"
+   "checksum": "ba02d5e54184d3676c4480008c8db4ef"
   },
   "data/tra_schedule_dense.json": {
    "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-10-02)起連續 14 天中實際發佈得到的 14 天（2026-10-02…2026-10-1",
@@ -251,7 +251,7 @@
    "effectiveDateField": "dateRange",
    "geometrySource": "TDX+OSM",
    "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
-   "checksum": "9c47d406dceaba1d34748ff8ee700170"
+   "checksum": "e65eba864aa8a5419158fab04b3fa6eb"
   },
   "data/tra_special_trains.json": {
    "sourceDescription": "台鐵特別列車故事檔案。事實查證日期 2026-07-09（兩份網路研究＋台鐵官網/媒體抽驗＋當日時刻表交叉比對）。時效敏感條目（班次數、季節路線、退役進度）標註於 status2026，隔年應重新查證。2026-09-12 補查山嵐號固定車次（6676／6677），其餘條目未重查。",

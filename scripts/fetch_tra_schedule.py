@@ -236,8 +236,19 @@ def build_trains_for_day(train_infos, lookup, unknown_codes_seen,
         time_infos = sorted(t["TimeInfos"], key=lambda ti: int(ti["Order"]))
 
         raw_stops = []
+        prev_ti = None
         for ti in time_infos:
             code = ti["Station"]
+            # 同一站碼、到離站時刻都相同的連續兩列只收第一列：2026-10-02 抓到的 10/3 環島 6669，Order 23、24
+            # 都是新左營 23:02。多出的那一列會變成「新左營→新左營」一段，立體地圖的接力借股道找不到任何
+            # 既有計畫有這一段，整班綁不到股道、全程退回示意線形。只丟重複的列，站名與時刻照官方原值。
+            dup = (prev_ti is not None and code == prev_ti["Station"]
+                   and ti["ARRTime"] == prev_ti["ARRTime"] and ti["DEPTime"] == prev_ti["DEPTime"])
+            prev_ti = ti
+            if dup:
+                drop_stats["duplicate_rows"] += 1
+                print(f"  ▶ 重複列：{t['Train']} Order {ti['Order']} 站碼 {code} 與前一列相同，只收一次", file=sys.stderr)
+                continue
             st, why = lookup(code)
             if st is None:
                 drop_stats["dropped_stops"] += 1
@@ -448,7 +459,8 @@ def main():
         " 跨午夜處理：同一車次內若後一停靠站原始時刻小於前一站，累加 86400 秒使 arrSec/depSec 全程單調遞增。"
         f" 資料清洗（跨全部日期累計）：因查無站碼座標而整站被丟棄的 stop 數={drop_stats['dropped_stops']}；"
         f"因清洗後剩不足 2 站而整筆丟棄的車次數="
-        f"{drop_stats['dropped_trains_no_coord'] + drop_stats['dropped_trains_too_short']}。"
+        f"{drop_stats['dropped_trains_no_coord'] + drop_stats['dropped_trains_too_short']}；"
+        f"同站同時刻的連續重複列只收一次，略過 {drop_stats['duplicate_rows']} 列。"
         f" 各日產出車次數：{per_day_counts}。"
     )
     if pending_skips:

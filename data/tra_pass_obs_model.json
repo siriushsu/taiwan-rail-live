@@ -1,6 +1,6 @@
 {
  "source": "TDX api/historical/v2 Historical/Rail/TRA/LiveTrainDelay",
- "built_at": "2026-10-02T02:07:07.246Z",
+ "built_at": "2026-10-02T02:40:50.816Z",
  "dates": [
   "2026-09-25",
   "2026-09-26",
@@ -144,14 +144,14 @@
   ]
  ],
  "stats": {
-  "trains": 518,
-  "runs": 4160,
-  "slots": 16902,
+  "trains": 519,
+  "runs": 4182,
+  "slots": 17069,
   "taken": 5665,
-  "skipDup": 1,
+  "skipDup": 0,
   "skipDupNo": 2,
   "skipVar": 6,
-  "rejEnds": 7033,
+  "rejEnds": 7187,
   "rejDur": 0,
   "rejMono": 93,
   "rejRange": 9,
@@ -160,19 +160,19 @@
   "rejDayV": 141,
   "rejWin": 3320,
   "rejDrift": 2064,
-  "segFillVbar": 7997,
-  "segFillTrap": 4798,
+  "segFillVbar": 8089,
+  "segFillTrap": 4811,
   "segFillLin": 0,
   "rejHole": 0,
   "rejOutlier": 3679,
   "rejFinalV": 222,
   "srcCount": {
    "a": 5665,
-   "b": 9377,
-   "none": 1860
+   "b": 9533,
+   "none": 1871
   },
   "trainsWithA": 227,
-  "trainsFinal": 317
+  "trainsFinal": 318
  },
  "trains_layerA": {
   "1": {
