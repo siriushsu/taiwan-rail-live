@@ -147,7 +147,16 @@ async function injectPlus(page, { mode = 'buy', subscribed = false } = {}) {
     }
     window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus' };
     let sub = !!subscribed;
-    const info = () => ({ entitlements: { active: sub ? { plus: { identifier: 'plus' } } : {} }, managementURL: sub ? 'https://apps.apple.com/account/subscriptions' : '' });
+    // 訂閱中的 customerInfo 照真實形狀:有效的訂閱商品、各自的商店與續訂狀態。持有狀態(訂閱／終身／不明)是從
+    // activeSubscriptions 判定的,只給 entitlement 會被當成「不明」,畫面就不再是訂閱中的樣子。
+    const subId = 'tw.railisland.app.plus.annual';
+    const info = () => ({
+      entitlements: { active: sub ? { plus: { identifier: 'plus', productIdentifier: subId, store: 'APP_STORE' } } : {} },
+      activeSubscriptions: sub ? [subId] : [],
+      allPurchasedProductIdentifiers: sub ? [subId] : [],
+      subscriptionsByProductIdentifier: sub ? { [subId]: { isActive: true, willRenew: true, store: 'APP_STORE', managementURL: 'https://apps.apple.com/account/subscriptions' } } : {},
+      managementURL: sub ? 'https://apps.apple.com/account/subscriptions' : '',
+    });
     const offering = { availablePackages: [
       { identifier: '$rc_monthly', packageType: 'MONTHLY', webBillingProduct: { currentPrice: { formattedPrice: M_PRICE } } },
       { identifier: '$rc_annual', packageType: 'ANNUAL', webBillingProduct: { currentPrice: { formattedPrice: A_PRICE } } },
@@ -1595,6 +1604,517 @@ for (const w of [360, 375, 414, 768]) await mobilePlusEntry(w, { sel: IMPORT_SEL
     JSON.stringify(sbxProd));
   ok('SBX 本輪零 pageerror/console.error', sbxErrs.length === 0, sbxErrs.slice(0, 3).join(' | '));
   await sbx.ctx.close();
+}
+
+// ══════════════ LT. 終身通行證(T4):持有狀態判定、四種身分×有無升級 package 的畫面、購買路徑、買後提醒、版面、en/ja ══════════════
+// 資料來源:fixtures/revenuecat-lifetime-20261001/sdk/ 的真實 SDK 回傳(offering 與 customerInfo),只改複本、只改身分相關欄位。
+// 夾具是 sandbox 購買(isSandbox:true),正式 build 的 plusActiveFrom 會判不啟用——單元段用 RAIL_PLUS_SANDBOX_OK 的頁面直接餵,
+// 畫面段把複本的 isSandbox 改成 false。旗標、商品 ID 清單一律用執行期覆寫 window.RAIL_REVENUECAT_CONFIG(plusConfig() 每次現讀)。
+const LT_FIX = path.join(ROOT, 'fixtures/revenuecat-lifetime-20261001/sdk');
+const ltRead = rel => JSON.parse(readFileSync(path.join(LT_FIX, rel), 'utf8')).data;
+const LT_OFFER = { APP_STORE: ltRead('ios-device/2026-10-01T162439.060Z_offerings.json').rawPlus, PLAY_STORE: ltRead('android/2026-10-01T151224.364Z_offerings.json').rawPlus };
+const LT_CI = {
+  PLAY_STORE: ltRead('android/2026-10-01T151335.031Z_purchase_lifetime_upgrade.json').customerInfo,       // Android 990
+  APP_STORE: ltRead('ios-device/2026-10-01T162517.118Z_customerInfo.json').customerInfo,                   // iOS 1,490
+  APP_STORE_BOTH: ltRead('ios-device/2026-10-01T162624.963Z_customerInfo.json').customerInfo,              // iOS 兩筆買斷
+  APP_STORE_AFTER_REFUND: ltRead('ios-device/2026-10-01T163950.976Z_customerInfo.json').customerInfo,      // iOS 退掉 990 剩 1,490
+};
+// 真正出貨的設定檔(不是測試自己寫的):商品 ID 清單與旗標欄位的型別在這裡驗,畫面段用同一份清單。
+const LT_SHIPPED = (() => { const w = {}; new Function('window', readFileSync(path.join(ROOT, 'revenuecat-config.js'), 'utf8'))(w); return w.RAIL_REVENUECAT_CONFIG; })();
+const LT_IDS = LT_SHIPPED.lifetimeProductIds;
+const LT_SHOT_DIR = path.join(ROOT, 'docs/superpowers/t4-shots');
+mkdirSync(LT_SHOT_DIR, { recursive: true });
+const ltClone = o => JSON.parse(JSON.stringify(o));
+const LT_MONTHLY = { APP_STORE: 'tw.railisland.app.plus.monthly', PLAY_STORE: 'railisland_pass:monthly-autorenewing' };
+const LT_STORE_URL = { APP_STORE: 'https://apps.apple.com/account/subscriptions', PLAY_STORE: 'https://play.google.com/store/account/subscriptions?package=tw.railisland.app' };
+const ltNonSandbox = ci => { for (const b of ['active', 'all']) for (const e of Object.values((ci.entitlements || {})[b] || {})) e.isSandbox = false; return ci; };
+// 身分複本。kind: never | paid | subscribed | lifetime
+function ltInfo(kind, store, o = {}) {
+  const ci = ltNonSandbox(ltClone(LT_CI[store]));
+  if (kind === 'lifetime') { ci.managementURL = null; return ci; }
+  const mid = LT_MONTHLY[store];
+  const ent = { ...ci.entitlements.all.plus, productIdentifier: mid, store, expirationDate: '2099-01-01T00:00:00Z', willRenew: true, isActive: true };
+  ci.nonSubscriptionTransactions = [];
+  if (kind === 'never') { ci.entitlements = { active: {}, all: {} }; ci.allPurchasedProductIdentifiers = []; ci.activeSubscriptions = []; return ci; }
+  ci.allPurchasedProductIdentifiers = [mid];
+  if (kind === 'paid') { ci.entitlements = { active: {}, all: { plus: { ...ent, isActive: false, willRenew: false, expirationDate: '2020-01-01T00:00:00Z' } } }; ci.activeSubscriptions = []; return ci; }
+  ci.entitlements = { active: { plus: ent }, all: { plus: ent } };      // subscribed:月票有效、還在續
+  ci.activeSubscriptions = [mid];
+  ci.subscriptionsByProductIdentifier = { [mid]: { productIdentifier: mid, isActive: true, willRenew: o.willRenew !== false, store: o.entryStore ?? store, managementURL: o.entryUrl ?? null } };
+  ci.managementURL = o.managementURL ?? null;
+  return ci;
+}
+// 買了終身、月票卻還掛著:終身交易加上有效中的訂閱。
+function ltLifetimeWithSub(store, o = {}) {
+  const ci = ltInfo('lifetime', store), mid = LT_MONTHLY[store];
+  ci.activeSubscriptions = [mid];
+  ci.allPurchasedProductIdentifiers = [...ci.allPurchasedProductIdentifiers, mid];
+  ci.subscriptionsByProductIdentifier = { [mid]: { productIdentifier: mid, isActive: true, willRenew: o.willRenew !== false, store: o.entryStore ?? store, managementURL: o.entryUrl ?? null } };
+  ci.managementURL = o.managementURL ?? null;
+  return ci;
+}
+function ltOffering(store, withUpgrade) {
+  const o = ltClone(LT_OFFER[store]);
+  if (!withUpgrade) o.availablePackages = o.availablePackages.filter(p => p.identifier !== 'lifetime_upgrade');
+  return o;
+}
+const ltPrice = (offering, id) => offering.availablePackages.find(p => p.identifier === id).product.priceString;
+// 注入商店 stub:offering 與 customerInfo 都來自夾具複本。calls 記錄 adapter.purchase 收到的 package identifier。
+async function ltInject(page, { flag = true, info, offering, purchaseInfo = null, fail = null, loggedIn = true, channel = true } = {}) {
+  await page.evaluate(({ flag, info, offering, purchaseInfo, fail, loggedIn, channel, ids }) => {
+    state.plus = null;
+    state.account = { ready: true, user: loggedIn ? { uid: 'lt-uid', email: 'lt@example.com', displayName: 'LT' } : null, syncing: false, lastSync: 0, actionError: '', error: '' };
+    window.__ltCalls = []; window.__ltInfo = info; window.__toasts = [];
+    if (!window.__toastWrapped) { const orig = window.showToast; window.showToast = (m, o) => { window.__toasts.push(String(m)); return orig(m, o); }; window.__toastWrapped = true; }
+    document.getElementById('plusModal').hidden = true;
+    if (!channel) {   // 網站:只有 iosApiKey、沒有 adapter ⇒ plusConfigured() 為假
+      window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus', iosApiKey: 'ios_only_key', lifetimeOnSale: flag, lifetimeProductIds: ids };
+      delete window.RAIL_PLUS_TEST_ADAPTER;
+      return;
+    }
+    window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus', lifetimeOnSale: flag, lifetimeProductIds: ids };
+    window.RAIL_PLUS_TEST_ADAPTER = {
+      setUser: async () => {},
+      getCustomerInfo: async () => window.__ltInfo,
+      getOfferings: async () => ({ all: { plus: offering }, current: offering }),
+      purchase: async pkg => { window.__ltCalls.push(pkg.identifier); if (fail) throw new Error(fail); if (purchaseInfo) window.__ltInfo = purchaseInfo; return { customerInfo: window.__ltInfo }; },
+      restore: async () => window.__ltInfo,
+    };
+  }, { flag, info, offering, purchaseInfo, fail, loggedIn, channel, ids: LT_IDS });
+}
+async function ltOpen(page) {
+  await page.evaluate(() => plusOpen('test'));
+  await page.waitForFunction(() => state.plus && state.plus.loading === false, null, { timeout: 8000 });
+  await page.waitForTimeout(80);
+}
+const ltReadPanel = page => page.evaluate(() => {
+  const body = document.getElementById('plusBody');
+  const life = body.querySelector('.plus-lifetime');
+  let acct = null;
+  try {
+    accountRender();
+    const row = [...document.querySelectorAll('#accountBody .account-syncbox')].find(r => ((r.querySelector('b') || {}).textContent) === '軌島通行證');
+    acct = row ? row.querySelector('span').textContent : null;
+  } catch (e) { acct = 'ERR:' + e; }
+  return {
+    hidden: document.getElementById('plusModal').hidden,
+    text: body.innerText,
+    plans: body.querySelectorAll('.plus-plan').length,
+    buy: [...body.querySelectorAll('[data-plus="buy"]')].map(b => ({
+      pkg: b.dataset.pkg, tier: b.dataset.tier || null,
+      price: (b.querySelector('.plus-plan-price') || {}).textContent || '',
+      name: (b.querySelector('.plus-plan-name') || {}).textContent || '',
+      badge: (b.querySelector('.plus-plan-badge') || {}).textContent || '' })),
+    lifeKids: life ? [...life.children].map(k => ({ tag: k.tagName, cls: k.className, text: k.textContent })) : [],
+    ownedText: (body.querySelector('.plus-owned') || {}).textContent || null,
+    links: [...body.querySelectorAll('a.plus-manage')].map(a => ({ href: a.getAttribute('href'), text: a.textContent, target: a.target, rel: a.rel })),
+    notes: [...body.querySelectorAll('.account-note')].map(n => n.textContent),
+    restore: !!body.querySelector('[data-plus="restore"]'),
+    errorText: (body.querySelector('.account-error') || {}).textContent || '',
+    state: { ownership: state.plus.ownership, everPaid: state.plus.everPaid, active: state.plus.active },
+    acct,
+  };
+});
+function ltExpect(id, withUp, offering) {
+  const full$ = ltPrice(offering, '$rc_lifetime');
+  const up$ = withUp ? ltPrice(offering, 'lifetime_upgrade') : null;
+  const tier = (id === 'paid' || id === 'subscribed') && withUp ? 'upgrade' : 'full';
+  return {
+    buy: [...(id === 'never' || id === 'paid' ? [['annual', null], ['month', null]] : []), ...(id === 'lifetime' ? [] : [['lifetime', tier]])],
+    price: id === 'lifetime' ? null : (tier === 'upgrade' ? up$ : full$),
+    other$: id === 'lifetime' ? null : (tier === 'upgrade' ? full$ : up$),     // 不該同時出現的另一個價格
+    def: id !== 'lifetime', eligible: id !== 'lifetime' && tier === 'upgrade', disclose: id === 'subscribed',
+    owned: id === 'subscribed' ? '通行證已啟用' : (id === 'lifetime' ? '終身通行證已啟用' : null),
+    manage: id === 'subscribed',
+    acct: { never: '未訂閱', paid: '未訂閱', subscribed: '訂閱中', lifetime: '終身' }[id],
+  };
+}
+const LT_DEF = '終身通行證一次付款，不會自動續訂。';
+function ltCompare(m, e) {
+  const p = [];
+  const got = m.buy.map(b => [b.pkg, b.tier]);
+  if (JSON.stringify(got) !== JSON.stringify(e.buy)) p.push(`鈕=${JSON.stringify(got)} 應=${JSON.stringify(e.buy)}`);
+  if (m.plans !== e.buy.length) p.push(`.plus-plan 數=${m.plans} 應=${e.buy.length}`);
+  const life = m.buy.find(b => b.pkg === 'lifetime');
+  if (e.price !== null && (!life || life.price !== e.price)) p.push(`終身價=${life && life.price} 應=${e.price}`);
+  if (e.other$ && m.text.includes(e.other$)) p.push(`不該同時出現的價格 ${e.other$} 出現了`);
+  const defOk = m.lifeKids.length >= 2 && m.lifeKids[0].tag === 'BUTTON' && m.lifeKids[1].cls.includes('plus-lifetime-note') && m.lifeKids[1].text.startsWith(LT_DEF);
+  if (e.def !== defOk) p.push(`定義句緊接在鈕後=${defOk} 應=${e.def}`);
+  if (!e.def && m.text.includes(LT_DEF)) p.push('不該有定義句卻出現了');
+  const elig = m.text.includes('你買過月票或年票，可以用升級價購買終身通行證。');
+  if (elig !== e.eligible) p.push(`資格說明句=${elig} 應=${e.eligible}`);
+  const badge = !!(life && life.badge === '升級價');
+  if (badge !== e.eligible) p.push(`升級價標籤=${badge} 應=${e.eligible}`);
+  const disc = m.text.includes('升級後，月票或年票的訂閱不會自動取消');
+  if (disc !== e.disclose) p.push(`升級前揭露句=${disc} 應=${e.disclose}`);
+  if (m.ownedText !== e.owned) p.push(`ownedText=${m.ownedText} 應=${e.owned}`);
+  const manage = m.links.some(l => l.text === '管理訂閱');
+  if (manage !== e.manage) p.push(`管理訂閱連結=${manage} 應=${e.manage}`);
+  if (e.owned === '終身通行證已啟用' && m.text.includes('訂閱管理請至')) p.push('終身卻出現「訂閱管理請至…」');
+  if (e.owned && !m.restore) p.push('缺恢復購買');
+  if (m.acct !== e.acct) p.push(`帳號頁狀態字=${m.acct} 應=${e.acct}`);
+  return p;
+}
+// 版面:寬度切換後重畫,量水平溢出、價格截斷、鈕中心點命中、定義句是否被裁。
+async function ltLayout(page, width) {
+  await page.setViewportSize({ width, height: width === 768 ? 1024 : 800 });
+  await page.evaluate(() => plusRender());
+  await page.waitForTimeout(80);
+  return page.evaluate(() => {
+    const scroller = document.getElementById('plusBody');
+    const out = { docOverflow: document.documentElement.scrollWidth > innerWidth + 1, bodyOverflow: scroller.scrollWidth > scroller.clientWidth + 1, buttons: [], notes: [] };
+    for (const b of document.querySelectorAll('#plusBody [data-plus="buy"]')) {
+      b.scrollIntoView({ block: 'center' });
+      const r = b.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      const price = b.querySelector('.plus-plan-price'), pr = price.getBoundingClientRect();
+      out.buttons.push({ pkg: b.dataset.pkg, hitOk: !!hit && hit.closest('[data-plus="buy"]') === b,
+        priceClipped: price.scrollWidth > price.clientWidth + 1 || pr.right > r.right + 0.5 || pr.left < r.left - 0.5,
+        outside: r.left < -0.5 || r.right > innerWidth + 0.5 });
+    }
+    const sr = scroller.getBoundingClientRect();
+    for (const n of document.querySelectorAll('#plusBody .plus-lifetime-note')) {
+      n.scrollIntoView({ block: 'nearest' });
+      const r = n.getBoundingClientRect();
+      out.notes.push({ clipped: n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1, outside: r.left < sr.left - 0.5 || r.right > sr.right + 0.5, empty: n.textContent.trim().length === 0 });
+    }
+    return out;
+  });
+}
+const LT_CJK = /[　-〿぀-ヿ㐀-鿿＀-￯]/;
+
+// ── LT0 持有狀態判定單元測試:fixture 的 customerInfo 直接餵 plusOwnershipFrom ──
+{
+  const { ctx, page } = await newPage(chromiumB, { init: () => { window.RAIL_PLUS_SANDBOX_OK = true; } });
+  const errs = attach(page, 'LT0');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const own = info => page.evaluate(({ info, ids }) => {
+    window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus', lifetimeOnSale: true, lifetimeProductIds: ids };
+    return plusOwnershipFrom(info);
+  }, { info, ids: LT_IDS });
+  const promo = { entitlements: { active: { plus: { productIdentifier: 'rc_promo_plus_lifetime', store: 'PROMOTIONAL', expirationDate: null, isSandbox: false } }, all: { plus: { productIdentifier: 'rc_promo_plus_lifetime', store: 'PROMOTIONAL', expirationDate: null, isSandbox: false } } },
+    activeSubscriptions: [], allPurchasedProductIdentifiers: ['rc_promo_plus_lifetime'], nonSubscriptionTransactions: [], subscriptionsByProductIdentifier: [] };
+  const cases = [
+    ['Android 990 買斷(fixture 原樣)', LT_CI.PLAY_STORE, { ownership: 'lifetime', everPaid: true }],
+    ['iOS 1,490 買斷(fixture 原樣)', LT_CI.APP_STORE, { ownership: 'lifetime', everPaid: true }],
+    ['iOS 兩筆買斷(fixture 原樣)', LT_CI.APP_STORE_BOTH, { ownership: 'lifetime', everPaid: true }],
+    ['iOS 退掉 990 剩 1,490(fixture 原樣)', LT_CI.APP_STORE_AFTER_REFUND, { ownership: 'lifetime', everPaid: true }],
+    ['月票有效、還在續(fixture 改複本)', ltInfo('subscribed', 'APP_STORE'), { ownership: 'subscription', everPaid: true, subRenewing: true, subStore: 'APP_STORE' }],
+    ['月票有效、Google Play 商店', ltInfo('subscribed', 'PLAY_STORE'), { ownership: 'subscription', subStore: 'PLAY_STORE' }],
+    ['月票過期但買過', ltInfo('paid', 'APP_STORE'), { ownership: 'unknown', everPaid: true, subRenewing: false }],
+    ['只有 promotional(expirationDate:null、store:PROMOTIONAL)——不是終身也不算付過費', promo, { ownership: 'unknown', everPaid: false }],
+    ['從沒買過', ltInfo('never', 'APP_STORE'), { ownership: 'unknown', everPaid: false, subRenewing: false }],
+    ['終身加月票還在續', ltLifetimeWithSub('APP_STORE'), { ownership: 'lifetime', subRenewing: true, subStore: 'APP_STORE' }],
+    ['終身加月票已標 willRenew:false(每一筆都明確不續)', ltLifetimeWithSub('APP_STORE', { willRenew: false }), { ownership: 'lifetime', subRenewing: false }],
+    ['終身加月票、subscriptionsByProductIdentifier 是 [](缺細節＝當作還在續)', { ...ltLifetimeWithSub('PLAY_STORE'), subscriptionsByProductIdentifier: [] }, { ownership: 'lifetime', subRenewing: true, subStore: '' }],
+    ['管理網址優先取 info.managementURL', ltLifetimeWithSub('APP_STORE', { managementURL: 'https://example.test/a', entryUrl: 'https://example.test/b' }), { subManageUrl: 'https://example.test/a' }],
+    ['沒有 info.managementURL 才用該筆訂閱的', ltLifetimeWithSub('APP_STORE', { entryUrl: 'https://example.test/b' }), { subManageUrl: 'https://example.test/b' }],
+    ['空物件與缺欄位不炸', {}, { ownership: 'unknown', everPaid: false }],
+    ['null 不炸', null, { ownership: 'unknown', everPaid: false }],
+    ['只有 entitlement 的舊式 stub(沒有 activeSubscriptions)', { entitlements: { active: { plus: { isSandbox: true } } } }, { ownership: 'unknown', everPaid: false }],
+  ];
+  for (const [name, info, want] of cases) {
+    const got = await own(info);
+    const bad = Object.keys(want).filter(k => got[k] !== want[k]);
+    ok(`LT0 plusOwnershipFrom:${name}`, bad.length === 0, bad.map(k => `${k}=${JSON.stringify(got[k])} 應=${JSON.stringify(want[k])}`).join(' | '));
+  }
+  ok('LT0 出貨設定檔:lifetimeOnSale 是布林值、lifetimeProductIds 恰為四個終身商品 ID(含升級價)',
+    typeof LT_SHIPPED.lifetimeOnSale === 'boolean' && JSON.stringify([...LT_IDS].sort()) === JSON.stringify(['railisland_pass_lifetime', 'railisland_pass_lifetime_upgrade', 'tw.railisland.app.plus.lifetime', 'tw.railisland.app.plus.lifetime_upgrade']),
+    JSON.stringify({ onSale: LT_SHIPPED.lifetimeOnSale, ids: LT_IDS }));
+  const flagCases = await page.evaluate(() => [undefined, false, 'true', 1, null, true].map(v => { window.RAIL_REVENUECAT_CONFIG = { lifetimeOnSale: v }; return plusLifetimeOnSale(); }));
+  ok('LT0 plusLifetimeOnSale() 只認 === true(缺席、false、字串 "true"、數字 1、null 都是關)', JSON.stringify(flagCases) === JSON.stringify([false, false, false, false, false, true]), JSON.stringify(flagCases));
+  ok('LT0 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+{
+  // 正式 build(沒有 RAIL_PLUS_SANDBOX_OK)拿夾具原樣餵:夾具是 sandbox 購買,資格判不啟用,不能被當成終身。
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, 'LT0b');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const r = await page.evaluate(({ info, ids }) => {
+    window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus', lifetimeOnSale: true, lifetimeProductIds: ids };
+    return { active: plusActiveFrom(info), own: plusOwnershipFrom(info).ownership, sandboxOk: PLUS_SANDBOX_OK };
+  }, { info: LT_CI.PLAY_STORE, ids: LT_IDS });
+  ok('LT0b 正式 build 餵 sandbox 夾具:資格不啟用、持有狀態不是 lifetime(判定先看 plusActiveFrom,不獨立憑商品 ID 放行)', r.sandboxOk === false && r.active === false && r.own !== 'lifetime', JSON.stringify(r));
+  ok('LT0b 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// ── LT1 反向樣本:旗標關,offering 卻含兩個終身 package ──
+async function ltFlagOff(engineName, browser) {
+  const { ctx, page } = await newPage(browser, { width: 390, height: 1400 });
+  const errs = attach(page, `LT1-${engineName}`);
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  for (const id of ['never', 'paid', 'subscribed']) {
+    const offering = ltOffering('APP_STORE', true);
+    ok(`LT1 前置 [${engineName}] offering 真的含兩個終身 package(不是空轉)`, ['lifetime_upgrade', '$rc_lifetime'].every(k => offering.availablePackages.some(p => p.identifier === k)), '');
+    await ltInject(page, { flag: false, info: ltInfo(id, 'APP_STORE', { managementURL: LT_STORE_URL.APP_STORE }), offering });
+    await ltOpen(page);
+    const m = await ltReadPanel(page);
+    const wantPlans = id === 'subscribed' ? 0 : 2;
+    ok(`LT1 [${engineName}] 旗標關／${id}:恰好 ${wantPlans} 顆 .plus-plan、沒有終身鈕、面板文字不含「終身」`,
+      m.plans === wantPlans && !m.buy.some(b => b.pkg === 'lifetime') && !m.text.includes('終身') && m.lifeKids.length === 0,
+      JSON.stringify({ plans: m.plans, buy: m.buy.map(b => b.pkg), hasWord: m.text.includes('終身'), kids: m.lifeKids.length }));
+    if (id === 'subscribed') ok(`LT1 [${engineName}] 旗標關／訂閱中:與現況相同(通行證已啟用＋管理訂閱連結＋恢復購買、零購買鈕)`,
+      m.ownedText === '通行證已啟用' && m.links.some(l => l.text === '管理訂閱') && m.restore && m.buy.length === 0, JSON.stringify({ owned: m.ownedText, links: m.links, restore: m.restore }));
+    await page.evaluate(() => { try { plusPurchase('lifetime'); } catch (e) {} });
+    await page.waitForTimeout(150);
+    ok(`LT1 [${engineName}] 旗標關／${id}:程式呼叫 plusPurchase('lifetime') 也買不到(adapter.purchase 零次)`, (await page.evaluate(() => window.__ltCalls.length)) === 0, '');
+  }
+  // 持有終身的人:旗標關也照常顯示持有狀態
+  await ltInject(page, { flag: false, info: ltInfo('lifetime', 'APP_STORE'), offering: ltOffering('APP_STORE', true) });
+  await ltOpen(page);
+  const own = await ltReadPanel(page);
+  ok(`LT1 [${engineName}] 旗標關／已終身:仍顯示「終身通行證已啟用」＋恢復購買、零購買鈕、帳號頁寫「終身」`,
+    own.ownedText === '終身通行證已啟用' && own.restore && own.buy.length === 0 && own.plans === 0 && own.acct === '終身', JSON.stringify({ owned: own.ownedText, acct: own.acct, buy: own.buy.length }));
+  // 未登入、讀取中、網站:旗標開也沒有任何終身字樣
+  await ltInject(page, { flag: true, info: ltInfo('never', 'APP_STORE'), offering: ltOffering('APP_STORE', true), loggedIn: false });
+  await page.evaluate(() => plusOpen('test'));
+  await page.waitForTimeout(150);
+  const out = await ltReadPanel(page);
+  ok(`LT1 [${engineName}] 旗標開／未登入:登入 CTA 結構不變,沒有終身字樣、沒有購買鈕`, !out.text.includes('終身') && out.buy.length === 0 && out.plans === 1, JSON.stringify({ plans: out.plans, hasWord: out.text.includes('終身') }));
+  await ltInject(page, { flag: true, info: ltInfo('never', 'APP_STORE'), offering: ltOffering('APP_STORE', true) });
+  const load = await page.evaluate(() => { const p = plusState(); p.loading = true; document.getElementById('plusModal').hidden = false; plusRender(); return document.getElementById('plusBody').innerText; });
+  ok(`LT1 [${engineName}] 旗標開／讀取中:沒有終身字樣`, !load.includes('終身') && load.includes('正在讀取'), load.slice(0, 80));
+  // 網站(沒有購買通道):就算餵進一份終身的 customerInfo,持有狀態也一律是 unknown,畫面只給中性字、沒有任何終身字樣。
+  for (const active of [false, true]) {
+    await ltInject(page, { flag: true, info: ltInfo('never', 'APP_STORE'), offering: ltOffering('APP_STORE', true), channel: false });
+    const web = await page.evaluate(({ a, info }) => {
+      const p = plusState(); p.active = a; plusApplyOwnership(p, info);
+      document.getElementById('plusModal').hidden = false; plusRender();
+      const b = document.getElementById('plusBody');
+      return { text: b.innerText, buy: b.querySelectorAll('[data-plus="buy"]').length, configured: plusConfigured(), own: p.ownership, life: b.querySelectorAll('.plus-lifetime').length };
+    }, { a: active, info: ltInfo('lifetime', 'APP_STORE') });
+    ok(`LT1 [${engineName}] 旗標開／網站(無購買通道、${active ? '已啟用' : '未啟用'}):持有狀態恆為 unknown、沒有購買鈕、面板沒有任何「終身」字樣${active ? '、只給中性續訂說明' : ''}`,
+      web.configured === false && web.own === 'unknown' && web.buy === 0 && web.life === 0 && !web.text.includes('終身')
+        && (active ? web.text.includes('月票、年票的自動續訂，請到當初購買的 App Store 或 Google Play') : true),
+      JSON.stringify({ configured: web.configured, own: web.own, buy: web.buy, active, hasWord: web.text.includes('終身') }));
+  }
+  ok(`LT1 [${engineName}] 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+await ltFlagOff('chromium', chromiumB);
+await ltFlagOff('webkit', webkitB);
+
+// ── LT2 矩陣:4 種身分 × 有無 lifetime_upgrade × 兩個引擎;375 寬截圖;三種寬度外的版面掃描 ──
+async function ltMatrix(engineName, browser) {
+  const { ctx, page } = await newPage(browser, { width: 375, height: 1800, touch: true });
+  const errs = attach(page, `LT2-${engineName}`);
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  for (const id of ['never', 'paid', 'subscribed', 'lifetime']) for (const withUp of [true, false]) {
+    const offering = ltOffering('APP_STORE', withUp);
+    await ltInject(page, { info: ltInfo(id, 'APP_STORE', { managementURL: LT_STORE_URL.APP_STORE }), offering });
+    await ltOpen(page);
+    const m = await ltReadPanel(page);
+    const problems = ltCompare(m, ltExpect(id, withUp, offering));
+    ok(`LT2 矩陣 [${engineName}] ${id}／${withUp ? '有' : '無'} lifetime_upgrade:畫面符合規格表`, problems.length === 0, problems.join(' | '));
+    await page.locator('#plusModal .plus-dialog').screenshot({ path: path.join(LT_SHOT_DIR, `${engineName}-375-${id}-${withUp ? 'with-upgrade' : 'no-upgrade'}.png`) });
+  }
+  // 有三顆鈕／有升級區塊／有升級前揭露的三格,掃五種寬度
+  const layoutCells = [['never', true], ['paid', true], ['subscribed', true], ['subscribed', false]];
+  for (const [id, withUp] of layoutCells) {
+    await ltInject(page, { info: ltInfo(id, 'APP_STORE', { managementURL: LT_STORE_URL.APP_STORE }), offering: ltOffering('APP_STORE', withUp) });
+    await ltOpen(page);
+    for (const width of [360, 375, 390, 414, 768]) {
+      const L = await ltLayout(page, width);
+      const bad = [];
+      if (L.docOverflow) bad.push('頁面水平溢出');
+      if (L.bodyOverflow) bad.push('面板水平溢出');
+      for (const b of L.buttons) { if (!b.hitOk) bad.push(`${b.pkg} 鈕中心點命中的不是它`); if (b.priceClipped) bad.push(`${b.pkg} 價格被截`); if (b.outside) bad.push(`${b.pkg} 鈕超出視窗`); }
+      if (!L.notes.length) bad.push('沒有定義句');
+      for (const n of L.notes) { if (n.clipped) bad.push('句子被裁切'); if (n.outside) bad.push('句子超出面板'); if (n.empty) bad.push('句子是空的'); }
+      ok(`LT2 版面 [${engineName}] ${width}px ${id}／${withUp ? '有' : '無'}升級:無溢出、價格不截、鈕可點中、定義句完整`, bad.length === 0, bad.join(' | '));
+    }
+    await page.setViewportSize({ width: 375, height: 1800 });
+  }
+  ok(`LT2 [${engineName}] 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+await ltMatrix('chromium', chromiumB);
+await ltMatrix('webkit', webkitB);
+
+// ── LT3 購買路徑:點終身鈕時 adapter.purchase 收到哪個 package;錯誤字;持有終身者買不到 ──
+async function ltPurchasePaths(engineName, browser) {
+  const { ctx, page } = await newPage(browser, { width: 390, height: 1400 });
+  const errs = attach(page, `LT3-${engineName}`);
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const cases = [['never', false, '$rc_lifetime'], ['never', true, '$rc_lifetime'], ['paid', true, 'lifetime_upgrade'], ['paid', false, '$rc_lifetime'], ['subscribed', true, 'lifetime_upgrade'], ['subscribed', false, '$rc_lifetime']];
+  for (const [id, withUp, want] of cases) {
+    await ltInject(page, { info: ltInfo(id, 'APP_STORE', { managementURL: LT_STORE_URL.APP_STORE }), offering: ltOffering('APP_STORE', withUp), purchaseInfo: ltInfo('lifetime', 'APP_STORE') });
+    await ltOpen(page);
+    await page.click('#plusBody [data-pkg="lifetime"]');
+    await page.waitForFunction(() => window.__ltCalls.length === 1 && state.plus.loading === false, null, { timeout: 8000 }).catch(() => {});
+    const r = await page.evaluate(() => ({ calls: window.__ltCalls, hidden: document.getElementById('plusModal').hidden, toasts: window.__toasts, own: state.plus.ownership, active: state.plus.active }));
+    ok(`LT3 購買 [${engineName}] ${id}／${withUp ? '有' : '無'}升級 package:purchase 收到 ${want}、成功後面板關閉、toast「終身通行證已啟用」、持有狀態變 lifetime`,
+      JSON.stringify(r.calls) === JSON.stringify([want]) && r.hidden === true && r.toasts.includes('終身通行證已啟用') && r.own === 'lifetime' && r.active === true, JSON.stringify(r));
+  }
+  // 錯誤字:終身用「購買未完成」,年票維持「訂閱未完成」
+  await ltInject(page, { info: ltInfo('never', 'APP_STORE'), offering: ltOffering('APP_STORE', true), fail: 'boom' });
+  await ltOpen(page);
+  await page.click('#plusBody [data-pkg="lifetime"]');
+  await page.waitForFunction(() => window.__ltCalls.length === 1 && state.plus.loading === false, null, { timeout: 8000 }).catch(() => {});
+  const e1 = await ltReadPanel(page);
+  await page.click('#plusBody [data-pkg="annual"]');
+  await page.waitForFunction(() => window.__ltCalls.length === 2 && state.plus.loading === false, null, { timeout: 8000 }).catch(() => {});
+  const e2 = await ltReadPanel(page);
+  ok(`LT3 錯誤字 [${engineName}] 終身=「購買未完成：boom」、年票=「訂閱未完成：boom」(月票年票原字不變)`, e1.errorText === '購買未完成：boom' && e2.errorText === '訂閱未完成：boom', JSON.stringify({ lifetime: e1.errorText, annual: e2.errorText }));
+  // 持有終身的人:畫面零購買鈕之外,程式呼叫也買不到
+  await ltInject(page, { info: ltInfo('lifetime', 'APP_STORE'), offering: ltOffering('APP_STORE', true) });
+  await ltOpen(page);
+  await page.evaluate(() => plusPurchase('lifetime'));
+  await page.waitForTimeout(150);
+  ok(`LT3 持有終身 [${engineName}]:程式呼叫 plusPurchase('lifetime') 不會呼叫 adapter.purchase`, (await page.evaluate(() => window.__ltCalls.length)) === 0, '');
+  ok(`LT3 [${engineName}] 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+await ltPurchasePaths('chromium', chromiumB);
+await ltPurchasePaths('webkit', webkitB);
+
+// ── LT4 買完終身、訂閱還在續:面板不關、提醒與連結可見;連結網址的取法;兩種商店 ──
+async function ltAfterPurchase(engineName, browser, shellInit = null, label = '') {
+  const { ctx, page } = await newPage(browser, { width: 390, height: 1400, init: shellInit });
+  const errs = attach(page, `LT4-${engineName}${label}`);
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const variants = [
+    ['App Store、沒有任何網址 → 預設 App Store 訂閱頁', 'APP_STORE', {}, LT_STORE_URL.APP_STORE, 'App Store'],
+    ['Google Play、沒有任何網址 → 預設 Google Play 訂閱頁', 'PLAY_STORE', {}, LT_STORE_URL.PLAY_STORE, 'Google Play'],
+    ['有 info.managementURL → 用它(優先於該筆訂閱的)', 'APP_STORE', { managementURL: 'https://example.test/manage-a', entryUrl: 'https://example.test/manage-b' }, 'https://example.test/manage-a', 'App Store'],
+    ['只有該筆訂閱的網址 → 用該筆的', 'PLAY_STORE', { entryUrl: 'https://example.test/manage-b' }, 'https://example.test/manage-b', 'Google Play'],
+  ];
+  for (const [name, store, o, wantHref, wantStore] of variants) {
+    const offering = ltOffering(store, true);
+    await ltInject(page, { info: ltInfo('subscribed', store, { managementURL: LT_STORE_URL[store] }), offering, purchaseInfo: ltLifetimeWithSub(store, o) });
+    await ltOpen(page);
+    await page.click('#plusBody [data-pkg="lifetime"]');
+    await page.waitForFunction(() => window.__ltCalls.length === 1 && state.plus.loading === false, null, { timeout: 8000 }).catch(() => {});
+    const m = await ltReadPanel(page);
+    const link = m.links.find(l => l.text === '前往訂閱設定');
+    const bad = [];
+    if (m.hidden) bad.push('面板被關掉了');
+    if (m.ownedText !== '終身通行證已啟用') bad.push(`ownedText=${m.ownedText}`);
+    if (m.buy.length || m.plans) bad.push('還有購買鈕');
+    if (!link) bad.push('沒有「前往訂閱設定」連結'); else {
+      if (link.href !== wantHref) bad.push(`href=${link.href} 應=${wantHref}`);
+      if (link.target !== '_blank' || !/noopener/.test(link.rel)) bad.push(`target/rel=${link.target}/${link.rel}`);
+    }
+    if (!m.notes.some(n => n.startsWith('你還有月票或年票的訂閱。') && n.includes(`到 ${wantStore} 的訂閱設定`))) bad.push(`提醒句沒有指到 ${wantStore}:${JSON.stringify(m.notes)}`);
+    if (m.links.some(l => l.text === '管理訂閱')) bad.push('不該有「管理訂閱」');
+    const toasts = await page.evaluate(() => window.__toasts);
+    if (!toasts.includes('終身通行證已啟用')) bad.push(`toast=${JSON.stringify(toasts)}`);
+    ok(`LT4 買後提醒 [${engineName}${label}] ${name}`, bad.length === 0, bad.join(' | '));
+  }
+  // 訂閱已標明不會再續(willRenew:false):不放提醒,走一般收尾(關面板＋toast)
+  await ltInject(page, { info: ltInfo('subscribed', 'APP_STORE', { managementURL: LT_STORE_URL.APP_STORE }), offering: ltOffering('APP_STORE', true), purchaseInfo: ltLifetimeWithSub('APP_STORE', { willRenew: false }) });
+  await ltOpen(page);
+  await page.click('#plusBody [data-pkg="lifetime"]');
+  await page.waitForFunction(() => window.__ltCalls.length === 1 && state.plus.loading === false, null, { timeout: 8000 }).catch(() => {});
+  const q = await page.evaluate(() => ({ hidden: document.getElementById('plusModal').hidden, toasts: window.__toasts, renew: state.plus.subRenewing }));
+  ok(`LT4 買後 [${engineName}${label}] 訂閱已標 willRenew:false:不放續訂提醒、面板照常關閉、toast「終身通行證已啟用」`, q.hidden === true && q.renew === false && q.toasts.includes('終身通行證已啟用'), JSON.stringify(q));
+  ok(`LT4 [${engineName}${label}] 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+await ltAfterPurchase('chromium', chromiumB);
+await ltAfterPurchase('webkit', webkitB);
+{
+  // 商店不明時依平台給預設網址:Android 殼 → Google Play、網站 → App Store(兩個引擎都量)
+  for (const [engineName, browser] of [['chromium', chromiumB], ['webkit', webkitB]]) {
+    for (const [label, init, wantHref, wantStore] of [['Android 殼', () => { window.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'android', Plugins: {} }; window.RAIL_ANDROID_PLUS_ENABLED = true; }, LT_STORE_URL.PLAY_STORE, 'Google Play'], ['網站', null, LT_STORE_URL.APP_STORE, 'App Store']]) {
+      const { ctx, page } = await newPage(browser, { width: 390, height: 1400, init });
+      const errs = attach(page, `LT4p-${engineName}`);
+      await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+      await waitReady(page);
+      const store = label === 'Android 殼' ? 'PLAY_STORE' : 'APP_STORE';
+      await ltInject(page, { info: ltInfo('subscribed', store, { managementURL: LT_STORE_URL[store] }), offering: ltOffering(store, true), purchaseInfo: ltLifetimeWithSub(store, { entryStore: 'UNKNOWN_STORE' }) });
+      await ltOpen(page);
+      await page.click('#plusBody [data-pkg="lifetime"]');
+      await page.waitForFunction(() => window.__ltCalls.length === 1 && state.plus.loading === false, null, { timeout: 8000 }).catch(() => {});
+      const m = await ltReadPanel(page);
+      const link = m.links.find(l => l.text === '前往訂閱設定');
+      ok(`LT4 買後提醒 [${engineName}] 訂閱商店不明 → 依平台(${label})給 ${wantStore} 預設網址`,
+        !m.hidden && link && link.href === wantHref && m.notes.some(n => n.includes(`到 ${wantStore} 的訂閱設定`)), JSON.stringify({ hidden: m.hidden, link, notes: m.notes }));
+      if (label === 'Android 殼') {
+        // Android 殼上整張矩陣的訂閱中／已終身兩格(Google Play 的商品 ID 與商店名)
+        const sub = ltOffering('PLAY_STORE', true);
+        await ltInject(page, { info: ltInfo('subscribed', 'PLAY_STORE', { managementURL: LT_STORE_URL.PLAY_STORE }), offering: sub });
+        await ltOpen(page);
+        const ms = await ltReadPanel(page);
+        const pb = ltCompare(ms, ltExpect('subscribed', true, sub));
+        ok(`LT4 Android 殼 [${engineName}] 訂閱中(Google Play 商品)／有升級 package:畫面符合規格表,揭露句寫 Google Play`, pb.length === 0 && ms.text.includes('到 Google Play 的訂閱設定自行取消'), pb.join(' | '));
+        await ltInject(page, { info: ltInfo('lifetime', 'PLAY_STORE'), offering: sub });
+        await ltOpen(page);
+        const ml = await ltReadPanel(page);
+        const pl = ltCompare(ml, ltExpect('lifetime', true, sub));
+        ok(`LT4 Android 殼 [${engineName}] 已終身(Google Play 990 買斷)：畫面符合規格表`, pl.length === 0, pl.join(' | '));
+      }
+      ok(`LT4 [${engineName}] ${label} 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+  }
+}
+
+// ── LT5 資格有效但分不出訂閱或終身(舊式 stub、promotional)→ 中性字;en／ja 渲染 ──
+{
+  const { ctx, page } = await newPage(chromiumB, { width: 390, height: 1400 });
+  const errs = attach(page, 'LT5');
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const oldStub = { entitlements: { active: { plus: { identifier: 'plus', isSandbox: false } } }, managementURL: LT_STORE_URL.APP_STORE };
+  const promo = { entitlements: { active: { plus: { productIdentifier: 'rc_promo_plus_lifetime', store: 'PROMOTIONAL', expirationDate: null, isSandbox: false } }, all: { plus: { productIdentifier: 'rc_promo_plus_lifetime', store: 'PROMOTIONAL', expirationDate: null, isSandbox: false } } },
+    activeSubscriptions: [], allPurchasedProductIdentifiers: ['rc_promo_plus_lifetime'], nonSubscriptionTransactions: [], subscriptionsByProductIdentifier: [] };
+  for (const [name, info] of [['沒有 activeSubscriptions 的已啟用(舊式 stub)', oldStub], ['promotional 發的終身資格(expirationDate:null)', promo]]) {
+    for (const flag of [true, false]) {
+      await ltInject(page, { flag, info, offering: ltOffering('APP_STORE', true) });
+      await ltOpen(page);
+      const m = await ltReadPanel(page);
+      ok(`LT5 ${name}／旗標${flag ? '開' : '關'}:帳號頁寫「通行證有效」(不是訂閱中也不是終身)、面板「通行證已啟用」＋中性續訂說明、沒有管理訂閱連結與購買鈕`,
+        m.acct === '通行證有效' && m.ownedText === '通行證已啟用' && m.notes.some(n => n.startsWith('月票、年票的自動續訂，請到當初購買的 App Store 或 Google Play')) && !m.links.some(l => l.text === '管理訂閱') && !m.text.includes('訂閱管理請至') && m.buy.length === 0 && m.state.ownership === 'unknown',
+        JSON.stringify({ acct: m.acct, owned: m.ownedText, notes: m.notes, links: m.links, buy: m.buy.length, own: m.state.ownership }));
+    }
+  }
+  ok('LT5 本輪零 pageerror/console.error', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+{
+  const ZH = ['購買終身通行證', '升級為終身通行證', '升級價', '你買過月票或年票，可以用升級價購買終身通行證。', '終身通行證一次付款，不會自動續訂。', '升級後，月票或年票的訂閱不會自動取消',
+    '終身通行證已啟用', '你還有月票或年票的訂閱。', '前往訂閱設定', '通行證有效', '月票、年票的自動續訂，請到當初購買的', '軌島通行證是 App 的數位功能，不是實際乘車票券。', '購買未完成：'];
+  for (const lang of ['en', 'ja']) {
+    const { ctx, page } = await newPage(chromiumB, { width: 390, height: 1800 });
+    const errs = attach(page, `LT5-${lang}`);
+    await page.goto(`${BASE}?lang=${lang}`, { waitUntil: 'domcontentloaded' });
+    await waitReady(page);
+    const texts = [];
+    for (const [id, withUp] of [['never', true], ['paid', true], ['subscribed', true], ['lifetime', true]]) {
+      await ltInject(page, { info: ltInfo(id, 'APP_STORE', { managementURL: LT_STORE_URL.APP_STORE }), offering: ltOffering('APP_STORE', withUp) });
+      await ltOpen(page);
+      texts.push((await ltReadPanel(page)).text);
+    }
+    // 買完終身、訂閱還在續的畫面(提醒句與連結)
+    await ltInject(page, { info: ltInfo('subscribed', 'APP_STORE', { managementURL: LT_STORE_URL.APP_STORE }), offering: ltOffering('APP_STORE', true), purchaseInfo: ltLifetimeWithSub('APP_STORE') });
+    await ltOpen(page);
+    await page.click('#plusBody [data-pkg="lifetime"]');
+    await page.waitForFunction(() => window.__ltCalls.length === 1 && state.plus.loading === false, null, { timeout: 8000 }).catch(() => {});
+    texts.push((await ltReadPanel(page)).text);
+    const all = texts.join('\n');
+    if (lang === 'en') {
+      const cjk = all.match(LT_CJK);
+      ok('LT5 英文面板(旗標開:沒付過／付過／訂閱中／已終身／買完仍在續)不含任何 CJK 字元', !cjk, cjk ? `出現 ${cjk[0]}(U+${cjk[0].codePointAt(0).toString(16)})附近:${all.slice(Math.max(0, all.indexOf(cjk[0]) - 30), all.indexOf(cjk[0]) + 30)}` : '');
+      ok('LT5 英文面板含各句譯文(按鈕、升級價、資格說明、定義句、揭露句、已終身、提醒句、設定連結)',
+        ['Buy Lifetime Pass', 'Upgrade to Lifetime Pass', 'Upgrade price', 'Because you’ve had a monthly or annual pass', 'one-time payment', 'Upgrading doesn’t cancel', 'Lifetime Pass active', 'You still have a monthly or annual subscription', 'Open subscription settings'].every(s => all.includes(s)),
+        ['Buy Lifetime Pass', 'Upgrade to Lifetime Pass', 'Upgrade price', 'Because you’ve had', 'one-time payment', 'Upgrading doesn’t cancel', 'Lifetime Pass active', 'You still have a monthly', 'Open subscription settings'].filter(s => !all.includes(s)).join(','));
+    } else {
+      const left = ZH.filter(s => all.includes(s));
+      ok('LT5 日文面板(旗標開:五種畫面)不含任何一句中文原文(新增的十三句都有 ja 譯文)', left.length === 0, left.join(' | '));
+      ok('LT5 日文面板含各句譯文', ['ライフタイムパスを購入', 'ライフタイムパスにアップグレード', 'アップグレード価格', 'ライフタイムパスは一回払い', 'ライフタイムパスは有効です', 'サブスクリプション設定を開く'].every(s => all.includes(s)),
+        ['ライフタイムパスを購入', 'ライフタイムパスにアップグレード', 'アップグレード価格', 'ライフタイムパスは一回払い', 'ライフタイムパスは有効です', 'サブスクリプション設定を開く'].filter(s => !all.includes(s)).join(','));
+    }
+    ok(`LT5 [${lang}] 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
 }
 
 // ══════════════ Z0 錯誤收集器的正向對照 ══════════════

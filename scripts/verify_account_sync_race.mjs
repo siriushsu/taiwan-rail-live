@@ -117,11 +117,16 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); 
 
 const allErrors = [];
 let pagesCreated = 0, pagesAttached = 0;
-function attach(page, tag) {
+function attach(page, tag, ignore) {
   const local = [];
+  local.ignored = [];   // ignore 只給「測試自己刻意製造的那一則瀏覽器訊息」用;被略過的會留在這裡,呼叫端要斷言它的次數
   pagesAttached++;
   page.on('pageerror', e => { const m = `[${tag}] pageerror: ${e}`; local.push(m); allErrors.push(m); });
-  page.on('console', m => { if (m.type() === 'error') { const s = `[${tag}] console.error: ${m.text()}`; local.push(s); allErrors.push(s); } });
+  page.on('console', m => {
+    if (m.type() !== 'error') return;
+    if (ignore && ignore.test(m.text())) { local.ignored.push(m.text()); return; }
+    const s = `[${tag}] console.error: ${m.text()}`; local.push(s); allErrors.push(s);
+  });
   return local;
 }
 async function newPage(browser, { width = 1280, height = 800 } = {}) {
@@ -1848,6 +1853,199 @@ for (const mode of ['purchase', 'restore', 'listener']) {
     ctl.after.active === true && (mode === 'listener' || ctl.after.unlocked === 1), JSON.stringify(ctl.after));
   ok(`R20-${mode} 本輪零 pageerror/console.error`,
     stale.errs.length === 0 && ctl.errs.length === 0, [...stale.errs, ...ctl.errs].slice(0, 3).join(' | '));
+}
+
+// ══════════════ R21. 閂為真之後資格文件過期:寫入被拒時的「重查握手」(終身通行證 T4) ══════════════
+// 背景:/entitlements/{uid} 的 activeUntilMs 是「伺服器上次重查的時刻＋7 天」的滾動窗。App 長開、超過 7 天
+// 沒有任何一次重查,文件就過期,rules 開始拒絕寫入;而前端的 cloudSyncReady 閂(只在握手成功時設為真)
+// 仍是 true——R16 驗過的「閂為假 ⇒ 握手」那條路徑因此走不到,同步一直失敗,a.legacyKinds 還被誤設成
+// true,要重開 App 才恢復。
+// 規格(本段逐條驗):寫入被拒、plusIsActive()、閂為真、距上次確認 ≥ 10 分鐘、這一發不是重試——五者
+// 同時成立才允許「重查握手」一次;確認落地就全量重試;沒確認就收回閂、照既有路徑走;不到 10 分鐘行為
+// 與沒有這個機制時完全一樣;同一次同步最多重查一次。
+// 判準的真值來源刻意獨立於被測程式(同 R16):
+//   · 「資格文件在不在」由 Node 這一側的 st.docLanded 掌握,透過 exposeFunction 交給假 Firestore 在 commit 時
+//     裁決;state.plus 的任何欄位都不參與裁決。
+//   · 假 Worker 忠實模擬真 Worker 的因果:打 /api/plus-status 就是資格文件的 writer(回 ready 時文件此刻落地)。
+//   · 時間用 Playwright 的 page.clock.setFixedTime 控制(Date.now() 固定在指定時刻、計時器照常跑):不真的
+//     等 10 分鐘,也不直接改產品的狀態欄位——確認時刻是產品自己在真握手裡記下的。
+//   · 請求次數與 kind 名單都是本檔寫死的字面值,不從產品常數推導。
+const R21_T0 = Date.parse('2026-10-03T00:00:00Z');
+const R21_MIN = 60 * 1000;
+const R21_FULL = ['pins', 'favs', 'rides', 'stations', 'checkins', 'segments'];
+const R21_LEGACY = ['pins', 'favs', 'rides'];
+// 開一顆頁面、建好假帳號與假 Firestore,先走一次真握手(閂為真、確認時刻＝T0),再把資格文件標成「已過期」。
+// worker:測試階段假 Worker 的回應——'ready'(寫得進去、回 cloudSyncReady:true)／'notready'(回 false)／'error'(503)。
+async function r21Case(tag, { worker, alwaysDeny = false, ignore }) {
+  const { ctx, page } = await newPage(chromiumB);
+  const errs = attach(page, tag, ignore);
+  const st = { worker: 'ready', alwaysDeny, docLanded: false, auth: [] };
+  await page.exposeFunction('__r21RulesAllow', () => st.docLanded && !st.alwaysDeny);
+  await page.route('**/api/plus-status', route => {
+    st.auth.push(route.request().headers()['authorization'] || '');
+    if (st.worker === 'error') return route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"upstream"}' });
+    if (st.worker === 'badjson') return route.fulfill({ status: 200, contentType: 'application/json', body: '<html>gateway</html>' });
+    const ready = st.worker === 'ready';
+    if (ready) st.docLanded = true;                      // 這條路徑就是資格文件的 writer(同 R16)
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ active: true, cloudSyncReady: ready }) });
+  });
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  await page.clock.setFixedTime(R21_T0);
+  const UID = `race-${tag.toLowerCase()}-uid`;
+  const setup = await page.evaluate(async (UID) => {
+    window.__attempts = []; window.__commits = []; window.__r21DeactivateOnTx = false;
+    state.plus = null; plusState().active = true;
+    state.account = {
+      ready: true, syncing: false, lastSync: 0, actionError: '', error: '', syncTimer: 0, gen: 0,
+      loggingOut: false, syncSuspended: false, syncPromise: null, legacyKinds: false,
+      user: { uid: UID, email: 'r21@example.com' }, auth: {}, db: {},
+    };
+    userDataSaveCollection('stations', [{ sys: 'tra_sched', name: 'R21_STATION', lat: 25.047675, lon: 121.517055 }]);
+    userDataSaveCollection('favs', [{ sys: 'tra_sched', train: 'R21_TRAIN' }]);
+    state.account.fb = {
+      doc: (db, ...segs) => ({ kind: segs[segs.length - 1] }),
+      getIdToken: async () => 'R21_FAKE_ID_TOKEN',
+      serverTimestamp: () => 'SERVER_TIME_STUB',
+      runTransaction: async (db, fn) => {
+        const attempt = [];
+        const tx = {
+          get: async () => ({ exists: () => false, data: () => null }),
+          set: (ref, data) => attempt.push({ kind: ref.kind, ids: (data.items || []).map(i => i.id) }),
+        };
+        const out = await fn(tx);
+        window.__attempts.push(attempt.map(w => w.kind));
+        if (window.__r21DeactivateOnTx) plusState().active = false;   // 資格在交易途中失效(R21e 用)
+        if (!(await window.__r21RulesAllow())) {
+          const e = new Error('Missing or insufficient permissions.'); e.code = 'permission-denied'; throw e;
+        }
+        window.__commits.push(attempt);
+        return out;
+      },
+    };
+    return { stationsLocal: userDataRead(UID).collections.stations.items.map(i => i.id) };
+  }, UID);
+  // 真握手:資格文件落地、閂為真、確認時刻由產品自己記下(此刻 Date.now() 固定在 T0)。
+  const hs = await page.evaluate(async () => {
+    const landed = await plusReconcileEntitlement();
+    return { landed, ready: plusCloudSyncReady(), at: state.plus.cloudSyncConfirmedAt, legacyKinds: state.account.legacyKinds };
+  });
+  st.docLanded = false;                                  // 文件「過期」:往後的寫入被 rules 拒絕,直到 Worker 再被問一次(worker:'ready')
+  st.worker = worker;
+  return { ctx, page, st, errs, setup, hs, pre: { requests: st.auth.length } };   // pre:同步開始之前的請求數,前置條件要量這個
+}
+const r21Sync = page => page.evaluate(async () => {
+  const before = window.__attempts.length, cBefore = window.__commits.length;
+  const r = await accountSyncNow('local-change');
+  return {
+    r, attempts: window.__attempts.slice(before), commits: window.__commits.slice(cBefore),
+    legacyKinds: state.account.legacyKinds, actionError: state.account.actionError,
+    cloudReady: plusCloudSyncReady(), at: state.plus.cloudSyncConfirmedAt, active: plusIsActive(),
+  };
+});
+const r21Pre = (tag, c) => ok(`${tag}-pre 前置條件:先走過一次真握手——閂為真、確認時刻是 T0(產品自己記的)、這一刻只打過 1 發 /api/plus-status;本機有一筆收藏站點可以被送上去`,
+  c.hs.landed === true && c.hs.ready === true && c.hs.at === R21_T0 && c.hs.legacyKinds === false && c.pre.requests === 1
+    && JSON.stringify(c.setup.stationsLocal) === JSON.stringify(['tra_sched|R21_STATION']), JSON.stringify({ hs: c.hs, setup: c.setup, requestsBeforeSync: c.pre.requests }));
+const FAIL_RE = /同步失敗/;
+const attemptsAre = (got, want) => JSON.stringify(got) === JSON.stringify(want);
+
+// ── R21a:閂舊(距上次確認恰 10 分鐘,邊界含等號)＋被拒 ⇒ 恰好重查 1 發,全量重試成功,legacyKinds 為 false ──
+{
+  const c = await r21Case('R21a', { worker: 'ready' });
+  await c.page.clock.setFixedTime(R21_T0 + 10 * R21_MIN);
+  const s = await r21Sync(c.page);
+  r21Pre('R21a', c);
+  ok('R21a 核心斷言:閂舊(距上次確認恰 10 分鐘)＋寫入被拒 ⇒ 恰好重查 1 發 /api/plus-status(累計 2),而且帶 Bearer 身分',
+    c.st.auth.length === 2 && /^Bearer .+/.test(c.st.auth[1] || ''), JSON.stringify({ auth: c.st.auth }));
+  ok('R21a 核心斷言(用戶真正看得到的結果):重查確認落地後,同一次同步以「全量」重試成功——兩發交易依序是 全量(被拒)→全量,四個 kind 全部提交,stations 就是他那筆收藏站點',
+    s.r === true && attemptsAre(s.attempts, [R21_FULL, R21_FULL]) && s.commits.length === 1
+      && attemptsAre(s.commits[0].map(w => w.kind), R21_FULL)
+      && attemptsAre((s.commits[0].find(w => w.kind === 'stations') || {}).ids, ['tra_sched|R21_STATION'])
+      && s.actionError === '', JSON.stringify(s));
+  ok('R21a 狀態到位:legacyKinds 為 false(沒有被誤降級)、閂為真,而且確認時刻前進到這一次重查的時刻(下一個 10 分鐘從這裡起算)',
+    s.legacyKinds === false && s.cloudReady === true && s.at === R21_T0 + 10 * R21_MIN, JSON.stringify(s));
+  ok('R21a 本輪零 pageerror/console.error', c.errs.length === 0, c.errs.slice(0, 3).join(' | '));
+  await c.ctx.close();
+}
+
+// ── R21b:閂新(距上次確認差 1 毫秒不到 10 分鐘)＋被拒 ⇒ 0 發,行為與沒有這個機制時完全一樣 ──
+// 假 Worker 此刻是 ready:要是它被問了,文件會落地、這次同步會成功——所以「沒被問」才是被量到的事實,
+// 不是因為問了也沒用。
+{
+  const c = await r21Case('R21b', { worker: 'ready' });
+  await c.page.clock.setFixedTime(R21_T0 + 10 * R21_MIN - 1);
+  const s = await r21Sync(c.page);
+  r21Pre('R21b', c);
+  ok('R21b 核心斷言:閂新(不到 10 分鐘)＋寫入被拒 ⇒ 一發都不重查——/api/plus-status 仍只有前置那 1 發',
+    c.st.auth.length === 1, JSON.stringify({ auth: c.st.auth }));
+  ok('R21b 行為與修之前完全一樣:兩發交易依序是 全量(被拒)→舊清單(被拒)、零 commit、回傳 false、面板留著「同步失敗」、legacyKinds 被設起來;閂與確認時刻原封不動',
+    s.r === false && attemptsAre(s.attempts, [R21_FULL, R21_LEGACY]) && s.commits.length === 0 && FAIL_RE.test(s.actionError)
+      && s.legacyKinds === true && s.cloudReady === true && s.at === R21_T0, JSON.stringify(s));
+  ok('R21b 本輪零 pageerror/console.error', c.errs.length === 0, c.errs.slice(0, 3).join(' | '));
+  await c.ctx.close();
+}
+
+// ── R21c:重查沒有確認落地(Worker 回 cloudSyncReady:false,或 503)⇒ 最多 1 發、不無限重試、閂收回、照既有路徑走 ──
+for (const [tag, worker, label] of [['R21c', 'notready', '回 cloudSyncReady:false'], ['R21c-503', 'error', '回 503'], ['R21c-json', 'badjson', '回的內容不是 JSON']]) {
+  // 503 時瀏覽器自己會記一則「Failed to load resource … 503」的 console.error——那是被測情境本身製造的,
+  // 只在這一格略過它,而且斷言它恰好出現 1 次(同時證明假 Worker 的 503 真的被送出、重查只打了 1 發)。
+  const c = await r21Case(tag, { worker, ignore: worker === 'error' ? /status of 503/ : undefined });
+  await c.page.clock.setFixedTime(R21_T0 + 11 * R21_MIN);
+  const s = await r21Sync(c.page);
+  r21Pre(tag, c);
+  ok(`${tag} 核心斷言:重查${label} ⇒ 整次同步最多重查 1 發(累計 2),不會對著故障的上游重試`,
+    c.st.auth.length === 2, JSON.stringify({ auth: c.st.auth.length }));
+  ok(`${tag} 沒確認落地就收回閂、落到既有路徑:兩發交易依序是 全量(被拒)→舊清單(被拒)、回傳 false、面板留著「同步失敗」、legacyKinds 被設起來、plusCloudSyncReady() 變 false`,
+    s.r === false && attemptsAre(s.attempts, [R21_FULL, R21_LEGACY]) && s.commits.length === 0 && FAIL_RE.test(s.actionError)
+      && s.legacyKinds === true && s.cloudReady === false, JSON.stringify(s));
+  // 之後上游恢復:閂為假 ⇒ 走既有的「撞牆才握手」路徑(不是重查),握手成功把降級收回來,全量補傳。
+  c.st.worker = 'ready';
+  const s2 = await r21Sync(c.page);
+  ok(`${tag} 之後 Worker 恢復:下一次同步走既有握手路徑(累計 3 發,不是無限重試),交易依序是 舊清單(仍在降級)→全量,回傳 true,legacyKinds 收回、閂重新為真`,
+    c.st.auth.length === 3 && s2.r === true && attemptsAre(s2.attempts, [R21_LEGACY, R21_FULL]) && s2.commits.length === 1
+      && attemptsAre(s2.commits[0].map(w => w.kind), R21_FULL) && s2.legacyKinds === false && s2.cloudReady === true && s2.actionError === '',
+    JSON.stringify({ auth: c.st.auth.length, s2 }));
+  ok(`${tag} 本輪零 pageerror/console.error${worker === 'error' ? '(瀏覽器記的那則 503 訊息除外,且恰好 1 則)' : ''}`,
+    c.errs.length === 0 && c.errs.ignored.length === (worker === 'error' ? 1 : 0), JSON.stringify({ errs: c.errs.slice(0, 3), ignored: c.errs.ignored }));
+  await c.ctx.close();
+}
+
+// ── R21d:重查確認了、rules 仍然拒絕(例如新 collection 尚未放行)⇒ 同一次同步最多重查 1 發;10 分鐘內連續被拒不再多發;滿 10 分鐘才再重查 1 發 ──
+{
+  const c = await r21Case('R21d', { worker: 'ready', alwaysDeny: true });
+  await c.page.clock.setFixedTime(R21_T0 + 11 * R21_MIN);
+  const s1 = await r21Sync(c.page);
+  r21Pre('R21d', c);
+  ok('R21d-1 核心斷言(同一次同步最多重查一次):重查確認落地後的全量重試又被拒,不會再重查第二次——累計只有 2 發,三發交易依序是 全量(被拒)→全量(重試,被拒)→舊清單(被拒)',
+    c.st.auth.length === 2 && s1.r === false && attemptsAre(s1.attempts, [R21_FULL, R21_FULL, R21_LEGACY]) && FAIL_RE.test(s1.actionError),
+    JSON.stringify({ auth: c.st.auth.length, s1 }));
+  await c.page.clock.setFixedTime(R21_T0 + 12 * R21_MIN);
+  const s2 = await r21Sync(c.page);
+  await c.page.clock.setFixedTime(R21_T0 + 21 * R21_MIN - 1);
+  const s3 = await r21Sync(c.page);
+  ok('R21d-2 核心斷言(10 分鐘內連續被拒不再多發):距上一次重查 1 分鐘與「差 1 毫秒滿 10 分鐘」各連續被拒一次,/api/plus-status 都沒有新增(仍是 2 發),每次只剩降級後的舊清單那 1 發交易',
+    c.st.auth.length === 2 && attemptsAre(s2.attempts, [R21_LEGACY]) && attemptsAre(s3.attempts, [R21_LEGACY]) && s2.r === false && s3.r === false,
+    JSON.stringify({ auth: c.st.auth.length, s2: s2.attempts, s3: s3.attempts }));
+  await c.page.clock.setFixedTime(R21_T0 + 21 * R21_MIN);
+  const s4 = await r21Sync(c.page);
+  ok('R21d-3 上限是以時間算的、不是用完就沒了:滿 10 分鐘(距上一次重查恰 10 分鐘)又被拒 ⇒ 再重查恰 1 發(累計 3),三發交易依序是 舊清單→全量(重試)→舊清單,而且仍是只重查一次',
+    c.st.auth.length === 3 && s4.r === false && attemptsAre(s4.attempts, [R21_LEGACY, R21_FULL, R21_LEGACY]), JSON.stringify({ auth: c.st.auth.length, s4 }));
+  ok('R21d 本輪零 pageerror/console.error', c.errs.length === 0, c.errs.slice(0, 3).join(' | '));
+  await c.ctx.close();
+}
+
+// ── R21e:資格在交易途中失效(plusIsActive() 為假)⇒ 即使閂舊也不重查——被拒是設計本身,不是故障 ──
+{
+  const c = await r21Case('R21e', { worker: 'ready' });
+  await c.page.clock.setFixedTime(R21_T0 + 11 * R21_MIN);
+  await c.page.evaluate(() => { window.__r21DeactivateOnTx = true; });
+  const s = await r21Sync(c.page);
+  r21Pre('R21e', c);
+  ok('R21e 核心斷言:被拒時 plusIsActive() 已經是 false ⇒ 一發都不重查(/api/plus-status 仍是前置那 1 發),只送出那 1 發交易,不報同步失敗、不降級',
+    c.st.auth.length === 1 && s.active === false && s.r === false && attemptsAre(s.attempts, [R21_FULL]) && s.actionError === '' && s.legacyKinds === false,
+    JSON.stringify({ auth: c.st.auth.length, s }));
+  ok('R21e 本輪零 pageerror/console.error', c.errs.length === 0, c.errs.slice(0, 3).join(' | '));
+  await c.ctx.close();
 }
 
 await chromiumB.close();

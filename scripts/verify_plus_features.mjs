@@ -614,6 +614,53 @@ const GATE_DISCLOSURE = {
     && TERMS_BODY_TEXT.length > 200 && TERMS_BODY_TEXT.includes('軌島通行證')
     && /[{}]/.test(TSRC) && !/[{}]/.test(TERMS_BODY_TEXT),
     `help=${HELP_PLUS_TEXT.length} termsBody=${TERMS_BODY_TEXT.length}/全文 ${TSRC.length} 字`);
+  // ── 終身通行證(旗標開)面板上的新文字:定義句、升級前揭露句、資格說明句、續訂提醒 ──
+  // 旗標關時這些字一個都不會畫出來,上面四份文案(feats、plus-trust、說明中心、條款)掃不到它們。
+  // 這裡把旗標打開,真的呼叫 plusRender() 畫出三種畫面(付過＋有升級價／訂閱中／已終身但訂閱還在續),
+  // 讀 DOM 裡實際出現的句子,再丟進同一支偵測器——不是把句子抄一份到腳本裡自己比對。
+  // injectText:正向對照用,執行期把一句話塞進畫面上的定義句,再用同一條讀取路徑重掃。
+  const renderLt = injectText => page.evaluate(inject => {
+    window.RAIL_PLUS_TEST_ADAPTER = { setUser: async () => {} };      // 只為了讓 plusConfigured() 為真;面板渲染用不到它
+    window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus', lifetimeOnSale: true, lifetimeProductIds: [] };
+    state.account = { ready: true, user: { uid: 't2a-lifetime' } };
+    const pkg = id => ({ identifier: id, product: { priceString: 'NT$0' } });
+    const base = { founding: false, loading: false, error: '', pkgMonthly: pkg('$rc_monthly'), pkgAnnual: pkg('$rc_annual'), pkgLifetime: pkg('$rc_lifetime'), pkgLifetimeUpgrade: pkg('lifetime_upgrade'), mgmtUrl: 'https://example.test/manage', adapter: null, afterUnlock: null };
+    const body = document.getElementById('plusBody');
+    const out = [];
+    for (const extra of [
+      { active: false, ownership: 'unknown', everPaid: true },                                                                              // 付過、有升級價:定義句＋資格說明句
+      { active: true, ownership: 'subscription', everPaid: true },                                                                          // 訂閱中:升級前揭露句
+      { active: true, ownership: 'lifetime', subRenewing: true, subStore: 'APP_STORE', subManageUrl: 'https://example.test/m' },          // 已終身、訂閱還在續:提醒句
+    ]) {
+      state.plus = { ...base, ...extra };
+      plusRender();
+      if (inject) { const n = body.querySelector('.plus-lifetime-note'); if (n) n.textContent = inject + n.textContent; }
+      out.push(...[...body.querySelectorAll('.plus-lifetime-note, .account-note, .plus-owned, .plus-manage')].map(n => n.textContent.trim()).filter(Boolean));
+    }
+    return out;
+  }, injectText || '');
+  const LT_TEXTS = await renderLt();
+  const ltHits = LT_TEXTS.flatMap(x => bannedIn(x));
+  const ltMissing = ['終身通行證一次付款', '你買過月票或年票，可以用升級價購買終身通行證。', '升級後，月票或年票的訂閱不會自動取消', '你還有月票或年票的訂閱。'].filter(k => !LT_TEXTS.some(x => x.includes(k)));
+  ok('T2a 終身通行證面板(旗標開、三種畫面):定義句、升級前揭露句、資格說明句、續訂提醒都被掃到,且不含絕對期限／絕對保證措辭',
+    ltHits.length === 0 && ltMissing.length === 0,
+    ltHits.length ? ltHits.map(h => `「${h.w}」(${h.why}) …${h.ctx}…`).join(' ｜ ') : (ltMissing.length ? `沒掃到:${ltMissing.join(' | ')}` : `已驗 ${LT_TEXTS.length} 段`));
+  // 正向對照(執行期注入):把禁用句塞進畫面上的定義句,同一條讀取路徑重掃必須紅。
+  // 證明上一條的「綠」是掃過那個位置之後的綠,不是那個位置根本沒進掃描範圍。
+  const injectedHits = (await renderLt('終身免費更新。')).flatMap(x => bannedIn(x));
+  ok('T2a 正向對照(執行期注入):把禁用句塞進畫面上的終身定義句,同一條掃描必須紅(永久性措辭＋價格對象)',
+    injectedHits.some(h => h.why === '永久性措辭＋價格對象'), JSON.stringify(injectedHits.map(h => h.why)));
+  // 終身句型的「該紅會紅」樣本:三層各一句,每一句都實際塞進畫面上的定義句、實際跑過偵測器,
+  // 而且必須由「預期的那一層」咬住(換成別層咬住不算——那表示預期的那一層其實已經失明)。
+  const LT_RED = [['終身免費更新', '永久性措辭＋價格對象', 'A'], ['買一次就不會再收費', '否定式價格承諾', 'C'], ['保證永久可用', '保證性措辭＋承諾對象', 'B']];
+  const ltRedMiss = [];
+  for (const [sample, why, layer] of LT_RED) {
+    const direct = bannedIn(sample).map(h => h.why);
+    const inDom = (await renderLt(sample + '。')).flatMap(x => bannedIn(x)).map(h => h.why);
+    if (!direct.includes(why) || !inDom.includes(why)) ltRedMiss.push(`${layer} 層「${sample}」直接=${JSON.stringify(direct)} 畫面=${JSON.stringify([...new Set(inDom)])}`);
+  }
+  ok('T2a 終身句型的該紅樣本:「終身免費更新」(A 層)、「買一次就不會再收費」(C 層)、「保證永久可用」(B 層)各由對應那層咬住',
+    ltRedMiss.length === 0, ltRedMiss.length ? ltRedMiss.join(' ｜ ') : `${LT_RED.length} 句全中`);
   const satItem = feats.find(t => t.includes('高解析')) || '';
   ok('T2b 衛星那項同時含「高解析」與「Retina」', satItem.includes('高解析') && satItem.includes('Retina'), satItem);
   ok('T2c plus-trust 保留「準確度」相關的免費承諾語', trust.includes('準確度'), trust);
@@ -1219,7 +1266,7 @@ server.close();
 const EXPECTED_COUNTS = {
   G0: 1, G1: 2, G2: 2, T0: 1, T0a: 1, T0b: 1, T0c: 1,
   T1: 6 + REQUIRED.length + GATE_CALLS.length + 4 * expectedFeatCount(inFounding),
-  T2: 1, T2a: 4, T2b: 1, T2c: 1, T2d: 1, T2e: 1, T2f: 1, // T2a=4:違禁詞斷言 + 偵測器正向對照 + 抽取器對照 + 具名豁免對照
+  T2: 1, T2a: 7, T2b: 1, T2c: 1, T2d: 1, T2e: 1, T2f: 1, // T2a=7:違禁詞斷言 + 偵測器正向對照 + 抽取器對照 + 具名豁免對照 + 終身面板掃描 + 執行期注入對照 + 終身句型該紅樣本
   T3: 2, T3a: 1, T3b: 2, T4a: 2, T4b: 2, T4c: 2, T5: 6, T5w: 3, T7a: 4, T7b: 4,
   T9a: 9, T9b: 9, T9c: 2, // T9=未登入×有購買通道(登入牆已拆);a=WebKit 375 觸控、b=Chromium 1280、c=兩條反向對照
   T8a: 1, T8b: 1, T8c: 2, T8d: 1, // T8=app-support.html 導覽標籤真值比對(見上方 T8 區塊);T8c=核心斷言+杜撰偵測正向對照

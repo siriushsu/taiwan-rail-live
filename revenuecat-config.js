@@ -41,5 +41,14 @@ window.RAIL_REVENUECAT_CONFIG = window.RAIL_REVENUECAT_CONFIG || {
   // 2026-09-09 裁示:徽章窗到 9/10 00:00 為止,之後創始期收掉。錨點原封留著給既有創始會員
   // 判定(不可改 false),這個旗標只是告訴發版閘門「窗過期是故意的,不是忘了更新」。
   // 之後若又要重開創始期,改錨點的同輪要把這行拿掉,否則閘門就不再幫你盯窗尾了。
-  foundingWindowClosed: true
+  foundingWindowClosed: true,
+  // 終身通行證。lifetimeOnSale 為 false 時,付費牆不出現任何終身購買介面(按鈕、定義句、升級價),
+  // 也不出現提到終身的通用文字;已經持有終身的人照常顯示持有狀態,不受這個值影響。上線那一版改成 true。
+  // 這是寫進版控的設定值,不是建置環境變數;index.html 的 plusLifetimeOnSale() 只認 === true。
+  // lifetimeProductIds 是各商店的終身商品 ID(含升級價商品),用來從 customerInfo 判定「已終身」。
+  lifetimeOnSale: false,
+  lifetimeProductIds: [
+    'tw.railisland.app.plus.lifetime', 'tw.railisland.app.plus.lifetime_upgrade',
+    'railisland_pass_lifetime', 'railisland_pass_lifetime_upgrade'
+  ]
 };

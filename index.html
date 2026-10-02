@@ -3459,6 +3459,9 @@
   .plus-legal { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line-faint); color: var(--faint); font-size: calc(11px * var(--uis)); line-height: 1.6; }
   .plus-legal p { margin: 0 0 6px; }
   .plus-legal a { color: var(--navy); font-weight: 700; }
+  /* 終身購買區塊(plusRender 的 lifetimeBlock):按鈕與定義句在同一個容器;上方留白給「升級價」標籤(top:-9px)。 */
+  .plus-lifetime { display: grid; gap: 7px; margin-top: 6px; }
+  .plus-lifetime-note { margin: 0; padding: 0 2px; color: var(--muted); font-size: calc(11px * var(--uis)); line-height: 1.6; overflow-wrap: anywhere; }
 
   /* ── 流量圖 ── */
   .flow { margin: 14px 2px 0; }
@@ -16051,7 +16054,9 @@ function accountRender() {
     const subscribed = plusIsActive();
     const guestPending = guestDataPending(u.uid);
     const sync = !subscribed ? t('訂閱軌島通行證才會同步') : (a.syncing ? t('正在合併這台裝置與雲端資料…') : (a.lastSync ? t('上次同步：{time}', { time: new Date(a.lastSync).toLocaleString(I18N_LANG) }) : t('尚未完成第一次同步')));
-    const plus = t(subscribed ? '訂閱中' : '未訂閱');
+    // 每種狀態各寫一個字面 t():check_i18n 只認字面呼叫,三元運算式裡的字串掃不到。
+    const own = state.plus && state.plus.ownership;
+    const plus = !subscribed ? t('未訂閱') : (own === 'lifetime' ? t('終身') : (own === 'subscription' ? t('訂閱中') : t('通行證有效')));
     // Plus 狀態列與入口以 plusProjectConfigured()(整個 RevenueCat project 是否有 Plus)為準,而非
     // plusConfigured()(此平台能否發起付款)——讓網站即使沒設 Web Billing key 也能查看訂閱狀態與
     // 「請在 App 內訂閱」說明;真正發起付款仍受 plusConfigured() 控管(見 plusOpen 內的 plusRefresh 閘)。
@@ -16254,8 +16259,12 @@ async function accountSyncTxn(reason, myGen, myUid, retried) {
     // `!plusCloudSyncReady()` 讓握手在一次同步裡最多只發生一次:文件已確認落地卻仍被擋,那就真的
     // 是 (a2),再握手一次也不會有新資訊。整條路徑的交易次數因此有上限(原始 1 + 握手後重試 1 +
     // 舊清單重試 1),不會變成對著註定失敗的 rules 洗版。
-    if (denied && plusIsActive() && !plusCloudSyncReady() && !retried) {
-      const landed = await plusReconcileEntitlement();
+    // 閂為真但距離上次確認已超過 PLUS_CLOUD_RECHECK_MS:同樣先去問一次(重查),不是直接當成 (a2)。
+    // 條件缺一不可:資格有效、閂為真、間隔夠久、這一發不是重試——所以一次同步最多重查一次,
+    // 重查確認落地後的全量重試再被拒,也不會再發第二次;間隔內再被拒更不會發。
+    const latchOpen = plusCloudSyncReady();
+    if (denied && plusIsActive() && (!latchOpen || plusCloudSyncStale()) && !retried) {
+      const landed = await plusReconcileEntitlement(latchOpen ? { recheck: true } : undefined);
       // 握手期間有多個 await,身分可能已經變了——比照本函式尾端的世代複查,對不上就別再發交易。
       if (a.gen !== myGen || !a.user || a.user.uid !== myUid) return false;
       if (landed) return accountSyncTxn(reason + '-reconciled', myGen, myUid, true);
@@ -16363,7 +16372,7 @@ function accountForgetIdentity() {
   if (state.account) state.account.gen = (state.account.gen || 0) + 1; // C-2 世代前進:仍在途的舊同步之後複查世代會發現對不上,結果被丟棄不寫本機(見 accountSyncTxn)
   // 批二-B:cloudSyncReady(資格文件落地)綁在「這個身分」上,身分沒了就不再成立——下一個登入的人
   // 必須自己重新握手一次,不能繼承上一個人的落地結論。
-  if (state.plus) { state.plus.active = false; state.plus.entitlementEnvironment = ''; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; state.plus.cloudSyncReady = false; state.plus.cloudSyncPromise = null; }
+  if (state.plus) { state.plus.active = false; state.plus.entitlementEnvironment = ''; state.plus.founding = false; state.plus.pkgMonthly = null; state.plus.pkgAnnual = null; state.plus.mgmtUrl = ''; state.plus.adapter = null; state.plus.afterUnlock = null; state.plus.cloudSyncReady = false; state.plus.cloudSyncPromise = null; state.plus.cloudSyncConfirmedAt = null; state.plus.pkgLifetime = null; state.plus.pkgLifetimeUpgrade = null; state.plus.ownership = 'unknown'; state.plus.everPaid = false; state.plus.subRenewing = false; state.plus.subStore = ''; state.plus.subManageUrl = ''; }
   musicReconcileMode();   // 資格變了就把配樂模式對齊(付費池 ⇄ 免費隨機)
   // 🔴 2026-08-16:身分沒了＝這台裝置的資格沒了,小工具那顆旗標必須跟著收回。漏了這一行就是
   //    使用者回報的「登出後還是可以選擇最近的站、還是可以放好多站」——App 這側已經歸零,
@@ -16678,6 +16687,15 @@ function plusIsActive() { return !!(state.plus && state.plus.active); }
 // 買完之後 active 立刻為真、文件卻要等 webhook 或一次主動握手才落地,中間那段時間兩者必然分家;
 // 兩個狀態各自可查,誰管誰一眼就看得出來,才不會再有人用其中一個去推論另一個。
 function plusCloudSyncReady() { return !!(state.plus && state.plus.cloudSyncReady); }
+// 伺服器端 /entitlements/{uid} 的 activeUntilMs 是「伺服器上次重查的時刻＋7 天」的滾動窗:App 長開、
+// 超過 7 天沒有任何一次重查,文件就過期,rules 開始拒絕寫入,而 cloudSyncReady 這道閂卻還是 true。
+// 所以閂為真也只在「上次確認」之後的一小段時間內可信;寫入被拒而閂已超過這個間隔,才允許再握手一次
+// (accountSyncTxn)。間隔內被拒視為真的是 rules 本身擋下,再問也不會有新資訊,不多打請求。
+const PLUS_CLOUD_RECHECK_MS = 10 * 60 * 1000;
+function plusCloudSyncStale() {
+  const at = state.plus && state.plus.cloudSyncConfirmedAt;
+  return Number.isFinite(at) && Date.now() - at >= PLUS_CLOUD_RECHECK_MS;
+}
 // 「確認落地」的唯一入口。之所以要是一支函式而不是散在各處的賦值:落地這件事同時代表
 // **之前所有基於「被 rules 擋」而做的降級都失去依據**——a.legacyKinds(退回舊清單、少傳 stations)
 // 是 session 級旗標且永不重置,不在這裡一起收回來,使用者就會在資格已經生效之後,每次同步仍然
@@ -16685,6 +16703,7 @@ function plusCloudSyncReady() { return !!(state.plus && state.plus.cloudSyncRead
 function plusMarkCloudSyncReady() {
   const p = plusState();
   p.cloudSyncReady = true;
+  p.cloudSyncConfirmedAt = Date.now(); // 記下確認時刻,見 PLUS_CLOUD_RECHECK_MS
   if (state.account) state.account.legacyKinds = false; // 收回降級;下一次同步是全量,補傳降級期間沒上去的 stations
   return true;
 }
@@ -16701,17 +16720,21 @@ function plusMarkCloudSyncReady() {
 //     回應亂序覆寫狀態比多等一次還糟。
 // 拿不到 ID token 時(尚未登入、或 SDK 還沒備妥)直接回 false 不發請求:沒有身分的請求後端只會回
 // 401,發它等於白打一發並在 console 留下噪音。
-async function plusReconcileEntitlement() {
+async function plusReconcileEntitlement(opts) {
   const a = state.account, user = a && a.user;
   if (!user) return false;
   const p = plusState();
-  if (p.cloudSyncReady) return true;
+  // recheck:閂為真之後資格文件仍可能過期(見 PLUS_CLOUD_RECHECK_MS)。寫入被拒時由 accountSyncTxn 要求
+  // 重查,這時跳過下一行「已確認就直接回 true」的捷徑,其餘(單發在飛、世代與 uid 複查)照舊。
+  const recheck = !!(opts && opts.recheck);
+  if (p.cloudSyncReady && !recheck) return true;
   if (p.cloudSyncPromise) return p.cloudSyncPromise;
   const getToken = a.fb && a.fb.getIdToken ? () => a.fb.getIdToken(user)
     : (typeof user.getIdToken === 'function' ? () => user.getIdToken() : null);
   if (!getToken) return false;
   const myGen = a.gen, myUid = user.uid;
   const task = (async () => {
+    let confirmed = false;
     try {
       const token = await getToken();
       const res = await fetch(apiUrl('api/plus-status'), { cache: 'no-store', headers: plusApiHeaders(token) });
@@ -16728,10 +16751,19 @@ async function plusReconcileEntitlement() {
           ? 'sandbox' : (p.active ? 'production' : ''));
         metroWidgetSyncPlus(p.active); // 2026-08-16:拿到明確答案就同步小工具旗標(見 metroWidgetSyncPlus)
       }
-      if (data && data.cloudSyncReady === true) return plusMarkCloudSyncReady();
+      if (data && data.cloudSyncReady === true) { confirmed = true; return plusMarkCloudSyncReady(); }
       return false;
     } catch (e) { return false; }
-    finally { p.cloudSyncPromise = null; }
+    finally {
+      p.cloudSyncPromise = null;
+      // 重查沒有確認落地(伺服器說還沒,或請求根本沒問成):這道閂已經沒有最近的確認撐著,收回,
+      // 之後的同步照「閂為假」的既有路徑走。請求失敗的路徑沒走過上面的身分複查,所以在這裡再做一次:
+      // 換人之後的閂屬於新的人,不能被這發遲到的失敗收掉。
+      if (recheck && !confirmed) {
+        const now = state.account;
+        if (now && now.gen === myGen && now.user && now.user.uid === myUid) { p.cloudSyncReady = false; p.cloudSyncConfirmedAt = null; }
+      }
+    }
   })();
   p.cloudSyncPromise = task;
   return task;
@@ -16868,6 +16900,86 @@ function plusPickPackage(pkgs, kind) {
   const hit = key => pkgs.find(pk => { const v = String(pk && pk[key] || '').toUpperCase(); return wants.some(w => v.includes(w)); });
   return hit('packageType') || hit('identifier') || null;
 }
+// ── 終身通行證 ───────────────────────────────────────────────────────────────────
+// 終身購買介面的旗標與商品 ID 清單都在 revenuecat-config.js(版控內的設定值,不是建置環境變數)。
+// 只認 === true:設定缺席、寫成字串或數字都視為沒開賣。每次呼叫重讀設定,測試可在執行期覆寫。
+function plusLifetimeOnSale() { return plusConfig().lifetimeOnSale === true; }
+function plusLifetimeIds() {
+  const ids = plusConfig().lifetimeProductIds;
+  return Array.isArray(ids) ? ids.map(String) : [];
+}
+// 持有狀態:由 customerInfo 判定的純函式(不碰 state、不碰 DOM),可以直接拿 SDK 回傳的物件餵。
+//   lifetime     ＝ 資格有效,而且有效的 plus entitlement 或任一筆買斷交易的商品 ID 在終身清單裡。
+//                  不用 expirationDate === null 推論:後台手動發的 promotional 資格同樣是 null。
+//   subscription ＝ 資格有效、不是終身、而且有「有效中的訂閱」。
+//   unknown      ＝ 其餘有效的情況(promotional、讀不到細節);畫面一律用中性字。
+// everPaid:這個帳號付過費(月票、年票、終身任一),決定要不要給升級價;後台贈送的 promotional 不算。
+// subRenewing／subStore／subManageUrl:買了終身之後若還有訂閱在續,提醒買家自行取消要用的資料。
+function plusOwnershipFrom(info) {
+  const out = { ownership: 'unknown', everPaid: false, subRenewing: false, subStore: '', subManageUrl: '' };
+  if (!info || typeof info !== 'object') return out;
+  const isLifetimeId = id => plusLifetimeIds().includes(String(id || ''));
+  const key = plusConfig().entitlement || 'plus';
+  const ents = info.entitlements || {};
+  const activeEnt = ents.active && ents.active[key];
+  const allEnt = ents.all && ents.all[key];
+  const txs = Array.isArray(info.nonSubscriptionTransactions) ? info.nonSubscriptionTransactions : [];
+  const subs = Array.isArray(info.activeSubscriptions) ? info.activeSubscriptions : [];
+  const purchased = Array.isArray(info.allPurchasedProductIdentifiers) ? info.allPurchasedProductIdentifiers : [];
+  // SDK 型別上是「以商品 ID 為鍵的物件」,但沒有訂閱時實際回的是 [];陣列一律當空物件。
+  const detail = info.subscriptionsByProductIdentifier;
+  const byId = detail && typeof detail === 'object' && !Array.isArray(detail) ? detail : {};
+  if (plusActiveFrom(info)) {
+    const lifetime = isLifetimeId(activeEnt && activeEnt.productIdentifier) || txs.some(tx => isLifetimeId(tx && tx.productIdentifier));
+    out.ownership = lifetime ? 'lifetime' : (subs.length ? 'subscription' : 'unknown');
+  }
+  out.everPaid = !!(allEnt && allEnt.store !== 'PROMOTIONAL')
+    || purchased.some(id => !isLifetimeId(id) && !String(id || '').startsWith('rc_promo'))
+    || out.ownership === 'subscription';
+  if (subs.length) {
+    // 每一筆有效訂閱都明確標了 willRenew:false 才算「不會再續」;缺欄位、缺那一筆都當作還在續。
+    out.subRenewing = !subs.every(id => byId[id] && byId[id].willRenew === false);
+    const entry = byId[subs.find(id => byId[id] && byId[id].willRenew !== false) || subs[0]] || {};
+    out.subStore = entry.store === 'APP_STORE' || entry.store === 'PLAY_STORE' ? entry.store : '';
+    out.subManageUrl = String(info.managementURL || entry.managementURL || '');
+  }
+  return out;
+}
+// 把持有狀態寫進 state.plus。網站沒有購買通道、也就沒有 SDK 的 customerInfo,一律維持 unknown。
+function plusApplyOwnership(p, info) {
+  const o = plusOwnershipFrom(plusConfigured() ? info : null);
+  p.ownership = o.ownership; p.everPaid = o.everPaid;
+  p.subRenewing = o.subRenewing; p.subStore = o.subStore; p.subManageUrl = o.subManageUrl;
+}
+function plusPickLifetime(pkgs) {
+  if (!Array.isArray(pkgs)) return null;
+  return pkgs.find(pk => pk && (pk.identifier === '$rc_lifetime' || String(pk.packageType || '').toUpperCase() === 'LIFETIME')) || null;
+}
+function plusPickLifetimeUpgrade(pkgs) {
+  if (!Array.isArray(pkgs)) return null;
+  return pkgs.find(pk => pk && pk.identifier === 'lifetime_upgrade') || null;
+}
+// 要買哪個終身 package 的唯一出口:畫面與購買都只問它,不各算一次。
+// null ＝ 這一刻不賣(旗標關、已經是終身、這個平台沒有購買通道、或 offering 裡沒有對應 package)。
+function plusLifetimeOffer(p) {
+  if (!p || !plusLifetimeOnSale() || !plusConfigured()) return null;
+  if (p.active && p.ownership === 'lifetime') return null;
+  return (p.everPaid && p.pkgLifetimeUpgrade) || p.pkgLifetime || null;
+}
+// 訂閱所在商店:customerInfo 有明講就用它,否則依目前平台。
+function plusSubStoreName(p, fallback) {
+  return p && p.subStore === 'PLAY_STORE' ? 'Google Play' : (p && p.subStore === 'APP_STORE' ? 'App Store' : fallback);
+}
+// 系統的訂閱設定頁:先用 SDK 給的管理網址,沒有就依訂閱所在商店給預設值,商店也不明才依目前平台。
+function plusSubManageUrl(p, nativeAndroid) {
+  const given = p && p.subManageUrl;
+  if (given && /^https?:\/\//i.test(given)) return given;
+  const play = 'https://play.google.com/store/account/subscriptions?package=tw.railisland.app';
+  const apple = 'https://apps.apple.com/account/subscriptions';
+  if (p && p.subStore === 'PLAY_STORE') return play;
+  if (p && p.subStore === 'APP_STORE') return apple;
+  return nativeAndroid ? play : apple;
+}
 async function plusAdapterFor(uid) {
   if (window.RAIL_NATIVE_PLUS_ADAPTER) { await window.RAIL_NATIVE_PLUS_ADAPTER.setUser(uid); await plusEnsureListener(window.RAIL_NATIVE_PLUS_ADAPTER); return window.RAIL_NATIVE_PLUS_ADAPTER; }
   if (window.RAIL_PLUS_TEST_ADAPTER) { await window.RAIL_PLUS_TEST_ADAPTER.setUser(uid); await plusEnsureListener(window.RAIL_PLUS_TEST_ADAPTER); return window.RAIL_PLUS_TEST_ADAPTER; }
@@ -16953,6 +17065,7 @@ function plusApplyCustomerInfo(info) {
   plusSetEnvironment(p, plusEnvironmentFrom(info));
   p.founding = p.active && foundingFrom(info);
   p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
+  plusApplyOwnership(p, info);
   metroWidgetSyncPlus(p.active);
   return p.active;
 }
@@ -17000,7 +17113,7 @@ async function plusRevalidateBeforeAction(adapter) {
 function plusState() {
   // cloudSyncReady/cloudSyncPromise 是批二-B 新增的第二個狀態(資格文件落地),與 active(帳務資格)
   // 刻意分開存放,見 plusCloudSyncReady() 上方說明。
-  if (!state.plus) state.plus = { active: false, entitlementEnvironment: '', founding: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, mgmtUrl: '', adapter: null, afterUnlock: null, cloudSyncReady: false, cloudSyncPromise: null };
+  if (!state.plus) state.plus = { active: false, entitlementEnvironment: '', founding: false, loading: false, error: '', pkgMonthly: null, pkgAnnual: null, pkgLifetime: null, pkgLifetimeUpgrade: null, ownership: 'unknown', everPaid: false, subRenewing: false, subStore: '', subManageUrl: '', mgmtUrl: '', adapter: null, afterUnlock: null, cloudSyncReady: false, cloudSyncPromise: null, cloudSyncConfirmedAt: null };
   return state.plus;
 }
 // 通行證的常設入口:工具列 #plusBtn ＋「更多」抽屜的代理列。與帳號槽位無關——不管有沒有登入、
@@ -17063,11 +17176,11 @@ async function plusLoginForSync() {
   await accountEnsureInit();
   accountOpen();
 }
-function plusFinishPending() {
+function plusFinishPending(message) {
   const p = state.plus;
   if (!p || !p.active || typeof p.afterUnlock !== 'function') return false;
   const next = p.afterUnlock; p.afterUnlock = null;
-  plusClose(); showToast(t('軌島通行證已啟用'));
+  plusClose(); showToast(message || t('軌島通行證已啟用'));
   setTimeout(next, 0);
   return true;
 }
@@ -17114,16 +17227,51 @@ function plusRender() {
   // 訂閱法務列(Apple 3.1.2):自動續訂說明 + 隱私權政策/使用條款連結(兩檔都在站台根目錄)。
   const legal = '<div class="plus-legal">' +
     `<p>${escHtml(t('月票與年票都是自動續訂方案；你可以隨時在 {store} 的訂閱設定中取消，取消後於當期結束時停止續訂。', { store: storeName }))}</p>` +
-    `<p>${escHtml(t('軌島通行證是 App 數位功能訂閱，不是實際乘車票券。'))}</p>` +
+    `<p>${escHtml(t('軌島通行證是 App 的數位功能，不是實際乘車票券。'))}</p>` +
     `<p><a href="privacy.html" target="_blank" rel="noopener">${escHtml(t('隱私權政策'))}</a> · <a href="terms.html" target="_blank" rel="noopener">${escHtml(t('使用條款'))}</a></p></div>`;
+  // 終身購買區塊:按鈕、定義句、(升級價才有的)資格說明、(訂閱中才有的)升級前揭露,全在同一個容器裡,
+  // 定義句緊接在按鈕後面。買哪個 package 由 plusLifetimeOffer 決定(畫面與購買共用),這裡不另外判斷旗標與資格。
+  const lifetimeBlock = () => {
+    const offer = plusLifetimeOffer(p);
+    if (!offer) return '';
+    const upgrade = offer === p.pkgLifetimeUpgrade;
+    const subscribed = p.active && p.ownership === 'subscription';
+    const note = text => `<p class="plus-lifetime-note">${escHtml(text)}</p>`;
+    return '<div class="plus-lifetime">' +
+      `<button class="plus-plan" type="button" data-plus="buy" data-pkg="lifetime" data-tier="${upgrade ? 'upgrade' : 'full'}">` +
+      (upgrade ? `<span class="plus-plan-badge">${escHtml(t('升級價'))}</span>` : '') +
+      `<span class="plus-plan-name">${escHtml(subscribed ? t('升級為終身通行證') : t('購買終身通行證'))}</span>` +
+      `<span class="plus-plan-price">${escHtml(plusPackagePrice(offer))}</span></button>` +
+      note(t('終身通行證一次付款，不會自動續訂。「終身」指軌島持續營運的期間，不是購買人的一生。軌島若停止服務，會至少提前 90 天公告；停止服務時距購買未滿 3 年，按剩下的月數比例退費，滿 3 年則不另退費。')) +
+      (upgrade ? note(t('你買過月票或年票，可以用升級價購買終身通行證。')) : '') +
+      (subscribed ? note(t('升級後，月票或年票的訂閱不會自動取消，要請你到 {store} 的訂閱設定自行取消。', { store: plusSubStoreName(p, storeName) })) : '') +
+      '</div>';
+  };
   if (p.active) {
     // 已訂閱:管理訂閱在原生殼走商店訂閱管理深連結(customerInfo.managementURL);web 無 portal 時給說明文字。
-    const manage = p.mgmtUrl
-      ? `<a class="plus-manage" href="${escHtml(p.mgmtUrl)}" target="_blank" rel="noopener">${escHtml(t('管理訂閱'))}</a>`
-      : `<p class="account-note">${escHtml(t('訂閱管理請至 {store} 的訂閱設定。', { store: storeName }))}</p>`;
+    // 持有狀態由 plusOwnershipFrom 判定;欄位缺席(網站、舊資料)一律當 unknown。
+    const own = p.ownership === 'lifetime' || p.ownership === 'subscription' ? p.ownership : 'unknown';
+    const restoreBtn = `<button class="plus-restore" type="button" data-plus="restore">${escHtml(t('恢復購買'))}</button>`;
+    if (own === 'lifetime') {
+      // 終身:沒有任何購買鈕,也沒有「管理訂閱」。先前的月票或年票若還在續,提醒自行取消並給系統訂閱設定的連結。
+      const renew = p.subRenewing
+        ? `<p class="account-note">${escHtml(t('你還有月票或年票的訂閱。終身通行證不會幫你取消它；如果它還會自動續訂，請到 {store} 的訂閱設定取消，以免重複扣款。', { store: plusSubStoreName(p, storeName) }))}</p>` +
+          `<a class="plus-manage" href="${escHtml(plusSubManageUrl(p, nativeAndroid))}" target="_blank" rel="noopener">${escHtml(t('前往訂閱設定'))}</a>`
+        : '';
+      body.innerHTML = hero + features + `<div class="plus-owned">${escHtml(t('終身通行證已啟用'))}</div>` + renew + restoreBtn + legal;
+      return;
+    }
+    // 網站與讀不出細節的資格分不出訂閱或終身,只給中性說明,不指向特定商店的管理頁。
+    const manage = own === 'unknown'
+      ? `<p class="account-note">${escHtml(t('月票、年票的自動續訂，請到當初購買的 App Store 或 Google Play 訂閱設定管理。'))}</p>`
+      : (p.mgmtUrl
+        ? `<a class="plus-manage" href="${escHtml(p.mgmtUrl)}" target="_blank" rel="noopener">${escHtml(t('管理訂閱'))}</a>`
+        : `<p class="account-note">${escHtml(t('訂閱管理請至 {store} 的訂閱設定。', { store: storeName }))}</p>`);
+    // 訂閱中的人才有「升級為終身」;沒有可買的終身 package(旗標關、offering 沒有)時這段是空字串,畫面維持原樣。
+    const upgradeBlock = own === 'subscription' ? lifetimeBlock() : '';
     body.innerHTML = hero + features +
-      `<div class="plus-owned">${escHtml(t('通行證已啟用'))}</div>` + manage +
-      `<button class="plus-restore" type="button" data-plus="restore">${escHtml(t('恢復購買'))}</button>` + legal;
+      `<div class="plus-owned">${escHtml(t('通行證已啟用'))}</div>` + manage + restoreBtn +
+      (upgradeBlock ? (p.error ? `<div class="account-error">${escHtml(p.error)}</div>` : '') + `<div class="plus-plans">${upgradeBlock}</div>` : '') + legal;
     return;
   }
   if (p.loading) { body.innerHTML = hero + features + `<p class="account-intro">${escHtml(t('正在讀取方案與訂閱資格…'))}</p>`; return; }
@@ -17170,7 +17318,7 @@ function plusRender() {
       `<span class="plus-plan-name">${escHtml(t(kind === 'annual' ? '訂閱年票' : '訂閱月票'))}</span>` +
       `<span class="plus-plan-price">${escHtml(plusPackagePrice(pkg))}</span></button>`
     : '';
-  const plans = plan(p.pkgAnnual, 'annual', true) + plan(p.pkgMonthly, 'month', false);
+  const plans = plan(p.pkgAnnual, 'annual', true) + plan(p.pkgMonthly, 'month', false) + lifetimeBlock();
   body.innerHTML = hero + features +
     (p.error ? `<div class="account-error">${escHtml(p.error)}</div>` : '') +
     (plans ? `<div class="plus-plans">${plans}</div>` : `<p class="account-note">${escHtml(t('目前無法取得訂閱方案，請稍後再試。'))}</p>`) +
@@ -17248,6 +17396,7 @@ async function plusRefresh() {
       plusSetEnvironment(p, plusEnvironmentFrom(info));
       p.founding = p.active && foundingFrom(info);
       p.mgmtUrl = (info && info.managementURL) || '';
+      plusApplyOwnership(p, info);
       metroWidgetSyncPlus(p.active); // 2026-08-16:拿到明確答案就同步小工具旗標(見 metroWidgetSyncPlus)
       if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
     } else {
@@ -17260,10 +17409,12 @@ async function plusRefresh() {
       const pkgs = offering && offering.availablePackages || [];
       p.pkgAnnual = plusPickPackage(pkgs, 'annual');
       p.pkgMonthly = plusPickPackage(pkgs, 'month');
+      p.pkgLifetime = plusPickLifetime(pkgs);
+      p.pkgLifetimeUpgrade = plusPickLifetimeUpgrade(pkgs);
     } else {
       // 方案清單讀不到:只影響「買得到什麼」這一半,不影響資格。清成 null 讓 plusRender() 落到
       // 既有的「目前無法取得訂閱方案，請稍後再試。」;已訂閱者看到的仍是「Plus 已啟用」。
-      p.pkgAnnual = null; p.pkgMonthly = null;
+      p.pkgAnnual = null; p.pkgMonthly = null; p.pkgLifetime = null; p.pkgLifetimeUpgrade = null;
     }
     accountRender(); plusFinishPending(); return p.active;
   } catch (e) { p.error = t('無法讀取通行證：{error}', { error: e && e.message ? e.message : String(e) }); return false; }
@@ -17271,7 +17422,9 @@ async function plusRefresh() {
 }
 async function plusPurchase(kind) {
   const p = state.plus, user = state.account && state.account.user;
-  const pkg = p && (kind === 'month' ? p.pkgMonthly : p.pkgAnnual);
+  // 終身的 package 只從 plusLifetimeOffer 取(旗標、持有狀態、升級資格都在那裡判斷),拿不到就早退。
+  const lifetime = kind === 'lifetime';
+  const pkg = p && (lifetime ? plusLifetimeOffer(p) : (kind === 'month' ? p.pkgMonthly : p.pkgAnnual));
   if (!p || !p.adapter || !pkg || !user || p.loading) return;
   // 🔴 2026-08-04 Codex 稽核 M-1:付款表單可能開著好幾分鐘,期間使用者可能登出或換人。
   // accountForgetIdentity() 是**就地**改寫 state.plus(見該函式那行),而這裡的 p 正是同一顆
@@ -17298,6 +17451,7 @@ async function plusPurchase(kind) {
     plusSetEnvironment(p, plusEnvironmentFrom(info));
     p.founding = p.active && foundingFrom(info);
     p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || '';
+    plusApplyOwnership(p, info);
     metroWidgetSyncPlus(p.active); // 2026-08-16:買完就要解鎖小工具,不能等下一次 listener 推播(見 metroWidgetSyncPlus)
     if (!p.active) throw new Error(t('付款完成但尚未取得訂閱資格，請按「恢復購買」'));
     if (state.basemap === 'sat') setBasemap(); // 資格變動→衛星解析度跟著換,不必等使用者重切底圖
@@ -17314,10 +17468,16 @@ async function plusPurchase(kind) {
     // 改成 fire-and-forget:成功提示與解鎖立刻發生,落地了再補同步。
     plusReconcileEntitlement().then(ok => { if (ok) accountSyncNow('entitlement'); }).catch(() => {});
     accountRender();
-    if (!plusFinishPending()) { plusClose(); showToast(t('軌島通行證已啟用')); }
+    if (lifetime && p.ownership === 'lifetime' && p.subRenewing) {
+      // 買了終身、先前的訂閱卻還在續:面板留著,讓續訂提醒與系統訂閱設定的連結看得到(收尾的 finally 會重畫)。
+      showToast(t('終身通行證已啟用'));
+    } else if (!plusFinishPending(lifetime ? t('終身通行證已啟用') : '')) {
+      plusClose(); showToast(lifetime ? t('終身通行證已啟用') : t('軌島通行證已啟用'));
+    }
   } catch (e) {
     const cancelled = e && (e.userCancelled || e.errorCode === 'UserCancelledError');
-    if (!cancelled) p.error = t('訂閱未完成：{error}', { error: e && e.message ? e.message : String(e) });
+    const detail = e && e.message ? e.message : String(e);
+    if (!cancelled) p.error = lifetime ? t('購買未完成：{error}', { error: detail }) : t('訂閱未完成：{error}', { error: detail });
   } finally { p.loading = false; plusRender(); }
 }
 async function plusRestore() {
@@ -17337,7 +17497,7 @@ async function plusRestore() {
     musicReconcileMode();   // 資格變了就把配樂模式對齊(付費池 ⇄ 免費隨機)
     plusSetEnvironment(p, plusEnvironmentFrom(info));
     p.founding = p.active && foundingFrom(info);
-    p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || ''; accountRender();
+    p.mgmtUrl = (info && info.managementURL) || p.mgmtUrl || ''; plusApplyOwnership(p, info); accountRender();
     metroWidgetSyncPlus(p.active); // 2026-08-16:恢復購買同理,見 plusPurchase 那行與 metroWidgetSyncPlus
     if (p.active) {
       // 批二-B:恢復購買與購買同一個道理——資格是在別台買的,這台裝置的資格文件可能從來沒被
@@ -36049,9 +36209,9 @@ const HELP_GROUPS = [
     // 訂閱是新功能,依專案慣例必須有一節;avail 掛 PLUS_ENABLED,旗標關掉整節自動消失(不教一個按不到的東西)。
     // 內容與 terms.html／plusRender() 的功能清單同一套措辭——說明中心也是付款決定點之一,兩邊講不一樣就是不實宣稱。
     { key: 'plus', ic: '票', nm: '軌島通行證與跨裝置同步', avail: () => PLUS_ENABLED,
-      one: '訂閱制的加值內容。列車位置、誤點資訊與系統覆蓋現在免費提供，不受訂閱影響。',
+      one: '通行證是加值內容。列車位置、誤點資訊與系統覆蓋現在免費提供，不受通行證影響。',
       steps: ['桌面按工具列的「通行證」、手機從「更多」→「軌島通行證」，看裡面有哪些內容',
-        '訂閱在軌島 App 內完成，網站不收費',
+        '通行證在軌島 App 內購買，網站不收費',
         '在網站用同一個軌島帳號登入，App 訂的資格就會生效（面板裡的「已經在 App 訂閱了？登入以同步」）'],
       tip: IS_NATIVE_APP && window.Capacitor?.getPlatform?.() === 'android'
         ? '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、App 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 Android 16 即時資訊與 Samsung Now Bar 的跟車鎖定畫面進度。'

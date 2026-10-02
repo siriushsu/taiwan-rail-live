@@ -587,7 +587,7 @@
     '一張只屬於你的地圖：全台路網轉灰，只有你搭過的區間亮起來。': 'Your personal map greys out the network and highlights only segments you have travelled.', '打開「護照」': 'Open Passport', '在「路線完乘」那一列按「收集地圖」': 'Press Collection map beside Route completion', '看哪裡還是灰的，就是還沒去過的地方': 'Grey segments are places you have not travelled yet', '按上方的「離開」回到即時地圖': 'Press Leave at the top to return to the live map', '搭快車被跳過的小站也算走過——你確實通過了那段軌道。每條路線的完乘率分開算。': 'Express trains still count the track through skipped stations. Completion is calculated separately for each route.',
     '到站提醒': 'Arrival reminders', '跟著車的時候可以排提醒，快到站前手機會響。': 'Schedule a notification while following a train and your phone alerts you before arrival.', '先跟一班車': 'Follow a train', '卡片上的「提醒」選要提醒的站': 'Use Reminder on the card to choose a station', '「更多」→「已排提醒」可以查看與取消': 'More → Scheduled reminders to review or cancel', '提醒依時刻表與即時誤點推算，實際到站請以現場為準。': 'Reminders use the timetable and live delay estimate. Follow station information for the actual arrival.',
     '平交道': 'Level crossings', '全台 415 處台鐵平交道，看接下來哪班車會通過。': 'See upcoming trains at 415 TRA level crossings across Taiwan.', '「更多」→ 打開「平交道記號」': 'More → turn on Level-crossing markers', '把地圖拉近就看得到記號': 'Zoom in to see the markers', '點任一平交道，看接下來通過的列車與倒數': 'Tap a crossing for upcoming trains and countdowns', '遮斷機通常提前 30–60 秒動作，請以現場號誌為準。': 'Barriers usually activate 30–60 seconds early. Always obey the signals on site.',
-    '軌島通行證與跨裝置同步': 'Rail Island Pass and cloud sync', '訂閱制的加值內容。列車位置、誤點資訊與系統覆蓋現在免費提供，不受訂閱影響。': 'Optional subscription features. Train positions, delays and system coverage remain free and are not affected by subscribing.', '桌面按工具列的「通行證」、手機從「更多」→「軌島通行證」，看裡面有哪些內容': 'On desktop press Pass; on phone open More → Rail Island Pass', '訂閱在軌島 App 內完成，網站不收費': 'Subscriptions are purchased in the Rail Island app; the website does not charge', '在網站用同一個軌島帳號登入，App 訂的資格就會生效（面板裡的「已經在 App 訂閱了？登入以同步」）': 'Sign in on the website with the same Rail Island account to use the app subscription here', '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。': 'Pass features include 90 days of daily TRA delay history, cloud sync for favorites and journeys, trip sharing, the train soundtrack (the music follows the train you are watching and the time of day; the free background music is unaffected), Google Maps list import, high-resolution satellite tiles when not following, and Lock Screen or Dynamic Island status on iOS 17.6+.',
+    '軌島通行證與跨裝置同步': 'Rail Island Pass and cloud sync', '通行證是加值內容。列車位置、誤點資訊與系統覆蓋現在免費提供，不受通行證影響。': 'Optional Pass features. Train positions, delays and system coverage remain free and are not affected by the Pass.', '桌面按工具列的「通行證」、手機從「更多」→「軌島通行證」，看裡面有哪些內容': 'On desktop press Pass; on phone open More → Rail Island Pass', '通行證在軌島 App 內購買，網站不收費': 'The Pass is purchased in the Rail Island app; the website does not charge', '在網站用同一個軌島帳號登入，App 訂的資格就會生效（面板裡的「已經在 App 訂閱了？登入以同步」）': 'Sign in on the website with the same Rail Island account to use the app subscription here', '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。': 'Pass features include 90 days of daily TRA delay history, cloud sync for favorites and journeys, trip sharing, the train soundtrack (the music follows the train you are watching and the time of day; the free background music is unaffected), Google Maps list import, high-resolution satellite tiles when not following, and Lock Screen or Dynamic Island status on iOS 17.6+.',
     '模式與外觀': 'Modes and appearance', '放空模式': 'Ambient mode', '全畫面自動導演，不用操作，掛著看就好。': 'A fullscreen automatic director for watching without interaction.', '按「放空模式」': 'Press Ambient mode', '用「視角」切換：跟車＝跟著一班車跑；群車＝鏡頭停在當下最忙的路段看列車交錯': 'Change View: Follow tracks one train; Traffic watches trains cross at a busy section', '動一下畫面就回到手動': 'Interact with the screen to return to manual control', '久沒動會進「劇場模式」把介面淡掉，動一下就回來。': 'After inactivity Theater mode fades the interface; interact to bring it back.',
     '掛著看車時的背景音樂，可以換首。': 'Background music for watching trains, with track skipping.', '「更多」→ 背景音樂': 'More → Background music', '「換首」跳下一首': 'Press Next for another track', 'App 版收起或鎖定螢幕也繼續播；跟車時鎖定畫面讓位給列車動態，其餘時候可在鎖定畫面暫停／換首': 'In the app, music continues in the background. While following, train status uses the Lock Screen; otherwise music controls remain available.',
     'App 版「配樂情境」裡有「車聲」開關：跟車時車一動就有鐵軌聲，停站淡出；放空模式一直放': 'In the app, the Soundtrack menu has a Rail sound switch: track noise while the followed train moves, fading out at stops; always on in ambient mode',
@@ -631,7 +631,7 @@
     '一張只屬於你的地圖：全台路網轉灰，只有你搭過的區間亮起來。': '全路線を灰色にし、乗車した区間だけを色付きで表示する自分専用の地図です。', '打開「護照」': '「パスポート」を開く', '在「路線完乘」那一列按「收集地圖」': '「路線完乗」の「収集マップ」を押す', '看哪裡還是灰的，就是還沒去過的地方': '灰色の場所が未乗車区間', '按上方的「離開」回到即時地圖': '上部の「終了」でリアルタイム地図へ戻る', '搭快車被跳過的小站也算走過——你確實通過了那段軌道。每條路線的完乘率分開算。': '快速列車で通過した区間も乗車済みになります。完乗率は路線ごとに計算します。',
     '到站提醒': '到着通知', '跟著車的時候可以排提醒，快到站前手機會響。': '列車追跡中、到着前にスマートフォンへ通知できます。', '先跟一班車': '列車を追跡', '卡片上的「提醒」選要提醒的站': 'カードの「通知」で駅を選択', '「更多」→「已排提醒」可以查看與取消': '「その他」→「設定済み通知」で確認・取消', '提醒依時刻表與即時誤點推算，實際到站請以現場為準。': '通知は時刻表と遅延から推定します。実際の到着は現地案内をご確認ください。',
     '平交道': '踏切', '全台 415 處台鐵平交道，看接下來哪班車會通過。': '台湾鉄路の踏切415か所で次に通過する列車を確認できます。', '「更多」→ 打開「平交道記號」': '「その他」→「踏切表示」をオン', '把地圖拉近就看得到記號': '地図を拡大してマーカーを表示', '點任一平交道，看接下來通過的列車與倒數': '踏切をタップして次の列車とカウントダウンを確認', '遮斷機通常提前 30–60 秒動作，請以現場號誌為準。': '遮断機は通常30〜60秒前に作動します。必ず現地の信号に従ってください。',
-    '軌島通行證與跨裝置同步': '軌島パスとクラウド同期', '訂閱制的加值內容。列車位置、誤點資訊與系統覆蓋現在免費提供，不受訂閱影響。': '任意のサブスクリプション機能です。列車位置・遅延・対応路線は無料のままで、購読の影響を受けません。', '桌面按工具列的「通行證」、手機從「更多」→「軌島通行證」，看裡面有哪些內容': 'デスクトップは「パス」、スマートフォンは「その他」→「軌島パス」', '訂閱在軌島 App 內完成，網站不收費': '購読は軌島App内で行い、Webサイトでは課金しません', '在網站用同一個軌島帳號登入，App 訂的資格就會生效（面板裡的「已經在 App 訂閱了？登入以同步」）': '同じ軌島アカウントでWebにログインするとAppの購読資格を利用できます', '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。': 'パスには台湾鉄路の90日日別遅延履歴、お気に入りと完乗のクラウド同期、旅程共有、追跡サウンドトラック（見ている列車と時刻に合わせて場面が切り替わります。無料のBGMには影響しません）、Google Mapsリスト読込、高解像度衛星画像、iOS 17.6以降のロック画面／Dynamic Island表示が含まれます。',
+    '軌島通行證與跨裝置同步': '軌島パスとクラウド同期', '通行證是加值內容。列車位置、誤點資訊與系統覆蓋現在免費提供，不受通行證影響。': '任意のパス機能です。列車位置・遅延・対応路線は無料のままで、パスの影響を受けません。', '桌面按工具列的「通行證」、手機從「更多」→「軌島通行證」，看裡面有哪些內容': 'デスクトップは「パス」、スマートフォンは「その他」→「軌島パス」', '通行證在軌島 App 內購買，網站不收費': 'パスは軌島App内で購入し、Webサイトでは課金しません', '在網站用同一個軌島帳號登入，App 訂的資格就會生效（面板裡的「已經在 App 訂閱了？登入以同步」）': '同じ軌島アカウントでWebにログインするとAppの購読資格を利用できます', '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。': 'パスには台湾鉄路の90日日別遅延履歴、お気に入りと完乗のクラウド同期、旅程共有、追跡サウンドトラック（見ている列車と時刻に合わせて場面が切り替わります。無料のBGMには影響しません）、Google Mapsリスト読込、高解像度衛星画像、iOS 17.6以降のロック画面／Dynamic Island表示が含まれます。',
     '模式與外觀': 'モードと外観', '放空模式': '鑑賞モード', '全畫面自動導演，不用操作，掛著看就好。': '全画面の自動カメラで、操作せず眺められます。', '按「放空模式」': '「鑑賞モード」を押す', '用「視角」切換：跟車＝跟著一班車跑；群車＝鏡頭停在當下最忙的路段看列車交錯': '「視点」で切替：追跡は1列車、群列車は混雑区間を固定表示', '動一下畫面就回到手動': '画面を操作すると手動に戻る', '久沒動會進「劇場模式」把介面淡掉，動一下就回來。': 'しばらく操作しないと劇場モードでUIが消え、操作すると戻ります。',
     '掛著看車時的背景音樂，可以換首。': '列車を眺めながら流すBGM。曲送りもできます。', '「更多」→ 背景音樂': '「その他」→「BGM」', '「換首」跳下一首': '「次の曲」で曲送り', 'App 版收起或鎖定螢幕也繼續播；跟車時鎖定畫面讓位給列車動態，其餘時候可在鎖定畫面暫停／換首': 'Appではバックグラウンドでも再生します。追跡中はロック画面を列車情報に使い、それ以外は音楽操作を表示します。',
     'App 版「配樂情境」裡有「車聲」開關：跟車時車一動就有鐵軌聲，停站淡出；放空模式一直放': 'アプリ版の「サウンドトラック」に「走行音」スイッチがあります。追跡中の列車が動いている間は走行音が流れ、停車中はフェードアウト。鑑賞モードでは常時再生',
@@ -3608,4 +3608,39 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '查詢分頁：方向多的車站，答案區固定顯示四列，其餘往下捲，更新時不會跳回頂端': '「調べる」タブ：方面の多い駅では回答欄に4行まで表示し、残りはスクロールで見られます。更新しても先頭に戻りません',
+});
+// 終身通行證:面板、帳號頁狀態字、續訂提醒。'未訂閱'／'訂閱中' 原本只寫在三元運算式裡,從來沒有譯文,一併補上。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '購買終身通行證': 'Buy Lifetime Pass',
+  '升級為終身通行證': 'Upgrade to Lifetime Pass',
+  '升級價': 'Upgrade price',
+  '你買過月票或年票，可以用升級價購買終身通行證。': 'Because you’ve had a monthly or annual pass, you can get the Lifetime Pass at the upgrade price.',
+  '終身通行證一次付款，不會自動續訂。「終身」指軌島持續營運的期間，不是購買人的一生。軌島若停止服務，會至少提前 90 天公告；停止服務時距購買未滿 3 年，按剩下的月數比例退費，滿 3 年則不另退費。': 'The Lifetime Pass is a one-time payment and does not auto-renew. “Lifetime” means for as long as Rail Island keeps operating, not the buyer’s lifetime. If Rail Island shuts down, we will announce it at least 90 days in advance; if that happens less than 3 years after your purchase, we will refund the remaining months pro rata. No refund is given after 3 years.',
+  '升級後，月票或年票的訂閱不會自動取消，要請你到 {store} 的訂閱設定自行取消。': 'Upgrading doesn’t cancel your monthly or annual subscription. Please cancel it yourself in {store} subscription settings.',
+  '終身': 'Lifetime',
+  '終身通行證已啟用': 'Lifetime Pass active',
+  '你還有月票或年票的訂閱。終身通行證不會幫你取消它；如果它還會自動續訂，請到 {store} 的訂閱設定取消，以免重複扣款。': 'You still have a monthly or annual subscription. The Lifetime Pass doesn’t cancel it; if it’s set to auto-renew, cancel it in {store} subscription settings so you aren’t charged twice.',
+  '前往訂閱設定': 'Open subscription settings',
+  '通行證有效': 'Pass active',
+  '月票、年票的自動續訂，請到當初購買的 App Store 或 Google Play 訂閱設定管理。': 'Monthly and annual passes auto-renew; manage them in the App Store or Google Play subscription settings where you bought them.',
+  '購買未完成：{error}': 'Purchase not completed: {error}',
+  '未訂閱': 'Not subscribed',
+  '訂閱中': 'Subscribed',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '購買終身通行證': 'ライフタイムパスを購入',
+  '升級為終身通行證': 'ライフタイムパスにアップグレード',
+  '升級價': 'アップグレード価格',
+  '你買過月票或年票，可以用升級價購買終身通行證。': '月間パスまたは年間パスを購入したことがあるので、アップグレード価格でライフタイムパスを購入できます。',
+  '終身通行證一次付款，不會自動續訂。「終身」指軌島持續營運的期間，不是購買人的一生。軌島若停止服務，會至少提前 90 天公告；停止服務時距購買未滿 3 年，按剩下的月數比例退費，滿 3 年則不另退費。': 'ライフタイムパスは一回払いで、自動更新はありません。「ライフタイム」は軌島の運営が続く期間を指し、購入者の生涯ではありません。軌島がサービスを終了する場合は少なくとも90日前にお知らせし、購入から3年未満で終了したときは残りの月数に応じて返金します。3年以降の終了では返金しません。',
+  '升級後，月票或年票的訂閱不會自動取消，要請你到 {store} 的訂閱設定自行取消。': 'アップグレードしても月間・年間パスのサブスクリプションは自動で解約されません。{store} のサブスクリプション設定でご自身で解約してください。',
+  '終身': 'ライフタイム',
+  '終身通行證已啟用': 'ライフタイムパスは有効です',
+  '你還有月票或年票的訂閱。終身通行證不會幫你取消它；如果它還會自動續訂，請到 {store} 的訂閱設定取消，以免重複扣款。': '月間パスまたは年間パスのサブスクリプションが残っています。ライフタイムパスを購入しても自動では解約されません。自動更新が有効な場合は、二重に課金されないよう {store} のサブスクリプション設定で解約してください。',
+  '前往訂閱設定': 'サブスクリプション設定を開く',
+  '通行證有效': 'パス有効',
+  '月票、年票的自動續訂，請到當初購買的 App Store 或 Google Play 訂閱設定管理。': '月間・年間パスの自動更新は、購入した App Store または Google Play のサブスクリプション設定で管理してください。',
+  '購買未完成：{error}': '購入が完了しませんでした：{error}',
+  '未訂閱': '未加入',
+  '訂閱中': '加入中',
 });
