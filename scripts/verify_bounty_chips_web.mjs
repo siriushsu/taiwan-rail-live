@@ -33,6 +33,7 @@
 //   CH25 停站卡的說明卡講清楚怎麼錄才會達到籌碼門檻：請人從前一站或更早就開始錄、一直錄到離開要錄的站；整趟要錄滿門檻才有籌碼，兩個數字與同一張卡上「合格」那句同一份；規則檔缺或門檻不是正數就只講怎麼錄、不寫數字；英日文；手機四寬度兩引擎
 //   CH26 護照的校正貢獻：只錄過停站卡的人也有校正者章（bounty-me 回應新增 dwellStops）；只有停站時寫「校正停站 N 站」、原因說明照給；有路段的人畫面完全不變；舊版回應沒有欄位時與以前一樣；亂值；英日文；手機四寬度兩引擎
 //   CH27 現行 App 殼剩下三處還在教人錄程：說明中心「懸賞板」「錄一趟校正旅程」兩節、護照校正貢獻的空狀態、開機接回錄製，都讀看板同一個判定；網頁、?demo=bounty、旗標關完全不變；手機四寬度兩引擎
+//   CH28 現行 App 殼看板上已收滿的卡也請人更新：那一句改成收滿了、這一版錄不了程、要更新到最新版；網頁、?demo=bounty（含在 App 殼裡）、旗標關仍是原句；中英日；手機四寬度兩引擎，那一句不被截、不溢出、不與別的元素重疊、沒有水平捲動
 //
 // 打樁慣例照 scripts/verify_bounty_merge_web.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
 // localStorage['trainmap-account-uid'] 讓開機走 accountEnsureInit（回訪者分支）。
@@ -2063,7 +2064,7 @@ try {
   // ═══ CH24：現行 App 殼在看板上就請人更新；網頁、?demo=bounty、旗標關的行為一個字不變 ══════════════════════════════════
   // 現行 App 殼＝網頁包成的那一版（IS_NATIVE_APP 真）：伺服器只收新版原生 App 的錄程，這一版錄不了。判定只有一份（BOUNTY_APP_NEEDS_UPDATE：
   // 懸賞開著、不是 ?demo=bounty、IS_NATIVE_APP 真），看板副標、卡上的按鈕字、按鈕的點擊、開始錄製的提示四處共用。
-  //   ・副標說這一版還不能接、更新到最新版才能接；每張可接的卡（含已接下的）按鈕字是「要更新 App 才能接」；已收滿的卡照舊沒有按鈕
+  //   ・副標說這一版還不能接、更新到最新版才能接；每張可接的卡（含已接下的）按鈕字是「要更新 App 才能接」；已收滿的卡沒有按鈕、那一句也改成請更新（CH28）
   //   ・按下按鈕：先收起看板、吐司是 startBountyRecording 同一句；不送認領、不寫本機認領紀錄、不開說明卡
   //   ・網頁（兩個平台訊號都沒有）與 ?demo=bounty（含在 App 殼裡）的副標、按鈕字、點擊結果，與改之前完全相同；旗標關時兩個判定都是假
   if (want('CH24')) {
@@ -2075,7 +2076,7 @@ try {
         subDemo: '示範資料，僅供確認設計：這裡的路段都是假的，接下來也不會真的錄。',
         btnShell: '要更新 App 才能接', btnWeb: '要用 App 才能接', btnTrack: '接下這段', btnDwell: '接下停站', btnLive: '已接下・看說明',
         update: '要錄程，請先把軌島 App 更新到最新版', webTake: 'GPS 校正旅程需要用 App。網頁可以看懸賞板與自己的成果',
-        demoClaimed: '（示範）接下了・24 小時內有效', covered: '已收滿，照樣可以錄程拿籌碼',
+        demoClaimed: '（示範）接下了・24 小時內有效', covered: '已收滿。這一版的軌島 App 還不能錄程，要更新到最新版才行。',
       },
       en: {
         subShell: 'These items don’t have real measurement data yet. This version can’t claim them — update the Rail Island app to the latest version to claim and record. For now, you can browse what’s available.',
@@ -2083,7 +2084,7 @@ try {
         btnShell: 'Update the app to claim', btnWeb: 'Use the app to claim',
         update: 'To record a trip, please update the Rail Island app to the latest version.',
         webTake: 'GPS calibration journeys require the app. The website lets you view the bounty board and your own results.',
-        covered: 'Fully covered — you can still record a trip and earn chips',
+        covered: 'Fully covered. This version of the Rail Island app can’t record trips yet — update to the latest version to record.',
       },
       ja: {
         subShell: 'これらの項目にはまだ実測データがありません。このバージョンでは受け取れません。軌島アプリを最新版に更新すると、受け取って記録できます。今は内容を確認できます。',
@@ -2091,7 +2092,7 @@ try {
         btnShell: '受け取るにはアプリの更新が必要です', btnWeb: '受け取るにはアプリが必要です',
         update: '旅程を記録するには、軌島アプリを最新版に更新してください。',
         webTake: 'GPS校正旅程にはアプリが必要です。ウェブサイトでは懸賞板とご自身の成果を確認できます。',
-        covered: '収集済みですが、旅程を記録すればチップがもらえます',
+        covered: '収集済みです。この版の軌島アプリではまだ記録できません。最新版に更新してください。',
       },
     };
     const KEY_B = 'trainmap-bounty-v1', KEY_BD = 'trainmap-bounty-demo-v1';
@@ -2127,7 +2128,7 @@ try {
       ok(`CH24b-${lang} 看板副標整句是「${X.subShell}」（這一版還不能接、更新到最新版才能接、現在可以先看看）；不是網頁那句、不是 App 那句`,
         b.sub === X.subShell && b.sub !== X.subWeb, b.sub);
       const open = lab.filter(c => !c.covered);
-      ok(`CH24c-${lang} 每張可接的卡（${open.length} 張）按鈕字是「${X.btnShell}」；已收滿的卡沒有按鈕、「${X.covered}」那句照舊`,
+      ok(`CH24c-${lang} 每張可接的卡（${open.length} 張）按鈕字是「${X.btnShell}」；已收滿的卡沒有按鈕、那句改成「${X.covered}」（這一版錄不了程；網頁那句照舊由 CH28 驗）`,
         open.length === 2 && open.every(c => c.label.length === 1 && c.label[0] === X.btnShell) && lab.filter(c => c.covered).length === 1 && lab.filter(c => c.covered).every(c => c.label.length === 0 && c.text.includes(X.covered)), JSON.stringify(lab));
       // 已接下的卡也一樣（比照網頁不分）：用頁面自己的存取函式寫進一筆還沒過期的認領，再重畫
       await s.page.evaluate(id => { const bb = loadBounty(); bb.claims[id] = { cardId: id, claimId: 'seed', units: 1, points: 1, expiresAt: Date.now() + 86400000, u: userDataNow() }; saveBounty(bb); renderBountyBoard(); }, CARD_P.id);
@@ -2797,6 +2798,131 @@ try {
     await attempt('CH27-webkit-launch', async () => {
       if (!wk) wk = await webkit.launch({ headless: true });
       for (const w of [360, 375, 414, 768]) await MOBILE27('webkit', wk, w);
+    });
+  }
+  // ═══ CH28：現行 App 殼看板上，已收滿的卡也請人更新 ═══════════════════════════════════════════════════════════════════
+  // 收滿的卡（covered:true）原本寫「照樣可以錄程拿籌碼」，現行 App 殼這一版錄不了程，不能再叫人去錄。判定與看板其他幾處是同一份
+  // （BOUNTY_APP_NEEDS_UPDATE：懸賞開著、不是 ?demo=bounty、IS_NATIVE_APP 真）：真時那一句改成收滿了、這一版錄不了程、要更新到最新版。
+  //   ・網頁、?demo=bounty（網頁與扮成 App 殼的）、旗標關：一個字不變
+  //   ・另一個平台訊號（只有 Capacitor）單獨成立也算現行 App 殼
+  //   ・中英日；手機 360／375／414／768 × Chromium／WebKit：那一句完整看得到、不溢出、不與別的元素重疊、沒有水平捲動
+  if (want('CH28')) {
+    const U28 = {
+      'zh-TW': { shell: '已收滿。這一版的軌島 App 還不能錄程，要更新到最新版才行。', web: '已收滿，照樣可以錄程拿籌碼', stale: '照樣可以錄程拿籌碼' },
+      en: { shell: 'Fully covered. This version of the Rail Island app can’t record trips yet — update to the latest version to record.', web: 'Fully covered — you can still record a trip and earn chips', stale: 'you can still record a trip and earn chips' },
+      ja: { shell: '収集済みです。この版の軌島アプリではまだ記録できません。最新版に更新してください。', web: '収集済みですが、旅程を記録すればチップがもらえます', stale: '旅程を記録すればチップがもらえます' },
+    };
+    const CJK28 = /[㐀-鿿]/;
+    const locale28 = lang => lang === 'en' ? 'en-US' : lang === 'ja' ? 'ja-JP' : 'zh-TW';
+    // 開看板（走頁面自己的入口）；回 session。qs：網址後面接的（&demo=bounty）
+    const open28 = async (arg, { lang = 'zh-TW', qs = '', n = 3, ctx = {}, browser: br = null } = {}) => {
+      const s = await newSession(arg, {}, { ...(br ? { browser: br } : {}), ctx: { locale: locale28(lang), ...ctx } });
+      s.board = BOARD_V2;
+      await s.page.goto(`${BASE}/?${qs.includes('demo=bounty') ? '' : 'bounty=1&'}lang=${lang}${qs}`);
+      if (qs.includes('demo=bounty')) await bootDone(s.page); else { await loggedIn(s.page); await chipsLoaded(s.page); }
+      await s.page.evaluate(() => { openBountyBoard(); });
+      await s.page.waitForFunction(k => document.querySelectorAll('#bountyList .bt-card').length >= k, n, { timeout: 15000 });
+      return s;
+    };
+    const covers28 = page => page.evaluate(() => ({
+      flag: BOUNTY_ENABLED, native: IS_NATIVE_APP, demo: DEMO_AS_APP, update: typeof BOUNTY_APP_NEEDS_UPDATE === 'undefined' ? null : BOUNTY_APP_NEEDS_UPDATE,
+      board: document.getElementById('bountyList').textContent.replace(/\s+/g, ' ').trim(),
+      covered: [...document.querySelectorAll('#bountyList .bt-card')].filter(c => c.querySelector('.bt-covered')).map(c => ({ id: c.dataset.card, txt: c.querySelector('.bt-covered').textContent.replace(/\s+/g, ' ').trim(), take: c.querySelectorAll('.bt-take').length })),
+    }));
+    // 直接把一張收滿的卡畫上看板（示範資料與旗標關的板子沒有收滿的卡），量那一句
+    const inject28 = (page, card) => page.evaluate(c => {
+      bountyBoardMem = { cards: [c] }; renderBountyBoard();
+      return { flag: BOUNTY_ENABLED, demo: DEMO_AS_APP, native: IS_NATIVE_APP, update: typeof BOUNTY_APP_NEEDS_UPDATE === 'undefined' ? null : BOUNTY_APP_NEEDS_UPDATE,
+        covered: [...document.querySelectorAll('#bountyList .bt-covered')].map(e => e.textContent.replace(/\s+/g, ' ').trim()) };
+    }, card);
+
+    // 三種語言：現行 App 殼（新句）與網頁（原句，對照）
+    for (const lang of ['zh-TW', 'en', 'ja']) await attempt(`CH28-${lang}`, async () => {
+      const X = U28[lang];
+      const sh = await open28({ app: true }, { lang });
+      const a = await covers28(sh.page);
+      ok(`CH28a-${lang} 現行 App 殼：判定為真；收滿的卡（${a.covered.length} 張）沒有接單鈕、那一句整句是「${X.shell}」；整個看板沒有舊句「${X.stale}」` + (lang === 'en' ? '；那一句沒有中文字' : '') + '；頁面沒有未捕捉的例外',
+        a.flag === true && a.native === true && a.demo === false && a.update === true && a.covered.length === 1 && a.covered.every(c => c.take === 0 && c.txt === X.shell) &&
+          !a.board.includes(X.stale) && (lang !== 'en' || !CJK28.test(a.covered[0].txt)) && sh.errors.length === 0, JSON.stringify({ a, errors: sh.errors }));
+      await sh.ctx.close();
+      const web = await open28({}, { lang });
+      const w = await covers28(web.page);
+      ok(`CH28b-${lang} 對照（網頁、旗標開）：判定為假；收滿的卡沒有接單鈕、那一句仍是原句「${X.web}」、不是請更新那句；頁面沒有未捕捉的例外`,
+        w.flag === true && w.native === false && w.update === false && w.covered.length === 1 && w.covered.every(c => c.take === 0 && c.txt === X.web) && !w.board.includes(X.shell) && web.errors.length === 0, JSON.stringify({ w, errors: web.errors }));
+      await web.ctx.close();
+    });
+
+    // 其他情境：?demo=bounty（網頁、扮成 App 殼）與旗標關的 App 殼仍是原句；只有 Capacitor 那個平台訊號也算現行 App 殼
+    for (const [tag, arg] of [['web', {}], ['app', { app: true }]]) await attempt(`CH28-demo-${tag}`, async () => {
+      const X = U28['zh-TW'];
+      const s = await open28(arg, { qs: '&demo=bounty', n: 5 });
+      const r = await inject28(s.page, CARD_COVERED);
+      ok(`CH28c-${tag} 對照：?demo=bounty${tag === 'app' ? '（扮成 App 殼）' : ''}：判定為假（備援站看設計的流程不被擋）；收滿的卡那一句仍是原句「${X.web}」`,
+        r.flag === true && r.demo === true && r.update === false && r.native === (tag === 'app') && r.covered.length === 1 && r.covered[0] === X.web && s.errors.length === 0, JSON.stringify({ r, errors: s.errors }));
+      await s.ctx.close();
+    });
+    await attempt('CH28-off', async () => {
+      const X = U28['zh-TW'];
+      for (const [tag, arg] of [['app', { app: true }], ['web', {}]]) {
+        const s = await newSession(arg, {}, { ctx: { locale: 'zh-TW' } });
+        await s.page.goto(`${BASE}/?lang=zh-TW`);
+        await bootDone(s.page);
+        const r = await inject28(s.page, CARD_COVERED);
+        ok(`CH28d-${tag} 對照：旗標關（${tag === 'app' ? 'App 殼' : '網頁'}）：判定為假；直接畫板子，收滿的卡那一句仍是原句「${X.web}」`,
+          r.flag === false && r.update === false && r.covered.length === 1 && r.covered[0] === X.web && s.errors.length === 0, JSON.stringify({ r, errors: s.errors }));
+        await s.ctx.close();
+      }
+    });
+    await attempt('CH28-capacitor', async () => {
+      const X = U28['zh-TW'];
+      const s = await open28({ capacitor: true }, {});
+      const r = await covers28(s.page);
+      const sig = await s.page.evaluate(() => ({ key: typeof window.RAIL_ONLINE_BASEMAPS_AVAILABLE !== 'undefined', cap: !!(window.Capacitor && window.Capacitor.isNativePlatform()) }));
+      ok(`CH28e 只有 Capacitor 那個平台訊號（沒有 RAIL_ONLINE_BASEMAPS_AVAILABLE、Capacitor.isNativePlatform() 回 true）也算現行 App 殼：判定為真；收滿的卡那一句是「${X.shell}」`,
+        sig.key === false && sig.cap === true && r.update === true && r.covered.length === 1 && r.covered[0].txt === X.shell && s.errors.length === 0, JSON.stringify({ sig, r, errors: s.errors }));
+      await s.ctx.close();
+    });
+
+    // 手機：現行 App 殼的看板，那一句完整看得到、不溢出、不與別的元素重疊、沒有水平捲動；360／375／414／768 × Chromium／WebKit × 中英日
+    const MOBILE28 = async (engineName, br, width) => {
+      const tag = `${engineName}-${width}`;
+      for (const lang of ['zh-TW', 'en', 'ja']) await attempt(`CH28-mobile-${tag}-${lang}`, async () => {
+        const X = U28[lang];
+        const s = await open28({ app: true }, { lang, browser: br, ctx: { viewport: { width, height: 800 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } });
+        await sleep(400);
+        const m = await s.page.evaluate(() => {
+          const shown = el => { const cs = getComputedStyle(el); if (cs.display === 'none' || cs.visibility === 'hidden') return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+          const nm = el => (el.id ? '#' + el.id : '.' + String(el.className).split(' ')[0]) + ':' + el.textContent.replace(/\s+/g, ' ').trim().slice(0, 10);
+          // 先量兩兩相交（捲動位置在最上面時、版面座標）
+          const items = [...document.querySelectorAll('#bountySub, #bountyList .bt-r, #bountyList .bt-meta, #bountyList .bt-pt, #bountyList .bt-take, #bountyList .bt-covered')].filter(shown);
+          const pairs = [];
+          for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
+            const a = items[i], b = items[j];
+            if (a.contains(b) || b.contains(a)) continue;
+            const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+            const w = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left), h = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
+            if (w > 0.5 && h > 0.5) pairs.push([nm(a), nm(b), Math.round(w), Math.round(h)]);
+          }
+          const box = document.querySelector('#bountyModal .tk-box');
+          const cov = [...document.querySelectorAll('#bountyList .bt-covered')].map(e => {
+            e.scrollIntoView({ block: 'center' });
+            const r = e.getBoundingClientRect(), card = e.closest('.bt-card').getBoundingClientRect(), cs = getComputedStyle(e), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return { txt: e.textContent.replace(/\s+/g, ' ').trim(), wOver: e.scrollWidth > e.clientWidth + 1, hOver: e.scrollHeight > e.clientHeight + 1, ell: cs.textOverflow === 'ellipsis',
+              inView: r.left >= -0.5 && r.right <= innerWidth + 0.5 && r.width > 0, inCard: r.left >= card.left - 0.5 && r.right <= card.right + 0.5 && r.top >= card.top - 0.5 && r.bottom <= card.bottom + 0.5, hitSelf: !!hit && (hit === e || e.contains(hit)) };
+          });
+          return { n: items.length, pairs, cov, doc: document.documentElement.scrollWidth - innerWidth, box: box ? box.scrollWidth - box.clientWidth : null, list: document.getElementById('bountyList').scrollWidth - document.getElementById('bountyList').clientWidth };
+        });
+        ok(`CH28m-${tag}-${lang} 手機 ${width} 寬、現行 App 殼的看板（${lang}）：收滿的卡那一句整句是「${X.shell}」、沒被截（沒有溢出、沒有省略號、整句在視窗與卡片之內）；掃了 ${m.n} 個元素兩兩沒有互相蓋住、那一句的中心點 elementFromPoint 回到自己；頁面、看板框、卡片列表沒有水平捲動；頁面沒有未捕捉的例外`,
+          m.n >= 10 && m.cov.length === 1 && m.cov.every(c => c.txt === X.shell && !c.wOver && !c.hOver && !c.ell && c.inView && c.inCard && c.hitSelf) && m.pairs.length === 0 &&
+            m.doc <= 1 && m.box !== null && m.box <= 1 && m.list <= 1 && s.errors.length === 0, JSON.stringify({ m, errors: s.errors }));
+        if (SHOT_DIR && lang === 'zh-TW') await s.page.screenshot({ path: path.join(SHOT_DIR, `bounty-shell-covered-${tag}.png`) });
+        await s.ctx.close();
+      });
+    };
+    for (const w of [360, 375, 414, 768]) await MOBILE28('chromium', browser, w);
+    await attempt('CH28-webkit-launch', async () => {
+      if (!wk) wk = await webkit.launch({ headless: true });
+      for (const w of [360, 375, 414, 768]) await MOBILE28('webkit', wk, w);
     });
   }
 } finally {

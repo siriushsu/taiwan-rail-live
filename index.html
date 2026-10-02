@@ -23716,13 +23716,15 @@ function renderBountyBoard() {
     // 偏遠線的卡標籌碼倍率，其他線不標。一趟給幾顆看的是那一趟，跟這張卡接下了沒有、收滿了沒有都無關，所以每種卡一視同仁。
     const mult = bountyRemoteMult(c);
     const tag = mult ? `<div class="bt-pt bt-chip">${escHtml(t('籌碼 ×{n}', { n: mult }))}</div>` : '';
-    // covered:true＝這張卡的單位都收滿了（只有常青線的卡會留在板上）：認領會回 404，所以不給接單鈕，只說「照樣可以錄程拿籌碼」。
+    // covered:true＝這張卡的單位都收滿了（只有常青線的卡會留在板上）：認領會回 404，所以不給接單鈕，只講收滿了、錄程仍然有籌碼。
+    // 現行 App 殼這一版錄不了程，不能再叫人去錄：同一張卡改講收滿了、要更新 App（判定與按鈕字同一個）。
     if (c.covered === true) {
+      const coveredTxt = BOUNTY_APP_NEEDS_UPDATE ? t('已收滿。這一版的軌島 App 還不能錄程，要更新到最新版才行。') : t('已收滿，照樣可以錄程拿籌碼');
       return `<div class="bt-card" data-card="${escHtml(c.id)}">` +
         `<div class="bt-r">${escHtml(nm.title)}</div>` +
         `<div class="bt-meta">${escHtml(meta)}</div>` +
         tag +
-        `<div class="bt-covered">${escHtml(t('已收滿，照樣可以錄程拿籌碼'))}</div>` +
+        `<div class="bt-covered">${escHtml(coveredTxt)}</div>` +
         `</div>`;
     }
     return `<div class="bt-card" data-card="${escHtml(c.id)}">` +
