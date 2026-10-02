@@ -14617,6 +14617,12 @@ const flagOnce = (name) => { try {
 const BOUNTY_ENABLED = (() => { try {
   return flagOnce('bounty') || new URLSearchParams(location.search).get('demo') === 'bounty';
 } catch (e) { return false; } })();
+// 現行 App 殼（網頁包成的那一版）在懸賞開著時：這一版錄不了程，要更新到最新版的軌島 App 才行
+// （伺服器只收原生 App 的錄程，上傳沒帶 App 身分一律回 400 app_only）。判定只寫在這一處：看板副標、卡上的按鈕字、
+// 按鈕的點擊、開始錄製的提示（startBountyRecording）都讀它，不各自再寫一份。
+// 三個條件：懸賞開著（旗標關著恆假，行為不變）；不是 ?demo=bounty（備援站看設計用的假資料流程，扮成 App 整條走完、不上傳，照舊）；
+// IS_NATIVE_APP 真（兩個平台訊號的聯集，見定義處）。網頁（IS_NATIVE_APP 假）不算，網頁有自己的一套說法。
+const BOUNTY_APP_NEEDS_UPDATE = BOUNTY_ENABLED && !DEMO_AS_APP && IS_NATIVE_APP;
 // 收集地圖同批下架。它其實不碰 GPS(資料來自既有乘車記錄),所以給它自己的旗標:要單獨復活只動這一行。
 const COLLECT_MAP_ENABLED = flagOnce('collectmap');
 const ACCOUNT_ENABLED = false; // 此旗標只控制帳號 UI 要不要 eager 初始化:false=帳號鈕預設隱藏、不對訪客載 Firebase。
@@ -23677,9 +23683,11 @@ function renderBountyBoard() {
   const el = document.getElementById('bountyList');
   // 兩句之間的空白英文要、中日文不要:i18nJoin 依語言決定,不寫死在任一句的譯文裡
   document.getElementById('bountySub').textContent = i18nJoin(b.demo ? t('示範資料，僅供確認設計：這裡的路段都是假的，接下來也不會真的錄。') : '',
-    PHYSICAL_COLLECT_ENABLED
-      ? t('接一張、搭那班車時開錄，把沿途的速度剖面測出來。全部免費，合格的一趟可以得到籌碼，每天有上限。')
-      : t('這些項目還沒有實測資料。用 App 才能接下來錄——網頁可以先看看有哪些。'));
+    BOUNTY_APP_NEEDS_UPDATE
+      ? t('這些項目還沒有實測資料。這一版還不能接，要更新到最新版的軌島 App 才能接下來錄——現在可以先看看有哪些。')
+      : PHYSICAL_COLLECT_ENABLED
+        ? t('接一張、搭那班車時開錄，把沿途的速度剖面測出來。全部免費，合格的一趟可以得到籌碼，每天有上限。')
+        : t('這些項目還沒有實測資料。用 App 才能接下來錄——網頁可以先看看有哪些。'));
   if (!b.cards.length) { el.innerHTML = `<div class="bt-empty">${escHtml(t('目前沒有待校正的項目——全部收滿了。'))}</div>`; return; }
   const claims = loadBounty().claims || {};
   el.innerHTML = b.cards.map(c => {
@@ -23696,7 +23704,8 @@ function renderBountyBoard() {
     // 說明卡；再點一次還會**再送一次 POST**（實測兩次點擊＝兩個 claim 請求），而後端可能把
     // 重複認領當成新鎖價或衝突。鎖價 24 小時到期後才恢復成可接（判準用 claim 自己的 expiresAt）。
     const live = !!bountyLiveClaim(c.id, claims);
-    const label = !PHYSICAL_COLLECT_ENABLED ? t('要用 App 才能接') : live ? t('已接下・看說明') :
+    // 現行 App 殼：這一版不能接，已接下的卡也一樣（比照網頁，不分接下與否）
+    const label = BOUNTY_APP_NEEDS_UPDATE ? t('要更新 App 才能接') : !PHYSICAL_COLLECT_ENABLED ? t('要用 App 才能接') : live ? t('已接下・看說明') :
       (nm.isDwell ? t('接下停站') : t('接下這段'));
     // 偏遠線的卡標籌碼倍率，其他線不標。一趟給幾顆看的是那一趟，跟這張卡接下了沒有、收滿了沒有都無關，所以每種卡一視同仁。
     const mult = bountyRemoteMult(c);
@@ -23725,6 +23734,9 @@ function setupBounty() {
     const btn = e.target.closest('.bt-take');
     if (!btn) return;
     const id = btn.closest('.bt-card').dataset.card;
+    // 現行 App 殼：這一版錄不了程，接下來也沒有用——不送認領、不寫本機資料、不開說明卡；比照網頁先收起看板，再說要更新
+    // （與 startBountyRecording 同一句）。showToast 的參數只放字面字串的 t() 呼叫：App 發行閘門的吐司注入審查會把三元式裡的識別字當成動態插入。
+    if (BOUNTY_APP_NEEDS_UPDATE) { closeBountyBoard(); showToast(t('要錄程，請先把軌島 App 更新到最新版')); return; }
     // 網頁端點下去只給一句話，不寫任何本機資料——這是自然的下載誘因（規格 §9）
     // 看板（modal）疊在吐司上面，提示會被蓋住（手機整片蓋住，桌面被遮罩壓暗）：先收起看板，提示才看得到。
     if (!PHYSICAL_COLLECT_ENABLED) { closeBountyBoard(); showToast(t('GPS 校正旅程需要用 App。網頁可以看懸賞板與自己的成果')); return; }
@@ -23825,13 +23837,13 @@ function startBountyRecording(card) {
   // （上傳沒帶 App 身分一律回 400 app_only），在這裡錄了也送不上去。?demo=bounty 是備援站看設計用的假資料流程
   // （不上傳），照舊走完。旗標關著時行為不變。
   // 提示依平台分兩句：網頁要改用 App；已經在 App 殼裡的人缺的是新版，叫他「要用 App」只會困惑，該告訴他更新。
-  // 平台判定用 IS_NATIVE_APP（兩個平台訊號的聯集，見定義處），不直接讀其中一個全域。
+  // 現行 App 殼的判定用 BOUNTY_APP_NEEDS_UPDATE（定義處有說明；看板的副標、按鈕字、點擊也讀同一個），不在這裡另寫一份。
   // showToast 的參數只放字面字串的 t() 呼叫：App 發行閘門（verify-release 的 showToast 注入審查）會把三元式裡的識別字當成動態插入。
   if (BOUNTY_ENABLED && !DEMO_AS_APP) {
     // 看板（modal）疊在吐司上面：手機上整片蓋住提示，按了像是沒反應；桌面則是被遮罩壓暗。
     // 錄程真的開始時，下面的 closeBountyBoard() 本來就會收起看板；這裡沒開始，一樣先收起來，提示才看得到（兩個平台都一樣）。
     closeBountyBoard();
-    if (IS_NATIVE_APP) showToast(t('要錄程，請先把軌島 App 更新到最新版'));
+    if (BOUNTY_APP_NEEDS_UPDATE) showToast(t('要錄程，請先把軌島 App 更新到最新版'));
     else showToast(t('錄程要用軌島 App。網頁可以看懸賞板與自己的籌碼'));
     return;
   }
