@@ -97,7 +97,8 @@ const widths = [360, 375, 414, 768];
 // 9/30：搭乘模式過了抵達時間自動下車（issue #63／#70）一條（466→467）。
 // 9/30：台南地面鐵道歷史重播的馬路（柏油、標線、人行道）一條（466→467）。
 // 10/1：主線 468 條，加台南道路、效能改善與車站收集小工具，加平鎮 SEO，共 472 條。
-const expectedHistoryCount = 472;
+// 10/2：平鎮臨時站啟用一條（472→473）。
+const expectedHistoryCount = 473;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

@@ -47,9 +47,10 @@ check('資料契約明示軌島全部客運鐵路站、使用者點開觸發、�
   assert.equal(manifest.stationCount, Object.keys(manifest.stations).length);
 });
 
-check('目前班表的 239 座實體台鐵客運站全部有唯一索引，別名站、維修基地與已停靠站不混入', () => {
-  assert.equal(scheduleNames.length, 240);
-  assert.equal(physicalNames.length, 239);
+// 2026-10-02 平鎮臨時站（10/3 啟用）進班表與索引：240→241、239→240、541→542。
+check('目前班表的 240 座實體台鐵客運站全部有唯一索引，別名站、維修基地與已停靠站不混入', () => {
+  assert.equal(scheduleNames.length, 241);
+  assert.equal(physicalNames.length, 240);
   const expectedIds = physicalNames.map(name => {
     const info = infoByName.get(stnKey(name));
     assert(info, `班表站 ${name} 缺 tra_station_info`);
@@ -61,13 +62,13 @@ check('目前班表的 239 座實體台鐵客運站全部有唯一索引，別�
   }
 });
 
-check('高鐵、林鐵與七組捷運輕軌的 302 座地圖實體站全進索引，合計 541 站', () => {
-  assert.equal(expectedRailStations.length, 541);
+check('高鐵、林鐵與七組捷運輕軌的 302 座地圖實體站全進索引，合計 542 站', () => {
+  assert.equal(expectedRailStations.length, 542);
   assert.equal(manifest.stationCount, expectedRailStations.length);
   assert.deepEqual(Object.keys(manifest.stations).sort(), expectedRailStations.map(station => station.id).sort());
   assert.deepEqual(manifest.systemCounts, {
     afr_sched: 21, krtc: 75, mrt: 119, ntalrt: 9, ntdlrt: 14,
-    sanying: 12, thsr_sched: 12, tmrt: 18, tra_sched: 239, tymc: 22,
+    sanying: 12, thsr_sched: 12, tmrt: 18, tra_sched: 240, tymc: 22,
   });
   for (const id of ['THSR:0990', 'TRTC:BL01', 'TYMC:A1', 'TMRT:G0', 'KRTC:R3', 'KLRT:C1',
     'NTALRT:K01', 'NTDLRT:V01', 'SANYING:LB01', 'AFR:360']) assert(manifest.stations[id], `缺少 ${id}`);

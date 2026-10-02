@@ -74,6 +74,25 @@ TRA_PATH = "data/tra.json"
 # 站納入站序、整條管線跑完之後，這裡與 PENDING_STATIONS 的那一筆一起移除（移除前的前置條件見 fetch_tra.py 那份名單的註解）。
 PENDING_STATION_CODES = {"1105": "平鎮"}
 
+# ── 先行站（2026-10-02 起）────────────────────────────────────────────────
+# 平鎮 10/3 啟用、逐日時刻表 10/3 起就停 1105，官方車站清單卻還沒上架。待上架站在官方清單
+# 沒有這個站碼時，改認 data/tra_station_info.json 裡標了 provisional 的同站碼紀錄
+# （fetch_tra_station_info.mjs 的 PROVISIONAL，座標的來由寫在那裡），站名也要在 tra.json 站序裡。
+# 官方清單一列出這個站碼（不論座標能不能用），就回到上面的規則、不再用先行紀錄。
+STATION_INFO_PATH = "data/tra_station_info.json"
+
+
+def load_provisional_stations(path=STATION_INFO_PATH):
+    """站碼 → {name, lat, lon}，只收 provisional 而且站碼在 PENDING_STATION_CODES 的紀錄。"""
+    try:
+        with open(path, encoding="utf-8") as f:
+            info = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return {v["id"]: {"name": v["name"], "lat": v["lat"], "lon": v["lon"]}
+            for v in info.values()
+            if v.get("provisional") and v.get("id") in PENDING_STATION_CODES}
+
 # 官方「CarClass列車種類代碼表」全文（devDoc PDF 第 8–9 頁手key）。
 CARCLASS_TABLE = {
     "1101": "自強(太,障)",
@@ -184,16 +203,20 @@ def parse_hms_to_sec(hms):
     return int(h) * 3600 + int(m) * 60 + int(s)
 
 
-def station_status(code, station_index, listed_names, tra_names, pending_names):
+def station_status(code, station_index, listed_names, tra_names, pending_names, provisional=None):
     """回傳 (站點, 略過原因)。原因 None＝照收；"pending"＝待上架站，照丟但具名回報；
     "unknown"＝官方車站清單沒有（或座標不可用）、也不是待上架站，整輪要失敗。
-    listed_names 是整份官方車站清單的站碼→站名（含座標不可用的站）。"""
+    listed_names 是整份官方車站清單的站碼→站名（含座標不可用的站）。
+    provisional 是 load_provisional_stations() 的結果：官方清單完全沒有這個站碼時才用。"""
     st = station_index.get(code)
     name = _norm(listed_names.get(code) or "")
     # 站名用「包含」比對，跟 watch_official.mjs 的 TRA_WATCH_NAMES 一樣：官方若寫成「平鎮臨時站」也要認得
     if code in PENDING_STATION_CODES or (name and any(n in name for n in pending_names)):
         if st is not None and name in tra_names:
             return st, None
+        pv = (provisional or {}).get(code)
+        if code not in listed_names and pv and _norm(pv["name"]) in tra_names:
+            return pv, None
         return None, "pending"
     return (st, None) if st is not None else (None, "unknown")
 
@@ -323,11 +346,15 @@ def main():
     with open(TRA_PATH, encoding="utf-8") as f:
         tra_names = {_norm(s["name"]) for line in json.load(f)["lines"] for s in line["stations"]}
     pending_names = {_norm(n) for n in PENDING_STATIONS}
+    provisional = load_provisional_stations()
     status_cache = {}
 
     def lookup(code):
         if code not in status_cache:
-            status_cache[code] = station_status(code, station_index, listed_names, tra_names, pending_names)
+            status_cache[code] = station_status(code, station_index, listed_names, tra_names, pending_names, provisional)
+            if status_cache[code][1] is None and code not in listed_names and code in provisional:
+                print(f"▶ 先行站 {code}「{provisional[code]['name']}」官方車站清單還沒有，座標取 {STATION_INFO_PATH} 的先行紀錄",
+                      file=sys.stderr)
         return status_cache[code]
 
     skipped_by_day = collections.defaultdict(dict)  # (站碼, 原因) → {日期: 停靠數}
@@ -408,6 +435,10 @@ def main():
         f"同車次不同日時刻不同（臨時改點）→ hash 不同 → 各存一份、各日各指各的。"
         f" 站碼→站名→座標來源：官方車站基本資料集 {STATIONS_URL}"
         f"（{len(stations_list)} 站，gps 欄位為 \"lat lon\"）；未使用專案內 data/tra.json 的站名比對退路。"
+        + (f" 先行站（官方車站清單還沒有、座標取 {STATION_INFO_PATH} 的 provisional 紀錄，非官方值）："
+           + "、".join(f"{c}{v['name']}" for c, v in sorted(provisional.items())
+                      if c not in listed_names and status_cache.get(c, (None, 'x'))[1] is None) + "。"
+           if any(c not in listed_names and status_cache.get(c, (None, 'x'))[1] is None for c in provisional) else "") +
         f" 車種分類依官方 CarClass 列車種類代碼表"
         "（devDoc: https://ods.railway.gov.tw/tra-ods-web/ods/download/devDoc/"
         "8ae4cac27f4c0348017f4dbdd21d0181 第8-9頁）依中文名稱關鍵字分 5 組："

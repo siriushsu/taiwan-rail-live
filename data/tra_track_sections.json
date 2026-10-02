@@ -1,6 +1,6 @@
 {
  "version": 1,
- "source_notes": "本站自算，無外部上游：由 rail-3d/physical/network.json（OSM 股道幾何）與 rail-3d/physical/dispatch.json（各站對實際派過的路徑）算出相鄰兩站之間有平行正線股道的長度佔比，≥0.5 判雙線（tracks=2）否則單線（tracks=1）。南迴線／臺東線同名隧道 way 是否為第二股，2026-09-14 已用交通部 TDX GIS 圖資 v3「軌道路網實體路線」（逐股道官方幾何，政府資料開放授權條款-1.0）逐對核實：核實過的算平行股道，未核實／經核實只有一股的仍不算。核實證據 scripts/fixtures/tra-parallel-verified-tdx-0914.json（產生器 scripts/build_tdx_parallel_evidence.mjs）；TDX 與台鐵官方《路線修築沿革》衝突時以沿革為準（南迴線無添築雙線紀錄 ⇒ 不算；山里─臺東 2013 添築雙線 ⇒ 算）。maxPathM＝該站對派過的實體股道路徑中最長者（公尺，進位到公釐再加 1 公釐），index.html 建跑段剖面時站間長度取它與示意線形長的較大者，畫在任一條實體股道或示意線形上的點速才不會超過剖面速度（＝不超過車種極速）。鍵＝兩站名正規化成班表用字「臺」後排序、以 | 相接（讀表端 index.html 用班表站名查）。產生器 scripts/build_tra_track_sections.mjs。",
+ "source_notes": "本站自算，無外部上游：由 rail-3d/physical/network.json（OSM 股道幾何）與 rail-3d/physical/dispatch.json（各站對實際派過的路徑）算出相鄰兩站之間有平行正線股道的長度佔比，≥0.5 判雙線（tracks=2）否則單線（tracks=1）。南迴線／臺東線同名隧道 way 是否為第二股，2026-09-14 已用交通部 TDX GIS 圖資 v3「軌道路網實體路線」（逐股道官方幾何，政府資料開放授權條款-1.0）逐對核實：核實過的算平行股道，未核實／經核實只有一股的仍不算。核實證據 scripts/fixtures/tra-parallel-verified-tdx-0914.json（產生器 scripts/build_tdx_parallel_evidence.mjs）；TDX 與台鐵官方《路線修築沿革》衝突時以沿革為準（南迴線無添築雙線紀錄 ⇒ 不算；山里─臺東 2013 添築雙線 ⇒ 算）。maxPathM＝該站對派過的實體股道路徑中最長者（公尺，進位到公釐再加 1 公釐），index.html 建跑段剖面時站間長度取它與示意線形長的較大者，畫在任一條實體股道或示意線形上的點速才不會超過剖面速度（＝不超過車種極速）。鍵＝兩站名正規化成班表用字「臺」後排序、以 | 相接（讀表端 index.html 用班表站名查）。via＝班表（data/tra_schedule_dense.json）排在站對中間、派車表沒有的站，其座標投影到該站對每條派過路徑上離鍵的第一站、第二站各最遠多少公尺（進位規則同 maxPathM），index.html 當停在那一站的前後兩截剖面長下限。產生器 scripts/build_tra_track_sections.mjs。",
  "pairs": {
   "七堵|八堵": {
    "tracks": 2,
@@ -539,7 +539,13 @@
    "maxPathM": 5818.965,
    "refs": [
     "縱貫線"
-   ]
+   ],
+   "via": {
+    "平鎮": [
+     1539.986,
+     4280.136
+    ]
+   }
   },
   "五堵|汐止": {
    "tracks": 2,

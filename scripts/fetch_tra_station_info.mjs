@@ -51,6 +51,29 @@ for (const s of list) {
   };
 }
 
+// ── 先行站：已經營運、但 TDX 與台鐵 ODS 車站清單都還沒上架的站 ─────────────────
+// 平鎮臨時站 2026-10-03 啟用，ODS 逐日時刻表 10/3 起就有站碼 1105 停靠（123～126 班），
+// 但 10-02 實查 TDX（245 站，UpdateTime 09-15）與 ODS 車站清單（245 站）都沒有它。
+// 等清單上架才收，啟用當天地圖上沒有這站、也蓋不到章，所以先用這筆補上（provisional:true）。
+// TDX 一上架這站，上面的官方紀錄就會蓋掉這筆（只在 TDX 沒有時才補），之後這筆可以刪掉。
+// 座標不是官方值：站碼與站名取自 ODS 逐日時刻表；位置取「官方里程 K68+880～K69+109 換算到軌道上的
+// 月台範圍」與「媒體轉述的新富一街×新富三街路口（月台南端外約 90 m）」兩者合起來的中點，
+// 投影在縱貫線北段的軌道上（data/tra.json 沿線里程 d≈68.96）。到月台兩端 157／73 m、到路口 162 m；站等表沒有平鎮，前端依停靠班次推站等，
+// 蓋章判定半徑實測 260 m，三處都蓋得到，離中壢 1,494 m 也不會互吃。
+// 地址：台鐵新聞稿（中央社 2026-09-29 轉述）只寫「位於桃園市平鎮區」，就填到這裡為止，郵遞區號與門牌不編造。
+// 公車轉乘索引與小工具的縣市分組都從地址取縣市，空字串會讓那幾支產生器直接丟錯。
+const PROVISIONAL = {
+  '平鎮': { name: '平鎮', id: '1105', address: '桃園市平鎮區', lat: 24.9440379, lon: 121.2154434, feature: '', provisional: true },
+};
+for (const [k, v] of Object.entries(PROVISIONAL)) {
+  if (out[k] || Object.values(out).some(o => o.id === v.id)) {
+    console.log(`先行站「${k}」(${v.id}) 已在 TDX 上架，改用官方紀錄；PROVISIONAL 這一筆可以刪了`);
+    continue;
+  }
+  out[k] = v;
+  console.log(`先行站「${k}」(${v.id}) TDX 尚未上架，補先行紀錄（座標非官方值）`);
+}
+
 const dst = path.join(ROOT, 'data', 'tra_station_info.json');
 fs.writeFileSync(dst, JSON.stringify(out, null, 0));
 console.log('wrote', dst, '—', Object.keys(out).length, 'stations, with address:',

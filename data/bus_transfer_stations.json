@@ -4,7 +4,7 @@
   "coverage": "all_active_rail_stations",
   "trigger": "user_open_only",
   "polling": false,
-  "stationCount": 541,
+  "stationCount": 542,
   "systemCounts": {
     "afr_sched": 21,
     "krtc": 75,
@@ -14,7 +14,7 @@
     "sanying": 12,
     "thsr_sched": 12,
     "tmrt": 18,
-    "tra_sched": 239,
+    "tra_sched": 240,
     "tymc": 22
   },
   "stations": {
@@ -1389,6 +1389,13 @@
       "appSystem": "tra_sched",
       "systemLabel": "台鐵",
       "asset": "/data/bus-transfer/TRA-1100.json"
+    },
+    "TRA:1105": {
+      "id": "TRA:1105",
+      "name": "平鎮車站",
+      "appSystem": "tra_sched",
+      "systemLabel": "台鐵",
+      "asset": "/data/bus-transfer/TRA-1105.json"
     },
     "TRA:1110": {
       "id": "TRA:1110",

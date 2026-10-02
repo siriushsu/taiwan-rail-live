@@ -5619,7 +5619,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/10/1</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/10/2</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5627,6 +5627,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="pingzhen1002"><span class="d">10/2</span><span>新車站：中壢、埔心之間的平鎮臨時站 10/3 啟用，地圖與時刻表照官方班表停靠，到站可以蓋章</span></li>
         <li data-cl-of="collectwidget1001"><span class="d">10/1</span><span>新增車站收集小工具：主畫面直接看收集進度與台灣鐵道點陣圖，可選全台或單一系統，按「蓋章」就能在附近車站留下紀錄</span></li>
         <li data-cl-of="renderperf0930"><span class="d">10/1</span><span>改善地形與立體建物的流暢度：減少畫面外與車廂的重複繪製，靜止或暫停時降低負擔；建物線條改從畫面中央向外補齊</span></li>
         <li data-cl-of="pendingstation0930"><span class="d">10/1</span><span>車站時刻表頁：平鎮臨時站要等官方公布英文站名後才會有頁面，其他車站照常每週更新</span></li>
@@ -5634,7 +5635,6 @@
         <li data-cl-of="rideexpire0930"><span class="d">9/30</span><span>「我上車了」後沒按下車，搭的車又從班表消失（週五夜車過午夜、連假加班車）時，過了抵達時間會自動下車；跟著別班車時按「搭乘中」也能直接下車（謝謝網友回報）</span></li>
         <li data-cl-of="tainanroads0930"><span class="d">10/1</span><span>台南地面鐵道歷史重播：馬路改成柏油路面，畫上車道線、中央黃線與有路緣的人行道，放大就看得到</span></li>
         <li data-cl-of="tainanmodel0929"><span class="d">9/30</span><span>台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，周邊建築從灰色方塊改成有外牆顏色、窗戶、店面與招牌，補上香格里拉飯店的塔樓，視角可自由轉向與傾斜，最多放大到 34 公尺</span></li>
-        <li data-cl-of="ntmcache0930"><span class="d">9/30</span><span>淡海、安坑倒數每 20 秒檢查更新，避免多層快取延長舊資料；斷線不把舊倒數標成新資料</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5642,6 +5642,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="pingzhen1002"><span class="d">10/2</span><span>新增平鎮臨時站（中壢、埔心之間，10/3 啟用）：地圖、站牌與時刻表照官方班表停靠，立體列車也會在平鎮停，到站可以蓋章。官方還沒公布車站座標與英文站名，位置先依官方里程標示，公布後再更新</span></li>
         <li data-cl="railgravel0930"><span class="d">9/30</span><span>立體鐵軌改用淡灰碎石道床，收窄邊坡與軌道輪廓；近看保留細顆粒，遠看更低調，車站多股軌道不再糊成一片土色</span></li>
         <li data-cl="tainanroads0930"><span class="d">10/1</span><span>台南地面鐵道歷史重播：馬路從米白色帶子改成柏油路面，路寬依 OpenStreetMap 標的車道數推算，畫上車道線、中央黃線與有路緣的人行道（依標記推的示意）；標線放大才出現，地下道不再畫在地面上</span></li>
         <li data-cl="tainanmodel0929"><span class="d">9/30</span><span>台南地面鐵道歷史重播：舊站房與列車改用真實比例重建、施工外罩可一鍵拿掉，推拉式自強號改畫 7 月起的 E500 機車頭；周邊建築從灰色方塊改成有外牆顏色、窗戶、店面、招牌與水塔，補上香格里拉塔樓；視角可自由轉向與傾斜，最多放大到 34 公尺</span></li>
@@ -6975,7 +6976,7 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v0930a：減少近景離屏投影、重複方向計算與全台車輛身分掃描；同一視角重用靜態投影，3D 待機與暫停降頻。
 // v0930b：近景先篩除遠方路線與車輛，地下透視省去重複背面 pass；建物線條由螢幕中央優先，逐頂點只查一次 DEM。
 // v1001c：整合雙平台車站收集、台南道路、平鎮 SEO 最終校稿與 3D 效能改善。
-const BUILD = 'v1001c';
+const BUILD = 'v1002a';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -23322,9 +23323,40 @@ function sharedTrackGroups() {
   state._shTrkSrc = lines;
   return (state._shTrk = [...byPair.values()].filter(v => v.length > 1));
 }
+// 路網中間插了新站(2026-10-03 平鎮臨時站插進縱貫線北段中壢–埔心),舊存檔的「中壢|埔心」就不再是
+// 任何一段最細區間,完乘率會少算那 5.8 km。讀取端把這種鍵攤回現在落在兩站之間的最細區間——
+// 跟 writeSegments 在新路網會記的一樣;同共構的處理,只補空鍵、不加總,不改寫存檔也不推雲端。
+function segNetIndex() {
+  const lines = state.trackLines || [];
+  if (!lines.length) return null;
+  if (state._segIdxSrc === lines && state._segIdx) return state._segIdx;
+  const net = lineNetwork(), known = new Set();
+  for (const rec of net.values()) for (const s of rec.segs) known.add(s.key);
+  state._segIdxSrc = lines;
+  return (state._segIdx = { net, known });
+}
+function remapSplitSegKeys(out) {
+  const idx = segNetIndex();
+  if (!idx) return out;
+  for (const k of Object.keys(out)) {
+    if (idx.known.has(k)) continue;
+    const p = k.split('|');
+    const rec = p.length === 4 && idx.net.get(p[0] + '|' + p[1]);
+    if (!rec) continue;
+    const dOf = n => { for (const s of rec.segs) { if (s.a === n) return s.dA; if (s.b === n) return s.dB; } return null; };
+    const dA = dOf(p[2]), dB = dOf(p[3]);
+    if (dA == null || dB == null) continue;
+    const lo = Math.min(dA, dB), hi = Math.max(dA, dB), v = out[k];
+    let hit = 0;
+    for (const s of rec.segs) if (s.mid >= lo && s.mid <= hi) { hit++; if (!out[s.key]) out[s.key] = v; }
+    if (hit) delete out[k];
+  }
+  return out;
+}
 function segmentCollection() {
   const out = {};
   for (const [k, v] of Object.entries(loadCheckins().sg || {})) out[k] = Number(v && v.n) || 0;
+  remapSplitSegKeys(out);
   // 同一段實體軌道走過就是走過,故讓共構的鍵互相認帳。刻意做在讀取端而不是寫入端:既有收集
   // 立刻就對(不必重搭一次)、不改寫存檔也不推雲端;而且只補空鍵、不加總,成就用的 maxSeg 不受影響。
   for (const keys of sharedTrackGroups()) {
@@ -23342,6 +23374,7 @@ function segmentCollectionVerified() {
     const nv = Number(v && v.nv) || 0;
     if (nv > 0) out[k] = nv;
   }
+  remapSplitSegKeys(out);
   return out;
 }
 // ── 本機資料 ↔ userData collection 形狀 ──────────────────────────────

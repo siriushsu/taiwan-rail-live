@@ -141,7 +141,8 @@ await check('不支援的站回 400，且不會打 TDX', async () => {
   const body = await response.json();
   assert.equal(response.status, 400);
   assert.equal(body.coverage, 'all_active_rail_stations');
-  assert.equal(body.stationCount, 541);
+  // 2026-10-02 平鎮臨時站（10/3 啟用）進索引：541→542（verify_bus_transfer_index.mjs 同步）。
+  assert.equal(body.stationCount, 542);
   assert.equal(n1Calls.length, before);
 });
 

@@ -98,7 +98,7 @@
       "stationClassFile": "data/tra_station_class.json",
       "lineFile": null,
       "routeNameSource": "scripts/build_station_transfers.mjs#TRA_LINE_NAMES",
-      "stationInfoRecords": 245,
+      "stationInfoRecords": 246,
       "stationClassRecords": 210,
       "stationRecords": 242,
       "stationOfLines": 12,
