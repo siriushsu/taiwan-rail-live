@@ -3437,6 +3437,8 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '{segs} <span id="recUnitWord">段</span>已覆蓋': '<span id="recUnitWord">Segments</span> covered: {segs}',
   '{segs} <span id="recUnitWord">站</span>已覆蓋': '<span id="recUnitWord">Stations</span> covered: {segs}',
   '要錄程，請先把軌島 App 更新到最新版': 'To record a trip, please update the Rail Island app to the latest version.',
+  '合格的一趟要同時做到：同一班車從頭錄到尾至少 <b>{time}</b>、在同一條線上至少移動 <b>{dist}</b>、資料能用。一班車最多算一趟。': 'A qualifying trip needs all of these: you record the same train for at least <b>{time}</b> from start to finish, you travel at least <b>{dist}</b> along the same line, and the data is usable. One train counts as one trip at most.',
+  '沒達到門檻，能用的資料照樣拿來校正，只是沒有籌碼。': 'If a trip falls short, its usable data still goes into calibration; it just earns no chips.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '籌碼 ×{n}': 'チップ ×{n}',
@@ -3458,4 +3460,6 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '{segs} <span id="recUnitWord">段</span>已覆蓋': '{segs}<span id="recUnitWord">区間</span>を記録済み',
   '{segs} <span id="recUnitWord">站</span>已覆蓋': '{segs}<span id="recUnitWord">駅</span>を記録済み',
   '要錄程，請先把軌島 App 更新到最新版': '旅程を記録するには、軌島アプリを最新版に更新してください。',
+  '合格的一趟要同時做到：同一班車從頭錄到尾至少 <b>{time}</b>、在同一條線上至少移動 <b>{dist}</b>、資料能用。一班車最多算一趟。': '条件を満たした1回の乗車とは、次のすべてを満たすものです。同じ列車を最初から最後まで <b>{time}</b> 以上記録すること、同じ路線上を <b>{dist}</b> 以上移動すること、使えるデータであること。1本の列車につき、数えるのは1回までです。',
+  '沒達到門檻，能用的資料照樣拿來校正，只是沒有籌碼。': '条件に届かなくても、使えるデータは校正に使われます。ただしチップはもらえません。',
 });

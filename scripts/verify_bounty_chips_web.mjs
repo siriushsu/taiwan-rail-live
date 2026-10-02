@@ -28,6 +28,7 @@
 //   CH20 ?demo=bounty 的示範看板：有一張偏遠線的卡、「籌碼 ×N」標記看得到（中英日、手機不用捲）；名單與倍率讀規則檔、換一份規則檔跟著翻；規則檔讀不到時維持原本 5 張卡；規則檔還沒回來就開板，板子先顯示載入中、規則檔一到第一次畫出來的卡就有標記；其他卡不變
 //   CH21 旗標開時的懸賞文案（看板、說明卡、護照校正貢獻、說明中心三節、接下的提示）第一人稱用單數，沒有「我們／We／私たち」；規則檔 qualityText 的中文也沒有，而且每一句在英日字典都有同一句當鍵、譯文也沒有複數；掃描規則自己咬得住
 //   CH22 規則檔一直不回來時：示範看板、真看板、護照籌碼都在「上限＋餘裕」之內畫出來（看板沒有標記、護照沒有「下一座」）；規則檔在上限之內到了，第一次畫就帶標記；之後才到，看板補上標記、不丟錯、不重複，關掉的看板不被畫、重開的看板不被舊的補畫蓋住
+//   CH23 說明卡講清楚「合格」是什麼：「先講清楚」那一節緊接在「錄到一半中斷沒關係」後面有兩句（合格的一趟要同時做到什麼、沒達到會怎樣）；門檻數字讀規則檔，換一份規則檔跟著變，進位只往上（換算回去不低於伺服器的門檻、多出的不到一個進位單位，達到畫面門檻的那一趟伺服器給籌碼）；規則檔讀不到或門檻不能用時整段不寫；中英日、?demo=bounty 的停站卡也有
 //
 // 打樁慣例照 scripts/verify_bounty_merge_web.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
 // localStorage['trainmap-account-uid'] 讓開機走 accountEnsureInit（回訪者分支）。
@@ -1833,6 +1834,163 @@ try {
       const r2 = await rowInfo(s.page);
       ok('CH22i 護照：規則檔之後才到——頁面沒有丟例外、籌碼數字還在（餘額 5）；規則檔確實進了記憶體',
         (await rulesInMem(s.page)) && s.errors.length === 0 && !!r2 && !r2.off && !!r2.cells.balance && r2.cells.balance.nums.join() === '5', JSON.stringify({ cells: r2 && r2.cells, errors: s.errors }));
+      await s.ctx.close();
+    });
+  }
+  // ═══ CH23：說明卡講清楚「合格」是什麼 ═══════════════════════════════════════════════════════════════════════════
+  // 說明卡「先講清楚」那一節，緊接在「錄到一半中斷沒關係」後面有兩句：什麼叫合格的一趟（同一班車從頭錄到尾至少幾分鐘、同一條線上至少移動多遠、
+  // 資料能用、一班車最多算一趟），以及沒達到會怎樣。門檻讀規則檔 chips.minTripSec／minTripMoveM，進位只准往上：畫面上的門檻永遠不比伺服器的低。
+  // 期望值有兩種來源，都不呼叫 index.html 的函式：
+  //   ① 字面對照表：每一列「規則檔的秒數與公尺數 → 畫面上該出現的字」都是這裡手算寫死的；
+  //   ② 換算回去的區間檢查：把畫面上的數字讀出來換回秒與公尺，必須 ≥ 規則檔的門檻、而且多出來的不到一個進位單位（分鐘 60 秒、公里 100 公尺、公尺 1），
+  //      再丟進伺服器入帳用的純函式 tripChips——達到畫面上的門檻的那一趟，伺服器真的會給籌碼。
+  if (want('CH23')) {
+    const SENT23 = {
+      'zh-TW': { head: '合格的一趟要同時做到：', tail: '一班車最多算一趟。', short: '沒達到門檻，能用的資料照樣拿來校正，只是沒有籌碼。',
+        full: (time, dist) => `合格的一趟要同時做到：同一班車從頭錄到尾至少 ${time}、在同一條線上至少移動 ${dist}、資料能用。一班車最多算一趟。`,
+        unit: { min: n => `${n} 分鐘`, km: n => `${n} 公里`, m: n => `${n} 公尺` } },
+      en: { head: 'A qualifying trip needs all of these:', tail: 'One train counts as one trip at most.', short: 'If a trip falls short, its usable data still goes into calibration; it just earns no chips.',
+        full: (time, dist) => `A qualifying trip needs all of these: you record the same train for at least ${time} from start to finish, you travel at least ${dist} along the same line, and the data is usable. One train counts as one trip at most.`,
+        unit: { min: n => `${n} min`, km: n => `${n} km`, m: n => `${n} m` } },
+      ja: { head: '条件を満たした1回の乗車とは、', tail: '1本の列車につき、数えるのは1回までです。', short: '条件に届かなくても、使えるデータは校正に使われます。ただしチップはもらえません。',
+        full: (time, dist) => `条件を満たした1回の乗車とは、次のすべてを満たすものです。同じ列車を最初から最後まで ${time} 以上記録すること、同じ路線上を ${dist} 以上移動すること、使えるデータであること。1本の列車につき、数えるのは1回までです。`,
+        unit: { min: n => `${n}分`, km: n => `${n}km`, m: n => `${n}m` } },
+    };
+    const NEW_ANY = /合格的一趟要同時做到|沒達到門檻|A qualifying trip needs all|falls short|条件を満たした1回の乗車とは|条件に届かなくても/;
+    const ENGINEERING = /判定|里程跨距|跨距|minTripSec|minTripMoveM|verdict|suspect|unusable|durationSec|moveM|chips\./;
+    const withChips = over => ({ ...RULES, chips: { ...RULES.chips, ...over } });
+    // 一份規則檔（minTripSec／minTripMoveM）→ 畫面該出現的字（手算）。km 的小數是進位到 0.1 公里。
+    const TABLE = [
+      { id: 'a', sec: 900, m: 2500, zh: ['15 分鐘', '2.5 公里'], en: ['15 min', '2.5 km'], ja: ['15分', '2.5km'], why: '整分鐘、2.5 公里（換一份規則檔，畫面跟著變）' },
+      { id: 'b', sec: 650, m: 1500, zh: ['11 分鐘', '1.5 公里'], en: ['11 min', '1.5 km'], ja: ['11分', '1.5km'], why: '650 秒＝10.83 分鐘→往上取 11（往下會是 10）' },
+      { id: 'c', sec: 601, m: 1001, zh: ['11 分鐘', '1.1 公里'], en: ['11 min', '1.1 km'], ja: ['11分', '1.1km'], why: '只多 1 秒、多 1 公尺也各往上進一格' },
+      { id: 'd', sec: 60, m: 999, zh: ['1 分鐘', '999 公尺'], en: ['1 min', '999 m'], ja: ['1分', '999m'], why: '剛好 1 分鐘；不到 1 公里寫公尺、不進位成 1 公里' },
+      { id: 'e', sec: 1, m: 1, zh: ['1 分鐘', '1 公尺'], en: ['1 min', '1 m'], ja: ['1分', '1m'], why: '最小的正數也不會寫成 0' },
+      { id: 'f', sec: 3600, m: 12345, zh: ['60 分鐘', '12.4 公里'], en: ['60 min', '12.4 km'], ja: ['60分', '12.4km'], why: '12.345 公里→往上取 12.4（四捨五入會是 12.3）' },
+    ];
+    // 畫面上的合格那一句：抓出兩個門檻，換算回秒與公尺
+    const shownOf = text => {
+      const mt = text.match(/至少 ([\d.]+) 分鐘/), md = text.match(/至少移動 ([\d.]+) (公里|公尺)/);
+      if (!mt || !md) return null;
+      const km = md[2] === '公里';
+      return { sec: Math.round(Number(mt[1]) * 60), m: km ? Math.round(Number(md[1]) * 10) * 100 : Math.round(Number(md[1])), km, minTxt: mt[1], distTxt: md[1] };
+    };
+    const rangeOk = (shown, sec, m) => !!shown && shown.sec >= sec && shown.sec - sec < 60 && shown.m >= m && shown.m - m < (shown.km ? 100 : 1);
+    const gets = (shown, rules) => tripChips({ verdict: 'ok', lineKeys: ['none|x'], durationSec: shown.sec, moveM: shown.m, day: '2026-10-02' }, rules.chips);
+    // 這個 session 直接叫 bountyClaim 開說明卡：說明卡的內容與怎麼走到它無關（走到它的路在別的判準驗）
+    const openBriefOf = async (s, card) => {
+      await s.page.evaluate(id => { bountyClaim(id); }, card.id);
+      await briefOpen(s.page);
+      return readBrief(s.page);
+    };
+    const fixtureOk = (s, rules) => s.page.evaluate(r => { const c = bountyRulesMem && bountyRulesMem.chips; return !!c && c.minTripSec === r.sec && c.minTripMoveM === r.m; }, { sec: rules.chips.minTripSec, m: rules.chips.minTripMoveM });
+
+    await attempt('CH23-real', async () => {
+      const s = await boardSession({}, {});
+      const br = await openBriefOf(s, CARD_R);
+      const sh = shownOf(br.text), L = SENT23['zh-TW'];
+      ok(`CH23a [fixture] 讀到的規則檔就是真的那份（minTripSec ${RULES.chips.minTripSec}、minTripMoveM ${RULES.chips.minTripMoveM}、每趟 ${RULES.chips.perTrip}）；說明卡開了`,
+        (await fixtureOk(s, RULES)) && RULES.chips.perTrip > 0 && br.text.length > 100, JSON.stringify({ n: br.text.length }));
+      ok('CH23b 說明卡有「合格的一趟要同時做到」那一整句：四件事都在（從頭錄到尾至少幾分鐘、同一條線上至少移動多遠、資料能用、一班車最多算一趟），數字是規則檔進位後的',
+        !!sh && br.text.includes(L.head) && br.text.includes(L.tail) && br.text.includes('資料能用') && /同一班車從頭錄到尾至少/.test(br.text) && /在同一條線上至少移動/.test(br.text), br.text);
+      ok(`CH23c 畫面上的門檻換回秒與公尺（${sh && sh.sec} 秒、${sh && sh.m} 公尺）：不低於規則檔的（${RULES.chips.minTripSec} 秒、${RULES.chips.minTripMoveM} 公尺）、多出來的不到一個進位單位`,
+        rangeOk(sh, RULES.chips.minTripSec, RULES.chips.minTripMoveM), JSON.stringify({ sh, rules: [RULES.chips.minTripSec, RULES.chips.minTripMoveM] }));
+      ok('CH23d 伺服器入帳用的純函式（tripChips）對這些門檻：剛好達到畫面上寫的那一趟有籌碼、少 1 秒或少 1 公尺沒有、資料被判可疑或不能用沒有（四句話各對得上伺服器的一個條件）',
+        !!sh && gets(sh, RULES) > 0 &&
+          tripChips({ verdict: 'ok', lineKeys: [], durationSec: sh.sec - 1, moveM: sh.m, day: '2026-10-02' }, RULES.chips) === 0 &&
+          tripChips({ verdict: 'ok', lineKeys: [], durationSec: sh.sec, moveM: sh.m - 1, day: '2026-10-02' }, RULES.chips) === 0 &&
+          tripChips({ verdict: 'suspect', lineKeys: [], durationSec: sh.sec, moveM: sh.m, day: '2026-10-02' }, RULES.chips) === 0 &&
+          tripChips({ verdict: 'unusable', lineKeys: [], durationSec: sh.sec, moveM: sh.m, day: '2026-10-02' }, RULES.chips) === 0, JSON.stringify(sh));
+      const pos = ['錄到一半中斷沒關係', L.head, L.short, '即使這次的資料不能用'].map(x => br.text.indexOf(x));
+      ok('CH23e 位置與語氣：緊接在「錄到一半中斷沒關係」之後、在「即使這次的資料不能用」之前（中斷那句、合格那句、沒達到那句、承諾那句依序）；「沒達到門檻，能用的資料照樣拿來校正，只是沒有籌碼。」在；整段沒有工程術語',
+        pos.every(x => x >= 0) && pos.every((x, i) => i === 0 || x > pos[i - 1]) && !ENGINEERING.test(br.text), JSON.stringify({ pos, hit: (br.text.match(ENGINEERING) || [null])[0] }));
+      const dom = await s.page.evaluate(() => [...document.querySelectorAll('#bountyBriefBody .bb-sec')].map(sec => ({ head: sec.querySelector('b').textContent.trim(), text: sec.textContent.replace(/\s+/g, ' ').trim(), lis: [...sec.querySelectorAll('li')].map(l => l.textContent.replace(/\s+/g, ' ').trim()) })));
+      const clean = dom.find(x => x.head === '先講清楚');
+      const ix = clean ? ['錄到一半中斷沒關係', L.head, '沒達到門檻', '即使這次的資料不能用'].map(p => clean.lis.findIndex(x => x.startsWith(p))) : [];
+      ok('CH23f 這兩句各自是「先講清楚」那一節裡獨立的一條（不是塞進別的段落），上下兩條照在、依序是 中斷、合格、沒達到、承諾；其他幾節裡沒有這兩句',
+        !!clean && ix.length === 4 && ix.every(v => v >= 0) && ix.every((v, k) => k === 0 || v === ix[k - 1] + 1) && dom.length >= 3 && !dom.filter(x => x.head !== '先講清楚').some(x => NEW_ANY.test(x.text)), JSON.stringify({ ix, heads: dom.map(x => x.head) }));
+      ok('CH23g 頁面沒有未捕捉的例外', s.errors.length === 0, JSON.stringify(s.errors));
+      await s.ctx.close();
+    });
+    // 換一份規則檔、畫面跟著變（寫死的數字換一份就對不上）；三種介面各一輪
+    for (const lang of ['zh-TW', 'en', 'ja']) for (const row of (lang === 'zh-TW' ? TABLE.slice(0, 2) : TABLE.slice(0, 1))) await attempt(`CH23-served-${lang}-${row.id}`, async () => {
+      const rules = withChips({ minTripSec: row.sec, minTripMoveM: row.m });
+      const s = await boardSession({}, { rules, lang });
+      const br = await openBriefOf(s, CARD_R);
+      const X = SENT23[lang], [tm, ds] = row[lang === 'zh-TW' ? 'zh' : lang];
+      ok(`CH23h-${lang}-${row.id} [fixture] 頁面讀到的是這一輪換的規則檔（${row.sec} 秒、${row.m} 公尺）：${row.why}`, await fixtureOk(s, rules), '');
+      ok(`CH23i-${lang}-${row.id} ${lang} 介面的整句：「${X.full(tm, ds)}」，緊接著「${X.short}」`,
+        br.text.includes(X.full(tm, ds)) && br.text.includes(X.short) && br.text.indexOf(X.short) > br.text.indexOf(X.full(tm, ds)), br.text);
+      if (lang === 'zh-TW') {
+        const sh = shownOf(br.text);
+        ok(`CH23j-${row.id} 換算回去的區間檢查與伺服器純函式：畫面上的門檻不低於規則檔、多出來的不到一個進位單位，達到畫面門檻的那一趟伺服器給籌碼`,
+          rangeOk(sh, row.sec, row.m) && gets(sh, rules) > 0, JSON.stringify({ sh }));
+      }
+      if (lang === 'en') {
+        const seg = br.text.slice(br.text.indexOf(X.head), br.text.indexOf(X.short) + X.short.length);
+        ok(`CH23k-en-${row.id} 英文介面：合格那兩句整段取出來（${seg.length} 字）沒有漏出中文`, seg.length > 150 && !/[㐀-鿿]/.test(seg), seg);
+      }
+      ok(`CH23l-${lang}-${row.id} 頁面沒有未捕捉的例外`, s.errors.length === 0, JSON.stringify(s.errors));
+      await s.ctx.close();
+    });
+    // 進位的對照表：同一個頁面把規則檔記憶體換成各種數字（頁面自己讀規則檔的那個變數），每一列的字與區間檢查都要對
+    await attempt('CH23-table', async () => {
+      const s = await boardSession({}, {});
+      const L = SENT23['zh-TW'];
+      for (const row of TABLE) {
+        const text = await s.page.evaluate(r => {
+          bountyRulesMem = { ...bountyRulesMem, chips: { ...bountyRulesMem.chips, minTripSec: r.sec, minTripMoveM: r.m } };
+          showBountyBrief(bountyBoardMem.cards[0]);
+          return document.getElementById('bountyBriefBody').textContent.replace(/\s+/g, ' ').trim();
+        }, { sec: row.sec, m: row.m });
+        const sh = shownOf(text), rules = withChips({ minTripSec: row.sec, minTripMoveM: row.m });
+        ok(`CH23m-${row.id} 規則檔 ${row.sec} 秒、${row.m} 公尺 → 「${L.full(row.zh[0], row.zh[1])}」（${row.why}）；換算回去不低於規則檔、多出的不到一個進位單位`,
+          text.includes(L.full(row.zh[0], row.zh[1])) && rangeOk(sh, row.sec, row.m) && gets(sh, rules) > 0, JSON.stringify({ text: text.slice(text.indexOf(L.head), text.indexOf(L.head) + 80), sh }));
+      }
+      // 規則檔讀到了、但門檻缺、不是正數、不是數字，或每趟不給籌碼：整段不寫（只有合格那兩句不寫，說明卡其他的句子照在）
+      const BAD = [
+        ['沒有 chips 區塊', { whole: true }], ['沒有 minTripSec', { drop: 'minTripSec' }], ['沒有 minTripMoveM', { drop: 'minTripMoveM' }], ['minTripSec 是 0', { set: { minTripSec: 0 } }],
+        ['minTripMoveM 是 0', { set: { minTripMoveM: 0 } }], ['minTripSec 是負數', { set: { minTripSec: -600 } }], ['minTripMoveM 不是數字', { set: { minTripMoveM: 'abc' } }], ['每趟 0 顆', { set: { perTrip: 0 } }],
+      ];
+      const outs = [];
+      for (const [label, o] of BAD) {
+        const text = await s.page.evaluate(({ o, chips }) => {
+          const c = { ...chips, ...(o.set || {}) };
+          if (o.drop) delete c[o.drop];
+          bountyRulesMem = o.whole ? { v: 1 } : { ...bountyRulesMem, chips: c };
+          showBountyBrief(bountyBoardMem.cards[0]);
+          return document.getElementById('bountyBriefBody').textContent.replace(/\s+/g, ' ').trim();
+        }, { o, chips: RULES.chips });
+        outs.push([label, !NEW_ANY.test(text) && text.includes('錄到一半中斷沒關係') && text.includes('即使這次的資料不能用')]);
+      }
+      ok('CH23n 規則檔讀到了但門檻缺、是 0、是負數、不是數字、或每趟不給籌碼：合格那兩句都不出現，說明卡其他句子（中斷、承諾）照在', outs.every(x => x[1]), JSON.stringify(outs));
+      ok('CH23o 頁面沒有未捕捉的例外', s.errors.length === 0, JSON.stringify(s.errors));
+      await s.ctx.close();
+    });
+    // 規則檔讀不到：說明卡照樣開、合格那兩句整段不出現（寧可不寫，也不憑記憶補數字）；每趟、每天那兩句也不在
+    await attempt('CH23-404', async () => {
+      const s = await boardSession({}, { rules: '404' });
+      const br = await openBriefOf(s, CARD_R);
+      ok('CH23p 規則檔讀不到：說明卡照樣開、合格那兩句與獎勵句都不出現（沒有「合格的一趟要同時做到」「沒達到門檻」「顆籌碼」）；期限、中斷、承諾那幾句照在；頁面沒有未捕捉的例外',
+        !NEW_ANY.test(br.text) && !/顆籌碼|每天最多/.test(br.text) && br.text.includes('錄到一半中斷沒關係') && br.text.includes('接下的卡 24 小時內有效。') && br.text.includes('即使這次的資料不能用') && s.errors.length === 0, br.text);
+      await s.ctx.close();
+    });
+    // ?demo=bounty 的說明卡（停站卡）也有這兩句；備援站看設計的路徑照走（真的點「接下」、說明卡開、能按「開始錄製」進錄製）
+    await attempt('CH23-demo', async () => {
+      const s = await newSession({ app: false }, {}, { ctx: { locale: 'zh-TW' } });
+      await s.page.goto(`${BASE}/?lang=zh-TW&demo=bounty`);
+      await bootDone(s.page);
+      await s.page.click('#passport [data-act="bountyboard"]');
+      await s.page.waitForFunction(() => document.querySelectorAll('#bountyList .bt-card').length >= 5, null, { timeout: 15000 });
+      const dwell = await s.page.evaluate(() => (bountyBoardMem.cards.find(c => c.kind === 'dwell') || {}).id);
+      await s.page.click(takeSel(dwell));
+      await briefOpen(s.page);
+      const br = await readBrief(s.page), sh = shownOf(br.text);
+      ok('CH23q ?demo=bounty（停站卡）：真的點「接下」開出的說明卡也有合格那一整句與「沒達到門檻」那句，數字不低於規則檔、多出的不到一個進位單位',
+        !!dwell && br.text.includes(SENT23['zh-TW'].head) && br.text.includes(SENT23['zh-TW'].short) && rangeOk(sh, RULES.chips.minTripSec, RULES.chips.minTripMoveM), JSON.stringify({ dwell, sh }));
+      await s.page.click('#bountyBriefGo');
+      await s.page.waitForFunction(() => !!state.recording, null, { timeout: 15000 });
+      ok('CH23r ?demo=bounty：說明卡按「開始錄製」照樣進入錄製（備援站的設計流程不受影響）；頁面沒有未捕捉的例外', s.errors.length === 0, JSON.stringify(s.errors));
       await s.ctx.close();
     });
   }

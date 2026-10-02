@@ -23650,6 +23650,27 @@ function bountyRewardText(card) {
     mult ? t('這條線的籌碼 ×<b>{n}</b>。', { n: mult }) : '',
     cap > 0 ? t('每天最多 <b>{n}</b> 顆。', { n: cap }) : '');
 }
+// 說明卡「先講清楚」裡講合格的兩句：什麼叫合格的一趟、沒達到會怎樣。門檻讀規則檔（chips.minTripSec／minTripMoveM），
+// 伺服器入帳讀的是同一份。🔴 取整只准往上（Math.ceil）：畫面上的門檻永遠不比伺服器的低，不然乘客達到畫面上的數字卻拿不到。
+// 分鐘照秒數進位；距離不到 1 公里寫公尺，到了就寫公里（進位到 0.1 公里）。
+// 規則檔沒讀到、或門檻不是正數，整段不寫（同 bountyRewardText）：不憑記憶補數字，也不寫伺服器不一定會給的東西。
+// 樣板裡的 <b> 是字典值的固定標記；插進去的只有進位後的數字（單位字樣沿用站內既有的「{n} 分鐘／公里／公尺」）。
+function bountyUpTo(x, max = 1e7) {
+  const n = Math.ceil(Number(x));
+  return Number.isFinite(n) && n > 0 && n <= max ? n : 0;
+}
+function bountyQualifyItems() {
+  const ch = bountyRulesMem && bountyRulesMem.chips;
+  if (!ch || !(bountyNum(ch.perTrip) > 0)) return [];
+  const mins = bountyUpTo(Number(ch.minTripSec) / 60), m = bountyUpTo(ch.minTripMoveM);
+  if (!mins || !m) return [];
+  const time = t('{n} 分鐘', { n: i18nNumber(mins) });
+  const km = m >= 1000 ? bountyUpTo(m / 100) / 10 : 0;
+  const dist = km ? t('{n} 公里', { n: i18nNumber(km) }) : t('{n} 公尺', { n: i18nNumber(m) });
+  return [
+    t('合格的一趟要同時做到：同一班車從頭錄到尾至少 <b>{time}</b>、在同一條線上至少移動 <b>{dist}</b>、資料能用。一班車最多算一趟。', { time, dist }),
+    t('沒達到門檻，能用的資料照樣拿來校正，只是沒有籌碼。')];
+}
 function closeBountyBoard() { document.getElementById('bountyModal').hidden = true; }
 function renderBountyBoard() {
   const b = bountyBoardMem || { cards: [] };
@@ -24575,6 +24596,8 @@ function showBountyBrief(card) {
     `<div class="bb-sec"><b>${escHtml(t('先講清楚'))}</b><ul>` +
       (ug ? `<li>${escHtml(ug)}</li>` : '') +
       `<li>${t('錄到一半中斷沒關係，<b>錄到的部分照樣算</b>。')}</li>` +
+      // 合格的門檻緊接在「中斷也算」後面：兩句放在一起，才不會被讀成「錄到多少都有籌碼」。規則檔沒到就整段不寫。
+      bountyQualifyItems().map(x => `<li>${x}</li>`).join('') +
       // 🔴 這一句是三態判定的直接承諾（規格 §7、§8），不可以只寫在規格裡不寫在 UI 上
       `<li>${t('<b>即使這次的資料不能用，校正者章還是你的。</b>我會告訴你是什麼原因、下次怎麼改善。')}</li>` +
       `</ul></div>`;
