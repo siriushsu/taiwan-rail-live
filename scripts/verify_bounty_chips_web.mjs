@@ -1148,19 +1148,19 @@ try {
         claimed: '接下了・24 小時內有效', demoClaimed: '（示範）接下了・24 小時內有效',
         saveFail: '已在伺服器接下，但這台裝置存不下來（可能是儲存空間滿了或無痕模式）——重新整理後認領不會留著',
         again: '這段你已經接下了，還沒過期', expiry: '接下的卡 24 小時內有效。', promise: '即使這次的資料不能用，只要錄得夠完整，校正者章還是你的。',
-        passport: '章還是你的', tip: '校正者章還是你的', rowTrack: '0 段已覆蓋', rowDwell: '0 站已覆蓋',
+        passport: '還不能錄程，要更新到最新版才行', tip: '校正者章還是你的', rowTrack: '0 段已覆蓋', rowDwell: '0 站已覆蓋',
         subShell: '這些項目還沒有實測資料。這一版還不能接，要更新到最新版的軌島 App 才能接下來錄——現在可以先看看有哪些。' },
       en: { re: POINTS_RE_I18N, sub: [/chips/, /daily limit/], subNo: /honou?r/i, subDemo: [/Demo data/, /fake/], tag: 'Chips ×2',
         claimed: 'Claimed · valid for 24 hours', demoClaimed: '(Demo) Claimed · valid for 24 hours',
         saveFail: 'Claimed on the server, but this device couldn’t save it (storage may be full, or you’re in private browsing) — the claim won’t persist after you refresh',
         again: 'You’ve already claimed this segment, and it hasn’t expired yet', expiry: 'A claimed card is valid for 24 hours.', promise: 'Even if this data can’t be used, the calibrator stamp is still yours as long as you recorded enough of it.',
-        passport: 'even if the data can’t be used, the stamp is still yours', tip: 'you keep the calibrator stamp', rowTrack: 'Segments covered: 0', rowDwell: 'Stations covered: 0',
+        passport: 'update to the latest version to record', tip: 'you keep the calibrator stamp', rowTrack: 'Segments covered: 0', rowDwell: 'Stations covered: 0',
         subShell: 'These items don’t have real measurement data yet. This version can’t claim them — update the Rail Island app to the latest version to claim and record. For now, you can browse what’s available.' },
       ja: { re: POINTS_RE_I18N, sub: [/チップ/, /上限/], subNo: /名誉/, subDemo: [/デモデータ/, /仮/], tag: 'チップ ×2',
         claimed: '受け取りました・24時間有効', demoClaimed: '（デモ）受け取りました・24時間有効',
         saveFail: 'サーバー側では受領済みですが、この端末には保存できませんでした（ストレージ不足またはプライベートブラウジングの可能性）。更新すると受領記録は残りません',
         again: 'この区間はすでに受け取り済みで、まだ有効期限内です', expiry: '受け取ったカードは24時間有効です。', promise: '今回のデータが使えなくても、十分に記録できていれば、校正者スタンプはあなたのものです。',
-        passport: 'データが使えなかった場合でも、スタンプはあなたのものです', tip: '校正者スタンプはあなたのものです', rowTrack: '0区間を記録済み', rowDwell: '0駅を記録済み',
+        passport: '最新版に更新してください', tip: '校正者スタンプはあなたのものです', rowTrack: '0区間を記録済み', rowDwell: '0駅を記録済み',
         subShell: 'これらの項目にはまだ実測データがありません。このバージョンでは受け取れません。軌島アプリを最新版に更新すると、受け取って記録できます。今は内容を確認できます。' },
     };
     const ME_EMPTY = { ...ME, points: 0, corrected: { segs: 0, adopted: 0 }, lines: [] };       // 護照「校正貢獻」的空狀態
@@ -1207,7 +1207,7 @@ try {
         ok(`CH16i-${lang} 存不下時的提示照實說「伺服器接下了、這裡沒存成」、沒有點數、沒有 7939；說明卡照樣開了`,
           br2.toasts.length === 1 && br2.toasts[0] === X.saveFail && noPts(br2.toasts[0], X.re) && br2.text.length > 40, JSON.stringify(br2.toasts));
         const pp = await s.page.evaluate(() => { const e = document.querySelector('#passport .ph-correct .ph-empty'); return e ? e.textContent.replace(/\s+/g, ' ').trim() : null; });
-        ok(`CH16j-${lang} 護照「校正貢獻」空狀態那句承諾沒有提點數（「${X.passport}」在、沒有點數字樣）`, pp !== null && pp.includes(X.passport) && noPts(pp, X.re), String(pp));
+        ok(`CH16j-${lang} 護照「校正貢獻」空狀態（現行 App 殼：請更新那句，不許諾錄就有章）沒有提點數（「${X.passport}」在、沒有點數字樣）`, pp !== null && pp.includes(X.passport) && noPts(pp, X.re), String(pp));
         await s.page.evaluate(() => openHelp('bountyme'));
         const tip = await s.page.evaluate(() => { const e = document.querySelector('#helpBody .help-sec[data-sec="bountyme"] .tip'); return e ? e.textContent.replace(/\s+/g, ' ').trim() : null; });
         ok(`CH16k-${lang} 說明中心「護照裡的校正貢獻」那一則沒有提點數（「${X.tip}」在、沒有點數字樣）`, tip !== null && tip.includes(X.tip) && noPts(tip, X.re), String(tip));
@@ -1635,7 +1635,7 @@ try {
       en: { help: 'the running data I have isn’t accurate enough yet', rec: 'and I use it to make train position estimates', promise: 'I’ll tell you why and how to do better next time.', tip: 'and I tell you why and how to do better next time' },
       ja: { help: '走行データの精度が足りない区間があります', rec: '乗車のついでに記録してもらうと', promise: '理由と次回の改善点をお伝えします。', tip: '原因と次回の改善方法もお知らせします' },
     };
-    const PASSPORT21 = { 'zh-TW': '章還是你的', en: 'even if the data can’t be used, the stamp is still yours', ja: 'データが使えなかった場合でも、スタンプはあなたのものです' };
+    const PASSPORT21 = { 'zh-TW': '還不能錄程，要更新到最新版才行', en: 'update to the latest version to record', ja: '最新版に更新してください' };   // 現行 App 殼的空狀態
     const ME_EMPTY21 = { ...ME, points: 0, corrected: { segs: 0, adopted: 0 }, lines: [] };       // 護照「校正貢獻」的空狀態
     const hitsOf = (lang, arr) => arr.filter(x => PL[lang].test(x));
     for (const lang of ['zh-TW', 'en', 'ja']) await attempt(`CH21-${lang}`, async () => {
@@ -1668,7 +1668,7 @@ try {
         b.cards.length === 3 && b.sub.length > 10 && hitsOf(lang, board).length === 0, JSON.stringify({ hits: hitsOf(lang, board), sub: b.sub }));
       ok(`CH21b-${lang} 出發前說明卡：沒有第一人稱複數；承諾句寫成「${X.promise}」`,
         br.text.includes(X.promise) && hitsOf(lang, [br.text]).length === 0, br.text);
-      ok(`CH21c-${lang} 護照「校正貢獻」那一節：沒有第一人稱複數（讀到的那一節有那句承諾：「${PASSPORT21[lang]}」）`,
+      ok(`CH21c-${lang} 護照「校正貢獻」那一節（現行 App 殼）：沒有第一人稱複數（讀到的那一節有請更新那一句：「${PASSPORT21[lang]}」）`,
         passport.includes(PASSPORT21[lang]) && hitsOf(lang, [passport]).length === 0, passport);
       ok(`CH21d-${lang} 說明中心「懸賞板」「錄一趟校正旅程」「護照裡的校正貢獻」三節：沒有第一人稱複數；三節各有改過的那一句（「${X.help}」「${X.rec}」「${X.tip}」）`,
         help.bounty.includes(X.help) && help.bountyrec.includes(X.rec) && help.bountyme.includes(X.tip) && hitsOf(lang, Object.values(help)).length === 0, JSON.stringify(help));
@@ -2498,6 +2498,7 @@ try {
     // 在同一個頁面把「我的成果」記憶體換成指定的回應、重畫護照再讀（網路那一段由各組開頭的真請求驗，這裡只換輸入）
     const setMe = (page, me) => page.evaluate(m => { bountyMeMem = m; renderPassport(); }, me).then(() => readCorr(page));
     const meReady = page => page.waitForFunction(() => { try { return bountyMeMem !== null; } catch (e) { return false; } }, null, { timeout: 30000 });
+    const PL26 = { 'zh-TW': /我們|咱們|我方/, en: /\b(?:we|us|our|ours|ourselves)\b/i, ja: /私たち|私達|我々|わたしたち|弊社|当社|当方|私ども|私共/ };   // 與 CH21 同一份
     const L26 = {
       'zh-TW': { nums: n => `校正停站 ${n} 站`, empty: '錄得夠完整就有校正者章', segs: '校正 12 段', tip: '只要錄得夠完整，校正者章還是你的' },
       en: { nums: n => n === 1 ? 'Calibrated 1 dwell stop' : `Calibrated ${n} dwell stops`, empty: 'Record enough of a trip to earn the calibrator stamp', segs: 'Calibrated 12 segments', tip: 'as long as you recorded enough of the trip you keep the calibrator stamp' },
@@ -2505,7 +2506,7 @@ try {
     };
 
     await attempt('CH26-dwell-only', async () => {
-      const s = await boardSession({}, { me: ME_D });
+      const s = await boardSession({ app: false }, { me: ME_D });   // 網頁殼：空狀態寫的是「錄得夠完整就有章」（現行 App 殼寫請更新，由 CH27 驗）
       await meReady(s.page);
       await s.page.evaluate(() => renderPassport());
       const c = await readCorr(s.page);
@@ -2518,7 +2519,7 @@ try {
       const zero = await setMe(s.page, { ...ME_D, dwellStops: 0 });
       const absent = await setMe(s.page, (() => { const m = { ...ME_D }; delete m.dwellStops; return m; })());
       const none = await setMe(s.page, ME_NONE);
-      ok('CH26c 對照：同一份回應把 dwellStops 改成 0、或拿掉這個欄位（舊版 Worker）、或本來就什麼都沒有：護照回到空狀態（有「錄得夠完整就有校正者章」那句）、沒有數字那一行；三種畫面完全相同',
+      ok('CH26c 對照（網頁殼）：同一份回應把 dwellStops 改成 0、或拿掉這個欄位（舊版 Worker）、或本來就什麼都沒有：護照回到空狀態（有「錄得夠完整就有校正者章」那句）、沒有數字那一行；三種畫面完全相同',
         [zero, absent, none].every(x => x && x.empty && x.nums === null && x.text.includes(L26['zh-TW'].empty)) && zero.html === absent.html && absent.html === none.html, JSON.stringify({ zero: zero && zero.text, absent: absent && absent.text, none: none && none.text }));
       ok('CH26d 頁面沒有未捕捉的例外', s.errors.length === 0, JSON.stringify(s.errors));
       await s.ctx.close();
@@ -2559,7 +2560,7 @@ try {
     });
     // 英文、日文：停站那一行、空狀態、說明中心的承諾句
     for (const lang of ['en', 'ja']) await attempt(`CH26-${lang}`, async () => {
-      const s = await boardSession({}, { lang, me: ME_D });
+      const s = await boardSession({ app: false }, { lang, me: ME_D });   // 網頁殼，理由同上
       await meReady(s.page);
       await s.page.evaluate(() => renderPassport());
       const X = L26[lang];
@@ -2570,14 +2571,20 @@ try {
       const tip = await s.page.evaluate(() => { const e = document.querySelector('#helpBody .help-sec[data-sec="bountyme"] .tip'); return e ? e.textContent.replace(/\s+/g, ' ').trim() : null; });
       ok(`CH26k-${lang} ${lang} 介面：只有停站的人，數字那一行是「${X.nums(3)}」、一站時是「${X.nums(1)}」；原因說明有翻譯` + (lang === 'en' ? '；整節沒有任何中文字' : ''),
         !!c && c.nums === X.nums(3) && one.nums === X.nums(1) && c.why.length === 1 && (lang !== 'en' || (!/[㐀-鿿]/.test(c.text) && !/[㐀-鿿]/.test(one.text))), JSON.stringify({ nums: c && c.nums, one: one && one.nums, why: c && c.why }));
-      ok(`CH26l-${lang} ${lang} 介面：空狀態那句承諾是「${X.empty}…」、說明中心「護照裡的校正貢獻」那則有「${X.tip}」；頁面沒有未捕捉的例外`,
+      ok(`CH26o-${lang} ${lang} 介面（網頁殼）：空狀態那句承諾沒有提點數、沒有第一人稱複數（這兩條原本由 CH16j、CH21c 在 App 殼裡驗，現在那裡寫的是請更新那句）`,
+        !!none && none.empty && !POINTS_RE_I18N.test(none.text) && !POINT_MARKS.test(none.text) && !PL26[lang].test(none.text), JSON.stringify(none && none.text));
+      ok(`CH26l-${lang} ${lang} 介面（網頁殼）：空狀態那句承諾是「${X.empty}…」、說明中心「護照裡的校正貢獻」那則有「${X.tip}」；頁面沒有未捕捉的例外`,
         !!none && none.empty && none.text.includes(X.empty) && tip !== null && tip.includes(X.tip) && s.errors.length === 0, JSON.stringify({ none: none && none.text, tip, errors: s.errors }));
       await s.ctx.close();
     });
     // 繁中的說明中心與空狀態：新的承諾句
     await attempt('CH26-zh-copy', async () => {
-      const s = await boardSession({}, { me: ME_NONE });
+      const s = await boardSession({ app: false }, { me: ME_NONE });   // 網頁殼
       await meReady(s.page);
+      await s.page.evaluate(() => renderPassport());
+      const noneZh = await readCorr(s.page);
+      ok('CH26o-zh-TW 繁中（網頁殼）：空狀態那句承諾沒有提點數、沒有第一人稱複數；有「錄得夠完整就有校正者章」（這兩條原本由 CH16j、CH21c 在 App 殼裡驗，現在那裡寫的是請更新那句）',
+        !!noneZh && noneZh.empty && noneZh.text.includes('錄得夠完整就有校正者章') && !POINTS_RE.test(noneZh.text) && !POINT_MARKS.test(noneZh.text) && !PL26['zh-TW'].test(noneZh.text), JSON.stringify(noneZh && noneZh.text));
       await s.page.evaluate(() => openHelp('bountyme'));
       const tip = await s.page.evaluate(() => { const e = document.querySelector('#helpBody .help-sec[data-sec="bountyme"] .tip'); return e ? e.textContent.replace(/\s+/g, ' ').trim() : null; });
       ok('CH26m 繁中：說明中心「護照裡的校正貢獻」那則寫「但只要錄得夠完整，校正者章還是你的」、舊的寫法（沒有條件）不在', tip !== null && tip.includes('但只要錄得夠完整，校正者章還是你的') && !tip.includes('但校正者章還是你的'), String(tip));
