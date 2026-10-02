@@ -16878,8 +16878,10 @@ function plusSetEnvironment(p, environment) {
   if (p.entitlementEnvironment !== next) {
     // cloudSyncReady 只證明「當時那個環境」的資格文件已落地；環境切換後不可沿用舊結論，
     // 否則會拿 production 的 ready 去寫 sandboxUsers（或反向），接著被 rules 拒絕卻不再握手。
+    // 確認時刻是那個結論的一部分，跟著一起清掉，免得下一次握手之前殘留舊環境的時間戳。
     p.cloudSyncReady = false;
     p.cloudSyncPromise = null;
+    p.cloudSyncConfirmedAt = null;
   }
   p.entitlementEnvironment = next;
   return next;
@@ -16911,20 +16913,24 @@ function plusLifetimeIds() {
 // 持有狀態:由 customerInfo 判定的純函式(不碰 state、不碰 DOM),可以直接拿 SDK 回傳的物件餵。
 //   lifetime     ＝ 資格有效,而且有效的 plus entitlement 或任一筆買斷交易的商品 ID 在終身清單裡。
 //                  不用 expirationDate === null 推論:後台手動發的 promotional 資格同樣是 null。
-//   subscription ＝ 資格有效、不是終身、而且有「有效中的訂閱」。
+//   subscription ＝ 資格有效、不是終身、而且有「有效中的訂閱」。後台發的 promotional 資格在 RevenueCat
+//                  裡也可能以 rc_promo_* 的「訂閱」出現在 activeSubscriptions,先把它們濾掉再判斷,不算訂閱中。
 //   unknown      ＝ 其餘有效的情況(promotional、讀不到細節);畫面一律用中性字。
 // everPaid:這個帳號付過費(月票、年票、終身任一),決定要不要給升級價;後台贈送的 promotional 不算。
-// subRenewing／subStore／subManageUrl:買了終身之後若還有訂閱在續,提醒買家自行取消要用的資料。
+//   只看購買紀錄:entitlements.all 的 plus 存在且 store 不是 PROMOTIONAL,或 allPurchasedProductIdentifiers
+//   有非終身、非 rc_promo 開頭的商品 ID;不從「訂閱中」反推。
+// subRenewing／subStore／subManageUrl:買了終身之後若還有訂閱在續,提醒買家自行取消要用的資料(同樣不含 rc_promo_*)。
 function plusOwnershipFrom(info) {
   const out = { ownership: 'unknown', everPaid: false, subRenewing: false, subStore: '', subManageUrl: '' };
   if (!info || typeof info !== 'object') return out;
   const isLifetimeId = id => plusLifetimeIds().includes(String(id || ''));
+  const isPromoId = id => String(id || '').startsWith('rc_promo');
   const key = plusConfig().entitlement || 'plus';
   const ents = info.entitlements || {};
   const activeEnt = ents.active && ents.active[key];
   const allEnt = ents.all && ents.all[key];
   const txs = Array.isArray(info.nonSubscriptionTransactions) ? info.nonSubscriptionTransactions : [];
-  const subs = Array.isArray(info.activeSubscriptions) ? info.activeSubscriptions : [];
+  const subs = (Array.isArray(info.activeSubscriptions) ? info.activeSubscriptions : []).filter(id => !isPromoId(id));
   const purchased = Array.isArray(info.allPurchasedProductIdentifiers) ? info.allPurchasedProductIdentifiers : [];
   // SDK 型別上是「以商品 ID 為鍵的物件」,但沒有訂閱時實際回的是 [];陣列一律當空物件。
   const detail = info.subscriptionsByProductIdentifier;
@@ -16934,8 +16940,7 @@ function plusOwnershipFrom(info) {
     out.ownership = lifetime ? 'lifetime' : (subs.length ? 'subscription' : 'unknown');
   }
   out.everPaid = !!(allEnt && allEnt.store !== 'PROMOTIONAL')
-    || purchased.some(id => !isLifetimeId(id) && !String(id || '').startsWith('rc_promo'))
-    || out.ownership === 'subscription';
+    || purchased.some(id => !isLifetimeId(id) && !isPromoId(id));
   if (subs.length) {
     // 每一筆有效訂閱都明確標了 willRenew:false 才算「不會再續」;缺欄位、缺那一筆都當作還在續。
     out.subRenewing = !subs.every(id => byId[id] && byId[id].willRenew === false);
@@ -16961,9 +16966,12 @@ function plusPickLifetimeUpgrade(pkgs) {
 }
 // 要買哪個終身 package 的唯一出口:畫面與購買都只問它,不各算一次。
 // null ＝ 這一刻不賣(旗標關、已經是終身、這個平台沒有購買通道、或 offering 裡沒有對應 package)。
+// 「已經是終身」只看 p.ownership,不綁 p.active:ownership 只在 SDK 判定資格有效時才會被設成 lifetime
+// (plusOwnershipFrom),登出、換人時會重置;而 p.active 還會被伺服器回應改寫(例如伺服器不認得終身商品
+// 而回 active:false),綁上它,剛買完的人會在那一刻變成又能再買一次終身。
 function plusLifetimeOffer(p) {
   if (!p || !plusLifetimeOnSale() || !plusConfigured()) return null;
-  if (p.active && p.ownership === 'lifetime') return null;
+  if (p.ownership === 'lifetime') return null;
   return (p.everPaid && p.pkgLifetimeUpgrade) || p.pkgLifetime || null;
 }
 // 訂閱所在商店:customerInfo 有明講就用它,否則依目前平台。
@@ -17441,6 +17449,14 @@ async function plusPurchase(kind) {
     // 但日後有人在這個空隙加一行會拋例外的程式碼,p.loading 就會永久卡 true,把 refresh/purchase/
     // restore 三個入口一起鎖死(因為三者共用同一顆 state.plus)。移進 try 內,照 plusRestore() 既有寫法。
     await plusRevalidateBeforeAction(p.adapter); // C-4:購買前重新驗證資格,見該函式註解
+    // 重驗會改寫 p.ownership／p.everPaid,而上面的 pkg 是重驗之前挑的,可能已經過期:
+    //   · 重驗後已經是終身(這台的畫面還停在之前的狀態):任何購買都不送,月票、年票也一樣,再送就是重複扣款。
+    //     重驗讀的是 SDK 的 customerInfo,SDK 自己有快取,別台裝置剛買的未必讀得到,這道擋不住那種情況。
+    //   · 買終身時,重驗後該賣的 package 不是手上這個(不賣了,或沒付過→付過而全價換成升級價):不送,
+    //     免得照舊的價格扣款。
+    // 兩種都直接 return,由 finally 放掉 loading 並重繪,畫面就是現在的持有狀態或價格,不另外提示。
+    if (p.ownership === 'lifetime') return;
+    if (lifetime && plusLifetimeOffer(p) !== pkg) return;
     const result = await p.adapter.purchase(pkg, user.email || '');
     // 身分在付款途中變了 ⇒ 這筆購買不屬於「現在坐在這台裝置前的人」。交易本身沒有損失
     // (RevenueCat 記著,原使用者下次登入 plusRefresh() 或按恢復購買就會拿到),但絕不可套用到

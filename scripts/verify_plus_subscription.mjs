@@ -1841,6 +1841,57 @@ const LT_CJK = /[　-〿぀-ヿ㐀-鿿＀-￯]/;
   await ctx.close();
 }
 
+// ── LT0c promotional 不算訂閱、也不算付過費(兩個引擎) ──
+// 後台發的 promotional 資格在 RevenueCat 裡可能以 rc_promo_plus_lifetime、rc_promo_plus_monthly 這種「訂閱」的樣子
+// 出現在 activeSubscriptions。真實 promotional 的 CustomerInfo 形狀沒有原文可查,下面用合成資料釘住規格:
+// rc_promo 開頭的訂閱不算訂閱中(ownership 不是 subscription)、不讓 everPaid 變真、不參與 subRenewing／subStore／
+// subManageUrl;everPaid 只看購買紀錄(all 的 plus 非 PROMOTIONAL,或 allPurchased 有非終身、非 promo 的 ID),不從「訂閱中」反推。
+async function ltPromoOwnership(engineName, browser) {
+  const { ctx, page } = await newPage(browser, { init: () => { window.RAIL_PLUS_SANDBOX_OK = true; } });
+  const errs = attach(page, `LT0c-${engineName}`);
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  const own = info => page.evaluate(({ info, ids }) => {
+    window.RAIL_REVENUECAT_CONFIG = { entitlement: 'plus', offeringId: 'plus', lifetimeOnSale: true, lifetimeProductIds: ids };
+    return plusOwnershipFrom(info);
+  }, { info, ids: LT_IDS });
+  const MONTHLY = LT_MONTHLY.APP_STORE, NONE = { ownership: 'unknown', everPaid: false, subRenewing: false, subStore: '', subManageUrl: '' };
+  const promoEnt = id => ({ identifier: 'plus', isActive: true, willRenew: false, store: 'PROMOTIONAL', productIdentifier: id, expirationDate: null, isSandbox: false });
+  const promoOnly = (id, purchased = [id]) => ({
+    entitlements: { active: { plus: promoEnt(id) }, all: { plus: promoEnt(id) } },
+    activeSubscriptions: [id], allPurchasedProductIdentifiers: purchased, nonSubscriptionTransactions: [],
+    subscriptionsByProductIdentifier: { [id]: { productIdentifier: id, isActive: true, store: 'PROMOTIONAL', managementURL: null } }, managementURL: null });
+  const realEnt = { identifier: 'plus', isActive: true, willRenew: false, store: 'APP_STORE', productIdentifier: MONTHLY, expirationDate: '2099-01-01T00:00:00Z', isSandbox: false };
+  // promotional 排在真訂閱前面、而且沒寫 willRenew:沒濾掉的話,它會被當成「還在續」的那一筆,商店與管理網址都會被它帶走。
+  const mixed = {
+    entitlements: { active: { plus: realEnt }, all: { plus: realEnt } },
+    activeSubscriptions: ['rc_promo_plus_monthly', MONTHLY], allPurchasedProductIdentifiers: ['rc_promo_plus_monthly', MONTHLY], nonSubscriptionTransactions: [],
+    subscriptionsByProductIdentifier: {
+      rc_promo_plus_monthly: { productIdentifier: 'rc_promo_plus_monthly', isActive: true, store: 'PROMOTIONAL', managementURL: null },
+      [MONTHLY]: { productIdentifier: MONTHLY, isActive: true, willRenew: false, store: 'APP_STORE', managementURL: 'https://example.test/real' } }, managementURL: null };
+  // 合成:真訂閱 ID 在 activeSubscriptions,但購買紀錄只有 promo(all 的 plus 是 PROMOTIONAL、allPurchased 只有 rc_promo)。
+  const noHistory = {
+    entitlements: { active: { plus: promoEnt('rc_promo_plus_lifetime') }, all: { plus: promoEnt('rc_promo_plus_lifetime') } },
+    activeSubscriptions: [MONTHLY], allPurchasedProductIdentifiers: ['rc_promo_plus_lifetime'], nonSubscriptionTransactions: [],
+    subscriptionsByProductIdentifier: { [MONTHLY]: { productIdentifier: MONTHLY, isActive: true, willRenew: true, store: 'APP_STORE', managementURL: null } }, managementURL: null };
+  const cases = [
+    ['promotional 終身資格也列在 activeSubscriptions(rc_promo_plus_lifetime、store PROMOTIONAL、到期日 null)——持有狀態 unknown、沒付過', promoOnly('rc_promo_plus_lifetime'), NONE],
+    ['promotional 月票(rc_promo_plus_monthly、store PROMOTIONAL、到期日 null)同上', promoOnly('rc_promo_plus_monthly'), NONE],
+    [`promotional 加上真實付費紀錄(allPurchased 有 ${MONTHLY})——持有狀態仍是 unknown,但付過費`, promoOnly('rc_promo_plus_lifetime', ['rc_promo_plus_lifetime', MONTHLY]), { ownership: 'unknown', everPaid: true }],
+    ['promotional 與真訂閱並存於 activeSubscriptions——訂閱中;續訂狀態、商店、管理網址只看真訂閱', mixed, { ownership: 'subscription', everPaid: true, subRenewing: false, subStore: 'APP_STORE', subManageUrl: 'https://example.test/real' }],
+    ['everPaid 只看購買紀錄、不從「訂閱中」反推(合成:有真訂閱 ID,但 all 的 plus 是 PROMOTIONAL、allPurchased 只有 promo)', noHistory, { ownership: 'subscription', everPaid: false }],
+  ];
+  for (const [name, info, want] of cases) {
+    const got = await own(info);
+    const bad = Object.keys(want).filter(k => got[k] !== want[k]);
+    ok(`LT0c [${engineName}] plusOwnershipFrom:${name}`, bad.length === 0, bad.map(k => `${k}=${JSON.stringify(got[k])} 應=${JSON.stringify(want[k])}`).join(' | '));
+  }
+  ok(`LT0c [${engineName}] 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+await ltPromoOwnership('chromium', chromiumB);
+await ltPromoOwnership('webkit', webkitB);
+
 // ── LT1 反向樣本:旗標關,offering 卻含兩個終身 package ──
 async function ltFlagOff(engineName, browser) {
   const { ctx, page } = await newPage(browser, { width: 390, height: 1400 });
@@ -1968,6 +2019,61 @@ async function ltPurchasePaths(engineName, browser) {
   await page.evaluate(() => plusPurchase('lifetime'));
   await page.waitForTimeout(150);
   ok(`LT3 持有終身 [${engineName}]:程式呼叫 plusPurchase('lifetime') 不會呼叫 adapter.purchase`, (await page.evaluate(() => window.__ltCalls.length)) === 0, '');
+
+  // ── 重驗類:畫面是舊的,按下去那一刻 adapter.getCustomerInfo 回的已經是別的持有狀態 ──
+  // plusPurchase 在重驗(plusRevalidateBeforeAction)之前就挑好 package,而重驗會改寫 ownership／everPaid。
+  // 這裡先讓畫面停在「沒付過」(終身全價),再把 getCustomerInfo 的回傳換掉(ltInject 的 adapter 每次現讀 window.__ltInfo),
+  // 然後按鈕:adapter.purchase 一次都不該被呼叫,面板重繪成現在的狀態,不彈 toast、不出錯誤字。
+  const offStale = ltOffering('APP_STORE', true), full$ = ltPrice(offStale, '$rc_lifetime'), up$ = ltPrice(offStale, 'lifetime_upgrade');
+  const stalePaint = async () => {
+    await ltInject(page, { info: ltInfo('never', 'APP_STORE'), offering: offStale });
+    await ltOpen(page);
+    const m = await ltReadPanel(page);
+    const life = m.buy.find(b => b.pkg === 'lifetime');
+    return !!life && life.tier === 'full' && life.price === full$ && m.buy.length === 3;   // 前置條件:真的從「沒付過、全價、三顆鈕」的畫面出發
+  };
+  for (const [btn, label] of [['lifetime', '終身鈕'], ['annual', '年票鈕'], ['month', '月票鈕']]) {
+    const stale = await stalePaint();
+    await page.evaluate(info => { window.__ltInfo = info; }, ltInfo('lifetime', 'APP_STORE'));
+    await page.click(`#plusBody [data-pkg="${btn}"]`);
+    await page.waitForFunction(() => state.plus.ownership === 'lifetime' && state.plus.loading === false, null, { timeout: 8000 }).catch(() => {});
+    const after = await ltReadPanel(page);
+    const r = await page.evaluate(() => ({ calls: window.__ltCalls, toasts: window.__toasts }));
+    const diff = ltCompare(after, ltExpect('lifetime', true, offStale));
+    ok(`LT3 重驗類 [${engineName}] 畫面停在沒付過(終身全價 ${full$})、重驗後已持有終身:按${label}——adapter.purchase 呼叫 0 次、面板重繪成「終身通行證已啟用」且沒有購買鈕、沒有 toast 與錯誤字`,
+      stale && r.calls.length === 0 && diff.length === 0 && r.toasts.length === 0 && after.errorText === '', JSON.stringify({ stale, calls: r.calls, toasts: r.toasts, err: after.errorText, diff }));
+  }
+  {
+    const stale = await stalePaint();
+    await page.evaluate(info => { window.__ltInfo = info; }, ltInfo('paid', 'APP_STORE'));
+    await page.click('#plusBody [data-pkg="lifetime"]');
+    await page.waitForFunction(() => state.plus.everPaid === true && state.plus.loading === false, null, { timeout: 8000 }).catch(() => {});
+    const after = await ltReadPanel(page);
+    const r = await page.evaluate(() => ({ calls: window.__ltCalls, toasts: window.__toasts }));
+    const diff = ltCompare(after, ltExpect('paid', true, offStale));
+    const life = after.buy.find(b => b.pkg === 'lifetime');
+    ok(`LT3 重驗類 [${engineName}] 畫面停在沒付過(終身全價 ${full$})、重驗後變成付過:按終身鈕——adapter.purchase 呼叫 0 次、面板改顯示升級價 ${up$} 與「升級價」標籤、沒有 toast 與錯誤字`,
+      stale && r.calls.length === 0 && diff.length === 0 && !!life && life.price === up$ && life.badge === '升級價' && r.toasts.length === 0 && after.errorText === '',
+      JSON.stringify({ stale, calls: r.calls, toasts: r.toasts, err: after.errorText, life, diff }));
+  }
+  // ── F2:持有終身這件事不綁 p.active ──
+  // 伺服器回 active:false(例如不認得終身商品),而 SDK 說已持有終身 ⇒ p.active=false、ownership='lifetime'。
+  // 這時面板不該有終身購買鈕,程式呼叫 plusPurchase('lifetime') 也買不到。
+  {
+    await ltInject(page, { info: ltInfo('lifetime', 'APP_STORE'), offering: ltOffering('APP_STORE', true) });
+    await page.route('**/api/plus-status', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"active":false}' }));
+    await ltOpen(page);
+    await page.evaluate(async () => { state.account.user.getIdToken = async () => 'LT_FAKE_ID_TOKEN'; await plusReconcileEntitlement(); plusRender(); });
+    const st = await page.evaluate(() => ({ active: state.plus.active, own: state.plus.ownership }));
+    const m = await ltReadPanel(page);
+    await page.evaluate(() => plusPurchase('lifetime'));
+    await page.waitForTimeout(150);
+    const calls = await page.evaluate(() => window.__ltCalls);
+    await page.unroute('**/api/plus-status');
+    ok(`LT3 F2 [${engineName}] 伺服器回 active:false 而 SDK 已持有終身(p.active=false、ownership='lifetime'):面板沒有終身購買鈕、plusPurchase('lifetime') 送出 0 次`,
+      st.active === false && st.own === 'lifetime' && m.buy.every(b => b.pkg !== 'lifetime') && m.lifeKids.length === 0 && calls.length === 0,
+      JSON.stringify({ st, buy: m.buy.map(b => b.pkg), lifeKids: m.lifeKids.length, calls }));
+  }
   ok(`LT3 [${engineName}] 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -2116,6 +2222,64 @@ await ltAfterPurchase('webkit', webkitB);
     await ctx.close();
   }
 }
+
+// ── LT5-F5 英文定義句不用第一人稱複數(兩個引擎):對外文字不寫 we／our／us ──
+// 取面板上實際渲染的那一句(緊接在購買鈕後的 .plus-lifetime-note),不是翻譯檔裡的字串,證明畫面上實際出現的就是它。
+{
+  const WE = /\b(we|our|us)\b/i;
+  for (const [engineName, browser] of [['chromium', chromiumB], ['webkit', webkitB]]) {
+    const { ctx, page } = await newPage(browser, { width: 390, height: 1800 });
+    const errs = attach(page, `LT5-F5-${engineName}`);
+    await page.goto(`${BASE}?lang=en`, { waitUntil: 'domcontentloaded' });
+    await waitReady(page);
+    await ltInject(page, { info: ltInfo('never', 'APP_STORE'), offering: ltOffering('APP_STORE', true) });
+    await ltOpen(page);
+    const m = await ltReadPanel(page);
+    const def = m.lifeKids.length >= 2 ? m.lifeKids[1].text : '';
+    ok(`LT5 F5 [en/${engineName}] 前置:面板上緊接在購買鈕後的是英文定義句,而且退費條件(90 days、3 years)都在`,
+      def.startsWith('The Lifetime Pass is a one-time payment') && def.includes('90 days') && def.includes('3 years'), def.slice(0, 160));
+    ok(`LT5 F5 [en/${engineName}] 英文定義句不含 we／our／us(不分大小寫;對外文字不用第一人稱複數)`, def !== '' && !WE.test(def), WE.test(def) ? `命中 ${def.match(WE)[0]}` : '');
+    ok(`LT5 F5 [en/${engineName}] 正向對照:同一條正規式對含 we／our／us 的句子會命中(證明上一條不是恆真)`,
+      WE.test('If Rail Island shuts down, we will announce it') && WE.test('Our pass') && WE.test('contact us') && !WE.test('Rail Island shuts down, this will be announced'), '');
+    ok(`LT5 F5 [en/${engineName}] 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+}
+
+// ── LT6 環境切換清掉雲端確認時刻(F4,兩個引擎) ──
+// cloudSyncReady 與 cloudSyncConfirmedAt 同屬「當時那個環境」的結論:握手成功後閂為真、確認時刻記下;環境一變,
+// 閂收回,確認時刻也要清成 null;環境沒變就原封不動。sandbox 只在建置期帶 RAIL_PLUS_SANDBOX_OK 時存在,所以用 init script
+// 在頁面腳本執行前放旗標。握手走真的 plusReconcileEntitlement(假 Worker 回 cloudSyncReady:true),
+// 環境切換走產品自己的 plusApplyCustomerInfo(SDK 回傳那條路)。
+async function ltEnvSwitchClearsConfirm(engineName, browser) {
+  const { ctx, page } = await newPage(browser, { init: () => { window.RAIL_PLUS_SANDBOX_OK = true; } });
+  const errs = attach(page, `LT6-${engineName}`);
+  const T0 = Date.parse('2026-10-03T00:00:00Z');
+  await page.route('**/api/plus-status', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ active: true, cloudSyncReady: true }) }));
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await waitReady(page);
+  await page.clock.setFixedTime(T0);
+  const r = await page.evaluate(async () => {
+    state.plus = null; plusState().active = true;
+    state.account = { ready: true, user: { uid: 'lt6-uid', email: 'lt6@example.com', displayName: 'LT6' }, gen: 0, syncing: false, lastSync: 0, actionError: '', error: '', legacyKinds: false, fb: { getIdToken: async () => 'LT6_FAKE_ID_TOKEN' } };
+    const landed = await plusReconcileEntitlement();
+    const snap = () => ({ env: state.plus.entitlementEnvironment, ready: plusCloudSyncReady(), at: state.plus.cloudSyncConfirmedAt });
+    const ent = sandbox => ({ identifier: 'plus', isActive: true, willRenew: true, store: 'APP_STORE', productIdentifier: 'tw.railisland.app.plus.monthly', expirationDate: '2099-01-01T00:00:00Z', isSandbox: sandbox });
+    const info = sandbox => ({ entitlements: { active: { plus: ent(sandbox) }, all: { plus: ent(sandbox) } }, activeSubscriptions: [], allPurchasedProductIdentifiers: [], nonSubscriptionTransactions: [], managementURL: null });
+    const handshake = snap();
+    plusApplyCustomerInfo(info(false));   // production → production:環境沒變
+    const sameEnv = snap();
+    plusApplyCustomerInfo(info(true));    // production → sandbox:環境變了
+    return { landed, handshake, sameEnv, switched: snap() };
+  });
+  ok(`LT6 前置 [${engineName}] 先走一次真握手:閂為真、環境 production、確認時刻是 T0(產品自己記的)`, r.landed === true && r.handshake.ready === true && r.handshake.env === 'production' && r.handshake.at === T0, JSON.stringify(r.handshake));
+  ok(`LT6 F4 [${engineName}] 環境沒變(production→production):閂與確認時刻原封不動`, JSON.stringify(r.sameEnv) === JSON.stringify(r.handshake), JSON.stringify(r.sameEnv));
+  ok(`LT6 F4 [${engineName}] 環境由 production 切到 sandbox:閂收回、cloudSyncConfirmedAt 是 null`, r.switched.env === 'sandbox' && r.switched.ready === false && r.switched.at === null, JSON.stringify(r.switched));
+  ok(`LT6 [${engineName}] 本輪零 pageerror/console.error`, errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+await ltEnvSwitchClearsConfirm('chromium', chromiumB);
+await ltEnvSwitchClearsConfirm('webkit', webkitB);
 
 // ══════════════ Z0 錯誤收集器的正向對照 ══════════════
 // 上面每一條「零 pageerror」與檔尾的 K「全程為零」都是「數量必須為 0」型斷言:收集器壞掉(listener

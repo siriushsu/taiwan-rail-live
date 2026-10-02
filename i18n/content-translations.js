@@ -3615,7 +3615,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '升級為終身通行證': 'Upgrade to Lifetime Pass',
   '升級價': 'Upgrade price',
   '你買過月票或年票，可以用升級價購買終身通行證。': 'Because you’ve had a monthly or annual pass, you can get the Lifetime Pass at the upgrade price.',
-  '終身通行證一次付款，不會自動續訂。「終身」指軌島持續營運的期間，不是購買人的一生。軌島若停止服務，會至少提前 90 天公告；停止服務時距購買未滿 3 年，按剩下的月數比例退費，滿 3 年則不另退費。': 'The Lifetime Pass is a one-time payment and does not auto-renew. “Lifetime” means for as long as Rail Island keeps operating, not the buyer’s lifetime. If Rail Island shuts down, we will announce it at least 90 days in advance; if that happens less than 3 years after your purchase, we will refund the remaining months pro rata. No refund is given after 3 years.',
+  '終身通行證一次付款，不會自動續訂。「終身」指軌島持續營運的期間，不是購買人的一生。軌島若停止服務，會至少提前 90 天公告；停止服務時距購買未滿 3 年，按剩下的月數比例退費，滿 3 年則不另退費。': 'The Lifetime Pass is a one-time payment and does not auto-renew. “Lifetime” means for as long as Rail Island keeps operating, not the buyer’s lifetime. If Rail Island shuts down, this will be announced at least 90 days in advance; if the shutdown comes less than 3 years after your purchase, the remaining months will be refunded pro rata. No refund is given after 3 years.',
   '升級後，月票或年票的訂閱不會自動取消，要請你到 {store} 的訂閱設定自行取消。': 'Upgrading doesn’t cancel your monthly or annual subscription. Please cancel it yourself in {store} subscription settings.',
   '終身': 'Lifetime',
   '終身通行證已啟用': 'Lifetime Pass active',
