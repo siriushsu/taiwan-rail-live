@@ -117,7 +117,8 @@
 
 身分規則同 `chips-me`：已登入帶 Bearer（讀帳號本人，不看 `?actor=`）；`?actor=` 只給還沒併進帳號的 installId，帳號或已併進帳號的 installId → 401 `auth_required`（行程史同樣不該讓拿著裝置 id 的任何人讀）。
 
-- 200 `{actor, points, corrected:{segs, adopted}, lines:[{sys, lnId, segs, adopted}], firsts:[段鍵], trips:[{id, tripDate, trainNo, sys, lnId, verdict, quality}]}`：`trips` 是最近 60 批（新的在前）；`quality` 是 `null` 或 `{code, …qualityText[code]}`；判成 `suspect` 的批次不算進 `corrected`、`lines`。回應裡永遠沒有拒絕原因碼。
+- 200 `{actor, points, corrected:{segs, adopted}, dwellStops, lines:[{sys, lnId, segs, adopted}], firsts:[段鍵], trips:[{id, tripDate, trainNo, sys, lnId, verdict, quality}]}`：`trips` 是最近 60 批（新的在前）；`quality` 是 `null` 或 `{code, …qualityText[code]}`；判成 `suspect` 的批次不算進 `corrected`、`dwellStops`、`lines`。回應裡永遠沒有拒絕原因碼。
+- `dwellStops`（整數，只增不改的新欄位）：停站記錄涵蓋的不同站數，鍵 `sys|線|站|站` 去重、不分時段；`ok` 與 `unusable` 的批次都算，`suspect` 不算。`corrected.segs` 與 `lines[].segs` 仍然只算路段、不含停站，兩者的意義不變。用途：只錄過停站卡的人 `corrected.segs` 是 0，護照靠這個數字知道他有記錄可以顯示。舊版回應沒有這個欄位，讀的一方當 0。
 - 錯誤：400 `bad_actor`；401 `unauthorized`／`auth_required`；429 `rate_limited`（帶 Bearer 時）；503 `not_ready`。
 
 ## 3. `POST /api/garage-redeem`：用籌碼解鎖一座場景

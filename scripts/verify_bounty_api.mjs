@@ -514,6 +514,73 @@ INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_lock
   }
 }
 
+// ── I 組（續）：只錄停站卡的人也有記錄可以顯示（dwellStops）──────────────────────────────────────────
+// 停站（dwell）不是路段：corrected.segs 與 lines 的段數照舊只數路段（I2、I5 守著）。dwellStops 是另外一個數字，
+// 只給「段數是 0、但錄過停站」的人用。規則比照路段：suspect 整筆不算；ok 與 unusable 都算；還沒判定（pending）的沒有覆蓋段，不算。
+// 判準的期望值都是這裡手算寫死的（不呼叫實作）；樣本的 segs 欄位是判定 cron 寫進去的覆蓋段形狀。
+{
+  const { bountyMe } = _bounty;
+  const DW = (stn, slot = 'peak') => ({ key: `tra_sched|南迴線|${stn}|${stn}`, kind: 'dwell', slot, dir: 0, cov: 1 });
+  const TK = (a, b) => ({ key: `tra_sched|南迴線|${a}|${b}`, kind: 'track', slot: '', dir: 0, cov: 1 });
+  const rowSql = (id, verdict, segs, quality = null, day = '2026-07-28') =>
+    `('${id}','device-dw','tra_sched','南迴線','31${id.length}',0,'${day}','[]',${segs === null ? 'NULL' : `'${JSON.stringify(segs)}'`},1,'${verdict}',${verdict === 'pending' ? 'NULL' : '2'},${quality ? `'${quality}'` : 'NULL'},NULL)`;
+  const mk = rows => openTestDb(`
+    INSERT INTO bounty_points (actor,uid,points,merged_into,updated_at) VALUES ('device-dw',NULL,7,NULL,1700000000000);
+    INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict,verdict_at,quality_code,reject_code) VALUES
+    ${rows.map(r => rowSql(...r)).join(',\n')};`);
+  const ask = async rows => { const r = await bountyMe(req('/api/bounty-me?actor=device-dw'), ENV(mk(rows).DELAY_DB)); return { status: r.status, b: await body(r) }; };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+  // 停站各一筆：資料能用（ok）、資料不能用（unusable）各自單獨成立
+  const dOk = await ask([['d1', 'ok', [DW('大武')]]]);
+  ok('I10a 只有一筆 ok 的停站：dwellStops＝1、corrected.segs＝0、adopted＝0；那一線在 lines 裡（段數 0）',
+    dOk.status === 200 && dOk.b.dwellStops === 1 && same(dOk.b.corrected, { segs: 0, adopted: 0 }) && same(dOk.b.lines, [{ sys: 'tra_sched', lnId: '南迴線', segs: 0, adopted: 0 }]), JSON.stringify(dOk.b));
+  const dBad = await ask([['d2', 'unusable', [DW('臺東', 'off')], 'acc_blocked']]);
+  ok('I10b 只有一筆 unusable 的停站（資料不能用）：dwellStops 照樣是 1、corrected.segs＝0；那一筆的原因與怎麼改善帶得出來（護照要靠它說明）',
+    dBad.status === 200 && dBad.b.dwellStops === 1 && same(dBad.b.corrected, { segs: 0, adopted: 0 }) &&
+      dBad.b.trips.length === 1 && !!dBad.b.trips[0].quality && !!dBad.b.trips[0].quality.title && !!dBad.b.trips[0].quality.how, JSON.stringify(dBad.b));
+
+  // 五筆混在一起：suspect 不算、還沒判定的不算、同一站不同時段只算一次
+  const five = await ask([
+    ['d1', 'ok', [DW('大武')]],
+    ['d22', 'unusable', [DW('臺東', 'off')], 'acc_blocked'],
+    ['d333', 'suspect', [DW('七堵')]],
+    ['d4444', 'pending', null],
+    ['d55555', 'ok', [DW('大武', 'off')]],
+  ]);
+  ok('I10c 五筆（ok、unusable、suspect、pending、同一站另一時段的 ok）：dwellStops＝2（大武、臺東）——suspect 的七堵不算、pending 沒有覆蓋段不算、大武只算一次',
+    five.status === 200 && five.b.dwellStops === 2, JSON.stringify(five.b));
+  ok('I10d 同一組五筆：corrected＝{segs 0、adopted 0}（停站不進路段數）、lines 只有南迴線一條（suspect 那筆的線不出現）',
+    same(five.b.corrected, { segs: 0, adopted: 0 }) && same(five.b.lines, [{ sys: 'tra_sched', lnId: '南迴線', segs: 0, adopted: 0 }]) && five.b.trips.length === 5, JSON.stringify(five.b));
+  const susOnly = await ask([['s1', 'suspect', [DW('七堵')]]]);
+  ok('I10e 只有被判 suspect 的停站：dwellStops＝0（對照 I10a：同樣的覆蓋段，差別只在判定）', susOnly.status === 200 && susOnly.b.dwellStops === 0 && susOnly.b.lines.length === 0, JSON.stringify(susOnly.b));
+
+  // 路段與停站都有：路段的數字（corrected、lines、firsts）與「同一組樣本拿掉停站」完全相同；多出來的只有 dwellStops
+  const track = [
+    ['m1', 'ok', [TK('A', 'B'), TK('B', 'C'), DW('大武')]],
+    ['m22', 'unusable', [TK('C', 'D'), DW('臺東')], 'acc_blocked'],
+    ['m333', 'suspect', [TK('E', 'F'), DW('七堵')]],
+  ];
+  const mixed = await ask(track);
+  const trackOnly = await ask(track.map(([id, v, segs, q]) => [id, v, segs.filter(c => c.kind === 'track'), q]));
+  const num = r => ({ corrected: r.b.corrected, lines: r.b.lines, firsts: r.b.firsts });
+  ok('I11a 路段與停站都有：corrected＝{segs 3、adopted 2}、lines＝南迴線 3 段／採用 2 段；跟「同一組樣本拿掉停站」逐欄相同（停站不改路段的任何數字）',
+    same(num(mixed), num(trackOnly)) && same(mixed.b.corrected, { segs: 3, adopted: 2 }) && same(mixed.b.lines, [{ sys: 'tra_sched', lnId: '南迴線', segs: 3, adopted: 2 }]), JSON.stringify({ mixed: num(mixed), trackOnly: num(trackOnly) }));
+  ok('I11b 同一組：dwellStops＝2（大武、臺東；suspect 的七堵不算）；拿掉停站那一組是 0',
+    mixed.b.dwellStops === 2 && trackOnly.b.dwellStops === 0, JSON.stringify({ mixed: mixed.b.dwellStops, trackOnly: trackOnly.b.dwellStops }));
+  const keysOf = r => Object.keys(r.b).sort().join();
+  ok('I11c 回應的欄位：只多了 dwellStops，其餘欄位的名字不變（原生 App 也讀這支）',
+    keysOf(mixed) === ['actor', 'corrected', 'dwellStops', 'firsts', 'lines', 'points', 'trips'].join() && same(Object.keys(mixed.b.corrected), ['segs', 'adopted']), keysOf(mixed));
+  // 沒有任何覆蓋段的人（空陣列、還沒判定）：dwellStops 是 0，而且是數字
+  const none = await ask([['n1', 'ok', []], ['n22', 'pending', null]]);
+  ok('I11d 沒有任何覆蓋段（空陣列的 ok、還沒判定的）：dwellStops 是數字 0、corrected＝{0,0}', none.status === 200 && none.b.dwellStops === 0 && same(none.b.corrected, { segs: 0, adopted: 0 }), JSON.stringify(none.b));
+  // 整包回應仍然沒有拒絕原因（I6、I7 的掃法，套在新欄位出現的回應上）
+  {
+    const raw = JSON.stringify(mixed.b) + JSON.stringify(five.b);
+    ok('I11e 有 dwellStops 的回應：同樣不含任何 reject_code 的值或 reject 字樣', !['doppler_too_clean', 'impossible_physics', 'delay_mismatch', 'future_date', 'stale_date'].some(c => raw.includes(c)) && !raw.includes('reject'), raw.slice(0, 120));
+  }
+}
+
 // ── J 組：POST /api/bounty-merge ──────────────────────────────────────────
 {
   const { bountyMerge } = _bounty;

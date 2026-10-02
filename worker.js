@@ -6614,7 +6614,7 @@ async function bountyMe(request, env) {
       'SELECT id, ln_id, sys, train_no, trip_date, verdict, quality_code, segs FROM bounty_samples INDEXED BY idx_samples_trip' +
       ' WHERE actor=? ORDER BY trip_date DESC, id DESC LIMIT 60').bind(actor).all();
     const rows = rs.results || [];
-    const segSeen = new Set(), segOk = new Set(), byLine = new Map(), firsts = [];
+    const segSeen = new Set(), segOk = new Set(), dwellSeen = new Set(), byLine = new Map(), firsts = [];
     for (const r of rows) {
       let cov = [];
       try { cov = JSON.parse(r.segs || '[]'); } catch (e) {}
@@ -6624,7 +6624,9 @@ async function bountyMe(request, env) {
       for (const c of cov) {
         // 規格 §8 的護照數字與收集地圖明定是「校正 N 段」；dwell 沒有可畫的路段，不能把一站
         // 混進 segs 後在前端叫成「一段」。dwell 的榮譽仍進總點數，這裡只守住路段統計的語意。
-        if (c && c.kind === 'dwell') continue;
+        // 停站另外記在 dwellStops：只錄停站卡的人 segs 是 0，護照要靠它才知道他有記錄可以顯示。
+        // 同一站（鍵 sys|線|站|站）只算一次、不分時段；suspect 那筆在上面就整筆跳過，ok 與 unusable 都算。
+        if (c && c.kind === 'dwell') { dwellSeen.add(c.key); continue; }
         if (!segSeen.has(c.key)) { segSeen.add(c.key); L.segs++; }
         if (r.verdict === 'ok' && !segOk.has(c.key)) { segOk.add(c.key); L.adopted++; }
       }
@@ -6654,6 +6656,7 @@ async function bountyMe(request, env) {
     return jsonRes({
       actor, points: Number(p && p.points) || 0,
       corrected: { segs: segSeen.size, adopted: segOk.size },
+      dwellStops: dwellSeen.size,
       lines: [...byLine.values()].sort((a, b) => b.segs - a.segs),
       firsts, trips,
     }, 200, 'no-store');
