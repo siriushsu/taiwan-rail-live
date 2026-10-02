@@ -15,12 +15,12 @@
 //   CH7  懸賞旗標關：開機清掉籌碼快取、沒有籌碼列、0 次 chips-me／bounty-me（含直接呼叫 fetchChipsMe()、fetchBountyMe()）、不寫新的 actor key
 //   CH8  上傳佇列：旗標開時 400 app_only 是終態（清掉、不重送）；其他錯誤照舊保留；旗標關時 app_only 也照舊保留、下次開機重送
 //   CH9  看板收滿的卡：有「已收滿」說明、沒有接單鈕
-//   CH10 錄程入口：懸賞開著時不啟動定位取樣；網頁顯示「要用 App」、現行 App 殼顯示「請更新到最新版」（兩個平台訊號各自成立、英日文、旗標關與 ?demo=bounty 的對照；看板開著時提示要在最上層，網頁點「接下」的那句也是）
+//   CH10 錄程入口：懸賞開著時不啟動定位取樣；網頁顯示「要用 App」、現行 App 殼顯示請先更新軌島 App 的那一句（兩個平台訊號各自成立、英日文、旗標關與 ?demo=bounty 的對照；看板開著時提示要在最上層，網頁點「接下」的那句也是）
 //   CH11 手機版：360／375／414／768 × Chromium／WebKit，真觸控點開護照（底部分頁列的「護照」）
 //   CH12 快取與 actor 的邊界（401 清、503 留、存不下、第一次沿用裝置 id、英文介面沒有漏翻）
 //   CH13 開機時序：登入結果比開機那一發 bounty-me 晚出來；401 晚到、200 晚到兩種先後，最後護照都要有登入者的段數
 //   CH14 冷開機時 session 已經不見（磁碟上還記著已併的帳號）：已併的 actor 換新、裝置 id 不變、籌碼快取清掉
-//   CH15 看板卡片：偏遠線標「籌碼 ×N」、其他線沒有標記；名單與 N 讀規則檔（換一份規則檔，兩個方向都跟著翻）
+//   CH15 看板卡片：偏遠線的卡標「籌碼 ×N」、其他線沒有標記；名單與 N 讀規則檔（換一份規則檔，兩個方向都跟著翻）
 //   CH16 旗標開時，看板／說明卡／錄程列／接下時的提示都沒有拿「點」當獎勵單位；承諾句不再提點數；英日文介面同樣乾淨
 //   CH17 說明卡的獎勵句：每趟幾顆、偏遠線倍率、每天上限，與伺服器入帳用的純函式算出來的一致（真規則檔與另一份規則檔）
 //   CH18 旗標關：看不到任何一句獎勵說法（新舊都沒有）、不讀規則檔、不打認領請求；對照：旗標開同一頁看得到
@@ -551,6 +551,56 @@ try {
         ret === null && (await s.page.evaluate(() => bountyMeMem === null)) === true && c.empty === true && c.segs === null && !/12/.test(c.text || ''), JSON.stringify({ ret, c }));
       await s.ctx.close();
     });
+
+    // 回應標頭已經到了、本文還在傳的那一拍：fetchBountyMe 讀完本文之後還有第二道守門（讀本文前的那一道已經通過）。
+    // 只用 page.route 延後整個回應，第一道就先擋下了，碰不到第二道；所以包住 Response.prototype.json，
+    // 在 bounty-me 的本文被讀取的當下扣住，等登出完成才放行。
+    const JSONHOLD = () => {
+      const orig = Response.prototype.json;
+      window.__jsonHold = { on: false, held: 0, release: null };
+      Response.prototype.json = function () {
+        const h = window.__jsonHold;
+        if (h.on && /\/api\/bounty-me(\?|$)/.test(this.url)) {
+          h.on = false; h.held++;
+          return new Promise(res => { h.release = () => res(orig.call(this)); });
+        }
+        return orig.call(this);
+      };
+    };
+    for (const [tag, logout] of [['control', false], ['signOut', true]]) await attempt(`CH6-body-${tag}`, async () => {
+      const s = await newSession({}, {});
+      await s.ctx.addInitScript(JSONHOLD);
+      await goBounty(s);
+      await loggedIn(s.page);
+      await chipsLoaded(s.page);
+      await until(async () => (await flagOf(s.page, UID_A)) !== null);
+      await until(() => s.page.evaluate(() => bountyMeMem !== null));
+      await sleep(600);
+      await s.page.evaluate(() => { window.__jsonHold.on = true; window.__inflight = fetchBountyMe(); });
+      await until(() => s.page.evaluate(() => window.__jsonHold.held >= 1));              // 標頭到了、第一道守門過了、本文被扣住
+      const held = await s.page.evaluate(() => window.__jsonHold.held);
+      const ent = s.bme[s.bme.length - 1];
+      if (logout) {
+        await s.page.evaluate(() => accountSignOut());
+        await s.page.waitForFunction(() => state.account.user === null, null, { timeout: 15000 });
+        await sleep(800);                                                                 // 讓兩次身分收尾都跑完
+      }
+      const mid = await s.page.evaluate(() => ({ memNull: bountyMeMem === null, held: window.__jsonHold.held }));
+      await s.page.evaluate(() => window.__jsonHold.release());                           // 本文現在才到（上一位的 12 段）
+      const ret = await s.page.evaluate(async () => { const r = await window.__inflight; renderPassport(); return r; });
+      const c = await corrInfo(s.page);
+      const memSegs = await s.page.evaluate(() => bountyMeMem && bountyMeMem.corrected && bountyMeMem.corrected.segs);
+      if (!logout) {
+        ok('CH6j-control [fixture] 同一個流程不登出：標頭到了、本文被扣住（json() 被攔到 1 次、這一發 bounty-me 回 200）；放行之後記憶體寫進這一份（12 段）、護照顯示 12 段——扣住與放行的機制本身是通的',
+          held === 1 && ent && ent.status === 200 && memSegs === 12 && c.segs === '12' && s.errors.length === 0, JSON.stringify({ held, status: ent && ent.status, memSegs, c }));
+      } else {
+        ok('CH6j [fixture] 登出時那一發 bounty-me 的標頭已經到了（json() 被攔到 1 次，代表讀本文前的第一道守門已通過）、本文還在途；登出完成後記憶體已是 null',
+          held === 1 && ent && ent.status === 200 && mid.memNull === true, JSON.stringify({ held, mid, status: ent && ent.status }));
+        ok('CH6k 本文在登出之後才到（上一位的 12 段）：記憶體仍是 null、函式回 null、護照的校正貢獻節是空狀態、找不到上一位的 12 段；頁面沒有未捕捉的例外',
+          ret === null && memSegs === null && c.empty === true && c.segs === null && !/12/.test(c.text || '') && s.errors.length === 0, JSON.stringify({ ret, memSegs, c, errors: s.errors }));
+      }
+      await s.ctx.close();
+    });
   }
 
   // ═══ CH7：懸賞旗標關 ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -650,7 +700,7 @@ try {
   });
 
   // ═══ CH10：開始錄程入口 ═══════════════════════════════════════════════════════════════════════════════════════
-  // 懸賞開著時，網頁與現行 App 殼（網頁包成的那一版）都不啟動定位取樣；提示依平台分兩句：網頁「要用 App」、App 殼「請更新到最新版」。
+  // 懸賞開著時，網頁與現行 App 殼（網頁包成的那一版）都不啟動定位取樣；提示依平台分兩句：網頁「要用 App」、App 殼是要先更新軌島 App 的那一句。
   // 兩句的全文就是規格，直接寫在這裡（不從頁面的字典或函式取，否則是自己驗自己）。
   // 平台訊號有兩個，IS_NATIVE_APP 是它們的聯集：RAIL_ONLINE_BASEMAPS_AVAILABLE 這個鍵在不在、Capacitor.isNativePlatform() 回不回 true；
   // 兩個各自單獨成立都要認得（只讀其中一個的寫法，另一個訊號的 App 殼就會拿到網頁那一句）。
@@ -689,12 +739,12 @@ try {
       const on = await probe('&bounty=1', { app: true });
       ok('CH10a [fixture] 現行 App 殼（只有「RAIL_ONLINE_BASEMAPS_AVAILABLE 這個鍵在」那個平台訊號）＋懸賞旗標開、不是 ?demo=bounty（沒有旗標的話，舊程式碼在 App 殼裡會啟動取樣）',
         on.flag === true && on.native === true && on.demo === false && on.keySignal === true && on.capSignal === false, JSON.stringify(on));
-      ok('CH10b 現行 App 殼、旗標開：按開始錄程 → 定位取樣沒有被啟動（bountyStartSampling 0 次）、沒有進入錄製、提示整句是「請更新到最新版」那一句（不是網頁那一句）',
+      ok('CH10b 現行 App 殼、旗標開：按開始錄程 → 定位取樣沒有被啟動（bountyStartSampling 0 次）、沒有進入錄製、提示整句是要先更新軌島 App 的那一句（不是網頁那一句）',
         on.sampling === 0 && on.recording === false && on.toast === APP_PROMPT[L] && on.toast !== WEB_PROMPT[L], JSON.stringify(on));
       const cap = await probe('&bounty=1', { capacitor: true });
       ok('CH10c [fixture] 現行 App 殼（只有「Capacitor.isNativePlatform() 回 true」那個平台訊號，沒有 RAIL_ONLINE_BASEMAPS_AVAILABLE）＋懸賞旗標開，頁面沒有未捕捉的例外',
         cap.flag === true && cap.native === true && cap.demo === false && cap.keySignal === false && cap.capSignal === true && cap.errors === 0, JSON.stringify(cap));
-      ok('CH10d 另一個平台訊號單獨成立也算 App 殼：沒有啟動取樣、沒有進入錄製、提示整句是「請更新到最新版」那一句',
+      ok('CH10d 另一個平台訊號單獨成立也算 App 殼：沒有啟動取樣、沒有進入錄製、提示整句是要先更新軌島 App 的那一句',
         cap.sampling === 0 && cap.recording === false && cap.toast === APP_PROMPT[L], JSON.stringify(cap));
       const web = await probe('&bounty=1', {});
       ok('CH10e 網頁、旗標開：沒有啟動取樣、沒有進入錄製、提示整句照舊是「錄程要用軌島 App。網頁可以看懸賞板與自己的籌碼」（不是更新那一句）',
@@ -715,7 +765,7 @@ try {
       for (const lang of ['en', 'ja']) {
         const name = lang === 'en' ? '英文' : '日文';
         const a = await probe('&bounty=1', { app: true, lang }), w = await probe('&bounty=1', { lang });
-        ok(`CH10j-${lang} ${name}介面、現行 App 殼、旗標開：沒有啟動取樣、沒有進入錄製，提示整句是${name}的「請更新到最新版」`,
+        ok(`CH10j-${lang} ${name}介面、現行 App 殼、旗標開：沒有啟動取樣、沒有進入錄製，提示整句是${name}的要先更新軌島 App 那一句`,
           a.flag === true && a.native === true && a.sampling === 0 && a.recording === false && a.toast === APP_PROMPT[lang], JSON.stringify(a));
         ok(`CH10k-${lang} ${name}介面、網頁、旗標開：沒有啟動取樣、沒有進入錄製，提示整句是${name}的「要用 App」`,
           w.flag === true && w.native === false && w.sampling === 0 && w.recording === false && w.toast === WEB_PROMPT[lang], JSON.stringify(w));
@@ -1045,7 +1095,7 @@ try {
     ja: e => ({ per: `条件を満たした1回の乗車でチップを ${e.perTrip} 枚もらえます。`, mult: `この路線ではチップが ${e.mult} 倍になります。`, cap: `1日に獲得できるのは最大 ${e.cap} 枚です。` }),
   };
 
-  // ═══ CH15：看板卡片的籌碼標記——偏遠線標「籌碼 ×N」、其他線沒有；名單與 N 讀規則檔 ═══════════════════════════════════
+  // ═══ CH15：看板卡片的籌碼標記——偏遠線的卡標「籌碼 ×N」、其他線沒有；名單與 N 讀規則檔 ═══════════════════════════════════
   if (want('CH15')) {
     const cardOf = (b, id) => b.cards.find(x => x.id === id) || { tags: null, text: '', take: -1 };
     await attempt('CH15-real', async () => {
@@ -1415,7 +1465,7 @@ try {
         await s.page.waitForFunction(() => !!document.querySelector('#toasts .toast.show'), null, { timeout: 5000 }).catch(() => {});
         await sleep(450);
         const t3 = await topIsToast(s.page);
-        ok(`CH19k-${tag} 現行 App 殼按「開始錄製」：沒有進入錄製、看板與說明卡都收起來、「請更新到最新版」那句在最上層（左／中／右三個點的 elementFromPoint 都是這張提示）、整張卡在視窗內、字沒有被截掉`,
+        ok(`CH19k-${tag} 現行 App 殼按「開始錄製」：沒有進入錄製、看板與說明卡都收起來、要先更新軌島 App 的那句在最上層（左／中／右三個點的 elementFromPoint 都是這張提示）、整張卡在視窗內、字沒有被截掉`,
           !!t3.toast && t3.toast.text === '要錄程，請先把軌島 App 更新到最新版' && t3.toast.onTop && t3.toast.inView && !t3.toast.clipped && !t3.boardOpen && !t3.briefOpen && !t3.recording, JSON.stringify(t3));
         ok(`CH19j-${tag} 頁面沒有未捕捉的例外`, s.errors.length === 0, JSON.stringify(s.errors));
         await s.ctx.close();
