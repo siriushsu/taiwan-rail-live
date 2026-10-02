@@ -24069,6 +24069,8 @@ function bountyRestoreRecording() {
   // 2026-07-29 下架期間不接回錄製:入口都藏了還把人丟回錄製畫面,他會沒有任何解釋也沒得回頭。
   // 保存在裝置上的那筆不刪(改回 true 就接得回來)。
   if (!BOUNTY_ENABLED || !PHYSICAL_COLLECT_ENABLED || state.recording) return false;
+  // 現行 App 殼錄不了程（BOUNTY_APP_NEEDS_UPDATE）：不接回舊的錄製、不開始取樣；保存在裝置上的那筆不碰，換成新版 App 之後接得回來。
+  if (BOUNTY_APP_NEEDS_UPDATE) return false;
   const r = bountyLoadPersistedRecording();
   if (!r) return false;
   state.recording = r;
@@ -24887,8 +24889,10 @@ function buildCorrectSection() {
   let body;
   if (!me || (!n && !stops)) {
     // 第二句的 <b> 是字典值裡的固定標記(比照說明卡裡的「接下的卡 <b>24 小時內有效</b>。」),字典是自家檔案。
+    // 現行 App 殼錄不了程（BOUNTY_APP_NEEDS_UPDATE，同看板）：不許諾「錄就有章」，改請人更新。
     body = '<div class="ph-empty">' + i18nJoin(escHtml(t('還沒有校正記錄——去懸賞板看看有哪些路段缺資料。')),
-      t('錄得夠完整就有校正者章，<b>即使資料不能用，章還是你的</b>。')) + '</div>';
+      BOUNTY_APP_NEEDS_UPDATE ? escHtml(t('這一版的軌島 App 還不能錄程，要更新到最新版才行。'))
+        : t('錄得夠完整就有校正者章，<b>即使資料不能用，章還是你的</b>。')) + '</div>';
   } else {
     // 逐線印章不沿用 .stn-seal(50px 圓章,為 2–4 字站名設計):線名連括號里程可以到 10 字以上
     // (「南迴線（枋寮–臺東）」),塞進圓章會裁到看不出是哪條線。這裡刻意印出 rec.name 全名
@@ -35660,16 +35664,21 @@ const HELP_GROUPS = [
     // GPS 校正旅程拆成三節，因為使用者要問的是三個不同的問題：這是什麼／怎麼錄／錄完之後呢。
     // 只有中間那節限 App（startBountyRecording() 對非 App 直接擋下並吐司），懸賞板與護照的
     // 校正貢獻在網頁端都看得到，所以只有 bountyrec 掛 avail——比照 stncollect／riding 的寫法。
+    // 現行 App 殼（網頁包成的那一版）也錄不了程：前兩節在那裡不再教怎麼接、怎麼錄，改請人更新。
+    // 這個區塊會被稽核腳本單獨抽出來執行，裡面不能引用 BOUNTY_APP_NEEDS_UPDATE，
+    // 所以兩節各帶一份 upd 覆蓋欄位，由 helpSecHtml 在判定成立時套上。
     { key: 'bounty', avail: () => BOUNTY_ENABLED, ic: '懸', nm: '懸賞板：哪些路段還缺資料',
       one: '有些路段我手上的行駛資料不夠準，缺哪一段就掛在懸賞板上，等人去搭一趟錄回來。',
       steps: ['打開「護照」，在「校正貢獻」那一列按「懸賞板」', '挑一段你本來就要搭的', '按下去接下來，出發前會有一張說明卡告訴你要準備什麼'],
-      tip: '接下來的段 24 小時內有效，過期會放回板上給別人。看板不用 App，實際錄製要用 App。', try: 'bounty' },
+      tip: '接下來的段 24 小時內有效，過期會放回板上給別人。看板不用 App，實際錄製要用 App。', try: 'bounty',
+      upd: { steps: ['打開「護照」，在「校正貢獻」那一列按「懸賞板」'], tip: '這一版的軌島 App 還不能接下來錄，要更新到最新版才行；懸賞板現在可以先看。' } },
     // 🔴 try 刻意不是「開始錄製」：那會真的叫起 GPS 開始錄一趟，是有副作用的動作，不能拿來當
     // 「試一次」。代點改成開懸賞板——那才是使用者的下一步。
     { key: 'bountyrec', badge: 'App', avail: () => BOUNTY_ENABLED && PHYSICAL_COLLECT_ENABLED, ic: '錄', nm: '錄一趟校正旅程',
       one: '你搭車的時候順手錄一趟，我用它把那段路的位置推算修準。',
       steps: ['先在懸賞板接一段', '真的搭上那班車之後，按說明卡的「開始錄製」', '錄製畫面上的燈號保持綠色就好——手機靠窗，別放在包包裡或車廂中央', '到站按「停止錄製」'],
-      tip: '燈號變橘色會直接告訴你怎麼改善；如果寫「精確位置未開」一定要去設定打開，那是唯一不修就整趟白錄的狀況。錄到一半中斷沒關係，錄到的部分照樣算。', try: 'bounty' },
+      tip: '燈號變橘色會直接告訴你怎麼改善；如果寫「精確位置未開」一定要去設定打開，那是唯一不修就整趟白錄的狀況。錄到一半中斷沒關係，錄到的部分照樣算。', try: 'bounty',
+      upd: { steps: [], tip: '這一版的軌島 App 還不能錄程，要更新到最新版才行。', try: '' } },
     { key: 'bountyme', avail: () => BOUNTY_ENABLED, ic: '校', nm: '護照裡的校正貢獻',
       one: '你錄過幾段、其中有幾段真的被採用，都記在護照的「校正貢獻」。',
       steps: ['打開「護照」', '找到「校正貢獻」那一列', '上面寫「校正 N 段（其中 M 段已採用）」'],
@@ -35891,6 +35900,8 @@ function helpIconHtml(s) {
   return s.ic.replace(/>(章|站)</g, (_, label) => `>${escHtml(t(label))}<`);
 }
 function helpSecHtml(s, mob) {
+  // 現行 App 殼錄不了程（BOUNTY_APP_NEEDS_UPDATE，與看板同一個判定）：帶 upd 的節改用請人更新的版本，不教怎麼接、怎麼錄。
+  if (s.upd && BOUNTY_APP_NEEDS_UPDATE) s = { ...s, ...s.upd };
   const tgOn = s.tg && state._msState && state._msState[s.tg] ? state._msState[s.tg]() : null;
   let h = '<div class="help-sec" data-sec="' + s.key + '"><div class="help-sech">'
     + (s.ic ? '<span class="help-ic">' + helpIconHtml(s) + '</span>' : '') + '<span class="help-nm">' + escHtml(t(s.nm)) + '</span>'

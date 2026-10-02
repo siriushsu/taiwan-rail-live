@@ -32,6 +32,7 @@
 //   CH23 說明卡講清楚「合格」是什麼：「先講清楚」那一節緊接在「錄到一半中斷沒關係」後面有兩句（合格的一趟要同時做到什麼、沒達到會怎樣）；門檻數字讀規則檔，換一份規則檔跟著變，進位只往上（換算回去不低於伺服器的門檻、多出的不到一個進位單位，達到畫面門檻的那一趟伺服器給籌碼）；規則檔讀不到或門檻不能用時整段不寫；中英日、?demo=bounty 的停站卡也有
 //   CH25 停站卡的說明卡講清楚怎麼錄才會達到籌碼門檻：請人從前一站或更早就開始錄、一直錄到離開要錄的站；整趟要錄滿門檻才有籌碼，兩個數字與同一張卡上「合格」那句同一份；規則檔缺或門檻不是正數就只講怎麼錄、不寫數字；英日文；手機四寬度兩引擎
 //   CH26 護照的校正貢獻：只錄過停站卡的人也有校正者章（bounty-me 回應新增 dwellStops）；只有停站時寫「校正停站 N 站」、原因說明照給；有路段的人畫面完全不變；舊版回應沒有欄位時與以前一樣；亂值；英日文；手機四寬度兩引擎
+//   CH27 現行 App 殼剩下三處還在教人錄程：說明中心「懸賞板」「錄一趟校正旅程」兩節、護照校正貢獻的空狀態、開機接回錄製，都讀看板同一個判定；網頁、?demo=bounty、旗標關完全不變；手機四寬度兩引擎
 //
 // 打樁慣例照 scripts/verify_bounty_merge_web.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
 // localStorage['trainmap-account-uid'] 讓開機走 accountEnsureInit（回訪者分支）。
@@ -2616,6 +2617,179 @@ try {
     await attempt('CH26-webkit-launch', async () => {
       if (!wk) wk = await webkit.launch({ headless: true });
       for (const w of [360, 375, 414, 768]) await MOBILE26('webkit', wk, w);
+    });
+  }
+  // ═══ CH27：現行 App 殼剩下三個還在教人錄程的地方——說明中心、護照空狀態、開機接回錄製 ═══════════════════════════════════
+  // 現行 App 殼（BOUNTY_APP_NEEDS_UPDATE：懸賞開著、不是 ?demo=bounty、IS_NATIVE_APP 真）錄不了程。看板與開始錄製的提示已經請人更新，
+  // 這一組驗剩下的三處也讀同一個判定：
+  //   ・說明中心「懸賞板」「錄一趟校正旅程」兩節：不再教怎麼接、怎麼錄，改請人更新（懸賞板那節留第一步，看板現在還可以看）
+  //   ・護照校正貢獻的空狀態：不許諾「錄就有章」，改請人更新
+  //   ・開機接回錄製：不接回舊的錄製、不開始取樣；裝置上保存的那一筆不碰
+  // 網頁、?demo=bounty（含在 App 殼裡）、旗標關：一個字不變。每一處都有「判定不成立」的對照組。
+  if (want('CH27')) {
+    const O27 = {   // 沒改之前的兩節（網頁與 ?demo=bounty 照舊）
+      bountySteps: ['打開「護照」，在「校正貢獻」那一列按「懸賞板」', '挑一段你本來就要搭的', '按下去接下來，出發前會有一張說明卡告訴你要準備什麼'],
+      bountyTip: '接下來的段 24 小時內有效，過期會放回板上給別人。看板不用 App，實際錄製要用 App。',
+      recSteps: ['先在懸賞板接一段', '真的搭上那班車之後，按說明卡的「開始錄製」', '錄製畫面上的燈號保持綠色就好——手機靠窗，別放在包包裡或車廂中央', '到站按「停止錄製」'],
+      recTipHead: '燈號變橘色會直接告訴你怎麼改善',
+    };
+    const U27 = {
+      'zh-TW': { bountyTip: '這一版的軌島 App 還不能接下來錄，要更新到最新版才行；懸賞板現在可以先看。', recTip: '這一版的軌島 App 還不能錄程，要更新到最新版才行。', empty: '這一版的軌島 App 還不能錄程，要更新到最新版才行。', promise: '錄得夠完整就有校正者章' },
+      en: { bountyTip: 'This version of the Rail Island app can’t claim and record yet — update to the latest version to do that. You can still browse the bounty board.', recTip: 'This version of the Rail Island app can’t record trips yet — update to the latest version to record.', empty: 'This version of the Rail Island app can’t record trips yet — update to the latest version to record.', promise: 'Record enough of a trip to earn the calibrator stamp' },
+      ja: { bountyTip: 'この版の軌島アプリではまだ受け取って記録できません。最新版に更新してください。懸賞板は今も見られます。', recTip: 'この版の軌島アプリではまだ記録できません。最新版に更新してください。', empty: 'この版の軌島アプリではまだ記録できません。最新版に更新してください。', promise: '十分に記録できると校正者スタンプがもらえます' },
+    };
+    const TEACH = /開始錄製|按說明卡|24 小時內有效|燈號|停止錄製|出發前會有一張說明卡|Start recording|start recording|24 hours|signal light|開始|記録を開始/;
+    const ME_NONE27 = { actor: 'x', points: 0, corrected: { segs: 0, adopted: 0 }, lines: [], firsts: [], trips: [] };   // 什麼校正記錄都沒有
+    const readHelp27 = page => page.evaluate(() => {
+      openHelp('bountyme');
+      const out = {};
+      for (const el of document.querySelectorAll('#helpBody .help-sec')) {
+        const tip = el.querySelector('.tip');
+        out[el.dataset.sec] = { text: el.textContent.replace(/\s+/g, ' ').trim(), one: (el.querySelector('.one') || {}).textContent || '', steps: [...el.querySelectorAll('ol li')].map(x => x.textContent.trim()),
+          tip: tip ? tip.textContent.replace(/\s+/g, ' ').trim() : null, tryBtn: !!el.querySelector('.help-try'), badge: (el.querySelector('.help-badge') || {}).textContent || null };
+      }
+      return out;
+    });
+    const readEmpty27 = page => page.evaluate(() => { renderPassport(); const e = document.querySelector('#passport .ph-correct .ph-empty'); return e ? e.textContent.replace(/\s+/g, ' ').trim() : null; });
+    const sess27 = async (kind, lang = 'zh-TW', me = ME_NONE27) => {
+      const locale = lang === 'en' ? 'en-US' : lang === 'ja' ? 'ja-JP' : 'zh-TW';
+      const s = await newSession({ app: kind !== 'web' }, {}, { ctx: { locale } });
+      s.meBody = me;
+      const qs = kind === 'demo' ? `lang=${lang}&demo=bounty` : kind === 'off' ? `lang=${lang}` : `bounty=1&lang=${lang}`;
+      await s.page.goto(`${BASE}/?${qs}`);
+      await bootDone(s.page); await sleep(300);
+      return s;
+    };
+
+    await attempt('CH27-help-zh', async () => {
+      const shell = await sess27('shell'), web = await sess27('web'), demo = await sess27('demo'), off = await sess27('off');
+      const hs = await readHelp27(shell.page), hw = await readHelp27(web.page), hd = await readHelp27(demo.page), ho = await readHelp27(off.page);
+      const X = U27['zh-TW'];
+      ok('CH27a 現行 App 殼：說明中心「懸賞板」只留第一步（打開護照按懸賞板）、小提示改成「這一版還不能接下來錄，要更新到最新版才行；懸賞板現在可以先看」、「試一次」（開看板）還在；整節沒有教怎麼接、怎麼錄的字',
+        !!hs.bounty && JSON.stringify(hs.bounty.steps) === JSON.stringify(O27.bountySteps.slice(0, 1)) && hs.bounty.tip === X.bountyTip && hs.bounty.tryBtn && hs.bounty.one.includes('缺哪一段就掛在懸賞板上') && !TEACH.test(hs.bounty.text), JSON.stringify(hs.bounty));
+      ok('CH27b 現行 App 殼：說明中心「錄一趟校正旅程」沒有步驟、小提示是「這一版的軌島 App 還不能錄程，要更新到最新版才行。」、沒有「試一次」、角標「App」還在；整節沒有教怎麼錄的字（開始錄製、燈號、停止錄製、24 小時）',
+        !!hs.bountyrec && hs.bountyrec.steps.length === 0 && hs.bountyrec.tip === X.recTip && !hs.bountyrec.tryBtn && hs.bountyrec.badge === 'App' && !TEACH.test(hs.bountyrec.text), JSON.stringify(hs.bountyrec));
+      ok('CH27c 對照（網頁）：兩節都跟改之前一個字不變——「懸賞板」三步＋原小提示＋「試一次」；「錄一趟校正旅程」整節不出現（網頁沒有它，與以前一樣）',
+        !!hw.bounty && JSON.stringify(hw.bounty.steps) === JSON.stringify(O27.bountySteps) && hw.bounty.tip === O27.bountyTip && hw.bounty.tryBtn && !hw.bountyrec, JSON.stringify({ bounty: hw.bounty, rec: !!hw.bountyrec }));
+      ok('CH27d 對照（?demo=bounty，含在 App 殼裡）：兩節都跟改之前一個字不變——「懸賞板」三步＋原小提示、「錄一趟校正旅程」四步＋原小提示（以「燈號變橘色會直接告訴你怎麼改善」開頭）＋「試一次」',
+        !!hd.bounty && JSON.stringify(hd.bounty.steps) === JSON.stringify(O27.bountySteps) && hd.bounty.tip === O27.bountyTip && !!hd.bountyrec && JSON.stringify(hd.bountyrec.steps) === JSON.stringify(O27.recSteps) &&
+          hd.bountyrec.tip.startsWith(O27.recTipHead) && hd.bountyrec.tryBtn, JSON.stringify({ bounty: hd.bounty && hd.bounty.steps.length, rec: hd.bountyrec && hd.bountyrec.steps.length }));
+      ok('CH27e 對照（旗標關、App 殼）：三節（懸賞板、錄一趟校正旅程、護照裡的校正貢獻）都不出現；同一頁的另一節（車站收集章）照在——說明中心不是整個壞掉',
+        !ho.bounty && !ho.bountyrec && !ho.bountyme && !!ho.stncollect, JSON.stringify(Object.keys(ho)));
+      ok('CH27f 護照裡的校正貢獻那一節（三種有它的情境）不受影響：現行 App 殼、網頁、?demo=bounty 的小提示都有新的承諾句「但只要錄得夠完整，校正者章還是你的」',
+        [hs, hw, hd].every(h => !!h.bountyme && h.bountyme.tip.includes('但只要錄得夠完整，校正者章還是你的')), JSON.stringify([hs, hw, hd].map(h => h.bountyme && h.bountyme.tip.slice(0, 30))));
+      ok('CH27g 四個頁面都沒有未捕捉的例外', [shell, web, demo, off].every(s => s.errors.length === 0), JSON.stringify([shell, web, demo, off].map(s => s.errors)));
+      for (const s of [shell, web, demo, off]) await s.ctx.close();
+    });
+    for (const lang of ['en', 'ja']) await attempt(`CH27-help-${lang}`, async () => {
+      const shell = await sess27('shell', lang), web = await sess27('web', lang);
+      const hs = await readHelp27(shell.page), hw = await readHelp27(web.page);
+      const X = U27[lang];
+      ok(`CH27h-${lang} ${lang} 介面、現行 App 殼：「懸賞板」的小提示與「錄一趟校正旅程」的小提示是譯好的整句；「錄一趟校正旅程」沒有步驟、沒有「試一次」` + (lang === 'en' ? '；兩節沒有中文字' : ''),
+        !!hs.bounty && !!hs.bountyrec && hs.bounty.tip === X.bountyTip && hs.bountyrec.tip === X.recTip && hs.bountyrec.steps.length === 0 && !hs.bountyrec.tryBtn && hs.bounty.steps.length === 1 &&
+          (lang !== 'en' || (!/[㐀-鿿]/.test(hs.bounty.text) && !/[㐀-鿿]/.test(hs.bountyrec.text))), JSON.stringify({ bounty: hs.bounty && hs.bounty.tip, rec: hs.bountyrec && hs.bountyrec.tip }));
+      ok(`CH27i-${lang} ${lang} 介面、網頁（對照）：「懸賞板」還是三步、沒有請更新的那句；頁面沒有未捕捉的例外`,
+        !!hw.bounty && hw.bounty.steps.length === 3 && !hw.bounty.text.includes(X.recTip) && !hw.bounty.tip.includes(X.bountyTip) && shell.errors.length === 0 && web.errors.length === 0, JSON.stringify({ steps: hw.bounty && hw.bounty.steps.length, errors: [shell.errors, web.errors] }));
+      await shell.ctx.close(); await web.ctx.close();
+    });
+
+    await attempt('CH27-passport', async () => {
+      for (const lang of ['zh-TW', 'en', 'ja']) {
+        const shell = await sess27('shell', lang), web = await sess27('web', lang), demo = await sess27('demo', lang);
+        const es = await readEmpty27(shell.page), ew = await readEmpty27(web.page), ed = await readEmpty27(demo.page);
+        const X = U27[lang];
+        ok(`CH27j-${lang} 護照校正貢獻的空狀態（${lang}）：現行 App 殼是「…看看有哪些路段缺資料」＋請更新那句，沒有「錄得夠完整就有校正者章」的承諾；網頁與 ?demo=bounty（對照）跟以前一樣有承諾、沒有請更新那句`,
+          es !== null && es.includes(X.empty) && !es.includes(X.promise) && ew !== null && ew.includes(X.promise) && !ew.includes(X.empty) && ed !== null && ed.includes(X.promise) && !ed.includes(X.empty) && shell.errors.length + web.errors.length + demo.errors.length === 0,
+          JSON.stringify({ es, ew, ed }));
+        if (lang === 'en') ok('CH27k-en 英文介面現行 App 殼的空狀態整句沒有中文字', !/[㐀-鿿]/.test(es), es);
+        for (const s of [shell, web, demo]) await s.ctx.close();
+      }
+      // 有章的人不受影響：同一份有路段的回應，現行 App 殼與網頁畫出來的校正貢獻完全相同
+      const shell = await sess27('shell', 'zh-TW', ME), web = await sess27('web', 'zh-TW', ME);
+      const hs = await shell.page.evaluate(() => { renderPassport(); return document.querySelector('#passport .ph-correct').innerHTML; });
+      const hw = await web.page.evaluate(() => { renderPassport(); return document.querySelector('#passport .ph-correct').innerHTML; });
+      ok('CH27l 對照：已經有校正記錄的人（12 段），現行 App 殼與網頁畫出來的校正貢獻內容完全相同（請更新只出現在空狀態）', hs.length > 100 && hs === hw && !hs.includes('還不能錄程'), JSON.stringify({ a: hs.length, b: hw.length }));
+      await shell.ctx.close(); await web.ctx.close();
+    });
+
+    // 開機接回錄製：裝置上保存著一筆沒結束的錄製。現行 App 殼不接回、不開始取樣、保存的那一筆原封不動；?demo=bounty 照舊接回（對照）
+    await attempt('CH27-restore', async () => {
+      const rec = demo => JSON.stringify({ card: { ...CARD_R, id: 'card-restore' }, sys: 'tra_sched', lnId: '南迴線', trainNo: '123', dir: 0, tripDate: '2026-10-02', startedAt: Date.now() - 120000,
+        dNow: 1000, segs: {}, cov: {}, points: 0, quality: 'none', buf: [], recent: [], lastFix: 0, lastFlush: Date.now() - 60000, batch: 0, demo });
+      const boot = async (kind, demo) => {
+        const s = await newSession({ app: kind !== 'web' }, {}, { ctx: { locale: 'zh-TW' } });
+        const stored = rec(demo);
+        await s.ctx.addInitScript(([k, v]) => {
+          try { localStorage.setItem(k, v); } catch (e) {}
+          window.__watchCalls = 0;
+          Object.defineProperty(navigator, 'geolocation', { configurable: true, value: { watchPosition: () => { window.__watchCalls++; return 1; }, clearWatch: () => {}, getCurrentPosition: () => {} } });
+        }, ['trainmap-bounty-recording-v1', stored]);
+        await s.page.goto(`${BASE}/?${kind === 'demo' ? 'lang=zh-TW&demo=bounty' : 'bounty=1&lang=zh-TW'}`);
+        await bootDone(s.page); await sleep(1500);
+        const st = await s.page.evaluate(() => ({ recording: !!state.recording, demoFlag: !!(state.recording && state.recording.demo), watch: window.__watchCalls, barHidden: document.getElementById('recordBar').hidden,
+          bodyRec: document.body.classList.contains('recording'), saved: localStorage.getItem('trainmap-bounty-recording-v1') }));
+        return { s, st, stored };
+      };
+      const shell = await boot('shell', false);
+      ok('CH27m 現行 App 殼、裝置上保存著一筆沒結束的錄製（不是示範的）：開機不接回（state.recording 空、body 沒有 recording、常駐錄製列藏著）、沒有開始取樣（定位的監看一次都沒呼叫）；保存的那一筆原封不動（字串逐位元組相同、沒有被刪）',
+        !shell.st.recording && !shell.st.bodyRec && shell.st.barHidden && shell.st.watch === 0 && shell.st.saved === shell.stored && shell.s.errors.length === 0, JSON.stringify({ st: shell.st, errors: shell.s.errors }));
+      // 對照一：這個頁面的定位替身真的會計數（不是因為替身壞了才是 0）
+      const ctl = await shell.s.page.evaluate(() => { const n0 = window.__watchCalls; navigator.geolocation.watchPosition(() => {}); return [n0, window.__watchCalls]; });
+      ok('CH27n [fixture] 對照：同一個頁面直接呼叫定位的監看，計數從 0 變 1——上一條的「0 次」不是替身壞了', ctl[0] === 0 && ctl[1] === 1, JSON.stringify(ctl));
+      // 對照二：?demo=bounty（含在 App 殼裡）同樣一筆示範的保存錄製，開機照舊接回
+      const demo = await boot('demo', true);
+      ok('CH27o 對照：?demo=bounty（在 App 殼裡）保存著一筆示範的錄製：開機照舊接回（state.recording 有、是示範的、body 有 recording、錄製列出現）；頁面沒有未捕捉的例外',
+        demo.st.recording && demo.st.demoFlag && demo.st.bodyRec && !demo.st.barHidden && demo.s.errors.length === 0, JSON.stringify({ st: { ...demo.st, saved: !!demo.st.saved }, errors: demo.s.errors }));
+      await shell.s.ctx.close(); await demo.s.ctx.close();
+    });
+
+    // 手機：現行 App 殼的說明中心兩節與護照空狀態，360／375／414／768 × Chromium／WebKit；真觸控
+    const MOBILE27 = async (engineName, br, width) => {
+      const tag = `${engineName}-${width}`;
+      const ctxOpts = { browser: br, ctx: { viewport: { width, height: 800 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } };
+      const fit = (page, sel) => page.evaluate(q => [...document.querySelectorAll(q)].filter(e => e.offsetParent !== null || getComputedStyle(e).position === 'fixed').map(e => {
+        e.scrollIntoView({ block: 'center' });
+        const r = e.getBoundingClientRect();
+        return { t: e.textContent.replace(/\s+/g, ' ').trim().slice(0, 16), wOver: e.scrollWidth > e.clientWidth + 1, hOver: e.scrollHeight > e.clientHeight + 1, inView: r.left >= -0.5 && r.right <= innerWidth + 0.5 && r.width > 0 };
+      }), sel);
+      await attempt(`CH27-mobile-${tag}`, async () => {
+        const s = await newSession({ passportClosed: true, app: true }, {}, ctxOpts);
+        s.board = BOARD_V2; s.meBody = ME_NONE27;
+        await s.page.goto(`${BASE}/?bounty=1&lang=zh-TW&help=1`);
+        await loggedIn(s.page); await bootDone(s.page);
+        await s.page.waitForFunction(() => { const m = document.getElementById('helpModal'); return m && !m.hidden && document.querySelector('#helpBody .help-sec[data-sec="bountyrec"]'); }, null, { timeout: 20000 });
+        const grp = await s.page.evaluate(() => { const g = document.querySelector('#helpBody .help-sec[data-sec="bountyrec"]').closest('.help-grp'); return g ? { key: g.dataset.grp, open: g.classList.contains('open') } : null; });
+        if (grp && !grp.open) { await s.page.tap(`#helpBody .help-grp[data-grp="${grp.key}"] .help-grph`); await sleep(300); }
+        const secs = {};
+        for (const key of ['bounty', 'bountyrec']) {
+          const sel = `#helpBody .help-sec[data-sec="${key}"]`;
+          await s.page.evaluate(q => document.querySelector(q).scrollIntoView({ block: 'center' }), sel);
+          await sleep(200);
+          secs[key] = { box: await fit(s.page, `${sel} .one, ${sel} .tip, ${sel} ol li`), text: await s.page.evaluate(q => document.querySelector(q).textContent.replace(/\s+/g, ' ').trim(), sel) };
+        }
+        const hs = await s.page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+        ok(`CH27p-${tag} 手機 ${width} 寬、現行 App 殼（真網址 ?help=1 開說明中心、真觸控展開那一組）：「懸賞板」「錄一趟校正旅程」兩節的句子都完整看得到、沒被截、沒溢出、沒有水平捲動；兩節都是請更新的版本`,
+          secs.bounty.box.length >= 2 && secs.bountyrec.box.length >= 2 && [...secs.bounty.box, ...secs.bountyrec.box].every(b => !b.wOver && !b.hOver && b.inView) && hs <= 1 &&
+            secs.bounty.text.includes('懸賞板現在可以先看') && secs.bountyrec.text.includes('還不能錄程') && !secs.bountyrec.text.includes('開始錄製'), JSON.stringify({ secs, hs }));
+        await s.page.tap('#helpX'); await sleep(300);
+        await s.page.tap('#tabRide');
+        await s.page.waitForFunction(() => { const p = document.getElementById('ridePanel'); return p && !p.hidden && p.querySelector('.ph-sec[data-sec="correct"]'); }, null, { timeout: 15000 });
+        await s.page.evaluate(() => document.querySelector('#ridePanel .ph-sec[data-sec="correct"]').scrollIntoView({ block: 'center' }));
+        await sleep(300);
+        if (await s.page.evaluate(() => document.querySelector('#ridePanel .ph-sec[data-sec="correct"]').classList.contains('closed'))) { await s.page.tap('#ridePanel .ph-sec[data-sec="correct"] .ph-caret'); await sleep(300); }
+        const em = await fit(s.page, '#ridePanel .ph-correct .ph-empty');
+        const emText = await s.page.evaluate(() => { const e = document.querySelector('#ridePanel .ph-correct .ph-empty'); return e ? e.textContent.replace(/\s+/g, ' ').trim() : null; });
+        const hs2 = await s.page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+        ok(`CH27q-${tag} 手機 ${width} 寬、現行 App 殼的護照：校正貢獻的空狀態（真觸控進「護照」、點開那一節）整段看得到、沒被截、沒溢出、沒有水平捲動、是請更新的版本；頁面沒有未捕捉的例外`,
+          em.length === 1 && !em[0].wOver && !em[0].hOver && em[0].inView && hs2 <= 1 && !!emText && emText.includes('還不能錄程') && !emText.includes('錄得夠完整就有校正者章') && s.errors.length === 0, JSON.stringify({ em, emText, hs2, errors: s.errors }));
+        if (SHOT_DIR) await s.page.screenshot({ path: path.join(SHOT_DIR, `bounty-shell-passport-empty-${tag}.png`) });
+        await s.ctx.close();
+      });
+    };
+    for (const w of [360, 375, 414, 768]) await MOBILE27('chromium', browser, w);
+    await attempt('CH27-webkit-launch', async () => {
+      if (!wk) wk = await webkit.launch({ headless: true });
+      for (const w of [360, 375, 414, 768]) await MOBILE27('webkit', wk, w);
     });
   }
 } finally {
