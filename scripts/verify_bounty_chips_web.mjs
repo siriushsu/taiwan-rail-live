@@ -32,7 +32,7 @@
 //   CH23 說明卡講清楚「合格」是什麼：「先講清楚」那一節緊接在「錄到一半中斷沒關係」後面有兩句（合格的一趟要同時做到什麼、沒達到會怎樣）；門檻數字讀規則檔，換一份規則檔跟著變，進位只往上（換算回去不低於伺服器的門檻、多出的不到一個進位單位，達到畫面門檻的那一趟伺服器給籌碼）；規則檔讀不到或門檻不能用時整段不寫；中英日、?demo=bounty 的停站卡也有
 //   CH25 停站卡的說明卡講清楚怎麼錄才會達到籌碼門檻：請人從前一站或更早就開始錄、一直錄到離開要錄的站；整趟要錄滿門檻才有籌碼，兩個數字與同一張卡上「合格」那句同一份，並提醒前一站離得近就要再早一點上車；規則檔缺或門檻不是正數就只講怎麼錄、不寫數字、不帶那句提醒；英日文；手機四寬度兩引擎
 //   CH26 護照的校正貢獻：只錄過停站卡的人也有校正者章（bounty-me 回應新增 dwellStops）；只有停站時寫「校正停站 N 站」、原因說明照給；有路段的人畫面完全不變；舊版回應沒有欄位時與以前一樣；亂值；英日文；手機四寬度兩引擎
-//   CH27 現行 App 殼剩下三處還在教人錄程：說明中心「懸賞板」「錄一趟校正旅程」兩節、護照校正貢獻的空狀態、開機接回錄製，都讀看板同一個判定；網頁、?demo=bounty、旗標關完全不變；手機四寬度兩引擎
+//   CH27 現行 App 殼剩下四處還在教人錄程或承諾章：說明中心「懸賞板」「錄一趟校正旅程」「護照裡的校正貢獻」三節、護照校正貢獻的空狀態、開機接回錄製，都讀看板同一個判定；網頁、?demo=bounty、旗標關完全不變；手機四寬度兩引擎
 //   CH28 現行 App 殼看板上已收滿的卡也請人更新：那一句改成收滿了、這一版錄不了程、要更新到最新版；網頁、?demo=bounty（含在 App 殼裡）、旗標關仍是原句；中英日；手機四寬度兩引擎，那一句不被截、不溢出、不與別的元素重疊、沒有水平捲動
 //
 // 打樁慣例照 scripts/verify_bounty_merge_web.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
@@ -2644,12 +2644,22 @@ try {
       bountyTip: '接下來的段 24 小時內有效，過期會放回板上給別人。看板不用 App，實際錄製要用 App。',
       recSteps: ['先在懸賞板接一段', '真的搭上那班車之後，按說明卡的「開始錄製」', '錄製畫面上的燈號保持綠色就好——手機靠窗，別放在包包裡或車廂中央', '到站按「停止錄製」'],
       recTipHead: '燈號變橘色會直接告訴你怎麼改善',
+      meTip: '兩個數字不一樣是正常的——訊號不好的那幾趟資料用不上，但只要錄得夠完整，校正者章還是你的，而且我會寫出是什麼原因、下次怎麼改善。某段如果是你第一個錄回來的，會標「首位校正者」。',
+      meSteps: ['打開「護照」', '找到「校正貢獻」那一列', '上面寫「校正 N 段（其中 M 段已採用）」；只錄過停站的人，寫的是「校正停站 N 站」'],
     };
     const U27 = {
-      'zh-TW': { bountyTip: '這一版的軌島 App 還不能接下來錄，要更新到最新版才行；懸賞板現在可以先看。', recTip: '這一版的軌島 App 還不能錄程，要更新到最新版才行。', empty: '這一版的軌島 App 還不能錄程，要更新到最新版才行。', promise: '錄得夠完整就有校正者章' },
-      en: { bountyTip: 'This version of the Rail Island app can’t claim and record yet — update to the latest version to do that. You can still browse the bounty board.', recTip: 'This version of the Rail Island app can’t record trips yet — update to the latest version to record.', empty: 'This version of the Rail Island app can’t record trips yet — update to the latest version to record.', promise: 'Record enough of a trip to earn the calibrator stamp' },
-      ja: { bountyTip: 'この版の軌島アプリではまだ受け取って記録できません。最新版に更新してください。懸賞板は今も見られます。', recTip: 'この版の軌島アプリではまだ記録できません。最新版に更新してください。', empty: 'この版の軌島アプリではまだ記録できません。最新版に更新してください。', promise: '十分に記録できると校正者スタンプがもらえます' },
+      'zh-TW': { bountyTip: '這一版的軌島 App 還不能接下來錄，要更新到最新版才行；懸賞板現在可以先看。', recTip: '這一版的軌島 App 還不能錄程，要更新到最新版才行。', empty: '這一版的軌島 App 還不能錄程，要更新到最新版才行。', promise: '錄得夠完整就有校正者章',
+        meTip: '兩個數字不一樣是正常的：前面是你校正的段數，括號裡是資料夠好、真的被採用的段數。訊號不好的那幾趟資料用不上，所以採用的會少一些。', mePromise: '但只要錄得夠完整，校正者章還是你的',
+        meStep3: '上面寫「校正 N 段（其中 M 段已採用）」；只錄過停站的人，寫的是「校正停站 N 站」' },
+      en: { bountyTip: 'This version of the Rail Island app can’t claim and record yet — update to the latest version to do that. You can still browse the bounty board.', recTip: 'This version of the Rail Island app can’t record trips yet — update to the latest version to record.', empty: 'This version of the Rail Island app can’t record trips yet — update to the latest version to record.', promise: 'Record enough of a trip to earn the calibrator stamp',
+        meTip: 'It’s normal for the two numbers to differ: the first is the number of segments you calibrated, and the one in parentheses is how many had good enough data to be adopted. Data from trips with a poor signal can’t be used, so fewer get adopted.', mePromise: 'you keep the calibrator stamp',
+        meStep3: 'It reads “Calibrated N segments (M adopted)”; if you only recorded dwell stops, it reads “Calibrated N dwell stops”' },
+      ja: { bountyTip: 'この版の軌島アプリではまだ受け取って記録できません。最新版に更新してください。懸賞板は今も見られます。', recTip: 'この版の軌島アプリではまだ記録できません。最新版に更新してください。', empty: 'この版の軌島アプリではまだ記録できません。最新版に更新してください。', promise: '十分に記録できると校正者スタンプがもらえます',
+        meTip: '2つの数字が違うのは正常です。最初の数字は校正した区間の数、かっこ内はデータが十分に良く採用された区間の数です。電波の悪かった記録は使えないため、採用される区間は少なくなります。', mePromise: 'あなたのものです',
+        meStep3: '「N区間を校正（うちM区間が採用済み）」と表示されます。停車だけを記録した場合は「N駅の停車を校正」と表示されます' },
     };
+    // 「護照裡的校正貢獻」那一節在現行 App 殼不許出現的承諾字樣（三語）：章、首位校正者、錄得夠完整
+    const PROM27 = /校正者章|首位校正者|錄得夠完整|calibrator stamp|First calibrator|校正者スタンプ|最初の校正者|十分に記録/;
     const TEACH = /開始錄製|按說明卡|24 小時內有效|燈號|停止錄製|出發前會有一張說明卡|Start recording|start recording|24 hours|signal light|開始|記録を開始/;
     const ME_NONE27 = { actor: 'x', points: 0, corrected: { segs: 0, adopted: 0 }, lines: [], firsts: [], trips: [] };   // 什麼校正記錄都沒有
     const readHelp27 = page => page.evaluate(() => {
@@ -2688,8 +2698,11 @@ try {
           hd.bountyrec.tip.startsWith(O27.recTipHead) && hd.bountyrec.tryBtn, JSON.stringify({ bounty: hd.bounty && hd.bounty.steps.length, rec: hd.bountyrec && hd.bountyrec.steps.length }));
       ok('CH27e 對照（旗標關、App 殼）：三節（懸賞板、錄一趟校正旅程、護照裡的校正貢獻）都不出現；同一頁的另一節（車站收集章）照在——說明中心不是整個壞掉',
         !ho.bounty && !ho.bountyrec && !ho.bountyme && !!ho.stncollect, JSON.stringify(Object.keys(ho)));
-      ok('CH27f 護照裡的校正貢獻那一節（三種有它的情境）不受影響：現行 App 殼、網頁、?demo=bounty 的小提示都有新的承諾句「但只要錄得夠完整，校正者章還是你的」',
-        [hs, hw, hd].every(h => !!h.bountyme && h.bountyme.tip.includes('但只要錄得夠完整，校正者章還是你的')), JSON.stringify([hs, hw, hd].map(h => h.bountyme && h.bountyme.tip.slice(0, 30))));
+      ok('CH27f 護照裡的校正貢獻那一節的小提示：現行 App 殼只講兩個數字各是什麼意思（整句）、整節沒有「校正者章」「首位校正者」「錄得夠完整」、「試一次」還在；網頁與 ?demo=bounty（含在 App 殼裡）的小提示跟改之前一個字不變（有「但只要錄得夠完整，校正者章還是你的」）',
+        !!hs.bountyme && hs.bountyme.tip === X.meTip && !PROM27.test(hs.bountyme.text) && hs.bountyme.tryBtn &&
+          [hw, hd].every(h => !!h.bountyme && h.bountyme.tip === O27.meTip && h.bountyme.tip.includes(X.mePromise) && h.bountyme.tryBtn), JSON.stringify([hs, hw, hd].map(h => h.bountyme && h.bountyme.tip.slice(0, 40))));
+      ok('CH27r 護照裡的校正貢獻的步驟：網頁、?demo=bounty、現行 App 殼都是三步，前兩步一個字不變，第三步一句講到兩種寫法——「校正 N 段（其中 M 段已採用）」與只錄過停站的人看到的「校正停站 N 站」',
+        [hs, hw, hd].every(h => !!h.bountyme && JSON.stringify(h.bountyme.steps) === JSON.stringify(O27.meSteps)), JSON.stringify([hs, hw, hd].map(h => h.bountyme && h.bountyme.steps)));
       ok('CH27g 四個頁面都沒有未捕捉的例外', [shell, web, demo, off].every(s => s.errors.length === 0), JSON.stringify([shell, web, demo, off].map(s => s.errors)));
       for (const s of [shell, web, demo, off]) await s.ctx.close();
     });
@@ -2700,6 +2713,10 @@ try {
       ok(`CH27h-${lang} ${lang} 介面、現行 App 殼：「懸賞板」的小提示與「錄一趟校正旅程」的小提示是譯好的整句；「錄一趟校正旅程」沒有步驟、沒有「試一次」` + (lang === 'en' ? '；兩節沒有中文字' : ''),
         !!hs.bounty && !!hs.bountyrec && hs.bounty.tip === X.bountyTip && hs.bountyrec.tip === X.recTip && hs.bountyrec.steps.length === 0 && !hs.bountyrec.tryBtn && hs.bounty.steps.length === 1 &&
           (lang !== 'en' || (!/[㐀-鿿]/.test(hs.bounty.text) && !/[㐀-鿿]/.test(hs.bountyrec.text))), JSON.stringify({ bounty: hs.bounty && hs.bounty.tip, rec: hs.bountyrec && hs.bountyrec.tip }));
+      ok(`CH27s-${lang} ${lang} 介面：現行 App 殼「護照裡的校正貢獻」的小提示是譯好的整句、整節沒有章的承諾字樣；網頁的小提示還有承諾句；兩邊的第三步都是譯好的整句（含只錄停站的寫法）` + (lang === 'en' ? '；現行 App 殼那一節沒有中文字' : ''),
+        !!hs.bountyme && !!hw.bountyme && hs.bountyme.tip === X.meTip && !PROM27.test(hs.bountyme.text) && hw.bountyme.tip.includes(X.mePromise) &&
+          hs.bountyme.steps.length === 3 && hs.bountyme.steps[2] === X.meStep3 && hw.bountyme.steps.length === 3 && hw.bountyme.steps[2] === X.meStep3 && (lang !== 'en' || !/[㐀-鿿]/.test(hs.bountyme.text)),
+        JSON.stringify({ shell: hs.bountyme, web: hw.bountyme && hw.bountyme.tip.slice(0, 40) }));
       ok(`CH27i-${lang} ${lang} 介面、網頁（對照）：「懸賞板」還是三步、沒有請更新的那句；頁面沒有未捕捉的例外`,
         !!hw.bounty && hw.bounty.steps.length === 3 && !hw.bounty.text.includes(X.recTip) && !hw.bounty.tip.includes(X.bountyTip) && shell.errors.length === 0 && web.errors.length === 0, JSON.stringify({ steps: hw.bounty && hw.bounty.steps.length, errors: [shell.errors, web.errors] }));
       await shell.ctx.close(); await web.ctx.close();
@@ -2773,16 +2790,16 @@ try {
         const grp = await s.page.evaluate(() => { const g = document.querySelector('#helpBody .help-sec[data-sec="bountyrec"]').closest('.help-grp'); return g ? { key: g.dataset.grp, open: g.classList.contains('open') } : null; });
         if (grp && !grp.open) { await s.page.tap(`#helpBody .help-grp[data-grp="${grp.key}"] .help-grph`); await sleep(300); }
         const secs = {};
-        for (const key of ['bounty', 'bountyrec']) {
+        for (const key of ['bounty', 'bountyrec', 'bountyme']) {
           const sel = `#helpBody .help-sec[data-sec="${key}"]`;
           await s.page.evaluate(q => document.querySelector(q).scrollIntoView({ block: 'center' }), sel);
           await sleep(200);
           secs[key] = { box: await fit(s.page, `${sel} .one, ${sel} .tip, ${sel} ol li`), text: await s.page.evaluate(q => document.querySelector(q).textContent.replace(/\s+/g, ' ').trim(), sel) };
         }
         const hs = await s.page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
-        ok(`CH27p-${tag} 手機 ${width} 寬、現行 App 殼（真網址 ?help=1 開說明中心、真觸控展開那一組）：「懸賞板」「錄一趟校正旅程」兩節的句子都完整看得到、沒被截、沒溢出、沒有水平捲動；兩節都是請更新的版本`,
-          secs.bounty.box.length >= 2 && secs.bountyrec.box.length >= 2 && [...secs.bounty.box, ...secs.bountyrec.box].every(b => !b.wOver && !b.hOver && b.inView) && hs <= 1 &&
-            secs.bounty.text.includes('懸賞板現在可以先看') && secs.bountyrec.text.includes('還不能錄程') && !secs.bountyrec.text.includes('開始錄製'), JSON.stringify({ secs, hs }));
+        ok(`CH27p-${tag} 手機 ${width} 寬、現行 App 殼（真網址 ?help=1 開說明中心、真觸控展開那一組）：「懸賞板」「錄一趟校正旅程」「護照裡的校正貢獻」三節的句子都完整看得到、沒被截、沒溢出、沒有水平捲動；前兩節是請更新的版本、第三節沒有章的承諾`,
+          secs.bounty.box.length >= 2 && secs.bountyrec.box.length >= 2 && secs.bountyme.box.length >= 4 && [...secs.bounty.box, ...secs.bountyrec.box, ...secs.bountyme.box].every(b => !b.wOver && !b.hOver && b.inView) && hs <= 1 &&
+            secs.bounty.text.includes('懸賞板現在可以先看') && secs.bountyrec.text.includes('還不能錄程') && !secs.bountyrec.text.includes('開始錄製') && !PROM27.test(secs.bountyme.text) && secs.bountyme.text.includes('校正停站 N 站'), JSON.stringify({ secs, hs }));
         await s.page.tap('#helpX'); await sleep(300);
         await s.page.tap('#tabRide');
         await s.page.waitForFunction(() => { const p = document.getElementById('ridePanel'); return p && !p.hidden && p.querySelector('.ph-sec[data-sec="correct"]'); }, null, { timeout: 15000 });

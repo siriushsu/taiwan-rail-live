@@ -2765,7 +2765,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '護照裡的校正貢獻': 'Calibration contributions in your Passport',
   '你錄過幾段、其中有幾段真的被採用，都記在護照的「校正貢獻」。': 'How many segments you’ve recorded, and how many of them were actually adopted, is shown under “Calibration contributions” in your Passport.',
   '找到「校正貢獻」那一列': 'Find the “Calibration contributions” row',
-  '上面寫「校正 N 段（其中 M 段已採用）」': 'It reads “Calibrated N segments (M adopted)”',
+  '上面寫「校正 N 段（其中 M 段已採用）」；只錄過停站的人，寫的是「校正停站 N 站」': 'It reads “Calibrated N segments (M adopted)”; if you only recorded dwell stops, it reads “Calibrated N dwell stops”',
   // 覆寫:英文單複數。這些呼叫端都已把數量傳給 t()(第三參數或 {n}),英文譯文卻是單一字串,數量為 1 時會出現「1 trains」「1 items」
   '{time} · 約 {n} 列同時運行——點擊跳到該時刻': {
     one: '{time} · about {n} train running — tap to jump to this time',
@@ -3024,7 +3024,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '護照裡的校正貢獻': 'パスポートの「校正への貢献」',
   '你錄過幾段、其中有幾段真的被採用，都記在護照的「校正貢獻」。': '記録した区間の数と、そのうち実際に採用された数は、パスポートの「校正への貢献」に表示されます。',
   '找到「校正貢獻」那一列': '「校正への貢献」の行を探します',
-  '上面寫「校正 N 段（其中 M 段已採用）」': '「N区間を校正（うちM区間が採用済み）」と表示されます',
+  '上面寫「校正 N 段（其中 M 段已採用）」；只錄過停站的人，寫的是「校正停站 N 站」': '「N区間を校正（うちM区間が採用済み）」と表示されます。停車だけを記録した場合は「N駅の停車を校正」と表示されます',
 });
 
 // 2026-09-19 i18n 複審修正・第三段(fix/i18n-review-fix):英文譯文裡的全形括號(英文字串不該出現「（）」)。
@@ -3445,6 +3445,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '要更新 App 才能接': 'Update the app to claim',
   '這一版的軌島 App 還不能錄程，要更新到最新版才行。': 'This version of the Rail Island app can’t record trips yet — update to the latest version to record.',
   '已收滿。這一版的軌島 App 還不能錄程，要更新到最新版才行。': 'Fully covered. This version of the Rail Island app can’t record trips yet — update to the latest version to record.',
+  '兩個數字不一樣是正常的：前面是你校正的段數，括號裡是資料夠好、真的被採用的段數。訊號不好的那幾趟資料用不上，所以採用的會少一些。': "It’s normal for the two numbers to differ: the first is the number of segments you calibrated, and the one in parentheses is how many had good enough data to be adopted. Data from trips with a poor signal can’t be used, so fewer get adopted.",
   '這一版的軌島 App 還不能接下來錄，要更新到最新版才行；懸賞板現在可以先看。': 'This version of the Rail Island app can’t claim and record yet — update to the latest version to do that. You can still browse the bounty board.',
   '從前一站或更早上車就開始錄，一直錄到離開要錄的站。整趟要錄滿 <b>{time}</b>、在同一條線上移動 <b>{dist}</b> 才有籌碼，前一站離得近就要再早一點上車；只通過、不停靠不算停站樣本。': 'Start recording when you board at the previous station or earlier, and keep recording until you leave the station you’re recording. The whole trip needs at least <b>{time}</b> of recording and at least <b>{dist}</b> of travel along the same line to earn chips, so if the previous station is close by, board even earlier; passing through without stopping doesn’t count as a dwell sample.',
   '從前一站或更早上車就開始錄，一直錄到離開要錄的站；只通過、不停靠不算停站樣本。': 'Start recording when you board at the previous station or earlier, and keep recording until you leave the station you’re recording; passing through without stopping doesn’t count as a dwell sample.',
@@ -3475,6 +3476,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '要更新 App 才能接': '受け取るにはアプリの更新が必要です',
   '這一版的軌島 App 還不能錄程，要更新到最新版才行。': 'この版の軌島アプリではまだ記録できません。最新版に更新してください。',
   '已收滿。這一版的軌島 App 還不能錄程，要更新到最新版才行。': '収集済みです。この版の軌島アプリではまだ記録できません。最新版に更新してください。',
+  '兩個數字不一樣是正常的：前面是你校正的段數，括號裡是資料夠好、真的被採用的段數。訊號不好的那幾趟資料用不上，所以採用的會少一些。': '2つの数字が違うのは正常です。最初の数字は校正した区間の数、かっこ内はデータが十分に良く採用された区間の数です。電波の悪かった記録は使えないため、採用される区間は少なくなります。',
   '這一版的軌島 App 還不能接下來錄，要更新到最新版才行；懸賞板現在可以先看。': 'この版の軌島アプリではまだ受け取って記録できません。最新版に更新してください。懸賞板は今も見られます。',
   '從前一站或更早上車就開始錄，一直錄到離開要錄的站。整趟要錄滿 <b>{time}</b>、在同一條線上移動 <b>{dist}</b> 才有籌碼，前一站離得近就要再早一點上車；只通過、不停靠不算停站樣本。': '前の駅か、それより前で乗車したときから記録を始め、記録したい駅を出るまで続けてください。チップをもらうには、1回の乗車全体で <b>{time}</b> 以上記録し、同じ路線上で <b>{dist}</b> 以上移動する必要があります。前の駅が近い場合は、もっと早い駅から乗ってください。通過するだけで停車しない場合は、停車サンプルになりません。',
   '從前一站或更早上車就開始錄，一直錄到離開要錄的站；只通過、不停靠不算停站樣本。': '前の駅か、それより前で乗車したときから記録を始め、記録したい駅を出るまで続けてください。通過するだけで停車しない場合は、停車サンプルになりません。',
