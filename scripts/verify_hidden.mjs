@@ -34,21 +34,21 @@ const APP_GLOBALS = { RAIL_MUSIC_AVAILABLE: true, RAIL_ONLINE_BASEMAPS_AVAILABLE
 const browser = await chromium.launch();
 
 // 一趟＝一個乾淨 context（sessionStorage 不能跨情境互相污染，旗標就記在那裡）
-async function probe(qs, label) {
+async function probe(qs, label, demoRec = false) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await ctx.addInitScript(g => { Object.assign(window, g); }, APP_GLOBALS); // 假裝原生殼：App 端的入口也要一起驗
   const page = await ctx.newPage();
   const apiHits = [];
   page.on('request', r => { if (r.url().includes('/api/bounty-me')) apiHits.push(r.url()); });
   // 先塞一筆「錄到一半」的旅程，驗開機會不會把人丟回錄製畫面
-  await ctx.addInitScript(() => {
+  await ctx.addInitScript(demo => {
     try {
       localStorage.setItem('trainmap-bounty-recording-v1', JSON.stringify({
         startedAt: Date.now() - 60000, cardId: 'probe', card: { seg_key: 'x', kind: 'track' },
-        _buf: [{ t: Date.now() - 30000, d: 1000 }], segs: {}, demo: false,
+        _buf: [{ t: Date.now() - 30000, d: 1000 }], segs: {}, demo,
       }));
     } catch (e) {}
-  });
+  }, demoRec);
   await page.goto(BASE + '/index.html' + qs, { waitUntil: 'load' });
   await page.waitForFunction(() => typeof state !== 'undefined' && state.trains && state.trains.length > 0, { timeout: 40000 });
   await page.waitForTimeout(1200);
@@ -75,6 +75,7 @@ async function probe(qs, label) {
       chipsRowShown: !!chipsEl && chipsEl.offsetParent !== null && chipsEl.getBoundingClientRect().height > 0,
       help,
       recording: !!state.recording,
+      savedRecording: localStorage.getItem('trainmap-bounty-recording-v1') !== null,   // 裝置上保存的那一筆還在（不接回不等於刪掉）
       recordBarShown: !!(document.getElementById('recordBar') && !document.getElementById('recordBar').hidden),
       // 控制組：刻意留著的打卡家族（用說明中心的節，跟 H4/H11 同一個機制，不必另外種站章資料）
     };
@@ -85,6 +86,8 @@ async function probe(qs, label) {
 
 const off = await probe('', '預設');
 const on = await probe('?bounty=1&collectmap=1', '點亮');
+// 示範流程（備援站看設計用）：錄程是假的、不需要新版 App，所以示範保存的那一筆照舊接回——點亮時「會接回」的對照改看這一個
+const onDemo = await probe('?demo=bounty', '示範', true);
 
 const HELP_KEYS = ['bounty', 'bountyrec', 'bountyme', 'collectmap'];
 const helpOff = HELP_KEYS.filter(k => off.help.includes(k));
@@ -110,8 +113,11 @@ ok('H9 點亮後收集地圖入口回得來（H2 同理）', on.collectBtn);
 ok('H10 點亮後「校正貢獻」節回得來（H3 同理）', on.correctSec);
 ok('H11 點亮後說明中心四節回得來（H4 同理）',
   helpOn.length === HELP_KEYS.length, `看得到：${helpOn.join('、') || '無'}`);
-ok('H12 點亮後真的會接回錄製（H6 同理，證明是旗標擋的不是那筆資料壞了）',
-  on.recording && on.recordBarShown, `state.recording=${on.recording} 常駐列=${on.recordBarShown}`);
+// 現行 App 殼（網頁包成的那一版）錄不了程，開機不接回舊的錄製、也不開始取樣；所以「點亮後會接回」的對照改用示範流程
+ok('H12 點亮後真的會接回錄製（示範流程 ?demo=bounty 保存著一筆示範的錄製；H6 同理，證明是旗標擋的不是那筆資料壞了）',
+  onDemo.recording && onDemo.recordBarShown, `state.recording=${onDemo.recording} 常駐列=${onDemo.recordBarShown}`);
+ok('H15 點亮後的現行 App 殼不接回錄製（要更新 App 才錄得了程），而且裝置上保存的那一筆還在（之後換新版 App 接得回來）',
+  !on.recording && !on.recordBarShown && on.savedRecording, `state.recording=${on.recording} 常駐列=${on.recordBarShown} 保存的還在=${on.savedRecording}`);
 ok('H13 預設看不到護照的籌碼列（護照已展開：整列不在 DOM，也沒有任何看得到的籌碼列）',
   !off.chipsRow && !off.chipsRowShown, `在 DOM=${off.chipsRow} 看得到=${off.chipsRowShown}`);
 ok('H14 點亮後籌碼列看得到（H13 同理，證明不是選擇器打錯的恆綠：護照展開、列在 DOM、有高度、沒被藏掉）',
