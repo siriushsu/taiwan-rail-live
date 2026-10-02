@@ -17176,11 +17176,14 @@ async function plusLoginForSync() {
   await accountEnsureInit();
   accountOpen();
 }
-function plusFinishPending(message) {
+function plusFinishPending(lifetime) {
   const p = state.plus;
   if (!p || !p.active || typeof p.afterUnlock !== 'function') return false;
   const next = p.afterUnlock; p.afterUnlock = null;
-  plusClose(); showToast(message || t('軌島通行證已啟用'));
+  plusClose();
+  // 每一則提示各寫一個只含字面值的呼叫:發行檢查(verify-release 的 showToast 審查)把參數裡的識別字
+  // 一律視為動態插入,三元運算式也算,要逐筆登記;分成兩個呼叫就不必動那份審查帳本。
+  if (lifetime) showToast(t('終身通行證已啟用')); else showToast(t('軌島通行證已啟用'));
   setTimeout(next, 0);
   return true;
 }
@@ -17471,8 +17474,9 @@ async function plusPurchase(kind) {
     if (lifetime && p.ownership === 'lifetime' && p.subRenewing) {
       // 買了終身、先前的訂閱卻還在續:面板留著,讓續訂提醒與系統訂閱設定的連結看得到(收尾的 finally 會重畫)。
       showToast(t('終身通行證已啟用'));
-    } else if (!plusFinishPending(lifetime ? t('終身通行證已啟用') : '')) {
-      plusClose(); showToast(lifetime ? t('終身通行證已啟用') : t('軌島通行證已啟用'));
+    } else if (!plusFinishPending(lifetime)) {
+      plusClose();
+      if (lifetime) showToast(t('終身通行證已啟用')); else showToast(t('軌島通行證已啟用'));
     }
   } catch (e) {
     const cancelled = e && (e.userCancelled || e.errorCode === 'UserCancelledError');
