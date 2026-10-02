@@ -2891,7 +2891,10 @@ async function fetchRevenueCatCustomerList(uid, env, resource, itemMatches, enti
       }
       return { ok: true, items: [] };
     }
-    if (!rc.ok) return { ok: false, status: 503, error: 'entitlement_unavailable' };
+    if (!rc.ok) {
+      console.error(`[plus] ${resource} 第 ${page + 1} 頁回 ${rc.status}`);
+      return { ok: false, status: 503, error: 'entitlement_unavailable' };
+    }
     const list = await rc.json();
     // 🔴 I-3／I-4／I-5:業務判定之前先驗 schema。不合規＝可重試的 503,不得寫任何資格文件。
     const shapeError = rcSubscriptionsPageError(list, uid);
