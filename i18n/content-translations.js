@@ -3446,7 +3446,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '這一版的軌島 App 還不能錄程，要更新到最新版才行。': 'This version of the Rail Island app can’t record trips yet — update to the latest version to record.',
   '已收滿。這一版的軌島 App 還不能錄程，要更新到最新版才行。': 'Fully covered. This version of the Rail Island app can’t record trips yet — update to the latest version to record.',
   '這一版的軌島 App 還不能接下來錄，要更新到最新版才行；懸賞板現在可以先看。': 'This version of the Rail Island app can’t claim and record yet — update to the latest version to do that. You can still browse the bounty board.',
-  '從前一站或更早上車就開始錄，一直錄到離開要錄的站。整趟要錄滿 <b>{time}</b>、在同一條線上移動 <b>{dist}</b> 才有籌碼；只通過、不停靠不算停站樣本。': 'Start recording when you board at the previous station or earlier, and keep recording until you leave the station you’re recording. The whole trip needs at least <b>{time}</b> of recording and at least <b>{dist}</b> of travel along the same line to earn chips; passing through without stopping doesn’t count as a dwell sample.',
+  '從前一站或更早上車就開始錄，一直錄到離開要錄的站。整趟要錄滿 <b>{time}</b>、在同一條線上移動 <b>{dist}</b> 才有籌碼，前一站離得近就要再早一點上車；只通過、不停靠不算停站樣本。': 'Start recording when you board at the previous station or earlier, and keep recording until you leave the station you’re recording. The whole trip needs at least <b>{time}</b> of recording and at least <b>{dist}</b> of travel along the same line to earn chips, so if the previous station is close by, board even earlier; passing through without stopping doesn’t count as a dwell sample.',
   '從前一站或更早上車就開始錄，一直錄到離開要錄的站；只通過、不停靠不算停站樣本。': 'Start recording when you board at the previous station or earlier, and keep recording until you leave the station you’re recording; passing through without stopping doesn’t count as a dwell sample.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
@@ -3476,6 +3476,6 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '這一版的軌島 App 還不能錄程，要更新到最新版才行。': 'この版の軌島アプリではまだ記録できません。最新版に更新してください。',
   '已收滿。這一版的軌島 App 還不能錄程，要更新到最新版才行。': '収集済みです。この版の軌島アプリではまだ記録できません。最新版に更新してください。',
   '這一版的軌島 App 還不能接下來錄，要更新到最新版才行；懸賞板現在可以先看。': 'この版の軌島アプリではまだ受け取って記録できません。最新版に更新してください。懸賞板は今も見られます。',
-  '從前一站或更早上車就開始錄，一直錄到離開要錄的站。整趟要錄滿 <b>{time}</b>、在同一條線上移動 <b>{dist}</b> 才有籌碼；只通過、不停靠不算停站樣本。': '前の駅か、それより前で乗車したときから記録を始め、記録したい駅を出るまで続けてください。チップをもらうには、1回の乗車全体で <b>{time}</b> 以上記録し、同じ路線上で <b>{dist}</b> 以上移動する必要があります。通過するだけで停車しない場合は、停車サンプルになりません。',
+  '從前一站或更早上車就開始錄，一直錄到離開要錄的站。整趟要錄滿 <b>{time}</b>、在同一條線上移動 <b>{dist}</b> 才有籌碼，前一站離得近就要再早一點上車；只通過、不停靠不算停站樣本。': '前の駅か、それより前で乗車したときから記録を始め、記録したい駅を出るまで続けてください。チップをもらうには、1回の乗車全体で <b>{time}</b> 以上記録し、同じ路線上で <b>{dist}</b> 以上移動する必要があります。前の駅が近い場合は、もっと早い駅から乗ってください。通過するだけで停車しない場合は、停車サンプルになりません。',
   '從前一站或更早上車就開始錄，一直錄到離開要錄的站；只通過、不停靠不算停站樣本。': '前の駅か、それより前で乗車したときから記録を始め、記録したい駅を出るまで続けてください。通過するだけで停車しない場合は、停車サンプルになりません。',
 });

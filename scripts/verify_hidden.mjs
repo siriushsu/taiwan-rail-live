@@ -116,7 +116,7 @@ ok('H11 點亮後說明中心四節回得來（H4 同理）',
 // 現行 App 殼（網頁包成的那一版）錄不了程，開機不接回舊的錄製、也不開始取樣；所以「點亮後會接回」的對照改用示範流程
 ok('H12 點亮後真的會接回錄製（示範流程 ?demo=bounty 保存著一筆示範的錄製；H6 同理，證明是旗標擋的不是那筆資料壞了）',
   onDemo.recording && onDemo.recordBarShown, `state.recording=${onDemo.recording} 常駐列=${onDemo.recordBarShown}`);
-ok('H15 點亮後的現行 App 殼不接回錄製（要更新 App 才錄得了程），而且裝置上保存的那一筆還在（之後換新版 App 接得回來）',
+ok('H15 點亮後的現行 App 殼不接回錄製（要更新 App 才錄得了程），而且裝置上保存的那一筆還在（不刪、不改）',
   !on.recording && !on.recordBarShown && on.savedRecording, `state.recording=${on.recording} 常駐列=${on.recordBarShown} 保存的還在=${on.savedRecording}`);
 ok('H13 預設看不到護照的籌碼列（護照已展開：整列不在 DOM，也沒有任何看得到的籌碼列）',
   !off.chipsRow && !off.chipsRowShown, `在 DOM=${off.chipsRow} 看得到=${off.chipsRowShown}`);

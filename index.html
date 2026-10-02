@@ -24071,7 +24071,7 @@ function bountyRestoreRecording() {
   // 2026-07-29 下架期間不接回錄製:入口都藏了還把人丟回錄製畫面,他會沒有任何解釋也沒得回頭。
   // 保存在裝置上的那筆不刪(改回 true 就接得回來)。
   if (!BOUNTY_ENABLED || !PHYSICAL_COLLECT_ENABLED || state.recording) return false;
-  // 現行 App 殼錄不了程（BOUNTY_APP_NEEDS_UPDATE）：不接回舊的錄製、不開始取樣；保存在裝置上的那筆不碰，換成新版 App 之後接得回來。
+  // 現行 App 殼錄不了程（BOUNTY_APP_NEEDS_UPDATE）：不接回舊的錄製、不開始取樣；保存在裝置上的那筆不刪、不改。
   if (BOUNTY_APP_NEEDS_UPDATE) return false;
   const r = bountyLoadPersistedRecording();
   if (!r) return false;
@@ -24599,10 +24599,12 @@ function showBountyBrief(card) {
     : t('錄 {title}（{line}，{unit}{dur}）。', { title: escHtml(nm.title), line: escHtml(nm.lineName), unit: unitTxt, dur: durTxt });
   // 停站卡：籌碼不分卡別，一律要整趟滿門檻（同一班車錄滿幾分鐘、同一條線上移動多遠），所以要從前一站或更早就開始錄，
   // 只在站上錄一小段，停站的資料照樣能用，但湊不滿門檻、沒有籌碼。門檻數字與下面「合格」那句讀同一個函式；
-  // 規則檔沒讀到就只講怎麼錄、不寫數字也不提籌碼（同獎勵句：不寫伺服器不一定會給的東西）。
+  // 前一站到目標站常常不夠門檻的時間，所以帶數字那一版多提醒「前一站離得近就要再早一點上車」。
+  // 規則檔沒讀到就只講怎麼錄、不寫數字也不提籌碼（同獎勵句：不寫伺服器不一定會給的東西），
+  // 那一版連這個提醒也不帶：沒有門檻可對照，提醒會變成沒有理由的一句話。
   const dq = nm.isDwell ? bountyQualifyParts() : null;
   const timingTxt = nm.isDwell
-    ? (dq ? t('從前一站或更早上車就開始錄，一直錄到離開要錄的站。整趟要錄滿 <b>{time}</b>、在同一條線上移動 <b>{dist}</b> 才有籌碼；只通過、不停靠不算停站樣本。', dq)
+    ? (dq ? t('從前一站或更早上車就開始錄，一直錄到離開要錄的站。整趟要錄滿 <b>{time}</b>、在同一條線上移動 <b>{dist}</b> 才有籌碼，前一站離得近就要再早一點上車；只通過、不停靠不算停站樣本。', dq)
           : t('從前一站或更早上車就開始錄，一直錄到離開要錄的站；只通過、不停靠不算停站樣本。'))
     : t('搭上那班車之後開始錄，到站就結束。');
   // 原生設定頁的橋接：Capacitor Geolocation 沒有這個 API。比照 RAIL_NATIVE_LOCALNOTIFY.openSettings

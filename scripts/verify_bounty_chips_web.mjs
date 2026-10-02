@@ -30,7 +30,7 @@
 //   CH22 規則檔一直不回來時：示範看板、真看板、護照籌碼都在「上限＋餘裕」之內畫出來（看板沒有標記、護照沒有「下一座」）；規則檔在上限之內到了，第一次畫就帶標記；之後才到，看板補上標記、不丟錯、不重複，關掉的看板不被畫、重開的看板不被舊的補畫蓋住
 //   CH24 現行 App 殼在看板上就請人更新：副標說這一版還不能接、卡上按鈕字是「要更新 App 才能接」（已接下的卡也一樣）、按下去收起看板＋吐司是開始錄製同一句、不送認領、不寫本機認領紀錄、不開說明卡；網頁、?demo=bounty（含 App 殼裡）、旗標關的副標、按鈕字、點擊結果一個字不變；手機 360／375／414／768 × Chromium／WebKit 真觸控
 //   CH23 說明卡講清楚「合格」是什麼：「先講清楚」那一節緊接在「錄到一半中斷沒關係」後面有兩句（合格的一趟要同時做到什麼、沒達到會怎樣）；門檻數字讀規則檔，換一份規則檔跟著變，進位只往上（換算回去不低於伺服器的門檻、多出的不到一個進位單位，達到畫面門檻的那一趟伺服器給籌碼）；規則檔讀不到或門檻不能用時整段不寫；中英日、?demo=bounty 的停站卡也有
-//   CH25 停站卡的說明卡講清楚怎麼錄才會達到籌碼門檻：請人從前一站或更早就開始錄、一直錄到離開要錄的站；整趟要錄滿門檻才有籌碼，兩個數字與同一張卡上「合格」那句同一份；規則檔缺或門檻不是正數就只講怎麼錄、不寫數字；英日文；手機四寬度兩引擎
+//   CH25 停站卡的說明卡講清楚怎麼錄才會達到籌碼門檻：請人從前一站或更早就開始錄、一直錄到離開要錄的站；整趟要錄滿門檻才有籌碼，兩個數字與同一張卡上「合格」那句同一份，並提醒前一站離得近就要再早一點上車；規則檔缺或門檻不是正數就只講怎麼錄、不寫數字、不帶那句提醒；英日文；手機四寬度兩引擎
 //   CH26 護照的校正貢獻：只錄過停站卡的人也有校正者章（bounty-me 回應新增 dwellStops）；只有停站時寫「校正停站 N 站」、原因說明照給；有路段的人畫面完全不變；舊版回應沒有欄位時與以前一樣；亂值；英日文；手機四寬度兩引擎
 //   CH27 現行 App 殼剩下三處還在教人錄程：說明中心「懸賞板」「錄一趟校正旅程」兩節、護照校正貢獻的空狀態、開機接回錄製，都讀看板同一個判定；網頁、?demo=bounty、旗標關完全不變；手機四寬度兩引擎
 //   CH28 現行 App 殼看板上已收滿的卡也請人更新：那一句改成收滿了、這一版錄不了程、要更新到最新版；網頁、?demo=bounty（含在 App 殼裡）、旗標關仍是原句；中英日；手機四寬度兩引擎，那一句不被截、不溢出、不與別的元素重疊、沒有水平捲動
@@ -2300,18 +2300,22 @@ try {
   // ═══ CH25：停站卡的說明卡講清楚「怎麼錄才會達到籌碼門檻」 ═════════════════════════════════════════════════════════
   // 停站卡的籌碼與路段卡同一套規則：整趟（同一班車、同一條線）錄滿門檻才有。所以說明卡請人從前一站或更早就開始錄、一直錄到離開要錄的站；
   // 只在站上錄一小段，停站的資料照樣能用，只是湊不滿門檻、沒有籌碼。這一句的兩個門檻數字，與同一張卡上「合格的一趟」那句是同一份。
-  // 規則檔讀不到、或門檻不是正數：只講怎麼錄，不寫數字、不提籌碼。
+  // 前一站到目標站常常湊不滿門檻的時間，所以帶數字的那一版在門檻之後多一句「前一站離得近就要再早一點上車」；
+  // 規則檔讀不到、或門檻不是正數：只講怎麼錄，不寫數字、不提籌碼，也不帶那句提醒（沒有門檻可對照）。
   // 期望值有兩種來源，都不呼叫 index.html 的函式：① 字面對照表（手算寫死）；
   //   ② 把畫面上的數字換回秒與公尺，必須不低於規則檔、多出來的不到一個進位單位，再丟進伺服器入帳用的純函式 tripChips。
   if (want('CH25')) {
     const CARD_D = { ...CARD_OPEN, id: 'card-dwell-open', kind: 'dwell', slot: 'peak', unitKeys: ['tra_sched|南迴線|加祿|加祿'], units: 1, points: 5 };
     const BOARD_D = { ...BOARD, cards: [CARD_D, CARD_R] };
     const U25 = {
-      'zh-TW': { withNum: (t, d) => `從前一站或更早上車就開始錄，一直錄到離開要錄的站。整趟要錄滿 ${t}、在同一條線上移動 ${d} 才有籌碼；只通過、不停靠不算停站樣本。`,
+      'zh-TW': { hint: '前一站離得近就要再早一點上車',
+        withNum: (t, d) => `從前一站或更早上車就開始錄，一直錄到離開要錄的站。整趟要錄滿 ${t}、在同一條線上移動 ${d} 才有籌碼，前一站離得近就要再早一點上車；只通過、不停靠不算停站樣本。`,
         bare: '從前一站或更早上車就開始錄，一直錄到離開要錄的站；只通過、不停靠不算停站樣本。' },
-      en: { withNum: (t, d) => `Start recording when you board at the previous station or earlier, and keep recording until you leave the station you’re recording. The whole trip needs at least ${t} of recording and at least ${d} of travel along the same line to earn chips; passing through without stopping doesn’t count as a dwell sample.`,
+      en: { hint: 'if the previous station is close by, board even earlier',
+        withNum: (t, d) => `Start recording when you board at the previous station or earlier, and keep recording until you leave the station you’re recording. The whole trip needs at least ${t} of recording and at least ${d} of travel along the same line to earn chips, so if the previous station is close by, board even earlier; passing through without stopping doesn’t count as a dwell sample.`,
         bare: 'Start recording when you board at the previous station or earlier, and keep recording until you leave the station you’re recording; passing through without stopping doesn’t count as a dwell sample.' },
-      ja: { withNum: (t, d) => `前の駅か、それより前で乗車したときから記録を始め、記録したい駅を出るまで続けてください。チップをもらうには、1回の乗車全体で ${t} 以上記録し、同じ路線上で ${d} 以上移動する必要があります。通過するだけで停車しない場合は、停車サンプルになりません。`,
+      ja: { hint: '前の駅が近い場合は、もっと早い駅から乗ってください',
+        withNum: (t, d) => `前の駅か、それより前で乗車したときから記録を始め、記録したい駅を出るまで続けてください。チップをもらうには、1回の乗車全体で ${t} 以上記録し、同じ路線上で ${d} 以上移動する必要があります。前の駅が近い場合は、もっと早い駅から乗ってください。通過するだけで停車しない場合は、停車サンプルになりません。`,
         bare: '前の駅か、それより前で乗車したときから記録を始め、記録したい駅を出るまで続けてください。通過するだけで停車しない場合は、停車サンプルになりません。' },
     };
     const T25 = [   // 規則檔的秒數與公尺數 → 畫面上該出現的字（手算；進位只往上）
@@ -2365,9 +2369,9 @@ try {
       const dn = dwellNums(r.first), qn = qualNums(r.all);
       ok(`CH25a [fixture] 讀到的規則檔就是真的那份（${RULES.chips.minTripSec} 秒、${RULES.chips.minTripMoveM} 公尺）；開出來的是停站卡（第一節有「只通過、不停靠不算停站樣本」、有「平日尖峰・1 站」）`,
         (await rulesIs(s.page, RULES)) && r.first.includes('只通過、不停靠不算停站樣本') && r.first.includes('平日尖峰・1 站'), r.first);
-      ok('CH25b 停站卡的說明卡有「從前一站或更早上車就開始錄，一直錄到離開要錄的站。整趟要錄滿 N 分鐘、在同一條線上移動 M 才有籌碼；只通過、不停靠不算停站樣本。」整句；' +
+      ok('CH25b 停站卡的說明卡有「從前一站或更早上車就開始錄，一直錄到離開要錄的站。整趟要錄滿 N 分鐘、在同一條線上移動 M 才有籌碼，前一站離得近就要再早一點上車；只通過、不停靠不算停站樣本。」整句（含提醒前一站很近要提早上車那半句）；' +
         '數字換回秒與公尺後不低於規則檔、多出的不到一個進位單位，達到它的那一趟伺服器給籌碼',
-        !!sentenceOf(r.first, 'zh-TW') && !!dn && rangeOk25(dn, RULES.chips.minTripSec, RULES.chips.minTripMoveM) && gets25(dn, RULES) > 0, JSON.stringify({ sentence: sentenceOf(r.first, 'zh-TW'), dn }));
+        !!sentenceOf(r.first, 'zh-TW') && sentenceOf(r.first, 'zh-TW').includes(U25['zh-TW'].hint) && !!dn && rangeOk25(dn, RULES.chips.minTripSec, RULES.chips.minTripMoveM) && gets25(dn, RULES) > 0, JSON.stringify({ sentence: sentenceOf(r.first, 'zh-TW'), dn }));
       ok('CH25c 同一張卡上，停站那句的兩個數字與「合格的一趟」那句的兩個數字一樣（同一份、不各算各的）；「錄到一半中斷沒關係」「合格的一趟要同時做到」「沒達到門檻」「即使這次的資料不能用」四句照在、依序出現在停站那句之後',
         sameNums(dn, qn) && ['從前一站或更早上車就開始錄', '錄到一半中斷沒關係', '合格的一趟要同時做到：', '沒達到門檻', '即使這次的資料不能用'].map(x => r.all.indexOf(x)).every((v, i, a) => v >= 0 && (i === 0 || v > a[i - 1])),
         JSON.stringify({ dn, qn }));
@@ -2395,9 +2399,9 @@ try {
       for (const [label, o] of BAD25) {
         const r = await show25(s.page, CARD_D.id, o.whole ? { whole: true } : { chips: chipsOf(o) });
         const sen = sentenceOf(r.first, 'zh-TW');
-        outs.push([label, sen === U25['zh-TW'].bare && !r.all.includes('整趟要錄滿') && !r.all.includes('才有籌碼') && !r.all.includes('合格的一趟要同時做到') && r.all.includes('錄到一半中斷沒關係') && r.all.includes('即使這次的資料不能用')]);
+        outs.push([label, sen === U25['zh-TW'].bare && !r.all.includes('整趟要錄滿') && !r.all.includes('才有籌碼') && !r.all.includes(U25['zh-TW'].hint) && !r.all.includes('合格的一趟要同時做到') && r.all.includes('錄到一半中斷沒關係') && r.all.includes('即使這次的資料不能用')]);
       }
-      ok('CH25h 規則檔讀到了但門檻缺、是 0、是負數、不是數字、每趟不給籌碼、或連 chips 區塊都沒有：停站那句只剩「從前一站或更早上車就開始錄，一直錄到離開要錄的站；只通過、不停靠不算停站樣本。」，沒有數字、沒有「籌碼」；「合格」那兩句不在，中斷與承諾那兩句照在',
+      ok('CH25h 規則檔讀到了但門檻缺、是 0、是負數、不是數字、每趟不給籌碼、或連 chips 區塊都沒有：停站那句只剩「從前一站或更早上車就開始錄，一直錄到離開要錄的站；只通過、不停靠不算停站樣本。」，沒有數字、沒有「籌碼」、沒有「再早一點上車」的提醒；「合格」那兩句不在，中斷與承諾那兩句照在',
         outs.length === 8 && outs.every(x => x[1]), JSON.stringify(outs));
       ok('CH25i 頁面沒有未捕捉的例外', s.errors.length === 0, JSON.stringify(s.errors));
       await s.ctx.close();
@@ -2420,10 +2424,10 @@ try {
       const sen = sentenceOf(r.first, lang);
       const b = await show25(s.page, CARD_D.id, { whole: true });
       const senBare = sentenceOf(b.first, lang);
-      ok(`CH25k-${lang} ${lang} 介面：規則檔 ${row.sec} 秒、${row.m} 公尺 → 整句是「${U.withNum(row[lang][0], row[lang][1]).slice(0, 60)}…」；整句裡沒有中文原句` + (lang === 'en' ? '、沒有任何中文字' : ''),
-        sen === U.withNum(row[lang][0], row[lang][1]) && !sen.includes('從前一站') && !sen.includes('才有籌碼') && (lang !== 'en' || !/[㐀-鿿]/.test(sen)), JSON.stringify({ sen }));
+      ok(`CH25k-${lang} ${lang} 介面：規則檔 ${row.sec} 秒、${row.m} 公尺 → 整句是「${U.withNum(row[lang][0], row[lang][1]).slice(0, 60)}…」，含提醒前一站很近要提早上車的那半句；整句裡沒有中文原句` + (lang === 'en' ? '、沒有任何中文字' : ''),
+        sen === U.withNum(row[lang][0], row[lang][1]) && sen.includes(U.hint) && !sen.includes('從前一站') && !sen.includes('才有籌碼') && (lang !== 'en' || !/[㐀-鿿]/.test(sen)), JSON.stringify({ sen }));
       ok(`CH25l-${lang} ${lang} 介面：規則檔缺時整句是不帶數字、不提籌碼的那一句；頁面沒有未捕捉的例外`,
-        senBare === U.bare && !/chip|チップ|\d/.test(senBare) && s.errors.length === 0, JSON.stringify({ senBare, errors: s.errors }));
+        senBare === U.bare && !senBare.includes(U.hint) && !/chip|チップ|\d/.test(senBare) && s.errors.length === 0, JSON.stringify({ senBare, errors: s.errors }));
       await s.ctx.close();
     });
     // ?demo=bounty（網頁，備援站上手機看的就是這個）：真的點「接下」開出的停站卡，也有這一句，數字與「合格」那句一樣
@@ -2439,7 +2443,7 @@ try {
       const r = await readBrief(s.page).then(x => ({ all: x.text }));
       const dn = dwellNums(r.all), qn = qualNums(r.all);
       ok('CH25m ?demo=bounty（停站卡）：真的點「接下」開出的說明卡有停站那一句，數字不低於規則檔、與「合格」那句同數字；舊的錄法說明不在；頁面沒有未捕捉的例外',
-        !!dwell && !!sentenceOf(r.all, 'zh-TW') && rangeOk25(dn, RULES.chips.minTripSec, RULES.chips.minTripMoveM) && sameNums(dn, qn) && !r.all.includes('進站前就開始錄') && s.errors.length === 0, JSON.stringify({ dwell, dn, qn }));
+        !!dwell && !!sentenceOf(r.all, 'zh-TW') && r.all.includes(U25['zh-TW'].hint) && rangeOk25(dn, RULES.chips.minTripSec, RULES.chips.minTripMoveM) && sameNums(dn, qn) && !r.all.includes('進站前就開始錄') && s.errors.length === 0, JSON.stringify({ dwell, dn, qn }));
       await s.ctx.close();
     });
     // 手機：?demo=bounty 的停站卡，360／375／414／768 × Chromium／WebKit；真觸控點「接下」。停站那句整句都在說明卡的捲動區之內、沒被截、沒有水平捲動
@@ -2466,7 +2470,7 @@ try {
             inView: r.left >= -0.5 && r.right <= innerWidth + 0.5, wOver: p.scrollWidth > p.clientWidth + 1, doc: document.documentElement.scrollWidth - innerWidth };
         });
         ok(`CH25n-${tag} ?demo=bounty（手機 ${width} 寬）真觸控點「接下」：停站那一句整句在說明卡的捲動區之內、沒溢出、沒被截、頁面沒有水平捲動；頁面沒有未捕捉的例外`,
-          !!m && /整趟要錄滿 [\d.]+ 分鐘、在同一條線上移動 [\d.]+ (公里|公尺) 才有籌碼；只通過、不停靠不算停站樣本。/.test(m.text) && m.inBox && m.inView && !m.wOver && m.doc <= 1 && s.errors.length === 0, JSON.stringify({ m, errors: s.errors }));
+          !!m && /整趟要錄滿 [\d.]+ 分鐘、在同一條線上移動 [\d.]+ (公里|公尺) 才有籌碼，前一站離得近就要再早一點上車；只通過、不停靠不算停站樣本。/.test(m.text) && m.inBox && m.inView && !m.wOver && m.doc <= 1 && s.errors.length === 0, JSON.stringify({ m, errors: s.errors }));
         if (SHOT_DIR) await s.page.screenshot({ path: path.join(SHOT_DIR, `bounty-dwell-brief-${tag}.png`) });
         await s.ctx.close();
       });
