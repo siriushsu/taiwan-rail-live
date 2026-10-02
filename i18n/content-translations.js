@@ -2117,7 +2117,6 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '，大概多久算不出來': ", the approximate duration can't be calculated",
   '錄 {title}（{line}・{slot}・{unit}）': 'Record {title} ({line} · {slot} · {unit})',
   '錄 {title}（{line}，{unit}{dur}）': 'Record {title} ({line}, {unit}{dur})',
-  '進站前就開始錄，列車停穩後繼續錄到出站；只通過、不停靠不算停站樣本。': "Start recording before arriving at the station and keep recording until the train stops and then departs; passing through without stopping doesn't count as a dwell sample.",
   '搭上那班車之後開始錄，到站就結束。': 'Start recording once you board that train, and stop when it arrives.',
   '這趟要做什麼': 'What this trip involves',
   '三件事先做好': 'Three things to set up first',
@@ -2146,7 +2145,6 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '，大概多久算不出來': '、おおよその所要時間は算出できません',
   '錄 {title}（{line}・{slot}・{unit}）': '{title}を録画（{line}・{slot}・{unit}）',
   '錄 {title}（{line}，{unit}{dur}）': '{title}を録画（{line}、{unit}{dur}）',
-  '進站前就開始錄，列車停穩後繼續錄到出站；只通過、不停靠不算停站樣本。': '駅に入る前から録画を始め、列車が停止してから発車するまで録画を続けてください。停車せず通過するだけでは停車サンプルになりません。',
   '搭上那班車之後開始錄，到站就結束。': 'その列車に乗車したら録画を開始し、到着したら終了してください。',
   '這趟要做什麼': '今回の乗車ですること',
   '三件事先做好': '事前に済ませておく3つのこと',
@@ -2968,7 +2966,6 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '這些項目還沒有實測資料。用 App 才能接下來錄——網頁可以先看看有哪些。': 'これらの項目にはまだ実測データがありません。受け取って記録するにはアプリが必要です。ウェブ版では内容を確認できます。',
   '已經在錄了': 'すでに記録中です',
   '停止錄製': '記録を停止',
-  '進站前就開始錄，列車停穩後繼續錄到出站；只通過、不停靠不算停站樣本。': '駅に入る前から記録を始め、列車が停車したあとも駅を出るまで記録を続けてください。停車せず通過するだけでは停車サンプルになりません。',
   '搭上那班車之後開始錄，到站就結束。': 'その列車に乗ったら記録を開始し、到着したら終了してください。',
   '錄到一半中斷沒關係，<b>錄到的部分照樣算</b>。': '記録が途中で中断しても問題ありません。<b>記録できた部分はそのまま有効です</b>。',
   '錄製中無法開啟收集地圖': '記録中は収集マップを開けません',
@@ -3441,6 +3438,8 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '沒達到門檻，能用的資料照樣拿來校正，只是沒有籌碼。': 'If a trip falls short, its usable data still goes into calibration; it just earns no chips.',
   '這些項目還沒有實測資料。這一版還不能接，要更新到最新版的軌島 App 才能接下來錄——現在可以先看看有哪些。': 'These items don’t have real measurement data yet. This version can’t claim them — update the Rail Island app to the latest version to claim and record. For now, you can browse what’s available.',
   '要更新 App 才能接': 'Update the app to claim',
+  '從前一站或更早上車就開始錄，一直錄到離開要錄的站。整趟要錄滿 <b>{time}</b>、在同一條線上移動 <b>{dist}</b> 才有籌碼；只通過、不停靠不算停站樣本。': 'Start recording when you board at the previous station or earlier, and keep recording until you leave the station you’re recording. The whole trip needs at least <b>{time}</b> of recording and at least <b>{dist}</b> of travel along the same line to earn chips; passing through without stopping doesn’t count as a dwell sample.',
+  '從前一站或更早上車就開始錄，一直錄到離開要錄的站；只通過、不停靠不算停站樣本。': 'Start recording when you board at the previous station or earlier, and keep recording until you leave the station you’re recording; passing through without stopping doesn’t count as a dwell sample.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '籌碼 ×{n}': 'チップ ×{n}',
@@ -3466,4 +3465,6 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '沒達到門檻，能用的資料照樣拿來校正，只是沒有籌碼。': '条件に届かなくても、使えるデータは校正に使われます。ただしチップはもらえません。',
   '這些項目還沒有實測資料。這一版還不能接，要更新到最新版的軌島 App 才能接下來錄——現在可以先看看有哪些。': 'これらの項目にはまだ実測データがありません。このバージョンでは受け取れません。軌島アプリを最新版に更新すると、受け取って記録できます。今は内容を確認できます。',
   '要更新 App 才能接': '受け取るにはアプリの更新が必要です',
+  '從前一站或更早上車就開始錄，一直錄到離開要錄的站。整趟要錄滿 <b>{time}</b>、在同一條線上移動 <b>{dist}</b> 才有籌碼；只通過、不停靠不算停站樣本。': '前の駅か、それより前で乗車したときから記録を始め、記録したい駅を出るまで続けてください。チップをもらうには、1回の乗車全体で <b>{time}</b> 以上記録し、同じ路線上で <b>{dist}</b> 以上移動する必要があります。通過するだけで停車しない場合は、停車サンプルになりません。',
+  '從前一站或更早上車就開始錄，一直錄到離開要錄的站；只通過、不停靠不算停站樣本。': '前の駅か、それより前で乗車したときから記録を始め、記録したい駅を出るまで続けてください。通過するだけで停車しない場合は、停車サンプルになりません。',
 });

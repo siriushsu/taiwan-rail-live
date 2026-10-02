@@ -23665,16 +23665,22 @@ function bountyUpTo(x, max = 1e7) {
   const n = Math.ceil(Number(x));
   return Number.isFinite(n) && n > 0 && n <= max ? n : 0;
 }
-function bountyQualifyItems() {
+// 兩個門檻數字（寫成給人看的字）。「合格」兩句與停站卡的錄法說明都讀它，數字不會各算各的；讀不到回 null。
+function bountyQualifyParts() {
   const ch = bountyRulesMem && bountyRulesMem.chips;
-  if (!ch || !(bountyNum(ch.perTrip) > 0)) return [];
+  if (!ch || !(bountyNum(ch.perTrip) > 0)) return null;
   const mins = bountyUpTo(Number(ch.minTripSec) / 60), m = bountyUpTo(ch.minTripMoveM);
-  if (!mins || !m) return [];
+  if (!mins || !m) return null;
   const time = t('{n} 分鐘', { n: i18nNumber(mins) });
   const km = m >= 1000 ? bountyUpTo(m / 100) / 10 : 0;
   const dist = km ? t('{n} 公里', { n: i18nNumber(km) }) : t('{n} 公尺', { n: i18nNumber(m) });
+  return { time, dist };
+}
+function bountyQualifyItems() {
+  const q = bountyQualifyParts();
+  if (!q) return [];
   return [
-    t('合格的一趟要同時做到：同一班車從頭錄到尾至少 <b>{time}</b>、在同一條線上至少移動 <b>{dist}</b>、資料能用。一班車最多算一趟。', { time, dist }),
+    t('合格的一趟要同時做到：同一班車從頭錄到尾至少 <b>{time}</b>、在同一條線上至少移動 <b>{dist}</b>、資料能用。一班車最多算一趟。', q),
     t('沒達到門檻，能用的資料照樣拿來校正，只是沒有籌碼。')];
 }
 function closeBountyBoard() { document.getElementById('bountyModal').hidden = true; }
@@ -24587,8 +24593,13 @@ function showBountyBrief(card) {
   const taskTxt = nm.isDwell
     ? t('錄 {title}（{line}・{slot}・{unit}）。', { title: escHtml(nm.title), line: escHtml(nm.lineName), slot: escHtml(bountySlotName(card.slot)), unit: unitTxt })
     : t('錄 {title}（{line}，{unit}{dur}）。', { title: escHtml(nm.title), line: escHtml(nm.lineName), unit: unitTxt, dur: durTxt });
+  // 停站卡：籌碼不分卡別，一律要整趟滿門檻（同一班車錄滿幾分鐘、同一條線上移動多遠），所以要從前一站或更早就開始錄，
+  // 只在站上錄一小段，停站的資料照樣能用，但湊不滿門檻、沒有籌碼。門檻數字與下面「合格」那句讀同一個函式；
+  // 規則檔沒讀到就只講怎麼錄、不寫數字也不提籌碼（同獎勵句：不寫伺服器不一定會給的東西）。
+  const dq = nm.isDwell ? bountyQualifyParts() : null;
   const timingTxt = nm.isDwell
-    ? t('進站前就開始錄，列車停穩後繼續錄到出站；只通過、不停靠不算停站樣本。')
+    ? (dq ? t('從前一站或更早上車就開始錄，一直錄到離開要錄的站。整趟要錄滿 <b>{time}</b>、在同一條線上移動 <b>{dist}</b> 才有籌碼；只通過、不停靠不算停站樣本。', dq)
+          : t('從前一站或更早上車就開始錄，一直錄到離開要錄的站；只通過、不停靠不算停站樣本。'))
     : t('搭上那班車之後開始錄，到站就結束。');
   // 原生設定頁的橋接：Capacitor Geolocation 沒有這個 API。比照 RAIL_NATIVE_LOCALNOTIFY.openSettings
   // 的既有做法——見 null 就改顯示純文字引導，不留一顆點了沒反應的鈕。
