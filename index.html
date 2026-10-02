@@ -24622,7 +24622,7 @@ function showBountyBrief(card) {
       // 合格的門檻緊接在「中斷也算」後面：兩句放在一起，才不會被讀成「錄到多少都有籌碼」。規則檔沒到就整段不寫。
       bountyQualifyItems().map(x => `<li>${x}</li>`).join('') +
       // 🔴 這一句是三態判定的直接承諾（規格 §7、§8），不可以只寫在規格裡不寫在 UI 上
-      `<li>${t('<b>即使這次的資料不能用，校正者章還是你的。</b>我會告訴你是什麼原因、下次怎麼改善。')}</li>` +
+      `<li>${t('<b>即使這次的資料不能用，只要錄得夠完整，校正者章還是你的。</b>我會告訴你是什麼原因、下次怎麼改善。')}</li>` +
       `</ul></div>`;
   const st = document.getElementById('bountyOpenSettings');
   if (st) st.onclick = () => { try { window.RAIL_NATIVE_GEOLOCATION.openSettings(); } catch (e) {} };
@@ -24881,17 +24881,20 @@ function buildCorrectSection() {
   const me = bountyMeMem;
   const corrected = (me && me.corrected) || {}; // 防禦 API 形狀:me 有回應但 corrected 缺欄位時不炸開
   const n = me ? bountyNum(corrected.segs) : 0;
+  // 只錄過停站卡的人 n 是 0（路段數不含停站，見 bounty-me 的契約），他的停站記錄在 me.dwellStops。
+  // 舊版回應沒有這個欄位，bountyNum 當 0，畫面與以前一樣。
+  const stops = me ? bountyNum(me.dwellStops) : 0;
   let body;
-  if (!me || !n) {
+  if (!me || (!n && !stops)) {
     // 第二句的 <b> 是字典值裡的固定標記(比照說明卡裡的「接下的卡 <b>24 小時內有效</b>。」),字典是自家檔案。
     body = '<div class="ph-empty">' + i18nJoin(escHtml(t('還沒有校正記錄——去懸賞板看看有哪些路段缺資料。')),
-      t('錄一趟就有校正者章，<b>即使資料不能用，章還是你的</b>。')) + '</div>';
+      t('錄得夠完整就有校正者章，<b>即使資料不能用，章還是你的</b>。')) + '</div>';
   } else {
     // 逐線印章不沿用 .stn-seal(50px 圓章,為 2–4 字站名設計):線名連括號里程可以到 10 字以上
     // (「南迴線（枋寮–臺東）」),塞進圓章會裁到看不出是哪條線。這裡刻意印出 rec.name 全名
     // (含括號里程)而不是簡稱——查表失敗時 fallback 只會印 l.lnId 這個沒有括號的裸線名,
     // 兩者要看得出差別,不能為了好看而先把括號砍掉(那樣真查到跟 fallback 就長一樣了)。
-    const lines = (me.lines || []).map(l => {
+    const lines = !n ? '' : (me.lines || []).map(l => {
       const rec = lineNetwork().get(l.sys + '|' + l.lnId);
       // 外語:查到的線照樣印「線名（起訖）」全名(端點走站名目錄),查不到的 fallback 仍是裸線名。
       return `<span class="corr-line"><b>${escHtml(rec ? lineFullNameI18n(rec) : routeName(l.lnId, l.sys))}</b><small>${escHtml(t('{n} 段', { n: bountyNum(l.segs) }))}</small></span>`;
@@ -24908,9 +24911,12 @@ function buildCorrectSection() {
       ? `<div class="corr-first">${t('首位校正者：<b>你</b>（{n} 段）', { n: (me.firsts || []).length })}</div>` : '';
     // 樣板裡的 <b>／<span class="corr-sub"> 是字典值的固定標記;插進去的只有 bountyNum() 收斂過的整數。
     // 舊的「{n} 點」那一格不再顯示：獎勵換成籌碼，餘額在標題列上方的籌碼列(buildChipsRow)。校正段數、採用段數與章照舊。
+    // 只有停站記錄、沒有路段（n 是 0）：逐線的段數都是 0，不畫；數字那一行改寫停站站數。原因說明與首位校正者照舊。
     body =
-      `<div class="corr-nums">${t('校正 <b>{n}</b> 段<span class="corr-sub">（其中 <b>{adopted}</b> 段已採用）</span>', { n, adopted: bountyNum(corrected.adopted) })}</div>` +
-      `<div class="seal-wall">${lines}</div>` + first + bad;
+      `<div class="corr-nums">${n
+        ? t('校正 <b>{n}</b> 段<span class="corr-sub">（其中 <b>{adopted}</b> 段已採用）</span>', { n, adopted: bountyNum(corrected.adopted) })
+        : t('校正停站 <b>{n}</b> 站', { n: stops })}</div>` +
+      (n ? `<div class="seal-wall">${lines}</div>` : '') + first + bad;
     // 兌換入口在沒有任何段開放時整個隱藏——不做「敬請期待」那種空頭 UI(規格 §8)。
   }
   // 節的形狀固定是「標題＋緊接一個內容 div」,收合靠 .ph-sec.closed + div{display:none}。
@@ -35667,7 +35673,7 @@ const HELP_GROUPS = [
     { key: 'bountyme', avail: () => BOUNTY_ENABLED, ic: '校', nm: '護照裡的校正貢獻',
       one: '你錄過幾段、其中有幾段真的被採用，都記在護照的「校正貢獻」。',
       steps: ['打開「護照」', '找到「校正貢獻」那一列', '上面寫「校正 N 段（其中 M 段已採用）」'],
-      tip: '兩個數字不一樣是正常的——訊號不好的那幾趟資料用不上，但校正者章還是你的，而且我會寫出是什麼原因、下次怎麼改善。某段如果是你第一個錄回來的，會標「首位校正者」。', try: 'ride' },
+      tip: '兩個數字不一樣是正常的——訊號不好的那幾趟資料用不上，但只要錄得夠完整，校正者章還是你的，而且我會寫出是什麼原因、下次怎麼改善。某段如果是你第一個錄回來的，會標「首位校正者」。', try: 'ride' },
     { key: 'notify', ic: '', nm: '到站提醒', badge: 'App', avail: () => NOTIFY_LOCAL_ENABLED,
       one: '跟著車的時候可以排提醒，快到站前手機會響。',
       steps: ['先跟一班車', '卡片上的「提醒」選要提醒的站', '「更多」→「已排提醒」可以查看與取消'],

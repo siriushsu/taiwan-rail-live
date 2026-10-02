@@ -31,6 +31,7 @@
 //   CH24 現行 App 殼在看板上就請人更新：副標說這一版還不能接、卡上按鈕字是「要更新 App 才能接」（已接下的卡也一樣）、按下去收起看板＋吐司是開始錄製同一句、不送認領、不寫本機認領紀錄、不開說明卡；網頁、?demo=bounty（含 App 殼裡）、旗標關的副標、按鈕字、點擊結果一個字不變；手機 360／375／414／768 × Chromium／WebKit 真觸控
 //   CH23 說明卡講清楚「合格」是什麼：「先講清楚」那一節緊接在「錄到一半中斷沒關係」後面有兩句（合格的一趟要同時做到什麼、沒達到會怎樣）；門檻數字讀規則檔，換一份規則檔跟著變，進位只往上（換算回去不低於伺服器的門檻、多出的不到一個進位單位，達到畫面門檻的那一趟伺服器給籌碼）；規則檔讀不到或門檻不能用時整段不寫；中英日、?demo=bounty 的停站卡也有
 //   CH25 停站卡的說明卡講清楚怎麼錄才會達到籌碼門檻：請人從前一站或更早就開始錄、一直錄到離開要錄的站；整趟要錄滿門檻才有籌碼，兩個數字與同一張卡上「合格」那句同一份；規則檔缺或門檻不是正數就只講怎麼錄、不寫數字；英日文；手機四寬度兩引擎
+//   CH26 護照的校正貢獻：只錄過停站卡的人也有校正者章（bounty-me 回應新增 dwellStops）；只有停站時寫「校正停站 N 站」、原因說明照給；有路段的人畫面完全不變；舊版回應沒有欄位時與以前一樣；亂值；英日文；手機四寬度兩引擎
 //
 // 打樁慣例照 scripts/verify_bounty_merge_web.mjs：window.RAIL_FIREBASE_CONFIG＋window.RAIL_FIREBASE_TEST_MODULES；
 // localStorage['trainmap-account-uid'] 讓開機走 accountEnsureInit（回訪者分支）。
@@ -1145,19 +1146,19 @@ try {
       'zh-TW': { re: POINTS_RE, sub: [/籌碼/, /上限/], subNo: /榮譽/, subDemo: [/示範資料/, /都是假的/], tag: '籌碼 ×2',
         claimed: '接下了・24 小時內有效', demoClaimed: '（示範）接下了・24 小時內有效',
         saveFail: '已在伺服器接下，但這台裝置存不下來（可能是儲存空間滿了或無痕模式）——重新整理後認領不會留著',
-        again: '這段你已經接下了，還沒過期', expiry: '接下的卡 24 小時內有效。', promise: '即使這次的資料不能用，校正者章還是你的。',
+        again: '這段你已經接下了，還沒過期', expiry: '接下的卡 24 小時內有效。', promise: '即使這次的資料不能用，只要錄得夠完整，校正者章還是你的。',
         passport: '章還是你的', tip: '校正者章還是你的', rowTrack: '0 段已覆蓋', rowDwell: '0 站已覆蓋',
         subShell: '這些項目還沒有實測資料。這一版還不能接，要更新到最新版的軌島 App 才能接下來錄——現在可以先看看有哪些。' },
       en: { re: POINTS_RE_I18N, sub: [/chips/, /daily limit/], subNo: /honou?r/i, subDemo: [/Demo data/, /fake/], tag: 'Chips ×2',
         claimed: 'Claimed · valid for 24 hours', demoClaimed: '(Demo) Claimed · valid for 24 hours',
         saveFail: 'Claimed on the server, but this device couldn’t save it (storage may be full, or you’re in private browsing) — the claim won’t persist after you refresh',
-        again: 'You’ve already claimed this segment, and it hasn’t expired yet', expiry: 'A claimed card is valid for 24 hours.', promise: 'Even if this data can’t be used, the calibrator stamp is still yours.',
+        again: 'You’ve already claimed this segment, and it hasn’t expired yet', expiry: 'A claimed card is valid for 24 hours.', promise: 'Even if this data can’t be used, the calibrator stamp is still yours as long as you recorded enough of it.',
         passport: 'even if the data can’t be used, the stamp is still yours', tip: 'you keep the calibrator stamp', rowTrack: 'Segments covered: 0', rowDwell: 'Stations covered: 0',
         subShell: 'These items don’t have real measurement data yet. This version can’t claim them — update the Rail Island app to the latest version to claim and record. For now, you can browse what’s available.' },
       ja: { re: POINTS_RE_I18N, sub: [/チップ/, /上限/], subNo: /名誉/, subDemo: [/デモデータ/, /仮/], tag: 'チップ ×2',
         claimed: '受け取りました・24時間有効', demoClaimed: '（デモ）受け取りました・24時間有効',
         saveFail: 'サーバー側では受領済みですが、この端末には保存できませんでした（ストレージ不足またはプライベートブラウジングの可能性）。更新すると受領記録は残りません',
-        again: 'この区間はすでに受け取り済みで、まだ有効期限内です', expiry: '受け取ったカードは24時間有効です。', promise: '今回のデータが使えなくても、校正者スタンプはあなたのものです。',
+        again: 'この区間はすでに受け取り済みで、まだ有効期限内です', expiry: '受け取ったカードは24時間有効です。', promise: '今回のデータが使えなくても、十分に記録できていれば、校正者スタンプはあなたのものです。',
         passport: 'データが使えなかった場合でも、スタンプはあなたのものです', tip: '校正者スタンプはあなたのものです', rowTrack: '0区間を記録済み', rowDwell: '0駅を記録済み',
         subShell: 'これらの項目にはまだ実測データがありません。このバージョンでは受け取れません。軌島アプリを最新版に更新すると、受け取って記録できます。今は内容を確認できます。' },
     };
@@ -1282,7 +1283,7 @@ try {
       await briefOpen(s.page);
       const br = await readBrief(s.page);
       ok('CH17d 規則檔讀不到：說明卡照樣開、沒有任何獎勵句（寧可不寫，也不憑記憶補數字，或寫伺服器不一定會給的東西）；期限那句與承諾那句照在',
-        !/顆籌碼|每天最多|×|這條線的籌碼/.test(br.text) && br.text.includes('接下的卡 24 小時內有效。') && br.text.includes('即使這次的資料不能用，校正者章還是你的。'), br.text);
+        !/顆籌碼|每天最多|×|這條線的籌碼/.test(br.text) && br.text.includes('接下的卡 24 小時內有效。') && br.text.includes('即使這次的資料不能用，只要錄得夠完整，校正者章還是你的。'), br.text);
       ok('CH17e 規則檔讀不到：頁面沒有未捕捉的例外', s.errors.length === 0, JSON.stringify(s.errors));
       await s.ctx.close();
     });
@@ -2472,6 +2473,149 @@ try {
     await attempt('CH25-webkit-launch', async () => {
       if (!wk) wk = await webkit.launch({ headless: true });
       for (const w of [360, 375, 414, 768]) await MOBILE25('webkit', wk, w);
+    });
+  }
+  // ═══ CH26：護照的校正貢獻——只錄過停站卡的人也有校正者章 ═══════════════════════════════════════════════════════════
+  // bounty-me 的回應新增 dwellStops（停站記錄涵蓋的不同站數，只增不改；corrected.segs 與 lines[].segs 仍然只算路段）。
+  // 護照拿它判斷有沒有章：路段數或停站數有一個大於 0，就不是空狀態。只有停站記錄時：數字那一行寫「校正停站 N 站」、不畫逐線的「0 段」，
+  // 原因說明（為什麼不能用、怎麼改善）照給。有路段的人（只有路段、路段加停站）畫面一個字都不變；舊版回應沒有這個欄位時，畫面與以前一樣。
+  // 三句「章還是你的」的承諾改成「錄得夠完整」才成立（只錄到一小段、沒有覆蓋段的那一批不留章）。
+  if (want('CH26')) {
+    const WHY = { code: 'acc_blocked', title: '訊號被遮蔽了', how: '手機放在包包裡或車廂中央會擋住訊號，靠窗會好很多' };
+    const trip26 = (id, verdict, quality = null) => ({ id, tripDate: '2026-10-01', trainNo: String(100 + id), sys: 'tra_sched', lnId: '南迴線', verdict, quality });
+    const ME_D = { actor: 'x', points: 0, corrected: { segs: 0, adopted: 0 }, dwellStops: 3, lines: [{ sys: 'tra_sched', lnId: '南迴線', segs: 0, adopted: 0 }], firsts: [], trips: [trip26(1, 'unusable', WHY), trip26(2, 'ok')] };
+    const ME_SEG = { ...ME, trips: [trip26(3, 'unusable', WHY)] };                                                // 只有路段（沒有 dwellStops 欄位）：12 段、採用 9
+    const ME_NONE = { actor: 'x', points: 0, corrected: { segs: 0, adopted: 0 }, lines: [], firsts: [], trips: [] };   // 什麼都沒有
+    const readCorr = page => page.evaluate(() => {
+      const el = document.querySelector('#passport .ph-correct');
+      if (!el) return null;
+      return { html: el.innerHTML, text: el.textContent.replace(/\s+/g, ' ').trim(), empty: !!el.querySelector('.ph-empty'),
+        nums: (el.querySelector('.corr-nums') || {}).textContent ? el.querySelector('.corr-nums').textContent.replace(/\s+/g, ' ').trim() : null,
+        wall: !!el.querySelector('.seal-wall'), chips: [...el.querySelectorAll('.corr-line small')].map(x => x.textContent.trim()),
+        why: [...el.querySelectorAll('.corr-why')].map(x => x.textContent.replace(/\s+/g, ' ').trim()), injected: el.querySelectorAll('img, script, [onerror]').length };
+    });
+    // 在同一個頁面把「我的成果」記憶體換成指定的回應、重畫護照再讀（網路那一段由各組開頭的真請求驗，這裡只換輸入）
+    const setMe = (page, me) => page.evaluate(m => { bountyMeMem = m; renderPassport(); }, me).then(() => readCorr(page));
+    const meReady = page => page.waitForFunction(() => { try { return bountyMeMem !== null; } catch (e) { return false; } }, null, { timeout: 30000 });
+    const L26 = {
+      'zh-TW': { nums: n => `校正停站 ${n} 站`, empty: '錄得夠完整就有校正者章', segs: '校正 12 段', tip: '只要錄得夠完整，校正者章還是你的' },
+      en: { nums: n => n === 1 ? 'Calibrated 1 dwell stop' : `Calibrated ${n} dwell stops`, empty: 'Record enough of a trip to earn the calibrator stamp', segs: 'Calibrated 12 segments', tip: 'as long as you recorded enough of the trip you keep the calibrator stamp' },
+      ja: { nums: n => `${n}駅の停車を校正`, empty: '十分に記録できると校正者スタンプがもらえます', segs: '12区間を校正', tip: '十分に記録できていれば、校正者スタンプはあなたのものです' },
+    };
+
+    await attempt('CH26-dwell-only', async () => {
+      const s = await boardSession({}, { me: ME_D });
+      await meReady(s.page);
+      await s.page.evaluate(() => renderPassport());
+      const c = await readCorr(s.page);
+      ok('CH26a [fixture] 這個頁面的「我的成果」讀進來的是只有停站的那一份（路段 0、停站 3 站）——真的走了 bounty-me 的請求',
+        await s.page.evaluate(() => bountyMeMem && bountyMeMem.corrected.segs === 0 && bountyMeMem.dwellStops === 3), JSON.stringify(c && c.text));
+      ok('CH26b 只錄過停站卡的人：護照校正貢獻不是空狀態（有章）；數字那一行是「校正停站 3 站」；沒有逐線的「0 段」、沒有「校正 0 段」；為什麼不能用與怎麼改善照給（訊號被遮蔽了＋靠窗那句）；沒有空狀態那句承諾',
+        !!c && !c.empty && c.nums === L26['zh-TW'].nums(3) && !c.wall && c.chips.length === 0 && !/0 段/.test(c.text) && c.why.length === 1 && c.why[0].includes('訊號被遮蔽了') && c.why[0].includes('靠窗會好很多') && !c.text.includes('錄得夠完整就有校正者章'),
+        JSON.stringify(c));
+      // 對照：同一個頁面把停站數改成 0、或整個欄位不給（舊版 Worker）→ 回到空狀態：章是這個新欄位換來的
+      const zero = await setMe(s.page, { ...ME_D, dwellStops: 0 });
+      const absent = await setMe(s.page, (() => { const m = { ...ME_D }; delete m.dwellStops; return m; })());
+      const none = await setMe(s.page, ME_NONE);
+      ok('CH26c 對照：同一份回應把 dwellStops 改成 0、或拿掉這個欄位（舊版 Worker）、或本來就什麼都沒有：護照回到空狀態（有「錄得夠完整就有校正者章」那句）、沒有數字那一行；三種畫面完全相同',
+        [zero, absent, none].every(x => x && x.empty && x.nums === null && x.text.includes(L26['zh-TW'].empty)) && zero.html === absent.html && absent.html === none.html, JSON.stringify({ zero: zero && zero.text, absent: absent && absent.text, none: none && none.text }));
+      ok('CH26d 頁面沒有未捕捉的例外', s.errors.length === 0, JSON.stringify(s.errors));
+      await s.ctx.close();
+    });
+    // 有路段的人：畫面一個字都不變
+    await attempt('CH26-segments', async () => {
+      const s = await boardSession({}, { me: ME_SEG });
+      await meReady(s.page);
+      const base = await setMe(s.page, ME_SEG);
+      const with0 = await setMe(s.page, { ...ME_SEG, dwellStops: 0 });
+      const with5 = await setMe(s.page, { ...ME_SEG, dwellStops: 5 });
+      ok('CH26e [fixture] 有路段的那一份（12 段、採用 9、南迴線 8 段）：護照畫出「校正 12 段（其中 9 段已採用）」、逐線的章、「8 段」、原因說明一則——不是空狀態',
+        !!base && !base.empty && base.nums === '校正 12 段（其中 9 段已採用）' && base.wall && base.chips.includes('8 段') && base.why.length === 1, JSON.stringify({ nums: base && base.nums, chips: base && base.chips }));
+      ok('CH26f 只有路段：回應沒有 dwellStops、dwellStops 是 0、dwellStops 是 5（路段加停站），三種畫面完全相同（innerHTML 全等）；停站數只決定「有沒有章」，不改有路段的人的任何一個字',
+        base.html === with0.html && with0.html === with5.html && base.html.length > 100, JSON.stringify({ n: [base.html.length, with0.html.length, with5.html.length] }));
+      // 路段加停站、而且停站在別的線上：lines 裡有 0 段的那一條照舊畫（這是舊行為，不屬於這次的改動）
+      const mixed = await setMe(s.page, { ...ME_SEG, dwellStops: 2, lines: [...ME_SEG.lines, { sys: 'tra_sched', lnId: '屏東線', segs: 0, adopted: 0 }] });
+      const mixedOld = await setMe(s.page, { ...ME_SEG, lines: [...ME_SEG.lines, { sys: 'tra_sched', lnId: '屏東線', segs: 0, adopted: 0 }] });
+      ok('CH26g 路段加停站、停站那條線的段數是 0（在 lines 裡照舊畫一枚「0 段」）：加了 dwellStops 與沒加，畫面完全相同', mixed.html === mixedOld.html && mixed.chips.includes('0 段'), JSON.stringify({ chips: mixed.chips }));
+      ok('CH26h 頁面沒有未捕捉的例外', s.errors.length === 0, JSON.stringify(s.errors));
+      await s.ctx.close();
+    });
+    // 亂值：dwellStops 不是有限整數時，不會長出章、也不會把字串當 HTML 執行
+    await attempt('CH26-garbage', async () => {
+      const s = await boardSession({}, { me: ME_NONE });
+      await meReady(s.page);
+      const CASES = [['abc', null], [-3, null], [null, null], [undefined, null], ['<img src=x onerror=window.__x=1>', null], [1e9, null], [{}, null], [[], null], ['7', 7], [3.9, 3]];
+      const outs = [];
+      for (const [v, exp] of CASES) {
+        const c = await setMe(s.page, { ...ME_NONE, dwellStops: v });
+        const x = await s.page.evaluate(() => window.__x || null);
+        outs.push([JSON.stringify(v), exp === null ? (!!c && c.empty && c.nums === null) : (!!c && !c.empty && c.nums === L26['zh-TW'].nums(exp)), c && c.injected === 0 && x === null]);
+      }
+      ok('CH26i dwellStops 是字串、負數、null、不給、含標籤的字串、超大、物件、陣列：都是空狀態、沒有長出 img／script／onerror、沒有執行；數字字串 "7" 收斂成 7 站、3.9 收斂成 3 站（與其他欄位同一個 bountyNum）',
+        outs.every(o => o[1] && o[2]), JSON.stringify(outs));
+      ok('CH26j 頁面沒有未捕捉的例外', s.errors.length === 0, JSON.stringify(s.errors));
+      await s.ctx.close();
+    });
+    // 英文、日文：停站那一行、空狀態、說明中心的承諾句
+    for (const lang of ['en', 'ja']) await attempt(`CH26-${lang}`, async () => {
+      const s = await boardSession({}, { lang, me: ME_D });
+      await meReady(s.page);
+      await s.page.evaluate(() => renderPassport());
+      const X = L26[lang];
+      const c = await readCorr(s.page);
+      const one = await setMe(s.page, { ...ME_D, dwellStops: 1 });
+      const none = await setMe(s.page, ME_NONE);
+      await s.page.evaluate(() => openHelp('bountyme'));
+      const tip = await s.page.evaluate(() => { const e = document.querySelector('#helpBody .help-sec[data-sec="bountyme"] .tip'); return e ? e.textContent.replace(/\s+/g, ' ').trim() : null; });
+      ok(`CH26k-${lang} ${lang} 介面：只有停站的人，數字那一行是「${X.nums(3)}」、一站時是「${X.nums(1)}」；原因說明有翻譯` + (lang === 'en' ? '；整節沒有任何中文字' : ''),
+        !!c && c.nums === X.nums(3) && one.nums === X.nums(1) && c.why.length === 1 && (lang !== 'en' || (!/[㐀-鿿]/.test(c.text) && !/[㐀-鿿]/.test(one.text))), JSON.stringify({ nums: c && c.nums, one: one && one.nums, why: c && c.why }));
+      ok(`CH26l-${lang} ${lang} 介面：空狀態那句承諾是「${X.empty}…」、說明中心「護照裡的校正貢獻」那則有「${X.tip}」；頁面沒有未捕捉的例外`,
+        !!none && none.empty && none.text.includes(X.empty) && tip !== null && tip.includes(X.tip) && s.errors.length === 0, JSON.stringify({ none: none && none.text, tip, errors: s.errors }));
+      await s.ctx.close();
+    });
+    // 繁中的說明中心與空狀態：新的承諾句
+    await attempt('CH26-zh-copy', async () => {
+      const s = await boardSession({}, { me: ME_NONE });
+      await meReady(s.page);
+      await s.page.evaluate(() => openHelp('bountyme'));
+      const tip = await s.page.evaluate(() => { const e = document.querySelector('#helpBody .help-sec[data-sec="bountyme"] .tip'); return e ? e.textContent.replace(/\s+/g, ' ').trim() : null; });
+      ok('CH26m 繁中：說明中心「護照裡的校正貢獻」那則寫「但只要錄得夠完整，校正者章還是你的」、舊的寫法（沒有條件）不在', tip !== null && tip.includes('但只要錄得夠完整，校正者章還是你的') && !tip.includes('但校正者章還是你的'), String(tip));
+      await s.ctx.close();
+    });
+    // 手機：只有停站的護照，360／375／414／768 × Chromium／WebKit；真觸控進「護照」分頁、點開「校正貢獻」這一節
+    const MOBILE26 = async (engineName, br, width) => {
+      const tag = `${engineName}-${width}`;
+      await attempt(`CH26-mobile-${tag}`, async () => {
+        const s = await newSession({ passportClosed: true, app: true }, {}, { browser: br, ctx: { viewport: { width, height: 800 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } });
+        s.board = BOARD_V2; s.meBody = ME_D;
+        await goBounty(s); await loggedIn(s.page); await chipsLoaded(s.page); await meReady(s.page); await sleep(300);
+        await s.page.tap('#tabRide');
+        await s.page.waitForFunction(() => { const p = document.getElementById('ridePanel'); return p && !p.hidden && p.querySelector('.ph-sec[data-sec="correct"]'); }, null, { timeout: 15000 });
+        await s.page.evaluate(() => document.querySelector('#ridePanel .ph-sec[data-sec="correct"]').scrollIntoView({ block: 'center' }));
+        await sleep(300);
+        const wasClosed = await s.page.evaluate(() => document.querySelector('#ridePanel .ph-sec[data-sec="correct"]').classList.contains('closed'));
+        if (wasClosed) { await s.page.tap('#ridePanel .ph-sec[data-sec="correct"] .ph-caret'); await sleep(300); }
+        const m = await s.page.evaluate(() => {
+          const root = document.querySelector('#ridePanel .ph-correct');
+          if (!root) return null;
+          root.scrollIntoView({ block: 'center' });
+          const vis = e => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e); return cs.display !== 'none' && r.width > 0 && r.height > 0; };
+          const box = [...root.querySelectorAll('.corr-nums, .corr-why')].map(e => {
+            const r = e.getBoundingClientRect(), x = (Math.max(r.left, 0) + Math.min(r.right, innerWidth)) / 2, y = (Math.max(r.top, 0) + Math.min(r.bottom, innerHeight)) / 2, hit = document.elementFromPoint(x, y);
+            return { cls: e.className, t: e.textContent.replace(/\s+/g, ' ').trim().slice(0, 14), vis: vis(e), inView: r.left >= -0.5 && r.right <= innerWidth + 0.5, wOver: e.scrollWidth > e.clientWidth + 1, hOver: e.scrollHeight > e.clientHeight + 1, reach: !!hit && (hit === e || e.contains(hit)) };
+          });
+          return { box, text: root.textContent.replace(/\s+/g, ' ').trim(), doc: document.documentElement.scrollWidth - innerWidth, empty: !!root.querySelector('.ph-empty') };
+        });
+        ok(`CH26n-${tag} 手機 ${width} 寬、只有停站的護照（真觸控進「護照」、點開「校正貢獻」）：「校正停站 3 站」與原因說明都看得到、沒被截、沒溢出、點得到（elementFromPoint 回到自己）、頁面沒有水平捲動；不是空狀態；頁面沒有未捕捉的例外`,
+          !!m && !m.empty && m.box.length === 2 && m.box.every(b => b.vis && b.inView && !b.wOver && !b.hOver && b.reach) && m.text.includes('校正停站 3 站') && m.doc <= 1 && s.errors.length === 0, JSON.stringify({ m, errors: s.errors }));
+        if (SHOT_DIR) await s.page.screenshot({ path: path.join(SHOT_DIR, `bounty-passport-dwell-${tag}.png`) });
+        await s.ctx.close();
+      });
+    };
+    for (const w of [360, 375, 414, 768]) await MOBILE26('chromium', browser, w);
+    await attempt('CH26-webkit-launch', async () => {
+      if (!wk) wk = await webkit.launch({ headless: true });
+      for (const w of [360, 375, 414, 768]) await MOBILE26('webkit', wk, w);
     });
   }
 } finally {
