@@ -21,4 +21,6 @@ export async function buildBlenderBuilding(record,lod){
   const material=new THREE.MeshStandardMaterial({color:new THREE.Color(...part.color),metalness:part.metalness,roughness:part.roughness,side:THREE.DoubleSide});const mesh=new THREE.Mesh(geometry,material);mesh.userData.part='shell';mesh.userData.component=String(part.component);mesh.frustumCulled=false;group.add(mesh);
  }return group;
 }
-export function inspectBlenderBuilding(root,inspection,clearance=[],solidAppearance=false){const affected=new Set(clearance.map(String));root.traverse(mesh=>{if(!mesh.isMesh)return;const active=inspection||!solidAppearance&&affected.has(mesh.userData.component),m=mesh.material;m.transparent=active;m.opacity=active?.24:1;m.depthWrite=!active;m.needsUpdate=true;});}
+// clearance 是 rail-clearance 回報的受影響要素:footprint 要素有 component 的列部件名,沒有的(整座模型只有一個要素)列模型 id。
+// 部件名對每個 mesh 的 component;模型 id 命中則整座每一件都算受影響。兩邊都轉字串,完全相等才算。
+export function inspectBlenderBuilding(root,inspection,clearance=[],solidAppearance=false,modelId=null){const affected=new Set(clearance.map(String)),whole=modelId!=null&&affected.has(String(modelId));root.traverse(mesh=>{if(!mesh.isMesh)return;const active=inspection||!solidAppearance&&(whole||affected.has(mesh.userData.component)),m=mesh.material;m.transparent=active;m.opacity=active?.24:1;m.depthWrite=!active;m.needsUpdate=true;});}

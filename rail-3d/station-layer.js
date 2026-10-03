@@ -146,7 +146,7 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
           r.model.traverse(mesh=>{if(!mesh.isMesh)return;const h=heights.get(mesh.userData.component);const ready=Number.isFinite(h);if(mesh.visible!==ready){mesh.visible=ready;revision=true;}if(ready&&mesh.position.z!==h-ground){mesh.position.z=h-ground;revision=true;}});
         }
         const inspect=!!state.stationInspection&&(state.stationInspectionAll||r.entry.key===state.place),appearance=JSON.stringify([inspect,r.stats.excludedComponents,!!state.stationSolidAppearance]);
-        if(r.appearanceKey!==appearance){inspectBlenderBuilding(r.model,inspect,r.stats.excludedComponents,!!state.stationSolidAppearance);r.appearanceKey=appearance;r.stats.inspection=inspect;revision=true;}
+        if(r.appearanceKey!==appearance){inspectBlenderBuilding(r.model,inspect,r.stats.excludedComponents,!!state.stationSolidAppearance,r.meta.id);r.appearanceKey=appearance;r.stats.inspection=inspect;revision=true;}
       }}
       r.stats.visible=visible;if(revision){r.stats.revision++;changed=true;}
     }
