@@ -1,6 +1,16 @@
 {
-  "updated": "2026-09-27",
+  "updated": "2026-10-03",
   "events": [
+    {
+      "id": "trtc-20261002-xinzhongshan-halloween",
+      "source": "official",
+      "title": "心中山萬聖節「反派童話派對」",
+      "note": "中山站外的萬聖市集，週五到週日與 10/8、10/26 擺攤，有變裝員工發糖果",
+      "start": "2026-10-02",
+      "end": "2026-11-01",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "中山" },
+      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=E364160F3CBBB307"
+    },
     {
       "id": "tra-20260924-pokemon30-skm",
       "source": "official",
@@ -52,16 +62,6 @@
       "url": "https://pokemongo.com/zh-Hant/news/2026daanpark"
     },
     {
-      "id": "ntmetro-20260814-fireworks-0830",
-      "source": "official",
-      "title": "2026仲夏夜繽紛樂",
-      "note": "漁人碼頭週日夜間煙火，輕軌會加開藍海線疏運",
-      "start": "2026-08-30",
-      "end": "2026-08-30",
-      "anchor": { "kind": "station", "sys": "ntdlrt", "name": "淡水漁人碼頭" },
-      "url": "https://www.ntmetro.com.tw/basic/?mode=detail&node=890"
-    },
-    {
       "id": "afr-20260819-starry-train",
       "source": "official",
       "title": "林鐵星空列車觀星趣",
@@ -83,26 +83,6 @@
       "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2411-1.html"
     },
     {
-      "id": "trtc-20260827-netzero-carnival",
-      "source": "official",
-      "title": "淨零新生活親子嘉年華",
-      "note": "兒童新樂園七大關卡闖關換限量小植栽，YOYO 家族柳丁哥哥、草莓姊姊到場；劍潭站出口 3 轉公車可到",
-      "start": "2026-08-30",
-      "end": "2026-08-30",
-      "anchor": { "kind": "station", "sys": "mrt", "name": "劍潭" },
-      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=84D0B630B0B03877"
-    },
-    {
-      "id": "trtc-20260827-guangci-market-0830",
-      "source": "official",
-      "title": "廣慈/奉天宮站通車限定市集",
-      "note": "1 號出口 B1 連通道層的輕食與文創手作攤位，14 時到 20 時",
-      "start": "2026-08-30",
-      "end": "2026-08-30",
-      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
-      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=CB42925269CE131D"
-    },
-    {
       "id": "trtc-20260827-guangci-market-0905",
       "source": "official",
       "title": "廣慈/奉天宮站通車限定市集",
@@ -121,16 +101,6 @@
       "end": "2026-09-06",
       "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
       "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=CB42925269CE131D"
-    },
-    {
-      "id": "trtc-20260829-guangci-concert-0830",
-      "source": "official",
-      "title": "廣慈/奉天宮站通車音樂會",
-      "note": "站內大廳公共藝術區，通車當天 14 時 15 分至 17 時，長笛姐姐樂團、臺北市名聲樂團、天韻樂團接力演出",
-      "start": "2026-08-30",
-      "end": "2026-08-30",
-      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
-      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=196975BB815C087E"
     },
     {
       "id": "trtc-20260829-guangci-concert-0905",
@@ -161,26 +131,6 @@
       "end": "2026-09-19",
       "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
       "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=196975BB815C087E"
-    },
-    {
-      "id": "trtc-20260828-nakasi-0829",
-      "source": "official",
-      "title": "捷運那卡西－潮．月琴",
-      "note": "「北投-新北投」列車上現場彈唱，14 時至 16 時；月琴民謠與跨界演出",
-      "start": "2026-08-29",
-      "end": "2026-08-29",
-      "anchor": { "kind": "station", "sys": "mrt", "name": "新北投" },
-      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=723174E51435D719"
-    },
-    {
-      "id": "trtc-20260828-nakasi-0830",
-      "source": "official",
-      "title": "捷運那卡西－潮．月琴",
-      "note": "「北投-新北投」列車上現場彈唱，14 時至 16 時；月琴民謠與跨界演出",
-      "start": "2026-08-30",
-      "end": "2026-08-30",
-      "anchor": { "kind": "station", "sys": "mrt", "name": "新北投" },
-      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=723174E51435D719"
     },
     {
       "id": "trtc-20260828-nakasi-0905",
