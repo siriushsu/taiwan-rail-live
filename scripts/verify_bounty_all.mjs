@@ -31,7 +31,10 @@ const EXPECT = { hardening: 183, schema: 47, valuation: 88, gates: 75, dwell: 16
 // - CAP_MS 是總時長的保險，還在出結果也停。
 // 中止當下記住輸出檔的長度：那之前寫下的 FAIL 是真的判準結果；之後的是中止造成的（Playwright 收到 SIGTERM 只關瀏覽器、
 // 不結束程序，後面每一條都變成「browser has been closed」），判的時候不算、也不列。SIGTERM 之後 KILL_GRACE_MS 還沒結束就 SIGKILL。
+// 計時用 performance.now()（單調時鐘，筆電睡眠時不走）：Date.now() 會把睡掉的時間算成「沒有輸出」，一醒來就誤判卡住。
 const STALL_MS = 10 * 60 * 1000, CAP_MS = 60 * 60 * 1000, POLL_MS = 15 * 1000, KILL_GRACE_MS = 30 * 1000;
+// 該不該中止（純函式，自我測試直接餵數字）。先看沒輸出多久：卡住的就算剛好也跑滿總時長，也標卡住，不說成還在出結果。
+const stopWhy = (elapsed, quiet) => quiet >= STALL_MS ? 'stall' : elapsed >= CAP_MS ? 'cap' : null;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bounty-all-'));
 const children = new Set();
 process.on('exit', () => { for (const c of children) c.kill('SIGTERM'); });   // 只收本支自己啟動的子程序
@@ -45,19 +48,22 @@ function runSuite(name) {
   return new Promise(resolve => {
     const child = spawn(process.execPath, [script], { cwd: ROOT, env: process.env, stdio: ['ignore', fd, fd] });
     children.add(child);
-    const t0 = Date.now();
-    let size = 0, grewAt = t0, stop = null;
+    const t0 = performance.now();
+    let size = 0, grewAt = t0, stop = null, finished = false;
     const poll = setInterval(() => {
-      const now = Date.now(), cur = fs.fstatSync(fd).size;
+      const now = performance.now(), cur = fs.fstatSync(fd).size;
       if (cur !== size) { size = cur; grewAt = now; }
-      const why = now - t0 >= CAP_MS ? 'cap' : now - grewAt >= STALL_MS ? 'stall' : null;
+      const why = stopWhy(now - t0, now - grewAt);
       if (!why) return;
       clearInterval(poll);
-      stop = { why, cut: cur, min: Math.round((now - t0) / 60000), load: os.loadavg()[0], cpus: os.cpus().length };
+      stop = { why, cut: cur, min: Math.round((now - t0) / 60000), quiet: Math.round((now - grewAt) / 60000), load: os.loadavg()[0], cpus: os.cpus().length };
       child.kill('SIGTERM');
       setTimeout(() => child.kill('SIGKILL'), KILL_GRACE_MS).unref();
     }, POLL_MS);
+    // 啟動失敗時 error 與 close 兩個事件都會來（高負載下 fork 失敗就是這樣），只收第一次：第二次 closeSync 會丟 EBADF、整支崩掉
     const done = (code, note) => {
+      if (finished) return;
+      finished = true;
       clearInterval(poll);
       children.delete(child);
       fs.closeSync(fd);
@@ -87,25 +93,29 @@ function judgeText(name, code, text, note0 = '', stop = null) {
 function stopNote(stop, lines, fails, rest, want) {
   const ran = lines.filter(l => /^(\s*ok\s|FAIL\s)/.test(l)).length;
   const dropped = rest.split('\n').filter(l => /^FAIL\s/.test(l)).length;
-  const when = `第 ${stop.min} 分鐘中止（當時 1 分鐘負載 ${stop.load.toFixed(1)}、${stop.cpus} 核）`;
+  const when = `第 ${stop.min} 分鐘中止（最後一筆輸出在 ${stop.quiet} 分鐘前；當時 1 分鐘負載 ${stop.load.toFixed(1)}、${stop.cpus} 核）`;
   const head = stop.why === 'cap'
-    ? `環境：逾時——跑滿 ${CAP_MS / 60000} 分鐘還在出結果，${when}，不是判準紅；負載降下來後單獨重跑這一支`
+    ? `環境：逾時——跑滿 ${CAP_MS / 60000} 分鐘還沒跑完，${when}；逾時本身不是判準紅，負載降下來後單獨重跑這一支`
     : `卡住——連續 ${STALL_MS / 60000} 分鐘沒有新輸出，${when}；負載高就先當環境、降下來後重跑，負載不高就是腳本或頁面卡死，看最後幾行`;
-  return `${head}。中止前出了 ${ran} 條結果（EXPECT ${want}），其中 ${fails.length} 條 FAIL 照列；中止後的 ${dropped} 條 FAIL 是中止造成的，不列`;
+  const real = fails.length ? `其中 ${fails.length} 條 FAIL 是真的判準結果，照列` : '其中沒有 FAIL';
+  return `${head}。中止前出了 ${ran} 條結果（EXPECT ${want}），${real}；中止後的 ${dropped} 條 FAIL 是中止造成的，不列`;
+}
+// 輸出檔與中止點都是位元組，換成字元位置才交給 judgeText（中文一個字 3 個位元組，直接拿位元組當字元位置會切進下一行）。
+function judgeBuf(name, code, buf, note0 = '', stop = null) {
+  return judgeText(name, code, buf.toString('utf8'), note0, stop && { ...stop, at: buf.subarray(0, stop.cut).toString('utf8').length });
 }
 function judge(r) {
-  const buf = r.log ? fs.readFileSync(r.log) : Buffer.alloc(0);
-  const stop = r.stop && { ...r.stop, at: buf.subarray(0, r.stop.cut).toString('utf8').length };
-  return { ...r, ...judgeText(r.name, r.code, buf.toString('utf8'), r.note, stop) };
+  return { ...r, ...judgeBuf(r.name, r.code, r.log ? fs.readFileSync(r.log) : Buffer.alloc(0), r.note, r.stop) };
 }
 // 自我測試：判準數從 EXPECT 讀（不寫死），調 EXPECT 不必改這裡；守的是判法本身。
-// [標籤, 哪一支, 離開碼, 輸出, 該不該綠, 紅的時候 note 要含的字, 中止資訊, 該列出幾條 FAIL]
+// [標籤, 哪一支, 離開碼, 輸出, 該不該綠, 紅的時候 note 要含的字, 中止資訊, 該列出的 FAIL 行]
 const SELF = (() => {
   const n = EXPECT.rules, h = EXPECT.hardening, g = EXPECT.gates;
-  // 逾時中止的假輸出：中止前一條真的 FAIL；中止後一條「瀏覽器被關」造成的 FAIL，再加一行看起來完整的摘要
+  // 逾時中止的假輸出：中止前一條真的 FAIL（帶中文，中止點換算錯了就會切進下一行）；中止後一條「瀏覽器被關」造成的 FAIL，
+  // 再加一行看起來完整的摘要。中止點跟真的一樣用位元組。
   const pre = `  ok  R1\nFAIL  R2 真的紅\n`, post = `FAIL  R3 browser has been closed\n${n}/${n} passed\n`, allOk = `  ok  R1\n${n}/${n} passed\n`;
-  const cut = (why, head) => ({ why, at: head.length, min: 61, load: 33.2, cpus: 18 });
-  return [
+  const cut = (why, head) => ({ why, cut: Buffer.byteLength(head), min: 61, quiet: 0, load: 33.2, cpus: 18 });
+  const judged = [
     ['對照：恰好 N/N', 'rules', 0, `  ok  R1\n\n${n}/${n} passed\n`, true],
     ['hardening 的 [SUMMARY] 格式', 'hardening', 0, `  ok  Z\n\n[SUMMARY] ${h}/${h} 條判準通過\n`, true],
     ['gates 的「通過」格式', 'gates', 0, `  ok  F1\n${g}/${g} 通過\n`, true],
@@ -117,14 +127,20 @@ const SELF = (() => {
     ['部分通過（離開碼 0）', 'rules', 0, `${n - 1}/${n} passed\n`, false],
     ['沒有摘要行', 'rules', 0, `  ok  R1\n`, false],
     ['0/0', 'rules', 0, `0/0 passed\n`, false],
-    ['逾時（還在出結果）：中止前的 FAIL 照列、中止後的不列', 'rules', 1, pre + post, false, '環境：逾時', cut('cap', pre), 1],
-    ['卡住：中止前沒有 FAIL、中止後印出完整摘要也要紅', 'rules', 0, `  ok  R1\n` + post, false, '卡住', cut('stall', `  ok  R1\n`), 0],
-    ['中止前摘要已經完整、離開碼 0 也要紅', 'rules', 0, allOk, false, '環境：逾時', cut('cap', allOk), 0],
+    ['逾時：中止前的 FAIL 照列、中止後的不列', 'rules', 1, pre + post, false, '環境：逾時', cut('cap', pre), ['FAIL  R2 真的紅']],
+    ['卡住：中止前沒有 FAIL、中止後印出完整摘要也要紅', 'rules', 0, `  ok  R1\n` + post, false, '卡住', cut('stall', `  ok  R1\n`), []],
+    ['中止前摘要已經完整、離開碼 0 也要紅', 'rules', 0, allOk, false, '環境：逾時', cut('cap', allOk), []],
   ].map(([label, name, code, text, want, needle, stop, failsWant]) => {
-    const j = judgeText(name, code, text, '', stop);
-    return { label, ok: j.pass === want && (!needle || j.note.includes(needle)) && (failsWant === undefined || j.fails.length === failsWant),
-      got: j.pass, note: j.note };
+    const j = judgeBuf(name, code, Buffer.from(text), '', stop);
+    return { label, ok: j.pass === want && (!needle || j.note.includes(needle)) && (!failsWant || JSON.stringify(j.fails) === JSON.stringify(failsWant)),
+      got: j.pass ? '綠' : '紅', note: j.note };
   });
+  // 中止判定：[跑了多久（總時長的幾倍）, 多久沒有輸出（卡住門檻的幾倍）, 該判成什麼]
+  const stops = [[0.1, 0.1, null], [1.01, 0.1, 'cap'], [0.5, 1.01, 'stall'], [1.01, 1.01, 'stall'], [1.01, 0.9, 'cap']].map(([e, q, w]) => {
+    const got = stopWhy(e * CAP_MS, q * STALL_MS);
+    return { label: `中止判定：跑了總時長的 ${e} 倍、沒輸出的時間是卡住門檻的 ${q} 倍`, ok: got === w, got: got || '不停', note: '' };
+  });
+  return [...judged, ...stops];
 })();
 
 const listed = new Set([...NODE_SUITES, ...BROWSER_SUITES, 'all']);
@@ -138,7 +154,7 @@ const judged = results.map(judge);
 
 const selfBad = SELF.filter(c => !c.ok);
 console.log(`${selfBad.length ? 'FAIL ' : '  ok '} ${'selftest'.padEnd(10)} 棘輪判法自我測試 ${SELF.length - selfBad.length}/${SELF.length}` +
-  (selfBad.length ? ' — ' + selfBad.map(c => `${c.label}（判成 ${c.got ? '綠' : '紅'}${c.note ? '：' + c.note : ''}）`).join('；') : ''));
+  (selfBad.length ? ' — ' + selfBad.map(c => `${c.label}（判成 ${c.got}${c.note ? '：' + c.note : ''}）`).join('；') : ''));
 let total = 0;
 for (const r of judged) {
   total += r.total;
