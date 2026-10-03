@@ -456,7 +456,9 @@ sections.push({ name: 'G4 四列上限', run: async (browser, en) => {
   // 牙:上限只在對齊前量 ⇒ max-height 用的是另一種列高 ⇒ 紅。
   const s2 = await page.evaluate(() => {
     const wrap = document.getElementById('queryAnswer');
-    const rowH = () => wrap.querySelector('.qa-stn .qa-rows .row').getBoundingClientRect().height;
+    // 量前 4 列的總高(第 5 列的頂離第 1 列的頂多遠),不是只量第 1 列:上限量的就是這個距離,
+    // 而第 1 列剛好很短時(捷運站常見)翻旗標只差 1px,前提會因為挑到的站而假紅。
+    const rowH = () => { const r = wrap.querySelectorAll('.qa-stn .qa-rows .row'); return r[4].getBoundingClientRect().top - r[0].getBoundingClientRect().top; };
     wrap.querySelector('.qa-stn .qa-rows').scrollTop = 0; // G4b 把這格捲到底了;可見列數要從頂端數
     const h0 = rowH();
     const flippedTo = wrap.dataset.wrap2 ? 'single' : 'wrap2';
