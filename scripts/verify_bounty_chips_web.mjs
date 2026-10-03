@@ -173,6 +173,17 @@ try {
       return { uid: u, actor: localStorage.getItem('trainmap-bounty-actor-v1'), dev: localStorage.getItem('trainmap-device-id'),
         merged: u ? localStorage.getItem('trainmap-bounty-merged-' + u) : null, chips: localStorage.getItem('trainmap-chips-me-v1') !== null };
     } catch (e) { return null; } })();
+    // 外部資源一律 abort（newSession 的 route），OpenFreeMap 看門狗因此每次開機約 8 秒後必定判失敗、跳一張「街道底圖載入異常」
+    // 提示（停 5 秒）。它是這個測試環境造成的，什麼時候疊進來看機器負載：剛好落在「清空提示 → 觸發 → 讀最上面那張」之間，
+    // 讀到的就是它。頁面腳本跑完就把頁面自己的「這個 session 講過了」旗標設起來，它就不會跳；受測的提示照常出現或不出現。
+    // 旗標不見了（改名）或設的時候它已經跳過，結果記在 __ofmQuiet，bootDone 會丟例外講出來，不會無聲失效。
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        if (typeof ofmNoticeShown !== 'boolean') { window.__ofmQuiet = 'missing'; return; }
+        window.__ofmQuiet = ofmNoticeShown ? 'late' : 'ok';
+        ofmNoticeShown = true;
+      } catch (e) { window.__ofmQuiet = 'error: ' + e.message; }
+    });
   };
 
   // 一個獨立情境：自己的 localStorage／sessionStorage、自己的 /api 打樁與請求紀錄。回應內容與模式在請求當下才讀，測試中途可以改。
@@ -260,7 +271,13 @@ try {
     return s;
   }
   // 開機走完（state.ready）才算「頁面起來了」：「0 次請求」「不在」這類否定判準，要等到開機的最後一步跑完才有意義
-  const bootDone = (page) => page.waitForFunction(() => { try { return state.ready === true; } catch (e) { return false; } }, null, { timeout: 60000 });
+  // 順便確認底圖提示的保險（STUB 結尾）真的生效：沒生效時這一輪讀到的提示可能是底圖那張，直接丟例外、講清楚是哪一種。
+  const bootDone = async (page) => {
+    await page.waitForFunction(() => { try { return state.ready === true && window.__ofmQuiet !== undefined; } catch (e) { return false; } }, null, { timeout: 60000 });
+    const q = await page.evaluate(() => window.__ofmQuiet);
+    if (q === 'late') throw new Error('環境：底圖提示在保險生效之前就跳了（頁面腳本跑到 DOMContentLoaded 超過 8 秒），這一輪讀到的提示可能是它');
+    if (q !== 'ok') throw new Error(`測試失效：擋不掉底圖提示（${q}）——頁面的 ofmNoticeShown 改名或拿掉了，改 STUB 結尾那段`);
+  };
   const loggedIn = async (page) => {
     await page.waitForFunction(() => { try { return !!(state.account && state.account.user && state.account.user.uid); } catch (e) { return false; } }, null, { timeout: 30000 });
     await bootDone(page);

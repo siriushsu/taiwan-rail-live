@@ -25,7 +25,13 @@ const NODE_SUITES = ['hardening', 'schema', 'valuation', 'gates', 'dwell', 'api'
 const BROWSER_SUITES = ['merge_web', 'recorder_web', 'chips_web'];
 const EXPECT = { hardening: 183, schema: 47, valuation: 88, gates: 75, dwell: 16, api: 105, ledger: 71, chips: 40, rules: 16,
   redeem: 91, cloud: 124, merge: 58, cron: 70, auth: 89, cron2: 131, merge_web: 27, recorder_web: 8, chips_web: 641 };
-const TIMEOUT_MS = 15 * 60 * 1000;
+// 逾時是拿來抓「卡住」的，不是拿來抓「慢」：別的工作把 1 分鐘負載壓到 16 以上時，chips_web 單獨跑完就要 16 分鐘以上，
+// 固定的「每支 15 分鐘」會把還在一條一條出結果的驗收砍掉。所以分兩道：
+// - STALL_MS 這麼久輸出檔一個位元組都沒長＝卡住（頁面卡死、evaluate 不回、或機器忙到動不了）；
+// - CAP_MS 是總時長的保險，還在出結果也停。
+// 中止當下記住輸出檔的長度：那之前寫下的 FAIL 是真的判準結果；之後的是中止造成的（Playwright 收到 SIGTERM 只關瀏覽器、
+// 不結束程序，後面每一條都變成「browser has been closed」），判的時候不算、也不列。SIGTERM 之後 KILL_GRACE_MS 還沒結束就 SIGKILL。
+const STALL_MS = 10 * 60 * 1000, CAP_MS = 60 * 60 * 1000, POLL_MS = 15 * 1000, KILL_GRACE_MS = 30 * 1000;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bounty-all-'));
 const children = new Set();
 process.on('exit', () => { for (const c of children) c.kill('SIGTERM'); });   // 只收本支自己啟動的子程序
@@ -39,22 +45,33 @@ function runSuite(name) {
   return new Promise(resolve => {
     const child = spawn(process.execPath, [script], { cwd: ROOT, env: process.env, stdio: ['ignore', fd, fd] });
     children.add(child);
-    let timedOut = false;
-    const timer = setTimeout(() => { timedOut = true; child.kill('SIGTERM'); }, TIMEOUT_MS);
+    const t0 = Date.now();
+    let size = 0, grewAt = t0, stop = null;
+    const poll = setInterval(() => {
+      const now = Date.now(), cur = fs.fstatSync(fd).size;
+      if (cur !== size) { size = cur; grewAt = now; }
+      const why = now - t0 >= CAP_MS ? 'cap' : now - grewAt >= STALL_MS ? 'stall' : null;
+      if (!why) return;
+      clearInterval(poll);
+      stop = { why, cut: cur, min: Math.round((now - t0) / 60000), load: os.loadavg()[0], cpus: os.cpus().length };
+      child.kill('SIGTERM');
+      setTimeout(() => child.kill('SIGKILL'), KILL_GRACE_MS).unref();
+    }, POLL_MS);
     const done = (code, note) => {
-      clearTimeout(timer);
+      clearInterval(poll);
       children.delete(child);
       fs.closeSync(fd);
-      resolve({ name, code, log, note });
+      resolve({ name, code, log, note, stop });
     };
     child.on('error', err => done(1, `啟動失敗：${err.message}`));
-    child.on('close', (code, signal) => done(code ?? 1, timedOut ? `逾時 ${TIMEOUT_MS / 60000} 分鐘` : signal ? `被 ${signal} 中止` : ''));
+    child.on('close', (code, signal) => done(code ?? 1, !stop && signal ? `被 ${signal} 中止` : ''));
   });
 }
 
 // 判一支（純函式，只吃離開碼與輸出文字；下面的自我測試直接餵假的輸出）。
-function judgeText(name, code, text, note0 = '') {
-  const lines = text.split('\n');
+// stop：這一支被逾時中止過，stop.at 是中止當下已經寫到第幾個字。只判那之前的部分、一律紅，並說明停在哪裡、當時的負載。
+function judgeText(name, code, text, note0 = '', stop = null) {
+  const lines = (stop ? text.slice(0, stop.at) : text).split('\n');
   const fails = lines.filter(l => /^FAIL\s/.test(l));
   const summary = lines.filter(l => /\d+\/\d+ (通過|passed|條判準通過)/.test(l)).pop() || '';
   const m = summary.match(/(\d+)\/(\d+)/);
@@ -63,16 +80,31 @@ function judgeText(name, code, text, note0 = '') {
   const count = !(want > 0) ? `EXPECT 沒有 ${name} 的判準數` : !m || total === want ? '' : total < want
     ? `判準數 ${total} 比 EXPECT 的 ${want} 少 ${want - total} 條：有判準被刪、整段被跳過或流程提早結束（分母無聲縮水）`
     : `判準數 ${total} 比 EXPECT 的 ${want} 多 ${total - want} 條：新增判準就在同一個 commit 把 EXPECT.${name} 調成 ${total}`;
-  const note = [note0, count].filter(Boolean).join('；');
-  return { note, fails, summary: summary.trim(), total, pass: code === 0 && !fails.length && complete && !count, tail: lines.slice(-20) };
+  const note = [note0, count, stop && stopNote(stop, lines, fails, text.slice(stop.at), want)].filter(Boolean).join('；');
+  return { note, fails, summary: summary.trim(), total, pass: !stop && code === 0 && !fails.length && complete && !count, tail: lines.slice(-20) };
+}
+// 跑滿總時長還在出結果＝機器太忙（環境）；連續一段時間沒有輸出＝卡住，可能是環境、也可能是頁面或腳本卡死，靠當時的負載分辨。
+function stopNote(stop, lines, fails, rest, want) {
+  const ran = lines.filter(l => /^(\s*ok\s|FAIL\s)/.test(l)).length;
+  const dropped = rest.split('\n').filter(l => /^FAIL\s/.test(l)).length;
+  const when = `第 ${stop.min} 分鐘中止（當時 1 分鐘負載 ${stop.load.toFixed(1)}、${stop.cpus} 核）`;
+  const head = stop.why === 'cap'
+    ? `環境：逾時——跑滿 ${CAP_MS / 60000} 分鐘還在出結果，${when}，不是判準紅；負載降下來後單獨重跑這一支`
+    : `卡住——連續 ${STALL_MS / 60000} 分鐘沒有新輸出，${when}；負載高就先當環境、降下來後重跑，負載不高就是腳本或頁面卡死，看最後幾行`;
+  return `${head}。中止前出了 ${ran} 條結果（EXPECT ${want}），其中 ${fails.length} 條 FAIL 照列；中止後的 ${dropped} 條 FAIL 是中止造成的，不列`;
 }
 function judge(r) {
-  return { ...r, ...judgeText(r.name, r.code, r.log ? fs.readFileSync(r.log, 'utf8') : '', r.note) };
+  const buf = r.log ? fs.readFileSync(r.log) : Buffer.alloc(0);
+  const stop = r.stop && { ...r.stop, at: buf.subarray(0, r.stop.cut).toString('utf8').length };
+  return { ...r, ...judgeText(r.name, r.code, buf.toString('utf8'), r.note, stop) };
 }
 // 自我測試：判準數從 EXPECT 讀（不寫死），調 EXPECT 不必改這裡；守的是判法本身。
-// [標籤, 哪一支, 離開碼, 輸出, 該不該綠, 紅的時候 note 要含的字]
+// [標籤, 哪一支, 離開碼, 輸出, 該不該綠, 紅的時候 note 要含的字, 中止資訊, 該列出幾條 FAIL]
 const SELF = (() => {
   const n = EXPECT.rules, h = EXPECT.hardening, g = EXPECT.gates;
+  // 逾時中止的假輸出：中止前一條真的 FAIL；中止後一條「瀏覽器被關」造成的 FAIL，再加一行看起來完整的摘要
+  const pre = `  ok  R1\nFAIL  R2 真的紅\n`, post = `FAIL  R3 browser has been closed\n${n}/${n} passed\n`, allOk = `  ok  R1\n${n}/${n} passed\n`;
+  const cut = (why, head) => ({ why, at: head.length, min: 61, load: 33.2, cpus: 18 });
   return [
     ['對照：恰好 N/N', 'rules', 0, `  ok  R1\n\n${n}/${n} passed\n`, true],
     ['hardening 的 [SUMMARY] 格式', 'hardening', 0, `  ok  Z\n\n[SUMMARY] ${h}/${h} 條判準通過\n`, true],
@@ -85,9 +117,13 @@ const SELF = (() => {
     ['部分通過（離開碼 0）', 'rules', 0, `${n - 1}/${n} passed\n`, false],
     ['沒有摘要行', 'rules', 0, `  ok  R1\n`, false],
     ['0/0', 'rules', 0, `0/0 passed\n`, false],
-  ].map(([label, name, code, text, want, needle]) => {
-    const j = judgeText(name, code, text);
-    return { label, ok: j.pass === want && (!needle || j.note.includes(needle)), got: j.pass, note: j.note };
+    ['逾時（還在出結果）：中止前的 FAIL 照列、中止後的不列', 'rules', 1, pre + post, false, '環境：逾時', cut('cap', pre), 1],
+    ['卡住：中止前沒有 FAIL、中止後印出完整摘要也要紅', 'rules', 0, `  ok  R1\n` + post, false, '卡住', cut('stall', `  ok  R1\n`), 0],
+    ['中止前摘要已經完整、離開碼 0 也要紅', 'rules', 0, allOk, false, '環境：逾時', cut('cap', allOk), 0],
+  ].map(([label, name, code, text, want, needle, stop, failsWant]) => {
+    const j = judgeText(name, code, text, '', stop);
+    return { label, ok: j.pass === want && (!needle || j.note.includes(needle)) && (failsWant === undefined || j.fails.length === failsWant),
+      got: j.pass, note: j.note };
   });
 })();
 
