@@ -3644,3 +3644,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '未訂閱': '未加入',
   '訂閱中': '加入中',
 });
+
+// 2026-10-03 整棟是單一模型的 3D 建築有鐵道經過時變半透明（v1003a）：第一層更新紀錄那條的 en/ja。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '立體地圖：臺北車站、中正紀念堂有鐵道經過時，整棟建築也會變半透明，看得到底下的軌道和列車': '3D map: when a rail line runs past Taipei Main Station or Chiang Kai-shek Memorial Hall, the whole building now turns translucent too, so you can see the tracks and trains below',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '立體地圖：臺北車站、中正紀念堂有鐵道經過時，整棟建築也會變半透明，看得到底下的軌道和列車': '3D地図：台北駅と中正紀念堂は、線路が通る場所で建物全体も半透明になり、下の線路や列車が見えるようになりました',
+});
