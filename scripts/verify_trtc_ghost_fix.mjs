@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 2026-08-15 斷訊恢復幽靈車修法驗收：拿當日真語料（40 輪，含幽靈車隊現場）重放整條
+// 2026-08-15 斷訊恢復幽靈車修法驗收：拿當日語料（40 輪，含幽靈車隊現場；環狀線為合成資料）重放整條
 // resolve→claim→collapse→attachTimelines→reduce 管線，證明
 //   (1) 沒有任何一輪因組裝例外被丟掉（正式站當天 38 個有效輪次丟了 22 輪）；
 //   (2) 冷啟動跑完 40 輪的名冊是健康的，且健康判準對「真實幽靈車現場」確實會變紅；
@@ -31,6 +31,8 @@ const EXPECTED = {
   // ＝5.8 倍它自己的站間週期（161 秒），而 O_LUZHOU 當輪有官方列（線是活的）。
   // 逐輪上下界 99–107 與累計出生 136 都沒變 ⇒ 只收掉這一台殭屍，沒有動到任何正常車。
   finalVehicles: 103, minVehicles: 99, maxVehicles: 107, births: 136,
+  // 2026-10-05 環狀線換成合成資料後，同一版程式重放的末輪／逐輪／births 由 107／98–108／138 變 108／99–109／141：
+  // 差異全在 Y（冷啟動時在線多 1 台、端點多發 2 班、末輪多 1 台），其他線的出生數與末輪車數逐線相同。
   ghostDuplicateGroups: 5, ghostExtraVehicles: 9,
 };
 
@@ -124,7 +126,7 @@ function health(state) {
   };
 }
 
-console.log('北捷幽靈車修法驗收（2026-08-15 真語料 40 輪）：\n');
+console.log('北捷幽靈車修法驗收（2026-08-15 語料 40 輪）：\n');
 
 const base = await loadPipeline();
 const baseline = replayRounds(base);

@@ -7,6 +7,7 @@
 //
 // 語料是 2026-08-17 07:42 正式站真實名冊（boardPos）＋同輪官方站牌（board）。
 // 那三輪的 boardPos 自己就有「一段軌道 5–6 台車」，是使用者截圖症狀的直接對應物。
+// 環狀線（Y）的看板列與名冊是依虛構時刻表產生的合成資料（同一段 3 台以上的狀況由起點重複列重現），其餘線照原錄檔。
 //
 // 判準與實作不同源：擁擠度由本檔自己數 vehicles 算出來，不讀 reducer 的計數器；
 // 「官方有的車都要在」由官方 row 的 key 反查 vehicles，也不讀 diagnostics。
@@ -121,7 +122,7 @@ function reduceRound(pipeline, snap, { heal = true, force = null, prior = null, 
 const pipeline = await loadPipeline();
 
 // ---- 1. 語料代表性：這幾輪的正式站名冊真的有使用者說的那種畫面 ----
-console.log('---- 1. 語料代表性（正式站當時的真實名冊）----');
+console.log('---- 1. 語料代表性（正式站當時的名冊；環狀線為合成資料）----');
 for (const snap of rounds) {
   const c = crowdOf(snap.boardPos.vehicles);
   check(c.worst >= LIMIT, `${snap.at.slice(11, 19)} 正式站名冊有 ≥${LIMIT} 台同區間`,

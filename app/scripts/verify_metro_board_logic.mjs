@@ -105,7 +105,8 @@ ok('T5 別名生效(官方送「松山機場站」)', gotSongshan.rows.length > 
 
 // ── 環狀線:它併在 trtc 裡(Y 線),終點是新北產業園區／大坪林,而且官方沒給它的車廂資料 ──
 // 🔴 `trtc-live.json` 那份凍結樣本【沒有】任何 Y 的列,所以上面 T1–T5 一條都沒驗到環狀線。
-//    `trtc-live-y.json` 是另一次真實擷取的裁切(只挑欄位、不改值),trains[] 裡確實沒有 Y 的車。
+//    `trtc-live-y.json` 是另一次擷取的裁切(只挑欄位),環狀線看板列換成了依虛構時刻表產生的合成資料;
+//    trains[] 裡確實沒有 Y 的車。
 const yRaw = JSON.parse(readFileSync(join(ROOT, 'app/fixtures/metro/trtc-live-y.json'), 'utf8'));
 const yNow = Math.min(...yRaw.board.map(b => b.eta)) - 60;
 const gotY = run('trtc', '十四張', yNow, 'trtc-live-y.json', 'trtc');
