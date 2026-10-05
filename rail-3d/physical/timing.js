@@ -13,7 +13,7 @@ export function segmentTime(st,next,f,{system}={}){
  let cache=segmentTimes.get(st);if(!cache){cache=new Map();segmentTimes.set(st,cache);}const key=Math.round(f*1e10);if(cache.has(key))return cache.get(key);
  const p=st.rp,target=(st.rpOff+f*st.rpSegKm*1000)/p.L,d=target*p.L;let t;
  if(target<=0)t=0;else if(target>=1)t=p.T;
- else if(p.obs){let lo=0,hi=p.T;for(let i=0;i<24;i++){const m=(lo+hi)/2;if(profileProgress(p,m)<target)lo=m;else hi=m;}t=(lo+hi)/2;}
+ else if(p.obs){let lo=0,hi=p.T;for(let i=0;i<48;i++){const m=(lo+hi)/2;if(profileProgress(p,m)<target)lo=m;else hi=m;}t=(lo+hi)/2;}
  else if(d<p.dAcc)t=Math.sqrt(2*d/p.a);
  else if(d<p.dAcc+p.dCru)t=p.tAcc+(d-p.dAcc)/p.vc;
  else if(d<p.dAcc+p.dCru+p.dCoast){const dis=p.vc*p.vc-2*p.c*(d-p.dAcc-p.dCru);t=p.tAcc+p.tCru+(dis>0?(p.vc-Math.sqrt(dis))/p.c:p.tCoast);}
