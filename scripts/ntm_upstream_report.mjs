@@ -6,7 +6,9 @@
 // 而全站的次數只有這份帳數得到——各 colo 的 log、DO 的 /ntm-status 都只看得到自己那一份。
 // 判定以「全站相鄰兩次開始查詢的間隔」為準,集中出口(do:<colo>)與 per-colo 退路(direct:<原因>)
 // 一起排序:退路打的那幾次一樣算在官網頭上。DO 在查詢途中被重置時那一發可能來不及記,所以這份帳是下限;
-// 對外回報次數時另外對照 DO 的 subrequests(Cloudflare GraphQL durableObjectsPeriodicGroups)。
+// 對外回報次數時另外對照 Cloudflare GraphQL 的 workersSubrequestsAdaptiveGroups:以 hostname=trainstatus.ntmetro.com.tw
+// 過濾、按 scriptName 分(應只有 poller,主站 0)。那份是取樣的,偶爾一列帶權重,比逐筆時間點、不比總數。不要拿
+// durableObjectsPeriodicGroups 的 subrequests 比:它把 DO 量落點用的 cloudflare.com trace 也算進去,會比帳多出一截。
 //
 // 用法:node scripts/ntm_upstream_report.mjs [--minutes=30] [--since=<ISO 時間>] [--sql]
 //       node scripts/ntm_upstream_report.mjs --self-test   (離線自驗判定邏輯,不碰 Cloudflare)
@@ -135,5 +137,5 @@ for (const [sys, r] of Object.entries(res)) {
 }
 if (!rows.length) console.log('沒有任何一筆(資料集名稱打錯時 AE 也是回空)。剛部署的話等一兩分鐘再查:AE 寫入有延遲,也不回溯部署前。');
 if (truncated) { bad++; console.log(`⚠ 回了 ${ROW_LIMIT} 筆＝被截掉了(最新那段不在裡面),這份不算數:縮短 --minutes 重查。`); }
-console.log('\n註:這份帳是下限——DO 在查詢途中被重置時,那一發可能來不及記。對外回報次數前,另外對照 DO 的 subrequests(Cloudflare GraphQL durableObjectsPeriodicGroups)。');
+console.log('\n註:這份帳是下限——DO 在查詢途中被重置時,那一發可能來不及記。對外回報次數前,另外對照 Cloudflare GraphQL workersSubrequestsAdaptiveGroups(hostname=trainstatus.ntmetro.com.tw,按 scriptName 分);DO 的 subrequests 含量落點的 trace,不能拿來比。');
 process.exit(bad ? 1 : 0);

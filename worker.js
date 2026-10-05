@@ -833,7 +833,7 @@ async function ntmLiveFetch(sys, prev, env, via) {
   } finally {
     clearTimeout(timer);
     // 每打一次官網記一筆,成敗都記。double1=開始查詢的毫秒時間,量間隔用(scripts/ntm_upstream_report.mjs)。
-    // 這份帳是下限:DO 在查詢途中被重置時,那一發可能來不及記,要對照 DO 的 subrequests 數。
+    // 這份帳是下限:DO 在查詢途中被重置時,那一發可能來不及記;對照方式見 scripts/ntm_upstream_report.mjs 檔頭。
     if (env && env.NTM_UPSTREAM) {
       try {
         env.NTM_UPSTREAM.writeDataPoint({ indexes: [sys], blobs: [sys, via || '?', outcome], doubles: [started, Date.now() - started] });
