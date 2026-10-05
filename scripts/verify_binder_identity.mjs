@@ -558,8 +558,8 @@ const persistence = syntheticPersistence(ledger), mt1 = syntheticPersistence(bro
 const workerSource = fs.readFileSync(WORKER_PATH, 'utf8'), workerAudit = workerWiringAudit(workerSource);
 const workerMutationInputs = {
   onePass: [
-    'const events = [...((round1 && round1.events) || []), ...((round2 && round2.events) || [])];',
-    'const events = [...((round2 && round2.events) || [])];', 'ownsBothPassEvents'],
+    'const events = [...((round1 && round1.events) || []), ...((round2 && round2.events) || [])]',
+    'const events = [...((round2 && round2.events) || [])]', 'ownsBothPassEvents'],
   noSelect: [
     'const relational = await db.prepare(`SELECT line,dir,trip_key,track_id,bound_epoch,birth,done,rebinds',
     'const relational = await db.prepare(`SELECT line,dir,trip_key /* mutation missing persistence columns */',

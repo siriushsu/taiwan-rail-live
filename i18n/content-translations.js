@@ -3668,3 +3668,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '淡海、安坑倒數改為約每分鐘向官方更新一次': '淡海・安坑の到着予測を、公式データから約1分ごとに更新するようにしました',
 });
+
+// 2026-10-05 環狀線即時資料不再留存（v1005d）：最近更新的英日文。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '環狀線即時資料改為即用即丟：伺服器不再累積環狀線列車的行駛紀錄，畫車與站牌跟隨用的暫存只留近況，每晚收班後清除': 'Circular Line live data is now use-and-discard: the server no longer accumulates Circular Line train records, and the temporary data used for drawing trains and following them from station boards keeps only the latest status and is cleared every night after service ends',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '環狀線即時資料改為即用即丟：伺服器不再累積環狀線列車的行駛紀錄，畫車與站牌跟隨用的暫存只留近況，每晚收班後清除': '環状線のリアルタイムデータは使ったらすぐ捨てる方式にしました。サーバーに環状線の列車の運行記録を蓄積せず、列車の表示と駅の案内板からの追跡に使う一時データは直近の状況だけを残し、毎晩終電後に消去します',
+});

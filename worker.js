@@ -1440,7 +1440,7 @@ function trtcModelSources(env) {
   ]);
 }
 
-async function trtcLedgerModel(env) { // 帳本用:含 Y(工項4起 tracks/bindings 一併寫入;events 仍排除,見 persistTrtcLedger)
+async function trtcLedgerModel(env) { // 帳本用:含 Y(記憶體裡照算,寫 D1 時排除,見 TRTC_LEDGER_UNSTORED_LINES)
   if (trtcLedgerModelCache) return trtcLedgerModelCache;
   const [trtc, times, codes] = await trtcModelSources(env);
   const model = buildTrtcModel(trtc, times, codes, { includeY: true });
@@ -1513,14 +1513,20 @@ async function loadTrtcTripBindingState(env, day) {
 // 寫入紀律(設計書 §6):events 觸及的關係列依本輪最終狀態處理——final binding 存在
 // 就 upsert；目的地改變／安全閥驅逐後 final binding 不存在就 physical delete，避免冷啟動
 // fallback 復活舊列。reattach/done 仍走原 upsert 路徑；同輪先 evict 後重生同 key 則 final wins。
-// trtc_state['trip_dyn'] 每輪整包覆寫 1 次(訪客 join 用途留給下一單,這裡先把管線接好)。
+// trtc_state['trip_dyn'] 每輪整包覆寫 1 次(綁定器跨輪接續與訪客 join 都讀它)。
 async function persistTrtcTripBindingRound(env, day, nowEpoch, dayType, round1, round2) {
   if (!await ensureTrtcLedger(env)) return { bindingRows: 0, bindingDeletes: 0, reconciledRows: 0 };
   const db = env.TRTC_LEDGER;
-  const bindings = (round2 && round2.bindings) || [];
+  // 關係表不收 Y(見 TRTC_LEDGER_UNSTORED_LINES);trip_dyn 只收最近 30 分鐘內看見的 Y(見 TRTC_TRIP_DYN_UNSTORED_TTL_SEC)。
+  // 部署前已寫進關係表的 Y 列不會再被更新,由 pruneTrtcLedger 依保留期刪除。
+  const finalBindings = (round2 && round2.bindings) || [];
+  const bindings = finalBindings.filter(trtcLedgerStorable);
+  const dynBindings = finalBindings.filter(b => trtcLedgerStorable(b) ||
+    nowEpoch - Number(b.lastSeenEpoch) <= TRTC_TRIP_DYN_UNSTORED_TTL_SEC);
   // round1 驅逐後，round2 可能已沒有這個 key；合併兩 pass 事件是 persistence 函式自身
   // 的契約，不讓呼叫端漏傳 round1 就靜默復發 zombie。
-  const events = [...((round1 && round1.events) || []), ...((round2 && round2.events) || [])];
+  const events = [...((round1 && round1.events) || []), ...((round2 && round2.events) || [])]
+    .filter(trtcLedgerStorable);
   // 連同當日低頻關係表對帳，一併清掉部署前舊版已留下、但新版不會再發
   // evict event 的 zombie。用 trtc_state marker 保證每營運日只全表掃一次；新 isolate 會從
   // D1 marker 恢復，不會因記憶體 cache 失效重複掃數百列。後續新驅逐仍靠 event 當輪刪除。
@@ -1554,7 +1560,7 @@ async function persistTrtcTripBindingRound(env, day, nowEpoch, dayType, round1, 
   }
   const stateStatements = [db.prepare(`INSERT INTO trtc_state (k,v) VALUES ('trip_dyn',?)
       ON CONFLICT(k) DO UPDATE SET v=excluded.v`)
-    .bind(JSON.stringify({ at: nowEpoch, day, dayType, bindings }))];
+    .bind(JSON.stringify({ at: nowEpoch, day, dayType, bindings: dynBindings }))];
   if (reconciliation) stateStatements.push(db.prepare(`INSERT INTO trtc_state (k,v)
       VALUES ('trip_binding_reconcile_v1',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v`).bind(day));
   let batches = 0;
@@ -2101,15 +2107,30 @@ function multiInsertStatements(db, table, columns, rows, chunkSize, suffix) {
   return statements;
 }
 
+// 環狀線(Y)的即時資料只能即用即丟、不留歷史:帳本裡逐日累積的表(events、tracks、車號別名、
+// trip bindings 關係表)一律不收 Y。cron 記憶體裡照算;Y 的 track 不落 D1,換站後的新 track 靠綁定器的認回接上同一班。
+// 例外是兩列每輪覆寫的工作狀態,每晚 03:30 整列刪除:官方名冊(理由見 pruneTrtcLedger)與
+// trip_dyn(理由見 TRTC_TRIP_DYN_UNSTORED_TTL_SEC)。
+// 守門人:scripts/verify_trtc_ledger_no_y.mjs(含逐道突變)。
+const TRTC_LEDGER_UNSTORED_LINES = new Set(['Y']);
+const trtcLedgerStorable = x => !TRTC_LEDGER_UNSTORED_LINES.has(x && x.line);
+// trip_dyn 收 Y:綁定器跨輪接續(Y 的 track 不落 D1,換站後要靠 lastShift 認回)與訪客 join(車上的
+// tripKey、看板 trips[],站牌「跟隨往 X 的班次」要用)都讀它。只留最近 30 分鐘內還被看板看見的
+// Y 綁定,收班或斷訊超過這段時間的就丟。
+const TRTC_TRIP_DYN_UNSTORED_TTL_SEC = 30 * 60;
+
 async function persistTrtcLedger(env, parts, nowEpoch) {
   if (!await ensureTrtcLedger(env)) return { events: 0, tracks: 0, aliases: 0 };
   const db = env.TRTC_LEDGER;
-  // Y(環狀線)裁示排除 events(設計書 §6.1:歷史事件分析價值低於寫入成本);tracks/aliases 不過濾——
-  // Y 的跨輪連續性需要 tracks,只有「逐站事件史」這張表刻意不收。
-  const eventRows = dedupeRows(parts.flatMap(x => ledgerEventRows(x.events.filter(e => e.line !== 'Y'))),
+  const eventRows = dedupeRows(parts.flatMap(x => ledgerEventRows(x.events.filter(trtcLedgerStorable))),
     x => `${x.day}|${x.line}|${x.dir}|${x.train_key}|${x.station_idx}|${x.kind}|${x.src}`);
-  const trackRows = dedupeRows(parts.flatMap(x => ledgerTrackRows(x.trackUpdates)), x => `${x.day}|${x.track_id}`);
-  const aliasRows = dedupeRows(parts.flatMap(x => x.aliasUpdates || []).map(x => ({
+  const trackRows = dedupeRows(parts.flatMap(x => ledgerTrackRows(x.trackUpdates.filter(trtcLedgerStorable))),
+    x => `${x.day}|${x.track_id}`);
+  // 別名列沒有線別欄,用同一輪 track 的線別判斷(Y 目前沒有官方車號,這道是防上游日後補上車號)。
+  const unstoredTracks = new Set(parts.flatMap(x => x.trackUpdates).filter(x => !trtcLedgerStorable(x))
+    .map(x => `${x.day}|${x.trackId}`));
+  const aliasRows = dedupeRows(parts.flatMap(x => x.aliasUpdates || [])
+    .filter(x => !unstoredTracks.has(`${x.day}|${x.trackId}`)).map(x => ({
     day: x.day, alias_type: x.aliasType, alias: x.alias, track_id: x.trackId,
     first_seen_epoch: x.epoch, last_seen_epoch: x.epoch,
   })), x => `${x.day}|${x.alias_type}|${x.alias}`);
@@ -2197,7 +2218,13 @@ async function pruneTrtcLedger(env, nowEpoch) {
     db.prepare('DELETE FROM trtc_tracks WHERE day<?').bind(cutoff),
     db.prepare('DELETE FROM trtc_track_aliases WHERE day<?').bind(cutoff),
     db.prepare('DELETE FROM trtc_trip_bindings WHERE day<?').bind(cutoff),
-    // trtc_state 不用清:'trip_dyn' 是每輪整包覆寫的單列,不是逐日累積表。
+    // 兩列每輪覆寫的工作狀態都含 Y(見 TRTC_LEDGER_UNSTORED_LINES),收班後整列刪掉,不跨營運日保存。
+    // 官方名冊收 Y,是因為它是畫車的跨 isolate／跨機房身分來源,少了 Y 環狀線每一輪都會換一批新
+    // vehicleId;名冊裡只有還在跑(或暫時沒報到)的車與它們這一趟的資料,到終點就移出。
+    // 刪掉不改變任何車的身分:03:30–04:00 在營運窗外,worker 不打上游、直接回空列,這段時間重建的名冊是空的;04:00 換營運日後
+    // 第一輪本來就是冷啟動(reduceOfficialRoster 對不同 day 的 prior 一律不接,trip_dyn 也只認同一天)。
+    db.prepare('DELETE FROM trtc_state WHERE k=?').bind(TRTC_OFFICIAL_ROSTER_KEY),
+    db.prepare("DELETE FROM trtc_state WHERE k='trip_dyn'"),
   ]);
   const changes = results.reduce((n, r) => n + Number(r.meta && r.meta.changes || 0), 0);
   console.log(`[cron trtc-ledger] 清理 < ${cutoff}: ${changes} 列`);
@@ -2252,7 +2279,7 @@ async function trtcLedgerScheduled(event, env) {
   // 逐班綁定器(工項3):獨立 try/catch,不得拖垮上面已經成功寫入的帳本主流程(比照 hazardTask
   // 隔離寫法,worker.js scheduled() 內 hazardMonitorWithTimeout 的 catch)。用 includeY:true 的
   // model(既有 trtcBoardModel)——工項4起 trtcLedgerModel 也已 includeY:true,故 part1/part2.claims
-  // 現在會真的帶著 Y 的 claims 進來,Y 的 tracks/bindings 與其他八線同一條路徑處理。
+  // 會帶著 Y 的 claims 進來,同一次 cron 內與其他八線同一條路徑綁定;哪些 D1 表不收 Y 見 TRTC_LEDGER_UNSTORED_LINES。
   let bindResult = null;
   try {
     const [bindModel, { tripSets, dayKeys }, dayTypeTable, priorState] = await Promise.all([

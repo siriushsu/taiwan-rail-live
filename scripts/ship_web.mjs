@@ -517,6 +517,17 @@ try {
   if (workerInflight.status !== 0) fail('Worker 共用刷新復原閘門未過——NCDR 或公車上游卡住後仍會拖住後續請求'
     + '（單獨重跑：npm run check-worker-inflight）');
 
+  // ── 2.9e 北捷帳本不存環狀線 ───────────────────────────────────────────────
+  // 環狀線的即時資料只能即用即丟：帳本裡逐日累積的表都不收 Y；兩列每輪覆寫的工作狀態收 Y——官方名冊
+  // （畫車的跨 isolate 身分要用）與 trip_dyn（只留最近 30 分鐘內看見的），每晚 03:30 兩列都整列刪掉。
+  // 這種回歸不會讓畫面或別的判準變紅，
+  // 資料只會默默又存起來。純離線（假 D1 記錄每一筆寫入、ASSETS 替身讀這棵乾淨出貨樹的 data/），
+  // 含逐道突變與控制組。
+  const trtcNoY = spawnSync('node', [path.join(wt, 'scripts', 'verify_trtc_ledger_no_y.mjs')], { encoding: 'utf8' });
+  process.stdout.write(trtcNoY.stdout || ''); process.stderr.write(trtcNoY.stderr || '');
+  if (trtcNoY.status !== 0) fail('北捷帳本不存環狀線閘門未過——環狀線資料又會累積進 D1、trip_dyn 不再限時，或名冊與 trip_dyn 不再每晚清除'
+    + '（單獨重跑：npm run check-trtc-ledger-no-y）');
+
   // ── 2.10 OBS 直播／導播模式守門人 ───────────────────────────────────────────
   // 2026-09-03 刪掉 ?live=1／?live=2 之後補的。守的是「刪掉的東西不會被某條舊分支的合併
   // 靜默帶回來」——這個 repo 的合併吃掉／帶回東西從來不會讓 build 紅（見 app/scripts/
