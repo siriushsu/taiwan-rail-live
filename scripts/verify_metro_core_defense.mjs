@@ -8,7 +8,8 @@
 // 語料：scripts/fixtures/metro_core_snapshot.json 是 2026-08-21 21:26 從正式 KV 取下的
 //      **真實** canonical snapshot（trtc 101 台／320 列、krtc 28 台／77 列），
 //      跑的時候把所有 epoch 平移到「現在」。用真的比手捏的重要，因為 P2-9 的比例門檻
-//      要對得上真實的身分覆蓋率（trtc 70.6%、krtc 7.8%）。
+//      要對得上真實的身分覆蓋率（trtc 70.6%、krtc 7.8%）。環狀線 Y 的車與站牌列後來換成依虛構時刻表
+//      產生的合成資料，trtc 因此變成 71.6%（229/320）。
 //
 // 用法：node scripts/verify_metro_core_defense.mjs
 //       PORT=<port> 指定埠（預設 5723；30+ worktree 並行時硬編埠幾乎一定撞到別人，

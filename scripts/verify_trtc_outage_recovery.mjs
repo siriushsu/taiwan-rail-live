@@ -7,9 +7,9 @@
 //   觸發。判準因此必須逐線量「這條線多久沒出現官方列了」。
 //   本檔的 mutation `global-gap-instead` 就是把那個錯誤設計釘死成會轉紅的對照組。
 //
-// 正向控制組全部取自真語料，沒有合成情境：
+// 正向控制組取自當天語料（環狀線的列與車是依虛構時刻表產生的合成資料，其餘照原錄檔），沒有另外合成情境：
 //   fixtures/trtc-outage-20260815/outage_0649.json   斷訊中（只剩環狀線 9 列）
-//   fixtures/trtc-outage-20260815/outage_0652.json   斷訊中（同上，且含當時真實的 77 台名冊）
+//   fixtures/trtc-outage-20260815/outage_0652.json   斷訊中（同上，且含當時的名冊 76 台；原錄檔 77 台，差的 1 台在合成的環狀線）
 //   fixtures/trtc-outage-20260815/recovered_0701.json 恢復輪（九線 92 列回來）
 // 負向控制組：fixtures/.../rounds 的 40 輪健康語料必須零觸發（誤殺正常輪比漏接嚴重得多）。
 import fs from 'node:fs';
@@ -30,7 +30,7 @@ const REALIGN_SEC = 180;
 const EXPECTED = {
   deadLines: ['BL', 'BR', 'G', 'O_LUZHOU', 'O_XINZHUANG', 'R'], // 斷訊期間歸零的六條線
   aliveLine: 'Y',                       // 全程正常在報的那條（新北捷運 feed）
-  outageRosterVehicles: 77,             // 06:52 真實生產名冊
+  outageRosterVehicles: 76,             // 06:52 生產名冊（環狀線為合成資料；原錄檔 77 台）
   deadLineStaleSec: 1501,               // 六條線在 06:52 已經 1501 秒沒被觀測到
   midOutageGapSec: 165,                 // 0649→0652 環狀線的間隔，刻意小於門檻
   recoveryGapSec: 2011,                 // 06:27:31 → 07:01:02
@@ -81,7 +81,7 @@ async function loadPipeline({ rosterMutation = null } = {}) {
     cleanup: () => temps.forEach(file => { try { fs.unlinkSync(file); } catch {} }) };
 }
 
-// 把當時真實的生產名冊（boardPos）還原成 reducer 認得的 prior state。
+// 把當時的生產名冊（boardPos）還原成 reducer 認得的 prior state。
 // feedSeen 由每台車自己的 observedEpoch 逐線取最大值重建——真實系統記的就是這個值。
 function priorFromBoardPos(boardPos, { feedSeenOverride = {} } = {}) {
   const feedSeen = {};

@@ -33,6 +33,8 @@ const EXPECTED = {
                             //   的合法 carried，第 37 輪 08:09:34 接回原 ID）
   births: 136,              // 冷啟動 99＋17 分鐘內 37 次真出生（**不含**短程起點例外，見下一行）
   shortTurnBirths: 3,       // 短程／區間車起點例外（2026-08-21）在這份語料放行的台數
+  // 2026-10-05 環狀線換成合成資料後，同一版程式重放的 births 由 138 變 141：多出的 3 次全在 Y（冷啟動時在線多 1 台、端點多發 2 班），
+  // 其他線逐線相同。扣掉短程例外後是 136，剛好等於上面釘死的值，「累計出生等於釘死值」因此轉綠（用原錄檔時是 133，這一項是紅的）。
 };
 
 let failures = 0;
@@ -214,8 +216,8 @@ const model = syntheticModel();
     `vehicles=${other.vehicles.length} births=${other.diagnostics.births} priorDest=${b ? b.dest : 'n/a'}`);
 }
 
-// ---- 7. 真語料：40 輪健康重放的幽靈指標 ----
-console.log('\n真語料重放（2026-08-15 07:53–08:10，40 輪）：');
+// ---- 7. 語料（環狀線為合成資料）：40 輪健康重放的幽靈指標 ----
+console.log('\n語料重放（2026-08-15 07:53–08:10，40 輪）：');
 const healthy = replayCorpus(base, ROUNDS_DIR);
 check(healthy.rounds === EXPECTED.rounds, '語料輪數與釘死值一致', `${healthy.rounds}`);
 check(healthy.sharedPairs === EXPECTED.sharedPairsTotal,

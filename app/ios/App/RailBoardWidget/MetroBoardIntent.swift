@@ -17,7 +17,9 @@ struct MetroBoardIntent: AppIntent, WidgetConfigurationIntent {
     /// 🔴 2026-08-15 定價落地:改成 1(免費一站)。同批必須有明講的 CTA——
     /// 判定在 MetroPlusGate/MetroPlusCore,擋下時卡上畫升級說明並可點進通行證面板,
     /// 不做靜默空白卡(這個專案已經有三個「不給用也不說」的付費功能,不再加第四個)。
-    static let freeStationLimit: Int? = 1
+    /// 🔴 2026-10-05 改回 nil:多站與「自動(最近的站)」對所有人免費。即時資訊不設付費門檻是
+    ///    資料授權的條件,要改回數字之前先查授權。閘門與 CTA 程式碼保留,nil 時 decide() 一律放行。
+    static let freeStationLimit: Int? = nil
 
     /// 方向格的「不指定」哨兵。iOS 的單選 picker 選過一次就沒有內建的清除手勢——使用者
     /// 2026-09-02 回報「選了方向就取消不了,只能刪掉小工具重來」。所以清單最上面放一個具名的

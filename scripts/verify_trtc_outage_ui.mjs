@@ -10,7 +10,7 @@
 //   * 只用「真的做一次那個互動 + 量它造成的狀態改變」，不用 computed style 當存在證明（心得 24/33/37）
 //   * 每條正向斷言都配一個對照組（訊號正常時必須不出現），否則「有出現」證明不了它是被中斷觸發的
 //   * 每條斷言都配突變：把對應的產品程式碼改壞，該條必須轉紅，否則它沒有牙（心得 35）
-//   * 語料用 2026-08-15 真實斷線 payload 重放（rebase 到現在），不自己編一份
+//   * 語料用 2026-08-15 斷線 payload 重放（rebase 到現在；環狀線部分為合成資料），不另外編情境
 import fs from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'node:http';
@@ -36,7 +36,7 @@ function replaceExactly(source, before, after, label) {
   return pieces[0] + after + pieces[1];
 }
 
-// ── 語料：真實斷線 payload rebase 到「現在」 ────────────────────────────────
+// ── 語料：斷線 payload rebase 到「現在」 ────────────────────────────────────
 // 深走整棵樹把 2026 年的 unix 秒整體平移，不逐欄列舉——欄位一多就會漏（漏掉的那欄會變成
 // 假的「這台車的觀測是 8 個月前」，判準會因為錯誤的理由變綠或變紅）。
 const EPOCH_LO = 1.70e9, EPOCH_HI = 1.90e9;
