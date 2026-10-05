@@ -54,7 +54,14 @@ function makeSnapshot() {
         direction, destinationStationIndex, arrivalEpoch: now + 60, state: 'running', match: 'inferred' }] });
     }
   }
-  if (fixture && includeArrival) trains.push(fixture.train);
+  if (fixture && includeArrival) {
+    trains.push(fixture.train);
+    // 防禦案例：若快照看板仍殘留 display-only ID，真前端需將其匿名化，不能認領下一班。
+    if (fixture.strayBoard) boards.push({ lineId: fixture.lineId, stationIndex: fixture.destination,
+      rows: [{ rowId: 'display-only-must-not-own-board', vehicleId: fixture.train.vehicleId,
+        direction: fixture.train.direction, destinationStationIndex: fixture.destination,
+        arrivalEpoch: now + 30, state: 'running', match: 'inferred' }] });
+  }
   return { schema: 'metro-snapshot/v1', revision: `krtc-terminal-${serial++}`,
     generatedAt: now, sourceAt: now, validUntil: now + 600,
     systems: [{ systemId: 'krtc', lines: ['KR', 'KO'].map(id => ({ id,
@@ -282,6 +289,72 @@ async function run3DEvidence(page, engine) {
   }
 }
 
+async function runCoreProtocolCase(page, engine, metadata, caseIndex) {
+  const lineId = metadata ? 'KR' : 'KO', direction = metadata ? 1 : 2;
+  const destination = direction === 2 ? lineData.find(line => line.id === lineId).stations.length - 1 : 0;
+  const step = direction === 2 ? 1 : -1;
+  const arrival = start + caseIndex * 600 + 30;
+  const vehicleId = `krtc:${lineId}:core-protocol:${engine}:${metadata ? 'metadata' : 'extended'}`;
+  fixture = { lineId, destination, strayBoard: metadata, train: { vehicleId, lineId, direction,
+    state: metadata ? 'terminal' : 'running', destinationStationIndex: destination,
+    publicLabel: metadata ? 'CORE-HOLD' : 'CORE-EXTENDED',
+    trajectory: [{ epoch: arrival - 20, progress: destination - step, stateAfter: 'running' },
+      { epoch: arrival, progress: destination, stateAfter: 'terminal' },
+      { epoch: arrival + 10, progress: destination, stateAfter: 'terminal' }],
+    nextCall: null, retireAt: arrival + 10, quality: { source: 'board' },
+    ...(metadata ? { terminalDisplay: { arrivalEpoch: arrival, holdUntil: arrival + 10 } } : {}) } };
+  includeArrival = true; nearControl = false;
+  await page.evaluate(() => { clearFreqFollow(); if (state.boardStation) closeBoard(); });
+  await setTime(page, metadata ? arrival + 4 : arrival - 8);
+  await selectView(page, 'metro');
+  await poll(page, true);
+  if (!metadata) {
+    const approach = await drawEvidence(page, { center: true });
+    assert(approach.target && approach.canonicalIds.includes(vehicleId), '新 Core 到站前仍是正常在途車');
+    await setTime(page, arrival + 4);
+  }
+  const held = await drawEvidence(page, { center: true });
+  assert(held.target?.terminalDisplay && held.target.pos.progress === destination && held.hit && held.paint.length,
+    metadata ? '冷啟動第一次看到 Core metadata 已到終點，也必須畫出並可點' : 'Core 延長 retireAt 必須轉為顯示層終點車');
+  assert.equal(held.target.displayOpacity, 1);
+  assert(!held.canonicalIds.includes(vehicleId), 'Core 已到站的車不計為在途');
+  assert(!held.boardIds.includes(vehicleId), 'Core metadata 不能認領殘留看板列');
+  const oldApp = await page.evaluate(({ vehicleId, epoch }) => {
+    const train = metroCoreSystem('krtc').trains.find(train => train.vehicleId === vehicleId);
+    const sample = metroCoreSampleTrain(train, epoch);
+    return { sample, retireAt: train.retireAt };
+  }, { vehicleId, epoch: arrival + 9 });
+  assert.equal(oldApp.sample?.stateAfter, 'terminal', '舊 App 原取樣契約也能在到站第九秒讀到終點');
+  assert.equal(oldApp.retireAt, arrival + 10);
+
+  await setTime(page, arrival + 9); await poll(page);
+  const countWith = await page.evaluate(() => runningCount());
+  includeArrival = false; await poll(page);
+  assert.equal(await page.evaluate(() => runningCount()), countWith,
+    'Core 終點車存在與否不能改變營運車數');
+  includeArrival = true; await poll(page);
+  const refreshed = await drawEvidence(page);
+  assert.equal(refreshed.target?.displayOpacity, 1);
+  assert.deepEqual(refreshed.canonicalIds, held.canonicalIds, '正常在途車 ID 不受終點顯示刷新影響');
+
+  await setTime(page, arrival + 10.5);
+  const fading = await drawEvidence(page);
+  assert.equal(fading.target?.displayOpacity, 0.5, '新 Core 的延長 retireAt 不能讓網站再停第二次十秒');
+  assert(fading.paint.length && fading.paint.every(row => row.alpha === 0.5), '新協定的透明度也必須真的畫到 Canvas');
+  await page.screenshot({ path: path.join(out, `${engine}-core-${metadata ? 'metadata' : 'extended'}-fade.png`) });
+  for (const epoch of [arrival + 11, arrival + 12, arrival + 20]) {
+    await setTime(page, epoch); await poll(page);
+    const ended = await drawEvidence(page);
+    assert(!ended.target && !ended.hit && !ended.paint.length,
+      '同 ID 舊 metadata 反覆出現在新快照，仍不得復活已跑完的顯示');
+    assert(!ended.canonicalIds.includes(vehicleId) && !ended.boardIds.includes(vehicleId));
+  }
+  const result = { engine, lineId, direction, protocol: metadata ? 'metadata-cold-start' : 'extended-retireAt',
+    oldAppTerminal: true, countUnaffected: true, fadeAlpha: fading.paint.map(row => row.alpha),
+    retiredAtArrivalPlus11: true, staleMetadataDidNotRevive: true };
+  results.push(result); console.log('PASS', JSON.stringify(result));
+}
+
 let browser;
 try {
   for (const [engine, launcher] of Object.entries({ chromium, webkit })) {
@@ -333,10 +406,11 @@ try {
     let caseIndex = 0;
     for (const lineId of ['KR', 'KO']) for (const direction of [1, 2])
       await runCase(page, engine, lineId, direction, ++caseIndex);
+    for (const metadata of [false, true]) await runCoreProtocolCase(page, engine, metadata, ++caseIndex);
     assert.deepEqual(errors, [], `${engine} 不得有瀏覽器未處理例外`);
     await context.close(); await browser.close(); browser = null;
   }
-  console.log(`PASS 高捷終點真瀏覽器：${results.length} 個雙引擎／紅橘線／雙向案例`);
+  console.log(`PASS 高捷終點真瀏覽器：${results.length} 個雙引擎／紅橘線雙向／新舊 Core 協定案例`);
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));

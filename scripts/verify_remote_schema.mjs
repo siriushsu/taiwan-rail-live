@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { wranglerCommand } from './wrangler_command.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -97,8 +98,9 @@ else {
     console.error(`❌ 找不到 wrangler（${wrangler}）：這棵樹沒有 node_modules，不是正式庫的問題——先 ln -sn <主 repo>/node_modules 接上再跑`);
     process.exit(2);
   }
-  const r = spawnSync('arch', ['-arm64', 'node', wrangler, 'd1', 'execute', 'DELAY_DB', '--remote', '--json',
-    '--command', "SELECT name, sql FROM sqlite_master WHERE type='table'"], { cwd: root, encoding: 'utf8' });
+  const query = wranglerCommand(wrangler, ['d1', 'execute', 'DELAY_DB', '--remote', '--json',
+    '--command', "SELECT name, sql FROM sqlite_master WHERE type='table'"]);
+  const r = spawnSync(query.command, query.args, { cwd: root, encoding: 'utf8' });
   raw = r.stdout || '';
   if (r.status !== 0 && !raw.trim()) {
     console.error(`❌ 查不到正式庫（wrangler exit ${r.status}）：${(r.stderr || '').trim().split('\n').slice(-3).join(' / ')}`);
@@ -114,7 +116,8 @@ if (gaps.length) {
   for (const g of gaps) console.error(`   - ${g.col ? `${g.table}.${g.col}` : `整張表 ${g.table}`}（${g.file}）`);
   const toApply = [...new Set(gaps.map(g => g.file))];
   console.error('   補套（正式庫寫入，要使用者 go）：');
-  for (const f of toApply) console.error(`   arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/${f}`);
+  const runtime = process.platform === 'darwin' ? 'arch -arm64 node' : 'node';
+  for (const f of toApply) console.error(`   ${runtime} ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/${f}`);
   process.exit(1);
 }
 const tables = new Set(need.map(n => n.table)).size;

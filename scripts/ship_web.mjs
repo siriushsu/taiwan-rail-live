@@ -51,6 +51,7 @@ import os from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { acquireShipLock, checkProductionAncestry } from './ship_web_guard.mjs';
 import { createGateRunner } from './ship_web_gate_ledger.mjs';
+import { wranglerCommand } from './wrangler_command.mjs';
 
 const args = process.argv.slice(2);
 const REF = (() => { const i = args.indexOf('--ref'); return i >= 0 ? args[i + 1] : 'origin/main'; })();
@@ -146,6 +147,15 @@ try {
     process.stdout.write(check.stdout || ''); process.stderr.write(check.stderr || '');
     if (check.status !== 0) fail(`捷運即時倒數守門未過：${name}`);
   }
+  // check-krtc-terminal 的倒數來源驗證已在上面執行；其餘三支與真瀏覽器在出貨樹各跑一次。
+  // 終點只延長顯示，不准回流到身分／看板；真頁面同時驗兩引擎的停留、淡出與點車跟隨。
+  for (const name of ['verify_krtc_terminal_display', 'verify_train_terminal_fade',
+    'verify_metro_core_bridge', 'verify_krtc_terminal_browser']) {
+    const check = spawnSync('node', [path.join(wt, 'scripts', name + '.mjs')],
+      { cwd: wt, encoding: 'utf8' });
+    process.stdout.write(check.stdout || ''); process.stderr.write(check.stderr || '');
+    if (check.status !== 0) fail(`高捷終點顯示守門未過：${name}`);
+  }
   // 邊緣快取寫入守門：worker.js 每個 cache.put 呼叫點的結構性斷言＋實跑。原本沒掛出貨鏈；
   // 新北即時查詢「失敗時重複寫邊緣」這種突變，verify_ntm_worker 抓不到、只有它抓得到。
   const edgePut = spawnSync('node', [path.join(wt, 'scripts', 'verify_edge_cache_put.mjs')], { cwd: wt, encoding: 'utf8' });
@@ -202,6 +212,10 @@ try {
   process.stdout.write(gateLedger.stdout || ''); process.stderr.write(gateLedger.stderr || '');
   if (gateLedger.status !== 0) fail('出貨閘門帳本未過——產品指紋、更新紀錄例外、失敗重試或 --full 壞了'
     + '（單獨重跑：npm run check-ship-web-gates）');
+
+  const wranglerRuntime = spawnSync('node', [path.join(wt, 'scripts', 'verify_wrangler_command.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(wranglerRuntime.stdout || ''); process.stderr.write(wranglerRuntime.stderr || '');
+  if (wranglerRuntime.status !== 0) fail('Wrangler 跨平台啟動或正式庫 schema 失敗防護未通過');
 
   // ── 2.65 辦公日曆表兩份副本的同步 ──────────────────────────────────────────
   // index.html 的 TW_DAYTYPE(前端選捷運班表)與 data/tw_daytype.json(worker 做北捷逐班綁定)
@@ -336,6 +350,14 @@ try {
   const sun = spawnSync('node', [path.join(wt, 'scripts', 'verify_sun.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(sun.stdout || ''); process.stderr.write(sun.stderr || '');
   if (sun.status !== 0) fail('日夜光影的太陽位置與時間連續性驗證未過');
+
+  // 細線分布／漸變的 VM 預算與真 WebGL 像素守門；清掉突變旗標，兩引擎都用這棵出貨樹。
+  for (const name of ['verify_glass_cache', 'verify_glass_transition', 'verify_glass_transition_browser']) {
+    const check = spawnSync('node', [path.join(wt, 'scripts', name + '.mjs')],
+      { cwd: wt, encoding: 'utf8', env: { ...process.env, GLASS_MUTATE: '' } });
+    process.stdout.write(check.stdout || ''); process.stderr.write(check.stderr || '');
+    if (check.status !== 0) fail(`建物細線漸變守門未過：${name}`);
+  }
 
   // 夜間設計守門人：實際開 Chromium＋WebKit，驗暗色 3D 建築、玻璃細線像素、來車看板與手機觸控版面。
   // 2026-09-26 回查時它曾紅了 19 天卻沒有任何出貨路徑執行，所以這裡不只驗檔案存在，而是直接跑完整腳本。
@@ -834,7 +856,8 @@ try {
 
   // ── 5. upload ────────────────────────────────────────────────────────────
   const wrangler = path.join(repo, 'node_modules', 'wrangler', 'bin', 'wrangler.js');
-  const up = spawnSync('arch', ['-arm64', 'node', wrangler, 'versions', 'upload'], { cwd: wt, encoding: 'utf8' });
+  const upload = wranglerCommand(wrangler, ['versions', 'upload']);
+  const up = spawnSync(upload.command, upload.args, { cwd: wt, encoding: 'utf8' });
   process.stdout.write(up.stdout || ''); process.stderr.write(up.stderr || '');
   if (up.status !== 0) fail('versions upload 失敗');
   const verId = ((up.stdout || '') + (up.stderr || '')).match(/Worker Version ID:\s*([0-9a-f-]{36})/)?.[1];
@@ -851,7 +874,8 @@ try {
   } else {
     // ── 6. deploy @100%（ID 只取自上面那次 upload 的輸出）──────────────────
     await prodGate('升版前', `（已上傳的 ${verId} 沒有升版，正式站沒動）`);
-    const dep = spawnSync('arch', ['-arm64', 'node', wrangler, 'versions', 'deploy', `${verId}@100%`, '--yes'],
+    const deploy = wranglerCommand(wrangler, ['versions', 'deploy', `${verId}@100%`, '--yes']);
+    const dep = spawnSync(deploy.command, deploy.args,
       { cwd: wt, encoding: 'utf8' });
     process.stdout.write(dep.stdout || ''); process.stderr.write(dep.stderr || '');
     if (dep.status !== 0) fail('versions deploy 失敗');

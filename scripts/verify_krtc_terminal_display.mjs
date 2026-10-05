@@ -261,3 +261,108 @@ for (const lineId of ['BL', 'C']) {
     assert.equal(s.cacheSize(), 0);
   });
 }
+
+// Core 新版公開 payload 的 retireAt 已含十秒短留；舊 App 沿原取樣器也能顯示到站。
+// 新網站須沿用 arrivalEpoch，不能再把 retireAt 當到站時刻加第二次十秒。
+function coreHeldTrain(options = {}) {
+  const arrival = options.arrival ?? 330;
+  const train = makeTrain({ ...options, arrival, retireAt: arrival + 10 });
+  train.trajectory.push({ epoch: arrival + 10, progress: train.destinationStationIndex,
+    stateAfter: 'terminal' });
+  if (options.metadata) train.terminalDisplay = { arrivalEpoch: arrival, holdUntil: arrival + 10 };
+  return train;
+}
+
+for (const lineId of ['KR', 'KO']) for (const direction of [1, 2]) {
+  test(`${lineId} 方向 ${direction}：Core 已延長 retireAt，網站仍是到站 10＋1 秒`, () => {
+    const train = coreHeldTrain({ lineId, direction });
+    const s = scene({ lineId, trains: [train] });
+    const original = JSON.stringify(s.state.metroCore.snapshot);
+    assert(!only(s.display(329.9)).terminalDisplay);
+    assert(s.context.metroCoreSampleTrain(train, 339.9), '舊 App 取樣器到站第九秒仍有車');
+    assert.equal(s.context.metroCoreSampleTrain(train, 340), null, '公開 retireAt 固定為到站十秒');
+    for (const now of [330, 335, 339.999, 340]) {
+      const held = only(s.display(now));
+      assert(held.terminalDisplay && held.terminalArrived && held.pos.atStation);
+      assert.equal(held.pos.progress, train.destinationStationIndex);
+      assert.equal(held.displayOpacity, 1);
+      assert.equal(s.core(now), null, '到站車雖仍在公開快照，不能算在途車');
+    }
+    assert.equal(only(s.display(340.5)).displayOpacity, 0.5);
+    assert.equal(s.display(341), null);
+    assert.equal(s.display(350), null, '不能因 Core 已延長一次而總共多留二十秒');
+    assert.equal(JSON.stringify(s.state.metroCore.snapshot), original);
+  });
+}
+
+test('冷啟動直接遇到延長 retireAt 的終點車，不必先看過最後區間', () => {
+  const s = scene({ trains: [coreHeldTrain()] });
+  const item = only(s.display(335));
+  assert(item.terminalDisplay && item.terminalArrived);
+  assert.equal(item.pos.progress, 3);
+  assert.equal(s.core(335), null);
+  assert.equal(only(s.display(340.5)).displayOpacity, 0.5);
+  assert.equal(s.display(341), null);
+});
+
+for (const firstSeen of [325, 335]) {
+  test(`冷啟動於 ${firstSeen} 秒收到 Core terminalDisplay，可接續進站／终點短留`, () => {
+    const train = coreHeldTrain({ metadata: true });
+    const s = scene({ trains: [train] });
+    const item = only(s.display(firstSeen));
+    assert(item.terminalDisplay);
+    assert.equal(item.terminalArrived, firstSeen >= 330);
+    assert.equal(item.pos.progress, s.context.metroCoreSampleTrajectory(train.trajectory, firstSeen).progress);
+    assert.equal(s.core(firstSeen), null, 'metadata 即使仍接續進站也只用於顯示');
+    const follow = s.follow();
+    assert(s.context.metroCoreFollowRecordWithGrace(follow, firstSeen));
+    const terminal = s.context.metroCoreFollowRecordWithGrace(follow, 335);
+    assert(terminal.terminalDisplay && terminal.terminalArrived);
+    assert.equal(s.context.metroCoreVehicleInfo(terminal).nextSec, null);
+    assert.equal(only(s.display(340.5)).displayOpacity, 0.5);
+    assert.equal(s.context.metroCoreFollowRecordWithGrace(follow, 341), null);
+  });
+}
+
+test('Core metadata 舊趟與正常下一班共存，不計車數、不認看板，也不改正常車', () => {
+  const held = coreHeldTrain({ metadata: true });
+  const next = makeTrain({ id: 'trip-next', progress: 1, arrival: 450 });
+  const s = scene({ trains: [held, next] });
+  const board = { lineId: 'KR', stationIndex: 2, rows: [] };
+  const row = { vehicleId: next.vehicleId, direction: 2, destinationStationIndex: 3, arrivalEpoch: 420 };
+  s.publish([held, next], { boards: [{ ...board, rows: [row] }] });
+  const original = JSON.stringify(s.state.metroCore.snapshot);
+  s.setNow(335);
+  const items = s.display(335), system = s.state.metroCore.snapshot.systems[0];
+  assert.deepEqual(ids(items).sort(), [held.vehicleId, next.vehicleId].sort());
+  assert.deepEqual(ids(s.core(335)), [next.vehicleId]);
+  assert.equal(s.context.runningCount(), 1);
+  assert.equal(s.context.metroCoreRowVehicleId(system, board, row), next.vehicleId);
+  assert.equal(s.context.metroCoreRowVehicleId(system, board, { ...row, vehicleId: held.vehicleId }), null,
+    '即使上游看板誤指到仍存在快照內的 metadata 車，也不能認領該班');
+  const active = items.find(item => item.vehicleId === next.vehicleId);
+  assert.equal(active.train, next);
+  assert.equal(active.displayOpacity ?? 1, 1);
+  assert(!active.terminalDisplay);
+  assert.equal(JSON.stringify(s.state.metroCore.snapshot), original);
+});
+
+test('同 ID 已到站 metadata 重複刷新不重開時鐘，過期後不再復活', () => {
+  const s = scene({ trains: [coreHeldTrain({ metadata: true })] });
+  const follow = s.follow();
+  assert(s.context.metroCoreFollowRecordWithGrace(follow, 335));
+  for (const now of [337, 339, 340.5]) {
+    s.publish([coreHeldTrain({ metadata: true })], { generatedAt: now });
+    const item = only(s.display(now));
+    assert.equal(item.pos.progress, 3);
+    assert.equal(item.displayOpacity, now > 340 ? 0.5 : 1);
+  }
+  for (const now of [341, 345, 350]) {
+    s.publish([coreHeldTrain({ metadata: true })], { generatedAt: now });
+    assert.equal(s.display(now), null);
+    assert.equal(s.core(now), null);
+    assert.equal(s.context.metroCoreFollowRecordWithGrace(follow, now), null);
+  }
+  const cold = scene({ trains: [coreHeldTrain({ metadata: true })] });
+  assert.equal(cold.display(341), null, '首次看到的 metadata 若已過期也不能重開十秒');
+});

@@ -5630,6 +5630,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="maparrival1005"><span class="d">10/5</span><span>建物線條分散覆蓋畫面、移動時漸進更新；高捷列車完整進站後在終點短留再淡出。</span></li>
         <li data-cl-of="ntmcache0930"><span class="d">10/5</span><span>淡海、安坑倒數改為約每分鐘向官方更新一次</span></li>
         <li data-cl-of="metroidentity1005"><span class="d">10/5</span><span>修正文湖線同一班車重複出現、捷運待發車誤認進站訊息，以及台鐵通過車站時的短暫跳動</span></li>
         <li data-cl-of="stationclear1003"><span class="d">10/3</span><span>立體地圖：臺北車站、中正紀念堂有鐵道經過時，整棟建築也會變半透明，看得到底下的軌道和列車</span></li>
@@ -5637,7 +5638,6 @@
         <li data-cl-of="pingzhen1002"><span class="d">10/2</span><span>新車站：中壢、埔心之間的平鎮臨時站 10/3 啟用，地圖與時刻表照官方班表停靠，到站可以蓋章</span></li>
         <li data-cl-of="collectwidget1001"><span class="d">10/1</span><span>新增車站收集小工具：主畫面直接看收集進度與台灣鐵道點陣圖，可選全台或單一系統，按「蓋章」就能在附近車站留下紀錄</span></li>
         <li data-cl-of="renderperf0930"><span class="d">10/1</span><span>改善地形與立體建物的流暢度：減少畫面外與車廂的重複繪製，靜止或暫停時降低負擔；建物線條改從畫面中央向外補齊</span></li>
-        <li data-cl-of="pendingstation0930"><span class="d">10/1</span><span>車站時刻表頁：平鎮臨時站要等官方公布英文站名後才會有頁面，其他車站照常每週更新</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5645,6 +5645,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="maparrival1005"><span class="d">10/5</span><span>建物線條分散覆蓋畫面、移動時漸進更新；高捷列車完整進站後在終點短留再淡出。</span></li>
         <li data-cl="ntmcache0930"><span class="d">10/5</span><span>淡海、安坑倒數：9/30 起避免多層快取延長舊資料、斷線不把舊倒數標成新資料；10/5 起改為約每分鐘向官方更新一次</span></li>
         <li data-cl="metroidentity1005"><span class="d">10/5</span><span>修正文湖線同一班車重複出現，以及捷運起點待發車誤認前車進站訊息的問題；保留原來的跟車身分，列車仍依官方倒數行進；另修正台鐵通過車站時的短暫跳動，行駛速度維持車種上限</span></li>
         <li data-cl="stationclear1003"><span class="d">10/3</span><span>修正立體地圖的建築透視：臺北車站、中正紀念堂這類整棟是單一模型的建築，以前有鐵道經過時不會變半透明，會擋住底下的軌道和列車；現在整棟都會變半透明</span></li>
@@ -6981,7 +6982,7 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v0930a：減少近景離屏投影、重複方向計算與全台車輛身分掃描；同一視角重用靜態投影，3D 待機與暫停降頻。
 // v0930b：近景先篩除遠方路線與車輛，地下透視省去重複背面 pass；建物線條由螢幕中央優先，逐頂點只查一次 DEM。
 // v1001c：整合雙平台車站收集、台南道路、平鎮 SEO 最終校稿與 3D 效能改善。
-const BUILD = 'v1005c';
+const BUILD = 'v1005d';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -28208,6 +28209,7 @@ function metroCoreRowVehicleId(system, board, row) {
   const id = String(row.vehicleId);
   const train = (system.trains || []).find(item => String(item.vehicleId) === id);
   if (!train || String(train.lineId) !== String(board.lineId)) return null;
+  if (system.systemId === 'krtc' && train.terminalDisplay) return null;
   if (row.direction != null && Number(train.direction) !== Number(row.direction)) return null;
   if (row.destinationStationIndex != null &&
       Number(train.destinationStationIndex) !== Number(row.destinationStationIndex)) return null;
@@ -28361,6 +28363,8 @@ function metroCoreItemsForLine(ln, nowEpoch = Date.now() / 1000) {
   for (const train of system.trains) {
     if (String(train.lineId) !== String(ln.id)) continue;
     const pos = metroCorePositionAt(ln, train, nowEpoch);
+    // Core 的終點短留亦供舊 App 播放；新版把這些車交給顯示清單，不計為仍在途的班次。
+    if (systemId === 'krtc' && (train.terminalDisplay || pos && pos.stateAfter === 'terminal')) continue;
     if (pos) out.push({ systemId, vehicleId: String(train.vehicleId), publicLabel: String(train.publicLabel || ''), train, pos });
   }
   // 🔴 P0-1:空陣列【不得】短路 legacy。[] 是 truthy 的非 null 值,四個消費端都寫
@@ -28431,6 +28435,25 @@ function metroCoreDisplayItemsForLine(ln, nowEpoch = Date.now() / 1000) {
     cache.vehicles.set(id, { arrivalEpoch, endEpoch, frozen: false, source: train,
       train: { ...train, trajectory: train.trajectory.filter(point => Number(point.epoch) <= arrivalEpoch),
         retireAt: endEpoch }, publicLabel: item.publicLabel });
+  }
+  // 新 Core 已為舊 App 延長公開 retireAt；只接其固定到站／停留時鐘，再補一秒淡出，
+  // 不能把延長後的 retireAt 當作新的到站時刻，再多留十秒。
+  for (const [id, train] of currentById) {
+    if (activeIds.has(id)) continue;
+    const clock = train.terminalDisplay;
+    const sample = !clock && metroCorePositionAt(ln, train, now);
+    if (!clock && (!sample || sample.stateAfter !== 'terminal')) continue;
+    const terminal = (train.trajectory || []).find(point => point.stateAfter === 'terminal' &&
+      Number(point.progress) === Number(train.destinationStationIndex));
+    const arrivalEpoch = Number(clock ? clock.arrivalEpoch : terminal && terminal.epoch);
+    const holdUntil = Number(clock ? clock.holdUntil : train.retireAt);
+    const endEpoch = holdUntil + METRO_CORE_TERMINAL_FADE_SEC;
+    if (!Number.isFinite(arrivalEpoch) || !Number.isFinite(holdUntil) ||
+        holdUntil !== arrivalEpoch + METRO_CORE_TERMINAL_HOLD_SEC || now >= endEpoch) continue;
+    const saved = cache.vehicles.get(id);
+    if (saved && saved.frozen) continue;
+    cache.vehicles.set(id, { arrivalEpoch, endEpoch, frozen: true, source: train,
+      train: { ...train, retireAt: endEpoch }, publicLabel: String(train.publicLabel || '') });
   }
   const out = active ? active.slice() : [];
   for (const [id, saved] of cache.vehicles) {
