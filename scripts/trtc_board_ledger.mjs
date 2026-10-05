@@ -149,8 +149,8 @@ function timetableRuns(timesLine, stations) {
 }
 
 // opts.includeY:環狀線 Y 屬新北捷。呼叫端(worker.js trtcLedgerModel/trtcBoardModel)工項4起
-// 兩者皆傳 includeY:true——Y 的 tracks/bindings 與其他八線同一條路徑處理,只有 events 表在
-// D1 寫入層(persistTrtcLedger)另外過濾排除(設計書 §6.1,寫入額度考量)。opts 預設 false
+// 兩者皆傳 includeY:true——Y 的 tracks/bindings 在記憶體裡與其他八線同一條路徑處理;寫 D1 時
+// 哪些表不收 Y 見 worker.js TRTC_LEDGER_UNSTORED_LINES。opts 預設 false
 // 只留給「刻意不含 Y」的呼叫端(如本檔的單元測試)使用。
 export function buildTrtcModel(trtc, times, codes, opts = {}) {
   const lines = new Map();

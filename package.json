@@ -97,6 +97,7 @@
     "ship-web": "node scripts/ship_web.mjs",
     "check-ship-web-guard": "node scripts/verify_ship_web_guard.mjs",
     "check-ship-web-gates": "node scripts/verify_ship_web_gate_ledger.mjs",
+    "check-trtc-ledger-no-y": "node scripts/verify_trtc_ledger_no_y.mjs",
     "build-music": "node scripts/build_music_data.mjs && npm run build-manifest",
     "check-music": "node scripts/verify_music_data.mjs",
     "check-deploy-config": "node scripts/check_deploy_config.mjs",

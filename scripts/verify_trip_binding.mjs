@@ -735,17 +735,17 @@ say('\n── R14(工項4):Y 進 tracks/bindings——正面:Y 綁得上自己�
     day: day14, nowEpoch: nowEpoch14, calibrations: new Map() });
 
   const yTrackUpdate14 = assigned14.trackUpdates.find(x => x.line === 'Y');
-  ok(!!yTrackUpdate14, 'R14 正面(1):assignLedgerFrame 對 Y 觀測產生 trackUpdates(工項4要求 Y 的 tracks 寫 D1 的前提)',
+  ok(!!yTrackUpdate14, 'R14 正面(1):assignLedgerFrame 對 Y 觀測產生 trackUpdates(記憶體裡照算;tracks 不落 D1,見 verify_trtc_ledger_no_y)',
     JSON.stringify(yTrackUpdate14));
   const yEventsUnfiltered14 = assigned14.events.filter(e => e.line === 'Y');
   ok(yEventsUnfiltered14.length > 0, 'R14 前置:純函式層面 assignLedgerFrame 確實會對 Y 產生 events' +
     '(證明下面的「絕不進 events」斷言不是空集合偽陽性,過濾器真的在擋東西)', `events(Y)=${yEventsUnfiltered14.length}`);
-  // 反面:複刻 worker.js persistTrtcLedger 的寫入邊界過濾運算式(e.line!=='Y'),逐字一致(見下方
-  // 雜湊比對段落再次以真實語料驗證同一運算式)。
+  // 反面:套用「events 不收 Y」這條寫入邊界(worker.js 的實際寫法是 trtcLedgerStorable,寫入端本身
+  // 由 scripts/verify_trtc_ledger_no_y.mjs 對真的 worker 驗;這裡只驗純函式層面過濾後不剩 Y)。
   const filteredEvents14 = assigned14.events.filter(e => e.line !== 'Y');
   ok(filteredEvents14.every(e => e.line !== 'Y') &&
     filteredEvents14.length === assigned14.events.length - yEventsUnfiltered14.length,
-    'R14 反面:套用 D1 寫入邊界過濾器(worker.js persistTrtcLedger 的 e.line!==\'Y\')後,events 絕不含 Y',
+    'R14 反面:套用 D1 寫入邊界(events 不收 Y)後,events 絕不含 Y',
     `filtered=${filteredEvents14.length}/${assigned14.events.length}`);
 
   const round14 = bindTracksToTrips({ model: modelY14, tripSets: tripSets14, dayType: dayKeys14.get('Y') || null,
@@ -871,8 +871,9 @@ say('\n── 工項4非Y迴歸雜湊比對(比照 B1 V1「舊輸出凍結」前
     trackUpdates: builtOffHG.trackUpdates.filter(nonY), aliasUpdates: builtOffHG.aliasUpdates,
     bindings: boundOffHG.bindings.filter(nonY),
   };
-  // events 用 worker.js persistTrtcLedger 的同一過濾運算式(e.line!=='Y');tracks/aliases/bindings
-  // 刻意不在 worker.js 過濾(Y 本該進 D1),這裡取「非Y列」只是為了跟 off 那邊(結構上不可能有Y)比較。
+  // 這裡比的是記憶體裡的輸出:取「非Y列」是為了跟 off 那邊(結構上不可能有Y)比較。
+  // (Y 寫 D1 時另有規則——逐日累積的表都不收、trip_dyn 只留最近 30 分鐘內看見的,見 worker.js
+  // TRTC_LEDGER_UNSTORED_LINES 與 scripts/verify_trtc_ledger_no_y.mjs。)
   const onSigFilteredHG = {
     frame: builtOnHG.frame.filter(nonY), events: builtOnHG.events.filter(e => e.line !== 'Y'),
     trackUpdates: builtOnHG.trackUpdates.filter(nonY), aliasUpdates: builtOnHG.aliasUpdates,

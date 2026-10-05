@@ -5631,13 +5631,13 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li data-cl-of="maparrival1005"><span class="d">10/5</span><span>建物線條分散覆蓋畫面、移動時漸進更新；高捷列車完整進站後在終點短留再淡出。</span></li>
+        <li data-cl-of="trtcnoy1005"><span class="d">10/5</span><span>環狀線即時資料改為即用即丟：伺服器不再累積環狀線列車的行駛紀錄，畫車與站牌跟隨用的暫存只留近況，每晚收班後清除</span></li>
         <li data-cl-of="ntmcache0930"><span class="d">10/5</span><span>淡海、安坑倒數改為約每分鐘向官方更新一次</span></li>
         <li data-cl-of="metroidentity1005"><span class="d">10/5</span><span>修正文湖線同一班車重複出現、捷運待發車誤認進站訊息，以及台鐵通過車站時的短暫跳動</span></li>
         <li data-cl-of="stationclear1003"><span class="d">10/3</span><span>立體地圖：臺北車站、中正紀念堂有鐵道經過時，整棟建築也會變半透明，看得到底下的軌道和列車</span></li>
         <li data-cl-of="querytab0906"><span class="d">10/2</span><span>查詢分頁：方向多的車站，答案區固定顯示四列，其餘往下捲，更新時不會跳回頂端</span></li>
         <li data-cl-of="pingzhen1002"><span class="d">10/2</span><span>新車站：中壢、埔心之間的平鎮臨時站 10/3 啟用，地圖與時刻表照官方班表停靠，到站可以蓋章</span></li>
         <li data-cl-of="collectwidget1001"><span class="d">10/1</span><span>新增車站收集小工具：主畫面直接看收集進度與台灣鐵道點陣圖，可選全台或單一系統，按「蓋章」就能在附近車站留下紀錄</span></li>
-        <li data-cl-of="renderperf0930"><span class="d">10/1</span><span>改善地形與立體建物的流暢度：減少畫面外與車廂的重複繪製，靜止或暫停時降低負擔；建物線條改從畫面中央向外補齊</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5787,6 +5787,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="trtcnoy1005"><span class="d">10/5</span><span>環狀線的即時資料改為即用即丟：只用來畫當下的列車與看板，伺服器不再累積環狀線列車的行駛紀錄；畫車與站牌跟隨用的暫存只留還在路線上或剛收班的車，每晚收班後清除</span></li>
         <li data-cl="workerrecover0927"><span class="d">9/27</span><span>公車到站、台鐵月台與災害監看遇到官方來源沒有回應時，查詢會在限時內結束等待；下一輪會重新連線，不再讓同一個卡住的請求拖住之後所有查詢</span></li>
         <li data-cl="trastationanchor0919"><span class="d">9/19</span><span>修正台鐵誤點時列車常跑在實際位置前面：現在會保留官方回報的所在車站與進出站狀態，確認列車過站時，即使誤點增加不到 5 分鐘也會立即回到官方誤點位置；同車次重複資料固定採較大的誤點，不再由最後一筆任意覆蓋。（謝謝搭乘實測回報）</span></li>
         <li data-cl="speedcapzone0919"><span class="d">9/19</span><span>2、438、5232 次自強號駛近新馬急彎前，地圖上的列車曾短暫快過車種極速（最高 148 km/h）；現在全程不超過極速，也照彎道速限通過，到站時刻不變；同日再修立體地圖：速度改依列車實際走的股道長度計算，台鐵全線不再超過車種極速</span></li>
@@ -6982,7 +6983,7 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v0930a：減少近景離屏投影、重複方向計算與全台車輛身分掃描；同一視角重用靜態投影，3D 待機與暫停降頻。
 // v0930b：近景先篩除遠方路線與車輛，地下透視省去重複背面 pass；建物線條由螢幕中央優先，逐頂點只查一次 DEM。
 // v1001c：整合雙平台車站收集、台南道路、平鎮 SEO 最終校稿與 3D 效能改善。
-const BUILD = 'v1005d';
+const BUILD = 'v1005e';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
