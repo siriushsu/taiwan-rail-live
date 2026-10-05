@@ -3081,7 +3081,9 @@
       "App 旅程護照的創始島民徽章",
       "App 的跟車配樂：音樂跟著你在看的那班車與當下時間換情境",
       "App 非跟車時的衛星高解析圖磚（支援 Retina 螢幕）",
-      "在 App 匯入 Google Maps 已儲存清單，成為軌島的最愛地點"
+      "在 App 匯入 Google Maps 已儲存清單，成為軌島的最愛地點",
+      "<b>iPhone 捷運小工具放多站，或用「自動（最近的站）」跟著你移動換站</b>",
+      "<b>捷運小工具可在桌面放多站，或用「自動（最近的站）」跟著你移動換站</b>"
     ],
     "urlParams": [
       "live"
@@ -3092,6 +3094,7 @@
     "_why_followzoomcap": "2026-09-07 使用者裁示「直接把 follow zoom cap 刪掉」:App 殼原本注入 followZoomCap=16,index.html 的 FOLLOW_ZOOM_CAP 把跟車進場 zoom 封頂。該上限 2026-08-05 立起時的理由是「App 兩種底圖都計量」,但 App 的街道底圖之後改成不計量的 OpenFreeMap(Stadia 只剩退路、Esri 只用於衛星),前提已不成立;實害是反向的——從近景(z17+)點列車或按隨機跟隨會被拉遠到 16,1.6.0 的立體列車剛好看不到,且相機自癒每次貼車都重跑 followEntryZoom(),手動拉近後 3.5 秒又被扯回 16。符號刻意不再出現,不是被合併吃掉的回歸;反向守門人 app/scripts/verify-release.mjs「不得再出現 followZoomCap」。",
     "_why_search_type_0909": "已上傳 1.6.0 build 104 的 searchStockMatch／SEARCH_STOCK_ROWS 由主線 ca16e73d 改為 searchTypeMatch／SEARCH_TYPE_ROWS，保留車型查班並擴充車種查詢與車型介紹。build 105 已使用新實作；本輪驗 verify_search_train_type.mjs，三條舊更新紀錄另恢復，未把功能缺漏加入例外。",
     "_why_pass_entry_0911": "2026-09-11 出 1.6.2 (iOS 109／Android 49) 時的三筆刻意改動,都發生在已上架的 108 之後,每一筆都有替代品在載貨裡實查得到:\n① plusFeats 四條去掉「App」前綴(f76685dd,09-09):跟車配樂、Google Maps 清單匯入、衛星高解析(SAT_RETINA_DEFAULT)、旅程護照創始徽章這四項網站上也都有了,再標 App 限定是錯的。新措辭「跟車配樂:音樂跟著你在看的那班車與當下時間換情境」「匯入 Google Maps 已儲存清單,成為軌島的最愛地點」「非跟車時的衛星高解析圖磚(支援 Retina 螢幕)」「旅程護照的創始島民徽章」在載貨裡各恰好一次。這是改名不是下架。\n② accountSlotMode(93aceb1e):通行證從「與帳號共用槽位」拆成獨立入口之後,accountBtnSlot() 只剩帳號一種身分,那支判身分的函式沒有存在意義。入口本身改由 setupPlusEntry() 建(#plusBtn ＋ 抽屜第二列),check-plus 125/125 驗過兩支函式各自求值。\n③ TYMC_EXPRESS_SOUTH(636cae5a):機捷直達車原本用停靠站序回推(這個常數就是那份樣態),現在改讀官方 TDX TrainType。check-tymc-kind 14/14 驗過,解析出的班數從 14 班變成 142 班、今日 307 班零留白。舊常數留著只會有兩份真相。",
-    "_why_ntm_model": "2026-10-01 出貨核對：主線 c190b902 已把淡海／安坑的站碼與倒數解析移入 ntm-live-model.js，ntmCountdownRows 委派 NtmLiveModel.rows；NTM_ST_IDX 是被共用模型取代的舊索引，非功能下架。verify_ntm_live_model.mjs 與官方倒數驗收維持雙方向、分岔支線與來源時間契約。"
+    "_why_ntm_model": "2026-10-01 出貨核對：主線 c190b902 已把淡海／安坑的站碼與倒數解析移入 ntm-live-model.js，ntmCountdownRows 委派 NtmLiveModel.rows；NTM_ST_IDX 是被共用模型取代的舊索引，非功能下架。verify_ntm_live_model.mjs 與官方倒數驗收維持雙方向、分岔支線與來源時間契約。",
+    "_why_metro_widget_free_1005": "2026-10-05 起捷運小工具的多站與「自動（最近的站）」對所有人免費(iOS MetroBoardIntent.freeStationLimit = nil、Android MetroWidgetProvider.MULTI_STATION_NEEDS_PASS = false),方案面板的這一項(兩個平台各一句)刻意拿掉,說明中心與 terms.html 同輪改寫;即時資訊不設付費門檻是資料授權的條件。小工具側的放行由 app/scripts/verify_metro_plus_gate.mjs S1 守,不是被合併吃掉的回歸。"
   }
 }

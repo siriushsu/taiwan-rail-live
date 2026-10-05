@@ -702,7 +702,6 @@
     "衛星影像模式下放大縮小會閃一下底色的問題真的修好了：8/30 只是把墊底的顏色調得像衛星影像，換色治標沒治本。現在底下永遠墊著一層真的衛星影像，開衛星時就把全台先抓好，縮放時露出來的是影像不是色塊": "The satellite basemap no longer flashes a flat colour while you zoom. The 8/30 attempt only tinted the backdrop to match the imagery, which was a cosmetic patch. Real satellite imagery is now kept permanently underneath, pre-loaded for the whole of Taiwan when you switch satellite on, so any gap shows imagery instead of a colour block.",
     "車站看板的欄位對齊修好：倒數變成「即將進站」那幾列，原本會把時刻與擁擠度往左推、整張板看起來歪歪的，現在倒數與時刻兩欄逐板等寬，每一列都對齊。另外台鐵臺北車站不再多出一顆「臺北-環島」——那是環島之星繞完一圈的官方終點站碼，其實就是臺北站，現在併成一顆，手機小工具的車站清單也一起併": "Station board columns line up again. Rows whose countdown reads Arriving used to push the time and crowding columns to the left, tilting the whole board; the countdown and time columns are now measured per board so every row aligns. Taipei Main also no longer shows a second Taipei-Loop station: that is the official station code for where the Formosa Express finishes its loop, and it is the same station, so it is merged — including the phone widget station list.",
     "衛星影像模式下放大縮小時，畫面會有一瞬間整片變成深綠色（Android 手機上特別明顯）；墊在底下的顏色改成貼齊實際衛星影像，現在幾乎看不出來": "In satellite mode, zooming in or out briefly turned the whole screen dark green (most noticeable on Android phones). The colour underneath the imagery now matches the real satellite view, so the gap is barely visible.",
-    '訂閱後桌面小工具立刻能放多站、自動選站，不必等同步或按恢復購買': 'Once you subscribe, home screen widgets can hold several stations and choose stations automatically straight away — no waiting for a sync, and no need to tap Restore purchases.',
     '新北投與小碧潭支線的車一發車就從地圖上消失，現在會照官方到站時間走完兩站': 'Trains on the Xinbeitou and Xiaobitan branches used to vanish from the map the moment they departed. They now run the two stations following the official arrival times.',
     '開啟網站變快了：三十幾份路網與班表資料從一份一份載改成同時下載，重新造訪也不再重抓沒變動的檔案': 'Opening the site is much faster: the thirty-odd route and timetable files now download at the same time instead of one after another, and revisits no longer re-fetch files that have not changed.',
     '車廂擁擠度改成逐車對照：忠孝復興這種兩線共站不會再把板南線的擁擠度掛到文湖線上，認不出是哪一台車就留白不猜；三種車站看板現在都會顯示擁擠度，不會再切換一次就整片消失，鎖屏的等車卡也一起改。即時模型暫時缺這個系統的資料時，車站看板不再整片變成「此時段無停靠班次」，會自動退回官方倒數或班表。即時資料中斷的提示也改成照實說：分不出是官方端還是本站或你的網路時，不再一律寫成臺北捷運訊號中斷': 'Carriage crowding is now matched train by train: at interchanges like Zhongxiao Fuxing, crowding from a Bannan line train no longer appears on the Wenhu line row, and any row we cannot match to a specific train is left blank instead of guessed. All three station board views now show crowding, so it no longer vanishes when the board switches source, and the lock screen wait card was changed to match. When the live model is temporarily missing data for a system, the station board no longer collapses to “No departures in this period” — it falls back to the official countdown or the timetable. Outage notices are more honest too: when we cannot tell whether the cause is the operator, our own service or your connection, we no longer say that the Taipei Metro signal is down.',
@@ -759,7 +758,6 @@
     "衛星影像模式下放大縮小會閃一下底色的問題真的修好了：8/30 只是把墊底的顏色調得像衛星影像，換色治標沒治本。現在底下永遠墊著一層真的衛星影像，開衛星時就把全台先抓好，縮放時露出來的是影像不是色塊": "衛星画像モードでの拡大・縮小時に下地の色が一瞬見える問題を本当に修正しました。8/30 の対応は下地の色を衛星画像に近づけただけの応急処置でした。現在は本物の衛星画像を常に下に敷き、衛星に切り替えた時点で台湾全域分を先読みするため、隙間に見えるのは色ではなく画像です。",
     "車站看板的欄位對齊修好：倒數變成「即將進站」那幾列，原本會把時刻與擁擠度往左推、整張板看起來歪歪的，現在倒數與時刻兩欄逐板等寬，每一列都對齊。另外台鐵臺北車站不再多出一顆「臺北-環島」——那是環島之星繞完一圈的官方終點站碼，其實就是臺北站，現在併成一顆，手機小工具的車站清單也一起併": "駅発車標の桁がそろうようになりました。カウントダウンが「まもなく到着」になる行が時刻と混雑度を左に押し出し、表全体が傾いて見えていました。カウントダウンと時刻の 2 列は表ごとに最大幅を測ってそろえます。台北駅に「臺北-環島」がもう 1 つ出ることもなくなりました（環島之星が一周を終える地点の公式駅コードで、同じ台北駅です）。ウィジェットの駅一覧も同様です。",
     "衛星影像模式下放大縮小時，畫面會有一瞬間整片變成深綠色（Android 手機上特別明顯）；墊在底下的顏色改成貼齊實際衛星影像，現在幾乎看不出來": "衛星画像モードで拡大・縮小した瞬間、画面全体が濃い緑色になっていました（Android端末で特に目立ちました）。下地の色を実際の衛星画像に合わせたため、ほとんど分からなくなりました。",
-    '訂閱後桌面小工具立刻能放多站、自動選站，不必等同步或按恢復購買': 'サブスクリプションに登録すると、ホーム画面ウィジェットですぐに複数の駅を設定でき、駅の自動選択も使えます。同期を待ったり「購入を復元」を押したりする必要はありません。',
     '新北投與小碧潭支線的車一發車就從地圖上消失，現在會照官方到站時間走完兩站': '新北投支線と小碧潭支線の列車が、発車した途端に地図から消えていました。現在は公式の到着時刻に合わせて 2 駅間を走ります。',
     '開啟網站變快了：三十幾份路網與班表資料從一份一份載改成同時下載，重新造訪也不再重抓沒變動的檔案': 'サイトの起動が大幅に速くなりました：30 余りの路線・時刻表データを 1 件ずつではなく同時に読み込むようにし、再訪時は変更のないファイルを取得し直さないようにしました。',
     '車廂擁擠度改成逐車對照：忠孝復興這種兩線共站不會再把板南線的擁擠度掛到文湖線上，認不出是哪一台車就留白不猜；三種車站看板現在都會顯示擁擠度，不會再切換一次就整片消失，鎖屏的等車卡也一起改。即時模型暫時缺這個系統的資料時，車站看板不再整片變成「此時段無停靠班次」，會自動退回官方倒數或班表。即時資料中斷的提示也改成照實說：分不出是官方端還是本站或你的網路時，不再一律寫成臺北捷運訊號中斷': '車両混雑度を列車ごとに照合するようにしました：忠孝復興のような乗換駅で板南線の混雑度が文湖線の行に表示されることはなくなり、どの列車か特定できない行は推測せず空欄にします。3 種類の駅発車案内すべてで混雑度を表示するため、表示元が切り替わっても消えなくなり、ロック画面の待ち時間カードも同じ方式に変更しました。リアルタイムモデルにその路線網のデータが一時的に無い場合でも、駅発車案内が「この時間帯に停車する列車はありません」一色になることはなくなり、公式カウントダウンまたは時刻表に自動的に戻ります。リアルタイム情報中断の案内も実態に合わせ、事業者側・当サイト・お使いの回線のどれが原因か判別できない場合は「台北MRTの信号中断」とは表示しません。',
@@ -1232,7 +1230,7 @@
     '把捷運站放上主畫面或鎖定畫面，不開 App 就看得到下一班往哪裡、還有幾分鐘。': 'Put a metro station on your Home or Lock Screen to see the next direction and countdown without opening the app.',
     '長按主畫面空白處進入編輯，從加入小工具的入口搜尋「軌島」': 'Touch and hold an empty area on the Home Screen, enter edit mode and search for Rail Island in Add Widget',
     '選捷運小工具，再挑一個車站；鎖定畫面也放得下': 'Choose the Metro widget and select a station; it also fits on the Lock Screen',
-    '想放多站，或用「自動（最近的站）」讓它跟著你移動換站，需要軌島通行證（免費可設定一站）': 'A Rail Island Pass is required for multiple stations or Auto (nearest station), which changes as you move. One station is free.',
+    '想看多站就多加幾張，每張選一站；選「自動（最近的站）」，它會跟著你移動換站': 'Add more widgets for more stations, one station each; choose Auto (nearest station) and it switches as you move',
     '還有一張「鐵路＋捷運看板」大卡，把台鐵、高鐵與捷運的發車資訊列在同一張。點小工具會直接開啟軌島到那一站。': 'The large Rail and Metro Board combines TRA, HSR and metro departures. Tap a widget to open Rail Island at that station.',
     '桌': 'W',
     '在這站等車：鎖定畫面倒數': 'Wait at this station: Lock Screen countdown',
@@ -1249,7 +1247,7 @@
     '從「接下來的班次」挑你要等的那一班': 'Choose your train from Upcoming services',
     '倒數照官方表定加即時誤點，車到站後自動收起。鎖定畫面同時只留一張等候卡——追蹤台鐵這班會把捷運那張收掉。時鐘不在「現在」時會先幫你帶回現在。這項不需要通行證。': 'The countdown combines the official timetable and live delay, then closes after arrival. Only one waiting card can remain on the Lock Screen, so following a TRA train replaces a metro waiting card. If the timeline is away from Now, it returns first. No pass is required.',
     '班': 'T',
-    '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、iPhone 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。': 'Pass features include 90 days of daily TRA delay history; multiple stations or Auto (nearest station) in iPhone Home and Lock Screen metro widgets, with one station free; cloud sync for favorites and completion records; journey sharing; the train soundtrack (the music follows the train you are watching and the time of day — the free background music is unaffected); importing Google Maps saved lists; high-resolution satellite tiles when not following a train; and follow Live Activities on the Lock Screen and Dynamic Island on iOS 17.6 or later.',
+    '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。': 'Pass features include 90 days of daily TRA delay history; cloud sync for favorites and completion records; journey sharing; the train soundtrack (the music follows the train you are watching and the time of day — the free background music is unaffected); importing Google Maps saved lists; high-resolution satellite tiles when not following a train; and follow Live Activities on the Lock Screen and Dynamic Island on iOS 17.6 or later.',
     '字級': 'Text size',
     '三階字級與跟隨系統字級。': 'Three text sizes with optional system-text following.',
     '「更多」→ 字級，開啟「顯示與字級」': 'Open More, then Text size, to show Display and text size',
@@ -1312,7 +1310,7 @@
     '把捷運站放上主畫面或鎖定畫面，不開 App 就看得到下一班往哪裡、還有幾分鐘。': 'メトロ駅をホーム画面やロック画面に置き、アプリを開かずに次の列車の方向と残り時間を確認できます。',
     '長按主畫面空白處進入編輯，從加入小工具的入口搜尋「軌島」': 'ホーム画面の空白を長押しして編集し、ウィジェット追加から「軌島」を検索',
     '選捷運小工具，再挑一個車站；鎖定畫面也放得下': 'メトロウィジェットを選び、駅を指定します。ロック画面にも追加できます',
-    '想放多站，或用「自動（最近的站）」讓它跟著你移動換站，需要軌島通行證（免費可設定一站）': '複数の駅、または移動に合わせて駅を変える「自動（最寄り駅）」には軌島パスが必要です。1駅は無料です。',
+    '想看多站就多加幾張，每張選一站；選「自動（最近的站）」，它會跟著你移動換站': '複数の駅を見るにはウィジェットを追加し、それぞれ1駅を選びます。「自動（最寄り駅）」を選ぶと、移動に合わせて駅が切り替わります',
     '還有一張「鐵路＋捷運看板」大卡，把台鐵、高鐵與捷運的發車資訊列在同一張。點小工具會直接開啟軌島到那一站。': '大きな「鉄道＋メトロ案内」では台湾鉄路、高鉄、メトロの発車情報をまとめて表示します。押すと軌島でその駅を開きます。',
     '桌': 'W',
     '在這站等車：鎖定畫面倒數': 'この駅で待つ：ロック画面カウントダウン',
@@ -1329,7 +1327,7 @@
     '從「接下來的班次」挑你要等的那一班': '「次の列車」から待つ列車を選ぶ',
     '倒數照官方表定加即時誤點，車到站後自動收起。鎖定畫面同時只留一張等候卡——追蹤台鐵這班會把捷運那張收掉。時鐘不在「現在」時會先幫你帶回現在。這項不需要通行證。': '公式時刻表とリアルタイム遅延からカウントダウンし、到着後に閉じます。ロック画面の待機カードは同時に1枚だけなので、台湾鉄路を追跡するとメトロのカードは終了します。時刻が「現在」でない場合は先に現在へ戻ります。軌島パスは不要です。',
     '班': 'T',
-    '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、iPhone 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。': 'パスには、台湾鉄路の過去90日の日別遅延履歴、iPhoneのホーム／ロック画面メトロウィジェットでの複数駅または移動に合わせる「自動（最寄り駅）」（1駅は無料）、お気に入りと完乗記録の端末間同期、旅程共有、追跡サウンドトラック（見ている列車と時刻に合わせて場面が切り替わります。無料のBGMには影響しません）、Googleマップ保存済みリストの読み込み、列車追跡中以外の高解像度衛星地図、iOS 17.6以降のロック画面／Dynamic Island追跡ライブ表示が含まれます。',
+    '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。': 'パスには、台湾鉄路の過去90日の日別遅延履歴、お気に入りと完乗記録の端末間同期、旅程共有、追跡サウンドトラック（見ている列車と時刻に合わせて場面が切り替わります。無料のBGMには影響しません）、Googleマップ保存済みリストの読み込み、列車追跡中以外の高解像度衛星地図、iOS 17.6以降のロック画面／Dynamic Island追跡ライブ表示が含まれます。',
     '字級': '文字サイズ',
     '三階字級與跟隨系統字級。': '3段階の文字サイズとシステム文字サイズへの追従。',
     '「更多」→ 字級，開啟「顯示與字級」': '「その他」→「文字サイズ」から「表示と文字サイズ」を開く',
@@ -2776,11 +2774,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '選「捷運看板」、「發車看板」或「鐵路＋捷運雙看板」，再挑要看的車站': 'Choose “Metro board”, “Departure board” or “Rail + metro board”, then pick the station you want',
   '發車看板的起站與目的站可以選你在軌島儲存的地點；「只看這些」可依方向、車種或車次篩選': 'On the departure board, the origin and destination can be places you saved in Rail Island; “Filters” narrows it down by direction, train type or train number',
   '班次字太小時打開「大字好讀版」——主要文字會明顯放大，並減少列數避免擠在一起': 'If the text is too small, turn on “Large, easy-to-read text”: the main text gets noticeably bigger and fewer rows are shown so nothing is cramped',
-  '捷運免費可設定一站；想放多站或用「自動（最近的站）」需啟用軌島通行證': 'One metro station is free; multiple stations or “Automatic (nearest station)” need a Rail Island Pass',
+  '捷運看板想看多站就多放幾張，每張選一站；選「自動（最近的站）」會跟著你移動換站': 'Add more “Metro board” widgets for more stations, one station each; choose “Automatic (nearest station)” and it switches as you move',
   '跟隨台鐵或高鐵列車時，通行證也能把下一站進度放上鎖定畫面；Android 16／Samsung 可顯示即時資訊與 Now Bar。App 收到背景或 WebView 關閉後，台鐵跟車卡仍會依官方誤點與停靠資料更新；省電模式可能延後輪詢。': 'When you follow a TRA or HSR train, the Pass can also put next-stop progress on your lock screen; Android 16 and Samsung devices can show it as a Live Update and in the Now Bar. After the app moves to the background or its WebView closes, the TRA follow card keeps updating from official delay and stop data; battery saver may delay updates.',
   '在月台上等車時，把下一班倒數放上鎖定畫面的即時資訊；Samsung Android 16 可顯示在 Now Bar。': 'While waiting on the platform, put the next-train countdown in Live Updates on your lock screen; Samsung devices with Android 16 can also show it in the Now Bar.',
   '在月台等某一班車時，把那一班的倒數放上鎖定畫面的即時資訊；Samsung Android 16 可顯示在 Now Bar。': 'While waiting for a specific train, put its countdown in Live Updates on your lock screen; Samsung devices with Android 16 can also show it in the Now Bar.',
-  '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、App 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 Android 16 即時資訊與 Samsung Now Bar 的跟車鎖定畫面進度。': 'Pass features include 90 days of daily TRA delay history; multiple stations or Automatic (nearest station) in the app’s home screen and lock screen metro widgets, with one station free; cloud sync for favorites and completion records; journey sharing; the train soundtrack (the music follows the train you are watching and the time of day — the free background music is unaffected); importing Google Maps saved lists; high-resolution satellite tiles when not following a train; and follow progress on the lock screen through Android 16 Live Updates and the Samsung Now Bar.',
+  '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 Android 16 即時資訊與 Samsung Now Bar 的跟車鎖定畫面進度。': 'Pass features include 90 days of daily TRA delay history; cloud sync for favorites and completion records; journey sharing; the train soundtrack (the music follows the train you are watching and the time of day — the free background music is unaffected); importing Google Maps saved lists; high-resolution satellite tiles when not following a train; and follow progress on the lock screen through Android 16 Live Updates and the Samsung Now Bar.',
   '懸賞板：哪些路段還缺資料': 'Bounty board: which segments still need data',
   '有些路段我們手上的行駛資料不夠準，缺哪一段就掛在懸賞板上，等人去搭一趟錄回來。': 'For some segments our running data isn’t accurate enough yet. Each segment that needs data goes up on the bounty board until someone rides it and records it.',
   '打開「護照」，在「校正貢獻」那一列按「懸賞板」': 'Open Passport and tap “Bounty board” in the “Calibration contributions” row',
@@ -3055,11 +3053,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '選「捷運看板」、「發車看板」或「鐵路＋捷運雙看板」，再挑要看的車站': '「メトロ到着案内」「発車案内」「鉄道＋メトロ案内」のいずれかを選び、表示する駅を選びます',
   '發車看板的起站與目的站可以選你在軌島儲存的地點；「只看這些」可依方向、車種或車次篩選': '発車案内の出発駅と目的駅には、軌島に保存した場所を選べます。「表示条件」で方向・種別・列車番号を絞り込めます',
   '班次字太小時打開「大字好讀版」——主要文字會明顯放大，並減少列數避免擠在一起': '文字が小さいときは「大きく読みやすい文字」をオンにします。主な文字がはっきり大きくなり、詰まらないよう表示行数を減らします',
-  '捷運免費可設定一站；想放多站或用「自動（最近的站）」需啟用軌島通行證': 'メトロは1駅まで無料で設定できます。複数の駅や「自動（最寄り駅）」には軌島パスが必要です',
+  '捷運看板想看多站就多放幾張，每張選一站；選「自動（最近的站）」會跟著你移動換站': '複数の駅を見るには「メトロ到着案内」を追加し、それぞれ1駅を選びます。「自動（最寄り駅）」を選ぶと、移動に合わせて駅が切り替わります',
   '跟隨台鐵或高鐵列車時，通行證也能把下一站進度放上鎖定畫面；Android 16／Samsung 可顯示即時資訊與 Now Bar。App 收到背景或 WebView 關閉後，台鐵跟車卡仍會依官方誤點與停靠資料更新；省電模式可能延後輪詢。': '台湾鉄路や高鉄の列車を追跡しているとき、パスがあれば次の駅までの進行状況をロック画面にも表示できます。Android 16／Samsungではライブアップデートや Now Bar に表示できます。アプリがバックグラウンドに移ったりWebViewが閉じたりしても、台湾鉄路の追跡カードは公式の遅延・停車データで更新され続けます。省電力モードでは更新が遅れることがあります。',
   '在月台上等車時，把下一班倒數放上鎖定畫面的即時資訊；Samsung Android 16 可顯示在 Now Bar。': 'ホームで待つ間、次の列車のカウントダウンをロック画面のライブアップデートに表示します。Android 16のSamsung端末ではNow Barにも表示できます。',
   '在月台等某一班車時，把那一班的倒數放上鎖定畫面的即時資訊；Samsung Android 16 可顯示在 Now Bar。': '特定の列車を待つ間、その列車のカウントダウンをロック画面のライブアップデートに表示します。Android 16のSamsung端末ではNow Barにも表示できます。',
-  '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、App 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 Android 16 即時資訊與 Samsung Now Bar 的跟車鎖定畫面進度。': 'パスには、台湾鉄路の過去90日の日別遅延履歴、アプリのホーム／ロック画面メトロウィジェットでの複数駅または移動に合わせる「自動（最寄り駅）」（1駅は無料）、お気に入りと完乗記録の端末間同期、旅程共有、追跡サウンドトラック（見ている列車と時刻に合わせて場面が切り替わります。無料のBGMには影響しません）、Googleマップ保存済みリストの読み込み、列車追跡中以外の高解像度衛星地図、Android 16のライブアップデートとSamsung Now Barでのロック画面追跡表示が含まれます。',
+  '通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 Android 16 即時資訊與 Samsung Now Bar 的跟車鎖定畫面進度。': 'パスには、台湾鉄路の過去90日の日別遅延履歴、お気に入りと完乗記録の端末間同期、旅程共有、追跡サウンドトラック（見ている列車と時刻に合わせて場面が切り替わります。無料のBGMには影響しません）、Googleマップ保存済みリストの読み込み、列車追跡中以外の高解像度衛星地図、Android 16のライブアップデートとSamsung Now Barでのロック画面追跡表示が含まれます。',
   '懸賞板：哪些路段還缺資料': '懸賞板：データが足りない区間',
   '有些路段我們手上的行駛資料不夠準，缺哪一段就掛在懸賞板上，等人去搭一趟錄回來。': '走行データの精度が足りない区間があります。足りない区間は懸賞板に掲載され、誰かが乗車して記録してくれるのを待っています。',
   '打開「護照」，在「校正貢獻」那一列按「懸賞板」': '「パスポート」を開き、「校正への貢献」の行にある「懸賞板」を押します',
@@ -3675,4 +3673,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '環狀線即時資料改為即用即丟：伺服器不再累積環狀線列車的行駛紀錄，畫車與站牌跟隨用的暫存只留近況，每晚收班後清除': '環状線のリアルタイムデータは使ったらすぐ捨てる方式にしました。サーバーに環状線の列車の運行記録を蓄積せず、列車の表示と駅の案内板からの追跡に使う一時データは直近の状況だけを残し、毎晩終電後に消去します',
+});
+
+// 2026-10-05 捷運小工具多站與自動選站改為免費（v1005e）：最近更新的英日文。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '捷運小工具的多站與「自動（最近的站）」改為所有人免費，不再需要通行證；更新到新版 App 後生效': 'Metro widgets: multiple stations and Auto (nearest station) are now free for everyone, no Pass needed; takes effect once you update the app',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '捷運小工具的多站與「自動（最近的站）」改為所有人免費，不再需要通行證；更新到新版 App 後生效': 'メトロウィジェットの複数駅と「自動（最寄り駅）」が、パスなしで誰でも無料で使えるようになりました。新しいバージョンのアプリに更新すると反映されます',
 });

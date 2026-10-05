@@ -180,13 +180,15 @@ public final class MetroWidgetConfigActivity extends AppCompatActivity {
                             : "免費版的那一站已經在用了。要再加一站請開通軌島通行證。")
               + "（點這裡看通行證）"));
         passNote.setOnClickListener(plus ? null : v -> openPass());
+        // 2026-10-05 起多站與自動選站免費（MULTI_STATION_NEEDS_PASS），通行證說明整列收起。
+        passNote.setVisibility(MetroWidgetProvider.MULTI_STATION_NEEDS_PASS ? View.VISIBLE : View.GONE);
         refreshPreview();
     }
 
     private void updateStations(int systemIndex) {
         visibleStations.clear();
         List<String> labels = new ArrayList<>();
-        labels.add("自動（最近的站・通行證）");
+        labels.add(MetroWidgetProvider.MULTI_STATION_NEEDS_PASS ? "自動（最近的站・通行證）" : "自動（最近的站）");
         if (systemIndex >= 0 && systemIndex < catalog.systems.size()) {
             visibleStations.addAll(catalog.systems.get(systemIndex).stations);
             for (MetroWidgetData.StationInfo station : visibleStations) labels.add(station.name);

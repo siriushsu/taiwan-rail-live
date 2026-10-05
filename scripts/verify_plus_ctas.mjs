@@ -198,15 +198,19 @@ for (const [engName, launcher] of ENGINES) {
     ok(`[${engName}] W1d 展開後兩節都真的看得到(有版面尺寸)`, vis[0] === true && vis[1] === true, JSON.stringify(vis));
     const tx = await page.evaluate(() => {
       const g = k => { const el = document.querySelector(`.help-sec[data-sec="${k}"]`); return el ? el.textContent : ''; };
-      return { w: g('metrowidget'), q: g('metrowait') };
+      const el = document.querySelector('.help-sec[data-sec="metrowidget"]');
+      const parts = el ? [...el.querySelectorAll('li, p')].map(n => n.textContent) : [];
+      return { w: g('metrowidget'), q: g('metrowait'), wParts: parts };
     });
-    // 四個關鍵字缺一不可:少了「自動（最近的站）」與「多站」,說明就沒有講到使用者裁示要強調的
-    // 那兩個功能;少了「通行證」變成宣傳一個他設定到一半才發現要付錢的東西;少了「免費可設定一站」
-    // 則會讓人以為整個小工具都要錢(免費層才是絕大多數人會遇到的)。
+    // 「自動（最近的站）」與「多站」是這節要教會的兩件事,缺一就沒講到。
+    // 2026-10-05 起兩者對所有人免費:講到它們的那一句不可以再提通行證,也不可以再出現「免費可設定一站」
+    // 那種把小工具講成有免費額度的說法(Android 那節的鎖定畫面跟車進度另有一句講通行證,那句不算)。
     ok(`[${engName}] W2 小工具那節講到自動選站`, tx.w.includes('自動（最近的站）'), JSON.stringify(tx.w.slice(0, 120)));
     ok(`[${engName}] W2b 講到多站`, tx.w.includes('多站'), JSON.stringify(tx.w.slice(0, 120)));
-    ok(`[${engName}] W2c 講到需要通行證`, tx.w.includes('通行證'), JSON.stringify(tx.w.slice(0, 120)));
-    ok(`[${engName}] W2d 講到免費可設定一站`, tx.w.includes('免費可設定一站'), JSON.stringify(tx.w.slice(0, 120)));
+    const multiParts = tx.wParts.filter(x => x.includes('多站') || x.includes('自動（最近的站）'));
+    ok(`[${engName}] W2c 講多站／自動的那一句沒有提通行證(兩者免費)`,
+      multiParts.length > 0 && multiParts.every(x => !x.includes('通行證')), JSON.stringify(multiParts));
+    ok(`[${engName}] W2d 不再出現「免費可設定一站」`, !tx.w.includes('免費可設定一站'), JSON.stringify(tx.w.slice(0, 160)));
     ok(`[${engName}] W2e 等車卡那節教得出怎麼開(「追蹤這站」)`, tx.q.includes('追蹤這站'), JSON.stringify(tx.q.slice(0, 120)));
     ok(`[${engName}] W 無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
     await ctx.close();

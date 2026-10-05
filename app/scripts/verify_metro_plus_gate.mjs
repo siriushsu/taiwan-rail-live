@@ -29,8 +29,10 @@ const widgetSrc = readFileSync(WIDGET, 'utf8');
 const intentSrc = readFileSync(INTENT, 'utf8');
 
 // ── S 組:原始碼層的裁示守門 ─────────────────────────────────────────
-ok('S1 freeStationLimit 已是 1(免費一站)',
-   /freeStationLimit\s*:\s*Int\?\s*=\s*1\b/.test(intentSrc),
+// 🔴 2026-10-05 起 freeStationLimit = nil:多站與自動對所有人免費(即時資訊不設付費門檻是
+//    資料授權的條件)。S2 以下守的 CTA 路徑仍保留,limit 改回數字時照樣要講清楚。
+ok('S1 freeStationLimit 是 nil(多站與自動免費)',
+   /freeStationLimit\s*:\s*Int\?\s*=\s*nil\b/.test(intentSrc),
    (intentSrc.match(/freeStationLimit.*/) || ['(找不到)'])[0]);
 // 🔴 這條是「明講 CTA」裁示的牙:兩條擋下路徑各自都要帶 passCTA,漏一條就是靜默空白卡。
 const autoBranch = widgetSrc.match(/case \.needPassAuto:[\s\S]*?case \.needPassMulti/);
@@ -55,9 +57,11 @@ ok('S4d 混合大卡走同一個出口(它曾經完全不講付費被擋)',
 ok('S5 擋下時給得出去處(deepLink 指向通行證頁)',
    /passLink\(\)/.test(widgetSrc) && /host = "pass"/.test(widgetSrc));
 // 閘門必須在抓取與定位之前:否則被擋的人照樣打官方 API、照樣叫醒定位。
-const gateIdx = widgetSrc.indexOf('MetroPlusGate.evaluate');
-const fetchIdx = widgetSrc.indexOf('MetroFetcher.fetch');
-const nearestIdx = widgetSrc.indexOf('MetroNearest.resolve');
+// 比的是程式碼的位置,整行註解先拿掉(檔頭註解提到 MetroNearest.resolve 會讓這條假紅)。
+const widgetCode = widgetSrc.replace(/^\s*\/\/.*$/gm, '');
+const gateIdx = widgetCode.indexOf('MetroPlusGate.evaluate');
+const fetchIdx = widgetCode.indexOf('MetroFetcher.fetch');
+const nearestIdx = widgetCode.indexOf('MetroNearest.resolve');
 ok('S6 閘門在抓取與定位之前', gateIdx > 0 && gateIdx < fetchIdx && gateIdx < nearestIdx,
    `gate=${gateIdx} fetch=${fetchIdx} nearest=${nearestIdx}`);
 
@@ -83,6 +87,7 @@ const CASES = [
   ['通行證+自動', true, 1, true, 'auto', [], [], 0],
   ['通行證+第二站', true, 1, false, 'trtc|中山', ['trtc|板橋'], ['trtc|板橋', 'trtc|中山'], 2],
   ['全免費(limit=nil)+自動', false, null, true, 'auto', [], [], 0],
+  ['全免費(limit=nil)+第三站', false, null, false, 'trtc|忠孝復興', ['trtc|板橋'], ['trtc|板橋', 'trtc|中山', 'trtc|忠孝復興'], 3],
   ['免費+自動 → 擋', false, 1, true, 'auto', [], [], 0],
   ['免費+首站 → 佔名額', false, 1, false, 'trtc|板橋', [], [], 1],
   ['免費+同一站再算 → 放行', false, 1, false, 'trtc|板橋', ['trtc|板橋'], ['trtc|板橋'], 1],

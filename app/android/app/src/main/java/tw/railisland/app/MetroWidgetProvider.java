@@ -29,6 +29,12 @@ public class MetroWidgetProvider extends AppWidgetProvider {
     /** 兩種版型（設計稿 1a 琺瑯站牌／1b 夜行看板），一格一種，設定頁可換。 */
     static final String LAYOUT_PLATE = "plate";
     static final String LAYOUT_BOARD = "board";
+    /**
+     * 多站與「自動（最近的站）」要不要通行證。🔴 2026-10-05 起 false＝對所有人免費
+     * （即時資訊不設付費門檻是資料授權的條件，要改回 true 之前先查授權）；與 iOS
+     * MetroBoardIntent.freeStationLimit = nil 是同一件事。閘門程式碼保留，一律經 passUnlocked() 判定。
+     */
+    static final boolean MULTI_STATION_NEEDS_PASS = false;
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
 
     @Override
@@ -60,10 +66,15 @@ public class MetroWidgetProvider extends AppWidgetProvider {
         reconcileFreeStation(context);
     }
 
+    /** 不受「免費一站」限制：多站本來就免費，或這台裝置的通行證已啟用（App 同步來的 plus_active）。 */
+    static boolean passUnlocked(SharedPreferences prefs) {
+        return !MULTI_STATION_NEEDS_PASS || prefs.getBoolean("plus_active", false);
+    }
+
     /** 免費版只有一個站名額；名額必須永遠對應到目前仍存在的小工具。 */
     static void reconcileFreeStation(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        if (prefs.getBoolean("plus_active", false)) return;
+        if (passUnlocked(prefs)) return;
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
         int[] ids = WidgetFamily.ids(context, manager, WidgetFamily.METRO);
         java.util.LinkedHashSet<String> active = new java.util.LinkedHashSet<>();
@@ -108,7 +119,7 @@ public class MetroWidgetProvider extends AppWidgetProvider {
             manager.updateAppWidget(id, configure(context, id, MetroWidgetPlateRender.unset(context)));
             return;
         }
-        if (!prefs.getBoolean("plus_active", false)) {
+        if (!passUnlocked(prefs)) {
             String free = prefs.getString("free_station", null);
             String selected = AUTO.equals(station) ? AUTO : sys + "|" + station;
             if (free == null) prefs.edit().putString("free_station", selected).apply();
@@ -126,7 +137,7 @@ public class MetroWidgetProvider extends AppWidgetProvider {
         boolean autoStale = false;
         try {
             if (AUTO.equals(station)) {
-                if (!prefs.getBoolean("plus_active", false)) {
+                if (!passUnlocked(prefs)) {
                     manager.updateAppWidget(id, passRequired(context, id));
                     return;
                 }
@@ -322,8 +333,7 @@ public class MetroWidgetProvider extends AppWidgetProvider {
             system = catalog.byId.get(snapshot.sys);
         } catch (Exception ignored) {}
         MetroWidgetData.StationInfo info = system == null ? null : system.stationByName.get(snapshot.station);
-        boolean passLimited = !context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getBoolean("plus_active", false);
+        boolean passLimited = !passUnlocked(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE));
         double now = System.currentTimeMillis() / 1000.0;
         boolean closed = catalog != null && MetroWidgetData.serviceClosed(catalog, snapshot.sys, snapshot.station, now);
 
