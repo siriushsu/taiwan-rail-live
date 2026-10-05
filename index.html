@@ -5795,7 +5795,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
-        <li data-cl="ntmegress1005"><span class="d">10/5</span><span>淡海、安坑、環狀線的即時列車資料改由全站集中一處向新北捷運官網查詢，再分送給所有訪客；正常情況下官網收到的查詢為淡海、安坑約每 55 秒、環狀線約每 60 秒一次，不隨觀看人數與連線地區增加</span></li>
+        <li data-cl="ntmegress1005"><span class="d">10/5</span><span>淡海、安坑、環狀線的即時列車資料改由全站集中一處向新北捷運官網查詢，再分送給所有訪客；正常情況下官網收到的查詢為淡海、安坑約每 55 秒、環狀線約每 60 秒一次，不隨觀看人數與地區增加；集中查詢沒有回應時，改由備援補上資料，不會一直空等</span></li>
         <li data-cl="trtcnoy1005"><span class="d">10/5</span><span>環狀線的即時資料改為即用即丟：只用來畫當下的列車與看板，伺服器不再累積環狀線列車的行駛紀錄；畫車與站牌跟隨用的暫存只留還在路線上或剛收班的車，每晚收班後清除</span></li>
         <li data-cl="workerrecover0927"><span class="d">9/27</span><span>公車到站、台鐵月台與災害監看遇到官方來源沒有回應時，查詢會在限時內結束等待；下一輪會重新連線，不再讓同一個卡住的請求拖住之後所有查詢</span></li>
         <li data-cl="trastationanchor0919"><span class="d">9/19</span><span>修正台鐵誤點時列車常跑在實際位置前面：現在會保留官方回報的所在車站與進出站狀態，確認列車過站時，即使誤點增加不到 5 分鐘也會立即回到官方誤點位置；同車次重複資料固定採較大的誤點，不再由最後一筆任意覆蓋。（謝謝搭乘實測回報）</span></li>
@@ -6995,7 +6995,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1001c：整合雙平台車站收集、台南道路、平鎮 SEO 最終校稿與 3D 效能改善。
 // v1005f：建物輪廓分散覆蓋與漸進更新、高捷終點短留；整合 v1005e 捷運小工具免費。
 // v1005g：保留建物輪廓漸進更新、高捷終點短留與免費捷運小工具，整合新北捷運單一查詢出口。
-const BUILD = 'v1005g';
+// v1005h：保留新北集中查詢備援修復，補上跨平台原生選單長文字裁切。
+const BUILD = 'v1005h';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

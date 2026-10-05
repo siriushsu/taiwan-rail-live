@@ -808,6 +808,9 @@ const NTM_LIVE_SYS = new Set(NTM_LIVE_MIN_GAP_MS.keys());
 // 上游逾時:要短於前端 pollNtmLive 的 12 秒 abort,發起的訪客才拿得到結果;計時一路蓋到讀完 body。
 const NTM_LIVE_FETCH_TIMEOUT_MS = 8e3;
 const ntmLiveMem = new Map(); // sys → { data: { at, src }, tried }:tried=最後一次開始打上游的時間,成敗都算
+// a 的資料比 b 新:比 at(向官網取回那一批的時刻,前端也照它判斷新舊);src 是 null 的(還沒有資料)一律最舊。
+// 撐一輪與直打佔位的 tried 是那次嘗試的時間,資料卻可能是上一份,新舊要比資料、不能比 tried。
+const ntmNewer = (a, b) => !!(a && a.src != null) && (!b || b.src == null || Date.parse(a.at) > Date.parse(b.at));
 // 打官網的唯一發射點:集中出口(NtmPoller)與 per-colo 退路都只從這裡打。via=誰打的(do:<colo>／direct:<退路原因>)。
 async function ntmLiveFetch(sys, prev, env, via) {
   const started = Date.now();
@@ -850,39 +853,63 @@ async function ntmetroLive(request, env, sys, ctx) {
     const hit = await edge.match(cacheKey);
     if (!hit) return null;
     // 邊緣那份的壽命從 x-ntm-tried 起算;沒有這個標頭的(舊部署留下的)直接略過。
-    const age = Date.now() - Number(hit.headers.get('x-ntm-tried'));
+    const tried = Number(hit.headers.get('x-ntm-tried'));
+    const age = Date.now() - tried;
     if (!(Number.isFinite(age) && age >= 0 && age < gap)) return null;
-    // Cache API 命中也不能把原始完整 TTL 再交給外層快取,只交剩下的壽命。
+    // Cache API 命中也不能把原始完整 TTL 再交給外層快取,只交剩下的壽命;內部標頭不外露。
     const headers = new Headers(hit.headers);
     headers.delete('x-ntm-tried');
+    headers.delete('x-ntm-src');
     headers.set('cache-control', 'public, s-maxage=' + Math.floor((gap - age) / 1000));
-    return new Response(hit.body, { status: hit.status, headers });
+    // 這份是 DO 替同 colo 別的 isolate 拿到的,這個 isolate 卻在撐一輪或直打佔位(down):DO 是通的,down 要清掉——不然這個
+    // isolate 一直由邊緣供應,之後只要再錯一次就會被當成「連續拿不到」而直打。資料比記憶體那份新就整份寫回記憶體(壽命照那份
+    // 自己的 tried),否則只清 down(DO 在查詢途中重置時,新實例回的是查詢前那一份,資料跟撐的那份一樣)。比資料不比 tried:
+    // 那份可能在 down 之前就開始查、之後才寫進邊緣。退路直打的那份(x-ntm-src: direct)不算 DO 通了。
+    const cur = ntmLiveMem.get(sys);
+    if (hit.headers.get('x-ntm-src') !== 'do' || !cur || !cur.down) return new Response(hit.body, { status: hit.status, headers });
+    const text = await hit.text();
+    try {
+      const data = JSON.parse(text);
+      const latest = ntmLiveMem.get(sys); // 讀 body 的那段,記憶體可能已被別的請求換掉
+      if (latest && latest.down) {
+        if (ntmNewer(data, latest.data)) ntmLiveMem.set(sys, { data, tried });
+        else latest.down = false;
+      }
+    } catch (_) { /* 解析不了就不寫回,照樣回這份 */ }
+    return new Response(text, { status: hit.status, headers });
   };
   const hit = await fromEdge();
   if (hit) return hit;
-  // 邊緣那份:壽命從 tried 起算、向上取整,不會比下限早過期(超齡的由上面的 age 檢查擋掉)。
+  // 邊緣那份:壽命從 tried 起算、向上取整,不會比下限早過期(超齡的由上面的 age 檢查擋掉)。src＝do／direct,給上面判斷
+  // DO 通了沒。已超齡的不寫:寫進去也只會被當成過期,反而把同 colo 剛寫進去的新那份換掉(別的 isolate 慢回的舊回覆)。
   // 每次都從字串現造一個 Response,不跟回覆共用 body(理由見 bodyResCached)。
-  const putEdge = async (data, tried) => {
+  const putEdge = async (data, tried, src) => {
+    if (Date.now() - tried >= gap) return;
     try {
       await edge.put(cacheKey, new Response(JSON.stringify(data), { status: 200, headers: {
         'content-type': 'application/json; charset=utf-8',
         'cache-control': ccLeft(tried),
-        'x-ntm-tried': String(tried) } }));
+        'x-ntm-tried': String(tried), 'x-ntm-src': src } }));
     } catch (_) { /* 邊緣寫不進去不影響回覆,間隔仍由記憶體把關 */ }
   };
-  let mem = ntmLiveMem.get(sys);
-  if (!mem || Date.now() - mem.tried >= gap) {
+  // 向 DO 要、拿不到時撐一輪或走退路直打。回 Response(重看邊緣時同 colo 別人已佔位)或要回覆的那份記憶體。
+  const refresh = async () => {
+    let mem;
     const via = await ntmPollerLive(env, sys, gap);
     if (via.data) {
-      // 集中出口那份也記進記憶體與邊緣,壽命一樣從 DO 開始查詢的 tried 起算。比記憶體裡那份舊(慢回的舊回覆)就不蓋,
-      // 也不寫邊緣(會蓋掉同 colo 剛寫進去的新那份)。記憶體那份若是拿不到 DO 時撐的(down),DO 既然通了就換掉,
-      // down 跟著清掉——不然之後只要再錯一次就會被當成「連續拿不到」而直打。
+      // 集中出口那份也記進記憶體與邊緣,壽命一樣從 DO 開始查詢的 tried 起算。比記憶體裡那份晚開始(慢回的舊回覆)就不蓋,
+      // 也不寫邊緣(同 colo 別人可能已寫進較新的那份)。例外是記憶體那份是拿不到 DO 時撐的或直打的佔位(down):DO 既然
+      // 通了,down 要清掉——不清的話,之後只要再錯一次就會被當成「連續拿不到」而直打。佔位的 tried 較晚,資料卻不一定
+      // 較新(撐的是上一份、直打可能失敗或還沒回):這份資料較新就整份換成它(down 跟著消失),否則只清 down。
       mem = { data: via.data, tried: via.tried };
       const cur = ntmLiveMem.get(sys);
       if (!cur || cur.tried <= mem.tried) {
         ntmLiveMem.set(sys, mem);
-        await putEdge(mem.data, mem.tried);
-      } else if (cur.down) ntmLiveMem.set(sys, mem);
+        await putEdge(mem.data, mem.tried, 'do');
+      } else if (cur.down) {
+        if (ntmNewer(mem.data, cur.data)) ntmLiveMem.set(sys, mem);
+        else cur.down = false;
+      }
     } else {
       // 退路。沒綁定是設定問題,只記在 NTM_UPSTREAM 的帳上,不洗 log。
       if (via.off !== 'unbound') console.warn('ntmetro-live: 集中出口不可用', sys, via.off, via.err || '');
@@ -909,19 +936,25 @@ async function ntmetroLive(request, env, sys, ctx) {
           const claim = { data: prev, tried, down: true };
           ntmLiveMem.set(sys, claim);
           // 只有發起的這一發寫邊緣,而且先寫佔位、再寫結果;其他請求一律不寫,免得舊資料蓋掉剛寫進去的新資料。
-          const work = (async () => {
-            await putEdge(prev, tried);
-            claim.data = await ntmLiveFetch(sys, prev, env, 'direct:' + via.off);
-            // 查詢失敗時拿回的就是 prev,佔位那份已經是結果,不再寫第二次。
-            if (claim.data !== prev) await putEdge(claim.data, tried);
-          })();
-          // 發起的訪客斷線時 handler 會被取消;交給 waitUntil,結果照樣寫回記憶體與邊緣(同 traLiveInflight 的 09-23 事故)。
-          if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(work);
-          await work;
+          await putEdge(prev, tried, 'direct');
+          claim.data = await ntmLiveFetch(sys, prev, env, 'direct:' + via.off);
+          // 查詢失敗時拿回的就是 prev,佔位那份已經是結果,不再寫第二次。
+          if (claim.data !== prev) await putEdge(claim.data, tried, 'direct');
           mem = claim;
         }
       }
     }
+    return mem;
+  };
+  let mem = ntmLiveMem.get(sys);
+  if (!mem || Date.now() - mem.tried >= gap) {
+    // 發起的訪客斷線、或前端放棄等待(12 秒,比等 DO 的 15 秒短)時 handler 會被取消:整段交給 waitUntil,
+    // 等 DO、撐一輪、退路直打與記帳照樣做完,結果寫回記憶體與邊緣,下一個請求才用得到(同 traLiveInflight 的 09-23 事故)。
+    const work = refresh();
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(work);
+    const got = await work;
+    if (got instanceof Response) return got;
+    mem = got;
   }
   // 回覆只交這次查詢真正剩下的壽命(與邊緣那份同一個算式、向上取整),不把完整 TTL 再交給外層;x-ntm-tried 只寫進邊緣那份。
   const cc = ccLeft(mem.tried);
