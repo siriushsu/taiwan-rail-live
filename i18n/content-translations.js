@@ -3652,3 +3652,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '立體地圖：臺北車站、中正紀念堂有鐵道經過時，整棟建築也會變半透明，看得到底下的軌道和列車': '3D地図：台北駅と中正紀念堂は、線路が通る場所で建物全体も半透明になり、下の線路や列車が見えるようになりました',
 });
+
+// 2026-10-05 捷運列車身分修復（v1005a）：最近更新的英日文。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '修正文湖線同一班車重複出現，以及捷運起點待發車誤認前車進站訊息的問題': 'Fixed duplicate representations of the same Wenhu Line train and departing metro trains claiming the arriving signal of the train ahead',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '修正文湖線同一班車重複出現，以及捷運起點待發車誤認前車進站訊息的問題': '文湖線で同じ列車が重複表示される問題と、始発駅で待機中の地下鉄列車が先行列車の進入情報を誤認する問題を修正しました',
+});

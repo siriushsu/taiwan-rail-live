@@ -99,7 +99,8 @@ const widths = [360, 375, 414, 768];
 // 10/1：主線 468 條，加台南道路、效能改善與車站收集小工具，加平鎮 SEO，共 472 條。
 // 10/2：平鎮臨時站啟用一條（472→473）。
 // 10/3：整棟是單一模型的立體建築有鐵道經過時變半透明一條（473→474）。
-const expectedHistoryCount = 474;
+// 10/5：捷運同班列車身分修復一條（474→475）。
+const expectedHistoryCount = 475;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
