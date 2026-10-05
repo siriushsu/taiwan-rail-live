@@ -235,7 +235,10 @@ const SAMPLE = () => {
         //  (a) 終點在行進方向的**後方** ⇒ 它永遠到不了 dest，也就永遠不會觸發終點退場。
         //  (b) from===to（起點待發）但「下一站」落在線外 ⇒ 它永遠發不了車。
         // 合法的起點待發車 dest 一定在前方，所以不會被這兩條掃到（那才是分辨線）。
-        const stationMax = ln.stations.length - 1;
+        // KLRT 將環線攤平成 0..站數，最後一格與真實站 0 同座標。
+        // 其他系統仍用實際站序上限，不能因為 loop 就無條件多放一站。
+        const stationMax = systemId === 'klrt' && ln.loop
+          ? ln.stations.length : ln.stations.length - 1;
         for (const t of mine) {
           if (!metroCoreSampleTrain(t, now)) continue;
           const from = Number(t.fromStationIndex), to = Number(t.toStationIndex);
@@ -243,7 +246,7 @@ const SAMPLE = () => {
           if (![from, to, dest].every(Number.isInteger)) continue;
           const reasons = [];
           if ((dest - from) * step < 0) reasons.push(`終點 ${dest} 在行進方向後方(from ${from}、dir ${t.direction})`);
-          if (from === to && (from + step < 0 || from + step > stationMax))
+          if (from === to && from !== dest && (from + step < 0 || from + step > stationMax))
             reasons.push(`起點待發但下一站 ${from + step} 落在線外(0..${stationMax})`);
           if (reasons.length) coreStuck.push({ line: ln.id, id: String(t.vehicleId),
             label: String(t.publicLabel || ''), from, to, dest, dir: Number(t.direction),
@@ -274,7 +277,7 @@ const SAMPLE = () => {
       ? { reason: state.trtcOfficialRosterHold.reason, epoch: state.trtcOfficialRosterHold.epoch } : null };
 };
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 }, locale: 'zh-TW', timezoneId: 'Asia/Taipei' });
 await ctx.addInitScript(() => {
   localStorage.setItem('trainmap-howto-seen', '1');
@@ -563,8 +566,8 @@ if (s1.coreStuck && s2.coreStuck) {
   console.log(`${persist.length ? '❌' : '✅'} 幽靈車：` +
     (persist.length ? `${persist.length} 台兩次取樣都卡住 ⇒ ${fmt(persist)}`
                     : `${s2.coreStuck.length ? '沒有連續兩次都卡住的' : '沒有'}方向與終點矛盾的車`) +
-    (transient.length ? `｜只中一次（折返翻向那一拍，不判）：${transient.length} 台` : ''));
-  if (persist.length) note('bad', `幽靈車 ${persist.length} 台（發不了車也退不了場）：${fmt(persist)}`, persist);
+    (transient.length ? `｜僅第二次取樣出現，尚未確認持續：${transient.length} 台` : ''));
+  if (persist.length) note('bad', `幽靈車判準 ${persist.length} 台（列車欄位矛盾）：${fmt(persist)}`, persist);
 }
 
 // 1. 同向疊車（先分線再分方向；對向交會是正常的）
@@ -576,7 +579,7 @@ for (const h of s2.hits) {
 }
 const clumps = [], nearPairs = [];
 let atStationPairs = 0, atStationPairsReal = 0;
-const stationStack = new Map();   // "line|dir@站序" → 同站疊車對數
+const stationStack = new Map();   // "line|dir@站序" → 同站的列車身分 Set
 for (const [g, arr] of groups) {
   for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) {
     const px = Math.hypot(arr[i].x - arr[j].x, arr[i].y - arr[j].y);
@@ -589,7 +592,9 @@ for (const [g, arr] of groups) {
       atStationPairs++;
       if (!knownOpenClump(g)) atStationPairsReal++;
       const sk = `${g}@${arr[i].nearIdx}`;
-      stationStack.set(sk, (stationStack.get(sk) || 0) + 1);
+      if (!stationStack.has(sk)) stationStack.set(sk, new Set());
+      stationStack.get(sk).add(arr[i].key);
+      stationStack.get(sk).add(arr[j].key);
       continue;
     }
     // 兩邊都是產品浮點座標才算精確；只要有一邊靠像素反推，這個公尺值就帶 ±半像素量化誤差
@@ -651,7 +656,7 @@ const clumpsBoth = clumps.filter(c => s1Clumped.has(clumpKey(c)));
 const clumpsKnown = clumpsBoth.filter(c => knownOpenClump(c.group));
 const clumpsReal = clumpsBoth.filter(c => !knownOpenClump(c.group));
 if (clumpsTransient.length)
-  console.log(`ℓ 單次取樣才出現的靠近 ${clumpsTransient.length} 對（20 秒後已解，屬守則的凍結瞬態，不判缺陷）：` +
+  console.log(`ℓ 只在第二次取樣出現的靠近 ${clumpsTransient.length} 對（尚未確認持續，不判缺陷）：` +
     clumpsTransient.slice(0, 4).map(c => `${c.group} ${c.m}m`).join('、'));
 console.log(`${clumpsReal.length ? '❌' : '✅'} 同向疊車（<${OVERLAP_BAD_M}m）：${clumpsReal.length} 對` +
   (clumpsReal.length ? `　例：${clumpsReal.slice(0, 4).map(c => `${c.group} ${c.m}m${c.exact ? '' : '(±像素)'}`).join('、')}`
@@ -659,12 +664,13 @@ console.log(`${clumpsReal.length ? '❌' : '✅'} 同向疊車（<${OVERLAP_BAD_
 if (clumpsReal.length) note('bad', `同向疊車 ${clumpsReal.length} 對`, clumpsReal.slice(0, 10));
 if (nearPairs.length) note('warn', `同向靠近 ${nearPairs.length} 對（<${OVERLAP_WARN_M}m）`, nearPairs.slice(0, 6));
 // 同站疊車：1 對＝一停靠一進站，正常；3 台以上擠在同一站、或全系統成堆，就是被拖回站上的形態
-const overStopAll = [...stationStack.entries()].filter(([, pairs]) => pairs + 1 > AT_STATION_MAX_PER_STOP);
+const overStopAll = [...stationStack.entries()].map(([k, ids]) => [k, ids.size])
+  .filter(([, count]) => count > AT_STATION_MAX_PER_STOP);
 const overStop = overStopAll.filter(([k]) => !knownOpenClump(k));
 const overStopKnown = overStopAll.filter(([k]) => knownOpenClump(k));
 const stationBad = overStop.length > 0 || atStationPairsReal > AT_STATION_MAX_PAIRS;
 console.log(`${stationBad ? '❌' : '✅'} 同站堆積：${atStationPairsReal} 對` +
-  (overStop.length ? `　超載車站：${overStop.slice(0, 4).map(([k, n]) => `${k}=${n + 1}台`).join('、')}` : '（每站最多 2 台，正常）'));
+  (overStop.length ? `　超載車站：${overStop.slice(0, 4).map(([k, n]) => `${k}=${n}台`).join('、')}` : '（每站最多 2 台，正常）'));
 if (stationBad) note('bad', `同站堆積 ${atStationPairsReal} 對`,
   { overStop: overStop.slice(0, 6), atStationPairs: atStationPairsReal });
 // 已知未解的那幾條：照原樣印出實測數字，但不計入離開碼（理由見 KNOWN_OPEN_CLUMP）
@@ -673,7 +679,7 @@ for (const [line, why] of Object.entries(KNOWN_OPEN_CLUMP)) {
   const s = overStopKnown.filter(([k]) => String(k).split('|')[0] === line);
   if (!c.length && !s.length) continue;
   const detail = [c.length ? `疊車 ${c.length} 對（${c.slice(0, 3).map(x => `${x.group} ${x.m}m`).join('、')}）` : '',
-    s.length ? `超載車站 ${s.slice(0, 3).map(([k, n]) => `${k}=${n + 1}台`).join('、')}` : ''].filter(Boolean).join('；');
+    s.length ? `超載車站 ${s.slice(0, 3).map(([k, n]) => `${k}=${n}台`).join('、')}` : ''].filter(Boolean).join('；');
   console.log(`⚠️ 已知未解（不計入離開碼）${line}：${detail}`);
   console.log(`   ↳ ${why}`);
   note('warn', `已知未解 ${line}：${detail}`, { line, clumps: c.slice(0, 6), overStop: s.slice(0, 6) });

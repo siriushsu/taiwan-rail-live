@@ -48,6 +48,7 @@
     "check-search-type": "node scripts/verify_search_train_type.mjs",
     "build-manifest": "node scripts/build_data_manifest.mjs && node scripts/build_data_provenance.mjs",
     "check-mapscan-wording": "bash scripts/verify_mapscan_cron_wording.sh scripts/scan_map_health_cron.sh",
+    "check-mapscan-contract": "node scripts/verify_mapscan_contract.mjs",
     "check-manifest": "node scripts/verify_data_manifest.mjs && node scripts/verify_data_provenance.mjs",
     "check-metro-times": "node scripts/verify_metro_times.mjs",
     "check-metro-data": "node scripts/verify_metro_times.mjs && node scripts/verify_transfer_departures.mjs && node scripts/verify_tymc_express_endpoints.mjs && node scripts/verify_special_ops.mjs",

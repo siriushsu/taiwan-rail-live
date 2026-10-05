@@ -67,5 +67,5 @@ chk "T3a 仍是偵測到異常"        "偵測到異常" "$NOTIFY_LOG"
 nochk "T3b 不可誤報成巡檢掛了"  "巡檢自己掛了" "$NOTIFY_LOG"
 
 echo
-[ "$fails" -eq 0 ] && echo "全綠（$BASE）" || echo "$fails 項未過（$BASE）"
+[ "$fails" -eq 0 ] && echo "全綠（${BASE}）" || echo "$fails 項未過（${BASE}）"
 exit "$fails"
