@@ -5,6 +5,8 @@ import WidgetKit
 //   免費版一次看【一站】(MetroBoardIntent.freeStationLimit)——免費名額跟著「目前還設著的站」走,
 //   換站或移除小工具就自動釋放,不會把人鎖死在第一次選的站。
 //   「自動(最近的站)」會隨移動換站,天生是多站功能 ⇒ 通行證限定(同批裁示),連定位都不必打。
+// 🔴 2026-10-05 起 freeStationLimit = nil:多站與自動對所有人開放,decide() 第二行就放行。
+//    下面的名額規則只在 limit 不是 nil 時才有作用。
 // 🔴 判定核心 MetroPlusCore 刻意做成頂層零依賴 enum——與 MetroNearestMath 同慣例,
 //    讓 verify_metro_plus_gate.mjs 能大括號抽取原始碼、真 swiftc 編譯後與獨立 JS 對照組互驗。
 //    IO(UserDefaults/WidgetCenter)全部留在 MetroPlusGate 殼層,核心永遠可以離線窮舉真值表。

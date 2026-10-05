@@ -93,6 +93,8 @@ public final class MixedWidgetConfigActivity extends AppCompatActivity {
                 : "免費版可使用一個捷運站；多站與自動選站需啟用軌島通行證。", 13,
             getColor(plus ? R.color.wg_ink_soft : R.color.wg_warn));
         root.addView(pass, matchWrap(dp(18)));
+        // 2026-10-05 起多站與自動選站免費（MetroWidgetProvider.MULTI_STATION_NEEDS_PASS），這列收起。
+        pass.setVisibility(MetroWidgetProvider.MULTI_STATION_NEEDS_PASS ? View.VISIBLE : View.GONE);
 
         Button done = new Button(this);
         done.setText(RailNativeL10n.text(this, "加到桌面"));

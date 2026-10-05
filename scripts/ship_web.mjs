@@ -834,6 +834,17 @@ try {
   if (plusSub.status !== 0) fail('通行證守門人未過——付費閘門、購買流程、資格判定或止血旗標有一條不符'
     + '（單獨重跑：node scripts/verify_plus_subscription.mjs）');
 
+  // ── 2.28 捷運小工具免費守門人(2026-10-05) ──────────────────────────────────────
+  // 為什麼值得進出貨鏈(2.8 那把尺):(a) 它守的缺陷對真人 100% 復現——方案面板、條款第 3 節或說明中心把小工具的
+  // 多站／自動寫回付費,網站一上線就對每個訪客說錯,而即時資訊不設付費門檻是資料授權的條件;(b) 別的閘門量不到——
+  // check-copy／check-i18n 只管字數與有沒有翻譯,verify_plus_subscription 不讀這幾段文案;(c) 寫回去不會有任何錯誤訊息。
+  // 出 App 時 app/scripts/verify-release.mjs 也跑同一支。純 node(D 組另用 Swift 編譯器編一支小探針；macOS 經 xcrun)，約 2 秒。
+  const metroPlus = spawnSync('node', [path.join(wt, 'app', 'scripts', 'verify_metro_plus_gate.mjs')],
+    { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(metroPlus.stdout || ''); process.stderr.write(metroPlus.stderr || '');
+  if (metroPlus.status !== 0) fail('捷運小工具免費守門人未過——方案面板、條款、說明中心或原生小工具有一處把多站／自動寫回付費'
+    + '（單獨重跑：node app/scripts/verify_metro_plus_gate.mjs）');
+
   const gateSummary = gateRunner.summary();
   console.log(`閘門帳本總結：實跑 ${gateSummary.ran}／複用 ${gateSummary.skipped}`);
 

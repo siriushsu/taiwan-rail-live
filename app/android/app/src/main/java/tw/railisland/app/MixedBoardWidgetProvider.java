@@ -173,7 +173,7 @@ public final class MixedBoardWidgetProvider extends AppWidgetProvider {
 
     private static boolean hasMetroSlot(Context context, String sys, String station) {
         SharedPreferences metroPrefs = context.getSharedPreferences(MetroWidgetProvider.PREFS, Context.MODE_PRIVATE);
-        if (metroPrefs.getBoolean("plus_active", false)) return true;
+        if (MetroWidgetProvider.passUnlocked(metroPrefs)) return true;
         if (MetroWidgetData.AUTO.equals(station)) return false;
         String selected = sys + "|" + station;
         String free = metroPrefs.getString("free_station", null);
