@@ -33,6 +33,8 @@ data/seg_distance_audit.json
 # 只有 scripts/verify_*.mjs 在本機重放時讀。理由同上面的 .cache：原始上游資料不對外散布。
 fixtures
 wrangler.jsonc
+# poller Worker 的設定檔同理:部署設定不是站台檔案(2026-10-05 前它一直被當靜態資產公開)。
+wrangler.poller.jsonc
 worker.js
 node_modules
 package.json

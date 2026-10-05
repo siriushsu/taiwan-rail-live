@@ -101,7 +101,8 @@ const widths = [360, 375, 414, 768];
 // 10/3：整棟是單一模型的立體建築有鐵道經過時變半透明一條（473→474）。
 // 10/5：捷運同班列車身分修復一條（474→475）。
 // 10/5：環狀線即時資料不再留存一條（475→476）。
-const expectedHistoryCount = 476;
+// 10/5：新北捷運即時資料改由全站集中查詢一條（476→477）。
+const expectedHistoryCount = 477;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

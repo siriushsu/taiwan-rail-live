@@ -787,14 +787,19 @@ async function metroLive(request, env, sys) {
 }
 
 // ── 新北捷官網列車動態代理(trainstatus.ntmetro.com.tw,免金鑰) ──
-// 環狀線=逐車軌道區間佔用、淡海/安坑=逐站到站倒數。新北捷運 2026-09-22 核准函:查詢頻率維持淡海、安坑
-// 約每 55 秒一次、環狀線約每 60 秒一次,要改須事前報准。NTM_LIVE_MIN_GAP_MS 就是這個下限,不准為了倒數
-// 更即時而調短(9/30 曾改成 18 秒,10/5 調回;scripts/verify_ntm_worker.mjs 會擋)。
-// 間隔從「上次開始打上游」起算,成功、失敗、上游回空、逾時都算一次。打上游之前先佔位:同一個 isolate 裡
+// 環狀線=逐車軌道區間佔用、淡海/安坑=逐站到站倒數。查詢頻率的上限是全站合計淡海、安坑約每 55 秒一次、
+// 環狀線約每 60 秒一次。NTM_LIVE_MIN_GAP_MS 就是這個下限,不准為了倒數更即時而調短
+// (9/30 曾改成 18 秒,10/5 調回;scripts/verify_ntm_worker.mjs 會擋)。
+// 全站只由一個出口查詢(2026-10-05):正常情況下官網只收得到 NtmPoller 那顆 Durable Object 發出的查詢,
+// 各 colo 只向它要最近那一份(見下方 ntmPollerLive／NtmPoller)。下面這套 per-colo 把關降為退路:
+// DO 沒綁定或落點在禁區時直接用;一時拿不到(重置、暫時性錯誤、逾時)先回上一份撐一個間隔,同一個 isolate
+// 連續兩個間隔都拿不到才用——退路一樣有間隔,不會變成無節流直打。每次真的打官網都記一筆(NTM_UPSTREAM)。
+// 退路的把關:間隔從「上次開始打上游」起算,成功、失敗、上游回空、逾時都算一次。打上游之前先佔位:同一個 isolate 裡
 // 之後進來的請求看到記憶體的佔位,同一個 colo 的其他 isolate 看到邊緣那份佔位,都回上一份資料、不再打。
 // 所以上游慢、掛住、或發起的訪客中途斷線,都不會讓後面的請求各打一次。
-// 限制:(1) 佔位寫進邊緣之前那幾毫秒內,別的 isolate 仍可能各打一次;(2) 每個 colo 各一份邊緣快取,
-// 活躍的 colo 多時,上游收到的總次數是倍數。要全站總共每 55 秒一次,得比照北捷改成 Durable Object 集中輪詢。
+// 退路的限制:(1) 佔位寫進邊緣之前那幾毫秒內,別的 isolate 仍可能各打一次(DO 一直拿不到、又剛好重置時,
+// 同一個 colo 的 isolate 會同時收到錯誤,較容易撞上);(2) 每個 colo 各一份邊緣快取,活躍的 colo 多時,
+// 上游收到的總次數是倍數——這就是改成集中出口的理由。
 // 失敗時前端自動退回時刻表推演,零損害。不用 stale-while-revalidate 延長舊倒數;上游失敗仍回原 at,前端自行判定過期。
 // Map/Set 而非物件字面量:物件的 in/[] 查表吃原型鏈(sys='constructor'/'__proto__'/'toString' 會誤判 truthy),
 // Set.has() 只認自身成員,擋掉用原型成員名繞過白名單、把本 proxy 打成對新北捷官網的未快取放大代理。
@@ -803,7 +808,10 @@ const NTM_LIVE_SYS = new Set(NTM_LIVE_MIN_GAP_MS.keys());
 // 上游逾時:要短於前端 pollNtmLive 的 12 秒 abort,發起的訪客才拿得到結果;計時一路蓋到讀完 body。
 const NTM_LIVE_FETCH_TIMEOUT_MS = 8e3;
 const ntmLiveMem = new Map(); // sys → { data: { at, src }, tried }:tried=最後一次開始打上游的時間,成敗都算
-async function ntmLiveFetch(sys, prev) {
+// 打官網的唯一發射點:集中出口(NtmPoller)與 per-colo 退路都只從這裡打。via=誰打的(do:<colo>／direct:<退路原因>)。
+async function ntmLiveFetch(sys, prev, env, via) {
+  const started = Date.now();
+  let outcome = 'fail';
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), NTM_LIVE_FETCH_TIMEOUT_MS);
   try {
@@ -811,34 +819,47 @@ async function ntmLiveFetch(sys, prev) {
       headers: { 'user-agent': 'railisland.tw metro animation (+https://railisland.tw)' }, signal: controller.signal });
     if (!r.ok) throw new Error('ntmetro ' + r.status);
     const d = await r.json();
-    return { at: new Date().toISOString(), src: d && d.data != null ? d.data : null };
+    const src = d && d.data != null ? d.data : null;
+    outcome = src == null ? 'empty' : 'ok';
+    return { at: new Date().toISOString(), src };
   } catch (_) {
+    if (controller.signal.aborted) outcome = 'timeout';
     // 軟失敗:有舊資料回舊資料(at 不變);沒有就回 200+src:null(前端 applyNtmLive 對 null 直接 no-op,
     // 退回時刻表推演)。不回 5xx 免得訪客 console 留紅字;不帶 error 字串進 body,免洩內部訊息。
     return prev;
   } finally {
     clearTimeout(timer);
+    // 每打一次官網記一筆,成敗都記。double1=開始查詢的毫秒時間,量間隔用(scripts/ntm_upstream_report.mjs)。
+    // 這份帳是下限:DO 在查詢途中被重置時,那一發可能來不及記,要對照 DO 的 subrequests 數。
+    if (env && env.NTM_UPSTREAM) {
+      try {
+        env.NTM_UPSTREAM.writeDataPoint({ indexes: [sys], blobs: [sys, via || '?', outcome], doubles: [started, Date.now() - started] });
+      } catch (_) { /* 記帳失敗不影響回覆 */ }
+    }
   }
 }
 async function ntmetroLive(request, env, sys, ctx) {
   const gap = NTM_LIVE_MIN_GAP_MS.get(sys);
-  // 邊緣那份與回應用同一個算式:向上取整,邊緣那份才不會比核准間隔早過期(早過期＝同 colo 別的 isolate 提早再打)。
+  // 邊緣那份與回應用同一個算式:向上取整,邊緣那份才不會比間隔下限早過期(早過期＝同 colo 別的 isolate 提早再打)。
   const ccLeft = tried => 'public, s-maxage=' + Math.max(1, Math.ceil((gap - (Date.now() - tried)) / 1000));
   // key 固定主機名:railisland.tw 與 www 同一個 zone,共用同一份邊緣快取(用 request.url 時兩個網域各打各的)。
   const cacheKey = new Request('https://railisland.tw/api/ntmetro-live?sys=' + sys, { method: 'GET' });
   const edge = caches.default;
-  const hit = await edge.match(cacheKey);
-  if (hit) {
+  // 邊緣那份還在壽命內就直接回它,否則回 null。
+  const fromEdge = async () => {
+    const hit = await edge.match(cacheKey);
+    if (!hit) return null;
     // 邊緣那份的壽命從 x-ntm-tried 起算;沒有這個標頭的(舊部署留下的)直接略過。
     const age = Date.now() - Number(hit.headers.get('x-ntm-tried'));
-    if (Number.isFinite(age) && age >= 0 && age < gap) {
-      // Cache API 命中也不能把原始完整 TTL 再交給外層快取,只交剩下的壽命。
-      const headers = new Headers(hit.headers);
-      headers.delete('x-ntm-tried');
-      headers.set('cache-control', 'public, s-maxage=' + Math.floor((gap - age) / 1000));
-      return new Response(hit.body, { status: hit.status, headers });
-    }
-  }
+    if (!(Number.isFinite(age) && age >= 0 && age < gap)) return null;
+    // Cache API 命中也不能把原始完整 TTL 再交給外層快取,只交剩下的壽命。
+    const headers = new Headers(hit.headers);
+    headers.delete('x-ntm-tried');
+    headers.set('cache-control', 'public, s-maxage=' + Math.floor((gap - age) / 1000));
+    return new Response(hit.body, { status: hit.status, headers });
+  };
+  const hit = await fromEdge();
+  if (hit) return hit;
   // 邊緣那份:壽命從 tried 起算、向上取整,不會比下限早過期(超齡的由上面的 age 檢查擋掉)。
   // 每次都從字串現造一個 Response,不跟回覆共用 body(理由見 bodyResCached)。
   const putEdge = async (data, tried) => {
@@ -851,27 +872,171 @@ async function ntmetroLive(request, env, sys, ctx) {
   };
   let mem = ntmLiveMem.get(sys);
   if (!mem || Date.now() - mem.tried >= gap) {
-    const tried = Date.now();
-    const prev = mem ? mem.data : { at: new Date(tried).toISOString(), src: null };
-    // 先同步佔位再 await:Workers 是單執行緒,檢查與佔位之間沒有別的請求插得進來。
-    const claim = { data: prev, tried };
-    ntmLiveMem.set(sys, claim);
-    // 只有發起的這一發寫邊緣,而且先寫佔位、再寫結果;其他請求一律不寫,免得舊資料蓋掉剛寫進去的新資料。
-    const work = (async () => {
-      await putEdge(prev, tried);
-      claim.data = await ntmLiveFetch(sys, prev);
-      // 查詢失敗時拿回的就是 prev,佔位那份已經是結果,不再寫第二次。
-      if (claim.data !== prev) await putEdge(claim.data, tried);
-    })();
-    // 發起的訪客斷線時 handler 會被取消;交給 waitUntil,結果照樣寫回記憶體與邊緣(同 traLiveInflight 的 09-23 事故)。
-    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(work);
-    await work;
-    mem = claim;
+    const via = await ntmPollerLive(env, sys, gap);
+    if (via.data) {
+      // 集中出口那份也記進記憶體與邊緣,壽命一樣從 DO 開始查詢的 tried 起算。比記憶體裡那份舊(慢回的舊回覆)就不蓋,
+      // 也不寫邊緣(會蓋掉同 colo 剛寫進去的新那份)。記憶體那份若是拿不到 DO 時撐的(down),DO 既然通了就換掉,
+      // down 跟著清掉——不然之後只要再錯一次就會被當成「連續拿不到」而直打。
+      mem = { data: via.data, tried: via.tried };
+      const cur = ntmLiveMem.get(sys);
+      if (!cur || cur.tried <= mem.tried) {
+        ntmLiveMem.set(sys, mem);
+        await putEdge(mem.data, mem.tried);
+      } else if (cur.down) ntmLiveMem.set(sys, mem);
+    } else {
+      // 退路。沒綁定是設定問題,只記在 NTM_UPSTREAM 的帳上,不洗 log。
+      if (via.off !== 'unbound') console.warn('ntmetro-live: 集中出口不可用', sys, via.off, via.err || '');
+      // 等 DO 回覆的那段,同 colo 別的 isolate 可能已經佔位(邊緣)、同一個 isolate 也可能已有別的請求佔位
+      // (記憶體):兩處都重看一次,佔位了就不再打。之後到佔位之間沒有 await。
+      const again = await fromEdge();
+      if (again) return again;
+      mem = ntmLiveMem.get(sys);
+      if (!mem || Date.now() - mem.tried >= gap) { // 重看之後仍過期
+        const tried = Date.now();
+        const prev = mem ? mem.data : { at: new Date(tried).toISOString(), src: null };
+        // DO 剛拿不到(部署或執行環境更新造成的重置、一次暫時性錯誤、逾時):它可能才替別的 colo 打過,
+        // 這個間隔先回上一份、不打;這個 isolate 連續兩個間隔都拿不到才直打。沒綁定、落點在禁區
+        // 不是暫時狀況,直接走退路。down 記在記憶體:直打之後也帶著,DO 一直拿不到就每個間隔照常直打。
+        // 「連續」要看時間:上一次拿不到(撐的那份或直打的佔位)在兩個間隔以內才算;之後閒置或一直由邊緣供應、
+        // 隔得更久才又拿不到,算第一次,照樣先撐一輪。
+        // 這份只記在這個 isolate、不寫邊緣(沒有上一份時它是空的,不能蓋掉同 colo 別人的資料)。
+        const downBefore = mem && mem.down && tried - mem.tried < 2 * gap;
+        if (via.off !== 'unbound' && !via.off.startsWith('denied:') && !downBefore) {
+          mem = { data: prev, tried, down: true };
+          ntmLiveMem.set(sys, mem);
+        } else {
+          // 退路的佔位。先同步佔位再 await:Workers 是單執行緒,檢查與佔位之間沒有別的請求插得進來。
+          const claim = { data: prev, tried, down: true };
+          ntmLiveMem.set(sys, claim);
+          // 只有發起的這一發寫邊緣,而且先寫佔位、再寫結果;其他請求一律不寫,免得舊資料蓋掉剛寫進去的新資料。
+          const work = (async () => {
+            await putEdge(prev, tried);
+            claim.data = await ntmLiveFetch(sys, prev, env, 'direct:' + via.off);
+            // 查詢失敗時拿回的就是 prev,佔位那份已經是結果,不再寫第二次。
+            if (claim.data !== prev) await putEdge(claim.data, tried);
+          })();
+          // 發起的訪客斷線時 handler 會被取消;交給 waitUntil,結果照樣寫回記憶體與邊緣(同 traLiveInflight 的 09-23 事故)。
+          if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(work);
+          await work;
+          mem = claim;
+        }
+      }
+    }
   }
   // 回覆只交這次查詢真正剩下的壽命(與邊緣那份同一個算式、向上取整),不把完整 TTL 再交給外層;x-ntm-tried 只寫進邊緣那份。
   const cc = ccLeft(mem.tried);
   return new Response(JSON.stringify(mem.data), { status: 200,
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': cc } });
+}
+
+// ── 集中出口:全站唯一向新北捷官網查詢的 Durable Object(2026-10-05) ──
+// 為什麼:caches.default 與 isolate 記憶體都是每個資料中心各一份,上面那套把關只管得到單一 colo;
+// 各 colo 改向這顆 DO 要最近那一份,官網收到的總次數才會是全站每 55／60 秒最多一次。
+// 間隔從這顆 DO「開始查詢」起算,成功、失敗、逾時、回空都算一次(與退路同一套語意);查詢進行中進來的
+// 請求等同一發的結果,不另打。開始查詢前先把時間寫進 storage:DO 重啟(部署、執行環境更新)後讀回來,
+// 間隔照樣成立。at 仍是向官網取回那一批的時刻,之後各 colo 重送同一份不改 at。
+// 類別放在 railisland-trtc-poller 那顆 Worker(wrangler.poller.jsonc;主站不能帶 DO migration,理由見
+// trtc_poller_worker.mjs 檔頭),主站以 script_name 綁過去。落點規則與北捷那顆共用 TRTC_POLLER_HINT／
+// TRTC_POLLER_DENY_COLO:提示 apac-ne;落在禁區就一發不打,讓各 colo 走退路(量變回 per-colo,但不違反區域規則)。
+// 名字＝落點(建立當下決定、之後不搬):換名字之前先用 poller Worker 的 /ntm-status?name= 量。
+// ntm-poller-v1:2026-10-05 部署 poller 後用 /ntm-status 實測落在 NRT(東京)。
+const NTM_POLLER_NAME = 'ntm-poller-v1';
+// 等 DO 回覆的上限:要長於 DO 那邊最壞的情況(量落點 3 秒＋打官網 8 秒＋寫 storage),逾時當成一次拿不到
+// (先撐一輪、連續兩個間隔才走退路)。DO 掛住時各 colo 的請求才不會一直等下去;DO 那邊照自己的間隔把關,
+// 主站放棄等待不會讓官網多被打一次。
+const NTM_POLLER_TIMEOUT_MS = 15e3;
+// 向集中出口要最近那一份。拿不到(沒綁定、DO 打不通、逾時、落點在禁區)回 { off: 原因 },由呼叫端走退路;不丟例外。
+// gap 是主站這一版的間隔:DO 取它與自己那一版較長的一個(見 NtmPoller.fetch)。
+async function ntmPollerLive(env, sys, gap) {
+  if (!env || !env.NTM_POLLER) return { off: 'unbound' };
+  let timer;
+  const timeout = new Promise(resolve => { timer = setTimeout(() => resolve({ off: 'timeout' }), NTM_POLLER_TIMEOUT_MS); });
+  try {
+    return await Promise.race([ntmPollerFrame(env, sys, gap), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function ntmPollerFrame(env, sys, gap) {
+  try {
+    const stub = env.NTM_POLLER.get(env.NTM_POLLER.idFromName(NTM_POLLER_NAME), { locationHint: TRTC_POLLER_HINT });
+    const r = await stub.fetch('https://ntm-poller/live?sys=' + sys + '&gap=' + gap);
+    if (!r.ok) return { off: 'http-' + r.status };
+    const f = await r.json();
+    if (f && f.denied) return { off: 'denied:' + f.denied };
+    // 第二道(同 trtcPollerFrame):萬一 DO 那道被改壞,邊緣仍然不吃禁區來的資料。
+    if (f && f.colo && TRTC_POLLER_DENY_COLO.has(f.colo)) return { off: 'denied:' + f.colo };
+    if (!f || !f.data || !Number.isFinite(f.tried)) return { off: 'bad-frame' };
+    return f;
+  } catch (e) {
+    return { off: 'error', err: String((e && e.message) || e) };
+  }
+}
+export class NtmPoller {
+  constructor(state, env) {
+    this.env = env;
+    this.storage = state.storage;
+    this.sys = new Map(); // sys → { data: { at, src }, tried, inflight }
+    this.colo = null;
+    // 先讀回上次開始查詢的時間與那份資料,讀完才接請求(fetch 一開頭等它)。
+    this.ready = state.blockConcurrencyWhile(async () => {
+      const saved = await this.storage.get([...NTM_LIVE_SYS].map(s => 'ntm:' + s));
+      for (const [k, v] of saved) if (v) this.sys.set(k.slice(4), { data: v.data, tried: v.tried, inflight: null });
+    });
+  }
+  async detectColo() {
+    // 同 TrtcPoller.detectColo:DO 建立後不會搬,量到一次就夠;量不到不擋資料,下一輪再量。
+    if (this.colo) return this.colo;
+    try {
+      // 3 秒逾時:每個請求都先等它,卡住會拖住全部請求(北捷那顆是背景輪詢,沒有這個問題)。
+      const t = await fetch('https://cloudflare.com/cdn-cgi/trace', { signal: AbortSignal.timeout(3e3) }).then(r => r.text());
+      this.colo = (t.match(/^colo=(.+)$/m) || [])[1] || null;
+    } catch { /* 下一輪再試 */ }
+    return this.colo;
+  }
+  async live(sys, gap) {
+    let s = this.sys.get(sys);
+    // 查詢進行中:等同一發的結果。過了間隔還沒結束的那發不再等(逾時 8 秒早該結束了,多半是卡住)。
+    if (s && s.inflight && Date.now() - s.tried < gap) await s.inflight;
+    else if (!s || Date.now() - s.tried >= gap) {
+      const tried = Date.now();
+      const prev = s ? s.data : { at: new Date(tried).toISOString(), src: null };
+      const claim = s = { data: prev, tried, inflight: null };
+      this.sys.set(sys, claim); // 先同步佔位再 await,同一顆 DO 裡後面進來的請求看得到
+      claim.inflight = (async () => {
+        await this.storage.put('ntm:' + sys, { tried, data: prev }); // 先記下開始查詢的時間,再打
+        claim.data = await ntmLiveFetch(sys, prev, this.env, 'do:' + (this.colo || '?'));
+        // 結果寫進 storage 失敗時,Cloudflare 會重置這顆 DO,在等的請求收到錯誤(各 colo 先撐一輪);
+        // 新實例讀回的是查詢前存的那筆,間隔照樣以那個 tried 為準,只是資料停在上一份。
+        if (claim.data !== prev) await this.storage.put('ntm:' + sys, { tried, data: claim.data }).catch(() => {});
+      })();
+      const settle = () => { claim.inflight = null; };
+      claim.inflight.then(settle, settle);
+      await claim.inflight;
+    }
+    return s;
+  }
+  async fetch(request) {
+    await this.ready;
+    const url = new URL(request.url);
+    if (url.pathname === '/status') {
+      // 只回落點與新鮮度,不觸發查詢:poller Worker 的 /ntm-status 是公開網址,不能變成外人驅動查詢的把手。
+      const now = Date.now(), sys = {};
+      for (const [k, s] of this.sys) sys[k] = { tried: s.tried, at: s.data && s.data.at, ageMs: now - s.tried, inflight: !!s.inflight };
+      return Response.json({ colo: await this.detectColo(), gaps: Object.fromEntries(NTM_LIVE_MIN_GAP_MS), sys });
+    }
+    const sys = url.searchParams.get('sys');
+    if (!NTM_LIVE_SYS.has(sys)) return Response.json({ error: 'bad sys' }, { status: 400 });
+    // 落點檢查在查詢之前(同 TrtcPoller.refresh 的理由):在禁區就一發不打。
+    const colo = await this.detectColo();
+    if (colo && TRTC_POLLER_DENY_COLO.has(colo)) return Response.json({ denied: colo });
+    // 間隔取主站帶來的與這一版自己的較長那個:這顆 DO 只在 poller Worker 部署時才換程式碼,
+    // 主站先出了較長的間隔、poller 還沒重新部署時,較嚴的那個照樣生效。上限一小時,擋掉帶錯的值。
+    const asked = Number(url.searchParams.get('gap'));
+    const gap = Math.max(NTM_LIVE_MIN_GAP_MS.get(sys), Number.isFinite(asked) ? Math.min(asked, 3600e3) : 0);
+    const s = await this.live(sys, gap);
+    return Response.json({ tried: s.tried, colo, data: s.data });
+  }
 }
 
 // ── 高雄輕軌真 GPS(TDX LivePosition) ──
@@ -8349,6 +8514,8 @@ function trtcForgetMemoForTest() { trtcMem = null; trtcHwMem = null; }
 export const _trtc = { trtcParse, trtcEpoch, dedupeLatest, trtcCall, trtcApiUrl, trtcMemoStale, carsOf,
   trtcFetchUpstream, trtcRawFrame, TrtcPoller, TRTC_POLLER_DENY_COLO, TRTC_POLLER_HINT, trtcForgetMemoForTest,
   trtcHwStale, trtcHwFallbackUsable, trtcLive };
+// 新北捷集中出口的名字:poller Worker 的 /ntm-status 要用同一個(同名才是同一顆 DO),只留這一份。
+export const _ntm = { NTM_POLLER_NAME };
 // B1 驗收用：導出編排層供本機 D1/fixture 測試，正式 router 不因此增加任何路徑。
 export const _trtcLedger = {
   trtcBoardEpoch, trtcLedgerContext, persistTrtcLedger, trtcLedgerPreview,

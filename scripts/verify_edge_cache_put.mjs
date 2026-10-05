@@ -127,19 +127,26 @@ function readCallArgs(src, openIdx) {         // openIdx 指向 '(' ;回傳頂�
 console.log('【G1】結構性斷言:交給 cache.put 的必須是獨立造出來的 Response');
 const putSites = [];
 {
-  // worker.js 裡的 `.put(` 目前【全部】都是邊緣快取的寫入(D1 用 prepare/bind、記憶體快取用 Map.set),
-  // 所以這裡刻意不挑名字(edge/cache/caches.default)而是掃所有 .put( ——換個變數名不會讓斷言失明。
+  // worker.js 裡的 `.put(` 除了 NtmPoller 的 DO storage 寫入(`this.storage.put(`,持久化查詢時間,不是快取)
+  // 以外【全部】都是邊緣快取的寫入(D1 用 prepare/bind、記憶體快取用 Map.set),所以這裡刻意不挑名字
+  // (edge/cache/caches.default)而是掃所有 .put( ——換個變數名不會讓斷言失明。排除的只有字面上的
+  // `this.storage.put(`,而且下面驗它們全在 NtmPoller 類別裡,別處不能借這個名字繞過。
   const re = /\.put\s*\(/g;
-  let m;
+  let m, storageSites = 0;
   while ((m = re.exec(CODE))) {
+    if (CODE.slice(Math.max(0, m.index - 12), m.index) === 'this.storage') { storageSites++; continue; }
     const open = m.index + m[0].length - 1;
     const { args } = readCallArgs(CODE, open);
     const line = CODE.slice(0, m.index).split('\n').length;
     putSites.push({ line, args, text: CODE.slice(m.index, m.index + 60).split('\n')[0] });
   }
   const rawCount = (CODE.match(/\.put\s*\(/g) || []).length;
+  const ntmAt = CODE.indexOf('class NtmPoller');
+  const ntmClass = ntmAt < 0 ? '' : CODE.slice(ntmAt, CODE.indexOf('\n}\n', ntmAt));
+  ck(storageSites === (ntmClass.match(/this\.storage\.put\s*\(/g) || []).length,
+    `排除的 ${storageSites} 個 DO storage 寫入全部在 NtmPoller 類別裡`);
   ck(putSites.length >= 1, `掃到 ${putSites.length} 個 cache.put 呼叫點(0 個代表這整段斷言在空轉)`);
-  ck(putSites.length === rawCount, `每個 .put( 都被解析到(${putSites.length}/${rawCount})`);
+  ck(putSites.length + storageSites === rawCount, `每個 .put( 都被解析到(${putSites.length} 個 cache.put＋${storageSites} 個 DO storage／${rawCount})`);
   ck(putSites.every(s => s.args && s.args.length >= 2), '每個 put 都拿得到第 2 個參數');
 }
 // 這兩條是核心判準,同一支偵測器等一下會拿去跑突變測試(G2),證明它真的有牙。

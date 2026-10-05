@@ -3676,3 +3676,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '環狀線即時資料改為即用即丟：伺服器不再累積環狀線列車的行駛紀錄，畫車與站牌跟隨用的暫存只留近況，每晚收班後清除': '環状線のリアルタイムデータは使ったらすぐ捨てる方式にしました。サーバーに環状線の列車の運行記録を蓄積せず、列車の表示と駅の案内板からの追跡に使う一時データは直近の状況だけを残し、毎晩終電後に消去します',
 });
+
+// 2026-10-05 新北捷運即時資料改由全站集中查詢（v1005f）：最近更新的英日文。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '淡海、安坑、環狀線即時資料改由全站集中向官方查詢、再分送給所有人，正常情況下官方收到的查詢約每分鐘一次，不隨觀看人數與地區增加': 'Danhai, Ankeng and Circular Line live data is now fetched from the official source in one central place and shared with everyone, so under normal conditions the official site receives about one request a minute regardless of how many people are watching or where from',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '淡海、安坑、環狀線即時資料改由全站集中向官方查詢、再分送給所有人，正常情況下官方收到的查詢約每分鐘一次，不隨觀看人數與地區增加': '淡海・安坑・環状線のリアルタイムデータは、サイト全体で一か所からまとめて公式に問い合わせ、全員に配信するようにしました。通常時、公式への問い合わせは見ている人数や地域にかかわらず約1分に1回です',
+});

@@ -142,7 +142,7 @@ try {
   // 必須在 strip 前驗前端接線，避免倒數再次被備援或動畫時鐘覆蓋。
   for (const name of ['verify_ntm_live_model', 'verify_ntm_worker', 'verify_metro_countdown_source']) {
     const check = spawnSync('node', [path.join(wt, 'scripts', name + '.mjs')],
-      { cwd: wt, encoding: 'utf8', env: { ...process.env, NTM_MODEL_MUTATION: '', METRO_COUNTDOWN_MUTATION: '' } });
+      { cwd: wt, encoding: 'utf8', env: { ...process.env, NTM_MODEL_MUTATION: '', NTM_WORKER_MUTATION: '', METRO_COUNTDOWN_MUTATION: '' } });
     process.stdout.write(check.stdout || ''); process.stderr.write(check.stderr || '');
     if (check.status !== 0) fail(`捷運即時倒數守門未過：${name}`);
   }
