@@ -2,14 +2,15 @@
 // <select> 選到長選項時,外層不能被左右拖動(2026-09-26,守 v0925p 那批修正)。
 //
 // WebKit(iPhone Safari、App 的 WKWebView、Mac Safari)把 select 選中那一項的整行字寬算進最近的 overflow:auto
-// 祖先的捲動範圍:字在畫面上已經裁在箭頭前,容器卻能左右拖、左邊被切掉。修法是 select 本身 overflow:hidden:
+// 祖先的捲動範圍:字在畫面上已經裁在箭頭前,容器卻能左右拖、左邊被切掉。修法是 select 本身 overflow:hidden＋contain:paint:
+// Linux WebKit 的 Adwaita 原生選單會在 cascade 後強制 overflow:visible，contain 保留原生外觀並補上裁切。
 // index.html 跟車卡的「接公車」#fpBusTo、「我上車了」#fpRideTo、到站提醒 #notifyStation,rail-3d.css 觀看面板的
 // 車站／地標導覽 #riGuidePlace(車庫 .g-model-select 由 verify_garage_loop 守)。
 // 修前 WebKit 英文實測:#fpBusTo 127px、#fpRideTo 61、#notifyStation 19(360 寬)、#riGuidePlace 50(1280 寬)。
 // Chromium 的 select 計算後 overflow 恆為 visible、這個缺陷也不發生,select 那幾格只跑 WebKit。
 //   S 每個 select 塞一個長選項並選它,對每個 overflow-x 為 auto／scroll 的祖先與文件本身寫 scrollLeft＝大數再讀回:
 //     讀回值 ≤ 1px(＝使用者拖不動)。長選項是注入的(兩個實測最長的英文名接起來),不靠今天跟到哪班車、剩哪幾站。
-//   N 正向對照,要紅才算數:同一格把那個 select 改回 overflow:visible ⇒ 讀回值必須 > 1px。
+//   N 反向對照,要紅才算數:同一格撤掉 contain 並改回 overflow:visible ⇒ 讀回值必須 > 1px。
 //
 // 同一個症狀的另一個來源(2026-09-26 加,守 v0926d):跟車卡「下一站」#fpNext 原本 white-space:nowrap,英文長站名
 // (長榮大學、科工館)比卡寬還寬,.follow-panel 的 overflow-y:auto 讓 x 軸也變成可捲,整張卡能左右拖。這個兩個引擎都中:
@@ -61,7 +62,7 @@ console.log(`\n目標: ${path.join(ROOT, 'index.html')}\n      md5=${md5}  BUILD
 const LONG = 'Chang Jung Christian University · Chiang Kai-shek Memorial Hall';
 
 // 在頁面裡跑:等 select 出現 → 塞長選項並選它 → 量每個使用者拖得動的祖先(overflow-x auto／scroll)與文件本身
-// 實際能往右捲多少(寫大數再讀回,量完放回原位)→ 同一格改回 overflow:visible 再量一次 → 全部還原
+// 實際能往右捲多少(寫大數再讀回,量完放回原位)→ 同一格撤掉 contain 並改回 overflow:visible 再量一次 → 全部還原
 const PROBE = async ([sel, long]) => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const raf = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -85,21 +86,23 @@ const PROBE = async ([sel, long]) => {
     }
     return worst;
   };
-  const idx0 = s.selectedIndex, opt = new Option(long, '__verify_long');
+  const idx0 = s.selectedIndex, style0 = s.style.cssText, opt = new Option(long, '__verify_long');
   s.add(opt);
   s.value = '__verify_long';
   await raf();
   const held = s.value === '__verify_long';
   const fixed = pannable();
   const ov = getComputedStyle(s).overflow;
+  const containment = getComputedStyle(s).contain;
   s.style.overflow = 'visible';
+  s.style.contain = 'none';
   await raf();
   const heldMut = s.value === '__verify_long';
   const mutated = pannable();
-  s.style.overflow = '';
+  s.style.cssText = style0;
   opt.remove();
   s.selectedIndex = idx0;
-  return { held, heldMut, ov, fixed, mutated, selW: +s.getBoundingClientRect().width.toFixed(1) };
+  return { held, heldMut, ov, containment, fixed, mutated, selW: +s.getBoundingClientRect().width.toFixed(1) };
 };
 
 // 跟車卡三個 select 的選項是被跟那班車的後續停站:挑一班還有 4 站以上沒到的台鐵車
@@ -241,8 +244,8 @@ for (const [engine, type] of [['webkit', webkit], ['chromium', chromium]]) {
       try { await page.evaluate(c.close); } catch (e) {}
       const where = r.missing ? '找不到' : r.hidden ? '不在畫面上' : null;
       ok(`S ${width} ${c.key} 選到長選項,外層拖不動`, !where && r.held && r.fixed.px <= 1,
-        where || `${r.held ? '' : '長選項被重繪洗掉；'}可拖 ${r.fixed.px}px(${r.fixed.el}),select overflow=${r.ov}、寬 ${r.selW}`);
-      if (!where) ok(`N ${width} ${c.key} 對照:改回 overflow:visible ⇒ 外層拖得動(S 量得到紅)`, r.heldMut && r.mutated.px > 1,
+        where || `${r.held ? '' : '長選項被重繪洗掉；'}可拖 ${r.fixed.px}px(${r.fixed.el}),select overflow=${r.ov}、contain=${r.containment}、寬 ${r.selW}`);
+      if (!where) ok(`N ${width} ${c.key} 對照:撤掉 contain 並改回 overflow:visible ⇒ 外層拖得動(S 量得到紅)`, r.heldMut && r.mutated.px > 1,
         `${r.heldMut ? '' : '長選項被重繪洗掉；'}可拖 ${r.mutated.px}px(${r.mutated.el})`);
     }
     if (!(await page.evaluate(() => !!state.followTrain))) await following();

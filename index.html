@@ -1720,11 +1720,12 @@
   /* WebKit(iPhone 的 Safari 與 App)會把 <select> 選中那一項的整行字寬算進外層捲動區(#followPanel、提醒單的
      .takeout-body)的捲動範圍:字在畫面上已裁在箭頭前,整張卡卻能左右拖動。英文長站名撐得出來——2026-09-25 選到
      「Chang Jung Christian University」時,跟車卡的公車轉乘可拖 127px、「我上車了」61px、到站提醒 360px 寬 19px;
-     日文、中文與 Chromium 都是 0。overflow:hidden 把溢出留在選單裡(同 train-garage.css .g-model-select)。 */
+     日文、中文與 Chromium 都是 0。overflow:hidden 把溢出留在選單裡(同 train-garage.css .g-model-select)。
+     Linux WebKit 的原生選單會把 overflow 改回 visible；另用 contain:paint 留住溢出，保留原生外觀與操作。 */
   .follow-panel .fp-busbox select {
     flex: 1; min-width: 0; min-height: 40px; font: inherit; font-size: calc(12px * var(--uis)); font-weight: 700;
     color: var(--ink-strong); background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-pill); padding: 4px 8px;
-    overflow: hidden;
+    overflow: hidden; contain: paint;
   }
   .follow-panel .fp-busbox button {
     flex: 1; min-height: 40px; font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800; letter-spacing: 1px;
@@ -1748,7 +1749,7 @@
   .follow-panel .fp-ridebox select { /* overflow:hidden 見上面 .fp-busbox select */
     flex: 1; min-width: 0; min-height: 40px; font: inherit; font-size: calc(12px * var(--uis)); font-weight: 700;
     color: var(--ink-strong); background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-pill); padding: 4px 8px;
-    overflow: hidden;
+    overflow: hidden; contain: paint;
   }
   .follow-panel .fp-ridebox button {
     flex: 1; min-height: 40px; font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800; letter-spacing: 1px;
@@ -3351,7 +3352,7 @@
     width: 100%; min-height: 44px; padding: 7px 10px; border: 1.5px solid var(--line); border-radius: 8px;
     background: var(--paper); color: var(--ink); font: inherit; font-size: calc(16px * var(--ui));
   }
-  .notify-field select { overflow: hidden; } /* 見 .follow-panel .fp-busbox select */
+  .notify-field select { overflow: hidden; contain: paint; } /* 見 .follow-panel .fp-busbox select */
   .notify-offsets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
   .notify-offsets label { cursor: pointer; }
   .notify-offsets input { position: absolute; opacity: 0; pointer-events: none; }
