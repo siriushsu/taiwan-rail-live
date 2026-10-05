@@ -26,7 +26,7 @@ console.log(`[G0] index.html md5=${INDEX_MD5}`);
 
 const FIX = p => JSON.parse(readFileSync(path.join(ROOT, 'app/fixtures/metro', p), 'utf8'));
 const trtcMainRaw = FIX('trtc-live.json');   // 台北車站等多線共站的實錄
-const trtcYRaw = FIX('trtc-live-y.json');    // 環狀線實錄(brief 指定用「十四張」)
+const trtcYRaw = FIX('trtc-live-y.json');    // 環狀線樣本(看板列為合成資料;brief 指定用「十四張」)
 const krtcRaw = FIX('krtc-live.json');
 const tymcRaw = FIX('tymc-live.json');
 
@@ -262,7 +262,7 @@ const cr = await chromium.launch();
   ok('C payload.nextMinutes===null(精度誠實鐵則)', !!p && p.nextMinutes === null, `nextMinutes=${p && p.nextMinutes}`);
   ok('C payload.nextDest 非空', !!p && typeof p.nextDest === 'string' && p.nextDest.length > 0, JSON.stringify(p && p.nextDest));
   ok('C payload.dataAt 為秒級 epoch', !!p && p.dataAt > 1.7e9 && p.dataAt < 2.1e9, `dataAt=${p && p.dataAt}`);
-  ok('C payload.crowd===null(環狀線實錄的看板列沒有官方車號,逐車 join 必然留白——不准借別台)',
+  ok('C payload.crowd===null(環狀線樣本的看板列沒有官方車號,逐車 join 必然留白——不准借別台)',
     !!p && p.crowd === null, `crowd=${JSON.stringify(p && p.crowd)}`);
   ok('C payload.durationMin 不經時長段=預設 30', !!p && p.durationMin === 30, `durationMin=${p && p.durationMin}`);
   const btnAfterStart = await page.evaluate(() => document.getElementById('boardWait').textContent.trim());
@@ -275,9 +275,9 @@ const cr = await chromium.launch();
   const btnAfterStop = await page.evaluate(() => document.getElementById('boardWait').textContent.trim());
   ok('C stop 後文案回「追蹤這站」', btnAfterStop === '追蹤這站', `text=${btnAfterStop}`);
   // ── C2/C2b:逐車 join 的一對對照(2026-08-29 改) ──────────────────────────
-  // 環狀線實錄的看板列【沒有官方車號】(no 全為空字串,實測 0/6),所以真實 Y 線在逐車 join 下
+  // 環狀線樣本的看板列【沒有官方車號】(no 全為空字串,實測 0/6),所以真實 Y 線在逐車 join 下
   // 必然留白——那正是上面 C 那條在講的事。要驗「join 本身接得通」就得自己造出有車號的列,
-  // 因此以下兩組都在同一份實錄上蓋 no,且【除了 trains[].no 以外每一格輸入完全相同】:
+  // 因此以下兩組都在同一份樣本上蓋 no,且【除了 trains[].no 以外每一格輸入完全相同】:
   //   C2  trains[].no === 看板列的 no      ⇒ 必須拿到那台車的 cars
   //   C2b trains[].no 換一個值(終點不變)   ⇒ 必須留白
   // C2b 就是舊 join 的形狀:舊版拿【終點】當鍵,兩組都會回 [1,2,3,2] ⇒ 這一對才有牙。

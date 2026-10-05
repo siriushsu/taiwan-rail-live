@@ -3689,3 +3689,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '捷運小工具的多站與「自動（最近的站）」改為所有人免費，不再需要通行證；更新到新版 App 後生效': 'メトロウィジェットの複数駅と「自動（最寄り駅）」が、パスなしで誰でも無料で使えるようになりました。新しいバージョンのアプリに更新すると反映されます',
 });
+
+// 2026-10-05 新北捷運即時資料改由全站集中查詢（v1005f）：最近更新的英日文。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '淡海、安坑、環狀線即時資料改由全站集中向官方查詢、再分送給所有人，正常情況下官方收到的查詢約每分鐘一次，不隨觀看人數與地區增加': 'Danhai, Ankeng and Circular Line live data is now fetched from the official source in one central place and shared with everyone, so under normal conditions the official site receives about one request a minute regardless of how many people are watching or where from',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '淡海、安坑、環狀線即時資料改由全站集中向官方查詢、再分送給所有人，正常情況下官方收到的查詢約每分鐘一次，不隨觀看人數與地區增加': '淡海・安坑・環状線のリアルタイムデータは、サイト全体で一か所からまとめて公式に問い合わせ、全員に配信するようにしました。通常時、公式への問い合わせは見ている人数や地域にかかわらず約1分に1回です',
+});

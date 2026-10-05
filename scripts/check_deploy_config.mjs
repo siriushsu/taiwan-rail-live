@@ -48,6 +48,7 @@ const REQUIRED_ASSETSIGNORE = {
   'scripts': '出貨腳本與驗收腳本，不是網站資產',
   'worker.js': '後端原始碼',
   'wrangler.jsonc': '後端設定（含 binding 名稱與 namespace id）',
+  'wrangler.poller.jsonc': '🔴 2026-10-05 實測外洩：poller Worker 的部署設定在正式站回 200',
 };
 
 const fails = [];
@@ -94,6 +95,51 @@ if (!fs.existsSync(aiPath)) {
   for (const [k, why] of missing) fail(`🔴 .assetsignore 少了 "${k}" —— ${why}`);
 }
 
+// ── 3. 新北捷官網的集中出口（NtmPoller）與它的帳 ───────────────────────────────
+// 主站少了 NTM_POLLER 綁定時，ntmetroLive 會默默退回各 colo 自己把關（沒綁定不寫 log），官網收到的總次數
+// 變回活躍 colo 數的倍數；少了 NTM_UPSTREAM，全站間隔就量不到（scripts/ntm_upstream_report.mjs 讀它）。
+// poller 那份少了類別的 migration，主站綁的類別就不存在。
+// wrangler 設定是 JSONC：去掉字串外的註解與結尾逗號再 parse。
+function readJsonc(file) {
+  const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
+  let out = '', i = 0, inStr = false;
+  while (i < src.length) {
+    const c = src[i];
+    if (inStr) {
+      out += c;
+      if (c === '\\') { out += src[i + 1] ?? ''; i += 2; continue; }
+      if (c === '"') inStr = false;
+      i++;
+    } else if (c === '"') { inStr = true; out += c; i++; }
+    else if (c === '/' && src[i + 1] === '/') { while (i < src.length && src[i] !== '\n') i++; }
+    else if (c === '/' && src[i + 1] === '*') { const j = src.indexOf('*/', i + 2); i = j < 0 ? src.length : j + 2; }
+    else { out += c; i++; }
+  }
+  return JSON.parse(out.replace(/,(\s*[}\]])/g, '$1'));
+}
+const hasEntry = (list, want) => Array.isArray(list) && list.some(x => x && Object.entries(want).every(([k, v]) => x[k] === v));
+const NTM_UPSTREAM_DATASET = { binding: 'NTM_UPSTREAM', dataset: 'railisland_ntm_upstream' };
+const REQUIRED_NTM = [
+  ['wrangler.jsonc', c => hasEntry(c.durable_objects && c.durable_objects.bindings,
+    { name: 'NTM_POLLER', class_name: 'NtmPoller', script_name: 'railisland-trtc-poller' }),
+    '主站的 NTM_POLLER 綁定（railisland-trtc-poller 的 NtmPoller）', '全站集中出口默默變回各 colo 各打官網'],
+  ['wrangler.jsonc', c => hasEntry(c.analytics_engine_datasets, NTM_UPSTREAM_DATASET),
+    '主站的 NTM_UPSTREAM 帳', '退路直打官網的那幾次不記帳，全站間隔量不準'],
+  ['wrangler.poller.jsonc', c => hasEntry(c.durable_objects && c.durable_objects.bindings, { name: 'NTM_POLLER', class_name: 'NtmPoller' }),
+    'poller 的 NTM_POLLER 綁定', '/ntm-status 量不到落點'],
+  ['wrangler.poller.jsonc', c => Array.isArray(c.migrations) && c.migrations.some(m => (m.new_sqlite_classes || []).includes('NtmPoller')),
+    'poller 的 NtmPoller migration', '主站綁的類別不存在'],
+  ['wrangler.poller.jsonc', c => hasEntry(c.analytics_engine_datasets, NTM_UPSTREAM_DATASET),
+    'poller 的 NTM_UPSTREAM 帳', '集中出口打官網不記帳，全站間隔量不到'],
+];
+const jsonc = {};
+for (const [file, test, what, breaks] of REQUIRED_NTM) {
+  if (!(file in jsonc)) { try { jsonc[file] = readJsonc(file); } catch (e) { jsonc[file] = null; fail(`🔴 ${file} 解析不了：${e.message}`); } }
+  if (!jsonc[file]) continue;
+  if (test(jsonc[file])) ok(`${what} 有宣告`);
+  else fail(`🔴 ${file} 少了${what} —— ${breaks}`);
+}
+
 try { verifyRuntimeAssets(); } catch (e) { fail(e.message); }
 
 // ── 收尾 ──────────────────────────────────────────────────────────────────
@@ -103,4 +149,4 @@ if (fails.length) {
   process.exit(1);
 }
 console.log(`\n✅ 部署設定檢查通過（${Object.keys(REQUIRED_CRONS).length} 條 cron、`
-  + `${Object.keys(REQUIRED_ASSETSIGNORE).length} 條高後果資產排除）`);
+  + `${Object.keys(REQUIRED_ASSETSIGNORE).length} 條高後果資產排除、${REQUIRED_NTM.length} 條新北捷集中出口設定）`);

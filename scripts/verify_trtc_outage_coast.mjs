@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 北捷斷線續推驗收：拿 2026-08-15 06:27:31–07:00 真實斷線語料，逐分鐘重放官方名冊的續推位置。
+// 北捷斷線續推驗收：拿 2026-08-15 06:27:31–07:00 斷線語料（環狀線部分為合成資料），逐分鐘重放官方名冊的續推位置。
 //
 // 這支存在的理由（別重新發明）：斷線時後端照契約 hold 住名冊，前端讓每台車照「自己最後一段
 // 量到的速度」推完剩下全程。同一條線上各車的 coastCycle 實測散布在 91～1681 秒/站（差 18 倍），
@@ -296,7 +296,7 @@ const api = buildApi();
   const drawn = y.filter(v => api.trtcOfficialVehiclePosition(bare, v, SAMPLE_AT + 60));
   check(!bare.segs.length, '前提：反向對照用的線物件已把段秒清空', `segs=${bare.segs.length}`);
   check(drawn.length > 0,
-    '線上沒有段秒資料時仍走原路徑、不整條消失（以環狀線車輛實測）',
+    '線上沒有段秒資料時仍走原路徑、不整條消失（以語料裡的環狀線車輛測）',
     `${drawn.length}/${y.length} 台仍畫得出來`);
 }
 

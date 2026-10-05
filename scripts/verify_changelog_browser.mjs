@@ -103,7 +103,8 @@ const widths = [360, 375, 414, 768];
 // 10/5：環狀線即時資料不再留存一條（475→476）。
 // 10/5：捷運小工具多站與自動選站改為免費一條（476→477）。
 // 10/5：建物輪廓漸進更新與高捷終點短留一條（477→478）。
-const expectedHistoryCount = 478;
+// 10/5：整合新北捷運即時資料改由全站集中查詢一條（478→479）。
+const expectedHistoryCount = 479;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

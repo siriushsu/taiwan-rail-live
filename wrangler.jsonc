@@ -53,8 +53,13 @@
   // 這裡刻意【沒有】migrations:含 DO migration 的版本不能走 versions upload
   // (Cloudflare 10211),而本站出貨鏈就是 upload → 預覽 → 升 100%。migration 歸那顆 Worker,
   // 主站只是綁過去 ⇒ 出貨流程完全不受影響。動這一段前先讀 trtc_poller_worker.mjs 檔頭。
+  // NTM_POLLER(2026-10-05):新北捷官網的集中出口,同樣住在那顆 Worker、同一套落點規則,
+  // 理由見 worker.js 的 NtmPoller 類別上方。沒綁定時 ntmetroLive 退回 per-colo 把關(仍有間隔)。
   "durable_objects": {
-    "bindings": [{ "name": "TRTC_POLLER", "class_name": "TrtcPoller", "script_name": "railisland-trtc-poller" }]
+    "bindings": [
+      { "name": "TRTC_POLLER", "class_name": "TrtcPoller", "script_name": "railisland-trtc-poller" },
+      { "name": "NTM_POLLER", "class_name": "NtmPoller", "script_name": "railisland-trtc-poller" }
+    ]
   },
   // Analytics Engine 綁定:
   // USAGE  :/api/tra-live 每筆請求埋點(cam/z/裝置),用來回答放空/跟車/靜止各佔多少前景分鐘;
@@ -66,10 +71,14 @@
   // BUS_USAGE:只在公車轉乘真的 cache miss 打上 TDX 時記 API 類型／scope／HTTP 狀態與 bytes，
   //           用來把月用量換算成 TDX 點數；快取命中、臺北擁擠度非 TDX 資料都不記。
   //           查法:node scripts/bus_tdx_usage.mjs
+  // NTM_UPSTREAM:每真的打一次新北捷官網就記一筆(誰打的、成敗、開始時間),用來量全站間隔。
+  //           集中出口(poller Worker)與這裡的 per-colo 退路寫同一份 dataset。DO 查詢途中被重置時
+  //           那一發可能漏記,所以是下限。查法:node scripts/ntm_upstream_report.mjs
   "analytics_engine_datasets": [
     { "binding": "USAGE", "dataset": "railisland_usage" },
     { "binding": "TRAFFIC", "dataset": "railisland_traffic" },
-    { "binding": "BUS_USAGE", "dataset": "railisland_bus_tdx_usage" }
+    { "binding": "BUS_USAGE", "dataset": "railisland_bus_tdx_usage" },
+    { "binding": "NTM_UPSTREAM", "dataset": "railisland_ntm_upstream" }
   ],
   // Cron 觸發(* * * * *=北捷帳本＋災害觸發器；UTC 15 1=台北 09:15、15 4=台北 12:15):
   // scheduled handler 的每日分支跑台鐵準點統計

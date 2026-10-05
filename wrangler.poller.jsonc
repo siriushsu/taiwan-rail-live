@@ -1,22 +1,34 @@
 // 北捷集中輪詢者 Worker(獨立於主站 taiwan-rail-live)。理由見 trtc_poller_worker.mjs 檔頭。
-// 部署:npx wrangler deploy --config wrangler.poller.jsonc
+// 2026-10-05 起也放新北捷官網的集中出口 NtmPoller(理由見 worker.js 該類別上方的註解)。
+// 部署:npx wrangler deploy --config wrangler.poller.jsonc(一律從乾淨的 worktree,理由見 trtc_poller_worker.mjs 檔頭)
 //
 // 🔴 這顆需要自己的 secret(與主站同值):
 //    npx wrangler secret put TRTC_API_USER --name railisland-trtc-poller
 //    npx wrangler secret put TRTC_API_PASS --name railisland-trtc-poller
 //
 // 🔴 沒有 crons:它是【被動】的——主站每 15 秒問一次時它才去打北捷。加 cron 會變成
-//    「沒人看也在打」,與這一整批的目的相反。
-// 🔴 沒有 assets／routes:它不服務任何網站流量。workers.dev 網址只給 /status(唯讀落點與新鮮度)。
+//    「沒人看也在打」,與這一整批的目的相反。NtmPoller 同樣只在主站來要資料時才查新北捷官網。
+// 🔴 沒有 assets／routes:它不服務任何網站流量。workers.dev 網址只給 /status 與 /ntm-status(唯讀落點與新鮮度)。
 {
   "name": "railisland-trtc-poller",
   "main": "trtc_poller_worker.mjs",
   "compatibility_date": "2026-07-09",
   "workers_dev": true,
   "durable_objects": {
-    "bindings": [{ "name": "TRTC_POLLER", "class_name": "TrtcPoller" }]
+    "bindings": [
+      { "name": "TRTC_POLLER", "class_name": "TrtcPoller" },
+      { "name": "NTM_POLLER", "class_name": "NtmPoller" }
+    ]
   },
   // new_sqlite_classes(不是 new_classes):本帳號已不允許新建 key-value 型 DO 命名空間。
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TrtcPoller"] }],
+  // 已套用過的 tag 不可改、不可刪,新類別一律加新 tag。
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["TrtcPoller"] },
+    { "tag": "v2", "new_sqlite_classes": ["NtmPoller"] }
+  ],
+  // 新北捷官網實際被打幾次的帳(worker.js 的 ntmLiveFetch 每打一次寫一筆);主站的 per-colo 退路寫同一份。
+  "analytics_engine_datasets": [
+    { "binding": "NTM_UPSTREAM", "dataset": "railisland_ntm_upstream" }
+  ],
   "observability": { "enabled": true }
 }
