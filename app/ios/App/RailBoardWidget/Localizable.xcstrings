@@ -392,6 +392,23 @@
         }
       }
     },
+    "：列車位置依班表校正；有資料的站點保留官方倒數": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ": train positions use timetable-based correction; stations with available data retain official countdowns"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "：列車位置は時刻表を基に補正し、データのある駅では公式の到着案内を保持します"
+          }
+        }
+      }
+    },
     "：即時訊號暫時中斷，目前依當日班表推估；列車位置與到站時間可能有誤差": {
       "extractionState": "manual",
       "localizations": {
@@ -2517,6 +2534,23 @@
         }
       }
     },
+    "{train} 次已過抵達時間，自動幫你下車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Train {train} is past its arrival time, so your ride has ended automatically."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{train}列車の到着時刻を過ぎたため、自動で下車しました。"
+          }
+        }
+      }
+    },
     "{train}次": {
       "extractionState": "manual",
       "localizations": {
@@ -2666,6 +2700,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "縁起切符「永保安康」の一方で、木造駅舎が残ります。"
+          }
+        }
+      }
+    },
+    "「我上車了」後沒按下車，搭的車又從班表消失（週五夜車過午夜、連假加班車）時，過了抵達時間會自動下車；跟著別班車時按「搭乘中」也能直接下車（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you tapped “I’m on board” but never got off and that train then left the timetable (Friday night trains after midnight, holiday extra trains), your ride now ends automatically once its arrival time has passed. You can also end a ride from the “Riding” button while following another train. (Thanks for the report.)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「乗車中」のまま下車し忘れ、その列車が時刻表から消えた場合（金曜夜行の深夜0時以降、連休の臨時列車）、到着時刻を過ぎると自動で下車します。別の列車を追跡中でも「乗車中」ボタンから下車できます。（ご報告ありがとうございます）"
           }
         }
       }
@@ -4863,19 +4914,19 @@
         }
       }
     },
-    "三鶯線串起土城、三峽與鶯歌（2026-06-30 通車，8/31 前為免費試營運，8/16 起每日 06:00–24:00 行駛，此時段外看不到車；無公開逐班時刻，班次依官方班距推算）— 拖曳、縮放看看。": {
+    "三鶯線串起土城、三峽與鶯歌（2026-06-30 通車，8/31 前為免費試營運，8/16 起每日 06:00–24:00 行駛，此時段外看不到車；軌島的資料來源沒有逐班時刻，班次依官方班距推算）— 拖曳、縮放看看。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The Sanying Line links Tucheng, Sanxia and Yingge. During the free trial through 31 August, service runs daily from 06:00 to 24:00; no per-train timetable is public, so trains are estimated from official headways."
+            "value": "The Sanying Line links Tucheng, Sanxia and Yingge. During the free trial through 31 August, service runs daily from 06:00 to 24:00; Rail Island’s data sources have no per-train timetable, so trains are estimated from official headways."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "三鶯線は土城・三峡・鶯歌を結びます。8月31日までの無料試運転期間は毎日06:00〜24:00に運行し、列車ごとの公開時刻表がないため公式運転間隔から推定します。"
+            "value": "三鶯線は土城・三峡・鶯歌を結びます。8月31日までの無料試運転期間は毎日06:00〜24:00に運行し、軌島のデータソースには列車ごとの時刻表がないため、公式運転間隔から推定します。"
           }
         }
       }
@@ -9521,6 +9572,57 @@
         }
       }
     },
+    "升級後，月票或年票的訂閱不會自動取消，要請你到 {store} 的訂閱設定自行取消。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upgrading doesn’t cancel your monthly or annual subscription. Please cancel it yourself in {store} subscription settings."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アップグレードしても月間・年間パスのサブスクリプションは自動で解約されません。{store} のサブスクリプション設定でご自身で解約してください。"
+          }
+        }
+      }
+    },
+    "升級為終身通行證": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upgrade to Lifetime Pass"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ライフタイムパスにアップグレード"
+          }
+        }
+      }
+    },
+    "升級價": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upgrade price"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アップグレード価格"
+          }
+        }
+      }
+    },
     "午夜城市": {
       "extractionState": "manual",
       "localizations": {
@@ -10337,6 +10439,40 @@
         }
       }
     },
+    "日文介面：環島列車的終點改成簡短好懂的「台北（台湾一周）」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Japanese interface: the round-the-island train’s terminus now has a short, easy-to-read Japanese name"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日本語表示：環島列車の終点を短く分かりやすい「台北（台湾一周）」に変更"
+          }
+        }
+      }
+    },
+    "日文介面與日文車站頁：環島列車的終點原本寫成很長的「台北サラウンドアイランド」，改成簡短好懂的「台北（台湾一周）」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Japanese interface and Japanese station pages: the round-the-island train’s terminus, previously a long katakana name, now has a short, easy-to-read Japanese name"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日本語表示と日本語の駅ページ：環島列車の終点を、長い「台北サラウンドアイランド」から短く分かりやすい「台北（台湾一周）」に変更"
+          }
+        }
+      }
+    },
     "日文版的高雄環狀輕軌改用高雄捷運官方日文路線名「ライトレール環状線」": {
       "extractionState": "manual",
       "localizations": {
@@ -10588,6 +10724,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "月間プラン"
+          }
+        }
+      }
+    },
+    "月票、年票的自動續訂，請到當初購買的 App Store 或 Google Play 訂閱設定管理。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly and annual passes auto-renew; manage them in the App Store or Google Play subscription settings where you bought them."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "月間・年間パスの自動更新は、購入した App Store または Google Play のサブスクリプション設定で管理してください。"
           }
         }
       }
@@ -12009,13 +12162,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Taichung and Kaohsiung metro systems run together. Kaohsiung Metro and light rail use official arrival-board corrections; Taichung is estimated from headways."
+            "value": "Taichung and Kaohsiung metro systems run together. Kaohsiung Metro and light rail use official arrival-board corrections; Taichung is estimated from headways. Choose systems above to show them together."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "台中メトロと高雄メトロを同時表示します。高雄メトロとライトレールは公式到着案内で補正し、台中メトロは運転間隔から推定します。"
+            "value": "台中メトロと高雄メトロを同時表示します。高雄メトロとライトレールは公式到着案内で補正し、台中メトロは運転間隔から推定します。上部で同時に表示する交通機関を選べます。"
           }
         }
       }
@@ -12394,6 +12547,74 @@
         }
       }
     },
+    "台南地面鐵道歷史重播：馬路改成柏油路面，畫上車道線、中央黃線與有路緣的人行道，放大就看得到": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tainan surface railway replay: roads are now asphalt with lane lines, yellow centre lines and kerbed pavements; zoom in to see them"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台南地上鉄道の歴史リプレイ：道路をアスファルトにし、車線、黄色の中央線、縁石のある歩道を描きました（拡大すると見えます）"
+          }
+        }
+      }
+    },
+    "台南地面鐵道歷史重播：馬路從米白色帶子改成柏油路面，路寬依 OpenStreetMap 標的車道數推算，畫上車道線、中央黃線與有路緣的人行道（依標記推的示意）；標線放大才出現，地下道不再畫在地面上": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tainan surface railway replay: roads are now asphalt instead of pale strips, with widths estimated from OpenStreetMap lane counts, plus lane lines, yellow centre lines and kerbed pavements (illustrative, based on map tags); markings appear as you zoom in, and underpasses are no longer drawn at street level"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台南地上鉄道の歴史リプレイ：道路を淡い色の帯からアスファルトに変更し、道幅は OpenStreetMap の車線数から推定しました。車線、黄色の中央線、縁石のある歩道を描いています（地図のタグに基づくイメージ）。区画線は拡大すると表示され、地下道は地上に描かないようにしました"
+          }
+        }
+      }
+    },
+    "台南地面鐵道歷史重播：舊站房與列車改用真實比例重建，周邊建築從灰色方塊改成有外牆顏色、窗戶、店面與招牌，補上香格里拉飯店的塔樓，視角可自由轉向與傾斜，最多放大到 34 公尺": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tainan surface railway replay: the old station building and trains are rebuilt to real proportions, nearby buildings are no longer grey boxes but have wall colours, windows, shopfronts and signs, the Shangri-La hotel tower is added, the view can be freely turned and tilted, and you can zoom in to 34 m"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台南地上鉄道の歴史リプレイ：旧駅舎と列車を実物どおりの比率で作り直し、周辺の建物はグレーの箱から外壁の色・窓・店舗・看板のある姿になり、シャングリ・ラ ホテルのタワーを加えました。視点は自由に回転・傾斜でき、34 m まで拡大できます"
+          }
+        }
+      }
+    },
+    "台南地面鐵道歷史重播：舊站房與列車改用真實比例重建、施工外罩可一鍵拿掉，推拉式自強號改畫 7 月起的 E500 機車頭；周邊建築從灰色方塊改成有外牆顏色、窗戶、店面、招牌與水塔，補上香格里拉塔樓；視角可自由轉向與傾斜，最多放大到 34 公尺": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tainan surface railway replay: the old station building and trains are rebuilt to real proportions, the construction wrap comes off with one tap, and the push–pull Tze-Chiang now shows the E500 locomotive used since July; nearby buildings are no longer grey boxes but have wall colours, windows, shopfronts, signs and water tanks, and the Shangri-La tower is added; the view can be freely turned and tilted, and you can zoom in to 34 m"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "台南地上鉄道の歴史リプレイ：旧駅舎と列車を実物どおりの比率で作り直し、工事用シートはワンタップで外せます。プッシュプル式自強号は 7 月からの E500 形機関車で描きます。周辺の建物はグレーの箱から外壁の色・窓・店舗・看板・給水タンクのある姿になり、シャングリ・ラのタワーも加えました。視点は自由に回転・傾斜でき、34 m まで拡大できます"
+          }
+        }
+      }
+    },
     "台電大樓": {
       "extractionState": "manual",
       "localizations": {
@@ -12536,13 +12757,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "TRA, high-speed rail and Alishan Forest Railway trains follow official timetables. TRA live delays apply at the current time; Alishan has no live data. Tap trains or stations, or open Highlights."
+            "value": "TRA, high-speed rail and Alishan Forest Railway trains follow official timetables. TRA live delays apply at the current time; Alishan has no live data. Tap a train to follow it or a station for arrivals, or use the button in the map corner for today’s highlights."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "台湾鉄路・高速鉄道・阿里山森林鉄道は公式時刻表で運行します。現在時刻では台湾鉄路の遅延を反映し、阿里山森林鉄道にはリアルタイム情報がありません。列車や駅をタップするか、「選」で今日の見どころを表示できます。"
+            "value": "台湾鉄路・高速鉄道・阿里山森林鉄道は公式時刻表で運行します。現在時刻では台湾鉄路の遅延を反映し、阿里山森林鉄道にはリアルタイム情報がありません。列車をタップして追跡、駅をタップして到着案内を表示するか、地図の隅の「選」で今日の見どころを表示できます。"
           }
         }
       }
@@ -14077,6 +14298,23 @@
         }
       }
     },
+    "未訂閱": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not subscribed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未加入"
+          }
+        }
+      }
+    },
     "未連結動畫": {
       "extractionState": "manual",
       "localizations": {
@@ -14332,7 +14570,7 @@
         }
       }
     },
-    "本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。台鐵套用官方即時誤點；北捷與環狀線營運時段依北捷官方秒級到站倒數逐班校正位置（環狀線由新北捷運營運，其到站倒數同源於北捷到站看板）；高捷、桃園機捷與高雄輕軌依官方到站看板即時校正；新北捷運淡海輕軌與安坑輕軌依官方列車動態即時校正；其餘捷運／輕軌依當日官方時刻表推演（部分路線無公開逐班時刻，為班距推算）。實際到離站時刻請以各營運機構官方資訊為準。": {
+    "本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。台鐵套用官方即時誤點；北捷與環狀線營運時段依北捷官方秒級到站倒數逐班校正位置（環狀線由新北捷運營運，其到站倒數同源於北捷到站看板）；高捷、桃園機捷與高雄輕軌依官方到站看板即時校正；新北捷運淡海輕軌與安坑輕軌依官方列車動態即時校正；其餘捷運／輕軌依當日官方時刻表推演（軌島的資料來源沒有部分路線的逐班時刻，這些路線為班距推算）。實際到離站時刻請以各營運機構官方資訊為準。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -15794,6 +16032,23 @@
         }
       }
     },
+    "立體地圖：臺北車站、中正紀念堂有鐵道經過時，整棟建築也會變半透明，看得到底下的軌道和列車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D map: when a rail line runs past Taipei Main Station or Chiang Kai-shek Memorial Hall, the whole building now turns translucent too, so you can see the tracks and trains below"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D地図：台北駅と中正紀念堂は、線路が通る場所で建物全体も半透明になり、下の線路や列車が見えるようになりました"
+          }
+        }
+      }
+    },
     "立體地圖上台鐵列車在車站讓後車先過時，改停到旁邊的股道，後車不會再從停著的車身穿過去": {
       "extractionState": "manual",
       "localizations": {
@@ -15909,6 +16164,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "立体建物が表示され始めるズーム域で明暗テーマを切り替えても、選んだ「透視」の透明度を保ち、建物が急に不透明にならないようにしました。"
+          }
+        }
+      }
+    },
+    "立體鐵軌改用淡灰碎石道床，收窄邊坡與軌道輪廓；近看保留細顆粒，遠看更低調，車站多股軌道不再糊成一片土色": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D tracks now use pale grey gravel with narrower shoulders and softer outlines. Fine stones remain visible up close, while distant tracks and busy station yards blend more gently into the map."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立体線路の道床を淡い灰色の砕石に変更し、斜面と線路の輪郭を細くしました。近くでは細かな粒が見え、遠景や線路の多い駅でも地図になじみます。"
           }
         }
       }
@@ -17082,6 +17354,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "列車位置、遅延情報、対応路線は引き続き無料です。パスの有無で精度は変わりません。"
+          }
+        }
+      }
+    },
+    "列車位置依即時模型估算；到站倒數優先使用官方資料": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Train positions use the live model; arrival countdowns prioritize official data"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "列車位置はリアルタイムモデルで推定し、到着案内は公式データを優先します"
           }
         }
       }
@@ -20197,6 +20486,23 @@
         }
       }
     },
+    "你正在搭 {train} 次，要下車嗎？": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You are riding train {train}. End that ride now?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{train}列車に乗車中です。下車しますか？"
+          }
+        }
+      }
+    },
     "你在 App 內建瀏覽器裡": {
       "extractionState": "manual",
       "localizations": {
@@ -20333,6 +20639,23 @@
         }
       }
     },
+    "你買過月票或年票，可以用升級價購買終身通行證。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Because you’ve had a monthly or annual pass, you can get the Lifetime Pass at the upgrade price."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "月間パスまたは年間パスを購入したことがあるので、アップグレード価格でライフタイムパスを購入できます。"
+          }
+        }
+      }
+    },
     "你搭車的時候順手錄一趟，我們用它把那段路的位置推算修準。": {
       "extractionState": "manual",
       "localizations": {
@@ -20363,6 +20686,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "記録した区間の数と、そのうち実際に採用された数は、パスポートの「校正への貢献」に表示されます。"
+          }
+        }
+      }
+    },
+    "你還有月票或年票的訂閱。終身通行證不會幫你取消它；如果它還會自動續訂，請到 {store} 的訂閱設定取消，以免重複扣款。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You still have a monthly or annual subscription. The Lifetime Pass doesn’t cancel it; if it’s set to auto-renew, cancel it in {store} subscription settings so you aren’t charged twice."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "月間パスまたは年間パスのサブスクリプションが残っています。ライフタイムパスを購入しても自動では解約されません。自動更新が有効な場合は、二重に課金されないよう {store} のサブスクリプション設定で解約してください。"
           }
         }
       }
@@ -21727,6 +22067,23 @@
         }
       }
     },
+    "改善地形與立體建物的流暢度：減少畫面外與車廂的重複繪製，靜止或暫停時降低負擔；建物線條改從畫面中央向外補齊": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terrain and 3D buildings run more smoothly with less repeated rendering of carriages and objects outside the viewport, plus reduced work when the view is still or paused. Building outlines now fill in from the center of the screen outward."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地形と3D建物表示の動作を改善し、画面外のオブジェクトと車両の重複描画を削減しました。視点が静止しているときや一時停止中の負荷を抑え、建物の輪郭線は画面中央から外側へ優先して表示します。"
+          }
+        }
+      }
+    },
     "改善起伏地形的傾斜視角，遠方車牌與站名會逐漸收起，附近列車與車站保持清楚；修正切換地景的顯示異常": {
       "extractionState": "manual",
       "localizations": {
@@ -22764,6 +23121,108 @@
         }
       }
     },
+    "車站頁加上台鐵、高鐵時刻表：台北、板橋、台中等大站，列出兩週內每一班的開車時刻與行駛日": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station pages now include TRA and HSR timetables: major stations such as Taipei, Banqiao and Taichung list every departure over two weeks, with the days each train runs"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅ページに台鉄・高鉄の時刻表を追加：台北、板橋、台中などの主要駅で、2週間分の全列車の発車時刻と運転日を掲載"
+          }
+        }
+      }
+    },
+    "車站頁加上台鐵、高鐵時刻表（中、英、日文）：台北、板橋、台中等 20 個大站，加上新開的高鐵苗栗、彰化、雲林站，依方向列出兩週內每一班的開車時刻與行駛日，每週更新；車站頁與捷運路線圖頁也換上軌島圖示，跟著地圖切換亮暗外觀": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station pages now include TRA and HSR timetables (in Chinese, English and Japanese): 20 major stations such as Taipei, Banqiao and Taichung, plus new pages for HSR Miaoli, Changhua and Yunlin, list every departure by direction over two weeks, with the days each train runs, updated weekly; station and metro map pages also get the Rail Island icon and follow the map’s light or dark appearance"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅ページに台鉄・高鉄の時刻表を追加（中国語・英語・日本語）：台北、板橋、台中など20の主要駅と、新設の高鉄苗栗・彰化・雲林駅で、方面別に2週間分の全列車の発車時刻と運転日を掲載（毎週更新）。駅ページと路線図ページにも軌島のアイコンを付け、地図のライト／ダーク表示に合わせて切り替わります"
+          }
+        }
+      }
+    },
+    "車站時刻表頁：中壢、埔心之間的平鎮臨時站要等官方公布英文站名後才會有頁面；在那之前每週更新班表時先略過它，其他車站照常更新": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station timetable pages: the new temporary station between Zhongli (Taoyuan) and Puxin won’t get a page until its official English name is published; until then the weekly timetable update skips it and refreshes all other stations as usual."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅の時刻表ページ：中壢〜埔心間の新しい臨時駅は、公式の英語駅名が公表されるまでページを作りません。それまでは毎週の時刻表更新でこの駅を見送り、ほかの駅は通常どおり更新します。"
+          }
+        }
+      }
+    },
+    "車站時刻表頁：平鎮臨時站要等官方公布英文站名後才會有頁面，其他車站照常每週更新": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station timetable pages: the new temporary station between Zhongli (Taoyuan) and Puxin won’t get a page until its official English name is published; all other stations keep updating weekly."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅の時刻表ページ：中壢〜埔心間の新しい臨時駅は、公式の英語駅名が公表されるまでページを作りません。ほかの駅は毎週どおり更新します。"
+          }
+        }
+      }
+    },
+    "車站時刻表頁擴大到全部台鐵車站：每站列出兩週內每一班的開車時刻與行駛日；瑞芳、十分、菁桐等 7 站另有英日文，車站索引依縣市分組": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station timetable pages now cover every TRA station, each listing every train's departure time and running days over two weeks. Ruifang, Shifen, Jingtong and four more stations also have English and Japanese pages, and the station index groups stations by city and county."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅の時刻表ページを台鉄の全駅に拡大：各駅で2週間分の列車ごとの発車時刻と運転日を掲載。瑞芳・十分・菁桐など7駅は英語・日本語ページもあり、駅の索引は県市別にまとめています。"
+          }
+        }
+      }
+    },
+    "車站時刻表頁擴大到兩週內有列車停靠的全部 239 個台鐵車站（新增 221 站，中文）：依方向列出每一班的開車時刻、終點與行駛日；瑞芳、十分、菁桐、礁溪、福隆、集集、知本另有英日文頁；車站索引依縣市列出全部台鐵車站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Station timetable pages now cover all 239 TRA stations with trains in the two-week data (221 new stations, in Traditional Chinese), listing every train's departure time, destination and running days by direction. Ruifang, Shifen, Jingtong, Jiaoxi, Fulong, Jiji and Zhiben also have English and Japanese pages, and the station index lists every TRA station by city and county."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅の時刻表ページを、2週間のデータで列車が停車する台鉄の全239駅に拡大（新たに221駅、繁体字中国語）：方面別に列車ごとの発車時刻・行き先・運転日を掲載。瑞芳・十分・菁桐・礁渓・福隆・集集・知本は英語・日本語ページもあり、駅の索引は台鉄の全駅を県市別に載せています。"
+          }
+        }
+      }
+    },
     "車站特色": {
       "extractionState": "manual",
       "localizations": {
@@ -23563,19 +24022,19 @@
         }
       }
     },
-    "依官方班距推算（未公告逐班時刻），位置為示意": {
+    "依官方班距推算（軌島的資料來源沒有逐班時刻），位置為示意": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Estimated from official headways (no per-train timetable); positions are illustrative"
+            "value": "Estimated from official headways (Rail Island’s data sources have no per-train timetable); positions are illustrative"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "公式運転間隔から推定（列車ごとの時刻表なし）。位置はイメージです"
+            "value": "公式運転間隔から推定（軌島のデータソースに列車ごとの時刻表なし）。位置はイメージです"
           }
         }
       }
@@ -23920,6 +24379,23 @@
         }
       }
     },
+    "到站倒數依官方資料；列車位置另依可用資料估算": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official arrival countdowns; train positions are estimated separately from available data"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到着案内は公式データ、列車位置は利用可能な情報から別途推定します"
+          }
+        }
+      }
+    },
     "到站倒數會顯示在鎖定畫面的即時資訊卡，卡片上隨時可按「結束」收起。": {
       "extractionState": "manual",
       "localizations": {
@@ -23950,6 +24426,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "到着カウントダウンはロック画面とDynamic Islandに表示されます。カードの「終了」でいつでも閉じられます。"
+          }
+        }
+      }
+    },
+    "到站時間保留官方倒數；位置正平順校正中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrival time follows the official countdown; position is adjusting smoothly"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到着時刻は公式予測のまま、位置を滑らかに補正中です"
           }
         }
       }
@@ -24579,6 +25072,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "公式リアルタイムデータ"
+          }
+        }
+      }
+    },
+    "官方車號已確認；下一站時間與位置為推估": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official vehicle confirmed; next arrival time and position are estimated"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公式の車両番号を確認済み。次駅の到着時刻と位置は推定です"
+          }
+        }
+      }
+    },
+    "官方車號已確認；待發時間尚未確認": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official vehicle confirmed; departure time is not yet confirmed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公式の車両番号を確認済み。発車時刻は未確認です"
+          }
+        }
+      }
+    },
+    "官方車號已確認；倒數有變動，位置正平順校正中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official vehicle confirmed; position is adjusting smoothly to an updated countdown"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公式の車両番号を確認済み。到着予測の変更に合わせて位置を滑らかに補正中です"
+          }
+        }
+      }
+    },
+    "官方車號與秒級倒數；站間位置、停站時間為推估": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official vehicle numbers and second-level countdowns; positions between stations and dwell times are estimated"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公式の車両番号と秒単位の到着予測を使用。駅間の位置と停車時間は推定です"
           }
         }
       }
@@ -27728,6 +28289,23 @@
         }
       }
     },
+    "前往訂閱設定": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open subscription settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブスクリプション設定を開く"
+          }
+        }
+      }
+    },
     "前金": {
       "extractionState": "manual",
       "localizations": {
@@ -29343,6 +29921,23 @@
         }
       }
     },
+    "查詢分頁：方向多的車站，答案區固定顯示四列，其餘往下捲，更新時不會跳回頂端": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lookup tab: at stations with many directions, the answer area now shows four rows; scroll for the rest, and it no longer jumps back to the top when it updates"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「調べる」タブ：方面の多い駅では回答欄に4行まで表示し、残りはスクロールで見られます。更新しても先頭に戻りません"
+          }
+        }
+      }
+    },
     "柳營": {
       "extractionState": "manual",
       "localizations": {
@@ -30414,6 +31009,23 @@
         }
       }
     },
+    "訂閱中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscribed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加入中"
+          }
+        }
+      }
+    },
     "訂閱月票": {
       "extractionState": "manual",
       "localizations": {
@@ -30448,23 +31060,6 @@
         }
       }
     },
-    "訂閱在軌島 App 內完成，網站不收費": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Subscriptions are purchased in the Rail Island app; the website does not charge"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "購読は軌島App内で行い、Webサイトでは課金しません"
-          }
-        }
-      }
-    },
     "訂閱年票": {
       "extractionState": "manual",
       "localizations": {
@@ -30495,40 +31090,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "サブスクリプションはストアの規則に従って自動更新されます。App Store、Google Play、またはアカウントの設定からいつでも解約でき、現在の期間終了後に更新が停止します。"
-          }
-        }
-      }
-    },
-    "訂閱制的加值內容。列車位置、誤點資訊與系統覆蓋現在免費提供，不受訂閱影響。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Optional subscription features. Train positions, delays and system coverage remain free and are not affected by subscribing."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "任意のサブスクリプション機能です。列車位置・遅延・対応路線は無料のままで、購読の影響を受けません。"
-          }
-        }
-      }
-    },
-    "訂閱後桌面小工具立刻能放多站、自動選站，不必等同步或按恢復購買": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Once you subscribe, home screen widgets can hold several stations and choose stations automatically straight away — no waiting for a sync, and no need to tap Restore purchases."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "サブスクリプションに登録すると、ホーム画面ウィジェットですぐに複数の駅を設定でき、駅の自動選択も使えます。同期を待ったり「購入を復元」を押したりする必要はありません。"
           }
         }
       }
@@ -30992,19 +31553,19 @@
         }
       }
     },
-    "軌島通行證是 App 數位功能訂閱，不是實際乘車票券。": {
+    "軌島通行證是 App 的數位功能，不是實際乘車票券。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rail Island Pass is a subscription to digital app features, not a real travel ticket."
+            "value": "Rail Island Pass is a digital app feature, not a real travel ticket."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "軌島パスはアプリのデジタル機能のサブスクリプションで、実際の乗車券ではありません。"
+            "value": "軌島パスはアプリのデジタル機能で、実際の乗車券ではありません。"
           }
         }
       }
@@ -31719,6 +32280,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "一部の台鉄列車が来ない後続列車を駅で待ったり、発車後に不自然に遅く走ったりする問題を修正しました"
+          }
+        }
+      }
+    },
+    "修正文湖線同一班車重複出現、捷運待發車誤認進站訊息，以及台鐵通過車站時的短暫跳動": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed duplicate Wenhu Line trains, departing metro trains claiming an arriving signal, and brief jumps when TRA trains pass a station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文湖線の列車の重複表示、出発待ちの地下鉄列車による進入情報の誤認、台鉄列車が駅を通過する際の一瞬の飛びを修正しました"
           }
         }
       }
@@ -36874,19 +37452,19 @@
         }
       }
     },
-    "捷運小工具可在桌面放多站，或用「自動（最近的站）」跟著你移動換站": {
+    "捷運小工具的多站與「自動（最近的站）」改為所有人免費，不再需要通行證": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Metro widgets can show multiple stations on the home screen, or use Auto (nearest station) to follow you"
+            "value": "Metro widgets: multiple stations and Auto (nearest station) are now free for everyone, no Pass needed"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ホーム画面のメトロウィジェットに複数駅を配置、または「自動（最寄り駅）」で移動に合わせて切替"
+            "value": "メトロウィジェットの複数駅と「自動（最寄り駅）」が、パスなしで誰でも無料で使えるようになりました"
           }
         }
       }
@@ -36938,23 +37516,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "地下鉄の車両ごとの混雑度が、更新のたびにまとめて消えることがなくなりました。公式の混雑度データが一時的に取得できないときは直前の値を最大 2 分まで使い、それを過ぎた場合は表示しません(ご報告ありがとうございます)。"
-          }
-        }
-      }
-    },
-    "捷運免費可設定一站；想放多站或用「自動（最近的站）」需啟用軌島通行證": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "One metro station is free; multiple stations or “Automatic (nearest station)” need a Rail Island Pass"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "メトロは1駅まで無料で設定できます。複数の駅や「自動（最寄り駅）」には軌島パスが必要です"
           }
         }
       }
@@ -37074,6 +37635,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "メトロ到着案内ウィジェット"
+          }
+        }
+      }
+    },
+    "捷運看板想看多站就多放幾張，每張選一站；選「自動（最近的站）」會跟著你移動換站": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add more “Metro board” widgets for more stations, one station each; choose “Automatic (nearest station)” and it switches as you move"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複数の駅を見るには「メトロ到着案内」を追加し、それぞれ1駅を選びます。「自動（最寄り駅）」を選ぶと、移動に合わせて駅が切り替わります"
           }
         }
       }
@@ -37210,6 +37788,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "メトロ・ライトレール"
+          }
+        }
+      }
+    },
+    "捷運與輕軌看板優先保留官方倒數；修正高捷倒數被備案取代，以及淡海、安坑部分倒數的路線與時間偏差": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metro and light rail boards prioritize official countdowns. Fixed Kaohsiung countdowns being replaced by fallback estimates, and route or timing errors in some Danhai and Ankeng countdowns."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メトロ・ライトレールの案内で公式到着予測を優先します。高雄の到着予測が代替推定に置き換わる問題と、淡海・安坑の一部予測の路線・時刻のずれを修正しました。"
           }
         }
       }
@@ -37856,6 +38451,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "淡金鄧公"
+          }
+        }
+      }
+    },
+    "淡海、安坑依官方車號逐車校正；倒數連到同一台車，待發車不因秒值固定而消失，也不憑空發車": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Danhai and Ankeng use official vehicle numbers for individual corrections. Countdown links follow the same vehicle; waiting trains no longer disappear because of a fixed time value or depart without evidence."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "淡海・安坑は公式の車両番号で個別に補正します。到着案内から同じ車両を追跡でき、待機列車は秒数が変わらなくても消えず、発車情報なしに走り出しません。"
+          }
+        }
+      }
+    },
+    "淡海、安坑倒數：9/30 起避免多層快取延長舊資料、斷線不把舊倒數標成新資料；10/5 起改為約每分鐘向官方更新一次": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Danhai and Ankeng countdowns: since 9/30, cache layers no longer extend old data and outages do not make old countdowns appear new; since 10/5, they refresh from the official source about once a minute."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "淡海・安坑の到着予測：9/30から多層キャッシュによる古いデータの延長を防ぎ、通信断でも古い予測を新しい情報として扱いません。10/5からは公式データを約1分ごとに取得します。"
+          }
+        }
+      }
+    },
+    "淡海、安坑倒數改為約每分鐘向官方更新一次": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Danhai and Ankeng countdowns now refresh from the official source about once a minute"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "淡海・安坑の到着予測を、公式データから約1分ごとに更新するようにしました"
+          }
+        }
+      }
+    },
+    "淡海、安坑跟車卡保留官方到站時間，不再被動畫平順校正延後；超出官方倒數範圍時明確標示推估": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Danhai and Ankeng follow cards keep official arrival times unchanged during smooth position corrections. Times beyond the official countdown are clearly marked as estimates."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "淡海・安坑の追跡カードは、位置の滑らかな補正中も公式到着時刻を変更しません。公式到着予測の範囲外は推定と明示します。"
           }
         }
       }
@@ -38706,6 +39369,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "旅を重ねて小さな車両を集めましょう。取得済みスタンプとパスポートの進捗を引き継ぎます。"
+          }
+        }
+      }
+    },
+    "終身": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lifetime"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ライフタイム"
+          }
+        }
+      }
+    },
+    "終身通行證一次付款，不會自動續訂。「終身」指軌島持續營運的期間，不是購買人的一生。軌島若停止服務，會至少提前 90 天公告；停止服務時距購買未滿 3 年，按剩下的月數比例退費，滿 3 年則不另退費。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Lifetime Pass is a one-time payment and does not auto-renew. “Lifetime” means for as long as Rail Island keeps operating, not the buyer’s lifetime. If Rail Island shuts down, this will be announced at least 90 days in advance; if the shutdown comes less than 3 years after your purchase, the remaining months will be refunded pro rata. No refund is given after 3 years."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ライフタイムパスは一回払いで、自動更新はありません。「ライフタイム」は軌島の運営が続く期間を指し、購入者の生涯ではありません。軌島がサービスを終了する場合は少なくとも90日前にお知らせし、購入から3年未満で終了したときは残りの月数に応じて返金します。3年以降の終了では返金しません。"
+          }
+        }
+      }
+    },
+    "終身通行證已啟用": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lifetime Pass active"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ライフタイムパスは有効です"
           }
         }
       }
@@ -39985,6 +40699,40 @@
         }
       }
     },
+    "通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 Android 16 即時資訊與 Samsung Now Bar 的跟車鎖定畫面進度。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pass features include 90 days of daily TRA delay history; cloud sync for favorites and completion records; journey sharing; the train soundtrack (the music follows the train you are watching and the time of day — the free background music is unaffected); importing Google Maps saved lists; high-resolution satellite tiles when not following a train; and follow progress on the lock screen through Android 16 Live Updates and the Samsung Now Bar."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスには、台湾鉄路の過去90日の日別遅延履歴、お気に入りと完乗記録の端末間同期、旅程共有、追跡サウンドトラック（見ている列車と時刻に合わせて場面が切り替わります。無料のBGMには影響しません）、Googleマップ保存済みリストの読み込み、列車追跡中以外の高解像度衛星地図、Android 16のライブアップデートとSamsung Now Barでのロック画面追跡表示が含まれます。"
+          }
+        }
+      }
+    },
+    "通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pass features include 90 days of daily TRA delay history; cloud sync for favorites and completion records; journey sharing; the train soundtrack (the music follows the train you are watching and the time of day — the free background music is unaffected); importing Google Maps saved lists; high-resolution satellite tiles when not following a train; and follow Live Activities on the Lock Screen and Dynamic Island on iOS 17.6 or later."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスには、台湾鉄路の過去90日の日別遅延履歴、お気に入りと完乗記録の端末間同期、旅程共有、追跡サウンドトラック（見ている列車と時刻に合わせて場面が切り替わります。無料のBGMには影響しません）、Googleマップ保存済みリストの読み込み、列車追跡中以外の高解像度衛星地図、iOS 17.6以降のロック画面／Dynamic Island追跡ライブ表示が含まれます。"
+          }
+        }
+      }
+    },
     "通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、App 非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。": {
       "extractionState": "manual",
       "localizations": {
@@ -40002,36 +40750,19 @@
         }
       }
     },
-    "通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、App 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 Android 16 即時資訊與 Samsung Now Bar 的跟車鎖定畫面進度。": {
+    "通行證在軌島 App 內購買，網站不收費": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pass features include 90 days of daily TRA delay history; multiple stations or Automatic (nearest station) in the app’s home screen and lock screen metro widgets, with one station free; cloud sync for favorites and completion records; journey sharing; the train soundtrack (the music follows the train you are watching and the time of day — the free background music is unaffected); importing Google Maps saved lists; high-resolution satellite tiles when not following a train; and follow progress on the lock screen through Android 16 Live Updates and the Samsung Now Bar."
+            "value": "The Pass is purchased in the Rail Island app; the website does not charge"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "パスには、台湾鉄路の過去90日の日別遅延履歴、アプリのホーム／ロック画面メトロウィジェットでの複数駅または移動に合わせる「自動（最寄り駅）」（1駅は無料）、お気に入りと完乗記録の端末間同期、旅程共有、追跡サウンドトラック（見ている列車と時刻に合わせて場面が切り替わります。無料のBGMには影響しません）、Googleマップ保存済みリストの読み込み、列車追跡中以外の高解像度衛星地図、Android 16のライブアップデートとSamsung Now Barでのロック画面追跡表示が含まれます。"
-          }
-        }
-      }
-    },
-    "通行證內容：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、iPhone 桌面與鎖定畫面的捷運小工具放多站或用「自動（最近的站）」跟著你移動換站（免費可設定一站）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（音樂跟著你在看的那班車與當下時間換情境；免費的背景音樂不受影響）、匯入 Google Maps 已儲存清單、非跟車時的衛星高解析圖磚，以及 iOS 17.6 以上可用的跟車鎖定畫面與動態島即時動態。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pass features include 90 days of daily TRA delay history; multiple stations or Auto (nearest station) in iPhone Home and Lock Screen metro widgets, with one station free; cloud sync for favorites and completion records; journey sharing; the train soundtrack (the music follows the train you are watching and the time of day — the free background music is unaffected); importing Google Maps saved lists; high-resolution satellite tiles when not following a train; and follow Live Activities on the Lock Screen and Dynamic Island on iOS 17.6 or later."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "パスには、台湾鉄路の過去90日の日別遅延履歴、iPhoneのホーム／ロック画面メトロウィジェットでの複数駅または移動に合わせる「自動（最寄り駅）」（1駅は無料）、お気に入りと完乗記録の端末間同期、旅程共有、追跡サウンドトラック（見ている列車と時刻に合わせて場面が切り替わります。無料のBGMには影響しません）、Googleマップ保存済みリストの読み込み、列車追跡中以外の高解像度衛星地図、iOS 17.6以降のロック画面／Dynamic Island追跡ライブ表示が含まれます。"
+            "value": "パスは軌島App内で購入し、Webサイトでは課金しません"
           }
         }
       }
@@ -40053,6 +40784,23 @@
         }
       }
     },
+    "通行證有效": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pass active"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パス有効"
+          }
+        }
+      }
+    },
     "通行證使用中 · {pools} 個情境池，{shipped} 個已上架。": {
       "extractionState": "manual",
       "localizations": {
@@ -40066,6 +40814,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "パス利用中 · 場面 {pools} 種、うち {shipped} 種が配信中。"
+          }
+        }
+      }
+    },
+    "通行證是加值內容。列車位置、誤點資訊與系統覆蓋現在免費提供，不受通行證影響。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optional Pass features. Train positions, delays and system coverage remain free and are not affected by the Pass."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "任意のパス機能です。列車位置・遅延・対応路線は無料のままで、パスの影響を受けません。"
           }
         }
       }
@@ -40338,6 +41103,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "一部データ遅延・前回取得結果を表示"
+          }
+        }
+      }
+    },
+    "部分路線缺少可確認的官方車號，位置暫依班表；有效倒數仍保留": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Some lines lack identifiable official vehicles and temporarily use timetable positions; valid countdowns remain available"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一部路線は公式の車両を確認できないため、位置を時刻表で推定します。有効な到着案内は引き続き表示します"
           }
         }
       }
@@ -44184,19 +44966,19 @@
         }
       }
     },
-    "想放多站，或用「自動（最近的站）」讓它跟著你移動換站，需要軌島通行證（免費可設定一站）": {
+    "想看多站就多加幾張，每張選一站；選「自動（最近的站）」，它會跟著你移動換站": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A Rail Island Pass is required for multiple stations or Auto (nearest station), which changes as you move. One station is free."
+            "value": "Add more widgets for more stations, one station each; choose Auto (nearest station) and it switches as you move"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "複数の駅、または移動に合わせて駅を変える「自動（最寄り駅）」には軌島パスが必要です。1駅は無料です。"
+            "value": "複数の駅を見るにはウィジェットを追加し、それぞれ1駅を選びます。「自動（最寄り駅）」を選ぶと、移動に合わせて駅が切り替わります"
           }
         }
       }
@@ -44915,6 +45697,23 @@
         }
       }
     },
+    "新車站：中壢、埔心之間的平鎮臨時站 10/3 啟用，地圖與時刻表照官方班表停靠，到站可以蓋章": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New station: the temporary station between Zhongli (Taoyuan) and Puxin opens on 10/3. Trains stop there on the map and in timetables as officially scheduled, and you can collect its stamp on site."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新駅：中壢〜埔心間の臨時駅が10/3に開業。地図と時刻表で公式ダイヤどおり停車し、駅でスタンプも押せます。"
+          }
+        }
+      }
+    },
     "新和國小": {
       "extractionState": "manual",
       "localizations": {
@@ -45153,6 +45952,23 @@
         }
       }
     },
+    "新增平鎮臨時站（中壢、埔心之間，10/3 啟用）：地圖、站牌與時刻表照官方班表停靠，立體列車也會在平鎮停，到站可以蓋章。官方還沒公布車站座標與英文站名，位置先依官方里程標示，公布後再更新": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added the temporary station between Zhongli (Taoyuan) and Puxin (opens 10/3): the map, station boards and timetables show its stops as officially scheduled, 3D trains stop there too, and you can collect its stamp on site. Its official coordinates and English name aren’t published yet, so it is placed by official track mileage for now and will be updated once they are."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "中壢〜埔心間の臨時駅を追加（10/3開業）：地図・駅の案内・時刻表で公式ダイヤどおり停車し、3D列車もこの駅に停まり、駅でスタンプを押せます。公式の駅座標と英語駅名はまだ公表されていないため、位置は当面公式のキロ程で示し、公表後に更新します。"
+          }
+        }
+      }
+    },
     "新增收藏車庫，62 款精修小車可旋轉欣賞；還沒收集到的是灰色車體，累積旅程進度解鎖後才有塗裝，舊護照自動帶入": {
       "extractionState": "manual",
       "localizations": {
@@ -45183,6 +45999,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "コレクション車庫を追加しました。集めた小さな車両を回して眺め、出典と収集条件を確認できます。取得済みの車種スタンプも自動で反映されます。"
+          }
+        }
+      }
+    },
+    "新增車站收集小工具：主畫面直接看收集進度與台灣鐵道點陣圖，可選全台或單一系統，按「蓋章」就能在附近車站留下紀錄": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New station collection widget: see your progress and Taiwan rail map on your Home Screen, choose all of Taiwan or one system, and tap Stamp to check in at a nearby station"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "駅コレクションのウィジェットを追加：ホーム画面で収集状況と台湾の鉄道点描マップを確認できます。台湾全体または路線網を選び、「スタンプ」で近くの駅にチェックインできます"
           }
         }
       }
@@ -46747,6 +47580,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "全区間を追跡してスタンプを集め、自分の旅程記録を作ります。"
+          }
+        }
+      }
+    },
+    "跟車小卡收合成膠囊時，車次與時速不再貼在上緣，跟圓點和「結束」排在同一條線上（謝謝網友回報）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When the follow card is collapsed into a pill, the train number and speed no longer sit at the top edge; they now line up with the dot and the “Stop” button. Thanks to the reader who reported it."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追跡カードを小さく折りたたんだとき、列車番号と速度が上端に寄らず、左の点や「終了」ボタンと同じ高さにそろうようになりました(ご報告ありがとうございます)。"
           }
         }
       }
@@ -48434,19 +49284,19 @@
         }
       }
     },
-    "綠線列車沿著文心路跑（無公開逐班時刻，班次依官方班距與首末班車推算）— 拖曳、縮放看看。": {
+    "綠線列車沿著文心路跑（軌島的資料來源沒有逐班時刻，班次依官方班距與首末班車推算）— 拖曳、縮放看看。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Green Line trains run along Wenxin Road. No per-train timetable is public, so services are estimated from official headways and first/last train times."
+            "value": "Green Line trains run along Wenxin Road. Rail Island’s data sources have no per-train timetable, so services are estimated from official headways and first/last train times."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "台中メトロ緑線は列車ごとの公開時刻表がないため、公式の運転間隔と始発・終電時刻から推定します。"
+            "value": "台中メトロ緑線は、軌島のデータソースに列車ごとの時刻表がないため、公式の運転間隔と始発・終電時刻から推定します。"
           }
         }
       }
@@ -53772,6 +54622,40 @@
         }
       }
     },
+    "購買未完成：{error}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purchase not completed: {error}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "購入が完了しませんでした：{error}"
+          }
+        }
+      }
+    },
+    "購買終身通行證": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buy Lifetime Pass"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ライフタイムパスを購入"
+          }
+        }
+      }
+    },
     "還不知道你在哪": {
       "extractionState": "manual",
       "localizations": {
@@ -57729,23 +58613,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "iPhoneのDynamic Island展開表示に角丸の安全余白を追加しました。メトロ待ち、台湾鉄路の駅待ち、列車追跡の内容を内側へ寄せ、文字や「終了」ボタンが端で欠けないようにしました。繁体字中国語・英語・日本語すべてに適用されます。文字サイズ設定の現在値と詳細項目もすべて選択中の言語へ切り替わります。"
-          }
-        }
-      }
-    },
-    "iPhone 捷運小工具放多站，或用「自動（最近的站）」跟著你移動換站": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iPhone metro widgets can show multiple stations, or use Auto (nearest station) to follow you"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iPhoneのメトロウィジェットに複数駅を配置、または「自動（最寄り駅）」で移動に合わせて切替"
           }
         }
       }
