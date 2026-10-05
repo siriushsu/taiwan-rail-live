@@ -2,7 +2,7 @@
 // 守查詢頻率的上限（全站合計）：淡海、安坑約每 55 秒一次、環狀線約每 60 秒一次。
 // 調短或調長都會在這裡紅——頻率要改，先確認上限，再改這支的期望值。
 // 第 1–9 節：per-colo 把關（集中出口不可用時的退路；env 沒有 NTM_POLLER 時走的就是它）。
-// 第 10–21 節：集中出口（NtmPoller）——多個 colo 同時或先後請求，官網全站只被打一次；DO 重置、一時拿不到或掛住時
+// 第 10–24 節：集中出口（NtmPoller）——多個 colo 同時或先後請求，官網全站只被打一次；DO 重置、一時拿不到或掛住時
 // 不准緊接著直打，一直拿不到才由各 colo 自己把關。
 // 突變自驗：直接跑本檔，控制組（原始碼）全綠之後，會以 NTM_WORKER_MUTATION=<名稱> 逐一另開行程重跑本檔，
 // 每個突變都必須被指定的那一節擋下（擋在別節、或根本沒擋下，都算本檔失敗）。
@@ -22,7 +22,7 @@ const MUTANTS = {
   noDeny: { find: 'if (colo && TRTC_POLLER_DENY_COLO.has(colo)) return Response.json({ denied: colo });', replace: '', n: 1, expect: '〔14〕' },
   fallbackUnthrottled: { find: 'if (!mem || Date.now() - mem.tried >= gap) {', replace: 'if (true) {', n: 2, expect: 'ankeng 不滿 55 秒不准再打上游' },
   fallbackBurst: { find: 'if (!mem || Date.now() - mem.tried >= gap) { // 重看之後仍過期', replace: 'if (true) {', n: 1, expect: '〔15〕' },
-  noSeed: { find: '        ntmLiveMem.set(sys, mem);\n        await putEdge(mem.data, mem.tried);\n', replace: '        await putEdge(mem.data, mem.tried);\n', n: 1, expect: '〔13〕' },
+  noSeed: { find: "        ntmLiveMem.set(sys, mem);\n        await putEdge(mem.data, mem.tried, 'do');\n", replace: "        await putEdge(mem.data, mem.tried, 'do');\n", n: 1, expect: '〔13〕' },
   noLedger: { find: 'env.NTM_UPSTREAM.writeDataPoint(', replace: '(() => {})(', n: 1, expect: '〔14〕' },
   noHold: { find: "if (via.off !== 'unbound' && !via.off.startsWith('denied:') && !downBefore) {", replace: 'if (false) {', n: 1, expect: '〔13〕' },
   holdForever: { find: ' && !downBefore) {', replace: ') {', n: 1, expect: '〔15〕' },
@@ -31,13 +31,49 @@ const MUTANTS = {
   ignoreAskedGap: { find: 'Number.isFinite(asked) ? Math.min(asked, 3600e3) : 0', replace: '0', n: 1, expect: '〔17〕' },
   askedGapLoosens: { find: 'const gap = Math.max(NTM_LIVE_MIN_GAP_MS.get(sys), ', replace: 'const gap = Math.min(NTM_LIVE_MIN_GAP_MS.get(sys), ', n: 1, expect: '〔17〕' },
   downNeverExpires: { find: ' && tried - mem.tried < 2 * gap;', replace: ';', n: 1, expect: '〔18〕' },
-  downSticky: { find: '      } else if (cur.down) ntmLiveMem.set(sys, mem);\n', replace: '      }\n', n: 1, expect: '〔18〕' },
+  downSticky: { find: '        else cur.down = false;\n', replace: '', n: 1, expect: '〔20〕晚到的 DO 回覆證明 DO 是通的' },
+  window3gap: { find: ' && tried - mem.tried < 2 * gap;', replace: ' && tried - mem.tried < 3 * gap;', n: 1, expect: '〔18〕撐一輪後隔了 112 秒' },
+  holdWritesEdge: { find: '          mem = { data: prev, tried, down: true };\n          ntmLiveMem.set(sys, mem);\n',
+    replace: "          mem = { data: prev, tried, down: true };\n          ntmLiveMem.set(sys, mem);\n          await putEdge(prev, tried, 'do');\n", n: 1, expect: '〔18〕撐一輪的那份只記在這個 isolate' },
   // 撐一輪沿用舊時間＝撐 0 秒：第 15 節先擋（舊時間讓「連續」的窗提早關上）；撐太短（5 秒）只有第 18 節 (c) 擋得到。
   holdKeepsOldTried: { find: '          mem = { data: prev, tried, down: true };', replace: '          mem = { data: prev, tried: mem ? mem.tried : tried, down: true };', n: 1, expect: '〔15〕' },
   holdTooShort: { find: '          mem = { data: prev, tried, down: true };', replace: '          mem = { data: prev, tried: tried - 50e3, down: true };', n: 1, expect: '〔18〕' },
   noPollerTimeout: { find: 'return await Promise.race([ntmPollerFrame(env, sys, gap), timeout]);', replace: 'return await ntmPollerFrame(env, sys, gap);', n: 1, expect: '〔19〕' },
-  edgeOnStale: { find: '        await putEdge(mem.data, mem.tried);\n      } else if (cur.down) ntmLiveMem.set(sys, mem);\n',
-    replace: '      } else if (cur.down) ntmLiveMem.set(sys, mem);\n      await putEdge(mem.data, mem.tried);\n', n: 1, expect: '〔20〕' },
+  timeoutTooShort: { find: 'const NTM_POLLER_TIMEOUT_MS = 15e3;', replace: 'const NTM_POLLER_TIMEOUT_MS = 12e3;', n: 1, expect: '〔19〕等 DO 的逾時要長於' },
+  // 慢回的舊回覆有兩道：同一個 isolate 比記憶體（較新就不蓋、不寫邊緣），別的 isolate 靠 putEdge 不寫超齡的那份。
+  staleOverwritesMem: { find: '      if (!cur || cur.tried <= mem.tried) {\n', replace: '      if (true) {\n', n: 1, expect: '〔20〕記憶體仍是較新的那份' },
+  staleEdgeWrite: { find: '    if (Date.now() - tried >= gap) return;\n', replace: '', n: 1, expect: '〔20〕別的 isolate' },
+  // 晚到的 DO 回覆碰上佔位（down）：比資料新舊。一律換成晚到的那份＝直打拿到的較新資料被換掉（(c) 擋）；一律只清 down＝撐的
+  // 舊資料或空的那份留一整個間隔（(d) 擋）；src 是 null 的不當最舊＝新起的 isolate 撐的空那份留著（(e) 擋）。
+  holdReplacedByOlder: { find: '        if (ntmNewer(mem.data, cur.data)) ntmLiveMem.set(sys, mem);\n        else cur.down = false;\n', replace: '        ntmLiveMem.set(sys, mem);\n', n: 1, expect: '〔20〕直打佔位（較新）期間' },
+  holdDropsNewer: { find: '        if (ntmNewer(mem.data, cur.data)) ntmLiveMem.set(sys, mem);\n        else cur.down = false;\n', replace: '        cur.down = false;\n', n: 1, expect: '〔20〕撐一輪（舊資料）期間' },
+  nullNotOldest: { find: '(!b || b.src == null || Date.parse(a.at) > Date.parse(b.at))', replace: '(!b || Date.parse(a.at) > Date.parse(b.at))', n: 1, expect: '〔20〕新起的 isolate' },
+  // 晚到的空回覆（src 是 null、at 較新）當成較新＝撐的那份被換成空的（(f) 擋）；佔位期間晚到的 DO 回覆照樣寫邊緣＝邊緣倒退成
+  // 較舊的那份（(g) 擋；晚到那份還沒超齡時，putEdge 的超齡檢查擋不到）。
+  nullReplaces: { find: '!!(a && a.src != null)', replace: '!!a', n: 1, expect: '〔20〕撐一輪期間晚到的 DO 回覆是空的' },
+  edgeWriteOnDown: { find: "        ntmLiveMem.set(sys, mem);\n        await putEdge(mem.data, mem.tried, 'do');\n      } else if (cur.down) {\n        if (ntmNewer(mem.data, cur.data)) ntmLiveMem.set(sys, mem);\n        else cur.down = false;\n      }\n",
+    replace: "        ntmLiveMem.set(sys, mem);\n      } else if (cur.down) {\n        if (ntmNewer(mem.data, cur.data)) ntmLiveMem.set(sys, mem);\n        else cur.down = false;\n      }\n      await putEdge(mem.data, mem.tried, 'do');\n", n: 1, expect: '〔20〕直打佔位（較新）期間，同一個 isolate 早一步問 DO' },
+  // 交給 waitUntil 的那段：完全沒交（第 7 節先擋）、只有退路那條才交（等 DO 的那段沒交，只有第 21 節擋得到）。
+  noRefreshWaitUntil: { find: "    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(work);\n", replace: '', n: 1, expect: '打上游的那段要交給 waitUntil' },
+  doPathNotKept: { find: "    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(work);\n",
+    replace: "    if (ctx && typeof ctx.waitUntil === 'function' && !env.NTM_POLLER) ctx.waitUntil(work);\n", n: 1, expect: '〔21〕' },
+  edgeKeepsDown: { find: '      if (latest && latest.down) {\n', replace: '      if (false) {\n', n: 1, expect: '〔22〕撐一輪之後由邊緣供應' },
+  edgeAdoptByTried: { find: "if (hit.headers.get('x-ntm-src') !== 'do' || !cur || !cur.down) return", replace: "if (hit.headers.get('x-ntm-src') !== 'do' || !cur || !cur.down || cur.tried >= tried) return", n: 1, expect: '〔22〕邊緣那份比撐一輪那次早開始查詢' },
+  adoptTriedNow: { find: 'ntmLiveMem.set(sys, { data, tried });', replace: 'ntmLiveMem.set(sys, { data, tried: Date.now() });', n: 1, expect: '〔22〕接回的那份壽命' },
+  directClearsDown: { find: "if (hit.headers.get('x-ntm-src') !== 'do' || !cur", replace: 'if (!cur', n: 1, expect: '〔22〕邊緣那份是退路直打的' },
+  // 接回那條路：資料沒有比較新就不清 down（(d) 擋）、資料較舊照樣接回或不清 down（(e) 擋）、回覆改用邊緣那份原本的標頭＝內部標頭外露、
+  // 交出寫進邊緣當時的完整壽命（(a) 擋）。
+  edgeSameKeepsDown: { find: '        else latest.down = false;\n', replace: '', n: 1, expect: '〔22〕邊緣那份是 DO 的、資料與撐的那份相同' },
+  adoptOlder: { find: 'if (ntmNewer(data, latest.data))', replace: 'if (true)', n: 1, expect: '〔22〕邊緣那份是 DO 的、資料比撐的那份舊：不准接回' },
+  clearOnlyWhenSame: { find: '        else latest.down = false;\n', replace: '        else if (Date.parse(data.at) === Date.parse(latest.data.at)) latest.down = false;\n', n: 1, expect: '〔22〕邊緣那份是 DO 的、資料比撐的那份舊：down 照樣清掉' },
+  adoptHdrLeak: { find: '    return new Response(text, { status: hit.status, headers });\n', replace: '    return new Response(text, { status: hit.status, headers: hit.headers });\n', n: 1, expect: '〔22〕接回那份的回覆' },
+  noBadFrameCheck: { find: "    if (!f || !f.data || !Number.isFinite(f.tried)) return { off: 'bad-frame' };\n", replace: '', n: 1, expect: '〔23〕' },
+  // 內部標頭與退路的標記：x-ntm-src 外露（第 2 節）、退路直打的那份標成 do（第 16 節）、只有佔位那份標成 do（直打失敗時
+  // 邊緣留著的就是它，第 16 節）、重看邊緣拿到的那份沒有直接回（第 16 節）。
+  leakSrcHeader: { find: "    headers.delete('x-ntm-src');\n", replace: '', n: 1, expect: '內部標頭不外露（x-ntm-src）' },
+  directMarksDo: { find: "tried, 'direct');", replace: "tried, 'do');", n: 2, expect: '〔16〕退路直打寫進邊緣的那份標成 direct' },
+  placeholderMarksDo: { find: "await putEdge(prev, tried, 'direct');", replace: "await putEdge(prev, tried, 'do');", n: 1, expect: '〔16〕直打失敗時' },
+  noReturnRecheck: { find: '    if (got instanceof Response) return got;\n', replace: '', n: 1, expect: '〔16〕Y 先看邊緣' },
 };
 const MUTATION = process.env.NTM_WORKER_MUTATION || '';
 let workerHref = new URL('../worker.js', import.meta.url).href;
@@ -82,6 +118,8 @@ globalThis.fetch=async(input,init)=>{
 };
 const flush=()=>new Promise(r=>setImmediate(r));
 const until=async cond=>{for(let i=0;i<50&&!cond();i++)await flush();assert(cond(),'等不到預期狀態');};
+// 先數再等：該結束卻沒結束的請求，直接 await 只會讓程序卡住、不會紅。
+const settled=p=>{const s={done:false};p.then(()=>{s.done=true;},()=>{s.done=true;});return s;};
 try{
   // 同一支 worker.js 載入兩份＝同一個 colo 裡的兩個 isolate：記憶體各自一份，邊緣快取共用。
   const isolateA=(await loadWorker('ntm-proxy-contract')).default;
@@ -113,6 +151,7 @@ try{
   assert.equal((await hit.json()).at,fresh.at);
   assert.match(cc(hit),/s-maxage=1(?:,|$)/,'Cache API 命中也不能重送完整 TTL');
   assert.equal(hit.headers.get('x-ntm-tried'),null,'內部標頭不外露');
+  assert.equal(hit.headers.get('x-ntm-src'),null,'內部標頭不外露（x-ntm-src）');
   now+=500;assert.match(cc(await callB('ankeng')),/s-maxage=0(?:,|$)/);
   now+=500;const expired=await(await callB('ankeng')).json();
   assert.equal(count.ankeng,prior+2,'邊緣還留著超齡的那份，也須重新取數');
@@ -211,13 +250,14 @@ try{
   // 另外載入一份；storage 用 Map 替身。重置（部署、執行環境更新）＝換一個新實例、storage 留著：照 Cloudflare 的
   // 行為，當下還在等舊實例回覆的請求一律收到錯誤，舊實例之後的 storage 寫入一律失敗。
   // broken：DO 打不通（呼叫直接丟錯）；failGate：打不通的那一發先等這個 promise 才丟錯（排出「一個在等、一個先回」）；
-  // hangAll：DO 掛住（不回也不丟錯）；lag：這一發 DO 照常算好，回覆等這個 promise 才送回（排出「先問的晚到」）。
+  // hangAll：DO 掛住（不回也不丟錯）；lag：這一發 DO 照常算好，回覆等這個 promise 才送回（排出「先問的晚到」）；
+  // frame：不經過 DO，直接回這個框（壞框）。
   const ae={points:[],writeDataPoint(p){this.points.push(structuredClone(p));}};
   const {NtmPoller}=await loadWorker('ntm-do');
   assert.equal(typeof NtmPoller,'function','〔10〕worker.js 要導出 NtmPoller');
   const namespace=()=>{
     const live=new Map(),disk=new Map();
-    const ns={names:[],hints:[],broken:false,failGate:null,hangAll:false,lag:null,idFromName:name=>({name}),
+    const ns={names:[],hints:[],broken:false,failGate:null,hangAll:false,lag:null,frame:null,idFromName:name=>({name}),
       restart(name){
         const e=live.get(name);if(!e)return;
         e.cell.dead=true;live.delete(name);
@@ -229,6 +269,7 @@ try{
         return{fetch:async input=>{
           if(ns.hangAll)return new Promise(()=>{});
           if(ns.broken){const gate=ns.failGate;if(gate)await gate;throw Error('fixture: DO 打不通');}
+          if(ns.frame)return new Response(JSON.stringify(ns.frame));
           const lag=ns.lag;
           let e=live.get(id.name);
           if(!e){
@@ -387,7 +428,8 @@ try{
     ns.broken=false;
 
     // 16. 同一個 colo 的兩個 isolate（邊緣快取共用）：DO 一直拿不到、兩個都撐過一輪之後，Y 還在等 DO 回錯時，
-    //     X 已經直打並在邊緣佔位——Y 回錯之後要先看邊緣，不准再打一次。
+    //     X 已經直打並在邊緣佔位——Y 回錯之後要先看邊緣，不准再打一次。X 下一個間隔再直打、官網卻失敗：查詢失敗不寫第二次，
+    //     邊緣留著的是佔位那份，它也要標成 direct（不然同 colo 別的 down isolate 會當成 DO 通了）。
     useEdge=true;edge.clear();
     const iX=await newColo(),iY=await newColo();
     now+=61e3;prior=count.ankeng;
@@ -400,9 +442,15 @@ try{
     const pY=ask(iY,'ankeng',env);for(let i=0;i<10;i++)await flush();
     ns.failGate=null;await ask(iX,'ankeng',env);
     assert.equal(count.ankeng,prior+2,'〔16〕DO 一直拿不到：X 走退路直打');
+    assert.equal(edge.get('https://railisland.tw/api/ntmetro-live?sys=ankeng').headers.get('x-ntm-src'),'direct','〔16〕退路直打寫進邊緣的那份標成 direct（不算 DO 通了）');
     releaseY();const rY=await pY;
     assert.equal(count.ankeng,prior+2,'〔16〕Y 在等 DO 回錯時 X 已經直打並佔位：先看邊緣，不准再打一次');
     assert.equal(rY.status,200);
+    const bY=await rY.text().then(t=>{try{return JSON.parse(t);}catch(_){return null;}});
+    assert(bY&&bY.src&&/s-maxage=\d+(?:,|$)/.test(cc(rY)),'〔16〕Y 先看邊緣、回 X 直打的那份：要有資料與剩下的壽命');
+    now+=55e3;fail=true;await ask(iX,'ankeng',env);fail=false;
+    assert.equal(count.ankeng,prior+3,'〔16〕DO 還是拿不到：X 下一個間隔照常直打');
+    assert.equal(edge.get('https://railisland.tw/api/ntmetro-live?sys=ankeng').headers.get('x-ntm-src'),'direct','〔16〕直打失敗時邊緣留著的佔位那份也標成 direct（不算 DO 通了）');
     ns.broken=false;useEdge=false;
 
     // 17. 主站帶來的間隔：DO 取它與自己那一版較長的一個——帶較短的不准放寬，帶較長的照較長的；/status 不觸發查詢。
@@ -421,8 +469,10 @@ try{
 
     // 18. 「連續兩個間隔都拿不到」要看時間、也要看 DO 有沒有通過：
     //   (a) 撐過一輪之後閒置（或一直由邊緣供應）超過兩個間隔，才又拿不到一次＝第一次：先撐一輪，不准直打（DO 剛替別處打過）；
-    //   (b) 撐一輪的同時，同一個 isolate 另一個請求從 DO 拿到較舊的一份：DO 是通的，down 要清掉，之後再錯一次照樣先撐一輪；
-    //   (c) 撐一輪的那個間隔裡（量在快結束的第 54 秒）DO 仍回錯：同一個 isolate 再問、同 colo 別的 isolate 來問，都不准直打。
+    //   (b) 撐一輪的同時，同一個 isolate 比它早問 DO 的那一發晚到：DO 是通的，down 要清掉，之後再錯一次照樣先撐一輪；
+    //   (c) 撐一輪的那個間隔裡（量在快結束的第 54 秒）DO 仍回錯：同一個 isolate 再問、同 colo 別的 isolate 來問，都不准直打；
+    //       撐的那份不寫邊緣；
+    //   (d) 撐一輪後隔了 112 秒（兩個間隔多一點，還不到三個）才又拿不到：同樣算第一次。
     now+=61e3;prior=count.danhai;
     const wA=await newColo();await ask(wA,'danhai',env);assert.equal(count.danhai,prior+1);
     now+=55e3;ns.broken=true;await ask(wA,'danhai',env);ns.broken=false;
@@ -438,15 +488,22 @@ try{
     ns.broken=true;await ask(wB,'danhai',env);ns.broken=false;
     releaseLag();assert.equal((await lateB).status,200);assert.equal(count.danhai,prior+4);
     now+=55e3;ns.broken=true;await ask(wB,'danhai',env);ns.broken=false;
-    assert.equal(count.danhai,prior+4,'〔18〕撐一輪時 DO 其實是通的（較舊的一份晚到）：down 要清掉，之後再拿不到一次照樣先撐一輪，不准直打');
+    assert.equal(count.danhai,prior+4,'〔18〕撐一輪時 DO 其實是通的（比它早問的那一發晚到）：down 要清掉，之後再拿不到一次照樣先撐一輪，不准直打');
     useEdge=true;edge.clear();
     const wC=await newColo(),wC2=await newColo();
     now+=56e3;await ask(wC,'danhai',env);assert.equal(count.danhai,prior+5);
-    now+=55e3;ns.broken=true;await ask(wC,'danhai',env);
+    const keyC='https://railisland.tw/api/ntmetro-live?sys=danhai';
+    now+=55e3;ns.broken=true;const putsC=puts,triedC=edge.get(keyC).headers.get('x-ntm-tried');
+    await ask(wC,'danhai',env);
+    assert(puts===putsC&&edge.get(keyC).headers.get('x-ntm-tried')===triedC,'〔18〕撐一輪的那份只記在這個 isolate、不寫邊緣（沒有上一份時它是空的，會蓋掉同 colo 別人的資料）');
     now+=54e3;const againC=await ask(wC,'danhai',env),otherC=await ask(wC2,'danhai',env);
     ns.broken=false;useEdge=false;
     assert.equal(count.danhai,prior+5,'〔18〕撐一輪的間隔裡 DO 仍回錯：同一個 isolate 再問、同 colo 別的 isolate 來問，都不准直打');
     assert(againC.status===200&&otherC.status===200);
+    const wG=await newColo();now+=61e3;await ask(wG,'danhai',env);const priorG=count.danhai;
+    now+=55e3;ns.broken=true;await ask(wG,'danhai',env);
+    now+=112e3;await ask(wG,'danhai',env);ns.broken=false;
+    assert.equal(count.danhai,priorG,'〔18〕撐一輪後隔了 112 秒（兩個間隔多一點）才又拿不到：算第一次，不准直打');
 
     // 19. DO 掛住（不回也不丟錯）：主站等 DO 要帶逾時，而且要長於 DO 那邊最壞的情況（量落點 3 秒＋打官網 8 秒）；
     //     逾時算一次拿不到——第一次先撐一輪，下一個間隔還是掛住才走退路直打，並記下原因 direct:timeout。
@@ -459,9 +516,11 @@ try{
       now+=60e3;ns.hangAll=true;mark=ae.points.length;
       const h1=ask(wH,'circular',env);for(let i=0;i<20;i++)await flush();
       const dot=timers19.filter(t=>t.fn&&t.ms>=12e3);
-      assert.equal(dot.length,1,'〔19〕主站等 DO 要帶逾時，而且長於 DO 最壞的 11 秒：'+timers19.filter(t=>t.fn).map(t=>t.ms));
-      // 先數再等：逾時沒接上的話請求會一直掛著，直接 await 只會讓程序卡住、不會紅。
-      const settled=p=>{const s={done:false};p.then(()=>{s.done=true;},()=>{s.done=true;});return s;};
+      assert.equal(dot.length,1,'〔19〕主站等 DO 要帶逾時：'+timers19.filter(t=>t.fn).map(t=>t.ms));
+      // 下限：DO 最壞是量落點 3 秒＋打官網 8 秒，再加寫 storage 與往返；上限：逾時之後還要做完退路直打（最多 8 秒），
+      // 整段在 waitUntil 的 30 秒內。
+      assert(dot[0].ms>=14e3&&dot[0].ms<=20e3,'〔19〕等 DO 的逾時要長於 DO 最壞的情況、又要讓退路在 waitUntil 的 30 秒內做完：'+dot[0].ms);
+      // 逾時沒接上的話請求會一直掛著，所以先用 settled 數、再等。
       const s1=settled(h1);dot[0].fn();for(let i=0;i<20;i++)await flush();
       assert(s1.done,'〔19〕逾時一到，請求要當成一次拿不到而結束，不准一直等 DO');
       assert.equal((await h1).status,200);
@@ -474,7 +533,16 @@ try{
       assert.deepEqual(ae.points.slice(mark).map(p=>p.blobs[1]),['direct:timeout'],'〔19〕退路那一次記下原因 direct:timeout');
     }finally{globalThis.setTimeout=original.setTimeout;globalThis.clearTimeout=original.clearTimeout;ns.hangAll=false;}
 
-    // 20. 慢回的舊回覆：同一個 isolate 先問 DO 的那一發晚到，拿的是較舊的一份——記憶體與邊緣都不准被它蓋掉。
+    // 20. 慢回的舊回覆：(a) 同一個 isolate 先問 DO 的那一發晚到，拿的是較舊的一份——記憶體與邊緣都不准被它蓋掉；
+    //     (b) 別的 isolate 先問、晚到：那份已經超齡（DO 早已換新一批、同 colo 剛寫進邊緣），不准寫邊緣；
+    //     (c) 直打佔位（down、較新）期間，較早發出的 DO 回覆晚到：只清掉 down，佔位那份（直打拿到的較新資料）留著；
+    //         DO 既然回了，之後再錯一次先撐一輪。
+    //     (d) 撐一輪（撐的是上一份）期間，比它早問 DO 的那一發帶著較新的一份晚到：換成較新的那份；
+    //     (e) 新起的 isolate 撐的是空的那份（src 是 null）：同上，換成有資料的那份。佔位的 tried 較晚、資料卻不一定較新，
+    //         (c)(d)(e) 比的都是資料（at；src 是 null 的最舊）。
+    //     (f) 撐一輪期間晚到的 DO 回覆是空的（官網回空，at 較新）：空的那份不算較新，留著撐的那份、只清 down；
+    //     (g) 直打佔位（較新）期間，同一個 isolate 早一步問 DO 的那一發帶著較舊的一份晚到、還沒超齡（同時進來的兩個請求，
+    //         一個等到 DO、一個被 DO 回錯而直打）：不准寫邊緣，邊緣留著直打的那份。
     useEdge=true;edge.clear();
     const wE=await newColo(),keyE='https://railisland.tw/api/ntmetro-live?sys=ankeng';
     now+=61e3;prior=count.ankeng;let releaseE;ns.lag=new Promise(r=>{releaseE=r;});
@@ -485,23 +553,186 @@ try{
     releaseE();await lateE;
     assert.equal(puts,putsE,'〔20〕較舊的那份晚到：不准寫邊緣（會蓋掉同 colo 剛寫進去的新那份）');
     assert.equal(edge.get(keyE).headers.get('x-ntm-tried'),triedE,'〔20〕邊緣仍是較新的那份');
-    assert.equal((await(await ask(wE,'ankeng',env)).json()).at,newE.at,'〔20〕記憶體仍是較新的那份');
+    // 量記憶體時關掉邊緣（不然邊緣先命中，記憶體根本沒被讀到）；記憶體被換成超齡那份的話，會再去問 DO。
+    useEdge=false;const namesE=ns.names.length,memE=await(await ask(wE,'ankeng',env)).json();
+    assert(ns.names.length===namesE&&memE.at===newE.at,'〔20〕記憶體仍是較新的那份（不必再問 DO）');
+    useEdge=true;edge.clear();
+    const xE=await newColo(),yE=await newColo();
+    now+=61e3;prior=count.ankeng;let releaseX;ns.lag=new Promise(r=>{releaseX=r;});
+    const lateX=ask(xE,'ankeng',env);for(let i=0;i<10;i++)await flush();ns.lag=null;
+    assert.equal(count.ankeng,prior+1);
+    now+=55e3;await ask(yE,'ankeng',env);assert.equal(count.ankeng,prior+2);
+    const putsX=puts,triedX=edge.get(keyE).headers.get('x-ntm-tried');
+    releaseX();await lateX;
+    assert(puts===putsX&&edge.get(keyE).headers.get('x-ntm-tried')===triedX,'〔20〕別的 isolate 晚到的超齡回覆不准寫邊緣（會把同 colo 剛寫進去的新那份換掉）');
+    useEdge=false;
+    const zE=await newColo();now+=61e3;await ask(zE,'ankeng',env);prior=count.ankeng;
+    now+=55e3;let releaseZ;ns.lag=new Promise(r=>{releaseZ=r;});
+    const lateZ=ask(zE,'ankeng',env);for(let i=0;i<10;i++)await flush();ns.lag=null;
+    assert.equal(count.ankeng,prior+1);
+    ns.broken=true;await ask(zE,'ankeng',env);
+    now+=55e3;const claimZ=await(await ask(zE,'ankeng',env)).json();ns.broken=false;
+    assert.equal(count.ankeng,prior+2,'〔20〕連續兩個間隔拿不到：直打佔位');
+    releaseZ();await lateZ;
+    const namesZ=ns.names.length,afterZ=await(await ask(zE,'ankeng',env)).json();
+    assert(ns.names.length===namesZ&&afterZ.at===claimZ.at,'〔20〕直打佔位（較新）期間，較早發出的 DO 回覆晚到：保留較新的那份、只清掉 down，不准換成較舊的');
+    now+=55e3;ns.broken=true;await ask(zE,'ankeng',env);ns.broken=false;
+    assert.equal(count.ankeng,prior+2,'〔20〕晚到的 DO 回覆證明 DO 是通的：down 清掉，之後再錯一次先撐一輪，不准直打');
+    const hE=await newColo();now+=61e3;const oldH=await(await ask(hE,'ankeng',env)).json();prior=count.ankeng;
+    now+=55e3;let releaseH;ns.lag=new Promise(r=>{releaseH=r;});
+    const lateH=ask(hE,'ankeng',env);for(let i=0;i<10;i++)await flush();ns.lag=null;
+    assert.equal(count.ankeng,prior+1);
+    now+=1e3;ns.broken=true;const heldH=await(await ask(hE,'ankeng',env)).json();ns.broken=false;
+    assert.equal(heldH.at,oldH.at);
+    releaseH();const newH=await(await lateH).json();
+    const namesH=ns.names.length,afterH=await(await ask(hE,'ankeng',env)).json();
+    assert(Date.parse(newH.at)>Date.parse(oldH.at)&&ns.names.length===namesH&&afterH.at===newH.at,
+      '〔20〕撐一輪（舊資料）期間，比它早問 DO 的那一發帶著較新的一份晚到：換成較新的那份，不准留著撐的舊資料');
+    const nE=await newColo();now+=61e3;prior=count.ankeng;let releaseN;ns.lag=new Promise(r=>{releaseN=r;});
+    const lateN=ask(nE,'ankeng',env);for(let i=0;i<10;i++)await flush();ns.lag=null;
+    assert.equal(count.ankeng,prior+1);
+    now+=1e3;ns.broken=true;const emptyN=await(await ask(nE,'ankeng',env)).json();ns.broken=false;
+    assert.equal(emptyN.src,null);
+    releaseN();const newN=await(await lateN).json();
+    const namesN=ns.names.length,afterN=await(await ask(nE,'ankeng',env)).json();
+    assert(newN.src&&ns.names.length===namesN&&afterN.src&&afterN.at===newN.at,
+      '〔20〕新起的 isolate 撐的是空的那份：比它早問 DO 的那一發晚到，換成有資料的那份，不准一整個間隔都回空');
+    const fE=await newColo();now+=61e3;const oldF=await(await ask(fE,'ankeng',env)).json();prior=count.ankeng;
+    now+=55e3;let releaseF;ns.lag=new Promise(r=>{releaseF=r;});empty=true;
+    const lateF=ask(fE,'ankeng',env);for(let i=0;i<10;i++)await flush();ns.lag=null;empty=false;
+    assert.equal(count.ankeng,prior+1);
+    now+=1e3;ns.broken=true;const heldF=await(await ask(fE,'ankeng',env)).json();ns.broken=false;
+    assert.equal(heldF.at,oldF.at);
+    releaseF();const emptyF=await(await lateF).json();
+    const namesF=ns.names.length,afterF=await(await ask(fE,'ankeng',env)).json();
+    assert(emptyF.src===null&&Date.parse(emptyF.at)>Date.parse(oldF.at)&&ns.names.length===namesF&&afterF.src&&afterF.at===oldF.at,
+      '〔20〕撐一輪期間晚到的 DO 回覆是空的（官網回空、at 較新）：空的那份不算較新，留著撐的那份，不准換成空的');
+    useEdge=true;edge.clear();
+    const gZ=await newColo();now+=61e3;await ask(gZ,'ankeng',env);prior=count.ankeng;
+    now+=55e3;ns.broken=true;await ask(gZ,'ankeng',env);ns.broken=false;
+    now+=55e3;let releaseG;ns.lag=new Promise(r=>{releaseG=r;});
+    const lateG=ask(gZ,'ankeng',env);for(let i=0;i<10;i++)await flush();ns.lag=null;
+    assert.equal(count.ankeng,prior+1);
+    now+=1e3;ns.broken=true;const claimG=await(await ask(gZ,'ankeng',env)).json();ns.broken=false;
+    assert.equal(count.ankeng,prior+2,'〔20〕DO 回錯的那個請求：連續兩個間隔拿不到，直打佔位');
+    const putsG=puts,triedG=edge.get(keyE).headers.get('x-ntm-tried');
+    releaseG();const oldG=await(await lateG).json();
+    assert(Date.parse(oldG.at)<Date.parse(claimG.at)&&puts===putsG&&edge.get(keyE).headers.get('x-ntm-tried')===triedG&&edge.get(keyE).headers.get('x-ntm-src')==='direct',
+      '〔20〕直打佔位（較新）期間，同一個 isolate 早一步問 DO 的那一發帶著較舊的一份晚到、還沒超齡：不准寫邊緣，邊緣留著直打的那份');
     useEdge=false;
 
-    // 21. 帳：每打一次官網一筆，集中出口與退路都記。假環境裡筆數要恰好對得上；正式站的 DO 在查詢途中被重置時
+    // 21. 前端 12 秒就放棄等待（比等 DO 的 15 秒短），發起的 handler 會被取消：等 DO、撐一輪、退路直打與記帳整段要交給
+    //     waitUntil。DO 掛住時這段在 handler 被取消後照樣做完，同一個 isolate 下一個請求拿得到撐的那份、不必再等 DO。
+    const timers21=[];
+    globalThis.setTimeout=(fn,ms)=>{timers21.push({fn,ms});return timers21.length;};
+    globalThis.clearTimeout=id=>{if(timers21[id-1])timers21[id-1].fn=null;};
+    try{
+      const wW=await newColo();now+=61e3;await ask(wW,'ankeng',env);
+      now+=55e3;ns.hangAll=true;waits.length=0;
+      const abandoned=ask(wW,'ankeng',env);for(let i=0;i<20;i++)await flush();
+      assert.equal(waits.length,1,'〔21〕等 DO 的那段要交給 waitUntil（前端放棄、handler 被取消時照樣做完）');
+      const kept=settled(waits[0]),dot=timers21.filter(t=>t.fn&&t.ms>=12e3);
+      assert(dot.length===1&&!kept.done,'〔21〕交給 waitUntil 的那段要涵蓋等 DO（DO 還沒回就不能先結束）');
+      dot[0].fn();for(let i=0;i<20;i++)await flush();
+      assert(kept.done,'〔21〕等 DO 逾時之後，交給 waitUntil 的那段做完（撐一輪）');
+      ns.hangAll=false;const names21=ns.names.length,next21=await ask(wW,'ankeng',env);
+      assert(next21.status===200&&ns.names.length===names21,'〔21〕撐的那份已寫回記憶體：同一個 isolate 下一個請求不必再等 DO');
+      await abandoned;
+    }finally{globalThis.setTimeout=original.setTimeout;globalThis.clearTimeout=original.clearTimeout;ns.hangAll=false;}
+
+    // 22. 撐一輪之後由邊緣供應：(a) 那份是 DO 替同 colo 別的 isolate 拿到的、比撐的那份新——DO 是通的，down 要清掉，
+    //     之後再錯一次照樣先撐一輪；接回的那份壽命照它自己的 tried，不從接回的時刻重算，回覆也一樣拿掉內部標頭、只交剩下的壽命；
+    //     (b) 那份是退路直打的——不算 DO 通了，down 留著，一直拿不到時照常直打；(c) 那份比撐一輪那次早開始查詢、晚寫進邊緣
+    //     （別的 isolate 問 DO 的那一發慢回）：比的是資料不是 tried，資料較新就照樣接回；(d) 那份的資料與撐的那份相同（DO 在
+    //     查詢途中重置，新實例回的是查詢前那一份）：DO 是通的，照樣清掉 down；(e) 那份的資料比撐的那份舊：不准接回，只清 down。
+    useEdge=true;edge.clear();
+    const keyD='https://railisland.tw/api/ntmetro-live?sys=danhai';
+    const gX=await newColo(),gY=await newColo();
+    now+=61e3;await ask(gX,'danhai',env);prior=count.danhai;
+    now+=55e3;ns.broken=true;await ask(gX,'danhai',env);ns.broken=false;
+    now+=2e3;await ask(gY,'danhai',env);assert.equal(count.danhai,prior+1);
+    now+=54e3;const rA22=await ask(gX,'danhai',env);assert.equal(count.danhai,prior+1);
+    const bA22=await rA22.json();
+    assert(bA22.src&&rA22.headers.get('x-ntm-tried')===null&&rA22.headers.get('x-ntm-src')===null&&/s-maxage=1(?:,|$)/.test(cc(rA22)),
+      '〔22〕接回那份的回覆：內部標頭不外露、只交剩下的壽命（1 秒）');
+    now+=2e3;ns.broken=true;const names22=ns.names.length;await ask(gX,'danhai',env);ns.broken=false;
+    assert.equal(count.danhai,prior+1,'〔22〕撐一輪之後由邊緣供應 DO 那份（DO 替同 colo 別的 isolate 成功）：down 要清掉，之後再錯一次照樣先撐一輪，不准直打');
+    assert(ns.names.length>names22,'〔22〕接回的那份壽命從 DO 開始查詢起算（不是接回的時刻）：過了那份的間隔就要再問 DO');
+    const hX=await newColo();
+    now+=61e3;await ask(hX,'danhai',env);prior=count.danhai;
+    now+=55e3;ns.broken=true;await ask(hX,'danhai',env);
+    // 同 colo 別的 isolate 退路直打、寫進邊緣的那份（直接寫進替身）。
+    edge.set(keyD,new Response(JSON.stringify({at:new Date(now+5e3).toISOString(),src:{direct:true}}),{headers:{'content-type':'application/json; charset=utf-8',
+      'cache-control':'public, s-maxage=55','x-ntm-tried':String(now+5e3),'x-ntm-src':'direct'}}));
+    now+=56e3;await ask(hX,'danhai',env);
+    now+=5e3;await ask(hX,'danhai',env);ns.broken=false;useEdge=false;
+    assert.equal(count.danhai,prior+1,'〔22〕邊緣那份是退路直打的（不是 DO）：不算 DO 通了，down 留著——一直拿不到時照常每個間隔直打');
+    useEdge=true;edge.clear();
+    const kX=await newColo(),kY=await newColo();
+    now+=61e3;await ask(kX,'danhai',env);prior=count.danhai;
+    now+=55e3;let releaseK;ns.lag=new Promise(r=>{releaseK=r;});
+    const lateK=ask(kY,'danhai',env);for(let i=0;i<10;i++)await flush();ns.lag=null;
+    assert.equal(count.danhai,prior+1);
+    now+=1e3;ns.broken=true;await ask(kX,'danhai',env);ns.broken=false;
+    releaseK();await lateK;
+    now+=2e3;await ask(kX,'danhai',env);
+    now+=53e3;ns.broken=true;await ask(kX,'danhai',env);ns.broken=false;useEdge=false;
+    assert.equal(count.danhai,prior+1,'〔22〕邊緣那份比撐一輪那次早開始查詢、晚寫進邊緣（資料較新）：照樣接回、清掉 down，之後再錯一次先撐一輪，不准直打');
+    // (d)(e) 同 colo 別的 isolate 寫進邊緣的那份直接寫進替身：資料取自這個 isolate 拿過的那幾份，tried 是剛剛。
+    const edgeDo=(body,tried)=>edge.set(keyD,new Response(JSON.stringify(body),{headers:{'content-type':'application/json; charset=utf-8',
+      'cache-control':'public, s-maxage=55','x-ntm-tried':String(tried),'x-ntm-src':'do'}}));
+    useEdge=true;edge.clear();
+    const mX=await newColo();
+    now+=61e3;const baseM=await(await ask(mX,'danhai',env)).json();prior=count.danhai;
+    now+=55e3;ns.broken=true;await ask(mX,'danhai',env);ns.broken=false;
+    edgeDo(baseM,now);
+    now+=2e3;await ask(mX,'danhai',env);
+    now+=55e3;ns.broken=true;await ask(mX,'danhai',env);ns.broken=false;
+    assert.equal(count.danhai,prior,'〔22〕邊緣那份是 DO 的、資料與撐的那份相同（DO 在查詢途中重置）：DO 是通的，down 照樣清掉，之後再錯一次先撐一輪，不准直打');
+    edge.clear();
+    const oX=await newColo();
+    now+=61e3;const oldO=await(await ask(oX,'danhai',env)).json();
+    now+=55e3;const newO=await(await ask(oX,'danhai',env)).json();
+    now+=55e3;ns.broken=true;await ask(oX,'danhai',env);ns.broken=false;prior=count.danhai;
+    edgeDo(oldO,now);
+    now+=2e3;await ask(oX,'danhai',env);
+    useEdge=false;const namesO=ns.names.length,memO=await(await ask(oX,'danhai',env)).json();
+    assert(Date.parse(newO.at)>Date.parse(oldO.at)&&memO.at===newO.at&&ns.names.length===namesO,
+      '〔22〕邊緣那份是 DO 的、資料比撐的那份舊：不准接回，記憶體留著撐的那份（較新）');
+    now+=55e3;ns.broken=true;await ask(oX,'danhai',env);ns.broken=false;
+    assert.equal(count.danhai,prior,'〔22〕邊緣那份是 DO 的、資料比撐的那份舊：down 照樣清掉，之後再錯一次先撐一輪，不准直打');
+
+    // 23. DO 回壞框（缺 data、tried 不是數字）：當成一次拿不到（先撐一輪），不准丟例外，也不准轉送或記下讀不出時間的那份
+    //     （讀不出時間的那份永遠不會過期，之後就再也不問 DO）。
+    const bF=await newColo();now+=61e3;await ask(bF,'circular',env);prior=count.circular;
+    now+=60e3;ns.frame={tried:now,colo:'NRT'};
+    const noData=await ask(bF,'circular',env).then(r=>r.status,e=>'丟出例外：'+e.message);
+    ns.frame=null;
+    assert.equal(noData,200,'〔23〕DO 回的框缺 data：當成一次拿不到，照常回 200');
+    assert.equal(count.circular,prior,'〔23〕壞框是第一次拿不到：先撐一輪，不准直打');
+    const bF2=await newColo();ns.frame={data:{at:new Date(now).toISOString(),src:{bad:true}},tried:'soon',colo:'NRT'};
+    const badTried=await ask(bF2,'circular',env).then(r=>r.json(),e=>({threw:e.message}));
+    ns.frame=null;
+    assert(!badTried.threw&&!(badTried.src&&badTried.src.bad),'〔23〕tried 不是數字的那份不准轉送');
+    now+=61e3;const names23=ns.names.length;await ask(bF2,'circular',env);
+    assert(ns.names.length>names23,'〔23〕過了間隔照樣向 DO 要新的一份（讀不出時間的那份不准記進記憶體）');
+
+    // 24. 帳：每打一次官網一筆，集中出口與退路都記。假環境裡筆數要恰好對得上；正式站的 DO 在查詢途中被重置時
     //     那一發可能來不及記，所以正式站的帳是下限（scripts/ntm_upstream_report.mjs 讀它）。
     const NTM=new Set(['danhai','ankeng','circular']);
-    assert.equal(ae.points.length,total()-doBase,'〔21〕帳上的筆數＝官網實際被打的次數');
+    assert.equal(ae.points.length,total()-doBase,'〔24〕帳上的筆數＝官網實際被打的次數');
     assert(ae.points.every(p=>p.indexes[0]===p.blobs[0]&&NTM.has(p.blobs[0])&&/^(do:|direct:)/.test(p.blobs[1])&&Number.isFinite(p.doubles[0])),
-      '〔21〕每筆帶系統、誰打的、開始查詢的時間');
-    assert(ae.points.some(p=>p.blobs[1]==='do:NRT')&&ae.points.some(p=>p.blobs[1].startsWith('direct:')),'〔21〕兩條路都記得到（正向對照）');
+      '〔24〕每筆帶系統、誰打的、開始查詢的時間');
+    assert(ae.points.some(p=>p.blobs[1]==='do:NRT')&&ae.points.some(p=>p.blobs[1].startsWith('direct:')),'〔24〕兩條路都記得到（正向對照）');
   }finally{console.warn=origWarn;}
 
   console.log('PASS NTM Worker：查詢頻率上限（淡海、安坑 55 秒／環狀線 60 秒）、失敗與逾時都算一次查詢、同時進來的請求只打一次（同 isolate 與跨 isolate）、上游帶逾時並交給 waitUntil、邊緣快取跨 isolate 與 www 共用且只交剩餘壽命、舊部署快取略過、負快取、白名單、前端防重入；'
     +'集中出口：12 個 colo 同時或先後請求官網全站只打一次、失敗回空逾時都算一次、DO 重置間隔照樣成立且在等的 colo 不直打、'
     +'DO 一時拿不到先撐一輪、一直拿不到才由各 colo 把關（有間隔、跨 isolate 先看邊緣、每次記帳）、落點禁區直接走退路、'
     +'主站帶來較長的間隔照樣生效且不准放寬、/status 不觸發查詢、「連續拿不到」看時間且 DO 通過就清掉、'
-    +'撐一輪期間同 isolate 與同 colo 都不直打、等 DO 帶逾時（逾時算一次拿不到）、慢回的舊回覆不蓋記憶體與邊緣');
+    +'撐一輪期間同 isolate 與同 colo 都不直打、撐的那份不寫邊緣、等 DO 帶逾時（逾時算一次拿不到）、慢回的舊回覆不蓋記憶體與邊緣（別的 isolate 晚到的超齡回覆也不寫）、'
+    +'佔位期間晚到的 DO 回覆比資料新舊（直打的較新資料不被換掉、撐的舊資料或空的那份換成較新的、空回覆不算較新、不寫邊緣）、等 DO 的整段交給 waitUntil、'
+    +'由邊緣供應 DO 那份就清掉 down、資料較新才接回（直打那份不會；壽命照它自己的 tried；回覆只交剩下的壽命）、內部標頭 x-ntm-src 不外露、退路那份與佔位那份都標成 direct、DO 壞框當成一次拿不到');
 }finally{Object.assign(globalThis,original);}
 
 if(!MUTATION){
