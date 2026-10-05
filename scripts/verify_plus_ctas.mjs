@@ -77,9 +77,14 @@ const ok = (name, pass, detail = '') => { results.push({ name, pass, detail }); 
 // false＝明確注入 false,也就是「平台端總開關關著」。原本 false 是用「不注入」來表達的,
 // 那在預設值還是 false 的年代等價,預設值一改就變成完全相反的環境——S4 因此當場翻紅(它就是要
 // 驗平台開關關著時不可以宣傳高解析),是個好例子:反向情境的前置狀態不可以靠別處的預設值表達。
-async function boot(browser, { plus = true, widget = false, la = false, satRetina = null, viewport = { width: 1280, height: 900 } } = {}) {
-  const ctx = await browser.newContext({ viewport });
-  await ctx.addInitScript(({ widget, la, satRetina }) => {
+// platform='android' 只給 W 組用:說明中心的小工具那節在 Android 原生殼是另一套文字(helpIsAndroid),
+// 要 isNativePlatform＋getPlatform 都在頁面腳本執行前就位才看得到;RAIL_ANDROID_PLUS_ENABLED 比照
+// 正式 Android(set-release-mode 出貨時設 1),不然 PLUS_ENABLED 在 Android 原生殼是 false。
+async function boot(browser, { plus = true, widget = false, la = false, satRetina = null, platform = null, viewport = { width: 1280, height: 900 } } = {}) {
+  // 原生殼的語言跟著系統走(navigator.languages),不釘就是 Playwright 預設的 en-US,W 組讀到的會是英文;
+  // 網站版首次開啟固定繁中,不受這一項影響。
+  const ctx = await browser.newContext({ viewport, ...(platform ? { locale: 'zh-TW' } : {}) });
+  await ctx.addInitScript(({ widget, la, satRetina, platform }) => {
     try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {} // 首訪教學卡會蓋住整張地圖
     if (satRetina !== null && satRetina !== undefined) window.RAIL_APP_CONFIG = { satRetina: !!satRetina };
     if (widget) {
@@ -92,6 +97,11 @@ async function boot(browser, { plus = true, widget = false, la = false, satRetin
         setPlus: p => rec('setPlus', p),
         addListener: () => Promise.resolve({ remove: () => {} }),
       } } };
+      if (platform) {
+        window.Capacitor.isNativePlatform = () => true;
+        window.Capacitor.getPlatform = () => platform;
+        if (platform === 'android') window.RAIL_ANDROID_PLUS_ENABLED = true;
+      }
     }
     if (la) {
       window.__laCalls = [];
@@ -101,7 +111,7 @@ async function boot(browser, { plus = true, widget = false, la = false, satRetin
         addListener: () => Promise.resolve({ remove: () => {} }),
       };
     }
-  }, { widget, la, satRetina });
+  }, { widget, la, satRetina, platform });
   const page = await ctx.newPage();
   // 假 token 送出去的衛星圖磚請求會真的打到 Esri(必然被拒),擋在這裡:不打外網、不製造雜訊。
   // 只擋這一個 host——外部 CDN 的 Leaflet 必須照常載入(心得37:全攔式 route 會讓 boot 拋錯)。
@@ -173,21 +183,26 @@ for (const [engName, launcher] of ENGINES) {
   // ══════════ W:使用說明中心的「捷運小工具」與「在這站等車」兩節 ══════════
   // 🔴 使用者裁示(2026-08-16):新功能的說明要寫進【原本的使用說明】,不是在看板底下自成一格
   //    講單一功能——「這跟其他的不同」。故本組驗的是說明中心那兩節,並附一條反向斷言擋回頭路。
-  {
-    const { ctx, page, errors } = await boot(browser, { widget: true });
+  // 2026-10-05 起兩個平台都跑:Android 原生殼的這一節是另一套文字(helpIsAndroid),只驗 iOS 那套的話,
+  // Android 那套改回「多站要通行證」也照樣全綠。
+  for (const [platTag, platform] of [['iOS', null], ['Android', 'android']]) {
+    const tag = `[${engName}][${platTag}]`;
+    const { ctx, page, errors } = await boot(browser, { widget: true, platform });
+    ok(`${tag} W0p 前置:說明中心用的是 ${platTag} 那套文字`,
+      (await page.evaluate(() => helpIsAndroid)) === (platform === 'android'));
     await page.evaluate(() => openHelp());
     await page.waitForTimeout(150);
     const opened = await page.evaluate(() => { const m = document.getElementById('helpModal'); return !!m && !m.hidden; });
-    ok(`[${engName}] W0 前置:使用說明中心開得起來`, opened === true, `opened=${opened}`);
+    ok(`${tag} W0 前置:使用說明中心開得起來`, opened === true, `opened=${opened}`);
     // 存在≠看得到:兩節都落在預設【收合】的「我的」群組裡,要按開那一組才算真的到得了使用者面前
     // (心得24:元素在 DOM 裡但被 display:none 的祖先蓋著,computed style 之外的斷言照不到)。
     const inDom = await page.evaluate(() => ['metrowidget', 'metrowait'].map(k => !!document.querySelector(`.help-sec[data-sec="${k}"]`)));
-    ok(`[${engName}] W1 有小工具的 App 上,說明中心長出「捷運小工具」與「在這站等車」兩節`,
+    ok(`${tag} W1 有小工具的 App 上,說明中心長出「捷運小工具」與「在這站等車」兩節`,
       inDom[0] === true && inDom[1] === true, JSON.stringify(inDom));
     const preVis = await page.isVisible('.help-sec[data-sec="metrowidget"]');
-    ok(`[${engName}] W1b 前置:那一組預設是收合的(下一條的展開才有意義)`, preVis === false, `preVis=${preVis}`);
+    ok(`${tag} W1b 前置:那一組預設是收合的(下一條的展開才有意義)`, preVis === false, `preVis=${preVis}`);
     await clickOk(page, '.help-grp:has(.help-sec[data-sec="metrowidget"]) .help-grph',
-      `[${engName}] W1c 那一組的標題真的按得開`);
+      `${tag} W1c 那一組的標題真的按得開`);
     await page.waitForTimeout(150);
     const vis = await page.evaluate(() => ['metrowidget', 'metrowait'].map(k => {
       const el = document.querySelector(`.help-sec[data-sec="${k}"]`);
@@ -195,7 +210,7 @@ for (const [engName, launcher] of ENGINES) {
       const r = el.getBoundingClientRect();
       return r.width > 0 && r.height > 0;
     }));
-    ok(`[${engName}] W1d 展開後兩節都真的看得到(有版面尺寸)`, vis[0] === true && vis[1] === true, JSON.stringify(vis));
+    ok(`${tag} W1d 展開後兩節都真的看得到(有版面尺寸)`, vis[0] === true && vis[1] === true, JSON.stringify(vis));
     const tx = await page.evaluate(() => {
       const g = k => { const el = document.querySelector(`.help-sec[data-sec="${k}"]`); return el ? el.textContent : ''; };
       const el = document.querySelector('.help-sec[data-sec="metrowidget"]');
@@ -205,14 +220,21 @@ for (const [engName, launcher] of ENGINES) {
     // 「自動（最近的站）」與「多站」是這節要教會的兩件事,缺一就沒講到。
     // 2026-10-05 起兩者對所有人免費:講到它們的那一句不可以再提通行證,也不可以再出現「免費可設定一站」
     // 那種把小工具講成有免費額度的說法(Android 那節的鎖定畫面跟車進度另有一句講通行證,那句不算)。
-    ok(`[${engName}] W2 小工具那節講到自動選站`, tx.w.includes('自動（最近的站）'), JSON.stringify(tx.w.slice(0, 120)));
-    ok(`[${engName}] W2b 講到多站`, tx.w.includes('多站'), JSON.stringify(tx.w.slice(0, 120)));
+    ok(`${tag} W2 小工具那節講到自動選站`, tx.w.includes('自動（最近的站）'), JSON.stringify(tx.w.slice(0, 120)));
+    ok(`${tag} W2b 講到多站`, tx.w.includes('多站'), JSON.stringify(tx.w.slice(0, 120)));
     const multiParts = tx.wParts.filter(x => x.includes('多站') || x.includes('自動（最近的站）'));
-    ok(`[${engName}] W2c 講多站／自動的那一句沒有提通行證(兩者免費)`,
+    ok(`${tag} W2c 講多站／自動的那一句沒有提通行證(兩者免費)`,
       multiParts.length > 0 && multiParts.every(x => !x.includes('通行證')), JSON.stringify(multiParts));
-    ok(`[${engName}] W2d 不再出現「免費可設定一站」`, !tx.w.includes('免費可設定一站'), JSON.stringify(tx.w.slice(0, 160)));
-    ok(`[${engName}] W2e 等車卡那節教得出怎麼開(「追蹤這站」)`, tx.q.includes('追蹤這站'), JSON.stringify(tx.q.slice(0, 120)));
-    ok(`[${engName}] W 無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
+    ok(`${tag} W2d 不再出現「免費可設定一站」`, !tx.w.includes('免費可設定一站'), JSON.stringify(tx.w.slice(0, 160)));
+    // 通行證在這一節只准出現在 Android 的「跟隨列車時鎖定畫面顯示進度」那句(那是通行證功能,與小工具選站無關)。
+    // Android 那句同時是正向對照:證明這個環境讀得到含「通行證」的句子,iOS 的 0 句才有意義。
+    const passParts = tx.wParts.filter(x => x.includes('通行證'));
+    const followTip = x => x.includes('跟隨') && x.includes('鎖定畫面') && !/多站|自動（最近的站）|設定一站/.test(x); // 「下一站進度」本來就有「一站」兩字
+    ok(`${tag} W2f 提到通行證的句子只剩 Android 的跟車鎖定畫面進度`,
+      passParts.every(followTip) && (platform === 'android' ? passParts.length > 0 : passParts.length === 0),
+      JSON.stringify(passParts));
+    ok(`${tag} W2e 等車卡那節教得出怎麼開(「追蹤這站」)`, tx.q.includes('追蹤這站'), JSON.stringify(tx.q.slice(0, 120)));
+    ok(`${tag} W 無 JS 例外`, errors.length === 0, errors.slice(0, 3).join(' | '));
     await ctx.close();
   }
   // 反向一:沒有小工具的環境(網站/舊版原生殼)兩節都不該長出來——不教一個按不到的功能

@@ -7,8 +7,10 @@
 //
 // 另有 S 組原始碼斷言:守住「同批必須有明講 CTA」這條裁示——擋下的兩條路徑都要帶 passCTA,
 // 且卡片檢視真的畫得出來(不是只放在 entry 裡沒人讀)。
+// A 組守 Android 的同一件事(MULTI_STATION_NEEDS_PASS 與 passUnlocked),C 組守文案(方案面板、條款、
+// 說明中心與英日文)。2026-10-05 起由 app/scripts/verify-release.mjs 在出 App 時呼叫。
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -64,6 +66,100 @@ const fetchIdx = widgetCode.indexOf('MetroFetcher.fetch');
 const nearestIdx = widgetCode.indexOf('MetroNearest.resolve');
 ok('S6 閘門在抓取與定位之前', gateIdx > 0 && gateIdx < fetchIdx && gateIdx < nearestIdx,
    `gate=${gateIdx} fetch=${fetchIdx} nearest=${nearestIdx}`);
+// S1 只看宣告、D 只看核心;evaluate 若改傳寫死的數字,兩邊都照樣綠。這條守接線。
+const gateCode = gateSrc.replace(/^\s*\/\/.*$/gm, '');
+const evaluateFn = gateCode.match(/static func evaluate\([\s\S]*?\n    \}/);
+ok('S7 evaluate 把 MetroBoardIntent.freeStationLimit 原樣傳給 decide',
+   !!evaluateFn && /MetroPlusCore\.decide\([\s\S]*?\blimit:\s*MetroBoardIntent\.freeStationLimit\s*,/.test(evaluateFn[0]),
+   evaluateFn ? '' : '(找不到 evaluate)');
+
+// ── A 組:Android 的同一件事 ─────────────────────────────────────────
+// 🔴 2026-10-05 起 MULTI_STATION_NEEDS_PASS = false,與 iOS 的 nil 同義。原生小工具判定一律經
+//    passUnlocked();任何地方直接讀 plus_active 去擋人,沒通行證的使用者就會被悄悄擋回去。
+//    只掃 src/main(出貨碼);debug 的 WidgetGalleryActivity 不進正式版。
+const ANDROID_DIR = join(ROOT, 'app/android/app/src/main/java/tw/railisland/app');
+const androidSrc = name => readFileSync(join(ANDROID_DIR, name), 'utf8');
+const stripJava = s => s.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' ')).replace(/\/\/.*$/gm, '');
+const providerCode = stripJava(androidSrc('MetroWidgetProvider.java'));
+ok('A1 MULTI_STATION_NEEDS_PASS 是 false(多站與自動免費)',
+   /static final boolean MULTI_STATION_NEEDS_PASS\s*=\s*false\s*;/.test(providerCode),
+   (providerCode.match(/MULTI_STATION_NEEDS_PASS\s*=.*/) || ['(找不到)'])[0]);
+const unlockFn = providerCode.match(/static boolean passUnlocked\(SharedPreferences prefs\)\s*\{([\s\S]*?)\}/);
+ok('A2 passUnlocked 先看旗標才看 plus_active',
+   !!unlockFn && /^\s*return\s+!MULTI_STATION_NEEDS_PASS\s*\|\|\s*prefs\.getBoolean\("plus_active",\s*false\)\s*;\s*$/.test(unlockFn[1]),
+   unlockFn ? unlockFn[1].trim() : '(找不到 passUnlocked)');
+// 直接讀 plus_active 只准出現在 passUnlocked 本體,以及兩個設定頁的通行證說明(那兩列的顯示要綁旗標,見 A4)。
+const NOTE_PAGES = ['MetroWidgetConfigActivity.java', 'MixedWidgetConfigActivity.java'];
+const strayReads = [];
+for (const name of readdirSync(ANDROID_DIR).filter(n => n.endsWith('.java'))) {
+  let code = stripJava(androidSrc(name));
+  if (name === 'MetroWidgetProvider.java' && unlockFn) code = code.replace(unlockFn[0], unlockFn[0].replace(/[^\n]/g, ' '));
+  if (NOTE_PAGES.includes(name)) continue;
+  code.split('\n').forEach((line, i) => { if (/getBoolean\(\s*"plus_active"/.test(line)) strayReads.push(`${name}:${i + 1}`); });
+}
+ok('A3 passUnlocked 以外沒有人直接讀 plus_active 去判定', strayReads.length === 0, strayReads.join(', '));
+for (const name of NOTE_PAGES) {
+  const code = stripJava(androidSrc(name));
+  ok(`A4 ${name} 的通行證說明只在需要通行證時顯示`,
+     /\.setVisibility\(\s*MetroWidgetProvider\.MULTI_STATION_NEEDS_PASS\s*\?\s*View\.VISIBLE\s*:\s*View\.GONE\s*\)/.test(code));
+}
+ok('A5 「自動（最近的站）」只在需要通行證時才標通行證',
+   /MULTI_STATION_NEEDS_PASS\s*\?\s*"自動（最近的站・通行證）"\s*:\s*"自動（最近的站）"/.test(stripJava(androidSrc('MetroWidgetConfigActivity.java'))));
+
+// ── C 組:文案不得再把小工具多站／自動講成付費 ────────────────────────────
+// 方案面板、條款第 3 節、說明中心的通行證與小工具兩節(兩個平台的版本)和它們的英日文,都是付款決定點,
+// 任何一處講回付費都是不實說法。逐子句比對,講「免費」的子句不算:
+//   C1 通行證功能清單裡,同一子句不准同時講到小工具與多站／自動;
+//   C2 小工具那節裡提到通行證的字串,只准是鎖定畫面跟車那一句(且不准提多站／自動),也不准出現「免費一站」這種額度說法。
+// C0 先拿改版前的實際舊文案當正向對照,證明偵測器真的會紅。
+const WIDGET_W = /小工具|widget|ウィジェット/i;
+const MULTI_W = /多站|自動（最近的站|自動\(最近的站|自動選站|最近的站|multiple stations|several stations|nearest station|Auto \(nearest|Automatic \(nearest|複数の駅|複数駅|最寄り駅/i;
+const PASS_W = /通行證|\bPass\b|パス(?!ポート)/;
+const FREE_W = /免費|\bfree\b|無料/i;
+const QUOTA_W = /一站|one station|1 ?駅|一駅/i;
+const LOCK_W = /鎖定畫面|lock screen|ロック画面/i;
+const FOLLOW_W = /跟隨|跟車|follow|追跡/i;
+const clauses = text => String(text).split(/[、，；。;：:・•\n]|(?<=[.!?])\s+|,\s/).map(c => c.trim()).filter(Boolean);
+const paidListHits = text => clauses(text).filter(c => WIDGET_W.test(c) && MULTI_W.test(c) && !FREE_W.test(c));
+const widgetSecHits = text => [
+  ...(PASS_W.test(text) && !(LOCK_W.test(text) && FOLLOW_W.test(text) && !MULTI_W.test(text)) ? [text] : []),
+  ...clauses(text).filter(c => FREE_W.test(c) && QUOTA_W.test(c)),
+];
+ok('C0 偵測器對改版前的舊文案會紅',
+   paidListHits('iPhone 捷運小工具放多站，或用「自動（最近的站）」跟著你移動換站').length > 0
+   && paidListHits('· Metro widgets showing several stations at once, or "Automatic (nearest station)" that follows you as you move').length > 0
+   && paidListHits('・メトロのウィジェットに複数の駅を表示、または「自動（最寄り駅）」で移動に合わせて切り替え').length > 0
+   && widgetSecHits('捷運免費可設定一站；想放多站或用「自動（最近的站）」需啟用軌島通行證').length > 0
+   && widgetSecHits('想放多站，或用自動選站，需要軌島通行證').length > 0
+   && widgetSecHits('跟隨台鐵或高鐵列車時，通行證也能把下一站進度放上鎖定畫面').length === 0);
+
+const readRoot = rel => readFileSync(join(ROOT, rel), 'utf8');
+const indexSrc = readRoot('index.html');
+const I18N_SRC = ['i18n/translations.js', 'i18n/content-translations.js'].map(readRoot);
+const between = (src, a, b) => { const i = src.indexOf(a); const j = i < 0 ? -1 : src.indexOf(b, i + a.length); return j < 0 ? '' : src.slice(i, j); };
+const zhLiterals = block => [...block.replace(/^\s*\/\/.*$/gm, '').matchAll(/'((?:[^'\\\n]|\\.)*)'/g)]
+  .map(m => m[1].replace(/<\/?b>/g, '')).filter(s => /[一-鿿]{2}/.test(s));
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const translationsOf = zh => I18N_SRC.flatMap(src =>
+  [...src.matchAll(new RegExp(`'${reEsc(zh)}'\\s*:\\s*'((?:[^'\\\\\\n]|\\\\.)*)'`, 'g'))].map(m => m[1]));
+const blockTexts = block => { const zh = zhLiterals(block); const tr = zh.flatMap(translationsOf); return { zh, tr, all: [...zh, ...tr] }; };
+
+const feats = blockTexts(between(indexSrc, 'const feats = [', '].map(feature'));
+const plusSec = blockTexts(between(indexSrc, "{ key: 'plus', ic: '票'", "try: 'plus' }"));
+const widgetSec = blockTexts(between(indexSrc, "{ key: 'metrowidget', ic: '桌'", 'widgets: helpIsAndroid'));
+const terms3 = between(readRoot('terms.html'), '<h2>3. 軌島通行證</h2>', '<h2>4.').replace(/<[^>]+>/g, ' ');
+const legalLines = readRoot('i18n/legal-translations.js').split('\n');
+ok('C 覆蓋 方案面板、說明中心兩節、條款第 3 節都抽得到,且三段都對得到英日文',
+   [feats, plusSec, widgetSec].every(b => b.zh.length > 0 && b.tr.length > 0) && terms3.length > 100,
+   `方案面板 ${feats.zh.length}/${feats.tr.length}、通行證節 ${plusSec.zh.length}/${plusSec.tr.length}、`
+   + `小工具節 ${widgetSec.zh.length}/${widgetSec.tr.length}、條款第 3 節 ${terms3.length} 字`);
+const c1 = [
+  ...[...feats.all, ...plusSec.all, terms3].flatMap(paidListHits),
+  ...legalLines.flatMap((line, i) => paidListHits(line).map(c => `legal-translations.js:${i + 1} ${c}`)),
+];
+ok('C1 通行證功能清單沒有把小工具多站／自動列進去', c1.length === 0, c1.slice(0, 4).join(' | '));
+const c2 = widgetSec.all.flatMap(widgetSecHits);
+ok('C2 小工具那節沒有把多站／自動講成要通行證', c2.length === 0, c2.slice(0, 4).join(' | '));
 
 // ── 差分:抽真 Swift 核心編譯,對上獨立 JS 模型 ──────────────────────
 function extractDeclaration(src, header) {

@@ -44,6 +44,21 @@ function runNearestGates() {
   console.log('  · 最近站解析共用層閘門通過：半徑單一來源（資料檔 → iOS/Android 兩端）＋三態判定＋深連結不帶 __auto__');
 }
 
+// ── 捷運小工具通行證閘門（2026-10-05 掛上出貨鏈）──────────────────────────────
+// 多站與「自動（最近的站）」對所有人免費是資料授權的條件。iOS 的 freeStationLimit、Android 的
+// MULTI_STATION_NEEDS_PASS 與付款文案只要有一處改回付費，build 照樣成功、畫面也不會報錯，
+// 只會讓沒買通行證的人被悄悄擋住，所以出 App 時一定要跑。D 組要 xcrun swiftc，缺工具一律紅。
+function runMetroPlusGate() {
+  try {
+    execFileSync(process.execPath, [join(here, 'verify_metro_plus_gate.mjs')],
+      { stdio: ['ignore', 'pipe', 'inherit'], encoding: 'utf8' });
+  } catch (e) {
+    if (e.stdout) process.stdout.write(e.stdout);
+    fail('verify_metro_plus_gate.mjs 沒過（單獨跑 node app/scripts/verify_metro_plus_gate.mjs 看完整輸出）');
+  }
+  console.log('  · 捷運小工具通行證閘門通過：多站與自動對所有人免費（iOS／Android／文案）');
+}
+
 // JDK 位置：出貨規則記的是 Android 要 JDK 21（Android Studio 內建的 25 不行）。
 // 這裡只需要 javac 編一個沒有相依的純 Java 檔，但仍優先用同一份，免得兩條路各用各的。
 function javacHome() {
@@ -635,6 +650,7 @@ export async function verifyRelease({
   const androidManifest = await readFile(join(appRoot, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
   verifyAndroidWidgetParity();
   runNearestGates();
+  runMetroPlusGate();
   // 小工具預覽圖:repo 側守門(index.html 引用＝git 追蹤、預算)＋bundle 側實查(prepare-web 只收追蹤檔;這些是執行期組出來的 <img src>,
   // 上面那段掃 <script src>/<link href> 的資產完整性閘門照不到它們——整枝審查 M-1)
   for (const f of verifyWidgetPreviews({ log: false }).files) if (!relativeFiles.includes(f)) fail(`小工具預覽圖沒進 bundle：${f}`);
