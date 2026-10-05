@@ -19,6 +19,7 @@ import {headFramingDistance,headFramingPadding} from './follow-framing.js';
 import {cameraMotion} from './camera-motion.js';
 import {createLandscapeTrees} from './landscape-trees.js';
 import {orderBuildingPasses} from './layer-order.js';
+import {trainDisplayOpacity,createFadingTrainMaterial} from './train-display.js';
 
 const asset=p=>new URL('../'+p,import.meta.url).href;
 const json=async p=>{const r=await fetch(asset(p));if(!r.ok)throw Error(p+' 載入失敗');return r.json();};
@@ -54,13 +55,14 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   // 只替換列車材質；路線、底圖、建物與車體的實際位置完全沿用原本資料。
   material.uniforms.trainClipMatrix={value:new THREE.Matrix4()};
   material.vertexShader='uniform mat4 trainClipMatrix;\n'+material.vertexShader.replace('projectionMatrix*modelViewMatrix*vec4(position,1.0)','trainClipMatrix*vec4(position,1.0)');
-  function lightUniforms(mat,view,mesh){mat.uniforms.trainClipMatrix.value.multiplyMatrices(view.projectionMatrix,mesh.modelViewMatrix);const l=mesh.userData.trainLight;mat.uniforms.trainNight.value=nightAmount(globalThis.railIslandSunlight?.current);mat.uniforms.trainTunnel.value.fromArray(l?.tunnel||[0,0,0]);const box=mesh.geometry.boundingBox;mat.uniforms.trainBounds.value.set(box.min.x,box.max.x);mat.uniformsNeedUpdate=true;}
+  function lightUniforms(mat,view,mesh){mat.uniforms.trainClipMatrix.value.multiplyMatrices(view.projectionMatrix,mesh.modelViewMatrix);const l=mesh.userData.trainLight;mat.uniforms.trainNight.value=nightAmount(globalThis.railIslandSunlight?.current);mat.uniforms.trainTunnel.value.fromArray(l?.tunnel||[0,0,0]);mat.uniforms.trainOpacity.value=(mesh.userData.trainTranslucent?.42:1)*trainDisplayOpacity(mesh.userData.displayOpacity);const box=mesh.geometry.boundingBox;mat.uniforms.trainBounds.value.set(box.min.x,box.max.x);mat.uniformsNeedUpdate=true;}
   material.onBeforeRender=(_renderer,_scene,view,_geometry,mesh)=>lightUniforms(material,view,mesh);
   const undergroundMaterial=material.clone();undergroundMaterial.transparent=true;undergroundMaterial.depthTest=true;undergroundMaterial.depthWrite=false;
   // 車體已有自己的深度前置 pass，背面被深度擋住；不再為透明雙面車逐節重畫背／正面兩次。
   undergroundMaterial.forceSinglePass=true;
   undergroundMaterial.uniforms.trainOpacity.value=.42;
   undergroundMaterial.onBeforeRender=(_renderer,_scene,view,_geometry,mesh)=>{lightUniforms(undergroundMaterial,view,mesh);};
+  const fadingMaterial=createFadingTrainMaterial(material,lightUniforms);
   const vehicleDepthMaterial=material.clone();vehicleDepthMaterial.colorWrite=false;vehicleDepthMaterial.depthWrite=true;vehicleDepthMaterial.depthTest=true;
   vehicleDepthMaterial.onBeforeRender=(_renderer,_scene,view,_geometry,mesh)=>{vehicleDepthMaterial.uniforms.trainClipMatrix.value.multiplyMatrices(view.projectionMatrix,mesh.modelViewMatrix);vehicleDepthMaterial.uniformsNeedUpdate=true;};
   const ambientLight=new THREE.AmbientLight(0xffffff,1.9);scene.add(ambientLight);const sun=new THREE.DirectionalLight(0xfff3dc,2);sun.position.set(-100,-150,300);scene.add(sun);
@@ -311,16 +313,16 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     const onScreen=(c,v)=>v.followed||(c[0]>=vw-padX&&c[0]<=ve+padX&&c[1]>=vs-padY&&c[1]<=vn+padY);
     hits=[];stats.models=0;stats.undergroundModels=0;stats.poseSamples=[];stats.modelFallbacks=[];const arrowP=[],arrowC=[],beams=[],beamLimit=el.clientWidth<768?8:24;let beamMs=0;
     next.vehicles.forEach((v,i)=>{const coord=[v.longitude,v.latitude],profile=near&&onScreen(coord,v)&&(terrainState.terrain||v.route?.level||wanted.has(v.id))&&Math.hypot(coord[0]-center.lng,coord[1]-center.lat)<.08?routeProfile(v):null,path=profile&&formationPath(v,profile),ratio=ml.MercatorCoordinate.fromLngLat(coord).meterInMercatorCoordinateUnits()/unit,
-      h=(profile?path===profile.path?profile.height:railHeight(path,profile.s):undefined)??(onScreen(coord,v)?height(coord):null),p=world(coord,h??.65),m=models.get(v.id),color=new THREE.Color(v.followed?'#d65130':v.color||'#287766');
+      h=(profile?path===profile.path?profile.height:railHeight(path,profile.s):undefined)??(onScreen(coord,v)?height(coord):null),p=world(coord,h??.65),m=models.get(v.id),opacity=trainDisplayOpacity(v.displayOpacity),color=new THREE.Color(v.followed?'#d65130':v.color||'#287766');
       positions.set(p,i*3);colors.set([color.r,color.g,color.b],i*3);const hit={v,p,modelled:false};hits.push(hit);
-      if(m?.group){const poses=profile&&h!==null&&(!terrainHeights()||path.elevation||path.level)?formationPoses(path,profile.s,profile.direction*(v.formationFacing||1),m.model.parts,s=>railHeight(path,s)):null;m.group.visible=!!poses;
+      if(m?.group){const poses=opacity>0&&profile&&h!==null&&(!terrainHeights()||path.elevation||path.level)?formationPoses(path,profile.s,profile.direction*(v.formationFacing||1),m.model.parts,s=>railHeight(path,s)):null;m.group.visible=!!poses;
         if(poses){const displayScale=m.displayScale??1;
           // 「透視顯示」切到實體時,地下列車改用實色車體:仍留在地下圖層,與地面列車的前後關係不變,只是不再半透明。
           // 地下軌道線照舊半透明(profile-lines 的 .32),所以還看得出這一段在地下——2026-09-10 裁示只讓列車變實色。
           m.cars.forEach((car,k)=>{const part=m.model.parts[k],pose=poses[k],r=ml.MercatorCoordinate.fromLngLat(pose.coordinate).meterInMercatorCoordinateUnits()/unit;pose.underground=isUnderground(path,pose.s);
             const direction=profile.direction*(v.formationFacing||1)*(part.flip?-1:1),half=part.bodyLengthM/2;
-            pose.light={night:nightAmount(globalThis.railIslandSunlight?.current),tunnel:[-half,0,half].map(d=>tunnelAmount(path,pose.s+d*direction))};car.children[0].userData.trainLight=pose.light;car.children[0].material=(pose.translucent=pose.underground&&inspection)?undergroundMaterial:material;car.children[0].layers.set(pose.underground?1:0);car.children[0].layers.enable(2);car.position.set(...world(pose.coordinate,pose.height));car.scale.set(r,r*displayScale,r);car.rotation.set(0,part.flip?pose.pitch:-pose.pitch,pose.angle+(part.flip?Math.PI:0),'ZYX');});
-          for(const lamp of m.lightPoints){const pose=poses[lamp.index],tail=lamp.side*(v.formationFacing||1)<0;lamp.points.userData.tail=tail;lamp.points.userData.lightStrength=Math.max(pose.light.night,...pose.light.tunnel)*(tail?.7:1);lamp.points.visible=lamp.points.userData.lightStrength>.01;lamp.points.layers.set(pose.underground?1:0);}
+            pose.light={night:nightAmount(globalThis.railIslandSunlight?.current),tunnel:[-half,0,half].map(d=>tunnelAmount(path,pose.s+d*direction))};const mesh=car.children[0];mesh.userData.trainLight=pose.light;mesh.userData.displayOpacity=opacity;mesh.userData.trainTranslucent=pose.translucent=pose.underground&&inspection;mesh.material=opacity<1?fadingMaterial:pose.translucent?undergroundMaterial:material;mesh.layers.set(pose.underground?1:0);if(opacity===1)mesh.layers.enable(2);car.position.set(...world(pose.coordinate,pose.height));car.scale.set(r,r*displayScale,r);car.rotation.set(0,part.flip?pose.pitch:-pose.pitch,pose.angle+(part.flip?Math.PI:0),'ZYX');});
+          for(const lamp of m.lightPoints){const pose=poses[lamp.index],tail=lamp.side*(v.formationFacing||1)<0;lamp.points.userData.tail=tail;lamp.points.userData.lightStrength=Math.max(pose.light.night,...pose.light.tunnel)*(tail?.7:1)*opacity;lamp.points.visible=lamp.points.userData.lightStrength>.01;lamp.points.layers.set(pose.underground?1:0);}
           // 洞外、近景才畫地面柔光。沿真正股道取樣，高架只照亮橋面寬度，平面段延伸到兩旁。
           if(map.getZoom()>=16&&(beams.length<beamLimit||v.followed)){
             const beamStart=performance.now(),forward=(v.formationFacing||1)>0,index=forward?0:poses.length-1,pose=poses[index],direction=profile.direction;
@@ -333,12 +335,12 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
                 rows.push([-1,-.5,0,.5,1].map(f=>{const coord=[q.coordinate[0]+ux*f*half/(111320*Math.cos(q.coordinate[1]*Math.PI/180)),q.coordinate[1]+uy*f*half/110574];
                   const z=elevated?h-.1:Math.max(ground+.12,h-.1-Math.max(0,Math.abs(f)*half-1.5)*.45);return world(coord,z);}));
               }
-              if(rows.length>1){if(beams.length>=beamLimit)beams.pop();beams.push({rows,strength:pose.light.night});}
+              if(rows.length>1){if(beams.length>=beamLimit)beams.pop();beams.push({rows,strength:pose.light.night*opacity});}
             }
             beamMs+=performance.now()-beamStart;
           }
           stats.undergroundModels+=poses.some(p=>p.underground)?1:0;hit.modelled=true;positions[i*3+2]=-1e7;stats.models++;stats.poseSamples.push({id:v.id,coordinate:coord,displayHeightM:h,railElevationM:null,level:profile.path.level?.(profile.s)||null,underground:poses.some(p=>p.underground),angle:poses[0].angle,displayScale,lengthScale:1,lengthM:m.model.lengthM,carCount:m.cars.length,formationQuality:m.model.quality,formationMode,modelId:m.model.id,actualCarCount:m.model.actualCarCount,countBasis:m.model.countBasis,lengthKnown:m.model.lengthKnown,caption:m.model.caption,cars:poses});
-          m.screenPose={p,color:v.color,angle:poses[0].angle,ratio,sample:stats.poseSamples.at(-1),physical:!!v.route?.physical};
+          m.screenPose={p,color:v.color,displayOpacity:opacity,angle:poses[0].angle,ratio,sample:stats.poseSamples.at(-1),physical:!!v.route?.physical};
         }else stats.modelFallbacks.push({id:v.id,reason:!profile?'來源位置不在線形上':terrainState.terrain&&!profile.path.elevation?'缺少固定顯示高程':'編組超出已知線形端點'});
       }else if(v.followed&&!formationFor(v,formationMode))stats.modelFallbacks.push({id:v.id,reason:'車型或編組長度尚未確認'});
       const screen=!markers&&next.display?.dirArrow?project(p):null;
@@ -393,7 +395,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     if(map.getLayer('live-tunnel-apertures'))map.removeLayer('live-tunnel-apertures');
     if(vehicleLayer&&map.getLayer('live-vehicles-3d')===vehicleLayer)map.removeLayer('live-vehicles-3d');if(underlayLayer&&map.getLayer('live-vehicles-underlay')===underlayLayer)map.removeLayer('live-vehicles-underlay');
     if(undergroundLayer&&map.getLayer('live-underground-3d')===undergroundLayer)map.removeLayer('live-underground-3d');
-    clearLines();for(const m of models.values())if(m.group)scene.remove(m.group);models.clear();rails.destroy();undergroundRails.destroy();structures.destroy();apertures.destroy();headlightSpill.destroy();trainHalo.destroy();lamps.destroy();undergroundMaterial.dispose();vehicleDepthMaterial.dispose();for(const g of cache.values())g.dispose();material.dispose();pointGeometry.dispose();pointMaterial.dispose();pointTexture.dispose();arrowGeometry.dispose();arrowMaterial.dispose();webgl?.dispose();}
+    clearLines();for(const m of models.values())if(m.group)scene.remove(m.group);models.clear();rails.destroy();undergroundRails.destroy();structures.destroy();apertures.destroy();headlightSpill.destroy();trainHalo.destroy();lamps.destroy();undergroundMaterial.dispose();fadingMaterial.dispose();vehicleDepthMaterial.dispose();for(const g of cache.values())g.dispose();material.dispose();pointGeometry.dispose();pointMaterial.dispose();pointTexture.dispose();arrowGeometry.dispose();arrowMaterial.dispose();webgl?.dispose();}
   const mapListeners=[];const listenMap=(type,handler)=>{map.on(type,handler);mapListeners.push([type,handler]);};
   try{
     if(!map.getSource('terrain'))map.addSource('terrain',{type:'raster-dem',tiles:['island-dem://{z}/{x}/{y}'],minzoom:0,maxzoom:12,tileSize:512,encoding:'terrarium',attribution:'<a href="https://mapterhorn.com/attribution/" target="_blank" rel="noopener">© Mapterhorn · 內政部 20m DTM</a>'});

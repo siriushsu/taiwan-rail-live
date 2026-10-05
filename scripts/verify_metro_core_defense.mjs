@@ -83,7 +83,7 @@ if (MUTATED_BADGE_LIE_HTML === REAL_HTML) throw new Error('徽章說謊突變沒
 
 // 7：跟隨退場吐司回到 994a9ce 之前的錯誤歸因（Core 車也講「官方名冊已更新」）。E3 必須轉紅。
 const MUTATED_TOAST_HTML = REAL_HTML
-  .replace(`      showToast(t(core ? '這台車已超過 30 秒不在即時模型中，已結束跟隨'
+  .replace(`      showToast(t(f.terminalDisplay ? '列車已抵達終點' : core ? '這台車已超過 30 秒不在即時模型中，已結束跟隨'
         : '官方名冊已更新，已結束這台車的跟隨'));`,
     `      showToast(t('官方名冊已更新，已結束這台車的跟隨')); // MUTATION toast`);
 if (MUTATED_TOAST_HTML === REAL_HTML) throw new Error('退場文案突變沒有命中');

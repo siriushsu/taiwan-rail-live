@@ -1,5 +1,6 @@
 import * as THREE from '../vendor/three.module.js';
 import {haloNight,haloPalette,scatterCar} from './train-halo-style.js';
+import {trainDisplayOpacity} from './train-display.js';
 
 const shift=(c,a,m)=>[c[0]+Math.cos(a)*m/(111320*Math.cos(c[1]*Math.PI/180)),c[1]+Math.sin(a)*m/110574];
 const corners=[[-1,-1],[1,-1],[-1,1],[-1,1],[1,-1],[1,1]];
@@ -36,8 +37,8 @@ export function createTrainHalo(scene) {
     for(const b of batches){b.count=0;b.mesh.visible=false;}
     if(stats.enabled&&display?.enabled!==false)for(const m of models.values()) {
       if(!m.group?.visible||!m.screenPose)continue;
-      const {sample,color}=m.screenPose,cars=sample.cars,first=cars[0],last=cars.at(-1);
-      if(!first)continue;
+      const {sample,color}=m.screenPose,opacity=trainDisplayOpacity(m.screenPose.displayOpacity),cars=sample.cars,first=cars[0],last=cars.at(-1);
+      if(!first||opacity<=0)continue;
       const p=cars.map(c=>project(c.coordinate,c.height+1.75)),before=project(shift(first.coordinate,first.angle,m.model.parts[0].bodyLengthM/2),first.height+1.75),after=project(shift(last.coordinate,last.angle,-m.model.parts.at(-1).bodyLengthM/2),last.height+1.75);
       let radius=2.5;
       for(let i=0;i<cars.length;i++) {
@@ -55,7 +56,7 @@ export function createTrainHalo(scene) {
           ex=east.x-q.x,ey=east.y-q.y,ez=east.z-q.z,nx=north.x-q.x,ny=north.y-q.y,nz=north.z-q.z,det=ex*ny-ey*nx,
           gx=Math.abs(det)>1e-8?(ez*ny-ey*nz)/det:0,gy=Math.abs(det)>1e-8?(ex*nz-ez*nx)/det:0;
         const b=c.underground?underground:surface;let carVisible=false;
-        scatterCar(a,q,z,radius,k,palette.alpha,(x,y,angle,rx,ry,alpha)=>{
+        scatterCar(a,q,z,radius,k,palette.alpha*opacity,(x,y,angle,rx,ry,alpha)=>{
           const cos=Math.cos(angle),sin=Math.sin(angle),extentX=Math.abs(cos*rx)+Math.abs(sin*ry),extentY=Math.abs(sin*rx)+Math.abs(cos*ry);
           if(x+extentX<0||x-extentX>width||y+extentY<0||y-extentY>height)return;
           ensure(b,b.count+6);const attr=b.mesh.geometry.attributes;

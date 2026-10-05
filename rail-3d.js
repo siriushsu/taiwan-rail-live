@@ -91,12 +91,12 @@
       const sys=freqSysIdOf(ln),route=lineRecord(ln,sys),common={systemId:sys,routeId:String(ln.id),route,color:ln.color,publicLabel:ln.abbr||ln.name};
       routes.push(route);for(const st of ln.stations||[])station(st,sys,ln);
       if(state.collectMap||!nearbyLine(ln))continue;
-      const core=metroCoreItemsForLine(ln,epoch),official=core===null?trtcOfficialItemsForLine(ln,epoch):null;
+      const core=typeof metroCoreDisplayItemsForLine==='function'?metroCoreDisplayItemsForLine(ln,epoch):metroCoreItemsForLine(ln,epoch),official=core===null?trtcOfficialItemsForLine(ln,epoch):null;
       if(core!==null||official!==null){
         for(const item of core??official){const kind=core!==null?'core':'official',f=state.freqFollow;
           const followed=!!f&&!!f.core===(kind==='core')&&String(f.lineId)===String(ln.id)&&String(f.vehicleId)===String(item.vehicleId)&&(!f.core||String(f.systemId)===String(item.systemId));
           const id=[sys,ln.id,kind,item.vehicleId].join(':');motionItems.set(id,item);
-          add(id,item.pos,{...common,sourceKind:kind,publicLabel:item.publicLabel||item.officialNo||ln.abbr,direction:item.train?.direction??item.vehicle?.direction??null,railDirection:kind==='official'?trtcOfficialMotionStep(item.vehicle,item.pos):coreRouteDirection(item.train,ln),followed},
+          add(id,item.pos,{...common,sourceKind:kind,publicLabel:item.publicLabel||item.officialNo||ln.abbr,direction:item.train?.direction??item.vehicle?.direction??null,railDirection:kind==='official'?trtcOfficialMotionStep(item.vehicle,item.pos):coreRouteDirection(item.train,ln),terminalDisplay:!!item.terminalDisplay,displayOpacity:item.displayOpacity??1,followed},
             {ln,vehicleId:item.vehicleId,core:kind==='core',systemId:item.systemId});
         }continue;
       }
