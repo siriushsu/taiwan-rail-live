@@ -1230,7 +1230,7 @@
     '把捷運站放上主畫面或鎖定畫面，不開 App 就看得到下一班往哪裡、還有幾分鐘。': 'Put a metro station on your Home or Lock Screen to see the next direction and countdown without opening the app.',
     '長按主畫面空白處進入編輯，從加入小工具的入口搜尋「軌島」': 'Touch and hold an empty area on the Home Screen, enter edit mode and search for Rail Island in Add Widget',
     '選捷運小工具，再挑一個車站；鎖定畫面也放得下': 'Choose the Metro widget and select a station; it also fits on the Lock Screen',
-    '想看多站就多加幾張，每張選一站；選「自動（最近的站）」，它會跟著你移動換站': 'Add more widgets for more stations, one station each; choose Auto (nearest station) and it switches as you move',
+    '想看多站就多加幾張，每張選一站；選「自動（最近的站）」，它會跟著你移動換站': 'Add more widgets for more stations, one station each; choose “Automatic (nearest station)” and it switches as you move',
     '還有一張「鐵路＋捷運看板」大卡，把台鐵、高鐵與捷運的發車資訊列在同一張。點小工具會直接開啟軌島到那一站。': 'The large Rail and Metro Board combines TRA, HSR and metro departures. Tap a widget to open Rail Island at that station.',
     '桌': 'W',
     '在這站等車：鎖定畫面倒數': 'Wait at this station: Lock Screen countdown',
@@ -3677,7 +3677,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 
 // 2026-10-05 捷運小工具多站與自動選站改為免費（v1005e）：最近更新的英日文。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  '捷運小工具的多站與「自動（最近的站）」改為所有人免費，不再需要通行證；更新到新版 App 後生效': 'Metro widgets: multiple stations and Auto (nearest station) are now free for everyone, no Pass needed; takes effect once you update the app',
+  '捷運小工具的多站與「自動（最近的站）」改為所有人免費，不再需要通行證；更新到新版 App 後生效': 'Metro widgets: multiple stations and “Automatic (nearest station)” are now free for everyone, no Pass needed; takes effect once you update the app',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '捷運小工具的多站與「自動（最近的站）」改為所有人免費，不再需要通行證；更新到新版 App 後生效': 'メトロウィジェットの複数駅と「自動（最寄り駅）」が、パスなしで誰でも無料で使えるようになりました。新しいバージョンのアプリに更新すると反映されます',

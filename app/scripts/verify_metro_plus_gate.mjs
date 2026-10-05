@@ -8,7 +8,7 @@
 // 另有 S 組原始碼斷言:守住「同批必須有明講 CTA」這條裁示——擋下的兩條路徑都要帶 passCTA,
 // 且卡片檢視真的畫得出來(不是只放在 entry 裡沒人讀)。
 // A 組守 Android 的同一件事(MULTI_STATION_NEEDS_PASS 與 passUnlocked),C 組守文案(方案面板、條款、
-// 說明中心與英日文)。2026-10-05 起由 app/scripts/verify-release.mjs 在出 App 時呼叫。
+// 說明中心與英日文)。2026-10-05 起出 App(app/scripts/verify-release.mjs)與網站出貨(scripts/ship_web.mjs 2.28)都會跑。
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -29,13 +29,18 @@ for (const f of [GATE, WIDGET, INTENT]) {
 const gateSrc = readFileSync(GATE, 'utf8');
 const widgetSrc = readFileSync(WIDGET, 'utf8');
 const intentSrc = readFileSync(INTENT, 'utf8');
+// Swift／Java／Kotlin 的註解先拿掉再比:把舊值留在註解裡、另寫一行新值,照樣要抓得到。
+// 「://」的 // 不當註解(網址字串)。
+const stripComments = s => s.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' ')).replace(/(^|[^:])\/\/.*$/gm, '$1');
+const blank = s => s.replace(/[^\n]/g, ' ');
 
 // ── S 組:原始碼層的裁示守門 ─────────────────────────────────────────
 // 🔴 2026-10-05 起 freeStationLimit = nil:多站與自動對所有人免費(即時資訊不設付費門檻是
 //    資料授權的條件)。S2 以下守的 CTA 路徑仍保留,limit 改回數字時照樣要講清楚。
+const limitDecls = stripComments(intentSrc).match(/\bfreeStationLimit\s*:[^\n]*/g) || [];
 ok('S1 freeStationLimit 是 nil(多站與自動免費)',
-   /freeStationLimit\s*:\s*Int\?\s*=\s*nil\b/.test(intentSrc),
-   (intentSrc.match(/freeStationLimit.*/) || ['(找不到)'])[0]);
+   limitDecls.length === 1 && /freeStationLimit\s*:\s*Int\?\s*=\s*nil\b/.test(limitDecls[0]),
+   limitDecls.join(' | ') || '(找不到)');
 // 🔴 這條是「明講 CTA」裁示的牙:兩條擋下路徑各自都要帶 passCTA,漏一條就是靜默空白卡。
 const autoBranch = widgetSrc.match(/case \.needPassAuto:[\s\S]*?case \.needPassMulti/);
 ok('S2 needPassAuto 帶 CTA 文案', !!autoBranch
@@ -67,20 +72,48 @@ const nearestIdx = widgetCode.indexOf('MetroNearest.resolve');
 ok('S6 閘門在抓取與定位之前', gateIdx > 0 && gateIdx < fetchIdx && gateIdx < nearestIdx,
    `gate=${gateIdx} fetch=${fetchIdx} nearest=${nearestIdx}`);
 // S1 只看宣告、D 只看核心;evaluate 若改傳寫死的數字,兩邊都照樣綠。這條守接線。
-const gateCode = gateSrc.replace(/^\s*\/\/.*$/gm, '');
+const gateCode = stripComments(gateSrc);
 const evaluateFn = gateCode.match(/static func evaluate\([\s\S]*?\n    \}/);
 ok('S7 evaluate 把 MetroBoardIntent.freeStationLimit 原樣傳給 decide',
    !!evaluateFn && /MetroPlusCore\.decide\([\s\S]*?\blimit:\s*MetroBoardIntent\.freeStationLimit\s*,/.test(evaluateFn[0]),
    evaluateFn ? '' : '(找不到 evaluate)');
+// S8 widget 讀通行證狀態只有一個入口:MetroPlusGate.plusActive(),而且只有 evaluate 把它交給 decide。
+//    鍵名從 App 寫入的地方(RailMetroWaitPlugin.setPlus)抓:App 多寫一個鍵、widget 改讀那個鍵,照樣抓得到。
+const IOS_WIDGET_DIR = join(ROOT, 'app/ios/App/RailBoardWidget');
+const iosWidgetFiles = readdirSync(IOS_WIDGET_DIR).filter(n => n.endsWith('.swift'))
+  .map(n => ({ name: `RailBoardWidget/${n}`, code: stripComments(readFileSync(join(IOS_WIDGET_DIR, n), 'utf8')) }));
+const iosSetPlus = (stripComments(readFileSync(join(ROOT, 'app/ios/App/App/RailMetroWaitPlugin.swift'), 'utf8'))
+  .match(/func setPlus\([\s\S]*?\n    \}/) || [''])[0];
+const IOS_PASS_KEYS = [...iosSetPlus.matchAll(/forKey:\s*"([^"]+)"/g)].map(m => m[1]);
+ok('S8k 抓得到 App 寫入通行證狀態的鍵(RailMetroWaitPlugin.setPlus)', IOS_PASS_KEYS.length > 0, JSON.stringify(IOS_PASS_KEYS));
+const PLUS_KEY_DEF = /^\s*static let plusKey = "[^"]+"\s*$/;
+const PLUS_ACTIVE_DEF = /^\s*static func plusActive\(\) -> Bool \{ suite\?\.bool\(forKey: plusKey\) \?\? false \}\s*$/;
+const iosStray = [], plusCalls = [];
+for (const { name, code } of iosWidgetFiles) {
+  code.split('\n').forEach((line, i) => {
+    const at = `${name}:${i + 1}`;
+    if (IOS_PASS_KEYS.some(k => line.includes(`"${k}"`)) && !PLUS_KEY_DEF.test(line)) iosStray.push(`${at} 直接用鍵名`);
+    if (/\bplusKey\b/.test(line) && !PLUS_KEY_DEF.test(line) && !PLUS_ACTIVE_DEF.test(line)) iosStray.push(`${at} plusKey`);
+    for (const _ of line.matchAll(/\bplusActive\(\)/g)) if (!/func plusActive\(\)/.test(line)) plusCalls.push(at);
+  });
+}
+ok('S8 widget 只在 evaluate 讀一次通行證狀態(交給 decide)',
+   iosStray.length === 0 && plusCalls.length === 1 && !!evaluateFn
+   && /MetroPlusCore\.decide\(plus:\s*plusActive\(\)\s*,/.test(evaluateFn[0]),
+   [...iosStray, `plusActive() 呼叫 ${plusCalls.length} 處:${plusCalls.join(', ')}`].join(' | '));
 
 // ── A 組:Android 的同一件事 ─────────────────────────────────────────
 // 🔴 2026-10-05 起 MULTI_STATION_NEEDS_PASS = false,與 iOS 的 nil 同義。原生小工具判定一律經
-//    passUnlocked();任何地方直接讀 plus_active 去擋人,沒通行證的使用者就會被悄悄擋回去。
-//    只掃 src/main(出貨碼);debug 的 WidgetGalleryActivity 不進正式版。
+//    passUnlocked();任何地方直接讀通行證狀態去擋人,沒通行證的使用者就會被悄悄擋回去。
+//    掃 src/main(出貨碼)底下全部 Java／Kotlin,含子 package;debug 的 WidgetGalleryActivity 不進正式版。
 const ANDROID_DIR = join(ROOT, 'app/android/app/src/main/java/tw/railisland/app');
+const ANDROID_MAIN = join(ROOT, 'app/android/app/src/main');
 const androidSrc = name => readFileSync(join(ANDROID_DIR, name), 'utf8');
-const stripJava = s => s.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' ')).replace(/\/\/.*$/gm, '');
-const providerCode = stripJava(androidSrc('MetroWidgetProvider.java'));
+const walk = dir => readdirSync(dir, { withFileTypes: true }).flatMap(e =>
+  e.isDirectory() ? walk(join(dir, e.name)) : /\.(java|kt)$/.test(e.name) ? [join(dir, e.name)] : []);
+const androidFiles = ['java', 'kotlin'].map(d => join(ANDROID_MAIN, d)).filter(existsSync).flatMap(walk);
+const relPath = f => f.slice(ROOT.length + 1);
+const providerCode = stripComments(androidSrc('MetroWidgetProvider.java'));
 ok('A1 MULTI_STATION_NEEDS_PASS 是 false(多站與自動免費)',
    /static final boolean MULTI_STATION_NEEDS_PASS\s*=\s*false\s*;/.test(providerCode),
    (providerCode.match(/MULTI_STATION_NEEDS_PASS\s*=.*/) || ['(找不到)'])[0]);
@@ -88,41 +121,137 @@ const unlockFn = providerCode.match(/static boolean passUnlocked\(SharedPreferen
 ok('A2 passUnlocked 先看旗標才看 plus_active',
    !!unlockFn && /^\s*return\s+!MULTI_STATION_NEEDS_PASS\s*\|\|\s*prefs\.getBoolean\("plus_active",\s*false\)\s*;\s*$/.test(unlockFn[1]),
    unlockFn ? unlockFn[1].trim() : '(找不到 passUnlocked)');
-// 直接讀 plus_active 只准出現在 passUnlocked 本體,以及兩個設定頁的通行證說明(那兩列的顯示要綁旗標,見 A4)。
-const NOTE_PAGES = ['MetroWidgetConfigActivity.java', 'MixedWidgetConfigActivity.java'];
+// 通行證狀態的鍵名從 App 寫入的地方(RailMetroWaitPlugin.setPlus)抓,不在這裡寫死。
+const pluginCode = stripComments(androidSrc('RailMetroWaitPlugin.java'));
+const setPlusFn = (pluginCode.match(/public void setPlus\(PluginCall call\)\s*\{[\s\S]*?\n    \}/) || [''])[0];
+const PASS_KEYS = [...setPlusFn.matchAll(/putBoolean\(\s*"([^"]+)"/g)].map(m => m[1]);
+ok('A3k 抓得到 App 寫入通行證狀態的鍵(RailMetroWaitPlugin.setPlus)', PASS_KEYS.includes('plus_active'), JSON.stringify(PASS_KEYS));
+// 兩個設定頁各准讀一次,只拿來決定通行證說明那一列怎麼寫;那個變數離開說明那段就不准再用(例如拿去擋自動選站)。
+const NOTE_PAGES = ['MetroWidgetConfigActivity.java', 'MixedWidgetConfigActivity.java'].map(name => {
+  const code = stripComments(androidSrc(name));
+  const read = code.match(/boolean\s+(\w+)\s*=\s*[^;]*getBoolean\(\s*"plus_active"\s*,\s*false\s*\)\s*;/);
+  const vis = code.match(/(\w+)\.setVisibility\(\s*MetroWidgetProvider\.MULTI_STATION_NEEDS_PASS\s*\?\s*View\.VISIBLE\s*:\s*View\.GONE\s*\)\s*;/);
+  return { name, file: join(ANDROID_DIR, name), code, read, vis };
+});
+for (const p of NOTE_PAGES) {
+  const end = p.vis ? p.vis.index + p.vis[0].length : -1;
+  const uses = p.read ? [...p.code.matchAll(new RegExp(`\\b${p.read[1]}\\b`, 'g'))].map(m => m.index) : [];
+  ok(`A3n ${p.name} 讀到的通行證狀態只用在說明那一列`,
+     !!p.read && !!p.vis && uses.every(i => i >= p.read.index && i < end),
+     p.read ? `${p.read[1]} 出現在 ${uses.filter(i => i < p.read.index || i >= end).length} 處說明之外` : '(找不到讀取)');
+}
 const strayReads = [];
-for (const name of readdirSync(ANDROID_DIR).filter(n => n.endsWith('.java'))) {
-  let code = stripJava(androidSrc(name));
-  if (name === 'MetroWidgetProvider.java' && unlockFn) code = code.replace(unlockFn[0], unlockFn[0].replace(/[^\n]/g, ' '));
-  if (NOTE_PAGES.includes(name)) continue;
-  code.split('\n').forEach((line, i) => { if (/getBoolean\(\s*"plus_active"/.test(line)) strayReads.push(`${name}:${i + 1}`); });
+for (const f of androidFiles) {
+  let code = stripComments(readFileSync(f, 'utf8'));
+  if (f === join(ANDROID_DIR, 'MetroWidgetProvider.java') && unlockFn) code = code.replace(unlockFn[0], blank(unlockFn[0]));
+  if (f === join(ANDROID_DIR, 'RailMetroWaitPlugin.java') && setPlusFn) code = code.replace(setPlusFn, blank(setPlusFn));
+  const page = NOTE_PAGES.find(p => p.file === f);
+  if (page && page.read) code = code.replace(page.read[0], blank(page.read[0]));
+  code.split('\n').forEach((line, i) => { if (PASS_KEYS.some(k => line.includes(`"${k}"`))) strayReads.push(`${relPath(f)}:${i + 1}`); });
 }
-ok('A3 passUnlocked 以外沒有人直接讀 plus_active 去判定', strayReads.length === 0, strayReads.join(', '));
-for (const name of NOTE_PAGES) {
-  const code = stripJava(androidSrc(name));
-  ok(`A4 ${name} 的通行證說明只在需要通行證時顯示`,
-     /\.setVisibility\(\s*MetroWidgetProvider\.MULTI_STATION_NEEDS_PASS\s*\?\s*View\.VISIBLE\s*:\s*View\.GONE\s*\)/.test(code));
+ok('A3 passUnlocked 以外沒有人讀通行證狀態去判定(含子 package、Kotlin、改用常數或新鍵名)',
+   strayReads.length === 0, strayReads.join(', '));
+for (const p of NOTE_PAGES) {
+  ok(`A4 ${p.name} 的通行證說明只在需要通行證時顯示`, !!p.vis);
+  const calls = p.vis ? (p.code.match(new RegExp(`\\b${p.vis[1]}\\.setVisibility\\(`, 'g')) || []).length : 0;
+  ok(`A4b ${p.name} 的通行證說明沒有在別處又被設成顯示`, calls === 1, `setVisibility ${calls} 處`);
 }
-ok('A5 「自動（最近的站）」只在需要通行證時才標通行證',
-   /MULTI_STATION_NEEDS_PASS\s*\?\s*"自動（最近的站・通行證）"\s*:\s*"自動（最近的站）"/.test(stripJava(androidSrc('MetroWidgetConfigActivity.java'))));
+const AUTO_RE = /MULTI_STATION_NEEDS_PASS\s*\?\s*"自動（最近的站・通行證）"\s*:\s*"自動（最近的站）"/;
+const metroConfigCode = stripComments(androidSrc('MetroWidgetConfigActivity.java'));
+ok('A5 「自動（最近的站）」只在需要通行證時才標通行證', AUTO_RE.test(metroConfigCode));
+// A5b 其他地方(兩個平台)的自動選項標籤一律不准帶通行證:上面那個三元式是唯一例外。
+const AUTO_PASS_LABEL = /"自動（[^"）]*(?:通行證|パス|Pass)[^"）]*）"/;
+const autoLabelHits = [
+  ...androidFiles.map(f => ({ name: relPath(f), code: f === join(ANDROID_DIR, 'MetroWidgetConfigActivity.java')
+    ? metroConfigCode.replace(AUTO_RE, m => blank(m)) : stripComments(readFileSync(f, 'utf8')) })),
+  ...iosWidgetFiles,
+].flatMap(({ name, code }) => code.split('\n').flatMap((line, i) => AUTO_PASS_LABEL.test(line) ? [`${name}:${i + 1}`] : []));
+ok('A5b 其他自動選項標籤(Android 雙看板、iOS)都不帶通行證', autoLabelHits.length === 0, autoLabelHits.join(', '));
+// A6 擋人的出口只能在 passUnlocked() 為 false 時走到(A1–A5 守旗標與讀取,這條守接線):
+//    passRequired(…) 卡片的呼叫點外層要有 if (!passUnlocked(…)) 或 if (!hasMetroSlot(…)),hasMetroSlot 第一個
+//    return 是「passUnlocked 為真就放行」;「第 2 站起需要通行證」那格(PASS_LIMITED)只在 passLimited 為真時,
+//    passLimited 只准由 !passUnlocked(…) 算出來(或原樣轉存)。寫死 if (true)、passLimited = true 這種殘留都要紅。
+const blankStrings = s => s.replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)'/g, m => blank(m));
+const ARGS = '\\((?:[^()]|\\([^()]*\\))*\\)';
+const UNLOCK_HEAD = new RegExp(`^(?:else\\s+)?if\\s*\\(\\s*!\\s*(?:MetroWidgetProvider\\.)?(?:passUnlocked|hasMetroSlot)\\s*${ARGS}\\s*\\)$`);
+const LIMITED_HEAD = /^(?:else\s+)?if\s*\(\s*\w+\.passLimited\s*\)$/;
+const LIMITED_RHS = new RegExp(`^(?:!\\s*(?:MetroWidgetProvider\\.)?passUnlocked\\s*${ARGS}|passLimited)$`);
+const enclosingHeads = (code, at) => {
+  const heads = [];
+  for (let depth = 0, i = at - 1; i >= 0; i--) {
+    if (code[i] === '}') depth++;
+    else if (code[i] === '{' && depth > 0) depth--;
+    else if (code[i] === '{') heads.push(code.slice(Math.max(...[';', '{', '}'].map(c => code.lastIndexOf(c, i - 1))) + 1, i).trim());
+  }
+  return heads;
+};
+const exitProblems = src => {
+  const code = blankStrings(stripComments(src));
+  const line = i => code.slice(0, i).split('\n').length;
+  const out = { calls: 0, unguarded: [], badLimited: [], badState: [] };
+  for (const m of code.matchAll(/\bpassRequired\s*\(/g)) {
+    if (/RemoteViews\s+$/.test(code.slice(Math.max(0, m.index - 40), m.index))) continue;  // 定義本身
+    out.calls++;
+    if (!enclosingHeads(code, m.index).some(h => UNLOCK_HEAD.test(h))) out.unguarded.push(line(m.index));
+  }
+  for (const m of code.matchAll(/\bpassLimited\s*=(?!=)\s*([^;]+);/g)) {
+    if (!LIMITED_RHS.test(m[1].trim())) out.badLimited.push(`${line(m.index)} ${m[1].trim()}`);
+  }
+  for (const m of code.matchAll(/\bstate\s*=(?!=)\s*(?:MetroWidgetPlate\.)?State\.PASS_LIMITED\b/g)) {
+    if (!enclosingHeads(code, m.index).some(h => LIMITED_HEAD.test(h))) out.badState.push(line(m.index));
+  }
+  return out;
+};
+// 正向對照:偵測器對寫死的寫法真的會紅,對現行寫法不會。
+const ctl = exitProblems([
+  'if (!passUnlocked(prefs)) {\n  if (a) { b(); } else if (!free.equals(s)) {\n    manager.updateAppWidget(id, passRequired(context, id));\n  }\n}',
+  'if (true) {\n  manager.updateAppWidget(id, passRequired(context, id));\n}',
+  'if (!passUnlocked(prefs) || x) { show(passRequired(context, id)); }',
+  'boolean passLimited = !passUnlocked(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE));',
+  'in.passLimited = passLimited;',
+  'boolean passLimited = true;',
+  '} else if (in.passLimited) {\n  p.state = State.PASS_LIMITED;\n}',
+  '} else if (true) {\n  p.state = State.PASS_LIMITED;\n}',
+].join('\n'));
+ok('A6-0 擋人出口偵測器的正向對照(寫死的紅、現行寫法不紅)',
+   JSON.stringify([ctl.calls, ctl.unguarded, ctl.badLimited.map(s => s.split(' ')[0]), ctl.badState])
+     === JSON.stringify([3, [7, 9], ['12'], [17]]),
+   JSON.stringify(ctl));
+const exits = androidFiles.map(f => ({ name: relPath(f), ...exitProblems(readFileSync(f, 'utf8')) }));
+const exitList = key => exits.flatMap(e => e[key].map(v => `${e.name}:${v}`));
+ok('A6 passRequired 卡片只在 !passUnlocked(…)/!hasMetroSlot(…) 底下畫',
+   exits.reduce((n, e) => n + e.calls, 0) > 0 && exitList('unguarded').length === 0,
+   `呼叫點 ${exits.reduce((n, e) => n + e.calls, 0)} 處;沒被擋住的 ${exitList('unguarded').join(', ')}`);
+const slotFn = stripComments(androidSrc('MixedBoardWidgetProvider.java')).match(/static boolean hasMetroSlot\([^)]*\)\s*\{([\s\S]*?)\n    \}/);
+ok('A6b hasMetroSlot 有通行證狀態就先放行',
+   !!slotFn && /^\s*SharedPreferences\s+(\w+)\s*=[^;]+;\s*if\s*\(\s*MetroWidgetProvider\.passUnlocked\(\s*\1\s*\)\s*\)\s*return\s+true\s*;/.test(slotFn[1]),
+   slotFn ? slotFn[1].trim().split('\n').slice(0, 2).join(' / ') : '(找不到 hasMetroSlot)');
+ok('A6c 「第 2 站起需要通行證」那格只由 !passUnlocked(…) 決定',
+   exitList('badLimited').length === 0 && exitList('badState').length === 0,
+   [...exitList('badLimited'), ...exitList('badState')].join(', '));
 
 // ── C 組:文案不得再把小工具多站／自動講成付費 ────────────────────────────
 // 方案面板、條款第 3 節、說明中心的通行證與小工具兩節(兩個平台的版本)和它們的英日文,都是付款決定點,
-// 任何一處講回付費都是不實說法。逐子句比對,講「免費」的子句不算:
-//   C1 通行證功能清單裡,同一子句不准同時講到小工具與多站／自動;
-//   C2 小工具那節裡提到通行證的字串,只准是鎖定畫面跟車那一句(且不准提多站／自動),也不准出現「免費一站」這種額度說法。
+// 任何一處講回付費都是不實說法。逐子句比對:
+//   C1 通行證功能清單裡,同一子句不准同時講到小工具與多站／自動;講「免費」的子句不算,
+//      但「免費可設定一站」這種額度說法仍算(舊條款就是把額度寫在同一個括號裡);
+//   C2 小工具那節逐句看:提到通行證或訂閱、解鎖這類付費字眼的句子,只准是鎖定畫面跟車那一句(且不准提多站／自動),
+//      也不准出現「免費一站」這種額度說法。
 // C0 先拿改版前的實際舊文案當正向對照,證明偵測器真的會紅。
 const WIDGET_W = /小工具|widget|ウィジェット/i;
-const MULTI_W = /多站|自動（最近的站|自動\(最近的站|自動選站|最近的站|multiple stations|several stations|nearest station|Auto \(nearest|Automatic \(nearest|複数の駅|複数駅|最寄り駅/i;
+const MULTI_W = /多站|多個(?:車)?站|第\s*[2二]\s*站|自動（最近的站|自動\(最近的站|自動選站|最近的站|multiple stations|several stations|more than one station|second station|nearest station|Auto \(nearest|Automatic \(nearest|複数の駅|複数駅|2駅目|2つ目の駅|最寄り駅/i;
 const PASS_W = /通行證|\bPass\b|パス(?!ポート)/;
+const PAY_W = /訂閱|付費|解鎖|subscri|unlock|\bpaid\b|premium|有料|サブスク|購読|課金/i;
 const FREE_W = /免費|\bfree\b|無料/i;
 const QUOTA_W = /一站|one station|1 ?駅|一駅/i;
 const LOCK_W = /鎖定畫面|lock screen|ロック画面/i;
 const FOLLOW_W = /跟隨|跟車|follow|追跡/i;
 const clauses = text => String(text).split(/[、，；。;：:・•\n]|(?<=[.!?])\s+|,\s/).map(c => c.trim()).filter(Boolean);
-const paidListHits = text => clauses(text).filter(c => WIDGET_W.test(c) && MULTI_W.test(c) && !FREE_W.test(c));
+const sentences = text => String(text).split(/[。；;！？!?\n]|(?<=\.)\s+/).map(c => c.trim()).filter(Boolean);
+const paidListHits = text => clauses(text).filter(c => WIDGET_W.test(c) && MULTI_W.test(c) && (!FREE_W.test(c) || QUOTA_W.test(c)));
+const followTip = t => LOCK_W.test(t) && FOLLOW_W.test(t) && !MULTI_W.test(t);
 const widgetSecHits = text => [
-  ...(PASS_W.test(text) && !(LOCK_W.test(text) && FOLLOW_W.test(text) && !MULTI_W.test(text)) ? [text] : []),
+  ...sentences(text).filter(t => (PASS_W.test(t) || PAY_W.test(t)) && !followTip(t)),
   ...clauses(text).filter(c => FREE_W.test(c) && QUOTA_W.test(c)),
 ];
 ok('C0 偵測器對改版前的舊文案會紅',
@@ -131,14 +260,25 @@ ok('C0 偵測器對改版前的舊文案會紅',
    && paidListHits('・メトロのウィジェットに複数の駅を表示、または「自動（最寄り駅）」で移動に合わせて切り替え').length > 0
    && widgetSecHits('捷運免費可設定一站；想放多站或用「自動（最近的站）」需啟用軌島通行證').length > 0
    && widgetSecHits('想放多站，或用自動選站，需要軌島通行證').length > 0
-   && widgetSecHits('跟隨台鐵或高鐵列車時，通行證也能把下一站進度放上鎖定畫面').length === 0);
+   && widgetSecHits('跟隨台鐵或高鐵列車時，通行證也能把下一站進度放上鎖定畫面').length === 0
+   // 審查時找到的漏網寫法:額度跟付費寫在同一個括號、「多個車站」、跟車那句後面再接一句、改說訂閱／解鎖。
+   && paidListHits('捷運小工具在桌面設定多個車站或使用「自動（最近的站）」（免費可設定一站）').length > 0
+   && paidListHits('メトロのホーム画面ウィジェットでの複数駅または「自動（最寄り駅）」（1駅は無料）').length > 0
+   && paidListHits('捷運小工具可以設定多個車站').length > 0
+   && widgetSecHits('Android 16／Samsung 可顯示即時資訊與 Now Bar。捷運看板第 2 站起也需要通行證。').length > 0
+   && widgetSecHits('想放多站或用「自動（最近的站）」要先訂閱，訂閱後才會解鎖').length > 0
+   // 反向對照:講免費的子句(沒有額度)不算,跟車那句後面接的普通句子也不算。
+   && paidListHits('捷運小工具的多站與自動選站對所有人免費').length === 0
+   && widgetSecHits('跟隨台鐵或高鐵列車時，通行證也能把下一站進度放上鎖定畫面；Android 16／Samsung 可顯示即時資訊與 Now Bar。').length === 0);
 
 const readRoot = rel => readFileSync(join(ROOT, rel), 'utf8');
 const indexSrc = readRoot('index.html');
 const I18N_SRC = ['i18n/translations.js', 'i18n/content-translations.js'].map(readRoot);
 const between = (src, a, b) => { const i = src.indexOf(a); const j = i < 0 ? -1 : src.indexOf(b, i + a.length); return j < 0 ? '' : src.slice(i, j); };
-const zhLiterals = block => [...block.replace(/^\s*\/\/.*$/gm, '').matchAll(/'((?:[^'\\\n]|\\.)*)'/g)]
-  .map(m => m[1].replace(/<\/?b>/g, '')).filter(s => /[一-鿿]{2}/.test(s));
+// 單引號、雙引號、反引號三種字串都收(只收單引號的話,改用雙引號寫回去就照不到)。
+const zhLiterals = block => [...block.replace(/^\s*\/\/.*$/gm, '')
+  .matchAll(/'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"|`((?:[^`\\]|\\.)*)`/g)]
+  .map(m => (m[1] ?? m[2] ?? m[3]).replace(/<\/?b>/g, '')).filter(s => /[一-鿿]{2}/.test(s));
 const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const translationsOf = zh => I18N_SRC.flatMap(src =>
   [...src.matchAll(new RegExp(`'${reEsc(zh)}'\\s*:\\s*'((?:[^'\\\\\\n]|\\\\.)*)'`, 'g'))].map(m => m[1]));
