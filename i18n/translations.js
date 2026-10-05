@@ -4,7 +4,7 @@
     en: {
       "立體鐵軌改用淡灰碎石道床，收窄邊坡與軌道輪廓；近看保留細顆粒，遠看更低調，車站多股軌道不再糊成一片土色": "3D tracks now use pale grey gravel with narrower shoulders and softer outlines. Fine stones remain visible up close, while distant tracks and busy station yards blend more gently into the map.",
       "「我上車了」後沒按下車，搭的車又從班表消失（週五夜車過午夜、連假加班車）時，過了抵達時間會自動下車；跟著別班車時按「搭乘中」也能直接下車（謝謝網友回報）": "If you tapped “I’m on board” but never got off and that train then left the timetable (Friday night trains after midnight, holiday extra trains), your ride now ends automatically once its arrival time has passed. You can also end a ride from the “Riding” button while following another train. (Thanks for the report.)",
-      "淡海、安坑倒數每 20 秒檢查更新，避免多層快取延長舊資料；斷線不把舊倒數標成新資料": "Danhai and Ankeng countdowns check for updates every 20 seconds. Cache layers no longer extend old data, and outages do not make old countdowns appear new.",
+      "淡海、安坑倒數：9/30 起避免多層快取延長舊資料、斷線不把舊倒數標成新資料；10/5 起改為約每分鐘向官方更新一次": "Danhai and Ankeng countdowns: since 9/30, cache layers no longer extend old data and outages do not make old countdowns appear new; since 10/5, they refresh from the official source about once a minute.",
       "淡海、安坑跟車卡保留官方到站時間，不再被動畫平順校正延後；超出官方倒數範圍時明確標示推估": "Danhai and Ankeng follow cards keep official arrival times unchanged during smooth position corrections. Times beyond the official countdown are clearly marked as estimates.",
       "官方車號已確認；下一站時間與位置為推估": "Official vehicle confirmed; next arrival time and position are estimated",
       "到站時間保留官方倒數；位置正平順校正中": "Arrival time follows the official countdown; position is adjusting smoothly",
@@ -606,7 +606,7 @@
     ja: {
       "立體鐵軌改用淡灰碎石道床，收窄邊坡與軌道輪廓；近看保留細顆粒，遠看更低調，車站多股軌道不再糊成一片土色": "立体線路の道床を淡い灰色の砕石に変更し、斜面と線路の輪郭を細くしました。近くでは細かな粒が見え、遠景や線路の多い駅でも地図になじみます。",
       "「我上車了」後沒按下車，搭的車又從班表消失（週五夜車過午夜、連假加班車）時，過了抵達時間會自動下車；跟著別班車時按「搭乘中」也能直接下車（謝謝網友回報）": "「乗車中」のまま下車し忘れ、その列車が時刻表から消えた場合（金曜夜行の深夜0時以降、連休の臨時列車）、到着時刻を過ぎると自動で下車します。別の列車を追跡中でも「乗車中」ボタンから下車できます。（ご報告ありがとうございます）",
-      "淡海、安坑倒數每 20 秒檢查更新，避免多層快取延長舊資料；斷線不把舊倒數標成新資料": "淡海・安坑の到着予測を20秒ごとに更新確認します。多層キャッシュによる古いデータの延長を防ぎ、通信断でも古い予測を新しい情報として扱いません。",
+      "淡海、安坑倒數：9/30 起避免多層快取延長舊資料、斷線不把舊倒數標成新資料；10/5 起改為約每分鐘向官方更新一次": "淡海・安坑の到着予測：9/30から多層キャッシュによる古いデータの延長を防ぎ、通信断でも古い予測を新しい情報として扱いません。10/5からは公式データを約1分ごとに取得します。",
       "淡海、安坑跟車卡保留官方到站時間，不再被動畫平順校正延後；超出官方倒數範圍時明確標示推估": "淡海・安坑の追跡カードは、位置の滑らかな補正中も公式到着時刻を変更しません。公式到着予測の範囲外は推定と明示します。",
       "官方車號已確認；下一站時間與位置為推估": "公式の車両番号を確認済み。次駅の到着時刻と位置は推定です",
       "到站時間保留官方倒數；位置正平順校正中": "到着時刻は公式予測のまま、位置を滑らかに補正中です",

@@ -787,51 +787,91 @@ async function metroLive(request, env, sys) {
 }
 
 // ── 新北捷官網列車動態代理(trainstatus.ntmetro.com.tw,免金鑰) ──
-// 環狀線=逐車軌道區間佔用、淡海/安坑=逐站到站倒數。未文件化端點、無開放資料授權條款:
-// 尚未取得使用同意,如經對方表示反對即移除本段;失敗前端自動退回時刻表推演,零損害。
-// 淡海/安坑逐車倒數最多快取 18s，替前端 20s 輪詢保留傳輸餘裕，避免剛好命中上一輪而變 40s。
-// 不用 stale-while-revalidate 延長舊倒數；上游失敗仍回原 at，前端會自行判定過期。
-// Set 而非物件字面量:物件的 in/[] 查表吃原型鏈(sys='constructor'/'__proto__'/'toString' 會誤判 truthy),
+// 環狀線=逐車軌道區間佔用、淡海/安坑=逐站到站倒數。新北捷運 2026-09-22 核准函:查詢頻率維持淡海、安坑
+// 約每 55 秒一次、環狀線約每 60 秒一次,要改須事前報准。NTM_LIVE_MIN_GAP_MS 就是這個下限,不准為了倒數
+// 更即時而調短(9/30 曾改成 18 秒,10/5 調回;scripts/verify_ntm_worker.mjs 會擋)。
+// 間隔從「上次開始打上游」起算,成功、失敗、上游回空、逾時都算一次。打上游之前先佔位:同一個 isolate 裡
+// 之後進來的請求看到記憶體的佔位,同一個 colo 的其他 isolate 看到邊緣那份佔位,都回上一份資料、不再打。
+// 所以上游慢、掛住、或發起的訪客中途斷線,都不會讓後面的請求各打一次。
+// 限制:(1) 佔位寫進邊緣之前那幾毫秒內,別的 isolate 仍可能各打一次;(2) 每個 colo 各一份邊緣快取,
+// 活躍的 colo 多時,上游收到的總次數是倍數。要全站總共每 55 秒一次,得比照北捷改成 Durable Object 集中輪詢。
+// 失敗時前端自動退回時刻表推演,零損害。不用 stale-while-revalidate 延長舊倒數;上游失敗仍回原 at,前端自行判定過期。
+// Map/Set 而非物件字面量:物件的 in/[] 查表吃原型鏈(sys='constructor'/'__proto__'/'toString' 會誤判 truthy),
 // Set.has() 只認自身成員,擋掉用原型成員名繞過白名單、把本 proxy 打成對新北捷官網的未快取放大代理。
-const NTM_LIVE_SYS = new Set(['circular', 'danhai', 'ankeng']);
-const NTM_LIVE_TTL_MS = 18e3;
-const ntmLiveMem = new Map(); // sys → { data, at }
-async function ntmetroLive(request, env, sys) {
-  const cacheKey = new Request(new URL('/api/ntmetro-live?sys=' + sys, request.url), { method: 'GET' });
+const NTM_LIVE_MIN_GAP_MS = new Map([['danhai', 55e3], ['ankeng', 55e3], ['circular', 60e3]]);
+const NTM_LIVE_SYS = new Set(NTM_LIVE_MIN_GAP_MS.keys());
+// 上游逾時:要短於前端 pollNtmLive 的 12 秒 abort,發起的訪客才拿得到結果;計時一路蓋到讀完 body。
+const NTM_LIVE_FETCH_TIMEOUT_MS = 8e3;
+const ntmLiveMem = new Map(); // sys → { data: { at, src }, tried }:tried=最後一次開始打上游的時間,成敗都算
+async function ntmLiveFetch(sys, prev) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), NTM_LIVE_FETCH_TIMEOUT_MS);
+  try {
+    const r = await fetch(`https://trainstatus.ntmetro.com.tw/roadmap/${sys}_data.php`, {
+      headers: { 'user-agent': 'railisland.tw metro animation (+https://railisland.tw)' }, signal: controller.signal });
+    if (!r.ok) throw new Error('ntmetro ' + r.status);
+    const d = await r.json();
+    return { at: new Date().toISOString(), src: d && d.data != null ? d.data : null };
+  } catch (_) {
+    // 軟失敗:有舊資料回舊資料(at 不變);沒有就回 200+src:null(前端 applyNtmLive 對 null 直接 no-op,
+    // 退回時刻表推演)。不回 5xx 免得訪客 console 留紅字;不帶 error 字串進 body,免洩內部訊息。
+    return prev;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function ntmetroLive(request, env, sys, ctx) {
+  const gap = NTM_LIVE_MIN_GAP_MS.get(sys);
+  // 邊緣那份與回應用同一個算式:向上取整,邊緣那份才不會比核准間隔早過期(早過期＝同 colo 別的 isolate 提早再打)。
+  const ccLeft = tried => 'public, s-maxage=' + Math.max(1, Math.ceil((gap - (Date.now() - tried)) / 1000));
+  // key 固定主機名:railisland.tw 與 www 同一個 zone,共用同一份邊緣快取(用 request.url 時兩個網域各打各的)。
+  const cacheKey = new Request('https://railisland.tw/api/ntmetro-live?sys=' + sys, { method: 'GET' });
   const edge = caches.default;
   const hit = await edge.match(cacheKey);
   if (hit) {
-    try {
-      const data = await hit.clone().json(), age = Date.now() - Date.parse(data.at);
-      const lifetime = data.src == null ? 15e3 : NTM_LIVE_TTL_MS;
-      if (Number.isFinite(age) && age >= 0 && age < lifetime) {
-        // Cache API 命中也不能把原始完整 TTL 再交給外層快取；舊部署留下的超齡快取直接略過。
-        const headers = new Headers(hit.headers);
-        headers.set('cache-control', 'public, s-maxage=' + Math.max(0, Math.floor((lifetime - age) / 1000)));
-        return new Response(hit.body, { status: hit.status, headers });
-      }
-    } catch (_) { /* 無法確認時間的邊緣資料不當成有效即時快取。 */ }
-  }
-  const stale = ntmLiveMem.get(sys);
-  try {
-    if (!stale || Date.now() - stale.at >= NTM_LIVE_TTL_MS) {
-      const r = await fetch(`https://trainstatus.ntmetro.com.tw/roadmap/${sys}_data.php`,
-        { headers: { 'user-agent': 'railisland.tw metro animation (+https://railisland.tw)' } });
-      if (!r.ok) throw new Error('ntmetro ' + r.status);
-      const d = await r.json();
-      ntmLiveMem.set(sys, { data: { at: new Date().toISOString(), src: d && d.data != null ? d.data : null }, at: Date.now() });
+    // 邊緣那份的壽命從 x-ntm-tried 起算;沒有這個標頭的(舊部署留下的)直接略過。
+    const age = Date.now() - Number(hit.headers.get('x-ntm-tried'));
+    if (Number.isFinite(age) && age >= 0 && age < gap) {
+      // Cache API 命中也不能把原始完整 TTL 再交給外層快取,只交剩下的壽命。
+      const headers = new Headers(hit.headers);
+      headers.delete('x-ntm-tried');
+      headers.set('cache-control', 'public, s-maxage=' + Math.floor((gap - age) / 1000));
+      return new Response(hit.body, { status: hit.status, headers });
     }
-    const cached = ntmLiveMem.get(sys);
-    // 每一層只交出來源批次真正剩下的壽命，非整秒部分向下取整，不能跨層續命。
-    const ttl = Math.max(0, Math.floor((NTM_LIVE_TTL_MS - (Date.now() - cached.at)) / 1000));
-    return await jsonResCached(edge, cacheKey, cached.data, 200, 'public, s-maxage=' + ttl);
-  } catch (e) {
-    if (stale) return jsonRes(stale.data, 200, 'public, s-maxage=15');
-    // 軟失敗:回 200+src:null(前端 applyNtmLive 對 null 直接 no-op,退回時刻表推演),不回 5xx 免得訪客 console 留紅字。
-    // 負向結果也快取 15s:白名單收緊後雖已無繞過放大,但合法 sys 遇上游持續 5xx 時,無此快取會讓每個請求 1:1 重打上游,
-    // 上游越掛我們打越兇。不帶 error 字串進 body,免洩內部訊息。
-    return await jsonResCached(edge, cacheKey, { at: new Date().toISOString(), src: null }, 200, 'public, s-maxage=15');
   }
+  // 邊緣那份:壽命從 tried 起算、向上取整,不會比下限早過期(超齡的由上面的 age 檢查擋掉)。
+  // 每次都從字串現造一個 Response,不跟回覆共用 body(理由見 bodyResCached)。
+  const putEdge = async (data, tried) => {
+    try {
+      await edge.put(cacheKey, new Response(JSON.stringify(data), { status: 200, headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': ccLeft(tried),
+        'x-ntm-tried': String(tried) } }));
+    } catch (_) { /* 邊緣寫不進去不影響回覆,間隔仍由記憶體把關 */ }
+  };
+  let mem = ntmLiveMem.get(sys);
+  if (!mem || Date.now() - mem.tried >= gap) {
+    const tried = Date.now();
+    const prev = mem ? mem.data : { at: new Date(tried).toISOString(), src: null };
+    // 先同步佔位再 await:Workers 是單執行緒,檢查與佔位之間沒有別的請求插得進來。
+    const claim = { data: prev, tried };
+    ntmLiveMem.set(sys, claim);
+    // 只有發起的這一發寫邊緣,而且先寫佔位、再寫結果;其他請求一律不寫,免得舊資料蓋掉剛寫進去的新資料。
+    const work = (async () => {
+      await putEdge(prev, tried);
+      claim.data = await ntmLiveFetch(sys, prev);
+      // 查詢失敗時拿回的就是 prev,佔位那份已經是結果,不再寫第二次。
+      if (claim.data !== prev) await putEdge(claim.data, tried);
+    })();
+    // 發起的訪客斷線時 handler 會被取消;交給 waitUntil,結果照樣寫回記憶體與邊緣(同 traLiveInflight 的 09-23 事故)。
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(work);
+    await work;
+    mem = claim;
+  }
+  // 回覆只交這次查詢真正剩下的壽命(與邊緣那份同一個算式、向上取整),不把完整 TTL 再交給外層;x-ntm-tried 只寫進邊緣那份。
+  const cc = ccLeft(mem.tried);
+  return new Response(JSON.stringify(mem.data), { status: 200,
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': cc } });
 }
 
 // ── 高雄輕軌真 GPS(TDX LivePosition) ──
@@ -8139,7 +8179,7 @@ export default {
     }
     else if (url.pathname === '/api/ntmetro-live') {
       const sys = url.searchParams.get('sys');
-      res = NTM_LIVE_SYS.has(sys) ? await ntmetroLive(request, env, sys) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
+      res = NTM_LIVE_SYS.has(sys) ? await ntmetroLive(request, env, sys, ctx) : jsonRes({ error: 'bad sys' }, 400, 'no-store');
     }
     else if (url.pathname === '/api/trtc-live') { res = await trtcLive(request, env); }
     else if (url.pathname === '/api/klrt-position') { res = await klrtPosition(request, env); }

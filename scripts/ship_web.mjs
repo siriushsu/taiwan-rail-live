@@ -146,6 +146,11 @@ try {
     process.stdout.write(check.stdout || ''); process.stderr.write(check.stderr || '');
     if (check.status !== 0) fail(`捷運即時倒數守門未過：${name}`);
   }
+  // 邊緣快取寫入守門：worker.js 每個 cache.put 呼叫點的結構性斷言＋實跑。原本沒掛出貨鏈；
+  // 新北即時查詢「失敗時重複寫邊緣」這種突變，verify_ntm_worker 抓不到、只有它抓得到。
+  const edgePut = spawnSync('node', [path.join(wt, 'scripts', 'verify_edge_cache_put.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(edgePut.stdout || ''); process.stderr.write(edgePut.stderr || '');
+  if (edgePut.status !== 0) fail('邊緣快取寫入守門未過：verify_edge_cache_put');
 
   // 🔴 位置不可移到 strip 之後:check_i18n 的 evaluateConstBlock 拿【註解】當區塊結束標記
   //    （'// 有精選特色'、'// 播放/速度/時間'），strip 把註解刪光之後它會報「找不到內容區塊」

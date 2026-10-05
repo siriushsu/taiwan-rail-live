@@ -3660,3 +3660,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '修正文湖線同一班車重複出現、捷運待發車誤認進站訊息，以及台鐵通過車站時的短暫跳動': '文湖線の列車の重複表示、出発待ちの地下鉄列車による進入情報の誤認、台鉄列車が駅を通過する際の一瞬の飛びを修正しました',
 });
+
+// 2026-10-05 淡海、安坑查詢頻率改回約每分鐘（v1005c）：最近更新的英日文。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '淡海、安坑倒數改為約每分鐘向官方更新一次': 'Danhai and Ankeng countdowns now refresh from the official source about once a minute',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '淡海、安坑倒數改為約每分鐘向官方更新一次': '淡海・安坑の到着予測を、公式データから約1分ごとに更新するようにしました',
+});
