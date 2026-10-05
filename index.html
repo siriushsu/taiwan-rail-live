@@ -1171,6 +1171,14 @@
   .follow-panel.fp-min .fp-close, .follow-panel.fp-min .traincard,
   .follow-panel.fp-min .xfer-conn { display: none; }
   .follow-panel.fp-min .fp-head .spd b { font-size: calc(15px * var(--ui)); }
+  /* 膠囊的車次與時速字級不同，單靠行框置中會讓大字級的可見字形偏移。
+     支援字框裁切時以大寫字高置中；連同 flex 一起漸進套用，舊引擎保留原排版。 */
+  @supports (text-box-trim: trim-both) and (text-box-edge: cap alphabetic) {
+    .follow-panel.fp-min .fp-head > b,
+    .follow-panel.fp-min .fp-head .spd b { text-box-trim: trim-both; text-box-edge: cap alphabetic; }
+    .follow-panel.fp-min .fp-head .spd { display: flex; align-items: center; }
+    .follow-panel.fp-min .fp-head .spd b { display: block; }
+  }
   .follow-panel .fp-end {
     margin-left: 6px; background: none; border: 1px solid var(--line); border-radius: 6px;
     color: var(--faint); font-size: calc(10px * var(--uis)); font-weight: 700; padding: 2px 6px;
