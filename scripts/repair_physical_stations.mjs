@@ -22,9 +22,12 @@
 // 不做的事：不加 hold、不動時刻、不縮車身、不改 stopSignature；修不掉的列出來（多半是路網沒畫待避線）。
 //
 // 產物：OUT_DIR（預設 output/stations/）底下的 network.json、dispatch.json、report.json。
-// 順序：repair_physical_directions → repair_physical_stations → 覆蓋 rail-3d/physical/ → build_rail_levels
-//       → build_tra_track_sections → 出貨閘門（verify_physical_no_overlap 等）。
-// 🔴 重抓班表（npm run fetch-schedule）之後兩支都要重跑。
+// 順序：repair_physical_directions（F1）→ repair_physical_stations（F2）→ repair_tra_overtake_tracks（F2b，待避股道）
+//       → extend_tra_overtake_sidings → 覆蓋 rail-3d/physical/ → build_rail_levels → build_tra_track_sections
+//       （單雙線不得改判）→ build_run_profiles → verify_tra_overtake_tracks（重找一次待避對；有可修的違規就再跑一輪 F2b）
+//       → build_tra_overtake_tracks → build_data_manifest → 出貨閘門（verify_physical_no_overlap 等）。
+// 🔴 重抓班表（npm run fetch-schedule）後若重跑 F1／F2，F2b 也要接著重跑，並把 scripts/lib/tra_overtake_pairs.mjs 的
+//    SCHEDULE_REF 換成新班表那顆 commit（閘門釘的是那顆）。
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
