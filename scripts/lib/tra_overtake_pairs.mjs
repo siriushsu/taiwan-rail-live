@@ -75,7 +75,7 @@ export function turnAround(coords, at, half = TURN_WINDOW_M) {
   return sum / RAD;
 }
 
-// 列車在第 i 站的行進方向（平面向量）：有進站段就用進站段最後一條邊，起點站用出站段第一條邊。
+// 列車在第 i 站的行進方向（平面向量）：有進站段就用進站段最後一條邊（含終點站），起點站用出站段第一條邊。
 function headingAt(S, ids, i) {
   const [u, v] = i > 0 ? S.paths[ids[i - 1]].nodeIds.slice(-2) : S.paths[ids[0]].nodeIds.slice(0, 2);
   const a = S.g.nodes.get(u).coordinate, b = S.g.nodes.get(v).coordinate;
@@ -84,33 +84,40 @@ function headingAt(S, ids, i) {
 
 export function makeOvertakeJudge(S) {
   const { g, paths, trainOf, poolOf, nodeAt, nodeSet, cleanRoute, clean, memo, turnOK, basePairMax, nonElectricWays, initialNonElectric } = S;
-  // 中途站 i 的可行停車選項：現況，加上候選節點裡同時滿足以下條件的（與 F2 的 tryMove 同一組條件）：順向、三個接點能轉、
+  // 第 i 站的可行停車選項：現況，加上候選節點裡同時滿足以下條件的（與 F2 的 tryMove 同一組條件）：順向、接點能轉、
   // 站間不超過基線 5%、不新踏非電化股道。通過型的超越車與停站型的超越車用同一份選項（候選都是停車節點）。
+  // 起點站只有出站段、終點站只有進站段，只量、只換那一側。
   function routeOptions(key, i, ids) {
     const t = trainOf.get(key), last = t.stops.length - 1, st = t.names[i], cur = nodeAt(ids, i);
-    assert.ok(i > 0 && i < last, key + ' 第 ' + i + ' 站不是中途站');
-    const prev = paths[ids[i - 1]].from, next = paths[ids[i]].to, allowed = initialNonElectric.get(key) || new Set();
-    const inRef = basePairMax.get(t.names[i - 1] + '>' + st) || paths[ids[i - 1]].lengthM;
-    const outRef = basePairMax.get(st + '>' + t.names[i + 1]) || paths[ids[i]].lengthM;
-    const out = [{ m: cur, ids2: ids, lengthM: paths[ids[i - 1]].lengthM + paths[ids[i]].lengthM, current: true }];
+    assert.ok(i >= 0 && i <= last, key + ' 第 ' + i + ' 站不在站序內');
+    const hasIn = i > 0, hasOut = i < last, allowed = initialNonElectric.get(key) || new Set();
+    const prev = hasIn ? paths[ids[i - 1]].from : null, next = hasOut ? paths[ids[i]].to : null;
+    const inRef = hasIn ? basePairMax.get(t.names[i - 1] + '>' + st) || paths[ids[i - 1]].lengthM : 0;
+    const outRef = hasOut ? basePairMax.get(st + '>' + t.names[i + 1]) || paths[ids[i]].lengthM : 0;
+    const out = [{ m: cur, ids2: ids, lengthM: (hasIn ? paths[ids[i - 1]].lengthM : 0) + (hasOut ? paths[ids[i]].lengthM : 0), current: true }];
     for (const m of poolOf(st)) {
       if (m === cur) continue;
-      const inR = cleanRoute(prev, m, inRef, clean, memo), outR = cleanRoute(m, next, outRef, clean, memo);
-      if (!inR || !outR) continue;
-      if ([inR.id, outR.id].some(pid => [...nonElectricWays(pid)].some(w => !allowed.has(w)))) continue;
-      if (inR.lengthM > inRef * MAX_PAIR_STRETCH + 1e-6 || outR.lengthM > outRef * MAX_PAIR_STRETCH + 1e-6) continue;
-      const ids2 = ids.slice(); ids2[i - 1] = inR.id; ids2[i] = outR.id;
-      if ((i > 1 && !turnOK(ids2[i - 2], ids2[i - 1])) || !turnOK(ids2[i - 1], ids2[i]) || (i + 1 < last && !turnOK(ids2[i], ids2[i + 1]))) continue;
-      out.push({ m, ids2, lengthM: inR.lengthM + outR.lengthM, current: false });
+      const inR = hasIn ? cleanRoute(prev, m, inRef, clean, memo) : null, outR = hasOut ? cleanRoute(m, next, outRef, clean, memo) : null;
+      if ((hasIn && !inR) || (hasOut && !outR)) continue;
+      if ([inR, outR].some(r => r && [...nonElectricWays(r.id)].some(w => !allowed.has(w)))) continue;
+      if ((inR && inR.lengthM > inRef * MAX_PAIR_STRETCH + 1e-6) || (outR && outR.lengthM > outRef * MAX_PAIR_STRETCH + 1e-6)) continue;
+      const ids2 = ids.slice(); if (hasIn) ids2[i - 1] = inR.id; if (hasOut) ids2[i] = outR.id;
+      if ((i > 1 && !turnOK(ids2[i - 2], ids2[i - 1])) || (hasIn && hasOut && !turnOK(ids2[i - 1], ids2[i])) || (i + 1 < last && !turnOK(ids2[i], ids2[i + 1]))) continue;
+      out.push({ m, ids2, lengthM: (inR?.lengthM || 0) + (outR?.lengthM || 0), current: false });
     }
     return out;
   }
   const coordOf = id => { const c = g.nodes.get(id)?.coordinate; assert.ok(c, '節點沒有座標 ' + id); return c; };
   const turnCache = new Map();
-  // 進站段＋出站段在停車點前後的累計轉角；現況用派車表的實際路徑量（不是重求的最短路）
+  // 進站段＋出站段在停車點前後的累計轉角；現況用派車表的實際路徑量（不是重求的最短路）。
+  // 起點站只有出站段、終點站只有進站段（單側 400 m）。
   function turnOf(ids, i) {
-    const k = ids[i - 1] + ',' + ids[i];
-    if (!turnCache.has(k)) { const a = paths[ids[i - 1]].nodeIds, b = paths[ids[i]].nodeIds; turnCache.set(k, turnAround([...a, ...b.slice(1)].map(coordOf), a.length - 1)); }
+    const hasIn = i > 0, hasOut = i < ids.length, k = (hasIn ? ids[i - 1] : '-') + ',' + (hasOut ? ids[i] : '-');
+    if (!turnCache.has(k)) {
+      const a = hasIn ? paths[ids[i - 1]].nodeIds : null, b = hasOut ? paths[ids[i]].nodeIds : null;
+      const line = a && b ? [...a, ...b.slice(1)] : a || b;
+      turnCache.set(k, turnAround(line.map(coordOf), a ? a.length - 1 : 0));
+    }
     return turnCache.get(k);
   }
   const relCache = new Map();
@@ -123,7 +130,9 @@ export function makeOvertakeJudge(S) {
   }
   // 標記只在幾何分不出來時破同分：進站最後一條邊或出站第一條邊是 service=siding 算彎，usage=main 算直。
   const tagKind = (ids, i) => {
-    const tags = [g.edges.get(paths[ids[i - 1]].edgeIds.at(-1))?.tags || {}, g.edges.get(paths[ids[i]].edgeIds[0])?.tags || {}];
+    const tags = [];
+    if (i > 0) tags.push(g.edges.get(paths[ids[i - 1]].edgeIds.at(-1))?.tags || {});
+    if (i < ids.length) tags.push(g.edges.get(paths[ids[i]].edgeIds[0])?.tags || {});
     return tags.some(t => t.service === 'siding') ? 'S' : tags.some(t => t.usage === 'main') ? 'M' : '?';
   };
   function verdict(pr, qIds, pIds) {
@@ -139,11 +148,13 @@ export function makeOvertakeJudge(S) {
   return { routeOptions, turnOf, relTurn, tagKind, verdict };
 }
 
-// 待避對：同一天同一站，待避車 Q 官方停靠且不是起訖站，兩車進站方向相同（cos>0）。分兩型：
-//   通過型：超越車 P 官方不停，Q.arr ≤ P 的通過時刻 < Q.dep。
-//   停站型（後到先開）：P 也官方停靠且不是起訖站，Q.arr < P.arr 且 P.dep < Q.dep。
+// 待避對：同一天同一站，待避車 Q 官方停靠且停站窗長大於 0（起點站、終點站也算：前端在起點站發車前、終點站到站後都把車
+// 畫在月台上，窗長 > 0 的停靠，超越車照樣會從旁經過），兩車進站方向相同（cos>0）。分兩型：
+//   通過型：超越車 P 官方不停，Q.arr ≤ P 的通過時刻 < Q.dep（零長窗自然配不到）。
+//   停站型（後到先開）：P 也官方停靠且不是起訖站，Q.arr ≤ P.arr 且 P.dep ≤ Q.dep，兩端至少一端嚴格成立
+//     （兩端都同一分鐘分不出先後，不算）。
 // 配對只看時刻是否落在停站窗內，不看停多久（停得久可能是折返、對向交會或單純長停）。
-// 窗外前後 PAIR_MARGIN_SEC 秒內的通過車（P 在 Q 到站前就過站，或與 Q 同時、更晚才過）不是超越：
+// 窗外前後 PAIR_MARGIN_SEC 秒內的通過車（P 在 Q 到站前就過站，或與 Q 同時、更晚才過站）不是超越：
 // 只回傳在 near 給報告，不進違規、不修、閘門不算；放寬窗會讓修復器搬不必搬的車，閘門也會紅在不存在的問題上。
 // 時刻來自 computeProfiles（cells），不是密化班表的內插值。同一組（型別, Q 車次鍵＠站序, P 車次鍵＠站序）跨日合併成一筆，
 // days 是它出現的日子（違規按天數加權）。
@@ -159,15 +170,15 @@ export function findOvertakePairs(S) {
     if (!c.days.includes(day)) { c.days.push(day); c.at[day] = at; }
   };
   for (const [day, byStation] of cells) for (const [st, cell] of byStation) {
-    const passers = cell.pass.filter(p => p.side === 'in' && !p.dwells), stoppers = cell.dwell.filter(mid);
-    for (const d of stoppers) {
+    const passers = cell.pass.filter(p => p.side === 'in' && !p.dwells), waiters = cell.dwell.filter(d => d.b > d.a), stoppers = cell.dwell.filter(mid);
+    for (const d of waiters) {
       for (const p of passers) {
         if (p.key === d.key || p.t < d.a - PAIR_MARGIN_SEC || p.t > d.b + PAIR_MARGIN_SEC || dot(head(d.key, d.i), head(p.key, p.i)) <= 0) continue;
         if (d.a <= p.t && p.t < d.b) add('pass', day, st, d, p, { qa: d.a, qb: d.b, pt: p.t });
         else near.push({ day, station: st, q: ref(d.key, d.i), p: ref(p.key, p.i), qa: d.a, qb: d.b, pt: p.t, side: p.t < d.a ? '到站前就過站' : '同時或更晚才過' });
       }
       for (const p of stoppers) {
-        if (p.key === d.key || !(d.a < p.a && p.b < d.b) || dot(head(d.key, d.i), head(p.key, p.i)) <= 0) continue;
+        if (p.key === d.key || !(d.a <= p.a && p.b <= d.b && (d.a < p.a || p.b < d.b)) || dot(head(d.key, d.i), head(p.key, p.i)) <= 0) continue;
         add('stop', day, st, d, p, { qa: d.a, qb: d.b, pa: p.a, pb: p.b });
       }
     }
