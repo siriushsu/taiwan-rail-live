@@ -22,7 +22,7 @@ const gitJSON = (ref, p) => JSON.parse(execFileSync('git', ['-C', ROOT, 'show', 
 const readJSON = p => JSON.parse(fs.readFileSync(path.resolve(ROOT, p), 'utf8'));
 
 // scheduleRef 為 null 時讀磁碟上的班表與通過時刻（逐週報告用）。時刻一律跑 computeProfiles（與畫面同一段推論）。
-// network／dispatch 是相對樹根的路徑或絕對路徑。
+// network／dispatch 是相對樹根的路徑或絕對路徑；files 回傳實際讀的兩個檔（絕對路徑），收尾要從磁碟重讀輸入時用它。
 export function loadOvertakeInputs({ scheduleRef = null, withExam = true, network = 'rail-3d/physical/network.json', dispatch = 'rail-3d/physical/dispatch.json' } = {}) {
   const indexPath = path.join(ROOT, 'index.html'), track = readJSON('data/tra.json');
   const sched = scheduleRef ? gitJSON(scheduleRef, 'data/tra_schedule_dense.json') : readJSON('data/tra_schedule_dense.json');
@@ -39,6 +39,7 @@ export function loadOvertakeInputs({ scheduleRef = null, withExam = true, networ
     extraDays.push({ day: EXAM_DATE, sched: examSched, timed: examTimed });
   }
   return {
+    files: { network: path.resolve(ROOT, network), dispatch: path.resolve(ROOT, dispatch) },
     net: readJSON(network), dispatch: readJSON(dispatch), sched, timed, extraDays,
     base: { net: gitJSON(BASE_REF, 'rail-3d/physical/network.json'), dispatch: gitJSON(BASE_REF, 'rail-3d/physical/dispatch.json') },
     // 單雙線表釘在 BASE_REF：這張表由路網與派車表算出（scripts/build_tra_track_sections.mjs），改派車後重產可能改判；
@@ -243,6 +244,15 @@ export function makeMeetCounter(S, sections) {
 
 export const REASON_SHORT = '同一班 P 在同站同時超越兩班 Q、該方向較彎的股道不夠';
 
+// explain 回傳的原因（還有可行修法時回 FIXABLE，其餘每一組修不掉的都落在其中一個）。
+// SHARED_OK_REASONS：共用節點（畫面上超越車穿過待避車）准許留下的原因，只有修了會違反硬性條件的（規格第 6 節第 3 條）；
+// FIXABLE 與「會增加別的違規」不准留。閘門 G3 與 F2b 收尾自檢共用這一份，原因的字面只在這裡寫一次。
+const REASONS = {
+  FIXABLE: 'FIXABLE', NO_ALT: '沒有替代股道', STILL: '替代組合都仍違規', SHORT: REASON_SHORT, PROTECTED: '受保護',
+  BC: '會增加 B 或 C', MEET: '會增加單線交會共用節點', SHARED: '會增加共用節點', OTHER: '會增加別的違規',
+};
+export const SHARED_OK_REASONS = new Set([REASONS.NO_ALT, REASONS.STILL, REASONS.SHORT, REASONS.PROTECTED, REASONS.BC, REASONS.MEET, REASONS.SHARED]);
+
 // 保護：remaining-routes-0913 的 afterPlans（含沿用它們的改點／借用車次）、0912 四筆具名修復的兩端站、太麻里非電化月台節點。
 export function makeProtection(S, { protectedPlans, repairs, taimali }) {
   const lockedKeys = new Set([...Object.keys(protectedPlans), ...S.protectedScheduleKeys]);
@@ -261,7 +271,7 @@ export function makeProtection(S, { protectedPlans, repairs, taimali }) {
 // 求解器：一組違規的待避車選項 × 超越車選項（含不動）一起列舉；改一份自己的計畫時，執行期借它切片的車次一起換（expand）。
 // 接受：違規總數（兩型合計、按天數加權）變少，沒有任何一天的 B、C、單線交會共用節點變多（逐日淨增加），
 // 而且原本不共用的待避對沒有任何一對變成共用節點（穿越；逐對算，不是逐日總數，見 evaluate）；
-// 同分依序取：這一組自己修完的狀態好的（做對 > 兩車都直 > 超越車仍彎 > 仍違規）、搬的車少、路徑短、節點字串小的（結果可重現）。
+// 同分依序取：這一組自己修完的狀態好的（做對 > 超越車直 > 超越車仍彎 > 仍違規）、搬的車少、路徑短、節點字串小的（結果可重現）。
 // 只比搬的車少，會偏好只把待避車推到另一條側線、超越車留在側線的修法：違規數照樣變少，超越車卻還沒走正線。
 export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
   const { current, borrowed, trainOf, cells, daysOf, cellConflicts, borrowersOf, nonElectricWays, initialNonElectric, nodeAt, materialize } = S;
@@ -340,7 +350,8 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
     }
     return { alternatives: qOpts.length + pOpts.length - 2, out };
   }
-  // 這一組自己修完的狀態（同分時先看它）：0 做對、1 不違規且超越車是直的（兩車都直）、2 不違規但超越車仍彎、3 仍違規。
+  // 這一組自己修完的狀態（同分時先看它）：0 做對、1 不違規且超越車是直的（rp≤3°，包含待避車只多轉 3°–5°、還沒到做對的）、
+  // 2 不違規但超越車仍彎、3 仍違規。
   const qualityOf = v => (v.kind === 'ok' ? 0 : !v.viol ? (v.rp <= STRAIGHT_DEG ? 1 : 2) : 3);
   const rank = (a, b) => a.dViol - b.dViol || a.quality - b.quality || a.moved - b.moved || a.lengthM - b.lengthM || (a.nodes < b.nodes ? -1 : a.nodes > b.nodes ? 1 : 0);
   function bestFix(c) {
@@ -378,19 +389,19 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
   // → 會增加 B 或 C → 會增加單線交會共用節點 → 會增加共用節點 → 會增加別的違規。
   // REASON_SHORT 排在保護之後：被保護擋下的組，原因是保護，不是股道不夠。
   function explain(c) {
-    if (bestFix(c)) return 'FIXABLE';
+    if (bestFix(c)) return REASONS.FIXABLE;
     const { alternatives, out } = candidates(c);
-    if (!alternatives) return '沒有替代股道';
+    if (!alternatives) return REASONS.NO_ALT;
     const fixing = out.map(x => ({ x, all: expand(x.direct) })).filter(({ all }) => !J.verdict(c, idsAfter(all, c.q.key), idsAfter(all, c.p.key)).viol);
-    if (!fixing.length) return '替代組合都仍違規';
+    if (!fixing.length) return REASONS.STILL;
     const blocked = fixing.map(f => blockedBy(f.all)), open = fixing.filter((f, k) => !blocked[k]);
-    if (!open.length) return blocked.some(b => b.kind === 'protected') ? '受保護' : '沒有替代股道';
-    if (curvedShortage(c)) return REASON_SHORT;
+    if (!open.length) return blocked.some(b => b.kind === 'protected') ? REASONS.PROTECTED : REASONS.NO_ALT;
+    if (curvedShortage(c)) return REASONS.SHORT;
     const evs = open.map(f => evaluate(f.x.direct));
-    if (evs.every(e => e.worse.length)) return '會增加 B 或 C';
-    if (evs.every(e => e.worse.length || e.worseMeet.length)) return '會增加單線交會共用節點';
-    if (evs.every(e => e.worse.length || e.worseMeet.length || e.worseShared.length)) return '會增加共用節點';
-    return '會增加別的違規';
+    if (evs.every(e => e.worse.length)) return REASONS.BC;
+    if (evs.every(e => e.worse.length || e.worseMeet.length)) return REASONS.MEET;
+    if (evs.every(e => e.worse.length || e.worseMeet.length || e.worseShared.length)) return REASONS.SHARED;
+    return REASONS.OTHER;
   }
   // 要在 apply 之前呼叫（diff 是相對於現況）
   function describe(fix) {

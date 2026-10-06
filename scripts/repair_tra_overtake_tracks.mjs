@@ -15,6 +15,8 @@
 //   4. 一遍裡一輪一輪做到沒有改善；再從輸出重建名冊重來一遍（落成的新計畫會改變別班的綁定來源），
 //      直到一整遍 0 次換股，收尾狀態就是從零重算的結果。
 //   5. 基準（站間長度上限、方向股道、候選節點、非電化允許清單、單雙線表）釘在 BASE_REF，重跑自己的輸出時判準不漂移。
+//   6. 收尾：先寫 network.json、dispatch.json，再從寫出的檔重建一個模型 R，自檢都在 R 上做（記憶體模型只用來核對 R 與追蹤值逐對相同）；
+//      report.json 最後才寫，所以 OUT_DIR 裡沒有 report.json ＝ 自檢沒過，這一次的 network／dispatch 不得使用。
 //
 // 不做的事：不改時刻、不加 hold、不造新股道、不改既有計畫的 stopSignature 與 holds；受保護的進路不動。
 // 路網只寫派車表真的用到的新路徑（探索過但沒採用的不寫）。
@@ -23,7 +25,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { createStationConflictModel, MAX_PAIR_STRETCH } from './lib/tra_station_conflicts.mjs';
-import { BASE_REF, SCHEDULE_REF, EXAM_REF, EXAM_DATE, REASON_SHORT, loadOvertakeInputs, makeOvertakeJudge, findOvertakePairs, makeProtection, makeOvertakeSolver, makeMeetCounter } from './lib/tra_overtake_pairs.mjs';
+import { BASE_REF, SCHEDULE_REF, EXAM_REF, EXAM_DATE, REASON_SHORT, SHARED_OK_REASONS, loadOvertakeInputs, makeOvertakeJudge, findOvertakePairs, makeProtection, makeOvertakeSolver, makeMeetCounter } from './lib/tra_overtake_pairs.mjs';
 
 const OUT_DIR = process.env.OUT_DIR || 'output/overtake-tracks', MAX_PASSES = 4, MAX_ROUNDS = 20;
 const tStart = Date.now(), secsSince = t => +((Date.now() - t) / 1000).toFixed(1);
@@ -38,10 +40,9 @@ const build = (net, disp, rep) => {
   assert.equal(S.rosterStats.skippedLength, 0, '名冊有車次因站數不符被略過');
   assert.equal(S.rosterStats.misaligned.length, 0, '名冊有車次跨日對不上：' + JSON.stringify(S.rosterStats.misaligned.slice(0, 3)));
   assert.equal(S.rosterStats.unlinked, 0, '有借用切片對不回來源');
-  const J = makeOvertakeJudge(S), { pairs, near } = findOvertakePairs(S), meets = makeMeetCounter(S, I.sections);
-  return { S, J, pairs, near, meets, X: makeOvertakeSolver(S, J, { pairs, isProtected: makeProtection(S, I), meets }) };
+  const J = makeOvertakeJudge(S), { pairs, near } = findOvertakePairs(S), meets = makeMeetCounter(S, I.sections), prot = makeProtection(S, I);
+  return { S, J, pairs, near, meets, prot, X: makeOvertakeSolver(S, J, { pairs, isProtected: prot, meets }) };
 };
-const sourceOf = S => new Map([...S.trainOf].map(([k, r]) => [k, r.basis + '|' + (r.sourceKey || '')]));
 // 逆向段（走在方向乾淨的股道上卻逆向的路徑段）按名冊逐車次鍵算：車次鍵 → 該班有幾段逆向，沒有逆向的不記；借用的車次算它借來的那一段。
 // 不用 S.wrongSegments()：它逐計畫筆數，借來的車次落成自己的計畫時，沿用來源的逆向段會在計畫表裡多一筆，總數變多，但這班車的路徑沒有變壞。
 // 斷言逐班比，不比總數：總數會掩蓋「一班修好、一班變壞」。
@@ -50,21 +51,18 @@ const sumOf = m => [...m.values()].reduce((a, b) => a + b, 0);
 const looseKey = (type, st, q, p) => [type, st, q, p].join('|');   // 站＋型別＋Q 車次鍵＋P 車次鍵（不含站序）
 
 const usedNew = new Map();   // pathId → 路網記錄（各遍落成的新路徑；寫檔時只留派車表用到的）
-let net = I.net, cur, first = null, firstSource = null, firstPairs = null, firstWrong = null, drift = [];
+let net = I.net, cur, first = null, firstPlanIds = null, firstPairs = null, firstWrong = null;
 for (let pass = 1; pass <= MAX_PASSES; pass++) {
   const tPass = Date.now();
-  cur = null;   // 前一遍的模型（約 1 GB）先放掉再建下一個
+  cur = null;   // 先放掉上一遍的模型再建下一個：每一遍的模型都帶整份名冊、cells 與各種快取，cur 還指著它的話，建新模型時新舊兩份會同時佔著記憶體
   cur = build(net, dispatch, report);
   const buildSecs = secsSince(tPass), { S, X } = cur;
   if (!first) {
     firstWrong = rosterWrong(S);
     first = { violations: X.violations(), byType: X.violationsByType(), conflicts: perDay(S.allConflicts()), meets: cur.meets.perDay(), wrong: sumOf(firstWrong), wrongPlanEntries: S.wrongSegments(), pairs: cur.pairs.length, near: cur.near.length };
-    firstSource = sourceOf(S);
+    firstPlanIds = new Map([...S.current].map(([k, ids]) => [k, ids.slice()]));   // 收尾核對綁定漂移用：第一遍開始時每個車次鍵的有效 pathIds
     // 第一遍開始時每一對待避對的樣子：收尾時逐對核對「不准新造穿越」（pair 的 id 含車次鍵與站序，id 對不上再退回不含站序的鍵）
     firstPairs = cur.pairs.map(c => ({ id: c.id, loose: looseKey(c.type, c.st, c.q.key, c.p.key), shared: X.state(c).kind === 'shared' }));
-  } else {
-    const now = sourceOf(S);
-    drift = [...now].filter(([k, v]) => firstSource.has(k) && firstSource.get(k) !== v && !report.moves.some(m => m.changes.some(c => c.key === k))).map(([k, v]) => [k, firstSource.get(k), v]);
   }
   const rec = { pass, start: X.violations(), buildSecs, rounds: [] };
   for (let round = 1; round <= MAX_ROUNDS; round++) {
@@ -88,36 +86,13 @@ for (let pass = 1; pass <= MAX_PASSES; pass++) {
   if (rec.rounds.every(r => !r.moved)) break;
   assert.ok(pass < MAX_PASSES, `${MAX_PASSES} 遍仍有換股，沒有收斂`);
 }
-const { S, X, meets, near, pairs } = cur;
+const { S, X, meets, pairs } = cur;   // 最後一遍（沒有再換股、收斂的那一遍）的記憶體模型
 
-// ── 收尾自檢 ──
-const tExplain = Date.now(), viol = X.violating(), explained = viol.map(c => ({ c, reason: X.explain(c) }));
-const explainSecs = secsSince(tExplain);
-assert.ok(explained.every(e => e.reason !== 'FIXABLE'), '收斂後仍有可修的違規');
-const finalConf = perDay(S.allConflicts()), finalMeets = meets.perDay(), wrongNow = rosterWrong(S), wrongAfter = sumOf(wrongNow);
+// ── 寫檔前自檢（記憶體模型）：計畫表本身的結構與保護，不過就不落檔 ──
+const finalViolations = X.violations(), finalConf = perDay(S.allConflicts()), finalMeets = meets.perDay();
 for (const day of new Set([...Object.keys(first.conflicts), ...Object.keys(finalConf)])) for (const t of ['B', 'C'])
   assert.ok((finalConf[day]?.[t] || 0) <= (first.conflicts[day]?.[t] || 0), `${day} 的 ${t} 從 ${first.conflicts[day]?.[t] || 0} 變成 ${finalConf[day]?.[t] || 0}`);
 for (const day of Object.keys(finalMeets)) assert.ok(finalMeets[day] <= (first.meets[day] || 0), `${day} 的單線交會共用節點從 ${first.meets[day] || 0} 變成 ${finalMeets[day]}`);
-const wrongWorse = [...wrongNow].filter(([k, n]) => n > (firstWrong.get(k) || 0));   // 第一遍沒有記的車次鍵就是 0
-assert.equal(wrongWorse.length, 0, `有 ${wrongWorse.length} 班的逆向段變多（車次鍵 前 → 後）：` + wrongWorse.slice(0, 10).map(([k, n]) => `${k} ${firstWrong.get(k) || 0} → ${n}`).join('；'));
-const wrongTrainsBetter = [...firstWrong].filter(([k, n]) => (wrongNow.get(k) || 0) < n).length;
-// 不准新造穿越（規格第 4 節第 3 步，逐對算）：第一遍開始時不是共用節點的待避對，收尾時不得是共用節點。
-// 先用 id 對，id 對不上（跨遍重建後車次鍵或站序變了）的退回站＋型別＋Q 車次鍵＋P 車次鍵，同鍵有好幾對時任何一對共用就算。
-const finalById = new Map(pairs.map(c => [c.id, c])), finalByLoose = new Map();
-for (const c of pairs) { const k = looseKey(c.type, c.st, c.q.key, c.p.key); (finalByLoose.get(k) || finalByLoose.set(k, []).get(k)).push(c); }
-const crossing = [], noNew = { firstPairs: firstPairs.length, notSharedAtStart: 0, matchedById: 0, matchedByLooseKey: 0, vanished: 0, newShared: 0, appeared: 0, appearedShared: 0 };
-for (const f of firstPairs) {
-  if (f.shared) continue;
-  noNew.notSharedAtStart++;
-  const hit = finalById.get(f.id), hits = hit ? [hit] : finalByLoose.get(f.loose) || [];
-  if (hit) noNew.matchedById++; else if (hits.length) noNew.matchedByLooseKey++; else noNew.vanished++;
-  for (const c of hits) if (X.state(c).kind === 'shared') crossing.push({ id: c.id, days: c.days, was: f.id });
-}
-noNew.newShared = crossing.length;
-const firstIds = new Set(firstPairs.map(f => f.id)), firstLoose = new Set(firstPairs.map(f => f.loose));
-for (const c of pairs) if (!firstIds.has(c.id) && !firstLoose.has(looseKey(c.type, c.st, c.q.key, c.p.key))) { noNew.appeared++; if (X.state(c).kind === 'shared') noNew.appearedShared++; }
-noNew.matchBy = noNew.matchedByLooseKey ? 'id，對不上的退回站＋型別＋Q 車次鍵＋P 車次鍵' : 'id';
-assert.equal(crossing.length, 0, '新造穿越（原本不共用節點的待避對收尾時共用了）：' + JSON.stringify(crossing.slice(0, 5)));
 for (const [key, plan] of Object.entries(I.protectedPlans)) assert.deepEqual(dispatch.plans[key], plan, '重寫已驗收進路 ' + key);
 for (const [key, plan] of Object.entries(original)) {
   const now = dispatch.plans[key]; assert.ok(now, '計畫不見了 ' + key);
@@ -135,42 +110,119 @@ for (const [key, ids] of S.current) {
   if (!S.borrowed.has(key)) assert.strictEqual(dispatch.plans[key].pathIds, ids, key + ' 計畫與名冊脫鉤');
 }
 
-// ── 寫檔：路網只帶派車表用到的新路徑 ──
+// ── 寫檔：路網只帶派車表用到的新路徑；report.json 留到自檢全過才寫 ──
 const referenced = new Set(Object.values(dispatch.plans).flatMap(p => p.pathIds));
 const keep = [...usedNew.keys()].filter(id => referenced.has(id)).sort((a, b) => a - b);
 const outNet = { ...I.net, paths: { ...I.net.paths, ...Object.fromEntries(keep.map(id => [id, usedNew.get(id)])) } };
-assert.equal(JSON.stringify(outNet.ways), JSON.stringify(I.net.ways), 'ways 被改了');
 for (const id of referenced) assert.ok(outNet.paths[id], '派車表用到路網沒有的路徑 ' + id);
+const netFile = path.join(OUT_DIR, 'network.json'), dispatchFile = path.join(OUT_DIR, 'dispatch.json'), reportFile = path.join(OUT_DIR, 'report.json');
 fs.mkdirSync(OUT_DIR, { recursive: true });
-fs.writeFileSync(path.join(OUT_DIR, 'network.json'), JSON.stringify(outNet));
-fs.writeFileSync(path.join(OUT_DIR, 'dispatch.json'), JSON.stringify(dispatch));
+fs.rmSync(reportFile, { force: true });   // 自檢沒過時不留上一次的報告，免得它跟這一次的 network／dispatch 湊成一組
+fs.writeFileSync(netFile, JSON.stringify(outNet));
+fs.writeFileSync(dispatchFile, JSON.stringify(dispatch));
 
-// ── 從寫出的檔重建一次：違規數、每天 B／C、單線交會要等於追蹤值（序列化、路徑裁剪漏東西會在這裡現形）──
-const tRebuild = Date.now(), finalViolations = X.violations();
-const R = build(JSON.parse(fs.readFileSync(path.join(OUT_DIR, 'network.json'), 'utf8')), JSON.parse(fs.readFileSync(path.join(OUT_DIR, 'dispatch.json'), 'utf8')), { materialised: 0 });
-const rebuildSecs = secsSince(tRebuild);
-assert.equal(R.X.violations(), finalViolations, '從輸出重建的違規數跟追蹤值不同');
-assert.deepEqual(perDay(R.S.allConflicts()), finalConf, '從輸出重建的 B／C 跟追蹤值不同');
+// ── 從寫出的檔重建模型 R，之後的自檢都在 R 上做 ──
+// ways 從磁碟重讀兩份來比（寫出的 network.json、輸入的 NETWORK 檔），不沿用記憶體物件：
+// outNet 是 { ...I.net, paths }，outNet.ways 與 I.net.ways 是同一個參照，拿它們互比必然相同。
+const writtenNet = JSON.parse(fs.readFileSync(netFile, 'utf8'));
+assert.equal(JSON.stringify(writtenNet.ways), JSON.stringify(JSON.parse(fs.readFileSync(I.files.network, 'utf8')).ways), `ways 被改了：${netFile} 與輸入 ${I.files.network} 的 ways 不同`);
+const tRebuild = Date.now();
+const R = build(writtenNet, JSON.parse(fs.readFileSync(dispatchFile, 'utf8')), { materialised: 0 });
+const rebuildSecs = secsSince(tRebuild), RS = R.S, RX = R.X;
+const nm = c => `${c.st.split(':')[1]} Q${c.q.no}/P${c.p.no}（${c.type === 'pass' ? '通過' : '停站'}）`;
+
+// 追蹤值（記憶體模型一路增量算出來的）要與重建的模型相同：總量與逐對判定都比。序列化、路徑裁剪漏東西、增量判定漏重判都會在這裡現形。
+assert.equal(RX.violations(), finalViolations, '從輸出重建的違規數跟追蹤值不同');
+assert.deepEqual(perDay(RS.allConflicts()), finalConf, '從輸出重建的 B／C 跟追蹤值不同');
 assert.deepEqual(R.meets.perDay(), finalMeets, '從輸出重建的單線交會跟追蹤值不同');
+const memPairs = new Map(pairs.map(c => [c.id, c])), rebuiltPairs = new Map(R.pairs.map(c => [c.id, c])), kindDiff = [];
+for (const c of R.pairs) { const m = memPairs.get(c.id), km = m ? X.state(m).kind : '（沒有這一對）', kr = RX.state(c).kind; if (km !== kr) kindDiff.push(`${nm(c)} 記憶體 ${km}／重建 ${kr}`); }
+for (const c of pairs) if (!rebuiltPairs.has(c.id)) kindDiff.push(`${nm(c)} 記憶體 ${X.state(c).kind}／重建 （沒有這一對）`);
+assert.equal(kindDiff.length, 0, `記憶體模型與重建模型有 ${kindDiff.length} 對的判定不同（前 10）：` + kindDiff.slice(0, 10).join('；'));
 
+// explain 只在 R 上跑一次：沒有可修的違規（閘門 G2 同條件）
+const tExplain = Date.now(), viol = RX.violating(), explained = viol.map(c => ({ c, reason: RX.explain(c) }));
+const explainSecs = secsSince(tExplain);
+assert.ok(explained.every(e => e.reason !== 'FIXABLE'), '收斂後仍有可修的違規');
+
+// 逐班方向：沒有任何一班的逆向段變多（逐班比，不比總數：總數會掩蓋「一班修好、一班變壞」）
+const wrongNow = rosterWrong(RS), wrongAfter = sumOf(wrongNow);
+const wrongWorse = [...wrongNow].filter(([k, n]) => n > (firstWrong.get(k) || 0));   // 第一遍沒有記的車次鍵就是 0
+assert.equal(wrongWorse.length, 0, `有 ${wrongWorse.length} 班的逆向段變多（車次鍵 前 → 後）：` + wrongWorse.slice(0, 10).map(([k, n]) => `${k} ${firstWrong.get(k) || 0} → ${n}`).join('；'));
+const wrongTrainsBetter = [...firstWrong].filter(([k, n]) => (wrongNow.get(k) || 0) < n).length;
+
+// 不准新造穿越（規格第 4 節第 3 步，逐對算）：第一遍開始時不是共用節點的待避對，收尾時不得是共用節點。
+// 先用 id 對，id 對不上（跨遍重建後車次鍵或站序變了）的退回站＋型別＋Q 車次鍵＋P 車次鍵，同鍵有好幾對時任何一對共用就算。
+// 另外兩種只出現在重建之後的情形也擋：收尾才找到、而且共用節點的對；第一遍有、收尾找不到的對（找不到的違規不是修好了，是看不見了）。
+const finalById = new Map(R.pairs.map(c => [c.id, c])), finalByLoose = new Map();
+for (const c of R.pairs) { const k = looseKey(c.type, c.st, c.q.key, c.p.key); (finalByLoose.get(k) || finalByLoose.set(k, []).get(k)).push(c); }
+const crossing = [], vanishedPairs = [], appearedSharedPairs = [];
+const noNew = { firstPairs: firstPairs.length, notSharedAtStart: 0, matchedById: 0, matchedByLooseKey: 0, vanished: 0, newShared: 0, appeared: 0, appearedShared: 0 };
+for (const f of firstPairs) {
+  if (f.shared) continue;
+  noNew.notSharedAtStart++;
+  const hit = finalById.get(f.id), hits = hit ? [hit] : finalByLoose.get(f.loose) || [];
+  if (hit) noNew.matchedById++; else if (hits.length) noNew.matchedByLooseKey++; else { noNew.vanished++; vanishedPairs.push(f.id); }
+  for (const c of hits) if (RX.state(c).kind === 'shared') crossing.push({ pair: nm(c), id: c.id, days: c.days, was: f.id });
+}
+noNew.newShared = crossing.length;
+const firstPairIds = new Set(firstPairs.map(f => f.id)), firstLoose = new Set(firstPairs.map(f => f.loose));
+for (const c of R.pairs) if (!firstPairIds.has(c.id) && !firstLoose.has(looseKey(c.type, c.st, c.q.key, c.p.key))) {
+  noNew.appeared++;
+  if (RX.state(c).kind === 'shared') { noNew.appearedShared++; appearedSharedPairs.push({ pair: nm(c), id: c.id, days: c.days }); }
+}
+noNew.matchBy = noNew.matchedByLooseKey ? 'id，對不上的退回站＋型別＋Q 車次鍵＋P 車次鍵' : 'id';
+assert.equal(crossing.length, 0, '新造穿越（原本不共用節點的待避對收尾時共用了）：' + JSON.stringify(crossing.slice(0, 10)));
+assert.equal(noNew.appearedShared, 0, `收尾才出現、而且共用節點的待避對 ${noNew.appearedShared} 對（前 10）：` + JSON.stringify(appearedSharedPairs.slice(0, 10)));
+assert.equal(noNew.vanished, 0, `第一遍有、收尾找不到的待避對 ${noNew.vanished} 對（前 10）：` + JSON.stringify(vanishedPairs.slice(0, 10)));
+
+// 綁定漂移：第一遍開始到 R，有效 pathIds 有變、卻沒出現在任何一筆換股記錄（moves[].changes）的車次，
+// 多半是落成的新計畫改變了借用者的綁定來源。求解器的 blockedBy 只看換股清單裡的鍵，漂移不經過它，所以在這裡逐段用同一個保護判斷
+// （R.prot：makeProtection 回傳的函式，與 blockedBy 用的是同一個）檢查：已驗收進路、具名修復端點、太麻里非電化月台。
+const movedKeys = new Set(report.moves.flatMap(m => m.changes.map(ch => ch.key)));
+const lostKeys = [...firstPlanIds.keys()].filter(k => !RS.current.has(k));
+assert.equal(lostKeys.length, 0, `名冊車次鍵在重建的模型裡不見了 ${lostKeys.length} 個（前 10）：` + lostKeys.slice(0, 10).join('、'));
+const drift = [], protHits = [];
+for (const [key, ids0] of firstPlanIds) {
+  if (movedKeys.has(key)) continue;
+  const ids1 = RS.current.get(key), segs = [];
+  for (let k = 0; k < Math.max(ids0.length, ids1.length); k++) if (ids0[k] !== ids1[k]) segs.push(k);
+  if (!segs.length) continue;
+  drift.push({ key, segs });
+  const names = RS.trainOf.get(key).names;
+  for (const j of new Set(segs.flatMap(k => [k, k + 1]))) {   // 第 k 段連接第 k、k+1 站
+    const why = R.prot(key, j, RS.nodeAt(ids0, j), RS.nodeAt(ids1, j));
+    if (why) protHits.push(`${key} ${names[j]} ${why}`);
+  }
+}
+assert.equal(protHits.length, 0, `綁定漂移碰到受保護的東西 ${protHits.length} 處（車次鍵 站 類別；前 10）：` + protHits.slice(0, 10).join('；'));
+// 漂移也可能讓違規變多：收尾的違規數不得比第一遍開始時多
+assert.ok(finalViolations <= first.violations, `違規數從 ${first.violations} 變成 ${finalViolations}`);
+
+// 共用節點（畫面上超越車穿過待避車）只准留下修了會違反硬性條件的，條件與閘門 G3 同一份（SHARED_OK_REASONS）
+const sharedBad = explained.filter(e => RX.state(e.c).kind === 'shared' && !SHARED_OK_REASONS.has(e.reason));
+assert.equal(sharedBad.length, 0, `共用節點的原因不在准許集合內 ${sharedBad.length} 組（站 Q/P 型別 原因 天數；前 10）：` + sharedBad.slice(0, 10).map(e => `${nm(e.c)} 「${e.reason}」${e.c.days.length} 天`).join('；'));
+
+// ── 報告（最後寫；修不掉的清單與原因取 R 的結果）──
 const hist = {}; for (const e of explained) { const k = e.c.type + ':' + e.reason; hist[k] = (hist[k] || 0) + 1; }
-const unfixable = explained.flatMap(({ c, reason }) => c.days.map(day => ({ day, type: c.type, station: c.st, q: c.q, p: c.p, ...c.at[day], ...X.state(c), reason })));
+const unfixable = explained.flatMap(({ c, reason }) => c.days.map(day => ({ day, type: c.type, station: c.st, q: c.q, p: c.p, ...c.at[day], ...RX.state(c), reason })));
 const shortStations = [...new Set(explained.filter(e => e.reason === REASON_SHORT).map(e => e.c.st.split(':')[1]))];
-const ambiguousByType = { pass: 0, stop: 0 }; for (const c of pairs) if (X.state(c).kind === 'ambiguous') ambiguousByType[c.type] += c.days.length;
-const nearPerDay = {}; for (const x of near) nearPerDay[x.day] = (nearPerDay[x.day] || 0) + 1;
+const ambiguousByType = { pass: 0, stop: 0 }; for (const c of R.pairs) if (RX.state(c).kind === 'ambiguous') ambiguousByType[c.type] += c.days.length;
+const nearPerDay = {}; for (const x of R.near) nearPerDay[x.day] = (nearPerDay[x.day] || 0) + 1;
 // 換股依「這一組修完的狀態」分布；兩班一起換＝待避車與超越車都被直接換股（借用切片連帶換的不算）
 const movesByAfterKind = {};
 for (const m of report.moves) { const o = movesByAfterKind[m.cAfter?.kind ?? '（無）'] ||= { moves: 0, both: 0 }; o.moves++; if (m.moved === 2) o.both++; }
 const newPlans = Object.keys(dispatch.plans).filter(k => !(k in original)).length, bothMoved = report.moves.filter(m => m.moved === 2).length;
 const secs = { total: secsSince(tStart), explain: explainSecs, rebuild: rebuildSecs }, peakRssMB = Math.round(process.resourceUsage().maxRSS / 1024);
-fs.writeFileSync(path.join(OUT_DIR, 'report.json'), JSON.stringify({ ...report,
-  before: first, after: { violations: finalViolations, byType: X.violationsByType(), conflicts: finalConf, meets: finalMeets, wrong: wrongAfter, wrongPlanEntries: S.wrongSegments(), wrongTrainsBetter }, newPaths: keep.length, newPlans,
+fs.writeFileSync(reportFile, JSON.stringify({ ...report,
+  before: first, after: { violations: RX.violations(), byType: RX.violationsByType(), conflicts: perDay(RS.allConflicts()), meets: R.meets.perDay(), wrong: wrongAfter, wrongPlanEntries: RS.wrongSegments(), wrongTrainsBetter }, newPaths: keep.length, newPlans,
   movesByAfterKind, bothMoved, noNewShared: noNew, unfixableByReason: hist, unfixable, shortStations, ambiguousByType, nearPerDay, bindingDrift: { count: drift.length, sample: drift.slice(0, 20) },
   secs, peakRssMB }, null, 1));
-const bt = first.byType, at = X.violationsByType();
+const bt = first.byType, at = RX.violationsByType();
 console.log(`違規 通過型 ${bt.pass} → ${at.pass}、停站型 ${bt.stop} → ${at.stop} 件次；換股 ${report.moves.length} 次（兩班一起換 ${bothMoved}）、新落成計畫 ${newPlans}（落成動作 ${report.materialised} 次）、新路徑 ${keep.length}、綁定漂移 ${drift.length}`);
 console.log(`換股後狀態分布 ${JSON.stringify(movesByAfterKind)}；不准新造穿越逐對核對 ${JSON.stringify(noNew)}`);
-console.log(`逆向段（名冊逐班）${first.wrong} → ${wrongAfter}、逐班變好 ${wrongTrainsBetter} 班、沒有任何一班變多；計畫表逐筆 ${first.wrongPlanEntries} → ${S.wrongSegments()}`);
+console.log(`逆向段（名冊逐班）${first.wrong} → ${wrongAfter}、逐班變好 ${wrongTrainsBetter} 班、沒有任何一班變多；計畫表逐筆 ${first.wrongPlanEntries} → ${RS.wrongSegments()}`);
 console.log(`修不掉（組）${JSON.stringify(hist)}；「${REASON_SHORT}」的站：${shortStations.join('、') || '（無）'}`);
+console.log(`收尾自檢都在寫出的檔重建的模型上做：記憶體模型與重建模型的違規數、B／C、單線交會與 ${R.pairs.length} 對待避對的判定逐項相同`);
 console.log(`耗時 ${JSON.stringify(secs)} 秒；記憶體峰值 ${peakRssMB} MB`);
 console.log('寫入', OUT_DIR);

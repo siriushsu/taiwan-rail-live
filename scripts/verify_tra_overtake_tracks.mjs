@@ -1,7 +1,7 @@
 // 台鐵待避股道閘門：時刻表明示的待避（通過型：超越車不停、通過時刻落在待避車停站窗內；停站型：超越車後到先開），
 // 待避車要停較彎的股道、超越車走較直的股道，兩車不共用節點。判準與修復器 repair_tra_overtake_tracks.mjs 同一份
 //（scripts/lib/tra_overtake_pairs.mjs），規格在 docs/specs/2026-10-06-tra-overtake-main-siding.md。
-// G0 名冊分母／G1 每天通過型與停站型都有待避對／G2 局部最優（還有可行、又不增 B、C、單線交會與待避對共用節點的換股沒做就紅）／
+// G0 名冊分母（完整，而且不比基準派車表縮水）／G1 每天通過型與停站型都有待避對／G2 局部最優（還有可行、又不增 B、C、單線交會與待避對共用節點的換股沒做就紅）／
 // G3 共用節點只准是修了會違反硬性條件的／G4 單線交會共用節點逐日不多於基準派車表（BASE_REF，執行時現算）／G5 已知案例與正向對照。
 // 窗外前後 60 秒的近距配對只寫進報告，不進任何一條判準。
 // 班表釘在 SCHEDULE_REF 加 9/13 考卷；路網與派車讀出貨檔，NETWORK=／DISPATCH= 可換檔做突變。
@@ -10,14 +10,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { createStationConflictModel } from './lib/tra_station_conflicts.mjs';
-import { SCHEDULE_REF, REASON_SHORT, loadOvertakeInputs, makeOvertakeJudge, findOvertakePairs, makeProtection, makeOvertakeSolver, makeMeetCounter } from './lib/tra_overtake_pairs.mjs';
+import { SCHEDULE_REF, SHARED_OK_REASONS, loadOvertakeInputs, makeOvertakeJudge, findOvertakePairs, makeProtection, makeOvertakeSolver, makeMeetCounter } from './lib/tra_overtake_pairs.mjs';
 
 const ROLLING = process.argv.includes('--rolling');
 const NETWORK = process.env.NETWORK || 'rail-3d/physical/network.json', DISPATCH = process.env.DISPATCH || 'rail-3d/physical/dispatch.json';
 const REPORT = process.env.REPORT || `output/overtake-tracks/${ROLLING ? 'rolling' : 'gate'}-report.json`;
-// 已知案例（10/6 全日畫面掃描找到的通過型）：湖口是做反的、新烏日是做對的
+// 已知案例（10/6 全日畫面掃描找到的通過型）：湖口在基準派車表上是倒過來的實例，F2b 會把它修好，閘門只用它驗偵測得到（不斷言它的判定）；
+// 新烏日是做對的，G5a 另外斷言它判為不違規。
 const KNOWN = [
-  { day: '2026-10-06', station: 'tra_sched:湖口', q: '1187', p: '165', expect: 'violation' },
+  { day: '2026-10-06', station: 'tra_sched:湖口', q: '1187', p: '165' },
   { day: '2026-10-06', station: 'tra_sched:新烏日', q: '3128', p: '162', expect: 'clear' },
 ];
 const md5 = f => crypto.createHash('md5').update(fs.readFileSync(f)).digest('hex');
@@ -36,8 +37,12 @@ const S = model(I.net, I.dispatch);
 S.buildBorrowerIndex();
 const rs = S.rosterStats;
 lap('建模型');
-check(rs.keys > 0 && rs.skippedLength === 0 && rs.misaligned.length === 0 && rs.unlinked === 0, 'G0 名冊完整',
-  `${rs.keys} 個車次鍵、平鎮子集綁定 ${rs.subsetBound}、借用 ${rs.borrowed}、綁不到 ${rs.unbound}、站數不符被略過 ${rs.skippedLength}、跨日對不上 ${rs.misaligned.length}、借用切片對不回來源 ${rs.unlinked}`);
+// 基準：BASE_REF 的派車表用同一份班表建同一種名冊（G4 也用它）。綁不到計畫的車次不會出現在任何待避對裡，派車表少了計畫時，
+// 違規會跟著消失而其餘判準照樣綠，所以名冊車次鍵不得比基準少、綁不到的不得比基準多。件數執行時現算，不寫死。
+const S0 = model(I.base.net, I.base.dispatch), rs0 = S0.rosterStats;
+lap('基準模型');
+check(rs.keys > 0 && rs.skippedLength === 0 && rs.misaligned.length === 0 && rs.unlinked === 0 && rs.unbound <= rs0.unbound && rs.keys >= rs0.keys, 'G0 名冊完整、不比基準縮水',
+  `車次鍵 ${rs.keys}／基準 ${rs0.keys}（不得少於）、綁不到 ${rs.unbound}／基準 ${rs0.unbound}（不得多於）、平鎮子集綁定 ${rs.subsetBound}、借用 ${rs.borrowed}、站數不符被略過 ${rs.skippedLength}、跨日對不上 ${rs.misaligned.length}、借用切片對不回來源 ${rs.unlinked}`);
 
 const J = makeOvertakeJudge(S), { pairs, near } = findOvertakePairs(S), days = S.sources.map(x => x.day);
 const perDay = Object.fromEntries(days.map(d => [d, { pass: 0, stop: 0, near: 0 }])), byDayStation = {};
@@ -58,17 +63,17 @@ const name = c => `${c.st.split(':')[1]} ${c.q.no}/${c.p.no}（${c.type === 'pas
 const fixable = viol.filter(c => reasons.get(c.id) === 'FIXABLE'), vt = X.violationsByType();
 check(fixable.length === 0, 'G2 局部最優：沒有可行又不增 B、C、單線交會與共用節點的換股沒做',
   `違規 通過型 ${vt.pass}／停站型 ${vt.stop} 件次；原因（組）${JSON.stringify(hist)}${fixable.length ? '；例：' + fixable.slice(0, 5).map(name).join('、') : ''}`);
-// 修了會違反硬性條件的才准留（規格第 6 節第 3 條）；FIXABLE 與「會增加別的違規」不准留。
-const okShared = new Set(['沒有替代股道', '替代組合都仍違規', REASON_SHORT, '受保護', '會增加 B 或 C', '會增加單線交會共用節點', '會增加共用節點']);
-const shared = viol.filter(c => X.state(c).kind === 'shared'), sharedBad = shared.filter(c => !okShared.has(reasons.get(c.id)));
+// 修了會違反硬性條件的才准留（規格第 6 節第 3 條）；准許的原因集合在 lib（SHARED_OK_REASONS），F2b 收尾自檢用同一份；
+// FIXABLE 與「會增加別的違規」不在集合內，不准留。
+const shared = viol.filter(c => X.state(c).kind === 'shared'), sharedBad = shared.filter(c => !SHARED_OK_REASONS.has(reasons.get(c.id)));
 check(sharedBad.length === 0, 'G3 共用節點只剩修了會違反硬性條件的',
-  `共用 ${shared.length} 組，其中原因不是沒有替代的 ${sharedBad.length} 組${sharedBad.length ? '：' + sharedBad.slice(0, 5).map(c => name(c) + ' ' + reasons.get(c.id)).join('、') : ''}`);
+  `共用 ${shared.length} 組，其中原因不在准許集合內的 ${sharedBad.length} 組${sharedBad.length ? '：' + sharedBad.slice(0, 5).map(c => name(c) + ' ' + reasons.get(c.id)).join('、') : ''}`);
 
 // G4 基準在執行時從 BASE_REF 的路網與派車表現算（同一份班表與時刻），不寫死件數。
 const meetSample = [], meetNow = meets.perDay({ collect: meetSample });
 lap('G4 現行派車單線交會');
-const S0 = model(I.base.net, I.base.dispatch), meetBase = makeMeetCounter(S0, I.sections).perDay();
-lap('G4 基準模型與單線交會');
+const meetBase = makeMeetCounter(S0, I.sections).perDay();
+lap('G4 基準單線交會');
 const over = days.filter(d => (meetNow[d] || 0) > (meetBase[d] || 0));
 check(over.length === 0, 'G4 單線交會共用節點逐日不多於基準派車表',
   `${days.map(d => `${d.slice(5)} ${meetNow[d] || 0}/${meetBase[d] || 0}`).join(' ')}${over.length ? '；超過：' + over.join('、') : ''}`);

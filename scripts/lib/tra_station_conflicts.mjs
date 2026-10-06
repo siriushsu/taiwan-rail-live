@@ -158,9 +158,14 @@ export function createStationConflictModel({ net, dispatch, sched, timed, protec
 
   // ── 搬節點 ────────────────────────────────────────────────────────────────────────
   const lenOf = no => { const f = formationFor({ systemId: SYS, carName: carName.get(no) }, 'actual'); return f ? f.lengths.reduce((a, b) => a + b, 0) : null; };
+  // 落成的計畫要與執行期 borrow()（rail-3d/physical/plan-binding.js）借出來的一致：沿用自己的計畫（retimed）時，
+  // 來源若標了 templateEligible:false（不可借給別班當模板，藍皮的非電化月台靠它守），落成後也要帶著，
+  // 否則落成之後別班的綁定會把這份計畫當模板借走。route-template 借的來源本來就不會有這個標記，borrow() 也不帶。
   function materialize(key) {
     const t = trainOf.get(key), ids = current.get(key).slice(), holds = t.stops.map(() => ({ arrival: 0, departure: 0 }));
-    plans[key] = { pathIds: ids, departureHolds: holds.map(() => 0), officialDelaySec: 0, holds, stopSignature: physicalStopSignature(t.tr), lengthM: lenOf(t.no) ?? 240 };
+    const noTemplate = t.basis === 'retimed' && plans[t.sourceKey]?.templateEligible === false;
+    plans[key] = { pathIds: ids, departureHolds: holds.map(() => 0), officialDelaySec: 0, holds, stopSignature: physicalStopSignature(t.tr), lengthM: lenOf(t.no) ?? 240,
+      ...(noTemplate && { templateEligible: false }) };
     current.set(key, ids); borrowed.delete(key); report.materialised++;
   }
   function localCells(key, i) {
