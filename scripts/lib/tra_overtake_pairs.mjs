@@ -6,8 +6,9 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { computeProfiles } from '../build_run_profiles.mjs';
-import { MAX_PAIR_STRETCH } from './tra_station_conflicts.mjs';
+import { SYS, MAX_PAIR_STRETCH } from './tra_station_conflicts.mjs';
 import { sectionKey, normSta } from './parallel_tracks.mjs';
+import { stationKey } from '../../rail-3d/physical/timing.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 // 基準：站間長度上限、方向股道、候選節點、非電化允許清單、單雙線表都從這顆的出貨檔算，重跑自己的輸出時判準不漂移。
@@ -228,4 +229,142 @@ export function makeMeetCounter(S, sections) {
     return out;
   }
   return { single, ends, isEnd, cellMeets, perDay };
+}
+
+export const REASON_SHORT = '同一班 P 在同站同時超越兩班 Q、該方向較彎的股道不夠';
+
+// 保護：remaining-routes-0913 的 afterPlans（含沿用它們的改點／借用車次）、0912 四筆具名修復的兩端站、太麻里非電化月台節點。
+export function makeProtection(S, { protectedPlans, repairs, taimali }) {
+  const lockedKeys = new Set([...Object.keys(protectedPlans), ...S.protectedScheduleKeys]);
+  const lockedStops = new Set(repairs.flatMap(r => r.station.split('—').map(n => r.train + '@' + stationKey(SYS, n))));
+  const lockedNodes = new Set([taimali.stopNode, taimali.dieselTrack?.stopNode].filter(Boolean).map(String));
+  const isProtected = (key, j, fromNode, toNode) => {
+    const rec = S.trainOf.get(key);
+    if (lockedKeys.has(key)) return '已驗收進路';
+    if (lockedStops.has(rec.no + '@' + rec.names[j])) return '具名修復端點';
+    if (lockedNodes.has(String(fromNode)) || lockedNodes.has(String(toNode))) return '太麻里非電化月台';
+    return null;
+  };
+  return Object.assign(isProtected, { lockedKeys, lockedStops, lockedNodes });
+}
+
+// 求解器：一組違規的待避車選項 × 超越車選項（含不動）一起列舉；改一份自己的計畫時，執行期借它切片的車次一起換（expand）。
+// 接受：違規總數（兩型合計、按天數加權）變少，且沒有任何一天的 B、C 或單線交會共用節點變多；
+// 同分取搬的車少、路徑短、節點字串小的（結果可重現）。
+export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
+  const { current, borrowed, trainOf, cells, daysOf, cellConflicts, borrowersOf, nonElectricWays, initialNonElectric, nodeAt, materialize } = S;
+  const byKey = new Map(), byP = new Map();
+  for (const c of pairs) {
+    for (const side of ['q', 'p']) (byKey.get(c[side].key) || byKey.set(c[side].key, []).get(c[side].key)).push(c);
+    const pk = c.p.key + '@' + c.p.i; (byP.get(pk) || byP.set(pk, []).get(pk)).push(c);
+  }
+  const state = new Map(pairs.map(c => [c.id, J.verdict(c, current.get(c.q.key), current.get(c.p.key))]));
+  const weight = c => c.days.length;
+  const violations = () => pairs.reduce((n, c) => n + (state.get(c.id).viol ? weight(c) : 0), 0);
+  const violationsByType = () => { const o = { pass: 0, stop: 0 }; for (const c of pairs) if (state.get(c.id).viol) o[c.type] += weight(c); return o; };
+  const violating = () => pairs.filter(c => state.get(c.id).viol).sort((a, b) => weight(b) - weight(a) || (a.id < b.id ? -1 : 1));
+  const idsAfter = (all, key) => all.get(key) || current.get(key);
+  const changedAt = (key, ids2) => { const ids = current.get(key), out = []; ids2.forEach((p, k) => { if (p !== ids[k]) out.push(k); }); return out; };
+  function expand(direct) {
+    const all = new Map(direct);
+    for (const [key, ids2] of direct) if (!borrowed.has(key)) for (const b of borrowersOf(key)) if (!all.has(b.key)) all.set(b.key, ids2.slice(b.o, b.o + b.n));
+    return all;
+  }
+  // 受影響範圍：第 k 段路徑改了，相對轉角快取鍵含 ids[j-2..j+1] ⇒ 站 j∈[k-1,k+2] 的待避對要重判；
+  // 站 k、k+1 的 cells 要重算 B／C 與單線交會（停車節點、進出站路徑與行進方向都只在這兩站變）。
+  function affected(all) {
+    const ps = new Set(), cs = new Map();
+    for (const [key, ids2] of all) {
+      const ch = changedAt(key, ids2); if (!ch.length) continue;
+      const lo = ch[0], hi = ch.at(-1), rec = trainOf.get(key);
+      for (const c of byKey.get(key) || []) { const i = c.q.key === key ? c.q.i : c.p.i; if (i >= lo - 1 && i <= hi + 2) ps.add(c); }
+      for (const day of new Set(daysOf.get(key) || [])) for (let j = lo; j <= hi + 1; j++) { const cell = cells.get(day)?.get(rec.names[j]); if (cell) cs.set(cell, { day, st: rec.names[j] }); }
+    }
+    return { pairs: [...ps], cells: [...cs] };
+  }
+  const tallyOf = (cell, st, override) => { let B = 0, C = 0; for (const x of cellConflicts(cell, override)) if (x.type === 'B') B++; else C++; return { B, C, M: meets.cellMeets(st, cell, override).length }; };
+  const baseTally = new Map(), tallyNow = (cell, st) => baseTally.get(cell) || baseTally.set(cell, tallyOf(cell, st)).get(cell);
+  function evaluate(direct) {
+    const all = expand(direct), aff = affected(all);
+    let dViol = 0;
+    for (const c of aff.pairs) dViol += ((J.verdict(c, idsAfter(all, c.q.key), idsAfter(all, c.p.key)).viol ? 1 : 0) - (state.get(c.id).viol ? 1 : 0)) * weight(c);
+    const perDay = new Map();
+    for (const [cell, { day, st }] of aff.cells) {
+      const b = tallyNow(cell, st), a = tallyOf(cell, st, all), d = perDay.get(day) || perDay.set(day, { B: 0, C: 0, M: 0 }).get(day);
+      d.B += a.B - b.B; d.C += a.C - b.C; d.M += a.M - b.M;
+    }
+    return { all, dViol, worse: [...perDay].filter(([, d]) => d.B > 0 || d.C > 0).map(([day]) => day).sort(),
+      worseMeet: [...perDay].filter(([, d]) => d.M > 0).map(([day]) => day).sort() };
+  }
+  // 借用者連帶換股也要守非電化與保護（停車節點有變的那幾站逐一問 isProtected）
+  function blockedBy(all) {
+    for (const [key, ids2] of all) {
+      const cur = current.get(key), allowed = initialNonElectric.get(key) || new Set();
+      for (const k of changedAt(key, ids2)) if ([...nonElectricWays(ids2[k])].some(w => !allowed.has(w))) return { kind: 'infeasible', why: '引入新非電化股道' };
+      for (let j = 0; j <= ids2.length; j++) { const a = nodeAt(cur, j), b = nodeAt(ids2, j); if (a !== b) { const why = isProtected(key, j, a, b); if (why) return { kind: 'protected', why }; } }
+    }
+    return null;
+  }
+  function candidates(c) {
+    const qOpts = J.routeOptions(c.q.key, c.q.i, current.get(c.q.key)), pOpts = J.routeOptions(c.p.key, c.p.i, current.get(c.p.key)), out = [];
+    for (const qo of qOpts) for (const po of pOpts) {
+      if (qo.current && po.current) continue;
+      const direct = new Map(); if (!qo.current) direct.set(c.q.key, qo.ids2); if (!po.current) direct.set(c.p.key, po.ids2);
+      out.push({ c, direct, moved: direct.size, lengthM: qo.lengthM + po.lengthM, nodes: qo.m + '|' + po.m });
+    }
+    return { alternatives: qOpts.length + pOpts.length - 2, out };
+  }
+  const rank = (a, b) => a.dViol - b.dViol || a.moved - b.moved || a.lengthM - b.lengthM || (a.nodes < b.nodes ? -1 : a.nodes > b.nodes ? 1 : 0);
+  function bestFix(c) {
+    let best = null;
+    for (const cand of candidates(c).out) {
+      if (blockedBy(expand(cand.direct))) continue;
+      const ev = evaluate(cand.direct); if (ev.dViol >= 0 || ev.worse.length || ev.worseMeet.length) continue;
+      const fix = { ...cand, ...ev }; if (!best || rank(fix, best) < 0) best = fix;
+    }
+    return best;
+  }
+  // 同一班 P 在同站同一天同時超越好幾班 Q（每班 Q 的停站窗都包住 P 的通過或停站時段，必然同時在站）：
+  // 不管 P 走哪個選項，能讓某班 Q 不違規的節點數都少於 Q 的班數，就是這個方向較彎的股道不夠。
+  function curvedShortage(c) {
+    const sib = (byP.get(c.p.key + '@' + c.p.i) || []).filter(s => s.q.key !== c.q.key && s.days.some(d => c.days.includes(d)));
+    if (!sib.length) return false;
+    const group = [c, ...sib], qOpts = group.map(x => J.routeOptions(x.q.key, x.q.i, current.get(x.q.key)));
+    return J.routeOptions(c.p.key, c.p.i, current.get(c.p.key)).every(po => {
+      const cap = new Set();
+      group.forEach((x, k) => { for (const qo of qOpts[k]) if (!J.verdict(x, qo.ids2, po.ids2).viol) cap.add(qo.m); });
+      return cap.size < group.length;
+    });
+  }
+  function explain(c) {
+    if (bestFix(c)) return 'FIXABLE';
+    const { alternatives, out } = candidates(c);
+    if (!alternatives) return '沒有替代股道';
+    if (curvedShortage(c)) return REASON_SHORT;
+    const fixing = out.map(x => ({ x, all: expand(x.direct) })).filter(({ all }) => !J.verdict(c, idsAfter(all, c.q.key), idsAfter(all, c.p.key)).viol);
+    if (!fixing.length) return '替代組合都仍違規';
+    const blocked = fixing.map(f => blockedBy(f.all)), open = fixing.filter((f, k) => !blocked[k]);
+    if (!open.length) return blocked.some(b => b.kind === 'protected') ? '受保護' : '沒有替代股道';
+    const evs = open.map(f => evaluate(f.x.direct));
+    if (evs.every(e => e.worse.length)) return '會增加 B 或 C';
+    if (evs.every(e => e.worse.length || e.worseMeet.length)) return '會增加單線交會共用節點';
+    return '會增加別的違規';
+  }
+  // 要在 apply 之前呼叫（diff 是相對於現況）
+  function describe(fix) {
+    const c = fix.c;
+    return { type: c.type, station: c.st, q: c.q, p: c.p, days: c.days.length, dViol: fix.dViol, moved: fix.moved,
+      changes: [...fix.all].map(([key, ids2]) => ({ key, direct: fix.direct.has(key), materialise: fix.direct.has(key) && borrowed.has(key),
+        diff: changedAt(key, ids2).map(k => [k, current.get(key)[k], ids2[k]]) })) };
+  }
+  function apply(fix) {
+    const aff = affected(fix.all);
+    for (const [key, ids2] of fix.all) {
+      if (fix.direct.has(key) && borrowed.has(key)) materialize(key);   // 借來的被直接換股：落成自己的計畫，不再跟著來源
+      const live = current.get(key); live.length = 0; live.push(...ids2);
+    }
+    for (const [cell] of aff.cells) baseTally.delete(cell);
+    for (const c of aff.pairs) state.set(c.id, J.verdict(c, current.get(c.q.key), current.get(c.p.key)));
+  }
+  return { violations, violationsByType, violating, state: c => state.get(c.id), expand, evaluate, bestFix, explain, apply, describe };
 }
