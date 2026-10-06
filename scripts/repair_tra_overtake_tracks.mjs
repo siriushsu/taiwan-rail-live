@@ -17,8 +17,8 @@
 //   5. 基準（站間長度上限、方向股道、候選節點、非電化允許清單、單雙線表）釘在 BASE_REF，重跑自己的輸出時判準不漂移。
 //   6. 收尾：先把 network、dispatch 寫成暫存名（network.unverified.json、dispatch.unverified.json），再從暫存檔重建一個模型 R，
 //      自檢都在 R 上做（收斂的最後一遍沒有換股，記憶體模型是用記憶體裡的 net／dispatch 重算的，只用來核對 R 逐對相同）。
-//      全過了才把暫存檔改成正式名，report.json 最後才寫。舊的正式名與暫存名產物在開跑時（輸入載入、確認輸出不是輸入之後）
-//      就刪掉，所以這一次不論在哪一步失敗，OUT_DIR 裡都沒有任何正式名的產物。
+//      全過了才把暫存檔改成正式名，report.json 最後才寫。舊的正式名與暫存名產物在輸入載入、確認輸出不是輸入之後就刪掉，
+//      從那裡起任何一步失敗，OUT_DIR 裡都沒有正式名的產物；更早的失敗（輸入讀不到、輸出就是輸入）不會動 OUT_DIR，只靠非 0 離開碼示警。
 //
 // 不做的事：不改時刻、不加 hold、不造新股道、不改既有計畫的 stopSignature 與 holds；受保護的進路不動。
 // 路網只寫派車表真的用到的新路徑（探索過但沒採用的不寫）。
@@ -45,8 +45,8 @@ const sameFile = (a, b) => { try { const x = fs.statSync(a), y = fs.statSync(b);
 for (const out of [netFile, dispatchFile, netTmp, dispatchTmp]) for (const [what, inp] of [['NETWORK', I.files.network], ['DISPATCH', I.files.dispatch]])
   assert.ok(path.resolve(out) !== inp && !sameFile(out, inp),
     `輸出檔 ${path.resolve(out)} 與輸入的 ${what} 檔 ${inp} 是同一個檔：ways 比對會變成自己比自己，而且刪舊產物時會把輸入刪掉；請把 OUT_DIR 換成輸入檔以外的位置`);
-// 舊產物（正式名與暫存名）在開跑時就刪掉：這一次不論在哪一步失敗，OUT_DIR 都不會留下正式名的產物，
-// 也就不會把上一次（可能是另一份輸入）的產物誤當成這一次的。
+// 舊產物（正式名與暫存名）在這裡就刪掉：從這裡起任何一步失敗，OUT_DIR 都不會留下正式名的產物，
+// 也就不會把上一次（可能是另一份輸入）的產物誤當成這一次的。這之前的失敗（輸入讀不到、輸出就是輸入）不動 OUT_DIR。
 for (const f of [netFile, dispatchFile, reportFile, netTmp, dispatchTmp]) fs.rmSync(f, { force: true });
 const dispatch = I.dispatch, original = structuredClone(dispatch.plans), protectedPlanKeys = new Set(Object.keys(I.protectedPlans));
 const report = { params: { BASE_REF, SCHEDULE_REF, EXAM_REF, EXAM_DATE, MAX_PASSES, MAX_ROUNDS, MAX_PAIR_STRETCH }, passes: [], moves: [], materialised: 0 };
