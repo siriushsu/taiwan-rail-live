@@ -406,10 +406,12 @@ const MODES = {
     // 127／Android 66：納入 1.6.13 後所有主線更新、車站收集小工具、台南道路與 3D 效能改善。
     // 128／Android 67（2026-10-02）：Apple lookup 與 Play 都是 1.6.14（127／66）已上架；載貨＝origin/main 1bde8356（正式站）
     //   ＋平鎮臨時站先行納入（v1002a）。路段懸賞、車庫這次不帶。
-    marketing: '1.6.15', build: '128', music: true, metroCore: true, androidPlus: true,
-    why: "軌島 1.6.15\n\n・新增台鐵平鎮臨時站（中壢、埔心之間，10/3 啟用）：地圖、站牌與時刻表照官方班表停靠，立體列車也會在平鎮停，到站可以蓋章\n・平鎮加入後，先前搭過的中壢–埔心路段照樣算進路段收集",
-    whyEn: "Rail Island 1.6.15\n\n• New TRA temporary station between Zhongli and Puxin (opens Oct 3): the map, boards and timetables follow the official schedule, 3D trains stop there, and you can check in on site\n• Rides you logged between Zhongli and Puxin still count toward your route collection",
-    whyJa: "軌島 1.6.15\n\n・台鉄の中壢〜埔心間に臨時駅（10月3日開業）を追加しました。地図・発車案内・時刻表は公式ダイヤどおりに停車し、3D列車も停まります。駅ではチェックインもできます\n・新しい駅が加わっても、これまでに乗った中壢〜埔心間の区間はそのままコレクションに数えられます",
+    // 129／Android 68（2026-10-06）：Apple lookup 與 Play 都是 1.6.15（128／67）已上架；載貨＝origin/main ecb69cbb（正式站 v1005g）。
+    //   主項是捷運小工具多站與自動改為所有人免費（c7608d1e）；終身通行證仍不開賣（revenuecat-config.js lifetimeOnSale: false）。
+    marketing: '1.6.16', build: '129', music: true, metroCore: true, androidPlus: true,
+    why: "軌島 1.6.16\n\n・捷運小工具的多站與「自動（最近的站）」改為所有人免費，不再需要通行證\n・立體地圖：臺北車站、中正紀念堂有鐵道經過時，整棟建築也會變半透明，看得到底下的軌道和列車\n・查詢分頁：方向多的車站，答案區固定顯示四列，其餘往下捲，更新時不會跳回頂端\n・修正台鐵列車通過車站時的短暫跳動",
+    whyEn: "Rail Island 1.6.16\n\n• Metro widgets: multiple stations and “Automatic (nearest station)” are now free for everyone, no Pass needed\n• 3D map: Taipei Main Station and Chiang Kai-shek Memorial Hall now turn fully translucent where a rail line runs past, so you can see the tracks and trains below\n• Lookup tab: stations with many directions show four rows; scroll for the rest. It no longer jumps to the top when it updates\n• Fixed brief jumps when TRA trains pass a station",
+    whyJa: "軌島 1.6.16\n\n・メトロウィジェットの複数駅と「自動（最寄り駅）」が、パスなしで誰でも無料で使えるようになりました\n・3D地図：台北駅と中正紀念堂は、線路が通る場所で建物全体も半透明になり、下の線路や列車が見えるようになりました\n・「調べる」タブ：方面の多い駅では回答欄に4行まで表示し、残りはスクロールで見られます。更新しても先頭に戻りません\n・台鉄列車が駅を通過する際の一瞬の飛びを修正しました",
   },
   // 2026-08-06：build 20、21、22 已上 TestFlight；22 專門驗收 Sandbox 購買後的
   // 軌島通行證客端功能、雲端同步與伺服器付費牆。這顆不可選去正式送審；正式版必須另推 build 號，
