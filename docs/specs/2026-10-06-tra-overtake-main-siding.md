@@ -1,0 +1,109 @@
+# 台鐵待避：通過車走正線、待避車停側線 — 設計書
+
+**日期**：2026-10-06
+**狀態**：設計待確認
+**分支**：`fix/tra-overtake-main-siding`（從 origin/main `0a435fcf` 開出）
+**量測證據**：本機 `output/overtake-probe-1006/`（gitignored；`tables.txt`、`classified.json`，單筆重現 `node show_event.mjs <A> <B> <HH:MM:SS>`）
+
+---
+
+## 0. 問題
+
+畫面上台鐵同方向兩班車互相交錯（後車穿過前車）。10/6 全日用畫面實際的 `trainPos` 每 4 秒取樣（BUILD v1005g，905 班）：
+
+- 同向翻序 1020 件，站與站之間只有 1 件，其餘都在站內。
+- 時刻表明示的待避（慢車官方停站、同向快車官方不停並在停站時段內通過）743 件。通過時刻落在停站窗內約 99.7%，**時刻是對的**。
+- **股道是錯的**：只有 312 件畫成「通過車走正線、待避車停側線」。倒過來（通過車走 `service=siding`、待避車停 `usage=main`）228 件；兩車同一股 56 件；兩車同類股道 235 件；股道無標記 32 件。
+- 2D 與立體地圖的台鐵位置同源，兩邊看到的是同一個錯。
+
+真實鐵路的待避：被超越的車進彎進去的到發線／待避線停車，通過車從直的正線過站。高鐵已照這條規則派車（`rail-3d/physical/README.md`、`scripts/verify_thsr_station_tracks.mjs`），台鐵沒有。
+
+## 1. 根因
+
+- `rail-3d/physical/topology.js:113-119` 找路徑只排除 yard／spur、只對 crossover 加成本，對正線／側線沒有偏好。
+- F2（`scripts/repair_physical_stations.mjs`）只處理衝突清單上的（車次，站），一次搬一班，搬完 B＋C 要變少才接受（:176-224）。「通過車走側線、待避車停正線」兩班停在不同節點，B、C 都是 0，永遠不會被挑到；就算挑到，單搬任一班都會先多一筆 C 而被退回。要兩班一起換才修得好。
+
+## 2. 目標與非目標
+
+**目標**：時刻表明示的待避，待避車停較彎的股道、通過車走較直的股道；每一天的 B、C 衝突都不增加。不改時刻、不加 hold、不造新股道、不改 `stopSignature`。
+
+**非目標（本輪不做，列在報告裡）**：
+- 兩車都停站的「後到先開」超越（10/6 約 105 筆）。
+- 與待避無關的一般通過車改走直線（10/6 有 1491 個通過站次有更直又可行的路沒走）。
+- 2D 畫面上待避車與通過車只差約 10 m（z15 約 2 px），縮小時看起來仍像疊在一起。這是顯示問題，另案討論。
+- 補 OSM 股道或渡線。
+
+## 3. 定義
+
+**待避對**：同一天、同一站；待避車 Q 官方停靠且不是起訖站；通過車 P 官方不停；P 的通過時刻落在 Q 停站窗前後 60 秒內；兩車在該站節點的行進方向相同（進站最後一條邊方向向量 cos>0）。時刻用 `build_run_profiles.mjs` 的 `computeProfiles`（與前端 `inferMeetPassTimes` 同一段原始碼，`verify_run_profiles_match` 保證一致），不用密化班表的內插值。帶 `_plannedDwell` 的預排待避不算（執行期已由 `overtake-sidings.js` 換股）。
+
+**直／彎**：幾何為主、標記破同分。對同一班車、同一站的每個可行候選節點，量進站段＋出站段在停車點前後 400 m 的累計轉角，減去該班車在該站可行候選裡的最小值，得到「相對轉角」。
+- 直＝相對轉角 ≤3°；
+- 待避車要比通過車多轉 ≥5°；
+- 落在 3°–5° 之間的才看標記（`service=siding` 算彎、`usage=main` 算直）。
+
+用相對值而不是絕對值，是因為彎道上的站每條路徑都彎（二水候選 55–83°）。單一道岔的分岔角太吵（OSM 每點只畫 0–7°），不採用。
+現況套這把尺：量測判為做對的 312 件有 290 件幾何也判對、倒過來的 W3a 有 172/187 件幾何也判倒過來。
+
+**違規**：待避車的停車節點落在通過車的路徑上，或兩車的直／彎倒過來。
+
+## 4. 設計：新增 F2b `scripts/repair_tra_overtake_tracks.mjs`
+
+**增量後處理**：輸入現行出貨的 `rail-3d/physical/{network,dispatch}.json`，不從 F1 重跑。從 F1 重跑會把方向統計與班表換窗一起重解，改動無法歸因；保護清單也綁在現行計畫上。
+
+**共用衝突模型**：F2 的名冊、cells、B／C 模型、`tryMove` 都寫在頂層腳本裡。抽成 `scripts/lib/tra_station_conflicts.mjs` 讓 F2 與 F2b 共用，避免兩套模型漂移。抽完對同一份輸入跑 F2，`report.json` 必須逐 byte 相同。
+
+**名冊**：`data/tra_schedule_dense.json` 的 14 天，加上 9/13 考卷那一天（`git show 132e1ebb`，`verify_physical_no_overlap` 的棘輪釘在這天），避免修了今天、退了考卷。
+
+**流程**：
+1. 建名冊與 cells，照第 3 節找出所有待避對與違規。
+2. 對每一對違規，列舉（Q 的候選節點, P 的候選節點）組合，含「不動」。可行性沿用 F2 的條件：順向路徑（`track_directions.cleanRoute`）、三個接點能轉（`canTurn`）、站間最多拉長 5%、不新踏非電化股道、不進 yard。候選節點＝派車表曾派過該站的節點＋路網該站的停車位置（與 F2 相同，不憑空造月台）。
+3. 接受條件：全名冊的違規總數變少，**且沒有任何一天的 B 或 C 變多**。同分時選搬的車少、路徑短的。
+4. 一個計畫鍵只有一套節點，跨日共用：違規數與 B／C 都在這把鍵綁到的所有日子上加總評估。沒被待避的日子照樣停側線是合法的，真的會撞的由衝突模型擋。
+5. 重複到沒有改善為止。收尾時逐日重新綁定（含 retimed／route-template 借用的計畫），從零重算違規與 B／C。F2 的名冊裡借用計畫是副本，上游改了模型看不到，所以這一步不能省。
+
+**保護**：`scripts/fixtures/remaining-routes-0913.json` 的 afterPlans、0912 的 4 筆具名修復端點、太麻里節點一律不動。估計因此擋下約 72 件，列在報告裡，本輪不開放。
+
+**產物**：`output/overtake-tracks/{network,dispatch,report}.json`。`report.json` 把修不掉的逐件列出並分原因：沒有替代股道／分不出直彎／受保護／會增加 B 或 C。
+
+## 5. 管線與下游
+
+順序：F1 → F2 → **F2b** → `extend_tra_overtake_sidings` → 覆蓋 `rail-3d/physical/` → `build_rail_levels` → `build_tra_track_sections` → `build_run_profiles` → 重找一次待避對，確認沒有新違規 → `build_tra_overtake_tracks` → `build_data_manifest` → 閘門。F2 檔頭的順序說明同步改。
+
+會變的檔：`network.json`（新路徑）、`dispatch.json`、`level-profiles.json` 的 `inputSha256`、`data/tra_track_sections.json`（maxPathM）、run profiles、`data/tra_overtake_tracks.json`、manifest。`index.html` 的 BUILD 與更新紀錄。derived-pass-times 綁定不看節點，不受影響。App 要等下一版發行才會帶到新股道。
+
+## 6. 閘門
+
+**新閘門 `scripts/verify_tra_overtake_tracks.mjs`**（比照 `verify_thsr_station_tracks.mjs`，靜態讀檔、幾秒到幾十秒，可用 `DISPATCH=` 換輸入做突變）。判準不寫死件數：
+1. 分母：每天至少有一對待避，印出對數；任何一天是 0 就紅。
+2. 局部最優：剩下的每一件違規都要有一個列舉算得出來的原因（沒有替代／分不出／受保護／會增加 B 或 C）。還有「可行又不增衝突」的修法沒做就紅。
+3. 待避車與通過車共用節點，除了「沒有替代」以外必須是 0。
+4. 正向對照：拿 `0a435fcf` 的 `dispatch.json` 跑必須紅；把一對已修好的換回去也必須紅。
+
+**班表滾動**：硬閘門釘班表快照（與 `verify_physical_no_overlap` 釘 9/13 考卷同一種做法），另輸出一份逐週報告，只報不擋。理由：班表每週換窗，若用滾動窗當硬閘門，每週都會在不相干的出貨上變紅。
+
+掛進 `ship_web.mjs`，位置在高鐵股道閘門旁邊。
+
+## 7. 驗收
+
+1. 抽 lib 後 F2 的 `report.json` 逐 byte 不變。
+2. 新閘門四條全綠，正向對照與突變都紅。
+3. 全日畫面掃描（`output/overtake-probe-1006/probe.mjs`，加 `NETWORK=`／`DISPATCH=` 參數），14 天＋9/13 考卷，改前改後同一份 `index.html`：
+   - 待避做對的比例上升；剩下的倒過來案例每件都在 `report.json` 的修不掉清單裡；
+   - 兩車同一股（W2）、站間翻序（W1）不增加。
+4. `verify_physical_no_overlap` 棘輪不退步，`ship_web` 全部閘門綠。
+5. 抽 3 筆修好的事件，無視窗截圖放大到 z18 看兩車分股。
+6. 驗收由沒參與實作的 agent 執行。
+
+**預估**（10/6，純路網層面，尚未扣掉會增加衝突而被退回的）：431 件錯誤裡，54 件幾何其實已對（標記誤判）、292 件路網改得動（其中 199 件要兩班一起換）、45 件分不出直彎、40 件沒有替代股道（猴硐、瑞芳、礁溪、南靖等缺渡線）；再扣受保護的 72 件，上限約 220 件。做對的比例預估從約一半升到七、八成。
+
+## 8. 出貨
+
+分支上做完、驗收全綠 → `ship-web --preview` 出預覽網址給親試 → 確認後併 main、`ship-web` 上正式站，正式站再跑一次全日掃描的抽樣。更新紀錄同一輪加。
+
+## 9. 風險
+
+- 兩班互換的組合比 F2 多，每站候選 ≤6，計算量可接受。
+- 站間拉長會讓 maxPathM 與剖面變，通過時刻微移，可能冒出新的待避對：第 5 節的「重找一次」負責抓；有新違規就再跑一輪 F2b。
+- F2 的模型不管對向同股、也不管橫向 <2.9 m 的近距並行（樹林 way 849808697／235967793 只差約 2 m，換派車修不掉），只能靠 `verify_physical_no_overlap` 與全日掃描把關。
+- 現行 `dispatch.json` 停在 09-27 的班表窗，班表之後又重抓過兩次。本輪只疊 F2b，不處理 F1／F2 重跑。
