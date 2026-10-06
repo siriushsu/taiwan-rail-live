@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { createStationConflictModel } from './lib/tra_station_conflicts.mjs';
-import { SCHEDULE_REF, SHARED_OK_REASONS, loadOvertakeInputs, makeOvertakeJudge, findOvertakePairs, makeProtection, makeOvertakeSolver, makeMeetCounter } from './lib/tra_overtake_pairs.mjs';
+import { SCHEDULE_REF, REASON_FIXABLE, SHARED_OK_REASONS, loadOvertakeInputs, makeOvertakeJudge, findOvertakePairs, makeProtection, makeOvertakeSolver, makeMeetCounter } from './lib/tra_overtake_pairs.mjs';
 
 const ROLLING = process.argv.includes('--rolling');
 const NETWORK = process.env.NETWORK || 'rail-3d/physical/network.json', DISPATCH = process.env.DISPATCH || 'rail-3d/physical/dispatch.json';
@@ -60,7 +60,7 @@ const viol = X.violating(), reasons = new Map(viol.map(c => [c.id, X.explain(c)]
 lap('explain 全部違規');
 const hist = { pass: {}, stop: {} }; for (const c of viol) { const r = reasons.get(c.id); hist[c.type][r] = (hist[c.type][r] || 0) + 1; }
 const name = c => `${c.st.split(':')[1]} ${c.q.no}/${c.p.no}（${c.type === 'pass' ? '通過' : '停站'}）`;
-const fixable = viol.filter(c => reasons.get(c.id) === 'FIXABLE'), vt = X.violationsByType();
+const fixable = viol.filter(c => reasons.get(c.id) === REASON_FIXABLE), vt = X.violationsByType();
 check(fixable.length === 0, 'G2 局部最優：沒有可行又不增 B、C、單線交會與共用節點的換股沒做',
   `違規 通過型 ${vt.pass}／停站型 ${vt.stop} 件次；原因（組）${JSON.stringify(hist)}${fixable.length ? '；例：' + fixable.slice(0, 5).map(name).join('、') : ''}`);
 // 修了會違反硬性條件的才准留（規格第 6 節第 3 條）；准許的原因集合在 lib（SHARED_OK_REASONS），F2b 收尾自檢用同一份；

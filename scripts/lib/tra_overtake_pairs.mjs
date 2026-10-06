@@ -244,11 +244,13 @@ export function makeMeetCounter(S, sections) {
 
 export const REASON_SHORT = '同一班 P 在同站同時超越兩班 Q、該方向較彎的股道不夠';
 
-// explain 回傳的原因（還有可行修法時回 FIXABLE，其餘每一組修不掉的都落在其中一個）。
+// explain 回傳的原因（還有可行修法時回 REASON_FIXABLE，其餘每一組修不掉的都落在其中一個）。
 // SHARED_OK_REASONS：共用節點（畫面上超越車穿過待避車）准許留下的原因，只有修了會違反硬性條件的（規格第 6 節第 3 條）；
-// FIXABLE 與「會增加別的違規」不准留。閘門 G3 與 F2b 收尾自檢共用這一份，原因的字面只在這裡寫一次。
+// FIXABLE 與「會增加別的違規」不准留。閘門與 F2b 收尾自檢判「還有可行修法」用匯出的 REASON_FIXABLE、判共用節點的原因用
+// SHARED_OK_REASONS，都不各寫一份字面；原因的字面只在這裡寫一次。
+export const REASON_FIXABLE = 'FIXABLE';
 const REASONS = {
-  FIXABLE: 'FIXABLE', NO_ALT: '沒有替代股道', STILL: '替代組合都仍違規', SHORT: REASON_SHORT, PROTECTED: '受保護',
+  FIXABLE: REASON_FIXABLE, NO_ALT: '沒有替代股道', STILL: '替代組合都仍違規', SHORT: REASON_SHORT, PROTECTED: '受保護',
   BC: '會增加 B 或 C', MEET: '會增加單線交會共用節點', SHARED: '會增加共用節點', OTHER: '會增加別的違規',
 };
 export const SHARED_OK_REASONS = new Set([REASONS.NO_ALT, REASONS.STILL, REASONS.SHORT, REASONS.PROTECTED, REASONS.BC, REASONS.MEET, REASONS.SHARED]);

@@ -15,22 +15,36 @@
 //   4. 一遍裡一輪一輪做到沒有改善；再從輸出重建名冊重來一遍（落成的新計畫會改變別班的綁定來源），
 //      直到一整遍 0 次換股，收尾狀態就是從零重算的結果。
 //   5. 基準（站間長度上限、方向股道、候選節點、非電化允許清單、單雙線表）釘在 BASE_REF，重跑自己的輸出時判準不漂移。
-//   6. 收尾：先寫 network.json、dispatch.json，再從寫出的檔重建一個模型 R，自檢都在 R 上做（記憶體模型只用來核對 R 與追蹤值逐對相同）；
-//      report.json 最後才寫，所以 OUT_DIR 裡沒有 report.json ＝ 自檢沒過，這一次的 network／dispatch 不得使用。
+//   6. 收尾：先把 network、dispatch 寫成暫存名（network.unverified.json、dispatch.unverified.json），再從暫存檔重建一個模型 R，
+//      自檢都在 R 上做（收斂的最後一遍沒有換股，記憶體模型是用記憶體裡的 net／dispatch 重算的，只用來核對 R 逐對相同）。
+//      全過了才把暫存檔改成正式名，report.json 最後才寫。寫檔階段一開始先刪掉舊的正式名與暫存名產物，所以從那裡起自檢沒過，
+//      OUT_DIR 裡沒有任何正式名的產物；寫檔之前的結構與保護檢查沒過，OUT_DIR 維持上一次完整產物的原樣，不會多出這一次的檔。
 //
 // 不做的事：不改時刻、不加 hold、不造新股道、不改既有計畫的 stopSignature 與 holds；受保護的進路不動。
 // 路網只寫派車表真的用到的新路徑（探索過但沒採用的不寫）。
-// 產物：OUT_DIR（預設 output/overtake-tracks/）的 network.json、dispatch.json、report.json。順序見 repair_physical_stations.mjs 檔頭。
+// 產物：OUT_DIR（預設 output/overtake-tracks/）的 network.json、dispatch.json、report.json；這一次的產物自檢全過才以正式名出現。
+// 輸出檔不得就是輸入檔（啟動時斷言）。
+// 順序見 repair_physical_stations.mjs 檔頭。
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { createStationConflictModel, MAX_PAIR_STRETCH } from './lib/tra_station_conflicts.mjs';
-import { BASE_REF, SCHEDULE_REF, EXAM_REF, EXAM_DATE, REASON_SHORT, SHARED_OK_REASONS, loadOvertakeInputs, makeOvertakeJudge, findOvertakePairs, makeProtection, makeOvertakeSolver, makeMeetCounter } from './lib/tra_overtake_pairs.mjs';
+import { BASE_REF, SCHEDULE_REF, EXAM_REF, EXAM_DATE, REASON_SHORT, REASON_FIXABLE, SHARED_OK_REASONS, loadOvertakeInputs, makeOvertakeJudge, findOvertakePairs, makeProtection, makeOvertakeSolver, makeMeetCounter } from './lib/tra_overtake_pairs.mjs';
 
 const OUT_DIR = process.env.OUT_DIR || 'output/overtake-tracks', MAX_PASSES = 4, MAX_ROUNDS = 20;
 const tStart = Date.now(), secsSince = t => +((Date.now() - t) / 1000).toFixed(1);
 const I = loadOvertakeInputs({ scheduleRef: SCHEDULE_REF, withExam: true,
   network: process.env.NETWORK || 'rail-3d/physical/network.json', dispatch: process.env.DISPATCH || 'rail-3d/physical/dispatch.json' });
+// 產物檔名：先寫成暫存名（*.unverified.json），自檢全過才改成正式名，report.json 最後才寫。
+const outPath = n => path.join(OUT_DIR, n);
+const netFile = outPath('network.json'), dispatchFile = outPath('dispatch.json'), reportFile = outPath('report.json');
+const netTmp = outPath('network.unverified.json'), dispatchTmp = outPath('dispatch.unverified.json');
+// 輸出檔（正式名與暫存名）不得就是輸入檔：收尾的 ways 比對是拿寫出的檔對輸入的檔，同一個檔就是自己比自己，永遠相同；
+// 寫檔階段一開始還會先刪掉輸出名，同一個檔會把輸入刪掉。除了路徑字串，也比 dev／ino（符號連結、換個寫法的路徑都擋得住）。
+const sameFile = (a, b) => { try { const x = fs.statSync(a), y = fs.statSync(b); return x.dev === y.dev && x.ino === y.ino; } catch { return false; } };
+for (const out of [netFile, dispatchFile, netTmp, dispatchTmp]) for (const [what, inp] of [['NETWORK', I.files.network], ['DISPATCH', I.files.dispatch]])
+  assert.ok(path.resolve(out) !== inp && !sameFile(out, inp),
+    `輸出檔 ${path.resolve(out)} 與輸入的 ${what} 檔 ${inp} 是同一個檔：ways 比對會變成自己比自己，而且寫檔階段一開始刪舊產物時會把輸入刪掉；請把 OUT_DIR 換成輸入檔以外的位置`);
 const dispatch = I.dispatch, original = structuredClone(dispatch.plans), protectedPlanKeys = new Set(Object.keys(I.protectedPlans));
 const report = { params: { BASE_REF, SCHEDULE_REF, EXAM_REF, EXAM_DATE, MAX_PASSES, MAX_ROUNDS, MAX_PAIR_STRETCH }, passes: [], moves: [], materialised: 0 };
 const perDay = list => { const out = {}; for (const c of list) { const d = out[c.day] || (out[c.day] = { B: 0, C: 0 }); d[c.type]++; } return out; };
@@ -110,31 +124,33 @@ for (const [key, ids] of S.current) {
   if (!S.borrowed.has(key)) assert.strictEqual(dispatch.plans[key].pathIds, ids, key + ' 計畫與名冊脫鉤');
 }
 
-// ── 寫檔：路網只帶派車表用到的新路徑；report.json 留到自檢全過才寫 ──
+// ── 寫檔：路網只帶派車表用到的新路徑 ──
+// 舊的正式名與暫存名產物先全部刪掉；新產物先寫成暫存名，下面從暫存檔重建 R、自檢全過了才改成正式名，report.json 最後才寫。
+// 從這裡起自檢沒過，OUT_DIR 裡不會有任何正式名的產物（留下的 *.unverified.json 只供除錯，不得使用）。
 const referenced = new Set(Object.values(dispatch.plans).flatMap(p => p.pathIds));
 const keep = [...usedNew.keys()].filter(id => referenced.has(id)).sort((a, b) => a - b);
 const outNet = { ...I.net, paths: { ...I.net.paths, ...Object.fromEntries(keep.map(id => [id, usedNew.get(id)])) } };
 for (const id of referenced) assert.ok(outNet.paths[id], '派車表用到路網沒有的路徑 ' + id);
-const netFile = path.join(OUT_DIR, 'network.json'), dispatchFile = path.join(OUT_DIR, 'dispatch.json'), reportFile = path.join(OUT_DIR, 'report.json');
 fs.mkdirSync(OUT_DIR, { recursive: true });
-fs.rmSync(reportFile, { force: true });   // 自檢沒過時不留上一次的報告，免得它跟這一次的 network／dispatch 湊成一組
-fs.writeFileSync(netFile, JSON.stringify(outNet));
-fs.writeFileSync(dispatchFile, JSON.stringify(dispatch));
+for (const f of [netFile, dispatchFile, reportFile, netTmp, dispatchTmp]) fs.rmSync(f, { force: true });
+fs.writeFileSync(netTmp, JSON.stringify(outNet));
+fs.writeFileSync(dispatchTmp, JSON.stringify(dispatch));
 
-// ── 從寫出的檔重建模型 R，之後的自檢都在 R 上做 ──
-// ways 從磁碟重讀兩份來比（寫出的 network.json、輸入的 NETWORK 檔），不沿用記憶體物件：
+// ── 從暫存檔重建模型 R，之後的自檢都在 R 上做 ──
+// ways 從磁碟重讀兩份來比（暫存的 network 檔、輸入的 NETWORK 檔），不沿用記憶體物件：
 // outNet 是 { ...I.net, paths }，outNet.ways 與 I.net.ways 是同一個參照，拿它們互比必然相同。
-const writtenNet = JSON.parse(fs.readFileSync(netFile, 'utf8'));
-assert.equal(JSON.stringify(writtenNet.ways), JSON.stringify(JSON.parse(fs.readFileSync(I.files.network, 'utf8')).ways), `ways 被改了：${netFile} 與輸入 ${I.files.network} 的 ways 不同`);
+const writtenNet = JSON.parse(fs.readFileSync(netTmp, 'utf8'));
+assert.equal(JSON.stringify(writtenNet.ways), JSON.stringify(JSON.parse(fs.readFileSync(I.files.network, 'utf8')).ways), `ways 被改了：${netTmp} 與輸入 ${I.files.network} 的 ways 不同`);
 const tRebuild = Date.now();
-const R = build(writtenNet, JSON.parse(fs.readFileSync(dispatchFile, 'utf8')), { materialised: 0 });
+const R = build(writtenNet, JSON.parse(fs.readFileSync(dispatchTmp, 'utf8')), { materialised: 0 });
 const rebuildSecs = secsSince(tRebuild), RS = R.S, RX = R.X;
 const nm = c => `${c.st.split(':')[1]} Q${c.q.no}/P${c.p.no}（${c.type === 'pass' ? '通過' : '停站'}）`;
 
-// 追蹤值（記憶體模型一路增量算出來的）要與重建的模型相同：總量與逐對判定都比。序列化、路徑裁剪漏東西、增量判定漏重判都會在這裡現形。
-assert.equal(RX.violations(), finalViolations, '從輸出重建的違規數跟追蹤值不同');
-assert.deepEqual(perDay(RS.allConflicts()), finalConf, '從輸出重建的 B／C 跟追蹤值不同');
-assert.deepEqual(R.meets.perDay(), finalMeets, '從輸出重建的單線交會跟追蹤值不同');
+// 記憶體模型（收斂的最後一遍，這一遍 0 次換股，所以它是用記憶體裡的 net／dispatch 重算的，沒有增量算出來的狀態）要與從檔重算的 R 相同：
+// 總量與逐對判定都比。比的是「記憶體物件重算」對「從檔重算」，序列化、路徑裁剪漏東西會在這裡現形。
+assert.equal(RX.violations(), finalViolations, '從輸出重建的違規數跟記憶體模型不同');
+assert.deepEqual(perDay(RS.allConflicts()), finalConf, '從輸出重建的 B／C 跟記憶體模型不同');
+assert.deepEqual(R.meets.perDay(), finalMeets, '從輸出重建的單線交會跟記憶體模型不同');
 const memPairs = new Map(pairs.map(c => [c.id, c])), rebuiltPairs = new Map(R.pairs.map(c => [c.id, c])), kindDiff = [];
 for (const c of R.pairs) { const m = memPairs.get(c.id), km = m ? X.state(m).kind : '（沒有這一對）', kr = RX.state(c).kind; if (km !== kr) kindDiff.push(`${nm(c)} 記憶體 ${km}／重建 ${kr}`); }
 for (const c of pairs) if (!rebuiltPairs.has(c.id)) kindDiff.push(`${nm(c)} 記憶體 ${X.state(c).kind}／重建 （沒有這一對）`);
@@ -143,7 +159,7 @@ assert.equal(kindDiff.length, 0, `記憶體模型與重建模型有 ${kindDiff.l
 // explain 只在 R 上跑一次：沒有可修的違規（閘門 G2 同條件）
 const tExplain = Date.now(), viol = RX.violating(), explained = viol.map(c => ({ c, reason: RX.explain(c) }));
 const explainSecs = secsSince(tExplain);
-assert.ok(explained.every(e => e.reason !== 'FIXABLE'), '收斂後仍有可修的違規');
+assert.ok(explained.every(e => e.reason !== REASON_FIXABLE), '收斂後仍有可修的違規');
 
 // 逐班方向：沒有任何一班的逆向段變多（逐班比，不比總數：總數會掩蓋「一班修好、一班變壞」）
 const wrongNow = rosterWrong(RS), wrongAfter = sumOf(wrongNow);
@@ -154,6 +170,8 @@ const wrongTrainsBetter = [...firstWrong].filter(([k, n]) => (wrongNow.get(k) ||
 // 不准新造穿越（規格第 4 節第 3 步，逐對算）：第一遍開始時不是共用節點的待避對，收尾時不得是共用節點。
 // 先用 id 對，id 對不上（跨遍重建後車次鍵或站序變了）的退回站＋型別＋Q 車次鍵＋P 車次鍵，同鍵有好幾對時任何一對共用就算。
 // 另外兩種只出現在重建之後的情形也擋：收尾才找到、而且共用節點的對；第一遍有、收尾找不到的對（找不到的違規不是修好了，是看不見了）。
+// 「找不到」只逐對數第一遍不是共用節點的對（下面 f.shared 的略過）；第一遍就共用、後來消失的對沒有逐對檢查，
+// 只被下面名冊車次鍵不得消失（lostKeys）間接擋住。
 const finalById = new Map(R.pairs.map(c => [c.id, c])), finalByLoose = new Map();
 for (const c of R.pairs) { const k = looseKey(c.type, c.st, c.q.key, c.p.key); (finalByLoose.get(k) || finalByLoose.set(k, []).get(k)).push(c); }
 const crossing = [], vanishedPairs = [], appearedSharedPairs = [];
@@ -176,26 +194,35 @@ assert.equal(crossing.length, 0, '新造穿越（原本不共用節點的待避�
 assert.equal(noNew.appearedShared, 0, `收尾才出現、而且共用節點的待避對 ${noNew.appearedShared} 對（前 10）：` + JSON.stringify(appearedSharedPairs.slice(0, 10)));
 assert.equal(noNew.vanished, 0, `第一遍有、收尾找不到的待避對 ${noNew.vanished} 對（前 10）：` + JSON.stringify(vanishedPairs.slice(0, 10)));
 
-// 綁定漂移：第一遍開始到 R，有效 pathIds 有變、卻沒出現在任何一筆換股記錄（moves[].changes）的車次，
-// 多半是落成的新計畫改變了借用者的綁定來源。求解器的 blockedBy 只看換股清單裡的鍵，漂移不經過它，所以在這裡逐段用同一個保護判斷
-// （R.prot：makeProtection 回傳的函式，與 blockedBy 用的是同一個）檢查：已驗收進路、具名修復端點、太麻里非電化月台。
+// 綁定變動不得碰受保護的東西：名冊全部車次鍵（含被換股的），第一遍開始時與 R 在每一站的停車節點逐站比，
+// 節點有變的站才用同一個保護判斷（R.prot：makeProtection 回傳的函式，與求解器 blockedBy 用的是同一個）檢查：
+// 已驗收進路、具名修復端點、太麻里非電化月台。變動有兩種來源，失敗訊息分開記：
+//   沒被換股的漂移：沒出現在任何一筆換股記錄（moves[].changes）的車次，多半是落成的新計畫改變了借用者的綁定來源；
+//     blockedBy 只看換股清單裡的鍵，漂移不經過它。
+//   換股後又被重綁：出現在換股記錄的車次。換股的那一步已經被 blockedBy 檢查過，這裡命中的是換股之後下一遍重建又改了綁定的結果。
+// bindingDrift 只報前一種（不在換股記錄裡、有效 pathIds 有變的車次）。
 const movedKeys = new Set(report.moves.flatMap(m => m.changes.map(ch => ch.key)));
 const lostKeys = [...firstPlanIds.keys()].filter(k => !RS.current.has(k));
 assert.equal(lostKeys.length, 0, `名冊車次鍵在重建的模型裡不見了 ${lostKeys.length} 個（前 10）：` + lostKeys.slice(0, 10).join('、'));
-const drift = [], protHits = [];
+const drift = [], protHits = [], nodeChanged = { drift: 0, moved: 0 };
 for (const [key, ids0] of firstPlanIds) {
-  if (movedKeys.has(key)) continue;
-  const ids1 = RS.current.get(key), segs = [];
-  for (let k = 0; k < Math.max(ids0.length, ids1.length); k++) if (ids0[k] !== ids1[k]) segs.push(k);
-  if (!segs.length) continue;
-  drift.push({ key, segs });
-  const names = RS.trainOf.get(key).names;
-  for (const j of new Set(segs.flatMap(k => [k, k + 1]))) {   // 第 k 段連接第 k、k+1 站
-    const why = R.prot(key, j, RS.nodeAt(ids0, j), RS.nodeAt(ids1, j));
-    if (why) protHits.push(`${key} ${names[j]} ${why}`);
+  const ids1 = RS.current.get(key), moved = movedKeys.has(key), names = RS.trainOf.get(key).names;
+  if (!moved) {
+    const segs = [];
+    for (let k = 0; k < Math.max(ids0.length, ids1.length); k++) if (ids0[k] !== ids1[k]) segs.push(k);
+    if (segs.length) drift.push({ key, segs });
+  }
+  for (let j = 0; j < names.length; j++) {
+    const a = RS.nodeAt(ids0, j), b = RS.nodeAt(ids1, j);
+    if (a === b) continue;
+    nodeChanged[moved ? 'moved' : 'drift']++;
+    const why = R.prot(key, j, a, b);
+    if (why) protHits.push({ moved, text: `${key} ${names[j].replace(/^[^:]*:/, '')} ${why}` });   // 站名去掉系統前綴，與其他訊息一致
   }
 }
-assert.equal(protHits.length, 0, `綁定漂移碰到受保護的東西 ${protHits.length} 處（車次鍵 站 類別；前 10）：` + protHits.slice(0, 10).join('；'));
+const hitDrift = protHits.filter(h => !h.moved), hitRebound = protHits.filter(h => h.moved);
+assert.equal(protHits.length, 0, `綁定變動碰到受保護的東西 ${protHits.length} 處（沒被換股的漂移 ${hitDrift.length} 處、換股後又被重綁 ${hitRebound.length} 處；來源 車次鍵 站 類別；各列前 10）：`
+  + [...hitDrift.slice(0, 10).map(h => `沒被換股的漂移 ${h.text}`), ...hitRebound.slice(0, 10).map(h => `換股後又被重綁 ${h.text}`)].join('；'));
 // 漂移也可能讓違規變多：收尾的違規數不得比第一遍開始時多
 assert.ok(finalViolations <= first.violations, `違規數從 ${first.violations} 變成 ${finalViolations}`);
 
@@ -203,7 +230,7 @@ assert.ok(finalViolations <= first.violations, `違規數從 ${first.violations}
 const sharedBad = explained.filter(e => RX.state(e.c).kind === 'shared' && !SHARED_OK_REASONS.has(e.reason));
 assert.equal(sharedBad.length, 0, `共用節點的原因不在准許集合內 ${sharedBad.length} 組（站 Q/P 型別 原因 天數；前 10）：` + sharedBad.slice(0, 10).map(e => `${nm(e.c)} 「${e.reason}」${e.c.days.length} 天`).join('；'));
 
-// ── 報告（最後寫；修不掉的清單與原因取 R 的結果）──
+// ── 報告內容（修不掉的清單與原因取 R 的結果）：先組好，下面才改名、寫檔，組報告時出錯就不會有任何正式名的產物 ──
 const hist = {}; for (const e of explained) { const k = e.c.type + ':' + e.reason; hist[k] = (hist[k] || 0) + 1; }
 const unfixable = explained.flatMap(({ c, reason }) => c.days.map(day => ({ day, type: c.type, station: c.st, q: c.q, p: c.p, ...c.at[day], ...RX.state(c), reason })));
 const shortStations = [...new Set(explained.filter(e => e.reason === REASON_SHORT).map(e => e.c.st.split(':')[1]))];
@@ -214,15 +241,20 @@ const movesByAfterKind = {};
 for (const m of report.moves) { const o = movesByAfterKind[m.cAfter?.kind ?? '（無）'] ||= { moves: 0, both: 0 }; o.moves++; if (m.moved === 2) o.both++; }
 const newPlans = Object.keys(dispatch.plans).filter(k => !(k in original)).length, bothMoved = report.moves.filter(m => m.moved === 2).length;
 const secs = { total: secsSince(tStart), explain: explainSecs, rebuild: rebuildSecs }, peakRssMB = Math.round(process.resourceUsage().maxRSS / 1024);
-fs.writeFileSync(reportFile, JSON.stringify({ ...report,
+const reportText = JSON.stringify({ ...report,
   before: first, after: { violations: RX.violations(), byType: RX.violationsByType(), conflicts: perDay(RS.allConflicts()), meets: R.meets.perDay(), wrong: wrongAfter, wrongPlanEntries: RS.wrongSegments(), wrongTrainsBetter }, newPaths: keep.length, newPlans,
   movesByAfterKind, bothMoved, noNewShared: noNew, unfixableByReason: hist, unfixable, shortStations, ambiguousByType, nearPerDay, bindingDrift: { count: drift.length, sample: drift.slice(0, 20) },
-  secs, peakRssMB }, null, 1));
+  secs, peakRssMB }, null, 1);
+
+// ── 自檢全過、報告也組好了：暫存檔改成正式名（改名不重寫，交出去的位元組就是驗過的位元組），report.json 最後才寫 ──
+fs.renameSync(netTmp, netFile); fs.renameSync(dispatchTmp, dispatchFile);
+fs.writeFileSync(reportFile, reportText);
 const bt = first.byType, at = RX.violationsByType();
 console.log(`違規 通過型 ${bt.pass} → ${at.pass}、停站型 ${bt.stop} → ${at.stop} 件次；換股 ${report.moves.length} 次（兩班一起換 ${bothMoved}）、新落成計畫 ${newPlans}（落成動作 ${report.materialised} 次）、新路徑 ${keep.length}、綁定漂移 ${drift.length}`);
 console.log(`換股後狀態分布 ${JSON.stringify(movesByAfterKind)}；不准新造穿越逐對核對 ${JSON.stringify(noNew)}`);
 console.log(`逆向段（名冊逐班）${first.wrong} → ${wrongAfter}、逐班變好 ${wrongTrainsBetter} 班、沒有任何一班變多；計畫表逐筆 ${first.wrongPlanEntries} → ${RS.wrongSegments()}`);
 console.log(`修不掉（組）${JSON.stringify(hist)}；「${REASON_SHORT}」的站：${shortStations.join('、') || '（無）'}`);
-console.log(`收尾自檢都在寫出的檔重建的模型上做：記憶體模型與重建模型的違規數、B／C、單線交會與 ${R.pairs.length} 對待避對的判定逐項相同`);
+console.log(`綁定變動保護：名冊 ${firstPlanIds.size} 個車次鍵逐站比停車節點，節點有變的站 ${nodeChanged.drift + nodeChanged.moved} 個（沒被換股的車次 ${nodeChanged.drift}、有被換股的車次 ${nodeChanged.moved}），碰到受保護的 ${protHits.length} 處`);
+console.log(`收尾自檢都在暫存檔重建的模型上做：記憶體模型與重建模型的違規數、B／C、單線交會與 ${R.pairs.length} 對待避對的判定逐項相同；全過才把暫存檔改成正式名`);
 console.log(`耗時 ${JSON.stringify(secs)} 秒；記憶體峰值 ${peakRssMB} MB`);
 console.log('寫入', OUT_DIR);
