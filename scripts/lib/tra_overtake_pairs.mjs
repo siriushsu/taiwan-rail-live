@@ -76,10 +76,18 @@ export function turnAround(coords, at, half = TURN_WINDOW_M) {
   return sum / RAD;
 }
 
-// 列車在第 i 站的行進方向（平面向量）：有進站段就用進站段最後一條邊（含終點站），起點站用出站段第一條邊。
-function headingAt(S, ids, i) {
-  const [u, v] = i > 0 ? S.paths[ids[i - 1]].nodeIds.slice(-2) : S.paths[ids[0]].nodeIds.slice(0, 2);
-  const a = S.g.nodes.get(u).coordinate, b = S.g.nodes.get(v).coordinate;
+// 列車在第 i 站的行進方向（平面向量）：有進站段就用進站段（含終點站），起點站用出站段。
+// OSM 短於 MIN_SEG_M 的碎段方向不可靠（一段 0.3 m 的反向碎段會讓兩車的 cos 翻號，待避對或單線交會就被靜默丟掉）：
+// 進站段從尾端往前、出站段從頭往後，取第一條長度不短於 MIN_SEG_M 的邊；整段都太短才退回最後一條（進站）／第一條（出站）。
+// 邊長與 turnAround 用同一套平面近似（以停車點的緯度縮放經度）。
+export function headingAt(S, ids, i) {
+  const nodeIds = S.paths[i > 0 ? ids[i - 1] : ids[0]].nodeIds, last = nodeIds.length - 2, coordOf = id => S.g.nodes.get(id).coordinate;
+  const cos0 = Math.cos(coordOf(i > 0 ? nodeIds.at(-1) : nodeIds[0])[1] * RAD);
+  const long = j => { const a = coordOf(nodeIds[j]), b = coordOf(nodeIds[j + 1]); return Math.hypot((b[0] - a[0]) * cos0, b[1] - a[1]) * RAD * EARTH_R >= MIN_SEG_M; };
+  let k = i > 0 ? last : 0;
+  if (i > 0) { for (let j = last; j >= 0; j--) if (long(j)) { k = j; break; } }
+  else for (let j = 0; j <= last; j++) if (long(j)) { k = j; break; }
+  const a = coordOf(nodeIds[k]), b = coordOf(nodeIds[k + 1]);
   return [(b[0] - a[0]) * Math.cos(b[1] * RAD), b[1] - a[1]];
 }
 
@@ -141,9 +149,11 @@ export function makeOvertakeJudge(S) {
     if (nodeSet(pIds[pr.p.i - 1]).has(qNode) || nodeSet(pIds[pr.p.i]).has(qNode)) return { kind: 'shared', viol: true };
     const rq = relTurn(pr.q.key, pr.q.i, qIds), rp = relTurn(pr.p.key, pr.p.i, pIds), d = rq - rp;
     const tq = tagKind(qIds, pr.q.i), tp = tagKind(pIds, pr.p.i);
+    // 做對與倒過來對稱（規格第 3 節）：做對＝超越車走直的、待避車比它多轉；倒過來＝待避車走直的、超越車比它多轉。
+    // 兩車都不直時看不出誰占了正線，歸 ambiguous，不算違規。
     let kind = 'ambiguous';
     if (rp <= STRAIGHT_DEG && (d >= CLEAR_DEG || (d >= STRAIGHT_DEG && tq === 'S' && tp === 'M'))) kind = 'ok';
-    else if (d <= -CLEAR_DEG || (d <= -STRAIGHT_DEG && tq === 'M' && tp === 'S')) kind = 'reversed';
+    else if (rq <= STRAIGHT_DEG && (d <= -CLEAR_DEG || (d <= -STRAIGHT_DEG && tq === 'M' && tp === 'S'))) kind = 'reversed';
     return { kind, viol: kind === 'reversed', rq: +rq.toFixed(2), rp: +rp.toFixed(2), tq, tp };
   }
   return { routeOptions, turnOf, relTurn, tagKind, verdict };
@@ -259,6 +269,9 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
     const pk = c.p.key + '@' + c.p.i; (byP.get(pk) || byP.set(pk, []).get(pk)).push(c);
   }
   const state = new Map(pairs.map(c => [c.id, J.verdict(c, current.get(c.q.key), current.get(c.p.key))]));
+  // 版本號：每次 apply 加 1。bestFix 回傳的 fix 帶著算它當下的版本，apply 只收現況版本的 fix——
+  // fix 的 dViol、B／C、單線交會與換股內容都是相對於算它當下的現況，別的 fix 套用之後再套它，接受條件已經不成立。
+  let ver = 0;
   const weight = c => c.days.length;
   const violations = () => pairs.reduce((n, c) => n + (state.get(c.id).viol ? weight(c) : 0), 0);
   const violationsByType = () => { const o = { pass: 0, stop: 0 }; for (const c of pairs) if (state.get(c.id).viol) o[c.type] += weight(c); return o; };
@@ -320,31 +333,41 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
     for (const cand of candidates(c).out) {
       if (blockedBy(expand(cand.direct))) continue;
       const ev = evaluate(cand.direct); if (ev.dViol >= 0 || ev.worse.length || ev.worseMeet.length) continue;
-      const fix = { ...cand, ...ev }; if (!best || rank(fix, best) < 0) best = fix;
+      const fix = { ...cand, ...ev, ver }; if (!best || rank(fix, best) < 0) best = fix;
     }
     return best;
   }
-  // 同一班 P 在同站同一天同時超越好幾班 Q（每班 Q 的停站窗都包住 P 的通過或停站時段，必然同時在站）：
-  // 不管 P 走哪個選項，能讓某班 Q 不違規的節點數都少於 Q 的班數，就是這個方向較彎的股道不夠。
+  // 同一班 P 在同站同一天同時超越好幾班 Q（每班 Q 的停站窗都包住 P 的通過或停站時段，那一天它們必然同時在站），
+  // 而能讓這幾班 Q 都不違規的股道不夠：逐日判斷。groupD＝c 加上那天也在的手足（同一班 P、同一站序、Q 不同班、days 含該天）；
+  // 不同天才出現的 Q 不會同時在站，不湊成同一組。對 P 的每個選項 po，只要有某一天 capD(po) < |groupD|，這個 po 就不夠；
+  // 所有 po 都不夠才回 true。capD(po)＝groupD 各成員的 Q 選項裡，能讓該成員不違規的相異節點數
+  // （近似：節點取聯集，不做二部配對）。只看 |groupD| ≥ 2 的天，沒有這種天就回 false。
   function curvedShortage(c) {
-    const sib = (byP.get(c.p.key + '@' + c.p.i) || []).filter(s => s.q.key !== c.q.key && s.days.some(d => c.days.includes(d)));
-    if (!sib.length) return false;
-    const group = [c, ...sib], qOpts = group.map(x => J.routeOptions(x.q.key, x.q.i, current.get(x.q.key)));
-    return J.routeOptions(c.p.key, c.p.i, current.get(c.p.key)).every(po => {
+    const sibs = (byP.get(c.p.key + '@' + c.p.i) || []).filter(s => s.q.key !== c.q.key), seen = new Set(), groups = [];
+    for (const d of c.days) {
+      const g = [c, ...sibs.filter(s => s.days.includes(d))], k = g.map(x => x.id).join('\n');
+      if (g.length >= 2 && !seen.has(k)) { seen.add(k); groups.push(g); }
+    }
+    if (!groups.length) return false;
+    const qOpts = new Map([...new Set(groups.flat())].map(x => [x, J.routeOptions(x.q.key, x.q.i, current.get(x.q.key))]));
+    return J.routeOptions(c.p.key, c.p.i, current.get(c.p.key)).every(po => groups.some(g => {
       const cap = new Set();
-      group.forEach((x, k) => { for (const qo of qOpts[k]) if (!J.verdict(x, qo.ids2, po.ids2).viol) cap.add(qo.m); });
-      return cap.size < group.length;
-    });
+      for (const x of g) for (const qo of qOpts.get(x)) if (!J.verdict(x, qo.ids2, po.ids2).viol) cap.add(qo.m);
+      return cap.size < g.length;
+    }));
   }
+  // 修不掉的原因，依序判斷（前一條成立就不看後面）：沒有替代股道（Q、P 都沒有別的選項）→ 替代組合都仍違規（換了也沒轉好）
+  // → 受保護／沒有替代股道（轉得好的組合全被保護或非電化擋掉）→ REASON_SHORT（組合沒被擋，但同組 Q 較彎的股道不夠）
+  // → 會增加 B 或 C → 會增加單線交會共用節點 → 會增加別的違規。REASON_SHORT 排在保護之後：被保護擋下的組，原因是保護，不是股道不夠。
   function explain(c) {
     if (bestFix(c)) return 'FIXABLE';
     const { alternatives, out } = candidates(c);
     if (!alternatives) return '沒有替代股道';
-    if (curvedShortage(c)) return REASON_SHORT;
     const fixing = out.map(x => ({ x, all: expand(x.direct) })).filter(({ all }) => !J.verdict(c, idsAfter(all, c.q.key), idsAfter(all, c.p.key)).viol);
     if (!fixing.length) return '替代組合都仍違規';
     const blocked = fixing.map(f => blockedBy(f.all)), open = fixing.filter((f, k) => !blocked[k]);
     if (!open.length) return blocked.some(b => b.kind === 'protected') ? '受保護' : '沒有替代股道';
+    if (curvedShortage(c)) return REASON_SHORT;
     const evs = open.map(f => evaluate(f.x.direct));
     if (evs.every(e => e.worse.length)) return '會增加 B 或 C';
     if (evs.every(e => e.worse.length || e.worseMeet.length)) return '會增加單線交會共用節點';
@@ -358,6 +381,7 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
         diff: changedAt(key, ids2).map(k => [k, current.get(key)[k], ids2[k]]) })) };
   }
   function apply(fix) {
+    assert.equal(fix.ver, ver, '這個 fix 是用舊狀態算的（fix.ver=' + fix.ver + '、現況 ver=' + ver + '）：每次 apply 之後都要重新 bestFix');
     const aff = affected(fix.all);
     for (const [key, ids2] of fix.all) {
       if (fix.direct.has(key) && borrowed.has(key)) materialize(key);   // 借來的被直接換股：落成自己的計畫，不再跟著來源
@@ -365,6 +389,7 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
     }
     for (const [cell] of aff.cells) baseTally.delete(cell);
     for (const c of aff.pairs) state.set(c.id, J.verdict(c, current.get(c.q.key), current.get(c.p.key)));
+    ver++;
   }
   return { violations, violationsByType, violating, state: c => state.get(c.id), expand, evaluate, bestFix, explain, apply, describe };
 }

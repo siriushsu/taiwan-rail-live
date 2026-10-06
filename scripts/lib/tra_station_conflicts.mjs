@@ -205,11 +205,14 @@ export function createStationConflictModel({ net, dispatch, sched, timed, protec
   }
   // 借用者索引（F2b 用）：一份自己的計畫換股時，執行期綁到它切片的車次會跟著換（plan-binding 的 retimed／route-template 每次綁定都重切），
   // 但名冊裡借用者拿的是副本。這張索引讓修復器把來源的改動一起套到借用者身上；o＝切片在來源裡的起點。
+  // 連不回來源的借用者都記進 rosterStats.unlinked（沒有來源鍵、來源計畫不在派車表、切片在來源裡找不到），
+  // 否則來源換股時它不會跟著換、模型與執行期各說各話。src === key（自己借自己）不是連不回來源，略過不計。
   let borrowerIndex = null;
   function buildBorrowerIndex() {
     borrowerIndex = new Map(); rosterStats.unlinked = 0;
     for (const key of borrowed) {
-      const rec = trainOf.get(key), src = rec.sourceKey; if (!src || src === key || !plans[src]) continue;
+      const rec = trainOf.get(key), src = rec.sourceKey; if (src === key) continue;
+      if (!src || !plans[src]) { rosterStats.unlinked++; continue; }
       const ids = current.get(key), sIds = plans[src].pathIds, sNames = JSON.parse(plans[src].stopSignature).map(x => x[0]);
       let o = -1;
       for (let k = 0; k + ids.length <= sIds.length && o < 0; k++)
