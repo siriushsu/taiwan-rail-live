@@ -17,6 +17,8 @@ const stats = async () => {
 };
 
 async function openStation(page, query, expected = query, system = '台鐵') {
+  // 等 boot 群組載入完成再搜尋，避免快取空索引或稍後清空輸入。
+  await page.waitForFunction(() => window.__state?.ready === true);
   const start = page.getByRole('button', { name: '開始看車' });
   if (await start.isVisible().catch(() => false)) await start.click();
   const input = page.locator('#trainSearch');
@@ -183,6 +185,8 @@ async function translated(browserType, lang, primary, occupancy) {
   const page = await context.newPage();
   try {
     await page.goto(`${BASE}/?lang=${lang}`, { waitUntil: 'domcontentloaded' });
+    // 與一般開站流程相同，搜尋互動須在 boot 群組載入完成後開始。
+    await page.waitForFunction(() => window.__state?.ready === true);
     // 搜尋框與站名也會翻譯，直接用穩定 selector；操作仍是真實 fill/click/tap。
     const start = page.locator('#howtoGo');
     if (await start.isVisible().catch(() => false)) await start.click();

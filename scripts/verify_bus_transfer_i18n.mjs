@@ -166,6 +166,8 @@ async function realBoardFlow(browserType, lang, base) {
   page.on('pageerror', e => errors.push(String(e)));
   try {
     await page.goto(`${base}/?lang=${lang}`, { waitUntil: 'domcontentloaded' });
+    // 等 boot 的群組載入完成，避免開機流程在搜尋輸入後將它清空。
+    await page.waitForFunction(() => window.__state?.ready === true);
     // 用 #howtoGo／#trainSearch 這些語系無關的穩定 id，不用中文按鈕文字比對
     // （比照 verify_bus_transfer_ui_browser.mjs 既有的 translated() 寫法）。
     const start = page.locator('#howtoGo');

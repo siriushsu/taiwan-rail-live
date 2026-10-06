@@ -402,7 +402,11 @@ const srcPath = join(dir, 'main.swift');
 writeFileSync(srcPath, harness);
 let out;
 try {
-  execFileSync('xcrun', ['swiftc', '-O', srcPath, '-o', join(dir, 'probe')], { stdio: 'pipe' });
+  // 抽出的 enum 與探針只用 Swift 標準函式庫；Linux 雲端也必須真編譯、真執行同一組情境。
+  // macOS 仍由 xcrun 選 Xcode 的 swiftc，其他平台使用 PATH 上的官方 Swift 工具鏈。
+  const swiftCommand = process.platform === 'darwin' ? 'xcrun' : 'swiftc';
+  const swiftArgs = process.platform === 'darwin' ? ['swiftc'] : [];
+  execFileSync(swiftCommand, [...swiftArgs, '-O', srcPath, '-o', join(dir, 'probe')], { stdio: 'pipe' });
   out = execFileSync(join(dir, 'probe'), { encoding: 'utf8' });
 } catch (e) {
   console.log(`FAIL 差分編譯/執行失敗: ${(e.stderr || e.message || '').toString().slice(0, 900)}`);

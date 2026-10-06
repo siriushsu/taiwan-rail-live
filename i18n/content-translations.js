@@ -3659,6 +3659,13 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '修正文湖線同一班車重複出現、捷運待發車誤認進站訊息，以及台鐵通過車站時的短暫跳動': '文湖線の列車の重複表示、出発待ちの地下鉄列車による進入情報の誤認、台鉄列車が駅を通過する際の一瞬の飛びを修正しました',
 });
 
+// 2026-10-05 網站地圖輪廓漸進更新、高捷終點停留（v1005f）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '建物線條分散覆蓋畫面、移動時漸進更新；高捷列車完整進站後在終點短留再淡出。': 'Building outlines now cover the view more evenly and update gradually as you move the map; Kaohsiung MRT trains complete their approach, pause briefly at the terminus, then fade out.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '建物線條分散覆蓋畫面、移動時漸進更新；高捷列車完整進站後在終點短留再淡出。': '建物の輪郭線を画面全体に分散して表示し、地図の移動に合わせて徐々に更新します。高雄メトロの列車は終点まで進入して短く停車した後、徐々に消えます。',
+});
 // 2026-10-05 淡海、安坑查詢頻率改回約每分鐘（v1005c）：最近更新的英日文。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '淡海、安坑倒數改為約每分鐘向官方更新一次': 'Danhai and Ankeng countdowns now refresh from the official source about once a minute',
