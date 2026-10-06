@@ -259,7 +259,8 @@ export function makeProtection(S, { protectedPlans, repairs, taimali }) {
 }
 
 // 求解器：一組違規的待避車選項 × 超越車選項（含不動）一起列舉；改一份自己的計畫時，執行期借它切片的車次一起換（expand）。
-// 接受：違規總數（兩型合計、按天數加權）變少，且沒有任何一天的 B、C、單線交會共用節點或待避對共用節點（穿越）變多；
+// 接受：違規總數（兩型合計、按天數加權）變少，沒有任何一天的 B、C、單線交會共用節點變多（逐日淨增加），
+// 而且原本不共用的待避對沒有任何一對變成共用節點（穿越；逐對算，不是逐日總數，見 evaluate）；
 // 同分依序取：這一組自己修完的狀態好的（做對 > 兩車都直 > 超越車仍彎 > 仍違規）、搬的車少、路徑短、節點字串小的（結果可重現）。
 // 只比搬的車少，會偏好只把待避車推到另一條側線、超越車留在側線的修法：違規數照樣變少，超越車卻還沒走正線。
 export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
@@ -298,17 +299,20 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
   }
   const tallyOf = (cell, st, override) => { let B = 0, C = 0; for (const x of cellConflicts(cell, override)) if (x.type === 'B') B++; else C++; return { B, C, M: meets.cellMeets(st, cell, override).length }; };
   const baseTally = new Map(), tallyNow = (cell, st) => baseTally.get(cell) || baseTally.set(cell, tallyOf(cell, st)).get(cell);
-  // 逐日淨增加：B／C、單線交會共用節點、待避對共用節點（kind 為 shared＝畫面上超越車穿過待避車）各自逐日加總套用前後的差，
-  // 淨增加大於 0 的日子才列出來。待避對共用節點的件數每組按它的 days 逐日計（一組出現在好幾天，每天各算一件）。
+  // 三種「變多就不准」的東西，算法不同：
+  // B／C、單線交會共用節點是衝突件數，逐日加總套用前後的差，淨增加大於 0 的日子才列進 worse／worseMeet。
+  // 待避對共用節點（kind 為 shared＝畫面上超越車穿過待避車）逐對算：套用前 kind 不是 shared、套用後是 shared 的那一對，
+  // 它的 days 每一天都列進 worseShared（排序、去重）。原本就共用的對不算（那是既有的）。
+  // 不看逐日總數：同一站、同一班 P，這一對修好、隔壁那一對變穿越，逐日淨變動是 0，總數擋不住這種換位；
+  // 原本做對的那一對在畫面上就是退步，不能拿隔壁多修好一對來抵。
   function evaluate(direct) {
     const all = expand(direct), aff = affected(all);
     let dViol = 0;
-    const perDay = new Map(), dayOf = day => perDay.get(day) || perDay.set(day, { B: 0, C: 0, M: 0, S: 0 }).get(day);
+    const perDay = new Map(), dayOf = day => perDay.get(day) || perDay.set(day, { B: 0, C: 0, M: 0 }).get(day), newShared = new Set();
     for (const c of aff.pairs) {
       const was = state.get(c.id), now = J.verdict(c, idsAfter(all, c.q.key), idsAfter(all, c.p.key));
       dViol += ((now.viol ? 1 : 0) - (was.viol ? 1 : 0)) * weight(c);
-      const ds = (now.kind === 'shared' ? 1 : 0) - (was.kind === 'shared' ? 1 : 0);
-      if (ds) for (const day of c.days) dayOf(day).S += ds;
+      if (now.kind === 'shared' && was.kind !== 'shared') for (const day of c.days) newShared.add(day);
     }
     for (const [cell, { day, st }] of aff.cells) {
       const b = tallyNow(cell, st), a = tallyOf(cell, st, all), d = dayOf(day);
@@ -316,7 +320,7 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
     }
     return { all, dViol, worse: [...perDay].filter(([, d]) => d.B > 0 || d.C > 0).map(([day]) => day).sort(),
       worseMeet: [...perDay].filter(([, d]) => d.M > 0).map(([day]) => day).sort(),
-      worseShared: [...perDay].filter(([, d]) => d.S > 0).map(([day]) => day).sort() };
+      worseShared: [...newShared].sort() };
   }
   // 借用者連帶換股也要守非電化與保護（停車節點有變的那幾站逐一問 isProtected）
   function blockedBy(all) {
