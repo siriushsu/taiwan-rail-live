@@ -259,8 +259,9 @@ export function makeProtection(S, { protectedPlans, repairs, taimali }) {
 }
 
 // 求解器：一組違規的待避車選項 × 超越車選項（含不動）一起列舉；改一份自己的計畫時，執行期借它切片的車次一起換（expand）。
-// 接受：違規總數（兩型合計、按天數加權）變少，且沒有任何一天的 B、C 或單線交會共用節點變多；
-// 同分取搬的車少、路徑短、節點字串小的（結果可重現）。
+// 接受：違規總數（兩型合計、按天數加權）變少，且沒有任何一天的 B、C、單線交會共用節點或待避對共用節點（穿越）變多；
+// 同分依序取：這一組自己修完的狀態好的（做對 > 兩車都直 > 超越車仍彎 > 仍違規）、搬的車少、路徑短、節點字串小的（結果可重現）。
+// 只比搬的車少，會偏好只把待避車推到另一條側線、超越車留在側線的修法：違規數照樣變少，超越車卻還沒走正線。
 export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
   const { current, borrowed, trainOf, cells, daysOf, cellConflicts, borrowersOf, nonElectricWays, initialNonElectric, nodeAt, materialize } = S;
   const byKey = new Map(), byP = new Map();
@@ -297,17 +298,25 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
   }
   const tallyOf = (cell, st, override) => { let B = 0, C = 0; for (const x of cellConflicts(cell, override)) if (x.type === 'B') B++; else C++; return { B, C, M: meets.cellMeets(st, cell, override).length }; };
   const baseTally = new Map(), tallyNow = (cell, st) => baseTally.get(cell) || baseTally.set(cell, tallyOf(cell, st)).get(cell);
+  // 逐日淨增加：B／C、單線交會共用節點、待避對共用節點（kind 為 shared＝畫面上超越車穿過待避車）各自逐日加總套用前後的差，
+  // 淨增加大於 0 的日子才列出來。待避對共用節點的件數每組按它的 days 逐日計（一組出現在好幾天，每天各算一件）。
   function evaluate(direct) {
     const all = expand(direct), aff = affected(all);
     let dViol = 0;
-    for (const c of aff.pairs) dViol += ((J.verdict(c, idsAfter(all, c.q.key), idsAfter(all, c.p.key)).viol ? 1 : 0) - (state.get(c.id).viol ? 1 : 0)) * weight(c);
-    const perDay = new Map();
+    const perDay = new Map(), dayOf = day => perDay.get(day) || perDay.set(day, { B: 0, C: 0, M: 0, S: 0 }).get(day);
+    for (const c of aff.pairs) {
+      const was = state.get(c.id), now = J.verdict(c, idsAfter(all, c.q.key), idsAfter(all, c.p.key));
+      dViol += ((now.viol ? 1 : 0) - (was.viol ? 1 : 0)) * weight(c);
+      const ds = (now.kind === 'shared' ? 1 : 0) - (was.kind === 'shared' ? 1 : 0);
+      if (ds) for (const day of c.days) dayOf(day).S += ds;
+    }
     for (const [cell, { day, st }] of aff.cells) {
-      const b = tallyNow(cell, st), a = tallyOf(cell, st, all), d = perDay.get(day) || perDay.set(day, { B: 0, C: 0, M: 0 }).get(day);
+      const b = tallyNow(cell, st), a = tallyOf(cell, st, all), d = dayOf(day);
       d.B += a.B - b.B; d.C += a.C - b.C; d.M += a.M - b.M;
     }
     return { all, dViol, worse: [...perDay].filter(([, d]) => d.B > 0 || d.C > 0).map(([day]) => day).sort(),
-      worseMeet: [...perDay].filter(([, d]) => d.M > 0).map(([day]) => day).sort() };
+      worseMeet: [...perDay].filter(([, d]) => d.M > 0).map(([day]) => day).sort(),
+      worseShared: [...perDay].filter(([, d]) => d.S > 0).map(([day]) => day).sort() };
   }
   // 借用者連帶換股也要守非電化與保護（停車節點有變的那幾站逐一問 isProtected）
   function blockedBy(all) {
@@ -327,13 +336,17 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
     }
     return { alternatives: qOpts.length + pOpts.length - 2, out };
   }
-  const rank = (a, b) => a.dViol - b.dViol || a.moved - b.moved || a.lengthM - b.lengthM || (a.nodes < b.nodes ? -1 : a.nodes > b.nodes ? 1 : 0);
+  // 這一組自己修完的狀態（同分時先看它）：0 做對、1 不違規且超越車是直的（兩車都直）、2 不違規但超越車仍彎、3 仍違規。
+  const qualityOf = v => (v.kind === 'ok' ? 0 : !v.viol ? (v.rp <= STRAIGHT_DEG ? 1 : 2) : 3);
+  const rank = (a, b) => a.dViol - b.dViol || a.quality - b.quality || a.moved - b.moved || a.lengthM - b.lengthM || (a.nodes < b.nodes ? -1 : a.nodes > b.nodes ? 1 : 0);
   function bestFix(c) {
     let best = null;
     for (const cand of candidates(c).out) {
       if (blockedBy(expand(cand.direct))) continue;
-      const ev = evaluate(cand.direct); if (ev.dViol >= 0 || ev.worse.length || ev.worseMeet.length) continue;
-      const fix = { ...cand, ...ev, ver }; if (!best || rank(fix, best) < 0) best = fix;
+      const ev = evaluate(cand.direct); if (ev.dViol >= 0 || ev.worse.length || ev.worseMeet.length || ev.worseShared.length) continue;
+      const v = J.verdict(c, idsAfter(ev.all, c.q.key), idsAfter(ev.all, c.p.key));
+      const fix = { ...cand, ...ev, ver, quality: qualityOf(v), cAfter: { kind: v.kind, rq: v.rq ?? null, rp: v.rp ?? null } };
+      if (!best || rank(fix, best) < 0) best = fix;
     }
     return best;
   }
@@ -358,7 +371,8 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
   }
   // 修不掉的原因，依序判斷（前一條成立就不看後面）：沒有替代股道（Q、P 都沒有別的選項）→ 替代組合都仍違規（換了也沒轉好）
   // → 受保護／沒有替代股道（轉得好的組合全被保護或非電化擋掉）→ REASON_SHORT（組合沒被擋，但同組 Q 較彎的股道不夠）
-  // → 會增加 B 或 C → 會增加單線交會共用節點 → 會增加別的違規。REASON_SHORT 排在保護之後：被保護擋下的組，原因是保護，不是股道不夠。
+  // → 會增加 B 或 C → 會增加單線交會共用節點 → 會增加共用節點 → 會增加別的違規。
+  // REASON_SHORT 排在保護之後：被保護擋下的組，原因是保護，不是股道不夠。
   function explain(c) {
     if (bestFix(c)) return 'FIXABLE';
     const { alternatives, out } = candidates(c);
@@ -371,12 +385,13 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
     const evs = open.map(f => evaluate(f.x.direct));
     if (evs.every(e => e.worse.length)) return '會增加 B 或 C';
     if (evs.every(e => e.worse.length || e.worseMeet.length)) return '會增加單線交會共用節點';
+    if (evs.every(e => e.worse.length || e.worseMeet.length || e.worseShared.length)) return '會增加共用節點';
     return '會增加別的違規';
   }
   // 要在 apply 之前呼叫（diff 是相對於現況）
   function describe(fix) {
     const c = fix.c;
-    return { type: c.type, station: c.st, q: c.q, p: c.p, days: c.days.length, dViol: fix.dViol, moved: fix.moved,
+    return { type: c.type, station: c.st, q: c.q, p: c.p, days: c.days.length, dViol: fix.dViol, moved: fix.moved, cAfter: fix.cAfter,
       changes: [...fix.all].map(([key, ids2]) => ({ key, direct: fix.direct.has(key), materialise: fix.direct.has(key) && borrowed.has(key),
         diff: changedAt(key, ids2).map(k => [k, current.get(key)[k], ids2[k]]) })) };
   }

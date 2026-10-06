@@ -1,7 +1,7 @@
 // 台鐵待避股道閘門：時刻表明示的待避（通過型：超越車不停、通過時刻落在待避車停站窗內；停站型：超越車後到先開），
 // 待避車要停較彎的股道、超越車走較直的股道，兩車不共用節點。判準與修復器 repair_tra_overtake_tracks.mjs 同一份
 //（scripts/lib/tra_overtake_pairs.mjs），規格在 docs/specs/2026-10-06-tra-overtake-main-siding.md。
-// G0 名冊分母／G1 每天通過型與停站型都有待避對／G2 局部最優（還有可行、又不增 B、C 與單線交會的換股沒做就紅）／
+// G0 名冊分母／G1 每天通過型與停站型都有待避對／G2 局部最優（還有可行、又不增 B、C、單線交會與待避對共用節點的換股沒做就紅）／
 // G3 共用節點只准是修了會違反硬性條件的／G4 單線交會共用節點逐日不多於基準派車表（BASE_REF，執行時現算）／G5 已知案例與正向對照。
 // 窗外前後 60 秒的近距配對只寫進報告，不進任何一條判準。
 // 班表釘在 SCHEDULE_REF 加 9/13 考卷；路網與派車讀出貨檔，NETWORK=／DISPATCH= 可換檔做突變。
@@ -56,10 +56,10 @@ lap('explain 全部違規');
 const hist = { pass: {}, stop: {} }; for (const c of viol) { const r = reasons.get(c.id); hist[c.type][r] = (hist[c.type][r] || 0) + 1; }
 const name = c => `${c.st.split(':')[1]} ${c.q.no}/${c.p.no}（${c.type === 'pass' ? '通過' : '停站'}）`;
 const fixable = viol.filter(c => reasons.get(c.id) === 'FIXABLE'), vt = X.violationsByType();
-check(fixable.length === 0, 'G2 局部最優：沒有可行又不增 B、C 與單線交會的換股沒做',
+check(fixable.length === 0, 'G2 局部最優：沒有可行又不增 B、C、單線交會與共用節點的換股沒做',
   `違規 通過型 ${vt.pass}／停站型 ${vt.stop} 件次；原因（組）${JSON.stringify(hist)}${fixable.length ? '；例：' + fixable.slice(0, 5).map(name).join('、') : ''}`);
 // 修了會違反硬性條件的才准留（規格第 6 節第 3 條）；FIXABLE 與「會增加別的違規」不准留。
-const okShared = new Set(['沒有替代股道', '替代組合都仍違規', REASON_SHORT, '受保護', '會增加 B 或 C', '會增加單線交會共用節點']);
+const okShared = new Set(['沒有替代股道', '替代組合都仍違規', REASON_SHORT, '受保護', '會增加 B 或 C', '會增加單線交會共用節點', '會增加共用節點']);
 const shared = viol.filter(c => X.state(c).kind === 'shared'), sharedBad = shared.filter(c => !okShared.has(reasons.get(c.id)));
 check(sharedBad.length === 0, 'G3 共用節點只剩修了會違反硬性條件的',
   `共用 ${shared.length} 組，其中原因不是沒有替代的 ${sharedBad.length} 組${sharedBad.length ? '：' + sharedBad.slice(0, 5).map(c => name(c) + ' ' + reasons.get(c.id)).join('、') : ''}`);
