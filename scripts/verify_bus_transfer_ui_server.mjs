@@ -129,7 +129,7 @@ const server = createServer((req, res) => {
       const row = { id, editToken, payload: body.payload, locationEnabled: body.locationEnabled === true,
         updatedAt: Date.now(), expiresAt: Date.now() + Number(body.durationSec || 3600) * 1000, devicePosition: null };
       journeyShares.set(id, row);
-      return sendJson(res, { id, editToken, expiresAt: row.expiresAt, url: `https://railisland.tw/?journey=${id}` }, 201);
+      return sendJson(res, { id, editToken, expiresAt: row.expiresAt, url: `https://railisland.tw/journey/${id}` }, 201);
     }
     const row = journeyShares.get(String(body.id || ''));
     if (!row) return sendJson(res, { error: 'not_found' }, 404);

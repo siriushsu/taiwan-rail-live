@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "tw.railisland.app",
+      "sha256_cert_fingerprints": [
+        "A8:CB:84:3C:5F:74:C9:FE:38:43:FD:6F:25:47:94:8A:74:5A:F6:0E:06:95:F5:71:41:78:E6:F4:41:94:08:C6",
+        "5B:B1:C0:B1:95:65:EC:DF:25:BD:3E:5F:98:71:F9:95:C5:55:70:E6:E7:DA:8D:73:BC:C4:5D:B4:67:3E:E0:3D"
+      ]
+    }
+  }
+]

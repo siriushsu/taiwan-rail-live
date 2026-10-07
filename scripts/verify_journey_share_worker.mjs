@@ -42,7 +42,29 @@ assert.equal(created.status, 201);
 const credentials = await created.json();
 assert.match(credentials.id, /^[A-Za-z0-9_-]{22}$/);
 assert.match(credentials.editToken, /^[A-Za-z0-9_-]{43}$/);
-assert.equal(credentials.url, `https://railisland.tw/?journey=${credentials.id}`);
+assert.equal(credentials.url, `https://railisland.tw/journey/${credentials.id}`);
+
+for (const method of ['GET', 'HEAD']) {
+  const response = await worker.fetch(new Request(credentials.url, { method }), env, {});
+  assert.equal(response.status, 302, `${method} 行程連結必須轉回網頁`);
+  assert.equal(response.headers.get('Location'), `https://railisland.tw/?journey=${credentials.id}`);
+  assert.equal(await response.text(), '', '轉址不需回應內容');
+}
+for (const [pathname, method] of [
+  [`/journey/${credentials.id}?lang=zh-TW`, 'GET'],
+  [`/journey/${credentials.id}?lang=zh-TW`, 'HEAD'],
+  [`/journey/${credentials.id}`, 'POST'],
+  [`/journey/${credentials.id.slice(0, -1)}`, 'GET'],
+  [`/journey/${credentials.id}A`, 'GET'],
+  [`/journey/${'!'.repeat(22)}`, 'GET'],
+  [`/journey/${credentials.id}/`, 'GET'],
+  [`/?journey=${credentials.id}`, 'GET'],
+]) {
+  const response = await worker.fetch(new Request(`https://railisland.tw${pathname}`, { method }), env, {});
+  assert.equal(response.status, 200, `${method} ${pathname} 必須沿用資產處理`);
+  assert.equal(response.headers.get('Location'), null, '不符合行程路徑規則時不得轉址');
+  assert.equal(await response.text(), 'asset');
+}
 
 const stored = db.prepare('SELECT * FROM journey_shares WHERE public_id=?').get(credentials.id);
 assert(stored);

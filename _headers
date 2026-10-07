@@ -75,3 +75,9 @@
 #    scripts/verify_music_headers.mjs 的 B 段對正式站驗哪一條真的生效。
 /suno%20musics/*
   Cache-Control: public, max-age=31536000, immutable
+
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+
+/.well-known/assetlinks.json
+  Content-Type: application/json

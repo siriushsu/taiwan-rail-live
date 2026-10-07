@@ -6239,7 +6239,7 @@ async function journeyShare(request, env) {
       await env.DELAY_DB.prepare(
         'INSERT INTO journey_shares (public_id,edit_hash,payload,location_enabled,created_at,updated_at,expires_at) VALUES (?,?,?,?,?,?,?)'
       ).bind(id, editHash, JSON.stringify(payload), body.locationEnabled === true ? 1 : 0, nowSec, nowSec, expiresAt).run();
-      return jsonRes({ id, editToken, expiresAt: expiresAt * 1000, url: `https://railisland.tw/?journey=${id}` }, 201, 'no-store');
+      return jsonRes({ id, editToken, expiresAt: expiresAt * 1000, url: `https://railisland.tw/journey/${id}` }, 201, 'no-store');
     } catch (e) { return jsonRes({ error: 'create_failed' }, 503, 'no-store'); }
   }
   const id = String(body && body.id || ''), editToken = String(body && body.editToken || '');
@@ -8358,6 +8358,11 @@ export default {
     if (url.protocol === 'http:') {
       url.protocol = 'https:';
       return Response.redirect(url.toString(), 301);
+    }
+    // 沒有 App 的訪客沿用首頁既有的旅程讀取流程。
+    const journey = /^\/journey\/([A-Za-z0-9_-]{22})$/.exec(url.pathname);
+    if (journey && !url.search && ['GET', 'HEAD'].includes(request.method)) {
+      return Response.redirect(new URL('/?journey=' + journey[1], url.origin).href, 302);
     }
     const isApi = url.pathname.startsWith('/api/');
     const origin = request.headers.get('Origin') || '';

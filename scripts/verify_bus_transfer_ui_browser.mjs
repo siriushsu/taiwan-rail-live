@@ -397,7 +397,8 @@ async function wholeJourneyShareRoundTrip() {
     const active = await sender.evaluate(() => JSON.parse(localStorage.getItem('rail-island-journey-share-v1')));
     assert.match(active.id, /^[A-Za-z0-9_-]{22}$/);
     assert.match(active.editToken, /^[A-Za-z0-9_-]{43}$/);
-    assert.equal(new URL(active.url).searchParams.get('journey'), active.id);
+    assert.equal(active.url, `https://railisland.tw/journey/${active.id}`);
+    assert.equal(await sender.evaluate(() => window.__journeySharedValue.url), active.url);
     assert.equal(active.url.includes(active.editToken), false, '公開 URL 不得含編輯憑證');
     await sender.waitForFunction(async () => (await (await fetch('/__bus-test-stats')).json()).journeyPosition >= 1);
     const afterCreate = await stats();
