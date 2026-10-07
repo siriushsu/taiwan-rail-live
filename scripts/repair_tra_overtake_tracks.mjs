@@ -12,7 +12,7 @@
 //      接力借路徑的專車（好幾份來源的切片接成一條）：交接處接不上就不跟著換；換股之後前端重新綁定挑的來源與模型不同的，
 //      落成自己的計畫、路徑維持模型的（report.pinnedRelays 逐一列出）。
 //      接受：違規總數（兩型合計、按天數加權）變少；沒有任何一天的 B、C 或單線交會共用節點變多；
-//      原本不共用節點的待避對不得變成共用節點（逐對算，不是逐日總數：總數擋不住「這一對修好、隔壁那一對變穿越」的換位）。
+//      原本不穿越的待避對不得變成穿越（逐對算，不是逐日總數：總數擋不住「這一對修好、隔壁那一對變穿越」的換位）。
 //      同分依序取：這一組修完變成做對的、修完超越車是直的、搬的車少、路徑短的。
 //   4. 一遍裡一輪一輪做到沒有改善；再從輸出重建名冊重來一遍（落成的新計畫會改變別班的綁定來源），
 //      直到一整遍 0 次換股，收尾狀態就是從零重算的結果。
@@ -185,10 +185,10 @@ const wrongWorse = [...wrongNow].filter(([k, n]) => n > (firstWrong.get(k) || 0)
 assert.equal(wrongWorse.length, 0, `有 ${wrongWorse.length} 班的逆向段變多（車次鍵 前 → 後）：` + wrongWorse.slice(0, 10).map(([k, n]) => `${k} ${firstWrong.get(k) || 0} → ${n}`).join('；'));
 const wrongTrainsBetter = [...firstWrong].filter(([k, n]) => (wrongNow.get(k) || 0) < n).length;
 
-// 不准新造穿越（規格第 4 節第 3 步，逐對算）：第一遍開始時不是共用節點的待避對，收尾時不得是共用節點。
+// 不准新造穿越（規格第 4 節第 3 步，逐對算）：第一遍開始時不穿越的待避對，收尾時不得穿越。
 // 先用 id 對，id 對不上（跨遍重建後車次鍵或站序變了）的退回站＋型別＋Q 車次鍵＋P 車次鍵，同鍵有好幾對時任何一對共用就算。
-// 另外兩種只出現在重建之後的情形也擋：收尾才找到、而且共用節點的對；第一遍有、收尾找不到的對（找不到的違規不是修好了，是看不見了）。
-// 「找不到」只逐對數第一遍不是共用節點的對（下面 f.shared 的略過）；第一遍就共用、後來消失的對沒有逐對檢查，
+// 另外兩種只出現在重建之後的情形也擋：收尾才找到、而且穿越的對；第一遍有、收尾找不到的對（找不到的違規不是修好了，是看不見了）。
+// 「找不到」只逐對數第一遍不穿越的對（下面 f.shared 的略過）；第一遍就穿越、後來消失的對沒有逐對檢查，
 // 只被下面名冊車次鍵不得消失（lostKeys）間接擋住。
 const finalById = new Map(R.pairs.map(c => [c.id, c])), finalByLoose = new Map();
 for (const c of R.pairs) { const k = looseKey(c.type, c.st, c.q.key, c.p.key); (finalByLoose.get(k) || finalByLoose.set(k, []).get(k)).push(c); }
@@ -208,8 +208,8 @@ for (const c of R.pairs) if (!firstPairIds.has(c.id) && !firstLoose.has(looseKey
   if (RX.state(c).kind === 'shared') { noNew.appearedShared++; appearedSharedPairs.push({ pair: nm(c), id: c.id, days: c.days }); }
 }
 noNew.matchBy = noNew.matchedByLooseKey ? 'id，對不上的退回站＋型別＋Q 車次鍵＋P 車次鍵' : 'id';
-assert.equal(crossing.length, 0, '新造穿越（原本不共用節點的待避對收尾時共用了）：' + JSON.stringify(crossing.slice(0, 10)));
-assert.equal(noNew.appearedShared, 0, `收尾才出現、而且共用節點的待避對 ${noNew.appearedShared} 對（前 10）：` + JSON.stringify(appearedSharedPairs.slice(0, 10)));
+assert.equal(crossing.length, 0, '新造穿越（原本不穿越的待避對收尾時穿越了）：' + JSON.stringify(crossing.slice(0, 10)));
+assert.equal(noNew.appearedShared, 0, `收尾才出現、而且穿越的待避對 ${noNew.appearedShared} 對（前 10）：` + JSON.stringify(appearedSharedPairs.slice(0, 10)));
 assert.equal(noNew.vanished, 0, `第一遍有、收尾找不到的待避對 ${noNew.vanished} 對（前 10）：` + JSON.stringify(vanishedPairs.slice(0, 10)));
 
 // 綁定變動不得碰受保護的東西：名冊全部車次鍵（含被換股的），第一遍開始時與 R 在每一站的停車節點逐站比，
@@ -218,7 +218,8 @@ assert.equal(noNew.vanished, 0, `第一遍有、收尾找不到的待避對 ${no
 //   沒被換股的漂移：沒出現在任何一筆換股記錄（moves[].changes）的車次，多半是落成的新計畫改變了借用者的綁定來源；
 //     blockedBy 只看換股清單裡的鍵，漂移不經過它。
 //   換股後又被重綁：出現在換股記錄的車次。換股的那一步已經被 blockedBy 檢查過，這裡命中的是換股之後下一遍重建又改了綁定的結果。
-// bindingDrift 只報前一種（不在換股記錄裡、有效 pathIds 有變的車次）。
+// 前一種（不在換股記錄裡、有效 pathIds 有變的車次）一律不准：落成的計畫不當模板（templateEligible:false），接力專車重新綁定會分歧的
+// 每次換股後也落成自己的計畫（settleRelays）。還有漂移就是這兩道沒接住，下面斷言 0；報告的 bindingDrift 照樣記件數與樣本。
 const movedKeys = new Set(report.moves.flatMap(m => m.changes.map(ch => ch.key)));
 const lostKeys = [...firstPlanIds.keys()].filter(k => !RS.current.has(k));
 assert.equal(lostKeys.length, 0, `名冊車次鍵在重建的模型裡不見了 ${lostKeys.length} 個（前 10）：` + lostKeys.slice(0, 10).join('、'));
@@ -238,15 +239,16 @@ for (const [key, ids0] of firstPlanIds) {
     if (why) protHits.push({ moved, text: `${key} ${names[j].replace(/^[^:]*:/, '')} ${why}` });   // 站名去掉系統前綴，與其他訊息一致
   }
 }
+assert.equal(drift.length, 0, `沒被換股的車次綁定漂移 ${drift.length} 班（車次鍵 變動的段；前 10）：` + drift.slice(0, 10).map(d => `${d.key} ${d.segs.join(',')}`).join('；'));
 const hitDrift = protHits.filter(h => !h.moved), hitRebound = protHits.filter(h => h.moved);
 assert.equal(protHits.length, 0, `綁定變動碰到受保護的東西 ${protHits.length} 處（沒被換股的漂移 ${hitDrift.length} 處、換股後又被重綁 ${hitRebound.length} 處；來源 車次鍵 站 類別；各列前 10）：`
   + [...hitDrift.slice(0, 10).map(h => `沒被換股的漂移 ${h.text}`), ...hitRebound.slice(0, 10).map(h => `換股後又被重綁 ${h.text}`)].join('；'));
 // 漂移也可能讓違規變多：收尾的違規數不得比第一遍開始時多
 assert.ok(finalViolations <= first.violations, `違規數從 ${first.violations} 變成 ${finalViolations}`);
 
-// 共用節點（畫面上超越車穿過待避車）只准留下修了會違反硬性條件的，條件與閘門 G3 同一份（SHARED_OK_REASONS）
+// 穿越（畫面上超越車穿過待避車）只准留下修了會違反硬性條件的，條件與閘門 G3 同一份（SHARED_OK_REASONS）
 const sharedBad = explained.filter(e => RX.state(e.c).kind === 'shared' && !SHARED_OK_REASONS.has(e.reason));
-assert.equal(sharedBad.length, 0, `共用節點的原因不在准許集合內 ${sharedBad.length} 組（站 Q/P 型別 原因 天數；前 10）：` + sharedBad.slice(0, 10).map(e => `${nm(e.c)} 「${e.reason}」${e.c.days.length} 天`).join('；'));
+assert.equal(sharedBad.length, 0, `穿越的原因不在准許集合內 ${sharedBad.length} 組（站 Q/P 型別 原因 天數；前 10）：` + sharedBad.slice(0, 10).map(e => `${nm(e.c)} 「${e.reason}」${e.c.days.length} 天`).join('；'));
 
 // B／C 逐件對照（只列、不斷言）：第一遍開始時與收尾（R）的 B／C 一件一件比。換股本來就會讓別班車的 B／C 增減，
 // 逐日件數的棘輪已經在上面斷言；這裡看的是「兩班車都沒被改（有效 pathIds 與第一遍開始時相同）卻新出現或消失」的件，

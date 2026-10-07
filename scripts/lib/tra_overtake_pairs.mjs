@@ -204,7 +204,7 @@ export function makeOvertakeJudge(S) {
   function crossingOf(qIn, qOut, h, pIn, pOut, measure = false) {
     const key = qIn + ',' + qOut + ',' + h + '|' + pIn + ',' + pOut + (measure ? '|m' : '');
     let r = crossCache.get(key); if (r) return r;
-    const segs = bodyOf(qIn, qOut, h), Ps = [pIn, pOut].filter(x => x != null && paths[x]).map(pathGeom), reach = measure ? 50 : BODY_W_M;
+    const segs = bodyOf(qIn, qOut, h), Ps = [pIn, pOut].filter(x => x != null).map(pathGeom), reach = measure ? 50 : BODY_W_M;
     let sharedM = 0, latM = Infinity;
     for (const s of segs) if (Ps.some(G => G.eset.has(s.eid))) sharedM += s.len;
     if (segs.length) {
@@ -333,8 +333,8 @@ export function makeMeetCounter(S, sections) {
 export const REASON_SHORT = '同一班 P 在同站同時超越兩班 Q、該方向較彎的股道不夠';
 
 // explain 回傳的原因（還有可行修法時回 REASON_FIXABLE，其餘每一組修不掉的都落在其中一個）。
-// SHARED_OK_REASONS：共用節點（畫面上超越車穿過待避車）准許留下的原因，只有修了會違反硬性條件的（規格第 6 節第 3 條）；
-// FIXABLE 與「會增加別的違規」不准留。閘門與 F2b 收尾自檢判「還有可行修法」用匯出的 REASON_FIXABLE、判共用節點的原因用
+// SHARED_OK_REASONS：穿越（畫面上超越車穿過待避車）准許留下的原因，只有修了會違反硬性條件的（規格第 6 節第 3 條）；
+// FIXABLE 與「會增加別的違規」不准留。閘門與 F2b 收尾自檢判「還有可行修法」用匯出的 REASON_FIXABLE、判穿越的原因用
 // SHARED_OK_REASONS，都不各寫一份字面；原因的字面只在這裡寫一次。
 export const REASON_FIXABLE = 'FIXABLE';
 const REASONS = {
@@ -360,7 +360,7 @@ export function makeProtection(S, { protectedPlans, repairs, taimali }) {
 
 // 求解器：一組違規的待避車選項 × 超越車選項（含不動）一起列舉；改一份自己的計畫時，執行期借它切片的車次一起換（expand）。
 // 接受：違規總數（兩型合計、按天數加權）變少，沒有任何一天的 B、C、單線交會共用節點變多（逐日淨增加），
-// 而且原本不共用的待避對沒有任何一對變成共用節點（穿越；逐對算，不是逐日總數，見 evaluate）；
+// 而且原本不穿越的待避對沒有任何一對變成穿越（逐對算，不是逐日總數，見 evaluate）；
 // 同分依序取：這一組自己修完的狀態好的（做對 > 超越車直 > 超越車仍彎 > 仍違規）、搬的車少、路徑短、節點字串小的（結果可重現）。
 // 只比搬的車少，會偏好只把待避車推到另一條側線、超越車留在側線的修法：違規數照樣變少，超越車卻還沒走正線。
 export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
@@ -409,8 +409,8 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
   const baseTally = new Map(), tallyNow = (cell, st) => baseTally.get(cell) || baseTally.set(cell, tallyOf(cell, st)).get(cell);
   // 三種「變多就不准」的東西，算法不同：
   // B／C、單線交會共用節點是衝突件數，逐日加總套用前後的差，淨增加大於 0 的日子才列進 worse／worseMeet。
-  // 待避對共用節點（kind 為 shared＝畫面上超越車穿過待避車）逐對算：套用前 kind 不是 shared、套用後是 shared 的那一對，
-  // 它的 days 每一天都列進 worseShared（排序、去重）。原本就共用的對不算（那是既有的）。
+  // 待避對穿越（kind 為 shared＝畫面上超越車穿過待避車）逐對算：套用前 kind 不是 shared、套用後是 shared 的那一對，
+  // 它的 days 每一天都列進 worseShared（排序、去重）。原本就穿越的對不算（那是既有的）。
   // 不看逐日總數：同一站、同一班 P，這一對修好、隔壁那一對變穿越，逐日淨變動是 0，總數擋不住這種換位；
   // 原本做對的那一對在畫面上就是退步，不能拿隔壁多修好一對來抵。
   function evaluate(direct) {
