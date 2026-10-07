@@ -297,7 +297,7 @@
   },
   "大甲|日南": {
    "tracks": 1,
-   "parallelFrac": 0.119,
+   "parallelFrac": 0.118,
    "lengthM": 4659,
    "maxPathM": 4645.876,
    "refs": [
@@ -352,7 +352,7 @@
   },
   "大林|民雄": {
    "tracks": 2,
-   "parallelFrac": 0.938,
+   "parallelFrac": 0.948,
    "lengthM": 5801,
    "maxPathM": 5797.931,
    "refs": [
@@ -397,7 +397,7 @@
   },
   "大湖|路竹": {
    "tracks": 2,
-   "parallelFrac": 0.922,
+   "parallelFrac": 0.929,
    "lengthM": 3026,
    "maxPathM": 3028.689,
    "refs": [
@@ -729,7 +729,7 @@
   },
   "日南|苑裡": {
    "tracks": 2,
-   "parallelFrac": 0.979,
+   "parallelFrac": 0.978,
    "lengthM": 7795,
    "maxPathM": 7782.145,
    "refs": [
@@ -998,7 +998,7 @@
   "白沙屯|龍港": {
    "tracks": 2,
    "parallelFrac": 1,
-   "lengthM": 8175,
+   "lengthM": 8174,
    "maxPathM": 8141.709,
    "refs": [
     "縱貫線"
@@ -1015,7 +1015,7 @@
   },
   "光復|大富": {
    "tracks": 1,
-   "parallelFrac": 0.03,
+   "parallelFrac": 0.038,
    "lengthM": 7653,
    "maxPathM": 7645.2,
    "refs": [
@@ -1024,7 +1024,7 @@
   },
   "光復|萬榮": {
    "tracks": 2,
-   "parallelFrac": 0.946,
+   "parallelFrac": 0.945,
    "lengthM": 5600,
    "maxPathM": 5595.285,
    "refs": [
@@ -1109,7 +1109,7 @@
    "tracks": 1,
    "parallelFrac": 0.045,
    "lengthM": 5569,
-   "maxPathM": 5579.736,
+   "maxPathM": 5579.942,
    "refs": [
     "臺東線"
    ]
@@ -1499,7 +1499,7 @@
   },
   "南靖|水上": {
    "tracks": 2,
-   "parallelFrac": 0.891,
+   "parallelFrac": 0.913,
    "lengthM": 2649,
    "maxPathM": 2649.746,
    "refs": [
@@ -1508,7 +1508,7 @@
   },
   "南靖|後壁": {
    "tracks": 2,
-   "parallelFrac": 0.922,
+   "parallelFrac": 0.927,
    "lengthM": 6046,
    "maxPathM": 6044.173,
    "refs": [
@@ -1535,8 +1535,8 @@
   },
   "南澳|東澳": {
    "tracks": 2,
-   "parallelFrac": 0.137,
-   "lengthM": 7895,
+   "parallelFrac": 0.14,
+   "lengthM": 7897,
    "maxPathM": 7904.248,
    "refs": [
     "北迴線"
@@ -1545,7 +1545,7 @@
   },
   "南澳|武塔": {
    "tracks": 2,
-   "parallelFrac": 0.918,
+   "parallelFrac": 0.92,
    "lengthM": 3745,
    "maxPathM": 3728.952,
    "refs": [
@@ -1974,8 +1974,8 @@
   },
   "瑞和|關山": {
    "tracks": 1,
-   "parallelFrac": 0.002,
-   "lengthM": 7590,
+   "parallelFrac": 0.001,
+   "lengthM": 7591,
    "maxPathM": 7585.292,
    "refs": [
     "臺東線"
