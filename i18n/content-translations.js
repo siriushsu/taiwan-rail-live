@@ -3690,3 +3690,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '淡海、安坑、環狀線即時資料改由全站集中向官方查詢、再分送給所有人，正常情況下官方收到的查詢約每分鐘一次，不隨觀看人數與地區增加': '淡海・安坑・環状線のリアルタイムデータは、サイト全体で一か所からまとめて公式に問い合わせ、全員に配信するようにしました。通常時、公式への問い合わせは見ている人数や地域にかかわらず約1分に1回です',
 });
+
+// 2026-10-07 台鐵待避股道（v1007a）：最近更新的英日文。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '台鐵待避：一班車停站讓另一班先走時，股道換得過去的，改成先走的車走直的正線、等待的車停進旁邊的側線': 'TRA overtaking: when one train waits at a station for another to go first, wherever the track layout allows, the train going first now runs on the straight main line and the waiting train stops on the siding beside it',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '台鐵待避：一班車停站讓另一班先走時，股道換得過去的，改成先走的車走直的正線、等待的車停進旁邊的側線': '台鉄の待避：駅で停車して別の列車を先に行かせるとき、線路を切り替えられる駅では、先に行く列車がまっすぐな本線を走り、待つ列車は隣の待避線に停まるようにしました',
+});
