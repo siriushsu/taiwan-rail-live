@@ -337,6 +337,7 @@ export const REASON_SHORT = '同一班 P 在同站同時超越兩班 Q、該方�
 // FIXABLE 與「會增加別的違規」不准留。閘門與 F2b 收尾自檢判「還有可行修法」用匯出的 REASON_FIXABLE、判穿越的原因用
 // SHARED_OK_REASONS，都不各寫一份字面；原因的字面只在這裡寫一次。
 export const REASON_FIXABLE = 'FIXABLE';
+// SHARED 的字面沿用舊稱「共用節點」，意思是修了會增加穿越（車身範圍判定）；舊報告與比對工具都認這個字面，所以不改。
 const REASONS = {
   FIXABLE: REASON_FIXABLE, NO_ALT: '沒有替代股道', STILL: '替代組合都仍違規', SHORT: REASON_SHORT, PROTECTED: '受保護',
   BC: '會增加 B 或 C', MEET: '會增加單線交會共用節點', SHARED: '會增加共用節點', OTHER: '會增加別的違規',

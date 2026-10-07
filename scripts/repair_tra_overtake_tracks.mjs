@@ -215,12 +215,12 @@ assert.equal(noNew.vanished, 0, `第一遍有、收尾找不到的待避對 ${no
 // 綁定變動不得碰受保護的東西：名冊全部車次鍵（含被換股的），第一遍開始時與 R 在每一站的停車節點逐站比，
 // 節點有變的站才用同一個保護判斷（R.prot：makeProtection 回傳的函式，與求解器 blockedBy 用的是同一個）檢查：
 // 已驗收進路、具名修復端點、太麻里非電化月台。變動有兩種來源，失敗訊息分開記：
-//   沒被換股的漂移：沒出現在任何一筆換股記錄（moves[].changes）的車次，多半是落成的新計畫改變了借用者的綁定來源；
-//     blockedBy 只看換股清單裡的鍵，漂移不經過它。
-//   換股後又被重綁：出現在換股記錄的車次。換股的那一步已經被 blockedBy 檢查過，這裡命中的是換股之後下一遍重建又改了綁定的結果。
-// 前一種（不在換股記錄裡、有效 pathIds 有變的車次）一律不准：落成的計畫不當模板（templateEligible:false），接力專車重新綁定會分歧的
-// 每次換股後也落成自己的計畫（settleRelays）。還有漂移就是這兩道沒接住，下面斷言 0；報告的 bindingDrift 照樣記件數與樣本。
-const movedKeys = new Set(report.moves.flatMap(m => m.changes.map(ch => ch.key)));
+//   沒被換股的漂移：沒有在任何一筆換股記錄（moves[].changes）裡實際改過路徑的車次（跟著來源列進記錄、diff 是空的也算這一類），
+//     多半是落成的新計畫改變了借用者的綁定來源；blockedBy 只看換股清單裡的鍵，漂移不經過它。
+//   換股後又被重綁：在換股記錄裡實際改過路徑的車次。換股的那一步已經被 blockedBy 檢查過，這裡命中的是換股之後下一遍重建又改了綁定的結果。
+// 前一種只要有效 pathIds 有變就不准，下面斷言 0：落成的計畫不當模板（templateEligible:false），接力專車重新綁定會分歧的
+// 每次換股後也落成自己的計畫（settleRelays），兩道都接住就不該有。後一種只在碰到保護時擋。報告的 bindingDrift 記前一種的件數與樣本。
+const movedKeys = new Set(report.moves.flatMap(m => m.changes.filter(ch => ch.diff.length).map(ch => ch.key)));
 const lostKeys = [...firstPlanIds.keys()].filter(k => !RS.current.has(k));
 assert.equal(lostKeys.length, 0, `名冊車次鍵在重建的模型裡不見了 ${lostKeys.length} 個（前 10）：` + lostKeys.slice(0, 10).join('、'));
 const drift = [], protHits = [], nodeChanged = { drift: 0, moved: 0 };

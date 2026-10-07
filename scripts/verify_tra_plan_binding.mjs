@@ -107,7 +107,7 @@ assert(!plannedOn(day,untracked).some(p=>normSta(p.station)===X),`股道表沒�
 // 交接用 unfold 的完整節點與邊＋另建的拓樸重跑 canTurn（道岔不倒車）；停靠型態看「那一站那個節點，派車表裡有沒有同型態的車用過」，
 // 不合的只准出現在派車表根本沒有同向（前後站相同）同型態班次的站——海線 6509 通過竹南到清水，派車表同向全是停靠車。
 // 對照組：不給 canJoin（離線修補腳本的呼叫法）照舊綁不到；全都接不上時不可硬接。整趟每一站進出都在實體股道上且不跳。
-// F2b 會把重新綁定會分歧的接力專車落成自己的計畫（帶 relaySources），fixture 的用途是讓接力綁定繼續被驗到，所以這一段用拿掉這些計畫的 chainDispatch；落成的計畫在迴圈裡另用真派車表驗。
+// F2b 會把接力專車落成自己的計畫（帶 relaySources；被直接換股的，或換股後重新綁定會分歧的），fixture 的用途是讓接力綁定繼續被驗到，所以這一段用拿掉這些計畫的 chainDispatch；落成的計畫在迴圈裡另用真派車表驗。
 const chainDispatch={...dispatch,plans:Object.fromEntries(Object.entries(dispatch.plans).filter(([,p])=>!p.relaySources))};
 const nodeUse=new Map(),sameDir=new Set();
 for(const[k,p]of Object.entries(chainDispatch.plans)){if(!k.startsWith('tra_sched:'))continue;const sig=JSON.parse(p.stopSignature);
@@ -145,5 +145,11 @@ for(const tr of JSON.parse(fs.readFileSync('scripts/fixtures/tra-chain-binding-1
   const ownWorst=maxJump(createPhysicalMotion(network,null,dispatch),tr,'（落成的計畫）');assert(ownWorst<1,`${tr.train}：落成的計畫進出站最大跳動 ${ownWorst} m`);ownNote=`；已落成自己的計畫（${own.basis}，最大跳動 ${ownWorst.toFixed(3)} m）`;}
  chainRows.push(`${tr.train}（${r.sourceKeys.length} 段，型態不合 ${wrong.length} 站${wrong.length?'：'+wrong.join('、'):''}，最大跳動 ${worst.toFixed(3)} m${ownNote}）`);
 }
-console.log(`台鐵股道接力借路徑：${chainRows.join('、')}；joinable 與 canTurn 一致（接得上 ${joinTally.ok} 對、接不上 ${joinTally.no} 對）`);
+// 派車表裡每一份落成的接力專車計畫（帶 relaySources；分母由資料決定，不只 fixture 那幾班）：不可借給別班當模板、
+// 用自己的停靠簽章綁得回自己（exact），整趟每一站進出都在實體股道上且不跳。
+const ownMotion=createPhysicalMotion(network,null,dispatch),relayRows=Object.entries(dispatch.plans).filter(([,p])=>p.relaySources).map(([k,p])=>{
+ assert.equal(p.templateEligible,false,`${k}：落成的接力專車計畫不可借給別班當模板`);const t=make([k,p]),b=createPlanBinding(dispatch)(t);
+ assert.equal(b?.basis,'exact',`${k}：用自己的停靠簽章要綁回自己，實際 ${b?.basis}`);assert.strictEqual(b.plan,p,`${k}：綁到的不是自己的計畫`);
+ const w=maxJump(ownMotion,t,'（落成的計畫）');assert(w<1,`${k}：落成的計畫進出站最大跳動 ${w} m`);return `${t.train}（最大跳動 ${w.toFixed(3)} m）`;});
+console.log(`台鐵股道接力借路徑：${chainRows.join('、')}；joinable 與 canTurn 一致（接得上 ${joinTally.ok} 對、接不上 ${joinTally.no} 對）；派車表裡落成的接力專車計畫 ${relayRows.length} 份：${relayRows.join('、')||'（無）'}`);
 console.log(`台鐵股道綁定：通過時刻更新、改點沿用股道、停靠型態／待避防護、30 班加開模板、雙方向與未知路徑、派車表沒有的中途站略過檢查通過；派車表沒有的中途停靠站（${best.src.train} 次 ${s0[I].name}→${s0[K].name}，實體／示意 ${best.ratio.toFixed(4)}）停在投影點、兩截剖面長 ≥ 實體、點速 ≤ 剖面速度（${moving} 個取樣）；${day} 拿掉 ${X} 後不選它待避（原本在那裡待避 ${atX} 次，當天共 ${waits.length} 次）`);
