@@ -1,3 +1,4 @@
+import traScheduleSupplements from './scripts/tra_schedule_supplements.json' with { type: 'json' };
 import {createPlatformProxy} from './scripts/tra_platform_proxy.mjs';
 import {
   TRTC_LEDGER_SCHEMA, buildTrtcModel, buildLedgerFromRaw,
@@ -8010,7 +8011,16 @@ async function traDailyTrains(request, env) {
         const no = t && t.Train != null ? String(t.Train) : '';
         if (no) trains.push(no);
       }
-      traDailyMem = { date: today, updateTime: String((raw && raw.UpdateTime) || ''), count: trains.length, trains };
+      // 官網已公告、逐站時刻已核對，但 ODS 還沒入庫的車不能被舊名冊誤判停駛。
+      // 和 fetch_tra_schedule.py 共用同一份快照，只認指定營運日，ODS 已有時不重複。
+      const known = new Set(trains);
+      const supplements = [];
+      for (const e of traScheduleSupplements.trains) {
+        const no = String(e.trainInfo.Train);
+        if (e.date !== today || known.has(no)) continue;
+        trains.push(no); known.add(no); supplements.push(no);
+      }
+      traDailyMem = { date: today, updateTime: String((raw && raw.UpdateTime) || ''), count: trains.length, trains, supplements };
       traDailyMemAt = Date.now();
     }
     // 🔴 不可以用 `edge.put(cacheKey, res.clone())` 再 `return res`:clone 是把同一條 body

@@ -137,6 +137,11 @@ try {
   process.stdout.write(copy.stdout || ''); process.stderr.write(copy.stderr || '');
   if (copy.status !== 0) fail('更新紀錄字數未過——把列出的條目縮短再出貨（單獨重跑：npm run check-copy）');
 
+  // 官網加班車補充要同時進班表與當日名冊，日期不能跨日／跨年沿用。
+  const traSupplements = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_schedule_supplements.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(traSupplements.stdout || ''); process.stderr.write(traSupplements.stderr || '');
+  if (traSupplements.status !== 0) fail('台鐵公告加班車補充未通過（單獨重跑：npm run check-tra-supplements）');
+
   // ── 2.5 i18n 稽核閘門（漏譯不准出貨）──────────────────────────────────────
   // 捷運官方倒數與逐車模型：純函式、隔離 mock worker，不呼叫正式即時 API。
   // 必須在 strip 前驗前端接線，避免倒數再次被備援或動畫時鐘覆蓋。

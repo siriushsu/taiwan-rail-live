@@ -39,6 +39,7 @@ import collections
 import datetime
 import hashlib
 import json
+import pathlib
 import re
 import sys
 import urllib.request
@@ -316,6 +317,28 @@ def yyyymmdd_to_dash(ds):
     return "{}-{}-{}".format(ds[0:4], ds[4:6], ds[6:8])
 
 
+# 公告已開放查詢、ODS 尚未入庫時，暫補官網逐站時刻的快照。
+# 明確綁營運日期；同日 ODS 一旦出現車次就優先採用，不能重抓時把它蓋回舊快照。
+SUPPLEMENTS_PATH = pathlib.Path(__file__).with_name("tra_schedule_supplements.json")
+
+
+def apply_supplements(train_infos, day, supplements):
+    existing = {str(t["Train"]) for t in train_infos}
+    added = []
+    merged = list(train_infos)
+    for entry in supplements:
+        if entry["date"] != day:
+            continue
+        train = entry["trainInfo"]
+        no = str(train["Train"])
+        if no in existing:
+            continue
+        merged.append(train)
+        existing.add(no)
+        added.append(entry)
+    return merged, added
+
+
 def main():
     today = datetime.date.today()
     today_str = today.strftime("%Y%m%d")
@@ -381,6 +404,8 @@ def main():
     per_day_counts = {}       # 日期 → 該日產出車次數（供 G1 對帳）
     raw_counts = {}           # 日期 → 該日官方原始車次數
     update_times = {}         # 日期 → 該日檔 UpdateTime
+    supplements = json.loads(SUPPLEMENTS_PATH.read_text(encoding="utf-8"))["trains"]
+    added_supplements = {}
 
     for ds, rid in days:
         dash = yyyymmdd_to_dash(ds)
@@ -388,6 +413,11 @@ def main():
         train_infos = raw["TrainInfos"]
         update_times[dash] = raw.get("UpdateTime", "")
         raw_counts[dash] = len(train_infos)
+        train_infos, added = apply_supplements(train_infos, dash, supplements)
+        if added:
+            added_supplements[dash] = added
+            print(f"  {dash}: 補入官網已公告、ODS 尚未收錄的車次 "
+                  + "、".join(e["trainInfo"]["Train"] for e in added), file=sys.stderr)
         day_skipped = collections.Counter()
         day_trains = build_trains_for_day(
             train_infos, lookup, unknown_codes_seen, typename_color_seen, drop_stats, day_skipped
@@ -405,7 +435,7 @@ def main():
                 union_trains.append(tr)
             idxs.append(idx)
         dates_map[dash] = idxs
-        print(f"  {dash}: 原始 {len(train_infos)} → 產出 {len(day_trains)} 車次"
+        print(f"  {dash}: ODS 原始 {raw_counts[dash]} + 官網補充 {len(added)} → 產出 {len(day_trains)} 車次"
               f"（聯集累計 {len(union_trains)} 份唯一定義）", file=sys.stderr)
 
     def per_day_text(per_day):
@@ -463,6 +493,15 @@ def main():
         f"同站同時刻的連續重複列只收一次，略過 {drop_stats['duplicate_rows']} 列。"
         f" 各日產出車次數：{per_day_counts}。"
     )
+    if added_supplements:
+        source_notes += (
+            f" 官網加班車補充（{SUPPLEMENTS_PATH.name}，只套指定日期，ODS 已有同車次時優先用 ODS）："
+            + "；".join(
+                f"{d} 車次 {e['trainInfo']['Train']}，逐站到離站取自 {e['source']} "
+                f"查詢 {e['query']}，公告 {e['announcement']}，核對日 {e['verifiedOn']}"
+                for d, entries in sorted(added_supplements.items()) for e in entries
+            ) + "。"
+        )
     if pending_skips:
         source_notes += (
             " 丟棄的 stop 中含待上架站（依 2026-09-26 裁示，官方車站清單與 data/tra.json 站序都有這一站才收）："

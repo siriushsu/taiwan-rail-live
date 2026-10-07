@@ -3706,3 +3706,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '行程分享的網址換成新格式，之前的連結仍可使用': '旅程共有のリンクを新しい形式のURLに変更しました。以前のリンクも引き続き使えます',
 });
+
+// 2026-10-07 國慶連假追加班表（v1007c）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "更新台鐵國慶連假班表，補上南迴與西部追加班次；App 連網重新開啟也能取得新班表": "Updated the TRA National Day holiday timetable with additional South Link and western line trains; the app can also get the new timetable when reopened online",
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "更新台鐵國慶連假班表，補上南迴與西部追加班次；App 連網重新開啟也能取得新班表": "台鉄の国慶節連休ダイヤを更新し、南廻線と西部幹線の追加列車を反映しました。アプリもインターネットに接続して開き直すと新しいダイヤを取得できます",
+});
