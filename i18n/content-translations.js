@@ -3698,3 +3698,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '台鐵待避：一班車停站讓另一班先走時，股道換得過去的，改成先走的車走直的正線、等待的車停進旁邊的側線': '台鉄の待避：駅で停車して別の列車を先に行かせるとき、線路を切り替えられる駅では、先に行く列車がまっすぐな本線を走り、待つ列車は隣の待避線に停まるようにしました',
 });
+
+// 2026-10-07 行程分享網址改新格式（v1007b）：最近更新的英日文。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '行程分享的網址換成新格式，之前的連結仍可使用': 'Journey sharing links now use a new URL format; earlier links still work',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '行程分享的網址換成新格式，之前的連結仍可使用': '旅程共有のリンクを新しい形式のURLに変更しました。以前のリンクも引き続き使えます',
+});
