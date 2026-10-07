@@ -107,8 +107,10 @@ assert(!plannedOn(day,untracked).some(p=>normSta(p.station)===X),`股道表沒�
 // 交接用 unfold 的完整節點與邊＋另建的拓樸重跑 canTurn（道岔不倒車）；停靠型態看「那一站那個節點，派車表裡有沒有同型態的車用過」，
 // 不合的只准出現在派車表根本沒有同向（前後站相同）同型態班次的站——海線 6509 通過竹南到清水，派車表同向全是停靠車。
 // 對照組：不給 canJoin（離線修補腳本的呼叫法）照舊綁不到；全都接不上時不可硬接。整趟每一站進出都在實體股道上且不跳。
+// F2b 會把重新綁定會分歧的接力專車落成自己的計畫（帶 relaySources），fixture 的用途是讓接力綁定繼續被驗到，所以這一段用拿掉這些計畫的 chainDispatch；落成的計畫在迴圈裡另用真派車表驗。
+const chainDispatch={...dispatch,plans:Object.fromEntries(Object.entries(dispatch.plans).filter(([,p])=>!p.relaySources))};
 const nodeUse=new Map(),sameDir=new Set();
-for(const[k,p]of Object.entries(dispatch.plans)){if(!k.startsWith('tra_sched:'))continue;const sig=JSON.parse(p.stopSignature);
+for(const[k,p]of Object.entries(chainDispatch.plans)){if(!k.startsWith('tra_sched:'))continue;const sig=JSON.parse(p.stopSignature);
  sig.forEach((x,i)=>{const node=i<p.pathIds.length?network.paths[p.pathIds[i]].from:network.paths[p.pathIds[i-1]].to,stop=i===0||i===sig.length-1||x[2]>x[1],u=nodeUse.get(x[0]+'@'+node)||{stop:0,pass:0};
   u[stop?'stop':'pass']++;nodeUse.set(x[0]+'@'+node,u);if(i>0&&i<sig.length-1)sameDir.add([sig[i-1][0],x[0],sig[i+1][0],stop].join('|'));});}
 const topo=makeTopology({nodes:Object.fromEntries(network.ways.flatMap(w=>w.nodes.map((id,i)=>[id,w.coordinates[i]]))),nodeTags:network.nodeTags,systemByWay:Object.fromEntries(network.ways.map(w=>[w.id,w.system])),ways:network.ways});
@@ -121,21 +123,27 @@ for(const[a,e]of ends)for(const b of startingAt.get(e.via)||[]){const h=heads.ge
  assert.equal(runtime.joinable(a,b),want,`joinable(${a},${b}) 要與 canTurn 一致`);joinTally[want?'ok':'no']++;}
 assert(joinTally.ok>0&&joinTally.no>0,`節點相同的路徑對要兩種都有：接得上 ${joinTally.ok}、接不上 ${joinTally.no}`);
 const chainRows=[];
+// 整趟每一站進出（取前後各一個極短的時間差）都要在實體股道上；回傳最大跳動（公尺）。
+const maxJump=(m,tr,tag='')=>{let worst=0;for(const s of tr.stops)for(const t of[s.arrSec,s.depSec]){if(t-.001<tr.stops[0].arrSec||t+.001>tr.stops.at(-1).depSec)continue;
+ const[a,b]=[t-.001,t+.001].map(x=>m.sample(tr,x));assert(a?.physical&&b?.physical,`${tr.train}${tag} ${s.name} ${t}：要在實體股道上`);worst=Math.max(worst,hav(a,b));}return worst;};
 for(const tr of JSON.parse(fs.readFileSync('scripts/fixtures/tra-chain-binding-1003.json')).trains){
- assert.equal(createPlanBinding(dispatch)(tr),null,`${tr.train}：沒有一班計畫跑完整條路線（對照組，否則這組檢查沒有牙）`);
- const r=createPlanBinding(dispatch,{canJoin:runtime.joinable})(tr),ids=r?.plan.pathIds,st=r?.stops||tr.stops,key=i=>stationKey('tra_sched',st[i].name);
+ assert.equal(createPlanBinding(chainDispatch)(tr),null,`${tr.train}：沒有一班計畫跑完整條路線（對照組，否則這組檢查沒有牙）`);
+ const r=createPlanBinding(chainDispatch,{canJoin:runtime.joinable})(tr),ids=r?.plan.pathIds,st=r?.stops||tr.stops,key=i=>stationKey('tra_sched',st[i].name);
  assert.equal(r?.basis,'route-template-chain',`${tr.train}：要接力借到股道`);assert(r.sourceKeys.length>=2&&ids.length===st.length-1,`${tr.train}：接力段數 ${r.sourceKeys.length}、路徑段數 ${ids.length}／站間 ${st.length-1}`);
- assert.equal(createPlanBinding(dispatch,{canJoin:()=>false})(tr),null,`${tr.train}：全都接不上時不可硬接`);
+ assert.equal(createPlanBinding(chainDispatch,{canJoin:()=>false})(tr),null,`${tr.train}：全都接不上時不可硬接`);
  const wrong=[];
  for(let i=1;i<ids.length;i++){const a=runtime.unfold(ids[i-1]),b=runtime.unfold(ids[i]),via=String(a.nodeIds.at(-1)),stop=st[i].stop!==false;
   assert.equal(String(b.nodeIds[0]),via,`${tr.train} ${st[i].name}：前一截終點節點要等於下一截起點`);
   assert(topo.canTurn(String(a.nodeIds.at(-2)),via,String(b.nodeIds[1]),topo.edges.get(a.edges.at(-1).edgeId),topo.edges.get(b.edges[0].edgeId)),`${tr.train} ${st[i].name}：交接不可倒車轉進道岔另一支`);
   const u=nodeUse.get(key(i)+'@'+via)||{stop:0,pass:0};if(stop?u.stop:u.pass)continue;wrong.push(st[i].name);
   assert(!sameDir.has([key(i-1),key(i),key(i+1),stop].join('|')),`${tr.train} ${st[i].name}（${stop?'停靠':'通過'}）：派車表有同向同型態的班次，卻挑了只有${stop?'通過':'停靠'}車用過的股道`);}
- const m=createPhysicalMotion(network,null,dispatch);assert.equal(m.record(tr)?.bindingBasis,'route-template-chain');let worst=0;
- for(const s of tr.stops)for(const t of[s.arrSec,s.depSec]){if(t-.001<tr.stops[0].arrSec||t+.001>tr.stops.at(-1).depSec)continue;
-  const[a,b]=[t-.001,t+.001].map(x=>m.sample(tr,x));assert(a?.physical&&b?.physical,`${tr.train} ${s.name} ${t}：要在實體股道上`);worst=Math.max(worst,hav(a,b));}
- assert(worst<1,`${tr.train}：進出站最大跳動 ${worst} m`);chainRows.push(`${tr.train}（${r.sourceKeys.length} 段，型態不合 ${wrong.length} 站${wrong.length?'：'+wrong.join('、'):''}，最大跳動 ${worst.toFixed(3)} m）`);
+ const m=createPhysicalMotion(network,null,chainDispatch);assert.equal(m.record(tr)?.bindingBasis,'route-template-chain');const worst=maxJump(m,tr);
+ assert(worst<1,`${tr.train}：進出站最大跳動 ${worst} m`);
+ // 落成的接力專車：真派車表綁得到（非 null）時，要走自己的計畫（不是接力借路徑）、帶 relaySources，整趟同樣在實體股道上且不跳。
+ const own=createPlanBinding(dispatch)(tr);let ownNote='';
+ if(own){assert(['exact','derived-pass-times'].includes(own.basis),`${tr.train}：落成的計畫要走自己的股道，實際 ${own.basis}`);assert(own.plan.relaySources?.length,`${tr.train}：真派車表綁到的計畫要帶 relaySources`);
+  const ownWorst=maxJump(createPhysicalMotion(network,null,dispatch),tr,'（落成的計畫）');assert(ownWorst<1,`${tr.train}：落成的計畫進出站最大跳動 ${ownWorst} m`);ownNote=`；已落成自己的計畫（${own.basis}，最大跳動 ${ownWorst.toFixed(3)} m）`;}
+ chainRows.push(`${tr.train}（${r.sourceKeys.length} 段，型態不合 ${wrong.length} 站${wrong.length?'：'+wrong.join('、'):''}，最大跳動 ${worst.toFixed(3)} m${ownNote}）`);
 }
 console.log(`台鐵股道接力借路徑：${chainRows.join('、')}；joinable 與 canTurn 一致（接得上 ${joinTally.ok} 對、接不上 ${joinTally.no} 對）`);
 console.log(`台鐵股道綁定：通過時刻更新、改點沿用股道、停靠型態／待避防護、30 班加開模板、雙方向與未知路徑、派車表沒有的中途站略過檢查通過；派車表沒有的中途停靠站（${best.src.train} 次 ${s0[I].name}→${s0[K].name}，實體／示意 ${best.ratio.toFixed(4)}）停在投影點、兩截剖面長 ≥ 實體、點速 ≤ 剖面速度（${moving} 個取樣）；${day} 拿掉 ${X} 後不選它待避（原本在那裡待避 ${atX} 次，當天共 ${waits.length} 次）`);
