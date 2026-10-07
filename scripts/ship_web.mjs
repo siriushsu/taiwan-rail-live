@@ -396,9 +396,11 @@ try {
   const thsrTracks = spawnSync('node', [path.join(wt, 'scripts', 'verify_thsr_station_tracks.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(thsrTracks.stdout || ''); process.stderr.write(thsrTracks.stderr || '');
   if (thsrTracks.status !== 0) fail('高鐵車站股道規則未通過(停靠列車要停外側到發線、通過列車走內側正線)');
-  // 台鐵待避股道：時刻表明示的待避（通過型與停站型），待避車停較彎的股道、超越車走較直的股道，單線交會共用節點不增加
+  // 台鐵待避股道：時刻表明示的待避（通過型與停站型），待避車停較彎的股道、超越車走較直的股道、兩車不穿越，單線交會共用節點不增加
   //（判準與修復器 repair_tra_overtake_tracks.mjs 同一份）。靜態讀檔、不開瀏覽器；班表釘快照
-  //（scripts/lib/tra_overtake_pairs.mjs 的 SCHEDULE_REF），每週換窗不會讓它紅。
+  //（scripts/lib/tra_overtake_pairs.mjs 的 SCHEDULE_REF），班表檔每週換窗不會改變它用的班表。
+  // 但主窗的時刻推論讀磁碟上現行的單雙線表（data/tra_track_sections.json），每週重產若改了站對，通過時刻可能被推動一些，
+  // 待避對的時間窗歸屬也可能跟著變：那是輸入的時刻變了，不是閘門的班表變了（規格第 6 節）。
   const traOvertakeTracks = spawnSync('node', [path.join(wt, 'scripts', 'verify_tra_overtake_tracks.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(traOvertakeTracks.stdout || ''); process.stderr.write(traOvertakeTracks.stderr || '');
   if (traOvertakeTracks.status !== 0) fail('台鐵待避股道規則未通過（待避車要停較彎的股道、超越車走較直的股道、單線交會不得多於基準；單獨重跑：npm run check-overtake-tracks）');

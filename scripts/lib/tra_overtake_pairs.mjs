@@ -12,10 +12,16 @@ import { stationKey } from '../../rail-3d/physical/timing.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 // 基準：站間長度上限、方向股道、候選節點、非電化允許清單、單雙線表都從這顆的出貨檔算，重跑自己的輸出時判準不漂移。
+// 何時換：重跑 F1／F2 並 commit 新產物之後、跑 F2b 之前，換成那顆 commit（規格第 6 節「釘選的 commit 何時換」）。
 export const BASE_REF = '0a435fcf';
-// 硬閘門釘的班表快照（14 天窗 2026-10-02～10-15）；通過時刻 tra_pass_obs.json 取同一顆。換窗不會讓閘門變紅，滾動窗另出報告。
+// 硬閘門釘的班表快照（14 天窗 2026-10-02～10-15）；通過時刻 tra_pass_obs.json 取同一顆。班表釘在這顆，班表檔每週換窗
+// 不會改變閘門用的班表，滾動窗另出報告。但主窗的時刻推論（computeProfiles）沒傳單雙線表，讀的是磁碟上現行的
+// data/tra_track_sections.json：每週重產若改了站對，單線交會的通過時刻就可能被推動一些，待避對的時間窗歸屬也可能跟著變；
+// 那是輸入的時刻變了，不是閘門的班表變了。
+// 何時換：F2b 換新班表重跑時，換成那份班表的 commit（規格第 6 節）。
 export const SCHEDULE_REF = '882523ceb43991d0acf7749de81b427e0ccf0db5';
 // 9/13 考卷：與 verify_physical_no_overlap.mjs 的 FIXTURE_REF／FIXTURE_DERIVED_REF 同一組，避免修了今天、退了考卷。
+// 何時換：只跟著 verify_physical_no_overlap.mjs 的那一組一起換（規格第 6 節）。
 export const EXAM_REF = '132e1ebb', EXAM_DATE = '2026-09-13', EXAM_DERIVED_REF = '0ef6fa24';
 
 const gitJSON = (ref, p) => JSON.parse(execFileSync('git', ['-C', ROOT, 'show', `${ref}:${p}`], { maxBuffer: 1 << 30, encoding: 'utf8' }));
@@ -52,6 +58,9 @@ export function loadOvertakeInputs({ scheduleRef = null, withExam = true, networ
 }
 
 export const PAIR_MARGIN_SEC = 60, TURN_WINDOW_M = 400, STRAIGHT_DEG = 3, CLEAR_DEG = 5, MIN_SEG_M = 0.5;
+// 穿越（規格第 3 節）：車寬 2.9 m；共用軌道邊至少 0.5 m 才算（與全日畫面掃描判 W2 的同一組門檻）；編組長度查不到用 240 m
+//（與 tra_station_conflicts.mjs 的 materialize 落成計畫的 lengthM 同一個預設）。
+export const BODY_W_M = 2.9, SHARED_EDGE_MIN_M = 0.5, DEFAULT_FORMATION_M = 240;
 const RAD = Math.PI / 180, EARTH_R = 6371008.8;
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1];
 
@@ -93,7 +102,7 @@ export function headingAt(S, ids, i) {
 }
 
 export function makeOvertakeJudge(S) {
-  const { g, paths, trainOf, poolOf, nodeAt, nodeSet, cleanRoute, clean, memo, turnOK, basePairMax, nonElectricWays, initialNonElectric } = S;
+  const { g, paths, trainOf, poolOf, nodeAt, nodeSet, cleanRoute, clean, memo, turnOK, basePairMax, nonElectricWays, initialNonElectric, lenOf } = S;
   // 第 i 站的可行停車選項：現況，加上候選節點裡同時滿足以下條件的（與 F2 的 tryMove 同一組條件）：順向、接點能轉、
   // 站間不超過基線 5%、不新踏非電化股道。通過型的超越車與停站型的超越車用同一份選項（候選都是停車節點）。
   // 起點站只有出站段、終點站只有進站段，只量、只換那一側。
@@ -145,9 +154,88 @@ export function makeOvertakeJudge(S) {
     if (i < ids.length) tags.push(g.edges.get(paths[ids[i]].edgeIds[0])?.tags || {});
     return tags.some(t => t.service === 'siding') ? 'S' : tags.some(t => t.usage === 'main') ? 'M' : '?';
   };
+  // ── 穿越（規格第 3 節）：待避車停站期間車身佔用的那段軌道上，超越車的路徑與它共用軌道邊，或橫向距離小於車寬 ──
+  // 算繪端停站時取樣點（整列中心）落在停車節點上（rail-3d/physical/motion.js 的 dwell），車身前後各半列：
+  // 前半沿進站段、後半沿出站段（rail-3d/integration/formations.js 的 offsetM、train-path.js 的 formationPoses）。
+  // 起點站沒有進站段、終點站沒有出站段（算繪端在那一側是延伸出去的一小段，離線沒有），只取有路徑的那一側，
+  // 所以起訖站的車身少算另一半：只會漏判、不會多判。編組長度取 S.lenOf（查不到用 DEFAULT_FORMATION_M）。
+  // 超越車在這一站的路徑＝進站段加出站段整段：它在待避車的停站窗內從這一站通過或進出，整段都會走過。
+  // 全台共用同一個投影（兩條路徑要比相對位置，不能各用各的緯度）；沿路徑的距離另外用各段的緯度算公尺。
+  const KM = EARTH_R * RAD, COS_REF = Math.cos(23.7 * RAD);
+  const geoms = new Map();
+  function pathGeom(pid) {
+    let G = geoms.get(pid); if (G) return G;
+    const p = paths[pid]; assert.ok(p, '路徑不存在 ' + pid);
+    const n = p.nodeIds.length, xs = new Float64Array(n), ys = new Float64Array(n), cum = new Float64Array(n);
+    let prev = null;
+    for (let k = 0; k < n; k++) {
+      const c = coordOf(p.nodeIds[k]); xs[k] = c[0] * KM * COS_REF; ys[k] = c[1] * KM;
+      if (prev) cum[k] = cum[k - 1] + Math.hypot((c[0] - prev[0]) * Math.cos((c[1] + prev[1]) / 2 * RAD), c[1] - prev[1]) * KM;
+      prev = c;
+    }
+    G = { xs, ys, cum, eids: p.edgeIds, total: cum[n - 1], eset: new Set(p.edgeIds) };
+    geoms.set(pid, G); return G;
+  }
+  // 停車節點前 h 公尺的進站段尾加後 h 公尺的出站段頭；每一小段記它所在的軌道邊與被車身蓋到的長度
+  const bodies = new Map();
+  function bodyOf(qIn, qOut, h) {
+    const key = qIn + ',' + qOut + ',' + h;
+    let segs = bodies.get(key); if (segs) return segs;
+    segs = [];
+    const part = (G, k, d0, d1) => {
+      const a = G.cum[k], span = G.cum[k + 1] - a; if (!(span > 0) || !(d1 > d0)) return;
+      const f0 = (d0 - a) / span, f1 = (d1 - a) / span, dx = G.xs[k + 1] - G.xs[k], dy = G.ys[k + 1] - G.ys[k];
+      segs.push({ x1: G.xs[k] + dx * f0, y1: G.ys[k] + dy * f0, x2: G.xs[k] + dx * f1, y2: G.ys[k] + dy * f1, eid: G.eids[k], len: d1 - d0 });
+    };
+    if (qIn != null) { const G = pathGeom(qIn), lo = Math.max(0, G.total - h); for (let k = G.eids.length - 1; k >= 0 && G.cum[k + 1] > lo; k--) part(G, k, Math.max(G.cum[k], lo), G.cum[k + 1]); }
+    if (qOut != null) { const G = pathGeom(qOut), hi = Math.min(G.total, h); for (let k = 0; k < G.eids.length && G.cum[k] < hi; k++) part(G, k, G.cum[k], Math.min(G.cum[k + 1], hi)); }
+    bodies.set(key, segs); return segs;
+  }
+  const cross2 = (ax, ay, bx, by, cx, cy) => (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+  const ptSeg = (px, py, ax, ay, bx, by) => { const x = bx - ax, y = by - ay, t = Math.max(0, Math.min(1, ((px - ax) * x + (py - ay) * y) / (x * x + y * y || 1))); return Math.hypot(px - ax - x * t, py - ay - y * t); };
+  function segDist(s, G, k) {
+    const cx = G.xs[k], cy = G.ys[k], dx = G.xs[k + 1], dy = G.ys[k + 1];
+    if (cross2(s.x1, s.y1, s.x2, s.y2, cx, cy) * cross2(s.x1, s.y1, s.x2, s.y2, dx, dy) < 0 && cross2(cx, cy, dx, dy, s.x1, s.y1) * cross2(cx, cy, dx, dy, s.x2, s.y2) < 0) return 0;
+    return Math.min(ptSeg(s.x1, s.y1, cx, cy, dx, dy), ptSeg(s.x2, s.y2, cx, cy, dx, dy), ptSeg(cx, cy, s.x1, s.y1, s.x2, s.y2), ptSeg(dx, dy, s.x1, s.y1, s.x2, s.y2));
+  }
+  // 車身與超越車路徑的最小橫向距離。只比外框相距不超過 reach 的小段（reach 之外不可能小於門檻），沒有就回 Infinity；
+  // 一般判定 reach＝車寬、量到小於車寬就收手；measure 時 reach 放寬到 50 m 而且不收手，報告與校準才看得到量到的距離。
+  const crossCache = new Map();
+  function crossingOf(qIn, qOut, h, pIn, pOut, measure = false) {
+    const key = qIn + ',' + qOut + ',' + h + '|' + pIn + ',' + pOut + (measure ? '|m' : '');
+    let r = crossCache.get(key); if (r) return r;
+    const segs = bodyOf(qIn, qOut, h), Ps = [pIn, pOut].filter(x => x != null && paths[x]).map(pathGeom), reach = measure ? 50 : BODY_W_M;
+    let sharedM = 0, latM = Infinity;
+    for (const s of segs) if (Ps.some(G => G.eset.has(s.eid))) sharedM += s.len;
+    if (segs.length) {
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const s of segs) { x0 = Math.min(x0, s.x1, s.x2); x1 = Math.max(x1, s.x1, s.x2); y0 = Math.min(y0, s.y1, s.y2); y1 = Math.max(y1, s.y1, s.y2); }
+      x0 -= reach; x1 += reach; y0 -= reach; y1 += reach;
+      scan: for (const G of Ps) for (let k = 0; k + 1 < G.xs.length; k++) {
+        const ax = G.xs[k], bx = G.xs[k + 1], ay = G.ys[k], by = G.ys[k + 1];
+        if (Math.max(ax, bx) < x0 || Math.min(ax, bx) > x1 || Math.max(ay, by) < y0 || Math.min(ay, by) > y1) continue;
+        const gx0 = Math.min(ax, bx) - reach, gx1 = Math.max(ax, bx) + reach, gy0 = Math.min(ay, by) - reach, gy1 = Math.max(ay, by) + reach;
+        for (const s of segs) {
+          if (Math.max(s.x1, s.x2) < gx0 || Math.min(s.x1, s.x2) > gx1 || Math.max(s.y1, s.y2) < gy0 || Math.min(s.y1, s.y2) > gy1) continue;
+          const d = segDist(s, G, k); if (d < latM) latM = d;
+          if (!measure && latM < BODY_W_M) break scan;
+        }
+      }
+    }
+    r = { sharedM, latM, shared: sharedM >= SHARED_EDGE_MIN_M || latM < BODY_W_M }; crossCache.set(key, r); return r;
+  }
+  // 這一對在這兩份路徑下算不算穿越：停車節點在超越車路徑上（via=node）、車身範圍內共用軌道邊（edge）、橫距小於車寬（lateral）
+  function crossing(pr, qIds, pIds, measure = false) {
+    const qNode = nodeAt(qIds, pr.q.i), pIn = pIds[pr.p.i - 1], pOut = pIds[pr.p.i];
+    const qIn = pr.q.i > 0 ? qIds[pr.q.i - 1] : null, qOut = pr.q.i < qIds.length ? qIds[pr.q.i] : null;
+    const x = crossingOf(qIn, qOut, (lenOf?.(pr.q.no) ?? DEFAULT_FORMATION_M) / 2, pIn, pOut, measure);
+    const onNode = nodeSet(pIn).has(qNode) || nodeSet(pOut).has(qNode);
+    return { shared: onNode || x.shared, via: onNode ? 'node' : x.sharedM >= SHARED_EDGE_MIN_M ? 'edge' : x.latM < BODY_W_M ? 'lateral' : null, sharedM: x.sharedM, latM: x.latM };
+  }
   function verdict(pr, qIds, pIds) {
-    const qNode = nodeAt(qIds, pr.q.i);
-    if (nodeSet(pIds[pr.p.i - 1]).has(qNode) || nodeSet(pIds[pr.p.i]).has(qNode)) return { kind: 'shared', viol: true };
+    // 穿越優先於直彎判定：車身壓到超越車的路徑，畫面上就是超越車從待避車身上穿過去，直彎再對也沒用
+    const x = crossing(pr, qIds, pIds);
+    if (x.shared) return { kind: 'shared', viol: true, via: x.via };
     const rq = relTurn(pr.q.key, pr.q.i, qIds), rp = relTurn(pr.p.key, pr.p.i, pIds), d = rq - rp;
     const tq = tagKind(qIds, pr.q.i), tp = tagKind(pIds, pr.p.i);
     // 做對與倒過來對稱（規格第 3 節）：做對＝超越車走直的、待避車比它多轉；倒過來＝待避車走直的、超越車比它多轉。
@@ -157,7 +245,7 @@ export function makeOvertakeJudge(S) {
     else if (rq <= STRAIGHT_DEG && (d <= -CLEAR_DEG || (d <= -STRAIGHT_DEG && tq === 'M' && tp === 'S'))) kind = 'reversed';
     return { kind, viol: kind === 'reversed', rq: +rq.toFixed(2), rp: +rp.toFixed(2), tq, tp };
   }
-  return { routeOptions, turnOf, relTurn, tagKind, verdict };
+  return { routeOptions, turnOf, relTurn, tagKind, verdict, crossing };
 }
 
 // 待避對：同一天同一站，待避車 Q 官方停靠且停站窗長大於 0（起點站、終點站也算：前端在起點站發車前、終點站到站後都把車
@@ -276,7 +364,7 @@ export function makeProtection(S, { protectedPlans, repairs, taimali }) {
 // 同分依序取：這一組自己修完的狀態好的（做對 > 超越車直 > 超越車仍彎 > 仍違規）、搬的車少、路徑短、節點字串小的（結果可重現）。
 // 只比搬的車少，會偏好只把待避車推到另一條側線、超越車留在側線的修法：違規數照樣變少，超越車卻還沒走正線。
 export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
-  const { current, borrowed, trainOf, cells, daysOf, cellConflicts, borrowersOf, nonElectricWays, initialNonElectric, nodeAt, materialize } = S;
+  const { current, borrowed, trainOf, cells, daysOf, cellConflicts, borrowersOf, nonElectricWays, initialNonElectric, nodeAt, materialize, relayJoins, settleRelays } = S;
   const byKey = new Map(), byP = new Map();
   for (const c of pairs) {
     for (const side of ['q', 'p']) (byKey.get(c[side].key) || byKey.set(c[side].key, []).get(c[side].key)).push(c);
@@ -292,9 +380,17 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
   const violating = () => pairs.filter(c => state.get(c.id).viol).sort((a, b) => weight(b) - weight(a) || (a.id < b.id ? -1 : 1));
   const idsAfter = (all, key) => all.get(key) || current.get(key);
   const changedAt = (key, ids2) => { const ids = current.get(key), out = []; ids2.forEach((p, k) => { if (p !== ids[k]) out.push(k); }); return out; };
+  // 借用者（執行期綁到來源計畫切片的車次）跟著來源換：來源的新路徑從 b.o 起取 b.n 段，蓋到借用者自己路徑的 b.at 起。
+  // 單一來源的借用者整條都是切片（at 為 0），結果與整條取代相同；接力借路徑的車次一份計畫借了好幾班的切片，
+  // 每一份來源各蓋自己那一截，任何一份來源換股，這班車都在受影響範圍內。直接被換股的借用者（direct 裡有它）不再跟著來源。
   function expand(direct) {
-    const all = new Map(direct);
-    for (const [key, ids2] of direct) if (!borrowed.has(key)) for (const b of borrowersOf(key)) if (!all.has(b.key)) all.set(b.key, ids2.slice(b.o, b.o + b.n));
+    const all = new Map(direct), followed = new Map();
+    for (const [key, ids2] of direct) if (!borrowed.has(key)) for (const b of borrowersOf(key)) {
+      if (direct.has(b.key)) continue;
+      const ids = followed.get(b.key) || followed.set(b.key, current.get(b.key).slice()).get(b.key);
+      ids2.slice(b.o, b.o + b.n).forEach((pid, j) => { ids[b.at + j] = pid; });
+    }
+    for (const [key, ids] of followed) if (!trainOf.get(key).sourceKeys || relayJoins(key, ids)) all.set(key, ids);   // 接力借用者交接處接不上就不跟著換（見 relayJoins）
     return all;
   }
   // 受影響範圍：第 k 段路徑改了，相對轉角快取鍵含 ids[j-2..j+1] ⇒ 站 j∈[k-1,k+2] 的待避對要重判；
@@ -421,6 +517,7 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
     }
     for (const [cell] of aff.cells) baseTally.delete(cell);
     for (const c of aff.pairs) state.set(c.id, J.verdict(c, current.get(c.q.key), current.get(c.p.key)));
+    settleRelays();   // 接力借路徑的車次：重新綁定與模型不同的落成自己的計畫（路徑不變，所以上面算好的狀態仍然成立）
     ver++;
   }
   return { violations, violationsByType, violating, state: c => state.get(c.id), expand, evaluate, bestFix, explain, apply, describe };

@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { makeDirectionModel } from './track_directions.mjs';
 import { createPlanBinding, physicalTrainKey, physicalStopSignature } from '../../rail-3d/physical/plan-binding.js';
+import { createRouteRuntime } from '../../rail-3d/physical/route-runtime.js';
 import { stationKey } from '../../rail-3d/physical/timing.js';
 import { formationFor } from '../../rail-3d/integration/formations.js';
 
@@ -48,13 +49,27 @@ export function createStationConflictModel({ net, dispatch, sched, timed, protec
   }
 
   // ── 逐日名冊 ─────────────────────────────────────────────────────────────────────
-  // roster='f2' 是 F2 的原行為（抽 lib 時逐 byte 驗收過，不要改這條路）。roster='f2b' 多做四件事：
+  // roster='f2' 是 F2 的原行為（抽 lib 時逐 byte 驗收過，不要改這條路）。roster='f2b' 多做五件事：
   //   1. 綁定先拿掉派車表沒有的中途站（平鎮）再綁（plan-binding.js 回傳 stops／stopIndexes）。名冊站序用綁定實際用的那一份，
   //      否則經過平鎮的車次站數對不上，整班被略過。
   //   2. 同一個車次鍵的其他日子（含 extraDays 的考卷日）依站名對齊到名冊站序；對不上、或當日綁到不同股道的記進 rosterStats.misaligned。
   //   3. 沿用自己計畫的改點車次（retimed、sourceKey 是自己）與自己的計畫共用陣列：換股時原地改 pathIds，不重寫 stopSignature。
   //   4. 中途站停不停看當天的班表（cells 那段）。
-  const bind = createPlanBinding(dispatch), days = Object.keys(sched.dates).sort();
+  //   5. 綁定帶 canJoin（前端 motion.js 也這樣綁）：沒有一班既有計畫跑完整條路線的專車（2026-10 的 6669、6509、5179）
+  //      由前端接力借路徑，離線不帶 canJoin 就綁不到、不進名冊，F2b 改了它借的路徑卻看不到後果。F2 不帶，名冊維持原樣。
+  //      接力借路徑的車次一份計畫借了好幾班的切片，借用者索引（buildBorrowerIndex）逐截記下每一份來源。
+  // canJoin 的路網：既有路徑加上這一遍新造的路徑（extra）。只給 net 的話，新造路徑一律接不上，模型的重新綁定就會和前端看到完整路網時挑的不同。
+  const canJoinOf = (n, extra) => createRouteRuntime(extra ? { ...n, paths: new Proxy(n.paths, { get: (t, k) => t[k] ?? extra[k] }) } : n, null).joinable;
+  const canJoin = F2B ? canJoinOf(net, newPaths) : undefined;
+  const bind = createPlanBinding(dispatch, F2B ? { canJoin } : undefined), days = Object.keys(sched.dates).sort();
+  // 接力借路徑的切點：plan-binding 只回傳來源鍵的順序，切點是它的 DP 取切片的那一刻決定的。
+  // 同一段路徑有好幾份計畫一模一樣時（兩班車停同一股道），從路徑回推的歸屬會和 DP 選的不同：來源換股後借用者「跟著換」的是錯的那一份，
+  // 重新綁定的結果就和模型對不上。所以再建一個綁定器，把每份計畫的 pathIds 包成 Proxy（讀取都轉給真的陣列，換股原地改也看得到），
+  // 攔截它取切片的 slice(起點, 終點)，記下來源鍵、起點與長度。DP 的程式碼不複製，切法與前端同一份。
+  let sliceLog = null;
+  const cutBind = F2B ? createPlanBinding({ ...dispatch, plans: Object.fromEntries(Object.entries(dispatch.plans).map(([k, p]) => [k, { ...p,
+    pathIds: new Proxy(p.pathIds, { get: (arr, prop) => prop === 'slice' ? (a, b) => { sliceLog?.push({ src: k, o: a, n: b - a }); return arr.slice(a, b); } : Reflect.get(arr, prop) }) }])) },
+    { canJoin }) : null;
   const sources = [...days.map(day => ({ day, S: sched, T: timed })), ...(F2B ? extraDays.map(x => ({ day: x.day, S: x.sched, T: x.timed })) : [])];
   const current = new Map(), borrowed = new Set(), trainOf = new Map(), daysOf = new Map(), coords = new Map();
   const protectedScheduleKeys = new Set();
@@ -62,7 +77,7 @@ export function createStationConflictModel({ net, dispatch, sched, timed, protec
   const rosterStats = { keys: 0, borrowed: 0, unbound: 0, skippedLength: 0, subsetBound: 0, misaligned: [], unlinked: 0 };
   const unboundKeys = new Set(), skippedKeys = new Set();   // unbound／skippedLength 數的是車次鍵，不是每天出現的次數
   const dayIdx = new Map();   // F2B：`${day}#${ix}` → 名冊第 j 站在當日班表的索引
-  const baseBind = baseModel ? createPlanBinding(base.dispatch) : null, baseIds = new Map();
+  const baseBind = baseModel ? createPlanBinding(base.dispatch, { canJoin: canJoinOf(base.net) }) : null, baseIds = new Map();
   function alignDay(key, day, ix, tr) {
     const rec = trainOf.get(key), idx = []; let j = 0;
     tr.stops.forEach((s, i) => { if (j < rec.names.length && stationKey(SYS, s.name) === rec.names[j]) { idx.push(i); j++; } });
@@ -84,13 +99,16 @@ export function createStationConflictModel({ net, dispatch, sched, timed, protec
     if (F2B && b.stopIndexes) rosterStats.subsetBound++;
     // exact／derived 直接以自己的 key 為來源；retimed／route-template 則保護 binder 實際沿用的
     // source plan。不用 bare trainNo，避免未來同號但站序／停靠型態不同的另一份計畫被過度保護。
-    const protectedSourceKey = b.sourceKey
-      || (b.basis === 'exact' || b.basis === 'derived-pass-times' ? key : null);
-    if (protectedSourceKey && protectedPlanKeys.has(protectedSourceKey)) protectedScheduleKeys.add(key);
+    // 接力借路徑（route-template-chain）有好幾份來源（sourceKeys），任何一份受保護，這班車就跟著鎖。
+    // 接力專車落成自己的計畫之後綁定走 exact，來源記在計畫的 relaySources（materialize）：從派車表重建名冊時照那些來源判，
+    // 否則落成一次、下一遍名冊就把鎖卸掉。
+    const protectedSourceKeys = [...(b.sourceKeys || [b.sourceKey || (b.basis === 'exact' || b.basis === 'derived-pass-times' ? key : null)]),
+      ...(plans[b.sourceKey ?? key]?.relaySources || [])];
+    if (protectedSourceKeys.some(k => k && protectedPlanKeys.has(k))) protectedScheduleKeys.add(key);
     const rtr = bStops === tr.stops ? tr : { ...tr, stops: bStops }, idx = F2B && b.stopIndexes ? b.stopIndexes : null;
     const names = rtr.stops.map(s => stationKey(SYS, s.name));
     names.forEach((n, i) => { const s0 = t.stops[idx ? idx[i] : i]; if (!coords.has(n) && Number.isFinite(s0.lat)) coords.set(n, { lat: s0.lat, lon: s0.lon }); });
-    trainOf.set(key, { key, no, tr: rtr, stops: rtr.stops, names, basis: b.basis, sourceKey: b.sourceKey ?? null });
+    trainOf.set(key, { key, no, tr: rtr, stops: rtr.stops, names, basis: b.basis, sourceKey: b.sourceKey ?? null, sourceKeys: b.sourceKeys ?? null });
     if (F2B) dayIdx.set(day + '#' + ix, idx || names.map((_, i) => i));
     const ownRetimed = F2B && b.basis === 'retimed' && b.sourceKey === key && !!plans[key];
     if (plans[key] && (b.plan === plans[key] || ownRetimed)) current.set(key, plans[key].pathIds);   // 自己的計畫：直接共用同一個陣列
@@ -161,11 +179,14 @@ export function createStationConflictModel({ net, dispatch, sched, timed, protec
   // 落成的計畫要與執行期 borrow()（rail-3d/physical/plan-binding.js）借出來的一致：沿用自己的計畫（retimed）時，
   // 來源若標了 templateEligible:false（不可借給別班當模板，藍皮的非電化月台靠它守），落成後也要帶著，
   // 否則落成之後別班的綁定會把這份計畫當模板借走。route-template 借的來源本來就不會有這個標記，borrow() 也不帶。
+  // F2b 落成的計畫一律帶這個標記：它是為這一班在待避站換出來的股道，只給自己那班用；
+  // 讓它進模板候選，別班（加開車、專車）會借走整段切片，在沒有待避的站也跟著換了股道，換股的後果就不在求解器看得到的範圍裡。
+  // 接力借路徑的車次（t.sourceKeys）落成時記下它借的來源（relaySources）：保護規則看來源，落成之後沒有這一欄就認不出它還是接力專車。
   function materialize(key) {
     const t = trainOf.get(key), ids = current.get(key).slice(), holds = t.stops.map(() => ({ arrival: 0, departure: 0 }));
-    const noTemplate = t.basis === 'retimed' && plans[t.sourceKey]?.templateEligible === false;
+    const noTemplate = F2B || (t.basis === 'retimed' && plans[t.sourceKey]?.templateEligible === false);
     plans[key] = { pathIds: ids, departureHolds: holds.map(() => 0), officialDelaySec: 0, holds, stopSignature: physicalStopSignature(t.tr), lengthM: lenOf(t.no) ?? 240,
-      ...(noTemplate && { templateEligible: false }) };
+      ...(noTemplate && { templateEligible: false }), ...(t.sourceKeys && { relaySources: [...new Set(t.sourceKeys)] }) };
     current.set(key, ids); borrowed.delete(key); report.materialised++;
   }
   function localCells(key, i) {
@@ -209,27 +230,65 @@ export function createStationConflictModel({ net, dispatch, sched, timed, protec
     return true;
   }
   // 借用者索引（F2b 用）：一份自己的計畫換股時，執行期綁到它切片的車次會跟著換（plan-binding 的 retimed／route-template 每次綁定都重切），
-  // 但名冊裡借用者拿的是副本。這張索引讓修復器把來源的改動一起套到借用者身上；o＝切片在來源裡的起點。
-  // 連不回來源的借用者都記進 rosterStats.unlinked（沒有來源鍵、來源計畫不在派車表、切片在來源裡找不到），
+  // 但名冊裡借用者拿的是副本。這張索引讓修復器把來源的改動一起套到借用者身上；
+  // o＝切片在來源裡的起點、n＝切片長度（段數）、at＝切片在借用者自己路徑裡的起點（單一來源的借用者整條都是切片，at 為 0、n 是全長）。
+  // 接力借路徑（route-template-chain）的借用者路徑是好幾份來源的連續切片首尾相接：每一份來源各記一筆（at 不同），
+  // 任何一份來源換股，借它的車次都在受影響範圍內。切點取自 cutBind（見上）：前端綁定實際切的那幾截，不是從路徑回推的。
+  // 連不回來源的借用者都記進 rosterStats.unlinked（沒有來源鍵、來源計畫不在派車表、切片在來源裡找不到、接力的切點與前端綁定對不上），
   // 否則來源換股時它不會跟著換、模型與執行期各說各話。src === key（自己借自己）不是連不回來源，略過不計。
   let borrowerIndex = null;
+  // 接力借路徑的借用者逐截（來源鍵、切片在來源的起點 o、長度 n、在借用者路徑的起點 at）。切點與綁定結果要和名冊拿到的路徑逐段相同，
+  // 來源計畫也都還在派車表裡；任何一項對不上就回 null（記為連不回來源）。
+  function piecesOf(rec, ids) {
+    sliceLog = [];
+    const b = cutBind(rec.tr), log = sliceLog.reverse(); sliceLog = null;   // DP 從最後一截往前回溯取切片，slice 的呼叫順序是倒的
+    if (b?.basis !== 'route-template-chain' || b.plan.pathIds.length !== ids.length || b.plan.pathIds.some((p, k) => p !== ids[k])
+      || log.length !== b.sourceKeys.length || log.some((x, k) => x.src !== b.sourceKeys[k] || !plans[x.src])) return null;
+    let at = 0; return log.map(x => { const p = { ...x, at }; at += x.n; return p; });
+  }
+  const relayCuts = new Map();   // 接力借用者的鍵 → 各交接處（後一截的起點 at，第一截不算）
   function buildBorrowerIndex() {
-    borrowerIndex = new Map(); rosterStats.unlinked = 0;
+    borrowerIndex = new Map(); rosterStats.unlinked = 0; relayCuts.clear();
+    const put = (src, b) => (borrowerIndex.get(src) || borrowerIndex.set(src, []).get(src)).push(b);
     for (const key of borrowed) {
       const rec = trainOf.get(key), src = rec.sourceKey; if (src === key) continue;
       if (!src || !plans[src]) { rosterStats.unlinked++; continue; }
-      const ids = current.get(key), sIds = plans[src].pathIds, sNames = JSON.parse(plans[src].stopSignature).map(x => x[0]);
+      const ids = current.get(key);
+      if (rec.basis === 'route-template-chain') {
+        const pieces = piecesOf(rec, ids);
+        if (!pieces) { rosterStats.unlinked++; continue; }
+        for (const x of pieces) put(x.src, { key, o: x.o, n: x.n, at: x.at });
+        relayCuts.set(key, pieces.slice(1).map(x => x.at));
+        continue;
+      }
+      const sIds = plans[src].pathIds, sNames = JSON.parse(plans[src].stopSignature).map(x => x[0]);
       let o = -1;
       for (let k = 0; k + ids.length <= sIds.length && o < 0; k++)
         if (ids.every((p, j) => p === sIds[k + j]) && rec.names.every((n, j) => n === sNames[k + j])) o = k;
       if (o < 0) { rosterStats.unlinked++; continue; }
-      (borrowerIndex.get(src) || borrowerIndex.set(src, []).get(src)).push({ key, o, n: ids.length });
+      put(src, { key, o, n: ids.length, at: 0 });
     }
     return borrowerIndex;
   }
   const borrowersOf = src => ((borrowerIndex || buildBorrowerIndex()).get(src) || []).filter(b => borrowed.has(b.key));
+  // 接力借路徑的借用者跟著來源換股之後，每個交接處（兩截相接的那一對路徑段）只要有一邊換了，就要仍然接得上（同前端綁定的 canJoin）。
+  // 接不上＝來源換了交接站的停車節點，借用者的路徑會在那一站斷掉，前端綁不出、畫不出這樣的路徑：這種連帶換股不讓借用者跟著換。
+  const relayJoins = (key, ids2) => { const cur = current.get(key); return (relayCuts.get(key) || []).every(at => (ids2[at - 1] === cur[at - 1] && ids2[at] === cur[at]) || canJoin(ids2[at - 1], ids2[at])); };
+  // 換股之後核對接力借路徑的車次：前端每次綁定都重新挑來源切片，來源換股時成本相同的幾種接法之間可能改挑另一種
+  // （借用者的路徑就不是「跟著來源換」那麼單純，模型與前端各說各話）。重新綁定解出的路徑與模型不同的，落成自己的計畫：
+  // 路徑維持模型的（求解器評估的就是這條），前端綁定直接用它、不再重新挑。回傳這一次落成的車次鍵。
+  function settleRelays() {
+    const pinned = [];
+    for (const key of [...borrowed]) {
+      const rec = trainOf.get(key); if (!rec.sourceKeys) continue;
+      const ids = bind(rec.tr)?.plan?.pathIds, cur = current.get(key);
+      if (ids && ids.length === cur.length && ids.every((p, k) => p === cur[k])) continue;
+      materialize(key); pinned.push(key); report.pinnedRelays?.push(key);
+    }
+    return pinned;
+  }
   return { M, g, paths, plans, clean, memo, newPaths, cleanRoute, turnOK, nodesOf, wrongSegments, wrongBefore,
     basePairMax, nonElectricWays, bind, days, current, borrowed, trainOf, daysOf, coords, protectedScheduleKeys, carName,
     initialNonElectric, poolOf, nodeAt, nodeSet, isOfficial, cells, cellConflicts, allConflicts, tally, dedup,
-    lenOf, materialize, localCells, tryMove, rosterStats, sources, baseModel, buildBorrowerIndex, borrowersOf };
+    lenOf, materialize, localCells, tryMove, rosterStats, sources, baseModel, buildBorrowerIndex, borrowersOf, relayJoins, settleRelays };
 }
