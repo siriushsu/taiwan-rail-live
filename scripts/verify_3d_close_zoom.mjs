@@ -29,6 +29,8 @@ const VIEWS={desktop:{viewport:{width:1100,height:820}},...Object.fromEntries((p
 // kind 決定這一張要先證明的前置條件：far＝MapLibre 自己的遠裁切面停在車頂之上；cull＝車身中心點在 getBounds() 之外；
 // control＝兩者都不成立（修正前就看得到，用來證明這套量法量得到車）。align：把列車轉成沿著畫面短邊，中心點才會出框。
 // pad：中心點連「畫面外放寬四分之一」的框都出了——那個框原本拿來決定要不要替車算位置，候選放寬了它也要跟著放寬。
+// parallax＝整列在畫面上緣看到的地面之外（beyond：最近的車端再往前幾公尺），中心點出框超過半列車長，
+// 只靠車長放寬不會成為候選；地下車的影像往鏡頭這側偏，靠這段視差才露出畫面。
 const SHOTS={
  desktop:[
   {name:'對照-俯角50',kind:'control',place:'d1',zoom:17,pitch:50,halo:true},
@@ -36,6 +38,8 @@ const SHOTS={
   {name:'遠裁切-z18',kind:'far',place:'d1',zoom:18,pitch:0,halo:true,hit:true},
   {name:'遠裁切-另一方向-z19',kind:'far',place:'d2',zoom:19,pitch:0},
   {name:'出框加遠裁切-第1節-z19',kind:'far+cull',place:'d1',zoom:19,pitch:0,car:0,align:'short'},
+  // 只放桌機：手機地圖上緣正中是時鐘膠囊，露出來的那一截車剛好被蓋住。
+  {name:'地下視差-整列在上緣外-z20-俯角45',kind:'parallax',place:'d1',zoom:20,pitch:45,beyond:15},
  ],
  phone:[
   {name:'遠裁切-z17.5',kind:'far',place:'d1',zoom:17.5,pitch:0,halo:true,hit:true,tap:true},
@@ -95,32 +99,49 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
      await page.evaluate(k=>{const v=__t.veh[k];M.raw.jumpTo({center:[v.longitude,v.latitude],zoom:17,pitch:50,bearing:0});__u(v);},shot.place);
      await page.waitForFunction(k=>{__u(__t.veh[k]);return railIslandIntegration.renderer.stats.models===1;},shot.place,{timeout:60000});
      // 車在地下多深要在這裡記：受測視角下車模可能根本沒建（成因 2），就讀不到。
-     const safe=await page.evaluate(()=>{const cars=railIslandIntegration.renderer.stats.poseSamples[0].cars;return {heights:cars.map(c=>+c.height.toFixed(2)),underground:cars.every(c=>c.underground)};});
+     const safe=await page.evaluate(()=>{const s=railIslandIntegration.renderer.stats.poseSamples[0],cars=s.cars;
+      // 各節車廂中心與節長留著給視差那一張算「最近的車端在哪」：受測視角下車模可能沒建，讀不到。
+      window.__cars={coords:cars.map(c=>c.coordinate),carLenM:s.lengthM/s.carCount};
+      return {heights:cars.map(c=>+c.height.toFixed(2)),underground:cars.every(c=>c.underground),halfLenM:+(s.lengthM/2).toFixed(1)};});
      await page.evaluate(([k,shot,W,H])=>{
-      const v=__t.veh[k],cars=railIslandIntegration.renderer.stats.poseSamples[0].cars,target=shot.car==null?[v.longitude,v.latitude]:cars[shot.car].coordinate;
+      const v=__t.veh[k],cars=railIslandIntegration.renderer.stats.poseSamples[0].cars;let target=shot.car==null?[v.longitude,v.latitude]:cars[shot.car].coordinate;
       let bearing=0;
       if(shot.align){
        // 讓「中心點 → 受測車廂」沿著畫面短邊：寬螢幕朝上、直式手機朝右，中心點落在短邊外側。
        const k2=Math.cos(v.latitude*Math.PI/180),az=Math.atan2((target[0]-v.longitude)*k2,target[1]-v.latitude)*180/Math.PI;
        bearing=W>=H?az:az-90;
       }
+      if(shot.beyond!=null){
+       // 鏡頭朝最接近列車走向的正方位看（上緣地面線才會跟 getBounds() 的一條邊重合），先量鏡頭中心到上緣地面點的距離，
+       // 再把鏡頭往後退，讓上緣地面點停在最近的車端前 beyond 公尺。平面模式地面是平的，平移不改這段距離。
+       const mx=111320*Math.cos(v.latitude*Math.PI/180),my=110574,toM=c=>[(c[0]-v.longitude)*mx,(c[1]-v.latitude)*my],a=toM(cars[0].coordinate),b=toM(cars.at(-1).coordinate);
+       bearing=(Math.round(Math.atan2(a[0]-b[0],a[1]-b[1])*2/Math.PI)*90+360)%360;
+       const w=[Math.sin(bearing*Math.PI/180),Math.cos(bearing*Math.PI/180)],along=c=>{const m=toM(c);return m[0]*w[0]+m[1]*w[1];};
+       M.raw.jumpTo({center:[v.longitude,v.latitude],zoom:shot.zoom,pitch:shot.pitch,bearing});
+       const top=M.raw.unproject([M.raw.getCanvas().clientWidth/2,0]),near=Math.min(...__cars.coords.map(along))-__cars.carLenM/2,shift=near-shot.beyond-along([top.lng,top.lat]);
+       target=[v.longitude+shift*w[0]/mx,v.latitude+shift*w[1]/my];
+      }
       M.raw.jumpTo({center:target,zoom:shot.zoom,pitch:shot.pitch,bearing});for(let i=0;i<3;i++)__u(v);
      },[shot.place,shot,W,H]);
      await page.waitForTimeout(400);await page.evaluate(k=>__u(__t.veh[k]),shot.place);await settle();await page.evaluate(k=>__u(__t.veh[k]),shot.place);await settle();
-     const st=await page.evaluate(k=>{
+     const st=await page.evaluate(([k,parallax])=>{
       const v=__t.veh[k],r=railIslandIntegration.renderer,s=r.stats,t=M.raw.transform,b=M.raw.getBounds(),lat=v.latitude,pitch=M.raw.getPitch()*Math.PI/180;
       const mx=111320*Math.cos(lat*Math.PI/180),my=110574;
       // 中心點離框多遠（公尺，正值＝在框外）
       const out=Math.max(b.getWest()-v.longitude,v.longitude-b.getEast())*mx,outY=Math.max(b.getSouth()-lat,lat-b.getNorth())*my;
+      // 最近的車端在上緣地面點之外幾公尺（正值＝整列都在畫面上緣看到的地面之外，換成地面上的車就完全看不到）
+      let beyondM=null;
+      if(parallax){const a=M.raw.getBearing()*Math.PI/180,along=c=>c[0]*mx*Math.sin(a)+c[1]*my*Math.cos(a),top=M.raw.unproject([M.raw.getCanvas().clientWidth/2,0]);
+       beyondM=+(Math.min(...__cars.coords.map(along))-__cars.carLenM/2-along([top.lng,top.lat])).toFixed(1);}
       const padX=(b.getEast()-b.getWest())*.25,padY=(b.getNorth()-b.getSouth())*.25,
         outsidePad=v.longitude<b.getWest()-padX||v.longitude>b.getEast()+padX||lat<b.getSouth()-padY||lat>b.getNorth()+padY;
       // MapLibre 自己的遠裁切面在畫面正中視線上能看到地表下多深（平面模式地表＝0）
       const visDepthM=(t.farZ-t.cameraToCenterDistance)*Math.cos(pitch)/t.pixelsPerMeter;
       const cars=s.poseSamples[0]?.cars||[];
       return {zoom:+M.raw.getZoom().toFixed(2),pitch:+M.raw.getPitch().toFixed(1),bearing:+M.raw.getBearing().toFixed(1),cand:s.modelCandidates,models:s.models,ug:s.undergroundModels,
-       centerOutM:+Math.max(out,outY).toFixed(1),outsidePad,visDepthM:+visDepthM.toFixed(1),carHeights:cars.map(c=>+c.height.toFixed(2)),underground:cars.length>0&&cars.every(c=>c.underground),
+       centerOutM:+Math.max(out,outY).toFixed(1),outsidePad,beyondM,visDepthM:+visDepthM.toFixed(1),carHeights:cars.map(c=>+c.height.toFixed(2)),underground:cars.length>0&&cars.every(c=>c.underground),
        projected:r.projectedCars(),canvas:(({left,top,right,bottom})=>({left,top,right,bottom}))(M.raw.getCanvas().getBoundingClientRect()),errors:s.errors.slice(0,3)};
-     },shot.place);
+     },[shot.place,shot.kind==='parallax']);
      const withTrain=PNG.sync.read(await page.screenshot({path:`${out}/${label}-有車.png`})).data;
      await page.evaluate(k=>__u(__t.veh[k],{train:false}),shot.place);await settle();
      const empty=PNG.sync.read(await page.screenshot({path:`${out}/${label}-無車.png`})).data;
@@ -154,10 +175,11 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
      const frac=maskPx?diffPx/maskPx:0,deep=Math.max(...safe.heights)<-10;
      // 前置條件：這一張真的走到要測的那條路徑（修正前後都要成立，跟修法無關）。車頂約在軌面上 4.5 m 內。
      const roof=-Math.max(...safe.heights)-4.5,
-       pre={far:st.visDepthM<roof,cull:st.centerOutM>0,control:st.centerOutM<0&&st.visDepthM>-Math.min(...safe.heights)+1};
+       pre={far:st.visDepthM<roof,cull:st.centerOutM>0,control:st.centerOutM<0&&st.visDepthM>-Math.min(...safe.heights)+1,
+        parallax:st.beyondM>0&&st.centerOutM>safe.halfLenM+1};
      const preOk=shot.kind.split('+').every(k=>pre[k])&&(!shot.pad||st.outsidePad)&&deep&&safe.underground;
      const row={engine,view,shot:shot.name,kind:shot.kind,zoom:st.zoom,pitch:st.pitch,bearing:st.bearing,cand:st.cand,models:st.models,ug:st.ug,
-      centerOutM:st.centerOutM,outsidePad:st.outsidePad,visDepthM:st.visDepthM,carHeights:safe.heights.slice(0,2),maskPx,diffPx,frac:+frac.toFixed(3),screenDiff,errors:st.errors};
+      centerOutM:st.centerOutM,outsidePad:st.outsidePad,beyondM:st.beyondM,halfLenM:safe.halfLenM,visDepthM:st.visDepthM,carHeights:safe.heights.slice(0,2),maskPx,diffPx,frac:+frac.toFixed(3),screenDiff,errors:st.errors};
      rows.push({...row,test:'前置條件：車在地下、這一張真的走到受測的路徑',pass:preOk});
      rows.push({engine,view,shot:shot.name,test:'整列車畫得出來（stats 有車模＋車身範圍內的像素真的變了）',pass:st.cand>=1&&st.models===1&&maskPx>=400&&frac>=.35,
       cand:st.cand,models:st.models,maskPx,frac:+frac.toFixed(3)});
