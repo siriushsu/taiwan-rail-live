@@ -390,9 +390,11 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   // 近裁切面不動，深度精度不受影響。主畫面那一趟要跟 MapLibre 的建物比深度，維持原樣。
   function deepenFar(m){const t=map.transform,n=t.nearZ,far=t.farZ*(1+UNDERGROUND_FLOOR_M/Math.max(1,t.getCameraAltitude())),a=(far+n)/(n-far),b=2*far*n/(n-far),e=m.elements;
     e[2]=-a*e[3];e[6]=-a*e[7];e[10]=-a*e[11];e[14]=-a*e[15]+b;return m;}
-  // 畫面四角視線與鉛直夾角的正切（最斜的那條），接近地平線時封頂。
+  // 畫面四角視線與鉛直夾角的正切（最斜的那條），封頂在 2（約俯角 45 的畫面上緣）：再斜的視線落在畫面遠端，
+  // 透視壓得很扁，多放寬的距離在畫面上只差幾個像素，卻會把一大片畫面外的車變成候選
+  // （台北車站俯角 60、z16 實測：封頂 6 時候選 34 列、封頂 2 時 22 列，畫面上看得到的都是 16 列）。
   function viewSlope(){const p=map.getPitch()*Math.PI/180,ty=Math.tan(map.getVerticalFieldOfView()*Math.PI/360),tx=ty*el.clientWidth/Math.max(1,el.clientHeight);
-    return Math.min(6,Math.hypot(tx,Math.sin(p)+ty*Math.cos(p))/Math.max(1e-6,Math.cos(p)-ty*Math.sin(p)));}
+    return Math.min(2,Math.hypot(tx,Math.sin(p)+ty*Math.cos(p))/Math.max(1e-6,Math.cos(p)-ty*Math.sin(p)));}
   function project(p,deep){const a=new THREE.Vector3(...p).applyMatrix4(deep?deepProjection:camera.projectionMatrix);return {x:(a.x+1)*map.getCanvas().clientWidth/2,y:(1-a.y)*map.getCanvas().clientHeight/2,z:a.z};}
   function syncAmbient(on){if(on===ambientWas)return;ambientWas=on;cameraAt=performance.now();
     if(on){ambientView={pitch:map.getPitch(),bearing:map.getBearing(),zoom:map.getZoom()};orbitBearing=map.getBearing();}
@@ -566,8 +568,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       frontScreen(){const m=models.get(frame?.selectedVehicleId);return m?.group?.visible&&(frame?.headLocked||stats.followFraming?.distanceM>0)?project(m.cars[0].position.toArray()):null;},
       hasModel:id=>!!models.get(id)?.group?.visible,
       profileKeys:()=>map.getZoom()>=14?[...(terrainState.terrain?(frame?.routes||[]).filter(r=>!r.physical&&pathFor(r)?.elevation).map(r=>r.lineKey):[]),...(frame?.replacedLineKeys||[])]:[],
-      // 點擊判定用地下那一趟的深度範圍：x、y 跟畫面相同，地下車才不會因為超出主畫面的遠裁切面而點不到。
-      hitTest(point){const out=[];for(const [id,m]of models)if(m.group?.visible){for(const car of m.cars){const mesh=car.children[0],box=mesh.geometry.boundingBox,ps=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]){const p=project(new THREE.Vector3(x,y,z).applyMatrix4(mesh.matrixWorld).toArray(),true);if(p.z>=-1&&p.z<=1)ps.push(p);}if(!ps.length)continue;const left=Math.min(...ps.map(p=>p.x)),right=Math.max(...ps.map(p=>p.x)),top=Math.min(...ps.map(p=>p.y)),bottom=Math.max(...ps.map(p=>p.y));if(point.x>=left-5&&point.x<=right+5&&point.y>=top-7&&point.y<=bottom+7){out.push({id,dist:0,boxed:true});break;}}}return out;},
+      // 地下車廂的點擊判定用地下那一趟的深度範圍（x、y 跟畫面相同），才不會因為超出主畫面的遠裁切面而點不到；地面車廂照主畫面。
+      hitTest(point){const out=[];for(const [id,m]of models)if(m.group?.visible){for(const car of m.cars){const mesh=car.children[0],box=mesh.geometry.boundingBox,deep=mesh.layers.isEnabled(1),ps=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]){const p=project(new THREE.Vector3(x,y,z).applyMatrix4(mesh.matrixWorld).toArray(),deep);if(p.z>=-1&&p.z<=1)ps.push(p);}if(!ps.length)continue;const left=Math.min(...ps.map(p=>p.x)),right=Math.max(...ps.map(p=>p.x)),top=Math.min(...ps.map(p=>p.y)),bottom=Math.max(...ps.map(p=>p.y));if(point.x>=left-5&&point.x<=right+5&&point.y>=top-7&&point.y<=bottom+7){out.push({id,dist:0,boxed:true});break;}}}return out;},
       projectCoordinate:(coordinate,altitudeM)=>project(world(coordinate,altitudeM)),
       projectedVehicles:()=>hits.map(h=>({id:h.v.id,...project(h.p),coordinate:[h.v.longitude,h.v.latitude]})),destroy};
   }catch(e){destroy();throw e;}
