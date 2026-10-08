@@ -38,12 +38,13 @@ export function createTrainHalo(scene) {
       if(!m.group?.visible||!m.screenPose)continue;
       const {sample,color}=m.screenPose,cars=sample.cars,first=cars[0],last=cars.at(-1);
       if(!first)continue;
-      const p=cars.map(c=>project(c.coordinate,c.height+1.75)),before=project(shift(first.coordinate,first.angle,m.model.parts[0].bodyLengthM/2),first.height+1.75),after=project(shift(last.coordinate,last.angle,-m.model.parts.at(-1).bodyLengthM/2),last.height+1.75);
+      // 地下車的光暈畫在地下那一趟，深度要用那一趟往下延伸的遠裁切面（project 第三個參數），地面車照主畫面。
+      const p=cars.map(c=>project(c.coordinate,c.height+1.75,c.underground)),before=project(shift(first.coordinate,first.angle,m.model.parts[0].bodyLengthM/2),first.height+1.75,first.underground),after=project(shift(last.coordinate,last.angle,-m.model.parts.at(-1).bodyLengthM/2),last.height+1.75,last.underground);
       let radius=2.5;
       for(let i=0;i<cars.length;i++) {
         if(p[i].z<-1||p[i].z>1)continue;
         const c=cars[i],side=m.model.widthM*sample.displayScale/2;
-        for(const sign of [-1,1])for(const z of [.1,3.5]){const q=project(shift(c.coordinate,c.angle+Math.PI/2,sign*side),c.height+z);radius=Math.max(radius,Math.hypot(q.x-p[i].x,q.y-p[i].y));}
+        for(const sign of [-1,1])for(const z of [.1,3.5]){const q=project(shift(c.coordinate,c.angle+Math.PI/2,sign*side),c.height+z,c.underground);radius=Math.max(radius,Math.hypot(q.x-p[i].x,q.y-p[i].y));}
       }
       radius=Math.min(26,radius);const palette=haloPalette(color,night);let visible=false;
       cars.forEach((c,k)=>{
@@ -51,7 +52,7 @@ export function createTrainHalo(scene) {
         if(![q,a,z].every(v=>Number.isFinite(v.x)&&Number.isFinite(v.y)&&v.z>=-1&&v.z<=1))return;
         // 外觀固定為螢幕上的柔光，深度則沿車廂所在水平面變化。
         // 整片使用中心深度會被地面切掉一半；停用深度又會穿過前景建物。
-        const east=project(shift(c.coordinate,0,10),c.height+1.75),north=project(shift(c.coordinate,Math.PI/2,10),c.height+1.75),
+        const east=project(shift(c.coordinate,0,10),c.height+1.75,c.underground),north=project(shift(c.coordinate,Math.PI/2,10),c.height+1.75,c.underground),
           ex=east.x-q.x,ey=east.y-q.y,ez=east.z-q.z,nx=north.x-q.x,ny=north.y-q.y,nz=north.z-q.z,det=ex*ny-ey*nx,
           gx=Math.abs(det)>1e-8?(ez*ny-ey*nz)/det:0,gy=Math.abs(det)>1e-8?(ex*nz-ez*nx)/det:0;
         const b=c.underground?underground:surface;let carVisible=false;

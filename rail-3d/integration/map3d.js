@@ -31,6 +31,8 @@ async function library(){if(!libraries)libraries=(async()=>{
   registerTerrainProtocol(ml,{archive:await terrainArchive(pmtiles)});return ml;
 })();return libraries;}
 const empty=()=>({type:'FeatureCollection',features:[]});
+// 地下透視往下要看得到多深（公尺，海平面以下）。資料最深的軌面約 −40 m，verify_3d_close_zoom 會檢查沒超過。
+const UNDERGROUND_FLOOR_M=50;
 const feature=(geometry,properties)=>({type:'Feature',geometry,properties});
 
 export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGesture,onInteract,onError,getHeading,trainSizeMode='readable',groundMode='flat',formationMode='actual'}){
@@ -42,7 +44,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   let disposed=false,ready=false,lastDetail=null,stationLayer=null,stationLabels=null,markers=null,inspection=false,frame=null,routeKey='',routeRefs=[],lastBuild=0,dirty=true,buildCenter=null,buildElev=0,buildView=null,lastNear=null,popup=null;
   const clearance=createRailClearance();
   const terrainState={terrain:groundMode==='terrain',buildings:true,labels:true,stationInspection:false,stationInspectionAll:true,exaggeration:1};
-  const scene=new THREE.Scene(),camera=new THREE.Camera(),projection=new THREE.Matrix4(),anchor=ml.MercatorCoordinate.fromLngLat([121,24]),unit=anchor.meterInMercatorCoordinateUnits();
+  const scene=new THREE.Scene(),camera=new THREE.Camera(),projection=new THREE.Matrix4(),deepProjection=new THREE.Matrix4(),anchor=ml.MercatorCoordinate.fromLngLat([121,24]),unit=anchor.meterInMercatorCoordinateUnits();
   const transform=new THREE.Matrix4().makeTranslation(anchor.x,anchor.y,0).scale(new THREE.Vector3(unit,-unit,unit));
   const cache=new Map(),pending=new Map(),models=new Map(),failed=new Set(),paths=new WeakMap(),motion=new Map(),formations=new WeakMap();
   const rails=profileLines(scene),undergroundRails=profileLines(scene,{underground:true}),structures=createRailStructures(scene),apertures=createTunnelApertures((x,y)=>{const q=new ml.MercatorCoordinate(anchor.x+x*unit,anchor.y-y*unit).toLngLat(),h=terrainSample([q.lng,q.lat]);return Number.isFinite(h)?world([q.lng,q.lat],h)[2]:null;});
@@ -296,8 +298,13 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     if(terrainState.terrain&&buildCenter){const e=terrainSample(buildCenter);if(Number.isFinite(e)&&Math.abs(e-buildElev)>.5)dirty=true;}
     if(near!==lastNear||detailLevel()!==lastDetail||((dirty||!buildCenter||Math.hypot(center.lng-buildCenter[0],center.lat-buildCenter[1])>.003)&&now-lastBuild>250))rebuildLines();
     const all=next.display?.modelMode==='all'||!!next.display?.ambient,bounds=map.getBounds();
+    // 候選不能只看車身中心點：拉近到一節車占滿畫面、鏡頭對準頭尾車廂時，141 m 六節車的中心早已出框。
+    // 編組以車輛座標為中心、前後各半列長；地下或高架的車在畫面上還會沿視線偏移「高低差 × 視線斜率」，
+    // 高低差最多算到地下透視的深度。
+    const reachM=UNDERGROUND_FLOOR_M*viewSlope(),inReach=v=>{const m=formationFor(v,formationMode).lengths.reduce((a,b)=>a+b,0)/2+reachM,dx=m/(111320*Math.cos(v.latitude*Math.PI/180)),dy=m/110574;
+      return v.longitude>=bounds.getWest()-dx&&v.longitude<=bounds.getEast()+dx&&v.latitude>=bounds.getSouth()-dy&&v.latitude<=bounds.getNorth()+dy;};
     // 同一縮放門檻及比例函式用於每一輛模型；一般模式只有選取車，全部模式涵蓋畫面內可用車型。
-    const candidates=next.vehicles.map(v=>({v})).filter(({v})=>near&&(all||v.followed)&&(v.followed||bounds.contains([v.longitude,v.latitude]))&&next.display?.enabled!==false&&formationFor(v,formationMode));
+    const candidates=next.vehicles.map(v=>({v})).filter(({v})=>near&&(all||v.followed)&&next.display?.enabled!==false&&formationFor(v,formationMode)&&(v.followed||inReach(v)));
     stats.modelMode=all?'all':'selected';stats.modelCandidates=candidates.length;
     const wanted=new Set(candidates.map(x=>x.v.id));for(const [id,m]of models)if(!wanted.has(id)){if(m.group)scene.remove(m.group);models.delete(id);}
     for(const {v}of candidates)void ensureModel(v);
@@ -305,12 +312,12 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     const ids=new Set(next.vehicles.map(v=>v.id));for(const id of motion.keys())if(!ids.has(id))motion.delete(id);
     // 畫面外的車在點雲裡會被 GPU 直接剔掉，高度是多少都看不到；但每一幀還是為它解析一張 DEM 圖磚。
     // 實測台北車站畫面每幀 398 次地表查詢裡有 235 次來自畫面外的車，占六成。邊界放寬四分之一，
-    // 跟車的那一列一律照算，免得鏡頭跟著的車在邊緣掉高度。
+    // 跟車的那一列一律照算，免得鏡頭跟著的車在邊緣掉高度；要畫車模的候選也照算，中心點出了這個框、車頭還在畫面裡。
     const vw=bounds.getWest(),ve=bounds.getEast(),vs=bounds.getSouth(),vn=bounds.getNorth(),
           padX=(ve-vw)*.25,padY=(vn-vs)*.25;
     const onScreen=(c,v)=>v.followed||(c[0]>=vw-padX&&c[0]<=ve+padX&&c[1]>=vs-padY&&c[1]<=vn+padY);
     hits=[];stats.models=0;stats.undergroundModels=0;stats.poseSamples=[];stats.modelFallbacks=[];const arrowP=[],arrowC=[],beams=[],beamLimit=el.clientWidth<768?8:24;let beamMs=0;
-    next.vehicles.forEach((v,i)=>{const coord=[v.longitude,v.latitude],profile=near&&onScreen(coord,v)&&(terrainState.terrain||v.route?.level||wanted.has(v.id))&&Math.hypot(coord[0]-center.lng,coord[1]-center.lat)<.08?routeProfile(v):null,path=profile&&formationPath(v,profile),ratio=ml.MercatorCoordinate.fromLngLat(coord).meterInMercatorCoordinateUnits()/unit,
+    next.vehicles.forEach((v,i)=>{const coord=[v.longitude,v.latitude],profile=near&&(onScreen(coord,v)||wanted.has(v.id))&&(terrainState.terrain||v.route?.level||wanted.has(v.id))&&Math.hypot(coord[0]-center.lng,coord[1]-center.lat)<.08?routeProfile(v):null,path=profile&&formationPath(v,profile),ratio=ml.MercatorCoordinate.fromLngLat(coord).meterInMercatorCoordinateUnits()/unit,
       h=(profile?path===profile.path?profile.height:railHeight(path,profile.s):undefined)??(onScreen(coord,v)?height(coord):null),p=world(coord,h??.65),m=models.get(v.id),color=new THREE.Color(v.followed?'#d65130':v.color||'#287766');
       positions.set(p,i*3);colors.set([color.r,color.g,color.b],i*3);const hit={v,p,modelled:false};hits.push(hit);
       if(m?.group){const poses=profile&&h!==null&&(!terrainHeights()||path.elevation||path.level)?formationPoses(path,profile.s,profile.direction*(v.formationFacing||1),m.model.parts,s=>railHeight(path,s)):null;m.group.visible=!!poses;
@@ -377,7 +384,16 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       m.displayScale=sample.displayScale=scale;
     }
   }
-  function project(p){const a=new THREE.Vector3(...p).applyMatrix4(camera.projectionMatrix);return {x:(a.x+1)*map.getCanvas().clientWidth/2,y:(1-a.y)*map.getCanvas().clientHeight/2,z:a.z};}
+  // MapLibre 的遠裁切面只算到地表以下約 1%：俯角 0、拉近到 z16 以上，地下十幾公尺的板南線整列被裁掉。
+  // 地下那一趟會清掉深度自己重畫，遠裁切面可以單獨往下延伸：同一條視線上距離與高低差成正比，
+  // 把「鏡頭到地表」按比例拉長到地下 UNDERGROUND_FLOOR_M。只改深度那一列，畫面上的 x、y 不變；
+  // 近裁切面不動，深度精度不受影響。主畫面那一趟要跟 MapLibre 的建物比深度，維持原樣。
+  function deepenFar(m){const t=map.transform,n=t.nearZ,far=t.farZ*(1+UNDERGROUND_FLOOR_M/Math.max(1,t.getCameraAltitude())),a=(far+n)/(n-far),b=2*far*n/(n-far),e=m.elements;
+    e[2]=-a*e[3];e[6]=-a*e[7];e[10]=-a*e[11];e[14]=-a*e[15]+b;return m;}
+  // 畫面四角視線與鉛直夾角的正切（最斜的那條），接近地平線時封頂。
+  function viewSlope(){const p=map.getPitch()*Math.PI/180,ty=Math.tan(map.getVerticalFieldOfView()*Math.PI/360),tx=ty*el.clientWidth/Math.max(1,el.clientHeight);
+    return Math.min(6,Math.hypot(tx,Math.sin(p)+ty*Math.cos(p))/Math.max(1e-6,Math.cos(p)-ty*Math.sin(p)));}
+  function project(p,deep){const a=new THREE.Vector3(...p).applyMatrix4(deep?deepProjection:camera.projectionMatrix);return {x:(a.x+1)*map.getCanvas().clientWidth/2,y:(1-a.y)*map.getCanvas().clientHeight/2,z:a.z};}
   function syncAmbient(on){if(on===ambientWas)return;ambientWas=on;cameraAt=performance.now();
     if(on){ambientView={pitch:map.getPitch(),bearing:map.getBearing(),zoom:map.getZoom()};orbitBearing=map.getBearing();}
     if(!on&&ambientView){ambientView=null;zoomFollows=null;syncZoomAnchor();}
@@ -410,7 +426,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       render(gl,args){
         // DEM 在 MapLibre 本幀準備完成後才同步橋墩與車體，避免沿用前一幀地表。
         if(terrainRefreshPending&&terrainState.terrain&&frame&&Number.isFinite(terrainSample(map.getCenter().toArray()))){dirty=true;lastBuild=-Infinity;update(frame);if(map.isSourceLoaded('terrain'))terrainRefreshPending=false;}
-        const night=nightAmount(globalThis.railIslandSunlight?.current);ambientLight.intensity=1.9*(1-night*.7);sun.intensity=2*(1-night*.94);camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));updateModelScales();trainHalo.update(models,(c,h)=>project(world(c,h)),el.clientWidth,el.clientHeight,frame?.display);structures.setVisible(map.getZoom()>=14);rails.render(el.clientWidth,el.clientHeight,routeWidth(map.getZoom()),map.getZoom()>=14&&(terrainState.terrain||frame?.routes.some(r=>r.physical||r.drawingRanges)),frame?.display?.dark);webgl.resetState();camera.layers.enable(3);webgl.render(scene,camera);camera.layers.disable(3);stats.frames++;
+        const night=nightAmount(globalThis.railIslandSunlight?.current);ambientLight.intensity=1.9*(1-night*.7);sun.intensity=2*(1-night*.94);camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));deepenFar(deepProjection.copy(camera.projectionMatrix));updateModelScales();trainHalo.update(models,(c,h,deep)=>project(world(c,h),deep),el.clientWidth,el.clientHeight,frame?.display);structures.setVisible(map.getZoom()>=14);rails.render(el.clientWidth,el.clientHeight,routeWidth(map.getZoom()),map.getZoom()>=14&&(terrainState.terrain||frame?.routes.some(r=>r.physical||r.drawingRanges)),frame?.display?.dark);webgl.resetState();camera.layers.enable(3);webgl.render(scene,camera);camera.layers.disable(3);stats.frames++;
         const lead=models.get(frame?.selectedVehicleId)?.cars?.[0],pad=map.getPadding();
         stats.headLockErrorPx=frame?.headLocked&&lead?Math.hypot(project(lead.position.toArray()).x-(el.clientWidth+pad.left-pad.right)/2,project(lead.position.toArray()).y-(el.clientHeight+pad.top-pad.bottom)/2):null;
       }});vehicleLayer=map.getLayer('live-vehicles-3d');
@@ -429,13 +445,14 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     {stationLayer=await createStationLayer(map,()=>terrainState,()=>{}, {maplibre:ml,clearance});assertCurrent();map.addLayer(stationLayer);for(const e of stationLayer.failures)report(e.message);}
     map.addLayer({id:'live-underground-3d',type:'custom',renderingMode:'3d',render(gl,args){
       if(!stats.undergroundModels&&!stats.undergroundRailSegments)return;
-      camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));
+      // 地下這一趟用往下延伸的遠裁切面（見 deepenFar），畫完還原成主畫面的投影。
+      deepenFar(camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform)));
       // 只對地下模型建立自己的深度，再半透明混合；不讓背面及內部三角形累積成黑色雜點。
       undergroundRails.render(el.clientWidth,el.clientHeight,0,false);
       webgl.resetState();webgl.clearDepth();
       // 先保留所有車體的前後關係，僅略過地表與建物；地下透視不能蓋過上層列車。
       camera.layers.set(2);scene.overrideMaterial=vehicleDepthMaterial;webgl.render(scene,camera);scene.overrideMaterial=null;camera.layers.set(1);
-      undergroundRails.render(el.clientWidth,el.clientHeight,routeWidth(map.getZoom()),map.getZoom()>=14,frame?.display?.dark);webgl.render(scene,camera);camera.layers.set(0);
+      undergroundRails.render(el.clientWidth,el.clientHeight,routeWidth(map.getZoom()),map.getZoom()>=14,frame?.display?.dark);webgl.render(scene,camera);camera.layers.set(0);camera.projectionMatrix.copy(projection);
     }});undergroundLayer=map.getLayer('live-underground-3d');
     orderBuildingPasses(map);
     function startGesture(e){if(!e.originalEvent)return;motionCamera.cancel();onInteract?.();if(!gesture){gesturePanned=false;gestureOrbited=false;followReturn=null;stats.followReturning=false;}gesture=true;clearTimeout(gestureTimer);}
@@ -549,7 +566,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       frontScreen(){const m=models.get(frame?.selectedVehicleId);return m?.group?.visible&&(frame?.headLocked||stats.followFraming?.distanceM>0)?project(m.cars[0].position.toArray()):null;},
       hasModel:id=>!!models.get(id)?.group?.visible,
       profileKeys:()=>map.getZoom()>=14?[...(terrainState.terrain?(frame?.routes||[]).filter(r=>!r.physical&&pathFor(r)?.elevation).map(r=>r.lineKey):[]),...(frame?.replacedLineKeys||[])]:[],
-      hitTest(point){const out=[];for(const [id,m]of models)if(m.group?.visible){for(const car of m.cars){const mesh=car.children[0],box=mesh.geometry.boundingBox,ps=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]){const p=project(new THREE.Vector3(x,y,z).applyMatrix4(mesh.matrixWorld).toArray());if(p.z>=-1&&p.z<=1)ps.push(p);}if(!ps.length)continue;const left=Math.min(...ps.map(p=>p.x)),right=Math.max(...ps.map(p=>p.x)),top=Math.min(...ps.map(p=>p.y)),bottom=Math.max(...ps.map(p=>p.y));if(point.x>=left-5&&point.x<=right+5&&point.y>=top-7&&point.y<=bottom+7){out.push({id,dist:0,boxed:true});break;}}}return out;},
+      // 點擊判定用地下那一趟的深度範圍：x、y 跟畫面相同，地下車才不會因為超出主畫面的遠裁切面而點不到。
+      hitTest(point){const out=[];for(const [id,m]of models)if(m.group?.visible){for(const car of m.cars){const mesh=car.children[0],box=mesh.geometry.boundingBox,ps=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]){const p=project(new THREE.Vector3(x,y,z).applyMatrix4(mesh.matrixWorld).toArray(),true);if(p.z>=-1&&p.z<=1)ps.push(p);}if(!ps.length)continue;const left=Math.min(...ps.map(p=>p.x)),right=Math.max(...ps.map(p=>p.x)),top=Math.min(...ps.map(p=>p.y)),bottom=Math.max(...ps.map(p=>p.y));if(point.x>=left-5&&point.x<=right+5&&point.y>=top-7&&point.y<=bottom+7){out.push({id,dist:0,boxed:true});break;}}}return out;},
       projectCoordinate:(coordinate,altitudeM)=>project(world(coordinate,altitudeM)),
       projectedVehicles:()=>hits.map(h=>({id:h.v.id,...project(h.p),coordinate:[h.v.longitude,h.v.latitude]})),destroy};
   }catch(e){destroy();throw e;}
