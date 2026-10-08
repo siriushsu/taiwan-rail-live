@@ -21,7 +21,11 @@ const rows=[],only=process.env.ENGINES?.split(',');
 }
 // 板南線國父紀念館一帶整段在地下，平面模式軌面約 −17～−19 m；兩個方向各取離車站最近的一列班表車。
 const STATION=[121.5576,25.0414];
-const VIEWS={desktop:{viewport:{width:1100,height:820}},phone:{viewport:{width:390,height:844},isMobile:true,hasTouch:true}};
+// 手機預設只跑 390 寬；PHONE_WIDTHS=360,375,414,768 掃 AGENTS.md 的四個寬度。縮放隨寬度加減 log2(寬/390)，
+// 畫面涵蓋的地面寬度跟 390 寬一樣，「中心點出框」這類前置條件在每個寬度才都成立。
+const PHONE_H={360:780,375:812,390:844,414:896,768:1024};
+const VIEWS={desktop:{viewport:{width:1100,height:820}},...Object.fromEntries((process.env.PHONE_WIDTHS||'390').split(',').map(Number).map(w=>[w===390?'phone':'phone'+w,
+ {viewport:{width:w,height:PHONE_H[w]||Math.round(w*2.16)},isMobile:true,hasTouch:true,zoomShift:Math.log2(w/390)}]))};
 // kind 決定這一張要先證明的前置條件：far＝MapLibre 自己的遠裁切面停在車頂之上；cull＝車身中心點在 getBounds() 之外；
 // control＝兩者都不成立（修正前就看得到，用來證明這套量法量得到車）。align：把列車轉成沿著畫面短邊，中心點才會出框。
 // pad：中心點連「畫面外放寬四分之一」的框都出了——那個框原本拿來決定要不要替車算位置，候選放寬了它也要跟著放寬。
@@ -60,7 +64,7 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
  if(only&&!only.includes(engine))continue;
  const browser=await type.launch(engine==='chromium'?{channel:'chrome',headless:true}:{headless:true});
  for(const [view,options]of Object.entries(VIEWS)){
-  const context=await browser.newContext({...options,locale:'zh-TW',timezoneId:'Asia/Taipei'}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const {zoomShift=0,...contextOptions}=options,context=await browser.newContext({...contextOptions,locale:'zh-TW',timezoneId:'Asia/Taipei'}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   const W=options.viewport.width,H=options.viewport.height;
   try{
    await page.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));
@@ -83,7 +87,8 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
     await page.evaluate(()=>{M.raw.triggerRepaint();return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));});
     await page.waitForFunction(()=>M.raw.areTilesLoaded(),null,{timeout:30000}).catch(()=>{});await page.waitForTimeout(350);
    };
-   for(const shot of SHOTS[view]){
+   for(const spec of SHOTS[view.startsWith('phone')?'phone':view]){
+    const shot={...spec,zoom:+(spec.zoom+zoomShift).toFixed(2)};
     const label=`${engine}-${view}-${shot.name}`;
     try{
      // 先在安全視角把車模載好（中心點在畫面內、俯角夠大，不會被裁掉），再跳到受測視角。
