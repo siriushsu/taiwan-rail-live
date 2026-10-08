@@ -5622,7 +5622,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/10/7</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/10/8</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5630,6 +5630,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="closezoom1008"><span class="d">10/8</span><span>修正立體地圖拉到很近時，地下路段的列車整列消失；鏡頭對準車頭或車尾時，整列車也不會再突然不見</span></li>
         <li data-cl-of="nationalday1007"><span class="d">10/7</span><span>更新台鐵國慶連假班表，補上南迴與西部追加班次；App 連網重新開啟也能取得新班表</span></li>
         <li data-cl-of="journeyapplinks1007"><span class="d">10/7</span><span>行程分享的網址換成新格式，之前的連結仍可使用</span></li>
         <li data-cl-of="overtakemain1007"><span class="d">10/7</span><span>台鐵待避：一班車停站讓另一班先走時，股道換得過去的，改成先走的車走直的正線、等待的車停進旁邊的側線</span></li>
@@ -5637,7 +5638,6 @@
         <li data-cl-of="metrowidgetfree1005"><span class="d">10/5</span><span>捷運小工具的多站與「自動（最近的站）」改為所有人免費，不再需要通行證；更新到新版 App 後生效</span></li>
         <li data-cl-of="trtcnoy1005"><span class="d">10/5</span><span>環狀線即時資料改為即用即丟：伺服器不再累積環狀線列車的行駛紀錄，畫車與站牌跟隨用的暫存只留近況，每晚收班後清除</span></li>
         <li data-cl-of="ntmcache0930"><span class="d">10/5</span><span>淡海、安坑倒數改為約每分鐘向官方更新一次</span></li>
-        <li data-cl-of="metroidentity1005"><span class="d">10/5</span><span>修正文湖線同一班車重複出現、捷運待發車誤認進站訊息，以及台鐵通過車站時的短暫跳動</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5645,6 +5645,7 @@
         <summary>完整更新歷史（依主題分類）</summary>
         <ul class="foot-list">
         <li class="grp">路網與車站</li>
+        <li data-cl="closezoom1008"><span class="d">10/8</span><span>修正立體地圖拉到很近時，地下路段的列車整列消失、也點不到；鏡頭對準車頭或車尾、車身中間已經出了畫面時，整列車也會照常畫出來</span></li>
         <li data-cl="nationalday1007"><span class="d">10/7</span><span>更新台鐵國慶連假班表，補上南迴與西部追加班次；App 連網重新開啟也能取得新班表</span></li>
         <li data-cl="overtakemain1007"><span class="d">10/7</span><span>台鐵待避的股道改了：一班停站等另一班先走（通過或後到先開）時，股道換得過去的，改成先走的車走較直的正線、等待的車停較彎的側線；缺渡線或側線、或換了會和別班車衝突的，暫時維持原來的股道</span></li>
         <li data-cl="ntmcache0930"><span class="d">10/5</span><span>淡海、安坑倒數：9/30 起避免多層快取延長舊資料、斷線不把舊倒數標成新資料；10/5 起改為約每分鐘向官方更新一次</span></li>
@@ -6988,7 +6989,7 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v0930b：近景先篩除遠方路線與車輛，地下透視省去重複背面 pass；建物線條由螢幕中央優先，逐頂點只查一次 DEM。
 // v1001c：整合雙平台車站收集、台南道路、平鎮 SEO 最終校稿與 3D 效能改善。
 // v1007a：台鐵待避（超越車通過或後到先開）改成超越車走較直的正線、待避車停較彎的側線（派車由 repair_tra_overtake_tracks 修，閘門 verify_tra_overtake_tracks）。
-const BUILD = 'v1007c';
+const BUILD = 'v1008a';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

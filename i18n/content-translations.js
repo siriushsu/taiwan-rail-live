@@ -3714,3 +3714,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "更新台鐵國慶連假班表，補上南迴與西部追加班次；App 連網重新開啟也能取得新班表": "台鉄の国慶節連休ダイヤを更新し、南廻線と西部幹線の追加列車を反映しました。アプリもインターネットに接続して開き直すと新しいダイヤを取得できます",
 });
+
+// 2026-10-08 立體地圖拉近時地下列車整列消失（v1008a）：最近更新的英日文。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '修正立體地圖拉到很近時，地下路段的列車整列消失；鏡頭對準車頭或車尾時，整列車也不會再突然不見': 'Fixed trains on underground sections vanishing in the 3D map when zoomed in very close; whole trains also no longer disappear when the camera is aimed at the front or rear car',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '修正立體地圖拉到很近時，地下路段的列車整列消失；鏡頭對準車頭或車尾時，整列車也不會再突然不見': '立体マップで大きく拡大したとき、地下区間の列車が丸ごと消える問題を修正しました。先頭や最後尾の車両にカメラを向けても、列車が急に消えなくなりました',
+});

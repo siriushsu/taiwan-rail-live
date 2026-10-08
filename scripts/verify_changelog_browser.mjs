@@ -104,7 +104,9 @@ const widths = [360, 375, 414, 768];
 // 10/5：捷運小工具多站與自動選站改為免費一條（476→477）。
 // 10/5：新北捷運即時資料改由全站集中查詢一條（477→478）。
 // 10/7：台鐵待避股道與行程分享網址各新增一條（478→480）。
-const expectedHistoryCount = 480;
+// 10/7：台鐵國慶連假追加班表一條（480→481）。
+// 10/8：立體地圖拉近時地下列車整列消失修正一條（481→482）。
+const expectedHistoryCount = 482;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
