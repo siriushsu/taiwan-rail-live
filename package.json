@@ -7,6 +7,8 @@
     "check-collect-widget": "node scripts/verify_collect_widget_payload.mjs && node scripts/verify_collect_widget_checkin.mjs && ENGINE=webkit node scripts/verify_collect_widget_payload.mjs && ENGINE=webkit node scripts/verify_collect_widget_checkin.mjs && node app/scripts/verify_collect_scope_names.mjs",
     "check-collect-widget-checkin": "node scripts/verify_collect_widget_checkin.mjs",
     "check-afr": "node scripts/verify_afr.mjs",
+    "check-afr-timing": "node scripts/verify_afr_timing.mjs",
+    "check-afr-timing-browser": "node scripts/verify_afr_timing_browser.mjs",
     "check-afr-trainno": "node scripts/verify_afr_trainno.mjs",
     "check-metro-train-no": "node scripts/verify_metro_train_no.mjs",
     "check-klrt-core": "node scripts/verify_metro_core_bridge.mjs && node scripts/verify_klrt_worker_bridge.mjs && node scripts/verify_klrt_core_frontend.mjs",

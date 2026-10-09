@@ -1,13 +1,14 @@
 import {createRouteRuntime} from './route-runtime.js';
 import {afrInitialFacing} from './afr-operation.js';
 import {isScheduledTurnback} from './turnbacks.js';
-import {profileProgress,turnbackProgress,stationKey} from './timing.js';
+import {profileProgress,stationKey} from './timing.js';
 import {createPlanBinding,physicalTrainKey,physicalStopSignature} from './plan-binding.js';
 import {createOvertakeSidings} from './overtake-sidings.js';
 import {formationFor} from '../integration/formations.js';
+import {createAfrTiming,createAfrTimetablePolicy} from './afr-timing.js';
 export {physicalTrainKey,physicalStopSignature};
 export function createPhysicalMotion(pack,profiles,dispatch,{requireSignature=true}={}){
- const geometry=createRouteRuntime(pack,profiles),cache=new WeakMap(),bind=createPlanBinding(dispatch,{canJoin:geometry.joinable}),sidings=createOvertakeSidings(pack,dispatch,geometry),pending=new Set();
+ const geometry=createRouteRuntime(pack,profiles),cache=new WeakMap(),bind=createPlanBinding(dispatch,{canJoin:geometry.joinable}),sidings=createOvertakeSidings(pack,dispatch,geometry),pending=new Set(),afrPolicy=createAfrTimetablePolicy(dispatch,pack);
  // 別班在某站的進出路徑（節點與邊資源）。用它自己的紀錄——它若在別站也待避改道，要算改過的；
  // 互相引用時正在算的那班退回綁定原樣，不遞迴。
  function routeAt(T,name){
@@ -46,10 +47,13 @@ export function createPhysicalMotion(pack,profiles,dispatch,{requireSignature=tr
   }finally{pending.delete(tr);}
  }
  // stops＝綁定實際用的站序：略過派車表沒有的站之後的那一份（見 plan-binding.js），沒略過就是 tr.stops。
- function record(tr){if(cache.has(tr))return cache.get(tr);const binding=requireSignature?bind(tr):{plan:dispatch.plans[physicalTrainKey(tr)],basis:'unchecked'},bound=binding?.plan,stops=binding?.stops||tr.stops;
+ function record(tr){if(cache.has(tr))return cache.get(tr);const binding=requireSignature?bind(tr):{plan:dispatch.plans[physicalTrainKey(tr)],basis:'unchecked'},bound=binding?.plan;let stops=binding?.stops||tr.stops;
   if(!bound||bound.pathIds.length!==stops.length-1){cache.set(tr,null);return null;}
   const moved=(tr.sys||tr.system)==='tra_sched'&&stops.some(s=>s._plannedDwell)?sidingsFor(tr,stops,bound):null,plan=moved?{...bound,pathIds:moved.pathIds}:bound;
-  const holds=plan.holds||plan.departureHolds.map((departure,i)=>({arrival:plan.departureHolds[Math.max(0,i-1)],departure}));
+  const afrRules=(tr.sys||tr.system)==='afr_sched'?afrPolicy(tr,plan):null;
+  const afrTiming=afrRules?{...createAfrTiming(stops,plan.pathIds.map(id=>geometry.unfold(id).path.length),afrRules.passTimes),hideAt:afrRules.hideAt}:null;
+  if(afrTiming)stops=afrTiming.stops;
+  const holds=afrTiming?stops.map(()=>({arrival:0,departure:0})):(plan.holds||plan.departureHolds.map((departure,i)=>({arrival:plan.departureHolds[Math.max(0,i-1)],departure})));
   const schedule=stops.map((s,i)=>({arrSec:s.arrSec+holds[i].arrival,depSec:s.depSec+holds[i].departure}));
   const reversals=[];for(let i=1;i<plan.pathIds.length;i++){const a=geometry.unfold(plan.pathIds[i-1]),b=geometry.unfold(plan.pathIds[i]);if(isScheduledTurnback(tr.sys||tr.system,stops[i].name,a,b))reversals.push(i);}
   // cuts[i]＝第 i 段中途被略過的停靠站（派車表沒有、官方有停，2026-10 起的平鎮臨時站）：k 是原班表站序，at 是那一站座標
@@ -59,7 +63,7 @@ export function createPhysicalMotion(pack,profiles,dispatch,{requireSignature=tr
    for(let k=binding.stopIndexes[i]+1;k<binding.stopIndexes[i+1];k++){const st=tr.stops[k];if(st.stop===false||!Number.isFinite(st.lat)||!Number.isFinite(st.lon))continue;
     at=Math.max(at,geometry.unfold(plan.pathIds[i]).path.locate([st.lon,st.lat]).s);out.push({k,at});}
    return out.length?out:null;});
-  const value={plan,bindingBasis:binding.basis,sourceKey:binding.sourceKey,sidings:moved?.moves||null,stops,stopIndexes:binding.stopIndexes,cuts,holds,schedule,maxHold:Math.max(...holds.map(h=>h.departure)),reversals,initialFacing:afrInitialFacing(tr)??1};cache.set(tr,value);return value;
+  const value={plan,afrTiming,bindingBasis:binding.basis,sourceKey:binding.sourceKey,sidings:moved?.moves||null,stops,stopIndexes:binding.stopIndexes,cuts,holds,schedule,maxHold:Math.max(...holds.map(h=>h.departure)),reversals,initialFacing:afrInitialFacing(tr)??1};cache.set(tr,value);return value;
  }
  // 第 i 段的跑段曲線。併段（中間略過了派車表沒有的站）整段都在同一條曲線上（略過的是通過站）時沿用它、段長取各小段相加；
  // 略過的停靠站由 sample() 照 cuts 分截、各截用各自的曲線，只有那一站沒有座標切不了時才會跨跑段：沒有一條曲線涵蓋整段，
@@ -72,6 +76,7 @@ export function createPhysicalMotion(pack,profiles,dispatch,{requireSignature=tr
   // 跨夜判斷拿原班表的陣列：名冊把 _prevNight 等旗標掛在它上面（index.html schedWrapT）。首末站從不略過，時間範圍與綁定站序相同。
   const r=record(tr);if(!r)return undefined;const stops=r.stops,t=wrap(tr.stops,clockSec-officialDelaySec,r.maxHold),schedule=r.schedule;
   if(t<schedule[0].arrSec||t>schedule.at(-1).depSec)return null;
+  if(r.afrTiming?.hideAt!=null&&t>=r.afrTiming.hideAt)return null;
   if(!r.bindingBasis.startsWith('route-template')&&dispatch.handoffs?.some(h=>h.from===physicalTrainKey(tr))&&t>=schedule.at(-1).arrSec)return null;
   let lo=0,hi=schedule.length-1;while(hi-lo>1){const m=(lo+hi)>>1;if(schedule[m].arrSec<=t)lo=m;else hi=m;}
   const i=t>=schedule[hi].arrSec?hi:lo,s=stops[i],dwell=t<=schedule[i].depSec;
@@ -103,7 +108,6 @@ export function createPhysicalMotion(pack,profiles,dispatch,{requireSignature=tr
    if(run){const runTime=(s.depSec-run.rpDep)+elapsed,distance=profileProgress(run.rp,runTime)*run.rp.L,length=run.rpSegKm*1000;f=length>0?Math.max(0,Math.min(1,(distance-run.rpOff)/length)):0;}
    else f=span>0?Math.max(0,Math.min(1,elapsed/span)):0;
   }
-  if(!dwell&&(tr.sys||tr.system)==='afr_sched')f=turnbackProgress(f,s,stops[i+1]);
   chainageM=route.offsets[i-from]+(dwell?0:(route.offsets[i+1-from]-route.offsets[i-from])*f);
   }
   const point=route.path.at(Math.max(0,Math.min(route.path.length,chainageM)));

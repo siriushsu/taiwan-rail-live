@@ -649,6 +649,12 @@ try {
   process.stdout.write(afr.stdout || ''); process.stderr.write(afr.stderr || '');
   if (afr.status !== 0) fail('阿里山林鐵守門人未過——路網／班次／看板／手機版,或「奔跑中列車都在軌道上」壞了'
     + '（單獨重跑：npm run check-afr）');
+  const afrTiming = spawnSync('node', [path.join(wt, 'scripts', 'verify_afr_timing.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(afrTiming.stdout || ''); process.stderr.write(afrTiming.stderr || '');
+  if (afrTiming.status !== 0) fail('林鐵表定到離站、速度、銜接或車身交集驗收未通過');
+  const afrTimingBrowser = spawnSync('node', [path.join(wt, 'scripts', 'verify_afr_timing_browser.mjs')], { cwd:wt, encoding:'utf8', env:{...process.env,BASE_URL:'',EXPECTED_BUILD:''} });
+  process.stdout.write(afrTimingBrowser.stdout || ''); process.stderr.write(afrTimingBrowser.stderr || '');
+  if (afrTimingBrowser.status !== 0) fail('林鐵準時發車、實際車身與手機觸控驗收未通過');
   const afrFacing = spawnSync('node', [path.join(wt, 'scripts', 'verify_afr_push_pull.mjs')], { cwd:wt, encoding:'utf8', env:{...process.env,PORT:'',ENGINE:'',MUTATE:'',OUT:''} });
   process.stdout.write(afrFacing.stdout || ''); process.stderr.write(afrFacing.stderr || '');
   if (afrFacing.status !== 0) fail('林鐵推進／牽引方向、折返車身或手機驗證未通過');

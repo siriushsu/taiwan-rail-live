@@ -3738,3 +3738,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "修正高雄輕軌籬仔內與輕軌機廠站之間的列車跳站、卡住問題，順逆行都會沿軌道連續通過": "高雄ライトレールの籬仔内〜軽軌機廠間で列車が飛んだり止まったりする問題を修正しました。両方向とも線路に沿って連続して走行します",
 });
+
+// 2026-10-09 林鐵準時發車與速度分配（v1009c）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '林鐵列車恢復依班表準時出發與到站，途中依路線長度調整速度，站內往返車次也會連續銜接': 'Alishan Forest Railway trains now depart and arrive on schedule, with speeds adjusted to track lengths and continuous transitions between return services at stations',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '林鐵列車恢復依班表準時出發與到站，途中依路線長度調整速度，站內往返車次也會連續銜接': '阿里山森林鉄道の列車が時刻表どおりに発車・到着するようになりました。線路の長さに合わせて走行速度を調整し、駅での往復便も連続して表示します',
+});
