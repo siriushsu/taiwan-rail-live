@@ -29,12 +29,13 @@ export function createRouteRuntime(pack,profiles){
    edges.push(edgeRecord(w,from,to));coordinates.push(g.nodes.get(next.to).coordinate);nodes.push(next.to);walked+=next.e.length;seen.add(next.to);previous=current;current=next.to;last=next.e;
   }return {nodes,coordinates,edges,length:walked};
  }
- function route(ids,system,color,{prefixM=0,suffixM=0}={}){const key=ids.join(',')+':'+prefixM+':'+suffixM,cached=routes.get(key);if(cached)return cached;const coordinates=[],edges=[],offsets=[0],nodeIds=[];
+ function route(ids,system,color,{prefixM=0,suffixM=0,loop=false}={}){const key=ids.join(',')+':'+prefixM+':'+suffixM+(loop?':loop':''),cached=routes.get(key);if(cached)return cached;const coordinates=[],edges=[],offsets=[0],nodeIds=[];
   for(const id of ids){const p=unfold(id);if(nodeIds.length&&nodeIds.at(-1)!==p.nodeIds[0])throw Error('車站股道不連續');coordinates.push(...p.coordinates.slice(coordinates.length?1:0));nodeIds.push(...p.nodeIds.slice(nodeIds.length?1:0));edges.push(...p.edges);offsets.push(offsets.at(-1)+p.path.length);}
   let prefixLength=0;if(prefixM){const pre=extension(nodeIds[1],nodeIds[0],edges[0],prefixM);prefixLength=pre.length;coordinates.unshift(...pre.coordinates.reverse());nodeIds.unshift(...pre.nodes.reverse());edges.unshift(...pre.edges.reverse().map(e=>({...e,a:e.b,b:e.a})));for(let i=0;i<offsets.length;i++)offsets[i]+=prefixLength;}
   if(suffixM){const post=extension(nodeIds.at(-2),nodeIds.at(-1),edges.at(-1),suffixM);coordinates.push(...post.coordinates);nodeIds.push(...post.nodes);edges.push(...post.edges);}
-  const path=makePath(coordinates),lookup=(s,fn)=>{const point=path.at(Math.max(0,Math.min(path.length,s)));if(!point)return null;const i=point.index,e=edges[i],f=(point.s-path.d[i])/(path.d[i+1]-path.d[i]||1);return fn(e.wayId,e.a+(e.b-e.a)*f);},elevation=(s,mode)=>lookup(s,(id,d)=>atHeight(id,d,mode)),level=s=>lookup(s,levelAt);
-  const result={id:'physical:'+key,systemId:system,routeId:'physical',coordinates,color,loop:false,physical:true,path,offsets,elevation,level,nodeIds,edges,prefixLength};routes.set(key,result);if(routes.size>128)routes.delete(routes.keys().next().value);return result;
+  if(loop&&nodeIds[0]!==nodeIds.at(-1))throw Error('環線股道未接回起點');
+  const path=makePath(coordinates,loop),lookup=(s,fn)=>{const point=path.at(path.closed?s:Math.max(0,Math.min(path.length,s)));if(!point)return null;const i=point.index,e=edges[i],f=(point.s-path.d[i])/(path.d[i+1]-path.d[i]||1);return fn(e.wayId,e.a+(e.b-e.a)*f);},elevation=(s,mode)=>lookup(s,(id,d)=>atHeight(id,d,mode)),level=s=>lookup(s,levelAt);
+  const result={id:'physical:'+key,systemId:system,routeId:'physical',coordinates,color,loop:path.closed,physical:true,path,offsets,elevation,level,nodeIds,edges,prefixLength};routes.set(key,result);if(routes.size>128)routes.delete(routes.keys().next().value);return result;
  }
  const drawings=new Map();function drawingWays(system,color){const key=system+':'+color;if(!drawings.has(key))drawings.set(key,ways.filter(w=>w.system===system).map(w=>({id:'physical-way:'+w.id,systemId:system,routeId:w.id,physical:true,coordinates:w.coordinates,color,elevation:(s,mode)=>atHeight(w.id,s,mode),level:s=>levelAt(w.id,s)})));return drawings.get(key);}
  return {unfold,route,drawingWays,atHeight,levelAt,wayById,joinable};

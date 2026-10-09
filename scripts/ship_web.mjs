@@ -208,6 +208,14 @@ try {
   if (gateLedger.status !== 0) fail('出貨閘門帳本未過——產品指紋、更新紀錄例外、失敗重試或 --full 壞了'
     + '（單獨重跑：npm run check-ship-web-gates）');
 
+  // 高雄輕軌閉環：資料、位置與五節車身都要通過 C37↔C1，不能只驗線內中段。
+  for (const script of ['verify_klrt_loop.mjs', 'verify_klrt_loop_browser.mjs']) {
+    const klrtLoop = spawnSync('node', [path.join(wt, 'scripts', script)],
+      { cwd: wt, encoding: 'utf8', env: { ...process.env, BASE_URL: '', KLRT_WIDTHS: '', EXPECTED_BUILD: '' } });
+    process.stdout.write(klrtLoop.stdout || ''); process.stderr.write(klrtLoop.stderr || '');
+    if (klrtLoop.status !== 0) fail('高雄輕軌閉環驗收未過：' + script);
+  }
+
   // ── 2.65 辦公日曆表兩份副本的同步 ──────────────────────────────────────────
   // index.html 的 TW_DAYTYPE(前端選捷運班表)與 data/tw_daytype.json(worker 做北捷逐班綁定)
   // 是同一份資料的兩個副本,補新年度時「補一邊忘另一邊」不會有任何錯誤訊息——

@@ -139,7 +139,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     const v=Number.isFinite(terrainSample(coordinate));loadedCells.set(key,v);return v;
   }
   function railHeight(path,s){
-    if(path)s=Math.max(0,Math.min(path.length,s));
+    if(path)s=path.closed?((s%path.length)+path.length)%path.length:Math.max(0,Math.min(path.length,s));
     // 實體軌道以畫面地表為基準；舊 DEM 淨空含全線 +2.5m，不能再把它當路基高度。
     // 軌道、逐節車廂及跟車鏡頭共用此函式，保留交會層差，不以橋墩填補資料誤差。
     if(path?.level){const absolute=terrainHeights()?path.level(s)?.terrainHeightM:undefined;if(Number.isFinite(absolute))return terrainLoaded(path.at(s).coordinate)?absolute+.65:null;const ground=terrainHeights()?terrainAt(path.at(s).coordinate):0,level=path.level(s),offset=(terrainHeights()?level?.offsetM:level?.flatOffsetM??level?.offsetM)??0;return Number.isFinite(ground)?ground+offset+.65:null;}

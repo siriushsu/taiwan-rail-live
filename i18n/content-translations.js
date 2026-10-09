@@ -3730,3 +3730,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '高捷 10/11（週日）照官方公告改跑週六時刻表': '高雄MRTは公式発表に基づき、10/11（日）を土曜ダイヤで運行します',
 });
+
+// 2026-10-09 高雄輕軌閉環股道修正（v1009b）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  "修正高雄輕軌籬仔內與輕軌機廠站之間的列車跳站、卡住問題，順逆行都會沿軌道連續通過": "Fixed trains jumping or getting stuck between Lizihnei and LRT Depot on Kaohsiung LRT; trains now move continuously along the tracks in both directions",
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  "修正高雄輕軌籬仔內與輕軌機廠站之間的列車跳站、卡住問題，順逆行都會沿軌道連續通過": "高雄ライトレールの籬仔内〜軽軌機廠間で列車が飛んだり止まったりする問題を修正しました。両方向とも線路に沿って連続して走行します",
+});
