@@ -64,6 +64,16 @@
       }
     },
     {
+      "id": "krtc-20261011-saturday",
+      "out": "data/krtc_times.json",
+      "use": "假日",
+      "dates": ["2026-10-11"],
+      "source": "https://www.krtc.com.tw/Information/events_more?id=904f3230ba18495e93f836c1a591d353",
+      "quote": "配合當日多項活動，115.10.11（日）將採「週六」時刻表營運。",
+      "_note": "高捷官網 2026-10-08 公告。紅線「假日」set 就是官網的週六表(R3/R10/R24 週六、週日表與官網逐筆相同,2026-10-09 實查)。橘線官網週六表與週日表相同(O1 逐筆相同),資料裡橘線週六本來就走「周日」,不必覆寫。",
+      "lines": { "KR": {} }
+    },
+    {
       "id": "tymc-20261012-post-expo",
       "out": "data/tymc_times.json",
       "from": "2026-10-12",

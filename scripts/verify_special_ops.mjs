@@ -71,6 +71,14 @@ const EXPECT = {
       { from: 20, to: 11, windows: [['20:14', '21:59']], everyMin: 15, keepLast: '19:59' },
     ] },
   },
+  // 高雄捷運官網 2026-10-08 公告(events_more?id=904f3230…)逐字:
+  //   「配合當日多項活動，115.10.11（日）將採「週六」時刻表營運。」
+  // 官網各站時刻表(2026-10-09 實查,更新日期 2026/9/21):R3 小港往岡山 週六 169 班、週日 153 班;
+  // 橘線 O1 西子灣週六表與週日表逐筆相同(各 144 班)⇒ 橘線那天照常,只有紅線要改。
+  'krtc-20261011-saturday': {
+    out: 'data/krtc_times.json', date: '2026-10-11', next: '2026-10-12',
+    dateUse: { line: 'KR', from: 0, sat: 169, sun: 153, same: 'KO' },
+  },
   // 桃園機捷官網各站時刻表(timetable-A1…A22,每站先 POST station-timetable-date.php 指定查詢日期),
   // 2026-09-25 實查 10/12–10/31(官網附註「目前時刻表更新至115/10/31」)共 20 天:
   //   週一到週五每天 22 站兩方向出發共 3752 筆、15 天彼此逐筆相同;週六日每天 3650 筆、5 天彼此逐筆相同。
@@ -256,6 +264,22 @@ for (const [id, E] of Object.entries(EXPECT)) {
       ok(last === toSec(R.keepLast), `對照:官方那天最後一班 ${R.keepLast} 仍在(只砍 20:00 以後)— 實際最後一班 ${last == null ? '無' : hh(last)}`);
     }
     ok(gone.length === want, `例外 set 只比基準少這 ${want} 班 — 實際少 ${gone.length} 班`);
+    continue;
+  }
+
+  if (E.dateUse) {
+    const X = E.dateUse, L = T[X.line];
+    if (E.date < TODAY) { console.log(`  ⚑ ${E.date} 已過——本筆 EXPECT 與 special_ops.json 那筆都可刪`); continue; }
+    if (!L) { ok(false, `線 ${X.line} 存在`); continue; }
+    const upCnt = s => (L.sets[s] || []).filter(tr => tr[0] === X.from && ascOf(tr)).length;
+    const pick = siteSet(L, E.date);
+    ok(Object.keys(L.dates || {}).join(',') === E.date, `${X.line} 只有 ${E.date} 有例外 — 實際:${Object.keys(L.dates || {}).join(',') || '(空)'}`);
+    ok(pick === L.days[6], `${E.date} 選到平常週六那一版「${L.days[6]}」— 實際「${pick}」`);
+    ok(upCnt(pick) === X.sat, `${E.date} 站 ${X.from} 上行 ${upCnt(pick)} 班 == 官網週六 ${X.sat} 班`);
+    ok(L.days[0] !== pick && upCnt(L.days[0]) === X.sun, `對照:平常週日「${L.days[0]}」${upCnt(L.days[0])} 班(官網週日 ${X.sun}),判準分得出兩天`);
+    ok(siteSet(L, E.next) === L.days[1], `${E.next} 回到平日「${L.days[1]}」— 實際「${siteSet(L, E.next)}」`);
+    const S = T[X.same];
+    ok(!!S && !S.dates && S.days[6] === S.days[0], `${X.same} 週六與週日本來就是同一版「${S && S.days[0]}」,那天不用改`);
     continue;
   }
 

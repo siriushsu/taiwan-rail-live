@@ -127,6 +127,14 @@ export function applySpecialOps(out, outPath, ROOT, log = console.log) {
 
 function applyLine(L, lid, rule, op, outPath, log) {
   if (!L) throw new Error(`special_ops ${op.id}: 線 ${lid} 不存在於 ${outPath}`);
+  // 例外日整天改跑另一種既有日型(官方公告「某日採週六時刻表」):只把 dates 指過去,不複製班表
+  if (op.use) {
+    if (!L.sets[op.use]) throw new Error(`special_ops ${op.id}: ${lid} 沒有 set「${op.use}」`);
+    L.dates = L.dates || {};
+    for (const d of op.dates) L.dates[d] = op.use;
+    log(`  ⚑ ${lid} 例外日 ${op.dates.join(' ')} 改跑「${op.use}」`);
+    return;
+  }
   const base = L.sets[op.base];
   if (!base) throw new Error(`special_ops ${op.id}: ${lid} 沒有基準 set「${op.base}」`);
   if (!op.dates) { addTrips(L, op.base, rule.add || [], op.id, log); return; }

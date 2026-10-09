@@ -3722,3 +3722,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '修正立體地圖拉到很近時，地下路段的列車整列消失；鏡頭對準車頭或車尾時，整列車也不會再突然不見': '立体マップで大きく拡大したとき、地下区間の列車が丸ごと消える問題を修正しました。先頭や最後尾の車両にカメラを向けても、列車が急に消えなくなりました',
 });
+
+// 2026-10-09 高捷 10/11 改跑週六時刻表（v1009a）：更新紀錄的英日文。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '高捷 10/11（週日）照官方公告改跑週六時刻表': 'Kaohsiung Metro runs its Saturday timetable on Sunday 10/11, per the official notice',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '高捷 10/11（週日）照官方公告改跑週六時刻表': '高雄MRTは公式発表に基づき、10/11（日）を土曜ダイヤで運行します',
+});
