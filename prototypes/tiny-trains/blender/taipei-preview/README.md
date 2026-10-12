@@ -2,6 +2,14 @@
 
 這是可編輯的 Blender 3D 外觀樣本，用於確認「真實站體量體＋自然柔和材質」的方向。中央採光區有完整覆蓋面，外圍紅色四坡屋頂、站體柱列和玻璃採光罩均可獨立修改。
 
+![三視角實際渲染](preview.jpg)
+
+[下載模型包（約 6.9 MB）](https://github.com/siriushsu/taiwan-rail-live/actions/runs/38229745697/artifacts/11738436252) · [成功建置](https://github.com/siriushsu/taiwan-rail-live/actions/runs/38229745697)
+
+2026-10-12 已以 Blender 4.0.2 完成：534 個可編輯部件；近景 19,302 triangles／12 draw groups，遠景 13,704 triangles／8 draw groups。原檔重開、兩級 GLB 往返（界限誤差 0）、法線與雜湊、兩級中央覆蓋各 15 點檢查全數通過。尚未在正式地圖或手機中量測效能。
+
+模型包由 commit `601ee142e8b5d2510f330500b1f5be673c3e2934` 產出，Actions artifact 保留至 2026-11-11；程式與本預覽保留在分支，可依下方指令重建。
+
 ## 產出
 
 - `taipei-main-exterior-v2-preview01.blend`：保留各部件、材質、倒角修改器與三視角渲染設定。
