@@ -28,44 +28,25 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y blender fonts-noto-cjk python3-pil python3-numpy
           blender --version
-      - name: 建模、匯出與三視角渲染
-        run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/taipei-preview/build.py -- --out output/taipei-station
-      - name: 驗證可編輯原檔、GLB 往返與中央覆蓋
+      - name: 建模與匯出
+        run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/taipei-preview/build.py -- --out output/taipei-station --skip-render
+      - name: 驗證原檔、GLB 往返、窗框接合與中央覆蓋
         run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/taipei-preview/verify.py -- output/taipei-station
-      - name: 組合審閱預覽
-        run: |
-          python3 - <<'PY'
-          import base64
-          import shutil
-          from pathlib import Path
-          from PIL import Image, ImageDraw, ImageFont
-          out = Path("output/taipei-station")
-          src = Path("prototypes/tiny-trains/blender/taipei-preview")
-          font = ImageFont.truetype("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", 22)
-          small = ImageFont.truetype("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", 15)
-          sheet = Image.new("RGB",(1200,730),"#f2ecdf")
-          draw = ImageDraw.Draw(sheet)
-          draw.text((28,20),"臺北車站 · Blender 外觀風格樣本 01",font=font,fill="#3d5153")
-          draw.text((28,56),"模型實際渲染｜中央採光區有覆蓋｜比例與細節待校正",font=small,fill="#6c7470")
-          hero = Image.open(out/"hero.png").convert("RGB").resize((760,594))
-          sheet.paste(hero,(0,116))
-          for i,(name,label) in enumerate([("front","正面"),("roof","屋頂與採光罩")]):
-              im = Image.open(out/(name+".png")).convert("RGB").resize((400,312))
-              sheet.paste(im,(780,90+i*320))
-              draw.text((800,94+i*320),label,font=small,fill="#3d5153")
-          sheet.save(out/"preview.jpg",quality=88)
-          for name in ("build.py","verify.py","README.md","reference-input.json","footprint.geojson","sources.md"):
-              shutil.copy2(src/name,out/name)
-          thumb = sheet.resize((1000,608))
-          thumb.save(out/"review.jpg",quality=82)
-          print("PREVIEW_BASE64_BEGIN")
-          print(base64.b64encode((out/"review.jpg").read_bytes()).decode("ascii"))
-          print("PREVIEW_BASE64_END")
-          PY
-      - name: 上傳 Blender 與地圖模型
+      - name: 保存已驗證模型
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: taipei-station-blender-preview
+          name: taipei-station-preview02-model
           path: output/taipei-station/
-          retention-days: 30
+          retention-days: 90
+          if-no-files-found: error
+      - name: 三視角實際渲染
+        run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/taipei-preview/render.py -- output/taipei-station
+      - name: 組合審閱預覽與前後比較
+        run: python3 prototypes/tiny-trains/blender/taipei-preview/compose.py
+      - name: 上傳 Blender、地圖模型與比較圖
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: taipei-station-blender-preview02
+          path: output/taipei-station/
+          retention-days: 90
           if-no-files-found: error

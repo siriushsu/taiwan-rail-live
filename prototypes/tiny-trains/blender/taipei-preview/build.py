@@ -1,4 +1,4 @@
-"""臺北車站第一版外觀樣站。以 Blender 執行，產出可編輯原檔與兩級地圖網格。"""
+"""臺北車站修訂樣站 02。修正色彩、照明與窗框接合；外觀實拍校正尚未完成。"""
 import argparse
 import bmesh
 import bpy
@@ -12,7 +12,7 @@ from pathlib import Path
 from mathutils import Vector
 
 HERE = Path(__file__).resolve().parent
-ID = "taipei-main-exterior-v2-preview01"
+ID = "taipei-main-exterior-v2-preview02"
 parser = argparse.ArgumentParser()
 parser.add_argument("--out", type=Path, default=HERE / "output")
 parser.add_argument("--skip-render", action="store_true")
@@ -33,11 +33,12 @@ SC.collection.children.link(ASSET)
 SC.collection.children.link(STUDIO)
 OBJECTS = []
 COLORS = {
-    "stone": "D8CDB5", "edge": "E8DFC9", "shadow": "B6A68B",
-    "roof": "B8634E", "roof_edge": "915140", "rib": "C6785E",
-    "glass": "62848A", "skylight": "9BB7BA", "frame": "D1D8CD",
-    "door": "3E5B61", "gold": "D4B278",
+    "stone": "B9B1A1", "edge": "C5BEB0", "shadow": "8D877B",
+    "roof": "8E3224", "roof_edge": "75251B", "rib": "9C3B29",
+    "glass": "364241", "skylight": "596562", "frame": "878B82",
+    "door": "253430", "gold": "B5A380", "studio": "D5D5D5",
 }
+# 修訂色票是美術調整，並非由照片量測；避免標成實拍校色。
 M = {}
 for key, hex_color in COLORS.items():
     srgb = [int(hex_color[i:i+2], 16)/255 for i in (0, 2, 4)]
@@ -47,8 +48,8 @@ for key, hex_color in COLORS.items():
     m.diffuse_color = (*rgb, 1)
     bs = m.node_tree.nodes.get("Principled BSDF")
     bs.inputs["Base Color"].default_value = (*rgb, 1)
-    bs.inputs["Roughness"].default_value = .32 if key in ("glass", "skylight") else .7
-    bs.inputs["Metallic"].default_value = .12 if key in ("glass", "skylight", "gold") else 0
+    bs.inputs["Roughness"].default_value = .3 if key in ("glass", "skylight") else .6 if key in ("roof", "roof_edge", "rib") else .85
+    bs.inputs["Metallic"].default_value = .12 if key == "gold" else 0
     M[key] = m
 
 def mesh(name, vertices, faces, material, component="body", detail=False, bevel=0, studio=False):
@@ -112,7 +113,8 @@ for axis, length, fixed, count in [("x",140,BD/2,19),("y",110,BW/2,15)]:
             box("米色立面方柱", loc, size, "edge", bevel=.16)
         for i in range(count-1):
             t = -length/2 + length*(i+.5)/(count-1)
-            loc = (t,sign*(fixed-.5),17.9) if axis == "x" else (sign*(fixed-.5),t,17.9)
+            # 與橫框、玻璃面接合；前版將豎框錯放到柱廊前緣。
+            loc = (t,sign*54.65,17.9) if axis == "x" else (sign*69.65,t,17.9)
             size = (.22,.3,23) if axis == "x" else (.3,.22,23)
             box("窗格細豎框", loc, size, "frame", detail=True)
 for sign in (-1,1):
@@ -127,7 +129,8 @@ for sign in (-1,1):
         box("南北入口門楣", (x,sign*57.6,6.8), (13.2,4.8,.8), "edge", bevel=.18)
         for offset in (-3,0,3):
             box("入口門框", (x+offset,sign*55.55,3.7), (.19,.25,5.5), "frame", detail=True)
-    for y in (-36.7,36.7):
+    for y in (-36.7,0,36.7):
+        # 東／西二門存在有臺鐵租用資訊佐證；門型與位置仍為近似。
         box("東西入口凹影", (sign*70.25,y,3.7), (.45,11.8,5.6), "door")
         box("東西入口門楣", (sign*72.5,y,6.8), (4.8,13.2,.8), "edge", bevel=.18)
 
@@ -227,6 +230,15 @@ def write_json(name, data):
     (OUT/name).write_text(json.dumps(data,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
 
 def export_level(level):
+    # 遠景移除小倒角，保留同一建築輪廓；原檔與近景仍保留修改器。
+    changed_modifiers = []
+    if level == "far":
+        for obj in OBJECTS:
+            for modifier in obj.modifiers:
+                if modifier.type in {"BEVEL", "WEIGHTED_NORMAL"}:
+                    changed_modifiers.append((modifier, modifier.show_viewport))
+                    modifier.show_viewport = False
+    bpy.context.view_layer.update()
     deps = bpy.context.evaluated_depsgraph_get()
     buckets = {}
     lo, hi = [math.inf]*3, [-math.inf]*3
@@ -290,6 +302,9 @@ def export_level(level):
     for o in exports:
         bpy.data.objects.remove(o,do_unlink=True)
     bpy.data.collections.remove(collection)
+    for modifier, visible in changed_modifiers:
+        modifier.show_viewport = visible
+    bpy.context.view_layer.update()
     return {"file":level+".mesh.bin","glb":level+".glb",
             "sha256":hashlib.sha256(raw).hexdigest(),
             "glbSha256":hashlib.sha256((OUT/(level+".glb")).read_bytes()).hexdigest(),
@@ -299,11 +314,13 @@ def export_level(level):
 near,bounds = export_level("near")
 far,_ = export_level("far")
 assert 0 < far["triangleCount"] < near["triangleCount"] < 60000
-assert far["triangleCount"] < 15000
+assert far["triangleCount"] < 6000
 assert abs(bounds["min"][2]) < .001
 meta = {
     "id":ID,"stationId":"TRA-1000","name":"臺北車站","version":2,
-    "status":"style-preview-unverified-details","application":bpy.app.version_string,
+    "status":"revised-preview-awaiting-photo-calibration","application":bpy.app.version_string,
+    "revision":2,"paletteSrgb":COLORS,"colorCalibration":"artist-adjusted-not-photo-measured",
+    "geometryVisuallyVerified":False,"productionReady":False,
     "anchor":[121.51711425,25.0477174],"rotationDeg":None,
     "facadeBearingDeg":None,"realBuildingHeightM":None,"railElevationM":None,
     "absoluteGroundAltitudeM":None,"engineeringDimensionsM":None,
@@ -316,9 +333,10 @@ meta = {
     "sourcePhotosIncluded":False,"photoVisuallyVerified":False,
     "operatorLogoIncluded":False,"modelUse":"map-exterior-preview",
     "components":[{"id":"body"},{"id":"roof"},{"id":"skylight"}],
-    "notes":["真實外觀導向的第一版樣本；開間數、樓層線、站名字形與位置、採光罩形狀待視覺核對。",
+    "notes":["修訂 02：修正粉白配色、採中性日光、讓豎窗框接回玻璃面，補東西二門。",
+             "照片像素仍無法檢視，未完成實拍校色與逐面造型校正；開間、樓層線、字形與採光罩仍為估值。",
              "尺寸為造型參數，寬深參考既有 OSM 擬合值；不可作工程尺寸。",
-             "遠景移除瓦壟、窗格細框、字形與採光罩細格，保留中央覆蓋面。",
+             "遠景移除瓦壟、細框、字形、採光罩細格與小倒角，保留中央覆蓋面。",
              "攝影棚不納入 GLB 與 mesh.bin；尚未替換正式地圖資產。"],
 }
 write_json("model.json",meta)
@@ -331,34 +349,38 @@ write_json("placement-preview.json",{
 })
 
 # 成品以模型實際渲染，非生成式概念圖。
-SC.world = bpy.data.worlds.new("柔和日光")
+SC.world = bpy.data.worlds.new("中性日光校閱")
 SC.world.use_nodes = True
-SC.world.node_tree.nodes["Background"].inputs[0].default_value = (.68,.74,.8,1)
-SC.world.node_tree.nodes["Background"].inputs[1].default_value = .65
+SC.world.node_tree.nodes["Background"].inputs[0].default_value = (.45,.45,.45,1)
+SC.world.node_tree.nodes["Background"].inputs[1].default_value = .6
 SC.render.engine = "CYCLES"
 SC.cycles.device = "CPU"
-SC.cycles.samples = 96
-# Ubuntu 套件可能未編入 OpenImageDenoise；使用完整取樣避免依賴缺失。
+SC.cycles.samples = 32
+SC.cycles.max_bounces = 4
+SC.cycles.diffuse_bounces = 2
+SC.cycles.glossy_bounces = 2
+SC.cycles.use_adaptive_sampling = True
+SC.cycles.adaptive_threshold = .04
 SC.cycles.use_denoising = False
-SC.render.resolution_x = 1280
-SC.render.resolution_y = 1000
+SC.render.resolution_x = 1024
+SC.render.resolution_y = 800
 SC.render.resolution_percentage = 100
-SC.view_settings.view_transform = "AgX"
+# 中性色彩檢視；不將曝光、濾鏡或攝影棚暖色寫進地圖材質。
+SC.view_settings.view_transform = "Standard"
+SC.view_settings.look = "None"
+SC.view_settings.exposure = 0
+SC.view_settings.gamma = 1
 SC.render.image_settings.file_format = "PNG"
-box("僅預覽用米色地面",(0,0,-.3),(2000,2000,.5),"edge",studio=True)
+box("僅預覽用中性地面",(0,0,-.3),(2000,2000,.5),"studio",studio=True)
 target = Vector((0,0,18))
-for name,loc,power,size in [
-    ("主光",(-150,-170,260),1800000,180),
-    ("補光",(180,-30,130),500000,150),
-    ("輪廓光",(40,160,190),900000,120),
-]:
-    data = bpy.data.lights.new(name,"AREA")
-    light = bpy.data.objects.new(name,data)
-    STUDIO.objects.link(light)
-    light.location = loc
-    data.energy = power
-    data.size = size
-    light.rotation_euler = (target-light.location).to_track_quat("-Z","Y").to_euler()
+data = bpy.data.lights.new("中性日光","SUN")
+sun = bpy.data.objects.new("中性日光",data)
+STUDIO.objects.link(sun)
+sun.location = (-150,-170,260)
+data.energy = 2
+data.angle = math.radians(10)
+data.color = (1,1,1)
+sun.rotation_euler = (target-sun.location).to_track_quat("-Z","Y").to_euler()
 camera_data = bpy.data.cameras.new("正交樣站相機")
 camera = bpy.data.objects.new("正交樣站相機",camera_data)
 STUDIO.objects.link(camera)

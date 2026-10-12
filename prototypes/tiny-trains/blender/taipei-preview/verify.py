@@ -71,6 +71,23 @@ bpy.ops.wm.open_mainfile(filepath=str(blend))
 editable = bpy.data.collections["01 臺北車站可編輯部件"]
 assert len(editable.objects) == meta["nativeObjectCount"]
 assert any("中央採光罩完整覆蓋面" in obj.name for obj in editable.objects)
+# 檢查豎窗框確實接到橫窗框；可攔截前版浮在柱廊前緣的格柵。
+def world_bounds(obj):
+    corners = [obj.matrix_world @ Vector(p) for p in obj.bound_box]
+    return [[min(p[i] for p in corners) for i in range(3)],
+            [max(p[i] for p in corners) for i in range(3)]]
+def intersects(a,b):
+    return all(a[0][i] <= b[1][i]+.001 and b[0][i] <= a[1][i]+.001 for i in range(3))
+verticals = [o for o in editable.objects if o.name.startswith("窗格細豎框")]
+horizontals = [world_bounds(o) for o in editable.objects if o.name.startswith(("正背窗格橫框","兩側窗格橫框"))]
+assert verticals and horizontals
+assert all(any(intersects(world_bounds(o),h) for h in horizontals) for o in verticals), "窗框沒有接合"
+assert meta["lods"]["far"]["triangleCount"] < 6000
+assert meta["photoVisuallyVerified"] is False
+assert meta["geometryVisuallyVerified"] is False
+assert meta["productionReady"] is False
+report["windowFramesConnected"] = len(verticals)
+report["visualAccuracyVerified"] = False
 report["blendReopened"] = True
 report["editableObjects"] = len(editable.objects)
 report["pass"] = True

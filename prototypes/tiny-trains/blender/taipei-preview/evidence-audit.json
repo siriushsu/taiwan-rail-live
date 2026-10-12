@@ -1,0 +1,63 @@
+{
+  "revision": "preview02",
+  "date": "2026-10-13",
+  "stationId": "TRA-1000",
+  "scope": "材質與中性日光修訂、模型幾何錯誤修正；未完成實拍外觀校正",
+  "verifiedFacts": [
+    {
+      "topic": "單檐廡殿頂屋頂類型",
+      "source": "https://www.railway.gov.tw/tra-tip-web/tip/tip005/tip511/detail/0999020200159",
+      "verification": "official-text"
+    },
+    {
+      "topic": "東西二門作為辦公區出入口",
+      "source": "https://tip.railway.gov.tw/tra-tip-web/adr/rent-place-1",
+      "verification": "official-text",
+      "limit": "不提供門型、尺寸與座標"
+    },
+    {
+      "topic": "2016更新連結式屋瓦與簷下照明",
+      "source": "https://news.pts.org.tw/article/330215",
+      "verification": "reporter-interview-transcript",
+      "limit": "未據夜間燈光推定日間材質色"
+    },
+    {
+      "topic": "南北側簷下設站名",
+      "source": "https://news.pts.org.tw/article/318238",
+      "verification": "reporter-interview-transcript",
+      "limit": "報導為2016規劃敘述，非2026現況字體與位置證據"
+    }
+  ],
+  "modelCorrections": [
+    "豎窗框原先比玻璃與橫框平面向外突出2.35m，已接回窗格平面",
+    "補東西二門，外形和位置仍為近似",
+    "深紅褐屋瓦、灰米色牆面及灰綠玻璃為美術色票修訂，沒有冒稱實拍取樣",
+    "用中性日光與中性色彩檢視呈現材質，攝影棚不匯出至地圖",
+    "遠景移除細倒角，保留主輪廓與中央覆蓋"
+  ],
+  "unverified": [
+    "精確長寬高",
+    "立面柱距與開間數",
+    "各層樓板高程",
+    "門廊外形與位置",
+    "站名字形及位置",
+    "屋頂曲率與瓦片形狀",
+    "採光罩尺寸高程與分格",
+    "現況日間材料色彩",
+    "地圖正面方位"
+  ],
+  "photoPixelAccess": "web工具回傳圖片佔位標記與來源文字，沒有可檢視的影像內容；不將來源連結核對等同視覺核對",
+  "photoVisuallyVerified": false,
+  "engineeringDimensionsM": null,
+  "facadeBearingDeg": null,
+  "rejectedEvidence": [
+    {
+      "source": "https://www.rb.gov.tw/public/files/artsinfo/1526560184-0.pdf",
+      "reason": "搜尋摘要混含臺北、板橋、南港站，無法確認花崗石與暖棕色材料段落屬於哪站，不採為臺北站依據"
+    },
+    {
+      "source": "https://zh.wikipedia.org/wiki/臺北車站",
+      "reason": "149×110×48m 為二手資料，本輪尚未核實其原始依據，不覆蓋既有未核實尺寸欄位"
+    }
+  ]
+}
