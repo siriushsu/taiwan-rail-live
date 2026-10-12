@@ -67,6 +67,20 @@ def stepped_gable(G,name,x,y,z,w,h):
     profile=[(-w/2,0),(w/2,0),(w/2,.25*h),(.32*w,.25*h),(.32*w,.55*h),(.15*w,.55*h),(.15*w,.78*h),(0,h),(-.15*w,.78*h),(-.15*w,.55*h),(-.32*w,.55*h),(-.32*w,.25*h),(-w/2,.25*h)]
     with G.part(name):
         g.extrude_f(G,g.front(y),[(x+u,z+v) for u,v in profile],-.30,.12,"cream")
+def front_band(G,name,x0,x1,y,z,h,holes,mat="cream",lod="both"):
+    # Bands end at actual openings; never draw solid masonry across glazing.
+    cuts=[]
+    for opening in holes:
+        poly=opening["poly"]
+        if max(v for u,v in poly)<=z or min(v for u,v in poly)>=z+h:continue
+        cuts.append((min(u for u,v in poly)-.015,max(u for u,v in poly)+.015))
+    cursor=x0
+    for a,b in sorted(cuts):
+        a=max(x0,a);b=min(x1,b)
+        if a>cursor:box(G,name,cursor,a,y-.18,y+.01,z,z+h,mat,lod)
+        cursor=max(cursor,b)
+    if cursor<x1:box(G,name,cursor,x1,y-.18,y+.01,z,z+h,mat,lod)
+
 def hsinchu(s):
     p=s["estimatedParameters"];G=PartsGeo()
     holes=[g.hole_arch(x,2.5,1.2,5.5,.35,8) for x in (-9,-5,5,9)]+[g.hole_arch(0,5,0,3.4,.4,12)]
@@ -88,17 +102,17 @@ def hsinchu(s):
     stepped_gable(G,"Entry stepped gable",0,-11.70,6.95,8.5,2.7)
     # Two bullseye dormers sit in the steep lower roof slope.
     for x in (-7,7):
-        box(G,"Dormer body",x-1.5,x+1.5,-6.5,-3.4,9.3,11.3,"tile")
-        stepped_gable(G,"Dormer gable",x,-6.55,10.5,3.3,1.9)
+        box(G,"Dormer body",x-1.5,x+1.5,-7.4,-3.4,9.3,11.3,"tile")
+        stepped_gable(G,"Dormer gable",x,-7.45,10.5,3.3,1.9)
         with G.part("Bullseye dormer"):
-            g.disc_f(G,g.front(-6.70),x,10.2,.60,.02,"glass",20)
-            g.ring_f(G,g.front(-6.70),x,10.2,.60,.79,0,.13,"cream",20)
+            g.disc_f(G,g.front(-7.60),x,10.2,.60,.02,"glass",20)
+            g.ring_f(G,g.front(-7.60),x,10.2,.60,.79,0,.13,"cream",20)
     box(G,"Clock tower", -1.9,1.9,-1.9,1.9,13,16.4,"tile")
     clock(G,"Clock face",0,-1.94,15.2,1.04)
     with G.part("Helmet clock cap"):
         g.revolve_f(G,g.world(),0,0,[(0,16.4),(2.5,16.4),(2.55,16.65),(2.15,16.9),(1.9,17.65),(1.1,18.3),(.42,18.8),(.12,19.6),(0,20)],"roof",16)
     for z in (1.0,7.6):
-        box(G,"Facade stone band",-13,13,-8.17,-7.99,z,z+.22,"cream",lod="near")
+        front_band(G,"Facade stone band",-13,13,-8,z,.22,holes,lod="near")
     # Near roof seams retain the steep and shallow pitches without texture atlases.
     with G.part("Roof standing seams"),G.detail("near"):
         for x in range(-10,11,2):
@@ -115,19 +129,21 @@ def taichung(s):
     hip(G,"Main upper roof",0,0,10,6.5,13.7,5,.8,15)
     for sign in (-1,1):
         a,b=(10,28) if sign>0 else (-28,-10)
-        shell(G,"Wing "+str(sign),a,b,-6,7,5.7,[g.hole_arch(x,2.1,.7,3.5,.3,8) for x in [a+4,a+9,a+14]])
+        wing_holes=[g.hole_arch(x,2.1,.7,3.5,.3,8) for x in [a+4,a+9,a+14]]
+        shell(G,"Wing "+str(sign),a,b,-6,7,5.7,wing_holes)
         hip(G,"Wing roof "+str(sign),(a+b)/2,.5,19,14,5.7,11,1,9)
         # White masonry bands are separate surfaces offset in depth to avoid z-fighting.
         for z in (1.0,3.0,5.25):
-            box(G,"Wing light band",a,b,-6.15,-5.99,z,z+.20,"cream")
+            front_band(G,"Wing light band",a,b,-6,z,.20,wing_holes)
     # Central clock dormer and pediment: the silhouette remains a calibration candidate.
     box(G,"Central clock dormer",-2.4,2.4,-6.35,-2.4,10.1,13.5,"tile")
     with G.part("Clock gable"):
         poly=[(-2.8,10.2),(2.8,10.2),(2.8,12.5),(1.8,13.4),(0,14.0),(-1.8,13.4),(-2.8,12.5)]
         g.extrude_f(G,g.front(-6.4),poly,-.25,.10,"cream")
+    hip(G,"Clock dormer copper cap",0,-4.4,5.6,4.4,13.5,4.6,2.8,14.15)
     clock(G,"Central clock",0,-6.55,12.2,1.05)
     for z in (1.1,3.2,7.7):
-        box(G,"Main light band",-10,10,-8.18,-7.99,z,z+.24,"cream")
+        front_band(G,"Main light band",-10,10,-8,z,.24,holes)
     # A low frontal canopy is independent of the rear historic platform canopy.
     box(G,"Front entrance canopy",-10.5,10.5,-10.5,-7.8,3.35,3.65,"roof")
     for x in (-9,-6,-3,3,6,9):
@@ -187,6 +203,10 @@ c.export_level=selected_export
 def render(out,meta):
     lo=Vector(meta["bounds"]["min"]);hi=Vector(meta["bounds"]["max"]);target=(lo+hi)/2;extent=max(hi-lo);sc=c.SC
     sc.render.resolution_x=1200;sc.render.resolution_y=760;sc.cycles.samples=24
+    ground=bpy.data.objects.get("Studio ground")
+    for v in ground.data.vertices:
+        v.co.x=target.x+(v.co.x-target.x)*10
+        v.co.y=target.y+(v.co.y-target.y)*10
     corners=[Vector((x,y,z)) for x in (lo.x,hi.x) for y in (lo.y,hi.y) for z in (lo.z,hi.z)]
     for name,delta in [("hero",(1.0,-1.8,.90)),("end",(0,-2,.07)),("roof",(.07,-.03,2))]:
         cam=sc.camera;cam.location=target+extent*Vector(delta)
