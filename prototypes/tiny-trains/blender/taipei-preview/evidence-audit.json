@@ -59,5 +59,63 @@
       "source": "https://zh.wikipedia.org/wiki/臺北車站",
       "reason": "149×110×48m 為二手資料，本輪尚未核實其原始依據，不覆蓋既有未核實尺寸欄位"
     }
-  ]
+  ],
+  "calibrationFollowup": {
+    "requestedOutcome": "符合實際外觀的 Blender 模型校正；不能以重新配色或格式驗證代替",
+    "status": "blocked-on-visual-or-measured-reference",
+    "modelGeometryChanged": false,
+    "findings": [
+      {
+        "id": "facade-tier-profile",
+        "source": "https://www.ntl.edu.tw/public/ntl/4216/06.%E5%8D%9A%E4%BD%B3-%E8%94%A1%E5%AF%A7.pdf",
+        "section": "關於大屋頂形式：臺北車站的大屋頂",
+        "printedPage": 226,
+        "sourceAccess": "search-indexed-text; full PDF exceeds web tool size limit",
+        "finding": "設計參與者訪談描述以二至三層樓的漸層量體形成仿斗拱意象；preview02 的各層相同寬深、全高直柱沒有表達此設計層次。",
+        "actionable": "必須重查上部立面層次，不能沿用整面等深格子。",
+        "missingMeasurements": [
+          "實際層數及高程",
+          "各層出挑深度",
+          "柱列與外牆前後關係"
+        ],
+        "appliedToGeometry": false
+      },
+      {
+        "id": "bim-study-floor-definition",
+        "source": "https://www.ceci.org.tw/Upload/Download/2A19A9F2-E530-4528-80A1-55715B2E043C.pdf",
+        "pdfPages": [
+          7,
+          8,
+          9
+        ],
+        "sourceAccess": "full PDF extracted text; figures unavailable",
+        "finding": "2016研究以51份既有圖檔和現地照片重建，研究模型範圍包含地上七層；不能把層數直接當成七排相同立面窗格。",
+        "limit": "目前沒有取得該研究的原始 RVT/IFC、平面圖或可讀取的剖視圖。",
+        "appliedToGeometry": false
+      },
+      {
+        "id": "overall-dimensions-citation",
+        "candidateDimensionsM": [
+          149,
+          110,
+          48
+        ],
+        "secondarySource": "https://zh.wikipedia.org/wiki/臺北車站",
+        "citedOriginal": "大公報 1989-09-02 第2版〈台北地鐵通車 李煥主持儀式〉",
+        "originalAccess": "Hong Kong Public Libraries redirected to inaccessible queue page",
+        "appliedToGeometry": false,
+        "reason": "未核對原報，亦未釐清建築本體、屋簷外緣及高度基準，不能直接套用至所有模型界限。"
+      }
+    ],
+    "blockers": [
+      "本次直接開啟照片、圖片搜尋及工程PDF截圖仍僅回傳文字與ImageDisplayed佔位，未取得可檢視影像。",
+      "雲端環境observations_current=true但observed_phase=pending、connectivity=offline、capabilities為空；等待後仍未可用。",
+      "目前沒有足夠依據量測柱距、出挑、屋頂與採光罩比例，未填入新的猜測數值。"
+    ],
+    "completionRequirements": [
+      "取得可直接檢視的正立面、側立面與高角度照片，或帶尺寸的立面與剖面圖。",
+      "逐項標註對應部位與校正參數，再改 Blender 幾何。",
+      "同視角對照實拍與實際渲染，重新驗證GLB。"
+    ]
+  }
 }
