@@ -2,6 +2,18 @@
 
 這是可編輯的 3D 外觀樣本，目標是保留真實建築特徵，再以柔和邊角呈現可愛風格。**尚未完成逐面實拍校正，不是已驗收的真實站體模型。**
 
+## 實際預覽與下載
+
+![前版 01 與修訂 02 的模型實際渲染](comparison.jpg)
+
+[查看三視角](preview02.jpg) · [下載修訂 02 完整模型包（約 4.8 MB）](https://github.com/siriushsu/taiwan-rail-live/actions/runs/38284520589/artifacts/11763126290) · [成功建置](https://github.com/siriushsu/taiwan-rail-live/actions/runs/38284520589)
+
+2026-10-13（臺灣時間）已用 Blender 4.0.2 實際建置並檢查渲染。538 個可編輯部件，近景 19,542 triangles／12 draw groups，遠景 4,920 triangles／8 draw groups。遠景比前版少約 64%，尚未實測手機幀率。
+
+原檔重開、64 根豎窗框接合、兩級 GLB 往返（界限誤差 0）、中央覆蓋各 15 個取樣點、法線與雜湊均通過。詳見 [validation-preview02.json](validation-preview02.json)。
+
+模型包產自 commit `40b59d6daa1fd323209b2159c1d565f61e8593f0`，保留至 2027-01-10。後續預覽與說明提交不改動模型程式。`reference-input.json` 保留原始 preview01 準備資料；本次修訂依據另列於 `evidence-audit.json`，實際輸出版本與規格以包內 `model.json` 為準。
+
 ## 本次修訂
 
 - 暫定材質改為磚紅屋頂、灰米色牆面與深灰玻璃；改用中性日光和 Standard 色彩檢視，降低前版偏粉、泛白的效果。色票是美術調整，未經照片取樣。
