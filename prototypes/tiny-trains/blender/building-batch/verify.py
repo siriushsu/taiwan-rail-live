@@ -13,7 +13,8 @@ for folder in sorted(root.glob("*-candidate01")):
     assert len({o.get("component_id") for o in objects})>=6
     levels={}
     for level in ("near","far"):
-        lod=meta["lods"][level];raw=(folder/lod["file"]).read_bytes()
+        lod=meta["lods"][level];assert len(lod["drawGroups"])<=8
+        raw=(folder/lod["file"]).read_bytes()
         assert len(raw)==lod["vertexCount"]*24==lod["byteLength"]
         assert hashlib.sha256(raw).hexdigest()==lod["sha256"]
         verts=list(struct.iter_unpack("<6f",raw))
@@ -27,6 +28,7 @@ for folder in sorted(root.glob("*-candidate01")):
         raw_bounds=[[min(v[i] for v in verts) for i in range(3)],[max(v[i] for v in verts) for i in range(3)]]
         bpy.ops.wm.read_factory_settings(use_empty=True)
         bpy.ops.import_scene.gltf(filepath=str(folder/lod["glb"]))
+        bpy.context.view_layer.update()
         # Blender glTF importer already converts Y-up glTF back to Blender Z-up.
         points=[o.matrix_world@v.co for o in bpy.context.scene.objects if o.type=="MESH" for v in o.data.vertices]
         bounds=[[min(v[i] for v in points) for i in range(3)],[max(v[i] for v in points) for i in range(3)]]

@@ -35,6 +35,8 @@ jobs:
         run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/building-batch/recover_stations.py -- output/building-batch
       - name: Compose review comparison
         run: python3 prototypes/tiny-trains/blender/building-batch/compose.py
+      - name: Build offline review index
+        run: python3 prototypes/tiny-trains/blender/building-batch/review_index.py
       - name: Include evidence and batch manifest
         run: |
           cp prototypes/tiny-trains/blender/building-batch/*.json output/building-batch/

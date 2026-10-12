@@ -85,6 +85,7 @@ def facade_grid(name,z0,z1,w0,d0,w1,d1,floors,cols,mat,center=(0,0),cut=.08):
             f=k/cols
             a=Vector(aa[i]).lerp(Vector(aa[j]),f)
             b=Vector(bb[i]).lerp(Vector(bb[j]),f)
+            if z0 == 0: a.z = .12  # Keep the tilted beam cross-section above ground.
             beam(name+" mullion",a,b,.20,mat,component="facade",detail=True)
 def export_level(level):
     # 遠景移除小倒角，保留同一建築輪廓；原檔與近景仍保留修改器。
@@ -113,7 +114,7 @@ def export_level(level):
             if tri.area < 1e-8:
                 continue
             material = data.materials[tri.material_index]
-            key = (obj["component_id"],material.name)
+            key = ("main",material.name)  # Runtime batches by material; Blender retains editable components.
             bucket = buckets.setdefault(key,{"material":material,"v":[]})
             for li in tri.loops:
                 p = wm @ data.vertices[data.loops[li].vertex_index].co
@@ -179,6 +180,8 @@ def export(out,meta):
     meta.update({"application":bpy.app.version_string,"bounds":bounds,
       "sizeM":[bounds["max"][i]-bounds["min"][i] for i in range(3)],
       "lods":{"near":near,"far":far},"nativeObjectCount":len(OBJECTS),
+      "runtimeGrouping":"material","components":[{"id":x} for x in sorted({o["component_id"] for o in OBJECTS})],
+      "railElevationM":None,
       "axes":{"up":"+Z","right":"+X","front":"-Y","units":"meters","groundAnchor":[0,0,0]},
       "gltfAxes":{"up":"+Y","toZUp":"rotateX(+PI/2)"},
       "geometryVisuallyVerified":False,"productionReady":False,"photoVisuallyVerified":False,
