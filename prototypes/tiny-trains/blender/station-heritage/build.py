@@ -211,6 +211,7 @@ for s in SPECS:
         assert G.count(("both","far"))==inherited["lods"]["far"]["triangleCount"]
     else:G={"hsinchu":hsinchu,"taichung":taichung}[s["builder"]](s)
     conversion=import_parts(G)
+    print("HERITAGE_CONVERSION "+s["id"]+" "+json.dumps(conversion),flush=True)
     meta={"id":s["id"],"name":s["name"],"stationKeys":s["stationKeys"],"legacySceneId":s["legacySceneId"],
       "assetVariant":s["assetVariant"],"builder":s["builder"],"version":1,"status":"heritage-candidate-awaiting-review",
       "stationPositionLonLat":s["stationPositionLonLat"],"anchor":None,"realBuildingHeightM":None,
@@ -218,7 +219,7 @@ for s in SPECS:
       "sources":s["sources"],"photoReferences":s["photoReferences"],"confirmedTextFeatures":s["confirmedFeatures"],
       "pending":s["pending"],"modelUse":"map-exterior-preview","orientationMode":"local-facade",
       "railElevationM":None,"trackGuidesExported":False,"paletteSrgb":s["palette"],"conversion":conversion,
-      "sourceGeometryPreserved":s.get("sourceGeometryPreserved",False),
+      "sourceGeometryPreserved":s.get("sourceGeometryPreserved",False),"farTriangleBudget":s["farTriangleBudget"],
       "snapshotModified":False,"currentUndergroundOrElevatedStationIncluded":False,
       "notes":["可編輯建模候選，尚未完成本次照片校正及地圖放樣。","時鐘指針固定示意，未模擬即時時間。"]}
     out=OUT/s["id"];result=c.export(out,meta)

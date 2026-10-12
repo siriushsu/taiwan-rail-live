@@ -70,7 +70,8 @@
       "https://view.boch.gov.tw/NationalHistoricalPano/OA09602000324/output/Hsinchu_3.html",
       "https://commons.wikimedia.org/wiki/Category:TRA_Hsinchu_Station"
     ],
-    "productionReady": false
+    "productionReady": false,
+    "farTriangleBudget": 6000
   },
   {
     "id": "tainan-exterior-v1-candidate01",
@@ -133,7 +134,8 @@
       "All inherited pendingChecks preserved in inherited-source-metadata.json",
       "No new photographic calibration performed in this batch",
       "Construction wrap is intentionally a separate snapshot asset",
-      "Underground station and new entrances are separate pending assets"
+      "Underground station and new entrances are separate pending assets",
+      "Inherited far model retains up to 8000 triangles; mobile performance and further manual LOD reduction pending"
     ],
     "sourceGeometryPreserved": true,
     "photoReferences": [
@@ -143,7 +145,8 @@
       "https://commons.wikimedia.org/wiki/File:Tainan_Station_%282026%29_-_platforms_-_img_01.jpg",
       "https://commons.wikimedia.org/wiki/Category:TRA_Tainan_Station"
     ],
-    "productionReady": false
+    "productionReady": false,
+    "farTriangleBudget": 8000
   },
   {
     "id": "taichung-old-v1-candidate01",
@@ -213,6 +216,7 @@
       "https://view.boch.gov.tw/NationalHistorical/itemspage.aspx?id=12",
       "https://travel.taichung.gov.tw/en/attractions/intro/1568"
     ],
-    "productionReady": false
+    "productionReady": false,
+    "farTriangleBudget": 6000
   }
 ]

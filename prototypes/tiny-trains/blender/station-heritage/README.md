@@ -17,3 +17,5 @@ python3 prototypes/tiny-trains/blender/station-heritage/compose.py
 依賴 building-batch/core.py 與 tainan-memory-v1 的幾何工具。臺南近景保留原始三角形與法線；遠景僅合併重複頂點和共平面三角形，不做位移或任意比例壓縮。兩個 LOD 分開保存，遠景物件在 Blender 預設隱藏。
 
 全部 anchor／rotation 仍待放樣，productionReady=false。成功匯出不是實拍驗收，也不是手機幀率驗收。
+
+臺南沿用的遠景細節多，單獨列 8,000 三角形預算（原來源 7,638）；新竹與臺中舊驛站仍各 6,000。通用匯出器的預設維持 6,000。這個差異不代表手機效能已通過，後續需按真實地圖負載驗證。

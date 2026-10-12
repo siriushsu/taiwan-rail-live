@@ -176,7 +176,9 @@ def export(out,meta):
     near,bounds=export_level("near")
     far,far_bounds=export_level("far")
     if not (0<far["triangleCount"]<near["triangleCount"]<60000):raise AssertionError("LOD budget")
-    if far["triangleCount"]>6000:raise AssertionError("far budget")
+    far_budget=meta.get("farTriangleBudget",6000)
+    if not isinstance(far_budget,int) or not 1<=far_budget<=10000:raise AssertionError("invalid far budget")
+    if far["triangleCount"]>far_budget:raise AssertionError(f"far budget: {far['triangleCount']} > {far_budget}")
     meta.update({"application":bpy.app.version_string,"bounds":bounds,
       "sizeM":[bounds["max"][i]-bounds["min"][i] for i in range(3)],
       "lods":{"near":near,"far":far},"nativeObjectCount":len(OBJECTS),

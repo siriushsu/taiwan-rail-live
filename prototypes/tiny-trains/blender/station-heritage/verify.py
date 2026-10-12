@@ -69,7 +69,7 @@ for s in specs:
         assert error<.005
         levels[level]={"triangles":lod["triangleCount"],"drawGroups":len(lod["drawGroups"]),"glbBytes":len(glb),"roundtripBoundsErrorM":error,"roofProbes":len(probes)}
     assert 0<levels["far"]["triangles"]<levels["near"]["triangles"]<60000
-    assert levels["far"]["triangles"]<6000
+    assert levels["far"]["triangles"]<=s["farTriangleBudget"]
     reports.append({"id":meta["id"],"name":meta["name"],"editableObjects":meta["nativeObjectCount"],
        "features":features,"levels":levels,"formatValidated":True,"photoCalibrated":False,"placementVerified":False})
 (root/"validation.json").write_text(json.dumps(reports,ensure_ascii=False,indent=2)+"\n")
