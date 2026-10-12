@@ -52,7 +52,7 @@ def facade(G,name,y,x0,x1,z0,z1,holes,mat="tile",trim="cream"):
                     # Direct polygon offset from the hole center; visual moulding only.
                     cx=sum(p[0] for p in h["poly"])/len(h["poly"])
                     cz=(min(p[1] for p in h["poly"])+max(p[1] for p in h["poly"]))/2
-                    outer=[(cx+(u-cx)*1.14,cz+(v-cz)*1.06) for u,v in h["poly"]]
+                    outer=[(cx+(u-cx)*1.14,max(z0,cz+(v-cz)*1.06)) for u,v in h["poly"]]
                     g.band_f(G,f,outer,h["poly"],0,.10,trim,closed=True,skip="n")
 def shell(G,name,x0,x1,y0,y1,h,holes,mat="tile"):
     facade(G,name+" front",y0,x0,x1,0,h,holes,mat)
@@ -164,6 +164,7 @@ def import_parts(G):
             else:
                 data.polygons.foreach_set("use_smooth",[True]*len(data.polygons))
                 data.normals_split_custom_set_from_vertices(normals)
+                if hasattr(data,"use_auto_smooth"):data.use_auto_smooth=True
             data.materials.append(c.M[mat]);data.calc_loop_triangles();after+=len(data.loop_triangles)
             obj=bpy.data.objects.new(level+" "+part+" "+mat,data);c.ASSET.objects.link(obj)
             obj["component_id"]=part;obj["near_only"]=False;obj["lod_layer"]=level

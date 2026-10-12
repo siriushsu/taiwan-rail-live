@@ -55,7 +55,7 @@ for s in specs:
                 hit,normal,index,dist=tree.ray_cast(Vector((x,-30,7.5)),Vector((0,1,0)))
                 assert hit is not None
                 group=next(g for g in lod["drawGroups"] if g["start"]<=index*3<g["start"]+g["count"])
-                assert group["name"]=="glass",(level,i,group["name"],tuple(hit))
+                assert group["name"].split(".")[0]=="glass",(level,i,group["name"],tuple(hit))
         glb=(folder/lod["glb"]).read_bytes();assert hashlib.sha256(glb).hexdigest()==lod["glbSha256"]
         magic,version,size=struct.unpack_from("<4sII",glb);assert magic==b"glTF" and version==2 and size==len(glb)
         js_size,chunk=struct.unpack_from("<I4s",glb,12);assert chunk==b"JSON"
