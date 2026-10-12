@@ -3,7 +3,9 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'prototypes/tiny-trains/blender/taipei-preview/**'
+      - 'prototypes/tiny-trains/blender/taipei-preview/*.py'
+      - 'prototypes/tiny-trains/blender/taipei-preview/*.json'
+      - 'prototypes/tiny-trains/blender/taipei-preview/*.geojson'
       - '.github/workflows/taipei-station-preview.yml'
 permissions:
   contents: read
@@ -24,7 +26,7 @@ jobs:
       - name: 安裝 Blender 與中文字型
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y blender fonts-noto-cjk python3-pil
+          sudo apt-get install -y blender fonts-noto-cjk python3-pil python3-numpy
           blender --version
       - name: 建模、匯出與三視角渲染
         run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/taipei-preview/build.py -- --out output/taipei-station

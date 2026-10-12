@@ -66,6 +66,8 @@ def mesh(name, vertices, faces, material, component="body", detail=False, bevel=
     obj["component_id"] = component
     obj["near_only"] = detail
     if bevel:
+        if hasattr(data, "use_auto_smooth"):
+            data.use_auto_smooth = True
         mod = obj.modifiers.new("柔化邊角", "BEVEL")
         mod.width = bevel
         mod.segments = 2
