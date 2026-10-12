@@ -14821,12 +14821,18 @@
     {
       "id": "taipei101-landmark-v1",
       "name": "臺北101",
-      "status": "rework-required"
+      "status": "candidate-built-awaiting-photo-review",
+      "candidateId": "taipei101-exterior-v2-candidate01",
+      "productionReady": false,
+      "geometryVisuallyVerified": false
     },
     {
       "id": "shinkong-landmark-v1",
       "name": "臺北站前新光三越／新光摩天大樓",
-      "status": "rework-required"
+      "status": "candidate-built-awaiting-photo-review",
+      "candidateId": "shinkong-exterior-v2-candidate01",
+      "productionReady": false,
+      "geometryVisuallyVerified": false
     }
   ],
   "acceptance": {
@@ -14871,5 +14877,7 @@
         "https://takamatsu.co.jp/project/高雄地下鉄駅-kaosiung-metro-station/"
       ]
     }
-  ]
+  ],
+  "generatedLandmarkCandidateCount": 2,
+  "recoveredExistingStationAssetCount": 13
 }
