@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "asOf": "2026-10-12",
+  "asOf": "2026-10-13",
   "sourceDate": "2026-10-09",
   "stationCodeCount": 423,
   "distinctPhysicalAssetCount": null,
@@ -4475,7 +4475,7 @@
         "| 4220 | 臺南 | 120.21295, 22.99681 | [站文](https://zh.wikipedia.org/wiki/%E8%87%BA%E5%8D%97%E8%BB%8A%E7%AB%99) | 優先照片 |",
         "| 4220 臺南 | [TRA-P034](https://commons.wikimedia.org/wiki/File:Tainan_Station_%282026%29_-_exterior_-_img_01.jpg) · [TRA-P035](https://commons.wikimedia.org/wiki/File:Tainan_Station_%282026%29_-_exterior_-_img_02.jpg) · [TRA-P036](https://commons.wikimedia.org/wiki/File:Tainan_Station_%282026%29_-_platforms_-_img_01.jpg) · [圖庫](https://commons.wikimedia.org/wiki/Category:TRA_Tainan_Station) | 古蹟站房與地下化切換版本分開；其餘側背面與近期現況待補。 |"
       ],
-      "status": "reference-linked-awaiting-model",
+      "status": "existing-detailed-model-native-conversion-in-progress",
       "geometryVisuallyVerified": false,
       "productionReady": false,
       "buildingAnchor": null,
@@ -4489,7 +4489,11 @@
         "https://commons.wikimedia.org/wiki/File:Tainan_Station_%282026%29_-_exterior_-_img_02.jpg",
         "https://commons.wikimedia.org/wiki/File:Tainan_Station_%282026%29_-_platforms_-_img_01.jpg",
         "https://commons.wikimedia.org/wiki/Category:TRA_Tainan_Station"
-      ]
+      ],
+      "existingAssetIds": [
+        "tainan-old"
+      ],
+      "existingSourcePath": "memories/tainan-2026-09-12/station/model.json"
     },
     {
       "stationKey": "TRA:4250",
@@ -7723,7 +7727,7 @@
         "| 7150 | 冬山 | 121.79211, 24.63633 | [站文](https://zh.wikipedia.org/wiki/%E5%86%AC%E5%B1%B1%E8%BB%8A%E7%AB%99) | 優先照片 |",
         "| 7150 冬山 | [TRA-P049](https://commons.wikimedia.org/wiki/File:TRA_Dongshan_Station.JPG) · [TRA-P050](https://commons.wikimedia.org/wiki/File:TRA_Dongshan_Station_Platform2016-8.JPG) · [TRA-P051](https://travel.dongshan.gov.tw/uploads/travel/00000003.jpg) · [圖庫](https://commons.wikimedia.org/wiki/Category:TRA_Dongshan_Station) | 2010外觀、2016月台、官方配圖互補；瓜棚圓拱和下層站房保留。 |"
       ],
-      "status": "reference-linked-awaiting-model",
+      "status": "blender-candidate-awaiting-photo-calibration",
       "geometryVisuallyVerified": false,
       "productionReady": false,
       "buildingAnchor": null,
@@ -7737,6 +7741,18 @@
         "https://commons.wikimedia.org/wiki/File:TRA_Dongshan_Station_Platform2016-8.JPG",
         "https://travel.dongshan.gov.tw/uploads/travel/00000003.jpg",
         "https://commons.wikimedia.org/wiki/Category:TRA_Dongshan_Station"
+      ],
+      "modelCandidates": [
+        {
+          "id": "dongshan-exterior-v1-candidate01",
+          "artifactUrl": "https://github.com/siriushsu/taiwan-rail-live/actions/runs/38291816538/artifacts/11766327401",
+          "sourceCommit": "4153230cd14d765ebd3373674ae4740c78646fdf",
+          "formatValidated": true,
+          "photoCalibrated": false,
+          "placementVerified": false,
+          "productionReady": false,
+          "assetVariant": "elevated-station-exterior"
+        }
       ]
     },
     {
@@ -9449,7 +9465,7 @@
       "referenceRows": [
         "| TRTC:R16 | 士林 | 高架 | [照片來源頁](https://zh.wikipedia.org/wiki/%E5%A3%AB%E6%9E%97%E7%AB%99) | 1. [MRT Shilin Station Exit1 20060626.jpg](https://commons.wikimedia.org/wiki/File:MRT_Shilin_Station_Exit1_20060626.jpg) — 2006-06-26；Smilelee；Public domain；圖說：1號出口　／　2. [Taipei MRT Shilin Station Exit2.jpg](https://commons.wikimedia.org/wiki/File:Taipei_MRT_Shilin_Station_Exit2.jpg) — 2006-06-29；Smilelee；Public domain；圖說：2號出口 | 核對既有高架屋頂及柱列；北環工程與完工本體分層。 兩張為2006舊照；北出口1／南出口2及懸山式屋頂另見下方官方工程來源。須補現況全景、側面與屋頂。 |"
       ],
-      "status": "reference-linked-awaiting-model",
+      "status": "blender-candidate-awaiting-photo-calibration",
       "geometryVisuallyVerified": false,
       "productionReady": false,
       "buildingAnchor": null,
@@ -9460,6 +9476,18 @@
         "https://zh.wikipedia.org/wiki/%E5%A3%AB%E6%9E%97%E7%AB%99",
         "https://commons.wikimedia.org/wiki/File:MRT_Shilin_Station_Exit1_20060626.jpg",
         "https://commons.wikimedia.org/wiki/File:Taipei_MRT_Shilin_Station_Exit2.jpg"
+      ],
+      "modelCandidates": [
+        {
+          "id": "shilin-exterior-v1-candidate01",
+          "artifactUrl": "https://github.com/siriushsu/taiwan-rail-live/actions/runs/38291816538/artifacts/11766327401",
+          "sourceCommit": "4153230cd14d765ebd3373674ae4740c78646fdf",
+          "formatValidated": true,
+          "photoCalibrated": false,
+          "placementVerified": false,
+          "productionReady": false,
+          "assetVariant": "tamsui-line-elevated-exterior"
+        }
       ]
     },
     {
@@ -14512,7 +14540,19 @@
         ],
         "relatedMapAssetIds": [],
         "sourceStatus": "planned-in-source",
-        "referencePage": "https://chatgpt.com/space/page_fb733ffc1cc88191a8341310c5b9b305"
+        "referencePage": "https://chatgpt.com/space/page_fb733ffc1cc88191a8341310c5b9b305",
+        "modelCandidates": [
+          {
+            "id": "dongshan-exterior-v1-candidate01",
+            "artifactUrl": "https://github.com/siriushsu/taiwan-rail-live/actions/runs/38291816538/artifacts/11766327401",
+            "sourceCommit": "4153230cd14d765ebd3373674ae4740c78646fdf",
+            "formatValidated": true,
+            "photoCalibrated": false,
+            "placementVerified": false,
+            "productionReady": false,
+            "assetVariant": "elevated-station-exterior"
+          }
+        ]
       },
       {
         "sceneId": "qingshui",
@@ -14566,7 +14606,19 @@
         ],
         "relatedMapAssetIds": [],
         "sourceStatus": "planned-in-source",
-        "referencePage": "https://chatgpt.com/space/page_ee82f0d5ddb08191a71ce1405421c53a"
+        "referencePage": "https://chatgpt.com/space/page_ee82f0d5ddb08191a71ce1405421c53a",
+        "modelCandidates": [
+          {
+            "id": "shilin-exterior-v1-candidate01",
+            "artifactUrl": "https://github.com/siriushsu/taiwan-rail-live/actions/runs/38291816538/artifacts/11766327401",
+            "sourceCommit": "4153230cd14d765ebd3373674ae4740c78646fdf",
+            "formatValidated": true,
+            "photoCalibrated": false,
+            "placementVerified": false,
+            "productionReady": false,
+            "assetVariant": "tamsui-line-elevated-exterior"
+          }
+        ]
       },
       {
         "sceneId": "formosa",
@@ -14580,7 +14632,19 @@
         ],
         "relatedMapAssetIds": [],
         "sourceStatus": "planned-in-source",
-        "referencePage": null
+        "referencePage": null,
+        "modelCandidates": [
+          {
+            "id": "formosa-ground-v1-candidate01",
+            "artifactUrl": "https://github.com/siriushsu/taiwan-rail-live/actions/runs/38291816538/artifacts/11766327401",
+            "sourceCommit": "4153230cd14d765ebd3373674ae4740c78646fdf",
+            "formatValidated": true,
+            "photoCalibrated": false,
+            "placementVerified": false,
+            "productionReady": false,
+            "assetVariant": "ground-main-entrances-study"
+          }
+        ]
       },
       {
         "sceneId": "taipei-under",
@@ -14869,15 +14933,26 @@
         "KRTC:O5"
       ],
       "legacySceneId": "formosa",
-      "status": "reference-linked-awaiting-model",
+      "status": "shared-entrance-prototype-built-awaiting-individual-calibration",
       "productionReady": false,
       "notes": "光之穹頂室內場景與地面出入口需分開製作，不能互相替代。",
       "sources": [
         "https://mtbu.kcg.gov.tw/Station/C001410?PageNumber=1&PageType=1&id=88f24f5e-d8d9-4a82-b646-6966e55a9996",
         "https://takamatsu.co.jp/project/高雄地下鉄駅-kaosiung-metro-station/"
-      ]
+      ],
+      "modelCandidate": {
+        "id": "formosa-ground-v1-candidate01",
+        "artifactUrl": "https://github.com/siriushsu/taiwan-rail-live/actions/runs/38291816538/artifacts/11766327401",
+        "sourceCommit": "4153230cd14d765ebd3373674ae4740c78646fdf",
+        "formatValidated": true,
+        "photoCalibrated": false,
+        "placementVerified": false,
+        "productionReady": false,
+        "assetVariant": "ground-main-entrances-study"
+      }
     }
   ],
   "generatedLandmarkCandidateCount": 2,
-  "recoveredExistingStationAssetCount": 13
+  "recoveredExistingStationAssetCount": 13,
+  "generatedStationCandidateCount": 3
 }

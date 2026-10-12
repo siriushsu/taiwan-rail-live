@@ -1,0 +1,218 @@
+[
+  {
+    "id": "hsinchu-exterior-v2-candidate01",
+    "name": "新竹車站・外觀修訂",
+    "stationKeys": [
+      "TRA:1210"
+    ],
+    "legacySceneId": "hsinchu",
+    "assetVariant": "historic-station-exterior",
+    "stationPositionLonLat": [
+      120.97157,
+      24.80157
+    ],
+    "builder": "hsinchu",
+    "sources": [
+      {
+        "url": "https://view.boch.gov.tw/NationalHistorical/itemspage.aspx?id=60",
+        "role": "official-heritage-description",
+        "supports": [
+          "two-stage steep roof",
+          "dormers",
+          "clock tower",
+          "bottle-shaped entrance columns"
+        ]
+      },
+      {
+        "url": "https://nit.immigration.gov.tw/Multicultural/Detail/a8912367-ffc5-4adf-8419-b1399269c73c",
+        "role": "government-description",
+        "supports": [
+          "two bullseye windows",
+          "double-column entrance"
+        ]
+      }
+    ],
+    "confirmedFeatures": [
+      "Two-stage steep roof with dormers and helmet-shaped clock tower",
+      "Arched windows, stepped gable and double-column entrance"
+    ],
+    "estimatedParameters": {
+      "mainWidth": 26,
+      "mainDepth": 16,
+      "mainEave": 8.2,
+      "roofShoulder": 13,
+      "roofTop": 14.4,
+      "clockTop": 20,
+      "leftWingWidth": 12,
+      "rightWingWidth": 19
+    },
+    "palette": {
+      "tile": "C3BFAE",
+      "cream": "D8D2BC",
+      "ochre": "A49C80",
+      "white": "E7E5D8",
+      "frame": "797F75",
+      "glass": "4C6767",
+      "dark": "39433E",
+      "roof": "5B796B"
+    },
+    "pending": [
+      "Full photo calibration of roof pitch, clock cap and gables",
+      "Measured footprint and dimensions",
+      "Asymmetric wing extents, side and rear openings",
+      "Photo-sampled palette and geographic placement"
+    ],
+    "photoReferences": [
+      "https://zh.wikipedia.org/wiki/%E6%96%B0%E7%AB%B9%E8%BB%8A%E7%AB%99",
+      "https://commons.wikimedia.org/wiki/File:%E6%96%B0%E7%AB%B9%E5%B8%82%E7%81%AB%E8%BB%8A%E7%AB%99.jpg",
+      "https://commons.wikimedia.org/wiki/File:Hsinchu_Train_Station_%E6%96%B0%E7%AB%B9%E7%81%AB%E8%BB%8A%E7%AB%99.jpg",
+      "https://commons.wikimedia.org/wiki/File:20081006-%E5%8F%B0%E9%90%B5%E6%96%B0%E7%AB%B9%E8%BB%8A%E7%AB%99%E7%AB%99%E6%88%BF%E5%A4%96%E8%A7%80.jpg",
+      "https://view.boch.gov.tw/NationalHistoricalPano/OA09602000324/output/Hsinchu_3.html",
+      "https://commons.wikimedia.org/wiki/Category:TRA_Hsinchu_Station"
+    ],
+    "productionReady": false
+  },
+  {
+    "id": "tainan-exterior-v1-candidate01",
+    "name": "臺南舊站房・既有細模整理",
+    "stationKeys": [
+      "TRA:4220"
+    ],
+    "legacySceneId": "tainan",
+    "assetVariant": "historic-building-without-construction-wrap",
+    "stationPositionLonLat": [
+      120.21295,
+      22.99681
+    ],
+    "builder": "tainan",
+    "sources": [
+      {
+        "url": "https://view.boch.gov.tw/NationalHistorical/itemspage.aspx?id=27",
+        "role": "official-heritage-description",
+        "supports": [
+          "projecting front hall",
+          "three porch arches",
+          "seven tall arched windows"
+        ]
+      },
+      {
+        "url": "https://github.com/siriushsu/taiwan-rail-live/tree/8deb57ff011dd74327fd16380952bc749af78c13/prototypes/tiny-trains/blender/tainan-memory-v1",
+        "role": "existing-project-model",
+        "supports": [
+          "detailed geometry and existing estimates"
+        ]
+      },
+      {
+        "url": "https://www.openstreetmap.org/relation/6477070",
+        "role": "footprint-reference",
+        "license": "ODbL; © OpenStreetMap contributors"
+      }
+    ],
+    "confirmedFeatures": [
+      "Three entrance arches",
+      "Seven tall second-floor arched windows",
+      "Projecting first-floor hall and set-back second floor"
+    ],
+    "estimatedParameters": {
+      "source": "tainan-memory-v1/common.py",
+      "porchSetback": 9,
+      "roofHeight": 12,
+      "topHeight": 13.8
+    },
+    "palette": {
+      "tile": "B9B4A8",
+      "cream": "D9CBA4",
+      "ochre": "B1925F",
+      "white": "E9E7DF",
+      "frame": "C4C6BD",
+      "glass": "3C565B",
+      "dark": "262B2D",
+      "roof": "8F948C"
+    },
+    "pending": [
+      "All inherited pendingChecks preserved in inherited-source-metadata.json",
+      "No new photographic calibration performed in this batch",
+      "Construction wrap is intentionally a separate snapshot asset",
+      "Underground station and new entrances are separate pending assets"
+    ],
+    "sourceGeometryPreserved": true,
+    "photoReferences": [
+      "https://zh.wikipedia.org/wiki/%E8%87%BA%E5%8D%97%E8%BB%8A%E7%AB%99",
+      "https://commons.wikimedia.org/wiki/File:Tainan_Station_%282026%29_-_exterior_-_img_01.jpg",
+      "https://commons.wikimedia.org/wiki/File:Tainan_Station_%282026%29_-_exterior_-_img_02.jpg",
+      "https://commons.wikimedia.org/wiki/File:Tainan_Station_%282026%29_-_platforms_-_img_01.jpg",
+      "https://commons.wikimedia.org/wiki/Category:TRA_Tainan_Station"
+    ],
+    "productionReady": false
+  },
+  {
+    "id": "taichung-old-v1-candidate01",
+    "name": "臺中舊驛站・獨立資產",
+    "stationKeys": [
+      "TRA:3300"
+    ],
+    "legacySceneId": null,
+    "assetVariant": "historic-1917-station-building",
+    "stationPositionLonLat": [
+      120.68691,
+      24.13728
+    ],
+    "builder": "taichung",
+    "sources": [
+      {
+        "url": "https://view.boch.gov.tw/NationalHistorical/itemspage.aspx?id=12",
+        "role": "official-heritage-description",
+        "supports": [
+          "red brick and white bands",
+          "copper roof",
+          "central clock tower",
+          "historic platform steel canopies"
+        ]
+      },
+      {
+        "url": "https://www.tchac.taichung.gov.tw/building?pid=1&uid=33",
+        "role": "official-heritage-register",
+        "supports": [
+          "1917 building",
+          "old building, porch and first platform"
+        ]
+      }
+    ],
+    "confirmedFeatures": [
+      "Red brick walls with light horizontal bands",
+      "Copper-clad pitched roof and central clock",
+      "Separate historic station, not current elevated station"
+    ],
+    "estimatedParameters": {
+      "mainWidth": 20,
+      "mainDepth": 16,
+      "mainEave": 8.5,
+      "mainRoofTop": 15,
+      "sideWingWidth": 18,
+      "sideWingEave": 5.7,
+      "sideWingRoof": 9,
+      "clockCenter": 12.2
+    },
+    "palette": {
+      "tile": "A86851",
+      "cream": "D7D2C1",
+      "ochre": "B6AC91",
+      "white": "E7E4D7",
+      "frame": "6E7870",
+      "glass": "536C69",
+      "dark": "36443F",
+      "roof": "536F65"
+    },
+    "pending": [
+      "Clock gable silhouette and main roof require photo calibration",
+      "Measured wing lengths, openings and exact roof profile",
+      "Historic platform complex and modern elevated station not included",
+      "Color sampling and geographic placement"
+    ],
+    "photoReferences": [
+      "https://view.boch.gov.tw/NationalHistorical/itemspage.aspx?id=12",
+      "https://travel.taichung.gov.tw/en/attractions/intro/1568"
+    ],
+    "productionReady": false
+  }
+]

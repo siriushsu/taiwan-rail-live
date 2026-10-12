@@ -1,0 +1,56 @@
+name: 古蹟站體 Blender 依序製作
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'prototypes/tiny-trains/blender/station-heritage/**'
+      - 'prototypes/tiny-trains/blender/building-batch/core.py'
+      - 'prototypes/tiny-trains/blender/tainan-memory-v1/**'
+      - '.github/workflows/station-heritage.yml'
+permissions:
+  contents: read
+concurrency:
+  group: station-heritage-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  models:
+    if: github.head_ref == 'codex/taipei-station-blender-preview' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            prototypes/tiny-trains/blender/station-heritage
+            prototypes/tiny-trains/blender/building-batch
+            prototypes/tiny-trains/blender/tainan-memory-v1
+            memories/tainan-2026-09-12/station
+      - name: Install Blender
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y blender fonts-noto-cjk python3-pil python3-numpy
+      - name: Build Hsinchu, Tainan and old Taichung in order
+        run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/station-heritage/build.py -- output/station-heritage
+      - name: Validate model structure and exports
+        run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/station-heritage/verify.py -- output/station-heritage
+      - name: Compose actual renders and review index
+        run: python3 prototypes/tiny-trains/blender/station-heritage/compose.py
+      - name: Include source files
+        run: |
+          cp prototypes/tiny-trains/blender/building-batch/station-manifest.json output/station-heritage/
+          mkdir -p output/station-heritage/source/prototypes/tiny-trains/blender output/station-heritage/source/memories/tainan-2026-09-12/station
+          cp -r prototypes/tiny-trains/blender/station-heritage output/station-heritage/source/prototypes/tiny-trains/blender/
+          cp -r prototypes/tiny-trains/blender/tainan-memory-v1 output/station-heritage/source/prototypes/tiny-trains/blender/
+          mkdir -p output/station-heritage/source/prototypes/tiny-trains/blender/building-batch
+          cp prototypes/tiny-trains/blender/building-batch/core.py output/station-heritage/source/prototypes/tiny-trains/blender/building-batch/
+          cp memories/tainan-2026-09-12/station/model.json output/station-heritage/source/memories/tainan-2026-09-12/station/
+          git diff --exit-code -- memories/tainan-2026-09-12
+      - name: Save Blender and map assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: station-heritage-hsinchu-tainan-taichung
+          path: output/station-heritage/
+          retention-days: 90
+          if-no-files-found: error

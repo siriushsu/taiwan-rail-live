@@ -25,3 +25,7 @@ python3 prototypes/tiny-trains/blender/station-priority/compose.py
 ```
 
 沿用 building-batch/core.py，原檔維持細分件，地圖匯出依材質合併。驗證包括 GLB 往返界限、法線與雜湊、近遠景面數、棚頂射線覆蓋、月台／拱架／入口分件數及攝影棚排除；這些是格式與模型結構檢查，不是實拍精度或手機幀率驗收。
+
+## 已產出的候選包
+
+[下載 Blender／地圖模型包](https://github.com/siriushsu/taiwan-rail-live/actions/runs/38291816538/artifacts/11766327401)（約 17.3 MB，2027-01-10 到期）。[實際渲染](contact-sheet.jpg)；[匯出檢查](validation.json)。原始建模提交 4153230cd14d765ebd3373674ae4740c78646fdf。
