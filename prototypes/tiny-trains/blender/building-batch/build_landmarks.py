@@ -8,7 +8,7 @@ ROOT=HERE.parents[3]
 OUT=Path(sys.argv[sys.argv.index("--")+1]) if "--" in sys.argv else HERE/"output"
 SPECS=json.loads((HERE/"landmarks.json").read_text())
 def rim(name,z,w,d,h,mat,center=(0,0),cut=.08,detail=False,component="trim"):
-    return c.taper(name,z,z+h,w,d,w,d,mat,center=center,cut=cut,detail=detail,component=component)
+    return c.taper(name,z,z+h+.06,w,d,w,d,mat,center=center,cut=cut,detail=detail,component=component)
 def medallion(name,center,radius,mat,rotation=0):
     # Flat ring, preserved as editable mesh; an architectural motif, not a logo.
     verts=[];faces=[]
@@ -42,6 +42,10 @@ def taipei101(s):
         z=p["baseTop"]+i*p["moduleHeight"];top=z+p["moduleHeight"]
         o=c.taper("Bamboo module %02d"%(i+1),z,top,47,47,55,55,"glass",center=center,component="module-%02d"%(i+1))
         o["repeat_index"]=i+1
+        # Opaque roof surface; the tier ledge is not reflective facade glass.
+        o.data.materials.append(c.M["edge"])
+        for face in o.data.polygons:
+            if face.normal.z > .9: face.material_index = 1
         c.facade_grid("Module %02d"%(i+1),z,top,47,47,55,55,8,12,"frame",center=center)
         rim("Module overhanging rim",top-1,56.2,56.2,1,"edge",center)
         # Wide corner ribs describe the tier silhouette even in the far LOD.
