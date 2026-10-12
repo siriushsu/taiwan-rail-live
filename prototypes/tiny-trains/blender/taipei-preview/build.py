@@ -337,8 +337,9 @@ SC.world.node_tree.nodes["Background"].inputs[0].default_value = (.68,.74,.8,1)
 SC.world.node_tree.nodes["Background"].inputs[1].default_value = .65
 SC.render.engine = "CYCLES"
 SC.cycles.device = "CPU"
-SC.cycles.samples = 32
-SC.cycles.use_denoising = True
+SC.cycles.samples = 96
+# Ubuntu 套件可能未編入 OpenImageDenoise；使用完整取樣避免依賴缺失。
+SC.cycles.use_denoising = False
 SC.render.resolution_x = 1280
 SC.render.resolution_y = 1000
 SC.render.resolution_percentage = 100
