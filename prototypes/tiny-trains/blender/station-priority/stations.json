@@ -1,0 +1,260 @@
+[
+  {
+    "id": "dongshan-exterior-v1-candidate01",
+    "name": "冬山車站",
+    "stationKeys": [
+      "TRA:7150"
+    ],
+    "legacySceneId": "dongshan",
+    "assetVariant": "elevated-station-exterior",
+    "stationPositionLonLat": [
+      121.79211,
+      24.63633
+    ],
+    "confirmedFeatures": [
+      "Crossing rounded steel arches with light membrane roofing",
+      "V-shaped elevated supports",
+      "Separate ground-level building volumes with semi-outdoor circulation"
+    ],
+    "secondaryFeatures": [
+      "Two island platforms (station article)"
+    ],
+    "sources": [
+      {
+        "url": "https://architdz.com/portfolio/2008-鐵路宜蘭線冬山站站場提高改建/",
+        "role": "architect-description",
+        "supports": [
+          "crossing arches",
+          "V supports",
+          "membrane",
+          "separate ground volumes"
+        ]
+      },
+      {
+        "url": "https://web.nstc.gov.tw/pstrain/2023/dongshan.html",
+        "role": "government-description",
+        "supports": [
+          "gourd-trellis form",
+          "white light-transmitting canopy"
+        ]
+      },
+      {
+        "url": "https://zh.wikipedia.org/wiki/冬山車站",
+        "role": "secondary-station-configuration",
+        "supports": [
+          "two island platforms"
+        ]
+      }
+    ],
+    "photoReferences": [
+      "https://zh.wikipedia.org/wiki/%E5%86%AC%E5%B1%B1%E8%BB%8A%E7%AB%99",
+      "https://commons.wikimedia.org/wiki/File:TRA_Dongshan_Station.JPG",
+      "https://commons.wikimedia.org/wiki/File:TRA_Dongshan_Station_Platform2016-8.JPG",
+      "https://travel.dongshan.gov.tw/uploads/travel/00000003.jpg",
+      "https://commons.wikimedia.org/wiki/Category:TRA_Dongshan_Station"
+    ],
+    "estimatedParameters": {
+      "deckLength": 360,
+      "deckWidth": 40,
+      "deckTop": 11,
+      "deckThickness": 1.6,
+      "platformLength": 340,
+      "platformWidth": 7.2,
+      "platformCenters": [
+        -9,
+        9
+      ],
+      "platformTop": 12.1,
+      "canopyLength": 306,
+      "archWidth": 42,
+      "archBase": 12.3,
+      "archRise": 10,
+      "archPairs": 18,
+      "archSkew": 7.6,
+      "archTubeRadius": 0.24,
+      "roofEndInset": 12,
+      "pierRows": 13,
+      "groundHallLength": 60
+    },
+    "palette": {
+      "structure": "D0D0C6",
+      "arch": "E2E6DF",
+      "membrane": "D8DED5",
+      "brick": "A3745F",
+      "glass": "617C77",
+      "paving": "AEAFA3",
+      "metal": "59635F",
+      "label": "E5E4D4"
+    },
+    "pending": [
+      "Measured canopy profile, station length and footprint",
+      "Membrane panel coverage and present repair condition",
+      "Ground hall and stair positions",
+      "Building anchor and railway alignment"
+    ]
+  },
+  {
+    "id": "shilin-exterior-v1-candidate01",
+    "name": "捷運士林站",
+    "stationKeys": [
+      "TRTC:R16"
+    ],
+    "legacySceneId": "shilin",
+    "assetVariant": "tamsui-line-elevated-exterior",
+    "stationPositionLonLat": [
+      121.52623,
+      25.093492
+    ],
+    "confirmedFeatures": [
+      "Elevated station with one island platform",
+      "Exit 1 at north end; Exit 2 at south end in publication",
+      "Xuan-shan gabled roof, not Xie-shan hip-and-gable roof",
+      "Ridge skylight, raised central roof and L-shaped steel brackets described for this station family"
+    ],
+    "sources": [
+      {
+        "url": "https://ebook.dorts.gov.taipei/ebook/no34/files/basic-html/page44.html",
+        "role": "official-engineering-book",
+        "supports": [
+          "island platform",
+          "north and south exits"
+        ]
+      },
+      {
+        "url": "https://ebook.dorts.gov.taipei/ebook/no34/files/basic-html/page49.html",
+        "role": "official-engineering-book",
+        "supports": [
+          "Xuan-shan roof classification",
+          "ridge skylight",
+          "central raised eaves",
+          "steel roof with tile-profile elements"
+        ]
+      }
+    ],
+    "photoReferences": [
+      "https://zh.wikipedia.org/wiki/%E5%A3%AB%E6%9E%97%E7%AB%99",
+      "https://commons.wikimedia.org/wiki/File:MRT_Shilin_Station_Exit1_20060626.jpg",
+      "https://commons.wikimedia.org/wiki/File:Taipei_MRT_Shilin_Station_Exit2.jpg"
+    ],
+    "estimatedParameters": {
+      "deckLength": 164,
+      "deckWidth": 22,
+      "deckTop": 9.6,
+      "platformLength": 144,
+      "platformWidth": 8,
+      "platformTop": 10.7,
+      "roofLength": 150,
+      "roofWidth": 25,
+      "roofEave": 17.4,
+      "roofRidge": 21,
+      "skylightWidth": 2,
+      "raisedCenterLength": 48,
+      "raisedCenterHeight": 2,
+      "columnPitch": 9
+    },
+    "palette": {
+      "structure": "BABCB2",
+      "roof": "AC925E",
+      "red": "89534B",
+      "glass": "66857D",
+      "paving": "BDBBAA",
+      "metal": "616C67",
+      "label": "E4DED0"
+    },
+    "pending": [
+      "Current roof shape and palette visual check",
+      "Actual overall dimensions and ridge-glazing profile",
+      "Exit building footprints and north-ring construction interfaces",
+      "Exact geographic orientation"
+    ]
+  },
+  {
+    "id": "formosa-ground-v1-candidate01",
+    "name": "美麗島站・地面入口構型",
+    "stationKeys": [
+      "KRTC:R10",
+      "KRTC:O5"
+    ],
+    "legacySceneId": "formosa",
+    "assetVariant": "ground-main-entrances-study",
+    "stationPositionLonLat": [
+      120.301994,
+      22.631393
+    ],
+    "confirmedFeatures": [
+      "Four major entrances at the road intersection",
+      "Curved glass and steel construction with joined-hands/prayer motif"
+    ],
+    "sources": [
+      {
+        "url": "https://mtbu.kcg.gov.tw/Station/C001410?PageNumber=1&PageType=1&id=88f24f5e-d8d9-4a82-b646-6966e55a9996",
+        "role": "official-design-description",
+        "supports": [
+          "four main entrances",
+          "curved glass construction"
+        ]
+      },
+      {
+        "url": "https://takamatsu.co.jp/project/高雄地下鉄駅-kaosiung-metro-station/",
+        "role": "architect-description",
+        "supports": [
+          "four main entrances",
+          "three-dimensional curved surfaces",
+          "140 m plaza described as a project element"
+        ]
+      }
+    ],
+    "photoReferences": [
+      "https://commons.wikimedia.org/wiki/File:Formosa_Boulevard_Station_entrances_from_above_1.jpg",
+      "https://commons.wikimedia.org/wiki/File:Formosa_Boulevard_Station_entrances_from_above_2.jpg",
+      "https://commons.wikimedia.org/wiki/File:Exit_1,_Formosa_Boulevard_Station_20250506.jpg",
+      "https://commons.wikimedia.org/wiki/File:Exit_2,_Formosa_Boulevard_Station_20250506.jpg",
+      "https://commons.wikimedia.org/wiki/File:Exit_4,_Formosa_Boulevard_Station_20250506.jpg"
+    ],
+    "estimatedParameters": {
+      "moduleWidth": 22,
+      "moduleLength": 28,
+      "moduleHeight": 12,
+      "reviewCenters": [
+        [
+          -32,
+          -32
+        ],
+        [
+          32,
+          -32
+        ],
+        [
+          32,
+          32
+        ],
+        [
+          -32,
+          32
+        ]
+      ],
+      "reviewRotationsDeg": [
+        -45,
+        45,
+        135,
+        -135
+      ]
+    },
+    "palette": {
+      "frame": "D5DDD5",
+      "glass": "89A8A2",
+      "glassAlt": "769891",
+      "base": "B8B9AC",
+      "dark": "596C68",
+      "metal": "A9B5AD"
+    },
+    "pending": [
+      "Each of the four entrances needs individual shape calibration; shared prototype used in this study",
+      "Exit-number correspondence, real centers and headings unverified",
+      "Glazing transparency simplified to opaque map material",
+      "Dome of Light interior is a separate unbuilt asset"
+    ],
+    "sharedEntrancePrototype": true,
+    "layoutStatus": "review-assembly-not-georeferenced"
+  }
+]
