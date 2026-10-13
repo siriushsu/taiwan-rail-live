@@ -396,7 +396,7 @@
         "| 1000 | 臺北 | 121.51711, 25.04775 | [站文](https://zh.wikipedia.org/wiki/%E8%87%BA%E5%8C%97%E8%BB%8A%E7%AB%99) | 優先照片 |",
         "| 1000 臺北 | [TRA-P003](https://www.filmcommission.taipei/scenesCT.aspx?id=1191) · [圖庫](https://commons.wikimedia.org/wiki/Category:Taipei_Main_Station) | 中央採光罩須封閉建模；不做露天方洞；其餘側背面與近期現況待補。 |"
       ],
-      "status": "existing-model-awaiting-rework",
+      "status": "above-ground-candidate-underground-variant-pending",
       "geometryVisuallyVerified": false,
       "productionReady": false,
       "buildingAnchor": null,
@@ -411,6 +411,18 @@
       ],
       "existingAssetIds": [
         "taipei-main-v1"
+      ],
+      "modelCandidates": [
+        {
+          "id": "taipei-main-exterior-v2-preview02",
+          "assetVariant": "above-ground-main-building",
+          "artifactUrl": "https://github.com/siriushsu/taiwan-rail-live/actions/runs/38284520589/artifacts/11763126290",
+          "sourceCommit": "40b59d6daa1fd323209b2159c1d565f61e8593f0",
+          "formatValidated": true,
+          "photoCalibrated": false,
+          "placementVerified": false,
+          "productionReady": false
+        }
       ]
     },
     {
@@ -1625,7 +1637,7 @@
         "| 1210 | 新竹 | 120.97157, 24.80157 | [站文](https://zh.wikipedia.org/wiki/%E6%96%B0%E7%AB%B9%E8%BB%8A%E7%AB%99) | 優先照片 |",
         "| 1210 新竹 | [TRA-P009](https://commons.wikimedia.org/wiki/File:%E6%96%B0%E7%AB%B9%E5%B8%82%E7%81%AB%E8%BB%8A%E7%AB%99.jpg) · [TRA-P010](https://commons.wikimedia.org/wiki/File:Hsinchu_Train_Station_%E6%96%B0%E7%AB%B9%E7%81%AB%E8%BB%8A%E7%AB%99.jpg) · [TRA-P011](https://commons.wikimedia.org/wiki/File:20081006-%E5%8F%B0%E9%90%B5%E6%96%B0%E7%AB%B9%E8%BB%8A%E7%AB%99%E7%AB%99%E6%88%BF%E5%A4%96%E8%A7%80.jpg) · [TRA-P012](https://view.boch.gov.tw/NationalHistoricalPano/OA09602000324/output/Hsinchu_3.html) · [圖庫](https://commons.wikimedia.org/wiki/Category:TRA_Hsinchu_Station) | 2022夜景、2019白天、2015環景互補；屋頂與鐘塔需保留。 |"
       ],
-      "status": "existing-model-awaiting-rework",
+      "status": "reworked-candidate-awaiting-photo-calibration",
       "geometryVisuallyVerified": false,
       "productionReady": false,
       "buildingAnchor": null,
@@ -1643,6 +1655,20 @@
       ],
       "existingAssetIds": [
         "hsinchu-tra"
+      ],
+      "modelCandidates": [
+        {
+          "id": "hsinchu-exterior-v2-candidate01",
+          "artifactUrl": "https://github.com/siriushsu/taiwan-rail-live/actions/runs/38294205615/artifacts/11767494868",
+          "sourceCommit": "359aa207481ee7c8d3a859b1454b4882b8827159",
+          "formatValidated": true,
+          "renderInspected": true,
+          "photoCalibrated": false,
+          "placementVerified": false,
+          "productionReady": false,
+          "assetVariant": "historic-station-exterior",
+          "provenance": "new-station-specific-candidate"
+        }
       ]
     },
     {
@@ -2961,7 +2987,22 @@
       ],
       "existingAssetIds": [
         "tra-taichung-v1"
-      ]
+      ],
+      "modelCandidates": [
+        {
+          "id": "taichung-old-v1-candidate01",
+          "artifactUrl": "https://github.com/siriushsu/taiwan-rail-live/actions/runs/38294205615/artifacts/11767494868",
+          "sourceCommit": "359aa207481ee7c8d3a859b1454b4882b8827159",
+          "formatValidated": true,
+          "renderInspected": true,
+          "photoCalibrated": false,
+          "placementVerified": false,
+          "productionReady": false,
+          "assetVariant": "historic-1917-station-building",
+          "provenance": "new-station-specific-candidate"
+        }
+      ],
+      "variantNotice": "本次為舊驛站候選；現役高架站仍待重製。"
     },
     {
       "stationKey": "TRA:3310",
@@ -4475,7 +4516,7 @@
         "| 4220 | 臺南 | 120.21295, 22.99681 | [站文](https://zh.wikipedia.org/wiki/%E8%87%BA%E5%8D%97%E8%BB%8A%E7%AB%99) | 優先照片 |",
         "| 4220 臺南 | [TRA-P034](https://commons.wikimedia.org/wiki/File:Tainan_Station_%282026%29_-_exterior_-_img_01.jpg) · [TRA-P035](https://commons.wikimedia.org/wiki/File:Tainan_Station_%282026%29_-_exterior_-_img_02.jpg) · [TRA-P036](https://commons.wikimedia.org/wiki/File:Tainan_Station_%282026%29_-_platforms_-_img_01.jpg) · [圖庫](https://commons.wikimedia.org/wiki/Category:TRA_Tainan_Station) | 古蹟站房與地下化切換版本分開；其餘側背面與近期現況待補。 |"
       ],
-      "status": "existing-detailed-model-native-conversion-in-progress",
+      "status": "historic-building-adapted-current-station-pending",
       "geometryVisuallyVerified": false,
       "productionReady": false,
       "buildingAnchor": null,
@@ -4493,7 +4534,21 @@
       "existingAssetIds": [
         "tainan-old"
       ],
-      "existingSourcePath": "memories/tainan-2026-09-12/station/model.json"
+      "existingSourcePath": "memories/tainan-2026-09-12/station/model.json",
+      "modelCandidates": [
+        {
+          "id": "tainan-exterior-v1-candidate01",
+          "artifactUrl": "https://github.com/siriushsu/taiwan-rail-live/actions/runs/38294205615/artifacts/11767494868",
+          "sourceCommit": "359aa207481ee7c8d3a859b1454b4882b8827159",
+          "formatValidated": true,
+          "renderInspected": true,
+          "photoCalibrated": false,
+          "placementVerified": false,
+          "productionReady": false,
+          "assetVariant": "historic-building-without-construction-wrap",
+          "provenance": "adapted-existing-detailed-geometry"
+        }
+      ]
     },
     {
       "stationKey": "TRA:4250",
@@ -14577,7 +14632,21 @@
         ],
         "relatedMapAssetIds": [],
         "sourceStatus": "planned-in-source",
-        "referencePage": "https://chatgpt.com/space/page_fb733ffc1cc88191a8341310c5b9b305"
+        "referencePage": "https://chatgpt.com/space/page_fb733ffc1cc88191a8341310c5b9b305",
+        "modelCandidates": [
+          {
+            "id": "tainan-exterior-v1-candidate01",
+            "artifactUrl": "https://github.com/siriushsu/taiwan-rail-live/actions/runs/38294205615/artifacts/11767494868",
+            "sourceCommit": "359aa207481ee7c8d3a859b1454b4882b8827159",
+            "formatValidated": true,
+            "renderInspected": true,
+            "photoCalibrated": false,
+            "placementVerified": false,
+            "productionReady": false,
+            "assetVariant": "historic-building-without-construction-wrap",
+            "provenance": "adapted-existing-detailed-geometry"
+          }
+        ]
       },
       {
         "sceneId": "hsinchu",
@@ -14593,7 +14662,21 @@
           "hsinchu-tra"
         ],
         "sourceStatus": "planned-in-source",
-        "referencePage": "https://chatgpt.com/space/page_fb733ffc1cc88191a8341310c5b9b305"
+        "referencePage": "https://chatgpt.com/space/page_fb733ffc1cc88191a8341310c5b9b305",
+        "modelCandidates": [
+          {
+            "id": "hsinchu-exterior-v2-candidate01",
+            "artifactUrl": "https://github.com/siriushsu/taiwan-rail-live/actions/runs/38294205615/artifacts/11767494868",
+            "sourceCommit": "359aa207481ee7c8d3a859b1454b4882b8827159",
+            "formatValidated": true,
+            "renderInspected": true,
+            "photoCalibrated": false,
+            "placementVerified": false,
+            "productionReady": false,
+            "assetVariant": "historic-station-exterior",
+            "provenance": "new-station-specific-candidate"
+          }
+        ]
       },
       {
         "sceneId": "shilin",
@@ -14741,7 +14824,8 @@
           "kaohsiung-main-v1"
         ],
         "sourceStatus": "planned-in-source",
-        "referencePage": "https://chatgpt.com/space/page_fb733ffc1cc88191a8341310c5b9b305"
+        "referencePage": "https://chatgpt.com/space/page_fb733ffc1cc88191a8341310c5b9b305",
+        "variantNotice": "kaohsiung-main-v1 是現役主站既有網格；帝冠式舊站房仍需分開製作。"
       },
       {
         "sceneId": "thsr-hsinchu",
@@ -14950,9 +15034,36 @@
         "productionReady": false,
         "assetVariant": "ground-main-entrances-study"
       }
+    },
+    {
+      "id": "taichung-historic-station-building",
+      "name": "臺中舊驛站",
+      "stationKeys": [
+        "TRA:3300"
+      ],
+      "status": "candidate-awaiting-photo-calibration",
+      "productionReady": false,
+      "modelCandidate": {
+        "id": "taichung-old-v1-candidate01",
+        "artifactUrl": "https://github.com/siriushsu/taiwan-rail-live/actions/runs/38294205615/artifacts/11767494868",
+        "sourceCommit": "359aa207481ee7c8d3a859b1454b4882b8827159",
+        "formatValidated": true,
+        "renderInspected": true,
+        "photoCalibrated": false,
+        "placementVerified": false,
+        "productionReady": false,
+        "assetVariant": "historic-1917-station-building",
+        "provenance": "new-station-specific-candidate"
+      },
+      "notes": "不替代 TRA:3300 現役高架站。"
     }
   ],
   "generatedLandmarkCandidateCount": 2,
   "recoveredExistingStationAssetCount": 13,
-  "generatedStationCandidateCount": 3
+  "generatedStationCandidateCount": 5,
+  "asOfTimezone": "Asia/Taipei",
+  "acceptanceMeaning": "required-gates-for-completion; not current pass results",
+  "adaptedDetailedStationCandidateCount": 1,
+  "taipeiPreviewCandidateCount": 1,
+  "stationCandidateAssetCount": 7
 }

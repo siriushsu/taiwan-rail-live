@@ -46,3 +46,7 @@ python3 prototypes/tiny-trains/blender/building-batch/compose.py
 兩棟均通過 Blender 開啟、GLB 往返尺度及原生網格檢查；往返包圍盒誤差為 0。101 節間共面黑邊已在實際渲染檢查後修正。這是模型自身的檢查，不是實拍外觀驗收；全量車站重製仍未完成。參考工具目前只提供網頁文字與圖片占位符，無法完成實景逐面目視核對。
 
 原始建模輸出 commit：`87d64a170f25e0b6b133102e92ea9363ed966370`。詳見 `validation.json`、`delivery.json`。
+
+## 接續車站製作（2026-10-13）
+
+六組站體候選與工作檔已另存批次。下載、預覽與剩餘工作見[製作進度](../PRODUCTION-STATUS.md)。全量清單仍未全部完成。
