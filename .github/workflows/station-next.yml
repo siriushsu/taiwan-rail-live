@@ -424,7 +424,10 @@ jobs:
             for (mat,lod),buf in G.buf.items():
                 verts=[buf[i:i+3] for i in range(0,len(buf),6)]
                 norms=[buf[i+3:i+6] for i in range(0,len(buf),6)]
-                o=c.mesh(name+" "+mat,verts,[(i,i+1,i+2) for i in range(0,len(verts),3)],mat,component=component,detail=detail or lod=="near")
+                data=bpy.data.meshes.new(name+" "+mat)
+                data.from_pydata(verts,[],[(i,i+1,i+2) for i in range(0,len(verts),3)]);data.update();data.materials.append(c.M[mat])
+                o=bpy.data.objects.new(name+" "+mat,data);c.ASSET.objects.link(o)
+                o["component_id"]=component;o["near_only"]=detail or lod=="near";c.OBJECTS.append(o)
                 o.data.polygons.foreach_set("use_smooth",[True]*len(o.data.polygons))
                 o.data.normals_split_custom_set_from_vertices(norms)
                 if hasattr(o.data,"use_auto_smooth"):o.data.use_auto_smooth=True
@@ -654,6 +657,10 @@ jobs:
                 rows=list(struct.iter_unpack("<6f",raw));verts=[Vector(r[:3]) for r in rows]
                 assert all(all(math.isfinite(x) for x in r) for r in rows)
                 assert all(abs(sum(x*x for x in r[3:])-1)<.004 for r in rows)
+                for i in range(0,len(rows),3):
+                    a,b,c=rows[i:i+3];normal=(Vector(b[:3])-Vector(a[:3])).cross(Vector(c[:3])-Vector(a[:3])).normalized()
+                    average=Vector(a[3:])+Vector(b[3:])+Vector(c[3:])
+                    assert normal.dot(average)>-.01,(s["id"],level,"reversed triangle normals",i)
                 cursor=0
                 for group in lod["drawGroups"]:
                     assert group["start"]==cursor and group["count"]%3==0
@@ -669,7 +676,7 @@ jobs:
                 for x,y,zmin in probes:
                     hit,_,_,_=tree.ray_cast(Vector((x,y,100)),Vector((0,0,-1)))
                     assert hit is not None and hit.z>zmin,(s["id"],level,x,y,hit)
-                window_probes=[(x,1.8) for x in p["windowXs"]] if s["builder"]=="wood" else [(0,10)] if s["builder"]=="imperial" else []
+                window_probes=[(x+.32,1.8) for x in p["windowXs"]] if s["builder"]=="wood" else [(0,10)] if s["builder"]=="imperial" else []
                 for x,z in window_probes:
                     hit,_,index,_=tree.ray_cast(Vector((x,-50,z)),Vector((0,1,0)))
                     assert hit is not None
