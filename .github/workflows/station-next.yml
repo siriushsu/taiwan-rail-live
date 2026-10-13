@@ -1,0 +1,801 @@
+name: 特色站第三批・站房與月台
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/station-next.yml'
+      - 'prototypes/tiny-trains/blender/building-batch/core.py'
+      - 'prototypes/tiny-trains/blender/tainan-memory-v1/geo.py'
+permissions:
+  contents: read
+concurrency:
+  group: station-next-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  models:
+    if: github.head_ref == 'codex/taipei-station-blender-preview' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      TASK_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha }}
+      BATCH_SPECS: |
+        [
+          {
+            "id": "kaohsiung-imperial-v1-candidate01",
+            "name": "高雄帝冠舊站房",
+            "stationKeys": [
+              "TRA:4400"
+            ],
+            "legacySceneId": "kaohsiung-old",
+            "builder": "imperial",
+            "assetVariant": "historic-1941-station-building",
+            "scope": "1939–1941 imperial-crown station exterior; current Mecanoo station and Takao museum are separate assets",
+            "sources": [
+              {
+                "url": "https://heritage.kcg.gov.tw/CulturalAssets/C000015?ID=fea36caf-4f40-4793-b5c7-b5ad81d27403&PageIndex=25&PageType=1",
+                "role": "official-heritage-register",
+                "supports": [
+                  "1941 station",
+                  "imperial crown",
+                  "karahafu roof",
+                  "western hall"
+                ]
+              },
+              {
+                "url": "https://www.rb.gov.tw/zh-TW/main/main_188/news/main_347/artsinfo_2783/",
+                "role": "official-railway-bureau",
+                "supports": [
+                  "historic station preserved and relocated"
+                ]
+              },
+              {
+                "url": "https://kstown.chukps.kh.edu.tw/story/史蹟高雄ALL1.pdf",
+                "role": "government-school-local-history",
+                "supports": [
+                  "round frontal opening and eave ornaments"
+                ]
+              }
+            ],
+            "confirmedTextFeatures": [
+              "Imperial-crown roof with karahafu frontal profile",
+              "Historic station distinct from current main station"
+            ],
+            "estimatedParameters": {
+              "centralWidth": 22,
+              "centralDepth": 20,
+              "centralWallHeight": 8.2,
+              "wingWidth": 16,
+              "wingDepth": 12,
+              "wingHeight": 4.8,
+              "roofPeak": 17.8
+            },
+            "palette": {
+              "wall": "D3D1C2",
+              "wood": "776754",
+              "roof": "5B7774",
+              "glass": "5A7773",
+              "stone": "AAA995",
+              "metal": "65706C",
+              "trim": "E4E0D1",
+              "dark": "35413E"
+            },
+            "stationPositionLonLat": [
+              120.30292,
+              22.63946
+            ],
+            "photoReferences": [
+              "https://commons.wikimedia.org/wiki/Category:Old_Kaohsiung_Station",
+              "https://transport-museum.nat.gov.tw/railway/home.jsp?class_serno=201512090042&dataserno=201603250009&id=12&mcustomize=cultural_relic_view.jsp",
+              "https://www.rb.gov.tw/public/upimgs/D02/1071106-311006-1.pdf"
+            ],
+            "pending": [
+              "Photo calibration of each facade, roof profile and palette",
+              "Measured footprint, opening positions and roof lengths",
+              "Actual geographic position, bearing and current restoration state"
+            ],
+            "photoVisuallyVerified": false,
+            "productionReady": false
+          },
+          {
+            "id": "jiji-exterior-v1-candidate01",
+            "name": "集集車站・重建站房",
+            "stationKeys": [
+              "TRA:3434"
+            ],
+            "legacySceneId": "jiji",
+            "builder": "wood",
+            "assetVariant": "reconstructed-historic-station-house",
+            "sources": [
+              {
+                "url": "https://nchdb.boch.gov.tw/assets/overview/historicalBuilding/20041221000003",
+                "role": "official-heritage-register",
+                "supports": [
+                  "cypress timber",
+                  "post-earthquake reconstruction",
+                  "black roof tiles",
+                  "gable form"
+                ]
+              },
+              {
+                "url": "https://www.sunmoonlake.gov.tw/zh-tw/Attractions/Attractions?a=20&id=46",
+                "role": "official-tourism",
+                "supports": [
+                  "reconstructed Japanese timber exterior"
+                ]
+              }
+            ],
+            "confirmedTextFeatures": [
+              "Black tiled roof",
+              "Timber-framed reconstructed station house"
+            ],
+            "estimatedParameters": {
+              "mainWidth": 28,
+              "mainDepth": 10,
+              "eave": 4.2,
+              "rise": 2.7,
+              "porchCenterX": 0,
+              "porchWidth": 6,
+              "porchProjection": 4.5,
+              "porchRise": 2,
+              "doorX": 0,
+              "windowXs": [
+                -10,
+                -6,
+                6,
+                10
+              ]
+            },
+            "palette": {
+              "wall": "D3D0BF",
+              "wood": "816E54",
+              "roof": "4A504D",
+              "glass": "5A7773",
+              "stone": "AAA995",
+              "metal": "65706C",
+              "trim": "E4E0D1",
+              "dark": "35413E"
+            },
+            "stationPositionLonLat": [
+              120.78495,
+              23.82647
+            ],
+            "photoReferences": [
+              "https://zh.wikipedia.org/wiki/%E9%9B%86%E9%9B%86%E8%BB%8A%E7%AB%99",
+              "https://commons.wikimedia.org/wiki/File:Jiji_Station%2C_right_side_view_%28Taiwan%29.jpg",
+              "https://commons.wikimedia.org/wiki/Category:TRA_Jiji_Station"
+            ],
+            "pending": [
+              "Photo calibration of each facade, roof profile and palette",
+              "Measured footprint, opening positions and roof lengths",
+              "Actual geographic position, bearing and current restoration state"
+            ],
+            "photoVisuallyVerified": false,
+            "productionReady": false
+          },
+          {
+            "id": "tanwen-exterior-v1-candidate01",
+            "name": "談文車站",
+            "stationKeys": [
+              "TRA:2110"
+            ],
+            "legacySceneId": "haixian",
+            "builder": "wood",
+            "assetVariant": "historic-station-house",
+            "sources": [
+              {
+                "url": "https://tcmb.culture.tw/zh-tw/detail?id=20080321000001&indexCode=BOCH_CountryCulture_12",
+                "role": "official-cultural-memory",
+                "supports": [
+                  "simple rectangular plan",
+                  "intersecting perpendicular gables and L ridge",
+                  "eave boards"
+                ]
+              },
+              {
+                "url": "https://tcmb.culture.tw/zh-tw/detail?id=200271&indexCode=Culture_Place",
+                "role": "official-roof-description",
+                "supports": [
+                  "attached half-hipped volume is distinct; not modeled as a second generic gable"
+                ]
+              }
+            ],
+            "confirmedTextFeatures": [
+              "Rectangular timber station house",
+              "Perpendicular roof sections and eave boards"
+            ],
+            "estimatedParameters": {
+              "mainWidth": 18,
+              "mainDepth": 8,
+              "eave": 3.8,
+              "rise": 2.2,
+              "porchCenterX": -3,
+              "porchWidth": 6,
+              "porchProjection": 4,
+              "porchRise": 1.7,
+              "doorX": -3,
+              "windowXs": [
+                -6.5,
+                1.8,
+                5.8
+              ]
+            },
+            "palette": {
+              "wall": "D3D0BF",
+              "wood": "796C57",
+              "roof": "555E5A",
+              "glass": "5A7773",
+              "stone": "AAA995",
+              "metal": "65706C",
+              "trim": "E4E0D1",
+              "dark": "35413E"
+            },
+            "pendingExtra": [
+              "The attached half-hipped volume needs its own calibration and is not included"
+            ],
+            "stationPositionLonLat": [
+              120.85825,
+              24.65641
+            ],
+            "photoReferences": [
+              "https://zh.wikipedia.org/wiki/%E8%AB%87%E6%96%87%E8%BB%8A%E7%AB%99",
+              "https://commons.wikimedia.org/wiki/File:Tanwen_Station_%28September_14%2C_2020%29_-_entrance.jpg",
+              "https://commons.wikimedia.org/wiki/File:Tanwen_Station_%28September_14%2C_2020%29_-_rear.jpg",
+              "https://commons.wikimedia.org/wiki/Category:TRA_Tanwen_Station"
+            ],
+            "pending": [
+              "Photo calibration of each facade, roof profile and palette",
+              "Measured footprint, opening positions and roof lengths",
+              "Actual geographic position, bearing and current restoration state",
+              "The attached half-hipped volume needs its own calibration and is not included",
+              "Exact L-ridge termination and valley geometry need photo verification; modeled intersection is a study"
+            ],
+            "photoVisuallyVerified": false,
+            "productionReady": false
+          },
+          {
+            "id": "dashan-exterior-v1-candidate01",
+            "name": "大山車站",
+            "stationKeys": [
+              "TRA:2120"
+            ],
+            "legacySceneId": "haixian",
+            "builder": "wood",
+            "assetVariant": "historic-station-house",
+            "sources": [
+              {
+                "url": "https://tcmb.culture.tw/zh-tw/detail?id=20050610000002&indexCode=BOCH_CountryCulture_12",
+                "role": "official-cultural-memory",
+                "supports": [
+                  "single-storey mixed western/Japanese half-timber house",
+                  "simple vertical and horizontal facade divisions"
+                ]
+              },
+              {
+                "url": "https://tcmb.culture.tw/zh-tw/detail?id=200264&indexCode=Culture_Place",
+                "role": "official-cultural-memory",
+                "supports": [
+                  "historic wooden ticket gate"
+                ]
+              }
+            ],
+            "confirmedTextFeatures": [
+              "Single-storey half-timber station",
+              "Simple timber facade divisions"
+            ],
+            "estimatedParameters": {
+              "mainWidth": 16,
+              "mainDepth": 8,
+              "eave": 3.65,
+              "rise": 2.1,
+              "porchCenterX": 0,
+              "porchWidth": 5.8,
+              "porchProjection": 3.3,
+              "porchRise": 1.55,
+              "doorX": -2.2,
+              "windowXs": [
+                -5.2,
+                1.7,
+                5.5
+              ]
+            },
+            "palette": {
+              "wall": "D8D3BC",
+              "wood": "76644E",
+              "roof": "555E5A",
+              "glass": "5A7773",
+              "stone": "AAA995",
+              "metal": "65706C",
+              "trim": "E4E0D1",
+              "dark": "35413E"
+            },
+            "pendingExtra": [
+              "Historic ticket gate interior and annexes are separate pending components"
+            ],
+            "stationPositionLonLat": [
+              120.80376,
+              24.64565
+            ],
+            "photoReferences": [
+              "https://zh.wikipedia.org/wiki/%E5%A4%A7%E5%B1%B1%E8%BB%8A%E7%AB%99_%28%E5%8F%B0%E7%81%A3%29",
+              "https://commons.wikimedia.org/wiki/File:%E5%A4%A7%E5%B1%B1%E8%BB%8A%E7%AB%99%282019%29.jpg",
+              "https://commons.wikimedia.org/wiki/File:%E5%BE%8C%E9%BE%8D-%E5%A4%A7%E5%B1%B1%E8%BB%8A%E7%AB%99.jpg",
+              "https://commons.wikimedia.org/wiki/Category:TRA_Dashan_Station"
+            ],
+            "pending": [
+              "Photo calibration of each facade, roof profile and palette",
+              "Measured footprint, opening positions and roof lengths",
+              "Actual geographic position, bearing and current restoration state",
+              "Historic ticket gate interior and annexes are separate pending components"
+            ],
+            "photoVisuallyVerified": false,
+            "productionReady": false
+          },
+          {
+            "id": "shifen-platform-study-v1",
+            "name": "十分站・月台配置研究",
+            "stationKeys": [
+              "TRA:7332"
+            ],
+            "legacySceneId": "shifen",
+            "builder": "platforms",
+            "assetVariant": "platform-and-canopy-layout-study",
+            "sources": [
+              {
+                "url": "https://zh.wikipedia.org/wiki/十分車站",
+                "role": "secondary-station-configuration",
+                "supports": [
+                  "one island and one side platform",
+                  "four tracks",
+                  "at-grade crossing"
+                ]
+              },
+              {
+                "url": "https://media.taiwan.net.tw/zh-tw/portal/travel/details/attraction_382000000a_110699",
+                "role": "official-tourism",
+                "supports": [
+                  "station identity, not building dimensions"
+                ]
+              }
+            ],
+            "confirmedTextFeatures": [
+              "One side platform and one island platform",
+              "Ground-level station and at-grade transfer"
+            ],
+            "estimatedParameters": {
+              "platformLength": 105,
+              "islandWidth": 4,
+              "sideWidth": 3.2,
+              "islandCenterY": 0,
+              "sideCenterY": -6.2,
+              "platformTop": 0.75,
+              "canopyLength": 65,
+              "canopyTop": 3.8
+            },
+            "palette": {
+              "wall": "D3D0BF",
+              "wood": "776754",
+              "roof": "555E5A",
+              "glass": "5A7773",
+              "stone": "AAA995",
+              "metal": "65706C",
+              "trim": "E4E0D1",
+              "dark": "35413E"
+            },
+            "configurationStudy": true,
+            "pendingExtra": [
+              "Station house exterior is unbuilt; a studio placeholder is excluded from exports",
+              "Canopy profile, real lengths and railway alignment unverified",
+              "Station-position references disagree; use no building anchor"
+            ],
+            "stationPositionLonLat": [
+              121.77514,
+              25.04111
+            ],
+            "photoReferences": [
+              "https://zh.wikipedia.org/wiki/%E5%8D%81%E5%88%86%E8%BB%8A%E7%AB%99",
+              "https://commons.wikimedia.org/wiki/File:2024_TRA_Shifen_Station.jpg",
+              "https://commons.wikimedia.org/wiki/Category:TRA_Shifen_Station"
+            ],
+            "pending": [
+              "Photo calibration of each facade, roof profile and palette",
+              "Measured footprint, opening positions and roof lengths",
+              "Actual geographic position, bearing and current restoration state",
+              "Station house exterior is unbuilt; a studio placeholder is excluded from exports",
+              "Canopy profile, real lengths and railway alignment unverified",
+              "Station-position references disagree; use no building anchor"
+            ],
+            "photoVisuallyVerified": false,
+            "productionReady": false
+          }
+        ]
+      BATCH_BUILD: |
+        import bpy,json,math,sys
+        from pathlib import Path
+        from mathutils import Vector
+        HERE=Path(__file__).resolve().parent
+        sys.path.insert(0,str(HERE.parent/"building-batch"))
+        import core as c
+        sys.path.insert(0,str(HERE.parent/"tainan-memory-v1"))
+        import geo as g
+        SPECS=json.loads((HERE/"stations.json").read_text())
+        OUT=Path(sys.argv[sys.argv.index("--")+1])
+        
+        def from_geo(name,G,component,detail=False):
+            for (mat,lod),buf in G.buf.items():
+                verts=[buf[i:i+3] for i in range(0,len(buf),6)]
+                norms=[buf[i+3:i+6] for i in range(0,len(buf),6)]
+                o=c.mesh(name+" "+mat,verts,[(i,i+1,i+2) for i in range(0,len(verts),3)],mat,component=component,detail=detail or lod=="near")
+                o.data.polygons.foreach_set("use_smooth",[True]*len(o.data.polygons))
+                o.data.normals_split_custom_set_from_vertices(norms)
+                if hasattr(o.data,"use_auto_smooth"):o.data.use_auto_smooth=True
+        def text_label(body,x,y,z,size=.55):
+            font=Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc")
+            if not font.exists():return
+            data=bpy.data.curves.new(body,"FONT");data.body=body;data.size=size;data.align_x="CENTER";data.align_y="CENTER";data.resolution_u=3;data.extrude=.008
+            data.font=bpy.data.fonts.load(str(font));data.materials.append(c.M["trim"])
+            o=bpy.data.objects.new(body,data);c.ASSET.objects.link(o)
+            o.location=(x,y,z);o.rotation_euler=(math.pi/2,0,0)
+            bpy.ops.object.select_all(action="DESELECT");o.select_set(True);bpy.context.view_layer.objects.active=o
+            bpy.ops.object.convert(target="MESH");o=bpy.context.object;o["component_id"]="illustrative-signage";o["near_only"]=True;c.OBJECTS.append(o);o.select_set(False)
+        def facade(name,y,x0,x1,h,holes,base=.30,cladding=False):
+            G=g.Geo();f=g.front(y);g.wall_f(G,f,x0,x1,base,h,holes,"wall","wood");from_geo(name,G,"walls")
+            for i,hole in enumerate(holes):
+                GG=g.Geo();g.fill_poly_f(GG,f,hole["poly"],-hole["depth"]+.03,"glass");from_geo(name+" opening "+str(i),GG,"openings")
+                poly=hole["poly"];cx=(min(u for u,v in poly)+max(u for u,v in poly))/2;cz=(min(v for u,v in poly)+max(v for u,v in poly))/2
+                outer=[(cx+(u-cx)*1.10,max(base,cz+(v-cz)*1.06)) for u,v in poly]
+                GG=g.Geo();g.band_f(GG,f,outer,poly,0,.10,"wood",closed=True,skip="n");from_geo(name+" frame "+str(i),GG,"window-frames",True)
+            if cladding:
+                # Horizontal wooden divisions terminate at openings.
+                for i in range(1,int((h-base)/.35)):
+                    z=base+i*.35;cuts=[]
+                    for hole in holes:
+                        poly=hole["poly"]
+                        if min(v for u,v in poly)<=z<=max(v for u,v in poly):cuts.append((min(u for u,v in poly)-.01,max(u for u,v in poly)+.01))
+                    at=x0
+                    for a,b in sorted(cuts):
+                        if a>at:c.box("Board seam",((at+a)/2,y-.045,z),(a-at,.04,.028),"wood",component="cladding-seams",detail=True)
+                        at=max(at,b)
+                    if at<x1:c.box("Board seam",((at+x1)/2,y-.045,z),(x1-at,.04,.028),"wood",component="cladding-seams",detail=True)
+        def house(name,x0,x1,y0,y1,h,holes,cladding=False):
+            c.box(name+" foundation",((x0+x1)/2,(y0+y1)/2,.15),(x1-x0,y1-y0,.30),"stone",component="foundation")
+            facade(name+" front",y0,x0,x1,h,holes,cladding=cladding)
+            G=g.Geo()
+            g.wall_f(G,g.back(y1),-x1,-x0,.30,h,[],"wall")
+            g.wall_f(G,g.left(x0),-y1,-y0,.30,h,[],"wall")
+            g.wall_f(G,g.right(x1),y0,y1,.30,h,[],"wall")
+            from_geo(name+" side and rear",G,"walls")
+            c.box(name+" ceiling",((x0+x1)/2,(y0+y1)/2,h-.06),(x1-x0,y1-y0,.12),"dark",component="ceiling")
+        def perimeter(name,x0,x1,y0,y1,z,mat="wood"):
+            for y in (y0,y1):c.box(name,((x0+x1)/2,y,z),(x1-x0,.17,.16),mat,component="eave-frames")
+            for x in (x0,x1):c.box(name,(x,(y0+y1)/2,z),(.17,y1-y0,.16),mat,component="eave-frames")
+        def simple_hip(name,cx,cy,w,d,z,peak):
+            v=[(cx-w/2,cy-d/2,z),(cx+w/2,cy-d/2,z),(cx+w/2,cy+d/2,z),(cx-w/2,cy+d/2,z),
+               (cx-w*.28,cy,peak),(cx+w*.28,cy,peak)]
+            c.mesh(name,v,[(0,1,5,4),(1,2,5),(2,3,4,5),(3,0,4),(3,2,1,0)],"roof",component="roof")
+        
+        def timber_roof(p):
+            w,d=p["mainWidth"],p["mainDepth"];cx=p["porchCenterX"];pw=p["porchWidth"];proj=p["porchProjection"]
+            ax0,ax1=-w/2-.7,w/2+.7;ay0,ay1=-d/2-.65,d/2+.65
+            bx0,bx1=cx-pw/2-.55,cx+pw/2+.55;by0=-d/2-proj-.55;by1=0
+            xs=sorted(set([round(ax0+(ax1-ax0)*i/max(1,math.ceil((ax1-ax0)/1.8)),7) for i in range(math.ceil((ax1-ax0)/1.8)+1)]+[bx0,bx1,cx,ax0,ax1]))
+            ys=sorted(set([round(by0+(ay1-by0)*i/max(1,math.ceil((ay1-by0)/1.5)),7) for i in range(math.ceil((ay1-by0)/1.5)+1)]+[ay0,ay1,by0,by1,0]))
+            def inside(x,y):
+                return ax0-1e-7<=x<=ax1+1e-7 and ay0-1e-7<=y<=ay1+1e-7 or bx0-1e-7<=x<=bx1+1e-7 and by0-1e-7<=y<=by1+1e-7
+            def height(x,y):
+                vals=[]
+                if ax0-1e-7<=x<=ax1+1e-7 and ay0-1e-7<=y<=ay1+1e-7:vals.append(p["eave"]+p["rise"]*(1-abs(y)/(d/2+.65)))
+                if bx0-1e-7<=x<=bx1+1e-7 and by0-1e-7<=y<=by1+1e-7:vals.append(p["eave"]-.18+p["porchRise"]*(1-abs(x-cx)/(pw/2+.55)))
+                return max(vals)
+            verts=[];index={};top=[];edges={}
+            def vertex(x,y):
+                key=(round(x,6),round(y,6))
+                if key not in index:index[key]=len(verts);verts.append((x,y,height(x,y)))
+                return index[key]
+            for i in range(len(xs)-1):
+                for j in range(len(ys)-1):
+                    xa,xb=xs[i:i+2];ya,yb=ys[j:j+2]
+                    if not inside((xa+xb)/2,(ya+yb)/2):continue
+                    q=(vertex(xa,ya),vertex(xb,ya),vertex(xb,yb),vertex(xa,yb));top.append(q)
+                    for a,b in zip(q,q[1:]+q[:1]):
+                        key=tuple(sorted((a,b)));edges[key]=edges.get(key,0)+1
+            n=len(verts);verts+= [(x,y,z-.15) for x,y,z in verts]
+            faces=list(top)+[tuple(i+n for i in reversed(q)) for q in top]+[(a,b,b+n,a+n) for (a,b),count in edges.items() if count==1]
+            c.mesh("Joined gable roof",verts,faces,"roof",component="joined-gable-roof")
+            # Vertical gable panels under the ridge; roof is fully closed independently.
+            for x in (-w/2,w/2):
+                c.mesh("Timber end gable",[(xx,y,z) for xx in (x-.06,x+.06) for y,z in [(-d/2,p["eave"]),(d/2,p["eave"]),(0,p["eave"]+p["rise"])]],[(2,1,0),(3,4,5),(0,1,4,3),(1,2,5,4),(2,0,3,5)],"wall",component="gable-panels")
+                c.beam("Gable fascia",(x,-d/2-.65,p["eave"]+.02),(x,0,p["eave"]+p["rise"]+.02),.12,"wood",component="gable-trim")
+                c.beam("Gable fascia",(x,d/2+.65,p["eave"]+.02),(x,0,p["eave"]+p["rise"]+.02),.12,"wood",component="gable-trim")
+            # Small raised seams are near-only and follow the combined surface.
+            for x in xs[1:-1]:
+                for a,b in zip(ys,ys[1:]):
+                    if inside(x,(a+b)/2):c.beam("Roof joint",(x,a,height(x,a)+.055),(x,b,height(x,b)+.055),.035,"roof",component="roof-joints",detail=True)
+        
+        def timber(s):
+            p=s["estimatedParameters"];w,d=p["mainWidth"],p["mainDepth"];e=p["eave"];door=p["doorX"]
+            holes=[g.hole_rect(door,1.75,.30,2.9,.25)]+[g.hole_rect(x,1.55,1.0,2.65,.25) for x in p["windowXs"]]
+            house("Timber station",-w/2,w/2,-d/2,d/2,e,holes,True)
+            timber_roof(p)
+            for x in (-w/2,w/2):
+                for y in (-d/2,d/2):c.box("Corner timber post",(x,y,(e+.30)/2),(.22,.22,e-.30),"wood",component="timber-frame")
+            perimeter("Timber eave band",-w/2-.20,w/2+.20,-d/2-.17,d/2+.17,e-.12)
+            cx=p["porchCenterX"];pw=p["porchWidth"];front=-d/2-p["porchProjection"]
+            c.box("Covered entrance landing",(cx,(front-d/2)/2,.15),(pw,p["porchProjection"],.30),"stone",component="entrance")
+            for x in (cx-pw/2+.25,cx+pw/2-.25):
+                c.box("Porch timber column",(x,front+.30,(.30+e-.18)/2),(.23,.23,e-.48),"wood",component="porch-columns")
+                c.beam("Porch angled brace",(x,front+.30,e-1.0),(x+(1 if x<cx else -1)*.8,front+.30,e-.25),.12,"wood",component="porch-braces",detail=True)
+            # The canopy gable is above the main entry, not a second solid station mass.
+            G=g.Geo();outline=[(cx-pw/2-.55,e-.18),(cx+pw/2+.55,e-.18),(cx,e-.18+p["porchRise"])]
+            g.extrude_f(G,g.front(front-.55),outline,-.12,.02,"wall");from_geo("Porch front gable",G,"porch-gable")
+            c.box("Station sign backing",(cx,front-.62,e+.1),(3.1,.08,.66),"wood",component="illustrative-signage",detail=True)
+            text_label(s["name"].split("・")[0],cx,front-.67,e+.1,.5)
+            for x in p["windowXs"]:
+                c.box("Window center mullion",(x,-d/2-.025,1.83),(.06,.10,1.6),"wood",component="window-mullions",detail=True)
+        
+        def imperial(s):
+            p=s["estimatedParameters"];w=p["centralWidth"];d=p["centralDepth"];h=p["centralWallHeight"]
+            holes=[g.hole_rect(x,1.6,.30,3.6,.40) for x in (-2.2,0,2.2)]+[g.hole_rect(x,1.5,1.0,4.0,.30) for x in (-8,-5,5,8)]+[g.hole_rect(x,1.6,5.0,7.1,.30) for x in (-8,-4,0,4,8)]
+            house("Imperial hall",-w/2,w/2,-d/2,d/2,h,holes)
+            for sign in (-1,1):
+                x0,x1=(w/2,w/2+p["wingWidth"]) if sign>0 else (-w/2-p["wingWidth"],-w/2)
+                yy=-p["wingDepth"]/2
+                wh=[g.hole_rect(x,1.8,1.1,3.7,.25) for x in (x0+3,x0+7,x0+11)]
+                house("Lower wing "+str(sign),x0,x1,yy,-yy,p["wingHeight"],wh)
+                simple_hip("Wing roof "+str(sign),(x0+x1)/2,0,x1-x0+1.2,p["wingDepth"]+1.2,p["wingHeight"],6.1)
+            rings=[(25,25,8.40),(22,22,8.70),(17,17,11.4),(10.4,10.4,14.4),(.30,.30,p["roofPeak"])]
+            vertices=[]
+            for rw,rd,z in rings:vertices +=[(-rw/2,-rd/2,z),(rw/2,-rd/2,z),(rw/2,rd/2,z),(-rw/2,rd/2,z)]
+            faces=[(3,2,1,0)]
+            for i in range(len(rings)-1):
+                for j in range(4):faces.append((i*4+j,i*4+(j+1)%4,(i+1)*4+(j+1)%4,(i+1)*4+j))
+            faces.append(tuple(range((len(rings)-1)*4,len(rings)*4)))
+            c.mesh("Imperial crown roof",vertices,faces,"roof",component="imperial-roof")
+            # Curved karahafu frontage, with a round opening rather than an invented clock.
+            n=24;xx=[-5.3+10.6*i/n for i in range(n+1)]
+            zz=[8.9+3.0*math.cos(math.pi*x/10.6)**2+.4*(abs(x)/5.3)**6 for x in xx]
+            G=g.Geo();poly=[(-5.3,8.10),(5.3,8.10)]+list(reversed(list(zip(xx,zz))))
+            g.extrude_f(G,g.front(-12.6),poly,-.65,.05,"trim");from_geo("Karahafu pediment",G,"karahafu-pediment")
+            top=[(x,y,z+.14) for y in (-13,-11.85) for x,z in zip(xx,zz)]
+            count=len(xx);bottom=[(x,y,z-.14) for x,y,z in top];verts=top+bottom;faces=[]
+            for i in range(n):
+                faces.extend([(i,i+1,count+i+1,count+i),(i+2*count,count+i+2*count,count+i+1+2*count,i+1+2*count),
+                              (i+1,i,i+2*count,i+1+2*count),(count+i,count+i+1,count+i+1+2*count,count+i+2*count)])
+            faces.extend([(0,count,count+2*count,2*count),(n,n+2*count,n+count+2*count,n+count)])
+            c.mesh("Karahafu curved roof strip",verts,faces,"roof",component="karahafu-roof")
+            G=g.Geo();f=g.front(-12.72);g.disc_f(G,f,0,10.0,1.0,.03,"glass",24);g.ring_f(G,f,0,10.0,1.0,1.15,.01,.11,"wood",24);from_geo("Pediment circular window",G,"round-window")
+            text_label("高雄",0,-12.67,8.6,.55)
+            # Main-eave rhythm is adjustable; detailed carvings await photo review.
+            for x in (-9,-6,-3,3,6,9):
+                c.box("Main eave bracket",(x,-10.25,7.85),(.26,.7,.55),"trim",component="eave-brackets",detail=True)
+            for j in range(4):
+                for i in range(len(rings)-1):
+                    rw,rd,z=rings[i];nw,nd,nz=rings[i+1]
+                    sx,sy=[(-1,-1),(1,-1),(1,1),(-1,1)][j]
+                    c.beam("Roof hip seam",(sx*rw/2,sy*rd/2,z+.09),(sx*nw/2,sy*nd/2,nz+.09),.09,"roof",component="roof-seams",detail=True)
+        
+        def platforms(s):
+            p=s["estimatedParameters"];L=p["platformLength"];top=p["platformTop"]
+            for kind,y,width in [("Island",0,p["islandWidth"]),("Side",p["sideCenterY"],p["sideWidth"])]:
+                c.box(kind+" platform",(0,y,top/2),(L,width,top),"stone",component=kind.lower()+"-platform")
+                if kind=="Island":signs=(-1,1)
+                else:signs=(1,)
+                for sign in signs:
+                    c.box(kind+" edge",(0,y+sign*(width/2-.15),top+.012),(L,.22,.024),"trim",component="platform-edges",detail=True)
+                for x in range(-30,31,10):
+                    c.box(kind+" canopy post",(x,y,(top+p["canopyTop"]-.15)/2),(.20,.20,p["canopyTop"]-.15-top),"metal",component="canopy-posts")
+                    c.beam("Canopy transverse brace",(x,y-width/2,3.48),(x,y+width/2,3.48),.16,"metal",component="canopy-braces",detail=True)
+                c.box(kind+" canopy",(0,y,p["canopyTop"]),(p["canopyLength"],width+.6,.16),"roof",component="canopies")
+                for x in (-20,20):
+                    c.box("Platform bench",(x,y,top+.47),(2.1,.40,.16),"wood",component="benches",detail=True)
+                    for a in (-.75,.75):c.box("Bench foot",(x+a,y,top+.22),(.12,.24,.44),"metal",component="benches",detail=True)
+            # Studio aids do not override map track alignment or geographic elevation.
+            for y in (-3.4,3.4,7.2,10.8):
+                for sign in (-1,1):c.box("Studio rail",(0,y+sign*1.067/2,.18),(L,.07,.12),"metal",studio=True)
+            c.box("Unbuilt station-house placeholder",(0,-12,2),(18,8,4),"wall",studio=True).hide_render=True
+            c.box("Study sign backing",(0,p["sideCenterY"]-1.4,2.4),(5.2,.12,.72),"wood",component="illustrative-signage",detail=True)
+            for x in (-2.1,2.1):c.box("Study sign post",(x,p["sideCenterY"]-1.4,1.65),(.15,.15,1.8),"metal",component="illustrative-signage",detail=True)
+            text_label("十分・月台配置",0,p["sideCenterY"]-1.48,2.4,.6)
+        
+        def render(out,meta):
+            sc=c.SC;lo=Vector(meta["bounds"]["min"]);hi=Vector(meta["bounds"]["max"]);target=(lo+hi)/2;e=max(hi-lo)
+            sc.render.resolution_x=1100;sc.render.resolution_y=700;sc.cycles.samples=20;sc.camera.data.clip_end=e*200
+            corners=[Vector((x,y,z)) for x in (lo.x,hi.x) for y in (lo.y,hi.y) for z in (lo.z,hi.z)]
+            for name,delta in [("hero",(1.1,-1.7,.9)),("front",(0,-2,.20)),("roof",(.05,-.02,2))]:
+                cam=sc.camera;cam.location=target+Vector(delta)*e;cam.rotation_euler=(target-cam.location).to_track_quat("-Z","Y").to_euler()
+                inv=cam.rotation_euler.to_quaternion().inverted();points=[inv@(p-target) for p in corners]
+                cam.data.ortho_scale=1;frame=cam.data.view_frame(scene=sc)
+                cam.data.ortho_scale=max((max(p.x for p in points)-min(p.x for p in points))/(max(p.x for p in frame)-min(p.x for p in frame)),(max(p.y for p in points)-min(p.y for p in points))/(max(p.y for p in frame)-min(p.y for p in frame)))*1.14
+                sc.render.filepath=str(out/(name+".png"))
+                if name=="hero":bpy.ops.wm.save_as_mainfile(filepath=str(out/(meta["id"]+".blend")))
+                bpy.ops.render.render(write_still=True)
+        
+        reports=[]
+        for s in SPECS:
+            c.reset()
+            for key,color in s["palette"].items():c.material(key,color,metal=.12 if key in ("glass","metal") else .02,rough=.40 if key=="glass" else .78)
+            {"imperial":imperial,"wood":timber,"platforms":platforms}[s["builder"]](s)
+            meta={k:s[k] for k in ("id","name","stationKeys","legacySceneId","assetVariant","sources","confirmedTextFeatures","photoReferences","pending")}
+            meta.update({"builder":s["builder"],"version":1,"status":"configuration-study" if s.get("configurationStudy") else "exterior-candidate-awaiting-photo-calibration",
+              "parameters":s["estimatedParameters"],"stationPositionLonLat":s["stationPositionLonLat"],"anchor":None,"engineeringDimensionsM":None,"realBuildingHeightM":None,
+              "modelUse":"map-platform-preview" if s.get("configurationStudy") else "map-exterior-preview","orientationMode":"local-facade",
+              "trackGuidesExported":False,"configurationStudy":s.get("configurationStudy",False),"stationHouseBuilt":s["builder"]!="platforms",
+              "paletteSrgb":s["palette"],"signageIllustrative":True,"snapshotModified":False,
+              "notes":["官方文字確認特徵與尺寸／配色估值分開記錄。","實際 Blender 建模；尚未完成實拍逐面比對、地圖放樣與手機效能驗收。","十分只含月台／雨棚研究，不計成站房完成。"]})
+            out=OUT/s["id"];result=c.export(out,meta);render(out,result)
+            reports.append({"id":s["id"],"objects":result["nativeObjectCount"],"nearTriangles":result["lods"]["near"]["triangleCount"],"farTriangles":result["lods"]["far"]["triangleCount"],"stationHouseBuilt":meta["stationHouseBuilt"]})
+        (OUT/"build-report.json").write_text(json.dumps(reports,ensure_ascii=False,indent=2)+"\n")
+        print("STATION_NEXT_BUILD_OK "+json.dumps(reports,ensure_ascii=False),flush=True)
+        
+      BATCH_VERIFY: |
+        import bpy,json,math,struct,hashlib,sys
+        from pathlib import Path
+        from mathutils import Vector
+        from mathutils.bvhtree import BVHTree
+        root=Path(sys.argv[sys.argv.index("--")+1]);specs=json.loads((Path(__file__).parent/"stations.json").read_text());reports=[]
+        for s in specs:
+            folder=root/s["id"];meta=json.loads((folder/"model.json").read_text())
+            bpy.ops.wm.open_mainfile(filepath=str(folder/(s["id"]+".blend")))
+            objects=list(bpy.data.collections["01 Editable building"].objects)
+            assert len(objects)==meta["nativeObjectCount"] and all(o.type=="MESH" for o in objects)
+            assert not meta["productionReady"] and meta["anchor"] is None and meta["rotationDeg"] is None
+            assert not meta["trackGuidesExported"] and not meta["photoVisuallyVerified"]
+            if s["builder"]=="wood":assert len([o for o in objects if o.name=="Joined gable roof"])==1
+            if s["builder"]=="imperial":assert any(o["component_id"]=="karahafu-roof" for o in objects)
+            if s["builder"]=="platforms":
+                assert meta["configurationStudy"] and not meta["stationHouseBuilt"]
+                assert len([o for o in objects if o.name=="Island platform"])==1
+                assert len([o for o in objects if o.name=="Side platform"])==1
+                assert not any("placeholder" in o.name.lower() for o in objects)
+            levels={}
+            for level in ("near","far"):
+                lod=meta["lods"][level];raw=(folder/lod["file"]).read_bytes()
+                assert len(raw)==lod["vertexCount"]*24==lod["byteLength"]
+                assert hashlib.sha256(raw).hexdigest()==lod["sha256"]
+                rows=list(struct.iter_unpack("<6f",raw));verts=[Vector(r[:3]) for r in rows]
+                assert all(all(math.isfinite(x) for x in r) for r in rows)
+                assert all(abs(sum(x*x for x in r[3:])-1)<.004 for r in rows)
+                cursor=0
+                for group in lod["drawGroups"]:
+                    assert group["start"]==cursor and group["count"]%3==0
+                    cursor+=group["count"]
+                assert cursor==len(rows) and len(lod["drawGroups"])<=8
+                bounds=[[min(v[i] for v in verts) for i in range(3)],[max(v[i] for v in verts) for i in range(3)]]
+                assert abs(bounds[0][2])<.001
+                tree=BVHTree.FromPolygons(verts,[(i,i+1,i+2) for i in range(0,len(verts),3)],all_triangles=True)
+                p=s["estimatedParameters"]
+                if s["builder"]=="wood":probes=[(0,0,p["eave"]-.1),(p["porchCenterX"],-p["mainDepth"]/2-p["porchProjection"]/2,p["eave"]-.3)]
+                elif s["builder"]=="imperial":probes=[(0,0,15),(-19,0,5),(19,0,5)]
+                else:probes=[(0,0,3.7),(0,p["sideCenterY"],3.7)]
+                for x,y,zmin in probes:
+                    hit,_,_,_=tree.ray_cast(Vector((x,y,100)),Vector((0,0,-1)))
+                    assert hit is not None and hit.z>zmin,(s["id"],level,x,y,hit)
+                window_probes=[(x,1.8) for x in p["windowXs"]] if s["builder"]=="wood" else [(0,10)] if s["builder"]=="imperial" else []
+                for x,z in window_probes:
+                    hit,_,index,_=tree.ray_cast(Vector((x,-50,z)),Vector((0,1,0)))
+                    assert hit is not None
+                    group=next(g for g in lod["drawGroups"] if g["start"]<=index*3<g["start"]+g["count"])
+                    assert group["name"].split(".")[0]=="glass",(s["id"],level,x,z,group["name"],tuple(hit))
+                glb=(folder/lod["glb"]).read_bytes();assert hashlib.sha256(glb).hexdigest()==lod["glbSha256"]
+                magic,version,size=struct.unpack_from("<4sII",glb);assert magic==b"glTF" and version==2 and size==len(glb)
+                n,kind=struct.unpack_from("<I4s",glb,12);scene=json.loads(glb[20:20+n])
+                assert kind==b"JSON" and not scene.get("cameras") and not scene.get("textures")
+                assert all(m.get("alphaMode","OPAQUE")=="OPAQUE" for m in scene["materials"])
+                bpy.ops.wm.read_factory_settings(use_empty=True);bpy.ops.import_scene.gltf(filepath=str(folder/lod["glb"]));bpy.context.view_layer.update()
+                ps=[o.matrix_world@v.co for o in bpy.context.scene.objects if o.type=="MESH" for v in o.data.vertices]
+                bb=[[min(p[i] for p in ps) for i in range(3)],[max(p[i] for p in ps) for i in range(3)]]
+                error=max(abs(bb[j][i]-bounds[j][i]) for j in range(2) for i in range(3));assert error<.005
+                levels[level]={"triangles":lod["triangleCount"],"drawGroups":len(lod["drawGroups"]),"roundtripBoundsErrorM":error,"roofProbes":len(probes),"clearWindowProbes":len(window_probes)}
+            assert 0<levels["far"]["triangles"]<levels["near"]["triangles"]<60000 and levels["far"]["triangles"]<=6000
+            reports.append({"id":s["id"],"name":s["name"],"editableObjects":meta["nativeObjectCount"],"stationHouseBuilt":meta["stationHouseBuilt"],"configurationStudy":meta["configurationStudy"],"levels":levels,"formatValidated":True,"photoCalibrated":False,"placementVerified":False})
+        (root/"validation.json").write_text(json.dumps(reports,ensure_ascii=False,indent=2)+"\n")
+        print("STATION_NEXT_VALIDATION_OK "+json.dumps(reports,ensure_ascii=False),flush=True)
+        
+      BATCH_COMPOSE: |
+        import os,json,html,base64,shutil
+        from pathlib import Path
+        from PIL import Image,ImageDraw,ImageFont
+        here=Path(__file__).parent;root=Path("output/station-next")
+        specs=json.loads((here/"stations.json").read_text());report=json.loads((root/"validation.json").read_text()) if (root/"validation.json").exists() else []
+        sheet=Image.new("RGB",(1700,2480),"#e5e7df");draw=ImageDraw.Draw(sheet)
+        font=ImageFont.truetype("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",28)
+        small=ImageFont.truetype("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",20)
+        cards=[]
+        for i,s in enumerate(specs):
+            y=i*490;folder=root/s["id"]
+            desc="月台研究・站房尚未製作" if s.get("configurationStudy") else "站房候選・實拍與尺寸待核"
+            draw.text((20,y+8),s["name"]+"｜"+desc,font=font,fill="#30443a")
+            hero=Image.open(folder/"hero.png").convert("RGB");hero.thumbnail((1100,440));sheet.paste(hero,(10,y+46))
+            for j,name in enumerate(("front","roof")):
+                im=Image.open(folder/(name+".png")).convert("RGB");im.thumbnail((550,214));sheet.paste(im,(1130,y+46+j*225))
+                draw.text((1140,y+49+j*225),"正面" if j==0 else "屋頂",font=small,fill="#30443a")
+            esc=html.escape;asset=s["id"]
+            refs=" · ".join('<a href="'+esc(url)+'" target="_blank" rel="noopener">來源'+str(n+1)+'</a>' for n,url in enumerate(s["photoReferences"]))
+            cards.append('<article><h2>'+esc(s["name"])+'</h2><p>'+desc+'</p><img src="'+asset+'/hero.png"><p><a href="'+asset+'/'+asset+'.blend">Blender原檔</a> · <a href="'+asset+'/near.glb">近景GLB</a> · <a href="'+asset+'/far.glb">遠景GLB</a></p><p>'+refs+'</p></article>')
+        draw.text((20,2450),"Blender實際渲染；四座站房候選與一組十分月台研究，尚未完成實拍驗收。",font=small,fill="#30443a")
+        sheet.save(root/"contact-sheet.png");sheet.thumbnail((1360,2200));sheet.save(root/"contact-sheet.jpg",quality=89)
+        (root/"review.html").write_text('<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>站房第三批</title><style>body{font:16px system-ui;background:#edf0e7;padding:20px;color:#293d33}article{background:white;padding:16px;margin:16px 0;border-radius:12px}img{width:100%;max-width:1100px}a{color:#2d6151}</style><h1>高雄帝冠舊站・集集・談文・大山・十分月台</h1>'+''.join(cards)+'</html>')
+        manifest=json.loads((here.parent/"building-batch/station-manifest.json").read_text())
+        source=os.environ["TASK_SOURCE_COMMIT"];run=os.environ["GITHUB_RUN_ID"];run_url="https://github.com/siriushsu/taiwan-rail-live/actions/runs/"+run
+        updates=[]
+        for s in specs:
+            candidate={"id":s["id"],"assetVariant":s["assetVariant"],"artifactRunUrl":run_url,"sourceCommit":source,"formatValidated":any(v["id"]==s["id"] for v in report),"renderInspected":False,"photoCalibrated":False,"placementVerified":False,"productionReady":False,"stationHouseBuilt":not s.get("configurationStudy",False)}
+            row=next(r for r in manifest["stationRows"] if r["stationKey"]==s["stationKeys"][0])
+            key="configurationStudies" if s.get("configurationStudy") else "modelCandidates"
+            row[key]=[x for x in row.get(key,[]) if x["id"]!=s["id"]]+[candidate]
+            if s["builder"]=="wood":row["status"]="exterior-candidate-awaiting-photo-calibration"
+            if s["builder"]=="imperial":row["variantNotice"]="本次新增1941帝冠舊站房；現役主站仍待重製。"
+            if s.get("configurationStudy"):row["status"]="platform-study-station-house-pending"
+            scene=next((x for x in manifest["legacySceneCrosswalk"]["scenes"] if x["sceneId"]==s["legacySceneId"]),None)
+            if scene is not None:scene[key]=[x for x in scene.get(key,[]) if x["id"]!=s["id"]]+[candidate]
+            updates.append(candidate)
+        manifest["generatedStationCandidateCount"]+=4;manifest["stationCandidateAssetCount"]+=4;manifest["configurationStudyCount"]=manifest.get("configurationStudyCount",0)+1
+        manifest["asOf"]="2026-10-13";manifest["completeModelCount"]=0
+        (root/"station-manifest.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+"\n")
+        (root/"production-updates.json").write_text(json.dumps({"sourceCommit":source,"workflowRunUrl":run_url,"newStationHouseCandidates":4,"platformStudies":1,"allAcceptedModels":0,"updates":updates},ensure_ascii=False,indent=2)+"\n")
+        shutil.copy2(here/"stations.json",root/"stations.json")
+        readme="""# 站房第三批
+        高雄1941帝冠舊站、集集、談文、大山為四組外觀候選；十分只有月台／雨棚配置研究，站房未完成。
+        原生可編輯Blender、近／遠GLB與24-byte xyz/normal網格均隨包保存；GLB為Y-up，原檔與mesh.bin為Z-up。
+        長寬高、窗位、屋頂細部、色票及站點方位皆為估值，anchor/rotation維持null。照片工具仍未提供可目視內容，因此沒有宣稱實拍校正完成。
+        高雄帝冠舊站、現役主站、舊打狗驛為不同資產。集集採文資資料確認的黑瓦；談文附屬半寄棟量體、大山歷史出札柵欄另列待核。
+        來源連結保留，但不複製照片作貼圖。所有productionReady=false。十分站房的studio佔位物與軌道導引不在GLB／map網格。
+        格式檢查包含原檔重開、兩級GLB往返尺度、法線、雜湊、材質群組、屋面覆蓋和窗洞可見性；不等於實拍／手機效能验收。
+        在解壓後source目錄執行：
+        blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/station-next/build.py -- ../rebuild
+        blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/station-next/verify.py -- ../rebuild
+        本次只增加4站房候選與1平台研究；全量423筆站码並未全部完成。
+        """
+        (root/"README.md").write_text(readme.replace("验收","驗收").replace("站码","站碼"))
+        print("STATION_NEXT_PREVIEW_BASE64_BEGIN");print(base64.b64encode((root/"contact-sheet.jpg").read_bytes()).decode());print("STATION_NEXT_PREVIEW_BASE64_END")
+        print("STATION_NEXT_VALIDATION_JSON_BEGIN");print(json.dumps(report,ensure_ascii=False,indent=2));print("STATION_NEXT_VALIDATION_JSON_END")
+        
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            prototypes/tiny-trains/blender/building-batch
+            prototypes/tiny-trains/blender/tainan-memory-v1
+      - name: Install Blender
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y blender fonts-noto-cjk python3-pil python3-numpy
+      - name: Materialize reproducible batch source
+        run: |
+          python3 - <<'PY'
+          import os,ast,json
+          from pathlib import Path
+          path=Path("prototypes/tiny-trains/blender/station-next")
+          path.mkdir(parents=True,exist_ok=True)
+          for key,name in [("BATCH_BUILD","build.py"),("BATCH_VERIFY","verify.py"),("BATCH_COMPOSE","compose.py"),("BATCH_SPECS","stations.json")]:
+              value=os.environ[key]
+              if name.endswith(".py"):ast.parse(value)
+              else:json.loads(value)
+              (path/name).write_text(value+"\n")
+          PY
+      - name: Build four station houses and Shifen platform study
+        id: build
+        run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/station-next/build.py -- output/station-next
+      - name: Validate structure and map exports
+        id: verify
+        run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/station-next/verify.py -- output/station-next
+      - name: Compose actual renders and updated production manifest
+        if: always() && steps.build.outcome == 'success'
+        run: python3 prototypes/tiny-trains/blender/station-next/compose.py
+      - name: Preserve complete source layout
+        if: always() && steps.build.outcome == 'success'
+        run: |
+          mkdir -p output/station-next/source/prototypes/tiny-trains/blender/building-batch output/station-next/source/prototypes/tiny-trains/blender/tainan-memory-v1
+          cp -r prototypes/tiny-trains/blender/station-next output/station-next/source/prototypes/tiny-trains/blender/
+          cp prototypes/tiny-trains/blender/building-batch/core.py output/station-next/source/prototypes/tiny-trains/blender/building-batch/
+          cp prototypes/tiny-trains/blender/tainan-memory-v1/geo.py output/station-next/source/prototypes/tiny-trains/blender/tainan-memory-v1/
+          if [ -f LICENSE ]; then cp LICENSE output/station-next/source/; fi
+      - name: Save editable Blender models, map assets and review
+        if: always() && steps.build.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: station-next-imperial-jiji-tanwen-dashan-shifen
+          path: output/station-next/
+          retention-days: 90
+          if-no-files-found: error
