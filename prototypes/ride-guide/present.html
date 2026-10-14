@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>乘車導覽簡報</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&display=swap">
+<style>
+/* 簡報舞台：固定 1920×1080 的畫布，等比縮放到視窗。左手機（實際操作原型）、右大字說明；開場與結尾用全版標題頁。
+   色彩沿用軌島正式站的明亮主題（琺瑯）：米紙底、藏青、印章紅、警戒金、琺瑯站名牌。 */
+:root{
+  color-scheme:light;
+  --paper:#FFFDF6; --bg:#EFE6D2; --stage:#F7F0DD; --line:#C9B98F; --line-faint:#ECE2C8;
+  --ink:#3A3226; --muted:#6B5F4A; --faint:#8A7C62; --strong:#1E2C40;
+  --navy:#2A4A73; --navy-soft:#E3E9F1; --red:#D23C2A; --gold:#D2A12A; --ok:#1B8F4D;
+  --plate-ink:#26497E; --plate-frame:#767061;
+  --font:"Noto Sans TC",-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--font);overflow:hidden}
+button{font:inherit;cursor:pointer}
+.viewport{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg)}
+.stage{width:1920px;height:1080px;position:relative;transform-origin:center center;overflow:hidden;
+  background:radial-gradient(1200px 800px at 85% 10%,#F7F0DD 0%,rgba(247,240,221,0) 70%),var(--bg)}
+
+/* 頁首：品牌牌＋章節進度 */
+.top{position:absolute;left:80px;right:80px;top:48px;display:flex;align-items:center;gap:28px;z-index:3}
+.mini-plate{display:inline-grid;text-align:center;background:linear-gradient(178deg,#fff 0%,#F7F5EE 72%,#EDEBE0 100%);border:3px solid var(--plate-frame);
+  border-radius:10px;box-shadow:0 0 0 1.5px var(--plate-frame);overflow:hidden;padding:6px 22px 0}
+.mini-plate b{font-size:26px;font-weight:900;letter-spacing:8px;text-indent:8px;color:var(--plate-ink);line-height:1.25}
+.mini-plate span{display:block;margin:6px -22px 0;padding:3px 12px 4px;background:linear-gradient(178deg,#2c4f86,#26497e 55%,#1f3d6b);color:#fff8ec;font-size:13px;font-weight:800;letter-spacing:2px}
+.progress{flex:1;display:flex;gap:6px;align-items:center}
+.progress i{flex:1;height:6px;border-radius:3px;background:var(--line-faint)}
+.progress i.done{background:var(--navy);opacity:.45}
+.progress i.cur{background:var(--red)}
+.badge{font-size:20px;font-weight:800;color:var(--navy);border:2px solid var(--navy);background:var(--navy-soft);border-radius:999px;padding:4px 18px;white-space:nowrap}
+
+/* 左：手機 */
+.phone-wrap{position:absolute;left:150px;top:140px;width:438px;height:892px;transition:opacity .45s ease, transform .45s ease;z-index:2}
+.phone{width:100%;height:100%;border-radius:58px;background:#1E2C40;padding:12px;box-shadow:0 34px 70px rgba(30,44,64,.28),0 4px 0 #0f1a2b}
+.phone iframe{display:block;width:414px;height:868px;border:0;border-radius:46px;background:var(--paper)}
+
+/* 右：說明 */
+.cap{position:absolute;left:720px;right:110px;top:190px;bottom:150px;display:flex;flex-direction:column;justify-content:center;gap:30px;z-index:2}
+.chap{display:flex;align-items:center;gap:18px}
+.chap .no{font-size:30px;font-weight:900;color:#fff;background:var(--red);border-radius:12px;padding:4px 16px;box-shadow:0 3px 0 #A92C1D;font-variant-numeric:tabular-nums}
+.chap .of{font-size:22px;font-weight:700;color:var(--faint);font-variant-numeric:tabular-nums}
+.cap h2{margin:0;font-size:76px;line-height:1.18;font-weight:900;color:var(--strong);letter-spacing:.01em;text-wrap:balance}
+.cap p{margin:0;font-size:38px;line-height:1.6;color:var(--ink);max-width:22em;text-wrap:pretty}
+.cap ul{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:16px}
+.cap li{display:grid;grid-template-columns:34px 1fr;gap:16px;font-size:32px;line-height:1.45;color:var(--muted);font-weight:700}
+.cap li::before{content:"";width:22px;height:22px;margin-top:12px;border-radius:50%;border:4px solid var(--navy);background:var(--paper)}
+
+/* 全版標題頁 */
+.slide{position:absolute;inset:150px 160px 140px;display:flex;flex-direction:column;justify-content:center;gap:34px;z-index:2}
+.slide .kicker{align-self:flex-start;font-size:30px;font-weight:900;color:#fff;background:var(--navy);border-radius:12px;padding:6px 20px;box-shadow:0 3px 0 var(--strong)}
+.slide h1{margin:0;font-size:104px;line-height:1.12;font-weight:900;color:var(--strong);text-wrap:balance}
+.slide p{margin:0;font-size:44px;line-height:1.55;color:var(--ink);max-width:24em}
+.slide ul{margin:0;padding:0;list-style:none;display:grid;gap:20px}
+.slide li{display:grid;grid-template-columns:44px 1fr;gap:18px;font-size:40px;line-height:1.4;font-weight:700;color:var(--ink)}
+.slide li::before{content:"";width:26px;height:26px;margin-top:14px;border-radius:50%;border:5px solid var(--red);background:var(--paper)}
+.big-plate{align-self:flex-start;display:grid;text-align:center;background:linear-gradient(178deg,#fff 0%,#F7F5EE 72%,#EDEBE0 100%);border:5px solid var(--plate-frame);
+  border-radius:18px;box-shadow:0 0 0 2px var(--plate-frame),0 14px 30px rgba(58,50,38,.18);overflow:hidden;padding:20px 64px 0}
+.big-plate b{font-size:120px;font-weight:900;letter-spacing:36px;text-indent:36px;color:var(--plate-ink);line-height:1.15}
+.big-plate small{font-size:26px;font-weight:800;letter-spacing:8px;text-indent:8px;color:var(--plate-ink);opacity:.85}
+.big-plate span{display:flex;justify-content:space-between;gap:60px;margin:20px -64px 0;padding:10px 30px 12px;background:linear-gradient(178deg,#2c4f86,#26497e 55%,#1f3d6b);color:#fff8ec;font-size:28px;font-weight:800;letter-spacing:3px}
+
+/* 標題頁右側的路線插畫：三條示範路線的意象，低對比 */
+.deco{position:absolute;right:90px;top:150px;width:640px;height:780px;z-index:1;opacity:.95;transition:opacity .45s ease}
+.deco.hide{opacity:0}
+.slide{right:760px}
+
+/* 切換動畫：明快，0.4 秒內完成 */
+.enter{animation:in .42s cubic-bezier(.2,.7,.2,1) both}
+@keyframes in{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+.hide{opacity:0;pointer-events:none}
+.phone-wrap.hide{transform:translateX(-40px)}
+
+/* 頁尾：控制列（錄影時隱藏） */
+.foot{position:absolute;left:720px;right:80px;bottom:44px;display:flex;align-items:center;gap:16px;z-index:3}
+.foot .note{flex:1;font-size:19px;color:var(--faint)}
+.ctl{display:flex;gap:10px}
+.ctl button{min-width:64px;height:56px;border-radius:999px;border:2px solid var(--line);background:var(--paper);color:var(--strong);font-size:22px;font-weight:800;padding:0 20px;box-shadow:0 2px 0 var(--line)}
+.ctl button.primary{background:var(--navy);border-color:var(--navy);color:#FFFDF6;box-shadow:0 2px 0 var(--strong)}
+.ctl button:focus-visible{outline:4px solid var(--gold);outline-offset:3px}
+.record .ctl,.record .note{display:none}
+.record,.record *{cursor:none!important}
+@media (prefers-reduced-motion:reduce){.enter{animation:none}.phone-wrap{transition:none}}
+</style>
+</head>
+<body>
+<div class="viewport">
+  <div class="stage" id="stage">
+    <header class="top">
+      <div class="mini-plate" aria-hidden="true"><b>軌島</b><span>乘車導覽模式</span></div>
+      <div class="progress" id="progress" aria-hidden="true"></div>
+      <span class="badge">互動展示・示範資料</span>
+    </header>
+    <div class="phone-wrap" id="phoneWrap"><div class="phone"><iframe id="app" title="乘車導覽原型"></iframe></div></div>
+    <section class="cap" id="cap" aria-live="polite"></section>
+    <section class="slide" id="slide" aria-live="polite"></section>
+    <svg class="deco" id="deco" viewBox="0 0 640 780" aria-hidden="true">
+      <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M90 60 C 90 220, 250 230, 250 380 S 120 560, 160 720" stroke="#2A4A73" stroke-width="14"/>
+        <path d="M330 40 C 330 200, 420 260, 400 420 S 470 600, 440 740" stroke="#2A4A73" stroke-width="14" opacity=".55"/>
+        <path d="M560 70 C 520 230, 600 330, 540 470 S 560 640, 590 720" stroke="#2A4A73" stroke-width="14" opacity=".3"/>
+      </g>
+      <g stroke="#2A4A73" stroke-width="6" fill="#FFFDF6">
+        <circle cx="90" cy="60" r="16"/><circle cx="196" cy="214" r="13"/><circle cx="250" cy="380" r="13"/><circle cx="160" cy="720" r="16"/>
+        <circle cx="330" cy="40" r="13" opacity=".55"/><circle cx="403" cy="270" r="11" opacity=".55"/><circle cx="440" cy="740" r="13" opacity=".55"/>
+        <circle cx="560" cy="70" r="13" opacity=".3"/><circle cx="540" cy="470" r="11" opacity=".3"/>
+      </g>
+      <circle cx="250" cy="380" r="30" fill="none" stroke="#D23C2A" stroke-width="7"/>
+      <rect x="176" y="520" width="78" height="40" rx="10" fill="#2E6FB0" stroke="#FFFDF6" stroke-width="5"/>
+      <path d="M225 530 l14 10 -14 10z" fill="#fff"/>
+      <g font-family="Noto Sans TC, sans-serif" font-weight="900">
+        <text x="300" y="392" font-size="40" fill="#D23C2A">★ 目的站</text>
+      </g>
+    </svg>
+    <footer class="foot">
+      <span class="note" id="note">← → 切換・空白鍵播放／暫停</span>
+      <div class="ctl">
+        <button id="prev" aria-label="上一步">◀</button>
+        <button id="play" class="primary">自動播放</button>
+        <button id="next" aria-label="下一步">▶</button>
+      </div>
+    </footer>
+  </div>
+</div>
+<script src="data/tour.js"></script>
+<script>
+(function () {
+  'use strict';
+  const TOUR = window.RIDE_TOUR;
+  const steps = TOUR.steps;
+  const q = new URLSearchParams(location.search);
+  const record = q.has('record');
+  const stage = document.getElementById('stage');
+  const frame = document.getElementById('app');
+  const phoneWrap = document.getElementById('phoneWrap');
+  const cap = document.getElementById('cap');
+  const slide = document.getElementById('slide');
+  const progress = document.getElementById('progress');
+  const playBtn = document.getElementById('play');
+  const phoneSteps = steps.filter((s) => s.layout === 'phone').length;
+  let i = 0, timer = null, playing = false, appReady = false;
+  if (record) document.body.classList.add('record');
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  function fit() {
+    const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    stage.style.transform = `scale(${k})`;
+  }
+  window.addEventListener('resize', fit); fit();
+  progress.innerHTML = steps.map(() => '<i></i>').join('');
+
+  function send(scene) {
+    if (!appReady || !scene) return;
+    frame.contentWindow.postMessage({ rideTour: 1, scene }, '*');
+  }
+
+  function show(n) {
+    i = Math.max(0, Math.min(steps.length - 1, n));
+    const s = steps[i];
+    [...progress.children].forEach((el, k) => { el.className = k < i ? 'done' : k === i ? 'cur' : ''; });
+    document.getElementById('deco').classList.toggle('hide', s.layout === 'phone');
+    if (s.layout === 'phone') {
+      slide.className = 'slide hide'; slide.innerHTML = '';
+      phoneWrap.classList.remove('hide');
+      cap.className = 'cap';
+      cap.innerHTML = `<div class="enter" style="display:grid;gap:30px">
+        <div class="chap"><span class="no">${esc(s.chapter)}</span><span class="of">/ ${String(phoneSteps).padStart(2, '0')}</span></div>
+        <h2>${esc(s.title)}</h2>
+        ${s.body ? `<p>${esc(s.body)}</p>` : ''}
+        ${s.points && s.points.length ? `<ul>${s.points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}</div>`;
+      send(s.scene);
+    } else {
+      phoneWrap.classList.add('hide');
+      cap.className = 'cap hide'; cap.innerHTML = '';
+      slide.className = 'slide';
+      const first = s.id === 'open' || s.id === 'end';
+      slide.innerHTML = `<div class="enter" style="display:flex;flex-direction:column;gap:34px">
+        ${first ? `<div class="big-plate" role="heading" aria-level="1" aria-label="${esc(s.title)}"><b aria-hidden="true">${esc(s.plate || s.title)}</b><small aria-hidden="true">RAIL ISLAND · RIDE GUIDE</small><span aria-hidden="true"><span>◀ 軌島</span><span>互動展示 ▶</span></span></div>
+          <span class="kicker">${esc(s.kicker)}</span>` : `<span class="kicker">${esc(s.kicker)}</span><h1>${esc(s.title)}</h1>`}
+        ${s.body ? `<p>${esc(s.body)}</p>` : ''}
+        ${s.points && s.points.length ? `<ul>${s.points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}</div>`;
+      // 標題頁期間先把手機預備好下一幕，切回手機時不會閃一下舊畫面
+      const nextPhone = steps.slice(i + 1).find((x) => x.layout === 'phone');
+      if (nextPhone) send(nextPhone.scene);
+    }
+    window.__tourStep = i;
+  }
+
+  function schedule() {
+    clearTimeout(timer);
+    if (!playing) return;
+    timer = setTimeout(() => {
+      if (i >= steps.length - 1) { playing = false; playBtn.textContent = '自動播放'; window.__tourDone = true; return; }
+      show(i + 1); schedule();
+    }, (steps[i].dur || 6) * 1000);
+  }
+  function setPlaying(v) { playing = v; playBtn.textContent = v ? '暫停' : '自動播放'; schedule(); }
+
+  document.getElementById('prev').addEventListener('click', () => { show(i - 1); schedule(); });
+  document.getElementById('next').addEventListener('click', () => { show(i + 1); schedule(); });
+  playBtn.addEventListener('click', () => setPlaying(!playing));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') { show(i + 1); schedule(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { show(i - 1); schedule(); }
+    else if (e.key === ' ') { e.preventDefault(); setPlaying(!playing); }
+    else if (e.key === 'Home') { show(0); schedule(); }
+  });
+
+  frame.addEventListener('load', () => {
+    appReady = true;
+    show(i);
+    window.__tourReady = true;
+    if (q.has('autoplay')) setPlaying(true);
+  });
+  // 先掛好 load 再給網址：本機載入很快，晚掛會錯過 load 事件
+  frame.src = 'index.html?tour=1';
+  show(0);
+  window.RideTourStage = { show, steps };
+})();
+</script>
+</body>
+</html>
