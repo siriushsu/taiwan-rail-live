@@ -1,0 +1,52 @@
+name: 臺北車站 Blender 樣站
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'prototypes/tiny-trains/blender/taipei-preview/*.py'
+      - 'prototypes/tiny-trains/blender/taipei-preview/*.json'
+      - 'prototypes/tiny-trains/blender/taipei-preview/*.geojson'
+      - '.github/workflows/taipei-station-preview.yml'
+permissions:
+  contents: read
+concurrency:
+  group: taipei-station-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  model:
+    if: github.head_ref == 'codex/taipei-station-blender-preview' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: 取得樣站程式
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          sparse-checkout: prototypes/tiny-trains/blender/taipei-preview
+      - name: 安裝 Blender 與中文字型
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y blender fonts-noto-cjk python3-pil python3-numpy
+          blender --version
+      - name: 建模與匯出
+        run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/taipei-preview/build.py -- --out output/taipei-station --skip-render
+      - name: 驗證原檔、GLB 往返、窗框接合與中央覆蓋
+        run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/taipei-preview/verify.py -- output/taipei-station
+      - name: 保存已驗證模型
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: taipei-station-preview02-model
+          path: output/taipei-station/
+          retention-days: 90
+          if-no-files-found: error
+      - name: 三視角實際渲染
+        run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/taipei-preview/render.py -- output/taipei-station
+      - name: 組合審閱預覽與前後比較
+        run: python3 prototypes/tiny-trains/blender/taipei-preview/compose.py
+      - name: 上傳 Blender、地圖模型與比較圖
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: taipei-station-blender-preview02
+          path: output/taipei-station/
+          retention-days: 90
+          if-no-files-found: error

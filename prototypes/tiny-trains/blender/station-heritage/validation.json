@@ -1,0 +1,88 @@
+[
+  {
+    "id": "hsinchu-exterior-v2-candidate01",
+    "name": "新竹車站・外觀修訂",
+    "editableObjects": 92,
+    "features": {
+      "variant": "historic-station-exterior",
+      "currentStationIncluded": false
+    },
+    "levels": {
+      "near": {
+        "triangles": 3230,
+        "drawGroups": 8,
+        "glbBytes": 259244,
+        "roundtripBoundsErrorM": 0,
+        "roofProbes": 3
+      },
+      "far": {
+        "triangles": 2102,
+        "drawGroups": 7,
+        "glbBytes": 170368,
+        "roundtripBoundsErrorM": 0,
+        "roofProbes": 3
+      }
+    },
+    "formatValidated": true,
+    "photoCalibrated": false,
+    "placementVerified": false
+  },
+  {
+    "id": "tainan-exterior-v1-candidate01",
+    "name": "臺南舊站房・既有細模整理",
+    "editableObjects": 64,
+    "features": {
+      "variant": "historic-building-without-construction-wrap",
+      "currentStationIncluded": false,
+      "inheritedPendingChecks": 16,
+      "originalNearTriangles": 35598
+    },
+    "levels": {
+      "near": {
+        "triangles": 35598,
+        "drawGroups": 8,
+        "glbBytes": 2784116,
+        "roundtripBoundsErrorM": 0,
+        "roofProbes": 3
+      },
+      "far": {
+        "triangles": 7632,
+        "drawGroups": 7,
+        "glbBytes": 601840,
+        "roundtripBoundsErrorM": 0,
+        "roofProbes": 3
+      }
+    },
+    "formatValidated": true,
+    "photoCalibrated": false,
+    "placementVerified": false
+  },
+  {
+    "id": "taichung-old-v1-candidate01",
+    "name": "臺中舊驛站・獨立資產",
+    "editableObjects": 87,
+    "features": {
+      "variant": "historic-1917-station-building",
+      "currentStationIncluded": false
+    },
+    "levels": {
+      "near": {
+        "triangles": 2657,
+        "drawGroups": 8,
+        "glbBytes": 214428,
+        "roundtripBoundsErrorM": 0,
+        "roofProbes": 3
+      },
+      "far": {
+        "triangles": 1659,
+        "drawGroups": 8,
+        "glbBytes": 136576,
+        "roundtripBoundsErrorM": 0,
+        "roofProbes": 3
+      }
+    },
+    "formatValidated": true,
+    "photoCalibrated": false,
+    "placementVerified": false
+  }
+]

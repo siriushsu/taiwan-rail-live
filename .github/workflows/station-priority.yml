@@ -1,0 +1,49 @@
+name: 特色車站 Blender 依序製作
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'prototypes/tiny-trains/blender/station-priority/**'
+      - 'prototypes/tiny-trains/blender/building-batch/core.py'
+      - '.github/workflows/station-priority.yml'
+permissions:
+  contents: read
+concurrency:
+  group: station-priority-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  models:
+    if: github.head_ref == 'codex/taipei-station-blender-preview' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            prototypes/tiny-trains/blender/station-priority
+            prototypes/tiny-trains/blender/building-batch
+      - name: Install Blender
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y blender fonts-noto-cjk python3-pil python3-numpy
+      - name: Build Dongshan, Shilin and Formosa in order
+        run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/station-priority/build.py -- output/station-priority
+      - name: Validate model structure and exports
+        run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/station-priority/verify.py -- output/station-priority
+      - name: Compose actual renders and review index
+        run: python3 prototypes/tiny-trains/blender/station-priority/compose.py
+      - name: Include source files
+        run: |
+          cp prototypes/tiny-trains/blender/building-batch/station-manifest.json output/station-priority/
+          mkdir -p output/station-priority/source
+          cp prototypes/tiny-trains/blender/station-priority/*.py output/station-priority/source/
+          cp prototypes/tiny-trains/blender/building-batch/core.py output/station-priority/source/
+      - name: Save Blender and map assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: station-priority-dongshan-shilin-formosa
+          path: output/station-priority/
+          retention-days: 90
+          if-no-files-found: error

@@ -1,0 +1,24 @@
+{
+  "asset": "taipei-main-exterior-v2-preview01",
+  "lods": {
+    "near": {
+      "triangles": 19302,
+      "drawGroups": 12,
+      "coveredRoofProbeCount": 15,
+      "boundsRoundtripErrorM": 0,
+      "glbBytes": 1514776,
+      "meshBytes": 1389744
+    },
+    "far": {
+      "triangles": 13704,
+      "drawGroups": 8,
+      "coveredRoofProbeCount": 15,
+      "boundsRoundtripErrorM": 0,
+      "glbBytes": 1074812,
+      "meshBytes": 986688
+    }
+  },
+  "blendReopened": true,
+  "editableObjects": 534,
+  "pass": true
+}
