@@ -58,21 +58,20 @@ def assemble(w):
     tr_n = Mh.build_trough(M, w, cp['north-portal']['d'], cp['north-cut-outer']['d'], 'lo')
     Mh.build_station(M, w, info)
     D = w.dims
-    ho, hi_ = D.tun_outer / 2, D.tun_inner / 2
-    ro, ri = D.ramp_outer / 2, D.ramp_inner / 2
+    ho = D.tun_outer / 2
     info['sections'] = {'tunnel-south': tun_s, 'tunnel-north': tun_n, 'trough-south': tr_s, 'trough-north': tr_n}
     info['footprints'] = [
         {'id': 'tunnel-south', 'kind': 'tunnel', 'ring': ring3(ccw(tun_s.ring(-ho, ho)))},
         {'id': 'tunnel-north', 'kind': 'tunnel', 'ring': ring3(ccw(tun_n.ring(-ho, ho)))},
         {'id': 'station', 'kind': 'station', 'ring': ring3(info['outline'][:-1])},
-        {'id': 'trough-south', 'kind': 'trough', 'ring': ring3(ccw(tr_s.ring(-ro, ro)))},
-        {'id': 'trough-north', 'kind': 'trough', 'ring': ring3(ccw(tr_n.ring(-ro, ro)))},
+        {'id': 'trough-south', 'kind': 'trough', 'ring': ring3(ccw(tr_s.ring(Mh.neg(tr_s.hout), tr_s.hout)))},
+        {'id': 'trough-north', 'kind': 'trough', 'ring': ring3(ccw(tr_n.ring(Mh.neg(tr_n.hout), tr_n.hout)))},
     ]
     for k, p in enumerate(info['platforms']):
         info['footprints'].append({'id': f'platform-{k + 1}', 'kind': 'platform', 'name': p['name'], 'ring': ring3(p['ring'])})
     info['cutouts'] = [
-        {'id': 'trough-south-inner', 'ring': ring3(ccw(tr_s.ring(-ri, ri)))},
-        {'id': 'trough-north-inner', 'ring': ring3(ccw(tr_n.ring(-ri, ri)))},
+        {'id': 'trough-south-inner', 'ring': ring3(ccw(tr_s.ring(Mh.neg(tr_s.hin), tr_s.hin)))},
+        {'id': 'trough-north-inner', 'ring': ring3(ccw(tr_n.ring(Mh.neg(tr_n.hin), tr_n.hin)))},
     ]
     return M, info
 
@@ -182,9 +181,7 @@ def make_profile(w):
         'derived': {
             'station': {'centerD': r3(w.st_center), 'southD': r3(w.st_south), 'northD': r3(w.st_north), 'lengthM': D.st_len,
                         'loopEndsD': {k: [r3(v[0]), r3(v[1])] for k, v in w.loop_ends_d.items()}},
-            'platform': {'centerD': r3(w.pf_center), 'd0': r3(w.pf_d0), 'd1': r3(w.pf_d1), 'lengthM': D.pf_len,
-                         'spacingRunsD': {k: [r3(v[0]), r3(v[1])] for k, v in w.pf_runs.items()},
-                         'overlapD': [r3(w.pf_overlap[0]), r3(w.pf_overlap[1])]},
+            'platform': {'centerD': r3(w.pf_center), 'd0': r3(w.pf_d0), 'd1': r3(w.pf_d1), 'lengthM': D.pf_len},
             'roadCrossingsD': {k: sorted(r3(x['d']) for x in v) for k, v in w.road_cross.items()},
         },
     }

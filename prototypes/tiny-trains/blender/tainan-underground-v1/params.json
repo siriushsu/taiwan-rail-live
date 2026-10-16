@@ -60,7 +60,7 @@
   "portalEndWall": {"value": "洞口處隧道箱體的端面（外框 tunnel.outerWidthM × 底到頂），挖掉 U 槽內淨寬的開口；U 槽比隧道窄，沒有這面牆會看到箱體端部開著", "label": "估計"},
   "wallTopAboveGroundM": {"value": 2.2, "label": "查到", "sources": ["S4"], "note": "防洪牆兼隔音牆約 2.04–2.37 m，取中間"},
   "floor": "軌道面高程 z（同隧道）",
-  "portalHeadwall": {"value": "洞口上方一道牆，從頂板底到牆頂（地面 + wallTopAboveGroundM），厚 wallThicknessM", "label": "估計"}
+  "portalHeadwall": {"value": "洞口上方一道牆，從頂板頂（洞口處與地面齊）到牆頂（地面 + wallTopAboveGroundM），寬同 U 槽外寬，厚 wallThicknessM；頂板頂以下由 portalEndWall 負責", "label": "估計"}
  },
  "station": {
   "lengthM": {"value": 691, "label": "查到", "sources": ["S8", "S30"], "note": "UK357+470～358+161，小東路地下道附近到民族路四維地下道附近"},

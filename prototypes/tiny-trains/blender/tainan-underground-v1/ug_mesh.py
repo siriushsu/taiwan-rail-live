@@ -7,6 +7,9 @@
 - 隧道與引道沿「剖面線（rung）」生成：剖面線垂直於參考線，位置取參考線折點、東側正線折點的投影、控制點、兩端；
   相鄰兩條剖面線之間兩側都是直線，所以每個四邊形都貼著 OSM 折線偏移出來的實際形狀，也不會有一條長直線跨過坡度轉折點。
 - 每個頂點的 z 都由同一個剖面函數（Profile.z）依 d 算出；站體是水平的，高程就是兩個站端控制點的共同值。
+- U 槽的寬度不是定值：每條剖面線各量一次兩股中心距，內牆離最近那股軌道中心 wallInsetFromTrackM，外牆再加牆厚；
+  所以 Section 的橫向位置（s）可以是常數，也可以是「每條剖面線一個值」的序列。
+- U 槽比隧道箱體窄，洞口平面上箱體的端面要補一面牆（洞口端牆）；洞口上方的牆坐在端牆上方，兩者在同一平面上下相接、不重疊。
 - 站體外框：四股各自外擴（牆內緣距離＋牆厚）後取聯集，做形態學 closing 補平股道之間的空隙，再和隧道外框聯集，
   最後用垂直於參考線的兩個切面切平；切面上的端牆在隧道接進來的地方開洞，洞口就是隧道外框的剖面。
 """
@@ -41,6 +44,15 @@ def R(v):
 
 def Z(v):
     return ('a', float(v))      # 絕對高程
+
+
+def _at(s, k):
+    """橫向位置 s 可以是常數，或每條剖面線一個值的序列。"""
+    return s[k] if isinstance(s, (list, tuple, np.ndarray)) else s
+
+
+def neg(s):
+    return [-x for x in s] if isinstance(s, (list, tuple, np.ndarray)) else -s
 
 
 class Mesh:
@@ -97,8 +109,13 @@ class Section:
         return k
 
     def xy(self, k, s):
-        p = self.w.ref.at(self.ds[k], self.sm[k] + s)
+        p = self.w.ref.at(self.ds[k], self.sm[k] + _at(s, k))
         return float(p[0]), float(p[1])
+
+    def trough_half_widths(self, inset, wall):
+        """U 槽內牆與外牆離中線的距離（每條剖面線一個值）：內牆＝兩股中心距的一半再加 inset，外牆再加牆厚。"""
+        hin = [m + inset for m in self.sm]
+        return hin, [h + wall for h in hin]
 
     def xyz(self, k, s, zz):
         x, y = self.xy(k, s)
@@ -146,30 +163,53 @@ def build_tunnel(M, w, d0, d1, part='tunnel'):
 
 # ---------------------------------------------------------------- 引道 U 槽
 def build_trough(M, w, d_lo, d_hi, portal, part='trough'):
-    """d_lo..d_hi 的 U 槽；portal='hi' 表示洞口在 d_hi 端（南引道），'lo' 在 d_lo 端（北引道）。"""
+    """d_lo..d_hi 的 U 槽；portal='hi' 表示洞口在 d_hi 端（南引道），'lo' 在 d_lo 端（北引道）。
+
+    寬度逐剖面線量（Section.trough_half_widths）。洞口這一端：
+    - 洞口端牆（params.ramps.portalEndWall）：洞口平面上隧道箱體的端面，外框是隧道外寬 × 箱底到頂板頂，
+      開口是 U 槽內淨寬 × 軌道面到頂板底，朝向 U 槽（箱體的外側）。格線切在內牆與外牆的位置，端牆與洞口牆的邊沒有 T 字接點。
+    - 洞口上方的牆（params.ramps.portalHeadwall）：從頂板頂往上到牆頂，厚 wallThicknessM；隧道側的面與端牆同一平面、上下相接，
+      寬度是 U 槽外寬（蓋住兩側牆在這一端的端面，所以兩側牆在洞口端不畫端面）；開挖側的面、頂面、底面只畫兩內牆之間。
+    """
     D = w.dims
-    half, hin = D.ramp_outer / 2, D.ramp_inner / 2
-    d_p = d_hi if portal == 'hi' else d_lo
-    d_f = d_p - D.ramp_wall if portal == 'hi' else d_p + D.ramp_wall          # 洞口牆的另一面（開挖側）
+    at_hi = portal == 'hi'
+    d_p = d_hi if at_hi else d_lo
+    d_f = d_p - D.ramp_wall if at_hi else d_p + D.ramp_wall          # 洞口牆的另一面（開挖側）
     sec = Section(w, d_lo, d_hi, extra=[d_f])
+    hin, hout = sec.trough_half_widths(D.ramp_inset, D.ramp_wall)
+    sec.hin, sec.hout = hin, hout
     kp, kf = sec.index(d_p), sec.index(d_f)
+    k_open = 0 if at_hi else sec.n - 1                                # 地面端（開口端）
+    ho = D.tun_outer / 2
+    if not hout[kp] < ho:
+        raise ValueError('U 槽外寬不小於隧道外寬：洞口端牆兩側的牆片尚未實作')
     top = Z(D.ramp_top)
+    roof = R(D.tun_top)                                               # 頂板頂
     with M.G.part(part):
-        sec.ribbon(M, 'ug_trough_floor', (-hin, R(0)), (hin, R(0)), 'up')
+        sec.ribbon(M, 'ug_trough_floor', (neg(hin), R(0)), (hin, R(0)), 'up')
         for sgn, outer_dir, inner_dir in ((-1, 'west', 'east'), (1, 'east', 'west')):
-            so, si = sgn * half, sgn * hin
+            so, si = [sgn * h for h in hout], [sgn * h for h in hin]
             sec.ribbon(M, 'ug_trough', (so, top), (si, top), 'up')                         # 牆頂
             sec.ribbon(M, 'ug_trough', (so, R(-D.base_below)), (so, top), outer_dir)        # 外面
             sec.ribbon(M, 'ug_trough', (si, R(0)), (si, top), inner_dir)                    # 內面（地板以上）
-            for k, facing in ((0, 'back'), (sec.n - 1, 'fwd')):                            # 兩端
-                sec.cap(M, 'ug_trough', k, min(so, si), max(so, si), R(-D.base_below), top, facing)
-        # 洞口上方的牆：夾在兩側牆內面之間，從頂板底（軌道面＋淨高）到牆頂；開挖側一面、隧道側一面、頂、底
-        k0, k1 = (kf, kp) if portal == 'hi' else (kp, kf)
-        sec.ribbon(M, 'ug_trough', (-hin, R(D.soffit)), (hin, R(D.soffit)), 'down', k0, k1)
-        sec.ribbon(M, 'ug_trough', (-hin, top), (hin, top), 'up', k0, k1)
-        face_cut, face_tun = ('back', 'fwd') if portal == 'hi' else ('fwd', 'back')
-        sec.cap(M, 'ug_trough', kf, -hin, hin, R(D.soffit), top, face_cut)
-        sec.cap(M, 'ug_trough', kp, -hin, hin, R(D.soffit), top, face_tun)
+            lo_, hi_ = sorted((so[k_open], si[k_open]))
+            sec.cap(M, 'ug_trough', k_open, lo_, hi_, R(-D.base_below), top, 'back' if at_hi else 'fwd')   # 地面端的端面
+        face_cut, face_tun = ('back', 'fwd') if at_hi else ('fwd', 'back')    # 朝向 U 槽（開挖側）／朝向隧道
+        # 洞口端牆：外框 ho × (箱底, 頂板頂)，扣掉開口 hin × (軌道面, 頂板底)
+        xs = [-ho, -hout[kp], -hin[kp], hin[kp], hout[kp], ho]
+        zs = [R(-D.base_below), R(0), R(D.soffit), roof]
+        for band, (za, zb) in enumerate(zip(zs, zs[1:])):
+            for col, (sa, sb) in enumerate(zip(xs, xs[1:])):
+                if band == 1 and col == 2:
+                    continue                                          # 開口
+                sec.cap(M, 'ug_trough', kp, sa, sb, za, zb, face_cut)
+        # 洞口上方的牆
+        k0, k1 = (kf, kp) if at_hi else (kp, kf)
+        sec.ribbon(M, 'ug_trough', (neg(hin), roof), (hin, roof), 'down', k0, k1)         # 底面（頂板頂高程）
+        sec.ribbon(M, 'ug_trough', (neg(hin), top), (hin, top), 'up', k0, k1)             # 頂面（兩內牆之間；內牆之外由牆頂蓋）
+        sec.cap(M, 'ug_trough', kf, -hin[kf], hin[kf], roof, top, face_cut)
+        for sa, sb in zip(xs[1:-1], xs[2:-1]):                        # 隧道側的面：U 槽外寬，格線與端牆相同
+            sec.cap(M, 'ug_trough', kp, sa, sb, roof, top, face_tun)
     return sec
 
 

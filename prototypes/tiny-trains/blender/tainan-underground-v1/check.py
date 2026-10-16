@@ -6,7 +6,8 @@
 
 做法
 - 只讀輸出檔（model.json、near.mesh.bin.gz、profile.json）、params.json、input/alignment.json、9/12 快照與舊站體外框；
-  不 import build 端的 ug_core／ug_mesh，控制點的 d 與月台中心也在這裡另外獨立算一次（ug_out.py 只是讀檔工具）。
+  不 import build 端的 ug_core／ug_mesh，控制點的 d、站體中心（月台中心）、U 槽應有的寬度（兩股中心距從股道座標量）也在這裡另外獨立算一次
+  （ug_out.py 只是讀檔工具）。
 - 殼（隧道、站體）只畫外側面，內側面（淨空判斷要用）由外側面往內平移牆厚／頂板厚合成；牆厚、頂板厚讀 params.json，
   哪個三角形屬於站體、哪個屬於隧道，用 model.json 的 footprints 判斷。
 - 規格給定的檢查值（車輛限界、取樣間距、坡度上限、四個停車點、容差）是下面的常數；尺寸一律讀 params.json。
@@ -24,7 +25,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
-from shapely.geometry import LineString, MultiPolygon, Point, Polygon
+from shapely.geometry import LineString, MultiPolygon, Point, Polygon, box
 from shapely.ops import unary_union
 from shapely.strtree import STRtree
 
@@ -45,8 +46,16 @@ COVER_TOL_M = 2e-3                  # 取樣點算不算「落在三角形上」
 CAND_RADIUS_M = 4.0                 # 淨空候選：離車輛限界邊緣 4 m 內的結構才算（再遠就是「≥ 4 m」）
 PLATFORM_EXTENT_TOL_M = 0.5         # 月台沿參考線的範圍與 params 長度的容差
 CP_D_TOL_M = 0.005                  # 獨立重算的控制點 d 與 profile.json 的容差
-PLATFORM_CENTER_MIN_SPACING_M = 10.0  # 月台中心規則的門檻（params.station.platform.center 的說明文字寫「中心距 ≥ 10 m」，數字只在文字裡）
-PLATFORM_SCAN_STEP_M = 0.1          # 獨立重算月台中心時，沿外側股道的取樣步長
+PLATFORM_CENTER_TOL_M = 0.05        # 月台中心（網格量到）與獨立重算的站體中心的容差
+PLATFORM_END_MIN_SPACING_M = 10.0   # 月台兩端外側股道與正線的中心距下限（params.station.platform.center 的 basis 寫「≥ 10 m」，數字只在文字裡）
+PLATFORM_SCAN_STEP_M = 0.1          # 量月台兩端中心距時，沿外側股道的取樣步長
+ENDWALL_COVER_MIN = 0.99            # 洞口端牆覆蓋率下限
+ENDWALL_BLOCK_MAX = 0.01            # 洞口開口被端牆面擋住的面積比上限
+PLANE_TOL_M = 2e-3                  # 三角形算「在洞口平面上」的容差（座標存 float32）
+Z_TOUCH_TOL_M = 1e-3                # 結構面的頂緣只比車輛限界底（軌道面）高出這麼多以內，算相接不算碰到
+TROUGH_SCAN_STEP_M = 25.0           # U 槽沿線寬度掃描的間距
+TROUGH_SCAN_MARGIN_M = 3.0          # 掃描離 U 槽兩端的距離（端面與洞口牆不在掃描範圍）
+TROUGH_SCAN_TOL_M = 0.015           # 掃描的容差：剖面線之間的牆是直線，但 OSM 折點離必要剖面線不到 0.25 m 時剖面線會合併（ug_core.D_MERGE），折線最多偏約 1 cm
 BUDGET = {'maxTriangles': 60000, 'maxGzipBytes': 350000, 'maxDrawGroups': 16}
 # 9/12 重播頁的四個停車點（世界座標 x, y）
 STOP_POINTS = [('西側正線', (28.5, -5.0)), ('西側外側股道', (17.0, -3.0)),
@@ -254,6 +263,26 @@ def vertical_s(segs, tol=2e-3):
     return sorted((k, v[0], v[1]) for k, v in by.items())
 
 
+def trough_tracks(out):
+    """兩條正線的折線（西側＝參考線、東側），從 input/alignment.json 的股道座標串起來；U 槽應有的寬度由它們量。"""
+    ways = U.alignment_ways(out)
+    al = out.params['alignment']
+    return [LineString(chain_points(ways, al['referenceChain']['ways'])), LineString(chain_points(ways, al['eastChain']))]
+
+
+def track_s(lines, p0, t):
+    """過 p0、垂直於 t 的剖面線與各條折線的交點，回傳橫向位置 s（向東為正，原點在 p0）。"""
+    east = np.array([t[1], -t[0]])
+    cut = LineString([p0 - east * 30, p0 + east * 30])
+    res = []
+    for ls in lines:
+        x = cut.intersection(ls)
+        if x.is_empty or x.geom_type != 'Point':
+            raise ValueError(f'剖面線與股道的交集不是一個點：{x.geom_type}')
+        res.append(float((np.array([x.x, x.y]) - p0) @ east))
+    return res
+
+
 def item_dims(R, out):
     """網格量到的剖面尺寸對 params（隧道、U 槽、站體各一個剖面）。"""
     it = 1
@@ -289,19 +318,23 @@ def item_dims(R, out):
         cmp('隧道地板寬（內淨寬）', fl[0][1] - fl[0][0], val(t['outerWidthM']) - 2 * val(t['wallThicknessM']))
         if len(wall) == 2:
             cmp('地板中心對外牆中心的偏差（應 0）', (fl[0][0] + fl[0][1]) / 2 - (wall[0][0] + wall[1][0]) / 2, 0.0)
-    # U 槽剖面：南引道中段
+    # U 槽剖面：南引道中段。內淨寬＝該處兩股中心距（從股道座標另外量）＋兩側各 wallInsetFromTrackM
     d = (cps['south-cut-outer']['d'] + cps['south-portal']['d']) / 2
     segs, p0, tt = section_segments(out, d)
     z = out.z_of_d(d)
     wv = vertical_s(segs['ug_trough'])
-    inner_w = val(t['outerWidthM']) - 2 * val(t['wallThicknessM'])
+    s_w, s_e = track_s(trough_tracks(out), p0, tt)
+    inset = val(rp['wallInsetFromTrackM'])
+    inner_w = (s_e - s_w) + 2 * inset
     outer_w = inner_w + 2 * val(rp['wallThicknessM'])
     if len(wv) != 4:
         ok_all = False
         rows.append(f'U 槽剖面的牆面數 {len(wv)}（應為 4：兩側各內外面）')
     else:
-        cmp('U 槽外寬', wv[3][0] - wv[0][0], outer_w)
-        cmp('U 槽內寬', wv[2][0] - wv[1][0], inner_w)
+        cmp(f'U 槽外寬（內寬＋2×牆厚 {val(rp["wallThicknessM"]):g}）', wv[3][0] - wv[0][0], outer_w)
+        cmp(f'U 槽內寬（兩股中心距 {s_e - s_w:.3f} ＋ 2×{inset:g}）', wv[2][0] - wv[1][0], inner_w)
+        cmp('西內牆離西正線中心（wallInsetFromTrackM）', s_w - wv[1][0], inset)
+        cmp('東內牆離東正線中心（wallInsetFromTrackM）', wv[2][0] - s_e, inset)
         cmp('U 槽牆頂（地面＋wallTopAboveGroundM）', wv[0][2], val(rp['wallTopAboveGroundM']))
         cmp('U 槽牆底低於軌道面', z - wv[0][1], val(t['baseBottomBelowTrackM']))
     tf = horiz_extent(segs['ug_trough_floor'], z)
@@ -333,6 +366,108 @@ def item_dims(R, out):
     rows.append(f'月台頂高 z={z0 + val(st["platform"]["topAboveTrackM"]):.3f}、頂面段數 {len(pt)}（應為 2）、橫向寬 '
                 + '、'.join(f'{b - a:.3f}' for a, b in pt))
     R.add(it, ok_text(ok_all), '1.7 剖面尺寸對 params（網格切面實量）：' + '；'.join(rows))
+
+
+# ---------------------------------------------------------------- 洞口端牆、U 槽沿線寬度
+def portal_plane(out, d):
+    """洞口平面：回傳 (參考線上 d 點, 平面法向（沿參考線的水平單位向量）, 平面內向東的單位向量)。
+    d 剛好落在參考線折點時（洞口在 way 的端點），平面垂直於前後兩段方向的角平分線，建模的剖面線也是這樣切。"""
+    j = int(np.argmin(np.abs(out.ref_d - d)))
+    if abs(out.ref_d[j] - d) < 5e-3 and 0 < j < len(out.ref_d) - 1:
+        t0, t1 = out.ref_xy[j] - out.ref_xy[j - 1], out.ref_xy[j + 1] - out.ref_xy[j]
+        n = t0 / np.hypot(*t0) + t1 / np.hypot(*t1)
+        n = n / np.hypot(*n)
+        p0 = out.ref_xy[j]
+    else:
+        p0, n = out.ref_point(d), out.ref_tangent(d)
+    return p0, n, np.array([n[1], -n[0]])
+
+
+def item_endwall(R, out):
+    """洞口端牆覆蓋率：洞口平面上「隧道外框（外寬 × 箱底到頂板頂）扣掉開口（U 槽內淨寬 × 軌道面到頂板底）」
+    被朝向 U 槽的 ug_trough 面蓋到的面積比例；另量開口被 ug_trough 面擋住的面積比例。
+    外框與開口的尺寸讀 params；開口的左右邊界由該處兩股中心距（股道座標另外量）加 wallInsetFromTrackM 算出。"""
+    P = out.params
+    val = lambda n: n['value'] if isinstance(n, dict) and 'value' in n else n
+    tn, rp = P['tunnel'], P['ramps']
+    ow, below, soffit, roof_t = val(tn['outerWidthM']), val(tn['baseBottomBelowTrackM']), val(tn['soffitAboveTrackM']), val(tn['roofThicknessM'])
+    inset = val(rp['wallInsetFromTrackM'])
+    tracks = trough_tracks(out)
+    idx = [i for i in range(len(out.tris)) if out.mat[i] == 'ug_trough']
+    msgs, ok_all = [], True
+    for label, pid, toward in (('南洞口', 'south-portal', -1.0), ('北洞口', 'north-portal', 1.0)):
+        d, zp = out.cp[pid]['d'], out.cp[pid]['z']
+        p0, n, e = portal_plane(out, d)
+        s_w, s_e = track_s(tracks, p0, n)
+        mid = (s_w + s_e) / 2
+        outer = box(mid - ow / 2, zp - below, mid + ow / 2, zp + soffit + roof_t)
+        opening = box(s_w - inset, zp, s_e + inset, zp + soffit)
+        region = outer.difference(opening)
+        polys = []
+        for i in idx:
+            tri = out.tris[i]
+            if np.abs((tri[:, :2] - p0) @ n).max() > PLANE_TOL_M:
+                continue                                              # 不在洞口平面上
+            if float(out.nrm[i][:2] @ n) * toward < 0.99:
+                continue                                              # 不是朝向 U 槽
+            polys.append(Polygon([(float((q[:2] - p0) @ e), float(q[2])) for q in tri]))
+        u = unary_union(polys) if polys else Polygon()
+        cover = u.intersection(region).area / region.area
+        block = u.intersection(opening).area / opening.area
+        ok = cover >= ENDWALL_COVER_MIN and block <= ENDWALL_BLOCK_MAX
+        ok_all &= ok
+        msgs.append(f'{label}（d={d:.2f}，z={zp:g}）：覆蓋 {100 * cover:.2f}%（區域 {region.area:.2f} m²＝外框 {outer.area:.2f} 扣開口 {opening.area:.2f}，'
+                    f'開口寬 {s_e - s_w + 2 * inset:.3f} m；朝向 U 槽的面 {len(polys)} 個）、開口被擋 {100 * block:.3f}%{"" if ok else " ✗"}')
+    R.add(1, ok_text(ok_all), f'1.8 洞口端牆覆蓋率（洞口平面上隧道外框扣掉開口，被朝向 U 槽的 ug_trough 面蓋到的比例，要 ≥ {100 * ENDWALL_COVER_MIN:g}%；'
+                              f'開口被擋住的比例要 ≤ {100 * ENDWALL_BLOCK_MAX:g}%）：' + '；'.join(msgs))
+
+
+def item_trough_scan(R, out):
+    """U 槽寬度沿線掃描：南北兩段每 TROUGH_SCAN_STEP_M 量一個剖面（離兩端各 TROUGH_SCAN_MARGIN_M 以內不量）。
+    每個剖面量牆面的橫向位置，對照「兩股中心距（股道座標另外量）＋2×wallInsetFromTrackM」，並對 model.json 的 footprints（外框）與 cutouts（內側）。"""
+    P = out.params
+    val = lambda n: n['value'] if isinstance(n, dict) and 'value' in n else n
+    inset, rwall = val(P['ramps']['wallInsetFromTrackM']), val(P['ramps']['wallThicknessM'])
+    tracks = trough_tracks(out)
+    fps = {f['id']: Polygon(f['ring']) for f in out.model['footprints']}
+    cuts = {c['id']: Polygon(c['ring']) for c in out.model['cutouts']}
+    cp = out.cp
+    spans = (('南', 'trough-south', cp['south-cut-outer']['d'], cp['south-portal']['d']),
+             ('北', 'trough-north', cp['north-portal']['d'], cp['north-cut-outer']['d']))
+    msgs, ok_all = [], True
+    for label, fid, d0, d1 in spans:
+        ds = np.arange(d0 + TROUGH_SCAN_MARGIN_M, d1 - TROUGH_SCAN_MARGIN_M + 1e-9, TROUGH_SCAN_STEP_M)
+        inner, worst, bad = [], 0.0, 0
+        for d in ds:
+            segs, p0, tt = section_segments(out, float(d))
+            wv = vertical_s(segs['ug_trough'])
+            if len(wv) != 4:
+                bad += 1
+                continue
+            s_w, s_e = track_s(tracks, p0, tt)
+            want_in = (s_e - s_w) + 2 * inset
+            east = np.array([tt[1], -tt[0]])
+            cut = LineString([p0 - east * 30, p0 + east * 30])
+
+            def extent(poly):
+                g = poly.intersection(cut)
+                cs = np.array([c for ls in (g.geoms if hasattr(g, 'geoms') else [g]) for c in ls.coords])
+                s_ = (cs - p0) @ east
+                return float(s_.min()), float(s_.max())
+
+            fa, fb = extent(fps[fid])
+            ca, cb = extent(cuts[fid + '-inner'])
+            devs = [wv[2][0] - wv[1][0] - want_in, wv[3][0] - wv[0][0] - (want_in + 2 * rwall),
+                    s_w - wv[1][0] - inset, wv[2][0] - s_e - inset,
+                    fa - wv[0][0], fb - wv[3][0], ca - wv[1][0], cb - wv[2][0]]
+            worst = max(worst, max(abs(x) for x in devs))
+            inner.append(wv[2][0] - wv[1][0])
+        good = bad == 0 and len(inner) > 0 and worst <= TROUGH_SCAN_TOL_M
+        ok_all &= good
+        msgs.append(f'{label}段（d={d0:.0f}～{d1:.0f}）{len(inner)} 個剖面：內淨寬 {min(inner):.3f}～{max(inner):.3f} m、最大偏差 {1000 * worst:.2f} mm'
+                    f'{"" if bad == 0 else "，牆面數不是 4 的剖面 %d 個" % bad}{"" if good else " ✗"}' if inner else f'{label}段沒有量到剖面 ✗')
+    R.add(1, ok_text(ok_all), f'1.9 U 槽寬度沿線掃描（每 {TROUGH_SCAN_STEP_M:g} m 一個剖面）：內牆離最近股道中心＝wallInsetFromTrackM {inset:g} m、內寬＝兩股中心距＋2×{inset:g}、'
+                              f'外寬＝內寬＋2×牆厚 {rwall:g}，且 footprints 外框與 cutouts 內側的寬度、位置與牆面相符（容差 {1000 * TROUGH_SCAN_TOL_M:g} mm）：' + '；'.join(msgs))
 
 
 # ---------------------------------------------------------------- 股道取樣
@@ -406,6 +541,7 @@ def collect_obstacles(out):
 def item2_3(R, out, tracks):
     lateral, ceilings = collect_obstacles(out)
     lat_tree = STRtree([g for g, *_ in lateral])
+    lat_zt = [out.z_of_xy((g.centroid.x, g.centroid.y)) for g, *_ in lateral]          # 結構所在位置的軌道面高程（profile.json）
     cei_polys = [Polygon(t[:, :2]) for t, _ in ceilings]
     cei_tree = STRtree(cei_polys)
     best_lat = {}                 # 類別 → (淨空, 軌道, d)
@@ -417,10 +553,12 @@ def item2_3(R, out, tracks):
             if seg.length < 1e-6:
                 continue
             n_seg += 1
-            zlo, zhi = min(za, zb), max(za, zb) + ENVELOPE_HEIGHT_M
             for gi in lat_tree.query(seg.buffer(ENVELOPE_HALF_WIDTH_M + CAND_RADIUS_M)):
                 g, gz0, gz1, cls = lateral[int(gi)]
-                if gz1 < zlo or gz0 > zhi:
+                zt = lat_zt[int(gi)]
+                # 車輛限界在結構那裡的高度範圍＝結構所在位置的軌道面高程往上 ENVELOPE_HEIGHT_M（不用取樣線兩端的高程範圍：
+                # 洞口端牆的底帶頂緣剛好在軌道面，橫過股道，用取樣線兩端的高程在斜坡上會誤判成相交）
+                if gz1 < zt + Z_TOUCH_TOL_M or gz0 > zt + ENVELOPE_HEIGHT_M:
                     continue
                 c = seg.distance(g) - ENVELOPE_HALF_WIDTH_M
                 if cls not in best_lat or c < best_lat[cls][0]:
@@ -483,6 +621,15 @@ def item2_3(R, out, tracks):
 
 
 # ---------------------------------------------------------------- 項目 4、5：站體位置、坡度、控制點獨立重算
+def station_center_from_loops(ways, al, ref_ls):
+    """站體中心的 d：兩條外側股道（stationLoops）各自兩端的分岔點投影到參考線後的中點，再取兩條的中點。"""
+    mids = []
+    for side in ('west', 'east'):
+        lp = ways[al['stationLoops'][side]]
+        mids.append((ref_ls.project(Point(*lp[0])) + ref_ls.project(Point(*lp[-1]))) / 2)
+    return float(sum(mids) / 2)
+
+
 def independent_control_points(out):
     """另外獨立算一次每個控制點的 d：串接參考線 ways、算累計長度，roadCrossing 用快照道路與參考線的交點，站端用外側股道兩端分岔點。"""
     P = out.params
@@ -512,11 +659,7 @@ def independent_control_points(out):
         return sorted(ds)
 
     val = lambda n: n['value'] if isinstance(n, dict) and 'value' in n else n
-    mids = []
-    for side in ('west', 'east'):
-        lp = ways[al['stationLoops'][side]]
-        mids.append((ls.project(Point(*lp[0])) + ls.project(Point(*lp[-1]))) / 2)
-    center = float(sum(mids) / 2)
+    center = station_center_from_loops(ways, al, ls)
     half = val(P['station']['lengthM']) / 2
     res = {}
     for c in P['profile']['controlPoints']:
@@ -573,25 +716,30 @@ def item4_5(R, out):
 
 
 # ---------------------------------------------------------------- 項目 6：月台
-def independent_platform_center(out):
-    """月台中心另外獨立算一次：兩側外側股道上「與同側正線中心距 ≥ 門檻」的點（等距取樣）投影到參考線，
-    取兩側範圍重疊部分的中點。回傳 (中心 d, [(西側 d 範圍), (東側 d 範圍)])。"""
+def independent_station_center(out):
+    """月台中心＝站體中心，另外獨立算一次：由兩條外側股道（stationLoops）各自兩端的端點算出
+    （params.station.platform.center 與 station.placement 的規則）。"""
     al = out.params['alignment']
     ways = U.alignment_ways(out)
     ref = LineString(chain_points(ways, al['referenceChain']['ways']))
-    runs = []
-    for side in ('west', 'east'):
-        loop = LineString(ways[al['stationLoops'][side]])
-        main = LineString(ways[al['tunnel'][side]])
-        n = int(math.ceil(loop.length / PLATFORM_SCAN_STEP_M)) + 1
-        ds = []
-        for s_ in np.linspace(0.0, loop.length, n):
-            q = loop.interpolate(float(s_))
-            if main.distance(q) >= PLATFORM_CENTER_MIN_SPACING_M:
-                ds.append(float(ref.project(q)))
-        runs.append((min(ds), max(ds)))
-    lo, hi = max(runs[0][0], runs[1][0]), min(runs[0][1], runs[1][1])
-    return (lo + hi) / 2, runs
+    return station_center_from_loops(ways, al, ref)
+
+
+def platform_end_spacing(out, poly, d_ends):
+    """一座月台兩端（沿參考線的 d）的外側股道與同側正線的中心距。月台屬於哪一側，看它離哪一條外側股道比較近。
+    回傳 (側, [各個 d 的中心距])。外側股道每 PLATFORM_SCAN_STEP_M 取樣、投影到參考線，在樣點之間內插。"""
+    al = out.params['alignment']
+    ways = U.alignment_ways(out)
+    ref = LineString(chain_points(ways, al['referenceChain']['ways']))
+    loops = {s: LineString(ways[al['stationLoops'][s]]) for s in ('west', 'east')}
+    side = min(loops, key=lambda s: poly.distance(loops[s]))
+    loop, main = loops[side], LineString(ways[al['tunnel'][side]])
+    n = int(math.ceil(loop.length / PLATFORM_SCAN_STEP_M)) + 1
+    pts = [loop.interpolate(float(s_)) for s_ in np.linspace(0.0, loop.length, n)]
+    ds = np.array([ref.project(q) for q in pts])
+    gap = np.array([main.distance(q) for q in pts])
+    o = np.argsort(ds)
+    return side, [float(np.interp(d, ds[o], gap[o])) for d in d_ends]
 
 
 def platform_polys(out):
@@ -616,7 +764,7 @@ def cross_section_width(out, poly, d):
 def item6(R, out):
     polys, tops = platform_polys(out)
     pf = out.profile['derived']['platform']
-    pc, _ = independent_platform_center(out)
+    pc = independent_station_center(out)
     plen_params = out.params['station']['platform']['lengthM']['value']
     names = {}
     for f in out.model['footprints']:
@@ -635,11 +783,11 @@ def item6(R, out):
         plen[k] = (d0, d1, min(ws), max(ws))
         ok_k = abs(d0 - pf['d0']) <= PLATFORM_EXTENT_TOL_M and abs(d1 - pf['d1']) <= PLATFORM_EXTENT_TOL_M \
             and abs((d1 - d0) - plen_params) <= PLATFORM_EXTENT_TOL_M \
-            and abs((d0 + d1) / 2 - pc) <= PLATFORM_EXTENT_TOL_M
+            and abs((d0 + d1) / 2 - pc) <= PLATFORM_CENTER_TOL_M
         ext_ok &= ok_k
         info.append(f'{names.get(k, "月台" + str(k + 1))}：寬 {min(ws):.3f}～{max(ws):.3f} m（{len(ws)} 個剖面）、沿參考線 d={d0:.2f}～{d1:.2f}'
-                    f'（長 {d1 - d0:.2f} m，params {plen_params}，中心 {(d0 + d1) / 2:.2f}，獨立重算 {pc:.2f}，profile.json {pf["centerD"]}）{"" if ok_k else " ✗"}')
-    R.add(6, ok_text(ext_ok), '6.1 月台寬度與沿參考線範圍（網格頂面量）：' + '；'.join(info))
+                    f'（長 {d1 - d0:.2f} m，params {plen_params}，中心 {(d0 + d1) / 2:.2f}，獨立重算的站體中心 {pc:.2f}（容差 {PLATFORM_CENTER_TOL_M:g}），profile.json {pf["centerD"]}）{"" if ok_k else " ✗"}')
+    R.add(6, ok_text(ext_ok), '6.1 月台寬度與沿參考線範圍（網格頂面量；月台中心＝由外側股道端點獨立重算的站體中心）：' + '；'.join(info))
     # 停車點
     rows = []
     for label, (x, y) in STOP_POINTS:
@@ -656,15 +804,24 @@ def item6(R, out):
         rows.append(f'{label} ({x}, {y}) d={d:.2f} → 最近的 {names.get(k, "月台" + str(k + 1))}（平面距 {dist:.2f} m）：'
                     f'{"在範圍內" if inside else "在範圍外"}，離最近一端 {end_gap:+.2f} m（離南端 {d - d0:+.2f}、離北端 {d1 - d:+.2f}）')
     R.add(6, 'INFO', '6.2 四個停車點與月台：' + '；'.join(rows))
+    # 月台兩端：外側股道與正線的中心距都要 ≥ 下限（量法與月台中心無關：外側股道取樣、投影到參考線、內插）
+    sp_rows, sp_ok = [], len(plen) == 2
+    for k, p in enumerate(polys):
+        side, gaps = platform_end_spacing(out, p, (plen[k][0], plen[k][1]))
+        good = all(g >= PLATFORM_END_MIN_SPACING_M for g in gaps)
+        sp_ok &= good
+        sp_rows.append(f'{names.get(k, "月台" + str(k + 1))}（{"西" if side == "west" else "東"}側）南端 d={plen[k][0]:.2f} 中心距 {gaps[0]:.3f} m、'
+                       f'北端 d={plen[k][1]:.2f} 中心距 {gaps[1]:.3f} m{"" if good else " ✗"}')
+    R.add(6, ok_text(sp_ok), f'6.3 月台兩端外側股道與同側正線的中心距都 ≥ {PLATFORM_END_MIN_SPACING_M:g} m：' + '；'.join(sp_rows))
     return polys
 
 
 # ---------------------------------------------------------------- 項目 7：只回報
 def wall_lines(out, ring):
-    """U 槽外框上的外牆線：外環扣掉兩條端面邊（兩端點的 d 幾乎相同、長度大於 10 m）。"""
+    """U 槽外框上的外牆線：外環扣掉兩條端面邊（兩端點的 d 幾乎相同；外牆邊的兩端是相鄰兩條剖面線，d 至少差 0.25 m）。"""
     edges = []
     for p, q in zip(ring, ring[1:] + ring[:1]):
-        if abs(out.project_d(p) - out.project_d(q)) < 0.05 and math.hypot(p[0] - q[0], p[1] - q[1]) > 10:
+        if abs(out.project_d(p) - out.project_d(q)) < 0.05:
             continue
         edges.append(LineString([p, q]))
     return edges
@@ -741,6 +898,8 @@ def main():
     print(f'check {out.dir}  三角形 {len(out.tris)}、drawGroups {[g["name"] for g in out.groups]}', flush=True)
     item1(R, out)
     item_dims(R, out)
+    item_endwall(R, out)
+    item_trough_scan(R, out)
     tracks = sample_tracks(out)
     item2_3(R, out, tracks)
     item4_5(R, out)

@@ -29,9 +29,6 @@ KY = 111320.0
 # 容差與取樣步長（不是尺寸）
 VERTEX_EPS = 1e-6        # 判定 d 落在折點上的容差（m）
 D_MERGE = 0.25           # 兩個剖面線的 d 相差不到這個值就合併（避免 float32 下的極薄三角形；折角 5° 時最多讓折線偏 0.5 cm）
-SAMPLE_STEP = 0.25       # 找「中心距 ≥ 門檻」區段時沿外側股道的取樣步長（m）
-# 平台中心規則的門檻：params.station.platform.center 的說明文字寫「中心距 ≥ 10 m」，數字只在文字裡，所以這裡寫成常數
-PLATFORM_CENTER_MIN_SPACING_M = 10.0
 
 
 def to_world(lon, lat):
@@ -167,8 +164,7 @@ class Dims:
         self.tun_top = self.soffit + self.roof_t          # 頂板頂高於軌道面
         self.ramp_wall = val(r['wallThicknessM'])
         self.ramp_top = val(r['wallTopAboveGroundM'])
-        self.ramp_inner = self.tun_inner                  # params.ramps.innerWidth：與隧道內淨寬相同
-        self.ramp_outer = self.ramp_inner + 2 * self.ramp_wall
+        self.ramp_inset = val(r['wallInsetFromTrackM'])   # params.ramps.innerWidth：內淨寬＝該處兩股中心距＋兩側各 ramp_inset（逐剖面線量，見 ug_mesh.Section）
         self.st_len = val(s['lengthM'])
         self.st_inset = val(s['wallInsetFromOuterTrackM'])
         self.st_wall = val(s['wallThicknessM'])
@@ -211,32 +207,6 @@ def _road_crossings(frame, feats):
                 raise ValueError(f'道路與參考線的交集不是點：{g.geom_type}')
             out.append({'xy': (g.x, g.y), 'd': frame.project((g.x, g.y))})
     return out
-
-
-def _run_interval(loop, main, frame):
-    """外側股道上「與正線中心距 ≥ 門檻」的連續段，回傳投影到參考線的 [d_lo, d_hi]（兩端用線性內插到門檻）。"""
-    n = max(2, int(math.ceil(loop.length / SAMPLE_STEP)) + 1)
-    ss = np.linspace(0.0, loop.length, n)
-    pts = [loop.point(s) for s in ss]
-    gap = np.array([main.dist(p) for p in pts])
-    ds = np.array([frame.project(p) for p in pts])
-    ok = gap >= PLATFORM_CENTER_MIN_SPACING_M
-    if not ok.any():
-        raise ValueError('外側股道與正線的中心距從沒到過門檻')
-    idx = np.flatnonzero(ok)
-    if (np.diff(idx) != 1).any():
-        raise ValueError('中心距 ≥ 門檻的段不連續')
-    i0, i1 = int(idx[0]), int(idx[-1])
-    thr = PLATFORM_CENTER_MIN_SPACING_M
-
-    def cross(ia, ib):
-        ga, gb = gap[ia], gap[ib]
-        t = (thr - ga) / (gb - ga)
-        return float(ds[ia] + t * (ds[ib] - ds[ia]))
-
-    a = cross(i0 - 1, i0) if i0 > 0 else float(ds[i0])
-    b = cross(i1, i1 + 1) if i1 < n - 1 else float(ds[i1])
-    return (a, b) if a <= b else (b, a)           # 外側股道的走向可能與參考線相反
 
 
 def build_world(P, A, snapshot):
@@ -285,15 +255,8 @@ def build_world(P, A, snapshot):
     w.st_center = sum(mids) / 2
     w.st_south = w.st_center - w.dims.st_len / 2
     w.st_north = w.st_center + w.dims.st_len / 2
-    # 月台中心：兩側「外側股道與正線中心距 ≥ 門檻」的段投影到參考線後的重疊部分的中點
-    runs = {'west': _run_interval(w.loop['west'], w.tun['west'], w.ref),
-            'east': _run_interval(w.loop['east'], w.tun['east'], w.ref)}
-    lo, hi = max(runs['west'][0], runs['east'][0]), min(runs['west'][1], runs['east'][1])
-    if not hi > lo:
-        raise ValueError('兩側中心距 ≥ 門檻的段沒有重疊')
-    w.pf_runs = runs
-    w.pf_overlap = (lo, hi)
-    w.pf_center = (lo + hi) / 2
+    # 月台中心：站體中心（params.station.platform.center），兩座月台共用
+    w.pf_center = w.st_center
     w.pf_d0 = w.pf_center - w.dims.pf_len / 2
     w.pf_d1 = w.pf_center + w.dims.pf_len / 2
     # 控制點
