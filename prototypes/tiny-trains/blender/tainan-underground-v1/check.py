@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""檢查 build.py 的輸出（網格、淨空、地板高程、站體位置、坡度、月台、公開邊界）。
+"""檢查 build.py 的輸出（網格、淨空、地板高程、站體位置、坡度、月台、公開邊界）與 params.json 的出處標註。
 
 用法：python3 check.py OUT_DIR
-結束碼：項目 1–6 與 8 全 PASS 才是 0；項目 7 只回報數字，不判 FAIL。
+結束碼：項目 1–6、8、9 全 PASS 才是 0；項目 7 只回報數字，不判 FAIL；WARN 不影響結束碼。
 
 做法
 - 只讀輸出檔（model.json、near.mesh.bin.gz、profile.json）、params.json、input/alignment.json、9/12 快照與舊站體外框；
@@ -10,7 +10,8 @@
   （ug_out.py 只是讀檔工具）。
 - 殼（隧道、站體）只畫外側面，內側面（淨空判斷要用）由外側面往內平移牆厚／頂板厚合成；牆厚、頂板厚讀 params.json，
   哪個三角形屬於站體、哪個屬於隧道，用 model.json 的 footprints 判斷。
-- 規格給定的檢查值（車輛限界、取樣間距、坡度上限、四個停車點、容差）是下面的常數；尺寸一律讀 params.json。
+- 規格給定的檢查值（車輛限界、取樣間距、坡度上限、9/12 主站網路的四個停車點、容差）是下面的常數；尺寸一律讀 params.json；
+  編組長度讀 9/12 重播頁的 fleet/catalog.json（ug_out.formation_lengths），不在這裡寫長度常數。
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ sys.dont_write_bytecode = True
 
 import hashlib
 import math
+import re
 import subprocess
 from collections import defaultdict
 from pathlib import Path
@@ -49,6 +51,9 @@ CP_D_TOL_M = 0.005                  # 獨立重算的控制點 d 與 profile.jso
 PLATFORM_CENTER_TOL_M = 0.05        # 月台中心（網格量到）與獨立重算的站體中心的容差
 PLATFORM_END_MIN_SPACING_M = 10.0   # 月台兩端外側股道與正線的中心距下限（params.station.platform.center 的 basis 寫「≥ 10 m」，數字只在文字裡）
 PLATFORM_SCAN_STEP_M = 0.1          # 量月台兩端中心距時，沿外側股道的取樣步長
+EDGE_GAP_MAX_M = 0.10               # 月台邊緣離軌道中心的合理性上限：限界半寬 ENVELOPE_HALF_WIDTH_M 再加這個值。不是規範值——
+                                    # 邊距再大，車廂和月台之間的空隙就大得不像真的月台；下限是車廂不嵌進月台（＝限界半寬）
+PLATFORM_EDGE_STEP_M = 1.0          # 量月台邊緣到股道的水平距離時，沿月台的取樣間距（離兩端各 0.5 m 以內不量：端面不是邊緣）
 ENDWALL_COVER_MIN = 0.99            # 洞口端牆覆蓋率下限
 ENDWALL_BLOCK_MAX = 0.01            # 洞口開口被端牆面擋住的面積比上限
 PLANE_TOL_M = 2e-3                  # 三角形算「在洞口平面上」的容差（座標存 float32）
@@ -57,7 +62,7 @@ TROUGH_SCAN_STEP_M = 25.0           # U 槽沿線寬度掃描的間距
 TROUGH_SCAN_MARGIN_M = 3.0          # 掃描離 U 槽兩端的距離（端面與洞口牆不在掃描範圍）
 TROUGH_SCAN_TOL_M = 0.015           # 掃描的容差：剖面線之間的牆是直線，但 OSM 折點離必要剖面線不到 0.25 m 時剖面線會合併（ug_core.D_MERGE），折線最多偏約 1 cm
 BUDGET = {'maxTriangles': 60000, 'maxGzipBytes': 350000, 'maxDrawGroups': 16}
-# 9/12 重播頁的四個停車點（世界座標 x, y）
+# 9/12 主站網路的四個停車點（世界座標 x, y）。只在 6.2 當 WARN 對照用：10/23 重播頁的臺南停車位置要用 profile.json 的 derived.platform.centerD
 STOP_POINTS = [('西側正線', (28.5, -5.0)), ('西側外側股道', (17.0, -3.0)),
                ('東側正線', (32.7, -5.7)), ('東側外側股道', (43.6, -7.5))]
 ALLOWED_PREFIX = 'prototypes/tiny-trains/blender/tainan-underground-v1/'
@@ -162,6 +167,38 @@ def audit_overlap(tris, mats):
     return pairs
 
 
+# 共面稽核的具名豁免。只放行下面這一類；OVERLAP_PLANE_TOL_M 與 OVERLAP_MIN_AREA_M2 沒有放寬，其他同材質的共面對照樣要 0。
+EXEMPT_ENDWALL_BACKFACE = '洞口端牆正反兩面'
+EXEMPT_ENDWALL_BACKFACE_WHY = ('重播頁用 FrontSide 畫、材質不是雙面；端牆是零厚度的封口，從 U 槽看與從隧道內看各要一面朝向觀看者，'
+                               '所以同一個矩形畫兩次（同材質 ug_trough、法線相反、三個頂點完全相同、位在洞口平面上）；'
+                               '兩面朝向相反，任何視角都只有一面通過背面剔除，不會 z-fighting')
+
+
+def split_endwall_backface(out, pairs):
+    """把共面稽核結果 {(i, j): (面積, 同朝向?)} 分成「洞口端牆正反兩面」的豁免對與其餘。回傳 (豁免 {(i, j): (面積, 洞口 id)}, 其餘)。
+    判準（全部成立才豁免）：兩個三角形都是 ug_trough、朝向相反、三個頂點兩兩重合（≤ 1 mm）、兩個都在同一個洞口平面上（容差 PLANE_TOL_M）。"""
+    planes = []
+    for pid in ('south-portal', 'north-portal'):
+        p0, n, _ = portal_plane(out, out.cp[pid]['d'])
+        planes.append((pid, p0, n))
+    exempt, rest = {}, {}
+    for (i, j), (area, same) in pairs.items():
+        hit = None
+        if not same and out.mat[i] == 'ug_trough' and out.mat[j] == 'ug_trough':
+            a, b = out.tris[i], out.tris[j]
+            dm = np.linalg.norm(a[:, None, :] - b[None, :, :], axis=2)
+            if dm.min(axis=1).max() <= 1e-3 and dm.min(axis=0).max() <= 1e-3:
+                for pid, p0, n in planes:
+                    if max(np.abs((a[:, :2] - p0) @ n).max(), np.abs((b[:, :2] - p0) @ n).max()) <= PLANE_TOL_M:
+                        hit = pid
+                        break
+        if hit:
+            exempt[(i, j)] = (area, hit)
+        else:
+            rest[(i, j)] = (area, same)
+    return exempt, rest
+
+
 def item1(R, out):
     it = 1
     T = len(out.tris)
@@ -200,7 +237,8 @@ def item1(R, out):
           f'1.4 drawGroups 連續覆蓋全部頂點、名稱不重複：{[(g["name"], g["count"] // 3) for g in gs]}')
     pairs = audit_overlap(pos, out.mat)
     cross = [(k, v) for k, v in pairs.items() if out.mat[k[0]] != out.mat[k[1]]]
-    samem = [(k, v) for k, v in pairs.items() if out.mat[k[0]] == out.mat[k[1]]]
+    exempt, same_all = split_endwall_backface(out, {k: v for k, v in pairs.items() if out.mat[k[0]] == out.mat[k[1]]})
+    samem = list(same_all.items())
     detail = ''
     if cross:
         agg = defaultdict(lambda: [0, 0.0])
@@ -209,9 +247,18 @@ def item1(R, out):
             agg[kk][0] += 1
             agg[kk][1] += ar
         detail = '；不同材質重疊：' + '、'.join(f'{k[0]}×{k[1]} {v[0]} 對 {v[1]:.3f} m²' for k, v in agg.items())
-    R.add(it, ok_text(not cross),
+    if samem:
+        agg = defaultdict(lambda: [0, 0.0])
+        for (i, j), (ar, sm) in samem:
+            agg[out.mat[i]][0] += 1
+            agg[out.mat[i]][1] += ar
+        detail += '；同材質重疊（非豁免）：' + '、'.join(f'{k} {v[0]} 對 {v[1]:.3f} m²' for k, v in agg.items())
+    ex_txt = '、'.join(f'{pid} {sum(1 for _, (_, q) in exempt.items() if q == pid)} 對 {sum(a for _, (a, q) in exempt.items() if q == pid):.2f} m²'
+                      for pid in ('south-portal', 'north-portal'))
+    R.add(it, ok_text(not cross and not samem),
           f'1.5 共面重疊稽核（平面距離 ≤ {OVERLAP_PLANE_TOL_M} m、面積 > {OVERLAP_MIN_AREA_M2:g} m²，含朝向相反的共面對）：'
-          f'不同材質 {len(cross)} 對（要 0）、同材質 {len(samem)} 對（資訊）{detail}')
+          f'不同材質 {len(cross)} 對（要 0）、同材質 {len(samem)} 對（要 0）；'
+          f'具名豁免「{EXEMPT_ENDWALL_BACKFACE}」{len(exempt)} 對（{ex_txt}；理由：{EXEMPT_ENDWALL_BACKFACE_WHY}）{detail}')
     same_params = out.model['params'] == out.params and out.model['paramsSha256'] == hashlib.sha256((U.HERE / 'params.json').read_bytes()).hexdigest()
     R.add(it, ok_text(same_params), f'1.6 model.json 內的 params 與 params.json 逐欄相同、paramsSha256 相符={same_params}')
 
@@ -383,19 +430,36 @@ def portal_plane(out, d):
     return p0, n, np.array([n[1], -n[0]])
 
 
+def _faces_on_plane(out, idx, p0, n, e, facing):
+    """過 p0、法向 n 的鉛直平面上，法線朝 facing（沿 n 的 +1／−1）的三角形（idx 是候選）：回傳在平面座標（橫向 s、高程 z）的聯集與面數。"""
+    polys = []
+    for i in idx:
+        tri = out.tris[i]
+        if np.abs((tri[:, :2] - p0) @ n).max() > PLANE_TOL_M:
+            continue                                              # 不在這個平面上
+        if float(out.nrm[i][:2] @ n) * facing < 0.99:
+            continue                                              # 法線不是朝向 facing
+        polys.append(Polygon([(float((q[:2] - p0) @ e), float(q[2])) for q in tri]))
+    return (unary_union(polys) if polys else Polygon()), len(polys)
+
+
 def item_endwall(R, out):
-    """洞口端牆覆蓋率：洞口平面上「隧道外框（外寬 × 箱底到頂板頂）扣掉開口（U 槽內淨寬 × 軌道面到頂板底）」
-    被朝向 U 槽的 ug_trough 面蓋到的面積比例；另量開口被 ug_trough 面擋住的面積比例。
-    外框與開口的尺寸讀 params；開口的左右邊界由該處兩股中心距（股道座標另外量）加 wallInsetFromTrackM 算出。"""
+    """洞口端牆與洞口上方的牆，兩個方向都量（重播頁用 FrontSide 畫，只有法線朝向觀看者的面看得到）。
+    端牆：洞口平面上「隧道外框（外寬 × 箱底到頂板頂）扣掉開口（U 槽內淨寬 × 軌道面到頂板底）」，
+      朝向 U 槽的 ug_trough 面（從 U 槽看向隧道）與朝向隧道的 ug_trough 面（從隧道內、或隔著半透明外殼從上方看向 U 槽），
+      各自蓋到的面積比例都要 ≥ ENDWALL_COVER_MIN，各自擋住開口的面積比例都要 ≤ ENDWALL_BLOCK_MAX。
+    洞口上方的牆：隧道側的面（洞口平面，U 槽外寬 × 頂板頂到牆頂）要被朝向隧道的面蓋住，
+      U 槽側的面（離洞口平面一個牆厚，U 槽內寬 × 頂板頂到牆頂）要被朝向 U 槽的面蓋住，比例同樣 ≥ ENDWALL_COVER_MIN。
+    外框、開口、牆的尺寸讀 params；左右邊界由該處兩股中心距（股道座標另外量）加 wallInsetFromTrackM（與牆厚）算出；地面高程是世界座標的 0。"""
     P = out.params
     val = lambda n: n['value'] if isinstance(n, dict) and 'value' in n else n
     tn, rp = P['tunnel'], P['ramps']
     ow, below, soffit, roof_t = val(tn['outerWidthM']), val(tn['baseBottomBelowTrackM']), val(tn['soffitAboveTrackM']), val(tn['roofThicknessM'])
-    inset = val(rp['wallInsetFromTrackM'])
+    inset, rwall, wall_top = val(rp['wallInsetFromTrackM']), val(rp['wallThicknessM']), val(rp['wallTopAboveGroundM'])
     tracks = trough_tracks(out)
     idx = [i for i in range(len(out.tris)) if out.mat[i] == 'ug_trough']
     msgs, ok_all = [], True
-    for label, pid, toward in (('南洞口', 'south-portal', -1.0), ('北洞口', 'north-portal', 1.0)):
+    for label, pid, toward in (('南洞口', 'south-portal', -1.0), ('北洞口', 'north-portal', 1.0)):   # toward：U 槽在洞口的哪一側（沿參考線 ±1）
         d, zp = out.cp[pid]['d'], out.cp[pid]['z']
         p0, n, e = portal_plane(out, d)
         s_w, s_e = track_s(tracks, p0, n)
@@ -403,23 +467,32 @@ def item_endwall(R, out):
         outer = box(mid - ow / 2, zp - below, mid + ow / 2, zp + soffit + roof_t)
         opening = box(s_w - inset, zp, s_e + inset, zp + soffit)
         region = outer.difference(opening)
-        polys = []
-        for i in idx:
-            tri = out.tris[i]
-            if np.abs((tri[:, :2] - p0) @ n).max() > PLANE_TOL_M:
-                continue                                              # 不在洞口平面上
-            if float(out.nrm[i][:2] @ n) * toward < 0.99:
-                continue                                              # 不是朝向 U 槽
-            polys.append(Polygon([(float((q[:2] - p0) @ e), float(q[2])) for q in tri]))
-        u = unary_union(polys) if polys else Polygon()
-        cover = u.intersection(region).area / region.area
-        block = u.intersection(opening).area / opening.area
-        ok = cover >= ENDWALL_COVER_MIN and block <= ENDWALL_BLOCK_MAX
+        res = {}
+        for name, facing in (('朝向 U 槽', toward), ('朝向隧道', -toward)):
+            u, k = _faces_on_plane(out, idx, p0, n, e, facing)
+            res[name] = (u.intersection(region).area / region.area, u.intersection(opening).area / opening.area, k)
+        # 洞口上方的牆：隧道側的面在洞口平面；U 槽側的面離洞口平面一個牆厚（往 U 槽那邊）
+        z_roof = zp + soffit + roof_t
+        hw_out = (s_e - s_w) / 2 + inset + rwall
+        hw_tun = box(mid - hw_out, z_roof, mid + hw_out, wall_top)
+        u, k_tun = _faces_on_plane(out, idx, p0, n, e, -toward)
+        c_tun = u.intersection(hw_tun).area / hw_tun.area
+        d_f = d + toward * rwall
+        pf_, nf, ef = portal_plane(out, d_f)
+        sw_f, se_f = track_s(tracks, pf_, nf)
+        mid_f = (sw_f + se_f) / 2
+        hw_cut = box(mid_f - ((se_f - sw_f) / 2 + inset), out.z_of_d(d_f) + soffit + roof_t, mid_f + ((se_f - sw_f) / 2 + inset), wall_top)
+        u, k_cut = _faces_on_plane(out, idx, pf_, nf, ef, toward)
+        c_cut = u.intersection(hw_cut).area / hw_cut.area
+        ok = (all(c >= ENDWALL_COVER_MIN and b <= ENDWALL_BLOCK_MAX for c, b, _ in res.values())
+              and c_tun >= ENDWALL_COVER_MIN and c_cut >= ENDWALL_COVER_MIN)
         ok_all &= ok
-        msgs.append(f'{label}（d={d:.2f}，z={zp:g}）：覆蓋 {100 * cover:.2f}%（區域 {region.area:.2f} m²＝外框 {outer.area:.2f} 扣開口 {opening.area:.2f}，'
-                    f'開口寬 {s_e - s_w + 2 * inset:.3f} m；朝向 U 槽的面 {len(polys)} 個）、開口被擋 {100 * block:.3f}%{"" if ok else " ✗"}')
-    R.add(1, ok_text(ok_all), f'1.8 洞口端牆覆蓋率（洞口平面上隧道外框扣掉開口，被朝向 U 槽的 ug_trough 面蓋到的比例，要 ≥ {100 * ENDWALL_COVER_MIN:g}%；'
-                              f'開口被擋住的比例要 ≤ {100 * ENDWALL_BLOCK_MAX:g}%）：' + '；'.join(msgs))
+        msgs.append(f'{label}（d={d:.2f}，z={zp:g}）：端牆區域 {region.area:.2f} m²＝外框 {outer.area:.2f} 扣開口 {opening.area:.2f}（開口寬 {s_e - s_w + 2 * inset:.3f} m）；'
+                    + '；'.join(f'{name}的面 {k} 個：覆蓋 {100 * c:.2f}%、開口被擋 {100 * b:.3f}%' for name, (c, b, k) in res.items())
+                    + f'；洞口上方牆 隧道側面（{hw_tun.area:.2f} m²）朝向隧道的面 {k_tun} 個覆蓋 {100 * c_tun:.2f}%、'
+                      f'U 槽側面（{hw_cut.area:.2f} m²，離洞口平面 {rwall:g} m）朝向 U 槽的面 {k_cut} 個覆蓋 {100 * c_cut:.2f}%{"" if ok else " ✗"}')
+    R.add(1, ok_text(ok_all), f'1.8 洞口端牆與洞口上方的牆，兩個方向都量（端牆：洞口平面上隧道外框扣掉開口，朝向 U 槽與朝向隧道的 ug_trough 面各自蓋到的比例要 ≥ {100 * ENDWALL_COVER_MIN:g}%、'
+                              f'各自擋住開口的比例要 ≤ {100 * ENDWALL_BLOCK_MAX:g}%；洞口上方牆的隧道側面與 U 槽側面各自要有朝向觀看者的面蓋住 ≥ {100 * ENDWALL_COVER_MIN:g}%）：' + '；'.join(msgs))
 
 
 def item_trough_scan(R, out):
@@ -761,59 +834,154 @@ def cross_section_width(out, poly, d):
     return float(inter.length)
 
 
+def platform_tracks(out):
+    """站內四股的中心線 {way id: LineString}（input/alignment.json：兩條外側股道、兩條正線）。月台邊緣與股道的距離從這裡量。"""
+    al = out.params['alignment']
+    ways = U.alignment_ways(out)
+    ids = [al['stationLoops']['west'], al['tunnel']['west'], al['tunnel']['east'], al['stationLoops']['east']]
+    return {i: LineString(ways[i]) for i in ids}
+
+
+def platform_edge_scan(out, poly, tracks, d0, d1):
+    """沿一座月台每 PLATFORM_EDGE_STEP_M 切一個垂直於參考線的剖面（離兩端各 0.5 m 以內不量），
+    量月台西緣與東緣（剖面線與月台頂面外框的兩個端點）到各股道中心線的水平距離，取最近的那一股。
+    回傳 {'west': [(距離, way id)], 'east': [...]}。完全由網格的月台頂面與股道座標量，不看 params 的邊距。"""
+    res = {'west': [], 'east': []}
+    for d in np.arange(d0 + 0.5, d1 - 0.5 + 1e-9, PLATFORM_EDGE_STEP_M):
+        p0, t = out.ref_point(d), out.ref_tangent(d)
+        e = np.array([t[1], -t[0]])
+        g = poly.intersection(LineString([p0 - e * 60, p0 + e * 60]))
+        if g.is_empty:
+            continue
+        cs = np.array([c for ls in (g.geoms if hasattr(g, 'geoms') else [g]) for c in ls.coords])
+        s_ = (cs - p0) @ e
+        for side, c in (('west', cs[int(np.argmin(s_))]), ('east', cs[int(np.argmax(s_))])):
+            pt = Point(float(c[0]), float(c[1]))
+            wid, ls = min(tracks.items(), key=lambda kv: kv[1].distance(pt))
+            res[side].append((float(ls.distance(pt)), wid))
+    return res
+
+
 def item6(R, out):
     polys, tops = platform_polys(out)
     pf = out.profile['derived']['platform']
     pc = independent_station_center(out)
-    plen_params = out.params['station']['platform']['lengthM']['value']
-    names = {}
-    for f in out.model['footprints']:
-        if f['kind'] == 'platform':
-            fp = Polygon(f['ring'])
-            for k, p in enumerate(polys):
-                if p.intersection(fp).area / max(p.area, 1e-9) > 0.9:
-                    names[k] = f['name']
-    info = []
-    ext_ok = len(polys) == 2
-    plen = {}
-    for k, p in enumerate(polys):
+    P = out.params
+    val = lambda n: n['value'] if isinstance(n, dict) and 'value' in n else n
+    plen_params = val(P['station']['platform']['lengthM'])
+    edge_params = val(P['station']['platform']['edgeFromTrackCenterM'])
+    islands = val(P['station']['islands'])
+    fps = {f['id']: f for f in out.model['footprints'] if f['kind'] == 'platform'}
+    tracks = platform_tracks(out)
+
+    # 每座月台（網格頂面的聯集，由西到東）：沿參考線的 d 範圍、寬度、兩側邊緣到股道的距離、夾在哪兩股（量到的，不看名字）
+    recs = []
+    for p in polys:
         ds = [out.project_d(q) for q in p.exterior.coords]
         d0, d1 = min(ds), max(ds)
         ws = [cross_section_width(out, p, d) for d in np.arange(d0 + 0.05, d1 - 0.05, 1.0)]
-        plen[k] = (d0, d1, min(ws), max(ws))
+        edges = platform_edge_scan(out, p, tracks, d0, d1)
+        near = {side: sorted({w for _, w in v}) for side, v in edges.items()}
+        recs.append({'poly': p, 'd0': d0, 'd1': d1, 'w': (min(ws), max(ws), len(ws)), 'edges': edges, 'near': near})
+    # 對到 params.station.islands（夾在 between 的兩股）與 model.json 的 footprint（id＝platform-{月台號}）
+    for r in recs:
+        r['island'] = None
+        if all(len(v) == 1 for v in r['near'].values()):
+            hit = [isl for isl in islands if {r['near']['west'][0], r['near']['east'][0]} == set(isl['between'])]
+            if len(hit) == 1:
+                r['island'] = hit[0]
+        r['label'] = r['island']['name'] if r['island'] else '月台（對不到 islands）'
+
+    info = []
+    ext_ok = len(recs) == len(islands)
+    for r in recs:
+        d0, d1 = r['d0'], r['d1']
         ok_k = abs(d0 - pf['d0']) <= PLATFORM_EXTENT_TOL_M and abs(d1 - pf['d1']) <= PLATFORM_EXTENT_TOL_M \
             and abs((d1 - d0) - plen_params) <= PLATFORM_EXTENT_TOL_M \
             and abs((d0 + d1) / 2 - pc) <= PLATFORM_CENTER_TOL_M
         ext_ok &= ok_k
-        info.append(f'{names.get(k, "月台" + str(k + 1))}：寬 {min(ws):.3f}～{max(ws):.3f} m（{len(ws)} 個剖面）、沿參考線 d={d0:.2f}～{d1:.2f}'
+        info.append(f'{r["label"]}：寬 {r["w"][0]:.3f}～{r["w"][1]:.3f} m（{r["w"][2]} 個剖面）、沿參考線 d={d0:.2f}～{d1:.2f}'
                     f'（長 {d1 - d0:.2f} m，params {plen_params}，中心 {(d0 + d1) / 2:.2f}，獨立重算的站體中心 {pc:.2f}（容差 {PLATFORM_CENTER_TOL_M:g}），profile.json {pf["centerD"]}）{"" if ok_k else " ✗"}')
     R.add(6, ok_text(ext_ok), '6.1 月台寬度與沿參考線範圍（網格頂面量；月台中心＝由外側股道端點獨立重算的站體中心）：' + '；'.join(info))
-    # 停車點
-    rows = []
+
+    # 6.2 各編組整列車以月台中心為停車中心，兩端都要在月台內
+    forms = U.formation_lengths()
+    center = pf['centerD']
+    rows62, ok62 = [], bool(recs)
+    for f in forms:
+        half = f['lengthM'] / 2
+        s_gap = min((center - half) - r['d0'] for r in recs)       # 南端離月台南端（負＝凸出）
+        n_gap = min(r['d1'] - (center + half) for r in recs)       # 北端離月台北端
+        f['s_gap'], f['n_gap'] = s_gap, n_gap
+        good = s_gap >= 0 and n_gap >= 0
+        ok62 &= good
+        rows62.append(f'{f["id"]}（{f["cars"]} 節 {f["lengthM"]:.2f} m）南端剩 {s_gap:+.2f} m、北端剩 {n_gap:+.2f} m{"" if good else " ✗"}')
+    lg = forms[0]
+    R.add(6, ok_text(ok62),
+          f'6.2 各編組整列車以月台中心（profile.json 的 derived.platform.centerD＝{center}）為停車中心，兩端都要在月台內（兩端剩餘 ≥ 0；兩座月台取較小者）；'
+          f'編組長度＝各節連結器間距加總（fleet/catalog.json，重播頁 arrange() 的排法；鼻端凸出 pitch 邊界最多 {max(f["nose_overhang"] for f in forms):.3f} m 未計）。'
+          f'最長的是 {lg["id"]}（{lg["name"]}）{lg["lengthM"]:.2f} m，月台 d={min(r["d0"] for r in recs):.2f}～{max(r["d1"] for r in recs):.2f}（長 {min(r["d1"] - r["d0"] for r in recs):.2f} m）：'
+          + '；'.join(rows62))
+    # 6.2b 9/12 主站網路的停車點：以它們為中心停最長編組會凸出月台多少（WARN：重播頁不可沿用）
+    a0, a1 = max(r['d0'] for r in recs), min(r['d1'] for r in recs)
+    stop_rows, worst_by_form = [], {f['id']: 0.0 for f in forms}
+    any_over = False
     for label, (x, y) in STOP_POINTS:
         d = out.project_d((x, y))
-        best = None
-        for k, p in enumerate(polys):
-            dist = p.distance(Point(x, y))
-            if best is None or dist < best[1]:
-                best = (k, dist)
-        k, dist = best
-        d0, d1 = plen[k][0], plen[k][1]
-        inside = d0 <= d <= d1
-        end_gap = min(d - d0, d1 - d)
-        rows.append(f'{label} ({x}, {y}) d={d:.2f} → 最近的 {names.get(k, "月台" + str(k + 1))}（平面距 {dist:.2f} m）：'
-                    f'{"在範圍內" if inside else "在範圍外"}，離最近一端 {end_gap:+.2f} m（離南端 {d - d0:+.2f}、離北端 {d1 - d:+.2f}）')
-    R.add(6, 'INFO', '6.2 四個停車點與月台：' + '；'.join(rows))
-    # 月台兩端：外側股道與正線的中心距都要 ≥ 下限（量法與月台中心無關：外側股道取樣、投影到參考線、內插）
-    sp_rows, sp_ok = [], len(plen) == 2
-    for k, p in enumerate(polys):
-        side, gaps = platform_end_spacing(out, p, (plen[k][0], plen[k][1]))
+        for f in forms:
+            half = f['lengthM'] / 2
+            worst_by_form[f['id']] = max(worst_by_form[f['id']], (a0 - (d - half)), ((d + half) - a1), 0.0)
+        so, no_ = max(0.0, a0 - (d - lg['lengthM'] / 2)), max(0.0, (d + lg['lengthM'] / 2) - a1)
+        any_over |= so > 0 or no_ > 0
+        stop_rows.append(f'{label} ({x}, {y}) d={d:.2f}（在月台中心 {center:.2f} 以南 {center - d:.1f} m）：南端凸出 {so:.1f} m、北端凸出 {no_:.1f} m')
+    R.add(6, 'WARN' if any_over else 'INFO',
+          f'6.2b 9/12 主站網路的四個停車點（STOP_POINTS）：以它們為中心停最長編組（{lg["id"]} {lg["lengthM"]:.2f} m）時，凸出月台（d={a0:.2f}～{a1:.2f}）的量——'
+          + '；'.join(stop_rows) + '。各編組以這四點為中心停的最大凸出：' + '、'.join(f'{k} {v:.1f} m' for k, v in worst_by_form.items())
+          + ('。10/23 重播頁不可直接沿用這四個停車點（也不可沿用 9/12 的停法）：臺南的停車位置用 profile.json 的 derived.platform.centerD，整列車置中' if any_over else ''))
+
+    # 6.3 月台兩端：外側股道與正線的中心距都要 ≥ 下限（量法與月台中心無關：外側股道取樣、投影到參考線、內插）
+    sp_rows, sp_ok = [], len(recs) == len(islands)
+    for r in recs:
+        side, gaps = platform_end_spacing(out, r['poly'], (r['d0'], r['d1']))
         good = all(g >= PLATFORM_END_MIN_SPACING_M for g in gaps)
         sp_ok &= good
-        sp_rows.append(f'{names.get(k, "月台" + str(k + 1))}（{"西" if side == "west" else "東"}側）南端 d={plen[k][0]:.2f} 中心距 {gaps[0]:.3f} m、'
-                       f'北端 d={plen[k][1]:.2f} 中心距 {gaps[1]:.3f} m{"" if good else " ✗"}')
+        sp_rows.append(f'{r["label"]}（{"西" if side == "west" else "東"}側）南端 d={r["d0"]:.2f} 中心距 {gaps[0]:.3f} m、'
+                       f'北端 d={r["d1"]:.2f} 中心距 {gaps[1]:.3f} m{"" if good else " ✗"}')
     R.add(6, ok_text(sp_ok), f'6.3 月台兩端外側股道與同側正線的中心距都 ≥ {PLATFORM_END_MIN_SPACING_M:g} m：' + '；'.join(sp_rows))
-    return polys
+
+    # 6.4 月台邊緣到股道中心的水平距離（網格實量）要等於 params 的 edgeFromTrackCenterM；params 的值本身要在合理範圍內
+    lo_b, hi_b = ENVELOPE_HALF_WIDTH_M, ENVELOPE_HALF_WIDTH_M + EDGE_GAP_MAX_M
+    range_ok = isinstance(edge_params, (int, float)) and lo_b - 1e-9 <= edge_params <= hi_b + 1e-9
+    rows64, meas_ok = [], bool(recs)
+    for r in recs:
+        for side, name in (('west', '西緣'), ('east', '東緣')):
+            v = [x for x, _ in r['edges'][side]]
+            good = bool(v) and isinstance(edge_params, (int, float)) and all(abs(x - edge_params) <= DIM_TOL_M for x in v)
+            meas_ok &= good
+            rows64.append(f'{r["label"]}{name}離股道 {"、".join(r["near"][side])} 中心 {min(v):.4f}～{max(v):.4f} m（{len(v)} 個剖面）{"" if good else " ✗"}'
+                          if v else f'{r["label"]}{name}沒有量到剖面 ✗')
+    R.add(6, ok_text(range_ok and meas_ok),
+          f'6.4 月台邊緣離軌道中心：params 的 edgeFromTrackCenterM＝{edge_params}，要在 [{lo_b:g}（車輛限界半寬，車廂不嵌進月台）, {hi_b:g}（限界半寬＋{EDGE_GAP_MAX_M:g}，合理性上限、不是規範值）] 內'
+          f'（{"在範圍內" if range_ok else "超出範圍 ✗"}）；網格實量（沿月台每 {PLATFORM_EDGE_STEP_M:g} m 一個剖面，邊緣點到最近那股的中心線）要等於 params ± {DIM_TOL_M:g} m：' + '；'.join(rows64))
+
+    # 6.5 月台號與 id：每個 params.islands 的 no 都有 platform-{no}，而且那個 footprint 就是夾在 between 兩股之間的月台
+    rows65, ok65 = [], len(recs) == len(islands) and set(fps) == {f'platform-{isl["no"]}' for isl in islands}
+    for isl in islands:
+        fid = f'platform-{isl["no"]}'
+        r = next((r for r in recs if r['island'] is isl), None)
+        fp = fps.get(fid)
+        if r is None or fp is None:
+            ok65 = False
+            rows65.append(f'{fid}（{isl["name"]}）{"沒有 footprint" if fp is None else "網格裡找不到夾在 " + "／".join(isl["between"]) + " 的月台"} ✗')
+            continue
+        ratio = Polygon(fp['ring']).intersection(r['poly']).area / max(r['poly'].area, 1e-9)
+        good = ratio >= 0.9 and fp.get('no') == isl['no'] and fp.get('name') == isl['name']
+        ok65 &= good
+        rows65.append(f'{fid}＝{isl["name"]}：網格量到夾在 {r["near"]["west"][0]}（西緣）與 {r["near"]["east"][0]}（東緣）之間、footprint 外框與該月台頂面重合 {100 * ratio:.1f}%、'
+                      f'footprint 的 no={fp.get("no")}{"" if good else " ✗"}')
+    R.add(6, ok_text(ok65), '6.5 月台號與 id（id 一律是 platform-{params.islands[].no}；月台夾在哪兩股由網格與股道座標量出，不看名字字串、不看陣列順序）：'
+                            f'footprint id 集合 {sorted(fps)}；' + '；'.join(rows65))
+    return [r['poly'] for r in recs]
 
 
 # ---------------------------------------------------------------- 項目 7：只回報
@@ -889,6 +1057,69 @@ def item8(R):
     R.add(8, ok_text(not extra and not missing), f'8.2 資料夾內只有預期的檔案（沒有建置輸出、__pycache__、圖）：多出 {extra}、缺少 {missing}')
 
 
+# ---------------------------------------------------------------- 項目 9：params.json 的出處標註
+S_CODE = re.compile(r'(?<![A-Za-z0-9])S\d+(?![A-Za-z0-9])')
+
+
+def item9(R, out):
+    """params.json 每個帶 label 的欄位：label 要是 params.labels 定義的一種；估計要有非空 basis；查到、二手要有非空 sources；
+    所有 sources 引用的代號都要在 params.sources 裡，basis／note 等內文提到的 S 代號也一樣。"""
+    P = out.params
+    labels, codes = set(P['labels']), set(P['sources'])
+    nodes, with_sources, texts = [], [], []
+
+    def walk(o, path):
+        if isinstance(o, dict):
+            if 'label' in o:
+                nodes.append((path, o))
+            if 'sources' in o and path:
+                with_sources.append((path, o['sources']))
+            for k, v in o.items():
+                if not path and k in ('labels', 'sources'):
+                    continue                                      # 頂層的標籤說明與出處表本身不是欄位
+                walk(v, path + [k])
+        elif isinstance(o, list):
+            for i, v in enumerate(o):
+                walk(v, path + [i])
+        elif isinstance(o, str):
+            texts.append((path, o))
+
+    walk(P, [])
+    nonempty = lambda v: isinstance(v, str) and v.strip() != ''
+    issues, count = [], defaultdict(int)
+    for path, node in nodes:
+        where = '.'.join(str(x) for x in path) or '(根)'
+        lab = node['label']
+        count[lab] += 1
+        if lab not in labels:
+            issues.append(f'{where}：label「{lab}」不在 params.labels')
+        elif lab == '估計' and not nonempty(node.get('basis')):
+            issues.append(f'{where}：label＝估計但沒有非空的 basis')
+        elif lab in ('查到', '二手') and not (isinstance(node.get('sources'), list) and node['sources'] and all(nonempty(c) for c in node['sources'])):
+            issues.append(f'{where}：label＝{lab}但沒有非空的 sources')
+    used = set()
+    for path, srcs in with_sources:
+        where = '.'.join(str(x) for x in path)
+        if not isinstance(srcs, list):
+            issues.append(f'{where}：sources 不是清單')
+            continue
+        for c in srcs:
+            used.add(c)
+            if c not in codes:
+                issues.append(f'{where}：sources 引用的 {c} 不在 params.sources')
+    cited = set()
+    for path, t in texts:
+        for c in S_CODE.findall(t):
+            cited.add(c)
+            if c not in codes:
+                issues.append(f'{".".join(str(x) for x in path)}：內文提到的 {c} 不在 params.sources')
+    R.add(9, ok_text(not issues and len(nodes) > 0),
+          f'9.1 params.json 出處標註：帶 label 的欄位 {len(nodes)} 個（{"、".join(f"{k} {v}" for k, v in count.items())}）；'
+          f'估計都有非空 basis、查到與二手都有非空 sources、label 都在 params.labels 內；'
+          f'sources 引用的代號 {len(used)} 種、內文提到的 S 代號 {len(cited)} 種，都在 params.sources（{len(codes)} 筆）；問題 {len(issues)} 個'
+          + (('：' + '；'.join(issues[:8]) + (f'…（共 {len(issues)} 個）' if len(issues) > 8 else '')) if issues else ''))
+
+
 def main():
     if len(sys.argv) != 2:
         print(__doc__)
@@ -906,10 +1137,11 @@ def main():
     polys = item6(R, out)
     item7(R, out, polys)
     item8(R)
-    names = {1: '網格', 2: '淨空', 3: '地板高程', 4: '站端位置', 5: '坡度', 6: '月台', 7: '回報（不判）', 8: '只動這個資料夾'}
+    item9(R, out)
+    names = {1: '網格', 2: '淨空', 3: '地板高程', 4: '站端位置', 5: '坡度', 6: '月台', 7: '回報（不判）', 8: '只動這個資料夾', 9: '出處標註'}
     print('—— 總結 ——')
     fail = False
-    for it in range(1, 9):
+    for it in range(1, 10):
         if it == 7:
             print(f'  項目 7 {names[it]}：只回報')
             continue

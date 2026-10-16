@@ -4,7 +4,9 @@
   Blender -b --python preview_blender.py -- views.json
 views.json：[{name, out, size:[w,h], samples, mesh:'.npy 路徑 float32 [N,6]', groups:[{name,color,roughness,opacity,start,count}],
               camera:{target:[x,y,z], azimuth, elevation, distance, lens, ortho}, sun:[x,y,z], sky:[r,g,b], strength}]
-groups 的 start/count 以頂點為單位；color 是線性 RGB。相機方位角 azimuth＝相機在目標的哪個羅盤方向（北＝0、東＝90）。
+groups 的 start/count 以頂點為單位；color 是線性 RGB；doubleSided 沒給就當雙面。
+不是雙面的群組（doubleSided 為 false）照重播頁的 FrontSide 畫：背面完全透明、射線穿過去，所以圖上看得到的面就是重播頁畫得出來的面（少一面的封口會看到破洞）。
+相機方位角 azimuth＝相機在目標的哪個羅盤方向（北＝0、東＝90）。
 """
 import json
 import math
@@ -15,7 +17,7 @@ import numpy as np
 from mathutils import Vector
 
 
-def build_object(name, verts, rgb, rough, opacity):
+def build_object(name, verts, rgb, rough, opacity, double=True):
     n = len(verts)
     me = bpy.data.meshes.new(name)
     me.from_pydata([tuple(map(float, v)) for v in verts], [], [(i, i + 1, i + 2) for i in range(0, n, 3)])
@@ -27,6 +29,13 @@ def build_object(name, verts, rgb, rough, opacity):
     p.inputs['Roughness'].default_value = rough
     p.inputs['Alpha'].default_value = opacity
     m.diffuse_color = (rgb[0], rgb[1], rgb[2], 1.0)
+    if not double:
+        nt = m.node_tree
+        geo, tr, mix = nt.nodes.new('ShaderNodeNewGeometry'), nt.nodes.new('ShaderNodeBsdfTransparent'), nt.nodes.new('ShaderNodeMixShader')
+        nt.links.new(geo.outputs['Backfacing'], mix.inputs[0])
+        nt.links.new(p.outputs['BSDF'], mix.inputs[1])
+        nt.links.new(tr.outputs['BSDF'], mix.inputs[2])
+        nt.links.new(mix.outputs['Shader'], nt.nodes['Material Output'].inputs['Surface'])
     me.materials.append(m)
     o = bpy.data.objects.new(name, me)
     bpy.context.scene.collection.objects.link(o)
@@ -58,7 +67,7 @@ def render(v):
     for g in v['groups']:
         if g['count'] == 0:
             continue
-        build_object(g['name'], pos[g['start']:g['start'] + g['count']], g['color'], g['roughness'], g['opacity'])
+        build_object(g['name'], pos[g['start']:g['start'] + g['count']], g['color'], g['roughness'], g['opacity'], g.get('doubleSided', True))
 
     sun_dir = Vector(v.get('sun', [-0.4, -0.5, 0.8]))
     d = bpy.data.lights.new('sun', 'SUN')

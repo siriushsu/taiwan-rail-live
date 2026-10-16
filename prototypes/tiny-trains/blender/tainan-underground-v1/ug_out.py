@@ -17,6 +17,7 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[3]
 SNAPSHOT = REPO / 'memories' / 'tainan-2026-09-12' / 'snapshot.json'
 OLD_STATION = HERE.parent / 'tainan-memory-v1' / 'station-footprint.json'
+CATALOG = REPO / 'memories' / 'tainan-2026-09-12' / 'fleet' / 'catalog.json'     # 9/12 重播頁的車輛目錄（只讀）
 
 
 def load_json(path):
@@ -87,6 +88,25 @@ class Out:
 
     def z_of_xy(self, xy):
         return self.z_of_d(self.project_d(xy))
+
+
+def formation_lengths(catalog=None):
+    """各編組的整列車長度（公尺）＝編組裡每節車的連結器間距 pitchM 加總。
+    這是重播頁 replay.js arrange() 的排法：每節用該車型的 pitchM 首尾相接、以編組中心為基準置中（catalog.json 的 meshes[mesh].pitchM、
+    formations[id].cars[].mesh）。車頭鼻端凸出 pitch 邊界的量不計（nose_overhang 欄位另外回報：(extentM − pitchM)/2，取編組兩端那兩節的較大者）。
+    回傳 [{id, name, cars, lengthM, nose_overhang}]，由長到短。"""
+    cat = catalog if catalog is not None else load_json(CATALOG)
+    meshes = cat['meshes']
+    rows = []
+    for fid, f in cat['formations'].items():
+        cars = f['cars']
+        missing = sorted({c['mesh'] for c in cars} - set(meshes))
+        if missing:
+            raise ValueError(f'編組 {fid} 用到目錄裡沒有的車型：{missing}')
+        ends = (meshes[cars[0]['mesh']], meshes[cars[-1]['mesh']])
+        rows.append({'id': fid, 'name': f['name'], 'cars': len(cars), 'lengthM': float(sum(meshes[c['mesh']]['pitchM'] for c in cars)),
+                     'nose_overhang': float(max((m['extentM'] - m['pitchM']) / 2 for m in ends))})
+    return sorted(rows, key=lambda r: -r['lengthM'])
 
 
 def alignment_ways(out):

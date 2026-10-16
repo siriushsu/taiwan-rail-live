@@ -167,7 +167,10 @@ def build_trough(M, w, d_lo, d_hi, portal, part='trough'):
 
     寬度逐剖面線量（Section.trough_half_widths）。洞口這一端：
     - 洞口端牆（params.ramps.portalEndWall）：洞口平面上隧道箱體的端面，外框是隧道外寬 × 箱底到頂板頂，
-      開口是 U 槽內淨寬 × 軌道面到頂板底，朝向 U 槽（箱體的外側）。格線切在內牆與外牆的位置，端牆與洞口牆的邊沒有 T 字接點。
+      開口是 U 槽內淨寬 × 軌道面到頂板底。格線切在內牆與外牆的位置，端牆與洞口牆的邊沒有 T 字接點。
+      重播頁用 FrontSide 畫、材質不是雙面，所以端牆畫正反兩面：朝向 U 槽的一面（從 U 槽看）與朝向隧道的一面（從隧道內、或隔著半透明外殼從上方看），
+      兩面是同一個矩形、同材質、法線相反、頂點完全相同（零厚度的封口）；任何視角都只有一面通過背面剔除，不會 z-fighting。
+      check.py 1.5 用具名豁免放行這些正反對，1.8 兩個方向都量。
     - 洞口上方的牆（params.ramps.portalHeadwall）：從頂板頂往上到牆頂，厚 wallThicknessM；隧道側的面與端牆同一平面、上下相接，
       寬度是 U 槽外寬（蓋住兩側牆在這一端的端面，所以兩側牆在洞口端不畫端面）；開挖側的面、頂面、底面只畫兩內牆之間。
     """
@@ -195,14 +198,15 @@ def build_trough(M, w, d_lo, d_hi, portal, part='trough'):
             lo_, hi_ = sorted((so[k_open], si[k_open]))
             sec.cap(M, 'ug_trough', k_open, lo_, hi_, R(-D.base_below), top, 'back' if at_hi else 'fwd')   # 地面端的端面
         face_cut, face_tun = ('back', 'fwd') if at_hi else ('fwd', 'back')    # 朝向 U 槽（開挖側）／朝向隧道
-        # 洞口端牆：外框 ho × (箱底, 頂板頂)，扣掉開口 hin × (軌道面, 頂板底)
+        # 洞口端牆：外框 ho × (箱底, 頂板頂)，扣掉開口 hin × (軌道面, 頂板底)；正反兩面各一份（見上面的說明）
         xs = [-ho, -hout[kp], -hin[kp], hin[kp], hout[kp], ho]
         zs = [R(-D.base_below), R(0), R(D.soffit), roof]
         for band, (za, zb) in enumerate(zip(zs, zs[1:])):
             for col, (sa, sb) in enumerate(zip(xs, xs[1:])):
                 if band == 1 and col == 2:
                     continue                                          # 開口
-                sec.cap(M, 'ug_trough', kp, sa, sb, za, zb, face_cut)
+                for facing in (face_cut, face_tun):
+                    sec.cap(M, 'ug_trough', kp, sa, sb, za, zb, facing)
         # 洞口上方的牆
         k0, k1 = (kf, kp) if at_hi else (kp, kf)
         sec.ribbon(M, 'ug_trough', (neg(hin), roof), (hin, roof), 'down', k0, k1)         # 底面（頂板頂高程）
@@ -366,6 +370,9 @@ def build_station(M, w, info):
 def build_platforms(M, w, z0, info):
     D = w.dims
     al = w.P['station']['islands']['value']
+    nos = [isl.get('no') for isl in al]
+    if any(type(n) is not int or n < 1 for n in nos) or len(set(nos)) != len(nos):
+        raise ValueError(f'station.islands 每筆都要有互不相同的正整數 no（月台號）：{nos}')
     d0, d1 = w.pf_d0, w.pf_d1
     plats = []
     with M.G.part('platform'):
@@ -393,5 +400,5 @@ def build_platforms(M, w, z0, info):
                 if L < 1e-9:
                     continue
                 M.quad((a[0], a[1], z0), (b[0], b[1], z0), (b[0], b[1], top), (a[0], a[1], top), 'ug_platform', (dy / L, -dx / L, 0.0))
-            plats.append({'name': isl['name'], 'between': isl['between'], 'ring': ring[:-1], 'top': top})
+            plats.append({'no': isl['no'], 'name': isl['name'], 'between': isl['between'], 'ring': ring[:-1], 'top': top})
     info['platforms'] = plats

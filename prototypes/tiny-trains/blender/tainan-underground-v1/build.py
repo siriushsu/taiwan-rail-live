@@ -67,8 +67,8 @@ def assemble(w):
         {'id': 'trough-south', 'kind': 'trough', 'ring': ring3(ccw(tr_s.ring(Mh.neg(tr_s.hout), tr_s.hout)))},
         {'id': 'trough-north', 'kind': 'trough', 'ring': ring3(ccw(tr_n.ring(Mh.neg(tr_n.hout), tr_n.hout)))},
     ]
-    for k, p in enumerate(info['platforms']):
-        info['footprints'].append({'id': f'platform-{k + 1}', 'kind': 'platform', 'name': p['name'], 'ring': ring3(p['ring'])})
+    for p in sorted(info['platforms'], key=lambda p: p['no']):       # id 一律是 platform-{月台號}，不看 params 的陣列順序
+        info['footprints'].append({'id': f"platform-{p['no']}", 'kind': 'platform', 'no': p['no'], 'name': p['name'], 'ring': ring3(p['ring'])})
     info['cutouts'] = [
         {'id': 'trough-south-inner', 'ring': ring3(ccw(tr_s.ring(Mh.neg(tr_s.hin), tr_s.hin)))},
         {'id': 'trough-north-inner', 'ring': ring3(ccw(tr_n.ring(Mh.neg(tr_n.hin), tr_n.hin)))},

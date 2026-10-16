@@ -6,7 +6,7 @@
   "查到": "官方文件或報導明寫，sources 列出處",
   "二手": "報導轉述，不是官方原文",
   "OSM": "OpenStreetMap 的描繪（2022-10 到 2025-07 繪製，切換前），不是竣工測量",
-  "估計": "沒有公開數字，basis 寫依據"
+  "估計": "沒有公開數字，或把查到的數字拿來當另一個量用（例如標案區段長當箱體長）；basis 寫依據，引用到的出處另列 sources"
  },
  "alignment": {
   "source": {
@@ -47,44 +47,44 @@
  "tunnel": {
   "centerline": "兩條正線（tunnel.west、tunnel.east）的中線",
   "outerWidthM": {"value": 14.3, "label": "查到", "sources": ["S6"], "note": "非車站段，含兩側連續壁"},
-  "wallThicknessM": {"value": 1.0, "label": "估計"},
+  "wallThicknessM": {"value": 1.0, "label": "估計", "basis": "本案隧道段的連續壁厚度查不到；S6 的 14.3 m 是含兩側連續壁的總寬。取 1.0 m 當量級，內淨寬因此是 12.3 m（兩股中心距約 4.3 m）"},
   "soffitAboveTrackM": {"value": 6.0, "label": "估計", "basis": "導電軌（S31）電化隧道淨高的量級"},
-  "roofThicknessM": {"value": 1.0, "label": "估計"},
+  "roofThicknessM": {"value": 1.0, "label": "估計", "basis": "頂板厚度查不到，取 1.0 m 當量級；它和 soffitAboveTrackM 一起決定洞口處的軌道面深度（−7.0 m）"},
   "baseBottomBelowTrackM": {"value": 1.5, "label": "估計", "basis": "無道碴板式軌道（S41）加底板"}
  },
  "ramps": {
   "extent": {"value": "OSM cutting=yes 的段：北約 300 m、南約 625 m", "label": "OSM", "note": "官方引道合計 770 m（S4），OSM 開挖段合計約 925 m，兩者不一致，照 OSM 畫"},
   "wallInsetFromTrackM": {"value": 2.2, "label": "估計", "basis": "切換前舊線就在引道旁營運：9/12 的 OSM 舊線離新線中線只有約 7.3 m（北）、7.6 m（南）。U 槽若照隧道內寬 12.3 m，外牆會壓到舊線，所以改用股道中心到內牆 2.2 m（同 station.wallInsetFromOuterTrackM）。設計原則是開挖面離既有軌道至少 2.5 m（S25），這個寬度仍做不到，差距在 OSM 描繪誤差的量級"},
   "innerWidth": "兩股中心距（OSM，約 4.3 m）加兩側各 wallInsetFromTrackM",
-  "wallThicknessM": {"value": 1.0, "label": "估計"},
-  "portalEndWall": {"value": "洞口處隧道箱體的端面（外框 tunnel.outerWidthM × 底到頂），挖掉 U 槽內淨寬的開口；U 槽比隧道窄，沒有這面牆會看到箱體端部開著", "label": "估計"},
+  "wallThicknessM": {"value": 1.0, "label": "估計", "basis": "U 槽牆厚查不到；取跟隧道連續壁同厚，洞口處兩邊的牆才接得上"},
+  "portalEndWall": {"value": "洞口處隧道箱體的端面（外框 tunnel.outerWidthM × 底到頂），挖掉 U 槽內淨寬的開口；U 槽比隧道窄，沒有這面牆會看到箱體端部開著", "label": "估計", "basis": "不是查到的構造，是建模上的封口：洞口實際構造查不到。U 槽比隧道窄（見 wallInsetFromTrackM），箱體端面要封起來，從 U 槽看或從隧道內、透過半透明外殼看才不會像開著"},
   "wallTopAboveGroundM": {"value": 2.2, "label": "查到", "sources": ["S4"], "note": "防洪牆兼隔音牆約 2.04–2.37 m，取中間"},
   "floor": "軌道面高程 z（同隧道）",
-  "portalHeadwall": {"value": "洞口上方一道牆，從頂板頂（洞口處與地面齊）到牆頂（地面 + wallTopAboveGroundM），寬同 U 槽外寬，厚 wallThicknessM；頂板頂以下由 portalEndWall 負責", "label": "估計"}
+  "portalHeadwall": {"value": "洞口上方一道牆，從頂板頂（洞口處與地面齊）到牆頂（地面 + wallTopAboveGroundM），寬同 U 槽外寬，厚 wallThicknessM；頂板頂以下由 portalEndWall 負責", "label": "估計", "basis": "同 portalEndWall，是建模上的示意：U 槽牆頂高出地面 wallTopAboveGroundM，洞口上方用一道牆接起來；實際構造查不到"}
  },
  "station": {
-  "lengthM": {"value": 691, "label": "查到", "sources": ["S8", "S30"], "note": "UK357+470～358+161，小東路地下道附近到民族路四維地下道附近"},
+  "lengthM": {"value": 691, "label": "估計", "sources": ["S8", "S30"], "basis": "數字是查到的：S8（C212 標臺南車站工程頁）寫臺南車站區段 VK357+470～VK358+161、全長 0.6 公里，里程差 691 m；S30 寫北起小東路地下道附近、南至民族路四維地下道附近、全長 691 公尺。把整個區段長當成箱體長是推論，標案區段可能含箱體以外的結構"},
   "placement": {"value": "以兩條外側股道（stationLoops）各自兩端的分岔點投影到參考線後的中點為中心，沿參考線前後各 lengthM/2", "label": "估計", "basis": "官方里程換成 OSM 座標的殘差在小東路一帶達 −90～−180 m，改用 OSM 四股段定位", "check": "兩端都要落在小東路與民族路一段跟參考線的交點之間（9/12 快照 features）"},
   "tracks": {"value": "由西到東：1102288953 外側、1102288955 正線、1102288954 正線、1102288952 外側", "label": "OSM"},
   "islands": {
    "value": [
-    {"name": "第 2 月台（北上）", "between": ["1102288953", "1102288955"]},
-    {"name": "第 1 月台（南下）", "between": ["1102288954", "1102288952"]}
+    {"no": 2, "name": "第 2 月台（北上）", "between": ["1102288953", "1102288955"]},
+    {"no": 1, "name": "第 1 月台（南下）", "between": ["1102288954", "1102288952"]}
    ],
-   "label": "查到",
+   "label": "估計",
    "sources": ["S21", "S22", "S33"],
-   "basis": "2 座島式月台、4 股道；北上第 2 月台、南下第 1 月台。第 2 月台在西是推論：臺鐵靠左行駛，北上走西側正線，S33 也寫北上在靠海側；兩正線只隔 4.3 m 放不下月台，島式月台只能夾在外側股道與正線之間"
+   "basis": "查到的部分：2 座島式月台、4 股道，北上用第 2 月台、南下用第 1 月台（S21、S22）。推論的部分是每座月台夾在哪兩股：臺鐵靠左行駛，北上走西側正線，S33 也寫北上在靠海側；兩正線只隔 4.3 m 放不下月台，島式月台只能夾在外側股道與正線之間"
   },
   "wallInsetFromOuterTrackM": {"value": 2.2, "label": "估計", "basis": "外側股道中心到內牆面"},
-  "wallThicknessM": {"value": 1.2, "label": "估計"},
+  "wallThicknessM": {"value": 1.2, "label": "估計", "basis": "站體連續壁厚度查不到；車站開挖超過 20 m（S31，二手），比隧道段深，取比隧道段的 1.0 m 厚一點"},
   "baseBottomBelowTrackM": {"value": 2.5, "label": "估計", "basis": "底板底 −20.5 m，對上開挖深度超過 20 m（S31）"},
   "b1FloorTopAboveTrackM": {"value": 7.0, "label": "估計", "basis": "B1 樓板底與隧道頂板底同高（軌道面 + 6.0 m）再加板厚 1.0 m；B1 穿堂、B2 月台是查到（S22）"},
-  "b1SlabThicknessM": {"value": 1.0, "label": "估計"},
+  "b1SlabThicknessM": {"value": 1.0, "label": "估計", "basis": "B1 樓板厚度查不到，取跟隧道頂板同厚"},
   "roofTopZ": {"value": -2.0, "label": "估計", "basis": "覆土約 2 m"},
   "platform": {
    "lengthM": {"value": 300, "label": "估計", "basis": "臺鐵最長的定期編組約 240–290 m；月台長度查不到"},
    "center": {"value": "站體中心（station.placement 的中心），兩座月台共用", "label": "估計", "basis": "月台位置查不到；四股段兩端道岔之間的中點不受門檻選擇影響。月台兩端仍要在外側股道與正線中心距 ≥ 10 m 的段內"},
-   "edgeFromTrackCenterM": {"value": 1.65, "label": "估計"},
+   "edgeFromTrackCenterM": {"value": 1.65, "label": "估計", "basis": "臺南站月台邊緣到軌道中心的距離查不到。取 1.65 m：比 check.py 的車輛限界盒半寬 1.6 m 多 5 cm，車廂不會嵌進月台。這是建模假設，不是臺鐵規範值；查證報告推算月台寬時另用過 1.7 m，同樣沒有查證"},
    "topAboveTrackM": {"value": 1.28, "label": "估計", "basis": "重播頁鋼軌頂 0.13 m 加臺鐵高月台 1.15 m"}
   }
  },

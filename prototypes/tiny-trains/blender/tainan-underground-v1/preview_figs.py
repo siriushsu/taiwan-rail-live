@@ -214,7 +214,10 @@ def plan_figure(out, path):
     W, H = 2400, 1700
     cv = Canvas(W, H)
     cv.text((40, 18), '臺南鐵路地下化　平面疊圖（沿參考線轉正，右＝行進方向，上＝左側）', 22)
-    cv.text((40, 50), '站體外框、月台頂面、四股道、小東路與民族路一段（9/12 快照道路線）；舊站體外框與四個停車點供對照', 14, COL['mute'])
+    cv.text((40, 50), '站體外框、月台頂面、四股道、小東路與民族路一段（9/12 快照道路線）；舊站體外框與 9/12 主站網路的四個停車點只供對照，臺南的停車位置用月台中心（最長編組置中）', 14, COL['mute'])
+    forms = U.formation_lengths()
+    lg = forms[0]                               # 最長的編組
+    gap_c = (pf['d1'] - pf['d0'] - lg['lengthM']) / 2
 
     def panel(fr, x0, y0, x1, y1, d_lo, d_hi, title, tick, detail=False):
         cv.rect(x0, y0, x1, y1, fill=(255, 255, 255), outline=COL['grid'], width=1)
@@ -268,6 +271,9 @@ def plan_figure(out, path):
             cv.text((q[0], q[1]), f['name'], 13, COL['platform_edge'], anchor='mm')
     a, b = fr1(out.ref_point(pf['d0'])), fr1(out.ref_point(pf['d1']))
     cv.text(((a[0] + b[0]) / 2, 214), f'月台 d={pf["d0"]:.1f}～{pf["d1"]:.1f}（長 {pf["lengthM"]} m）', 14, COL['platform_edge'], anchor='ms')
+    xa, xb = (fr1(out.ref_point(pf['centerD'] + k * lg['lengthM'] / 2))[0] for k in (-1, 1))
+    cv.rect(xa, 238, xb, 258, fill=COL['station'], outline=COL['ink'], width=1, alpha=215)
+    cv.text(((xa + xb) / 2, 248), f'最長編組 {lg["id"]}（{lg["lengthM"]:.1f} m）以月台中心為中心：兩端各剩 {gap_c:.1f} m', 13, (255, 255, 255), anchor='mm', halo=False)
     cv.end_clip()
     # 圖例
     lx, ly = 40, 640
@@ -290,7 +296,7 @@ def plan_figure(out, path):
     cv.text((x + 42, ly + 12), '舊站體外框', 14, anchor='lm')
     x += 130
     cv.circle((x + 8, ly + 12), 6, fill=COL['stop'])
-    cv.text((x + 22, ly + 12), '停車點', 14, anchor='lm')
+    cv.text((x + 22, ly + 12), '停車點（9/12 主站網路，10/23 不沿用）', 14, anchor='lm')
     _scalebar(cv, W - 300, 70, fr1.s, 100)
     _north_arrow(cv, fr1, W - 60, 70)
 
@@ -314,7 +320,14 @@ def plan_figure(out, path):
         row = 774 + i * 34
         cv.circle((58, row), 11, fill=COL['stop'])
         cv.text((58, row), str(i + 1), 14, (255, 255, 255), anchor='mm', halo=False)
-        cv.text((80, row), f'{label} ({x}, {y})　d={d:.1f}　離月台南端 {d - pf["d0"]:.1f} m　離最近月台邊 {dist:.2f} m', 14, anchor='lm')
+        over = max(0.0, pf['d0'] - (d - lg['lengthM'] / 2))
+        cv.text((80, row), f'{label} ({x}, {y})　d={d:.1f}　離月台南端 {d - pf["d0"]:.1f} m　離最近月台邊 {dist:.2f} m　以它為中心停 {lg["id"]} 會凸出月台南端 {over:.1f} m', 14, anchor='lm')
+    d_stop = out.project_d(CK.STOP_POINTS[0][1])
+    for yy, dctr, col, txt in ((935, pf['centerD'], COL['station'], f'{lg["id"]} {lg["lengthM"]:.1f} m 以月台中心為中心：南端剩 {gap_c:.1f} m'),
+                               (985, d_stop, (200, 40, 40), f'{lg["id"]} 以停車點 1 為中心：南端凸出月台南端 {max(0.0, pf["d0"] - (d_stop - lg["lengthM"] / 2)):.1f} m（重播頁不可沿用）')):
+        xa, xb = (fr2(out.ref_point(dctr + k * lg['lengthM'] / 2))[0] for k in (-1, 1))
+        cv.rect(xa, yy - 12, xb, yy + 12, fill=col, outline=COL['ink'], width=1, alpha=205)
+        cv.text((max(xa, 30) + 12, yy), txt, 14, (255, 255, 255), anchor='lm', halo=False)
     cv.end_clip()
     _scalebar(cv, W - 300, 1640, fr2.s, 20)
     _north_arrow(cv, fr2, W - 60, 1640)

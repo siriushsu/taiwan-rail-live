@@ -153,7 +153,7 @@ class Scene:
                 continue
             parts.append(verts)
             groups.append({'name': g['name'], 'color': g['color'], 'roughness': g['roughness'],
-                           'opacity': g.get('opacity', 1.0), 'start': start, 'count': len(verts)})
+                           'opacity': g.get('opacity', 1.0), 'doubleSided': bool(g.get('doubleSided', False)), 'start': start, 'count': len(verts)})
             start += len(verts)
         for gname, key, verts in extras:
             if clip is not None and key != 'ground':
@@ -164,7 +164,7 @@ class Scene:
             parts.append(verts)
             e = EXTRA[key]
             groups.append({'name': gname, 'color': e['color'], 'roughness': e['roughness'], 'opacity': e['opacity'],
-                           'start': start, 'count': len(verts)})
+                           'doubleSided': True, 'start': start, 'count': len(verts)})
             start += len(verts)
         allv = np.vstack(parts)
         allv = allv * np.array([1.0, 1.0, zscale])
@@ -281,6 +281,15 @@ def build_views(scene, only):
         dict(target=[ps[0], ps[1], -3], azimuth=hso + 180 - 28, elevation=28, distance=125, lens=36),
         [('rail', 'rail', scene.tracks(cps['south-cut-outer']['d'] - 20, cps['south-portal']['d'] + 80)),
          ('ground', 'ground', ground_quad(ps[0] - 260, ps[0] + 260, ps[1] - 260, ps[1] + 260))], samples=48)
+
+    # 04b／05b 從隧道側看洞口：相機在隧道那一側的上方，隔著半透明的殼看洞口端牆的隧道側（不畫地面；不是雙面的材質背面透明，
+    # 所以端牆少一面就會看到破洞）。與 04／05（從 U 槽那側看）成對。
+    add('04b-north-portal-from-tunnel', [1800, 1000],
+        dict(target=[pn[0], pn[1], -4], azimuth=hn + 180 + 24, elevation=34, distance=75, lens=34),
+        [('rail', 'rail', scene.tracks(cps['north-portal']['d'] - 110, cps['north-portal']['d'] + 60))], samples=48)
+    add('05b-south-portal-from-tunnel', [1800, 1000],
+        dict(target=[ps[0], ps[1], -4], azimuth=hso - 24, elevation=34, distance=75, lens=34),
+        [('rail', 'rail', scene.tracks(cps['south-portal']['d'] - 60, cps['south-portal']['d'] + 110))], samples=48)
     return views
 
 
