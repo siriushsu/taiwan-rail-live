@@ -1,0 +1,113 @@
+{
+ "schema": "tainan-underground-params/1",
+ "about": "臺南鐵路地下化第一階段（2026-10-17 通車）地下結構模型與列車高程剖面的唯一數字來源。build.py 只讀這份；model.json 與 profile.json 照抄這裡的 label 與 basis。",
+ "checkedAt": "2026-10-17 01:32–04:00 +0800（切換施工中，沒有通車後的現場資料）",
+ "labels": {
+  "查到": "官方文件或報導明寫，sources 列出處",
+  "二手": "報導轉述，不是官方原文",
+  "OSM": "OpenStreetMap 的描繪（2022-10 到 2025-07 繪製，切換前），不是竣工測量",
+  "估計": "沒有公開數字，basis 寫依據"
+ },
+ "alignment": {
+  "source": {
+   "commit": "2cd16884c2322ca4db3c646d2914c755368781a1",
+   "path": "rail-3d/physical/network.json",
+   "note": "feat/tainan-underground 分支（主站臺南地下化）的股道網路，四股座標照 OSM 原樣；併進 main 之後改指 main 上的 commit"
+  },
+  "crossCheck": ".cache/tainan-1023-raw/research-20261017/research/osm_api_railway_extract_20261017-015751.json（OSM API，2026-10-17 01:44–02:40 讀取；ways[].coords 是 [緯度, 經度]）",
+  "referenceChain": {
+   "ways": ["1413211242", "1413211241", "1102288955", "1413215950", "1413215951"],
+   "note": "西側那一股，由南到北：南引道地面段、南引道開挖段、隧道、北引道開挖段、北引道地面段。高程剖面以這條線上的投影距離 d（世界座標公尺，從南端起算）內插，四股共用。"
+  },
+  "eastChain": ["1413211243", "1413211240", "1102288954", "1413215949", "1413215952"],
+  "tunnel": {"west": "1102288955", "east": "1102288954"},
+  "cuttingSouth": {"west": "1413211241", "east": "1413211240"},
+  "cuttingNorth": {"west": "1413215950", "east": "1413215949"},
+  "atGradeSouth": {"west": "1413211242", "east": "1413211243"},
+  "atGradeNorth": {"west": "1413215951", "east": "1413215952"},
+  "stationLoops": {"west": "1102288953", "east": "1102288952"},
+  "label": "OSM"
+ },
+ "profile": {
+  "meaning": "軌道面高程 z（公尺，地面＝0）。重播頁地面段的軌道畫在 0，地下段改畫在 z，鋼軌與列車照原本的偏移疊上去。",
+  "interpolation": "控制點之間線性，不做豎曲線",
+  "controlPoints": [
+   {"id": "south-start", "anchor": {"type": "chainStart"}, "z": 0, "label": "OSM", "basis": "南引道地面段起點"},
+   {"id": "south-cut-outer", "anchor": {"type": "wayEnd", "way": "1413211241", "end": "south"}, "z": 0, "label": "OSM", "basis": "南引道開挖段（cutting=yes）外端，開始下降"},
+   {"id": "south-portal", "anchor": {"type": "wayEnd", "way": "1102288955", "end": "south"}, "z": -7.0, "label": "估計", "basis": "洞口頂板頂與地面齊：軌道面到頂板頂 = tunnel.soffitAboveTrackM + tunnel.roofThicknessM"},
+   {"id": "linsen-underpass", "anchor": {"type": "roadCrossing", "name": "林森地下道", "source": "memories/tainan-2026-09-12/snapshot.json 的 features（OSM 道路線）", "use": "與參考線各交點 d 的平均"}, "z": -16.0, "label": "估計", "basis": "林森路地下道保留（S5），隧道要從它下方通過"},
+   {"id": "station-south", "anchor": {"type": "stationEnd", "end": "south"}, "z": -18.0, "label": "估計", "basis": "車站開挖深度超過 20 m（S31，二手），扣底板與軌道 station.baseBottomBelowTrackM"},
+   {"id": "station-north", "anchor": {"type": "stationEnd", "end": "north"}, "z": -18.0, "label": "估計", "basis": "車站股道水平"},
+   {"id": "north-portal", "anchor": {"type": "wayEnd", "way": "1102288955", "end": "north"}, "z": -7.0, "label": "估計", "basis": "同 south-portal"},
+   {"id": "north-cut-outer", "anchor": {"type": "wayEnd", "way": "1413215950", "end": "north"}, "z": 0, "label": "OSM", "basis": "北引道開挖段外端"},
+   {"id": "north-end", "anchor": {"type": "chainEnd"}, "z": 0, "label": "OSM", "basis": "北引道地面段終點"}
+  ],
+  "checks": "每段坡度要 ≤ 25‰（估計值的合理性檢查，不是查到的規範）"
+ },
+ "tunnel": {
+  "centerline": "兩條正線（tunnel.west、tunnel.east）的中線",
+  "outerWidthM": {"value": 14.3, "label": "查到", "sources": ["S6"], "note": "非車站段，含兩側連續壁"},
+  "wallThicknessM": {"value": 1.0, "label": "估計"},
+  "soffitAboveTrackM": {"value": 6.0, "label": "估計", "basis": "導電軌（S31）電化隧道淨高的量級"},
+  "roofThicknessM": {"value": 1.0, "label": "估計"},
+  "baseBottomBelowTrackM": {"value": 1.5, "label": "估計", "basis": "無道碴板式軌道（S41）加底板"}
+ },
+ "ramps": {
+  "extent": {"value": "OSM cutting=yes 的段：北約 300 m、南約 625 m", "label": "OSM", "note": "官方引道合計 770 m（S4），OSM 開挖段合計約 925 m，兩者不一致，照 OSM 畫"},
+  "wallInsetFromTrackM": {"value": 2.2, "label": "估計", "basis": "切換前舊線就在引道旁營運：9/12 的 OSM 舊線離新線中線只有約 7.3 m（北）、7.6 m（南）。U 槽若照隧道內寬 12.3 m，外牆會壓到舊線，所以改用股道中心到內牆 2.2 m（同 station.wallInsetFromOuterTrackM）。設計原則是開挖面離既有軌道至少 2.5 m（S25），這個寬度仍做不到，差距在 OSM 描繪誤差的量級"},
+  "innerWidth": "兩股中心距（OSM，約 4.3 m）加兩側各 wallInsetFromTrackM",
+  "wallThicknessM": {"value": 1.0, "label": "估計"},
+  "portalEndWall": {"value": "洞口處隧道箱體的端面（外框 tunnel.outerWidthM × 底到頂），挖掉 U 槽內淨寬的開口；U 槽比隧道窄，沒有這面牆會看到箱體端部開著", "label": "估計"},
+  "wallTopAboveGroundM": {"value": 2.2, "label": "查到", "sources": ["S4"], "note": "防洪牆兼隔音牆約 2.04–2.37 m，取中間"},
+  "floor": "軌道面高程 z（同隧道）",
+  "portalHeadwall": {"value": "洞口上方一道牆，從頂板底到牆頂（地面 + wallTopAboveGroundM），厚 wallThicknessM", "label": "估計"}
+ },
+ "station": {
+  "lengthM": {"value": 691, "label": "查到", "sources": ["S8", "S30"], "note": "UK357+470～358+161，小東路地下道附近到民族路四維地下道附近"},
+  "placement": {"value": "以兩條外側股道（stationLoops）各自兩端的分岔點投影到參考線後的中點為中心，沿參考線前後各 lengthM/2", "label": "估計", "basis": "官方里程換成 OSM 座標的殘差在小東路一帶達 −90～−180 m，改用 OSM 四股段定位", "check": "兩端都要落在小東路與民族路一段跟參考線的交點之間（9/12 快照 features）"},
+  "tracks": {"value": "由西到東：1102288953 外側、1102288955 正線、1102288954 正線、1102288952 外側", "label": "OSM"},
+  "islands": {
+   "value": [
+    {"name": "第 2 月台（北上）", "between": ["1102288953", "1102288955"]},
+    {"name": "第 1 月台（南下）", "between": ["1102288954", "1102288952"]}
+   ],
+   "label": "查到",
+   "sources": ["S21", "S22", "S33"],
+   "basis": "2 座島式月台、4 股道；北上第 2 月台、南下第 1 月台。第 2 月台在西是推論：臺鐵靠左行駛，北上走西側正線，S33 也寫北上在靠海側；兩正線只隔 4.3 m 放不下月台，島式月台只能夾在外側股道與正線之間"
+  },
+  "wallInsetFromOuterTrackM": {"value": 2.2, "label": "估計", "basis": "外側股道中心到內牆面"},
+  "wallThicknessM": {"value": 1.2, "label": "估計"},
+  "baseBottomBelowTrackM": {"value": 2.5, "label": "估計", "basis": "底板底 −20.5 m，對上開挖深度超過 20 m（S31）"},
+  "b1FloorTopAboveTrackM": {"value": 7.0, "label": "估計", "basis": "B1 樓板底與隧道頂板底同高（軌道面 + 6.0 m）再加板厚 1.0 m；B1 穿堂、B2 月台是查到（S22）"},
+  "b1SlabThicknessM": {"value": 1.0, "label": "估計"},
+  "roofTopZ": {"value": -2.0, "label": "估計", "basis": "覆土約 2 m"},
+  "platform": {
+   "lengthM": {"value": 300, "label": "估計", "basis": "臺鐵最長的定期編組約 240–290 m；月台長度查不到"},
+   "center": {"value": "站體中心（station.placement 的中心），兩座月台共用", "label": "估計", "basis": "月台位置查不到；四股段兩端道岔之間的中點不受門檻選擇影響。月台兩端仍要在外側股道與正線中心距 ≥ 10 m 的段內"},
+   "edgeFromTrackCenterM": {"value": 1.65, "label": "估計"},
+   "topAboveTrackM": {"value": 1.28, "label": "估計", "basis": "重播頁鋼軌頂 0.13 m 加臺鐵高月台 1.15 m"}
+  }
+ },
+ "notModeled": [
+  "林森、南臺南站體：10/17 未啟用，站體還沒做完（S1、S3）",
+  "出入口與下沉式廣場：只有路口描述（S22），沒有形狀",
+  "通風機房：10 處，位置查不到",
+  "南引道口防洪閘門",
+  "OSM 10/17 新增的兩棟站體地面建物：由重播頁快照的 features 畫"
+ ],
+ "sources": {
+  "S1": {"title": "交通部新聞稿：立法院交通委員會考察臺南市交通建設", "date": "2025-11-20", "url": "https://www.motc.gov.tw/ch/app/data/view?id=14&module=news&serno=aa26da77-a6ff-47e7-a256-ae3c14015765"},
+  "S3": {"title": "交通部新聞稿：臺南鐵路地下化進入通車倒數", "date": "2026-07-25", "url": "https://www.motc.gov.tw/ch/app/data/view?module=news&id=14&serno=125fa19e-9700-4fb6-863b-2974dbdc26d2"},
+  "S4": {"title": "鐵工局 臺南市區鐵路地下化計畫（北區）第 2 場公聽會會議紀錄", "date": "2017-06-29", "url": "https://www.rb.gov.tw/public/upimgs/D01/20170809_142908.27431.pdf"},
+  "S5": {"title": "鐵工局 臺南市區鐵路地下化計畫問答集", "date": "2014-09-25", "url": "https://trup.nutn.edu.tw/Download/MenuFile/7692188D-B897-4EEB-9DFC-24F624B9282C.pdf"},
+  "S6": {"title": "鐵工局 路線規劃、施工方式、用地範圍、建物及交通相關事項說明", "date": "2012-09-27", "url": "https://trup.nutn.edu.tw/Download/MenuFile/6B48D2D9-0D51-4E93-AEBB-A50198B291E0.pdf"},
+  "S8": {"title": "鐵道局 C212 標臺南車站 工程資訊頁（Wayback）", "date": "2020-09-11", "url": "https://web.archive.org/web/20201002220420id_/https://www.rb.gov.tw/p_works_view.php?lmenuid=5&smenuid=91&tmenuid=0&projectid=5&workid=74"},
+  "S25": {"title": "變更臺南市東區都市計畫（細部計畫）（配合臺南市區鐵路地下化計畫）計畫書（第三方轉載）", "date": "2016-11", "url": "http://www.v523.tw/upload/fileUrl/2016-12/14/0c268b2f-2a82-438b-8c3e-f60346ff2af6.pdf"},
+  "S21": {"title": "臺鐵公司新聞稿：永久軌切換施工期間影響部分列車", "date": "2026-10-13", "url": "https://tip.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac3a12c590d01a133ded9e8164c"},
+  "S22": {"title": "臺南市政府新聞稿：新台南地下車站人車交通動線說明", "date": "2026-10-12", "url": "https://www.tainan.gov.tw/News_Content.aspx?n=13370&s=8840994"},
+  "S30": {"title": "工商時報", "date": "2025-01-06", "url": "https://www.ctee.com.tw/news/20250106700986-431401"},
+  "S31": {"title": "經濟日報轉載中央社（拆除與工法）", "date": "2026-10-11", "url": "https://money.udn.com/money/story/5648/9807250"},
+  "S33": {"title": "自由時報", "date": "2026-10-07", "url": "https://news.ltn.com.tw/news/life/breakingnews/5597903"},
+  "S41": {"title": "TVBS 新聞", "date": "2026-10-01", "url": "https://news.tvbs.com.tw/life/4030054"}
+ }
+}
