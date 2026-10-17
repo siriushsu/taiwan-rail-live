@@ -214,7 +214,7 @@ def plan_figure(out, path):
     W, H = 2400, 1700
     cv = Canvas(W, H)
     cv.text((40, 18), '臺南鐵路地下化　平面疊圖（沿參考線轉正，右＝行進方向，上＝左側）', 22)
-    cv.text((40, 50), '站體外框、月台頂面、四股道、小東路與民族路一段（9/12 快照道路線）；舊站體外框與 9/12 主站網路的四個停車點只供對照，臺南的停車位置用月台中心（最長編組置中）', 14, COL['mute'])
+    cv.text((40, 50), '站體外框、月台頂面、四股道、小東路與民族路一段（9/12 快照道路線）；舊站體外框與主站 network.json 臺南地下化版推估的四個停車點只供對照，臺南的停車位置用月台中心（最長編組置中）', 14, COL['mute'])
     forms = U.formation_lengths()
     lg = forms[0]                               # 最長的編組
     gap_c = (pf['d1'] - pf['d0'] - lg['lengthM']) / 2
@@ -296,7 +296,7 @@ def plan_figure(out, path):
     cv.text((x + 42, ly + 12), '舊站體外框', 14, anchor='lm')
     x += 130
     cv.circle((x + 8, ly + 12), 6, fill=COL['stop'])
-    cv.text((x + 22, ly + 12), '停車點（9/12 主站網路，10/23 不沿用）', 14, anchor='lm')
+    cv.text((x + 22, ly + 12), '停車點（主站 network.json 推估，10/23 不沿用）', 14, anchor='lm')
     _scalebar(cv, W - 300, 70, fr1.s, 100)
     _north_arrow(cv, fr1, W - 60, 70)
 

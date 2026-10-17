@@ -282,7 +282,7 @@ def build_views(scene, only):
         [('rail', 'rail', scene.tracks(cps['south-cut-outer']['d'] - 20, cps['south-portal']['d'] + 80)),
          ('ground', 'ground', ground_quad(ps[0] - 260, ps[0] + 260, ps[1] - 260, ps[1] + 260))], samples=48)
 
-    # 04b／05b 從隧道側看洞口：相機在隧道那一側的上方，隔著半透明的殼看洞口端牆的隧道側（不畫地面；不是雙面的材質背面透明，
+    # 04b／05b 從隧道側看洞口：相機在隧道那一側的上方，隔著半透明的殼看洞口端牆的隧道側（不畫地面；不是雙面的群組依相機剔掉背向面，
     # 所以端牆少一面就會看到破洞）。與 04／05（從 U 槽那側看）成對。
     add('04b-north-portal-from-tunnel', [1800, 1000],
         dict(target=[pn[0], pn[1], -4], azimuth=hn + 180 + 24, elevation=34, distance=75, lens=34),

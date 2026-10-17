@@ -2,7 +2,7 @@
 """從 git 取出股道座標，存成 input/alignment.json（build.py 的輸入）。
 
 為什麼獨立成一支：params.json 的 alignment.source 指向某個 commit 上的 rail-3d/physical/network.json
-（feat/tainan-underground 分支），併進 main 之後只要改 params.json 的 commit 再跑一次這支，建模腳本不用動。
+（主站臺南地下化版，已在 main）。股道網路之後再更新時，只要改 params.json 的 commit 再跑一次這支，建模腳本不用動。
 只讀 git（git show），不寫 git；way 清單全部來自 params.json 的 alignment 列。
 
 用法：python3 extract_alignment.py

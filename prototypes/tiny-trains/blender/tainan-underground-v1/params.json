@@ -12,7 +12,7 @@
   "source": {
    "commit": "2cd16884c2322ca4db3c646d2914c755368781a1",
    "path": "rail-3d/physical/network.json",
-   "note": "feat/tainan-underground 分支（主站臺南地下化）的股道網路，四股座標照 OSM 原樣；併進 main 之後改指 main 上的 commit"
+   "note": "主站臺南地下化版的股道網路（這個 commit 已在 main），四股座標照 OSM 原樣"
   },
   "crossCheck": ".cache/tainan-1023-raw/research-20261017/research/osm_api_railway_extract_20261017-015751.json（OSM API，2026-10-17 01:44–02:40 讀取；ways[].coords 是 [緯度, 經度]）",
   "referenceChain": {
@@ -36,7 +36,7 @@
    {"id": "south-cut-outer", "anchor": {"type": "wayEnd", "way": "1413211241", "end": "south"}, "z": 0, "label": "OSM", "basis": "南引道開挖段（cutting=yes）外端，開始下降"},
    {"id": "south-portal", "anchor": {"type": "wayEnd", "way": "1102288955", "end": "south"}, "z": -7.0, "label": "估計", "basis": "洞口頂板頂與地面齊：軌道面到頂板頂 = tunnel.soffitAboveTrackM + tunnel.roofThicknessM"},
    {"id": "linsen-underpass", "anchor": {"type": "roadCrossing", "name": "林森地下道", "source": "memories/tainan-2026-09-12/snapshot.json 的 features（OSM 道路線）", "use": "與參考線各交點 d 的平均"}, "z": -16.0, "label": "估計", "basis": "林森路地下道保留（S5），隧道要從它下方通過"},
-   {"id": "station-south", "anchor": {"type": "stationEnd", "end": "south"}, "z": -18.0, "label": "估計", "basis": "車站開挖深度超過 20 m（S31，二手），扣底板與軌道 station.baseBottomBelowTrackM"},
+   {"id": "station-south", "anchor": {"type": "stationEnd", "end": "south"}, "z": -18.0, "label": "估計", "sources": ["S31", "S22"], "basis": "S31（二手）寫本工程開挖深度超過 20 m，沒有指明位置；車站上方多一層 B1 大廳（S22），推論最深處在車站。開挖底取 −20.5 m（S31 只寫超過 20 m），扣 station.baseBottomBelowTrackM 得車站軌道面"},
    {"id": "station-north", "anchor": {"type": "stationEnd", "end": "north"}, "z": -18.0, "label": "估計", "basis": "車站股道水平"},
    {"id": "north-portal", "anchor": {"type": "wayEnd", "way": "1102288955", "end": "north"}, "z": -7.0, "label": "估計", "basis": "同 south-portal"},
    {"id": "north-cut-outer", "anchor": {"type": "wayEnd", "way": "1413215950", "end": "north"}, "z": 0, "label": "OSM", "basis": "北引道開挖段外端"},
@@ -47,16 +47,16 @@
  "tunnel": {
   "centerline": "兩條正線（tunnel.west、tunnel.east）的中線",
   "outerWidthM": {"value": 14.3, "label": "查到", "sources": ["S6"], "note": "非車站段，含兩側連續壁"},
-  "wallThicknessM": {"value": 1.0, "label": "估計", "basis": "本案隧道段的連續壁厚度查不到；S6 的 14.3 m 是含兩側連續壁的總寬。取 1.0 m 當量級，內淨寬因此是 12.3 m（兩股中心距約 4.3 m）"},
+  "wallThicknessM": {"value": 1.9, "label": "估計", "sources": ["S6", "S19", "S25", "S4"], "basis": "施工版的牆厚查不到，以下都是規劃階段的資料。S19（2016 年都委會會議紀錄）的機關回應寫本案採雙牆結構，連續壁與結構外牆分開。同一份紀錄的陳情意見（二手，數字前後不完全一致）列出：鐵工局側牆標示 0.9 m、陳情方的複合牆合計 1.4 m、兩案的連續壁加涵箱總厚差 0.5 m；照陳情的論點是核定版較厚，兩層合計約 1.8～1.9 m。S25 的用地劃設原則要求外軌道中心到隧道內壁預留 3 m；以 S6 的外寬 14.3 m（含兩側連續壁）和兩股中心距約 4.3 m（OSM）推算，每側牆最多約 2.0 m。S4 的機關回應寫結構體厚 1 公尺以上。取 1.9 m：內淨寬 10.5 m，外軌道中心到內壁約 3.1 m"},
   "soffitAboveTrackM": {"value": 6.0, "label": "估計", "basis": "導電軌（S31）電化隧道淨高的量級"},
-  "roofThicknessM": {"value": 1.0, "label": "估計", "basis": "頂板厚度查不到，取 1.0 m 當量級；它和 soffitAboveTrackM 一起決定洞口處的軌道面深度（−7.0 m）"},
-  "baseBottomBelowTrackM": {"value": 1.5, "label": "估計", "basis": "無道碴板式軌道（S41）加底板"}
+  "roofThicknessM": {"value": 1.0, "label": "估計", "sources": ["S4"], "basis": "頂板厚度查不到；S4 的機關回應寫列車行駛的軌道與空間由厚 1 公尺以上的鋼筋混凝土結構體圍固，取下限 1.0 m。它和 soffitAboveTrackM 一起決定洞口處的軌道面深度（−7.0 m）"},
+  "baseBottomBelowTrackM": {"value": 1.5, "label": "估計", "sources": ["S31", "S41"], "basis": "無道碴板式軌道（S31；S41 也寫無道碴）加底板"}
  },
  "ramps": {
   "extent": {"value": "OSM cutting=yes 的段：北約 300 m、南約 625 m", "label": "OSM", "note": "官方引道合計 770 m（S4），OSM 開挖段合計約 925 m，兩者不一致，照 OSM 畫"},
-  "wallInsetFromTrackM": {"value": 2.2, "label": "估計", "basis": "切換前舊線就在引道旁營運：9/12 的 OSM 舊線離新線中線只有約 7.3 m（北）、7.6 m（南）。U 槽若照隧道內寬 12.3 m，外牆會壓到舊線，所以改用股道中心到內牆 2.2 m（同 station.wallInsetFromOuterTrackM）。設計原則是開挖面離既有軌道至少 2.5 m（S25），這個寬度仍做不到，差距在 OSM 描繪誤差的量級"},
+  "wallInsetFromTrackM": {"value": 2.2, "label": "估計", "sources": ["S6", "S25"], "basis": "切換前舊線就在引道旁營運：9/12 的 OSM 舊線離新線兩正線中點，北引道約 7.3～8.6 m，南引道約 7.6～12.2 m。S6（2012 年規劃示意圖）的引道段寬 14.3 m、跟隧道段同寬；照這個寬度，北引道整段與南引道靠洞口的一段，外緣離舊線都不到 S25 的施工距離原則（開挖面離既有軌道至少 2.5 m），所以模型改用較窄的寬度：股道中心到內牆 2.2 m（同 station.wallInsetFromOuterTrackM），U 槽外寬隨兩股間距約 10.7～11.7 m。兩端引道仍有離舊線不到 2.5 m 的牆（南 1 段約 34 m，北 2 段合計約 104 m，見 check.py 項目 7）。已建成的引道寬度查不到，比模型寬或窄無法判斷"},
   "innerWidth": "兩股中心距（OSM，約 4.3 m）加兩側各 wallInsetFromTrackM",
-  "wallThicknessM": {"value": 1.0, "label": "估計", "basis": "U 槽牆厚查不到；取跟隧道連續壁同厚，洞口處兩邊的牆才接得上"},
+  "wallThicknessM": {"value": 1.0, "label": "估計", "sources": ["S6", "S14", "S19", "S4"], "basis": "U 槽牆厚查不到。S6 的引道段斷面示意圖在 U 槽結構外兩側畫了直條，位置跟同頁隧道段的連續壁相同（圖上沒標名）；S14（C214 標 2019 年 4 月工程概況）在五工區（引道段）同時列出結構側牆施作與連續壁內導牆破碎，表示引道段也有連續壁。所以實際的引道多半跟隧道段一樣是雙牆（S19 的機關回應寫本案採雙牆結構）。模型的引道寬照 9/12 的舊線位置取窄（見 wallInsetFromTrackM），照雙牆的厚度畫，外緣會更靠近舊線，所以牆只畫一層示意，取 1.0 m；S4 的機關回應寫結構體厚 1 公尺以上，不是專指引道，只當量級參考"},
   "portalEndWall": {"value": "洞口處隧道箱體的端面（外框 tunnel.outerWidthM × 底到頂），挖掉 U 槽內淨寬的開口；U 槽比隧道窄，沒有這面牆會看到箱體端部開著", "label": "估計", "basis": "不是查到的構造，是建模上的封口：洞口實際構造查不到。U 槽比隧道窄（見 wallInsetFromTrackM），箱體端面要封起來，從 U 槽看或從隧道內、透過半透明外殼看才不會像開著"},
   "wallTopAboveGroundM": {"value": 2.2, "label": "查到", "sources": ["S4"], "note": "防洪牆兼隔音牆約 2.04–2.37 m，取中間"},
   "floor": "軌道面高程 z（同隧道）",
@@ -73,11 +73,11 @@
    ],
    "label": "估計",
    "sources": ["S21", "S22", "S33"],
-   "basis": "查到的部分：2 座島式月台、4 股道，北上用第 2 月台、南下用第 1 月台（S21、S22）。推論的部分是每座月台夾在哪兩股：臺鐵靠左行駛，北上走西側正線，S33 也寫北上在靠海側；兩正線只隔 4.3 m 放不下月台，島式月台只能夾在外側股道與正線之間"
+   "basis": "查到的部分：2 座島式月台、4 股道（S21）；北上用第 2 月台、南下用第 1 月台（S22）。推論的部分是每座月台夾在哪兩股：臺鐵靠左行駛，北上走西側正線；S33 的照片圖說寫第 2 月台的藍色象徵往北、靠海側，跟北上月台在西側相容，但沒有直接寫月台位置；兩正線只隔 4.3 m 放不下月台，島式月台只能夾在外側股道與正線之間"
   },
   "wallInsetFromOuterTrackM": {"value": 2.2, "label": "估計", "basis": "外側股道中心到內牆面"},
-  "wallThicknessM": {"value": 1.2, "label": "估計", "basis": "站體連續壁厚度查不到；車站開挖超過 20 m（S31，二手），比隧道段深，取比隧道段的 1.0 m 厚一點"},
-  "baseBottomBelowTrackM": {"value": 2.5, "label": "估計", "basis": "底板底 −20.5 m，對上開挖深度超過 20 m（S31）"},
+  "wallThicknessM": {"value": 2.1, "label": "估計", "sources": ["S19"], "basis": "站體的牆厚查不到。S19 的機關回應引用臺北捷運招標文件的規定：地下車站應儘可能採雙層牆（非複合牆），沒有給厚度。模型的站體比隧道段深（見 controlPoints 的 station-south），取比隧道段的 1.9 m 厚一點"},
+  "baseBottomBelowTrackM": {"value": 2.5, "label": "估計", "sources": ["S31"], "basis": "底板底 −20.5 m，對上 S31（二手）寫的開挖深度超過 20 m；原文沒有指明是車站，見 controlPoints 的 station-south"},
   "b1FloorTopAboveTrackM": {"value": 7.0, "label": "估計", "basis": "B1 樓板底與隧道頂板底同高（軌道面 + 6.0 m）再加板厚 1.0 m；B1 穿堂、B2 月台是查到（S22）"},
   "b1SlabThicknessM": {"value": 1.0, "label": "估計", "basis": "B1 樓板厚度查不到，取跟隧道頂板同厚"},
   "roofTopZ": {"value": -2.0, "label": "估計", "basis": "覆土約 2 m"},
@@ -102,6 +102,8 @@
   "S5": {"title": "鐵工局 臺南市區鐵路地下化計畫問答集", "date": "2014-09-25", "url": "https://trup.nutn.edu.tw/Download/MenuFile/7692188D-B897-4EEB-9DFC-24F624B9282C.pdf"},
   "S6": {"title": "鐵工局 路線規劃、施工方式、用地範圍、建物及交通相關事項說明", "date": "2012-09-27", "url": "https://trup.nutn.edu.tw/Download/MenuFile/6B48D2D9-0D51-4E93-AEBB-A50198B291E0.pdf"},
   "S8": {"title": "鐵道局 C212 標臺南車站 工程資訊頁（Wayback）", "date": "2020-09-11", "url": "https://web.archive.org/web/20201002220420id_/https://www.rb.gov.tw/p_works_view.php?lmenuid=5&smenuid=91&tmenuid=0&projectid=5&workid=74"},
+  "S19": {"title": "內政部都市計畫委員會第 880 次會議紀錄（含陳情意見）", "date": "2016-08-09", "url": "https://www.nlma.gov.tw/filesys/file/chinese/committee/cpc/record/880record.pdf"},
+  "S14": {"title": "鐵道局 C214 標（南臺南站路段）108 年 4 月工程概況（Wayback 存檔）", "date": "2019-06-13", "url": "https://web.archive.org/web/20220124035158id_/https://www.rb.gov.tw/p_worksinfo.php?lmenuid=5&smenuid=91&tmenuid=0&infoid=320"},
   "S25": {"title": "變更臺南市東區都市計畫（細部計畫）（配合臺南市區鐵路地下化計畫）計畫書（第三方轉載）", "date": "2016-11", "url": "http://www.v523.tw/upload/fileUrl/2016-12/14/0c268b2f-2a82-438b-8c3e-f60346ff2af6.pdf"},
   "S21": {"title": "臺鐵公司新聞稿：永久軌切換施工期間影響部分列車", "date": "2026-10-13", "url": "https://tip.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac3a12c590d01a133ded9e8164c"},
   "S22": {"title": "臺南市政府新聞稿：新台南地下車站人車交通動線說明", "date": "2026-10-12", "url": "https://www.tainan.gov.tw/News_Content.aspx?n=13370&s=8840994"},
