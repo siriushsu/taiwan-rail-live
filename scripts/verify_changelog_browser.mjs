@@ -108,7 +108,8 @@ const widths = [360, 375, 414, 768];
 // 10/8：立體地圖拉近時地下列車整列消失修正一條（481→482）。
 // 10/17 補記：10/9～10/14 六條沒跟著 +1（afrtiming1009、klrtloop1009、krtcsat1011、trtcg1011、overtakeretime1011、
 // followspeed1014；e7113d2b 與 4a2e573e 的完整歷史各數到 482、488 條）（482→488）；臺南鐵路地下化通車一條（488→489）。
-const expectedHistoryCount = 489;
+// 10/18：臺南 10/16 重播入口一條（tainanmemory1016，489→490）。
+const expectedHistoryCount = 490;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

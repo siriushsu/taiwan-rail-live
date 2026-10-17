@@ -5,7 +5,7 @@
 //     完全不碰 trainSeg 的 d/dir 簿記，也不碰 _blockHold。
 //   * 「這班車是不是被擋住了」用「畫面位置 vs 純表定位置有沒有差」判，不讀 hold 表。
 //   * 「可以被超越」的條件用「被超越的那班離最近車站多遠」判，不讀 dwell 旗標。
-//     這正是對外承諾的原話：月台待避（車停在側線上）可以被超越，開放路段不行。
+//     這正是對外承諾的內容：月台待避（車停在側線上）可以被超越，開放路段不行。
 //     ——第一版用「畫面速度<1km/h」當代理，量到才發現不對：剛駛離月台、還在 2.5km/h 爬行的車
 //     被特快超過，離站中心只有 4m，那是不折不扣的月台待避，速度代理卻把它判成違規。
 //   * 分組（哪條線、哪個方向）仍用 trainSeg——分組不是判準，判準是分組之後那些量。
@@ -285,7 +285,7 @@ const R = await page.evaluate(({ delays, STEP, STILL_KMH, STATION_M, PAIR_NEAR_K
           if (!had && nearest <= 400) { had = true; out.heldLeaderVanished++; }
           if (!had) { out.heldNoLeader++; if (out.noLeadDiag.length < 12) out.noLeadDiag.push({ t, ln: A.ln.id, me: A.tr.train, lagM: Math.round(A.lagM), groupN: arr.length, nearestM: Math.round(nearest) }); }
         }
-        // T7：正在被擋且畫面上停住的車，必須停在車站區裡——對外承諾的原話是「不要停在隧道裡」，
+        // T7：正在被擋且畫面上停住的車，必須停在車站區裡——對外承諾車不會停在隧道裡，
         // 停在月台邊等前車過去正是我們要的行為。（第一版判「前車也要幾乎停著」是錯的：
         // 西勢實測 3140 停在月台上等自強 110 通過，前車當然在跑，那不是缺陷。）
         if (A.engaging && A.kmh != null && A.kmh < STILL_KMH) {

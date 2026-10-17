@@ -167,7 +167,7 @@ const e6 = await page.evaluate(() => {
 });
 ok('E6 選到未上架的池會退回免費而不是靜掉', e6.n === 57 && e6.mode === 'yilan-line', JSON.stringify(e6));
 
-// musicLabel:付費路徑不得顯示 "_pass"(2026-08-27 裁示:顯示歌單名,不顯示曲名)
+// musicLabel:付費路徑不得顯示 "_pass"(顯示歌單名,不顯示曲名)
 const lab = await page.evaluate(() => [
   window.musicLabel('Afloat/Zero Gravity Dream.mp3'),
   window.musicLabel('_pass/metro-motion/Metro Pulse.mp3'),

@@ -3,8 +3,8 @@
 // 為什麼要有這支（F9，F6 的一般化）：build_physical_routes → pack_physical_network 只收候選路徑走過的 way，
 // 全台 6899 條 railway=rail|narrow_gauge 只有 4373 條進了 network.json，2526 條沒進來
 // （output/audit-0914/station-inventory.md）。F6 只手工補了 9 條乾跑證明有人要走的咽喉連接段；
-// 2026-09-14 使用者裁示「當然是你把資料有的都補上去」「交通部都有資料，那我們就應該知道有，
-// 怎麼會是當作沒有核實就不畫？」⇒ 站區裡 OSM 已經畫好的台鐵股道全部準備成可補入的清單。
+// 改為資料裡已有的股道全數補入：有官方資料就視為已知，不以未逐條核實為由略過
+// ⇒ 站區裡 OSM 已經畫好的台鐵股道全部準備成可補入的清單。
 //
 // 挑選條件（四關，缺一不收）：
 //   1. 不在 rail-3d/physical/network.json（已在的包含 F6 那 9 條，自動跳過）。
@@ -84,7 +84,7 @@ function rejectReason(w) {
   for (const k of ['name', 'name:zh', 'ref', 'network']) if (t[k] && EXCL_NAME.test(t[k])) return 'name';
   if (t.construction || t.proposed || t.disused || t.abandoned || t['railway:preserved'] === 'yes') return 'construction/disused';
   if (t.description && EXCL_DESC.test(t.description)) return 'description';
-  // 2026-09-14 裁示：「不得把施工線、地面保存線、未核實用途的 yard 隨手當現役客運線」。
+  // 施工線、地面保存線、用途未核實的 yard 不當成現役客運線。
   // 沒有 service 標籤的貨運／港線支線（臺中港線、花蓮臨港線）補進去會被 topology 的 isTrack() 當成一般正線，
   // 不受 track_directions.mjs 的 YARD_CAP_M 限制 ⇒ 不收。蘇澳橋東四條死端另依具名清單暫緩；其他 spur 仍受 yard 規則管。
   if (!t.service && (t['railway:traffic_mode'] === 'freight' || /港線|臨港/.test(t.name || ''))) return '貨運／港線支線（無 service，會被當一般正線）';

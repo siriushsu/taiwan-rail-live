@@ -150,10 +150,10 @@ function evaluateUnit(api) {
   // 沒有直接瞬移到官方修訂後的位置，那一條與倍率無關，是這組斷言真正的牙。
   const easeCap = seconds => api.catchupFactor * seconds / 60;
   const active = api.trtcOfficialRosterActive;
-  // 🔴 2026-08-17 使用者裁示：北捷列車位置暫時改用班表 ⇒ 官方名冊【出貨預設關閉】,
+  // 🔴 北捷列車位置暫時改用班表 ⇒ 官方名冊【出貨預設關閉】,
   //    只有 ?officialroster=1 才開。兩側都驗：關的那側必須真的關,開的那側必須真的開。
   //    位置邏輯修好要開回來時,這裡跟 index.html 那行一起改,不會有一邊改一邊沒改。
-  // 🔴 2026-08-18 使用者裁示：北捷位置回到官方即時 ⇒ 預設【開】。兩側都要驗，只驗開的那側
+  // 🔴 北捷位置回到官方即時 ⇒ 預設【開】。兩側都要驗，只驗開的那側
   // 會讓「乾脆永遠回 true、逃生口失效」也全綠（judgment 心得 39(b)）。
   const A = api.trtcOfficialRosterEnabled('') && api.trtcOfficialRosterEnabled('?officialroster=1') &&
     !api.trtcOfficialRosterEnabled('?officialroster=0') && !api.trtcOfficialRosterEnabled('?census=0') &&
@@ -348,7 +348,7 @@ const baseline = evaluateUnit(baselineApi);
 for (const [gate, pass] of Object.entries(baseline)) check(pass, `${gate} gate`);
 check(ingestAudit() && sourceHoldAudit(), 'H gate：失敗、畸形、舊版本都保留既有名冊；只有時光機退回班表');
 
-// K gate：使用者裁示第 4 條「跑慢的就追上去」。
+// K gate：落後官方位置的車要追趕。
 // 🔴 這一條只有在「官方位置也在以站間速度前進」時才驗得出來——官方靜止的話連一倍速都會收斂，
 // 那種情境全綠也證明不了任何事（2026-08-18 早尖峰實測 BR 有車恆定落後 877m 連 4 次取樣一公尺沒縮，
 // 就是因為兩邊同速）。所以下面讓官方與顯示都跟著時間走，只有追趕倍率 >1 才可能收斂。
@@ -372,7 +372,7 @@ check(ingestAudit() && sourceHoldAudit(), 'H gate：失敗、畸形、舊版本�
   const monotonic = gaps.every((g, i) => i === 0 || g <= gaps[i - 1] + 1e-9);
   // 🔴 判準是**結果**不是機制:落後的車要在「官方說的到站時刻」出現在那一站上(1060 是官方 arrEpoch)。
   // 舊判準寫的是「30 秒內收斂到官方的瞬時位置」——那是舊棘輪+兩倍速追趕的形狀,不是使用者的要求;
-  // 使用者要的是「站牌時間完全照官方,車依那個時間到站」(08-07 裁示)。
+  // 預期行為:到站時刻取官方站牌,列車在該時刻抵達那一站。
   const converged = !!arrived && arrived.atStation === true &&
     arrived.lat === LINE.stations[1].lat && arrived.lon === LINE.stations[1].lon;
   const noOvershoot = gaps.every(g => g >= -1e-9);   // 追趕不准超過官方位置

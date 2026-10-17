@@ -1,4 +1,4 @@
-// 2026-09-25 裁示 A4（高出洞口 20 公尺的取樣要占整段 5% 以上才算山岳隧道）的層位檔可重現步驟：
+// 山岳隧道判準（高出洞口 20 公尺的取樣要占整段 5% 以上才算）的層位檔可重現步驟：
 // 完整重算之後，只把高雄（東經 120.25～120.42、北緯 22.50～22.80）與臺北（東經 121.40～121.70、
 // 北緯 24.95～25.12）有經過的 way 真的有變的剖面換進改動前已驗證的層位檔，其餘 entries 逐筆保留。
 // 全國因這條規則改判的只有高捷紅線 5 條 way 與臺北臺鐵地下化 67 條，其餘改動是交會淨距與平面地圖
@@ -27,7 +27,7 @@ const differs=(a,b)=>{if(!a||!b)return !!(a||b);for(const k of new Set([...Objec
 const replaced=[];let skipped=0;
 for(const w of ways){const id=String(w.id);if(!differs(base.entries[id],full.entries[id]))continue;if(!inBox(w)){skipped++;continue;}
  replaced.push(id);if(full.entries[id])base.entries[id]=full.entries[id];else delete base.entries[id];}
-// 隧道分類有變的每一條都必須在框內而且換進來；框外有一條改判，就代表規則的影響超出裁示範圍。
+// 隧道分類有變的每一條都必須在框內而且換進來；框外有一條改判，就代表規則的影響超出這兩個框。
 for(const w of ways){const id=String(w.id);if(base.entries[id]?.boreKind!==full.entries[id]?.boreKind)assert.fail('隧道分類改變卻沒有換進來 '+id);}
 base.incrementalSplice={baseCommit:sha,boxes,replacedWays:replaced,method:'完整重算後只換進高雄、臺北兩框實際有變的剖面；蘇澳 09-14 保留的高程解與阿里山兩筆 0.01 公尺以下的求解雜訊不採用。換進的剖面另經完整高度、坡度、交會淨距與接縫閘門驗證。',previous:base.incrementalSplice};
 fs.writeFileSync(file,JSON.stringify(base));

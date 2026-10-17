@@ -17,7 +17,7 @@
 import {chromium} from 'playwright';
 const PORT = process.argv[2] || new URL(process.env.BASE_URL || 'http://127.0.0.1:5207/').port;
 const results = [];
-// 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走)。channel:'chrome' 的無視窗模式走真 GPU;不帶 channel 的 headless shell 是 SwiftShader 軟體算繪。
+// 瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走)。channel:'chrome' 的無視窗模式走真 GPU;不帶 channel 的 headless shell 是 SwiftShader 軟體算繪。
 const b = await chromium.launch({channel:'chrome',headless:true});
 const ctx = await b.newContext({ viewport:{width:1280,height:800}, locale:'zh-TW', timezoneId:'Asia/Taipei', hasTouch:true });
 await ctx.addInitScript(()=>{ try{localStorage.setItem('trainmap-howto-seen','1');}catch(e){} });

@@ -1,8 +1,8 @@
 // 用 TDX 官方逐股幾何核實「OSM 畫了兩條平行 way 的隧道段，是不是真的雙線」。
 //
 // 為什麼要有這支：scripts/lib/parallel_tracks.mjs 的 UNVERIFIED_REFS 把南迴線／臺東線的同名平行隧道 way
-// 一律當「未核實」排除，於是那幾段被判成單線。2026-09-14 使用者裁示「交通部都有資料，那我們就應該知道有，
-// 怎麼會是當作沒有核實就不畫？」——TDX GIS 圖資 v3「軌道路網實體路線」是逐股道的官方幾何（雙線區間畫兩條
+// 一律當「未核實」排除，於是那幾段被判成單線。官方既然有這些路段的資料，就該拿來核實，而不是讓它們停在未核實。
+// TDX GIS 圖資 v3「軌道路網實體路線」是逐股道的官方幾何（雙線區間畫兩條
 // part、間距約 4 m），拿它當第二個獨立來源，就能把「未核實」變成「已核實／已否決」。
 //
 // 判法（每個取樣點）：
@@ -23,7 +23,7 @@
 //   node scripts/build_tdx_parallel_evidence.mjs --calibrate → 印正負對照組（門檻的證據）
 //   node scripts/build_tdx_parallel_evidence.mjs --sections  → 全部站對的 TDX 取樣，對帳 repo 單雙線（只印報告，不改任何檔）
 //
-// 🔴 2026-09-14 第二次裁示（使用者提供台鐵官方《路線修築沿革》）：官方沿革比本支的幾何量測上位。
+// 🔴 台鐵官方《路線修築沿革》：官方沿革比本支的幾何量測上位。
 // 南迴線自 1991 年通車只有電氣化、沒有任何「添築雙線」紀錄 ⇒ 中央隧道／安朔隧道不算第二股；
 // 山里隧道有「山里─臺東(雙線) 2013 添築雙線」佐證 ⇒ 算。逐對依據寫在 fixture 的 truthSource，
 // 重跑本支會沿用（見下方「沿用官方沿革裁定」），不會被幾何值蓋掉。
@@ -230,7 +230,7 @@ const pairs = sup.pairs.map(r => {
   const covered = per.a.covered + per.b.covered, parallel = per.a.parallel + per.b.parallel;
   const parallelFrac = covered ? +(parallel / covered).toFixed(3) : null;
   // 三種結局要分開：TDX 說有第二股（verified）／TDX 說沒有（rejected）／TDX 在這裡量不到夠多樣本（insufficient）。
-  // insufficient 不是「否決」，只是還缺證據；照裁示的保守邊界，它與 rejected 一樣維持排除，但理由不同。
+  // insufficient 不是「否決」，只是還缺證據；照保守邊界，它與 rejected 一樣維持排除，但理由不同。
   const verdict = covered < MIN_COVERED ? 'insufficient' : parallelFrac >= VERIFIED_FRAC ? 'verified' : 'rejected';
   const dists = r.dists.slice().sort((x, y) => x - y);
   return {
@@ -242,7 +242,7 @@ const pairs = sup.pairs.map(r => {
     lowCoverage: covered < 20 || (covered / (per.a.samples + per.b.samples)) < 0.5,
   };
 });
-// 🔴 官方《路線修築沿革》的裁定比本支的幾何量測上位（2026-09-14 第二次裁示）：舊檔裡任何帶 truthSource
+// 🔴 官方《路線修築沿革》的裁定比本支的幾何量測上位：舊檔裡任何帶 truthSource
 // 的一對，verdict／verified 一律沿用舊檔，不讓重跑把人工核實過的結果靜默蓋回 TDX 幾何值。
 // 要重新以幾何為準，就先把那一對的 truthSource 從 fixture 拿掉（明示動作）。
 let kept = 0;

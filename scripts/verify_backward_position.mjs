@@ -1,6 +1,6 @@
-// 驗使用者裁示的「倒數大於區段行駛秒 ⇒ 車在更前面的區段」有沒有真的把疊車與假停站修掉。
+// 驗「倒數大於區段行駛秒 ⇒ 車在更前面的區段」這條規則有沒有真的把疊車與假停站修掉。
 // 判準用外部事實,不用我們自己的模型:這個時段班距 5~6 分鐘,同線同向兩台相距 <1500m 是
-// 物理上不可能的(使用者裁示「這個時段根本不可能會有兩輛車黏在一起」)。
+// 物理上不可能的。
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 const SEC = Number(process.argv[2] || 150);
@@ -40,7 +40,7 @@ const run = async (label, htmlPath, dataPath) => {
       window.__m.parked.push(P.filter(x => x.atSt).length);
       for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) {
         if (String(P[i].dir) !== String(P[j].dir)) continue;
-        // 🔴 使用者裁示(08-18):兩條不同線即使共用實體軌道,也要當成不同路段,不算疊車。
+        // 🔴 兩條不同線即使共用實體軌道,也要當成不同路段,不算疊車。
         if (P[i].line !== P[j].line) continue;
         const d = hav(P[i], P[j]); if (d > 1500) continue;
         const k = [P[i].id, P[j].id].sort().join('~');

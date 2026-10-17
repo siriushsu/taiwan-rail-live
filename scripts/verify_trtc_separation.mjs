@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 契約 5/6 驗收（2026-08-18 使用者裁示）：「不會有超車的情況，兩列車之間也不能黏在一起」。
+// 契約 5/6 驗收：列車之間不超車、也不黏在一起。
 // 直接抽 index.html 的產品函式進 VM 跑，不用替身重寫一份（判準與實作同源會集體失明）。
 // 用法：node scripts/verify_trtc_separation.mjs
 import fs from 'node:fs';

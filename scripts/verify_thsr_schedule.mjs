@@ -875,6 +875,232 @@ try {
   ok('V7/V8 執行區塊', false, `未捕捉例外:${(e && e.stack) || e}`);
 }
 
+// ══════════ V11: 上游回 200 但內容不對、上游掛住(V4b 的「非 2xx」接不住的兩種故障)══════════
+//   (a) 回 200 但不是陣列、空陣列、或有車次卻一班都轉不出來(欄位或站名改了):原本照樣算成功、寫進 0 班,
+//       一發就能把整個抓取窗蓋成 0 班。要當那天失敗、保留既有值,其他天照常寫。
+//   (b) 上游不回應、或標頭到了但 body 停在半路:fetchThsrDaily 原本沒有逾時,那發 cron 會吊到牆鐘上限。
+// 判準看 D1 實際內容、server 記帳(含連線何時被斷開)與計時器記帳;回傳的錯誤字串只用來確認走的是哪一條失敗路徑,不單靠它。
+async function runIngestBadPayloadAndHang() {
+  const plan = new Map();   // dateIso → 'obj' | 'empty' | 'renamed' | 'hang' | 'stall' | '500' | '401' | 'badjson';沒列到的日子回 FA
+  const hits = [];
+  const reqLog = [];   // 每一發班表請求:{ date, start, closedAt }
+  const sockets = new Set();
+  // 站名欄位換了形狀(Zh_tw 不見了):每班都還在,但沒有一班對得上 12 站映射
+  const RENAMED = FA.daily.map(rec => ({
+    ...rec,
+    StopTimes: (rec.StopTimes || []).map(s => ({ ...s, StationName: { Zh: s.StationName.Zh_tw, En: s.StationName.En } })),
+  }));
+  const server = createServer((req, res) => {
+    const url = new URL(req.url, 'http://x');
+    if (url.pathname === '/auth/token') {
+      res.setHeader('content-type', 'application/json');
+      return res.end(JSON.stringify({ access_token: 'v11-token', expires_in: 86400 }));
+    }
+    const m = url.pathname.match(/^\/Rail\/THSR\/DailyTimetable\/TrainDate\/(.+)$/);
+    if (!m) { res.statusCode = 404; return res.end('{}'); }
+    const dateIso = decodeURIComponent(m[1]);
+    hits.push(dateIso);
+    // 連線何時被斷開由這端記:逾時真的打斷了請求,斷開時間會落在逾時值附近
+    const rec = { date: dateIso, start: Date.now(), closedAt: null };
+    reqLog.push(rec);
+    res.on('close', () => { rec.closedAt = Date.now(); });
+    const mode = plan.get(dateIso);
+    if (mode === 'hang') return;   // 連回應標頭都不送
+    if (mode === '500' || mode === '401') { res.writeHead(Number(mode), { 'content-type': 'application/json' }); return res.end('{}'); }
+    res.writeHead(200, { 'content-type': 'application/json' });
+    if (mode === 'stall') return void res.write(JSON.stringify(FA.daily).slice(0, 4096));   // 標頭與前 4KB 送出就停住
+    if (mode === 'badjson') return res.end('[{"TrainDate":');   // 截斷的 JSON
+    if (mode === 'obj') return res.end('{}');
+    if (mode === 'empty') return res.end('[]');
+    if (mode === 'renamed') return res.end(JSON.stringify(RENAMED));
+    return res.end(JSON.stringify(FA.daily));
+  });
+  server.on('connection', s => { sockets.add(s); s.on('close', () => sockets.delete(s)); });
+  const PORT = Number(process.env.THSR_V11_PORT) || await freePort();
+  await new Promise(r => server.listen(PORT, '127.0.0.1', r));
+  const BASE = `http://127.0.0.1:${PORT}`;
+  const ASSETS = { fetch: async () => new Response(readFileSync(path.join(ROOT, 'data/thsr_schedule_dense.json'), 'utf8'), { status: 200 }) };
+  const envBase = { ASSETS, TDX_AUTH_URL_OVERRIDE: `${BASE}/auth/token`, THSR_SCHEDULE_BASE_URL_OVERRIDE: `${BASE}/Rail/THSR/DailyTimetable/TrainDate` };
+
+  // 窗只在這裡算一次,ingest 每次都看真時鐘:跑到一半跨過台北午夜,兩邊差一天就會假紅。V11 約 1 分鐘,離午夜不到 3 分鐘就等過了再跑。
+  const msToTwMidnight = 86400e3 - ((Date.now() + 8 * 3600e3) % 86400e3);
+  if (msToTwMidnight < 3 * 60e3) {
+    console.log(`[V11] 離台北午夜 ${Math.round(msToTwMidnight / 1e3)} 秒,等過午夜再跑`);
+    await sleep(msToTwMidnight + 5e3);
+  }
+  const windowIso = Array.from({ length: KEEP_WINDOW }, (_, i) => addDaysIso(taipeiTodayIso(), i));
+  const keyOf = iso => iso.replace(/-/g, '');
+  // 種子＝窗內每天都有一份舊值(_meta 也種),updated 是很久以前:沒被寫過的就逐位元組不變
+  const seedDays = Object.fromEntries(windowIso.map(d => [keyOf(d), { system: '高鐵時刻表', date: keyOf(d), trains: [{ train: 'OLD-' + keyOf(d) }] }]));
+  const seedMetas = Object.fromEntries(windowIso.map(d => [keyOf(d), { total: 1, converted: 1, skipped: [] }]));
+  const seedBlob = JSON.stringify({ fetchedAt: '2000-01-01T00:00:00Z', days: seedDays, _meta: seedMetas });
+  const SEED_UPDATED = '2000-01-01 00:00:00';
+  const seedDb = async () => {
+    const { DELAY_DB } = openTestDb();
+    await DELAY_DB.prepare('INSERT INTO kv_blobs (k,v,updated) VALUES (?,?,?)').bind('thsr_sched', seedBlob, SEED_UPDATED).run();
+    return DELAY_DB;
+  };
+  const readBlob = async db => JSON.parse((await db.prepare('SELECT v FROM kv_blobs WHERE k=?').bind('thsr_sched').first()).v);
+  // 保留舊值＝那天的文件與 _meta 都和種子逐位元組相同;照常寫入＝換成上游的新值(車數＝fixture)
+  const keptOld = (blob, d) => JSON.stringify(blob.days[keyOf(d)]) === JSON.stringify(seedDays[keyOf(d)])
+    && JSON.stringify((blob._meta || {})[keyOf(d)]) === JSON.stringify(seedMetas[keyOf(d)]);
+  const wroteNew = (blob, d) => !!blob.days[keyOf(d)] && blob.days[keyOf(d)].trains.length === FA.daily.length;
+  const others = (...skip) => windowIso.filter(d => !skip.includes(d));
+  const T = _thsr.THSR_FETCH_TIMEOUT_MS;
+
+  // 計時器記帳:只記 worker.js 直接建的(堆疊上緊接在這層之後的那一格在 worker.js),Node／undici 自己的不算。
+  // live＝還沒觸發也還沒被清掉的;ingest 回來時應該是空的(逐日間隔的 sleep 已觸發、逾時計時器已清掉)。
+  const trackTimers = () => {
+    const realSet = globalThis.setTimeout, realClear = globalThis.clearTimeout;
+    const made = [], live = new Set();
+    globalThis.setTimeout = (fn, ms, ...args) => {
+      const fromWorker = /worker\.js/.test((new Error().stack || '').split('\n')[2] || '');
+      const h = realSet(() => { live.delete(h); fn(...args); }, ms);
+      if (fromWorker) { made.push(ms); live.add(h); }
+      return h;
+    };
+    globalThis.clearTimeout = h => { live.delete(h); return realClear(h); };
+    return { made, live, restore() { globalThis.setTimeout = realSet; globalThis.clearTimeout = realClear; } };
+  };
+  // 修法前沒有逾時,ingest 會一直吊著:測試自己設上限,到了就砍連線讓它收尾,免得拖到後面的情境。
+  // 上限＝一天吃滿逾時 + 其他天的逐日間隔 + 10 秒餘裕;修法前沒有 T 這個常數,先用 15 秒才有上限可比。
+  const runBounded = async env => {
+    const limit = (Number.isFinite(T) ? T : 15e3) + (KEEP_WINDOW - 1) * 250 + 10e3;
+    const t0 = Date.now();
+    let rt = null, threw = null, timedOut = false, timer;
+    const p = ingestThsrSchedule(env).then(r => { rt = r; }, e => { threw = e; });
+    await Promise.race([p, new Promise(r => { timer = setTimeout(() => { timedOut = true; r(); }, limit); })]);
+    clearTimeout(timer);
+    const elapsed = Date.now() - t0;
+    if (timedOut) { for (const s of sockets) s.destroy(); await Promise.race([p, sleep(20e3)]); }
+    return { rt, threw, timedOut, elapsed, limit };
+  };
+
+  try {
+    // ── 契約(寫死,理由同 V7/V8):每日 cron(15 1 * * *)那一發先跑誤點歷史 ingest、再跑高鐵 ingest,
+    // 兩段都吃滿逾時仍要在 cron 的 15 分鐘牆鐘內。誤點段照 worker.js HIST_FETCH_TIMEOUT_MS 上方的算式
+    // (3 天×2 次請求×逾時 + 19 秒 sleep);高鐵段＝窗天數×逾時 + 逐日間隔 250ms×(窗天數−1)。
+    // 下限 10 秒:一天的回應約 300 KB,cron 跑在美東／歐洲機房過,太短會把慢但正常的回應當成逾時。
+    {
+      const histWorst = 6 * _ingest.HIST_FETCH_TIMEOUT_MS + 19e3;
+      const thsrWorst = KEEP_WINDOW * T + (KEEP_WINDOW - 1) * 250;
+      ok('V11 契約:高鐵班表每發都有逾時(至少 10 秒),每日 cron 兩段都吃滿逾時仍 < 15 分鐘',
+        Number.isFinite(T) && T >= 10e3 && histWorst + thsrWorst < 15 * 60e3,
+        `THSR_FETCH_TIMEOUT_MS=${T} 誤點段=${histWorst / 1e3}s 高鐵段=${thsrWorst / 1e3}s 合計=${(histWorst + thsrWorst) / 1e3}s`);
+    }
+
+    // ── V11a:一天回 {}、一天站名欄位改了,其他天正常 ──
+    {
+      const [dObj, dRen] = [windowIso[1], windowIso[2]];
+      plan.clear(); plan.set(dObj, 'obj'); plan.set(dRen, 'renamed'); hits.length = 0;
+      const DELAY_DB = await seedDb();
+      const rt = await ingestThsrSchedule({ ...envBase, DELAY_DB });
+      const blob = await readBlob(DELAY_DB);
+      // 原因也要對得上:同樣是 ok:false,程式自己在半路丟例外(例如讀不到欄位)也會長這樣
+      ok('V11a 回 200 但不是陣列({})→那天 ok:false,原因是不是陣列',
+        !!(rt.results[dObj] && rt.results[dObj].ok === false && /not an array/.test(rt.results[dObj].error || '')), JSON.stringify(rt.results[dObj]));
+      ok('V11a 有車次但一班都轉不出來(站名欄位改了)→那天 ok:false,原因是一班都轉不出來',
+        !!(rt.results[dRen] && rt.results[dRen].ok === false && /0\/\d+ converted/.test(rt.results[dRen].error || '')), JSON.stringify(rt.results[dRen]));
+      ok('V11a 那兩天的文件與 _meta 逐位元組保留舊值', keptOld(blob, dObj) && keptOld(blob, dRen),
+        `obj=${JSON.stringify(blob.days[keyOf(dObj)]).slice(0, 120)} renamed=${JSON.stringify(blob.days[keyOf(dRen)]).slice(0, 120)}`);
+      ok(`V11a 其他 ${KEEP_WINDOW - 2} 天照常寫入新值`, rt.written === true && others(dObj, dRen).every(d => wroteNew(blob, d)),
+        JSON.stringify(Object.fromEntries(windowIso.map(d => [d, blob.days[keyOf(d)] && blob.days[keyOf(d)].trains.length]))));
+      ok('V11a 正向對照(上游兩天都真的被打了;改名版每班都還在、只是站名欄位換了形狀)',
+        hits.includes(dObj) && hits.includes(dRen) && RENAMED.length === FA.daily.length
+          && RENAMED.every(r => r.StopTimes.every(s => s.StationName.Zh_tw === undefined && typeof s.StationName.Zh === 'string')),
+        `hits=${hits.length}`);
+    }
+
+    // ── V11b:整窗都回 {} 或 [] → 不寫,D1 那列逐位元組不變(事故會長的樣子:一發蓋掉整個窗)──
+    for (const mode of ['obj', 'empty']) {
+      plan.clear(); for (const d of windowIso) plan.set(d, mode); hits.length = 0;
+      const DELAY_DB = await seedDb();
+      const rt = await ingestThsrSchedule({ ...envBase, DELAY_DB });
+      const row = await DELAY_DB.prepare('SELECT v, updated FROM kv_blobs WHERE k=?').bind('thsr_sched').first();
+      const label = mode === 'obj' ? '{}' : '[]';
+      ok(`V11b 整窗都回 ${label}→written:false、${KEEP_WINDOW} 天都 ok:false`,
+        rt.written === false && windowIso.every(d => rt.results[d] && rt.results[d].ok === false), JSON.stringify(rt.results));
+      ok(`V11b 整窗都回 ${label}→D1 那列(v 與 updated)逐位元組不變`, row.v === seedBlob && row.updated === SEED_UPDATED,
+        `updated=${row.updated} bytes=${row.v.length}/${seedBlob.length}`);
+      ok(`V11b 整窗都回 ${label}→正向對照(${KEEP_WINDOW} 天都真的打了上游)`, hits.length === KEEP_WINDOW, `hits=${hits.length}`);
+    }
+
+    // ── V11e:只有一天回 []、其他天有車 → 那天也當失敗、保留舊值 ──
+    // 空陣列不當成官方停駛,理由見 worker.js ingestThsrSchedule 那段註解。只擋整窗的寫法 V11b 也會綠,這條才分得出單日 [] 有沒有擋。
+    {
+      const dEmpty = windowIso[3];
+      plan.clear(); plan.set(dEmpty, 'empty'); hits.length = 0;
+      const DELAY_DB = await seedDb();
+      const rt = await ingestThsrSchedule({ ...envBase, DELAY_DB });
+      const blob = await readBlob(DELAY_DB);
+      ok('V11e 只有一天回 []、其他天有車→那天 ok:false,原因是空陣列',
+        !!(rt.results[dEmpty] && rt.results[dEmpty].ok === false && /empty array/.test(rt.results[dEmpty].error || '')), JSON.stringify(rt.results[dEmpty]));
+      ok('V11e 那天的文件與 _meta 逐位元組保留舊值', keptOld(blob, dEmpty), JSON.stringify(blob.days[keyOf(dEmpty)]).slice(0, 160));
+      ok(`V11e 其他 ${KEEP_WINDOW - 1} 天照常寫入新值`, rt.written === true && others(dEmpty).every(d => wroteNew(blob, d)),
+        JSON.stringify(Object.fromEntries(windowIso.map(d => [d, blob.days[keyOf(d)] && blob.days[keyOf(d)].trains.length]))));
+    }
+
+    // ── V11c/V11d:一天掛住(c 連標頭都不回、d 標頭到了 body 停在半路)→ 那天在逾時內失敗、不拋例外,
+    // 其他天照常寫入,每一發班表請求都有一顆逾時計時器,結束時沒有留下沒清掉的 ──
+    for (const [tag, mode, what] of [['V11c', 'hang', '上游不回應'], ['V11d', 'stall', '標頭到了 body 停在半路']]) {
+      const dHang = windowIso[1];
+      plan.clear(); plan.set(dHang, mode); hits.length = 0; reqLog.length = 0;
+      const DELAY_DB = await seedDb();
+      const timers = trackTimers();
+      let r;
+      try { r = await runBounded({ ...envBase, DELAY_DB }); } finally { timers.restore(); }
+      const { rt, threw, timedOut, elapsed, limit } = r;
+      ok(`${tag} ${what}→ingest 在上限內結束、不拋例外`, !timedOut && !threw,
+        `elapsed=${elapsed}ms limit=${limit}ms timedOut=${timedOut} threw=${threw && threw.message}`);
+      // 沒打斷請求的話,要等測試到上限才砍連線,斷開時間會晚 10 秒以上
+      const rec = reqLog.find(x => x.date === dHang);
+      const cut = rec && rec.closedAt ? rec.closedAt - rec.start : null;
+      ok(`${tag} ${what}→上游那端在逾時值附近被斷開(伺服器記的時間)`,
+        Number.isFinite(T) && cut !== null && cut >= T - 1000 && cut <= T + 3000, `請求後 ${cut}ms 斷開,T=${T}`);
+      const res = rt && rt.results[dHang];
+      ok(`${tag} ${what}→那天 ok:false,原因是逾時`, !!res && res.ok === false && /timeout/i.test(res.error || ''), JSON.stringify(res));
+      const blob = await readBlob(DELAY_DB);
+      ok(`${tag} ${what}→那天保留舊值、其他 ${KEEP_WINDOW - 1} 天照常寫入`,
+        keptOld(blob, dHang) && others(dHang).every(d => wroteNew(blob, d)),
+        JSON.stringify(Object.fromEntries(windowIso.map(d => [d, blob.days[keyOf(d)] && blob.days[keyOf(d)].trains.length]))));
+      const timeoutTimers = timers.made.filter(ms => ms === T).length;
+      ok(`${tag} ${what}→每一發班表請求都有一顆逾時計時器`, Number.isFinite(T) && hits.length === KEEP_WINDOW && timeoutTimers === hits.length,
+        `T=${T} 請求=${hits.length} 逾時計時器=${timeoutTimers} worker.js 建的全部計時器=${JSON.stringify(timers.made)}`);
+      ok(`${tag} ${what}→ingest 回來時 worker.js 建的計時器都已觸發或清掉`, timers.live.size === 0, `還掛著 ${timers.live.size} 顆`);
+    }
+
+    // ── V11f:回 500、401、截斷的 JSON → 那三天失敗、保留舊值;這幾條路徑不經過逾時,計時器一樣要清 ──
+    {
+      const [d500, d401, dBad] = [windowIso[1], windowIso[2], windowIso[3]];
+      plan.clear(); plan.set(d500, '500'); plan.set(d401, '401'); plan.set(dBad, 'badjson'); hits.length = 0; reqLog.length = 0;
+      const DELAY_DB = await seedDb();
+      const timers = trackTimers();
+      let rt;
+      try { rt = await ingestThsrSchedule({ ...envBase, DELAY_DB }); } finally { timers.restore(); }
+      const blob = await readBlob(DELAY_DB);
+      const err = d => (rt.results[d] && rt.results[d].ok === false && rt.results[d].error) || '';
+      ok('V11f 回 500／401／截斷的 JSON→那三天 ok:false,原因各自對得上',
+        /thsr-schedule 500/.test(err(d500)) && /401/.test(err(d401)) && /JSON/i.test(err(dBad)),
+        JSON.stringify({ [d500]: rt.results[d500], [d401]: rt.results[d401], [dBad]: rt.results[dBad] }));
+      ok(`V11f 那三天保留舊值、其他 ${KEEP_WINDOW - 3} 天照常寫入`,
+        [d500, d401, dBad].every(d => keptOld(blob, d)) && others(d500, d401, dBad).every(d => wroteNew(blob, d)),
+        JSON.stringify(Object.fromEntries(windowIso.map(d => [d, blob.days[keyOf(d)] && blob.days[keyOf(d)].trains.length]))));
+      const timeoutTimers = timers.made.filter(ms => ms === T).length;
+      ok('V11f ingest 回來時 worker.js 建的計時器都已觸發或清掉(錯誤路徑也清)',
+        hits.length === KEEP_WINDOW && timeoutTimers === KEEP_WINDOW && timers.live.size === 0,
+        `請求=${hits.length} 逾時計時器=${timeoutTimers} 還掛著 ${timers.live.size} 顆`);
+    }
+  } finally {
+    for (const s of sockets) s.destroy();
+    server.close();
+  }
+}
+try {
+  await runIngestBadPayloadAndHang();
+} catch (e) {
+  ok('V11 執行區塊', false, `未捕捉例外:${(e && e.stack) || e}`);
+}
+
 // ══════════════════════════ V5: 前端 API/退路雙路徑(Playwright chromium+webkit) ══════════════════════════
 async function runV5() {
   const { doc: apiDoc } = thsrConvertDaily(FA.daily, FA.label, stationMap);

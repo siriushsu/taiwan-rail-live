@@ -46,7 +46,7 @@ const live = (trains, at = AT_ISO) => ({ at, srv: NOW * 1000, trains });
   ok('A3 車次比對是字串等值(不做前綴/數值寬鬆比對)',
     twDelayFor(l, '12', NOW).known === false && twDelayFor(l, '0123', NOW).known === false);
   ok('A4 車次空字串 ⇒ known=false', twDelayFor(l, '', NOW).known === false && twDelayFor(l, null, NOW).known === false);
-  // 官方值照抄字面(使用者長期裁示):負值不夾正。
+  // 官方值照抄字面:負值不夾正。
   const neg = twDelayFor(live([{ no: '123', delay: -2 }]), '123', NOW);
   ok('A5 負誤點照抄不夾正', neg.known === true && neg.delayMin === -2, JSON.stringify(neg));
   // 🔴 A6/A6r 是【呼叫端能不能分辨兩種 known=false】的唯一依據。少了它,worker 只能自己
@@ -193,7 +193,7 @@ const live = (trains, at = AT_ISO) => ({ at, srv: NOW * 1000, trains });
   ok('H3 沒有上一站(舊版 App／起點站)⇒ 沒有行駛段', twRunWindow(null, S, 1) === null && twRunWindow(undefined, S, 1) === null);
   ok('H4 上一站發車不早於本站到站(壞資料)⇒ 沒有行駛段', twRunWindow(S, S, 1) === null && twRunWindow(S + 60, S, 1) === null);
 
-  // 2026-09-23 使用者裁示「那就改30秒吧」:行駛段每 30 秒一發(同一次 cron 內 +30 秒那一輪)。
+  // 行駛段每 30 秒一發(同一次 cron 內 +30 秒那一輪)。
   ok('H5 間隔下限 20 秒(半分鐘兩發推得出去、下一分鐘早到 10 秒也推得出去、20 秒內重跑不推兩發)',
     TW_RUN_PUSH_GAP_SEC === 20, String(TW_RUN_PUSH_GAP_SEC));
   ok('H5b 上一發是 30 秒前(同一次 cron 的第一輪 → +30 秒那一輪)⇒ 推',

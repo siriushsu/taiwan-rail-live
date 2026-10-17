@@ -12,6 +12,8 @@ import assert from 'node:assert/strict';
 const opt=name=>process.argv.find(a=>a.startsWith(`--${name}=`))?.slice(name.length+3)||process.env[`MEMORY_${name.toUpperCase()}`]||'';
 const DATE=opt('date')||'2026-09-12',DIR=(opt('dir')||`memories/tainan-${DATE}`).replace(/^\/+|\/+$/g,''),OUTDIR=opt('out')||(DATE==='2026-09-12'?'output/tainan-memory':`output/tainan-memory-${DATE.slice(5).replace('-','')}`);
 const lastDay=DATE==='2026-10-16';
+// 10/16 時間軸每一列的說明與報導連結（封存目錄的 event-notes.json，以事件 id 對應）；頁面照這個檔畫，這裡拿同一個檔比對畫出來的。
+const NOTES=lastDay?JSON.parse(fs.readFileSync(DIR+'/event-notes.json','utf8')).notes:{};
 const base=process.env.VURL||'http://127.0.0.1:5244',out=OUTDIR;fs.mkdirSync(out,{recursive:true});
 const results=[];
 // 正式站會由 Cloudflare 注入 Web Analytics；它不提供重播資料。
@@ -58,6 +60,8 @@ const cardTok=(s,v)=>({SA:hms(s.schedArrSec),SD:hms(s.schedDepSec),A:hms(s.arrSe
 // 地圖標籤旗標的外部對照（3288、5971 沒經過臺南，看第一列：3288 仁德是內插、5971 保安是起點，開車時刻推定）。
 const FLAG_KNOWN={'3031':'推定','3288':'內插','5971':'推定','3778':'內插','3782':'實測'};
 const isTainan=s=>s.name.replace('台','臺')==='臺南',anchorOf=t=>(t.stops.find(isTainan)||t.stops[0]).arrSec;
+// 時間軸的列（驗收腳本自己的規則）：臺南站的事件（ref.station＝臺南）跳到事件前 LEAD 秒，其他站的事件與沒有站的列跳到事件那一刻；「下一班到臺南」「臺南發車」也提前 LEAD 秒。
+const LEAD=25,atTainanEv=e=>!!e.ref?.station&&isTainan({name:e.ref.station});
 const cssRgb=s=>s.match(/[\d.]+/g).slice(0,3).map(Number);
 const toHsl=([r,g,b])=>{r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn,l=(mx+mn)/2;let h=0;if(d){h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;h=(h*60+360)%360;}return {h,s:d?d/(1-Math.abs(2*l-1)):0,l};};
 // 兩張 PNG 在頁面裡解碼後逐像素比：回傳差異像素數與「有光暈那張」差異處的平均顏色（不經網路，不產生請求）。
@@ -119,26 +123,85 @@ async function lastDayChecks(page,{engine,width,height,click,out}){
   await setPanel(openDefault);
  });
 
- await step('時間軸：列的內容、種類標籤；每一列跳到對的時刻、有 train 的同時跟車；過去／現在／未來標記；次日列不可點',async()=>{
+ // 鏡頭：畫面中心的地面點（相機視線打到 z=0）、方位、縮放（同鏡頭驗收的算法）。
+ const camNow=()=>page.evaluate(()=>{const c=tainanMemory.camera,e=c.matrixWorld.elements,d=c.position.clone().set(0,0,-1).transformDirection(c.matrixWorld),k=-c.position.z/d.z;return {x:c.position.x+d.x*k,y:c.position.y+d.y*k,az:Math.atan2(e[9],e[8]),span:c.top-c.bottom};});
+ // 那一班每一節車廂的中心是否都投影在畫布裡（NDC 在 ±1 之內），以及整班有沒有畫出來。
+ const trainInView=id=>page.evaluate(id=>{const m=tainanMemory,model=m.models.get(id),c=m.camera;let inside=0;for(const car of model.cars){const v=car.getWorldPosition(c.position.clone()).project(c);if(Math.abs(v.x)<=1&&Math.abs(v.y)<=1)inside++;}return {visible:model.group.visible,inside,cars:model.cars.length};},id);
+ // 一列的說明區塊：說明文字、連結（文字、網址、開新分頁、標題）、按鈕的 aria-controls 指不指到它、展開後露出的範圍（fit）：整列放得進面板，整列要在可見範圍裡；放不下但說明放得下，說明要整段在裡面（列標題可以捲出上緣）；說明也放不下，列頂對齊面板上緣。
+ // 面板下緣提示（below／fade）：展開的列還有一截在面板下緣以下，面板底部要有淡出（.nb-more 不透明、貼在本體下緣）；整列都在下緣以上就不該有。
+ // 位置容許 1 px：捲動位置只能是整數 px，列的位置是小數（實測同一列要捲 98.59 px，WebKit 捲 98、Chrome 捲 99）。
+ const noteOf=id=>page.evaluate(id=>{const li=document.querySelector(`#events > li.ev[data-id="${id}"]`),d=li.querySelector('.evd'),nb=document.getElementById('nightBody'),h=nb.clientHeight,vt=nb.getBoundingClientRect().top+nb.clientTop,r=li.getBoundingClientRect(),n=d?.getBoundingClientRect(),
+   fit=r.height<=h?'row':n&&r.bottom-n.top<=h?'note':'none',from=fit==='note'?n.top:r.top,m=document.querySelector('#night .nb-more'),mr=m?.getBoundingClientRect();
+  return {desc:d?.querySelector('p:not(.lk)')?.textContent||'',links:d?[...d.querySelectorAll('a')].map(a=>({text:a.textContent,href:a.getAttribute('href'),target:a.target,rel:a.rel,title:a.title})):[],ctl:!!d&&li.firstElementChild.getAttribute('aria-controls')===d.id,fit,geo:{from:Math.round(from),bottom:Math.round(r.bottom),top:Math.round(vt),h},below:r.bottom>vt+h+1,fade:!!m&&getComputedStyle(m).opacity==='1'&&Math.abs(mr.bottom-(vt+h))<=1.5&&mr.height>=12,inBody:from>=vt-1&&(fit==='none'?from<=vt+1:r.bottom<=vt+h+1)};},id);
+ const noteFor=e=>NOTES[e.id]||{},hasNote=e=>!!(noteFor(e).desc||noteFor(e).links?.length);
+ const wantNote=e=>{const n=noteFor(e);return {desc:n.desc||'',links:(n.links||[]).map(l=>({text:l.outlet,href:l.url,target:'_blank',rel:'noopener',title:l.title}))};};
+ // 報導連結：捲進面板後，座標點得到自己、整個在面板裡（容許 1 px，同上），高 ≥44 px（高 520 以下 ≥40 px）。
+ // now＝這一列的說明放得進面板：點了那一列之後不必再捲，每一個連結就要整個露出、點得到（矮螢幕曾經只露出列標題與說明前兩行）。
+ const linkChecks=async(e,i,now)=>{const n=(noteFor(e).links||[]).length,link=k=>page.locator(`#events > li.ev[data-id="${e.id}"] .evd a`).nth(k);
+  const probe=k=>link(k).evaluate(a=>{const r=a.getBoundingClientRect(),h=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2),b=document.getElementById('nightBody').getBoundingClientRect();return {w:Math.round(r.width),h:Math.round(r.height),hit:a===h||a.contains(h),inBody:r.top>=b.top-1&&r.bottom<=b.bottom+1};});
+  if(now)for(let k=0;k<n;k++){const m=await probe(k);assert.ok(m.hit&&m.inBody,`第 ${i} 列（${e.id}）的說明放得進面板，點了之後第 ${k} 個報導連結就要整個露出、點得到（不必再捲）：`+JSON.stringify(m));}
+  for(let k=0;k<n;k++){await link(k).scrollIntoViewIfNeeded();const m=await probe(k);
+   assert.ok(m.hit&&m.inBody&&m.h>=(height<=520?40:44)&&m.w>=44,`第 ${i} 列（${e.id}）的第 ${k} 個報導連結摸不到或太小：`+JSON.stringify(m));}return n;};
+ await step('時間軸：列的內容、種類標籤；點了跳到對的時刻（臺南站的事件提前 25 秒）、取消跟車、畫面中心回臺南站、方位與縮放照點之前的；那一列展開說明與報導連結、其他列收起，說明放得進面板就整段露出、連結不必再捲，還有一截在面板下緣以下時底部有淡出提示；臺南站的事件發生時那班車整班在畫面裡；過去／現在／未來標記；窄版只有臺南站的事件會收合面板；次日列不可點、說明直接列出',async()=>{
   const rows=await page.evaluate(()=>[...document.querySelectorAll('#events > li.ev')].map(li=>({id:li.dataset.id,tag:li.firstElementChild.tagName,time:li.querySelector('time').textContent,text:li.querySelector('.tx').textContent,kd:li.querySelector('.kd').textContent})));
   assert.equal(rows.length,evs.length,'列數與 snapshot.events 不同');
   evs.forEach((e,i)=>{const r=rows[i];assert.deepEqual(r,{id:e.id,tag:e.t<86400?'BUTTON':'DIV',time:evTime(e.t),text:e.text,kd:KIND_ZH[e.kind]},'第 '+i+' 列內容');});
-  for(let i=0;i<evs.length;i++){const e=evs[i];if(e.t>=86400)continue;
-   await page.evaluate(()=>{tainanMemory.state.playing=false;tainanMemory.followTrain('');});await frames();
-   if(!openDefault)await setPanel(true);
+  await page.evaluate(()=>{tainanMemory.state.playing=false;tainanMemory.followTrain('');});await click('#station');await frames();const home=await camNow();
+  let hereRows=0,otherRows=0,links=0,notesSeen=0;const fits={row:0,note:0,none:0};let fades=0;
+  for(let i=0;i<evs.length;i++){const e=evs[i];if(e.t>=86400)continue;const here=atTainanEv(e),at=e.t-(here?LEAD:0),note=hasNote(e);
+   // 點之前先跟一班車、轉一格方位、拉遠一格：點了之後要取消跟車、畫面中心回臺南站，方位與縮放照點之前的。
+   await page.evaluate(id=>{tainanMemory.state.playing=false;tainanMemory.followTrain(id,82800);},gm.id);await click('#rotate');await click('#zoomout');await frames();
+   await setPanel(true);const before=await camNow();
    const sel=`#events > li.ev:nth-child(${i+1}) .evb`;await page.locator(sel).scrollIntoViewIfNeeded();await click(sel);await frames();
-   const g=await page.evaluate(()=>({sec:tainanMemory.state.sec,follow:tainanMemory.state.follow,sel:document.getElementById('train').value,clock:document.getElementById('clock').textContent,open:document.getElementById('nightToggle').getAttribute('aria-expanded'),cardHidden:document.getElementById('followcard').hidden,cardTitle:document.querySelector('#followcard h3')?.firstElementChild?.textContent||'',
-    rows:[...document.querySelectorAll('#events > li.ev')].map(li=>({st:li.dataset.state,mk:li.querySelector('.mk').textContent,cur:li.firstElementChild.getAttribute('aria-current')}))}));
-   assert.ok(Math.abs(g.sec-e.t)<1,`第 ${i} 列（${e.id}）跳到 ${g.sec}，應為 ${e.t}`);assert.equal(g.clock,hms(e.t),'時鐘顯示');
-   if(e.train!=null&&e.train!==''){const tr=D.trains.find(t=>t.id===g.follow);assert.ok(tr&&tr.train===String(e.train),`第 ${i} 列（${e.id}）應跟 ${e.train} 次，實際跟 ${tr?.train}`);assert.equal(g.sel,g.follow,'下拉選單沒跟著選');assert.equal(g.cardHidden,false,'跟車卡沒出現');assert.equal(g.cardTitle,e.train+' 次');}
-   else{assert.equal(g.follow,'','沒有 train 的列不該開始跟車');}
-   assert.equal(g.open,String(side),side?'面板在場景右側時，點了事件不該收合面板':'面板接在場景下方時，點了事件要收合面板，讓人看到場景');
-   const cur=evs.reduce((c,x,j)=>x.t<=e.t?j:c,-1);
-   g.rows.forEach((x,j)=>{const want=j<cur?'past':j===cur?'current':'future';assert.deepEqual(x,{st:want,mk:{past:'✓',current:'●',future:'○'}[want],cur:j===cur?'true':null},`點第 ${i} 列後，第 ${j} 列的標記`);});}
-  // 次日列：不是按鈕、永遠在未來
+   const g=await page.evaluate(()=>({sec:tainanMemory.state.sec,follow:tainanMemory.state.follow,sel:document.getElementById('train').value,clock:document.getElementById('clock').textContent,open:document.getElementById('nightToggle').getAttribute('aria-expanded'),cardHidden:document.getElementById('followcard').hidden,
+    rows:[...document.querySelectorAll('#events > li.ev')].map(li=>{const d=li.querySelector('.evd');return {st:li.dataset.state,mk:li.querySelector('.mk').textContent,cur:li.firstElementChild.getAttribute('aria-current'),exp:li.firstElementChild.getAttribute('aria-expanded'),open:!!d&&!d.hidden};})}));
+   const a=await camNow(),miss=Math.hypot(a.x-home.x,a.y-home.y),dAz=Math.atan2(Math.sin(a.az-before.az),Math.cos(a.az-before.az));
+   assert.ok(Math.abs(g.sec-at)<.5,`第 ${i} 列（${e.id}）跳到 ${hms(g.sec)}，應為 ${hms(at)}${here?'（臺南站的事件，提前 25 秒）':''}`);assert.equal(g.clock,hms(at),'時鐘顯示');
+   assert.ok(g.follow===''&&g.sel===''&&g.cardHidden,`第 ${i} 列（${e.id}）點了要取消跟車、收起跟車卡：`+JSON.stringify({follow:g.follow,sel:g.sel,cardHidden:g.cardHidden}));
+   assert.ok(miss<.01&&Math.abs(dAz)<1e-9&&Math.abs(a.span/before.span-1)<1e-9,`第 ${i} 列（${e.id}）畫面中心要回臺南站、方位與縮放不變：離站 ${miss.toFixed(3)} m、Δ方位 ${dAz.toExponential(1)}、span ${before.span.toFixed(1)}→${a.span.toFixed(1)}`);
+   assert.equal(g.open,String(side||!here),side?'面板在場景右側時，點了事件不該收合面板':here?'面板接在場景下方時，點了臺南站的事件要收合面板，讓人看到場景':'面板接在場景下方時，點了臺南站以外的事件不收合，說明留在畫面上');
+   const cur=evs.reduce((c,x,j)=>x.t<=at?j:c,-1);
+   g.rows.forEach((x,j)=>{const want=j<cur?'past':j===cur?'current':'future',o=evs[j],has=hasNote(o),day=o.t<86400;
+    assert.deepEqual(x,{st:want,mk:{past:'✓',current:'●',future:'○'}[want],cur:j===cur?'true':null,exp:day&&has?String(j===i):null,open:has&&(!day||j===i)},`點第 ${i} 列後，第 ${j} 列的標記與說明展開狀態`);});
+   if(note){if(!side&&here){await setPanel(true);await frames();}const n=await noteOf(e.id);
+    assert.deepEqual({desc:n.desc,links:n.links,ctl:n.ctl},{...wantNote(e),ctl:true},`第 ${i} 列（${e.id}）的說明與報導連結`);notesSeen++;
+    if(side||!here){assert.ok(n.inBody,`第 ${i} 列（${e.id}）展開後沒有捲進面板的可見範圍（${n.fit}）：`+JSON.stringify(n.geo));fits[n.fit]++;}
+    assert.equal(n.fade,n.below,`第 ${i} 列（${e.id}）${n.below?'展開後還有一截在面板下緣以下，面板底部要有淡出提示':'展開後整列在面板下緣以上，面板底部不該有淡出提示'}：`+JSON.stringify({fit:n.fit,...n.geo}));fades+=n.fade?1:0;
+    links+=await linkChecks(e,i,(side||!here)&&n.fit!=='none');
+    if((side||!here)&&n.fit==='none'){const off=await page.evaluate(id=>{const li=document.querySelector(`#events > li.ev[data-id="${id}"]`),b=document.getElementById('nightBody');b.scrollTop+=li.getBoundingClientRect().bottom-(b.getBoundingClientRect().top+b.clientTop+b.clientHeight)+1;
+      return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(getComputedStyle(document.querySelector('#night .nb-more')).opacity))));},e.id);assert.equal(off,'0',`第 ${i} 列（${e.id}）捲到整列露出之後，面板底部的淡出提示要拿掉`);}if(!side&&here)await setPanel(false);}
+   // 臺南站的事件：事件那一刻（開出的事件另驗跳過去那一刻，車還停在月台）那班車整班在畫面裡。
+   if(here){const id=e.ref.trainId,v=async s=>{await page.evaluate(s=>tainanMemory.jump(s),s);await frames();return trainInView(id);};
+    if(e.ref.field==='depSec'){const v0=await v(at);assert.ok(v0.visible&&v0.inside===v0.cars,`第 ${i} 列（${e.id}）跳過去那一刻，車要停在月台、整班在畫面裡：`+JSON.stringify(v0));}
+    const v1=await v(e.t+1);assert.ok(v1.visible&&v1.inside===v1.cars,`第 ${i} 列（${e.id}）事件那一刻 ${id} 要整班在畫面裡：`+JSON.stringify(v1));hereRows++;}else otherRows++;}
+  assert.ok(hereRows>=2&&otherRows>=2,`覆蓋率：臺南站的事件 ${hereRows} 列、其他的 ${otherRows} 列，兩種都要驗到`);
+  // 次日列：不是按鈕、永遠在未來，說明直接列出
   const nd=await page.evaluate(()=>[...document.querySelectorAll('#events > li.ev')].filter(li=>Number(li.dataset.t)>=86400).map(li=>({tag:li.firstElementChild.tagName,st:li.dataset.state,btn:!!li.querySelector('button')})));
   assert.ok(nd.length>0&&nd.every(x=>x.tag==='DIV'&&!x.btn&&x.st==='future'),'次日列不對：'+JSON.stringify(nd));
-  await page.evaluate(()=>{tainanMemory.followTrain('');});await setPanel(openDefault);
+  for(const e of evs.filter(x=>x.t>=86400&&hasNote(x))){const n=await noteOf(e.id);assert.deepEqual({desc:n.desc,links:n.links},wantNote(e),'次日列（'+e.id+'）的說明與報導連結');notesSeen++;links+=await linkChecks(e,evs.indexOf(e));}
+  const wantLinks=evs.reduce((k,e)=>k+(noteFor(e).links?.length||0),0),wantNotes=evs.filter(hasNote).length;
+  assert.ok(notesSeen===wantNotes&&links===wantLinks,`覆蓋率：說明驗到 ${notesSeen}／${wantNotes} 列、報導連結驗到 ${links}／${wantLinks} 則`);
+  console.log(`  時間軸展開列露出範圍 ${where}：整列 ${fits.row}、整段說明 ${fits.note}、只對齊列頂 ${fits.none}；點了之後有淡出提示 ${fades} 列`);
+  if(lastDay)assert.ok(wantNotes===evs.length&&wantLinks>0&&Object.keys(NOTES).every(id=>evs.some(e=>e.id===id)),`覆蓋率：10/16 每一列都要有說明（${wantNotes}／${evs.length}）、至少一則報導連結（${wantLinks}），event-notes.json 不能有時間軸沒有的 id`);
+  await page.evaluate(()=>{tainanMemory.followTrain('');});await click('#station');await setPanel(openDefault);
+ });
+
+ await step('「下一班到臺南」跳到下一班進臺南站的車（不算臺南始發）前 25 秒、「臺南發車」跳到下一班臺南始發的車開車前 25 秒，過了最後一班回到當天第一班；真的點時取消跟車、畫面中心回臺南站',async()=>{
+  const tn=D.trains.map(t=>t.stops.find(isTainan)).filter(Boolean),arr=tn.filter(s=>s.end!=='origin').map(s=>s.arrSec).sort((a,b)=>a-b),dep=tn.filter(s=>s.end==='origin').map(s=>s.depSec).sort((a,b)=>a-b),all=[...arr,...dep].sort((a,b)=>a-b);
+  assert.ok(arr.length&&dep.length,'資料裡沒有進臺南站或臺南始發的車');
+  const want=(list,t0)=>Math.max(0,Math.min(86399,(list.find(x=>x>t0+LEAD)??list[0])-LEAD));
+  // 起點：每班車到臺南、在臺南開車前 30 秒，加上 0 與 23:05。按鈕的處理照頁面的 onclick（click() 不經座標），真的點另外驗。
+  const starts=[...new Set([0,83100,...arr.map(x=>x-30),...dep.map(x=>x-30)].filter(x=>x>=0))].sort((a,b)=>a-b);
+  const got=await page.evaluate(starts=>starts.map(t=>{const m=tainanMemory;m.state.playing=false;m.jump(t);document.getElementById('next').click();const a=m.state.sec;m.jump(t);document.getElementById('depart').click();return [a,m.state.sec];}),starts);
+  let originNext=0;
+  starts.forEach((t0,k)=>{assert.equal(got[k][0],want(arr,t0),`${hms(t0)} 按「下一班到臺南」跳到 ${hms(got[k][0])}，應為 ${hms(want(arr,t0))}`);assert.equal(got[k][1],want(dep,t0),`${hms(t0)} 按「臺南發車」跳到 ${hms(got[k][1])}，應為 ${hms(want(dep,t0))}`);if(want(all,t0)!==want(arr,t0))originNext++;});
+  assert.ok(originNext>0,'覆蓋率：沒有任何起點的下一班其實是臺南始發的車，排除始發車沒驗到');
+  await click('#station');await frames();const home=await camNow();
+  for(const [btn,list] of [['#next',arr],['#depart',dep]]){const t0=dep[0]-30;
+   await page.evaluate(([id,t])=>{const m=tainanMemory;m.state.playing=false;m.followTrain(id,82800);m.jump(t);},[gm.id,t0]);await frames();await click(btn);await frames();
+   const s=await page.evaluate(()=>({sec:tainanMemory.state.sec,follow:tainanMemory.state.follow,sel:document.getElementById('train').value})),c=await camNow(),miss=Math.hypot(c.x-home.x,c.y-home.y);
+   assert.ok(s.sec===want(list,t0)&&s.follow===''&&s.sel===''&&miss<.01,`真的點 ${btn}：`+JSON.stringify({...s,want:want(list,t0),miss}));}
+  await click('#station');
  });
 
  await step('車次下拉選單：最上方固定兩班重點車、其餘照到臺南時間排且不重複、選了就跟',async()=>{
@@ -463,9 +526,10 @@ async function lastDayLayoutChecks(page,{engine,width,height,click,sweep}){
  const isOpen=async()=>(await page.locator('#nightToggle').getAttribute('aria-expanded'))==='true';
  const reset=async()=>{await page.evaluate(()=>{const m=tainanMemory;m.state.playing=false;m.followTrain('');m.night.setOpen(null);});await frames();};
  const resize=async(w,h)=>{await page.setViewportSize({width:w,height:h});await frames();};
- const T=await page.evaluate(()=>{const d=tainanMemory.data,id=m=>d.trains.find(t=>t.mark===m)?.id;return {gm:id('last-ground'),sm:id('last-south'),single:d.singleLine,events:(d.events||[]).map(e=>({id:e.id,t:e.t}))};});
+ const T=await page.evaluate(()=>{const d=tainanMemory.data,id=m=>d.trains.find(t=>t.mark===m)?.id;return {gm:id('last-ground'),sm:id('last-south'),single:d.singleLine,events:(d.events||[]).map(e=>({id:e.id,t:e.t,station:e.ref?.station||''}))};});
  assert.ok(T.gm&&T.sm&&T.single,'資料缺兩班重點車或 singleLine');
  const slRow=T.events.find(e=>e.t===T.single.fromSec);assert.ok(slRow,'時間軸沒有單線起點（singleLine.fromSec）那一列');
+ const tnRow=T.events.find(e=>e.t<86400&&e.station&&isTainan({name:e.station}));assert.ok(tnRow,'時間軸沒有臺南站的事件');   // 窄版點了會自動收合面板的是臺南站的事件
  const SAMPLES=[[T.gm,'3782',81900],[T.gm,'3782',83100],[T.sm,'145',81000],[T.sm,'145',82200]];   // 22:45、23:05 跟地面最後一班；22:30、22:50 跟最後南下。選車照選單的做法（先跳到那個時刻、再選車、不給時刻）：22:30 時 145 還停在永康、不在畫面範圍，頁面會跳到它進畫面的第一秒，這一筆量的就是剛進畫面的位置
 
  await step('標頭：「歷史重播」的文字和「回即時地圖」一樣在框的垂直中線上（相差 ≤1 px；高 380 以下框縮成 32 px 高時也一樣）',async()=>{
@@ -661,7 +725,7 @@ async function lastDayLayoutChecks(page,{engine,width,height,click,sweep}){
     for(const dy of [...Array(ZOOM_IN).fill(-ZOOM_DY),...Array(ZOOM_OUT).fill(ZOOM_DY)]){await wheel(dy);const r=await read(),prev=rows.at(-1);
      assert.ok(Math.abs(Math.log(r.span/prev.span)-dy*.001)<1e-3,at+`：滾一下（deltaY ${dy}）span ${prev.span.toFixed(1)}→${r.span.toFixed(1)}，不是乘 e^(${dy*.001})，這一步沒縮放到`);rows.push(r);}
     const L=rows.map(r=>r.lift),d=L.slice(1).map((v,i)=>v-L[i]),worst=Math.max(...d.map(Math.abs)),k=d.findIndex(v=>Math.abs(v)===worst),lo=Math.min(...L),hi=Math.max(...L);
-    ZOOM_LOG.push({engine,at,how:engine==='chromium'?'page.mouse.wheel':'WheelEvent',spans:rows.map(r=>r2(r.span)),lifts:L.map(r2),worstStep:r2(worst),min:r2(lo),max:r2(hi)});fs.writeFileSync(out+'/zoom-results.json',JSON.stringify(ZOOM_LOG,null,1));
+    ZOOM_LOG.push({engine,at,how:engine==='chromium'?'page.mouse.wheel':'WheelEvent',spans:rows.map(r=>r2(r.span)),lifts:rows.map(r=>r2(r.lift)),worstStep:r2(worst),min:r2(lo),max:r2(hi)});fs.writeFileSync(out+'/zoom-results.json',JSON.stringify(ZOOM_LOG,null,1));
     summary.push(`${at} 讓位量 ${r2(lo)}–${r2(hi)} px、相鄰最大變化 ${r2(worst)} px`);
     if(worst>ZOOM_JUMP)bad.push(`${at}：第 ${k+1} 步（span ${r2(rows[k].span)}→${r2(rows[k+1].span)}）讓位量 ${r2(L[k])}→${r2(L[k+1])} px，變化 ${r2(worst)} px（超過 ${ZOOM_JUMP} px，縮放跨過讓位門檻時畫面跳動）`);
     if(!(lo<=.5&&hi>=6))uncovered.push(`${at}（讓位量 ${r2(lo)}–${r2(hi)} px）`);}}
@@ -694,11 +758,11 @@ async function lastDayLayoutChecks(page,{engine,width,height,click,sweep}){
   assert.ok(turn.length>0,'覆蓋率：22:58 轉彎那段沒有在讓位 ≥6 px 時量到（跟車點不晃沒驗到）：'+STAB_LOG.filter(j=>j.engine===engine&&j.sec===82680).map(j=>`${j.at} 讓位量 ${j.liftMin.toFixed(1)}–${j.liftMax.toFixed(1)} px`).join('；'));
  });
 
- if(sweep)await step('最後一夜跨旋轉：直向點了時間軸的列（自動收合）之後轉成橫向，面板照開；使用者自己按的開與關跨旋轉保留；自動收合之後在同一個版面直接按「最後一夜」要打開',async()=>{
-  const sel=`#events > li.ev[data-id="${slRow.id}"] .evb`,want=async(v,msg)=>{await frames();assert.equal(await isOpen(),v,msg);};
+ if(sweep)await step('最後一夜跨旋轉：直向點了時間軸裡臺南站的事件（自動收合）之後轉成橫向，面板照開；使用者自己按的開與關跨旋轉保留；自動收合之後在同一個版面直接按「最後一夜」要打開',async()=>{
+  const sel=`#events > li.ev[data-id="${tnRow.id}"] .evb`,want=async(v,msg)=>{await frames();assert.equal(await isOpen(),v,msg);};
   try{await resize(390,844);await reset();await want(false,'390×844：預設要收合');
    await click('#nightToggle');await want(true,'390×844：使用者打開');
-   await page.locator(sel).scrollIntoViewIfNeeded();await click(sel);await want(false,'390×844：點了時間軸的列要自動收合');
+   await page.locator(sel).scrollIntoViewIfNeeded();await click(sel);await want(false,'390×844：點了臺南站的事件要自動收合');
    await resize(844,390);await want(true,'轉成 844×390（側欄版面）：直向的自動收合不算使用者的選擇，面板要照開');
    await click('#nightToggle');await want(false,'844×390：使用者收合');
    await resize(390,844);await want(false,'轉回 390×844：使用者收合的要保留');
@@ -706,7 +770,7 @@ async function lastDayLayoutChecks(page,{engine,width,height,click,sweep}){
    await click('#nightToggle');await want(true,'844×390：使用者打開');
    await resize(390,844);await want(true,'轉回 390×844：使用者打開的要保留（這個版面預設是收合）');
    // 自動收合只算當下這一次：不轉螢幕、在同一個版面直接按「最後一夜」就要打開（按鈕沒清掉自動收合的話，要轉一次螢幕才重開得了）；重開之後再按要收合。
-   await page.locator(sel).scrollIntoViewIfNeeded();await click(sel);await want(false,'390×844：再點一次時間軸的列，要自動收合');
+   await page.locator(sel).scrollIntoViewIfNeeded();await click(sel);await want(false,'390×844：再點一次臺南站的事件，要自動收合');
    await click('#nightToggle');await want(true,'390×844：自動收合之後，在同一個版面直接按「最後一夜」要打開（不必先轉螢幕）');
    await click('#nightToggle');await want(false,'390×844：重開之後再按要收合');}
   finally{await resize(width,height);await reset();}
@@ -717,7 +781,7 @@ async function lastDayLayoutChecks(page,{engine,width,height,click,sweep}){
 }
 for(const [engine,type] of Object.entries({chromium,webkit})){
  if(process.env.ENGINES&&!process.env.ENGINES.split(',').includes(engine))continue;
- // 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走)。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
+ // 瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走)。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
  const browser=await type.launch(engine==='chromium'?{channel:process.env.CHROMIUM_CHANNEL||'chromium',headless:true}:{headless:true});
  for(const [width,height] of (process.env.SIZES?process.env.SIZES.split(',').map(v=>v.split('x').map(Number)):[[360,780],[375,812],[390,844],[414,896],[768,1024],[844,390],[1280,900],...(lastDay?[[667,375],[640,360],[568,320],[844,340],[667,330],[740,340],[932,430]]:[])])){   // 10/16 另外掃寬不到 700 的橫向手機：最後一夜面板曾在這幾個尺寸壓到重播控制；844×340 是 iPhone 橫拿時 Safari 的可視高度，場景曾蓋住時鐘與時間拉桿；667×330、740×340、932×430 是量單線說明框與跟車鏡頭用的橫向尺寸，場景不疊標頭與重播控制的檢查也要跑到。9/12 已封存，沒有這個面板，不加
   console.log('開始',engine,width,height);
@@ -730,16 +794,16 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   if(process.env.ONLY==='layout'){assert.ok(lastDay,'ONLY=layout 只給 --date=2026-10-16');const only=await lastDayLayoutChecks(page,{engine,width,height,click,sweep:width===390});results.push({engine,width,height,layout:only});console.log('通過（只跑 10/16 版面）',engine,width);fs.writeFileSync(out+'/browser-results.json',JSON.stringify(results,null,2));await context.close();continue;}
   if(process.env.ONLY==='singleline'){const only=await singleLineChecks(page,{engine,width,height,click,sweep:width===390});results.push({engine,width,height,singleLine:only});console.log('通過（只跑單線說明）',engine,width);fs.writeFileSync(out+'/browser-results.json',JSON.stringify(results,null,2));await context.close();continue;}
   await click('#play');const layout=await controls(page,'body',lastDay?'#events':'');assert.deepEqual(layout.errors,[],engine+' '+width+' '+JSON.stringify(layout.errors));
-  await click('#next');await click('#zoomin');await click('#zoomout');await click('#rotate');await click('#overview');await click('#station');
-  // 施工外罩預設蓋上，按鈕可拿掉再蓋回（使用者 2026-09-29 選「完整站房＋外罩可切換」）。
+  await click('#next');if(lastDay)await click('#depart');await click('#zoomin');await click('#zoomout');await click('#rotate');await click('#overview');await click('#station');
+  // 施工外罩預設蓋上，按鈕可拿掉再蓋回。
   const wrapState=()=>page.evaluate(()=>[tainanMemory.wrap?.visible,document.getElementById('wrap').textContent]);
   assert.deepEqual(await wrapState(),[true,'拿掉外罩']);await click('#wrap');assert.deepEqual(await wrapState(),[false,'蓋回外罩']);await click('#wrap');assert.deepEqual(await wrapState(),[true,'拿掉外罩']);
-  // 周邊建物改成低細節網格（使用者 2026-09-30「附近的建築物應該也要同樣建模 不需要太精細 但是不要是灰色方塊」）：網格在場景裡，群組、材質、頂點數與 model.json 一致，
+  // 周邊建物改成低細節網格：網格在場景裡，群組、材質、頂點數與 model.json 一致，
   // 香格里拉飯店塔身（封存輪廓漏收、另依 OSM 部件補上的 255990928）也在。
   assert.deepEqual(await page.evaluate(()=>{const s=tainanMemory.surroundings,n=s?.meta?.lods?.near;return [!!s?.mesh?.parent,n?.drawGroups?.length>0&&s.mesh.geometry.groups.length===n.drawGroups.length,Array.isArray(s?.mesh?.material)&&s.mesh.material.length===n?.drawGroups?.length,s?.mesh?.geometry?.attributes?.position?.count===n?.vertexCount,!!s?.meta?.buildings?.some(b=>b.id===255990928&&b.minHeightM===24)];}),[true,true,true,true,true],'周邊建物網格沒有完整載入');
-  // 放大極限 34 公尺（使用者 2026-09-29「放大極限就用 34 公尺」）：從舊站近景連按放大，視野高度停在 34 m、不會更近。
+  // 放大極限 34 公尺：從舊站近景連按放大，視野高度停在 34 m、不會更近。
   for(let i=0;i<8;i++)await click('#zoomin');assert.equal(await page.evaluate(()=>Math.round((tainanMemory.camera.top-tainanMemory.camera.bottom)*1000)/1000),34);
-  // 馬路（使用者 2026-09-30「連馬路、人行道細節也做更多一點」）：柏油、人行道、路緣、白線、黃線五層網格都在場景裡、不是空的；
+  // 馬路：柏油、人行道、路緣、白線、黃線五層網格都在場景裡、不是空的；
   // 標線只有 12～15 cm 寬，放大到 34 m 時完全不透明，切到全線時淡出、不畫（每個像素幾公尺，畫了只會閃爍）。
   assert.deepEqual(await page.evaluate(()=>{const m=tainanMemory.roads?.meshes||{};return ['asphalt','sidewalk','curb','white','yellow'].map(k=>!!m[k]?.parent&&m[k].geometry.attributes.position.count>0).concat([m.white?.visible,m.white?.material.opacity,m.yellow?.material.opacity]);}),[true,true,true,true,true,true,1,1],'馬路網格或 34 m 的標線不對');
   await click('#overview');assert.deepEqual(await page.evaluate(()=>{const m=tainanMemory.roads.meshes;return [m.white.visible,m.white.material.opacity,m.yellow.visible];}),[false,0,false],'全線視角的標線沒有淡出');

@@ -245,8 +245,8 @@ console.log('\n---- 9. 冷啟動 ----');
   check(cold.vehicles.length > 0, '冷啟動仍接回整批車', `${cold.vehicles.length} 台`);
 }
 
-// ---- 9b. 有倒數才畫（使用者 2026-08-17 裁示）----
-// 「有出現倒數的車子,我們才畫在那一段軌道上,然後每十五秒會看一次他現在倒數的狀態」
+// ---- 9b. 有倒數才畫 ----
+// 車只來自官方各站倒數：沒有倒數就不畫，每 15 秒依最新倒數重算。
 console.log('\n---- 9b. 有倒數才畫 ----');
 {
   for (const snap of rounds) {
@@ -271,7 +271,7 @@ console.log('\n---- 9b. 有倒數才畫 ----');
     const co = crowdOf(off.vehicles), cn = crowdOf(on.vehicles);
     check(cn.worst <= co.worst, `${t} 同段疊車未惡化`, `舊 ${co.worst} 台 → 新 ${cn.worst} 台`);
   }
-  // (d) 整條線沉默時仍然 hold——這是 08-14 裁示的底線,不得被本開關推翻
+  // (d) 整條線沉默時仍然 hold——這是底線,不得被本開關推翻
   const snap = rounds[0];
   const { rows, nowEpoch } = pipeline.rowsOf(snap.board);
   const prior = priorOf(snap.boardPos);

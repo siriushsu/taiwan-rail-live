@@ -82,7 +82,7 @@ const CONFIGS = {
       {id: 'underground-opens', t: 86400 + 21600, text: '地下化通車', kind: 'official'},
     ],
     // 觀測類時間軸：時刻由 build 從重建結果取（train 在 station 的 field），text 的 {wait} 由 build 找出那段時間在同站交會的對向車。
-    // follow: 'other'＝點這一列跟的是 other 那班，時刻仍取 train 那班在該站的紀錄。
+    // follow: 'other'＝這一列的車次欄（train）記 other 那班，時刻仍取 train 那班在該站的紀錄。
     observedEvents: [
       {id: 'south-waits-yongkang', train: '145', serviceDate: '2026-10-16', station: '永康', field: 'arrSec', text: '{train} 到永康，等 {wait}', wait: {direction: '北上', at: '永康'}},
       {id: 'south-at-tainan', train: '145', serviceDate: '2026-10-16', station: '臺南', field: 'arrSec', text: '{train} 到臺南'},
@@ -101,6 +101,9 @@ const CONFIGS = {
       // 主站 index.html 的入口（id="…"、data-cl="…"），在 9/12 那列（#tainanMemoryLink）的下一列，另取 id 以免重複。
       // 設計第 9 節：入口等使用者看過頁面才加；還沒加時這裡設 null，完整模式會印一行略過入口檢查。
       entry: {id: 'tainanMemory1016Link', cl: 'tainanmemory1016'},
+      // 時間軸每一列的說明與報導連結，放在封存目錄的這個檔（以事件 id 對應），不寫進 snapshot：說明是事後補的文字，
+      // 不是重建結果，改說明不必重建快照。驗收要求每一列都有說明、連結欄位齊全。
+      eventNotes: 'event-notes.json',
     },
     note: '依 TDX 即時動態的逐站紀錄推算 2026-10-16 的到離站時刻（到站誤差約半分鐘；大橋、仁德站不回報，時間為內插），不是 GPS 軌跡；股道位置與單線雙向的進路是推演。編組依車種推估。道路與輪廓為封存時 OSM 資料，背景高度簡化；範圍為大橋至保安周邊，非工程計畫邊界。',
   },

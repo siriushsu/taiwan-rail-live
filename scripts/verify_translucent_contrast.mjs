@@ -293,7 +293,7 @@ async function boot(browser, { theme, width, height, touch, sheetSize, tag }) {
       localStorage.setItem('trainmap-howto-seen', '1');
       localStorage.setItem('trainmap-appearance', t);
       localStorage.setItem('trainmap-panel-translucent', '1');
-      // 手機 sheet 段高:08-26 裁示起亮色預設「小」(CSS 收掉內文,只剩車號列 ⇒ 列車 sheet 只量得到 4 個節點、
+      // 手機 sheet 段高:亮色預設「小」(CSS 收掉內文,只剩車號列 ⇒ 列車 sheet 只量得到 4 個節點、
       // 速度曲線整條藏起來),暗色 v0907c 起另存一份、預設「中」。兩份都釘,兩個主題量的才是同一個狀態。
       if (ss) { localStorage.setItem('trainmap-sheet-size', ss); localStorage.setItem('trainmap-night-sheet-size', ss); }
     } catch (e) {}
@@ -375,8 +375,8 @@ const BASELINE = {
   light: { name: '實色', minAlpha: 0.9, backdrop: 'none', onAlpha: 0.55 },
   dark: { name: '暗色玻璃底', minAlpha: 0.8, backdrop: 'any', onAlpha: 0.45 },
 };
-// 開著半透明時面板本體要真的是使用者核定的那格(亮 .55 / 暗 .45,09-19 裁示)＋凍結的 blur(3px)。
-// 2026-09-19 裁示 A 之前,暗色 2.0 的 ID 特異度把開關整個蓋掉(開著仍是 .80),G2 只比「開 vs 關」量不出來。
+// 開著半透明時面板本體要真的是目前採用的那格(亮 .55 / 暗 .45)＋凍結的 blur(3px)。
+// 改版前,暗色 2.0 的 ID 特異度把開關整個蓋掉(開著仍是 .80),G2 只比「開 vs 關」量不出來。
 const PANEL_SEL = '.board,.traincard,#nearCard,#xingCard,#xingHelp,.follow-panel,.freq-card';
 const alphaOf = bg => { const c = (String(bg).match(/rgba?\(([^)]+)\)/) || [])[1]; return c ? (c.split(/[\s,/]+/).filter(Boolean).map(Number)[3] ?? 1) : 0; };
 const sdSeen = [];

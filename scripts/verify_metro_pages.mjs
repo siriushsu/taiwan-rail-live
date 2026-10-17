@@ -119,7 +119,7 @@ const RUNS_ON_TIMETABLE = { zh: /依時刻表在地圖上跑/, en: /run(?:ning)?
 const TRTC_LIVE = { zh: /官方逐班即時資料/, en: /official train-by-train live data/, ja: /公式の列車ごとのリアルタイムデータ/ };
 const RED_WORDS = /票價|運賃|料金|\bfares?\b|通行證|付費|訂閱|收費|錄影|録画|\brecord(?:ing)?\b/i;
 const RED_PRODUCT_WORDS = /\bPlus\b|\bPass\b|Islander/;
-// 09-29 使用者：「文湖線那句照你說的改成資料來源沒有」——頁面只寫「軌島的資料來源沒有……」，不斷言官方有沒有公開
+// 頁面只寫「軌島的資料來源沒有……」，不斷言官方有沒有公開
 const NO_PUBLISH_CLAIM = {
   zh: /(?:沒有|未|不|無)(?:對外|向外)?(?:公開|公布|公佈)|尚未(?:對外)?(?:公開|公布)/,
   en: /\b(?:no|not|never)\s+(?:yet\s+)?(?:been\s+)?(?:made\s+)?(?:publicly\s+|openly\s+)?(?:publish(?:ed)?|public|available|released|disclosed)\b|\b(?:isn't|aren't|wasn't|hasn't|haven't|doesn't|don't|didn't)\s+(?:been\s+)?(?:made\s+)?(?:publicly\s+)?(?:publish(?:ed)?|public|available|released)\b|\b(?:does|do|did)\s+not\s+publish\b|\bunpublished\b/i,
@@ -334,7 +334,7 @@ for (const lang of Object.keys(ROOTS)) {
   ok(idxLinks.length === 2, '首頁 .ms-aeo-links／頁尾兩處都有「捷運路線圖」入口', `${idxLinks.length} 處`);
   ok(/APP_REPLACE_START aeo-links-foot[\s\S]*?href="metro\/"[\s\S]*?APP_REPLACE_END aeo-links-foot/.test(idx) && /APP_REPLACE_START aeo-links-ms[\s\S]*?href="metro\/"[\s\S]*?APP_REPLACE_END aeo-links-ms/.test(idx), '入口放在 APP_REPLACE 區間內（App build 才會換成絕對網址）');
   ok(idx.includes('台北捷運九線的列車位置與車站倒數都是官方逐班即時'), 'index.html 捷運頁導言仍寫台北捷運九線位置來自官方逐班即時（路線圖頁的「地圖上怎麼跑」照它寫；導言改了這裡就紅）');
-  // 高雄的路線圖頁寫「依時刻表在地圖上跑，並依官方到站看板校正」，照的是這段高捷導言。09-29 使用者裁示高捷紅橘線要改成跟台北一樣
+  // 高雄的路線圖頁寫「依時刻表在地圖上跑，並依官方到站看板校正」，照的是這段高捷導言。高捷紅橘線要改成跟台北一樣
   // 用到站倒數當名冊；那一版上線、導言跟著改時這裡就紅——同一輪要改 scripts/build_metro_pages.mjs 的 runNote／overviewRunNote／
   // systemRunHtml（高雄不再是「依時刻表跑」）與上面 isTaipei 那組分類，再更新這裡的期望值。
   ok(idx.includes("lead: '紅橘兩線與環狀輕軌依當日實際時刻表在港都穿梭，營運時段依官方到站看板即時校正 — 拖曳、縮放看看。'"), 'index.html 高捷導言仍寫「依當日實際時刻表…到站看板即時校正」（改了就要同步改路線圖頁高雄的「地圖上怎麼跑」）');

@@ -14,7 +14,7 @@
 // 成就頁的收集章走的是 dexCandidates()——它直接讀 state.special 再對 state.trains 比車次,
 // 完全沒經過 specialOf。「台」分頁把台鐵與林鐵載進同一個 state.trains,環島之星的 trainNos
 // ['1','2'] 於是撈到林鐵的 1/2 次;而環島之星並非天天開,今日名冊沒有台鐵 1/2 時,林鐵那兩班
-// 就是僅有的候選 ⇒ 點下去 100% 跑成阿里山林鐵。使用者 2026-09-08 回報。
+// 就是僅有的候選 ⇒ 點下去 100% 跑成阿里山林鐵。
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
@@ -294,7 +294,7 @@ if (f.setup) {
 }
 
 console.log('\n═══ G. 今天沒有這一類的車時：說明卡＋下次開行日（2026-09-08 使用者要求）═══');
-// 使用者：「點下去應該要資訊/故事卡出現,然後提示今天沒有這班車,請再有的時刻來搭乘。」
+// 點了要開出資訊／故事卡，並說明今天沒有開這班車。
 // 期望值一律由磁碟的 dates 索引自己算(與 index.html 的實作不同源);_schedStale 與窗尾兩個
 // 邊界另外用注入的方式逼出來——真實資料今天不會走到那兩條路,不逼就是零資訊。
 const DAY_KEYS = Object.keys(dense.dates).sort();

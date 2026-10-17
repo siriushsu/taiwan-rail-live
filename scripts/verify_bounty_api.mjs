@@ -318,8 +318,8 @@ INSERT INTO bounty_claims (id,actor,seg_key,train_kind,dir,kind,slot,points_lock
       hits.length === 0, JSON.stringify(hits));
   }
 
-  // C10 座標對塞在陣列裡、藏在一個不像座標的根層欄位名（extra）底下（規格 §11 原話
-  // 「塞在陣列裡就漏了」）：hasGeoKeys 對陣列只遞迴陣列「元素」，元素若本身就是原始數字
+  // C10 座標對塞在陣列裡、藏在一個不像座標的根層欄位名（extra）底下（規格 §11 點名的漏洞形態）：
+  // hasGeoKeys 對陣列只遞迴陣列「元素」，元素若本身就是原始數字
   // （不是物件），迴圈一進去就因 typeof !== 'object' 直接返回 false，等於沒掃到。
   {
     const c10Body = { ...OKBODY, batch: 11, extra: [24.1, 121.5] };

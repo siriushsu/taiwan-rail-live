@@ -125,7 +125,7 @@ notes.洞口銜接 = checked;notes.洞口普查 = {洞口端點:portalEnds,相�
 
 // ── G4 隧道分類的分母 ──────────────────────────────────────────────
 const bores={};for(const e of Object.values(E))if(e.boreKind)bores[e.boreKind]=(bores[e.boreKind]||0)+1;
-// 2026-09-25 裁示 A4 之後山岳隧道由 302 條降為 230 條（高捷紅線 5 條、臺北臺鐵地下化 67 條改回都市地下）。
+// 改用 MOUNTAIN_SHARE 門檻（build_rail_levels.mjs）之後山岳隧道由 302 條降為 230 條（高捷紅線 5 條、臺北臺鐵地下化 67 條改回都市地下）。
 if(!(bores.mountain>=220))failures.push(`G4 山岳隧道只有 ${bores.mountain||0} 條 way，地形分類可能整批失效`);
 if(!(bores.subsurface>=350))failures.push(`G4 都市地下段只有 ${bores.subsurface||0} 條 way`);
 notes.隧道分類 = bores;
@@ -266,7 +266,7 @@ if(buriedKm>.1)failures.push(`G6 平面段有 ${buriedKm.toFixed(2)} 公里埋�
 // 2026-09-12 量到台鐵現行出貨就有 6.49 公里浮空 >10m(最高 29.9m)——最糟六條全是
 // 「很短、兩端接橋或隧道、身上沒有 bridge 標籤」的形狀,被 G6 接縫規則正確地拉到橋面高度,
 // 跨谷時就用道碴從軌面拉到地面畫成實心擋牆。全網這個形狀有 268 條/41.29 km。
-// 🔴 2026-09-12 裁示改寫了這條的定位:「真的是高的軌道,確認過就讓他變高,不要變成像是一道牆。」
+// 🔴 這條的定位改寫過:確認為真的高軌道就保留高度,畫法上不能變成一道牆。
 // 也就是**高度是對的,錯的是畫法**——求解器不必把軌面壓下來(壓下來的代價已經量過:侵蝕實驗浮空 −9%、
 // 埋沒 ×50),算繪端改成離地超過 VIADUCT_LIFT_M 就畫高架橋(rail-structures.js)。
 // 所以這組數字**不會**、也不該收到 0;它現在的作用只有兩個:(a) 擋住惡化 (b) 讓「不在名單裡的

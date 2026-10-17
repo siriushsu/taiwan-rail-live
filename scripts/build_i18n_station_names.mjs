@@ -68,7 +68,7 @@ for (const [sys, rawOps] of Object.entries(sources)) {
   }
 }
 
-// 台鐵官方官網補 TDX 沒有的日文；高捷、林鐵、三鶯補官方／已裁示的 fallback。
+// 台鐵官方官網補 TDX 沒有的日文；高捷、林鐵、三鶯補官方／已決定的 fallback。
 const tra = read('docs/i18n/tra_station_names.json').stations;
 for (const n of Object.values(tra)) addStation('tra_sched', n.zh, n.en, n.ja);
 const supplements = read('docs/i18n/ja_station_names.json').operators;
@@ -77,7 +77,7 @@ for (const [op, sys] of Object.entries(supplementalSystems)) {
   for (const n of Object.values(supplements[op].stations)) addStation(sys, n.zh, n.en, n.ja);
 }
 // 1001「臺北-環島」的官方日文「台北サラウンドアイランド」是機翻（tra_station_names.json _caveats），
-// 使用者 2026-09-30 裁示「日文這樣寫太長了，請用好懂簡短的寫法」→ 日文改「台北（台湾一周）」；英文照官方。
+// 字數偏長 → 日文改為簡短好懂的「台北（台湾一周）」；英文照官方。
 const traLoopTerminus = out.systems.tra_sched?.['臺北-環島'];
 if (!traLoopTerminus) throw new Error('台鐵站名表找不到「臺北-環島」，日文覆寫沒有套上');
 traLoopTerminus.ja = '台北（台湾一周）';

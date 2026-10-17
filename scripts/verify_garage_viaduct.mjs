@@ -122,7 +122,7 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   check(engine+' 參數化：scene.params 反映傳入值',pShort.paramsEcho.platformLength===9&&pFields.paramsEcho.backdrop==='fields'&&pFields.paramsEcho.canopy==='simple'&&pDefault.paramsEcho.platformLength===19&&pDefault.paramsEcho.backdrop==='coast'&&pDefault.paramsEcho.canopy==='modern',paramProof.map(x=>x.paramsEcho));
   check(engine+' 參數化：四組都能 dispose 且不留下幾何',paramProof.every(x=>x.childCountBefore>0&&x.childCountAfter===0),paramProof.map(x=>({before:x.childCountBefore,after:x.childCountAfter})));
 
-  // 夜燈與月台底下（09-12 使用者：「晚上路燈跟車站也都要有光」「高架車站下面看起來太空」）。在全景頁量真實像素；車先開到後直線，站區不被車擋。
+  // 夜燈與月台底下：夜裡路燈與車站都要亮，高架月台下方要有站體。在全景頁量真實像素；車先開到後直線，站區不被車擋。
   {
    const sample=pts=>p.evaluate(async pts=>{const c=document.querySelector('#scene'),out=document.createElement('canvas');out.width=c.width;out.height=c.height;const ctx=out.getContext('2d'),im=new Image();im.src=c.toDataURL();await im.decode();ctx.drawImage(im,0,0);const d=ctx.getImageData(0,0,c.width,c.height).data;return pts.map(pt=>{const q=viaductPreview.project(pt),i=(Math.round(q.y)*c.width+Math.round(q.x))*4;return{x:+q.x.toFixed(1),y:+q.y.toFixed(1),r:d[i],g:d[i+1],b:d[i+2],l:+(.2126*d[i]+.7152*d[i+1]+.0722*d[i+2]).toFixed(1)};});},pts);
    const facts=await p.evaluate(async()=>{const S=await import('../../rail-3d/garage-scenes/viaduct.js'),T=await import('../../rail-3d/vendor/three.module.js'),s=S.createScene(),g=s.group,M=new T.Matrix4(),pos=new T.Vector3(),rot=new T.Quaternion(),scl=new T.Vector3();

@@ -11,7 +11,7 @@
 //      手機上再驗它溢出與否,而是先驗它到底出不出現在使用者真正看得到的地方
 //      (見下方「重大發現」)。
 //
-// ── 第二輪(裁示後修復)──renderRidePanel()/#ridePanel 已接上 buildFoundingSeal(),
+// ── 第二輪(修復)──renderRidePanel()/#ridePanel 已接上 buildFoundingSeal(),
 // Group 2 改為真路徑驗證:真的點 #rideBtn 開面板(不是呼叫 renderRidePanel() 繞過
 // `if (el.hidden) return;` 早退),斷言 .ph-founding 存在 + 命中測試 + 像素非底色
 // (elementHandle.screenshot() 解碼,免原生 PNG 依賴,技法照抄
@@ -624,7 +624,7 @@ const results_dir = path.join(ROOT, 'scratchpad'); // repo 的 scratchpad/ 已�
   ok('G4.1 /api/plus-status 分支(無 info 那條)沒有被加上 foundingFrom(brief 明確禁止,那裡沒 info 可傳)',
     refreshSliceSane && !/foundingFrom/.test(apiStatusBranch),
     !refreshSliceSane ? '切片無效(見 G4.0),這條不算通過——不是「乾淨」' : apiStatusBranch.includes('foundingFrom') ? '出現在不該出現的地方' : `乾淨(切片 ${apiStatusBranch.length} 字元)`);
-  // 裁示二:plusRestore() 補齊第 3 個同形寫入點。用較嚴格的 regex(要求形狀與另兩處一致,
+  // plusRestore() 補齊第 3 個同形寫入點。用較嚴格的 regex(要求形狀與另兩處一致,
   // 不是隨便找到一個 `p.founding =` 就算數)——tighten 到「= p.active && foundingFrom(info)」。
   const restoreHasFounding = restoreSliceSane && /p\.founding\s*=\s*p\.active\s*&&\s*foundingFrom\(info\)/.test(restoreBody);
   ok('G4.2 plusRestore() 現在也寫入 p.founding(裁示二補齊的第 3 個同形寫入點,形狀與 plusRefresh/plusPurchase 一致)',
@@ -971,7 +971,7 @@ try {
 }
 
 // ═══════════════ Group 7:foundingLaunchAt 未設定(revenuecat-config.js 現況)→ 安全預設,
-// 不得誤判成「沒設定＝人人都是創始會員」(B-4,2026-08-03 裁示第 4 條)═══════════════
+// 不得誤判成「沒設定＝人人都是創始會員」(B-4)═══════════════
 // 用 boot() 的 foundingLaunchAt:null 明確模擬「這個欄位是 null」,不依賴/不斷言正式站
 // revenuecat-config.js 現在真的長怎樣——那件事本身會隨發版流程改變,不該是這組測試通不通過
 // 的前提(該檔現在確實是 null,見其註解,但這裡故意不用「讀真實檔案」的方式驗證這件事,

@@ -1305,7 +1305,7 @@ const cr = await chromium.launch({ channel: 'chrome', headless: true });
   await ctx.close();
 }
 
-// ══════════ T29：從車站看板追一班還沒發車的車(09-29 使用者裁示 A) ══════════
+// ══════════ T29：從車站看板追一班還沒發車的車 ══════════
 // 有跟車卡(Plus＋原生)⇒ 時鐘留在現在、立刻開卡;未訂閱 ⇒ 照舊撥到發車前(時光機),當正向對照。
 for (const plus of [true, false]) {
   const { ctx, page, errors } = await boot(cr, { plus });

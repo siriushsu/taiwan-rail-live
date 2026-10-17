@@ -16,12 +16,12 @@ export const OFFICIAL_COAST_DWELL_DEFAULT_SEC = 25;
 // 用週期倍數而不是固定秒數：各線站距不同（BR 約 104 秒／站、BL 更長），寫死秒數就是
 // 下次改點會被推翻的魔術數字（心得 35）。
 export const OFFICIAL_STALL_RETIRE_CYCLES = 3;
-// 「兩站之間有兩台車就已經要懷疑了，我們一堆三台連在一起的」——使用者 2026-08-17 給的判準。
+// 判準：同一區間裡出現兩台車已屬可疑，三台就不合理。
 // 一個行進中的區間（from!=to）同時容納幾台車是**物理事實**：號誌閉塞讓兩台車不可能貼在
 // 同一段軌道上，三台更不可能。端點（from==to，車停在起訖站等發車）本來就會排隊，不算。
 //
 // 這個數字量的是**我們畫出來的結果荒不荒謬**，不是任何一台車的資料多舊——所以它不是
-// 廢棄的資料齡規則，而是「拿官方現在說的重排一次」的觸發條件（使用者 08-17 明示要的重置）。
+// 廢棄的資料齡規則，而是依官方現況重排一次（重置）的觸發條件。
 export const OFFICIAL_CROWD_SEGMENT_LIMIT = 3;
 
 function finite(value, label) {
@@ -425,7 +425,7 @@ function officialVehicle(model, row, vehicleId, base, sourceRevision, nowEpoch) 
   };
 }
 
-// 🔴 2026-08-17 使用者：「我們都有給編號 就知道那台車子是在的 為什麼又要變成不見」
+// 🔴 已經編號的車一律當作還在線上。
 // 一台車沒有出現在這一輪的倒數裡，不代表它停下來了——它只是暫時不是任何一站的「下一班」。
 // 它要**繼續往前跑**：到站時刻過了就過站，用這條線該段的實際行車秒推到現在的位置，
 // 到終點就收車。凍在原地才是錯的——後面每 90 秒一班真車就會疊在那個殘影上，
@@ -530,7 +530,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   if (!normalizedDay) throw new TypeError('official roster day 不可為空');
   const { rows: current, duplicateRowsObserved } = canonicalRows(model, rows);
   const priorVehicles = previousVehicles(prior, normalizedDay);
-  // 🔴 2026-08-17 使用者：「為什麼會有那種停在站上就要重新換身份的事情？」
+  // 🔴 車停在站上，不該因此重新換身分。
   // 畫不畫由官方倒數決定,身分不由它決定。一台車暫時從所有站的倒數裡消失（過了站、
   // 又還不是下一站的「下一班」）只是不畫,身分要留著,再出現時用回同一個 vehicleId——
   // 否則跟車會被中斷,也牴觸 08-14「從他早上一發車就認得他」。
@@ -549,7 +549,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   const priorSeen = prior && prior.feedSeen && typeof prior.feedSeen === 'object' ? prior.feedSeen : {};
   const feedSeen = { ...priorSeen };
   const linesWithRows = new Set(current.map(row => row.line));
-  // 訊號回來就以訊號為準（使用者裁示）：這條線消失夠久又回來了，它斷訊期間續推的位置是虛構的。
+  // 訊號回來就以訊號為準：這條線消失夠久又回來了，它斷訊期間續推的位置是虛構的。
   // 冷啟動沒有 prior 可比，從沒見過的線也不算「回來」。
   const realignLines = new Set();
   if (realignSec > 0 && !coldStart) {
@@ -568,10 +568,10 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   const forced = forceRealignLines instanceof Set ? forceRealignLines
     : Array.isArray(forceRealignLines) ? new Set(forceRealignLines.map(String)) : null;
   if (forced && !coldStart) for (const line of linesWithRows) if (forced.has(line)) realignLines.add(line);
-  // 🔴 2026-08-17 使用者重新釐清的模型（同一天講了三次,這是裁示不是假設）：
-  //   「我們有每一站的倒數,有車子到站的時間,有出現倒數的車子,我們才畫在那一段軌道上,
-  //     然後每十五秒會看一次他現在倒數的狀態。」
-  //   「有倒數資料才有車 同一列車出現在多站倒數不要重複出現」
+  // 🔴 畫車的模型（這是規則,不是假設）：
+  //   車只來自官方各站倒數：沒有倒數就不畫；有的話依到站時刻畫在對應的區間上，
+  //     每 15 秒依最新倒數重算一次；
+  //   同一列車若同時列在好幾站的倒數裡，合併成一台。
   // 亦即:這一輪的倒數沒報到的車就不畫。這條取代 08-14「缺訊只 hold」的沿用規則——
   // 那條當時是為了防止車子憑空消失,代價卻是半路失去倒數的車永遠留在原地當殘影
   // (實測正式站 180 台裡 27 台是殘影,其中 24 台的到站時刻早就過了,中位 136 秒),
@@ -751,7 +751,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
   const dormant = [];
   for (const old of matchPool.slice().sort(compareVehicles)) {
     if (!old.vehicleId || usedIds.has(String(old.vehicleId))) continue;
-    // 🔴 訊號回來就以訊號為準（2026-08-15 使用者裁示）：這條線斷訊期間續推出來的位置是虛構的，
+    // 🔴 訊號回來就以訊號為準：這條線斷訊期間續推出來的位置是虛構的，
     // 官方名單沒有的車一律不留，畫面上不能有多的。判準是「這條線剛從長時間消失中回來」，
     // 不是資料齡——那條規則仍然永久廢棄。只清剛回來的那幾條線：正常輪每輪都有十幾台真車
     // 合法地暫時離板（實測 carried 10–17／121），誤殺它們才是災難。
@@ -830,7 +830,7 @@ export function reduceOfficialRoster({ model, rows, prior = null, day, nowEpoch,
 }
 
 /**
- * 一段行進中的軌道上塞了幾台車——使用者 2026-08-17 的判準。
+ * 一段行進中的軌道上塞了幾台車（擁擠判準）。
  * 回傳 { lines:Set<線代碼>, worst:最擠的那一段有幾台, over:超標的區間清單 }。
  * 端點（from==to）排隊合法，不計入。
  */
@@ -854,8 +854,8 @@ export function segmentCrowding(vehicles, limit = OFFICIAL_CROWD_SEGMENT_LIMIT) 
 }
 
 /**
- * reduceOfficialRoster ＋ 自我察覺重置（使用者 2026-08-17：「我們需要一個迅速重置的方式，
- * 就像我昨天要求的斷訊後回歸，依照現在當下的北捷資訊來判斷現在路線上有哪些車」）。
+ * reduceOfficialRoster ＋ 自我察覺重置：畫面出現不合理的結果時，不必等到上游斷訊，
+ * 就用當下這一輪的北捷資料重新認定線上有哪些車（做法比照斷訊後恢復）。
  *
  * 先照常推進一輪；若結果出現「同一行進中區間 >= crowdLimit 台車」這種物理上不可能的畫面，
  * 就對**那幾條線**用同一輪的資料重跑一次、強制走斷訊恢復那條路徑。因為是拿同一份 prior

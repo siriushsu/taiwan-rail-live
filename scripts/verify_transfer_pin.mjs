@@ -156,7 +156,7 @@ const pin1 = await page.evaluate(() => ({ ...window.__state.xferPin }));
 ok('G1 點了真的釘住(state.xferPin.n 對得上點的那列)', pin1.n === no1, `點的=${no1} 釘的=${pin1.n}`);
 ok('G1b 釘住的 sys 也對得上', pin1.sys === sys1, `點的=${sys1} 釘的=${pin1.sys}`);
 
-// ── G2 —— 釘選後 #fpConn 只剩那一班(2026-09-01 裁示) ─────────────────────────
+// ── G2 —— 釘選後 #fpConn 只列出被釘選的那一班 ─────────────────────────
 const after1 = await page.evaluate(() => [...document.querySelectorAll('#fpConn .xfc-row')].map(e => e.dataset.xn));
 ok('G2 只剩一列', after1.length === 1, `${after1.length} 列`);
 ok('G2b 剩的是點的那一班', after1[0] === no1, `${after1[0]} vs ${no1}`);

@@ -1,9 +1,9 @@
-// 驗收：小工具「再下一班」推導 deriveSecondArrivals＋裝飾 applyNext2ToBoard（2026-08-22 裁示）。
+// 驗收：小工具「再下一班」推導 deriveSecondArrivals＋裝飾 applyNext2ToBoard。
 // 用真 model（data/trtc*.json）＋手工名冊固定樣本，逐條具名斷言；任一 FAIL exit 1。
 // 斷言原則（judgment 心得 35/37）：判「誰被選上/誰被排除」這種結構性行為，
 // 不判「秒數加總對不對」（那與實作同源，只做上下界 sanity）。
 // 獨立驗收（2026-08-22 NO-GO 輪）補的判準缺口在此版全數補上：
-//   裁示4 欄位逐欄不變（T16，殺 M6/M7 突變）、同鍵單邊產出／不可分辨情境（T12 族）、
+//   欄位逐欄不變（T16，殺 M6/M7 突變）、同鍵單邊產出／不可分辨情境（T12 族）、
 //   T7 恆綠空斷言移除（改 Y 正向產出）、terminal:1 型別漂移（T17）。
 import fs from 'node:fs';
 import path from 'node:path';
@@ -58,7 +58,7 @@ const hit = (out, r) => out.find(x => `${x.s}|${x.d}` === keyOf(r));
   const out = deriveSecondArrivals(model, [r], [veh('BR', 1, S + 1, S, DEST, 60)]);
   check('T2 僅自班 ⇒ 留白', !hit(out, r), JSON.stringify(out));
 }
-// T3 未發車起點列不算車（08-18 裁示）：from===to && terminal && run===0 排除
+// T3 未發車起點列不算車：from===to && terminal && run===0 排除
 {
   const r = rowAt('BR', S, DEST, 60);
   const origin = { ...veh('BR', 1, br.stations.length - 1, br.stations.length - 1, DEST, 300),
@@ -231,7 +231,7 @@ const hit = (out, r) => out.find(x => `${x.s}|${x.d}` === keyOf(r));
   const out3 = deriveSecondArrivals(model, [r3], [veh('G', 1, qz + 1, qz, 0, 60), xbtCar]);
   check('T15c G 主線列不吃 XBT 接駁車', !hit(out3, r3), JSON.stringify(out3));
 }
-// T16 裁示4：applyNext2ToBoard 之後,board 列的既有欄位一個位元組都不能變、列數順序不變
+// T16 欄位不變：applyNext2ToBoard 之後,board 列的既有欄位一個位元組都不能變、列數順序不變
 //（獨立驗收 M6/M7 突變證明舊版無此斷言 ⇒ 裝飾層順手改欄位不會被抓到）
 {
   const r = rowAt('BR', S, DEST, 60);

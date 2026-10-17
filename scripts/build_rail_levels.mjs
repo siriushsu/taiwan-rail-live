@@ -41,7 +41,7 @@ const MOUNTAIN_RELIEF_M=20;
 // 只看最高點，一小段靠山就會把整段拖成山岳隧道：高捷紅線 35.6 公里裡只有半屏山那 0.64 公里
 // （取樣 1.8%）高出洞口 20 公尺，臺北臺鐵地下化 55 公里裡只有南港那 1.99 公里（3.6%）。兩段都沿用
 // 洞口外高架的 +8 公尺，平面地圖整段浮在地面上，交會淨距再把新左營臺鐵、美麗島、高雄車站地下段頂高。
-// 2026-09-25 裁示 A4：高出洞口 20 公尺的取樣要占整段 5% 以上才算山岳隧道。全國低於 5% 的只有這兩段，
+// 高出洞口 20 公尺的取樣要占整段 5% 以上才算山岳隧道。全國低於 5% 的只有這兩段，
 // 下一段是 10%（高鐵 0.16 公里、10 個取樣），門檻落在兩群之間的空白。
 const MOUNTAIN_SHARE=.05;
 const dem=openRailDem(new URL('../',import.meta.url));
@@ -110,7 +110,7 @@ for(const r of records){const {w,path,e,c}=r;const snap=s=>{let lo=0,hi=path.d.l
 for(const n of nodes)n.z/=n.count;
 // 交叉淨距與沿軌連續坡道同時求解，避免在來源短 way 或交叉點產生垂直折角。
 // 8% 是顯示過渡的斜率上限，不是宣稱鐵路實際坡度。
-// 上方是裁示為平面的具名路段（lib/rail_official_ignore.mjs）時，淨距全由下方讓出，上方不被頂高。
+// 上方是列為平面的具名路段（lib/rail_official_ignore.mjs）時，淨距全由下方讓出，上方不被頂高。
 let violation=Infinity,iterations=0;
 for(;iterations<3000;iterations++){
  for(const [a,b,max]of edges){const x=nodes[a],y=nodes[b],d=y.z-x.z;if(Math.abs(d)>max){const shift=(Math.abs(d)-max)*Math.sign(d)/2;x.z+=shift;y.z-=shift;}}

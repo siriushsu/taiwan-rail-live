@@ -30,7 +30,7 @@ export function applyFlatRailGrade(records,entries,crossings){
  // 地下疊層保留原本的 8% 約束：既有來源接頭在極短距離內換層，硬套露天坡度會與
  // 7m 淨距互相矛盾（台北地下交叉會無解）。露天橋梁與引道則一律採較緩的系統上限。
 // 露天取樣原本在地面以上時下限為 0；原有地下引道可保留負值，但不能比舊剖面更低。
- // 上方是裁示為平面的具名路段（lib/rail_official_ignore.mjs）時，淨距全由下方讓出，上方不被頂高。
+ // 上方是平面的具名路段（lib/rail_official_ignore.mjs）時，淨距全由下方讓出，上方不被頂高。
  const gaps=crossings.map(([u,l])=>[atPin(u),atPin(l),7,OFFICIAL_IGNORE.has(String(u.r.w.id))]);
  let passes=0,error=Infinity;
  for(;passes<3000;passes++){

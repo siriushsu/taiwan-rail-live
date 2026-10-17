@@ -12,7 +12,7 @@ const base=process.env.VURL||'http://127.0.0.1:5244',rows=[];
 fs.mkdirSync(OUTDIR,{recursive:true});
 for(const [engine,type] of Object.entries({chromium,webkit})){
  console.log('開始',engine);
- // 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走)。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
+ // 瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走)。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
  const browser=await type.launch(engine==='chromium'?{channel:process.env.CHROMIUM_CHANNEL||'chromium',headless:true}:{headless:true});
  // 每個寬度開一個新的手機分頁，不在同一分頁上改尺寸：Playwright 在 isMobile 分頁 setViewportSize 之後，
  // (any-pointer: coarse) 有時會變成不成立且不恢復，頁面就把 mobile-shell 拿掉、1280 寬的列高變成桌面的 40 px

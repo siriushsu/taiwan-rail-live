@@ -1,6 +1,6 @@
 // 診斷欄兩行化的手機幾何檢查：360/375/414/768 ＋ WebKit。
 // 問三件事：(1) 有沒有把頁面撐出橫向捲動 (2) tab bar 的鈕還點不點得到（pointer-events:none 要真的成立）
-// (3) 蓋掉 tab bar 多少高度（給人裁示用的事實，不是判準）
+// (3) 蓋掉 tab bar 多少高度（給人判斷用的事實，不是判準）
 import { chromium, webkit } from 'playwright';
 const URL = process.env.VURL;
 const WIDTHS = [360, 375, 414, 768];

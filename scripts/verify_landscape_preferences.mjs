@@ -3,7 +3,7 @@ const base=process.env.BASE_URL||'http://127.0.0.1:5228/';
 let failed=0,count=0;
 function check(name,yes){count++;console.log((yes?'PASS ':'FAIL ')+name);if(!yes)failed++;}
 for(const [name,engine]of Object.entries({chromium,webkit})){
- // 使用者 2026-09-23 裁示瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走)。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
+ // 瀏覽器測試一律無視窗(有視窗會搶焦點、把畫面切走)。Chromium 帶 channel:'chromium' 走真 GPU 的無視窗模式;預設 headless shell 是 SwiftShader 軟體算繪。
  const b=await engine.launch(engine===chromium?{channel:'chromium',headless:true}:{headless:true}),p=await b.newPage({viewport:{width:1000,height:800},locale:'zh-TW'});
  await p.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));
  await p.route('**/api/**',r=>r.fulfill({status:503,contentType:'application/json',body:'{}'}));

@@ -66,7 +66,7 @@ for (const [eng, launcher] of [['chromium', chromium], ['webkit', webkit]].filte
       && window.MUSIC_DATA && window.MUSIC_DATA.pools.length === 16, null, { timeout: 30000 });
     await page.evaluate(() => { state.plus = { active: false }; state.music._effKey = ''; window.musicPlOpen(); });
 
-    // ── A. 清單完整:16 個池一個都不能少,未上架的降級但仍看得見(使用者裁示) ──────────
+    // ── A. 清單完整:16 個池一個都不能少,未上架的池照樣列出、只是不能點 ──────────
     const all = await page.evaluate(() => {
       const q = s => [...document.querySelectorAll('#musicPlBody ' + s)];
       // 🔴 每次展開都會重畫清單 ⇒ 先抓一份 NodeList 再逐一點,第二顆之後點的是已經脫離

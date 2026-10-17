@@ -519,7 +519,7 @@ sections.push({ name: 'G8b 公車列', run: async (browser, en) => {
     await busButton.tap(); await page.waitForTimeout(600);
     const o = await page.evaluate(() => ({ boardOpen: !document.getElementById('board').hidden, slot: !!document.querySelector('#board [data-bus-transfer-slot]'), queryClosed: document.getElementById('searchPanel').hidden }));
     ok(`[${en}] G8b 點公車列 ⇒ 看板開、公車槽在、查詢收起`, o.boardOpen && o.slot && o.queryClosed, JSON.stringify(o));
-    // 牙(公車裁示 C 後半句「捲到公車槽」):看板已捲動(捲得動的話)、公車槽整塊在看板可視區內——底不超出看板底、
+    // 牙:看板已捲動(捲得動的話)、公車槽整塊在看板可視區內——底不超出看板底、
     // 且「槽頂露出在黏頂 h3 之下」或「看板已捲到底」二者取一:槽在 DOM 最後一格,槽比「看板高−標題」矮時捲到底也只能貼齊底部,
     // 這時槽頂會藏在 h3 下幾到十幾 px(chromium 量到 9–15px),那是內容高度的物理限制不是沒捲(iOS 17 Pro 模擬器實測 scrollTop 0→284、槽頂在 h3 下 61px)。
     // 拿掉 wrap.onclick 裡那個 rAF scrollIntoView ⇒ scrollTop 留 0、槽在摺線下 ⇒ 紅。
@@ -685,7 +685,7 @@ sections.push({ name: 'G5 自動開', run: async (browser, en) => {
   }
 }});
 
-// G5b 精度閘門下限(09-06 裁示「精度改成大於 0 才開」):Android 精度未知時回 accuracy 0.0,不准當成完美精度。
+// G5b 精度閘門下限(accuracy 為 0 不開):Android 精度未知時回 accuracy 0.0,不准當成完美精度。
 // geomock 橋接把 geoacc 夾成 ≥1(index.html 開機 inline 那段 ?geomock 解析的 Math.max(1, …)),開機路徑餵不進 0 ⇒ 直接餵 queryMaybeAutoOpen;
 // 開機的 geomock 放在 600 m 外(LOCATE_ENABLED 要成立、但開機不會自動開),再把 state.geoLoc 種到站旁。
 // 牙:閘門改回 c.accuracy <= 300 ⇒ G5b-0 紅;G5b-65 是正向對照(證明前面的「不開」不是別的守門在擋)。

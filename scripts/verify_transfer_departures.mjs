@@ -100,7 +100,7 @@ for (const sys of OUT_SYS) {
 for (const sys of ['tymc', 'krtc']) ok(`G6 ${sys} 有班次`, (d[sys] || []).length > 0, `${(d[sys] || []).length} 班`);
 
 // G7 —— 捷運不得出現車次。官方沒有公告車次，硬塞線代號或內部合成編號就是假車次
-// （使用者裁示：沒有就整欄消失）。畫面上的 .xfc-no 是靠 r.n 為空字串才收起來的。
+// （沒有就整欄消失）。畫面上的 .xfc-no 是靠 r.n 為空字串才收起來的。
 for (const sys of ['tymc', 'krtc']) {
   const bad = (d[sys] || []).filter(t => String(t.n || '') !== '');
   ok(`G7 ${sys} 沒有任何車次值（官方沒有就要留空）`, bad.length === 0,

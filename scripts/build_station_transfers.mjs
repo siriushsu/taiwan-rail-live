@@ -49,7 +49,7 @@ export const TRANSFER_NAME_ALIASES = Object.freeze({
 // NTMC:LB —— TDX 2026-09-12 起把三鶯線掛進新北捷運 NTMC 營運商，與 repo 既有的 SANYING
 // 來源是同一條線的兩份紀錄：12 站站碼與站序完全相同、中文站名只差 LB07 的臺／台、
 // 座標差 0.0～215.9m。兩份都收會多出 12 個轉乘群（10 組純自己配自己，另外兩組是把頂埔與
-// 鶯歌的真群塞進一個重複成員）。使用者 2026-09-12 裁示留 SANYING：整個 repo 的對照表都假設
+// 鶯歌的真群塞進一個重複成員）。這裡留 SANYING：整個 repo 的對照表都假設
 // 「一個 TDX 營運商＝一個 app 系統」（index.html 的 TRANSFER_ROUTE_I18N_SYSTEM、
 // build_bus_transfer_index.mjs 的 DEFINITIONS、build_i18n_station_names.mjs），而 NTMC 現在
 // 同時有環狀線與三鶯線，改吃 NTMC 要把那三張表一起改成路線級。兩份對轉乘結果等價：
@@ -280,7 +280,7 @@ export function loadSourceData(root = ROOT, { includeTra = true, excludeDuplicat
   }
 
   // 正向對照：排除表不是「反正沒有所以不用排」。每一條都必須真的在來源裡命中，
-  // 而且留下來的那一份必須真的在產物裡 —— 否則就是上游改了或來源檔不見了，要當場紅掉重新裁示，
+  // 而且留下來的那一份必須真的在產物裡 —— 否則就是上游改了或來源檔不見了，要當場紅掉重新決定，
   // 不能靜靜地少掉一整條線。
   for (const [excluded, spec] of Object.entries(DUPLICATE_ROUTE_SOURCES)) {
     if (!excludeDuplicates) continue;

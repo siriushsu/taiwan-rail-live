@@ -462,7 +462,7 @@ function evaluate(reduce) {
 
   let duplicate;
   try { duplicate = scenarioDuplicateRows(reduce); } catch { duplicate = null; }
-  // 🔴 使用者裁示「車子有官方數據就是在」：官方送出兩筆列就是兩台車，一台都不准少畫。
+  // 🔴 官方送出兩筆列就是兩台車，一台都不准少畫。
   // （2026-08-15 我一度把它們合一當成幽靈車防線，實測那會刪掉無車號路線的真車，已退回。）
   // occurrence 讓兩筆的出生證據不同，重放閘門因此擋不到它們。
   assess('完全相同的官方列＝兩台真車，各自一個身分', () => duplicate && duplicate.vehicles.length === 2 &&

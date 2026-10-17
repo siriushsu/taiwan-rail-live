@@ -1,5 +1,5 @@
 // 台鐵同向待避的「各站各方向可待避股道」表 → data/tra_overtake_tracks.json。
-// 2026-09-29 使用者裁示「改排到有空股的站」：index.html planSameDirectionOvertakes 選待避站時，待避車那個方向要有一股
+// index.html planSameDirectionOvertakes 選待避站時，待避車那個方向要有一股
 // 超越車不走、待避期間也沒有別班佔著；沒有就往回找 25 km 內的前一個候選站，再沒有就不預排。
 // 選站在 2D 就要定案（立體地圖非同步載入，也可能根本沒開），所以把立體地圖換股（rail-3d/physical/overtake-sidings.js）
 // 找得到的股道離線算好，規劃器只查表：

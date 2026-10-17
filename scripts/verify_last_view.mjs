@@ -183,8 +183,8 @@ async function persistRestoreFlow(browser, label, { width = 1280, height = 800, 
   // (index.html:2422「手機 fs 常駐——左=軌島迷你牌,右=全/台/高/捷短標」);#systems 在 fs 下量到 0×0,
   // 對它 tap 只會等到逾時。以 body.fs 分流——那正是產品自己用的那個開關,不另外用寬度猜。
   const fsShell = await page.evaluate(() => document.body.classList.contains('fs'));
-  // 🔴 2026-09-11:手機 fs 那一路的選擇器**已經過期**(判準過期,不是產品回歸)。自 2026-08-27 使用者裁示
-  // 「你把那四顆鈕收成一顆 點擊會打開就好」起,#topTabs 那四顆在 fs 殼一律 display:none,群組改由頂列的
+  // 🔴 2026-09-11:手機 fs 那一路的選擇器**已經過期**(判準過期,不是產品回歸)。自 2026-08-27 起,
+  // #topTabs 那四顆在 fs 殼一律 display:none,群組改由頂列的
   // #gtabOne 開 #gtabPop 選單切換(index.html:4893 的按鈕、31603 的 renderGtabPop)。舊寫法 locator
   // **找得到元素卻永遠 not visible**,I 段自那天起就跑不完,而訊息只說得出「waiting for element to be
   // visible」——看起來跟頁籤被整個拿掉一樣。選單項照 TAB_GROUPS 生成,.gp-nm 放全名、.gp-sh 放短名。

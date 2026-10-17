@@ -11,7 +11,7 @@ const query=new URLSearchParams(location.search),timeQuery=query.get('t');
 const timeGiven=!!timeQuery&&/^\d{1,2}:\d{2}(:\d{2})?$/.test(timeQuery);
 if(timeGiven){const [h,m,s=0]=timeQuery.split(':').map(Number);state.sec=cleanSec(h*3600+m*60+s);}
 // 「最後一夜」面板：寬版與橫向手機（高 520 以下）放在場景右側，直立的窄版接在場景下方。寬 900 以上與寬 700 以上的橫向手機預設展開，其餘預設收合；寬不到 700 的橫向手機收成場景右上角的按鈕（接在場景下方的話，場景底下放不下，面板會壓到重播控制）。使用者按過之後以按的為準，旋轉螢幕或改視窗大小不重設。
-// 窄版點時間軸的列會自動收合面板（goEvent）：這個收合記在 nightAuto，不算使用者的選擇，只在當下的版面有效；版面在側欄／非側欄之間切換時就失效，回到使用者按的或預設。
+// 窄版點時間軸裡臺南站的事件會自動收合面板（goEvent）：這個收合記在 nightAuto，不算使用者的選擇，只在當下的版面有效；版面在側欄／非側欄之間切換時就失效，回到使用者按的或預設。
 // 窄版展開時場景被壓到只剩一條，#scene 加 squeezed：CSS 把單線說明與操作提示先收起來，免得疊在視角按鈕與車次標籤上。
 const sideLayout=matchMedia('(min-width:900px), (max-height:520px)'),openByDefault=matchMedia('(min-width:900px), (min-width:700px) and (max-height:520px)');let nightUser=null,nightAuto=null;
 const nightOpen=()=>nightAuto??nightUser??openByDefault.matches;
@@ -25,7 +25,7 @@ async function bytes(file){let b;const gz=file.endsWith('.bin');for(let attempt=
 const json=async f=>JSON.parse(new TextDecoder().decode(await bytes(f)));
 try{
  integrity=await json('integrity.json');
- const [data,fleet,stationMeta,uncertainty,surroundingsMeta]=await Promise.all([json('snapshot.json'),json('fleet/catalog.json'),json('station/model.json'),json('uncertainty.json'),json('surroundings/model.json')]);
+ const [data,fleet,stationMeta,uncertainty,surroundingsMeta,eventNotes]=await Promise.all([json('snapshot.json'),json('fleet/catalog.json'),json('station/model.json'),json('uncertainty.json'),json('surroundings/model.json'),json('event-notes.json')]);
  if(!timeGiven)state.sec=cleanSec(data.defaultSec??DEFAULT_SEC);
  const host=$('scene'),renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'low-power'});
  renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setClearColor('#e5e7dc');renderer.outputColorSpace=THREE.SRGBColorSpace;host.prepend(renderer.domElement);
@@ -119,21 +119,40 @@ try{
  function sample(tr,sec){const segment=tr.spans.find(s=>sec>=s.start&&sec<=s.start+s.s.length-1);if(!segment)return null;const f=sec-segment.start,i=Math.min(segment.s.length-1,Math.floor(f)),s=segment.s[i]+((segment.s[i+1]??segment.s[i])-segment.s[i])*(f-i),path=paths[segment.route],p=path.at(s);if(!p)return null;return {path,s,coordinate:p.coordinate,route:segment.route};}
  function updateTime(){const s=Math.floor(state.sec);$('clock').textContent=clock(s);$('timeline').value=s;if(document.activeElement!==$('time'))$('time').value=clock(s);refreshNight(s);}
  function jump(sec){state.sec=cleanSec(sec);updateTime();}
- // 開始（或取消）跟車。at＝同時跳到的時刻（時間軸事件用）；沒給的話，這班車此刻不在畫面內就跳到它進入畫面的第一秒。
+ // 開始（或取消）跟車。at＝同時跳到的時刻（驗收腳本用）；沒給的話，這班車此刻不在畫面內就跳到它進入畫面的第一秒。
  function followTrain(id,at){state.follow=id||'';$('train').value=state.follow;if(!state.follow)return;const tr=data.trains.find(t=>t.id===state.follow);if(at!=null)jump(at);else if(!sample(tr,state.sec))jump(tr.spans[0].start);span=330;view();}
  const trainByKey=(key,sec)=>{const exact=data.trains.find(t=>t.id===key);if(exact)return exact;const c=data.trains.filter(t=>t.train===String(key));return c.find(t=>t.stops.length&&sec>=t.stops[0].arrSec-900&&sec<=t.stops[t.stops.length-1].depSec+900)||c[0]||null;};
- // ── 最後一夜時間軸（snapshot.events）：每一列是一顆按鈕，跳到那個時刻；有 train 欄位的同時開始跟車。次日（t≥86400）在重播範圍外，只列文字。──
- const events=(data.events||[]).slice().sort((a,b)=>a.t-b.t),KIND={official:'官方',observed:'實測',inferred:'推定'},nightRows=[];
+ // ── 最後一夜時間軸（snapshot.events）：每一列是一顆按鈕，點了跳到那個時刻、畫面留在臺南站（goEvent）。event-notes.json 有那一列的說明（desc／links，以事件 id 對應）就在按鈕下面接一塊說明與報導連結，點了那一列才展開，一次只展開一列。
+ // 次日（t≥86400）在重播範圍外，只列文字，說明直接列出。──
+ const events=(data.events||[]).slice().sort((a,b)=>a.t-b.t),KIND={official:'官方',observed:'實測',inferred:'推定'},nightRows=[],notes=eventNotes?.notes||{};
  const dayClock=sec=>(sec>=86400?'次日 ':'')+clock(((Math.floor(sec)%86400)+86400)%86400).slice(0,5);
  for(const ev of events){const li=document.createElement('li'),inDay=ev.t<86400,row=document.createElement(inDay?'button':'div'),when=document.createElement('span'),mk=document.createElement('span'),tm=document.createElement('time'),tx=document.createElement('span'),kd=document.createElement('span'),tr=ev.train!=null&&ev.train!==''?trainByKey(ev.train,ev.t):null;
   li.className='ev';li.dataset.kind=ev.kind||'';li.dataset.id=ev.id||'';li.dataset.t=String(ev.t);if(ev.train)li.dataset.train=String(ev.train);if(MARK_LABEL[tr?.mark])li.dataset.mark=tr.mark;
   row.className=inDay?'evb':'evs';if(inDay){row.type='button';row.onclick=()=>goEvent(ev);}
   when.className='when';mk.className='mk';mk.setAttribute('aria-hidden','true');tm.textContent=dayClock(ev.t);tx.className='tx';tx.textContent=ev.text;kd.className='kd';kd.textContent=KIND[ev.kind]||'';
-  when.append(mk,tm);row.append(when,tx,kd);li.append(row);$('events').append(li);nightRows.push(li);}
+  when.append(mk,tm);row.append(when,tx,kd);li.append(row);
+  const note=notes[ev.id]||{},links=(note.links||[]).filter(l=>/^https:\/\//.test(l.url||'')&&l.outlet);
+  if(note.desc||links.length){const d=document.createElement('div');d.className='evd';d.id='evd-'+(ev.id||nightRows.length);
+   if(note.desc){const p=document.createElement('p');p.textContent=note.desc;d.append(p);}
+   if(links.length){const p=document.createElement('p'),k=document.createElement('span');p.className='lk';k.textContent='報導';p.append(k);for(const l of links){const a=document.createElement('a');a.href=l.url;a.target='_blank';a.rel='noopener';a.textContent=l.outlet;if(l.title)a.title=l.title;p.append(a);}d.append(p);}
+   if(inDay){d.hidden=true;row.setAttribute('aria-expanded','false');row.setAttribute('aria-controls',d.id);}li.append(d);}
+  $('events').append(li);nightRows.push(li);}
  $('night').hidden=!events.length;
+ // 面板下緣提示：展開的那一列還有一截在面板下緣以下（說明或報導連結要往下捲）時，#night 加 more，CSS 在底部畫一道淡出（同跟車卡的右緣提示）；
+ // 捲動、面板或列表變大小時重算。面板收合時本體高 0，自然拿掉。
+ const nbMore=document.createElement('span');nbMore.className='nb-more';nbMore.setAttribute('aria-hidden','true');$('night').append(nbMore);
+ const syncNightMore=()=>{const body=$('nightBody'),h=body.clientHeight,li=nightRows.find(x=>x.firstElementChild.getAttribute('aria-expanded')==='true');$('night').classList.toggle('more',!!li&&h>0&&li.getBoundingClientRect().bottom>body.getBoundingClientRect().top+body.clientTop+h+1);};
+ $('nightBody').addEventListener('scroll',syncNightMore,{passive:true});{const ro=new ResizeObserver(syncNightMore);ro.observe($('nightBody'));ro.observe($('events'));}
+ // 展開 id 那一列的說明、收起其他列。面板開著的話，把那一列捲進面板的可見範圍：整列放得下就整列露出；放不下但說明（含報導連結）放得下，就讓說明整段露出、列標題可以捲出上緣（矮螢幕的面板本體只有一百 px 上下，展開的列常比它高）；說明也放不下就對齊列頂，其餘在面板內捲。
+ function openEvent(id){let li=null;for(const x of nightRows){const d=x.querySelector('.evd'),b=x.firstElementChild;if(!d||b.tagName!=='BUTTON')continue;const on=x.dataset.id===id;d.hidden=!on;b.setAttribute('aria-expanded',String(on));if(on)li=x;}
+  const body=$('nightBody');if(!li||!body.clientHeight)return;const r=li.getBoundingClientRect(),n=li.querySelector('.evd').getBoundingClientRect(),h=body.clientHeight,vt=body.getBoundingClientRect().top+body.clientTop,vb=vt+h,top=r.height<=h||r.bottom-n.top>h?r.top:n.top;
+  if(r.bottom>vb)body.scrollTop+=Math.min(r.bottom-vb,top-vt);else if(top<vt)body.scrollTop-=vt-top;syncNightMore();}
  function refreshNight(sec){let cur=-1;events.forEach((ev,i)=>{if(ev.t<=sec)cur=i;});nightRows.forEach((li,i)=>{const st=i<cur?'past':i===cur?'current':'future';if(li.dataset.state===st)return;li.dataset.state=st;const b=li.firstElementChild;if(b.tagName==='BUTTON'){if(st==='current')b.setAttribute('aria-current','true');else b.removeAttribute('aria-current');}li.querySelector('.mk').textContent=st==='past'?'✓':st==='current'?'●':'○';});}
- // 窄版點了事件就收起面板，讓人看到跳過去之後的場景；寬版面板在側邊，不收。這個收合記成 nightAuto（不是使用者按的），換版面就失效。
- function goEvent(ev){const tr=ev.train!=null&&ev.train!==''?trainByKey(ev.train,ev.t):null;if(tr)followTrain(tr.id,ev.t);else jump(ev.t);if(!sideLayout.matches){nightAuto=false;applyNight();}}
+ // 點時間軸的列：畫面留在臺南站、不跟車，方位、仰角、縮放照按之前的（同「下一班到臺南」），那一列展開說明。臺南站的事件跳到事件前 LEAD 秒，看得到車進站或開出；
+ // 其他站的事件（永康在畫面範圍外，保安在畫面南端）跳到事件那一刻，靠說明交代。窄版點了臺南站的事件就收起面板，讓人看到場景；其他站的事件不收，說明留在畫面上。
+ // 寬版面板在側邊，不收。這個收合記成 nightAuto（不是使用者按的），換版面就失效。跟車卡當下就收（不等下一幀），展開的那一列才捲得到對的位置。
+ const LEAD=25,atTainan=ev=>!!ev.ref?.station&&isTainan({name:ev.ref.station});
+ function goEvent(ev){const here=atTainan(ev);jump(here?ev.t-LEAD:ev.t);centerStation();view();refreshCard();openEvent(ev.id);if(here&&!sideLayout.matches){nightAuto=false;applyNight();}}
  // ── 跟車逐站時刻卡：站／表定／重播／來源／差多少／留置（holdSec≥90 秒才算）。來源緊接在重播後面：側欄窄、表格要左右捲時，先被切掉的是差與留置；右邊還有欄位時右緣有淡出提示。
  // 來源分到站與開車兩行。到站照 src：obs 實測、interp 內插、sched 表定。開車照 DEP_SRC：obs 的站（含被留置的通過站）是表定加誤點分鐘推得＝推定；interp 的站到站與開車都由鄰近的站推算＝內插；
  // 起點站（est）的紀錄是看板佔位，只用它的誤點分鐘推開車時刻＝推定；sched＝表定。起點站（end 'origin'）到站與開車同一秒＝沒有到站，終點站（end 'terminal'）同理沒有開車：
@@ -221,8 +240,9 @@ $('slToggle').onclick=()=>{const b=$('slToggle');b.setAttribute('aria-expanded',
   const follow=data.trains.find(t=>t.id===state.follow);
   if(follow)return [follow.train+' 次',MARK_NAME[follow.mark],follow.formation.caption,follow.timing==='scheduled'?'無即時動態紀錄，照表定時刻':follow.timing?'時刻依即時動態紀錄重建':'依封存班表推演'].filter(Boolean).join(' · ');
   return '封存 '+data.trains.length+' 班 · 時刻依即時動態紀錄重建，非 GPS 軌跡；區間車與莒光號的編組為推估。';}
- // 「舊站近景」連方位、仰角、縮放一起回預設；「下一班到臺南」只跳時間、把畫面中心移回臺南站，方位、仰角、縮放照按之前的。兩顆都取消跟車。
- // 「下一班到臺南」只算會停臺南的班次：最後一夜 23:06 起有只跑仁德—保安的班次，它們的 anchorStop 是第一站，不能拿來排。
+ // 「舊站近景」連方位、仰角、縮放一起回預設；「下一班到臺南」「臺南發車」只跳時間、把畫面中心移回臺南站，方位、仰角、縮放照按之前的。三顆都取消跟車。
+ // 「下一班到臺南」只算會停臺南的班次：最後一夜 23:06 起有只跑仁德—保安的班次，它們的 anchorStop 是第一站，不能拿來排。在臺南始發的班次沒有到站，不算進「下一班到臺南」，
+ // 另由「臺南發車」跳到開車前 LEAD 秒：重建的時刻只有開車，始發車在開車那一秒才出現，所以先看到空月台，車出現就開走。
  function centerStation(){state.follow='';$('train').value='';target.set(stationXY[0]+18,stationXY[1],0);}
  function stationView(){centerStation();span=140;azimuth=3.6;tilt=TILT0;view();}
  $('station').onclick=stationView;$('overview').onclick=()=>{state.follow='';$('train').value='';target.set(400,-3250,0);span=10500;view();};
@@ -230,7 +250,9 @@ $('slToggle').onclick=()=>{const b=$('slToggle');b.setAttribute('aria-expanded',
  $('timeline').oninput=e=>jump(Number(e.target.value));$('time').onchange=e=>{const [h,m,s=0]=e.target.value.split(':').map(Number);jump(h*3600+m*60+s);};
  $('play').onclick=()=>{state.playing=!state.playing;$('play').textContent=state.playing?'暫停':'播放';$('play').setAttribute('aria-label',state.playing?'暫停重播':'播放重播');};
  $('speed').onchange=e=>state.speed=Number(e.target.value);
- $('next').onclick=()=>{const toTainan=byArrival.filter(tainanStop),at=tr=>tainanStop(tr).arrSec,next=toTainan.find(tr=>at(tr)>state.sec+25)||toTainan[0];jump(at(next)-25);centerStation();view();};
+ const toTainan=byArrival.filter(tr=>tainanStop(tr)&&tainanStop(tr).end!=='origin'),fromTainan=data.trains.filter(tr=>tainanStop(tr)?.end==='origin').sort((a,b)=>tainanStop(a).depSec-tainanStop(b).depSec);
+ const jumpNext=(list,at)=>{const next=list.find(tr=>at(tr)>state.sec+LEAD)||list[0];jump(at(next)-LEAD);centerStation();view();};
+ $('next').onclick=()=>jumpNext(toTainan,tr=>tainanStop(tr).arrSec);$('depart').onclick=()=>jumpNext(fromTainan,tr=>tainanStop(tr).depSec);$('depart').hidden=!fromTainan.length;
  $('train').onchange=e=>followTrain(e.target.value);
  $('about').onclick=$('aboutNav').onclick=()=>{$('details').showModal();};
  // 手勢：單指或左鍵拖曳平移；雙指捏合縮放＋轉動改方位、雙指一起上下推改傾斜（兩指合計移動 16 px 後判定是哪一種，這次手勢就鎖定，判定前的位移在判定當下一次補上）。

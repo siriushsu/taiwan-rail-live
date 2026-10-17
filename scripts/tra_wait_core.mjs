@@ -34,14 +34,14 @@ export const TW_MAX_TRACK_SEC = Math.round(3.5 * 3600);
 // 10 分鐘＝「使用者看到的『更新』時刻最多落後多久」與推播量之間的折衷。
 // 🔴 這與 metro_wait 的作法【刻意不同】:那張卡的視圖根本不畫 dataAt,所以它把 dataAt
 //    完全排除在比較之外;這張卡畫了,排除就等於印一個會越來越假的時刻。
-// 🔴 2026-09-23 例外(使用者裁示「先改伺服器每分鐘推播」,同日再裁示「那就改30秒吧」):
+// 🔴 2026-09-23 例外:
 //    等車卡 B 在軌道上畫了一台車,而即時動態的圖片不會自己走,只在收到推播時往前挪一格。
 //    所以「車正在上一站→本站之間」那一段每 30 秒推一發(見 twRunWindow/twRunTickDue);
 //    其他時段車是靜止的,仍照這條遲滯。
 export const TW_DATA_AT_EPS_SEC = 600;
 
 // 行駛段內兩發之間的最小間隔。
-// 🔴 2026-09-23 使用者裁示「那就改30秒吧」:行駛段從每分鐘一發改成每 30 秒一發——cron 每分鐘
+// 🔴 2026-09-23 行駛段從每分鐘一發改成每 30 秒一發——cron 每分鐘
 //    跑一次,同一次執行內在起跑 +30 秒再跑一輪只挪車的(worker.js waitCardHalfMinute)。
 //    所以相鄰兩發的間隔是 30 秒(第一輪→第二輪,同一次執行內,固定)與 30±j 秒(第二輪→下一分鐘
 //    第一輪,j＝cron 起跑時刻的抖動)。20 秒＝兩側各留 10 秒:
@@ -102,7 +102,7 @@ export function twDelayFor(live, trainNo, nowSec) {
   for (const t of Array.isArray(live && live.trains) ? live.trains : []) {
     if (String((t && t.no) == null ? '' : t.no) !== key) continue;
     const d = Number(t && t.delay);
-    // 官方值照抄字面(使用者長期裁示):不夾正、不取絕對值。上游若真的給了負數,
+    // 官方值照抄字面:不夾正、不取絕對值。上游若真的給了負數,
     // 那是官方在說「早到」,由視圖決定怎麼講,不在這裡偷偷改掉。
     const candidate = { delayMin: Number.isFinite(d) ? Math.round(d) : 0, known: true, dataAt, fresh: true };
     if (!found || candidate.delayMin > found.delayMin) found = candidate;
@@ -190,7 +190,7 @@ export function twRunTickDue(prev, nowSec, win) {
 // 該不該收卡。回 'arrived' / 'endAt' / null。
 // 🔴 「挑不到誤點」【不是】收卡條件:上游抖動、資料過舊、車還沒進動態窗,三者在這裡長得
 //    一模一樣,而把其中任何一種當成該收卡,都會讓卡片在使用者還在等車的時候憑空消失。
-//    使用者裁示:缺訊只 hold。(同 metroWaitPushAll 的同一條註解。)
+//    缺訊只 hold。(同 metroWaitPushAll 的同一條註解。)
 export function twShouldEnd(nowSec, etaSec, endAt) {
   const now = num(nowSec);
   if (now == null) return null;

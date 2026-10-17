@@ -1177,7 +1177,7 @@ try {
   ok(diag.noCandidate + diag.hadGoodCandidateButLost + diag.other === diagTotal && oversupplySum >= 0,
     '語料回放根因拆解三類都有量化輸出(上游碎裂/演算法擋下/無候選,見上三行 note)',
     `上游碎裂=${oversupplySum} 演算法擋下(有候選卻未綁上)=${diag.hadGoodCandidateButLost} 無候選=${diag.noCandidate} 其餘=${diag.other}`);
-  // 2026-08-13 設計裁示：這批的 gate 是「實體 track 身分穩定、端點依官方 ETA」，不是用
+  // 這批的 gate 是「實體 track 身分穩定、端點依官方 ETA」，不是用
   // 稀疏舊語料的 aggregate unbound 率證明 binder 正確率。保留數字與根因拆解作診斷，但不可
   // 再讓 3.5–7 分鐘取樣間隔的舊語料阻擋穩定性實作（本檔上方也已明寫「不用硬門檻」）。
   note('語料回放 unbound 率（診斷值，依 2026-08-13 裁示不作穩定性 hard gate）',

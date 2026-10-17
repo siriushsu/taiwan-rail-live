@@ -110,7 +110,7 @@ const ershui = (await readBoard('二水', 'tra_sched')).groups.map(g => g.label)
 ok('D3c 二水＝南下／北上／往車埕（幹線用方向、支線用終點）',
   ershui.includes('南下') && ershui.includes('北上') && ershui.some(l => l.includes('車埕')), JSON.stringify(ershui));
 
-// ── D4 支線一律不寫南下北上（使用者 2026-08-31 裁示）───────────────
+// ── D4 支線一律不寫南下北上 ───────────────
 for (const [name, sys] of [['集集', 'tra_sched'], ['竹中', 'tra_sched'], ['阿里山', 'afr_sched']]) {
   const g = (await readBoard(name, sys)).groups.map(x => x.label);
   ok(`D4 ${name}：純支線站不得出現「南下」「北上」`,
@@ -129,7 +129,7 @@ ok('D5d 展開後每組列數都不少於預覽，且至少一組超過 3 班',
 ok('D5e 展開入口仍在且 aria-expanded=true，可直接收起',
   !!znx.toggle && znx.toggle.expanded === 'true' && znx.toggle.text.includes('收起'), JSON.stringify(znx.toggle));
 
-// ── D10 「抵達本站」只列 60 分鐘內，終點站除外（2026-08-31 裁示 b＋2026-09-08 裁示）──
+// ── D10 「抵達本站」只列 60 分鐘內，終點站除外 ──
 // 判準刻意不寫死「應該有幾班」——班數是會漂移的量（心得 35）。改成：在同一個 tick 裡從
 // tr.stops 獨立重算「這站 60 分內／60~180 分的終到車數」，再要求看板恰好等於 min(前者, 配額)。
 // 那份重算不經過 boardGroupOf／配額／上限任何一行（受測的是分組與上限，不是 dtm 算術）。
@@ -182,7 +182,7 @@ const bad10d = arrScan.filter(r => !r.err)
 ok('D10d 抵達組班次數＝預覽 min(可列終到車,3)、完整模式全列——是濾掉超時，不是整組砍半',
   bad10d.length === 0,
   JSON.stringify(bad10d.map(r => [r.ex ? '展開' : '一般', r.name + (r.term ? '(終)' : ''), arrOf(r)?.mins ?? null, listable(r)])));
-// 終點站豁免（2026-09-08 裁示）的正向對照。只有「60 分內的班數還沒把配額吃滿、且真的有
+// 終點站豁免的正向對照。只有「60 分內的班數還沒把配額吃滿、且真的有
 // 60~180 分的終到車」時，豁免才看得見——先具名把這種站篩出來（配額吃滿時畫出來的必然都在
 // 60 分內，那不是回歸）。分母用獨立重算的 within/beyond，不取畫面上的數字。
 const quotaOf = r => (r.ex ? Infinity : 3);
@@ -296,12 +296,12 @@ const d11 = await p.evaluate(() => {
     // AFR_YARD_* 是站場裝飾軌，沒有營運班次，不是看板的幹／支線分類對象。
     if (!String(ln.id).startsWith('AFR_YARD_') && boardLineLatSpan(ln) < BOARD_TRUNK_LAT_SPAN) branchIds.push(ln.id);
   }
-  // 「沒有專屬區間」的支線＝兩站都在幹線上的短連絡線（成追線）。2026-09-06 裁示
-  // 「不是支線的車就不要放在支線裡」之後，這種線【根本不該生出支線組】，所以 D11e 不再給豁免；
+  // 「沒有專屬區間」的支線＝兩站都在幹線上的短連絡線（成追線）。非支線的車不放進支線組，
+  // 這種線【根本不該生出支線組】，所以 D11e 不再給豁免；
   // 清單改由 D11f 用來反查「這些線真的一班都沒有落進支線組」。豁免消失＝判準嚴格變強。
   const noExclusive = branchIds.filter(id => [...own.get(id)].every(n => trunkStations.has(n)));
   const bad = [], covered = new Set(), noExclusiveRows = [];
-  // 組名必須＝這一趟真正的終點站（2026-09-06 裁示：「既然終點是六家，為什麼還要放往內灣？」）
+  // 組名必須＝這一趟真正的終點站（終點是六家的車，組名不該寫成往內灣）
   const labelBad = [];
   for (const tr of state.trains) {
     const st = tr.stops;
@@ -361,12 +361,12 @@ ok('D11e 全網：支線組的每一班都必須真的走進該支線的專屬�
 ok('D11f 覆蓋率具名斷言：D11e 真的驗到多條支線，且「沒有專屬區間的線」恰為成追線',
   d11.nCovered >= 5 && d11.noExclusive.length === 1 && d11.noExclusive[0] === 'chengzhui',
   `covered=${d11.nCovered} 無專屬區間=${JSON.stringify(d11.noExclusive)}`);
-// 🔴 2026-09-06 裁示：「不是支線的車就不要放在支線裡」。成追線只有追分（山線）與成功（海線）
+// 🔴 非支線的車不放進支線組。成追線只有追分（山線）與成功（海線）
 //    兩站，沒有任何一班車終點在它身上，走它的全是縱貫線直通車 ⇒ 它一班都不該落進支線組。
 //    修法前這裡是 28 列（追分／成功兩站的「往 成功」「往 追分」兩組）。
 ok('D11g 沒有專屬區間的連絡線（成追線）一班都不該落進支線組——不是支線的車不放支線裡',
   d11.nNoExclusiveRows === 0, `${d11.nNoExclusiveRows} 列，例：` + JSON.stringify(d11.noExclusiveRows));
-// 🔴 2026-09-06 裁示：「既然終點是六家，為什麼還要放往內灣？」組名取這一趟真正的終點站。
+// 🔴 終點是六家的車，組名不該寫成往內灣：組名取這一趟真正的終點站。
 //    修法前組名取的是支線的末端站，新竹「往 內灣」裡 41/46 班其實終到六家。
 ok('D11h 支線組的組名＝這一趟真正的終點站（不是支線的末端站）',
   d11.nLabelBad === 0, `${d11.nLabelBad} 列，例：` + JSON.stringify(d11.labelBad));

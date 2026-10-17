@@ -15,7 +15,7 @@
 //  C  對照(證明 S/F 看得到卡舊):關遮罩後把 freeRtt 換成空函式再開遮罩,S 與 F 必須差 >5×NOISE px。
 //     這塊遮罩範圍地面露出的 2D 輪廓約 1200 px(多數被立體建物擋住),修前的卡舊也是這個量。
 // 用法:BASE_URL=http://127.0.0.1:5207/ node scripts/verify_terrain_rtt_mask.mjs
-// 一律無視窗(2026-09-23 使用者裁示:測試不准開視窗搶焦點);channel:'chrome' 走真 GPU,預設 headless shell 是軟體算繪。
+// 一律無視窗(開視窗會搶焦點);channel:'chrome' 走真 GPU,預設 headless shell 是軟體算繪。
 import {chromium} from 'playwright';
 import sharp from 'sharp';
 import assert from 'node:assert/strict';

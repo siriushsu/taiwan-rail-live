@@ -16,7 +16,7 @@ const net=read('rail-3d/physical/network.json'),dispatch=read('rail-3d/physical/
 const {source,g,paths,edges}=restorePhysicalRoutes(net);
 
 // 3. 高鐵停車候選。高鐵站只停 OSM 標的停車點,不用推估點;有通過線的車站,外側側線才是到發線(月台),
-//    內側正線只供通過——停靠列車一律停外側、通過列車一律走內側(使用者 2026-09-12 指正,桃園最明顯)。
+//    內側正線只供通過——停靠列車一律停外側、通過列車一律走內側(桃園最明顯)。
 const THROUGH=new Set(['板橋','桃園','新竹','苗栗','台中','彰化','雲林','嘉義','台南']);
 const normalize=n=>String(n).replaceAll('臺','台');
 const trackKinds=id=>[...new Set(g.nodes.get(id).edges.filter(e=>e.system==='thsr_sched').map(e=>e.tags.service||e.tags.usage||'?'))];

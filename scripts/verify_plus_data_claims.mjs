@@ -292,7 +292,7 @@ check('D8-GUEST-MERGE-CLAIM', '文案', '未登入畫面對「訪客資料會不
 
 // 批二-D（整合稽核 M-2）：terms.html 原本寫「取消後 Plus 功能會持續使用到當期已付費的週期結束
 // 為止」，但 worker.js 的 activeUntilMs 一律是「訂閱到期毫秒＋24 小時寬限」，firestore.rules
-// 把整段都視為可寫——條款講的是精確終點，規則實際放行的時間比那個終點晚。使用者裁示：這一輪
+// 把整段都視為可寫——條款講的是精確終點，規則實際放行的時間比那個終點晚。這一輪
 // 只做文案止血，不改 worker.js／firestore.rules；24 小時寬限本身是刻意的營運緩衝（見
 // worker.js PLUS_ENTITLEMENT_GRACE_MS 上方說明：吸收 webhook 漏送與時鐘偏移，退款／撤銷仍會
 // 立即寫 inactive，不等寬限）。文案改成「至少用到當期結束、技術性因素最多再晚一天，且不是

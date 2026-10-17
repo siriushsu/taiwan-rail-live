@@ -3773,20 +3773,28 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '臺南鐵路地下化 10/17 通車：大橋到保安改走地下，臺南站改停地下 4 股，平面與立體地圖的軌道都跟著換': '台南の鉄道地下化区間が10/17に開業しました。大橋〜保安間は地下を走り、台南駅では地下ホームの4線に停車します。平面地図と立体地図の線路も切り替えました',
 });
 
-// 2026-10-17 高鐵班表每日更新沒成功時，當天稍後自動重抓（v1017b）。
+// 2026-10-17 高鐵班表每日更新沒成功時，當天稍後自動重抓（v1017b）；10-18 起官方資料是空的也先保留原班表（v1018b）。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
-  '高鐵班表每天早上的更新若沒成功，當天稍後會自動再抓幾次': 'If the morning HSR timetable update fails, it now retries automatically later the same day.',
+  '高鐵班表每天早上的更新若沒成功，當天稍後會自動再抓；官方資料若是空的，先保留原本的班表': 'If the morning HSR timetable update fails, it retries automatically later the same day; if the official data comes back empty, the previous timetable is kept.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
-  '高鐵班表每天早上的更新若沒成功，當天稍後會自動再抓幾次': '高鉄の時刻表は、朝の更新に失敗した日も当日中に自動で取り直すようにしました。',
+  '高鐵班表每天早上的更新若沒成功，當天稍後會自動再抓；官方資料若是空的，先保留原本的班表': '高鉄の時刻表は、朝の更新に失敗した日も当日中に自動で取り直します。公式データが空のときは、前の時刻表をそのまま使います。',
 });
 
 // 2026-10-18 「更多」加 10/16 臺南地面鐵道最後一天的重播入口（v1018a）。
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '臺南地面鐵道最後一天・歷史重播': 'Tainan surface railway’s last day · Historical replay',
-  '新增臺南地面鐵道最後一天（10/16）的重播：依當天實際到離站紀錄重現 226 班列車，可調時間、加速、跟車': 'Added a replay of the last day of Tainan’s surface railway (10/16): 226 trains recreated from that day’s actual arrival and departure records, with time controls, fast-forward and train following',
+  '新增臺南地面鐵道最後一天（10/16）的重播：依當天實際的到站紀錄重現 226 班列車，可調時間、加速、跟車': 'Added a replay of the last day of Tainan’s surface railway (10/16): 226 trains recreated from that day’s actual arrival records, with time controls, fast-forward and train following',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '臺南地面鐵道最後一天・歷史重播': '台南の地上鉄道・最終日の運行を再生',
-  '新增臺南地面鐵道最後一天（10/16）的重播：依當天實際到離站紀錄重現 226 班列車，可調時間、加速、跟車': '台南の地上鉄道の最終日（10/16）を再生できるようにしました。当日の実際の発着記録から226本の列車を再現し、時刻の変更、早送り、列車の追跡ができます',
+  '新增臺南地面鐵道最後一天（10/16）的重播：依當天實際的到站紀錄重現 226 班列車，可調時間、加速、跟車': '台南の地上鉄道の最終日（10/16）を再生できるようにしました。当日の実際の到着記録から226本の列車を再現し、時刻の変更、早送り、列車の追跡ができます',
+});
+
+// 2026-10-18 10/16 重播頁：時間軸點了畫面留在臺南站、附說明與報導連結，加「臺南發車」（v1018c）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '臺南最後一天的重播：點「最後一夜」的事件，畫面留在臺南站，附上說明與報導連結；新增「臺南發車」': 'Tainan last-day replay: tapping an event on the “Final night” timeline now keeps the view on Tainan Station and shows a note with news links; added a “Trains starting at Tainan” button',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '臺南最後一天的重播：點「最後一夜」的事件，畫面留在臺南站，附上說明與報導連結；新增「臺南發車」': '台南・地上鉄道最終日の再生：「最後の夜」の出来事を押すと、画面は台南駅のまま、説明と報道へのリンクが表示されます。「台南始発」ボタンを追加しました。',
 });

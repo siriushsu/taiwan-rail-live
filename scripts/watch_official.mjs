@@ -60,7 +60,7 @@ const TDX_SETS = [
 // 都不同(那天是真變動),但多數日子只有這些在跳。
 const VOLATILE = new Set(['UpdateTime', 'SrcUpdateTime', 'VersionID', 'SrcVersionID']);
 // 刻意凍結、不跟線上的磁碟快照:只跟「上次 --accept 的線上指紋」比,不跟磁碟比。
-// 起因:使用者 09-12 裁示「R01 廣慈/奉天宮我們是吃北捷的,這個不管」,且重抓這兩份會讓
+// 起因:R01 廣慈/奉天宮的資料取自北捷自己的來源,TDX 在 R01 上的差異不追,且重抓這兩份會讓
 // build_tdx 把 R01 整站刪掉 ⇒ 快照永遠停在舊版 ⇒ 舊判準「線上≠磁碟」每天都報,--accept 也收不掉,
 // 使用者被同一件事問了好幾天(2026-09-13 被罵)。凍結後 TDX 若「再」動這兩份,仍會報一次。
 const FROZEN_SNAPSHOTS = new Set(['TRTC_Station', 'TRTC_StationOfLine']);

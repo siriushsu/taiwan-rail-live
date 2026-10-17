@@ -352,8 +352,8 @@ async function mobileMatrix(name) {
     const context = await browser.newContext({ viewport: { width, height: width === 768 ? 1024 : 800 },
       isMobile: true, hasTouch: true, deviceScaleFactor: 1, locale: 'zh-TW' });
     const page = await context.newPage(); await preparePage(page);
-    // 🔴 2026-09-11 修判準過期(不是產品回歸):手機殼自 2026-08-27 使用者裁示「你把那四顆鈕收成一顆
-    // 點擊會打開就好」起,body.fs 底下 #topTabs 那四顆一律 display:none,群組改由頂列的 #gtabOne
+    // 🔴 2026-09-11 修判準過期(不是產品回歸):手機殼自 2026-08-27 起四顆群組鈕併成一顆,
+    // body.fs 底下 #topTabs 那四顆一律 display:none,群組改由頂列的 #gtabOne
     // 開 #gtabPop 選單(index.html:4893 按鈕、31603 renderGtabPop)。舊選擇器於是永遠等不到 visible,
     // 四個寬度一起紅。這一格要量的事情沒變——「群組切換鈕在這個寬度點得到、而且沒有被別的東西蓋住」
     // ——只是那顆鈕換人當,所以 elementFromPoint 的遮擋檢查照舊掛在現役的那一顆上。

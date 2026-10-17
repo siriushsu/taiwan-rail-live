@@ -74,8 +74,8 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   await page.evaluate(()=>{saveCheckins({v:2,st:{'metro|台北車站':{name:'台北車站',sys:'metro',s:'visit',d:'2026-09-07',n:1,u:Date.now()},'metro|中山':{name:'中山',sys:'metro',s:'pass',d:'2026-09-07',n:1,u:Date.now()}},sg:{}});renderPassport();});
   check(engine+' 車站進度即時解鎖',await page.evaluate(()=>garageCollection().find(r=>r.id==='c301').owned));
 
-  // 未收集的車＝灰車體(使用者 2026-09-07:「車庫裡沒有收集到的車,應該是灰色輪廓才對,
-  // 不能沒收集到就在車庫裡呀」)。款式不寫死,從當下的護照推導出一款已入庫、一款未收集,
+  // 未收集的車＝灰車體(車庫展示台上只畫灰色輪廓,
+  // 不顯示真實塗裝)。款式不寫死,從當下的護照推導出一款已入庫、一款未收集,
   // 種子改了也不會假綠;並配正向對照——已入庫那款必須量到真實塗裝彩度,否則「彩度低」恆真。
   await page.click('[data-filter="all"]');
   const pair=await page.evaluate(()=>{const rows=garageCollection();

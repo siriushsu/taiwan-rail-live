@@ -35,7 +35,7 @@ const EXPECTED = {
   midOutageGapSec: 165,                 // 0649→0652 環狀線的間隔，刻意小於門檻
   recoveryGapSec: 2011,                 // 06:27:31 → 07:01:02
   reattached: 57,                       // 恢復時被官方回來的列重新接上、保住原 vehicleId
-  removed: 9,                           // 接不上、依裁示清掉的推估車（57＋9＝66，守恆）
+  removed: 9,                           // 接不上、被清掉的推估車（57＋9＝66，守恆）
 };
 
 let failures = 0;

@@ -158,7 +158,7 @@ for (const [sys, cfg] of Object.entries(METRO_SYS)) {
         h.push([name, tr[p + 1], p + 2 >= tr.length ? 1 : 0]);
       }
       // n 留空：捷運沒有對外公告的車次，硬塞線代號或我們自己合成的內部編號都是假車次
-      // （使用者裁示：官方沒有就整欄消失）。畫面靠 ty＋終點站辨識這一班。
+      // （官方沒有的資料就不顯示這一欄）。畫面靠 ty＋終點站辨識這一班。
       if (h.length) rows.push({ n: '', ty: (kinds && kindMap && kindMap[kinds[i]]) || '',
                                 de: stn[tr[tr.length - 2]], h });
     });

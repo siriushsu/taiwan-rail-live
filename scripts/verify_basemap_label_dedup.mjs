@@ -1,7 +1,7 @@
 // 底圖標籤跟站名去重的驗收（index.html 的 glPlaceDedupSync）：地名（place 圖層）與機場（aerodrome_label 圖層）。
 // 用法：node scripts/verify_basemap_label_dedup.mjs
 //   預設自己起純靜態伺服器服務這棵樹（PORT=0 由系統挑空埠，/api/* 一律 503）；BASE_URL=... 改打別處（例如預覽網址）。
-//   瀏覽器一律無視窗：Chrome channel:'chrome'＋headless:true（使用者 2026-09-23 裁示，有視窗會搶焦點）。
+//   瀏覽器一律無視窗：Chrome channel:'chrome'＋headless:true（有視窗會搶焦點）。
 // 判準都是「真的畫出來的東西」：底圖用 queryRenderedFeatures，站名用 labelBoxes（tryLabel 這一幀真的畫了的站名）。
 // 每個「底圖標籤不畫」都配一個同地點、拉遠到站名還沒畫的「照樣畫」，以及「圖磚裡確實有這筆」的前提，
 // 空結果不會被當成通過。

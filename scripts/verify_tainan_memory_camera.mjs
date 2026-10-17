@@ -1,4 +1,4 @@
-// 台南重播頁：自由方位與傾斜的驗收（無視窗 Chromium＋WebKit；使用者 2026-09-30「角度跟傾斜應該要能夠自由旋轉」）。
+// 台南重播頁：自由方位與傾斜的驗收（無視窗 Chromium＋WebKit）。
 // 用法：node scripts/verify_tainan_memory_camera.mjs；自己起 dev_server 子程序（PORT 預設 5587），結束時只停它。VURL 有給就不起 server。
 // 其他環境變數：ENGINES=chromium,webkit、PAGE_PATH（突變測試指到複本頁）、RESULTS（結果檔路徑）、CHROMIUM_CHANNEL（Chromium 的 channel，預設 chromium）。結果與截圖寫到 <out>/camera/。
 // 日期與資料夾參數化（不給參數＝9/12 封存版，行為與改版前相同）：--date=…、--dir=…、--out=…，或環境變數 MEMORY_DATE／MEMORY_DIR／MEMORY_OUT；
@@ -95,20 +95,21 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
    await page.waitForTimeout(600);const normal=await menuAt();
    check(engine,view,'Windows 右鍵：拖曳轉向後在按鈕上放開不跳選單',blocked);
    check(engine,view,'Windows 右鍵對照：沒拖曳時按鈕上的右鍵選單照常',!normal);}
-  // 「下一班到臺南」只跳時間：跳到下一班到臺南前 25 秒、取消跟車、畫面中心移回臺南站，方位、仰角、縮放照按之前的。
+  // 「下一班到臺南」「臺南發車」只跳時間：跳到下一班到臺南（不算臺南始發）前 25 秒／下一班臺南始發的車開車前 25 秒、取消跟車、畫面中心移回臺南站，方位、仰角、縮放照按之前的。
   // 9/12 封存版按了會連視角一起回舊站近景，封存不改，只驗其他日期。畫面中心每次照畫布當下的位置算（點按鈕可能捲動頁面）。
   if(DATE!=='2026-09-12'){
    const centerGround=async()=>{const q=await rectOf(page);return groundAt(page,q.x+q.w/2,q.y+q.h/2,NEXT?NEXT.z:0);};
    await page.click('#station');const home=NEXT?NEXT.xy:await centerGround();
-   const pressNext=async label=>{const b=await cam(page),o=await centerGround(),sec0=await page.evaluate(()=>tainanMemory.state.sec),away=Math.hypot(o[0]-home[0],o[1]-home[1]);
-    check(engine,view,`「下一班到臺南」之前（${label}）：方位、仰角、縮放、畫面中心都不是預設`,Math.abs(dAng(b.az,3.6))>.1&&Math.abs(b.tilt-TILT0)>.1&&Math.abs(b.span/140-1)>.1&&away>5,`${deg(b.tilt)} ${b.az.toFixed(3)} span ${b.span.toFixed(1)} 離站 ${away.toFixed(1)} m`);
-    await page.click('#next');await page.waitForTimeout(100);
+   const BTN={'#next':'下一班到臺南','#depart':'臺南發車'};
+   const pressNext=async(label,btn='#next')=>{const name=BTN[btn],b=await cam(page),o=await centerGround(),sec0=await page.evaluate(()=>tainanMemory.state.sec),away=Math.hypot(o[0]-home[0],o[1]-home[1]);
+    check(engine,view,`「${name}」之前（${label}）：方位、仰角、縮放、畫面中心都不是預設`,Math.abs(dAng(b.az,3.6))>.1&&Math.abs(b.tilt-TILT0)>.1&&Math.abs(b.span/140-1)>.1&&away>5,`${deg(b.tilt)} ${b.az.toFixed(3)} span ${b.span.toFixed(1)} 離站 ${away.toFixed(1)} m`);
+    await page.click(btn);await page.waitForTimeout(100);
     const a=await cam(page),c=await centerGround(),s=await page.evaluate(()=>({sec:tainanMemory.state.sec,follow:tainanMemory.state.follow,sel:document.getElementById('train').value})),miss=Math.hypot(c[0]-home[0],c[1]-home[1]);
-    // 期望值直接從資料算：所有停臺南的到站秒數，取第一個晚於按之前 25 秒的，沒有就回到當天第一班（頁面的時間範圍 0–86399）
-    const exp=await page.evaluate(t0=>{const a=tainanMemory.data.trains.flatMap(tr=>tr.stops.filter(st=>st.name.replace('台','臺')==='臺南').map(st=>st.arrSec)).sort((x,y)=>x-y);return Math.max(0,Math.min(86399,(a.find(x=>x>t0+25)??a[0])-25));},sec0);
-    check(engine,view,`按「下一班到臺南」（${label}）：方位、仰角、縮放都不變`,Math.abs(dAng(a.az,b.az))<1e-9&&Math.abs(a.tilt-b.tilt)<1e-9&&Math.abs(a.span/b.span-1)<1e-9,`Δ方位 ${dAng(a.az,b.az).toExponential(1)}、Δ仰角 ${(a.tilt-b.tilt).toExponential(1)}、span ${b.span.toFixed(1)}→${a.span.toFixed(1)}`);
-    check(engine,view,`按「下一班到臺南」（${label}）：${NEXT?'畫面中心到月台中央':'畫面中心回臺南站'}、跟車取消`,miss<.01&&s.follow===''&&s.sel==='',`離站 ${miss.toFixed(3)} m、follow=${JSON.stringify(s.follow)}`);
-    check(engine,view,`按「下一班到臺南」（${label}）：時間跳到下一班到臺南前 25 秒`,s.sec===exp,`${hms(sec0)} → ${hms(s.sec)}（應為 ${hms(exp)}）`);};
+    // 期望值直接從資料算：「下一班到臺南」取停臺南、不是在臺南始發（end 'origin'）的到站秒數，「臺南發車」取在臺南始發的開車秒數；取第一個晚於按之前 25 秒的，沒有就回到當天第一班（頁面的時間範圍 0–86399）
+    const exp=await page.evaluate(([t0,dep])=>{const a=tainanMemory.data.trains.flatMap(tr=>tr.stops.filter(st=>st.name.replace('台','臺')==='臺南'&&(st.end==='origin')===dep).map(st=>dep?st.depSec:st.arrSec)).sort((x,y)=>x-y);return Math.max(0,Math.min(86399,(a.find(x=>x>t0+25)??a[0])-25));},[sec0,btn==='#depart']);
+    check(engine,view,`按「${name}」（${label}）：方位、仰角、縮放都不變`,Math.abs(dAng(a.az,b.az))<1e-9&&Math.abs(a.tilt-b.tilt)<1e-9&&Math.abs(a.span/b.span-1)<1e-9,`Δ方位 ${dAng(a.az,b.az).toExponential(1)}、Δ仰角 ${(a.tilt-b.tilt).toExponential(1)}、span ${b.span.toFixed(1)}→${a.span.toFixed(1)}`);
+    check(engine,view,`按「${name}」（${label}）：${NEXT?'畫面中心到月台中央':'畫面中心回臺南站'}、跟車取消`,miss<.01&&s.follow===''&&s.sel==='',`離站 ${miss.toFixed(3)} m、follow=${JSON.stringify(s.follow)}`);
+    check(engine,view,`按「${name}」（${label}）：時間跳到${btn==='#depart'?'下一班臺南始發的車開車':'下一班到臺南'}前 25 秒`,s.sec===exp,`${hms(sec0)} → ${hms(s.sec)}（應為 ${hms(exp)}）`);};
    // 自由觀看：右鍵拖曳改方位與仰角、滾輪拉遠、左鍵平移離開車站
    await page.mouse.move(cx,cy);await page.mouse.down({button:'right'});await page.mouse.move(cx-80,cy-50,{steps:10});await page.mouse.up({button:'right'});
    await page.mouse.move(cx,cy);await page.mouse.wheel(0,300);await page.waitForTimeout(150);
@@ -120,7 +121,12 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
    await pressNext('跟車中');
    // 23:05：3782 已到臺南，之後只剩仁德—保安的班次，下一班到臺南要回到當天第一班；先平移離開車站
    await page.evaluate(()=>tainanMemory.jump(83100));await page.mouse.move(cx-60,cy+40);await page.mouse.down();await page.mouse.move(cx+90,cy-30,{steps:10});await page.mouse.up();
-   await pressNext('23:05 之後');}
+   await pressNext('23:05 之後');
+   // 22:26：下一班停臺南的是 22:28:30 在臺南始發的 3783，「下一班到臺南」要跳過它、「臺南發車」要跳到它；23:05 之後沒有臺南始發的車，「臺南發車」回到當天第一班。每次先平移離開車站
+   const awayAt=async sec=>{await page.evaluate(s=>tainanMemory.jump(s),sec);await page.mouse.move(cx-60,cy+40);await page.mouse.down();await page.mouse.move(cx+90,cy-30,{steps:10});await page.mouse.up();};
+   await awayAt(80760);await pressNext('22:26，下一班停臺南的是臺南始發');
+   await awayAt(80760);await pressNext('22:26','#depart');
+   await awayAt(83100);await pressNext('23:05 之後','#depart');}
   check(engine,view,'零錯誤',errors.length===0,errors.slice(0,3).join(' | '));
   await context.close();}
  // ── 手機（390×844、觸控）──

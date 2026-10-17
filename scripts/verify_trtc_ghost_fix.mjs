@@ -194,7 +194,7 @@ check(ghostSignal(thrice.vehicles).groups === 0, '同一 frame 重複 reduce 不
 //   scripts/verify_trtc_official_roster.mjs 「同一份出生證據不得第二次生車」（合成情境）
 //   scripts/verify_trtc_official_worker.mjs 「CAS 敗退後重放已套用的 frame…」（真的注入 CAS 衝突）
 // ---- 4. 官方送出幾筆就是幾台：完全相同的兩列＝兩台真車，一台都不准少畫 ----
-// 🔴 使用者裁示「車子有官方數據就是在」。2026-08-15 我一度把相同列合一當成幽靈車防線，
+// 🔴 官方有給數據的車一律視為真車。2026-08-15 我一度把相同列合一當成幽靈車防線，
 // 實測那會刪掉無車號路線（BR／Y）的真車——上游 collapseClaims 對這種列是原樣送過來的。
 const plainRows = base.rowsOf(sampleFixture.board);
 const plainState = base.reduce({ model: base.model, rows: plainRows.rows, prior: null, day: DAY,

@@ -527,7 +527,7 @@ function assemble({ id, name, color, ids, stations, parts, maps, freq, loop, est
   const sol = solOrder('SANYING_StationOfLine.json');
   // 2026-09-12 起 TDX 以 NTMC(新北捷運)營運商發布三鶯線,站碼與本線同為 LB01~LB12,
   // 直接取官方站間行駛時間填 segs[].run(先前 11 段全 null,前端只能用距離/速度回推)。
-  // 2026-09-27 TDX 首度在 NTMC_Shape.json 補上 LB 的官方 Geometry(使用者裁示「軌道可以照新的改」):
+  // 2026-09-27 TDX 首度在 NTMC_Shape.json 補上 LB 的官方 Geometry(軌道改採這份官方幾何):
   // 745 個 2 點碎片、首尾座標逐點相接、只有 2 個端點無分岔,是一條 14.1km 的單線。
   // 碎片平均約 19m,stitch() 會把 ≤20m 的碎片當雜訊丟掉而留下斷點,所以先按相同端點串成一條鏈再交給它。
   // TDX 沒有 LB 時退回 OSM 版(SANYING_Shape.json)。班距(Frequency)續用官方公告值。

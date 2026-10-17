@@ -6,7 +6,7 @@
 //   B 寬 >900 的 Pro Max 橫放掉出手機殼判定 → 走桌面長頁版面 → 列車真的在視窗外
 //   C 跟隨小卡的「往上讓 46%」在矮視窗把卡推到頂端 → 壓住分頁列與時鐘徽章
 //   D 讓位位移被 maxBounds 夾限吃掉（375 寬直向 zoom 6 實測 ΔLat 4.82°，相機一步都沒動）
-//     → 使用者 08-11 親自指認的「台灣沒有置中」就是 D 的可見形態：Leaflet 拿**整個容器**當可視框
+//     → 台灣沒有置在露出地圖的中央，就是 D 的可見形態：Leaflet 拿**整個容器**當可視框
 //       去夾 maxBounds，於是把台灣釘在容器正中央，而容器正中央正好在面板底下。修法＝夾限改用
 //       「露出來的那塊」（index.html 的 map._limitCenter 覆寫），無面板時原封走原生路徑。
 //
@@ -75,9 +75,9 @@ import { runEngineMatrix } from './lib/engine_matrix.mjs';
 //   契約8中線 --land-lb 238→150       → L14e/L14f 四筆(站名牌+速度膠囊雙雙偏離)
 //   工具欄常數44(行為上不可觀測:膠囊只在相機關閉時存在) → L13d 原始碼斷言把關
 //
-// ── 2026-09-26 使用者裁示 B：跟車的車頭鎖定＝車頭置中，不做前瞻 ──
+// ── 跟車的車頭鎖定＝車頭置中，不做前瞻 ──
 // 09-09 手機車頭鎖定（a5473792）起，相機約束（rail-3d.js installFollowCameraLock）把第一節車釘在露出地圖中心，
-// §04c 的前瞻（followAheadPx）只剩 3D 整合層沒載入時的退路在用。使用者裁示接受車頭置中（與 09-07 立體模式
+// §04c 的前瞻（followAheadPx）只剩 3D 整合層沒載入時的退路在用。判準改採車頭置中（與 09-07 立體模式
 // b8f468fc 一致）⇒ L1b／P4 與 L5 分類器改用 centerPass（列車離露出中心 ≤10px）；前瞻方向的分支計數與
 // 「L9 相機判準分支分佈」隨之退役。上面「前瞻方向寫死朝北 → L1b 六筆紅」那條突變已不適用。
 // 突變驗證（QUICK、Chromium，對照組全綠）：
@@ -345,7 +345,7 @@ const INSTALL_EXPOSED = () => {
         if (r.top > mc.top + mc.height * 0.6) bottom = Math.max(bottom, mc.bottom - r.top + 8);
         continue;
       }
-      // v3(2026-08-27 裁示):跟隨欄升格右側欄——在容器右半=右界;留在左半(直式小卡/捷運 freq-card)
+      // v3:跟隨欄升格右側欄——在容器右半=右界;留在左半(直式小卡/捷運 freq-card)
       // =左界。照本檔慣例從 rect 判,不問實作的 sideRail 旗標。
       if ((r.left + r.right) / 2 > mc.left + mc.width / 2) right = Math.max(right, mc.right - r.left + 8);
       else left = Math.max(left, r.right - mc.left + 8);
@@ -363,8 +363,8 @@ const INSTALL_EXPOSED = () => {
       cx: +(left + (mc.width - left - right) / 2).toFixed(1), cy: +(top + (mc.height - top - bottom) / 2).toFixed(1),
       w: +(mc.width - left - right).toFixed(1), h: +(mc.height - top - bottom).toFixed(1) };
   };
-  // 2026-09-26 裁示 B 之後，判準只用 dist（列車離露出中心）；err0／dir／stable 只留在細節欄當診斷。
-  // 以下是裁示前的前瞻契約說明，保留供對照。
+  // 改採車頭置中之後，判準只用 dist（列車離露出中心）；err0／dir／stable 只留在細節欄當診斷。
+  // 以下是改版前的前瞻契約說明，保留供對照。
   // 前瞻期望:相機瞄準點=露出中心沿行進方向前移 0.15×露出短邊(契約:「讓前方路線多露一段」)
   // ⇒ **列車**落在露出中心的行進**反**方向 m 處:trainPt = center − m·dir。
   // 方向用「路徑上往後 45 秒的位置」經 Leaflet 公開投影自算——與實作唯一共用的是 trainPos 這份
@@ -395,8 +395,8 @@ const INSTALL_EXPOSED = () => {
       err0: dir ? +Math.hypot(a.x - (ex.cx - m * dir.x), a.y - (ex.cy - m * dir.y)).toFixed(1) : null };
   };
 };
-// 相機判準的共用判定（2026-09-26 裁示 B）：車頭鎖定把第一節車釘在露出地圖中心，不做前瞻。
-// 容差 10px 沿用裁示前強判的容差；實測 dist 0–1px（兩引擎、橫直各尺寸）。
+// 相機判準的共用判定：車頭鎖定把第一節車釘在露出地圖中心，不做前瞻。
+// 容差 10px 沿用改版前強判的容差；實測 dist 0–1px（兩引擎、橫直各尺寸）。
 const centerPass = c => !c.err && c.dist <= 10;
 
 // 可見浮層（供相交掃描）。刻意不含 header/.stage/leaflet 容器——它們是別人的父層，相交無意義。
@@ -443,11 +443,11 @@ const OVERLAP_PROBE = (SELS) => {
 // 幾何上真的會交疊（實測 176×30）。那是交叉淡入淡出的過場，不是版面缺陷。
 // 但也不能直接放寬判準——所以做法是：發現相交就等**超過最長 transition**再量一次，以第二次為準。
 // 真缺陷等再久也還在（這個等待對它零影響），只有轉場中的假陽性會消失。
-// v3(2026-08-27 裁示)「橫式點開車輛或車站資訊的時候,是可以擋住右上角那些按鈕沒關係的」＋
+// v3:橫式下開啟車或站的資訊側欄時,側欄可以蓋住右上角的按鈕＋
 // 頂列=背景層(右半是透明空白,內容都靠左):側欄家族(上錨到頂後必然疊頂列右半)與
-// #topbar/工具欄成員(#randBtn/#nearBtn/#followLockBtn)的相交=裁示行為,集中豁免。
+// #topbar/工具欄成員(#randBtn/#nearBtn/#followLockBtn)的相交=預期行為,集中豁免。
 // followLockBtn 是 v5 補的:直欄時代它在側欄右緣外碰不到,橫排後(列向左長)與側欄水平相交
-// ——它與另外兩顆同屬一個工具欄,「側欄可蓋右上角那些按鈕」的裁示本來就涵蓋它。
+// ——它與另外兩顆同屬一個工具欄,上面那條重疊規則本來就涵蓋它。
 // 其餘配對(卡疊卡、跟隨欄疊分頁面板…)一律留著抓真疊——sheet-open 讓位若壞掉要在這裡現形。
 const RAIL_RE = /#(followPanel|favPanel|ridePanel|explorePanel|searchPanel|nearCard|trainCard|board)\b/;
 const RULED_RE = /#(topbar|randBtn|nearBtn|followLockBtn)\b/;
@@ -556,9 +556,9 @@ async function landscapeSuite(browser, eng) {
     // L3d:頂列可讀底跟「面板半透明」開關走(2026-08-12 實機退回恆玻璃版:開關關著、衛星圖上
     // 字看不清)。兩態都驗:預設(關)=實心 alpha≥.9 且無 blur;開=玻璃 alpha .2–.45+blur
     // (使用者凍結值 .30/3px)。
-    // 🔴 2026-08-27 裁示:「可以直接改文字的顏色,不要加光暈來做」⇒ 判準從「要有 halo」翻成
+    // 🔴 可讀性改靠直接調文字顏色、不靠光暈 ⇒ 判準從「要有 halo」翻成
     //    「兩態都不准有 text-shadow」。這一條就是防它回來的棘輪:光暈是實作自己加的,
-    //    使用者 07-30 的原始指示本來就是調字色。
+    //    原本的需求就是調字色。
     // 讀值前關 transition(拔規則的突變別在過渡起點讀到舊值=假綠)。
     const badgeBg = await page.evaluate(() => {
       const bar = document.getElementById('topbar');
@@ -651,8 +651,8 @@ async function landscapeSuite(browser, eng) {
     });
     ok(`L4c ${eng}/${S.tag} 左緣淨空:安全區到 +60px 這條帶裡沒有任何 HUD(跟隨欄廢除後的核心保證)`,
       leftBand.hits.length === 0, leftBand.hits.join('／') || `帶=${leftBand.band.join(',')} 逐一掃過無元件`);
-    // v3(2026-08-27 裁示)推翻 v2「跟隨欄退役」:「橫式點開車輛或車站資訊的時候,是可以擋住右上角
-    // 那些按鈕沒關係的。不然捲軸太短空間太小了」⇒ 跟車無板時它就是右側欄:上錨到頂(≤20 容 sa-t)、
+    // v3 推翻 v2「跟隨欄退役」:橫式下開啟車或站的資訊側欄時,側欄可以蓋住右上角的按鈕
+    // (否則側欄可用高度太短)⇒ 跟車無板時它就是右側欄:上錨到頂(≤20 容 sa-t)、
     // 右錨(視口右緣−8−sa-r ±2)、rail 寬(≥200)。開著別的 sheet 時讓位隱藏(display:none)由 L2/L4 段覆蓋。
     ok(`L4d ${eng}/${S.tag} 跟隨欄=右側欄(v3):跟車無板時上錨右錨`,
       leftBand.fpInSlot ? leftBand.fpW > 0
@@ -669,7 +669,7 @@ async function landscapeSuite(browser, eng) {
     const card = await page.evaluate(CARD_FIX_PROBE);
     // 「高度與內容無關」的證據:塞進 2000px 內容之後卡高一格不動(H0===h===H1),只有 scrollH 變長;
     // 「四段固定」的證據:真的捲 400px 之後,頭/站名列/分頁列的螢幕座標都沒動(捲的是身)。
-    // v3(2026-08-27 裁示)上緣基準改視口頂:「上錨到頂——可以擋住右上角那些按鈕,不然捲軸太短」
+    // v3 上緣基準改視口頂:上錨到頂,允許蓋住右上角的按鈕(否則可捲高度太短)
     // ⇒ 卡頂=8+sa-t(sa-t 注入前=8;≤20 容它),gapTop(對頂列底)允許為負=疊上頂列透明右半,不再 gate。
     ok(`L4e ${eng}/${S.tag} 合併卡:上錨到頂、塞長內容也不長高,且真的捲得動`,
       !card.err && card.hasTabs && card.padded && card.H0 === card.h && card.H1 === card.H0
@@ -884,7 +884,7 @@ async function landscapeSuite(browser, eng) {
 
       // 🔴 L1b：「看得見」還不夠——側欄在右邊，列車就算完全不讓位、待在容器正中央，也剛好還在
       //    露出區裡（852 寬時容器中心 426 < 側欄左緣 504）⇒「看得見」對讓位機制零鑑別力。
-      //    契約：置中目標＝露出地圖矩形幾何中心（2026-09-26 裁示 B：車頭鎖定不做前瞻），
+      //    契約：置中目標＝露出地圖矩形幾何中心（車頭鎖定不做前瞻），
       //    四邊都讓（頂列/tabbar/速度膠囊/跟隨欄/工具堆/側欄），照 __aheadExpect 從渲染 rect 推導驗。
       // 🔴 必須在「放大之後」量：橫向開機是 zoom 6（台灣的南北向要塞進 393px 高），
       //    那個縮放下視窗經度跨幅 18.7° 比整個 maxBounds(10.75°) 還寬 ⇒ Leaflet 把中心完全釘死、
@@ -995,7 +995,7 @@ async function landscapeSuite(browser, eng) {
       return out;
     });
     const found = wideOverlays.filter(o => !o.missing);
-    // v0926l 起矮橫式(高 ≤ 500)的平交道卡、落釘卡、台糖卡改坐側欄槽位(09-26 使用者裁示方案 A):
+    // v0926l 起矮橫式(高 ≤ 500)的平交道卡、落釘卡、台糖卡改坐側欄槽位:
     // 卡「就是」側欄那一格,強制顯示當然會跟開著的側欄疊——那不是鑽到底下,是同一格輪流用,
     // 前提是兩者真的互斥。所以 .xing-card 疊到時改成真做一次:側欄開著時開卡 ⇒ 側欄關、卡開;
     // 卡開著時開側欄 ⇒ 卡關(三張各一次)。只放行「整張寬度都在側欄那一欄裡」的疊法(ox ≈ 卡寬);
@@ -1311,7 +1311,7 @@ async function portraitSuite(browser, eng) {
       // 缺陷 D（zoom 6 視窗比 maxBounds 高 ⇒ 相機釘死）已由「夾限改用露出的那塊」修掉，
       // clamped 分支**應該恆為 0**，但刻意保留：它是「夾死又回來了」的哨兵，
       // 真的走進去時至少要保證帳面等於實況（帳實不符會讓後續所有差量記帳一起歪掉）。
-      // 🔴 分類器用 __aheadExpect 的露出中心判（2026-09-26 裁示 B 起不含前瞻，改用 centerPass）。第一版拿「離容器中心的
+      // 🔴 分類器用 __aheadExpect 的露出中心判（改採車頭置中後不含前瞻，改用 centerPass）。第一版拿「離容器中心的
       //    垂直距離 == (bottom−top)/2」判 canPan，§04c 之後前瞻會把車帶離中心至多 15% 短邊、
       //    水平也會讓位——舊式一律誤判成「夾死」，把讓位成功的尺寸整批推進 honest 分支（分母無聲縮水）。
       const cam = await page.evaluate(() => window.__aheadExpect());
@@ -1477,8 +1477,8 @@ async function rotationSuite(browser, eng) {
     await page.waitForTimeout(900);
     // 兩種形態各走各的路徑，但判準同一條：**state.group 真的變了**。
     // 不判 class（收合鈕沒有 .active，判 class 會讓收合形態永遠假紅）。
-    // v3(2026-08-27 裁示):側欄可以蓋住右上角(分組收合鈕右緣對齊工具堆,一起被蓋)——
-    // 使用者的實際操作序=先收面板/跟車再換組,判準照那個序走;逃生門(fp 可收合)由裁示背書。
+    // v3:側欄可以蓋住右上角(分組收合鈕右緣對齊工具堆,一起被蓋)——
+    // 使用者的實際操作序=先收面板/跟車再換組,判準照那個序走;逃生門(fp 可收合)由上面那條規則背書。
     await page.evaluate(() => { try { soloPanel(null); updateSheetOpenClass(); clearFollow(); } catch (e) {} });
     await page.waitForTimeout(400);
     let tapped = true, switched = false, how = '', before = null, tapMs = null;
@@ -1563,7 +1563,7 @@ async function rotationSuite(browser, eng) {
 // ─────────────────────────────────────────────────────────────
 // L12：全島視角下，台灣要置中於「露出來的那塊地圖」
 //
-// 🔴 使用者 2026-08-11 親自指出：橫放開著面板時，台灣整個偏右貼著側欄。
+// 🔴 症狀：橫放開著面板時，台灣整個偏右貼著側欄。
 //    根因＝maxBounds 的夾限用「整個容器」當可視範圍，於是被面板蓋住的那塊也被要求塞在框內，
 //    結果把台灣釘在容器正中央；而容器正中央在側欄底下。全島視角（開機 zoom）時視窗比
 //    maxBounds 還大 ⇒ 相機完全不能平移 ⇒ 讓位機制想推也推不動（就是原本標為「缺陷 D」的那個）。
@@ -1629,7 +1629,7 @@ async function centeringSuite(browser, eng) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// L13–L15：使用者 2026-08-11 橫放實機回報的三件事
+// L13–L15：橫放實機上的三件事
 //   E 解鎖後的「回到列車」膠囊 72px 寬，而動作列的讓開量是照「鎖定時的 44px 小方鈕」寫死的 60px
 //     ⇒ 實測疊 22×12px。這是心得 28 那族：只驗了乾淨態（剛跟車＝鎖著），沒驗「使用者拖過地圖之後」。
 //   F 停靠站名牌沿用直向的「左右各 8px 整寬」寫法，在 393 高的視窗吃掉 98% 寬。
@@ -1640,7 +1640,7 @@ async function centeringSuite(browser, eng) {
 const ISLAND = 59; // iPhone 14 Pro 起橫放的左右安全區(pt)。iPhone X 世代是 44，取大的當判準。
 
 // 必須待在動態島安全區外的 UI。'SHEET' 是當下那張面板（側欄），由 activeSheetEl() 取。
-// 第三欄 'L' ＝只驗左帶：v4/v5（08-27 裁示）後，頂列右群與工具欄（橫排）右緣貼實體螢幕邊
+// 第三欄 'L' ＝只驗左帶：v4/v5 後，頂列右群與工具欄（橫排）右緣貼實體螢幕邊
 // （right:10px，不再讓 sa-r）。這個帶檢查把整條右緣豎帶當禁區，但真島只佔該帶的垂直中央
 // （y≈170–230）；v5 的工具橫排收在頂帶 y≈56–100、頂列在 y≈8–48，兩種持法都不會碰到實體島
 // ——粗粒度的帶檢查照不到這件事，故這三項右帶檢查廢除；左帶（軌島牌／時鐘側）照舊必須讓。
@@ -1697,7 +1697,7 @@ const LOCK_PROBE = () => {
     if (w > 0.5 && h > 0.5) overlaps.push(`${rects[i].id}∩${rects[j].id}=${Math.round(w)}×${Math.round(h)}`);
   }
   const maR = ma.getBoundingClientRect(), Lr = lb.getBoundingClientRect();
-  // v5(08-27 裁示「一排橫的在右上方」):橫式工具欄從直欄改橫排——直欄契約「右緣對齊」死亡,
+  // v5:橫式工具欄從直欄改橫排、放右上方——直欄契約「右緣對齊」死亡,
   // 列契約=同一列＋整欄單列高＋角落顆(最右)是隨機跟隨(row-reverse 的 DOM 首顆)。
   // 🔴 2026-09-26:當年等高(44)時寫成「上緣對齊±2」「欄高≤46」,09-09 車頭鎖定鈕改成 44×52 後這兩個
   //    代理量失效(容器 align-items:center ⇒ 44 的鈕上緣比鎖鈕低 4px、欄高 52)。改驗意圖本身:
@@ -1916,7 +1916,7 @@ async function deviceSuite(browser, eng) {
     ok(`L13a ${eng}/${S.tag} 拖曳地圖不解鎖(手機車頭鎖只由開關解除)`,
       drag0 === true && drag1.dragStarts >= 1 && drag1.locked === true && drag1.pressed === 'true',
       JSON.stringify({ 拖曳前鎖定: drag0, ...drag1 }));
-    // v3(2026-08-27 裁示):跟隨欄(右側欄)蓋著工具堆——「可以擋住右上角那些按鈕沒關係」。
+    // v3:跟隨欄(右側欄)蓋著工具堆,這是允許的。
     // 使用者要按工具堆(車頭鎖定/隨機跟隨)的實際操作序=先點 ×(fpClose)把欄收合成膠囊(跟隨不中斷、
     // 契約4 記憶收合),工具堆露出再按。判準照這個序走;fpClose 不存在/不可見時照舊直量。
     await page.evaluate(() => {
@@ -2019,7 +2019,7 @@ async function landV2Suite(browser, eng) {
         after.topbar > 0.9 && after.topbarDisplay !== 'none' && after.topbarHit === true, JSON.stringify(after));
       ok(`V2 ${eng} 觀察模式·工具堆與合併卡淡到 0 但 DOM 還在`,
         after.tools <= 0.05 && after.card <= 0.05 && after.toolsInDom && after.cardInDom, JSON.stringify(after));
-      // 🔴 使用者裁示（2026-08-26）：速度膠囊**不淡出**——離開放空模式的鈕就在裡面，
+      // 🔴 速度膠囊**不淡出**——離開放空模式的鈕就在裡面，
       //    設計靠「點畫面任一處復原」把它叫回來，本專案沒有那套狀態機，全淡＝把人關在裡面。
       ok(`V3 ${eng} 觀察模式·膠囊留著當出口(離開鈕點得到)`,
         after.capsule > 0.5 && after.exitHit === true, JSON.stringify(after));
@@ -2261,7 +2261,7 @@ async function zeroRegressionSuite(browser, eng) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// P4：§04c-P 直式相機矩陣——小卡態／46% sheet 兩態的露出中心（2026-09-26 裁示 B：車頭鎖定不做前瞻）。
+// P4：§04c-P 直式相機矩陣——小卡態／46% sheet 兩態的露出中心（車頭鎖定不做前瞻）。
 // 設計回包行為契約 1：「四個方向都要讓位——直式跟隨小卡態的位移是往右上，不是只往上」。
 // __exposed 判準側自帶同一條閘門規則（契約常數），所以這裡問的是「實作真的照閘門行為」——
 // 實作若半讓位，dist 直接爆表；若閘門值改了，兩邊常數對不上也會紅。

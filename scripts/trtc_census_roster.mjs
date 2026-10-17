@@ -1,6 +1,6 @@
 // 逐車名冊（census roster）：名冊來源＝官方逐車清單，站牌倒數只負責時刻與位置。
 //
-// 2026-08-17 使用者裁示「可以動手」後改的架構。原本的名冊由站牌倒數列反推「有幾台車、
+// 這是改版後的架構。原本的名冊由站牌倒數列反推「有幾台車、
 // 哪一台是哪一台」，而站牌逐輪只提到一部分車（實測 67 個車號 vs 逐車清單 76 台），
 // 於是「認不出車號」被升級成「位置不確定」：綁定器配錯班 ⇒ shift≈k×班距 ⇒ 疊車與倒退。
 //
@@ -13,7 +13,7 @@
 //   dest/path  來自 TrackInfo（實測資料齡約 25 秒）⇒ 時刻與精細位置用這個
 //
 // 契約：這支只回報「官方說現在有哪些車、各在哪裡」。它不生車、不刪車、不猜身分；
-// 認不出車次就把 officialNo 留空（使用者裁示：認不出來留白，絕不因此不畫車）。
+// 認不出車次就把 officialNo 留空（絕不因此不畫車）。
 const norm = s => String(s == null ? '' : s).trim().replace(/站$/, '');
 
 function lineIndexNames(model) {
@@ -65,7 +65,7 @@ function runSec(line, from, to) {
 }
 
 // path 是「前方各站的到站時刻」。把它攤成逐段 timeline：第一段的起站是 to 的前一站，
-// 之後每一段接續。ETA 全部照抄官方，不做任何平滑或校正（使用者裁示：官方的值照抄字面）。
+// 之後每一段接續。ETA 全部照抄官方，不做任何平滑或校正。
 function timelineFromPath(line, names, arr, startFrom, path, dirStep) {
   const out = [];
   let from = startFrom;
@@ -215,7 +215,7 @@ export function buildCensusRoster({ model, trains, nowEpoch, day, prior = null, 
     vehicles.push({
       vehicleId, line: hit.line, dir: dirOut,
       dest: destIdx, from, to, run, arrEpoch, terminal,
-      // 文湖線的 no 是車廂組編號不是車次，不可當車次顯示 ⇒ 留白（使用者裁示允許）
+      // 文湖線的 no 是車廂組編號不是車次，不可當車次顯示 ⇒ 留白
       officialNo: sys === 'hw' ? no : null,
       source: 'census', censusEpoch: Number.isFinite(at) ? at : null,
       observedEpoch: nowEpoch, timeline,

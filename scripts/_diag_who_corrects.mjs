@@ -1,4 +1,4 @@
-// 使用者:「每次都在校正的是什麼車?」——直接列名單。
+// 查出一直在被校正的是哪些車——直接列名單。
 // 顯示層 _trtcOfficialDisplay 每台車存了 correcting 旗標(落後官方 >=150m 時為 true),
 // 每秒掃一次,join 回名冊拿身分,統計「誰一直在被校正」。
 import { chromium } from 'playwright';

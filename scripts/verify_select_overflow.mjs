@@ -14,7 +14,7 @@
 // 同一個症狀的另一個來源(2026-09-26 加,守 v0926d):跟車卡「下一站」#fpNext 原本 white-space:nowrap,英文長站名
 // (長榮大學、科工館)比卡寬還寬,.follow-panel 的 overflow-y:auto 讓 x 軸也變成可捲,整張卡能左右拖。這個兩個引擎都中:
 // 修前英文實測 WebKit 手機 87px、桌面 69px、放空 101px,Chromium 69／54／84px(360～768 寬卡寬相同,數字一樣)。
-// 修法照 2026-09-26 裁示 (b):換行顯示全名;放空三行條(手機)維持一行、放不下以省略號收尾。
+// 修法:換行顯示全名;放空三行條(手機)維持一行、放不下以省略號收尾。
 //   F 同一個長字串塞進 #fpNext(包住 updateFollowPanel,每次重繪後改回注入的字串),量同一套可拖 px:≤ 1px,而且
 //     一般卡換成 ≥ 2 行、字沒被截、沒超出卡片內容區;放空卡維持 1 行、text-overflow 是 ellipsis。
 //   FN 正向對照:同一格把 #fpNext 改回修前的寫法(nowrap、min-width:auto、overflow:visible)⇒ 可拖 > 1px。

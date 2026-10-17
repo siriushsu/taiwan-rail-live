@@ -462,7 +462,18 @@ function checkObserved(){
   ok(e.text===text,'時間軸「'+d.id+'」的文字與範本不符：'+e.text);
   if(d.claim==='last-departure')ok(data.trains.every(u=>u===t||!(stopOf(u,d.station)?.depSec>e.t)),'時間軸「'+d.id+'」不是最後一班離開'+d.station);
   if(d.claim==='last-section-exit')ok(t===lastExit.tr&&e.t===toSec&&uses.every(x=>x.u.every(u=>u.leave<=e.t)),'時間軸「'+d.id+'」不是最後一班離開單線區間');
-  trace.push(d.id+'＝'+t.train+' '+s.name+' '+d.field+' '+hms(e.t)+'（'+s.src+'，'+e.kind+(d.follow==='other'?'，點了跟 '+d.other.train:'')+'）');}
+  trace.push(d.id+'＝'+t.train+' '+s.name+' '+d.field+' '+hms(e.t)+'（'+s.src+'，'+e.kind+(d.follow==='other'?'，車次欄記 '+d.other.train:'')+'）');}
+ // 時間軸的說明與報導連結（verify.eventNotes 指的檔，以事件 id 對應）：每一列都有說明、說明裡不放網址；連結是 https，
+ // 欄位只有媒體名稱、標題、網址與報導日期。說明只放在這個檔，snapshot 的時間軸不帶 desc／links。
+ const NF=cfg.verify?.eventNotes;
+ if(NF){const N=read(NF),notes=N?.notes,LINK=JSON.stringify(['date','outlet','title','url']);
+  ok(N&&N.schema===1&&N.date===cfg.date&&notes&&typeof notes==='object'&&!Array.isArray(notes),NF+' 的 schema、date 或 notes 不對');
+  ok(Object.keys(notes||{}).every(id=>E.some(e=>e.id===id)),NF+' 有時間軸沒有的事件');
+  ok(E.every(e=>!('desc' in e)&&!('links' in e)),'snapshot 的時間軸不該帶 desc／links（說明只放在 '+NF+'）');
+  for(const e of E){const n=notes?.[e.id];
+   ok(n&&typeof n.desc==='string'&&n.desc.trim()!==''&&!/https?:\/\//.test(n.desc),'時間軸「'+e.id+'」缺說明，或說明裡有網址');
+   ok(n&&(n.links===undefined||Array.isArray(n.links)&&n.links.length>0&&n.links.every(l=>JSON.stringify(Object.keys(l).sort())===LINK&&/^https:\/\/\S+$/.test(l.url)&&l.outlet&&l.title&&/^\d{4}-\d{2}-\d{2}$/.test(l.date))),'時間軸「'+e.id+'」的報導連結欄位不齊');}
+  trace.push(NF+'：'+Object.keys(notes||{}).length+' 列說明、'+Object.values(notes||{}).reduce((k,n)=>k+(n.links?.length||0),0)+' 則報導連結');}
  // 8. 不確定時段：判準欄位、每段有 reason；build 列出的單線解不掉時段都在裡面
  if(cfg.ambiguity)ok(U.criterion===cfg.ambiguity.criterion,'uncertainty.json 的 criterion 應為 '+cfg.ambiguity.criterion);
  for(const i of U.intervals)ok(['track-overlap','single-line-unresolved'].includes(i.reason),'不確定時段缺 reason 或 reason 不認得：'+(i.trainNos||i.trains));

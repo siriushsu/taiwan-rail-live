@@ -8,7 +8,7 @@
 //   本檔量的是**未經任何夾限的地圖位移**，也就是使用者眼睛看到的那個量。
 //
 // 判準來源（刻意非同源）：speedCapOf(tr) = 車種極速，來自 PERF_RULES，不是本次改出來的東西。
-// 使用者裁示：速度不能超過上限，不留容差。
+// 規則：速度不能超過上限，不留容差。
 //
 // 用法：npm run check-tra-motion                                  ← 自己起純靜態 server（出貨鏈走這條）
 //       ENGINES=chromium,webkit npm run check-tra-motion
@@ -103,8 +103,8 @@ for (const eng of ENGINES) {
     const DELAY_MIN = 10;                 // 注入 10 分鐘誤點
     const HALF_MIN = 6;                   // 先建 6 分再拉到 10 分:+4 分 < 5 分門檻(SNAP_SEC),上升側才走慢速爬升;+5 分會被 G 的一步到位吃掉,F 分母歸零
     const STEP = 2;                       // 每步 2 模擬秒（第〇段與第二段共用）
-    // 2026-09-07 使用者裁示：「誤點就停在原地等這樣不對啦，我們至少要讓他慢速前進」⇒ 台鐵 minRate 0 → .25。
-    // 期望值一律從這個【裁示值】推導，不讀 TRA_MOTION_PROFILE（判準非同源；同源時「相等」是零資訊）。
+    // 2026-09-07 起，誤點加大時列車改為慢速前進、不再停在原地 ⇒ 台鐵 minRate 0 → .25。
+    // 期望值一律從這個【規定值】推導，不讀 TRA_MOTION_PROFILE（判準非同源；同源時「相等」是零資訊）。
     const MIN_RATE = 0.25;                // 誤點加大時有效時間仍前進的倍率
     const RISE_STEP = STEP * (1 - MIN_RATE); // 偏移量每步該長多少：adv×(1−minRate)=1.5 秒
     const FULL = DELAY_MIN * 60;          // 600 秒＝滿載誤點
@@ -129,11 +129,11 @@ for (const eng of ENGINES) {
 
     // ── 第〇段：把 target 拉到 600，量「誤點正在加大」這一半的上升速率。
     //
-    // 🔴 這條釘的是「誤點加大時列車還在不在動」。2026-09-07 裁示之前 minRate=0 ⇒ rise=adv ⇒
-    //   有效時間完全停住、列車在畫面上定格；裁示之後 minRate=.25 ⇒ rise=adv×.75 ⇒ 列車以標稱
+    // 🔴 這條釘的是「誤點加大時列車還在不在動」。2026-09-07 之前 minRate=0 ⇒ rise=adv ⇒
+    //   有效時間完全停住、列車在畫面上定格；之後 minRate=.25 ⇒ rise=adv×.75 ⇒ 列車以標稱
     //   速度的四分之一慢速前進。沒有這條，後人把 minRate 改回 0（或順手調成別的值）不會有任何
     //   東西轉紅，而那正是使用者指名要修掉的行為。
-    //   判準非同源：期望值 RISE_STEP 由裁示值 MIN_RATE 推導，不讀 TRA_MOTION_PROFILE。
+    //   判準非同源：期望值 RISE_STEP 由規定值 MIN_RATE 推導，不讀 TRA_MOTION_PROFILE。
     state.live.map = new Map(use.map(t => [String(t.train), DELAY_MIN]));
     let prevRise = use.map(t => liveDelaySec(t));
     for (let i = 0; i < 400; i++) {
@@ -233,9 +233,9 @@ for (const eng of ENGINES) {
     out.riseN = out.riseBad.length; out.riseBad = out.riseBad.slice(0, 6);
     out.pausedBad = out.pausedBad.slice(0, 6);
 
-    // ── 第三段（G，2026-09-05 使用者裁示「5 分」）：上升 ≥ SNAP_SEC 一步到位（跳回真實位置），< SNAP_SEC 走慢速爬升（.25× 前進，2026-09-07 裁示前是定格）。
+    // ── 第三段（G，門檻 5 分）：上升 ≥ SNAP_SEC 一步到位（跳回真實位置），< SNAP_SEC 走慢速爬升（.25× 前進，2026-09-07 之前是定格）。
     //   09-05 屏東線事故：TDX 只在過站時更新 delay，區間被扣幾十分鐘 ⇒ 到站一次 +53；舊行為＝畫面原地停 53 分鐘
-    //   （首見就帶 70 分的車＝停 70 分鐘）。判準非同源：SNAP_SEC 是裁示值，不讀 TRA_MOTION_PROFILE。
+    //   （首見就帶 70 分的車＝停 70 分鐘）。判準非同源：SNAP_SEC 是規定值，不讀 TRA_MOTION_PROFILE。
     //   G1/G4 要的是「首見」路徑，前面下降段只跑 200 步（600 秒誤點以 2 秒/步收回只收到 200），use 的
     //   entry 都還在 ⇒ 首見一律用沒碰過的車；G2/G3 反過來刻意用還留著 entry 的 use。
     const SNAP_SEC = 300;

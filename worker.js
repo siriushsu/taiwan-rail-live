@@ -7834,12 +7834,29 @@ function thsrScheduleUrl(env, dateIso) {
   const base = (env && env.THSR_SCHEDULE_BASE_URL_OVERRIDE) || THSR_SCHEDULE_URL_BASE;
   return `${base}/${dateIso}?%24format=JSON`;
 }
+// 單日請求的逾時:TDX 不回應或 body 停在半路時,沒有逾時的話這一發 cron 會吊到 15 分鐘牆鐘上限。
+// 寫法同 fetchHistDayWithTimeout:計時器一路蓋到 r.json() 讀完 body,結束在 finally 清掉。
+// 值的算法:每日 cron(15 1 * * *)那一發先跑 ingestDelayHistory、再跑這裡,共用同一個 15 分鐘(900 秒)
+// 牆鐘。誤點段最壞 739 秒(見 HIST_FETCH_TIMEOUT_MS 上方);這裡最壞＝THSR_SCHED_FETCH_DAYS(7)天×15 秒
+// + 逐日間隔 250ms×6 ＝106.5 秒。合計 845.5 秒 ≈ 14.1 分鐘,剩約 54 秒給沒有逾時的 token、D1(含前面的
+// pruneStationEvents)與站點座標的 ASSETS 讀取。
+// 自我檢查(thsrSelfHeal)走每分鐘 cron 那一發,不會和誤點歷史 ingest 同一發(固定時刻錯開),那邊這段最壞就是 106.5 秒。
+const THSR_FETCH_TIMEOUT_MS = 15000;
 async function fetchThsrDaily(env, token, dateIso) {
   const url = thsrScheduleUrl(env, dateIso);
-  const r = await fetch(url, { headers: { authorization: 'Bearer ' + token, accept: 'application/json' }, redirect: 'manual' });
-  if (r.status === 401) { tok = null; throw new Error('tdx 401 thsr-schedule'); }
-  if (!r.ok) throw new Error('tdx thsr-schedule ' + r.status + ' for ' + dateIso);
-  return await r.json();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), THSR_FETCH_TIMEOUT_MS);
+  try {
+    const r = await fetch(url, { headers: { authorization: 'Bearer ' + token, accept: 'application/json' }, redirect: 'manual', signal: controller.signal });
+    if (r.status === 401) { tok = null; throw new Error('tdx 401 thsr-schedule'); }
+    if (!r.ok) throw new Error('tdx thsr-schedule ' + r.status + ' for ' + dateIso);
+    return await r.json();
+  } catch (e) {
+    if (controller.signal.aborted) throw new Error('tdx thsr-schedule timeout for ' + dateIso);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 let thsrStationMapMem = null;
@@ -7893,6 +7910,15 @@ async function ingestThsrSchedule(env) {
       if (i > 0) await sleep(250);
       const daily = await fetchThsrDaily(env, token, dateIso);
       const { doc, meta } = thsrConvertDaily(daily, dateIso, stationMap);
+      // 回 200 卻一班都轉不出來(不是陣列、空陣列、或欄位/站名改了形狀),當那天失敗、保留既有值,同上游出錯。
+      // 照樣寫進去是 0 班,一發就能把整個窗蓋掉,前端畫不出高鐵。空陣列也算失敗:TDX 高鐵 DailyTrainInfo 歷史封存
+      // (2024-01 起)裡,官方公告取消原班表、改開特別班次的日子(2024-10-31、2026-07-11)封存的仍是同星期幾的
+      // 一般班表;有封存的日子只有 2024-11-20 一天是 0 筆,看不出 0 筆代表停駛。
+      if (meta.converted === 0) {
+        const why = !Array.isArray(daily) ? `not an array: ${String(JSON.stringify(daily)).slice(0, 80)}`
+          : meta.total === 0 ? 'empty array' : `0/${meta.total} converted: ${JSON.stringify(meta.skipped[0]).slice(0, 120)}`;
+        throw new Error(`tdx thsr-schedule ${why} for ${dateIso}`);
+      }
       const dayKey = dateIso.replace(/-/g, '');
       days[dayKey] = doc;
       metas[dayKey] = { total: meta.total, converted: meta.converted, skipped: meta.skipped };
@@ -8636,5 +8662,5 @@ export const _thsr = {
   thsrConvertSeatList, isThsrSeatCode, thsrSeatUrl, thsrSeat,
   // 自我檢查:測試要自備 env(DELAY_DB/ASSETS/TDX 覆寫)與 event.scheduledTime(節奏閘門看它,不看真時鐘)。
   thsrSelfHeal, THSR_SCHED_FETCH_DAYS, THSR_SCHED_KEEP_DAYS, THSR_HEAL_EVERY_MIN, THSR_HEAL_FROM_HOUR,
-  THSR_REFRESH_SLOTS,
+  THSR_REFRESH_SLOTS, THSR_FETCH_TIMEOUT_MS,
 };

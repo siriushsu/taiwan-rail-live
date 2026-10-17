@@ -265,7 +265,7 @@ async function preparePage(page, documentHtml = PAGE_HTML) {
 
 async function waitForBoot(page) {
   // 🔴 2026-09-11:一定要帶 ?officialroster=0。本檔從頭到尾驗的是 applyTrtcBoard(看板／班表那條
-  // 校正路徑),但 OFFICIAL_ROSTER_ENABLED 自 2026-08-18 使用者裁示起【預設開啟】,開著的時候
+  // 校正路徑),但 OFFICIAL_ROSTER_ENABLED 自 2026-08-18 起【預設開啟】,開著的時候
   // pollTrtcLive 走逐車名冊分支、末尾直接 clearTrtcBoard(),applyTrtcBoard **一次都不會被呼叫**
   // (index.html:26479 那行是 else if)。於是 state._trtcBoardAudit 恆為 null,下面第一道整合閘門
   // 永遠逾時、整支腳本一條判準都跑不到——harness 開機進了一個它要驗的函式根本不存在的模式

@@ -80,7 +80,7 @@ const pick = () => p.evaluate(({ lo, hi }) => {
     for (const item of veh.timeline) {
       const eta = Number(item.arrEpoch) - now;
       if (!(eta >= lo && eta <= hi)) continue;
-      // 終點站到站後車依契約就被拿掉(使用者裁示「到終點站車子就拿掉」),
+      // 終點站到站後車依契約就被拿掉,
       // 那一刻本來就不該有車,拿它當「沒準時」是判準錯不是產品錯。
       if (item.terminal) { skippedTerminal++; continue; }
       out.push({ key, lnId, vid, stationIdx: Number(item.to), etaSec: Math.round(eta),
@@ -141,7 +141,7 @@ for (const c of cands.sort((a, x) => a.dueEpoch - x.dueEpoch)) {
       const o = vehOf(id); if (!o || (wantDir && Number(o.dir) !== Number(wantDir))) continue;
       if (!best || d < best.m) best = { key: id, m: Math.round(d) };
     }
-    // BR 沒有官方車號,身分是我們自己切出來的、可被重新指派 ⇒ 使用者已裁示身分不必對,
+    // BR 沒有官方車號,身分是我們自己切出來的、可被重新指派 ⇒ 身分不必對,
     // 只要「有車依那個時間到站」。有官方車號的線維持嚴格判準(同一台車要到)。
     const lenient = lnId === 'BR';
     const m = lenient ? (best && best.m) : self;
