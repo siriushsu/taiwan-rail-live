@@ -394,7 +394,7 @@
         },
         "percent": {
           "median": 0.766716,
-          "p90": 2.768205,
+          "p90": 2.751936,
           "max": 7.025
         }
       }
@@ -5020,8 +5020,8 @@
       "normalizedTo": "台南",
       "branch": "hasShape",
       "haversineKm": 2.719948,
-      "currentShapeKm": 2.769654,
-      "currentKm": 2.769654,
+      "currentShapeKm": 2.764723,
+      "currentKm": 2.764723,
       "officialKm": 2.7,
       "officialSource": {
         "sourceFile": "data/tra_station_of_line.json",
@@ -5035,9 +5035,9 @@
       "officialCandidateCount": 1,
       "officialCandidateConflict": false,
       "error": {
-        "absoluteKm": 0.069654,
-        "percent": 2.579792,
-        "signedCurrentMinusOfficialKm": 0.069654
+        "absoluteKm": 0.064723,
+        "percent": 2.397155,
+        "signedCurrentMinusOfficialKm": 0.064723
       }
     },
     {
@@ -5053,8 +5053,8 @@
       "normalizedTo": "保安",
       "branch": "hasShape",
       "haversineKm": 7.386821,
-      "currentShapeKm": 7.631671,
-      "currentKm": 7.631671,
+      "currentShapeKm": 7.622564,
+      "currentKm": 7.622564,
       "officialKm": 7.6,
       "officialSource": {
         "sourceFile": "data/tra_station_of_line.json",
@@ -5068,9 +5068,9 @@
       "officialCandidateCount": 1,
       "officialCandidateConflict": false,
       "error": {
-        "absoluteKm": 0.031671,
-        "percent": 0.416728,
-        "signedCurrentMinusOfficialKm": 0.031671
+        "absoluteKm": 0.022564,
+        "percent": 0.296894,
+        "signedCurrentMinusOfficialKm": 0.022564
       }
     },
     {

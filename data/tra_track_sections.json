@@ -442,9 +442,9 @@
   },
   "大橋|臺南": {
    "tracks": 2,
-   "parallelFrac": 0.943,
-   "lengthM": 2775,
-   "maxPathM": 2775.895,
+   "parallelFrac": 1,
+   "lengthM": 2817,
+   "maxPathM": 2817.695,
    "refs": [
     "縱貫線"
    ]
@@ -1400,9 +1400,9 @@
   },
   "保安|臺南": {
    "tracks": 2,
-   "parallelFrac": 0.988,
-   "lengthM": 7637,
-   "maxPathM": 7635.574,
+   "parallelFrac": 1,
+   "lengthM": 7581,
+   "maxPathM": 7578.709,
    "refs": [
     "縱貫線"
    ]

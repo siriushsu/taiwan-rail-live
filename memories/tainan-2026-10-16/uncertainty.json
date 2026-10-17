@@ -1,0 +1,193 @@
+{
+  "schema": 1,
+  "date": "2026-10-16",
+  "criterion": "shared-way",
+  "basis": "逐秒檢查模型車身的股道佔用範圍；不是現實碰撞紀錄。兩車車身共用同一條股道（OSM way）才算重疊，岔心旁兩條相鄰股道的近接不算。公開圖資與班表不足以核實當班渡線／月台安排，這些時段只顯示原位置的車次標記。單線雙向期間另列 build 推得、股道上放不下的對向重疊與車身占用（reason＝single-line-unresolved）。",
+  "intervals": [
+    {
+      "start": 28027,
+      "end": 28279,
+      "trains": [
+        "2026-10-16:3137",
+        "2026-10-16:101"
+      ],
+      "trainNos": [
+        "3137",
+        "101"
+      ],
+      "reason": "track-overlap"
+    },
+    {
+      "start": 30536,
+      "end": 30682,
+      "trains": [
+        "2026-10-16:3142",
+        "2026-10-16:162"
+      ],
+      "trainNos": [
+        "3142",
+        "162"
+      ],
+      "reason": "track-overlap"
+    },
+    {
+      "start": 32305,
+      "end": 32369,
+      "trains": [
+        "2026-10-16:3712",
+        "2026-10-16:6632"
+      ],
+      "trainNos": [
+        "3712",
+        "6632"
+      ],
+      "reason": "track-overlap"
+    },
+    {
+      "start": 32605,
+      "end": 32693,
+      "trains": [
+        "2026-10-16:6632",
+        "2026-10-16:3148"
+      ],
+      "trainNos": [
+        "6632",
+        "3148"
+      ],
+      "reason": "track-overlap"
+    },
+    {
+      "start": 35830,
+      "end": 36015,
+      "trains": [
+        "2026-10-16:3158",
+        "2026-10-16:116"
+      ],
+      "trainNos": [
+        "3158",
+        "116"
+      ],
+      "reason": "track-overlap"
+    },
+    {
+      "start": 42706,
+      "end": 42726,
+      "trains": [
+        "2026-10-16:3727",
+        "2026-10-16:105"
+      ],
+      "trainNos": [
+        "3727",
+        "105"
+      ],
+      "reason": "track-overlap"
+    },
+    {
+      "start": 59104,
+      "end": 59236,
+      "trains": [
+        "2026-10-16:3748",
+        "2026-10-16:136"
+      ],
+      "trainNos": [
+        "3748",
+        "136"
+      ],
+      "reason": "track-overlap"
+    },
+    {
+      "start": 79264,
+      "end": 79324,
+      "trains": [
+        "2026-10-16:3776",
+        "2026-10-16:141"
+      ],
+      "trainNos": [
+        "3776",
+        "141"
+      ],
+      "basis": "section-overlap",
+      "sub": "永康—大橋",
+      "reason": "single-line-unresolved"
+    },
+    {
+      "start": 79620,
+      "end": 79979,
+      "trains": [
+        "2026-10-16:3277",
+        "2026-10-16:3778"
+      ],
+      "trainNos": [
+        "3277",
+        "3778"
+      ],
+      "basis": "section-overlap",
+      "sub": "臺南—保安",
+      "reason": "single-line-unresolved"
+    },
+    {
+      "start": 79890,
+      "end": 79979,
+      "trains": [
+        "2026-10-16:3277",
+        "2026-10-16:3278"
+      ],
+      "trainNos": [
+        "3277",
+        "3278"
+      ],
+      "basis": "section-overlap",
+      "sub": "臺南—保安",
+      "reason": "single-line-unresolved"
+    },
+    {
+      "start": 79950,
+      "end": 80070,
+      "trains": [
+        "2026-10-16:3778",
+        "2026-10-16:141"
+      ],
+      "trainNos": [
+        "3778",
+        "141"
+      ],
+      "basis": "section-overlap",
+      "sub": "臺南—保安",
+      "reason": "single-line-unresolved"
+    },
+    {
+      "start": 79950,
+      "end": 80508,
+      "trains": [
+        "2026-10-16:3278",
+        "2026-10-16:141"
+      ],
+      "trainNos": [
+        "3278",
+        "141"
+      ],
+      "basis": "section-overlap",
+      "sub": "臺南—保安",
+      "reason": "single-line-unresolved"
+    },
+    {
+      "start": 80586,
+      "end": 80708,
+      "trains": [
+        "2026-10-16:3281",
+        "2026-10-16:3278"
+      ],
+      "trainNos": [
+        "3281",
+        "3278"
+      ],
+      "basis": "reversed-occupancy",
+      "kind": "opposing",
+      "ways": [
+        "1176543136"
+      ],
+      "reason": "single-line-unresolved",
+      "mergedTrackOverlap": true
+    }
+  ]
+}

@@ -7876,8 +7876,18 @@ async function ingestThsrSchedule(env) {
   let token = null;
   for (let i = 0; i < wanted.length; i++) {
     const dateIso = wanted[i];
+    if (!token) {
+      // 取不到 token 就整窗停手:剩下幾天在同一秒重取,碰到的是同一個限流窗(2026-10-14~10-17 那發
+      // 同一秒 8 個 429),只會多吃共用出口 IP 的額度。剩下的日子照樣記成失敗,results 每天都有一格。
+      try { token = await getToken(env); }
+      catch (e) {
+        const error = String((e && e.message) || e);
+        for (const d of wanted.slice(i)) results[d] = { ok: false, error };
+        console.warn(`[cron thsr-sched] 取 token 失敗,${wanted.slice(i).join(',')} 都不抓了,保留既有值:`, error);
+        break;
+      }
+    }
     try {
-      if (!token) token = await getToken(env);
       // TDX 金鑰與即時代理共用,上限 5 req/s。逐日之間隔 250ms(同 ingestDelayHistory 的 sleep 慣例,
       // 只是這支端點輕得多所以不必到 2 秒);整窗 7 天約 1.5 秒,遠在 cron 預算內。
       if (i > 0) await sleep(250);
@@ -7924,17 +7934,36 @@ async function ingestThsrSchedule(env) {
 // 冪等:抓得到才寫,全失敗連碰都不碰既有 blob)。沒缺的成本＝一次 json_type 查詢,不打 TDX、不寫 D1。
 const THSR_HEAL_EVERY_MIN = 5;
 const THSR_HEAL_FROM_HOUR = 5;   // 台北 05:00 起才檢查(高鐵首班約 06:00,更早沒有畫車需求)
+// 「今天的日鍵在不在」照不到「今天還沒更新」:抓取窗有 7 天,每日那發失敗後,今天的日鍵還會在好幾天。
+// 2026-10-14~10-17 那發連四天在取 token 就吃 429(同 delaySelfHeal 上方記的 09-08~09-12 那型),
+// blob 停在 10-13 抓的那份,上面那條要等窗用完才會動,這段期間官方的加開、停駛、改點都進不來;
+// 同幾天 09:37 那發台鐵誤點自癒每天都取得到 token。所以在固定時刻多問一句「blob 台北今天更新過沒」,
+// 沒有就重抓整個窗。固定清單的理由同 DELAY_HEAL_SLOTS:上游持續失敗時,這條路一天最多重抓 5 發
+// (每發最多 7 次 DailyTimetable;取 token 失敗就整窗停手,只花 1 次 token 請求)。這個上限只管
+// 「今天的日鍵還在」的期間,窗用完之後是上面那條每 5 分鐘補抓。與 DELAY_HEAL_SLOTS 錯開 10 分鐘,
+// 不讓兩邊在同一發 invocation 一起取 token、一起整包重建 blob。
+// 每日那發成功的日子,每個時刻只是同一句查詢多讀一欄,零 TDX。
+const THSR_REFRESH_SLOTS = [9 * 60 + 47, 10 * 60 + 47, 12 * 60 + 47, 15 * 60 + 47, 19 * 60 + 47];
 async function thsrSelfHeal(event, env) {
   const tw = new Date(((event && event.scheduledTime) || Date.now()) + 8 * 3600 * 1000);
-  if (tw.getUTCMinutes() % THSR_HEAL_EVERY_MIN !== 0) return { skipped: 'cadence' };
+  const refreshSlot = THSR_REFRESH_SLOTS.includes(tw.getUTCHours() * 60 + tw.getUTCMinutes());
+  if (!refreshSlot && tw.getUTCMinutes() % THSR_HEAL_EVERY_MIN !== 0) return { skipped: 'cadence' };
   if (tw.getUTCHours() < THSR_HEAL_FROM_HOUR) return { skipped: 'off-hours' };
-  const todayKey = twToday().replace(/-/g, '');
+  const todayIso = twToday();
+  const todayKey = todayIso.replace(/-/g, '');
   // json_type 回 'object'＝那天在 blob 裡,回 NULL＝缺。用它而不是把 v 撈出來 parse:blob 是 MB 級,
   // 每 5 分鐘搬一次純屬浪費(讀的是同一列、rows_read 一樣是 1,但回傳量差三個數量級)。
+  // updated 是寫入當下的 datetime('now')(UTC),加 8 小時取日期＝台北哪一天寫的。
   const row = await env.DELAY_DB.prepare(
-    "SELECT json_type(v, '$.days.' || ?) AS t FROM kv_blobs WHERE k = ?"
+    "SELECT json_type(v, '$.days.' || ?) AS t, date(updated, '+8 hours') AS d FROM kv_blobs WHERE k = ?"
   ).bind(todayKey, THSR_SCHED_BLOB_KEY).first();
-  if (row && row.t === 'object') return { ok: true, present: true };
+  if (row && row.t === 'object') {
+    if (!refreshSlot || row.d === todayIso) return { ok: true, present: true };
+    console.warn(`[thsr 自癒] blob 最後在台北 ${row.d} 更新,今天(${todayIso})還沒更新——每日 cron 應該是失敗了,現在重抓`);
+    const rt = await ingestThsrSchedule(env);
+    console.log(`[thsr 自癒] 重抓結束 written=${rt && rt.written} dayKeys=${JSON.stringify((rt && rt.dayKeys) || [])}`);
+    return { ok: true, present: true, stale: true, written: !!(rt && rt.written) };
+  }
   console.warn(`[thsr 自癒] blob 裡沒有今天(${todayKey})的班表——每日 cron 應該是失敗了,現在補抓`);
   const rt = await ingestThsrSchedule(env);
   const healed = !!(rt && rt.written && (rt.dayKeys || []).includes(todayKey));
@@ -8607,4 +8636,5 @@ export const _thsr = {
   thsrConvertSeatList, isThsrSeatCode, thsrSeatUrl, thsrSeat,
   // 自我檢查:測試要自備 env(DELAY_DB/ASSETS/TDX 覆寫)與 event.scheduledTime(節奏閘門看它,不看真時鐘)。
   thsrSelfHeal, THSR_SCHED_FETCH_DAYS, THSR_SCHED_KEEP_DAYS, THSR_HEAL_EVERY_MIN, THSR_HEAL_FROM_HOUR,
+  THSR_REFRESH_SLOTS,
 };

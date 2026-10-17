@@ -106,7 +106,9 @@ const widths = [360, 375, 414, 768];
 // 10/7：台鐵待避股道與行程分享網址各新增一條（478→480）。
 // 10/7：台鐵國慶連假追加班表一條（480→481）。
 // 10/8：立體地圖拉近時地下列車整列消失修正一條（481→482）。
-const expectedHistoryCount = 482;
+// 10/17 補記：10/9～10/14 六條沒跟著 +1（afrtiming1009、klrtloop1009、krtcsat1011、trtcg1011、overtakeretime1011、
+// followspeed1014；e7113d2b 與 4a2e573e 的完整歷史各數到 482、488 條）（482→488）；臺南鐵路地下化通車一條（488→489）。
+const expectedHistoryCount = 489;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

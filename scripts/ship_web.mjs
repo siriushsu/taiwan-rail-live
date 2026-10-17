@@ -262,6 +262,11 @@ try {
   const tainanMemory = spawnSync('node', [path.join(wt, 'scripts', 'verify_tainan_memory.mjs')], { encoding: 'utf8' });
   process.stdout.write(tainanMemory.stdout || ''); process.stderr.write(tainanMemory.stderr || '');
   if (tainanMemory.status !== 0) fail('台南地面鐵道封存雜湊、班次或沿軌接續未通過');
+  // 10/16 實測重播（與 9/12 並列）：這個目錄的封存雜湊、班次與沿軌接續、實測時刻、單線雙向、股道占用、頁面與主站入口。
+  const tainanMemory1016 = spawnSync('node', [path.join(wt, 'scripts', 'verify_tainan_memory.mjs'), '--date', '2026-10-16'], { encoding: 'utf8' });
+  process.stdout.write(tainanMemory1016.stdout || ''); process.stderr.write(tainanMemory1016.stderr || '');
+  if (tainanMemory1016.status !== 0) fail('台南地面鐵道 10/16 實測重播：封存雜湊、實測時刻、單線雙向或股道占用未通過'
+    + '（單獨重跑：node scripts/verify_tainan_memory.mjs --date 2026-10-16）');
   const railLevels = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_levels.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(railLevels.stdout || ''); process.stderr.write(railLevels.stderr || '');
   if (railLevels.status !== 0) fail('軌道上下層、交叉淨距或來源剖面版本未通過');
@@ -314,6 +319,9 @@ try {
   const guangci = spawnSync('node', [path.join(wt, 'scripts', 'verify_guangci_tracks.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(guangci.stdout || ''); process.stderr.write(guangci.stderr || '');
   if (guangci.status !== 0) fail('廣慈延伸段雙軌連通性或來源座標未通過');
+  const tainanUnderground = spawnSync('node', [path.join(wt, 'scripts', 'verify_tainan_underground.mjs')], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(tainanUnderground.stdout || ''); process.stderr.write(tainanUnderground.stderr || '');
+  if (tainanUnderground.status !== 0) fail('臺南地下化的層位、停車股道或 2D 畫線未通過（單獨重跑：node scripts/verify_tainan_underground.mjs）');
   const formations = spawnSync('node', [path.join(wt, 'scripts', 'verify_formations.mjs')], { cwd:wt, encoding:'utf8' });
   process.stdout.write(formations.stdout || ''); process.stderr.write(formations.stderr || '');
   if (formations.status !== 0) fail('列車編組節數未通過——有車種的實際編組退回 3 節示意（單獨重跑：npm run check-formations）');

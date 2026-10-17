@@ -3764,3 +3764,29 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '修正跟車小卡在列車還停在月台時，時速就往上跳、提早 3 秒寫「行進中」': '追跡カードで、列車がまだホームに停車しているのに速度が上がり始め、発車の3秒前に「走行中」と表示される問題を修正しました',
 });
+
+// 2026-10-17 臺南鐵路地下化第一階段通車（v1017a）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '臺南鐵路地下化 10/17 通車：大橋到保安改走地下，臺南站改停地下 4 股，平面與立體地圖的軌道都跟著換': 'Tainan’s underground railway opened on 10/17: trains between Daqiao and Bao’an now run underground and stop on Tainan Station’s 4 underground tracks, on both the 2D and 3D maps',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '臺南鐵路地下化 10/17 通車：大橋到保安改走地下，臺南站改停地下 4 股，平面與立體地圖的軌道都跟著換': '台南の鉄道地下化区間が10/17に開業しました。大橋〜保安間は地下を走り、台南駅では地下ホームの4線に停車します。平面地図と立体地図の線路も切り替えました',
+});
+
+// 2026-10-17 高鐵班表每日更新沒成功時，當天稍後自動重抓（v1017b）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '高鐵班表每天早上的更新若沒成功，當天稍後會自動再抓幾次': 'If the morning HSR timetable update fails, it now retries automatically later the same day.',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '高鐵班表每天早上的更新若沒成功，當天稍後會自動再抓幾次': '高鉄の時刻表は、朝の更新に失敗した日も当日中に自動で取り直すようにしました。',
+});
+
+// 2026-10-18 「更多」加 10/16 臺南地面鐵道最後一天的重播入口（v1018a）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '臺南地面鐵道最後一天・歷史重播': 'Tainan surface railway’s last day · Historical replay',
+  '新增臺南地面鐵道最後一天（10/16）的重播：依當天實際到離站紀錄重現 226 班列車，可調時間、加速、跟車': 'Added a replay of the last day of Tainan’s surface railway (10/16): 226 trains recreated from that day’s actual arrival and departure records, with time controls, fast-forward and train following',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '臺南地面鐵道最後一天・歷史重播': '台南の地上鉄道・最終日の運行を再生',
+  '新增臺南地面鐵道最後一天（10/16）的重播：依當天實際到離站紀錄重現 226 班列車，可調時間、加速、跟車': '台南の地上鉄道の最終日（10/16）を再生できるようにしました。当日の実際の発着記録から226本の列車を再現し、時刻の変更、早送り、列車の追跡ができます',
+});
