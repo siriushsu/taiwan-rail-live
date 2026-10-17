@@ -160,7 +160,7 @@ try{
   // 右緣提示：表格右邊還有內容（還沒捲到底）時，.twr 加 more，CSS 在右緣畫一道淡出（不接收指標）；捲到底或沒有溢出時拿掉。捲動、表格或外框變大小時重算。
   const twr=document.createElement('div'),more=document.createElement('span');twr.className='twr';more.className='tw-more';more.setAttribute('aria-hidden','true');twr.append(wrap,more);
   const syncMore=()=>twr.classList.toggle('more',wrap.scrollWidth-wrap.clientWidth-wrap.scrollLeft>1);wrap.addEventListener('scroll',syncMore,{passive:true});cardMore?.disconnect();cardMore=new ResizeObserver(syncMore);cardMore.observe(wrap);cardMore.observe(table);
-  const note=document.createElement('p');note.className='note';note.textContent=tr.timing==='scheduled'?(data.preview?'預覽班表：這班車照表定時刻畫，沒有誤點、待避與越行；實際到離站紀錄之後補上。':'這班車沒有任何即時動態紀錄，整班照時刻表畫。'):'時刻依即時動態紀錄推算，到站誤差約半分鐘。實測＝取自紀錄的到站或通過時刻；內插＝這一站沒有可用的紀錄，到站與開車都由鄰近的站推算；推定＝紀錄裡沒有開車時刻，用表定加上當時的誤點分鐘推算，可能差一分鐘左右；留置＝比表定多停 90 秒以上；「—」＝起點站沒有到站、終點站沒有開車。';
+  const note=document.createElement('p');note.className='note';note.textContent=tr.timing==='scheduled'?(data.preview?'預覽班表：這班車照表定時刻畫，沒有誤點；實際到離站紀錄之後補上。':'這班車沒有任何即時動態紀錄，整班照時刻表畫。'):'時刻依即時動態紀錄推算，到站誤差約半分鐘。實測＝取自紀錄的到站或通過時刻；內插＝這一站沒有可用的紀錄，到站與開車都由鄰近的站推算；推定＝紀錄裡沒有開車時刻，用表定加上當時的誤點分鐘推算，可能差一分鐘左右；留置＝比表定多停 90 秒以上；「—」＝起點站沒有到站、終點站沒有開車。';
   card.append(h,cardStatus,twr,note);}
  function refreshCard(){const tr=state.follow?data.trains.find(t=>t.id===state.follow):null,hint=$('fpToggle').querySelector('.s');if(!tr){card.hidden=true;if(!panel.hidden){panel.hidden=true;applyPanel();}if(cardFor!==null){cardFor=null;hint.textContent=FP_HINT;}return;}
   if(cardFor!==tr.id){renderCard(tr);cardFor=tr.id;hint.textContent='跟車中：'+tr.train+' 次的逐站時刻';}card.hidden=false;if(panel.hidden){panel.hidden=false;applyPanel();}const sec=state.sec;
@@ -179,8 +179,9 @@ try{
   const follow=data.trains.find(t=>t.id===state.follow);
   if(follow)return [follow.train+' 次',follow.formation.caption,follow.timing==='scheduled'?(data.preview?'預覽班表，照表定時刻':'無即時動態紀錄，照表定時刻'):follow.timing?'時刻依即時動態紀錄重建':'依封存班表推演'].filter(Boolean).join(' · ');
   return data.preview?PREVIEW_CAPTION:'封存 '+data.trains.length+' 班 · 時刻依即時動態紀錄重建，非 GPS 軌跡；區間車與莒光號的編組為推估。';}
- // 「舊站近景」連方位、仰角、縮放一起回預設；「下一班到臺南」只跳時間、把畫面中心移到臺南站月台中央（在地下，連高度一起移），方位、仰角、縮放照按之前的。兩顆都取消跟車。
- // 「下一班到臺南」只算會停臺南的班次：沒經過臺南的班次，anchorStop 是第一站，不能拿來排。
+ // 「舊站近景」連方位、仰角、縮放一起回預設；「下一班到臺南」「臺南發車」只跳時間、把畫面中心移到臺南站月台中央（在地下，連高度一起移），方位、仰角、縮放照按之前的。三顆都取消跟車。
+ // 「下一班到臺南」只算會停臺南的班次：沒經過臺南的班次，anchorStop 是第一站，不能拿來排。在臺南始發的班次沒有到站，不算進「下一班到臺南」，
+ // 另由「臺南發車」跳到開車前 LEAD 秒：始發車只有開車時刻，在開車那一秒才出現，所以先看到空月台，車出現就開走。
  function centerStation(){state.follow='';$('train').value='';target.set(stationXY[0]+18,stationXY[1],0);}
  function centerPlatform(){state.follow='';$('train').value='';target.set(platformXY[0],platformXY[1],platformZ);}
  function stationView(){centerStation();span=140;azimuth=3.6;tilt=TILT0;view();}
@@ -193,7 +194,10 @@ try{
  $('timeline').oninput=e=>jump(Number(e.target.value));$('time').onchange=e=>{const [h,m,s=0]=e.target.value.split(':').map(Number);jump(h*3600+m*60+s);};
  $('play').onclick=()=>{state.playing=!state.playing;$('play').textContent=state.playing?'暫停':'播放';$('play').setAttribute('aria-label',state.playing?'暫停重播':'播放重播');};
  $('speed').onchange=e=>state.speed=Number(e.target.value);
- $('next').onclick=()=>{const toTainan=byArrival.filter(tainanStop),at=tr=>tainanStop(tr).arrSec,next=toTainan.find(tr=>at(tr)>state.sec+25)||toTainan[0];jump(at(next)-25);centerPlatform();view();};
+ // 兩顆都只算重播範圍內（23:59:59 以前）到站／開車的班次：隔天凌晨才到臺南的跨午夜車（例如 0:01 到站）跳不過去，算進去的話按了會停在 23:59:59、再按也不動。
+ const LEAD=25,toTainan=byArrival.filter(tr=>tainanStop(tr)&&tainanStop(tr).end!=='origin').filter(tr=>tainanStop(tr).arrSec<=86399),fromTainan=data.trains.filter(tr=>tainanStop(tr)?.end==='origin').filter(tr=>tainanStop(tr).depSec<=86399).sort((a,b)=>tainanStop(a).depSec-tainanStop(b).depSec);
+ const jumpNext=(list,at)=>{const next=list.find(tr=>at(tr)>state.sec+LEAD)||list[0];jump(at(next)-LEAD);centerPlatform();view();};
+ $('next').onclick=()=>jumpNext(toTainan,tr=>tainanStop(tr).arrSec);$('depart').onclick=()=>jumpNext(fromTainan,tr=>tainanStop(tr).depSec);$('depart').hidden=!fromTainan.length;
  $('train').onchange=e=>followTrain(e.target.value);
  $('about').onclick=$('aboutNav').onclick=()=>{$('details').showModal();};
  // 手勢：單指或左鍵拖曳平移；雙指捏合縮放＋轉動改方位、雙指一起上下推改傾斜（兩指合計移動 16 px 後判定是哪一種，這次手勢就鎖定，判定前的位移在判定當下一次補上）。

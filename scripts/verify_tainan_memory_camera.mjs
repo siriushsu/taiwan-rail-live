@@ -124,7 +124,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
    await pressNext('23:05 之後');
    // 22:26：下一班停臺南的是 22:28:30 在臺南始發的 3783，「下一班到臺南」要跳過它、「臺南發車」要跳到它；23:05 之後沒有臺南始發的車，「臺南發車」回到當天第一班。每次先平移離開車站
    const awayAt=async sec=>{await page.evaluate(s=>tainanMemory.jump(s),sec);await page.mouse.move(cx-60,cy+40);await page.mouse.down();await page.mouse.move(cx+90,cy-30,{steps:10});await page.mouse.up();};
-   await awayAt(80760);await pressNext('22:26，下一班停臺南的是臺南始發');
+   await awayAt(80760);await pressNext(NEXT?'22:26':'22:26，下一班停臺南的是臺南始發');
    await awayAt(80760);await pressNext('22:26','#depart');
    await awayAt(83100);await pressNext('23:05 之後','#depart');}
   check(engine,view,'零錯誤',errors.length===0,errors.slice(0,3).join(' | '));

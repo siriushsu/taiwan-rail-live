@@ -1,7 +1,7 @@
 // 臺南 10/23 重播頁（地下化後的第一個週五）專屬驗收：地下結構的材質與畫序、地面面紗、車廂高程與俯仰、臺南站停靠位置、
-// 標籤與鏡頭的高度、深度衝突（z-fighting）、鋼軌與道碴的逐頂點高程、路面讓位、手機版面。無視窗 Chromium＋WebKit。
+// 標籤與鏡頭的高度、深度衝突（z-fighting）、鋼軌與道碴的逐頂點高程、路面讓位、手機版面、「下一班到臺南」與「臺南發車」的跳轉。無視窗 Chromium＋WebKit。
 // 用法：node scripts/verify_tainan_memory_1023_browser.mjs；自己起 dev_server 子程序（PORT 預設 5611），結束時只停它。VURL 有給就不起 server。
-// 環境變數：ENGINES=chromium,webkit；ONLY=health,materials,veil,order,rails,roads,elevation,stop,labels,camera,depth,layout（逗號分隔，挑段落跑）；
+// 環境變數：ENGINES=chromium,webkit；ONLY=health,materials,veil,order,rails,roads,elevation,stop,labels,camera,depth,jumps,layout（逗號分隔，挑段落跑）；
 //   CONTROLS=0 略過突變對照（只有除錯時用，驗收一律要跑）；CHROMIUM_CHANNEL（預設 chrome）；RESULTS（結果檔路徑，預設寫到 output/tainan-memory-1023/verify-1023/）。
 // 期望值一律來自磁碟上的資料檔（snapshot.json、underground/model.json、underground/profile.json），不問頁面載入後的副本；
 // 突變對照（CONTROLS）用 page.route 對瀏覽器端換掉資料或程式（並補上對應的 integrity.json 雜湊），檢查該變紅，還原後該變綠；不改任何檔案。
@@ -62,7 +62,7 @@ const sha=buf=>crypto.createHash('sha256').update(buf).digest('hex');
 const f1=(v,n=3)=>Number.isFinite(v)?v.toFixed(n):String(v);
 
 // ── 突變：page.route 換掉資料或程式，並補上 integrity.json 的雜湊（頁面載入資料時會比對） ──
-const MIME={json:'application/json',js:'text/javascript',css:'text/css'};
+const MIME={json:'application/json',js:'text/javascript',css:'text/css',html:'text/html'};
 function buildMutation(spec){
  const files=new Map();
  for(const [f,fn] of Object.entries(spec.json||{})){const obj=structuredClone(readJson(f));fn(obj);files.set(f,Buffer.from(JSON.stringify(obj)));}
@@ -353,8 +353,12 @@ async function checkDepth(o,{secS,secN}){
 // ───────────────────────── 檢查：手機版面（尺寸 × 狀態 × 觸控） ─────────────────────────
 // 直立：360、375、390（介於中間）、414、500（介於中間）、640（介於中間）、768、834（介於中間）；橫向：同一批尺寸對調；再加寬不到 700 的橫向手機與矮螢幕。
 const SIZES=[[360,780],[375,812],[390,844],[414,896],[500,900],[640,960],[768,1024],[834,1112],[780,360],[812,375],[844,390],[896,414],[900,500],[960,640],[1024,768],[1112,834],[667,375],[640,360],[568,320],[844,340],[740,340],[932,430]];
-const layoutSrc=`((scope)=>{
+// 視窗寬以設定值（vw，來自 page.viewportSize）為準，不以 innerWidth 為準：Chromium 的行動模擬在內容比視窗寬時會把整頁縮小，innerWidth 跟著變大，
+// 只比 scrollWidth 與 innerWidth 的話溢出看不出來。所以先直接斷言 innerWidth＝vw、visualViewport.scale＝1，再比 scrollWidth 與 vw。
+const layoutSrc=`((scope,vw)=>{
  const errs=[],q=s=>document.querySelector(s),vis=e=>!!e&&e.getClientRects().length>0;
+ if(innerWidth!==vw)errs.push('innerWidth＝'+innerWidth+'，不等於設定的視窗寬 '+vw+'（內容過寬，整頁被縮小）');
+ if(window.visualViewport&&Math.abs(window.visualViewport.scale-1)>.001)errs.push('visualViewport.scale＝'+window.visualViewport.scale.toFixed(3)+'，頁面被縮放');
  const root=q(scope),all=[...root.querySelectorAll('button,a,input,select')].filter(e=>vis(e)&&!e.closest('dialog:not([open])'));
  const boxes=all.map(e=>({id:e.id||(e.textContent||'').trim().slice(0,16)||e.tagName,e,r:e.getBoundingClientRect()})).filter(v=>v.r.width&&v.r.height);
  for(const b of boxes){if(b.r.left<-.1||b.r.right>innerWidth+.1||b.r.top<-.1||b.r.bottom>innerHeight+.1)errs.push('溢出:'+b.id);const hit=document.elementFromPoint(b.r.x+b.r.width/2,b.r.y+b.r.height/2);if(hit!==b.e&&!b.e.contains(hit))errs.push('無法觸及:'+b.id);if(b.r.width<24||b.r.height<24)errs.push('觸控目標過小:'+b.id);}
@@ -370,11 +374,11 @@ const layoutSrc=`((scope)=>{
    if(fp.left<-.5||fp.right>innerWidth+.5||fp.top<-.5||fp.bottom>innerHeight+.5)errs.push('逐站時刻面板超出視窗');}
   if(note)for(const b of boxes)if(ov(note,b.r))errs.push('操作提示與控件相交:'+b.id);
  }
- if(document.documentElement.scrollWidth>innerWidth||document.body.scrollWidth>innerWidth)errs.push('水平捲動');
+ if(document.documentElement.scrollWidth>vw||document.body.scrollWidth>vw)errs.push('水平捲動');
  return {count:boxes.length,ids:boxes.map(b=>b.id),errs};})`;
-const layoutErrors=(page,scope='body')=>page.evaluate(`${layoutSrc}(${JSON.stringify(scope)})`);
+const layoutErrors=(page,scope='body')=>page.evaluate(`${layoutSrc}(${JSON.stringify(scope)},${page.viewportSize().width})`);
 // 覆蓋斷言：版面掃描一定要掃到頁面的每個控件（掃不到就是分母縮水，沒有重疊也不代表沒問題）。「關於」鈕在窄版叫 about、寬螢幕橫放叫 aboutNav；逐站時刻鈕只在跟車時出現。
-const CTRL_IDS=['live','station','overview','rotate','zoomin','zoomout','wrap','timeline','play','time','speed','next','train'];
+const CTRL_IDS=['live','station','overview','rotate','zoomin','zoomout','wrap','timeline','play','time','speed','next','depart','train'];
 const coverageMiss=(state,ids)=>[...CTRL_IDS,ids.includes('aboutNav')?'aboutNav':'about',...(state==='default'?[]:['fpToggle'])].filter(i=>!ids.includes(i));
 // 狀態：default（預設鏡頭、08:27）、follow（跟著一班停臺南的車、面板預設）、follow-open（跟車且展開逐站時刻）、dialog（打開「關於」）
 function followCase(){const tr=SNAP.trains.find(t=>t.direction==='北上'&&t.stops.some(s=>s.name.replace('台','臺')==='臺南'&&s.stop!==false&&s.depSec-s.arrSec>=120));const s=tr.stops.find(x=>x.name.replace('台','臺')==='臺南');return {id:tr.id,train:tr.train,sec:Math.round((s.arrSec+s.depSec)/2)};}
@@ -392,7 +396,21 @@ async function dialogErrors(page){
  return errs;
 }
 // 逐一用觸控點每個控件，並核對效果（臺南站月台、鏡頭高度等 10/23 才有的語意）。
-const TAINAN_ARR=SNAP.trains.map(t=>t.stops.find(s=>s.name.replace('台','臺')==='臺南')).filter(Boolean).map(s=>s.arrSec).sort((a,b)=>a-b);
+// 「下一班到臺南」只算停臺南、不是在臺南始發（stops[].end 不是 'origin'）的班次，取到站秒；「臺南發車」只算在臺南始發的班次，取開車秒。
+// 兩者都取第一個晚於「按之前的時間＋25 秒」的，沒有就回到當天第一班，跳到那一秒之前 25 秒（夾在 0–86399）；畫面中心移到月台中央（含高度），取消跟車。
+// 始發車沒有到站、開車那一秒才出現：「下一班到臺南」若把它算進去，跳過去會先看到 25 秒的空月台。
+// 兩者都只算 23:59:59 以前到站／開車的班次（頁面同樣只算這些）：隔天凌晨才到臺南的跨午夜車跳不過去，算進去的話按了會停在 23:59:59。
+const TAINAN_STOPS=SNAP.trains.map(t=>t.stops.find(s=>s.name.replace('台','臺')==='臺南')).filter(Boolean);
+const TAINAN_ARR=TAINAN_STOPS.filter(s=>s.end!=='origin'&&s.arrSec<=86399).map(s=>s.arrSec).sort((a,b)=>a-b);
+const TAINAN_DEP=TAINAN_STOPS.filter(s=>s.end==='origin'&&s.depSec<=86399).map(s=>s.depSec).sort((a,b)=>a-b);
+const LEAD=25,expJump=(list,t0)=>Math.max(0,Math.min(86399,(list.find(x=>x>t0+LEAD)??list[0])-LEAD));
+// 測試時刻都從資料找，不寫死：
+//  ORIGIN_FIRST＝下一個會停臺南的班次是臺南始發車（它開車前 35 秒內沒有別班到站），按之前站在它開車前 60 秒；而且「把始發車算進去」的舊算法會跳到不同的秒數（這個案例分得出對錯）。
+//  DEPART_WRAP＝最後一班始發車開走之後 60 秒：「臺南發車」要回到當天第一班始發車。
+//  NEXT_WRAP＝當天最後一班到臺南的班次到站前 25 秒（之後當天沒有任何一班）：「下一班到臺南」要回到當天第一班，不能停在 23:59:59。
+const ORIGIN_FIRST=(()=>{for(const o of TAINAN_DEP){if(TAINAN_ARR.some(a=>a>o-35&&a<=o))continue;const t0=o-60;if(t0>=0&&expJump(TAINAN_ARR,t0)!==o-LEAD)return {t0,dep:o};}return null;})();
+const DEPART_WRAP=TAINAN_DEP.length>1&&TAINAN_DEP[TAINAN_DEP.length-1]+60<=86399?{t0:TAINAN_DEP[TAINAN_DEP.length-1]+60,first:TAINAN_DEP[0]}:null;
+const NEXT_WRAP=TAINAN_ARR.length>1?{t0:TAINAN_ARR[TAINAN_ARR.length-1]-LEAD,first:TAINAN_ARR[0]}:null;
 const STATION_XY=world(readJson('station/model.json').anchor);
 async function tapSuite(page,fc){
  const errs=[],E=m=>errs.push(m),near=(a,b,t)=>Math.abs(a-b)<=t;
@@ -402,9 +420,12 @@ async function tapSuite(page,fc){
  let a,b;
  if(await tap('#play')){a=await st();if(!a.playing||a.play!=='暫停')E('按「暫停／播放」第一下：state.playing＝'+a.playing+'、按鈕字＝'+a.play);}
  if(await tap('#play')){a=await st();if(a.playing||a.play!=='播放')E('按「暫停／播放」第二下：state.playing＝'+a.playing+'、按鈕字＝'+a.play);}
- // 下一班到臺南：時間跳到下一班到站前 25 秒，畫面中心移到月台中央（含深度）
- const s0=(await st()).sec,nextArr=TAINAN_ARR.find(x=>x>s0+25)??TAINAN_ARR[0],wantSec=Math.max(0,Math.min(86399,nextArr-25));
+ // 下一班到臺南（不含臺南始發的車）：時間跳到下一班到站前 25 秒，畫面中心移到月台中央（含深度）
+ const s0=(await st()).sec,wantSec=expJump(TAINAN_ARR,s0);
  if(await tap('#next')){await settle(page);a=await st();if(!near(a.sec,wantSec,1.5))E(`「下一班到臺南」：時間 ${f1(a.sec,1)}，該是 ${wantSec}`);if(!near(a.view.x,platformXY[0],.02)||!near(a.view.y,platformXY[1],.02)||!near(a.view.z,platformZ,.02))E(`「下一班到臺南」：畫面中心 (${f1(a.view.x,2)},${f1(a.view.y,2)},${f1(a.view.z,2)})，該是月台中央 (${f1(platformXY[0],2)},${f1(platformXY[1],2)},${f1(platformZ,2)})`);}
+ // 臺南發車：時間跳到下一班臺南始發的車開車前 25 秒，畫面中心同樣移到月台中央
+ const s1=(await st()).sec,wantDep=expJump(TAINAN_DEP,s1);
+ if(await tap('#depart')){await settle(page);a=await st();if(!near(a.sec,wantDep,1.5))E(`「臺南發車」：時間 ${f1(a.sec,1)}，該是 ${wantDep}`);if(!near(a.view.x,platformXY[0],.02)||!near(a.view.y,platformXY[1],.02)||!near(a.view.z,platformZ,.02))E(`「臺南發車」：畫面中心 (${f1(a.view.x,2)},${f1(a.view.y,2)},${f1(a.view.z,2)})，該是月台中央 (${f1(platformXY[0],2)},${f1(platformXY[1],2)},${f1(platformZ,2)})`);}
  a=await st();if(await tap('#zoomin')){b=await st();if(!near(b.span,Math.max(34,a.span/1.5),.01))E(`放大：視野 ${f1(a.span,1)}→${f1(b.span,1)}`);}
  a=await st();if(await tap('#zoomout')){b=await st();if(!near(b.span,Math.min(14000,a.span*1.5),.01))E(`縮小：視野 ${f1(a.span,1)}→${f1(b.span,1)}`);}
  a=await st();if(await tap('#rotate')){b=await st();const dz=Math.atan2(Math.sin(b.view.azimuth-a.view.azimuth),Math.cos(b.view.azimuth-a.view.azimuth));if(!near(dz,Math.PI/4,1e-6))E('旋轉：方位角該加 45°，實際 '+f1(dz*180/Math.PI,2)+'°');}
@@ -436,11 +457,52 @@ async function checkLayoutMatrix(browser,engine,fc){
    await toState(page,'default',fc);}
  }finally{await o.context.close();}
  if(o.errors.length)errs.push('頁面 console error／pageerror：'+o.errors[0].slice(0,120));
- return {pass:!errs.length,detail:errs.length?`${errs.length} 項不符：${errs.slice(0,6).join('；')}`:`${SIZES.length} 種尺寸（直立 360／375／390／414／500／640／768／834 與橫向對調，另加 ${SIZES.slice(16).map(s=>s.join('×')).join('、')}）× 4 種狀態（預設、跟車、跟車展開、關於視窗）：每個狀態都掃到全部控件（最少 ${scanned} 個）：不溢出、座標點得到自己、互不相交、無水平捲動、區塊不重疊；每個尺寸另以 page.tap 逐一點控件並核對效果`};
+ return {pass:!errs.length,detail:errs.length?`${errs.length} 項不符：${errs.slice(0,6).join('；')}`:`${SIZES.length} 種尺寸（直立 360／375／390／414／500／640／768／834 與橫向對調，另加 ${SIZES.slice(16).map(s=>s.join('×')).join('、')}）× 4 種狀態（預設、跟車、跟車展開、關於視窗）：每個狀態都掃到全部控件（最少 ${scanned} 個）：不溢出、座標點得到自己、互不相交、innerWidth＝設定的視窗寬且沒有縮放（visualViewport.scale＝1）、無水平捲動、區塊不重疊；每個尺寸另以 page.tap 逐一點控件並核對效果`};
 }
 // 版面對照：在 390×844 的預設與跟車展開兩個狀態跑同一個版面檢查
 async function layoutQuick(o,fc){const errs=[];for(const state of ['default','follow-open']){await toState(o.page,state,fc);const r=await layoutErrors(o.page,'body');for(const e of r.errs)errs.push(`${state}：${e}`);const miss=coverageMiss(state,r.ids);if(miss.length)errs.push(`${state}：版面掃描沒有掃到控件 ${miss.join('、')}`);}return {pass:!errs.length,detail:errs.length?errs.slice(0,4).join('；'):'390×844 預設與跟車展開都沒有重疊／溢出，且掃到全部控件'};}
 async function tapQuick(o,fc){const errs=await tapSuite(o.page,fc);return {pass:!errs.length,detail:errs.length?errs.slice(0,4).join('；'):'390×844 逐一觸控每個控件，效果都符合'};}
+
+// ───────────────────────── 檢查：「下一班到臺南」「臺南發車」的跳轉（期望值從 snapshot 算） ─────────────────────────
+// 桌機頁、用滑鼠點；每個案例先把時間放到指定秒、把畫面中心移離月台（才看得出按鈕有把它移回來），再按。
+const hms=t=>new Date(Math.round(t)*1000).toISOString().slice(11,19);
+async function checkJumps(o,fc){
+ const page=o.page,errs=[],E=m=>errs.push(m),near=(a,b,t)=>Math.abs(a-b)<=t,NAME={'#next':'下一班到臺南','#depart':'臺南發車'};
+ const st=()=>page.evaluate(()=>{const t=window.tainanMemory,d=document.getElementById('depart');return {sec:t.state.sec,follow:t.state.follow,sel:document.getElementById('train').value,view:t.getView(),hidden:d.hidden,shown:d.getClientRects().length>0};});
+ const setup=async(sec,follow)=>{await page.evaluate(([s,f])=>{const t=window.tainanMemory;t.state.playing=false;t.followTrain('');t.homeView();t.jump(s);if(f)t.followTrain(f);},[sec,follow||'']);await settle(page);};
+ const press=async sel=>{await page.click(sel);await settle(page);return st();};
+ const verdict=(label,sel,list,t0,a,extra='')=>{const want=expJump(list,t0),n=NAME[sel];
+  if(!near(a.sec,want,1.5))E(`${label}：按「${n}」，時間 ${f1(a.sec,1)}（${hms(a.sec)}），該是 ${want}（${hms(want)}）${extra}`);
+  if(!near(a.view.x,platformXY[0],.02)||!near(a.view.y,platformXY[1],.02)||!near(a.view.z,platformZ,.02))E(`${label}：按「${n}」，畫面中心 (${f1(a.view.x,2)},${f1(a.view.y,2)},${f1(a.view.z,2)}) 不是月台中央`);
+  if(a.follow!==''||a.sel!=='')E(`${label}：按「${n}」之後還在跟車`);return want;};
+ const s00=await st();if(s00.hidden||!s00.shown)E(`「臺南發車」鈕沒有顯示（hidden＝${s00.hidden}，有版面＝${s00.shown}）；這一天有 ${TAINAN_DEP.length} 班臺南始發的車`);
+ const lines=[];
+ // 1. 下一個會停臺南的班次是臺南始發車：「下一班到臺南」要跳過它（始發車沒有到站），「臺南發車」要跳到它
+ if(!ORIGIN_FIRST)E('資料裡找不到「下一班停臺南的是臺南始發車」的時刻，這一項驗不了');
+ else{const {t0,dep}=ORIGIN_FIRST;
+  await setup(t0);const home=(await st()).view;if(near(home.x,platformXY[0],1)&&near(home.y,platformXY[1],1))E('起點的畫面中心就在月台中央，看不出按鈕有沒有移動畫面');
+  let a=await press('#next');const wantN=verdict(hms(t0),'#next',TAINAN_ARR,t0,a,near(a.sec,dep-LEAD,1.5)?'（跳到臺南始發的車開車前 25 秒了：始發車沒有到站，不該算進「下一班到臺南」）':'');
+  await setup(t0);a=await press('#depart');const wantD=verdict(hms(t0),'#depart',TAINAN_DEP,t0,a);if(!near(wantD,dep-LEAD,1.5))E(`${hms(t0)}：臺南始發的車 ${hms(dep)} 開車，「臺南發車」該跳到 ${hms(dep-LEAD)}`);
+  lines.push(`${hms(t0)}：下一班停臺南的是 ${hms(dep)} 始發的車；「下一班到臺南」跳到 ${hms(wantN)}（跳過始發車）、「臺南發車」跳到 ${hms(wantD)}`);}
+ // 2. 連按兩次：第二次要跳到再下一班（剛跳到前 25 秒，不能停在原地）
+ for(const sel of ['#next','#depart']){const list=sel==='#next'?TAINAN_ARR:TAINAN_DEP;await setup(30420);let a=await press(sel);verdict('08:27 第一次',sel,list,30420,a);const t1=a.sec;a=await press(sel);verdict('連按第二次',sel,list,t1,a);
+  if(near(a.sec,t1,.5))E(`連按「${NAME[sel]}」：第二次沒有往後跳（停在 ${hms(a.sec)}）`);lines.push(`08:27 連按「${NAME[sel]}」：${hms(t1)} → ${hms(a.sec)}`);}
+ // 3. 最後一班臺南始發車開走之後：「臺南發車」回到當天第一班
+ if(!DEPART_WRAP)E('資料裡沒有「最後一班始發車開走之後」的時刻，「臺南發車」繞回當天第一班驗不了');
+ else{await setup(DEPART_WRAP.t0);const a=await press('#depart');verdict(hms(DEPART_WRAP.t0)+'（最後一班始發車開走之後）','#depart',TAINAN_DEP,DEPART_WRAP.t0,a,`（要繞回當天第一班始發車 ${hms(DEPART_WRAP.first)}）`);
+  if(!near(a.sec,DEPART_WRAP.first-LEAD,1.5))E(`${hms(DEPART_WRAP.t0)}：「臺南發車」沒有繞回當天第一班（該是 ${hms(DEPART_WRAP.first-LEAD)}，實際 ${hms(a.sec)}）`);lines.push(`${hms(DEPART_WRAP.t0)}：「臺南發車」繞回 ${hms(a.sec)}`);}
+ // 4. 當天最後一班到臺南之後：「下一班到臺南」回到當天第一班，不能停在 23:59:59（跨午夜才到站的車不算）
+ if(!NEXT_WRAP)E('資料裡沒有「當天最後一班到臺南之前」的時刻，「下一班到臺南」繞回當天第一班驗不了');
+ else{await setup(NEXT_WRAP.t0);const a=await press('#next');verdict(hms(NEXT_WRAP.t0)+'（當天最後一班到臺南之前）','#next',TAINAN_ARR,NEXT_WRAP.t0,a,`（要繞回當天第一班 ${hms(NEXT_WRAP.first)}）`);
+  if(!near(a.sec,Math.max(0,NEXT_WRAP.first-LEAD),1.5))E(`${hms(NEXT_WRAP.t0)}：「下一班到臺南」沒有繞回當天第一班（該是 ${hms(Math.max(0,NEXT_WRAP.first-LEAD))}，實際 ${hms(a.sec)}）`);lines.push(`${hms(NEXT_WRAP.t0)}：「下一班到臺南」繞回 ${hms(a.sec)}`);}
+ // 5. 跟車中按：取消跟車、畫面中心到月台中央
+ for(const sel of ['#next','#depart']){await setup(fc.sec,fc.id);const b=await st();if(b.follow!==fc.id)E(`跟車中按「${NAME[sel]}」的起點：沒有進入跟車（${b.follow}）`);const a=await press(sel);verdict('跟車中',sel,sel==='#next'?TAINAN_ARR:TAINAN_DEP,b.sec,a);}
+ lines.push('跟車中按兩顆鈕：都取消跟車並移到月台中央');
+ return {pass:!errs.length,detail:errs.length?errs.slice(0,4).join('；'):lines.join('｜')};
+}
+// 過寬對照用：版面掃描之外，另外記下舊斷言（scrollWidth＞innerWidth）當時是紅還是綠，證明新斷言抓得到舊斷言看不到的溢出。
+async function wideProbe(o,fc){const r=await layoutQuick(o,fc);const old=await o.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth||document.body.scrollWidth>innerWidth),w=await o.page.evaluate(()=>[innerWidth,window.visualViewport?.scale]);
+ return {pass:r.pass,detail:`舊斷言（scrollWidth＞innerWidth）${old?'紅':'綠'}；innerWidth＝${w[0]}、scale＝${w[1]?.toFixed?.(3)}｜${r.detail}`};}
 
 // ───────────────────────── 突變對照 ─────────────────────────
 const REP=(from,to)=>[[from,to]];
@@ -464,7 +526,19 @@ const M={
  veilAtAsphalt:{text:{'replay.js':[["veil.name='ground-veil';","veil.name='ground-veil';veil.position.z=.015;"],["polygonOffset:true,polygonOffsetFactor:2,polygonOffsetUnits:8","polygonOffset:false,polygonOffsetFactor:2,polygonOffsetUnits:8"]]}},
  veilAtAsphaltOffsetOn:{text:{'replay.js':REP("veil.name='ground-veil';","veil.name='ground-veil';veil.position.z=.015;")}},
  roadsAllRails:{text:{'roads.js':REP("const onGround=p=>!(p[2]<0);","const onGround=p=>true;")}},
- nextNotPlatform:{text:{'replay.js':REP("jump(at(next)-25);centerPlatform();view();","jump(at(next)-25);view();")}},
+ nextNotPlatform:{text:{'replay.js':REP("jump(at(next)-LEAD);centerPlatform();view();","jump(at(next)-LEAD);view();")}},
+ // 「下一班到臺南」把臺南始發的車也算進去（回到只過濾「有停臺南」的舊寫法）
+ nextIncludesOrigin:{text:{'replay.js':REP("toTainan=byArrival.filter(tr=>tainanStop(tr)&&tainanStop(tr).end!=='origin')","toTainan=byArrival.filter(tr=>tainanStop(tr))")}},
+ // 「下一班到臺南」把跨午夜才到站的車也算進去：當天最後一班之後按下去會停在 23:59:59
+ nextBeyondDay:{text:{'replay.js':REP(".filter(tr=>tainanStop(tr).arrSec<=86399)","")}},
+ // 找不到下一班時不回到當天第一班，改取最後一班
+ departNoWrap:{text:{'replay.js':REP("at(tr)>state.sec+LEAD)||list[0];","at(tr)>state.sec+LEAD)||list[list.length-1];")}},
+ departUnwired:{text:{'replay.js':REP("$('depart').onclick=()=>jumpNext(fromTainan,tr=>tainanStop(tr).depSec);","$('depart').onclick=()=>{};")}},
+ departHidden:{text:{'replay.css':REP("[hidden]{display:none!important}","[hidden]{display:none!important}#depart{display:none!important}")}},
+ // 塞一個比視窗寬 1.5 倍的元素：Chromium 的行動模擬會把整頁縮小，innerWidth 跟著變大
+ wideCss:{text:{'replay.css':REP("[hidden]{display:none!important}","[hidden]{display:none!important}#caption{display:block!important;width:150vw!important;white-space:nowrap!important}")}},
+ // viewport meta 把版面寬度撐到 640：不靠內容寬度，直接讓 innerWidth≠設定的視窗寬（兩個引擎都會）
+ metaWide:{text:{'index.html':REP('width=device-width,initial-scale=1,viewport-fit=cover','width=640,initial-scale=1,viewport-fit=cover')}},
  overlapCss:{text:{'replay.css':REP("[hidden]{display:none!important}","[hidden]{display:none!important}#zoomin,#zoomout{position:fixed!important;left:8px!important;top:60px!important}")}},
  hideRotate:{text:{'replay.css':REP("[hidden]{display:none!important}","[hidden]{display:none!important}#rotate{display:none!important}")}},
  notFound:{status:{'underground/near.mesh.bin.gz':404}},
@@ -477,9 +551,10 @@ async function runControl(browser,engine,c){
  try{green=await c.run(o);}catch(e){green={pass:false,detail:'例外：'+e.message.split('\n')[0]};}
  await o.context.close();
  // keepGreen：這一項是「改了也不該紅」的對照（證明某個防線真的在擋），所以突變後要綠。
- const redOk=c.keepGreen?red.pass:!red.pass&&(!c.expect||red.detail.includes(c.expect)),greenOk=green.pass;
+ const want=c.expect&&typeof c.expect==='object'?c.expect[engine]:c.expect;
+ const redOk=c.keepGreen?red.pass:!red.pass&&(!want||red.detail.includes(want)),greenOk=green.pass;
  controlsLog.push({engine,name:c.name,red:!red.pass,keepGreen:!!c.keepGreen,reason:red.detail.slice(0,200),restoredGreen:green.pass});
- record(engine,'對照',c.name,redOk&&greenOk,`突變後${c.keepGreen?(red.pass?'仍綠：'+red.detail.slice(0,150):'變紅了（本來該維持綠）：'+red.detail.slice(0,150)):red.pass?'沒有變紅（'+red.detail.slice(0,100)+'）':redOk?'變紅：'+red.detail.slice(0,150):'紅了但不是預期原因（要含「'+c.expect+'」）：'+red.detail.slice(0,150)}｜還原後${green.pass?'綠':'仍紅：'+green.detail.slice(0,120)}`);
+ record(engine,'對照',c.name,redOk&&greenOk,`突變後${c.keepGreen?(red.pass?'仍綠：'+red.detail.slice(0,150):'變紅了（本來該維持綠）：'+red.detail.slice(0,150)):red.pass?'沒有變紅（'+red.detail.slice(0,100)+'）':redOk?'變紅：'+red.detail.slice(0,150):'紅了但不是預期原因（要含「'+want+'」）：'+red.detail.slice(0,150)}｜還原後${green.pass?'綠':'仍紅：'+green.detail.slice(0,120)}`);
 }
 
 // ───────────────────────── 主流程 ─────────────────────────
@@ -518,6 +593,7 @@ try{
    const secOf=(dir,tg)=>elevRows?.find(r=>r.dir===dir&&r.target===tg)?.sec??30420,secS=secOf('北上',450),secN=secOf('北上',7450);
    depthRes=await run('depth','深度衝突：地下結構各視角沿視線微移後影像幾乎不變（變動像素 ≤ 畫面的 '+DEPTH_MAX_FRAC*100+'%）',()=>checkDepth(base,{secS,secN}));
   }
+  await run('jumps','「下一班到臺南」不算臺南始發的車、「臺南發車」只算始發車；連按、繞回當天第一班、跟車中按都對（期望值從 snapshot 算）',()=>checkJumps(base,fc));
   // 還原頁面狀態後，整輪沒有 console error／pageerror
   if(want('health')){const late=base.errors.length;record(engine,'health','整輪（含所有取樣、拖曳、渲染）console error／pageerror 仍為 0',late===0,late?base.errors[0].slice(0,160):'');}
   await base.context.close();
@@ -547,6 +623,14 @@ try{
     {sec:'layout',name:'版面：兩顆視角鈕疊在一起 → 版面檢查變紅',mutation:M.overlapCss,open:{viewport:{width:390,height:844},mobile:true},run:o=>layoutQuick(o,fc),expect:'相交'},
     {sec:'layout',name:'版面：旋轉鈕被藏起來 → 版面掃描的覆蓋斷言變紅',mutation:M.hideRotate,open:{viewport:{width:390,height:844},mobile:true},run:o=>layoutQuick(o,fc),expect:'沒有掃到控件 rotate'},
     {sec:'layout',name:'觸控：「下一班到臺南」不再移到月台 → 觸控檢查變紅',mutation:M.nextNotPlatform,open:{viewport:{width:390,height:844},mobile:true},run:o=>tapQuick(o,fc),expect:'下一班到臺南'},
+    {sec:'layout',name:'版面：「臺南發車」鈕被藏起來 → 版面掃描的覆蓋斷言變紅',mutation:M.departHidden,open:{viewport:{width:390,height:844},mobile:true},run:o=>layoutQuick(o,fc),expect:'沒有掃到控件 depart'},
+    {sec:'layout',name:'版面：有元素比視窗寬 1.5 倍 → 版面檢查變紅（Chromium 縮小整頁，由 innerWidth 斷言抓到；WebKit 不縮小，由水平捲動抓到）',mutation:M.wideCss,open:{viewport:{width:390,height:844},mobile:true},run:o=>wideProbe(o,fc),expect:{chromium:'不等於設定的視窗寬',webkit:'水平捲動'}},
+    {sec:'layout',name:'版面：viewport meta 把版面寬撐到 640 → innerWidth 不等於設定寬的斷言變紅',mutation:M.metaWide,open:{viewport:{width:390,height:844},mobile:true},run:o=>wideProbe(o,fc),expect:'不等於設定的視窗寬'},
+    {sec:'jumps',name:'跳轉：「下一班到臺南」把臺南始發的車也算進去 → 變紅',mutation:M.nextIncludesOrigin,run:o=>checkJumps(o,fc),expect:'臺南始發'},
+    {sec:'jumps',name:'跳轉：「臺南發車」找不到下一班時不繞回當天第一班 → 變紅',mutation:M.departNoWrap,run:o=>checkJumps(o,fc),expect:'沒有繞回當天第一班'},
+    {sec:'jumps',name:'跳轉：「下一班到臺南」把跨午夜才到站的車算進去 → 變紅',mutation:M.nextBeyondDay,run:o=>checkJumps(o,fc),expect:'「下一班到臺南」沒有繞回當天第一班'},
+    {sec:'jumps',name:'跳轉：「臺南發車」鈕按了沒反應 → 變紅',mutation:M.departUnwired,run:o=>checkJumps(o,fc),expect:'臺南發車'},
+    {sec:'jumps',name:'跳轉：兩顆鈕都不再移到月台 → 變紅',mutation:M.nextNotPlatform,run:o=>checkJumps(o,fc),expect:'不是月台中央'},
    ];
    // labels／followZ 對照用的案例：沿用基準頁取到的代表案例
    var fcases=follow?follow.map(({id,train,dir,sec,name})=>({id,train,dir,sec,name})):[];

@@ -1,6 +1,6 @@
 # 台南地下化後第一個週五（2026-10-23）對照重播：資料與建置設計
 
-狀態：預覽版資料與驗收完成（2026-10-18）。定版班表與實測 10/24 下午才有，換定版的步驟見第 5 節。分支 `memory/tainan-1023`。頁面（畫面、預覽標示）另一條線，只讀第 6 節的 snapshot 欄位。
+狀態：預覽版資料與驗收完成（2026-10-18）。定版班表與實測 10/24 下午才有，換定版的步驟見第 5 節。分支 `memory/tainan-1023`。頁面（畫面、預覽標示）只讀第 6 節的 snapshot 欄位。
 
 ## 1. 範圍
 
@@ -22,11 +22,13 @@
 
 - 原始檔存檔在 `.cache/tainan-1023-raw/`（不進版控）：`prelim-20261017/` 附 `SHA256SUMS` 與 `DOWNLOADED_AT`，`README.txt` 記存檔規則（不覆蓋，每次下載放新子資料夾）。
 - 雜湊前 8 碼：`20261023.json` `97cbfd84`、`stations.json` `ff0f4633`、轉出的密化班表 `2bbfeb38`、`0bc3cfae` 的密化班表 `3e206490`；完整值在 `snapshot.sources`。
+- 這份預覽快照是分支併入 main `6b6d9961` 之後重建的：`snapshot.sources` 與 `timingSource.speedCaps.indexSha256` 裡主站 `index.html`、`scripts/fetch_tra_schedule.py`、`scripts/build_tainan_memory.mjs`、物理下限檔、實測檔的雜湊是併入後的版本，與併入前的快照相比只有這幾處雜湊不同（做法見第 5 節「主站輸入變動時」）。
 
 轉換與比對：
 
 - 轉換器 `scripts/tainan_ods_to_dense.py`：解析重用 `fetch_tra_schedule.py` 的 `main()`、密化重用 `densify_schedule.py` 的 `main()`，在暫存目錄原樣執行，只把下載換成讀本機檔、把「今天」固定成營運日（不固定的話，同樣的輸入每天轉出不同的檔）。只寫 `--out`，不碰 `data/`；同樣輸入重跑兩次逐 byte 相同。
-  `python3 -I -B scripts/tainan_ods_to_dense.py --date 2026-10-23 --ods <20261023.json> --stations <stations.json> --out <輸出.json> --downloaded-at "<DOWNLOADED_AT 的內容>"`
+  `python3 -I -B scripts/tainan_ods_to_dense.py --date 2026-10-23 --ods <子資料夾>/20261023.json --stations <子資料夾>/stations.json --out <輸出.json> --downloaded-at "$(sed 's/^downloaded //' <子資料夾>/DOWNLOADED_AT)"`
+- 轉換器的輸入在快取根目錄（repo 根目錄的 `.cache/`，或 `TAINAN_CACHE_DIR`）底下 `tainan-1023-raw/` 的子資料夾（預覽是 `prelim-20261017/`），每個子資料夾有 `SHA256SUMS`。`DOWNLOADED_AT` 的內容是 `downloaded 2026-10-17 01:31:01 +0800`，開頭的 `downloaded ` 要用 `sed` 去掉再傳入：整段原樣傳入的話，下載時間字串不同，轉出檔的雜湊是 `c145bc8c…`，不是設定檔記的 `2bbfeb38…`。
 - 轉換結果 938 車次（只含 10/23），`fallback_segments=0`、`unmatched_names=0`；`source_notes` 開頭多一則【轉換】說明（含原始檔雜湊與下載時間）。轉換結果依賴 repo 的 `data/tra.json` 等三個路網檔，換了就要重轉。
 - 對 `0bc3cfae` 的 10/23 密化班表逐項比對：車次集合相同（938＝938）；停靠站序列、通過站序列、stops 逐欄位（含 lat/lon/order）的差異都是 0。
 - 唯一差異是 20 列次的車種標籤：`自強(3000親障)`→`自強(3000障)` 13 列、`自強(PP親)`→`自強(PP障)` 6 列、`110M`→`110K` 1 列。兩種寫法在 `resolvePerf` 命中同一條規則，`formationFor`／`assembleFormation` 配出的編組逐班相同（20/20；其中 12 班在本快照內），所以車種、極速上限與編組都不變。
@@ -62,6 +64,8 @@
 
 ## 5. 換成定版資料的步驟
 
+預覽的 `memories/tainan-2026-10-23/integrity.json` 是預覽版的封存。它存在時，`build_tainan_memory.mjs` 一律拒絕重建（第 53 行：已有 `integrity.json`），所以重建前先刪掉它，驗收通過後再重新封存。刪掉之後頁面載入時比對不到資料檔的雜湊，載不起來；要在瀏覽器驗收，先用 `--seal-reviewed-snapshot` 暫時封一次，之後資料夾裡若又有任何檔案變動，最後要再封一次。
+
 換定版的設定改動不改程式；但第 5 節末尾的程式面問題要先解決（預覽沒有實測，下列路徑都沒跑過）。
 
 **抓資料**（存進 `.cache/tainan-1023-raw/` 的新子資料夾，每個子資料夾有 `SHA256SUMS`、`DOWNLOADED_AT`、`SUMMARY.json`）：
@@ -78,13 +82,13 @@
 
 - 刪 `preview` 整項（不是設 null）；`timing` 由 `'scheduled'` 改 `'observed'`。
 - `schedules`：兩筆的 `cache`、`sha256` 換成定版轉出檔，刪 `temporary`；保留 `convertedFrom: 'ods'`（build 因此繼續把轉換用的三支腳本記進 `snapshot.sources`）。
-- `actuals`：`stations` 換成定版 `ods-<時間>/stations.json`；`hist` 填 `tra_hist/2026-10-22…24.jsonl.gz`；`d1` 填 `d1-<時間>/d1-tra_station_events-<日期>.json`；`recordOnly` 換成定版 ODS 子資料夾的 `20261023.json`、`SHA256SUMS`、`DOWNLOADED_AT` 與 `README.txt`；`calibration` 填 `tainan-1016-work/backtest-2026-09-12.json`（重建演算法沒變，同 10/16；檔案在主樹的 `.cache/`）。
+- `actuals`：`stations` 換成定版 `ods-<時間>/stations.json`；`hist` 填 `tra_hist/2026-10-22…24.jsonl.gz`；`d1` 填 `d1-<時間>/d1-tra_station_events-<日期>.json`；`recordOnly` 換成定版 ODS 子資料夾的 `20261023.json`、`SHA256SUMS`、`DOWNLOADED_AT` 與 `README.txt`；`calibration` 填 `tainan-1016-work/backtest-2026-09-12.json`（重建演算法沒變，同 10/16；檔案在快取根目錄）。
 - `defaultSec` 重挑：開頁那一秒畫面內有車、至少一班在地下、臺南月台有停車，前後 30 秒不在 `uncertainty.json` 的時段內。預覽的 30420（08:27:00）是用預覽班表挑的，定版時刻會變。`defaultSec` 屬產生資料的欄位，改了要重建。
 - `verify`：`trains`、`overnight`、`directions`、`uncertaintyIntervals`、`underground.{tainanStops, offscreenStops, trainsUnderground, abruptArrivals, defaultScene}` 照新 build 的報表與 verify 輸出更新；實測模式另需 `anchorToleranceSec`（10/16 是 60）。
 - 主站入口：重播頁確認後在 `index.html` 加入口，再把 `verify.entry` 由 `null` 改成 `{id, cl}`（`verify` 欄位不影響快照雜湊）。
 - `selection`、`underground`、`ambiguity` 不動。
 
-**重建**（`TAINAN_CACHE_DIR` 指到放 `.cache/` 內容的資料夾；每步的離開碼存進變數）：
+**重建**（快取根目錄是 repo 根目錄的 `.cache/`，或 `TAINAN_CACHE_DIR` 指到的資料夾；每步的離開碼存進變數）：
 
 ```
 node scripts/build_tainan_memory.mjs --date 2026-10-23 --export-run-floor
@@ -96,7 +100,15 @@ node scripts/verify_tainan_memory.mjs --date 2026-10-23 --data-only
 
 - 輸出目錄沒有 `snapshot.json` 時，build 不帶 `--replace-local-snapshot`；有 `integrity.json`（封存後）一律拒絕重建。
 - 同樣的指令跑兩遍，`snapshot.json`、`source-schedule.json`、`source-observations.json`、`uncertainty.json` 要逐 byte 相同。
-- 封存用 `scripts/seal_tainan_memory.mjs --date 2026-10-23 --seal-reviewed-snapshot`，由接手者在驗收後執行。
+- 封存用 `scripts/seal_tainan_memory.mjs --date 2026-10-23 --seal-reviewed-snapshot`，驗收通過後封存；封存後跑一次 `--check`。
+
+**主站輸入變動時**（例如分支併入新的 main）：
+
+- 物理下限檔記了六個輸入的雜湊：兩份密化班表、`data/tra.json`、`data/tra_track_sections.json`、`data/tra_special_trains.json`、主站 `index.html`。任何一個變了，build 就停在「物理下限檔過期（… 已變）」。
+- 10/23 的輸入本來就是地下化之後的，所以在目前的 `HEAD` 就能重建：重跑 `--export-run-floor` 與 `tainan_actuals.py`（上面重建指令的前兩行），再 build。10/16 相反：它必須用地面時代的輸入，在 `HEAD` 重建不了（見 `docs/tainan-memory-2026-10-16-design.md` 第 6 節「重建要用地面版的輸入」）。
+- 重跑之前先確認變動與物理無關：用 `git log` 與 `git diff <上次建置時的 commit> HEAD -- index.html data/tra.json data/tra_track_sections.json data/tra_special_trains.json scripts/fetch_tra_schedule.py` 看，只動更新紀錄、`BUILD` 字串與註解才能照做；動到車種極速（`PERF_RULES`／`PERF_BY_TYPE`）、路網或班表，就不是單純重建，要先弄清楚改了什麼。
+- 重建後把新舊 `snapshot.json` 逐欄比對：除了 `snapshot.sources` 與 `timingSource.speedCaps.indexSha256` 裡的雜湊，其餘要全部相同；`source-schedule.json`、`source-observations.json`、`uncertainty.json` 要逐 byte 相同。
+- 實例：2026-10-18 併入 main `6b6d9961`。`index.html` 只動更新紀錄與 `BUILD`（`v1018a`→`v1018c`），`scripts/fetch_tra_schedule.py` 只動一行註解，三個 `data/` 檔沒變。重建後有 6 處雜湊不同（`index.html` 兩處，`scripts/fetch_tra_schedule.py`、`scripts/build_tainan_memory.mjs`、物理下限檔、實測檔各一處；`scripts/build_tainan_memory.mjs` 是同一輪改的一行註解），其餘逐欄相同。
 
 **程式面問題**（定版 observed 路徑要先解決）：
 
@@ -163,7 +175,7 @@ node scripts/verify_tainan_memory.mjs --date 2026-10-23 --data-only
 
 ## 8. 已知限制
 
-- 預覽時刻全是表定：沒有誤點、待避、越行；到離站時刻不是實際運行紀錄。
+- 預覽時刻全是表定：沒有誤點，但表定班表裡排好的待避與越行照樣在。場景內三站共 18 次（大橋 0、臺南 9、保安 9；判定是同方向兩班，一班先到、另一班後到卻先開）：臺南是兩班都停靠，保安是慢車停靠、快車通過（通過時刻來自物理模型）。到離站時刻不是實際運行紀錄。
 - 地下段的深度、車站與隧道尺寸是估計／示意；臺南的停靠位置是月台中央的推演，不是實測。
 - 8 班在臺南到站那一秒瞬停（第 4 節）；定版時刻不同，班數會變。
 - 10/22 尾段與 10/23 頭段的 3297、3786 共用同一組定義，預覽放行；定版會碰到第 5 節第 1 點。

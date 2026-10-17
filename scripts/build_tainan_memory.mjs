@@ -526,7 +526,7 @@ for(const d of cfg.observedEvents||[]){
   wait={trainId:cands[0].u.id,train:cands[0].u.train,arrSec:cands[0].x.arrSec,src:cands[0].x.src};text=text.replace('{wait}',wait.train);}
  if(d.other){const u=byNo(d.other.train,d.other.serviceDate),x=stopOf(u,d.station);if(!(x&&x.arrSec<=sec&&sec<=x.depSec))throw Error('交會時刻不在對方停站時間內：'+d.id);
   other={trainId:u.id,train:u.train,arrSec:x.arrSec,depSec:x.depSec};text=text.replace('{other}',u.train);}
- // follow:'other'：點這一列跟的是對方那班（頁面依 train 跟車）；時刻與來源仍取 train 那班在該站的紀錄。
+ // follow:'other'：這一列的車次欄（train）記 other 那班，時刻仍取 train 那班在該站的紀錄。
  if(d.follow!==undefined&&!(d.follow==='other'&&other))throw Error('時間軸「'+d.id+'」的 follow 只能是 other，而且要有 other');
  if(d.claim==='last-departure'&&outTrains.some(u=>u!==t&&stopOf(u,d.station)?.stop&&stopOf(u,d.station).depSec>sec))throw Error('不是最後一班離開 '+d.station);
  if(d.claim==='last-section-exit'&&selected[single.lastExit].key!==t.id)throw Error('不是最後一班離開單線區間');
