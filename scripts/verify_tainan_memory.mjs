@@ -38,7 +38,7 @@ assert.equal(data.date,cfg.date);assert.equal(data.trains.length,V.trains);asser
 const nDir=d=>data.trains.filter(t=>t.direction===d).length;assert.ok(data.trains.every(t=>t.direction==='北上'||t.direction==='南下'),'方向只能是北上或南下');
 if(V.directions){assert.equal(nDir('北上'),V.directions.北上);assert.equal(nDir('南下'),V.directions.南下);}else assert.ok(nDir('北上')>0&&nDir('南下')>0,'兩個方向都要有班次');
 assert.equal(data.trains.filter(t=>t.serviceDate===cfg.previous).length,V.overnight);
-assert.ok(data.rails.length>30);assert.ok(data.rails.every(r=>r.tags.railway==='rail'&&!r.tags.construction&&!r.tags.tunnel));
+assert.ok(data.rails.length>30);assert.ok(data.rails.every(r=>r.tags.railway==='rail'&&!r.tags.construction&&(cfg.underground||!r.tags.tunnel)));
 for(const tr of data.trains){assert.ok(sources.trains.some(s=>s.serviceDate===tr.serviceDate&&s.train===tr.train));const shown=arranged(tr);
  for(const [i,span] of tr.spans.entries()){
   assert.ok(span.start>=0&&span.start+span.s.length-1<=86399);assert.ok(span.s.length>0);
@@ -503,6 +503,7 @@ function checkObserved(){
   uncertainty:{criterion:U.criterion,intervals:U.intervals.length,byReason}};
 }
 const observed=cfg.timing==='observed'?checkObserved():null;
+const underground=cfg.underground?(await import('./verify_tainan_memory_1023_data.mjs')).checkUndergroundData({cfg,dir,data,paths,fleet,arranged,formationPoses,distanceM,read}):null;
 // 主站入口放最後。新日期的入口要等使用者看過頁面才加：設定 verify.entry 為 null＝還沒加，完整模式印一行明講略過，其餘判準照驗；
 // 設成 {id, cl} 就檢查主站 index.html 有沒有這個入口（有哪個鍵就查哪個）。
 let entry=null;
@@ -512,6 +513,6 @@ if(!DATA_ONLY){
   const index=fs.readFileSync(path.join(cfg.root,'index.html'),'utf8');for(const m of want)assert.ok(index.includes(m),'主站沒有這個重播的入口：'+m);}
 }
 const summary={trains:data.trains.length,routes:paths.length,samples:data.trains.reduce((n,t)=>n+t.spans.reduce((a,s)=>a+s.s.length,0),0),directions:['北上','南下'],overnight:V.overnight};
-const extra={...(sealedUnchanged.length&&{sealedUnchanged}),...(entry&&{entry}),...(observed&&{observed})};
+const extra={...(sealedUnchanged.length&&{sealedUnchanged}),...(entry&&{entry}),...(observed&&{observed}),...(underground&&{underground})};
 if(DATA_ONLY)console.log(JSON.stringify({mode:'data-only',date:cfg.date,...summary,continuity:'pass',...extra}));
 else console.log(JSON.stringify({files:Object.keys(integrity.files).length,...summary,integrity:'pass',continuity:'pass',surroundings,roads,...extra}));

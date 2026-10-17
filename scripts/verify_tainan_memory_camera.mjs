@@ -17,6 +17,8 @@ const OUT=path.resolve(WT,OUTDIR,'camera');fs.mkdirSync(path.join(OUT,'shots'),{
 const PORT=+(process.env.PORT||5587),base=process.env.VURL||`http://127.0.0.1:${PORT}`;
 const PAGE=base+(process.env.PAGE_PATH||'/'+DIR+'/index.html');
 const TILT0=Math.atan2(6800,8000),TMIN=10*Math.PI/180,TMAX=89*Math.PI/180;
+// 10/23：「下一班到臺南」把畫面中心移到月台中央（含深度）。期望值由這支腳本自己從資料檔算（參考線在 centerD 的內插與軌道面高程），不問頁面。
+const NEXT=DATE==='2026-10-23'?(()=>{const dir=path.join(WT,DIR),snap=JSON.parse(fs.readFileSync(path.join(dir,'snapshot.json'),'utf8')),prof=JSON.parse(fs.readFileSync(path.join(dir,'underground/profile.json'),'utf8')),d=snap.underground.platform.centerD,P=prof.reference.points,C=prof.controlPoints,i=P.findIndex(q=>q[2]>=d),k=C.findIndex(q=>q.d>=d),a=P[i-1],b=P[i],f=(d-a[2])/(b[2]-a[2]),c0=C[k-1],c1=C[k];return {xy:[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f],z:c0.z+(c1.z-c0.z)*(d-c0.d)/(c1.d-c0.d)};})():null;
 let server=null;
 if(!process.env.VURL){
  server=spawn(process.execPath,[path.join(WT,'scripts/dev_server.mjs')],{cwd:WT,env:{...process.env,PORT:String(PORT)},stdio:'ignore'});
@@ -31,7 +33,7 @@ const hms=t=>new Date(Math.round(t)*1000).toISOString().slice(11,19);
 const cam=page=>page.evaluate(()=>{const c=window.tainanMemory.camera,e=c.matrixWorld.elements;return {tilt:Math.asin(e[10]),az:Math.atan2(e[9],e[8]),span:c.top-c.bottom};});
 const rectOf=page=>page.evaluate(()=>{const r=window.tainanMemory.renderer.domElement.getBoundingClientRect();return {x:r.left,y:r.top,w:r.width,h:r.height};});
 // 螢幕點 → 地面（z=0）上的世界座標；世界座標 → 螢幕點。正交相機：射線方向一律是相機前方。
-const groundAt=(page,x,y)=>page.evaluate(([x,y])=>{const c=window.tainanMemory.camera,r=window.tainanMemory.renderer.domElement.getBoundingClientRect();const o=c.position.clone().set((x-r.left)/r.width*2-1,-((y-r.top)/r.height*2-1),-1).unproject(c);const d=c.position.clone().set(0,0,-1).transformDirection(c.matrixWorld);const t=-o.z/d.z;return [o.x+d.x*t,o.y+d.y*t,0];},[x,y]);
+const groundAt=(page,x,y,z0=0)=>page.evaluate(([x,y,z0])=>{const c=window.tainanMemory.camera,r=window.tainanMemory.renderer.domElement.getBoundingClientRect();const o=c.position.clone().set((x-r.left)/r.width*2-1,-((y-r.top)/r.height*2-1),-1).unproject(c);const d=c.position.clone().set(0,0,-1).transformDirection(c.matrixWorld);const t=(z0-o.z)/d.z;return [o.x+d.x*t,o.y+d.y*t,z0];},[x,y,z0]);
 const screenOf=(page,p)=>page.evaluate(p=>{const c=window.tainanMemory.camera,r=window.tainanMemory.renderer.domElement.getBoundingClientRect();const v=c.position.clone().set(...p).project(c);return [r.left+(v.x+1)/2*r.width,r.top+(1-v.y)/2*r.height];},p);
 async function open(browser,opts){const context=await browser.newContext(opts),page=await context.newPage(),errors=[];
  page.on('pageerror',e=>errors.push('pageerror: '+e.message));page.on('console',m=>{if(m.type()==='error')errors.push('console: '+m.text());});
@@ -47,7 +49,11 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
  {const view='1280x800';const {context,page,errors}=await open(browser,{viewport:{width:1280,height:800}});
   const r=await rectOf(page),cx=r.x+r.w/2,cy=r.y+r.h/2;
   const c0=await cam(page);
-  check(engine,view,'預設仰角＝改版前固定角度 40.36°',Math.abs(c0.tilt-TILT0)<1e-3,deg(c0.tilt));
+  if(NEXT){const h=await page.evaluate(()=>({home:tainanMemory.home,plat:tainanMemory.underground.platform}));
+   check(engine,view,'預設鏡頭（仰角、縮放）＝頁面宣告的 HOME',Math.abs(c0.tilt-h.home.tilt)<1e-3&&Math.abs(c0.span/h.home.span-1)<1e-6,`${deg(c0.tilt)} span ${c0.span.toFixed(1)}`);
+   const rr=await rectOf(page),pp=await screenOf(page,[NEXT.xy[0],NEXT.xy[1],NEXT.z]),oo=await screenOf(page,[0,0,0]),inside=q=>q[0]>rr.x+rr.w*.05&&q[0]<rr.x+rr.w*.95&&q[1]>rr.y+rr.h*.05&&q[1]<rr.y+rr.h*.95;
+   check(engine,view,'預設鏡頭：地下月台中央與舊站房都在畫面內（距邊緣至少 5%）',inside(pp)&&inside(oo),`月台 ${pp.map(Math.round)}、舊站 ${oo.map(Math.round)}、畫面 ${Math.round(rr.w)}×${Math.round(rr.h)}`);}
+  else check(engine,view,'預設仰角＝改版前固定角度 40.36°',Math.abs(c0.tilt-TILT0)<1e-3,deg(c0.tilt));
   check(engine,view,'預設方位 3.6 rad',Math.abs(dAng(c0.az,3.6))<1e-3,c0.az.toFixed(4));
   await hintCheck(engine,view,page);
   await page.mouse.move(cx,cy);await page.mouse.down({button:'right'});await page.mouse.move(cx+100,cy+60,{steps:10});await page.mouse.up({button:'right'});
@@ -92,8 +98,8 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
   // 「下一班到臺南」只跳時間：跳到下一班到臺南前 25 秒、取消跟車、畫面中心移回臺南站，方位、仰角、縮放照按之前的。
   // 9/12 封存版按了會連視角一起回舊站近景，封存不改，只驗其他日期。畫面中心每次照畫布當下的位置算（點按鈕可能捲動頁面）。
   if(DATE!=='2026-09-12'){
-   const centerGround=async()=>{const q=await rectOf(page);return groundAt(page,q.x+q.w/2,q.y+q.h/2);};
-   await page.click('#station');const home=await centerGround();
+   const centerGround=async()=>{const q=await rectOf(page);return groundAt(page,q.x+q.w/2,q.y+q.h/2,NEXT?NEXT.z:0);};
+   await page.click('#station');const home=NEXT?NEXT.xy:await centerGround();
    const pressNext=async label=>{const b=await cam(page),o=await centerGround(),sec0=await page.evaluate(()=>tainanMemory.state.sec),away=Math.hypot(o[0]-home[0],o[1]-home[1]);
     check(engine,view,`「下一班到臺南」之前（${label}）：方位、仰角、縮放、畫面中心都不是預設`,Math.abs(dAng(b.az,3.6))>.1&&Math.abs(b.tilt-TILT0)>.1&&Math.abs(b.span/140-1)>.1&&away>5,`${deg(b.tilt)} ${b.az.toFixed(3)} span ${b.span.toFixed(1)} 離站 ${away.toFixed(1)} m`);
     await page.click('#next');await page.waitForTimeout(100);
@@ -101,7 +107,7 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
     // 期望值直接從資料算：所有停臺南的到站秒數，取第一個晚於按之前 25 秒的，沒有就回到當天第一班（頁面的時間範圍 0–86399）
     const exp=await page.evaluate(t0=>{const a=tainanMemory.data.trains.flatMap(tr=>tr.stops.filter(st=>st.name.replace('台','臺')==='臺南').map(st=>st.arrSec)).sort((x,y)=>x-y);return Math.max(0,Math.min(86399,(a.find(x=>x>t0+25)??a[0])-25));},sec0);
     check(engine,view,`按「下一班到臺南」（${label}）：方位、仰角、縮放都不變`,Math.abs(dAng(a.az,b.az))<1e-9&&Math.abs(a.tilt-b.tilt)<1e-9&&Math.abs(a.span/b.span-1)<1e-9,`Δ方位 ${dAng(a.az,b.az).toExponential(1)}、Δ仰角 ${(a.tilt-b.tilt).toExponential(1)}、span ${b.span.toFixed(1)}→${a.span.toFixed(1)}`);
-    check(engine,view,`按「下一班到臺南」（${label}）：畫面中心回臺南站、跟車取消`,miss<.01&&s.follow===''&&s.sel==='',`離站 ${miss.toFixed(3)} m、follow=${JSON.stringify(s.follow)}`);
+    check(engine,view,`按「下一班到臺南」（${label}）：${NEXT?'畫面中心到月台中央':'畫面中心回臺南站'}、跟車取消`,miss<.01&&s.follow===''&&s.sel==='',`離站 ${miss.toFixed(3)} m、follow=${JSON.stringify(s.follow)}`);
     check(engine,view,`按「下一班到臺南」（${label}）：時間跳到下一班到臺南前 25 秒`,s.sec===exp,`${hms(sec0)} → ${hms(s.sec)}（應為 ${hms(exp)}）`);};
    // 自由觀看：右鍵拖曳改方位與仰角、滾輪拉遠、左鍵平移離開車站
    await page.mouse.move(cx,cy);await page.mouse.down({button:'right'});await page.mouse.move(cx-80,cy-50,{steps:10});await page.mouse.up({button:'right'});
@@ -198,14 +204,14 @@ for(const [engine,type] of [['chromium',chromium],['webkit',webkit]]){
   await page.tap('#station');const st=await cam(page);
   check(engine,view,'點「舊站近景」回預設仰角與方位',Math.abs(st.tilt-TILT0)<1e-3&&Math.abs(dAng(st.az,3.6))<1e-3);
   if(DATE!=='2026-09-12'){// 「下一班到臺南」保留視角（說明見桌機那段）：點「旋轉」「＋」、單指平移、雙指往上推壓低仰角之後再點
-   const centerGround=async()=>{const q=await rectOf(page);return groundAt(page,q.x+q.w/2,q.y+q.h/2);};
-   const home=await centerGround();await page.tap('#rotate');await page.tap('#zoomin');
+   const centerGround=async()=>{const q=await rectOf(page);return groundAt(page,q.x+q.w/2,q.y+q.h/2,NEXT?NEXT.z:0);};
+   const home=NEXT?NEXT.xy:await centerGround();await page.tap('#rotate');await page.tap('#zoomin');
    await gesture(Array.from({length:steps+1},(_,i)=>[lerp([cx-10,cy+60],[cx+30,cy-30],i/steps)]));
    await gesture(Array.from({length:steps+1},(_,i)=>{const t=i/steps;return [lerp([cx-60,cy+40],[cx-60,cy-40],t),lerp([cx+60,cy+40],[cx+60,cy-40],t)];}));
    const b=await cam(page),o=await centerGround(),away=Math.hypot(o[0]-home[0],o[1]-home[1]);await page.tap('#next');await page.waitForTimeout(100);
    const a=await cam(page),c=await centerGround(),f=await page.evaluate(()=>tainanMemory.state.follow),miss=Math.hypot(c[0]-home[0],c[1]-home[1]);
    check(engine,view,'「下一班到臺南」之前：方位、仰角、縮放、畫面中心都不是預設',Math.abs(dAng(b.az,3.6))>.1&&Math.abs(b.tilt-TILT0)>.05&&Math.abs(b.span/140-1)>.1&&away>2,`${deg(b.tilt)} ${b.az.toFixed(3)} span ${b.span.toFixed(1)} 離站 ${away.toFixed(1)} m`);
-   check(engine,view,'點「下一班到臺南」：方位、仰角、縮放都不變，畫面中心回臺南站',Math.abs(dAng(a.az,b.az))<1e-9&&Math.abs(a.tilt-b.tilt)<1e-9&&Math.abs(a.span/b.span-1)<1e-9&&miss<.01&&f==='',`Δ方位 ${dAng(a.az,b.az).toExponential(1)}、Δ仰角 ${(a.tilt-b.tilt).toExponential(1)}、離站 ${miss.toFixed(3)} m`);}
+   check(engine,view,`點「下一班到臺南」：方位、仰角、縮放都不變，${NEXT?'畫面中心到月台中央':'畫面中心回臺南站'}`,Math.abs(dAng(a.az,b.az))<1e-9&&Math.abs(a.tilt-b.tilt)<1e-9&&Math.abs(a.span/b.span-1)<1e-9&&miss<.01&&f==='',`Δ方位 ${dAng(a.az,b.az).toExponential(1)}、Δ仰角 ${(a.tilt-b.tilt).toExponential(1)}、離站 ${miss.toFixed(3)} m`);}
   check(engine,view,'零錯誤',errors.length===0,errors.slice(0,3).join(' | '));
   await context.close();}
  // ── 手機寬度掃描：操作提示整段在畫面內、不壓到視角按鈕 ──

@@ -104,6 +104,64 @@ const CONFIGS = {
     },
     note: '依 TDX 即時動態的逐站紀錄推算 2026-10-16 的到離站時刻（到站誤差約半分鐘；大橋、仁德站不回報，時間為內插），不是 GPS 軌跡；股道位置與單線雙向的進路是推演。編組依車種推估。道路與輪廓為封存時 OSM 資料，背景高度簡化；範圍為大橋至保安周邊，非工程計畫邊界。',
   },
+  // 地下化後第一個週五（與 10/16 同星期）的對照重播。預覽版：到離站時刻是臺鐵 ODS 預覽版逐日班表的表定值，沒有實測；
+  // 定版班表與實測要等 10/24 下午才有。換成定版的步驟見 docs/tainan-memory-2026-10-23-design.md 第 5 節。
+  '2026-10-23': {
+    date: '2026-10-23', previous: '2026-10-22', dir: 'memories/tainan-2026-10-23',
+    bounds: BOUNDS, origin: ORIGIN, timing: 'scheduled',
+    // 預覽標記：有這一項＝整份資料沒有實測，頁面與 verify 都要照預覽處理。換定版時整項刪掉（不是改成 null），再把 timing 改 'observed'。
+    preview: {
+      kind: 'ods-preview',
+      reason: '臺鐵 ODS 預覽版逐日班表（2026-10-17 手動下載），定版班表與實測紀錄 10/24 下午才有',
+    },
+    selection: {stations: ['大橋', '臺南', '保安']},
+    // 營運日 → 密化班表（scripts/tainan_ods_to_dense.py 由 ODS 逐日檔轉出）。10/22 跨午夜的班次用 10/22 那一版。
+    // convertedFrom:'ods'：這份班表由轉換腳本轉出，build 把轉換用的三支腳本也記進 snapshot.sources（定版班表同樣保留這一項）。
+    // temporary：預覽期間的暫代來源，定版時要換掉（換法見設計文件第 5 節）。
+    schedules: {
+      '2026-10-22': {cache: 'tainan-1023-work/inputs/tra_schedule_dense_0bc3cfae.json', commit: '0bc3cfae', path: 'data/tra_schedule_dense.json',
+        sha256: '3e206490220b94619e16b892fb277ad8f03bef44c8d95f6f7d9bf004954515bb',
+        temporary: '10/16 上架的 14 天班表（ODS UpdateTime 2026-10-15 14:24:59）裡的 10/22，只供跨午夜班次；定版時換成 10/22 當天的逐日檔轉出的密化班表'},
+      '2026-10-23': {cache: 'tainan-1023-work/inputs/tra_schedule_dense_ods1017.json', convertedFrom: 'ods',
+        sha256: '2bbfeb38d84b5534d6177f99aa418a72af8833c5552fd0add06b44673f8551b7',
+        temporary: 'ODS 預覽版逐日檔 20261023.json（UpdateTime 2026-10-15 16:33:22，2026-10-17 01:31 下載）轉出；定版時換成 10/24 抓到的定版逐日檔轉出的密化班表'},
+    },
+    actuals: {
+      out: 'tainan-1023-work/actuals-2026-10-23.json',
+      runFloor: 'tainan-1023-work/run-floor-2026-10-23.json',
+      stations: 'tainan-1023-raw/prelim-20261017/stations.json',
+      // 預覽沒有實測：兩項為空，tainan_actuals.py 讀不到任何紀錄，每班整班照表定。換定版時填入 TDX 歷史與 D1 的檔案。
+      hist: [], d1: [],
+      // 只記雜湊的原始檔（重建沒有直接讀，但 snapshot.sources 要能追到下載當下的版本）。
+      recordOnly: ['tainan-1023-raw/prelim-20261017/20261023.json', 'tainan-1023-raw/prelim-20261017/SHA256SUMS',
+        'tainan-1023-raw/prelim-20261017/DOWNLOADED_AT', 'tainan-1023-raw/README.txt'],
+      report: 'tainan-1023-work/build-report-2026-10-23.json',
+    },
+    // 地下化結構與高程剖面（model.json／profile.json）。build 用它算軌道面高程 z 與臺南月台的停靠點，並把兩份的雜湊記進 snapshot.sources。
+    underground: {
+      model: 'memories/tainan-2026-10-23/underground/model.json',
+      profile: 'memories/tainan-2026-10-23/underground/profile.json',
+      footprintKinds: ['tunnel', 'station', 'trough'],
+      // 停靠點換到月台中央的車站（profile.json 的 derived.platform）。
+      stopStation: '臺南',
+    },
+    // 開頁的時刻 08:27:00：畫面內 4 班全在地下（北上 2、南下 2），其中 3 班同時停在臺南月台，另 1 班在月台以南的隧道裡；
+    // 前後 30 秒也各有 4 班在地下，而且不在不確定時段內（預覽班表的選擇；定版班表換上後要重挑，見設計文件第 5 節）。
+    defaultSec: 30420,
+    ambiguity: {criterion: 'shared-way', closeWayM: 1.5, closeWaySec: 3, report: 'tainan-1023-work/ambiguity-report-2026-10-23.json'},
+    verify: {
+      // 預覽班表的門檻；換定版班表後照 build 報表的數字更新（設計文件第 5 節）。
+      trains: 232, overnight: 2, directions: {'北上': 117, '南下': 115}, uncertaintyIntervals: 4,
+      // 地下化資料的門檻（verify_tainan_memory_1023_data.mjs）：臺南站有停靠的班數（畫面內）、穿過地下段的班數，與位置誤差上限。
+      // abruptArrivals：到站那一秒從行駛速度直接停住的班數（前一站是通過站、時刻排得很緊的班次，既有物理模型的樣子），數字變了要重看。
+      underground: {tainanStops: {'北上': 116, '南下': 114}, offscreenStops: 2, trainsUnderground: {'北上': 117, '南下': 115}, abruptArrivals: 8, centerToleranceM: 1, zToleranceM: 0.05,
+        // 開頁時刻的畫面：畫面內的班數、在地下的班數（依方向）、停在臺南月台的班數。
+        defaultScene: {inView: 4, underground: {'北上': 2, '南下': 2}, dwellAtTainan: 3}},
+      // 主站入口等重播頁確認過才加；設 null＝還沒加（設計文件第 5 節）。
+      entry: null,
+    },
+    note: '2026-10-23 的到離站時刻是臺鐵 10/15 發布的預覽版班次表的表定時刻，不是實際運行的紀錄；定版班表與實測要等 10/24 下午才有，到時會更新。南下與北上列車依地下化後的線形行駛，臺南站停靠位置在月台中央；地下段高程、車站與隧道尺寸為示意。編組依車種推估。道路與輪廓為 OSM 資料，背景高度簡化；範圍為大橋至保安周邊，非工程計畫邊界。',
+  },
 };
 
 // .cache 不進版控：worktree 底下沒有，回到主樹找（git common dir 的上一層）。TAINAN_CACHE_DIR 可覆寫。
