@@ -219,7 +219,8 @@ def load_hist_rows(path, target):
     """TDX 歷史 LiveTrainDelay（gzip JSONL）→ 列，s／u 為相對 target 00:00 +08:00 的秒數。"""
     t0 = day0_epoch(target)
     rows = []
-    with gzip.open(path, 'rt', encoding='utf-8') as f:
+    # utf-8-sig：fetch_tainan_raw.mjs 原樣存下的 TDX 檔開頭有 BOM（之前的歷史檔沒有），gzip 之後照樣在檔頭。
+    with gzip.open(path, 'rt', encoding='utf-8-sig') as f:
         for line in f:
             line = line.strip()
             if not line:
