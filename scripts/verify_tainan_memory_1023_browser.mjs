@@ -666,6 +666,8 @@ const SCHED_NOS=[...new Set(SNAP.timingSource?.scheduledTrains||[])].map(String)
  .sort((a,b)=>Number(a.no)-Number(b.no)||a.date.localeCompare(b.date))
  .map(({date,no})=>SNAP.trains.filter(t=>t.train===no).length>1?`${no}（${Number(date.slice(5,7))}/${Number(date.slice(8,10))} 營運日）`:no);
 const SCHED_ONLY_PASS=!PREVIEW&&SNAP.trains.some(t=>t.timing==='scheduled'&&t.stops.some(s=>s.stop===false&&!(Number(s.holdSec)>=90)&&Number.isFinite(s.schedArrSec)));
+// 有實測的車的通過列：沒有這種列時（例如實測檔缺當天、只剩前一營運日尾段的車有紀錄），「實測重建的通過站也照預覽處理」的突變改不到任何一列，對照不適用。
+const OBS_PASS=!PREVIEW&&SNAP.trains.some(t=>t.timing==='observed'&&t.stops.some(s=>s.stop===false&&!(Number(s.holdSec)>=90)&&Number.isFinite(s.schedArrSec)));
 function obsCountsByStation(){
  const c=new Map();for(const t of SNAP.trains)for(const s of t.stops)c.set(normSta(s.name),0);   // 站名單取所有車停靠表上出現的站（含場景外的鄰站永康、仁德）
  for(const t of SNAP.trains){if(t.timing==='scheduled')continue;for(const s of t.stops)if(s.src==='obs')c.set(normSta(s.name),(c.get(normSta(s.name))||0)+1);}
@@ -881,7 +883,7 @@ try{
     {sec:'card',mode:'preview',name:'字幕：預覽時尾句仍寫重建的時刻 → 變紅',mutation:M.tailPreview,run:o=>checkCard(o,{every:6}),expect:'沒有寫表定時刻'},
     {sec:'card',name:'跟車卡：通過列的重播時刻改成表定 → 變紅',mutation:M.cardPassActSched,run:o=>checkCard(o,{every:6}),expect:'重播欄'},
     {sec:'card',name:'跟車卡：停靠列的差欄全改成「—」 → 變紅',mutation:M.cardStopDiffDash,run:o=>checkCard(o,{every:6}),expect:'差欄'},
-    {sec:'card',mode:'observed',name:'跟車卡：實測重建的通過站也照預覽記「—」、標內插 → 變紅',mutation:M.cardObservedAsPreview,run:o=>checkCard(o,{every:6})},
+    {sec:'card',mode:'observed',when:OBS_PASS,name:'跟車卡：實測重建的通過站也照預覽記「—」、標內插 → 變紅',mutation:M.cardObservedAsPreview,run:o=>checkCard(o,{every:6})},
     {sec:'card',mode:'observed',when:SCHED_ONLY_PASS,name:'跟車卡：沒有紀錄的車的通過站照舊算差、來源標表定 → 變紅',mutation:M.cardSchedOnlyOldRule,run:o=>checkCard(o),expect:'沒有即時動態紀錄的車的通過站'},
     {sec:'card',mode:'observed',name:'字幕：實測重建時尾句寫成表定時刻 → 變紅',mutation:M.tailObservedAsPreview,run:o=>checkCard(o,{every:6}),expect:'沒有寫重建的時刻'},
     {sec:'card',mode:'observed',name:'徽章：實測重建時仍寫預覽班表 → 變紅',mutation:M.badgeObservedAsPreview,run:o=>checkCard(o,{every:6}),expect:'徽章'},

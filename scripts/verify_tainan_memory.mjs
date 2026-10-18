@@ -200,7 +200,7 @@ const surroundings=DATA_ONLY?null:(()=>{
  ok(/surroundingIds\.has\(f\.id\)/.test(replay),'features 迴圈沒有略過已進周邊網格的建物（會重複擠出灰色方塊）');
  return {buildings:sm.buildings.length,triangles:near.triangleCount,gzipBytes:near.gzipBytes,drawGroups:groups.length,sheds,tanks,minTriangleAreaM2:minArea};
 })();
-// ── 馬路（roads.js）：柏油、標線、人行道（使用者 2026-09-30「連馬路、人行道細節也做更多一點」，選 A：只用封存資料）。
+// ── 馬路（roads.js）：柏油、標線、人行道（只用封存資料）。
 // 路寬、人行道側別、標線條數在這裡依 OSM 標籤獨立重算（不呼叫 roads.js 的判斷函式）；幾何另外逐三角形檢查：
 // 人行道與標線不准落在別條不平行道路的車道裡、不准離軌道中心 2 m 內，人行道只准出現在標了有的那一側，斷開也不能過頭。
 // 每條斷言的訊息都以「馬路：」開頭，突變測試靠它辨認是哪一條紅。
