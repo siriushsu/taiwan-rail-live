@@ -151,7 +151,10 @@ const CONFIGS = {
     // 開頁的時刻 08:27:00：畫面內 4 班全在地下（北上 2、南下 2），其中 3 班同時停在臺南月台，另 1 班在月台以南的隧道裡；
     // 前後 30 秒也各有 4 班在地下，而且不在不確定時段內（預覽班表的選擇；定版班表換上後要重挑，見設計文件第 5 節）。
     defaultSec: 30420,
-    ambiguity: {criterion: 'shared-way', closeWayM: 1.5, closeWaySec: 3, report: 'tainan-1023-work/ambiguity-report-2026-10-23.json'},
+    // 股道重疊的判準同 10/16。另加 deepOverlapM：兩車車身橫向重疊的深度（兩車車寬的平均，減去兩車車身中心線之間的最短距離）超過它的秒也算，
+    // 不論共不共用 way——車身中心已離開道岔、車尾還壓在道岔上的秒，只看共用 way 抓不到。門檻是量出來的：預覽班表與兩個以實測日彩排的日期，
+    // 整天逐秒、所有車對，相遇段的最大深度只有兩群，一般並行與道岔上的近接 ≤0.84 m（其中 38 段 ≤0.37 m），車身壓在一起 ≥2.8 m；1 m 放在兩群之間。
+    ambiguity: {criterion: 'shared-way', closeWayM: 1.5, closeWaySec: 3, deepOverlapM: 1, report: 'tainan-1023-work/ambiguity-report-2026-10-23.json'},
     verify: {
       // 預覽班表的門檻；換定版班表後照 build 報表的數字更新（設計文件第 5 節）。
       trains: 232, overnight: 2, directions: {'北上': 117, '南下': 115}, uncertaintyIntervals: 4,

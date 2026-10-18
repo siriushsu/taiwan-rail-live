@@ -13,7 +13,7 @@ import {generationConfigSha256} from './tainan_memory_config.mjs';
 
 // 外框邊上的頂點算框內（南洞口的節點剛好落在 U 槽與隧道兩個外框的共用邊上）：與 build 的 EDGE_M 相同。
 const EDGE_M = 0.02;
-// 點速變化上限（m/s²）：相鄰兩秒的點速增加不得超過它（模型裡班次的加速都在 1.1 以下）；點速減少則只有「停靠站的到站那一秒」可以超過。
+// 點速變化上限（m/s²）：相鄰兩秒的點速增加不得超過它（模型裡班次的加速都在 1.1 以下）；點速減少則只有「停下來的到站那一秒」（停靠站，或被留置的通過站）可以超過。
 // 這個例外是既有物理模型的樣子：前一站是通過站、時刻又排得很緊的班次，會在到站那一秒從行駛速度直接停住
 // （把臺南停靠點留在原位置的建置也一樣）。這種到站的班數釘在 verify.underground.abruptArrivals，數字變了就要重看。
 // 這一條抓的是位置跳點（例如停靠點事後平移），不是驗速度剖面本身。
@@ -175,7 +175,8 @@ export function checkUndergroundData(ctx) {
     // 位置連續：相鄰兩秒的位移 ≤ 極速；點速增加 ≤ ACCEL_MAX；點速減少超過 ACCEL_MAX 只准發生在停靠站的到站那一秒（同一秒在兩個路段的重疊點不算兩次）。
     const T = tr.stops.find(s => norm(s.name) === norm(U.stopStation));
     const near = t => T && T.stop && t >= T.arrSec - 180 && t <= T.depSec + 180;
-    const arrivalAt = new Map(tr.stops.filter(s => s.stop).map(s => [s.arrSec, s.name]));
+    // 停下來的到站：停靠站，和實測日被留置的通過站（stop 為 false，但 holdSec > 0，到站後真的停了一段時間）。預覽班表的通過站沒有留置。
+    const arrivalAt = new Map(tr.stops.filter(s => s.stop || s.holdSec > 0).map(s => [s.arrSec, s.name]));
     const here = at.get(data.defaultSec);
     if (here) {
       scene.inView++;
