@@ -51,7 +51,8 @@ const CONFIGS = {
       out: 'tainan-1016-work/actuals-2026-10-16.json',
       runFloor: 'tainan-1016-work/run-floor-2026-10-16.json',
       stations: 'tainan-1016-raw/stations.json',
-      // 秒級歷史為主、D1 分鐘級為輔（同站兩者都有時以歷史為準）；檔案不存在的日期略過。
+      // 秒級歷史為主、D1 分鐘級為輔（同站兩者都有時以歷史為準）。封存時 tra_hist 的 10-17 那份還不存在、當時被略過；
+      // 現在 tainan_actuals.py 遇到列了卻不在磁碟上的檔會停下來報錯。
       hist: ['tra_hist/2026-10-15.jsonl.gz', 'tra_hist/2026-10-16.jsonl.gz', 'tra_hist/2026-10-17.jsonl.gz'],
       d1: ['tainan-1016-raw/d1-tra_station_events-2026-10-15.json', 'tainan-1016-raw/d1-tra_station_events-2026-10-16.json',
         'tainan-1016-raw/d1-tra_station_events-2026-10-17.json'],

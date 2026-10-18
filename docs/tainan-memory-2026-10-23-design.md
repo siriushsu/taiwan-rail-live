@@ -73,16 +73,17 @@
 1. `node scripts/fetch_tainan_raw.mjs --date 2026-10-23 ods`：定版逐日檔、車站資料、清單頁。清單每天約 03:40 改版，舊檔之後回 HTTP 400，**10/24 約 03:40 之前要抓到**。
 2. `… --date 2026-10-23 tdx`：TDX 歷史 LiveTrainDelay，約 10/24 釋出；結束碼 3＝還沒釋出。
 3. `… --date 2026-10-23 d1 --wrangler <乾淨安裝的 wrangler>`：D1 `tra_station_events`，一次匯出 10/23 與 10/24 兩個 service_date。
-4. 跨午夜尾段（10/22 的 3297、3786）需要 10/22 的資料：`--date 2026-10-22 ods`（10/23 約 03:40 之前）、`tdx`、`d1`。抓不到就維持 `0bc3cfae` 的 10/22 並保留 `temporary` 說明；這兩班午夜前沒有實測，缺實測的站由重建內插或照表定。
-5. `tainan_actuals.py` 用 `gzip.open` 讀歷史檔，而 `fetch_tainan_raw.mjs` 存的是純 JSONL：把 TDX 檔轉成 `.cache/tra_hist/<日期>.jsonl.gz`（`gzip -n -c`，輸出可重現），10/22、10/23、10/24 各一份。
+4. 跨午夜尾段（10/22 的 3297、3786）需要 10/22 的資料：`--date 2026-10-22 ods`（10/23 約 03:40 之前）、`tdx`、`d1`。沒帶 `--out` 時存進主樹的 `.cache/tainan-1022-raw/`（`fetch_tainan_raw.mjs` 第 25–26 行：主樹由 git common dir 推得，資料夾名依日期），跟 10/23 的分開；在 worktree 裡跑也一樣寫主樹。抓不到就維持 `0bc3cfae` 的 10/22 並保留 `temporary` 說明；這兩班午夜前沒有實測，缺實測的站由重建內插或照表定。
+5. `tainan_actuals.py` 用 `gzip.open` 讀歷史檔，而 `fetch_tainan_raw.mjs` 存的是純 JSONL：把 TDX 檔轉成 `.cache/tra_hist/<日期>.jsonl.gz`（`gzip -n -c`，輸出可重現）。TDX 歷史檔按臺北時間的日曆日收錄（10/17 那份從 00:00:11 到 23:59:59），所以只要 10/22、10/23 兩份：10/23 那份涵蓋整個重播窗，10/22 那份給 3297、3786 午夜前的錨點。10/24 那份不在重播窗內，不列。開頭的 BOM 由 `utf-8-sig` 處理，不用先去掉。
 
 **轉班表**：用第 2 節的指令把定版 ODS 檔轉成密化班表（10/22 同樣各轉一份），`--out` 寫到快取根目錄的 `tainan-1023-work/inputs/`、換新檔名，不要覆蓋預覽的轉出檔；重跑第 2 節的比對，差異逐項說明。
 
 **設定**（`scripts/tainan_memory_config.mjs` 的 `'2026-10-23'`）：
 
 - 刪 `preview` 整項（不是設 null）；`timing` 由 `'scheduled'` 改 `'observed'`。
+- `note` 現在是預覽專屬的句子（頁面不顯示，但寫進快照），改成實測版。草稿（比照 10/16；不回報的站照 10/23 的實測資料確認後再填）：「依 TDX 即時動態的逐站紀錄推算 2026-10-23 的到離站時刻（到站誤差約半分鐘；大橋、仁德站不回報，時間為內插），不是 GPS 軌跡；股道位置是推演。南下與北上列車依地下化後的線形行駛，臺南站停靠位置在月台中央；地下段高程、車站與隧道尺寸為示意。編組依車種推估。道路與輪廓為 OSM 資料，背景高度簡化；範圍為大橋至保安周邊，非工程計畫邊界。」
 - `schedules`：兩筆的 `cache`、`sha256` 換成定版轉出檔，刪 `temporary`；保留 `convertedFrom: 'ods'`（build 因此繼續把轉換用的三支腳本記進 `snapshot.sources`）。
-- `actuals`：`stations` 換成定版 `ods-<時間>/stations.json`；`hist` 填 `tra_hist/2026-10-22…24.jsonl.gz`；`d1` 填 `d1-<時間>/d1-tra_station_events-<日期>.json`；`recordOnly` 換成定版 ODS 子資料夾的 `20261023.json`、`SHA256SUMS`、`DOWNLOADED_AT` 與 `README.txt`；`calibration` 填 `tainan-1016-work/backtest-2026-09-12.json`（重建演算法沒變，同 10/16；檔案在快取根目錄）。
+- `actuals`：`stations` 換成定版 `ods-<時間>/stations.json`；`hist` 填 `tra_hist/2026-10-22.jsonl.gz`、`tra_hist/2026-10-23.jsonl.gz` 兩份（抓資料第 5 點）；`d1` 填 `d1-<時間>/d1-tra_station_events-<日期>.json` 三份：10/22 取 `tainan-1022-raw` 那次匯出、10/23 與 10/24 取 `tainan-1023-raw` 那次（10/23 兩次都有時用 `tainan-1023-raw` 的，比照 10/16 列前一日、當日、次日）。列了、磁碟上卻沒有的檔，`tainan_actuals.py` 會停下來列出缺哪幾個（第 623–628 行）；真的沒有就從設定拿掉那一項。第 2 步跑完仍核對實測檔（`actuals.out`）的 `histFilesUsed` 與 `inputs`；`recordOnly` 換成定版 ODS 子資料夾的 `20261023.json`、`SHA256SUMS`、`DOWNLOADED_AT` 與 `README.txt`；`calibration` 填 `tainan-1016-work/backtest-2026-09-12.json`（重建演算法沒變，同 10/16；檔案在快取根目錄）。
 - `defaultSec` 重挑：開頁那一秒畫面內有車、至少一班在地下、臺南月台有停車，前後 30 秒不在 `uncertainty.json` 的時段內。預覽的 30420（08:27:00）是用預覽班表挑的，定版時刻會變。`defaultSec` 屬產生資料的欄位，改了要重建。
 - `verify`：`trains`、`overnight`、`directions`、`uncertaintyIntervals`、`underground.{tainanStops, offscreenStops, trainsUnderground, abruptArrivals, defaultScene}` 照新 build 的報表與 verify 輸出更新；實測模式另需 `anchorToleranceSec`（10/16 是 60）。
 - 主站入口：重播頁確認後在 `index.html` 加入口，再把 `verify.entry` 由 `null` 改成 `{id, cl}`（`verify` 欄位不影響快照雜湊）。
@@ -101,6 +102,8 @@ node scripts/verify_tainan_memory.mjs --date 2026-10-23 --data-only
 - 快取裡要先有設定 `schedules` 指到的兩份密化班表：build 照各筆的 `cache` 讀檔，雜湊和 `sha256` 不符就停（`班表雜湊不符`）。`0bc3cfae` 那份不在快取裡時，用 `git show 0bc3cfae:data/tra_schedule_dense.json > <快取根目錄>/tainan-1023-work/inputs/tra_schedule_dense_0bc3cfae.json` 取出；ODS 轉出的那份用第 2 節的指令轉，`--out` 寫成 `<快取根目錄>/` 加上設定裡的 `cache`。
 - 輸出目錄沒有 `snapshot.json` 時，build 不帶 `--replace-local-snapshot`；有 `integrity.json`（封存後）一律拒絕重建。
 - 同樣的指令跑兩遍，`snapshot.json`、`source-schedule.json`、`source-observations.json`、`uncertainty.json` 要逐 byte 相同。
+- 在 worktree 裡設 `TAINAN_CACHE_DIR=<worktree>/.cache` 重建時，先在那個快取根目錄備好：`tainan-1022-raw`、`tainan-1023-raw` 兩個指回主樹 `.cache` 的連結（`ln -sn`，只讀）、`tra_hist/2026-10-22.jsonl.gz` 與 `2026-10-23.jsonl.gz`（抓資料第 5 點）、`tainan-1016-work/backtest-2026-09-12.json`（從主樹 `.cache` 複製）。
+- 頁面驗收：`PORT=<埠> node scripts/verify_tainan_memory_1023_browser.mjs`。快照沒有 `preview` 時走實測模式的檢查：跟車卡全部班次逐列比時刻與標示（期望值從磁碟上的 `snapshot.json` 推）；關於視窗只出現實測段與實測來源行，車次清單等於 `timingSource.scheduledTrains`；「大橋與仁德兩站不回報」那句會對資料（這兩站在快照裡沒有任何實測、其餘各站至少一筆，約第 664 行）。若定版資料裡永康、臺南、保安有一站 0 筆，這項會紅，要改的是頁面那句與 `note`，不是檢查。`DIR`、`VURL` 可以把它指到別的資料夾或網址。
 - 封存用 `scripts/seal_tainan_memory.mjs --date 2026-10-23 --seal-reviewed-snapshot`，驗收通過後封存；封存後跑一次 `--check`。
 
 **主站輸入變動時**（例如分支併入新的 main）：
@@ -111,7 +114,14 @@ node scripts/verify_tainan_memory.mjs --date 2026-10-23 --data-only
 - 重建後把新舊 `snapshot.json` 逐欄比對：除了 `snapshot.sources` 與 `timingSource.speedCaps.indexSha256` 裡的雜湊，其餘要全部相同；`source-schedule.json`、`source-observations.json`、`uncertainty.json` 要逐 byte 相同。
 - 實例：2026-10-18 併入 main `6b6d9961`。`index.html` 只動更新紀錄與 `BUILD`（`v1018a`→`v1018c`），`scripts/fetch_tra_schedule.py` 只動一行註解，三個 `data/` 檔沒變。重建後有 6 處雜湊不同（`index.html` 兩處，`scripts/fetch_tra_schedule.py`、`scripts/build_tainan_memory.mjs`、物理下限檔、實測檔各一處；`scripts/build_tainan_memory.mjs` 是同一輪改的一行註解），其餘逐欄相同。
 
-**程式面問題**（定版 observed 路徑要先解決）：
+**程式面問題**（定版 observed 路徑要先解決）。五點都已修，並在已有實測的 10/17、10/18 彩排上跑過 observed 路徑；換定版後照上面的重建與驗收再跑一次：
+
+- 第 1 點：`5a450619`，同一車次的前一日尾段與當天頭段各自重建，passObs、tainanFit 與自訂計畫照班次分開。
+- 第 2、3 點：`df9a2ef9`，`checkObserved()` 拆成通用與單線專屬兩部分；沒有單線的日期每段補 `reason`（9/12 的輸出不變）。
+- 第 4 點：`5a450619` 在 10/17 彩排重驗 `knotCheck`（130 顆，最大偏差 0.5 秒）；定版資料要再看一次 build 報表的同一項。
+- 第 5 點：`fa4efbf3`，頁面依 `snapshot.preview` 切換預覽／實測的段落、徽章、字幕與來源行，沒有實測紀錄的車次在執行時從 `timingSource.scheduledTrains` 填。
+
+原本的問題描述：
 
 1. `build_tainan_memory.mjs` 的「範圍內同一車次出現兩次」檢查：預覽只放行兩份定義逐項相同的。定版 observed 下，3297、3786 在 10/22 尾段與 10/23 頭段是兩次不同的重建，passObs 與自訂計畫以車次為鍵會互蓋，build 會直接停。要把鍵改成營運日加車次，或只留一份。
 2. `verify_tainan_memory.mjs` 的 `checkObserved()`（`timing` 為 `observed` 時呼叫）假設 10/16 的結構：`cfg.singleLine`、`cfg.marks`、`verify.markedTrains`、`cfg.officialEvents`／`observedEvents`、`uncertainty.json` 每段都有 `reason`。10/23 沒有這些。要把前半（timingSource、逐站時刻、原始列、實測精度）和 10/16 專屬的後半（重點車、單線雙向、時間軸、股道占用）拆開。
@@ -179,6 +189,7 @@ node scripts/verify_tainan_memory.mjs --date 2026-10-23 --data-only
 - 預覽時刻全是表定：沒有誤點，但表定班表裡排好的待避與越行照樣在。場景內三站共 18 次（大橋 0、臺南 9、保安 9；判定是同方向兩班，一班先到、另一班後到卻先開）：臺南是兩班都停靠，保安是慢車停靠、快車通過（通過時刻來自物理模型）。到離站時刻不是實際運行紀錄。
 - 地下段的深度、車站與隧道尺寸是估計／示意；臺南的停靠位置是月台中央的推演，不是實測。
 - 8 班在臺南到站那一秒瞬停（第 4 節）；定版時刻不同，班數會變。
-- 10/22 尾段與 10/23 頭段的 3297、3786 共用同一組定義，預覽放行；定版會碰到第 5 節第 1 點。
+- 10/22 尾段與 10/23 頭段的 3297、3786 在預覽共用同一組定義；定版改成各自重建（第 5 節第 1 點，`5a450619`）。兩段都有實測的情形還沒在彩排跑過：10/18 彩排做的時候只有 10/17 的 TDX 歷史，只有前一日尾段的兩班有實測。
 - 4 段不確定時段只標股道重疊；沒有單線雙向。
-- 本文的驗證只涵蓋資料與建置；頁面渲染、瀏覽器行為、實測模式都沒有驗。
+- 頁面由 `scripts/verify_tainan_memory_1023_browser.mjs` 在預覽資料上驗（兩引擎）。實測模式只在 10/17、10/18 的彩排資料上跑過（彩排輸出不進版控），定版資料到了要再跑一次。
+- 關於視窗實測段沿用 10/16 的「到站時間的誤差約半分鐘」，這個數字來自 10/16 用的校準回測（`backtest-2026-09-12.json`），不是對 10/23 量的；開車時刻標「推定」是因為 TDX 誤點只記到分鐘。
