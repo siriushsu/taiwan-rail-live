@@ -141,6 +141,7 @@ try{
  // 來源分到站與開車兩行。到站照 src：obs 實測、interp 內插、sched 表定。開車照 DEP_SRC：obs 的站（含被留置的通過站）是表定加誤點分鐘推得＝推定；interp 的站到站與開車都由鄰近的站推算＝內插；
  // 起點站（est）的紀錄是看板佔位，只用它的誤點分鐘推開車時刻＝推定；sched＝表定。起點站（end 'origin'）到站與開車同一秒＝沒有到站，終點站（end 'terminal'）同理沒有開車：
  // 那一行在表定、重播、來源、差都記「—」；到、開不同秒的起訖站照常兩行。通過站（沒有留置）只有一行。時間一律是當天的時鐘時間，跨午夜的前一營運日用「前日」「次日」標明。──
+ // 預覽班表（snapshot.preview）沒有實測：停靠站照表定；通過站的重播時刻是前後停靠站之間的行駛推算，跟表定的通過時刻不同不代表誤點，所以通過站的來源標內插、差記「—」。
  const T=sec=>{if(!Number.isFinite(sec))return '—';const r=Math.round(sec),d=Math.floor(r/86400);return (d<0?'前日 ':d>0?'次日 ':'')+clock(r-d*86400);};
  const DUR=sec=>{const s=Math.round(Math.abs(sec)),m=Math.floor(s/60),r=s%60;return (m?m+'分':'')+(r||!m?r+'秒':'');},DIFF=d=>!Number.isFinite(d)?'—':Math.abs(d)<5?'準點':(d>0?'晚':'早')+DUR(d);
  const card=$('followcard'),FP_HINT=$('fpToggle').querySelector('.s').textContent;let cardFor=null,cardRows=[],cardStatus=null,cardMore=null;
@@ -150,17 +151,17 @@ try{
   const wrap=document.createElement('div'),table=document.createElement('table'),head=document.createElement('tr'),body=document.createElement('tbody');wrap.className='tw';
   for(const [t,sub] of [['站'],['表定','到／開'],['重播','到／開'],['來源','到／開'],['差','重播−表定'],['留置']]){const th=document.createElement('th');th.scope='col';th.append(t);if(sub){th.append(document.createElement('br'),sub);}head.append(th);}
   const thead=document.createElement('thead');thead.append(head);
-  cardRows=tr.stops.map(s=>{const row=document.createElement('tr'),pass=s.stop===false,hold=Number(s.holdSec)>=90?Number(s.holdSec):0,passed=pass&&!hold,has=Number.isFinite(s.schedArrSec),noArr=s.end==='origin'&&s.arrSec===s.depSec,noDep=s.end==='terminal'&&s.arrSec===s.depSec,ad=(a,d)=>[noArr?'—':a,noDep?'—':d];row.dataset.name=s.name;row.dataset.src=s.src||'';row.dataset.hold=String(hold);
+  cardRows=tr.stops.map(s=>{const row=document.createElement('tr'),pass=s.stop===false,hold=Number(s.holdSec)>=90?Number(s.holdSec):0,passed=pass&&!hold,prePass=!!data.preview&&passed,has=Number.isFinite(s.schedArrSec),noArr=s.end==='origin'&&s.arrSec===s.depSec,noDep=s.end==='terminal'&&s.arrSec===s.depSec,ad=(a,d)=>[noArr?'—':a,noDep?'—':d];row.dataset.name=s.name;row.dataset.src=s.src||'';row.dataset.hold=String(hold);
    const name=document.createElement('th');name.scope='row';name.textContent=s.name;
    const sched=has?(pass?lines('td','通過',T(s.schedArrSec)):lines('td',...ad(T(s.schedArrSec),T(s.schedDepSec)))):lines('td','—'),act=passed?lines('td','通過',T(s.arrSec)):lines('td',...ad(T(s.arrSec),T(s.depSec)));
-   const diff=has?(passed?lines('td',DIFF(s.arrSec-s.schedArrSec)):lines('td',...ad(DIFF(s.arrSec-s.schedArrSec),DIFF(s.depSec-s.schedDepSec)))):lines('td','—'),held=lines('td',hold?DUR(hold):'—');if(hold)held.className='hold';
-   const src=document.createElement('td');for(const k of passed?[s.src]:ad(s.src,DEP_SRC[s.src])){const ln=document.createElement('span');ln.className='ln';if(SRC[k]){const chip=document.createElement('span');chip.className='src src-'+k;chip.textContent=SRC[k];ln.append(chip);}else ln.textContent='—';src.append(ln);}
+   const diff=has?(passed?lines('td',prePass?'—':DIFF(s.arrSec-s.schedArrSec)):lines('td',...ad(DIFF(s.arrSec-s.schedArrSec),DIFF(s.depSec-s.schedDepSec)))):lines('td','—'),held=lines('td',hold?DUR(hold):'—');if(hold)held.className='hold';
+   const src=document.createElement('td');for(const k of passed?[prePass?'interp':s.src]:ad(s.src,DEP_SRC[s.src])){const ln=document.createElement('span');ln.className='ln';if(SRC[k]){const chip=document.createElement('span');chip.className='src src-'+k;chip.textContent=SRC[k];ln.append(chip);}else ln.textContent='—';src.append(ln);}
    row.append(name,sched,act,src,diff,held);body.append(row);return {row,s};});
   table.append(thead,body);wrap.append(table);
   // 右緣提示：表格右邊還有內容（還沒捲到底）時，.twr 加 more，CSS 在右緣畫一道淡出（不接收指標）；捲到底或沒有溢出時拿掉。捲動、表格或外框變大小時重算。
   const twr=document.createElement('div'),more=document.createElement('span');twr.className='twr';more.className='tw-more';more.setAttribute('aria-hidden','true');twr.append(wrap,more);
   const syncMore=()=>twr.classList.toggle('more',wrap.scrollWidth-wrap.clientWidth-wrap.scrollLeft>1);wrap.addEventListener('scroll',syncMore,{passive:true});cardMore?.disconnect();cardMore=new ResizeObserver(syncMore);cardMore.observe(wrap);cardMore.observe(table);
-  const note=document.createElement('p');note.className='note';note.textContent=tr.timing==='scheduled'?(data.preview?'預覽班表：這班車照表定時刻畫，沒有誤點；實際到離站紀錄之後補上。':'這班車沒有任何即時動態紀錄，整班照時刻表畫。'):'時刻依即時動態紀錄推算，到站誤差約半分鐘。實測＝取自紀錄的到站或通過時刻；內插＝這一站沒有可用的紀錄，到站與開車都由鄰近的站推算；推定＝紀錄裡沒有開車時刻，用表定加上當時的誤點分鐘推算，可能差一分鐘左右；留置＝比表定多停 90 秒以上；「—」＝起點站沒有到站、終點站沒有開車。';
+  const note=document.createElement('p');note.className='note';note.textContent=tr.timing==='scheduled'?(data.preview?'預覽班表：停靠站照表定時刻畫，沒有誤點；通過站的重播時刻由前後停靠站推算（內插），跟表定的通過時刻不一定相同。實際到離站紀錄之後補上。':'這班車沒有任何即時動態紀錄，整班照時刻表畫。'):'時刻依即時動態紀錄推算，到站誤差約半分鐘。實測＝取自紀錄的到站或通過時刻；內插＝這一站沒有可用的紀錄，到站與開車都由鄰近的站推算；推定＝紀錄裡沒有開車時刻，用表定加上當時的誤點分鐘推算，可能差一分鐘左右；留置＝比表定多停 90 秒以上；「—」＝起點站沒有到站、終點站沒有開車。';
   card.append(h,cardStatus,twr,note);}
  function refreshCard(){const tr=state.follow?data.trains.find(t=>t.id===state.follow):null,hint=$('fpToggle').querySelector('.s');if(!tr){card.hidden=true;if(!panel.hidden){panel.hidden=true;applyPanel();}if(cardFor!==null){cardFor=null;hint.textContent=FP_HINT;}return;}
   if(cardFor!==tr.id){renderCard(tr);cardFor=tr.id;hint.textContent='跟車中：'+tr.train+' 次的逐站時刻';}card.hidden=false;if(panel.hidden){panel.hidden=false;applyPanel();}const sec=state.sec;
@@ -172,7 +173,7 @@ try{
  $('badge').textContent=data.preview?'預覽班表・表定時刻':'實測時刻重建';
  const PREVIEW_CAPTION='預覽版：依 10/15 發布的預覽班表、照表定時刻行駛；實際到離站紀錄之後補上。';
  // ── 字幕：不確定時段依 reason 分兩種寫法 ──
- const reasonsOf=id=>{const r=new Set();for(const i of uncertainty.intervals)if(state.sec>=i.start&&state.sec<=i.end&&i.trains.includes(id))r.add(i.reason||'track-overlap');return r.size?r:new Set(['track-overlap']);},TAIL=' 次暫以車次標記呈現；位置仍依重建的時刻推演。';
+ const reasonsOf=id=>{const r=new Set();for(const i of uncertainty.intervals)if(state.sec>=i.start&&state.sec<=i.end&&i.trains.includes(id))r.add(i.reason||'track-overlap');return r.size?r:new Set(['track-overlap']);},TAIL=' 次暫以車次標記呈現；位置仍依'+(data.preview?'表定':'重建的')+'時刻推演。';
  function captionText(pending){
   if(pending.length){const g={'single-line-unresolved':[],'track-overlap':[]};for(const t of pending)for(const r of reasonsOf(t.id))(g[r]||g['track-overlap']).push(t.train);
    return [g['single-line-unresolved'].length&&'封鎖初期股道安排不明：'+g['single-line-unresolved'].join('、')+TAIL,g['track-overlap'].length&&'股道安排待確認：'+g['track-overlap'].join('、')+TAIL].filter(Boolean).join(' ');}

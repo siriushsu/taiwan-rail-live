@@ -76,7 +76,7 @@
 4. 跨午夜尾段（10/22 的 3297、3786）需要 10/22 的資料：`--date 2026-10-22 ods`（10/23 約 03:40 之前）、`tdx`、`d1`。抓不到就維持 `0bc3cfae` 的 10/22 並保留 `temporary` 說明；這兩班午夜前沒有實測，缺實測的站由重建內插或照表定。
 5. `tainan_actuals.py` 用 `gzip.open` 讀歷史檔，而 `fetch_tainan_raw.mjs` 存的是純 JSONL：把 TDX 檔轉成 `.cache/tra_hist/<日期>.jsonl.gz`（`gzip -n -c`，輸出可重現），10/22、10/23、10/24 各一份。
 
-**轉班表**：用第 2 節的指令把定版 ODS 檔轉成密化班表（10/22 同樣各轉一份），重跑第 2 節的比對，差異逐項說明。
+**轉班表**：用第 2 節的指令把定版 ODS 檔轉成密化班表（10/22 同樣各轉一份），`--out` 寫到快取根目錄的 `tainan-1023-work/inputs/`、換新檔名，不要覆蓋預覽的轉出檔；重跑第 2 節的比對，差異逐項說明。
 
 **設定**（`scripts/tainan_memory_config.mjs` 的 `'2026-10-23'`）：
 
@@ -88,7 +88,7 @@
 - 主站入口：重播頁確認後在 `index.html` 加入口，再把 `verify.entry` 由 `null` 改成 `{id, cl}`（`verify` 欄位不影響快照雜湊）。
 - `selection`、`underground`、`ambiguity` 不動。
 
-**重建**（快取根目錄是 repo 根目錄的 `.cache/`，或 `TAINAN_CACHE_DIR` 指到的資料夾；每步的離開碼存進變數）：
+**重建**（快取根目錄是 repo 根目錄的 `.cache/`，或 `TAINAN_CACHE_DIR` 指到的資料夾；在 worktree 裡沒設 `TAINAN_CACHE_DIR` 時是主樹的 `.cache/`。每步的離開碼存進變數）：
 
 ```
 node scripts/build_tainan_memory.mjs --date 2026-10-23 --export-run-floor
@@ -98,6 +98,7 @@ node scripts/build_tainan_track_ambiguities.mjs --date 2026-10-23
 node scripts/verify_tainan_memory.mjs --date 2026-10-23 --data-only
 ```
 
+- 快取裡要先有設定 `schedules` 指到的兩份密化班表：build 照各筆的 `cache` 讀檔，雜湊和 `sha256` 不符就停（`班表雜湊不符`）。`0bc3cfae` 那份不在快取裡時，用 `git show 0bc3cfae:data/tra_schedule_dense.json > <快取根目錄>/tainan-1023-work/inputs/tra_schedule_dense_0bc3cfae.json` 取出；ODS 轉出的那份用第 2 節的指令轉，`--out` 寫成 `<快取根目錄>/` 加上設定裡的 `cache`。
 - 輸出目錄沒有 `snapshot.json` 時，build 不帶 `--replace-local-snapshot`；有 `integrity.json`（封存後）一律拒絕重建。
 - 同樣的指令跑兩遍，`snapshot.json`、`source-schedule.json`、`source-observations.json`、`uncertainty.json` 要逐 byte 相同。
 - 封存用 `scripts/seal_tainan_memory.mjs --date 2026-10-23 --seal-reviewed-snapshot`，驗收通過後封存；封存後跑一次 `--check`。

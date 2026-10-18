@@ -500,6 +500,42 @@ async function checkJumps(o,fc){
  lines.push('跟車中按兩顆鈕：都取消跟車並移到月台中央');
  return {pass:!errs.length,detail:errs.length?errs.slice(0,4).join('；'):lines.join('｜')};
 }
+// 跟車卡與字幕（預覽班表）：通過站的重播時刻是行駛推算，來源要標內插、差記「—」；停靠站照表定，差是準點或「—」；註記要寫明這兩件事。
+// 股道待確認時段的字幕，尾句要寫「依表定時刻推演」（預覽沒有重建）。南北向各挑一班有通過站的車；列與站的對應用 data-name 核對。
+async function checkCard(o){
+ const page=o.page,errs=[],E=m=>errs.push(m),lines=[],passOf=s=>s.stop===false&&!(Number(s.holdSec)>=90);
+ const picks=['北上','南下'].map(dir=>SNAP.trains.find(t=>t.direction===dir&&t.stops.some(passOf)&&t.stops.some(s=>!passOf(s)))).filter(Boolean);
+ if(picks.length<2)E(`南北向要各有一班有通過站的車，只找到 ${picks.length} 班`);
+ let nPass=0,nStop=0;
+ for(const tr of picks){
+  const sec=tr.stops.find(s=>!passOf(s)).depSec;
+  await page.evaluate(([id,s])=>{const t=window.tainanMemory;t.state.playing=false;t.followTrain('');t.followTrain(id,s);},[tr.id,sec]);await settle(page);
+  const card=await page.evaluate(()=>{const c=document.getElementById('followcard');if(!c||c.hidden)return null;const rows=[...c.querySelectorAll('tbody tr')];
+   return {names:rows.map(r=>r.dataset.name),cells:rows.map(r=>[...r.children].map(td=>[...td.querySelectorAll('.ln')].map(x=>x.textContent))),note:c.querySelector('.note')?.textContent||''};});
+  if(!card){E(`${tr.train} 次：跟車卡沒有出現`);continue;}
+  if(card.names.length!==tr.stops.length){E(`${tr.train} 次：卡上 ${card.names.length} 列，資料 ${tr.stops.length} 站`);continue;}
+  tr.stops.forEach((s,i)=>{const src=card.cells[i][3],diff=card.cells[i][4];
+   if(card.names[i]!==s.name)E(`${tr.train} 次第 ${i+1} 列是 ${card.names[i]}，資料是 ${s.name}`);
+   else if(passOf(s)){nPass++;
+    if(diff.join('／')!=='—')E(`${tr.train} 次 ${s.name}（通過）：差欄是「${diff.join('／')}」，預覽班表的通過站要記「—」`);
+    if(src.join('／')!=='內插')E(`${tr.train} 次 ${s.name}（通過）：來源是「${src.join('／')}」，預覽班表的通過站要標內插`);}
+   else{nStop++;
+    if(!diff.length||!diff.every(x=>x==='準點'||x==='—'))E(`${tr.train} 次 ${s.name}（停靠）：差欄是「${diff.join('／')}」，預覽班表的停靠站要準點`);
+    if(!src.length||!src.every(x=>x==='表定'||x==='—'))E(`${tr.train} 次 ${s.name}（停靠）：來源是「${src.join('／')}」，預覽班表的停靠站要標表定`);}});
+  if(!(card.note.includes('停靠站照表定')&&card.note.includes('通過站')&&card.note.includes('內插')))E(`${tr.train} 次：註記沒有寫明停靠站照表定、通過站內插：「${card.note.slice(0,60)}」`);
+  lines.push(`${tr.train} 次${tr.direction}：通過 ${tr.stops.filter(passOf).length} 列、停靠 ${tr.stops.filter(s=>!passOf(s)).length} 列`);}
+ if(!nPass)E('一列通過站都沒驗到');
+ const U=readJson('uncertainty.json').intervals;
+ if(!U.length)E('uncertainty.json 沒有股道待確認的時段，字幕尾句驗不了');
+ else{const iv=U[0],mid=Math.round((iv.start+iv.end)/2);
+  await page.evaluate(s=>{const t=window.tainanMemory;t.state.playing=false;t.followTrain('');t.jump(s);},mid);await settle(page);
+  const cap=await page.evaluate(()=>document.getElementById('caption').textContent);
+  if(!cap.includes('依表定時刻推演'))E(`${hms(mid)} 的字幕「${cap.slice(0,70)}」沒有寫表定時刻`);
+  if(!iv.trainNos.every(n=>cap.includes(n)))E(`${hms(mid)} 的字幕沒有列出 ${iv.trainNos.join('、')}：「${cap.slice(0,70)}」`);
+  lines.push(`${hms(mid)} 字幕：${cap.slice(0,40)}`);}
+ await page.evaluate(()=>window.tainanMemory.followTrain(''));
+ return {pass:!errs.length,detail:errs.length?errs.slice(0,4).join('；'):`通過站 ${nPass} 列、停靠站 ${nStop} 列｜`+lines.join('｜')};
+}
 // 過寬對照用：版面掃描之外，另外記下舊斷言（scrollWidth＞innerWidth）當時是紅還是綠，證明新斷言抓得到舊斷言看不到的溢出。
 async function wideProbe(o,fc){const r=await layoutQuick(o,fc);const old=await o.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth||document.body.scrollWidth>innerWidth),w=await o.page.evaluate(()=>[innerWidth,window.visualViewport?.scale]);
  return {pass:r.pass,detail:`舊斷言（scrollWidth＞innerWidth）${old?'紅':'綠'}；innerWidth＝${w[0]}、scale＝${w[1]?.toFixed?.(3)}｜${r.detail}`};}
@@ -531,6 +567,10 @@ const M={
  nextIncludesOrigin:{text:{'replay.js':REP("toTainan=byArrival.filter(tr=>tainanStop(tr)&&tainanStop(tr).end!=='origin')","toTainan=byArrival.filter(tr=>tainanStop(tr))")}},
  // 「下一班到臺南」把跨午夜才到站的車也算進去：當天最後一班之後按下去會停在 23:59:59
  nextBeyondDay:{text:{'replay.js':REP(".filter(tr=>tainanStop(tr).arrSec<=86399)","")}},
+ // 跟車卡：預覽班表的通過站照舊算差、來源照資料標表定；字幕尾句不分預覽
+ cardPassDiff:{text:{'replay.js':REP("prePass?'—':DIFF(s.arrSec-s.schedArrSec)","DIFF(s.arrSec-s.schedArrSec)")}},
+ cardPassSrc:{text:{'replay.js':REP("prePass?'interp':s.src","s.src")}},
+ tailPreview:{text:{'replay.js':REP("(data.preview?'表定':'重建的')","'重建的'")}},
  // 找不到下一班時不回到當天第一班，改取最後一班
  departNoWrap:{text:{'replay.js':REP("at(tr)>state.sec+LEAD)||list[0];","at(tr)>state.sec+LEAD)||list[list.length-1];")}},
  departUnwired:{text:{'replay.js':REP("$('depart').onclick=()=>jumpNext(fromTainan,tr=>tainanStop(tr).depSec);","$('depart').onclick=()=>{};")}},
@@ -594,6 +634,7 @@ try{
    depthRes=await run('depth','深度衝突：地下結構各視角沿視線微移後影像幾乎不變（變動像素 ≤ 畫面的 '+DEPTH_MAX_FRAC*100+'%）',()=>checkDepth(base,{secS,secN}));
   }
   await run('jumps','「下一班到臺南」不算臺南始發的車、「臺南發車」只算始發車；連按、繞回當天第一班、跟車中按都對（期望值從 snapshot 算）',()=>checkJumps(base,fc));
+  await run('card','跟車卡與字幕（預覽班表）：通過站來源標內插、差記「—」，停靠站準點；註記寫明；股道待確認時段的字幕寫表定時刻',()=>checkCard(base));
   // 還原頁面狀態後，整輪沒有 console error／pageerror
   if(want('health')){const late=base.errors.length;record(engine,'health','整輪（含所有取樣、拖曳、渲染）console error／pageerror 仍為 0',late===0,late?base.errors[0].slice(0,160):'');}
   await base.context.close();
@@ -629,6 +670,9 @@ try{
     {sec:'jumps',name:'跳轉：「下一班到臺南」把臺南始發的車也算進去 → 變紅',mutation:M.nextIncludesOrigin,run:o=>checkJumps(o,fc),expect:'臺南始發'},
     {sec:'jumps',name:'跳轉：「臺南發車」找不到下一班時不繞回當天第一班 → 變紅',mutation:M.departNoWrap,run:o=>checkJumps(o,fc),expect:'沒有繞回當天第一班'},
     {sec:'jumps',name:'跳轉：「下一班到臺南」把跨午夜才到站的車算進去 → 變紅',mutation:M.nextBeyondDay,run:o=>checkJumps(o,fc),expect:'「下一班到臺南」沒有繞回當天第一班'},
+    {sec:'card',name:'跟車卡：預覽班表的通過站照舊算差 → 變紅',mutation:M.cardPassDiff,run:o=>checkCard(o),expect:'預覽班表的通過站要記「—」'},
+    {sec:'card',name:'跟車卡：預覽班表的通過站來源照資料標表定 → 變紅',mutation:M.cardPassSrc,run:o=>checkCard(o),expect:'預覽班表的通過站要標內插'},
+    {sec:'card',name:'字幕：預覽時尾句仍寫重建的時刻 → 變紅',mutation:M.tailPreview,run:o=>checkCard(o),expect:'沒有寫表定時刻'},
     {sec:'jumps',name:'跳轉：「臺南發車」鈕按了沒反應 → 變紅',mutation:M.departUnwired,run:o=>checkJumps(o,fc),expect:'臺南發車'},
     {sec:'jumps',name:'跳轉：兩顆鈕都不再移到月台 → 變紅',mutation:M.nextNotPlatform,run:o=>checkJumps(o,fc),expect:'不是月台中央'},
    ];
