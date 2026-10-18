@@ -53,7 +53,7 @@ if(!DATA_ONLY){
 }
 const uncertainty=read('uncertainty.json');assert.equal(uncertainty.date,data.date);if(V.uncertaintyIntervals!=null)assert.equal(uncertainty.intervals.length,V.uncertaintyIntervals);
 for(const i of uncertainty.intervals){assert.ok(i.start>=0&&i.end<=86399&&i.end>=i.start);assert.equal(i.trains.length,2);assert.ok(i.trains.every(id=>data.trains.some(t=>t.id===id)));}
-// ── 周邊建物（surroundings/）：低細節建物網格（使用者 2026-09-30「不要是灰色方塊」）。
+// ── 周邊建物（surroundings/）：低細節建物網格（有屋頂與立面的簡化外形，不用單色方塊代替）。
 // 規則與 prototypes/tiny-trains/blender/tainan-memory-v1/surroundings.py 各自獨立實作一次；輸入只用封存的 snapshot.json、station/model.json，
 // 以及封存輪廓漏掉的香格里拉飯店塔身（同資料夾 tower-parts-source.json，雜湊要與 model.json 的 sources 一致）。
 // 每條斷言的訊息都以「周邊建物：」開頭，突變測試靠它辨認是哪一條紅。
@@ -159,7 +159,7 @@ const surroundings=DATA_ONLY?null:(()=>{
      ring.forEach((a,i)=>{const c=ring[(i+1)%ring.length],L=Math.hypot(c[0]-a[0],c[1]-a[1]);if(L<1e-6)return;const d=segDist(m,a,c);if(d<best){best=d;en=[sgn*(c[1]-a[1])/L,-sgn*(c[0]-a[0])/L];}});
      if(en&&T.n[0]*en[0]+T.n[1]*en[1]>=.999){nWall++;top=Math.max(top,...T.p.map(p=>p[2]));}}
     const want=.03+b.heightM+(area(ring)>=20&&!capped(b)?.9:0);ok(nWall>0&&Math.abs(top-want)<.011,'網格外牆頂高度與 heightM 不符：'+b.id+' 網格 '+top+' 應為 '+want);}}}
- // 不是灰色方塊（使用者 2026-09-30「不要是灰色方塊」）：外牆至少 6 種彼此分得開的顏色（sRGB 距離 ≥ 0.05）、中性灰（sRGB 最大最小差 < 0.04）的外牆
+ // 不是單色方塊：外牆至少 6 種彼此分得開的顏色（sRGB 距離 ≥ 0.05）、中性灰（sRGB 最大最小差 < 0.04）的外牆
  // 不超過外牆面積一半、窗帶顏色跟每一種外牆色都差 0.15 以上、窗帶面積至少是外牆的 15%。面積直接量網格裡的垂直面（外牆色組也拿來畫部分屋面，不算）。
  {const srgb=c=>c.map(x=>x<=.0031308?x*12.92:1.055*x**(1/2.4)-.055),dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]),chroma=c=>Math.max(...c)-Math.min(...c);
   const vArea=g=>{let s=0;for(let t=g.start/3;t<(g.start+g.count)/3;t++){const T=tv[t];if(Math.abs(T.n[2])>.01)continue;const a=[0,1,2].map(i=>T.p[1][i]-T.p[0][i]),b=[0,1,2].map(i=>T.p[2][i]-T.p[0][i]);s+=Math.hypot(a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0])/2;}return s;};
@@ -362,6 +362,7 @@ function checkObserved(){
  //     同一站的歷史列被別站的列隔成兩段以上（例：中洲→保安→中洲→保安），分不出哪一段才是真的到站：重建把這種站當作沒有可用的紀錄，
  //     由前後站內插（tainan_actuals.py 的 split_stations）。這裡從原始列重算，這種站不得標實測，每一站都列在輸出的 b1.split。只看資料本身，不認車次。
  const day0=Date.parse(cfg.date+'T00:00:00+08:00')/1000,secOf=iso=>Date.parse(iso)/1000-day0,TOL=V.anchorToleranceSec;
+ ok(Number.isFinite(TOL)&&TOL>0,'verify.anchorToleranceSec 沒設或不是正數（'+TOL+'）：沒有門檻，實測時刻精度判準會全數通過');
  const b1={tolSec:TOL,checked:0,maxAbsSec:0,worst:null,split:[]},b1Bad=[],b1Split=[];
  for(const tr of data.trains){if(tr.timing!=='observed')continue;
   const rows=obsOf.get(tr.id).rows,origin=norm(schedOf.get(tr.serviceDate+':'+tr.train).stops[0].name),runs=new Map(),d1=new Map();

@@ -683,11 +683,12 @@ const CONFIG_FILE='scripts/tainan_memory_config.mjs';
 const configSource=()=>{const fields=generationFields(cfg.date);
  return {config:CONFIG_FILE,date:cfg.date,fields,note:'fields 列的設定欄位做成鍵遞迴排序的 JSON（canonicalJson）後取 sha256；verify 的門檻、主站入口與註解不在內。',
   sha256:generationConfigSha256(cfg.date,fields)};};
-const cacheSource=ref=>{const f=resolveInput(cfg,ref);return fs.existsSync(f)?{file:'.cache/'+path.relative(cfg.cacheRoot,f),sha256:hash(fs.readFileSync(f))}:null;};
+// 設定列了、磁碟上卻沒有的檔一律停下來（例如 recordOnly 填錯路徑），不默默略過，免得 snapshot.sources 少記一份而沒人發現。
+const cacheSource=ref=>{const f=resolveInput(cfg,ref);if(!fs.existsSync(f))throw Error('設定列了這個快取檔，磁碟上卻沒有：'+ref+'（'+f+'）');return {file:'.cache/'+path.relative(cfg.cacheRoot,f),sha256:hash(fs.readFileSync(f))};};
 const sources=[...REPO_INPUTS.map(f=>f===CONFIG_FILE?configSource():fileSource(f)),
  ...(UG?[cfg.underground.model,cfg.underground.profile].map(fileSource):[]),
  ...Object.entries(sched).filter(([,s])=>s.ref.cache).map(([d,s])=>({file:'.cache/'+s.rel,sha256:s.sha256,commit:s.ref.commit,path:s.ref.path,serviceDate:d,...(s.ref.temporary&&{temporary:s.ref.temporary})})),
- ...[cfg.actuals.out,cfg.actuals.runFloor,cfg.actuals.stations,cfg.actuals.calibration,...cfg.actuals.hist,...cfg.actuals.d1,...cfg.actuals.recordOnly].filter(Boolean).map(cacheSource).filter(Boolean)];
+ ...[cfg.actuals.out,cfg.actuals.runFloor,cfg.actuals.stations,cfg.actuals.calibration,...cfg.actuals.hist,...cfg.actuals.d1,...cfg.actuals.recordOnly].filter(Boolean).map(cacheSource)];
 const calib=cfg.actuals.calibration?JSON.parse(fs.readFileSync(resolveInput(cfg,cfg.actuals.calibration),'utf8')):null;
 const fallbacks=selected.flatMap((v,i)=>items[i].mode!=='observed'&&v.act.timing!=='scheduled'?[{trainId:v.key,train:String(v.src.train),mode:items[i].mode,reason:'speed-cap'}]:[]);
 // 極速上限凍結：每個 (carName, typeName) 一筆，值是這次實際套用的上限（A.speed[i].cap＝resolvePerf 的 v，範圍內沒有高鐵與 DR1000）。
@@ -732,7 +733,7 @@ fs.writeFileSync(path.join(out,'source-schedule.json'),JSON.stringify({date:cfg.
  trains:selected.map(v=>({serviceDate:v.day,sourceIndex:v.index,...structuredClone(v.src)}))}));
 fs.writeFileSync(path.join(out,'source-observations.json'),JSON.stringify({date:cfg.date,
  note:'範圍內各班在永康、大橋、臺南、保安、仁德與重建鏈上前後各一站的原始觀測列。tdx-historical＝TDX 歷史 LiveTrainDelay（SrcUpdateTime 為 UTC）；d1＝每分鐘記錄的逐站事件（obs_at 為取樣時刻）。',
- files:[...cfg.actuals.hist,...cfg.actuals.d1].map(cacheSource).filter(Boolean),
+ files:[...cfg.actuals.hist,...cfg.actuals.d1].map(cacheSource),
  trains:selected.map(v=>({trainId:v.key,train:String(v.src.train),serviceDate:v.day,rows:v.act.raw}))}));
 
 // ── 報表（.cache，不出貨） ──

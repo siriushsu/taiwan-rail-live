@@ -507,6 +507,7 @@ async function checkJumps(o,fc){
 // 模式看磁碟上 snapshot.json 有沒有頂層 preview（頁面也是照這個欄位切換）。期望值全從 snapshot.json 推，不讀頁面裡的副本：
 // 每一班、每一列的表定／重播／來源／差／留置都逐格比，不抽樣。
 // 預覽班表沒有實測：停靠站照表定（差「準點」、來源「表定」）；通過站的重播時刻是行駛推算，來源標內插、差記「—」。
+// 實測重建裡沒有任何即時動態紀錄的班次（timing scheduled）整班照表定，通過站同預覽：來源標內插、差記「—」。
 // 實測重建：obs 站顯示實測時刻（開車時刻是推定）、沒有紀錄的站標內插、通過站照資料算差；有實測的停靠列差欄整排都是「—」就是壞了。
 const PREVIEW=!!SNAP.preview,MODE=PREVIEW?'preview':'observed';
 const SRC_NAME={obs:'實測',interp:'內插',sched:'表定',est:'推定'},DEP_SRC={obs:'est',interp:'interp',est:'est',sched:'sched'};
@@ -515,15 +516,16 @@ const tmx=sec=>{if(!Number.isFinite(sec))return '—';const r=Math.round(sec),d=
 const durx=sec=>{const s=Math.round(Math.abs(sec)),m=Math.floor(s/60),r=s%60;return (m?m+'分':'')+(r||!m?r+'秒':'');};
 const diffx=d=>!Number.isFinite(d)?'—':Math.abs(d)<5?'準點':(d>0?'晚':'早')+durx(d);
 // 一列的期望文字：各欄是逐行（.ln）的字串陣列。起點站沒有到站、終點站沒有開車，那一行記「—」；通過站只有一行；留置 ≥90 秒的通過站照停靠站兩行。
-function expectRow(s){
+function expectRow(s,tr){
  const pass=s.stop===false,hold=Number(s.holdSec)>=90?Number(s.holdSec):0,passed=pass&&!hold,has=Number.isFinite(s.schedArrSec),
+  interp=passed&&(PREVIEW||tr.timing==='scheduled'),
   noArr=s.end==='origin'&&s.arrSec===s.depSec,noDep=s.end==='terminal'&&s.arrSec===s.depSec,ad=(a,d)=>[noArr?'—':a,noDep?'—':d];
- const srcKeys=passed?[PREVIEW?'interp':s.src]:ad(s.src,DEP_SRC[s.src]);
- return {passed,hold,has,
+ const srcKeys=passed?[interp?'interp':s.src]:ad(s.src,DEP_SRC[s.src]);
+ return {passed,hold,has,interp,
   sched:has?(pass?['通過',tmx(s.schedArrSec)]:ad(tmx(s.schedArrSec),tmx(s.schedDepSec))):['—'],
   act:passed?['通過',tmx(s.arrSec)]:ad(tmx(s.arrSec),tmx(s.depSec)),
   src:srcKeys.map(k=>SRC_NAME[k]||'—'),
-  diff:has?(passed?[PREVIEW?'—':diffx(s.arrSec-s.schedArrSec)]:ad(diffx(s.arrSec-s.schedArrSec),diffx(s.depSec-s.schedDepSec))):['—'],
+  diff:has?(passed?[interp?'—':diffx(s.arrSec-s.schedArrSec)]:ad(diffx(s.arrSec-s.schedArrSec),diffx(s.depSec-s.schedDepSec))):['—'],
   held:[hold?durx(hold):'—']};
 }
 // 頁面內一次跟過每一班，逐班讀出跟車卡（跟車對象一換，下一幀就重畫卡片；每班等兩幀）。
@@ -560,20 +562,20 @@ async function checkCard(o,{every=1}={}){
   if(card.h!==`${tr.train} 次${tr.typeName} ${tr.direction}`)E(`${tr.train} 次：卡片標題是「${card.h}」`);
   if(card.names.length!==tr.stops.length){E(`${tr.train} 次：卡上 ${card.names.length} 列，資料 ${tr.stops.length} 站`);continue;}
   tr.stops.forEach((s,i)=>{
-   const x=expectRow(s),J=a=>a.join('／'),cols=[['表定',card.cells[i][0],x.sched],['重播',card.cells[i][1],x.act],['來源',card.cells[i][2],x.src],['差',card.cells[i][3],x.diff],['留置',card.cells[i][4],x.held]];
+   const x=expectRow(s,tr),J=a=>a.join('／'),cols=[['表定',card.cells[i][0],x.sched],['重播',card.cells[i][1],x.act],['來源',card.cells[i][2],x.src],['差',card.cells[i][3],x.diff],['留置',card.cells[i][4],x.held]];
    nRows++;
    if(card.names[i]!==s.name){E(`${tr.train} 次第 ${i+1} 列是 ${card.names[i]}，資料是 ${s.name}`);return;}
    if(x.passed)nPass++;else if(x.hold)nHold++;else nStop++;
    for(const [col,got,exp] of cols){if(J(got)===J(exp))continue;
     const kind=x.passed?'通過':x.hold?'留置':'停靠';
-    if(PREVIEW&&x.passed&&col==='差')E(`${tr.train} 次 ${s.name}（通過）：差欄是「${J(got)}」，預覽班表的通過站要記「—」`);
-    else if(PREVIEW&&x.passed&&col==='來源')E(`${tr.train} 次 ${s.name}（通過）：來源是「${J(got)}」，預覽班表的通過站要標內插`);
+    if(x.interp&&col==='差')E(`${tr.train} 次 ${s.name}（通過）：差欄是「${J(got)}」，${PREVIEW?'預覽班表':'沒有即時動態紀錄的車'}的通過站要記「—」`);
+    else if(x.interp&&col==='來源')E(`${tr.train} 次 ${s.name}（通過）：來源是「${J(got)}」，${PREVIEW?'預覽班表':'沒有即時動態紀錄的車'}的通過站要標內插`);
     else E(`${tr.train} 次 ${s.name}（${kind}）：${col}欄是「${J(got)}」，資料推得「${J(exp)}」`);}
    if(!PREVIEW&&!x.passed&&!x.hold&&s.src==='obs'&&x.has&&s.end!=='origin'){obsRows++;if(card.cells[i][3][0]==='—')obsDash++;}
   });
   const sched=tr.timing==='scheduled';
   if(PREVIEW){if(!(card.note.includes('停靠站照表定')&&card.note.includes('通過站')&&card.note.includes('內插')))E(`${tr.train} 次：註記沒有寫明停靠站照表定、通過站內插：「${card.note.slice(0,60)}」`);}
-  else if(sched){if(card.note!=='這班車沒有任何即時動態紀錄，整班照時刻表畫。')E(`${tr.train} 次（無即時動態紀錄）：註記是「${card.note.slice(0,60)}」`);}
+  else if(sched){if(!(card.note.startsWith('這班車沒有任何即時動態紀錄，整班照時刻表畫')&&card.note.includes('停靠站照表定')&&card.note.includes('通過站')&&card.note.includes('內插')))E(`${tr.train} 次（無即時動態紀錄）：註記沒有寫明整班照表定、停靠站照表定、通過站內插：「${card.note.slice(0,60)}」`);}
   else if(!(card.note.startsWith('時刻依即時動態紀錄推算，到站誤差約半分鐘。')&&['實測＝','內插＝','推定＝','留置＝'].every(k=>card.note.includes(k))))E(`${tr.train} 次：註記沒有寫明實測、內插、推定、留置的意思：「${card.note.slice(0,60)}」`);
   const stTail=sched?(PREVIEW?'；預覽班表，照表定時刻':'；沒有即時動態紀錄，照表定時刻'):'';
   if(sched?!card.st.endsWith(stTail):card.st.includes('照表定時刻'))E(`${tr.train} 次：狀態列「${card.st}」${sched?'要以「'+stTail+'」結尾':'不該寫照表定時刻'}`);
@@ -659,7 +661,11 @@ async function checkIntervals(o){
 // 期望全從磁碟上的 snapshot.json 推：模式（有沒有 preview）、沒有即時動態紀錄的車次（timingSource.scheduledTrains）、哪幾站有實測。
 // 實測段說「X與Y兩站不回報」：X、Y 在快照裡所有非整班表定的車都沒有 obs 到站，其餘站至少一筆。
 const normSta=n=>n.replace('台','臺');
-const SCHED_NOS=[...new Set((SNAP.timingSource?.scheduledTrains||[]).map(x=>String(x).split(':').pop()))].sort((a,b)=>a-b);
+// 同一車次在快照裡不只一班（跨午夜的前一營運日尾段與當天）時，關於視窗要加註營運日「（M/D 營運日）」，只列車次會把有紀錄的那一班也說成沒有。
+const SCHED_NOS=[...new Set(SNAP.timingSource?.scheduledTrains||[])].map(String).map(id=>({date:id.slice(0,10),no:id.slice(11)}))
+ .sort((a,b)=>Number(a.no)-Number(b.no)||a.date.localeCompare(b.date))
+ .map(({date,no})=>SNAP.trains.filter(t=>t.train===no).length>1?`${no}（${Number(date.slice(5,7))}/${Number(date.slice(8,10))} 營運日）`:no);
+const SCHED_ONLY_PASS=!PREVIEW&&SNAP.trains.some(t=>t.timing==='scheduled'&&t.stops.some(s=>s.stop===false&&!(Number(s.holdSec)>=90)&&Number.isFinite(s.schedArrSec)));
 function obsCountsByStation(){
  const c=new Map();for(const t of SNAP.trains)for(const s of t.stops)c.set(normSta(s.name),0);   // 站名單取所有車停靠表上出現的站（含場景外的鄰站永康、仁德）
  for(const t of SNAP.trains){if(t.timing==='scheduled')continue;for(const s of t.stops)if(s.src==='obs')c.set(normSta(s.name),(c.get(normSta(s.name))||0)+1);}
@@ -690,7 +696,7 @@ async function checkAbout(o,{shot=null}={}){
   if(!T.includes('時刻與站點來源：交通部 TDX／臺鐵（班表取自臺鐵公開的逐日班表檔）'))E('實測模式的來源行不是「交通部 TDX／臺鐵（班表取自臺鐵公開的逐日班表檔）」');
   if(T.includes('預覽'))E('實測模式的關於視窗還寫著「預覽」');
   // 沒有即時動態紀錄的車次＝ timingSource.scheduledTrains（再與 trains[].timing 互核）；一班都沒有就整句不出現
-  const byTiming=new Set(SNAP.trains.filter(t=>t.timing==='scheduled').map(t=>t.train)),fromList=new Set(SCHED_NOS);
+  const byTiming=new Set(SNAP.trains.filter(t=>t.timing==='scheduled').map(t=>t.serviceDate+':'+t.train)),fromList=new Set((SNAP.timingSource?.scheduledTrains||[]).map(String));
   if([...byTiming].sort().join(',')!==[...fromList].sort().join(','))E(`timingSource.scheduledTrains（${[...fromList].length} 班）與 trains[].timing 為 scheduled 的班次（${byTiming.size} 班）不同`);
   const f=d.fills[0];
   if(!f)E('實測段少了列出無即時動態紀錄車次的位置（data-fill="scheduled"）');
@@ -764,7 +770,9 @@ const M={
  cardPassActSched:{text:{'replay.js':REP("lines('td','通過',T(s.arrSec))","lines('td','通過',T(s.schedArrSec))")}},
  cardStopDiffDash:{text:{'replay.js':REP("lines('td',...ad(DIFF(s.arrSec-s.schedArrSec),DIFF(s.depSec-s.schedDepSec)))","lines('td',...ad('—','—'))")}},
  // 實測重建：通過站也照預覽的寫法（差記「—」、來源標內插）；字幕尾句、徽章照預覽
- cardObservedAsPreview:{text:{'replay.js':REP("prePass=!!data.preview&&passed","prePass=passed")}},
+ cardObservedAsPreview:{text:{'replay.js':REP("prePass=(!!data.preview||tr.timing==='scheduled')&&passed","prePass=passed")}},
+ // 實測重建裡沒有紀錄的車：通過站照舊算差、來源標表定（回到只看 snapshot.preview 的舊寫法）
+ cardSchedOnlyOldRule:{text:{'replay.js':REP("prePass=(!!data.preview||tr.timing==='scheduled')&&passed","prePass=!!data.preview&&passed")}},
  tailObservedAsPreview:{text:{'replay.js':REP("(data.preview?'表定':'重建的')","'表定'")}},
  badgeObservedAsPreview:{text:{'replay.js':REP("data.preview?'預覽班表・表定時刻':'實測時刻重建'","'預覽班表・表定時刻'")}},
  badgePreviewAsObserved:{text:{'replay.js':REP("data.preview?'預覽班表・表定時刻':'實測時刻重建'","'實測時刻重建'")}},
@@ -773,6 +781,8 @@ const M={
  // 關於視窗：段落顯示的模式顛倒；實測段的車次清單少一班；來源行寫成另一種模式的；「不回報」的站名換成有實測的站
  aboutInverted:{text:{'replay.js':REP("e.hidden=e.dataset.show!==MODE","e.hidden=e.dataset.show===MODE")}},
  aboutSchedDrop:{text:{'replay.js':REP("nos.join('、')+' 次沒有任何","nos.slice(1).join('、')+' 次沒有任何")}},
+ // 同一車次有兩班時不加註營運日（回到只列車次的舊寫法）
+ aboutSchedNoDate:{text:{'replay.js':REP("?no+'（'+Number(d[1])+'/'+Number(d[2])+' 營運日）':no","?no:no")}},
  aboutSourceObservedAsPreview:{text:{'index.html':REP('交通部 TDX／臺鐵（班表取自','臺鐵（預覽班表取自')}},
  aboutSourcePreviewAsObserved:{text:{'index.html':REP('時刻與站點來源：臺鐵（預覽班表取自臺鐵公開的逐日班表檔）','時刻與站點來源：交通部 TDX／臺鐵（班表取自臺鐵公開的逐日班表檔）')}},
  aboutWrongStations:{text:{'index.html':REP('大橋與仁德兩站不回報','大橋與臺南兩站不回報')}},
@@ -872,12 +882,14 @@ try{
     {sec:'card',name:'跟車卡：通過列的重播時刻改成表定 → 變紅',mutation:M.cardPassActSched,run:o=>checkCard(o,{every:6}),expect:'重播欄'},
     {sec:'card',name:'跟車卡：停靠列的差欄全改成「—」 → 變紅',mutation:M.cardStopDiffDash,run:o=>checkCard(o,{every:6}),expect:'差欄'},
     {sec:'card',mode:'observed',name:'跟車卡：實測重建的通過站也照預覽記「—」、標內插 → 變紅',mutation:M.cardObservedAsPreview,run:o=>checkCard(o,{every:6})},
+    {sec:'card',mode:'observed',when:SCHED_ONLY_PASS,name:'跟車卡：沒有紀錄的車的通過站照舊算差、來源標表定 → 變紅',mutation:M.cardSchedOnlyOldRule,run:o=>checkCard(o),expect:'沒有即時動態紀錄的車的通過站'},
     {sec:'card',mode:'observed',name:'字幕：實測重建時尾句寫成表定時刻 → 變紅',mutation:M.tailObservedAsPreview,run:o=>checkCard(o,{every:6}),expect:'沒有寫重建的時刻'},
     {sec:'card',mode:'observed',name:'徽章：實測重建時仍寫預覽班表 → 變紅',mutation:M.badgeObservedAsPreview,run:o=>checkCard(o,{every:6}),expect:'徽章'},
     {sec:'card',mode:'preview',name:'徽章：預覽班表時寫成實測重建 → 變紅',mutation:M.badgePreviewAsObserved,run:o=>checkCard(o,{every:6}),expect:'徽章'},
     {sec:'uncertain',when:INTERVAL_EDGE_SINGLE,name:'股道待確認：時段起訖只有一班在場也藏起來並列進字幕（舊寫法）→ 變紅',mutation:M.uncertainOldRule,run:o=>checkIntervals(o),expect:'在場且被藏的是'},
     {sec:'about',name:'關於視窗：兩種模式的段落顯示顛倒 → 變紅',mutation:M.aboutInverted,run:o=>checkAbout(o)},
     {sec:'about',mode:'observed',when:SCHED_NOS.length>0,name:'關於視窗：實測段的車次清單少一班 → 變紅',mutation:M.aboutSchedDrop,run:o=>checkAbout(o),expect:'timingSource.scheduledTrains'},
+    {sec:'about',mode:'observed',when:SCHED_NOS.some(x=>x.includes('營運日')),name:'關於視窗：同一車次有兩班時沒加註營運日 → 變紅',mutation:M.aboutSchedNoDate,run:o=>checkAbout(o),expect:'timingSource.scheduledTrains'},
     {sec:'about',mode:'observed',name:'關於視窗：實測模式的來源行寫成預覽的 → 變紅',mutation:M.aboutSourceObservedAsPreview,run:o=>checkAbout(o),expect:'來源行'},
     {sec:'about',mode:'preview',name:'關於視窗：預覽模式的來源行寫成實測的 → 變紅',mutation:M.aboutSourcePreviewAsObserved,run:o=>checkAbout(o),expect:'來源行'},
     {sec:'about',mode:'observed',name:'關於視窗：「不回報」換成有實測的站 → 變紅',mutation:M.aboutWrongStations,run:o=>checkAbout(o),expect:'不回報'},

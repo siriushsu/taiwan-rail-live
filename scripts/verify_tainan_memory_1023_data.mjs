@@ -47,6 +47,8 @@ export function checkUndergroundData(ctx) {
 
   // ── 2. 預覽標記與班表來源 ──
   const sched = read('source-schedule.json');
+  // 預覽與 timing 必須一起換：有 preview＝全表定（scheduled）；沒有 preview＝定版，要是 observed，否則 verify 的實測判準整段不跑。
+  ok(cfg.preview ? cfg.timing === 'scheduled' : cfg.timing === 'observed', '設定的 preview 與 timing 不一致（preview ' + (cfg.preview ? '有' : '沒有') + '、timing ' + cfg.timing + '）：有 preview 要是 scheduled，換定版刪掉 preview 時要改成 observed');
   if (cfg.preview) {
     ok(JSON.stringify(data.preview) === JSON.stringify(cfg.preview), 'snapshot.preview 與設定的 preview 不同');
     const TS = data.timingSource;

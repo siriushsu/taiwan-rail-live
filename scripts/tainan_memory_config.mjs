@@ -172,7 +172,8 @@ const CONFIGS = {
 };
 
 // 彩排用的暫時設定（不進版控）：TAINAN_EXTRA_CONFIG 指到一個 JSON 檔，內容是 {日期: 設定}，欄位同上。
-// 只能加新的日期，不能蓋掉上面已有的；沒設這個環境變數時什麼都不變。用法見 docs/tainan-memory-2026-10-23-design.md 第 5 節。
+// 只能加新的日期，不能蓋掉上面已有的；沒設這個環境變數時什麼都不變。build、tainan_actuals.py、build_tainan_track_ambiguities、verify
+// 都讀這支設定，整條鏈要帶同一個值（快取另放時再設 TAINAN_CACHE_DIR），例：TAINAN_EXTRA_CONFIG=<設定檔> node scripts/build_tainan_memory.mjs --date <彩排日期>。
 if (process.env.TAINAN_EXTRA_CONFIG) {
   for (const [date, c] of Object.entries(JSON.parse(fs.readFileSync(process.env.TAINAN_EXTRA_CONFIG, 'utf8')))) {
     if (CONFIGS[date]) throw Error('TAINAN_EXTRA_CONFIG 不能蓋掉既有的日期：' + date);

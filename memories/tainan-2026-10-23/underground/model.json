@@ -260,7 +260,7 @@
      },
      "z": -16.0,
      "label": "估計",
-     "basis": "林森路地下道在 S5 列為鐵路工程、不拆；2026-10-23 這天仍在，隧道從它下方通過。深度是估計"
+     "basis": "S5：依核定的綜合規劃，林森路地下道不在地下化工程拆除或填平的設施內；同文寫它（與小東路、民族路地下道及中華陸橋）在地下化完工後失去主要功能，決議由地下化工程發包節餘款優先支應廢除所需經費；2026-10-23 這天仍在，隧道從它下方通過。深度是估計"
     },
     {
      "id": "station-south",
@@ -1343,7 +1343,7 @@
   "maxNormalLengthError": 3.942760151698366e-08,
   "minWindingNormalDot": 0.9999999179451462
  },
- "paramsSha256": "3617014c875d04bd559829bc54f27df26d7f3163fefb78ab49df8c2ee7601633",
+ "paramsSha256": "32d023df13bba9fd3b3a7d3145652574c4c8425b3b9408f97b803c1d73c64a2d",
  "alignmentSource": {
   "commit": "2cd16884c2322ca4db3c646d2914c755368781a1",
   "path": "rail-3d/physical/network.json",

@@ -64,7 +64,7 @@
 
 ## 5. 換成定版資料的步驟
 
-預覽的 `memories/tainan-2026-10-23/integrity.json` 是預覽版的封存。它存在時，`build_tainan_memory.mjs` 一律拒絕重建（第 53 行：已有 `integrity.json`），所以重建前先刪掉它，驗收通過後再重新封存。刪掉之後頁面載入時比對不到資料檔的雜湊，載不起來；要在瀏覽器驗收，先用 `--seal-reviewed-snapshot` 暫時封一次，之後資料夾裡若又有任何檔案變動，最後要再封一次。
+預覽的 `memories/tainan-2026-10-23/integrity.json` 是預覽版的封存。它存在時，`build_tainan_memory.mjs` 一律拒絕重建（輸出資料夾已有 `integrity.json` 就丟錯），所以重建前先刪掉它，驗收通過後再重新封存。刪掉之後頁面載入時比對不到資料檔的雜湊，載不起來；要在瀏覽器驗收，先用 `--seal-reviewed-snapshot` 暫時封一次，之後資料夾裡若又有任何檔案變動，最後要再封一次。
 
 換定版的設定改動不改程式；但第 5 節末尾的程式面問題要先解決（預覽沒有實測，下列路徑都沒跑過）。
 
@@ -83,7 +83,7 @@
 - 刪 `preview` 整項（不是設 null）；`timing` 由 `'scheduled'` 改 `'observed'`。
 - `note` 現在是預覽專屬的句子（頁面不顯示，但寫進快照），改成實測版。草稿（比照 10/16；不回報的站照 10/23 的實測資料確認後再填）：「依 TDX 即時動態的逐站紀錄推算 2026-10-23 的到離站時刻（到站誤差約半分鐘；大橋、仁德站不回報，時間為內插），不是 GPS 軌跡；股道位置是推演。南下與北上列車依地下化後的線形行駛，臺南站停靠位置在月台中央；地下段高程、車站與隧道尺寸為示意。編組依車種推估。道路與輪廓為 OSM 資料，背景高度簡化；範圍為大橋至保安周邊，非工程計畫邊界。」
 - `schedules`：兩筆的 `cache`、`sha256` 換成定版轉出檔，刪 `temporary`；保留 `convertedFrom: 'ods'`（build 因此繼續把轉換用的三支腳本記進 `snapshot.sources`）。
-- `actuals`：`stations` 換成定版 `ods-<時間>/stations.json`；`hist` 填 `tra_hist/2026-10-22.jsonl.gz`、`tra_hist/2026-10-23.jsonl.gz` 兩份（抓資料第 5 點）；`d1` 填 `d1-<時間>/d1-tra_station_events-<日期>.json` 三份：10/22 取 `tainan-1022-raw` 那次匯出、10/23 與 10/24 取 `tainan-1023-raw` 那次（10/23 兩次都有時用 `tainan-1023-raw` 的，比照 10/16 列前一日、當日、次日）。列了、磁碟上卻沒有的檔，`tainan_actuals.py` 會停下來列出缺哪幾個（第 623–628 行）；真的沒有就從設定拿掉那一項。第 2 步跑完仍核對實測檔（`actuals.out`）的 `histFilesUsed` 與 `inputs`；`recordOnly` 換成定版 ODS 子資料夾的 `20261023.json`、`SHA256SUMS`、`DOWNLOADED_AT` 與 `README.txt`；`calibration` 填 `tainan-1016-work/backtest-2026-09-12.json`（重建演算法沒變，同 10/16；檔案在快取根目錄）。
+- `actuals`：`stations` 換成定版 `ods-<時間>/stations.json`；`hist` 填 `tra_hist/2026-10-22.jsonl.gz`、`tra_hist/2026-10-23.jsonl.gz` 兩份（抓資料第 5 點）；`d1` 填 `d1-<時間>/d1-tra_station_events-<日期>.json` 三份：10/22 取 `tainan-1022-raw` 那次匯出、10/23 與 10/24 取 `tainan-1023-raw` 那次（10/23 兩次都有時用 `tainan-1023-raw` 的，比照 10/16 列前一日、當日、次日）。列了、磁碟上卻沒有的檔，`tainan_actuals.py` 會停下來列出缺哪幾個（第 623–628 行）；真的沒有就從設定拿掉那一項。第 2 步跑完仍核對實測檔（`actuals.out`）的 `histFilesUsed` 與 `inputs`；`recordOnly` 的 `20261023.json`、`SHA256SUMS`、`DOWNLOADED_AT` 換成定版 ODS 子資料夾的那三份，`README.txt` 維持根目錄那份（`tainan-1023-raw/README.txt`，存檔規則只有一份）；`recordOnly` 列了、磁碟上卻沒有的檔，build 會停下來；`calibration` 填 `tainan-1016-work/backtest-2026-09-12.json`（重建演算法沒變，同 10/16；檔案在快取根目錄）。
 - `defaultSec` 重挑：開頁那一秒畫面內有車、至少一班在地下、臺南月台有停車，前後 30 秒不在 `uncertainty.json` 的時段內。預覽的 30420（08:27:00）是用預覽班表挑的，定版時刻會變。`defaultSec` 屬產生資料的欄位，改了要重建。
 - `verify`：`trains`、`overnight`、`directions`、`uncertaintyIntervals`、`underground.{tainanStops, offscreenStops, trainsUnderground, abruptArrivals, defaultScene}` 照新 build 的報表與 verify 輸出更新；實測模式另需 `anchorToleranceSec`（10/16 是 60）。
 - 主站入口：重播頁確認後在 `index.html` 加入口，再把 `verify.entry` 由 `null` 改成 `{id, cl}`（`verify` 欄位不影響快照雜湊）。
