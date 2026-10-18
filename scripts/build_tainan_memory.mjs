@@ -30,6 +30,8 @@
 //   8. 地下化（設定的 underground，docs/tainan-memory-2026-10-23-design.md 第 3、4 節）：
 //      a. routes、rails 的每個頂點加軌道面高程 z（落在隧道、站體、U 槽外框內才有，框外是地面 0；整條都在地面的不寫 z）；
 //      b. 臺南站的停靠點換成月台中央：整列的中心停在 profile.json 的 derived.platform.centerD（股道資料推定的停靠點在月台南端外約 127 公尺）。
+//   9. 同一車次在範圍內出現兩次（前一日跨午夜的尾段與當天的頭段）：兩班各用自己的實測項、通過折點、自訂計畫與股道綁定，快照兩班都留
+//      （dupNos 檢查、buildAll 的 __reassign、tainanFit、bindMotions）；超過兩班或兩班同一營運日就停。
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -93,11 +95,13 @@ for(const [day,offset] of [[cfg.previous,-86400],[cfg.date,0]]){
   selected.push({day,offset,index,hits,src,key:day+':'+src.train});
  }
 }
-// 同一車次在範圍內出現兩次（前一日跨午夜的尾段與當天的頭段）：實測模式下兩份的重建時刻與通過折點不同，passObs 與自訂計畫又以車次為鍵，會互相蓋掉，直接停。
-// 預覽整班表定、沒有重建，兩份定義逐項相同時，鍵相同的兩份計畫內容也相同，才放行。
-{const nos=selected.map(v=>String(v.src.train)),dup=[...new Set(nos.filter((n,i)=>nos.indexOf(n)!==i))];
- const same=dup.every(n=>{const xs=selected.filter(v=>String(v.src.train)===n);return xs.every(x=>JSON.stringify(x.src)===JSON.stringify(xs[0].src));});
- if(dup.length&&!(cfg.preview&&same))throw Error('範圍內同一車次出現兩次（passObs 與自訂計畫以車次為鍵）：'+dup);}
+// 同一車次在範圍內出現兩次（前一日跨午夜的尾段與當天的頭段）：兩班各用自己的重建，快照兩班都留。
+// passObs 與派車表的自訂計畫以車次為鍵，下面各處（buildAll 的 passObs、tainanFit、bindMotions）照班次分開用。
+// 處理不了的情況停下來：同一車次超過兩班，或兩班同一營運日（班次 id 與實測檔的鍵都是 營運日:車次）。
+const dupNos=(()=>{const by=new Map();for(const v of selected){const n=String(v.src.train);(by.get(n)||by.set(n,[]).get(n)).push(v);}
+ const bad=[...by].filter(([,xs])=>xs.length>2||new Set(xs.map(x=>x.day)).size<xs.length).map(([n])=>n);
+ if(bad.length)throw Error('範圍內同一車次超過兩班、或兩班同一營運日，build 處理不了：'+bad);
+ return new Set([...by].filter(([,xs])=>xs.length>1).map(([n])=>n));})();
 
 // 與 build_run_profiles.mjs 的 computeProfiles 同一串呼叫（canonicalize → 貼軌＋剖面 → 交會推論），另外留下沙箱給
 // 留置通過站重算剖面（reassignTrainProfile）與段長匯出用。
@@ -177,10 +181,21 @@ function retime(v,mode){
  }
  res.passObs=ov;return {...res,tr};
 }
+const sameObs=(a,b)=>a===b||(!!a&&!!b&&Object.keys(a).length===Object.keys(b).length&&Object.keys(a).every(k=>a[k]===b[k]));
 function buildAll(modes){
  const items=selected.map(v=>retime(v,modes.get(v.key))),trains=items.map(x=>x.tr),passObs={...passObsFile};
  for(const [i,x] of items.entries())if(x.passObs)passObs[selected[i].src.train]=x.passObs;
  const ctx=profilePipeline(trains,passObs);
+ // 剖面查 state.passObs 一律以車次為鍵（pipeline 與每一次 reassignTrainProfile），同車次兩班只讀得到一份。
+ // pipeline 照舊用合併的那一份（交會推論看得到全部班次）；自己的 passObs 與它不同的那一班，每次重算剖面前把自己的換進去、算完還原。
+ // 包在 __reassign 裡，之後所有重算剖面的地方（留置通過站、tainanFit、單線反向）照班次各用各的。
+ const own=new Map();
+ for(const [i,tr] of trains.entries()){const n=selected[i].src.train,mine=items[i].passObs??passObsFile[n];if(!sameObs(mine,passObs[n]))own.set(tr,{n,mine});}
+ if(own.size){const plain=ctx.__reassign;
+  ctx.__reassign=tr=>{const o=own.get(tr);if(!o)return plain(tr);
+   const had=Object.hasOwn(passObs,o.n),keep=passObs[o.n];if(o.mine===undefined)delete passObs[o.n];else passObs[o.n]=o.mine;
+   try{return plain(tr);}finally{if(had)passObs[o.n]=keep;else delete passObs[o.n];}};
+  for(const tr of own.keys())ctx.__reassign(tr);}
  for(const x of items)if(x.held.length){for(const h of x.held){h.stop.arrSec=h.arr;h.stop.depSec=h.dep;h.stop._plannedDwell=true;}ctx.__reassign(x.tr);}
  for(const [i,tr] of trains.entries())tr.stops.forEach((s,k)=>{if(!(Number.isFinite(s.arrSec)&&Number.isFinite(s.depSec)&&s.depSec>=s.arrSec&&(!k||s.arrSec>=tr.stops[k-1].depSec)))throw Error('重建後時刻不單調：'+selected[i].key+' '+s.name);});
  return {items,trains,ctx};
@@ -371,15 +386,35 @@ function tainanFit(trains,plans,ctx,pack2){
   shifts.set(key,v);return v;};
  for(const [ti,tr] of trains.entries()){
   const {idx,pathIds}=plans[ti],k=idx.findIndex(a=>norm(tr.stops[a].name)===TAINAN.name);if(k<0)continue;
-  const pIn=k>0?pathIds[k-1]:null,pOut=k<pathIds.length?pathIds[k]:null,shift=shiftOf(pIn,pOut);
+  const pIn=k>0?pathIds[k-1]:null,pOut=k<pathIds.length?pathIds[k]:null,shift=shiftOf(pIn,pOut),n0=fits.length;
   for(const [seg,pid,delta] of [[k-1,pIn,shift],[k,pOut,-shift]]){
    if(pid==null)continue;
    const a=idx[seg],b=idx[seg+1],lenM=geoT.unfold(pid).path.length+delta,seg0=Array.from(ctx.__segKm(tr.stops)).slice(a,b),sum=seg0.reduce((t,x)=>t+x,0);
+   // 車次重複時另記營運日（只記車次分不出是哪一班）；其餘日期的紀錄欄位不變。
    if(lenM/1000>sum+1e-9){for(let i=a;i<b;i++)tr.stops[i].physKm=seg0[i-a]*lenM/1000/sum;
-    fits.push({train:tr.train,from:tr.stops[a].name,to:tr.stops[b].name,profileKm:+sum.toFixed(4),pathKm:+(lenM/1000).toFixed(4),shiftM:+delta.toFixed(2)});}}
-  if(fits.some(f=>f.train===tr.train))ctx.__reassign(tr);
+    fits.push({train:tr.train,...(dupNos.has(String(tr.train))&&{serviceDate:selected[ti].day}),from:tr.stops[a].name,to:tr.stops[b].name,profileKm:+sum.toFixed(4),pathKm:+(lenM/1000).toFixed(4),shiftM:+delta.toFixed(2)});}}
+  if(fits.length>n0)ctx.__reassign(tr);
  }
  return fits;
+}
+
+// 自訂計畫放進派車表，鍵是 physicalTrainKey（車次、起站離站秒、終站到站秒）。同車次兩班的起訖時刻碰巧相同、停站簽章不同時鍵會撞，
+// 後寫的蓋掉先寫的，先寫的那班只綁得到別人的計畫。撞鍵的那一班改放另一份派車表，由另一個 motion 實例綁定
+// （record、sample 以班次物件為快取鍵，各實例用各自那份計畫）；內容逐項相同的計畫共用同一份。沒有撞鍵時只有一個實例。
+function bindMotions(trains,plans,pack2){
+ const groups=[];
+ const groupOf=trains.map((tr,i)=>{const {key,plan}=customPlan(tr,plans[i].pathIds),json=JSON.stringify(plan);
+  let g=groups.find(x=>!x.mine.has(key)||x.mine.get(key)===json);
+  if(!g){g={dispatch:{...dispatch,plans:{...dispatch.plans}},mine:new Map()};groups.push(g);}
+  g.dispatch.plans[key]=plan;g.mine.set(key,json);return g;});
+ const motions=new Map(groups.map(g=>[g,withTainanStop(createPhysicalMotion(pack2,profiles,g.dispatch))]));
+ if(motions.size===1)return [...motions.values()][0];
+ const of=new Map(trains.map((tr,i)=>[tr,motions.get(groupOf[i])]));
+ return {record:tr=>of.get(tr).record(tr),sample:(tr,t,opts)=>of.get(tr).sample(tr,t,opts),
+  // 臺南停靠點的移動量是取樣時才記的，每次讀都現合併；同一條路線的同一格邊界在各實例的值必須相同。
+  get patched(){const all=new Map();
+   for(const m of motions.values())for(const [k,v] of m.patched){const prev=all.get(k);if(prev&&JSON.stringify(prev)!==JSON.stringify(v))throw Error('各 motion 實例對同一格臺南停靠點的移動量不同：'+k);all.set(k,v);}
+   return all;}};
 }
 
 // ── 主流程：重建 → 綁股道 → 單線反向 → 點速檢查；超速的班次換模式重來 ──
@@ -396,9 +431,8 @@ function assemble(modes){
    if(km>sum+1e-9){for(let i=a;i<b;i++)tr.stops[i].physKm=seg[i-a]*km/sum;c.physKm.push({from:tr.stops[a].name,to:tr.stops[b].name,profileKm:+sum.toFixed(4),pathKm:+km.toFixed(4)});}});
   if(c.physKm.length)ctx.__reassign(tr);
  }
- const tainanFits=UG?tainanFit(trains,plans,ctx,pack2):[],dispatch2={...dispatch,plans:{...dispatch.plans}};
- for(const [i,tr] of trains.entries()){const {key,plan}=customPlan(tr,plans[i].pathIds);dispatch2.plans[key]=plan;}
- const motion=withTainanStop(createPhysicalMotion(pack2,profiles,dispatch2)),geo=createRouteRuntime(pack2,profiles),joins=[];
+ const tainanFits=UG?tainanFit(trains,plans,ctx,pack2):[];
+ const motion=bindMotions(trains,plans,pack2),geo=createRouteRuntime(pack2,profiles),joins=[];
  for(const [i,tr] of trains.entries()){const r=motion.record(tr);if(!r||r.bindingBasis!=='exact'||r.plan.pathIds.join()!==plans[i].pathIds.join())throw Error('自訂計畫沒有精確綁定：'+selected[i].key+' '+r?.bindingBasis);
   for(let k=1;k<plans[i].pathIds.length;k++)if(!geo.joinable(plans[i].pathIds[k-1],plans[i].pathIds[k]))joins.push({key:selected[i].key,k,at:tr.stops[plans[i].idx[k]].name,custom:customIds.has(plans[i].pathIds[k])||customIds.has(plans[i].pathIds[k-1])});}
  if(joins.some(j=>j.custom))throw Error('反向路徑接不上：'+JSON.stringify(joins.filter(j=>j.custom)));
@@ -723,7 +757,8 @@ const report={date:cfg.date,trains:outTrains.length,overnight:outTrains.filter(t
   occupancy:occRev.map(h=>({train:outTrains[h.r].train,other:outTrains[h.x].train,otherDirection:outTrains[h.x].direction,kind:h.kind,start:h.start,end:h.end,span:hms(h.start)+'–'+hms(h.end),
    place:h.place,ways:h.ways,drawn:h.drawn.map(d=>hms(d.start)+'–'+hms(d.end)),status:h.drawn.length?'marked':'not-drawn'})),
   occAfter:occAfter.map(h=>({a:outTrains[h.a].train,b:outTrains[h.b].train,span:hms(h.start)+'–'+hms(h.end),ways:h.ways})),
-  turnouts:Object.fromEntries(chains.map(c=>[outTrains[c.ti].train,turnouts.get(c.ti)]))},
+  // 轉轍以車次為鍵；車次重複的改用「營運日:車次」，兩班才不會互蓋。
+  turnouts:Object.fromEntries(chains.map(c=>[dupNos.has(String(outTrains[c.ti].train))?selected[c.ti].key:outTrains[c.ti].train,turnouts.get(c.ti)]))},
  anchors:Object.fromEntries((cfg.marks||[]).map(m=>[m.train,anchorsOf(selected.find(x=>String(x.src.train)===m.train&&x.day===m.serviceDate))])),
  events,meet:ctx.__meet??null,
  ...(UG&&{underground:{platform:UG.platform,tainanStops:[...motion.patched.values()],tainanFits:A.tainanFits,z:{routes:zRoutes,rails:zRails}}})};
