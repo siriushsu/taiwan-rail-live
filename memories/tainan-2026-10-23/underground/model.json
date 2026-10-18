@@ -260,7 +260,7 @@
      },
      "z": -16.0,
      "label": "估計",
-     "basis": "林森路地下道保留（S5），隧道要從它下方通過"
+     "basis": "林森路地下道在 S5 列為鐵路工程、不拆；2026-10-23 這天仍在，隧道從它下方通過。深度是估計"
     },
     {
      "id": "station-south",
@@ -1343,7 +1343,7 @@
   "maxNormalLengthError": 3.942760151698366e-08,
   "minWindingNormalDot": 0.9999999179451462
  },
- "paramsSha256": "b16218b19f3e48878fb9fd6ab5a2cda587843b7bfdad5139ea3da234ac8a8958",
+ "paramsSha256": "3617014c875d04bd559829bc54f27df26d7f3163fefb78ab49df8c2ee7601633",
  "alignmentSource": {
   "commit": "2cd16884c2322ca4db3c646d2914c755368781a1",
   "path": "rail-3d/physical/network.json",

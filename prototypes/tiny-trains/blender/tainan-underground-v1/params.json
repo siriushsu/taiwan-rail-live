@@ -35,7 +35,7 @@
    {"id": "south-start", "anchor": {"type": "chainStart"}, "z": 0, "label": "OSM", "basis": "南引道地面段起點"},
    {"id": "south-cut-outer", "anchor": {"type": "wayEnd", "way": "1413211241", "end": "south"}, "z": 0, "label": "OSM", "basis": "南引道開挖段（cutting=yes）外端，開始下降"},
    {"id": "south-portal", "anchor": {"type": "wayEnd", "way": "1102288955", "end": "south"}, "z": -7.0, "label": "估計", "basis": "洞口頂板頂與地面齊：軌道面到頂板頂 = tunnel.soffitAboveTrackM + tunnel.roofThicknessM"},
-   {"id": "linsen-underpass", "anchor": {"type": "roadCrossing", "name": "林森地下道", "source": "memories/tainan-2026-09-12/snapshot.json 的 features（OSM 道路線）", "use": "與參考線各交點 d 的平均"}, "z": -16.0, "label": "估計", "basis": "林森路地下道保留（S5），隧道要從它下方通過"},
+   {"id": "linsen-underpass", "anchor": {"type": "roadCrossing", "name": "林森地下道", "source": "memories/tainan-2026-09-12/snapshot.json 的 features（OSM 道路線）", "use": "與參考線各交點 d 的平均"}, "z": -16.0, "label": "估計", "basis": "林森路地下道在 S5 列為鐵路工程、不拆；2026-10-23 這天仍在，隧道從它下方通過。深度是估計"},
    {"id": "station-south", "anchor": {"type": "stationEnd", "end": "south"}, "z": -18.0, "label": "估計", "sources": ["S31", "S22"], "basis": "S31（二手）寫本工程開挖深度超過 20 m，沒有指明位置；車站上方多一層 B1 大廳（S22），推論最深處在車站。開挖底取 −20.5 m（S31 只寫超過 20 m），扣 station.baseBottomBelowTrackM 得車站軌道面"},
    {"id": "station-north", "anchor": {"type": "stationEnd", "end": "north"}, "z": -18.0, "label": "估計", "basis": "車站股道水平"},
    {"id": "north-portal", "anchor": {"type": "wayEnd", "way": "1102288955", "end": "north"}, "z": -7.0, "label": "估計", "basis": "同 south-portal"},

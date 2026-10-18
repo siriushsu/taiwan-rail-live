@@ -620,11 +620,15 @@ def run_date(cfg):
     inputs = [{'path': os.path.relpath(f, cfg['cacheRoot']) if f.startswith(cfg['cacheRoot']) else os.path.relpath(f, cfg['root']),
                'sha256': sha256_file(f)} for f in sched_files]
     inputs.append({'path': act['stations'], 'sha256': sha256_file(cache_path(cfg, act['stations']))})
+    # 設定列了卻不在磁碟上的檔不能悄悄略過（少一份實測、輸出卻照常產出）：停下來列出缺哪幾個。真的不需要，就從設定拿掉那一項。
+    missing = [(key, ref) for key in ('hist', 'd1') for ref in act[key] if not os.path.exists(cache_path(cfg, ref))]
+    if missing:
+        sys.exit('設定列了、磁碟上卻沒有的實測輸入（%d 個）：\n' % len(missing)
+                 + '\n'.join('  actuals.%s：%s' % (key, cache_path(cfg, ref)) for key, ref in missing)
+                 + '\n先把檔案放進快取；真的不需要，就從設定的 actuals.hist／actuals.d1 拿掉那一項。')
     hist_rows, hist_used = [], []
     for ref in act['hist']:
         f = cache_path(cfg, ref)
-        if not os.path.exists(f):
-            continue
         rows = load_hist_rows(f, target)
         for r in rows:
             r['_file'] = ref
@@ -634,8 +638,6 @@ def run_date(cfg):
     d1_groups, d1_rows_all = {}, []
     for ref in act['d1']:
         f = cache_path(cfg, ref)
-        if not os.path.exists(f):
-            continue
         rows = load_d1_rows(f, target)
         for r in rows:
             r['_file'] = ref

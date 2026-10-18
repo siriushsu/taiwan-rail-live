@@ -168,9 +168,12 @@ try{
   for(const {row,s} of cardRows){const slack=s.stop===false?10:0,st=sec>s.depSec+slack?'past':sec>=s.arrSec-slack?'now':'future';if(row.dataset.state!==st)row.dataset.state=st;}
   const first=tr.stops[0],last=tr.stops[tr.stops.length-1],here=tr.stops.find(s=>(s.stop!==false||Number(s.holdSec)>=90)&&sec>=s.arrSec&&sec<=s.depSec),next=tr.stops.find(s=>sec<s.arrSec);
   cardStatus.textContent=(here?'停在'+here.name:sec<first.arrSec?'尚未到'+first.name:sec>last.depSec?'已駛離最後一站':next?'行駛中，下一站'+next.name:'行駛中')+(sample(tr,sec)?'':'（目前在畫面範圍外）')+(tr.timing==='scheduled'?(data.preview?'；預覽班表，照表定時刻':'；沒有即時動態紀錄，照表定時刻'):'');}
- // ── 文案跟著資料走：預覽班表（snapshot.preview）才顯示的段落與徽章；預覽消失後徽章回到「實測時刻重建」、預覽段落自動隱藏 ──
- for(const e of document.querySelectorAll('[data-show="preview"]'))e.hidden=!data.preview;
+ // ── 文案跟著資料走：snapshot.preview 有值＝預覽班表（全表定）；沒有＝實測重建。data-show 標了模式的段落只在那個模式顯示，徽章與字幕跟著換。 ──
+ const MODE=data.preview?'preview':'observed';
+ for(const e of document.querySelectorAll('[data-show]'))e.hidden=e.dataset.show!==MODE;
  $('badge').textContent=data.preview?'預覽班表・表定時刻':'實測時刻重建';
+ // 沒有任何即時動態紀錄的車次（timingSource.scheduledTrains 記成「營運日:車次」）：關於視窗的實測段列出車次；一班都沒有就整句不出現。
+ for(const e of document.querySelectorAll('[data-fill="scheduled"]')){const nos=[...new Set((data.timingSource?.scheduledTrains||[]).map(x=>String(x).split(':').pop()))].sort((a,b)=>a-b);e.textContent=nos.length?nos.join('、')+' 次沒有任何即時動態紀錄，只能照時刻表畫，標籤會註明「無即時動態紀錄」。':'';e.hidden=!nos.length;}
  const PREVIEW_CAPTION='預覽版：依 10/15 發布的預覽班表、照表定時刻行駛；實際到離站紀錄之後補上。';
  // ── 字幕：不確定時段依 reason 分兩種寫法 ──
  const reasonsOf=id=>{const r=new Set();for(const i of uncertainty.intervals)if(state.sec>=i.start&&state.sec<=i.end&&i.trains.includes(id))r.add(i.reason||'track-overlap');return r.size?r:new Set(['track-overlap']);},TAIL=' 次暫以車次標記呈現；位置仍依'+(data.preview?'表定':'重建的')+'時刻推演。';
@@ -224,10 +227,11 @@ try{
   view();});
  for(const event of ['pointerup','pointercancel','lostpointercapture'])renderer.domElement.addEventListener(event,e=>{if(!pointers.delete(e.pointerId))return;pair=pointers.size===2?newPair():null;if(rotating&&!pointers.size){rotating=false;menuBlockUntil=performance.now()+500;}});
  renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();span=Math.max(34,Math.min(14000,span*Math.exp(e.deltaY*.001)));view();},{passive:false});
- let last=performance.now(),lastSecond=-1,shownFollow=null;const active=[];
+ let last=performance.now(),lastSecond=-1,shownFollow=null;const active=[],trainById=new Map(data.trains.map(t=>[t.id,t]));
  // rAF 的時間戳可能比 last（宣告當下的 performance.now()）早一點：dt 不小於 0，免得第一幀把 22:00:00 倒退成 21:59:59。
  function draw(now){requestAnimationFrame(draw);const dt=Math.max(0,Math.min(.1,(now-last)/1000));last=now;if(document.hidden)return;if(state.nearReady)setLod(span<fleet.lod.nearBelowSpan?'near':span>fleet.lod.farAboveSpan?'far':state.lod);if(state.playing&&!$('details').open)state.sec=(state.sec+dt*state.speed)%86400;active.length=0;
-  const uncertain=new Set(uncertainty.intervals.filter(i=>state.sec>=i.start&&state.sec<=i.end).flatMap(i=>i.trains));
+  // 股道待確認的時段：同一時段裡此刻至少兩班都在畫面上（sample 有值）才藏成車次標記；只有一班在場（另一班還沒進場或已離場）時沒有東西可以重疊，照常畫出。
+  const uncertain=new Set();for(const iv of uncertainty.intervals){if(state.sec<iv.start||state.sec>iv.end)continue;const here=iv.trains.filter(id=>{const t=trainById.get(id);return t&&sample(t,state.sec);});if(here.length>=2)for(const id of here)uncertain.add(id);}
   for(const tr of data.trains){const m=models.get(tr.id),p=sample(tr,state.sec);m.group.visible=!!p&&!uncertain.has(tr.id);m.label.coordinate=p?.coordinate||null;m.label.z=p?.z||0;m.label.e.classList.toggle('uncertain',uncertain.has(tr.id));m.label.e.classList.toggle('following',state.follow===tr.id);if(!p)continue;const poses=formationPoses(p.path,p.s,1,m.parts,c=>zOf(p.route,c)+.16);if(!poses){m.group.visible=false;m.label.coordinate=null;continue;}active.push({id:tr.id,train:tr.train,direction:tr.direction,route:p.route,s:p.s,z:p.z,coordinate:p.coordinate,trackUncertain:uncertain.has(tr.id)});poses.forEach((pose,i)=>{const xy=world(pose.coordinate);m.cars[i].position.set(...xy,pose.height);m.cars[i].rotation.set(0,-pose.pitch,pose.angle,'ZYX');});if(state.follow===tr.id){target.set(...world(p.coordinate),p.z);view();}}
   const occupied=[];for(const l of labels){if(!l.coordinate){l.e.hidden=true;continue;}const xy=world(l.coordinate),p=new THREE.Vector3(...xy,7+(l.z||0)).project(camera),x=(p.x*.5+.5)*width,y=(-p.y*.5+.5)*height;const visible=p.z>=-1&&p.z<=1&&x>0&&x<width&&y>55&&y<height-30;l.e.hidden=!visible;if(visible){l.e.style.transform=`translate(${x}px,${y}px) translate(-50%,-100%)`;if(!l.e.classList.contains('train-label')){const b=l.e.getBoundingClientRect();if(occupied.some(a=>b.left<a.right&&b.right>a.left&&b.top<a.bottom&&b.bottom>a.top))l.e.hidden=true;else occupied.push(b);}}}
   renderer.render(scene,camera);state.frames++;

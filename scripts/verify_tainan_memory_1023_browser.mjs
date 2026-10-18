@@ -1,8 +1,10 @@
 // 臺南 10/23 重播頁（地下化後的第一個週五）專屬驗收：地下結構的材質與畫序、地面面紗、車廂高程與俯仰、臺南站停靠位置、
 // 標籤與鏡頭的高度、深度衝突（z-fighting）、鋼軌與道碴的逐頂點高程、路面讓位、手機版面、「下一班到臺南」與「臺南發車」的跳轉。無視窗 Chromium＋WebKit。
 // 用法：node scripts/verify_tainan_memory_1023_browser.mjs；自己起 dev_server 子程序（PORT 預設 5611），結束時只停它。VURL 有給就不起 server。
-// 環境變數：ENGINES=chromium,webkit；ONLY=health,materials,veil,order,rails,roads,elevation,stop,labels,camera,depth,jumps,layout（逗號分隔，挑段落跑）；
-//   CONTROLS=0 略過突變對照（只有除錯時用，驗收一律要跑）；CHROMIUM_CHANNEL（預設 chrome）；RESULTS（結果檔路徑，預設寫到 output/tainan-memory-1023/verify-1023/）。
+// DIR 指到別的資料夾（預設 memories/tainan-2026-10-23；彩排的輸出資料夾要先放進最新的頁面檔並封存）：期望值讀那個資料夾的資料檔，頁面模式（預覽／實測）看它的 snapshot.json 有沒有 preview。
+//   DIR 的路徑含 . 開頭的資料夾時 dev_server 會 404，要另起靜態 server 並給 VURL。
+// 環境變數：ENGINES=chromium,webkit；ONLY=health,materials,veil,order,rails,roads,elevation,stop,labels,camera,depth,jumps,card,uncertain,about,layout（逗號分隔，挑段落跑）；
+//   CONTROLS=0 略過突變對照（只有除錯時用，驗收一律要跑）；CHROMIUM_CHANNEL（預設 chrome）；RESULTS（結果檔路徑，預設寫到 output/tainan-memory-1023/verify-1023/；關於視窗的截圖存在結果檔旁邊）。
 // 期望值一律來自磁碟上的資料檔（snapshot.json、underground/model.json、underground/profile.json），不問頁面載入後的副本；
 // 突變對照（CONTROLS）用 page.route 對瀏覽器端換掉資料或程式（並補上對應的 integrity.json 雜湊），檢查該變紅，還原後該變綠；不改任何檔案。
 //
@@ -20,8 +22,9 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const WT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const DIR='memories/tainan-2026-10-23',ABS=path.join(WT,DIR);
-const PORT=+(process.env.PORT||5611),BASE=process.env.VURL||`http://127.0.0.1:${PORT}`,DIR_URL=`${BASE}/${DIR}/`,PAGE_URL=DIR_URL+'index.html';
+const DIR=process.env.DIR||'memories/tainan-2026-10-23',ABS=path.resolve(WT,DIR),REL=path.relative(WT,ABS).split(path.sep).join('/');
+if(!process.env.VURL&&REL.split('/').some(x=>x.startsWith('.')))throw Error('dev_server 不送 . 開頭的路徑（'+REL+'）：請另起一個靜態 server，再用 VURL 指過去。');
+const PORT=+(process.env.PORT||5611),BASE=process.env.VURL||`http://127.0.0.1:${PORT}`,DIR_URL=`${BASE}/${REL}/`,PAGE_URL=DIR_URL+'index.html';
 const OUT=path.join(WT,'output/tainan-memory-1023/verify-1023');fs.mkdirSync(OUT,{recursive:true});
 const RESULTS=process.env.RESULTS||path.join(OUT,'results.json');
 const ONLY=process.env.ONLY?new Set(process.env.ONLY.split(',')):null,want=id=>!ONLY||ONLY.has(id);
@@ -500,41 +503,216 @@ async function checkJumps(o,fc){
  lines.push('跟車中按兩顆鈕：都取消跟車並移到月台中央');
  return {pass:!errs.length,detail:errs.length?errs.slice(0,4).join('；'):lines.join('｜')};
 }
-// 跟車卡與字幕（預覽班表）：通過站的重播時刻是行駛推算，來源要標內插、差記「—」；停靠站照表定，差是準點或「—」；註記要寫明這兩件事。
-// 股道待確認時段的字幕，尾句要寫「依表定時刻推演」（預覽沒有重建）。南北向各挑一班有通過站的車；列與站的對應用 data-name 核對。
-async function checkCard(o){
- const page=o.page,errs=[],E=m=>errs.push(m),lines=[],passOf=s=>s.stop===false&&!(Number(s.holdSec)>=90);
- const picks=['北上','南下'].map(dir=>SNAP.trains.find(t=>t.direction===dir&&t.stops.some(passOf)&&t.stops.some(s=>!passOf(s)))).filter(Boolean);
- if(picks.length<2)E(`南北向要各有一班有通過站的車，只找到 ${picks.length} 班`);
- let nPass=0,nStop=0;
- for(const tr of picks){
-  const sec=tr.stops.find(s=>!passOf(s)).depSec;
-  await page.evaluate(([id,s])=>{const t=window.tainanMemory;t.state.playing=false;t.followTrain('');t.followTrain(id,s);},[tr.id,sec]);await settle(page);
-  const card=await page.evaluate(()=>{const c=document.getElementById('followcard');if(!c||c.hidden)return null;const rows=[...c.querySelectorAll('tbody tr')];
-   return {names:rows.map(r=>r.dataset.name),cells:rows.map(r=>[...r.children].map(td=>[...td.querySelectorAll('.ln')].map(x=>x.textContent))),note:c.querySelector('.note')?.textContent||''};});
+// ───────────────────────── 檢查：跟車卡、字幕、徽章（預覽班表／實測重建兩種模式） ─────────────────────────
+// 模式看磁碟上 snapshot.json 有沒有頂層 preview（頁面也是照這個欄位切換）。期望值全從 snapshot.json 推，不讀頁面裡的副本：
+// 每一班、每一列的表定／重播／來源／差／留置都逐格比，不抽樣。
+// 預覽班表沒有實測：停靠站照表定（差「準點」、來源「表定」）；通過站的重播時刻是行駛推算，來源標內插、差記「—」。
+// 實測重建：obs 站顯示實測時刻（開車時刻是推定）、沒有紀錄的站標內插、通過站照資料算差；有實測的停靠列差欄整排都是「—」就是壞了。
+const PREVIEW=!!SNAP.preview,MODE=PREVIEW?'preview':'observed';
+const SRC_NAME={obs:'實測',interp:'內插',sched:'表定',est:'推定'},DEP_SRC={obs:'est',interp:'interp',est:'est',sched:'sched'};
+const clk=s=>[Math.floor(s/3600),Math.floor(s/60)%60,Math.floor(s)%60].map(v=>String(v).padStart(2,'0')).join(':');
+const tmx=sec=>{if(!Number.isFinite(sec))return '—';const r=Math.round(sec),d=Math.floor(r/86400);return (d<0?'前日 ':d>0?'次日 ':'')+clk(r-d*86400);};
+const durx=sec=>{const s=Math.round(Math.abs(sec)),m=Math.floor(s/60),r=s%60;return (m?m+'分':'')+(r||!m?r+'秒':'');};
+const diffx=d=>!Number.isFinite(d)?'—':Math.abs(d)<5?'準點':(d>0?'晚':'早')+durx(d);
+// 一列的期望文字：各欄是逐行（.ln）的字串陣列。起點站沒有到站、終點站沒有開車，那一行記「—」；通過站只有一行；留置 ≥90 秒的通過站照停靠站兩行。
+function expectRow(s){
+ const pass=s.stop===false,hold=Number(s.holdSec)>=90?Number(s.holdSec):0,passed=pass&&!hold,has=Number.isFinite(s.schedArrSec),
+  noArr=s.end==='origin'&&s.arrSec===s.depSec,noDep=s.end==='terminal'&&s.arrSec===s.depSec,ad=(a,d)=>[noArr?'—':a,noDep?'—':d];
+ const srcKeys=passed?[PREVIEW?'interp':s.src]:ad(s.src,DEP_SRC[s.src]);
+ return {passed,hold,has,
+  sched:has?(pass?['通過',tmx(s.schedArrSec)]:ad(tmx(s.schedArrSec),tmx(s.schedDepSec))):['—'],
+  act:passed?['通過',tmx(s.arrSec)]:ad(tmx(s.arrSec),tmx(s.depSec)),
+  src:srcKeys.map(k=>SRC_NAME[k]||'—'),
+  diff:has?(passed?[PREVIEW?'—':diffx(s.arrSec-s.schedArrSec)]:ad(diffx(s.arrSec-s.schedArrSec),diffx(s.depSec-s.schedDepSec))):['—'],
+  held:[hold?durx(hold):'—']};
+}
+// 頁面內一次跟過每一班，逐班讀出跟車卡（跟車對象一換，下一幀就重畫卡片；每班等兩幀）。
+async function readCards(page,ids){
+ return page.evaluate(async ids=>{
+  const t=window.tainanMemory,out={};
+  const frame=()=>new Promise((res,rej)=>{const f0=t.state.frames,t0=performance.now();const f=()=>{if(t.state.frames>f0)res();else if(performance.now()-t0>8000)rej(Error('頁面 8 秒沒有畫新的一幀'));else requestAnimationFrame(f);};requestAnimationFrame(f);});
+  t.state.playing=false;t.followTrain('');await frame();
+  for(const id of ids){
+   t.followTrain(id);await frame();await frame();
+   const c=document.getElementById('followcard');
+   if(!c||c.hidden){out[id]=null;continue;}
+   const rows=[...c.querySelectorAll('tbody tr')];
+   out[id]={h:c.querySelector('h3')?.textContent||'',st:c.querySelector('.st')?.textContent||'',note:c.querySelector('.note')?.textContent||'',
+    heads:[...c.querySelectorAll('thead th')].map(th=>th.textContent),names:rows.map(r=>r.dataset.name),
+    cells:rows.map(r=>[...r.children].slice(1).map(td=>[...td.querySelectorAll('.ln')].map(x=>x.textContent)))};
+  }
+  t.followTrain('');await frame();
+  return out;
+ },ids);
+}
+const CLEAR_SECS=[SNAP.defaultSec,30420,40000,50000,12000,70000,20000,86000];
+const clearOfIntervals=sec=>Number.isFinite(sec)&&!readJson('uncertainty.json').intervals.some(i=>sec>=i.start-2&&sec<=i.end+2);
+// 跟車卡全部班次、全部列＋註記＋狀態列；再核對字幕尾句、預設字幕、跟車字幕與徽章。every＞1 時只取每 every 班的一班（突變對照用）。
+async function checkCard(o,{every=1}={}){
+ const page=o.page,errs=[],agg=[],E=m=>errs.push(m),lines=[];
+ const trains=SNAP.trains.filter((_,i)=>i%every===0),cards=await readCards(page,trains.map(t=>t.id));
+ let nRows=0,nPass=0,nStop=0,nHold=0,obsRows=0,obsDash=0;
+ const HEADS=['站','表定到／開','重播到／開','來源到／開','差重播−表定','留置'];
+ for(const tr of trains){
+  const card=cards[tr.id];
   if(!card){E(`${tr.train} 次：跟車卡沒有出現`);continue;}
+  if(card.heads.join('|')!==HEADS.join('|'))E(`${tr.train} 次：表頭是「${card.heads.join('|')}」，要是「${HEADS.join('|')}」`);
+  if(card.h!==`${tr.train} 次${tr.typeName} ${tr.direction}`)E(`${tr.train} 次：卡片標題是「${card.h}」`);
   if(card.names.length!==tr.stops.length){E(`${tr.train} 次：卡上 ${card.names.length} 列，資料 ${tr.stops.length} 站`);continue;}
-  tr.stops.forEach((s,i)=>{const src=card.cells[i][3],diff=card.cells[i][4];
-   if(card.names[i]!==s.name)E(`${tr.train} 次第 ${i+1} 列是 ${card.names[i]}，資料是 ${s.name}`);
-   else if(passOf(s)){nPass++;
-    if(diff.join('／')!=='—')E(`${tr.train} 次 ${s.name}（通過）：差欄是「${diff.join('／')}」，預覽班表的通過站要記「—」`);
-    if(src.join('／')!=='內插')E(`${tr.train} 次 ${s.name}（通過）：來源是「${src.join('／')}」，預覽班表的通過站要標內插`);}
-   else{nStop++;
-    if(!diff.length||!diff.every(x=>x==='準點'||x==='—'))E(`${tr.train} 次 ${s.name}（停靠）：差欄是「${diff.join('／')}」，預覽班表的停靠站要準點`);
-    if(!src.length||!src.every(x=>x==='表定'||x==='—'))E(`${tr.train} 次 ${s.name}（停靠）：來源是「${src.join('／')}」，預覽班表的停靠站要標表定`);}});
-  if(!(card.note.includes('停靠站照表定')&&card.note.includes('通過站')&&card.note.includes('內插')))E(`${tr.train} 次：註記沒有寫明停靠站照表定、通過站內插：「${card.note.slice(0,60)}」`);
-  lines.push(`${tr.train} 次${tr.direction}：通過 ${tr.stops.filter(passOf).length} 列、停靠 ${tr.stops.filter(s=>!passOf(s)).length} 列`);}
+  tr.stops.forEach((s,i)=>{
+   const x=expectRow(s),J=a=>a.join('／'),cols=[['表定',card.cells[i][0],x.sched],['重播',card.cells[i][1],x.act],['來源',card.cells[i][2],x.src],['差',card.cells[i][3],x.diff],['留置',card.cells[i][4],x.held]];
+   nRows++;
+   if(card.names[i]!==s.name){E(`${tr.train} 次第 ${i+1} 列是 ${card.names[i]}，資料是 ${s.name}`);return;}
+   if(x.passed)nPass++;else if(x.hold)nHold++;else nStop++;
+   for(const [col,got,exp] of cols){if(J(got)===J(exp))continue;
+    const kind=x.passed?'通過':x.hold?'留置':'停靠';
+    if(PREVIEW&&x.passed&&col==='差')E(`${tr.train} 次 ${s.name}（通過）：差欄是「${J(got)}」，預覽班表的通過站要記「—」`);
+    else if(PREVIEW&&x.passed&&col==='來源')E(`${tr.train} 次 ${s.name}（通過）：來源是「${J(got)}」，預覽班表的通過站要標內插`);
+    else E(`${tr.train} 次 ${s.name}（${kind}）：${col}欄是「${J(got)}」，資料推得「${J(exp)}」`);}
+   if(!PREVIEW&&!x.passed&&!x.hold&&s.src==='obs'&&x.has&&s.end!=='origin'){obsRows++;if(card.cells[i][3][0]==='—')obsDash++;}
+  });
+  const sched=tr.timing==='scheduled';
+  if(PREVIEW){if(!(card.note.includes('停靠站照表定')&&card.note.includes('通過站')&&card.note.includes('內插')))E(`${tr.train} 次：註記沒有寫明停靠站照表定、通過站內插：「${card.note.slice(0,60)}」`);}
+  else if(sched){if(card.note!=='這班車沒有任何即時動態紀錄，整班照時刻表畫。')E(`${tr.train} 次（無即時動態紀錄）：註記是「${card.note.slice(0,60)}」`);}
+  else if(!(card.note.startsWith('時刻依即時動態紀錄推算，到站誤差約半分鐘。')&&['實測＝','內插＝','推定＝','留置＝'].every(k=>card.note.includes(k))))E(`${tr.train} 次：註記沒有寫明實測、內插、推定、留置的意思：「${card.note.slice(0,60)}」`);
+  const stTail=sched?(PREVIEW?'；預覽班表，照表定時刻':'；沒有即時動態紀錄，照表定時刻'):'';
+  if(sched?!card.st.endsWith(stTail):card.st.includes('照表定時刻'))E(`${tr.train} 次：狀態列「${card.st}」${sched?'要以「'+stTail+'」結尾':'不該寫照表定時刻'}`);
+ }
  if(!nPass)E('一列通過站都沒驗到');
+ if(!nStop)E('一列停靠站都沒驗到');
+ if(!PREVIEW){
+  if(every===1&&!obsRows)agg.push('沒有任何「有實測、有表定」的停靠列，差欄驗不了');
+  else if(obsRows&&obsDash===obsRows)agg.push(`有實測的停靠列 ${obsRows} 列，差欄整排都是「—」`);
+ }
+ lines.push(`${trains.length} 班、${nRows} 列（通過 ${nPass}、停靠 ${nStop}、留置 ${nHold}）逐格比對${PREVIEW?'':`；有實測的停靠列 ${obsRows} 列（差欄是「—」的 ${obsDash} 列）`}`);
+ // 徽章
+ const badge=await page.evaluate(()=>document.getElementById('badge').textContent),badgeExp=PREVIEW?'預覽班表・表定時刻':'實測時刻重建';
+ if(badge!==badgeExp)E(`徽章是「${badge}」，${PREVIEW?'預覽班表':'實測重建'}要寫「${badgeExp}」`);
+ // 股道待確認時段的字幕尾句：預覽沒有重建，位置依表定時刻；實測位置依重建的時刻
  const U=readJson('uncertainty.json').intervals;
- if(!U.length)E('uncertainty.json 沒有股道待確認的時段，字幕尾句驗不了');
+ if(!U.length)lines.push('uncertainty.json 沒有股道待確認的時段，字幕尾句略過');
  else{const iv=U[0],mid=Math.round((iv.start+iv.end)/2);
   await page.evaluate(s=>{const t=window.tainanMemory;t.state.playing=false;t.followTrain('');t.jump(s);},mid);await settle(page);
   const cap=await page.evaluate(()=>document.getElementById('caption').textContent);
-  if(!cap.includes('依表定時刻推演'))E(`${hms(mid)} 的字幕「${cap.slice(0,70)}」沒有寫表定時刻`);
+  if(!cap.includes(PREVIEW?'依表定時刻推演':'依重建的時刻推演'))E(`${hms(mid)} 的字幕「${cap.slice(0,70)}」沒有寫${PREVIEW?'表定':'重建的'}時刻`);
   if(!iv.trainNos.every(n=>cap.includes(n)))E(`${hms(mid)} 的字幕沒有列出 ${iv.trainNos.join('、')}：「${cap.slice(0,70)}」`);
   lines.push(`${hms(mid)} 字幕：${cap.slice(0,40)}`);}
+ // 預設字幕與跟車字幕（挑一個離股道待確認時段夠遠的整秒）
+ const sec0=CLEAR_SECS.find(clearOfIntervals);
+ if(sec0===undefined)E('找不到離股道待確認時段夠遠的整秒，預設字幕驗不了');
+ else{
+  await page.evaluate(s=>{const t=window.tainanMemory;t.state.playing=false;t.followTrain('');t.jump(s);},sec0);await settle(page);
+  const cap=await page.evaluate(()=>document.getElementById('caption').textContent),exp=PREVIEW?'預覽版：依 10/15 發布的預覽班表、照表定時刻行駛；實際到離站紀錄之後補上。':`封存 ${SNAP.trains.length} 班 · 時刻依即時動態紀錄重建，非 GPS 軌跡；區間車與莒光號的編組為推估。`;
+  if(cap!==exp)E(`${hms(sec0)} 的預設字幕是「${cap.slice(0,80)}」，要寫「${exp.slice(0,80)}」`);
+  lines.push(`${hms(sec0)} 預設字幕對`);
+  for(const tr of [SNAP.trains.find(t=>t.timing==='scheduled'),SNAP.trains.find(t=>t.timing!=='scheduled')].filter(Boolean)){
+   const secs=[];for(const sp of tr.spans)for(const f of [3,Math.floor(sp.s.length/2)])secs.push(sp.start+f);
+   const sec=secs.find(s=>clearOfIntervals(s)&&presentAt(tr.id,s));
+   if(sec===undefined){E(`${tr.train} 次找不到離股道待確認時段夠遠、又在畫面內的整秒，跟車字幕驗不了`);continue;}
+   await page.evaluate(([id,s])=>{const t=window.tainanMemory;t.state.playing=false;t.followTrain('');t.jump(s);t.followTrain(id);},[tr.id,sec]);await settle(page);
+   const fcap=await page.evaluate(()=>document.getElementById('caption').textContent),
+    suffix=tr.timing==='scheduled'?(PREVIEW?'預覽班表，照表定時刻':'無即時動態紀錄，照表定時刻'):'時刻依即時動態紀錄重建',fexp=[tr.train+' 次',tr.formation.caption,suffix].join(' · ');
+   if(fcap!==fexp)E(`${tr.train} 次的跟車字幕是「${fcap}」，要寫「${fexp}」`);
+   lines.push(`${tr.train} 次跟車字幕對`);}
+ }
  await page.evaluate(()=>window.tainanMemory.followTrain(''));
- return {pass:!errs.length,detail:errs.length?errs.slice(0,4).join('；'):`通過站 ${nPass} 列、停靠站 ${nStop} 列｜`+lines.join('｜')};
+ const all=[...agg,...errs];
+ return {pass:!all.length,detail:all.length?`${all.length} 項不符：${all.slice(0,4).join('；')}`:lines.join('｜')};
+}
+// ───────────────────────── 檢查：股道待確認時段的字幕與車次標記 ─────────────────────────
+// 同一時段裡此刻至少兩班都在畫面上（snapshot 的 spans 涵蓋該秒）才藏成車次標記並列進字幕；只有一班在場（另一班還沒進場或已離場）時
+// 照常畫出、字幕不列。每段時段取起點、中間、終點三個整秒；在場與否從磁碟上的 snapshot.json 算，隱藏旗標、active 與字幕都對照它。
+const TRAIN_BY_ID=new Map(SNAP.trains.map(t=>[t.id,t]));
+const presentAt=(id,sec)=>{const t=TRAIN_BY_ID.get(id);return !!t&&t.spans.some(sp=>sec>=sp.start&&sec<=sp.start+sp.s.length-1);};
+function expectHidden(sec){
+ const byReason={'single-line-unresolved':[],'track-overlap':[]},all=new Set();
+ for(const iv of readJson('uncertainty.json').intervals){
+  if(sec<iv.start||sec>iv.end)continue;
+  const here=iv.trains.filter(id=>presentAt(id,sec));
+  if(here.length<2)continue;
+  for(const id of here){all.add(id);(byReason[iv.reason||'track-overlap']||byReason['track-overlap']).push(TRAIN_BY_ID.get(id).train);}}
+ return {all,byReason};
+}
+const intervalSecs=()=>readJson('uncertainty.json').intervals.flatMap(iv=>[['起點',iv.start],['中間',Math.floor((iv.start+iv.end)/2)],['終點',iv.end]].map(([tag,sec])=>({iv,tag,sec})));
+const INTERVAL_EDGE_SINGLE=intervalSecs().some(({iv,sec})=>iv.trains.filter(id=>presentAt(id,sec)).length===1);
+async function checkIntervals(o){
+ const page=o.page,errs=[],E=m=>errs.push(m),cases=intervalSecs();
+ if(!cases.length)return {pass:true,detail:'uncertainty.json 沒有股道待確認的時段，這項略過'};
+ let single=0,hiddenCases=0;
+ for(const {iv,tag,sec} of cases){
+  const exp=expectHidden(sec),where=`${hms(sec)}（${iv.trainNos.join('、')} 的${tag}）`;
+  if(iv.trains.filter(id=>presentAt(id,sec)).length===1)single++;
+  if(exp.all.size)hiddenCases++;
+  await page.evaluate(s=>{const t=window.tainanMemory;t.state.playing=false;t.followTrain('');t.jump(s);},sec);await settle(page);
+  const got=await page.evaluate(ids=>{const t=window.tainanMemory;return {cap:document.getElementById('caption').textContent,vis:Object.fromEntries(ids.map(id=>[id,t.models.get(id).group.visible])),pend:t.active.filter(a=>a.trackUncertain).map(a=>a.id)};},iv.trains);
+  if([...got.pend].sort().join(',')!==[...exp.all].sort().join(','))E(`${where} 被藏的班次是「${got.pend.join('、')||'無'}」，在場且被藏的是「${[...exp.all].join('、')||'無'}」`);
+  for(const id of iv.trains){const want=presentAt(id,sec)&&!exp.all.has(id);if(got.vis[id]!==want)E(`${where} ${id.split(':')[1]} 次的車身${got.vis[id]?'畫出':'藏起來'}了，應該${want?'畫出':'藏起來'}（${presentAt(id,sec)?'在場':'不在場'}）`);}
+  const capNos=label=>{const m=got.cap.match(new RegExp(label+'：(.+?) 次暫以'));return m?m[1].split('、'):[];};
+  for(const [label,key] of [['股道安排待確認','track-overlap'],['封鎖初期股道安排不明','single-line-unresolved']]){
+   const a=capNos(label).sort().join('、'),b=exp.byReason[key].slice().sort().join('、');
+   if(a!==b)E(`${where} 字幕「${label}」列的是「${a||'無'}」，在場且被藏的是「${b||'無'}」`);}
+  if(!exp.all.size&&got.cap.includes('股道安排'))E(`${where} 沒有班次被藏，字幕卻還寫股道安排：「${got.cap.slice(0,60)}」`);
+ }
+ return {pass:!errs.length,detail:errs.length?`${errs.length} 項不符：${errs.slice(0,4).join('；')}`:`${cases.length} 個整秒（${new Set(cases.map(c=>c.iv)).size} 段 × 起點／中間／終點）：其中 ${single} 個整秒只有一班在場、沒藏它也沒列進字幕，${hiddenCases} 個整秒兩班都在場、車身藏起來且字幕列出`};
+}
+// ───────────────────────── 檢查：關於視窗（預覽／實測各顯示自己的段落與來源行） ─────────────────────────
+// 期望全從磁碟上的 snapshot.json 推：模式（有沒有 preview）、沒有即時動態紀錄的車次（timingSource.scheduledTrains）、哪幾站有實測。
+// 實測段說「X與Y兩站不回報」：X、Y 在快照裡所有非整班表定的車都沒有 obs 到站，其餘站至少一筆。
+const normSta=n=>n.replace('台','臺');
+const SCHED_NOS=[...new Set((SNAP.timingSource?.scheduledTrains||[]).map(x=>String(x).split(':').pop()))].sort((a,b)=>a-b);
+function obsCountsByStation(){
+ const c=new Map();for(const t of SNAP.trains)for(const s of t.stops)c.set(normSta(s.name),0);   // 站名單取所有車停靠表上出現的站（含場景外的鄰站永康、仁德）
+ for(const t of SNAP.trains){if(t.timing==='scheduled')continue;for(const s of t.stops)if(s.src==='obs')c.set(normSta(s.name),(c.get(normSta(s.name))||0)+1);}
+ return c;
+}
+async function checkAbout(o,{shot=null}={}){
+ const page=o.page,errs=[],E=m=>errs.push(m),lines=[];
+ await page.evaluate(()=>{const t=window.tainanMemory;t.state.playing=false;t.followTrain('');});
+ const btn=await page.evaluate(()=>document.getElementById('about').getClientRects().length?'#about':'#aboutNav');
+ await page.click(btn,{timeout:4000});await page.waitForFunction(()=>document.getElementById('details').open,null,{timeout:4000});
+ const d=await page.evaluate(()=>{
+  const dlg=document.getElementById('details'),info=e=>({show:e.dataset.show||'',fill:e.dataset.fill||'',hidden:e.hidden,shown:e.getClientRects().length>0,text:e.textContent});
+  return {badge:document.getElementById('badge').textContent,text:dlg.innerText,modes:[...dlg.querySelectorAll('[data-show]')].map(info),fills:[...dlg.querySelectorAll('[data-fill="scheduled"]')].map(info),
+   paras:[...dlg.querySelectorAll('.detail-body > p')].map(info)};});
+ const T=d.text;
+ // 兩種模式的段落都要在頁面裡，而且只有目前模式的看得到
+ for(const m of ['preview','observed'])if(!d.modes.some(x=>x.show===m))E(`關於視窗沒有 data-show="${m}" 的段落`);
+ for(const x of d.modes)if(x.shown!==(x.show===MODE))E(`data-show="${x.show}" 的段落「${x.text.slice(0,24)}…」${x.shown?'看得到':'看不到'}，${MODE==='preview'?'預覽':'實測'}模式下應該${x.show===MODE?'看得到':'看不到'}`);
+ if(T.split('時刻與站點來源：').length!==2)E(`關於視窗要恰好一句「時刻與站點來源」，實有 ${T.split('時刻與站點來源：').length-1} 句`);
+ if(!T.includes('封存資料、渲染程式與模型獨立保存'))E('關於視窗少了結尾「封存資料、渲染程式與模型獨立保存」');
+ if(PREVIEW){
+  if(!T.includes('目前的時刻是預覽版'))E('預覽模式的關於視窗沒有預覽說明段');
+  if(!T.includes('時刻與站點來源：臺鐵（預覽班表取自臺鐵公開的逐日班表檔）'))E('預覽模式的來源行不是「臺鐵（預覽班表取自臺鐵公開的逐日班表檔）」');
+  for(const w of ['TDX','不是 GPS 軌跡','不回報'])if(T.includes(w))E(`預覽模式的關於視窗不該出現「${w}」`);
+  lines.push('預覽段與預覽來源行');
+ }else{
+  for(const w of ['依交通部 TDX 的臺鐵即時動態逐站紀錄推算','不是 GPS 軌跡','到站時間的誤差約半分鐘','標「推定」','也一樣內插'])if(!T.includes(w))E(`實測模式的關於視窗少了「${w}」`);
+  if(!T.includes('時刻與站點來源：交通部 TDX／臺鐵（班表取自臺鐵公開的逐日班表檔）'))E('實測模式的來源行不是「交通部 TDX／臺鐵（班表取自臺鐵公開的逐日班表檔）」');
+  if(T.includes('預覽'))E('實測模式的關於視窗還寫著「預覽」');
+  // 沒有即時動態紀錄的車次＝ timingSource.scheduledTrains（再與 trains[].timing 互核）；一班都沒有就整句不出現
+  const byTiming=new Set(SNAP.trains.filter(t=>t.timing==='scheduled').map(t=>t.train)),fromList=new Set(SCHED_NOS);
+  if([...byTiming].sort().join(',')!==[...fromList].sort().join(','))E(`timingSource.scheduledTrains（${[...fromList].length} 班）與 trains[].timing 為 scheduled 的班次（${byTiming.size} 班）不同`);
+  const f=d.fills[0];
+  if(!f)E('實測段少了列出無即時動態紀錄車次的位置（data-fill="scheduled"）');
+  else if(!SCHED_NOS.length){if(f.shown||f.text)E(`一班都沒有無即時動態紀錄的車次，該句卻出現：「${f.text.slice(0,40)}」`);lines.push('沒有無即時動態紀錄的車次，整句不出現');}
+  else{const m=f.text.match(/^(.+?) 次沒有任何即時動態紀錄，只能照時刻表畫，標籤會註明「無即時動態紀錄」。$/),got=m?m[1].split('、'):[];
+   if(!f.shown||!m)E(`無即時動態紀錄的車次那句不對或看不到：「${f.text.slice(0,60)}」`);
+   else if(got.join(',')!==SCHED_NOS.join(','))E(`關於視窗列的車次是「${got.join('、')}」，timingSource.scheduledTrains 是「${SCHED_NOS.join('、')}」`);
+   else lines.push(`無即時動態紀錄的車次 ${SCHED_NOS.length} 班（${SCHED_NOS.slice(0,6).join('、')}${SCHED_NOS.length>6?'…':''}）與 scheduledTrains 一致`);}
+  // 「X與Y兩站不回報」對資料
+  const m=T.match(/([^\s、，。；：]{2,6})與([^\s、，。；：]{2,6})兩站不回報/);
+  if(!m)E('實測段沒有「X與Y兩站不回報」那句');
+  else{const named=[m[1],m[2]].map(normSta),cnt=obsCountsByStation(),rest=[...cnt.keys()].filter(k=>!named.includes(k));
+   for(const n of named){if(!cnt.has(n))E(`「${n}」不在快照的站名單裡`);else if(cnt.get(n)>0)E(`說「${n}」不回報，快照裡它卻有 ${cnt.get(n)} 筆實測到站`);}
+   for(const k of rest)if(!cnt.get(k))E(`快照裡「${k}」一筆實測到站都沒有，關於視窗卻沒說它不回報`);
+   if(!rest.length)E('快照裡除了不回報的站，沒有別的站可對照');
+   lines.push(`不回報：${named.join('、')}（實測到站 ${named.map(n=>cnt.get(n)).join('、')} 筆）；其餘 ${rest.map(k=>k+' '+cnt.get(k)).join('、')}`);}
+ }
+ const badgeExp=PREVIEW?'預覽班表・表定時刻':'實測時刻重建';
+ if(d.badge!==badgeExp)E(`徽章是「${d.badge}」，要寫「${badgeExp}」`);
+ if(shot){await page.setViewportSize({width:1000,height:3200});await settle(page);await page.screenshot({path:shot});await page.setViewportSize({width:1280,height:800});lines.push('截圖 '+path.basename(shot));}
+ await page.evaluate(()=>document.getElementById('details').close());
+ return {pass:!errs.length,detail:errs.length?`${errs.length} 項不符：${errs.slice(0,4).join('；')}`:`${MODE==='preview'?'預覽':'實測'}模式：`+lines.join('｜')};
 }
 // 過寬對照用：版面掃描之外，另外記下舊斷言（scrollWidth＞innerWidth）當時是紅還是綠，證明新斷言抓得到舊斷言看不到的溢出。
 async function wideProbe(o,fc){const r=await layoutQuick(o,fc);const old=await o.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth||document.body.scrollWidth>innerWidth),w=await o.page.evaluate(()=>[innerWidth,window.visualViewport?.scale]);
@@ -582,6 +760,22 @@ const M={
  overlapCss:{text:{'replay.css':REP("[hidden]{display:none!important}","[hidden]{display:none!important}#zoomin,#zoomout{position:fixed!important;left:8px!important;top:60px!important}")}},
  hideRotate:{text:{'replay.css':REP("[hidden]{display:none!important}","[hidden]{display:none!important}#rotate{display:none!important}")}},
  notFound:{status:{'underground/near.mesh.bin.gz':404}},
+ // 跟車卡（兩種模式都要紅）：通過列的重播時刻改成表定；停靠列的差欄全改成「—」
+ cardPassActSched:{text:{'replay.js':REP("lines('td','通過',T(s.arrSec))","lines('td','通過',T(s.schedArrSec))")}},
+ cardStopDiffDash:{text:{'replay.js':REP("lines('td',...ad(DIFF(s.arrSec-s.schedArrSec),DIFF(s.depSec-s.schedDepSec)))","lines('td',...ad('—','—'))")}},
+ // 實測重建：通過站也照預覽的寫法（差記「—」、來源標內插）；字幕尾句、徽章照預覽
+ cardObservedAsPreview:{text:{'replay.js':REP("prePass=!!data.preview&&passed","prePass=passed")}},
+ tailObservedAsPreview:{text:{'replay.js':REP("(data.preview?'表定':'重建的')","'表定'")}},
+ badgeObservedAsPreview:{text:{'replay.js':REP("data.preview?'預覽班表・表定時刻':'實測時刻重建'","'預覽班表・表定時刻'")}},
+ badgePreviewAsObserved:{text:{'replay.js':REP("data.preview?'預覽班表・表定時刻':'實測時刻重建'","'實測時刻重建'")}},
+ // 股道待確認：回到舊寫法（時段裡有一班在場就把整個時段的車都藏起來、列進字幕）
+ uncertainOldRule:{text:{'replay.js':REP("if(here.length>=2)for(const id of here)uncertain.add(id);","for(const id of iv.trains)uncertain.add(id);")}},
+ // 關於視窗：段落顯示的模式顛倒；實測段的車次清單少一班；來源行寫成另一種模式的；「不回報」的站名換成有實測的站
+ aboutInverted:{text:{'replay.js':REP("e.hidden=e.dataset.show!==MODE","e.hidden=e.dataset.show===MODE")}},
+ aboutSchedDrop:{text:{'replay.js':REP("nos.join('、')+' 次沒有任何","nos.slice(1).join('、')+' 次沒有任何")}},
+ aboutSourceObservedAsPreview:{text:{'index.html':REP('交通部 TDX／臺鐵（班表取自','臺鐵（預覽班表取自')}},
+ aboutSourcePreviewAsObserved:{text:{'index.html':REP('時刻與站點來源：臺鐵（預覽班表取自臺鐵公開的逐日班表檔）','時刻與站點來源：交通部 TDX／臺鐵（班表取自臺鐵公開的逐日班表檔）')}},
+ aboutWrongStations:{text:{'index.html':REP('大橋與仁德兩站不回報','大橋與臺南兩站不回報')}},
 };
 async function runControl(browser,engine,c){
  const m=buildMutation(c.mutation),o=await openPage(browser,{...(c.open||{}),mutation:m,readyTimeout:c.readyTimeout||90000});
@@ -634,7 +828,9 @@ try{
    depthRes=await run('depth','深度衝突：地下結構各視角沿視線微移後影像幾乎不變（變動像素 ≤ 畫面的 '+DEPTH_MAX_FRAC*100+'%）',()=>checkDepth(base,{secS,secN}));
   }
   await run('jumps','「下一班到臺南」不算臺南始發的車、「臺南發車」只算始發車；連按、繞回當天第一班、跟車中按都對（期望值從 snapshot 算）',()=>checkJumps(base,fc));
-  await run('card','跟車卡與字幕（預覽班表）：通過站來源標內插、差記「—」，停靠站準點；註記寫明；股道待確認時段的字幕寫表定時刻',()=>checkCard(base));
+  await run('card',`跟車卡（${MODE==='preview'?'預覽班表':'實測重建'}）：全部班次、每一列的表定／重播／來源／差／留置逐格對 snapshot；註記、狀態列、徽章、字幕尾句、預設與跟車字幕`,()=>checkCard(base));
+ await run('uncertain','股道待確認時段：每段起點、中間、終點，字幕與車身標記＝此刻在場且被藏的班次（一班在場不藏）',()=>checkIntervals(base));
+ await run('about',`關於視窗（${MODE==='preview'?'預覽':'實測'}模式）：只看得到自己模式的段落與來源行；${MODE==='preview'?'':'無即時動態紀錄車次＝ scheduledTrains、「不回報」的站對資料；'}存截圖`,()=>checkAbout(base,{shot:path.join(path.dirname(RESULTS),`about-${MODE}-${engine}.png`)}));
   // 還原頁面狀態後，整輪沒有 console error／pageerror
   if(want('health')){const late=base.errors.length;record(engine,'health','整輪（含所有取樣、拖曳、渲染）console error／pageerror 仍為 0',late===0,late?base.errors[0].slice(0,160):'');}
   await base.context.close();
@@ -670,15 +866,27 @@ try{
     {sec:'jumps',name:'跳轉：「下一班到臺南」把臺南始發的車也算進去 → 變紅',mutation:M.nextIncludesOrigin,run:o=>checkJumps(o,fc),expect:'臺南始發'},
     {sec:'jumps',name:'跳轉：「臺南發車」找不到下一班時不繞回當天第一班 → 變紅',mutation:M.departNoWrap,run:o=>checkJumps(o,fc),expect:'沒有繞回當天第一班'},
     {sec:'jumps',name:'跳轉：「下一班到臺南」把跨午夜才到站的車算進去 → 變紅',mutation:M.nextBeyondDay,run:o=>checkJumps(o,fc),expect:'「下一班到臺南」沒有繞回當天第一班'},
-    {sec:'card',name:'跟車卡：預覽班表的通過站照舊算差 → 變紅',mutation:M.cardPassDiff,run:o=>checkCard(o),expect:'預覽班表的通過站要記「—」'},
-    {sec:'card',name:'跟車卡：預覽班表的通過站來源照資料標表定 → 變紅',mutation:M.cardPassSrc,run:o=>checkCard(o),expect:'預覽班表的通過站要標內插'},
-    {sec:'card',name:'字幕：預覽時尾句仍寫重建的時刻 → 變紅',mutation:M.tailPreview,run:o=>checkCard(o),expect:'沒有寫表定時刻'},
+    {sec:'card',mode:'preview',name:'跟車卡：預覽班表的通過站照舊算差 → 變紅',mutation:M.cardPassDiff,run:o=>checkCard(o,{every:6}),expect:'預覽班表的通過站要記「—」'},
+    {sec:'card',mode:'preview',name:'跟車卡：預覽班表的通過站來源照資料標表定 → 變紅',mutation:M.cardPassSrc,run:o=>checkCard(o,{every:6}),expect:'預覽班表的通過站要標內插'},
+    {sec:'card',mode:'preview',name:'字幕：預覽時尾句仍寫重建的時刻 → 變紅',mutation:M.tailPreview,run:o=>checkCard(o,{every:6}),expect:'沒有寫表定時刻'},
+    {sec:'card',name:'跟車卡：通過列的重播時刻改成表定 → 變紅',mutation:M.cardPassActSched,run:o=>checkCard(o,{every:6}),expect:'重播欄'},
+    {sec:'card',name:'跟車卡：停靠列的差欄全改成「—」 → 變紅',mutation:M.cardStopDiffDash,run:o=>checkCard(o,{every:6}),expect:'差欄'},
+    {sec:'card',mode:'observed',name:'跟車卡：實測重建的通過站也照預覽記「—」、標內插 → 變紅',mutation:M.cardObservedAsPreview,run:o=>checkCard(o,{every:6})},
+    {sec:'card',mode:'observed',name:'字幕：實測重建時尾句寫成表定時刻 → 變紅',mutation:M.tailObservedAsPreview,run:o=>checkCard(o,{every:6}),expect:'沒有寫重建的時刻'},
+    {sec:'card',mode:'observed',name:'徽章：實測重建時仍寫預覽班表 → 變紅',mutation:M.badgeObservedAsPreview,run:o=>checkCard(o,{every:6}),expect:'徽章'},
+    {sec:'card',mode:'preview',name:'徽章：預覽班表時寫成實測重建 → 變紅',mutation:M.badgePreviewAsObserved,run:o=>checkCard(o,{every:6}),expect:'徽章'},
+    {sec:'uncertain',when:INTERVAL_EDGE_SINGLE,name:'股道待確認：時段起訖只有一班在場也藏起來並列進字幕（舊寫法）→ 變紅',mutation:M.uncertainOldRule,run:o=>checkIntervals(o),expect:'在場且被藏的是'},
+    {sec:'about',name:'關於視窗：兩種模式的段落顯示顛倒 → 變紅',mutation:M.aboutInverted,run:o=>checkAbout(o)},
+    {sec:'about',mode:'observed',when:SCHED_NOS.length>0,name:'關於視窗：實測段的車次清單少一班 → 變紅',mutation:M.aboutSchedDrop,run:o=>checkAbout(o),expect:'timingSource.scheduledTrains'},
+    {sec:'about',mode:'observed',name:'關於視窗：實測模式的來源行寫成預覽的 → 變紅',mutation:M.aboutSourceObservedAsPreview,run:o=>checkAbout(o),expect:'來源行'},
+    {sec:'about',mode:'preview',name:'關於視窗：預覽模式的來源行寫成實測的 → 變紅',mutation:M.aboutSourcePreviewAsObserved,run:o=>checkAbout(o),expect:'來源行'},
+    {sec:'about',mode:'observed',name:'關於視窗：「不回報」換成有實測的站 → 變紅',mutation:M.aboutWrongStations,run:o=>checkAbout(o),expect:'不回報'},
     {sec:'jumps',name:'跳轉：「臺南發車」鈕按了沒反應 → 變紅',mutation:M.departUnwired,run:o=>checkJumps(o,fc),expect:'臺南發車'},
     {sec:'jumps',name:'跳轉：兩顆鈕都不再移到月台 → 變紅',mutation:M.nextNotPlatform,run:o=>checkJumps(o,fc),expect:'不是月台中央'},
    ];
    // labels／followZ 對照用的案例：沿用基準頁取到的代表案例
    var fcases=follow?follow.map(({id,train,dir,sec,name})=>({id,train,dir,sec,name})):[];
-   for(const c of ctl){if(!want(c.sec))continue;await runControl(browser,engine,{...c,run:c.run});}
+   for(const c of ctl){if(!want(c.sec))continue;if(c.mode&&c.mode!==MODE)continue;if(c.when===false){console.log(`略過對照（這份資料不適用）：${c.name}`);continue;}await runControl(browser,engine,{...c,run:c.run});}
   }
   if(want('layout')){const r=await checkLayoutMatrix(browser,engine,fc);record(engine,'layout','手機版面矩陣（尺寸 × 狀態 × 觸控）',r.pass,r.detail);}
   await browser.close();
