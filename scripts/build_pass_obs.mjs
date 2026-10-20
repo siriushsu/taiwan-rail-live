@@ -19,16 +19,27 @@
  *     之間用「路段速度表」推的段時間按比例分配。完全沒有任何實測依據的跑段不寫（前端照舊用梯形）。
  *   data/tra_pass_obs_model.json（稽核用，前端不載入）路段速度表、閘門、剔除統計、第一層原始值
  *
- * 用法：node scripts/build_pass_obs.mjs [天數，預設 7]
- *   憑證讀 .env 的 TDX_CLIENT_ID / TDX_CLIENT_SECRET；原始資料快取在 .cache/tra_hist/（已 gitignore）
+ * 用法：node scripts/build_pass_obs.mjs [天數，預設：改點日 SHIFT_DATE 到昨天]
+ *   憑證讀 .env 的 TDX_CLIENT_ID / TDX_CLIENT_SECRET；原始資料快取在主工作樹的 .cache/tra_hist/（已 gitignore，
+ *   所有 worktree 共用；環境變數 TRA_HIST_CACHE 可指定別處）
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
+import { execFileSync } from 'child_process';
 import { gzipSync, gunzipSync } from 'zlib';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CACHE = join(ROOT, '.cache', 'tra_hist');
+// 快取放主工作樹（git common dir 的上一層），所有 worktree 共用：這支常在暫時的 worktree 跑，快取放各自樹裡會隨樹消失，
+// 窗口就湊不滿（2026-10-20 盤點：改點後的日子散在主樹、巡檢樹、codex 樹，有 9 天哪裡都沒有）。
+function sharedCache() {
+  if (process.env.TRA_HIST_CACHE) return process.env.TRA_HIST_CACHE;
+  try {
+    const common = execFileSync('git', ['-C', ROOT, 'rev-parse', '--path-format=absolute', '--git-common-dir'], { encoding: 'utf8' }).trim();
+    return join(dirname(common), '.cache', 'tra_hist');
+  } catch { return join(ROOT, '.cache', 'tra_hist'); }
+}
+const CACHE = sharedCache();
 const AUTH = 'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token';
 const API = 'https://tdx.transportdata.tw/api/historical/v2/Historical/Rail/TRA/LiveTrainDelay';
 
@@ -204,7 +215,10 @@ const argv = process.argv.slice(2);
 const cliArg = k => { const a = argv.find(x => x.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : null; };
 
 async function main() {
-  const days = +(argv.find(x => /^\d+$/.test(x)) || 7);
+  // 預設取改點後的全部日子（到昨天），近期優先交給分層窗（GATE.windows）。只取 7 天時，週末或少數日子才開的班
+  // 湊不到 minDays，通過時刻只能用路段速度表推，比實際晚 1.5–9 分（native docs/m9/tra-yield-principles-1020.md 第 13 節）。
+  const sinceShift = Math.floor((Date.now() + 8 * 3600e3 - Date.parse(SHIFT_DATE + 'T00:00:00Z')) / 86400e3);
+  const days = +(argv.find(x => /^\d+$/.test(x)) || sinceShift);
   const ONLY = cliArg('only'), OUTDIR = cliArg('out');   // LOO 交叉驗證用：只採這些日期／產物寫到別處
   // 以下兩者只供獨立判準驗收：--mask 把真停靠站遮蔽成偽通過站（於是它的「表定＋官方誤點」可當獨立真值）；
   // --placebo 對通過站觀測注入每(車次,站)固定的憑空偏差,用來檢查驗收指標會不會跟著變差（判準有牙）。

@@ -38679,7 +38679,7 @@ async function boot() {
   // StationID → 站名反查表(stnInfoMap 是站名→資訊,方向相反):今日台鐵動態的 sta 欄位是 StationID,靠這張表轉中文站名
   state.stnIdToName = {};
   for (const s of Object.values(state.stnInfoMap)) if (s && s.id) state.stnIdToName[s.id] = s.name;
-  // 台鐵通過站實測時刻(scripts/build_pass_obs.mjs 由 TDX 7 天歷史逐站觀測產;車次→通過站→跑段內時間比例‰)。
+  // 台鐵通過站實測時刻(scripts/build_pass_obs.mjs 由 TDX 改點後全部歷史逐站觀測產;車次→通過站→跑段內時間比例‰)。
   // 必須在任何 loadSystem/loadSchedGroup 之前載好——assignRunProfiles 在貼軌時就要讀它建曲線。
   // 缺檔或載入失敗 → state.passObs 為 null,全部跑段自動退回梯形(功能不受影響,只是位置回到估算值)。
   state.passObs = (await passObsP)?.trains || null;

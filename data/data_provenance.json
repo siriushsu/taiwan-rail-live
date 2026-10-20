@@ -220,11 +220,11 @@
   "data/tra_pass_obs.json": {
    "sourceDescription": "TDX api/historical/v2 Historical/Rail/TRA/LiveTrainDelay",
    "sourceField": "source",
-   "effectiveDate": "2026-10-16T14:40:07.620Z",
+   "effectiveDate": "2026-10-20T10:21:23.770Z",
    "effectiveDateField": "built_at",
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "9d15ebe1d354029b339eab59f1fc3da2"
+   "checksum": "b880e099dd8a242f099c1c7245243bbf"
   },
   "data/tra_platforms.json": {
    "sourceDescription": "OpenStreetMap contributors — way[railway=platform／public_transport=platform／railway=platform_edge] 與 node[stop_position／railway=stop]，經 Overpass API 取得",
@@ -242,7 +242,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "d273088c33de631b49cee0f365441b11"
+   "checksum": "d5e4365c369184f6a36ce6521b28a5bc"
   },
   "data/tra_schedule_dense.json": {
    "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-10-16)起連續 14 天中實際發佈得到的 14 天（2026-10-16…2026-10-2",
