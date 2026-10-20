@@ -1,0 +1,46 @@
+{
+  "about": "台鐵待避缺的站場渡線：OSM（快照 2026-09-07，10-20 以 OSM API 0.6 重抓仍相同）沒有畫、NLSC 正射影像看得到的道岔位置。scripts/extend_tra_yield_crossovers_1020.mjs 讀這份。",
+  "imagery": {
+    "source": "內政部國土測繪中心 NLSC 正射影像 WMTS PHOTO2（GoogleMapsCompatible z20，約 0.136 m/px）",
+    "url": "https://wmts.nlsc.gov.tw/wmts/PHOTO2/default/GoogleMapsCompatible/{z}/{y}/{x}",
+    "watermarkYear": { "大山": 2024, "頭城": 2024 },
+    "fetched": "2026-10-20"
+  },
+  "method": "沿現行進站路徑（停車點＝0 m，往進站方向為負）把影像轉成『沿線距離 × 左右偏移』長條圖，人工判讀道岔位置。影像跟 OSM 有幾公尺的套合誤差，所以新節點一律落在 OSM 既有股道幾何上（沿線距離取影像判讀值），不取影像經緯度。正對照：大山北端既有道岔 3755778631／3755778633 在同一張長條圖上看得到、位置與 OSM 吻合。",
+  "sites": {
+    "大山": {
+      "direction": "北上",
+      "pair": ["2550 待避 158", "派車表 10/18"],
+      "refPath": 1106,
+      "stopNode": "9212474318",
+      "observed": "北上正線（372043053）在停車點以南約 468 m 往右岔出一條斜線，約 396 m 處併入南下正線（789641626）；斜線全段 -468～-396 m 都看得到，-450～-410 m 最清楚。",
+      "crossover": {
+        "id": "nlsc-1020-dashan-xo",
+        "from": { "way": "372043053", "alongM": -468, "node": "nlsc-1020-dashan-xo:n" },
+        "to": { "way": "789641626", "alongM": -396, "node": "nlsc-1020-dashan-xo:s" }
+      },
+      "overtake": { "stop": "9212467516", "siding": "198611896" }
+    },
+    "頭城": {
+      "direction": "北上",
+      "pair": ["4037 待避 443", "派車表 10/18"],
+      "refPath": 8609,
+      "stopNode": "9164081379",
+      "observed": "島式月台北側那一股過了月台南端（約 -164 m）還繼續往南，約 -230～-210 m 與北上正線收攏；OSM 把這股（194075775）畫到 -58 m 就是車擋。",
+      "throat": {
+        "id": "nlsc-1020-toucheng-s",
+        "switchNode": "2045873638",
+        "switchAlongM": -226.6,
+        "imageryAlongM": [-230, -210],
+        "toNode": "2045873667",
+        "parallelFromAlongM": -140,
+        "why": "2045873638 是北上正線 194075783 與 194075782 的既有接點（-226.6 m），落在影像判讀的收攏範圍內，直接當岔心，正線不必插點；新股道到 -140 m 漸變到 194075775 的偏移，之後平行接到原本的車擋節點。"
+      },
+      "overtake": { "stop": "estimated:tra_sched:頭城:194075775:2", "siding": "194075775" }
+    }
+  },
+  "notFilled": {
+    "羅東": "影像判讀不出北上正線有沒有通往站內股道的道岔，記成缺口，不補",
+    "永康": "影像（2022 年）判讀不出南下正線有沒有通往站內股道的道岔，記成缺口，不補"
+  }
+}
