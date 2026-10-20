@@ -11,9 +11,9 @@
 //   頭城：從北上正線既有接點 2045873638 接一條股道到 194075775 南端（原車擋 2045873667，拿掉 buffer_stop 標籤）。
 //   兩站：補待避的進站段、出站段路徑（overtakePaths），檢查同 extend_tra_overtake_sidings.mjs（南平）：
 //         經過的 way 與下面逐條覆核過的清單相同、道岔不倒車、與同站對現行派車的前後段接得上、長度不比派車表最長的長超過 1 m。
-//         例外只有大山：北上待避車要從渡線落地點逆向走南下正線 789641626 到側線道岔 3755778623，再走側線 198611896 到北端道岔
-//         3755778633。198611896 沒有 service 標籤、派車表只有南下車停過，方向模型因此把它判成只准南下；它其實是兩道岔之間的
-//         站內待避線。這兩條的逆向都在站內兩個道岔之間，這裡明列並限長；原生待避規劃器的站內換股放寬
+//         例外只有大山：北上待避車經渡線進 789641626，停島式月台北面（停車點 9212474317），再從北端道岔回北上正線。
+//         789641626 在站南是南下正線，派車表只有南下車走過，方向模型因此判成只准南下；站內段沒有班在用（南下車都走 198611896）。
+//         這段逆向在站內兩個道岔之間，這裡明列並限長；原生待避規劃器的站內換股放寬
 //        （OvertakeSidings localStationChange：進出口都是道岔、離本站比離鄰站近、不經過別站）也只准這種。
 //
 // 跑法：BASE_REF=<改動前已驗證的 commit> node scripts/extend_tra_yield_crossovers_1020.mjs
@@ -169,7 +169,7 @@ const neighbours = (id, side) => new Set(M.plans.flatMap(([, p]) => p.pathIds.fl
 const wayList = ids => ids.reduce((a, e) => { const w = M.edges[e].wayId; if (a.at(-1) !== w) a.push(w); return a; }, []);
 // 逐條覆核過的經過 way（進站段前段、出站段後段＝同站對現行派車路徑走的正線）與准許的逆向
 const SITES = [
-  {site: DS, local: {in: [X.id, X.to.way, DS.overtake.siding], out: [DS.overtake.siding]}, wrong: {in: {[X.to.way]: 130, [DS.overtake.siding]: 300}, out: {[DS.overtake.siding]: 450}}},
+  {site: DS, local: {in: [X.id, DS.overtake.siding], out: [DS.overtake.siding]}, wrong: {in: {[DS.overtake.siding]: 400}, out: {[DS.overtake.siding]: 400}}},
   {site: TC, local: {in: [T.id, TC.overtake.siding], out: [TC.overtake.siding, '194075780']}, wrong: {in: {}, out: {}}},
 ];
 const overtakePaths = {}, report = [];
@@ -220,7 +220,7 @@ net.extensions.push({
   nodeTags: {added: {[X.from.node]: 'switch', [X.to.node]: 'switch', [T.switchNode]: 'switch'}, removed: {[T.toNode]: 'buffer_stop'}},
   throat: {[T.id]: {from: T.switchNode, to: T.toNode, ...throatInfo, parallelFromAlongM: T.parallelFromAlongM}},
   reroutedPaths: Object.keys(rerouted), overtakePaths,
-  note: '大山：北上正線 372043053 停車點以南 468 m 岔出、396 m 併入南下正線 789641626，北上待避車經渡線、逆向走南下正線到側線道岔 3755778623 進側線 198611896。'
+  note: '大山：北上正線 372043053 停車點以南 468 m 岔出、396 m 併入 789641626，北上待避車經渡線進 789641626，停島式月台北面（9212474317），再從北端道岔回北上正線；南下車照舊走 198611896。'
     + '頭城：194075775 南端原本是車擋，改從北上正線南端接點 2045873638 接進來。overtakePaths＝路徑編號→[前站, 後站]，同南平。羅東、永康影像判讀不出，沒有補。',
 });
 fs.writeFileSync('rail-3d/physical/network.json', JSON.stringify(net));
