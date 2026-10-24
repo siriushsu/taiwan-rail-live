@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-12",
+  "sourceCommit": "87d64a170f25e0b6b133102e92ea9363ed966370",
+  "runId": 38288479241,
+  "artifact": {
+    "name": "station-landmark-batch-candidate01",
+    "bytes": 22744773,
+    "sha256": "sha256:7fb48b5c9c5945cf58eba65374dcb503e0461d06b1bc0710971ac81153102958",
+    "url": "https://github.com/siriushsu/taiwan-rail-live/actions/runs/38288479241/artifacts/11764298352",
+    "expiresAt": "2027-01-10T18:04:39Z"
+  },
+  "delivered": {
+    "landmarkCandidates": 2,
+    "editableRecoveredStationAssets": 13,
+    "stationCodeRows": 423,
+    "legacySceneRows": 27,
+    "offlineIndex": "review.html"
+  },
+  "acceptedCompleteStationModels": 0,
+  "acceptedCompleteLandmarkModels": 0,
+  "formatValidation": "passed",
+  "ownRenderReview": "101 coplanar dark ledges corrected; own renders inspected.",
+  "realPhotoComparison": "not-completed",
+  "realPhotoBlocker": "Reference tools return page text and image placeholders, not inspectable image pixels.",
+  "remaining": [
+    "逐站外觀重製",
+    "實拍正背側與屋頂核對",
+    "精確建築錨點及朝向",
+    "手機地圖幀率及放樣驗證"
+  ],
+  "noProductionAssetsReplaced": true
+}

@@ -1,0 +1,50 @@
+name: 車站與地標 Blender 批次製作
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'prototypes/tiny-trains/blender/building-batch/**'
+      - '.github/workflows/building-batch.yml'
+permissions:
+  contents: read
+concurrency:
+  group: building-batch-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  models:
+    if: github.head_ref == 'codex/taipei-station-blender-preview' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout model sources
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            prototypes/tiny-trains/blender/building-batch
+            rail-3d/assets/blender-buildings-v1
+      - name: Install Blender
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y blender fonts-noto-cjk python3-pil python3-numpy
+      - name: Build and render two landmark revisions
+        run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/building-batch/build_landmarks.py -- output/building-batch
+      - name: Validate Blender and GLB roundtrip
+        run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/building-batch/verify.py -- output/building-batch
+      - name: Recover 13 existing station assets for editing
+        run: blender -b -t 2 --python-exit-code 1 --python prototypes/tiny-trains/blender/building-batch/recover_stations.py -- output/building-batch
+      - name: Compose review comparison
+        run: python3 prototypes/tiny-trains/blender/building-batch/compose.py
+      - name: Build offline review index
+        run: python3 prototypes/tiny-trains/blender/building-batch/review_index.py
+      - name: Include evidence and batch manifest
+        run: |
+          cp prototypes/tiny-trains/blender/building-batch/*.json output/building-batch/
+          cp prototypes/tiny-trains/blender/building-batch/README.md output/building-batch/
+      - name: Upload editable models and map exports
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: station-landmark-batch-candidate01
+          path: output/building-batch/
+          retention-days: 90
+          if-no-files-found: error

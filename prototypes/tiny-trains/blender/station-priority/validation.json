@@ -1,0 +1,89 @@
+[
+  {
+    "id": "dongshan-exterior-v1-candidate01",
+    "name": "冬山車站",
+    "editableObjects": 198,
+    "features": {
+      "crossedArches": 36,
+      "islandPlatforms": 2,
+      "groundHalls": 2
+    },
+    "levels": {
+      "near": {
+        "triangles": 11016,
+        "drawGroups": 8,
+        "glbBytes": 866484,
+        "roundtripBoundsErrorM": 0,
+        "roofProbes": 3
+      },
+      "far": {
+        "triangles": 5540,
+        "drawGroups": 7,
+        "glbBytes": 437920,
+        "roundtripBoundsErrorM": 0,
+        "roofProbes": 3
+      }
+    },
+    "formatValidated": true,
+    "photoCalibrated": false,
+    "placementVerified": false
+  },
+  {
+    "id": "shilin-exterior-v1-candidate01",
+    "name": "捷運士林站",
+    "editableObjects": 451,
+    "features": {
+      "islandPlatforms": 1,
+      "roofSections": 3,
+      "roofType": "xuan-shan",
+      "ridgeCovered": true
+    },
+    "levels": {
+      "near": {
+        "triangles": 17736,
+        "drawGroups": 7,
+        "glbBytes": 1389788,
+        "roundtripBoundsErrorM": 0,
+        "roofProbes": 3
+      },
+      "far": {
+        "triangles": 4296,
+        "drawGroups": 5,
+        "glbBytes": 327944,
+        "roundtripBoundsErrorM": 0,
+        "roofProbes": 3
+      }
+    },
+    "formatValidated": true,
+    "photoCalibrated": false,
+    "placementVerified": false
+  },
+  {
+    "id": "formosa-ground-v1-candidate01",
+    "name": "美麗島站・地面入口構型",
+    "editableObjects": 180,
+    "features": {
+      "reviewEntranceModules": 4,
+      "individualEntrancesCalibrated": false
+    },
+    "levels": {
+      "near": {
+        "triangles": 11760,
+        "drawGroups": 5,
+        "glbBytes": 917688,
+        "roundtripBoundsErrorM": 0,
+        "roofProbes": 4
+      },
+      "far": {
+        "triangles": 4432,
+        "drawGroups": 5,
+        "glbBytes": 346120,
+        "roundtripBoundsErrorM": 0,
+        "roofProbes": 4
+      }
+    },
+    "formatValidated": true,
+    "photoCalibrated": false,
+    "placementVerified": false
+  }
+]
