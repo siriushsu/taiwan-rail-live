@@ -1,0 +1,195 @@
+{
+  "modelId": "tengyun",
+  "name": "騰雲號（台灣第一部蒸汽機車，台灣總督府鐵道1形）",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "steam",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -2.69500994682312,
+      -1.2599999904632568,
+      0.0
+    ],
+    "max": [
+      2.69500994682312,
+      1.2599999904632568,
+      3.5
+    ]
+  },
+  "sizeM": [
+    5.39001989364624,
+    2.5199999809265137,
+    3.5
+  ],
+  "mesh": {
+    "file": "tengyun.mesh.bin",
+    "sha256": "9dd60101af4b7375ab967b56d32f2e0a63f2e743431a07b914ff3ec89b358f30",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 119268,
+    "triangleCount": 39756,
+    "drawGroups": [
+      {
+        "name": "chassis",
+        "start": 0,
+        "count": 28536,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "metal",
+        "start": 28536,
+        "count": 22740,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "tyblack",
+        "start": 51276,
+        "count": 40608,
+        "color": [
+          0.012286487966775894,
+          0.015208514407277107,
+          0.01599629409611225
+        ],
+        "metalness": 0.30000001192092896,
+        "roughness": 0.41999998688697815,
+        "clearcoat": 0.15000000596046448
+      },
+      {
+        "name": "tyred",
+        "start": 91884,
+        "count": 19980,
+        "color": [
+          0.577580451965332,
+          0.03189603239297867,
+          0.012983032502233982
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.25
+      },
+      {
+        "name": "gold",
+        "start": 111864,
+        "count": 3636,
+        "color": [
+          0.4793201684951782,
+          0.32314321398735046,
+          0.10224173218011856
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "frame",
+        "start": 115500,
+        "count": 1332,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "lamp",
+        "start": 116832,
+        "count": 1332,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 118164,
+        "count": 1104,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      }
+    ]
+  },
+  "nativeObjectCount": 251,
+  "features": {
+    "sideDoorGroups": 0,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 2
+  },
+  "specification": {
+    "id": "tengyun",
+    "family": "steam",
+    "L": 5.0,
+    "W": 2.3,
+    "H": 3.3,
+    "body": "1D2122",
+    "accent": "C8321E",
+    "power": "steam",
+    "drivers": 2,
+    "label": "",
+    "axles": 2,
+    "tank": true
+  },
+  "reference": {
+    "source": "https://ja.wikipedia.org/wiki/台湾総督府鉄道1形蒸気機関車",
+    "detail": null,
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

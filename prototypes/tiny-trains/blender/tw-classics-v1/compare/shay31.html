@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>阿里山林鐵 Shay 31 號對照</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e3e1da;--accent:#c4501b}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--muted:#9a9aa2;--line:#2e2e33;--accent:#f08a4b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:28px 0 8px}
+a{color:var(--accent)}
+.sub,.cap{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--muted)}
+.card img{display:block;width:100%;height:auto}
+.meta{display:flex;align-items:center;gap:8px;padding:8px 10px 0}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid var(--line)}
+.cap{padding:0 10px 6px}
+.card .cap:last-child{padding-bottom:10px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:720px){.pair{grid-template-columns:1fr}}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:8px 10px;font-size:13px;color:var(--muted)}
+ul{padding-left:20px}
+.table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+.table th,.table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.table th{font-size:13px;color:var(--muted);font-weight:600}
+.wrap{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.done{color:#2f7d4f;border-color:#2f7d4f}
+.todo{color:var(--muted)}
+.thumb{width:150px;border-radius:6px;display:block}
+</style>
+</head>
+<body>
+<main>
+<h1>阿里山林業鐵路 28 噸 B 型 Shay 蒸汽機車（以 SL-31 為代表）：渲染與照片對照</h1>
+<p class="sub">左邊是 Blender 5.2.1 Q 版模型渲染，右邊是 Wikimedia Commons 照片（直接連 Commons 顯示，沒有複製進 repo）。退出營運主力但動態保存、仍會以觀光/限定列車行駛（SL-31 2005 整修復駛；31 為最早改燒柴油者，25 也改油，26 仍燒煤）。</p>
+<p class="sub"><a href="batch-tw.html">← 回總覽</a>　·　<a href="../inventory.html">盤點清單</a></p>
+<h2>車頭</h2>
+<div class="pair">
+<figure><img src="../models/shay31/renders/front.png" alt="模型車頭渲染"><figcaption>模型車頭</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/AFR_%2731%27_Alishan_2023-07-18_01.jpg/1280px-AFR_%2731%27_Alishan_2023-07-18_01.jpg" alt="阿里山林鐵 Shay 31 號車頭照片" loading="lazy"><figcaption>照片：Industrial Wales，CC BY-SA 2.0（<a href="https://commons.wikimedia.org/wiki/File:AFR_%2731%27_Alishan_2023-07-18_01.jpg">原檔</a>）。SL-31 斜前側（2023-07，推測可見全車形狀）</figcaption></figure>
+</div>
+<h2>斜側</h2>
+<div class="pair">
+<figure><img src="../models/shay31/renders/hero.png" alt="模型斜側渲染"><figcaption>模型斜側</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/Steam_engine_No.31_of_the_Alishan_Forest_Railway_01.jpg/1280px-Steam_engine_No.31_of_the_Alishan_Forest_Railway_01.jpg" alt="阿里山林鐵 Shay 31 號斜側照片" loading="lazy"><figcaption>照片：Dquai，CC BY-SA 4.0（<a href="https://commons.wikimedia.org/wiki/File:Steam_engine_No.31_of_the_Alishan_Forest_Railway_01.jpg">原檔</a>）。SL-31 另一角度（Dquai 1920x1080）</figcaption></figure>
+</div>
+<h2>側面</h2>
+<figure><img src="../models/shay31/renders/side.png" alt="模型側面渲染"><figcaption>模型側面：右側（司機側）看得到三支直立汽缸與伸縮傳動軸；左側只有鍋爐、水櫃與空壓機。</figcaption></figure>
+<h2>其他參考照片</h2>
+<div class="pair">
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Components_diagram_of_a_28-ton_Class_B_Shay_steam_locomotive_of_the_Alishan_Forest_Railway.jpg/1280px-Components_diagram_of_a_28-ton_Class_B_Shay_steam_locomotive_of_the_Alishan_Forest_Railway.jpg" alt="參考照片" loading="lazy"><figcaption>照片：Unknown authorUnknown author，Attribution（<a href="https://commons.wikimedia.org/wiki/File:Components_diagram_of_a_28-ton_Class_B_Shay_steam_locomotive_of_the_Alishan_Forest_Railway.jpg">原檔</a>）。28 噸 B 型 Shay 機件構造圖（直立汽缸、傘齒輪驅動軸、側面配置）</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Specifications_of_the_Shay_locomotives.jpg/1280px-Specifications_of_the_Shay_locomotives.jpg" alt="參考照片" loading="lazy"><figcaption>照片：Unknown authorUnknown author，Public domain（<a href="https://commons.wikimedia.org/wiki/File:Specifications_of_the_Shay_locomotives.jpg">原檔</a>）。Lima 型錄：28 噸（Bale）B 型規格表（3 汽缸 8×10in、全軸距 24ft4in、動輪 8×29in、水 850gal、煤 1.5t、鍋爐 160psi）與繪圖側面</figcaption></figure>
+</div>
+<h2>對過的地方</h2>
+<ul>
+<li>鍋爐往左偏、右側留出三支直立汽缸的位置（構造圖）</li>
+<li>三支汽缸配閥箱、汽缸下方曲軸箱接伸縮方軸與萬向接頭，傳到兩座轉向架外側的斜齒輪（構造圖、Lima 規格表）</li>
+<li>喇叭形煙囪、煙箱前方預熱器、汽包室與砂箱兩座高圓頂（SL-31 照片）</li>
+<li>高側頂駕駛室、四分窗、駕駛室後方水櫃與煤槽（照片）</li>
+<li>前端鉚釘端梁、排障柵與安全鏈（照片）</li>
+<li>紅底白字 31 號圓牌，用可移除示意牌材質</li>
+</ul>
+<h2>刻意簡化或沒做</h2>
+<ul>
+<li>斜齒輪只做外輪廓，沒有逐齒倒角</li>
+<li>管路只做主要幾條（銅油管、空壓機管），細小給油管省略</li>
+<li>SL-31 已改燒柴油，車上的油槽細節照燒煤時代的煤槽外形做</li>
+</ul>
+<h2>資料來源</h2>
+<ul>
+<li><a href="https://zh.wikipedia.org/wiki/阿里山林業鐵路蒸汽機車">zh.wikipedia 阿里山林業鐵路蒸汽機車</a>：Lima 製、18/28 噸、SL-25/26/31 現況、SL-31 首輛改燒柴油</li>
+<li><a href="https://zh.wikipedia.org/wiki/謝伊式蒸汽機車">zh.wikipedia 謝伊式蒸汽機車</a>：Shay 構造：直立汽缸、傘形齒輪、鍋爐偏左、B 型三汽缸</li>
+<li><a href="https://commons.wikimedia.org/wiki/File:Specifications_of_the_Shay_locomotives.jpg">Commons Lima Shay 型錄 Specifications of the Shay locomotives.jpg（PD-US）</a>：28 噸 B 型：3 汽缸 8×10in、全軸距 24ft4in、動輪 29in、水 850 gal、煤 1.5 t、鍋爐 160 psi</li>
+<li><a href="https://commons.wikimedia.org/wiki/File:Components_diagram_of_a_28-ton_Class_B_Shay_steam_locomotive_of_the_Alishan_Forest_Railway.jpg">Commons 28 噸 B 型構造圖（阿里山林鐵管理處）</a>：右側面各部件標註：汽包室、砂箱、預熱器、總風缸、曲軸、偏心輪、空壓機、斜齒輪</li>
+</ul>
+<p class="cap">63,300 三角形 · 403 個可編修物件 · 包圍盒 8.02 × 2.45 × 3.36 展示公尺</p>
+
+</main>
+</body>
+</html>

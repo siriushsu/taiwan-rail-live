@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>騰雲號對照</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e3e1da;--accent:#c4501b}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--muted:#9a9aa2;--line:#2e2e33;--accent:#f08a4b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:28px 0 8px}
+a{color:var(--accent)}
+.sub,.cap{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--muted)}
+.card img{display:block;width:100%;height:auto}
+.meta{display:flex;align-items:center;gap:8px;padding:8px 10px 0}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid var(--line)}
+.cap{padding:0 10px 6px}
+.card .cap:last-child{padding-bottom:10px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:720px){.pair{grid-template-columns:1fr}}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:8px 10px;font-size:13px;color:var(--muted)}
+ul{padding-left:20px}
+.table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+.table th,.table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.table th{font-size:13px;color:var(--muted);font-weight:600}
+.wrap{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.done{color:#2f7d4f;border-color:#2f7d4f}
+.todo{color:var(--muted)}
+.thumb{width:150px;border-radius:6px;display:block}
+</style>
+</head>
+<body>
+<main>
+<h1>騰雲號（台灣第一部蒸汽機車，台灣總督府鐵道1形）：渲染與照片對照</h1>
+<p class="sub">左邊是 Blender 5.2.1 Q 版模型渲染，右邊是 Wikimedia Commons 照片（直接連 Commons 顯示，沒有複製進 repo）。退役；靜態展示（臺北二二八和平紀念公園、國立臺灣博物館旁）。2009 年東勢客家文化園區有一台以柴油驅動的等比例複製版（可作外觀對照）。</p>
+<p class="sub"><a href="batch-tw.html">← 回總覽</a>　·　<a href="../inventory.html">盤點清單</a></p>
+<h2>車頭</h2>
+<div class="pair">
+<figure><img src="../models/tengyun/renders/front.png" alt="模型車頭渲染"><figcaption>模型車頭</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e2/TRA_1_circa_late_1990s.jpg/1280px-TRA_1_circa_late_1990s.jpg" alt="騰雲號車頭照片" loading="lazy"><figcaption>照片：Dquai，CC BY-SA 4.0（<a href="https://commons.wikimedia.org/wiki/File:TRA_1_circa_late_1990s.jpg">原檔</a>）。車頭正面（鍋爐前蓋、緩衝樑）</figcaption></figure>
+</div>
+<h2>斜側</h2>
+<div class="pair">
+<figure><img src="../models/tengyun/renders/hero.png" alt="模型斜側渲染"><figcaption>模型斜側</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/Replica_Victor_Type_Steam_Locomotive.JPG/1280px-Replica_Victor_Type_Steam_Locomotive.JPG" alt="騰雲號斜側照片" loading="lazy"><figcaption>照片：SSR2000，CC BY-SA 3.0（<a href="https://commons.wikimedia.org/wiki/File:Replica_Victor_Type_Steam_Locomotive.JPG">原檔</a>）。2009 東勢複製版：戶外斜側、水櫃與駕駛室</figcaption></figure>
+</div>
+<h2>側面</h2>
+<figure><img src="../models/tengyun/renders/side.png" alt="模型側面渲染"><figcaption>模型側面：側面相機為了讓煙囪入鏡改用車高取景，比例跟其他車的側面圖不同。</figcaption></figure>
+<h2>其他參考照片</h2>
+<div class="pair">
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/%E8%AC%9D%E5%98%89%E4%BA%A8%E6%89%80%E8%A3%BD%E9%A8%B0%E9%9B%B2%E8%99%9F%E6%A8%A1%E5%9E%8B.jpg/1280px-%E8%AC%9D%E5%98%89%E4%BA%A8%E6%89%80%E8%A3%BD%E9%A8%B0%E9%9B%B2%E8%99%9F%E6%A8%A1%E5%9E%8B.jpg" alt="參考照片" loading="lazy"><figcaption>照片：丘崈，CC0（<a href="https://commons.wikimedia.org/wiki/File:%E8%AC%9D%E5%98%89%E4%BA%A8%E6%89%80%E8%A3%BD%E9%A8%B0%E9%9B%B2%E8%99%9F%E6%A8%A1%E5%9E%8B.jpg">原檔</a>）。騰雲號 1:? 模型（CC0）：整車側面/斜側的最清楚形狀</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/%E9%A8%B0%E9%9B%B2%E8%99%9F_Teng_Yun_%28_the_first_locomotive_in_Taiwan%2C_bought_from_Hohenzollern_Aktien_Geselleschaft_fur_Lokomotivbau_in_1888%29_-_panoramio.jpg/1280px-%E9%A8%B0%E9%9B%B2%E8%99%9F_Teng_Yun_%28_the_first_locomotive_in_Taiwan%2C_bought_from_Hohenzollern_Aktien_Geselleschaft_fur_Lokomotivbau_in_1888%29_-_panoramio.jpg" alt="參考照片" loading="lazy"><figcaption>照片：lienyuan lee，CC BY 3.0（<a href="https://commons.wikimedia.org/wiki/File:%E9%A8%B0%E9%9B%B2%E8%99%9F_Teng_Yun_(_the_first_locomotive_in_Taiwan,_bought_from_Hohenzollern_Aktien_Geselleschaft_fur_Lokomotivbau_in_1888)_-_panoramio.jpg">原檔</a>）。實車展示（二二八公園，鑽石煙囪）</figcaption></figure>
+</div>
+<h2>對過的地方</h2>
+<ul>
+<li>煙箱門紅色四輻手輪與兩條門閂（二二八公園實車特寫、1999 正面）</li>
+<li>前方紅色鉚釘緩衝樑、中央車鉤座與鏈、緩衝樑上方橫扶手（1999 正面）</li>
+<li>鑽石形火星擋：直筒＋倒錐＋口緣＋淺錐頂蓋（東勢複製版、謝嘉亨模型）</li>
+<li>煙囪後方的雙管安全閥座、鍋爐中段低平汽室蓋、煙箱頂黃銅頭燈（模型、複製版）</li>
+<li>鍋爐兩側短水櫃緊貼駕駛室、駕駛室前牆兩扇小方窗、側面後半開口（複製版）</li>
+<li>前後彎形扁鋼排障桿（複製版）</li>
+<li>實車是黑色車身配紅色緩衝樑；東勢複製版是綠車身白框線，這裡照實車</li>
+</ul>
+<h2>刻意簡化或沒做</h2>
+<ul>
+<li>Allan 閥動只做主連桿與偏心桿，沒有逐件做連動</li>
+<li>側水櫃名牌只做紅底金框，不寫字（實車沒有「騰雲」字牌，那是模型與複製版加的）</li>
+<li>注水器與洗滌管只做兩條主要彎管</li>
+</ul>
+<h2>資料來源</h2>
+<ul>
+<li><a href="https://ja.wikipedia.org/wiki/台湾総督府鉄道1形蒸気機関車">ja.wikipedia 台湾総督府鉄道1形蒸気機関車</a>：全長/全幅/全高、軌間1067、0-4-0、重量、水櫃/煤量、鑽石煙囪1906 年改</li>
+<li><a href="https://zh.wikipedia.org/wiki/騰雲號">zh.wikipedia 騰雲號</a>：1887 Hohenzollern 製、16 公噸、牽引力 2300 公斤、現存實車為御風號 445、1999 整修、東勢複製版</li>
+<li><a href="https://commons.wikimedia.org/wiki/File:The_Steam_Locomotive_No.1_of_Taiwan_Railway_plaque_20171207.jpg">Commons 國立臺灣博物館解說牌 20171207（CC0）</a>：解說牌：1887 Hohenzollern 製；無煤櫃；1906 直筒煙囪改鑽石形</li>
+</ul>
+<p class="cap">39,756 三角形 · 251 個可編修物件 · 包圍盒 5.39 × 2.52 × 3.50 展示公尺</p>
+
+</main>
+</body>
+</html>
