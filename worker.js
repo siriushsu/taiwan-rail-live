@@ -8642,11 +8642,13 @@ function bountyDRange(lo, hi) {
 // 前次線組只參與這個判斷——不重新登記去重、不重新標記、不給 v1 的貢獻點數（那些在它自己那一發已經做過）。
 // 前半段當時若已入帳，下面寫帳本那一句的「這班車入過帳沒」條件照舊擋住，後半段不會再發。
 // 🔴 與看板有沒有這一段無關：板上沒有任何單位、或那一段已收滿下架，合格趟照發（滿板仍發點數）。
-// 🔴 不讀任何 plus／通行證欄位：通行證沒有點數倍率。
+// 🔴 錄程列本身不看通行證：通行證的錄程加成另寫一列（見 bountyCreditPlusBonus），錄程列的數額、每日上限都不變。
 // 模擬器整班車不入帳的判斷在呼叫端（bountyVerifyCron，連去重登記與看板一併跳過），不在這裡。
 // groups 是這一班車每一條線的 { trip, v, cov }：trip 是 assembleTrip 的結果、v 是這條線的判定、cov 是這條線 ok 的覆蓋段。
 // who：這班車記在誰名下（bountyVerifyTrain 解析的，寫入那一句會再當場解析一跳）；fence：租約與「樣本還在」的綁定值（見 bountyVerifyTrain）。
-async function bountyCreditTripChips(env, rules, groups, prior, now, who, fence) {
+// stat：這一發的統計（加成點數記在 stat.plus；也是 bountyPlusPct 每發一份快取的鍵）。
+// 回這一趟入帳的錄程點數；回 null＝通行證資格查不完整、什麼都沒寫。
+async function bountyCreditTripChips(env, rules, groups, prior, now, who, fence, stat) {
   const chips = rules.chips;
   const all = groups.concat(prior);
   if (all.some(g => g.v.verdict === 'suspect')) return 0;
@@ -8674,6 +8676,10 @@ async function bountyCreditTripChips(env, rules, groups, prior, now, who, fence)
   const { tripDate, trainNo } = groups[0].trip;
   const raw = tripPoints({ verdict: 'ok', durationSec, day: tripDate, lines }, chips);
   if (!(raw > 0)) return 0;
+  // 通行證錄程加成：這趟有點數才查資格（不合格的趟不打 RevenueCat），而且在寫帳本之前查——查不完整就回 null，
+  // 呼叫端整班留 pending：錄程列一寫、這班標成已判定，就不會再判，少給的加成補不回來，所以不能當成沒有通行證照寫。
+  const plusPct = await bountyPlusPct(env, rules, who, stat);
+  if (plusPct === null) return null;
   // 入帳只有一句：身分、這班車入過帳沒、當日已領幾點、租約、樣本還在不在，全部在寫入的那一句裡當場看，查與寫之間沒有空隙。
   //   ・身分 w：從 who 再解析一跳（BOUNTY_WHO_SQL）。cron 讀完樣本之後、走到這裡之前，這個 token 可能剛好被併進 uid——
   //     帳本列、查重、每日上限一律用「此刻的」身分，不然點數會掛在已併掉的 token 名下（chips-me 看不到）。
@@ -8698,7 +8704,73 @@ async function bountyCreditTripChips(env, rules, groups, prior, now, who, fence)
     BOUNTY_VERIFY_HELD + BOUNTY_VERIFY_PENDING + ' RETURNING delta'
   ).bind(tail, tail, tripDate, now, raw, chips.dailyChipCap, chips.chipToPoints, tripDate, who, who, tripDate, tail, tail,
     BOUNTY_VERIFY_LEASE_KEY, fence.lease, fence.ids, fence.n).first();
+  if (plusPct > 0) {
+    const bonus = await bountyCreditPlusBonus(env, plusPct, who, tripDate, tail, now, fence);
+    if (bonus) stat.plus = (stat.plus || 0) + bonus;
+  }
   return Number(got && got.delta) || 0;
+}
+
+// 通行證錄程加成那一列：kind 'adjust'（帳本 kind 的 CHECK 只收五種，加新的要重建整張正式表）、ref 'plus|'＋錄程列的 ref，
+// 數額＝錄程列的 delta × pct ÷ 100 捨去（整數相除），不到 1 點不寫。餘額照常加總它；每日上限與 today.chips 只數 trip，所以加成不吃上限。
+// 數額讀帳本上這班車的錄程列，不讀這一發算的 raw：錄程列可能是前一發寫的（寫完錄程、加成還沒寫就中斷，這班車仍是 pending），
+// 這一發重判時補得上；重複由 UNIQUE(kind, ref)＋OR IGNORE 擋。只找 actor＝uid 的錄程列：資格是對這個 uid 查的
+// （合併剛好落在查資格之後、錄程列記到別的身分時，這一句找不到列，不給）。圍欄同錄程那一句。
+async function bountyCreditPlusBonus(env, pct, uid, tripDate, tail, now, fence) {
+  const got = await env.DELAY_DB.prepare(
+    'INSERT OR IGNORE INTO chip_ledger (id,actor,kind,delta,ref,day,created_at,unit)' +
+    " SELECT 'adjust|plus|' || l.ref, l.actor, 'adjust', l.delta * CAST(? AS INTEGER) / 100, 'plus|' || l.ref, l.day, ?, 'point'" +
+    ' FROM chip_ledger l INDEXED BY idx_chip_ledger_actor_day' +
+    " WHERE l.actor=? AND l.kind='trip' AND l.day=? AND l.unit='point' AND substr(l.ref, -length(?)) = ?" +
+    ' AND l.delta * CAST(? AS INTEGER) / 100 >= 1' +
+    BOUNTY_VERIFY_HELD + BOUNTY_VERIFY_PENDING + ' RETURNING delta'
+  ).bind(pct, now, uid, tripDate, tail, tail, pct,
+    BOUNTY_VERIFY_LEASE_KEY, fence.lease, fence.ids, fence.n).first();
+  return Number(got && got.delta) || 0;
+}
+
+// 通行證錄程加成（規格 native/build/bounty-v3/通行證錄程加成-規格.html，10-28 使用者定案）：回這班車的加成百分比。
+// 0＝不加（規則檔 chips.plusBonusPct 沒開、身分不是帳號、或判定當下沒有通行證）；null＝資格查不完整，呼叫端整班留 pending。
+// 只認帳號（bounty_points 有這列、uid 就是它自己）：通行證掛在 Firebase uid 上，匿名裝置對不到任何人的通行證。
+// 同一發每個帳號只查一次（快取跟著這一發的 stat 走），查不完整也記住，不為同一個人重打。
+const bountyPlusCache = new WeakMap();
+async function bountyPlusPct(env, rules, who, stat) {
+  const pct = Math.floor(Number(rules.chips.plusBonusPct));
+  if (!(pct > 0)) return 0;
+  let cache = bountyPlusCache.get(stat);
+  if (!cache) bountyPlusCache.set(stat, cache = new Map());
+  if (cache.has(who)) return cache.get(who);
+  const acct = await env.DELAY_DB.prepare('SELECT 1 AS a FROM bounty_points WHERE actor=? AND uid=?').bind(who, who).first();
+  let out = 0;
+  if (acct) {
+    const entitled = await bountyPlusEntitled(env, who);
+    out = entitled === null ? null : entitled ? pct : 0;
+  }
+  cache.set(who, out);
+  return out;
+}
+
+// 判定當下這個 uid 有沒有通行證：與 /api/plus-status 同一條查詢（訂閱 gives_access，或終身仍 owned），正式環境沒有時，
+// sandbox 只給允許清單裡的 uid。不讀 Firestore 的資格文件：終身那份是滾動 7 天的窗，很久沒開 App 的終身用戶會被當成沒有。
+// 回 true／false；查不完整（上游錯誤、回應不合規格、secret 沒設）回 null——「查不到」不能當成「沒有」。
+// 這些對外呼叫不經過 DELAY_DB／ASSETS，bountyCounted 數不到，在這裡自己記：每個環境最多兩支 × RC_SUBS_MAX_PAGES 頁，照上限記（寧可早停）。
+async function bountyPlusEntitled(env, uid) {
+  if (!env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY) return null;
+  const want = env.REVENUECAT_ENTITLEMENT || 'plus';
+  const ctr = env.__bountySubreq;
+  const ask = async environment => {
+    if (ctr) { ctr.n += 2 * RC_SUBS_MAX_PAGES; ctr.by.fetch += 2 * RC_SUBS_MAX_PAGES; }
+    const truth = await fetchRevenueCatPlusTruth(uid, env, want, environment);
+    return truth.ok ? plusEntitledFromTruth(truth, want, environment) : null;
+  };
+  try {
+    const production = await ask(RC_ENV_PRODUCTION);
+    if (production !== false || !plusSandboxAllowedUids(env).has(uid)) return production;
+    return await ask(RC_ENV_SANDBOX);
+  } catch (e) {
+    console.error(`[cron bounty 驗證] 通行證資格查詢例外：${e && e.message}`);
+    return null;
+  }
 }
 
 // ── 判定 cron 一發處理哪些班車──────────────────────────────────────────
@@ -8862,6 +8934,8 @@ function* bountyVerifyOrder(list, room, stat) {
 const bountyVerifyLine = q => q.locked
   ? '[cron bounty 驗證] 跳過：另一發判定還在進行（租約未到期），這一發沒有動任何樣本'
   : `[cron bounty 驗證] ${q.trains} 班／${q.trips} 線組 → 採用 ${q.ok}／可惜 ${q.unusable}／可疑 ${q.suspect}／入帳點數 ${q.chips}` +
+  (q.plus ? `／通行證加成 ${q.plus}` : '') +
+  (q.plusDeferred ? `（⚠️ ${q.plusDeferred} 班查不到通行證資格：留 pending，下一發再判）` : '') +
   `／經過 ${Math.round((Number(q.elapsedMs) || 0) / 1000)} 秒／讀取 ${((Number(q.bytes) || 0) / 1048576).toFixed(1)} MB（${Number(q.rows) || 0} 列）／子請求 ${q.subreq}` +
   (q.budgetStop ? `（⚠️ ${{ wall: '牆鐘', bytes: '讀取量' }[q.stopBy] || '子請求'}預算用盡：剩下的班車留 pending，下一發接著判）` : '') +
   (q.errors ? `（⚠️ ${q.errors} 班判定出錯` + (q.stopBy === 'error'
@@ -9137,7 +9211,10 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   // 被接手或樣本被刪（帳號刪除）時，兩件事都整句落空，這一班留給下一發（或隨帳號消失）。
   const fence = { lease, ids: JSON.stringify(rows.map(r => r.id)), n: rows.length };
   if (!sim) {
-    stat.chips += await bountyCreditTripChips(env, rules, groups, prior, now, who, fence);
+    // null＝通行證資格查不完整（見 bountyCreditTripChips）：這班車什麼都還沒寫，整班留 pending、下一發再判。
+    const credited = await bountyCreditTripChips(env, rules, groups, prior, now, who, fence, stat);
+    if (credited === null) { stat.plusDeferred = (stat.plusDeferred || 0) + 1; return; }
+    stat.chips += credited;
     const okKeys = groups.filter(g => g.v.verdict === 'ok').flatMap(g => g.cov.map(c => c.key));
     if (okKeys.length) await bountyRegisterContrib(env, rules, who, okKeys, now, fence);
   }
