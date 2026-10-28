@@ -1245,32 +1245,35 @@ def knuckle_coupler(x,end,z,mat='metal'):
 
 def ck101(s):
  """台鐵 CK101（CK100 型，日本汽車製造 1917 年製 2-6-2 水櫃機，1998 年復駛）。參考：Commons Kazehayashi 1998 年後集集線運轉照
- （CC BY-SA 4.0）、Chi-Hung Lin 2014 彰化扇形車庫正面（CC BY 2.0）；尺寸 zh.wikipedia 資訊框（長 11,405、寬 2,616、高 3,658）。
+ （CC BY-SA 4.0）、Chi-Hung Lin 2014 彰化扇形車庫正面（CC BY 2.0）、Cheng-en Cheng 2007 斜側與 2010 轉車台側面（CC BY-SA 2.0）；尺寸 zh.wikipedia 資訊框（長 11,405、寬 2,616、高 3,658）。
  照復駛運轉時的樣子：消光黑車身，煙箱門一圈門扣、中央手輪、紅底金框 CK101 號牌，煙囪前方煙箱頂大頭燈、直筒煙囪；
- 煙箱後到駕駛室前是兩側長水櫃（前角黃色小牌），左側（+Y）走行板上立著空氣壓縮機與黃銅注油器；前端黃黑斜紋緩衝樑、
- 自動車鉤、紅色煞車軟管與紅色直柵排障器，走行板邊緣一條黃線；三對 125 cm 輻條動輪、前後各一軸小輪、Walschaerts 閥動。"""
+ 緊跟在煙囪後的大汽室圓頂與第二座圓頂；水櫃從第二座圓頂起到駕駛室前（側面紅色號牌），左側（+Y）水櫃前方走行板上立著空氣壓縮機；
+ 走行板在第一動輪前往下彎成較低的前甲板（邊緣黃線），前甲板上黃銅注油器、扶手與信號燈柱；駕駛室金框圓窗與拱窗；
+ 前端黃黑斜紋緩衝樑、自動車鉤、紅色煞車軟管與紅色直柵排障器；三對 125 cm 輻條動輪（白色輪緣線、紅色連結桿）、前後各一軸小輪、Walschaerts 閥動。"""
  L,W,H=s['L'],s['W'],s['H'];body='ckblack'
  color('ckblack','1E2022',.30,.46,.12);color('ckred','B8281A',.10,.40,.22)
- r=.56;axles=[.95,-.23,-1.41];deck=1.32;lead,trail=2.62,-2.50
+ r=.56;axles=[.95,-.23,-1.41];deck=1.46;fdeck=1.24;xd=1.60;lead,trail=2.62,-2.50
  use('04')
  for x in axles:
   cyl('動輪軸',(x,0,r),.08,W*.70,'chassis','Y',20)
   for side in [-1,1]:
    wheel(x,side*W*.36,r,spoked=True)
+   torus_y('白色輪緣線',(x,side*(W*.36+.048),r),r-.05,.014,'white',n=40,m=6)
    cyl('曲柄銷',(x-.16,side*(W*.36+.15),r+.10),.05,.10,'metal','Y',16)
    box('煞車蹄',(x+r+.05,side*W*.36,r-.05),(.08,.10,.36),'chassis',.02)
  for x in [lead,trail]:
   cyl('導輪從輪軸',(x,0,.34),.06,W*.62,'chassis','Y',16)
-  for side in [-1,1]:wheel(x,side*W*.31,.34,spoked=True)
+  for side in [-1,1]:
+   wheel(x,side*W*.31,.34,spoked=True);torus_y('白色輪緣線',(x,side*(W*.31+.048),.34),.29,.012,'white',n=32,m=6)
  for side in [-1,1]:
   yy=side*(W*.36+.21)
-  rod('連結桿',(axles[0]-.16,yy,r+.10),(axles[2]-.16,yy,r+.10),.038,'metal')
-  rod('主連桿',(1.62,yy+side*.04,.98),(axles[1]-.16,yy+side*.04,r+.10),.040,'metal')
+  rod('紅色連結桿',(axles[0]-.16,yy,r+.10),(axles[2]-.16,yy,r+.10),.038,'ckred')
+  rod('主連桿',(1.62,yy+side*.04,.94),(axles[1]-.16,yy+side*.04,r+.10),.040,'metal')
   rod('十字頭滑桿',(1.62,yy+side*.04,1.04),(.72,yy+side*.04,1.04),.022,'metal')
-  cyl('外置汽缸',(2.02,side*(W/2-.15),.98),.24,.72,body,'X',32)
-  box('汽缸閥箱',(2.02,side*(W/2-.17),1.28),(.64,.26,.24),body,.03)
-  for dx in [-.37,.37]:cyl('汽缸蓋',(2.02+dx,side*(W/2-.15),.98),.22,.03,'metal','X',32)
-  line('Walschaerts 閥動',[(axles[1],yy+side*.09,r+.02),(.40,yy+side*.09,1.10),(1.66,side*(W/2-.12),1.24)],.022,'metal')
+  cyl('外置汽缸',(2.02,side*(W/2-.15),.92),.23,.72,body,'X',32)
+  box('汽缸閥箱',(2.02,side*(W/2-.17),1.12),(.64,.26,.18),body,.03)
+  for dx in [-.37,.37]:cyl('汽缸蓋',(2.02+dx,side*(W/2-.15),.92),.21,.03,'metal','X',32)
+  line('Walschaerts 閥動',[(axles[1],yy+side*.09,r+.02),(.40,yy+side*.09,1.10),(1.66,side*(W/2-.12),1.12)],.022,'metal')
   rod('閥動半徑桿',(.40,yy+side*.09,1.10),(.40,yy+side*.09,1.30),.020,'metal')
   rod('逆轉桿',(.40,side*(W/2-.05),1.30),(-1.55,side*(W/2-.05),1.62),.018,'metal')
   box('內側車架',(0,side*W*.24,.86),(5.40,.08,.46),body,.02)
@@ -1281,8 +1284,16 @@ def ck101(s):
    for i in range(n+1):
     a=math.pi*i/n;verts+=[(x+(r+.06)*math.cos(a),side*(W*.36-.07),r+(r+.06)*math.sin(a)),(x+(r+.06)*math.cos(a),side*(W*.36+.07),r+(r+.06)*math.sin(a))]
    mesh('動輪擋泥罩',verts,[(2*i,2*i+1,2*i+3,2*i+2) for i in range(n)],body,0,True);m=p.MODEL[-1].modifiers.new('擋泥罩厚度','SOLIDIFY');m.thickness=.02
- use('01');box('走行板',(0,0,deck),(L-.30,W*.98,.07),body,.02)
- for side in [-1,1]:box('走行板黃線',(0,side*(W*.49+.004),deck),(L-.34,.010,.035),'yellow',.002)
+ # 照片：走行板在第一動輪前往下彎成較低的前甲板，邊緣一條黃線跟著彎。
+ use('01');x0=-L/2+.15;box('走行板',((x0+xd)/2,0,deck),(xd-x0,W*.98,.07),body,.02)
+ box('前甲板',((xd+.30+L/2-.04)/2,0,fdeck),(L/2-.04-xd-.30,W*.98,.07),body,.02)
+ prof=[(xd+.30*k/8,deck+(fdeck-deck)*(1-math.cos(math.pi*k/8))/2) for k in range(9)];v=[]
+ for x_,z_ in prof:v+=[(x_,-W*.49,z_),(x_,W*.49,z_)]
+ mesh('走行板下彎段',v,[(2*i,2*i+1,2*i+3,2*i+2) for i in range(8)],body,0,True);m=p.MODEL[-1].modifiers.new('下彎段厚度','SOLIDIFY');m.thickness=.07
+ for side in [-1,1]:
+  box('走行板黃線',((x0+xd)/2,side*(W*.49+.004),deck),(xd-x0-.04,.010,.035),'yellow',.002)
+  box('前甲板黃線',((xd+.30+L/2-.04)/2,side*(W*.49+.004),fdeck),(L/2-.08-xd-.30,.010,.035),'yellow',.002)
+  line('下彎段黃線',[(x_,side*(W*.49+.004),z_-.02) for x_,z_ in prof],.012,'yellow')
  # 鍋爐、煙箱、煙箱門。
  cabF=-1.55;sb=2.30;bf=3.02;br=.60;bz=2.18
  cyl('圓筒鍋爐',((cabF+sb)/2,0,bz),br,sb-cabF,body,'X',64,.01)
@@ -1301,7 +1312,7 @@ def ck101(s):
  panel('煙箱門號牌金框',(bf+.11,0,bz+.30),.58,.22,'gold','front',r=.02,depth=.01)
  panel('煙箱門號牌',(bf+.12,0,bz+.30),.54,.18,'ckred','front',r=.015,depth=.01)
  text_label(s.get('label','CK101'),(bf+.13,0,bz+.30),.12)
- box('煙箱下座',((sb+bf)/2,0,deck+.22),(bf-sb,W*.38,.44),body,.02)
+ box('煙箱下座',((sb+bf)/2,0,(fdeck+bz-br+.10)/2),(bf-sb,W*.38,bz-br+.10-fdeck),body,.02)
  # 直筒煙囪與煙箱頂大頭燈。
  use('05');cx=2.58;tz=bz+br+.04
  cyl('煙囪座',(cx,0,tz+.02),.24,.12,body,n=36,bevel=.03)
@@ -1313,19 +1324,20 @@ def ck101(s):
  lamp('大頭燈',lambda y,z:hx+.08,0,hz,.12)
  box('頭燈頂蓋',(hx-.02,0,hz+.17),(.32,.30,.04),body,.01)
  # 兩座圓頂、安全閥、汽笛。
- for x,name in [(1.30,'砂箱圓頂'),(.30,'汽室圓頂')]:
-  cyl(name+'基座',(x,0,bz+br-.04),.30,.14,body,n=40,bevel=.03)
-  cyl(name,(x,0,bz+br+.18),.25,.34,body,n=40,bevel=.10)
+ # 照片：大汽室圓頂緊跟在煙囪後，第二座圓頂在水櫃前端上方。
+ for x,name,rr,hh in [(1.98,'汽室圓頂',.29,.44),(.80,'砂箱圓頂',.25,.34)]:
+  cyl(name+'基座',(x,0,bz+br-.04),rr+.05,.14,body,n=40,bevel=.03)
+  cyl(name,(x,0,bz+br+hh/2),rr,hh,body,n=40,bevel=.11)
  cyl('安全閥座',(cabF+.32,0,bz+br+.02),.13,.10,body,n=24)
  for dy in [-.06,.06]:rod('安全閥',(cabF+.32,dy,bz+br+.06),(cabF+.32,dy,bz+br+.30),.032,'metal')
  rod('黃銅汽笛',(cabF+.14,-.20,bz+br-.02),(cabF+.14,-.20,bz+br+.36),.026,'gold')
  cyl('汽笛頂',(cabF+.14,-.20,bz+br+.38),.045,.05,'gold',n=12)
  for side in [-1,1]:
-  line('砂管',[(1.30,side*.22,bz+br),(1.30,side*(br+.08),bz+.10),(axles[0]+.62,side*W*.36,deck-.05),(axles[0]+.62,side*W*.36,r-.10)],.020,body)
+  line('砂管',[(.80,side*.22,bz+br),(.80,side*(br+.08),bz+.10),(axles[0]+.62,side*W*.36,deck-.05),(axles[0]+.62,side*W*.36,r-.10)],.020,body)
   line('鍋爐扶手',[(cabF+.10,side*(br+.10),bz+.30),(sb+.10,side*(br+.10),bz+.30)],.014,'metal')
   line('注水器彎管',[(cabF+.10,side*(br+.06),bz+.04),(-.40,side*(br+.10),bz-.18),(.20,side*(W/2-.62),deck+.10)],.032,body)
  # 煙箱後到駕駛室前的兩側長水櫃：鉚釘邊、前角黃色小牌、頂部注水口。
- tx0,tx1=cabF+.02,1.72;tz0,tz1=deck+.04,2.58
+ tx0,tx1=cabF+.02,1.20;tz0,tz1=deck+.04,2.58
  for side in [-1,1]:
   yt=side*(W/2-.29)
   box('側水櫃',((tx0+tx1)/2,yt,(tz0+tz1)/2),(tx1-tx0,.56,tz1-tz0),body,.04)
@@ -1333,37 +1345,39 @@ def ck101(s):
   for x in [tx0+.06,tx1-.06]:
    for k in range(6):cyl('水櫃鉚釘',(x,side*(W/2-.005),tz0+.16+k*(tz1-tz0-.32)/5),.018,.02,body,'Y',8,0)
   panel('水櫃前角黃牌',(tx1+.006,side*(W/2-.10),tz1-.20),.12,.14,'yellow','front',r=.01,depth=.008)
+  panel('水櫃號牌金框',(-.70,side*(W/2+.006),tz1-.34),.62,.24,'gold',r=.02,depth=.01)
+  panel('水櫃號牌',(-.70,side*(W/2+.016),tz1-.34),.56,.18,'ckred',r=.015,depth=.01)
+  text_label(s.get('label','CK101'),(-.70,side*(W/2+.026),tz1-.34),.12,'side',side)
   cyl('水櫃注水口',(tx1-.30,yt,tz1+.04),.10,.08,body,n=20)
   box('水櫃頂蓋',(tx1-.30,yt,tz1+.09),(.24,.24,.03),body,.01)
  # 左側（+Y）走行板上的空氣壓縮機與黃銅注油器（兩張照片都在同一側）。
- use('05');px,py=2.05,W/2-.22
+ use('05');px,py=1.40,W/2-.22
  cyl('空氣壓縮機汽缸',(px,py,deck+.72),.15,.40,body,n=28,bevel=.02)
  cyl('空氣壓縮機風缸',(px,py,deck+.30),.17,.40,body,n=28,bevel=.02)
  for z in [deck+.10,deck+.51,deck+.93]:cyl('壓縮機法蘭',(px,py,z),.19,.04,body,n=28)
  line('壓縮機管路',[(px,py-.12,deck+.85),(px-.30,py-.20,deck+.95),(tx1+.02,py-.30,bz+.20)],.022,body)
- box('黃銅注油器',(bf-.06,W/2-.24,deck+.24),(.20,.16,.30),'gold',.03)
- rod('注油器油管',(bf-.06,W/2-.24,deck+.06),(2.02,W/2-.15,1.20),.012,'gold')
+ box('黃銅注油器',(bf-.06,W/2-.24,fdeck+.24),(.20,.16,.30),'gold',.03)
+ rod('注油器油管',(bf-.06,W/2-.24,fdeck+.06),(2.02,W/2-.15,1.10),.012,'gold')
  # 前方走行板：橫向扶手與兩支信號燈柱。
- rod('前方橫向扶手',(bf+.20,-W*.36,deck+.48),(bf+.20,W*.36,deck+.48),.016,'metal')
- for y in [-W*.36,W*.36]:rod('扶手立柱',(bf+.20,y,deck+.04),(bf+.20,y,deck+.48),.016,'metal')
- for y in [-W*.43,W*.43]:rod('信號燈柱',(L/2-.30,y,deck+.04),(L/2-.30,y,deck+.86),.020,'metal')
+ rod('前方橫向扶手',(bf+.20,-W*.36,fdeck+.48),(bf+.20,W*.36,fdeck+.48),.016,'metal')
+ for y in [-W*.36,W*.36]:rod('扶手立柱',(bf+.20,y,fdeck+.04),(bf+.20,y,fdeck+.48),.016,'metal')
+ for y in [-W*.43,W*.43]:rod('信號燈柱',(L/2-.30,y,fdeck+.04),(L/2-.30,y,fdeck+.86),.020,'metal')
  # 駕駛室：側面前方圓角窗、後段入口開口、拱頂外伸；後方煤櫃。
  cabR=-2.78;ch=H-.22;cw=W*.98
  box('駕駛室前牆',(cabF-.04,0,(tz1+ch)/2),(.08,cw,ch-tz1),body,.02)
  for side in [-1,1]:
   panel('前牆圓窗',(cabF+.005,side*.52,ch-.40),.32,.32,'glass','front',r=.15)
-  panel('前牆圓窗框',(cabF,side*.52,ch-.40),.40,.40,'frame','front',r=.19,depth=.01)
+  panel('前牆圓窗金框',(cabF,side*.52,ch-.40),.40,.40,'gold','front',r=.19,depth=.01)
   yy=side*cw/2
   box('駕駛室側牆前段',(cabF-.30,yy,(deck+ch)/2),(.56,.06,ch-deck),body,.02)
-  panel('側牆圓角窗框',(cabF-.30,yy+side*.040,ch-.56),.44,.48,'frame',r=.10,depth=.02)
-  panel('側牆圓角窗',(cabF-.30,yy+side*.052,ch-.56),.36,.40,'glass',r=.09,depth=.01)
+  # 照片：駕駛室側面是金框拱頂窗。
+  panel('側牆拱窗金框',(cabF-.30,yy+side*.040,ch-.56),.44,.52,'gold',r=.20,depth=.02)
+  panel('側牆拱窗',(cabF-.30,yy+side*.052,ch-.56),.36,.44,'glass',r=.17,depth=.01)
   box('駕駛室側牆下段',(cabF-.84,yy,deck+.42),(.52,.06,.84),body,.02)
   box('駕駛室側牆後段',(cabR+.22,yy,(deck+ch)/2),(.44,.06,ch-deck),body,.02)
-  panel('側牆後窗',(cabR+.22,yy+side*.040,ch-.56),.28,.40,'glass',r=.06,depth=.01)
+  panel('側牆後窗金框',(cabR+.22,yy+side*.040,ch-.56),.34,.46,'gold',r=.15,depth=.01)
+  panel('側牆後窗',(cabR+.22,yy+side*.050,ch-.56),.28,.40,'glass',r=.13,depth=.01)
   box('駕駛室側牆上楣',((cabF+cabR)/2,yy,ch-.10),(cabF-cabR,.06,.20),body,.02)
-  panel('駕駛室號牌金框',(cabF-.30,yy+side*.040,deck+.50),.62,.24,'gold',r=.02,depth=.01)
-  panel('駕駛室號牌',(cabF-.30,yy+side*.050,deck+.50),.56,.18,'ckred',r=.015,depth=.01)
-  text_label(s.get('label','CK101'),(cabF-.30,yy+side*.060,deck+.50),.12,'side',side)
   for x in [cabF-.60,cabR+.48]:rod('登車扶手',(x,yy+side*.06,deck+.10),(x,yy+side*.06,ch-.40),.018,'metal')
   for z in [.62,.92]:box('登車踏階',(cabF-.84,side*W*.47,z),(.34,.20,.035),'metal',.006)
   for dx in [-.15,.15]:box('踏階吊架',(cabF-.84+dx,side*W*.47,.94),(.03,.03,.40),'metal',0)
@@ -1540,3 +1554,62 @@ def sugarhitachi(s):
  s['drivers']=0;s['axles']=2
 
 BUILDERS['sugarhitachi']=sugarhitachi
+
+def sugarcar(s):
+ """台糖溪湖糖廠五分車觀光敞車（甘蔗車改造，日立牌柴油機車牽引）。參考：Commons Wengch 溪湖糖廠現役列車（CC BY-SA 4.0）、
+ Heino Vogel 837 號與舊塗裝敞車（CC BY-SA 3.0 de）。照現行樣子：一節一個開間，四角奶油色方柱撐起薄弧頂鐵皮，
+ 下半部奶油色裙板嵌彩印看板，看板頂一條藍色扶手，車內兩側藍色長椅面向中間，深色底架、兩軸小車輪、兩端箱形車鉤。"""
+ L,W,H=s['L'],s['W'],s['H']
+ color('occream','E2D6B4',.04,.40,.20);color('ocroof','C4C8C8',.30,.40,.10);color('ocblue','1F4E9C',.06,.38,.22)
+ color('ocpaper','EAE4D4',.02,.45,.10);color('ocfloor','5E4430',.02,.60,.05)
+ for k,h in enumerate(['B8432E','5E7F4A','C9A04A','3F6E9A']):color(f'ocposter{k}',h,.02,.45,.10)
+ fz=.80;post=.10;pz=1.58;rz=2.40;xe=L/2-.14
+ use('04')
+ for x in [-1.25,1.25]:
+  cyl('輪軸',(x,0,.22),.05,W*.48,'chassis','Y',16)
+  for side in [-1,1]:
+   wheel(x,side*.40,.22)
+   box('軸箱',(x,side*(W*.40+.06),.26),(.22,.10,.18),'chassis',.02)
+ for side in [-1,1]:
+  box('底架側樑',(0,side*W*.42,.60),(L-.26,.10,.24),'chassis',.02)
+  for x in [-1.70,-.85,0,.85,1.70]:box('側樑托架',(x,side*(W*.42+.06),.62),(.08,.04,.20),'chassis',.01)
+ for end in [-1,1]:
+  box('底架端樑',(end*(L/2-.16),0,.62),(.14,W*.90,.26),'chassis',.02)
+  box('箱形車鉤',(end*(L/2+.02),0,.60),(.22,.32,.18),'chassis',.03)
+  rod('車鉤銷',(end*(L/2+.08),0,.50),(end*(L/2+.08),0,.74),.016,'metal')
+  for side in [-1,1]:box('上下車踏階',(end*(L/2-.34),side*(W*.46+.08),.42),(.34,.14,.035),'metal',.006)
+ use('01');box('地板',(0,0,fz-.03),(L-.20,W*.94,.06),'ocfloor',.01)
+ # 下半部奶油色裙板嵌彩印看板，看板頂一條藍色扶手。
+ for side in [-1,1]:
+  y=side*W*.46
+  box('側裙板',(0,y,(fz+pz)/2),(2*xe-post,.05,pz-fz),'occream',.01)
+  panel('彩印看板',(0,y+side*.030,(fz+pz)/2-.02),2*xe-.42,pz-fz-.16,'ocpaper',r=.02,depth=.008)
+  for k,(dx,dz,w,h) in enumerate([(-1.05,.05,.95,.48),(-.10,-.06,.80,.36),(.72,.08,.70,.44),(1.30,-.08,.36,.30)]):
+   panel('看板圖塊',(dx,y+side*.038,(fz+pz)/2+dz),w,h,f'ocposter{k}',r=.02,depth=.006)
+  box('裙板頂藍色扶手',(0,y,pz+.03),(2*xe,.08,.06),'ocblue',.015)
+  box('車頂縱樑',(0,y,rz),(2*xe+post,.08,.07),'occream',.01)
+  for x in [-xe,xe]:
+   box('奶油色方柱',(x,y,(fz+rz)/2),(post,post,rz-fz),'occream',.012)
+   panel('禁止倚靠小牌',(x+(-.10 if x>0 else .10),y+side*.055,1.98),.07,.18,'white',r=.01,depth=.006)
+   box('小牌紅字',(x+(-.10 if x>0 else .10),y+side*.062,1.98),(.05,.004,.12),'red',.002)
+  # 車內兩側藍色長椅面向中間，椅背靠在裙板上緣內側。
+  box('藍色長椅座面',(0,side*W*.30,1.14),(2*xe-.30,.40,.07),'ocblue',.02)
+  box('藍色椅背',(0,side*(W*.42),1.76),(2*xe-.30,.05,.22),'ocblue',.02)
+  for x in [-1.40,0,1.40]:box('長椅腳',(x,side*W*.30,(fz+1.10)/2),(.06,.30,1.10-fz),'chassis',.01)
+ for end in [-1,1]:
+  box('端裙板',(end*xe,0,(fz+pz)/2),(.05,W*.92-post,pz-fz),'occream',.01)
+  box('端板藍色扶手',(end*xe,0,pz+.03),(.08,W*.92,.06),'ocblue',.015)
+  box('車頂橫樑',(end*xe,0,rz),(.08,W*.92+post,.07),'occream',.01)
+ # 薄弧頂鐵皮，兩側略為外伸，頂面幾條浪板稜線。
+ use('05');roofv=[];n=12
+ for i in range(n+1):
+  t_=i/n;y=(t_-.5)*(W+.22);z=rz+.06+.16*math.cos((t_-.5)*math.pi)
+  roofv+=[(L/2-.02,y,z),(-L/2+.02,y,z)]
+ mesh('弧頂鐵皮',roofv,[(2*i,2*i+1,2*i+3,2*i+2) for i in range(n)],'ocroof',0,True);m=p.MODEL[-1].modifiers.new('鐵皮厚度','SOLIDIFY');m.thickness=.03
+ for i in range(1,n):
+  t_=i/n;y=(t_-.5)*(W+.22);z=rz+.06+.16*math.cos((t_-.5)*math.pi)+.02
+  rod('浪板稜線',(-L/2+.04,y,z),(L/2-.04,y,z),.008,'ocroof')
+ for side in [-1,1]:box('簷口飾條',(0,side*(W/2+.10),rz+.08),(L-.04,.03,.06),'occream',.006)
+ s['pantos']=0
+
+BUILDERS['sugarcar']=sugarcar

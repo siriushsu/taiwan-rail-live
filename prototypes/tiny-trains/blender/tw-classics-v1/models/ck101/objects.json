@@ -102,6 +102,12 @@
     ]
   },
   {
+    "name": "白色輪緣線",
+    "type": "MESH",
+    "polygons": 240,
+    "modifiers": []
+  },
+  {
     "name": "曲柄銷",
     "type": "MESH",
     "polygons": 114,
@@ -211,6 +217,12 @@
       "BEVEL",
       "WEIGHTED_NORMAL"
     ]
+  },
+  {
+    "name": "白色輪緣線.001",
+    "type": "MESH",
+    "polygons": 240,
+    "modifiers": []
   },
   {
     "name": "曲柄銷.001",
@@ -333,6 +345,12 @@
     ]
   },
   {
+    "name": "白色輪緣線.002",
+    "type": "MESH",
+    "polygons": 240,
+    "modifiers": []
+  },
+  {
     "name": "曲柄銷.002",
     "type": "MESH",
     "polygons": 114,
@@ -442,6 +460,12 @@
       "BEVEL",
       "WEIGHTED_NORMAL"
     ]
+  },
+  {
+    "name": "白色輪緣線.003",
+    "type": "MESH",
+    "polygons": 240,
+    "modifiers": []
   },
   {
     "name": "曲柄銷.003",
@@ -564,6 +588,12 @@
     ]
   },
   {
+    "name": "白色輪緣線.004",
+    "type": "MESH",
+    "polygons": 240,
+    "modifiers": []
+  },
+  {
     "name": "曲柄銷.004",
     "type": "MESH",
     "polygons": 114,
@@ -673,6 +703,12 @@
       "BEVEL",
       "WEIGHTED_NORMAL"
     ]
+  },
+  {
+    "name": "白色輪緣線.005",
+    "type": "MESH",
+    "polygons": 240,
+    "modifiers": []
   },
   {
     "name": "曲柄銷.005",
@@ -795,6 +831,12 @@
     ]
   },
   {
+    "name": "白色輪緣線.006",
+    "type": "MESH",
+    "polygons": 192,
+    "modifiers": []
+  },
+  {
     "name": "鏤空蒸機動輪輪箍.007",
     "type": "MESH",
     "polygons": 400,
@@ -886,6 +928,12 @@
       "BEVEL",
       "WEIGHTED_NORMAL"
     ]
+  },
+  {
+    "name": "白色輪緣線.007",
+    "type": "MESH",
+    "polygons": 192,
+    "modifiers": []
   },
   {
     "name": "導輪從輪軸.001",
@@ -990,6 +1038,12 @@
     ]
   },
   {
+    "name": "白色輪緣線.008",
+    "type": "MESH",
+    "polygons": 192,
+    "modifiers": []
+  },
+  {
     "name": "鏤空蒸機動輪輪箍.009",
     "type": "MESH",
     "polygons": 400,
@@ -1083,7 +1137,13 @@
     ]
   },
   {
-    "name": "連結桿",
+    "name": "白色輪緣線.009",
+    "type": "MESH",
+    "polygons": 192,
+    "modifiers": []
+  },
+  {
+    "name": "紅色連結桿",
     "type": "MESH",
     "polygons": 12,
     "modifiers": []
@@ -1221,7 +1281,7 @@
     ]
   },
   {
-    "name": "連結桿.001",
+    "name": "紅色連結桿.001",
     "type": "MESH",
     "polygons": 12,
     "modifiers": []
@@ -1368,6 +1428,23 @@
     ]
   },
   {
+    "name": "前甲板",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "走行板下彎段",
+    "type": "MESH",
+    "polygons": 34,
+    "modifiers": [
+      "SOLIDIFY"
+    ]
+  },
+  {
     "name": "走行板黃線",
     "type": "MESH",
     "polygons": 98,
@@ -1377,6 +1454,63 @@
     ]
   },
   {
+    "name": "前甲板黃線",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "下彎段黃線",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "下彎段黃線.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "下彎段黃線.002",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "下彎段黃線.003",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "下彎段黃線.004",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "下彎段黃線.005",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "下彎段黃線.006",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "下彎段黃線.007",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
     "name": "走行板黃線.001",
     "type": "MESH",
     "polygons": 98,
@@ -1384,6 +1518,63 @@
       "BEVEL",
       "WEIGHTED_NORMAL"
     ]
+  },
+  {
+    "name": "前甲板黃線.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "下彎段黃線.008",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "下彎段黃線.009",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "下彎段黃線.010",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "下彎段黃線.011",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "下彎段黃線.012",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "下彎段黃線.013",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "下彎段黃線.014",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "下彎段黃線.015",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
   },
   {
     "name": "圓筒鍋爐",
@@ -1818,24 +2009,6 @@
     ]
   },
   {
-    "name": "砂箱圓頂基座",
-    "type": "MESH",
-    "polygons": 282,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "砂箱圓頂",
-    "type": "MESH",
-    "polygons": 282,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
     "name": "汽室圓頂基座",
     "type": "MESH",
     "polygons": 282,
@@ -1846,6 +2019,24 @@
   },
   {
     "name": "汽室圓頂",
+    "type": "MESH",
+    "polygons": 282,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "砂箱圓頂基座",
+    "type": "MESH",
+    "polygons": 282,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "砂箱圓頂",
     "type": "MESH",
     "polygons": 282,
     "modifiers": [
@@ -2313,6 +2504,24 @@
     "modifiers": []
   },
   {
+    "name": "水櫃號牌金框",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "水櫃號牌",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "識別牌 CK101.001",
+    "type": "FONT",
+    "polygons": 1089,
+    "modifiers": []
+  },
+  {
     "name": "水櫃注水口",
     "type": "MESH",
     "polygons": 142,
@@ -2682,6 +2891,24 @@
     "modifiers": []
   },
   {
+    "name": "水櫃號牌金框.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "水櫃號牌.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "識別牌 CK101.002",
+    "type": "FONT",
+    "polygons": 1089,
+    "modifiers": []
+  },
+  {
     "name": "水櫃注水口.001",
     "type": "MESH",
     "polygons": 142,
@@ -2817,7 +3044,7 @@
     "modifiers": []
   },
   {
-    "name": "前牆圓窗框",
+    "name": "前牆圓窗金框",
     "type": "MESH",
     "polygons": 26,
     "modifiers": []
@@ -2832,13 +3059,13 @@
     ]
   },
   {
-    "name": "側牆圓角窗框",
+    "name": "側牆拱窗金框",
     "type": "MESH",
     "polygons": 26,
     "modifiers": []
   },
   {
-    "name": "側牆圓角窗",
+    "name": "側牆拱窗",
     "type": "MESH",
     "polygons": 26,
     "modifiers": []
@@ -2862,6 +3089,12 @@
     ]
   },
   {
+    "name": "側牆後窗金框",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
     "name": "側牆後窗",
     "type": "MESH",
     "polygons": 26,
@@ -2875,24 +3108,6 @@
       "BEVEL",
       "WEIGHTED_NORMAL"
     ]
-  },
-  {
-    "name": "駕駛室號牌金框",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "駕駛室號牌",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "識別牌 CK101.001",
-    "type": "FONT",
-    "polygons": 1089,
-    "modifiers": []
   },
   {
     "name": "登車扶手",
@@ -2943,7 +3158,7 @@
     "modifiers": []
   },
   {
-    "name": "前牆圓窗框.001",
+    "name": "前牆圓窗金框.001",
     "type": "MESH",
     "polygons": 26,
     "modifiers": []
@@ -2958,13 +3173,13 @@
     ]
   },
   {
-    "name": "側牆圓角窗框.001",
+    "name": "側牆拱窗金框.001",
     "type": "MESH",
     "polygons": 26,
     "modifiers": []
   },
   {
-    "name": "側牆圓角窗.001",
+    "name": "側牆拱窗.001",
     "type": "MESH",
     "polygons": 26,
     "modifiers": []
@@ -2988,6 +3203,12 @@
     ]
   },
   {
+    "name": "側牆後窗金框.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
     "name": "側牆後窗.001",
     "type": "MESH",
     "polygons": 26,
@@ -3001,24 +3222,6 @@
       "BEVEL",
       "WEIGHTED_NORMAL"
     ]
-  },
-  {
-    "name": "駕駛室號牌金框.001",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "駕駛室號牌.001",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "識別牌 CK101.002",
-    "type": "FONT",
-    "polygons": 1089,
-    "modifiers": []
   },
   {
     "name": "登車扶手.002",

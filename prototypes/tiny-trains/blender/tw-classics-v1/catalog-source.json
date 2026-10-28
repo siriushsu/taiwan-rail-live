@@ -876,8 +876,7 @@
     "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/CK101_in_Jiji_Line.jpg/1280px-CK101_in_Jiji_Line.jpg",
     "author": "Kazehayashi",
     "licence": "CC BY-SA 4.0",
-    "use": "CK101 運行中（集集線）：側面與車頭",
-    "role": "side"
+    "use": "CK101 運行中（集集線）：側面與車頭"
    },
    {
     "file": "File:TRA CK101 at Changhua Roundhouse 2014-05-04.jpg",
@@ -887,25 +886,43 @@
     "licence": "CC BY 2.0",
     "use": "彰化扇形車庫停放：斜前側（水櫃、駕駛室）",
     "role": "front"
+   },
+   {
+    "file": "File:TRA CK101 on display at Changhua Roundhouse 2007-06-10.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_CK101_on_display_at_Changhua_Roundhouse_2007-06-10.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/TRA_CK101_on_display_at_Changhua_Roundhouse_2007-06-10.jpg/1280px-TRA_CK101_on_display_at_Changhua_Roundhouse_2007-06-10.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "2007 彰化扇形車庫斜側：走行板下彎、前甲板、空氣壓縮機、圓頂位置",
+    "role": "side"
+   },
+   {
+    "file": "File:TRA CK101 at Changhua Roundhouse 2010-02-02.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_CK101_at_Changhua_Roundhouse_2010-02-02.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/TRA_CK101_at_Changhua_Roundhouse_2010-02-02.jpg/1280px-TRA_CK101_at_Changhua_Roundhouse_2010-02-02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "2010 轉車台側面：水櫃長度、側面號牌、駕駛室金框窗、紅色連結桿"
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
   "label": "台鐵 CK101 蒸汽機車（CK100 型）",
   "color": "#1E2022",
-  "detail": "1917 年日本汽車製 2-6-2 水櫃機，1998 年台鐵第一部復駛的蒸機；黃黑斜紋緩衝樑、紅色直柵排障器",
-  "sideNote": "煙箱後到駕駛室前是兩側長水櫃，左側（+Y）走行板上有空氣壓縮機；Commons 這輪連不上，沒找到側面照可對，側面比例照 2-6-2 水櫃機的一般配置。",
+  "detail": "1917 年日本汽車製 2-6-2 水櫃機，1998 年台鐵第一部復駛的蒸機；短水櫃、走行板下彎、黃黑斜紋緩衝樑",
+  "sideNote": "水櫃從第二座圓頂起到駕駛室前，水櫃前方左側（+Y）走行板上立著空氣壓縮機；走行板在第一動輪前往下彎成較低的前甲板。",
   "checked": [
    "煙箱門一圈門扣、紅色中央手輪、紅底金框 CK101 號牌與右下橫把手（2014 彰化正面、集集線運轉照）",
-   "煙箱頂大頭燈在直筒煙囪正前方（兩張照片）",
-   "兩側水櫃前角黃色小牌、左側空氣壓縮機與黃銅注油器（集集線運轉照、2014 正面）",
-   "黃黑斜紋緩衝樑、紅色直柵排障器、自動車鉤與一條紅色旋塞的煞車軟管（集集線運轉照）",
-   "前方走行板橫向扶手與兩支信號燈柱、走行板邊緣黃線（2014 正面）"
+   "煙箱頂大頭燈在直筒煙囪正前方，大汽室圓頂緊跟在煙囪後、第二座圓頂在水櫃前端上方（2007 斜側、2010 側面）",
+   "水櫃只從第二座圓頂到駕駛室前、側面紅色號牌；左側走行板上的空氣壓縮機與前甲板黃銅注油器（2007 斜側、2010 側面）",
+   "走行板在第一動輪前往下彎成前甲板，邊緣黃線跟著彎；車輪白色輪緣線、紅色連結桿（2007 斜側、2010 側面）",
+   "駕駛室前牆金框圓窗、側面金框拱窗（2010 側面）",
+   "黃黑斜紋緩衝樑、紅色直柵排障器、自動車鉤與一條紅色旋塞的煞車軟管（集集線運轉照）"
   ],
   "simplified": [
-   "照 1998 年復駛後運轉的樣子；2014 年停在彰化扇形車庫時排障器與緩衝樑已改成全黑",
-   "沒有側面照可對：駕駛室側窗、入口開口與煤櫃位置照一般 2-6-2 水櫃機推估",
+   "緩衝樑斜紋與紅色排障器照 1998 年復駛後的運轉照；2007 年以後停在彰化時這兩處是全黑",
+   "白色輪緣線、紅色連結桿、金框窗照 2007–2010 照片，1998 年時是否相同沒有清楚照片可確認",
    "車高用資訊框的 3,658 mm（同頁文字另寫 3,596，差 6 公分，Q 版看不出）",
-   "閥動只做主要幾根桿件"
+   "閥動只做主要幾根桿件；駕駛室後段與煤櫃照片看不清，照一般 2-6-2 水櫃機做"
   ]
  },
  {
@@ -1054,6 +1071,62 @@
    "軸配列查不到，照兩軸做，車輪多半被外側車架擋住",
    "溪湖觀光敞車還沒做（見 README）",
    "駕駛室後端窗與屋頂設備照 837 號側面推估"
+  ]
+ },
+ {
+  "id": "sugarcar",
+  "group": "current",
+  "name": "台糖溪湖糖廠五分車觀光敞車",
+  "years": "甘蔗車改造（年份未查到）；溪湖糖廠假日觀光列車使用中",
+  "status": "現役：溪湖糖廠五分車觀光列車，由日立牌柴油機車牽引（台糖官網、旅遊資料搜尋摘要）。",
+  "source": "https://zh.wikipedia.org/wiki/臺灣糖業鐵路",
+  "sources": [
+   {
+    "title": "zh.wikipedia 臺灣糖業鐵路（車輛簡介）",
+    "url": "https://zh.wikipedia.org/wiki/臺灣糖業鐵路",
+    "supports": "觀光列車使用甘蔗車改造的客車，四面欄杆、長條椅；現存營業線 5 處均觀光用途"
+   },
+   {
+    "title": "台糖永續發展 五分車觀光園區",
+    "url": "https://www.taisugar.com.tw/CSR/CP2.aspx?n=13286",
+    "supports": "溪湖五分車觀光路線（搜尋摘要：溪湖站—草埔站 4.26 km／35 分）"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:溪湖糖廠的日立牌機車 後方為動態保存的346號蒸汽機車.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%BA%AA%E6%B9%96%E7%B3%96%E5%BB%A0%E7%9A%84%E6%97%A5%E7%AB%8B%E7%89%8C%E6%A9%9F%E8%BB%8A_%E5%BE%8C%E6%96%B9%E7%82%BA%E5%8B%95%E6%85%8B%E4%BF%9D%E5%AD%98%E7%9A%84346%E8%99%9F%E8%92%B8%E6%B1%BD%E6%A9%9F%E8%BB%8A.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/%E6%BA%AA%E6%B9%96%E7%B3%96%E5%BB%A0%E7%9A%84%E6%97%A5%E7%AB%8B%E7%89%8C%E6%A9%9F%E8%BB%8A_%E5%BE%8C%E6%96%B9%E7%82%BA%E5%8B%95%E6%85%8B%E4%BF%9D%E5%AD%98%E7%9A%84346%E8%99%9F%E8%92%B8%E6%B1%BD%E6%A9%9F%E8%BB%8A.jpg/1280px-%E6%BA%AA%E6%B9%96%E7%B3%96%E5%BB%A0%E7%9A%84%E6%97%A5%E7%AB%8B%E7%89%8C%E6%A9%9F%E8%BB%8A_%E5%BE%8C%E6%96%B9%E7%82%BA%E5%8B%95%E6%85%8B%E4%BF%9D%E5%AD%98%E7%9A%84346%E8%99%9F%E8%92%B8%E6%B1%BD%E6%A9%9F%E8%BB%8A.jpg",
+    "author": "Wengch",
+    "licence": "CC BY-SA 4.0",
+    "use": "溪湖現役觀光列車：敞車側面（奶油色方柱、彩印看板、藍色扶手與長椅）",
+    "role": "side"
+   },
+   {
+    "file": "File:Sihu DL 837 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Sihu_DL_837_01.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/98/Sihu_DL_837_01.jpg/1280px-Sihu_DL_837_01.jpg",
+    "author": "Heino Vogel",
+    "licence": "CC BY-SA 3.0 de",
+    "use": "837 號牽引的舊塗裝敞車（藍柱黃欄杆），看車端與踏階",
+    "role": "front"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台糖 溪湖五分車觀光敞車",
+  "color": "#E2D6B4",
+  "detail": "甘蔗車改造的敞篷客車，日立牌牽引；奶油色方柱、薄弧頂鐵皮、彩印看板與藍色長椅",
+  "sideNote": "一節一個開間：四角方柱、下半部裙板嵌彩印看板，看板頂一條藍色扶手。",
+  "checked": [
+   "一節一個開間、四角奶油色方柱、薄弧頂鐵皮（溪湖現役列車照）",
+   "下半部奶油色裙板嵌整片彩印看板、看板頂藍色扶手、方柱上禁止倚靠小牌（溪湖現役列車照）",
+   "車內藍色長椅、深色底架（溪湖現役列車照）"
+  ],
+  "simplified": [
+   "尺寸查不到，照照片跟日立牌（2.2 m 寬）的比例估",
+   "彩印看板內容是著作物，只用四塊色塊示意",
+   "長椅方向照片看不清，做成兩側面向中間",
+   "837 號照片裡的舊塗裝（藍柱、黃欄杆）沒做"
   ]
  }
 ]

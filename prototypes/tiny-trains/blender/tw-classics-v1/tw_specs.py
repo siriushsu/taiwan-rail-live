@@ -29,3 +29,5 @@ add('ck101','steam',L=7.0,W=2.62,H=3.66,body='1E2022',accent='B8281A',power='ste
 add('guanguang','coach',L=9.0,W=2.85,H=3.45,radiusTop=.80,doors=1,doorLeaves=2,body='ECE6D6',accent='C21A22',power='unpowered',label='35DC32751')
 # 台糖日立牌：762 mm，實車 5,540／2,200／3,000 mm；本身很短，長度只略縮。
 add('sugarhitachi','diesel',L=5.0,W=2.20,H=3.00,body='6E1410',accent='B02A12',power='diesel',label='827')
+# 溪湖觀光敞車：甘蔗車改造，尺寸查不到；照照片裡跟日立牌（2.2 m 寬）的比例估，一節一個開間。
+add('sugarcar','coach',L=4.4,W=2.0,H=2.62,body='E2D6B4',accent='1F4E9C',power='unpowered',label='')

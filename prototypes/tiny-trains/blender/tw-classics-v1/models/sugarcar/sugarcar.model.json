@@ -1,0 +1,258 @@
+{
+  "modelId": "sugarcar",
+  "name": "台糖溪湖糖廠五分車觀光敞車",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "coach",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -2.3299999237060547,
+      -1.1150000095367432,
+      -0.003000000026077032
+    ],
+    "max": [
+      2.3299999237060547,
+      1.1150000095367432,
+      2.647608518600464
+    ]
+  },
+  "sizeM": [
+    4.659999847412109,
+    2.2300000190734863,
+    2.650608539581299
+  ],
+  "mesh": {
+    "file": "sugarcar.mesh.bin",
+    "sha256": "73a85f201a7b28c4117df4a6d4c4bcc21fec36658aa334ea52780922bd6992fa",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 55068,
+    "triangleCount": 18356,
+    "drawGroups": [
+      {
+        "name": "chassis",
+        "start": 0,
+        "count": 22272,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "metal",
+        "start": 22272,
+        "count": 12216,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "ocfloor",
+        "start": 34488,
+        "count": 564,
+        "color": [
+          0.1119324266910553,
+          0.05780543014407158,
+          0.02955683507025242
+        ],
+        "metalness": 0.019999999552965164,
+        "roughness": 0.6000000238418579,
+        "clearcoat": 0.05000000074505806
+      },
+      {
+        "name": "occream",
+        "start": 35052,
+        "count": 7896,
+        "color": [
+          0.7605245113372803,
+          0.672443151473999,
+          0.4564110338687897
+        ],
+        "metalness": 0.03999999910593033,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.20000000298023224
+      },
+      {
+        "name": "ocpaper",
+        "start": 42948,
+        "count": 552,
+        "color": [
+          0.8227857351303101,
+          0.7758222222328186,
+          0.6583748459815979
+        ],
+        "metalness": 0.019999999552965164,
+        "roughness": 0.44999998807907104,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "ocposter0",
+        "start": 43500,
+        "count": 552,
+        "color": [
+          0.4793201684951782,
+          0.05612849071621895,
+          0.027320891618728638
+        ],
+        "metalness": 0.019999999552965164,
+        "roughness": 0.44999998807907104,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "ocposter1",
+        "start": 44052,
+        "count": 552,
+        "color": [
+          0.1119324266910553,
+          0.21223075687885284,
+          0.06847816705703735
+        ],
+        "metalness": 0.019999999552965164,
+        "roughness": 0.44999998807907104,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "ocposter2",
+        "start": 44604,
+        "count": 552,
+        "color": [
+          0.5840784311294556,
+          0.35153260827064514,
+          0.06847816705703735
+        ],
+        "metalness": 0.019999999552965164,
+        "roughness": 0.44999998807907104,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "ocposter3",
+        "start": 45156,
+        "count": 552,
+        "color": [
+          0.04970656707882881,
+          0.15592646598815918,
+          0.32314321398735046
+        ],
+        "metalness": 0.019999999552965164,
+        "roughness": 0.44999998807907104,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "ocblue",
+        "start": 45708,
+        "count": 4512,
+        "color": [
+          0.013702083379030228,
+          0.07618538290262222,
+          0.3324515223503113
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.2199999988079071
+      },
+      {
+        "name": "white",
+        "start": 50220,
+        "count": 1104,
+        "color": [
+          0.8713670969009399,
+          0.838798999786377,
+          0.6938717365264893
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "red",
+        "start": 51324,
+        "count": 2256,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "ocroof",
+        "start": 53580,
+        "count": 1488,
+        "color": [
+          0.5520114302635193,
+          0.577580451965332,
+          0.577580451965332
+        ],
+        "metalness": 0.30000001192092896,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.10000000149011612
+      }
+    ]
+  },
+  "nativeObjectCount": 99,
+  "features": {
+    "sideDoorGroups": 0,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "sugarcar",
+    "family": "coach",
+    "L": 4.4,
+    "W": 2.0,
+    "H": 2.62,
+    "body": "E2D6B4",
+    "accent": "1F4E9C",
+    "power": "unpowered",
+    "label": "",
+    "pantos": 0
+  },
+  "reference": {
+    "source": "https://zh.wikipedia.org/wiki/臺灣糖業鐵路",
+    "detail": null,
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}
