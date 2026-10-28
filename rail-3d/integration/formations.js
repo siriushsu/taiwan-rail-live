@@ -41,6 +41,12 @@ export const FORMATIONS={
   ankeng:spec('ankeng',repeat(5,34.45/5),2.65,'路線標準 5 分節；單節長度示意',{articulated:true}),
   caf:spec('caf',repeat(5,34/5),2.65,'路線標準 5 分節；CAF 代表外觀、長度約值',{articulated:true}),
 };
+// 依車次細分的區間車（2026-10-28 網友整理的運用規則，見 FORMATIONS.md）。只有帶 trainNo 的呼叫端
+// （畫 3D 車、跟車卡說明）會分到；防追撞、待避讀的長度不帶車次，照舊是 commuter 的 8 輛。
+// 放在 FORMATIONS 表外（同下面的自製列車）：原生 App 的 golden 逐鍵比對那張表。
+const COMMUTER_4=estimated('emu800',repeat(4,20),2.9,'依網友整理的運用規則：37、38 開頭（沙崙線）為 4 輛；代打或調度異動時可能不同');
+const COMMUTER_10=estimated('emu800',repeat(10,20),2.9,'依網友整理的運用規則：1006、3029、3005、3028 為 10 輛；代打或調度異動時可能不同');
+const COMMUTER_10_NOS=['1006','3029','3005','3028'];
 // 自製列車:modelId 有值就用那款車,排在系統/車種推斷之前。
 // 林鐵四款(含 dl25)不走 FORMATIONS.forest——那個物件的 id 寫死 dl25,四款都借會全部畫成同一顆車模。
 const OWN_FOREST_IDS=['dl25','dl38','dl39','dl45'];
@@ -87,6 +93,8 @@ function baseFormation(v){
     if(stock==='dr3100'||cn.includes('(D31'))return FORMATIONS.dr3100;
     if(stock==='chukuang'||/莒光|普通車/.test(cn))return FORMATIONS.chukuang;
     if(/區間/.test(cn)&&['pingxi','shenao','jiji','neiwan'].includes(v.branchId))return FORMATIONS.dr1000;
+    if(/區間/.test(cn)&&/^3[78]\d\d$/.test(v.trainNo))return COMMUTER_4;
+    if(/區間/.test(cn)&&COMMUTER_10_NOS.includes(v.trainNo))return COMMUTER_10;
     return FORMATIONS.commuter;
   }
   if(v.systemId==='afr_sched')return FORMATIONS.forest;

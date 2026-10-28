@@ -83,7 +83,7 @@
         const g=trainSeg(tr,state.simSec-liveDelaySec(tr)-blockHoldSec(tr));
         const route=pos.physical?pos.route:g?.ln?lineRecord(g.ln,tr.sys):null;
         const id=[tr.sys,day,tr.train,tr.stops[0]?.depSec,tr.stops.at(-1)?.arrSec].join(':');
-        add(id,pos,{systemId:tr.sys,routeId:route?.routeId||null,route,color:tr.color||'#438477',publicLabel:String(tr.train),typeName:tr.typeName,carName:tr.carName,stockId:specialOf(tr)?.stock?.id||null,branchId:specialOf(tr)?.branch?.id||null,namedId:specialOf(tr)?.named?.id||null,chainageM:pos.physical?pos.chainageM:Number.isFinite(g?.d)?g.d*1000:null,railDirection:pos.physical?pos.railDirection:null,formationFacing:pos.formationFacing||1,
+        add(id,pos,{systemId:tr.sys,routeId:route?.routeId||null,route,color:tr.color||'#438477',publicLabel:String(tr.train),trainNo:String(tr.train),typeName:tr.typeName,carName:tr.carName,stockId:specialOf(tr)?.stock?.id||null,branchId:specialOf(tr)?.branch?.id||null,namedId:specialOf(tr)?.named?.id||null,chainageM:pos.physical?pos.chainageM:Number.isFinite(g?.d)?g.d*1000:null,railDirection:pos.physical?pos.railDirection:null,formationFacing:pos.formationFacing||1,
           sourceKind:'timetable',direction:g?.dir??null,followed:state.followTrain===tr},{tr});
       }
       // 自製列車:另外掃一輪,條件跟 2D(ownTrainDraw2D)一樣——系統有載入、chip 開著,

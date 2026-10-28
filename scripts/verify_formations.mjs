@@ -49,6 +49,10 @@ const estimated = [
   ['平原號', {systemId:'tra_sched',namedId:'pingyuan'},6],
   ['柴聯自強 DR3100', {systemId: 'tra_sched', carName: '自強(D31)'}, 3],
   ['支線柴聯 DR1000', {systemId: 'tra_sched', carName: '區間車', branchId: 'pingxi'}, 3],
+  // 2026-10-28 依車次細分；3112 是對照：其餘車次帶了 trainNo 也要維持 8 輛。
+  ['沙崙線區間車（37、38 開頭）', {systemId: 'tra_sched', carName: '區間車', trainNo: '3712'}, 4],
+  ['十輛區間快（1006、3029、3005、3028）', {systemId: 'tra_sched', carName: '區間快', trainNo: '3029'}, 10],
+  ['其餘車次的區間車', {systemId: 'tra_sched', carName: '區間車', trainNo: '3112'}, 8],
 ];
 // 推估來源每季人工重驗；這是維護期限，不預設任何營運單位的改點日期。
 // 2026-10-20 已逐項核對 12 案的依據與限制，紀錄見 FORMATIONS.md 同日重驗表。
@@ -134,7 +138,7 @@ for (const id of withNos) {
 
 // 具名覆蓋率斷言：這兩張表是手寫的，少一列不會有任何錯誤訊息。
 assert.equal(cases.length, 21, '標準編組檢查表被改動，請同時更新這個數字');
-assert.equal(estimated.length, 12, '推估編組檢查表被改動，請同時更新這個數字');
+assert.equal(estimated.length, 15, '推估編組檢查表被改動，請同時更新這個數字');
 assert.ok(new Date() < new Date(ESTIMATE_RECHECK + 'T00:00:00+08:00'),
   `推估編組的重驗期限 ${ESTIMATE_RECHECK} 已到：請逐項重查 FORMATIONS.md 的推估編組依據與限制，確認後再更新期限`);
 

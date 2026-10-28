@@ -5648,7 +5648,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/10/27</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/10/28</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5656,6 +5656,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="commutercars1028"><span class="d">10/28</span><span>立體列車的區間車改依車次推估節數：沙崙線（37、38 開頭的車次）畫 4 節，1006、3029、3005、3028 次畫 10 節，其餘維持 8 節，仍標示「推估編組」</span></li>
         <li data-cl-of="bountypoints"><span class="d">10/27</span><span>校正懸賞改用島民點數：合格的一趟照實際錄到的沿線里程給點，1 公里 1 點，南迴、臺東線加倍，每天最多 500 點；原有籌碼 1 顆換 50 點，已解鎖的車庫場景照舊</span></li>
         <li data-cl-of="weatherdanhai1024"><span class="d">10/24</span><span>颱風公告補列淡海官網15至30分鐘班距與停駛資訊不一致，提醒先確認實際開行</span></li>
         <li data-cl-of="horizonclip1024"><span class="d">10/24</span><span>傾斜視角：地平線後的站名與列車不再畫進天空、遠方線條不再擠成橫帶；起伏地形的示意線改由立體層繪製，遠近粗細一致</span></li>
@@ -5663,7 +5664,6 @@
         <li data-cl-of="weathertymcafr1024"><span class="d">10/24</span><span>桃捷普通15分鐘、依航班與人潮彈性加開直達；林鐵列表：沼平、神木24日13時起恢復，本線、祝山25日恢復。</span></li>
         <li data-cl-of="weathernttymc1024"><span class="d">10/24</span><span>桃捷普通車依假日時刻、13時起彈性增開直達；環狀與三鶯約15分鐘、安坑約30分鐘，淡海仍停駛。</span></li>
         <li data-cl-of="weathertrtcnoon1024"><span class="d">10/24</span><span>北捷公告五線逐步加密至 8 分至 9 分 30 秒，三段重疊區間約 4 分 30 秒；保留台鐵東部搶修、改班與停駛例外</span></li>
-        <li data-cl-of="weathertraeast1024"><span class="d">10/24</span><span>台鐵更新北迴、宜蘭線搶修與東部班次，5216 次改停駛，432、273 次列出新時刻；請留意截短、停駛與支線待巡查資訊</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5697,6 +5697,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="commutercars1028"><span class="d">10/28</span><span>立體列車的區間車改依車次推估節數：沙崙線（37、38 開頭的車次）畫 4 節，1006、3029、3005、3028 次畫 10 節，其餘維持 8 節，仍標示「推估編組」</span></li>
         <li data-cl="trabindvariant1019"><span class="d">10/19</span><span>台鐵列車某天比平常多停或少停一站時（例如 8/30 的 6616、9/28 的 132 與 136），立體地圖上不再退回示意線形，改沿實體股道行駛，優先走這班平常的股道</span></li>
         <li data-cl="overtakeside1019"><span class="d">10/19</span><span>修正 10/22 金崙站、10/23 和仁站的預排待避：停下來等車的列車改走站內的側線，不再跟通過的列車在立體地圖上疊在同一條股道</span></li>
         <li data-cl="tainanglow1018"><span class="d">10/18</span><span>臺南地面鐵道最後一天的重播：145 與 3782 改成貼著車身的柔和光暈；終點是臺南、保安的班次，標籤註明終點；同站同時停兩班時改停不同股道，股道畫得太近的幾處也拉開，並排的兩車不再重疊；22:00 封鎖初期的列車照常畫出車身</span></li>
@@ -7074,7 +7075,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1019b：台鐵同鍵、中途停靠型態不同的班往下借路徑、不退回示意線形，且把自己那份計畫留在模板候選裡（3bde26de、1a781914）；另併入待避窗口逐日掃描報告（28c906cd、7232d41e，不進網站產物）；更新紀錄加一條。
 // v1020a：併入通行證專屬的自製列車；更新紀錄改成這次上線的一條。
 // v1020b：自製列車表單的起訖站點了就列出站名清單（常用大站＋依路線），選完起站自動攤開訖站、可對調、打完整站名即選定；更新紀錄加一條。
-const BUILD = 'v1027a';
+// v1028a：區間車的立體列車依車次推估節數（沙崙線 4 節、四班區間快 10 節），只改畫出來的節數與說明；更新紀錄加一條。
+const BUILD = 'v1028a';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
