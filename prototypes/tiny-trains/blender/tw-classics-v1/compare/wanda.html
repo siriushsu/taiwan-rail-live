@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>萬大線 Metropolis對照</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e3e1da;--accent:#c4501b}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--muted:#9a9aa2;--line:#2e2e33;--accent:#f08a4b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:28px 0 8px}
+a{color:var(--accent)}
+.sub,.cap{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--muted)}
+.card img{display:block;width:100%;height:auto}
+.meta{display:flex;align-items:center;gap:8px;padding:8px 10px 0}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid var(--line)}
+.cap{padding:0 10px 6px}
+.card .cap:last-child{padding-bottom:10px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:720px){.pair{grid-template-columns:1fr}}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:8px 10px;font-size:13px;color:var(--muted)}
+ul{padding-left:20px}
+.table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+.table th,.table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.table th{font-size:13px;color:var(--muted);font-weight:600}
+.wrap{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.done{color:#2f7d4f;border-color:#2f7d4f}
+.todo{color:var(--muted)}
+.thumb{width:150px;border-radius:6px;display:block}
+</style>
+</head>
+<body>
+<main>
+<h1>台北捷運萬大線 Alstom Metropolis：渲染與照片對照</h1>
+<p class="sub">左邊是 Blender 5.2.1 Q 版模型渲染，右邊是 Wikimedia Commons 照片（直接連 Commons 顯示，沒有複製進 repo）。已交車；2025-11 已有數列在金城機廠；2026 年起主線動態測試（雙北市長搭乘體驗），尚未載客，萬大線一期目標 2027 年底通車。屬「已交車試運轉」，列為現役缺款。</p>
+<p class="sub"><a href="batch-tw.html">← 回總覽</a>　·　<a href="../inventory.html">盤點清單</a></p>
+<h2>車頭</h2>
+<div class="pair">
+<figure><img src="../models/wanda/renders/front.png" alt="模型車頭渲染"><figcaption>模型車頭</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e5/First_unit_of_the_Alstom_Metropolis_train_of_Wanda%E2%80%93Zhonghe%E2%80%93Shulin_Line_revealed_at_the_Jincheng_depot.jpg/1280px-First_unit_of_the_Alstom_Metropolis_train_of_Wanda%E2%80%93Zhonghe%E2%80%93Shulin_Line_revealed_at_the_Jincheng_depot.jpg" alt="萬大線 Metropolis車頭照片" loading="lazy"><figcaption>照片：Unknown authorUnknown author，Attribution（<a href="https://commons.wikimedia.org/wiki/File:First_unit_of_the_Alstom_Metropolis_train_of_Wanda%E2%80%93Zhonghe%E2%80%93Shulin_Line_revealed_at_the_Jincheng_depot.jpg">原檔</a>）。萬大線 Alstom Metropolis 首列（金城機廠揭幕）：車頭正面／斜側、藍色波浪塗裝</figcaption></figure>
+</div>
+<h2>斜側</h2>
+<div class="pair">
+<figure><img src="../models/wanda/renders/hero.png" alt="模型斜側渲染"><figcaption>模型斜側</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/96/Rolling_stock_at_Jincheng_Depot.jpg/1280px-Rolling_stock_at_Jincheng_Depot.jpg" alt="萬大線 Metropolis斜側照片" loading="lazy"><figcaption>照片：臺北市政府捷運工程局，Attribution（<a href="https://commons.wikimedia.org/wiki/File:Rolling_stock_at_Jincheng_Depot.jpg">原檔</a>）。金城機廠停放的萬大樹林線電聯車（整列側面、車頭）</figcaption></figure>
+</div>
+<h2>側面</h2>
+<figure><img src="../models/wanda/renders/side.png" alt="模型側面渲染"><figcaption>模型側面：每側 3 組雙開門；全自動無人駕駛，沒有乘務員門</figcaption></figure>
+<h2>對過的地方</h2>
+<ul>
+<li>削鉛筆式斜傾車頭，平面上兩角收圓；草綠車頂一路包到車頭上緣，帽簷上一條黑色車號帶。</li>
+<li>黑色不對稱大擋風：列車右側窗較小、下方是雨刷座與兩顆圓燈；列車左側窗較大、往下延伸。</li>
+<li>白色車頭下半、深灰下裙，兩側百葉格柵、中央開口露出車鉤。</li>
+<li>車側白銀、上緣草綠、窗下四條青綠到藍的長波浪細線，從車頭往車尾延伸。</li>
+<li>第三軌供電推定（研究來源沒寫），車頂沒有集電弓。</li>
+</ul>
+<h2>刻意簡化或沒做</h2>
+<ul>
+<li>北捷標誌不放；車號帶上的「LG」是可移除的示意字牌（萬大線路線代碼），不是實際車號。</li>
+<li>兩端車的燈與窗左右配置在照片上互為鏡像，模型照首列 1101 的那一端。</li>
+<li>波浪線是四條等寬正弦近似，實車線條粗細有漸變。</li>
+</ul>
+<h2>資料來源</h2>
+<ul>
+<li><a href="https://www-ws.gov.taipei/001/Upload/388/relfile/19519/8958479/549b2630-b457-4c98-8fd8-70f92fced7e3.pdf">臺北市捷運局《萬大線首列電聯車巴西製造現況》（PDF）</a>：4車編組、總長70m、每節17.5m×2.8m×3.6m、不銹鋼、700人、塗裝朝氣蓬勃、端門緊急逃生門</li>
+<li><a href="https://www.alstom.com/press-releases-news/2024/11/alstom-successfully-delivers-first-trainset-taipei-wanda-line">Alstom 新聞稿 首列交付</a>：2024-11 交付首列、Taubaté 製造、全自動、Urbalis CBTC</li>
+<li><a href="https://zh.wikipedia.org/wiki/萬大—中和—樹林線">zh.wikipedia 萬大—中和—樹林線</a>：2024-10-22 首列運抵金城機廠、票選朝氣蓬勃、35列、阿爾斯通大都會型</li>
+<li><a href="https://udn.com/news/story/7323/9667345">UDN 台北捷運萬大線列車動態測試</a>：2026 年主線動態測試開始（來自搜尋摘要，需主對話再抽測日期）</li>
+</ul>
+<p class="cap">50,750 三角形 · 218 個可編修物件 · 包圍盒 8.73 × 2.85 × 3.57 展示公尺</p>
+
+</main>
+</body>
+</html>

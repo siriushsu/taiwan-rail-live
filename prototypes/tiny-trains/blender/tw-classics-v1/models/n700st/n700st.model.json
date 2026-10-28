@@ -1,0 +1,274 @@
+{
+  "modelId": "n700st",
+  "name": "台灣高鐵 N700ST（N700S 台灣版）",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "express",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -5.198999881744385,
+      -1.4853638410568237,
+      0.0
+    ],
+    "max": [
+      4.701075553894043,
+      1.4853638410568237,
+      3.450000047683716
+    ]
+  },
+  "sizeM": [
+    9.900075912475586,
+    2.9707276821136475,
+    3.450000047683716
+  ],
+  "mesh": {
+    "file": "n700st.mesh.bin",
+    "sha256": "5e0e49f3ce943a936f3cf5f0a9eff939db0fcca84f6dcc9480c94e15e63cea77",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 137808,
+    "triangleCount": 45936,
+    "drawGroups": [
+      {
+        "name": "thsrwhite",
+        "start": 0,
+        "count": 23388,
+        "color": [
+          0.8879231214523315,
+          0.8879231214523315,
+          0.8549926280975342
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.4000000059604645
+      },
+      {
+        "name": "thsrgrey",
+        "start": 23388,
+        "count": 19920,
+        "color": [
+          0.2158605009317398,
+          0.23839756846427917,
+          0.2541520893573761
+        ],
+        "metalness": 0.30000001192092896,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.20000000298023224
+      },
+      {
+        "name": "thsrorange",
+        "start": 43308,
+        "count": 5856,
+        "color": [
+          0.8713670969009399,
+          0.1441284716129303,
+          0.011612244881689548
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.3199999928474426
+      },
+      {
+        "name": "thsrdark",
+        "start": 49164,
+        "count": 3912,
+        "color": [
+          0.027320891618728638,
+          0.03189603239297867,
+          0.03688944876194
+        ],
+        "metalness": 0.25,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.15000000596046448
+      },
+      {
+        "name": "frame",
+        "start": 53076,
+        "count": 5148,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 58224,
+        "count": 5520,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "metal",
+        "start": 63744,
+        "count": 21132,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "thsrglass",
+        "start": 84876,
+        "count": 2016,
+        "color": [
+          0.010960093699395657,
+          0.017641954123973846,
+          0.02955683507025242
+        ],
+        "metalness": 0.30000001192092896,
+        "roughness": 0.15000000596046448,
+        "clearcoat": 0.44999998807907104
+      },
+      {
+        "name": "lamp",
+        "start": 86892,
+        "count": 120,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "red",
+        "start": 87012,
+        "count": 1536,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 88548,
+        "count": 9312,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "chassis",
+        "start": 97860,
+        "count": 29424,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 127284,
+        "count": 9396,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "roof",
+        "start": 136680,
+        "count": 1128,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 150,
+  "features": {
+    "sideDoorGroups": 1,
+    "doorLeavesPerGroup": 1,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "n700st",
+    "family": "express",
+    "L": 9.6,
+    "W": 2.85,
+    "H": 3.25,
+    "body": "F2F2EE",
+    "accent": "F06A1C",
+    "power": "overhead-other-car",
+    "label": "N700ST",
+    "neck": 0.1,
+    "pantos": 0,
+    "doors": 1,
+    "doorLeaves": 1
+  },
+  "reference": {
+    "source": "https://zh.wikipedia.org/wiki/台灣高速鐵路N700ST型電聯車",
+    "detail": "白色長鴨嘴鼻 · 橘色楔形斜切 · 淺灰下緣",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

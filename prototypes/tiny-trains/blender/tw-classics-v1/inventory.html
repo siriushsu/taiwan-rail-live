@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>台灣缺車盤點清單</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e3e1da;--accent:#c4501b}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--muted:#9a9aa2;--line:#2e2e33;--accent:#f08a4b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:28px 0 8px}
+a{color:var(--accent)}
+.sub,.cap{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--muted)}
+.card img{display:block;width:100%;height:auto}
+.meta{display:flex;align-items:center;gap:8px;padding:8px 10px 0}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid var(--line)}
+.cap{padding:0 10px 6px}
+.card .cap:last-child{padding-bottom:10px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:720px){.pair{grid-template-columns:1fr}}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:8px 10px;font-size:13px;color:var(--muted)}
+ul{padding-left:20px}
+.table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+.table th,.table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.table th{font-size:13px;color:var(--muted);font-weight:600}
+.wrap{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.done{color:#2f7d4f;border-color:#2f7d4f}
+.todo{color:var(--muted)}
+.thumb{width:150px;border-radius:6px;display:block}
+</style>
+</head>
+<body>
+<main>
+<h1>台灣缺車與經典老車：盤點清單</h1>
+<p class="sub">對照台灣車隊 fleet-v1 已有的 62 款，列出台灣鐵道還沒建模的現役車與已退役的經典車。狀態以 2026-10 查到的來源為準；照片只在本機比對外觀，不進交付包、不當貼圖。已建模 3／3 款，<a href="compare/batch-tw.html">模型總覽</a>。</p>
+<h2>現役但還沒建模</h2>
+<div class="wrap"><table class="table"><thead><tr><th>縮圖</th><th>車款</th><th>狀態</th><th>資料來源</th><th>參考照片</th><th>建模</th></tr></thead><tbody>
+<tr><td><img class="thumb" src="models/n700st/renders/thumb.webp" alt="" loading="lazy"></td><td><b>台灣高鐵 N700ST（N700S 台灣版）</b><br><span class="cap">2023-05 簽約12組；2025-08-20 定名 N700ST；2026-07-30 首組出廠；2026-08-15 運抵高雄港；預計 2027-07-01 首批3組載客</span></td><td>已交車、靜態/動態測試中，尚未載客（2026-10）。第二組預計 2026-11/12 運抵、第三組 2027-01；12組預計 2028-09 全數上線。符合「已交車試運轉」，列為現役缺款。</td><td><a href="https://zh.wikipedia.org/wiki/台灣高速鐵路N700ST型電聯車">zh.wikipedia 台灣高速鐵路N700ST型電聯車</a><br><a href="https://www.storm.mg/article/11152868">Storm Media 台灣高鐵「N700ST」新車出廠</a><br><a href="https://technews.tw/2025/08/20/thsrc-n700st-show-up/">TechNews 台灣高鐵新車命名 N700ST，新塗裝亮相</a><br><a href="https://commons.wikimedia.org/wiki/File:%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF_20260815.jpg">Commons 照片本人目視（N700ST 於高雄港 2026-08-15）</a></td><td><a href="https://commons.wikimedia.org/wiki/File:%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF_20260815.jpg">臺灣高鐵N700ST型電聯車於高雄港 20260815.jpg</a>（高雄市政府，Attribution）<br><a href="https://commons.wikimedia.org/wiki/File:20260815%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF%E5%90%8A%E6%8E%9B%E4%B8%8B%E8%88%B9%E4%BD%9C%E6%A5%AD.jpg">20260815臺灣高鐵N700ST型電聯車於高雄港吊掛下船作業.jpg</a>（高雄市政府，Attribution）<br><a href="https://commons.wikimedia.org/wiki/File:N700S_722-8102_Front-side.jpg">N700S 722-8102 Front-side.jpg</a>（MaedaAkihiko，CC BY-SA 4.0）</td><td><span class="tag done">已建模</span><br><a href="compare/n700st.html">對照頁</a></td></tr>
+<tr><td><img class="thumb" src="models/c381a/renders/thumb.webp" alt="" loading="lazy"></td><td><b>台北捷運 CR381A（Hyundai Rotem）</b><br><span class="cap">2025 前後簽約；2026-05-05 馬山港待啟航；2026-06 起在北投機廠；2026-07-28 正式亮相；預計 2027-05 起載客</span></td><td>已交車、北投機廠測試中（Commons 2026-07-17～08-28 多張北投機廠實拍），尚未載客；10列，單列約 5.9 億元，優先配置淡水信義線。符合「已交車試運轉」，列為現役缺款。</td><td><a href="https://www.setn.com/news/1879845">setn 北捷新車亮相（Hyundai Rotem CR381A，2027 年 5 月起載客）</a><br><a href="https://udn.com/news/story/7266/9656323">UDN 北捷新車廂亮相</a><br><a href="https://zh.wikipedia.org/wiki/台北捷運381型電聯車">zh.wikipedia 台北捷運381型電聯車（對照用 C381 規格）</a><br><a href="https://commons.wikimedia.org/wiki/Category:Taipei_Metro_CR381A">Commons Category:Taipei Metro CR381A</a></td><td><a href="https://commons.wikimedia.org/wiki/File:CR381A_straight_20260827.jpg">CR381A straight 20260827.jpg</a>（Sinsyuan，CC BY-SA 4.0）<br><a href="https://commons.wikimedia.org/wiki/File:CR381A_at_Beitou_Depot_TTK_20260731.jpg">CR381A at Beitou Depot TTK 20260731.jpg</a>（Sinsyuan，CC BY-SA 4.0）<br><a href="https://commons.wikimedia.org/wiki/File:TRTC_Hyundai_Rotem_Exterior_Demo.jpg">TRTC Hyundai Rotem Exterior Demo.jpg</a>（臺北大眾捷運股份有限公司，Attribution）</td><td><span class="tag done">已建模</span><br><a href="compare/c381a.html">對照頁</a></td></tr>
+<tr><td><img class="thumb" src="models/wanda/renders/thumb.webp" alt="" loading="lazy"></td><td><b>台北捷運萬大線 Alstom Metropolis</b><br><span class="cap">2022-10 起製造；2024-10-22 首列運抵金城機廠；第一期19列、第二期16列，共35列4輛編組</span></td><td>已交車；2025-11 已有數列在金城機廠；2026 年起主線動態測試（雙北市長搭乘體驗），尚未載客，萬大線一期目標 2027 年底通車。屬「已交車試運轉」，列為現役缺款。</td><td><a href="https://www-ws.gov.taipei/001/Upload/388/relfile/19519/8958479/549b2630-b457-4c98-8fd8-70f92fced7e3.pdf">臺北市捷運局《萬大線首列電聯車巴西製造現況》（PDF）</a><br><a href="https://www.alstom.com/press-releases-news/2024/11/alstom-successfully-delivers-first-trainset-taipei-wanda-line">Alstom 新聞稿 首列交付</a><br><a href="https://zh.wikipedia.org/wiki/萬大—中和—樹林線">zh.wikipedia 萬大—中和—樹林線</a><br><a href="https://udn.com/news/story/7323/9667345">UDN 台北捷運萬大線列車動態測試</a></td><td><a href="https://commons.wikimedia.org/wiki/File:First_unit_of_the_Alstom_Metropolis_train_of_Wanda%E2%80%93Zhonghe%E2%80%93Shulin_Line_revealed_at_the_Jincheng_depot.jpg">First unit of the Alstom Metropolis train of Wanda–Zhonghe–Shulin Line revealed at the Jincheng depot.jpg</a>（Unknown authorUnknown author，Attribution）<br><a href="https://commons.wikimedia.org/wiki/File:Rolling_stock_at_Jincheng_Depot.jpg">Rolling stock at Jincheng Depot.jpg</a>（臺北市政府捷運工程局，Attribution）</td><td><span class="tag done">已建模</span><br><a href="compare/wanda.html">對照頁</a></td></tr>
+</tbody></table></div>
+</main>
+</body>
+</html>

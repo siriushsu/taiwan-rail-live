@@ -1,0 +1,289 @@
+{
+  "modelId": "wanda",
+  "name": "台北捷運萬大線 Alstom Metropolis",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "metro",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.39900016784668,
+      -1.4229999780654907,
+      0.0
+    ],
+    "max": [
+      4.328999996185303,
+      1.4229999780654907,
+      3.569999933242798
+    ]
+  },
+  "sizeM": [
+    8.72800064086914,
+    2.8459999561309814,
+    3.569999933242798
+  ],
+  "mesh": {
+    "file": "wanda.mesh.bin",
+    "sha256": "2dde4f0323772f6b0018d5ba8a80ff55302485c1f7942c67c9e3085b7a7f3b55",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 152250,
+    "triangleCount": 50750,
+    "drawGroups": [
+      {
+        "name": "wdwhite",
+        "start": 0,
+        "count": 7734,
+        "color": [
+          0.7912979125976562,
+          0.8227857351303101,
+          0.8227857351303101
+        ],
+        "metalness": 0.20000000298023224,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.25
+      },
+      {
+        "name": "wdgrey",
+        "start": 7734,
+        "count": 16368,
+        "color": [
+          0.10224173218011856,
+          0.11443537473678589,
+          0.12477181851863861
+        ],
+        "metalness": 0.30000001192092896,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "wdgreen",
+        "start": 24102,
+        "count": 1308,
+        "color": [
+          0.3324515223503113,
+          0.577580451965332,
+          0.045186202973127365
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "frame",
+        "start": 25410,
+        "count": 19164,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 44574,
+        "count": 9144,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "metal",
+        "start": 53718,
+        "count": 31692,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "roof",
+        "start": 85410,
+        "count": 2256,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "chassis",
+        "start": 87666,
+        "count": 39936,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 127602,
+        "count": 9828,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "wdwave0",
+        "start": 137430,
+        "count": 1920,
+        "color": [
+          0.008568125776946545,
+          0.35153260827064514,
+          0.3324515223503113
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.2800000011920929
+      },
+      {
+        "name": "wdwave1",
+        "start": 139350,
+        "count": 1920,
+        "color": [
+          0.012286487966775894,
+          0.30946892499923706,
+          0.40724021196365356
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.2800000011920929
+      },
+      {
+        "name": "wdwave2",
+        "start": 141270,
+        "count": 1920,
+        "color": [
+          0.016807375475764275,
+          0.26635560393333435,
+          0.4910208582878113
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.2800000011920929
+      },
+      {
+        "name": "wdwave3",
+        "start": 143190,
+        "count": 1920,
+        "color": [
+          0.022173885256052017,
+          0.23074005544185638,
+          0.5840784311294556
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.2800000011920929
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 145110,
+        "count": 3144,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "lamp",
+        "start": 148254,
+        "count": 3996,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 218,
+  "features": {
+    "sideDoorGroups": 3,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "wanda",
+    "family": "metro",
+    "L": 8.0,
+    "W": 2.68,
+    "H": 3.35,
+    "doors": 3,
+    "doorLeaves": 2,
+    "rearDoor": 1.1,
+    "frontDoor": 1.25,
+    "cabGap": 0.62,
+    "body": "E6EAEA",
+    "accent": "B4D564",
+    "power": "third-rail",
+    "label": "LG",
+    "pantos": 0
+  },
+  "reference": {
+    "source": "https://www-ws.gov.taipei/001/Upload/388/relfile/19519/8958479/549b2630-b457-4c98-8fd8-70f92fced7e3.pdf",
+    "detail": "草綠車頂包車頭 · 不對稱黑擋風 · 青綠波浪線",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

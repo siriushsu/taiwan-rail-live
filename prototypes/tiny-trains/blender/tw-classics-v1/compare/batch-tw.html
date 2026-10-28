@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>台灣缺車與經典老車</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e3e1da;--accent:#c4501b}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--muted:#9a9aa2;--line:#2e2e33;--accent:#f08a4b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:28px 0 8px}
+a{color:var(--accent)}
+.sub,.cap{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--muted)}
+.card img{display:block;width:100%;height:auto}
+.meta{display:flex;align-items:center;gap:8px;padding:8px 10px 0}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid var(--line)}
+.cap{padding:0 10px 6px}
+.card .cap:last-child{padding-bottom:10px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:720px){.pair{grid-template-columns:1fr}}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:8px 10px;font-size:13px;color:var(--muted)}
+ul{padding-left:20px}
+.table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+.table th,.table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.table th{font-size:13px;color:var(--muted);font-weight:600}
+.wrap{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.done{color:#2f7d4f;border-color:#2f7d4f}
+.todo{color:var(--muted)}
+.thumb{width:150px;border-radius:6px;display:block}
+</style>
+</head>
+<body>
+<main>
+<h1>台灣缺車與經典老車：精修模型總覽</h1>
+<p class="sub">照世界車銀座線 1000 系定下的精細度、用台灣車隊 fleet-v1 同一套 Blender 5.2.1 管線做的。每張是斜側 Cycles 渲染，點進去是跟 Commons 照片並排的對照頁。Q 版比照台灣車隊：車長壓縮、斷面接近實車；不放營運商標，車號是可移除的示意字牌。目前 3／3 款。<a href="../inventory.html">盤點清單</a></p>
+<h2>現役但還沒建模</h2>
+<div class="grid">
+<a class="card" href="n700st.html">
+<img src="../models/n700st/renders/hero.png" alt="高鐵 N700ST 斜側渲染" loading="lazy">
+<div class="meta"><span class="dot" style="background:#f06a1c"></span><b>高鐵 N700ST</b></div>
+<div class="cap">白色長鴨嘴鼻 · 橘色楔形斜切 · 淺灰下緣</div>
+<div class="cap">45,936 三角形 · 對照頁 →</div>
+</a>
+<a class="card" href="c381a.html">
+<img src="../models/c381a/renders/hero.png" alt="北捷 CR381A 斜側渲染" loading="lazy">
+<div class="meta"><span class="dot" style="background:#2b7cc9"></span><b>北捷 CR381A</b></div>
+<div class="cap">方正黑面車頭 · 中央貫通門 · V 形 LED 燈座</div>
+<div class="cap">65,452 三角形 · 對照頁 →</div>
+</a>
+<a class="card" href="wanda.html">
+<img src="../models/wanda/renders/hero.png" alt="萬大線 Metropolis 斜側渲染" loading="lazy">
+<div class="meta"><span class="dot" style="background:#9cc83c"></span><b>萬大線 Metropolis</b></div>
+<div class="cap">草綠車頂包車頭 · 不對稱黑擋風 · 青綠波浪線</div>
+<div class="cap">50,750 三角形 · 對照頁 →</div>
+</a>
+</div>
+</main>
+</body>
+</html>

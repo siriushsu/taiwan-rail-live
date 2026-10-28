@@ -1,0 +1,9 @@
+# 大檔可以用 build_tw.py 重建（Blender 5.2.1），不進 git；台灣車隊 fleet-v1 也沒進。
+models/*/*.blend
+models/*/*.blend1
+models/*/*.glb
+models/*/*.mesh.bin
+models/*/renders/
+build.log
+latest-build-progress.json
+__pycache__/

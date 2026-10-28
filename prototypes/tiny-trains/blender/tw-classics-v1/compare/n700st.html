@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>高鐵 N700ST對照</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e3e1da;--accent:#c4501b}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--muted:#9a9aa2;--line:#2e2e33;--accent:#f08a4b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:28px 0 8px}
+a{color:var(--accent)}
+.sub,.cap{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--muted)}
+.card img{display:block;width:100%;height:auto}
+.meta{display:flex;align-items:center;gap:8px;padding:8px 10px 0}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid var(--line)}
+.cap{padding:0 10px 6px}
+.card .cap:last-child{padding-bottom:10px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:720px){.pair{grid-template-columns:1fr}}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:8px 10px;font-size:13px;color:var(--muted)}
+ul{padding-left:20px}
+.table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+.table th,.table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.table th{font-size:13px;color:var(--muted);font-weight:600}
+.wrap{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.done{color:#2f7d4f;border-color:#2f7d4f}
+.todo{color:var(--muted)}
+.thumb{width:150px;border-radius:6px;display:block}
+</style>
+</head>
+<body>
+<main>
+<h1>台灣高鐵 N700ST（N700S 台灣版）：渲染與照片對照</h1>
+<p class="sub">左邊是 Blender 5.2.1 Q 版模型渲染，右邊是 Wikimedia Commons 照片（直接連 Commons 顯示，沒有複製進 repo）。已交車、靜態/動態測試中，尚未載客（2026-10）。第二組預計 2026-11/12 運抵、第三組 2027-01；12組預計 2028-09 全數上線。符合「已交車試運轉」，列為現役缺款。</p>
+<p class="sub"><a href="batch-tw.html">← 回總覽</a>　·　<a href="../inventory.html">盤點清單</a></p>
+<h2>車頭</h2>
+<div class="pair">
+<figure><img src="../models/n700st/renders/front.png" alt="模型車頭渲染"><figcaption>模型車頭</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f3/%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF_20260815.jpg/1280px-%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF_20260815.jpg" alt="高鐵 N700ST車頭照片" loading="lazy"><figcaption>照片：高雄市政府，Attribution（<a href="https://commons.wikimedia.org/wiki/File:%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF_20260815.jpg">原檔</a>）。N700ST 實車（運抵高雄港）：斜前方車頭、橘黑絲帶塗裝</figcaption></figure>
+</div>
+<h2>斜側</h2>
+<div class="pair">
+<figure><img src="../models/n700st/renders/hero.png" alt="模型斜側渲染"><figcaption>模型斜側</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b3/20260815%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF%E5%90%8A%E6%8E%9B%E4%B8%8B%E8%88%B9%E4%BD%9C%E6%A5%AD.jpg/1280px-20260815%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF%E5%90%8A%E6%8E%9B%E4%B8%8B%E8%88%B9%E4%BD%9C%E6%A5%AD.jpg" alt="高鐵 N700ST斜側照片" loading="lazy"><figcaption>照片：高雄市政府，Attribution（<a href="https://commons.wikimedia.org/wiki/File:20260815%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF%E5%90%8A%E6%8E%9B%E4%B8%8B%E8%88%B9%E4%BD%9C%E6%A5%AD.jpg">原檔</a>）。N700ST 實車吊卸：側面整編與塗裝</figcaption></figure>
+</div>
+<h2>側面</h2>
+<figure><img src="../models/n700st/renders/side.png" alt="模型側面渲染"><figcaption>模型側面：先頭車：駕駛室後方一組客用門＋乘務員門，後端是通廊</figcaption></figure>
+<h2>其他參考照片</h2>
+<div class="pair">
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/N700S_722-8102_Front-side.jpg/1280px-N700S_722-8102_Front-side.jpg" alt="參考照片" loading="lazy"><figcaption>照片：MaedaAkihiko，CC BY-SA 4.0（<a href="https://commons.wikimedia.org/wiki/File:N700S_722-8102_Front-side.jpg">原檔</a>）。日本 N700S 母型車頭（車頭形狀、前窗、頭燈）</figcaption></figure>
+</div>
+<h2>對過的地方</h2>
+<ul>
+<li>長鴨嘴鼻：鼻尖約在車高三成，鼻頂往下是長弧，上下都往鼻尖收；駕駛窗是鼻頂後段的淚滴形深色玻璃。</li>
+<li>白色車身、淺灰下緣，色界在鼻端往上收到鼻尖中線（用同一張殼沿色界切開，不是浮貼面片）。</li>
+<li>車側窗下一條橘線接深灰細條；到車頭後段橘色擴成楔形，前緣斜切收尖到鼻側，楔形下方一段深灰斜條。</li>
+<li>頭燈是鼻側上緣的細長燈縫；鼻端一條小尾燈。</li>
+<li>先頭車只有駕駛室後方一組客用塞拉門加乘務員門，客室一列小方窗；前車沒有集電弓。</li>
+</ul>
+<h2>刻意簡化或沒做</h2>
+<ul>
+<li>運抵時車窗貼著青綠色保護膜，模型照營運時做深色玻璃。</li>
+<li>車號、台灣高鐵標誌不放；側面「N700ST」是可移除的示意字牌。</li>
+<li>Q 版車長 9.6（700T 是 8.8），鼻長比例照實車略縮；窗數 8 扇，實車更多。</li>
+<li>車底轉向架裙板、鼻端車鉤蓋的分割線沒做。</li>
+</ul>
+<h2>資料來源</h2>
+<ul>
+<li><a href="https://zh.wikipedia.org/wiki/台灣高速鐵路N700ST型電聯車">zh.wikipedia 台灣高速鐵路N700ST型電聯車</a>：編組、全長、全寬、全高、軌距、製造商、時程、座位數、塗裝概念</li>
+<li><a href="https://www.storm.mg/article/11152868">Storm Media 台灣高鐵「N700ST」新車出廠</a>：出廠、運抵時程（搜尋摘要，主對話可再抽測）</li>
+<li><a href="https://technews.tw/2025/08/20/thsrc-n700st-show-up/">TechNews 台灣高鐵新車命名 N700ST，新塗裝亮相</a>：塗裝：車頭以明亮白色為主、橘黑雙色曲線平行延伸至車身側面</li>
+<li><a href="https://commons.wikimedia.org/wiki/File:%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF_20260815.jpg">Commons 照片本人目視（N700ST 於高雄港 2026-08-15）</a>：實車外觀（側面白底橘色斜切、灰黑下緣、青綠窗框、長鼻）</li>
+</ul>
+<p class="cap">45,936 三角形 · 150 個可編修物件 · 包圍盒 9.90 × 2.97 × 3.45 展示公尺</p>
+
+</main>
+</body>
+</html>

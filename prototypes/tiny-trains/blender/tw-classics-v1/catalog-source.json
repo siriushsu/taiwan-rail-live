@@ -1,0 +1,220 @@
+[
+ {
+  "id": "shay31",
+  "name": "阿里山 Shay 直立汽缸蒸汽機車（草稿）",
+  "source": "",
+  "detail": ""
+ },
+ {
+  "id": "n700st",
+  "name": "台灣高鐵 N700ST（N700S 台灣版）",
+  "source": "https://zh.wikipedia.org/wiki/台灣高速鐵路N700ST型電聯車",
+  "detail": "白色長鴨嘴鼻 · 橘色楔形斜切 · 淺灰下緣",
+  "group": "current",
+  "years": "2023-05 簽約12組；2025-08-20 定名 N700ST；2026-07-30 首組出廠；2026-08-15 運抵高雄港；預計 2027-07-01 首批3組載客",
+  "status": "已交車、靜態/動態測試中，尚未載客（2026-10）。第二組預計 2026-11/12 運抵、第三組 2027-01；12組預計 2028-09 全數上線。符合「已交車試運轉」，列為現役缺款。",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台灣高速鐵路N700ST型電聯車",
+    "url": "https://zh.wikipedia.org/wiki/台灣高速鐵路N700ST型電聯車",
+    "supports": "編組、全長、全寬、全高、軌距、製造商、時程、座位數、塗裝概念"
+   },
+   {
+    "title": "Storm Media 台灣高鐵「N700ST」新車出廠",
+    "url": "https://www.storm.mg/article/11152868",
+    "supports": "出廠、運抵時程（搜尋摘要，主對話可再抽測）"
+   },
+   {
+    "title": "TechNews 台灣高鐵新車命名 N700ST，新塗裝亮相",
+    "url": "https://technews.tw/2025/08/20/thsrc-n700st-show-up/",
+    "supports": "塗裝：車頭以明亮白色為主、橘黑雙色曲線平行延伸至車身側面"
+   },
+   {
+    "title": "Commons 照片本人目視（N700ST 於高雄港 2026-08-15）",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF_20260815.jpg",
+    "supports": "實車外觀（側面白底橘色斜切、灰黑下緣、青綠窗框、長鼻）"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:臺灣高鐵N700ST型電聯車於高雄港 20260815.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF_20260815.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f3/%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF_20260815.jpg/1280px-%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF_20260815.jpg",
+    "author": "高雄市政府",
+    "licence": "Attribution",
+    "use": "N700ST 實車（運抵高雄港）：斜前方車頭、橘黑絲帶塗裝"
+   },
+   {
+    "file": "File:20260815臺灣高鐵N700ST型電聯車於高雄港吊掛下船作業.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:20260815%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF%E5%90%8A%E6%8E%9B%E4%B8%8B%E8%88%B9%E4%BD%9C%E6%A5%AD.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b3/20260815%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF%E5%90%8A%E6%8E%9B%E4%B8%8B%E8%88%B9%E4%BD%9C%E6%A5%AD.jpg/1280px-20260815%E8%87%BA%E7%81%A3%E9%AB%98%E9%90%B5N700ST%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E9%AB%98%E9%9B%84%E6%B8%AF%E5%90%8A%E6%8E%9B%E4%B8%8B%E8%88%B9%E4%BD%9C%E6%A5%AD.jpg",
+    "author": "高雄市政府",
+    "licence": "Attribution",
+    "use": "N700ST 實車吊卸：側面整編與塗裝"
+   },
+   {
+    "file": "File:N700S 722-8102 Front-side.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:N700S_722-8102_Front-side.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/N700S_722-8102_Front-side.jpg/1280px-N700S_722-8102_Front-side.jpg",
+    "author": "MaedaAkihiko",
+    "licence": "CC BY-SA 4.0",
+    "use": "日本 N700S 母型車頭（車頭形狀、前窗、頭燈）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "高鐵 N700ST",
+  "color": "#f06a1c",
+  "sideNote": "先頭車：駕駛室後方一組客用門＋乘務員門，後端是通廊",
+  "checked": [
+   "長鴨嘴鼻：鼻尖約在車高三成，鼻頂往下是長弧，上下都往鼻尖收；駕駛窗是鼻頂後段的淚滴形深色玻璃。",
+   "白色車身、淺灰下緣，色界在鼻端往上收到鼻尖中線（用同一張殼沿色界切開，不是浮貼面片）。",
+   "車側窗下一條橘線接深灰細條；到車頭後段橘色擴成楔形，前緣斜切收尖到鼻側，楔形下方一段深灰斜條。",
+   "頭燈是鼻側上緣的細長燈縫；鼻端一條小尾燈。",
+   "先頭車只有駕駛室後方一組客用塞拉門加乘務員門，客室一列小方窗；前車沒有集電弓。"
+  ],
+  "simplified": [
+   "運抵時車窗貼著青綠色保護膜，模型照營運時做深色玻璃。",
+   "車號、台灣高鐵標誌不放；側面「N700ST」是可移除的示意字牌。",
+   "Q 版車長 9.6（700T 是 8.8），鼻長比例照實車略縮；窗數 8 扇，實車更多。",
+   "車底轉向架裙板、鼻端車鉤蓋的分割線沒做。"
+  ]
+ },
+ {
+  "id": "c381a",
+  "name": "台北捷運 CR381A（Hyundai Rotem）",
+  "source": "https://www.setn.com/news/1879845",
+  "detail": "方正黑面車頭 · 中央貫通門 · V 形 LED 燈座",
+  "group": "current",
+  "years": "2025 前後簽約；2026-05-05 馬山港待啟航；2026-06 起在北投機廠；2026-07-28 正式亮相；預計 2027-05 起載客",
+  "status": "已交車、北投機廠測試中（Commons 2026-07-17～08-28 多張北投機廠實拍），尚未載客；10列，單列約 5.9 億元，優先配置淡水信義線。符合「已交車試運轉」，列為現役缺款。",
+  "sources": [
+   {
+    "title": "setn 北捷新車亮相（Hyundai Rotem CR381A，2027 年 5 月起載客）",
+    "url": "https://www.setn.com/news/1879845",
+    "supports": "10 列、5.9 億元／列、現代樂鐵、2027-05 上線、設計特色（來自搜尋摘要，主對話可抽測）"
+   },
+   {
+    "title": "UDN 北捷新車廂亮相",
+    "url": "https://udn.com/news/story/7266/9656323",
+    "supports": "一字型座椅、無線充電區、車窗全景、1680 人次載客量說法"
+   },
+   {
+    "title": "zh.wikipedia 台北捷運381型電聯車（對照用 C381 規格）",
+    "url": "https://zh.wikipedia.org/wiki/台北捷運381型電聯車",
+    "supports": "C381 尺寸、電化方式、編組；並提及 CR381A 為後續新購"
+   },
+   {
+    "title": "Commons Category:Taipei Metro CR381A",
+    "url": "https://commons.wikimedia.org/wiki/Category:Taipei_Metro_CR381A",
+    "supports": "約 40 張實車照（2026-06～08）"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:CR381A straight 20260827.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:CR381A_straight_20260827.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/CR381A_straight_20260827.jpg/1280px-CR381A_straight_20260827.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "CR381A 車頭正面直視（車頭形狀、前窗、頭燈）"
+   },
+   {
+    "file": "File:CR381A at Beitou Depot TTK 20260731.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:CR381A_at_Beitou_Depot_TTK_20260731.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/CR381A_at_Beitou_Depot_TTK_20260731.jpg/1280px-CR381A_at_Beitou_Depot_TTK_20260731.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "CR381A 斜前側（側門、車身塗裝）"
+   },
+   {
+    "file": "File:TRTC Hyundai Rotem Exterior Demo.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRTC_Hyundai_Rotem_Exterior_Demo.jpg",
+    "thumb": "https://upload.wikimedia.org/wikipedia/commons/6/6a/TRTC_Hyundai_Rotem_Exterior_Demo.jpg",
+    "author": "臺北大眾捷運股份有限公司",
+    "licence": "Attribution",
+    "use": "北捷官方外觀展示（整體塗裝）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "北捷 CR381A",
+  "color": "#2b7cc9",
+  "sideNote": "每側 4 組雙開門、駕駛室側窗，沒有乘務員門",
+  "checked": [
+   "近垂直的方正車頭，上緣微帶帽簷；上段黑色整面窗區，中央貫通門，左右兩片大窗各一支雨刷。",
+   "窗區上緣三段燈條：兩側琥珀、中央紅。",
+   "下段銀色：兩角斜切 V 形燈座各四顆 LED，綠細線＋藍帶從車側繞過車頭角落收到燈座下。",
+   "黑色防爬橫帶、銀色前裙與兩側通風細縫、車鉤凹槽。",
+   "素銀不鏽鋼車身、車頂縱向壓筋、兩座低矮冷氣罩；第三軌供電，沒有集電弓，轉向架掛集電靴。"
+  ],
+  "simplified": [
+   "北捷標誌不放；貫通門下半的「CR381A」是可移除的示意字牌。",
+   "尺寸查不到 CR381A 明文，Q 版照 C381（L 9.4、W 2.9）做。",
+   "車側門窗配置比照北捷大運量四門車，窗的分割沒有逐片對照實車。"
+  ]
+ },
+ {
+  "id": "wanda",
+  "name": "台北捷運萬大線 Alstom Metropolis",
+  "source": "https://www-ws.gov.taipei/001/Upload/388/relfile/19519/8958479/549b2630-b457-4c98-8fd8-70f92fced7e3.pdf",
+  "detail": "草綠車頂包車頭 · 不對稱黑擋風 · 青綠波浪線",
+  "group": "current",
+  "years": "2022-10 起製造；2024-10-22 首列運抵金城機廠；第一期19列、第二期16列，共35列4輛編組",
+  "status": "已交車；2025-11 已有數列在金城機廠；2026 年起主線動態測試（雙北市長搭乘體驗），尚未載客，萬大線一期目標 2027 年底通車。屬「已交車試運轉」，列為現役缺款。",
+  "sources": [
+   {
+    "title": "臺北市捷運局《萬大線首列電聯車巴西製造現況》（PDF）",
+    "url": "https://www-ws.gov.taipei/001/Upload/388/relfile/19519/8958479/549b2630-b457-4c98-8fd8-70f92fced7e3.pdf",
+    "supports": "4車編組、總長70m、每節17.5m×2.8m×3.6m、不銹鋼、700人、塗裝朝氣蓬勃、端門緊急逃生門"
+   },
+   {
+    "title": "Alstom 新聞稿 首列交付",
+    "url": "https://www.alstom.com/press-releases-news/2024/11/alstom-successfully-delivers-first-trainset-taipei-wanda-line",
+    "supports": "2024-11 交付首列、Taubaté 製造、全自動、Urbalis CBTC"
+   },
+   {
+    "title": "zh.wikipedia 萬大—中和—樹林線",
+    "url": "https://zh.wikipedia.org/wiki/萬大—中和—樹林線",
+    "supports": "2024-10-22 首列運抵金城機廠、票選朝氣蓬勃、35列、阿爾斯通大都會型"
+   },
+   {
+    "title": "UDN 台北捷運萬大線列車動態測試",
+    "url": "https://udn.com/news/story/7323/9667345",
+    "supports": "2026 年主線動態測試開始（來自搜尋摘要，需主對話再抽測日期）"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:First unit of the Alstom Metropolis train of Wanda–Zhonghe–Shulin Line revealed at the Jincheng depot.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:First_unit_of_the_Alstom_Metropolis_train_of_Wanda%E2%80%93Zhonghe%E2%80%93Shulin_Line_revealed_at_the_Jincheng_depot.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e5/First_unit_of_the_Alstom_Metropolis_train_of_Wanda%E2%80%93Zhonghe%E2%80%93Shulin_Line_revealed_at_the_Jincheng_depot.jpg/1280px-First_unit_of_the_Alstom_Metropolis_train_of_Wanda%E2%80%93Zhonghe%E2%80%93Shulin_Line_revealed_at_the_Jincheng_depot.jpg",
+    "author": "Unknown authorUnknown author",
+    "licence": "Attribution",
+    "use": "萬大線 Alstom Metropolis 首列（金城機廠揭幕）：車頭正面／斜側、藍色波浪塗裝"
+   },
+   {
+    "file": "File:Rolling stock at Jincheng Depot.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Rolling_stock_at_Jincheng_Depot.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/96/Rolling_stock_at_Jincheng_Depot.jpg/1280px-Rolling_stock_at_Jincheng_Depot.jpg",
+    "author": "臺北市政府捷運工程局",
+    "licence": "Attribution",
+    "use": "金城機廠停放的萬大樹林線電聯車（整列側面、車頭）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "萬大線 Metropolis",
+  "color": "#9cc83c",
+  "sideNote": "每側 3 組雙開門；全自動無人駕駛，沒有乘務員門",
+  "checked": [
+   "削鉛筆式斜傾車頭，平面上兩角收圓；草綠車頂一路包到車頭上緣，帽簷上一條黑色車號帶。",
+   "黑色不對稱大擋風：列車右側窗較小、下方是雨刷座與兩顆圓燈；列車左側窗較大、往下延伸。",
+   "白色車頭下半、深灰下裙，兩側百葉格柵、中央開口露出車鉤。",
+   "車側白銀、上緣草綠、窗下四條青綠到藍的長波浪細線，從車頭往車尾延伸。",
+   "第三軌供電推定（研究來源沒寫），車頂沒有集電弓。"
+  ],
+  "simplified": [
+   "北捷標誌不放；車號帶上的「LG」是可移除的示意字牌（萬大線路線代碼），不是實際車號。",
+   "兩端車的燈與窗左右配置在照片上互為鏡像，模型照首列 1101 的那一端。",
+   "波浪線是四條等寬正弦近似，實車線條粗細有漸變。"
+  ]
+ }
+]
