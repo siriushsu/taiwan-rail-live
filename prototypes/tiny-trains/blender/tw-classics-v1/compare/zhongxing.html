@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>阿里山林鐵 中興號柴油客車（DPC8）對照</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e3e1da;--accent:#c4501b}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--muted:#9a9aa2;--line:#2e2e33;--accent:#f08a4b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:28px 0 8px}
+a{color:var(--accent)}
+.sub,.cap{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--muted)}
+.card img{display:block;width:100%;height:auto}
+.meta{display:flex;align-items:center;gap:8px;padding:8px 10px 0}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid var(--line)}
+.cap{padding:0 10px 6px}
+.card .cap:last-child{padding-bottom:10px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:720px){.pair{grid-template-columns:1fr}}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:8px 10px;font-size:13px;color:var(--muted)}
+ul{padding-left:20px}
+.table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+.table th,.table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.table th{font-size:13px;color:var(--muted);font-weight:600}
+.wrap{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.done{color:#2f7d4f;border-color:#2f7d4f}
+.todo{color:var(--muted)}
+.thumb{width:150px;border-radius:6px;display:block}
+</style>
+</head>
+<body>
+<main>
+<h1>阿里山林業鐵路 中興號柴油客車（DPC 動力車＋DTC 拖車，762 mm）：渲染與照片對照</h1>
+<p class="sub">左邊是 Blender 5.2.1 Q 版模型渲染，右邊是 Wikimedia Commons 照片（直接連 Commons 顯示，沒有複製進 repo）。現況不明：zh.wikipedia 寫『目前僅 DPC7、DPC8 與拖車 DTC3 配成阿里山唯一可動的中興號組（故障待修）』，頁面日期不明；Commons 照片（2013–2016）都拍到靜置在嘉義北門車庫園區。2026 年有無復駛我沒查到（搜尋 2024–2025 新聞只提到森里號、福森號，沒提柴聯車）。DTC5 另存在台南烏樹林站，鏽蝕嚴重。</p>
+<p class="sub"><a href="batch-tw.html">← 回總覽</a>　·　<a href="../inventory.html">盤點清單</a></p>
+<h2>車頭</h2>
+<div class="pair">
+<figure><img src="../models/zhongxing/renders/front.png" alt="模型車頭渲染"><figcaption>模型車頭</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/49/%E4%B8%AD%E8%88%88%E8%99%9F%E6%9F%B4%E8%81%AF%E8%BB%8A.jpg/1280px-%E4%B8%AD%E8%88%88%E8%99%9F%E6%9F%B4%E8%81%AF%E8%BB%8A.jpg" alt="阿里山林鐵 中興號柴油客車（DPC8）車頭照片" loading="lazy"><figcaption>照片：Ojiukh415，CC BY-SA 4.0（<a href="https://commons.wikimedia.org/wiki/File%3A%E4%B8%AD%E8%88%88%E8%99%9F%E6%9F%B4%E8%81%AF%E8%BB%8A.jpg">原檔</a>）。車頭正面 3/4（DPC 駕駛端）：整幅百葉散熱格柵、『中興號』圓牌、三扇前窗、頭燈、車頂帽沿</figcaption></figure>
+</div>
+<h2>斜側</h2>
+<div class="pair">
+<figure><img src="../models/zhongxing/renders/hero.png" alt="模型斜側渲染"><figcaption>模型斜側</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/0/04/DPC8_of_Alishan_Forest_Railway_2015-01-10.jpg/1280px-DPC8_of_Alishan_Forest_Railway_2015-01-10.jpg" alt="阿里山林鐵 中興號柴油客車（DPC8）斜側照片" loading="lazy"><figcaption>照片：Hsin-Jen Hsu，CC BY-SA 2.0（<a href="https://commons.wikimedia.org/wiki/File%3ADPC8_of_Alishan_Forest_Railway_2015-01-10.jpg">原檔</a>）。DPC8 車身全長側面（右側，3/4 後視）：門在逆行端、側窗排列、白腰帶、車號圓徽、尾端貫通門與爬梯、車頂水箱／通風罩</figcaption></figure>
+</div>
+<h2>側面</h2>
+<figure><img src="../models/zhongxing/renders/side.png" alt="模型側面渲染"><figcaption>模型側面：左側（+Y）門靠駕駛端、右側門靠後端，九扇銀框方窗；後端貫通門與爬梯。</figcaption></figure>
+<h2>其他參考照片</h2>
+<div class="pair">
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/%E5%98%89%E7%BE%A9%E5%B8%82_%E9%98%BF%E9%87%8C%E5%B1%B1%E6%A3%AE%E6%9E%97%E9%90%B5%E8%B7%AF_%E5%8C%97%E9%96%80%E8%BB%8A%E5%BA%AB_%E4%B8%AD%E8%88%88%E8%99%9F_-_panoramio.jpg/1280px-%E5%98%89%E7%BE%A9%E5%B8%82_%E9%98%BF%E9%87%8C%E5%B1%B1%E6%A3%AE%E6%9E%97%E9%90%B5%E8%B7%AF_%E5%8C%97%E9%96%80%E8%BB%8A%E5%BA%AB_%E4%B8%AD%E8%88%88%E8%99%9F_-_panoramio.jpg" alt="參考照片" loading="lazy"><figcaption>照片：Chi-Hung Lin，CC BY-SA 3.0（<a href="https://commons.wikimedia.org/wiki/File%3A%E5%98%89%E7%BE%A9%E5%B8%82_%E9%98%BF%E9%87%8C%E5%B1%B1%E6%A3%AE%E6%9E%97%E9%90%B5%E8%B7%AF_%E5%8C%97%E9%96%80%E8%BB%8A%E5%BA%AB_%E4%B8%AD%E8%88%88%E8%99%9F_-_panoramio.jpg">原檔</a>）。DPC7 車頭 3/4（褪色暗紅），可與照片2比對塗裝新舊；後接一節車</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/%E5%8F%B0%E7%81%A3_%E9%98%BF%E9%87%8C%E5%B1%B1%E6%9E%97%E6%A5%AD%E9%90%B5%E8%B7%AF_DPC%E6%9F%B4%E8%81%AF%E8%BB%8A.jpg/1280px-%E5%8F%B0%E7%81%A3_%E9%98%BF%E9%87%8C%E5%B1%B1%E6%9E%97%E6%A5%AD%E9%90%B5%E8%B7%AF_DPC%E6%9F%B4%E8%81%AF%E8%BB%8A.jpg" alt="參考照片" loading="lazy"><figcaption>照片：Mr.System Salaya，Public domain（<a href="https://commons.wikimedia.org/wiki/File%3A%E5%8F%B0%E7%81%A3_%E9%98%BF%E9%87%8C%E5%B1%B1%E6%9E%97%E6%A5%AD%E9%90%B5%E8%B7%AF_DPC%E6%9F%B4%E8%81%AF%E8%BB%8A.jpg">原檔</a>）。約 1962 年出廠黑白照：DPC2 與後接一節，側面完整、車頭格柵與車頂燈</figcaption></figure>
+</div>
+<h2>對過的地方</h2>
+<ul>
+<li>車頂帽沿正中大頭燈、帽沿兩側紅色標示燈、三扇前窗（Ojiukh415 車頭斜前）</li>
+<li>前端下半兩大塊百葉格柵、中央中興號圓牌、格柵上緣左右小頭燈、白腰帶繞到車頭（車頭斜前、DPC7 車頭）</li>
+<li>銀框方窗、白腰帶、後端貫通門與爬梯、車頂中央長方水箱與小通風罩（DPC8 側面）</li>
+<li>側門位置：DPC8 右側門在後端，1962 出廠照左側門靠駕駛端</li>
+</ul>
+<h2>刻意簡化或沒做</h2>
+<ul>
+<li>後轉向架的連桿傳動（外側斧形曲柄配重）沒做，兩個轉向架同款</li>
+<li>中興號圓牌只做淺藍底與白色地圖色塊，沒放紅字</li>
+<li>右前窗「向側面包覆」做成平面窗</li>
+<li>拖車 DTC 沒做，只做動力車 DPC；2026 年能不能動沒查到</li>
+</ul>
+<h2>資料來源</h2>
+<ul>
+<li><a href="https://zh.wikipedia.org/wiki/中興號_(阿里山林鐵)">zh.wikipedia 中興號 (阿里山林鐵)</a>：infobox 尺寸（長 10,700／寬 2,080／高 3,120／762 mm／18 t）、1962 日本車輛製造、DPC1–11 無 4、1963 投入服務、DPC7＋DPC8＋DTC3 唯一可動（故障待修）、座席數、編組方式（讀全文）</li>
+<li><a href="https://commons.wikimedia.org/wiki/Category:AFR_Zhongxing_Express">Commons Category:AFR Zhongxing Express</a>：10 張照片，授權與作者見 photos 欄；本條 4 張取自此分類</li>
+<li><a href="https://www.cna.com.tw/news/ahel/202407060025.aspx?topic=4524">WebSearch 2024–2025 新聞（阿里山林鐵現況）</a>：（搜尋摘要）阿里山林鐵 2024-07-06 全線通車、森里號待命；未提及柴聯車復駛，故現況寫『不明』</li>
+</ul>
+<p class="cap">71,178 三角形 · 264 個可編修物件 · 包圍盒 7.33 × 2.26 × 3.27 展示公尺</p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,238 @@
+{
+  "modelId": "ldr2200",
+  "name": "台鐵 LDR2200 型柴油客車（762 mm 舊台東線，黃皮仔車）",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "railcar",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.255000114440918,
+      -1.2894126176834106,
+      0.0
+    ],
+    "max": [
+      4.255000114440918,
+      1.2894126176834106,
+      3.1600000858306885
+    ]
+  },
+  "sizeM": [
+    8.510000228881836,
+    2.5788252353668213,
+    3.1600000858306885
+  ],
+  "mesh": {
+    "file": "ldr2200.mesh.bin",
+    "sha256": "c106be6484e8d6c8391e1af934f5f549a77d1c1f9ae667d5755334fef2a4a256",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 202668,
+    "triangleCount": 67556,
+    "drawGroups": [
+      {
+        "name": "ldyellow",
+        "start": 0,
+        "count": 7032,
+        "color": [
+          0.4793201684951782,
+          0.27049779891967773,
+          0.0
+        ],
+        "metalness": 0.019999999552965164,
+        "roughness": 0.46000000834465027,
+        "clearcoat": 0.07999999821186066
+      },
+      {
+        "name": "ldcream",
+        "start": 7032,
+        "count": 8460,
+        "color": [
+          0.7758222222328186,
+          0.7454041838645935,
+          0.6444796919822693
+        ],
+        "metalness": 0.03999999910593033,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.23999999463558197
+      },
+      {
+        "name": "ldroof",
+        "start": 15492,
+        "count": 6168,
+        "color": [
+          0.577580451965332,
+          0.5906188488006592,
+          0.5906188488006592
+        ],
+        "metalness": 0.20000000298023224,
+        "roughness": 0.44999998807907104,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "white",
+        "start": 21660,
+        "count": 26592,
+        "color": [
+          0.8713670969009399,
+          0.838798999786377,
+          0.6938717365264893
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 48252,
+        "count": 16512,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "frame",
+        "start": 64764,
+        "count": 11016,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "metal",
+        "start": 75780,
+        "count": 59520,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 135300,
+        "count": 24096,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "chassis",
+        "start": 159396,
+        "count": 35280,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "lamp",
+        "start": 194676,
+        "count": 2664,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "red",
+        "start": 197340,
+        "count": 5328,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 250,
+  "features": {
+    "sideDoorGroups": 2,
+    "doorLeavesPerGroup": 1,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "ldr2200",
+    "family": "railcar",
+    "L": 7.6,
+    "W": 2.42,
+    "H": 3.05,
+    "bottom": 0.8,
+    "radiusBottom": 0.1,
+    "radiusTop": 0.42,
+    "doors": 2,
+    "doorLeaves": 1,
+    "body": "B88E00",
+    "accent": "E4E0D2",
+    "power": "diesel",
+    "label": "LDR2201",
+    "pantos": 0,
+    "axles": 2
+  },
+  "reference": {
+    "source": "https://zh.wikipedia.org/wiki/台鐵LDR2200型柴油客車",
+    "detail": "1957 年台灣自製 762 mm 柴油客車，舊台東線「黃皮仔車」，LDR2201 在台北車站東側展示；黃白雙色、每側十六格窗、左上角雙頭燈",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

@@ -1,7 +1,7 @@
 [
  {
   "name": "桃園捷運綠線電聯車（現代樂鐵）",
-  "reason": "已交車、動態測試中（2026-10），但查不到尺寸，Commons 只有遠景照，外觀細節對不起來；等有官方說明或近照再做。",
+  "reason": "已交車、動態測試中（2026-10），2026 年底北段通車。第二輪再查：官方車長、車寬、車高仍查不到（中英文維基、現代樂鐵官方部落格、2025 新聞都沒列）；近照只有桃園市政府展示的車模型一張，實車是 2026-05 從機場線遠拍的測試車，看不清車頭與門窗。等有官方尺寸或近照再做。",
   "sources": [
    "https://zh.wikipedia.org/wiki/桃園捷運綠線",
    "https://en.wikipedia.org/wiki/Green_line_(Taoyuan_Metro)",
@@ -20,13 +20,6 @@
   "reason": "搜尋沒找到這個型號的交車、採購或測試資料（最接近的 DL-34 是出借英國的舊車）。",
   "sources": [
    "https://smiletaiwan.cw.com.tw/index.php/article/5253"
-  ]
- },
- {
-  "name": "阿里山林鐵中興號柴油客車（DPC）",
-  "reason": "Commons 有分類，但查不到尺寸與現況，查證時 Wikipedia／Commons 連續回 503。下一輪的第一個候選。",
-  "sources": [
-   "https://commons.wikimedia.org/wiki/Category:AFR_Zhongxing_Express"
   ]
  },
  {
@@ -54,16 +47,6 @@
   "sources": []
  },
  {
-  "name": "台鐵 S200／S300／S400 調車機車",
-  "reason": "都已退役，不算現役；可以當經典車追加，這輪沒做。來源網址當時沒存。",
-  "sources": []
- },
- {
-  "name": "台鐵 R0 柴油機車（日立 1960 年製）",
-  "reason": "已退役，可以當經典車追加，這輪沒做。",
-  "sources": []
- },
- {
   "name": "台鐵 DR2900／DR3000 柴聯車",
   "reason": "2023 年退役；車體跟 DR2800 同系列，已做 DR2800，不另做。",
   "sources": []
@@ -84,5 +67,35 @@
   "name": "台鐵 EMU900、EMU3000、E500、R200",
   "reason": "已在台灣車隊 fleet-v1 的 62 款裡。",
   "sources": []
+ },
+ {
+  "name": "台鐵觀光號一般客車（35SP32750）",
+  "reason": "每側 13 扇小窗、單門。第二輪查 Commons：觀光號分類裡的 35SP 都是改成觀改型莒光號之後的樣子（6–7 扇大窗），35SP32820 其實是總統花車；原樣只有已做的 35DC32751 餐車與 1978 年低解析新聞照，不夠建模。要補得去國家鐵道博物館現場拍。",
+  "sources": [
+   "https://commons.wikimedia.org/wiki/Category:Kuan-Kuang_Express",
+   "https://zh.wikipedia.org/wiki/台鐵觀光號"
+  ]
+ },
+ {
+  "name": "台糖 524 號汽油客車（溪湖糖廠）",
+  "reason": "Commons 只有 2013 年整修前的廢棄照；2016 年整修後沒有自由授權照片。車體跟已做的勝利號 538 同系列。",
+  "sources": [
+   "https://commons.wikimedia.org/wiki/File:Taisugar_Railcar_524.JPG",
+   "https://zh.wikipedia.org/wiki/台糖汽油車"
+  ]
+ },
+ {
+  "name": "台鐵 S200 型柴電機車（EMD GL8，A1A-A1A）",
+  "reason": "2018 年全數除籍。造型比 S300 複雜（車頭較大、兩種車頂高度與警鐘位置），Commons 照片 20 張、少於 S300 的 42 張；這輪 S 系列以 S300 為代表。",
+  "sources": [
+   "https://zh.wikipedia.org/wiki/台鐵S200型柴電機車"
+  ]
+ },
+ {
+  "name": "台鐵 S400 型柴電機車（EMD GA18，駝峰調車）",
+  "reason": "只剩 S405 保存（2022 年國家鐵道博物館籌備處收購），Commons 只有 6 張；外觀跟已做的 S300 相近、只是更長更寬，不另做。",
+  "sources": [
+   "https://zh.wikipedia.org/wiki/台鐵S400型柴電機車"
+  ]
  }
 ]

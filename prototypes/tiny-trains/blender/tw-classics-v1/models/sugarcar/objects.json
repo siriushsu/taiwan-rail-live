@@ -42,6 +42,15 @@
     ]
   },
   {
+    "name": "板彈簧",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
     "name": "鋼輪輪盤.001",
     "type": "MESH",
     "polygons": 226,
@@ -67,6 +76,15 @@
   },
   {
     "name": "軸箱.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "板彈簧.001",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -117,6 +135,15 @@
     ]
   },
   {
+    "name": "板彈簧.002",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
     "name": "鋼輪輪盤.003",
     "type": "MESH",
     "polygons": 226,
@@ -150,7 +177,7 @@
     ]
   },
   {
-    "name": "底架側樑",
+    "name": "板彈簧.003",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -159,7 +186,7 @@
     ]
   },
   {
-    "name": "側樑托架",
+    "name": "深褐黑車架側板",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -168,7 +195,13 @@
     ]
   },
   {
-    "name": "側樑托架.001",
+    "name": "識別牌 A-06",
+    "type": "FONT",
+    "polygons": 1140,
+    "modifiers": []
+  },
+  {
+    "name": "座位標示白字",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -177,7 +210,7 @@
     ]
   },
   {
-    "name": "側樑托架.002",
+    "name": "座位標示白字.001",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -186,7 +219,7 @@
     ]
   },
   {
-    "name": "側樑托架.003",
+    "name": "深褐黑車架側板.001",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -195,7 +228,13 @@
     ]
   },
   {
-    "name": "側樑托架.004",
+    "name": "識別牌 A-06.001",
+    "type": "FONT",
+    "polygons": 1140,
+    "modifiers": []
+  },
+  {
+    "name": "座位標示白字.002",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -204,52 +243,7 @@
     ]
   },
   {
-    "name": "底架側樑.001",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "側樑托架.005",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "側樑托架.006",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "側樑托架.007",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "側樑托架.008",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "側樑托架.009",
+    "name": "座位標示白字.003",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -282,16 +276,7 @@
     "modifiers": []
   },
   {
-    "name": "上下車踏階",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "上下車踏階.001",
+    "name": "綠色鋼踏階",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -324,7 +309,7 @@
     "modifiers": []
   },
   {
-    "name": "上下車踏階.002",
+    "name": "綠色鋼踏階.001",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -333,7 +318,7 @@
     ]
   },
   {
-    "name": "上下車踏階.003",
+    "name": "墨綠地板",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -342,7 +327,7 @@
     ]
   },
   {
-    "name": "地板",
+    "name": "腰板米白外框",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -351,7 +336,121 @@
     ]
   },
   {
-    "name": "側裙板",
+    "name": "彩印廣告腰板",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "廣告圖塊",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "廣告圖塊.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "廣告圖塊.002",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "廣告圖塊.003",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.002",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.003",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.004",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "欄門下橫桿",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.005",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.006",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.007",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.008",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.009",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "欄門下橫桿.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍鋼管橫桿",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍鋼管橫桿.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "米白方柱",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -360,37 +459,25 @@
     ]
   },
   {
-    "name": "彩印看板",
+    "name": "米白方柱.001",
     "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
   },
   {
-    "name": "看板圖塊",
+    "name": "米白方柱.002",
     "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
   },
   {
-    "name": "看板圖塊.001",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "看板圖塊.002",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "看板圖塊.003",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "裙板頂藍色扶手",
+    "name": "米白方柱.003",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -408,7 +495,7 @@
     ]
   },
   {
-    "name": "奶油色方柱",
+    "name": "紅色長椅座面",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -417,55 +504,7 @@
     ]
   },
   {
-    "name": "禁止倚靠小牌",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "小牌紅字",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "奶油色方柱.001",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "禁止倚靠小牌.001",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "小牌紅字.001",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "藍色長椅座面",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "藍色椅背",
+    "name": "紅色椅背",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -501,7 +540,7 @@
     ]
   },
   {
-    "name": "側裙板.001",
+    "name": "腰板米白外框.001",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -510,37 +549,148 @@
     ]
   },
   {
-    "name": "彩印看板.001",
+    "name": "彩印廣告腰板.001",
     "type": "MESH",
     "polygons": 26,
     "modifiers": []
   },
   {
-    "name": "看板圖塊.004",
+    "name": "廣告圖塊.004",
     "type": "MESH",
     "polygons": 26,
     "modifiers": []
   },
   {
-    "name": "看板圖塊.005",
+    "name": "廣告圖塊.005",
     "type": "MESH",
     "polygons": 26,
     "modifiers": []
   },
   {
-    "name": "看板圖塊.006",
+    "name": "廣告圖塊.006",
     "type": "MESH",
     "polygons": 26,
     "modifiers": []
   },
   {
-    "name": "看板圖塊.007",
+    "name": "廣告圖塊.007",
     "type": "MESH",
     "polygons": 26,
     "modifiers": []
   },
   {
-    "name": "裙板頂藍色扶手.001",
+    "name": "淺藍直條欄門.010",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.011",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.012",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.013",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.014",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "欄門下橫桿.002",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.015",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.016",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.017",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.018",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍直條欄門.019",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "欄門下橫桿.003",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍鋼管橫桿.002",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "淺藍鋼管橫桿.003",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "米白方柱.004",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "米白方柱.005",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "米白方柱.006",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "米白方柱.007",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -558,7 +708,7 @@
     ]
   },
   {
-    "name": "奶油色方柱.002",
+    "name": "紅色長椅座面.001",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -567,55 +717,7 @@
     ]
   },
   {
-    "name": "禁止倚靠小牌.002",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "小牌紅字.002",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "奶油色方柱.003",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "禁止倚靠小牌.003",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "小牌紅字.003",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "藍色長椅座面.001",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "藍色椅背.001",
+    "name": "紅色椅背.001",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -651,22 +753,70 @@
     ]
   },
   {
-    "name": "端裙板",
+    "name": "端面淺藍直條欄門",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 12,
+    "modifiers": []
   },
   {
-    "name": "端板藍色扶手",
+    "name": "端面淺藍直條欄門.001",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面淺藍直條欄門.002",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面淺藍直條欄門.003",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面淺藍直條欄門.004",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面淺藍直條欄門.005",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面淺藍直條欄門.006",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面淺藍直條欄門.007",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面淺藍直條欄門.008",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面欄門橫桿",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面欄門橫桿.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
   },
   {
     "name": "車頂橫樑",
@@ -678,22 +828,70 @@
     ]
   },
   {
-    "name": "端裙板.001",
+    "name": "端面淺藍直條欄門.009",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 12,
+    "modifiers": []
   },
   {
-    "name": "端板藍色扶手.001",
+    "name": "端面淺藍直條欄門.010",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面淺藍直條欄門.011",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面淺藍直條欄門.012",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面淺藍直條欄門.013",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面淺藍直條欄門.014",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面淺藍直條欄門.015",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面淺藍直條欄門.016",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面淺藍直條欄門.017",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面欄門橫桿.002",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端面欄門橫桿.003",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
   },
   {
     "name": "車頂橫樑.001",
@@ -779,7 +977,7 @@
     "modifiers": []
   },
   {
-    "name": "簷口飾條",
+    "name": "頂棚下吊樑",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -788,7 +986,34 @@
     ]
   },
   {
-    "name": "簷口飾條.001",
+    "name": "頂棚下吊樑.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "頂棚下吊樑.002",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "頂棚下吊樑.003",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "頂棚下吊樑.004",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [

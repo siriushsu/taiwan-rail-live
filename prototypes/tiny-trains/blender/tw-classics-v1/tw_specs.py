@@ -28,6 +28,18 @@ add('ck101','steam',L=7.0,W=2.62,H=3.66,body='1E2022',accent='B8281A',power='ste
 # 觀光號 35DC32751：實車 20,000／2,900／3,800 mm，比照復興號客車（L 9.0、W 2.85、H 3.45）。
 add('guanguang','coach',L=9.0,W=2.85,H=3.45,radiusTop=.80,doors=1,doorLeaves=2,body='ECE6D6',accent='C21A22',power='unpowered',label='35DC32751')
 # 台糖日立牌：762 mm，實車 5,540／2,200／3,000 mm；本身很短，長度只略縮。
-add('sugarhitachi','diesel',L=5.0,W=2.20,H=3.00,body='6E1410',accent='B02A12',power='diesel',label='827')
-# 溪湖觀光敞車：甘蔗車改造，尺寸查不到；照照片裡跟日立牌（2.2 m 寬）的比例估，一節一個開間。
-add('sugarcar','coach',L=4.4,W=2.0,H=2.62,body='E2D6B4',accent='1F4E9C',power='unpowered',label='')
+add('sugarhitachi','diesel',L=5.0,W=2.20,H=3.00,body='6E1410',accent='B02A12',power='diesel',label='')
+# 溪湖觀光敞車：甘蔗車改造，尺寸查不到；照 A-06 照片以護欄高約 1 m 為尺估（約 4.5／1.9／2.85 m），一節一個開間。
+add('sugarcar','coach',L=4.4,W=2.0,H=2.70,body='E2DFCB',accent='3A92D0',power='unpowered',label='A-06')
+# S300：實車 11,230／2,667／3,600 mm（EMD GA8，B0-B0）；比照台糖日立牌與 CK101 的壓縮比，長度取 6.6。
+add('s300','diesel',L=6.6,W=2.62,H=3.55,body='C4461A',accent='F1F1EC',power='diesel',label='S302')
+# R0（R6 改造型）：實車 15,370／2,875／3,836 mm，Co-Co；長度比照 E100（15.1 m→7.6）略長。
+add('r0','diesel',L=8.4,W=2.80,H=3.72,body='172C70',accent='F1F1EC',power='diesel',label='R6')
+# 中興號 DPC：實車 10,700／2,080／3,120 mm，762 mm 軌距；長度跟 S300 同壓縮比。
+add('zhongxing','railcar',L=6.4,W=2.10,H=3.10,bottom=.80,radiusBottom=.10,radiusTop=.42,doors=1,doorLeaves=1,body='C0140F',accent='F2F2EE',power='diesel',label='DPC8')
+# LDK58：實車 7,608／2,286／3,100 mm（LDK50 型整型號數字），0-8-0T；比照台糖 346（L 5.6）略長。
+add('ldk58','steam',L=5.8,W=2.28,H=3.10,body='1B1B1D',accent='B8141A',power='steam',drivers=4,label='LDK58')
+# LDR2200：實車 14,100／2,450／3,090 mm，762 mm 軌距；長度比照觀光號（20 m→9.0）的壓縮比再略長。
+add('ldr2200','railcar',L=7.6,W=2.42,H=3.05,bottom=.80,radiusBottom=.10,radiusTop=.42,doors=2,doorLeaves=1,body='B88E00',accent='E4E0D2',power='diesel',label='LDR2201')
+# 勝利號 538：實車 10,744／2,200／3,270 mm，762 mm 軌距；長度跟中興號同壓縮比。
+add('shengli','railcar',L=6.4,W=2.20,H=3.20,bottom=.80,radiusBottom=.10,radiusTop=.40,doors=3,doorLeaves=1,body='1A34A0',accent='F4F4F0',power='diesel',label='538')

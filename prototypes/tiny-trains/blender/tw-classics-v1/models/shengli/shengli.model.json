@@ -1,0 +1,251 @@
+{
+  "modelId": "shengli",
+  "name": "台糖汽油（柴油）客車『勝利號』538（762 mm 糖鐵，日立 1949 製；附成功號對照）",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "railcar",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -3.4200000762939453,
+      -1.1813148260116577,
+      0.0
+    ],
+    "max": [
+      3.4200000762939453,
+      1.1813148260116577,
+      3.440000057220459
+    ]
+  },
+  "sizeM": [
+    6.840000152587891,
+    2.3626296520233154,
+    3.440000057220459
+  ],
+  "mesh": {
+    "file": "shengli.mesh.bin",
+    "sha256": "475921259e8dc702b7e22009bff2e3a596dcd07593837c31681e290772aab23f",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 172968,
+    "triangleCount": 57656,
+    "drawGroups": [
+      {
+        "name": "slblue",
+        "start": 0,
+        "count": 8004,
+        "color": [
+          0.01032982300966978,
+          0.03433980792760849,
+          0.35153260827064514
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.36000001430511475,
+        "clearcoat": 0.2800000011920929
+      },
+      {
+        "name": "white",
+        "start": 8004,
+        "count": 9228,
+        "color": [
+          0.8713670969009399,
+          0.838798999786377,
+          0.6938717365264893
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "slroof",
+        "start": 17232,
+        "count": 8100,
+        "color": [
+          0.012983032502233982,
+          0.014443843625485897,
+          0.019382361322641373
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.5,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "slteal",
+        "start": 25332,
+        "count": 15840,
+        "color": [
+          0.015208514407277107,
+          0.2622506618499756,
+          0.23074005544185638
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.2199999988079071
+      },
+      {
+        "name": "glass",
+        "start": 41172,
+        "count": 15288,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "chassis",
+        "start": 56460,
+        "count": 33324,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "frame",
+        "start": 89784,
+        "count": 3984,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "metal",
+        "start": 93768,
+        "count": 49992,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "lamp",
+        "start": 143760,
+        "count": 2664,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "slorange",
+        "start": 146424,
+        "count": 3024,
+        "color": [
+          0.7454041838645935,
+          0.12213877588510513,
+          0.023153366521000862
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.2199999988079071
+      },
+      {
+        "name": "red",
+        "start": 149448,
+        "count": 2664,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 152112,
+        "count": 20856,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      }
+    ]
+  },
+  "nativeObjectCount": 209,
+  "features": {
+    "sideDoorGroups": 3,
+    "doorLeavesPerGroup": 1,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "shengli",
+    "family": "railcar",
+    "L": 6.4,
+    "W": 2.2,
+    "H": 3.2,
+    "bottom": 0.8,
+    "radiusBottom": 0.1,
+    "radiusTop": 0.4,
+    "doors": 3,
+    "doorLeaves": 1,
+    "body": "1A34A0",
+    "accent": "F4F4F0",
+    "power": "diesel",
+    "label": "538",
+    "pantos": 0,
+    "axles": 2
+  },
+  "reference": {
+    "source": "https://zh.wikipedia.org/wiki/台糖汽油車",
+    "detail": "1949 年日立製 762 mm 糖鐵汽油客車，1954 年改柴油，2023 年起在新營糖廠假日行駛；寶藍白帶、黑色圓拱頂、青綠窗框",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

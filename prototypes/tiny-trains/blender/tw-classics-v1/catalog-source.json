@@ -1053,12 +1053,28 @@
     "author": "billy1125 from Taiwan",
     "licence": "CC BY 2.0",
     "use": "831 號靜態展示，另一側/斜前"
+   },
+   {
+    "file": "File:TSC '837' at Xihu 2023-07-18.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATSC_%27837%27_at_Xihu_2023-07-18.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/TSC_%27837%27_at_Xihu_2023-07-18.jpg/1280px-TSC_%27837%27_at_Xihu_2023-07-18.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "牽引機 837 號日立牌側面（2023-07，橄欖灰綠配橘紅上部；溪湖同年兩種塗裝並存，模型照 2023-04 的暗紅版）"
+   },
+   {
+    "file": "File:TSC '827' at Xihu 2023-07-18.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATSC_%27827%27_at_Xihu_2023-07-18.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/14/TSC_%27827%27_at_Xihu_2023-07-18.jpg/1280px-TSC_%27827%27_at_Xihu_2023-07-18.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "牽引機 827 號日立牌引擎罩端斜視：前罩百葉＋白倒 V、黃黑斜紋端梁（2023-07，橄欖灰綠配橘紅上部；溪湖同年兩種塗裝並存，模型照 2023-04 的暗紅版）"
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
-  "label": "台糖 日立牌柴油機車（溪湖 827）",
+  "label": "台糖 日立牌柴油機車（溪湖）",
   "color": "#560C09",
-  "detail": "1967–69 年日立製 762 mm 糖鐵柴油機車，溪湖糖廠現役牽引五分車觀光列車；暗紅車身、引擎罩正面白色大 V 字",
+  "detail": "1967–69 年日立製 762 mm 糖鐵柴油機車，溪湖糖廠現役牽引五分車觀光列車；照 2023-04 的暗紅塗裝，引擎罩正面白色大 V 字",
   "sideNote": "一端高駕駛室、另一端較矮的長引擎罩；深外側車架蓋住半個車輪。",
   "checked": [
    "引擎罩正面整片橫百葉、白色大 V 字、上緣白帶與紅橘頂（溪湖現役車正面）",
@@ -1067,9 +1083,9 @@
    "駕駛室側面一門一窗、引擎罩側面百葉門、深外側車架與紅色煞車吊架、車底黃色燃油箱（837 號側面）"
   ],
   "simplified": [
-   "照溪湖現行暗紅塗裝；837 號藍白彩繪、801 號乳牛斑紋沒做",
+   "照 2023-04 溪湖現役車的暗紅塗裝；同年 7 月 827、837 號是橄欖灰綠配橘紅（照片附在下面），沒做這版",
+   "暗紅那輛照片看不到車號，車號牌留白；2008 年 837 號藍白彩繪、801 號乳牛斑紋沒做",
    "軸配列查不到，照兩軸做，車輪多半被外側車架擋住",
-   "溪湖觀光敞車還沒做（見 README）",
    "駕駛室後端窗與屋頂設備照 837 號側面推估"
   ]
  },
@@ -1077,14 +1093,24 @@
   "id": "sugarcar",
   "group": "current",
   "name": "台糖溪湖糖廠五分車觀光敞車",
-  "years": "甘蔗車改造（年份未查到）；溪湖糖廠假日觀光列車使用中",
-  "status": "現役：溪湖糖廠五分車觀光列車，由日立牌柴油機車牽引（台糖官網、旅遊資料搜尋摘要）。",
-  "source": "https://zh.wikipedia.org/wiki/臺灣糖業鐵路",
+  "years": "年份沒查到（zh.wikipedia『臺灣糖業鐵路』只說觀光化之後使用由甘蔗車改造的客車，四面圍欄杆、長條椅）",
+  "status": "現役（推定）：Commons 2022-10-30 拍到 A-02…A-15 全數停在站內；2023-07-18 另有 Industrial Wales 照片拍到日立牌 827、837 在溪湖廠區。發車表與現在是否還在載客，本輪沒有再查。一列約 6–8 節（taisugar_hitachi 條目的敘述；本輪沒重數）。",
+  "source": "https://commons.wikimedia.org/wiki/Category:Railway_coaches_of_Taiwan_Sugar_Corporation",
   "sources": [
    {
-    "title": "zh.wikipedia 臺灣糖業鐵路（車輛簡介）",
+    "title": "Commons Category:Railway coaches of Taiwan Sugar Corporation（A-02…A-15 逐輛側面照）",
+    "url": "https://commons.wikimedia.org/wiki/Category:Railway_coaches_of_Taiwan_Sugar_Corporation",
+    "supports": "14 張 A 車號正側面（鐵路1，2022-10-30，CC BY-SA 4.0）、座位與限乘標示、廣告腰板"
+   },
+   {
+    "title": "zh.wikipedia 臺灣糖業鐵路（客車段落）",
     "url": "https://zh.wikipedia.org/wiki/臺灣糖業鐵路",
-    "supports": "觀光列車使用甘蔗車改造的客車，四面欄杆、長條椅；現存營業線 5 處均觀光用途"
+    "supports": "觀光列車使用甘蔗車改造的客車，四面欄杆、長條椅；溪湖線營業中"
+   },
+   {
+    "title": "Commons Industrial Wales 2023-07-18（TSC 837／827 at Xihu）",
+    "url": "https://commons.wikimedia.org/wiki/File:TSC_'837'_at_Xihu_2023-07-18.jpg",
+    "supports": "日立牌 837、827 當前塗裝（橄欖灰綠＋橘紅）"
    },
    {
     "title": "台糖永續發展 五分車觀光園區",
@@ -1094,39 +1120,532 @@
   ],
   "photos": [
    {
+    "file": "File:Xihu Sugar Factory A06 Passenger car.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3AXihu_Sugar_Factory_A06_Passenger_car.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4e/Xihu_Sugar_Factory_A06_Passenger_car.jpg/1280px-Xihu_Sugar_Factory_A06_Passenger_car.jpg",
+    "author": "鐵路1",
+    "licence": "CC BY-SA 4.0",
+    "use": "A-06 敞篷客車正側面：四柱＋拱形頂棚、側板廣告、藍色欄杆與端部活動欄門、下部褐色鋼架、車號與座位／限乘標示",
+    "role": "side"
+   },
+   {
+    "file": "File:Xihu Sugar Factory A12 Passenger car.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3AXihu_Sugar_Factory_A12_Passenger_car.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Xihu_Sugar_Factory_A12_Passenger_car.jpg/1280px-Xihu_Sugar_Factory_A12_Passenger_car.jpg",
+    "author": "鐵路1",
+    "licence": "CC BY-SA 4.0",
+    "use": "A-12 另一輛正側面（廣告不同）：可比對結構一致、廣告板可換"
+   },
+   {
+    "file": "File:Xihu Sugar Factory A15 Passenger car.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3AXihu_Sugar_Factory_A15_Passenger_car.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/Xihu_Sugar_Factory_A15_Passenger_car.jpg/1280px-Xihu_Sugar_Factory_A15_Passenger_car.jpg",
+    "author": "鐵路1",
+    "licence": "CC BY-SA 4.0",
+    "use": "A-15（與 B-01）相鄰兩節斜視：端部欄門、踏階、車內紅色長椅、連結端",
+    "role": "front"
+   },
+   {
+    "file": "File:A Tourist Train in Xihu Sugar Factory.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3AA_Tourist_Train_in_Xihu_Sugar_Factory.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/A_Tourist_Train_in_Xihu_Sugar_Factory.jpg/1280px-A_Tourist_Train_in_Xihu_Sugar_Factory.jpg",
+    "author": "Tbatb",
+    "licence": "CC BY-SA 4.0",
+    "use": "整列遠景：346 號蒸機後接一排敞篷客車，看編組長度與顏色節奏（本列為蒸機牽引，非日立牌）"
+   },
+   {
     "file": "File:溪湖糖廠的日立牌機車 後方為動態保存的346號蒸汽機車.jpg",
     "url": "https://commons.wikimedia.org/wiki/File:%E6%BA%AA%E6%B9%96%E7%B3%96%E5%BB%A0%E7%9A%84%E6%97%A5%E7%AB%8B%E7%89%8C%E6%A9%9F%E8%BB%8A_%E5%BE%8C%E6%96%B9%E7%82%BA%E5%8B%95%E6%85%8B%E4%BF%9D%E5%AD%98%E7%9A%84346%E8%99%9F%E8%92%B8%E6%B1%BD%E6%A9%9F%E8%BB%8A.jpg",
     "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/%E6%BA%AA%E6%B9%96%E7%B3%96%E5%BB%A0%E7%9A%84%E6%97%A5%E7%AB%8B%E7%89%8C%E6%A9%9F%E8%BB%8A_%E5%BE%8C%E6%96%B9%E7%82%BA%E5%8B%95%E6%85%8B%E4%BF%9D%E5%AD%98%E7%9A%84346%E8%99%9F%E8%92%B8%E6%B1%BD%E6%A9%9F%E8%BB%8A.jpg/1280px-%E6%BA%AA%E6%B9%96%E7%B3%96%E5%BB%A0%E7%9A%84%E6%97%A5%E7%AB%8B%E7%89%8C%E6%A9%9F%E8%BB%8A_%E5%BE%8C%E6%96%B9%E7%82%BA%E5%8B%95%E6%85%8B%E4%BF%9D%E5%AD%98%E7%9A%84346%E8%99%9F%E8%92%B8%E6%B1%BD%E6%A9%9F%E8%BB%8A.jpg",
     "author": "Wengch",
     "licence": "CC BY-SA 4.0",
-    "use": "溪湖現役觀光列車：敞車側面（奶油色方柱、彩印看板、藍色扶手與長椅）",
-    "role": "side"
-   },
-   {
-    "file": "File:Sihu DL 837 01.jpg",
-    "url": "https://commons.wikimedia.org/wiki/File:Sihu_DL_837_01.jpg",
-    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/98/Sihu_DL_837_01.jpg/1280px-Sihu_DL_837_01.jpg",
-    "author": "Heino Vogel",
-    "licence": "CC BY-SA 3.0 de",
-    "use": "837 號牽引的舊塗裝敞車（藍柱黃欄杆），看車端與踏階",
-    "role": "front"
+    "use": "溪湖現役觀光列車整列（日立牌牽引），看敞車連掛"
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
   "label": "台糖 溪湖五分車觀光敞車",
-  "color": "#E2D6B4",
-  "detail": "甘蔗車改造的敞篷客車，日立牌牽引；奶油色方柱、薄弧頂鐵皮、彩印看板與藍色長椅",
-  "sideNote": "一節一個開間：四角方柱、下半部裙板嵌彩印看板，看板頂一條藍色扶手。",
+  "color": "#E2DFCB",
+  "detail": "甘蔗車改造的敞篷客車，日立牌或 346 號蒸機牽引；米白方柱、淺藍欄杆、彩印廣告腰板與紅色長椅",
+  "sideNote": "每側四根米白方柱（兩端各兩根、中間沒有柱），兩端柱距之間是淺藍直條欄門。",
   "checked": [
-   "一節一個開間、四角奶油色方柱、薄弧頂鐵皮（溪湖現役列車照）",
-   "下半部奶油色裙板嵌整片彩印看板、看板頂藍色扶手、方柱上禁止倚靠小牌（溪湖現役列車照）",
-   "車內藍色長椅、深色底架（溪湖現役列車照）"
+   "每側四根米白方柱、中段彩印廣告腰板、腰板上兩道淺藍橫桿（A-06、A-12 正側面）",
+   "兩端淺藍直條欄門與綠色鋼踏階、車內紅色長椅、墨綠地板（A-15 斜視）",
+   "深褐黑車架側板與白色車號、兩軸小車輪（A-06、A-12）",
+   "白灰弧形頂棚四面出簷（A-06、A-15）"
   ],
   "simplified": [
-   "尺寸查不到，照照片跟日立牌（2.2 m 寬）的比例估",
-   "彩印看板內容是著作物，只用四塊色塊示意",
-   "長椅方向照片看不清，做成兩側面向中間",
-   "837 號照片裡的舊塗裝（藍柱、黃欄杆）沒做"
+   "尺寸查不到，照 A-06 照片以護欄高約 1 m 為尺估（約 4.5／1.9／2.85 m）",
+   "廣告腰板內容是著作物，只用四塊色塊示意",
+   "座位與限乘白字只用兩條白線示意",
+   "2008 年 837 號舊照裡的舊塗裝（藍柱、黃欄杆）沒做"
+  ]
+ },
+ {
+  "id": "zhongxing",
+  "group": "classic",
+  "name": "阿里山林業鐵路 中興號柴油客車（DPC 動力車＋DTC 拖車，762 mm）",
+  "years": "1962 年出廠；1963 年投入服務（對號特快）；1988 年降為每站停；1990 年退役；2006 年 DPC7、DPC8 恢復車籍",
+  "status": "現況不明：zh.wikipedia 寫『目前僅 DPC7、DPC8 與拖車 DTC3 配成阿里山唯一可動的中興號組（故障待修）』，頁面日期不明；Commons 照片（2013–2016）都拍到靜置在嘉義北門車庫園區。2026 年有無復駛我沒查到（搜尋 2024–2025 新聞只提到森里號、福森號，沒提柴聯車）。DTC5 另存在台南烏樹林站，鏽蝕嚴重。",
+  "source": "https://zh.wikipedia.org/wiki/中興號_(阿里山林鐵)",
+  "sources": [
+   {
+    "title": "zh.wikipedia 中興號 (阿里山林鐵)",
+    "url": "https://zh.wikipedia.org/wiki/中興號_(阿里山林鐵)",
+    "supports": "infobox 尺寸（長 10,700／寬 2,080／高 3,120／762 mm／18 t）、1962 日本車輛製造、DPC1–11 無 4、1963 投入服務、DPC7＋DPC8＋DTC3 唯一可動（故障待修）、座席數、編組方式（讀全文）"
+   },
+   {
+    "title": "Commons Category:AFR Zhongxing Express",
+    "url": "https://commons.wikimedia.org/wiki/Category:AFR_Zhongxing_Express",
+    "supports": "10 張照片，授權與作者見 photos 欄；本條 4 張取自此分類"
+   },
+   {
+    "title": "WebSearch 2024–2025 新聞（阿里山林鐵現況）",
+    "url": "https://www.cna.com.tw/news/ahel/202407060025.aspx?topic=4524",
+    "supports": "（搜尋摘要）阿里山林鐵 2024-07-06 全線通車、森里號待命；未提及柴聯車復駛，故現況寫『不明』"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:DPC8 of Alishan Forest Railway 2015-01-10.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ADPC8_of_Alishan_Forest_Railway_2015-01-10.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/04/DPC8_of_Alishan_Forest_Railway_2015-01-10.jpg/1280px-DPC8_of_Alishan_Forest_Railway_2015-01-10.jpg",
+    "author": "Hsin-Jen Hsu",
+    "licence": "CC BY-SA 2.0",
+    "use": "DPC8 車身全長側面（右側，3/4 後視）：門在逆行端、側窗排列、白腰帶、車號圓徽、尾端貫通門與爬梯、車頂水箱／通風罩",
+    "role": "side"
+   },
+   {
+    "file": "File:中興號柴聯車.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3A%E4%B8%AD%E8%88%88%E8%99%9F%E6%9F%B4%E8%81%AF%E8%BB%8A.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/49/%E4%B8%AD%E8%88%88%E8%99%9F%E6%9F%B4%E8%81%AF%E8%BB%8A.jpg/1280px-%E4%B8%AD%E8%88%88%E8%99%9F%E6%9F%B4%E8%81%AF%E8%BB%8A.jpg",
+    "author": "Ojiukh415",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面 3/4（DPC 駕駛端）：整幅百葉散熱格柵、『中興號』圓牌、三扇前窗、頭燈、車頂帽沿",
+    "role": "front"
+   },
+   {
+    "file": "File:嘉義市 阿里山森林鐵路 北門車庫 中興號 - panoramio.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3A%E5%98%89%E7%BE%A9%E5%B8%82_%E9%98%BF%E9%87%8C%E5%B1%B1%E6%A3%AE%E6%9E%97%E9%90%B5%E8%B7%AF_%E5%8C%97%E9%96%80%E8%BB%8A%E5%BA%AB_%E4%B8%AD%E8%88%88%E8%99%9F_-_panoramio.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/%E5%98%89%E7%BE%A9%E5%B8%82_%E9%98%BF%E9%87%8C%E5%B1%B1%E6%A3%AE%E6%9E%97%E9%90%B5%E8%B7%AF_%E5%8C%97%E9%96%80%E8%BB%8A%E5%BA%AB_%E4%B8%AD%E8%88%88%E8%99%9F_-_panoramio.jpg/1280px-%E5%98%89%E7%BE%A9%E5%B8%82_%E9%98%BF%E9%87%8C%E5%B1%B1%E6%A3%AE%E6%9E%97%E9%90%B5%E8%B7%AF_%E5%8C%97%E9%96%80%E8%BB%8A%E5%BA%AB_%E4%B8%AD%E8%88%88%E8%99%9F_-_panoramio.jpg",
+    "author": "Chi-Hung Lin",
+    "licence": "CC BY-SA 3.0",
+    "use": "DPC7 車頭 3/4（褪色暗紅），可與照片2比對塗裝新舊；後接一節車"
+   },
+   {
+    "file": "File:台灣 阿里山林業鐵路 DPC柴聯車.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3A%E5%8F%B0%E7%81%A3_%E9%98%BF%E9%87%8C%E5%B1%B1%E6%9E%97%E6%A5%AD%E9%90%B5%E8%B7%AF_DPC%E6%9F%B4%E8%81%AF%E8%BB%8A.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/%E5%8F%B0%E7%81%A3_%E9%98%BF%E9%87%8C%E5%B1%B1%E6%9E%97%E6%A5%AD%E9%90%B5%E8%B7%AF_DPC%E6%9F%B4%E8%81%AF%E8%BB%8A.jpg/1280px-%E5%8F%B0%E7%81%A3_%E9%98%BF%E9%87%8C%E5%B1%B1%E6%9E%97%E6%A5%AD%E9%90%B5%E8%B7%AF_DPC%E6%9F%B4%E8%81%AF%E8%BB%8A.jpg",
+    "author": "Mr.System Salaya",
+    "licence": "Public domain",
+    "use": "約 1962 年出廠黑白照：DPC2 與後接一節，側面完整、車頭格柵與車頂燈"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "阿里山林鐵 中興號柴油客車（DPC8）",
+  "color": "#C0140F",
+  "detail": "1962 年日本車輛製 762 mm 柴油客車，1963–1990 跑對號特快；鮮紅車身白腰帶、車頂帽沿頭燈與整幅百葉格柵",
+  "sideNote": "左側（+Y）門靠駕駛端、右側門靠後端，九扇銀框方窗；後端貫通門與爬梯。",
+  "checked": [
+   "車頂帽沿正中大頭燈、帽沿兩側紅色標示燈、三扇前窗（Ojiukh415 車頭斜前）",
+   "前端下半兩大塊百葉格柵、中央中興號圓牌、格柵上緣左右小頭燈、白腰帶繞到車頭（車頭斜前、DPC7 車頭）",
+   "銀框方窗、白腰帶、後端貫通門與爬梯、車頂中央長方水箱與小通風罩（DPC8 側面）",
+   "側門位置：DPC8 右側門在後端，1962 出廠照左側門靠駕駛端"
+  ],
+  "simplified": [
+   "後轉向架的連桿傳動（外側斧形曲柄配重）沒做，兩個轉向架同款",
+   "中興號圓牌只做淺藍底與白色地圖色塊，沒放紅字",
+   "右前窗「向側面包覆」做成平面窗",
+   "拖車 DTC 沒做，只做動力車 DPC；2026 年能不能動沒查到"
+  ]
+ },
+ {
+  "id": "s300",
+  "group": "classic",
+  "name": "台鐵 S300 型柴電機車（EMD GA8，B0-B0 調車／支線機車）",
+  "years": "1966-09 運抵 21 輛（S301–S321）；2002 起陸續報廢；S318 無車籍留在彰化扇形車庫調車",
+  "status": "全型已除籍（zh.wikipedia 現役段只剩 S318『已報廢除籍、無車籍調車機，僅在需移動蒸汽機車頭 CK124 時使用』）。保存車：S302（泰安站外，橘色）、S305（苗栗火車頭園區，2023 修復為海軍藍）、S316（車埕站，2020 改藍色）。Commons 2023–2024 仍有 S318 在彰化扇形車庫的照片（ChS&Rh 2023、RwysTC 2024）。",
+  "source": "https://zh.wikipedia.org/wiki/台鐵S300型柴電機車",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台鐵S300型柴電機車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵S300型柴電機車",
+    "supports": "尺寸、重量、軸配置、1966 年 21 輛、S302／S305／S316 保存、S318 現況、塗裝變更（讀全文）"
+   },
+   {
+    "title": "zh.wikipedia 台鐵S200型柴電機車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵S200型柴電機車",
+    "supports": "S200 差異比對（見 notes）"
+   },
+   {
+    "title": "zh.wikipedia 台鐵S400型柴電機車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵S400型柴電機車",
+    "supports": "S400 差異比對（見 notes）"
+   },
+   {
+    "title": "Commons Category:TRA S300 Diesel locomotives（及 S302、S305、S316、S317、S318 子分類）",
+    "url": "https://commons.wikimedia.org/wiki/Category:TRA_S300_Diesel_locomotives",
+    "supports": "照片 6 張的來源；S302 另有 11 張特寫（Lokseng01，CC BY-SA 4.0）可補細部"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:TRA S305 at Miaoli Railway Museum 20120608.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATRA_S305_at_Miaoli_Railway_Museum_20120608.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/TRA_S305_at_Miaoli_Railway_Museum_20120608.jpg/1280px-TRA_S305_at_Miaoli_Railway_Museum_20120608.jpg",
+    "author": "SSR2000",
+    "licence": "CC BY-SA 3.0",
+    "use": "S305（2012 橘色塗裝）全長正側面：駕駛室＋長引擎罩、百葉與格柵、白腰帶弧線、黑色底架、轉向架"
+   },
+   {
+    "file": "File:TRA S318 2023.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATRA_S318_2023.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/TRA_S318_2023.jpg/1280px-TRA_S318_2023.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "S318（彰化扇形車庫，現役調車機）駕駛端 3/4：三扇前窗、雙頭燈、白倒 V、黃黑斜紋排障器、長引擎罩一側",
+    "role": "side"
+   },
+   {
+    "file": "File:S302駕駛室端 20081010.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3AS302%E9%A7%95%E9%A7%9B%E5%AE%A4%E7%AB%AF_20081010.jpg",
+    "thumb": "https://upload.wikimedia.org/wikipedia/commons/5/5f/S302%E9%A7%95%E9%A7%9B%E5%AE%A4%E7%AB%AF_20081010.jpg",
+    "author": "Hayato Chiou",
+    "licence": "CC BY-SA 3.0",
+    "use": "S302 駕駛室端正面：三扇前窗、雙頭燈與兩側小燈、白色倒 V 腰帶、黃黑斜紋排障器與車鉤（橘色塗裝）",
+    "role": "front"
+   },
+   {
+    "file": "File:S305 diesel locomotive.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3AS305_diesel_locomotive.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cd/S305_diesel_locomotive.jpg/1280px-S305_diesel_locomotive.jpg",
+    "author": "D1114456",
+    "licence": "CC BY-SA 4.0",
+    "use": "S305（2023 恢復的海軍藍塗裝）駕駛端：藍底白倒 V、黃黑斜紋，苗栗火車頭園區室內展示"
+   },
+   {
+    "file": "File:台鐵S300型柴電機車 (8429585882).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3A%E5%8F%B0%E9%90%B5S300%E5%9E%8B%E6%9F%B4%E9%9B%BB%E6%A9%9F%E8%BB%8A_%288429585882%29.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6b/%E5%8F%B0%E9%90%B5S300%E5%9E%8B%E6%9F%B4%E9%9B%BB%E6%A9%9F%E8%BB%8A_%288429585882%29.jpg/1280px-%E5%8F%B0%E9%90%B5S300%E5%9E%8B%E6%9F%B4%E9%9B%BB%E6%A9%9F%E8%BB%8A_%288429585882%29.jpg",
+    "author": "billy1125 from Taiwan",
+    "licence": "CC BY 2.0",
+    "use": "S305（2013 照，橘色）駕駛端 3/4＋長引擎罩一側，可比對駕駛室與引擎罩比例"
+   },
+   {
+    "file": "File:Side of the TRA S302 diesel locomotive.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ASide_of_the_TRA_S302_diesel_locomotive.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Side_of_the_TRA_S302_diesel_locomotive.jpg/1280px-Side_of_the_TRA_S302_diesel_locomotive.jpg",
+    "author": "Lokseng01",
+    "licence": "CC BY-SA 4.0",
+    "use": "S302 側面近拍：轉向架、輪對、引擎罩側板百葉與掀蓋、底架與油箱"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台鐵 S300 型柴電機車（S302）",
+  "color": "#C4461A",
+  "detail": "1966 年美國 EMD GA8，台鐵調車與支線機車，S318 仍在彰化扇形車庫調車；橘色車身、白色海鷗倒 V",
+  "sideNote": "駕駛室在一端、長引擎罩在後；白腰帶過了駕駛室 S 形降低，到罩尾再升起。",
+  "checked": [
+   "駕駛端三扇方窗、上緣方殼雙頭燈與兩角小標示燈、海鷗倒 V 與兩塊黑底車號牌（S302 正面、S318 斜前）",
+   "引擎罩只比駕駛室略矮略窄、罩頂灰色、駕駛室後方罩頂方形濾清器凸起（S318 斜前；第一版罩太窄太矮，對照後加寬加高）",
+   "白腰帶在罩上 S 形降低、罩尾升起，罩尾一排鋼格柵門（S305 側面、S302 側面特寫）",
+   "黃黑斜紋端梁、灰色排雪板、自動車鉤、B0-B0 轉向架與燃油箱（S318 斜前、S302 正面與轉向架特寫）"
+  ],
+  "simplified": [
+   "駕駛室正面的折角三面做成一個平面",
+   "台鐵路徽不放（營運商標）",
+   "藍色版（S305 2023 年修復、S316）沒做，只做橘色版",
+   "罩尾端面沒有清楚照片，頭燈與百葉照一般 EMD 調車機推估",
+   "尺寸只有 zh.wikipedia 一個來源"
+  ]
+ },
+ {
+  "id": "r0",
+  "group": "classic",
+  "name": "台鐵 R0 型柴電機車（日立製，Co-Co；唯一保存車 R6 為改造型）",
+  "years": "1959-08 試作車出廠（借日本國鐵試運轉，編 DF91-1）；1960-07 起分兩批交付、1960-09-05 投入幹線；1966-11 起改調車；1971 起 7 輛改造；1984–1999 年陸續報廢",
+  "status": "全型已除籍（最後 R6 於 1999 年報廢）。唯一保存車 R6（改造型）：2022-04 迴送富岡整修，2023-10 運回苗栗，2025-04-25 苗栗火車頭園區開幕後在室內館展示（zh.wikipedia；Commons 2025-05 照片拍到 R6 在館內）。",
+  "source": "https://zh.wikipedia.org/wiki/台鐵R0型柴電機車",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台鐵R0型柴電機車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵R0型柴電機車",
+    "supports": "尺寸、重量、軸配置、1959／1960 交車、12 輛（R1–R12）、1966 改調車、1971 起改造 R1／R4–R6／R8／R10／R12、報廢年表、R6 保存（讀全文）；功率 1,420 hp"
+   },
+   {
+    "title": "Commons 照片5 苗栗 R0 型剖面模型說明牌（Solomon203，2013-10-15）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R0_model_20131015.jpg",
+    "supports": "說明牌：1960 日立、10＋2 輛、CO-CO、84.5 t、牽引力 14,700 kgf、最高 100 km/h、1,650 馬力、MAN V6V；R6 為唯一保存（我看圖讀到的文字）"
+   },
+   {
+    "title": "Commons Category:TRA R0 Diesel locomotives／TRA R6 at the Miaoli Railway Museum",
+    "url": "https://commons.wikimedia.org/wiki/Category:TRA_R6_at_the_Miaoli_Railway_Museum",
+    "supports": "R6 照片 5 張的來源；另有 R200 見面會等官方照片（Attribution 授權）不是 R6"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:TRA R6 at the Miaoli Railway Museum 1999-06-18.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATRA_R6_at_the_Miaoli_Railway_Museum_1999-06-18.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/TRA_R6_at_the_Miaoli_Railway_Museum_1999-06-18.jpg/1280px-TRA_R6_at_the_Miaoli_Railway_Museum_1999-06-18.jpg",
+    "author": "Dquai",
+    "licence": "CC BY-SA 4.0",
+    "use": "R6（1999-06-18，橘色塗裝）全長正側面：長引擎罩、短駕駛室、白腰帶弧線、黑色底架與兩組三軸轉向架"
+   },
+   {
+    "file": "File:台鐵R6於苗栗鐵道公園.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3A%E5%8F%B0%E9%90%B5R6%E6%96%BC%E8%8B%97%E6%A0%97%E9%90%B5%E9%81%93%E5%85%AC%E5%9C%92.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/%E5%8F%B0%E9%90%B5R6%E6%96%BC%E8%8B%97%E6%A0%97%E9%90%B5%E9%81%93%E5%85%AC%E5%9C%92.jpg/1280px-%E5%8F%B0%E9%90%B5R6%E6%96%BC%E8%8B%97%E6%A0%97%E9%90%B5%E9%81%93%E5%85%AC%E5%9C%92.jpg",
+    "author": "Hayato Chiou",
+    "licence": "CC BY-SA 3.0",
+    "use": "R6（2010，海軍藍塗裝）短端 3/4：白倒 V、黃黑斜紋端梁、雙頭燈外殼、爬梯與扶手"
+   },
+   {
+    "file": "File:TRA R6 at Miaoli Railway Museum 20141022.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATRA_R6_at_Miaoli_Railway_Museum_20141022.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/TRA_R6_at_Miaoli_Railway_Museum_20141022.jpg/1280px-TRA_R6_at_Miaoli_Railway_Museum_20141022.jpg",
+    "author": "Smiley.toerist",
+    "licence": "CC BY-SA 4.0",
+    "use": "R6（2014，藍色）車頭＋側面 3/4：駕駛室窗、百葉位置",
+    "role": "side"
+   },
+   {
+    "file": "File:R6 diesel locomotive.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3AR6_diesel_locomotive.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/02/R6_diesel_locomotive.jpg/1280px-R6_diesel_locomotive.jpg",
+    "author": "D1114456",
+    "licence": "CC BY-SA 4.0",
+    "use": "R6（2025-05，苗栗火車頭園區室內）車頭正面：深藍、白倒 V、台鐵徽、雙頭燈殼",
+    "role": "front"
+   },
+   {
+    "file": "File:TRA R0 model 20131015.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATRA_R0_model_20131015.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/TRA_R0_model_20131015.jpg/1280px-TRA_R0_model_20131015.jpg",
+    "author": "Solomon203",
+    "licence": "CC BY-SA 3.0",
+    "use": "R0 剖面模型（R10）＋說明牌：可見原型（未改造）外形與引擎室佈置；說明牌印有 1960 年日立、10＋2 輛、Co-Co、84.5 t、1,650 馬力"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台鐵 R0 型柴電機車（R6）",
+  "color": "#172C70",
+  "detail": "1960 年日立製 Co-Co 幹線柴電機車，唯一保存車 R6 在苗栗火車頭園區；海軍藍車身、白色海鷗倒 V",
+  "sideNote": "短引擎罩在前、駕駛室、長引擎罩；白腰帶到長罩尾段往下彎，收到端梁（1999 側面）。",
+  "checked": [
+   "短端面方殼雙頭燈與小帽沿、上緣紅色標示燈、端梁上方兩顆小燈、海鷗倒 V、黃黑斜紋端梁（2010 短端、2025 正面）",
+   "短引擎罩比駕駛室矮、長引擎罩接近駕駛室高，罩側整排直條百葉（1999 側面、2014 斜前）",
+   "白腰帶貫穿全車、到長罩尾往下彎（1999 側面）",
+   "駕駛室側面一門兩窗與白色扶手爬梯、Co-Co 轉向架、燃油箱（2014 斜前、1999 側面）"
+  ],
+  "simplified": [
+   "照 R6 現在（2010–2025）的海軍藍；1999 年以前的橘色版沒做",
+   "原型（未改造、「大眼蛙」頭燈）沒有實拍照，做的是改造後的 R6",
+   "台鐵路徽與 HITACHI 銘牌不放",
+   "駕駛室朝短罩的前面照研究筆記做成實心、沒有前窗",
+   "長罩尾端面沒有清楚照片，照短端推估"
+  ]
+ },
+ {
+  "id": "ldk58",
+  "group": "classic",
+  "name": "台鐵 LDK58 蒸汽機車（0-8-0T 水櫃機，762 mm 舊台東線）",
+  "years": "1923 年製；1982 年台東線拓寬為 1067 mm 後全型報廢；LDK58 1985 年贈澎湖馬公展示、1999 年運回台北機廠整修；2000 年鐵路節起展示於台北車站，2011 年後常駐東側（與 LDR2201 連掛）",
+  "status": "靜態保存展示於臺北車站東側廣場（Commons 2023-12-16、2024-01-06 照片仍在；官方照片 2022-09-08『重新亮相』）。非運轉車（同型 LDK59 才是復駛車，不是本條）。",
+  "source": "https://zh.wikipedia.org/wiki/台鐵LDK50型蒸汽機車",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台鐵LDK50型蒸汽機車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵LDK50型蒸汽機車",
+    "supports": "尺寸、重量、規格、LDK58 的 1923 年日本車輛製、保存沿革（讀 infobox 與規格段）"
+   },
+   {
+    "title": "Commons Category:TRA LDK58",
+    "url": "https://commons.wikimedia.org/wiki/Category:TRA_LDK58",
+    "supports": "照片 3 張（2012、2024 展示；1981 運用）"
+   },
+   {
+    "title": "Commons File:TRA LDK58 at Hualien Station.jpg（洪達雄，CC BY 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_LDK58_at_Hualien_Station.jpg",
+    "supports": "1981-07 實際運用照，舊塗裝對照"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:TRA LDK58 right side at Taipei Station 20120521.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATRA_LDK58_right_side_at_Taipei_Station_20120521.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/TRA_LDK58_right_side_at_Taipei_Station_20120521.jpg/1280px-TRA_LDK58_right_side_at_Taipei_Station_20120521.jpg",
+    "author": "SSR2000",
+    "licence": "CC BY-SA 3.0",
+    "use": "右側 3/4：0-8-0T 側水櫃、紅色窗框的駕駛室、圓頂砂箱／蒸汽室、紅色緩衝梁與汽缸蓋、LDK58 銅牌",
+    "role": "side"
+   },
+   {
+    "file": "File:TRA LDK58 head at TR Taipei Station 20240106.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATRA_LDK58_head_at_TR_Taipei_Station_20240106.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/TRA_LDK58_head_at_TR_Taipei_Station_20240106.jpg/1280px-TRA_LDK58_head_at_TR_Taipei_Station_20240106.jpg",
+    "author": "Solomon203",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面：圓形煙箱門與紅色手輪、煙囪前頭燈、紅色緩衝梁與汽缸蓋、兩側水櫃",
+    "role": "front"
+   },
+   {
+    "file": "File:TRA LDK58 at Hualien Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATRA_LDK58_at_Hualien_Station.jpg",
+    "thumb": "https://upload.wikimedia.org/wikipedia/commons/8/8d/TRA_LDK58_at_Hualien_Station.jpg",
+    "author": "洪達雄",
+    "licence": "CC BY 4.0",
+    "use": "1981-07 花蓮站實際運用時的樣子：灰黑舊漆、無紅色點綴，側面與駕駛室（洪達雄）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台鐵 LDK58 蒸汽機車",
+  "color": "#1B1B1D",
+  "detail": "1923 年日本車輛製 0-8-0T 水櫃機，762 mm 舊台東線，台北車站東側展示；黑車身配紅色緩衝梁、紅框窗與黃銅車號牌",
+  "sideNote": "側水櫃占車身大半，駕駛室後面開口；四對動輪由外側連桿連動。",
+  "checked": [
+   "高直筒煙囪、煙囪前紅圈大頭燈、圓煙箱門與紅色手輪、紅色緩衝梁與排障鐵（2024 車頭正面）",
+   "鍋爐上大、大、小三座圓頂，側水櫃中央紅邊黃銅車號牌，駕駛室紅框側窗（2012 右側斜前）",
+   "四對小動輪、拋光輪輞與連桿、前端外置汽缸與紅色汽缸蓋（2012 右側斜前）",
+   "駕駛室後面開口（1981 花蓮站運用照）"
+  ],
+  "simplified": [
+   "照展示版紅黑黃銅；1981 年運用時全黑、沒有紅色點綴，沒做這版",
+   "尺寸是 LDK50 型整型號的數字，LDK58 單車沒查到",
+   "三座圓頂哪座是汽室、哪座是砂箱沒有逐一核對，名稱照常見配置",
+   "駕駛室前牆照研究筆記不開窗"
+  ]
+ },
+ {
+  "id": "ldr2200",
+  "group": "classic",
+  "name": "台鐵 LDR2200 型柴油客車（762 mm 舊台東線，黃皮仔車）",
+  "years": "1957 年出廠；1982 年台東線拓寬後報廢；LDR2201 1985 年贈澎湖馬公、1999 年回台北機廠整修、2011 年起台北車站東側展示",
+  "status": "LDR2201 靜態保存於臺北車站東側（Commons 2022-02-28 照片仍在；官方 2022-09-08『重新亮相』）；LDR2204 曾整修成唯一可運轉的 LDR2200 型，現況沒查（zh.wikipedia 現存車輛段）。",
+  "source": "https://zh.wikipedia.org/wiki/台鐵LDR2200型柴油客車",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台鐵LDR2200型柴油客車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵LDR2200型柴油客車",
+    "supports": "尺寸、重量、載客、軸距、引擎、1957 製／1982 報廢、四輛去向、80 系風格端面、頭燈沿革、黃色塗裝（讀全文）"
+   },
+   {
+    "title": "Commons Category:TRA LDR2201",
+    "url": "https://commons.wikimedia.org/wiki/Category:TRA_LDR2201",
+    "supports": "照片 3 張（2012、2018 夜景、2022）；另有 Commons TRA LDR2201 Driver Cab at Taipei Station 20120714.jpg 可補駕駛室"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:TRA LDR2201 at Taipei Station 20120714.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATRA_LDR2201_at_Taipei_Station_20120714.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/TRA_LDR2201_at_Taipei_Station_20120714.jpg/1280px-TRA_LDR2201_at_Taipei_Station_20120714.jpg",
+    "author": "Solomon203",
+    "licence": "CC BY-SA 3.0",
+    "use": "LDR2201 正側面：下半黃、上半米白、約 14 扇側窗、屋頂通風罩、車號"
+   },
+   {
+    "file": "File:TRA LDR2201 and Cosmos Hotel 20220228.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATRA_LDR2201_and_Cosmos_Hotel_20220228.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/TRA_LDR2201_and_Cosmos_Hotel_20220228.jpg/1280px-TRA_LDR2201_and_Cosmos_Hotel_20220228.jpg",
+    "author": "Solomon203",
+    "licence": "CC BY-SA 4.0",
+    "use": "LDR2201 駕駛端 3/4：雙頭燈殼、兩扇前窗、白色上半＋黃色下半，後接 LDK58",
+    "role": "side"
+   },
+   {
+    "file": "File:TRA LDR2201 in Taipei Station 20180220 night.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATRA_LDR2201_in_Taipei_Station_20180220_night.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c9/TRA_LDR2201_in_Taipei_Station_20180220_night.jpg/1280px-TRA_LDR2201_in_Taipei_Station_20180220_night.jpg",
+    "author": "鐵路1",
+    "licence": "CC BY-SA 4.0",
+    "use": "LDR2201 駕駛端前視（夜景）：前端面、頭燈、排障器、車鉤；注意夜間光線",
+    "role": "front"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台鐵 LDR2200 柴油客車（黃皮仔車）",
+  "color": "#B88E00",
+  "detail": "1957 年台灣自製 762 mm 柴油客車，舊台東線「黃皮仔車」，LDR2201 在台北車站東側展示；黃白雙色、每側十六格窗、左上角雙頭燈",
+  "sideNote": "每側十六格兩段式白框窗：兩端各一格、兩扇單開門、中間十二格。",
+  "checked": [
+   "黃色下半、米白上半、淺灰白圓拱頂與六個方形通風罩（2012 側面）",
+   "側面窗與門的排列（2012 側面放大數過）",
+   "駕駛端平直兩窗（左小右寬）、左上角方殼雙頭燈（2022 駕駛端斜前、2018 夜景前視）"
+  ],
+  "simplified": [
+   "廁所端（貫通門端）沒有實拍照，照 zh.wikipedia 文字做成中央貫通門加兩扇端窗",
+   "Q 版把車長壓到 7.6，窗格比實車窄",
+   "尺寸只有 zh.wikipedia 一個來源",
+   "黃色比照片淡一點：渲染的 AgX 色彩轉換會把亮黃洗成奶油色，試了四個色值，壓暗到 B88E00 最接近"
+  ]
+ },
+ {
+  "id": "shengli",
+  "group": "current",
+  "name": "台糖汽油（柴油）客車『勝利號』538（762 mm 糖鐵，日立 1949 製；附成功號對照）",
+  "years": "1949 年製；1954 年勝利號改柴油；1982 年停止客運；2011-11-05 起烏樹林觀光；2023-04 仕佳興業整修、2023-06-10 起在新營糖廠假日行駛",
+  "status": "現役觀光車：勝利號 2023-06-10 起假日行駛新營、中興、火燒店（zh.wikipedia）；Commons 2023-06-25 照片拍到它在新營站。成功號 562 狀態沒查（2022 下半年前與勝利號同任務）。",
+  "source": "https://zh.wikipedia.org/wiki/台糖汽油車",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台糖汽油車",
+    "url": "https://zh.wikipedia.org/wiki/台糖汽油車",
+    "supports": "尺寸、重量、座位、1949 日立製、勝利號與成功號沿革、木造車體、平等號與 524 號（讀全文）"
+   },
+   {
+    "title": "Commons Category:TSC Shengli",
+    "url": "https://commons.wikimedia.org/wiki/Category:TSC_Shengli",
+    "supports": "勝利號照片來源（Wengch 2023-06-25 兩張、SSR2000 2011-05-14）"
+   },
+   {
+    "title": "Commons File:Revised Taisugar Railcar 562.JPG（SSR2000，CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Revised_Taisugar_Railcar_562.JPG",
+    "supports": "成功號整修後正側面（對照用）"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:糖鐵新營站 勝利號.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3A%E7%B3%96%E9%90%B5%E6%96%B0%E7%87%9F%E7%AB%99_%E5%8B%9D%E5%88%A9%E8%99%9F.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/%E7%B3%96%E9%90%B5%E6%96%B0%E7%87%9F%E7%AB%99_%E5%8B%9D%E5%88%A9%E8%99%9F.jpg/1280px-%E7%B3%96%E9%90%B5%E6%96%B0%E7%87%9F%E7%AB%99_%E5%8B%9D%E5%88%A9%E8%99%9F.jpg",
+    "author": "Wengch",
+    "licence": "CC BY-SA 4.0",
+    "use": "勝利號（538）2023-06 營運：端面 3/4，藍底白帶、前窗、車頭燈、紅色圓牌、車鉤",
+    "role": "front"
+   },
+   {
+    "file": "File:勝利號.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3A%E5%8B%9D%E5%88%A9%E8%99%9F.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bf/%E5%8B%9D%E5%88%A9%E8%99%9F.jpg/1280px-%E5%8B%9D%E5%88%A9%E8%99%9F.jpg",
+    "author": "Wengch",
+    "licence": "CC BY-SA 4.0",
+    "use": "勝利號（538）另一端 3/4：窗框青綠色、側門、白色腰帶與弧形收尾",
+    "role": "side"
+   },
+   {
+    "file": "File:Revised Taisugar Railcar 562.JPG",
+    "url": "https://commons.wikimedia.org/wiki/File%3ARevised_Taisugar_Railcar_562.JPG",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/Revised_Taisugar_Railcar_562.JPG/1280px-Revised_Taisugar_Railcar_562.JPG",
+    "author": "SSR2000",
+    "licence": "CC BY-SA 3.0",
+    "use": "成功號（562）整修後正側面：窗與門位置與勝利號不同，淺藍車身＋灰白車頂（供比對）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台糖 勝利號柴油客車（538）",
+  "color": "#1A34A0",
+  "detail": "1949 年日立製 762 mm 糖鐵汽油客車，1954 年改柴油，2023 年起在新營糖廠假日行駛；寶藍白帶、黑色圓拱頂、青綠窗框",
+  "sideNote": "兩端同形；側面兩端側門、中段一扇青綠拉門，兩側點對稱。",
+  "checked": [
+   "寶藍車身、窗下白腰帶、窗上白色上帶、黑色圓拱頂與方形通風罩（兩張端面斜前）",
+   "端面白色淺 V、三扇青綠框窗與雨刷、車頂前緣托架圓頭燈、兩角橘色標示燈、緩衝梁紅色圓牌（兩張端面斜前）",
+   "側面青綠窗框與拉門、兩端側門白色直立扶手（勝利號另一端斜前）"
+  ],
+  "simplified": [
+   "沒有完整正側面照，窗格數與門位置照兩張斜前照與成功號 562 側面推估",
+   "橘紅「勝利號」字樣與展翅徽沒做（字型與標誌）",
+   "木造車身的板縫沒做",
+   "尺寸是台糖汽油車整個車型的數字"
   ]
  }
 ]

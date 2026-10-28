@@ -1158,12 +1158,6 @@
     "modifiers": []
   },
   {
-    "name": "識別牌 827",
-    "type": "FONT",
-    "polygons": 1335,
-    "modifiers": []
-  },
-  {
     "name": "側門門框.001",
     "type": "MESH",
     "polygons": 26,
@@ -1236,12 +1230,6 @@
     "name": "車號牌.001",
     "type": "MESH",
     "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "識別牌 827.001",
-    "type": "FONT",
-    "polygons": 1335,
     "modifiers": []
   },
   {

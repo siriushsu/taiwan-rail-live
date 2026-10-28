@@ -25,7 +25,7 @@
   "sourcePhotosIncluded": false,
   "operatorLogoIncluded": false,
   "numberIsLiveIdentity": false,
-  "identityMaterial": "可移除車型示意牌",
+  "identityMaterial": null,
   "engineeringDimensionsM": null,
   "bounds": {
     "min": [
@@ -46,11 +46,11 @@
   ],
   "mesh": {
     "file": "sugarhitachi.mesh.bin",
-    "sha256": "db9b5b667e20de63588b5448ace19cc6a18ee6f88d2d07a64caed74d42e53931",
+    "sha256": "c28429a57f064ea1630087e2be0b185d14ee47a45e8156bf1ea6a0ef1ad1ffe1",
     "encoding": "float32-le",
     "strideBytes": 24,
-    "vertexCount": 109140,
-    "triangleCount": 36380,
+    "vertexCount": 94332,
+    "triangleCount": 31444,
     "drawGroups": [
       {
         "name": "chassis",
@@ -196,21 +196,8 @@
         "clearcoat": 0.41999998688697815
       },
       {
-        "name": "可移除車型示意牌",
-        "start": 92064,
-        "count": 14808,
-        "color": [
-          0.8069522380828857,
-          0.7529422044754028,
-          0.6038273572921753
-        ],
-        "metalness": 0.10000000149011612,
-        "roughness": 0.4000000059604645,
-        "clearcoat": 0.0
-      },
-      {
         "name": "red",
-        "start": 106872,
+        "start": 92064,
         "count": 2268,
         "color": [
           0.43415364623069763,
@@ -223,7 +210,7 @@
       }
     ]
   },
-  "nativeObjectCount": 188,
+  "nativeObjectCount": 186,
   "features": {
     "sideDoorGroups": 0,
     "doorLeavesPerGroup": 2,
@@ -241,13 +228,13 @@
     "body": "6E1410",
     "accent": "B02A12",
     "power": "diesel",
-    "label": "827",
+    "label": "",
     "drivers": 0,
     "axles": 2
   },
   "reference": {
     "source": "https://zh.wikipedia.org/wiki/台糖日立牌內燃機車",
-    "detail": null,
+    "detail": "1967–69 年日立製 762 mm 糖鐵柴油機車，溪湖糖廠現役牽引五分車觀光列車；照 2023-04 的暗紅塗裝，引擎罩正面白色大 V 字",
     "photoUse": "visual-study-only-not-redistributed"
   },
   "formation": {

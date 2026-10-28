@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>台鐵 LDR2200 柴油客車（黃皮仔車）對照</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e3e1da;--accent:#c4501b}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--muted:#9a9aa2;--line:#2e2e33;--accent:#f08a4b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:28px 0 8px}
+a{color:var(--accent)}
+.sub,.cap{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--muted)}
+.card img{display:block;width:100%;height:auto}
+.meta{display:flex;align-items:center;gap:8px;padding:8px 10px 0}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid var(--line)}
+.cap{padding:0 10px 6px}
+.card .cap:last-child{padding-bottom:10px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:720px){.pair{grid-template-columns:1fr}}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:8px 10px;font-size:13px;color:var(--muted)}
+ul{padding-left:20px}
+.table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+.table th,.table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.table th{font-size:13px;color:var(--muted);font-weight:600}
+.wrap{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.done{color:#2f7d4f;border-color:#2f7d4f}
+.todo{color:var(--muted)}
+.thumb{width:150px;border-radius:6px;display:block}
+</style>
+</head>
+<body>
+<main>
+<h1>台鐵 LDR2200 型柴油客車（762 mm 舊台東線，黃皮仔車）：渲染與照片對照</h1>
+<p class="sub">左邊是 Blender 5.2.1 Q 版模型渲染，右邊是 Wikimedia Commons 照片（直接連 Commons 顯示，沒有複製進 repo）。LDR2201 靜態保存於臺北車站東側（Commons 2022-02-28 照片仍在；官方 2022-09-08『重新亮相』）；LDR2204 曾整修成唯一可運轉的 LDR2200 型，現況沒查（zh.wikipedia 現存車輛段）。</p>
+<p class="sub"><a href="batch-tw.html">← 回總覽</a>　·　<a href="../inventory.html">盤點清單</a></p>
+<h2>車頭</h2>
+<div class="pair">
+<figure><img src="../models/ldr2200/renders/front.png" alt="模型車頭渲染"><figcaption>模型車頭</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c9/TRA_LDR2201_in_Taipei_Station_20180220_night.jpg/1280px-TRA_LDR2201_in_Taipei_Station_20180220_night.jpg" alt="台鐵 LDR2200 柴油客車（黃皮仔車）車頭照片" loading="lazy"><figcaption>照片：鐵路1，CC BY-SA 4.0（<a href="https://commons.wikimedia.org/wiki/File%3ATRA_LDR2201_in_Taipei_Station_20180220_night.jpg">原檔</a>）。LDR2201 駕駛端前視（夜景）：前端面、頭燈、排障器、車鉤；注意夜間光線</figcaption></figure>
+</div>
+<h2>斜側</h2>
+<div class="pair">
+<figure><img src="../models/ldr2200/renders/hero.png" alt="模型斜側渲染"><figcaption>模型斜側</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/TRA_LDR2201_and_Cosmos_Hotel_20220228.jpg/1280px-TRA_LDR2201_and_Cosmos_Hotel_20220228.jpg" alt="台鐵 LDR2200 柴油客車（黃皮仔車）斜側照片" loading="lazy"><figcaption>照片：Solomon203，CC BY-SA 4.0（<a href="https://commons.wikimedia.org/wiki/File%3ATRA_LDR2201_and_Cosmos_Hotel_20220228.jpg">原檔</a>）。LDR2201 駕駛端 3/4：雙頭燈殼、兩扇前窗、白色上半＋黃色下半，後接 LDK58</figcaption></figure>
+</div>
+<h2>側面</h2>
+<figure><img src="../models/ldr2200/renders/side.png" alt="模型側面渲染"><figcaption>模型側面：每側十六格兩段式白框窗：兩端各一格、兩扇單開門、中間十二格。</figcaption></figure>
+<h2>其他參考照片</h2>
+<div class="pair">
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/TRA_LDR2201_at_Taipei_Station_20120714.jpg/1280px-TRA_LDR2201_at_Taipei_Station_20120714.jpg" alt="參考照片" loading="lazy"><figcaption>照片：Solomon203，CC BY-SA 3.0（<a href="https://commons.wikimedia.org/wiki/File%3ATRA_LDR2201_at_Taipei_Station_20120714.jpg">原檔</a>）。LDR2201 正側面：下半黃、上半米白、約 14 扇側窗、屋頂通風罩、車號</figcaption></figure>
+</div>
+<h2>對過的地方</h2>
+<ul>
+<li>黃色下半、米白上半、淺灰白圓拱頂與六個方形通風罩（2012 側面）</li>
+<li>側面窗與門的排列（2012 側面放大數過）</li>
+<li>駕駛端平直兩窗（左小右寬）、左上角方殼雙頭燈（2022 駕駛端斜前、2018 夜景前視）</li>
+</ul>
+<h2>刻意簡化或沒做</h2>
+<ul>
+<li>廁所端（貫通門端）沒有實拍照，照 zh.wikipedia 文字做成中央貫通門加兩扇端窗</li>
+<li>Q 版把車長壓到 7.6，窗格比實車窄</li>
+<li>尺寸只有 zh.wikipedia 一個來源</li>
+<li>黃色比照片淡一點：渲染的 AgX 色彩轉換會把亮黃洗成奶油色，試了四個色值，壓暗到 B88E00 最接近</li>
+</ul>
+<h2>資料來源</h2>
+<ul>
+<li><a href="https://zh.wikipedia.org/wiki/台鐵LDR2200型柴油客車">zh.wikipedia 台鐵LDR2200型柴油客車</a>：尺寸、重量、載客、軸距、引擎、1957 製／1982 報廢、四輛去向、80 系風格端面、頭燈沿革、黃色塗裝（讀全文）</li>
+<li><a href="https://commons.wikimedia.org/wiki/Category:TRA_LDR2201">Commons Category:TRA LDR2201</a>：照片 3 張（2012、2018 夜景、2022）；另有 Commons TRA LDR2201 Driver Cab at Taipei Station 20120714.jpg 可補駕駛室</li>
+</ul>
+<p class="cap">67,556 三角形 · 250 個可編修物件 · 包圍盒 8.51 × 2.58 × 3.16 展示公尺</p>
+
+</main>
+</body>
+</html>

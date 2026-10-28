@@ -1,0 +1,259 @@
+{
+  "modelId": "s300",
+  "name": "台鐵 S300 型柴電機車（EMD GA8，B0-B0 調車／支線機車）",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "diesel",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -3.7300000190734863,
+      -1.3550169467926025,
+      0.0
+    ],
+    "max": [
+      3.7300000190734863,
+      1.3550169467926025,
+      3.6500000953674316
+    ]
+  },
+  "sizeM": [
+    7.460000038146973,
+    2.710033893585205,
+    3.6500000953674316
+  ],
+  "mesh": {
+    "file": "s300.mesh.bin",
+    "sha256": "cdc3399fabc909231ea7d9bd170447b8196dce4cbb4a740d9f14c94183d74178",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 200160,
+    "triangleCount": 66720,
+    "drawGroups": [
+      {
+        "name": "chassis",
+        "start": 0,
+        "count": 38220,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "metal",
+        "start": 38220,
+        "count": 56352,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "s3orange",
+        "start": 94572,
+        "count": 11208,
+        "color": [
+          0.5520114302635193,
+          0.061246052384376526,
+          0.01032982300966978
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.36000001430511475,
+        "clearcoat": 0.2800000011920929
+      },
+      {
+        "name": "s3roof",
+        "start": 105780,
+        "count": 3708,
+        "color": [
+          0.20863686501979828,
+          0.23074005544185638,
+          0.2541520893573761
+        ],
+        "metalness": 0.30000001192092896,
+        "roughness": 0.44999998807907104,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "frame",
+        "start": 109488,
+        "count": 9384,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "roof",
+        "start": 118872,
+        "count": 41736,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "white",
+        "start": 160608,
+        "count": 2532,
+        "color": [
+          0.8713670969009399,
+          0.838798999786377,
+          0.6938717365264893
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "lamp",
+        "start": 163140,
+        "count": 6840,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 169980,
+        "count": 2484,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 172464,
+        "count": 22680,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "yellow",
+        "start": 195144,
+        "count": 1128,
+        "color": [
+          0.838798999786377,
+          0.533276379108429,
+          0.06301001459360123
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "red",
+        "start": 196272,
+        "count": 3024,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 199296,
+        "count": 864,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 312,
+  "features": {
+    "sideDoorGroups": 0,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "s300",
+    "family": "diesel",
+    "L": 6.6,
+    "W": 2.62,
+    "H": 3.55,
+    "body": "C4461A",
+    "accent": "F1F1EC",
+    "power": "diesel",
+    "label": "S302",
+    "pantos": 0,
+    "axles": 2
+  },
+  "reference": {
+    "source": "https://zh.wikipedia.org/wiki/台鐵S300型柴電機車",
+    "detail": "1966 年美國 EMD GA8，台鐵調車與支線機車，S318 仍在彰化扇形車庫調車；橘色車身、白色海鷗倒 V",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}
