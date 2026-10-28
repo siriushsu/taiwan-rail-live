@@ -11,7 +11,7 @@ OUT=Path(__file__).resolve().parent
 src=[m for m in json.load(open(OUT/'catalog-source.json')) if m.get('group')]
 for m in src:m.setdefault('label',m['name']);m.setdefault('detail','');m.setdefault('color','#888888')
 excluded=json.load(open(OUT/'inventory-excluded.json')) if (OUT/'inventory-excluded.json').exists() else []
-GROUPS=[('current','現役但還沒建模'),('classic','退役的經典老車')]
+GROUPS=[('current','現役、台灣車隊還沒有的'),('classic','退役的經典老車')]
 e=html.escape
 
 CSS=""":root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e3e1da;--accent:#c4501b}
