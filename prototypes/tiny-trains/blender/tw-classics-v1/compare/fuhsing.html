@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>台鐵 復興號客車（20000 系）對照</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e3e1da;--accent:#c4501b}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--muted:#9a9aa2;--line:#2e2e33;--accent:#f08a4b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:28px 0 8px}
+a{color:var(--accent)}
+.sub,.cap{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--muted)}
+.card img{display:block;width:100%;height:auto}
+.meta{display:flex;align-items:center;gap:8px;padding:8px 10px 0}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid var(--line)}
+.cap{padding:0 10px 6px}
+.card .cap:last-child{padding-bottom:10px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:720px){.pair{grid-template-columns:1fr}}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:8px 10px;font-size:13px;color:var(--muted)}
+ul{padding-left:20px}
+.table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+.table th,.table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.table th{font-size:13px;color:var(--muted);font-weight:600}
+.wrap{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.done{color:#2f7d4f;border-color:#2f7d4f}
+.todo{color:var(--muted)}
+.thumb{width:150px;border-radius:6px;display:block}
+</style>
+</head>
+<body>
+<main>
+<h1>台鐵 20000 系復興號客車（40SP／40SPK／40SPK21000）：渲染與照片對照</h1>
+<p class="sub">左邊是 Blender 5.2.1 Q 版模型渲染，右邊是 Wikimedia Commons 照片（直接連 Commons 顯示，沒有複製進 repo）。已退出定期營運（2022-12-28）；部分保存（40SP20035 於國家鐵道博物館；40SP20060/20080/20090、40SPK20001 於潮州基地）。復興號 2022-03-29 後改由 EMU500/900 行駛，原客車僅剩南迴線區間車，2022-12 全數退出。</p>
+<p class="sub"><a href="batch-tw.html">← 回總覽</a>　·　<a href="../inventory.html">盤點清單</a></p>
+<h2>車頭</h2>
+<div class="pair">
+<figure><img src="../models/fuhsing/renders/front.png" alt="模型車頭渲染"><figcaption>模型車頭</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/40SPK21008T%2C_Fu-Hsing_Semi_Express.jpg/1280px-40SPK21008T%2C_Fu-Hsing_Semi_Express.jpg" alt="台鐵 復興號客車（20000 系）車頭照片" loading="lazy"><figcaption>照片：Kazehayashi，CC BY-SA 4.0（<a href="https://commons.wikimedia.org/wiki/File:40SPK21008T,_Fu-Hsing_Semi_Express.jpg">原檔</a>）。40SPK21008T（附車長室型）車身與車端</figcaption></figure>
+</div>
+<h2>斜側</h2>
+<div class="pair">
+<figure><img src="../models/fuhsing/renders/hero.png" alt="模型斜側渲染"><figcaption>模型斜側</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/TRA_40SP20073T_at_Chiayi_Station_20191011.jpg/1280px-TRA_40SP20073T_at_Chiayi_Station_20191011.jpg" alt="台鐵 復興號客車（20000 系）斜側照片" loading="lazy"><figcaption>照片：Kazehayashi，CC BY-SA 4.0（<a href="https://commons.wikimedia.org/wiki/File:TRA_40SP20073T_at_Chiayi_Station_20191011.jpg">原檔</a>）。復興號 40SP20073 單節車斜側：淺藍塗裝、窗列、車門、車端（20000 系）</figcaption></figure>
+</div>
+<h2>側面</h2>
+<figure><img src="../models/fuhsing/renders/side.png" alt="模型側面渲染"><figcaption>模型側面：兩端各一組窄雙折門；淺藍窗帶在車門區前以斜線收掉（下緣離車端遠、上緣近）。</figcaption></figure>
+<h2>其他參考照片</h2>
+<div class="pair">
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/TRA_E417_Fu-Hsing_Semi_Express_Yilan_Line_Houtong_20160221.JPG/1280px-TRA_E417_Fu-Hsing_Semi_Express_Yilan_Line_Houtong_20160221.JPG" alt="參考照片" loading="lazy"><figcaption>照片：Cassiopeia sweet，Public domain（<a href="https://commons.wikimedia.org/wiki/File:TRA_E417_Fu-Hsing_Semi_Express_Yilan_Line_Houtong_20160221.JPG">原檔</a>）。整列復興號編組（PD）：淺藍＋白帶、車頂深灰</figcaption></figure>
+</div>
+<h2>對過的地方</h2>
+<ul>
+<li>淺藍窗帶、亮藍下半、兩端車門區整段亮藍且斜線分界（嘉義站 40SP20073、40SPK21008）</li>
+<li>六扇大窗與綠色窗簾、兩端窄雙折門與門上兩個長圓小窗（嘉義站 40SP20073）</li>
+<li>高拱灰色車頂、端牆貫通門與風琴折棚（後硐站整列）</li>
+<li>車側行先小牌與車廂號碼牌位置（嘉義站）</li>
+</ul>
+<h2>刻意簡化或沒做</h2>
+<ul>
+<li>車側台鐵路徽不放，車號用可移除示意字牌</li>
+<li>附車長室型（40SPK21000）的大片百葉沒做，只做一般 40SP</li>
+<li>車頂圓形通風口與冷氣罩數量照一般配置，沒逐一對過</li>
+</ul>
+<h2>資料來源</h2>
+<ul>
+<li><a href="https://zh.wikipedia.org/wiki/台鐵20000系鋼體客車">zh.wikipedia 台鐵20000系鋼體客車</a>：尺寸 20000/2900/3800、軌距 1067、唐榮 1980–81、120 輛、6 大窗、與 10000 系外觀關係</li>
+<li><a href="https://zh.wikipedia.org/wiki/復興號列車">zh.wikipedia 復興號列車</a>：1980-07-06 營運、2022-12-28 完全退出正班車、車體與莒光號相同但 60 座</li>
+<li><a href="https://commons.wikimedia.org/wiki/File:TRA_40SP20073T_at_Chiayi_Station_20191011.jpg">Commons TRA 40SP20073T at Chiayi Station 20191011（CC BY-SA 4.0）</a>：實車側面塗裝與窗/門（本人目視）</li>
+</ul>
+<p class="cap">58,956 三角形 · 248 個可編修物件 · 包圍盒 10.02 × 3.02 × 3.67 展示公尺</p>
+
+</main>
+</body>
+</html>

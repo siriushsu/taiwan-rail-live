@@ -17,3 +17,9 @@ add('emu200','railcar',L=8.9,W=2.8,H=3.5,doors=2,doorLeaves=1,body='D3CBAE',acce
 add('dr2800','railcar',L=8.9,W=2.8,H=3.45,doors=1,doorLeaves=1,body='AEB2B0',accent='D9531C',power='diesel',label='DR2823')
 # EMU400：實車 20,000／2,880／3,932 mm，同 EMU300 比例。
 add('emu400','railcar',L=8.9,W=2.8,H=3.5,doors=2,doorLeaves=2,body='AEB4BA',accent='2146BE',power='overhead-other-car',label='EM410')
+# 復興號 20000 系：實車 20,000／2,900／3,800 mm；比照 fleet-v1 莒光號客車（L 9.0、W 2.8、H 3.4），拱頂高一點。
+add('fuhsing','coach',L=9.0,W=2.85,H=3.45,radiusTop=.80,doors=2,doorLeaves=2,body='2772CC',accent='A9BED4',power='unpowered',label='40SP20073')
+# 台糖 346：762 mm 軌距 0-6-0 水櫃機（12.5 t），尺寸查不到；比騰雲號長一節動輪，寬照窄軌縮。
+add('sugar346','steam',L=5.6,W=2.20,H=3.25,body='26292B',accent='B8281A',power='steam',drivers=3,label='346')
+# E100：實車 15,120／2,995／4,003 mm；比照 fleet-v1 E200（17.4 m→8.6）縮成 7.6，車身底在 1.15。
+add('e100','electric',L=7.6,W=2.85,H=3.50,bottom=1.15,radiusBottom=.06,radiusTop=.30,body='DCC488',accent='E0501A',power='overhead',label='E101')

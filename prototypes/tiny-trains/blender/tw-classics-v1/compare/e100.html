@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>台鐵 E100 電力機車對照</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e3e1da;--accent:#c4501b}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--muted:#9a9aa2;--line:#2e2e33;--accent:#f08a4b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:28px 0 8px}
+a{color:var(--accent)}
+.sub,.cap{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--muted)}
+.card img{display:block;width:100%;height:auto}
+.meta{display:flex;align-items:center;gap:8px;padding:8px 10px 0}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid var(--line)}
+.cap{padding:0 10px 6px}
+.card .cap:last-child{padding-bottom:10px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:720px){.pair{grid-template-columns:1fr}}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:8px 10px;font-size:13px;color:var(--muted)}
+ul{padding-left:20px}
+.table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+.table th,.table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.table th{font-size:13px;color:var(--muted);font-weight:600}
+.wrap{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.done{color:#2f7d4f;border-color:#2f7d4f}
+.todo{color:var(--muted)}
+.thumb{width:150px;border-radius:6px;display:block}
+</style>
+</head>
+<body>
+<main>
+<h1>台鐵 E100 型電力機車：渲染與照片對照</h1>
+<p class="sub">左邊是 Blender 5.2.1 Q 版模型渲染，右邊是 Wikimedia Commons 照片（直接連 Commons 顯示，沒有複製進 repo）。已退役、報廢；E101 保存（富岡基地整理外觀後 2022-05-07 迴送彰化、2023-10-14 迴送苗栗火車頭園區，置於苗栗火車頭園區展館）。</p>
+<p class="sub"><a href="batch-tw.html">← 回總覽</a>　·　<a href="../inventory.html">盤點清單</a></p>
+<h2>車頭</h2>
+<div class="pair">
+<figure><img src="../models/e100/renders/front.png" alt="模型車頭渲染"><figcaption>模型車頭</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/db/TRA_E101_at_Changhua_Rolling_Stock_Branch_2007-06-10.jpg/1280px-TRA_E101_at_Changhua_Rolling_Stock_Branch_2007-06-10.jpg" alt="台鐵 E100 電力機車車頭照片" loading="lazy"><figcaption>照片：Cheng-en Cheng，CC BY-SA 2.0（<a href="https://commons.wikimedia.org/wiki/File:TRA_E101_at_Changhua_Rolling_Stock_Branch_2007-06-10.jpg">原檔</a>）。E101 另一角度（車側散熱百葉、集電弓）</figcaption></figure>
+</div>
+<h2>斜側</h2>
+<div class="pair">
+<figure><img src="../models/e100/renders/hero.png" alt="模型斜側渲染"><figcaption>模型斜側</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/E101_electric_locomotive.jpg/1280px-E101_electric_locomotive.jpg" alt="台鐵 E100 電力機車斜側照片" loading="lazy"><figcaption>照片：D1114456，CC BY-SA 4.0（<a href="https://commons.wikimedia.org/wiki/File:E101_electric_locomotive.jpg">原檔</a>）。E101 保存車（車頭正面斜前：塗裝、頭燈、前窗、貫通？）</figcaption></figure>
+</div>
+<h2>側面</h2>
+<figure><img src="../models/e100/renders/side.png" alt="模型側面渲染"><figcaption>模型側面：兩端駕駛室同形（車頭做一端再旋轉複製）；中段機器室四組直條百葉。</figcaption></figure>
+<h2>其他參考照片</h2>
+<div class="pair">
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/TRA_E100_electric_locomotives_at_Changhua_Station.jpg/1280px-TRA_E100_electric_locomotives_at_Changhua_Station.jpg" alt="參考照片" loading="lazy"><figcaption>照片：Cheng-en Cheng，CC BY-SA 2.0（<a href="https://commons.wikimedia.org/wiki/File:TRA_E100_electric_locomotives_at_Changhua_Station.jpg">原檔</a>）。E100 在彰化站（側面、車身比例）</figcaption></figure>
+</div>
+<h2>對過的地方</h2>
+<ul>
+<li>奶油色上半、橘色下半、奶油色寬 V 帶從車角彎到中央下緣（2007 彰化 E101 正面）</li>
+<li>外伸屋簷、中央長方頭燈箱、兩側氣笛、兩扇圓角擋風與窗間把手（2007 正面）</li>
+<li>下緣紅色尾燈、橘色扶手、跳線插座與垂下的軟管、黃黑警戒緩衝樑與黑色排障器（2007 正面）</li>
+<li>駕駛室側面橢圓窗車門與側窗、中段機器室直條百葉（彰化站 E100 群側面）</li>
+</ul>
+<h2>刻意簡化或沒做</h2>
+<ul>
+<li>照 2007 年 E101 的配色；退役前其他車是較褪色的奶油／橘棕，國鐵博保存車現在是白／橘紅</li>
+<li>集電弓型式沒查證，用單臂集電弓代表</li>
+<li>車頂設備只做主斷路器箱、瓷瓶與母線</li>
+</ul>
+<h2>資料來源</h2>
+<ul>
+<li><a href="https://zh.wikipedia.org/wiki/台鐵E100型電力機車">zh.wikipedia 台鐵E100型電力機車</a>：尺寸、軌距、20 輛、GEC/UC&amp;W、1976 製造、2007 退役、E101 保存、無 M-A set</li>
+<li><a href="https://commons.wikimedia.org/wiki/File:E101_electric_locomotive.jpg">Commons E101 electric locomotive.jpg（CC BY-SA 4.0）</a>：保存車頭塗裝、前窗、頭燈、排障器（本人目視）</li>
+<li><a href="https://commons.wikimedia.org/wiki/File:TRA_E100_electric_locomotives_at_Changhua_Station.jpg">Commons TRA E100 electric locomotives at Changhua Station（CC BY-SA 2.0）</a>：退役前米黃橘棕側面、側百葉、駕駛室側門（本人目視）</li>
+</ul>
+<p class="cap">81,156 三角形 · 390 個可編修物件 · 包圍盒 8.54 × 3.02 × 4.74 展示公尺</p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,234 @@
+{
+  "modelId": "sugar346",
+  "name": "台糖 346 號蒸汽機車（比利時 AFB 製 0-6-0T，762 mm 糖鐵）",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "steam",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -2.950000047683716,
+      -1.1799999475479126,
+      0.0
+    ],
+    "max": [
+      2.950000047683716,
+      1.1799999475479126,
+      3.2699999809265137
+    ]
+  },
+  "sizeM": [
+    5.900000095367432,
+    2.359999895095825,
+    3.2699999809265137
+  ],
+  "mesh": {
+    "file": "sugar346.mesh.bin",
+    "sha256": "d77527f3de9ec02f2ed8272e7d7e5a810620fd9e4fe19098730e8dd3c79337b5",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 159456,
+    "triangleCount": 53152,
+    "drawGroups": [
+      {
+        "name": "chassis",
+        "start": 0,
+        "count": 26148,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "metal",
+        "start": 26148,
+        "count": 34368,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "tsblack",
+        "start": 60516,
+        "count": 50748,
+        "color": [
+          0.019382361322641373,
+          0.022173885256052017,
+          0.024157632142305374
+        ],
+        "metalness": 0.30000001192092896,
+        "roughness": 0.44999998807907104,
+        "clearcoat": 0.11999999731779099
+      },
+      {
+        "name": "tsred",
+        "start": 111264,
+        "count": 16452,
+        "color": [
+          0.4793201684951782,
+          0.021219009533524513,
+          0.01032982300966978
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.2199999988079071
+      },
+      {
+        "name": "gold",
+        "start": 127716,
+        "count": 1716,
+        "color": [
+          0.4793201684951782,
+          0.32314321398735046,
+          0.10224173218011856
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 129432,
+        "count": 23076,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "tsmesh",
+        "start": 152508,
+        "count": 1524,
+        "color": [
+          0.008568125776946545,
+          0.009721217676997185,
+          0.01032982300966978
+        ],
+        "metalness": 0.4000000059604645,
+        "roughness": 0.550000011920929,
+        "clearcoat": 0.05000000074505806
+      },
+      {
+        "name": "frame",
+        "start": 154032,
+        "count": 1884,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "lamp",
+        "start": 155916,
+        "count": 1332,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "white",
+        "start": 157248,
+        "count": 552,
+        "color": [
+          0.8713670969009399,
+          0.838798999786377,
+          0.6938717365264893
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 157800,
+        "count": 1656,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      }
+    ]
+  },
+  "nativeObjectCount": 380,
+  "features": {
+    "sideDoorGroups": 0,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 3,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 3
+  },
+  "specification": {
+    "id": "sugar346",
+    "family": "steam",
+    "L": 5.6,
+    "W": 2.2,
+    "H": 3.25,
+    "body": "26292B",
+    "accent": "B8281A",
+    "power": "steam",
+    "drivers": 3,
+    "label": "346",
+    "axles": 3,
+    "tank": true
+  },
+  "reference": {
+    "source": "https://zh.wikipedia.org/wiki/臺灣糖業鐵路",
+    "detail": null,
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>台糖 346 號蒸汽機車對照</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e3e1da;--accent:#c4501b}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--muted:#9a9aa2;--line:#2e2e33;--accent:#f08a4b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:28px 0 8px}
+a{color:var(--accent)}
+.sub,.cap{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--muted)}
+.card img{display:block;width:100%;height:auto}
+.meta{display:flex;align-items:center;gap:8px;padding:8px 10px 0}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid var(--line)}
+.cap{padding:0 10px 6px}
+.card .cap:last-child{padding-bottom:10px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:720px){.pair{grid-template-columns:1fr}}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:8px 10px;font-size:13px;color:var(--muted)}
+ul{padding-left:20px}
+.table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+.table th,.table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.table th{font-size:13px;color:var(--muted);font-weight:600}
+.wrap{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.done{color:#2f7d4f;border-color:#2f7d4f}
+.todo{color:var(--muted)}
+.thumb{width:150px;border-radius:6px;display:block}
+</style>
+</head>
+<body>
+<main>
+<h1>台糖 346 號蒸汽機車（比利時 AFB 製 0-6-0T，762 mm 糖鐵）：渲染與照片對照</h1>
+<p class="sub">左邊是 Blender 5.2.1 Q 版模型渲染，右邊是 Wikimedia Commons 照片（直接連 Commons 顯示，沒有複製進 repo）。動態保存，目前仍是全台唯一固定班次載客的蒸汽五分車（2025-10 維修復駛，2026-02 報導回歸載客）。屬『經典車但仍現役』，歸 classic 因為是 1948 年歷史機型；同型 370 號（烏樹林）僅團體預約。</p>
+<p class="sub"><a href="batch-tw.html">← 回總覽</a>　·　<a href="../inventory.html">盤點清單</a></p>
+<h2>車頭</h2>
+<div class="pair">
+<figure><img src="../models/sugar346/renders/front.png" alt="模型車頭渲染"><figcaption>模型車頭</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Steam_locomotive_346_of_Taiwan_Sugar_Corporation_2020-03-29.jpg/1280px-Steam_locomotive_346_of_Taiwan_Sugar_Corporation_2020-03-29.jpg" alt="台糖 346 號蒸汽機車車頭照片" loading="lazy"><figcaption>照片：Industrial Wales，CC BY-SA 2.0（<a href="https://commons.wikimedia.org/wiki/File:Steam_locomotive_346_of_Taiwan_Sugar_Corporation_2020-03-29.jpg">原檔</a>）。346 號斜前側（Industrial Wales）</figcaption></figure>
+</div>
+<h2>斜側</h2>
+<div class="pair">
+<figure><img src="../models/sugar346/renders/hero.png" alt="模型斜側渲染"><figcaption>模型斜側</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/TSC_%27346%27_at_Xihu_2023-07-18.jpg/1280px-TSC_%27346%27_at_Xihu_2023-07-18.jpg" alt="台糖 346 號蒸汽機車斜側照片" loading="lazy"><figcaption>照片：Industrial Wales，CC BY-SA 2.0（<a href="https://commons.wikimedia.org/wiki/File:TSC_%27346%27_at_Xihu_2023-07-18.jpg">原檔</a>）。346 2023 另一角度（側面）</figcaption></figure>
+</div>
+<h2>側面</h2>
+<figure><img src="../models/sugar346/renders/side.png" alt="模型側面渲染"><figcaption>模型側面：駕駛室側面前半是圓角窗、後半是落地開口（紅色細框）；尺寸查不到，比例照照片估。</figcaption></figure>
+<h2>其他參考照片</h2>
+<div class="pair">
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/A_Tourist_Train_in_Xihu_Sugar_Factory.jpg/1280px-A_Tourist_Train_in_Xihu_Sugar_Factory.jpg" alt="參考照片" loading="lazy"><figcaption>照片：Tbatb，CC BY-SA 4.0（<a href="https://commons.wikimedia.org/wiki/File:A_Tourist_Train_in_Xihu_Sugar_Factory.jpg">原檔</a>）。溪湖糖廠 346 牽引觀光客車（連客車）</figcaption></figure>
+</div>
+<h2>對過的地方</h2>
+<ul>
+<li>長而平的鉚釘側水櫃與紅底 346 號牌（2023 溪湖側面）</li>
+<li>鍋爐上兩座高圓筒圓頂、直筒煙囪頂網罩火星擋（2020 斜前、2023 側面）</li>
+<li>煙箱頂帶遮光罩的大頭燈、煙箱門紅底 346 牌與一圈螺栓（2020 斜前）</li>
+<li>大紅鉚釘緩衝樑與中央緩衝車鉤、紅色內側車架、三對動輪與 Walschaerts 閥動（兩張照片）</li>
+<li>駕駛室圓角側窗、落地開口紅色細框與紅色扶手、後方煤櫃（2023 側面）</li>
+</ul>
+<h2>刻意簡化或沒做</h2>
+<ul>
+<li>實車尺寸查不到（只有 762 mm 軌距與 12.5 t），長寬高是照片比例估的</li>
+<li>閥動只做主要幾根桿件</li>
+<li>廠徽紅牌不畫圖案</li>
+</ul>
+<h2>資料來源</h2>
+<ul>
+<li><a href="https://zh.wikipedia.org/wiki/臺灣糖業鐵路">zh.wikipedia 臺灣糖業鐵路（現存蒸汽機車表）</a>：346 號 0-6-0 tank、762 mm、1948、比利時 AFB、溪湖糖廠、2007 動態行駛；370 號 Tubize、烏樹林、2003 動態行駛（改燃油）、僅團體預約</li>
+<li><a href="https://kurogane-rail.jp/kurogane-doc/tw-psl/etw-psl.html">Kurogane no Michi Taiwan Sugar steam locomotive list</a>：346（AFB 1948，12.5 t）、370（Tubize 1948，12.5 t）</li>
+<li><a href="https://wantrich.chinatimes.com/news/20251015900649-420501">chinatimes 346 蒸汽五分車維修復駛（2025-10）</a>：2025-10-24 復駛、全台唯一固定班次的蒸汽糖鐵（搜尋摘要，主對話可抽測）</li>
+</ul>
+<p class="cap">53,152 三角形 · 380 個可編修物件 · 包圍盒 5.90 × 2.36 × 3.27 展示公尺</p>
+
+</main>
+</body>
+</html>

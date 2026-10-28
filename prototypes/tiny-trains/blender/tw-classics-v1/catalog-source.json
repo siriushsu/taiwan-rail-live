@@ -636,5 +636,213 @@
    "後期偏深藍與初期群青的差別只取照片上的後期色",
    "只做駕駛車一節"
   ]
+ },
+ {
+  "id": "fuhsing",
+  "group": "classic",
+  "name": "台鐵 20000 系復興號客車（40SP／40SPK／40SPK21000）",
+  "years": "1980–1981 製造 120 輛（1980-07 首批冷氣對號快車）；2022-12-28 退出定期營運",
+  "status": "已退出定期營運（2022-12-28）；部分保存（40SP20035 於國家鐵道博物館；40SP20060/20080/20090、40SPK20001 於潮州基地）。復興號 2022-03-29 後改由 EMU500/900 行駛，原客車僅剩南迴線區間車，2022-12 全數退出。",
+  "source": "https://zh.wikipedia.org/wiki/台鐵20000系鋼體客車",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台鐵20000系鋼體客車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵20000系鋼體客車",
+    "supports": "尺寸 20000/2900/3800、軌距 1067、唐榮 1980–81、120 輛、6 大窗、與 10000 系外觀關係"
+   },
+   {
+    "title": "zh.wikipedia 復興號列車",
+    "url": "https://zh.wikipedia.org/wiki/復興號列車",
+    "supports": "1980-07-06 營運、2022-12-28 完全退出正班車、車體與莒光號相同但 60 座"
+   },
+   {
+    "title": "Commons TRA 40SP20073T at Chiayi Station 20191011（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_40SP20073T_at_Chiayi_Station_20191011.jpg",
+    "supports": "實車側面塗裝與窗/門（本人目視）"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:TRA 40SP20073T at Chiayi Station 20191011.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_40SP20073T_at_Chiayi_Station_20191011.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/TRA_40SP20073T_at_Chiayi_Station_20191011.jpg/1280px-TRA_40SP20073T_at_Chiayi_Station_20191011.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "復興號 40SP20073 單節車斜側：淺藍塗裝、窗列、車門、車端（20000 系）",
+    "role": "side"
+   },
+   {
+    "file": "File:40SPK21008T, Fu-Hsing Semi Express.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:40SPK21008T,_Fu-Hsing_Semi_Express.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/40SPK21008T%2C_Fu-Hsing_Semi_Express.jpg/1280px-40SPK21008T%2C_Fu-Hsing_Semi_Express.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "40SPK21008T（附車長室型）車身與車端",
+    "role": "front"
+   },
+   {
+    "file": "File:TRA E417 Fu-Hsing Semi Express Yilan Line Houtong 20160221.JPG",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E417_Fu-Hsing_Semi_Express_Yilan_Line_Houtong_20160221.JPG",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/TRA_E417_Fu-Hsing_Semi_Express_Yilan_Line_Houtong_20160221.JPG/1280px-TRA_E417_Fu-Hsing_Semi_Express_Yilan_Line_Houtong_20160221.JPG",
+    "author": "Cassiopeia sweet",
+    "licence": "Public domain",
+    "use": "整列復興號編組（PD）：淺藍＋白帶、車頂深灰"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台鐵 復興號客車（20000 系）",
+  "color": "#2772CC",
+  "detail": "1980 年冷氣對號快車，淺藍窗帶、亮藍車身，兩端車門區斜線分界、高拱灰車頂",
+  "sideNote": "兩端各一組窄雙折門；淺藍窗帶在車門區前以斜線收掉（下緣離車端遠、上緣近）。",
+  "checked": [
+   "淺藍窗帶、亮藍下半、兩端車門區整段亮藍且斜線分界（嘉義站 40SP20073、40SPK21008）",
+   "六扇大窗與綠色窗簾、兩端窄雙折門與門上兩個長圓小窗（嘉義站 40SP20073）",
+   "高拱灰色車頂、端牆貫通門與風琴折棚（後硐站整列）",
+   "車側行先小牌與車廂號碼牌位置（嘉義站）"
+  ],
+  "simplified": [
+   "車側台鐵路徽不放，車號用可移除示意字牌",
+   "附車長室型（40SPK21000）的大片百葉沒做，只做一般 40SP",
+   "車頂圓形通風口與冷氣罩數量照一般配置，沒逐一對過"
+  ]
+ },
+ {
+  "id": "sugar346",
+  "group": "classic",
+  "name": "台糖 346 號蒸汽機車（比利時 AFB 製 0-6-0T，762 mm 糖鐵）",
+  "years": "1948 年自比利時引進；2007 動態行駛；2025-10 維修後 10-24 復駛",
+  "status": "動態保存，目前仍是全台唯一固定班次載客的蒸汽五分車（2025-10 維修復駛，2026-02 報導回歸載客）。屬『經典車但仍現役』，歸 classic 因為是 1948 年歷史機型；同型 370 號（烏樹林）僅團體預約。",
+  "source": "https://zh.wikipedia.org/wiki/臺灣糖業鐵路",
+  "sources": [
+   {
+    "title": "zh.wikipedia 臺灣糖業鐵路（現存蒸汽機車表）",
+    "url": "https://zh.wikipedia.org/wiki/臺灣糖業鐵路",
+    "supports": "346 號 0-6-0 tank、762 mm、1948、比利時 AFB、溪湖糖廠、2007 動態行駛；370 號 Tubize、烏樹林、2003 動態行駛（改燃油）、僅團體預約"
+   },
+   {
+    "title": "Kurogane no Michi Taiwan Sugar steam locomotive list",
+    "url": "https://kurogane-rail.jp/kurogane-doc/tw-psl/etw-psl.html",
+    "supports": "346（AFB 1948，12.5 t）、370（Tubize 1948，12.5 t）"
+   },
+   {
+    "title": "chinatimes 346 蒸汽五分車維修復駛（2025-10）",
+    "url": "https://wantrich.chinatimes.com/news/20251015900649-420501",
+    "supports": "2025-10-24 復駛、全台唯一固定班次的蒸汽糖鐵（搜尋摘要，主對話可抽測）"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:Steam locomotive 346 of Taiwan Sugar Corporation 2020-03-29.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Steam_locomotive_346_of_Taiwan_Sugar_Corporation_2020-03-29.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Steam_locomotive_346_of_Taiwan_Sugar_Corporation_2020-03-29.jpg/1280px-Steam_locomotive_346_of_Taiwan_Sugar_Corporation_2020-03-29.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "346 號斜前側（Industrial Wales）",
+    "role": "front"
+   },
+   {
+    "file": "File:A Tourist Train in Xihu Sugar Factory.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:A_Tourist_Train_in_Xihu_Sugar_Factory.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/A_Tourist_Train_in_Xihu_Sugar_Factory.jpg/1280px-A_Tourist_Train_in_Xihu_Sugar_Factory.jpg",
+    "author": "Tbatb",
+    "licence": "CC BY-SA 4.0",
+    "use": "溪湖糖廠 346 牽引觀光客車（連客車）"
+   },
+   {
+    "file": "File:TSC '346' at Xihu 2023-07-18.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TSC_%27346%27_at_Xihu_2023-07-18.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/TSC_%27346%27_at_Xihu_2023-07-18.jpg/1280px-TSC_%27346%27_at_Xihu_2023-07-18.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "346 2023 另一角度（側面）",
+    "role": "side"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台糖 346 號蒸汽機車",
+  "color": "#26292B",
+  "detail": "1948 年比利時 AFB 製 762 mm 糖鐵 0-6-0 水櫃機，長平側水櫃、網罩煙囪、大紅緩衝樑",
+  "sideNote": "駕駛室側面前半是圓角窗、後半是落地開口（紅色細框）；尺寸查不到，比例照照片估。",
+  "checked": [
+   "長而平的鉚釘側水櫃與紅底 346 號牌（2023 溪湖側面）",
+   "鍋爐上兩座高圓筒圓頂、直筒煙囪頂網罩火星擋（2020 斜前、2023 側面）",
+   "煙箱頂帶遮光罩的大頭燈、煙箱門紅底 346 牌與一圈螺栓（2020 斜前）",
+   "大紅鉚釘緩衝樑與中央緩衝車鉤、紅色內側車架、三對動輪與 Walschaerts 閥動（兩張照片）",
+   "駕駛室圓角側窗、落地開口紅色細框與紅色扶手、後方煤櫃（2023 側面）"
+  ],
+  "simplified": [
+   "實車尺寸查不到（只有 762 mm 軌距與 12.5 t），長寬高是照片比例估的",
+   "閥動只做主要幾根桿件",
+   "廠徽紅牌不畫圖案"
+  ]
+ },
+ {
+  "id": "e100",
+  "group": "classic",
+  "name": "台鐵 E100 型電力機車",
+  "years": "1974 訂購20輛；1976 製造（E101–E120）；2007 退役；其餘報廢，E101 為台鐵指定保存車（唯一完整存留）",
+  "status": "已退役、報廢；E101 保存（富岡基地整理外觀後 2022-05-07 迴送彰化、2023-10-14 迴送苗栗火車頭園區，置於苗栗火車頭園區展館）。",
+  "source": "https://zh.wikipedia.org/wiki/台鐵E100型電力機車",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台鐵E100型電力機車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵E100型電力機車",
+    "supports": "尺寸、軌距、20 輛、GEC/UC&W、1976 製造、2007 退役、E101 保存、無 M-A set"
+   },
+   {
+    "title": "Commons E101 electric locomotive.jpg（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:E101_electric_locomotive.jpg",
+    "supports": "保存車頭塗裝、前窗、頭燈、排障器（本人目視）"
+   },
+   {
+    "title": "Commons TRA E100 electric locomotives at Changhua Station（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E100_electric_locomotives_at_Changhua_Station.jpg",
+    "supports": "退役前米黃橘棕側面、側百葉、駕駛室側門（本人目視）"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:E101 electric locomotive.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:E101_electric_locomotive.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/E101_electric_locomotive.jpg/1280px-E101_electric_locomotive.jpg",
+    "author": "D1114456",
+    "licence": "CC BY-SA 4.0",
+    "use": "E101 保存車（車頭正面斜前：塗裝、頭燈、前窗、貫通？）",
+    "role": "side"
+   },
+   {
+    "file": "File:TRA E100 electric locomotives at Changhua Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E100_electric_locomotives_at_Changhua_Station.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/TRA_E100_electric_locomotives_at_Changhua_Station.jpg/1280px-TRA_E100_electric_locomotives_at_Changhua_Station.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "E100 在彰化站（側面、車身比例）"
+   },
+   {
+    "file": "File:TRA E101 at Changhua Rolling Stock Branch 2007-06-10.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E101_at_Changhua_Rolling_Stock_Branch_2007-06-10.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/db/TRA_E101_at_Changhua_Rolling_Stock_Branch_2007-06-10.jpg/1280px-TRA_E101_at_Changhua_Rolling_Stock_Branch_2007-06-10.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "E101 另一角度（車側散熱百葉、集電弓）",
+    "role": "front"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台鐵 E100 電力機車",
+  "color": "#D8400E",
+  "detail": "1976 年英國 GEC 設計的雙駕駛室電力機車，奶油色上半、橘色下半與奶油色 V 帶，兩具集電弓",
+  "sideNote": "兩端駕駛室同形（車頭做一端再旋轉複製）；中段機器室四組直條百葉。",
+  "checked": [
+   "奶油色上半、橘色下半、奶油色寬 V 帶從車角彎到中央下緣（2007 彰化 E101 正面）",
+   "外伸屋簷、中央長方頭燈箱、兩側氣笛、兩扇圓角擋風與窗間把手（2007 正面）",
+   "下緣紅色尾燈、橘色扶手、跳線插座與垂下的軟管、黃黑警戒緩衝樑與黑色排障器（2007 正面）",
+   "駕駛室側面橢圓窗車門與側窗、中段機器室直條百葉（彰化站 E100 群側面）"
+  ],
+  "simplified": [
+   "照 2007 年 E101 的配色；退役前其他車是較褪色的奶油／橘棕，國鐵博保存車現在是白／橘紅",
+   "集電弓型式沒查證，用單臂集電弓代表",
+   "車頂設備只做主斷路器箱、瓷瓶與母線"
+  ]
  }
 ]
