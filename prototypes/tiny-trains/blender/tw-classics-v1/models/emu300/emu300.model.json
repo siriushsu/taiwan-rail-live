@@ -1,0 +1,308 @@
+{
+  "modelId": "emu300",
+  "name": "台鐵 EMU300 型電聯車（義大利製自強號）",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "railcar",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.848999977111816,
+      -1.4830000400543213,
+      0.0
+    ],
+    "max": [
+      4.939000129699707,
+      1.4830000400543213,
+      3.765000104904175
+    ]
+  },
+  "sizeM": [
+    9.788000106811523,
+    2.9660000801086426,
+    3.765000104904175
+  ],
+  "mesh": {
+    "file": "emu300.mesh.bin",
+    "sha256": "7191602ed1c1e70ade3d68f2d2fc753e92abf09c6db1cbeb4589d44e1bed948a",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 219930,
+    "triangleCount": 73310,
+    "drawGroups": [
+      {
+        "name": "e3cream",
+        "start": 0,
+        "count": 2034,
+        "color": [
+          0.6938717365264893,
+          0.5394794940948486,
+          0.1946178376674652
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.2199999988079071
+      },
+      {
+        "name": "e3tan",
+        "start": 2034,
+        "count": 624,
+        "color": [
+          0.43415364623069763,
+          0.17464740574359894,
+          0.023153366521000862
+        ],
+        "metalness": 0.07999999821186066,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.20000000298023224
+      },
+      {
+        "name": "e3roof",
+        "start": 2658,
+        "count": 1932,
+        "color": [
+          0.3967552185058594,
+          0.423267662525177,
+          0.42869049310684204
+        ],
+        "metalness": 0.30000001192092896,
+        "roughness": 0.44999998807907104,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "e3orange",
+        "start": 4590,
+        "count": 5616,
+        "color": [
+          0.68668532371521,
+          0.039546236395835876,
+          0.01032982300966978
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.36000001430511475,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "e3yellow",
+        "start": 10206,
+        "count": 5196,
+        "color": [
+          0.8631572127342224,
+          0.3613067865371704,
+          0.0036765073891729116
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.36000001430511475,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "frame",
+        "start": 15402,
+        "count": 27648,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 43050,
+        "count": 10680,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "metal",
+        "start": 53730,
+        "count": 46416,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "chassis",
+        "start": 100146,
+        "count": 48912,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "roof",
+        "start": 149058,
+        "count": 32712,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 181770,
+        "count": 11124,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "red",
+        "start": 192894,
+        "count": 3228,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "lamp",
+        "start": 196122,
+        "count": 6864,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "cream",
+        "start": 202986,
+        "count": 1536,
+        "color": [
+          0.8148465752601624,
+          0.7304607629776001,
+          0.5149176716804504
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "yellow",
+        "start": 204522,
+        "count": 3072,
+        "color": [
+          0.838798999786377,
+          0.533276379108429,
+          0.06301001459360123
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 207594,
+        "count": 12336,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      }
+    ]
+  },
+  "nativeObjectCount": 343,
+  "features": {
+    "sideDoorGroups": 2,
+    "doorLeavesPerGroup": 1,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "emu300",
+    "family": "railcar",
+    "L": 8.9,
+    "W": 2.8,
+    "H": 3.5,
+    "doors": 2,
+    "doorLeaves": 1,
+    "body": "E5D79B",
+    "accent": "E4502B",
+    "power": "overhead-other-car",
+    "label": "EMU300",
+    "rearDoor": 0.5,
+    "frontDoor": 0.5,
+    "cabGap": 0.3,
+    "winZ": 2.39,
+    "winH": 0.76,
+    "winPitch": 0.78,
+    "doorTop": 2.92,
+    "doorWinZ": 2.36,
+    "doorWinH": 0.7,
+    "pantos": 0
+  },
+  "reference": {
+    "source": "https://zh.wikipedia.org/wiki/台鐵EMU300型電聯車",
+    "detail": null,
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

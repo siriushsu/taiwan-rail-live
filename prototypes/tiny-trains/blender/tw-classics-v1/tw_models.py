@@ -723,3 +723,259 @@ def tengyun(s):
  s['drivers']=2;s['axles']=2;s['tank']=True
 
 BUILDERS['tengyun']=tengyun
+
+# ── 台鐵經典電聯車／柴聯車 ──────────────────────────────────────────────────
+
+def underfloor(xs,W,mat='chassis',w=1.0):
+ """車底機器箱：xs 是每箱中心 x。"""
+ use('04')
+ for x in xs:
+  box('車底機器箱',(x,0,.64),(w,W*.70,.34),mat,.03)
+  for k in range(4):box('機器箱散熱鰭片',(x-w*.36+k*w*.24,W*.351,.64),(.05,.012,.24),'metal',.004)
+  for k in range(4):box('機器箱散熱鰭片',(x-w*.36+k*w*.24,-W*.351,.64),(.05,.012,.24),'metal',.004)
+
+def lamp_pair(f,y_outer,y_inner,z,r=.065,housing='chassis'):
+ """車頭下緣一組燈：外側紅色尾燈、內側白色頭燈，共用一個圓角黑色燈座。"""
+ front_panel('燈組黑色燈座',f,(y_outer+y_inner)/2,z,abs(y_outer-y_inner)+2*r+.08,2*r+.08,housing,r+.04,.03)
+ lamp('尾燈',f,y_outer,z,r,red=True);lamp('頭燈',f,y_inner,z,r)
+
+def hose_cocks(x,W,z=.80,mat='orange',n=3):
+ """端梁下緣的軟管旋塞（自強號車頭兩側各一排橘色小筒）。"""
+ use('07')
+ for side in [-1,1]:
+  for k in range(n):
+   y=side*(W/2-.20-k*.13);cyl('軟管旋塞',(x,y,z),.035,.12,mat,n=12,bevel=0)
+   line('制動軟管',[(x,y,z-.06),(x+.04,y,z-.24),(x,y*.92,z-.36)],.016,'rubber')
+
+def side_poly(name,s,x0,x1,zlo,zhi,material,side,offset=.012,cols=10,rows=3):
+ """平直車側上的色塊：x 從 x0 到 x1，上下緣可以是常數或 x 的函式；貼著 half_width 的斷面。"""
+ use('01');lo=zlo if callable(zlo) else (lambda x:zlo);hi=zhi if callable(zhi) else (lambda x:zhi);verts=[]
+ for i in range(rows+1):
+  for j in range(cols+1):
+   x=x0+(x1-x0)*j/cols;a,b=lo(x),hi(x);z=a+(b-a)*i/rows;verts.append((x,side*(half_width(s,z)+offset),z))
+ faces=[(i*(cols+1)+j,i*(cols+1)+j+1,(i+1)*(cols+1)+j+1,(i+1)*(cols+1)+j) for i in range(rows) for j in range(cols)]
+ return mesh(name,verts,faces,material,0,True)
+
+def tze_livery(s,f,neck,y,o,dy,band,bw=.16,lowz=1.30,winz=(1.99,2.65),wy=.90,ww=.58,lampz=1.10,cabwin=True):
+ """自強號黃橘車頭（EMU200／EMU300 共用）。橘色 V 字斜帶從貫通門往外升高、繞過車角延伸到駕駛室側面，
+ 斜帶下方一條黃色細帶，再下面整塊橘色；粗黑框圓頂貫通門（偏 dy）、兩側擋風與上方行先窗、下緣紅白燈組。
+ band=(門邊, 車角, 側面尾端) 斜帶中心高度；y／o 是黃、橘材質。駕駛室側面（neck 到車頭）由 nose_zones 塗黃橘。"""
+ L,W,H=s['L'],s['W'],s['H'];zi,zo,zr=band;gap=.10
+ c=lambda yy:zi+(zo-zi)*(abs(yy)-.62)/(W/2-.62)
+ for side in [-1,1]:
+  a,b=(.62,W/2-.03) if side>0 else (-(W/2-.03),-.62)
+  front_patch('下緣橘色',f,a,b,lowz-.04,lambda yy:c(yy)-bw/2-gap,o,.026,cols=16,rows=3)
+  front_patch('V 字橘色斜帶',f,a,b,lambda yy:c(yy)-bw/2,lambda yy:c(yy)+bw/2,o,.026,cols=16,rows=2)
+  # 繞到駕駛室側面：斜帶繼續往後升高。
+  x1=f(side*W/2,zo)-.03;x0=neck+.03;cs=lambda x:zo+(zr-zo)*(x1-x)/(x1-x0)
+  side_poly('側面下緣橘色',s,x0,x1,lowz-.04,lambda x:cs(x)-bw/2-gap,o,side,cols=8)
+  side_poly('側面橘色斜帶',s,x0,x1,lambda x:cs(x)-bw/2,lambda x:cs(x)+bw/2,o,side,cols=8,rows=2)
+  if cabwin:sidewindow((x0+x1)/2-.02,side*(W/2+.018),(winz[0]+winz[1])/2,min(.30,x1-x0-.16),winz[1]-winz[0]-.06,r=.05)
+ front_panel('貫通門黑色粗框',f,dy,(1.00+H-.30)/2,1.18,H-.30-1.00,'frame',.22,.03)
+ front_panel('貫通門扇',f,dy,(1.04+H-.62)/2,.76,H-.62-1.04,y,.03,.045)
+ front_panel('貫通門窗',f,dy,(winz[0]+winz[1])/2+.06,.46,winz[1]-winz[0]+.12,'glass',.06,.06)
+ front_panel('貫通門把手',f,dy+.28,winz[0]-.08,.08,.12,'chassis',.02,.06)
+ for side in [-1,1]:
+  inner=dy+side*.62;outer=side*(W/2-.14);yc=(inner+outer)/2;w=min(ww,abs(outer-inner)-.08)
+  front_panel('擋風黑框',f,yc,(winz[0]+winz[1])/2,w+.10,winz[1]-winz[0]+.08,'frame',.10,.03)
+  front_glass(f,[(yc-w/2,yc+w/2,'方形擋風')],winz[0],winz[1],offset=.045,r=.08)
+  wiper(f,yc+w*.22*side,winz[0]+.01,.52)
+  lamp_pair(f,side*(W/2-.36),side*(W/2-.62),lampz,.060)
+
+def tze_pilot(s,f,y,o,hazard_skirt=False):
+ """自強號車頭下方：黃色排障板（或黃黑警戒斜紋）與橘色軟管旋塞。"""
+ W=s['W'];x0=f(0,.83)
+ if hazard_skirt:hazard(x0+.02,W,.60,.36)
+ else:
+  use('07');box('黃色排障板',(x0+.02,0,.58),(.10,W*.66,.30),y,.03)
+  for k in range(9):cyl('排障板黑點',(x0+.075,-W*.28+k*W*.07,.50),.022,.01,'frame','X',12,0)
+ hose_cocks(x0+.04,W,.80,o)
+
+def emu300(s):
+ """台鐵 EMU300 型電聯車（義大利 Socimi 1988–89 製，2021 退役，EMC307 保存）。參考：Commons 新竹站車頭斜前（PD）、
+ 桃園站側面（CC BY-SA 3.0）、EMC307 側板近拍。自強號黃橘塗裝：前傾車頭，橘色圓頂蓋上兩顆頭燈，黃色車頭面，
+ 粗黑框包住的黃色貫通門（略偏列車左側），兩側方擋風與上方行先窗，橘色 V 字斜帶繞到駕駛室側面，下緣橘色配紅白燈組；
+ 車側上半米黃、窗下芥末褐，駕駛室後方一扇單開門，耐候鋼車身。這裡做駕駛馬達車 EMC，車頂沒有集電弓（集電弓在中間的 EP 車）。"""
+ L,W,H=s['L'],s['W'],s['H']
+ # 照片目測色在 AgX 下會變淡，這裡比目測再深一階。
+ color('e3yellow','EFA20C',.05,.36,.30);color('e3orange','D8381A',.05,.36,.30);color('e3cream','D9C27A',.05,.40,.22);color('e3tan','B0742A',.08,.40,.20)
+ color('e3roof','A9AEAF',.30,.45,.10)
+ profile=[(.83,L/2-.04),(1.00,L/2),(1.70,L/2),(2.90,L/2-.16),(H-.30,L/2-.24),(H-.10,L/2-.38),(H,L/2-.52)]
+ def roof(s,neck):
+  roof_ac(s,[-L*.24,L*.10],1.9,'e3roof')
+  use('05');box('車頂電阻器箱',(neck-.55,0,H+.10),(.70,W*.50,.18),'e3roof',.04)
+  for k in range(6):box('電阻器箱格柵',(neck-.80+k*.10,0,H+.19),(.04,W*.42,.01),'chassis',.002)
+ s.update(rearDoor=.50,frontDoor=.50,cabGap=.30,winZ=2.39,winH=.76,winPitch=.78,doorTop=H-.58,doorWinZ=2.36,doorWinH=.70)
+ f,neck,doors=railcar(s,profile,.05,[(1.96,'e3tan'),(H-.10,'e3cream'),(H+1,'e3roof')],[(1.30,'e3orange'),(H-.46,'e3yellow'),(H+1,'e3orange')],
+  nose_zones=[(1.30,'e3orange'),(H-.10,'e3yellow'),(H+1,'e3orange')],leaf='e3cream',crew=False,roof=roof)
+ dy=.08;tze_livery(s,f,neck,'e3yellow','e3orange',dy,(1.60,1.90,2.04))
+ for side in [-1,1]:
+  for x in [doors[-1]-1.05,doors[-1]-1.55]:grille('下半百葉進氣口',x,side*(W/2+.012),1.42,.38,.30,True,9,True)
+ for side in [-1,1]:
+  yc=side*.90+dy*.3
+  front_panel('行先窗',f,yc,2.95,.50,.15,'frame',.05,.03)
+  front_panel('行先窗內光',f,yc,2.95,.40,.08,'cream' if side<0 else 'lamp',.03,.04)
+  front_panel('高壓警告小牌',f,side*1.05,3.18,.10,.12,'yellow',.01,.035)
+ # 頂蓋頭燈：兩顆圓燈與上方紅色標識燈。
+ front_panel('頂部頭燈座',f,0,H-.22,.56,.24,'e3orange',.10,.03)
+ for yy in [-.15,.15]:lamp('頂部頭燈',f,yy,H-.22,.075)
+ use('03');box('頂部紅色標識燈',(f(0,H-.04)+.02,0,H+.01),(.10,.12,.08),'red',.02)
+ text_label(s.get('label','EMU300'),(f(-.90,2.95)+.06,-.90,2.95),.07)
+ tze_pilot(s,f,'e3yellow','e3orange')
+ underfloor([-1.30,-.05,1.20],W)
+ s['pantos']=0
+
+def emu200(s):
+ """台鐵 EMU200 型電聯車原始塗裝（南非 UCW 1986 製，2002–04 全數改造成 EMU1200，原貌只剩舊照片）。參考：Commons 1989 板橋站 EMU206、
+ 1997 Lexcie 攝車頭與側面（CC BY-SA 3.0）、二水站車頭斜前。跟 EMU300 同一套自強號黃橘車頭，但車頭面幾乎垂直、頂蓋較圓，
+ 頂蓋中央一顆橢圓頭燈、旁邊小行先燈，斜帶比較平；車側上半淺米灰、窗下淺石褐；駕駛室後方先是乘務員門、再一扇單開客用門，
+ 下方黃黑警戒斜紋排障板。做駕駛馬達車，集電弓在中間的 EP 車。"""
+ L,W,H=s['L'],s['W'],s['H']
+ color('e2yellow','EFA80E',.05,.36,.30);color('e2orange','D8401C',.05,.36,.30);color('e2cream','D3CBAE',.05,.40,.22);color('e2stone','A27A4A',.08,.40,.20)
+ color('e2roof','A3A8A8',.30,.45,.10)
+ profile=[(.83,L/2-.04),(1.00,L/2),(2.85,L/2-.03),(H-.36,L/2-.10),(H-.14,L/2-.26),(H,L/2-.46)]
+ def roof(s,neck):
+  roof_ac(s,[-L*.25,L*.08],1.8,'e2roof')
+  use('05');box('車頂電阻器箱',(neck-.60,0,H+.10),(.80,W*.50,.18),'e2roof',.04)
+  for k in range(7):box('電阻器箱格柵',(neck-.90+k*.10,0,H+.19),(.04,W*.42,.01),'chassis',.002)
+ s.update(rearDoor=.50,frontDoor=1.05,cabGap=1.40,winZ=2.32,winH=.70,winPitch=.84,winR=.08,doorTop=H-.62,doorWinZ=2.30,doorWinH=.64)
+ f,neck,doors=railcar(s,profile,.04,[(1.92,'e2stone'),(H-.10,'e2cream'),(H+1,'e2roof')],[(1.30,'e2orange'),(H-.52,'e2yellow'),(H+1,'e2orange')],
+  nose_zones=[(1.30,'e2orange'),(H-.10,'e2yellow'),(H+1,'e2orange')],leaf='e2cream',crew='e2cream',roof=roof)
+ dy=-.10;tze_livery(s,f,neck,'e2yellow','e2orange',dy,(1.64,1.73,1.80),winz=(1.94,2.62))
+ for side in [-1,1]:grille('下半百葉進氣口',doors[-1]-1.30,side*(W/2+.012),1.42,.42,.30,True,9,True)
+ # 頂蓋：中央橢圓頭燈（黑色燈座）、一側小行先燈、高壓警告小牌。
+ front_panel('橢圓頭燈座',f,dy,H-.30,.40,.22,'frame',.11,.03)
+ front_panel('橢圓頭燈',f,dy,H-.30,.30,.13,'lamp',.065,.05)
+ front_panel('行先燈',f,.86,H-.56,.30,.10,'lamp',.03,.04)
+ front_panel('行先燈框',f,.86,H-.56,.38,.16,'frame',.04,.03)
+ front_panel('行先牌',f,-.86,H-.56,.36,.12,'white',.02,.04)
+ front_panel('高壓警告小牌',f,.40,H-.36,.10,.12,'yellow',.01,.035)
+ use('03');box('頂部標識燈',(f(-.40,H-.10)+.02,-.40,H-.02),(.10,.10,.07),'red',.02)
+ text_label(s.get('label','EMU206'),(f(-.86,H-.56)+.06,-.86,H-.56),.07)
+ tze_pilot(s,f,'e2yellow','e2orange',hazard_skirt=True)
+ underfloor([-1.35,-.10,1.15],W)
+ s['pantos']=0
+
+BUILDERS.update(emu300=emu300,emu200=emu200)
+
+def corrugation(s,spans,zs,mat='metal'):
+ """不鏽鋼車側波紋：spans=[(x0,x1)] 是不含門的分段，zs 是每條壓筋的高度。"""
+ use('01');W=s['W']
+ for side in [-1,1]:
+  for a,b in spans:
+   if b-a<.10:continue
+   for z in zs:box('不鏽鋼側牆壓筋',((a+b)/2,side*(half_width(s,z)+.008),z),(b-a,.014,.022),mat,.004)
+
+def dr2800(s):
+ """台鐵 DR2800 型柴聯自強號（日本東急車輛 1982–84 製，2023 退役、2024 報廢）。參考：Commons 2023 台中站車頭（鐵路1，CC BY-SA 4.0）、
+ 成功站車側近拍、台鐵官方整列照（GWOIA）。不鏽鋼波紋車身，窗下橘色寬帶、窗上橘色細線；垂直平頭，橘色頂蓋上方突出的長方頭燈箱（兩顆圓燈），
+ 黃色車頭面兩扇大窗，中央凸框貫通門，窗下橘色「人」字斜帶：橫帶接兩道往貫通門下緣收的斜區；黃橘塗裝繞到駕駛室側面。
+ 每側只在車尾端有一扇折疊客用門，駕駛室後方是緊急逃生門；車頂深灰散熱與設備罩，柴油動力沒有集電弓。"""
+ L,W,H=s['L'],s['W'],s['H']
+ color('drsteel','AEB2B0',.62,.30,.10);color('dryellow','EFA50E',.05,.36,.30);color('drorange','CC4614',.05,.36,.30);color('drdark','3B4044',.30,.48,.08)
+ profile=[(.83,L/2-.02),(1.00,L/2),(3.00,L/2-.02),(H-.20,L/2-.10),(H-.06,L/2-.22),(H,L/2-.34)]
+ def roof(s,neck):
+  use('05')
+  for x0,x1 in [(-L/2+.30,-L*.18),(-L*.15,L*.16),(L*.19,neck-.05)]:
+   box('車頂深灰設備罩',((x0+x1)/2,0,H+.07),(x1-x0,W*.74,.20),'drdark',.09)
+   for k in range(int((x1-x0)/.22)):box('設備罩散熱格柵',(x0+.15+k*.22,0,H+.17),(.06,W*.54,.012),'chassis',.003)
+  for side in [-1,1]:box('排氣口',(-L*.02,side*W*.20,H+.20),(.18,.12,.08),'chassis',.02)
+ s.update(doorXs=[-L/2+.50],winZ=2.42,winH=.82,winPitch=.90,winR=.07,doorTop=H-.56,doorWinZ=2.40,doorWinH=.70,cabGap=.72)
+ f,neck,doors=railcar(s,profile,.03,[(H+1,'drsteel')],[(.95,'drorange'),(H-.35,'dryellow'),(H+1,'drorange')],
+  nose_zones=[(.95,'drorange'),(H-.35,'dryellow'),(H+1,'drorange')],leaf='drsteel',crew='drsteel',
+  bands=[(1.90,.14,'drorange'),(2.95,.04,'drorange')],roof=roof)
+ dw=s.get('doorW',.52)
+ corrugation(s,[(-L/2+.12,doors[0]-dw/2-.06),(doors[0]+dw/2+.06,neck-.64),(neck-.08,neck-.01)],[1.00+k*.072 for k in range(11)]+[3.02,3.09,3.16,3.23])
+ for side in [-1,1]:
+  side_poly('車端黃色細帶',s,-L/2+.03,-L/2+.10,.90,H-.12,'dryellow',side,.014,2,2)
+  x1=f(side*W/2,1.7)-.03;x0=neck+.03
+  side_poly('側面橘色橫帶',s,x0,x1,1.61,1.86,'drorange',side,cols=4,rows=1)
+  sidewindow((x0+x1)/2,side*(W/2+.018),2.50,min(.26,x1-x0-.14),.70,r=.05)
+ # 車頭「人」字：橘色橫帶接兩道往貫通門下緣收的斜區。
+ diag=lambda y:.92+(1.61-.92)*min(1,max(0,(abs(y)-.50)/(.86-.50)))
+ for side in [-1,1]:
+  a,b=(.46,W/2-.03) if side>0 else (-(W/2-.03),-.46)
+  front_patch('人字橘色橫帶',f,a,b,1.61,1.86,'drorange',.026,cols=12,rows=1)
+  a,b=(.46,.88) if side>0 else (-.88,-.46)
+  front_patch('人字橘色斜區',f,a,b,diag,1.615,'drorange',.026,cols=14,rows=4)
+  yc=side*.86
+  front_panel('擋風黑框',f,yc,2.51,.84,1.14,'frame',.10,.03)
+  front_glass(f,[(yc-.37,yc+.37,'大擋風')],1.98,3.04,offset=.045,r=.08)
+  wiper(f,yc+side*.22,2.00,.60)
+  lamp_pair(f,side*(W/2-.30),side*(W/2-.52),1.45,.060)
+  front_panel('黃色警告小牌',f,side*.66,H-.18,.10,.12,'yellow',.01,.035)
+ # 貫通門：黃色凸框（深色外緣）、門窗、下半深色踏板凹槽、橫向鏈條。
+ front_panel('貫通門深色外緣',f,0,(.95+H-.30)/2,.92,H-.30-.95,'frame',.06,.03)
+ front_panel('貫通門黃色凸框',f,0,(.97+H-.32)/2,.86,H-.32-.97,'dryellow',.05,.05)
+ front_panel('貫通門扇',f,0,(1.00+H-.40)/2,.66,H-.40-1.00,'dryellow',.03,.07)
+ front_panel('貫通門窗',f,0,2.52,.44,.92,'glass',.05,.085)
+ front_panel('貫通踏板凹槽',f,0,1.27,.56,.44,'chassis',.04,.085)
+ line('貫通門鏈條',[(f(-.30,1.92)+.10,-.30,1.92),(f(0,1.84)+.10,0,1.84),(f(.30,1.92)+.10,.30,1.92)],.010,'metal')
+ # 頂部突出的長方頭燈箱，兩顆圓燈。
+ use('03');xh=f(0,H-.06)
+ box('頂部頭燈箱',(xh-.06,0,H-.02),(.30,.62,.30),'drorange',.05)
+ for yy in [-.13,.13]:lamp('頂部頭燈',lambda y,z:xh+.02,yy,H-.02,.075)
+ text_label(s.get('label','DR2823'),(f(-.86,2.92)+.07,-.86,2.92),.07)
+ tze_pilot(s,f,'dryellow','chassis')
+ underfloor([-1.40,-.20,1.10],W)
+ use('04');box('柴油引擎',(.45,0,.66),(1.30,W*.60,.40),'drdark',.05)
+ for k in range(6):box('引擎散熱鰭',(.45-.5+k*.2,0,.88),(.05,W*.50,.04),'chassis',.004)
+ s['pantos']=0
+
+BUILDERS['dr2800']=dr2800
+
+def emu400(s):
+ """台鐵 EMU400 型電聯車（南非 UCW 1990 製，2015 退出定期營運，EMC410 保存）。參考：Commons 竹南站 EMU410 車頭斜前（PD）、
+ 2010 桃園 Lexcie 攝側面、2008 松山站整列。藍色車頭面，偏列車右側的凸框貫通門（門扇中段白色橫板與深色圓徽），
+ 左側窄窗、右側大擋風，頂部中央橢圓頭燈、左上車號白牌、右上行先牌；窗下白色橫帶，右側一道白線從下方彎起往側面掃；
+ 下緣圓形燈組、黃黑警戒排障板。車側銀灰，藍色車頂邊帶與窗下藍色粗細兩條線，駕駛室側面整段藍色；每側兩組雙開門靠車廂中段。"""
+ L,W,H=s['L'],s['W'],s['H']
+ color('e4blue','2146BE',.08,.34,.30);color('e4silver','AEB4BA',.50,.32,.12);color('e4white','EEF0EA',.05,.36,.25);color('e4roof','B3B8BB',.30,.45,.10)
+ profile=[(.83,L/2-.03),(1.00,L/2),(2.90,L/2-.03),(H-.40,L/2-.10),(H-.16,L/2-.24),(H,L/2-.44)]
+ def roof(s,neck):roof_ac(s,[-L*.22,L*.14],1.7,'e4roof',low=True)
+ s.update(doorXs=[-L*.21,L*.13],doorW=.74,winZ=2.30,winH=.78,winPitch=.74,winR=.07,doorTop=H-.62,doorWinZ=2.30,doorWinH=.72,cabGap=.80)
+ f,neck,doors=railcar(s,profile,.05,[(H-.24,'e4silver'),(H-.06,'e4blue'),(H+1,'e4roof')],[(H+1,'e4blue')],
+  nose_zones=[(H+1,'e4blue')],leaf='e4silver',crew='e4blue',leafbands=[(1.76,.10,'e4blue'),(1.55,.04,'e4blue')],roof=roof)
+ for side in [-1,1]:
+  side_poly('車側藍色粗線',s,-L/2+.06,neck-.72,1.71,1.81,'e4blue',side,.014,6,1)
+  side_poly('車側藍色細線',s,-L/2+.06,neck-.72,1.53,1.57,'e4blue',side,.014,6,1)
+  # 駕駛室側面整段藍色，白帶與白線接著車側的藍線。
+  x1=f(side*W/2,1.7)-.03
+  side_poly('駕駛室側面藍色',s,neck-.72,neck+.02,.86,H-.06,'e4blue',side,.012,4,8)
+  side_poly('駕駛室側面白帶',s,neck-.72,x1,1.67,1.82,'e4white',side,.018,6,1)
+  side_poly('駕駛室側面白線',s,neck-.72,x1,1.52,1.60,'e4white',side,.018,6,1)
+  for k in range(3):side_poly('車角白色短線',s,x1-.24,x1-.04,1.08+k*.08,1.12+k*.08,'e4white',side,.018,2,1)
+  sidewindow(neck+.20,side*(W/2+.018),2.30,.30,.84,r=.05)
+ # 車頭：凸框貫通門偏列車右側（-Y）。
+ dy=-.33
+ front_panel('貫通門凸框外緣',f,dy,1.91,1.23,2.50,'frame',.12,.045)
+ front_panel('貫通門凸框',f,dy,1.91,1.19,2.46,'e4blue',.10,.07)
+ front_panel('貫通門洞',f,dy-.01,1.82,.90,2.10,'frame',.04,.085)
+ front_panel('貫通門扇',f,-.17,1.82,.56,2.06,'e4blue',.03,.095)
+ front_panel('門扇白色橫板',f,-.17,1.57,.56,.48,'e4white',.02,.10)
+ front_panel('門扇深色圓徽',f,-.17,1.52,.20,.13,'frame',.06,.106)
+ front_panel('貫通門窗',f,-.17,2.28,.44,.86,'glass',.05,.104)
+ front_panel('右側大擋風框',f,.85,2.28,.82,.94,'frame',.08,.03)
+ front_glass(f,[(.49,1.21,'右側大擋風')],1.85,2.71,offset=.045,r=.07)
+ wiper(f,.90,1.88,.56)
+ front_panel('左側窄窗框',f,-1.13,2.28,.36,.94,'frame',.06,.03)
+ front_glass(f,[(-1.27,-.99,'左側窄窗')],1.85,2.71,offset=.045,r=.05)
+ # 窗下白色橫帶；右側白線從下方彎起再水平接到車角，左側白線水平。
+ front_patch('窗下白色橫帶',f,.29,W/2-.03,1.67,1.82,'e4white',.026,cols=10,rows=1)
+ front_patch('窗下白色橫帶',f,-(W/2-.03),-.95,1.67,1.82,'e4white',.026,cols=4,rows=1)
+ front_ribbon('右側白色彎線',f,[(.30,1.38),(.50,1.42),(.70,1.53),(.92,1.56),(W/2-.03,1.56)],.075,'e4white')
+ front_ribbon('左側白色橫線',f,[(-(W/2-.03),1.56),(-.96,1.56)],.075,'e4white')
+ for yo,yi in [(.95,.64),(-1.20,-.99)]:
+  for yy,red in [(yo,True),(yi,False)]:
+   front_panel('圓形燈座',f,yy,1.22,.21,.21,'e4blue',.105,.035);lamp('圓燈',f,yy,1.22,.062,red=red)
+ front_panel('頂部頭燈座',f,-.13,H-.19,.44,.24,'frame',.12,.03);front_panel('頂部橢圓頭燈',f,-.13,H-.19,.34,.16,'lamp',.08,.045)
+ front_panel('車號白牌',f,-1.05,3.0,.34,.13,'e4white',.03,.035)
+ text_label(s.get('label','EM410'),(f(-1.05,3.0)+.06,-1.05,3.0),.065)
+ front_panel('行先牌',f,.84,3.04,.30,.12,'e4white',.06,.035)
+ for yy,zz in [(-.62,3.20),(.58,3.18)]:front_panel('黃色警告小牌',f,yy,zz,.09,.11,'yellow',.01,.035)
+ x0=f(0,.83);hazard(x0+.02,W,.58,.46)
+ hose_cocks(x0+.04,W,.80,'e4blue')
+ underfloor([-1.30,-.05,1.20],W)
+ s['pantos']=0
+
+BUILDERS['emu400']=emu400

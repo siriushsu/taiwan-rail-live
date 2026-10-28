@@ -9,3 +9,11 @@ add('c381a','metro',L=9.4,W=2.9,H=3.35,doors=4,doorLeaves=2,rearDoor=1.10,frontD
 add('wanda','metro',L=8.0,W=2.68,H=3.35,doors=3,doorLeaves=2,rearDoor=1.10,frontDoor=1.25,cabGap=.62,body='E6EAEA',accent='B4D564',power='third-rail',label='LG')
 # 騰雲號：實車 6,477／2,184／3,461 mm，0-4-0 水櫃機；比照 CK124（L 7.2）同比例縮。
 add('tengyun','steam',L=5.0,W=2.30,H=3.30,body='1D2122',accent='C8321E',power='steam',drivers=2,label='')
+# EMU300：實車 20,000／2,880／3,880 mm；比照 fleet-v1 的 EMU100（L 8.9、W 2.8、H 3.5）。
+add('emu300','railcar',L=8.9,W=2.8,H=3.5,doors=2,doorLeaves=1,body='E5D79B',accent='E4502B',power='overhead-other-car',label='EMU300')
+# EMU200：實車 20,000／2,880／3,932 mm，同 EMU300 比例。
+add('emu200','railcar',L=8.9,W=2.8,H=3.5,doors=2,doorLeaves=1,body='D3CBAE',accent='D8401C',power='overhead-other-car',label='EMU206')
+# DR2800：實車 20,274／2,885／3,975 mm（含車頂設備罩），同 EMU300 比例；車身高照 fleet-v1 柴聯車 3.4 再加一點。
+add('dr2800','railcar',L=8.9,W=2.8,H=3.45,doors=1,doorLeaves=1,body='AEB2B0',accent='D9531C',power='diesel',label='DR2823')
+# EMU400：實車 20,000／2,880／3,932 mm，同 EMU300 比例。
+add('emu400','railcar',L=8.9,W=2.8,H=3.5,doors=2,doorLeaves=2,body='AEB4BA',accent='2146BE',power='overhead-other-car',label='EM410')

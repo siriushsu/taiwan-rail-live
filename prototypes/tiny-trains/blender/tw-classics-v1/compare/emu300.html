@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>台鐵 EMU300 自強號對照</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e3e1da;--accent:#c4501b}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--muted:#9a9aa2;--line:#2e2e33;--accent:#f08a4b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:28px 0 8px}
+a{color:var(--accent)}
+.sub,.cap{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--muted)}
+.card img{display:block;width:100%;height:auto}
+.meta{display:flex;align-items:center;gap:8px;padding:8px 10px 0}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid var(--line)}
+.cap{padding:0 10px 6px}
+.card .cap:last-child{padding-bottom:10px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:720px){.pair{grid-template-columns:1fr}}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:8px 10px;font-size:13px;color:var(--muted)}
+ul{padding-left:20px}
+.table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+.table th,.table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.table th{font-size:13px;color:var(--muted);font-weight:600}
+.wrap{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.done{color:#2f7d4f;border-color:#2f7d4f}
+.todo{color:var(--muted)}
+.thumb{width:150px;border-radius:6px;display:block}
+</style>
+</head>
+<body>
+<main>
+<h1>台鐵 EMU300 型電聯車（義大利製自強號）：渲染與照片對照</h1>
+<p class="sub">左邊是 Blender 5.2.1 Q 版模型渲染，右邊是 Wikimedia Commons 照片（直接連 Commons 顯示，沒有複製進 repo）。已退役、已解體；EMC307 靜態保存。EMU300 共 8 組（EMU301–308）24 輛，3 輛編組（2M1T）。</p>
+<p class="sub"><a href="batch-tw.html">← 回總覽</a>　·　<a href="../inventory.html">盤點清單</a></p>
+<h2>車頭</h2>
+<div class="pair">
+<figure><img src="../models/emu300/renders/front.png" alt="模型車頭渲染"><figcaption>模型車頭</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/TRA_EMU300_Tze-Chiang_Ltd-Exp_Hsinchu_Sta_20160915.jpg/1280px-TRA_EMU300_Tze-Chiang_Ltd-Exp_Hsinchu_Sta_20160915.jpg" alt="台鐵 EMU300 自強號車頭照片" loading="lazy"><figcaption>照片：Cassiopeia sweet，Public domain（<a href="https://commons.wikimedia.org/wiki/File:TRA_EMU300_Tze-Chiang_Ltd-Exp_Hsinchu_Sta_20160915.jpg">原檔</a>）。車頭正面斜前（PD）：黃橘色塗裝、方正略傾斜車頭、單一側貫通/逃生門、雙頭燈</figcaption></figure>
+</div>
+<h2>斜側</h2>
+<div class="pair">
+<figure><img src="../models/emu300/renders/hero.png" alt="模型斜側渲染"><figcaption>模型斜側</figcaption></figure>
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/TRA_EMU300_at_Taoyuan_Station_20160716.jpg/1280px-TRA_EMU300_at_Taoyuan_Station_20160716.jpg" alt="台鐵 EMU300 自強號斜側照片" loading="lazy"><figcaption>照片：Rsa，CC BY-SA 3.0（<a href="https://commons.wikimedia.org/wiki/File:TRA_EMU300_at_Taoyuan_Station_20160716.jpg">原檔</a>）。側面/斜側整編組（車身比例、窗列、車門）</figcaption></figure>
+</div>
+<h2>側面</h2>
+<figure><img src="../models/emu300/renders/side.png" alt="模型側面渲染"><figcaption>模型側面：做駕駛馬達車 EMC；駕駛室後方先是單開門，車尾端另一扇。</figcaption></figure>
+<h2>其他參考照片</h2>
+<div class="pair">
+<figure><img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/TRA_50EMC307.jpg/1280px-TRA_50EMC307.jpg" alt="參考照片" loading="lazy"><figcaption>照片：鐵路1，CC BY-SA 4.0（<a href="https://commons.wikimedia.org/wiki/File:TRA_50EMC307.jpg">原檔</a>）。車身側板細部：芥末黃下半、百葉進氣口、鐵路徽標</figcaption></figure>
+</div>
+<h2>對過的地方</h2>
+<ul>
+<li>前傾車頭、橘色圓頂蓋上兩顆頭燈與紅色標識燈（新竹站車頭照）</li>
+<li>粗黑框圓頂貫通門略偏列車左側、黃色門扇與深色門窗（新竹站車頭照）</li>
+<li>兩側方擋風、上方行先窗、窗下橘色 V 字斜帶與下方黃色細帶、下緣紅白燈組（新竹站車頭照）</li>
+<li>黃橘塗裝與斜帶繞過車角延伸到駕駛室側面（桃園站側面）</li>
+<li>車側上半米黃、窗下芥末褐，下半有百葉進氣口（EMC307 近拍）</li>
+<li>黃色排障板與橘色軟管旋塞（新竹站車頭照）</li>
+</ul>
+<h2>刻意簡化或沒做</h2>
+<ul>
+<li>車側台鐵路徽不放（營運商標）</li>
+<li>2008 年改造後的電動門與 LED 行先板沒做，門窗照原設計</li>
+<li>中間的 EP 車（有集電弓）沒做，只做駕駛車一節</li>
+</ul>
+<h2>資料來源</h2>
+<ul>
+<li><a href="https://zh.wikipedia.org/wiki/台鐵EMU300型電聯車">zh.wikipedia 台鐵EMU300型電聯車</a>：全長/全闊/全高、軌距、耐候鋼、3 輛編組、製造年、退役報廢、EMC307 保存、車門配置、EMU200 外形對照</li>
+<li><a href="https://commons.wikimedia.org/wiki/File:TRA_EMU300_Tze-Chiang_Ltd-Exp_Hsinchu_Sta_20160915.jpg">Commons TRA EMU300 Tze-Chiang Ltd-Exp Hsinchu Sta 20160915（PD）</a>：車頭塗裝、前窗、雙頭燈、貫通門（本人目視）</li>
+</ul>
+<p class="cap">73,310 三角形 · 343 個可編修物件 · 包圍盒 9.79 × 2.97 × 3.77 展示公尺</p>
+
+</main>
+</body>
+</html>

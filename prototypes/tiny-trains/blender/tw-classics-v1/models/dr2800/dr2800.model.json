@@ -1,0 +1,284 @@
+{
+  "modelId": "dr2800",
+  "name": "台鐵 DR2800 型柴聯車（柴聯自強號）",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "railcar",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.848999977111816,
+      -1.4932169914245605,
+      0.0
+    ],
+    "max": [
+      4.959000110626221,
+      1.4932169914245605,
+      3.690000057220459
+    ]
+  },
+  "sizeM": [
+    9.808000564575195,
+    2.986433982849121,
+    3.690000057220459
+  ],
+  "mesh": {
+    "file": "dr2800.mesh.bin",
+    "sha256": "16e781207b2f5293520dae9325f1f3e9c1c082b6779899d2016a128343b5d7ea",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 213390,
+    "triangleCount": 71130,
+    "drawGroups": [
+      {
+        "name": "drsteel",
+        "start": 0,
+        "count": 2838,
+        "color": [
+          0.423267662525177,
+          0.44520118832588196,
+          0.43415364623069763
+        ],
+        "metalness": 0.6200000047683716,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "drorange",
+        "start": 2838,
+        "count": 4740,
+        "color": [
+          0.6038273572921753,
+          0.061246052384376526,
+          0.006995410192757845
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.36000001430511475,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "dryellow",
+        "start": 7578,
+        "count": 7356,
+        "color": [
+          0.8631572127342224,
+          0.3762621283531189,
+          0.0043914420530200005
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.36000001430511475,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "frame",
+        "start": 14934,
+        "count": 21816,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 36750,
+        "count": 10680,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "metal",
+        "start": 47430,
+        "count": 62640,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "drdark",
+        "start": 110070,
+        "count": 2256,
+        "color": [
+          0.04373503103852272,
+          0.05126945674419403,
+          0.05780543014407158
+        ],
+        "metalness": 0.30000001192092896,
+        "roughness": 0.47999998927116394,
+        "clearcoat": 0.07999999821186066
+      },
+      {
+        "name": "chassis",
+        "start": 112326,
+        "count": 60420,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 172746,
+        "count": 11124,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "roof",
+        "start": 183870,
+        "count": 1128,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "red",
+        "start": 184998,
+        "count": 2664,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "lamp",
+        "start": 187662,
+        "count": 5328,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "yellow",
+        "start": 192990,
+        "count": 3072,
+        "color": [
+          0.838798999786377,
+          0.533276379108429,
+          0.06301001459360123
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 196062,
+        "count": 17328,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      }
+    ]
+  },
+  "nativeObjectCount": 329,
+  "features": {
+    "sideDoorGroups": 1,
+    "doorLeavesPerGroup": 1,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "dr2800",
+    "family": "railcar",
+    "L": 8.9,
+    "W": 2.8,
+    "H": 3.45,
+    "doors": 1,
+    "doorLeaves": 1,
+    "body": "AEB2B0",
+    "accent": "D9531C",
+    "power": "diesel",
+    "label": "DR2823",
+    "doorXs": [
+      -3.95
+    ],
+    "winZ": 2.42,
+    "winH": 0.82,
+    "winPitch": 0.9,
+    "winR": 0.07,
+    "doorTop": 2.89,
+    "doorWinZ": 2.4,
+    "doorWinH": 0.7,
+    "cabGap": 0.72,
+    "pantos": 0
+  },
+  "reference": {
+    "source": "https://zh.wikipedia.org/wiki/台鐵DR2800型柴聯車",
+    "detail": null,
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

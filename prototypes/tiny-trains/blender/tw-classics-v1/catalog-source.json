@@ -372,7 +372,269 @@
   "simplified": [
    "Allan 閥動只做主連桿與偏心桿，沒有逐件做連動",
    "側水櫃名牌只做紅底金框，不寫字（實車沒有「騰雲」字牌，那是模型與複製版加的）",
-   "注水器與洗滌管只做兩條主要彎管"
+   "注水器與洗滌管只做兩條主要彎管",
+   "二二八公園保存的那台其實是同型姊妹車御風號，1999 年起掛騰雲銘牌；兩台同型，外觀照它做"
+  ]
+ },
+ {
+  "id": "emu300",
+  "group": "classic",
+  "name": "台鐵 EMU300 型電聯車（義大利製自強號）",
+  "years": "1988–1989 製造；1989-09-02 營運；2021-11-26 退出；2023-09-12 報廢（僅 EMC307 保存於國家鐵道博物館）",
+  "status": "已退役、已解體；EMC307 靜態保存。EMU300 共 8 組（EMU301–308）24 輛，3 輛編組（2M1T）。",
+  "source": "https://zh.wikipedia.org/wiki/台鐵EMU300型電聯車",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台鐵EMU300型電聯車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵EMU300型電聯車",
+    "supports": "全長/全闊/全高、軌距、耐候鋼、3 輛編組、製造年、退役報廢、EMC307 保存、車門配置、EMU200 外形對照"
+   },
+   {
+    "title": "Commons TRA EMU300 Tze-Chiang Ltd-Exp Hsinchu Sta 20160915（PD）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU300_Tze-Chiang_Ltd-Exp_Hsinchu_Sta_20160915.jpg",
+    "supports": "車頭塗裝、前窗、雙頭燈、貫通門（本人目視）"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EMU300 Tze-Chiang Ltd-Exp Hsinchu Sta 20160915.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU300_Tze-Chiang_Ltd-Exp_Hsinchu_Sta_20160915.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/TRA_EMU300_Tze-Chiang_Ltd-Exp_Hsinchu_Sta_20160915.jpg/1280px-TRA_EMU300_Tze-Chiang_Ltd-Exp_Hsinchu_Sta_20160915.jpg",
+    "author": "Cassiopeia sweet",
+    "licence": "Public domain",
+    "use": "車頭正面斜前（PD）：黃橘色塗裝、方正略傾斜車頭、單一側貫通/逃生門、雙頭燈",
+    "role": "front"
+   },
+   {
+    "file": "File:TRA EMU300 at Taoyuan Station 20160716.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU300_at_Taoyuan_Station_20160716.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/TRA_EMU300_at_Taoyuan_Station_20160716.jpg/1280px-TRA_EMU300_at_Taoyuan_Station_20160716.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "側面/斜側整編組（車身比例、窗列、車門）",
+    "role": "side"
+   },
+   {
+    "file": "File:TRA 50EMC307.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_50EMC307.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/TRA_50EMC307.jpg/1280px-TRA_50EMC307.jpg",
+    "author": "鐵路1",
+    "licence": "CC BY-SA 4.0",
+    "use": "車身側板細部：芥末黃下半、百葉進氣口、鐵路徽標"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台鐵 EMU300 自強號",
+  "color": "#EFA20C",
+  "detail": "1989 年義大利 Socimi 製黃橘自強號，前傾車頭、頂蓋雙頭燈、V 字斜帶",
+  "sideNote": "做駕駛馬達車 EMC；駕駛室後方先是單開門，車尾端另一扇。",
+  "checked": [
+   "前傾車頭、橘色圓頂蓋上兩顆頭燈與紅色標識燈（新竹站車頭照）",
+   "粗黑框圓頂貫通門略偏列車左側、黃色門扇與深色門窗（新竹站車頭照）",
+   "兩側方擋風、上方行先窗、窗下橘色 V 字斜帶與下方黃色細帶、下緣紅白燈組（新竹站車頭照）",
+   "黃橘塗裝與斜帶繞過車角延伸到駕駛室側面（桃園站側面）",
+   "車側上半米黃、窗下芥末褐，下半有百葉進氣口（EMC307 近拍）",
+   "黃色排障板與橘色軟管旋塞（新竹站車頭照）"
+  ],
+  "simplified": [
+   "車側台鐵路徽不放（營運商標）",
+   "2008 年改造後的電動門與 LED 行先板沒做，門窗照原設計",
+   "中間的 EP 車（有集電弓）沒做，只做駕駛車一節"
+  ]
+ },
+ {
+  "id": "emu200",
+  "group": "classic",
+  "name": "台鐵 EMU200 型電聯車（原始塗裝，貓頭鷹警戒色車頭）",
+  "years": "1986 製造；1987 營運；2002–2004 由台灣車輛全面改造為 EMU1200 型（9 輛編組）",
+  "status": "已不存在原貌：EMU200 全數於 2002–2004 改造成 EMU1200（既有清單已有 EMU1200）；原始塗裝僅見於舊照片（1989、1997）。11 組 33 輛，3 輛編組（2M1T），其中 3 輛因 1992、1997 平交道事故報廢，剩 30 輛改造。",
+  "source": "https://zh.wikipedia.org/wiki/台鐵EMU200型電聯車",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台鐵EMU200型電聯車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵EMU200型電聯車",
+    "supports": "尺寸、製造商/年份、3 輛編組、BS 色碼啞鈴塗裝、貓頭鷹警戒色、改造 EMU1200、事故報廢"
+   },
+   {
+    "title": "Commons Taiwan Railway Administration EMU 206 Banqiao 1989（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Taiwan_Railway_Administration_EMU_206_Banqiao_1989.jpg",
+    "supports": "原始塗裝車頭、側門與窗列（本人目視）"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:EMU200 in Ershui.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU200_in_Ershui.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/EMU200_in_Ershui.jpg/1280px-EMU200_in_Ershui.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "EMU200 車頭斜前＋整列側面（貓頭鷹警戒色車頭）"
+   },
+   {
+    "file": "File:TRA UCW EMU200 in 1997.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_UCW_EMU200_in_1997.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/TRA_UCW_EMU200_in_1997.jpg/1280px-TRA_UCW_EMU200_in_1997.jpg",
+    "author": "Lexcie",
+    "licence": "CC BY-SA 3.0",
+    "use": "1997 年原始塗裝（Lexcie）：車頭/側面",
+    "role": "front"
+   },
+   {
+    "file": "File:Taiwan Railway Administration EMU 206 Banqiao 1989.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taiwan_Railway_Administration_EMU_206_Banqiao_1989.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dd/Taiwan_Railway_Administration_EMU_206_Banqiao_1989.jpg/1280px-Taiwan_Railway_Administration_EMU_206_Banqiao_1989.jpg",
+    "author": "Thyristorchopper",
+    "licence": "CC BY-SA 3.0",
+    "use": "1989 年板橋站 EMU206 原始塗裝與車頭",
+    "role": "side"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台鐵 EMU200 自強號（原塗裝）",
+  "color": "#D8401C",
+  "detail": "1987 年南非 UCW 製自強號原始「貓頭鷹」塗裝，垂直車頭、頂蓋單橢圓頭燈、黃黑排障板",
+  "sideNote": "做駕駛馬達車；駕駛室後方先是乘務員門、再一扇單開客用門。",
+  "checked": [
+   "跟 EMU300 同一套黃橘車頭，但車頭面幾乎垂直、斜帶較平（1997 Lexcie 照）",
+   "頂蓋中央橢圓頭燈、一側行先燈、另一側行先牌（1989 板橋站、1997 照）",
+   "貫通門偏列車右側、黑框黃門（1997 照）",
+   "車側上半淺米灰、窗下淺石褐（1989 板橋站）",
+   "黃黑警戒斜紋排障板（2001 二水站照）"
+  ],
+  "simplified": [
+   "二水站照片右下角時間戳記是 2001 年，在 2002–04 改造成 EMU1200 之前，仍是原貌",
+   "行先牌只做白底，不寫站名",
+   "中間 EP 車沒做"
+  ]
+ },
+ {
+  "id": "dr2800",
+  "group": "classic",
+  "name": "台鐵 DR2800 型柴聯車（柴聯自強號）",
+  "years": "1982–1984 製造；1982-06-01 營運（東線拓寬通車用）；2023-04-26 退出營運；2024-08-29 報廢",
+  "status": "已退役、已報廢（有末班車紀念銘版）。15 組 45 輛，3 輛編組（駕駛動力車 DR2801–2830 ×2＋電源拖車 DR2851–2865）。",
+  "source": "https://zh.wikipedia.org/wiki/台鐵DR2800型柴聯車",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台鐵DR2800型柴聯車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵DR2800型柴聯車",
+    "supports": "尺寸、編組、製造、營運與退役日、車門配置、轉向架、引擎"
+   },
+   {
+    "title": "Commons DR2800型柴聯自強號.jpg（臺灣鐵路管理局，GWOIA）",
+    "url": "https://commons.wikimedia.org/wiki/File:DR2800型柴聯自強號.jpg",
+    "supports": "整列塗裝、波紋不鏽鋼、橘帶、黃端帶（本人目視）"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:20230422 TRA DR2800 at Taichung Station 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:20230422_TRA_DR2800_at_Taichung_Station_01.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/20230422_TRA_DR2800_at_Taichung_Station_01.jpg/1280px-20230422_TRA_DR2800_at_Taichung_Station_01.jpg",
+    "author": "鐵路1",
+    "licence": "CC BY-SA 4.0",
+    "use": "DR2800 柴聯自強號（2023-04-22 末期）車頭斜前",
+    "role": "front"
+   },
+   {
+    "file": "File:20230422 TRA DR2800 at Chenggong Station 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:20230422_TRA_DR2800_at_Chenggong_Station_01.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c6/20230422_TRA_DR2800_at_Chenggong_Station_01.jpg/1280px-20230422_TRA_DR2800_at_Chenggong_Station_01.jpg",
+    "author": "鐵路1",
+    "licence": "CC BY-SA 4.0",
+    "use": "另一角度（車身側面、車門、窗列）"
+   },
+   {
+    "file": "File:DR2800型柴聯自強號.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:DR2800%E5%9E%8B%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7%E8%99%9F.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/00/DR2800%E5%9E%8B%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7%E8%99%9F.jpg/1280px-DR2800%E5%9E%8B%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7%E8%99%9F.jpg",
+    "author": "臺灣鐵路管理局",
+    "licence": "Attribution",
+    "use": "台鐵官方照（整編組）",
+    "role": "side"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台鐵 DR2800 柴聯自強號",
+  "color": "#CC4614",
+  "detail": "1982 年東急車輛製不鏽鋼柴聯車，黃橘「人」字車頭、頂部長方頭燈箱、窗下橘帶",
+  "sideNote": "每側只在車尾端有一扇折疊客用門，駕駛室後方是緊急逃生門；不鏽鋼波紋只在窗下與窗上。",
+  "checked": [
+   "垂直平頭、橘色頂蓋上方突出的長方頭燈箱與兩顆圓燈（台鐵官方照）",
+   "兩扇大擋風、左窗上緣白色車號牌、中央黃色凸框貫通門與鏈條、下半踏板凹槽（台中站車頭照）",
+   "窗下橘色「人」字：橫帶接兩道往貫通門下緣收的斜區、外側燈組在黃底上（官方照）",
+   "不鏽鋼波紋車身、窗下橘色寬帶、窗上橘色細線（成功站車側近拍）",
+   "車頂深灰設備罩、車端黃色細帶（官方照）"
+  ],
+  "simplified": [
+   "車側台鐵路徽與 LED 車次牌不放",
+   "車頂設備罩只做三段外殼與格柵",
+   "中間的 DR2850 電源拖車沒做"
+  ]
+ },
+ {
+  "id": "emu400",
+  "group": "classic",
+  "name": "台鐵 EMU400 型電聯車",
+  "years": "1990 製造；1990-11-09 營運；2015-03-24 退出定期營運；其後報廢解體（EMC410 保存於國家鐵道博物館）",
+  "status": "已退役；EMC410 靜態保存。12 組（EMU401–412）48 輛，4 輛編組（2M2T）。",
+  "source": "https://zh.wikipedia.org/wiki/台鐵EMU400型電聯車",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台鐵EMU400型電聯車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵EMU400型電聯車",
+    "supports": "尺寸、軌距、製造、營運與退役日、群青藍＋雲白塗裝、每側 2 門中央配置、連控自動門"
+   },
+   {
+    "title": "Commons TRA EMU410 at Zhunan Station 20160915（PD）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU410_at_Zhunan_Station_20160915.jpg",
+    "supports": "車頭、前窗、貫通門、側面塗裝（本人目視）"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EMU410 at Zhunan Station 20160915.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU410_at_Zhunan_Station_20160915.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fe/TRA_EMU410_at_Zhunan_Station_20160915.jpg/1280px-TRA_EMU410_at_Zhunan_Station_20160915.jpg",
+    "author": "Cassiopeia sweet",
+    "licence": "Public domain",
+    "use": "EMU400 車頭正面斜前（PD）：群青＋雲白塗裝、前窗、頭燈",
+    "role": "front"
+   },
+   {
+    "file": "File:TRA UCW EMU400 in Taoyuan 2010.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_UCW_EMU400_in_Taoyuan_2010.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/TRA_UCW_EMU400_in_Taoyuan_2010.jpg/1280px-TRA_UCW_EMU400_in_Taoyuan_2010.jpg",
+    "author": "Lexcie",
+    "licence": "CC BY-SA 3.0",
+    "use": "側面與車門、窗列（Lexcie）",
+    "role": "side"
+   },
+   {
+    "file": "File:TRA EMU400 at Songshan Station 20080921.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU400_at_Songshan_Station_20080921.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f8/TRA_EMU400_at_Songshan_Station_20080921.jpg/1280px-TRA_EMU400_at_Songshan_Station_20080921.jpg",
+    "author": "蒼空　翔 有事找我",
+    "licence": "CC BY-SA 3.0",
+    "use": "另一角度：整列側面"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台鐵 EMU400 區間車",
+  "color": "#2146BE",
+  "detail": "1990 年南非 UCW 製藍銀區間電聯車，偏右凸框貫通門、窗下白帶與往側面掃的白線",
+  "sideNote": "駕駛室側面整段藍色，白帶接到車側的藍色粗細兩條線；每側兩組雙開門靠車廂中段。",
+  "checked": [
+   "凸框貫通門偏列車右側、門扇中段白色橫板與深色圓徽（竹南站 EMU410）",
+   "左側窄窗、右側大擋風、頂部中央橢圓頭燈、左上車號白牌、右上行先牌（竹南站）",
+   "窗下白色橫帶，右側白線從下方彎起再水平接到車角（竹南站）",
+   "車側銀灰、藍色車頂邊帶、窗下藍色粗細兩條線穿過門扇（竹南站、桃園站）",
+   "黃黑警戒排障板、下緣圓形燈組（竹南站）"
+  ],
+  "simplified": [
+   "門扇上的台鐵路徽改成無圖案的深色圓徽",
+   "後期偏深藍與初期群青的差別只取照片上的後期色",
+   "只做駕駛車一節"
   ]
  }
 ]
