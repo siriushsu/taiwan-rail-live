@@ -35,6 +35,9 @@ add('sugarcar','coach',L=4.4,W=2.0,H=2.70,body='E2DFCB',accent='3A92D0',power='u
 add('s300','diesel',L=6.6,W=2.62,H=3.55,body='C4461A',accent='F1F1EC',power='diesel',label='S302')
 # R0（R6 改造型）：實車 15,370／2,875／3,836 mm，Co-Co；長度比照 E100（15.1 m→7.6）略長。
 add('r0','diesel',L=8.4,W=2.80,H=3.72,body='172C70',accent='F1F1EC',power='diesel',label='R6')
+# 換色版：S305 2023 年修復的藍色（駕駛室屋頂也是藍色）、R6 1999 年以前的台鐵柴電機車橘色；外形同上。
+add('s300blue','diesel',L=6.6,W=2.62,H=3.55,body='102A6E',accent='F1F1EC',roof='102A6E',plow='3C4044',power='diesel',label='S305')
+add('r0orange','diesel',L=8.4,W=2.80,H=3.72,body='C4461A',accent='F1F1EC',power='diesel',label='R6')
 # 中興號 DPC：實車 10,700／2,080／3,120 mm，762 mm 軌距；長度跟 S300 同壓縮比。
 add('zhongxing','railcar',L=6.4,W=2.10,H=3.10,bottom=.80,radiusBottom=.10,radiusTop=.42,doors=1,doorLeaves=1,body='C0140F',accent='F2F2EE',power='diesel',label='DPC8')
 # LDK58：實車 7,608／2,286／3,100 mm（LDK50 型整型號數字），0-8-0T；比照台糖 346（L 5.6）略長。

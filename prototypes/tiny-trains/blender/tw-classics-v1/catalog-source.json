@@ -1353,7 +1353,7 @@
   "simplified": [
    "駕駛室正面的折角三面做成一個平面",
    "台鐵路徽不放（營運商標）",
-   "藍色版（S305 2023 年修復、S316）沒做，只做橘色版",
+   "藍色版（S305 2023 年修復、S316）另列一款 s300blue",
    "罩尾端面沒有清楚照片，頭燈與百葉照一般 EMD 調車機推估",
    "尺寸只有 zh.wikipedia 一個來源"
   ]
@@ -1433,16 +1433,158 @@
   "sideNote": "短引擎罩在前、駕駛室、長引擎罩；白腰帶到長罩尾段往下彎，收到端梁（1999 側面）。",
   "checked": [
    "短端面方殼雙頭燈與小帽沿、上緣紅色標示燈、端梁上方兩顆小燈、海鷗倒 V、黃黑斜紋端梁（2010 短端、2025 正面）",
-   "短引擎罩比駕駛室矮、長引擎罩接近駕駛室高，罩側整排直條百葉（1999 側面、2014 斜前）",
+   "短引擎罩跟長引擎罩幾乎一樣高、只比駕駛室矮一點；罩側整排直條百葉（1999 側面、2014 斜前、2025 正面；第一版短罩太矮，對照後加高）",
    "白腰帶貫穿全車、到長罩尾往下彎（1999 側面）",
    "駕駛室側面一門兩窗與白色扶手爬梯、Co-Co 轉向架、燃油箱（2014 斜前、1999 側面）"
   ],
   "simplified": [
-   "照 R6 現在（2010–2025）的海軍藍；1999 年以前的橘色版沒做",
+   "照 R6 現在（2010–2025）的海軍藍；1999 年以前的橘色版另列一款 r0orange",
    "原型（未改造、「大眼蛙」頭燈）沒有實拍照，做的是改造後的 R6",
    "台鐵路徽與 HITACHI 銘牌不放",
    "駕駛室朝短罩的前面照研究筆記做成實心、沒有前窗",
    "長罩尾端面沒有清楚照片，照短端推估"
+  ]
+ },
+ {
+  "id": "s300blue",
+  "group": "classic",
+  "name": "台鐵 S300 型柴電機車藍色版（S305，2023 修復塗裝）",
+  "years": "1966-09 運抵 21 輛（S301–S321）；2002 起陸續報廢；S318 無車籍留在彰化扇形車庫調車",
+  "status": "S305 在 2023 年修復成海軍藍，現在在苗栗火車頭園區室內展示；S316（車埕站）2020 年也改成藍色。外形跟橘色版相同。",
+  "source": "https://zh.wikipedia.org/wiki/台鐵S300型柴電機車",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台鐵S300型柴電機車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵S300型柴電機車",
+    "supports": "尺寸、重量、軸配置、1966 年 21 輛、S302／S305／S316 保存、S318 現況、塗裝變更（讀全文）"
+   },
+   {
+    "title": "zh.wikipedia 台鐵S200型柴電機車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵S200型柴電機車",
+    "supports": "S200 差異比對（見 notes）"
+   },
+   {
+    "title": "zh.wikipedia 台鐵S400型柴電機車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵S400型柴電機車",
+    "supports": "S400 差異比對（見 notes）"
+   },
+   {
+    "title": "Commons Category:TRA S300 Diesel locomotives（及 S302、S305、S316、S317、S318 子分類）",
+    "url": "https://commons.wikimedia.org/wiki/Category:TRA_S300_Diesel_locomotives",
+    "supports": "照片 6 張的來源；S302 另有 11 張特寫（Lokseng01，CC BY-SA 4.0）可補細部"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "photos": [
+   {
+    "file": "File:S305 diesel locomotive.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3AS305_diesel_locomotive.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cd/S305_diesel_locomotive.jpg/1280px-S305_diesel_locomotive.jpg",
+    "author": "D1114456",
+    "licence": "CC BY-SA 4.0",
+    "use": "S305（2023 恢復的海軍藍塗裝）駕駛端：藍底白倒 V、黃黑斜紋，苗栗火車頭園區室內展示",
+    "role": "front"
+   },
+   {
+    "file": "File:TRA S305 at Miaoli Railway Museum 20120608.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATRA_S305_at_Miaoli_Railway_Museum_20120608.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/TRA_S305_at_Miaoli_Railway_Museum_20120608.jpg/1280px-TRA_S305_at_Miaoli_Railway_Museum_20120608.jpg",
+    "author": "SSR2000",
+    "licence": "CC BY-SA 3.0",
+    "use": "S305（2012，當時還是橘色）全長正側面：只拿來對外形，顏色看駕駛端照片",
+    "role": "side"
+   },
+   {
+    "file": "File:TRA S318 2023.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATRA_S318_2023.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/TRA_S318_2023.jpg/1280px-TRA_S318_2023.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "S318 駕駛端 3/4（橘色）：濾清器凸起與罩頂"
+   }
+  ],
+  "label": "台鐵 S300 型柴電機車藍色版（S305）",
+  "color": "#102A6E",
+  "detail": "S300 的第二種塗裝：S305 在 2023 年修復成海軍藍，白色海鷗倒 V 不變，駕駛室屋頂也漆藍色",
+  "sideNote": "駕駛室在一端、長引擎罩在後；白腰帶過了駕駛室 S 形降低，到罩尾再升起。",
+  "checked": [
+   "藍色車身、白色海鷗倒 V 與腰帶、黃黑斜紋端梁、深灰排雪板（S305 2023 駕駛端）",
+   "駕駛室屋頂與車身同為藍色（S305 駕駛端看得到屋頂前緣）",
+   "外形與橘色版共用同一支建模函式（s300）"
+  ],
+  "simplified": [
+   "車號牌照橘色版做成黑底淺色字；S305 實車是灰底黑字",
+   "引擎罩頂與冷卻風扇罩沒有照片，跟駕駛室屋頂一樣做成藍色（推估）",
+   "側面沒有藍色版的照片，側面外形照 2012 年橘色時期的 S305",
+   "台鐵路徽不放（營運商標）"
+  ]
+ },
+ {
+  "id": "r0orange",
+  "group": "classic",
+  "name": "台鐵 R0 型柴電機車橘色版（R6，1999 年以前塗裝）",
+  "years": "1959-08 試作車出廠（借日本國鐵試運轉，編 DF91-1）；1960-07 起分兩批交付、1960-09-05 投入幹線；1966-11 起改調車；1971 起 7 輛改造；1984–1999 年陸續報廢",
+  "status": "R6 在 1999 年報廢前後是台鐵柴電機車的橘色（Commons 1999-06-18 苗栗照）；之後改漆海軍藍保存至今。外形跟藍色版相同。",
+  "source": "https://zh.wikipedia.org/wiki/台鐵R0型柴電機車",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台鐵R0型柴電機車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵R0型柴電機車",
+    "supports": "尺寸、重量、軸配置、1959／1960 交車、12 輛（R1–R12）、1966 改調車、1971 起改造 R1／R4–R6／R8／R10／R12、報廢年表、R6 保存（讀全文）；功率 1,420 hp"
+   },
+   {
+    "title": "Commons 照片5 苗栗 R0 型剖面模型說明牌（Solomon203，2013-10-15）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R0_model_20131015.jpg",
+    "supports": "說明牌：1960 日立、10＋2 輛、CO-CO、84.5 t、牽引力 14,700 kgf、最高 100 km/h、1,650 馬力、MAN V6V；R6 為唯一保存（我看圖讀到的文字）"
+   },
+   {
+    "title": "Commons Category:TRA R0 Diesel locomotives／TRA R6 at the Miaoli Railway Museum",
+    "url": "https://commons.wikimedia.org/wiki/Category:TRA_R6_at_the_Miaoli_Railway_Museum",
+    "supports": "R6 照片 5 張的來源；另有 R200 見面會等官方照片（Attribution 授權）不是 R6"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "photos": [
+   {
+    "file": "File:R6 diesel locomotive.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3AR6_diesel_locomotive.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/02/R6_diesel_locomotive.jpg/1280px-R6_diesel_locomotive.jpg",
+    "author": "D1114456",
+    "licence": "CC BY-SA 4.0",
+    "use": "R6（2025-05，藍色）車頭正面：橘色時期沒有車頭照，只拿來對外形",
+    "role": "front"
+   },
+   {
+    "file": "File:TRA R6 at the Miaoli Railway Museum 1999-06-18.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATRA_R6_at_the_Miaoli_Railway_Museum_1999-06-18.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/TRA_R6_at_the_Miaoli_Railway_Museum_1999-06-18.jpg/1280px-TRA_R6_at_the_Miaoli_Railway_Museum_1999-06-18.jpg",
+    "author": "Dquai",
+    "licence": "CC BY-SA 4.0",
+    "use": "R6（1999-06-18，橘色塗裝）全長正側面：長引擎罩、短駕駛室、白腰帶弧線、黑色底架與兩組三軸轉向架",
+    "role": "side"
+   },
+   {
+    "file": "File:TRA R6 at Miaoli Railway Museum 20141022.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File%3ATRA_R6_at_Miaoli_Railway_Museum_20141022.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/TRA_R6_at_Miaoli_Railway_Museum_20141022.jpg/1280px-TRA_R6_at_Miaoli_Railway_Museum_20141022.jpg",
+    "author": "Smiley.toerist",
+    "licence": "CC BY-SA 4.0",
+    "use": "R6（2014，藍色）車頭＋側面 3/4：短罩高度與百葉位置"
+   }
+  ],
+  "label": "台鐵 R0 型柴電機車橘色版（R6）",
+  "color": "#C4461A",
+  "detail": "R0 的第二種塗裝：1999 年以前的台鐵柴電機車橘色，灰色屋頂與罩頂、白色腰帶到長罩尾往下彎",
+  "sideNote": "短引擎罩在前、駕駛室、長引擎罩；白腰帶到長罩尾段往下彎，收到端梁（1999 側面）。",
+  "checked": [
+   "橘色車身、灰色駕駛室屋頂與罩頂、白腰帶貫穿全車並在長罩尾往下彎、黑色底架（1999 側面）",
+   "短罩跟長罩幾乎一樣高、只比駕駛室矮一點（1999 側面；藍色版第一版短罩太矮，這次一起改）",
+   "外形與藍色版共用同一支建模函式（r0）"
+  ],
+  "simplified": [
+   "橘色時期沒有車頭照片，車頭照藍色版做（海鷗倒 V、方殼雙頭燈）",
+   "橘色用跟 S300 一樣的台鐵柴電機車橘；1999 年的底片照偏紅，色值沒辦法精確對",
+   "台鐵路徽與 HITACHI 銘牌不放"
   ]
  },
  {

@@ -46,7 +46,7 @@
   ],
   "mesh": {
     "file": "r0.mesh.bin",
-    "sha256": "914c0ceefc31696f78b524e49b31acb827b5ac1c35ecab441897425b661555d3",
+    "sha256": "8236616a7f178ad46c863b8db47d114ca051e89d8b4303efeadea976ce42e45c",
     "encoding": "float32-le",
     "strideBytes": 24,
     "vertexCount": 264360,
@@ -79,7 +79,7 @@
         "clearcoat": 0.18000000715255737
       },
       {
-        "name": "r0navy",
+        "name": "r0body",
         "start": 133848,
         "count": 6120,
         "color": [
@@ -247,7 +247,7 @@
   },
   "reference": {
     "source": "https://zh.wikipedia.org/wiki/台鐵R0型柴電機車",
-    "detail": null,
+    "detail": "1960 年日立製 Co-Co 幹線柴電機車，唯一保存車 R6 在苗栗火車頭園區；海軍藍車身、白色海鷗倒 V",
     "photoUse": "visual-study-only-not-redistributed"
   },
   "formation": {
