@@ -1,0 +1,88 @@
+[
+ {
+  "name": "桃園捷運綠線電聯車（現代樂鐵）",
+  "reason": "已交車、動態測試中（2026-10），但查不到尺寸，Commons 只有遠景照，外觀細節對不起來；等有官方說明或近照再做。",
+  "sources": [
+   "https://zh.wikipedia.org/wiki/桃園捷運綠線",
+   "https://en.wikipedia.org/wiki/Green_line_(Taoyuan_Metro)",
+   "https://commons.wikimedia.org/wiki/File:Taoyuan_Metro_Green_Line_test_train_May_2026.jpg"
+  ]
+ },
+ {
+  "name": "阿里山林鐵「森里號」新列車",
+  "reason": "已運抵嘉義、預計 2026 年營運，但查不到營運日與尺寸，Commons 沒有自由授權照片。",
+  "sources": [
+   "https://smiletaiwan.cw.com.tw/index.php/article/5253"
+  ]
+ },
+ {
+  "name": "阿里山林鐵 DL55 新柴油機車",
+  "reason": "搜尋沒找到這個型號的交車、採購或測試資料（最接近的 DL-34 是出借英國的舊車）。",
+  "sources": [
+   "https://smiletaiwan.cw.com.tw/index.php/article/5253"
+  ]
+ },
+ {
+  "name": "阿里山林鐵中興號柴油客車（DPC）",
+  "reason": "Commons 有分類，但查不到尺寸與現況，查證時 Wikipedia／Commons 連續回 503。下一輪的第一個候選。",
+  "sources": [
+   "https://commons.wikimedia.org/wiki/Category:AFR_Zhongxing_Express"
+  ]
+ },
+ {
+  "name": "高雄捷運紅線延伸新車（現代 Rotem）",
+  "reason": "2028 年才交車，還沒有實車。",
+  "sources": [
+   "https://ctee.com.tw/news/20260320701459-430503"
+  ]
+ },
+ {
+  "name": "台北捷運文湖線替換車",
+  "reason": "2026-07 只有規劃（4 節貫通式），2036 年之後才可能上線。",
+  "sources": [
+   "https://taiwanplus.com/news/taiwan-news/transportation/260728019/taipei-metro-unveils-new-high-capacity-train-cars"
+  ]
+ },
+ {
+  "name": "台中捷運藍線",
+  "reason": "這輪沒搜到車輛交車資料，當作還沒交車。",
+  "sources": []
+ },
+ {
+  "name": "台鐵支線柴油客車（約 60 輛）",
+  "reason": "延到 2027 年，還沒有實車；來源網址當時沒存。",
+  "sources": []
+ },
+ {
+  "name": "台鐵 S200／S300／S400 調車機車",
+  "reason": "都已退役，不算現役；可以當經典車追加，這輪沒做。來源網址當時沒存。",
+  "sources": []
+ },
+ {
+  "name": "台鐵 R0 柴油機車（日立 1960 年製）",
+  "reason": "已退役，可以當經典車追加，這輪沒做。",
+  "sources": []
+ },
+ {
+  "name": "台鐵 DR2900／DR3000 柴聯車",
+  "reason": "2023 年退役；車體跟 DR2800 同系列，已做 DR2800，不另做。",
+  "sources": []
+ },
+ {
+  "name": "台糖 370 號蒸汽機車（烏樹林）",
+  "reason": "外觀跟已做的 346 號幾乎相同。",
+  "sources": []
+ },
+ {
+  "name": "台糖 1067 mm「大日立」柴油機車",
+  "reason": "已全數停用，跟 762 mm 日立牌不同型；這輪只做 762 mm 版。",
+  "sources": [
+   "https://zh.wikipedia.org/wiki/台糖日立牌內燃機車"
+  ]
+ },
+ {
+  "name": "台鐵 EMU900、EMU3000、E500、R200",
+  "reason": "已在台灣車隊 fleet-v1 的 62 款裡。",
+  "sources": []
+ }
+]

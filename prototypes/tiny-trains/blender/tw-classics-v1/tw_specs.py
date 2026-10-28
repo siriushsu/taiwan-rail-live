@@ -23,3 +23,9 @@ add('fuhsing','coach',L=9.0,W=2.85,H=3.45,radiusTop=.80,doors=2,doorLeaves=2,bod
 add('sugar346','steam',L=5.6,W=2.20,H=3.25,body='26292B',accent='B8281A',power='steam',drivers=3,label='346')
 # E100：實車 15,120／2,995／4,003 mm；比照 fleet-v1 E200（17.4 m→8.6）縮成 7.6，車身底在 1.15。
 add('e100','electric',L=7.6,W=2.85,H=3.50,bottom=1.15,radiusBottom=.06,radiusTop=.30,body='DCC488',accent='E0501A',power='overhead',label='E101')
+# CK101：實車 11,405／2,616／3,658 mm（同頁文字另寫車高 3,596），2-6-2 水櫃機；比照 fleet-v1 CK124（L 7.2）同比例縮。
+add('ck101','steam',L=7.0,W=2.62,H=3.66,body='1E2022',accent='B8281A',power='steam',drivers=3,label='CK101')
+# 觀光號 35DC32751：實車 20,000／2,900／3,800 mm，比照復興號客車（L 9.0、W 2.85、H 3.45）。
+add('guanguang','coach',L=9.0,W=2.85,H=3.45,radiusTop=.80,doors=1,doorLeaves=2,body='ECE6D6',accent='C21A22',power='unpowered',label='35DC32751')
+# 台糖日立牌：762 mm，實車 5,540／2,200／3,000 mm；本身很短，長度只略縮。
+add('sugarhitachi','diesel',L=5.0,W=2.20,H=3.00,body='6E1410',accent='B02A12',power='diesel',label='827')

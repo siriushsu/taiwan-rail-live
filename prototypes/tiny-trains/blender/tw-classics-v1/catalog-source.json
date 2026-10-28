@@ -844,5 +844,216 @@
    "集電弓型式沒查證，用單臂集電弓代表",
    "車頂設備只做主斷路器箱、瓷瓶與母線"
   ]
+ },
+ {
+  "id": "ck101",
+  "group": "classic",
+  "name": "台鐵 CK100 型蒸汽機車（以 CK101 為代表，2-6-2T）",
+  "years": "1917（400–403＝CK101–104）、1919（404–407＝CK105–108）共 8 輛；1949 起改稱 CK101–108；1979 電氣化後蒸機退役；CK101 於 1998-06-09 復駛",
+  "status": "退役後被選為鐵博館展示車而保存；1998 復駛（台鐵史上第一部復駛蒸機），目前停駛、停放於彰化扇形車庫／相關機廠（來源：zh.wikipedia 台鐵蒸汽機車、CK100 型頁）。全型僅 CK101 保存至今。",
+  "source": "https://zh.wikipedia.org/wiki/台鐵CK100型蒸汽機車",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台鐵CK100型蒸汽機車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵CK100型蒸汽機車",
+    "supports": "尺寸、軌距、2-6-2、動輪直徑、製造商/年份、8 輛、1998 復駛、僅 CK101 保存"
+   },
+   {
+    "title": "zh.wikipedia 台鐵蒸汽機車",
+    "url": "https://zh.wikipedia.org/wiki/台鐵蒸汽機車",
+    "supports": "CK101 1998 復駛、目前停駛停放位置（頁面原文為富岡機廠）"
+   },
+   {
+    "title": "Commons TRA CK101 at Changhua Roundhouse 2014-05-04（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_CK101_at_Changhua_Roundhouse_2014-05-04.jpg",
+    "supports": "正面外觀、前樑、頭燈、號碼牌（本人目視）"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:CK101 in Jiji Line.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:CK101_in_Jiji_Line.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/CK101_in_Jiji_Line.jpg/1280px-CK101_in_Jiji_Line.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "CK101 運行中（集集線）：側面與車頭",
+    "role": "side"
+   },
+   {
+    "file": "File:TRA CK101 at Changhua Roundhouse 2014-05-04.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_CK101_at_Changhua_Roundhouse_2014-05-04.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/TRA_CK101_at_Changhua_Roundhouse_2014-05-04.jpg/1280px-TRA_CK101_at_Changhua_Roundhouse_2014-05-04.jpg",
+    "author": "Chi-Hung Lin",
+    "licence": "CC BY 2.0",
+    "use": "彰化扇形車庫停放：斜前側（水櫃、駕駛室）",
+    "role": "front"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台鐵 CK101 蒸汽機車（CK100 型）",
+  "color": "#1E2022",
+  "detail": "1917 年日本汽車製 2-6-2 水櫃機，1998 年台鐵第一部復駛的蒸機；黃黑斜紋緩衝樑、紅色直柵排障器",
+  "sideNote": "煙箱後到駕駛室前是兩側長水櫃，左側（+Y）走行板上有空氣壓縮機；Commons 這輪連不上，沒找到側面照可對，側面比例照 2-6-2 水櫃機的一般配置。",
+  "checked": [
+   "煙箱門一圈門扣、紅色中央手輪、紅底金框 CK101 號牌與右下橫把手（2014 彰化正面、集集線運轉照）",
+   "煙箱頂大頭燈在直筒煙囪正前方（兩張照片）",
+   "兩側水櫃前角黃色小牌、左側空氣壓縮機與黃銅注油器（集集線運轉照、2014 正面）",
+   "黃黑斜紋緩衝樑、紅色直柵排障器、自動車鉤與一條紅色旋塞的煞車軟管（集集線運轉照）",
+   "前方走行板橫向扶手與兩支信號燈柱、走行板邊緣黃線（2014 正面）"
+  ],
+  "simplified": [
+   "照 1998 年復駛後運轉的樣子；2014 年停在彰化扇形車庫時排障器與緩衝樑已改成全黑",
+   "沒有側面照可對：駕駛室側窗、入口開口與煤櫃位置照一般 2-6-2 水櫃機推估",
+   "車高用資訊框的 3,658 mm（同頁文字另寫 3,596，差 6 公分，Q 版看不出）",
+   "閥動只做主要幾根桿件"
+  ]
+ },
+ {
+  "id": "guanguang",
+  "group": "classic",
+  "name": "台鐵觀光號客車（32750／32800 系列，35SP／35DC）",
+  "years": "1961-06-18 開行；1963 加裝空調；1970 莒光號加入後改為白底紅啞鈴塗裝；1978-04-25 停駛（功能由莒光號接替）",
+  "status": "已退役，無營運車；35DC32751 餐車經國家鐵道博物館修復（白底紅啞鈴塗裝）保存於臺北機廠；35SA32820 總統花車、35PC32701 客廳車另有改造保存。",
+  "source": "https://zh.wikipedia.org/wiki/台鐵觀光號",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台鐵觀光號",
+    "url": "https://zh.wikipedia.org/wiki/台鐵觀光號",
+    "supports": "1961 營運、1978 停駛、塗裝演變、每側 13 窗/單門、尺寸 20×2.9×3.8 m、三種車型、52 座"
+   },
+   {
+    "title": "Commons TRA 35DC32751 at Taipei Railway Workshop（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_35DC32751_at_Taipei_Railway_Workshop.jpg",
+    "supports": "國鐵博修復車：白底紅啞鈴、圓拱車頂、車端單門（本人目視）"
+   },
+   {
+    "title": "Commons 1978-04-25 台灣新生報 最後一班觀光號（GWOIA）",
+    "url": "https://commons.wikimedia.org/wiki/File:19780425%E8%A7%80%E5%85%89%E8%99%9F%E5%88%97%E8%BB%8A%E6%96%BC%E5%8F%B0%E5%8C%97%E8%BB%8A%E7%AB%99.jpg",
+    "supports": "停駛日編組照（低解析 828 px）"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:TRA 35DC32751 at Taipei Railway Workshop.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_35DC32751_at_Taipei_Railway_Workshop.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/19/TRA_35DC32751_at_Taipei_Railway_Workshop.jpg/1280px-TRA_35DC32751_at_Taipei_Railway_Workshop.jpg",
+    "author": "鐵路1",
+    "licence": "CC BY-SA 4.0",
+    "use": "國家鐵道博物館修復的 35DC32751 餐車（觀光號 32750 系列，原始深藍塗裝）側面",
+    "role": "side"
+   },
+   {
+    "file": "File:19780425觀光號列車於台北車站.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:19780425%E8%A7%80%E5%85%89%E8%99%9F%E5%88%97%E8%BB%8A%E6%96%BC%E5%8F%B0%E5%8C%97%E8%BB%8A%E7%AB%99.jpg",
+    "thumb": "https://upload.wikimedia.org/wikipedia/commons/3/3d/19780425%E8%A7%80%E5%85%89%E8%99%9F%E5%88%97%E8%BB%8A%E6%96%BC%E5%8F%B0%E5%8C%97%E8%BB%8A%E7%AB%99.jpg",
+    "author": "台灣新生報",
+    "licence": "Attribution",
+    "use": "1978 年停駛日觀光號編組（白底紅啞鈴塗裝）",
+    "role": "front"
+   },
+   {
+    "file": "File:19780425臺鐵E326電力機車牽引觀光號列車於台北車站.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:19780425%E8%87%BA%E9%90%B5E326%E9%9B%BB%E5%8A%9B%E6%A9%9F%E8%BB%8A%E7%89%BD%E5%BC%95%E8%A7%80%E5%85%89%E8%99%9F%E5%88%97%E8%BB%8A%E6%96%BC%E5%8F%B0%E5%8C%97%E8%BB%8A%E7%AB%99.jpg",
+    "thumb": "https://upload.wikimedia.org/wikipedia/commons/2/2c/19780425%E8%87%BA%E9%90%B5E326%E9%9B%BB%E5%8A%9B%E6%A9%9F%E8%BB%8A%E7%89%BD%E5%BC%95%E8%A7%80%E5%85%89%E8%99%9F%E5%88%97%E8%BB%8A%E6%96%BC%E5%8F%B0%E5%8C%97%E8%BB%8A%E7%AB%99.jpg",
+    "author": "台灣新生報",
+    "licence": "Attribution",
+    "use": "E326 牽引觀光號，車廂側面"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台鐵 觀光號餐車 35DC32751",
+  "color": "#A8121C",
+  "detail": "1960 年日本車輛製，觀光號唯一保存的車廂；白底紅啞鈴、高拱銀灰車頂、一端一組紅色雙折門",
+  "sideNote": "車門端整段紅，上下各以圓角收成窗下紅腰帶，貫穿到另一端的窄紅端；餐車側窗大小不一。",
+  "checked": [
+   "白底紅啞鈴：車門端整段紅、圓角收成窗下腰帶、另一端窄紅端（國鐵博 35DC32751 側面）",
+   "一端一組紅色雙折門、每扇一個長圓窗（國鐵博側面、1978 停駛日照片）",
+   "車門端幾扇大窗、另一半四扇較小的窗（國鐵博側面）",
+   "高拱銀灰車頂、車端圓肩、端牆貫通門（國鐵博側面、1978 照片）"
+  ],
+  "simplified": [
+   "只做保存的餐車 35DC32751；一般觀光號客車（35SP，每側 13 扇 1 公尺窗）沒有清楚照片，沒做",
+   "窗的寬度依照片目測，沒有車廂圖可對",
+   "車側路徽只放圓形示意，型式標示用幾條字列代替",
+   "1961–70 年原始的深藍白線塗裝沒做"
+  ]
+ },
+ {
+  "id": "sugarhitachi",
+  "group": "current",
+  "name": "台糖日立牌內燃機車（762 mm 糖鐵，附觀光敞車）",
+  "years": "1967–1969 年製（801–854，共 54 輛，762 mm 版）；溪湖糖廠今仍以其牽引觀光列車",
+  "status": "現役：溪湖糖廠假日整點發車多為柴油列車，由日立牌牽引（搜尋摘要，台糖官網與旅遊部落格；日立機車僅 827、837 號可動，wiki 敘述，日期不明）。其餘多輛靜態展示。",
+  "source": "https://zh.wikipedia.org/wiki/台糖日立牌內燃機車",
+  "sources": [
+   {
+    "title": "zh.wikipedia 台糖日立牌內燃機車",
+    "url": "https://zh.wikipedia.org/wiki/台糖日立牌內燃機車",
+    "supports": "762 mm 版尺寸（5,540×2,200×3,000）、16 t、200 hp、1967–69 製、827／837 現役、801 乳牛塗裝、圖片集"
+   },
+   {
+    "title": "zh.wikipedia 臺灣糖業鐵路（車輛簡介）",
+    "url": "https://zh.wikipedia.org/wiki/臺灣糖業鐵路",
+    "supports": "觀光列車使用甘蔗車改造的客車，四面欄杆、長條椅；現存營業線 5 處均觀光用途"
+   },
+   {
+    "title": "台糖永續發展 五分車觀光園區",
+    "url": "https://www.taisugar.com.tw/CSR/CP2.aspx?n=13286",
+    "supports": "溪湖五分車觀光路線（搜尋摘要：溪湖站—草埔站 4.26 km／35 分）"
+   }
+  ],
+  "photos": [
+   {
+    "file": "File:溪湖糖廠的日立牌機車 後方為動態保存的346號蒸汽機車.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%BA%AA%E6%B9%96%E7%B3%96%E5%BB%A0%E7%9A%84%E6%97%A5%E7%AB%8B%E7%89%8C%E6%A9%9F%E8%BB%8A_%E5%BE%8C%E6%96%B9%E7%82%BA%E5%8B%95%E6%85%8B%E4%BF%9D%E5%AD%98%E7%9A%84346%E8%99%9F%E8%92%B8%E6%B1%BD%E6%A9%9F%E8%BB%8A.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/%E6%BA%AA%E6%B9%96%E7%B3%96%E5%BB%A0%E7%9A%84%E6%97%A5%E7%AB%8B%E7%89%8C%E6%A9%9F%E8%BB%8A_%E5%BE%8C%E6%96%B9%E7%82%BA%E5%8B%95%E6%85%8B%E4%BF%9D%E5%AD%98%E7%9A%84346%E8%99%9F%E8%92%B8%E6%B1%BD%E6%A9%9F%E8%BB%8A.jpg/1280px-%E6%BA%AA%E6%B9%96%E7%B3%96%E5%BB%A0%E7%9A%84%E6%97%A5%E7%AB%8B%E7%89%8C%E6%A9%9F%E8%BB%8A_%E5%BE%8C%E6%96%B9%E7%82%BA%E5%8B%95%E6%85%8B%E4%BF%9D%E5%AD%98%E7%9A%84346%E8%99%9F%E8%92%B8%E6%B1%BD%E6%A9%9F%E8%BB%8A.jpg",
+    "author": "Wengch",
+    "licence": "CC BY-SA 4.0",
+    "use": "溪湖糖廠現役日立牌，前斜側＋後方 346",
+    "role": "front"
+   },
+   {
+    "file": "File:Sihu DL 837 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Sihu_DL_837_01.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/98/Sihu_DL_837_01.jpg/1280px-Sihu_DL_837_01.jpg",
+    "author": "Heino Vogel",
+    "licence": "CC BY-SA 3.0 de",
+    "use": "837 號現役，側面",
+    "role": "side"
+   },
+   {
+    "file": "File:Hitachi 801.JPG",
+    "url": "https://commons.wikimedia.org/wiki/File:Hitachi_801.JPG",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b9/Hitachi_801.JPG/1280px-Hitachi_801.JPG",
+    "author": "SSR2000",
+    "licence": "CC BY-SA 3.0",
+    "use": "801 號（快樂乳牛塗裝）靜態展示"
+   },
+   {
+    "file": "File:Taiwansugarcorporationdiesellocomotive831.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taiwansugarcorporationdiesellocomotive831.jpg",
+    "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Taiwansugarcorporationdiesellocomotive831.jpg/1280px-Taiwansugarcorporationdiesellocomotive831.jpg",
+    "author": "billy1125 from Taiwan",
+    "licence": "CC BY 2.0",
+    "use": "831 號靜態展示，另一側/斜前"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖",
+  "label": "台糖 日立牌柴油機車（溪湖 827）",
+  "color": "#560C09",
+  "detail": "1967–69 年日立製 762 mm 糖鐵柴油機車，溪湖糖廠現役牽引五分車觀光列車；暗紅車身、引擎罩正面白色大 V 字",
+  "sideNote": "一端高駕駛室、另一端較矮的長引擎罩；深外側車架蓋住半個車輪。",
+  "checked": [
+   "引擎罩正面整片橫百葉、白色大 V 字、上緣白帶與紅橘頂（溪湖現役車正面）",
+   "罩頂圓頭燈與白色扶手、駕駛室前紅橘排氣管與右側喇叭、駕駛室前兩扇大窗（溪湖正面）",
+   "黃黑斜紋大緩衝樑、箱形車鉤、右側紅色標識燈（溪湖正面）",
+   "駕駛室側面一門一窗、引擎罩側面百葉門、深外側車架與紅色煞車吊架、車底黃色燃油箱（837 號側面）"
+  ],
+  "simplified": [
+   "照溪湖現行暗紅塗裝；837 號藍白彩繪、801 號乳牛斑紋沒做",
+   "軸配列查不到，照兩軸做，車輪多半被外側車架擋住",
+   "溪湖觀光敞車還沒做（見 README）",
+   "駕駛室後端窗與屋頂設備照 837 號側面推估"
+  ]
  }
 ]

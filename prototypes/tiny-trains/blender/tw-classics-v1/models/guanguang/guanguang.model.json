@@ -1,0 +1,244 @@
+{
+  "modelId": "guanguang",
+  "name": "台鐵觀光號客車（32750／32800 系列，35SP／35DC）",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "coach",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -5.008999824523926,
+      -1.5080000162124634,
+      0.0
+    ],
+    "max": [
+      5.008999824523926,
+      1.5080000162124634,
+      3.6700000762939453
+    ]
+  },
+  "sizeM": [
+    10.017999649047852,
+    3.0160000324249268,
+    3.6700000762939453
+  ],
+  "mesh": {
+    "file": "guanguang.mesh.bin",
+    "sha256": "91530f602d550ae3e6709c19bdf4652b9ef28bb9a87ebd956728ade0f7724e14",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 164136,
+    "triangleCount": 54712,
+    "drawGroups": [
+      {
+        "name": "ggwhite",
+        "start": 0,
+        "count": 9144,
+        "color": [
+          0.838798999786377,
+          0.7912979125976562,
+          0.672443151473999
+        ],
+        "metalness": 0.03999999910593033,
+        "roughness": 0.36000001430511475,
+        "clearcoat": 0.2800000011920929
+      },
+      {
+        "name": "ggroof",
+        "start": 9144,
+        "count": 13668,
+        "color": [
+          0.32314321398735046,
+          0.34191441535949707,
+          0.3613067865371704
+        ],
+        "metalness": 0.25,
+        "roughness": 0.5,
+        "clearcoat": 0.07999999821186066
+      },
+      {
+        "name": "frame",
+        "start": 22812,
+        "count": 12600,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "ggred",
+        "start": 35412,
+        "count": 4272,
+        "color": [
+          0.3915724754333496,
+          0.006048833020031452,
+          0.011612244881689548
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.36000001430511475,
+        "clearcoat": 0.2800000011920929
+      },
+      {
+        "name": "glass",
+        "start": 39684,
+        "count": 6624,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "metal",
+        "start": 46308,
+        "count": 32064,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "chassis",
+        "start": 78372,
+        "count": 32244,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 110616,
+        "count": 11208,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "roof",
+        "start": 121824,
+        "count": 1128,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 122952,
+        "count": 37392,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "red",
+        "start": 160344,
+        "count": 3792,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 220,
+  "features": {
+    "sideDoorGroups": 1,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "guanguang",
+    "family": "coach",
+    "L": 9.0,
+    "W": 2.85,
+    "H": 3.45,
+    "radiusTop": 0.8,
+    "doors": 1,
+    "doorLeaves": 2,
+    "body": "ECE6D6",
+    "accent": "C21A22",
+    "power": "unpowered",
+    "label": "35DC32751",
+    "doorXs": [
+      3.88
+    ],
+    "doorW": 0.62,
+    "doorTop": 2.79,
+    "doorWinZ": 2.32,
+    "doorWinH": 0.62,
+    "winR": 0.1,
+    "bottom": 0.86,
+    "pantos": 0
+  },
+  "reference": {
+    "source": "https://zh.wikipedia.org/wiki/台鐵觀光號",
+    "detail": null,
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}
