@@ -5648,7 +5648,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/10/28</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/10/29</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5656,6 +5656,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="followrotateflat1029"><span class="d">10/29</span><span>修正電腦版跟車時，用滑鼠右鍵或 Ctrl＋拖曳轉動、傾斜視角會卡住轉不動的問題；從全台地圖點車開始跟車時最常遇到</span></li>
         <li data-cl-of="commutercars1028"><span class="d">10/28</span><span>立體列車的區間車改依車次推估節數：沙崙線（37、38 開頭的車次）畫 4 節，1006、3029、3005、3028 次畫 10 節，其餘維持 8 節，仍標示「推估編組」</span></li>
         <li data-cl-of="bountypoints"><span class="d">10/27</span><span>校正懸賞改用島民點數：合格的一趟照實際錄到的沿線里程給點，1 公里 1 點，南迴、臺東線加倍，每天最多 500 點；原有籌碼 1 顆換 50 點，已解鎖的車庫場景照舊</span></li>
         <li data-cl-of="weatherdanhai1024"><span class="d">10/24</span><span>颱風公告補列淡海官網15至30分鐘班距與停駛資訊不一致，提醒先確認實際開行</span></li>
@@ -5663,7 +5664,6 @@
         <li data-cl-of="auto3d1024"><span class="d">10/24</span><span>立體列車跑不順時自動切回平面列車並提示，可在觀看設定重新開啟；視角與 3D 建築不受影響</span></li>
         <li data-cl-of="weathertymcafr1024"><span class="d">10/24</span><span>桃捷普通15分鐘、依航班與人潮彈性加開直達；林鐵列表：沼平、神木24日13時起恢復，本線、祝山25日恢復。</span></li>
         <li data-cl-of="weathernttymc1024"><span class="d">10/24</span><span>桃捷普通車依假日時刻、13時起彈性增開直達；環狀與三鶯約15分鐘、安坑約30分鐘，淡海仍停駛。</span></li>
-        <li data-cl-of="weathertrtcnoon1024"><span class="d">10/24</span><span>北捷公告五線逐步加密至 8 分至 9 分 30 秒，三段重疊區間約 4 分 30 秒；保留台鐵東部搶修、改班與停駛例外</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5915,6 +5915,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="followrotateflat1029"><span class="d">10/29</span><span>修正電腦版跟車時，用滑鼠右鍵或 Ctrl＋拖曳轉動、傾斜視角會卡住轉不動的問題；從全台地圖點車開始跟車時最常遇到</span></li>
         <li data-cl="mytrainpicker1020"><span class="d">10/20</span><span>自製列車排班更好選站：點起站、訖站就列出常用大站與各路線的站，選完起站自動跳到訖站，也能一鍵對調；打出完整站名不用再點建議</span></li>
         <li data-cl="followspeed1014"><span class="d">10/14</span><span>修正跟車小卡在列車還停在月台時，時速就開始往上跳，發車前 3 秒就提早寫「行進中」；現在車停著時速就是 0，倒數會數到「1 秒後開車」，表定發車那一刻才換成行進中；跟在前車後面放慢或停住時，時速也跟著地圖上的車</span></li>
         <li data-cl="metrowidgetfree1005"><span class="d">10/5</span><span>捷運小工具的多站與「自動（最近的站）」改為所有人免費，不再需要通行證；iPhone 與 Android 更新到新版 App 後生效</span></li>
@@ -7076,7 +7077,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1020a：併入通行證專屬的自製列車；更新紀錄改成這次上線的一條。
 // v1020b：自製列車表單的起訖站點了就列出站名清單（常用大站＋依路線），選完起站自動攤開訖站、可對調、打完整站名即選定；更新紀錄加一條。
 // v1028a：區間車的立體列車依車次推估節數（沙崙線 4 節、四班區間快 10 節），只改畫出來的節數與說明；更新紀錄加一條。
-const BUILD = 'v1028a';
+// v1029a：電腦版跟車在 13、14 級（立體列車還沒接手相機）轉動視角時，跟車鏡頭改成只提交中心、不再 stop() 掉旋轉手勢；更新紀錄加一條。
+const BUILD = 'v1029a';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -27967,10 +27969,20 @@ function recenterTo(lat, lon, extra) {
     if (Math.abs(p.x - tx) < 0.25 && Math.abs(p.y - ty) < 0.25) return;
   }
   state._autoPan = true; // 標記「這是跟隨鏡頭不是使用者拖曳」——tap-pick 選單靠它分辨,別誤收(見 closeTapPickOnUserMove)
-  M.setView(t, M.getZoom(), extra
-    ? { animate: false, offset: [-extra.x, -extra.y] }
-    : { animate: false });
-  state._autoPan = false;
+  try {
+    if (followOrbitGesture()) {
+      // 旋轉／傾斜手勢進行中不能走 setView:jumpTo／easeTo 都會 stop() 掉 dragRotate,使用者轉不動
+      // (10-29 實測 13、14 級右鍵拖 200 px 只轉 0～38 度)。照立體列車 followCoordinate 的做法只提交中心,
+      // bearing／pitch 留給手勢。前瞻偏移 extra 只有手機殼才有,手機是車頭鎖定,不會走到這裡。
+      const next = M.raw._getTransformForUpdate();
+      next.setCenter(new maplibregl.LngLat(lon, lat));
+      M.raw._applyUpdatedTransform(next); M.raw.fire('move'); M.raw._update();
+    } else {
+      M.setView(t, M.getZoom(), extra
+        ? { animate: false, offset: [-extra.x, -extra.y] }
+        : { animate: false });
+    }
+  } finally { state._autoPan = false; }
 }
 
 // M4-B：高速跟隨底圖預抓（_warmedTiles／activeBaseLayer／warmTileWindow／prefetchFollowAhead）整套已移除。
