@@ -930,23 +930,25 @@ section(SECTIONS[12]);
     '正向對照：build 21、帳號不在 sandbox UID allowlist，但有 sandbox 訂閱 ⇒ 照舊取得 sandbox 資格',
     JSON.stringify(outsiderSub));
 
-  // 送審 build 224：App Review 的 UID 事先不知道，sandbox 終身不查 allowlist；仍先查正式、正式沒資格才回退。
-  const review = await runLifetime({ uid: ANDROID_UID, production: { body: androidOwned },
-    sandbox: { body: androidOwned }, request: req('224') });
-  const reviewEnvs = purchaseCalls().map(u => new URL(u).searchParams.get('environment'));
-  check(review.ok === true && review.entitlementEnvironment === 'sandbox' && reviewEnvs.join(',') === 'production,sandbox',
-    '送審 build 224、帳號不在 sandbox UID allowlist、只有 sandbox 終身 ⇒ 取得 sandbox 資格（先查正式、再查 sandbox）',
-    JSON.stringify({ review, reviewEnvs }));
-  const reviewProd = await runLifetime({ uid: ANDROID_UID, production: { body: asProduction(androidOwned) },
-    sandbox: { body: androidOwned }, request: req('224') });
-  const reviewProdEnvs = purchaseCalls().map(u => new URL(u).searchParams.get('environment'));
-  check(reviewProd.ok === true && reviewProd.entitlementEnvironment === 'production' && reviewProdEnvs.join(',') === 'production',
-    '送審 build 224、正式環境已有終身 ⇒ 照正式判定，不查 sandbox', JSON.stringify({ reviewProd, reviewProdEnvs }));
+  // 送審 build 224、225：App Review 的 UID 事先不知道，sandbox 終身不查 allowlist；仍先查正式、正式沒資格才回退。
+  for (const build of ['224', '225']) {
+    const review = await runLifetime({ uid: ANDROID_UID, production: { body: androidOwned },
+      sandbox: { body: androidOwned }, request: req(build) });
+    const reviewEnvs = purchaseCalls().map(u => new URL(u).searchParams.get('environment'));
+    check(review.ok === true && review.entitlementEnvironment === 'sandbox' && reviewEnvs.join(',') === 'production,sandbox',
+      `送審 build ${build}、帳號不在 sandbox UID allowlist、只有 sandbox 終身 ⇒ 取得 sandbox 資格（先查正式、再查 sandbox）`,
+      JSON.stringify({ review, reviewEnvs }));
+    const reviewProd = await runLifetime({ uid: ANDROID_UID, production: { body: asProduction(androidOwned) },
+      sandbox: { body: androidOwned }, request: req(build) });
+    const reviewProdEnvs = purchaseCalls().map(u => new URL(u).searchParams.get('environment'));
+    check(reviewProd.ok === true && reviewProd.entitlementEnvironment === 'production' && reviewProdEnvs.join(',') === 'production',
+      `送審 build ${build}、正式環境已有終身 ⇒ 照正式判定，不查 sandbox`, JSON.stringify({ reviewProd, reviewProdEnvs }));
+  }
   const notReview = await runLifetime({ uid: ANDROID_UID, production: { body: androidOwned },
-    sandbox: { body: androidOwned }, request: req('225') });
+    sandbox: { body: androidOwned }, request: req('226') });
   const notReviewEnvs = purchaseCalls().map(u => new URL(u).searchParams.get('environment'));
   check(notReview.ok === false && notReview.status === 403 && notReviewEnvs.join(',') === 'production',
-    '反向對照：沒列為送審的 build 225 自帶 header ⇒ sandbox 終身不算（不查 sandbox）', JSON.stringify({ notReview, notReviewEnvs }));
+    '反向對照：沒列為送審的 build 226 自帶 header ⇒ sandbox 終身不算（不查 sandbox）', JSON.stringify({ notReview, notReviewEnvs }));
 
   // allowlist 用換行或空白分隔也要認得（secret 常被貼成多行）。
   const spaced = await runLifetime({ uid: ANDROID_UID, production: { body: asProduction(androidOwned) },
