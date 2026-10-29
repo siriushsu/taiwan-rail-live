@@ -4,34 +4,46 @@
 // 立體列車要再 4 到 6 秒才真的載起來,所以它碰到的是平面那條路徑,拿去跑修正前的 commit 一樣全過。
 // 現在改成量「地圖中心離跟隨中列車多遠」:鏡頭停住的話,列車每秒會被甩開幾百公尺,一眼就分得出來。
 // 對照組(2026-09-18 實測,4 倍速、2 秒右鍵旋轉):未修版偏離 653 公尺,修正後 36 公尺。
+//
+// 立體列車只在 MapLibre zoom ≥ 14(畫面 15 級)接手跟車相機;更遠的 13、14 級走平面那條 recenterTo,
+// 而從全台視野點車進跟車預設就是 13 級。所以兩條路徑都要驗,平面那兩案只能在 13、14 級量。
+// 對照組(2026-10-29 實測):平面路徑用 jumpTo 提交時,13、14 級右鍵拖 200 px 只轉 0～38 度。
 import { chromium } from 'playwright';
 
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:5208/';
 const DRIFT_LIMIT = 120; // 公尺:相對於手勢開始前的取景偏移量,超過就是鏡頭沒跟上(修正後量到 36,未修版 677)
 const results = [];
 
-async function openFollowing(browser) {
+async function openFollowing(browser, zoom = 18) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-TW' });
   await context.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
   const page = await context.newPage(), errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.goto(`${BASE}?scene=3d&g=all&train=117&t=12:00&z=18&formation=actual&ground=flat&lang=zh-TW`);
+  await page.goto(`${BASE}?scene=3d&g=all&train=117&t=12:00&z=${zoom}&formation=actual&ground=flat&lang=zh-TW`);
   await page.waitForFunction(() => state.ready && state.followTrain, null, { timeout: 60000 });
-  // 立體列車真的接手相機之後才算數:followMoves 要開始跳,否則量到的是平面那條路徑。
-  await page.waitForFunction(
-    () => !!window.railIslandIntegration?.active && window.railIslandIntegration.renderer.stats.followMoves > 0,
-    null, { timeout: 60000 });
+  if (zoom >= 15) {
+    // 立體列車真的接手相機之後才算數:followMoves 要開始跳,否則量到的是平面那條路徑。
+    await page.waitForFunction(
+      () => !!window.railIslandIntegration?.active && window.railIslandIntegration.renderer.stats.followMoves > 0,
+      null, { timeout: 60000 });
+  } else {
+    // 平面路徑:等立體列車載完(載入中途也會搶相機),再確認它沒有接手、列車已在跑。
+    await page.waitForFunction(() => window.railIslandIntegration && !window.railIslandIntegration.loading
+      && state.followStatus === 'run', null, { timeout: 60000 });
+  }
   return { context, page, errors };
 }
 
 // 地圖中心離「跟隨中的那班車」多遠。用列車自己的即時座標,不用 stats.followFraming——
 // 後者只在跟車相機真的跑過時才更新,鏡頭停住時它會跟著一起停,量出來永遠是 0。
+// 立體列車沒畫這班車時(平面路徑)改用班表位置,同樣是列車自己的即時座標。
 const followGap = page => page.evaluate(() => {
   const v = window.railIslandIntegration.capture().vehicles.find(x => x.followed);
-  if (!v) return null;
+  const p = v ? { lat: v.latitude, lon: v.longitude } : trainPos(state.followTrain, state.simSec);
+  if (!p) return null;
   const c = M.raw.getCenter(), R = 6371000, rad = d => d * Math.PI / 180;
   return {
-    m: Math.hypot(rad(v.longitude - c.lng) * Math.cos(rad(c.lat)), rad(v.latitude - c.lat)) * R,
+    m: Math.hypot(rad(p.lon - c.lng) * Math.cos(rad(c.lat)), rad(p.lat - c.lat)) * R,
     bearing: M.raw.getBearing(), lock: !!state.followLock,
   };
 });
@@ -46,9 +58,9 @@ async function setUp(page, headingUp) {
 }
 
 // 右鍵拖曳＝MapLibre 的 dragRotate(Ctrl＋左鍵同一條路徑);平移是 dragPan,兩者要分開驗。
-async function rotateCase(browser, headingUp) {
-  const name = `旋轉中維持跟車(車頭朝上${headingUp ? '開' : '關'})`;
-  const { context, page, errors } = await openFollowing(browser);
+async function rotateCase(browser, headingUp, zoom = 18) {
+  const name = `旋轉中維持跟車(車頭朝上${headingUp ? '開' : '關'}、${zoom} 級)`;
+  const { context, page, errors } = await openFollowing(browser, zoom);
   try {
     await setUp(page, headingUp);
     const before = await followGap(page), cx = 640, cy = 400, samples = [];
@@ -92,6 +104,8 @@ const browser = await chromium.launch();
 try {
   await rotateCase(browser, false); // #58／#50:轉動視角時跟車視角停在原地
   await rotateCase(browser, true);
+  await rotateCase(browser, false, 13); // 10-29:平面路徑用 jumpTo 提交,一跟車就轉不動
+  await rotateCase(browser, false, 14);
   await panCase(browser, true, false); // 9/16:車頭朝上時只由開關解鎖
   await panCase(browser, false, true); // 一般桌面平面視角仍可拖曳解鎖
 } finally { await browser.close(); }

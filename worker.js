@@ -2607,6 +2607,9 @@ const RC_WEBHOOK_TYPE_TRANSFER = 'TRANSFER';
 const PLUS_SANDBOX_TEST_HEADER = 'x-rail-plus-sandbox-build';
 const PLUS_SANDBOX_LEGACY_BUILDS = new Set(['21', '22']);
 const PLUS_SANDBOX_UID_ALLOWLIST_BUILDS = new Set(['16']);
+// 原生 iOS 送審 build：App Review 用 sandbox 購買（含終身），審查員的 Firebase UID 事先無從得知，
+// 所以訂閱與終身都不查 UID allowlist。上架後同一顆 build 照舊先查正式環境，正式沒資格才回退 sandbox。
+const PLUS_SANDBOX_REVIEW_BUILDS = new Set(['224']);
 const PLUS_ENTITLEMENT_COLLECTION = Object.freeze({
   [RC_ENV_PRODUCTION]: 'entitlements',
   [RC_ENV_SANDBOX]: 'sandboxEntitlements',
@@ -2623,9 +2626,13 @@ function plusSandboxAllowedUids(env) {
 
 function sandboxPlusRequested(request, uid, env) {
   const build = request.headers.get(PLUS_SANDBOX_TEST_HEADER) || '';
-  if (PLUS_SANDBOX_LEGACY_BUILDS.has(build)) return true;
+  if (PLUS_SANDBOX_LEGACY_BUILDS.has(build) || PLUS_SANDBOX_REVIEW_BUILDS.has(build)) return true;
   if (!PLUS_SANDBOX_UID_ALLOWLIST_BUILDS.has(build)) return false;
   return plusSandboxAllowedUids(env).has(uid);
+}
+
+function sandboxReviewBuild(request) {
+  return PLUS_SANDBOX_REVIEW_BUILDS.has(request.headers.get(PLUS_SANDBOX_TEST_HEADER) || '');
 }
 
 const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -3213,14 +3220,16 @@ async function fetchRevenueCatSubscriptions(uid, env, wantEntitlement, entitleme
 // fixtures/revenuecat-lifetime-20261001/README.md）。不用 /active_entitlements：它沒有環境欄位，
 // sandbox 購買也會出現在那裡，正式環境不能拿它判資格（同 checkPlusEntitlement 上方的 C-3）。
 // allowlist 沒設定時連請求都不發，直接回空集合。
-async function fetchRevenueCatLifetimePurchases(uid, env, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
+async function fetchRevenueCatLifetimePurchases(uid, env, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION, sandboxAnyUid = false) {
   const lifetimeProductIds = plusLifetimeProductIds(env);
   if (!lifetimeProductIds.size) return { ok: true, purchases: { items: [] } };
   const selectedEnvironment = plusEnvironment(entitlementEnvironment);
   // sandbox 的終身方案只對 UID allowlist 內的帳號生效。舊 TestFlight build 的 header 可偽造、也不查 UID，
   // 而 sandbox 購買不收錢；訂閱在 sandbox 會自行停止續訂，終身不會，不限縮就等於永久免費。
   // 放在這裡而不是 sandboxPlusRequested()，plus-status 與 webhook 兩條路才會同一套規則。
-  if (selectedEnvironment === RC_ENV_SANDBOX && !plusSandboxAllowedUids(env).has(uid)) {
+  // 例外只有送審 build（sandboxAnyUid，只由 checkPlusEntitlement 帶）：webhook 沒有 build header，照舊限縮；
+  // 原生每次同步前都先打 plus-status，sandbox 文件會被重寫回來。
+  if (selectedEnvironment === RC_ENV_SANDBOX && !sandboxAnyUid && !plusSandboxAllowedUids(env).has(uid)) {
     return { ok: true, purchases: { items: [] } };
   }
   const list = await fetchRevenueCatCustomerList(uid, env, 'purchases',
@@ -3232,12 +3241,12 @@ async function fetchRevenueCatLifetimePurchases(uid, env, wantEntitlement, entit
 // 一個環境的完整 Plus 真相：訂閱與終身兩支一起查。訂閱查不完整就整個回失敗（呼叫端轉 503、
 // 不寫文件）；終身查不完整時，只有訂閱已經足以判定有資格才照訂閱判定，其餘一樣回失敗——
 // 「查不到」不能當成「沒有」。兩支互不依賴，所以並行送出，不多等一趟來回。
-async function fetchRevenueCatPlusTruth(uid, env, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION) {
+async function fetchRevenueCatPlusTruth(uid, env, wantEntitlement, entitlementEnvironment = RC_ENV_PRODUCTION, sandboxAnyUid = false) {
   const [subscriptions, lifetime] = await Promise.all([
     fetchRevenueCatSubscriptions(uid, env, wantEntitlement, entitlementEnvironment),
     // 網路例外或回應不是 JSON 也算「查不完整」，走下面同一條判斷；不讓它直接 reject 整個 Promise.all，
     // 否則訂閱者會因為 /purchases 的例外跟著 503。
-    fetchRevenueCatLifetimePurchases(uid, env, wantEntitlement, entitlementEnvironment).catch(error => {
+    fetchRevenueCatLifetimePurchases(uid, env, wantEntitlement, entitlementEnvironment, sandboxAnyUid).catch(error => {
       console.error(`[plus] purchases 查詢例外：${error && error.message}`);
       return { ok: false, status: 503, error: 'entitlement_unavailable' };
     }),
@@ -3290,7 +3299,7 @@ async function checkPlusEntitlement(request, env) {
     let truth = productionTruth;
     if (!plusEntitledFromTruth(productionTruth, wantEntitlement, RC_ENV_PRODUCTION)
         && sandboxPlusRequested(request, uid, env)) {
-      const sandboxTruth = await fetchRevenueCatPlusTruth(uid, env, wantEntitlement, RC_ENV_SANDBOX);
+      const sandboxTruth = await fetchRevenueCatPlusTruth(uid, env, wantEntitlement, RC_ENV_SANDBOX, sandboxReviewBuild(request));
       if (!sandboxTruth.ok) return sandboxTruth;
       entitlementEnvironment = RC_ENV_SANDBOX;
       truth = sandboxTruth;
