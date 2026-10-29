@@ -17,16 +17,26 @@ const {source,g,paths,edges}=restorePhysicalRoutes(net);
 
 // 3. 高鐵停車候選。高鐵站只停 OSM 標的停車點,不用推估點;有通過線的車站,外側側線才是到發線(月台),
 //    內側正線只供通過——停靠列車一律停外側、通過列車一律走內側(桃園最明顯)。
+//    停車點會被當成整列的中心(motion.js 與 App 都把編組中心放在路徑端點)。HEAD_STOP 的站 OSM 停車點標在月台端
+//    (車頭停的位置;嘉義北上在北端、南下在南端,相距約 290 m),當中心用整列會凸出月台半列,所以改用同一條
+//    月台股道上最靠近同站停車點中點的來源節點,也就是月台中段(嘉義兩條月台股道正中間各有一個)。
 const THROUGH=new Set(['板橋','桃園','新竹','苗栗','台中','彰化','雲林','嘉義','台南']);
+const HEAD_STOP=new Set(['嘉義']);
 const normalize=n=>String(n).replaceAll('臺','台');
 const trackKinds=id=>[...new Set(g.nodes.get(id).edges.filter(e=>e.system==='thsr_sched').map(e=>e.tags.service||e.tags.usage||'?'))];
+const platformCentre=list=>{
+ const mid=[list.reduce((v,c)=>v+c.coordinate[0],0)/list.length,list.reduce((v,c)=>v+c.coordinate[1],0)/list.length],far=id=>distanceM(g.nodes.get(id).coordinate,mid);
+ return list.map(c=>{const nodeId=g.nodes.get(c.nodeId).edges.filter(e=>e.system==='thsr_sched').flatMap(e=>g.wayNodes.get(e.wayId)).reduce((a,b)=>far(b)<far(a)?b:a);
+  return {...c,nodeId,coordinate:g.nodes.get(nodeId).coordinate,trackGroup:'thsr_sched:'+(g.trackGroups.get(nodeId)||nodeId),source:'osm-platform-centre'};});
+};
 const stations={},report=[];
 for(const st of read('data/thsr_track.json').lines[0].stations){
  const name=normalize(st.name),key=stationKey('thsr_sched',name),all=g.stopCandidates({name,lon:st.lon,lat:st.lat},'thsr_sched');
  const kept=all.filter(c=>{if(c.source!=='osm-stop-position')return false;const kinds=trackKinds(c.nodeId);return !THROUGH.has(name)||kinds.length===1&&kinds[0]==='siding';});
  if(kept.length<2)throw Error('高鐵站停車候選不足 '+name+' '+JSON.stringify(all.map(c=>[c.nodeId,c.source,trackKinds(c.nodeId)])));
- stations[key]={name,lon:st.lon,lat:st.lat,key,system:'thsr_sched',candidates:kept};
- report.push({name,through:THROUGH.has(name),kept:kept.map(c=>trackKinds(c.nodeId).join('+')+'@'+Math.round(distanceM(c.coordinate,[st.lon,st.lat]))+'m'),dropped:all.filter(c=>!kept.includes(c)).map(c=>trackKinds(c.nodeId).join('+')+(c.source==='osm-stop-position'?'':'*'))});
+ const stops=HEAD_STOP.has(name)?platformCentre(kept):kept;
+ stations[key]={name,lon:st.lon,lat:st.lat,key,system:'thsr_sched',candidates:stops};
+ report.push({name,through:THROUGH.has(name),kept:stops.map(c=>trackKinds(c.nodeId).join('+')+'@'+Math.round(distanceM(c.coordinate,[st.lon,st.lat]))+'m'),dropped:all.filter(c=>!kept.includes(c)).map(c=>trackKinds(c.nodeId).join('+')+(c.source==='osm-stop-position'?'':'*'))});
 }
 
 // 4. 高鐵班表:TDX 逐日時刻表轉成正式站 /api/thsr-schedule 的同一種文件(語意同 worker.js thsrConvertDaily),

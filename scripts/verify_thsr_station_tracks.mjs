@@ -1,5 +1,5 @@
 // 高鐵車站股道規則閘門:有通過線的車站,停靠列車停外側到發線(側線)、通過列車走內側正線,
-// 停靠一律停 OSM 標的停車點、同側(左行)月台;每一條都配正向對照,分母不得為 0。
+// 停靠一律停 OSM 標的停車點(停車點標在月台端的站改停同一股道的月台中段)、同側(左行)月台;每一條都配正向對照,分母不得為 0。
 // 用法:node scripts/verify_thsr_station_tracks.mjs   (DISPATCH=<檔> 可指定別份派車做突變測試)
 import fs from 'node:fs';
 const root=new URL('../',import.meta.url),read=p=>JSON.parse(fs.readFileSync(new URL(p,root)));
@@ -13,16 +13,23 @@ const kinds=id=>[...new Set((nodeWays.get(id)||[]).map(wi=>net.ways[wi].tags.ser
 const isOsmStop=id=>net.nodeTags[id]?.railway==='stop'&&!net.nodeTags[id]._source;
 // 各通過站的月台停車點(側線上的 OSM 停車點,離站 600 m 內):通過列車的路徑不得經過
 const platformNodes={};for(const name of THROUGH){platformNodes[name]=new Set();for(const [id,c] of coordOf)if(isOsmStop(id)&&kinds(id).join()==='siding'&&metres(c,stationCoord[name])<600)platformNodes[name].add(id);}
+// 停車點標在月台端(車頭停的位置)的站,停車點改用同一條月台股道上最靠近兩端停車點中點的來源節點
+// (rebuild_physical_cache.mjs 的 HEAD_STOP):停在那裡才對,停在月台端的停車點反而是整列凸出月台。
+const HEAD_STOP=['嘉義'];
+const centreNodes={};for(const name of HEAD_STOP){const ends=[...platformNodes[name]],mid=[ends.reduce((v,id)=>v+coordOf.get(id)[0],0)/ends.length,ends.reduce((v,id)=>v+coordOf.get(id)[1],0)/ends.length],far=id=>metres(coordOf.get(id),mid);
+ centreNodes[name]=new Set(ends.map(id=>nodeWays.get(id).flatMap(wi=>net.ways[wi].nodes).reduce((a,b)=>far(b)<far(a)?b:a)));}
 const pathNodes=new Map();
 const nodesOf=pid=>{if(pathNodes.has(pid))return pathNodes.get(pid);const list=[];for(const [wi,ix,steps] of net.paths[pid].walk){const w=net.ways[wi],dir=Math.sign(steps);for(let k=0;k<Math.abs(steps);k++){const e=ix+k*dir,[a,b]=dir>0?[w.nodes[e],w.nodes[e+1]]:[w.nodes[e+1],w.nodes[e]];if(!list.length)list.push(a);list.push(b);}}pathNodes.set(pid,list);return list;};
-const rows=[],stat={};for(const name of ORDER)stat[name]={stopSiding:0,stopMain:0,stopEstimated:0,stopRight:0,passMain:0,passSiding:0};
+const rows=[],stat={};for(const name of ORDER)stat[name]={stopSiding:0,stopMain:0,stopEstimated:0,stopRight:0,passMain:0,passSiding:0,stopCentre:0,stopEnd:0};
 const plans=Object.entries(dispatch.plans).filter(([k])=>k.startsWith('thsr_sched:'));
 for(const [key,p] of plans){
  const stops=JSON.parse(p.stopSignature).map(s=>s[0].split(':')[1]);
  if(p.pathIds.length!==stops.length-1){rows.push(['FAIL',key,'路徑數與站數不符']);continue;}
  stops.forEach((name,i)=>{
   const node=i?net.paths[p.pathIds[i-1]].to:net.paths[p.pathIds[0]].from,k=kinds(node).join('+'),s=stat[name];
-  if(!isOsmStop(node))s.stopEstimated++;
+  const centre=!!centreNodes[name]?.has(node);
+  if(!isOsmStop(node)&&!centre)s.stopEstimated++;
+  if(centreNodes[name]){if(centre)s.stopCentre++;if(platformNodes[name].has(node))s.stopEnd++;}
   if(THROUGH.includes(name)){
    if(k==='siding')s.stopSiding++;else s.stopMain++;
    // 左行:以前後站連線為行進方向,月台停車點應在行進方向左側
@@ -50,6 +57,7 @@ for(const name of THROUGH){const s=stat[name];
 }
 check(THROUGH.some(n=>stat[n].passMain>0),'正向對照:確有列車通過中途站',THROUGH.map(n=>n+' '+stat[n].passMain).join(' '));
 check(ORDER.every(n=>stat[n].stopEstimated===0),'高鐵只停 OSM 標的停車點(不用推估點)',ORDER.map(n=>n+' '+stat[n].stopEstimated).join(' '));
+for(const name of HEAD_STOP)check(stat[name].stopCentre>0&&stat[name].stopEnd===0,name+' 停靠列車停月台中段(不停月台端的車頭停車點)',`中段 ${stat[name].stopCentre}／月台端 ${stat[name].stopEnd}`);
 for(const r of rows)results.push(r);
 for(const [s,l,d] of results)console.log(s,l,'—',d);
 const failed=results.filter(r=>r[0]==='FAIL').length;
