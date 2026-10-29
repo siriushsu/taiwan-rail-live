@@ -16,7 +16,8 @@ import { openTestDb } from './d1_local.mjs';
 globalThis.caches = { default: { match: async () => undefined, put: async () => {} } };
 
 // ── 對外替身 ───────────────────────────────────────────────────────────────
-// RevenueCat：rc[uid] ＝ { production: [訂閱…], sandbox: [訂閱…] }，或 'error'（回 500）。每一發呼叫記在 rcCalls（uid＋環境）。
+// RevenueCat：rc[uid] ＝ { production: [訂閱…], sandbox: [訂閱…], purchases: { production: [購買…] } }，或 'error'（回 500）。
+// 每一發 /subscriptions 記在 rcCalls（uid＋環境），/purchases（終身，只有 env 設了 REVENUECAT_LIFETIME_PRODUCT_IDS 才會打）記成 uid＋環境＋'|purchases'。
 // Firebase：只給 chips-me 的 Bearer 用。其餘對外連線一律丟例外。
 let rc = {}, rcCalls = [], firebaseUid = null;
 globalThis.fetch = async (u) => {
@@ -24,12 +25,13 @@ globalThis.fetch = async (u) => {
   if (url.includes('identitytoolkit.googleapis.com')) {
     return firebaseUid ? new Response(JSON.stringify({ users: [{ localId: firebaseUid }] }), { status: 200 }) : new Response('{}', { status: 400 });
   }
-  const m = url.match(/^https:\/\/api\.revenuecat\.com\/v2\/projects\/[^/]+\/customers\/([^/]+)\/subscriptions\?environment=(\w+)/);
+  const m = url.match(/^https:\/\/api\.revenuecat\.com\/v2\/projects\/[^/]+\/customers\/([^/]+)\/(subscriptions|purchases)\?environment=(\w+)/);
   if (m) {
-    const uid = decodeURIComponent(m[1]), environment = m[2];
-    rcCalls.push(`${uid}|${environment}`);
+    const uid = decodeURIComponent(m[1]), resource = m[2], environment = m[3];
+    rcCalls.push(resource === 'purchases' ? `${uid}|${environment}|purchases` : `${uid}|${environment}`);
     if (rc[uid] === 'error') return new Response('{"type":"server_error"}', { status: 500 });
-    const items = ((rc[uid] || {})[environment] || []).map(s => ({ ...s, customer_id: uid }));
+    const byEnv = resource === 'purchases' ? ((rc[uid] || {}).purchases || {}) : (rc[uid] || {});
+    const items = (byEnv[environment] || []).map(s => ({ ...s, customer_id: uid }));
     return new Response(JSON.stringify({ object: 'list', items, next_page: null, url }), { status: 200 });
   }
   throw new Error('offline: ' + url);
@@ -37,6 +39,14 @@ globalThis.fetch = async (u) => {
 const sub = (over = {}) => ({
   id: 'sub_1', gives_access: true, status: 'active', environment: 'production', store: 'app_store',
   ends_at: Date.parse('2026-08-28T00:00:00Z'), current_period_ends_at: Date.parse('2026-08-28T00:00:00Z'),
+  entitlements: { items: [{ id: 'entl_1', lookup_key: 'plus', display_name: 'Plus', state: 'active' }] },
+  ...over,
+});
+
+// 終身購買的形狀照 fixtures/revenuecat-lifetime-20261001/rest/ 的 /purchases（官方 OpenAPI v2 Purchase），只留判定讀的欄位。
+const LIFETIME_PROD = 'prod_lifetime_test';
+const purchase = (over = {}) => ({
+  object: 'purchase', id: 'otp_1', product_id: LIFETIME_PROD, status: 'owned', environment: 'production', store: 'app_store',
   entitlements: { items: [{ id: 'entl_1', lookup_key: 'plus', display_name: 'Plus', state: 'active' }] },
   ...over,
 });
@@ -140,6 +150,26 @@ await attempt('P4', async () => {
   ok('P4 已併進帳號的裝置上傳：錄程 13＋加成 6 都記在帳號 uid-p4 名下，裝置名下沒有帳；查的是帳號的資格',
     sum(trips(w.db, 'uid-p4')) === 13 && sum(pluses(w.db, 'uid-p4')) === 6 && rows(w.db, 'dev-p4').length === 0 &&
     J(rcCalls) === J(['uid-p4|production']), J({ uid: rows(w.db, 'uid-p4'), dev: rows(w.db, 'dev-p4'), rcCalls }));
+});
+await attempt('P5', async () => {
+  // 規格 D4：伺服器認定通行證有效的都算，終身也算。終身只出現在 /purchases（/subscriptions 一筆都沒有），
+  // 認不認得要看 Worker secret REVENUECAT_LIFETIME_PRODUCT_IDS 有沒有列這個商品（正式站 10-02 已設四個值）。
+  const LIFE = { REVENUECAT_LIFETIME_PRODUCT_IDS: LIFETIME_PROD };
+  const owned = { production: [], purchases: { production: [purchase()] } };
+  const w = world({ seed: account('uid-p5a') + account('uid-p5b') + account('uid-p5c'), env: LIFE, rc: {
+    'uid-p5a': owned,
+    'uid-p5b': { production: [], purchases: { production: [purchase({ status: 'refunded', entitlements: { items: [] } })] } },
+    'uid-p5c': { production: [], purchases: { production: [purchase({ product_id: 'prod_not_listed' })] } },
+  } });
+  for (const [actor, trainNo] of [['uid-p5a', 'P5A'], ['uid-p5b', 'P5B'], ['uid-p5c', 'P5C']]) putTrain(w.db, { actor, trainNo });
+  await w.cron();
+  ok('P5a 帳號、沒有訂閱、只有一筆正式環境的終身（owned、商品在 allowlist）：錄程 13＋加成 6；有查正式環境的 /purchases',
+    sum(trips(w.db, 'uid-p5a')) === 13 && sum(pluses(w.db, 'uid-p5a')) === 6 && rcCalls.includes('uid-p5a|production|purchases'),
+    J({ l: rows(w.db, 'uid-p5a'), rcCalls }));
+  ok('P5b [對照 P5a] 同一個終身商品但已退款（status refunded、entitlements 清空）：錄程 13、沒有加成',
+    sum(trips(w.db, 'uid-p5b')) === 13 && pluses(w.db, 'uid-p5b').length === 0, J(rows(w.db, 'uid-p5b')));
+  ok('P5c [對照 P5a] owned 的終身但商品不在 allowlist：錄程 13、沒有加成（allowlist 漏列商品＝那款終身被當成沒有通行證）',
+    sum(trips(w.db, 'uid-p5c')) === 13 && pluses(w.db, 'uid-p5c').length === 0, J(rows(w.db, 'uid-p5c')));
 });
 
 // ── Q：開關 ─────────────────────────────────────────────────────────────────

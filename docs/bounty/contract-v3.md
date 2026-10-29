@@ -117,7 +117,7 @@
 
 1. 只加錄程。雲端搭乘、v2 籌碼換算、人工調整、兌換都沒有加成。
 2. 只給帳號：這班車記在帳號（uid）名下，或記在已併進帳號的裝置名下（記進帳號）。匿名裝置查不到通行證，不加。
-3. 資格在判定當下向 RevenueCat 查，跟 `/api/plus-status` 同一條路：訂閱 `gives_access`，或終身仍 `owned`。正式環境沒有時，sandbox 只給 `REVENUECAT_SANDBOX_ALLOWED_UIDS` 裡的帳號。同一發 cron 每個帳號只查一次。這趟沒點數就不查。
+3. 資格在判定當下向 RevenueCat 查，跟 `/api/plus-status` 同一條路：訂閱 `gives_access`，或終身仍 `owned`（終身要商品在 Worker secret `REVENUECAT_LIFETIME_PRODUCT_IDS` 名單裡才認得，跟 plus-status 同一份名單）。正式環境沒有時，sandbox 只給 `REVENUECAT_SANDBOX_ALLOWED_UIDS` 裡的帳號。同一發 cron 每個帳號只查一次。這趟沒點數就不查。
 4. 查不完整（上游錯誤、回應不合規格、secret 沒設）時，**這班車整班留 pending、下一發再判**，一列都不寫。錄程列一旦寫下去，這班車就不會再判，少給的加成補不回來。
 5. 數額＝這班車帳本上那列錄程的 `delta` × `plusBonusPct` ÷ 100，捨去成整數，不到 1 點不寫。用的是已經套過偏遠線、期間活動、每日上限之後實際入帳的錄程點數。加成本身**不算進每日上限**（`dailyChipCap` 與 `chips-me` 的 `today.chips` 只數錄程）。
 6. 帳本另寫一列：`kind:'adjust'`、`ref`＝`'plus|'`＋那列錄程的 ref、`id`＝`'adjust|'`＋ref、`day`＝乘車日、`unit:'point'`。帳本 kind 的 CHECK 只收五種，所以沿用 `adjust`、用 ref 前綴分辨。`UNIQUE(kind, ref)` 保證一趟只有一列；錄程列寫了、加成還沒寫就中斷的話，下一發重判時補上。
