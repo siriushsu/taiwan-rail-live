@@ -2609,7 +2609,7 @@ const PLUS_SANDBOX_LEGACY_BUILDS = new Set(['21', '22']);
 const PLUS_SANDBOX_UID_ALLOWLIST_BUILDS = new Set(['16']);
 // 原生 iOS 送審 build：App Review 用 sandbox 購買（含終身），審查員的 Firebase UID 事先無從得知，
 // 所以訂閱與終身都不查 UID allowlist。上架後同一顆 build 照舊先查正式環境，正式沒資格才回退 sandbox。
-const PLUS_SANDBOX_REVIEW_BUILDS = new Set(['224']);
+const PLUS_SANDBOX_REVIEW_BUILDS = new Set(['224', '225']);
 const PLUS_ENTITLEMENT_COLLECTION = Object.freeze({
   [RC_ENV_PRODUCTION]: 'entitlements',
   [RC_ENV_SANDBOX]: 'sandboxEntitlements',
