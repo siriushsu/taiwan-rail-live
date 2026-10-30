@@ -8176,12 +8176,13 @@ function setFollowHeadingUp(on) {
 // 建物外觀依底圖各一組：配色、光源（MapLibre light）、shade＝[牆腳最暗倍數, 牆腳暗帶高度 m, 牆底漸層倍數, 未用]。
 // shade 由 vendor/maplibre-gl.js 的建物著色器補丁讀（map.railIslandBuildingShade）。三種底圖平常都不透明，
 // 車走到樓後面時由同一個補丁挖窗露出來（rail-3d/integration/map3d.js 每幀傳車的位置）；只有透視模式半透明。
-// 原生兩個 App 照同一組數值。
+// 原生兩個 App 照同一組數值。10-31 使用者挑定：地景 L2、亮色 Lt1、暗色 D2（選項頁 native/build/3d-quality-1030/3D建物第一輪選項.html）。
 const BUILDING_LOOKS = {
-  landscape: { color: ['interpolate', ['linear'], ['to-number', ['get', 'render_height'], 8], 0, '#d3bda0', 12, '#e5d7bc', 35, '#cad4c9', 90, '#b3c9c7'],
+  landscape: { color: ['interpolate', ['linear'], ['to-number', ['get', 'render_height'], 8], 0, '#d6c2a3', 12, '#e6d9c2', 35, '#dbd5ca', 90, '#cbc8c1'],
     light: { anchor: 'map', color: '#fff4e0', intensity: .58, position: [1.5, 200, 58] }, shade: [.6, 6, .8, 0] },
   light: { color: '#d4d0c5', light: { anchor: 'map', color: '#ffffff', intensity: .5, position: [1.5, 210, 50] }, shade: [.6, 6, .8, 0] },
-  dark: { color: '#638BC5', light: { anchor: 'map', color: '#ffffff', intensity: .45, position: [1.5, 210, 50] }, shade: [.6, 6, .8, 0] },
+  dark: { color: ['interpolate', ['linear'], ['to-number', ['get', 'render_height'], 8], 0, '#34486b', 30, '#3c5379', 90, '#4b6491'],
+    light: { anchor: 'map', color: '#d8e4ff', intensity: .5, position: [1.5, 200, 55] }, shade: [.6, 6, .8, 0] },
 };
 window.railIslandBuildingLooks = BUILDING_LOOKS;
 function buildingLookKind() { return state.basemap === 'landscape' ? 'landscape' : state.mapDark ? 'dark' : 'light'; }
