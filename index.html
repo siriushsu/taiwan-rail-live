@@ -5648,7 +5648,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/10/29</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/10/30</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5656,6 +5656,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="glassspread1030"><span class="d">10/30</span><span>修正台北等密集市區的建築透視線條只集中在畫面中央一圈：縮小或斜看時改為平均分散到整個畫面，線條替換時淡入淡出、不再突然跳動</span></li>
         <li data-cl-of="thsrchiayistop1029"><span class="d">10/29</span><span>立體列車：高鐵嘉義站停靠的列車改停在月台中段，不再有半列車身凸出月台外</span></li>
         <li data-cl-of="followrotateflat1029"><span class="d">10/29</span><span>修正電腦版跟車時，用滑鼠右鍵或 Ctrl＋拖曳轉動、傾斜視角會卡住轉不動的問題；從全台地圖點車開始跟車時最常遇到</span></li>
         <li data-cl-of="commutercars1028"><span class="d">10/28</span><span>立體列車的區間車改依車次推估節數：沙崙線（37、38 開頭的車次）畫 4 節，1006、3029、3005、3028 次畫 10 節，其餘維持 8 節，仍標示「推估編組」</span></li>
@@ -5663,7 +5664,6 @@
         <li data-cl-of="weatherdanhai1024"><span class="d">10/24</span><span>颱風公告補列淡海官網15至30分鐘班距與停駛資訊不一致，提醒先確認實際開行</span></li>
         <li data-cl-of="horizonclip1024"><span class="d">10/24</span><span>傾斜視角：地平線後的站名與列車不再畫進天空、遠方線條不再擠成橫帶；起伏地形的示意線改由立體層繪製，遠近粗細一致</span></li>
         <li data-cl-of="auto3d1024"><span class="d">10/24</span><span>立體列車跑不順時自動切回平面列車並提示，可在觀看設定重新開啟；視角與 3D 建築不受影響</span></li>
-        <li data-cl-of="weathertymcafr1024"><span class="d">10/24</span><span>桃捷普通15分鐘、依航班與人潮彈性加開直達；林鐵列表：沼平、神木24日13時起恢復，本線、祝山25日恢復。</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5697,6 +5697,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="glassspread1030"><span class="d">10/30</span><span>修正台北等密集市區的建築透視線條只集中在畫面中央一圈：縮小或斜看時改為平均分散到整個畫面，線條替換時淡入淡出、不再突然跳動</span></li>
         <li data-cl="commutercars1028"><span class="d">10/28</span><span>立體列車的區間車改依車次推估節數：沙崙線（37、38 開頭的車次）畫 4 節，1006、3029、3005、3028 次畫 10 節，其餘維持 8 節，仍標示「推估編組」</span></li>
         <li data-cl="trabindvariant1019"><span class="d">10/19</span><span>台鐵列車某天比平常多停或少停一站時（例如 8/30 的 6616、9/28 的 132 與 136），立體地圖上不再退回示意線形，改沿實體股道行駛，優先走這班平常的股道</span></li>
         <li data-cl="overtakeside1019"><span class="d">10/19</span><span>修正 10/22 金崙站、10/23 和仁站的預排待避：停下來等車的列車改走站內的側線，不再跟通過的列車在立體地圖上疊在同一條股道</span></li>
@@ -7080,7 +7081,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1028a：區間車的立體列車依車次推估節數（沙崙線 4 節、四班區間快 10 節），只改畫出來的節數與說明；更新紀錄加一條。
 // v1029a：電腦版跟車在 13、14 級（立體列車還沒接手相機）轉動視角時，跟車鏡頭改成只提交中心、不再 stop() 掉旋轉手勢；更新紀錄加一條。
 // v1029b：高鐵嘉義站的停車點改到月台中段（原本是 OSM 標在月台端的節點，列車中心停在那裡、半列凸出月台）；只重產 rail-3d/physical 的 network.json／dispatch.json 與 level-profiles 記的路網 sha，台鐵與其他站不變；更新紀錄加一條。
-const BUILD = 'v1029b';
+// v1030a：建築透視線條的 1600／700 棟名額改成中央最近 20 棟優先、其餘平均分給畫面 8×6 格，縮小或斜看時不再只剩中央一個圓；名單替換與 14～14.7 級之間改為淡入淡出；更新紀錄加一條。
+const BUILD = 'v1030a';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
