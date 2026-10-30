@@ -8173,12 +8173,31 @@ function setFollowHeadingUp(on) {
   if (row) { row.setAttribute('aria-pressed', String(!!on)); row.querySelector('.toggle').classList.toggle('on', !!on); }
 }
 
-const LANDSCAPE_BUILDING_COLOR = ['interpolate', ['linear'], ['to-number', ['get', 'render_height'], 8], 0, '#d3bda0', 12, '#e5d7bc', 35, '#cad4c9', 90, '#b3c9c7'];
+// 建物外觀依底圖各一組：配色、光源（MapLibre light）、shade＝[牆腳最暗倍數, 牆腳暗帶高度 m, 牆底漸層倍數, 未用]。
+// shade 由 vendor/maplibre-gl.js 的建物著色器補丁讀（map.railIslandBuildingShade）。三種底圖平常都不透明，
+// 車走到樓後面時由同一個補丁挖窗露出來（rail-3d/integration/map3d.js 每幀傳車的位置）；只有透視模式半透明。
+// 原生兩個 App 照同一組數值。
+const BUILDING_LOOKS = {
+  landscape: { color: ['interpolate', ['linear'], ['to-number', ['get', 'render_height'], 8], 0, '#d3bda0', 12, '#e5d7bc', 35, '#cad4c9', 90, '#b3c9c7'],
+    light: { anchor: 'map', color: '#fff4e0', intensity: .58, position: [1.5, 200, 58] }, shade: [.6, 6, .8, 0] },
+  light: { color: '#d4d0c5', light: { anchor: 'map', color: '#ffffff', intensity: .5, position: [1.5, 210, 50] }, shade: [.6, 6, .8, 0] },
+  dark: { color: '#638BC5', light: { anchor: 'map', color: '#ffffff', intensity: .45, position: [1.5, 210, 50] }, shade: [.6, 6, .8, 0] },
+};
+window.railIslandBuildingLooks = BUILDING_LOOKS;
+function buildingLookKind() { return state.basemap === 'landscape' ? 'landscape' : state.mapDark ? 'dark' : 'light'; }
+// 光源有日夜光影時交給它當基礎光（開著時照太陽、關掉時退回這組）。
+function applyBuildingLook(raw, kind) {
+  const look = BUILDING_LOOKS[kind], shade = raw.railIslandBuildingShade || (raw.railIslandBuildingShade = { n: 0 });
+  shade.style = look.shade.slice();
+  if (window.railIslandSunlight) window.railIslandSunlight.setBaseLight(look.light); else raw.setLight(look.light);
+  return look;
+}
 function installBuilding3d() {
   if (!M || !M.isStyleReady() || !M.raw.getSource('openmaptiles')) return;
   if (M.raw.getLayer('building-3d')) {
-    M.raw.setPaintProperty('building-3d', 'fill-extrusion-color', state.basemap === 'landscape' ? LANDSCAPE_BUILDING_COLOR : state.mapDark ? '#638BC5' : '#d4d0c5');
-    M.raw.setPaintProperty('building-3d', 'fill-extrusion-opacity', state.basemap === 'landscape' ? 1 : state.mapDark ? .30 : .72);
+    const look = applyBuildingLook(M.raw, buildingLookKind());
+    M.raw.setPaintProperty('building-3d', 'fill-extrusion-color', look.color);
+    M.raw.setPaintProperty('building-3d', 'fill-extrusion-opacity', 1);
     if (state.mapDark && state.basemap !== 'landscape') window.RailNightMap?.installGlass(M.raw);
     window.railIslandIntegration?.syncAppearance(true);
     return;
@@ -8186,15 +8205,16 @@ function installBuilding3d() {
   const layers = (M.raw.getStyle() && M.raw.getStyle().layers) || [];
   const firstTrack = layers.find(layer => layer.id.startsWith('track-'));
   const firstSymbol = layers.find(layer => layer.type === 'symbol');
+  const look = applyBuildingLook(M.raw, buildingLookKind());
   M.raw.addLayer({
     id: 'building-3d', type: 'fill-extrusion', source: 'openmaptiles', 'source-layer': 'building', minzoom: 13,
     layout: { visibility: state.map3d ? 'visible' : 'none' },
     paint: {
-      'fill-extrusion-color': state.basemap === 'landscape' ? LANDSCAPE_BUILDING_COLOR : state.mapDark ? '#638BC5' : '#d4d0c5',
+      'fill-extrusion-color': look.color,
       'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 14,
         ['to-number', ['coalesce', ['get', 'render_height'], ['get', 'height']], 8]],
       'fill-extrusion-base': ['to-number', ['coalesce', ['get', 'render_min_height'], ['get', 'min_height']], 0],
-      'fill-extrusion-opacity': state.basemap === 'landscape' ? 1 : state.mapDark ? 0.30 : 0.72,
+      'fill-extrusion-opacity': 1,
     },
   }, (firstTrack || firstSymbol) && (firstTrack || firstSymbol).id);
   if (state.mapDark && state.basemap !== 'landscape') window.RailNightMap?.installGlass(M.raw);

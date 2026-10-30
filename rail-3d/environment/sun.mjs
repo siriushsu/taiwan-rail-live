@@ -216,7 +216,7 @@ export function sunlightAt(utcMs, lat, lon) {
 /** 低頻套用，不添圖層、不改相機投影。style.load 後保存新底圖的原值再重掛。 */
 export function createSunlight({ engine, context, enabled = true }) {
   const map = engine.raw;
-  let on = enabled, original = null, key = '', current = null, disposed = false;
+  let on = enabled, original = null, key = '', current = null, disposed = false, baseLight = null;
   let terrainOriginal = null;
   let pavedOriginal = null, pavedAlpha = null;
   const terrainId = 'landscape-hillshade';
@@ -272,7 +272,8 @@ export function createSunlight({ engine, context, enabled = true }) {
     pavedAlpha = null;
   }
   function styleLoad() {
-    original = { sky: map.getSky(), light: map.getLight() };
+    // 建物外觀（index.html applyBuildingLook）在 style.load 時比這裡早設基礎光，換底圖時沿用它。
+    original = { sky: map.getSky(), light: baseLight || map.getLight() };
     terrainOriginal = null; pavedOriginal = null; pavedAlpha = null;
     key = ''; update(true);
   }
@@ -283,7 +284,7 @@ export function createSunlight({ engine, context, enabled = true }) {
   return {
     update, stats, get enabled() { return on; }, get current() { return on ? current : null; },
     // 地景在非同步建立 3D 層時才設定基礎光源；收作關閉時的退路，不能蓋掉日夜光。
-    setBaseLight(light) { if (!original || !engine.isStyleReady()) return; original.light = light; if (on) update(true); else map.setLight(light); },
+    setBaseLight(light) { baseLight = light; if (!original || !engine.isStyleReady()) return; original.light = light; if (on) update(true); else map.setLight(light); },
     setEnabled(value) { on = !!value; key = ''; if (on) update(true); else restore(); },
     destroy() { disposed = true; clearInterval(timer); document.removeEventListener('visibilitychange', resume); map.off('style.load', styleLoad); restore(); },
   };
