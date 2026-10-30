@@ -1,6 +1,7 @@
 import { withRailWeatherNotice } from './scripts/rail_weather_bulletin.mjs';
 import { railAiScheduled, railAiStatus } from './scripts/rail_ai_status.mjs';
 import { railPushScheduled, railPushRegister, railPushUnregister, railPushDecide } from './scripts/rail_push.mjs';
+import { WEATHER_CRON, weatherScheduled, weatherApi } from './scripts/weather_frames.mjs';
 import traScheduleSupplements from './scripts/tra_schedule_supplements.json' with { type: 'json' };
 import {createPlatformProxy} from './scripts/tra_platform_proxy.mjs';
 import {
@@ -3758,6 +3759,19 @@ async function railStatusCached(request, env) {
   return await bodyResCached(edge, cacheKey, await res.text(), 200, 'public, s-maxage=30');
 }
 
+// /api/weather：最新一筆走邊緣快取 60 秒（App 跟車時每 10 分鐘拿一次，同一個邊緣節點的人共用）；?at、?list 直查 D1。
+async function weatherCached(request, env) {
+  const url = new URL(request.url);
+  if (url.searchParams.has('at') || url.searchParams.has('list')) return weatherApi(request, env);
+  const edge = caches.default;
+  const cacheKey = new Request(new URL('/api/weather', request.url), { method: 'GET' });
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  const res = await weatherApi(request, env);
+  if (res.status !== 200) return res;
+  return await bodyResCached(edge, cacheKey, await res.text(), 200, 'public, max-age=60, s-maxage=60');
+}
+
 // 軌道邊卡片：只保存通過清單，付費身分與限流沿用跟車卡。
 const TS_MAX_ROWS_PER_UID = 3;
 async function tracksideBind(request, env) {
@@ -6516,7 +6530,7 @@ const API_ENDPOINTS = new Set([
   'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'thsr-seat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'chips-me', 'garage-redeem', 'cloud-ride', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
-  'trackside/bind', 'trackside/unbind', 'push/register', 'push/unregister', 'rail-push/decide',
+  'trackside/bind', 'trackside/unbind', 'push/register', 'push/unregister', 'rail-push/decide', 'weather',
 ]);
 
 function addAppCors(headers, origin) {
@@ -10498,6 +10512,12 @@ export default {
         throw e;
       }
     }
+    // 跟車即時天氣（WEATHER_CRON，每 5 分鐘）：獨立一發，不跟每分鐘那一發（北捷帳本）分 CPU；然後就 return，理由同下面 BOUNTY_CRON。
+    if (event && event.cron === WEATHER_CRON) {
+      try { console.log('[cron weather]', JSON.stringify(await weatherScheduled(event, env))); }
+      catch (e) { console.error('[cron weather] 失敗:', (e && e.stack) || String(e)); }
+      return;
+    }
     // 路段懸賞的判定時段（BOUNTY_CRON）：只跑估值與驗證，然後就 return——不可落進下面的每日 ingest。
     // 程式不認得的 cron 字串一律會掉進每日 ingest 分支（多花一輪 TDX 用量），所以「新時段只跑懸賞」要靠這一支獨立分流，
     // 光在 wrangler 加 trigger 不夠。兩支各自 try/catch＋log（比照下面 '15 4 * * *' 那一支）：估值失敗不該擋住驗證。
@@ -10605,6 +10625,7 @@ export default {
     else if (url.pathname === '/api/metro-alert') res = await withRailWeatherNotice(await metroAlert(request, env), Date.now(), url.searchParams.get('weather') === 'full' || !APP_ORIGINS.has(origin) ? 'full' : 'metro-alert');
     else if (url.pathname === '/api/hazard-alert') res = await hazardAlert(request, env);
     else if (url.pathname === '/api/rail-status') res = await railStatusCached(request, env);
+    else if (url.pathname === '/api/weather') res = await weatherCached(request, env);
     else if (url.pathname === '/api/metro-live') {
       const sys = url.searchParams.get('sys');
       // hasOwnProperty.call 而非 METRO_LIVE_OPS[sys]:後者吃原型鏈,sys='constructor' 等會誤過閘門
