@@ -137,7 +137,8 @@ const widths = [360, 375, 414, 768];
 // K added two entries; this Danhai conflict warning adds one, preserving all history.
 // 10/26: calibration bounties switch from chips to points adds one (523 -> 524).
 // 10/30: TRA single-track meet stops at non-passenger stations add one (529 -> 530).
-const expectedHistoryCount = 530;
+// 10/30: help text now matches the current layout (View settings tabs, phone/desktop entry points) adds one (530 -> 531).
+const expectedHistoryCount = 531;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
