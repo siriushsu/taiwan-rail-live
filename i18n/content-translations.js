@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "車庫海岸行旅加上車燈：頭燈、尾燈、夜晚車窗亮起並照亮軌道與草地；修好跑久了地面紋路變糊；護照註明場景在 App 兌換": "The garage Coastal journey now has train lights: headlights, tail lights and lit windows at night that light up the track and grass; fixed the ground texture blurring after a long run; the passport now says scenes are redeemed in the app",
     "網站版也能開「車聲」了：在「配樂情境」裡打開，跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放": "The website now has the Rail sound switch too: turn it on in the Soundtrack menu to hear track noise while the train you follow is moving, fading out at stops and back in as it departs; always on in ambient mode",
     "高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」": "Kaohsiung MRT trains no longer vanish before they stop at the terminus: they pull all the way into the platform, wait about 10 seconds and then fade out, and the follow card shows “The train has reached its terminus.”",
     "使用說明補上觀看設定、立體列車、車站地標導覽、地圖風格、轉乘、跟車鎖定、營運公告、語言等新功能，首訪卡第一列也改成實際位置": "Help now covers View settings, 3D trains, station and landmark tours, map styles, transfers, follow lock, service alerts, language and more, and the first line of the first-visit card now points to where the switch really is",
@@ -330,6 +331,7 @@
   });
 
   Object.assign(messages.ja, {
+    "車庫海岸行旅加上車燈：頭燈、尾燈、夜晚車窗亮起並照亮軌道與草地；修好跑久了地面紋路變糊；護照註明場景在 App 兌換": "車庫の「海辺の旅」に列車のライトを追加：前照灯・尾灯、夜は窓が灯って線路や草地を照らします。長く走ると地面の模様がぼやける問題を修正。パスポートに情景はアプリの車庫で交換できると明記",
     "網站版也能開「車聲」了：在「配樂情境」裡打開，跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放": "ウェブ版にも「走行音」スイッチが付きました。「サウンドトラック」でオンにすると、追跡中の列車が動いている間は走行音が流れ、停車中はフェードアウト、発車するとフェードイン。鑑賞モードでは常時再生",
     "高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」": "高雄メトロの列車が終点に停車する前に消えなくなりました。終点のホームまで進入して約10秒停車してからフェードアウトし、追跡カードには「列車は終点に到着しました。」と表示されます",
     "使用說明補上觀看設定、立體列車、車站地標導覽、地圖風格、轉乘、跟車鎖定、營運公告、語言等新功能，首訪卡第一列也改成實際位置": "使い方ガイドに、表示設定、3D 列車、駅・ランドマーク案内、地図スタイル、乗換、追跡の固定、運行情報、言語などの新機能を追加し、初回カードの 1 行目も実際の操作位置に合わせました",
