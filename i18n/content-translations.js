@@ -4343,9 +4343,9 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '島民點數': 'Islander Points',
   '登入後看得到島民點數': 'Sign in to see your Islander Points',
-  '下一座場景要 <b>{n}</b> 點': {
-    one: 'Next scene costs <b>{n}</b> point',
-    other: 'Next scene costs <b>{n}</b> points',
+  '下一座場景要 <b>{n}</b> 點，可在 App 的車庫兌換': {
+    one: 'Next scene costs <b>{n}</b> point — redeem it in the app’s garage',
+    other: 'Next scene costs <b>{n}</b> points — redeem it in the app’s garage',
   },
   '雲端搭乘 <b>{rides}</b> 次・每天一次 <b>{n}</b> 點': {
     one: 'Cloud rides <b>{rides}</b> · <b>{n}</b> point for one ride a day',
@@ -4361,7 +4361,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '島民點數': '島民ポイント',
   '登入後看得到島民點數': 'ログインすると島民ポイントが表示されます',
-  '下一座場景要 <b>{n}</b> 點': '次の情景の解放に <b>{n}</b> ポイント',
+  '下一座場景要 <b>{n}</b> 點，可在 App 的車庫兌換': '次の情景の解放に <b>{n}</b> ポイント（アプリの車庫で交換できます）',
   '雲端搭乘 <b>{rides}</b> 次・每天一次 <b>{n}</b> 點': 'クラウド乗車 <b>{rides}</b> 回・1日1回 <b>{n}</b> ポイント',
   '錄程每天最多 <b>{n}</b> 點': '記録で獲得できるのは 1 日最大 <b>{n}</b> ポイント',
   '已收滿，照樣可以錄程拿島民點數': '収集済みですが、旅程を記録すれば島民ポイントがもらえます',

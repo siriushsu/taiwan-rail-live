@@ -26485,7 +26485,8 @@ function buildChipsRow() {
   const sceneN = ((bountyRulesMem && bountyRulesMem.chips && bountyRulesMem.chips.scenes) || []).length;
   if (sceneN > 0 && (c.unlocked || []).length < sceneN) {
     const n = bountyNum(c.nextCost);
-    parts.push(cell('next', t('下一座場景要 <b>{n}</b> 點', { n }, n)));
+    // 網頁還沒有兌換視窗，先講清楚要去 App 換。
+    parts.push(cell('next', t('下一座場景要 <b>{n}</b> 點，可在 App 的車庫兌換', { n }, n)));
   }
   const cloudPts = c.cloud && typeof c.cloud === 'object' ? bountyNum(c.cloud.points) : 0;
   if (cloudPts > 0) parts.push(cell('cloud', t('雲端搭乘 <b>{rides}</b> 次・每天一次 <b>{n}</b> 點', { rides: bountyNum(c.cloud.rides), n: cloudPts })));

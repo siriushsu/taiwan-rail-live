@@ -60,13 +60,15 @@ export function createRenderer(onLost = () => {}) {
         lights[0].color.set(theme.light);lights[0].intensity=theme.power;lights[0].position.set(-45,-25,theme.night?32:42);lights[1].intensity=theme.night?.28:.7;
         if(!scene.fog)scene.fog=new THREE.FogExp2();scene.fog.color.set(theme.horizon);scene.fog.density=theme.night?.0024:.0018;renderer.toneMappingExposure=theme.night?.75:1.0;
         scene.updateMatrixWorld(true);
+        // options.lights===false 關車燈（同 App 的 r3dCoastLights 0），給量玻璃反射的閘門用。
+        target.dataset.lampHalos=String(coast.lights(row.owned&&options.lights!==false?consist:null,options.direction,options.period,view.position));
         const anchors={railA:[-6,0,.18],railB:[6,0,.18],shoreA:[-6,20,-.64],shoreB:[6,20,-.64],land:[0,-2.5,-.08],water:[-6,40,-.64],island:[12,150,12.4]};
         for(const [key,p]of Object.entries(anchors)){project.set(...p).project(view);anchors[key]=[(project.x+1)*w/2,(1-project.y)*h/2];}
         const bounds=consist.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),points=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){project.set(x,y,z).project(view);points.push([(project.x+1)*w/2,(1-project.y)*h/2]);}return{model:c.id,left:Math.min(...points.map(p=>p[0])),right:Math.max(...points.map(p=>p[0])),top:Math.min(...points.map(p=>p[1])),bottom:Math.max(...points.map(p=>p[1]))};});
         target.dataset.formation=JSON.stringify(bounds);target.dataset.coastAnchors=JSON.stringify(anchors);target.dataset.carCount='3';target.dataset.projection='perspective';
         target.dataset.trackX=String(-(options.distance||0));target.dataset.trackY='0';target.dataset.trackHeading=String(heading);target.dataset.distance=String(options.distance||0);target.dataset.period=options.period||'day';
       }else{
-        if(coast)coast.group.visible=false;scene.environment=environment.texture;scene.fog=null;hemi.color.set('#e6efff');hemi.groundColor.set('#938670');hemi.intensity=1.75;lights[0].color.set('#fff5e6');lights[0].position.set(7,-9,14);lights[0].intensity=3;lights[1].intensity=1.5;renderer.toneMappingExposure=1.02;
+        if(coast){coast.group.visible=false;coast.lights(null);}scene.environment=environment.texture;scene.fog=null;hemi.color.set('#e6efff');hemi.groundColor.set('#938670');hemi.intensity=1.75;lights[0].color.set('#fff5e6');lights[0].position.set(7,-9,14);lights[0].intensity=3;lights[1].intensity=1.5;renderer.toneMappingExposure=1.02;
         if(onLoop){
           if(!consist)return false;if(!loop){loop=createLoop();scene.add(loop.group);}loop.group.visible=true;
           consist.update(row.owned);consist.follow(loop,options.distance||0,options.direction);

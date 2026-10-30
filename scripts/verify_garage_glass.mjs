@@ -22,17 +22,20 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
     for(const id of ['emu3000','700t','c301','e200','danhai']){
      await r.load(id,'track');
      for(const period of ['sunrise','day','sunset','night'])for(const direction of [1,-1]){
-      r.draw(canvas,{id,owned:true},-Math.PI/2,{mode:'track',period,direction,elevation:.16,distance:2.4});
-      const baseline=pixels(),meshes=[];frame.scene.traverseVisible(o=>{if(o.isMesh&&Array.isArray(o.material)&&o.material.some(m=>m.name==='glass'))meshes.push(o);});
+      // 夜晚車窗燈會把玻璃打到接近飽和，反射增量要關燈量（同 App 比像素時關燈）；開燈後車窗變亮另外量。
+      const draw=lights=>r.draw(canvas,{id,owned:true},-Math.PI/2,{mode:'track',period,direction,elevation:.16,distance:2.4,lights});
+      draw(period!=='night');
+      const baseline=pixels(),meshes=[],masks=[];frame.scene.traverseVisible(o=>{if(o.isMesh&&Array.isArray(o.material)&&o.material.some(m=>m.name==='glass'))meshes.push(o);});
       const cars=[];
       for(const mesh of meshes){
        const original=mesh.material;mesh.material=original.map(m=>m.name==='glass'?maskMaterial:m);redraw();const mask=pixels(),indices=[];
-       for(let i=0;i<mask.length;i+=4)if(mask[i]>250&&mask[i+1]<5&&mask[i+2]>250)indices.push(i);
+       for(let i=0;i<mask.length;i+=4)if(mask[i]>250&&mask[i+1]<5&&mask[i+2]>250)indices.push(i);masks.push(indices);
        mesh.material=original;const glass=original.filter(m=>m.name==='glass'),gains=glass.map(m=>m.envMapIntensity);glass.forEach(m=>m.envMapIntensity=0);redraw();const unreflected=pixels();glass.forEach((m,i)=>m.envMapIntensity=gains[i]);
        let response=0,luminance=0;for(const i of indices){const l=d=>d[i]*.2126+d[i+1]*.7152+d[i+2]*.0722;response+=l(baseline)-l(unreflected);luminance+=l(baseline);}
        cars.push({pixels:indices.length,reflection:response/Math.max(1,indices.length),luminance:luminance/Math.max(1,indices.length)});
       }
-      const positive=cars.every(c=>c.pixels>30&&c.reflection>(period==='night'?.5:5));
+      if(period==='night'){draw(true);const lit=pixels();cars.forEach((c,k)=>{let sum=0;for(const i of masks[k])sum+=lit[i]*.2126+lit[i+1]*.7152+lit[i+2]*.0722;c.lit=sum/Math.max(1,masks[k].length);});}
+      const positive=cars.every(c=>c.pixels>30&&c.reflection>(period==='night'?.5:5)&&(period!=='night'||c.lit-c.luminance>40));
       rows.push({id,period,direction,cars,pass:cars.length===3&&positive});
      }
     }
