@@ -43,7 +43,7 @@ check(klrtLine && klrtLine.loop === true && klrtLine.stations?.length === 38,
 const graceSandbox = {
   ntmFeedForSystem: () => null,
   METRO_CORE_FOLLOW_GRACE_SEC: 30,
-  metroCoreFollowRecord: () => graceSandbox.current,
+  metroCoreDisplayFollowRecord: () => graceSandbox.current,
   metroCorePositionAt: (ln, train, epoch) => epoch < train.retireAt ? { lat: epoch, lon: 0 } : null,
   current: { systemId: 'trtc', train: { retireAt: 1000 }, ln: { id: 'BL' }, pos: { lat: 0, lon: 0 } }
 };
@@ -67,8 +67,8 @@ const contracts = [
   ['支援 ETag', /headers\['if-none-match'\] = state\.metroCore\.etag/],
   ['支援 304 保留快照', /response\.status === 304/],
   ['防止舊 snapshot 倒灌', /snapshot rollback/],
-  ['一般捷運層讀取 Core', /function drawFreq[\s\S]*?metroCoreItemsForLine\(ln, officialNow\)/],
-  ['全台裝飾層讀取 Core', /function drawDecoTrains[\s\S]*?metroCoreItemsForLine\(ln, officialNow\)/],
+  ['一般捷運層讀取 Core 顯示名單', /function drawFreq[\s\S]*?metroCoreDisplayItemsForLine\(ln, officialNow\)/],
+  ['全台裝飾層讀取 Core 顯示名單', /function drawDecoTrains[\s\S]*?metroCoreDisplayItemsForLine\(ln, officialNow\)/],
   ['Core 地圖與跟隨逐字採用 canonical 軌跡，不在顯示層遮掩跳動',
     /function metroCoreItemsForLine[\s\S]*?metroCorePositionAt\(ln, train, nowEpoch\)[\s\S]*?function metroCoreFollowRecord[\s\S]*?metroCorePositionAt\(ln, train, nowEpoch\)/],
   ['站牌共用 vehicle ID', /data-core-vehicle/],

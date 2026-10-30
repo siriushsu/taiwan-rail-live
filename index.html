@@ -5657,6 +5657,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="krtcterminal1030"><span class="d">10/30</span><span>高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」</span></li>
         <li data-cl-of="helpnew1030"><span class="d">10/30</span><span>使用說明補上觀看設定、立體列車、車站地標導覽、地圖風格、轉乘、跟車鎖定、營運公告、語言等新功能，首訪卡第一列也改成實際位置</span></li>
         <li data-cl-of="helpaudit1030"><span class="d">10/30</span><span>使用說明對上現在的畫面：字級、儲存地點、平交道、衛星等設定改指「觀看」裡的實際位置，手機與電腦版分開寫；分享、跟車小卡、查詢的說明照實際操作更正，步驟與提示字放大一號</span></li>
         <li data-cl-of="trameetstop1030"><span class="d">10/30</span><span>台鐵單線區段在不載客的車站會車時，等待的列車改成進站停車、等對向車過了再開，不再從前一站一路慢慢開，例如莒光 653 次在東竹 12:54 到站、停到 12:58（謝謝網友回報）</span></li>
@@ -5664,7 +5665,6 @@
         <li data-cl-of="glassspread1030"><span class="d">10/30</span><span>修正台北等密集市區的建築透視線條只集中在畫面中央一圈：縮小或斜看時改為平均分散到整個畫面，線條替換時淡入淡出、不再突然跳動</span></li>
         <li data-cl-of="thsrchiayistop1029"><span class="d">10/29</span><span>立體列車：高鐵嘉義站停靠的列車改停在月台中段，不再有半列車身凸出月台外</span></li>
         <li data-cl-of="followrotateflat1029"><span class="d">10/29</span><span>修正電腦版跟車時，用滑鼠右鍵或 Ctrl＋拖曳轉動、傾斜視角會卡住轉不動的問題；從全台地圖點車開始跟車時最常遇到</span></li>
-        <li data-cl-of="commutercars1028"><span class="d">10/28</span><span>立體列車的區間車改依車次推估節數：沙崙線（37、38 開頭的車次）畫 4 節，1006、3029、3005、3028 次畫 10 節，其餘維持 8 節，仍標示「推估編組」</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5856,6 +5856,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="krtcterminal1030"><span class="d">10/30</span><span>高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」</span></li>
         <li data-cl="ntmegress1005"><span class="d">10/5</span><span>淡海、安坑、環狀線的即時列車資料改由全站集中一處向新北捷運官網查詢，再分送給所有訪客；正常情況下官網收到的查詢為淡海、安坑約每 55 秒、環狀線約每 60 秒一次，不隨觀看人數與地區增加；集中查詢沒有回應時，改由備援補上資料，不會一直空等</span></li>
         <li data-cl="trtcnoy1005"><span class="d">10/5</span><span>環狀線的即時資料改為即用即丟：只用來畫當下的列車與看板，伺服器不再累積環狀線列車的行駛紀錄；畫車與站牌跟隨用的暫存只留還在路線上或剛收班的車，每晚收班後清除</span></li>
         <li data-cl="workerrecover0927"><span class="d">9/27</span><span>公車到站、台鐵月台與災害監看遇到官方來源沒有回應時，查詢會在限時內結束等待；下一輪會重新連線，不再讓同一個卡住的請求拖住之後所有查詢</span></li>
@@ -7094,7 +7095,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1030e：會車停車也看進站那一段單線：到站前已有對向車從本站開進這一段 ⇒ 到站提早到它開進前 30 秒（9/13 考卷 304 在瀧溪原本跟 371 在金崙–瀧溪對撞）。
 // v1030f：使用說明對上現行介面——字級、儲存地點、平交道、衛星、3D 建築、背景音樂等改指觀看設定的分頁（手機「觀看」鈕／桌面右側直欄），查詢、跟車小卡收合與結束、隨機跟隨、時間軸、今日動態、分享、全畫面的手機／桌面入口分開寫；補上「跟車配樂」的試一次；說明的步驟與提示字 12／11.5→13／12.5 並改吃完整的 --ui（issue #52）；更新紀錄加一條。
 // v1030g：使用說明補上漏掉的新功能——新增「觀看設定」「跟車時拖地圖、回到列車」「轉乘」「跟車小卡裡的更多細項」「營運公告」「立體列車」「車站與地標 3D 導覽」「語言與台南歷史重播」八節；併改搜尋（公車站牌）、地圖風格（明暗衛星地景，原「衛星影像」）、旋轉傾斜、放空模式（賞車視角）、時間軸（全日班次走勢）、今日亮點（週末活動）、分享（行程分享）；補 viewpanel 的試一次；更新紀錄加一條。
-const BUILD = 'v1030g';
+// v1030h：高捷列車到終點不再提早消失：網頁把最後一段軌跡留在顯示層，開進終點後停 10 秒、1 秒淡出（班次、看板、車數仍只用 Core 名冊），也接受 Core 的 terminalDisplay／延長 retireAt；搬自未併的 8ae0cc2a＋ecae3c0f 高捷部分；更新紀錄加一條。
+const BUILD = 'v1030h';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -13522,7 +13524,7 @@ function drawFreq(w, h) {
   if (!state.collectMap) state.lines.forEach(ln => { // 收集地圖不畫跑動的車(比照 drawSched)
     if (!state.visible.has(ln.id)) return;
     const tc = textColorFor(ln.color);
-    const core = metroCoreItemsForLine(ln, officialNow);
+    const core = metroCoreDisplayItemsForLine(ln, officialNow);
     if (core !== null) {
       for (const item of core) {
         if (!inDetailArea(item.pos)) continue;
@@ -13669,7 +13671,7 @@ function applyFreqFollow(hit) { // hit = {ln,tr}／{ln,k}／{ln,vehicleId};不�
   if (!target) { showToast(t('這列車目前沒有可唯一確認的官方身分')); return false; }
   const identity = target.vehicleId != null
     ? (target.core
-      ? metroCoreFollowRecord({ core: true, systemId: target.systemId, lineId: target.ln.id, vehicleId: target.vehicleId }, Date.now() / 1000)
+      ? metroCoreDisplayFollowRecord({ core: true, systemId: target.systemId, lineId: target.ln.id, vehicleId: target.vehicleId }, Date.now() / 1000)
       : trtcOfficialFollowRecord({ lineId: target.ln.id, vehicleId: target.vehicleId }, Date.now() / 1000))
     : true;
   if (target.vehicleId != null && !identity) {
@@ -13804,7 +13806,8 @@ function updateFreqCard(info) {
   // 官方訊號中斷時這張卡不能還寫「依北捷官方秒級資料」——那正是使用者盯著看的那一行
   const fStale = f.vehicleId != null && !f.core ? trtcOfficialStaleFor(ln.id) : null;
   if (f.core) {
-    if (info.grace) { txt = t('即時名單更新中；暫沿用這台車上一批已確認的軌跡'); cls = 'warn'; }
+    if (info.terminalArrived) txt = t('列車已抵達終點');
+    else if (info.grace) { txt = t('即時名單更新中；暫沿用這台車上一批已確認的軌跡'); cls = 'warn'; }
     else if (info.systemId === 'ntdlrt' || info.systemId === 'ntalrt') {
       txt = t(info.source === 'ntm-pending' ? '官方車號已確認；待發時間尚未確認' : info.nextBasis !== 'official'
         ? '官方車號已確認；下一站時間與位置為推估' : info.source === 'ntm-constrained'
@@ -13857,7 +13860,7 @@ function updateFreqFollowCamera(immediate) {
     if (!rec) {
       const core = !!f.core;
       clearFreqFollow();
-      showToast(t(core ? '這台車已超過 30 秒不在即時模型中，已結束跟隨'
+      showToast(t(f.terminalDisplay ? '列車已抵達終點' : core ? '這台車已超過 30 秒不在即時模型中，已結束跟隨'
         : '官方名冊已更新，已結束這台車的跟隨'));
       return;
     }
@@ -13952,7 +13955,7 @@ function drawDecoTrains(w, h) {
   for (const ln of (state.collectMap ? [] : state.decoLines)) { // 收集地圖不畫跑動的車(比照 drawSched)
     if (offLine(ln)) continue; // 整條離屏:線上的示意列車也在屏外,跳過
     const tc = textColorFor(ln.color);
-    const core = metroCoreItemsForLine(ln, officialNow);
+    const core = metroCoreDisplayItemsForLine(ln, officialNow);
     if (core !== null) {
       for (const item of core) {
         if (!inDetailArea(item.pos)) continue;
@@ -29507,6 +29510,7 @@ function metroCoreRowVehicleId(system, board, row) {
   const id = String(row.vehicleId);
   const train = (system.trains || []).find(item => String(item.vehicleId) === id);
   if (!train || String(train.lineId) !== String(board.lineId)) return null;
+  if (system.systemId === 'krtc' && train.terminalDisplay) return null;
   if (row.direction != null && Number(train.direction) !== Number(row.direction)) return null;
   if (row.destinationStationIndex != null &&
       Number(train.destinationStationIndex) !== Number(row.destinationStationIndex)) return null;
@@ -29660,6 +29664,8 @@ function metroCoreItemsForLine(ln, nowEpoch = Date.now() / 1000) {
   for (const train of system.trains) {
     if (String(train.lineId) !== String(ln.id)) continue;
     const pos = metroCorePositionAt(ln, train, nowEpoch);
+    // Core 的終點短留亦供舊 App 播放；新版把這些車交給顯示清單，不計為仍在途的班次。
+    if (systemId === 'krtc' && (train.terminalDisplay || pos && pos.stateAfter === 'terminal')) continue;
     if (pos) out.push({ systemId, vehicleId: String(train.vehicleId), publicLabel: String(train.publicLabel || ''), train, pos });
   }
   // 🔴 P0-1:空陣列【不得】短路 legacy。[] 是 truthy 的非 null 值,四個消費端都寫
@@ -29680,17 +29686,112 @@ function metroCoreFollowRecord(follow, nowEpoch = Date.now() / 1000) {
   const pos = ln && train ? metroCorePositionAt(ln, train, nowEpoch) : null;
   return pos ? { systemId, train, ln, pos } : null;
 }
+// 高捷班次身分／看板仍使用 canonical 名冊。這份快取只給畫車與視覺跟隨，
+// 接完已看見的最後一段，再於終點短留；不得放回 snapshot 或班次配對池。
+const METRO_CORE_TERMINAL_HOLD_SEC = 10;
+const METRO_CORE_TERMINAL_FADE_SEC = 1;
+const metroCoreTerminalDisplays = new Map();
+function metroCoreDisplayItemsForLine(ln, nowEpoch = Date.now() / 1000) {
+  const active = metroCoreItemsForLine(ln, nowEpoch);
+  if (metroCoreSystemIdForLine(ln) !== 'krtc') return active;
+  const lineId = String(ln.id), now = Number(nowEpoch);
+  const system = metroCoreSystem('krtc', now);
+  if (!Number.isFinite(now) || !metroCoreSnapshotLive(now) ||
+      metroCoreLineBlocked('krtc', lineId) || !system) {
+    metroCoreTerminalDisplays.delete(lineId);
+    return active;
+  }
+  let cache = metroCoreTerminalDisplays.get(lineId);
+  if (!cache || now < cache.at) {
+    cache = { at: now, vehicles: new Map() };
+    metroCoreTerminalDisplays.set(lineId, cache);
+  }
+  cache.at = now;
+  const sameJourney = (a, b) => Number(a.direction) === Number(b.direction) &&
+    Number(a.destinationStationIndex) === Number(b.destinationStationIndex) &&
+    String(a.quality && a.quality.generation || 0) === String(b.quality && b.quality.generation || 0);
+  const currentById = new Map(system.trains.filter(train => String(train.lineId) === lineId)
+    .map(train => [String(train.vehicleId), train]));
+  for (const [id, saved] of cache.vehicles) {
+    const current = currentById.get(id);
+    if (now >= saved.endEpoch || current && !sameJourney(saved.train, current)) cache.vehicles.delete(id);
+  }
+  const activeIds = new Set();
+  for (const item of active || []) {
+    const id = String(item.vehicleId), train = item.train;
+    activeIds.add(id);
+    const dest = Number(train.destinationStationIndex), step = Number(train.direction) === 2 ? 1 : -1;
+    const remaining = step * (dest - Number(item.pos.progress));
+    // 只保存正在最後區間行駛、且有效預測窗內有明確 terminal 節點的車。
+    // 起點待發、中途漏資料、僅有 held 節點，皆不能據此補畫成抵達終點。
+    const terminal = remaining > 0 && remaining <= 1 && item.pos.stateAfter === 'running' &&
+      (train.trajectory || []).find(point => point.stateAfter === 'terminal' &&
+        Number(point.progress) === dest && Number(point.epoch) > now &&
+        Number(point.epoch) <= Number(state.metroCore.snapshot.validUntil));
+    if (!terminal) { cache.vehicles.delete(id); continue; }
+    const saved = cache.vehicles.get(id);
+    if (saved && (saved.frozen || saved.source === train)) continue; // 同批重讀不重建；退場後不重開時鐘。
+    const arrivalEpoch = Number(terminal.epoch);
+    const endEpoch = arrivalEpoch + METRO_CORE_TERMINAL_HOLD_SEC + METRO_CORE_TERMINAL_FADE_SEC;
+    cache.vehicles.set(id, { arrivalEpoch, endEpoch, frozen: false, source: train,
+      train: { ...train, trajectory: train.trajectory.filter(point => Number(point.epoch) <= arrivalEpoch),
+        retireAt: endEpoch }, publicLabel: item.publicLabel });
+  }
+  // 新 Core 已為舊 App 延長公開 retireAt；只接其固定到站／停留時鐘，再補一秒淡出，
+  // 不能把延長後的 retireAt 當作新的到站時刻，再多留十秒。
+  for (const [id, train] of currentById) {
+    if (activeIds.has(id)) continue;
+    const clock = train.terminalDisplay;
+    const sample = !clock && metroCorePositionAt(ln, train, now);
+    if (!clock && (!sample || sample.stateAfter !== 'terminal')) continue;
+    const terminal = (train.trajectory || []).find(point => point.stateAfter === 'terminal' &&
+      Number(point.progress) === Number(train.destinationStationIndex));
+    const arrivalEpoch = Number(clock ? clock.arrivalEpoch : terminal && terminal.epoch);
+    const holdUntil = Number(clock ? clock.holdUntil : train.retireAt);
+    const endEpoch = holdUntil + METRO_CORE_TERMINAL_FADE_SEC;
+    if (!Number.isFinite(arrivalEpoch) || !Number.isFinite(holdUntil) ||
+        holdUntil !== arrivalEpoch + METRO_CORE_TERMINAL_HOLD_SEC || now >= endEpoch) continue;
+    const saved = cache.vehicles.get(id);
+    if (saved && saved.frozen) continue;
+    cache.vehicles.set(id, { arrivalEpoch, endEpoch, frozen: true, source: train,
+      train: { ...train, retireAt: endEpoch }, publicLabel: String(train.publicLabel || '') });
+  }
+  const out = active ? active.slice() : [];
+  for (const [id, saved] of cache.vehicles) {
+    if (activeIds.has(id)) continue;
+    const pos = metroCorePositionAt(ln, saved.train, now);
+    if (!pos) { cache.vehicles.delete(id); continue; }
+    saved.frozen = true;
+    const fadeStart = saved.arrivalEpoch + METRO_CORE_TERMINAL_HOLD_SEC;
+    const displayOpacity = Math.max(0, Math.min(1, (saved.endEpoch - now) / METRO_CORE_TERMINAL_FADE_SEC));
+    out.push({ systemId: 'krtc', vehicleId: id, publicLabel: saved.publicLabel, train: saved.train, pos,
+      terminalDisplay: true, terminalArrived: now >= saved.arrivalEpoch,
+      displayOpacity: now <= fadeStart ? 1 : displayOpacity });
+  }
+  return out.length ? out : active;
+}
+function metroCoreDisplayFollowRecord(follow, nowEpoch = Date.now() / 1000) {
+  if (follow && follow.core && String(follow.systemId) === 'krtc') {
+    const ln = metroCoreLineForId('krtc', follow.lineId);
+    const items = ln && metroCoreDisplayItemsForLine(ln, nowEpoch);
+    const item = items && items.find(item => String(item.vehicleId) === String(follow.vehicleId));
+    if (item) return { ...item, ln };
+  }
+  return metroCoreFollowRecord(follow, nowEpoch);
+}
 // 🔴 P0-4 跟隨寬限(移植 9bc4348)。updateFreqFollowCamera 是【每幀】跑的,零寬限的版本
 // 只要單一幀解不出記錄就 clearFreqFollow(),使用者體感＝跟車隨機被踢掉。
 function metroCoreFollowRecordWithGrace(follow, nowEpoch = Date.now() / 1000) {
   if (ntmFeedForSystem(follow && follow.systemId) && !trtcOfficialBoardRealNow()) return null;
-  const current = metroCoreFollowRecord(follow, nowEpoch);
+  const current = metroCoreDisplayFollowRecord(follow, nowEpoch);
   if (current) {
     // lastRecord 只屬於目前這個 follow 物件；換車會建立新物件，不會把前一台的軌跡帶過來。
     follow.lastRecord = { systemId: current.systemId, train: current.train, ln: current.ln };
     follow.lastSeenAt = Number(nowEpoch);
+    follow.terminalDisplay = !!current.terminalDisplay;
     return current;
   }
+  if (follow && follow.terminalDisplay) return null; // 已跑完終點短留，不再套一般漏批的 30 秒寬限。
   const last = follow && follow.lastRecord;
   if (!last || !Number.isFinite(Number(follow.lastSeenAt)) ||
       Number(nowEpoch) - Number(follow.lastSeenAt) > METRO_CORE_FOLLOW_GRACE_SEC) return null;
@@ -29710,7 +29811,7 @@ function metroCoreVehicleInfo(rec) {
   const inferredNext = metroCoreKlrtLoop(ln) && Math.abs(Number(pos.progress) - exactIndex) < 1e-9 &&
     exactIndex !== destinationIndex ? Math.max(0, Math.min(metroCoreFlatMax(ln), exactIndex + step))
     : Math.max(0, Math.min(metroCoreFlatMax(ln), step > 0 ? Math.ceil(pos.progress) : Math.floor(pos.progress)));
-  const nextIndex = train.nextCall && Number.isInteger(Number(train.nextCall.stationIndex))
+  const nextIndex = rec.terminalDisplay ? destinationIndex : train.nextCall && Number.isInteger(Number(train.nextCall.stationIndex))
     ? Number(train.nextCall.stationIndex) : inferredNext;
   const terminal = metroCoreStationAt(ln, Number(train.destinationStationIndex));
   const next = metroCoreStationAt(ln, nextIndex);
@@ -29719,15 +29820,17 @@ function metroCoreVehicleInfo(rec) {
   // 那條 join 就是證據。統一之後 updateFreqCard 只要讀一個欄位,不必分辨自己在哪條路徑上。
   // 🔴 永遠不是 vehicleId:那是我們自己由各站倒數合成的內部身分,契約明禁拿它冒充車次。
   return { ln, pos, loop: !!ln.loop, routeDirection: metroCoreKlrtLoop(ln) ? step : null,
+    terminalDisplay: !!rec.terminalDisplay, terminalArrived: !!rec.terminalArrived,
     grace: !!rec.grace, systemId: String(rec.systemId || ''),
     source: String(train.quality && train.quality.source || ''), officialNo: String(train.publicLabel || ''),
     nextBasis: train.nextCall && train.nextCall.basis || null,
     termName: terminal && terminal.name || '', nextName: next && next.name || '',
-    nextSec: !train.pending && train.nextCall && Number.isFinite(Number(train.nextCall.arrivalEpoch))
+    nextSec: !rec.terminalDisplay && !train.pending && train.nextCall && Number.isFinite(Number(train.nextCall.arrivalEpoch))
       ? metroCoreEpochSecOfDay(train.nextCall.arrivalEpoch) : null };
 }
 function drawMetroCoreVehicle(ln, item, showTrain, inView, collectHit, nowEpoch) {
   const cp = mapDetailPoint([item.pos.lat, item.pos.lon]);
+  cp.detailOpacity = (cp.detailOpacity ?? 1) * (item.displayOpacity ?? 1);
   if (!inView(cp)) return;
   if (window.railIslandIntegration?.hasModel({ln,vehicleId:item.vehicleId,core:true})) return;
   const label = item.publicLabel || ln.abbr;

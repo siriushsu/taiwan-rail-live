@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」": "Kaohsiung MRT trains no longer vanish before they stop at the terminus: they pull all the way into the platform, wait about 10 seconds and then fade out, and the follow card shows “The train has reached its terminus.”",
     "使用說明補上觀看設定、立體列車、車站地標導覽、地圖風格、轉乘、跟車鎖定、營運公告、語言等新功能，首訪卡第一列也改成實際位置": "Help now covers View settings, 3D trains, station and landmark tours, map styles, transfers, follow lock, service alerts, language and more, and the first line of the first-visit card now points to where the switch really is",
     "使用說明對上現在的畫面：字級、儲存地點、平交道、衛星等設定改指「觀看」裡的實際位置，手機與電腦版分開寫；分享、跟車小卡、查詢的說明照實際操作更正，步驟與提示字放大一號": "Help now matches the current layout: text size, saved places, level crossings, satellite and other settings point to where they actually are in View settings, with separate directions for phones and desktop; sharing, the follow card and Lookup are described as they really work, and steps and tips are one size larger",
     "颱風公告補列淡海官網15至30分鐘班距與停駛資訊不一致，提醒先確認實際開行": "Typhoon notice records conflicting official Danhai 15–30-minute headway and suspension information; confirm actual service before travelling.",
@@ -328,6 +329,7 @@
   });
 
   Object.assign(messages.ja, {
+    "高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」": "高雄メトロの列車が終点に停車する前に消えなくなりました。終点のホームまで進入して約10秒停車してからフェードアウトし、追跡カードには「列車は終点に到着しました。」と表示されます",
     "使用說明補上觀看設定、立體列車、車站地標導覽、地圖風格、轉乘、跟車鎖定、營運公告、語言等新功能，首訪卡第一列也改成實際位置": "使い方ガイドに、表示設定、3D 列車、駅・ランドマーク案内、地図スタイル、乗換、追跡の固定、運行情報、言語などの新機能を追加し、初回カードの 1 行目も実際の操作位置に合わせました",
     "使用說明對上現在的畫面：字級、儲存地點、平交道、衛星等設定改指「觀看」裡的實際位置，手機與電腦版分開寫；分享、跟車小卡、查詢的說明照實際操作更正，步驟與提示字放大一號": "使い方ガイドを現在の画面に合わせました。文字サイズ、場所を保存、踏切、衛星などは「表示設定」内の実際の場所を案内し、スマートフォンとパソコンで手順を分けました。共有、追跡カード、「調べる」の説明も実際の操作どおりに直し、手順とヒントの文字を一段大きくしました",
     "颱風公告補列淡海官網15至30分鐘班距與停駛資訊不一致，提醒先確認實際開行": "台風案内に淡海の公式15〜30分間隔と運休情報の不一致を記録し、利用前の実際の運行確認を案内。",

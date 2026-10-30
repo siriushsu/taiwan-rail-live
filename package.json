@@ -171,6 +171,8 @@
     "check-tra-motion": "node scripts/verify_tra_motion.mjs",
     "check-tra-live-anchor": "node scripts/verify_tra_live_anchor.mjs",
     "check-anomaly": "node scripts/verify_anomaly.mjs",
+    "check-krtc-terminal": "node scripts/verify_krtc_terminal_display.mjs && node scripts/verify_train_terminal_fade.mjs && node scripts/verify_metro_core_bridge.mjs && node scripts/verify_metro_countdown_source.mjs",
+    "check-krtc-terminal-browser": "node scripts/verify_krtc_terminal_browser.mjs",
     "check-tra-supplements": "node scripts/verify_tra_schedule_supplements.mjs",
     "check-my-train-plan": "node scripts/verify_my_train_plan.mjs",
     "check-my-train-isolation": "node scripts/verify_my_train_isolation.mjs",
