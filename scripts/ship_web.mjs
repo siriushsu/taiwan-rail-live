@@ -929,6 +929,16 @@ try {
   if (anchors(stripped) !== anchors(rawBytes)) fail('APP_REPLACE 錨點數量變了——HTML 註解被動到');
   console.log(`strip ✓ ${rawBytes.length} → ${stripped.length} bytes（−${(100 - stripped.length / rawBytes.length * 100).toFixed(1)}%），md5 ${strippedMd5}`);
 
+  // ── 3.5 網站版車聲打亂檔（2026-10-30）──────────────────────────────────────
+  // 乾淨樹裡刻意多放的唯一一個非追蹤檔：Envato 授權的車聲原檔不能進公開 repo，網站只放打亂過的 .bin
+  // （理由見 scripts/build_ambience_web.mjs）。放在所有閘門之後，閘門與帳本看到的仍是純追蹤檔的樹。
+  // 缺原檔就停：靜默略過的症狀只有「網站的車聲開關不見了」，沒有別的訊號（同 prepare-web 的理由）。
+  const ambOut = path.join(wt, 'audio', 'train-ride-loop.bin');
+  const amb = spawnSync('node', [path.join(wt, 'scripts', 'build_ambience_web.mjs'), ambOut], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(amb.stdout || ''); process.stderr.write(amb.stderr || '');
+  if (amb.status !== 0) fail('車聲打亂檔產生失敗');
+  const ambMd5 = md5(fs.readFileSync(ambOut));
+
   // ── 4. BUILD 版號防撞 ────────────────────────────────────────────────────
   const buildOf = s => (String(s).match(/const BUILD = '([^']+)'/) || [])[1] || '';
   const newBuild = buildOf(stripped);
@@ -977,6 +987,9 @@ try {
       await new Promise(r => setTimeout(r, 20000));
     }
     if (!live) fail('正式站內容在 ~3 分鐘內未收斂到本次 stripped md5——查 deployments list 與快取');
+    const ambLive = await fetchProd('/audio/train-ride-loop.bin');
+    if (ambLive.status !== 200 || md5(ambLive.body) !== ambMd5)
+      fail(`車聲打亂檔沒上線（${ambLive.status}／md5 ${md5(ambLive.body).slice(0, 8)}…）——網站的車聲開關會不見`);
     // 429 只重試不判死：2026-09-19 claude-4e 那輪收貨後這裡拿到 Cloudflare 邊緣限流(body「error code: 1015」、
     // retry-after 1),同一時間 /api/tra-live 與 /api/thsr-schedule 都 200、幾十秒後 trtc-live 也回 200——
     // 多個 session 同時打正式站就會踩到,與 Worker 壞沒壞無關。其他非 200 仍當場判死。

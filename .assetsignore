@@ -121,7 +121,7 @@ android-native-design-mock.html
 # 付費配樂的 WAV 母帶(每首 13-42MB、單池 200MB+):只用來重壓 mp3,絕不對外。
 # 2026-08-29 建。比照 .cache 的教訓——wrangler 上傳磁碟檔案,只有本檔擋得住。
 suno musics/_masters
-# 車聲圖層的 Envato 授權音檔:不進網站、不進 repo,只進 App。
+# 車聲圖層的 Envato 授權原檔:不進網站、不進 repo,只進 App。網站放的是出貨時產生的打亂檔 audio/train-ride-loop.bin(不擋)。
 suno musics/_licensed
 *.wav
 # 內部宣傳縮時成品：本機產片用，不隨裸跑 wrangler 變成正式站靜態資產。

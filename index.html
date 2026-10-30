@@ -5657,6 +5657,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="railsoundweb1030"><span class="d">10/30</span><span>網站版也能開「車聲」了：在「配樂情境」裡打開，跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放</span></li>
         <li data-cl-of="krtcterminal1030"><span class="d">10/30</span><span>高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」</span></li>
         <li data-cl-of="helpnew1030"><span class="d">10/30</span><span>使用說明補上觀看設定、立體列車、車站地標導覽、地圖風格、轉乘、跟車鎖定、營運公告、語言等新功能，首訪卡第一列也改成實際位置</span></li>
         <li data-cl-of="helpaudit1030"><span class="d">10/30</span><span>使用說明對上現在的畫面：字級、儲存地點、平交道、衛星等設定改指「觀看」裡的實際位置，手機與電腦版分開寫；分享、跟車小卡、查詢的說明照實際操作更正，步驟與提示字放大一號</span></li>
@@ -5664,7 +5665,6 @@
         <li data-cl-of="trcurl1030"><span class="d">10/30</span><span>台鐵官網改用新網址 www.trc.com.tw，活動公告與車庫裡的台鐵官方連結都換成新網址（謝謝網友回報）</span></li>
         <li data-cl-of="glassspread1030"><span class="d">10/30</span><span>修正台北等密集市區的建築透視線條只集中在畫面中央一圈：縮小或斜看時改為平均分散到整個畫面，線條替換時淡入淡出、不再突然跳動</span></li>
         <li data-cl-of="thsrchiayistop1029"><span class="d">10/29</span><span>立體列車：高鐵嘉義站停靠的列車改停在月台中段，不再有半列車身凸出月台外</span></li>
-        <li data-cl-of="followrotateflat1029"><span class="d">10/29</span><span>修正電腦版跟車時，用滑鼠右鍵或 Ctrl＋拖曳轉動、傾斜視角會卡住轉不動的問題；從全台地圖點車開始跟車時最常遇到</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5996,6 +5996,7 @@
         <li><span class="d">7/13</span><span>列車位置改用車種加減速模型：起步緩加速、進站緩減速，不再全程等速</span></li>
         <li><span class="d">7/10</span><span>跟隨鎖：跟隨中可自由拖曳地圖，按「◉ 回到列車」恢復置中；7/9 鐵道迷功能包（路線高亮、月台站名牌、日夜天色、速度曲線）</span></li>
         <li class="grp">放空模式</li>
+        <li data-cl="railsoundweb1030"><span class="d">10/30</span><span>網站版也能開「車聲」了：在「配樂情境」裡打開，跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放</span></li>
         <li data-cl="musicpools0927"><span class="d">9/27</span><span>跟車配樂新增「南方日光」「黃昏斜光」「北海岸天色」「花蓮山海」「山海聚落共創」5 個情境、共 27 首；網站放空模式也會輪播。這批歌由正式站按需要串流，App 仍只內建原本 12 首離線曲，不會因這次加歌變大</span></li>
         <li data-cl="ambientlock"><span class="d">9/1</span><span>放空模式鎖定程式鏡頭，出口不再被手勢區遮住或重進後縮成空白鈕；背景音樂開關顯示也已修正（謝謝網友回報）</span></li>
         <li data-cl="railsound"><span class="d">9/3</span><span>App 版「配樂情境」新增「車聲」開關：跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放。鐵軌環境音是 Envato 授權素材，只烤進 App，網站沒有。</span></li>
@@ -7096,7 +7097,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1030f：使用說明對上現行介面——字級、儲存地點、平交道、衛星、3D 建築、背景音樂等改指觀看設定的分頁（手機「觀看」鈕／桌面右側直欄），查詢、跟車小卡收合與結束、隨機跟隨、時間軸、今日動態、分享、全畫面的手機／桌面入口分開寫；補上「跟車配樂」的試一次；說明的步驟與提示字 12／11.5→13／12.5 並改吃完整的 --ui（issue #52）；更新紀錄加一條。
 // v1030g：使用說明補上漏掉的新功能——新增「觀看設定」「跟車時拖地圖、回到列車」「轉乘」「跟車小卡裡的更多細項」「營運公告」「立體列車」「車站與地標 3D 導覽」「語言與台南歷史重播」八節；併改搜尋（公車站牌）、地圖風格（明暗衛星地景，原「衛星影像」）、旋轉傾斜、放空模式（賞車視角）、時間軸（全日班次走勢）、今日亮點（週末活動）、分享（行程分享）；補 viewpanel 的試一次；更新紀錄加一條。
 // v1030h：高捷列車到終點不再提早消失：網頁把最後一段軌跡留在顯示層，開進終點後停 10 秒、1 秒淡出（班次、看板、車數仍只用 Core 名冊），也接受 Core 的 terminalDisplay／延長 retireAt；搬自未併的 8ae0cc2a＋ecae3c0f 高捷部分；更新紀錄加一條。
-const BUILD = 'v1030h';
+// v1030i：網站版車聲：配樂情境的「車聲」開關在網站上也出現，走 Web Audio 播 ship_web 出貨時產生的打亂檔（Envato 原檔不進 repo、不放公開網址）。
+const BUILD = 'v1030i';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -21295,24 +21297,79 @@ function makeNativeMusicShim(na) {
   na.addListener('trackError', () => fire('error'));
   return shim;
 }
-// ── 車聲圖層(App 限定):Envato 授權的鐵軌環境音 loop,墊在配樂底下 ─────────────────────────
+// ── 車聲圖層:Envato 授權的鐵軌環境音 loop,墊在配樂底下 ─────────────────────────────────
 // 誰/何時/為什麼:跟車的人在車開動時要「人在車上」的臨場感;放空模式當背景聲。純看地圖時鐵軌聲跟畫面
 // 無關,所以它不是全域開關——開了之後只在「跟車中車在動」與「放空模式」出聲,停站淡出、發車淡入。
-// 聲音一律走原生層(WKWebView 的 <audio> 會被 WebKit 的 session 蓋掉,見 makeNativeMusicShim 註解);
-// 音檔由 prepare-web 從 repo 外烤進 bundle(Envato 授權不允許公開散布原檔 ⇒ 不進 repo、不上網站)。
+// App:聲音走原生層(WKWebView 的 <audio> 會被 WebKit 的 session 蓋掉,見 makeNativeMusicShim 註解),
+// 音檔由 prepare-web 從 repo 外烤進 bundle。網站(v1030i 起):走 Web Audio,見下方 ambWeb*。
+// 授權(AudioJungle Music Standard License):網站可以當成品用,但「不可讓使用者把音檔抽出來單獨使用」
+// ⇒ 原檔不進 repo(公開)、不放公開網址;網站上只有 ship_web 出貨時從 repo 外產生的打亂檔。
 const AMB_SRC = 'audio/train-ride-loop.mp3';
 const AMB_GAIN = 0.8;   // 相對配樂:loop 本身 -21 LUFS 已比配樂低約 7 dB,再乘使用者的音量滑桿
 const AMB_MOVE_MPS = 1.5, AMB_STOP_MPS = 0.5;   // 由跟隨目標的位移推速度;遲滯避免停站邊緣抖動
 function ambAvailable() {
-  return musicIsApp() && window.RAIL_AMBIENCE_AVAILABLE === true
+  if (musicIsApp()) return window.RAIL_AMBIENCE_AVAILABLE === true
     && !!(window.RAIL_NATIVE_AUDIO && window.RAIL_NATIVE_AUDIO.setAmbience);
+  return musicAvailable() && !!(window.AudioContext || window.webkitAudioContext);
+}
+// 網站版的出聲端,介面同原生 setAmbience({on, gain})。
+// 用 AudioBufferSource 的 loop 而不是 <audio loop>:後者接回頭時有一小段靜音,每 105 秒「喀」一下。
+// GitHub Pages 備援站沒有打亂檔(它只出 git 裡的東西)⇒ ambBindToggle 探測不到,整列不現形。
+const AMB_WEB_SRC = 'audio/train-ride-loop.bin';
+const AMB_FADE_S = 1.2;   // 同原生 M6Ambience.FADE_MS
+const ambWeb = { ctx: null, gain: null, loading: null, src: null, startedAt: 0, offset: 0, stopTimer: 0 };
+// 打亂與還原是同一個運算(XOR 兩次＝原檔);scripts/build_ambience_web.mjs 用同一段產生 .bin,兩邊要一起改。
+function ambWebUnscramble(ab) {
+  const b = new Uint8Array(ab); let s = 0x5eed7a11;
+  for (let i = 0; i < b.length; i++) { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; b[i] ^= s & 255; }
+  return ab;
+}
+// AudioContext 要在使用者手勢裡建立或 resume 才會出聲(Safari 尤其嚴格):開關的 click 與 initAmbience 的
+// pointerdown 都會呼叫這支;從 1Hz 的 ambTick 建出來的若被擋成 suspended,下一次點畫面就解開。
+function ambWebCtx() {
+  const w = ambWeb;
+  if (!w.ctx) {
+    w.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    w.gain = w.ctx.createGain(); w.gain.gain.value = 0; w.gain.connect(w.ctx.destination);
+  }
+  if (w.ctx.state !== 'running') w.ctx.resume().catch(() => {});
+  return w.ctx;
+}
+// 第一次真的要出聲才下載(1.6 MB)與解碼;失敗(備援站 404、解碼失敗)就留著被拒的 promise,之後不再重抓。
+function ambWebLoad() {
+  if (!ambWeb.loading) ambWeb.loading = fetch(AMB_WEB_SRC)
+    .then(r => { if (!r.ok) throw new Error('ambience ' + r.status); return r.arrayBuffer(); })
+    // 回呼形式:舊版 Safari 的 decodeAudioData 不回 promise
+    .then(ab => new Promise((res, rej) => ambWebCtx().decodeAudioData(ambWebUnscramble(ab), res, rej)));
+  return ambWeb.loading;
+}
+function ambWebSet(o) {
+  const w = ambWeb;
+  if (!o.on && !w.src) return Promise.resolve();   // 沒在放又叫停:連 AudioContext 都不建
+  const ctx = ambWebCtx();
+  return ambWebLoad().then(buf => {
+    const g = w.gain.gain, t = ctx.currentTime;
+    clearTimeout(w.stopTimer);
+    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(o.on ? o.gain : 0, t + AMB_FADE_S);
+    if (o.on && !w.src) {
+      w.src = ctx.createBufferSource(); w.src.buffer = buf; w.src.loop = true; w.src.connect(w.gain);
+      w.src.start(0, w.offset); w.startedAt = t - w.offset;
+    } else if (!o.on) {   // 淡完才停;記下 loop 位置,下次發車從這裡接著放(原生是暫停,同義)
+      w.stopTimer = setTimeout(() => {
+        if (!w.src) return;
+        w.offset = (ctx.currentTime - w.startedAt) % buf.duration;
+        w.src.stop(); w.src.disconnect(); w.src = null;
+      }, AMB_FADE_S * 1000 + 300);
+    }
+  });
 }
 function ambLoadPref() { try { return JSON.parse(localStorage.getItem('trainmap-ambience') || '{}').on === true; } catch (e) { return false; } }
 function ambSavePref() { try { localStorage.setItem('trainmap-ambience', JSON.stringify({ on: !!state.amb.on })); } catch (e) {} }
 // 跟隨相機每幀把目標位置丟進來;速度留給 1Hz 的 ambTick 算(每幀算等於 60Hz 的三角函數)。
 function ambNotePos(lat, lon) { const a = state.amb; if (!a) return; a.lat = lat; a.lon = lon; a.at = performance.now(); }
 function ambTick(force) {
-  const a = state.amb; if (!a || !ambAvailable()) return;   // 網站/沒內建音檔:整條路徑不碰原生
+  const a = state.amb; if (!a || !ambAvailable()) return;   // App 沒內建音檔/瀏覽器沒有 Web Audio:整條路徑不碰
   const now = performance.now();
   let moving = false;
   if (a.on && (state.followTrain || state.freqFollow) && now - a.at < 2500 && a.plat != null && a.lat != null) {
@@ -21327,7 +21384,8 @@ function ambTick(force) {
   const gain = Math.max(0, Math.min(1, state.music.vol * AMB_GAIN));
   if (force || want !== a.playing || (want && Math.abs(gain - a.gain) > 0.02)) {
     a.playing = want; a.gain = gain;
-    window.RAIL_NATIVE_AUDIO.setAmbience({ on: want, src: AMB_SRC, gain }).catch(() => {});
+    (musicIsApp() ? window.RAIL_NATIVE_AUDIO.setAmbience({ on: want, src: AMB_SRC, gain })
+      : ambWebSet({ on: want, gain })).catch(() => {});
   }
 }
 function ambSetOn(on) {
@@ -21340,10 +21398,12 @@ function ambSyncUi() {
   b.setAttribute('aria-checked', on ? 'true' : 'false'); b.classList.toggle('on', on);
 }
 function ambBindToggle() {
-  const row = document.getElementById('mplAmb'); if (!row || !ambAvailable()) return;   // 網站/未內建音檔:整列不現形
-  row.classList.add('avail');
-  document.getElementById('mplAmbTg').onclick = () => ambSetOn(!state.amb.on);
+  const row = document.getElementById('mplAmb'); if (!row || !ambAvailable()) return;   // 未內建音檔:整列不現形
+  document.getElementById('mplAmbTg').onclick = () => { if (!musicIsApp()) ambWebCtx(); ambSetOn(!state.amb.on); };
   ambSyncUi();
+  if (musicIsApp()) { row.classList.add('avail'); return; }
+  // 網站:這個站真的有打亂檔才現形(備援站沒有)。只在配樂選單第一次打開時探一次。
+  fetch(AMB_WEB_SRC, { method: 'HEAD' }).then(r => { if (r.ok) row.classList.add('avail'); }).catch(() => {});
 }
 function initAmbience() {
   state.amb = { on: false, playing: false, gain: 0, lat: null, lon: null, at: 0, plat: null, plon: null, pat: 0 };
@@ -21352,6 +21412,8 @@ function initAmbience() {
   setInterval(ambTick, 1000);
   // 回前景重送一次現況:背景期間原生自己處理中斷,JS 這邊的 playing 可能已與原生不同步。
   document.addEventListener('visibilitychange', () => { if (!document.hidden) ambTick(true); });
+  // 網站:開著車聲進站的人,第一次點畫面就把 AudioContext 建好/解鎖(理由見 ambWebCtx)。
+  if (!musicIsApp()) document.addEventListener('pointerdown', () => { if (state.amb.on) ambWebCtx(); }, true);
 }
 window.ambSetOn = ambSetOn; window.ambTick = ambTick; window.ambNotePos = ambNotePos;
 function initMusic() {
@@ -37721,7 +37783,7 @@ const HELP_GROUPS = [
       tip: '久沒動會進「劇場模式」把介面淡掉，動一下就回來。', try: 'ambient' },
     { key: 'music', ic: '♪', nm: '背景音樂', tg: 'musicBtn', needs: 'musicBtn', one: '掛著看車時的背景音樂，可以換首。',
       steps: ['手機按地圖右上的「觀看」、桌面用地圖右側的直欄，點「畫面」→ 打開「背景音樂」', '「換首」跳下一首：桌面把游標停在下方的 ♪ 上，手機先點底部的時間膠囊展開', 'App 版收起或鎖定螢幕也繼續播；跟車時鎖定畫面讓位給列車動態，其餘時候可在鎖定畫面暫停／換首',
-        'App 版「配樂情境」裡有「車聲」開關：跟車時車一動就有鐵軌聲，停站淡出；放空模式一直放'], try: 'music' },
+        '「配樂情境」裡有「車聲」開關：跟車時車一動就有鐵軌聲，停站淡出；放空模式一直放'], try: 'music' },
     { key: 'musicscore', ic: '♫', nm: '跟車配樂', tg: 'musicPlBtn', needs: 'musicPlBtn', try: 'musicscore',
       one: '音樂跟著你在看的那班車走——車開到哪、現在幾點就換到對應的情境。',
       steps: ['「更多」→ 配樂情境', '選「跟著列車」就交給它自動換',
