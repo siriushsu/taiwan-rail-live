@@ -138,8 +138,11 @@ android-native-design-mock.html
 # 付費配樂 WAV 母帶：單池 200MB+,且這個 repo 是 public。
 # 進了歷史就永久拿不掉(fork 共用物件庫),一律只留本機。
 suno musics/_masters/
-# 車聲圖層:Envato 授權的鐵軌環境音(授權不允許公開散布原檔),只在 App build 時從這裡烤進 bundle。
+# 車聲圖層:Envato 授權的鐵軌環境音(授權不允許公開散布原檔),App build 時從這裡烤進 bundle。
 suno musics/_licensed
+# 網站版車聲的打亂檔:ship_web 出貨時才產生(scripts/build_ambience_web.mjs)。它要上網站(.assetsignore 刻意不擋),
+# 但不能進公開 repo——git 裡的一份,任何人都能用 index.html 的還原函式解回原檔。
+audio/train-ride-loop.bin
 
 # 雙引擎矩陣 M4 取原版用的暫存檔(正常會在 finally 刪掉,行程被強制中斷時會殘留)
 scripts/.engine-matrix-baseline-*

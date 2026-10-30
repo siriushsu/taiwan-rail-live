@@ -24,6 +24,7 @@
 | `0016_bounty_kept_range.sql` | ✅ **權威** | 路段懸賞：替 `bounty_samples` 補 `kept_d0`／`kept_d1`（判定當下防偽閘收下點的最小與最大里程，籌碼的移動距離由此算，同一份資料不論分幾次上傳結果相同）。只有這兩句 `ALTER`，自成一檔（0014、0015 已套進正式庫）。**所有環境都要跑，新環境＝`0002` + `0014` + `0015` + `0016` + `0017`。** 🔴 先套 schema、再出會用到它的 Worker；正式庫套用順序 0014 → 0015 → 0016。 |
 | `0017_bounty_points.sql` | ✅ **權威** | 路段懸賞 v3（籌碼改點數）：替 `chip_ledger`、`garage_unlocks` 補 `unit`（這一列的數字是 v2 籌碼 `chip` 還是 v3 點數 `point`，預設 `chip`）。換算不在這支做，由 v3 的 Worker 在每個人讀錢包或兌換時補一筆換算列（見檔頭）。只有兩句 `ALTER`，自成一檔。**所有環境都要跑，新環境＝`0002` + `0014` + `0015` + `0016` + `0017`。** 🔴 先套 schema、再出 v3 的 Worker。**2026-10-27 已套到正式庫**（兩句 `ALTER` 用 `--command` 逐句送）。 |
 | `0016_rail_push.sql` | 權威 | AI 營運整理的推播（`scripts/rail_push.mjs`）：`rail_push_devices`（App 的 APNs token、關掉的系統、開著卡片的系統、管理者／測試機旗標）、`rail_push_requests`（每則草稿、核可與送出進度、AI 檢查結論）、`rail_push_recipients`（一般等級推給了誰）。**部署新版 Worker 前先套用**；沒套時 `/api/push/register` 回 503，cron 的推播任務自己吞錯，其他功能不受影響。 |
+| `0018_weather_frames.sql` | 權威 | 跟車即時天氣 P0（`scripts/weather_frames.mjs`、`/api/weather`）：`weather_frames` 一個雷達時刻一列，body 是 gzip 的本島雷達格點＋綜觀測站＋雨量站，保留 90 天。**部署新版 Worker 前先套用**；沒套時天氣 cron 自己吞錯、`/api/weather` 回 503，其他功能不受影響。 |
 
 0014–0016 各有兩支同號的檔（路段懸賞 v2 與軌道邊卡片／AI 營運整理在兩條分支上同時開號）。兩組碰的表互不重疊，
 這裡沒有 migration 追蹤表，套用一律照檔名逐支執行，所以同號不影響套用；路段懸賞那幾支彼此要照 0014 → 0015 → 0016 → 0017 的順序（0017 只有一個號）。
