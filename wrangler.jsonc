@@ -98,8 +98,9 @@
   // 不得自行把 "15 4 * * *" 加回來或部署 triggers。
   // 30 19＝台北 03:30：懸賞估值＋判定改掛這一發（worker.js 的 BOUNTY_CRON 分支，跑完就 return，
   // 不落進每日 ingest）。"15 4 * * *" 仍然永遠不加回。
+  // 2-59/5＝每 5 分鐘（:02、:07…）抓氣象署雷達與測站（worker.js 的 WEATHER_CRON 分支，跑完就 return）。
   "triggers": {
-    "crons": ["* * * * *", "15 1 * * *", "30 19 * * *"]
+    "crons": ["* * * * *", "15 1 * * *", "30 19 * * *", "2-59/5 * * * *"]
   },
   // 速率限制(2026-07-26 稽核):/api/delay-history 與 /api/account-delete 在驗證階段就會對
   // Firebase identitytoolkit 與 RevenueCat 各發一次 outbound fetch——而那發生在「token 有沒有效」
