@@ -7087,7 +7087,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1030b：台鐵官網新網址 www.trc.com.tw（舊網址 2027-01-01 停用）：活動公告與車庫的官方連結、巡檢與 AI 營運整理抓的公告列表都換新網域，ods／tip 子網域不在公告範圍、照舊；更新紀錄加一條。
 // v1030c：台鐵單線會車停車（issue #65）：通過站時刻被推晚、往前是單線、有對向車從那一站進來 ⇒ 照時刻表到站、停到原通過時刻再開（planPassStationMeets），
 //   對向車只在部分日子開的其他日子照停；待避兩支閘門把會車停車跟同向待避分開驗；更新紀錄加一條。
-const BUILD = 'v1030c';
+// v1030d：v1030c 的會車停車站不再略過同向待避（略過時同向後車會在下一段單線追上）：待避接著延長停車，重算放行不早於會車停車、撤銷時退回會車停車。
+const BUILD = 'v1030d';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -11805,7 +11806,7 @@ function overtakeTrackFree(tracks, at, tr, j, lo, hi) {
   return !reach.includes((1 << cands.length) - 1);
 }
 function planSameDirectionOvertakes(trains, union, sections, tracks, banned = new Set()) {
-  const stats = { planned: 0, tooClose: 0, unbuildable: 0, deferred: 0, noTrack: 0, retimed: 0, retracted: 0, worse: 0, meetHeld: 0, log: [] };
+  const stats = { planned: 0, tooClose: 0, unbuildable: 0, deferred: 0, noTrack: 0, retimed: 0, retracted: 0, worse: 0, log: [] };
   if (!Array.isArray(trains) || trains.length < 2 || !tracks) return stats;
   const keyOf = tr => tr.train + ':' + tr.stops[0].depSec + ':' + tr.stops[tr.stops.length - 1].arrSec;
   const days = new Map();
@@ -11891,13 +11892,18 @@ function planSameDirectionOvertakes(trains, union, sections, tracks, banned = ne
         const st = L.stops[j], ref = st._overtakeRef;
         if (!ref || ref.tr !== F || !st._plannedDwell) continue;
         const fst = F.stops[ref.j], dep = fst.depSec + OVERTAKE_CLEAR_SEC;
-        if (Math.abs(st.depSec - dep) < .01) continue;
+        // 疊在單線會車停車（ref.meet，issue #65）上的待避：放行不早於會車停車原本的開車時刻
+        const out = ref.meet ? Math.max(dep, ref.meet.dep) : dep;
+        if (Math.abs(st.depSec - out) < .01) continue;
         const keep = fst.arrSec - st.arrSec >= ref.need && dep - st.arrSec <= OVERTAKE_MAX_WAIT_SEC
-          && overtakeTrackFree(tracks, at, L, j, st.arrSec - OVERTAKE_CLEAR_SEC, dep + OVERTAKE_CLEAR_SEC) && overtakeRunBuildable(L, j, dep);
-        if (keep) { st.depSec = dep; stats.retimed++; }
+          && overtakeTrackFree(tracks, at, L, j, st.arrSec - OVERTAKE_CLEAR_SEC, out + OVERTAKE_CLEAR_SEC) && overtakeRunBuildable(L, j, out);
+        if (keep) { st.depSec = out; stats.retimed++; }
         else {
           banned.add(keyOf(L) + ':' + j + ':' + F.train);
-          st.depSec = st.arrSec; delete st._overtakeDep0; delete st._plannedDwell; delete st._overtakeBy; delete st._overtakeRef;
+          // 撤銷只撤同向待避；底下的會車停車照舊（拆掉會變回從前一站慢爬，或不等對向車就開進單線）
+          if (ref.meet) { st.depSec = ref.meet.dep; if (ref.meet.by) st._overtakeBy = ref.meet.by; else delete st._overtakeBy; }
+          else { st.depSec = st.arrSec; delete st._plannedDwell; delete st._overtakeBy; }
+          delete st._overtakeDep0; delete st._overtakeRef;
           stats.retracted++;
         }
         rebuilt.add(L); rebuildOne(L); queue.push(L);
@@ -11936,8 +11942,6 @@ function planSameDirectionOvertakes(trains, union, sections, tracks, banned = ne
     for (const p of ps) {
       const st = tr.stops[p.j];
       if (st._plannedDwell && st.depSec >= p.dep) continue;
-      // 會車停車（planPassStationMeets）不併成同向待避：撤銷時會連 _plannedDwell 一起刪，把交會停車也拆掉。
-      if (st._meetStop) { stats.meetHeld++; continue; }
       const fresh = !rebuilt.has(tr) || (p.dep > st.arrSec + 0.5 && p.dep - st.arrSec <= OVERTAKE_MAX_WAIT_SEC
         && p.ftr.stops[p.fj].arrSec - st.arrSec >= p.need);
       if (!fresh || rebuilt.has(p.ftr) || reliedOn.has(tr)) { stats.deferred++; continue; }
@@ -11951,7 +11955,10 @@ function planSameDirectionOvertakes(trains, union, sections, tracks, banned = ne
       if (st._overtakeDep0 == null) st._overtakeDep0 = st.depSec;
       st.depSec = Math.max(st.depSec, p.dep); st._plannedDwell = true; st._overtakeBy = p.follower;
       // 車次物件互相引用：不可列舉，序列化／structuredClone 才不會帶著走（同 _overtakePeers）。
-      Object.defineProperty(st, '_overtakeRef', { value: { tr: p.ftr, j: p.fj, need: p.need }, configurable: true, writable: true });
+      // 待避站已是單線會車停車（planPassStationMeets）就接著延長停車，記下會車停車原本的開車時刻與對向車，
+      // 撤銷或重算時退回它（不再略過：2026-10-22 舊資料 6789 在金崙會車後照開，同向的 161 在金崙–太麻里單線追上它）。
+      const meet = st._meetStop ? (prev.ref?.meet || { dep: prev.dep, by: prev.by }) : null;
+      Object.defineProperty(st, '_overtakeRef', { value: { tr: p.ftr, j: p.fj, need: p.need, meet }, configurable: true, writable: true });
       rebuildOne(tr);                         // 下一個候選要看這次停等重算後的通過時刻
       if (crossingsOf(tr) >= before) {
         st.depSec = prev.dep; st._overtakeDep0 = prev.d0; st._overtakeBy = prev.by;

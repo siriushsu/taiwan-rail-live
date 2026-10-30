@@ -106,18 +106,23 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
     // 跑完整條路線、整班綁不到實體股道）在北埔待避 273 只有抽到它的那天才會紅。
     // 單線會車停車（planPassStationMeets，issue #65）等的是對向車：放行條件是對向車在停等期間進站，不是「後車通過後 30 秒」。
     // 對向車當天沒開（_meetStop 有、_overtakeBy 沒有）就沒有車可對，只驗下面的停在同一座標。
-    const stale = [], unbound = [], checked = [], meetLate = [], total = { n: 0, meet: 0, meetOtherDay: 0 };
+    // 同一站又要讓同向後車（同向待避疊在會車停車上，_overtakeRef.meet 記著會車停車原本的開車時刻與對向車）：兩件都驗，
+    // 放行＝max(後車通過＋30 秒, 會車停車原本的開車時刻)。
+    const stale = [], unbound = [], checked = [], meetLate = [], total = { n: 0, meet: 0, meetOtherDay: 0, meetOvertake: 0 };
+    const at = (no, name) => state.trains.find(f => String(f.train) === String(no) && f.stops.some(x => x.name === name))?.stops.find(x => x.name === name);
     for (const t of state.trains) for (const s of t.stops) if (s._plannedDwell) {
-      const F = state.trains.find(f => String(f.train) === String(s._overtakeBy) && f.stops.some(x => x.name === s.name));
+      const ref = s._overtakeRef;
       if (s._meetStop) {
-        total.meet++; if (!s._overtakeBy) total.meetOtherDay++;
-        const a = F ? F.stops.find(x => x.name === s.name).arrSec : NaN;
-        if (s._overtakeBy && !(a >= s.arrSec && a <= s.depSec + .5))
-          meetLate.push(`${t.train}@${s.name}等${s._overtakeBy}:對向車 ${Number.isFinite(a) ? (a - s.arrSec).toFixed(1) + 's' : '找不到'}／停 ${(s.depSec - s.arrSec).toFixed(1)}s`);
-      } else {
+        const by = ref ? ref.meet?.by : s._overtakeBy;
+        total.meet++; if (!by) total.meetOtherDay++; if (ref) total.meetOvertake++;
+        const a = by ? at(by, s.name)?.arrSec ?? NaN : NaN;
+        if (by && !(a >= s.arrSec && a <= s.depSec + .5))
+          meetLate.push(`${t.train}@${s.name}等${by}:對向車 ${Number.isFinite(a) ? (a - s.arrSec).toFixed(1) + 's' : '找不到'}／停 ${(s.depSec - s.arrSec).toFixed(1)}s`);
+      }
+      if (!s._meetStop || ref) {
         total.n++;
-        const c = F ? s.depSec - F.stops.find(x => x.name === s.name).depSec : NaN;
-        if (!(Math.abs(c - OVERTAKE_CLEAR_SEC) < .01)) stale.push(`${t.train}@${s.name}等${s._overtakeBy}:${Number.isFinite(c) ? c.toFixed(1) : '找不到後車'}s`);
+        const fd = at(s._overtakeBy, s.name)?.depSec ?? NaN, want = Math.max(fd + OVERTAKE_CLEAR_SEC, ref?.meet ? ref.meet.dep : -Infinity);
+        if (!(Math.abs(s.depSec - want) < .01)) stale.push(`${t.train}@${s.name}等${s._overtakeBy}:${Number.isFinite(fd) ? (s.depSec - fd).toFixed(1) : '找不到後車'}s`);
       }
       const ps = [s.arrSec + 1, (s.arrSec + s.depSec) / 2, s.depSec - 1].map(x => trainPosAt(t, x));
       const fixed = ps.every(p => p && Math.hypot(p.lat - ps[0].lat, p.lon - ps[0].lon) < 1e-12), phys = ps.every(p => p?.physical);
@@ -126,7 +131,7 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
       if (!fixed || !phys) unbound.push(`${tag}:固定=${fixed}／實體股道=${phys}／${railIslandPhysical.record(t)?.bindingBasis}`);
     }
     return { build: BUILD, day: state.data?._schedDay, planned: state._meetStats?.planned, stale, unbound, checked, plannedTotal: total.n,
-      meetLate, meetTotal: total.meet, meetOtherDay: total.meetOtherDay,
+      meetLate, meetTotal: total.meet, meetOtherDay: total.meetOtherDay, meetOvertake: total.meetOvertake,
       forward: inspect('6563', '207', '崇德', 1), reverse: inspect('114', '228', '五堵', -1) };
   });
   if ((!report.forward.missing && !report.reverse.missing) || i === SCAN - 1) break;
@@ -150,7 +155,7 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
   }
   ok(engine, `當天每一筆預排待避都在後車通過後 30 秒放行（${report.plannedTotal} 筆）`, report.plannedTotal > 0 && report.stale.length === 0,
     report.stale.slice(0, 6).join('、'));
-  ok(engine, `當天每一筆單線會車停車都在對向車進站後才開（${report.meetTotal} 筆，其中 ${report.meetOtherDay} 筆對向車當天沒開）`, report.meetLate.length === 0,
+  ok(engine, `當天每一筆單線會車停車都在對向車進站後才開（${report.meetTotal} 筆，其中 ${report.meetOtherDay} 筆對向車當天沒開、${report.meetOvertake} 筆接著讓同向後車）`, report.meetLate.length === 0,
     report.meetLate.slice(0, 6).join('、'));
   ok(engine, `當天每一筆預排待避都停在實體股道同一座標（${report.checked.length} 筆）`, report.checked.length > 0 && report.unbound.length === 0,
     report.unbound.length ? report.unbound.slice(0, 6).join('、') : report.checked.join('、'));
