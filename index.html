@@ -7088,7 +7088,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1030c：台鐵單線會車停車（issue #65）：通過站時刻被推晚、往前是單線、有對向車從那一站進來 ⇒ 照時刻表到站、停到原通過時刻再開（planPassStationMeets），
 //   對向車只在部分日子開的其他日子照停；待避兩支閘門把會車停車跟同向待避分開驗；更新紀錄加一條。
 // v1030d：v1030c 的會車停車站不再略過同向待避（略過時同向後車會在下一段單線追上）：待避接著延長停車，重算放行不早於會車停車、撤銷時退回會車停車。
-const BUILD = 'v1030d';
+// v1030e：會車停車也看進站那一段單線：到站前已有對向車從本站開進這一段 ⇒ 到站提早到它開進前 30 秒（9/13 考卷 304 在瀧溪原本跟 371 在金崙–瀧溪對撞）。
+const BUILD = 'v1030e';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -11995,12 +11996,15 @@ function attachOvertakePeers(trains) {
 // 條件：通過時刻比密化原值晚 ≥ MEET_STOP_MIN_SEC、往前一站是單線、這段時間有對向車從那一站進來。
 // 成立就照時刻表步調到站（_trafficArr0）、停到原本的通過時刻再開；空股與跑段檢查跟同向預排待避同一套，
 // 任一不過維持慢爬。
+// 進站那一段也是單線時，到站前就有對向車從本站開進這一段（駛往前一站）⇒ 到站提早到它開進前 OVERTAKE_CLEAR_SEC：
+// 2026-09-13 考卷 304 在瀧溪等 3005，照步調 10:56:52 才到，371 10:55:45 就從瀧溪開往金崙，兩車在金崙–瀧溪單線對撞
+// （交會推論把 304 推到 11:00:20 時就已經撞，只是撞在別的時刻）。對向車在本車離開前一站之前就開進來的，提早到站也救不了，不管。
 // 對向車只在部分日子開（2026-10 的 418 週六週一、416 週日）時，其他日子照停：通過觀測是多日中位、不分日，
 // 交會推論也看 14 天聯集（shareDay），同一班車不該平日、週末畫成兩種走法。
 // _meetStop＝對向車次（給出貨閘門把它跟同向待避分開驗）；對向車當天有開才掛 _overtakeBy，閘門才找得到它。
 const MEET_STOP_MIN_SEC = 60;                   // 推晚不到一分鐘維持慢爬（班表 30 秒解析度，剖面本身也有誤差）
 function planPassStationMeets(trains, union, sections, tracks) {
-  const stats = { planned: 0, otherDay: 0, noTrack: 0, unbuildable: 0, log: [] };
+  const stats = { planned: 0, otherDay: 0, noTrack: 0, unbuildable: 0, approach: 0, log: [] };
   if (!tracks || !sections) return stats;
   const single = (a, b) => { const p = sections[traSectionKey(a, b)]; return !!p && p.tracks === 1; };
   const keyOf = tr => tr.train + ':' + tr.stops[0].depSec + ':' + tr.stops[tr.stops.length - 1].arrSec;
@@ -12036,13 +12040,20 @@ function planPassStationMeets(trains, union, sections, tracks) {
       }
       const other = by ? null : (atU.get(st.name) || []).find(y => y.no !== no && y.prev === N && y.arr > t0 && y.arr <= tS + 0.5 && shareDay(xk, y.k));
       const peer = by || other?.no; if (!peer) continue;
-      if (!overtakeTrackFree(tracks, at, tr, j, t0 - OVERTAKE_CLEAR_SEC, tS + OVERTAKE_CLEAR_SEC)) { stats.noTrack++; stats.log.push({ no, station: st.name, by: peer, skip: 'noTrack' }); continue; }
-      st.arrSec = t0;
+      let tA = t0;
+      const P = s[j - 1].name, left = s[j - 1].depSec;
+      if (single(P, st.name)) for (const [o, x, k] of at.get(st.name) || []) {
+        if (o === tr || o.loop || k >= o.stops.length - 1 || o.stops[k + 1].name !== P) continue;
+        if (x.depSec > left && x.depSec < tA + OVERTAKE_CLEAR_SEC) tA = x.depSec - OVERTAKE_CLEAR_SEC;
+      }
+      if (!overtakeTrackFree(tracks, at, tr, j, tA - OVERTAKE_CLEAR_SEC, tS + OVERTAKE_CLEAR_SEC)) { stats.noTrack++; stats.log.push({ no, station: st.name, by: peer, skip: 'noTrack' }); continue; }
+      st.arrSec = tA;
       if (!overtakeRunBuildable(tr, j, tS)) { st.arrSec = tS; stats.unbuildable++; stats.log.push({ no, station: st.name, by: peer, skip: 'unbuildable' }); continue; }
       st.depSec = tS; st._plannedDwell = true; st._meetStop = peer;
       if (by) st._overtakeBy = by; else stats.otherDay++;
+      if (tA < t0) stats.approach++;
       reassignTrainProfile(tr); inferMeetPassTimes([tr], union, sections);   // 待避站成了跑段邊界，前後兩段重建後再夾一次交會
-      stats.planned++; stats.log.push({ no, station: st.name, by: peer, otherDay: !by, arr: Math.round(t0), dep: Math.round(tS) });
+      stats.planned++; stats.log.push({ no, station: st.name, by: peer, otherDay: !by, arr: Math.round(tA), dep: Math.round(tS), ...(tA < t0 && { arr0: Math.round(t0) }) });
     }
   }
   return stats;
