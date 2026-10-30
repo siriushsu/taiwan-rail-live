@@ -3299,8 +3299,9 @@
     background: var(--paper); color: var(--navy); border: 1px solid var(--line);
   }
   .help-sec .one { font-size: calc(12.5px * var(--ui)); margin: 0 0 6px; line-height: 1.7; }
-  .help-sec ol { margin: 0 0 7px; padding-left: 19px; font-size: calc(12px * var(--uis)); color: var(--muted); line-height: 1.75; }
-  .help-sec .tip { font-size: calc(11.5px * var(--uis)); color: var(--faint); margin: 0 0 7px; line-height: 1.7; }
+  /* 步驟與提示是說明的主體（issue #52 嫌字小）：起點各大一號，並與上面那句一樣吃完整的 --ui，特大時不再比那句小一截。 */
+  .help-sec ol { margin: 0 0 7px; padding-left: 19px; font-size: calc(13px * var(--ui)); color: var(--muted); line-height: 1.75; }
+  .help-sec .tip { font-size: calc(12.5px * var(--ui)); color: var(--faint); margin: 0 0 7px; line-height: 1.7; }
   .help-sec .tip b, .help-tail b { color: var(--muted); }
   .help-widgets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 6px 0 4px; }
   .help-w { margin: 0; }
@@ -5656,7 +5657,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="helpaudit1030"><span class="d">10/30</span><span>使用說明對上現在的畫面：字級、面板半透明、儲存地點、平交道、衛星、3D 建築、背景音樂等設定改寫成「觀看」設定裡的實際位置，手機與電腦版分開寫；分享、跟車小卡收合與結束、查詢面板的說明也照實際操作更正</span></li>
+        <li data-cl-of="helpaudit1030"><span class="d">10/30</span><span>使用說明對上現在的畫面：字級、儲存地點、平交道、衛星等設定改指「觀看」裡的實際位置，手機與電腦版分開寫；分享、跟車小卡、查詢的說明照實際操作更正，步驟與提示字放大一號</span></li>
         <li data-cl-of="trcurl1030"><span class="d">10/30</span><span>台鐵官網改用新網址 www.trc.com.tw，活動公告與車庫裡的台鐵官方連結都換成新網址（謝謝網友回報）</span></li>
         <li data-cl-of="glassspread1030"><span class="d">10/30</span><span>修正台北等密集市區的建築透視線條只集中在畫面中央一圈：縮小或斜看時改為平均分散到整個畫面，線條替換時淡入淡出、不再突然跳動</span></li>
         <li data-cl-of="thsrchiayistop1029"><span class="d">10/29</span><span>立體列車：高鐵嘉義站停靠的列車改停在月台中段，不再有半列車身凸出月台外</span></li>
@@ -6036,7 +6037,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
-        <li data-cl="helpaudit1030"><span class="d">10/30</span><span>使用說明對上現在的畫面：字級、面板半透明、儲存地點、平交道、衛星、3D 建築、背景音樂等設定改寫成「觀看」設定裡的實際位置，手機與電腦版分開寫；分享、跟車小卡收合與結束、查詢面板的說明也照實際操作更正</span></li>
+        <li data-cl="helpaudit1030"><span class="d">10/30</span><span>使用說明對上現在的畫面：字級、儲存地點、平交道、衛星等設定改指「觀看」裡的實際位置，手機與電腦版分開寫；分享、跟車小卡、查詢的說明照實際操作更正，步驟與提示字放大一號</span></li>
         <li data-cl="kbdremain0927"><span class="d">9/27</span><span>補齊鍵盤操作：用鍵盤開啟面板時會直接選到有名稱的關閉鈕，按 Esc 可收起搜尋結果或面板並回到入口；公車搜尋列、最愛車站與誤點履歷都能用 Tab 選到、Enter 開啟，跟車合併卡收起時也不再弄丟選取；桌面時鐘可直接點開資料狀態</span></li>
         <li data-cl="groupswitch0926"><span class="d">9/26</span><span>切換上方分組（全台同框、台鐵、高鐵、捷運與輕軌；手機橫放時從收合鈕選單切換）時，畫面不會再卡住兩三秒</span></li>
         <li data-cl="landcard0926"><span class="d">9/26</span><span>手機橫放時，平交道卡、落釘卡、台糖卡改成跟車站看板一樣靠右整條顯示，接下來的班次一次看完（原本卡片太矮、標題就佔掉大半，落釘卡常常一列班次都看不到）；iPhone 橫放時瀏海也不再擋住卡片右緣</span></li>
@@ -7085,7 +7086,7 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1029b：高鐵嘉義站的停車點改到月台中段（原本是 OSM 標在月台端的節點，列車中心停在那裡、半列凸出月台）；只重產 rail-3d/physical 的 network.json／dispatch.json 與 level-profiles 記的路網 sha，台鐵與其他站不變；更新紀錄加一條。
 // v1030a：建築透視線條的 1600／700 棟名額改成中央最近 20 棟優先、其餘平均分給畫面 8×6 格，縮小或斜看時不再只剩中央一個圓；名單替換與 14～14.7 級之間改為淡入淡出；更新紀錄加一條。
 // v1030b：台鐵官網新網址 www.trc.com.tw（舊網址 2027-01-01 停用）：活動公告與車庫的官方連結、巡檢與 AI 營運整理抓的公告列表都換新網域，ods／tip 子網域不在公告範圍、照舊；更新紀錄加一條。
-// v1030c：使用說明對上現行介面——字級、儲存地點、平交道、衛星、3D 建築、背景音樂等改指觀看設定的分頁（手機「觀看」鈕／桌面右側直欄），查詢、跟車小卡收合與結束、隨機跟隨、時間軸、今日動態、分享、全畫面的手機／桌面入口分開寫；補上「跟車配樂」的試一次；更新紀錄加一條。
+// v1030c：使用說明對上現行介面——字級、儲存地點、平交道、衛星、3D 建築、背景音樂等改指觀看設定的分頁（手機「觀看」鈕／桌面右側直欄），查詢、跟車小卡收合與結束、隨機跟隨、時間軸、今日動態、分享、全畫面的手機／桌面入口分開寫；補上「跟車配樂」的試一次；說明的步驟與提示字 12／11.5→13／12.5 並改吃完整的 --ui（issue #52）；更新紀錄加一條。
 const BUILD = 'v1030c';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');

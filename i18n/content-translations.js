@@ -4,7 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
-    "使用說明對上現在的畫面：字級、面板半透明、儲存地點、平交道、衛星、3D 建築、背景音樂等設定改寫成「觀看」設定裡的實際位置，手機與電腦版分開寫；分享、跟車小卡收合與結束、查詢面板的說明也照實際操作更正": "Help now matches the current layout: text size, translucent panels, saved places, level crossings, satellite, 3D buildings, background music and other settings point to where they actually are in View settings, with separate directions for phones and desktop; sharing, collapsing and ending the follow card, and the Lookup panel are described as they really work",
+    "使用說明對上現在的畫面：字級、儲存地點、平交道、衛星等設定改指「觀看」裡的實際位置，手機與電腦版分開寫；分享、跟車小卡、查詢的說明照實際操作更正，步驟與提示字放大一號": "Help now matches the current layout: text size, saved places, level crossings, satellite and other settings point to where they actually are in View settings, with separate directions for phones and desktop; sharing, the follow card and Lookup are described as they really work, and steps and tips are one size larger",
     "颱風公告補列淡海官網15至30分鐘班距與停駛資訊不一致，提醒先確認實際開行": "Typhoon notice records conflicting official Danhai 15–30-minute headway and suspension information; confirm actual service before travelling.",
     "薔琵颱風｜10/24 淡海官網班距與停駛資訊不一致": "Typhoon Champi | Oct 24: Danhai headway and suspension information conflict on the official homepage",
     "淡海官網資訊不一致／環狀、三鶯約 15 分鐘／安坑 30 分鐘": "Conflicting official Danhai information / Circular & Sanying: about 15 min / Ankeng: 30 min",
@@ -326,7 +326,7 @@
   });
 
   Object.assign(messages.ja, {
-    "使用說明對上現在的畫面：字級、面板半透明、儲存地點、平交道、衛星、3D 建築、背景音樂等設定改寫成「觀看」設定裡的實際位置，手機與電腦版分開寫；分享、跟車小卡收合與結束、查詢面板的說明也照實際操作更正": "使い方ガイドを現在の画面に合わせました。文字サイズ、パネルの半透明、場所を保存、踏切、衛星、3D 建物、BGM などは「表示設定」内の実際の場所を案内し、スマートフォンとパソコンで手順を分けました。共有、追跡カードのたたみ方と終了、「調べる」パネルの説明も実際の操作どおりに直しました",
+    "使用說明對上現在的畫面：字級、儲存地點、平交道、衛星等設定改指「觀看」裡的實際位置，手機與電腦版分開寫；分享、跟車小卡、查詢的說明照實際操作更正，步驟與提示字放大一號": "使い方ガイドを現在の画面に合わせました。文字サイズ、場所を保存、踏切、衛星などは「表示設定」内の実際の場所を案内し、スマートフォンとパソコンで手順を分けました。共有、追跡カード、「調べる」の説明も実際の操作どおりに直し、手順とヒントの文字を一段大きくしました",
     "颱風公告補列淡海官網15至30分鐘班距與停駛資訊不一致，提醒先確認實際開行": "台風案内に淡海の公式15〜30分間隔と運休情報の不一致を記録し、利用前の実際の運行確認を案内。",
     "薔琵颱風｜10/24 淡海官網班距與停駛資訊不一致": "台風チャンピ｜10/24 淡海の公式運転間隔・運休情報が不一致",
     "淡海官網資訊不一致／環狀、三鶯約 15 分鐘／安坑 30 分鐘": "淡海の公式情報が不一致／環状・三鶯約15分／安坑30分",
