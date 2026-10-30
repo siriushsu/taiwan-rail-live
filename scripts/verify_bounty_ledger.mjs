@@ -216,9 +216,10 @@ await attempt('D4', async () => {
 await attempt('D5', async () => {
   const w = world({ seed: boardSql('tra_sched', '南迴線', [{}]) });
   const blocked = tripPts(700).map(p => ({ ...p, acc: 120 }));                 // acc 中位數 > 80 m → unusable（acc_blocked）
-  // 里程倒退而且之後一直留在後面（第 400 點起整段退回 6 km）→ suspect（impossible_physics）。現在單一一點倒退只丟那一點、不判整班，
-  // 所以要連續倒退超過 5 點（這裡是之後的每一點）才是可疑。
-  const jumped = tripPts(700).map((p, i) => i >= 400 ? { ...p, d: p.d - 6000 } : p);
+  // 里程每秒在 0–14 km 之間亂跳（固定亂數種子）→ suspect（impossible_physics）。單一一點倒退只丟那一點、倒退之後留在後面也會回溯接上，
+  // 要丟的點超過一半才是可疑（見 verify_bounty_gates 的 F4、F26）。
+  let seed = 20261030;
+  const jumped = tripPts(700).map(p => ({ ...p, d: Math.round((seed = seed * 48271 % 2147483647) / 2147483647 * 14000) }));
   addTrip(w.db, { actor: 'device-un', trainNo: '201', pts: blocked });
   addTrip(w.db, { actor: 'device-sp', trainNo: '202', pts: jumped });
   addTrip(w.db, { actor: 'device-ok', trainNo: '203' });

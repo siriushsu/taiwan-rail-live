@@ -8421,15 +8421,23 @@ function integrityGate(trip, ctx, rules) {
   // 🔴 孤立的壞點丟掉、不判整班：GPS 沿線方向單點跳 100 m（台鐵）、出隧道的第一個定位還是進隧道前的舊位置
   // 或偏幾百公尺、冷啟動的頭幾個定位偏遠——舊版遇到一個就判 impossible_physics，整班可疑、不給點不發籌碼；照 App 的取樣方式模擬，
   // 這幾種誠實錄程的誤殺率 50–100%（南迴、北迴、臺東線隧道多，正是籌碼加倍的偏遠線）。現在逐點比「已收下的點」：
-  //   ・違反往前（任兩點）、往後、加速度任一條，就不收這一點——收下的點都不動；連續超過 PHYS_DROP_RUN 點、
-  //     或全程超過 max(PHYS_DROP_MIN, PHYS_DROP_SHARE×考慮過的點數) 點，才判 impossible_physics。
+  //   ・違反往前（任兩點）、往後、加速度任一條，就不收這一點——收下的點都不動；全程丟掉（含下面回溯拿掉）的點
+  //     超過 max(PHYS_DROP_MIN, PHYS_DROP_SHARE×考慮過的點數)，才判 impossible_physics。
+  //     🔴 2026-10-30 起不再「連丟 PHYS_DROP_RUN＋1 點就判死」、比例從 1% 放到一半：正式庫 10-27～10-29 的 19 組可疑全是真的在搭車
+  //     （都卜勒速度積分對得上里程跨距，長到 4 小時、345 km），一小段壞點就讓整趟作廢——App 的里程卡在形狀頂點再一口氣跳上來
+  //     （宜蘭線 402 一秒跳 1,283 m）、進站 GPS 往後飄 60–280 m、沒速度的舊位置後追上、直通車沒換線時投影在舊線尾端倒退 41 分鐘（山線 141）。
+  //     收下的點仍兩兩合規，丟點不會讓偽造者多拿里程（點數算收下點的跨距），比例門檻只擋「大半都對不上」的錄程。
   //   ・回溯一層：一點違反時，若它對「去掉最後一個收下點」的其餘收下點完全合規（往前比其餘任兩點、往後與加速度比倒數第二點），
   //     而且最後那個收下點是 PHYS_BACK_SEC 秒內收的，就改丟最後那一點、收下這一點（照樣算一次丟點，連丟歸零）。
   //     站停時 GPS 單點往前跳 55 m 到「上限×2＋50」（台鐵 133 m、高鐵 242 m）之間，這一點在往前的上界內、會被收下當基準，
   //     之後站著不動的好點全都比它退超過 50 m——舊版連丟 6 點判死，照 App 的取樣方式模擬誤殺近 100%（站停中 ±100 m 單點約一半、冷啟動收斂 5–8 點 12–21%）；
   //     回溯一層後站停跳點與 JS 卡頓 3–5 秒降到 0、冷啟動收斂慢降到 4–13%。
   //     收下的每一點在收下當下都對它之前所有收下點驗過，拿掉其中一點只會少一條限制、不會讓別的收下點變違規，
-  //     所以回溯後收下的點仍是一組「原封不動交給不回溯的版本也會全收」的點：偽造者用回溯做得到的，本來就做得到；丟點的預算與連丟上限照算。
+  //     所以回溯後收下的點仍是一組「原封不動交給不回溯的版本也會全收」的點：偽造者用回溯做得到的，本來就做得到；丟點的預算照算。
+  //   ・回溯多層：連丟到第 PHYS_DROP_RUN＋1 點（之後每再連丟這麼多點再試一次）時，看最後這 PHYS_DROP_RUN＋1 個被丟的點，
+  //     若往回 PHYS_LOOK_SEC 秒內有某個收下點 k，讓它們依序接在「收下點到 k 為止」後面全部合規，就拿掉 k 之後的收下點、改收這幾點
+  //     （拿掉的點算進丟點，這幾點不算）。壞的是前面那一串（卡住的里程、往前飄的停站點）時，後面的好點才接得回來；
+  //     收下的點同樣仍是一組不回溯的版本也會全收的點。
   //   ・開頭、以及每個 Δt≥PHYS_GAP_SEC 秒的斷點（隧道）之後的前 PHYS_GAP_SKIP 點直接不收、不算違反：那幾個定位最不可靠，
   //     被收下當基準的話，後面的好點會全被當成壞點（一個 +300 m 的出隧道點就讓之後十幾點都「往後退」）。
   // 收下的點彼此仍滿足同一組上界（任兩點往前、相鄰兩點往後與加速度），平均速度的上界不變：丟點等於「那幾點沒送」，偽造者不會因此多出能力——
@@ -8438,29 +8446,51 @@ function integrityGate(trip, ctx, rules) {
   // 數字是模擬過的那一組（隧道出口、冷啟動、±100／±300 跳點的誤殺率都降到 0–1%）。
   // App 端還有一個伺服器修不動的：t 是送達時刻不是定位時刻（JS 卡頓更長時仍會誤殺，要在 App 端改）；t 在午夜歸零則已在 assembleTrip 補上。
   const sgn = Number(trip.dir) === 1 ? -1 : 1, lim = cap * 1.15, TOL = 50, aMax = R.maxAccelMps2 * 3;
-  const PHYS_DROP_RUN = 5, PHYS_DROP_MIN = 5, PHYS_DROP_SHARE = 0.01, PHYS_GAP_SEC = 10, PHYS_GAP_SKIP = 2, PHYS_BACK_SEC = 10;
+  const PHYS_DROP_RUN = 5, PHYS_DROP_MIN = 5, PHYS_DROP_SHARE = 0.5, PHYS_GAP_SEC = 10, PHYS_GAP_SKIP = 2, PHYS_BACK_SEC = 10, PHYS_LOOK_SEC = 300;
   // 以 s 方向（+1＝里程遞增）判一次：回傳收下的點，判死回 null。
   const physics = s => {
-    const kept = [], gMin = [];   // gMin[i]＝kept[0..i] 的 g 最小值——回溯一層要退回前一個最小值，所以記整串
+    const kept = [], gMin = [];   // gMin[i]＝kept[0..i] 的 g 最小值——回溯要退回前一個最小值，所以記整串
     let prevT = null, skipLeft = PHYS_GAP_SKIP, run = 0, dropped = 0, seen = 0;
-    // p 對前 n 個收下點合不合規：往前比任兩點（g 的最小值），往後與加速度比第 n 個
-    const fits = (p, n) => {
-      if (!n) return true;
-      const f = s * p.d, last = kept[n - 1], v0 = Number(last.v), v1 = Number(p.v);
-      return f - lim * p.t <= gMin[n - 1] + lim + TOL && f - s * last.d >= -TOL &&
+    const tail = [];              // 這一串連丟的點（收下一點就清空）
+    // p 接在「前 n 個收下點」後面合不合規：往前比任兩點（g 的最小值），往後與加速度比第 n 個。
+    // gm／last 給回溯多層用：從一個假想的收下點序列接著比（gm＝那串的 g 最小值，last＝那串最後一點）。
+    const fitsAfter = (p, gm, last) => {
+      if (!last) return true;
+      const f = s * p.d, v0 = Number(last.v), v1 = Number(p.v);
+      return f - lim * p.t <= gm + lim + TOL && f - s * last.d >= -TOL &&
         !(v0 > 0 && v1 > 0 && Math.abs(v1 - v0) > aMax * (p.t - last.t + 1));
     };
+    const fits = (p, n) => fitsAfter(p, n ? gMin[n - 1] : Infinity, n ? kept[n - 1] : null);
     const keep = p => { const g = s * p.d - lim * p.t; gMin.push(kept.length ? Math.min(gMin[kept.length - 1], g) : g); kept.push(p); };
+    // w 依序接在 kept[0..n-1] 後面全部合規？（不改 kept）
+    const chainFits = (w, n) => {
+      let gm = n ? gMin[n - 1] : Infinity, last = n ? kept[n - 1] : null;
+      for (const p of w) {
+        if (!fitsAfter(p, gm, last)) return false;
+        gm = Math.min(gm, s * p.d - lim * p.t); last = p;
+      }
+      return true;
+    };
     for (const p of pts) {
       if (prevT != null && p.t - prevT >= PHYS_GAP_SEC) skipLeft = PHYS_GAP_SKIP;
       prevT = p.t;
       if (skipLeft > 0) { skipLeft--; continue; }
       seen++;
       const n = kept.length;
-      if (fits(p, n)) { run = 0; keep(p); continue; }
+      if (fits(p, n)) { run = 0; tail.length = 0; keep(p); continue; }
       dropped++;
-      if (n && p.t - kept[n - 1].t <= PHYS_BACK_SEC && fits(p, n - 1)) { kept.pop(); gMin.pop(); run = 0; keep(p); continue; }
-      if (++run > PHYS_DROP_RUN) return null;
+      if (n && p.t - kept[n - 1].t <= PHYS_BACK_SEC && fits(p, n - 1)) { kept.pop(); gMin.pop(); run = 0; tail.length = 0; keep(p); continue; }
+      tail.push(p);
+      if (++run <= PHYS_DROP_RUN || run % (PHYS_DROP_RUN + 1)) continue;
+      const w = tail.slice(-(PHYS_DROP_RUN + 1));
+      for (let k = n - 1; k >= 0 && w[0].t - kept[k].t <= PHYS_LOOK_SEC; k--) {
+        if (!chainFits(w, k + 1)) continue;
+        dropped += n - 1 - k - w.length;
+        kept.length = gMin.length = k + 1;
+        for (const x of w) keep(x);
+        run = 0; tail.length = 0;
+        break;
+      }
     }
     return dropped > Math.max(PHYS_DROP_MIN, PHYS_DROP_SHARE * seen) ? null : kept;
   };
@@ -8536,16 +8566,40 @@ function qualityGate(trip, ctx, rules, rawPts = trip.pts) {
   const gaps = [];
   for (let i = 1; i < pts.length; i++) gaps.push(pts[i].t - pts[i - 1].t);
   if (median(gaps) > Q.sampleGapMedianSec) return { pass: false, code: 'too_sparse' };
-  // 斷訊看原始的點，不看收下的點。防偽閘在開頭與每個 Δt≥10 秒的斷點之後不收頭兩點（見 integrityGate）：
-  // 斷訊在錄程頭尾時，旁邊那兩點一不收，斷訊就從收下的點裡消失了，籌碼的整班長度卻照原始的點算——兩邊基準不同，
-  // 斷訊檢查就管不到長度裡的那一段。斷訊在中間時則反過來，收下的點會把斷訊多算不收的那 2 秒，
-  // 剛好 noFixGapSec 的隧道被判 underground。原始的點兩邊都對，也跟籌碼長度、跟先前同一個基準。
-  for (let i = 1; i < rawPts.length; i++) if (rawPts[i].t - rawPts[i - 1].t > Q.noFixGapSec) return { pass: false, code: 'underground' };
+  // 斷訊（超過 noFixGapSec 沒有定位）：覆蓋率在斷訊處切段算（bountyCoverage），沒有任何一段夠覆蓋才判 underground。
+  // 🔴 2026-10-30 起不再「任何一段斷訊就整趟 underground」：正式庫的斷訊落在萬華、浮洲、臺北、臺南的地下段與三義的隧道，
+  // 穿過這些地方的西部幹線錄程（26–103 km）地面上錄得再好也整趟不採用。地下那一段照樣沒有覆蓋（斷訊兩邊的點不湊成同一段）。
+  // 點數的里程是防偽閘收下的點的跨距，跨過斷訊的那一段受同一個速度上限約束（任兩點都比），斷訊不會讓里程多出來。
   // 尖峰時段表跟判定端（bountyVerifyTrain）同一份：coverageOf 平日沒有這張表就不列停靠段，
   // 舊版這裡沒帶，平日只錄到停靠的錄程判 too_short、假日同一趟卻是 ok，判定端存的覆蓋段裡又明明有那個停靠段。
-  const cov = ctx.line ? coverageOf(trip, ctx.line, rules, ctx.peakHoursBySys) : [];
-  if (!cov.length || !cov.some(c => c.cov >= Q.segCoverageMin)) return { pass: false, code: 'too_short' };
+  const cov = ctx.line ? bountyCoverage(trip, rawPts, ctx.line, rules, ctx.peakHoursBySys) : [];
+  if (!cov.some(c => c.cov >= Q.segCoverageMin)) {
+    const gap = rawPts.some((p, i) => i && p.t - rawPts[i - 1].t > Q.noFixGapSec);
+    return { pass: false, code: gap ? 'underground' : 'too_short' };
+  }
   return { pass: true, code: null };
+}
+// 覆蓋率，在斷訊處切段算：原始的點（rawPts）相鄰兩點超過 noFixGapSec 的地方切開收下的點（trip.pts），
+// 每一段各自跑 coverageOf，同一個鍵留覆蓋率最高的那一段。斷訊看原始的點、不看收下的點：防偽閘在每個 Δt≥10 秒的斷點之後
+// 不收頭兩點，用收下的點會把剛好 noFixGapSec 的隧道多算 2 秒。
+function bountyCoverage(trip, rawPts, line, rules, peakHoursBySys) {
+  const cuts = [];
+  for (let i = 1; i < rawPts.length; i++) if (rawPts[i].t - rawPts[i - 1].t > rules.quality.noFixGapSec) cuts.push(rawPts[i].t);
+  const parts = [[]];
+  let c = 0;
+  for (const p of trip.pts) {
+    while (c < cuts.length && p.t >= cuts[c]) { c++; parts.push([]); }
+    parts[parts.length - 1].push(p);
+  }
+  const best = new Map();
+  for (const pts of parts) {
+    if (!pts.length) continue;
+    for (const x of coverageOf({ ...trip, pts }, line, rules, peakHoursBySys)) {
+      const k = `${x.kind}|${x.key}`, o = best.get(k);
+      if (!o || x.cov > o.cov) best.set(k, x);
+    }
+  }
+  return [...best.values()];
 }
 // 三態。🔴 順序固定：先防偽、後品質。防偽決定「給不給章」，品質決定「資料採不採用」。
 // unusable 那一支的每一件事都要與 ok 相同，只有計不計入下架門檻不同——規格 §11 明說這是最容易寫錯的地方。
@@ -8644,7 +8698,7 @@ function bountyDRange(lo, hi) {
 //   ・判定：任何一條線 ok，這班車就算 ok；🔴 但任何一條線 suspect（防偽閘不過）整班就是 0 點——
 //     單獨一條線的趟被判 suspect 本來就是 0 點，整班車不能因為另一條線 ok 就照發（suspect 那段的時間也不該被算進長度）。
 //   ・里程：每條 ok 線各自的收下範圍（見下面 span），各線套自己的偏遠倍率（remoteLines）與活動倍率，再加總。
-//   ・長度：整班車所有批次（不分線）樣本 t（台北當日秒，跨午夜的加一天）的 max−min——兩條線各自不到 minTripSec、合起來夠長也算。
+//   ・長度：整班車所有批次（不分線）樣本 t（台北當日秒，跨午夜的加一天）的 max−min，扣掉這一發各組原始的點裡的斷訊——兩條線各自不到 minTripSec、合起來夠長也算。
 // 🔴 遲傳：groups 是「這一發 cron 才讀到的（pending）線組」，prior 是「這一班車先前已判定過的線組」（前次線組，見 bountyPriorGroups）。
 // 車上沒訊號、隔天早上才開 App 的話，一班車前半段已在前一發判完（當時不到 minTripSec → 0 顆），後半段這一發才到；
 // 只看這一發的批次，整班車一點都拿不到。點數判斷（任一 ok、suspect 否決、各線里程、整班長度）一律把兩邊合起來看；
@@ -8668,7 +8722,10 @@ async function bountyCreditTripChips(env, rules, groups, prior, now, who, fence,
   const ts = bountyUnwrapMidnight(all.flatMap(g => g.trip.pts.map(p => ({ t: Number(p.t) }))));
   let lo = Infinity, hi = -Infinity;
   for (const { t } of ts) { if (t < lo) lo = t; if (t > hi) hi = t; }
-  const durationSec = hi >= lo ? hi - lo : 0;
+  // 🔴 斷訊的時間不算：這一發每一組原始的點裡超過 noFixGapSec 的斷訊（g.gap）從整班長度扣掉。斷訊不再整趟判 underground（見 qualityGate），
+  // 不扣的話，錄程前或後多送幾個很久以前／以後的點，不到 minTripSec 的短趟也能入帳。
+  // 前次線組只有最早與最晚兩個時間、看不到裡面的斷訊，照舊整段算；同一段時間兩組都有斷訊（線來回切換）會多扣，只會少給。
+  const durationSec = hi >= lo ? Math.max(0, hi - lo - groups.reduce((s, g) => s + (g.gap || 0), 0)) : 0;
   // 各線里程：同一條線（sys|ln_id）所有 ok 線組（這一發與前次）收下的點的里程範圍取聯集之後的跨距。
   //   ・只看 ok 的組、只看防偽閘收下的點：只看 ok 發次的收下點，同一條線各發的 ok 範圍合起來算（分幾次上傳本身不影響；單獨判成不採用的一發不計入）——前次組用判定當下寫下的
   //     kept_d0／kept_d1（見 bountyPriorGroups），與這一發的收下點同一個基準。
@@ -9161,13 +9218,16 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     // （剛好 600 秒的趟變 598 秒、拿不到籌碼）。
     const kept = ig.pts ? { ...trip, pts: ig.pts, dir: ig.dir } : trip;
     const v = verdictOf(ig, qualityGate(kept, ctx, rules, trip.pts));
-    const cov = (v.verdict === 'suspect' || !line) ? [] : coverageOf(kept, line, rules, M.peakHoursBySys)
+    const cov = (v.verdict === 'suspect' || !line) ? [] : bountyCoverage(kept, trip.pts, line, rules, M.peakHoursBySys)
       .filter(c => c.cov >= rules.quality.segCoverageMin);
     // dr：這一組收下的點的最小與最大沿線里程（公尺），只給籌碼判斷「整趟停在一站」用（防偽閘不收的點不算，與覆蓋段同一個基準）。
     // 標記已判定那一句把它寫進這一組每一列（kept_d0／kept_d1），之後的發次讀前次組時用的就是這兩個值（見 bountyPriorGroups）。
     // 不 ok 的組不參與籌碼，記 null（寫進庫也是 NULL）。
     const dr = v.verdict === 'ok' ? bountyDRange(...bountyMinMax(kept.pts.map(p => Number(p.d)))) : null;
-    groups.push({ trip, v, cov, dr });
+    // gap：這一組原始的點裡超過 noFixGapSec 的斷訊加總（秒），籌碼的整班長度要扣掉（見 bountyCreditTripChips）。
+    let gap = 0;
+    for (let i = 1; i < trip.pts.length; i++) { const g = trip.pts[i].t - trip.pts[i - 1].t; if (g > rules.quality.noFixGapSec) gap += g; }
+    groups.push({ trip, v, cov, dr, gap });
   }
   // 身分：這班車記在誰名下——一班車解析一次，給前次線組的查詢用。
   // 讀樣本與寫入之間，這個裝置可能剛好被併進帳號（POST /api/bounty-merge：樣本與認領整批改名到 uid，原 token 那一列歸零只當墓碑）；
@@ -10669,7 +10729,7 @@ export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoar
   bountyClaim, hasGeoKeys, sanitizeSamples, sanitizeClient, bountySubmit, firebaseUid, bountyMe, bountyMerge, bountyPurgeUid,
   chipsMe, garageRedeem, cloudRide,
   bountyMedian, bountyL1, bountyL2, bountyPointsOf, bountyUnlocked, bountyValuationCron,
-  assembleTrip, integrityGate, qualityGate, verdictOf, coverageOf, bountyVerifyCron, bountyResetMemCaches, bountyCounted, BOUNTY_BYTES_PER_ROW };
+  assembleTrip, integrityGate, qualityGate, verdictOf, coverageOf, bountyCoverage, bountyVerifyCron, bountyResetMemCaches, bountyCounted, BOUNTY_BYTES_PER_ROW };
 // 純函式導出,供離線回歸測試 import:trtcParse 雙路徑解析(含上游故障回 HTML 錯誤頁、
 // HTTP 仍 200 那個坑應回 null)、trtcEpoch 台北時間換算、dedupeLatest 同車次抵站歷史去重
 // (文湖線 CarWeightBR 把歷史當現況回傳的真實坑,C1)。trtcCall 不是純函式(真的打上游),
