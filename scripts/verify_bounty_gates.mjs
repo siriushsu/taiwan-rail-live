@@ -70,13 +70,23 @@ ok('F3 第一重 日期太舊 → suspect',
   integrityGate(cleanTrip({ tripDate: '2020-01-01' }), CTX, RULES).code === 'stale_date');
 
 {
-  // 第三重 物理可能：里程倒退而且之後一直留在後面（第 300 點起整段退回 5 km）→ 之後每一點都比最後收下的第 299 點退超過 50 m，連丟到第 6 點 → suspect。
-  // 現在只有一點倒退（舊的形狀：第 300 點換成第 100 點的里程）只丟那一點、整班通過（孤立壞點見 F24）。
+  // 第三重 物理可能：
+  //   ・里程每秒在 0–15 km 之間亂跳（固定亂數種子）→ 兩個方向都只有一小撮點彼此合規，丟的點超過考慮過的一半 → suspect。
+  //   ・里程倒退而且之後一直留在後面（第 300 點起整段退回 5 km）：2026-10-30 起不再判死。連丟到第 6 點時回溯多層：
+  //     第 300–305 點（2500–2625 m）往回找接得上的收下點——往後的容差 50 m，最晚的是第 102 點（2550 m，200 秒前，在 300 秒內）→
+  //     拿掉第 103–299 點（丟 197 點，預算是考慮過的 599 點的一半）、改收第 300 點起 → 通過，收下 402 點、跨距 9,950 m（不比原始首末多）。
+  //   ・只有一點倒退（第 300 點換成第 100 點的里程）只丟那一點、整班通過（孤立壞點見 F24）。
+  let seed = 20261030;
+  const rnd = () => (seed = seed * 48271 % 2147483647) / 2147483647;
+  const noise = cleanTrip(); noise.pts = noise.pts.map(p => ({ ...p, d: Math.round(rnd() * 15000) }));
   const t = cleanTrip(); t.pts = t.pts.map((p, i) => i >= 300 ? { ...p, d: p.d - 5000 } : p);
   const single = cleanTrip(); single.pts[300] = { ...single.pts[300], d: single.pts[100].d };
-  const r4 = [integrityGate(t, CTX, RULES), integrityGate(single, CTX, RULES)];
-  ok('F4 第三重 里程倒退而且留在後面 → suspect；只有一點倒退（舊的形狀）→ 丟那一點、整班通過',
-    r4[0].code === 'impossible_physics' && r4[1].pass === true && !r4[1].pts.some(p => p.t === 30300), JSON.stringify(r4.map(r => r.code || r.pass)));
+  const r4 = [integrityGate(noise, CTX, RULES), integrityGate(t, CTX, RULES), integrityGate(single, CTX, RULES)];
+  const at4 = (r, tt, d) => r.pts.some(p => p.t === tt && p.d === d);
+  ok('F4 第三重 里程亂跳 → suspect；倒退 5 km 而且留在後面 → 回溯多層拿掉接不上的那段、整班通過；只有一點倒退 → 丟那一點、整班通過',
+    r4[0].code === 'impossible_physics' &&
+      r4[1].pass === true && r4[1].pts.length === 402 && at4(r4[1], 30102, 2550) && !at4(r4[1], 30103, 2575) && at4(r4[1], 30300, 2500) &&
+      r4[2].pass === true && !r4[2].pts.some(p => p.t === 30300), JSON.stringify(r4.map(r => r.code || r.pass)));
 }
 {
   // 第三重：瞬間加速（一秒內從 25 跳到 200 m/s）
@@ -135,6 +145,11 @@ ok('F3 第一重 日期太舊 → suspect',
 //   ②都卜勒改成「相關係數＞0.995 而且逐點差的中位數 ≤0.5 m/s」才判（F34a–d）。F34、F35、F33f 也排在 F29 前面；F30b 的對照照新行為改寫。
 // 🔴 逐點差中位數的門檻 0.5 → 0.0625 m/s。GPS 平滑的誠實錄程（位置晃 ±0.3 m 以內）逐點差中位數只有 0.1–0.5，
 //   0.5 的門檻誤殺五到六成。F34c 的邊界照新門檻改寫，F34e 是跟這次調整一起加的。
+// 🔴 2026-10-30：連丟不再判死，全程預算從 max(5, 1%) 放到 max(5, 一半)；改成「回溯多層」——連丟到第 6 點（之後每再 6 點）時，
+//   最後 6 個被丟的點若能依序接在往回 300 秒內的某個收下點後面（合規照上面三條），就拿掉那之後的收下點、改收這 6 點
+//   （拿掉的點算丟點）。正式庫 10-27～10-29 被判可疑的 19 組都是真的在搭車，被一小段壞點連丟判死。
+//   F4、F14、F16、F18、F23、F25–F28、F32b、F32c、F33f 的期望照新規則重算；仍要擋的改成「大半對不上」：
+//   F4 里程亂跳、F26 丟點超過一半（F14 量往回 300 秒的窗）。
 {
   // REC：F11 起每一次判定都記下來，F29 拿通過的那些檢查「收下的點本身合規」。
   const REC = [];
@@ -163,16 +178,28 @@ ok('F3 第一重 日期太舊 → suspect',
   //   ・孤立：第 300 秒那一秒多兩點——往後退 m 公尺的一點、再來回到前方 2 m 的一點。退 60 m 的那點不收、退 30 m 的收下，兩趟都通過（丟 1 點）。
   //   ・退了之後留在後面：多一點往後退 X，之後每一點都退 X。第 300＋k 秒（k≥1）比最後收下的第 300 秒：5k − X＜−50 就不合規；
   //     回溯一層：它若比第 299 秒（倒數第二個收下點）合規——5(k＋1) − X ≥ −50——就改丟第 300 秒、收下它（也算丟一點）。
-  //     多出來的那一點（退 X）比第 299 秒退 X−5，兩邊都不合規、直接丟。→ 連丟的點數＝1＋#{k≥1：5(k＋1)＜X−50}，連丟 6 點才判
-  //     → X＞80：81 m 擋（第 305 秒比第 299 秒退 51 m）、80 m 放行（丟 5 點後，第 305 秒比第 299 秒剛好退 50 m → 回溯；
-  //     共丟 6 點＝全程預算 max(5, 1%×600)＝6，沒超過）。
+  //     多出來的那一點（退 X）比第 299 秒退 X−5，兩邊都不合規、直接丟。
+  //     → X＝80：丟 5 點後，第 305 秒比第 299 秒剛好退 50 m → 回溯一層，通過。
+  //     → X＝81：第 305 秒比第 299 秒退 51 m，連丟到第 6 點 → 回溯多層：這 6 點（第 300 秒那一點 1419 m 起）往回找接得上的收下點，
+  //       最晚的是第 293 秒（1465 m，退 46 m）→ 拿掉第 294–300 秒、改收這 6 點 → 通過（舊版連丟 6 點判死）。
+  //   ・往回 300 秒的窗：1201 點的慢車（第 500 秒在 2500 m），第 500 秒起退 X 而且留在後面。回溯多層要找 d ≤ 2500−X＋50 的收下點，
+  //     就是第 (510−X/5) 秒以前的點，而它要在 300 秒內（第 200 秒以後）：X＝1550 → 剛好第 200 秒（1000 m）→ 拿掉第 201–500 秒（丟 300 點，
+  //     預算 600）→ 通過、收下 900 點；X＝1555 → 每一次都差 1 秒接不上、不回溯，收下的點留在第 500 秒（2500 m），
+  //     退後的那段一路丟到第 801 秒追到 2450 m（比第 500 秒剛好退 50 m）才直接收下 → 丟 301 點、通過、收下 899 點。
+  //     （兩種收法的里程都不比原始首末多；退了留在後面要判死，得讓兩種收法都丟超過一半，那是 F4 亂跳的形狀。）
   const slow = cleanTrip().pts.map(p => ({ ...p, d: (p.t - 30000) * 5, v: 5 + Math.sin(p.t / 7) * 0.3 }));
   const back = m => { const b = slow.slice(0, 301); const p = b[300]; b.push({ ...p, d: p.d - m }, { ...p, d: p.d + 2 }); return b.concat(slow.slice(301)); };
   const backStay = X => { const b = slow.slice(0, 301); b.push({ ...b[300], d: b[300].d - X }); return b.concat(slow.slice(301).map(p => ({ ...p, d: p.d - X }))); };
-  const r14 = [tra(back(60)), tra(back(30)), tra(backStay(81)), tra(backStay(80))];
-  ok('F14 第三重 同一秒裡往後退 60 m 的那一點不收、退 30 m（GPS 抖動）的收下，兩趟都通過；退了之後留在後面：81 m（連丟 6 點）→ impossible_physics、80 m（丟 5 點後回溯一層）→ 通過',
+  const slowL = Array.from({ length: 1201 }, (_, k) => ({ d: k * 5, t: 30000 + k, v: 5 + Math.sin((30000 + k) / 7) * 0.3, acc: 8 }));
+  const stayL = X => [...slowL.slice(0, 501), { ...slowL[500], d: 2500 - X }, ...slowL.slice(501).map(p => ({ ...p, d: p.d - X }))];
+  const r14 = [tra(back(60)), tra(back(30)), tra(backStay(81)), tra(backStay(80)), tra(stayL(1550)), tra(stayL(1555))];
+  ok('F14 第三重 同一秒裡往後退 60 m 的那一點不收、退 30 m（GPS 抖動）的收下，兩趟都通過；退了之後留在後面：80 m → 回溯一層、81 m → 回溯多層，都通過；往回剛好 300 秒接得上 → 回溯多層、差 1 秒 → 不回溯、等退後的那段追回來，都通過',
     r14[0].pass === true && !has(r14[0], { t: 30300, d: 1440 }) && r14[1].pass === true && has(r14[1], { t: 30300, d: 1470 }) &&
-      r14[2].code === 'impossible_physics' && r14[3].pass === true && !has(r14[3], { t: 30300, d: 1500 }) && has(r14[3], { t: 30305, d: 1445 }),
+      r14[2].pass === true && has(r14[2], { t: 30293, d: 1465 }) && !has(r14[2], { t: 30294, d: 1470 }) && has(r14[2], { t: 30300, d: 1419 }) &&
+      r14[3].pass === true && !has(r14[3], { t: 30300, d: 1500 }) && has(r14[3], { t: 30305, d: 1445 }) &&
+      r14[4].pass === true && r14[4].pts.length === 900 && has(r14[4], { t: 30200, d: 1000 }) && !has(r14[4], { t: 30201, d: 1005 }) && has(r14[4], { t: 30500, d: 950 }) &&
+      r14[5].pass === true && r14[5].pts.length === 899 && has(r14[5], { t: 30500, d: 2500 }) && !has(r14[5], { t: 30500, d: 945 }) &&
+      !has(r14[5], { t: 30800, d: 2445 }) && has(r14[5], { t: 30801, d: 2450 }),
     JSON.stringify(r14.map(r => r.code || r.pass)));
   // F15／F16：高鐵的上限（83.4 m/s → 上限×1.15＝95.91 m/s）。誠實的 2 Hz 80 m/s（0.5 秒 40 m）放行。
   const thsr = pts => rec(pts, 'thsr_sched', 0, integrityGate(cleanTrip({ sys: 'thsr_sched', pts }), CTX, RULES));
@@ -189,15 +216,16 @@ ok('F3 第一重 日期太舊 → suspect',
   // X ≤ 145.91＋25.91(k＋1)＝171.82＋25.91k 就改丟第 300 秒、收下它。
   //   ・跳 150 m：跳的那一點比第 300 秒不合規、比第 299 秒合規（多 220 m ≤ 95.91×2＋50＝241.82）→ 改丟第 300 秒、收下跳的那一點；
   //     跳 140 m：直接收下（第 300 秒也留著）。兩趟都通過。
-  //   ・連丟 6 點才判：連丟的點數＝#{k≥0：X＞171.82＋25.91k} → X＞171.82＋25.91×5＝301.37：302 m 擋、301 m 放行
-  //     （丟 5 點後第 305 秒回溯，共丟 6 點＝全程預算 6）。
+  //   ・連丟的點數＝#{k≥0：X＞171.82＋25.91k}：301 m 丟 5 點後第 305 秒回溯一層、通過；302 m 連丟到第 6 點 → 回溯多層：
+  //     跳的那一點（21302 m）比 m 秒前的收下點多 70m＋302，上界 95.91(m＋1)＋50 → m ≥ 7 → 接在第 293 秒後面、拿掉第 294–300 秒 → 通過。
   const jumpBy = X => { const b = cleanTrip().pts.map(p => ({ ...p, d: (p.t - 30000) * 70, v: 70 }));
     return [...b.slice(0, 301), { ...b[300], d: b[300].d + X }, ...b.slice(301).map(p => ({ ...p, d: p.d + X }))]; };
   const r16 = [thsr(jumpBy(150)), thsr(jumpBy(140)), thsr(jumpBy(302)), thsr(jumpBy(301))];
-  ok('F16 第三重 高鐵同一秒往前跳 150 m（超過 145.91 m）→ 回溯一層改丟前一點、收下跳的點；140 m 直接收下，兩趟都通過；跳過去不回來：302 m（連丟 6 點）→ impossible_physics、301 m（丟 5 點後回溯）→ 通過',
+  ok('F16 第三重 高鐵同一秒往前跳 150 m（超過 145.91 m）→ 回溯一層改丟前一點、收下跳的點；140 m 直接收下，兩趟都通過；跳過去不回來：301 m → 回溯一層、302 m → 回溯多層接在第 293 秒後面，都通過',
     r16[0].pass === true && !has(r16[0], { t: 30300, d: 21000 }) && has(r16[0], { t: 30300, d: 21150 }) &&
       r16[1].pass === true && has(r16[1], { t: 30300, d: 21000 }) && has(r16[1], { t: 30300, d: 21140 }) &&
-      r16[2].code === 'impossible_physics' && r16[3].pass === true, JSON.stringify(r16.map(r => r.code || r.pass)));
+      r16[2].pass === true && has(r16[2], { t: 30293, d: 20510 }) && !has(r16[2], { t: 30294, d: 20580 }) && has(r16[2], { t: 30300, d: 21302 }) &&
+      r16[3].pass === true, JSON.stringify(r16.map(r => r.code || r.pass)));
 
   // ── 兩個方向、取整到秒的誠實錄程、偽造軌跡的長期速度 ──
   const gate = (pts, sys = 'tra_sched', dir = 0) => rec(pts, sys, dir, integrityGate(cleanTrip({ sys, dir, pts }), CTX, RULES));
@@ -208,19 +236,26 @@ ok('F3 第一重 日期太舊 → suspect',
   ok('F17 第三重 里程遞減（dir 1）的誠實錄程照樣通過：台鐵 2 Hz 35 m/s、高鐵 2 Hz 80 m/s、高鐵 1 Hz 80 m/s',
     r17.every(r => r.pass === true), JSON.stringify(r17));
   // F18：F14、F16、F10 倒過來走（dir 1：往後＝里程變大、往前＝里程變小），同一組邊界：往後退 60 m 那點不收、30 m 收下（都通過）；
-  // 退了留在後面 81 m 擋、80 m 放行；高鐵同一秒往前跳 150 m 改丟前一點、140 m 直接收下（都通過）；跳過去不回來 302 m 擋、301 m 放行；台鐵掛 252 km/h 擋。
+  // 退了留在後面 80 m 回溯一層、81 m 回溯多層（都通過），往回 300 秒的窗剛好接得上回溯多層、差 1 秒等追回來（都通過）；高鐵同一秒往前跳 150 m 改丟前一點、140 m 直接收下（都通過）；
+  // 跳過去不回來 301 m 回溯一層、302 m 回溯多層（都通過）；台鐵掛 252 km/h 擋。
   const slow1 = flip(slow, 20000);
   const back1 = m => { const b = slow1.slice(0, 301); const p = b[300]; b.push({ ...p, d: p.d + m }, { ...p, d: p.d - 2 }); return b.concat(slow1.slice(301)); };
   const fast70 = Array.from({ length: 601 }, (_, i) => ({ d: i * 70, t: 30000 + i, v: 70 + Math.sin(i / 7) * 0.6, acc: 8 }));
   const r18 = [gate(back1(60), 'tra_sched', 1), gate(back1(30), 'tra_sched', 1), gate(flip(backStay(81), 20000), 'tra_sched', 1),
     gate(flip(backStay(80), 20000), 'tra_sched', 1), gate(flip(jumpBy(150), 60000), 'thsr_sched', 1), gate(flip(jumpBy(140), 60000), 'thsr_sched', 1),
-    gate(flip(jumpBy(302), 60000), 'thsr_sched', 1), gate(flip(jumpBy(301), 60000), 'thsr_sched', 1), gate(flip(fast70, 60000), 'tra_sched', 1)];
-  ok('F18 第三重 里程遞減（dir 1）的同一組邊界：往後退 60 m 那點不收、30 m 收下（都通過）；退了留在後面 81 m 擋、80 m 放行；高鐵同一秒往前跳 150 m 改丟前一點、140 m 直接收下（都通過）；跳過去不回來 302 m 擋、301 m 放行；台鐵掛 252 km/h 擋',
+    gate(flip(jumpBy(302), 60000), 'thsr_sched', 1), gate(flip(jumpBy(301), 60000), 'thsr_sched', 1), gate(flip(fast70, 60000), 'tra_sched', 1),
+    gate(flip(stayL(1550), 20000), 'tra_sched', 1), gate(flip(stayL(1555), 20000), 'tra_sched', 1)];
+  ok('F18 第三重 里程遞減（dir 1）的同一組邊界：往後退 60 m 那點不收、30 m 收下（都通過）；退了留在後面 80／81 m 通過；往回 300 秒接得上回溯多層、差 1 秒等追回來；高鐵同一秒往前跳 150 m 改丟前一點、140 m 直接收下（都通過）；跳過去不回來 301／302 m 通過；台鐵掛 252 km/h 擋',
     r18[0].pass === true && !has(r18[0], { t: 30300, d: 18560 }) && r18[1].pass === true && has(r18[1], { t: 30300, d: 18530 }) &&
-      r18[2].code === 'impossible_physics' && r18[3].pass === true && !has(r18[3], { t: 30300, d: 18500 }) && has(r18[3], { t: 30305, d: 18555 }) &&
+      r18[2].pass === true && has(r18[2], { t: 30293, d: 18535 }) && !has(r18[2], { t: 30294, d: 18530 }) && has(r18[2], { t: 30300, d: 18581 }) &&
+      r18[3].pass === true && !has(r18[3], { t: 30300, d: 18500 }) && has(r18[3], { t: 30305, d: 18555 }) &&
       r18[4].pass === true && !has(r18[4], { t: 30300, d: 39000 }) && has(r18[4], { t: 30300, d: 38850 }) &&
       r18[5].pass === true && has(r18[5], { t: 30300, d: 39000 }) && has(r18[5], { t: 30300, d: 38860 }) &&
-      r18[6].code === 'impossible_physics' && r18[7].pass === true && r18[8].code === 'impossible_physics', JSON.stringify(r18.map(r => r.code || r.pass)));
+      r18[6].pass === true && has(r18[6], { t: 30293, d: 39490 }) && !has(r18[6], { t: 30294, d: 39420 }) && has(r18[6], { t: 30300, d: 38698 }) &&
+      r18[7].pass === true && r18[8].code === 'impossible_physics' &&
+      r18[9].pass === true && r18[9].pts.length === 900 && has(r18[9], { t: 30200, d: 19000 }) && !has(r18[9], { t: 30201, d: 18995 }) && has(r18[9], { t: 30500, d: 19050 }) &&
+      r18[10].pass === true && r18[10].pts.length === 899 && has(r18[10], { t: 30500, d: 17500 }) && !has(r18[10], { t: 30800, d: 17555 }) && has(r18[10], { t: 30801, d: 17550 }),
+    JSON.stringify(r18.map(r => r.code || r.pass)));
   // App 的錄程：定位回呼約每秒一次（相位 phase 秒），900 ms 節流（離上一個收下的點不到 0.9 秒就丟），t 取 floor 到秒（index.html 的 nowSecOfDay）。
   // late：這幾次回呼晚到 120 ms——下一次回呼只隔 0.88 秒、被節流丟掉，於是相鄰兩點 Δt＝1、真實間隔 1.88 秒（「漏一次回呼」）。
   const app = ({ mps, secs = 600, late = [300], phase = 0.95 }) => {
@@ -288,15 +323,21 @@ ok('F3 第一重 日期太舊 → suspect',
     r22.slice(0, 4).every(r => r.code === 'impossible_physics') && r22.slice(4).every(r => r.pass === true), JSON.stringify(r22));
   // F23：加速度（都卜勒速度）的邊界：相鄰兩點都有速度時 |Δv| ≤ 1.3×3×(Δt＋1)——比的是最後收下的那一點，Δt＝1 時 7.8 m/s。等速 25 m/s（第 300 秒在 7500 m）：
   //   ・孤立：只有第 300 秒那一點速度多 Δ（位置照舊）——多 8.2 那點不收、多 7.4 收下，兩趟都通過（兩個方向）；那一點速度是 0（沒有速度）→ 不比、收下。
-  //   ・之後一直多 Δ（回報速度真的跳上去）：第 300＋k 秒比第 299 秒（最後收下的），Δt＝k＋1 → Δ＞3.9(k＋2) 就丟 → 丟 #{k≥0：Δ＞3.9(k＋2)} 點；
-  //     連丟 6 點才判：Δ＞3.9×7＝27.3 → 多 28 擋（兩個方向）、多 26（丟 5 點）放行。
+  //   ・之後一直多 Δ（回報速度真的跳上去）：第 300＋k 秒比第 299 秒（最後收下的），Δt＝k＋1 → Δ＞3.9(k＋2) 就丟；
+  //     回溯一層比第 298 秒：Δ ≤ 3.9(k＋3) 而且第 299 秒在 10 秒內，就改丟第 299 秒。
+  //     多 26：第 304 秒比第 298 秒 26 ≤ 27.3 → 回溯一層（丟 5 點）；多 28：第 305 秒比第 298 秒 28 ≤ 31.2 → 回溯一層（丟 6 點）。都通過（舊版多 28 連丟 6 點判死）。
+  //     多 60：回溯一層要 k ≥ 13，超過 10 秒的窗 → 連丟到第 6 點回溯多層：第 300–305 秒接在 m 秒前的收下點後面要 60 ≤ 3.9(m＋1) → m ≥ 15
+  //     → 接在第 285 秒後面、拿掉第 286–299 秒 → 通過（丟 14 點）。
   const vstep = (dv, only = false) => Array.from({ length: 601 }, (_, i) => ({ d: i * 25, t: 30000 + i, v: i < 300 || (only && i > 300) ? 25 : 25 + dv, acc: 8 }));
   const r23 = [gate(vstep(8.2, true)), gate(flip(vstep(8.2, true), 20000), 'tra_sched', 1), gate(vstep(7.4, true)), gate(vstep(-25, true)),
-    gate(vstep(28)), gate(flip(vstep(28), 20000), 'tra_sched', 1), gate(vstep(26))];
-  ok('F23 第三重 加速度的邊界（比最後收下的點，|Δv| ≤ 1.3×3×(Δt＋1)）：只有一點多 8.2 m/s 那點不收（兩個方向）、多 7.4 收下、速度 0 不比收下，都通過；之後一直多 28 m/s（連丟 6 點）擋（兩個方向）、多 26（5 點）放行',
+    gate(vstep(28)), gate(flip(vstep(28), 20000), 'tra_sched', 1), gate(vstep(26)), gate(vstep(60)), gate(flip(vstep(60), 20000), 'tra_sched', 1)];
+  ok('F23 第三重 加速度的邊界（比最後收下的點，|Δv| ≤ 1.3×3×(Δt＋1)）：只有一點多 8.2 m/s 那點不收（兩個方向）、多 7.4 收下、速度 0 不比收下，都通過；之後一直多 26／28 m/s → 回溯一層、多 60 → 回溯多層接在第 285 秒後面，都通過（兩個方向）',
     r23[0].pass === true && !has(r23[0], { t: 30300, d: 7500 }) && r23[1].pass === true && !has(r23[1], { t: 30300, d: 12500 }) &&
       r23[2].pass === true && has(r23[2], { t: 30300, d: 7500 }) && r23[3].pass === true && has(r23[3], { t: 30300, d: 7500 }) &&
-      r23[4].code === 'impossible_physics' && r23[5].code === 'impossible_physics' && r23[6].pass === true, JSON.stringify(r23.map(r => r.code || r.pass)));
+      r23[4].pass === true && r23[4].pts.length === 593 && !has(r23[4], { t: 30299, d: 7475 }) && has(r23[4], { t: 30305, d: 7625 }) &&
+      r23[5].pass === true && !has(r23[5], { t: 30299, d: 12525 }) && has(r23[5], { t: 30305, d: 12375 }) && r23[6].pass === true &&
+      r23[7].pass === true && r23[7].pts.length === 585 && has(r23[7], { t: 30285, d: 7125 }) && !has(r23[7], { t: 30286, d: 7150 }) && has(r23[7], { t: 30300, d: 7500 }) &&
+      r23[8].pass === true && has(r23[8], { t: 30285, d: 12875 }) && !has(r23[8], { t: 30286, d: 12850 }), JSON.stringify(r23.map(r => r.code || r.pass)));
 
   // ── 孤立壞點丟掉、隧道與冷啟動不收 ──
   // F24：孤立的跳點（GPS 沿線方向單點跳；模擬中誤殺最多的一型）→ 整班通過。台鐵 25 m/s（第 299 秒在 7475 m），第 300 秒那一點 ±100／±300 m，兩個方向：
@@ -315,36 +356,46 @@ ok('F3 第一重 日期太舊 → suspect',
     : !has(a, { t: 30300, d: 7500 + S }) && !has(b, { t: 30300, d: 12500 - S }));
   ok('F24 第三重 孤立的跳點 ±100／±300 m 整班通過（兩個方向）：+300、−300 那一點不收；+100 在上界內先收下、下一點比它退 75 m → 回溯一層改丟它；−100 比前一點退 75 m、比前前一點剛好退 50 m → 回溯一層改丟前一點、收下它',
     r24.every(ok24), JSON.stringify(r24.map(x => [x.S, x.a.code || x.a.pass, x.b.code || x.b.pass, ok24(x)])));
-  // F25：連續丟點的上限（連續超過 5 點才判）：第 300 秒起連續 n 點各退 300 m——每一點都比最後收下的第 299 秒退 150 m 以上。
-  //   n＝5 → 丟 5 點、通過；n＝6 → impossible_physics。兩個方向。
-  //   軌跡用 1201 點（考慮 1199 點、全程預算 11.99）：601 點的 cleanTrip 預算只有 5.99，連續 6 點同時也超過全程預算，
-  //   連續上限改成 6 照樣擋、這條量不到它本身（這個突變是靠 F14／F16／F18 才抓到的）。
+  // F25：連續丟點不再判死（2026-10-30）：1201 點、第 300 秒起連續 n 點各退 300 m（之後回原位）。
+  //   n＝5 → 丟 5 點、通過。n≥6 → 連丟到第 6 點回溯多層：第 300–305 秒（7200–7325 m）往回要找 d ≤ 7250 的收下點 → 第 290 秒，
+  //   拿掉第 291–299 秒、改收這 6 點。之後：
+  //   ・n＝6：第 306 秒回原位（7650 m）比第 300–305 秒都快過上限，連丟到第 311 秒再回溯多層 → 接回第 290 秒後面、拿掉那 6 點
+  //     → 共丟 15 點、收下 1184 點。
+  //   ・n＝30／120：退著的那段彼此合規、照收；回原位那一點比 m 秒前的退著點多 25m＋300 m，上界 41.63(m＋1)＋50 → m ≥ 13
+  //     → 回溯多層接在倒數第 13 個退著的點後面、拿掉後 12 點 → 共丟 21 點、收下 1178 點。
+  //   兩個方向都通過（舊版 n＝6 起判死）。
   const long25 = () => Array.from({ length: 1201 }, (_, i) => ({ d: i * 25, t: 30000 + i, v: 25 + Math.sin(i / 7) * 0.6, acc: 8 }));
   const burst = n => long25().map((p, i) => i >= 300 && i < 300 + n ? { ...p, d: p.d - 300 } : p);
-  const r25 = [gate(burst(5)), gate(flip(burst(5), 40000), 'tra_sched', 1), gate(burst(6)), gate(flip(burst(6), 40000), 'tra_sched', 1)];
-  ok('F25 第三重 連續丟點：連續 5 點各退 300 m → 通過；連續 6 點 → impossible_physics（兩個方向）',
-    r25[0].pass === true && r25[1].pass === true && r25[2].code === 'impossible_physics' && r25[3].code === 'impossible_physics',
-    JSON.stringify(r25.map(r => r.code || r.pass)));
-  // F26：全程丟點的預算：丟的點超過 max(5, 1%×考慮過的點數) 才判（考慮過的＝扣掉開頭 2 點與斷點後 2 點）。孤立的 −300 m 跳點、彼此相隔 30 點以上：
-  //   301 點（考慮 299 點，預算 max(5, 2.99)＝5）：5 點通過、6 點擋；2001 點（考慮 1999 點，預算 19.99）：19 點通過、20 點擋。
-  const scatter = (N, n) => {
+  const r25 = [5, 6, 30, 120].map(n => ({ n, a: gate(burst(n)), b: gate(flip(burst(n), 40000), 'tra_sched', 1) }));
+  const len25 = { 5: 1194, 6: 1184, 30: 1178, 120: 1178 };
+  ok('F25 第三重 連續丟點不再判死：連續 5 點各退 300 m → 丟 5 點；連續 6／30／120 點 → 回溯多層，都通過、收下的點數照規則算（兩個方向）',
+    r25.every(({ n, a, b }) => a.pass === true && b.pass === true && a.pts.length === len25[n] && b.pts.length === len25[n] &&
+      (n === 5 || has(a, { t: 30290, d: 7250 }) && !has(a, { t: 30291, d: 7275 }))),
+    JSON.stringify(r25.map(({ n, a, b }) => [n, a.code || a.pass, a.pts && a.pts.length, b.code || b.pass, b.pts && b.pts.length])));
+  // F26：全程丟點的預算：丟的點超過 max(5, 一半×考慮過的點數) 才判（考慮過的＝扣掉開頭 2 點與斷點後 2 點）。
+  //   底座 25 m/s，從第 21 點起「兩點退 300 m、一點正常」輪流（i % 3 ≠ 2 的點退），共 n 點：退的點比最後收下的點、比倒數第二個收下點都退 175 m 以上，
+  //   回溯一層救不回來；一次只連丟 2 點、不會觸發回溯多層；正常的點比 3 秒前的收下點多 75 m，在上界內收下。→ 丟的點數＝n。
+  //   302 點（考慮 300 點，預算 150）：150 點通過、151 點擋；2002 點（考慮 2000 點，預算 1000）：1000 點通過、1001 點擋。
+  //   擋下的那幾例換方向重判：反方向的淨位移往後幾公里 → 也不成立。
+  const pairs = (N, n) => {
     const pts = Array.from({ length: N }, (_, i) => ({ d: i * 25, t: 30000 + i, v: 25 + Math.sin(i / 7) * 0.6, acc: 8 }));
-    const step = Math.floor((N - 100) / n);
-    for (let k = 0; k < n; k++) { const i = 50 + k * step; pts[i] = { ...pts[i], d: pts[i].d - 300 }; }
+    for (let i = 21, k = 0; k < n; i++) if (i % 3 !== 2) { pts[i] = { ...pts[i], d: pts[i].d - 300 }; k++; }
     return pts;
   };
-  const r26 = [gate(scatter(301, 5)), gate(scatter(301, 6)), gate(scatter(2001, 19)), gate(scatter(2001, 20))];
-  ok('F26 第三重 全程丟點的預算 max(5, 1%)：301 點丟 5 點通過、6 點擋；2001 點丟 19 點通過、20 點擋',
-    r26[0].pass === true && r26[1].code === 'impossible_physics' && r26[2].pass === true && r26[3].code === 'impossible_physics',
+  const r26 = [gate(pairs(302, 150)), gate(pairs(302, 151)), gate(flip(pairs(302, 150), 10000), 'tra_sched', 1), gate(flip(pairs(302, 151), 10000), 'tra_sched', 1),
+    gate(pairs(2002, 1000)), gate(pairs(2002, 1001))];
+  ok('F26 第三重 全程丟點的預算 max(5, 一半)：302 點丟 150 點通過、151 點擋（兩個方向）；2002 點丟 1000 點通過、1001 點擋',
+    r26[0].pass === true && r26[0].pts.length === 150 && r26[1].code === 'impossible_physics' &&
+      r26[2].pass === true && r26[3].code === 'impossible_physics' && r26[4].pass === true && r26[4].pts.length === 1000 && r26[5].code === 'impossible_physics',
     JSON.stringify(r26.map(r => r.code || r.pass)));
   // F27：隧道——Δt≥10 秒的斷點之後的前 2 點不收、也不算違反。台鐵 25 m/s（第 300 秒在 7500 m），第 300 秒之後斷 G 秒、中間沒有點：
   //   ・G＝10、出隧道頭三點偏前 230／76／23 m（GPS 收斂中；模擬中的出隧道形狀）：頭兩點不收，第三點（偏 23 m）在上界內收下 → 通過。
   //   ・頭四點偏前 230／230／76／23 m、G＝9（不到 10 秒、不算斷點）：頭兩點（比第 300 秒多 455、480 m，都在 41.63×(Δt＋1)＋50 以內）被收下當基準，
-  //     第三點起比第二點、比第一點都退超過 50 m（−129／−104、−157／−132、−155／−130、−130／−105、−105／−80、−80／−55），回溯一層救不回來
-  //     → 連丟 6 點 → impossible_physics（兩個方向）。同樣四點在 G＝10 → 頭兩點不收、第三點（偏 76 m）當基準 → 通過。
-  //     （230／76／23 在 G＝9 已經判不死：第二點比第一點退 129 m、比第 300 秒合規 → 回溯一層改丟第一點。）
+  //     第三點起比第二點、比第一點都退超過 50 m（−129／−104、−157／−132、−155／−130、−130／−105、−105／−80、−80／−55），回溯一層救不回來；
+  //     連丟到第 6 點回溯多層：這 6 點接在第 300 秒後面合規（第一點比它多 351 m，在 11 秒的上界內）→ 拿掉那兩個偏 230 m 的點 → 通過（兩個方向；舊版判死）。
+  //     同樣四點在 G＝10 → 頭兩點不收、第三點（偏 76 m）當基準 → 通過。
+  //     （230／76／23 在 G＝9 本來就判不死：第二點比第一點退 129 m、比第 300 秒合規 → 回溯一層改丟第一點。）
   //   ・G＝10、頭五點偏前 230／230／230／76／23 m：頭兩點不收；第三點（偏 230）收下、第四點比它退 129 m → 回溯一層改丟它 → 通過。
-  //     只不收 1 點的話，第二、三點都被收下，第四點起兩邊都退超過 50 m → 連丟 6 點（這一條量「不收的點數」不能少於 2）。
   //   ・G＝120、出隧道第一點還是進隧道前的舊位置、第二點偏前 300 m → 兩點都不收 → 通過。
   //   ・同一趟 4 個 G＝10 的隧道（不收的點連開頭一共 10 點，超過預算 5）→ 通過：不收的點不算違反。
   const tunnels = (ats, G, offs) => cleanTrip().pts.filter((p, i) => !ats.some(a => i > a && i < a + G)).map(p => {
@@ -356,36 +407,45 @@ ok('F3 第一重 日期太舊 → suspect',
     gate(tunnels([300], 9, EXIT2)), gate(flip(tunnels([300], 9, EXIT2), 20000), 'tra_sched', 1),
     gate(tunnels([300], 120, [-3000, 300])), gate(tunnels([100, 200, 300, 400], 10, EXIT)),
     gate(tunnels([300], 10, EXIT2)), gate(tunnels([300], 10, EXIT3))];
-  ok('F27 第三重 隧道：斷 10 秒、出隧道頭三點偏前 230／76／23 m → 通過、頭兩點不在收下的點裡；頭四點 230／230／76／23：斷 9 秒（不算斷點）→ impossible_physics（兩個方向）、斷 10 秒 → 通過；斷 10 秒、頭三點都偏 230 m → 通過（只不收 1 點會連丟 6 點）；斷 120 秒、第一點是舊位置第二點偏 300 m → 通過；一趟 4 個隧道（不收 10 點）→ 通過',
+  ok('F27 第三重 隧道：斷 10 秒、出隧道頭三點偏前 230／76／23 m → 通過、頭兩點不在收下的點裡；頭四點 230／230／76／23：斷 9 秒（不算斷點）→ 回溯多層拿掉偏 230 m 的兩點、通過（兩個方向）、斷 10 秒 → 通過；斷 10 秒、頭三點都偏 230 m → 通過；斷 120 秒、第一點是舊位置第二點偏 300 m → 通過；一趟 4 個隧道（不收 10 點）→ 通過',
     r27[0].pass === true && !has(r27[0], { t: 30310, d: 7980 }) && !has(r27[0], { t: 30311, d: 7851 }) && has(r27[0], { t: 30312, d: 7823 }) &&
-      r27[1].pass === true && r27[2].code === 'impossible_physics' && r27[3].code === 'impossible_physics' && r27[4].pass === true && r27[5].pass === true &&
+      r27[1].pass === true &&
+      r27[2].pass === true && !has(r27[2], { t: 30309, d: 7955 }) && !has(r27[2], { t: 30310, d: 7980 }) && has(r27[2], { t: 30311, d: 7851 }) && has(r27[2], { t: 30300, d: 7500 }) &&
+      r27[3].pass === true && !has(r27[3], { t: 30309, d: 12045 }) && !has(r27[3], { t: 30310, d: 12020 }) && has(r27[3], { t: 30311, d: 12149 }) &&
+      r27[4].pass === true && r27[5].pass === true &&
       r27[6].pass === true && has(r27[6], { t: 30312, d: 7876 }) && r27[7].pass === true && !has(r27[7], { t: 30312, d: 8030 }) && has(r27[7], { t: 30313, d: 7901 }),
     JSON.stringify(r27.map(r => r.code || r.pass)));
   // F28：冷啟動——開頭 2 點不收、也不算違反。台鐵 25 m/s：
   //   ・前三點偏前 300／99／30 m（模擬中的冷啟動形狀）→ 前兩點不收，第三點（偏 30 m）當基準，第四點比它退 5 m → 通過。
   //   ・前兩點正常、第 2–5 點偏前 300／300／99／30 m → 第 2、3 點（偏 300 m）都被收下，第 4 點起比第 3 點、比第 2 點都退超過 50 m
-  //     （−176／−151、−220／−195、−225／−200、−200／−175、−175／−150、−150／−125），回溯一層救不回來 → 連丟 6 點 → impossible_physics（兩個方向）。
-  //     （只有第 2 點偏 300 m 的話已經判不死：第 3 點比第 2 點退、第 2 點又是唯一的收下點 → 回溯一層改丟第 2 點。）
+  //     （−176／−151、−220／−195、−225／−200、−200／−175、−175／−150、−150／−125），回溯一層救不回來；連丟到第 6 點回溯多層也找不到
+  //     （往回只剩這兩個收下點），再丟 2 點後第 12 點（300 m）比第 2 點（350 m）剛好退 50 m → 回溯一層改丟第 3 點、收下它 → 通過
+  //     （丟 9 點；舊版連丟 6 點判死）。兩個方向。
+  //     （只有第 2 點偏 300 m 的話本來就判不死：第 3 點比第 2 點退、第 2 點又是唯一的收下點 → 回溯一層改丟第 2 點。）
   //   ・第 0–4 點偏前 300／300／300／99／30 m → 第 0、1 點不收；第 2 點收下、第 3 點比它退 176 m → 回溯一層改丟第 2 點 → 通過。
-  //     只不收 1 點的話，第 1、2 點都被收下，第 3 點起兩邊都退超過 50 m → 連丟 6 點（這一條量「不收的點數」不能少於 2）。
   //   ・前兩點都偏前 300 m → 兩點都不收 → 通過。
   const cold = (at, offs) => cleanTrip().pts.map((p, i) => i >= at && i < at + offs.length ? { ...p, d: p.d + offs[i - at] } : p);
   const r28 = [gate(cold(0, [300, 99, 30])), gate(flip(cold(0, [300, 99, 30]), 20000), 'tra_sched', 1), gate(cold(2, [300, 300, 99, 30])),
     gate(flip(cold(2, [300, 300, 99, 30]), 20000), 'tra_sched', 1), gate(cold(0, [300, 300])), gate(cold(0, [300, 300, 300, 99, 30]))];
-  ok('F28 第三重 冷啟動：頭三點偏前 300／99／30 m → 通過、頭兩點不在收下的點裡；第 2–5 點偏 300／300／99／30 m → impossible_physics（兩個方向）；頭三點都偏 300 m → 通過（只不收 1 點會連丟 6 點）；頭兩點都偏 300 m → 通過',
+  ok('F28 第三重 冷啟動：頭三點偏前 300／99／30 m → 通過、頭兩點不在收下的點裡；第 2–5 點偏 300／300／99／30 m → 丟 9 點後回溯一層、通過（兩個方向）；頭三點都偏 300 m → 通過；頭兩點都偏 300 m → 通過',
     r28[0].pass === true && !has(r28[0], { t: 30000, d: 300 }) && !has(r28[0], { t: 30001, d: 124 }) && r28[1].pass === true &&
-      r28[2].code === 'impossible_physics' && r28[3].code === 'impossible_physics' && r28[4].pass === true &&
+      r28[2].pass === true && r28[2].pts.length === 590 && has(r28[2], { t: 30002, d: 350 }) && !has(r28[2], { t: 30003, d: 375 }) && has(r28[2], { t: 30012, d: 300 }) &&
+      r28[3].pass === true && has(r28[3], { t: 30002, d: 19650 }) && !has(r28[3], { t: 30003, d: 19625 }) && has(r28[3], { t: 30012, d: 19700 }) && r28[4].pass === true &&
       r28[5].pass === true && !has(r28[5], { t: 30002, d: 350 }) && has(r28[5], { t: 30003, d: 174 }), JSON.stringify(r28.map(r => r.code || r.pass)));
   // ── 回溯一層 ──
   // F32：站停時 GPS 單點往前跳（模擬誤殺最多的一型：往前跳 55 m 到「上限×2＋50」之間的那一點在上界內、被收下當基準，
   // 之後站著不動的好點全都比它退超過 50 m → 舊版連丟 6 點判死）。底座：20 m/s 跑 600 秒（第 600 秒到站）→ 站停 60 秒（第 600–660 秒，速度 0）
-  // → 再跑 600 秒，共 1261 點（考慮 1259 點，全程丟點預算 12.59）；高鐵同一個形狀用 80 m/s。
+  // → 再跑 600 秒，共 1261 點（考慮 1259 點）；高鐵同一個形狀用 80 m/s。
   //   a 第 630 秒那一點往前跳 J：台鐵 70／100／130 m（比第 629 秒多 J ≤ 41.63×2＋50＝133.26，收下）、高鐵 150／200 m（≤ 95.91×2＋50＝241.82）
   //     → 第 631 秒比它退 J＞50 不合規、比第 629 秒合規 → 回溯一層改丟跳的那一點 → 通過，跳的那一點不在收下的點裡（兩個方向）。
   //   b 回溯的時間窗（10 秒）與回溯後連丟歸零：第 630 秒往前跳 100 m（收下），第 631–635 秒各退 300 m（比跳點、比第 629 秒都退超過 50 m → 連丟 5 點），
   //     之後沒有點，直到第 630＋W 秒回到原位（比跳點退 100 m 不合規、比第 629 秒合規）：
-  //     W＝10 → 離跳點 10 秒、回溯；下一秒又一點退 300 m（兩邊都不合規、丟，連丟從 1 算起）→ 通過。W＝11 → 超過時間窗、不回溯 → 連丟第 6 點 → impossible_physics。兩個方向。
-  //   c 回溯也算一次丟點：站停中從第 604 秒起每 4 秒一個往前 100 m 的跳點（每個都被下一秒回溯掉、各丟 1 點）——12 個（丟 12 點 ≤ 12.59）→ 通過；13 個 → impossible_physics。
+  //     W＝10 → 離跳點 10 秒、回溯；下一秒又一點退 300 m（兩邊都不合規、丟，連丟從 1 算起）→ 通過。
+  //     W＝11 → 超過回溯一層的時間窗 → 連丟到第 6 點回溯多層：最後 6 個被丟的點（第 631–635 秒 11700 m、第 641 秒 12000 m）依序合規，
+  //     往回要找 d ≤ 11750 的收下點 → 第 587 秒（11740 m，44 秒前）→ 拿掉第 588–630 秒、改收這 6 點 → 通過（丟 43 點；舊版判死）。
+  //     收下的是那 5 個退 300 m 的點、丟的是 43 個好點——回溯多層信「最後連成一串的那幾點」，不挑丟得少的；收下的點照樣兩兩合規。兩個方向。
+  //   c 回溯也算一次丟點：站停中從第 604 秒起每 4 秒一個往前 100 m 的跳點（每個都被下一秒回溯掉、各丟 1 點）——12 個、13 個都通過，
+  //     收下的點數各少 12、13（舊版 13 個超過 1% 的預算判死）。
   //   d 回溯之後的判定跟沒回溯過一樣（往前比的最小值要跟著退回去）：第 630 秒一個 +100 m 的跳點（第 631 秒回溯掉），第 640 秒起整段往前平移 150 m
   //     （之後一直在新位置）：比第 639 秒多 150＞133.26、比第 638 秒 ≤ 41.63×3＋50＝174.89 → 回溯改丟第 639 秒、收第 640 秒 → 通過。
   //     對照：沒有第 630 秒的跳點 → 第 638–641 秒的收法相同。最小值沒跟著退的話，第 640 秒比到的最小值少了第 639 秒 → 直接收下、第 639 秒也留著，
@@ -408,14 +468,17 @@ ok('F3 第一重 日期太舊 → suspect',
     return edit(stop32(), m);
   };
   const r32b = [gate(win(10, true)), gate(flip(win(10, true), 30000), 'tra_sched', 1), gate(win(11, false)), gate(flip(win(11, false), 30000), 'tra_sched', 1)];
-  ok('F32b 回溯的時間窗 10 秒、回溯後連丟歸零：跳點後連丟 5 點、第 10 秒回原位 → 回溯、之後再丟 1 點仍通過；第 11 秒才回原位 → 不回溯、連丟 6 點 → impossible_physics（兩個方向）',
+  ok('F32b 回溯的時間窗 10 秒、回溯後連丟歸零：跳點後連丟 5 點、第 10 秒回原位 → 回溯、之後再丟 1 點仍通過；第 11 秒才回原位 → 回溯多層接在第 587 秒後面、通過（兩個方向）',
     r32b[0].pass === true && !has(r32b[0], { t: 30630, d: 12100 }) && has(r32b[0], { t: 30640, d: 12000 }) && !has(r32b[0], { t: 30641, d: 11700 }) &&
       r32b[1].pass === true && !has(r32b[1], { t: 30630, d: 17900 }) && has(r32b[1], { t: 30640, d: 18000 }) &&
-      r32b[2].code === 'impossible_physics' && r32b[3].code === 'impossible_physics', JSON.stringify(r32b.map(r => r.code || r.pass)));
+      r32b[2].pass === true && has(r32b[2], { t: 30587, d: 11740 }) && !has(r32b[2], { t: 30588, d: 11760 }) && !has(r32b[2], { t: 30630, d: 12100 }) &&
+      has(r32b[2], { t: 30631, d: 11700 }) && has(r32b[2], { t: 30641, d: 12000 }) &&
+      r32b[3].pass === true && has(r32b[3], { t: 30587, d: 18260 }) && !has(r32b[3], { t: 30588, d: 18240 }) && has(r32b[3], { t: 30641, d: 18000 }),
+    JSON.stringify(r32b.map(r => r.code || r.pass)));
   const spikes = n => { const m = {}; for (let i = 0; i < n; i++) m[604 + 4 * i] = 100; return edit(stop32(), m); };
   const r32c = [gate(spikes(12)), gate(spikes(13))];
-  ok('F32c 回溯也算一次丟點：站停中 12 個往前 100 m 的跳點（各被回溯掉、丟 12 點 ≤ 預算 12.59）→ 通過；13 個 → impossible_physics',
-    r32c[0].pass === true && r32c[0].pts.length === 1259 - 12 && r32c[1].code === 'impossible_physics', JSON.stringify(r32c.map(r => r.code || r.pass)));
+  ok('F32c 回溯也算一次丟點：站停中 12／13 個往前 100 m 的跳點（各被回溯掉）→ 通過、收下的點各少 12／13 點',
+    r32c[0].pass === true && r32c[0].pts.length === 1259 - 12 && r32c[1].pass === true && r32c[1].pts.length === 1259 - 13, JSON.stringify(r32c.map(r => r.code || r.pass)));
   const tele = spike => { const m = spike ? { 630: 100 } : {}; for (let k = 640; k <= 1260; k++) m[k] = 150; return edit(stop32(), m); };
   const r32d = [true, false].flatMap(sp => [{ sp, dir: 0, r: gate(tele(sp)), at: dd => 12000 + dd },
     { sp, dir: 1, r: gate(flip(tele(sp), 30000), 'tra_sched', 1), at: dd => 18000 - dd }]);
@@ -474,18 +537,21 @@ ok('F3 第一重 日期太舊 → suspect',
   ok('F35 最後一點是起點後方 5 km 的舊位置（原始首末 → 方向定反）：台鐵 30 m/s 每 2 秒一點、高鐵 80 m/s 每秒一點 → 原始方向判死、換真方向通過、r.dir＝真方向、舊位置那一點不收（兩個方向）',
     r35ok(r35.tra0, 0, sT) && r35ok(r35.tra1, 1, sT) && r35ok(r35.thsr0, 0, sH) && r35ok(r35.thsr1, 1, sH),
     JSON.stringify(Object.fromEntries(Object.entries(r35).map(([k, r]) => [k, r.pass ? `ok/dir${r.dir}/${r.pts.length}` : r.code]))));
-  // F33f 反方向淨位移的邊界（F33 的 d50／d51 只釘原方向的 −50）：dir 0，頭兩點（不收）與第 3 點在 1000 m，
-  //   之後每 2 秒退 60 m 共 7 步（到 580 m，30 m/s），再每秒往前 47 m 共 10 步回到 1050 m。
-  //   dir 0：退的 7 步每步往後 60 m（容差 50）→ 每一點都回溯換錨、丟 7 點＞預算 5 → 判死 → 換 dir 1：退的 7 步變成往前 30 m/s（上限內）、
-  //   回來的 10 步每步往後 47 m（容差內）全收，收下點首末 1000 → 1050，dir 1 的淨位移 −50（不小於 −50）→ 通過、r.dir＝1。
+  // F33f 反方向淨位移的邊界（F33 的 d50／d51 只釘原方向的 −50）：dir 0，頭兩點（不收）與之後 3 點在 1000 m（第 2–4 秒），
+  //   之後每 2 秒退 60 m 共 7 步（到 580 m，30 m/s），再每秒往前 47 m 共 10 步回到 1050 m（考慮 20 點、預算 10）。
+  //   dir 0：退的 7 步比最後兩個收下點（都在 1000 m）都退超過 50 m → 全丟；這 7 步彼此也退 60 m，回溯多層接不起來；
+  //   回來的前 7 步（627–909 m）仍比 1000 m 退超過 50 m → 也丟（最後 6 個被丟的點彼此合規、但比 1000 m 退太多，接不上）
+  //   → 丟 14 點＞10 → 判死 → 換 dir 1：退的 7 步變成往前 30 m/s（上限內）、回來的 10 步每步往後 47 m（容差內）全收，
+  //   收下點首末 1000 → 1050，dir 1 的淨位移 −50（不小於 −50）→ 通過、r.dir＝1。
   //   回來的 10 步改成每步 47.1 m（到 1051 m）→ 淨位移 −51 → 兩個方向都不成立 → impossible_physics。兩個方向（倒過來走傳 dir 1）。
-  const altB = step => [{ d: 1000, t: 30000 }, { d: 1000, t: 30001 }, { d: 1000, t: 30002 },
-    ...Array.from({ length: 7 }, (_, k) => ({ d: 1000 - 60 * (k + 1), t: 30004 + 2 * k })),
-    ...Array.from({ length: 10 }, (_, k) => ({ d: Math.round((580 + step * (k + 1)) * 10) / 10, t: 30017 + k }))].map(p => ({ ...p, v: 0, acc: 8 }));
+  //   （舊版預算 5：站在 1000 m 只要 1 點、退 7 步就判死；預算放到一半後要多站 2 點，回溯一層才救不回退的那幾步。）
+  const altB = step => [{ d: 1000, t: 30000 }, { d: 1000, t: 30001 }, { d: 1000, t: 30002 }, { d: 1000, t: 30003 }, { d: 1000, t: 30004 },
+    ...Array.from({ length: 7 }, (_, k) => ({ d: 1000 - 60 * (k + 1), t: 30006 + 2 * k })),
+    ...Array.from({ length: 10 }, (_, k) => ({ d: Math.round((580 + step * (k + 1)) * 10) / 10, t: 30019 + k }))].map(p => ({ ...p, v: 0, acc: 8 }));
   const r33f = { a50: gate(altB(47)), a51: gate(altB(47.1)), b50: gate(flip(altB(47), 2000), 'tra_sched', 1), b51: gate(flip(altB(47.1), 2000), 'tra_sched', 1) };
   ok('F33f 反方向淨位移的邊界：原始方向判死、反方向收下點淨位移剛好 −50 → 通過且方向改成反方向；−51 → impossible_physics（兩個方向）',
-    r33f.a50.pass === true && r33f.a50.dir === 1 && r33f.a50.pts.length === 18 && r33f.a51.code === 'impossible_physics' &&
-      r33f.b50.pass === true && r33f.b50.dir === 0 && r33f.b50.pts.length === 18 && r33f.b51.code === 'impossible_physics',
+    r33f.a50.pass === true && r33f.a50.dir === 1 && r33f.a50.pts.length === 20 && r33f.a51.code === 'impossible_physics' &&
+      r33f.b50.pass === true && r33f.b50.dir === 0 && r33f.b50.pts.length === 20 && r33f.b51.code === 'impossible_physics',
     JSON.stringify(Object.fromEntries(Object.entries(r33f).map(([k, r]) => [k, pd(r)]))));
   // ── 都卜勒改成「相關係數＞0.995 而且逐點差的中位數 ≤ 0.5 m/s」才判 ──
   // 這一重現在只記錄、不判可疑：下面說的「→ doppler_too_clean」一律是「照常放行、帶標記」（判準用 flagged／clean）。
@@ -669,6 +735,21 @@ ok('F3 第一重 日期太舊 → suspect',
     flagged(r31a) && raw31 < RULES.integrity.dopplerCorrMax, verdictOnly(r31a));
 }
 
+// ── F36：回溯多層的總工作量有上限（10-30 複審：沒上限時一班 3.7 MB 的車要 8.4 秒 CPU，幾班就讓整發判定被平台砍掉）────────────
+// 形狀：開頭兩點（不收）之後 5 萬點站著不動、t 擠在 18 秒內（全部收下），再 5.2 萬點往後退 1 km、同一秒（全部違規、也接不上任何收下點）。
+// 每連丟 6 點就回溯一次、每次往回把 300 秒內的 5 萬個收下點全掃一遍——沒上限是平方級。判準：判 impossible_physics、而且 2 秒內判完
+// （有上限約 0.1 秒、沒上限 8 秒以上，量在 M5 Ultra；機器忙時有 20 倍的餘裕）。
+{
+  const pts = [{ d: 0, t: 1000, v: null, acc: 5 }, { d: 0, t: 1000, v: null, acc: 5 }];
+  for (let i = 0; i < 50000; i++) pts.push({ d: 0, t: 1272 + Math.floor(i * 18 / 50000), v: null, acc: 5 });
+  for (let i = 0; i < 52000; i++) pts.push({ d: -1000, t: 1290, v: null, acc: 5 });
+  const t0 = process.cpuUsage();
+  const r36 = integrityGate(cleanTrip({ lnId: '山線', pts }), CTX, RULES);
+  const u = process.cpuUsage(t0), ms = Math.round((u.user + u.system) / 1000);
+  ok('F36 回溯多層的總工作量有上限：10 萬點擠在同一段時間的惡意形狀 → impossible_physics、2 秒內判完',
+    r36.pass === false && r36.code === 'impossible_physics' && ms < 2000, JSON.stringify({ code: r36.code, cpuMs: ms }));
+}
+
 // ── G 組：品質閘七項 ──────────────────────────────────────────────────────
 ok('G1 乾淨樣本通過品質閘', qualityGate(cleanTrip(), CTX, RULES).pass === true,
   JSON.stringify(qualityGate(cleanTrip(), CTX, RULES)));
@@ -686,9 +767,33 @@ ok('G5 錄得太短（覆蓋率 < 60%）→ too_short',
   qualityGate(cleanTrip({ pts: cleanTrip().pts.slice(0, 30) }), CTX, RULES).code === 'too_short',
   JSON.stringify(qualityGate(cleanTrip({ pts: cleanTrip().pts.slice(0, 30) }), CTX, RULES)));
 {
-  const t = cleanTrip(); t.pts = t.pts.filter(p => p.t < 30150 || p.t > 30350);   // 中間 200 秒沒定位
-  ok('G6 連續無定位超過門檻 → underground', qualityGate(t, CTX, RULES).code === 'underground',
-    JSON.stringify(qualityGate(t, CTX, RULES)));
+  // 斷訊（超過 noFixGapSec＝90 秒沒定位）：2026-10-30 起覆蓋率在斷訊處切段算，沒有任何一段夠覆蓋才判 underground
+  // （舊版任何一段斷訊就整趟 underground，穿過臺北、臺南地下段的西部幹線錄程全被判掉）。
+  //   a 只留頭尾各 30 秒（0–725 m、14,275–15,000 m），中間斷 541 秒 → 兩段的站間覆蓋都只有 0.36 → underground。
+  //   b 中間 200 秒沒定位（3,725–8,775 m）→ 兩邊各自蓋滿幾個站間 → 通過。
+  //   c 切段：10 m/s 跑 1500 秒，第 250–350 秒之間斷 100 秒（2,500–3,500 m，落在 S1–S2 站間的中間）。
+  //     切段後 S1–S2 兩邊各只有 500 m → 覆蓋 0.25（不切的話兩邊湊起來 2,000 m＝1，斷訊那 1 km 也算進去）；S0–S1、S2–S3 照樣 1。
+  const gapA = cleanTrip(); gapA.pts = gapA.pts.filter(p => p.t < 30030 || p.t > 30570);
+  const gapB = cleanTrip(); gapB.pts = gapB.pts.filter(p => p.t < 30150 || p.t > 30350);
+  const gapC = cleanTrip({ pts: Array.from({ length: 1501 }, (_, i) => ({ d: i * 10, t: 30000 + i, v: 10, acc: 8 })).filter(p => p.t <= 30250 || p.t >= 30350) });
+  const covC = Object.fromEntries(_bounty.bountyCoverage(gapC, gapC.pts, LINE, RULES).map(c => [c.key.split('|').slice(2).join('-'), c.cov]));
+  const g6 = { a: qualityGate(gapA, CTX, RULES), b: qualityGate(gapB, CTX, RULES), c: qualityGate(gapC, CTX, RULES) };
+  ok('G6 斷訊切段：斷訊兩邊都不夠覆蓋 → underground；一邊夠 → 通過；跨斷訊的站間不把兩邊湊起來（S1–S2 0.25，不切是 1）',
+    g6.a.code === 'underground' && g6.b.pass === true && g6.c.pass === true &&
+      covC['S1-S2'] === 0.25 && covC['S0-S1'] === 1 && covC['S2-S3'] === 1 &&
+      coverageOf(gapC, LINE, RULES).find(c => c.key.endsWith('|S1|S2')).cov === 1,
+    JSON.stringify({ a: g6.a.code || g6.a.pass, b: g6.b.code || g6.b.pass, c: g6.c.code || g6.c.pass, covC }));
+}
+{
+  // 收下的點之間斷超過 20 分鐘、里程又動了超過 200 m → 照舊 underground（斷訊兩邊的里程不接起來算；10-30 複審：
+  // 沒有上限時，錄兩段各幾分鐘、中間關掉 3 小時，也能拿到中間整段里程）。25 m/s 跑 601 點，第 300、301 點之間斷 g 秒：
+  //   a 斷 1201 秒、里程照 25 m/s 接著走（跳 30 km）→ underground；c 斷 1200 秒（剛好在上限上）→ 通過；
+  //   b 斷 3 小時、里程沒動（月台上等車，跳 25 m）→ 通過。
+  const gapped = (g, moving) => cleanTrip({ pts: cleanTrip().pts.map((p, i) => i > 300 ? { ...p, t: p.t + g - 1, d: p.d + (moving ? 25 * (g - 1) : 0) } : p) });
+  const g8 = { a: qualityGate(gapped(1201, true), CTX, RULES), b: qualityGate(gapped(10800, false), CTX, RULES), c: qualityGate(gapped(1200, true), CTX, RULES) };
+  ok('G8 斷訊兩邊不接起來算的上限：移動中斷 1201 秒 → underground；斷 1200 秒 → 通過；月台上等 3 小時（里程沒動）→ 通過',
+    g8.a.code === 'underground' && g8.b.pass === true && g8.c.pass === true,
+    JSON.stringify({ a: g8.a.code || g8.a.pass, b: g8.b.code || g8.b.pass, c: g8.c.code || g8.c.pass }));
 }
 ok('G7 歸屬不到唯一班次 → unknown_train（不是 suspect！）',
   qualityGate(cleanTrip({ trainNo: '' }), CTX, RULES).code === 'unknown_train');
@@ -745,8 +850,9 @@ ok('H4 防偽不過時不看品質閘的結論（順序固定：先防偽後品�
   const mk = (id, actor, pts) => `('${id}','${actor}','tra_sched','南迴線','312',0,'2026-07-28','${JSON.stringify(pts)}',NULL,${Date.parse('2026-07-29T01:00:00Z')},'pending')`;
   const clean = cleanTrip().pts;
   const blocked = clean.map(p => ({ ...p, acc: 120 }));
-  // suspect 那一筆用 F4 的形狀（第 300 點起整段退回 5 km）→ impossible_physics。
-  const spoof = clean.map((p, i) => i >= 300 ? { ...p, d: p.d - 5000 } : p);
+  // suspect 那一筆用 F4 的形狀（里程每秒在 0–15 km 之間亂跳）→ impossible_physics。
+  let seedH = 20261030;
+  const spoof = clean.map(p => ({ ...p, d: Math.round((seedH = seedH * 48271 % 2147483647) / 2147483647 * 15000) }));
   const { db, DELAY_DB } = openTestDb(
     `INSERT INTO bounty_board (seg_key,sys,train_kind,dir,kind,slot,l1,l2,points,per_day,first_listed_at,first_claimable_at,sample_count,covered_at) VALUES ${board};
      INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict) VALUES

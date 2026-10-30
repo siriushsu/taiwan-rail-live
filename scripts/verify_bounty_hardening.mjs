@@ -2560,14 +2560,15 @@ await attempt('PF3', async () => {
     got.e.v === 'ok' && J(got.e.trips) === trip13('dev-pf3-e0001'), J(got.e));
 });
 await attempt('PF4', async () => {
-  // 品質閘的斷訊（underground）看原始的點，不看防偽閘收下的點。防偽閘在開頭與每個 Δt≥10 秒的斷點之後不收頭兩點，
+  // 斷訊（超過 noFixGapSec 沒定位）看原始的點，不看防偽閘收下的點。防偽閘在開頭與每個 Δt≥10 秒的斷點之後不收頭兩點，
   // 斷訊在錄程頭尾時，旁邊那兩點一不收、斷訊就從收下的點裡消失；入帳的整班長度卻照原始的點算（入帳門檻 600 秒、山線 ×1）。
+  // 2026-10-30 起斷訊不再整趟判 underground（覆蓋率在斷訊處切段算），改成「斷訊的時間不算進整班長度」。
   //   a 前面掛兩點：一趟 300 秒的乾淨錄程（本身不到 600 秒），前面多送兩個 1000／999 秒前、同一位置的點 → 原始的點有 999 秒斷訊
-  //     → unusable（underground）、0 點。斷訊若看收下的點：開頭兩點與斷點後兩點都不收、收下的點沒有斷訊 → ok、整班 1300 秒 → 入帳。
+  //     → ok、整班 1299−999＝300 秒 → 0 點。斷訊時間若算進去（或斷訊看收下的點：收下的點沒有斷訊）→ 整班 1300 秒 → 入帳。
   //   b 後面掛兩點：同一趟、最後一點之後 1000／1001 秒再送兩點 → 同 a（原始的點有 1000 秒斷訊）。
-  //   o 對照：那趟 300 秒本身 → ok、0 點（a、b 的 unusable 來自斷訊，不是錄程本身）。
-  //   c 中間的隧道：700 秒錄程在第 350 點之後斷 g 秒（車照 20 m/s 前進）。g＝noFixGapSec → ok（整班 699＋g 秒）、入帳收下 40 m 到最後一點 (700＋g−1)×20 m：g＝90 → 15740 m → 15 點；
-  //     g＝noFixGapSec＋1 → unusable（underground）、0 點。斷訊若看收下的點，會多算斷點後不收的 2 秒，g＝noFixGapSec 也被判 underground。
+  //   o 對照：那趟 300 秒本身 → ok、0 點。
+  //   c 中間的隧道：700 秒錄程在第 350 點之後斷 g 秒（車照 20 m/s 前進）。入帳收下 40 m 到最後一點 (700＋g−1)×20 m：
+  //     g＝noFixGapSec＝90 → 不算斷訊、整班 789 秒 → 15740 m → 15 點；g＝91 → 斷訊、整班 790−91＝699 秒、15760 m → 15 點（舊版 underground、0 點）。
   // 夾具自己先驗：四種錄程的原始最大間隔依序是 999、1000、noFixGapSec、noFixGapSec＋1。
   const G = RULES.quality.noFixGapSec;
   const base = leg({ sec: 300 }), last = base[base.length - 1];
@@ -2589,15 +2590,16 @@ await attempt('PF4', async () => {
   const res = { gaps: [head, tail, tunnel(G), tunnel(G + 1)].map(maxGap), a: got(A, 'PF4a'), b: got(B, 'PF4b'), o: got(O, 'PF4o'),
     c0: got(C0, 'PF4c'), c1: got(C1, 'PF4c') };
   const fixture = J(res.gaps) === J([999, 1000, G, G + 1]);
-  const under = r => r.v === 'unusable' && r.code === 'underground' && r.chips.length === 0;
-  ok('PF4a 斷訊在錄程開頭（1000／999 秒前兩點＋300 秒）→ unusable（underground）、0 點（看收下的點斷訊會消失、整班 1300 秒就會入帳）',
-    fixture && under(res.a), J({ gaps: res.gaps, a: res.a }));
-  ok('PF4b 斷訊在錄程結尾（300 秒＋1000／1001 秒後兩點）→ unusable（underground）、0 點',
-    fixture && under(res.b), J({ gaps: res.gaps, b: res.b }));
+  const okZero = r => r.v === 'ok' && r.code === '-' && r.chips.length === 0;
+  ok('PF4a 斷訊在錄程開頭（1000／999 秒前兩點＋300 秒）→ ok、0 點（斷訊的 999 秒不算進整班長度；算進去就是 1300 秒、會入帳）',
+    fixture && okZero(res.a), J({ gaps: res.gaps, a: res.a }));
+  ok('PF4b 斷訊在錄程結尾（300 秒＋1000／1001 秒後兩點）→ ok、0 點',
+    fixture && okZero(res.b), J({ gaps: res.gaps, b: res.b }));
   ok('PF4o 對照：同一趟 300 秒本身 → ok、0 點（不到 600 秒）',
     res.o.v === 'ok' && res.o.code === '-' && res.o.chips.length === 0, J(res.o));
-  ok(`PF4c 隧道斷 ${G} 秒（＝noFixGapSec＝90）→ ok、15 點（收下 40–15780 m）；斷 ${G + 1} 秒 → unusable（underground）、0 點（看收下的點會多算不收的 2 秒）`,
-    fixture && G === 90 && res.c0.v === 'ok' && res.c0.code === '-' && J(res.c0.chips) === J([{ delta: 15, ref: `${C0}|${D28}|PF4c` }]) && under(res.c1),
+  ok(`PF4c 隧道斷 ${G} 秒（＝noFixGapSec＝90）→ ok、15 點（收下 40–15780 m）；斷 ${G + 1} 秒 → ok、15 點（斷訊切段、整班 699 秒）`,
+    fixture && G === 90 && res.c0.v === 'ok' && res.c0.code === '-' && J(res.c0.chips) === J([{ delta: 15, ref: `${C0}|${D28}|PF4c` }]) &&
+      res.c1.v === 'ok' && res.c1.code === '-' && J(res.c1.chips) === J([{ delta: 15, ref: `${C1}|${D28}|PF4c` }]),
     J({ gaps: res.gaps, c0: res.c0, c1: res.c1 }));
 });
 await attempt('PF5', async () => {
