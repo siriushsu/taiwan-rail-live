@@ -735,6 +735,21 @@ ok('F3 第一重 日期太舊 → suspect',
     flagged(r31a) && raw31 < RULES.integrity.dopplerCorrMax, verdictOnly(r31a));
 }
 
+// ── F36：回溯多層的總工作量有上限（10-30 複審：沒上限時一班 3.7 MB 的車要 8.4 秒 CPU，幾班就讓整發判定被平台砍掉）────────────
+// 形狀：開頭兩點（不收）之後 5 萬點站著不動、t 擠在 18 秒內（全部收下），再 5.2 萬點往後退 1 km、同一秒（全部違規、也接不上任何收下點）。
+// 每連丟 6 點就回溯一次、每次往回把 300 秒內的 5 萬個收下點全掃一遍——沒上限是平方級。判準：判 impossible_physics、而且 2 秒內判完
+// （有上限約 0.1 秒、沒上限 8 秒以上，量在 M5 Ultra；機器忙時有 20 倍的餘裕）。
+{
+  const pts = [{ d: 0, t: 1000, v: null, acc: 5 }, { d: 0, t: 1000, v: null, acc: 5 }];
+  for (let i = 0; i < 50000; i++) pts.push({ d: 0, t: 1272 + Math.floor(i * 18 / 50000), v: null, acc: 5 });
+  for (let i = 0; i < 52000; i++) pts.push({ d: -1000, t: 1290, v: null, acc: 5 });
+  const t0 = process.cpuUsage();
+  const r36 = integrityGate(cleanTrip({ lnId: '山線', pts }), CTX, RULES);
+  const u = process.cpuUsage(t0), ms = Math.round((u.user + u.system) / 1000);
+  ok('F36 回溯多層的總工作量有上限：10 萬點擠在同一段時間的惡意形狀 → impossible_physics、2 秒內判完',
+    r36.pass === false && r36.code === 'impossible_physics' && ms < 2000, JSON.stringify({ code: r36.code, cpuMs: ms }));
+}
+
 // ── G 組：品質閘七項 ──────────────────────────────────────────────────────
 ok('G1 乾淨樣本通過品質閘', qualityGate(cleanTrip(), CTX, RULES).pass === true,
   JSON.stringify(qualityGate(cleanTrip(), CTX, RULES)));
@@ -768,6 +783,17 @@ ok('G5 錄得太短（覆蓋率 < 60%）→ too_short',
       covC['S1-S2'] === 0.25 && covC['S0-S1'] === 1 && covC['S2-S3'] === 1 &&
       coverageOf(gapC, LINE, RULES).find(c => c.key.endsWith('|S1|S2')).cov === 1,
     JSON.stringify({ a: g6.a.code || g6.a.pass, b: g6.b.code || g6.b.pass, c: g6.c.code || g6.c.pass, covC }));
+}
+{
+  // 收下的點之間斷超過 20 分鐘、里程又動了超過 200 m → 照舊 underground（斷訊兩邊的里程不接起來算；10-30 複審：
+  // 沒有上限時，錄兩段各幾分鐘、中間關掉 3 小時，也能拿到中間整段里程）。25 m/s 跑 601 點，第 300、301 點之間斷 g 秒：
+  //   a 斷 1201 秒、里程照 25 m/s 接著走（跳 30 km）→ underground；c 斷 1200 秒（剛好在上限上）→ 通過；
+  //   b 斷 3 小時、里程沒動（月台上等車，跳 25 m）→ 通過。
+  const gapped = (g, moving) => cleanTrip({ pts: cleanTrip().pts.map((p, i) => i > 300 ? { ...p, t: p.t + g - 1, d: p.d + (moving ? 25 * (g - 1) : 0) } : p) });
+  const g8 = { a: qualityGate(gapped(1201, true), CTX, RULES), b: qualityGate(gapped(10800, false), CTX, RULES), c: qualityGate(gapped(1200, true), CTX, RULES) };
+  ok('G8 斷訊兩邊不接起來算的上限：移動中斷 1201 秒 → underground；斷 1200 秒 → 通過；月台上等 3 小時（里程沒動）→ 通過',
+    g8.a.code === 'underground' && g8.b.pass === true && g8.c.pass === true,
+    JSON.stringify({ a: g8.a.code || g8.a.pass, b: g8.b.code || g8.b.pass, c: g8.c.code || g8.c.pass }));
 }
 ok('G7 歸屬不到唯一班次 → unknown_train（不是 suspect！）',
   qualityGate(cleanTrip({ trainNo: '' }), CTX, RULES).code === 'unknown_train');

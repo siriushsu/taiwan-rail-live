@@ -8438,6 +8438,9 @@ function integrityGate(trip, ctx, rules) {
   //     若往回 PHYS_LOOK_SEC 秒內有某個收下點 k，讓它們依序接在「收下點到 k 為止」後面全部合規，就拿掉 k 之後的收下點、改收這幾點
   //     （拿掉的點算進丟點，這幾點不算）。壞的是前面那一串（卡住的里程、往前飄的停站點）時，後面的好點才接得回來；
   //     收下的點同樣仍是一組不回溯的版本也會全收的點。
+  //     🔴 往回找 k 的總次數有上限（PHYS_LOOK_PER_PT×點數，一個方向一份，用完就不再回溯、照舊丟點）：收下的點可以全擠在同一秒，
+  //     每試一次就把 300 秒內的收下點全掃一遍——一班 3.7 MB、10 萬點的車要 8.4 秒 CPU（舊版 24 ms），幾班就讓整發判定超過平台的 CPU 上限被砍掉，
+  //     後面的誠實班車都判不到（10-30 複審實測；BOUNTY_BYTES_BUDGET 靠的是「CPU 跟位元組成正比」）。正式庫真資料單次最多試 7,573 次，離上限很遠。
   //   ・開頭、以及每個 Δt≥PHYS_GAP_SEC 秒的斷點（隧道）之後的前 PHYS_GAP_SKIP 點直接不收、不算違反：那幾個定位最不可靠，
   //     被收下當基準的話，後面的好點會全被當成壞點（一個 +300 m 的出隧道點就讓之後十幾點都「往後退」）。
   // 收下的點彼此仍滿足同一組上界（任兩點往前、相鄰兩點往後與加速度），平均速度的上界不變：丟點等於「那幾點沒送」，偽造者不會因此多出能力——
@@ -8446,11 +8449,11 @@ function integrityGate(trip, ctx, rules) {
   // 數字是模擬過的那一組（隧道出口、冷啟動、±100／±300 跳點的誤殺率都降到 0–1%）。
   // App 端還有一個伺服器修不動的：t 是送達時刻不是定位時刻（JS 卡頓更長時仍會誤殺，要在 App 端改）；t 在午夜歸零則已在 assembleTrip 補上。
   const sgn = Number(trip.dir) === 1 ? -1 : 1, lim = cap * 1.15, TOL = 50, aMax = R.maxAccelMps2 * 3;
-  const PHYS_DROP_RUN = 5, PHYS_DROP_MIN = 5, PHYS_DROP_SHARE = 0.5, PHYS_GAP_SEC = 10, PHYS_GAP_SKIP = 2, PHYS_BACK_SEC = 10, PHYS_LOOK_SEC = 300;
+  const PHYS_DROP_RUN = 5, PHYS_DROP_MIN = 5, PHYS_DROP_SHARE = 0.5, PHYS_GAP_SEC = 10, PHYS_GAP_SKIP = 2, PHYS_BACK_SEC = 10, PHYS_LOOK_SEC = 300, PHYS_LOOK_PER_PT = 20;
   // 以 s 方向（+1＝里程遞增）判一次：回傳收下的點，判死回 null。
   const physics = s => {
     const kept = [], gMin = [];   // gMin[i]＝kept[0..i] 的 g 最小值——回溯要退回前一個最小值，所以記整串
-    let prevT = null, skipLeft = PHYS_GAP_SKIP, run = 0, dropped = 0, seen = 0;
+    let prevT = null, skipLeft = PHYS_GAP_SKIP, run = 0, dropped = 0, seen = 0, lookLeft = PHYS_LOOK_PER_PT * pts.length;
     const tail = [];              // 這一串連丟的點（收下一點就清空）
     // p 接在「前 n 個收下點」後面合不合規：往前比任兩點（g 的最小值），往後與加速度比第 n 個。
     // gm／last 給回溯多層用：從一個假想的收下點序列接著比（gm＝那串的 g 最小值，last＝那串最後一點）。
@@ -8483,7 +8486,7 @@ function integrityGate(trip, ctx, rules) {
       tail.push(p);
       if (++run <= PHYS_DROP_RUN || run % (PHYS_DROP_RUN + 1)) continue;
       const w = tail.slice(-(PHYS_DROP_RUN + 1));
-      for (let k = n - 1; k >= 0 && w[0].t - kept[k].t <= PHYS_LOOK_SEC; k--) {
+      for (let k = n - 1; k >= 0 && lookLeft-- > 0 && w[0].t - kept[k].t <= PHYS_LOOK_SEC; k--) {
         if (!chainFits(w, k + 1)) continue;
         dropped += n - 1 - k - w.length;
         kept.length = gMin.length = k + 1;
@@ -8549,6 +8552,8 @@ function integrityGate(trip, ctx, rules) {
 // （文案在 data/bounty_rules.json 的 qualityText，前端錄製當下用的是同一份）。
 // 順序照規格 §7 那張表：先講使用者控制得了的（精確位置、遮蔽、取樣頻率），再講環境的。
 // rawPts：防偽閘收下之前的原始點，只給斷訊檢查用（理由見下面那一行）；不給就跟 trip.pts 一樣。
+// 斷訊兩邊的里程接起來算的上限（見 qualityGate 的 underground）：斷超過 20 分鐘、里程動了超過 200 m 就不接。
+const BOUNTY_BRIDGE_MAX_SEC = 1200, BOUNTY_BRIDGE_IDLE_M = 200;
 function qualityGate(trip, ctx, rules, rawPts = trip.pts) {
   const Q = rules.quality, pts = trip.pts;
   if (!trip.trainNo) return { pass: false, code: 'unknown_train' };
@@ -8569,7 +8574,14 @@ function qualityGate(trip, ctx, rules, rawPts = trip.pts) {
   // 斷訊（超過 noFixGapSec 沒有定位）：覆蓋率在斷訊處切段算（bountyCoverage），沒有任何一段夠覆蓋才判 underground。
   // 🔴 2026-10-30 起不再「任何一段斷訊就整趟 underground」：正式庫的斷訊落在萬華、浮洲、臺北、臺南的地下段與三義的隧道，
   // 穿過這些地方的西部幹線錄程（26–103 km）地面上錄得再好也整趟不採用。地下那一段照樣沒有覆蓋（斷訊兩邊的點不湊成同一段）。
-  // 點數的里程是防偽閘收下的點的跨距，跨過斷訊的那一段受同一個速度上限約束（任兩點都比），斷訊不會讓里程多出來。
+  // 點數的里程是防偽閘收下的點的跨距，跨過斷訊的那一段受同一個速度上限約束（任兩點都比）。
+  // 🔴 但收下的點之間斷超過 BOUNTY_BRIDGE_MAX_SEC、里程又動了超過 BOUNTY_BRIDGE_IDLE_M，這條線照舊判 underground：
+  // 速度上限只限「跑不跑得到」，不限人有沒有在這班車上——沒改過的 App 錄兩段各 6 分鐘、中間關掉 3 小時、相隔 185 km，
+  // 不設上限就給 194 點（10-30 複審實跑整條 cron）。看收下的點不看原始的點：中間塞幾個會被防偽閘丟掉的點，原始的點就沒有長斷訊。
+  // 正式庫 10-27～10-30 在移動中的斷訊最長 5.2 分鐘（臺南地下段 4.4 km）；13–24 分鐘的都是在月台等車、里程沒動，所以里程沒動的不算。
+  if (pts.some((p, i) => i && p.t - pts[i - 1].t > BOUNTY_BRIDGE_MAX_SEC && Math.abs(p.d - pts[i - 1].d) > BOUNTY_BRIDGE_IDLE_M)) {
+    return { pass: false, code: 'underground' };
+  }
   // 尖峰時段表跟判定端（bountyVerifyTrain）同一份：coverageOf 平日沒有這張表就不列停靠段，
   // 舊版這裡沒帶，平日只錄到停靠的錄程判 too_short、假日同一趟卻是 ok，判定端存的覆蓋段裡又明明有那個停靠段。
   const cov = ctx.line ? bountyCoverage(trip, rawPts, ctx.line, rules, ctx.peakHoursBySys) : [];
