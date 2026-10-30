@@ -8185,7 +8185,8 @@ const BUILDING_LOOKS = {
     light: { anchor: 'map', color: '#d8e4ff', intensity: .5, position: [1.5, 200, 55] }, shade: [.6, 6, .8, 0] },
 };
 window.railIslandBuildingLooks = BUILDING_LOOKS;
-function buildingLookKind() { return state.basemap === 'landscape' ? 'landscape' : state.mapDark ? 'dark' : 'light'; }
+// 衛星底圖一律用亮色那組（跟 map3d.js setAppearance 的顏色同一條：dark && !satellite 才是暗色）。
+function buildingLookKind() { return state.basemap === 'landscape' ? 'landscape' : state.mapDark && state.basemap !== 'sat' ? 'dark' : 'light'; }
 // 光源有日夜光影時交給它當基礎光（開著時照太陽、關掉時退回這組）。
 function applyBuildingLook(raw, kind) {
   const look = BUILDING_LOOKS[kind], shade = raw.railIslandBuildingShade || (raw.railIslandBuildingShade = { n: 0 });
