@@ -138,7 +138,8 @@ const widths = [360, 375, 414, 768];
 // 10/26: calibration bounties switch from chips to points adds one (523 -> 524).
 // 10/30: TRA single-track meet stops at non-passenger stations add one (529 -> 530).
 // 10/30: help text now matches the current layout (View settings tabs, phone/desktop entry points) adds one (530 -> 531).
-const expectedHistoryCount = 531;
+// 10/30: help center gains view settings, 3D trains, place guide, language, follow lock, connections, card info and alerts sections adds one (531 -> 532).
+const expectedHistoryCount = 532;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
