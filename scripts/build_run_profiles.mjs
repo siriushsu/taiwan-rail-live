@@ -24,7 +24,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CONSTS = ['PERF_DEFAULT', 'PERF_HSR', 'HSR_DEP_MID_SEC', 'PERF_RULES', 'PERF_BY_TYPE', 'PERF_DR1000',
   'DIESEL_BRANCH_IDS',
   'SPEED_ZONES', 'ZONE_KNOT_GAP', '_rpPre', 'MEET_HEADWAY_SEC', 'MEET_NEAR_SEC',
-  'OVERTAKE_LOOKAHEAD_KM', 'OVERTAKE_CLEAR_SEC', 'OVERTAKE_MAX_WAIT_SEC', 'overtakeStationKey'];
+  'OVERTAKE_LOOKAHEAD_KM', 'OVERTAKE_CLEAR_SEC', 'OVERTAKE_MAX_WAIT_SEC', 'overtakeStationKey', 'MEET_STOP_MIN_SEC'];
 const FUNCS = ['haversineKm', 'ensureCum', 'posAlongShape', 'isHSR', 'isMyTrain', 'specialOf', 'namedTrainNosOn', 'isDr1000', 'resolvePerf',
   'speedZoneClassOf', 'runSpeedZones', 'zoneProfileOk', 'zoneNatural', 'speedZoneKnots',
   'buildProfile', 'buildObsProfile', 'profTimeToProg', 'profProgToTime',
@@ -32,7 +32,7 @@ const FUNCS = ['haversineKm', 'ensureCum', 'posAlongShape', 'isHSR', 'isMyTrain'
   'projectOntoShape', 'assignSchedShapePathsFor', 'traSectionKey',
   'inferMeetPassTimes', 'inferMeetRun', 'reanchorRunProfile', 'applyRunProfile'];
 FUNCS.push('clearPlannedOvertakes', 'reassignTrainProfile', 'overtakeRunBuildable', 'overtakeTrackFree',
-  'planSameDirectionOvertakes', 'resolveTraTraffic');
+  'planSameDirectionOvertakes', 'planPassStationMeets', 'resolveTraTraffic');
 
 // 🔴 前端存進 state.passObs 的是檔案的 .trains 子物件，不是根物件（index.html:26667）。
 // 傳整份進去不會報錯，只會讓每一次查表都落空、全部跑段靜默退回梯形——實測 236 台車的
