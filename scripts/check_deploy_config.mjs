@@ -36,6 +36,9 @@ const REQUIRED_CRONS = {
   '30 19 * * *':
     '路段懸賞的估值（看板上架、退場、重算）與判定（樣本判讀、發籌碼、每段貢獻）'
     + '（worker.js 的 BOUNTY_CRON 分支，跑完就 return，不落進每日 ingest）',
+  '2-59/5 * * * *':
+    '跟車即時天氣：每 5 分鐘存氣象署雷達、測站、雨量站進 D1 weather_frames（氣象署不給歷史，沒存到就沒有）'
+    + '（worker.js 的 WEATHER_CRON 分支，跑完就 return）',
 };
 
 // ── `.assetsignore` 裡不可以消失的條目 ────────────────────────────────────

@@ -624,8 +624,8 @@ try {
     const wcfg = readFileSync(path.join(ROOT, 'wrangler.jsonc'), 'utf8');
     const m = wcfg.match(/"crons"\s*:\s*(\[[^\]]*\])/);
     let cronsOk = false, cronsArr = null;
-    try { cronsArr = m && JSON.parse(m[1]); cronsOk = Array.isArray(cronsArr) && JSON.stringify(cronsArr) === JSON.stringify(['* * * * *', '15 1 * * *', '30 19 * * *']); } catch {}
-    ok('H7 wrangler.jsonc 的 crons 陣列逐字恰為 ["* * * * *","15 1 * * *","30 19 * * *"](已停用的第二發沒被加回來；30 19 是懸賞判定)',
+    try { cronsArr = m && JSON.parse(m[1]); cronsOk = Array.isArray(cronsArr) && JSON.stringify(cronsArr) === JSON.stringify(['* * * * *', '15 1 * * *', '30 19 * * *', '2-59/5 * * * *']); } catch {}
+    ok('H7 wrangler.jsonc 的 crons 陣列逐字恰為 ["* * * * *","15 1 * * *","30 19 * * *","2-59/5 * * * *"](已停用的第二發沒被加回來；30 19 是懸賞判定、2-59/5 是天氣)',
       cronsOk, m ? m[1] : 'crons 找不到');
   }
 } finally {
