@@ -16,6 +16,8 @@
 //      換到的那一股不能正停著別班、也不能有另一班從旁穿過（9/13 考卷實測：埔心 173 換到 1161 正停著的待避線）。
 // 修法兩層：rail-3d/physical/overtake-sidings.js 把待避車換到另一股；index.html 選待避站時查 data/tra_overtake_tracks.json，
 // 那個方向沒有空股（超越車不走、待避期間也沒別班佔著）的站不排。
+// 單線會車停車（index.html planPassStationMeets，issue #65）也掛 _plannedDwell，同一套逐筆驗；「超越車」是那班對向車。
+// 對向車當天沒開（只在別的日子開，_meetStop 有、_overtakeBy 沒有）時沒有超越車，A–C 不適用，只驗 D、E。
 // 判準的真值都從畫面入口現量（record 的路徑解成節點、trainPosAt 的車身）；改道模組自己回報的 sidings 只拿來在明細標「改道」，不參與判定。
 //
 // 跑法：node scripts/verify_overtake_distinct_track.mjs
@@ -93,12 +95,13 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
       const rows = [];
       for (const t of state.trains) t.stops.forEach((s, j) => {
         if (!s._plannedDwell) return;
-        const tag = `${t.train}@${s.name}等${s._overtakeBy}`;
-        const F = state.trains.find(f => String(f.train) === String(s._overtakeBy) && f.stops.some(x => x.name === s.name));
-        if (!F) { rows.push({ tag, missing: '找不到超越車' }); return; }
-        const fj = F.stops.findIndex(x => x.name === s.name), L = at(t, j), R = at(F, fj);
-        if (!L || !R || L.skipped || R.skipped) { rows.push({ tag, missing: `綁不到實體股道（待避車 ${L ? L.skipped ? '略過該站' : L.basis : '無'}／超越車 ${R ? R.skipped ? '略過該站' : R.basis : '無'}）` }); return; }
-        const hL = half(t), hF = half(F);
+        const peerless = !!s._meetStop && !s._overtakeBy;
+        const tag = `${t.train}@${s.name}等${s._meetStop || s._overtakeBy}${peerless ? '(當天沒開)' : ''}`;
+        const F = peerless ? null : state.trains.find(f => String(f.train) === String(s._overtakeBy) && f.stops.some(x => x.name === s.name));
+        if (!F && !peerless) { rows.push({ tag, missing: '找不到超越車' }); return; }
+        const L = at(t, j), R = F ? at(F, F.stops.findIndex(x => x.name === s.name)) : null;
+        if (!L || L.skipped || (F && (!R || R.skipped))) { rows.push({ tag, missing: `綁不到實體股道（待避車 ${L ? L.skipped ? '略過該站' : L.basis : '無'}／超越車 ${F ? R ? R.skipped ? '略過該站' : R.basis : '無' : '當天沒開'}）` }); return; }
+        const hL = half(t), hF = F ? half(F) : 0;
         const others = state.trains.filter(o => o !== t && o !== F && o.stops?.some(x => x.name === s.name && x.depSec >= s.arrSec - 120 && x.arrSec <= s.depSec + 120));
         const otherSec = new Map();
         let overlapSec = 0, firstOverlap = null, fixed = true, physical = true, anchor = null;
@@ -111,11 +114,12 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
             const po = trainPosAt(o, x); if (!po?.physical) continue;
             for (const res of body(po, half(o))) if (bl.has(res)) { otherSec.set(String(o.train), (otherSec.get(String(o.train)) || 0) + 1); break; }
           }
+          if (!F) continue;
           const pf = trainPosAt(F, x); if (!pf?.physical) continue;
           for (const res of body(pf, hF)) if (bl.has(res)) { overlapSec++; firstOverlap ??= x; break; }
         }
-        rows.push({ tag, dir: Math.sign(s.dB - s.dA), dwell: Math.round(s.depSec - s.arrSec), nodeL: L.node, nodeF: R.node, basisL: L.basis, basisF: R.basis,
-          sameNode: L.node === R.node, throughL: R.nodes.has(L.node), overlapSec, firstOverlap, fixed, physical, halfL: hL, halfF: hF,
+        rows.push({ tag, dir: Math.sign(s.dB - s.dA), dwell: Math.round(s.depSec - s.arrSec), nodeL: L.node, nodeF: R ? R.node : '—', basisL: L.basis, basisF: R ? R.basis : '—',
+          sameNode: !!R && L.node === R.node, throughL: !!R && R.nodes.has(L.node), overlapSec, firstOverlap, fixed, physical, halfL: hL, halfF: hF,
           others: others.length, otherHits: [...otherSec].map(([k, v]) => `${k}×${v}s`),
           moved: L.moved });
       });

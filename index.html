@@ -5656,6 +5656,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="trameetstop1030"><span class="d">10/30</span><span>台鐵單線區段在不載客的車站會車時，等待的列車改成進站停車、等對向車過了再開，不再從前一站一路慢慢開，例如莒光 653 次在東竹 12:54 到站、停到 12:58（謝謝網友回報）</span></li>
         <li data-cl-of="trcurl1030"><span class="d">10/30</span><span>台鐵官網改用新網址 www.trc.com.tw，活動公告與車庫裡的台鐵官方連結都換成新網址（謝謝網友回報）</span></li>
         <li data-cl-of="glassspread1030"><span class="d">10/30</span><span>修正台北等密集市區的建築透視線條只集中在畫面中央一圈：縮小或斜看時改為平均分散到整個畫面，線條替換時淡入淡出、不再突然跳動</span></li>
         <li data-cl-of="thsrchiayistop1029"><span class="d">10/29</span><span>立體列車：高鐵嘉義站停靠的列車改停在月台中段，不再有半列車身凸出月台外</span></li>
@@ -5663,7 +5664,6 @@
         <li data-cl-of="commutercars1028"><span class="d">10/28</span><span>立體列車的區間車改依車次推估節數：沙崙線（37、38 開頭的車次）畫 4 節，1006、3029、3005、3028 次畫 10 節，其餘維持 8 節，仍標示「推估編組」</span></li>
         <li data-cl-of="bountypoints"><span class="d">10/27</span><span>校正懸賞改用島民點數：合格的一趟照實際錄到的沿線里程給點，1 公里 1 點，南迴、臺東線加倍，每天最多 500 點；原有籌碼 1 顆換 50 點，已解鎖的車庫場景照舊</span></li>
         <li data-cl-of="weatherdanhai1024"><span class="d">10/24</span><span>颱風公告補列淡海官網15至30分鐘班距與停駛資訊不一致，提醒先確認實際開行</span></li>
-        <li data-cl-of="horizonclip1024"><span class="d">10/24</span><span>傾斜視角：地平線後的站名與列車不再畫進天空、遠方線條不再擠成橫帶；起伏地形的示意線改由立體層繪製，遠近粗細一致</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5697,6 +5697,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="trameetstop1030"><span class="d">10/30</span><span>台鐵單線區段在不載客的車站會車時，等待的列車改成進站停車、等對向車過了再開，不再從前一站一路慢慢開，例如莒光 653 次在東竹 12:54 到站、停到 12:58（謝謝網友回報）</span></li>
         <li data-cl="glassspread1030"><span class="d">10/30</span><span>修正台北等密集市區的建築透視線條只集中在畫面中央一圈：縮小或斜看時改為平均分散到整個畫面，線條替換時淡入淡出、不再突然跳動</span></li>
         <li data-cl="commutercars1028"><span class="d">10/28</span><span>立體列車的區間車改依車次推估節數：沙崙線（37、38 開頭的車次）畫 4 節，1006、3029、3005、3028 次畫 10 節，其餘維持 8 節，仍標示「推估編組」</span></li>
         <li data-cl="trabindvariant1019"><span class="d">10/19</span><span>台鐵列車某天比平常多停或少停一站時（例如 8/30 的 6616、9/28 的 132 與 136），立體地圖上不再退回示意線形，改沿實體股道行駛，優先走這班平常的股道</span></li>
@@ -7084,7 +7085,9 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1029b：高鐵嘉義站的停車點改到月台中段（原本是 OSM 標在月台端的節點，列車中心停在那裡、半列凸出月台）；只重產 rail-3d/physical 的 network.json／dispatch.json 與 level-profiles 記的路網 sha，台鐵與其他站不變；更新紀錄加一條。
 // v1030a：建築透視線條的 1600／700 棟名額改成中央最近 20 棟優先、其餘平均分給畫面 8×6 格，縮小或斜看時不再只剩中央一個圓；名單替換與 14～14.7 級之間改為淡入淡出；更新紀錄加一條。
 // v1030b：台鐵官網新網址 www.trc.com.tw（舊網址 2027-01-01 停用）：活動公告與車庫的官方連結、巡檢與 AI 營運整理抓的公告列表都換新網域，ods／tip 子網域不在公告範圍、照舊；更新紀錄加一條。
-const BUILD = 'v1030b';
+// v1030c：台鐵單線會車停車（issue #65）：通過站時刻被推晚、往前是單線、有對向車從那一站進來 ⇒ 照時刻表到站、停到原通過時刻再開（planPassStationMeets），
+//   對向車只在部分日子開的其他日子照停；待避兩支閘門把會車停車跟同向待避分開驗；更新紀錄加一條。
+const BUILD = 'v1030c';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -11748,7 +11751,7 @@ function clearPlannedOvertakes(trains) {
       if (st._trafficArr0 == null) { st._trafficArr0 = st.arrSec; st._trafficDep0 = st.depSec; }
       else { st.arrSec = st._trafficArr0; st.depSec = st._trafficDep0; }
     }
-    delete st._overtakeDep0; delete st._plannedDwell; delete st._overtakeBy; delete st._overtakePeers; delete st._overtakeRef;
+    delete st._overtakeDep0; delete st._plannedDwell; delete st._overtakeBy; delete st._overtakePeers; delete st._overtakeRef; delete st._meetStop;
   }
 }
 function reassignTrainProfile(tr) {
@@ -11802,7 +11805,7 @@ function overtakeTrackFree(tracks, at, tr, j, lo, hi) {
   return !reach.includes((1 << cands.length) - 1);
 }
 function planSameDirectionOvertakes(trains, union, sections, tracks, banned = new Set()) {
-  const stats = { planned: 0, tooClose: 0, unbuildable: 0, deferred: 0, noTrack: 0, retimed: 0, retracted: 0, worse: 0, log: [] };
+  const stats = { planned: 0, tooClose: 0, unbuildable: 0, deferred: 0, noTrack: 0, retimed: 0, retracted: 0, worse: 0, meetHeld: 0, log: [] };
   if (!Array.isArray(trains) || trains.length < 2 || !tracks) return stats;
   const keyOf = tr => tr.train + ':' + tr.stops[0].depSec + ':' + tr.stops[tr.stops.length - 1].arrSec;
   const days = new Map();
@@ -11933,6 +11936,8 @@ function planSameDirectionOvertakes(trains, union, sections, tracks, banned = ne
     for (const p of ps) {
       const st = tr.stops[p.j];
       if (st._plannedDwell && st.depSec >= p.dep) continue;
+      // 會車停車（planPassStationMeets）不併成同向待避：撤銷時會連 _plannedDwell 一起刪，把交會停車也拆掉。
+      if (st._meetStop) { stats.meetHeld++; continue; }
       const fresh = !rebuilt.has(tr) || (p.dep > st.arrSec + 0.5 && p.dep - st.arrSec <= OVERTAKE_MAX_WAIT_SEC
         && p.ftr.stops[p.fj].arrSec - st.arrSec >= p.need);
       if (!fresh || rebuilt.has(p.ftr) || reliedOn.has(tr)) { stats.deferred++; continue; }
@@ -11978,11 +11983,69 @@ function attachOvertakePeers(trains) {
     Object.defineProperty(st, '_overtakePeers', { value: peers, configurable: true, writable: true });
   }
 }
+// 不辦客的單線會車停車（issue #65）：653 在東竹等 418 交會，東竹在時刻表上是通過站。通過觀測把通過時刻推到
+// 12:58，但交會推論只挪通過時刻、不排停車 ⇒ 畫成從富里以 34 km/h 慢爬 11 分鐘，到站才跟 418 錯身。
+// 條件：通過時刻比密化原值晚 ≥ MEET_STOP_MIN_SEC、往前一站是單線、這段時間有對向車從那一站進來。
+// 成立就照時刻表步調到站（_trafficArr0）、停到原本的通過時刻再開；空股與跑段檢查跟同向預排待避同一套，
+// 任一不過維持慢爬。
+// 對向車只在部分日子開（2026-10 的 418 週六週一、416 週日）時，其他日子照停：通過觀測是多日中位、不分日，
+// 交會推論也看 14 天聯集（shareDay），同一班車不該平日、週末畫成兩種走法。
+// _meetStop＝對向車次（給出貨閘門把它跟同向待避分開驗）；對向車當天有開才掛 _overtakeBy，閘門才找得到它。
+const MEET_STOP_MIN_SEC = 60;                   // 推晚不到一分鐘維持慢爬（班表 30 秒解析度，剖面本身也有誤差）
+function planPassStationMeets(trains, union, sections, tracks) {
+  const stats = { planned: 0, otherDay: 0, noTrack: 0, unbuildable: 0, log: [] };
+  if (!tracks || !sections) return stats;
+  const single = (a, b) => { const p = sections[traSectionKey(a, b)]; return !!p && p.tracks === 1; };
+  const keyOf = tr => tr.train + ':' + tr.stops[0].depSec + ':' + tr.stops[tr.stops.length - 1].arrSec;
+  const at = new Map(), today = new Set();
+  for (const tr of trains) {
+    (tr.stops || []).forEach((st, k) => (at.get(st.name) || at.set(st.name, []).get(st.name)).push([tr, st, k]));
+    if (tr.stops?.length) today.add(keyOf(tr));
+  }
+  // 當天沒開的班：聯集裡的密化時刻（今日名冊是聯集的切片，有開的班一律用上面現算過的時刻）
+  const days = new Map(), atU = new Map();
+  for (const [day, idxs] of Object.entries((union && union.dates) || {})) for (const i of idxs) {
+    const o = union.trains[i]; if (!o?.stops?.length) continue;
+    const k = keyOf(o); (days.get(k) || days.set(k, new Set()).get(k)).add(day);
+  }
+  for (const o of (union && union.trains) || []) {
+    if (!o || o.loop || !o.stops || o.stops.length < 2) continue;
+    const k = keyOf(o); if (today.has(k)) continue;
+    for (let j = 1; j < o.stops.length; j++)
+      (atU.get(o.stops[j].name) || atU.set(o.stops[j].name, []).get(o.stops[j].name)).push({ k, no: String(o.train), arr: o.stops[j].arrSec, prev: o.stops[j - 1].name });
+  }
+  const shareDay = (a, b) => { const A = days.get(a), B = days.get(b); if (!A || !B) return true; for (const d of A) if (B.has(d)) return true; return false; };
+  for (const tr of trains) {
+    if ((tr.sys && tr.sys !== 'tra_sched') || tr.loop || !tr.stops || tr.stops.length < 3) continue;
+    const s = tr.stops, xk = keyOf(tr), no = String(tr.train);
+    for (let j = 1; j < s.length - 1; j++) {
+      const st = s[j]; if (st.stop !== false || st._plannedDwell) continue;
+      const t0 = st._trafficArr0 ?? st.arrSec, tS = st.arrSec, N = s[j + 1].name;
+      if (!(tS - t0 >= MEET_STOP_MIN_SEC) || !single(st.name, N)) continue;
+      let by = null;
+      for (const [o, x, k] of at.get(st.name) || []) {
+        if (o === tr || o.loop || k < 1 || o.stops[k - 1].name !== N) continue;
+        if (x.arrSec > t0 && x.arrSec <= tS + 0.5) { by = String(o.train); break; }
+      }
+      const other = by ? null : (atU.get(st.name) || []).find(y => y.no !== no && y.prev === N && y.arr > t0 && y.arr <= tS + 0.5 && shareDay(xk, y.k));
+      const peer = by || other?.no; if (!peer) continue;
+      if (!overtakeTrackFree(tracks, at, tr, j, t0 - OVERTAKE_CLEAR_SEC, tS + OVERTAKE_CLEAR_SEC)) { stats.noTrack++; stats.log.push({ no, station: st.name, by: peer, skip: 'noTrack' }); continue; }
+      st.arrSec = t0;
+      if (!overtakeRunBuildable(tr, j, tS)) { st.arrSec = tS; stats.unbuildable++; stats.log.push({ no, station: st.name, by: peer, skip: 'unbuildable' }); continue; }
+      st.depSec = tS; st._plannedDwell = true; st._meetStop = peer;
+      if (by) st._overtakeBy = by; else stats.otherDay++;
+      reassignTrainProfile(tr); inferMeetPassTimes([tr], union, sections);   // 待避站成了跑段邊界，前後兩段重建後再夾一次交會
+      stats.planned++; stats.log.push({ no, station: st.name, by: peer, otherDay: !by, arr: Math.round(t0), dep: Math.round(tS) });
+    }
+  }
+  return stats;
+}
 function resolveTraTraffic(trains, union, sections, tracks) {
   const out = { meet: [], overtake: [], planned: 0 };
   // 先套既有的對向交會／官方停靠約束，再讓同向待避自行收斂。交會只推一次：待避屬於當日
   // 車群的暫態決策，再把它反餵進多日聯集交會會讓沒有參與待避的列車也依載入日產生不同曲線。
   out.meet.push(inferMeetPassTimes(trains, union, sections));
+  out.meetStop = planPassStationMeets(trains, union, sections, tracks);   // 交會推論把通過站推晚的，改成在站內停等對向車
   const banned = new Set();                   // 重算後撤銷過的待避，之後各輪不再原樣排（planSameDirectionOvertakes）
   for (let round = 0; round < 8; round++) {
     const p = planSameDirectionOvertakes(trains, union, sections, tracks, banned); out.overtake.push(p); out.planned += p.planned;

@@ -55,7 +55,7 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
       if (leader && train(followerNo) && wait) return { leaderNo, followerNo, station, substitute: false };
       const cands = [];
       for (const t of state.trains) for (const s of t.stops)
-        if (s._plannedDwell && s._overtakeBy && Math.sign(s.dB - s.dA) === dir && train(String(s._overtakeBy)))
+        if (s._plannedDwell && !s._meetStop && s._overtakeBy && Math.sign(s.dB - s.dA) === dir && train(String(s._overtakeBy)))
           cands.push({ leaderNo: String(t.train), followerNo: String(s._overtakeBy), station: s.name, substitute: true });
       cands.sort((a, b) => a.leaderNo.localeCompare(b.leaderNo, 'en', { numeric: true }) || a.station.localeCompare(b.station));
       return cands[0] || null;
@@ -104,19 +104,29 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
     // 6059 那時還在宜蘭線上（-226.6s）；10/9 的 6016 在漢本多等 972 秒（+1002s）。只驗抽到的那一對會漏掉其餘的。
     // 「待避期間停在實體股道同一座標」同樣每一筆都驗：抽樣只挑車次最小的一對，10/3 的 6669（環島專車，沒有一班既有計畫
     // 跑完整條路線、整班綁不到實體股道）在北埔待避 273 只有抽到它的那天才會紅。
-    const stale = [], unbound = [], checked = [], total = { n: 0 };
+    // 單線會車停車（planPassStationMeets，issue #65）等的是對向車：放行條件是對向車在停等期間進站，不是「後車通過後 30 秒」。
+    // 對向車當天沒開（_meetStop 有、_overtakeBy 沒有）就沒有車可對，只驗下面的停在同一座標。
+    const stale = [], unbound = [], checked = [], meetLate = [], total = { n: 0, meet: 0, meetOtherDay: 0 };
     for (const t of state.trains) for (const s of t.stops) if (s._plannedDwell) {
-      total.n++;
       const F = state.trains.find(f => String(f.train) === String(s._overtakeBy) && f.stops.some(x => x.name === s.name));
-      const c = F ? s.depSec - F.stops.find(x => x.name === s.name).depSec : NaN;
-      if (!(Math.abs(c - OVERTAKE_CLEAR_SEC) < .01)) stale.push(`${t.train}@${s.name}等${s._overtakeBy}:${Number.isFinite(c) ? c.toFixed(1) : '找不到後車'}s`);
+      if (s._meetStop) {
+        total.meet++; if (!s._overtakeBy) total.meetOtherDay++;
+        const a = F ? F.stops.find(x => x.name === s.name).arrSec : NaN;
+        if (s._overtakeBy && !(a >= s.arrSec && a <= s.depSec + .5))
+          meetLate.push(`${t.train}@${s.name}等${s._overtakeBy}:對向車 ${Number.isFinite(a) ? (a - s.arrSec).toFixed(1) + 's' : '找不到'}／停 ${(s.depSec - s.arrSec).toFixed(1)}s`);
+      } else {
+        total.n++;
+        const c = F ? s.depSec - F.stops.find(x => x.name === s.name).depSec : NaN;
+        if (!(Math.abs(c - OVERTAKE_CLEAR_SEC) < .01)) stale.push(`${t.train}@${s.name}等${s._overtakeBy}:${Number.isFinite(c) ? c.toFixed(1) : '找不到後車'}s`);
+      }
       const ps = [s.arrSec + 1, (s.arrSec + s.depSec) / 2, s.depSec - 1].map(x => trainPosAt(t, x));
       const fixed = ps.every(p => p && Math.hypot(p.lat - ps[0].lat, p.lon - ps[0].lon) < 1e-12), phys = ps.every(p => p?.physical);
-      const tag = `${t.train}@${s.name}等${s._overtakeBy}`;
+      const tag = `${t.train}@${s.name}等${s._meetStop || s._overtakeBy}`;
       checked.push(`${tag}(${railIslandPhysical.record(t)?.bindingBasis})`);
       if (!fixed || !phys) unbound.push(`${tag}:固定=${fixed}／實體股道=${phys}／${railIslandPhysical.record(t)?.bindingBasis}`);
     }
     return { build: BUILD, day: state.data?._schedDay, planned: state._meetStats?.planned, stale, unbound, checked, plannedTotal: total.n,
+      meetLate, meetTotal: total.meet, meetOtherDay: total.meetOtherDay,
       forward: inspect('6563', '207', '崇德', 1), reverse: inspect('114', '228', '五堵', -1) };
   });
   if ((!report.forward.missing && !report.reverse.missing) || i === SCAN - 1) break;
@@ -140,6 +150,8 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
   }
   ok(engine, `當天每一筆預排待避都在後車通過後 30 秒放行（${report.plannedTotal} 筆）`, report.plannedTotal > 0 && report.stale.length === 0,
     report.stale.slice(0, 6).join('、'));
+  ok(engine, `當天每一筆單線會車停車都在對向車進站後才開（${report.meetTotal} 筆，其中 ${report.meetOtherDay} 筆對向車當天沒開）`, report.meetLate.length === 0,
+    report.meetLate.slice(0, 6).join('、'));
   ok(engine, `當天每一筆預排待避都停在實體股道同一座標（${report.checked.length} 筆）`, report.checked.length > 0 && report.unbound.length === 0,
     report.unbound.length ? report.unbound.slice(0, 6).join('、') : report.checked.join('、'));
   ok(engine, '頁面無 runtime 錯誤', errors.length === 0, errors.slice(0, 3).join(' | '));
