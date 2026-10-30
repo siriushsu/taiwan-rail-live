@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'docs/i18n/tra_station_names.json');
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36';
-const BASE = 'https://www.railway.gov.tw/tra-tip-web';
+const BASE = 'https://www.trc.com.tw/tra-tip-web';
 const LANGS = { zh: 'ZH_TW', en: 'EN_US', ja: 'JA_JP' };
 const WRITE = process.argv.includes('--write');
 

@@ -189,7 +189,7 @@ const r = await railAiScheduled({ scheduledTime: offMinute }, env, { fetch: fake
 check('不是 3 的倍數分鐘就不跑', r.skipped === 'not this minute');
 
 // 14. 官網抓不到：記錯誤，不當成公告消失
-const brokenFetch = (url, init) => String(url).includes('railway.gov.tw') ? Promise.reject(new Error('ETIMEDOUT')) : fakeFetch(url, init);
+const brokenFetch = (url, init) => String(url).includes('trc.com.tw') ? Promise.reject(new Error('ETIMEDOUT')) : fakeFetch(url, init);
 d = await railAiDetect(env, { now: later + 15 * 60e3, fetch: brokenFetch });
 check('官網抓不到只記錯誤、不產生消失事件', d.errors.length === 1 && d.dirty.length === 0, JSON.stringify(d));
 
@@ -317,6 +317,26 @@ const savedTra = [...world.lists['tra-list']];
   world.lists['tra-list'] = [traItem('dd01', '颱風 停駛公告'), ...savedTra];
   d = await railAiDetect(f.env, { now: TB + 9 * 60e3, fetch: fakeFetch });
   check('被擠下去又回來的舊公告：不算新公告、不排整理', !d.dirty.includes('tra') && d.relevant === 0, JSON.stringify(d));
+}
+world.lists['tra-list'] = savedTra;
+
+// 24. 臺鐵官網換網域：D1 裡還是舊網域（www.railway.gov.tw）存的列表與原文，換網域那一輪不能整頁變成新公告
+{
+  const f = fresh();
+  world.lists['tra-list'] = [traItem('ee01', '颱風 停駛公告'), ...savedTra];
+  world.articles[traUrl('ee01')] = '<p>颱風停駛</p>';
+  await railAiDetect(f.env, { now: TB, fetch: fakeFetch });
+  f.db.prepare(`DELETE FROM rail_ai_kv WHERE k LIKE 'pending:%'`).run();
+  const toOld = `REPLACE(%s, 'https://www.trc.com.tw/', 'https://www.railway.gov.tw/')`;
+  f.db.prepare(`UPDATE rail_ai_kv SET v = ${toOld.replace('%s', 'v')} WHERE k = 'src:tra-list'`).run();
+  f.db.prepare(`UPDATE rail_ai_articles SET url = ${toOld.replace('%s', 'url')}`).run();
+  let d = await railAiDetect(f.env, { now: TB + 3 * 60e3, fetch: fakeFetch });
+  check('換網域那一輪：舊網域存的公告不算新公告、不排整理', d.events === 0 && !d.dirty.includes('tra'), JSON.stringify(d));
+  world.lists['tra-list'] = [...savedTra];
+  await railAiDetect(f.env, { now: TB + 6 * 60e3, fetch: fakeFetch });
+  world.lists['tra-list'] = [traItem('ee01', '颱風 停駛公告'), ...savedTra];
+  d = await railAiDetect(f.env, { now: TB + 9 * 60e3, fetch: fakeFetch });
+  check('換網域後被擠下去又回來的舊公告（原文存在舊網域）：不算新公告', !d.dirty.includes('tra') && d.relevant === 0, JSON.stringify(d));
 }
 world.lists['tra-list'] = savedTra;
 

@@ -40,7 +40,7 @@ const SOURCES = [
   // 則,逐則核對皆與觀光/郵輪式列車無關)。導覽連結指到的三個頁面(郵輪式列車查詢頁、觀光
   // 列車介紹頁、外部靜態微站)也都不是逐日更新的列表頁,用同一套抽取邏輯實測皆為 0 則,
   // 故不追加第三列——企劃處活動目前沒有巡檢得到的公告列表頁來源。
-  { id: 'tra', name: '台鐵', url: 'https://www.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsList', render: 'fetch' },
+  { id: 'tra', name: '台鐵', url: 'https://www.trc.com.tw/tra-tip-web/tip/tip009/tip911/newsList', render: 'fetch' },
   { id: 'thsr', name: '台灣高鐵', url: 'https://www.thsrc.com.tw/ArticleContent/6f0648a4-2e78-4a57-b669-44acd8e2daea', render: 'browser' },
   { id: 'afr', name: '阿里山林鐵', url: 'https://afrch.forest.gov.tw/AllNews', render: 'fetch' },
   { id: 'nrm', name: '國家鐵道博物館', url: 'https://www.nrm.gov.tw/News.aspx?n=3307&sms=12883', render: 'fetch' },

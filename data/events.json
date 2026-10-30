@@ -9,7 +9,7 @@
       "start": "2026-10-16",
       "end": "2026-10-17",
       "anchor": { "kind": "station", "sys": "tra_sched", "name": "臺南" },
-      "url": "https://www.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac3a12c590d01a133ded9e8164c&page=0"
+      "url": "https://www.trc.com.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac3a12c590d01a133ded9e8164c&page=0"
     },
     {
       "id": "tra-20261013-tainan-last-night",
@@ -19,7 +19,7 @@
       "start": "2026-10-16",
       "end": "2026-10-16",
       "anchor": { "kind": "station", "sys": "tra_sched", "name": "臺南" },
-      "url": "https://www.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac3a12c590d01a1349a61941815&page=0"
+      "url": "https://www.trc.com.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac3a12c590d01a1349a61941815&page=0"
     },
     {
       "id": "tra-20261012-exam-1109",
@@ -29,7 +29,7 @@
       "start": "2026-11-09",
       "end": "2026-11-09",
       "anchor": { "kind": "system", "sys": "tra_sched" },
-      "url": "https://www.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac3a12c590d01a13011e18a09f4&page=0"
+      "url": "https://www.trc.com.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac3a12c590d01a13011e18a09f4&page=0"
     },
     {
       "id": "thsr-20261014-extra-1016",
@@ -69,7 +69,7 @@
       "start": "2026-09-25",
       "end": "2026-12-13",
       "anchor": { "kind": "system", "sys": "tra_sched" },
-      "url": "https://www.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac2a0cfb55601a0d3373b9c04fd&page=0"
+      "url": "https://www.trc.com.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac2a0cfb55601a0d3373b9c04fd&page=0"
     },
     {
       "id": "tra-20260924-kato-e500-pp",
@@ -79,7 +79,7 @@
       "start": "2026-10-03",
       "end": "2026-10-04",
       "anchor": { "kind": "station", "sys": "tra_sched", "name": "臺北" },
-      "url": "https://www.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac2a0cfb55601a0d307034d0497"
+      "url": "https://www.trc.com.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac2a0cfb55601a0d307034d0497"
     },
     {
       "id": "trtc-20260924-exit-music-fest",

@@ -55,10 +55,15 @@ function listItems(html, hrefRe, base) {
   return items;
 }
 
+// 臺鐵官網 2026-07-01 起改用 www.trc.com.tw，舊網址 www.railway.gov.tw 2027-01-01 停用（官網 2026-05-20 公告）。
+// 換網域前存進 D1 的網址（列表基準、已存原文）視同新網域，不然換網域那一輪整頁公告都會被當成新公告排整理。
+const TRA_OLD = 'https://www.railway.gov.tw/', TRA_NEW = 'https://www.trc.com.tw/';
+const traNew = u => u.startsWith(TRA_OLD) ? TRA_NEW + u.slice(TRA_OLD.length) : u;
+
 // 只收 Worker 抓得到內容的來源（10-24 從 Cloudflare 實測 200）。高捷、中捷、桃捷的列表要跑 JavaScript 才有內容，
 // 臉書是登入牆，這幾家目前只能靠 TDX 公告。
 export const RAIL_AI_SOURCES = [
-  { id: 'tra-list', system: 'tra', kind: 'list', url: 'https://www.railway.gov.tw/tra-tip-web/tip/tip009/tip911/newsList',
+  { id: 'tra-list', system: 'tra', kind: 'list', url: 'https://www.trc.com.tw/tra-tip-web/tip/tip009/tip911/newsList',
     parse: (h, u) => listItems(h, /newsDtl\?newsNo=[0-9a-f]+/, u) },
   { id: 'trtc-list', system: 'trtc', kind: 'list', url: 'https://www.metro.taipei/News.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6',
     parse: (h, u) => listItems(h, /News_Content\.aspx\?n=30CCEFD2A45592BF/, u) },
@@ -133,16 +138,18 @@ export async function railAiDetect(env, { now = Date.now(), fetch: fetchImpl = f
   const isRelevant = (s, k, v) => s.kind === 'list' ? RELEVANT.test(k + v) : s.kind === 'alert' ? !routineNormal(v) : RELEVANT.test(k + v);
   // 列表上「新出現」的網址如果以前就存過（被擠下去又回來），不算新公告
   const candidates = [];
-  for (const { s, items } of sources) if (s.kind === 'list') candidates.push(...Object.keys(items));
+  for (const { s, items } of sources) if (s.kind === 'list') for (const u of Object.keys(items))
+    candidates.push(u, ...(u.startsWith(TRA_NEW) ? [TRA_OLD + u.slice(TRA_NEW.length)] : []));
   const known = new Set();
   for (let i = 0; i < candidates.length; i += 50) {
     const part = candidates.slice(i, i + 50);
-    for (const r of (await db.prepare(`SELECT url FROM rail_ai_articles WHERE url IN (${part.map(() => '?').join(',')})`).bind(...part).all()).results) known.add(r.url);
+    for (const r of (await db.prepare(`SELECT url FROM rail_ai_articles WHERE url IN (${part.map(() => '?').join(',')})`).bind(...part).all()).results) known.add(traNew(r.url));
   }
 
   const writes = [];
   for (const { s, items } of sources) {
-    const prev = await kvGet(db, 'src:' + s.id);
+    const stored = await kvGet(db, 'src:' + s.id);
+    const prev = stored && Object.fromEntries(Object.entries(stored).map(([k, v]) => [traNew(k), v]));
     writes.push(kvPut(db, 'src:' + s.id, items, now));
     if (!prev) { // 第一次看到這個來源（剛上線、或第一次拿到 TDX）：記基準。上面已經有營運相關的公告或燈號，就存原文、
       // 直接整理一次——不然頁面會在官方還掛著停駛公告時顯示「沒有異常」，要等下一則新公告才補上
