@@ -128,4 +128,109 @@ def c381(s):
  front_panel('深灰防爬器',f,0,1.25,W-.30,.12,'chassis',.04,.10)
  return f
 
-BUILDERS={'c301':c301,'c321':c321,'c341':c341,'c371':c371,'c381':c381}
+# ── 台鐵區間車 ──────────────────────────────────────────────────────────────
+
+def face_zmax(s,y,m=.03):
+ """車頭面在橫向 y 處最高到哪（車頂圓角讓兩側變矮），貼片上緣用它才不會飄出車殼。"""
+ W,H=s['W'],s['H'];rt=s.get('radiusTop',.40);a=abs(y)+m;c=W/2-rt
+ return H-m if a<=c else H-rt+math.sqrt(max(0,rt*rt-(a-c)**2))-m
+
+def emu500_like(s,tour=False):
+ """EMU500／EMU600 與海風號、山嵐號共用車體：平頭、中央貫通門、兩側前窗、車頂前緣中央雙頭燈座、雨刷從窗頂往下掛。
+ 參考：Commons「TRA EM510 20130313.jpg」「TRA EMU609 20160714.jpg」「TRA EMU583 SHANLAN Changhua Station 20260719.jpg」、
+ 官方示意圖「海風號及山嵐號列車外觀設計示意圖.png」（作者與授權見 catalog-source.json）。
+ EMU500／EMU600：藍色車頭、貫通門外凸一圈門框、門窗下一塊白牌（不放標誌）；窗下兩條白細線，內端在內側頭燈上方往下彎；
+ 兩角是藏青圓燈座的紅燈（外）與鍍鉻圈白燈（內），下緣黃黑警戒斜紋；不鏽鋼車身下半部橫向壓紋、窗下兩道藍線。
+ 海風號／山嵐號（tour）：門框拆掉、貫通門平貼車身，門窗跟兩側前窗同高；整車上色、下緣漸層到白，燈在白色燈座裡，黑色下裙。"""
+ L,W,H=s['L'],s['W'],s['H']
+ color('e5stain','BAC4C7',.50,.32,.12);color('e5blue','2A5CB4',.08,.34,.30);color('e5frame','76695A',.35,.40,.10);color('e5navy','1F2C55',.10,.40,.20)
+ profile=[(.83,L/2-.04),(1.00,L/2),(H-.30,L/2-.02),(H,L/2-.22)]
+ if not tour:
+  color('e5roof','6E5A4C',.30,.50,.05);body=leaf='e5stain';front='e5blue'
+  zones=[(H-.12,body),(H+1,'e5roof')];fz=[(H+1,front)];nz=[(H-.12,front),(H+1,'e5roof')]
+  bands=leafbands=[(1.86,.06,'e5blue'),(1.725,.03,'e5blue')]
+ else:
+  color('e5roof','C4C7C7',.30,.45,.06);front=leaf=color('e5tour',s['body'],.06,.36,.28)
+  grad=ramp('e5g',[(0,'F4F4F0'),(1,s['body'])],6);cuts=[.95+.65*(i+1)/6 for i in range(6)];zg=list(zip(cuts,grad))
+  zones=zg+[(H-.12,front),(H+1,'e5roof')];fz=zg+[(H+1,front)];nz=zones;bands=[]
+  leafbands=[((a+b)/2,b-a,g) for a,b,g in zip([.92]+cuts[:-1],cuts,grad)]
+ f,neck,doors=emu_body(s,profile,.06,zones,fz,nz,leaf=leaf,gaps=[1,2,2,1],bands=bands,leafbands=leafbands)
+ if not tour:
+  use('01')
+  for k in range(11):
+   for side in [-1,1]:box('下半部橫向壓紋',((-L/2+.10+neck-.10)/2,side*(W/2+.006),1.04+k*.06),(neck-.20+L/2-.10,.010,.020),'e5stain',.003)
+ wz0,wz1=(1.96,2.78) if not tour else (1.94,2.84);wz=(wz0+wz1)/2
+ if not tour:
+  front_panel('貫通門門框',f,0,(1.00+H-.12)/2,1.10,H-.12-1.00,'e5frame',.04,.030)
+  front_panel('貫通門門扇',f,0,(1.05+H-.30)/2,.78,H-.30-1.05,front,.03,.044)
+  front_panel('貫通門窗',f,0,2.33,.40,.75,'glass',.06,.056)
+  front_panel('貫通門白牌',f,0,1.67,.56,.34,'white',.03,.052)
+ else:
+  for y in (-.33,.33):front_patch('貫通門門縫',f,y-.006,y+.006,1.02,wz1+.10,'frame',.034,cols=1,rows=8)
+  front_patch('貫通門門縫',f,-.33,.33,wz1+.094,wz1+.106,'frame',.034,cols=8,rows=1)
+  front_panel('貫通門窗窗框',f,0,wz,.56,wz1-wz0+.06,'frame',.08,.036);front_panel('貫通門窗',f,0,wz,.50,wz1-wz0,'glass',.07,.048)
+ for a,b,name in [(-1.26,-.62,'左前窗'),(.62,1.26,'司機前窗')]:
+  front_panel(name+'窗框',f,(a+b)/2,wz,b-a+.06,wz1-wz0+.06,'frame',.08,.036)
+  front_panel(name,f,(a+b)/2,wz,b-a,wz1-wz0,'glass',.07,.048)
+ for side in [-1,1]:
+  wiper(f,side*.98,wz1-.05,-.50)
+  if not tour:
+   for zc,h,yv in [(1.86,.06,.70),(1.725,.03,.80)]:
+    y0,y1=sorted([side*(W/2-.01),side*yv]);front_patch('窗下白細線',f,y0,y1,zc-h/2,zc+h/2,'white',.034,cols=12,rows=1)
+    y0,y1=sorted([side*yv,side*(yv+h)]);front_patch('白細線下彎',f,y0,y1,1.54,zc+h/2,'white',.034,cols=1,rows=4)
+   front_panel('尾燈燈座',f,side*1.00,1.44,.24,.24,'e5navy',.12,.030)
+   lamp('尾燈',f,side*1.00,1.44,.070,red=True);lamp('頭燈',f,side*.72,1.44,.058)
+  else:lamp_pair(f,side*.88,1.46,True,True,.060,.24,'white',.46,.22)
+ front_panel('目的地顯示器',f,.92,H-.22,.30,.12,'white',.03,.050);front_panel('目的地字幕',f,.92,H-.22,.20,.04,'dark',.01,.056)
+ if s.get('label'):
+  front_panel('車號牌',f,-.94,wz1-.10,.42,.10,'white',.02,.056)
+  text_label(s['label'],(f(-.94,wz1-.10)+.070,-.94,wz1-.10),.060)
+ # 車頂前緣中央的雙頭燈座：盒子坐在車頂上，兩顆圓燈朝前
+ use('03');xf=L/2-.22;box('車頂頭燈座',(xf-.14,0,H+.07),(.30,.70,.24),'frame' if not tour else 'e5roof',.04)
+ for y in [-.16,.16]:lamp('車頂頭燈',lambda yy,zz:xf-.07,y,H+.07,.080)
+ if tour:box('黑色下裙',(L/2-.02,0,.74),(.10,W*.90,.30),'frame',.02)
+ else:hazard(L/2+.03,W,.82,.34)
+ return f
+
+def emu500(s):return emu500_like(s)
+def emu600(s):return emu500_like(s)
+def haifeng(s):return emu500_like(s,True)
+def shanlan(s):return emu500_like(s,True)
+
+def emu800_like(s,inverse=False):
+ """EMU800（日本車輛／台灣車輛）。參考：Commons「TRA-EMU800-2013-08-27-0003(車頭1).JPG」「TRA EMU882 in Douliu Station 2017-07-17.jpg」（作者與授權見 catalog-source.json）。
+ 長車鼻：銀色下巴往前凸、面罩往後傾；面罩（藍，反色版黃）被一圈黃（反色版藍）框住，框在下緣彎成微笑弧線、兩側沿車頭邊緣上到車頂；
+ 面罩上緣三顆頭燈（中間橫長）、大片前窗、窗下四顆圓燈（內白外紅）；下巴兩個通風格柵、中縫是車鉤蓋。車側窗下黃、藍兩條線。"""
+ L,W,H=s['L'],s['W'],s['H']
+ color('e8silver','BFC6CA',.50,.30,.15);color('e8blue','2A46B0',.06,.32,.32);color('e8yellow','F7C600',.04,.30,.30);color('e8roof','A9AFB2',.40,.42,.08)
+ mask,trim=('e8yellow','e8blue') if inverse else ('e8blue','e8yellow')
+ profile=[(.83,L/2-.30),(.95,L/2-.10),(1.15,L/2),(1.45,L/2-.03),(1.70,L/2-.14),(2.10,L/2-.40),(2.80,L/2-.78),(3.20,L/2-.98),(H,L/2-1.10)]
+ s['bowPow']=2.2
+ bands=[(1.95,.06,'e8yellow'),(1.89,.06,'e8blue')]
+ nz=[(1.86,'e8silver'),(1.92,'e8blue'),(1.98,'e8yellow'),(H-.12,'e8silver'),(H+1,'e8roof')]
+ f,neck,doors=emu_body(s,profile,.45,[(H-.12,'e8silver'),(H+1,'e8roof')],[(H+1,'e8silver')],nz,leaf='e8silver',gaps=[1,2,2,1],bands=bands,leafbands=bands)
+ m=W/2-.28;slo=lambda y:1.48+.45*(abs(y)/m)**2.4;shi=lambda y:slo(y)+.30;zt=lambda y:face_zmax(s,y,.04)
+ front_patch('車頭面罩',f,-m,m,lambda y:shi(y)-.01,zt,mask,.030,cols=40,rows=12)
+ front_patch('微笑色帶',f,-(m+.22),m+.22,slo,shi,trim,.033,cols=48,rows=4)
+ for side in [-1,1]:
+  a,b=sorted([side*(m-.01),side*(m+.22)])
+  front_patch('車頭側緣色帶',f,a,b,lambda y:slo(y)+.05,zt,trim,.033,cols=4,rows=14)
+ gw=1.05;top=lambda y:3.04-.05*(abs(y)/gw)**4
+ front_patch('前窗黑框',f,-gw-.05,gw+.05,2.35,lambda y:top(y)+.05,'frame',.038,cols=24,rows=6)
+ front_patch('前窗玻璃',f,-gw,gw,2.40,top,'glass',.046,cols=24,rows=6)
+ front_panel('目的地顯示器',f,.40,2.93,.70,.07,'dark',.01,.054)
+ front_panel('車號牌',f,-.72,2.93,.40,.09,'frame',.02,.052);text_label(s['label'],(f(-.72,2.93)+.072,-.72,2.93),.06)
+ for y,w in [(-.76,.30),(0,.40),(.76,.30)]:
+  front_panel('上方頭燈框',f,y,H-.22,w,.18,'frame',.08,.034);front_panel('上方頭燈',f,y,H-.22,w-.08,.11,'lamp',.05,.046)
+ for side in [-1,1]:
+  lamp('尾燈',f,side*.72,2.11,.098,red=True);lamp('頭燈',f,side*.36,2.11,.098)
+  wiper(f,side*.45,2.46,.50)
+  front_panel('下巴通風格柵',f,side*.55,1.12,.30,.13,'frame',.03,.030)
+  for k in range(4):front_panel('格柵條',f,side*.55,1.07+k*.03,.26,.010,'chassis',.003,.036)
+ front_patch('下巴中縫',f,-.006,.006,.90,1.40,'frame',.032,cols=1,rows=6)
+ return f
+
+def emu800(s):return emu800_like(s)
+def emu800r(s):return emu800_like(s,True)
+
+BUILDERS={'c301':c301,'c321':c321,'c341':c341,'c371':c371,'c381':c381,'emu500':emu500,'emu600':emu600,'haifeng':haifeng,'shanlan':shanlan,'emu800':emu800,'emu800r':emu800r}

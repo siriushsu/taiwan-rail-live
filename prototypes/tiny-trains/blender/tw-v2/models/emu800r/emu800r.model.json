@@ -1,0 +1,292 @@
+{
+  "modelId": "emu800r",
+  "name": "EMU800・增備反色版",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "railcar",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.89900016784668,
+      -1.4830000400543213,
+      0.0
+    ],
+    "max": [
+      4.729000091552734,
+      1.4830000400543213,
+      3.6700000762939453
+    ]
+  },
+  "sizeM": [
+    9.628000259399414,
+    2.9660000801086426,
+    3.6700000762939453
+  ],
+  "mesh": {
+    "file": "emu800r.mesh.bin",
+    "sha256": "fd9de123cea071b8ef292ab06ca9cb6bbf1a1626f22e5fb28d90865da08cfe8e",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 193770,
+    "triangleCount": 64590,
+    "drawGroups": [
+      {
+        "name": "e8silver",
+        "start": 0,
+        "count": 9642,
+        "color": [
+          0.520995557308197,
+          0.5647115111351013,
+          0.5906188488006592
+        ],
+        "metalness": 0.5,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.15000000596046448
+      },
+      {
+        "name": "e8roof",
+        "start": 9642,
+        "count": 1488,
+        "color": [
+          0.3967552185058594,
+          0.42869049310684204,
+          0.44520118832588196
+        ],
+        "metalness": 0.4000000059604645,
+        "roughness": 0.41999998688697815,
+        "clearcoat": 0.07999999821186066
+      },
+      {
+        "name": "e8blue",
+        "start": 11130,
+        "count": 9744,
+        "color": [
+          0.023153366521000862,
+          0.061246052384376526,
+          0.43415364623069763
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.3199999928474426,
+        "clearcoat": 0.3199999928474426
+      },
+      {
+        "name": "e8yellow",
+        "start": 20874,
+        "count": 10800,
+        "color": [
+          0.9301108717918396,
+          0.5647115111351013,
+          0.0
+        ],
+        "metalness": 0.03999999910593033,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "frame",
+        "start": 31674,
+        "count": 25680,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 57354,
+        "count": 6936,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "metal",
+        "start": 64290,
+        "count": 30960,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "chassis",
+        "start": 95250,
+        "count": 51516,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "roof",
+        "start": 146766,
+        "count": 12408,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 159174,
+        "count": 9828,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "dark",
+        "start": 169002,
+        "count": 1536,
+        "color": [
+          0.02955683507025242,
+          0.04817182570695877,
+          0.05951123684644699
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 170538,
+        "count": 13296,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "lamp",
+        "start": 183834,
+        "count": 7272,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "red",
+        "start": 191106,
+        "count": 2664,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 274,
+  "features": {
+    "sideDoorGroups": 3,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "emu800r",
+    "family": "railcar",
+    "L": 9.0,
+    "W": 2.8,
+    "H": 3.45,
+    "doors": 3,
+    "doorLeaves": 2,
+    "rearDoor": 1.2,
+    "frontDoor": 1.1,
+    "cabWin": 0.4,
+    "winH": 0.78,
+    "winZ": 2.45,
+    "doorWinH": 0.74,
+    "doorWinZ": 2.42,
+    "doorTop": 2.95,
+    "body": "BFC6CA",
+    "accent": "2B4FB0",
+    "acUnits": [
+      [
+        -2.3,
+        1.6
+      ],
+      [
+        1.0,
+        1.6
+      ]
+    ],
+    "acMat": "e8roof",
+    "inverse": true,
+    "label": "EMU800",
+    "bowPow": 2.2
+  },
+  "reference": {
+    "source": "https://blair-train.blogspot.com/2012/06/emu800-tra-emu800-type-electric.html",
+    "detail": "長車鼻 · 黃色面罩 · 藍色微笑框",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

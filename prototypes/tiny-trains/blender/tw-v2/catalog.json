@@ -85,7 +85,7 @@
     "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
    },
    {
-    "label": "Wikimedia Commons／蒼空　翔（CC BY-SA 3.0）",
+    "label": "Wikimedia Commons（CC BY-SA 3.0）",
     "url": "https://commons.wikimedia.org/wiki/File:C341_1201_at_Ximen_Station_20060531.jpg"
    }
   ],
@@ -153,5 +153,167 @@
   ],
   "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
   "thumbnail": "models/c381/renders/thumb.webp"
+ },
+ {
+  "id": "emu500",
+  "name": "EMU500 通勤電車",
+  "family": "railcar",
+  "detail": "藍色平頭 · 中央貫通門 · 窗下兩道藍線",
+  "features": [
+   "藍色平頭，中央貫通門外凸一圈門框、門窗下一塊白牌；左右前窗上方分別是車號牌與目的地顯示器。",
+   "車頂前緣中央一座雙頭燈，窗下兩條白細線，兩角內白外紅圓燈，下緣黃黑警戒斜紋。",
+   "不鏽鋼車身下半部橫向壓紋、窗下兩道藍線，每側三組雙開門；駕駛車沒有受電弓。"
+  ],
+  "metadata": "models/emu500/emu500.model.json",
+  "blend": "models/emu500/emu500.blend",
+  "glb": "models/emu500/emu500.glb",
+  "hero": "models/emu500/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/emu500.html"
+   },
+   {
+    "label": "Wikimedia Commons／billy1125（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EM510_20130313.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu500/renders/thumb.webp"
+ },
+ {
+  "id": "emu600",
+  "name": "EMU600・通勤電車",
+  "family": "railcar",
+  "detail": "藍色平頭 · 中央貫通門 · 窗下兩道藍線",
+  "features": [
+   "外觀與 EMU500 同款：藍色平頭、外凸的中央貫通門與門窗下白牌。",
+   "車頂前緣中央雙頭燈、窗下兩條白細線、兩角內白外紅圓燈與警戒斜紋。",
+   "不鏽鋼車身橫向壓紋、窗下兩道藍線，每側三組雙開門。"
+  ],
+  "metadata": "models/emu600/emu600.model.json",
+  "blend": "models/emu600/emu600.blend",
+  "glb": "models/emu600/emu600.glb",
+  "hero": "models/emu600/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/03/emu600.html"
+   },
+   {
+    "label": "Wikimedia Commons（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU609_20160714.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu600/renders/thumb.webp"
+ },
+ {
+  "id": "haifeng",
+  "name": "海風號",
+  "family": "railcar",
+  "detail": "海水藍綠整車上色 · 下緣漸層到白",
+  "features": [
+   "EMU500 改造：平頭、中央貫通門與車頂雙頭燈沿用原車。",
+   "整車海水藍綠，車身與門扇下緣漸層到白色，車頭下方黑色下裙。",
+   "不放車名字樣與標誌，只做車體配色。"
+  ],
+  "metadata": "models/haifeng/haifeng.model.json",
+  "blend": "models/haifeng/haifeng.blend",
+  "glb": "models/haifeng/haifeng.glb",
+  "hero": "models/haifeng/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2024/08/blog-post.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%B5%B7%E9%A2%A8%E8%99%9F%E5%8F%8A%E5%B1%B1%E5%B5%90%E8%99%9F%E5%88%97%E8%BB%8A%E5%A4%96%E8%A7%80%E8%A8%AD%E8%A8%88%E7%A4%BA%E6%84%8F%E5%9C%96.png"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/haifeng/renders/thumb.webp"
+ },
+ {
+  "id": "shanlan",
+  "name": "山嵐號",
+  "family": "railcar",
+  "detail": "稻穗黃綠整車上色 · 下緣漸層到白",
+  "features": [
+   "EMU500 改造：平頭、中央貫通門與車頂雙頭燈沿用原車。",
+   "整車稻穗黃綠，車身與門扇下緣漸層到白色，車頭下方黑色下裙。",
+   "不放車名字樣與標誌，只做車體配色。"
+  ],
+  "metadata": "models/shanlan/shanlan.model.json",
+  "blend": "models/shanlan/shanlan.blend",
+  "glb": "models/shanlan/shanlan.glb",
+  "hero": "models/shanlan/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2024/08/emu583.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU583_SHANLAN_Changhua_Station_20260719.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/shanlan/renders/thumb.webp"
+ },
+ {
+  "id": "emu800",
+  "name": "EMU800 微笑號",
+  "family": "railcar",
+  "detail": "長車鼻 · 藍色面罩 · 黃色微笑框",
+  "features": [
+   "銀色下巴往前凸、面罩往後傾，藍色面罩被黃色色帶框住，下緣彎成微笑弧線。",
+   "面罩上緣三顆頭燈、大片前窗，窗下四顆圓燈內白外紅；下巴兩個通風格柵。",
+   "不鏽鋼車身窗下黃藍兩條線，每側三組雙開門。"
+  ],
+  "metadata": "models/emu800/emu800.model.json",
+  "blend": "models/emu800/emu800.blend",
+  "glb": "models/emu800/emu800.glb",
+  "hero": "models/emu800/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/06/emu800-tra-emu800-type-electric.html"
+   },
+   {
+    "label": "Wikimedia Commons／Ltdccba（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA-EMU800-2013-08-27-0003(%E8%BB%8A%E9%A0%AD1).JPG"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu800/renders/thumb.webp"
+ },
+ {
+  "id": "emu800r",
+  "name": "EMU800・增備反色版",
+  "family": "railcar",
+  "detail": "長車鼻 · 黃色面罩 · 藍色微笑框",
+  "features": [
+   "跟 EMU800 同一個車頭造型，配色相反：黃色面罩、藍色框與微笑弧線。",
+   "面罩上緣三顆頭燈、窗下四顆圓燈、下巴兩個通風格柵。",
+   "車側窗下黃藍兩條線，每側三組雙開門。"
+  ],
+  "metadata": "models/emu800r/emu800r.model.json",
+  "blend": "models/emu800r/emu800r.blend",
+  "glb": "models/emu800r/emu800r.glb",
+  "hero": "models/emu800r/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/06/emu800-tra-emu800-type-electric.html"
+   },
+   {
+    "label": "Wikimedia Commons／Subscriptshoe9（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU882_in_Douliu_Station_2017-07-17.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu800r/renders/thumb.webp"
  }
 ]

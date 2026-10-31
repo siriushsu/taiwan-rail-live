@@ -118,7 +118,7 @@
     "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
    },
    {
-    "label": "Wikimedia Commons／蒼空　翔（CC BY-SA 3.0）",
+    "label": "Wikimedia Commons（CC BY-SA 3.0）",
     "url": "https://commons.wikimedia.org/wiki/File:C341_1201_at_Ximen_Station_20060531.jpg"
    }
   ],
@@ -236,6 +236,239 @@
     "author": "Samson Ng . D201@EAL",
     "licence": "CC BY-SA 4.0",
     "use": "車頭斜側、車側色帶"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu500",
+  "name": "EMU500 通勤電車",
+  "label": "EMU500",
+  "detail": "藍色平頭 · 中央貫通門 · 窗下兩道藍線",
+  "color": "#416ea3",
+  "source": "https://blair-train.blogspot.com/2010/02/emu500.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/emu500.html"
+   },
+   {
+    "label": "Wikimedia Commons／billy1125（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EM510_20130313.jpg"
+   }
+  ],
+  "features": [
+   "藍色平頭，中央貫通門外凸一圈門框、門窗下一塊白牌；左右前窗上方分別是車號牌與目的地顯示器。",
+   "車頂前緣中央一座雙頭燈，窗下兩條白細線，兩角內白外紅圓燈，下緣黃黑警戒斜紋。",
+   "不鏽鋼車身下半部橫向壓紋、窗下兩道藍線，每側三組雙開門；駕駛車沒有受電弓。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EM510 20130313.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EM510_20130313.jpg",
+    "author": "billy1125",
+    "licence": "CC BY 2.0",
+    "use": "車頭正面（貫通門、前窗、燈位、白細線、警戒斜紋）"
+   },
+   {
+    "file": "File:TRA EMU609 20160714.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU609_20160714.jpg",
+    "author": "林昱維",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側、車側門窗與藍線"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu600",
+  "name": "EMU600・通勤電車",
+  "label": "EMU600",
+  "detail": "藍色平頭 · 中央貫通門 · 窗下兩道藍線",
+  "color": "#467ba5",
+  "source": "https://blair-train.blogspot.com/2010/03/emu600.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/03/emu600.html"
+   },
+   {
+    "label": "Wikimedia Commons（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU609_20160714.jpg"
+   }
+  ],
+  "features": [
+   "外觀與 EMU500 同款：藍色平頭、外凸的中央貫通門與門窗下白牌。",
+   "車頂前緣中央雙頭燈、窗下兩條白細線、兩角內白外紅圓燈與警戒斜紋。",
+   "不鏽鋼車身橫向壓紋、窗下兩道藍線，每側三組雙開門。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EMU609 20160714.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU609_20160714.jpg",
+    "author": "林昱維",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側、車側門窗與藍線"
+   },
+   {
+    "file": "File:TRA EM510 20130313.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EM510_20130313.jpg",
+    "author": "billy1125",
+    "licence": "CC BY 2.0",
+    "use": "車頭正面（貫通門、前窗、燈位、白細線、警戒斜紋）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "haifeng",
+  "name": "海風號",
+  "label": "海風號",
+  "detail": "海水藍綠整車上色 · 下緣漸層到白",
+  "color": "#9acdc5",
+  "source": "https://blair-train.blogspot.com/2024/08/blog-post.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2024/08/blog-post.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%B5%B7%E9%A2%A8%E8%99%9F%E5%8F%8A%E5%B1%B1%E5%B5%90%E8%99%9F%E5%88%97%E8%BB%8A%E5%A4%96%E8%A7%80%E8%A8%AD%E8%A8%88%E7%A4%BA%E6%84%8F%E5%9C%96.png"
+   }
+  ],
+  "features": [
+   "EMU500 改造：平頭、中央貫通門與車頂雙頭燈沿用原車。",
+   "整車海水藍綠，車身與門扇下緣漸層到白色，車頭下方黑色下裙。",
+   "不放車名字樣與標誌，只做車體配色。"
+  ],
+  "photos": [
+   {
+    "file": "File:海風號及山嵐號列車外觀設計示意圖.png",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%B5%B7%E9%A2%A8%E8%99%9F%E5%8F%8A%E5%B1%B1%E5%B5%90%E8%99%9F%E5%88%97%E8%BB%8A%E5%A4%96%E8%A7%80%E8%A8%AD%E8%A8%88%E7%A4%BA%E6%84%8F%E5%9C%96.png",
+    "author": "臺灣鐵路公司",
+    "licence": "Attribution",
+    "use": "整車配色與漸層位置（官方示意圖）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "shanlan",
+  "name": "山嵐號",
+  "label": "山嵐號",
+  "detail": "稻穗黃綠整車上色 · 下緣漸層到白",
+  "color": "#cedb90",
+  "source": "https://blair-train.blogspot.com/2024/08/emu583.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2024/08/emu583.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU583_SHANLAN_Changhua_Station_20260719.jpg"
+   }
+  ],
+  "features": [
+   "EMU500 改造：平頭、中央貫通門與車頂雙頭燈沿用原車。",
+   "整車稻穗黃綠，車身與門扇下緣漸層到白色，車頭下方黑色下裙。",
+   "不放車名字樣與標誌，只做車體配色。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EMU583 SHANLAN Changhua Station 20260719.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU583_SHANLAN_Changhua_Station_20260719.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "山嵐號實車車頭與車側配色"
+   },
+   {
+    "file": "File:海風號及山嵐號列車外觀設計示意圖.png",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%B5%B7%E9%A2%A8%E8%99%9F%E5%8F%8A%E5%B1%B1%E5%B5%90%E8%99%9F%E5%88%97%E8%BB%8A%E5%A4%96%E8%A7%80%E8%A8%AD%E8%A8%88%E7%A4%BA%E6%84%8F%E5%9C%96.png",
+    "author": "臺灣鐵路公司",
+    "licence": "Attribution",
+    "use": "整車配色與漸層位置（官方示意圖）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu800",
+  "name": "EMU800 微笑號",
+  "label": "EMU800",
+  "detail": "長車鼻 · 藍色面罩 · 黃色微笑框",
+  "color": "#e2bd51",
+  "source": "https://blair-train.blogspot.com/2012/06/emu800-tra-emu800-type-electric.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/06/emu800-tra-emu800-type-electric.html"
+   },
+   {
+    "label": "Wikimedia Commons／Ltdccba（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA-EMU800-2013-08-27-0003(%E8%BB%8A%E9%A0%AD1).JPG"
+   }
+  ],
+  "features": [
+   "銀色下巴往前凸、面罩往後傾，藍色面罩被黃色色帶框住，下緣彎成微笑弧線。",
+   "面罩上緣三顆頭燈、大片前窗，窗下四顆圓燈內白外紅；下巴兩個通風格柵。",
+   "不鏽鋼車身窗下黃藍兩條線，每側三組雙開門。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA-EMU800-2013-08-27-0003(車頭1).JPG",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA-EMU800-2013-08-27-0003(%E8%BB%8A%E9%A0%AD1).JPG",
+    "author": "Ltdccba",
+    "licence": "CC BY-SA 3.0",
+    "use": "車頭正面（面罩、微笑色帶、燈組、下巴格柵）"
+   },
+   {
+    "file": "File:TRA EMU882 in Douliu Station 2017-07-17.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU882_in_Douliu_Station_2017-07-17.jpg",
+    "author": "Subscriptshoe9",
+    "licence": "CC BY-SA 4.0",
+    "use": "增備反色版車頭配色"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu800r",
+  "name": "EMU800・增備反色版",
+  "label": "EMU800",
+  "detail": "長車鼻 · 黃色面罩 · 藍色微笑框",
+  "color": "#d7bb55",
+  "source": "https://blair-train.blogspot.com/2012/06/emu800-tra-emu800-type-electric.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/06/emu800-tra-emu800-type-electric.html"
+   },
+   {
+    "label": "Wikimedia Commons／Subscriptshoe9（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU882_in_Douliu_Station_2017-07-17.jpg"
+   }
+  ],
+  "features": [
+   "跟 EMU800 同一個車頭造型，配色相反：黃色面罩、藍色框與微笑弧線。",
+   "面罩上緣三顆頭燈、窗下四顆圓燈、下巴兩個通風格柵。",
+   "車側窗下黃藍兩條線，每側三組雙開門。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EMU882 in Douliu Station 2017-07-17.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU882_in_Douliu_Station_2017-07-17.jpg",
+    "author": "Subscriptshoe9",
+    "licence": "CC BY-SA 4.0",
+    "use": "增備反色版車頭配色"
+   },
+   {
+    "file": "File:TRA-EMU800-2013-08-27-0003(車頭1).JPG",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA-EMU800-2013-08-27-0003(%E8%BB%8A%E9%A0%AD1).JPG",
+    "author": "Ltdccba",
+    "licence": "CC BY-SA 3.0",
+    "use": "車頭正面（面罩、微笑色帶、燈組、下巴格柵）"
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
