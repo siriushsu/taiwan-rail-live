@@ -144,10 +144,8 @@
       // **台鐵與捷運即時會一起掛**。前兩支自上線起一個 limiter 都沒有，本批補上。
       // 60 次/分鐘的來源：真人一次查詢＝1 發搜尋＋1 發到站，翻幾個站牌再重整也用不到十發，
       // 60 留了六倍餘裕；對「每 20 秒掃 239 站」那種腳本則直接壓到 1/15。
-      { "name": "BUS_LIMITER", "type": "ratelimit", "namespace_id": "1009", "simple": { "limit": 60, "period": 60 } },
-      // PLUS_SYNC_LIMITER：/api/plus-status 按 uid（不是 IP），只套原生 App。舊版 Android 同步寫回會再排同步，
-      // 2 次／10 秒讓循環的第三發拿到 cloudSyncReady:false、那輪不做 Firestore 交易（見 worker.js plusSyncCooling）。
-      { "name": "PLUS_SYNC_LIMITER", "type": "ratelimit", "namespace_id": "1010", "simple": { "limit": 2, "period": 10 } }
+      { "name": "BUS_LIMITER", "type": "ratelimit", "namespace_id": "1009", "simple": { "limit": 60, "period": 60 } }
+      // 1010 用過（PLUS_SYNC_LIMITER，10-31 換成 D1 計數，見 worker.js plusSyncCooling），新的限流器從 1011 起。
     ]
   },
   "assets": {

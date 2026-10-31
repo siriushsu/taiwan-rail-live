@@ -2593,14 +2593,34 @@ async function rateLimited(limiter, request, failClosed) {
 // 原生同步只在 cloudSyncReady === true 時才做交易，所以同一個 uid 10 秒內第三發只回答資格、不寫資格文件、
 // cloudSyncReady 回 false：那一輪同步不做、循環就斷，資料留在本機等下一次。放兩發是因為 iOS 同一版寫回後
 // 固定會多同步一次（不循環），兩發都放才不會讓 iOS 帳號頁每次都顯示同步未完成。只認原生 App 的 User-Agent，
-// 網頁與舊 Capacitor 殼（WebView UA，握手沒確認會整個 session 退回舊清單）不受影響。fail-open 同 rateLimited。
+// 網頁與舊 Capacitor 殼（WebView UA，握手沒確認會整個 session 退回舊清單）不受影響。
+// 計數放 D1（DELAY_DB 的 plus_sync_gate，執行期建表，同 pass_codes）：一條 upsert … RETURNING，單寫入者、
+// 全球一致。不用 ratelimit 綁定：它是各 colo 各自的近似計數，10-31 上線實測同一台 Android 每 3 秒一發、
+// 中途換 colo，第三發照樣放行。只存 uid 的 SHA-256。D1 出錯就放行（fail-open）。
 const NATIVE_APP_USER_AGENTS = new Set(['RailIsland-iOS Mobile', 'RailIsland-Android Mobile']);
-async function plusSyncCooling(request, env, uid) {
-  const limiter = env.PLUS_SYNC_LIMITER;
-  if (!uid || !limiter || typeof limiter.limit !== 'function') return false;
-  if (!NATIVE_APP_USER_AGENTS.has(request.headers.get('User-Agent') || '')) return false;
-  try { const { success } = await limiter.limit({ key: uid }); return !success; }
-  catch (e) { return false; }
+const PLUS_SYNC_WINDOW_MS = 10_000;
+const PLUS_SYNC_PER_WINDOW = 2;
+const PLUS_SYNC_SCHEMA = `CREATE TABLE IF NOT EXISTS plus_sync_gate (
+  uid_hash TEXT PRIMARY KEY,
+  window_ms INTEGER NOT NULL,
+  n INTEGER NOT NULL
+)`;
+let plusSyncSchemaReady = false;
+async function plusSyncCooling(request, env, uid, nowMs) {
+  const db = env.DELAY_DB;
+  if (!uid || !db || !NATIVE_APP_USER_AGENTS.has(request.headers.get('User-Agent') || '')) return false;
+  try {
+    if (!plusSyncSchemaReady) { await db.prepare(PLUS_SYNC_SCHEMA).run(); plusSyncSchemaReady = true; }
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(uid));
+    const uidHash = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+    // SET 右邊讀的都是更新前的值：還在同一個窗就 n+1，否則從這一發重開一個窗。
+    const row = await db.prepare(`INSERT INTO plus_sync_gate (uid_hash, window_ms, n) VALUES (?1, ?2, 1)
+      ON CONFLICT(uid_hash) DO UPDATE SET
+        n = CASE WHEN ?2 - window_ms < ?3 THEN n + 1 ELSE 1 END,
+        window_ms = CASE WHEN ?2 - window_ms < ?3 THEN window_ms ELSE ?2 END
+      RETURNING n`).bind(uidHash, nowMs, PLUS_SYNC_WINDOW_MS).first();
+    return Number(row && row.n) > PLUS_SYNC_PER_WINDOW;
+  } catch (e) { plusSyncSchemaReady = false; return false; }
 }
 
 // RevenueCat 的環境值。⚠️ REST API(v1/v2)的 query 參數與 schema enum 是**小寫**
@@ -3401,8 +3421,8 @@ async function plusStatus(request, env) {
   // (503)分開,否則 RevenueCat 短暫故障會被前端誤讀成「沒訂閱」而把付費者的功能整批關掉。
   if (!check.ok && check.status !== 403) return jsonRes({ error: check.error }, check.status, 'no-store');
   let cloudSyncReady = false;
-  const cooling = await plusSyncCooling(request, env, check.uid);
-  if (!cooling && check.uid && check.subscriptions && check.productionSubscriptions) {
+  if (check.uid && check.subscriptions && check.productionSubscriptions
+    && !(await plusSyncCooling(request, env, check.uid, Date.now()))) {
     const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
     // nowMs 明確傳進去,好讓下面的 cloudSyncReady 跟這份文件用同一個時鐘判斷到期(不要各自 Date.now())。
     const nowMs = Date.now();

@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { openTestDb } from './d1_local.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WORKER_PATH = path.join(ROOT, 'worker.js');
@@ -987,51 +988,62 @@ section(SECTIONS[12]);
 {
   // 舊版 Android 同步寫回會再排同步：同一個 uid 10 秒內第三發只回答資格、不碰 Firestore、cloudSyncReady:false
   // （原生只在 true 時做交易，循環就斷）；iOS 寫回後固定多一發，所以前兩發都要放。
-  // 限流器替身照 wrangler.jsonc 的 limit 按 key 記數：每個 key 前 limit 發放行、之後擋。
-  const [, limitText, periodText] = readFileSync(path.join(ROOT, 'wrangler.jsonc'), 'utf8')
-    .match(/"PLUS_SYNC_LIMITER".*"limit":\s*(\d+),\s*"period":\s*(\d+)/) || [];
-  const limit = Number(limitText);
-  check(limit === 2 && Number(periodText) === 10, 'wrangler.jsonc：PLUS_SYNC_LIMITER 是 2 次／10 秒', `${limitText}/${periodText}`);
-  const keyedLimiter = (thrown = false) => ({
-    keys: [],
-    async limit({ key }) {
-      this.keys.push(key);
-      if (thrown) throw new Error('limiter unavailable');
-      return { success: this.keys.filter(k => k === key).length <= limit };
-    },
-  });
+  // 計數在 D1：用 d1_local（node:sqlite）真的跑 worker 那條 upsert，不是替身自己數。整段共用一個庫
+  // （worker 的建表旗標是模組層的），案例之間清空資料列。
+  const { db, DELAY_DB } = openTestDb();
+  const gateRows = () => { try { return db.prepare('SELECT uid_hash, window_ms, n FROM plus_sync_gate').all(); } catch { return null; } };
   const statusFrom = (ua) => new Request('https://railisland.tw/api/plus-status', {
     headers: { Authorization: `Bearer ${'x'.repeat(900)}`, 'cf-connecting-ip': '203.0.113.13', ...(ua ? { 'User-Agent': ua } : {}) },
   });
-  const thrice = async (ua, sync) => {
+  const send = async (ua, d1, times = 3) => {
     const out = [];
-    for (let i = 0; i < 3; i += 1) {
+    for (let i = 0; i < times; i += 1) {
       resetIo();
-      const response = await worker.fetch(statusFrom(ua), ENV(sync === undefined ? {} : { PLUS_SYNC_LIMITER: sync }), {});
+      const response = await worker.fetch(statusFrom(ua), ENV(d1 === undefined ? {} : { DELAY_DB: d1 }), {});
       out.push({ status: response.status, body: await response.json(), firestore: callsTo('firestore.googleapis.com').length, writes: firestoreWrites().length });
     }
     return out;
   };
+  const uidHash = createHash('sha256').update(UID).digest('hex');
   for (const ua of ['RailIsland-Android Mobile', 'RailIsland-iOS Mobile']) {
-    const sync = keyedLimiter();
-    const [first, second, third] = await thrice(ua, sync);
+    if (gateRows()) db.exec('DELETE FROM plus_sync_gate');
+    const [first, second, third] = await send(ua, DELAY_DB);
     check([first, second].every(r => r.status === 200 && r.body.cloudSyncReady === true && r.writes === 1),
       `${ua} 前兩發照常寫資格文件、cloudSyncReady:true（iOS 寫回後多的那一發不會被擋）`, JSON.stringify({ first, second }));
     check(third.status === 200 && third.body.active === true && third.body.cloudSyncReady === false && third.firestore === 0,
       `${ua} 同一 uid 第三發：照樣回 active:true，但 cloudSyncReady:false、一發 Firestore 都沒有`, JSON.stringify(third));
-    check(JSON.stringify(sync.keys) === JSON.stringify([UID, UID, UID]), `${ua} 冷卻按 uid 記，不是 IP`, JSON.stringify(sync.keys));
+    const rows = gateRows();
+    check(rows && rows.length === 1 && rows[0].uid_hash === uidHash && rows[0].n === 3 && !JSON.stringify(rows).includes(UID),
+      `${ua} D1 只有一列：鍵是 uid 的 SHA-256（不存 uid 本身），n=3`, JSON.stringify(rows));
   }
   {
-    const sync = keyedLimiter();
-    const [, , third] = await thrice('', sync);
-    check(third.body.cloudSyncReady === true && third.writes === 1 && sync.keys.length === 0,
-      '網頁（沒有原生 UA）連三發都寫、不經過冷卻', JSON.stringify({ third, keys: sync.keys }));
+    // 過了 10 秒窗：同一個 uid 從頭算，第一發又能寫。
+    const realNow = Date.now;
+    const shifted = realNow() + 10_001;
+    Date.now = () => shifted;
+    try {
+      const [later] = await send('RailIsland-Android Mobile', DELAY_DB, 1);
+      const rows = gateRows();
+      check(later.body.cloudSyncReady === true && later.writes === 1 && rows?.[0]?.n === 1 && rows?.[0]?.window_ms === shifted,
+        '冷卻後過了 10 秒：同一 uid 重開一個窗（n=1），照常寫', JSON.stringify({ later, rows }));
+    } finally { Date.now = realNow; }
   }
   {
-    const [, , third] = await thrice('RailIsland-Android Mobile', keyedLimiter(true));
-    check(third.body.cloudSyncReady === true && third.writes === 1, '冷卻限流器拋例外 ⇒ fail-open，照常寫', JSON.stringify(third));
-    const [, , unbound] = await thrice('RailIsland-Android Mobile', undefined);
-    check(unbound.body.cloudSyncReady === true && unbound.writes === 1, '沒綁 PLUS_SYNC_LIMITER（本機、舊設定）⇒ 照常寫', JSON.stringify(unbound));
+    if (gateRows()) db.exec('DELETE FROM plus_sync_gate');
+    const [, , third] = await send('', DELAY_DB);
+    check(third.body.cloudSyncReady === true && third.writes === 1 && (gateRows() || []).length === 0,
+      '網頁（沒有原生 UA）連三發都寫、不碰 D1', JSON.stringify({ third, rows: gateRows() }));
+  }
+  {
+    const broken = { prepare() { throw new Error('D1 unavailable'); } };
+    const [, , third] = await send('RailIsland-Android Mobile', broken);
+    check(third.body.cloudSyncReady === true && third.writes === 1, 'D1 拋例外 ⇒ fail-open，照常寫', JSON.stringify(third));
+    const [, , unbound] = await send('RailIsland-Android Mobile', undefined);
+    check(unbound.body.cloudSyncReady === true && unbound.writes === 1, '沒有 DELAY_DB（本機、舊設定）⇒ 照常寫', JSON.stringify(unbound));
+    db.exec('DROP TABLE IF EXISTS plus_sync_gate');   // 表不在了：只有出錯時重設建表旗標，下一發才會重建
+    const [, , healed] = await send('RailIsland-Android Mobile', DELAY_DB);
+    check(healed.body.cloudSyncReady === false && healed.firestore === 0 && gateRows()?.[0]?.n === 3,
+      'D1 出錯之後表不見了：建表旗標已重設，重新建表、冷卻照樣生效', JSON.stringify({ healed, rows: gateRows() }));
   }
 }
 
