@@ -137,3 +137,34 @@
 #trainGarage .mt-g-status{flex:1 1 180px;margin:0;font-size:14px;color:var(--g-ink);overflow-wrap:anywhere}
 #trainGarage .mt-g-hint{font-size:13px;color:var(--g-muted);margin:0 0 14px}
 #trainGarage .mt-g-hint.mt-g-warn{color:var(--g-accent);font-weight:700}
+/* 全畫面觀看（樣子與位置同 App，見 native build/garage-web-port/全螢幕-設計.md）：鈕在 3D 畫面右下，紙色 93%、1px 線框、8 圓角。
+   全畫面時舞台鋪滿畫面，3D 畫面墊在最底；頁籤、專屬場景切換、提示在上，縮放在右上，同一顆鈕在提示列最右端、六顆控制鈕上面一列（紙色 82%，避開瀏海）。
+   橫向矮螢幕的提示與控制鈕併成一列，鈕就在那一列的最右端。
+   .g-viewport 變 display:contents，讓縮放與全畫面鈕跟頁籤、控制列排在同一個 grid 裡，不用量高度。 */
+#trainGarage .g-fs{position:absolute;right:12px;bottom:12px;width:44px;height:44px;min-height:44px;padding:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--g-line);border-radius:8px;background:var(--g-card);background:color-mix(in srgb,var(--g-card) 93%,transparent);color:var(--g-ink)}
+/* 舞台矮到放不下縮放欄＋全畫面鈕時（≤480 寬的近看在矮手機、橫向小螢幕 144px），全畫面鈕移到縮放欄左邊。 */
+@media(max-width:480px) and (max-height:590px){#trainGarage .g-fs{right:68px}
+}
+@media(max-height:500px) and (min-width:600px){#trainGarage .g-fs{right:68px}
+}
+#trainGarage .g-fs svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#trainGarage.g-full{overflow:hidden}
+#trainGarage.g-full .g-top,#trainGarage.g-full .g-main>:not(.g-showcase),#trainGarage.g-full .g-detail{visibility:hidden}
+#trainGarage.g-full .g-stage{position:fixed;inset:0;z-index:5;width:100%;height:100%;height:100dvh;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto minmax(0,1fr) auto;align-self:auto;background:var(--g-stage)}
+#trainGarage.g-full .g-viewport{display:contents}
+#trainGarage.g-full .g-view{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+#trainGarage.g-full .g-scene-bar,#trainGarage.g-full .g-scene-pick,#trainGarage.g-full .g-scene-note,#trainGarage.g-full .g-stage-foot{position:relative;z-index:1;background:var(--g-card);background:color-mix(in srgb,var(--g-card) 82%,transparent);padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+#trainGarage.g-full .g-scene-bar{grid-row:1;padding-top:max(6px,env(safe-area-inset-top))}
+#trainGarage.g-full .g-scene-pick{grid-row:2}
+#trainGarage.g-full .g-scene-note{grid-row:3}
+#trainGarage.g-full .g-zoom{position:relative;z-index:1;grid-row:4;grid-column:1;justify-self:end;align-self:start;right:auto;top:auto;margin:12px max(12px,env(safe-area-inset-right)) 12px 12px}
+#trainGarage.g-full .g-stage-foot{grid-row:5;grid-column:1;padding-top:8px;padding-bottom:max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--g-line)}
+#trainGarage.g-full .g-stage-foot>span{min-height:44px;display:flex;align-items:center;justify-content:center;padding:0 52px}
+#trainGarage.g-full .g-fs{position:relative;z-index:2;grid-row:5;grid-column:1;justify-self:end;align-self:start;right:auto;bottom:auto;margin:8px max(12px,env(safe-area-inset-right)) 0 0}
+#trainGarage.g-full .g-fallback{z-index:1}
+@media(orientation:landscape) and (max-height:500px){#trainGarage.g-full .g-stage-foot{flex-direction:row;align-items:center;justify-content:space-between}
+#trainGarage.g-full .g-stage-foot>span{text-align:left;justify-content:flex-start;padding:0}
+#trainGarage.g-full .g-stage-foot{padding-right:calc(max(12px,env(safe-area-inset-right)) + 52px)}
+#trainGarage.g-full .g-fs{align-self:center;margin-top:0}
+#trainGarage.g-full .g-scene-bar{padding-top:max(4px,env(safe-area-inset-top))}
+}

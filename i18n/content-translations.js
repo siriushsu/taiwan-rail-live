@@ -5,6 +5,7 @@
 
   Object.assign(messages.en, {
     "3D 建築改成實心並加上光影與牆腳陰影；列車開到大樓後面時，樓上會開一扇窗讓你看到車，想看穿建築仍可打開「透視顯示」": "3D buildings are now solid, with lighting and shading at their base. When a train passes behind a building, a window opens so you can still see it; turn on See-through view to look through buildings.",
+    "車庫重開或切回網頁時不再閃一下：車直接出現、車卡不重排；舞台多了全畫面鈕，四個分頁都能鋪滿畫面看，直式橫式都行，再按一次、Esc 或返回鍵退出": "The garage no longer flickers when you reopen it or switch back to the page: the train shows up right away and the cards stay put; a new full-screen button on the stage fills the screen on all four tabs, portrait or landscape, and the same button, Esc or Back exits",
     "車庫新增第 4 個分頁「田園小站」：每款車都能開進這座預設車庫，白天夜晚跟著現在時間，按「陪它走走」跟著車看；開著車庫時背後的地圖會暫停，手機跑起來更順": "The garage has a fourth tab, Countryside Station: every train can pull into this default garage, with day and night following the current time, and Ride along follows the train; the map behind pauses while the garage is open, so phones run smoother",
     "車庫海岸行旅加上車燈：頭燈、尾燈、夜晚車窗亮起並照亮軌道與草地；修好跑久了地面紋路變糊；護照註明場景在 App 兌換": "The garage Coastal journey now has train lights: headlights, tail lights and lit windows at night that light up the track and grass; fixed the ground texture blurring after a long run; the passport now says scenes are redeemed in the app",
     "網站版也能開「車聲」了：在「配樂情境」裡打開，跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放": "The website now has the Rail sound switch too: turn it on in the Soundtrack menu to hear track noise while the train you follow is moving, fading out at stops and back in as it departs; always on in ambient mode",
@@ -334,6 +335,7 @@
 
   Object.assign(messages.ja, {
     "3D 建築改成實心並加上光影與牆腳陰影；列車開到大樓後面時，樓上會開一扇窗讓你看到車，想看穿建築仍可打開「透視顯示」": "3D の建物を不透明にし、光と足元の陰影を加えました。列車が建物の裏を通るときは窓が開いて列車が見えます。建物を透かしたいときは「透視表示」をオンにしてください。",
+    "車庫重開或切回網頁時不再閃一下：車直接出現、車卡不重排；舞台多了全畫面鈕，四個分頁都能鋪滿畫面看，直式橫式都行，再按一次、Esc 或返回鍵退出": "車庫を開き直したときやページに戻ったときにちらつかなくなりました。車両がすぐ表示され、カードも並び直しません。ステージに全画面ボタンを追加し、4つのタブすべてで縦横どちらでも画面いっぱいに表示できます。同じボタン、Esc、戻るで終了します",
     "車庫新增第 4 個分頁「田園小站」：每款車都能開進這座預設車庫，白天夜晚跟著現在時間，按「陪它走走」跟著車看；開著車庫時背後的地圖會暫停，手機跑起來更順": "車庫に4つ目のタブ「田園の小駅」を追加：どの車両もこの基本の車庫に入れて、昼夜は現在の時刻に合わせて変わり、「一緒に走る」で列車について行けます。車庫を開いている間は背後の地図を止めるので、スマホでもなめらかに動きます",
     "車庫海岸行旅加上車燈：頭燈、尾燈、夜晚車窗亮起並照亮軌道與草地；修好跑久了地面紋路變糊；護照註明場景在 App 兌換": "車庫の「海辺の旅」に列車のライトを追加：前照灯・尾灯、夜は窓が灯って線路や草地を照らします。長く走ると地面の模様がぼやける問題を修正。パスポートに情景はアプリの車庫で交換できると明記",
     "網站版也能開「車聲」了：在「配樂情境」裡打開，跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放": "ウェブ版にも「走行音」スイッチが付きました。「サウンドトラック」でオンにすると、追跡中の列車が動いている間は走行音が流れ、停車中はフェードアウト、発車するとフェードイン。鑑賞モードでは常時再生",
@@ -4469,6 +4471,8 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '場景載入中…': 'Loading scene…',
   '未解鎖': 'Locked',
   '這座場景要用島民點數兌換，可在 App 的車庫兌換': 'This scene is unlocked with Islander Points — redeem it in the app’s garage',
+  '全畫面觀看': 'Full screen',
+  '退出全畫面': 'Exit full screen',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '田園小站': '田園の小駅',
@@ -4487,4 +4491,6 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '場景載入中…': '情景を読み込み中…',
   '未解鎖': '未解放',
   '這座場景要用島民點數兌換，可在 App 的車庫兌換': 'この情景は島民ポイントで解放します（アプリの車庫で交換できます）',
+  '全畫面觀看': '全画面で見る',
+  '退出全畫面': '全画面を終了',
 });
