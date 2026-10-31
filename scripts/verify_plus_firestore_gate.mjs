@@ -40,6 +40,7 @@ const SECTIONS = [
   '10 查詢不完整／不合規時不得寫文件',
   '11 刪帳號一併刪除資格文件',
   '12 終身資格文件（滾動窗）與購買／退款 webhook',
+  '13 原生 App 同步冷卻（plus-status 按 uid）',
 ];
 const seen = new Map();
 let SECTION = '(未分段)';
@@ -980,6 +981,58 @@ section(SECTIONS[11]);
       && subOnly.doc.active.booleanValue === true && subOnlyUntil > subEndMs && subOnlyUntil <= subEndMs + 2 * DAY_MS,
     '有效訂閱＋購買 webhook 但 /purchases 上游 500 ⇒ 照訂閱寫 active（到期取訂閱那一份），不回 503',
     JSON.stringify({ status: subOnly.response.status, writes: subOnly.writes.map(w => w.url), doc: subOnly.doc, subEndMs }));
+}
+
+section(SECTIONS[12]);
+{
+  // 舊版 Android 同步寫回會再排同步：同一個 uid 10 秒內第三發只回答資格、不碰 Firestore、cloudSyncReady:false
+  // （原生只在 true 時做交易，循環就斷）；iOS 寫回後固定多一發，所以前兩發都要放。
+  // 限流器替身照 wrangler.jsonc 的 limit 按 key 記數：每個 key 前 limit 發放行、之後擋。
+  const [, limitText, periodText] = readFileSync(path.join(ROOT, 'wrangler.jsonc'), 'utf8')
+    .match(/"PLUS_SYNC_LIMITER".*"limit":\s*(\d+),\s*"period":\s*(\d+)/) || [];
+  const limit = Number(limitText);
+  check(limit === 2 && Number(periodText) === 10, 'wrangler.jsonc：PLUS_SYNC_LIMITER 是 2 次／10 秒', `${limitText}/${periodText}`);
+  const keyedLimiter = (thrown = false) => ({
+    keys: [],
+    async limit({ key }) {
+      this.keys.push(key);
+      if (thrown) throw new Error('limiter unavailable');
+      return { success: this.keys.filter(k => k === key).length <= limit };
+    },
+  });
+  const statusFrom = (ua) => new Request('https://railisland.tw/api/plus-status', {
+    headers: { Authorization: `Bearer ${'x'.repeat(900)}`, 'cf-connecting-ip': '203.0.113.13', ...(ua ? { 'User-Agent': ua } : {}) },
+  });
+  const thrice = async (ua, sync) => {
+    const out = [];
+    for (let i = 0; i < 3; i += 1) {
+      resetIo();
+      const response = await worker.fetch(statusFrom(ua), ENV(sync === undefined ? {} : { PLUS_SYNC_LIMITER: sync }), {});
+      out.push({ status: response.status, body: await response.json(), firestore: callsTo('firestore.googleapis.com').length, writes: firestoreWrites().length });
+    }
+    return out;
+  };
+  for (const ua of ['RailIsland-Android Mobile', 'RailIsland-iOS Mobile']) {
+    const sync = keyedLimiter();
+    const [first, second, third] = await thrice(ua, sync);
+    check([first, second].every(r => r.status === 200 && r.body.cloudSyncReady === true && r.writes === 1),
+      `${ua} 前兩發照常寫資格文件、cloudSyncReady:true（iOS 寫回後多的那一發不會被擋）`, JSON.stringify({ first, second }));
+    check(third.status === 200 && third.body.active === true && third.body.cloudSyncReady === false && third.firestore === 0,
+      `${ua} 同一 uid 第三發：照樣回 active:true，但 cloudSyncReady:false、一發 Firestore 都沒有`, JSON.stringify(third));
+    check(JSON.stringify(sync.keys) === JSON.stringify([UID, UID, UID]), `${ua} 冷卻按 uid 記，不是 IP`, JSON.stringify(sync.keys));
+  }
+  {
+    const sync = keyedLimiter();
+    const [, , third] = await thrice('', sync);
+    check(third.body.cloudSyncReady === true && third.writes === 1 && sync.keys.length === 0,
+      '網頁（沒有原生 UA）連三發都寫、不經過冷卻', JSON.stringify({ third, keys: sync.keys }));
+  }
+  {
+    const [, , third] = await thrice('RailIsland-Android Mobile', keyedLimiter(true));
+    check(third.body.cloudSyncReady === true && third.writes === 1, '冷卻限流器拋例外 ⇒ fail-open，照常寫', JSON.stringify(third));
+    const [, , unbound] = await thrice('RailIsland-Android Mobile', undefined);
+    check(unbound.body.cloudSyncReady === true && unbound.writes === 1, '沒綁 PLUS_SYNC_LIMITER（本機、舊設定）⇒ 照常寫', JSON.stringify(unbound));
+  }
 }
 
 globalThis.fetch = realFetch;

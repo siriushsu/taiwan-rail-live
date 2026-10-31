@@ -2588,6 +2588,21 @@ async function rateLimited(limiter, request, failClosed) {
   catch (e) { return !!failClosed; }
 }
 
+// 原生 App 帳號同步冷卻（2026-10-31）：native 1.7.5 以前，Android 每次同步寫回本機都會再排下一次同步
+// （native m9/sync-loop-1031），App 開著約 1.2 秒打一次 plus-status＋整套 Firestore 交易，10-22 起每天上萬次。
+// 原生同步只在 cloudSyncReady === true 時才做交易，所以同一個 uid 10 秒內第三發只回答資格、不寫資格文件、
+// cloudSyncReady 回 false：那一輪同步不做、循環就斷，資料留在本機等下一次。放兩發是因為 iOS 同一版寫回後
+// 固定會多同步一次（不循環），兩發都放才不會讓 iOS 帳號頁每次都顯示同步未完成。只認原生 App 的 User-Agent，
+// 網頁與舊 Capacitor 殼（WebView UA，握手沒確認會整個 session 退回舊清單）不受影響。fail-open 同 rateLimited。
+const NATIVE_APP_USER_AGENTS = new Set(['RailIsland-iOS Mobile', 'RailIsland-Android Mobile']);
+async function plusSyncCooling(request, env, uid) {
+  const limiter = env.PLUS_SYNC_LIMITER;
+  if (!uid || !limiter || typeof limiter.limit !== 'function') return false;
+  if (!NATIVE_APP_USER_AGENTS.has(request.headers.get('User-Agent') || '')) return false;
+  try { const { success } = await limiter.limit({ key: uid }); return !success; }
+  catch (e) { return false; }
+}
+
 // RevenueCat 的環境值。⚠️ REST API(v1/v2)的 query 參數與 schema enum 是**小寫**
 // production/sandbox;**webhook** payload 是**大寫** PRODUCTION/SANDBOX。兩套慣例不同世代,
 // 絕不可拿同一個常數去比對兩邊——之後接 webhook 時要另外定義自己的大寫常數。
@@ -3386,7 +3401,8 @@ async function plusStatus(request, env) {
   // (503)分開,否則 RevenueCat 短暫故障會被前端誤讀成「沒訂閱」而把付費者的功能整批關掉。
   if (!check.ok && check.status !== 403) return jsonRes({ error: check.error }, check.status, 'no-store');
   let cloudSyncReady = false;
-  if (check.uid && check.subscriptions && check.productionSubscriptions) {
+  const cooling = await plusSyncCooling(request, env, check.uid);
+  if (!cooling && check.uid && check.subscriptions && check.productionSubscriptions) {
     const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
     // nowMs 明確傳進去,好讓下面的 cloudSyncReady 跟這份文件用同一個時鐘判斷到期(不要各自 Date.now())。
     const nowMs = Date.now();
