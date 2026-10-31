@@ -345,6 +345,11 @@ try {
   const overtakeTracks = spawnSync('node', [path.join(wt, 'scripts', 'build_tra_overtake_tracks.mjs'), '--check'], { cwd:wt, encoding:'utf8' });
   process.stdout.write(overtakeTracks.stdout || ''); process.stderr.write(overtakeTracks.stderr || '');
   if (overtakeTracks.status !== 0) fail('台鐵待避股道表與目前的路網／派車表不符（單獨重跑：node scripts/build_tra_overtake_tracks.mjs --check）');
+  // 槽位鍵撞號：跨夜借班與隔天同車次同鍵，已上架的 iOS 1.7.6 以前開機就當（2026-11-01 的 3348）。
+  // 外面的 App 會從正式站更新班表，所以只能在出貨前擋；修法在 densify_schedule.py（撞號的借班截到午夜前收班）。
+  const slotKeys = spawnSync('python3', [path.join(wt, 'scripts', 'check_schedule.py'), '--slot-keys'], { cwd:wt, encoding:'utf8' });
+  process.stdout.write(slotKeys.stdout || ''); process.stderr.write(slotKeys.stderr || '');
+  if (slotKeys.status !== 0) fail('台鐵班表有槽位鍵撞號——iOS 1.7.6 以前抓到會開機就當（修法：npm run fetch-schedule 重產，densify 會把撞號的借班截到午夜前收班）');
   // 資料清單過期是無聲失效：網站宣稱什麼都沒變，App 就永遠不重抓那個檔。原本只有 App 的 prepare-web
   // 與每日巡檢會驗，網站出貨不驗——DR1000 那批重建了跑段剖面卻漏了重產清單，出貨前靠人工比對才發現。
   const manifest = spawnSync('node', [path.join(wt, 'scripts', 'verify_data_manifest.mjs'), wt], { cwd:wt, encoding:'utf8' });

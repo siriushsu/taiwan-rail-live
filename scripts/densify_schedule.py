@@ -27,11 +27,15 @@ matched 的 stop 座標改用 tra.json 節點座標（讓插入的通過站與�
 多日格式（fetch_tra_schedule.py 產出 dates:{日期→[trains 索引]} 的聯集檔）：
 本腳本逐一 densify sch["trains"]（聯集後的唯一定義），輸出順序與輸入完全一致，
 因此 dates 的索引維持有效，原樣 passthrough 到輸出。只 densify 一次（非每日一次）。
+唯一例外：槽位鍵撞號的跨夜借班（check_schedule.trim_prev_night_collisions）在 trains 尾端
+新增截尾定義、換掉前一天名冊那一格，原有索引不動。
 """
 import json
 import math
 import heapq
 from collections import defaultdict
+
+from check_schedule import trim_prev_night_collisions
 
 IN_SCHEDULE = "data/tra_schedule.json"
 IN_TRA = "data/tra.json"
@@ -348,6 +352,13 @@ def main():
     # 多日格式:dates/dateRange 原樣帶過(out_trains 與 sch["trains"] 順序一致,索引維持有效)
     if "dates" in sch:
         out["dates"] = sch["dates"]
+        # 跨夜借班與隔天同車次撞槽位鍵 → 截到午夜前收班（iOS 1.7.6 以前遇重複鍵開機就當）
+        trims = trim_prev_night_collisions(out)
+        for prev, no, what in trims:
+            print(f"slot-key trim: {prev} {no} {what}")
+        if trims:
+            out["source_notes"] += " | 槽位鍵撞號截尾（前一天跨夜班與隔天同車次）：" + "；".join(
+                f"{prev} {no} {what}" for prev, no, what in trims) + "。"
     if "dateRange" in sch:
         out["dateRange"] = sch["dateRange"]
 
