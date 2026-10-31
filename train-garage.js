@@ -45,8 +45,8 @@
   let mode='model',running=false,direction=1,distance=0,travelTime=0,inView=true,period='day';
   // 第 4 格「場景」（規則照 App 的 Garage3DStage）：每款車都有預設車庫「田園小站」；分派表（train-garage-scenes.js）分到已做好那四座的
   // 12 款車另有專屬場景，照錢包（host.sceneUnlocks）鎖或不鎖。沒有錢包（沒登入、懸賞關著、展示模式）只畫預設車庫、不出切換列。
-  // 已做好的四座要跟 rail-3d/garage-diorama.js 的 SCENES 一致。鎖著的專屬場景點了開兌換視窗（見下面「兌換專屬場景」）。
-  const DEFAULT_SCENE='paddy',DEFAULT_PLACE='預設車庫・田園小站',BUILT_SCENES=new Set(['south-coast','alishan','viaduct','shifen']);
+  // 已做好的場景要跟 rail-3d/garage-diorama.js 的 SCENES 一致；多良、平交道、光華街還沒有分到車，分派表加了才會出現。鎖著的專屬場景點了開兌換視窗（見下面「兌換專屬場景」）。
+  const DEFAULT_SCENE='paddy',DEFAULT_PLACE='預設車庫・田園小站',BUILT_SCENES=new Set(['south-coast','alishan','viaduct','shifen','duoliang','crossing','guanghua']);
   // trainView＝原型的「陪它走走」（跟著車看），手機寬預設開；preferDefault＝有專屬場景的車切去預設車庫，換車就回到專屬場景。
   let trainView=false,preferDefault=false,sceneCar='',viewScene='',viewPending=false,sceneMeta=null,loadedScene='';
   // 手機預設關陰影、像素比 1（10-30 A54 量測），只用在場景頁。

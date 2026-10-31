@@ -346,6 +346,7 @@ export function createScene(params = {}){
   group:k.group,path:L.path,params:p,label:p.label,themes:THEMES,
   // 隧道的弧長範圍：App 由 bake.mjs 寫進 META 22–23、網頁由 garage-diorama.js 直接讀；碰到這段的車多畫一趟半透明，隔著山也看得到（同網頁 3D 地圖的地下列車）。
   tunnel:[tIn,tOut],
+  contactWireZ:L.railZ+1.98, // 同 catenary() 的接觸線高；電聯車的集電弓頂到這裡
   update(time,period='day'){
    const t=THEMES[period]||THEMES.day;
    for(const m of [pondMat,streamMat]){m.color.set(t.water);const sh=m.userData.shader;if(sh){sh.uniforms.seaTime.value=time;sh.uniforms.shallow.value.set(t.shallow);}}
