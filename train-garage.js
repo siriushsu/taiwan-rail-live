@@ -72,7 +72,7 @@
       row.owned = true; row.date = ''; // 展示只改此輪檢視物件，不寫入護照。
     }
   }
-  let renderSession = 0, modelTicket = 0, loadedId = '', loadedMode = '', rendererPromise;
+  let renderSession = 0, modelTicket = 0, loadedId = '', loadedMode = '', rendererPromise, gridKey = '';
   async function startRenderer() {
     const session=++renderSession;
     try {
@@ -216,25 +216,31 @@
     const list=rows.filter(r=>filter==='all'||(filter==='owned'?r.owned:r.rule&&!r.owned))
       .sort((a,b)=>Number(b.owned)-Number(a.owned)||Number(!!b.rule)-Number(!!a.rule));
     if(!list.some(r=>r.id===selected))selected=list[0]?.id;
-    const picker=$('.g-model-select');picker.replaceChildren();picker.disabled=!list.length;
-    for(const sys of new Set(list.map(r=>r.model.system))) {
-      const group=document.createElement('optgroup');group.label=tr(sys);
-      for(const row of list.filter(r=>r.model.system===sys)) {
-        const option=document.createElement('option');option.value=row.id;option.textContent=tr(row.model.name)+' · '+status(row);group.append(option);
+    // host 每次重畫護照都會呼叫 refresh（登入的人回前景同步完就一次）：卡片與選單內容沒變就不重建，
+    // 整批換掉 62 張縮圖會讓手機重新解碼、閃一下。
+    const key=dialog.lang+'|'+filter+'|'+list.map(r=>r.id+(r.owned?'+':'-')).join(),picker=$('.g-model-select');
+    if(key!==gridKey){gridKey=key;
+      picker.replaceChildren();picker.disabled=!list.length;
+      for(const sys of new Set(list.map(r=>r.model.system))) {
+        const group=document.createElement('optgroup');group.label=tr(sys);
+        for(const row of list.filter(r=>r.model.system===sys)) {
+          const option=document.createElement('option');option.value=row.id;option.textContent=tr(row.model.name)+' · '+status(row);group.append(option);
+        }
+        picker.append(group);
       }
-      picker.append(group);
+      if(!list.length){const option=document.createElement('option');option.textContent=tr('沒有符合條件的車款。');option.value='';picker.append(option);}
+      $('.g-grid').replaceChildren();
+      for(const row of list) {
+        const b=document.createElement('button');b.type='button';b.className=row.owned?'g-car':'g-car g-locked';b.dataset.model=row.id;b.setAttribute('aria-pressed',String(selected===row.id));
+        b.setAttribute('aria-label',tr(row.model.name)+' · '+status(row));
+        b.innerHTML=`<span class="g-check" aria-hidden="true">${row.owned?'✓':'○'}</span><img src="${esc(row.model.thumbnail)}" alt="" loading="lazy" width="320" height="200"><b>${esc(tr(row.model.name))}</b><small>${esc(status(row))}</small>`;
+        b.onclick=()=>{chooseModel(row.id);$('.g-filters').scrollIntoView({block:'start',behavior:'instant'});$('.g-model-select').focus({preventScroll:true});};
+        $('.g-grid').append(b);
+      }
     }
-    if(!list.length){const option=document.createElement('option');option.textContent=tr('沒有符合條件的車款。');option.value='';picker.append(option);}
     picker.value=selected||'';
+    for(const el of dialog.querySelectorAll('.g-car'))el.setAttribute('aria-pressed',String(el.dataset.model===selected));
     $('.g-result').textContent=tr('{count} 款車車',{count:list.length});
-    $('.g-grid').replaceChildren();
-    for(const row of list) {
-      const b=document.createElement('button');b.type='button';b.className=row.owned?'g-car':'g-car g-locked';b.dataset.model=row.id;b.setAttribute('aria-pressed',String(selected===row.id));
-      b.setAttribute('aria-label',tr(row.model.name)+' · '+status(row));
-      b.innerHTML=`<span class="g-check" aria-hidden="true">${row.owned?'✓':'○'}</span><img src="${esc(row.model.thumbnail)}" alt="" loading="lazy" width="320" height="200"><b>${esc(tr(row.model.name))}</b><small>${esc(status(row))}</small>`;
-      b.onclick=()=>{chooseModel(row.id);$('.g-filters').scrollIntoView({block:'start',behavior:'instant'});$('.g-model-select').focus({preventScroll:true});};
-      $('.g-grid').append(b);
-    }
     $('.g-empty').hidden=!!list.length;
     $('.g-empty-text').textContent=!rows.length?tr('車庫暫時無法載入，請稍後重試。'):filter==='owned'?tr('第一格車位，留給下一段旅程。'):tr('沒有符合條件的車款。');
     $('.g-demo-start').hidden=demo||filter!=='owned';
@@ -256,7 +262,7 @@
     showGrid();
   }
   function build() {
-    data();resize?.disconnect();visibility?.disconnect();pointers.clear();pinch=drag=null;inView=true;
+    data();resize?.disconnect();visibility?.disconnect();pointers.clear();pinch=drag=null;inView=true;gridKey='';
     dialog.lang=host.lang();
     dialog.classList.toggle('dark',host.dark());
     dialog.innerHTML=`<header class="g-top"><span class="g-brand">RAIL ISLAND / COLLECTION</span><button class="g-close" autofocus>${esc(tr('回到地圖'))} ↗</button></header>
@@ -309,7 +315,7 @@
     if (!active) return;
     active = false;renderSession++;modelTicket++;loadedId='';
     cancelAnimationFrame(raf);raf=0;auto=running=false;drag=pinch=null;pointers.clear();resize?.disconnect();visibility?.disconnect();
-    renderer?.dispose();renderer=null;
+    renderer?.trim();
     host?.onClose();
   }
   // iOS 15.0–15.3 沒有原生 dialog；整頁遮罩、焦點圈與 aria-hidden 提供同樣的返回流程。
@@ -348,7 +354,7 @@
     demo=!!options.demo;data();selected=demo?'e200':rows.find(r=>r.owned)?.id||'emu3000';
     filter=demo||rows.some(r=>r.owned)?'owned':'all';auto=running=false;mode='model';resetView();direction=1;distance=0;travelTime=0;period=scenePeriod();last=0;inView=true;
     trainView=innerWidth<=800;preferDefault=sceneNote=false;sceneCar=viewScene='';
-    rendererPromise=startRenderer();
+    rendererPromise=renderer?Promise.resolve():startRenderer();
     showDialog();build();dialog.scrollTop=0;$('.g-close').focus({preventScroll:true});requestDraw();
   }
   window.addEventListener('rail:native-back', e => {if(dialog?.open){e.preventDefault();e.stopImmediatePropagation();close();}}, {capture:true});

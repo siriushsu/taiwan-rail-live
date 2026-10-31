@@ -133,6 +133,13 @@ export function createRenderer(onLost = () => {}) {
       target.dataset.mode=onLoop?'loop':onTrack?'track':'model';target.dataset.yaw=String(angle);target.dataset.zoom=String(zoom);target.dataset.elevation=String(elevation);target.dataset.drawCalls=String(renderer.info.render.calls);
       return true;
     },
+    // 車庫關掉時不丟 context：留著環境光、已編好的 shader 與目前這款車，重開才不用冷啟動（A54 冷啟動約 0.4 秒，舞台先空白再出車）。
+    // 場景、海岸、環形與編組佔記憶體，先放掉；重開一律從近看開始，用得到再載。
+    trim(){if(disposed)return;revision++;abort?.abort();dropDiorama();loadKey='';
+      if(consist){scene.remove(consist.root);consist.dispose();consist=null;}
+      if(coast){scene.remove(coast.group);coast.dispose();coast=null;}if(loop){scene.remove(loop.group);loop.dispose();loop=null;}
+      coastalReflection?.dispose();coastalReflection=null;reflectedTheme=undefined;scene.environment=environment.texture;scene.fog=null;
+      renderer.setSize(1,1,false);},
     dispose(){disposed=true;revision++;abort?.abort();clear();coast?.dispose();loop?.dispose();coastalReflection?.dispose();environment.dispose();renderer.dispose();renderer.forceContextLoss();}
   };
 }
