@@ -23318,7 +23318,11 @@ function openTrainGarage(options = {}) {
       return chipsMeShapeOk(c) ? new Set(c.unlocked.map(u => String(u && u.scene))) : null;
     },
     onClose: () => {
-      armTick(); // 車庫開著時主地圖停在 tick 開頭（見 tick），關掉接回
+      // 車庫開著時主地圖停在 tick 開頭（見 tick），t0 也停在開車庫那一刻：不歸零的話接回第一拍 dt＝整段開車庫的時間，
+      // 會把車庫裡撥好的時鐘（「去看它」撥到發車前 20 秒）再往後推一遍。同回前景（visibilitychange）：歸零 dt 基準，
+      // 貼著現在的時鐘由 clockDriftGuard 錨回真實時刻。
+      state.t0 = performance.now(); clockDriftGuard();
+      armTick();
       const url = new URL(location.href); url.searchParams.delete('garage');
       history.replaceState(history.state, '', url);
       if (garageReturnFocus?.isConnected && garageReturnFocus.getClientRects().length) garageReturnFocus.focus({preventScroll:true});
