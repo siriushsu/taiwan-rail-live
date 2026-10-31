@@ -4467,6 +4467,8 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '場景載入中…': 'Loading scene…',
   '未解鎖': 'Locked',
   '這座場景要用島民點數兌換，可在 App 的車庫兌換': 'This scene is unlocked with Islander Points — redeem it in the app’s garage',
+  '全畫面觀看': 'Full screen',
+  '退出全畫面': 'Exit full screen',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '田園小站': '田園の小駅',
@@ -4485,4 +4487,6 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '場景載入中…': '情景を読み込み中…',
   '未解鎖': '未解放',
   '這座場景要用島民點數兌換，可在 App 的車庫兌換': 'この情景は島民ポイントで解放します（アプリの車庫で交換できます）',
+  '全畫面觀看': '全画面で見る',
+  '退出全畫面': '全画面を終了',
 });
