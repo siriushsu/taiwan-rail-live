@@ -1,0 +1,157 @@
+[
+ {
+  "id": "c301",
+  "name": "C301・北捷初代",
+  "family": "metro",
+  "detail": "不鏽鋼框黑色窗區 · 粗藍腰帶 · 中央逃生門",
+  "features": [
+   "垂直平頭：黑色窗區四周留一圈不鏽鋼框，中央逃生門從防爬器上緣一路到窗頂。",
+   "窗下一段不鏽鋼、再下來是粗藍帶，頭尾燈座嵌在藍帶兩端；左窗上緣目的地字幕、下緣車號字牌。",
+   "每側四組雙開門，門扇上的藍帶跟車身接成一條；壓紋平頂、邊緣小通風口，底下第三軌集電靴。"
+  ],
+  "metadata": "models/c301/c301.model.json",
+  "blend": "models/c301/c301.blend",
+  "glb": "models/c301/c301.glb",
+  "hero": "models/c301/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/04/301.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-URC_C301_EMU.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/c301/renders/thumb.webp"
+ },
+ {
+  "id": "c321",
+  "name": "C321・板南線",
+  "family": "metro",
+  "detail": "後傾黑色車頭 · 粗藍腰帶 · 中央逃生門",
+  "features": [
+   "車頭微微後傾，黑色窗區一路延伸到車頂邊。",
+   "粗藍帶、燈座與中央逃生門跟 C301 同一套端面配置。",
+   "與 C341 外觀幾乎相同，只靠車號字牌區分，不假造差異。"
+  ],
+  "metadata": "models/c321/c321.model.json",
+  "blend": "models/c321/c321.blend",
+  "glb": "models/c321/c321.glb",
+  "hero": "models/c321/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2010/03/321.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Sinsyuan（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:C321_Bannan_BL02_20260108.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/c321/renders/thumb.webp"
+ },
+ {
+  "id": "c341",
+  "name": "C341・板南線",
+  "family": "metro",
+  "detail": "後傾黑色車頭 · 粗藍腰帶 · 中央逃生門",
+  "features": [
+   "車頭微微後傾，黑色窗區一路延伸到車頂邊。",
+   "粗藍帶、燈座與中央逃生門跟 C301 同一套端面配置。",
+   "與 C321 同一家族，外觀共用同一份車頭，只換車號字牌。"
+  ],
+  "metadata": "models/c341/c341.model.json",
+  "blend": "models/c341/c341.blend",
+  "glb": "models/c341/c341.glb",
+  "hero": "models/c341/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/03/341.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／蒼空　翔（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:C341_1201_at_Ximen_Station_20060531.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/c341/renders/thumb.webp"
+ },
+ {
+  "id": "c371",
+  "name": "C371・北捷主力",
+  "family": "metro",
+  "detail": "圓弧車頂邊 · 黑色窗區 · 粗藍腰帶",
+  "features": [
+   "車頭上緣圓弧後收，黑色窗區兩側留窄不鏽鋼柱、頂端大圓角。",
+   "粗藍帶、燈座與中央逃生門沿用北捷標準端面。",
+   "三節支線與六節列車共用車系，這裡展示一節駕駛車。"
+  ],
+  "metadata": "models/c371/c371.model.json",
+  "blend": "models/c371/c371.blend",
+  "glb": "models/c371/c371.glb",
+  "hero": "models/c371/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2010/03/301.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_C371_EMU.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/c371/renders/thumb.webp"
+ },
+ {
+  "id": "c381",
+  "name": "C381・圓弧車頭",
+  "family": "metro",
+  "detail": "銀色圓鼓車頭 · 藍色 V 帶 · 三片前窗",
+  "features": [
+   "銀色圓鼓車頭，上緣一圈黑帶；三片前窗各有黑框、中間隔銀色窗柱，中央是逃生門。",
+   "粗藍帶從兩側燈座內緣斜下到中央成 V 字，下方一條細藍線；兩角燈座內白外紅，黑帶上兩角琥珀燈、中央紅色標識燈。",
+   "深灰防爬器；車側是粗藍帶加一條細藍線。"
+  ],
+  "metadata": "models/c381/c381.model.json",
+  "blend": "models/c381/c381.blend",
+  "glb": "models/c381/c381.glb",
+  "hero": "models/c381/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/11/381.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_C381_EMU.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/c381/renders/thumb.webp"
+ }
+]

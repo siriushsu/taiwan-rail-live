@@ -1,0 +1,243 @@
+[
+ {
+  "id": "c301",
+  "name": "C301・北捷初代",
+  "label": "C301",
+  "detail": "不鏽鋼框黑色窗區 · 粗藍腰帶 · 中央逃生門",
+  "color": "#2479c9",
+  "source": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/04/301.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-URC_C301_EMU.jpg"
+   }
+  ],
+  "features": [
+   "垂直平頭：黑色窗區四周留一圈不鏽鋼框，中央逃生門從防爬器上緣一路到窗頂。",
+   "窗下一段不鏽鋼、再下來是粗藍帶，頭尾燈座嵌在藍帶兩端；左窗上緣目的地字幕、下緣車號字牌。",
+   "每側四組雙開門，門扇上的藍帶跟車身接成一條；壓紋平頂、邊緣小通風口，底下第三軌集電靴。"
+  ],
+  "photos": [
+   {
+    "file": "File:Kawasaki-URC C301 EMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-URC_C301_EMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側、車側門窗配置"
+   },
+   {
+    "file": "File:C301 & C381 at Beitou Station 20150721.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:C301_%26_C381_at_Beitou_Station_20150721.jpg",
+    "author": "James970028",
+    "licence": "CC BY-SA 3.0",
+    "use": "車頭正面（窗區外框、燈座、藍帶高度）"
+   },
+   {
+    "file": "File:A Taipei Metro C301 train at Beitou Depot 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:A_Taipei_Metro_C301_train_at_Beitou_Depot_01.jpg",
+    "author": "Lokseng01",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面高度、壓紋平頂與通風口"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "c321",
+  "name": "C321・板南線",
+  "label": "C321",
+  "detail": "後傾黑色車頭 · 粗藍腰帶 · 中央逃生門",
+  "color": "#2479c9",
+  "source": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2010/03/321.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Sinsyuan（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:C321_Bannan_BL02_20260108.jpg"
+   }
+  ],
+  "features": [
+   "車頭微微後傾，黑色窗區一路延伸到車頂邊。",
+   "粗藍帶、燈座與中央逃生門跟 C301 同一套端面配置。",
+   "與 C341 外觀幾乎相同，只靠車號字牌區分，不假造差異。"
+  ],
+  "photos": [
+   {
+    "file": "File:C321 Bannan BL02 20260108.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:C321_Bannan_BL02_20260108.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面與傾角"
+   },
+   {
+    "file": "File:C321 at Zhongxiao Xinsheng 20250906.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:C321_at_Zhongxiao_Xinsheng_20250906.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車側門窗與色帶"
+   },
+   {
+    "file": "File:C321 modern version at Ximen Station 20250718 T1445.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:C321_modern_version_at_Ximen_Station_20250718_T1445.jpg",
+    "author": "Daniel.yin2",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "c341",
+  "name": "C341・板南線",
+  "label": "C341",
+  "detail": "後傾黑色車頭 · 粗藍腰帶 · 中央逃生門",
+  "color": "#2479c9",
+  "source": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/03/341.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／蒼空　翔（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:C341_1201_at_Ximen_Station_20060531.jpg"
+   }
+  ],
+  "features": [
+   "車頭微微後傾，黑色窗區一路延伸到車頂邊。",
+   "粗藍帶、燈座與中央逃生門跟 C301 同一套端面配置。",
+   "與 C321 同一家族，外觀共用同一份車頭，只換車號字牌。"
+  ],
+  "photos": [
+   {
+    "file": "File:C341 1201 at Ximen Station 20060531.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:C341_1201_at_Ximen_Station_20060531.jpg",
+    "author": "蒼空　翔",
+    "licence": "CC BY-SA 3.0",
+    "use": "車頭正面與車側"
+   },
+   {
+    "file": "File:Siemens SGP Verkehrstechnik 2003 plate on Taipei MRT train 341.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Siemens_SGP_Verkehrstechnik_2003_plate_on_Taipei_MRT_train_341.jpg",
+    "author": "Solomon203",
+    "licence": "CC BY-SA 3.0",
+    "use": "製造商銘板（確認與 C321 同廠）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "c371",
+  "name": "C371・北捷主力",
+  "label": "C371",
+  "detail": "圓弧車頂邊 · 黑色窗區 · 粗藍腰帶",
+  "color": "#2479c9",
+  "source": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2010/03/301.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_C371_EMU.jpg"
+   }
+  ],
+  "features": [
+   "車頭上緣圓弧後收，黑色窗區兩側留窄不鏽鋼柱、頂端大圓角。",
+   "粗藍帶、燈座與中央逃生門沿用北捷標準端面。",
+   "三節支線與六節列車共用車系，這裡展示一節駕駛車。"
+  ],
+  "photos": [
+   {
+    "file": "File:Kawasaki-TRSC C371 EMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_C371_EMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側、車側門窗"
+   },
+   {
+    "file": "File:3-car C371 at Qizhang station 20250912.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:3-car_C371_at_Qizhang_station_20250912.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面（圓弧上緣與窗區外框）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "c381",
+  "name": "C381・圓弧車頭",
+  "label": "C381",
+  "detail": "銀色圓鼓車頭 · 藍色 V 帶 · 三片前窗",
+  "color": "#2479c9",
+  "source": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/11/381.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_C381_EMU.jpg"
+   }
+  ],
+  "features": [
+   "銀色圓鼓車頭，上緣一圈黑帶；三片前窗各有黑框、中間隔銀色窗柱，中央是逃生門。",
+   "粗藍帶從兩側燈座內緣斜下到中央成 V 字，下方一條細藍線；兩角燈座內白外紅，黑帶上兩角琥珀燈、中央紅色標識燈。",
+   "深灰防爬器；車側是粗藍帶加一條細藍線。"
+  ],
+  "photos": [
+   {
+    "file": "File:Taipei-MRT C381 20130908.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taipei-MRT_C381_20130908.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "車頭正面（V 帶、燈組、窗分割）"
+   },
+   {
+    "file": "File:C301 & C381 at Beitou Station 20150721.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:C301_%26_C381_at_Beitou_Station_20150721.jpg",
+    "author": "James970028",
+    "licence": "CC BY-SA 3.0",
+    "use": "跟 C301 並排比車頭高度與鼓出量"
+   },
+   {
+    "file": "File:Kawasaki-TRSC C381 EMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_C381_EMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側、車側色帶"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ }
+]
