@@ -1,11 +1,16 @@
 // 近看使用完整 Blender 網格；海岸保留目前車款的三節編組，共用單一 WebGL context。
+// 第 4 格「場景」（garage-diorama.js）另有自己的 Three 場景與編組，同樣畫在這個 context 上。
 import * as THREE from './vendor/three.module.js';
 import {createCoast,createCoastReflection} from './garage-coast.js';
 import {createLoop} from './garage-loop.js';
 import {loadGarageModel,createConsist} from './garage-model.js';
+import {createDiorama,SCENES} from './garage-diorama.js';
+export {SCENES};
 
 export function createRenderer(onLost = () => {}) {
   const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true, preserveDrawingBuffer:true});
+  // 只有場景頁的太陽投影（原型同款柔邊陰影）；其餘三格沒有投影光源，不受影響。
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.02;
@@ -25,26 +30,48 @@ export function createRenderer(onLost = () => {}) {
   const pmrem=new THREE.PMREMGenerator(renderer), environment=pmrem.fromScene(studio,.07,.1,60);
   scene.environment=environment.texture;cards.forEach(c=>{c.geometry.dispose();c.material.dispose();});pmrem.dispose();
   const trainRoot=new THREE.Group();scene.add(trainRoot);
-  let coast,loop,primary,consist,car,abort,coastalReflection,reflectedTheme,revision=0,disposed=false,lost=false,id='',loadKey='';
+  let coast,loop,primary,consist,car,abort,coastalReflection,reflectedTheme,diorama,revision=0,disposed=false,lost=false,id='',loadKey='',dioramaKey='';
   const focus=new THREE.Vector3(),project=new THREE.Vector3(),loopFocus=new THREE.Vector3(),viewRight=new THREE.Vector3(),viewUp=new THREE.Vector3();
-  const clear=()=>{trainRoot.clear();primary?.dispose();primary=null;car=null;if(consist){scene.remove(consist.root);consist.dispose();consist=null;}id=loadKey='';};
+  const dropDiorama=()=>{diorama?.dispose();diorama=null;dioramaKey='';};
+  const clear=()=>{dropDiorama();trainRoot.clear();primary?.dispose();primary=null;car=null;if(consist){scene.remove(consist.root);consist.dispose();consist=null;}id=loadKey='';};
+  const boundsIn=(cars,view,w,h)=>cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),points=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){project.set(x,y,z).project(view);points.push([(project.x+1)*w/2,(1-project.y)*h/2]);}return{model:c.id,left:Math.min(...points.map(p=>p[0])),right:Math.max(...points.map(p=>p[0])),top:Math.min(...points.map(p=>p[1])),bottom:Math.max(...points.map(p=>p[1]))};});
   renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();if(!disposed){lost=true;onLost();}});
   return {
-    async load(nextId,mode='model'){
+    // mode 'scene' 要帶 scene（場景 id）與 family（田園小站的電車線依車款）；同一款車只留目前這一座。
+    async load(nextId,mode='model',{scene:sceneId='',family}={}){
       if(disposed||lost)throw Error('renderer unavailable');
-      const key=nextId+':'+mode;if(key===loadKey){revision++;abort?.abort();return;}
+      const key=nextId+':'+mode+(mode==='scene'?':'+sceneId:'');if(key===loadKey){revision++;abort?.abort();return;}
       const ticket=++revision;abort?.abort();abort=new AbortController();const {signal}=abort;
       if(id!==nextId){clear();const a=await loadGarageModel(nextId,signal);if(disposed||ticket!==revision){a.dispose();return;}
         primary=a;car=new THREE.Mesh(a.geometry,a.materials);trainRoot.add(car);id=nextId;
       }
-      if(mode!=='model'&&!consist){const c=await createConsist(id,primary,signal);if(disposed||ticket!==revision){c.dispose();return;}consist=c;scene.add(c.root);}
+      if((mode==='loop'||mode==='track')&&!consist){const c=await createConsist(id,primary,signal);if(disposed||ticket!==revision){c.dispose();return;}consist=c;scene.add(c.root);}
+      if(mode==='scene'&&dioramaKey!==sceneId){dropDiorama();const d=await createDiorama(renderer,sceneId,id,primary,{family,signal});if(disposed||ticket!==revision){d.dispose();return;}diorama=d;dioramaKey=sceneId;}
       if(!disposed&&ticket===revision)loadKey=key;
     },
     draw(target,row,angle,options={}){
       if(disposed||lost||row.id!==id||!car)return false;
-      const rect=target.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,1.5),w=Math.max(1,Math.round(rect.width*dpr)),h=Math.max(1,Math.round(rect.height*dpr)),aspect=w/h;
+      const onDiorama=options.mode==='scene';
+      if(onDiorama&&(!diorama||dioramaKey!==options.scene))return false;
+      const rect=target.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,onDiorama&&options.lite?1:1.5),w=Math.max(1,Math.round(rect.width*dpr)),h=Math.max(1,Math.round(rect.height*dpr)),aspect=w/h;
       if(target.width!==w||target.height!==h){target.width=w;target.height=h;}
       if(renderer.domElement.width!==w||renderer.domElement.height!==h)renderer.setSize(w,h,false);
+      if(onDiorama){
+        // 車燈只有海岸行旅開；燈材質跟場景的編組共用，先關掉。
+        if(coast){coast.group.visible=false;coast.lights(null);}
+        const zoom=Math.max(.7,Math.min(1.8,options.zoom??1)),elevation=Math.max(.2,Math.min(1.2,options.elevation??diorama.meta.world));
+        for(const a of new Set(diorama.consist.cars.map(c=>c.asset)))for(const m of [...a.materials,...a.lockedMaterials])if(m.name==='glass'||m.name==='glass:locked'){
+          if(m.envMap!==diorama.scene.environment){m.envMap=diorama.scene.environment;m.needsUpdate=true;}m.envMapIntensity=1;
+        }
+        const shot=diorama.draw(w,h,{period:options.period,time:options.time||0,trainView:!!options.trainView,yaw:angle,elevation,zoom,owned:row.owned,lite:!!options.lite});
+        const ctx=target.getContext('2d');ctx.clearRect(0,0,w,h);ctx.drawImage(renderer.domElement,0,0);
+        Object.assign(target.dataset,{rendered:id,appearance:'blender-original',lock:row.owned?'off':'grey',vertices:String(primary.geometry.attributes.position.count),mode:'scene',scene:options.scene,
+          yaw:String(angle),zoom:String(zoom),elevation:String(elevation),drawCalls:String(renderer.info.render.calls),triangles:String(renderer.info.render.triangles),carCount:'3',projection:'orthographic',
+          period:shot.period,distance:String(shot.distance),trainView:String(!!options.trainView),shadows:String(shot.shadows),catenary:String(diorama.wires),inTunnel:String(shot.inTunnel),pixelRatio:String(dpr),
+          formation:JSON.stringify(boundsIn(diorama.consist.cars,diorama.camera,w,h))});
+        return true;
+      }
+      renderer.shadowMap.enabled=false; // 只有場景頁有投影的太陽
       const elevation=Math.max(.08,Math.min(1.48,options.elevation??.39)),onTrack=options.mode==='track',onLoop=options.mode==='loop',onScene=onTrack||onLoop;
       car.material=row.owned?primary.materials:primary.lockedMaterials;trainRoot.visible=!onScene;if(consist)consist.root.visible=onScene;if(loop)loop.group.visible=onLoop;if(coast)coast.group.visible=onTrack;
       const zoom=Math.max(.7,Math.min(3,options.zoom??1));camera.zoom=coastCamera.zoom=zoom;
@@ -60,13 +87,15 @@ export function createRenderer(onLost = () => {}) {
         lights[0].color.set(theme.light);lights[0].intensity=theme.power;lights[0].position.set(-45,-25,theme.night?32:42);lights[1].intensity=theme.night?.28:.7;
         if(!scene.fog)scene.fog=new THREE.FogExp2();scene.fog.color.set(theme.horizon);scene.fog.density=theme.night?.0024:.0018;renderer.toneMappingExposure=theme.night?.75:1.0;
         scene.updateMatrixWorld(true);
+        // options.lights===false 關車燈（同 App 的 r3dCoastLights 0），給量玻璃反射的閘門用。
+        target.dataset.lampHalos=String(coast.lights(row.owned&&options.lights!==false?consist:null,options.direction,options.period,view.position));
         const anchors={railA:[-6,0,.18],railB:[6,0,.18],shoreA:[-6,20,-.64],shoreB:[6,20,-.64],land:[0,-2.5,-.08],water:[-6,40,-.64],island:[12,150,12.4]};
         for(const [key,p]of Object.entries(anchors)){project.set(...p).project(view);anchors[key]=[(project.x+1)*w/2,(1-project.y)*h/2];}
         const bounds=consist.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),points=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){project.set(x,y,z).project(view);points.push([(project.x+1)*w/2,(1-project.y)*h/2]);}return{model:c.id,left:Math.min(...points.map(p=>p[0])),right:Math.max(...points.map(p=>p[0])),top:Math.min(...points.map(p=>p[1])),bottom:Math.max(...points.map(p=>p[1]))};});
         target.dataset.formation=JSON.stringify(bounds);target.dataset.coastAnchors=JSON.stringify(anchors);target.dataset.carCount='3';target.dataset.projection='perspective';
         target.dataset.trackX=String(-(options.distance||0));target.dataset.trackY='0';target.dataset.trackHeading=String(heading);target.dataset.distance=String(options.distance||0);target.dataset.period=options.period||'day';
       }else{
-        if(coast)coast.group.visible=false;scene.environment=environment.texture;scene.fog=null;hemi.color.set('#e6efff');hemi.groundColor.set('#938670');hemi.intensity=1.75;lights[0].color.set('#fff5e6');lights[0].position.set(7,-9,14);lights[0].intensity=3;lights[1].intensity=1.5;renderer.toneMappingExposure=1.02;
+        if(coast){coast.group.visible=false;coast.lights(null);}scene.environment=environment.texture;scene.fog=null;hemi.color.set('#e6efff');hemi.groundColor.set('#938670');hemi.intensity=1.75;lights[0].color.set('#fff5e6');lights[0].position.set(7,-9,14);lights[0].intensity=3;lights[1].intensity=1.5;renderer.toneMappingExposure=1.02;
         if(onLoop){
           if(!consist)return false;if(!loop){loop=createLoop();scene.add(loop.group);}loop.group.visible=true;
           consist.update(row.owned);consist.follow(loop,options.distance||0,options.direction);

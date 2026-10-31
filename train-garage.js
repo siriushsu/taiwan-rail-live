@@ -41,9 +41,27 @@
   let active = false, renderer, raf = 0, auto = false, yaw = -.55, elevation = .39, last = 0, drag = null, resize, visibility;
   const pointers=new Map();let pinch=null,zoom=1;
   let mode='model',running=false,direction=1,distance=0,travelTime=0,inView=true,period='day';
+  // 第 4 格「場景」（規則照 App 的 Garage3DStage）：每款車都有預設車庫「田園小站」；分派表（train-garage-scenes.js）分到已做好那四座的
+  // 12 款車另有專屬場景，照錢包（host.sceneUnlocks）鎖或不鎖。沒有錢包（沒登入、懸賞關著、展示模式）只畫預設車庫、不出切換列。
+  // 已做好的四座要跟 rail-3d/garage-diorama.js 的 SCENES 一致。兌換視窗還沒有：鎖著的專屬場景點了只提示去 App 兌換。
+  const DEFAULT_SCENE='paddy',DEFAULT_PLACE='預設車庫・田園小站',BUILT_SCENES=new Set(['south-coast','alishan','viaduct','shifen']);
+  // trainView＝原型的「陪它走走」（跟著車看），手機寬預設開；preferDefault＝有專屬場景的車切去預設車庫，換車就回到專屬場景。
+  let trainView=false,preferDefault=false,sceneNote=false,sceneCar='',viewScene='',viewPending=false,sceneMeta=null,loadedScene='';
+  // 手機預設關陰影、像素比 1（10-30 A54 量測），只用在場景頁。
+  const lite=matchMedia('(pointer:coarse) and (hover:none)');
+  const exclusiveScene=id=>{const s=globalThis.RailGarageScenes?.[id];return s&&BUILT_SCENES.has(s.scene)?s.scene:'';};
+  // 專屬場景的地名取分派表裡 params 為空的那款（原型實際畫的那一段），同 App manifest 的 place。
+  const scenePlace=scene=>scene===DEFAULT_SCENE?DEFAULT_PLACE:Object.values(globalThis.RailGarageScenes||{}).find(s=>s.scene===scene&&!Object.keys(s.params||{}).length)?.place||'';
+  const shortPlace=place=>place.slice(place.lastIndexOf('・')+1);
+  function sceneAccess(row){const ex=row&&exclusiveScene(row.id);if(!ex||demo)return 'hidden';const unlocked=host.sceneUnlocks?.();return unlocked?(unlocked.has(ex)?'unlocked':'locked'):'hidden';}
+  function sceneOf(row){const ex=row&&exclusiveScene(row.id);return ex&&!preferDefault&&sceneAccess(row)==='unlocked'?ex:DEFAULT_SCENE;}
+  const maxZoom=()=>mode==='scene'?1.8:3;
   function scenePeriod(){const now=new Date(),h=(now.getUTCHours()+8)%24+now.getUTCMinutes()/60;return h>=5&&h<7?'sunrise':h>=7&&h<17?'day':h>=17&&h<19?'sunset':'night';}
-  function resetView(){zoom=1;pointers.clear();pinch=drag=null;yaw=mode==='track'?-Math.PI/2:mode==='loop'?-.9:-.55;elevation=mode==='track'?.16:mode==='loop'?.8:.39;}
-  function clampView(){if(mode==='loop')elevation=Math.max(.25,Math.min(1.35,elevation));if(mode==='track'){yaw=Math.max(-Math.PI/2-.20,Math.min(-Math.PI/2+.20,yaw));elevation=Math.max(.08,Math.min(.30,elevation));}}
+  function resetView(){zoom=1;pointers.clear();pinch=drag=null;
+    // 場景頁的預設角度各座不同（SCENES 的 yaw／仰角）；模組還沒載完先用田園小站那組，載完再補一次（同 App）。
+    if(mode==='scene'){viewScene=sceneOf(rows.find(r=>r.id===selected));const m=sceneMeta?.[viewScene];viewPending=!m;yaw=m?m.yaw:-1.12;elevation=trainView?(m?m.train:.5):(m?m.world:.58);return;}
+    yaw=mode==='track'?-Math.PI/2:mode==='loop'?-.9:-.55;elevation=mode==='track'?.16:mode==='loop'?.8:.39;}
+  function clampView(){if(mode==='loop')elevation=Math.max(.25,Math.min(1.35,elevation));if(mode==='scene')elevation=Math.max(.2,Math.min(1.2,elevation));if(mode==='track'){yaw=Math.max(-Math.PI/2-.20,Math.min(-Math.PI/2+.20,yaw));elevation=Math.max(.08,Math.min(.30,elevation));}}
   const reduced=matchMedia('(prefers-reduced-motion:reduce)');
   const tr = (key, values) => host.t(key, values);
   const $ = sel => dialog.querySelector(sel);
@@ -60,21 +78,24 @@
     try {
       const module=await import('./rail-3d/garage-renderer.js');
       if(!active||session!==renderSession)return;
+      sceneMeta=module.SCENES;
       renderer=module.createRenderer(()=>{auto=running=false;modelTicket++;renderer?.dispose();renderer=null;loadedId='';if(dialog?.open){$('.g-fallback').textContent=tr('這個裝置暫時無法顯示 3D，收藏紀錄與來源仍可查看。');$('.g-fallback').hidden=false;$('.g-retry').hidden=false;showControls();}});
     } catch { renderer=null; }
   }
   async function loadSelected() {
-    const ticket=++modelTicket, id=selected;
+    const ticket=++modelTicket, id=selected, row=rows.find(r=>r.id===id), scene=mode==='scene'?sceneOf(row):'';
     loadedId='';delete $('.g-view').dataset.rendered;
     $('.g-view').getContext('2d').clearRect(0,0,$('.g-view').width,$('.g-view').height);
-    $('.g-fallback').textContent=tr('小車載入中…');$('.g-fallback').hidden=false;$('.g-retry').hidden=true;
+    $('.g-fallback').textContent=tr(scene?'場景載入中…':'小車載入中…');$('.g-fallback').hidden=false;$('.g-retry').hidden=true;
     try {
       await rendererPromise;
       if(ticket!==modelTicket||!active)return;
       if(!renderer)throw Error('renderer unavailable');
-      await renderer.load(id,mode);
+      await renderer.load(id,mode,{scene,family:row?.model.family});
       if(ticket!==modelTicket||!active)return;
-      loadedId=id;loadedMode=mode;$('.g-fallback').hidden=true;requestDraw();
+      loadedId=id;loadedMode=mode;loadedScene=scene;$('.g-fallback').hidden=true;
+      if(scene&&viewPending){resetView();showControls();}
+      requestDraw();
     } catch(e) {
       if(ticket!==modelTicket||!active||e.name==='AbortError')return;
       $('.g-fallback').textContent=tr('小車載入失敗，請重試；收藏進度不受影響。');$('.g-fallback').hidden=false;$('.g-retry').hidden=false;
@@ -89,25 +110,37 @@
     if(auto&&!drag)yaw+=dt*.35;
     if(mode!=='model'&&running&&loadedId){distance+=dt*2.1*direction;travelTime+=dt;}
     const row=rows.find(r=>r.id===selected);
-    if(row&&loadedId===row.id) { renderer?.draw($('.g-view'),row,yaw,{elevation,zoom,mode,distance,direction,period,time:travelTime}); }
+    if(row&&loadedId===row.id) { renderer?.draw($('.g-view'),row,yaw,{elevation,zoom,mode,distance,direction,period,time:travelTime,scene:loadedScene,trainView,lite:lite.matches}); }
 
     if((auto||running)&&loadedId)requestDraw();
   }
-  function setZoom(value){zoom=Math.max(.7,Math.min(3,value));showControls();requestDraw();}
+  function setZoom(value){zoom=Math.max(.7,Math.min(maxZoom(),value));showControls();requestDraw();}
   function showControls() {
-    $('.g-zoom-in').disabled=zoom>=3;$('.g-zoom-out').disabled=zoom<=.7;$('.g-zoom-level').textContent=Math.round(zoom*100)+'%';
+    $('.g-zoom-in').disabled=zoom>=maxZoom();$('.g-zoom-out').disabled=zoom<=.7;$('.g-zoom-level').textContent=Math.round(zoom*100)+'%';
     dialog.classList.toggle('g-scene',mode!=='model');
     for(const b of dialog.querySelectorAll('[data-view]'))b.setAttribute('aria-pressed',String(b.dataset.view===mode));
-    $('.g-reverse').hidden=mode==='model';$('.g-reverse').setAttribute('aria-pressed',String(direction===-1));
+    $('.g-reverse').hidden=mode==='model'||mode==='scene';$('.g-reverse').setAttribute('aria-pressed',String(direction===-1));
+    $('.g-ride').hidden=mode!=='scene';$('.g-ride').setAttribute('aria-pressed',String(trainView));
+    // 場景分頁的名字：看得到錢包的 12 款車維持專屬場景的地名，畫的是哪一座看下面的切換列（同 App）。
+    const row=rows.find(r=>r.id===selected),access=sceneAccess(row),showing=sceneOf(row);
+    $('[data-view="scene"]').textContent=tr(shortPlace(scenePlace(access==='hidden'?DEFAULT_SCENE:exclusiveScene(row.id))));
+    const pick=$('.g-scene-pick');pick.hidden=mode!=='scene'||access==='hidden';
+    $('[data-pick="default"]').setAttribute('aria-pressed',String(showing===DEFAULT_SCENE));$('[data-pick="exclusive"]').setAttribute('aria-pressed',String(showing!==DEFAULT_SCENE));
+    $('[data-pick="exclusive"]').classList.toggle('g-pick-locked',access==='locked');$('[data-pick="exclusive"]').setAttribute('aria-label',tr('專屬場景')+(access==='locked'?' · '+tr('未解鎖'):''));
+    $('.g-scene-note').hidden=pick.hidden||!sceneNote||access!=='locked';
     $('.g-auto').setAttribute('aria-label',tr(mode!=='model'?(running?'暫停行駛':'開始行駛'):'自動旋轉'));
     $('.g-auto').setAttribute('aria-pressed',String(mode!=='model'?running:auto));$('.g-auto').textContent=(mode!=='model'?running:auto)?'Ⅱ':'▷';
-    $('.g-view-hint').textContent=mode==='track'?tr('頭城海岸・龜山島')+' · '+tr({sunrise:'日出',day:'藍天',sunset:'黃昏',night:'星空'}[period]):mode==='loop'?tr('環形試跑 · 拖曳旋轉，欣賞三節小車'):tr('上下左右拖曳，看看每一面');
+    const sky=tr({sunrise:'日出',day:'藍天',sunset:'黃昏',night:'星空'}[period]);
+    $('.g-view-hint').textContent=mode==='track'?tr('頭城海岸・龜山島')+' · '+sky:mode==='scene'?tr(scenePlace(showing))+' · '+sky:mode==='loop'?tr('環形試跑 · 拖曳旋轉，欣賞三節小車'):tr('上下左右拖曳，看看每一面');
   }
   function showDetail() {
     const row=rows.find(r=>r.id===selected);
     $('.g-showcase').hidden=!row;
     if(!row){auto=running=false;cancelAnimationFrame(raf);raf=0;showControls();return;}
-    $('.g-view').setAttribute('aria-label',tr(row.model.name)+' · '+status(row)+' · '+tr(mode==='track'?'海岸行旅':mode==='loop'?'環形試跑':'近看小車'));
+    // 換車就回到專屬場景（同 App configure）；場景換座（解鎖、切換、換車）視角照新那座重設。
+    if(row.id!==sceneCar){sceneCar=row.id;preferDefault=sceneNote=false;}
+    if(mode==='scene'&&viewScene!==sceneOf(row))resetView();
+    $('.g-view').setAttribute('aria-label',tr(row.model.name)+' · '+status(row)+' · '+(mode==='scene'?tr(shortPlace(scenePlace(sceneOf(row)))):tr(mode==='track'?'海岸行旅':mode==='loop'?'環形試跑':'近看小車')));
     showControls();
     const badge=$('.g-status');badge.textContent=status(row);badge.classList.toggle('owned',row.owned);
     $('.g-name').textContent=tr(row.model.name);
@@ -130,7 +163,7 @@
       const p=document.createElement('p'),a=document.createElement('a');
       a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';a.textContent=tr('外觀參考')+' · '+tr(source.label)+' ↗';p.append(a);$('.g-source-body').append(p);
     }
-    if(loadedId!==row.id||loadedMode!==mode)loadSelected();
+    if(loadedId!==row.id||loadedMode!==mode||loadedScene!==(mode==='scene'?sceneOf(row):''))loadSelected();
     requestDraw();
   }
   // ── 自製列車:按鈕與狀態只看 host 給的資料,本檔不讀儲存。──
@@ -234,7 +267,8 @@
       <div class="g-filters"><div class="g-tabs">${[['all','全部車款'],['owned','已入庫'],['pending','待收集']].map(([id,text])=>`<button data-filter="${id}" aria-pressed="${filter===id}">${esc(tr(text))}</button>`).join('')}</div>
       <label class="g-picker"><span>${esc(tr('選擇車款'))}</span><select class="g-model-select"></select></label></div>
       <div class="g-empty" hidden><p class="g-empty-text"></p><button class="g-reset">${esc(tr('查看所有車款'))}</button><button class="g-demo-start">${esc(tr('看看展示車庫'))}</button></div>
-      <section class="g-showcase" aria-label="${esc(tr('車型展示'))}"><div class="g-stage"><div class="g-scene-bar"><div class="g-scene-tabs">${[['model','近看小車'],['loop','環形試跑'],['track','海岸行旅']].map(([id,label])=>`<button data-view="${id}" aria-pressed="${mode===id}">${esc(tr(label))}</button>`).join('')}</div><button class="g-reverse" hidden aria-pressed="false" title="${esc(tr('反向行駛'))}" aria-label="${esc(tr('反向行駛'))}">⇄</button></div><div class="g-viewport"><canvas class="g-view" tabindex="0" role="img"></canvas><div class="g-zoom"><button class="g-zoom-in" title="${esc(tr('放大場景'))}" aria-label="${esc(tr('放大場景'))}">+</button><output class="g-zoom-level" aria-label="${esc(tr('縮放比例'))}">100%</output><button class="g-zoom-out" title="${esc(tr('縮小場景'))}" aria-label="${esc(tr('縮小場景'))}">−</button></div></div><div class="g-fallback" hidden>${esc(tr('這個裝置暫時無法顯示 3D，收藏紀錄與來源仍可查看。'))}</div>
+      <section class="g-showcase" aria-label="${esc(tr('車型展示'))}"><div class="g-stage"><div class="g-scene-bar"><div class="g-scene-tabs">${[['model','近看小車'],['loop','環形試跑'],['track','海岸行旅'],['scene','田園小站']].map(([id,label])=>`<button data-view="${id}" aria-pressed="${mode===id}">${esc(tr(label))}</button>`).join('')}</div><button class="g-reverse" hidden aria-pressed="false" title="${esc(tr('反向行駛'))}" aria-label="${esc(tr('反向行駛'))}">⇄</button><button class="g-ride" hidden aria-pressed="false">${esc(tr('陪它走走'))}</button></div>
+      <div class="g-scene-pick" hidden><button data-pick="default" aria-pressed="true">${esc(tr('預設車庫'))}</button><button data-pick="exclusive" aria-pressed="false"><svg class="g-lock" viewBox="0 0 12 12" aria-hidden="true"><path d="M3.6 5.2V3.9a2.4 2.4 0 0 1 4.8 0v1.3" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2.4" y="5.2" width="7.2" height="5.4" rx="1.2" fill="currentColor"/></svg>${esc(tr('專屬場景'))}</button></div><p class="g-scene-note" hidden>${esc(tr('這座場景要用島民點數兌換，可在 App 的車庫兌換'))}</p><div class="g-viewport"><canvas class="g-view" tabindex="0" role="img"></canvas><div class="g-zoom"><button class="g-zoom-in" title="${esc(tr('放大場景'))}" aria-label="${esc(tr('放大場景'))}">+</button><output class="g-zoom-level" aria-label="${esc(tr('縮放比例'))}">100%</output><button class="g-zoom-out" title="${esc(tr('縮小場景'))}" aria-label="${esc(tr('縮小場景'))}">−</button></div></div><div class="g-fallback" hidden>${esc(tr('這個裝置暫時無法顯示 3D，收藏紀錄與來源仍可查看。'))}</div>
       <div class="g-stage-foot"><span class="g-view-hint"></span><div class="g-controls"><button class="g-left" title="${esc(tr('向左旋轉'))}" aria-label="${esc(tr('向左旋轉'))}">↶</button><button class="g-auto" aria-label="${esc(tr('自動旋轉'))}" aria-pressed="false">▷</button><button class="g-right" title="${esc(tr('向右旋轉'))}" aria-label="${esc(tr('向右旋轉'))}">↷</button><button class="g-up" title="${esc(tr('提高視角'))}" aria-label="${esc(tr('提高視角'))}">↑</button><button class="g-down" title="${esc(tr('降低視角'))}" aria-label="${esc(tr('降低視角'))}">↓</button><button class="g-reset-view" title="${esc(tr('重設視角'))}" aria-label="${esc(tr('重設視角'))}">⌂</button><button class="g-retry" hidden aria-label="${esc(tr('重新載入小車'))}">↻</button></div></div></div>
       <div class="g-detail"><span class="g-status"></span><h2 class="g-name"></h2><p class="g-system"></p><p class="g-reason"></p><p class="g-goal"></p><p class="g-date"></p><button class="g-cta"></button><button class="mt-g-plan" type="button" data-mt-g="schedule" hidden></button><p class="mt-g-note" data-mt-g="note" hidden></p><div class="mt-g-mine" hidden><p class="mt-g-status" data-mt-g="status" data-i18n-skip></p><button class="mt-g-view" type="button" data-mt-g="view"></button></div><details class="g-sources"><summary>${esc(tr('車型與來源'))} ↗</summary><div class="g-source-body"></div></details></div></section>
       <p class="g-result" role="status" aria-live="polite"></p><div class="g-grid"></div>
@@ -257,7 +291,10 @@
     $('.g-reset-view').onclick=()=>{auto=false;resetView();showControls();requestDraw();};
     $('.g-auto').onclick=()=>{if(mode!=='model')running=!running;else auto=!auto;last=0;showControls();requestDraw();};
     $('.g-reverse').onclick=()=>{direction*=-1;showControls();requestDraw();};
-    for(const b of dialog.querySelectorAll('[data-view]'))b.onclick=()=>{if(mode===b.dataset.view)return;mode=b.dataset.view;auto=false;running=mode!=='model'&&!reduced.matches;resetView();last=0;showDetail();};
+    $('.g-ride').onclick=()=>{trainView=!trainView;resetView();showControls();requestDraw();};
+    $('[data-pick="default"]').onclick=()=>{preferDefault=true;sceneNote=false;showDetail();};
+    $('[data-pick="exclusive"]').onclick=()=>{if(sceneAccess(rows.find(r=>r.id===selected))==='locked'){sceneNote=true;showControls();return;}preferDefault=false;showDetail();};
+    for(const b of dialog.querySelectorAll('[data-view]'))b.onclick=()=>{if(mode===b.dataset.view)return;mode=b.dataset.view;auto=false;running=mode!=='model'&&!reduced.matches;sceneNote=false;resetView();last=0;showDetail();};
     $('.g-zoom-in').onclick=()=>setZoom(zoom*1.2);$('.g-zoom-out').onclick=()=>setZoom(zoom/1.2);
     const canvas=$('.g-view');
     canvas.onkeydown=e=>{if(['+','=','-','0'].includes(e.key)){e.preventDefault();if(e.key==='0')setZoom(1);else setZoom(zoom*(e.key==='-'?1/1.2:1.2));return;}const directions={ArrowLeft:[-.15,0],ArrowRight:[.15,0],ArrowUp:[0,.12],ArrowDown:[0,-.12]};if(directions[e.key]){e.preventDefault();turn(...directions[e.key]);}};
@@ -310,6 +347,7 @@
     if(!dialog){dialog=document.createElement('dialog');dialog.id='trainGarage';dialog.setAttribute('aria-labelledby','garageTitle');document.body.append(dialog);dialog.addEventListener('cancel',e=>{e.preventDefault();close();});dialog.addEventListener('close',()=>{if(!dialog.open)cleanup();});}
     demo=!!options.demo;data();selected=demo?'e200':rows.find(r=>r.owned)?.id||'emu3000';
     filter=demo||rows.some(r=>r.owned)?'owned':'all';auto=running=false;mode='model';resetView();direction=1;distance=0;travelTime=0;period=scenePeriod();last=0;inView=true;
+    trainView=innerWidth<=800;preferDefault=sceneNote=false;sceneCar=viewScene='';
     rendererPromise=startRenderer();
     showDialog();build();dialog.scrollTop=0;$('.g-close').focus({preventScroll:true});requestDraw();
   }

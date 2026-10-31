@@ -85,11 +85,23 @@
 #trainGarage.g-legacy[open]{display:block;z-index:2147483647}
 
 #trainGarage .g-scene-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 12px;border-bottom:1px solid var(--g-line)}
-#trainGarage .g-scene-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;min-width:0;flex:1}
+#trainGarage .g-scene-tabs{display:grid;grid-template-columns:repeat(4,minmax(min-content,1fr));gap:4px;min-width:0;flex:1}
 #trainGarage .g-scene-tabs button{background:none;border:1px solid transparent;border-radius:8px;padding:8px 4px;font-size:12px;min-width:0}
 #trainGarage .g-scene-tabs button[aria-pressed=true]{background:var(--g-card);border-color:var(--g-line)}
 #trainGarage .g-reverse{min-width:44px;background:var(--g-card);border:1px solid var(--g-line);border-radius:8px;flex:none}
 #trainGarage .g-reverse[aria-pressed=true]{background:var(--g-ink);color:var(--g-paper)}
+/* 第 4 格「場景」：陪它走走（跟車）切換放在反向鈕的位置；有專屬場景的車多一列「預設車庫／專屬場景」，鎖著的那格帶鎖。 */
+#trainGarage .g-ride{background:var(--g-card);border:1px solid var(--g-line);border-radius:8px;flex:none;padding:0 10px;font-size:12px;white-space:nowrap}
+#trainGarage .g-ride[aria-pressed=true]{background:var(--g-ink);color:var(--g-paper)}
+#trainGarage .g-scene-pick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:6px 12px;border-bottom:1px solid var(--g-line)}
+#trainGarage .g-scene-pick button{display:flex;align-items:center;justify-content:center;gap:4px;background:var(--g-card);border:1px solid var(--g-line);border-radius:8px;font-size:12px;min-width:0}
+#trainGarage .g-scene-pick button[aria-pressed=true]{border-color:var(--g-ink);box-shadow:inset 0 0 0 .5px var(--g-ink)}
+#trainGarage .g-lock{width:11px;height:11px;flex:none;display:none}
+#trainGarage .g-pick-locked .g-lock{display:block}
+#trainGarage .g-scene-note{margin:0;padding:8px 12px;font-size:12px;line-height:1.5;color:var(--g-muted);border-bottom:1px solid var(--g-line)}
+@media(max-width:420px){#trainGarage .g-scene-tabs button{padding:8px 2px;font-size:11px}#trainGarage .g-ride{padding:0 8px;font-size:11px}
+  /* 外語頁籤放不下時（320 寬英文的 Switchback）陪它走走換到下一行，不疊在頁籤上 */
+  #trainGarage .g-scene-bar{flex-wrap:wrap}#trainGarage .g-scene-tabs{min-width:min-content}#trainGarage .g-ride{margin-left:auto;min-height:36px}}
 #trainGarage .g-stage-foot{flex-direction:column;align-items:stretch;padding:0 12px 12px;gap:8px}
 #trainGarage .g-stage-foot>span{max-width:none;text-align:center;line-height:1.5}
 #trainGarage .g-controls{justify-content:center;flex-wrap:wrap}

@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { openTestDb } from './d1_local.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WORKER_PATH = path.join(ROOT, 'worker.js');
@@ -40,6 +41,7 @@ const SECTIONS = [
   '10 查詢不完整／不合規時不得寫文件',
   '11 刪帳號一併刪除資格文件',
   '12 終身資格文件（滾動窗）與購買／退款 webhook',
+  '13 原生 App 同步冷卻（plus-status 按 uid）',
 ];
 const seen = new Map();
 let SECTION = '(未分段)';
@@ -980,6 +982,69 @@ section(SECTIONS[11]);
       && subOnly.doc.active.booleanValue === true && subOnlyUntil > subEndMs && subOnlyUntil <= subEndMs + 2 * DAY_MS,
     '有效訂閱＋購買 webhook 但 /purchases 上游 500 ⇒ 照訂閱寫 active（到期取訂閱那一份），不回 503',
     JSON.stringify({ status: subOnly.response.status, writes: subOnly.writes.map(w => w.url), doc: subOnly.doc, subEndMs }));
+}
+
+section(SECTIONS[12]);
+{
+  // 舊版 Android 同步寫回會再排同步：同一個 uid 10 秒內第三發只回答資格、不碰 Firestore、cloudSyncReady:false
+  // （原生只在 true 時做交易，循環就斷）；iOS 寫回後固定多一發，所以前兩發都要放。
+  // 計數在 D1：用 d1_local（node:sqlite）真的跑 worker 那條 upsert，不是替身自己數。整段共用一個庫
+  // （worker 的建表旗標是模組層的），案例之間清空資料列。
+  const { db, DELAY_DB } = openTestDb();
+  const gateRows = () => { try { return db.prepare('SELECT uid_hash, window_ms, n FROM plus_sync_gate').all(); } catch { return null; } };
+  const statusFrom = (ua) => new Request('https://railisland.tw/api/plus-status', {
+    headers: { Authorization: `Bearer ${'x'.repeat(900)}`, 'cf-connecting-ip': '203.0.113.13', ...(ua ? { 'User-Agent': ua } : {}) },
+  });
+  const send = async (ua, d1, times = 3) => {
+    const out = [];
+    for (let i = 0; i < times; i += 1) {
+      resetIo();
+      const response = await worker.fetch(statusFrom(ua), ENV(d1 === undefined ? {} : { DELAY_DB: d1 }), {});
+      out.push({ status: response.status, body: await response.json(), firestore: callsTo('firestore.googleapis.com').length, writes: firestoreWrites().length });
+    }
+    return out;
+  };
+  const uidHash = createHash('sha256').update(UID).digest('hex');
+  for (const ua of ['RailIsland-Android Mobile', 'RailIsland-iOS Mobile']) {
+    if (gateRows()) db.exec('DELETE FROM plus_sync_gate');
+    const [first, second, third] = await send(ua, DELAY_DB);
+    check([first, second].every(r => r.status === 200 && r.body.cloudSyncReady === true && r.writes === 1),
+      `${ua} 前兩發照常寫資格文件、cloudSyncReady:true（iOS 寫回後多的那一發不會被擋）`, JSON.stringify({ first, second }));
+    check(third.status === 200 && third.body.active === true && third.body.cloudSyncReady === false && third.firestore === 0,
+      `${ua} 同一 uid 第三發：照樣回 active:true，但 cloudSyncReady:false、一發 Firestore 都沒有`, JSON.stringify(third));
+    const rows = gateRows();
+    check(rows && rows.length === 1 && rows[0].uid_hash === uidHash && rows[0].n === 3 && !JSON.stringify(rows).includes(UID),
+      `${ua} D1 只有一列：鍵是 uid 的 SHA-256（不存 uid 本身），n=3`, JSON.stringify(rows));
+  }
+  {
+    // 過了 10 秒窗：同一個 uid 從頭算，第一發又能寫。
+    const realNow = Date.now;
+    const shifted = realNow() + 10_001;
+    Date.now = () => shifted;
+    try {
+      const [later] = await send('RailIsland-Android Mobile', DELAY_DB, 1);
+      const rows = gateRows();
+      check(later.body.cloudSyncReady === true && later.writes === 1 && rows?.[0]?.n === 1 && rows?.[0]?.window_ms === shifted,
+        '冷卻後過了 10 秒：同一 uid 重開一個窗（n=1），照常寫', JSON.stringify({ later, rows }));
+    } finally { Date.now = realNow; }
+  }
+  {
+    if (gateRows()) db.exec('DELETE FROM plus_sync_gate');
+    const [, , third] = await send('', DELAY_DB);
+    check(third.body.cloudSyncReady === true && third.writes === 1 && (gateRows() || []).length === 0,
+      '網頁（沒有原生 UA）連三發都寫、不碰 D1', JSON.stringify({ third, rows: gateRows() }));
+  }
+  {
+    const broken = { prepare() { throw new Error('D1 unavailable'); } };
+    const [, , third] = await send('RailIsland-Android Mobile', broken);
+    check(third.body.cloudSyncReady === true && third.writes === 1, 'D1 拋例外 ⇒ fail-open，照常寫', JSON.stringify(third));
+    const [, , unbound] = await send('RailIsland-Android Mobile', undefined);
+    check(unbound.body.cloudSyncReady === true && unbound.writes === 1, '沒有 DELAY_DB（本機、舊設定）⇒ 照常寫', JSON.stringify(unbound));
+    db.exec('DROP TABLE IF EXISTS plus_sync_gate');   // 表不在了：只有出錯時重設建表旗標，下一發才會重建
+    const [, , healed] = await send('RailIsland-Android Mobile', DELAY_DB);
+    check(healed.body.cloudSyncReady === false && healed.firestore === 0 && gateRows()?.[0]?.n === 3,
+      'D1 出錯之後表不見了：建表旗標已重設，重新建表、冷卻照樣生效', JSON.stringify({ healed, rows: gateRows() }));
+  }
 }
 
 globalThis.fetch = realFetch;

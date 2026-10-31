@@ -1,8 +1,9 @@
 // 車款 → 場景對照表。**手維護，不是產生檔**（對照 train-garage-catalog.js 是 import_garage_blender.py 整份覆寫的產生檔）。
 // 設計書：docs/superpowers/specs/2026-09-09-車庫一車一景-design.md §3.4、2026-09-12-車庫場景複審與特色車站-design.md §4
 //
-// 🚧 草案（2026-09-12）：站點分派還沒定案，也還沒有任何程式讀這個檔。
-//    四個已完成的場景（south-coast／alishan／viaduct／shifen）只活在 prototypes/garage-*/，車庫本體尚未接線。
+// 讀這個檔的有兩處：車庫第 4 格「場景」（train-garage.js，只認已完成的四座），以及 App 的烘焙腳本
+//    （native scripts/garage-scenes/bake.mjs 讀網頁釘版，manifest 的 cars 與 place 都從這裡來）。改分派或地名，App 要重烘。
+//    其餘待做的場景還沒有程式；站點分派也還沒定案（2026-09-12 草案）。
 //
 // 欄位：
 //   tier   'A' 手工場景（一眼認得出是哪裡）｜'B' 原型＋參數
@@ -16,9 +17,9 @@ window.RailGarageScenes = {
 
  // ───────── Tier A：手工場景（19 座，4 座已完成） ─────────
 
- // 南迴海岸・多良（已完成）
- blue:        {tier:'A',scene:'south-coast',place:'南迴線・多良海岸',story:'blue-train',params:{}},
- bluecoach:   {tier:'A',scene:'south-coast',place:'南迴線・多良海岸',story:'blue-train',params:{}},
+ // 南迴海岸（已完成；2026-10-28 更正：原本誤寫成多良海岸）
+ blue:        {tier:'A',scene:'south-coast',place:'南迴線・南迴海岸',story:'blue-train',params:{}},
+ bluecoach:   {tier:'A',scene:'south-coast',place:'南迴線・南迴海岸',story:'blue-train',params:{}},
 
  // 阿里山林鐵・之字形（已完成；其餘林鐵車款共用場景、換路段參數）
  dl38:        {tier:'A',scene:'alishan',place:'阿里山林鐵・之字形',story:null,params:{}},

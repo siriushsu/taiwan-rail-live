@@ -4,6 +4,8 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "車庫新增第 4 個分頁「田園小站」：每款車都能開進這座預設車庫，白天夜晚跟著現在時間，按「陪它走走」跟著車看；開著車庫時背後的地圖會暫停，手機跑起來更順": "The garage has a fourth tab, Countryside Station: every train can pull into this default garage, with day and night following the current time, and Ride along follows the train; the map behind pauses while the garage is open, so phones run smoother",
+    "車庫海岸行旅加上車燈：頭燈、尾燈、夜晚車窗亮起並照亮軌道與草地；修好跑久了地面紋路變糊；護照註明場景在 App 兌換": "The garage Coastal journey now has train lights: headlights, tail lights and lit windows at night that light up the track and grass; fixed the ground texture blurring after a long run; the passport now says scenes are redeemed in the app",
     "網站版也能開「車聲」了：在「配樂情境」裡打開，跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放": "The website now has the Rail sound switch too: turn it on in the Soundtrack menu to hear track noise while the train you follow is moving, fading out at stops and back in as it departs; always on in ambient mode",
     "高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」": "Kaohsiung MRT trains no longer vanish before they stop at the terminus: they pull all the way into the platform, wait about 10 seconds and then fade out, and the follow card shows “The train has reached its terminus.”",
     "使用說明補上觀看設定、立體列車、車站地標導覽、地圖風格、轉乘、跟車鎖定、營運公告、語言等新功能，首訪卡第一列也改成實際位置": "Help now covers View settings, 3D trains, station and landmark tours, map styles, transfers, follow lock, service alerts, language and more, and the first line of the first-visit card now points to where the switch really is",
@@ -330,6 +332,8 @@
   });
 
   Object.assign(messages.ja, {
+    "車庫新增第 4 個分頁「田園小站」：每款車都能開進這座預設車庫，白天夜晚跟著現在時間，按「陪它走走」跟著車看；開著車庫時背後的地圖會暫停，手機跑起來更順": "車庫に4つ目のタブ「田園の小駅」を追加：どの車両もこの基本の車庫に入れて、昼夜は現在の時刻に合わせて変わり、「一緒に走る」で列車について行けます。車庫を開いている間は背後の地図を止めるので、スマホでもなめらかに動きます",
+    "車庫海岸行旅加上車燈：頭燈、尾燈、夜晚車窗亮起並照亮軌道與草地；修好跑久了地面紋路變糊；護照註明場景在 App 兌換": "車庫の「海辺の旅」に列車のライトを追加：前照灯・尾灯、夜は窓が灯って線路や草地を照らします。長く走ると地面の模様がぼやける問題を修正。パスポートに情景はアプリの車庫で交換できると明記",
     "網站版也能開「車聲」了：在「配樂情境」裡打開，跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放": "ウェブ版にも「走行音」スイッチが付きました。「サウンドトラック」でオンにすると、追跡中の列車が動いている間は走行音が流れ、停車中はフェードアウト、発車するとフェードイン。鑑賞モードでは常時再生",
     "高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」": "高雄メトロの列車が終点に停車する前に消えなくなりました。終点のホームまで進入して約10秒停車してからフェードアウトし、追跡カードには「列車は終点に到着しました。」と表示されます",
     "使用說明補上觀看設定、立體列車、車站地標導覽、地圖風格、轉乘、跟車鎖定、營運公告、語言等新功能，首訪卡第一列也改成實際位置": "使い方ガイドに、表示設定、3D 列車、駅・ランドマーク案内、地図スタイル、乗換、追跡の固定、運行情報、言語などの新機能を追加し、初回カードの 1 行目も実際の操作位置に合わせました",
@@ -4345,9 +4349,9 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
 Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '島民點數': 'Islander Points',
   '登入後看得到島民點數': 'Sign in to see your Islander Points',
-  '下一座場景要 <b>{n}</b> 點': {
-    one: 'Next scene costs <b>{n}</b> point',
-    other: 'Next scene costs <b>{n}</b> points',
+  '下一座場景要 <b>{n}</b> 點，可在 App 的車庫兌換': {
+    one: 'Next scene costs <b>{n}</b> point — redeem it in the app’s garage',
+    other: 'Next scene costs <b>{n}</b> points — redeem it in the app’s garage',
   },
   '雲端搭乘 <b>{rides}</b> 次・每天一次 <b>{n}</b> 點': {
     one: 'Cloud rides <b>{rides}</b> · <b>{n}</b> point for one ride a day',
@@ -4363,7 +4367,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '島民點數': '島民ポイント',
   '登入後看得到島民點數': 'ログインすると島民ポイントが表示されます',
-  '下一座場景要 <b>{n}</b> 點': '次の情景の解放に <b>{n}</b> ポイント',
+  '下一座場景要 <b>{n}</b> 點，可在 App 的車庫兌換': '次の情景の解放に <b>{n}</b> ポイント（アプリの車庫で交換できます）',
   '雲端搭乘 <b>{rides}</b> 次・每天一次 <b>{n}</b> 點': 'クラウド乗車 <b>{rides}</b> 回・1日1回 <b>{n}</b> ポイント',
   '錄程每天最多 <b>{n}</b> 點': '記録で獲得できるのは 1 日最大 <b>{n}</b> ポイント',
   '已收滿，照樣可以錄程拿島民點數': '収集済みですが、旅程を記録すれば島民ポイントがもらえます',
@@ -4444,4 +4448,41 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '校正懸賞改用島民點數：合格的一趟照實際錄到的沿線里程給點，1 公里 1 點，南迴、臺東線加倍，每天最多 500 點；原有籌碼 1 顆換 50 點，已解鎖的車庫場景照舊': '校正懸賞は島民ポイント制になりました。条件を満たした乗車では、実際に記録した沿線距離 1 km につき 1 ポイント（南廻線・台東線は2倍、1日最大500ポイント）。お持ちのチップは1枚50ポイントに換算され、マイ車庫で解放済みのシーンはそのままです',
+});
+// 車庫第 4 格「場景」：四座專屬場景與預設車庫「田園小站」（地名、切換列照 App 的翻譯）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '田園小站': 'Countryside Station',
+  '南迴海岸': 'South Link Coast',
+  '之字形': 'Switchback',
+  '站前街': 'Station Street',
+  '十分老街': 'Shifen Old Street',
+  '預設車庫・田園小站': 'Default garage · Countryside Station',
+  '南迴線・南迴海岸': 'South Link Line · South Link Coast',
+  '阿里山林鐵・之字形': 'Alishan Forest Railway · Switchback',
+  '高架車站・站前街': 'Elevated Station · Station Street',
+  '平溪線・十分老街': 'Pingxi Line · Shifen Old Street',
+  '預設車庫': 'Default garage',
+  '專屬場景': 'Exclusive scene',
+  '陪它走走': 'Ride along',
+  '場景載入中…': 'Loading scene…',
+  '未解鎖': 'Locked',
+  '這座場景要用島民點數兌換，可在 App 的車庫兌換': 'This scene is unlocked with Islander Points — redeem it in the app’s garage',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '田園小站': '田園の小駅',
+  '南迴海岸': '南廻海岸',
+  '之字形': 'スイッチバック',
+  '站前街': '駅前通り',
+  '十分老街': '十分老街',
+  '預設車庫・田園小站': '基本の車庫・田園の小駅',
+  '南迴線・南迴海岸': '南廻線・南廻海岸',
+  '阿里山林鐵・之字形': '阿里山森林鉄道・スイッチバック',
+  '高架車站・站前街': '高架駅・駅前通り',
+  '平溪線・十分老街': '平渓線・十分老街',
+  '預設車庫': '基本の車庫',
+  '專屬場景': '専用の情景',
+  '陪它走走': '一緒に走る',
+  '場景載入中…': '情景を読み込み中…',
+  '未解鎖': '未解放',
+  '這座場景要用島民點數兌換，可在 App 的車庫兌換': 'この情景は島民ポイントで解放します（アプリの車庫で交換できます）',
 });
