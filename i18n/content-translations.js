@@ -4447,3 +4447,40 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '校正懸賞改用島民點數：合格的一趟照實際錄到的沿線里程給點，1 公里 1 點，南迴、臺東線加倍，每天最多 500 點；原有籌碼 1 顆換 50 點，已解鎖的車庫場景照舊': '校正懸賞は島民ポイント制になりました。条件を満たした乗車では、実際に記録した沿線距離 1 km につき 1 ポイント（南廻線・台東線は2倍、1日最大500ポイント）。お持ちのチップは1枚50ポイントに換算され、マイ車庫で解放済みのシーンはそのままです',
 });
+// 車庫第 4 格「場景」：四座專屬場景與預設車庫「田園小站」（地名、切換列照 App 的翻譯）。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '田園小站': 'Countryside Station',
+  '南迴海岸': 'South Link Coast',
+  '之字形': 'Switchback',
+  '站前街': 'Station Street',
+  '十分老街': 'Shifen Old Street',
+  '預設車庫・田園小站': 'Default garage · Countryside Station',
+  '南迴線・南迴海岸': 'South Link Line · South Link Coast',
+  '阿里山林鐵・之字形': 'Alishan Forest Railway · Switchback',
+  '高架車站・站前街': 'Elevated Station · Station Street',
+  '平溪線・十分老街': 'Pingxi Line · Shifen Old Street',
+  '預設車庫': 'Default garage',
+  '專屬場景': 'Exclusive scene',
+  '陪它走走': 'Ride along',
+  '場景載入中…': 'Loading scene…',
+  '未解鎖': 'Locked',
+  '這座場景要用島民點數兌換，可在 App 的車庫兌換': 'This scene is unlocked with Islander Points — redeem it in the app’s garage',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '田園小站': '田園の小駅',
+  '南迴海岸': '南廻海岸',
+  '之字形': 'スイッチバック',
+  '站前街': '駅前通り',
+  '十分老街': '十分老街',
+  '預設車庫・田園小站': '基本の車庫・田園の小駅',
+  '南迴線・南迴海岸': '南廻線・南廻海岸',
+  '阿里山林鐵・之字形': '阿里山森林鉄道・スイッチバック',
+  '高架車站・站前街': '高架駅・駅前通り',
+  '平溪線・十分老街': '平渓線・十分老街',
+  '預設車庫': '基本の車庫',
+  '專屬場景': '専用の情景',
+  '陪它走走': '一緒に走る',
+  '場景載入中…': '情景を読み込み中…',
+  '未解鎖': '未解放',
+  '這座場景要用島民點數兌換，可在 App 的車庫兌換': 'この情景は島民ポイントで解放します（アプリの車庫で交換できます）',
+});

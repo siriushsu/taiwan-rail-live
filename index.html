@@ -6622,6 +6622,7 @@
 <script src="./i18n/bus-transfer-translations.js"></script>
 <script src="./bus-transfer-ui.js"></script>
 <script src="./train-garage-catalog.js"></script>
+<script src="./train-garage-scenes.js"></script>
 <script src="./train-garage.js"></script>
 <script src="./my-train-plan.js"></script>
 <script src="./my-train-ui.js"></script>
@@ -18864,6 +18865,8 @@ function watch3dFrameBudget(now) {
   showToast(t('這台電腦跑立體列車不夠順，已切回平面；要再試可在觀看設定重新開啟'), { wrap: true });
 }
 function tick(now) {
+  // 車庫打開時整個蓋住地圖：主地圖這一拍起停下來，跟分頁進背景一樣（時鐘照 t0 接回）；關車庫時 onClose 再接上 armTick。
+  if (window.TrainGarage?.isOpen) return;
   state._inTick = true; // tick 內部發的 map move(跟車鏡頭 setView)不走 'move' 同步重繪,由本幀尾端統一畫
   try { tickCore(now); } catch (e) {
     const errs = state._tickErrs || (state._tickErrs = []);
@@ -18875,7 +18878,7 @@ function tick(now) {
 // 看門狗:rAF 心跳斷逾 2.5s(且頁面可見、app 已就緒)就手動補一幀——例外斷鏈下一拍即復活;
 // 引擎凍結 rAF 則降級為每 2s 一幀的慢動態(時間積分照走,dt 自然=2s),解凍自動回全速。
 setInterval(() => {
-  if (state.ready && !document.hidden && performance.now() - (state._rafAlive || 0) > 2500) {
+  if (state.ready && !document.hidden && !window.TrainGarage?.isOpen && performance.now() - (state._rafAlive || 0) > 2500) {
     state._wdN = (state._wdN || 0) + 1; tick(performance.now());
   }
 }, 2000);
@@ -23304,7 +23307,16 @@ function openTrainGarage(options = {}) {
     ...ownTrainHost(), // 自製列車:TrainGarage 用 host.plan();下面同名欄位以車庫自己的為準
     ownTrainCard, ownTrainSchedule, ownTrainView, ownTrainReplan,
     snapshot: garageSnapshot, t, lang: () => I18N_LANG, dark: () => !!state.mapDark,
+    // 場景頁的專屬場景鎖：已解鎖的場景 id（/api/chips-me 的 unlocked[].scene，見 fetchChipsMe／BOUNTY_CHIPS_KEY）。
+    // 懸賞關著、沒登入、還沒讀到錢包就回 null，車庫只畫預設車庫、不出切換列（同 App 沒有錢包時）。
+    sceneUnlocks: () => {
+      if (!BOUNTY_ENABLED || !(state.account && state.account.user)) return null;
+      let c = chipsMeMem;
+      if (!c) try { c = JSON.parse(localStorage.getItem(BOUNTY_CHIPS_KEY) || 'null'); } catch (e) { c = null; }
+      return chipsMeShapeOk(c) ? new Set(c.unlocked.map(u => String(u && u.scene))) : null;
+    },
     onClose: () => {
+      armTick(); // 車庫開著時主地圖停在 tick 開頭（見 tick），關掉接回
       const url = new URL(location.href); url.searchParams.delete('garage');
       history.replaceState(history.state, '', url);
       if (garageReturnFocus?.isConnected && garageReturnFocus.getClientRects().length) garageReturnFocus.focus({preventScroll:true});
