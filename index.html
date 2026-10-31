@@ -5657,6 +5657,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="buildinglook1031"><span class="d">10/31</span><span>3D 建築改成實心並加上光影與牆腳陰影；列車開到大樓後面時，樓上會開一扇窗讓你看到車，想看穿建築仍可打開「透視顯示」</span></li>
         <li data-cl-of="garagescene1031"><span class="d">10/31</span><span>車庫新增第 4 個分頁「田園小站」：每款車都能開進這座預設車庫，白天夜晚跟著現在時間，按「陪它走走」跟著車看；開著車庫時背後的地圖會暫停，手機跑起來更順</span></li>
         <li data-cl-of="garagelights1031"><span class="d">10/31</span><span>車庫海岸行旅加上車燈：頭燈、尾燈、夜晚車窗亮起並照亮軌道與草地；修好跑久了地面紋路變糊；護照註明場景在 App 兌換</span></li>
         <li data-cl-of="railsoundweb1030"><span class="d">10/30</span><span>網站版也能開「車聲」了：在「配樂情境」裡打開，跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放</span></li>
@@ -5664,7 +5665,6 @@
         <li data-cl-of="helpnew1030"><span class="d">10/30</span><span>使用說明補上觀看設定、立體列車、車站地標導覽、地圖風格、轉乘、跟車鎖定、營運公告、語言等新功能，首訪卡第一列也改成實際位置</span></li>
         <li data-cl-of="helpaudit1030"><span class="d">10/30</span><span>使用說明對上現在的畫面：字級、儲存地點、平交道、衛星等設定改指「觀看」裡的實際位置，手機與電腦版分開寫；分享、跟車小卡、查詢的說明照實際操作更正，步驟與提示字放大一號</span></li>
         <li data-cl-of="trameetstop1030"><span class="d">10/30</span><span>台鐵單線區段在不載客的車站會車時，等待的列車改成進站停車、等對向車過了再開，不再從前一站一路慢慢開，例如莒光 653 次在東竹 12:54 到站、停到 12:58（謝謝網友回報）</span></li>
-        <li data-cl-of="trcurl1030"><span class="d">10/30</span><span>台鐵官網改用新網址 www.trc.com.tw，活動公告與車庫裡的台鐵官方連結都換成新網址（謝謝網友回報）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6124,6 +6124,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="buildinglook1031"><span class="d">10/31</span><span>3D 建築改成實心並加上光影與牆腳陰影；列車開到大樓後面時，樓上會開一扇窗讓你看到車，想看穿建築仍可打開「透視顯示」</span></li>
         <li data-cl="pendingstation0930"><span class="d">10/1</span><span>車站時刻表頁：中壢、埔心之間的平鎮臨時站要等官方公布英文站名後才會有頁面；在那之前每週更新班表時先略過它，其他車站照常更新</span></li>
         <li data-cl="stations0930b"><span class="d">9/30</span><span>車站時刻表頁擴大到兩週內有列車停靠的全部 239 個台鐵車站（新增 221 站，中文）：依方向列出每一班的開車時刻、終點與行駛日；瑞芳、十分、菁桐、礁溪、福隆、集集、知本另有英日文頁；車站索引依縣市列出全部台鐵車站</span></li>
         <li data-cl="stations0930"><span class="d">9/30</span><span>車站頁加上台鐵、高鐵時刻表（中、英、日文）：台北、板橋、台中等 20 個大站，加上新開的高鐵苗栗、彰化、雲林站，依方向列出兩週內每一班的開車時刻與行駛日，每週更新；車站頁與捷運路線圖頁也換上軌島圖示，跟著地圖切換亮暗外觀</span></li>
@@ -7103,7 +7104,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1030i：網站版車聲：配樂情境的「車聲」開關在網站上也出現，走 Web Audio 播 ship_web 出貨時產生的打亂檔（Envato 原檔不進 repo、不放公開網址）。
 // v1030j：車庫海岸行旅加車燈（照 App 的頭燈、尾燈、車窗與照地公式）、地面雜訊格點折回修好跑久了紋路變糊、護照那句註明場景在 App 兌換。
 // v1031a：車庫第 4 格「場景」接上預設車庫田園小站與四座專屬場景（專屬場景照帳號錢包解鎖，懸賞旗標關著時只畫田園小站）、南迴海岸改名、車庫開著時主地圖暫停、手機場景關陰影＋像素比 1；更新紀錄加一條。
-const BUILD = 'v1031a';
+// v1031b：3D 建物質感第一輪——建物著色器修牆面漸層、加牆腳暗帶、列車在樓後面時挖窗；各底圖光源與配色照 BUILDING_LOOKS（地景 L2、亮色 Lt1、暗色 D2）；亮暗底圖「透視顯示」預設改實體（存過設定的照舊）；更新紀錄加一條。
+const BUILD = 'v1031b';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
