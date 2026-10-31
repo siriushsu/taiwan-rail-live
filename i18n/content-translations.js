@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "網站也能用島民點數兌換車庫場景了：車庫最上面多一列「車庫場景」，點格子就能解鎖；護照的點數那句點了直接開車庫": "You can now redeem garage scenes with Islander Points on the website: tap a scene in the new Garage scenes row at the top of the garage. The points line in your passport now opens the garage",
     "3D 建築改成實心並加上光影與牆腳陰影；列車開到大樓後面時，樓上會開一扇窗讓你看到車，想看穿建築仍可打開「透視顯示」": "3D buildings are now solid, with lighting and shading at their base. When a train passes behind a building, a window opens so you can still see it; turn on See-through view to look through buildings.",
     "車庫重開或切回網頁時不再閃一下：車直接出現、車卡不重排；舞台多了全畫面鈕，四個分頁都能鋪滿畫面看，直式橫式都行，再按一次、Esc 或返回鍵退出": "The garage no longer flickers when you reopen it or switch back to the page: the train shows up right away and the cards stay put; a new full-screen button on the stage fills the screen on all four tabs, portrait or landscape, and the same button, Esc or Back exits",
     "車庫新增第 4 個分頁「田園小站」：每款車都能開進這座預設車庫，白天夜晚跟著現在時間，按「陪它走走」跟著車看；開著車庫時背後的地圖會暫停，手機跑起來更順": "The garage has a fourth tab, Countryside Station: every train can pull into this default garage, with day and night following the current time, and Ride along follows the train; the map behind pauses while the garage is open, so phones run smoother",
@@ -334,6 +335,7 @@
   });
 
   Object.assign(messages.ja, {
+    "網站也能用島民點數兌換車庫場景了：車庫最上面多一列「車庫場景」，點格子就能解鎖；護照的點數那句點了直接開車庫": "ウェブでも島民ポイントで車庫の情景を交換できるようになりました。車庫上部の「車庫の情景」から選んで解放でき、パスポートのポイントの一文から車庫を開けます",
     "3D 建築改成實心並加上光影與牆腳陰影；列車開到大樓後面時，樓上會開一扇窗讓你看到車，想看穿建築仍可打開「透視顯示」": "3D の建物を不透明にし、光と足元の陰影を加えました。列車が建物の裏を通るときは窓が開いて列車が見えます。建物を透かしたいときは「透視表示」をオンにしてください。",
     "車庫重開或切回網頁時不再閃一下：車直接出現、車卡不重排；舞台多了全畫面鈕，四個分頁都能鋪滿畫面看，直式橫式都行，再按一次、Esc 或返回鍵退出": "車庫を開き直したときやページに戻ったときにちらつかなくなりました。車両がすぐ表示され、カードも並び直しません。ステージに全画面ボタンを追加し、4つのタブすべてで縦横どちらでも画面いっぱいに表示できます。同じボタン、Esc、戻るで終了します",
     "車庫新增第 4 個分頁「田園小站」：每款車都能開進這座預設車庫，白天夜晚跟著現在時間，按「陪它走走」跟著車看；開著車庫時背後的地圖會暫停，手機跑起來更順": "車庫に4つ目のタブ「田園の小駅」を追加：どの車両もこの基本の車庫に入れて、昼夜は現在の時刻に合わせて変わり、「一緒に走る」で列車について行けます。車庫を開いている間は背後の地図を止めるので、スマホでもなめらかに動きます",
