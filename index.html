@@ -1597,6 +1597,7 @@
   }
   .passport .ph-chips.off, #ridePanel .ph-chips.off { border-style: dashed; color: var(--faint); }
   .ph-chips .pc-i { min-width: 0; overflow-wrap: anywhere; }
+  .ph-chips .pc-go { font: inherit; color: inherit; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
   .ph-chips .pc-l { font-weight: 800; color: var(--navy); }
   .ph-chips b { font-size: calc(15px * var(--ui)); font-weight: 800; color: var(--gold); }
   .datestamp {
@@ -23326,6 +23327,51 @@ function ownTrainView() {
   window.TrainGarage?.close();
   return ownTrainFollow({});
 }
+// 車庫兌換視窗（train-garage.js，照 App 的 GarageRedeemCopy／WalletController）用的錢包。只有懸賞開著、已登入才有
+// （同 sceneUnlocks：網頁登出時讀不到點數，不出兌換入口）。actor 一律送帳號 uid（契約 v3：網頁一律登入後才兌換）——
+// 送裝置 id 的話錢會扣在裝置名下，chips-me（Bearer）讀的卻是帳號，兩邊對不上。
+// 送出前先把 {uid, scene, requestId} 存進 GARAGE_REDEEM_PENDING_KEY：結果沒確認前重試一律沿用同一個 requestId，伺服器靠它不重扣。
+const GARAGE_REDEEM_PENDING_KEY = 'trainmap-garage-redeem-pending-v1';
+const garageWallet = {
+  uid: () => (BOUNTY_ENABLED && state.account && state.account.user && state.account.user.uid) || '',
+  scenes: () => ((bountyRulesMem && bountyRulesMem.chips && bountyRulesMem.chips.scenes) || []).map(String),
+  ledger: () => {
+    let c = chipsMeMem;
+    if (!c) try { c = JSON.parse(localStorage.getItem(BOUNTY_CHIPS_KEY) || 'null'); } catch (e) { c = null; }
+    return chipsMeShapeOk(c) ? c : null;
+  },
+  loadState: () => chipsMeLoad,
+  reload: () => fetchChipsMe().then(() => { renderPassport(); renderRidePanel(); }),
+  // 兌換回應先寫回錢包：重讀 chips-me 之前場景鎖就要開；護照跟著重畫（重畫時會叫車庫 refresh）。
+  patch: fields => {
+    const c = garageWallet.ledger(); if (!c) return;
+    chipsMeMem = { ...c, ...fields };
+    try { localStorage.setItem(BOUNTY_CHIPS_KEY, JSON.stringify(chipsMeMem)); } catch (e) {}
+    renderPassport(); renderRidePanel();
+  },
+  // status 0＝網路失敗或 20 秒逾時（同 App）；body 不是 JSON 就是 null。
+  redeem: async (scene, requestId) => {
+    const a = state.account, user = a && a.user;
+    if (!user) return { status: 401, body: null };
+    try {
+      const token = a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken();
+      const r = await fetch(apiUrl('api/garage-redeem'), {
+        method: 'POST', cache: 'no-store',
+        signal: typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(20000) : undefined,
+        headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ actor: user.uid, scene, requestId }),
+      });
+      let body = null; try { body = await r.json(); } catch (e) {}
+      return { status: r.status, body };
+    } catch (e) { return { status: 0, body: null }; }
+  },
+  wrongAccount: () => bountyOnWrongAccount(),
+  pending: {
+    get: () => { try { const p = JSON.parse(localStorage.getItem(GARAGE_REDEEM_PENDING_KEY) || 'null'); return p && typeof p === 'object' ? p : null; } catch (e) { return null; } },
+    set: p => { try { localStorage.setItem(GARAGE_REDEEM_PENDING_KEY, JSON.stringify(p)); return true; } catch (e) { return false; } },
+    clear: () => { try { localStorage.removeItem(GARAGE_REDEEM_PENDING_KEY); } catch (e) {} },
+  },
+};
 let garageReturnFocus = null;
 function openTrainGarage(options = {}) {
   if (!window.TrainGarage) { showToast(t('車庫暫時無法載入，請稍後重試。')); return; }
@@ -23343,6 +23389,7 @@ function openTrainGarage(options = {}) {
       if (!c) try { c = JSON.parse(localStorage.getItem(BOUNTY_CHIPS_KEY) || 'null'); } catch (e) { c = null; }
       return chipsMeShapeOk(c) ? new Set(c.unlocked.map(u => String(u && u.scene))) : null;
     },
+    wallet: garageWallet,
     onClose: () => {
       // 車庫開著時主地圖停在 tick 開頭（見 tick），t0 也停在開車庫那一刻：不歸零的話接回第一拍 dt＝整段開車庫的時間，
       // 會把車庫裡撥好的時鐘（「去看它」撥到發車前 20 秒）再往後推一遍。同回前景（visibilitychange）：歸零 dt 基準，
@@ -24903,7 +24950,7 @@ function bountyOnWrongAccount() {
 }
 // 籌碼只屬於登入的人：記憶體與快取一併清掉，在途的籌碼請求靠 chipsMeSeq 作廢。
 function bountyForgetChips() {
-  chipsMeSeq++; chipsMeMem = null;
+  chipsMeSeq++; chipsMeMem = null; chipsMeLoad = 'IDLE';
   try { localStorage.removeItem(BOUNTY_CHIPS_KEY); } catch (e) {}
 }
 // 這台裝置的懸賞 actor 如果已經併進 uid 那個帳號，換一個新的——否則下一位匿名訪客的上傳與認領，會記到前一位名下。
@@ -25145,6 +25192,9 @@ async function fetchBountyMe() {
 const BOUNTY_CHIPS_KEY = 'trainmap-chips-me-v1';
 let chipsMeMem = null;
 let chipsMeSeq = 0;
+// 最近一次讀的結果（同 App WalletController 的 loadState），車庫兌換視窗靠它分「讀取中／讀取失敗／需要登入」：
+// IDLE｜LOADING｜READY｜AUTH_REQUIRED｜WRONG_ACCOUNT｜FAILED。作廢的回應不改它。
+let chipsMeLoad = 'IDLE';
 let bountyIdEpoch = 0; // 每次身分沒了（bountyOnIdentityGone）加一：在途的個人資料請求靠它判斷「這份回應還屬不屬於現在的人」
 function chipsMeShapeOk(j) {
   return !!j && typeof j === 'object' && !Array.isArray(j) && Number.isFinite(Number(j.balance)) && Array.isArray(j.unlocked);
@@ -25158,6 +25208,7 @@ async function fetchChipsMe() {
   // 護照的「下一座」要比 unlocked 的數量與規則檔的場景數(buildChipsRow)：規則檔跟著一起讀，呼叫端讀完重繪時它就在記憶體裡了。
   // 讀不到不影響籌碼本身（那一格就不顯示）；等的時間有上限（bountyRulesWithin），等不到就照讀不到處理，之後才到的不補畫。
   const rulesP = bountyRules().catch(() => null);
+  chipsMeLoad = 'LOADING';
   try {
     const token = a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken();
     const r = await fetch(apiUrl('api/chips-me'), { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
@@ -25166,14 +25217,15 @@ async function fetchChipsMe() {
       const j = await r.json();
       if (!still()) return chipsMeMem;
       if (chipsMeShapeOk(j)) {
-        chipsMeMem = j;
+        chipsMeMem = j; chipsMeLoad = 'READY';
         try { localStorage.setItem(BOUNTY_CHIPS_KEY, JSON.stringify(j)); } catch (e) {}
-      }
+      } else chipsMeLoad = 'FAILED';
     } else if (r.status === 401) {
-      chipsMeMem = null;
+      chipsMeMem = null; chipsMeLoad = 'AUTH_REQUIRED';
       try { localStorage.removeItem(BOUNTY_CHIPS_KEY); } catch (e) {}
-    } else if (r.status === 403 && await bountyErrorIs(r, 'wrong_account')) bountyOnWrongAccount();
-  } catch (e) {} finally { await bountyRulesWithin(rulesP); }
+    } else if (r.status === 403 && await bountyErrorIs(r, 'wrong_account')) { chipsMeLoad = 'WRONG_ACCOUNT'; bountyOnWrongAccount(); }
+    else chipsMeLoad = 'FAILED';
+  } catch (e) { if (still()) chipsMeLoad = 'FAILED'; } finally { await bountyRulesWithin(rulesP); }
   return chipsMeMem;
 }
 // 旅程卡的名字：伺服器只給計價單位，端點名在這裡算。
@@ -26591,10 +26643,10 @@ function buildChipsRow() {
   if (!c) return `<div class="ph-chips">${cell('balance', label + '<b>—</b>')}</div>`;
   const parts = [cell('balance', label + `<b>${bountyNum(c.balance)}</b>`)];
   const sceneN = ((bountyRulesMem && bountyRulesMem.chips && bountyRulesMem.chips.scenes) || []).length;
-  if (sceneN > 0 && (c.unlocked || []).length < sceneN) {
+  // 點了開車庫（兌換在車庫最上面的「車庫場景」列，同 App 護照的車庫卡只開車庫頁）。價格未知不畫，不顯示 0。
+  if (sceneN > 0 && (c.unlocked || []).length < sceneN && c.nextCost != null && Number.isFinite(Number(c.nextCost))) {
     const n = bountyNum(c.nextCost);
-    // 網頁還沒有兌換視窗，先講清楚要去 App 換。
-    parts.push(cell('next', t('下一座場景要 <b>{n}</b> 點，可在 App 的車庫兌換', { n }, n)));
+    parts.push(`<button type="button" class="pc-i pc-go" data-k="next" data-act="garage">${t('下一座場景要 <b>{n}</b> 點，到車庫兌換', { n }, n)} ›</button>`);
   }
   const cloudPts = c.cloud && typeof c.cloud === 'object' ? bountyNum(c.cloud.points) : 0;
   if (cloudPts > 0) parts.push(cell('cloud', t('雲端搭乘 <b>{rides}</b> 次・每天一次 <b>{n}</b> 點', { rides: bountyNum(c.cloud.rides), n: cloudPts })));

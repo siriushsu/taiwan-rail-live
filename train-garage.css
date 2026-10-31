@@ -98,7 +98,30 @@
 #trainGarage .g-scene-pick button[aria-pressed=true]{border-color:var(--g-ink);box-shadow:inset 0 0 0 .5px var(--g-ink)}
 #trainGarage .g-lock{width:11px;height:11px;flex:none;display:none}
 #trainGarage .g-pick-locked .g-lock{display:block}
-#trainGarage .g-scene-note{margin:0;padding:8px 12px;font-size:12px;line-height:1.5;color:var(--g-muted);border-bottom:1px solid var(--g-line)}
+/* 兌換專屬場景（同 App）：「車庫場景」列在標題下、篩選列上，手機 2 欄、其餘 4 欄；已解鎖的格紅框紅字、沒有鎖頭。 */
+#trainGarage .g-scenes{margin:0 0 16px}
+#trainGarage .g-scenes-bar{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px}
+#trainGarage .g-scenes-bar h2{margin:0;font-size:15px;font-weight:700}
+#trainGarage .g-scenes-head{font-size:12px;color:var(--g-muted);text-align:right}
+#trainGarage .g-scenes-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media(max-width:600px){#trainGarage .g-scenes-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#trainGarage .g-sc{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;min-width:0;padding:8px 12px;border:1px solid var(--g-line);border-radius:10px;background:var(--g-card);text-align:left}
+#trainGarage .g-sc b{display:flex;align-items:center;gap:5px;font-size:14px;min-width:0}
+#trainGarage .g-sc small{font-size:12px;color:var(--g-muted)}
+#trainGarage .g-sc .g-lock{display:block}
+#trainGarage .g-sc.on{border-color:var(--g-accent)}
+#trainGarage .g-sc.on small{color:var(--g-accent)}
+/* 兌換視窗：疊在整個車庫上（車庫其他部分 inert），置中卡片同 Android 版（寬 420、圓角 24、內距 22）。 */
+#trainGarage .g-redeem{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:rgba(0,0,0,.42)}
+#trainGarage .g-redeem-card{width:100%;max-width:420px;max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:12px;padding:22px;border-radius:24px;background:var(--g-paper);box-shadow:0 12px 40px rgba(0,0,0,.25)}
+#trainGarage .g-redeem-card:focus{outline:none}
+#trainGarage .g-redeem h2{margin:0;font-size:20px;font-weight:700;line-height:1.4}
+#trainGarage .g-redeem-desc{margin:0;font-size:13px;line-height:1.6;color:var(--g-muted)}
+#trainGarage .g-redeem-msg{margin:0;font-size:15px;line-height:1.6}
+#trainGarage .g-redeem-go,#trainGarage .g-redeem-close{min-height:48px;border-radius:12px;font-weight:600}
+#trainGarage .g-redeem-go{border:0;background:var(--g-accent);color:#fff}
+#trainGarage .g-redeem-go:disabled{background:var(--g-line);color:var(--g-muted);cursor:default}
+#trainGarage .g-redeem-close{border:1px solid var(--g-line);background:var(--g-card)}
 @media(max-width:420px){#trainGarage .g-scene-tabs button{padding:8px 2px;font-size:11px}#trainGarage .g-ride{padding:0 8px;font-size:11px}
   /* 外語頁籤放不下時（320 寬英文的 Switchback）陪它走走換到下一行，不疊在頁籤上 */
   #trainGarage .g-scene-bar{flex-wrap:wrap}#trainGarage .g-scene-tabs{min-width:min-content}#trainGarage .g-ride{margin-left:auto;min-height:36px}}
@@ -153,10 +176,9 @@
 #trainGarage.g-full .g-stage{position:fixed;inset:0;z-index:5;width:100%;height:100%;height:100dvh;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto minmax(0,1fr) auto;align-self:auto;background:var(--g-stage)}
 #trainGarage.g-full .g-viewport{display:contents}
 #trainGarage.g-full .g-view{position:absolute;inset:0;width:100%;height:100%;z-index:0}
-#trainGarage.g-full .g-scene-bar,#trainGarage.g-full .g-scene-pick,#trainGarage.g-full .g-scene-note,#trainGarage.g-full .g-stage-foot{position:relative;z-index:1;background:var(--g-card);background:color-mix(in srgb,var(--g-card) 82%,transparent);padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+#trainGarage.g-full .g-scene-bar,#trainGarage.g-full .g-scene-pick,#trainGarage.g-full .g-stage-foot{position:relative;z-index:1;background:var(--g-card);background:color-mix(in srgb,var(--g-card) 82%,transparent);padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
 #trainGarage.g-full .g-scene-bar{grid-row:1;padding-top:max(6px,env(safe-area-inset-top))}
 #trainGarage.g-full .g-scene-pick{grid-row:2}
-#trainGarage.g-full .g-scene-note{grid-row:3}
 #trainGarage.g-full .g-zoom{position:relative;z-index:1;grid-row:4;grid-column:1;justify-self:end;align-self:start;right:auto;top:auto;margin:12px max(12px,env(safe-area-inset-right)) 12px 12px}
 #trainGarage.g-full .g-stage-foot{grid-row:5;grid-column:1;padding-top:8px;padding-bottom:max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--g-line)}
 #trainGarage.g-full .g-stage-foot>span{min-height:44px;display:flex;align-items:center;justify-content:center;padding:0 52px}

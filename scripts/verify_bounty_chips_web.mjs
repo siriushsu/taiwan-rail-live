@@ -341,8 +341,8 @@ try {
         !!r && !r.off && !!r.cells.balance && r.cells.balance.nums.length === 1 && r.cells.balance.nums[0] === String(bal), JSON.stringify(r));
       ok(`CH1c-${bal} 下一座＝7（讀回應的 nextCost，不是客戶端自己算）、雲端搭乘＝4 次、每次 11 點（讀回應的 cloud.points，不是規則檔的 ${RULES.chips.cloud.points}）、每日上限＝6（讀 today.cap）`,
         !!r && !!r.cells.next && r.cells.next.nums.join() === '7' && !!r.cells.cloud && r.cells.cloud.nums.join() === '4,11' && !!r.cells.cap && r.cells.cap.nums.join() === '6' && RULES.chips.cloud.points !== 11, JSON.stringify(r && r.cells));
-      ok(`CH1h-${bal} 整列的字是點數：「島民點數 ${bal} 下一座場景要 7 點，可在 App 的車庫兌換 雲端搭乘 4 次・每天一次 11 點 錄程每天最多 6 點」，沒有「籌碼」「顆」；「每天一次」對得上規則檔的 cloud.dailyMax（1）`,
-        !!r && r.text === `島民點數 ${bal} 下一座場景要 7 點，可在 App 的車庫兌換 雲端搭乘 4 次・每天一次 11 點 錄程每天最多 6 點` && !/籌碼|顆/.test(r.text) && RULES.chips.cloud.dailyMax === 1, r && r.text);
+      ok(`CH1h-${bal} 整列的字是點數：「島民點數 ${bal} 下一座場景要 7 點，到車庫兌換 › 雲端搭乘 4 次・每天一次 11 點 錄程每天最多 6 點」，沒有「籌碼」「顆」；「每天一次」對得上規則檔的 cloud.dailyMax（1）`,
+        !!r && r.text === `島民點數 ${bal} 下一座場景要 7 點，到車庫兌換 › 雲端搭乘 4 次・每天一次 11 點 錄程每天最多 6 點` && !/籌碼|顆/.test(r.text) && RULES.chips.cloud.dailyMax === 1, r && r.text);
       ok(`CH1f-${bal} [fixture] 回應裡 today.chips＝3（不是 0）、cap＝6：cap−chips（3）與 chips（3）都不等於 cap，分得出上限格顯示的是哪一個`,
         (await s.page.evaluate(() => chipsMeMem.today.chips === 3 && chipsMeMem.today.cap === 6 && chipsMeMem.today.cap - chipsMeMem.today.chips !== chipsMeMem.today.cap)) === true);
       ok(`CH1g-${bal} 上限格裡只有一個數字、恰好是 today.cap（6）：不是 cap−chips、也不是 today.chips`,
