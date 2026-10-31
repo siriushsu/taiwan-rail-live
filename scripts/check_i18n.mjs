@@ -148,6 +148,8 @@ literalKeys.push(...discoveryBox.window.RailDiscovery.scenes.flatMap(s => [s.tit
 // 立體設定與編組說明同樣是首頁文案，不能因為移到獨立模組而漏查。
 literalKeys.push(...[...garageSource.matchAll(/\btr\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]));
 literalKeys.push('完乘 {count} 趟','累積旅程 {count} 公里','收集 {count} 座車站','取得 {count} 枚支線章');
+// 車庫第 4 格的地名與載入中字樣經變數才丟進 tr()（scenePlace／shortPlace、三元運算式）。
+literalKeys.push('場景載入中…','預設車庫・田園小站','南迴線・南迴海岸','阿里山林鐵・之字形','高架車站・站前街','平溪線・十分老街','田園小站','南迴海岸','之字形','站前街','十分老街');
 // 自製列車:my-train-ui.js 透過 host.t(...)／formCtx.host.t(...) 呼叫翻譯,不是 t(/tr(——
 // 跟 garageSource 那行接的是同一份字典,語法不同所以另開一條 regex,不能沿用上面那條。
 const myTrainUiSource = fs.readFileSync(path.join(root, 'my-train-ui.js'), 'utf8');
