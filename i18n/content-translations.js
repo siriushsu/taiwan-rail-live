@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "車庫新增第 4 個分頁「田園小站」：每款車都能開進這座預設車庫，白天夜晚跟著現在時間，按「陪它走走」跟著車看；開著車庫時背後的地圖會暫停，手機跑起來更順": "The garage has a fourth tab, Countryside Station: every train can pull into this default garage, with day and night following the current time, and Ride along follows the train; the map behind pauses while the garage is open, so phones run smoother",
     "車庫海岸行旅加上車燈：頭燈、尾燈、夜晚車窗亮起並照亮軌道與草地；修好跑久了地面紋路變糊；護照註明場景在 App 兌換": "The garage Coastal journey now has train lights: headlights, tail lights and lit windows at night that light up the track and grass; fixed the ground texture blurring after a long run; the passport now says scenes are redeemed in the app",
     "網站版也能開「車聲」了：在「配樂情境」裡打開，跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放": "The website now has the Rail sound switch too: turn it on in the Soundtrack menu to hear track noise while the train you follow is moving, fading out at stops and back in as it departs; always on in ambient mode",
     "高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」": "Kaohsiung MRT trains no longer vanish before they stop at the terminus: they pull all the way into the platform, wait about 10 seconds and then fade out, and the follow card shows “The train has reached its terminus.”",
@@ -331,6 +332,7 @@
   });
 
   Object.assign(messages.ja, {
+    "車庫新增第 4 個分頁「田園小站」：每款車都能開進這座預設車庫，白天夜晚跟著現在時間，按「陪它走走」跟著車看；開著車庫時背後的地圖會暫停，手機跑起來更順": "車庫に4つ目のタブ「田園の小駅」を追加：どの車両もこの基本の車庫に入れて、昼夜は現在の時刻に合わせて変わり、「一緒に走る」で列車について行けます。車庫を開いている間は背後の地図を止めるので、スマホでもなめらかに動きます",
     "車庫海岸行旅加上車燈：頭燈、尾燈、夜晚車窗亮起並照亮軌道與草地；修好跑久了地面紋路變糊；護照註明場景在 App 兌換": "車庫の「海辺の旅」に列車のライトを追加：前照灯・尾灯、夜は窓が灯って線路や草地を照らします。長く走ると地面の模様がぼやける問題を修正。パスポートに情景はアプリの車庫で交換できると明記",
     "網站版也能開「車聲」了：在「配樂情境」裡打開，跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放": "ウェブ版にも「走行音」スイッチが付きました。「サウンドトラック」でオンにすると、追跡中の列車が動いている間は走行音が流れ、停車中はフェードアウト、発車するとフェードイン。鑑賞モードでは常時再生",
     "高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」": "高雄メトロの列車が終点に停車する前に消えなくなりました。終点のホームまで進入して約10秒停車してからフェードアウトし、追跡カードには「列車は終点に到着しました。」と表示されます",
