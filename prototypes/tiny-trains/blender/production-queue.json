@@ -1,0 +1,3670 @@
+{
+  "schemaVersion": 1,
+  "asOf": "2026-10-13",
+  "asOfTimezone": "Asia/Taipei",
+  "notice": "製作順序與狀態；不表示全部背景工作已啟動。轉乘代碼可能共用物理資產，舊站、新站、地面入口與地下室內依 variant 分開核對。",
+  "scope": {
+    "stationCodeRows": 423,
+    "legacySceneRows": 27,
+    "additionalVariantCount": 2,
+    "stationCandidateAssetsIncludingTaipei": 7,
+    "newlyBuiltStationCandidatesThisContinuation": 5,
+    "adaptedDetailedStationCandidates": 1,
+    "allAcceptedModels": 0
+  },
+  "stationQueue": [
+    {
+      "order": 1,
+      "stationKey": "TRA:7150",
+      "name": "冬山",
+      "status": "blender-candidate-awaiting-photo-calibration",
+      "modelCandidateIds": [
+        "dongshan-exterior-v1-candidate01"
+      ],
+      "existingAssetIds": []
+    },
+    {
+      "order": 2,
+      "stationKey": "TRTC:R16",
+      "name": "士林",
+      "status": "blender-candidate-awaiting-photo-calibration",
+      "modelCandidateIds": [
+        "shilin-exterior-v1-candidate01"
+      ],
+      "existingAssetIds": []
+    },
+    {
+      "order": 3,
+      "stationKey": "TRA:1210",
+      "name": "新竹",
+      "status": "reworked-candidate-awaiting-photo-calibration",
+      "modelCandidateIds": [
+        "hsinchu-exterior-v2-candidate01"
+      ],
+      "existingAssetIds": [
+        "hsinchu-tra"
+      ]
+    },
+    {
+      "order": 4,
+      "stationKey": "TRA:4220",
+      "name": "臺南",
+      "status": "historic-building-adapted-current-station-pending",
+      "modelCandidateIds": [
+        "tainan-exterior-v1-candidate01"
+      ],
+      "existingAssetIds": [
+        "tainan-old"
+      ]
+    },
+    {
+      "order": 5,
+      "stationKey": "TRA:3300",
+      "name": "臺中",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [
+        "taichung-old-v1-candidate01"
+      ],
+      "existingAssetIds": [
+        "tra-taichung-v1"
+      ]
+    },
+    {
+      "order": 6,
+      "stationKey": "TRA:4400",
+      "name": "高雄",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "kaohsiung-main-v1"
+      ]
+    },
+    {
+      "order": 7,
+      "stationKey": "TRA:3434",
+      "name": "集集",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 8,
+      "stationKey": "TRA:7332",
+      "name": "十分",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 9,
+      "stationKey": "TRA:2110",
+      "name": "談文",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 10,
+      "stationKey": "TRA:2120",
+      "name": "大山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 11,
+      "stationKey": "THSR:1030",
+      "name": "新竹",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "hsinchu-hsr-v1"
+      ]
+    },
+    {
+      "order": 12,
+      "stationKey": "TRA:0900",
+      "name": "基隆",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 13,
+      "stationKey": "TRA:0910",
+      "name": "三坑",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 14,
+      "stationKey": "TRA:0920",
+      "name": "八堵",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 15,
+      "stationKey": "TRA:0930",
+      "name": "七堵",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 16,
+      "stationKey": "TRA:0940",
+      "name": "百福",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 17,
+      "stationKey": "TRA:0950",
+      "name": "五堵",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 18,
+      "stationKey": "TRA:0960",
+      "name": "汐止",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 19,
+      "stationKey": "TRA:0970",
+      "name": "汐科",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 20,
+      "stationKey": "TRA:0980",
+      "name": "南港",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "nangang-v1"
+      ]
+    },
+    {
+      "order": 21,
+      "stationKey": "TRA:0990",
+      "name": "松山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 22,
+      "stationKey": "TRA:1000",
+      "name": "臺北",
+      "status": "above-ground-candidate-underground-variant-pending",
+      "modelCandidateIds": [
+        "taipei-main-exterior-v2-preview02"
+      ],
+      "existingAssetIds": [
+        "taipei-main-v1"
+      ]
+    },
+    {
+      "order": 23,
+      "stationKey": "TRA:1010",
+      "name": "萬華",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 24,
+      "stationKey": "TRA:1020",
+      "name": "板橋",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "banqiao-v1"
+      ]
+    },
+    {
+      "order": 25,
+      "stationKey": "TRA:1030",
+      "name": "浮洲",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 26,
+      "stationKey": "TRA:1040",
+      "name": "樹林",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 27,
+      "stationKey": "TRA:1050",
+      "name": "南樹林",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 28,
+      "stationKey": "TRA:1060",
+      "name": "山佳",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 29,
+      "stationKey": "TRA:1070",
+      "name": "鶯歌",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 30,
+      "stationKey": "TRA:1075",
+      "name": "鳳鳴",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 31,
+      "stationKey": "TRA:1080",
+      "name": "桃園",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 32,
+      "stationKey": "TRA:1090",
+      "name": "內壢",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 33,
+      "stationKey": "TRA:1100",
+      "name": "中壢",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 34,
+      "stationKey": "TRA:1105",
+      "name": "平鎮",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 35,
+      "stationKey": "TRA:1110",
+      "name": "埔心",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 36,
+      "stationKey": "TRA:1120",
+      "name": "楊梅",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 37,
+      "stationKey": "TRA:1130",
+      "name": "富岡",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 38,
+      "stationKey": "TRA:1140",
+      "name": "新富",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 39,
+      "stationKey": "TRA:1150",
+      "name": "北湖",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 40,
+      "stationKey": "TRA:1160",
+      "name": "湖口",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 41,
+      "stationKey": "TRA:1170",
+      "name": "新豐",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 42,
+      "stationKey": "TRA:1180",
+      "name": "竹北",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 43,
+      "stationKey": "TRA:1190",
+      "name": "北新竹",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 44,
+      "stationKey": "TRA:1191",
+      "name": "千甲",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 45,
+      "stationKey": "TRA:1192",
+      "name": "新莊",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 46,
+      "stationKey": "TRA:1193",
+      "name": "竹中",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 47,
+      "stationKey": "TRA:1194",
+      "name": "六家",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "hsinchu-hsr-v1"
+      ]
+    },
+    {
+      "order": 48,
+      "stationKey": "TRA:1201",
+      "name": "上員",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 49,
+      "stationKey": "TRA:1202",
+      "name": "榮華",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 50,
+      "stationKey": "TRA:1203",
+      "name": "竹東",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 51,
+      "stationKey": "TRA:1204",
+      "name": "橫山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 52,
+      "stationKey": "TRA:1205",
+      "name": "九讚頭",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 53,
+      "stationKey": "TRA:1206",
+      "name": "合興",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 54,
+      "stationKey": "TRA:1207",
+      "name": "富貴",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 55,
+      "stationKey": "TRA:1208",
+      "name": "內灣",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 56,
+      "stationKey": "TRA:1220",
+      "name": "三姓橋",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 57,
+      "stationKey": "TRA:1230",
+      "name": "香山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 58,
+      "stationKey": "TRA:1240",
+      "name": "崎頂",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 59,
+      "stationKey": "TRA:1250",
+      "name": "竹南",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 60,
+      "stationKey": "TRA:2130",
+      "name": "後龍",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 61,
+      "stationKey": "TRA:2140",
+      "name": "龍港",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 62,
+      "stationKey": "TRA:2150",
+      "name": "白沙屯",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 63,
+      "stationKey": "TRA:2160",
+      "name": "新埔",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 64,
+      "stationKey": "TRA:2170",
+      "name": "通霄",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 65,
+      "stationKey": "TRA:2180",
+      "name": "苑裡",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 66,
+      "stationKey": "TRA:2190",
+      "name": "日南",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 67,
+      "stationKey": "TRA:2200",
+      "name": "大甲",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 68,
+      "stationKey": "TRA:2210",
+      "name": "臺中港",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 69,
+      "stationKey": "TRA:2220",
+      "name": "清水",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 70,
+      "stationKey": "TRA:2230",
+      "name": "沙鹿",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 71,
+      "stationKey": "TRA:2240",
+      "name": "龍井",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 72,
+      "stationKey": "TRA:2250",
+      "name": "大肚",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 73,
+      "stationKey": "TRA:2260",
+      "name": "追分",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 74,
+      "stationKey": "TRA:3140",
+      "name": "造橋",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 75,
+      "stationKey": "TRA:3150",
+      "name": "豐富",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 76,
+      "stationKey": "TRA:3160",
+      "name": "苗栗",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 77,
+      "stationKey": "TRA:3170",
+      "name": "南勢",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 78,
+      "stationKey": "TRA:3180",
+      "name": "銅鑼",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 79,
+      "stationKey": "TRA:3190",
+      "name": "三義",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 80,
+      "stationKey": "TRA:3210",
+      "name": "泰安",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 81,
+      "stationKey": "TRA:3220",
+      "name": "后里",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 82,
+      "stationKey": "TRA:3230",
+      "name": "豐原",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 83,
+      "stationKey": "TRA:3240",
+      "name": "栗林",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 84,
+      "stationKey": "TRA:3250",
+      "name": "潭子",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 85,
+      "stationKey": "TRA:3260",
+      "name": "頭家厝",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 86,
+      "stationKey": "TRA:3270",
+      "name": "松竹",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 87,
+      "stationKey": "TRA:3280",
+      "name": "太原",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 88,
+      "stationKey": "TRA:3290",
+      "name": "精武",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 89,
+      "stationKey": "TRA:3310",
+      "name": "五權",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 90,
+      "stationKey": "TRA:3320",
+      "name": "大慶",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 91,
+      "stationKey": "TRA:3330",
+      "name": "烏日",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 92,
+      "stationKey": "TRA:3340",
+      "name": "新烏日",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "xinwuri-complex-v1"
+      ]
+    },
+    {
+      "order": 93,
+      "stationKey": "TRA:3350",
+      "name": "成功",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 94,
+      "stationKey": "TRA:3360",
+      "name": "彰化",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 95,
+      "stationKey": "TRA:3370",
+      "name": "花壇",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 96,
+      "stationKey": "TRA:3380",
+      "name": "大村",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 97,
+      "stationKey": "TRA:3390",
+      "name": "員林",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 98,
+      "stationKey": "TRA:3400",
+      "name": "永靖",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 99,
+      "stationKey": "TRA:3410",
+      "name": "社頭",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 100,
+      "stationKey": "TRA:3420",
+      "name": "田中",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 101,
+      "stationKey": "TRA:3430",
+      "name": "二水",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 102,
+      "stationKey": "TRA:3431",
+      "name": "源泉",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 103,
+      "stationKey": "TRA:3432",
+      "name": "濁水",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 104,
+      "stationKey": "TRA:3433",
+      "name": "龍泉",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 105,
+      "stationKey": "TRA:3435",
+      "name": "水里",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 106,
+      "stationKey": "TRA:3436",
+      "name": "車埕",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 107,
+      "stationKey": "TRA:3450",
+      "name": "林內",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 108,
+      "stationKey": "TRA:3460",
+      "name": "石榴",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 109,
+      "stationKey": "TRA:3470",
+      "name": "斗六",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 110,
+      "stationKey": "TRA:3480",
+      "name": "斗南",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 111,
+      "stationKey": "TRA:3490",
+      "name": "石龜",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 112,
+      "stationKey": "TRA:4050",
+      "name": "大林",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 113,
+      "stationKey": "TRA:4060",
+      "name": "民雄",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 114,
+      "stationKey": "TRA:4070",
+      "name": "嘉北",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 115,
+      "stationKey": "TRA:4080",
+      "name": "嘉義",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 116,
+      "stationKey": "TRA:4090",
+      "name": "水上",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 117,
+      "stationKey": "TRA:4100",
+      "name": "南靖",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 118,
+      "stationKey": "TRA:4110",
+      "name": "後壁",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 119,
+      "stationKey": "TRA:4120",
+      "name": "新營",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 120,
+      "stationKey": "TRA:4130",
+      "name": "柳營",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 121,
+      "stationKey": "TRA:4140",
+      "name": "林鳳營",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 122,
+      "stationKey": "TRA:4150",
+      "name": "隆田",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 123,
+      "stationKey": "TRA:4160",
+      "name": "拔林",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 124,
+      "stationKey": "TRA:4170",
+      "name": "善化",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 125,
+      "stationKey": "TRA:4180",
+      "name": "南科",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 126,
+      "stationKey": "TRA:4190",
+      "name": "新市",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 127,
+      "stationKey": "TRA:4200",
+      "name": "永康",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 128,
+      "stationKey": "TRA:4210",
+      "name": "大橋",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 129,
+      "stationKey": "TRA:4250",
+      "name": "保安",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 130,
+      "stationKey": "TRA:4260",
+      "name": "仁德",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 131,
+      "stationKey": "TRA:4270",
+      "name": "中洲",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 132,
+      "stationKey": "TRA:4271",
+      "name": "長榮大學",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 133,
+      "stationKey": "TRA:4272",
+      "name": "沙崙",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "tainan-hsr-v1"
+      ]
+    },
+    {
+      "order": 134,
+      "stationKey": "TRA:4290",
+      "name": "大湖",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 135,
+      "stationKey": "TRA:4300",
+      "name": "路竹",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 136,
+      "stationKey": "TRA:4310",
+      "name": "岡山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 137,
+      "stationKey": "TRA:4320",
+      "name": "橋頭",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 138,
+      "stationKey": "TRA:4330",
+      "name": "楠梓",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 139,
+      "stationKey": "TRA:4340",
+      "name": "新左營",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "zuoying-complex-v1"
+      ]
+    },
+    {
+      "order": 140,
+      "stationKey": "TRA:4350",
+      "name": "左營",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 141,
+      "stationKey": "TRA:4360",
+      "name": "內惟",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 142,
+      "stationKey": "TRA:4370",
+      "name": "美術館",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 143,
+      "stationKey": "TRA:4380",
+      "name": "鼓山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 144,
+      "stationKey": "TRA:4390",
+      "name": "三塊厝",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 145,
+      "stationKey": "TRA:4410",
+      "name": "民族",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 146,
+      "stationKey": "TRA:4420",
+      "name": "科工館",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 147,
+      "stationKey": "TRA:4430",
+      "name": "正義",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 148,
+      "stationKey": "TRA:4440",
+      "name": "鳳山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 149,
+      "stationKey": "TRA:4450",
+      "name": "後庄",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 150,
+      "stationKey": "TRA:4460",
+      "name": "九曲堂",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 151,
+      "stationKey": "TRA:4470",
+      "name": "六塊厝",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 152,
+      "stationKey": "TRA:5000",
+      "name": "屏東",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 153,
+      "stationKey": "TRA:5010",
+      "name": "歸來",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 154,
+      "stationKey": "TRA:5020",
+      "name": "麟洛",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 155,
+      "stationKey": "TRA:5030",
+      "name": "西勢",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 156,
+      "stationKey": "TRA:5040",
+      "name": "竹田",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 157,
+      "stationKey": "TRA:5050",
+      "name": "潮州",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 158,
+      "stationKey": "TRA:5060",
+      "name": "崁頂",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 159,
+      "stationKey": "TRA:5070",
+      "name": "南州",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 160,
+      "stationKey": "TRA:5080",
+      "name": "鎮安",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 161,
+      "stationKey": "TRA:5090",
+      "name": "林邊",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 162,
+      "stationKey": "TRA:5100",
+      "name": "佳冬",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 163,
+      "stationKey": "TRA:5110",
+      "name": "東海",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 164,
+      "stationKey": "TRA:5120",
+      "name": "枋寮",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 165,
+      "stationKey": "TRA:5130",
+      "name": "加祿",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 166,
+      "stationKey": "TRA:5140",
+      "name": "內獅",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 167,
+      "stationKey": "TRA:5160",
+      "name": "枋山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 168,
+      "stationKey": "TRA:5170",
+      "name": "枋野",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 169,
+      "stationKey": "TRA:5190",
+      "name": "大武",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 170,
+      "stationKey": "TRA:5200",
+      "name": "瀧溪",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 171,
+      "stationKey": "TRA:5210",
+      "name": "金崙",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 172,
+      "stationKey": "TRA:5220",
+      "name": "太麻里",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 173,
+      "stationKey": "TRA:5230",
+      "name": "知本",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 174,
+      "stationKey": "TRA:5240",
+      "name": "康樂",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 175,
+      "stationKey": "TRA:6000",
+      "name": "臺東",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "taitung-v1"
+      ]
+    },
+    {
+      "order": 176,
+      "stationKey": "TRA:6010",
+      "name": "山里",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 177,
+      "stationKey": "TRA:6020",
+      "name": "鹿野",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 178,
+      "stationKey": "TRA:6030",
+      "name": "瑞源",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 179,
+      "stationKey": "TRA:6040",
+      "name": "瑞和",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 180,
+      "stationKey": "TRA:6050",
+      "name": "關山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 181,
+      "stationKey": "TRA:6060",
+      "name": "海端",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 182,
+      "stationKey": "TRA:6070",
+      "name": "池上",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 183,
+      "stationKey": "TRA:6080",
+      "name": "富里",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 184,
+      "stationKey": "TRA:6090",
+      "name": "東竹",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 185,
+      "stationKey": "TRA:6100",
+      "name": "東里",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 186,
+      "stationKey": "TRA:6110",
+      "name": "玉里",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 187,
+      "stationKey": "TRA:6120",
+      "name": "三民",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 188,
+      "stationKey": "TRA:6130",
+      "name": "瑞穗",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 189,
+      "stationKey": "TRA:6140",
+      "name": "富源",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 190,
+      "stationKey": "TRA:6150",
+      "name": "大富",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 191,
+      "stationKey": "TRA:6160",
+      "name": "光復",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 192,
+      "stationKey": "TRA:6170",
+      "name": "萬榮",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 193,
+      "stationKey": "TRA:6180",
+      "name": "鳳林",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 194,
+      "stationKey": "TRA:6190",
+      "name": "南平",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 195,
+      "stationKey": "TRA:6200",
+      "name": "林榮新光",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 196,
+      "stationKey": "TRA:6210",
+      "name": "豐田",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 197,
+      "stationKey": "TRA:6220",
+      "name": "壽豐",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 198,
+      "stationKey": "TRA:6230",
+      "name": "平和",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 199,
+      "stationKey": "TRA:6240",
+      "name": "志學",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 200,
+      "stationKey": "TRA:6250",
+      "name": "吉安",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 201,
+      "stationKey": "TRA:7000",
+      "name": "花蓮",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "hualien-v1"
+      ]
+    },
+    {
+      "order": 202,
+      "stationKey": "TRA:7010",
+      "name": "北埔",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 203,
+      "stationKey": "TRA:7020",
+      "name": "景美",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 204,
+      "stationKey": "TRA:7030",
+      "name": "新城",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 205,
+      "stationKey": "TRA:7040",
+      "name": "崇德",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 206,
+      "stationKey": "TRA:7050",
+      "name": "和仁",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 207,
+      "stationKey": "TRA:7060",
+      "name": "和平",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 208,
+      "stationKey": "TRA:7070",
+      "name": "漢本",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 209,
+      "stationKey": "TRA:7080",
+      "name": "武塔",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 210,
+      "stationKey": "TRA:7090",
+      "name": "南澳",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 211,
+      "stationKey": "TRA:7100",
+      "name": "東澳",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 212,
+      "stationKey": "TRA:7110",
+      "name": "永樂",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 213,
+      "stationKey": "TRA:7120",
+      "name": "蘇澳",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 214,
+      "stationKey": "TRA:7130",
+      "name": "蘇澳新",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 215,
+      "stationKey": "TRA:7140",
+      "name": "新馬",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 216,
+      "stationKey": "TRA:7160",
+      "name": "羅東",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 217,
+      "stationKey": "TRA:7170",
+      "name": "中里",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 218,
+      "stationKey": "TRA:7180",
+      "name": "二結",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 219,
+      "stationKey": "TRA:7190",
+      "name": "宜蘭",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 220,
+      "stationKey": "TRA:7200",
+      "name": "四城",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 221,
+      "stationKey": "TRA:7210",
+      "name": "礁溪",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 222,
+      "stationKey": "TRA:7220",
+      "name": "頂埔",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 223,
+      "stationKey": "TRA:7230",
+      "name": "頭城",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 224,
+      "stationKey": "TRA:7240",
+      "name": "外澳",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 225,
+      "stationKey": "TRA:7250",
+      "name": "龜山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 226,
+      "stationKey": "TRA:7260",
+      "name": "大溪",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 227,
+      "stationKey": "TRA:7270",
+      "name": "大里",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 228,
+      "stationKey": "TRA:7280",
+      "name": "石城",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 229,
+      "stationKey": "TRA:7290",
+      "name": "福隆",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 230,
+      "stationKey": "TRA:7300",
+      "name": "貢寮",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 231,
+      "stationKey": "TRA:7310",
+      "name": "雙溪",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 232,
+      "stationKey": "TRA:7320",
+      "name": "牡丹",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 233,
+      "stationKey": "TRA:7330",
+      "name": "三貂嶺",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 234,
+      "stationKey": "TRA:7331",
+      "name": "大華",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 235,
+      "stationKey": "TRA:7333",
+      "name": "望古",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 236,
+      "stationKey": "TRA:7334",
+      "name": "嶺腳",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 237,
+      "stationKey": "TRA:7335",
+      "name": "平溪",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 238,
+      "stationKey": "TRA:7336",
+      "name": "菁桐",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 239,
+      "stationKey": "TRA:7350",
+      "name": "猴硐",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 240,
+      "stationKey": "TRA:7360",
+      "name": "瑞芳",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 241,
+      "stationKey": "TRA:7361",
+      "name": "海科館",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 242,
+      "stationKey": "TRA:7362",
+      "name": "八斗子",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 243,
+      "stationKey": "TRA:7380",
+      "name": "四腳亭",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 244,
+      "stationKey": "TRA:7390",
+      "name": "暖暖",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 245,
+      "stationKey": "TRTC:BR01",
+      "name": "動物園",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 246,
+      "stationKey": "TRTC:BR02",
+      "name": "木柵",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 247,
+      "stationKey": "TRTC:BR03",
+      "name": "萬芳社區",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 248,
+      "stationKey": "TRTC:BR04",
+      "name": "萬芳醫院",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 249,
+      "stationKey": "TRTC:BR05",
+      "name": "辛亥",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 250,
+      "stationKey": "TRTC:BR06",
+      "name": "麟光",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 251,
+      "stationKey": "TRTC:BR07",
+      "name": "六張犁",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 252,
+      "stationKey": "TRTC:BR08",
+      "name": "科技大樓",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 253,
+      "stationKey": "TRTC:BR09",
+      "name": "大安",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 254,
+      "stationKey": "TRTC:BR10",
+      "name": "忠孝復興",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 255,
+      "stationKey": "TRTC:BR11",
+      "name": "南京復興",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 256,
+      "stationKey": "TRTC:BR12",
+      "name": "中山國中",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 257,
+      "stationKey": "TRTC:BR15",
+      "name": "劍南路",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 258,
+      "stationKey": "TRTC:BR16",
+      "name": "西湖",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 259,
+      "stationKey": "TRTC:BR17",
+      "name": "港墘",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 260,
+      "stationKey": "TRTC:BR18",
+      "name": "文德",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 261,
+      "stationKey": "TRTC:BR19",
+      "name": "內湖",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 262,
+      "stationKey": "TRTC:BR20",
+      "name": "大湖公園",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 263,
+      "stationKey": "TRTC:BR21",
+      "name": "葫洲",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 264,
+      "stationKey": "TRTC:BR22",
+      "name": "東湖",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 265,
+      "stationKey": "TRTC:BR23",
+      "name": "南港軟體園區",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 266,
+      "stationKey": "TRTC:BR24",
+      "name": "南港展覽館",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 267,
+      "stationKey": "TRTC:R14",
+      "name": "圓山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 268,
+      "stationKey": "TRTC:R15",
+      "name": "劍潭",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 269,
+      "stationKey": "TRTC:R17",
+      "name": "芝山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 270,
+      "stationKey": "TRTC:R18",
+      "name": "明德",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 271,
+      "stationKey": "TRTC:R19",
+      "name": "石牌",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 272,
+      "stationKey": "TRTC:R20",
+      "name": "唭哩岸",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 273,
+      "stationKey": "TRTC:R21",
+      "name": "奇岩",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 274,
+      "stationKey": "TRTC:R22",
+      "name": "北投",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 275,
+      "stationKey": "TRTC:R23",
+      "name": "復興崗",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 276,
+      "stationKey": "TRTC:R24",
+      "name": "忠義",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 277,
+      "stationKey": "TRTC:R25",
+      "name": "關渡",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 278,
+      "stationKey": "TRTC:R26",
+      "name": "竹圍",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 279,
+      "stationKey": "TRTC:R27",
+      "name": "紅樹林",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 280,
+      "stationKey": "TRTC:R28",
+      "name": "淡水",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 281,
+      "stationKey": "TRTC:R22A",
+      "name": "新北投",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 282,
+      "stationKey": "TRTC:G03A",
+      "name": "小碧潭",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 283,
+      "stationKey": "NTMC:Y08",
+      "name": "十四張",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 284,
+      "stationKey": "NTMC:Y09",
+      "name": "秀朗橋",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 285,
+      "stationKey": "NTMC:Y10",
+      "name": "景平",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 286,
+      "stationKey": "NTMC:Y11",
+      "name": "景安",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 287,
+      "stationKey": "NTMC:Y12",
+      "name": "中和",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 288,
+      "stationKey": "NTMC:Y13",
+      "name": "橋和",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 289,
+      "stationKey": "NTMC:Y14",
+      "name": "中原",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 290,
+      "stationKey": "NTMC:Y15",
+      "name": "板新",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 291,
+      "stationKey": "NTMC:Y16",
+      "name": "板橋",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "banqiao-v1"
+      ]
+    },
+    {
+      "order": 292,
+      "stationKey": "NTMC:Y17",
+      "name": "新埔民生",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 293,
+      "stationKey": "NTMC:Y18",
+      "name": "頭前庄",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 294,
+      "stationKey": "NTMC:Y19",
+      "name": "幸福",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 295,
+      "stationKey": "NTMC:Y20",
+      "name": "新北產業園區",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 296,
+      "stationKey": "NTDLRT:V01",
+      "name": "紅樹林",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 297,
+      "stationKey": "NTDLRT:V02",
+      "name": "竿蓁林",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 298,
+      "stationKey": "NTDLRT:V03",
+      "name": "淡金鄧公",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 299,
+      "stationKey": "NTDLRT:V04",
+      "name": "淡江大學",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 300,
+      "stationKey": "NTDLRT:V05",
+      "name": "淡金北新",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 301,
+      "stationKey": "NTDLRT:V06",
+      "name": "新市一路",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 302,
+      "stationKey": "NTDLRT:V07",
+      "name": "淡水行政中心",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 303,
+      "stationKey": "NTDLRT:V08",
+      "name": "濱海義山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 304,
+      "stationKey": "NTDLRT:V09",
+      "name": "濱海沙崙",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 305,
+      "stationKey": "NTDLRT:V10",
+      "name": "淡海新市鎮",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 306,
+      "stationKey": "NTDLRT:V11",
+      "name": "崁頂",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 307,
+      "stationKey": "NTDLRT:V26",
+      "name": "淡水漁人碼頭",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 308,
+      "stationKey": "NTDLRT:V27",
+      "name": "沙崙",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 309,
+      "stationKey": "NTDLRT:V28",
+      "name": "台北海洋大學",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 310,
+      "stationKey": "NTALRT:K01",
+      "name": "雙城",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 311,
+      "stationKey": "NTALRT:K02",
+      "name": "玫瑰中國城",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 312,
+      "stationKey": "NTALRT:K03",
+      "name": "台北小城",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 313,
+      "stationKey": "NTALRT:K04",
+      "name": "耕莘安康院區",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 314,
+      "stationKey": "NTALRT:K05",
+      "name": "景文科大",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 315,
+      "stationKey": "NTALRT:K06",
+      "name": "安康",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 316,
+      "stationKey": "NTALRT:K07",
+      "name": "陽光運動公園",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 317,
+      "stationKey": "NTALRT:K08",
+      "name": "新和國小",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 318,
+      "stationKey": "NTALRT:K09",
+      "name": "十四張",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 319,
+      "stationKey": "SANYING:LB01",
+      "name": "頂埔",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 320,
+      "stationKey": "SANYING:LB02",
+      "name": "媽祖田",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 321,
+      "stationKey": "SANYING:LB03",
+      "name": "長壽山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 322,
+      "stationKey": "SANYING:LB04",
+      "name": "橫溪",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 323,
+      "stationKey": "SANYING:LB05",
+      "name": "龍埔",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 324,
+      "stationKey": "SANYING:LB06",
+      "name": "三峽",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 325,
+      "stationKey": "SANYING:LB07",
+      "name": "臺北大學",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 326,
+      "stationKey": "SANYING:LB08",
+      "name": "鶯歌車站",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 327,
+      "stationKey": "SANYING:LB09",
+      "name": "陶瓷老街",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 328,
+      "stationKey": "SANYING:LB10",
+      "name": "國華",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 329,
+      "stationKey": "SANYING:LB11",
+      "name": "永吉公園",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 330,
+      "stationKey": "SANYING:LB12",
+      "name": "鶯桃福德",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 331,
+      "stationKey": "TYMC:A2",
+      "name": "三重",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 332,
+      "stationKey": "TYMC:A3",
+      "name": "新北產業園區",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 333,
+      "stationKey": "TYMC:A4",
+      "name": "新莊副都心",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 334,
+      "stationKey": "TYMC:A5",
+      "name": "泰山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 335,
+      "stationKey": "TYMC:A6",
+      "name": "泰山貴和",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 336,
+      "stationKey": "TYMC:A8",
+      "name": "長庚醫院",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 337,
+      "stationKey": "TYMC:A9",
+      "name": "林口",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 338,
+      "stationKey": "TYMC:A10",
+      "name": "山鼻",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 339,
+      "stationKey": "TYMC:A11",
+      "name": "坑口",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 340,
+      "stationKey": "TYMC:A15",
+      "name": "大園",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 341,
+      "stationKey": "TYMC:A16",
+      "name": "橫山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 342,
+      "stationKey": "TYMC:A17",
+      "name": "領航",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 343,
+      "stationKey": "TYMC:A18",
+      "name": "高鐵桃園站",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "taoyuan-hsr-v1"
+      ]
+    },
+    {
+      "order": 344,
+      "stationKey": "TYMC:A19",
+      "name": "桃園體育園區",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 345,
+      "stationKey": "TYMC:A20",
+      "name": "興南",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 346,
+      "stationKey": "TMRT:G0",
+      "name": "北屯總站",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 347,
+      "stationKey": "TMRT:G3",
+      "name": "舊社",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 348,
+      "stationKey": "TMRT:G4",
+      "name": "松竹",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 349,
+      "stationKey": "TMRT:G5",
+      "name": "四維國小",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 350,
+      "stationKey": "TMRT:G6",
+      "name": "文心崇德",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 351,
+      "stationKey": "TMRT:G7",
+      "name": "文心中清",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 352,
+      "stationKey": "TMRT:G8",
+      "name": "文華高中",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 353,
+      "stationKey": "TMRT:G8a",
+      "name": "文心櫻花",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 354,
+      "stationKey": "TMRT:G9",
+      "name": "市政府",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 355,
+      "stationKey": "TMRT:G10",
+      "name": "水安宮",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 356,
+      "stationKey": "TMRT:G10a",
+      "name": "文心森林公園",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 357,
+      "stationKey": "TMRT:G11",
+      "name": "南屯",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 358,
+      "stationKey": "TMRT:G12",
+      "name": "豐樂公園",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 359,
+      "stationKey": "TMRT:G13",
+      "name": "大慶",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 360,
+      "stationKey": "TMRT:G14",
+      "name": "九張犁",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 361,
+      "stationKey": "TMRT:G15",
+      "name": "九德",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 362,
+      "stationKey": "TMRT:G16",
+      "name": "烏日",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 363,
+      "stationKey": "TMRT:G17",
+      "name": "高鐵臺中站",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "xinwuri-complex-v1"
+      ]
+    },
+    {
+      "order": 364,
+      "stationKey": "KRTC:R17",
+      "name": "世運",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 365,
+      "stationKey": "KRTC:R18",
+      "name": "油廠國小",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 366,
+      "stationKey": "KRTC:R19",
+      "name": "楠梓科技園區",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 367,
+      "stationKey": "KRTC:R20",
+      "name": "後勁",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 368,
+      "stationKey": "KRTC:R21",
+      "name": "都會公園",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 369,
+      "stationKey": "KRTC:R22",
+      "name": "青埔",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 370,
+      "stationKey": "KRTC:R22A",
+      "name": "橋頭糖廠",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 371,
+      "stationKey": "KRTC:R23",
+      "name": "橋頭火車站",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 372,
+      "stationKey": "KRTC:R24",
+      "name": "岡山高醫",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 373,
+      "stationKey": "KRTC:RK1",
+      "name": "岡山車站",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 374,
+      "stationKey": "KRTC:OT1",
+      "name": "大寮",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 375,
+      "stationKey": "KLRT:C1",
+      "name": "籬仔內",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 376,
+      "stationKey": "KLRT:C2",
+      "name": "凱旋瑞田",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 377,
+      "stationKey": "KLRT:C3",
+      "name": "前鎮之星",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 378,
+      "stationKey": "KLRT:C4",
+      "name": "凱旋中華",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 379,
+      "stationKey": "KLRT:C5",
+      "name": "夢時代",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 380,
+      "stationKey": "KLRT:C6",
+      "name": "經貿園區",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 381,
+      "stationKey": "KLRT:C7",
+      "name": "軟體園區",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 382,
+      "stationKey": "KLRT:C8",
+      "name": "高雄展覽館",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 383,
+      "stationKey": "KLRT:C9",
+      "name": "旅運中心",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 384,
+      "stationKey": "KLRT:C10",
+      "name": "光榮碼頭",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 385,
+      "stationKey": "KLRT:C11",
+      "name": "真愛碼頭",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 386,
+      "stationKey": "KLRT:C12",
+      "name": "駁二大義",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 387,
+      "stationKey": "KLRT:C13",
+      "name": "駁二蓬萊",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 388,
+      "stationKey": "KLRT:C14",
+      "name": "哈瑪星",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 389,
+      "stationKey": "KLRT:C15",
+      "name": "壽山公園",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 390,
+      "stationKey": "KLRT:C16",
+      "name": "文武聖殿",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 391,
+      "stationKey": "KLRT:C17",
+      "name": "鼓山區公所",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 392,
+      "stationKey": "KLRT:C18",
+      "name": "鼓山",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 393,
+      "stationKey": "KLRT:C19",
+      "name": "馬卡道",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 394,
+      "stationKey": "KLRT:C20",
+      "name": "臺鐵美術館",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 395,
+      "stationKey": "KLRT:C21A",
+      "name": "內惟藝術中心",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 396,
+      "stationKey": "KLRT:C21",
+      "name": "美術館",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 397,
+      "stationKey": "KLRT:C22",
+      "name": "聯合醫院",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 398,
+      "stationKey": "KLRT:C23",
+      "name": "龍華國小",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 399,
+      "stationKey": "KLRT:C24",
+      "name": "愛河之心",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 400,
+      "stationKey": "KLRT:C25",
+      "name": "新上國小",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 401,
+      "stationKey": "KLRT:C26",
+      "name": "大順民族",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 402,
+      "stationKey": "KLRT:C27",
+      "name": "灣仔內",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 403,
+      "stationKey": "KLRT:C28",
+      "name": "高雄高工",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 404,
+      "stationKey": "KLRT:C29",
+      "name": "樹德家商",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 405,
+      "stationKey": "KLRT:C30",
+      "name": "科工館",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 406,
+      "stationKey": "KLRT:C31",
+      "name": "聖功醫院",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 407,
+      "stationKey": "KLRT:C32",
+      "name": "凱旋公園",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 408,
+      "stationKey": "KLRT:C33",
+      "name": "衛生局",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 409,
+      "stationKey": "KLRT:C34",
+      "name": "五權國小",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 410,
+      "stationKey": "KLRT:C35",
+      "name": "凱旋武昌",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 411,
+      "stationKey": "KLRT:C36",
+      "name": "凱旋二聖",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 412,
+      "stationKey": "KLRT:C37",
+      "name": "輕軌機廠",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 413,
+      "stationKey": "THSR:0990",
+      "name": "南港",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "nangang-v1"
+      ]
+    },
+    {
+      "order": 414,
+      "stationKey": "THSR:1000",
+      "name": "台北",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "taipei-main-v1"
+      ]
+    },
+    {
+      "order": 415,
+      "stationKey": "THSR:1010",
+      "name": "板橋",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "banqiao-v1"
+      ]
+    },
+    {
+      "order": 416,
+      "stationKey": "THSR:1020",
+      "name": "桃園",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "taoyuan-hsr-v1"
+      ]
+    },
+    {
+      "order": 417,
+      "stationKey": "THSR:1035",
+      "name": "苗栗",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 418,
+      "stationKey": "THSR:1040",
+      "name": "台中",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "xinwuri-complex-v1"
+      ]
+    },
+    {
+      "order": 419,
+      "stationKey": "THSR:1043",
+      "name": "彰化",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 420,
+      "stationKey": "THSR:1047",
+      "name": "雲林",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 421,
+      "stationKey": "THSR:1050",
+      "name": "嘉義",
+      "status": "reference-linked-awaiting-model",
+      "modelCandidateIds": [],
+      "existingAssetIds": []
+    },
+    {
+      "order": 422,
+      "stationKey": "THSR:1060",
+      "name": "台南",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "tainan-hsr-v1"
+      ]
+    },
+    {
+      "order": 423,
+      "stationKey": "THSR:1070",
+      "name": "左營",
+      "status": "existing-model-awaiting-rework",
+      "modelCandidateIds": [],
+      "existingAssetIds": [
+        "zuoying-complex-v1"
+      ]
+    }
+  ],
+  "additionalVariantQueue": [
+    {
+      "id": "formosa-ground-entrances",
+      "name": "美麗島站地面出入口",
+      "stationKeys": [
+        "KRTC:R10",
+        "KRTC:O5"
+      ],
+      "status": "shared-entrance-prototype-built-awaiting-individual-calibration",
+      "modelCandidateId": "formosa-ground-v1-candidate01"
+    },
+    {
+      "id": "taichung-historic-station-building",
+      "name": "臺中舊驛站",
+      "stationKeys": [
+        "TRA:3300"
+      ],
+      "status": "candidate-awaiting-photo-calibration",
+      "modelCandidateId": "taichung-old-v1-candidate01"
+    }
+  ],
+  "legacySceneQueue": [
+    {
+      "order": 1,
+      "sceneId": "south-coast",
+      "stationKeys": [],
+      "status": "prototype-in-source"
+    },
+    {
+      "order": 2,
+      "sceneId": "alishan",
+      "stationKeys": [],
+      "status": "prototype-in-source"
+    },
+    {
+      "order": 3,
+      "sceneId": "viaduct",
+      "stationKeys": [],
+      "status": "prototype-in-source"
+    },
+    {
+      "order": 4,
+      "sceneId": "shifen",
+      "stationKeys": [
+        "TRA:7332"
+      ],
+      "status": "prototype-in-source"
+    },
+    {
+      "order": 5,
+      "sceneId": "dongshan",
+      "stationKeys": [
+        "TRA:7150"
+      ],
+      "status": "candidate-awaiting-review"
+    },
+    {
+      "order": 6,
+      "sceneId": "qingshui",
+      "stationKeys": [],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 7,
+      "sceneId": "tainan",
+      "stationKeys": [
+        "TRA:4220"
+      ],
+      "status": "candidate-awaiting-review"
+    },
+    {
+      "order": 8,
+      "sceneId": "hsinchu",
+      "stationKeys": [
+        "TRA:1210"
+      ],
+      "status": "candidate-awaiting-review"
+    },
+    {
+      "order": 9,
+      "sceneId": "shilin",
+      "stationKeys": [
+        "TRTC:R16"
+      ],
+      "status": "candidate-awaiting-review"
+    },
+    {
+      "order": 10,
+      "sceneId": "formosa",
+      "stationKeys": [
+        "KRTC:R10",
+        "KRTC:O5"
+      ],
+      "status": "candidate-awaiting-review"
+    },
+    {
+      "order": 11,
+      "sceneId": "taipei-under",
+      "stationKeys": [
+        "TRA:1000"
+      ],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 12,
+      "sceneId": "shengxing",
+      "stationKeys": [],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 13,
+      "sceneId": "haixian",
+      "stationKeys": [
+        "TRA:2110",
+        "TRA:2120"
+      ],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 14,
+      "sceneId": "roundhouse",
+      "stationKeys": [],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 15,
+      "sceneId": "jiji",
+      "stationKeys": [
+        "TRA:3434"
+      ],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 16,
+      "sceneId": "huadong",
+      "stationKeys": [],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 17,
+      "sceneId": "kaohsiung-old",
+      "stationKeys": [
+        "TRA:4400"
+      ],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 18,
+      "sceneId": "thsr-hsinchu",
+      "stationKeys": [
+        "THSR:1030"
+      ],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 19,
+      "sceneId": "tamsui-lrt",
+      "stationKeys": [],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 20,
+      "sceneId": "metro-elevated",
+      "stationKeys": [],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 21,
+      "sceneId": "metro-underground",
+      "stationKeys": [],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 22,
+      "sceneId": "lrt-street",
+      "stationKeys": [],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 23,
+      "sceneId": "branch-wooden",
+      "stationKeys": [],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 24,
+      "sceneId": "seaside-platform",
+      "stationKeys": [],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 25,
+      "sceneId": "mountain-tunnel",
+      "stationKeys": [],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 26,
+      "sceneId": "mainline",
+      "stationKeys": [],
+      "status": "planned-in-source"
+    },
+    {
+      "order": 27,
+      "sceneId": "yard",
+      "stationKeys": [],
+      "status": "planned-in-source"
+    }
+  ]
+}

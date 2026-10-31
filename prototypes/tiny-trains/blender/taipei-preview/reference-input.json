@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "documentType": "model-preparation-input",
+  "packageId": "taipei-main-exterior-v2-preview01",
+  "preparedOn": "2026-10-09",
+  "station": {
+    "id": "TRA-1000",
+    "name": "臺北車站"
+  },
+  "sourceSnapshot": {
+    "repository": "siriushsu/taiwan-rail-live",
+    "commit": "f865b726be68e9763ff0d726b605acfbf0ad8177"
+  },
+  "style": {
+    "priority": "真實外觀優先",
+    "treatment": [
+      "保留真實量體與屋頂輪廓",
+      "柔和配色",
+      "適度圓潤邊緣",
+      "簡化微小細節"
+    ]
+  },
+  "anchor": {
+    "lon": 121.51711425,
+    "lat": 25.0477174,
+    "basis": "existing-project-placement",
+    "surveyed": false
+  },
+  "footprint": {
+    "file": "footprint.geojson",
+    "source": "https://www.openstreetmap.org/way/23641610",
+    "sourceRetrievedOn": "2026-09-06",
+    "license": "ODbL-1.0",
+    "outerRings": 1,
+    "holes": 0
+  },
+  "legacyReferenceOnly": {
+    "assetId": "taipei-main-v1",
+    "footprintRectangleFitM": [
+      157.4488,
+      127.4466
+    ],
+    "meshSizeM": [
+      157.6682586669922,
+      127.65113830566406,
+      48
+    ],
+    "illustrativeHeightM": 48,
+    "modelRotationDeg": -10.691624471177597,
+    "runtimeRotationDeg": 169.5,
+    "facadeVerified": false
+  },
+  "geometryToVerify": {
+    "realBuildingHeightM": null,
+    "engineeringDimensionsM": null,
+    "absoluteGroundAltitudeM": null,
+    "facadeBearingDeg": null,
+    "newModelRotationDeg": null,
+    "visibleFacadeFloorPattern": null,
+    "centralSkylight": {
+      "covered": true,
+      "shape": null,
+      "dimensionsM": null,
+      "roofElevationM": null,
+      "material": null
+    }
+  },
+  "geographicReference": {
+    "southSideRoad": "忠孝西路",
+    "source": "https://www.railway.gov.tw/tra-tip-web/tip/file/223b0a46-4772-408d-8c50-3d4079bb4e74"
+  },
+  "export": {
+    "axes": {
+      "up": "+Z",
+      "right": "+X",
+      "front": "-Y",
+      "units": "meters",
+      "groundAnchor": [
+        0,
+        0,
+        0
+      ]
+    },
+    "gltfAxes": {
+      "up": "+Y",
+      "toZUp": "rotateX(+PI/2)"
+    },
+    "mesh": {
+      "layout": [
+        "x",
+        "y",
+        "z",
+        "nx",
+        "ny",
+        "nz"
+      ],
+      "numericType": "float32",
+      "endian": "little",
+      "strideBytes": 24,
+      "indexed": false,
+      "primitive": "triangles"
+    },
+    "lods": [
+      "near",
+      "far"
+    ],
+    "railElevationM": null,
+    "newMeshHashes": null
+  },
+  "evidence": [
+    {
+      "subject": "中央採光罩工程",
+      "url": "https://www.railway.gov.tw/tra-tip-web/tip/file/8be1b0ae-5bbc-4df6-85ea-d4f3b0c50cd7",
+      "pdfPage": 93,
+      "printedPage": 83
+    },
+    {
+      "subject": "2016 屋頂更新與外觀照片",
+      "url": "https://www.railway.gov.tw/tra-tip-web/tip/file/d58a343d-0838-4806-8d42-b568bff79032",
+      "pdfPages": [
+        1,
+        4
+      ],
+      "photoVisuallyVerified": false
+    },
+    {
+      "subject": "BIM 外觀與剖視圖",
+      "url": "https://www.ceci.org.tw/Upload/Download/2A19A9F2-E530-4528-80A1-55715B2E043C.pdf",
+      "pdfPage": 8,
+      "printedPage": 149,
+      "figures": [
+        3,
+        4
+      ],
+      "figuresVisuallyVerified": false
+    },
+    {
+      "subject": "立面實拍候選",
+      "url": "https://www.filmcommission.taipei/retrieve/20220617174517.jpg",
+      "sourcePage": "https://www.filmcommission.taipei/scenesCT.aspx?id=1191",
+      "photoVisuallyVerified": false
+    }
+  ]
+}

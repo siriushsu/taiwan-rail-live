@@ -1,0 +1,120 @@
+{
+  "taipei101-landmark-v1": {
+    "name": "臺北 101",
+    "revisionId": "taipei101-exterior-v2-candidate01",
+    "heightM": 508,
+    "evidence": [
+      {
+        "url": "https://www.onenessarchitects.com/project/Taipei-101?lang=cn",
+        "verified": [
+          "508 m",
+          "eight-storey repeating modules",
+          "upper eight modules",
+          "round motifs at levels 24 and 27"
+        ]
+      },
+      {
+        "url": "https://www.thorntontomasetti.com/project/taipei-101",
+        "verified": [
+          "508 m",
+          "six-storey retail structure"
+        ]
+      },
+      {
+        "url": "https://global.ctbuh.org/resources/papers/1650-Poon_2004_StructuralDesignTaipei.pdf",
+        "verified": [],
+        "status": "search-index-only",
+        "note": "Eight flared modules over tapering base; narrow upper module. PDF fetch failed."
+      }
+    ],
+    "estimatedParameters": {
+      "towerCenter": [
+        25,
+        -27
+      ],
+      "mallCenter": [
+        -9,
+        22
+      ],
+      "mallSize": [
+        132,
+        90,
+        29
+      ],
+      "baseTop": 117,
+      "baseWidth": 63,
+      "waistWidth": 46,
+      "moduleCount": 8,
+      "moduleHeight": 34.25,
+      "moduleBottomWidth": 47,
+      "moduleTopWidth": 55,
+      "crownTop": 448,
+      "spireTop": 508
+    },
+    "palette": {
+      "glass": "507C77",
+      "frame": "A0ACA3",
+      "edge": "567B71",
+      "stone": "B8B9A4",
+      "shadow": "314E4D",
+      "ornament": "8A967C"
+    }
+  },
+  "shinkong-landmark-v1": {
+    "name": "臺北站前新光三越／新光摩天大樓",
+    "revisionId": "shinkong-exterior-v2-candidate01",
+    "heightM": 244.15,
+    "evidence": [
+      {
+        "url": "https://www.skhb.com.tw/web/webc/html/case/show.aspx?kind=25&num=28&page=1",
+        "verified": [
+          "244.15 m",
+          "department store floors 1–13",
+          "mechanical floors 14–15",
+          "office lobby floor 16",
+          "offices floors 17–43",
+          "upper mechanical floors 47–49"
+        ]
+      },
+      {
+        "url": "https://www2.maaconsultants.com/tw/projects/detail.php?dpid=362",
+        "verified": [],
+        "status": "search-index-only",
+        "note": "51 floors and curtain wall; direct page timed out."
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Shin_Kong_Life_Tower",
+        "verified": [],
+        "status": "secondary-text-description",
+        "note": "Rose-coloured exterior and pyramid crown; not a sampled colour reference."
+      }
+    ],
+    "estimatedParameters": {
+      "podiumSize": [
+        40,
+        84,
+        59
+      ],
+      "towerCenter": [
+        0,
+        -11
+      ],
+      "towerSize": [
+        38,
+        57
+      ],
+      "officeBase": 59,
+      "officeTop": 196,
+      "crownBase": 211,
+      "crownRoofTop": 238.15,
+      "spireTop": 244.15
+    },
+    "palette": {
+      "rose": "B38C81",
+      "trim": "C3AC9C",
+      "glass": "526061",
+      "shadow": "3C4A4B",
+      "metal": "8C9691"
+    }
+  }
+}

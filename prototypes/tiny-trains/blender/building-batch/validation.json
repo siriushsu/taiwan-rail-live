@@ -1,0 +1,46 @@
+[
+  {
+    "id": "shinkong-exterior-v2-candidate01",
+    "editableObjects": 125,
+    "levels": {
+      "near": {
+        "triangles": 2732,
+        "drawGroups": 5,
+        "glbBytes": 217780,
+        "roundtripBoundsErrorM": 0
+      },
+      "far": {
+        "triangles": 1596,
+        "drawGroups": 5,
+        "glbBytes": 129136,
+        "roundtripBoundsErrorM": 0
+      }
+    },
+    "formatValidated": true,
+    "geometryVisuallyVerified": false,
+    "placementVerified": false,
+    "mobileFrameRateMeasured": false
+  },
+  {
+    "id": "taipei101-exterior-v2-candidate01",
+    "editableObjects": 656,
+    "levels": {
+      "near": {
+        "triangles": 8920,
+        "drawGroups": 5,
+        "glbBytes": 700288,
+        "roundtripBoundsErrorM": 0
+      },
+      "far": {
+        "triangles": 1800,
+        "drawGroups": 4,
+        "glbBytes": 144044,
+        "roundtripBoundsErrorM": 0
+      }
+    },
+    "formatValidated": true,
+    "geometryVisuallyVerified": false,
+    "placementVerified": false,
+    "mobileFrameRateMeasured": false
+  }
+]

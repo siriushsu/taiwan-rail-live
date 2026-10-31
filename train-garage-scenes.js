@@ -50,7 +50,7 @@ window.RailGarageScenes = {
  // 新竹車站：1913 巴洛克古蹟站房
  e200:        {tier:'A',scene:'hsinchu',place:'新竹車站',story:'chukuang',params:{}},
  juguang:     {tier:'A',scene:'hsinchu',place:'新竹車站',story:'chukuang',params:{}},
- // 士林站：淡水信義線高架段，宮殿式（歇山式）黃琉璃瓦翹脊屋頂＋朱紅橫帶。
+ // 士林站：淡水信義線高架段，懸山式鋼構屋頂、屋脊天窗與中央重簷（捷運工程叢書34，書頁29）；配色與輪廓待實拍校正。
  // 　不是弧形頂棚——那條線上以弧形出名的是隔壁劍潭站（龍舟造型）；要換站再說。
  c301:        {tier:'A',scene:'shilin',place:'捷運士林站',story:null,params:{}},
  // 美麗島站：光之穹頂
