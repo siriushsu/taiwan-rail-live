@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）": "Removed 38 level crossing markers on sections that are now underground or elevated: city lines in Kaohsiung, Pingtung, Taichung, Yuanlin and elsewhere no longer have level crossings, though the official data has not been updated yet (thanks to the user who reported it)",
     "車庫海岸行旅加上車燈：頭燈、尾燈、夜晚車窗亮起並照亮軌道與草地；修好跑久了地面紋路變糊；護照註明場景在 App 兌換": "The garage Coastal journey now has train lights: headlights, tail lights and lit windows at night that light up the track and grass; fixed the ground texture blurring after a long run; the passport now says scenes are redeemed in the app",
     "網站版也能開「車聲」了：在「配樂情境」裡打開，跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放": "The website now has the Rail sound switch too: turn it on in the Soundtrack menu to hear track noise while the train you follow is moving, fading out at stops and back in as it departs; always on in ambient mode",
     "高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」": "Kaohsiung MRT trains no longer vanish before they stop at the terminus: they pull all the way into the platform, wait about 10 seconds and then fade out, and the follow card shows “The train has reached its terminus.”",
@@ -331,6 +332,7 @@
   });
 
   Object.assign(messages.ja, {
+    "平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）": "地下化・高架化された区間にある踏切38か所の表示を削除しました。高雄・屏東・台中・員林などの市街地区間にはもう踏切がありませんが、公式データはまだ更新されていません（ご報告ありがとうございます）",
     "車庫海岸行旅加上車燈：頭燈、尾燈、夜晚車窗亮起並照亮軌道與草地；修好跑久了地面紋路變糊；護照註明場景在 App 兌換": "車庫の「海辺の旅」に列車のライトを追加：前照灯・尾灯、夜は窓が灯って線路や草地を照らします。長く走ると地面の模様がぼやける問題を修正。パスポートに情景はアプリの車庫で交換できると明記",
     "網站版也能開「車聲」了：在「配樂情境」裡打開，跟車時車一動就有鐵軌聲，停站淡出、發車淡入；放空模式一直放": "ウェブ版にも「走行音」スイッチが付きました。「サウンドトラック」でオンにすると、追跡中の列車が動いている間は走行音が流れ、停車中はフェードアウト、発車するとフェードイン。鑑賞モードでは常時再生",
     "高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」": "高雄メトロの列車が終点に停車する前に消えなくなりました。終点のホームまで進入して約10秒停車してからフェードアウトし、追跡カードには「列車は終点に到着しました。」と表示されます",

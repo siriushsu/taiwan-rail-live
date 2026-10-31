@@ -29,13 +29,13 @@
    "checksum": "5092f8d822e80a518351d90ca160cc5d"
   },
   "data/crossings.json": {
-   "sourceDescription": "官方 XML 共 801 筆,含座標 415 筆(src:tra;與台鐵官方公布現役平交道數一致,無座標 386 筆為已裁撤/立體化)。座標投影取沿線位置(d,km,haversine 弧長,算法與站點 d 一致);",
+   "sourceDescription": "官方 XML 共 801 筆,含座標 415 筆(src:tra;無座標 386 筆為已裁撤/立體化)。座標投影取沿線位置(d,km,haversine 弧長,算法與站點 d 一致);投影垂足離原點 >50m 的 4 筆(候選線不含實際路廊,如八股頭/光復路實在舊山線)改用官方原始座標標點。",
    "sourceField": "source_notes",
    "effectiveDate": "2026-07-12",
    "effectiveDateField": "fetchedAt",
    "geometrySource": "TRA-ODS",
    "coordinateBasis": "WGS84(台鐵平交道公開資料的 POS 欄位標示 WGS84,見 scripts/build_crossings.mjs:6)",
-   "checksum": "a87141ea84bade5f18fa5f4bdda1b4d6"
+   "checksum": "ce1198ca9b045b8bdb41e2c5e47409ac"
   },
   "data/krtc.json": {
    "sourceDescription": "交通部 TDX 運輸資料流通服務(高雄捷運紅/橘線與高雄輕軌:路線幾何/站序/站間行駛時間,2026-07 抓取);輕軌班距為官方公告估算(尖峰約10分/離峰約15分)",
