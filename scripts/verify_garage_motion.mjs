@@ -31,8 +31,8 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
   const raised=await snapshot(p);check(engine+' 垂直拖曳確實改變俯仰與車體像素',Number(raised.elevation)>Number(before.elevation)+.3&&raised.hash!==before.hash&&raised.yaw===before.yaw);
   await p.locator('.g-view').focus();await p.keyboard.press('ArrowRight');await p.keyboard.press('ArrowDown');await settle(p);const keyed=await snapshot(p);
   check(engine+' 鍵盤可控制水平與垂直視角',keyed.yaw!==raised.yaw&&Number(keyed.elevation)<Number(raised.elevation));
-  for(let i=0;i<8;i++)await p.click('.g-up');await settle(p);const high=await snapshot(p);
-  for(let i=0;i<10;i++)await p.click('.g-down');await settle(p);const low=await snapshot(p);
+  await p.locator('.g-view').focus();for(let i=0;i<13;i++)await p.keyboard.press('ArrowUp');await settle(p);const high=await snapshot(p);
+  for(let i=0;i<13;i++)await p.keyboard.press('ArrowDown');await settle(p);const low=await snapshot(p);
   check(engine+' 俯視與平視有界限且車體不裁切',Number(high.elevation)===1.48&&Number(low.elevation)===.08&&framed(high)&&framed(low),{high,low});
   await p.click('.g-reset-view');await settle(p);const reset=await snapshot(p);check(engine+' 一鍵重設視角',reset.yaw==='-0.55'&&reset.elevation==='0.39');
   await p.click('[data-view="track"]');await p.waitForFunction(()=>document.querySelector('.g-view').dataset.mode==='track');const start=await snapshot(p);
@@ -44,9 +44,9 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
   check(engine+' 反向留在原地，車頭方向改變',reversed.distance===paused.distance&&reversed.trackX===paused.trackX&&reversed.trackY===paused.trackY&&Math.abs(Math.abs(Number(reversed.trackHeading)-Number(paused.trackHeading))-Math.PI)<.001&&reversed.hash!==paused.hash);
   await p.click('.g-auto');await p.waitForTimeout(1200);await stop(p);const backward=await snapshot(p);
   check(engine+' 逆向沿原路連續行駛',Number(backward.distance)<Number(reversed.distance)-1&&backward.hash!==reversed.hash);
-  for(let i=0;i<9;i++)await p.click('.g-left');await settle(p);const edgeLeft=await snapshot(p);
-  for(let i=0;i<18;i++)await p.click('.g-right');await settle(p);const edgeRight=await snapshot(p);
-  for(let i=0;i<6;i++)await p.click('.g-up');await settle(p);const edgeUp=await snapshot(p);
+  await p.locator('.g-view').focus();for(let i=0;i<9;i++)await p.keyboard.press('ArrowLeft');await settle(p);const edgeLeft=await snapshot(p);
+  for(let i=0;i<18;i++)await p.keyboard.press('ArrowRight');await settle(p);const edgeRight=await snapshot(p);
+  for(let i=0;i<6;i++)await p.keyboard.press('ArrowUp');await settle(p);const edgeUp=await snapshot(p);
   check(engine+' 海岸相機只朝海，水平與俯仰不會轉到背面',Math.abs(Number(edgeLeft.yaw)+Math.PI/2+.20)<.001&&Math.abs(Number(edgeRight.yaw)+Math.PI/2-.20)<.001&&Number(edgeUp.elevation)===.30);
   await p.click('.g-reverse');await p.click('.g-reset-view');await p.screenshot({path:OUT+'/'+engine+'-desktop.png'});
   for(const lang of ['en','ja']){await p.evaluate(l=>setLanguage(l),lang);await settle(p);check(engine+' '+lang+' 試跑控件翻譯',await p.locator('[data-view="track"]').textContent()===(lang==='en'?'Coastal journey':'海辺の旅'));}
@@ -63,8 +63,8 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
    const first=await p.locator('.g-view').evaluate(c=>{const r=c.getBoundingClientRect();return{top:r.top,bottom:r.bottom,height:innerHeight,scroll:document.getElementById('trainGarage').scrollTop};});
    check(engine+' '+width+' 試跑場第一屏完整可見',first.top>0&&first.bottom<=first.height&&first.scroll===0,first);
    await p.locator('.g-auto').scrollIntoViewIfNeeded();await p.tap('.g-auto');await settle(p);
-   const low=await snapshot(p);await p.locator('.g-up').scrollIntoViewIfNeeded();await p.tap('.g-up');await settle(p);const high=await snapshot(p);
-   check(engine+' '+width+' 真觸控提高視角',Number(high.elevation)>Number(low.elevation)&&high.hash!==low.hash);
+   const low=await snapshot(p);await p.locator('.g-view').press('ArrowUp');await settle(p);const high=await snapshot(p);
+   check(engine+' '+width+' 方向鍵提高視角',Number(high.elevation)>Number(low.elevation)&&high.hash!==low.hash);
    await p.locator('.g-reverse').scrollIntoViewIfNeeded();await p.tap('.g-reverse');await settle(p);check(engine+' '+width+' 真觸控反向',await p.locator('.g-reverse').getAttribute('aria-pressed')==='true');
    let a=await audit(p);check(engine+' '+width+' 試跑控件與全背景命中檢查',!a.failures.length&&!a.overflow,a);
    await p.evaluate(()=>{document.documentElement.dataset.theme='dark';state.mapDark=true;TrainGarage.refresh();});await settle(p);a=await audit(p);check(engine+' '+width+' 深色模式控件與邊界',!a.failures.length&&!a.overflow,a);

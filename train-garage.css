@@ -27,6 +27,11 @@
 #trainGarage .g-stage-foot{padding:0 20px 16px;display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:11px;color:var(--g-muted)}
 #trainGarage .g-controls{display:flex;gap:6px;flex:none}
 #trainGarage .g-controls button{border:1px solid var(--g-line);border-radius:50%;min-width:44px;background:var(--g-card)}
+/* 線框用內陰影畫（不佔高度），裡面的選單才撐得滿 44px 觸控高度。 */
+#trainGarage .g-period{display:flex;align-items:center;gap:6px;min-height:44px;padding:0 6px 0 12px;border-radius:8px;box-shadow:inset 0 0 0 1px var(--g-line);background:var(--g-card);font-size:12px;font-weight:700;color:var(--g-muted)}
+#trainGarage .g-period[hidden]{display:none}
+/* 16px：iPhone Safari 對小於 16px 的選單會在點下時放大整頁。 */
+#trainGarage .g-period select{border:0;background:transparent;font:inherit;font-size:16px;color:var(--g-ink);height:44px;padding:0 2px}
 #trainGarage .g-detail{padding:28px;min-width:0;align-self:center}
 #trainGarage .g-status{font-size:11px;letter-spacing:1px;display:inline-block;border:1px solid var(--g-line);border-radius:20px;padding:5px 10px;color:var(--g-muted)}
 #trainGarage .g-status.owned{background:var(--g-accent);color:var(--g-paper);border-color:transparent}

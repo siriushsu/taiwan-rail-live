@@ -19,8 +19,9 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
   await p.route('**/*',r=>{const u=new URL(r.request().url());if(u.origin===new URL(BASE).origin)return r.continue();if(u.pathname.includes('style')||u.pathname.endsWith('/liberty')||u.pathname.endsWith('/dark'))return r.fulfill({json:{version:8,sources:{},layers:[]}});return r.abort();});
   await p.goto(BASE+'?garage=demo&lang=zh-TW');await ready(p);await p.click('[data-view="track"]');await ready(p);await p.waitForFunction(()=>document.querySelector('.g-view').dataset.mode==='track');await p.click('.g-auto');await settled(p);
   const poses=[];
-  for(const [name,horizontal,vertical]of [['side',null,null],['left-low','.g-left','.g-down'],['left-high','.g-left','.g-up'],['right-low','.g-right','.g-down'],['right-high','.g-right','.g-up']]){
-   await p.click('.g-reset-view');if(horizontal)await p.click(horizontal);if(vertical)await p.click(vertical);await settled(p);const s=await sample(p);poses.push(s);
+  // 方向鍵各按兩下就撞到海岸的夾限（yaw ±0.2、仰角 0.08–0.30），跟原本按一下旋轉鈕的位置相同。
+  for(const [name,horizontal,vertical]of [['side',null,null],['left-low','ArrowLeft','ArrowDown'],['left-high','ArrowLeft','ArrowUp'],['right-low','ArrowRight','ArrowDown'],['right-high','ArrowRight','ArrowUp']]){
+   await p.click('.g-reset-view');for(const key of [horizontal,horizontal,vertical,vertical])if(key)await p.locator('.g-view').press(key);await settled(p);const s=await sample(p);poses.push(s);
    check(engine+' '+name+' 三節全部留在畫面內',s.projection==='perspective'&&s.cars.length===3&&s.anchors.island[1]>2&&s.cars.every(c=>c.left>1&&c.right<s.width-1&&c.top>1&&c.bottom<s.height-1),s.cars);
    check(engine+' '+name+' 世界投影位置實際畫出土地與海水',s.land&&s.water&&s.land[1]>s.land[0]+3&&s.land[1]>s.land[2]+3&&s.water[2]>s.water[0]+10,{land:s.land,water:s.water});
    await p.locator('.g-view').screenshot({path:OUT+'/'+engine+'-'+name+'.png'});
