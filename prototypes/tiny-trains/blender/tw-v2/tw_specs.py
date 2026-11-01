@@ -100,3 +100,15 @@ add('dhl100','hood',L=7.7,W=2.7,H=3.55,axles=2,power='diesel',body='EC7838',acce
 add('juguang','coach',L=9.0,W=2.8,H=3.4,doors=2,doorLeaves=1,doorW=.62,radiusTop=.42,body='EC7838',accent='F2EEDC')
 add('mingricoach','coach',L=9.0,W=2.8,H=3.4,doors=2,doorLeaves=1,doorW=.62,radiusTop=.42,body='15181D',accent='D2441A')
 add('bluecoach','coach',L=9.0,W=2.8,H=3.4,doors=2,doorLeaves=1,doorW=.60,gutter=3.03,body='232E48',accent='F2EEDC')
+# 阿里山林業鐵路（762 mm 軌距）：機車 L 沿用 fleet-v1（DL25 6.4、DL38 6.5、DL39 6.8、DL45 7.0），寬 2.15、車高 3.05（DL45 3.2）；二軸轉向架。
+# 客車 L 7.3、W 2.2、H 3.0（fleet-v1）。車頭（+X）是駕駛室短鼻那端，福森號、栩悅號是觀景端（tw_models 林鐵段）。
+afr=dict(W=2.15,H=3.05,axles=2,power='diesel',body='E43A36',accent='F2EEDC')
+add('dl25','forestloco',**afr,L=6.4,label='DL25')
+add('dl38','forestloco',**afr,L=6.5,label='DL38')
+add('dl39','forestloco',**afr,L=6.8,label='DL39')
+add('dl45','forestloco',**{**afr,'H':3.2},L=7.0,label='DL45')
+afrc=dict(L=7.3,W=2.2,H=3.0,power='unpowered')
+add('alicoach','forestcoach',**afrc,body='E2DCCC',accent='E43A36')
+add('hinoki','forestcoach',**afrc,body='BF7518',accent='8A4E12')
+add('fushen','forestcoach',**afrc,body='D9A86C',accent='AD1220')
+add('xuyue','forestcoach',**afrc,body='EEF0EE',accent='2763C6')

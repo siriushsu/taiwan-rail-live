@@ -2313,5 +2313,412 @@
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dl25",
+  "name": "DL25～34・三菱車系",
+  "label": "DL25～34",
+  "detail": "短鼻在前 · 白色 V 字與腰帶 · 長機房端格柵",
+  "color": "#e43a36",
+  "source": "https://blair-train.blogspot.com/2010/02/blog-post_2428.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_2428.html"
+   },
+   {
+    "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_26%27_at_Beimen_2023-07-18.jpg"
+   }
+  ],
+  "features": [
+   "駕駛室那端在前：行駛中的列車照片上機車都是駕駛室端朝外、客車接長機房端（fleet-v1 相反）。",
+   "短鼻很短，正面白色 V 字、車號牌、兩角小燈；駕駛室兩扇前窗、中間上方一顆頭燈；全車白色腰帶、機房腰帶上方一排百葉、車下圓筒燃油箱。",
+   "長機房端整面橫條散熱器格柵、白色 V 字疊在格柵上、兩角圓燈；高度照正側面照換算（腰帶 1.84–2.00、機房頂 2.30、屋簷 2.84）。"
+  ],
+  "photos": [
+   {
+    "file": "File:AFR 'DL 26' at Beimen 2023-07-18.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_26%27_at_Beimen_2023-07-18.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "正側面（車架、腰帶、機房頂、駕駛室窗與屋簷高度）"
+   },
+   {
+    "file": "File:AFR DL-29 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL-29_01.jpg",
+    "author": "ⓥⓘⓣⓐ",
+    "licence": "CC BY 2.0",
+    "use": "駕駛室端斜前方（短鼻、前窗、頭燈）"
+   },
+   {
+    "file": "File:Close-up of AFR DL-31 2012-12-12.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Close-up_of_AFR_DL-31_2012-12-12.jpg",
+    "author": "Wentao",
+    "licence": "CC BY 2.0",
+    "use": "長機房端（格柵、V 字、兩角燈）"
+   },
+   {
+    "file": "File:AFR DL-25 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL-25_01.jpg",
+    "author": "ⓥⓘⓣⓐ",
+    "licence": "CC BY 2.0",
+    "use": "行駛中的列車：駕駛室端朝外"
+   },
+   {
+    "file": "File:AFR DL-30 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL-30_01.jpg",
+    "author": "育昌",
+    "licence": "CC BY-SA 3.0",
+    "use": "行駛中的列車：客車接長機房端"
+   },
+   {
+    "file": "File:AFR DL-28 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL-28_01.jpg",
+    "author": "manginwu",
+    "licence": "CC BY-SA 2.0",
+    "use": "行駛中的列車：駕駛室端朝外"
+   },
+   {
+    "file": "File:JhushanDL-26.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:JhushanDL-26.jpg",
+    "author": "Hhaithait",
+    "licence": "CC BY-SA 3.0",
+    "use": "行駛中的列車：駕駛室端朝外"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dl38",
+  "name": "DL38・日車試作型",
+  "label": "DL38",
+  "detail": "平整短鼻 · 白色 V 字 · 長機房端黑色格柵",
+  "color": "#e43a36",
+  "source": "https://blair-train.blogspot.com/2010/02/blog-post_5539.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_5539.html"
+   },
+   {
+    "label": "Wikimedia Commons／bugsy ho（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL38_01.jpg"
+   }
+  ],
+  "features": [
+   "駕駛室那端在前；短鼻比 DL25 長、正面平整：白色 V 字、上方車號牌、兩角圓燈、腰帶上方兩角紅色標識燈、鼻頂水平扶手。",
+   "駕駛室兩扇大前窗、車頂氣笛；側面門靠短鼻。",
+   "長機房端大片黑色橫條散熱器格柵、上方車號牌與兩角小圓燈，2023 年照片上沒有 V 字。"
+  ],
+  "photos": [
+   {
+    "file": "File:AFR DL38 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL38_01.jpg",
+    "author": "bugsy ho",
+    "licence": "CC BY 2.0",
+    "use": "駕駛室端（短鼻、V 字、燈、扶手）"
+   },
+   {
+    "file": "File:Alishan Train Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Alishan_Train_Station.jpg",
+    "author": "Professional Maniniyot Wannabe",
+    "licence": "CC BY 2.0",
+    "use": "駕駛室端正面（燈與紅色標識燈位置）"
+   },
+   {
+    "file": "File:AFR 'DL 38' at Alishan 2023-07-18.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_38%27_at_Alishan_2023-07-18.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "長機房端斜側（格柵、兩角燈、沒有 V 字）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dl39",
+  "name": "DL39～43・阿里山號",
+  "label": "DL39～43",
+  "detail": "外凸大圓燈 · 短鼻兩側百葉 · 高長機房",
+  "color": "#e43a36",
+  "source": "https://blair-train.blogspot.com/2010/02/blog-post_5539.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_5539.html"
+   },
+   {
+    "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_41%27_at_Alishan_2023-07-18.jpg"
+   }
+  ],
+  "features": [
+   "駕駛室那端在前；短鼻正面白色 V 字、上方兩角外凸大圓燈筒、下方兩角小紅燈，短鼻兩側腰帶上下各兩列百葉。",
+   "駕駛室側面門靠短鼻、一扇大側窗；長機房比 DL25 高、腰帶上方整排百葉。",
+   "長機房端格柵上白色 V 字、兩角外凸燈筒；高度照 DL41 正側面照換算（腰帶 1.81–1.97、機房頂 2.61、屋簷 2.88）。"
+  ],
+  "photos": [
+   {
+    "file": "File:AFR 'DL 41' at Alishan 2023-07-18.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_41%27_at_Alishan_2023-07-18.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "正側面（車架、腰帶、短鼻與機房頂、駕駛室窗高度）"
+   },
+   {
+    "file": "File:AFR DL-39 2012-12-10.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL-39_2012-12-10.jpg",
+    "author": "Wentao",
+    "licence": "CC BY 2.0",
+    "use": "駕駛室正側面（門、側窗、短鼻百葉）"
+   },
+   {
+    "file": "File:AFR DL-39.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL-39.jpg",
+    "author": "Wentao",
+    "licence": "CC BY 2.0",
+    "use": "駕駛室端斜前方（外凸大燈、V 字、紅燈）"
+   },
+   {
+    "file": "File:AFR 'DL 42' at Alishan 2023-07-19.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_42%27_at_Alishan_2023-07-19.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "長機房端（格柵、V 字、燈筒）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dl45",
+  "name": "DL45～51・林鐵新主力",
+  "label": "DL45～51",
+  "detail": "正面百葉與 V 字 · 外凸大圓燈 · 大駕駛室",
+  "color": "#e43a36",
+  "source": "https://blair-train.blogspot.com/2010/02/blog-post_1163.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_1163.html"
+   },
+   {
+    "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_51%27_at_Beimen_2023-07-18.jpg"
+   }
+  ],
+  "features": [
+   "駕駛室那端在前；短鼻正面整面橫條百葉、白色 V 字疊在百葉上、上方中央車號牌、兩角外凸大圓燈筒、下方兩角小紅燈。",
+   "車高比前幾代高；駕駛室大，側面門靠短鼻、一扇大側窗；短鼻兩側與機房側面百葉。",
+   "長機房端格柵、V 字、兩角外凸燈筒；長度比例照正側面照（短鼻 13%、駕駛室 29%、長機房 58%）。"
+  ],
+  "photos": [
+   {
+    "file": "File:AFR 'DL 51' at Beimen 2023-07-18.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_51%27_at_Beimen_2023-07-18.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "正側面（長度比例、腰帶、機房頂、駕駛室窗高度）"
+   },
+   {
+    "file": "File:Alishan DL48.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Alishan_DL48.jpg",
+    "author": "Kirk",
+    "licence": "CC BY-SA 3.0",
+    "use": "駕駛室端斜前方（正面百葉、V 字、燈、門與側窗位置）"
+   },
+   {
+    "file": "File:AFR DL46 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL46_01.jpg",
+    "author": "maviscwling",
+    "licence": "CC BY 2.0",
+    "use": "行駛中的列車：駕駛室端朝外"
+   },
+   {
+    "file": "File:AFR 'DL 49' at Beimen 2023-07-18.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_49%27_at_Beimen_2023-07-18.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "長機房端（格柵、V 字、燈筒）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "alicoach",
+  "name": "阿里山號・紅白客車",
+  "label": "阿里山號",
+  "detail": "奶油色車身 · 紅色窗帶與斜帶 · 端面紅色下半",
+  "color": "#e43a36",
+  "source": "https://blair-train.blogspot.com/2012/01/1.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/01/1.html"
+   },
+   {
+    "label": "Wikimedia Commons／Professional Maniniyot Wannabe（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Passenger_cars_of_the_Alishan_Forest_Railway_at_Beimen_Depot_2018-04-06_01.jpg"
+   }
+  ],
+  "features": [
+   "奶油色車身與車頂、紅色窗帶、車底紅色裙帶；兩端各一道紅色斜帶從車端下角往內上斜接到窗帶（fleet-v1 沒有斜帶與裙帶）。",
+   "每側只有一端有門：由有門那端往內是上下兩格窗、雙摺門（門扇跟著塗裝，上紅下奶油）、上下兩格窗、四扇大窗，另一端沒有窗；紅色跟林鐵機車同色。",
+   "端面下半紅色、奶油色 V 字，上半奶油色、偏一側端門與小窗。"
+  ],
+  "photos": [
+   {
+    "file": "File:Passenger car of the Alishan Forest Railway 2016-07-30.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Passenger_car_of_the_Alishan_Forest_Railway_2016-07-30.jpg",
+    "author": "江 東翰",
+    "licence": "CC BY-SA 2.0",
+    "use": "車端與側面塗裝、取色（陰天）"
+   },
+   {
+    "file": "File:Train at Fenqihu Station 2016-07-19.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Train_at_Fenqihu_Station_2016-07-19.jpg",
+    "author": "姜 明雄",
+    "licence": "CC0",
+    "use": "整列側面（窗與門的順序）"
+   },
+   {
+    "file": "File:Passenger cars of the Alishan Forest Railway at Beimen Depot 2018-04-06 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Passenger_cars_of_the_Alishan_Forest_Railway_at_Beimen_Depot_2018-04-06_01.jpg",
+    "author": "Professional Maniniyot Wannabe",
+    "licence": "CC BY 2.0",
+    "use": "端面塗裝與端門"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "hinoki",
+  "name": "檜木列車・木造客車",
+  "label": "檜木列車",
+  "detail": "金黃色檜木車身 · 開放式端平台 · 淺灰拱頂",
+  "color": "#bf7518",
+  "source": "https://blair-train.blogspot.com/2013/06/blog-post_9.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2013/06/blog-post_9.html"
+   },
+   {
+    "label": "Wikimedia Commons／Shoichi（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Cypress_railroad_car.JPG"
+   }
+  ],
+  "features": [
+   "金黃色上漆檜木車身、窗下直條木板、窗台腰板與窗上飾條；每側十扇深色木框小窗。",
+   "淺灰拱頂延伸蓋住兩端開放式平台；平台黑色花格欄杆、中央開口、側面上車踏階。",
+   "端牆中央門、兩側小窗、上方三顆圓燈（客車沒有駕駛室，燈用不發光鏡片）。"
+  ],
+  "photos": [
+   {
+    "file": "File:Alishan cypress train.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Alishan_cypress_train.jpg",
+    "author": "邰秉宥",
+    "licence": "CC BY-SA 2.0",
+    "use": "正側面（窗數、木板、車頂、取色）"
+   },
+   {
+    "file": "File:Cypress railroad car.JPG",
+    "url": "https://commons.wikimedia.org/wiki/File:Cypress_railroad_car.JPG",
+    "author": "Shoichi",
+    "licence": "CC BY-SA 3.0",
+    "use": "車端與端平台（欄杆、端門、圓燈）"
+   },
+   {
+    "file": "File:Tourist train of Alishan Forest Railway at Chiayi Station 2006-10-07 03.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Tourist_train_of_Alishan_Forest_Railway_at_Chiayi_Station_2006-10-07_03.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "整列與端平台"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "fushen",
+  "name": "福森號・檜木客車",
+  "label": "福森號",
+  "detail": "檜木本色 · 觀景端大窗 · 深灰車頂",
+  "color": "#d9a86c",
+  "source": "https://www.forest.gov.tw/news/0072298",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://www.forest.gov.tw/news/0072298"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.forest.gov.tw/hualien_intro/news/0070949"
+   }
+  ],
+  "features": [
+   "淺色檜木本色、寬直條木板、深灰車頂；每側七扇窗（兩小、兩大、三小，照正側面照順序），小窗下框紅色。",
+   "觀景端（車頭）大窗、上方一顆頭燈、下方兩角頭燈與內側紅色尾燈；另一端是貫通端。",
+   "窗高照正側面照換算（窗 1.65–2.63、屋簷 2.86）；fleet-v1 是一排等寬大窗、全長紅色腰線、淺灰車頂，照片上是兩小兩大三小、只有小窗下框紅色、深灰車頂。"
+  ],
+  "photos": [
+   {
+    "file": "File:AFR TC13 20230224.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_TC13_20230224.jpg",
+    "author": "行政院農業委員會林務局阿里山林業鐵路及文化資產管理處",
+    "licence": "Attribution",
+    "use": "正側面（窗的順序、寬窄與高度、取色）"
+   },
+   {
+    "file": "File:福森號列車.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E7%A6%8F%E6%A3%AE%E8%99%9F%E5%88%97%E8%BB%8A.jpg",
+    "author": "行政院農業委員會林務局阿里山林業鐵路及文化資產管理處",
+    "licence": "Attribution",
+    "use": "觀景端"
+   },
+   {
+    "file": "File:2024.07.19 Train at Chushan Station 03.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2024.07.19_Train_at_Chushan_Station_03.jpg",
+    "author": "總統府",
+    "licence": "CC BY 2.0",
+    "use": "觀景端燈組"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "xuyue",
+  "name": "栩悅號・觀景客車",
+  "label": "栩悅號",
+  "detail": "白色上半 · 藍色下半與黃線 · 大觀景窗",
+  "color": "#2763c6",
+  "source": "https://www.forest.gov.tw/park/news/0072890",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://www.forest.gov.tw/park/news/0072890"
+   }
+  ],
+  "features": [
+   "上半白色、下半藍色、窗下一道黃線（fleet-v1 是淺灰配深灰藍下緣）。",
+   "每側六扇大觀景窗；觀景端（車頭）大窗與頭燈、另一端是貫通端。",
+   "照片上客車在陰影裡，藍色用同一張照片裡受光的 DL46（同一套栩悅號塗裝）取色。"
+  ],
+  "photos": [
+   {
+    "file": "File:阿里山林鐵改裝車廂 《栩悅號》另類登場 04.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E9%98%BF%E9%87%8C%E5%B1%B1%E6%9E%97%E9%90%B5%E6%94%B9%E8%A3%9D%E8%BB%8A%E5%BB%82_%E3%80%8A%E6%A0%A9%E6%82%85%E8%99%9F%E3%80%8B%E5%8F%A6%E9%A1%9E%E7%99%BB%E5%A0%B4_04.jpg",
+    "author": "農業部林業及自然保育署阿里山林業鐵路及文化資產管理處",
+    "licence": "Attribution",
+    "use": "車身塗裝、窗、跟 DL46 比顏色"
+   },
+   {
+    "file": "File:阿里山林鐵改裝車廂 《栩悅號》另類登場 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E9%98%BF%E9%87%8C%E5%B1%B1%E6%9E%97%E9%90%B5%E6%94%B9%E8%A3%9D%E8%BB%8A%E5%BB%82_%E3%80%8A%E6%A0%A9%E6%82%85%E8%99%9F%E3%80%8B%E5%8F%A6%E9%A1%9E%E7%99%BB%E5%A0%B4_01.jpg",
+    "author": "農業部林業及自然保育署阿里山林業鐵路及文化資產管理處",
+    "licence": "Attribution",
+    "use": "觀景窗大小"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
  }
 ]

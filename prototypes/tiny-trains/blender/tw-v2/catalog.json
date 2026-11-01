@@ -1259,5 +1259,217 @@
   ],
   "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
   "thumbnail": "models/bluecoach/renders/thumb.webp"
+ },
+ {
+  "id": "dl25",
+  "name": "DL25～34・三菱車系",
+  "family": "forestloco",
+  "detail": "短鼻在前 · 白色 V 字與腰帶 · 長機房端格柵",
+  "features": [
+   "駕駛室那端在前：行駛中的列車照片上機車都是駕駛室端朝外、客車接長機房端（fleet-v1 相反）。",
+   "短鼻很短，正面白色 V 字、車號牌、兩角小燈；駕駛室兩扇前窗、中間上方一顆頭燈；全車白色腰帶、機房腰帶上方一排百葉、車下圓筒燃油箱。",
+   "長機房端整面橫條散熱器格柵、白色 V 字疊在格柵上、兩角圓燈；高度照正側面照換算（腰帶 1.84–2.00、機房頂 2.30、屋簷 2.84）。"
+  ],
+  "metadata": "models/dl25/dl25.model.json",
+  "blend": "models/dl25/dl25.blend",
+  "glb": "models/dl25/dl25.glb",
+  "hero": "models/dl25/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_2428.html"
+   },
+   {
+    "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_26%27_at_Beimen_2023-07-18.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dl25/renders/thumb.webp"
+ },
+ {
+  "id": "dl38",
+  "name": "DL38・日車試作型",
+  "family": "forestloco",
+  "detail": "平整短鼻 · 白色 V 字 · 長機房端黑色格柵",
+  "features": [
+   "駕駛室那端在前；短鼻比 DL25 長、正面平整：白色 V 字、上方車號牌、兩角圓燈、腰帶上方兩角紅色標識燈、鼻頂水平扶手。",
+   "駕駛室兩扇大前窗、車頂氣笛；側面門靠短鼻。",
+   "長機房端大片黑色橫條散熱器格柵、上方車號牌與兩角小圓燈，2023 年照片上沒有 V 字。"
+  ],
+  "metadata": "models/dl38/dl38.model.json",
+  "blend": "models/dl38/dl38.blend",
+  "glb": "models/dl38/dl38.glb",
+  "hero": "models/dl38/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_5539.html"
+   },
+   {
+    "label": "Wikimedia Commons／bugsy ho（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL38_01.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dl38/renders/thumb.webp"
+ },
+ {
+  "id": "dl39",
+  "name": "DL39～43・阿里山號",
+  "family": "forestloco",
+  "detail": "外凸大圓燈 · 短鼻兩側百葉 · 高長機房",
+  "features": [
+   "駕駛室那端在前；短鼻正面白色 V 字、上方兩角外凸大圓燈筒、下方兩角小紅燈，短鼻兩側腰帶上下各兩列百葉。",
+   "駕駛室側面門靠短鼻、一扇大側窗；長機房比 DL25 高、腰帶上方整排百葉。",
+   "長機房端格柵上白色 V 字、兩角外凸燈筒；高度照 DL41 正側面照換算（腰帶 1.81–1.97、機房頂 2.61、屋簷 2.88）。"
+  ],
+  "metadata": "models/dl39/dl39.model.json",
+  "blend": "models/dl39/dl39.blend",
+  "glb": "models/dl39/dl39.glb",
+  "hero": "models/dl39/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_5539.html"
+   },
+   {
+    "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_41%27_at_Alishan_2023-07-18.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dl39/renders/thumb.webp"
+ },
+ {
+  "id": "dl45",
+  "name": "DL45～51・林鐵新主力",
+  "family": "forestloco",
+  "detail": "正面百葉與 V 字 · 外凸大圓燈 · 大駕駛室",
+  "features": [
+   "駕駛室那端在前；短鼻正面整面橫條百葉、白色 V 字疊在百葉上、上方中央車號牌、兩角外凸大圓燈筒、下方兩角小紅燈。",
+   "車高比前幾代高；駕駛室大，側面門靠短鼻、一扇大側窗；短鼻兩側與機房側面百葉。",
+   "長機房端格柵、V 字、兩角外凸燈筒；長度比例照正側面照（短鼻 13%、駕駛室 29%、長機房 58%）。"
+  ],
+  "metadata": "models/dl45/dl45.model.json",
+  "blend": "models/dl45/dl45.blend",
+  "glb": "models/dl45/dl45.glb",
+  "hero": "models/dl45/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_1163.html"
+   },
+   {
+    "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_51%27_at_Beimen_2023-07-18.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dl45/renders/thumb.webp"
+ },
+ {
+  "id": "alicoach",
+  "name": "阿里山號・紅白客車",
+  "family": "forestcoach",
+  "detail": "奶油色車身 · 紅色窗帶與斜帶 · 端面紅色下半",
+  "features": [
+   "奶油色車身與車頂、紅色窗帶、車底紅色裙帶；兩端各一道紅色斜帶從車端下角往內上斜接到窗帶（fleet-v1 沒有斜帶與裙帶）。",
+   "每側只有一端有門：由有門那端往內是上下兩格窗、雙摺門（門扇跟著塗裝，上紅下奶油）、上下兩格窗、四扇大窗，另一端沒有窗；紅色跟林鐵機車同色。",
+   "端面下半紅色、奶油色 V 字，上半奶油色、偏一側端門與小窗。"
+  ],
+  "metadata": "models/alicoach/alicoach.model.json",
+  "blend": "models/alicoach/alicoach.blend",
+  "glb": "models/alicoach/alicoach.glb",
+  "hero": "models/alicoach/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/01/1.html"
+   },
+   {
+    "label": "Wikimedia Commons／Professional Maniniyot Wannabe（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Passenger_cars_of_the_Alishan_Forest_Railway_at_Beimen_Depot_2018-04-06_01.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/alicoach/renders/thumb.webp"
+ },
+ {
+  "id": "hinoki",
+  "name": "檜木列車・木造客車",
+  "family": "forestcoach",
+  "detail": "金黃色檜木車身 · 開放式端平台 · 淺灰拱頂",
+  "features": [
+   "金黃色上漆檜木車身、窗下直條木板、窗台腰板與窗上飾條；每側十扇深色木框小窗。",
+   "淺灰拱頂延伸蓋住兩端開放式平台；平台黑色花格欄杆、中央開口、側面上車踏階。",
+   "端牆中央門、兩側小窗、上方三顆圓燈（客車沒有駕駛室，燈用不發光鏡片）。"
+  ],
+  "metadata": "models/hinoki/hinoki.model.json",
+  "blend": "models/hinoki/hinoki.blend",
+  "glb": "models/hinoki/hinoki.glb",
+  "hero": "models/hinoki/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2013/06/blog-post_9.html"
+   },
+   {
+    "label": "Wikimedia Commons／Shoichi（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Cypress_railroad_car.JPG"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/hinoki/renders/thumb.webp"
+ },
+ {
+  "id": "fushen",
+  "name": "福森號・檜木客車",
+  "family": "forestcoach",
+  "detail": "檜木本色 · 觀景端大窗 · 深灰車頂",
+  "features": [
+   "淺色檜木本色、寬直條木板、深灰車頂；每側七扇窗（兩小、兩大、三小，照正側面照順序），小窗下框紅色。",
+   "觀景端（車頭）大窗、上方一顆頭燈、下方兩角頭燈與內側紅色尾燈；另一端是貫通端。",
+   "窗高照正側面照換算（窗 1.65–2.63、屋簷 2.86）；fleet-v1 是一排等寬大窗、全長紅色腰線、淺灰車頂，照片上是兩小兩大三小、只有小窗下框紅色、深灰車頂。"
+  ],
+  "metadata": "models/fushen/fushen.model.json",
+  "blend": "models/fushen/fushen.blend",
+  "glb": "models/fushen/fushen.glb",
+  "hero": "models/fushen/renders/hero.png",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://www.forest.gov.tw/news/0072298"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.forest.gov.tw/hualien_intro/news/0070949"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/fushen/renders/thumb.webp"
+ },
+ {
+  "id": "xuyue",
+  "name": "栩悅號・觀景客車",
+  "family": "forestcoach",
+  "detail": "白色上半 · 藍色下半與黃線 · 大觀景窗",
+  "features": [
+   "上半白色、下半藍色、窗下一道黃線（fleet-v1 是淺灰配深灰藍下緣）。",
+   "每側六扇大觀景窗；觀景端（車頭）大窗與頭燈、另一端是貫通端。",
+   "照片上客車在陰影裡，藍色用同一張照片裡受光的 DL46（同一套栩悅號塗裝）取色。"
+  ],
+  "metadata": "models/xuyue/xuyue.model.json",
+  "blend": "models/xuyue/xuyue.blend",
+  "glb": "models/xuyue/xuyue.glb",
+  "hero": "models/xuyue/renders/hero.png",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://www.forest.gov.tw/park/news/0072890"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/xuyue/renders/thumb.webp"
  }
 ]

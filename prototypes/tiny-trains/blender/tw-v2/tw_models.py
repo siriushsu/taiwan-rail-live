@@ -1860,10 +1860,325 @@ def bluecoach(s):
   cyl('通風器喉口',(x,0,H+.04),.085,.10,'hdframe',n=16)
   cyl('蕈狀通風器帽',(x,0,H+.11),.19,.07,'bcvent',n=24,bevel=.02)
 
+# ── 阿里山林業鐵路：DL 系柴油液力機車（DL25～34、DL38、DL39～43、DL45～51）與四款客車 ────────────────────────
+# 車頭（+X）是駕駛室短鼻那端：照片上行駛中的列車，機車都是駕駛室那端朝外、客車接在長機房那端（fleet-v1 把長機房放 +X）。
+# lamp 只放這端（裁示 55），長機房端的燈用不發光鏡片 hdlens；客車只有福森號、栩悅號的觀景端放 lamp（其他客車沒有駕駛室）。
+# 高度照側面照換算到 fleet-v1 的車高，長度沿用 fleet-v1 的 L。照片取色：林鐵紅與白帶照 2023 年陰天側面照（DL41）取中位數。
+
+def afr_colours():
+ hood_colours();color('afred','E43A36',.06,.36,.26)
+
+def vee(name,f,hw,z0,z1,tip,material='hdwhite',offset=.010):
+ """V 字飛翼（同 wing，可指定材質與浮出距離：疊在百葉格柵上的要浮高一點，才不會被格柵蓋掉）。"""
+ t=z1-z0;lo=lambda y:tip+(z0-tip)*abs(y)/hw;hi=lambda y:tip+2*t+(z1-tip-2*t)*(abs(y)/hw)**1.2
+ front_patch(name,f,-hw,hw,lo,hi,material,offset,cols=48,rows=4)
+
+def afr_end(xe,W,deck):
+ """林鐵機車車端（建在 +X 端，呼叫端再複製到另一端）：黑色端梁、中央緩衝連結器與鉤、兩條制軔軟管、兩角踏階。"""
+ use('03');box('端梁',(xe-.06,0,deck-.16),(.12,W-.10,.32),'hdframe',.02)
+ box('緩衝連結器座',(xe+.05,0,.82),(.14,.42,.26),'hdframe',.03);cyl('緩衝連結器頭',(xe+.15,0,.82),.14,.10,'hdblack','X',24)
+ box('連結器鉤',(xe+.22,0,.80),(.10,.16,.10),'metal',.02)
+ for sd in [-1,1]:
+  line('制軔軟管',[(xe+.02,sd*.32,.96),(xe+.10,sd*.36,.74),(xe+.06,sd*.42,.56)],.022,'hdhose')
+  use('07');box('踏階側板',(xe-.16,sd*(W/2-.05),.80),(.22,.025,.52),'hdframe',.005)
+  for z in [.60,.84]:box('端部踏階',(xe-.16,sd*(W/2-.17),z),(.22,.24,.03),'metal',.006)
+
+def afr_loco(s,nose,cab,ntop,htop,eave,band,face,front_win,side_win,cab_side,deck=1.10,nhw=1.0,chw=1.06,hhw=1.0,nose_r=.08,rear_v=True,rear_slat='afred',low=()):
+ """林鐵 DL 系機車（各款照片與量法在各款 docstring）。由車頭往後：短鼻、駕駛室（比機房高、圓頂）、長機房；兩端各一小平台。
+ face：短鼻正面燈組，'dl25' 駕駛室正面上方中央一顆頭燈、短鼻上兩角小燈；'dl38' 短鼻上兩角圓燈、腰帶上方兩角紅色標識燈、鼻頂水平扶手；
+ 'dl39'、'dl45' 短鼻上兩角外凸大燈筒、短鼻兩側百葉（dl45 正面另有百葉）。front_win、side_win：駕駛室前窗、側窗 (下緣, 上緣)；
+ cab_side：駕駛室側面 [(離駕駛室後緣的 x, 寬, 'door'|'win')]；low：腰帶下也有百葉的機房側門序號。
+ 長機房端：散熱器格柵（rear_slat 是百葉片顏色）、兩角燈（不發光）、rear_v 白色 V 字。"""
+ L,W,H=s['L'],s['W'],s['H'];afr_colours();xe=L/2;plat=.26;z0,z1=band;big=face in ('dl39','dl45')
+ xn1=xe-plat;xn0=xn1-nose;xc1=xn0;xc0=xc1-cab;xh0=-xe+plat
+ # 車架、轉向架、圓筒燃油箱、兩端端梁
+ use('01');box('車架',(0,0,deck-.09),(L-.06,W-.08,.18),'hdframe',.02)
+ loco_bogies(L,W,2,.31);use('04');cyl('圓筒燃油箱',(0,0,.54),.20,1.75,'hdframe','X',28)
+ for x in [-.55,.55]:box('油箱吊帶',(x,0,(.34+deck-.18)/2),(.06,.43,deck-.18-.34),'hdblack',.005)
+ head=len(p.MODEL);afr_end(xe,W,deck);mirror_cab(list(p.MODEL[head:]))
+ # 車體：短鼻、駕駛室與圓頂、長機房
+ block('短鼻',[(x,nhw,deck,z,.10) for x,z in rounded_ends(xn0-.05,xn1,ntop,rf=nose_r)],'afred')
+ block('駕駛室',[(xc0,chw,deck,eave,.04),(xc1,chw,deck,eave,.04)],'afred')
+ block('駕駛室圓頂',[(x,chw+.03,eave-.03,z,.40) for x,z in rounded_ends(xc0-.04,xc1+.04,H,rf=.04,rb=.04)],'afred')
+ block('長機房',[(x,hhw,deck,z,.10) for x,z in rounded_ends(xh0,xc0+.05,htop,rb=.06)],'afred')
+ plan_band('白色腰帶',[(xh0,hhw),(xc0,hhw),(xc0,chw),(xc1,chw),(xc1,nhw),(xn1,nhw)],z0,z1,'hdwhite')
+ # 短鼻正面：白色 V 字飛翼、上方車號牌、燈組、下方兩支直扶手
+ fn=lambda y,z:xn1
+ if face=='dl45':
+  gz0,gz1=deck+.16,ntop-.36;k=round((gz1-gz0)/.075)
+  front_panel('正面百葉框',fn,0,(gz0+gz1)/2,2*nhw-.40,gz1-gz0,'hdblack',.03,.020)
+  for i in range(k):front_panel('正面百葉',fn,0,gz0+.04+(gz1-gz0-.08)*i/(k-1),2*nhw-.46,.030,'afred',.004,.030)
+ vee('白色 V 字飛翼',fn,nhw-.02,z0,z1,deck+.14,offset=.045 if face=='dl45' else .010)
+ front_panel('車號牌框',fn,0,ntop-.15,.42,.16,'hdblack',.03,.026);front_panel('車號牌',fn,0,ntop-.15,.38,.12,'hdwhite',.02,.032)
+ for sd in [-1,1]:
+  if big:
+   use('03');cyl('外凸頭燈筒',(xn1+.06,sd*(nhw-.21),ntop-.17),.16,.14,'afred','X',28)
+   lamp('頭燈',lambda y,z:xn1+.03,sd*(nhw-.21),ntop-.17,.115)
+   lamp('紅色標識燈',fn,sd*(nhw-.16),deck+.30,.045,red=True)
+  elif face=='dl38':
+   lamp('短鼻頭燈',fn,sd*(nhw-.20),ntop-.11,.075);lamp('紅色標識燈',fn,sd*(nhw-.10),z1+.02,.05,red=True)
+  else:
+   lamp('短鼻標識燈',fn,sd*(nhw-.18),ntop-.14,.05);lamp('紅色標識燈',fn,sd*(nhw-.16),deck+.42,.05,red=True)
+  use('07');rod('正面直扶手',(xn1+.07,sd*.26,deck+.18),(xn1+.07,sd*.26,deck+.62),.014,'hdblack')
+  for z in [deck+.18,deck+.62]:rod('扶手座',(xn1,sd*.26,z),(xn1+.07,sd*.26,z),.010,'hdblack')
+ if face=='dl38':line('短鼻頂扶手',[(xn1-.06,-.62,ntop-.01),(xn1-.06,-.62,ntop+.13),(xn1-.06,.62,ntop+.13),(xn1-.06,.62,ntop-.01)],.016,'hdblack')
+ if big:
+  w=(nose-.12)/2-.06
+  for sd in [-1,1]:
+   for dx in [-(nose-.12)/4,(nose-.12)/4]:
+    x=(xn0+xn1)/2+dx;y=sd*(nhw+.010)
+    louver('短鼻側百葉',x,y,(z1+.06+ntop-.10)/2,w,ntop-.10-z1-.06,max(3,round((ntop-.16-z1)/.07)),'hdblack','afred')
+    louver('短鼻側下百葉',x,y,(deck+.14+z0-.06)/2,w,z0-.06-deck-.14,max(3,round((z0-.20-deck)/.07)),'hdblack','afred')
+ # 駕駛室正面：兩扇前窗（dl25 中央上方一顆頭燈）、雨刷；車頂氣笛
+ fc=lambda y,z:xc1;a,b=front_win
+ for sd in [-1,1]:
+  front_panel('前窗窗框',fc,sd*.47,(a+b)/2,.66,b-a+.06,'hdblack',.05,.022);front_panel('前窗玻璃',fc,sd*.47,(a+b)/2,.58,b-a,'glass',.04,.032)
+  wiper(fc,sd*.47,a+.03,(b-a)*.75)
+ if face=='dl25':lamp('頭燈',fc,0,b-.10,.07)
+ use('05');cyl('氣笛',(xc1-.14,.28,H+.04),.045,.28,'hdblack','X',16);box('氣笛座',(xc1-.14,.28,H-.01),(.10,.08,.06),'hdblack',.01)
+ # 駕駛室側面：門（門窗、兩側扶手）與側窗
+ a,b=side_win
+ for dx,w,kind in cab_side:
+  x=xc0+dx
+  for sd in [-1,1]:
+   y=sd*(chw+.012);use('02')
+   if kind=='win':
+    panel('駕駛室側窗窗框',(x,y,(a+b)/2),w+.06,b-a+.06,'hdblack',r=.04);panel('駕駛室側窗玻璃',(x,y+sd*.012,(a+b)/2),w,b-a,'glass',r=.03,depth=.012)
+    continue
+   panel('駕駛室側門門縫',(x,y,(deck+.06+eave-.10)/2),w+.04,eave-.16-deck,'hdblack',r=.03)
+   panel('駕駛室側門',(x,y+sd*.008,(deck+.06+eave-.10)/2),w,eave-.20-deck,'afred',r=.025)
+   panel('駕駛室門窗玻璃',(x,y+sd*.020,(a+b)/2-.01),w-.14,b-a-.10,'glass',r=.03,depth=.012)
+   use('07')
+   for xx in [x-w/2-.06,x+w/2+.06]:rod('門邊扶手',(xx,y+sd*.04,deck+.20),(xx,y+sd*.04,deck+.95),.014,'hdblack')
+ # 駕駛室後牆（面向長機房）高出機房的部分有兩扇小窗
+ if eave-htop>.40:
+  for sd in [-1,1]:
+   zc=(htop+.10+eave-.10)/2;h=eave-htop-.20
+   panel('駕駛室後窗窗框',(xc0-.010,sd*.46,zc),.52,h+.06,'hdblack','front',r=.04,depth=.02);panel('駕駛室後窗玻璃',(xc0-.022,sd*.46,zc),.44,h,'glass','front',r=.03,depth=.012)
+ # 長機房側面：檢修門（門縫）、腰帶上方百葉，low 指定的門腰帶下也有一組
+ n=max(3,round((xc0-xh0)/.58));pitch=(xc0-xh0)/n
+ for i in range(n):
+  x=xh0+pitch*(i+.5)
+  for sd in [-1,1]:
+   y=sd*(hhw+.010)
+   if htop-.10-z1-.06>.12:louver('機房百葉',x,y,(z1+.06+htop-.10)/2,pitch-.18,htop-.10-z1-.06,max(3,round((htop-.16-z1)/.07)),'hdblack','afred')
+   if i in low:louver('機房下百葉',x,y,(deck+.14+z0-.06)/2,pitch-.18,z0-.06-deck-.14,max(3,round((z0-.20-deck)/.07)),'hdblack','afred')
+   if i:box('檢修門門縫',(xh0+pitch*i,sd*(hhw+.012),(deck+.08+htop-.08)/2),(.014,.010,htop-.16-deck),'hdblack',0)
+ # 機房頂：排氣管、車尾散熱風扇
+ use('05');cyl('排氣管座',(xc0-.75,0,htop+.03),.14,.06,'hdframe',n=20);cyl('排氣管',(xc0-.75,0,htop+.12),.08,.16,'hdblack',n=20)
+ cyl('散熱風扇外圈',(xh0+.48,0,htop+.03),.27,.06,'hdframe',n=28);cyl('散熱風扇護網',(xh0+.48,0,htop+.065),.23,.012,'hdblack',n=28)
+ for d in [-.12,0,.12]:box('護網橫條',(xh0+.48,d,htop+.072),(.44,.016,.010),'hdslat',0)
+ # 長機房端（先建在 +X 再整組轉到 −X）：散熱器格柵、白色 V 字、車號牌、兩角燈（不發光鏡片）、下方紅色標識燈
+ head=len(p.MODEL);g=lambda y,z:xe-plat;gz0,gz1=deck+.14,htop-.30;k=round((gz1-gz0)/.075)
+ front_panel('散熱器格柵框',g,0,(gz0+gz1)/2,2*hhw-.24,gz1-gz0,'hdblack',.04,.020)
+ for i in range(k):front_panel('散熱器百葉',g,0,gz0+.04+(gz1-gz0-.08)*i/(k-1),2*hhw-.32,.030,rear_slat,.004,.030)
+ if rear_v:vee('白色 V 字飛翼',g,hhw-.02,z0,z1,deck+.14,offset=.045)
+ front_panel('後端車號牌框',g,0,htop-.15,.42,.16,'hdblack',.03,.026);front_panel('後端車號牌',g,0,htop-.15,.38,.12,'hdwhite',.02,.032)
+ for sd in [-1,1]:
+  if big:
+   use('03');cyl('後端外凸燈筒',(xe-plat+.06,sd*(hhw-.21),htop-.17),.16,.14,'afred','X',28)
+   lamp_color('後端頭燈',lambda y,z:xe-plat+.03,sd*(hhw-.21),htop-.17,.115,'hdlens')
+  else:lamp_color('後端頭燈',g,sd*(hhw-.17),htop-.13,.065,'hdlens')
+  lamp('後端紅色標識燈',g,sd*(hhw-.15),deck+.30 if big else deck+.40,.045 if big else .05,red=True)
+ to_rear(list(p.MODEL[head:]))
+ # 兩端平台角落直扶手
+ use('07')
+ for x in [xe-.07,-xe+.07]:
+  for sd in [-1,1]:rod('平台角落扶手',(x,sd*(W/2-.08),deck),(x,sd*(W/2-.08),deck+.85),.016,'hdblack')
+
+def dl25(s):
+ """DL25～34（三菱重工，1969／1972 年，阿里山林鐵第一代柴油機車）。參考：Commons「AFR DL-29 01.jpg」（ⓥⓘⓣⓐ，CC BY 2.0，駕駛室端斜前方）、
+ 「AFR 'DL 26' at Beimen 2023-07-18.jpg」（Industrial Wales，CC BY-SA 2.0，正側面，高度）、「Close-up of AFR DL-31 2012-12-12.jpg」（Wentao，CC BY 2.0，長機房端）、
+ 「AFR DL-25 01.jpg」（ⓥⓘⓣⓐ，CC BY 2.0）、「AFR DL-30 01.jpg」（育昌，CC BY-SA 3.0）：行駛中的列車都是駕駛室那端朝外、客車接在長機房端。
+ 短鼻很短（駕駛室前窗下面一小段），正面車號牌、白色 V 字、兩角小燈、下方紅色標識燈，駕駛室正面兩扇前窗中間上方一顆頭燈；
+ 長機房端整面橫條散熱器格柵、白色 V 字疊在格柵上、上方兩角圓燈；全車白色腰帶、機房腰帶上方一排百葉；車下圓筒燃油箱。
+ 高度照正側面照換算到車高 3.05：車架 .93–1.09、腰帶 1.84–2.00、機房頂 2.30、駕駛室側窗 2.12–2.74、屋簷 2.84；前窗 2.42–2.78、短鼻頂 2.36（斜前方照）。"""
+ afr_loco(s,nose=.50,cab=1.35,ntop=2.36,htop=2.30,eave=2.84,band=(1.84,2.00),face='dl25',front_win=(2.42,2.78),side_win=(2.12,2.74),
+  cab_side=[(.24,.30,'win'),(.66,.42,'door'),(1.10,.34,'win')],deck=1.09)
+
+def dl38(s):
+ """DL38（日本車輛，1980 年試作車）。參考：Commons「AFR DL38 01.jpg」（bugsy ho，CC BY 2.0，駕駛室端）、「AFR 'DL 38' at Alishan 2023-07-18.jpg」
+ （Industrial Wales，CC BY-SA 2.0，長機房端斜側）、「Alishan Train Station.jpg」（Professional Maniniyot Wannabe，CC BY 2.0，駕駛室端正面）。
+ 短鼻比 DL25 長、正面平整沒有格柵：白色 V 字、上方車號牌、上方兩角圓燈、腰帶上方兩角紅色標識燈、鼻頂水平扶手；駕駛室兩扇大前窗，側面門靠短鼻。
+ 長機房端：大片黑色橫條散熱器格柵、上方車號牌與兩角小圓燈，2023 年照片上沒有 V 字。scene-03 版（e6fd1e53）的長端分離圓燈、短端雙前窗、白色 V 字、扶手照片核過，這版照照片重做、車頭換到短鼻端。"""
+ afr_loco(s,nose=.75,cab=1.40,ntop=2.32,htop=2.40,eave=2.84,band=(1.84,2.00),face='dl38',front_win=(2.38,2.80),side_win=(2.20,2.76),
+  cab_side=[(.42,.56,'win'),(1.06,.44,'door')],rear_v=False,rear_slat='hdslat')
+
+def dl39(s):
+ """DL39～43（日本車輛，1982 年）。參考：Commons「AFR DL-39 2012-12-10.jpg」（Wentao，CC BY 2.0，駕駛室正側面）、「AFR DL-39.jpg」（Wentao，CC BY 2.0，駕駛室端斜前方）、
+ 「AFR 'DL 41' at Alishan 2023-07-18.jpg」（Industrial Wales，CC BY-SA 2.0，正側面，高度）、「AFR 'DL 42' at Alishan 2023-07-19.jpg」（Industrial Wales，長機房端）。
+ 短鼻兩側腰帶上下各兩列百葉、正面白色 V 字、上方兩角外凸大圓燈筒、下方兩角小紅燈；駕駛室側面門靠短鼻、一扇大側窗；長機房比 DL25 高、腰帶上方整排百葉，
+ 長機房端格柵上白色 V 字、兩角外凸燈筒。高度照 DL41 正側面照換算到車高 3.05：車架 1.16、腰帶 1.81–1.97、短鼻頂 2.27、機房頂 2.61、駕駛室窗 2.14–2.81、屋簷 2.88；
+ 長度：短鼻 .72、駕駛室 1.6。"""
+ afr_loco(s,nose=.72,cab=1.58,ntop=2.27,htop=2.61,eave=2.88,band=(1.81,1.97),face='dl39',front_win=(2.34,2.80),side_win=(2.14,2.81),
+  cab_side=[(.62,.80,'win'),(1.28,.42,'door')],deck=1.14,low=(4,5))
+
+def dl45(s):
+ """DL45～51（日本車輛，2006 年起，林鐵新主力）。參考：Commons「AFR 'DL 51' at Beimen 2023-07-18.jpg」（Industrial Wales，CC BY-SA 2.0，正側面，長度與高度）、
+ 「Alishan DL48.jpg」（Kirk，CC BY-SA 3.0，駕駛室端斜前方）、「AFR 'DL 49' at Beimen 2023-07-18.jpg」（Industrial Wales，長機房端）、「AFR DL46 01.jpg」（maviscwling，CC BY 2.0）。
+ 車高比前幾代高；短鼻正面整面橫條百葉、白色 V 字疊在百葉上、上方中央車號牌、兩角外凸大圓燈筒、下方兩角小紅燈；短鼻兩側百葉；駕駛室大，側面門靠短鼻、一扇大側窗；
+ 長機房端格柵、V 字、兩角外凸燈筒。正側面照（車高 3.2 換算）：車架 1.15、腰帶 1.85–2.04、短鼻頂與機房頂 2.50、駕駛室窗 2.16–2.88、屋簷 2.92；
+ 長度比例短鼻 13%、駕駛室 29%、長機房 58%。栩悅號塗裝的 DL46、DL47 不另做（車庫這款是紅色林鐵塗裝）。"""
+ afr_loco(s,nose=.85,cab=1.90,ntop=2.50,htop=2.50,eave=2.92,band=(1.85,2.04),face='dl45',front_win=(2.56,2.88),side_win=(2.16,2.88),
+  cab_side=[(.66,.96,'win'),(1.50,.46,'door')],deck=1.15,low=(4,5))
+
+def alicoach(s):
+ """阿里山號客車（SPC 系，紅白塗裝）。參考：Commons「Passenger car of the Alishan Forest Railway 2016-07-30.jpg」（江 東翰，CC BY-SA 2.0，SPC 20 側面與車端，位置與高度）、
+ 「Train at Fenqihu Station 2016-07-19.jpg」（姜 明雄，CC0，SPC 45 側面，核窗門順序與斜帶）、「Passenger cars of the Alishan Forest Railway at Beimen Depot 2018-04-06 01.jpg」
+ （Professional Maniniyot Wannabe，CC BY 2.0，端面）。奶油色車身與車頂、紅色窗帶（上緣到車頂圓肩）、車底紅色裙帶；兩端窗帶在車端前斜切成奶油色，
+ 車身下半一道紅色斜帶從車端下角往內上斜、接到門邊的窗帶。每側只有一端有門：由有門那端往內是上下兩格窗、雙摺門（門扇跟著塗裝，上紅下奶油）、
+ 上下兩格窗、四扇大窗，另一端沒有窗（兩張照片的配置相同）。端面下半紅色、奶油色 V 字，上半奶油色、偏一側端門與小窗。
+ 位置用 SPC 20 照片四扇等距大窗擬合透視換算（離有門那端：端窗 .17–.70、門 .78–1.24、第二窗 1.34–1.87、大窗 1.94–6.31）；
+ 高度照同一張照片的比例（裙帶 .83–.96、窗帶 1.68–2.60、窗 1.80–2.48，窗帶上緣定在車頂圓肩起點）。
+ 紅色用機車的 afred（同編組同色）；奶油色照 2016-07-30 那張陰天側面照取中位數。fleet-v1 只有窗帶兩端兩條紅色直帶、沒有斜帶與裙帶。"""
+ L,W,H=s['L'],s['W'],s['H'];afr_colours();color('alicream','E2DCCC',.06,.34,.26);color('alufr','A7ADAD',.45,.35,.10)
+ zb,b0,b1=.96,1.68,2.60
+ f,neck=zoned_shell(s,[(.83,L/2),(H,L/2)],0,[(zb,'afred'),(b0,'alicream'),(b1,'afred'),(H+1,'alicream')],[(H+1,'alicream')])
+ for side in [-1,1]:
+  y=side*(W/2+.018)
+  # 兩端斜帶（u 是離車端的距離）：車身下半在下緣線之上是紅色，窗帶在斜切線之上改回奶油色
+  for e in [-1,1]:
+   u=lambda x,e=e:L/2-e*x;a,b=(L/2-1.0,L/2) if e>0 else (-L/2,-L/2+1.0)
+   side_paint('紅色斜帶',s,f,side,[lambda x,z,u=u:z-zb-.973*(u(x)-.04)],a,b,zb,b0,'afred')
+   side_paint('窗帶斜切',s,f,side,[lambda x,z,u=u:z-1.74-1.25*u(x)],a,b,b0,b1,'alicream')
+  # 窗：有門那端（+X）兩扇上下兩格窗，中段四扇大窗
+  for x in [L/2-.435,L/2-1.605]:
+   use('02');panel('上下格窗窗框',(x,y,2.14),.53,.74,'alufr',r=.03)
+   panel('上格玻璃',(x,y+side*.012,2.36),.45,.20,'glass',r=.02,depth=.010);panel('下格玻璃',(x,y+side*.012,2.02),.45,.40,'glass',r=.02,depth=.010)
+  for x in [1.19,.09,-1.01,-2.11]:
+   use('02');panel('大窗窗框',(x,y,2.14),.98,.74,'alufr',r=.06);panel('大窗玻璃',(x,y+side*.012,2.14),.90,.66,'glass',r=.05,depth=.010)
+  # 雙摺門：只畫門縫、門窗與扶手，門扇跟著車身塗裝
+  x=L/2-1.01;use('07')
+  for dx in [-.23,0,.23]:box('側門門縫',(x+dx,side*(W/2+.016),1.77),(.012,.012,1.62),'hdblack',0)
+  box('側門門縫',(x,side*(W/2+.016),2.58),(.47,.012,.012),'hdblack',0)
+  for dx in [-.115,.115]:
+   use('02');panel('側門窄窗窗框',(x+dx,y,2.12),.15,.66,'alufr',r=.06);panel('側門窄窗',(x+dx,y+side*.012,2.12),.11,.60,'glass',r=.05,depth=.010)
+  use('07')
+  for dx in [-.31,.31]:rod('門邊扶手',(x+dx,y+side*.03,1.20),(x+dx,y+side*.03,2.00),.014,'metal')
+  use('04')
+  for z in [.55,.78]:box('門下踏階',(x,side*(W/2-.08),z),(.46,.20,.03),'metal',.006)
+ # 端面（+X 建好，−X 那份整組轉過去）：奶油色端牆、下半紅色、奶油色 V 字；偏一側的端門（門縫與門窗）、另一側小窗、車鉤
+ for e in [-1,1]:
+  head=len(p.MODEL);x=L/2
+  end_wall('客車端牆',s,x+.002,'alicream')
+  use('07');panel('端面下半紅色',(x+.016,0,(.83+1.70)/2),W-.08,1.70-.83,'afred','front',r=.10,depth=.010)
+  vee('端面奶油色 V 字',lambda y,z:x,W/2-.14,1.54,1.66,1.16,'alicream',.026)
+  use('07')
+  for yy in [-.52,.02]:box('端門門縫',(x+.030,yy,1.80),(.010,.014,1.56),'hdblack',0)
+  box('端門門縫',(x+.030,-.25,2.58),(.010,.56,.014),'hdblack',0)
+  panel('端門窗框',(x+.030,-.25,2.18),.36,.56,'hdblack','front',r=.04,depth=.010);panel('端門窗玻璃',(x+.038,-.25,2.18),.30,.50,'glass','front',r=.03,depth=.010)
+  panel('端窗窗框',(x+.030,.48,2.18),.42,.56,'hdblack','front',r=.04,depth=.010);panel('端窗玻璃',(x+.038,.48,2.18),.36,.50,'glass','front',r=.03,depth=.010)
+  coupler(x+.025,W,1,z=.62)
+  if e<0:to_rear(list(p.MODEL[head:]))
+ bogies(L,W,r=.33)
+ use('05');box('車頂通風器',(2.6,0,H+.06),(.90,W*.46,.16),'hdframe',.05)
+
+def lattice(name,a,b,z0,z1,material,r=.014):
+ """端平台欄杆的花格板：a、b 是底邊兩端 (x, y)，外框加兩組 X 字斜條（照片上是菱形花格，這裡簡化成 X 字）。"""
+ (xa,ya),(xb,yb)=a,b;m=((xa+xb)/2,(ya+yb)/2)
+ line(name,[(xa,ya,z0),(xb,yb,z0),(xb,yb,z1),(xa,ya,z1),(xa,ya,z0)],r,material)
+ for (x0,y0),(x1,y1) in [((xa,ya),m),(m,(xb,yb))]:
+  line(name,[(x0,y0,z0),(x1,y1,z1)],r*.8,material);line(name,[(x0,y0,z1),(x1,y1,z0)],r*.8,material)
+
+def arch_roof(name,x0,x1,hw,z0,top,th,material):
+ """薄的拱形車頂板（外弧、內弧沿 X 拉長，兩端封口）：檜木列車車頂延伸到兩端平台上方用。"""
+ rise=top-z0;R=(hw*hw+rise*rise)/(2*rise);zc=top-R;a0=math.atan2(z0-zc,hw)
+ outer=[(R*math.cos(t),zc+R*math.sin(t)) for t in [a0+(math.pi-2*a0)*i/24 for i in range(25)]]
+ ring=outer+[(y*(R-th)/R,zc+(z-zc)*(R-th)/R) for y,z in reversed(outer)];n=len(ring)
+ v=[(x,y,z) for x in (x0,x1) for y,z in ring]
+ use('05');return mesh(name,v,[tuple(reversed(range(n))),tuple(range(n,2*n))]+[(i,(i+1)%n,n+(i+1)%n,n+i) for i in range(n)],material)
+
+def hinoki(s):
+ """檜木列車（木造客車）。參考：Commons「Alishan cypress train.jpg」（邰秉宥，CC BY-SA 2.0，正側面）、「Cypress railroad car.JPG」（Shoichi，CC BY-SA 3.0，車端與端平台）、
+ 「Tourist train of Alishan Forest Railway at Chiayi Station 2006-10-07 03.jpg」（Cheng-en Cheng，CC BY-SA 2.0）。
+ 金黃色上漆檜木車身、窗下直條木板、窗台腰板與窗上飾條；每側十扇小窗（深色木窗框）；淺灰拱頂延伸蓋住兩端開放式平台；
+ 端平台黑色欄杆與花格板、中央開口、側面上車踏階；端牆中央門、兩側小窗、上方三顆圓燈（客車不放 lamp，用不發光鏡片）。顏色照正側面照取中位數。"""
+ L,W,H=s['L'],s['W'],s['H'];afr_colours()
+ color('hkwood','BF7518',.04,.32,.30);color('hkdark','8A4E12',.04,.36,.24);color('hkroof','CFCCC4',.30,.42,.10);color('hkrail','2B2725',.30,.40,.12)
+ gut=2.72;xb=L/2-.42
+ arch_shell({**s,'L':2*xb},gut,[(gut,'hkwood'),(H+1,'hkroof')],'hkwood',name='木造車體')
+ for e in [-1,1]:arch_roof('平台雨棚',e*(xb-.03),e*(L/2-.01),W/2+.03,gut-.03,H+.012,.05,'hkroof')
+ for side in [-1,1]:
+  y=side*(W/2+.012);use('01')
+  box('窗台腰板',(0,side*(W/2+.016),1.76),(2*xb,.032,.06),'hkdark',.005);box('窗上飾條',(0,side*(W/2+.012),2.52),(2*xb,.024,.04),'hkdark',.004)
+  box('屋簷飾條',(0,side*(W/2+.012),gut-.03),(2*xb,.024,.05),'hkdark',.004)
+  for j in range(int(2*xb/.16)):box('直條木板縫',(-xb+.10+j*.16,side*(W/2+.004),1.28),(.012,.010,.84),'hkdark',0)
+  for j in range(10):
+   x=-2.79+j*.62;use('02');panel('木窗框',(x,y,2.12),.48,.70,'hkdark',r=.03);panel('窗玻璃',(x,y+side*.012,2.12),.40,.60,'glass',r=.02,depth=.010)
+ # 端牆（+X 建好再複製到 −X）：中央門、兩側小窗、上方三顆圓燈；端平台、欄杆、踏階、車鉤
+ head=len(p.MODEL);x=xb
+ use('07');panel('端門框',(x+.010,0,1.76),.66,1.48,'hkdark','front',r=.04,depth=.012);panel('端門',(x+.018,0,1.75),.56,1.40,'hkwood','front',r=.03,depth=.010)
+ panel('端門窗玻璃',(x+.026,0,2.18),.38,.40,'glass','front',r=.03,depth=.008)
+ for sd in [-1,1]:
+  panel('端牆小窗框',(x+.010,sd*.70,2.12),.36,.58,'hkdark','front',r=.03,depth=.012);panel('端牆小窗玻璃',(x+.018,sd*.70,2.12),.28,.50,'glass','front',r=.02,depth=.010)
+ for y,z in [(0,2.70),(-.78,2.58),(.78,2.58)]:lamp_color('端牆圓燈',lambda yy,zz:x-.07,y,z,.06,'hdlens')
+ use('04');box('端平台地板',((xb+L/2)/2,0,.98),(L/2-xb,W-.10,.08),'hkdark',.01);box('端平台端梁',(L/2-.04,0,.86),(.08,W-.12,.18),'hkrail',.01)
+ use('07')
+ for sd in [-1,1]:
+  yo=sd*(W/2-.07)
+  lattice('端平台花格欄杆',(L/2-.05,yo),(L/2-.05,sd*.40),1.10,1.80,'hkrail');line('端平台欄杆扶手',[(L/2-.05,sd*.40,1.02),(L/2-.05,sd*.40,1.98),(L/2-.05,yo,1.98),(L/2-.05,yo,1.02)],.016,'hkrail')
+  lattice('端平台花格欄杆',(L/2-.05,yo),(L/2-.24,yo),1.10,1.80,'hkrail');line('端平台欄杆扶手',[(L/2-.05,yo,1.98),(L/2-.24,yo,1.98),(L/2-.24,yo,1.02)],.016,'hkrail')
+  rod('上車扶手',(xb+.04,yo,1.05),(xb+.04,yo,2.05),.016,'hkrail')
+  use('04')
+  for z in [.52,.76]:box('上車踏階',(xb+.10,sd*(W/2-.12),z),(.20,.20,.03),'hkrail',.005)
+  box('踏階吊板',(xb+.10,sd*(W/2-.03),.74),(.20,.02,.48),'hkrail',.004)
+  use('07')
+ coupler(L/2+.025,W,1,z=.62)
+ mirror_cab(list(p.MODEL[head:]))
+ bogies(L,W,r=.33)
+
+def obs_end(s,win,frame='hdblack'):
+ """福森號、栩悅號的觀景端（+X）：上方大觀景窗、窗上中央一顆頭燈、下方兩角頭燈與內側紅色尾燈（lamp 只在這端）、黑色端梁與車鉤。"""
+ L,W,H=s['L'],s['W'],s['H'];f=lambda y,z:L/2;a,b=win
+ front_panel('觀景窗框',f,0,(a+b)/2,W-.30,b-a+.10,frame,.08,.020);front_panel('觀景窗玻璃',f,0,(a+b)/2,W-.40,b-a,'glass',.06,.030)
+ lamp('觀景端上方頭燈',f,0,b+.15,.050)
+ for sd in [-1,1]:lamp('觀景端頭燈',f,sd*.78,1.26,.062);lamp('觀景端尾燈',f,sd*.56,1.26,.042,red=True)
+ use('03');box('觀景端端梁',(L/2+.04,0,.92),(.08,W-.16,.18),'hdframe',.02);coupler(L/2+.05,W,1,z=.62)
+
+def gangway_end(s,material):
+ """福森號、栩悅號的貫通端（−X）：端牆、貫通門與風擋、車鉤。"""
+ L,W,H=s['L'],s['W'],s['H'];head=len(p.MODEL)
+ end_wall('客車端牆',s,L/2+.002,material);coupler(L/2+.025,W,1,z=.62,gangway=True)
+ to_rear(list(p.MODEL[head:]))
+
+def fushen(s):
+ """福森號（檜木外裝觀光客車，2023 年）。參考：Commons「AFR TC13 20230224.jpg」（阿里山林業鐵路及文化資產管理處，正側面，窗的順序、寬窄與高度）、
+ 「福森號列車.jpg」（同上，觀景端）、「2024.07.19 Train at Chushan Station 03.jpg」（總統府，CC BY 2.0，觀景端燈組）。
+ 淺色檜木本色、寬直條木板、深灰車頂；每側七扇窗（兩小、兩大、三小，照正側面照順序），小窗下框紅色；觀景端大窗、上方一顆頭燈、下方兩角頭燈。
+ 高度照正側面照（車底 .83、車頂 3.0 線性換算）：屋簷 2.86、窗 1.65–2.63（小窗紅色下框 1.65–1.81）。顏色照同一張照片取中位數。"""
+ L,W,H=s['L'],s['W'],s['H'];afr_colours()
+ color('fswood','D9A86C',.04,.34,.26);color('fsseam','A97B48',.04,.40,.10);color('fsroof','646A6F',.30,.42,.10);color('fsred','AD1220',.06,.36,.20)
+ f,neck=zoned_shell(s,[(.83,L/2),(H,L/2)],0,[(2.86,'fswood'),(H+1,'fsroof')],[(H+1,'fswood')])
+ for side in [-1,1]:
+  y=side*(W/2+.012)
+  for j in range(int(L/.40)):box('直條木板縫',(-L/2+.20+j*.40,side*(W/2+.004),1.84),(.014,.010,1.90),'fsseam',0)
+  for x,w,small in [(-3.17,.58,1),(-2.39,.58,1),(-1.17,1.22,0),(.28,1.22,0),(1.51,.58,1),(2.29,.58,1),(3.07,.58,1)]:
+   use('02');panel('窗框',(x,y,2.14),w+.06,.98,'hdblack',r=.03)
+   if small:panel('紅色下窗框',(x,y+side*.010,1.73),w,.14,'fsred',r=.01,depth=.012)
+   panel('窗玻璃',(x,y+side*.014,2.20 if small else 2.14),w-.06,.76 if small else .88,'glass',r=.02,depth=.010)
+ obs_end(s,(2.02,2.64))
+ gangway_end(s,'fswood');bogies(L,W,r=.33)
+
+def xuyue(s):
+ """栩悅號（觀景客車，2023 年）。參考：Commons「阿里山林鐵改裝車廂 《栩悅號》另類登場 04.jpg」（阿里山林業鐵路及文化資產管理處，車身塗裝與窗）、
+ 「阿里山林鐵改裝車廂 《栩悅號》另類登場 01.jpg」（同上，車內看大窗）；官方介紹（築點設計）的透明駕駛室守車當觀景端。
+ 上半白色、下半藍色，窗下一道黃線；每側六扇大觀景窗；觀景端大窗、頭燈。照片上客車在陰影裡，藍色用同一張照片裡受光的 DL46（同一套栩悅號塗裝）取中位數；
+ 黃線、白色照客車本身。fleet-v1 是淺灰配深灰藍下緣，照片上是藍色下半。"""
+ L,W,H=s['L'],s['W'],s['H'];afr_colours()
+ color('xywhite','EEF0EE',.06,.34,.26);color('xyblue','2763C6',.08,.36,.26);color('xyyellow','D6C64C',.06,.36,.24);color('xyroof','D3D7D6',.30,.40,.10)
+ f,neck=zoned_shell(s,[(.83,L/2),(H,L/2)],0,[(1.58,'xyblue'),(1.66,'xyyellow'),(2.86,'xywhite'),(H+1,'xyroof')],[(1.58,'xyblue'),(1.66,'xyyellow'),(H+1,'xywhite')])
+ for side in [-1,1]:
+  y=side*(W/2+.012)
+  for j in range(6):
+   x=-2.675+j*1.07;use('02');panel('觀景窗框',(x,y,2.18),.90,.94,'hdblack',r=.08);panel('觀景窗玻璃',(x,y+side*.012,2.18),.82,.86,'glass',r=.06,depth=.010)
+ obs_end(s,(1.76,2.66))
+ gangway_end(s,'xywhite');bogies(L,W,r=.33)
+
 BUILDERS={'c301':c301,'c321':c321,'c341':c341,'c371':c371,'c381':c381,'emu500':emu500,'emu600':emu600,'haifeng':haifeng,'shanlan':shanlan,'emu800':emu800,'emu800r':emu800r,
  'emu900':emu900,'emu700':emu700,'temu1000':temu1000,'temu2000':temu2000,'700t':t700,'e1000':e1000,'ppcoach':ppcoach,
  'dr3100':dr3100,'dr1000':dr1000,'dr2700':dr2700,'emu100':emu100,'emu1200':emu1200,
  'airportlocal':airportlocal,'airportexpress':airportexpress,'y100':y100,'sanying':sanying,'taichung':taichung,'kaohsiung':kaohsiung,'val256':val256,
  'e200':e200,'e300':e300,'e400':e400,'mingri':mingri,'e500':e500,'r200':r200,
  'r100':r100,'blue':blue,'r150':r150,'r180':r180,'r20':r20,'dhl100':dhl100,
- 'juguang':juguang,'mingricoach':mingricoach,'bluecoach':bluecoach}
+ 'juguang':juguang,'mingricoach':mingricoach,'bluecoach':bluecoach,
+ 'dl25':dl25,'dl38':dl38,'dl39':dl39,'dl45':dl45,'alicoach':alicoach,'hinoki':hinoki,'fushen':fushen,'xuyue':xuyue}
