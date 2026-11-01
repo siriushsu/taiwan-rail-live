@@ -1,0 +1,319 @@
+{
+  "modelId": "sanying",
+  "name": "三鶯線・日立電聯車",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "metro",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.598999977111816,
+      -1.4329999685287476,
+      0.0
+    ],
+    "max": [
+      4.589000225067139,
+      1.4329999685287476,
+      3.569999933242798
+    ]
+  },
+  "sizeM": [
+    9.187999725341797,
+    2.865999937057495,
+    3.569999933242798
+  ],
+  "mesh": {
+    "file": "sanying.mesh.bin",
+    "sha256": "97d77dec5e468cc0d26620fa73afa0086c44cc34f2d3881f16771658c71c21d6",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 192756,
+    "triangleCount": 64252,
+    "drawGroups": [
+      {
+        "name": "sblue",
+        "start": 0,
+        "count": 8256,
+        "color": [
+          0.027320891618728638,
+          0.3324515223503113,
+          0.5972017645835876
+        ],
+        "metalness": 0.07999999821186066,
+        "roughness": 0.3199999928474426,
+        "clearcoat": 0.2800000011920929
+      },
+      {
+        "name": "sgrey",
+        "start": 8256,
+        "count": 1296,
+        "color": [
+          0.05951123684644699,
+          0.0666259378194809,
+          0.07036009430885315
+        ],
+        "metalness": 0.25,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.11999999731779099
+      },
+      {
+        "name": "sroof",
+        "start": 9552,
+        "count": 1488,
+        "color": [
+          0.47353148460388184,
+          0.5088813304901123,
+          0.5271151065826416
+        ],
+        "metalness": 0.4000000059604645,
+        "roughness": 0.41999998688697815,
+        "clearcoat": 0.07999999821186066
+      },
+      {
+        "name": "frame",
+        "start": 11040,
+        "count": 26964,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 38004,
+        "count": 8544,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "metal",
+        "start": 46548,
+        "count": 42360,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "chassis",
+        "start": 88908,
+        "count": 39012,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "roof",
+        "start": 127920,
+        "count": 12408,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 140328,
+        "count": 9828,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "sgun",
+        "start": 150156,
+        "count": 24576,
+        "color": [
+          0.0423114113509655,
+          0.04970656707882881,
+          0.05780543014407158
+        ],
+        "metalness": 0.25,
+        "roughness": 0.4399999976158142,
+        "clearcoat": 0.11999999731779099
+      },
+      {
+        "name": "dark",
+        "start": 174732,
+        "count": 1536,
+        "color": [
+          0.02955683507025242,
+          0.04817182570695877,
+          0.05951123684644699
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "sled",
+        "start": 176268,
+        "count": 1536,
+        "color": [
+          0.15896083414554596,
+          0.6514056324958801,
+          1.0
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.20000000298023224
+      },
+      {
+        "name": "ssilver",
+        "start": 177804,
+        "count": 864,
+        "color": [
+          0.5840784311294556,
+          0.5711248517036438,
+          0.520995557308197
+        ],
+        "metalness": 0.550000011920929,
+        "roughness": 0.2800000011920929,
+        "clearcoat": 0.25
+      },
+      {
+        "name": "sdark",
+        "start": 178668,
+        "count": 768,
+        "color": [
+          0.017641954123973846,
+          0.022173885256052017,
+          0.026241222396492958
+        ],
+        "metalness": 0.20000000298023224,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "lamp",
+        "start": 179436,
+        "count": 7992,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "red",
+        "start": 187428,
+        "count": 5328,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 265,
+  "features": {
+    "sideDoorGroups": 3,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "sanying",
+    "family": "metro",
+    "L": 8.4,
+    "W": 2.7,
+    "H": 3.35,
+    "doors": 3,
+    "doorLeaves": 2,
+    "power": "third-rail",
+    "shoes": true,
+    "rearDoor": 1.15,
+    "frontDoor": 1.0,
+    "cabWin": 0.1,
+    "radiusTop": 0.4,
+    "winH": 1.24,
+    "winZ": 2.36,
+    "doorWinH": 1.1,
+    "doorWinZ": 2.3,
+    "doorTop": 3.02,
+    "acUnits": [
+      [
+        -2.3,
+        1.4
+      ],
+      [
+        0.9,
+        1.4
+      ]
+    ],
+    "body": "2E9CCB",
+    "accent": "3A3F44",
+    "acMat": "sroof",
+    "bowPow": 2.6
+  },
+  "reference": {
+    "source": "https://www.dorts.ntpc.gov.tw/news/indexInfo/W0OdPjwWmnbJ?page=1",
+    "detail": "淺藍車身 · 深灰頭盔 · 銀色燈眉",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

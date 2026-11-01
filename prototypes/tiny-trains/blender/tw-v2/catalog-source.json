@@ -1114,5 +1114,408 @@
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "airportlocal",
+  "name": "機捷普通車・1000型",
+  "label": "機捷普通車",
+  "detail": "藍色面罩夾逃生門 · 斜放燈座 · 窗上粉紫漸層帶",
+  "color": "#467ba5",
+  "source": "https://blair-bus.blogspot.com/2011/10/blog-post_08.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/10/blog-post_08.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_1000_Series_EMU.jpg"
+   }
+  ],
+  "features": [
+   "藍色面罩：兩片大前窗夾中央逃生門（門上半藍、有小窗），頂端綠字目的地；面罩下緣在車角往上收，露出不鏽鋼。",
+   "窗下兩側斜放黑色燈座（外側紅圈尾燈、內側頭燈），藍色腰帶在車角往下斜成車頭下方的斜線；灰色防爬器。",
+   "不鏽鋼車身、每側三組雙開門；窗上一條淡粉紫色帶，靠駕駛室那段從淡藍漸層過來。"
+  ],
+  "photos": [
+   {
+    "file": "File:Taoyuan MRT train approaching Dayuan February 2026 1.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taoyuan_MRT_train_approaching_Dayuan_February_2026_1.jpg",
+    "author": "4300streetcar",
+    "licence": "CC BY 4.0",
+    "use": "車頭正面（面罩、前窗、逃生門、燈座、斜線高度）"
+   },
+   {
+    "file": "File:Kawasaki-TRSC 1000 Series EMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_1000_Series_EMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側（門數、窗上色帶漸層、腰帶高度、取色）"
+   },
+   {
+    "file": "File:Taoyuan MRT train approaching Dayuan February 2026 2.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taoyuan_MRT_train_approaching_Dayuan_February_2026_2.jpg",
+    "author": "4300streetcar",
+    "licence": "CC BY 4.0",
+    "use": "車頭近照"
+   },
+   {
+    "file": "File:Taoyuan Airport MRT Line Commuter train 20230508 063000.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taoyuan_Airport_MRT_Line_Commuter_train_20230508_063000.jpg",
+    "author": "Anas1712",
+    "licence": "CC BY 4.0",
+    "use": "車側"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "airportexpress",
+  "name": "機捷直達車・2000型",
+  "label": "機捷直達車",
+  "detail": "紫色面罩夾逃生門 · 斜放燈座 · 每側三組門",
+  "color": "#836a9d",
+  "source": "https://blair-bus.blogspot.com/2011/10/blog-post.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/10/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_2000_Series_EMU.jpg"
+   }
+  ],
+  "features": [
+   "跟普通車同一個車體，主色換成紫色：面罩、腰帶與車頭斜線都是紫色，窗上色帶淡紫、靠駕駛室那段從紫色漸層過來。",
+   "每側三組雙開門（照片可數；fleet-v1 是兩組）。",
+   "窗下兩側斜放黑色燈座、中央逃生門有小窗、頂端綠字目的地、灰色防爬器。"
+  ],
+  "photos": [
+   {
+    "file": "File:Kawasaki-TRSC 2000 Series EMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_2000_Series_EMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側（三組門、紫色面罩、淡紫窗上色帶、取色）"
+   },
+   {
+    "file": "File:Taoyuan Metro Express Train 2020-01-23.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taoyuan_Metro_Express_Train_2020-01-23.jpg",
+    "author": "Subscriptshoe9",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭與車側"
+   },
+   {
+    "file": "File:Express Train entering New Taipei Industrial Park Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Express_Train_entering_New_Taipei_Industrial_Park_Station.jpg",
+    "author": "Cheng-en Cheng from Taichung City, Taiwan",
+    "licence": "CC BY-SA 2.0",
+    "use": "車側"
+   },
+   {
+    "file": "File:Taoyuan MRT train approaching Dayuan February 2026 1.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taoyuan_MRT_train_approaching_Dayuan_February_2026_1.jpg",
+    "author": "4300streetcar",
+    "licence": "CC BY 4.0",
+    "use": "車頭正面（與普通車同一個車體）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "y100",
+  "name": "環狀線・日立電聯車",
+  "label": "環狀線",
+  "detail": "白色圓鼓車頭 · 黃色 U 形環 · 黑色窗帶",
+  "color": "#d6b93d",
+  "source": "https://milkyrailway.blogspot.com/2020/03/blog-post.html",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://milkyrailway.blogspot.com/2020/03/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Sinsyuan（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:C610_at_Shisizhang_20260107_(3).jpg"
+   }
+  ],
+  "features": [
+   "白色圓鼓車頭，一圈黃色 U 形環框住黑色大窗區，環的兩臂往上接到車頂、再順著車頂邊變成車側的黃色細線；黑色一路到車頂成為頂帽。",
+   "窗區兩下角各一個花生形燈座；下方一道折線、兩個百葉格柵與中央檢修蓋。",
+   "車側白色、整條黑色窗帶、窗下黃色腰帶（門扇上也有）；每側三組雙開門。做的是通車時的白色原塗裝。"
+  ],
+  "photos": [
+   {
+    "file": "File:C610 at Shisizhang 20260107 (3).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:C610_at_Shisizhang_20260107_(3).jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面（量高度）"
+   },
+   {
+    "file": "File:TRTC Circular Line EMU train by ntpcdorts.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRTC_Circular_Line_EMU_train_by_ntpcdorts.jpg",
+    "author": "Department of Rapid Transit Systems, New Taipei City Government",
+    "licence": "Public domain",
+    "use": "斜側（車側色帶、門窗、取色）"
+   },
+   {
+    "file": "File:環狀線列車車體.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E7%92%B0%E7%8B%80%E7%B7%9A%E5%88%97%E8%BB%8A%E8%BB%8A%E9%AB%94.jpg",
+    "author": "Ryan lin91",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜前（U 形環接車頂邊線）"
+   },
+   {
+    "file": "File:Trains on the Taipei Metro Circular Line 20180810(2).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Trains_on_the_Taipei_Metro_Circular_Line_20180810(2).jpg",
+    "author": "臺北市政府",
+    "licence": "Attribution",
+    "use": "機廠內車頭"
+   },
+   {
+    "file": "File:Trains on the Taipei Metro Circular Line 20180810(1).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Trains_on_the_Taipei_Metro_Circular_Line_20180810(1).jpg",
+    "author": "臺北市政府",
+    "licence": "Attribution",
+    "use": "機廠內車頭"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "sanying",
+  "name": "三鶯線・日立電聯車",
+  "label": "三鶯線",
+  "detail": "淺藍車身 · 深灰頭盔 · 銀色燈眉",
+  "color": "#4d9abd",
+  "source": "https://www.dorts.ntpc.gov.tw/news/indexInfo/W0OdPjwWmnbJ?page=1",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://www.dorts.ntpc.gov.tw/news/indexInfo/W0OdPjwWmnbJ?page=1"
+   },
+   {
+    "label": "Wikimedia Commons／Sinsyuan（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Sanying_Line_EMU_@LB01_20260630.jpg"
+   }
+  ],
+  "features": [
+   "跟環狀線同一個車體，塗裝完全不同：淺藍車身，深灰頭盔包住大前窗並延伸成頂帽。",
+   "窗下一條往兩端上翹的銀色燈眉，兩端各一簇紅白 LED；燈眉下深色凹槽。",
+   "深灰下裙有兩個百葉格柵與中央檢修蓋；每側三組雙開門。"
+  ],
+  "photos": [
+   {
+    "file": "File:Sanying Line EMU @LB01 20260630.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Sanying_Line_EMU_@LB01_20260630.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面（量高度）"
+   },
+   {
+    "file": "File:Sanying Line EMU @LB04 20260702.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Sanying_Line_EMU_@LB04_20260702.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭"
+   },
+   {
+    "file": "File:New Taipei Metro Sanying Line EMU 20230830.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:New_Taipei_Metro_Sanying_Line_EMU_20230830.jpg",
+    "author": "新北市政府",
+    "licence": "Attribution",
+    "use": "斜側（車身顏色、頭盔、下裙、取色）"
+   },
+   {
+    "file": "File:202607 Sanying Line metro trains at Dingpu Station (LB01).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:202607_Sanying_Line_metro_trains_at_Dingpu_Station_(LB01).jpg",
+    "author": "Junyu-K",
+    "licence": "CC BY 4.0",
+    "use": "車側"
+   },
+   {
+    "file": "File:Sanying Line EMU @LB12 20260702.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Sanying_Line_EMU_@LB12_20260702.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "taichung",
+  "name": "台中捷運・綠線",
+  "label": "台中捷運",
+  "detail": "黑色盾形車頭 · 白色弧面 · 深藍與嫩綠車側",
+  "color": "#70ac68",
+  "source": "https://blair-bus.blogspot.com/2023/08/blog-post_20.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2023/08/blog-post_20.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.tmrt.com.tw/metro-status/train-info"
+   },
+   {
+    "label": "Wikimedia Commons／Cheng-en Cheng（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Taichung_Metro_Green_Line_EMU_at_Beitun_Main_Station_2021-03-25.jpg"
+   }
+  ],
+  "features": [
+   "白色圓鼓車頭，中央一面上寬下窄的黑色盾形（前窗在裡面、到車頂成為頂帽），兩側白色弧面、最外緣深藍。",
+   "兩下角斜放黑色燈艙（上頭燈、下尾燈）；下方深灰弧形保險桿與兩個通風口，車底兩角白色排障角。",
+   "車側上半深藍、下半銀色，車底嫩綠帶、車頂邊嫩綠線、窗中間一條黃綠細線；駕駛室側面白色，後緣一道嫩綠＋深藍斜帶；每側五組雙開門。"
+  ],
+  "photos": [
+   {
+    "file": "File:Taichung Metro Green Line EMU at Beitun Main Station 2021-03-25.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taichung_Metro_Green_Line_EMU_at_Beitun_Main_Station_2021-03-25.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "車頭正面（量高度）"
+   },
+   {
+    "file": "File:Train approaching Songzhu Station on Taichung Metro Green Line 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Train_approaching_Songzhu_Station_on_Taichung_Metro_Green_Line_01.jpg",
+    "author": "Lokseng01",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側"
+   },
+   {
+    "file": "File:2021-03-25 MRT train approaching Songzhu Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2021-03-25_MRT_train_approaching_Songzhu_Station.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "斜側（駕駛室斜帶、車側色帶）"
+   },
+   {
+    "file": "File:2020-10-10 台中捷運綠線列車：01-02編組.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2020-10-10_%E5%8F%B0%E4%B8%AD%E6%8D%B7%E9%81%8B%E7%B6%A0%E7%B7%9A%E5%88%97%E8%BB%8A%EF%BC%9A01-02%E7%B7%A8%E7%B5%84.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "編組側面"
+   },
+   {
+    "file": "File:Train of Taichung MRT 20210107.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Train_of_Taichung_MRT_20210107.jpg",
+    "author": "臺中市政府",
+    "licence": "Attribution",
+    "use": "車頭"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "kaohsiung",
+  "name": "高雄捷運・西門子",
+  "label": "高雄捷運",
+  "detail": "青綠頂帽 · 黑色面罩 · 青綠笑臉帶",
+  "color": "#52937c",
+  "source": "https://blair-bus.blogspot.com/2011/01/blog-post.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/01/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Siemens_Modular_Metro_EMU.jpg"
+   }
+  ],
+  "features": [
+   "平直車頭：上緣青綠頂帽（延伸到駕駛室車頂）、中央頂燈；黑色面罩夾兩扇前窗與中央逃生門，門頂一塊青綠飾板。",
+   "面罩下緣是往兩側上揚的笑臉弧，弧下一條白線、再下是青綠帶與兩組燈座（外紅內白），最下銀色。",
+   "不鏽鋼車身、窗下一條青綠寬帶、車頂兩端冷氣箱；每側四組雙開門。"
+  ],
+  "photos": [
+   {
+    "file": "File:KMRT Gangshan Station 2024.06.30.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:KMRT_Gangshan_Station_2024.06.30.jpg",
+    "author": "總統府",
+    "licence": "CC BY 2.0",
+    "use": "車頭正面（量高度）"
+   },
+   {
+    "file": "File:Siemens Modular Metro EMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Siemens_Modular_Metro_EMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側（取色）"
+   },
+   {
+    "file": "File:Color of the Siemens Modular Metro (Kaohsiung MRT) 20241111.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Color_of_the_Siemens_Modular_Metro_(Kaohsiung_MRT)_20241111.jpg",
+    "author": "阿道",
+    "licence": "CC BY-SA 4.0",
+    "use": "青綠塗裝近照（取色）"
+   },
+   {
+    "file": "File:Kaohsiung MRT Train.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Kaohsiung_MRT_Train.jpg",
+    "author": "chia ying Yang",
+    "licence": "CC BY 2.0",
+    "use": "車頭"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "val256",
+  "name": "VAL256・文湖馬特拉",
+  "label": "VAL256",
+  "detail": "白色平頭大前窗 · 深藍下緣 · 膠輪與水平導向輪",
+  "color": "#467ba5",
+  "source": "https://blair-bus.blogspot.com/2011/03/val256.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/03/val256.html"
+   },
+   {
+    "label": "Wikimedia Commons／Subscriptshoe9（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Matra_VAL256,_Taipei_Metro_20210509.jpg"
+   }
+  ],
+  "features": [
+   "白色平頭，一整片圓角大前窗（無人駕駛），窗下一塊白色飾板；下方深藍帶、兩側各一大一小圓燈，最下黑色裙板。",
+   "車側上半白、窗下淺灰藍帶夾深藍細線、下緣深藍；每側兩組雙開門。",
+   "每節兩根膠輪單軸，軸的前後兩側各一個水平導向輪，貼在導軌高度（工程圖正面）。"
+  ],
+  "photos": [
+   {
+    "file": "File:Matra VAL256, Taipei Metro 20210509.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Matra_VAL256,_Taipei_Metro_20210509.jpg",
+    "author": "Subscriptshoe9",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭與車側（取色）"
+   },
+   {
+    "file": "File:Matra-GEC Alsthom VAL256 APM.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Matra-GEC_Alsthom_VAL256_APM.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側"
+   },
+   {
+    "file": "File:Engineering drawings of the VAL 256.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Engineering_drawings_of_the_VAL_256.jpg",
+    "author": "作者不詳",
+    "licence": "Attribution",
+    "use": "正面與側面工程圖（導向輪位置、窗高）"
+   },
+   {
+    "file": "File:VAL256 No.10 at Neihu Depot 20200711.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:VAL256_No.10_at_Neihu_Depot_20200711.jpg",
+    "author": "Solomon203",
+    "licence": "CC BY-SA 4.0",
+    "use": "機廠內車頭"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
  }
 ]

@@ -647,5 +647,198 @@
   ],
   "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
   "thumbnail": "models/emu1200/renders/thumb.webp"
+ },
+ {
+  "id": "airportlocal",
+  "name": "機捷普通車・1000型",
+  "family": "metro",
+  "detail": "藍色面罩夾逃生門 · 斜放燈座 · 窗上粉紫漸層帶",
+  "features": [
+   "藍色面罩：兩片大前窗夾中央逃生門（門上半藍、有小窗），頂端綠字目的地；面罩下緣在車角往上收，露出不鏽鋼。",
+   "窗下兩側斜放黑色燈座（外側紅圈尾燈、內側頭燈），藍色腰帶在車角往下斜成車頭下方的斜線；灰色防爬器。",
+   "不鏽鋼車身、每側三組雙開門；窗上一條淡粉紫色帶，靠駕駛室那段從淡藍漸層過來。"
+  ],
+  "metadata": "models/airportlocal/airportlocal.model.json",
+  "blend": "models/airportlocal/airportlocal.blend",
+  "glb": "models/airportlocal/airportlocal.glb",
+  "hero": "models/airportlocal/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/10/blog-post_08.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_1000_Series_EMU.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/airportlocal/renders/thumb.webp"
+ },
+ {
+  "id": "airportexpress",
+  "name": "機捷直達車・2000型",
+  "family": "metro",
+  "detail": "紫色面罩夾逃生門 · 斜放燈座 · 每側三組門",
+  "features": [
+   "跟普通車同一個車體，主色換成紫色：面罩、腰帶與車頭斜線都是紫色，窗上色帶淡紫、靠駕駛室那段從紫色漸層過來。",
+   "每側三組雙開門（照片可數；fleet-v1 是兩組）。",
+   "窗下兩側斜放黑色燈座、中央逃生門有小窗、頂端綠字目的地、灰色防爬器。"
+  ],
+  "metadata": "models/airportexpress/airportexpress.model.json",
+  "blend": "models/airportexpress/airportexpress.blend",
+  "glb": "models/airportexpress/airportexpress.glb",
+  "hero": "models/airportexpress/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/10/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_2000_Series_EMU.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/airportexpress/renders/thumb.webp"
+ },
+ {
+  "id": "y100",
+  "name": "環狀線・日立電聯車",
+  "family": "metro",
+  "detail": "白色圓鼓車頭 · 黃色 U 形環 · 黑色窗帶",
+  "features": [
+   "白色圓鼓車頭，一圈黃色 U 形環框住黑色大窗區，環的兩臂往上接到車頂、再順著車頂邊變成車側的黃色細線；黑色一路到車頂成為頂帽。",
+   "窗區兩下角各一個花生形燈座；下方一道折線、兩個百葉格柵與中央檢修蓋。",
+   "車側白色、整條黑色窗帶、窗下黃色腰帶（門扇上也有）；每側三組雙開門。做的是通車時的白色原塗裝。"
+  ],
+  "metadata": "models/y100/y100.model.json",
+  "blend": "models/y100/y100.blend",
+  "glb": "models/y100/y100.glb",
+  "hero": "models/y100/renders/hero.png",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://milkyrailway.blogspot.com/2020/03/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Sinsyuan（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:C610_at_Shisizhang_20260107_(3).jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/y100/renders/thumb.webp"
+ },
+ {
+  "id": "sanying",
+  "name": "三鶯線・日立電聯車",
+  "family": "metro",
+  "detail": "淺藍車身 · 深灰頭盔 · 銀色燈眉",
+  "features": [
+   "跟環狀線同一個車體，塗裝完全不同：淺藍車身，深灰頭盔包住大前窗並延伸成頂帽。",
+   "窗下一條往兩端上翹的銀色燈眉，兩端各一簇紅白 LED；燈眉下深色凹槽。",
+   "深灰下裙有兩個百葉格柵與中央檢修蓋；每側三組雙開門。"
+  ],
+  "metadata": "models/sanying/sanying.model.json",
+  "blend": "models/sanying/sanying.blend",
+  "glb": "models/sanying/sanying.glb",
+  "hero": "models/sanying/renders/hero.png",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://www.dorts.ntpc.gov.tw/news/indexInfo/W0OdPjwWmnbJ?page=1"
+   },
+   {
+    "label": "Wikimedia Commons／Sinsyuan（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Sanying_Line_EMU_@LB01_20260630.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/sanying/renders/thumb.webp"
+ },
+ {
+  "id": "taichung",
+  "name": "台中捷運・綠線",
+  "family": "metro",
+  "detail": "黑色盾形車頭 · 白色弧面 · 深藍與嫩綠車側",
+  "features": [
+   "白色圓鼓車頭，中央一面上寬下窄的黑色盾形（前窗在裡面、到車頂成為頂帽），兩側白色弧面、最外緣深藍。",
+   "兩下角斜放黑色燈艙（上頭燈、下尾燈）；下方深灰弧形保險桿與兩個通風口，車底兩角白色排障角。",
+   "車側上半深藍、下半銀色，車底嫩綠帶、車頂邊嫩綠線、窗中間一條黃綠細線；駕駛室側面白色，後緣一道嫩綠＋深藍斜帶；每側五組雙開門。"
+  ],
+  "metadata": "models/taichung/taichung.model.json",
+  "blend": "models/taichung/taichung.blend",
+  "glb": "models/taichung/taichung.glb",
+  "hero": "models/taichung/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2023/08/blog-post_20.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.tmrt.com.tw/metro-status/train-info"
+   },
+   {
+    "label": "Wikimedia Commons／Cheng-en Cheng（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Taichung_Metro_Green_Line_EMU_at_Beitun_Main_Station_2021-03-25.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/taichung/renders/thumb.webp"
+ },
+ {
+  "id": "kaohsiung",
+  "name": "高雄捷運・西門子",
+  "family": "metro",
+  "detail": "青綠頂帽 · 黑色面罩 · 青綠笑臉帶",
+  "features": [
+   "平直車頭：上緣青綠頂帽（延伸到駕駛室車頂）、中央頂燈；黑色面罩夾兩扇前窗與中央逃生門，門頂一塊青綠飾板。",
+   "面罩下緣是往兩側上揚的笑臉弧，弧下一條白線、再下是青綠帶與兩組燈座（外紅內白），最下銀色。",
+   "不鏽鋼車身、窗下一條青綠寬帶、車頂兩端冷氣箱；每側四組雙開門。"
+  ],
+  "metadata": "models/kaohsiung/kaohsiung.model.json",
+  "blend": "models/kaohsiung/kaohsiung.blend",
+  "glb": "models/kaohsiung/kaohsiung.glb",
+  "hero": "models/kaohsiung/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/01/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Siemens_Modular_Metro_EMU.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/kaohsiung/renders/thumb.webp"
+ },
+ {
+  "id": "val256",
+  "name": "VAL256・文湖馬特拉",
+  "family": "metro",
+  "detail": "白色平頭大前窗 · 深藍下緣 · 膠輪與水平導向輪",
+  "features": [
+   "白色平頭，一整片圓角大前窗（無人駕駛），窗下一塊白色飾板；下方深藍帶、兩側各一大一小圓燈，最下黑色裙板。",
+   "車側上半白、窗下淺灰藍帶夾深藍細線、下緣深藍；每側兩組雙開門。",
+   "每節兩根膠輪單軸，軸的前後兩側各一個水平導向輪，貼在導軌高度（工程圖正面）。"
+  ],
+  "metadata": "models/val256/val256.model.json",
+  "blend": "models/val256/val256.blend",
+  "glb": "models/val256/val256.glb",
+  "hero": "models/val256/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/03/val256.html"
+   },
+   {
+    "label": "Wikimedia Commons／Subscriptshoe9（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Matra_VAL256,_Taipei_Metro_20210509.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/val256/renders/thumb.webp"
  }
 ]

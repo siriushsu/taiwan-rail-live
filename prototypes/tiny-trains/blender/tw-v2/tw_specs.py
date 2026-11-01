@@ -57,3 +57,24 @@ add('emu100','railcar',L=8.9,W=2.8,H=3.5,doors=2,doorLeaves=1,doorW=.62,rearDoor
 # EMU1200 駕駛車（L 8.7）：乘務員門、橘色斜帶、客室門、六扇窗、車尾門；駕駛室後一組受電弓（2015 正面照升弓、2024 側面照收弓都在這節）。
 add('emu1200','railcar',L=8.7,W=2.8,H=3.5,doors=2,doorLeaves=1,doorW=.62,rearDoor=.62,frontDoor=1.46,crewDoor=True,radiusTop=.45,winR=.08,
  winH=.90,winZ=2.46,doorWinH=.80,doorWinZ=2.45,doorTop=3.00,body='EEEEEA',accent='EE6A3C',acUnits=[(-1.6,2.0)],acMat='e12roof',pantos=1,pantoX=2.3,label='EMU1200')
+# 機場捷運（川崎／台灣車輛）：L 9.4（fleet-v1 同尺寸）；普通車（1000 型）與直達車（2000 型）同一個車體，每側三組雙開門
+# （2000 型照片也是三組，fleet-v1 的兩組不對）；駕駛室後一扇小窗，車尾一扇窗；第三軌供電。
+airport=dict(L=9.4,W=2.85,H=3.5,doors=3,doorLeaves=2,power='third-rail',shoes=True,rearDoor=1.25,frontDoor=1.05,cabWin=.10,radiusTop=.45,
+ winH=.74,winZ=2.45,doorWinH=.78,doorWinZ=2.40,doorTop=3.00,body='BCC3C8',acUnits=[(-2.6,1.6),(1.2,1.6)],acMat='aproof')
+add('airportlocal','metro',**airport,accent='1F78DC')
+add('airportexpress','metro',**airport,accent='A85AD0')
+# 環狀線、三鶯線（日立無人駕駛車，同一個車體）：L 8.4（fleet-v1 同尺寸）；每側三組雙開門，大面積側窗；第三軌供電。
+hitachi=dict(L=8.4,W=2.7,H=3.35,doors=3,doorLeaves=2,power='third-rail',shoes=True,rearDoor=1.15,frontDoor=1.00,cabWin=.10,radiusTop=.40,
+ winH=1.24,winZ=2.36,doorWinH=1.10,doorWinZ=2.30,doorTop=3.02,acUnits=[(-2.3,1.4),(.9,1.4)])
+add('y100','metro',**hitachi,body='EEEDE8',accent='F2C014',acMat='croof')
+add('sanying','metro',**hitachi,body='2E9CCB',accent='3A3F44',acMat='sroof')
+# 台中捷運綠線（川崎）：L 9.9（fleet-v1 同尺寸）；每側五組雙開門、門間一扇窗；駕駛室側面是白色斜掃塗裝，沒有窗。
+add('taichung','metro',L=9.9,W=2.85,H=3.4,doors=5,doorLeaves=2,power='third-rail',shoes=True,rearDoor=.95,frontDoor=1.90,cabWin=1.0,radiusTop=.40,
+ winH=.90,winZ=2.50,doorWinH=.80,doorWinZ=2.45,doorTop=3.02,body='C5CACC',accent='8DC63F',acUnits=[(-3.0,1.5),(1.4,1.5)],acMat='tcroof')
+# 高雄捷運（西門子）：L 9.7（fleet-v1 同尺寸）；每側四組雙開門、門間兩扇窗；車頂兩端冷氣箱。
+add('kaohsiung','metro',L=9.7,W=2.9,H=3.4,doors=4,doorLeaves=2,power='third-rail',shoes=True,rearDoor=1.0,frontDoor=1.05,cabWin=.10,radiusTop=.45,
+ winH=.86,winZ=2.25,doorWinH=.80,doorWinZ=2.25,doorTop=3.00,body='BFC5C7',accent='10B5AC',acUnits=[(-3.5,1.5),(2.3,1.5)],acMat='ksroof')
+# 文湖線 VAL256（馬特拉）：L 6.8（fleet-v1 同尺寸）；每側兩組雙開門；膠輪單軸兩組，軸的四角各一個水平導向輪（工程圖正面）。
+add('val256','metro',L=6.8,W=2.5,H=3.05,doors=2,doorLeaves=2,power='guideway',rearDoor=1.55,frontDoor=1.35,cabWin=.10,radiusTop=.30,
+ winH=.95,winZ=2.38,doorWinH=.85,doorWinZ=2.35,doorTop=2.85,body='EEF0EE',accent='2C4C8C',acUnits=[(-1.2,1.3),(1.0,1.3)],acMat='vroof',
+ rubber=True,axles=1,bogieX=[-2.05,2.05])

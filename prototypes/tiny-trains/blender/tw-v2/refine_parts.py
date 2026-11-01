@@ -156,7 +156,8 @@ def emu_body(s,profile,bow,zones,front_zones,nose_zones=None,leaf='body',gaps=No
  if s.get('pantos',0):pantograph(s.get('pantoX',-L*.28),H)
  box('車頂天線底座',(neck-.9,0,H+.03),(.20,.16,.05),'chassis',.012)
  rod('列車無線天線',(neck-.9,0,H+.05),(neck-.9,0,H+.22),.010,'chassis')
- bogies(L,W,r=.36)
+ # 膠輪車（VAL256）在規格給 rubber、axles、bogieX；沒給就是原本的鋼輪兩軸轉向架。
+ bogies(L,W,axles=s.get('axles',2),r=s.get('wheelR',.36),rubber=s.get('rubber',False),centers=s.get('bogieX'))
  if s.get('shoes'):
   use('04')
   for c in [-L*.31,L*.31]:
@@ -165,3 +166,27 @@ def emu_body(s,profile,bow,zones,front_zones,nose_zones=None,leaf='body',gaps=No
  if double:coupler(-(f(0,.83)+.16),W,-1)
  else:coupler(-L/2-.03,W,-1,gangway=True)
  return f,neck,doors
+
+def upper_section(s,z0,z1=None,side=None,n=10):
+ """車殼上半斷面（跟 zoned_shell 同一條）：從 z0 沿側面往上、經車頂圓角。side 給 1／-1 只走那一側到 z1 為止；
+ 沒給 side 就跨過車頂走到另一側（駕駛室頂帽用）。回傳 [(y, z, 法線 y, 法線 z), ...]。"""
+ W,H=s['W'],s['H'];rt=s.get('radiusTop',.40);c=W/2-rt;zt=H-rt
+ def one(sg,top):
+  b0=math.asin(max(0,min(1,(z0-zt)/rt)));b1=math.pi/2 if top is None else math.asin(max(0,min(1,(top-zt)/rt)))
+  pts=[(sg*W/2,z0,sg,0)] if z0<zt else []
+  for i in range(n+1):
+   a=b0+(b1-b0)*i/n;pts.append((sg*(c+rt*math.cos(a)),zt+rt*math.sin(a),sg*math.cos(a),math.sin(a)))
+  return pts
+ if side:return one(side,z1)
+ right=one(1,None);left=one(-1,None)
+ return right+[(c*(1-2*j/8),H,0,1) for j in range(1,8)]+list(reversed(left))
+
+def shell_wrap(name,s,f,pts,x0,x1,material,offset=.010,nx=14):
+ """沿車殼斷面貼的色塊：pts 來自 upper_section，每點沿斷面法線外推 offset，再沿車長從 x0（可給 z 的函式）拉到 x1，
+ 前端裁到車頭曲面。駕駛室車頂帽、車頂圓角上的塗裝用它（side_paint 只貼得住平的側面）。"""
+ use('01');verts=[]
+ for y,z,ny,nz in pts:
+  xs=x0(z) if callable(x0) else x0;xe=min(x1,f(y,z)-.004)
+  for j in range(nx+1):verts.append((xs+(xe-xs)*j/nx,y+ny*offset,z+nz*offset))
+ faces=[(i*(nx+1)+j,i*(nx+1)+j+1,(i+1)*(nx+1)+j+1,(i+1)*(nx+1)+j) for i in range(len(pts)-1) for j in range(nx)]
+ return mesh(name,verts,faces,material,0,True)

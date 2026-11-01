@@ -1,0 +1,319 @@
+{
+  "modelId": "kaohsiung",
+  "name": "高雄捷運・西門子",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "metro",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -5.249000072479248,
+      -1.5329999923706055,
+      0.0
+    ],
+    "max": [
+      5.318999767303467,
+      1.5329999923706055,
+      3.619999885559082
+    ]
+  },
+  "sizeM": [
+    10.567999839782715,
+    3.065999984741211,
+    3.619999885559082
+  ],
+  "mesh": {
+    "file": "kaohsiung.mesh.bin",
+    "sha256": "a55314f3ef7343df0354f139875727e1f1ce05745be364c4b40cc805cb21bff9",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 170556,
+    "triangleCount": 56852,
+    "drawGroups": [
+      {
+        "name": "kssilver",
+        "start": 0,
+        "count": 7008,
+        "color": [
+          0.520995557308197,
+          0.5583403706550598,
+          0.5711248517036438
+        ],
+        "metalness": 0.5,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.15000000596046448
+      },
+      {
+        "name": "ksroof",
+        "start": 7008,
+        "count": 1368,
+        "color": [
+          0.423267662525177,
+          0.4564110338687897,
+          0.47353148460388184
+        ],
+        "metalness": 0.4000000059604645,
+        "roughness": 0.41999998688697815,
+        "clearcoat": 0.07999999821186066
+      },
+      {
+        "name": "ksteal",
+        "start": 8376,
+        "count": 15636,
+        "color": [
+          0.005181516520678997,
+          0.46207699179649353,
+          0.4125426113605499
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3199999928474426,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "ksblack",
+        "start": 24012,
+        "count": 6816,
+        "color": [
+          0.00802319310605526,
+          0.010960093699395657,
+          0.014443843625485897
+        ],
+        "metalness": 0.20000000298023224,
+        "roughness": 0.2199999988079071,
+        "clearcoat": 0.44999998807907104
+      },
+      {
+        "name": "frame",
+        "start": 30828,
+        "count": 19968,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 50796,
+        "count": 9816,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "metal",
+        "start": 60612,
+        "count": 35868,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "chassis",
+        "start": 96480,
+        "count": 40764,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "roof",
+        "start": 137244,
+        "count": 12408,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 149652,
+        "count": 9828,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "kswhite",
+        "start": 159480,
+        "count": 576,
+        "color": [
+          0.8879231214523315,
+          0.8962693810462952,
+          0.8713670969009399
+        ],
+        "metalness": 0.07999999821186066,
+        "roughness": 0.3199999928474426,
+        "clearcoat": 0.25
+      },
+      {
+        "name": "lamp",
+        "start": 160056,
+        "count": 3996,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "red",
+        "start": 164052,
+        "count": 2664,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "ksdoor",
+        "start": 166716,
+        "count": 768,
+        "color": [
+          0.023153366521000862,
+          0.02955683507025242,
+          0.03688944876194
+        ],
+        "metalness": 0.25,
+        "roughness": 0.20000000298023224,
+        "clearcoat": 0.44999998807907104
+      },
+      {
+        "name": "dark",
+        "start": 167484,
+        "count": 1536,
+        "color": [
+          0.02955683507025242,
+          0.04817182570695877,
+          0.05951123684644699
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "ksled",
+        "start": 169020,
+        "count": 1536,
+        "color": [
+          0.8879231214523315,
+          0.2541520893573761,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.25,
+        "clearcoat": 0.30000001192092896
+      }
+    ]
+  },
+  "nativeObjectCount": 288,
+  "features": {
+    "sideDoorGroups": 4,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "kaohsiung",
+    "family": "metro",
+    "L": 9.7,
+    "W": 2.9,
+    "H": 3.4,
+    "doors": 4,
+    "doorLeaves": 2,
+    "power": "third-rail",
+    "shoes": true,
+    "rearDoor": 1.0,
+    "frontDoor": 1.05,
+    "cabWin": 0.1,
+    "radiusTop": 0.45,
+    "winH": 0.86,
+    "winZ": 2.25,
+    "doorWinH": 0.8,
+    "doorWinZ": 2.25,
+    "doorTop": 3.0,
+    "body": "BFC5C7",
+    "accent": "10B5AC",
+    "acUnits": [
+      [
+        -3.5,
+        1.5
+      ],
+      [
+        2.3,
+        1.5
+      ]
+    ],
+    "acMat": "ksroof",
+    "bowPow": 4
+  },
+  "reference": {
+    "source": "https://blair-bus.blogspot.com/2011/01/blog-post.html",
+    "detail": "青綠頂帽 · 黑色面罩 · 青綠笑臉帶",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

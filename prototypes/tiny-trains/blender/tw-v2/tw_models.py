@@ -970,6 +970,234 @@ def emu1200(s):
  chevron_skirt(f(0,.83)+.05,W,.55,.46)
  return f
 
+# ── 機場捷運（1000 型普通車／2000 型直達車）──────────────────────────────────
+
+# 主色、窗上色帶靠駕駛室那段的過渡色、窗上色帶本色（照片取色）：普通車藍＋淡粉紫，直達車紫＋淡紫。
+AP_COLOURS={'airportlocal':('1F78DC','82B8EF','F0D3EA'),'airportexpress':('A85AD0','C9A3E8','E6C9F6')}
+
+def airport_like(s):
+ """機捷普通車（1000 型）、直達車（2000 型）：川崎／台灣車輛同一個車體，只換主色。參考：Commons「Kawasaki-TRSC 1000 Series EMU.jpg」
+ 「Kawasaki-TRSC 2000 Series EMU.jpg」（Samson Ng，CC BY-SA 4.0，斜側）、「Taoyuan MRT train approaching Dayuan February 2026 1.jpg」（4300streetcar，CC BY 4.0，正面）。
+ 不鏽鋼車身、每側三組雙開門；窗上一條淡色帶（靠駕駛室那段從主色漸層過來）、窗下一條主色腰帶，到車角往下斜成車頭下方的斜線。
+ 車頭上半是主色面罩：兩片大前窗夾中央逃生門（上半主色、有小窗，下半不鏽鋼），頂端綠字目的地；面罩下緣在車角往上收，
+ 窗下兩側斜放黑色燈座（外側紅圈尾燈、內側頭燈）；下方灰色防爬器。
+ 高度依大園站正面照量（車底 .83、車頂 3.50 線性換算）：面罩下緣中央 1.92、車角 2.21；前窗 1.95–3.22；逃生門 1.25–3.00、門窗 2.14–2.78；
+ 燈座 1.47–1.90；車側腰帶 1.64–1.92、窗上色帶 3.03–3.21（Samson Ng 側面照）。"""
+ L,W,H=s['L'],s['W'],s['H'];main,fade,pale=AP_COLOURS[s['id']]
+ color('apsilver','BCC3C8',.50,.30,.15);color('aproof','A9B0B4',.40,.42,.08);color('apmain',main,.05,.34,.30)
+ color('appale',pale,.05,.34,.25);color('apgrey','8E979C',.40,.36,.12);color('apled','62E07A',.05,.30,.20)
+ profile=[(.83,L/2-.10),(1.05,L/2),(1.30,L/2),(2.00,L/2-.03),(2.80,L/2-.09),(H-.22,L/2-.18),(H,L/2-.42)]
+ s['bowPow']=3;bands=[(1.78,.28,'apmain'),(3.12,.18,'appale')]
+ f,neck,doors=emu_body(s,profile,.14,[(H-.12,'apsilver'),(H+1,'aproof')],[(1.92,'apsilver'),(H+1,'apmain')],
+  [(1.64,'apsilver'),(1.92,'apmain'),(3.03,'apsilver'),(3.21,'appale'),(H-.12,'apsilver'),(H+1,'aproof')],leaf='apsilver',gaps=[1,2,2,1],bands=bands,leafbands=bands[:1])
+ # 窗上色帶靠駕駛室那段：分四段從本色漸層到過渡色
+ x0=neck-1.6;n=4;seg=ramp('apfade',[(0,pale),(1,fade)],n)
+ for side in [-1,1]:
+  for i,m in enumerate(seg):box('窗上色帶漸層段',(x0+(i+.5)*(neck-x0)/n,side*(W/2+.012),3.12),((neck-x0)/n+.002,.024,.18),m,.003)
+ e=W/2-.004;top=lambda y:face_zmax(s,y,.02)
+ for side in [-1,1]:
+  # 面罩下緣在車角往上收，露出不鏽鋼
+  a,b=sorted([side*1.12,side*e]);t=lambda y:(abs(y)-1.12)/(e-1.12)
+  front_patch('面罩下緣車角不鏽鋼',f,a,b,1.91,lambda y:1.92+.29*t(y)**1.4,'apsilver',.026,cols=10,rows=4)
+  # 前窗外上角斜切
+  cut=lambda y,k:k-.9*max(0,abs(y)-1.0)
+  a,b=sorted([side*.52,side*1.24]);front_patch('前窗黑框',f,a,b,1.93,lambda y:cut(y,3.25),'frame',.030,cols=16,rows=8)
+  a,b=sorted([side*.56,side*1.20]);front_patch('前窗',f,a,b,1.97,lambda y:cut(y,3.21),'glass',.040,cols=16,rows=8)
+  wiper(f,side*.86,2.02,.70)
+  # 斜放的黑色燈座：內低外高
+  a,b=sorted([side*.66,side*1.30]);t=lambda y:(abs(y)-.66)/.64
+  lo,hi=pinch(lambda y:1.47+.27*t(y),lambda y:1.73+.17*t(y),a,b,.06)
+  front_patch('黑色燈座',f,a,b,lo,hi,'frame',.034,cols=12,rows=5)
+  lamp('頭燈',f,side*.86,1.67,.080);lamp('尾燈',f,side*1.08,1.76,.066,red=True)
+  a,b=sorted([side*.62,side*e]);t2=lambda y:(abs(y)-.62)/(e-.62)
+  front_patch('腰帶車頭斜線',f,a,b,lambda y:1.21+.40*t2(y),lambda y:1.30+.40*t2(y),'apmain',.032,cols=16,rows=2)
+ for y in [-.47,.47]:front_patch('逃生門門縫',f,y-.01,y+.01,1.25,3.00,'frame',.032,cols=1,rows=12)
+ for z in [1.25,3.00]:front_patch('逃生門門縫',f,-.47,.47,z-.01,z+.01,'frame',.032,cols=12,rows=1)
+ front_panel('逃生門窗框',f,0,2.46,.46,.70,'frame',.11,.034);front_panel('逃生門窗',f,0,2.46,.38,.62,'glass',.09,.042)
+ front_panel('目的地顯示器',f,0,3.16,.66,.22,'dark',.03,.040);front_panel('目的地字幕',f,0,3.16,.50,.06,'apled',.01,.046)
+ front_panel('防爬器',f,0,1.16,2.10,.15,'apgrey',.03,.10)
+ for k in range(3):front_panel('防爬器橫紋',f,0,1.11+k*.05,2.00,.012,'chassis',.003,.112)
+ front_patch('車頭下方開口',f,-1.0,1.0,.84,1.08,'frame',.020,cols=16,rows=2)
+ return f
+
+def airportlocal(s):return airport_like(s)
+def airportexpress(s):return airport_like(s)
+
+# ── 環狀線、三鶯線（日立無人駕駛車）────────────────────────────────────────
+
+def hitachi_body(s,zones,front_zones,leaf,leafbands):
+ """環狀線與三鶯線共用的車殼：圓鼓車頭、上緣大幅後倒；每側三組雙開門、大面積側窗。車頭塗裝兩款完全不同，各自另貼。"""
+ L,W,H=s['L'],s['W'],s['H']
+ profile=[(.83,L/2-.14),(1.00,L/2-.03),(1.30,L/2),(1.80,L/2-.04),(2.40,L/2-.14),(2.90,L/2-.32),(H-.10,L/2-.54),(H,L/2-.72)]
+ s['bowPow']=2.6
+ return emu_body(s,profile,.30,zones,front_zones,zones,leaf=leaf,gaps=[1,2,2,1],leafbands=leafbands)
+
+def y100(s):
+ """環狀線（日立）。參考：Commons「C610 at Shisizhang 20260107 (3).jpg」（Sinsyuan，CC BY-SA 4.0，正面）、
+ 「TRTC Circular Line EMU train by ntpcdorts.jpg」（Department of Rapid Transit Systems, New Taipei City Government，Public domain，斜側）、「環狀線列車車體.jpg」（Ryan lin91，CC BY-SA 4.0）。
+ 做的是通車時的白色原塗裝（2026 年有整車黃色的廣告車，不做）。白色圓鼓車頭，一圈黃色 U 形環框住黑色大窗區，環的兩臂往上接到車頂、
+ 再順著車頂邊變成車側的黃色細線；黑色一路到車頂成為頂帽；窗區兩下角各一個花生形燈座；下方一道折線、兩個百葉格柵與中央檢修蓋。
+ 車側白色，窗帶整條黑色、窗下黃色腰帶（門扇上也有）。高度依正面照量（車底 .83、車頂 3.35）：U 形環下緣 1.51、黑色窗區下緣 1.61、
+ 前窗 1.95–2.90、燈座 1.46–1.80、折線 1.31、格柵 .93–1.26；車側黑色窗帶 1.64–3.11、黃色腰帶 1.40–1.64（斜側照換算）。"""
+ L,W,H=s['L'],s['W'],s['H']
+ color('cwhite','EEEDE8',.08,.34,.25);color('cyellow','F2C014',.05,.32,.30);color('cblack','202529',.15,.46,.12)
+ color('croof','D5D8D8',.30,.40,.10);color('cgrey','8C9296',.30,.38,.10)
+ zones=[(1.40,'cwhite'),(1.64,'cyellow'),(3.11,'cblack'),(3.19,'cyellow'),(H+1,'croof')]
+ f,neck,doors=hitachi_body(s,zones,[(H+1,'cwhite')],'cwhite',[(1.52,.24,'cyellow')])
+ top=lambda y:face_zmax(s,y,.02)
+ m=1.08;lo,_=pinch(lambda y:1.51,top,-m,m,.26)
+ front_patch('黃色 U 形環',f,-m,m,lo,top,'cyellow',.026,cols=48,rows=20)
+ m=.89;lo,_=pinch(lambda y:1.61,top,-m,m,.22)
+ front_patch('黑色窗區與頂帽',f,-m,m,lo,top,'cblack',.032,cols=40,rows=20)
+ lo,hi=pinch(lambda y:1.95,lambda y:2.90,-.84,.84,.10)
+ front_patch('大片前窗',f,-.84,.84,lo,hi,'glass',.042,cols=32,rows=10)
+ # 雨刷平放在窗下黑色區，支點在右下
+ use('03');line('雨刷',[(f(.46,1.72)+.055,.46,1.72),(f(-.60,1.93)+.055,-.60,1.93)],.014,'frame')
+ for side in [-1,1]:
+  for y,z,r in [(1.03,1.65,.15),(.81,1.58,.115)]:front_panel('花生形燈座黑框',f,side*y,z,2*r,2*r,'frame',r,.032)
+  for y,z,r in [(1.03,1.65,.125),(.81,1.58,.092)]:front_panel('花生形燈座',f,side*y,z,2*r,2*r,'cwhite',r,.038)
+  lamp('頭燈',f,side*1.03,1.65,.068);lamp_color('標識燈',f,side*.81,1.58,.048,'lamp')
+  front_panel('百葉格柵底槽',f,side*.86,1.095,.40,.33,'frame',.03,.030)
+  for k in range(6):front_panel('格柵百葉',f,side*.86,.97+k*.05,.36,.020,'cwhite',.005,.036)
+ front_patch('保險桿折線',f,-(W/2-.004),W/2-.004,1.30,1.32,'cgrey',.028,cols=32,rows=1)
+ front_panel('檢修蓋框',f,0,1.10,.31,.31,'cgrey',.03,.028);front_panel('檢修蓋',f,0,1.10,.27,.27,'cwhite',.025,.033)
+ return f
+
+def sanying(s):
+ """三鶯線（日立，跟環狀線同一個車體）。參考：Commons「Sanying Line EMU @LB01 20260630.jpg」「Sanying Line EMU @LB04 20260702.jpg」（Sinsyuan，CC BY-SA 4.0，正面）、
+ 「New Taipei Metro Sanying Line EMU 20230830.jpg」（新北市政府，Attribution，斜側）。塗裝跟環狀線完全不同（fleet-v1 的白銀車側不對）：
+ 淺藍車身，深灰頭盔包住大前窗並延伸成頂帽；窗下一條往兩端上翹的銀色燈眉，兩端各一簇紅白 LED；燈眉下深色凹槽、深灰下裙（兩個百葉格柵、中央檢修蓋）。
+ 高度依正面照量（車底 .83、車頂 3.35）：前窗 1.90–2.92、燈眉中央 1.66–1.87／兩端 1.78–1.98、凹槽下緣 1.41、下裙 1.33 以下。"""
+ L,W,H=s['L'],s['W'],s['H']
+ color('sblue','2E9CCB',.08,.32,.28);color('sgun','3A3F44',.25,.44,.12);color('sgrey','45494B',.25,.40,.12);color('ssilver','C9C7BF',.55,.28,.25)
+ color('sdark','24292D',.20,.30,.30);color('sroof','B7BDC0',.40,.42,.08);color('sled','6FD3FF',.05,.30,.20)
+ zones=[(1.06,'sgrey'),(H-.10,'sblue'),(H+1,'sroof')]
+ f,neck,doors=hitachi_body(s,zones,[(1.33,'sgrey'),(H+1,'sblue')],'sblue',())
+ top=lambda y:face_zmax(s,y,.02);e=W/2-.004
+ bar_lo=lambda y:1.655+.125*(abs(y)/1.28)**2;bar_hi=lambda y:1.865+.115*(abs(y)/1.28)**2
+ front_patch('深灰頭盔',f,-1.16,1.16,bar_hi,top,'sgun',.026,cols=40,rows=18)
+ for side in [-1,1]:
+  a,b=sorted([side*1.16,side*e]);front_patch('頭盔頂部到車角',f,a,b,2.95,top,'sgun',.026,cols=6,rows=4)
+ lo,hi=pinch(lambda y:1.90,lambda y:2.92,-.90,.90,.12)
+ front_patch('大片前窗',f,-.90,.90,lo,hi,'glass',.040,cols=32,rows=10)
+ front_panel('目的地顯示器',f,0,2.82,.76,.11,'dark',.02,.046);front_panel('目的地字幕',f,0,2.82,.60,.05,'sled',.01,.052)
+ lo,hi=pinch(bar_lo,bar_hi,-1.30,1.30,.05)
+ front_patch('銀色燈眉',f,-1.30,1.30,lo,hi,'ssilver',.034,cols=48,rows=3)
+ lo,_=pinch(lambda y:1.41,bar_lo,-1.0,1.0,.10)
+ front_patch('燈眉下深色凹槽',f,-1.0,1.0,lo,bar_lo,'sdark',.030,cols=32,rows=4)
+ for side in [-1,1]:
+  # 燈眉兩端的 LED：上排白、下排紅
+  for y,dz,m in [(1.22,.06,'lamp'),(1.14,.05,'lamp'),(1.06,.04,'lamp'),(1.18,-.02,'red'),(1.10,-.03,'red')]:
+   lamp_color('LED 頭尾燈',f,side*y,bar_lo(y)+.10+dz,.026,m)
+  front_panel('百葉格柵底槽',f,side*.98,1.095,.40,.33,'frame',.03,.030)
+  for k in range(6):front_panel('格柵百葉',f,side*.98,.97+k*.05,.36,.020,'sgun',.005,.036)
+ front_panel('檢修蓋',f,0,1.06,.30,.28,'sgun',.03,.030)
+ return f
+
+# ── 台中捷運綠線、高雄捷運、文湖線 VAL256 ─────────────────────────────────────
+
+def taichung(s):
+ """台中捷運綠線（川崎）。參考：Commons「Taichung Metro Green Line EMU at Beitun Main Station 2021-03-25.jpg」（Cheng-en Cheng，CC BY-SA 2.0，正面）、
+ 「Train approaching Songzhu Station on Taichung Metro Green Line 01.jpg」（Lokseng01，CC BY-SA 4.0）、「2021-03-25 MRT train approaching Songzhu Station.jpg」（Cheng-en Cheng，CC BY-SA 2.0，斜側）。
+ 白色圓鼓車頭，中央一面上寬下窄的黑色盾形（前窗在裡面、到車頂成為頂帽），兩側白色弧面、最外緣深藍；兩下角斜放黑色燈艙（上頭燈、下尾燈）；
+ 下方深灰弧形保險桿與兩個通風口，車底兩角白色排障角。車側上半深藍（窗帶）、下半銀色，車底一條嫩綠帶、車頂邊一條嫩綠線、窗中間一條黃綠細線；
+ 駕駛室側面白色，後緣一道往前上斜的嫩綠＋深藍斜帶。高度依北屯總站正面照量（車底 .83、車頂 3.40）：盾形下緣 1.45、在 1.74 寬 ±.76、到頂寬 ±1.10；
+ 前窗 2.04–2.97；燈艙 1.22–1.72；保險桿上緣中央 1.17、兩側 1.00。"""
+ L,W,H=s['L'],s['W'],s['H']
+ color('tcwhite','EEF0EE',.08,.34,.25);color('tcblack','15191D',.20,.22,.45);color('tcnavy','1B2A4A',.10,.32,.30)
+ color('tclime','8DC63F',.05,.34,.30);color('tcsilver','C5CACC',.50,.30,.15);color('tcroof','B3B9BC',.40,.42,.08)
+ color('tcdark','3A3F43',.30,.38,.12);color('tcline','D7D531',.05,.32,.30)
+ profile=[(.83,L/2-.20),(1.00,L/2-.05),(1.20,L/2),(1.70,L/2-.02),(2.30,L/2-.12),(2.90,L/2-.30),(H-.10,L/2-.48),(H,L/2-.64)]
+ s['bowPow']=2.6;dt=s['doorTop'];line=[(2.62,.035,'tcline')]
+ zones=[(1.10,'tclime'),(2.05,'tcsilver'),(H-.16,'tcnavy'),(H-.08,'tclime'),(H+1,'tcroof')]
+ f,neck,doors=emu_body(s,profile,.26,zones,[(.99,'tcdark'),(H+1,'tcwhite')],[(H+1,'tcwhite')],leaf='tcsilver',gaps=[0,1,1,1,1,0],
+  bands=line,leafbands=[(1.01,.18,'tclime'),((2.05+dt)/2,dt-2.05,'tcnavy')]+line)
+ # 駕駛室側面白色，後緣往前上斜，接嫩綠、深藍兩道斜帶；車頂圓角那段用 shell_wrap 接上去
+ xb=lambda z:neck-1.10+.50*(z-.83)/(H-.83);zt=H-s['radiusTop']
+ for side in [-1,1]:
+  side_paint('駕駛室側面白色',s,f,side,[lambda x,z:x-xb(z)],neck-1.2,L/2,.84,zt,'tcwhite',offset=.026)
+  side_paint('駕駛室斜帶嫩綠',s,f,side,[lambda x,z:x-(xb(z)-.20),lambda x,z:xb(z)-x],neck-1.4,neck,.84,zt,'tclime',offset=.026)
+  side_paint('駕駛室斜帶深藍',s,f,side,[lambda x,z:x-(xb(z)-.30),lambda x,z:(xb(z)-.20)-x],neck-1.5,neck,.84,zt,'tcnavy',offset=.026)
+  shell_wrap('駕駛室側面白色（車頂圓角）',s,f,upper_section(s,zt,H-.16,side),xb,L/2,'tcwhite',.012)
+ e=W/2-.004;top=lambda y:face_zmax(s,y,.02)
+ def u_lo(y):
+  a=abs(y);return 1.445+.30*(max(0,a-.40)/.36)**1.6 if a<=.76 else 1.745+4.44*(a-.76)
+ front_patch('黑色盾形',f,-1.10,1.10,u_lo,top,'tcblack',.026,cols=48,rows=20)
+ front_patch('前窗',f,-.87,.87,lambda y:2.04+6.6*max(0,abs(y)-.76),rounded_top(2.97,.87,.10),'glass',.036,cols=36,rows=10)
+ for side in [-1,1]:
+  a,b=sorted([side*1.30,side*e]);front_patch('車角深藍',f,a,b,1.00,top,'tcnavy',.024,cols=4,rows=16)
+  front_panel('黑色燈艙',f,side*1.15,1.47,.42,.52,'tcblack',.10,.032)
+  lamp('頭燈',f,side*1.20,1.60,.075);lamp('尾燈',f,side*1.13,1.36,.070,red=True)
+  front_panel('保險桿通風口',f,side*.72,1.02,.30,.09,'frame',.02,.034)
+  box('白色排障角',(f(side*1.15,.83)-.12,side*1.15,.70),(.30,.52,.26),'tcwhite',.06)
+ front_patch('深灰保險桿',f,-e,e,.84,lambda y:1.17-.17*(abs(y)/1.42)**2,'tcdark',.028,cols=40,rows=4)
+ return f
+
+def kaohsiung(s):
+ """高雄捷運（西門子）。參考：Commons「KMRT Gangshan Station 2024.06.30.jpg」（總統府，CC BY 2.0，正面）、「Siemens Modular Metro EMU.jpg」（Samson Ng，CC BY-SA 4.0，斜側）、
+ 「Color of the Siemens Modular Metro (Kaohsiung MRT) 20241111.jpg」（阿道，CC BY-SA 4.0，車側）。
+ 平直車頭：上緣青綠頂帽（延伸到駕駛室車頂）、中央頂燈；黑色面罩夾兩扇前窗與中央逃生門（門頂一塊青綠飾板）；面罩下緣是往兩側上揚的笑臉弧，
+ 弧下一條白線、再下是青綠帶（兩組燈座：外紅內白），最下銀色。車側不鏽鋼、窗下一條青綠寬帶，車頂兩端冷氣箱。
+ 高度依岡山站正面照量（車底 .83、車頂 3.40）：頂帽下緣中央 2.93、兩側 2.82；前窗 1.84–2.90；笑臉弧中央 1.44、車角 1.74；青綠帶下緣 1.18；燈 1.31。"""
+ L,W,H=s['L'],s['W'],s['H']
+ color('kssilver','BFC5C7',.50,.30,.15);color('ksteal','10B5AC',.05,.32,.30);color('ksblack','161B20',.20,.22,.45);color('kswhite','F2F3F0',.08,.32,.25)
+ color('ksroof','AEB4B7',.40,.42,.08);color('ksdoor','2A3036',.25,.20,.45);color('ksled','F28A2A',.10,.25,.30)
+ profile=[(.83,L/2-.06),(1.00,L/2),(2.40,L/2-.02),(3.00,L/2-.10),(H-.12,L/2-.22),(H,L/2-.42)]
+ s['bowPow']=4;band=[(1.50,.40,'ksteal')]
+ f,neck,doors=emu_body(s,profile,.08,[(H-.12,'kssilver'),(H+1,'ksroof')],[(1.18,'kssilver'),(H+1,'ksblack')],
+  [(1.30,'kssilver'),(1.70,'ksteal'),(2.86,'kssilver'),(H+1,'ksteal')],leaf='kssilver',gaps=[0,2,2,2,1],bands=band,leafbands=band)
+ shell_wrap('駕駛室青綠頂帽',s,f,upper_section(s,2.86),neck-1.1,L/2,'ksteal')
+ e=W/2-.004;top=lambda y:face_zmax(s,y,.02)
+ sm=lambda y:1.44+.30*(abs(y)/1.45)**2;cap=lambda y:2.93-.11*(abs(y)/1.45)**2
+ front_patch('笑臉弧白線',f,-e,e,lambda y:sm(y)-.09,sm,'kswhite',.028,cols=48,rows=2)
+ front_patch('青綠笑臉帶',f,-e,e,1.18,lambda y:sm(y)-.09,'ksteal',.028,cols=48,rows=4)
+ for side in [-1,1]:
+  a,b=sorted([side*.52,side*e]);front_patch('青綠頂帽',f,a,b,cap,top,'ksteal',.026,cols=16,rows=6)
+  a,b=sorted([side*.56,side*1.30]);lo,hi=pinch(lambda y:1.84,lambda y:cap(y)-.03,a,b,.06)
+  front_patch('前窗',f,a,b,lo,hi,'glass',.036,cols=16,rows=8)
+  front_panel('燈座',f,side*.95,1.31,.54,.25,'ksblack',.10,.034)
+  lamp('頭燈',f,side*.83,1.31,.080);lamp('尾燈',f,side*1.07,1.31,.075,red=True)
+ front_patch('門上青綠頂帽',f,-.52,.52,3.23,top,'ksteal',.026,cols=12,rows=3)
+ front_patch('門頂青綠飾板',f,-.44,.44,2.99,3.17,'ksteal',.030,cols=12,rows=2)
+ front_patch('逃生門深色上半',f,-.46,.46,lambda y:sm(y)+.01,2.95,'ksdoor',.030,cols=16,rows=8)
+ for y in [-.50,.50]:front_patch('逃生門門縫',f,y-.01,y+.01,1.06,3.22,'frame',.034,cols=1,rows=14)
+ for z in [1.06,3.22]:front_patch('逃生門門縫',f,-.50,.50,z-.01,z+.01,'frame',.034,cols=12,rows=1)
+ front_panel('目的地顯示器',f,-.91,2.66,.60,.26,'dark',.02,.044);front_panel('目的地字幕',f,-.91,2.66,.48,.09,'ksled',.01,.050)
+ lamp('頂部頭燈',f,0,3.29,.055)
+ for y in [-.70,.72]:wiper(f,y,1.95,.80)
+ front_panel('防爬器',f,0,.90,W-.40,.10,'chassis',.03,.06)
+ return f
+
+def val256(s):
+ """文湖線 VAL256（馬特拉）。參考：Commons「Matra VAL256, Taipei Metro 20210509.jpg」（Subscriptshoe9，CC BY-SA 4.0）、「Matra-GEC Alsthom VAL256 APM.jpg」（Samson Ng，CC BY-SA 4.0）、
+ 「Engineering drawings of the VAL 256.jpg」（作者不詳，Attribution，正面與側面工程圖）。白色平頭，一整片圓角大前窗（無人駕駛），窗下一塊白色飾板；
+ 下方深藍帶、兩側各一大一小圓燈，最下黑色裙板。車側上半白、窗下淺灰藍帶夾深藍細線、下緣深藍。
+ 走行：每節兩根膠輪單軸，軸的前後兩側各一個水平導向輪，貼在導軌高度（工程圖正面）。
+ 高度依工程圖正面換算（車底 .83、車頂 3.05）：前窗 1.89–2.87、飾板 1.50–1.85、燈 1.30、裙板 1.06 以下。"""
+ L,W,H=s['L'],s['W'],s['H']
+ color('vwhite','EEF0EE',.08,.34,.25);color('vblue','2C4C8C',.08,.34,.30);color('vlight','C3CAD3',.30,.34,.15)
+ color('vblack','1A1E22',.20,.30,.30);color('vroof','C9CDCE',.35,.40,.10)
+ profile=[(.83,L/2-.04),(1.00,L/2),(1.80,L/2-.01),(2.80,L/2-.06),(H-.10,L/2-.16),(H,L/2-.34)]
+ s['bowPow']=4
+ zones=[(1.05,'vblue'),(1.58,'vlight'),(1.66,'vblue'),(H-.10,'vwhite'),(H+1,'vroof')]
+ f,neck,doors=emu_body(s,profile,.06,zones,[(1.06,'vblack'),(1.50,'vblue'),(H+1,'vwhite')],
+  [(1.06,'vblack'),(1.50,'vblue'),(H-.10,'vwhite'),(H+1,'vroof')],leaf='vwhite',gaps=[1,2,1],leafbands=[(.985,.13,'vblue'),(1.315,.53,'vlight'),(1.62,.08,'vblue')])
+ front_panel('前窗黑框',f,0,2.38,2.20,1.06,'vblack',.15,.030);front_panel('大片前窗',f,0,2.38,2.12,.98,'glass',.13,.040)
+ front_panel('窗下飾板框',f,0,1.675,2.16,.33,'vlight',.06,.028);front_panel('窗下飾板',f,0,1.675,2.10,.27,'vwhite',.05,.033)
+ for side in [-1,1]:lamp('頭燈',f,side*.98,1.30,.095);lamp('尾燈',f,side*.74,1.30,.070,red=True)
+ for y in [-.62,.62]:wiper(f,y,1.95,.60)
+ # 水平導向輪：每根軸前後兩側各一個，輪面朝外貼導軌
+ use('04')
+ for c in s['bogieX']:
+  box('導向框架',(c,0,.40),(1.05,W*.84,.08),'chassis',.02)
+  for side in [-1,1]:
+   for dx in [-.42,.42]:
+    cyl('水平導向輪',(c+dx,side*(W/2-.03),.30),.12,.09,'rubber','Z',20)
+    cyl('導向輪輪轂',(c+dx,side*(W/2-.03),.30),.05,.11,'metal','Z',12)
+    box('導向輪臂',(c+dx,side*(W/2-.20),.36),(.10,.30,.06),'chassis',.01)
+ return f
+
 BUILDERS={'c301':c301,'c321':c321,'c341':c341,'c371':c371,'c381':c381,'emu500':emu500,'emu600':emu600,'haifeng':haifeng,'shanlan':shanlan,'emu800':emu800,'emu800r':emu800r,
  'emu900':emu900,'emu700':emu700,'temu1000':temu1000,'temu2000':temu2000,'700t':t700,'e1000':e1000,'ppcoach':ppcoach,
- 'dr3100':dr3100,'dr1000':dr1000,'dr2700':dr2700,'emu100':emu100,'emu1200':emu1200}
+ 'dr3100':dr3100,'dr1000':dr1000,'dr2700':dr2700,'emu100':emu100,'emu1200':emu1200,
+ 'airportlocal':airportlocal,'airportexpress':airportexpress,'y100':y100,'sanying':sanying,'taichung':taichung,'kaohsiung':kaohsiung,'val256':val256}
