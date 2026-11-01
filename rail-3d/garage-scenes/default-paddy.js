@@ -39,7 +39,9 @@ function createKit(seedValue){
  const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
  const batches=new Map(),dummy=new THREE.Object3D();
  // 合批：同幾何同材質一個 InstancedMesh。color 給了就寫進 instanceColor（bake 的 INST 段有實例色）。
- function instance(g,m,pos,scale,rot=[0,0,0],color){if(!batches.has(g))batches.set(g,new Map());const b=batches.get(g);if(!b.has(m))b.set(m,[]);b.get(m).push({pos,scale,rot,color});}
+ // capture(fn) 把 fn 期間放下的每個實例另抄一份回傳（house() 用它找 props.townhouse 實際把窗玻璃放在哪）。
+ let tap=null;const capture=fn=>{const got=[];tap=(m,pos,scale)=>got.push({m,pos,scale});try{fn();}finally{tap=null;}return got;};
+ function instance(g,m,pos,scale,rot=[0,0,0],color){tap?.(m,pos,scale);if(!batches.has(g))batches.set(g,new Map());const b=batches.get(g);if(!b.has(m))b.set(m,[]);b.get(m).push({pos,scale,rot,color});}
  const block=(m,size,pos,rot,color)=>instance(box,m,pos,size,rot,color);
  function mesh(g,m,pos){const o=new THREE.Mesh(g,m);if(pos)o.position.set(...pos);o.castShadow=o.receiveShadow=true;group.add(o);return o;}
  function rounded(w,h,r){const s=new THREE.Shape();s.moveTo(-w/2+r,-h/2);s.lineTo(w/2-r,-h/2);s.quadraticCurveTo(w/2,-h/2,w/2,-h/2+r);s.lineTo(w/2,h/2-r);s.quadraticCurveTo(w/2,h/2,w/2-r,h/2);s.lineTo(-w/2+r,h/2);s.quadraticCurveTo(-w/2,h/2,-w/2,h/2-r);s.lineTo(-w/2,-h/2+r);s.quadraticCurveTo(-w/2,-h/2,-w/2+r,-h/2);return s;}
@@ -332,7 +334,7 @@ function createKit(seedValue){
  const poolMesh=()=>group.children.find(o=>o.isInstancedMesh&&o.material===poolMat);
  function dispose(){group.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());poolTex?.dispose();}
  return{group,rand,geo,mat,box,stoneGeo,cone,cyl,paint,tone,jit,smooth,instance,block,groundZ,rimX,plinth,loop,track,catenary,girderBridge,portal,tunnelLining,terrain,river,pool,poolMat,poolMesh,light,lights,props,paddy,
-  broadleaf,camphor,banyan,cypress,casuarina,blossom,fruit,shrub,betel,bamboo,GREEN,tiledRoof,pole,wire,finish,dispose};
+  broadleaf,camphor,banyan,cypress,casuarina,blossom,fruit,shrub,betel,bamboo,GREEN,tiledRoof,pole,wire,capture,finish,dispose};
 }
 
 export function createScene(params = {}){
@@ -498,18 +500,21 @@ export function createScene(params = {}){
  // 樓板線、鋁窗框與窗台、窗型冷氣、鐵窗的直條、直立招牌（夜裡會亮，幾格深色當字）、屋頂的太陽能熱水器與天線。
  const WALLS=['#ece4d2','#d9b9a6','#cfd0c8','#e6dcb2','#cfd8c4'];   // 同 props.js 透天厝外牆的五色
  function house(x,y,o){
-  props.townhouse(x,y,groundZ,o);
+  // 窗框、窗台、冷氣、鐵窗都照 props 實際放窗玻璃的高度走，不照樓高自己算：props.js 目前每層的窗、陽台、鐵窗多加了一次
+  // 地面 z（整組一起低約 0.7），照樓高放會在框下露出一塊塊深色玻璃。props 修好之後抄到的高度跟著變，這裡不用改。
+  const got=k.capture(()=>props.townhouse(x,y,groundZ,o));
   const {floors=3,width:w=2.6,depth:d=3.2,tint=0,roof='tin',ground='plain',balcony='rail'}=o,fh=1.05,H=floors*fh,front=y-d/2,wc=WALLS[tint%5];
   for(let f=ground==='arcade'?1:0;f<floors;f++){const zc=groundZ+f*fh;
    if(f>0)block(paint,[w+.03,d+.03,.06],[x,y,zc],[0,0,0],tone(wc,.8));
    for(const t of [.36,.7])block(paint,[w+.012,d+.012,.016],[x,y,zc+t*fh],[0,0,0],tone(wc,.9));}
+  const panes=got.filter(g=>g.m===props.glass&&g.pos[1]<y&&g.scale[0]===.5),f0=ground==='plain'?0:1;
+  const lift=panes.length?panes[0].pos[2]-(groundZ+(f0+.6)*fh):0,floorOf=z=>Math.round((z-lift-groundZ)/fh-.6);
+  for(const {pos:[px,,pz]} of panes){if((floorOf(pz)>0&&balcony==='cage')||pz<groundZ+.3)continue;   // 鐵窗那層被鐵窗擋住；沉到地面下的不畫
+   block(paint,[.6,.03,.68],[px,front-.004,pz],[0,0,0],tone('#aeb2ad'));block(paint,[.64,.12,.04],[px,front-.06,pz-.33],[0,0,0],tone('#d6d1c4'));block(paint,[.025,.015,.58],[px,front-.065,pz],[0,0,0],tone('#aeb2ad'));}
   const nw=Math.max(1,Math.round((w-.5)/.85));
-  for(let f=0;f<floors;f++){const zc=groundZ+f*fh;
-   if(f>0&&balcony==='cage'){for(let a=-w*.43;a<=w*.43;a+=.16)block(paint,[.022,.02,fh*.6],[x+a,front-.28,zc+fh*.55],[0,0,0],tone('#8d9699'));for(const z of [.26,.84])block(paint,[w*.9,.02,.025],[x,front-.28,zc+fh*z],[0,0,0],tone('#8d9699'));continue;}
-   if(f===0&&ground!=='plain')continue;
-   for(let i=0;i<nw;i++){const a=(i-(nw-1)/2)*.85;
-    block(paint,[.6,.03,.68],[x+a,front-.004,zc+fh*.6],[0,0,0],tone('#aeb2ad'));block(paint,[.64,.12,.04],[x+a,front-.06,zc+fh*.6-.33],[0,0,0],tone('#d6d1c4'));block(paint,[.025,.015,.58],[x+a,front-.065,zc+fh*.6],[0,0,0],tone('#aeb2ad'));}
-   if(f>0&&rand()<.4){const a=((Math.floor(rand()*nw))-(nw-1)/2)*.85;block(paint,[.4,.3,.26],[x+a,front-.13,zc+fh*.72],[0,0,0],tone('#e4e2dc'));block(paint,[.3,.01,.18],[x+a,front-.285,zc+fh*.72],[0,0,0],tone('#9a9d98'));}
+  for(let f=1;f<floors;f++){const zc=groundZ+lift+f*fh;
+   if(balcony==='cage'){for(let a=-w*.43;a<=w*.43;a+=.16)block(paint,[.022,.02,fh*.6],[x+a,front-.28,zc+fh*.55],[0,0,0],tone('#8d9699'));for(const z of [.26,.84])block(paint,[w*.9,.02,.025],[x,front-.28,zc+fh*z],[0,0,0],tone('#8d9699'));continue;}
+   if(rand()<.4){const a=((Math.floor(rand()*nw))-(nw-1)/2)*.85;block(paint,[.4,.3,.26],[x+a,front-.13,zc+fh*.48],[0,0,0],tone('#e4e2dc'));block(paint,[.3,.01,.18],[x+a,front-.285,zc+fh*.48],[0,0,0],tone('#9a9d98'));}
   }
   if(ground!=='plain'&&floors>=2&&rand()<.65){const sx=x+(rand()<.5?-1:1)*(w/2-.18),sz=groundZ+fh+.6;
    block(paint,[.04,.3,.04],[sx,front-.15,sz+.45],[0,0,0],tone('#5a5f62'));block(props.signs[(tint+1)%3],[.08,.42,1.0],[sx,front-.62,sz]);
