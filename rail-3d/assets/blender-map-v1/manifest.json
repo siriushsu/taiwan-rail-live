@@ -798,7 +798,7 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/emu700.json",
-        "rawSha256": "0c982b002485a3d99ea1eeda4c6c8fa6e9f2f7afaed805d6a5c03aec82ac5a63",
+        "rawSha256": "0b46d41659fa212a1406b84ea4ea99c5a7540a3000289fef3cba3e591c1fd9a6",
         "engineeringDimensionsM": null
       },
       "sources": [
@@ -901,7 +901,7 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/emu900.json",
-        "rawSha256": "1d9c344c6d5720875b022f538105760e3033c17e384bb09641b912995005d1ca",
+        "rawSha256": "e4849636207201bb88f060f7ddebdf139fa5a158e4a89c6a9faee144a608b612",
         "engineeringDimensionsM": null
       },
       "sources": [
@@ -3063,44 +3063,44 @@
     },
     "emu700": {
       "file": "emu700.bin",
-      "sha256": "f104386810f2ef6bc6abd02ff58fff90685c5294dfedbd4a4ef445444a6db842",
-      "byteLength": 959520,
-      "vertexCount": 23988,
+      "sha256": "cd115dfe5d3b9c55fd6d44e717df9626ce51de8ef33f1f568b16e7245e52198b",
+      "byteLength": 954360,
+      "vertexCount": 23859,
       "min": [
         -4.89900016784668,
-        -1.4895495176315308,
-        0.0011029987363144755
+        -1.4907673597335815,
+        0.001102999784052372
       ],
       "max": [
-        4.646268367767334,
-        1.4895493984222412,
-        3.7188665866851807
+        4.809000015258789,
+        1.4907673597335815,
+        3.6700000762939453
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/emu700.json",
-        "rawSha256": "0c982b002485a3d99ea1eeda4c6c8fa6e9f2f7afaed805d6a5c03aec82ac5a63",
+        "rawSha256": "0b46d41659fa212a1406b84ea4ea99c5a7540a3000289fef3cba3e591c1fd9a6",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
     },
     "emu700-mid": {
       "file": "emu700-mid.bin",
-      "sha256": "8dfb1efb0dbae1f66a698cbbae484dd376372b24347fbfe1319f1268abf6d77c",
-      "byteLength": 928680,
-      "vertexCount": 23217,
+      "sha256": "10d0b82e52166fa527a568125962b56aca2192e4c62269d200a966aff2e60d79",
+      "byteLength": 933960,
+      "vertexCount": 23349,
       "min": [
         -4.89900016784668,
-        -1.4895493984222412,
-        0.0011030019959434867
+        -1.4824764728546143,
+        0.001102999784052372
       ],
       "max": [
         4.89900016784668,
-        1.4895493984222412,
-        3.7188665866851807
+        1.4825104475021362,
+        3.6593663692474365
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/emu700.json",
-        "rawSha256": "0c982b002485a3d99ea1eeda4c6c8fa6e9f2f7afaed805d6a5c03aec82ac5a63",
+        "rawSha256": "0b46d41659fa212a1406b84ea4ea99c5a7540a3000289fef3cba3e591c1fd9a6",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
@@ -3195,44 +3195,44 @@
     },
     "emu900": {
       "file": "emu900.bin",
-      "sha256": "7c6a763064fdedb3b7427862ae71fd4747cbafaf3a07010fbbdc879b7490e255",
-      "byteLength": 952080,
-      "vertexCount": 23802,
+      "sha256": "6f836695a7b17eafbe749fe7e03e54311c4aff1430b06b8a64c59bd748cf7577",
+      "byteLength": 955440,
+      "vertexCount": 23886,
       "min": [
         -4.89900016784668,
-        -1.4895493984222412,
-        0.0011029987363144755
+        -1.4945383071899414,
+        0.001102999784052372
       ],
       "max": [
-        4.908999919891357,
-        1.4895493984222412,
-        3.7188665866851807
+        4.928999900817871,
+        1.4945383071899414,
+        3.6700000762939453
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/emu900.json",
-        "rawSha256": "1d9c344c6d5720875b022f538105760e3033c17e384bb09641b912995005d1ca",
+        "rawSha256": "e4849636207201bb88f060f7ddebdf139fa5a158e4a89c6a9faee144a608b612",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
     },
     "emu900-mid": {
       "file": "emu900-mid.bin",
-      "sha256": "ab75eb62f1f37d0a788b0dcbd021a67ff3c44d5a9288f9f182ab9b4d3ed42165",
-      "byteLength": 952560,
-      "vertexCount": 23814,
+      "sha256": "1b16a7f1ca457a867e0a43c1dbdd2d16d1b8f2dca9f74cd8ba5012bf52bcbcfa",
+      "byteLength": 951960,
+      "vertexCount": 23799,
       "min": [
         -4.89900016784668,
-        -1.4895493984222412,
-        0.0011030019959434867
+        -1.4809999465942383,
+        0.001102999784052372
       ],
       "max": [
         4.89900016784668,
-        1.4895493984222412,
-        3.7188665866851807
+        1.4809999465942383,
+        3.6593663692474365
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/emu900.json",
-        "rawSha256": "1d9c344c6d5720875b022f538105760e3033c17e384bb09641b912995005d1ca",
+        "rawSha256": "e4849636207201bb88f060f7ddebdf139fa5a158e4a89c6a9faee144a608b612",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"

@@ -472,5 +472,110 @@
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu900",
+  "name": "EMU900 區間車",
+  "label": "EMU900",
+  "detail": "黑色面罩 · 白色 LED 燈帶 · 嫩綠側頰",
+  "color": "#83bd35",
+  "source": "https://newtalk.tw/news/view/2023-11-18/897088",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/emu900-tra-emu900-type-electric.html"
+   },
+   {
+    "label": "Wikimedia Commons／jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU900_running_a_local_train_service_on_the_Western_Line.jpg"
+   }
+  ],
+  "features": [
+   "車頭上半一整片黑色面罩，前窗融在黑裡；頂端中央目的地顯示、上方兩角各一顆圓頭燈。",
+   "窗下兩側斜放煙燻燈座、下緣一條白色 LED 燈帶；燈座外側的嫩綠側頰繞過車角，接成車側窗下的綠帶。",
+   "駕駛室後面是長圓窗與乘務員門，再往後三組雙開門；面罩以下銀色，中央開口露出車鉤。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EMU900 running a local train service on the Western Line.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU900_running_a_local_train_service_on_the_Western_Line.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面（面罩、前窗、燈座、LED 燈帶、側頰高度）"
+   },
+   {
+    "file": "File:EMU900 Yingge Station 20260108 (2).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU900_Yingge_Station_20260108_(2).jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側（側頰接車側綠帶、長圓窗、乘務員門）"
+   },
+   {
+    "file": "File:EMU900 Yingge Station 20260108.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU900_Yingge_Station_20260108.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側（燈座與燈帶形狀）"
+   },
+   {
+    "file": "File:臺鐵EMU900型電聯車於現代工廠.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%87%BA%E9%90%B5EMU900%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E7%8F%BE%E4%BB%A3%E5%B7%A5%E5%BB%A0.jpg",
+    "author": "中華民國交通部",
+    "licence": "Attribution",
+    "use": "駕駛車側面（門窗配置、車頂冷氣）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu700",
+  "name": "EMU700・阿福號",
+  "label": "EMU700",
+  "detail": "白色平直車頭 · 橘色外框與月牙下巴 · 藍色裙部",
+  "color": "#467ba5",
+  "source": "https://blair-train.blogspot.com/2011/09/emu740.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2011/09/emu740.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.trsc.com.tw/train/tran-58acf525031f4"
+   },
+   {
+    "label": "Wikimedia Commons／jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU700_running_a_local_train_service_on_the_Western_Line_approaching_Wudu_Station.jpg"
+   }
+  ],
+  "features": [
+   "平直的白色車頭，左右緣橘色外框、車角與駕駛室側面藍色；大片圓角前窗加黑框。",
+   "頂端中央藥丸形雙頭燈座、右上目的地顯示，窗下四顆鍍鉻圈圓燈（外紅內白）。",
+   "下巴往前凸、橘色月牙形，下方藍色裙部；車側窗下粗藍帶加細橘線、車頂邊一條藍帶，每側三組雙開門。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EMU700 running a local train service on the Western Line approaching Wudu Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU700_running_a_local_train_service_on_the_Western_Line_approaching_Wudu_Station.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面（前窗、燈位、橘色外框與月牙下巴高度）"
+   },
+   {
+    "file": "File:EMU700 at Daqing Station 20240204.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU700_at_Daqing_Station_20240204.jpg",
+    "author": "鐵路1",
+    "licence": "CC BY-SA 4.0",
+    "use": "2024 年塗裝確認、車頭斜側與下巴凸出"
+   },
+   {
+    "file": "File:20230505 TRA EMU700 at Zhunan Station 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:20230505_TRA_EMU700_at_Zhunan_Station_01.jpg",
+    "author": "鐵路1",
+    "licence": "CC BY-SA 4.0",
+    "use": "車側（窗下藍帶、細橘線、車頂邊藍帶、門窗）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
  }
 ]

@@ -38,6 +38,8 @@ python3 prototypes/tiny-trains/blender/tw-v2/finalize_tw.py c301 c321 c341 c371 
 | 款 | 狀態 |
 | --- | --- |
 | `c301` `c321` `c341` `c371` `c381` 北捷高運量 | 精修，對照 Commons 照片量過車頭高度並修過兩次（2026-11-01） |
+| `emu500` `emu600` `haifeng` `shanlan` `emu800` `emu800r` 區間車 | 精修，對照 Commons 照片與官方示意圖修過三次（2026-11-01） |
+| `emu900` `emu700` 區間車 | 精修，車頭高度照正面照量、門窗配置照側面照（2026-11-01） |
 
 ## 照片與標誌
 

@@ -315,5 +315,63 @@
   ],
   "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
   "thumbnail": "models/emu800r/renders/thumb.webp"
+ },
+ {
+  "id": "emu900",
+  "name": "EMU900 區間車",
+  "family": "railcar",
+  "detail": "黑色面罩 · 白色 LED 燈帶 · 嫩綠側頰",
+  "features": [
+   "車頭上半一整片黑色面罩，前窗融在黑裡；頂端中央目的地顯示、上方兩角各一顆圓頭燈。",
+   "窗下兩側斜放煙燻燈座、下緣一條白色 LED 燈帶；燈座外側的嫩綠側頰繞過車角，接成車側窗下的綠帶。",
+   "駕駛室後面是長圓窗與乘務員門，再往後三組雙開門；面罩以下銀色，中央開口露出車鉤。"
+  ],
+  "metadata": "models/emu900/emu900.model.json",
+  "blend": "models/emu900/emu900.blend",
+  "glb": "models/emu900/emu900.glb",
+  "hero": "models/emu900/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/emu900-tra-emu900-type-electric.html"
+   },
+   {
+    "label": "Wikimedia Commons／jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU900_running_a_local_train_service_on_the_Western_Line.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu900/renders/thumb.webp"
+ },
+ {
+  "id": "emu700",
+  "name": "EMU700・阿福號",
+  "family": "railcar",
+  "detail": "白色平直車頭 · 橘色外框與月牙下巴 · 藍色裙部",
+  "features": [
+   "平直的白色車頭，左右緣橘色外框、車角與駕駛室側面藍色；大片圓角前窗加黑框。",
+   "頂端中央藥丸形雙頭燈座、右上目的地顯示，窗下四顆鍍鉻圈圓燈（外紅內白）。",
+   "下巴往前凸、橘色月牙形，下方藍色裙部；車側窗下粗藍帶加細橘線、車頂邊一條藍帶，每側三組雙開門。"
+  ],
+  "metadata": "models/emu700/emu700.model.json",
+  "blend": "models/emu700/emu700.blend",
+  "glb": "models/emu700/emu700.glb",
+  "hero": "models/emu700/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2011/09/emu740.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.trsc.com.tw/train/tran-58acf525031f4"
+   },
+   {
+    "label": "Wikimedia Commons／jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU700_running_a_local_train_service_on_the_Western_Line_approaching_Wudu_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu700/renders/thumb.webp"
  }
 ]

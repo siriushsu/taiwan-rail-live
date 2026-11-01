@@ -23,3 +23,9 @@ e800=dict(L=9.0,W=2.8,H=3.45,doors=3,doorLeaves=2,rearDoor=1.20,frontDoor=1.10,c
  body='BFC6CA',accent='2B4FB0',acUnits=[(-2.3,1.6),(1.0,1.6)],acMat='e8roof')
 add('emu800','railcar',**e800,label='EMU800')
 add('emu800r','railcar',**e800,inverse=True,label='EMU800')
+# EMU900（現代 Rotem）：L 9.0；駕駛室後面是一扇長圓窗與乘務員門，再往後才是三組雙開門（門窗配置照現代工廠側面照）。
+add('emu900','railcar',L=9.0,W=2.8,H=3.45,doors=3,doorLeaves=2,rearDoor=1.35,frontDoor=1.45,cabWin=.30,winH=.74,winZ=2.50,doorWinH=.80,doorWinZ=2.42,doorTop=2.98,
+ body='C3C9CC',accent='8DC63F',acUnits=[(-2.2,1.7),(1.0,1.7)],acMat='e9roof',label='EMU900')
+# EMU700（日本車輛／台灣車輛）：L 9.0；平直車頭、下巴往前凸；駕駛室後面有乘務員門；每側三組雙開門。
+add('emu700','railcar',L=9.0,W=2.8,H=3.45,doors=3,doorLeaves=2,rearDoor=1.20,frontDoor=1.25,crewDoor=True,winH=.66,winZ=2.52,doorWinH=.70,doorWinZ=2.45,doorTop=2.95,
+ body='C2C8CB',accent='1F4FA8',acUnits=[(-2.2,1.7),(.9,1.7)],acMat='e7roof',label='EMU700')
