@@ -8,7 +8,8 @@ import {createDiorama,SCENES} from './garage-diorama.js';
 export {SCENES};
 
 export function createRenderer(onLost = () => {}) {
-  const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true, preserveDrawingBuffer:true});
+  // stencil：田園小站的隧道透視要用（garage-diorama.js）。
+  const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true, preserveDrawingBuffer:true, stencil:true});
   // 只有場景頁的太陽投影（原型同款柔邊陰影）；其餘三格沒有投影光源，不受影響。
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;

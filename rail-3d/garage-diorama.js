@@ -40,11 +40,23 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
  scene.add(world.group,consist.root);
  const wires=sceneId==='paddy'?catenaryFor(carId,family):null;
  if(wires!==null)world.group.traverse(o=>{if(o.name==='catenary')o.visible=wires;});
- // 隧道透視（田園小站，同 App 與網頁 3D 地圖的地下列車 .42）：場景之後、車身之前多畫一趟，只畫比場景遠（被山擋住）的部分。
- // 車身 renderOrder 排在它後面，洞口看得到的部分照常由車身蓋過去。
- const xrayMaterials=new Map(),xrayOf=list=>{if(!xrayMaterials.has(list))xrayMaterials.set(list,list.map(src=>{const x=src.clone();x.onBeforeCompile=src.onBeforeCompile;Object.assign(x,{transparent:false,blending:THREE.CustomBlending,opacity:.42,depthFunc:THREE.GreaterDepth,depthWrite:false});return x;}));return xrayMaterials.get(list);};
- const xrays=world.tunnel?consist.cars.map(c=>{const x=new THREE.Mesh(c.asset.geometry,xrayOf(c.asset.materials));x.position.copy(c.body.position);x.renderOrder=1;x.visible=false;c.car.add(x);c.body.renderOrder=2;return x;}):[];
- consist.root.traverse(o=>{if(o.isMesh&&!xrays.includes(o)){o.castShadow=true;o.receiveShadow=true;}});
+ // 隧道透視（田園小站，同 App 與網頁 3D 地圖的地下列車 .42）：被山擋住的車隔著山只透出最外層車殼，不透出車內與對面那片車殼。
+ // 整幀畫完後只畫 XRAY 圖層再一趟，stencil 五步（同 App R3DRenderer／garage_scene.cpp）：mark 標出車身比深度遠的像素 →
+ // unmark 車身看得到的像素取消（不然車窗玻璃、陰影會被疊色改掉）→ clearDepth 只在剩下的像素把深度清成最遠 → depth 寫車殼深度 → color 只畫最近那層。
+ const XRAY=1,STEPS={
+  mark:{colorWrite:false,depthWrite:false,depthFunc:THREE.GreaterDepth,stencilWrite:true,stencilFunc:THREE.AlwaysStencilFunc,stencilZPass:THREE.ReplaceStencilOp},
+  unmark:{colorWrite:false,depthWrite:false,depthFunc:THREE.LessEqualDepth,stencilWrite:true,stencilFunc:THREE.AlwaysStencilFunc,stencilZPass:THREE.ReplaceStencilOp,stencilRef:0},
+  depth:{colorWrite:false,depthWrite:true,depthFunc:THREE.LessDepth,stencilWrite:true,stencilWriteMask:0,stencilFunc:THREE.EqualStencilFunc},
+  color:{blending:THREE.CustomBlending,opacity:.42,depthWrite:false,depthFunc:THREE.LessEqualDepth,stencilWrite:true,stencilWriteMask:0,stencilFunc:THREE.EqualStencilFunc},
+ };
+ const xrayMaterials=new Map(),xrayOf=(list,step)=>{if(!xrayMaterials.has(list))xrayMaterials.set(list,{});const by=xrayMaterials.get(list);return by[step]??=list.map(src=>{const x=src.clone();x.onBeforeCompile=src.onBeforeCompile;Object.assign(x,{transparent:false,stencilRef:1},STEPS[step]);return x;});};
+ const clearDepth=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({vertexShader:'void main(){gl_Position=vec4(position.xy,1.,1.);}',fragmentShader:'void main(){gl_FragColor=vec4(0.);}',
+  colorWrite:false,depthWrite:true,depthFunc:THREE.AlwaysDepth,stencilWrite:true,stencilWriteMask:0,stencilFunc:THREE.EqualStencilFunc,stencilRef:1}));
+ clearDepth.frustumCulled=false;clearDepth.renderOrder=3;clearDepth.layers.set(XRAY);
+ const xrays=world.tunnel?consist.cars.map(c=>Object.fromEntries(Object.keys(STEPS).map((step,k)=>{const x=new THREE.Mesh(c.asset.geometry,xrayOf(c.asset.materials,step));x.position.copy(c.body.position);x.renderOrder=[1,2,4,5][k];x.visible=false;x.layers.set(XRAY);c.car.add(x);return [step,x];}))):[];
+ const xrayMeshes=new Set(xrays.flatMap(Object.values));
+ if(xrays.length){scene.add(clearDepth);scene.traverse(o=>{if(o.isLight)o.layers.enable(XRAY);});}
+ consist.root.traverse(o=>{if(o.isMesh&&!xrayMeshes.has(o)){o.castShadow=true;o.receiveShadow=true;}});
  const follow3D=createTerrainFollower(consist),journey=m.drive===2?createJourney(world.routes,consist.length):null;
  const target=new THREE.Vector3();let period,lite;
  function setTheme(next){period=next;const t=themes[next];scene.background=new THREE.Color(t.background);hemi.color.set(t.ambient);hemi.groundColor.set(t.ground);hemi.intensity=next==='night'?1.2:2;sun.color.set(t.sun);sun.intensity=t.power;sun.position.set(next==='sunset'?-40:-25,next==='sunset'?10:-30,next==='sunset'?20:45);}
@@ -60,15 +72,26 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
    if(journey){const pose=journey.at(time);route=pose.route;s=pose.s;follow3D(world.routes[route],s);}
    else if(m.drive===0)consist.follow(world.path,s,1);else follow3D(world.path,s);
    const path=journey?world.routes[route]:world.path;let inTunnel=0;
-   xrays.forEach((x,i)=>{const c=consist.cars[i];x.material=xrayOf(owned?c.asset.materials:c.asset.lockedMaterials);x.visible=touchesTunnel(s+c.offset,c.length/2,world.tunnel,path.length);inTunnel+=x.visible;});
+   const touching=xrays.map((_,i)=>{const c=consist.cars[i];return touchesTunnel(s+c.offset,c.length/2,world.tunnel,path.length);});
+   inTunnel=touching.filter(Boolean).length;
+   // unmark 每一節都畫（不只碰到隧道的那節）：被前後車廂擋住的部分不透出來，只透過山與場景。
+   xrays.forEach((parts,i)=>{const c=consist.cars[i],list=owned?c.asset.materials:c.asset.lockedMaterials;
+    for(const [step,x] of Object.entries(parts)){x.material=xrayOf(list,step);x.visible=step==='unmark'?inTunnel>0:touching[i];}});
    const aspect=w/Math.max(1,h);
    if(trainView){target.set(0,0,0);for(const c of consist.cars)target.add(c.car.position);target.multiplyScalar(1/consist.cars.length);target.z=m.focusZ?target.z+1.4:1.4;}else target.set(...m.focus);
    const span=(trainView?Math.max(9,consist.length*.65/aspect):Math.max(m.span[0],m.span[1]/aspect))/zoom;
    Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});
    camera.position.set(target.x+100*Math.cos(elevation)*Math.cos(yaw),target.y+100*Math.cos(elevation)*Math.sin(yaw),target.z+100*Math.sin(elevation));camera.lookAt(target);camera.updateProjectionMatrix();camera.updateMatrixWorld();scene.updateMatrixWorld(true);
    renderer.render(scene,camera);
+   if(inTunnel){
+    // 透視那趟：不清畫面（背景是顏色時 three 會強制清，先拿掉）、不重算陰影圖、draw call 累加到同一幀。
+    const background=scene.background,{autoClear}=renderer,{autoUpdate}=renderer.shadowMap;
+    scene.background=null;renderer.autoClear=false;renderer.shadowMap.autoUpdate=false;renderer.info.autoReset=false;camera.layers.set(XRAY);
+    renderer.render(scene,camera);
+    camera.layers.set(0);scene.background=background;renderer.autoClear=autoClear;renderer.shadowMap.autoUpdate=autoUpdate;renderer.info.autoReset=true;
+   }
    return{period:p,distance:s,route,inTunnel,shadows:!lite};
   },
-  dispose(){consist.dispose();world.dispose();for(const list of xrayMaterials.values())list.forEach(x=>x.dispose());environment.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();sun.dispose();}
+  dispose(){consist.dispose();world.dispose();for(const by of xrayMaterials.values())for(const list of Object.values(by))list.forEach(x=>x.dispose());clearDepth.geometry.dispose();clearDepth.material.dispose();environment.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();sun.dispose();}
  };
 }
