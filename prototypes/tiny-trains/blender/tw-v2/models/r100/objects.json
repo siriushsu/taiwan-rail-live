@@ -1553,74 +1553,50 @@
   {
     "name": "機房百葉",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.001",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.002",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.003",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.004",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.005",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.006",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.007",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉框.001",
@@ -1631,56 +1607,38 @@
   {
     "name": "機房百葉.008",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.009",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.010",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.011",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.012",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.013",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉框.002",
@@ -1691,74 +1649,50 @@
   {
     "name": "機房百葉.014",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.015",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.016",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.017",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.018",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.019",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.020",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.021",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉框.003",
@@ -1769,56 +1703,38 @@
   {
     "name": "機房百葉.022",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.023",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.024",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.025",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.026",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.027",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉框.004",
@@ -1829,74 +1745,50 @@
   {
     "name": "機房百葉.028",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.029",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.030",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.031",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.032",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.033",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.034",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.035",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉框.005",
@@ -1907,56 +1799,38 @@
   {
     "name": "機房百葉.036",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.037",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.038",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.039",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.040",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.041",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉框.006",
@@ -1967,74 +1841,50 @@
   {
     "name": "機房百葉.042",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.043",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.044",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.045",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.046",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.047",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.048",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.049",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉框.007",
@@ -2045,56 +1895,38 @@
   {
     "name": "機房百葉.050",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.051",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.052",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.053",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.054",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "機房百葉.055",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵框",
@@ -2105,101 +1937,68 @@
   {
     "name": "散熱器格柵",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.001",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.002",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.003",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.004",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.005",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.006",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.007",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.008",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.009",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.010",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵框.001",
@@ -2210,173 +2009,116 @@
   {
     "name": "散熱器格柵.011",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.012",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.013",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.014",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.015",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.016",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.017",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.018",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.019",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.020",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱器格柵.021",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫.001",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫.002",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫.003",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫.004",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫.005",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫.006",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫.007",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "排氣管座",
@@ -2417,38 +2159,26 @@
   {
     "name": "護網橫條",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "護網橫條.001",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "護網橫條.002",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "護網橫條.003",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "散熱風扇外圈.001",
@@ -2471,38 +2201,26 @@
   {
     "name": "護網橫條.004",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "護網橫條.005",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "護網橫條.006",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "護網橫條.007",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "後端頭燈燈座",

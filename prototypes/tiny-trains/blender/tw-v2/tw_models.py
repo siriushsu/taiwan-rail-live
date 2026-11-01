@@ -1470,14 +1470,14 @@ def plan_band(name,pts,z0,z1,material):
    mesh(name,v,[(0,1,3,2),(4,6,7,5),(0,4,5,1),(2,3,7,6),(0,2,6,4),(1,5,7,3)],material)
 
 def louver(name,x,y,z,w,h,n,frame='hdblack',slat='hdslat'):
- """車側百葉：深色底框裡 n 條水平百葉片；y 帶正負號（車側面的位置）。"""
+ """車側百葉：深色底框裡 n 條水平百葉片；y 帶正負號（車側面的位置）。百葉片、格柵條這類 2 cm 的細條不倒角（倒角一片就近 190 個三角形）。"""
  side=1 if y>0 else -1;use('02');panel(name+'框',(x,y+side*.004,z),w,h,frame,r=.02)
- for k in range(n):box(name,(x,y+side*.016,z-h*.40+h*.80*k/max(1,n-1)),(w-.05,.014,.022),slat,.003)
+ for k in range(n):box(name,(x,y+side*.016,z-h*.40+h*.80*k/max(1,n-1)),(w-.05,.014,.022),slat,0)
 
 def bar_grille(name,x,y,z,w,h,n,frame='hdblack',bar='hdslat'):
  """車側直條格柵（散熱器、進氣口）：深色底框裡 n 支直條。"""
  side=1 if y>0 else -1;use('02');panel(name+'框',(x,y+side*.004,z),w,h,frame,r=.02)
- for k in range(n):box(name,(x-w*.42+w*.84*k/max(1,n-1),y+side*.016,z),(.022,.014,h-.06),bar,.003)
+ for k in range(n):box(name,(x-w*.42+w*.84*k/max(1,n-1),y+side*.016,z),(.022,.014,h-.06),bar,0)
 
 def wing(name,f,hw,z0,z1,tip):
  """短鼻正面的白色 V 字飛翼：兩角接車側腰帶（z0–z1），往中央下彎到 tip（V 尖下緣），中央寬度是腰帶的兩倍。"""
@@ -1518,7 +1518,7 @@ def emd_loco(s,nose=1.0,nose_r=.28,cab=1.85,sill=.96,roof='hdbody',cabroof=None,
  elif tank=='short':box('圓角燃油箱',(0,0,.63),(2.7,W*.74,.58),'hdframe',.16)
  else:
   box('燃油箱',(-.75,0,.60),(1.0,W*.70,.52),'hdframe',.05);box('電池箱',(.55,0,.60),(1.0,W*.70,.52),'hdframe',.03)
-  for k in range(4):box('電池箱蓋板縫',(.15+k*.27,0,.60),(.012,W*.71,.44),'hdblack',.002)
+  for k in range(4):box('電池箱蓋板縫',(.15+k*.27,0,.60),(.012,W*.71,.44),'hdblack',0)
  for sd in [-1,1]:
   cyl('空氣筒',(0,sd*1.12,.80),.11,1.8 if tank!='r180' else 2.6,'hdframe','X',20)
  head=len(p.MODEL);end_gear(xe,W);mirror_cab(list(p.MODEL[head:]))
@@ -1589,12 +1589,12 @@ def emd_loco(s,nose=1.0,nose_r=.28,cab=1.85,sill=.96,roof='hdbody',cabroof=None,
  for i in range(1,n):
   x=xh0+(xc0-xh0)*i/n
   if any(a-.05<x<b+.05 for a,b in spans):continue
-  for side in [-1,1]:box('檢修門門縫',(x,side*(hhw+.012),(deck+.10+htop-.30)/2),(.014,.010,htop-.30-deck-.10),'hdblack',.002)
+  for side in [-1,1]:box('檢修門門縫',(x,side*(hhw+.012),(deck+.10+htop-.30)/2),(.014,.010,htop-.30-deck-.10),'hdblack',0)
  # 機房頂：排氣管、車尾散熱風扇
  use('05');ex=(xh0+xc0)/2+.60;box('排氣管座',(ex,0,htop+.03),(.50,.42,.10),'hdframe',.03);cyl('排氣管',(ex,0,htop+.12),.10,.14,'hdblack')
  for i in range(fans):
   x=xh0+.55+i*.72;cyl('散熱風扇外圈',(x,0,htop+.035),.30,.09,'hdframe',n=28);cyl('散熱風扇護網',(x,0,htop+.085),.26,.012,'hdblack',n=28)
-  for d in [-.16,-.05,.05,.16]:box('護網橫條',(x,d,htop+.094),(.50,.018,.010),'hdslat',.002)
+  for d in [-.16,-.05,.05,.16]:box('護網橫條',(x,d,htop+.094),(.50,.018,.010),'hdslat',0)
  # 長機房後端牆（先建在 +X 再整組轉到 −X）：直列雙頭燈（不發光鏡片）、兩塊車號牌、兩角紅色標識燈
  head=len(p.MODEL);g=lambda y,z:xe-.30
  front_panel('後端頭燈燈座',g,0,htop-.36,.22,.46,'hdblack',.08,.02)
@@ -1694,7 +1694,7 @@ def dhl100(s):
   for dx in [-.40,0,.40]:panel('駕駛室側窗玻璃',(xc0+.95+dx,y+side*.012,2.70),.36,.64,'glass',r=.04,depth=.012)
   louver('短機房百葉',xn1-.28,side*(hw+.010),1.66,.24,.40,6)
   for x in [-2.20,-2.80]:bar_grille('長機房散熱格柵',x,side*(hw+.010),1.78,.50,.62,9)
-  for x in [-.40,-1.20,-1.70,-3.25]:box('檢修門門縫',(x,side*(hw+.012),1.95),(.014,.010,1.15),'hdblack',.002)
+  for x in [-.40,-1.20,-1.70,-3.25]:box('檢修門門縫',(x,side*(hw+.012),1.95),(.014,.010,1.15),'hdblack',0)
  use('05');cyl('排氣管',(xr0-.30,0,lt+.12),.09,.24,'hdblack')
  for x in [-.85,-1.55,-2.25]:
   cyl('散熱風扇外圈',(x,0,lt+.03),.26,.08,'hdframe',n=28);cyl('散熱風扇護網',(x,0,lt+.075),.22,.012,'hdblack',n=28)

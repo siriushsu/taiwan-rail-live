@@ -46,11 +46,11 @@
   ],
   "mesh": {
     "file": "r20.mesh.bin",
-    "sha256": "b5b809cb190991782eae54c58f9070c92a0156e5a9d2fba1836f898f29020a77",
+    "sha256": "428ca657c45c9a2025fe50e4aa216d80c57707701a1d2203295ebecfa985807c",
     "encoding": "float32-le",
     "strideBytes": 24,
-    "vertexCount": 272724,
-    "triangleCount": 90908,
+    "vertexCount": 204084,
+    "triangleCount": 68028,
     "drawGroups": [
       {
         "name": "hdframe",
@@ -159,7 +159,7 @@
       {
         "name": "hdblack",
         "start": 109896,
-        "count": 25728,
+        "count": 21504,
         "color": [
           0.01032982300966978,
           0.012983032502233982,
@@ -171,7 +171,7 @@
       },
       {
         "name": "hdbody",
-        "start": 135624,
+        "start": 131400,
         "count": 10644,
         "color": [
           0.838798999786377,
@@ -184,7 +184,7 @@
       },
       {
         "name": "hdgrey",
-        "start": 146268,
+        "start": 142044,
         "count": 12696,
         "color": [
           0.32314321398735046,
@@ -197,7 +197,7 @@
       },
       {
         "name": "hdwhite",
-        "start": 158964,
+        "start": 154740,
         "count": 1728,
         "color": [
           0.8879231214523315,
@@ -210,7 +210,7 @@
       },
       {
         "name": "lamp",
-        "start": 160692,
+        "start": 156468,
         "count": 2664,
         "color": [
           1.0,
@@ -223,7 +223,7 @@
       },
       {
         "name": "可移除車型示意牌",
-        "start": 163356,
+        "start": 159132,
         "count": 29616,
         "color": [
           0.8069522380828857,
@@ -236,7 +236,7 @@
       },
       {
         "name": "red",
-        "start": 192972,
+        "start": 188748,
         "count": 5328,
         "color": [
           0.43415364623069763,
@@ -249,7 +249,7 @@
       },
       {
         "name": "glass",
-        "start": 198300,
+        "start": 194076,
         "count": 1656,
         "color": [
           0.009134058840572834,
@@ -262,7 +262,7 @@
       },
       {
         "name": "hdrail",
-        "start": 199956,
+        "start": 195732,
         "count": 1296,
         "color": [
           0.8549926280975342,
@@ -275,8 +275,8 @@
       },
       {
         "name": "hdslat",
-        "start": 201252,
-        "count": 68808,
+        "start": 197028,
+        "count": 4392,
         "color": [
           0.0423114113509655,
           0.04970656707882881,
@@ -288,7 +288,7 @@
       },
       {
         "name": "hdlens",
-        "start": 270060,
+        "start": 201420,
         "count": 2664,
         "color": [
           0.8468732237815857,

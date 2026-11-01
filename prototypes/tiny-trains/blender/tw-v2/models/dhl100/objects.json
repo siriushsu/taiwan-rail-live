@@ -1520,56 +1520,38 @@
   {
     "name": "短機房百葉",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "短機房百葉.001",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "短機房百葉.002",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "短機房百葉.003",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "短機房百葉.004",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "短機房百葉.005",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵框",
@@ -1580,83 +1562,56 @@
   {
     "name": "長機房散熱格柵",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.001",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.002",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.003",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.004",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.005",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.006",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.007",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.008",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵框.001",
@@ -1667,119 +1622,80 @@
   {
     "name": "長機房散熱格柵.009",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.010",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.011",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.012",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.013",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.014",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.015",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.016",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.017",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫.001",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫.002",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫.003",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "駕駛室側窗窗框.001",
@@ -1814,56 +1730,38 @@
   {
     "name": "短機房百葉.006",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "短機房百葉.007",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "短機房百葉.008",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "短機房百葉.009",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "短機房百葉.010",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "短機房百葉.011",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵框.002",
@@ -1874,83 +1772,56 @@
   {
     "name": "長機房散熱格柵.018",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.019",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.020",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.021",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.022",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.023",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.024",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.025",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.026",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵框.003",
@@ -1961,119 +1832,80 @@
   {
     "name": "長機房散熱格柵.027",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.028",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.029",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.030",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.031",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.032",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.033",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.034",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "長機房散熱格柵.035",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫.004",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫.005",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫.006",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "檢修門門縫.007",
     "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "排氣管",
