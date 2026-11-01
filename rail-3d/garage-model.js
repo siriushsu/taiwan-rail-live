@@ -66,8 +66,9 @@ export async function createConsist(id,primary,signal,opts={}){
  if(parts.length===1)parts=[parts[0],{mesh:'bluecoach',flip:false},{mesh:'bluecoach',flip:false}];
  if(parts.length!==3)throw Error('formation count');
  // 阿里山林鐵的機關車固定連結在下山端、以推進方式上山（交通部觀光署與農業部都記載之字形是「時而前拖、時而後推」）。
- // 車身朝向不動，只是換到編組的另一端。
- if(opts.locoAtTail)parts=[...parts].reverse();
+ // 整列倒序把機關車換到編組另一端，機關車再整台轉 180°：車模的 +X 是車頭（駕駛室）端，換端後駕駛室要朝外、不朝客車。
+ // 換到尾端的那節跟相鄰那節同款（福森號、栩悅號、客車三節同款）就不是機關車，不轉；福森號、栩悅號的端車由下一段處理。
+ if(opts.locoAtTail){parts=[...parts].reverse();if(parts[2].mesh!==parts[1].mesh)parts[2]={...parts[2],flip:!parts[2].flip};}
  // 福森號、栩悅號的車模是端車：+X 端是觀景窗與頭燈、另一端是貫通門。三節同向會讓觀景窗頂著前一節、尾端露出貫通門，尾車轉 180° 讓兩端都是車頭面。
  // 要排在 locoAtTail 換端之後：先 flip 再整列倒序，被 flip 的那節會換到頭車，兩端的觀景窗全部朝內。
  if(id==='fushen'||id==='xuyue')parts=[parts[0],parts[1],{...parts[2],flip:true}];
