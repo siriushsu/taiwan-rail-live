@@ -95,7 +95,8 @@ export function createScene(){
   for(const axle of [-1,1])for(const side of bike?[0]:[-1,1])part(g,dark,[.24,.24,.16],[side*W*.48,axle*L*.32,.26],[0,Math.PI/2,0],k.cylinder);
   for(const side of bike?[0]:[-1,1]){part(g,head,[.22,.035,.15],[side*W*.33,L/2+.021,.62]);part(g,tail,[.20,.035,.12],[side*W*.33,-L/2-.021,.58]);}
   if(bike){part(g,mat('#537b84'),[.34,.28,.5],[0,0,1.02]);part(g,mat('#ddd9c5'),[.22,.23,.23],[0,.03,1.48],[0,0,0],k.ball);part(g,dark,[.57,.07,.05],[0,.41,.96]);}else{part(g,white,[.37,.04,.12],[0,L/2+.023,.34]);for(const side of [-1,1])part(g,body,[.12,.19,.10],[side*(W/2+.05),.40,1.06]);}
-  let light;if(!bike){light=new THREE.SpotLight('#ffdfa5',0,10,Math.PI/7,.8,2);light.position.set(0,L/2+.1,.65);light.target.position.set(0,L/2+8,-.1);g.add(light,light.target);}
+  // 頭燈掛在場景群組、位置每幀跟車：車開出底座整台會藏起來，燈若跟著藏，聚光燈數一變 three.js 就要把有打光的材質全部重編著色器（A54 一次卡 0.2～1 秒）；車藏起來時燈調成 0。白天燈不亮就整組收起來，省掉每個像素多算四盞聚光燈；燈數只在換時段時變。
+  let light;if(!bike){light=new THREE.SpotLight('#ffdfa5',0,10,Math.PI/7,.8,2);group.add(light,light.target);}
   return{g,L,initial:y,dir,light};
  }
  const cars=[vehicle('car','#e6d8b7',1.65,-8.2,1),vehicle('scooter','#7c9b9a',2.4,-11.4,1),vehicle('car','#577c95',1.55,-14,1),vehicle('car','#b75540',-1.65,8.2,-1),vehicle('scooter','#d4b054',-2.35,11.4,-1),vehicle('car','#e5dfcf',-1.6,14,-1)];
@@ -168,6 +169,6 @@ export function createScene(){
   const openElapsed=s.clear>=openStart?s.clear-openStart:s.clear+path.length/train.speed-openStart;
   cars.forEach((c,i)=>{let y=c.initial;if(!s.alarm&&s.closed===0&&openElapsed<openDuration){const t=Math.max(0,openElapsed-Math.floor(i/3)*.5-(i%3)*1.25),d=t*3.2;const progress=d%span;y=c.initial+c.dir*progress;if(c.dir*y>19)y-=c.dir*span; // 回到邊界後向停止線前進並停等
    if(d>=span)y=c.initial;
-  }c.g.position.y=y;c.g.visible=Math.abs(y)<17+c.L/2+.2;c.g.position.z=.18+.12*smooth((4.2-Math.abs(y))/1.2);if(c.light)c.light.intensity=f*16;fleet.tail.m.emissiveIntensity=s.alarm?1.1:f*.5;});
+  }c.g.position.y=y;c.g.visible=Math.abs(y)<17+c.L/2+.2;c.g.position.z=.18+.12*smooth((4.2-Math.abs(y))/1.2);if(c.light){const p=c.g.position;c.light.visible=f>0;c.light.position.set(p.x,p.y+c.dir*(c.L/2+.1),p.z+.65);c.light.target.position.set(p.x,p.y+c.dir*(c.L/2+8),p.z-.1);c.light.intensity=c.g.visible?f*16:0;}fleet.tail.m.emissiveIntensity=s.alarm?1.1:f*.5;});
   wire.visible=true;for(const c of Object.values(fleet))c.d.update();state={...s,street,tracks:2,directions:[1,-1],trains:[a,b],lights:f,vehicles:cars.map(c=>({x:c.g.position.x,y:c.g.position.y,length:c.L,dir:c.dir})),gates:gates.map(g=>g.pivot.rotation.y),flashes:lamps.map(l=>l.m.emissiveIntensity),electrified:wire.visible};},get state(){return state;}};
 }
