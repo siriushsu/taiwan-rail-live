@@ -1827,5 +1827,298 @@
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "r100",
+  "name": "R100・柴電機車",
+  "label": "R100",
+  "detail": "低短鼻斜角駕駛室 · 橘色白腰帶 · 圓筒燃油箱",
+  "color": "#df7c3b",
+  "source": "https://blair-train.blogspot.com/2010/02/r100.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r100.html"
+   },
+   {
+    "label": "Wikimedia Commons／Jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R124_side_view_at_Taitung_Station.jpg"
+   }
+  ],
+  "features": [
+   "低短鼻（上緣大圓角），駕駛室正面兩角斜切、斜面上各一扇角窗；正面上方兩塊車號牌夾直列雙頭燈。",
+   "橘色車身，白色腰帶在短鼻正面變成到鼻底的 V 字飛翼、在車尾附近斜降到走道上方；短鼻兩角紅色標識燈。",
+   "長機房跟駕駛室頂同高，靠駕駛室兩扇大百葉門；沒有沿長機房的連續欄杆，只有短鼻旁走道與兩端平台的白色管扶手；車架側樑厚、兩組轉向架之間灰色圓筒燃油箱、端梁兩側黑色解聯桿、三軸轉向架。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA R124 side view at Taitung Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R124_side_view_at_Taitung_Station.jpg",
+    "author": "Jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "正側面（短鼻、駕駛室、腰帶高度）"
+   },
+   {
+    "file": "File:TRA R137 Locomotive.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R137_Locomotive.jpg",
+    "author": "小朱",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面（前窗、車號牌、頭燈、標識燈、V 字飛翼）"
+   },
+   {
+    "file": "File:R100 Series Diesel Locomotive.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:R100_Series_Diesel_Locomotive.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側（腰帶在車尾斜降、車下圓筒燃油箱）"
+   },
+   {
+    "file": "File:TRA R112.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R112.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側（圓筒燃油箱、端梁解聯桿、短鼻旁扶手）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "blue",
+  "name": "藍皮解憂・R135",
+  "label": "藍皮解憂",
+  "detail": "低短鼻 · R135 雙字牌 · 深海軍藍與白飛翼",
+  "color": "#42657c",
+  "source": "https://commons.wikimedia.org/wiki/File:藍皮解憂號於太麻里車站.jpg",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://commons.wikimedia.org/wiki/File:藍皮解憂號於太麻里車站.jpg"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.trc.com.tw/tra-tip-web/tip/tip00N/tipN01/blue/index"
+   },
+   {
+    "label": "Wikimedia Commons／jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R101_leading_a_Breezy_Blue_Train_at_Taitung_Station.jpg"
+   }
+  ],
+  "features": [
+   "車體同 R100：低短鼻、斜角駕駛室、正面上方兩塊 R135 字牌夾直列雙頭燈。",
+   "深海軍藍車身與車頂，白色腰帶與短鼻 V 字飛翼；黃黑警戒端梁、銀灰色排障器。",
+   "9 月車庫線補的前端制軔軟管、端梁上的斜桿（解聯桿）、車下圓筒燃油箱這版都有（照片自己量的）；三軸轉向架。"
+  ],
+  "photos": [
+   {
+    "file": "File:藍皮解憂號於太麻里車站.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%97%8D%E7%9A%AE%E8%A7%A3%E6%86%82%E8%99%9F%E6%96%BC%E5%A4%AA%E9%BA%BB%E9%87%8C%E8%BB%8A%E7%AB%99.jpg",
+    "author": "臺灣鐵路管理局",
+    "licence": "Attribution",
+    "use": "R135 正面（V 字飛翼、字牌、端梁解聯桿與制軔軟管）"
+   },
+   {
+    "file": "File:TRA R101 leading a Breezy Blue Train at Taitung Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R101_leading_a_Breezy_Blue_Train_at_Taitung_Station.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜前方（塗裝、排障器）"
+   },
+   {
+    "file": "File:TRA R111 on display at the Taichung Station Railway Cultural Park 2024.png",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R111_on_display_at_the_Taichung_Station_Railway_Cultural_Park_2024.png",
+    "author": "RwysTC",
+    "licence": "CC BY 4.0",
+    "use": "藍色塗裝斜側"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "r150",
+  "name": "R150・柴電機車",
+  "label": "R150",
+  "detail": "低短鼻 · 灰色機房頂 · 圓角短燃油箱",
+  "color": "#df7c3b",
+  "source": "https://blair-train.blogspot.com/2010/02/r150.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r150.html"
+   },
+   {
+    "label": "Wikimedia Commons／ChS&Rh（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R153.jpg"
+   }
+  ],
+  "features": [
+   "跟 R100 同一系的低短鼻與斜角駕駛室；長機房頂灰色、駕駛室頂淺灰。",
+   "長機房靠駕駛室兩組各兩欄百葉、車尾直條散熱器格柵；腰帶約在車長八成處斜降到走道上方。",
+   "車架側樑薄、圓角短燃油箱、三軸轉向架（Co-Co）。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA R153.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R153.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜前方（百葉位置、灰色機房頂、燃油箱、扶手）"
+   },
+   {
+    "file": "File:TRA R155 (front closeup).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R155_(front_closeup).jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面近照"
+   },
+   {
+    "file": "File:TRA R156.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R156.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "r180",
+  "name": "R180／R190・柴電機車",
+  "label": "R180／R190",
+  "detail": "方短鼻 · 右側大進氣格柵 · 駕駛室冷氣",
+  "color": "#e5853e",
+  "source": "https://blair-train.blogspot.com/2010/02/r180r190.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r180r190.html"
+   },
+   {
+    "label": "Wikimedia Commons／ChS&Rh（CC BY 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R182.png"
+   }
+  ],
+  "features": [
+   "短鼻比 R100、R150 方（上緣小圓角），正面 V 字飛翼與兩角紅色標識燈；駕駛室頂加裝冷氣。",
+   "右側（行進方向右手邊）靠駕駛室一大片進氣格柵、車尾散熱器格柵；長機房頂灰色，腰帶在車尾附近斜降。",
+   "車下長空氣筒與電池箱、三軸轉向架。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA R182.png",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R182.png",
+    "author": "ChS&Rh",
+    "licence": "CC BY 4.0",
+    "use": "斜前方（右側進氣格柵、短鼻、車下設備）"
+   },
+   {
+    "file": "File:R180 Series Diesel Locomotive.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:R180_Series_Diesel_Locomotive.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜前方（方短鼻）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "r20",
+  "name": "R20 柴電機車",
+  "label": "R20",
+  "detail": "高短鼻 · 灰色圓頂駕駛室 · 橘色白腰帶",
+  "color": "#e27836",
+  "source": "https://blair-train.blogspot.com/2010/02/r20r50.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r20r50.html"
+   },
+   {
+    "label": "Wikimedia Commons／Lokseng01（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R38_at_Hsinchu_Station_01.jpg"
+   }
+  ],
+  "features": [
+   "高短鼻：短鼻跟長機房一樣高、比駕駛室窄；車頭是短鼻那端，正面切角，上方兩塊車號牌夾直列雙頭燈，白色 V 字飛翼。",
+   "駕駛室頂灰色圓頂、側面兩片拉窗；長機房靠駕駛室三組高百葉、一組小百葉、車尾上方散熱器格柵。",
+   "腰帶在車長約七成處斜降到走道上方；沒有連續欄杆，只有角落與駕駛室的直扶手；三軸轉向架。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA R38 at Hsinchu Station 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R38_at_Hsinchu_Station_01.jpg",
+    "author": "Lokseng01",
+    "licence": "CC BY-SA 4.0",
+    "use": "正側面（短鼻、駕駛室、長機房長度與腰帶高度）"
+   },
+   {
+    "file": "File:R20 Series Diesel Locomotive.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:R20_Series_Diesel_Locomotive.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "短鼻端正面"
+   },
+   {
+    "file": "File:TRA R34 at Changhua Rolling Stock Branch.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R34_at_Changhua_Rolling_Stock_Branch.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "長機房端"
+   },
+   {
+    "file": "File:Close-up of TRA R71 before Changhua Roundhouse.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Close-up_of_TRA_R71_before_Changhua_Roundhouse.jpg",
+    "author": "Lokseng01",
+    "licence": "CC BY-SA 4.0",
+    "use": "近照"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dhl100",
+  "name": "DHL100・調車機車",
+  "label": "DHL100",
+  "detail": "偏前駕駛室 · 長短機房與側走道",
+  "color": "#dd7a39",
+  "source": "https://blair-train.blogspot.com/2013/07/dhl100.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2013/07/dhl100.html"
+   },
+   {
+    "label": "Wikimedia Commons／Solomon203（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DHL102_at_Qidu_Marshalling_Yard_20191102.jpg"
+   }
+  ],
+  "features": [
+   "駕駛室偏短機房那端（短機房、駕駛室、長機房約 14%、24%、62%），比兩邊機房高、淺灰色斜頂；正面兩扇前窗夾直列雙頭燈。",
+   "窄機房兩側走道；短機房正面上方黑色車號牌、白色 V 字飛翼，全車白色腰帶；長機房頂三個圓形散熱風扇、車尾兩片大散熱格柵。",
+   "黃黑警戒端梁上一白一紅兩顆燈，兩端平台與駕駛室門口白色管扶手；二軸轉向架。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA DHL102 at Qidu Marshalling Yard 20191102.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DHL102_at_Qidu_Marshalling_Yard_20191102.jpg",
+    "author": "Solomon203",
+    "licence": "CC BY-SA 4.0",
+    "use": "正側面（駕駛室位置、各段長度與高度）"
+   },
+   {
+    "file": "File:TRA DHL109 2023-07-19.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DHL109_2023-07-19.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "短機房端斜前方（車號牌、V 字飛翼、駕駛室正面、端梁燈、扶手）"
+   },
+   {
+    "file": "File:TRA DHL108.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DHL108.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
  }
 ]

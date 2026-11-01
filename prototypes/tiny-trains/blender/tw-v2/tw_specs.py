@@ -87,3 +87,11 @@ add('mingri','electric',**{**ge,'body':'15181D','accent':'D2441A'},label='E400')
 # E500（東芝）：L 9.0，雙頭、三軸轉向架。R200（Stadler）：L 9.4，單頭柴電、三軸轉向架。
 add('e500','electric',L=9.0,W=2.85,H=3.55,pantos=2,axles=3,radiusTop=.40,power='overhead',body='F06A2E',accent='2E3236',label='E500')
 add('r200','electric',L=9.4,W=2.9,H=3.7,pantos=0,axles=3,radiusTop=.50,power='diesel',body='F2F3F1',accent='173660',label='R200')
+# 柴電機車（EMD 鼻端式）：L 沿用 fleet-v1（R100 與藍皮 8.5、R150 9.0、R180 9.1、R20 8.8），車頭是短鼻那端；三軸轉向架。DHL100 調車機車 L 7.7、二軸轉向架。
+hood=dict(W=2.8,H=3.5,axles=3,power='diesel',body='EC7838',accent='F2EEDC')
+add('r100','hood',**hood,L=8.5,label='R100')
+add('blue','hood',**{**hood,'body':'232E48'},L=8.5,label='R135')
+add('r150','hood',**hood,L=9.0,label='R150')
+add('r180','hood',**{**hood,'H':3.6},L=9.1,label='R180')
+add('r20','hood',**hood,L=8.8,label='R20')
+add('dhl100','hood',L=7.7,W=2.7,H=3.55,axles=2,power='diesel',body='EC7838',accent='F2EEDC',label='DHL100')

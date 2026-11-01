@@ -1002,5 +1002,171 @@
   ],
   "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
   "thumbnail": "models/r200/renders/thumb.webp"
+ },
+ {
+  "id": "r100",
+  "name": "R100・柴電機車",
+  "family": "hood",
+  "detail": "低短鼻斜角駕駛室 · 橘色白腰帶 · 圓筒燃油箱",
+  "features": [
+   "低短鼻（上緣大圓角），駕駛室正面兩角斜切、斜面上各一扇角窗；正面上方兩塊車號牌夾直列雙頭燈。",
+   "橘色車身，白色腰帶在短鼻正面變成到鼻底的 V 字飛翼、在車尾附近斜降到走道上方；短鼻兩角紅色標識燈。",
+   "長機房跟駕駛室頂同高，靠駕駛室兩扇大百葉門；沒有沿長機房的連續欄杆，只有短鼻旁走道與兩端平台的白色管扶手；車架側樑厚、兩組轉向架之間灰色圓筒燃油箱、端梁兩側黑色解聯桿、三軸轉向架。"
+  ],
+  "metadata": "models/r100/r100.model.json",
+  "blend": "models/r100/r100.blend",
+  "glb": "models/r100/r100.glb",
+  "hero": "models/r100/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r100.html"
+   },
+   {
+    "label": "Wikimedia Commons／Jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R124_side_view_at_Taitung_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/r100/renders/thumb.webp"
+ },
+ {
+  "id": "blue",
+  "name": "藍皮解憂・R135",
+  "family": "hood",
+  "detail": "低短鼻 · R135 雙字牌 · 深海軍藍與白飛翼",
+  "features": [
+   "車體同 R100：低短鼻、斜角駕駛室、正面上方兩塊 R135 字牌夾直列雙頭燈。",
+   "深海軍藍車身與車頂，白色腰帶與短鼻 V 字飛翼；黃黑警戒端梁、銀灰色排障器。",
+   "9 月車庫線補的前端制軔軟管、端梁上的斜桿（解聯桿）、車下圓筒燃油箱這版都有（照片自己量的）；三軸轉向架。"
+  ],
+  "metadata": "models/blue/blue.model.json",
+  "blend": "models/blue/blue.blend",
+  "glb": "models/blue/blue.glb",
+  "hero": "models/blue/renders/hero.png",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://commons.wikimedia.org/wiki/File:藍皮解憂號於太麻里車站.jpg"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.trc.com.tw/tra-tip-web/tip/tip00N/tipN01/blue/index"
+   },
+   {
+    "label": "Wikimedia Commons／jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R101_leading_a_Breezy_Blue_Train_at_Taitung_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/blue/renders/thumb.webp"
+ },
+ {
+  "id": "r150",
+  "name": "R150・柴電機車",
+  "family": "hood",
+  "detail": "低短鼻 · 灰色機房頂 · 圓角短燃油箱",
+  "features": [
+   "跟 R100 同一系的低短鼻與斜角駕駛室；長機房頂灰色、駕駛室頂淺灰。",
+   "長機房靠駕駛室兩組各兩欄百葉、車尾直條散熱器格柵；腰帶約在車長八成處斜降到走道上方。",
+   "車架側樑薄、圓角短燃油箱、三軸轉向架（Co-Co）。"
+  ],
+  "metadata": "models/r150/r150.model.json",
+  "blend": "models/r150/r150.blend",
+  "glb": "models/r150/r150.glb",
+  "hero": "models/r150/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r150.html"
+   },
+   {
+    "label": "Wikimedia Commons／ChS&Rh（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R153.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/r150/renders/thumb.webp"
+ },
+ {
+  "id": "r180",
+  "name": "R180／R190・柴電機車",
+  "family": "hood",
+  "detail": "方短鼻 · 右側大進氣格柵 · 駕駛室冷氣",
+  "features": [
+   "短鼻比 R100、R150 方（上緣小圓角），正面 V 字飛翼與兩角紅色標識燈；駕駛室頂加裝冷氣。",
+   "右側（行進方向右手邊）靠駕駛室一大片進氣格柵、車尾散熱器格柵；長機房頂灰色，腰帶在車尾附近斜降。",
+   "車下長空氣筒與電池箱、三軸轉向架。"
+  ],
+  "metadata": "models/r180/r180.model.json",
+  "blend": "models/r180/r180.blend",
+  "glb": "models/r180/r180.glb",
+  "hero": "models/r180/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r180r190.html"
+   },
+   {
+    "label": "Wikimedia Commons／ChS&Rh（CC BY 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R182.png"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/r180/renders/thumb.webp"
+ },
+ {
+  "id": "r20",
+  "name": "R20 柴電機車",
+  "family": "hood",
+  "detail": "高短鼻 · 灰色圓頂駕駛室 · 橘色白腰帶",
+  "features": [
+   "高短鼻：短鼻跟長機房一樣高、比駕駛室窄；車頭是短鼻那端，正面切角，上方兩塊車號牌夾直列雙頭燈，白色 V 字飛翼。",
+   "駕駛室頂灰色圓頂、側面兩片拉窗；長機房靠駕駛室三組高百葉、一組小百葉、車尾上方散熱器格柵。",
+   "腰帶在車長約七成處斜降到走道上方；沒有連續欄杆，只有角落與駕駛室的直扶手；三軸轉向架。"
+  ],
+  "metadata": "models/r20/r20.model.json",
+  "blend": "models/r20/r20.blend",
+  "glb": "models/r20/r20.glb",
+  "hero": "models/r20/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r20r50.html"
+   },
+   {
+    "label": "Wikimedia Commons／Lokseng01（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R38_at_Hsinchu_Station_01.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/r20/renders/thumb.webp"
+ },
+ {
+  "id": "dhl100",
+  "name": "DHL100・調車機車",
+  "family": "hood",
+  "detail": "偏前駕駛室 · 長短機房與側走道",
+  "features": [
+   "駕駛室偏短機房那端（短機房、駕駛室、長機房約 14%、24%、62%），比兩邊機房高、淺灰色斜頂；正面兩扇前窗夾直列雙頭燈。",
+   "窄機房兩側走道；短機房正面上方黑色車號牌、白色 V 字飛翼，全車白色腰帶；長機房頂三個圓形散熱風扇、車尾兩片大散熱格柵。",
+   "黃黑警戒端梁上一白一紅兩顆燈，兩端平台與駕駛室門口白色管扶手；二軸轉向架。"
+  ],
+  "metadata": "models/dhl100/dhl100.model.json",
+  "blend": "models/dhl100/dhl100.blend",
+  "glb": "models/dhl100/dhl100.glb",
+  "hero": "models/dhl100/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2013/07/dhl100.html"
+   },
+   {
+    "label": "Wikimedia Commons／Solomon203（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DHL102_at_Qidu_Marshalling_Yard_20191102.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dhl100/renders/thumb.webp"
  }
 ]
