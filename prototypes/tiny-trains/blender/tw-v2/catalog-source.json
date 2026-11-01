@@ -577,5 +577,106 @@
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "temu1000",
+  "name": "TEMU1000 太魯閣",
+  "label": "TEMU1000",
+  "detail": "鈍圓長車鼻 · 黑色遮陽面 · 橘色笑臉帶",
+  "color": "#dc8b46",
+  "source": "https://blair-train.blogspot.com/2010/02/temu1000.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/temu1000.html"
+   },
+   {
+    "label": "Wikimedia Commons／Cheng-en Cheng（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_Taroko_Express_at_Xizhi_Station.jpg"
+   }
+  ],
+  "features": [
+   "鈍圓的長車鼻、前窗往後倒；前窗連同上方一整片黑色遮陽面，頂端中央凸出雙頭燈座。",
+   "窗下兩個煙燻「眼睛」燈座往中央下斜；橘帶從車側沿駕駛室往下掃，到車頭變成笑臉弧，下巴是 U 形車鉤蓋。",
+   "白色車身、深灰連續窗帶、窗帶下緣接橘帶；每側兩扇單開塞拉門。"
+  ],
+  "photos": [
+   {
+    "file": "File:2019-07-19 TEMU1000 on the Western Line (Northern Section).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2019-07-19_TEMU1000_on_the_Western_Line_(Northern_Section).jpg",
+    "author": "魏 子棋",
+    "licence": "Public domain",
+    "use": "車頭正面（遮陽面、前窗、頭燈座、眼睛燈座、笑臉弧、車鉤蓋高度）"
+   },
+   {
+    "file": "File:A TRA Taroko Express at Xizhi Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_Taroko_Express_at_Xizhi_Station.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "車頭斜側（車鼻圓角、橘帶從車側掃進車頭）"
+   },
+   {
+    "file": "File:北迴線 (35177226555).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E5%8C%97%E8%BF%B4%E7%B7%9A_(35177226555).jpg",
+    "author": "billy1125",
+    "licence": "CC BY 2.0",
+    "use": "駕駛車側面（車鼻長度、前窗斜度、駕駛室側窗、門窗配置）"
+   },
+   {
+    "file": "File:TRA TEMU1000 \"Taroko\" Express at Changhua Station 2007-01-20.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_TEMU1000_%22Taroko%22_Express_at_Changhua_Station_2007-01-20.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "車側（窗帶、橘帶、單開塞拉門的比例）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "temu2000",
+  "name": "TEMU2000 普悠瑪",
+  "label": "TEMU2000",
+  "detail": "紅色楔形車頭 · 黑框前窗 · 白色臉頰",
+  "color": "#c8514b",
+  "source": "https://blair-train.blogspot.com/2012/06/temu2000.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/06/temu2000.html"
+   },
+   {
+    "label": "Wikimedia Commons／Tbatb（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:A_Southbound_TRA_Puyuma_express_approaching_North_Hsinchu_Station_02.jpg"
+   }
+  ],
+  "features": [
+   "楔形車鼻：下巴中央往前凸、前窗往後倒；紅色車頭從車頂往下收窄，車角與下巴兩側是白色臉頰。",
+   "頂端左右各一個圓頭燈座、中間目的地顯示；黑框前窗下緣中間往下彎；窗下兩個外高內低的眼睛燈座（白頭燈＋紅尾燈）。",
+   "下巴有 U 形分模線框住往下收窄的紅色部分；車側白色、獨立車窗，窗下一粗一細兩條紅帶；每側兩扇單開塞拉門。"
+  ],
+  "photos": [
+   {
+    "file": "File:A Southbound TRA Puyuma express approaching North Hsinchu Station 02.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:A_Southbound_TRA_Puyuma_express_approaching_North_Hsinchu_Station_02.jpg",
+    "author": "Tbatb",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面（頭燈座、前窗、眼睛燈座、紅色車頭與白色臉頰、U 形分模線高度）"
+   },
+   {
+    "file": "File:2015-08-19 TEMU2000 on the Western Line (Northern Section).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2015-08-19_TEMU2000_on_the_Western_Line_(Northern_Section).jpg",
+    "author": "魏子棋",
+    "licence": "Public domain",
+    "use": "車頭斜前方（車鼻、駕駛室側窗、門位、紅帶在駕駛室後結束）"
+   },
+   {
+    "file": "File:A Southbound TRA Puyuma Express on Western Line south of Hsinchu Station 02.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:A_Southbound_TRA_Puyuma_Express_on_Western_Line_south_of_Hsinchu_Station_02.jpg",
+    "author": "Tbatb",
+    "licence": "CC BY-SA 4.0",
+    "use": "車側（獨立車窗、一粗一細兩條紅帶的比例）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
  }
 ]

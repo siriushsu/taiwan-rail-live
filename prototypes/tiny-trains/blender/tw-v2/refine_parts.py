@@ -98,7 +98,7 @@ def lamp_pair(f,y,z,inner,red_outer=True,r=.050,gap=.13,housing='frame',hw=.36,h
 def emu_body(s,profile,bow,zones,front_zones,nose_zones=None,leaf='body',gaps=None,bands=(),leafbands=(),deco=None,crew=None):
  """台灣電聯車／捷運車殼與車側（world-v1 commuter 的台灣版）。
  bands／leafbands：[(中心 z, 高, 材質), ...] 車身與門扇上的水平色帶；deco(x, y, side, dw) 讓各款在每組門旁加自己的塗裝。
- 規格鍵：doors、doorW、rearDoor、frontDoor、winH、winZ（窗中心，預設 H-1.10）、doorTop（門頂，預設 H-.62）、
+ 規格鍵：doors、doorW、doorLeaves（每組門扇數，預設 2；城際列車的塞拉門是 1）、rearDoor、frontDoor、winH、winZ（窗中心，預設 H-1.10）、doorTop（門頂，預設 H-.62）、
  crewDoor（駕駛室側門，捷運預設沒有）、acUnits [(x, 長), ...]、pantos（這節有沒有受電弓）、pantoX、shoes（第三軌集電靴）。"""
  L,W,H=s['L'],s['W'],s['H'];n=s['doors'];dw=s.get('doorW',.80)
  f,neck=zoned_shell(s,profile,bow,zones,front_zones,nose_zones=nose_zones,surface_neck=True)
@@ -120,8 +120,9 @@ def emu_body(s,profile,bow,zones,front_zones,nose_zones=None,leaf='body',gaps=No
   for i,x in enumerate(doors):
    use('02');basez=.92;h=top-basez;cz=basez+h/2
    panel('側門門框',(x,y,cz),dw+.05,h+.03,'frame',r=.03)
-   for lf in range(2):
-    dx=(lf-.5)*dw/2;lw=dw/2-.022
+   nl=s.get('doorLeaves',2)
+   for lf in range(nl):
+    dx=(lf-(nl-1)/2)*dw/nl;lw=dw/nl-.022
     door=panel('獨立門扇',(x+dx,y+side*.023,cz),lw,h,leaf,r=.025,depth=.024)
     door['side_door']=True;door['door_group']=i+1;door['side']=side;door['leaf']=lf
     panel('門窗嵌框',(x+dx,y+side*.043,dz),lw*.62+.04,dh+.06,'frame',r=.04)

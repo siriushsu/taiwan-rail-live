@@ -29,3 +29,9 @@ add('emu900','railcar',L=9.0,W=2.8,H=3.45,doors=3,doorLeaves=2,rearDoor=1.35,fro
 # EMU700（日本車輛／台灣車輛）：L 9.0；平直車頭、下巴往前凸；駕駛室後面有乘務員門；每側三組雙開門。
 add('emu700','railcar',L=9.0,W=2.8,H=3.45,doors=3,doorLeaves=2,rearDoor=1.20,frontDoor=1.25,crewDoor=True,winH=.66,winZ=2.52,doorWinH=.70,doorWinZ=2.45,doorTop=2.95,
  body='C2C8CB',accent='1F4FA8',acUnits=[(-2.2,1.7),(.9,1.7)],acMat='e7roof',label='EMU700')
+# TEMU1000 太魯閣（日立）：L 9.8（fleet-v1 同尺寸）；鈍圓長車鼻；每側兩扇單開塞拉門（車尾一扇、駕駛室後隔一扇窗一扇），深灰連續窗帶。
+add('temu1000','express',L=9.8,W=2.85,H=3.4,doors=2,doorLeaves=1,doorW=.62,rearDoor=.80,frontDoor=1.70,cabWin=.60,winH=.40,winZ=2.25,doorWinH=.60,doorWinZ=2.32,doorTop=2.85,
+ body='EEF0EC',accent='EF7D22',acUnits=[(-2.4,1.8),(.6,1.8)],acMat='t1roof',label='TEMU1000')
+# TEMU2000 普悠瑪（日本車輛）：L 9.4（fleet-v1 同尺寸）；楔形車鼻；每側兩扇單開塞拉門（車尾一扇、駕駛室後一扇），獨立車窗。
+add('temu2000','express',L=9.4,W=2.85,H=3.4,doors=2,doorLeaves=1,doorW=.62,rearDoor=.80,frontDoor=.55,cabWin=.30,winH=.56,winZ=2.29,doorWinH=.60,doorWinZ=2.32,doorTop=2.85,
+ body='F0F1EF',accent='D42A35',acUnits=[(-2.2,1.8),(.8,1.8)],acMat='t2roof',label='TEMU2000')

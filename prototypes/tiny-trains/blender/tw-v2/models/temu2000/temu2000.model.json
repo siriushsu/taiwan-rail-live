@@ -1,0 +1,305 @@
+{
+  "modelId": "temu2000",
+  "name": "TEMU2000 普悠瑪",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "express",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -5.098999977111816,
+      -1.5080000162124634,
+      0.0
+    ],
+    "max": [
+      4.928999900817871,
+      1.5080000162124634,
+      3.619999885559082
+    ]
+  },
+  "sizeM": [
+    10.027999877929688,
+    3.0160000324249268,
+    3.619999885559082
+  ],
+  "mesh": {
+    "file": "temu2000.mesh.bin",
+    "sha256": "c6d84194fc7b7626f46271e2ac00032dabbf6af977746e122943c27f8db90c29",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 170736,
+    "triangleCount": 56912,
+    "drawGroups": [
+      {
+        "name": "t2white",
+        "start": 0,
+        "count": 7068,
+        "color": [
+          0.8713670969009399,
+          0.8796223998069763,
+          0.8631572127342224
+        ],
+        "metalness": 0.07999999821186066,
+        "roughness": 0.3199999928474426,
+        "clearcoat": 0.25
+      },
+      {
+        "name": "t2roof",
+        "start": 7068,
+        "count": 1488,
+        "color": [
+          0.5840784311294556,
+          0.6104955673217773,
+          0.5972017645835876
+        ],
+        "metalness": 0.4000000059604645,
+        "roughness": 0.41999998688697815,
+        "clearcoat": 0.07999999821186066
+      },
+      {
+        "name": "frame",
+        "start": 8556,
+        "count": 17124,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 25680,
+        "count": 7248,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "t2red",
+        "start": 32928,
+        "count": 13752,
+        "color": [
+          0.6583748459815979,
+          0.023153366521000862,
+          0.03560131415724754
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3199999928474426,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "metal",
+        "start": 46680,
+        "count": 32880,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "chassis",
+        "start": 79560,
+        "count": 39012,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "roof",
+        "start": 118572,
+        "count": 12408,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 130980,
+        "count": 9828,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "t2black",
+        "start": 140808,
+        "count": 5340,
+        "color": [
+          0.007499032188206911,
+          0.009721217676997185,
+          0.011612244881689548
+        ],
+        "metalness": 0.20000000298023224,
+        "roughness": 0.2199999988079071,
+        "clearcoat": 0.44999998807907104
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 146148,
+        "count": 13908,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "lamp",
+        "start": 160056,
+        "count": 5328,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "t2amber",
+        "start": 165384,
+        "count": 1536,
+        "color": [
+          0.9130986332893372,
+          0.3613067865371704,
+          0.045186202973127365
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.25,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "t2smoke",
+        "start": 166920,
+        "count": 1152,
+        "color": [
+          0.023153366521000862,
+          0.02955683507025242,
+          0.03688944876194
+        ],
+        "metalness": 0.25,
+        "roughness": 0.18000000715255737,
+        "clearcoat": 0.5
+      },
+      {
+        "name": "red",
+        "start": 168072,
+        "count": 2664,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 233,
+  "features": {
+    "sideDoorGroups": 2,
+    "doorLeavesPerGroup": 1,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "temu2000",
+    "family": "express",
+    "L": 9.4,
+    "W": 2.85,
+    "H": 3.4,
+    "doors": 2,
+    "doorLeaves": 1,
+    "doorW": 0.62,
+    "rearDoor": 0.8,
+    "frontDoor": 0.55,
+    "cabWin": 0.3,
+    "winH": 0.56,
+    "winZ": 2.29,
+    "doorWinH": 0.6,
+    "doorWinZ": 2.32,
+    "doorTop": 2.85,
+    "body": "F0F1EF",
+    "accent": "D42A35",
+    "acUnits": [
+      [
+        -2.2,
+        1.8
+      ],
+      [
+        0.8,
+        1.8
+      ]
+    ],
+    "acMat": "t2roof",
+    "label": "TEMU2000",
+    "bowPow": 1.8
+  },
+  "reference": {
+    "source": "https://blair-train.blogspot.com/2012/06/temu2000.html",
+    "detail": "紅色楔形車頭 · 黑框前窗 · 白色臉頰",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

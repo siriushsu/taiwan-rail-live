@@ -934,7 +934,7 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/temu1000.json",
-        "rawSha256": "a7128eacb0732ddb3c4827e06ab1c90872ab477d5a45273ea50892361954c175",
+        "rawSha256": "273ebcba06d9cc95861a1e53508cb08b2ac5d13ddd9efe5b090d9d84ca920812",
         "engineeringDimensionsM": null
       },
       "sources": [
@@ -967,7 +967,7 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/temu2000.json",
-        "rawSha256": "4b6b837bfd8865851ab65a8aaab881d1e89a12ad95be60cd297844b94bf64242",
+        "rawSha256": "c6d84194fc7b7626f46271e2ac00032dabbf6af977746e122943c27f8db90c29",
         "engineeringDimensionsM": null
       },
       "sources": [
@@ -3239,88 +3239,88 @@
     },
     "temu1000": {
       "file": "temu1000.bin",
-      "sha256": "dc1389da1499b1d9bd9c1ba2875f1283bef8a9bb9d85d9de26a606c58043b10d",
-      "byteLength": 957600,
-      "vertexCount": 23940,
+      "sha256": "a709d3126f3efcd3249f49c8e8da15f91a77e30ceb7dff9de9a43b0874df453b",
+      "byteLength": 956040,
+      "vertexCount": 23901,
       "min": [
         -5.298999786376953,
-        -1.5145492553710938,
-        0.0011030479799956083
+        -1.50600004196167,
+        0.0011030454188585281
       ],
       "max": [
-        4.981489181518555,
-        1.5145492553710938,
-        3.6500003337860107
+        5.089000225067139,
+        1.50600004196167,
+        3.619999885559082
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/temu1000.json",
-        "rawSha256": "a7128eacb0732ddb3c4827e06ab1c90872ab477d5a45273ea50892361954c175",
+        "rawSha256": "273ebcba06d9cc95861a1e53508cb08b2ac5d13ddd9efe5b090d9d84ca920812",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
     },
     "temu1000-mid": {
       "file": "temu1000-mid.bin",
-      "sha256": "f7814d3b62e7111d13ced7b4009e8d88347cb80a4d13d0e5dc7cd5221531569f",
-      "byteLength": 936840,
-      "vertexCount": 23421,
+      "sha256": "a472c4e7e128a8ce3165fbff39f4f73ae0ba033f80c027453c4fada58e83bad6",
+      "byteLength": 931440,
+      "vertexCount": 23286,
       "min": [
         -5.298999786376953,
-        -1.5145492553710938,
-        0.0011030377354472876
+        -1.50600004196167,
+        0.001103038084693253
       ],
       "max": [
         5.298999786376953,
-        1.5145492553710938,
-        3.6341683864593506
+        1.50600004196167,
+        3.6093661785125732
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/temu1000.json",
-        "rawSha256": "a7128eacb0732ddb3c4827e06ab1c90872ab477d5a45273ea50892361954c175",
+        "rawSha256": "273ebcba06d9cc95861a1e53508cb08b2ac5d13ddd9efe5b090d9d84ca920812",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
     },
     "temu2000": {
       "file": "temu2000.bin",
-      "sha256": "9c0d96b9678c23e13291251df4beaaa0b829b4039f39fcd9ba146a12bd869dcb",
-      "byteLength": 956880,
-      "vertexCount": 23922,
+      "sha256": "8ec80e998264daf5561dac37c45a921551bbd98978fcc2fb1009ca88029f1a71",
+      "byteLength": 957240,
+      "vertexCount": 23931,
       "min": [
         -5.098999977111816,
-        -1.5145492553710938,
-        0.0011030357563868165
+        -1.50600004196167,
+        0.0011030411114916205
       ],
       "max": [
-        4.7271728515625,
-        1.5145492553710938,
-        3.6500003337860107
+        4.928999900817871,
+        1.50600004196167,
+        3.619999885559082
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/temu2000.json",
-        "rawSha256": "4b6b837bfd8865851ab65a8aaab881d1e89a12ad95be60cd297844b94bf64242",
+        "rawSha256": "c6d84194fc7b7626f46271e2ac00032dabbf6af977746e122943c27f8db90c29",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
     },
     "temu2000-mid": {
       "file": "temu2000-mid.bin",
-      "sha256": "d041b40db8a97629c5ae26826e8f8fa4dc85bb6806f9f06501b8a6deeae2dd95",
-      "byteLength": 957600,
-      "vertexCount": 23940,
+      "sha256": "7f6b49327a6f0384a17f1ae985c671b1e20b0989463431aeff3e63ffbc3dd603",
+      "byteLength": 957960,
+      "vertexCount": 23949,
       "min": [
         -5.098999977111816,
-        -1.5145492553710938,
-        0.0011030297027900815
+        -1.5071684122085571,
+        0.0011030377354472876
       ],
       "max": [
         5.098999977111816,
-        1.5145492553710938,
-        3.6341683864593506
+        1.5071684122085571,
+        3.6093661785125732
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/temu2000.json",
-        "rawSha256": "4b6b837bfd8865851ab65a8aaab881d1e89a12ad95be60cd297844b94bf64242",
+        "rawSha256": "c6d84194fc7b7626f46271e2ac00032dabbf6af977746e122943c27f8db90c29",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"

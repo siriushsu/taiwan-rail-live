@@ -373,5 +373,59 @@
   ],
   "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
   "thumbnail": "models/emu700/renders/thumb.webp"
+ },
+ {
+  "id": "temu1000",
+  "name": "TEMU1000 太魯閣",
+  "family": "express",
+  "detail": "鈍圓長車鼻 · 黑色遮陽面 · 橘色笑臉帶",
+  "features": [
+   "鈍圓的長車鼻、前窗往後倒；前窗連同上方一整片黑色遮陽面，頂端中央凸出雙頭燈座。",
+   "窗下兩個煙燻「眼睛」燈座往中央下斜；橘帶從車側沿駕駛室往下掃，到車頭變成笑臉弧，下巴是 U 形車鉤蓋。",
+   "白色車身、深灰連續窗帶、窗帶下緣接橘帶；每側兩扇單開塞拉門。"
+  ],
+  "metadata": "models/temu1000/temu1000.model.json",
+  "blend": "models/temu1000/temu1000.blend",
+  "glb": "models/temu1000/temu1000.glb",
+  "hero": "models/temu1000/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/temu1000.html"
+   },
+   {
+    "label": "Wikimedia Commons／Cheng-en Cheng（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_Taroko_Express_at_Xizhi_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/temu1000/renders/thumb.webp"
+ },
+ {
+  "id": "temu2000",
+  "name": "TEMU2000 普悠瑪",
+  "family": "express",
+  "detail": "紅色楔形車頭 · 黑框前窗 · 白色臉頰",
+  "features": [
+   "楔形車鼻：下巴中央往前凸、前窗往後倒；紅色車頭從車頂往下收窄，車角與下巴兩側是白色臉頰。",
+   "頂端左右各一個圓頭燈座、中間目的地顯示；黑框前窗下緣中間往下彎；窗下兩個外高內低的眼睛燈座（白頭燈＋紅尾燈）。",
+   "下巴有 U 形分模線框住往下收窄的紅色部分；車側白色、獨立車窗，窗下一粗一細兩條紅帶；每側兩扇單開塞拉門。"
+  ],
+  "metadata": "models/temu2000/temu2000.model.json",
+  "blend": "models/temu2000/temu2000.blend",
+  "glb": "models/temu2000/temu2000.glb",
+  "hero": "models/temu2000/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/06/temu2000.html"
+   },
+   {
+    "label": "Wikimedia Commons／Tbatb（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:A_Southbound_TRA_Puyuma_express_approaching_North_Hsinchu_Station_02.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/temu2000/renders/thumb.webp"
  }
 ]
