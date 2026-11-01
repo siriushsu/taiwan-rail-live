@@ -427,5 +427,86 @@
   ],
   "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
   "thumbnail": "models/temu2000/renders/thumb.webp"
+ },
+ {
+  "id": "700t",
+  "name": "700T 高鐵",
+  "family": "express",
+  "detail": "鴨嘴長車鼻 · 黑色水滴窗罩 · 橘黑腰線",
+  "features": [
+   "鴨嘴長車鼻：鼻尖在下、一路往後抬高到車頂；黑色駕駛窗罩包住車鼻兩肩、側面看得到一長條，白頭燈與紅尾燈在窗罩前端裡面，鼻蓋前段有一圈分模線。",
+   "橘帶上緣全車同高：駕駛室段橘色一路到深灰裙邊，在車鼻變成往下包的 U 形；客室段只剩窄橘帶，上面壓一條前端削尖的黑線。",
+   "駕駛室門後一塊黑色楔形（前緣從裙邊彎上來、後緣斜切）；小圓角獨立窗，每側兩扇單開門；平頂，駕駛車沒有受電弓。"
+  ],
+  "metadata": "models/700t/700t.model.json",
+  "blend": "models/700t/700t.blend",
+  "glb": "models/700t/700t.glb",
+  "hero": "models/700t/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/700t.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:THSR_700T_frontnose_20130807.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/700t/renders/thumb.webp"
+ },
+ {
+  "id": "e1000",
+  "name": "E1000・推拉自強",
+  "family": "electric",
+  "detail": "銀色車身 · 橘帶往前下掃 · 橘色下巴",
+  "features": [
+   "往後倒的長車頭：上半銀色、兩扇黑框大前窗，頂端中央膠囊形雙頭燈座；窗下一道往上拱的折線，下巴整片橘色，左右兩個黑色燈座各兩顆圓燈。",
+   "車側橘色窗帶，帶下白細線與紅線、車身下緣另一條紅線；駕駛室前方橘帶與紅白線一起往前下掃，在車頭併成下巴的 V 字。",
+   "只有前端駕駛室（側窗前緣斜切、側門與扶手），後端是接客車的端牆；車頂後段是設備罩與單臂受電弓。"
+  ],
+  "metadata": "models/e1000/e1000.model.json",
+  "blend": "models/e1000/e1000.blend",
+  "glb": "models/e1000/e1000.glb",
+  "hero": "models/e1000/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/e1000.html"
+   },
+   {
+    "label": "Wikimedia Commons／WC-QHS（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_Push-pull_Tze-chiang_express_trains_at_TRA_Changhua_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/e1000/renders/thumb.webp"
+ },
+ {
+  "id": "ppcoach",
+  "name": "推拉自強・40PPD2500 客貨車",
+  "family": "coach",
+  "detail": "銀色車身 · 橘色窗帶 · 一半行李間",
+  "features": [
+   "不鏽鋼車身，橘色窗帶、帶下白細線與紅線、車身下緣另一條紅線，高度跟 E1000 機車對齊。",
+   "兩端各一扇有窗的單開塞拉門；窗只在一半（兩大兩小），另一半是行李間、只有橘帶，橘帶上緣兩個小百葉。",
+   "壓紋車頂，行李間那端車頂一大台冷氣；兩端是貫通道端牆。"
+  ],
+  "metadata": "models/ppcoach/ppcoach.model.json",
+  "blend": "models/ppcoach/ppcoach.blend",
+  "glb": "models/ppcoach/ppcoach.glb",
+  "hero": "models/ppcoach/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2011/04/40ppd2500.html"
+   },
+   {
+    "label": "Wikimedia Commons／Encino（Public domain）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_PPD2525_20021229.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/ppcoach/renders/thumb.webp"
  }
 ]

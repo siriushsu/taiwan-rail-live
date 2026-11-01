@@ -35,3 +35,9 @@ add('temu1000','express',L=9.8,W=2.85,H=3.4,doors=2,doorLeaves=1,doorW=.62,rearD
 # TEMU2000 普悠瑪（日本車輛）：L 9.4（fleet-v1 同尺寸）；楔形車鼻；每側兩扇單開塞拉門（車尾一扇、駕駛室後一扇），獨立車窗。
 add('temu2000','express',L=9.4,W=2.85,H=3.4,doors=2,doorLeaves=1,doorW=.62,rearDoor=.80,frontDoor=.55,cabWin=.30,winH=.56,winZ=2.29,doorWinH=.60,doorWinZ=2.32,doorTop=2.85,
  body='F0F1EF',accent='D42A35',acUnits=[(-2.2,1.8),(.8,1.8)],acMat='t2roof',label='TEMU2000')
+# 台灣高鐵 700T（川崎）：L 8.8（fleet-v1 同尺寸）；鴨嘴長車鼻（壓到約六成），駕駛車每側兩扇單開門（車尾、駕駛室後）；平頂、駕駛車沒有受電弓。
+add('700t','express',L=8.8,W=2.85,H=3.25,doors=2,doorLeaves=1,doorW=.58,body='E7E8E2',accent='E97F2C',label='700T')
+# E1000 推拉式自強號電力機車：L 9.0（fleet-v1 同尺寸）；只有前端駕駛室、後端接客車；車頭往後倒（壓到約六成）；單臂受電弓一具在車頂後段。
+add('e1000','electric',L=9.0,W=2.85,H=3.5,pantos=1,axles=2,radiusTop=.55,radiusBottom=.15,body='CDD3D5',accent='EE6A2C',label='E1000')
+# 推拉式自強號 40PPD2500 客貨車：L 9.0；兩端各一扇單開塞拉門，窗只在一半（兩大兩小）、另一半是行李間；色帶與 E1000 同高。
+add('ppcoach','coach',L=9.0,W=2.8,H=3.4,doors=2,doorLeaves=1,doorW=.62,body='C9CECC',accent='ED822A',label='40PPD2500')

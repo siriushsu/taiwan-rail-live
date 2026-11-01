@@ -17,6 +17,11 @@ def img(png,w,h):
 def tris(p):return json.loads(p.read_text())['mesh']['triangleCount']
 def thumb(url,width=480):
  name=url.split('/File:',1)[1];return f'https://commons.wikimedia.org/wiki/Special:FilePath/{name}?width={width}'
+def photo(p):
+ """Commons 照片連縮圖；其他來源（例如保留所有權利的部落格照片）只放文字連結，不顯示圖。"""
+ cap=f'<figcaption>{html.escape(p["use"])}<br><span>{html.escape(p["author"])}・{html.escape(p["licence"])}</span></figcaption>'
+ if '/File:' not in p['url']:return f'<figure class="photo link"><a href="{html.escape(p["url"])}">{html.escape(p["file"])}</a>{cap}</figure>'
+ return f'<figure class="photo"><a href="{html.escape(p["url"])}"><img loading="lazy" src="{html.escape(thumb(p["url"]))}" alt="{html.escape(p["file"])}"></a>{cap}</figure>'
 rows=[];cards=[]
 for id in a.ids:
  m=src[id];old=a.before/'models'/id;new=OUT/'models'/id
@@ -25,10 +30,10 @@ for id in a.ids:
  views=''.join(f'<div class="view"><h3>{label}</h3><div class="pair"><figure><img loading="lazy" src="{img(old/"renders"/f,w,h)}" alt="{id} 改前{label}"><figcaption>改前（fleet-v1）</figcaption></figure>'
   f'<figure><img loading="lazy" src="{img(new/"renders"/f,w,h)}" alt="{id} 改後{label}"><figcaption>改後（tw-v2）</figcaption></figure></div></div>' for f,label,w,h in VIEWS)
  feats=''.join(f'<li>{html.escape(x)}</li>' for x in m['features'])
- photos=''.join(f'<figure class="photo"><a href="{html.escape(p["url"])}"><img loading="lazy" src="{html.escape(thumb(p["url"]))}" alt="{html.escape(p["file"])}"></a>'
-  f'<figcaption>{html.escape(p["use"])}<br><span>{html.escape(p["author"])}・{html.escape(p["licence"])}</span></figcaption></figure>' for p in m['photos'])
+ photos=''.join(photo(p) for p in m['photos'])
+ heading='參考照片（Wikimedia Commons，點圖看原頁與授權）' if all('/File:' in p['url'] for p in m['photos']) else '參考照片（點圖或連結看原頁與授權；不是 Commons 的只放連結）'
  cards.append(f'<section id="{id}"><h2>{html.escape(m["name"])}<small>{t0:,} → {t1:,} 三角形</small></h2><ul class="feats">{feats}</ul>{views}'
-  f'<h3>參考照片（Wikimedia Commons，點圖看原頁與授權）</h3><div class="photos">{photos}</div></section>')
+  f'<h3>{heading}</h3><div class="photos">{photos}</div></section>')
 page=f'''<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{html.escape(a.title)}</title><style>
 :root{{--bg:#f4f3ef;--card:#fff;--ink:#1d2a33;--muted:#5d6a72;--line:#d9dcd8;--accent:#2479c9}}
@@ -42,7 +47,7 @@ h2{{font-size:20px;margin:0 0 6px;display:flex;gap:12px;align-items:baseline;fle
 h3{{font-size:14px;color:var(--muted);margin:16px 0 6px;font-weight:600}}.feats{{margin:4px 0 8px;padding-left:20px}}
 .pair{{display:grid;grid-template-columns:1fr 1fr;gap:10px}}figure{{margin:0}}img{{width:100%;height:auto;display:block;border-radius:6px;background:#ddd}}
 figcaption{{font-size:12px;color:var(--muted);padding:4px 2px}}.photos{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:10px}}
-.photo figcaption span{{opacity:.8}}@media (max-width:640px){{.pair{{grid-template-columns:1fr}}}}
+.photo figcaption span{{opacity:.8}}.photo.link{{border:1px dashed var(--line);border-radius:6px;padding:10px}}@media (max-width:640px){{.pair{{grid-template-columns:1fr}}}}
 </style></head><body><main><h1>{html.escape(a.title)}</h1>
 <p class="lead">每款三個角度：左邊是目前上線的 fleet-v1，右邊是這次精修的 tw-v2（同一個攝影棚、同一組鏡頭）。渲染圖內嵌在本檔；參考照片直接連 Commons，不複製、不當貼圖。</p>
 <table><thead><tr><th>車型</th><th>改前三角形</th><th>改後三角形</th><th>這次的重點</th></tr></thead><tbody>{"".join(rows)}</tbody></table>

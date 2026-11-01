@@ -16,7 +16,7 @@
 | `tw_models.py` | 每款的建模函式；同車體的家族共用一支（例如北捷高運量的 `metro_body`、`metro_black_face`） |
 | `build_tw.py` | Blender 入口 |
 | `finalize_tw.py` | 渲染完之後產 360×240 WebP 縮圖與 `catalog.json`（給車庫匯入讀） |
-| `compare_page.py` | 改前（fleet-v1）／改後三角度對照頁，渲染圖內嵌成單一 HTML；參考照片只連 Commons |
+| `compare_page.py` | 改前（fleet-v1）／改後三角度對照頁，渲染圖內嵌成單一 HTML；參考照片只連 Commons 縮圖，其他來源只放文字連結 |
 | `catalog-source.json` | 每款名稱、說明、車庫顯示的參考連結、比對用照片的作者與授權 |
 | `catalog.json` | `finalize_tw.py` 產出，fleet-v1 同格式 |
 
@@ -41,6 +41,7 @@ python3 prototypes/tiny-trains/blender/tw-v2/finalize_tw.py c301 c321 c341 c371 
 | `emu500` `emu600` `haifeng` `shanlan` `emu800` `emu800r` 區間車 | 精修，對照 Commons 照片與官方示意圖修過三次（2026-11-01） |
 | `emu900` `emu700` 區間車 | 精修，車頭高度照正面照量、門窗配置照側面照（2026-11-01） |
 | `temu1000` `temu2000` 自強號 | 精修，車頭高度照正面照量、車側色帶照側面照比例（2026-11-01） |
+| `700t` 高鐵、`e1000` `ppcoach` 推拉式自強號 | 精修，車鼻輪廓與窗罩照正側面照量、E1000 與客車色帶同高（2026-11-01） |
 
 ## 照片與標誌
 

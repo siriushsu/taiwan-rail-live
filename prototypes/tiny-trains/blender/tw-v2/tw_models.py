@@ -423,5 +423,314 @@ def temu2000(s):
  front_ribbon('U 形下巴分模線',g,u,.020,'t2black');front_ribbon('下巴中縫',g,[(0,.965),(0,2.04)],.014,'t2black')
  return f
 
+def side_prism(name,pts,side,y,material,depth=.010):
+ """車側平面上的凸多邊形色塊（pts 是 (x, z)），做成薄片實體，法線不會翻。"""
+ use('01');n=len(pts);v=[(x,side*(y-depth),z) for x,z in pts]+[(x,side*y,z) for x,z in pts]
+ return mesh(name,v,[tuple(range(n)),tuple(range(n,2*n))]+[(i,(i+1)%n,n+(i+1)%n,n+i) for i in range(n)],material)
+
+def clip_poly(poly,g,lerp):
+ """多邊形裁成 g(點) ≥ 0 的部分，邊上線性內插（lerp(a, b, t) 給內插點）。"""
+ out=[]
+ for a,b in zip(poly,poly[1:]+poly[:1]):
+  ga,gb=g(a),g(b)
+  if ga>=0:out.append(a)
+  if (ga>=0)!=(gb>=0):out.append(lerp(a,b,ga/(ga-gb)))
+ return out
+
+# ── 台灣高鐵 700T ──────────────────────────────────────────────────────────────
+
+def hermite(control):
+ """形狀保持的三次 Hermite 插值（fleet-v1 shinkansen_shell 同一套，參數個數不限）：control=[(x, 參數…), ...] → shape(x)。"""
+ h=[b[0]-a[0] for a,b in zip(control,control[1:])];slopes=[]
+ for k in range(1,len(control[0])):
+  d=[(b[k]-a[k])/v for a,b,v in zip(control,control[1:],h)];m=[d[0]]
+  for i in range(1,len(control)-1):
+   if d[i-1]*d[i]<=0:m.append(0)
+   else:w1=2*h[i]+h[i-1];w2=h[i]+2*h[i-1];m.append((w1+w2)/(w1/d[i-1]+w2/d[i]))
+  m.append(d[-1]);slopes.append(m)
+ def shape(x):
+  for i,(a,b) in enumerate(zip(control,control[1:])):
+   if x<=b[0]:
+    t=min(1,max(0,(x-a[0])/h[i]))
+    return [(2*t**3-3*t*t+1)*a[k]+(t**3-2*t*t+t)*h[i]*slopes[k-1][i]+(-2*t**3+3*t*t)*b[k]+(t**3-t*t)*h[i]*slopes[k-1][i+1] for k in range(1,len(a))]
+  return list(control[-1][1:])
+ return shape
+
+def loaf_dims(w,zb,zt,rb,rt):
+ hw=max(w/2,1e-4);h=max(zt-zb,1e-4);rb=min(rb,hw*.95,h*.45);return hw,rb,min(rt,hw),max(1e-4,min(rt,h-rb))
+
+def loaf(w,zb,zt,rb,rt,nb=4,nt=8):
+ """平底小圓角、上緣大圓角的車殼斷面，由底部中央繞一圈；斷面矮的時候上圓角壓成橢圓。"""
+ hw,rb,ay,az=loaf_dims(w,zb,zt,rb,rt)
+ half=[(0,zb),((hw-rb)/2,zb)]+[(hw-rb+rb*math.cos(a),zb+rb+rb*math.sin(a)) for a in [math.pi*(i/nb-1)/2 for i in range(nb+1)]]
+ half+=[(hw,zb+rb+(zt-az-zb-rb)*t) for t in (1/3,2/3)]+[(hw-ay+ay*math.cos(a),zt-az+az*math.sin(a)) for a in [math.pi*i/nt/2 for i in range(nt+1)]]
+ half+=[((hw-ay)/2,zt),(0,zt)]
+ return half+[(-y,z) for y,z in reversed(half[1:-1])]
+
+def t700(s):
+ """700T（川崎重工）。參考：Commons「THSR 700T frontnose 20130807.jpg」（Rsa，CC BY-SA 3.0，駕駛車正側面）、「THSR 700T 126-12 20130807.jpg」「THSR 700T 126-11 20130807.jpg」（Rsa，CC BY-SA 3.0，色帶結構與中間車高度）、
+ 「Shinkansen 700T.jpg」（Graham2000，Public domain，正面）、「THSR 700T Front view.jpg」（Alec @ Taiwan，CC BY 2.0，斜前方）、「THSR 700T trains at Yanchao Workshop 20080404.jpg」（Chopstick，CC BY-SA 3.0，斜上方）。
+ 鴨嘴長車鼻：鼻尖在下、一路往後抬高到車頂；車鼻上方是黑色駕駛窗罩（從車殼切出來，包住車鼻兩肩、側面看得到一長條，後端幾乎直切、往前收到鼻上），
+ 白頭燈與紅尾燈在窗罩前端裡面；鼻蓋前段有一圈分模線。
+ 塗裝：橘帶上緣 1.92 全車一樣；駕駛室段橘色一路到深灰裙邊（1.22），在車鼻變成往下包的 U 形；客室段只剩窄橘帶 1.65–1.92，上面壓一條黑線（前端削尖、在駕駛室門後收掉），
+ 下面白色；駕駛室門後有一塊黑色楔形（前緣從裙邊彎上來、後緣斜切）。小圓角獨立窗 2.10–2.52；每側兩扇單開門（車尾、駕駛室後），門上緣 2.80：車殼肩部從 2.70 往內收，平板門再高會從肩部凸出來。
+ 高度照正側面照量（車頂 3.25、裙邊 0.83 定比例），車鼻長度壓到約六成。地圖的中間車是鏡射 x<0 半車做的，所以只屬於車頭的東西全放 x>0。"""
+ L,W,H=s['L'],s['W'],s['H'];tip=L/2-.12
+ color('t7white','E9EAE4',.08,.30,.30);color('t7orange','EB7A26',.05,.30,.32);color('t7black','16191C',.20,.22,.45)
+ color('t7skirt','4B5155',.30,.36,.15);color('t7canopy','1A2128',.12,.42,0);color('t7seam','9AA0A0',.20,.40,.10)
+ # (x, 寬, 底, 頂, 下圓角, 上圓角)：車頂與鼻底照正側面照的輪廓，寬度照斜上方照片估
+ shape=hermite([(-L/2,W,.83,H,.16,.55),(0,W,.83,H,.16,.55),(.80,W,.83,3.235,.16,.55),(1.25,2.82,.83,3.214,.17,.56),(1.70,2.77,.84,3.154,.18,.57),
+  (2.15,2.69,.851,3.078,.19,.58),(2.47,2.58,.875,2.988,.20,.59),(2.83,2.40,.90,2.732,.21,.60),(3.06,2.25,.911,2.582,.22,.60),(3.28,2.08,.935,2.431,.23,.58),
+  (3.51,1.86,.956,2.266,.24,.55),(3.73,1.62,.98,2.070,.25,.50),(3.87,1.44,1.005,1.935,.26,.46),(3.96,1.30,1.032,1.844,.26,.42),(4.05,1.14,1.092,1.754,.25,.38),
+  (4.14,.94,1.13,1.64,.23,.32),(4.18,.84,1.152,1.58,.21,.29),(4.23,.64,1.197,1.50,.17,.23),(4.26,.42,1.235,1.44,.11,.14),(tip,.02,1.325,1.341,.008,.008)])
+ xs=sorted(set(round(x,4) for x in [-L/2,-L/2+.14]+[-4.0+.25*i for i in range(17)]+[.26,.40]+[.55+.06*i for i in range(25)]+[2.05+.03*i for i in range(66)]+[4.04+.01*i for i in range(24)]+[tip]))
+ verts=[]
+ for x in xs:ring=loaf(*shape(x));verts+=[(x,y,z) for y,z in ring]
+ n=len(ring);k=len(xs)
+ faces=[tuple(reversed(range(n))),tuple(range((k-1)*n,k*n))]+[(i*n+j,i*n+(j+1)%n,(i+1)*n+(j+1)%n,(i+1)*n+j) for i in range(k-1) for j in range(n)]
+ use('01');body=mesh('700T 施工車殼',verts,faces,'t7white',0,True)
+ # 同一張車殼照塗裝邊界切成四色（fleet-v1 的做法）：裙邊、客室段下半白、橘色（駕駛室段到裙邊、客室段窄帶）、橘帶上緣以上白；
+ # 白色裡車鼻上方高過窗罩下緣 CAN（正側面照量）的那塊是黑色窗罩：包住車鼻兩肩、側面看得到一長條，後端幾乎直切、往前收到鼻上
+ TOP=[(3.06,1.92),(3.507,1.86),(3.733,1.83),(3.959,1.74),(4.094,1.65),(4.184,1.56),(4.23,1.48),(tip,1.40)]
+ CAN=[(2.47,2.75),(2.52,2.74),(2.70,2.62),(2.91,2.51),(3.13,2.40),(3.345,2.29),(3.56,2.20),(3.717,2.13)]
+ sk=lambda x:1.22+.05*min(1,max(0,(x-4.0)/.28))**2;top=lambda x:interp(TOP,x);canz=lambda x:interp(CAN,x)
+ crear=lambda y:2.47+.08*(1-math.sqrt(max(0,1-min(1,abs(y)/1.17)**2)))
+ lo=lambda x:1.65 if x<=.26 else 1.65-(1.65-sk(x))*min(1,(x-.26)/.14)
+ lerp=lambda a,b,t:(a[0].lerp(b[0],t),a[1].lerp(b[1],t));groups={}
+ def put(key,poly):
+  if len(poly)<3:return
+  vv,ff,nn=groups.setdefault(key,([],[],[]));base=len(vv);vv.extend(tuple(a) for a,_ in poly);nn.extend(tuple(m.normalized()) for _,m in poly)
+  ff.extend((base,base+i,base+i+1) for i in range(1,len(poly)-1))
+ d=body.data;d.calc_loop_triangles()
+ for tri in d.loop_triangles:
+  poly=[(d.vertices[i].co.copy(),d.vertices[i].normal.copy()) for i in tri.vertices]
+  put('t7skirt',clip_poly(poly,lambda v:sk(v[0].x)-v[0].z,lerp));rest=clip_poly(poly,lambda v:v[0].z-sk(v[0].x),lerp)
+  put('t7white',clip_poly(rest,lambda v:lo(v[0].x)-v[0].z,lerp));rest=clip_poly(rest,lambda v:v[0].z-lo(v[0].x),lerp)
+  put('t7orange',clip_poly(rest,lambda v:top(v[0].x)-v[0].z,lerp));rest=clip_poly(rest,lambda v:v[0].z-top(v[0].x),lerp)
+  put('t7white',clip_poly(rest,lambda v:canz(v[0].x)-v[0].z,lerp));rest=clip_poly(rest,lambda v:v[0].z-canz(v[0].x),lerp)
+  put('t7white',clip_poly(rest,lambda v:crear(v[0].y)-v[0].x,lerp));put('t7canopy',clip_poly(rest,lambda v:v[0].x-crear(v[0].y),lerp))
+ p.MODEL.remove(body);bpy.data.objects.remove(body,do_unlink=True)
+ for key,name in [('t7white','700T 白色車殼'),('t7orange','700T 橘色車鼻與橘帶'),('t7skirt','700T 深灰裙邊'),('t7canopy','黑色水滴形駕駛窗罩')]:
+  vv,ff,nn=groups[key];m=bpy.data.meshes.new(name);m.from_pydata(vv,[],ff);m.update()
+  o=bpy.data.objects.new(name,m);p.ACTIVE.objects.link(o);p.MODEL.append(o);finish(o,key,0,True);m.normals_split_custom_set_from_vertices(nn)
+  if key=='t7white':o['primary_body']=True
+ # 客室段黑線（前端削尖、在駕駛室門後收掉）與門後黑色楔形：都在 x>0 結束，中間車鏡射時兩端一致
+ for side in [-1,1]:
+  side_prism('橘帶上黑線',[(-L/2+.05,1.92),(.42,1.92),(.02,2.04),(-L/2+.05,2.04)],side,W/2+.012,'t7black')
+  side_prism('門後黑色楔形',[(0,1.65)]+[(.40+.08*math.sqrt(t),1.22+.43*t) for t in [i/8 for i in range(8,-1,-1)]]+[(.26,1.22)],side,W/2+.012,'t7black')
+ # 窗與門：x<0 的窗距一致（中間車鏡射後 x=0 兩側的窗距不變），駕駛室門前不放窗
+ dw=s['doorW']
+ for side in [-1,1]:
+  y=side*(W/2+.018)
+  for x in [-.30-.60*i for i in range(6)]+[.30]:sidewindow(x,y,2.31,.36,.42,r=.09)
+  for i,(x,bands) in enumerate([(-L/2+.45,[(1.785,.27,'t7orange'),(1.98,.12,'t7black')]),(.84,[(1.685,.47,'t7orange')])]):
+   use('02');cz=(1.45+2.80)/2;h=2.80-1.45
+   panel('側門門框',(x,y,cz),dw+.05,h+.03,'frame',r=.03)
+   door=panel('獨立門扇',(x,y+side*.023,cz),dw-.022,h,'t7white',r=.025,depth=.024)
+   door['side_door']=True;door['door_group']=i+1;door['side']=side;door['leaf']=0
+   for z,hh,m in bands:box('門扇色帶',(x,y+side*.041,z),(dw-.022,.011,hh),m,.002)
+   panel('門窗嵌框',(x,y+side*.052,2.35),.30,.48,'frame',r=.05)
+   panel('門窗玻璃',(x,y+side*.066,2.35),.26,.42,'glass',r=.045,depth=.012)
+ text_label(s['label'],(-1.8,W/2+.025,1.43),.07,axis='side',side=1)
+ # 頭燈（白、內）與尾燈（紅、外）在窗罩前端裡面，貼著車殼上表面
+ def top_z(x,y):
+  w,zb,zt,rb,rt=shape(x);hw,rb,ay,az=loaf_dims(w,zb,zt,rb,rt);e=abs(y)-(hw-ay)
+  return zt if e<=0 else zt-az+az*math.sqrt(max(0,1-min(1,e/ay)**2))
+ def top_disc(name,xc,yc,rx,ry,material,off):
+  pts=[(xc,yc)]+[(xc+rx*math.cos(2*math.pi*k/20),yc+ry*math.sin(2*math.pi*k/20)) for k in range(20)]
+  return mesh(name,[(x,y,top_z(x,y)+off) for x,y in pts],[(0,1+k,1+(k+1)%20) for k in range(20)],material,0,True)
+ use('03')
+ for side in [-1,1]:top_disc('頭燈',3.50,side*.22,.05,.09,'lamp',.006);top_disc('尾燈',3.50,side*.38,.04,.06,'red',.006)
+ # 鼻蓋分模線：x=4.0 那一圈斷面，橘色下緣以上
+ pts=loaf(*shape(4.0),8,12);seam=[]
+ for i,(y,z) in enumerate(pts):
+  if z<sk(4.0)+.03:continue
+  (y0,z0),(y1,z1)=pts[i-1],pts[(i+1)%len(pts)];l=math.hypot(y1-y0,z1-z0) or 1;seam.append((4.0,y+(z1-z0)/l*.008,z-(y1-y0)/l*.008))
+ use('03');line('車鼻蓋分模線',seam,.008,'t7seam')
+ # 轉向架照側面照的位置；車底主梁與設備箱改短，不從收窄的車鼻底穿出來、也不撞到前轉向架
+ bogies(L,W,r=.35,centers=[-2.9,1.5])
+ for o in [o for o in p.MODEL if o.name.split('.')[0] in ('車底主梁','車下獨立設備箱','設備箱通風格柵')]:p.MODEL.remove(o);bpy.data.objects.remove(o,do_unlink=True)
+ use('04');box('車底主梁',(-.55,0,.86),(6.9,W*.72,.30),'chassis',.04)
+ for x in [-1.2,-.1]:
+  box('車下獨立設備箱',(x,0,.62),(.90,W*.6,.48),'roof',.04)
+  for sd in [-1,1]:
+   for k in range(4):box('設備箱通風格柵',(x-.3+k*.2,sd*(W*.30+.006),.62),(.06,.015,.30),'chassis',.004)
+ coupler(-L/2-.03,W,-1,gangway=True)
+ return surface_fn(shape,tip)
+
+def surface_fn(shape,tip):
+ """車鼻表面：給 (y, z) 回鼻尖方向最前面的 x（二分搜尋斷面，跟 fleet-v1 shinkansen_shell 的 surface 同一個做法）。"""
+ def inside(x,y,z):
+  w,zb,zt,rb,rt=shape(x);hw,rb,ay,az=loaf_dims(w,zb,zt,rb,rt)
+  if z<zb or z>zt:return False
+  if z<zb+rb:d=zb+rb-z;return abs(y)<=hw-rb+math.sqrt(max(0,rb*rb-d*d))
+  if z>zt-az:d=(z-(zt-az))/az;return abs(y)<=hw-ay+ay*math.sqrt(max(0,1-d*d))
+  return abs(y)<=hw
+ def surface(y,z):
+  a,b=.55,tip
+  for i in range(32):
+   m=(a+b)/2
+   if inside(m,y,z):a=m
+   else:b=m
+  return a
+ return surface
+
+# ── 台鐵推拉式自強號（E1000 機車、40PPD2500 客貨車）─────────────────────────────
+# 車側色帶 E1000 與客車同高：橘帶 1.70–2.61、帶下白細線 1.675–1.70 與紅線 1.615–1.675、車身下緣紅線 1.08–1.13（照彰化站正側面照量）。
+
+PP_BANDS=[(1.08,'e1silver'),(1.13,'e1red'),(1.615,'e1silver'),(1.675,'e1red'),(1.70,'e1white'),(2.61,'e1orange')]
+
+def pp_colours():
+ color('e1silver','CDD3D5',.45,.32,.15);color('e1orange','EE6A2C',.05,.32,.30);color('e1red','C8202E',.05,.32,.30)
+ color('e1white','F2F3F0',.08,.32,.25);color('e1black','15191C',.20,.22,.45);color('e1grey','5C6469',.35,.38,.12);color('e1roof','AEB5B8',.40,.40,.08)
+
+def side_paint(name,s,f,side,gs,x0,x1,z0,z1,material,offset=.008,step=.04):
+ """駕駛室側面（|y|=W/2 的平面）上用不等式圍出的色塊：gs=[g(x, z), ...] 全部 ≥0 的地方上色，車頭曲面前緣自動裁掉。
+ 先切成細格三角形再逐條裁切，斜掃的色帶邊緣才是直的。"""
+ W=s['W'];gs=list(gs)+[lambda x,z:f(W/2,z)-.004-x];nx=max(1,math.ceil((x1-x0)/step));nz=max(1,math.ceil((z1-z0)/step))
+ P=lambda i,j:(x0+(x1-x0)*i/nx,z0+(z1-z0)*j/nz);lerp=lambda a,b,t:(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t)
+ verts=[];faces=[];index={}
+ def vid(q):
+  key=(round(q[0],5),round(q[1],5))
+  if key not in index:index[key]=len(verts);verts.append((q[0],side*(W/2+offset),q[1]))
+  return index[key]
+ for i in range(nx):
+  for j in range(nz):
+   for tri in ([P(i,j),P(i+1,j),P(i+1,j+1)],[P(i,j),P(i+1,j+1),P(i,j+1)]):
+    poly=tri
+    for g in gs:
+     poly=clip_poly(poly,lambda q:g(*q),lerp)
+     if len(poly)<3:break
+    if len(poly)<3:continue
+    ids=[vid(q) for q in poly]
+    for k in range(1,len(ids)-1):
+     if len({ids[0],ids[k],ids[k+1]})==3:faces.append((ids[0],ids[k],ids[k+1]) if side<0 else (ids[0],ids[k+1],ids[k]))
+ use('01');d=bpy.data.meshes.new(name);d.from_pydata(verts,[],faces);d.update()
+ o=bpy.data.objects.new(name,d);p.ACTIVE.objects.link(o);p.MODEL.append(o);return finish(o,material)
+
+def e1000(s):
+ """E1000 推拉式自強號電力機車。參考：Commons「TRA E1000 Push-pull Express train on the Western Line.jpg」（jason199567，CC BY-SA 4.0，正面）、
+ 「TRA Push-pull Tze-chiang express trains at TRA Changhua Station.jpg」（WC-QHS，CC BY-SA 4.0，駕駛室正側面）、「A TRA Push-pull Tze-chiang Express at Hsinchu Station 02.jpg」（Lokseng01，CC BY-SA 4.0，斜前方全車）、
+ 「Push-Pull Tze-Chiang Limited Express Trainset.jpg」（Samson Ng . D201@EAL，CC BY-SA 4.0，機車與客車色帶對齊）、「Close-up of a TRA Push-pull Tze-chiang express at Taichung Station.jpg」（WC-QHS，CC BY-SA 4.0，後端牆）。
+ 銀色車身、往後倒的長車頭（不是電聯車的車殼，所以不走 emu_body）。正面上半銀色、兩扇黑框大前窗，頂端中央膠囊形雙頭燈座；窗下一道往上拱的折線，
+ 下巴整片橘色，左右兩個黑色燈座各兩顆圓燈、中間兩組小通風口；下巴下緣一白一紅兩條 V 字線，再下面是銀色裙板與黃黑警戒條。
+ 車側橘帶 1.70–2.61（駕駛室側窗、側門都在帶內），帶下白細線與紅線、車身下緣另一條紅線；駕駛室前方橘帶上緣往前下掃，帶下的紅白線也往下掃到下緣紅線，
+ 三條線在車頭併成下巴的 V 字。車頂後段是設備罩與單臂受電弓；後端是接客車的端牆（上橘下銀）。
+ 高度照彰化站正側面照量（車頂 3.50、車身下緣 0.83 定比例），車頭長度壓到約六成；正面的橫向位置照正面照。"""
+ L,W,H=s['L'],s['W'],s['H'];pp_colours()
+ profile=[(.83,L/2-.005),(.90,L/2),(1.14,L/2-.04),(1.35,L/2-.11),(1.61,L/2-.24),(1.89,L/2-.36),(2.39,L/2-.61),(2.81,L/2-.86),(3.12,L/2-1.06),(3.34,L/2-1.26),(3.46,L/2-1.55),(H,L/2-1.86)]
+ s['bowPow']=2.0;bands=PP_BANDS+[(H+1,'e1silver')]
+ f,neck=zoned_shell(s,profile,.38,bands,[(H+1,'e1silver')],nose_zones=bands,surface_neck=True)
+ # 駕駛室前方：橘帶上緣 t(x) 沿側窗前緣往前下掃；帶下的白線、紅線 b(x) 往下掃到車身下緣紅線，之後三條線一起到車角接上正面的 V 字
+ T=[(3.26,2.61),(3.49,2.07),(3.80,1.70),(3.88,1.62),(4.20,1.30),(4.60,.90)];B=[(3.47,1.70),(3.76,1.165)]
+ t=lambda x:interp(T,x);b=lambda x:interp(B,x);x0=3.20
+ for side in [-1,1]:
+  for name,gs,m in [('駕駛室前方銀色',[lambda x,z:2.62-z,lambda x,z:z-t(x)],'e1silver'),('駕駛室前方銀色',[lambda x,z:b(x)-.085-z,lambda x,z:z-1.13],'e1silver'),
+   ('橘帶往前下掃',[lambda x,z:z-b(x),lambda x,z:min(t(x),2.61)-z],'e1orange'),('白細線往前下掃',[lambda x,z:z-b(x)+.025,lambda x,z:b(x)-z],'e1white'),
+   ('紅線往前下掃',[lambda x,z:z-b(x)+.085,lambda x,z:b(x)-.025-z],'e1red'),('下緣紅線',[lambda x,z:z-1.08,lambda x,z:1.13-z,lambda x,z:3.76-x],'e1red')]:
+   side_paint(name,s,f,side,gs,x0,4.6,1.0,2.62,m)
+ # 駕駛室側窗（前緣斜、跟橘帶下掃平行）、側門、扶手、踏階
+ for side in [-1,1]:
+  side_prism('駕駛室側窗窗框',[(2.91,1.97),(3.50,1.97),(3.18,2.78),(2.91,2.78)],side,W/2+.022,'e1black')
+  side_prism('駕駛室側窗玻璃',[(2.945,2.005),(3.455,2.005),(3.155,2.745),(2.945,2.745)],side,W/2+.032,'glass')
+  box('側窗橫框',(3.12,side*(W/2+.034),2.39),(.355,.012,.03),'e1black',.004)
+  for x in [3.07,3.20]:box('側窗直框',(x,side*(W/2+.034),2.20),(.025,.012,.385),'e1black',.004)
+  use('02');x=2.655;cz=(1.225+2.856)/2;h=2.856-1.225;yy=side*(W/2+.018)
+  panel('駕駛室側門門框',(x,yy,cz),.35,h+.03,'frame',r=.03)
+  c=panel('駕駛室側門',(x,yy+side*.020,cz),.29,h,'e1silver',r=.025,depth=.020);c['side_door']=True;c['crew_door']=True
+  for z,hh,m in [(2.155,.91,'e1orange'),(1.6875,.025,'e1white'),(1.645,.06,'e1red')]:box('門扇色帶',(x,yy+side*.032,z),(.29,.011,hh),m,.002)
+  panel('駕駛室門窗嵌框',(x,yy+side*.040,2.47),.24,.68,'frame',r=.04)
+  panel('駕駛室門窗玻璃',(x,yy+side*.052,2.47),.20,.64,'glass',r=.035,depth=.012)
+  for xr in [2.45,2.86]:rod('登車扶手',(xr,yy+side*.05,1.25),(xr,yy+side*.05,2.45),.016,'metal')
+  for z in [.39,.60,.80]:box('駕駛室登車踏階',(x,side*(W/2-.01),z),(.30,.15,.042),'metal',.008)
+  grille('車側百葉窗',1.85,side*(W/2+.02),2.615,.36,.57,True,9)
+  grille('車側百葉窗',-3.45,side*(W/2+.02),2.60,.26,.50,True,8)
+ # 正面：下巴橘色、白細線、紅線（V 字：車角接車側往下掃的三條線、中央最低）
+ V=lambda y:1.165-.16*(1-abs(y)/(W/2));m=W/2-.004
+ front_patch('橘色下巴',f,-m,m,V,lambda y:1.54+.08*(abs(y)/(W/2))**1.5,'e1orange',.010,cols=48,rows=10)
+ front_patch('下巴白細線',f,-m,m,lambda y:V(y)-.025,V,'e1white',.010,cols=48,rows=1)
+ front_patch('下巴紅線',f,-m,m,lambda y:V(y)-.085,lambda y:V(y)-.025,'e1red',.010,cols=48,rows=2)
+ g=lambda y,z:f(y,z)-.05
+ front_ribbon('下巴上緣折線',g,[(-1.38,1.60),(-1.0,1.70),(-.5,1.775),(0,1.80),(.5,1.775),(1.0,1.70),(1.38,1.60)],.016,'e1grey')
+ for sd in [-1,1]:
+  a,b2=sorted([sd*.44,sd*.96]);lo,hi=pinch(lambda y:1.22,lambda y:1.50,.44,.96,.11)
+  front_patch('下巴燈座',f,a,b2,lambda y:lo(abs(y)),lambda y:hi(abs(y)),'e1black',.016,cols=14,rows=6)
+  lamp('頭燈',f,sd*.58,1.36,.068);lamp('尾燈',f,sd*.80,1.36,.062,red=True)
+  for dy in [.13,.185,.24]:front_panel('中央通風口',f,sd*dy,1.365,.028,.10,'e1black',.012,.016)
+  # 兩扇黑框大前窗、窗上雨刷
+  a,b2=sorted([sd*.035,sd*1.08]);lo,hi=pinch(lambda y:2.22,lambda y:2.78,.035,1.08,.10)
+  front_patch('前窗黑框',f,a,b2,lambda y:lo(abs(y)),lambda y:hi(abs(y)),'e1black',.030,cols=24,rows=8)
+  a,b2=sorted([sd*.075,sd*1.04]);lo,hi=pinch(lambda y:2.26,lambda y:2.74,.075,1.04,.075)
+  front_patch('前窗玻璃',f,a,b2,lambda y:lo(abs(y)),lambda y:hi(abs(y)),'glass',.036,cols=24,rows=8)
+ for a,b2 in [((-.58,2.92),(-.13,2.66)),((.60,2.92),(.19,2.66))]:
+  use('03');line('雨刷',[(f(*a)+.045,*a),(f(*b2)+.045,*b2)],.013,'e1black')
+ face_label(s['label'],f,-.72,2.66,.046,.045,tilt=True)
+ lo,hi=pinch(lambda y:2.91,lambda y:3.08,-.20,.20,.085)
+ front_patch('頂部頭燈座',f,-.20,.20,lo,hi,'e1black',.020,cols=16,rows=6)
+ for y in [-.09,.09]:lamp('頂部頭燈',lambda yy,zz:f(yy,zz)-.05,y,2.995,.052)
+ # 車身下緣以下的前端裙板（隨車鼻平面曲線、往下微收）與黃黑警戒條、車鉤
+ sk=lambda y,z:f(y,.83)-.03-.10*(.83-z)/.33;ys=W/2-.14
+ front_patch('前端裙板',sk,-ys,ys,.50,.83,'e1silver',0,cols=32,rows=4)
+ front_patch('警戒條底色',sk,-ys+.01,ys-.01,.50,.64,'yellow',.006,cols=32,rows=2)
+ for k in range(-6,6):
+  y0=k*.22
+  if y0<-ys+.01 or y0+.21>ys-.01:continue
+  front_poly('警戒黑斜紋',lambda y,z:sk(y,z)-.025,[(y0,.64),(y0+.11,.64),(y0+.21,.50),(y0+.10,.50)],'e1black')
+ for sd in [-1,1]:xs_=sk(sd*ys,.66);box('前端側裙',((3.75+xs_)/2,sd*(ys+.015),.665),(xs_-3.75,.03,.33),'e1silver',.01)
+ coupler(f(0,.83)-.08,W,1,z=.76)
+ # 車頂：駕駛室後到車尾的設備罩、冷卻風柵、單臂受電弓與高壓母線、無線天線
+ use('05');box('車頂設備罩',(-1.05,0,H-.02),(6.5,2.26,.26),'e1grey',.07)
+ for k in range(10):box('屋頂冷卻風柵',(1.05+k*.10,0,H+.115),(.035,1.5,.012),'e1black',.002)
+ pantograph(-2.6,H+.11);line('屋頂高壓母線',[(-2.2,-.70,H+.13),(1.0,-.70,H+.13)],.018,'metal')
+ box('車頂天線底座',(1.9,.55,H+.12),(.20,.16,.05),'chassis',.012);rod('列車無線天線',(1.9,.55,H+.14),(1.9,.55,H+.32),.010,'chassis')
+ # 後端牆：上半橘（車殼後端）、下半銀與兩條紅線，貫通道接客車
+ use('07');box('後端牆下半銀色',(-L/2-.006,0,1.27),(.012,W-.30,.86),'e1silver',.004)
+ for z,hh in [(1.645,.06),(1.105,.05)]:box('後端牆紅線',(-L/2-.014,0,z),(.008,W-.30,hh),'e1red',.002)
+ coupler(-L/2-.03,W,-1,z=.70,gangway=True)
+ bogies(L,W,r=.42)
+ return f
+
+def end_wall(name,s,x,material,depth=.008):
+ """跟車殼同一條斷面的端牆薄片（zoned_shell 後端只有單一色，客車兩端要一樣）。"""
+ H=s['H'];z0=s.get('bottom',.83);zs=[z0+(H-z0)*i/40 for i in range(41)];sg=1 if x>0 else -1
+ ring=[(half_width(s,z),z) for z in zs]+[(-half_width(s,z),z) for z in reversed(zs)];n=len(ring)
+ v=[(x,y,z) for y,z in ring]+[(x+sg*depth,y,z) for y,z in ring]
+ use('07');return mesh(name,v,[tuple(range(n)),tuple(range(n,2*n))]+[(i,(i+1)%n,n+(i+1)%n,n+i) for i in range(n)],material)
+
+def ppcoach(s):
+ """推拉式自強號 40PPD2500 客貨車（一半客室、一半行李間）。參考：Commons「TRA PPD2525 20021229.jpg」（Encino，Public domain，車體配置：門在一端、窗在另一半）、
+ 「Push-Pull Tze-Chiang Limited Express Trainset.jpg」（Samson Ng . D201@EAL，CC BY-SA 4.0，客車色帶跟 E1000 對齊）；Blair Yu 的 40PPD2527 原始攝影文章只在本機看配置，不轉載。
+ 不鏽鋼車身；色帶跟 E1000 同高（PP_BANDS）；兩端各一扇有窗的單開塞拉門；窗只在一半（兩大兩小），另一半是行李間、只有橘帶；
+ 橘帶上緣兩個小百葉；壓紋車頂，行李間那端車頂一大台冷氣。"""
+ L,W,H=s['L'],s['W'],s['H'];pp_colours()
+ bands=PP_BANDS+[(H-.10,'e1silver'),(H+1,'e1roof')]
+ zoned_shell(s,[(.83,L/2),(H,L/2)],0,bands,[(H-.10,'e1silver'),(H+1,'e1roof')])
+ dw=s['doorW'];lw=dw-.022
+ for side in [-1,1]:
+  y=side*(W/2+.018)
+  for x,w in [(.50,.78),(1.45,.78),(2.25,.40),(2.85,.40)]:sidewindow(x,y,2.09,w,.48,r=.07)
+  for i,x in enumerate([-L/2+.60,L/2-.60]):
+   use('02');cz=(.92+2.85)/2;h=2.85-.92
+   panel('側門門框',(x,y,cz),dw+.05,h+.03,'frame',r=.03)
+   door=panel('獨立門扇',(x,y+side*.023,cz),lw,h,'e1silver',r=.025,depth=.024)
+   door['side_door']=True;door['door_group']=i+1;door['side']=side;door['leaf']=0
+   for z,hh,m in [(2.155,.91,'e1orange'),(1.6875,.025,'e1white'),(1.645,.06,'e1red'),(1.105,.05,'e1red')]:box('門扇色帶',(x,y+side*.041,z),(lw,.011,hh),m,.002)
+   panel('門窗嵌框',(x,y+side*.052,2.305),.32,.90,'frame',r=.05)
+   panel('門窗玻璃',(x,y+side*.066,2.305),.28,.85,'glass',r=.045,depth=.012)
+   box('車門踏板',(x,y+side*.01,.90),(dw+.08,.11,.042),'metal',.008)
+  for x in [-1.2,-.5]:grille('橘帶上緣小百葉',x,side*(W/2+.02),2.615,.20,.19,True,5)
+ text_label(s['label'],(-2.6,W/2+.03,1.36),.08,axis='side',side=1)
+ use('05');x0,x1=-2.25,L/2-.25
+ for k in range(9):box('車頂縱向壓紋',((x0+x1)/2,-.8+k*.2,H+.006),(x1-x0,.035,.014),'e1roof',.004)
+ box('冷氣機罩',(-3.25,0,H+.10),(1.9,W*.66,.26),'e1roof',.08)
+ for k in range(9):box('冷氣罩頂部格柵',(-4.05+k*.20,0,H+.235),(.035,W*.46,.01),'chassis',.002)
+ for side in [-1,1]:grille('冷氣側格柵',-3.25,side*W*.33,H+.09,1.3,.12,True,5)
+ for end in [-1,1]:
+  end_wall('客車端牆',s,end*(L/2+.002),'e1silver')
+  panel('客車端牆貫通門',(end*(L/2+.018),0,2.0),.72,1.70,'chassis','front',r=.065)
+  panel('端門玻璃',(end*(L/2+.042),0,2.46),.45,.65,'glass','front',r=.04)
+  coupler(end*(L/2+.025),W,end,z=.58,gangway=True)
+ bogies(L,W,r=.39)
+
 BUILDERS={'c301':c301,'c321':c321,'c341':c341,'c371':c371,'c381':c381,'emu500':emu500,'emu600':emu600,'haifeng':haifeng,'shanlan':shanlan,'emu800':emu800,'emu800r':emu800r,
- 'emu900':emu900,'emu700':emu700,'temu1000':temu1000,'temu2000':temu2000}
+ 'emu900':emu900,'emu700':emu700,'temu1000':temu1000,'temu2000':temu2000,'700t':t700,'e1000':e1000,'ppcoach':ppcoach}
