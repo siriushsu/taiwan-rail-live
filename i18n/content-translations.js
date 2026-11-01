@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "車庫「田園小站」做得更精緻：樹分好幾種樹形，站房和三合院有門窗、瓦屋頂，透天厝多了鐵窗、冷氣和招牌，稻田是一叢叢秧苗，路邊有電線桿": "The Countryside Station garage scene is more detailed: several kinds of trees, doors, windows and tiled roofs on the station and farmhouse, grilles, air conditioners and signs on the shophouses, rice seedlings in clumps, and power poles along the road",
     "網站也能用島民點數兌換車庫場景了：車庫最上面多一列「車庫場景」，點格子就能解鎖；護照的點數那句點了直接開車庫": "You can now redeem garage scenes with Islander Points on the website: tap a scene in the new Garage scenes row at the top of the garage. The points line in your passport now opens the garage",
     "3D 建築改成實心並加上光影與牆腳陰影；列車開到大樓後面時，樓上會開一扇窗讓你看到車，想看穿建築仍可打開「透視顯示」": "3D buildings are now solid, with lighting and shading at their base. When a train passes behind a building, a window opens so you can still see it; turn on See-through view to look through buildings.",
     "車庫重開或切回網頁時不再閃一下：車直接出現、車卡不重排；舞台多了全畫面鈕，四個分頁都能鋪滿畫面看，直式橫式都行，再按一次、Esc 或返回鍵退出": "The garage no longer flickers when you reopen it or switch back to the page: the train shows up right away and the cards stay put; a new full-screen button on the stage fills the screen on all four tabs, portrait or landscape, and the same button, Esc or Back exits",
@@ -335,6 +336,7 @@
   });
 
   Object.assign(messages.ja, {
+    "車庫「田園小站」做得更精緻：樹分好幾種樹形，站房和三合院有門窗、瓦屋頂，透天厝多了鐵窗、冷氣和招牌，稻田是一叢叢秧苗，路邊有電線桿": "車庫の「田園の小駅」を作り込みました。木の形が何種類にも増え、駅舎や三合院に戸と窓、瓦屋根を付け、街の家には鉄格子や室外機、看板が付きました。田んぼには苗の株が並び、道沿いに電柱が立ちます",
     "網站也能用島民點數兌換車庫場景了：車庫最上面多一列「車庫場景」，點格子就能解鎖；護照的點數那句點了直接開車庫": "ウェブでも島民ポイントで車庫の情景を交換できるようになりました。車庫上部の「車庫の情景」から選んで解放でき、パスポートのポイントの一文から車庫を開けます",
     "3D 建築改成實心並加上光影與牆腳陰影；列車開到大樓後面時，樓上會開一扇窗讓你看到車，想看穿建築仍可打開「透視顯示」": "3D の建物を不透明にし、光と足元の陰影を加えました。列車が建物の裏を通るときは窓が開いて列車が見えます。建物を透かしたいときは「透視表示」をオンにしてください。",
     "車庫重開或切回網頁時不再閃一下：車直接出現、車卡不重排；舞台多了全畫面鈕，四個分頁都能鋪滿畫面看，直式橫式都行，再按一次、Esc 或返回鍵退出": "車庫を開き直したときやページに戻ったときにちらつかなくなりました。車両がすぐ表示され、カードも並び直しません。ステージに全画面ボタンを追加し、4つのタブすべてで縦横どちらでも画面いっぱいに表示できます。同じボタン、Esc、戻るで終了します",
