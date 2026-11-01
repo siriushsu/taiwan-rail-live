@@ -112,3 +112,10 @@ add('alicoach','forestcoach',**afrc,body='E2DCCC',accent='E43A36')
 add('hinoki','forestcoach',**afrc,body='BF7518',accent='8A4E12')
 add('fushen','forestcoach',**afrc,body='D9A86C',accent='AD1220')
 add('xuyue','forestcoach',**afrc,body='EEF0EE',accent='2763C6')
+# 輕軌：五節低地板鉸接車，節長與節間距沿用 fleet-v1（tw_models.tram 會把 L 改成五節總長 15.3）；W 2.6、H 3.2、車殼下緣 .37。
+# 淡海與安坑同一種車體（台灣車輛）；高雄 CAF Urbos 3 與 Alstom Citadis X05 平常用車載儲能、只在車站升弓充電。
+tram=dict(L=16.2,W=2.6,H=3.2,bottom=.37,radiusBottom=.10,radiusTop=.30,sections=5,doors=4)
+add('danhai','tram',**tram,power='overhead',body='7CCDE6',accent='EEF2F2')
+add('ankeng','tram',**tram,power='overhead',body='C8B482',accent='14181B')
+add('caf','tram',**tram,power='onboard-storage',body='E8EBE6',accent='14563F')
+add('citadis','tram',**tram,power='onboard-storage',body='ECEDE7',accent='213B33')

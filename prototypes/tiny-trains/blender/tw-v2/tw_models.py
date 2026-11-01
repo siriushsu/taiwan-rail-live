@@ -1307,8 +1307,17 @@ def ge_loco(s,livery='ge'):
   ge_cab(s,f,'gecream');ge_pilot(s,f)
   mirror_cab(list(p.MODEL[head:]))
  ge_roof(s)
- loco_bogies(L,W,3,.42)
+ loco_bogies(L,W,3,.42);ge_underbox(W)
  return f
+
+def ge_underbox(W):
+ """轉向架之間的車下設備箱（E236、E311、E405 側面照都看得到；第 9 批換機車轉向架後這裡是空的）：深灰箱體偏一端、吊在車底主梁下，
+ −X 端兩側各兩組百葉，另一端下角斜切。"""
+ use('04');x0,x1,zb,zt,hw=-1.32,.80,.30,.71,W*.36
+ prof=[(x0,zb),(x1-.24,zb),(x1,zb+.18),(x1,zt),(x0,zt)];n=len(prof)
+ mesh('車下設備箱',[(x,y,z) for y in (-hw,hw) for x,z in prof],[tuple(reversed(range(n))),tuple(range(n,2*n))]+[(i,(i+1)%n,n+(i+1)%n,n+i) for i in range(n)],'chassis',.02)
+ for sd in [-1,1]:
+  for x in [x0+.20,x0+.44]:louver('設備箱百葉',x,sd*hw,(zb+zt)/2+.02,.20,.26,6,'gerubber','geroof')
 
 def e200(s):
  """E200 電力機車（GE）。參考：Commons「TRA E236 at Hsinchu Station.jpg」（Lokseng01，CC BY-SA 4.0，斜側）、
@@ -2174,6 +2183,251 @@ def xuyue(s):
  obs_end(s,(1.76,2.66))
  gangway_end(s,'xywhite');bogies(L,W,r=.33)
 
+# ── 輕軌（淡海、安坑、高雄 CAF、高雄 Citadis）────────────────────────────────────
+# 五個車體模組：駕駛節（轉向架）、懸浮節（門、沒有轉向架）、中間節（轉向架、只有窗）、懸浮節、駕駛節。節長與節間距沿用 fleet-v1：
+# 地圖 LOD 依 articulationCenters 切五節、各節共用預算，分配不動。每節在自己的座標裡建，+X 朝最近的車頭；第 1、2 節建好轉 180°，
+# 中間節左右對稱，高雄兩款車側的斜塊才會兩半鏡射（整列側面照上，斜塊往下都偏向最近的車頭）。
+# 四款的駕駛節都是「駕駛室側窗 → 雙開門 → 一段客室窗」；fleet-v1 把門放在靠節間那端，照片上門緊接在駕駛室後面。
+
+TRAM_LEN=[3.56,2.14,3.10,2.14,3.56];TRAM_GAP=.20;TRAM_DOOR=.86;TRAM_LEAN=.30
+
+def tram(s,k):
+ """五節輕軌的共同骨架。k 是各款配置（tram_trsc、caf、citadis 給）：profile(e)、bow、pow 是駕駛節車頭曲線；zones(i) 是第 i 節側面分區，
+ front 是車頭面分區；band 是黑色窗帶上下緣；win=(窗中心高, 窗高)；cabWin、susWin、midWin 是駕駛節、懸浮節、中間節的客室窗 [(x0, x1), ...]
+ （中間節只給 +X 半邊）；cabDoor、susDoor 是門中心；cabSide、paint、face、roof 是駕駛室側窗、車側塗裝、車頭、車頂。"""
+ W,H=s['W'],s['H'];z0=s['bottom'];total=sum(TRAM_LEN)+4*TRAM_GAP;cursor=-total/2;centers=[]
+ color('tblack','14181B',.20,.22,.45);color('tled','E89A2C',.10,.25,.30);k['colours']()
+ for i,l in enumerate(TRAM_LEN):
+  cx=cursor+l/2;cursor+=l+TRAM_GAP;st=len(p.MODEL);cab=i in (0,4);ss={**s,'L':l}
+  if cab:ss['bowPow']=k['pow'];prof,bow=k['profile'](l/2),k['bow']
+  else:prof,bow=[(z0,l/2),(H,l/2)],0
+  zones=k['zones'](i)
+  f,neck=zoned_shell(ss,prof,bow,zones,k['front'] if cab else zones,name=f'第 {i+1} 節車殼',nose_zones=zones if cab else None,surface_neck=cab)
+  wins=k['cabWin'] if cab else k['susWin'] if i in (1,3) else k['midWin']+[(-b,-a) for a,b in k['midWin']]
+  door=k['cabDoor'] if cab else k['susDoor'] if i in (1,3) else None
+  for side in [-1,1]:
+   y=side*(W/2+.018)
+   for a,b in wins:sidewindow((a+b)/2,y,k['win'][0],b-a,k['win'][1],r=k['winR'])
+   if door is not None:tram_door(door,side,y,k['doorTop'],k['band'][0],i)
+   if cab:k['cabSide'](ss,f,side,door+TRAM_DOOR/2+.03)
+   k['paint'](i,ss,f,side)
+  if cab:k['face'](ss,f)
+  k['roof'](i,ss,neck)
+  if i in (0,2,4):
+   use('04')
+   for x in [-.48,.48]:
+    cyl('輪軸',(x,0,.285),.07,W*.70,'chassis','Y',14)
+    for sd in [-1,1]:wheel(x,sd*W*.32,.285)
+   box('低地板轉向架',(0,0,.47),(1.40,W*.60,.20),'chassis',.04)
+  objs=list(p.MODEL[st:]);T=Matrix.Translation(Vector((cx,0,0)));R=Matrix.Rotation(math.pi if i<2 else 0,4,'Z')
+  for o in objs:o.matrix_world=T@R@o.matrix_world;o['section_index']=i
+  centers.append({'index':i,'centerX':cx,'length':l,'orientation':-1 if i<2 else 1})
+  if i<4:
+   use('07');jx=cx+l/2
+   for j in range(6):panel('節間風琴折片',(jx+(j+.5)*TRAM_GAP/6,0,(z0+H+.02)/2),W-.10,H-z0-.14,k['bellows'],'front',r=.26,depth=.015)
+ s['articulationCenters']=centers;s['L']=total;s['doors']=4;s['doorLeaves']=2;s['pantos']=1
+
+def tram_door(x,side,y,top,split,group):
+ """低地板雙開門：黑框、每扇上下兩片玻璃（中間橫框跟窗帶下緣同高）、門檻踏板。"""
+ use('02');base=.50;h=top-base;cz=base+h/2;dw=TRAM_DOOR
+ panel('低地板側門門框',(x,y,cz),dw+.06,h+.04,'tblack',r=.03)
+ for lf in range(2):
+  dx=(lf-.5)*dw/2;lw=dw/2-.022
+  o=panel('低地板門扇',(x+dx,y+side*.022,cz),lw,h,'tblack',r=.02,depth=.022);o['side_door']=True;o['side']=side;o['door_group']=group;o['leaf']=lf
+  for a,b in [(split+.04,top-.10),(base+.16,split-.04)]:panel('門扇玻璃',(x+dx,y+side*.036,(a+b)/2),lw-.09,b-a,'glass',r=.03,depth=.010)
+ box('門檻踏板',(x,y,base+.02),(dw+.10,.10,.04),'metal',.008)
+
+def lean_paint(i,ss,f,side,table,zones,material):
+ """高雄兩款車側的斜塊：table[節別] 是 [(上或下, x0, x1), ...]，在該區中間高度從 x0 到 x1，往下每公尺朝最近的車頭（+X）偏 TRAM_LEAN；
+ 中間節左右鏡射。上方斜塊沿車頂圓角延伸到車頂（roof_lean）。"""
+ l=ss['L'];key='cab' if i in (0,4) else 'sus' if i in (1,3) else 'mid';k=TRAM_LEAN
+ for zone,a,b in table[key]:
+  z0,z1=zones[zone];zr=(z0+z1)/2
+  for m in ([1,-1] if key=='mid' else [1]):
+   lo=lambda z,a=a,b=b,m=m,zr=zr:a+k*(zr-z) if m>0 else -(b+k*(zr-z));hi=lambda z,a=a,b=b,m=m,zr=zr:b+k*(zr-z) if m>0 else -(a+k*(zr-z))
+   side_paint('車側斜塊',ss,f,side,[lambda x,z,lo=lo:x-lo(z),lambda x,z,hi=hi:hi(z)-x,lambda x,z:l/2-.01-x,lambda x,z:x+l/2-.01],-l/2,l/2,z0,z1,material,step=.25)
+   if zone=='hi':roof_lean('車頂圓角斜塊',ss,side,lo,hi,material)
+
+def roof_lean(name,ss,side,lo,hi,material,offset=.010,nx=4):
+ """車頂圓角上的斜塊（side_paint 只貼得住平的側面）：沿斷面從側面頂緣走到車頂，每點的 x 範圍 [lo(z), hi(z)]，裁在這節的兩端內。"""
+ l=ss['L'];pts=upper_section(ss,ss['H']-ss.get('radiusTop',.40),side=side,n=6);verts=[]
+ for y,z,ny,nz in pts:
+  a=max(lo(z),-l/2+.01);b=max(a,min(hi(z),l/2-.01))
+  for j in range(nx+1):verts.append((a+(b-a)*j/nx,y+ny*offset,z+nz*offset))
+ use('01');return mesh(name,verts,[(i*(nx+1)+j,i*(nx+1)+j+1,(i+1)*(nx+1)+j+1,(i+1)*(nx+1)+j) for i in range(len(pts)-1) for j in range(nx)],material,0,True)
+
+def low_pantograph(x,H):
+ """降下的受電弓（高雄兩款只在車站充電時升弓）：照 fleet-v1 把單臂受電弓壓到原高的 22%。"""
+ st=len(p.MODEL);pantograph(x,H)
+ for o in p.MODEL[st:]:
+  for v in o.data.vertices:v.co.z=H+.035+(v.co.z-H)*.22
+
+def tram_trsc(s,livery):
+ """淡海（行武者）與安坑（光耀金）是同一種車體（台灣車輛），只換塗裝。車頭：金色（水藍）A 柱夾著一片大前窗，前窗下方黑色連成 U 字，
+ U 字兩個下角是燈組（頭燈在內、尾燈在外，下面一排紅色 LED），U 字下面是車身色下巴，下巴上兩顆小燈、兩顆紅燈；車頂前緣兩角各一個攝影機。
+ 高度照安坑正面照（Takeshi Aida）與淡海正側面照（4300streetcar）量：黑色 U 字中央下緣 .90、兩角 1.22，上緣 2.67；燈組 .92–1.16；
+ 車側黑色窗帶 1.39–2.86，門頂 2.54。窗是「窄、寬、窄」一組；駕駛節門前是一扇前緣斜切的駕駛室側窗，懸浮節的門在遠離車頭那端。"""
+ H=s['H'];bz=(1.39,2.86)
+ if livery=='danhai':
+  def colours():
+   color('dhsky','7CCDE6',.06,.32,.30);color('dhwhite','EEF2F2',.06,.34,.26);color('dhsilver','D9DEE0',.35,.34,.15);color('dhroof','C9D0D3',.30,.40,.10)
+   color('dhdot','5FBDE0',.06,.34,.28);color('trbellow','A9AEB1',.40,.42,.10);color('trroof','B4BBBE',.35,.42,.10)
+  body='dhsky'
+  zones=lambda i:[(bz[0],'dhsky'),(bz[1],'tblack'),(H+1,'dhsky')] if i in (0,4) else [(bz[0],'dhwhite'),(bz[1],'tblack'),(3.08,'dhsilver'),(H+1,'dhroof')]
+  paint=dh_dots
+ else:
+  def colours():color('akgold','C8B482',.45,.30,.35);color('trbellow','A9AEB1',.40,.42,.10);color('trroof','B4BBBE',.35,.42,.10)
+  body='akgold';zones=lambda i:[(bz[0],'akgold'),(bz[1],'tblack'),(H+1,'akgold')];paint=lambda i,ss,f,side:None
+ tram(s,dict(colours=colours,profile=lambda e:[(.37,e-.17),(.55,e-.04),(.80,e),(1.20,e-.03),(1.45,e-.12),(2.70,e-.66),(2.95,e-.79),(3.20,e-.95)],bow=.30,pow=2.2,
+  zones=zones,front=[(H+1,body)],band=bz,win=(2.10,1.24),winR=.09,doorTop=2.54,bellows='trbellow',
+  cabWin=[(-1.68,-1.47),(-1.41,-.86),(-.80,-.62)],cabDoor=-.10,susWin=[(-.03,.15),(.21,.78),(.84,1.00)],susDoor=-.55,midWin=[(.32,.50),(.56,1.13),(1.19,1.37)],
+  cabSide=trsc_cab_side,paint=paint,face=trsc_face,roof=lambda i,ss,neck:trsc_roof(i,ss,neck,body)))
+ pantograph(0,H)
+
+def trsc_cab_side(ss,f,side,xr):
+ """駕駛室側窗：黑色窗帶在門前往車頭微微下斜，玻璃前緣跟車頭斜面平行。"""
+ W=ss['W'];bz0,bz1=1.39,2.86;fe=lambda z:f(W/2,z);slope=lambda x:bz0-.14*(x-xr)/.75
+ side_paint('駕駛室側窗下緣黑框',ss,f,side,[lambda x,z:x-xr,lambda x,z:z-slope(x),lambda x,z:bz0+.01-z],xr,ss['L']/2,1.15,bz0+.01,'tblack',offset=.006,step=.08)
+ side_paint('駕駛室側窗',ss,f,side,[lambda x,z:x-xr-.05,lambda x,z:fe(z)-.16-x,lambda x,z:z-slope(x)-.07,lambda x,z:bz1-.06-z],xr,ss['L']/2,1.20,bz1,'glass',offset=.012,step=.08)
+
+def trsc_face(ss,f):
+ W,H=ss['W'],ss['H'];hw=.95
+ lo=lambda y:.90+.32*(1-math.sqrt(max(0,1-(max(0,abs(y)-.79)/.16)**2)))
+ front_patch('黑色 U 字面罩',f,-hw,hw,lo,2.67,'tblack',.020,cols=40,rows=12)
+ front_patch('大片前窗',f,-hw+.06,hw-.06,1.28,2.60,'glass',.030,cols=24,rows=8)
+ front_panel('目的地顯示器',f,0,2.49,1.10,.13,'dark',.02,.040);front_panel('目的地字幕',f,0,2.49,.86,.06,'tled',.01,.046)
+ front_panel('車頂攝影機',f,0,2.86,.08,.08,'dark',.04,.030)
+ for sd in [-1,1]:
+  front_panel('燈組燈座',f,sd*.60,1.04,.40,.20,'frame',.08,.030)
+  lamp('頭燈',lambda y,z:f(y,z)-.09,sd*.50,1.07,.040);lamp('尾燈',lambda y,z:f(y,z)-.09,sd*.64,1.07,.034,red=True)
+  front_panel('尾燈 LED 列',f,sd*.59,.97,.26,.025,'red',.01,.036)
+  lamp('下巴小燈',lambda y,z:f(y,z)-.10,sd*.58,.71,.026);lamp('下巴紅燈',lambda y,z:f(y,z)-.10,sd*.58,.47,.026,red=True)
+  use('03');box('車頂角攝影機',(f(sd*W/2,2.75)-.06,sd*(W/2+.04),2.75),(.14,.08,.16),'tblack',.03)
+ wiper(lambda y,z:f(y,z)-.09,.30,1.36,.80)
+
+def trsc_roof(i,ss,neck,body):
+ W,H,l=ss['W'],ss['H'],ss['L'];use('05')
+ if i in (0,4):box('車頂設備整流罩',((-l/2+.20+neck-.10)/2,0,H+.07),(neck-.10+l/2-.20,W*.66,.16),body,.07)
+ elif i in (1,3):
+  box('車頂空調機',(0,0,H+.10),(1.30,W*.60,.22),'trroof',.06)
+  for sd in [-1,1]:louver('空調側格柵',0,sd*W*.30,H+.10,.90,.12,4,'tblack','trroof')
+ else:
+  for x in [-1.0,1.0]:box('車頂設備箱',(x,0,H+.09),(.80,W*.56,.20),'trroof',.05)
+
+def dh_dots(i,ss,f,side):
+ """淡海行武者的波點：駕駛節門後的下半與車頂圓角是白底，下半撒水藍點、越靠門越大（照片上漸層到門前的整片水藍）；
+ 懸浮節白色下半靠車頭那端撒水藍點（車頂圓角上的波點不做）。"""
+ y=side*(ss['W']/2+.006)
+ if i in (0,4):
+  l=ss['L'];xd=-.58;y=side*(ss['W']/2+.012)
+  side_paint('門後白底',ss,f,side,[lambda x,z:xd-x],-l/2+.01,xd,.47,1.39,'dhwhite',offset=.006,step=.25)
+  side_paint('門後白底窗帶上',ss,f,side,[lambda x,z:xd-x],-l/2+.01,xd,2.86,2.90,'dhwhite',offset=.006,step=.25)
+  roof_lean('門後白底車頂圓角',ss,side,lambda z:-l/2+.01,lambda z:xd,'dhwhite')
+  for r,z in enumerate([.66,.92,1.18]):
+   for j in range(7):
+    x=-1.66+j*.165+(.08 if r%2 else 0)
+    if x<-.66:cyl('水藍波點',(x,y,z),.028+.035*(x+1.66)+.010*((r+j)%2),.008,'dhsky','Y',12,0)
+ elif i in (1,3):
+  for r,z in enumerate([.72,1.02]):
+   for j in range(5):cyl('水藍波點',(.22+j*.16+(.08 if r else 0),y,z),.04+.02*((r+j)%2),.008,'dhdot','Y',12,0)
+
+CAF_STRIPES={'cab':[('hi',-1.20,-.78),('lo',-1.02,-.60)],'sus':[('hi',-.15,1.20),('lo',-1.20,-.55),('lo',.35,.96)],'mid':[('hi',.85,1.70),('lo',.10,.60)]}
+CT_STRIPES={'cab':[('hi',-1.38,-1.02),('lo',-1.95,-1.40),('lo',-.80,-.50)],'sus':[('hi',.05,1.20),('lo',-.75,-.30),('lo',.60,.85)],'mid':[('hi',1.05,1.40)]}
+
+def caf(s):
+ """高雄輕軌 CAF Urbos 3。參考：Commons「Kaohsiung LRT 20150902.JPG」（Rsa，CC BY-SA 3.0，正面）、「Urbos 3 of Kaohsiung LRT 2018-01-01.jpg」
+ （xiquinhosilva，CC BY 2.0，駕駛節側面）、「CAF Urbos 3 LRV.jpg」（Samson Ng . D201@EAL，CC BY-SA 4.0，車側斜塊）、「KMRT CAF train 2016-08-27.jpg」
+ （Subscriptshoe9，CC BY-SA 4.0，整列）。白色車身、黑色窗帶，車側上下各有深綠色平行四邊形斜塊；車頭一圈綠環：上緣橫帶、兩側弦月往後彎過駕駛室側窗、
+ 下緣橫帶，大前窗幾乎垂直，前窗下白色燈板（頭燈與紅色尾燈在內、兩顆小燈在外）；車頂整排黑色儲能設備箱，受電弓降下（位置沿用 fleet-v1）。
+ 高度照正面照量：下緣綠帶 .52–.84、燈板到 1.27、前窗 1.27–2.91、上緣綠帶 2.91–3.07；車側窗帶 1.12–2.58。"""
+ H=s['H'];bz=(1.12,2.58);zones={'lo':(.47,bz[0]),'hi':(bz[1],H-s['radiusTop'])}
+ def colours():color('cfwhite','E8EBE6',.06,.32,.28);color('cfgreen','14563F',.06,.32,.32);color('cfbox','25292C',.25,.45,.10);color('cfbellow','2E3236',.20,.60,.05)
+ tram(s,dict(colours=colours,profile=lambda e:[(.37,e-.20),(.52,e-.05),(.84,e),(1.27,e-.03),(2.30,e-.24),(2.75,e-.42),(3.00,e-.58),(3.20,e-.80)],bow=.26,pow=2.4,
+  zones=lambda i:[(bz[0],'cfwhite'),(bz[1],'tblack'),(H+1,'cfwhite')],front=[(.52,'cfwhite'),(.84,'cfgreen'),(2.91,'cfwhite'),(3.07,'cfgreen'),(H+1,'cfwhite')],
+  band=bz,win=(1.86,1.30),winR=.05,doorTop=2.52,bellows='cfbellow',
+  cabWin=[(-1.68,-1.15),(-1.09,-.62)],cabDoor=-.10,susWin=[(-.98,-.62),(.46,.98)],susDoor=-.08,midWin=[(.12,.70),(.76,1.40)],
+  cabSide=caf_cab_side,paint=lambda i,ss,f,side:lean_paint(i,ss,f,side,CAF_STRIPES,zones,'cfgreen'),face=caf_face,
+  roof=lambda i,ss,neck:dark_boxes(i,ss,neck,'cfbox')))
+ low_pantograph(-2.65,H)
+
+def caf_cab_side(ss,f,side,xr):
+ """駕駛節側面：門前一根白柱，綠色弦月從車頂前角往後彎（腰部最靠後）再往前接到下緣綠帶，弦月前面是駕駛室側窗。"""
+ W,l=ss['W'],ss['L'];fe=lambda z:f(W/2,z);bz0,bz1=1.12,2.58
+ xc=lambda z:xr+.17+(.55 if z<1.85 else .40)*(z-1.85)**2
+ side_paint('門前白柱',ss,f,side,[lambda x,z:x-xr,lambda x,z:xc(z)-.075-x],xr,l/2,bz0,bz1,'cfwhite',offset=.006,step=.06)
+ side_paint('綠色弦月',ss,f,side,[lambda x,z:x-xc(z)+.075,lambda x,z:xc(z)+.075-x],xr,l/2,.84,2.90,'cfgreen',offset=.009,step=.05)
+ side_paint('下緣綠帶側面',ss,f,side,[lambda x,z:x-xc(.84)+.08],xr,l/2,.52,.84,'cfgreen',offset=.009,step=.08)
+ side_paint('駕駛室側窗',ss,f,side,[lambda x,z:x-xc(z)-.105,lambda x,z:fe(z)-.03-x],xr,l/2,1.17,2.54,'glass',offset=.012,step=.06)
+
+def caf_face(ss,f):
+ hw=.95
+ front_patch('前窗黑框',f,-hw-.05,hw+.05,1.27,2.90,'tblack',.018,cols=24,rows=8)
+ front_patch('大片前窗',f,-hw,hw,1.31,2.85,'glass',.028,cols=24,rows=8)
+ front_panel('目的地顯示器',f,0,2.74,1.0,.12,'dark',.02,.036);front_panel('目的地字幕',f,0,2.74,.80,.055,'tled',.01,.042)
+ front_panel('車頂攝影機',f,0,3.12,.10,.10,'dark',.05,.030)
+ for sd in [-1,1]:
+  a,b=sorted((sd*1.04,sd*1.27));front_patch('轉角駕駛室側窗',f,a,b,1.33,2.80,'glass',.024,cols=6,rows=8)
+  lamp('頭燈',lambda y,z:f(y,z)-.09,sd*.88,1.13,.042);lamp('尾燈',lambda y,z:f(y,z)-.09,sd*.88,.96,.040,red=True)
+  for z in (1.16,1.02):lamp('角燈',lambda y,zz:f(y,zz)-.09,sd*1.07,z,.030)
+ wiper(lambda y,z:f(y,z)-.09,-.55,1.36,.80)
+
+def dark_boxes(i,ss,neck,material):
+ """車頂設備箱（CAF 黑色儲能箱、Citadis 白色箱），側面一排直條。懸浮節只放靠車頭那半、中間節兩端各一箱。"""
+ W,H,l=ss['W'],ss['H'],ss['L'];use('05')
+ spans=[(-l/2+.25,neck-.25)] if i in (0,4) else [(.25,.95)] if i in (1,3) else [(-1.40,-.55),(.55,1.40)]
+ for a,b in spans:
+  box('車頂設備箱',((a+b)/2,0,H+.14),(b-a,W*.64,.28),material,.06)
+  for sd in [-1,1]:
+   for j in range(max(2,int((b-a)/.22))):box('設備箱直條',(a+.10+j*.22,sd*(W*.32+.006),H+.14),(.03,.012,.20),'chassis',0)
+
+def citadis(s):
+ """高雄輕軌 Alstom Citadis X05（305 型）。參考：Commons「Hamasen Sky Balcony Pedestrian Bridge 2026 03 29.jpg」（The Nature Box，CC0，整列正側面）、
+ 「KMRT Citadis 305 at Depot 2018-09-05 01.jpg」「…02.jpg」「…03.jpg」（高雄市政府捷運工程局，正面與斜側）。
+ 珍珠白車身、黑色窗帶，車側上下各有極深綠色斜塊；車頭整面黑（車頂前帽、大幅後傾的前窗、下半燈板），外圍一圈深綠細框沿 A 柱從車頂走到下緣，
+ 下緣深綠保險桿往後包到車側；燈板兩側白色橢圓燈罩各兩顆燈；中間節車頂一具降下的受電弓（fleet-v1 沒有），其他節車頂白色設備箱。
+ 高度照正側面照量：車側窗帶 1.21–2.56、門頂 2.53、下緣綠色 .40–.62。"""
+ H=s['H'];bz=(1.21,2.56);zones={'lo':(.47,bz[0]),'hi':(bz[1],H-s['radiusTop'])}
+ def colours():color('ctwhite','ECEDE7',.08,.30,.30);color('ctgreen','213B33',.08,.30,.32);color('ctbox','D6D8D4',.25,.40,.10);color('ctbellow','D8D3C2',.15,.55,.05)
+ tram(s,dict(colours=colours,profile=lambda e:[(.37,e-.08),(.48,e-.01),(.62,e),(1.00,e-.03),(1.30,e-.10),(2.20,e-.52),(2.90,e-.88),(3.08,e-.99),(3.20,e-1.08)],bow=.22,pow=2.6,
+  zones=lambda i:[(bz[0],'ctwhite'),(bz[1],'tblack'),(H+1,'ctwhite')],front=[(.62,'ctgreen'),(H+1,'tblack')],
+  band=bz,win=(1.88,1.22),winR=.05,doorTop=2.53,bellows='ctbellow',
+  cabWin=[(-1.68,-1.15),(-1.09,-.62)],cabDoor=-.10,susWin=[(-.98,-.46),(.60,.98)],susDoor=.07,midWin=[(.12,.70),(.76,1.40)],
+  cabSide=ct_cab_side,paint=lambda i,ss,f,side:lean_paint(i,ss,f,side,CT_STRIPES,zones,'ctgreen'),face=ct_face,
+  roof=lambda i,ss,neck:dark_boxes(i,ss,neck,'ctbox')))
+ low_pantograph(0,H)
+
+def ct_cab_side(ss,f,side,xr):
+ """駕駛節側面：車頭面邊緣的綠框延伸到側面、下緣綠色保險桿往後包；門前一根黑柱，再往前是駕駛室側窗。"""
+ W,l=ss['W'],ss['L'];fe=lambda z:f(W/2,z)
+ side_paint('綠色外框側面',ss,f,side,[lambda x,z:x-fe(z)+.09],xr,l/2,.62,2.90,'ctgreen',offset=.010,step=.06)
+ side_paint('綠色保險桿側面',ss,f,side,[lambda x,z:x-fe(z)+.55],xr,l/2,.47,.62,'ctgreen',offset=.010,step=.08)
+ side_paint('駕駛室側窗',ss,f,side,[lambda x,z:x-xr-.14,lambda x,z:fe(z)-.20-x],xr,l/2,1.28,2.48,'glass',offset=.012,step=.06)
+
+def ct_face(ss,f):
+ e=ss['W']/2
+ front_patch('大片前窗',f,-e+.17,e-.17,1.36,2.80,'glass',.026,cols=24,rows=8)
+ front_panel('目的地顯示器',f,0,2.68,1.0,.12,'dark',.02,.034);front_panel('目的地字幕',f,0,2.68,.80,.055,'tled',.01,.040)
+ front_panel('車頂攝影機',f,0,3.02,.10,.10,'dark',.05,.030)
+ front_patch('綠色上緣',f,-e+.10,e-.10,lambda y:face_zmax(ss,y,.10),lambda y:face_zmax(ss,y,.03),'ctgreen',.018,cols=24,rows=2)
+ for sd in [-1,1]:
+  a,b=sorted((sd*(e-.10),sd*(e-.02)));front_patch('綠色外框',f,a,b,.62,lambda y:face_zmax(ss,y,.04),'ctgreen',.018,cols=2,rows=24)
+  front_panel('白色橢圓燈罩',f,sd*.84,1.00,.36,.21,'ctwhite',.10,.030)
+  lamp('頭燈',lambda y,z:f(y,z)-.09,sd*.78,1.04,.036);lamp('頭燈',lambda y,z:f(y,z)-.09,sd*.90,.97,.042)
+ wiper(lambda y,z:f(y,z)-.09,.50,1.40,.80)
+
+def danhai(s):
+ """淡海輕軌（台灣車輛，行武者）。參考：Commons「Danhai LRT tram on Shalun Road March 2026 5.jpg」「…2.jpg」（4300streetcar，CC BY 4.0，正側面與斜前方）、
+ 「Danhai LRV at Binhai Shalun intersection (Wharf) 20260107.jpg」（Sinsyuan，CC BY-SA 4.0）、「New Taipei Danhai LRT (20181224c) (53560575387).jpg」
+ （Takeshi Aida，CC BY-SA 2.0）、「淡海輕軌藍海線履勘委員勘察機廠整備狀況.jpg」（新北市政府，車頭近照）。
+ 駕駛節門前整片水藍（車頂整流罩也是）、門後下半與車頂圓角白底撒水藍波點；懸浮節與中間節下半白色、窗帶以上銀色，懸浮節靠車頭那端撒水藍波點。"""
+ return tram_trsc(s,'danhai')
+
+def ankeng(s):
+ """安坑輕軌（台灣車輛，光耀金）。參考：Commons「New Taipei Ankang LRT, Shuangcheng (20240114a) (53561313121).jpg」（Takeshi Aida，CC BY-SA 2.0，正面）、
+ 「Ankeng LRV at Shisizhang 20260107.jpg」「Ankeng LRV at Ankang 20260107 (3).jpg」（Sinsyuan，CC BY-SA 4.0，斜前方與月台）。
+ 跟淡海同一種車體，整列香檳金、黑色窗帶，沒有波點。"""
+ return tram_trsc(s,'ankeng')
+
 BUILDERS={'c301':c301,'c321':c321,'c341':c341,'c371':c371,'c381':c381,'emu500':emu500,'emu600':emu600,'haifeng':haifeng,'shanlan':shanlan,'emu800':emu800,'emu800r':emu800r,
  'emu900':emu900,'emu700':emu700,'temu1000':temu1000,'temu2000':temu2000,'700t':t700,'e1000':e1000,'ppcoach':ppcoach,
  'dr3100':dr3100,'dr1000':dr1000,'dr2700':dr2700,'emu100':emu100,'emu1200':emu1200,
@@ -2181,4 +2435,5 @@ BUILDERS={'c301':c301,'c321':c321,'c341':c341,'c371':c371,'c381':c381,'emu500':e
  'e200':e200,'e300':e300,'e400':e400,'mingri':mingri,'e500':e500,'r200':r200,
  'r100':r100,'blue':blue,'r150':r150,'r180':r180,'r20':r20,'dhl100':dhl100,
  'juguang':juguang,'mingricoach':mingricoach,'bluecoach':bluecoach,
- 'dl25':dl25,'dl38':dl38,'dl39':dl39,'dl45':dl45,'alicoach':alicoach,'hinoki':hinoki,'fushen':fushen,'xuyue':xuyue}
+ 'dl25':dl25,'dl38':dl38,'dl39':dl39,'dl45':dl45,'alicoach':alicoach,'hinoki':hinoki,'fushen':fushen,'xuyue':xuyue,
+ 'danhai':danhai,'ankeng':ankeng,'caf':caf,'citadis':citadis}

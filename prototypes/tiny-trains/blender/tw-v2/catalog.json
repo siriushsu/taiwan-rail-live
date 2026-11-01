@@ -850,7 +850,7 @@
    "車頭下半垂直，兩扇黑框圓角前窗往後倒，車頂前緣凸出頭燈箱（兩顆頭燈、兩支氣笛）；窗下兩塊黑底車號牌，上角暗紅標識燈。",
    "橘色車身、上半奶油色，奶油色帶在車角繞到正面變成往中央下降的 V 字；車側是平滑大板，沒有百葉。",
    "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。",
-   "轉向架之間不放電聯車的車下設備箱（fleet-v1 與上一版都有，機車沒有這種設備箱；車底主梁保留）。"
+   "轉向架之間吊一個機車自己的車下設備箱：深灰箱體偏一端，一端兩側各兩組百葉、另一端下角斜切（E236、E311、E405 側面照都看得到；電聯車式的設備箱不放）。"
   ],
   "metadata": "models/e200/e200.model.json",
   "blend": "models/e200/e200.blend",
@@ -878,7 +878,7 @@
    "車頭下半垂直，兩扇黑框圓角前窗往後倒，車頂前緣凸出頭燈箱（兩顆頭燈、兩支氣笛）；窗下兩塊黑底車號牌，上角暗紅標識燈。",
    "橘色車身、上半奶油色，奶油色帶在車角繞到正面變成往中央下降的 V 字；車側是平滑大板，沒有百葉。",
    "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。",
-   "轉向架之間不放電聯車的車下設備箱（fleet-v1 與上一版都有，機車沒有這種設備箱；車底主梁保留）。"
+   "轉向架之間吊一個機車自己的車下設備箱：深灰箱體偏一端，一端兩側各兩組百葉、另一端下角斜切（E236、E311、E405 側面照都看得到；電聯車式的設備箱不放）。"
   ],
   "metadata": "models/e300/e300.model.json",
   "blend": "models/e300/e300.blend",
@@ -906,7 +906,7 @@
    "車頭下半垂直，兩扇黑框圓角前窗往後倒，車頂前緣凸出頭燈箱（兩顆頭燈、兩支氣笛）；窗下兩塊黑底車號牌，上角暗紅標識燈。",
    "橘色車身、上半奶油色，奶油色帶在車角繞到正面變成往中央下降的 V 字；車側是平滑大板，沒有百葉。",
    "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。",
-   "轉向架之間不放電聯車的車下設備箱（fleet-v1 與上一版都有，機車沒有這種設備箱；車底主梁保留）。"
+   "轉向架之間吊一個機車自己的車下設備箱：深灰箱體偏一端，一端兩側各兩組百葉、另一端下角斜切（E236、E311、E405 側面照都看得到；電聯車式的設備箱不放）。"
   ],
   "metadata": "models/e400/e400.model.json",
   "blend": "models/e400/e400.blend",
@@ -934,7 +934,7 @@
    "E400 換塗裝的觀光列車車頭，車體跟 E200 系同款：兩扇黑框前窗、頂部頭燈箱、兩組單臂受電弓。",
    "A 端全黑、中央一道橘色直帶，右車號牌下方金色圓徽；B 端上黑下橘，中間一道往中央下彎的黑色弧線，車號牌之間偏左一枚金色大圓徽。",
    "車側上半黑色；B 端駕駛室下半橘色，往 A 端收窄、以圓弧收尾，橘色裡一道黑色細線跟著上緣走。",
-   "轉向架之間不放電聯車的車下設備箱（fleet-v1 與上一版都有，機車沒有這種設備箱；車底主梁保留）。"
+   "轉向架之間吊一個機車自己的車下設備箱：深灰箱體偏一端，一端兩側各兩組百葉、另一端下角斜切（E236、E311、E405 側面照都看得到；電聯車式的設備箱不放）。"
   ],
   "metadata": "models/mingri/mingri.model.json",
   "blend": "models/mingri/mingri.blend",
@@ -1471,5 +1471,117 @@
   ],
   "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
   "thumbnail": "models/xuyue/renders/thumb.webp"
+ },
+ {
+  "id": "danhai",
+  "name": "淡海輕軌・行武者",
+  "family": "tram",
+  "detail": "水藍駕駛節 · 黑色 U 字車頭 · 白底水藍波點",
+  "features": [
+   "五節低地板鉸接車，節長與節間距照舊（地圖分節預算不動）；駕駛節是「駕駛室側窗 → 雙開門 → 窄寬窄三扇窗」，懸浮節的門在遠離車頭那端（fleet-v1 把駕駛節的門放在靠節間那端）。",
+   "車頭：水藍 A 柱夾著大前窗，前窗下方黑色連成 U 字，U 字兩個下角是燈組（頭燈在內、尾燈在外，下方一排紅色 LED）；水藍下巴兩顆小燈、兩顆紅燈，車頂前緣兩角攝影機。",
+   "駕駛節門前整片水藍，門後下半與車頂圓角白底撒水藍波點、越靠門越大；懸浮節與中間節下半白色、窗帶以上銀色，懸浮節靠車頭那端撒水藍波點；中間節車頂受電弓、銀色風琴接合。"
+  ],
+  "metadata": "models/danhai/danhai.model.json",
+  "blend": "models/danhai/danhai.blend",
+  "glb": "models/danhai/danhai.glb",
+  "hero": "models/danhai/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2020/06/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／4300streetcar（CC BY 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Danhai_LRT_tram_on_Shalun_Road_March_2026_5.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/danhai/renders/thumb.webp"
+ },
+ {
+  "id": "ankeng",
+  "name": "安坑輕軌・光耀金",
+  "family": "tram",
+  "detail": "香檳金車身 · 黑色 U 字車頭 · 黑色窗帶",
+  "features": [
+   "跟淡海輕軌同一種車體（台灣車輛），五節低地板鉸接車，門窗配置相同；只換塗裝：整列香檳金、黑色窗帶，沒有波點。",
+   "車頭：金色 A 柱夾著大前窗，前窗下方黑色連成 U 字，兩個下角是燈組（頭燈在內、尾燈在外，下方一排紅色 LED）；金色下巴兩顆小燈、兩顆紅燈。",
+   "高度照正面照量：黑色 U 字中央下緣 .90、兩角 1.22、上緣 2.67，燈組 .92–1.16；車側黑色窗帶 1.39–2.86。"
+  ],
+  "metadata": "models/ankeng/ankeng.model.json",
+  "blend": "models/ankeng/ankeng.blend",
+  "glb": "models/ankeng/ankeng.glb",
+  "hero": "models/ankeng/renders/hero.png",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://newtaipei.travel/zh-tw/tour/729"
+   },
+   {
+    "label": "Wikimedia Commons／Takeshi Aida from Hong Kong, Hong Kong（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:New_Taipei_Ankang_LRT,_Shuangcheng_(20240114a)_(53561313121).jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/ankeng/renders/thumb.webp"
+ },
+ {
+  "id": "caf",
+  "name": "高雄輕軌・CAF",
+  "family": "tram",
+  "detail": "白車身深綠斜塊 · 綠環車頭 · 黑色儲能箱",
+  "features": [
+   "CAF Urbos 3，五節低地板鉸接車，節長與節間距照舊；駕駛節是「駕駛室側窗 → 綠色弦月 → 白柱 → 雙開門 → 兩扇窗」，懸浮節門在中間、兩側各一扇窗。",
+   "車頭一圈綠環：上緣橫帶、兩側弦月往後彎過駕駛室側窗、下緣橫帶；大前窗幾乎垂直，前窗下白色燈板（頭燈與紅色尾燈在內、兩顆小燈在外）。",
+   "白色車身、黑色窗帶，車側上下各有深綠平行四邊形斜塊，往下偏向最近的車頭、前後兩半鏡射；車頂整排黑色儲能設備箱，受電弓降下（位置沿用 fleet-v1）。"
+  ],
+  "metadata": "models/caf/caf.model.json",
+  "blend": "models/caf/caf.blend",
+  "glb": "models/caf/caf.glb",
+  "hero": "models/caf/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2015/01/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kaohsiung_LRT_20150902.JPG"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/caf/renders/thumb.webp"
+ },
+ {
+  "id": "citadis",
+  "name": "高雄輕軌・Citadis",
+  "family": "tram",
+  "detail": "珍珠白深綠斜塊 · 黑色車頭綠框 · 白色燈罩",
+  "features": [
+   "Alstom Citadis X05，五節低地板鉸接車，節長與節間距照舊；駕駛節是「駕駛室側窗 → 黑柱 → 雙開門 → 兩扇窗」，中間節只有窗。",
+   "車頭整面黑：車頂前帽、大幅後傾的前窗、下半燈板；外圍一圈深綠細框沿 A 柱從車頂走到下緣，下緣深綠保險桿往後包到車側；燈板兩側白色橢圓燈罩各兩顆燈。",
+   "珍珠白車身、黑色窗帶，車側上下各有極深綠斜塊，往下偏向最近的車頭、前後兩半鏡射；中間節車頂一具降下的受電弓（fleet-v1 沒有），其他節白色設備箱。"
+  ],
+  "metadata": "models/citadis/citadis.model.json",
+  "blend": "models/citadis/citadis.blend",
+  "glb": "models/citadis/citadis.glb",
+  "hero": "models/citadis/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2022/02/citadis-x-05-305.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.alstom.com/press-releases-news/2021/1/alstom-introduces-citadis-x05-trams-kaohsiung"
+   },
+   {
+    "label": "Wikimedia Commons／The Nature Box（CC0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Hamasen_Sky_Balcony_Pedestrian_Bridge_2026_03_29.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/citadis/renders/thumb.webp"
  }
 ]

@@ -46,11 +46,11 @@
   ],
   "mesh": {
     "file": "mingri.mesh.bin",
-    "sha256": "17467de5d98b3f61294fd01f3a028e1a7863a5afd86972dc15a096d88ee5cf56",
+    "sha256": "0cfdb6fb8da27e7bb6629e3f58e6688e10dcc44e36389641c3815b97fe184b34",
     "encoding": "float32-le",
     "strideBytes": 24,
-    "vertexCount": 224094,
-    "triangleCount": 74698,
+    "vertexCount": 226770,
+    "triangleCount": 75590,
     "drawGroups": [
       {
         "name": "mblack",
@@ -81,7 +81,7 @@
       {
         "name": "gerubber",
         "start": 31314,
-        "count": 22848,
+        "count": 23952,
         "color": [
           0.01032982300966978,
           0.012983032502233982,
@@ -93,7 +93,7 @@
       },
       {
         "name": "glass",
-        "start": 54162,
+        "start": 55266,
         "count": 7920,
         "color": [
           0.009134058840572834,
@@ -106,7 +106,7 @@
       },
       {
         "name": "metal",
-        "start": 62082,
+        "start": 63186,
         "count": 53916,
         "color": [
           0.30946892499923706,
@@ -119,7 +119,7 @@
       },
       {
         "name": "可移除車型示意牌",
-        "start": 115998,
+        "start": 117102,
         "count": 26160,
         "color": [
           0.8069522380828857,
@@ -132,7 +132,7 @@
       },
       {
         "name": "frame",
-        "start": 142158,
+        "start": 143262,
         "count": 11568,
         "color": [
           0.008568125776946545,
@@ -145,7 +145,7 @@
       },
       {
         "name": "red",
-        "start": 153726,
+        "start": 154830,
         "count": 5328,
         "color": [
           0.43415364623069763,
@@ -158,7 +158,7 @@
       },
       {
         "name": "lamp",
-        "start": 159054,
+        "start": 160158,
         "count": 5328,
         "color": [
           1.0,
@@ -171,7 +171,7 @@
       },
       {
         "name": "mgold",
-        "start": 164382,
+        "start": 165486,
         "count": 3072,
         "color": [
           0.5840784311294556,
@@ -184,8 +184,8 @@
       },
       {
         "name": "chassis",
-        "start": 167454,
-        "count": 31020,
+        "start": 168558,
+        "count": 31728,
         "color": [
           0.03433980792760849,
           0.05448027700185776,
@@ -197,7 +197,7 @@
       },
       {
         "name": "rubber",
-        "start": 198474,
+        "start": 200286,
         "count": 8448,
         "color": [
           0.014443843625485897,
@@ -210,7 +210,7 @@
       },
       {
         "name": "cream",
-        "start": 206922,
+        "start": 208734,
         "count": 9840,
         "color": [
           0.8148465752601624,
@@ -223,8 +223,8 @@
       },
       {
         "name": "geroof",
-        "start": 216762,
-        "count": 7332,
+        "start": 218574,
+        "count": 8196,
         "color": [
           0.27049779891967773,
           0.30946892499923706,
@@ -236,7 +236,7 @@
       }
     ]
   },
-  "nativeObjectCount": 247,
+  "nativeObjectCount": 276,
   "features": {
     "sideDoorGroups": 0,
     "doorLeavesPerGroup": 2,
