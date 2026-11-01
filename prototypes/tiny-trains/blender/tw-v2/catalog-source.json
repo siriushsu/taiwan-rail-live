@@ -854,5 +854,265 @@
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dr3100",
+  "name": "DR3100・柴聯自強",
+  "label": "DR3100",
+  "detail": "黃色警戒車頭 · 黃色凸框貫通門 · 不鏽鋼壓紋車身",
+  "color": "#dd8751",
+  "source": "https://blair-train.blogspot.com/2011/09/dr3100.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2011/09/dr3100.html"
+   },
+   {
+    "label": "Wikimedia Commons／Takeshi Aida（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7_DR3100,_%E6%B1%90%E6%AD%A2%E8%BB%8A%E7%AB%99_(20250216).jpg"
+   }
+  ],
+  "features": [
+   "黃色車頭、橘色上緣；兩側黑框前窗，頭燈在窗框上緣；中央貫通門外框是黃色凸框。",
+   "窗下橘帶接往中央下斜的橘色斜紋，內側隔一道黃色斜帶、再往內到貫通門框是橘色；上緣兩塊高壓警示牌，下緣黃圈紅尾燈與黃黑警戒條。",
+   "不鏽鋼車身加縱向壓紋，窗上黃細線、窗下橘帶；駕駛室後是乘務員門；車頂兩台斜端冷氣罩與排氣管。"
+  ],
+  "photos": [
+   {
+    "file": "File:柴聯自強 DR3100, 汐止車站 (20250216).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7_DR3100,_%E6%B1%90%E6%AD%A2%E8%BB%8A%E7%AB%99_(20250216).jpg",
+    "author": "Takeshi Aida",
+    "licence": "CC BY-SA 2.0",
+    "use": "車頭正面（窗、頭燈、貫通門、斜紋、尾燈高度）"
+   },
+   {
+    "file": "File:Two TRA DR3100 on the Western Line.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Two_TRA_DR3100_on_the_Western_Line.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭近照（兩道斜紋的間距與斜率）"
+   },
+   {
+    "file": "File:DR3100 Series DMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:DR3100_Series_DMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "車側門窗配置、縱向壓紋、車頂冷氣罩"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dr1000",
+  "name": "DR1000 支線小車",
+  "label": "DR1000",
+  "detail": "黃色警戒車頭 · 黑框寬貫通門 · 雙頭單車",
+  "color": "#eaa33c",
+  "source": "https://railscenery.ever.jp/taiwan/taolin/index.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/dr1000.html"
+   },
+   {
+    "label": "Wikimedia Commons／Tbatb（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_DR1000_train_approaching_Hsinchu_Station.jpg"
+   }
+  ],
+  "features": [
+   "跟 DR3100 同一套警戒塗裝（窗下橘帶、往中央下斜的橘色斜紋與黃色斜帶）；貫通門外框是黑色橡膠框，門比 DR3100 寬。",
+   "頭燈在左右前窗窗框上緣，尾燈在下緣黃圈裡；上緣兩塊高壓警示牌；兩端都是車頭。",
+   "不鏽鋼車身加縱向壓紋，門窗前後對稱；車頂兩端冷氣、中央四個散熱風扇與管線。"
+  ],
+  "photos": [
+   {
+    "file": "File:2019-07-19 DR1000 on the Western Line (Northern Section).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2019-07-19_DR1000_on_the_Western_Line_(Northern_Section).jpg",
+    "author": "魏 子棋",
+    "licence": "Public domain",
+    "use": "車頭正面（窗、頭燈、橡膠框、斜紋、尾燈位置）"
+   },
+   {
+    "file": "File:A TRA DR1000 train approaching Hsinchu Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_DR1000_train_approaching_Hsinchu_Station.jpg",
+    "author": "Tbatb",
+    "licence": "CC BY-SA 4.0",
+    "use": "車側門窗配置與車頂設備"
+   },
+   {
+    "file": "File:TRA DR1000.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR1000.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 2.0",
+    "use": "車頭與車側塗裝交界"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dr2700",
+  "name": "DR2700 白鐵仔",
+  "label": "DR2700",
+  "detail": "不鏽鋼波紋車身與車頭 · 頂端雙頭燈 · 中央貫通門",
+  "color": "#a9beb7",
+  "source": "https://blair-train.blogspot.com/2011/09/dr2700.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2011/09/dr2700.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR2706_Yuli_20130906.jpg"
+   }
+  ],
+  "features": [
+   "整車不鏽鋼，車側窗上、窗下滿滿的縱向波紋，車頭窗下兩側也有橫向波紋。",
+   "車頭上緣圓角大，頂端中央凸出雙頭燈座；兩側圓角大前窗、中央貫通門外框一圈古銅色邊。",
+   "深褐色車頂中央一段高起；下緣兩角鍍鉻圈小尾燈、深灰下裙；兩端都是車頭。"
+  ],
+  "photos": [
+   {
+    "file": "File:A TRA DR2700 charter train 2015-11-28.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_DR2700_charter_train_2015-11-28.jpg",
+    "author": "魏 子棋",
+    "licence": "Public domain",
+    "use": "車頭正面（頭燈座、前窗、貫通門、波紋、尾燈高度）"
+   },
+   {
+    "file": "File:TRA DR2706 Yuli 20130906.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR2706_Yuli_20130906.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "車頭斜側與車頂高起段"
+   },
+   {
+    "file": "File:TRA DR2723 Taitung 20130906.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR2723_Taitung_20130906.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "車側門窗配置"
+   },
+   {
+    "file": "File:Close-up of a TRA DR2700 train.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Close-up_of_a_TRA_DR2700_train.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "車側波紋近照"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu100",
+  "name": "EMU100 英國婆",
+  "label": "EMU100",
+  "detail": "橘紅與琥珀黃警戒車頭 · 米金與赭金雙色車身",
+  "color": "#c49651",
+  "source": "https://www.nrm.gov.tw/News_Content2.aspx?n=3338&s=135580",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/emu100.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.nrm.gov.tw/News_Content2.aspx?n=3338&s=135580"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU100_at_the_Huatan_Station_20231112.jpg"
+   }
+  ],
+  "features": [
+   "橘紅車頭，中央貫通門外圍一圈琥珀黃框；兩側小窗那一段琥珀黃，窗下一道往中央微斜的琥珀黃帶。",
+   "頂端中央雙頭燈座、上緣兩角高壓警示小牌、下緣橘紅凸圈尾燈、黃色直槽排障板；本款是警戒色版本，不混用復原的原始米棕色端面。",
+   "車側米金色上半、赭金色下半；駕駛室後是百葉通風窗與窄窗，再接客室門與六扇大窗。"
+  ],
+  "photos": [
+   {
+    "file": "File:EMU100 at the Huatan Station 20231112.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU100_at_the_Huatan_Station_20231112.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "車頭正面（貫通門框、窗、色帶斜度、尾燈、排障板）"
+   },
+   {
+    "file": "File:2019-02-28 a TRA EMU100 at Dali Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2019-02-28_a_TRA_EMU100_at_Dali_Station.jpg",
+    "author": "魏 子棋",
+    "licence": "Public domain",
+    "use": "車頭正面（色帶與燈位對照）"
+   },
+   {
+    "file": "File:TRA EMU100 55EM101.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU100_55EM101.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "車側雙色分界與窗高"
+   },
+   {
+    "file": "File:TRA EMU100 50EP101.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU100_50EP101.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "駕駛車車側門窗配置（2014；這輛駕駛室那端車頂有受電弓，花壇、大里兩張頭車沒有，模型照後兩張）"
+   },
+   {
+    "file": "File:EMU100 電聯車.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU100_%E9%9B%BB%E8%81%AF%E8%BB%8A.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "另一端復原塗裝（只確認兩端塗裝不同，不建模）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu1200",
+  "name": "EMU1200 紅斑馬",
+  "label": "EMU1200",
+  "detail": "白色圓角車頭 · 五道橘帶繞到駕駛室 · 紅色下裙",
+  "color": "#d97444",
+  "source": "https://blair-train.blogspot.com/2010/09/emu1200.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/09/emu1200.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU1200_Series_EMU.jpg"
+   }
+  ],
+  "features": [
+   "白色圓角車頭，頂端膠囊形頭燈與兩個小標識窗；一整片黑框大前窗、中間一根窗柱。",
+   "窗下五道橘帶是車殼本身的分色，繞過車角到駕駛室側面，被一道往後上揚的橘色斜帶收掉；兩側黑色燈座、黃黑 V 字排障板。",
+   "車側白色、紅色下裙、車頂邊一條橘線；駕駛室後一組受電弓。"
+  ],
+  "photos": [
+   {
+    "file": "File:2015-08-09 EMU1200 on the Western Line (Northern Section).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2015-08-09_EMU1200_on_the_Western_Line_(Northern_Section).jpg",
+    "author": "魏 子棋",
+    "licence": "Public domain",
+    "use": "車頭正面（頭燈、前窗、五道橘帶高度、燈座、排障板）"
+   },
+   {
+    "file": "File:EMU1200 Series EMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU1200_Series_EMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側（橘帶繞到駕駛室、斜帶、車側紅裙與窗）"
+   },
+   {
+    "file": "File:Close-up of a TRA EMU1200 train at Taichung Station 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Close-up_of_a_TRA_EMU1200_train_at_Taichung_Station_01.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "車頭近照"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
  }
 ]

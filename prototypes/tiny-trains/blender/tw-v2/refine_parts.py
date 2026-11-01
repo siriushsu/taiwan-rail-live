@@ -9,12 +9,13 @@ from build_models import interp,front_panel,front_poly,front_ribbon,sidewindow
 def color(key,h,metal=.10,rough=.38,coat=.18):
  p.M[key]=mat(key,h,metal,rough,coat);return key
 
-def zoned_shell(s,profile,bow,zones,front_zones,name='分色主車殼',nose_zones=None,surface_neck=False):
+def zoned_shell(s,profile,bow,zones,front_zones,name='分色主車殼',nose_zones=None,surface_neck=False,double=False):
  """圓角車殼；同一張網格依高度分塗裝（車身、車頂邊帶、車頂），車頭面另有自己的分區。
  zones／front_zones：[(z 上限, 材質), ...]，由下往上；z 列會插在每個分界上，色界不切過面。
  nose_zones：駕駛室肩部（neck 到車頭面那一段側面）另用的分區。
  s['bowPow']：車頭平面曲線的次方，預設 4（平頭圓角）；越小越接近 V 字尖頭。
- surface_neck：neck 從實際車頭面（含 bow）最後退的點算，避免車頭頂角退到 neck 之後折出破面。"""
+ surface_neck：neck 從實際車頭面（含 bow）最後退的點算，避免車頭頂角退到 neck 之後折出破面。
+ double：兩端都是車頭（雙頭單車）：後端是前端曲面的鏡射，後端面與後肩部用跟前端一樣的分區。"""
  L,W,H=s['L'],s['W'],s['H'];z0=s.get('bottom',.83);rb=s.get('radiusBottom',.12);rt=s.get('radiusTop',.40);end=L/2;pw=s.get('bowPow',4)
  def f(y,z):return interp(profile,z)-bow*(abs(y)/(W/2))**pw
  def half(z):
@@ -28,14 +29,21 @@ def zoned_shell(s,profile,bow,zones,front_zones,name='分色主車殼',nose_zone
  ring=[(half(z),z) for z in zs]+top+[(-half(z),z) for z in reversed(zs)]+bottom
  n=len(ring);verts=[];neck=min(x for z,x in profile)-.06
  if surface_neck:neck=min(neck,min(f(y,z) for y,z in ring)-.06)
- for x in [-L/2,-L/2+.10,neck,None]:
-  for y,z in ring:verts.append((f(y,z) if x is None else x,y,z))
- faces=[tuple(reversed(range(n)))]+[(k*n+i,k*n+(i+1)%n,(k+1)*n+(i+1)%n,(k+1)*n+i) for k in range(3) for i in range(n)]
- side_faces=len(faces);start=len(verts);cols=16
- for z in zs:
-  for j in range(cols+1):
-   y=half(z)*(2*j/cols-1);verts.append((f(y,z),y,z))
- faces+=[(start+i*(cols+1)+j,start+i*(cols+1)+j+1,start+(i+1)*(cols+1)+j+1,start+(i+1)*(cols+1)+j) for i in range(len(zs)-1) for j in range(cols)]
+ if double:
+  for x in ['rear',-neck,neck,None]:
+   for y,z in ring:verts.append((-f(y,z) if x=='rear' else f(y,z) if x is None else x,y,z))
+  faces=[(k*n+i,k*n+(i+1)%n,(k+1)*n+(i+1)%n,(k+1)*n+i) for k in range(3) for i in range(n)]
+ else:
+  for x in [-L/2,-L/2+.10,neck,None]:
+   for y,z in ring:verts.append((f(y,z) if x is None else x,y,z))
+  faces=[tuple(reversed(range(n)))]+[(k*n+i,k*n+(i+1)%n,(k+1)*n+(i+1)%n,(k+1)*n+i) for k in range(3) for i in range(n)]
+ side_faces=len(faces);cols=16
+ for sg in ([1,-1] if double else [1]):
+  start=len(verts)
+  for z in zs:
+   for j in range(cols+1):
+    y=half(z)*(2*j/cols-1);verts.append((sg*f(y,z),y,z))
+  faces+=[(start+i*(cols+1)+j,start+i*(cols+1)+j+1,start+(i+1)*(cols+1)+j+1,start+(i+1)*(cols+1)+j) for i in range(len(zs)-1) for j in range(cols)]
  d=bpy.data.meshes.new(name);d.from_pydata(verts,[],faces);d.update()
  bm=bmesh.new();bm.from_mesh(d);bmesh.ops.recalc_face_normals(bm,faces=bm.faces);bm.to_mesh(d);bm.free()
  keys=[]
@@ -49,7 +57,8 @@ def zoned_shell(s,profile,bow,zones,front_zones,name='分色主車殼',nose_zone
  nose0=1+2*n
  for i,poly in enumerate(d.polygons):
   zc=sum(d.vertices[v].co.z for v in poly.vertices)/len(poly.vertices)
-  table=front_zones if i>=side_faces else nose_zones if nose_zones and i>=nose0 else zones
+  nose=(i<n or i>=2*n) if double else i>=nose0
+  table=front_zones if i>=side_faces else nose_zones if nose_zones and nose else zones
   poly.material_index=keys.index(pick(table,zc))
   poly.use_smooth=True
  use('01');o=bpy.data.objects.new(name,d);p.ACTIVE.objects.link(o);p.MODEL.append(o);o['primary_body']=True
@@ -95,28 +104,31 @@ def lamp_pair(f,y,z,inner,red_outer=True,r=.050,gap=.13,housing='frame',hw=.36,h
  side=1 if y>0 else -1;yi=y-side*gap/2 if inner else y+side*gap/2;yo=y+side*gap/2 if inner else y-side*gap/2
  lamp('頭燈',f,yi,z,r);lamp('尾燈',f,yo,z,r*.92,red=red_outer)
 
-def emu_body(s,profile,bow,zones,front_zones,nose_zones=None,leaf='body',gaps=None,bands=(),leafbands=(),deco=None,crew=None):
+def emu_body(s,profile,bow,zones,front_zones,nose_zones=None,leaf='body',gaps=None,bands=(),leafbands=(),deco=None,crew=None,double=False):
  """台灣電聯車／捷運車殼與車側（world-v1 commuter 的台灣版）。
  bands／leafbands：[(中心 z, 高, 材質), ...] 車身與門扇上的水平色帶；deco(x, y, side, dw) 讓各款在每組門旁加自己的塗裝。
  規格鍵：doors、doorW、doorLeaves（每組門扇數，預設 2；城際列車的塞拉門是 1）、rearDoor、frontDoor、winH、winZ（窗中心，預設 H-1.10）、doorTop（門頂，預設 H-.62）、
- crewDoor（駕駛室側門，捷運預設沒有）、acUnits [(x, 長), ...]、pantos（這節有沒有受電弓）、pantoX、shoes（第三軌集電靴）。"""
+ crewDoor（駕駛室側門，捷運預設沒有）、acUnits [(x, 長), ...]、pantos（這節有沒有受電弓）、pantoX、shoes（第三軌集電靴）、winSplit（窗有上下分格的橫框）。
+ double：雙頭單車，後端也是車頭（zoned_shell 的 double）；最後一段窗從後端駕駛室算起，後車鉤在後車頭下、沒有貫通道。"""
  L,W,H=s['L'],s['W'],s['H'];n=s['doors'];dw=s.get('doorW',.80)
- f,neck=zoned_shell(s,profile,bow,zones,front_zones,nose_zones=nose_zones,surface_neck=True)
+ f,neck=zoned_shell(s,profile,bow,zones,front_zones,nose_zones=nose_zones,surface_neck=True,double=double)
  a=-L/2+s.get('rearDoor',1.35);b=neck-s.get('frontDoor',1.29)
  doors=[a+(b-a)*i/(n-1) for i in range(n)] if n>1 else [(a+b)/2]
  zc=s.get('winZ',H-1.10);wh=s.get('winH',.90);top=s.get('doorTop',H-.62);dz=s.get('doorWinZ',zc-.02);dh=s.get('doorWinH',.86)
  for z,h,m in bands:
   y=half_width(s,z)+.012
-  for side in [-1,1]:box('側面色帶',(( -L/2+.06+neck+.04)/2,side*y,z),(neck+.04+L/2-.06,.020,h),m,.004)
+  for side in [-1,1]:
+   if double:box('側面色帶',(0,side*y,z),(2*neck+.08,.020,h),m,.004)
+   else:box('側面色帶',(( -L/2+.06+neck+.04)/2,side*y,z),(neck+.04+L/2-.06,.020,h),m,.004)
  crew_on=s.get('crewDoor',False);front_end=neck-(.66 if crew_on else s.get('cabWin',.30))
  for side in [-1,1]:
   y=side*(W/2+.018)
-  spans=list(zip([-L/2+.38]+[d+dw/2+.12 for d in doors],[d-dw/2-.12 for d in doors]+[front_end]))
+  spans=list(zip([-front_end if double else -L/2+.38]+[d+dw/2+.12 for d in doors],[d-dw/2-.12 for d in doors]+[front_end]))
   for k,(u,v) in enumerate(spans):
    if v-u<.22:continue
    m=gaps[k] if gaps else (2 if v-u>.7 else 1);gap=.06
    for i in range(m):
-    w=(v-u-gap*(m-1))/m;sidewindow(u+w/2+i*(w+gap),y,zc,w-.04,wh,r=s.get('winR',.06))
+    w=(v-u-gap*(m-1))/m;sidewindow(u+w/2+i*(w+gap),y,zc,w-.04,wh,r=s.get('winR',.06),split=s.get('winSplit',False))
   for i,x in enumerate(doors):
    use('02');basez=.92;h=top-basez;cz=basez+h/2
    panel('側門門框',(x,y,cz),dw+.05,h+.03,'frame',r=.03)
@@ -150,5 +162,6 @@ def emu_body(s,profile,bow,zones,front_zones,nose_zones=None,leaf='body',gaps=No
   for c in [-L*.31,L*.31]:
    for side in [-1,1]:box('第三軌集電靴',(c,side*(W*.42),.42),(.42,.10,.06),'metal',.01)
  coupler(f(0,.83)+.16,W)
- coupler(-L/2-.03,W,-1,gangway=True)
+ if double:coupler(-(f(0,.83)+.16),W,-1)
+ else:coupler(-L/2-.03,W,-1,gangway=True)
  return f,neck,doors

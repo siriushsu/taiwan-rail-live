@@ -508,5 +508,144 @@
   ],
   "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
   "thumbnail": "models/ppcoach/renders/thumb.webp"
+ },
+ {
+  "id": "dr3100",
+  "name": "DR3100・柴聯自強",
+  "family": "railcar",
+  "detail": "黃色警戒車頭 · 黃色凸框貫通門 · 不鏽鋼壓紋車身",
+  "features": [
+   "黃色車頭、橘色上緣；兩側黑框前窗，頭燈在窗框上緣；中央貫通門外框是黃色凸框。",
+   "窗下橘帶接往中央下斜的橘色斜紋，內側隔一道黃色斜帶、再往內到貫通門框是橘色；上緣兩塊高壓警示牌，下緣黃圈紅尾燈與黃黑警戒條。",
+   "不鏽鋼車身加縱向壓紋，窗上黃細線、窗下橘帶；駕駛室後是乘務員門；車頂兩台斜端冷氣罩與排氣管。"
+  ],
+  "metadata": "models/dr3100/dr3100.model.json",
+  "blend": "models/dr3100/dr3100.blend",
+  "glb": "models/dr3100/dr3100.glb",
+  "hero": "models/dr3100/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2011/09/dr3100.html"
+   },
+   {
+    "label": "Wikimedia Commons／Takeshi Aida（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7_DR3100,_%E6%B1%90%E6%AD%A2%E8%BB%8A%E7%AB%99_(20250216).jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dr3100/renders/thumb.webp"
+ },
+ {
+  "id": "dr1000",
+  "name": "DR1000 支線小車",
+  "family": "railcar",
+  "detail": "黃色警戒車頭 · 黑框寬貫通門 · 雙頭單車",
+  "features": [
+   "跟 DR3100 同一套警戒塗裝（窗下橘帶、往中央下斜的橘色斜紋與黃色斜帶）；貫通門外框是黑色橡膠框，門比 DR3100 寬。",
+   "頭燈在左右前窗窗框上緣，尾燈在下緣黃圈裡；上緣兩塊高壓警示牌；兩端都是車頭。",
+   "不鏽鋼車身加縱向壓紋，門窗前後對稱；車頂兩端冷氣、中央四個散熱風扇與管線。"
+  ],
+  "metadata": "models/dr1000/dr1000.model.json",
+  "blend": "models/dr1000/dr1000.blend",
+  "glb": "models/dr1000/dr1000.glb",
+  "hero": "models/dr1000/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/dr1000.html"
+   },
+   {
+    "label": "Wikimedia Commons／Tbatb（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_DR1000_train_approaching_Hsinchu_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dr1000/renders/thumb.webp"
+ },
+ {
+  "id": "dr2700",
+  "name": "DR2700 白鐵仔",
+  "family": "railcar",
+  "detail": "不鏽鋼波紋車身與車頭 · 頂端雙頭燈 · 中央貫通門",
+  "features": [
+   "整車不鏽鋼，車側窗上、窗下滿滿的縱向波紋，車頭窗下兩側也有橫向波紋。",
+   "車頭上緣圓角大，頂端中央凸出雙頭燈座；兩側圓角大前窗、中央貫通門外框一圈古銅色邊。",
+   "深褐色車頂中央一段高起；下緣兩角鍍鉻圈小尾燈、深灰下裙；兩端都是車頭。"
+  ],
+  "metadata": "models/dr2700/dr2700.model.json",
+  "blend": "models/dr2700/dr2700.blend",
+  "glb": "models/dr2700/dr2700.glb",
+  "hero": "models/dr2700/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2011/09/dr2700.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR2706_Yuli_20130906.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dr2700/renders/thumb.webp"
+ },
+ {
+  "id": "emu100",
+  "name": "EMU100 英國婆",
+  "family": "railcar",
+  "detail": "橘紅與琥珀黃警戒車頭 · 米金與赭金雙色車身",
+  "features": [
+   "橘紅車頭，中央貫通門外圍一圈琥珀黃框；兩側小窗那一段琥珀黃，窗下一道往中央微斜的琥珀黃帶。",
+   "頂端中央雙頭燈座、上緣兩角高壓警示小牌、下緣橘紅凸圈尾燈、黃色直槽排障板；本款是警戒色版本，不混用復原的原始米棕色端面。",
+   "車側米金色上半、赭金色下半；駕駛室後是百葉通風窗與窄窗，再接客室門與六扇大窗。"
+  ],
+  "metadata": "models/emu100/emu100.model.json",
+  "blend": "models/emu100/emu100.blend",
+  "glb": "models/emu100/emu100.glb",
+  "hero": "models/emu100/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/emu100.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.nrm.gov.tw/News_Content2.aspx?n=3338&s=135580"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU100_at_the_Huatan_Station_20231112.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu100/renders/thumb.webp"
+ },
+ {
+  "id": "emu1200",
+  "name": "EMU1200 紅斑馬",
+  "family": "railcar",
+  "detail": "白色圓角車頭 · 五道橘帶繞到駕駛室 · 紅色下裙",
+  "features": [
+   "白色圓角車頭，頂端膠囊形頭燈與兩個小標識窗；一整片黑框大前窗、中間一根窗柱。",
+   "窗下五道橘帶是車殼本身的分色，繞過車角到駕駛室側面，被一道往後上揚的橘色斜帶收掉；兩側黑色燈座、黃黑 V 字排障板。",
+   "車側白色、紅色下裙、車頂邊一條橘線；駕駛室後一組受電弓。"
+  ],
+  "metadata": "models/emu1200/emu1200.model.json",
+  "blend": "models/emu1200/emu1200.blend",
+  "glb": "models/emu1200/emu1200.glb",
+  "hero": "models/emu1200/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/09/emu1200.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU1200_Series_EMU.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu1200/renders/thumb.webp"
  }
 ]

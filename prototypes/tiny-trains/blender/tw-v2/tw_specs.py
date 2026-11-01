@@ -41,3 +41,19 @@ add('700t','express',L=8.8,W=2.85,H=3.25,doors=2,doorLeaves=1,doorW=.58,body='E7
 add('e1000','electric',L=9.0,W=2.85,H=3.5,pantos=1,axles=2,radiusTop=.55,radiusBottom=.15,body='CDD3D5',accent='EE6A2C',label='E1000')
 # 推拉式自強號 40PPD2500 客貨車：L 9.0；兩端各一扇單開塞拉門，窗只在一半（兩大兩小）、另一半是行李間；色帶與 E1000 同高。
 add('ppcoach','coach',L=9.0,W=2.8,H=3.4,doors=2,doorLeaves=1,doorW=.62,body='C9CECC',accent='ED822A',label='40PPD2500')
+# 台鐵柴油客車：L、W、H 照 fleet-v1；每側兩扇單開門；車頂設備另做（acUnits 空）。
+# DR3100 駕駛車：駕駛室後是乘務員門、一扇窗再接客室門，車尾一扇門（門窗配置照 Samson Ng 斜側照）。
+add('dr3100','railcar',L=8.3,W=2.8,H=3.4,doors=2,doorLeaves=1,doorW=.62,rearDoor=.62,frontDoor=1.53,crewDoor=True,radiusTop=.30,
+ winH=.84,winZ=2.37,doorWinH=.78,doorWinZ=2.36,doorTop=2.90,body='BCC2C3',accent='F27E4E',acUnits=[],power='diesel',label='DR3100')
+# DR1000 雙頭單車（L 7.6）：門窗前後對稱，兩車頭之間「兩窗、門、四窗、門、兩窗」（新竹站側面照）。
+add('dr1000','railcar',L=7.6,W=2.8,H=3.4,doors=2,doorLeaves=1,doorW=.62,rearDoor=1.86,frontDoor=1.58,cabWin=.30,radiusTop=.30,
+ winH=.80,winZ=2.37,doorWinH=.78,doorWinZ=2.36,doorTop=2.90,body='BCC2C3',accent='F27E4E',acUnits=[],power='diesel',doubleCab=True,label='DR1000')
+# DR2700 雙頭單車（L 8.1）：兩端各一扇單開門，門外側一扇駕駛室側窗，門間十扇有上下分格的小窗。
+add('dr2700','railcar',L=8.1,W=2.75,H=3.35,doors=2,doorLeaves=1,doorW=.60,rearDoor=.865,frontDoor=.55,cabWin=-.125,radiusTop=.40,winSplit=True,winR=.05,
+ winH=.74,winZ=2.41,doorWinH=.70,doorWinZ=2.38,doorTop=2.90,body='C0C6C9',accent='C0C6C9',acUnits=[],power='diesel',doubleCab=True,label='DR2700')
+# EMU100 駕駛車（L 8.9）：駕駛室後是百葉通風窗與窄窗，再接客室門、六扇大窗、車尾門；這節沒有受電弓。
+add('emu100','railcar',L=8.9,W=2.8,H=3.5,doors=2,doorLeaves=1,doorW=.62,rearDoor=.62,frontDoor=1.06,cabWin=.80,radiusTop=.42,winR=.09,
+ winH=.86,winZ=2.57,doorWinH=.78,doorWinZ=2.55,doorTop=3.05,body='E6D48E',accent='F0603A',acUnits=[],power='overhead-other-car',label='EMU100')
+# EMU1200 駕駛車（L 8.7）：乘務員門、橘色斜帶、客室門、六扇窗、車尾門；駕駛室後一組受電弓（2015 正面照升弓、2024 側面照收弓都在這節）。
+add('emu1200','railcar',L=8.7,W=2.8,H=3.5,doors=2,doorLeaves=1,doorW=.62,rearDoor=.62,frontDoor=1.46,crewDoor=True,radiusTop=.45,winR=.08,
+ winH=.90,winZ=2.46,doorWinH=.80,doorWinZ=2.45,doorTop=3.00,body='EEEEEA',accent='EE6A3C',acUnits=[(-1.6,2.0)],acMat='e12roof',pantos=1,pantoX=2.3,label='EMU1200')
