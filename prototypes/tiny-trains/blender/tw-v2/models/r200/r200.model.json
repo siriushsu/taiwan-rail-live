@@ -1,0 +1,287 @@
+{
+  "modelId": "r200",
+  "name": "R200・新柴電機車",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "electric",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.968999862670898,
+      -1.5152169466018677,
+      0.0
+    ],
+    "max": [
+      4.928999900817871,
+      1.5152169466018677,
+      4.199999809265137
+    ]
+  },
+  "sizeM": [
+    9.89799976348877,
+    3.0304338932037354,
+    4.199999809265137
+  ],
+  "mesh": {
+    "file": "r200.mesh.bin",
+    "sha256": "1a660ad5c4f1ab7651abba3a61fa3dc5e3f99ca1577fc339f01ec07d9ff68362",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 205140,
+    "triangleCount": 68380,
+    "drawGroups": [
+      {
+        "name": "r2white",
+        "start": 0,
+        "count": 6012,
+        "color": [
+          0.8879231214523315,
+          0.8962693810462952,
+          0.8796223998069763
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.3199999928474426,
+        "clearcoat": 0.25999999046325684
+      },
+      {
+        "name": "r2black",
+        "start": 6012,
+        "count": 19116,
+        "color": [
+          0.006048833020031452,
+          0.006995410192757845,
+          0.00802319310605526
+        ],
+        "metalness": 0.20000000298023224,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "r2navy",
+        "start": 25128,
+        "count": 28656,
+        "color": [
+          0.008568125776946545,
+          0.03688944876194,
+          0.11697066575288773
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "glass",
+        "start": 53784,
+        "count": 3504,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 57288,
+        "count": 9708,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "metal",
+        "start": 66996,
+        "count": 51108,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "frame",
+        "start": 118104,
+        "count": 15564,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "lamp",
+        "start": 133668,
+        "count": 6660,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "red",
+        "start": 140328,
+        "count": 5328,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "r2slat",
+        "start": 145656,
+        "count": 4704,
+        "color": [
+          0.0423114113509655,
+          0.04970656707882881,
+          0.05780543014407158
+        ],
+        "metalness": 0.30000001192092896,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "chassis",
+        "start": 150360,
+        "count": 36924,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 187284,
+        "count": 8448,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "r2grille",
+        "start": 195732,
+        "count": 5616,
+        "color": [
+          0.0043914420530200005,
+          0.012983032502233982,
+          0.03688944876194
+        ],
+        "metalness": 0.20000000298023224,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "r2lens",
+        "start": 201348,
+        "count": 2664,
+        "color": [
+          0.8468732237815857,
+          0.7681511640548706,
+          0.5394794940948486
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "roof",
+        "start": 204012,
+        "count": 1128,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 250,
+  "features": {
+    "sideDoorGroups": 0,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 3,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "r200",
+    "family": "electric",
+    "L": 9.4,
+    "W": 2.9,
+    "H": 3.7,
+    "pantos": 0,
+    "axles": 3,
+    "radiusTop": 0.5,
+    "power": "diesel",
+    "body": "F2F3F1",
+    "accent": "173660",
+    "label": "R200",
+    "bowPow": 3
+  },
+  "reference": {
+    "source": "https://blair-train.blogspot.com/2019/12/r200-tra-r200-type-diesel-electric.html",
+    "detail": "白色車身深藍機房 · 環繞大前窗 · 車頂散熱風扇",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

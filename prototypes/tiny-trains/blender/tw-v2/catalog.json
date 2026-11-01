@@ -840,5 +840,167 @@
   ],
   "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
   "thumbnail": "models/val256/renders/thumb.webp"
+ },
+ {
+  "id": "e200",
+  "name": "E200 電力機車",
+  "family": "electric",
+  "detail": "橘色車身上半奶油色 · 正面 V 字色帶 · 單臂受電弓",
+  "features": [
+   "車頭下半垂直，兩扇黑框圓角前窗往後倒，車頂前緣凸出頭燈箱（兩顆頭燈、兩支氣笛）；窗下兩塊黑底車號牌，上角暗紅標識燈。",
+   "橘色車身、上半奶油色，奶油色帶在車角繞到正面變成往中央下降的 V 字；車側是平滑大板，沒有百葉。",
+   "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。"
+  ],
+  "metadata": "models/e200/e200.model.json",
+  "blend": "models/e200/e200.blend",
+  "glb": "models/e200/e200.glb",
+  "hero": "models/e200/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/e200.html"
+   },
+   {
+    "label": "Wikimedia Commons／Lokseng01（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E236_at_Hsinchu_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/e200/renders/thumb.webp"
+ },
+ {
+  "id": "e300",
+  "name": "E300・電力機車",
+  "family": "electric",
+  "detail": "橘色車身上半奶油色 · 正面 V 字色帶 · 單臂受電弓",
+  "features": [
+   "車頭下半垂直，兩扇黑框圓角前窗往後倒，車頂前緣凸出頭燈箱（兩顆頭燈、兩支氣笛）；窗下兩塊黑底車號牌，上角暗紅標識燈。",
+   "橘色車身、上半奶油色，奶油色帶在車角繞到正面變成往中央下降的 V 字；車側是平滑大板，沒有百葉。",
+   "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。"
+  ],
+  "metadata": "models/e300/e300.model.json",
+  "blend": "models/e300/e300.blend",
+  "glb": "models/e300/e300.glb",
+  "hero": "models/e300/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/e300.html"
+   },
+   {
+    "label": "Wikimedia Commons／Solomon203（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TR_E311_passing_Platform_1,_Baifu_Station_20240705.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/e300/renders/thumb.webp"
+ },
+ {
+  "id": "e400",
+  "name": "E400・電力機車",
+  "family": "electric",
+  "detail": "橘色車身上半奶油色 · 正面 V 字色帶 · 單臂受電弓",
+  "features": [
+   "車頭下半垂直，兩扇黑框圓角前窗往後倒，車頂前緣凸出頭燈箱（兩顆頭燈、兩支氣笛）；窗下兩塊黑底車號牌，上角暗紅標識燈。",
+   "橘色車身、上半奶油色，奶油色帶在車角繞到正面變成往中央下降的 V 字；車側是平滑大板，沒有百葉。",
+   "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。"
+  ],
+  "metadata": "models/e400/e400.model.json",
+  "blend": "models/e400/e400.blend",
+  "glb": "models/e400/e400.glb",
+  "hero": "models/e400/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/e400.html"
+   },
+   {
+    "label": "Wikimedia Commons／Tbatb（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E415_at_Hsinchu_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/e400/renders/thumb.webp"
+ },
+ {
+  "id": "mingri",
+  "name": "鳴日號・經典車頭",
+  "family": "electric",
+  "detail": "黑色車身橘色塗裝 · 兩端塗裝不同 · 金色圓徽",
+  "features": [
+   "E400 換塗裝的觀光列車車頭，車體跟 E200 系同款：兩扇黑框前窗、頂部頭燈箱、兩組單臂受電弓。",
+   "A 端全黑、中央一道橘色直帶，右車號牌下方金色圓徽；B 端上黑下橘，中間一道往中央下彎的黑色弧線，車號牌之間偏左一枚金色大圓徽。",
+   "車側上半黑色；B 端駕駛室下半橘色，往 A 端收窄、以圓弧收尾，橘色裡一道黑色細線跟著上緣走。"
+  ],
+  "metadata": "models/mingri/mingri.model.json",
+  "blend": "models/mingri/mingri.blend",
+  "glb": "models/mingri/mingri.glb",
+  "hero": "models/mingri/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Kazehayashi（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E405_with_Future_passenger_cars_at_Taitung_Station_20210117.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/mingri/renders/thumb.webp"
+ },
+ {
+  "id": "e500",
+  "name": "E500・新電力機車",
+  "family": "electric",
+  "detail": "橘色車身 · 深灰面罩大前窗 · 車頂格柵蓋",
+  "features": [
+   "車頭上半一整片深灰面罩包住大前窗、往後包住駕駛室頂，面罩頂端中央兩顆頭燈；窗下左右黑色燈座各一白一紅圓燈。",
+   "整車橘色、車側平滑沒有百葉；下巴以下深灰端梁、兩角橘色側裙。",
+   "車頂淺灰，中央兩段高起的設備罩各五片格柵蓋，兩端各一組單臂受電弓；三軸轉向架。"
+  ],
+  "metadata": "models/e500/e500.model.json",
+  "blend": "models/e500/e500.blend",
+  "glb": "models/e500/e500.glb",
+  "hero": "models/e500/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/e500-tra-e500-type-electric-locomotive.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E501_Kita-Fuch%C5%AB_20230820.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/e500/renders/thumb.webp"
+ },
+ {
+  "id": "r200",
+  "name": "R200・新柴電機車",
+  "family": "electric",
+  "detail": "白色車身深藍機房 · 環繞大前窗 · 車頂散熱風扇",
+  "features": [
+   "單頭：黑框環繞大前窗，窗上黑帶與頂部頭燈、窗下黑帶與扶手；白色下巴兩角黑色燈座、中央黑色格柵。",
+   "白色車身，機房側面一大片深藍板（駕駛室後方留一段白），板上一大一小兩組百葉；下面白細線、深藍細帶，最下黑色裙板。",
+   "機房車頂深藍：中段高起的引擎罩與排氣消音器、後段兩座圓形散熱風扇；駕駛室頂白色；三軸轉向架、車底燃油箱。"
+  ],
+  "metadata": "models/r200/r200.model.json",
+  "blend": "models/r200/r200.blend",
+  "glb": "models/r200/r200.glb",
+  "hero": "models/r200/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/r200-tra-r200-type-diesel-electric.html"
+   },
+   {
+    "label": "Wikimedia Commons／jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R201_on_its_test_run_on_the_Yilan_Line.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/r200/renders/thumb.webp"
  }
 ]

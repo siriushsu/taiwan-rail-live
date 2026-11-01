@@ -78,3 +78,12 @@ add('kaohsiung','metro',L=9.7,W=2.9,H=3.4,doors=4,doorLeaves=2,power='third-rail
 add('val256','metro',L=6.8,W=2.5,H=3.05,doors=2,doorLeaves=2,power='guideway',rearDoor=1.55,frontDoor=1.35,cabWin=.10,radiusTop=.30,
  winH=.95,winZ=2.38,doorWinH=.85,doorWinZ=2.35,doorTop=2.85,body='EEF0EE',accent='2C4C8C',acUnits=[(-1.2,1.3),(1.0,1.3)],acMat='vroof',
  rubber=True,axles=1,bogieX=[-2.05,2.05])
+# GE 電力機車：E200、E300、E400 照片上是同一個車體（車窗、色帶、受電弓都一樣，只差車號），鳴日號經典車頭是 E405 換塗裝；L 8.6（fleet-v1 同尺寸），雙頭、三軸轉向架。
+ge=dict(L=8.6,W=2.85,H=3.45,pantos=2,axles=3,radiusTop=.42,power='overhead',body='EC7838',accent='F2EEDC')
+add('e200','electric',**ge,label='E200')
+add('e300','electric',**ge,label='E300')
+add('e400','electric',**ge,label='E400')
+add('mingri','electric',**{**ge,'body':'15181D','accent':'D2441A'},label='E400')
+# E500（東芝）：L 9.0，雙頭、三軸轉向架。R200（Stadler）：L 9.4，單頭柴電、三軸轉向架。
+add('e500','electric',L=9.0,W=2.85,H=3.55,pantos=2,axles=3,radiusTop=.40,power='overhead',body='F06A2E',accent='2E3236',label='E500')
+add('r200','electric',L=9.4,W=2.9,H=3.7,pantos=0,axles=3,radiusTop=.50,power='diesel',body='F2F3F1',accent='173660',label='R200')

@@ -1,0 +1,287 @@
+{
+  "modelId": "e200",
+  "name": "E200 電力機車",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "electric",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.5289998054504395,
+      -1.4902169704437256,
+      0.0
+    ],
+    "max": [
+      4.5289998054504395,
+      1.4902174472808838,
+      4.691999912261963
+    ]
+  },
+  "sizeM": [
+    9.057999610900879,
+    2.9804344177246094,
+    4.691999912261963
+  ],
+  "mesh": {
+    "file": "e200.mesh.bin",
+    "sha256": "a0ed101523f2609e8da0c973ab20d7c4da1cd6dbbbcf4e3b4f7da8330dafe60b",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 220260,
+    "triangleCount": 73420,
+    "drawGroups": [
+      {
+        "name": "georange",
+        "start": 0,
+        "count": 6600,
+        "color": [
+          0.838798999786377,
+          0.18782077729701996,
+          0.039546236395835876
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "gecream",
+        "start": 6600,
+        "count": 7440,
+        "color": [
+          0.8879231214523315,
+          0.8549926280975342,
+          0.715693473815918
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.25999999046325684
+      },
+      {
+        "name": "gerubber",
+        "start": 14040,
+        "count": 22848,
+        "color": [
+          0.01032982300966978,
+          0.012983032502233982,
+          0.015208514407277107
+        ],
+        "metalness": 0.20000000298023224,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "glass",
+        "start": 36888,
+        "count": 7920,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "metal",
+        "start": 44808,
+        "count": 53916,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 98724,
+        "count": 31296,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "frame",
+        "start": 130020,
+        "count": 11664,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "red",
+        "start": 141684,
+        "count": 5328,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "lamp",
+        "start": 147012,
+        "count": 5328,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "yellow",
+        "start": 152340,
+        "count": 1128,
+        "color": [
+          0.838798999786377,
+          0.533276379108429,
+          0.06301001459360123
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "chassis",
+        "start": 153468,
+        "count": 40044,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 193512,
+        "count": 8448,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "cream",
+        "start": 201960,
+        "count": 9840,
+        "color": [
+          0.8148465752601624,
+          0.7304607629776001,
+          0.5149176716804504
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "geroof",
+        "start": 211800,
+        "count": 7332,
+        "color": [
+          0.27049779891967773,
+          0.30946892499923706,
+          0.3277781009674072
+        ],
+        "metalness": 0.4000000059604645,
+        "roughness": 0.41999998688697815,
+        "clearcoat": 0.07999999821186066
+      },
+      {
+        "name": "roof",
+        "start": 219132,
+        "count": 1128,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 274,
+  "features": {
+    "sideDoorGroups": 0,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 2,
+    "axlesPerBogie": 3,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "e200",
+    "family": "electric",
+    "L": 8.6,
+    "W": 2.85,
+    "H": 3.45,
+    "pantos": 2,
+    "axles": 3,
+    "radiusTop": 0.42,
+    "power": "overhead",
+    "body": "EC7838",
+    "accent": "F2EEDC",
+    "label": "E200",
+    "bowPow": 4
+  },
+  "reference": {
+    "source": "https://blair-train.blogspot.com/2010/02/e200.html",
+    "detail": "橘色車身上半奶油色 · 正面 V 字色帶 · 單臂受電弓",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}
