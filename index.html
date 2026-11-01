@@ -5650,7 +5650,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/10/31</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/01</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5658,7 +5658,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="paddydetail1101"><span class="d">11/01</span><span>車庫「田園小站」做得更精緻：樹分好幾種樹形，站房和三合院有門窗、瓦屋頂，透天厝多了鐵窗、冷氣和招牌，稻田是一叢叢秧苗，路邊有電線桿</span></li>
+        <li data-cl-of="paddydetail1101"><span class="d">11/01</span><span>車庫「田園小站」做得更精緻：樹分好幾種樹形，站房和三合院有門窗、瓦屋頂，透天厝的鐵窗有窗條，還多了冷氣和直立招牌，秧苗田看得到一叢叢秧苗，電線桿拉上了電線</span></li>
         <li data-cl-of="garageredeem1101"><span class="d">11/01</span><span>網站也能用島民點數兌換車庫場景了：車庫最上面多一列「車庫場景」，點格子就能解鎖；護照的點數那句點了直接開車庫</span></li>
         <li data-cl-of="buildinglook1031"><span class="d">10/31</span><span>3D 建築改成實心並加上光影與牆腳陰影；列車開到大樓後面時，樓上會開一扇窗讓你看到車，想看穿建築仍可打開「透視顯示」</span></li>
         <li data-cl-of="garagefs1031"><span class="d">10/31</span><span>車庫重開或切回網頁時不再閃一下：車直接出現、車卡不重排；舞台多了全畫面鈕，四個分頁都能鋪滿畫面看，直式橫式都行，再按一次、Esc 或返回鍵退出</span></li>
@@ -5699,7 +5699,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
-        <li data-cl="paddydetail1101"><span class="d">11/01</span><span>車庫「田園小站」做得更精緻：樹分好幾種樹形，站房和三合院有門窗、瓦屋頂，透天厝多了鐵窗、冷氣和招牌，稻田是一叢叢秧苗，路邊有電線桿</span></li>
+        <li data-cl="paddydetail1101"><span class="d">11/01</span><span>車庫「田園小站」做得更精緻：樹分好幾種樹形，站房和三合院有門窗、瓦屋頂，透天厝的鐵窗有窗條，還多了冷氣和直立招牌，秧苗田看得到一叢叢秧苗，電線桿拉上了電線</span></li>
         <li data-cl="garageredeem1101"><span class="d">11/01</span><span>網站也能用島民點數兌換車庫場景了：車庫最上面多一列「車庫場景」，點格子就能解鎖；護照的點數那句點了直接開車庫</span></li>
         <li data-cl="garagefs1031"><span class="d">10/31</span><span>車庫重開或切回網頁時不再閃一下：車直接出現、車卡不重排；舞台多了全畫面鈕，四個分頁都能鋪滿畫面看，直式橫式都行，再按一次、Esc 或返回鍵退出</span></li>
         <li data-cl="garagescene1031"><span class="d">10/31</span><span>車庫新增第 4 個分頁「田園小站」：每款車都能開進這座預設車庫，白天夜晚跟著現在時間，按「陪它走走」跟著車看；開著車庫時背後的地圖會暫停，手機跑起來更順</span></li>
@@ -7111,7 +7111,7 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1031b：車庫重開不再先閃空白（關車庫只 trim renderer，留 WebGL context 與編好的 shader）、回前景同步內容沒變就不重建車卡；舞台加「全畫面觀看」（Fullscreen API，iPhone Safari 走 CSS 鋪滿＋pushState），樣子與退出方式同 App；更新紀錄加一條。
 // v1031c：3D 建物質感第一輪——建物著色器修牆面漸層、加牆腳暗帶、列車在樓後面時挖窗；各底圖光源與配色照 BUILDING_LOOKS（地景 L2、亮色 Lt1、暗色 D2）；亮暗底圖「透視顯示」預設改實體（存過設定的照舊）；更新紀錄加一條。
 // v1101a：網站兌換車庫場景——車庫最上面加「車庫場景」列與兌換視窗（照 App 狀態機：送出前先存 requestId、結果沒確認用同一個重試不重扣、409／401／403／503／429 各有處理），護照點數那句改成可點開車庫；兌換視窗的 Esc 改在 keydown 處理（Chrome 連續擋 dialog cancel 會失效、第三次 Esc 關掉整個車庫）
-// v1101b：車庫預設場景田園小站精修——七種樹形加檳榔竹叢、站房／三合院／土地公廟的門窗瓦頂、透天厝細節、秧苗、草地斑塊、電桿電線（場景本體 42→51 draws、5.2 萬→11.2 萬三角形，手機照舊關陰影＋像素比 1）；更新紀錄加一條。
+// v1101b：車庫預設場景田園小站精修——七種樹形加檳榔竹叢、站房與三合院的門窗瓦頂、土地公廟燈籠、透天厝細節、秧苗、草地斑塊、電桿電線（場景本體 42→51 draws、5.2 萬→11.2 萬三角形，手機照舊關陰影＋像素比 1）；更新紀錄加一條。
 const BUILD = 'v1101b';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');

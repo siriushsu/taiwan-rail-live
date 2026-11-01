@@ -3,7 +3,7 @@
 // 寫法照四座精緻車庫（網頁 7c8924be 的 viaduct.js／shifen.js）：程式幾何、零資產檔，同幾何同材質的方塊合批成 InstancedMesh。
 // App 先做（10-27），10-31 從 native repo 搬來當唯一的一份：網頁車庫第 4 格（rail-3d/garage-diorama.js）直接載入，
 // App 由 native scripts/garage-scenes/bake.mjs 讀網頁釘版烘成 paddy.rigs。改幾何 App 要重烘。原型與三個方向的比較在 native docs/m9/garage-default/。
-// 11-01 精修：樹分七種樹形加檳榔、竹叢，樹冠分層、逐棵抖色；站房、三合院、土地公廟有窗框、門、瓦溝、屋脊；透天厝加磁磚縫、
+// 11-01 精修：樹分七種樹形加檳榔、竹叢，樹冠分層、逐棵抖色；站房、三合院有窗框、門、瓦溝、屋脊，土地公廟加燈籠；透天厝加磁磚縫、
 // 窗台、冷氣、直立招牌；稻田改一叢叢秧苗；草地、馬路、電桿電線都有細節。.rigs 只帶幾何、實例色與材質（沒有貼圖），
 // 所以「紋理」一律用細幾何與實例色做，兩平台才會長得一樣。
 import * as THREE from '../vendor/three.module.js';
