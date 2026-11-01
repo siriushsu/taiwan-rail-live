@@ -95,9 +95,7 @@ export function createScene(){
   for(const axle of [-1,1])for(const side of bike?[0]:[-1,1])part(g,dark,[.24,.24,.16],[side*W*.48,axle*L*.32,.26],[0,Math.PI/2,0],k.cylinder);
   for(const side of bike?[0]:[-1,1]){part(g,head,[.22,.035,.15],[side*W*.33,L/2+.021,.62]);part(g,tail,[.20,.035,.12],[side*W*.33,-L/2-.021,.58]);}
   if(bike){part(g,mat('#537b84'),[.34,.28,.5],[0,0,1.02]);part(g,mat('#ddd9c5'),[.22,.23,.23],[0,.03,1.48],[0,0,0],k.ball);part(g,dark,[.57,.07,.05],[0,.41,.96]);}else{part(g,white,[.37,.04,.12],[0,L/2+.023,.34]);for(const side of [-1,1])part(g,body,[.12,.19,.10],[side*(W/2+.05),.40,1.06]);}
-  // 頭燈掛在場景群組、位置每幀跟車：車開出底座整台會藏起來，燈若跟著藏，聚光燈數一變 three.js 就要把有打光的材質全部重編著色器（A54 一次卡 0.2～1 秒）；車藏起來時燈調成 0。白天燈不亮就整組收起來，省掉每個像素多算四盞聚光燈；燈數只在換時段時變。
-  let light;if(!bike){light=new THREE.SpotLight('#ffdfa5',0,10,Math.PI/7,.8,2);group.add(light,light.target);}
-  return{g,L,initial:y,dir,light};
+  return{g,L,initial:y,dir,head:!bike};
  }
  const cars=[vehicle('car','#e6d8b7',1.65,-8.2,1),vehicle('scooter','#7c9b9a',2.4,-11.4,1),vehicle('car','#577c95',1.55,-14,1),vehicle('car','#b75540',-1.65,8.2,-1),vehicle('scooter','#d4b054',-2.35,11.4,-1),vehicle('car','#e5dfcf',-1.6,14,-1)];
  for(const [x,y,c]of [[-4.2,-7,'#d4a655'],[4.2,5.8,'#b9705a'],[-5.2,6,'#728e9d']])k.person(x,y,.18,{color:c,angle:Math.PI/2,hat:true});
@@ -162,13 +160,37 @@ export function createScene(){
  const plainMaterial=own(std({vertexColors:true,roughness:.8}));
  for(const {m,plain,cast,recv,items} of flat.values()){const o=new THREE.Mesh(k.geo(staticGeometry(bakeArrays(items,plain))),plain?plainMaterial:m);o.castShadow=cast;o.receiveShadow=recv;group.add(o);}
  for(const c of Object.values(fleet))c.d.build();
- let state={};return{...k,dispose(){atlasTexture?.dispose();k.dispose();},path,opposingPath,kind:'crossing',contactWireZ:2.31-.0125,focus:[0,5,1],update(time,period,train){const f=k.illumination(period),a=crossingState(train.distance,train.length,path.length,train.speed),b=crossingState(train.opposingDistance??train.distance,train.length,path.length,train.speed),s={...a,arrival:Math.max(a.arrival,b.arrival),clear:Math.min(a.clear,b.clear),closed:Math.max(a.closed,b.closed),alarm:a.alarm||b.alarm,occupied:a.occupied||b.occupied};s.phase=s.occupied?'雙向列車通過':!s.alarm?'通行開放':s.closed===1?'等待雙線清空':s.clear>.8?'遮斷桿上升':s.closed>0?'遮斷桿下降':'列車接近';for(const {pivot,side}of gates)pivot.rotation.y=side*(1-s.closed)*Math.PI/2;
+ // 汽車頭燈照在路面的光斑（11-02）：原本每台車一盞聚光燈，A54 夜晚跟車每個打光的像素都要多算 4 盞燈，只剩 54～55 fps。
+ // 改成貼在路面上的一塊（每幀擺到車頭前、貼著路面高低）；只亮路面，不照前車、柵欄、行人。
+ // 4 塊併成一份幾何，開出底座的部分用車輛的裁切面裁掉。原生烘焙器略過（App 的車烘在停止線前，本來就沒有光斑）。
+ // 形狀照原本那盞聚光燈算路面照度 E（燈在車頭前 .1、離路面 .69，往前 8 公尺下傾 .75，張角 π/7、半影 .8、衰減 2、照到 10）：車頭前 1.2 公尺起最亮，往前變寬變淡。
+ // 同一份幾何畫兩趟：先乘（畫面色 ×(1＋M)，白線、禁停斜線照各自的底色變亮），再加（柏油上的暖光）；只用其中一種，白線或柏油總有一邊差一倍。
+ // 亮度照 11-02 夜晚對照真燈量的（真燈照得最亮那一圈：柏油 (20,31,33) 加 (+41,+32,+18)、白線 (81,97,96) 加 (+76,+55,+32)、黃斜線 (76,72,17) 加 (+70,+45,+15)）：
+ // 燈心 M＝(.97,.59,.40)、加 (34,24,12)，三種底色都對得上。
+ const POOL={near:1,far:7.6,half:2.2,mul:[.97,.59,.4],add:[34/255,24/255,12/255]},NX=4,NY=10,heads=cars.filter(c=>c.head),per=(NX+1)*(NY+1),poolPos=new Float32Array(heads.length*per*3),poolUv=[],poolIdx=[];
+ for(let n=0;n<heads.length;n++)for(let j=0;j<=NY;j++)for(let i=0;i<=NX;i++){poolUv.push(i/NX,j/NY);if(i<NX&&j<NY){const a=n*per+j*(NX+1)+i,c=a+NX+1;poolIdx.push(a,a+1,c+1,a,c+1,c);}}
+ const poolGeo=k.geo(new THREE.BufferGeometry());poolGeo.setAttribute('position',new THREE.BufferAttribute(poolPos,3).setUsage(THREE.DynamicDrawUsage));poolGeo.setAttribute('uv',new THREE.Float32BufferAttribute(poolUv,2));poolGeo.setIndex(poolIdx);
+ // 貼圖是 0～1 的形狀：(1＋3.55E)^(1/2.2)−1，燈心＝1；兩趟各乘自己的顏色。數值直接是畫面色：拿掉輸出時的 sRGB 轉換，
+ // 不然「形狀×顏色」在線性空間相乘再轉 sRGB，淡的地方會被 sRGB 的趾部壓掉。
+ const poolTex=typeof document==='undefined'?null:(()=>{const w=32,h=64,c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),img=g.createImageData(w,h),ax=new THREE.Vector3(0,8,-.75).normalize(),v=new THREE.Vector3(),outer=Math.cos(Math.PI/7),inner=Math.cos(Math.PI/7*.2);
+  for(let j=0;j<h;j++)for(let i=0;i<w;i++){const u=(i+.5)/w,t=(j+.5)/h;v.set((u-.5)*2*POOL.half,POOL.near+t*(POOL.far-POOL.near)-.1,-.69);const r=v.length(),E=16*smooth((v.dot(ax)/r-outer)/(inner-outer))/(r*r)*Math.max(0,1-(r/10)**4)**2*.69/r;
+   const o=((h-1-j)*w+i)*4;img.data[o]=img.data[o+1]=img.data[o+2]=Math.min(255,Math.round(((1+3.55*E)**(1/2.2)-1)/1.08*Math.min(1,(.5-Math.abs(u-.5))*10,(1-t)*10)*255));img.data[o+3]=255;}
+  g.putImageData(img,0,0);return new THREE.CanvasTexture(c);})();
+ const poolMats=[{blending:THREE.CustomBlending,blendSrc:THREE.DstColorFactor,blendDst:THREE.OneFactor},{blending:THREE.AdditiveBlending,opacity:0}].map(o=>{const m=own(new THREE.MeshBasicMaterial({map:poolTex,transparent:true,depthWrite:false,toneMapped:false,clippingPlanes:clips,...o}));m.name='headlight-pool';m.onBeforeCompile=s=>{s.fragmentShader=s.fragmentShader.replace('#include <colorspace_fragment>','');};return m;});
+ const pools=poolMats.map((m,i)=>{const o=new THREE.Mesh(poolGeo,m);o.name='headlight-pool';o.frustumCulled=false;o.visible=false;o.renderOrder=1+i;group.add(o);return o;});
+ // 道路中段的頂面高：柏油 .14、坡道往道口升到 .27、道口鋪面 .305；光斑再墊高 .12，蓋過禁停斜線（頂 .25）與鋼軌（頂 .36）。
+ const roadTop=y=>{const a=Math.abs(y);return a<2.9?.305:a<4.6?.21+(3.6-a)*.06:.14;};
+ // 車藏起來就把那塊縮成一點。
+ const writePools=()=>{let o=0;for(const c of heads){const p=c.g.position,on=c.g.visible;for(let j=0;j<=NY;j++){const y=p.y+c.dir*(c.L/2+POOL.near+j/NY*(POOL.far-POOL.near));for(let i=0;i<=NX;i++,o+=3){poolPos[o]=on?p.x+c.dir*(i/NX-.5)*2*POOL.half:p.x;poolPos[o+1]=on?y:p.y;poolPos[o+2]=on?roadTop(y)+.12:-5;}}}poolGeo.attributes.position.needsUpdate=true;};
+ let state={};return{...k,dispose(){atlasTexture?.dispose();poolTex?.dispose();k.dispose();},path,opposingPath,kind:'crossing',contactWireZ:2.31-.0125,focus:[0,5,1],update(time,period,train){const f=k.illumination(period),a=crossingState(train.distance,train.length,path.length,train.speed),b=crossingState(train.opposingDistance??train.distance,train.length,path.length,train.speed),s={...a,arrival:Math.max(a.arrival,b.arrival),clear:Math.min(a.clear,b.clear),closed:Math.max(a.closed,b.closed),alarm:a.alarm||b.alarm,occupied:a.occupied||b.occupied};s.phase=s.occupied?'雙向列車通過':!s.alarm?'通行開放':s.closed===1?'等待雙線清空':s.clear>.8?'遮斷桿上升':s.closed>0?'遮斷桿下降':'列車接近';for(const {pivot,side}of gates)pivot.rotation.y=side*(1-s.closed)*Math.PI/2;
   for(const l of redLights)l.intensity=s.alarm?(f?2.5:.4):0;const blink=Math.floor(time*2.2)%2;for(const {m,index}of lamps){const on=s.alarm&&blink===index;m.emissiveIntensity=on?3:0;m.color.set(on?'#ff5943':'#551c19');}
   // 車流只在全開後通行；下一次警示前回到入口，所有回繞都在道路邊界。
   const span=38,openStart=3.2,openDuration=(path.length-train.length-7)/train.speed-9.2;
   const openElapsed=s.clear>=openStart?s.clear-openStart:s.clear+path.length/train.speed-openStart;
   cars.forEach((c,i)=>{let y=c.initial;if(!s.alarm&&s.closed===0&&openElapsed<openDuration){const t=Math.max(0,openElapsed-Math.floor(i/3)*.5-(i%3)*1.25),d=t*3.2;const progress=d%span;y=c.initial+c.dir*progress;if(c.dir*y>19)y-=c.dir*span; // 回到邊界後向停止線前進並停等
    if(d>=span)y=c.initial;
-  }c.g.position.y=y;c.g.visible=Math.abs(y)<17+c.L/2+.2;c.g.position.z=.18+.12*smooth((4.2-Math.abs(y))/1.2);if(c.light){const p=c.g.position;c.light.visible=f>0;c.light.position.set(p.x,p.y+c.dir*(c.L/2+.1),p.z+.65);c.light.target.position.set(p.x,p.y+c.dir*(c.L/2+8),p.z-.1);c.light.intensity=c.g.visible?f*16:0;}fleet.tail.m.emissiveIntensity=s.alarm?1.1:f*.5;});
+  }c.g.position.y=y;c.g.visible=Math.abs(y)<17+c.L/2+.2;c.g.position.z=.18+.12*smooth((4.2-Math.abs(y))/1.2);fleet.tail.m.emissiveIntensity=s.alarm?1.1:f*.5;});
+  // 黃昏、清晨（f＝.35）環境光亮好幾倍，真燈在路面最多只加 10 左右（11-02 對照），所以照 f^2.5 淡下去。
+  for(const o of pools)o.visible=f>0;if(f){const [mul,add]=poolMats,w=f**2.5;mul.color.setRGB(...POOL.mul.map(x=>x*w));add.color.setRGB(...POOL.add);add.opacity=w;writePools();}
   wire.visible=true;for(const c of Object.values(fleet))c.d.update();state={...s,street,tracks:2,directions:[1,-1],trains:[a,b],lights:f,vehicles:cars.map(c=>({x:c.g.position.x,y:c.g.position.y,length:c.L,dir:c.dir})),gates:gates.map(g=>g.pivot.rotation.y),flashes:lamps.map(l=>l.m.emissiveIntensity),electrified:wire.visible};},get state(){return state;}};
 }
