@@ -849,7 +849,8 @@
   "features": [
    "車頭下半垂直，兩扇黑框圓角前窗往後倒，車頂前緣凸出頭燈箱（兩顆頭燈、兩支氣笛）；窗下兩塊黑底車號牌，上角暗紅標識燈。",
    "橘色車身、上半奶油色，奶油色帶在車角繞到正面變成往中央下降的 V 字；車側是平滑大板，沒有百葉。",
-   "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。"
+   "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。",
+   "轉向架之間不放電聯車的車下設備箱（fleet-v1 與上一版都有，機車沒有這種設備箱；車底主梁保留）。"
   ],
   "metadata": "models/e200/e200.model.json",
   "blend": "models/e200/e200.blend",
@@ -876,7 +877,8 @@
   "features": [
    "車頭下半垂直，兩扇黑框圓角前窗往後倒，車頂前緣凸出頭燈箱（兩顆頭燈、兩支氣笛）；窗下兩塊黑底車號牌，上角暗紅標識燈。",
    "橘色車身、上半奶油色，奶油色帶在車角繞到正面變成往中央下降的 V 字；車側是平滑大板，沒有百葉。",
-   "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。"
+   "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。",
+   "轉向架之間不放電聯車的車下設備箱（fleet-v1 與上一版都有，機車沒有這種設備箱；車底主梁保留）。"
   ],
   "metadata": "models/e300/e300.model.json",
   "blend": "models/e300/e300.blend",
@@ -903,7 +905,8 @@
   "features": [
    "車頭下半垂直，兩扇黑框圓角前窗往後倒，車頂前緣凸出頭燈箱（兩顆頭燈、兩支氣笛）；窗下兩塊黑底車號牌，上角暗紅標識燈。",
    "橘色車身、上半奶油色，奶油色帶在車角繞到正面變成往中央下降的 V 字；車側是平滑大板，沒有百葉。",
-   "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。"
+   "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。",
+   "轉向架之間不放電聯車的車下設備箱（fleet-v1 與上一版都有，機車沒有這種設備箱；車底主梁保留）。"
   ],
   "metadata": "models/e400/e400.model.json",
   "blend": "models/e400/e400.blend",
@@ -930,7 +933,8 @@
   "features": [
    "E400 換塗裝的觀光列車車頭，車體跟 E200 系同款：兩扇黑框前窗、頂部頭燈箱、兩組單臂受電弓。",
    "A 端全黑、中央一道橘色直帶，右車號牌下方金色圓徽；B 端上黑下橘，中間一道往中央下彎的黑色弧線，車號牌之間偏左一枚金色大圓徽。",
-   "車側上半黑色；B 端駕駛室下半橘色，往 A 端收窄、以圓弧收尾，橘色裡一道黑色細線跟著上緣走。"
+   "車側上半黑色；B 端駕駛室下半橘色，往 A 端收窄、以圓弧收尾，橘色裡一道黑色細線跟著上緣走。",
+   "轉向架之間不放電聯車的車下設備箱（fleet-v1 與上一版都有，機車沒有這種設備箱；車底主梁保留）。"
   ],
   "metadata": "models/mingri/mingri.model.json",
   "blend": "models/mingri/mingri.blend",
@@ -957,7 +961,8 @@
   "features": [
    "車頭上半一整片深灰面罩包住大前窗、往後包住駕駛室頂，面罩頂端中央兩顆頭燈；窗下左右黑色燈座各一白一紅圓燈。",
    "整車橘色、車側平滑沒有百葉；下巴以下深灰端梁、兩角橘色側裙。",
-   "車頂淺灰，中央兩段高起的設備罩各五片格柵蓋，兩端各一組單臂受電弓；三軸轉向架。"
+   "車頂淺灰，中央兩段高起的設備罩各五片格柵蓋，兩端各一組單臂受電弓；三軸轉向架。",
+   "轉向架之間不放電聯車的車下設備箱（fleet-v1 與上一版都有，機車沒有這種設備箱；車底主梁保留）。"
   ],
   "metadata": "models/e500/e500.model.json",
   "blend": "models/e500/e500.blend",
@@ -984,7 +989,8 @@
   "features": [
    "單頭：黑框環繞大前窗，窗上黑帶與頂部頭燈、窗下黑帶與扶手；白色下巴兩角黑色燈座、中央黑色格柵。",
    "白色車身，機房側面一大片深藍板（駕駛室後方留一段白），板上一大一小兩組百葉；下面白細線、深藍細帶，最下黑色裙板。",
-   "機房車頂深藍：中段高起的引擎罩與排氣消音器、後段兩座圓形散熱風扇；駕駛室頂白色；三軸轉向架、車底燃油箱。"
+   "機房車頂深藍：中段高起的引擎罩與排氣消音器、後段兩座圓形散熱風扇；駕駛室頂白色；三軸轉向架、車底燃油箱。",
+   "拿掉被燃油箱包住的電聯車車下設備箱（外觀不變，少 3,384 個三角形）；車底主梁保留。"
   ],
   "metadata": "models/r200/r200.model.json",
   "blend": "models/r200/r200.blend",
@@ -1168,5 +1174,90 @@
   ],
   "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
   "thumbnail": "models/dhl100/renders/thumb.webp"
+ },
+ {
+  "id": "juguang",
+  "name": "莒光號・客車",
+  "family": "coach",
+  "detail": "橘色下半 · 奶油色窗帶 · 兩端橘色門區",
+  "features": [
+   "下半橘色、窗帶奶油色，窗下一道橘細線與白線；橘色與奶油色跟 GE 機車同色（車庫裡 GE、柴電機車後面掛的都是這款）。",
+   "兩端門區整段橘色（奶油色帶在門區前結束、上角圓角），白線跨過門區；兩端各一扇有窗的單開門，門區車身往下包住踏階。",
+   "九扇寬窄不一的窗（照正側面照的順序），車頂淺灰、兩端各一台冷氣；兩端是貫通道端牆。"
+  ],
+  "metadata": "models/juguang/juguang.model.json",
+  "blend": "models/juguang/juguang.blend",
+  "glb": "models/juguang/juguang.glb",
+  "hero": "models/juguang/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_8855.html"
+   },
+   {
+    "label": "Wikimedia Commons／Lokseng01（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Different_generations_of_TRA_Chu-Kuang_Express_coaches_at_Qidu_Marshalling_Yard_20210403.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/juguang/renders/thumb.webp"
+ },
+ {
+  "id": "mingricoach",
+  "name": "鳴日號・客車",
+  "family": "coach",
+  "detail": "深色上半 · 橘色下半與橘細線 · 寬窗夾白框小窗",
+  "features": [
+   "莒光號 FPK10600 改造，車體跟莒光號客車同一支；上半與車頂深色、下半橘色，顏色跟鳴日號經典車頭同一組。",
+   "橘色上緣一道深色細帶、再上一道橘細線，窗下緣就在橘細線上（fleet-v1 的金色腰線照片上沒有，改成橘色）。",
+   "寬的深色窗之間夾白框小窗；兩端各一扇單開門、門區車身往下包住踏階；車頂兩端灰色冷氣。"
+  ],
+  "metadata": "models/mingricoach/mingricoach.model.json",
+  "blend": "models/mingricoach/mingricoach.blend",
+  "glb": "models/mingricoach/mingricoach.glb",
+  "hero": "models/mingricoach/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Lokseng01（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_BCK10609_at_Shulin_Marshalling_Yard_20210401.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/mingricoach/renders/thumb.webp"
+ },
+ {
+  "id": "bluecoach",
+  "name": "藍皮解憂・復古客車",
+  "family": "coach",
+  "detail": "深海軍藍側牆 · 窗下白帶 · 淺拱銀灰車頂",
+  "features": [
+   "深海軍藍車身、窗下白帶，跟藍皮 R135 同色；淺拱銀灰車頂、雨水槽、車頂中線一排白色蕈狀通風器。",
+   "九扇可開窗：白銀色圓角窗框、上下兩格、每扇各自的窗台，窗的高度照正側面照重量（fleet-v1 太高）；一端廁所霧面小窗。",
+   "兩端各一扇窄的手動單開門、門下外露踏階；端牆有門、風擋折片、紅色尾燈。"
+  ],
+  "metadata": "models/bluecoach/bluecoach.model.json",
+  "blend": "models/bluecoach/bluecoach.blend",
+  "glb": "models/bluecoach/bluecoach.glb",
+  "hero": "models/bluecoach/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2023/09/blog-post_97.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.trc.com.tw/tra-tip-web/tip/tip00N/tipN01/blue/index"
+   },
+   {
+    "label": "Wikimedia Commons／Tze Chiang Hao（CC BY 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:2023-09-12_TRA_Taimali_Station_01.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/bluecoach/renders/thumb.webp"
  }
 ]

@@ -46,11 +46,11 @@
   ],
   "mesh": {
     "file": "e200.mesh.bin",
-    "sha256": "a0ed101523f2609e8da0c973ab20d7c4da1cd6dbbbcf4e3b4f7da8330dafe60b",
+    "sha256": "370c2e53d74afdab9ad58f1e99bb3f5ef740667ad62fa9147a9faeaf9c185b13",
     "encoding": "float32-le",
     "strideBytes": 24,
-    "vertexCount": 220260,
-    "triangleCount": 73420,
+    "vertexCount": 210108,
+    "triangleCount": 70036,
     "drawGroups": [
       {
         "name": "georange",
@@ -185,7 +185,7 @@
       {
         "name": "chassis",
         "start": 153468,
-        "count": 40044,
+        "count": 31020,
         "color": [
           0.03433980792760849,
           0.05448027700185776,
@@ -197,7 +197,7 @@
       },
       {
         "name": "rubber",
-        "start": 193512,
+        "start": 184488,
         "count": 8448,
         "color": [
           0.014443843625485897,
@@ -210,7 +210,7 @@
       },
       {
         "name": "cream",
-        "start": 201960,
+        "start": 192936,
         "count": 9840,
         "color": [
           0.8148465752601624,
@@ -223,7 +223,7 @@
       },
       {
         "name": "geroof",
-        "start": 211800,
+        "start": 202776,
         "count": 7332,
         "color": [
           0.27049779891967773,
@@ -233,23 +233,10 @@
         "metalness": 0.4000000059604645,
         "roughness": 0.41999998688697815,
         "clearcoat": 0.07999999821186066
-      },
-      {
-        "name": "roof",
-        "start": 219132,
-        "count": 1128,
-        "color": [
-          0.4677838087081909,
-          0.520995557308197,
-          0.5271151065826416
-        ],
-        "metalness": 0.3700000047683716,
-        "roughness": 0.3799999952316284,
-        "clearcoat": 0.18000000715255737
       }
     ]
   },
-  "nativeObjectCount": 274,
+  "nativeObjectCount": 256,
   "features": {
     "sideDoorGroups": 0,
     "doorLeavesPerGroup": 2,

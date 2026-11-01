@@ -1307,7 +1307,7 @@ def ge_loco(s,livery='ge'):
   ge_cab(s,f,'gecream');ge_pilot(s,f)
   mirror_cab(list(p.MODEL[head:]))
  ge_roof(s)
- bogies(L,W,axles=3,r=.42)
+ loco_bogies(L,W,3,.42)
  return f
 
 def e200(s):
@@ -1372,7 +1372,7 @@ def e500(s):
    x=x0+.10+(k+.5)*(x1-x0-.20)/5;box('格柵蓋',(x,0,H+.15),(.32,1.20,.02),'e5grille',.004)
    for d in range(5):box('格柵條',(x-.13+d*.065,0,H+.165),(.02,1.12,.012),'e5roof',.002)
  for x in [-2.55,2.55]:pantograph(x,H)
- bogies(L,W,axles=3,r=.42)
+ loco_bogies(L,W,3,.42)
  return f
 
 def r200(s):
@@ -1432,7 +1432,7 @@ def r200(s):
  for x in [-2.05,-3.25]:
   cyl('散熱風扇外圈',(x,0,H+.04),.46,.14,'r2navy');cyl('散熱風扇護網',(x,0,H+.115),.40,.02,'r2black')
   for d in [-.24,-.08,.08,.24]:box('護網橫條',(x,d,H+.127),(.70,.022,.012),'r2slat',.002)
- bogies(L,W,axles=3,r=.42)
+ loco_bogies(L,W,3,.42)
  use('04');box('燃油箱',(0,0,.56),(3.2,W*.80,.48),'r2black',.08)
  return f
 
@@ -1709,9 +1709,161 @@ def dhl100(s):
   for x in [xr0-.10,xr0-.55]:rod('駕駛室門口扶手',(x,y,1.30),(x,y,2.12),.018,'hdrail')
   line('駕駛室門口扶手',[(xr0-.10,y,2.12),(xr0-.55,y,2.12)],.018,'hdrail')
 
+# ── 客車：莒光號、鳴日號（FPK10600 系，鳴日號是改造車）與藍皮解憂復古客車 ─────────────────────────────
+# 三款都跟機車一起編組，顏色用機車那批的材質：莒光號的橘色同 GE 機車（georange），鳴日號同鳴日號機車（mblack、morange），藍皮客車同藍皮 R135（hood_colours('blue')）。
+# 客車沒有駕駛室，不放 lamp 材質（fleet-v1 三款也沒有；verify_garage_facing 對沒有 lamp 的車不判車頭端）；藍皮客車端牆的尾燈用 red。
+
+def fpk_coach(s,zones,windows,win,door,door_bands,lower,end,end_low=None,vest=None,sign=None):
+ """莒光號 FPK10600 系客車車體（莒光號、鳴日號客車共用）：平頭、兩端各一扇有窗的單開門，門區車身往下延伸包住踏階（照片上門區下緣比車身低）；
+ 窗照正側面照的順序與寬窄放，兩側同位置；車頂兩端各一台冷氣（fleet-v1 放在中段兩台不對）。
+ zones：車側分區（由下往上）；windows：[(x, 寬, 窗框材質), ...]；win：(窗下緣, 上緣)；door：門扇底色、door_bands：門扇色帶 [(z0, z1, 材質)]；
+ lower：門區裙板顏色；end：端牆顏色、end_low：(端牆下半材質, 上緣)；vest：門區上半另塗 (材質, 下緣, 上緣, 內側上角圓角)；sign：側面目的地顯示器 (x, z)。"""
+ L,W,H=s['L'],s['W'],s['H'];color('fpkac','A9B0B3',.40,.40,.08)
+ f,neck=zoned_shell(s,[(.83,L/2),(H,L/2)],0,zones,zones)
+ dw=s['doorW'];lw=dw-.022;z0,z1=win;zc=(z0+z1)/2;xd=L/2-.62;xv=L/2-1.05
+ for side in [-1,1]:
+  y=side*(W/2+.018)
+  for x,w,fr in windows:
+   use('02');panel('客車窗框',(x,y,zc),w+.06,z1-z0+.06,fr,r=.085)
+   panel('獨立深色玻璃',(x,y+side*.015,zc),w,z1-z0,'glass',r=.065,depth=.013)
+  if vest:
+   m,za,zb,r=vest
+   for sg in [-1,1]:
+    gs=[lambda x,z,sg=sg:sg*x-xv,lambda x,z,sg=sg:r-math.hypot(max(0,xv+r-sg*x),max(0,z-(zb-r)))]
+    a,b=(xv,L/2) if sg>0 else (-L/2+.004,-xv)
+    side_paint('門區上半',s,f,side,gs,a,b,za,zb,m,step=.05)
+  if sign:use('02');panel('側面目的地顯示器',(sign[0],y,sign[1]),.36,.14,'frame',r=.02)
+  for i,x in enumerate([-xd,xd]):
+   use('02');cz=(.60+2.80)/2;h=2.20
+   panel('側門門框',(x,y,cz),dw+.05,h+.03,'frame',r=.03)
+   d=panel('獨立門扇',(x,y+side*.023,cz),lw,h,door,r=.025,depth=.024)
+   d['side_door']=True;d['door_group']=i+1;d['side']=side;d['leaf']=0
+   for za,zb,m in door_bands:box('門扇色帶',(x,y+side*.041,(za+zb)/2),(lw,.011,zb-za),m,.002)
+   panel('門窗嵌框',(x,y+side*.052,zc+.04),.30,z1-z0+.14,'frame',r=.05)
+   panel('門窗玻璃',(x,y+side*.066,zc+.04),.25,z1-z0+.08,'glass',r=.045,depth=.012)
+   for xx in [x-dw/2-.07,x+dw/2+.07]:rod('門邊扶手',(xx,y+side*.03,1.05),(xx,y+side*.03,1.85),.014,'metal')
+   use('01');box('門區裙板',(math.copysign(L/2-.575,x),side*(W/2-.03),.71),(1.15,.06,.26),lower,.01)
+ use('05')
+ for x in [-3.40,3.40]:
+  box('冷氣機罩',(x,0,H+.11),(1.30,W*.64,.26),'fpkac',.08)
+  for k in range(7):box('冷氣罩頂部格柵',(x-.51+k*.17,0,H+.245),(.035,W*.46,.01),'chassis',0)
+  for sd in [-1,1]:grille('冷氣側格柵',x,sd*W*.32,H+.10,.95,.12,True,5)
+ for e in [-1,1]:
+  end_wall('客車端牆',s,e*(L/2+.002),end)
+  if end_low:use('07');panel('端牆下半',(e*(L/2+.014),0,(.83+end_low[1])/2),W-.08,end_low[1]-.83,end_low[0],'front',r=.01,depth=.008)
+  use('07');panel('客車端牆貫通門',(e*(L/2+.018),0,2.0),.72,1.70,'chassis','front',r=.065)
+  panel('端門玻璃',(e*(L/2+.042),0,2.46),.45,.65,'glass','front',r=.04)
+  coupler(e*(L/2+.025),W,e,z=.58,gangway=True)
+ bogies(L,W,r=.39)
+
+def juguang(s):
+ """莒光號客車（FPK10500／10600 系）。參考：Commons「TRA FPK10535 at Qidu Marshalling Yard 20170402.jpg」（林昱維，CC BY-SA 4.0，正側面，高度與窗）、
+ 「Different generations of TRA Chu-Kuang Express coaches at Qidu Marshalling Yard 20210403.jpg」「A TRA FPK10600 coach at Qidu Station.jpg」（Lokseng01，CC BY-SA 4.0，新舊兩型、車頂冷氣）、
+ 「TRA Chu-Kuang Express 561 passing North Hsinchu Station toward Hsinchu Station.jpg」（Nomad112，CC BY-SA 4.0，機車與客車在同一張照片，比顏色）。
+ 下半橘色、窗帶奶油色，窗下一道橘細線與白線；兩端門區整段橘色（奶油色帶在門區前結束、內側上角圓角），白線跨過門區與門扇；車頂淺灰、兩端各一台冷氣；
+ 九扇窗寬窄不一（照片順序：兩扇中窗、五扇寬窄不一的大窗、兩扇小窗），第三扇窗上方一個目的地顯示器。
+ 高度照正側面照量（車底 .83、車頂 3.40 線性換算，每像素 .004777 m）：橘 .83–1.566、白線 1.566–1.671、橘細線 1.671–1.742、奶油色 1.742–2.96、雨水槽 2.97；窗 1.79–2.49。
+ 顏色用 GE 機車的 georange、gecream：車庫裡 GE、EMD 機車後面掛的都是這款客車，編組顏色一致為先（同一張照片裡客車的奶油色比機車略黃，沒有照著分）。"""
+ L,W,H=s['L'],s['W'],s['H'];ge_colours()
+ color('jgwhite','F4F3EF',.06,.34,.26);color('jgroof','B4B9BB',.40,.40,.08)
+ zones=[(1.566,'georange'),(1.671,'jgwhite'),(1.742,'georange'),(2.96,'gecream'),(H+1,'jgroof')]
+ win=[(-3.08,.42),(-2.42,.38),(-1.54,.91),(-.47,.75),(.59,.76),(1.51,.66),(2.33,.60),(2.85,.25),(3.19,.24)]
+ fpk_coach(s,zones,[(x,w,'frame') for x,w in win],(1.79,2.49),'georange',[(1.566,1.671,'jgwhite')],'georange','georange',
+  vest=('georange',1.742,2.96,.14),sign=(-1.30,2.72))
+
+def mingricoach(s):
+ """鳴日號客車（莒光號 FPK10600 改造）。參考：Commons「TRA BCK10609 at Shulin Marshalling Yard 20210401.jpg」（Lokseng01，CC BY-SA 4.0，正側面，高度與窗）、
+ 「TRA PC10501 at Taitung Station 20201114.jpg」（Kazehayashi，CC BY-SA 4.0，色帶）、「Taiwan Railways Administration The Future Train near Zhongli Station 20220729.jpg」
+ （Subscriptshoe9，CC BY-SA 4.0，編組）。車體同莒光號（fpk_coach）；上半與車頂深色、下半橘色，橘色上緣一道深色細帶、再上一道橘細線，窗下緣就在橘細線上
+ （fleet-v1 的金色腰線照片上沒有，那道線是橘色）；門扇照車身分色；寬的深色窗之間夾白框小窗（照片順序：深色小窗、白框小窗、四扇寬窗、白框小窗、深色小窗）；
+ 車頂兩端灰色冷氣。高度照正側面照量（每像素 .004485 m）：橘 .83–1.575、深色細帶 1.575–1.66、橘細線 1.66–1.738、窗 1.767–2.431。顏色用鳴日號機車的 mblack、morange。"""
+ L,W,H=s['L'],s['W'],s['H'];ge_colours()
+ zones=[(1.575,'morange'),(1.66,'mblack'),(1.738,'morange'),(H+1,'mblack')]
+ win=[(-2.82,.30,'frame'),(-2.22,.32,'white'),(-1.35,.84,'frame'),(-.30,.84,'frame'),(.77,.84,'frame'),(1.74,.80,'frame'),(2.41,.26,'white'),(2.85,.26,'frame')]
+ fpk_coach(s,zones,win,(1.767,2.431),'mblack',[(.60,1.575,'morange'),(1.66,1.738,'morange')],'morange','mblack',end_low=('morange',1.575))
+
+def arch_shell(s,gutter,zones,end,name='分色主車殼'):
+ """舊型客車車殼：直側牆到雨水槽，上面一道淺拱車頂（一段圓弧過兩側雨水槽與車頂中線）；兩端平的封口用 end 材質。
+ zones 同 zoned_shell（由下往上，依面中心高度分色）；側牆在每個分界都有一圈頂點，色界不切過面。拱頂與下圓角平滑著色，側牆與底面平面。"""
+ L,W,H=s['L'],s['W'],s['H'];z0=s.get('bottom',.83);rb=.10;hw=W/2;rise=H-gutter;R=(hw*hw+rise*rise)/(2*rise);zc=H-R;a0=math.atan2(gutter-zc,hw)
+ cuts=sorted(set(round(z,4) for z,_ in zones if z0+rb<z<gutter))
+ right=[(hw-rb+rb*math.cos(a),z0+rb+rb*math.sin(a)) for a in [math.pi/2*(i/4-1) for i in range(5)]]+[(hw,z) for z in cuts+[gutter]]
+ arc=[(R*math.cos(a),zc+R*math.sin(a)) for a in [a0+(math.pi-2*a0)*i/24 for i in range(1,24)]]
+ ring=right+arc+[(-y,z) for y,z in reversed(right)];n=len(ring)
+ verts=[(x,y,z) for x in (-L/2,L/2) for y,z in ring]
+ faces=[tuple(reversed(range(n))),tuple(range(n,2*n))]+[(i,(i+1)%n,n+(i+1)%n,n+i) for i in range(n)]
+ d=bpy.data.meshes.new(name);d.from_pydata(verts,[],faces);d.update()
+ bm=bmesh.new();bm.from_mesh(d);bmesh.ops.recalc_face_normals(bm,faces=bm.faces);bm.to_mesh(d);bm.free()
+ keys=[]
+ for m in [end]+[m for _,m in zones]:
+  if m not in keys:keys.append(m)
+ for k in keys:d.materials.append(p.M[k])
+ for i,poly in enumerate(d.polygons):
+  if i<2:poly.material_index=0;continue
+  a,b=ring[i-2],ring[(i-1)%n];zm=(a[1]+b[1])/2
+  poly.material_index=keys.index(next((m for lim,m in zones if zm<=lim),zones[-1][1]))
+  flat=(abs(abs(a[0])-hw)<1e-6 and abs(abs(b[0])-hw)<1e-6) or (abs(a[1]-z0)<1e-6 and abs(b[1]-z0)<1e-6)
+  poly.use_smooth=not flat
+ use('01');o=bpy.data.objects.new(name,d);p.ACTIVE.objects.link(o);p.MODEL.append(o);o['primary_body']=True
+ return o
+
+def bluecoach(s):
+ """藍皮解憂號復古客車（35SPK32700 系等普快車客車）。參考：Commons「2023-09-12 TRA Taimali Station 01.jpg」（Tze Chiang Hao，CC BY 4.0，正側面，高度）、
+ 「藍皮解憂號.jpg」（臺灣鐵路管理局）、藍皮解憂號新聞資料照（臺灣鐵路股份有限公司，車窗與車頂近照）、「TRA R123 at Jinlun Station 20131229.jpg」
+ （billy1125，CC BY 2.0，機車與客車在同一張照片，比顏色）。深海軍藍車身、窗下白帶；淺拱銀灰車頂、雨水槽、車頂中線一排白色蕈狀通風器；
+ 九扇可開窗（白銀色圓角窗框、上下兩格、每扇各自的窗台）、一端廁所霧面小窗；兩端各一扇窄的手動單開門（門上窄長窗、白帶跨過門扇）、門下外露踏階；
+ 兩端端牆有門、風擋折片、紅色尾燈。高度照正側面照量（每像素 .0056 m）：白帶 1.62–1.77、窗 1.80–2.48、雨水槽 3.03。
+ fleet-v1 的窗 1.775–2.645 太高、窗台只建了一個；9 月 scene-03 只把窗台補成每扇都有，這版照照片重做。顏色同藍皮 R135（hood_colours('blue')）。"""
+ L,W,H=s['L'],s['W'],s['H'];hood_colours('blue');gut=s['gutter'];end=L/2
+ color('bcroof','B8B1A3',.30,.42,.10);color('bcwin','D6DAD6',.45,.35,.10);color('bcvent','E6E6E0',.10,.38,.15)
+ arch_shell(s,gut,[(1.62,'hdbody'),(1.77,'hdwhite'),(gut,'hdbody'),(H+1,'bcroof')],'hdbody')
+ for side in [-1,1]:
+  y=side*(W/2+.012);use('01');box('雨水槽',(0,side*(W/2+.02),gut-.01),(L+.03,.04,.05),'hdbody',.008)
+  for j in range(9):
+   x=-3.03+j*.67;use('02')
+   panel('可開窗窗框',(x,y,2.14),.57,.76,'bcwin',r=.05)
+   panel('窗框內深色開口',(x,y+side*.012,2.14),.50,.68,'frame',r=.03)
+   for z,h in [(2.345,.24),(2.005,.37)]:panel('上下格玻璃',(x,y+side*.020,z),.46,h,'glass',r=.02,depth=.010)
+   box('上下格中橫框',(x,y+side*.026,2.20),(.50,.030,.040),'bcwin',.004)
+   box('窗台',(x,side*(W/2+.03),1.745),(.62,.05,.035),'bcwin',.006)
+  panel('廁所霧面小窗框',(3.30,y,2.14),.52,.64,'bcwin',r=.05)
+  panel('廁所霧面小窗',(3.30,y+side*.014,2.14),.44,.56,'white',r=.03,depth=.010)
+  for i,e in enumerate([-1,1]):
+   x=e*(end-.39);use('02')
+   panel('凹入單扇手動側門框',(x,y,1.91),.69,1.93,'frame',r=.012)
+   d=panel('手動單扇側門',(x,y+side*.012,1.92),.60,1.84,'hdbody',r=.012)
+   d['side_door']=True;d['door_group']=i+1;d['side']=side;d['leaf']=0
+   box('車門白帶',(x,y+side*.024,1.695),(.61,.012,.15),'hdwhite',.002)
+   panel('側門窄長玻璃框',(x,y+side*.026,2.22),.40,.82,'bcwin',r=.05)
+   panel('側門窄長玻璃',(x,y+side*.038,2.22),.34,.76,'glass',r=.04,depth=.012)
+   rod('門邊扶手',(x-e*.40,y+side*.05,1.10),(x-e*.40,y+side*.05,1.90),.014,'metal')
+   use('04')
+   for z in [.46,.68]:box('外露登車踏階',(x,side*(W/2-.04),z),(.62,.24,.04),'chassis',.008)
+   for dx in [-.32,.32]:box('踏階吊架',(x+dx,side*(W/2-.04),.62),(.03,.24,.40),'chassis',.004)
+ for e in [-1,1]:
+  x=e*(end+.010);use('07')
+  panel('客車端門框',(x,0,1.95),.82,1.73,'frame','front',r=.06)
+  panel('客車端門扇',(x+e*.016,0,1.95),.67,1.59,'hdbody','front',r=.038)
+  panel('客車端門玻璃',(x+e*.030,0,2.30),.47,.68,'glass','front',r=.045)
+  for k in range(4):
+   xx=x+e*(.06+k*.038)
+   for sd in [-1,1]:box('貫通風擋側折片',(xx,sd*.52,1.91),(.045,.075,1.91),'rubber',.018)
+   box('貫通風擋頂折片',(xx,0,2.865),(.045,1.10,.075),'rubber',.018)
+  use('03')
+  for sd in [-1,1]:
+   cyl('客車尾燈座',(x+e*.03,sd*.94,1.21),.095,.045,'frame','X',24)
+   cyl('客車尾燈紅透鏡',(x+e*.056,sd*.94,1.21),.070,.017,'red','X',24)
+  coupler(e*(end+.10),W,e,z=.56)
+ bogies(L,W,r=.39)
+ use('05')
+ for x in [-3.25,-2.18,-1.09,0,1.09,2.18,3.25]:
+  cyl('通風器喉口',(x,0,H+.04),.085,.10,'hdframe',n=16)
+  cyl('蕈狀通風器帽',(x,0,H+.11),.19,.07,'bcvent',n=24,bevel=.02)
+
 BUILDERS={'c301':c301,'c321':c321,'c341':c341,'c371':c371,'c381':c381,'emu500':emu500,'emu600':emu600,'haifeng':haifeng,'shanlan':shanlan,'emu800':emu800,'emu800r':emu800r,
  'emu900':emu900,'emu700':emu700,'temu1000':temu1000,'temu2000':temu2000,'700t':t700,'e1000':e1000,'ppcoach':ppcoach,
  'dr3100':dr3100,'dr1000':dr1000,'dr2700':dr2700,'emu100':emu100,'emu1200':emu1200,
  'airportlocal':airportlocal,'airportexpress':airportexpress,'y100':y100,'sanying':sanying,'taichung':taichung,'kaohsiung':kaohsiung,'val256':val256,
  'e200':e200,'e300':e300,'e400':e400,'mingri':mingri,'e500':e500,'r200':r200,
- 'r100':r100,'blue':blue,'r150':r150,'r180':r180,'r20':r20,'dhl100':dhl100}
+ 'r100':r100,'blue':blue,'r150':r150,'r180':r180,'r20':r20,'dhl100':dhl100,
+ 'juguang':juguang,'mingricoach':mingricoach,'bluecoach':bluecoach}

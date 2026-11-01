@@ -46,11 +46,11 @@
   ],
   "mesh": {
     "file": "r200.mesh.bin",
-    "sha256": "1a660ad5c4f1ab7651abba3a61fa3dc5e3f99ca1577fc339f01ec07d9ff68362",
+    "sha256": "3737d52de326595bb06ff6c58bd18f161fdef1009ffcf3064e9a4b241a21a13e",
     "encoding": "float32-le",
     "strideBytes": 24,
-    "vertexCount": 205140,
-    "triangleCount": 68380,
+    "vertexCount": 194988,
+    "triangleCount": 64996,
     "drawGroups": [
       {
         "name": "r2white",
@@ -185,7 +185,7 @@
       {
         "name": "chassis",
         "start": 150360,
-        "count": 36924,
+        "count": 27900,
         "color": [
           0.03433980792760849,
           0.05448027700185776,
@@ -197,7 +197,7 @@
       },
       {
         "name": "rubber",
-        "start": 187284,
+        "start": 178260,
         "count": 8448,
         "color": [
           0.014443843625485897,
@@ -210,7 +210,7 @@
       },
       {
         "name": "r2grille",
-        "start": 195732,
+        "start": 186708,
         "count": 5616,
         "color": [
           0.0043914420530200005,
@@ -223,7 +223,7 @@
       },
       {
         "name": "r2lens",
-        "start": 201348,
+        "start": 192324,
         "count": 2664,
         "color": [
           0.8468732237815857,
@@ -233,23 +233,10 @@
         "metalness": 0.10000000149011612,
         "roughness": 0.30000001192092896,
         "clearcoat": 0.30000001192092896
-      },
-      {
-        "name": "roof",
-        "start": 204012,
-        "count": 1128,
-        "color": [
-          0.4677838087081909,
-          0.520995557308197,
-          0.5271151065826416
-        ],
-        "metalness": 0.3700000047683716,
-        "roughness": 0.3799999952316284,
-        "clearcoat": 0.18000000715255737
       }
     ]
   },
-  "nativeObjectCount": 250,
+  "nativeObjectCount": 232,
   "features": {
     "sideDoorGroups": 0,
     "doorLeavesPerGroup": 2,

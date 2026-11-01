@@ -95,3 +95,8 @@ add('r150','hood',**hood,L=9.0,label='R150')
 add('r180','hood',**{**hood,'H':3.6},L=9.1,label='R180')
 add('r20','hood',**hood,L=8.8,label='R20')
 add('dhl100','hood',L=7.7,W=2.7,H=3.55,axles=2,power='diesel',body='EC7838',accent='F2EEDC',label='DHL100')
+# 客車（莒光號、鳴日號、藍皮解憂）：L、W、H 照 fleet-v1（9.0、2.8、3.4）；平頭、兩端貫通道，每側兩扇單開門（兩端各一）。
+# 莒光號與鳴日號是同一個車體（FPK10600 系，鳴日號是改造車，tw_models.fpk_coach），車頂圓角從雨水槽 2.98 起；藍皮客車是舊型客車，淺拱車頂從雨水槽 3.03 起（arch_shell）。
+add('juguang','coach',L=9.0,W=2.8,H=3.4,doors=2,doorLeaves=1,doorW=.62,radiusTop=.42,body='EC7838',accent='F2EEDC')
+add('mingricoach','coach',L=9.0,W=2.8,H=3.4,doors=2,doorLeaves=1,doorW=.62,radiusTop=.42,body='15181D',accent='D2441A')
+add('bluecoach','coach',L=9.0,W=2.8,H=3.4,doors=2,doorLeaves=1,doorW=.60,gutter=3.03,body='232E48',accent='F2EEDC')

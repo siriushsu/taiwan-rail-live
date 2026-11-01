@@ -1070,7 +1070,7 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/e200.json",
-        "rawSha256": "a0ed101523f2609e8da0c973ab20d7c4da1cd6dbbbcf4e3b4f7da8330dafe60b",
+        "rawSha256": "370c2e53d74afdab9ad58f1e99bb3f5ef740667ad62fa9147a9faeaf9c185b13",
         "engineeringDimensionsM": null
       },
       "sources": [
@@ -1103,7 +1103,7 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/e300.json",
-        "rawSha256": "3f554dd835a53b530e1e5d2b2ecd74147b9ccdd0dadd6f1f7c9ec3ea34be4e30",
+        "rawSha256": "6cb1d048b7ca74aa6fe446268b89557d371903d3568fbb4f668877cdadad6d46",
         "engineeringDimensionsM": null
       },
       "sources": [
@@ -1136,7 +1136,7 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/e400.json",
-        "rawSha256": "559a52d7d1afe2691d9c29b5184bf14c714adf769eefd6c3798acce0fd7a09ed",
+        "rawSha256": "e5b890ce2a4bea7af674998b50fa06558ba50d351e141c62e321a8f610eb2fd2",
         "engineeringDimensionsM": null
       },
       "sources": [
@@ -1169,7 +1169,7 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/mingri.json",
-        "rawSha256": "1db9c67ea1d96f7e7334ee15515c5e2088e5591c141a66fcf77a4972bf6a3d10",
+        "rawSha256": "17467de5d98b3f61294fd01f3a028e1a7863a5afd86972dc15a096d88ee5cf56",
         "engineeringDimensionsM": null
       },
       "sources": [
@@ -1202,7 +1202,7 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/e500.json",
-        "rawSha256": "55a289e7a8dd5a8fc001820394526b3ef13b44ca03ef23cdeda3120e1a3079a8",
+        "rawSha256": "f88150eccc6d1ca50d68dac65e2ffd95ba23d16a879a57880a87d91d56b2096e",
         "engineeringDimensionsM": null
       },
       "sources": [
@@ -1268,7 +1268,7 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/r200.json",
-        "rawSha256": "d5f240ee46e638f9991caff2cfd349ee86c5c2e4bdcd1a97e920e935b1788cf9",
+        "rawSha256": "9523be1cf56c29d14cc9f71a272952af9fa33ab7714e9b26a08df629e9ecabae",
         "engineeringDimensionsM": null
       },
       "sources": [
@@ -1635,7 +1635,7 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/juguang.json",
-        "rawSha256": "3e2c94660ef2208ae477b2de6be3a54b9840a3d4c1c2e0b6c7a39275306e558d",
+        "rawSha256": "79bdc634c6c29e18d1b5f684389c2f45858725159484001ed046c80faef72f76",
         "engineeringDimensionsM": null
       },
       "sources": [
@@ -1701,7 +1701,7 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/bluecoach.json",
-        "rawSha256": "cf17ca8f97cf6f9a0f43678451e07eafe359feb40f6020685b0011375a99bca9",
+        "rawSha256": "0453b330190e05b6d06831f2dad960614f085180f498943a483dea8d387ddd17",
         "engineeringDimensionsM": null
       },
       "sources": [
@@ -1738,7 +1738,7 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/mingricoach.json",
-        "rawSha256": "d323af308bd3537dc34a766a10abd17ebd153269552e14f7ac426a8e5f8d59b8",
+        "rawSha256": "6cbd9ffbd216c7837a618e2bc3645ae20beb342410cca004d33742a0bf3cad0a",
         "engineeringDimensionsM": null
       },
       "sources": [
@@ -3415,9 +3415,9 @@
     },
     "e200": {
       "file": "e200.bin",
-      "sha256": "53e63fed1b867ffb25c66490d0df2db05230939b761b9a231c7fc29a8424f613",
-      "byteLength": 958320,
-      "vertexCount": 23958,
+      "sha256": "1f3e9d341c9852ee84f307d24483763ce6d0fea5c17ae38ea59fef3f95c54900",
+      "byteLength": 955560,
+      "vertexCount": 23889,
       "min": [
         -4.529000282287598,
         -1.4915378093719482,
@@ -3430,16 +3430,16 @@
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/e200.json",
-        "rawSha256": "a0ed101523f2609e8da0c973ab20d7c4da1cd6dbbbcf4e3b4f7da8330dafe60b",
+        "rawSha256": "370c2e53d74afdab9ad58f1e99bb3f5ef740667ad62fa9147a9faeaf9c185b13",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
     },
     "e300": {
       "file": "e300.bin",
-      "sha256": "53e63fed1b867ffb25c66490d0df2db05230939b761b9a231c7fc29a8424f613",
-      "byteLength": 958320,
-      "vertexCount": 23958,
+      "sha256": "1f3e9d341c9852ee84f307d24483763ce6d0fea5c17ae38ea59fef3f95c54900",
+      "byteLength": 955560,
+      "vertexCount": 23889,
       "min": [
         -4.529000282287598,
         -1.4915378093719482,
@@ -3452,16 +3452,16 @@
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/e300.json",
-        "rawSha256": "3f554dd835a53b530e1e5d2b2ecd74147b9ccdd0dadd6f1f7c9ec3ea34be4e30",
+        "rawSha256": "6cb1d048b7ca74aa6fe446268b89557d371903d3568fbb4f668877cdadad6d46",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
     },
     "e400": {
       "file": "e400.bin",
-      "sha256": "53e63fed1b867ffb25c66490d0df2db05230939b761b9a231c7fc29a8424f613",
-      "byteLength": 958320,
-      "vertexCount": 23958,
+      "sha256": "1f3e9d341c9852ee84f307d24483763ce6d0fea5c17ae38ea59fef3f95c54900",
+      "byteLength": 955560,
+      "vertexCount": 23889,
       "min": [
         -4.529000282287598,
         -1.4915378093719482,
@@ -3474,16 +3474,16 @@
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/e400.json",
-        "rawSha256": "559a52d7d1afe2691d9c29b5184bf14c714adf769eefd6c3798acce0fd7a09ed",
+        "rawSha256": "e5b890ce2a4bea7af674998b50fa06558ba50d351e141c62e321a8f610eb2fd2",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
     },
     "mingri": {
       "file": "mingri.bin",
-      "sha256": "c81c9236675395ddd9b05f7335f57ac4a41e7f0ee70863611ec8422c63a949b2",
-      "byteLength": 953400,
-      "vertexCount": 23835,
+      "sha256": "6f6aef83f22c551eb11cb2eecee578560efc7f2b803965340a2f03601e5f9a38",
+      "byteLength": 952200,
+      "vertexCount": 23805,
       "min": [
         -4.529000282287598,
         -1.4915378093719482,
@@ -3496,16 +3496,16 @@
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/mingri.json",
-        "rawSha256": "1db9c67ea1d96f7e7334ee15515c5e2088e5591c141a66fcf77a4972bf6a3d10",
+        "rawSha256": "17467de5d98b3f61294fd01f3a028e1a7863a5afd86972dc15a096d88ee5cf56",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
     },
     "e500": {
       "file": "e500.bin",
-      "sha256": "9fbe4566e91baaabb58ad2898092235879dd625afded26a2a3fb348b7559ec40",
-      "byteLength": 958440,
-      "vertexCount": 23961,
+      "sha256": "f489c00daa96b4bf42c7363184e729557fc07b49a286d583e60960a825d96a04",
+      "byteLength": 955320,
+      "vertexCount": 23883,
       "min": [
         -4.729000091552734,
         -1.4934464693069458,
@@ -3518,7 +3518,7 @@
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/e500.json",
-        "rawSha256": "55a289e7a8dd5a8fc001820394526b3ef13b44ca03ef23cdeda3120e1a3079a8",
+        "rawSha256": "f88150eccc6d1ca50d68dac65e2ffd95ba23d16a879a57880a87d91d56b2096e",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
@@ -3562,7 +3562,7 @@
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/r200.json",
-        "rawSha256": "d5f240ee46e638f9991caff2cfd349ee86c5c2e4bdcd1a97e920e935b1788cf9",
+        "rawSha256": "9523be1cf56c29d14cc9f71a272952af9fa33ab7714e9b26a08df629e9ecabae",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
@@ -3789,22 +3789,22 @@
     },
     "juguang": {
       "file": "juguang.bin",
-      "sha256": "9fdb6a300b18abb47609bd0b2915ea8156718e07fa8f863622f4aafc0e6ca21e",
-      "byteLength": 952920,
-      "vertexCount": 23823,
+      "sha256": "be33a597bc8e533ef393d3f05923cce2145c45ee8fd5516c554cee29068588ec",
+      "byteLength": 958320,
+      "vertexCount": 23958,
       "min": [
         -4.894000053405762,
-        -1.4895493984222412,
+        -1.4900001287460327,
         0.0011029987363144755
       ],
       "max": [
         4.894000053405762,
-        1.4895493984222412,
-        3.6341683864593506
+        1.4900001287460327,
+        3.6500000953674316
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/juguang.json",
-        "rawSha256": "3e2c94660ef2208ae477b2de6be3a54b9840a3d4c1c2e0b6c7a39275306e558d",
+        "rawSha256": "79bdc634c6c29e18d1b5f684389c2f45858725159484001ed046c80faef72f76",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
@@ -3833,44 +3833,44 @@
     },
     "bluecoach": {
       "file": "bluecoach.bin",
-      "sha256": "0c843b83cb3f4601bd15a26802f240b94581dd3ba5fffd427fd04bd6d917429e",
-      "byteLength": 952560,
-      "vertexCount": 23814,
+      "sha256": "6e883f8f698346a75ebf5ab33d27f7707802f05d83d615db45c242c53ce7d432",
+      "byteLength": 951600,
+      "vertexCount": 23790,
       "min": [
         -4.968999862670898,
-        -1.6021485328674316,
+        -1.4787325859069824,
         0.0011029987363144755
       ],
       "max": [
         4.968999862670898,
-        1.6021485328674316,
-        3.573901414871216
+        1.4787325859069824,
+        3.544140338897705
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/bluecoach.json",
-        "rawSha256": "cf17ca8f97cf6f9a0f43678451e07eafe359feb40f6020685b0011375a99bca9",
+        "rawSha256": "0453b330190e05b6d06831f2dad960614f085180f498943a483dea8d387ddd17",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
     },
     "mingricoach": {
       "file": "mingricoach.bin",
-      "sha256": "46d5789281a055b168b2c621f0bc5c47710853284a14156b511ad04489b72c87",
-      "byteLength": 955200,
-      "vertexCount": 23880,
+      "sha256": "3b09b0f92048b0dfdf8143b1af6657b95ae420a12d9cd8989ce1cda1fc6c0bad",
+      "byteLength": 954840,
+      "vertexCount": 23871,
       "min": [
         -4.894000053405762,
-        -1.4895493984222412,
+        -1.4900001287460327,
         0.0011029987363144755
       ],
       "max": [
         4.894000053405762,
-        1.4895493984222412,
-        3.6341683864593506
+        1.4900001287460327,
+        3.6500000953674316
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/mingricoach.json",
-        "rawSha256": "d323af308bd3537dc34a766a10abd17ebd153269552e14f7ac426a8e5f8d59b8",
+        "rawSha256": "6cbd9ffbd216c7837a618e2bc3645ae20beb342410cca004d33742a0bf3cad0a",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
