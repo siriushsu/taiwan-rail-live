@@ -148,8 +148,9 @@ literalKeys.push(...discoveryBox.window.RailDiscovery.scenes.flatMap(s => [s.tit
 // 立體設定與編組說明同樣是首頁文案，不能因為移到獨立模組而漏查。
 literalKeys.push(...[...garageSource.matchAll(/\btr\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]));
 literalKeys.push('完乘 {count} 趟','累積旅程 {count} 公里','收集 {count} 座車站','取得 {count} 枚支線章');
-// 車庫第 4 格的地名與載入中字樣經變數才丟進 tr()（scenePlace／shortPlace、三元運算式）。
-literalKeys.push('場景載入中…','預設車庫・田園小站','南迴線・南迴海岸','阿里山林鐵・之字形','高架車站・站前街','平溪線・十分老街','田園小站','南迴海岸','之字形','站前街','十分老街');
+// 車庫第 4 格的地名、場景頁各座文字（FRAME_TEXT）經變數才丟進 tr()（scenePlace／shortPlace、查表）。
+literalKeys.push('山海全景','高架全景','老街全景','山林全景','田園全景','晴日','夕照','入夜','平原晴日','黃昏側光','月台夜燈','山谷晴日','黃昏放燈','老街夜燈','山中晴日','午後斜光','林間夜色','稻田晴日','黃昏收工','小站夜燈','正在把小車搬到海邊…','正在把小車送上高架…','正在把小車開進老街…','正在把小車帶進森林…','正在把小車開進田園小站…','南迴海岸 · 微縮印象','西部幹線高架 · 微縮印象','平溪線十分老街 · 微縮印象','阿里山林鐵 · 微縮印象','田園小站 · 微縮印象');
+literalKeys.push('預設車庫・田園小站','南迴線・南迴海岸','阿里山林鐵・之字形','高架車站・站前街','平溪線・十分老街','田園小站','南迴海岸','之字形','站前街','十分老街');
 // 自製列車:my-train-ui.js 透過 host.t(...)／formCtx.host.t(...) 呼叫翻譯,不是 t(/tr(——
 // 跟 garageSource 那行接的是同一份字典,語法不同所以另開一條 regex,不能沿用上面那條。
 const myTrainUiSource = fs.readFileSync(path.join(root, 'my-train-ui.js'), 'utf8');
