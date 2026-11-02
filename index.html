@@ -1379,6 +1379,10 @@
   }
   .traincard .tc-freeseat .fs-box.on { background: var(--ok); border-color: var(--ok); }
   .traincard .tc-freeseat .fs-text { font-size: calc(12.5px * var(--ui)); font-weight: 700; color: var(--navy); white-space: nowrap; }
+  /* 高鐵對號座:接在自由座下一行;自由座沒資料時自己接上那條虛線分隔。小段 sheet 一起收起(同清單) */
+  .traincard .tc-seat { display: flex; align-items: center; gap: 2px 8px; flex-wrap: wrap; margin-top: 6px; }
+  .traincard .tc-freeseat[hidden] + .tc-seat { margin-top: 8px; padding-top: 7px; border-top: 1.5px dashed var(--line-dash); }
+  .traincard .tc-seat .ts-od { font-size: calc(11.5px * var(--uis)); color: var(--faint); white-space: nowrap; }
   .traincard .tc-body {
     display: grid; grid-template-columns: 1.3fr 1fr; gap: 6px 26px;
     margin-top: 9px; padding-top: 9px; border-top: 1.5px dashed var(--line-dash);
@@ -4411,6 +4415,7 @@
     }
     .traincard.tc-sheet.sheet-small .tc-body,
     .traincard.tc-sheet.sheet-small .tc-freeseat,
+    .traincard.tc-sheet.sheet-small .tc-seat,
     .traincard.tc-sheet.sheet-small .tc-dhlink,
     .traincard.tc-sheet.sheet-small .tc-sparkwrap,
     .traincard.tc-sheet.sheet-small .tc-stops { display: none; }
@@ -4661,6 +4666,7 @@
     body.fs .traincard.tc-sheet.sheet-small .tc-dhlink,
     body.fs .traincard.tc-sheet.sheet-small .tc-sparkwrap,
     body.fs .traincard.tc-sheet.sheet-small .tc-stops { display: block; }
+    body.fs .traincard.tc-sheet.sheet-small .tc-seat { display: flex; }
 
     /* ── 跟車卡在橫式=右側欄(§04c v3,2026-08-27)────────────────────────
        v2(08-26)廢除左欄的理由是「同一份資訊在卡的『這班車』分頁裡已經有了」——但那一頁只在
@@ -5617,6 +5623,8 @@
       <span class="fs-cars" id="fsCars" aria-hidden="true"></span>
       <span class="fs-text" id="fsText"></span>
     </div>
+    <!-- 高鐵對號座(renderTrainSeat):官方座位表查得到這班才出現 -->
+    <div class="tc-seat" id="tcSeat" hidden></div>
     <div class="tc-body">
       <div class="tc-intro" id="tcIntro"></div>
       <div class="tc-events">
@@ -21736,16 +21744,56 @@ function renderFreeSeat(tr) {
 let _thsrSeatCache;
 let _thsrSeatAt = null;
 let _thsrSeatPromise = null;
+let _thsrSeatLoadedAt = 0;   // 本機抓完(含失敗)的時刻;列車卡靠它判斷要不要重抓
 async function loadThsrSeat() {
   if (_thsrSeatCache !== undefined) return _thsrSeatCache;
   if (!_thsrSeatPromise) {
     _thsrSeatPromise = fetchJSONAt(apiUrl('api/thsr-seat')).then(d => {
       _thsrSeatCache = (d && d.table && typeof d.table === 'object') ? d.table : null;
       _thsrSeatAt = (d && d.at) || null;   // 官方 UpdateTime:導言與票價頁要寫出「這是幾點的座位表」
+      _thsrSeatLoadedAt = Date.now();
       return _thsrSeatCache;
     });
   }
   return _thsrSeatPromise;
+}
+// 列車卡會一路開著跟車,整頁只抓一次的表會停在好幾小時前:超過 10 分鐘(上游 UpdateInterval=600 秒)
+// 就重抓。抓到之前、抓失敗都沿用手上那份,不把卡上的座位行清掉;看板也一起吃到新表。
+const THSR_SEAT_MAX_AGE_MS = 10 * 60e3;
+let _thsrSeatRefreshing = false;
+function refreshThsrSeatIfStale(onDone) {
+  if (_thsrSeatCache === undefined || _thsrSeatRefreshing || Date.now() - _thsrSeatLoadedAt < THSR_SEAT_MAX_AGE_MS) return;
+  _thsrSeatRefreshing = true;
+  fetchJSONAt(apiUrl('api/thsr-seat')).then(d => {
+    if (d && d.table && typeof d.table === 'object') { _thsrSeatCache = d.table; _thsrSeatAt = d.at || null; }
+    _thsrSeatLoadedAt = Date.now();
+    _thsrSeatRefreshing = false;
+    onDone();
+  });
+}
+// 列車卡的高鐵對號座:上車站＝還沒開出的第一個停靠站(同時刻表高亮 cur 的規則),下車站＝終點。
+// 官方座位表只涵蓋部分班次(2026-11-02 實測 156 班只有 25 班四碼車次有資料),查不到就整行不出現,
+// 不像看板寫「座位狀態未提供」——那會讓大部分高鐵卡多一行沒用的字。每秒由 updateFollowPanel 叫,
+// 簽章沒變就不動 DOM。
+function renderTrainSeat(tr) {
+  const box = document.getElementById('tcSeat');
+  if (!isHSR(tr)) { box.hidden = true; state._tcSeatSig = null; return; }
+  const redo = () => { if (state.followTrain === tr) { state._tcSeatSig = null; renderTrainSeat(tr); } };
+  if (_thsrSeatCache === undefined) { box.hidden = true; loadThsrSeat().then(redo); return; }
+  refreshThsrSeatIfStale(redo);
+  const now = effTLive(tr), stops = tr.stops, last = stops[stops.length - 1];
+  let on = -1;
+  for (let i = 0; i < stops.length - 1; i++) if (stops[i].stop !== false && now <= stops[i].depSec) { on = i; break; }
+  const rec = on >= 0 ? thsrSeatRec(stops[on].name, last.name, tr.train) : null;
+  const sig = rec ? `${tr.train}|${stops[on].name}|${rec.std}|${rec.biz}|${_thsrSeatAt}` : '';
+  if (sig === state._tcSeatSig) return;
+  state._tcSeatSig = sig;
+  if (!rec) { box.hidden = true; return; }
+  const stamp = thsrSeatStampHM();
+  box.innerHTML = thsrSeatTextHtml(stops[on].name, last.name, tr.train) +
+    `<span class="ts-od">${escHtml(stationName(stops[on].name, tr.sys) + ' → ' + stationName(last.name, tr.sys))}` +
+    (stamp ? '・' + escHtml(t('官方座位表 {hm}', { hm: stamp })) : '') + '</span>';
+  box.hidden = false;
 }
 // 票價是建置期靜態表(data/thsr_fare.json,scripts/build_thsr_fare.mjs 產生),直接當一般靜態
 // 資產抓,不經 Worker——票價幾乎不變動,比照 thsr_track.json 的既有慣例,不需要即時代理層。
@@ -22266,6 +22314,8 @@ function renderTrainCard(tr) {
   state._tcCurIdx = null;
   updateStar();
   renderFreeSeat(tr);
+  state._tcSeatSig = null;
+  renderTrainSeat(tr);
   renderFollowEvents();
   document.getElementById('trainCard').hidden = false;
   setTimeout(() => drawSpark(tr, effTLive(tr)), 0); // 等 layout 有寬度再畫速度曲線
@@ -28001,6 +28051,7 @@ function updateFollowPanel(tr) {
       });
     }
   }
+  renderTrainSeat(tr); // 過站後上車站跟著換;簽章沒變不動 DOM
   laSync(tr, false); // 跟車即時動態:本函式每秒被叫,節流交給 laSync
 }
 
