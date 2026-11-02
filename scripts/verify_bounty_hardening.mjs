@@ -2123,6 +2123,10 @@ async function plCapture() {
   const f = await fire(w);                                                                      // 真的 scheduled()：估值＋判定（出錯記錄清掃在開頭）
   st.fire = f.threw ? 'threw ' + f.threw : 'ok';
   st.verdictA = q.verdicts(w, A, 'PL1'); st.verdictB = q.verdicts(w, B, 'OV');
+  // 資料可用：ok 列總長超過 4 MB 的一班（另一個裝置，不碰後面幾步）——走到「太大整班蓋掉」那一句
+  w.db.prepare('INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict,client) VALUES (?,?,?,?,?,0,?,?,NULL,?,?,?)')
+    .run('pl-usable-big', 'dev-pl-00000C', 'tra_sched', '山線', 'PLU', D28, J([{ d: 0, t: 30000, pad: 'x'.repeat(4200000) }]), NOW_MS, 'ok', J(APP));
+  st.usableSkip = (await _bounty.bountyUsableCron(w.env)).skipped;
   const manifest = { generatedAt: 2, schedDate: D28, lines: LINES, units: [{ segKey: KT('山線', 'S9|S10'), sys: 'tra_sched', trainKind: '自強', dir: 0, kind: 'track', slot: '', perDay: 4 }] };
   const assets = { fetch: async r => new Response(String((r && r.url) || r).includes('bounty_units') ? J(manifest) : J(RULES), { status: 200 }) };
   _bounty.bountyResetMemCaches();
@@ -2155,6 +2159,10 @@ const PL_PINS = [
   ['判定：標記', /^UPDATE bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 SET verdict=\?/],
   ['判定：第②段的「這一組還是 pending」', /FROM bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 WHERE id IN \(SELECT value FROM json_each\(\?\)\) AND \+verdict='pending'/],
   ['判定：第③段的「真的標到」', /FROM bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 WHERE id IN \(SELECT value FROM json_each\(\?\)\) AND \+verdict=\? AND \+verdict_at=\?/],
+  ['可用標記：挑班車', /FROM bounty_samples INDEXED BY idx_samples_pending WHERE verdict='ok' AND trip_date >= \? AND sys='tra_sched' AND usable_at IS NULL/],
+  ['可用標記：讀一班', /FROM bounty_samples INDEXED BY idx_samples_trip WHERE actor=\? AND trip_date=\? AND train_no=\? AND verdict='ok' AND sys='tra_sched'\)/],
+  ['可用標記：太大或出錯整班蓋掉', /^UPDATE bounty_samples INDEXED BY idx_samples_trip SET usable=NULL, usable_at=\? WHERE actor=\? AND trip_date=\? AND train_no=\? AND verdict='ok' AND sys='tra_sched'$/],
+  ['可用標記：寫入', /^UPDATE bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 SET usable=\?, usable_at=\? WHERE id IN \(SELECT value FROM json_each\(\?\)\) AND \+verdict='ok'$/],
   ['判定：入帳（今天已得的點數，v2 籌碼列照換算）', /\(SELECT COALESCE\(SUM\(\(CASE WHEN unit='chip' THEN delta \* CAST\(\? AS INTEGER\) ELSE delta END\)\), 0\) FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND \(kind='trip' OR \(kind='adjust' AND substr\(ref, 1, 8\) = 'rejudge\|'\)\) AND day=\?\)/],
   ['判定：入帳（這一班沒入過帳）', /NOT EXISTS \(SELECT 1 FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND day=\? AND \(\(kind='trip' OR/],
   ['認領：刪同一張卡的舊認領', /^DELETE FROM bounty_claims INDEXED BY idx_claims_actor WHERE actor=\? AND status='open' AND train_kind=\?/],
@@ -2223,9 +2231,9 @@ const PL_ORDER_FREE = [
 ];
 await attempt('PL', async () => {
   const { sqls, st } = await plCapture();
-  ok('PL0 [前提] 每一步都真的走到了：上傳、認領、看板 200；A 那班 ok、B 那班超量 suspect；估值上架 1 個新單位；bounty-me 有首位校正者；' +
+  ok('PL0 [前提] 每一步都真的走到了：上傳、認領、看板 200；A 那班 ok、B 那班超量 suspect；資料可用略過 4 MB 以上的一班；估值上架 1 個新單位；bounty-me 有首位校正者；' +
     'chips-me、兌換、雲端搭乘與它的重送、合併、刪帳號都 200',
-    st.submit === 200 && st.claim === 200 && st.board === 200 && st.fire === 'ok' && st.verdictA === 'ok' && st.verdictB === 'suspect' &&
+    st.submit === 200 && st.claim === 200 && st.board === 200 && st.fire === 'ok' && st.verdictA === 'ok' && st.verdictB === 'suspect' && st.usableSkip === 1 &&
       JSON.parse(st.valuation).inserted === 1 && st.chipsMe === 200 && st.bountyMe === 200 && Array.isArray(st.firsts) && st.firsts.length > 0 &&
       st.redeem === 200 && st.cloud === 200 && st.cloudResend === 200 && st.merge === 200 && st.del === 200, J(st));
   // PLa：worker.js（整行註解以外）每一處 INDEXED BY 所在的字串片段；片段數必須等於 INDEXED BY 出現的次數（抽取本身沒有漏）。

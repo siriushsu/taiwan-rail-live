@@ -2645,7 +2645,7 @@ const PLUS_SANDBOX_LEGACY_BUILDS = new Set(['21', '22']);
 const PLUS_SANDBOX_UID_ALLOWLIST_BUILDS = new Set(['16']);
 // 原生 iOS 送審 build：App Review 用 sandbox 購買（含終身），審查員的 Firebase UID 事先無從得知，
 // 所以訂閱與終身都不查 UID allowlist。上架後同一顆 build 照舊先查正式環境，正式沒資格才回退 sandbox。
-const PLUS_SANDBOX_REVIEW_BUILDS = new Set(['224', '225', '226']);
+const PLUS_SANDBOX_REVIEW_BUILDS = new Set(['224', '225', '226', '227']);
 const PLUS_ENTITLEMENT_COLLECTION = Object.freeze({
   [RC_ENV_PRODUCTION]: 'entitlements',
   [RC_ENV_SANDBOX]: 'sandboxEntitlements',
@@ -9629,6 +9629,215 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   if (judged) stat.trains++;
 }
 
+// ── 路段懸賞：「資料可用」標記（11-02）──────────────────────────────────────────────
+// 點數照判定給（bountyVerifyTrain）；這一段另外回答「這一列的點是不是真的是這個車次」：之後拿錄程修地圖、調班表，只讀 usable＝1 的列。
+// 起因：11-02 對 186 組正式錄程逐站比對，約 15% 標錯車次（App 記的是開錄那刻地圖上跟的車：搭前一班、換車沒停錄都會掛錯）。
+// 點數照給（信任接任務的人），但這些點不能當成那班車的軌跡用。判準與門檻來自那次驗證（native build/bounty-check-1102/懸賞資料可用性驗證.html）。
+// 跟判定、點數完全分開：判定 cron 跑完才跑（scheduled() 的 BOUNTY_CRON 那一支）、自己 try/catch、預算用完就停，只寫 usable／usable_at 兩欄（schema 0020）。
+// 只做台鐵：比的是「表定＋官方逐站誤點（tra_station_events）」；高鐵沒有誤點資料，誤點的班會被當成對不上，所以不挑高鐵（留 NULL）。
+const BOUNTY_USABLE = {
+  nearKm: 0.4,       // 站里程 ±0.4 km 內的點才算在站上
+  stopMps: 1.5,      // 局部速度（前後各 10 秒的位移）低於這個算停住
+  stopMinSec: 15,    // 停住的點跨過 15 秒才算停車
+  passGapSec: 60,    // 沒停的站內插通過時刻：前後兩點間隔超過 60 秒不內插（地下段沒有 GPS，內插出來不準）
+  tolSec: 180,       // 實測與「表定＋誤點」差在 180 秒內算對上（台鐵誤點以整分鐘回報）
+  days: 30,          // 只挑乘車日在 30 天內的列（班表檔一次只帶兩週，更舊的本來就比不了）
+  trainsPerRun: 300, // 一發最多幾班車
+};
+
+// 一班車在一條線上的各列 → Map(樣本 id → 1／0／null)。
+// sched：這班車這天的停靠站 [{ name, arr, dep }]（只有停的站、依時刻表順序，秒是距營運日 00:00）；events：tra_station_events 的列；nameOf：站碼 → 站名。
+// 每個比得到的站：實測停車（到＝第一個停住的點、開＝最後一個）或通過時刻，對「表定＋該站官方誤點」（該站沒有就取時刻表順序上前面最近一站，
+// 再沒有就後面最近一站）。停車取到、開兩者中差得少的那個（起站只比開）；通過取兩者較近的。
+// 可用的時段＝對得上的站自己的時段，加上相鄰兩站都對得上時兩站之間，頭尾再往外接到人停住為止；對得上的停車只留表定到開前後 tolSec 內那段
+// （開錄時還在月台等車、下車後原地還在錄，都不是這班車的軌跡）。
+// 1＝這一列每一點都在可用的時段裡；0＝這條線比得到站，但這一列有點落在外面；null＝一站都比不到（沒有班表、沒有官方誤點、整段地下）。
+function bountyUsableFlags(rows, line, sched, events, nameOf) {
+  const U = BOUNTY_USABLE;
+  const flags = new Map(rows.map(r => [r.id, null]));
+  const pts = [], rowOf = new Map();
+  for (const r of rows) {
+    let a = null;
+    try { a = JSON.parse(r.payload); } catch (e) {}
+    if (!Array.isArray(a)) continue;
+    for (const p of a) {
+      const q = { d: Number(p && p.d) / 1000, t: Number(p && p.t) };   // 上傳是公尺，站里程是公里
+      if (Number.isFinite(q.d) && Number.isFinite(q.t)) { rowOf.set(q, r.id); pts.push(q); }
+    }
+  }
+  if (pts.length < 2 || !sched.length) return flags;
+  bountyUnwrapMidnight(pts);
+  pts.sort((a, b) => a.t - b.t);
+  for (let i = 0, a = 0, b = 0; i < pts.length; i++) {               // 局部速度：前後各 10 秒內頭尾兩點的位移
+    while (pts[i].t - pts[a].t > 10) a++;
+    if (b < i) b = i;
+    while (b + 1 < pts.length && pts[b + 1].t - pts[i].t <= 10) b++;
+    const dt = pts[b].t - pts[a].t;
+    pts[i].v = dt > 0 ? Math.abs(pts[b].d - pts[a].d) * 1000 / dt : NaN;
+  }
+  const order = new Map(sched.map((s, k) => [s.name, k]));
+  const ev = [];
+  for (const e of events || []) {
+    const k = order.get(nameOf(e.sta));
+    if (k !== undefined && e.delay != null && Number.isFinite(Number(e.delay))) ev.push({ k, st: Number(e.status) || 0, min: Number(e.delay) });
+  }
+  const delayAt = k => {     // 分數越小越優先：該站＜前面的站＜後面的站，再比站數差，同一站取狀態最後的（離站＞在站＞進站）
+    let best = null, bs = Infinity;
+    for (const e of ev) {
+      const s = (e.k === k ? 0 : e.k < k ? 1 : 2) * 1e6 + Math.abs(e.k - k) * 10 + (9 - Math.min(9, Math.max(0, e.st)));
+      if (s < bs) { bs = s; best = e; }
+    }
+    return best ? best.min : null;
+  };
+  const [dLo, dHi] = bountyMinMax(pts.map(p => p.d));
+  const checks = [];
+  for (const s of line.stations || []) {
+    const k = order.get(s.name);
+    if (k === undefined || s.d < dLo - U.nearKm || s.d > dHi + U.nearKm) continue;
+    const dl = delayAt(k);
+    if (dl === null) continue;
+    let arr = null, dep = null, n = 0, stop = false;
+    for (const p of pts) if (Math.abs(p.d - s.d) <= U.nearKm && p.v < U.stopMps) { if (arr === null) arr = p.t; dep = p.t; n++; }
+    if (n >= 2 && dep - arr >= U.stopMinSec) stop = true;
+    else {
+      arr = dep = null;
+      for (let i = 1; i < pts.length; i++) {
+        const p = pts[i - 1], q = pts[i];
+        if ((p.d - s.d) * (q.d - s.d) <= 0 && p.d !== q.d && q.t - p.t <= U.passGapSec) { arr = dep = p.t + (s.d - p.d) / (q.d - p.d) * (q.t - p.t); break; }
+      }
+      if (arr === null) continue;                                      // 沒有可信的實測時刻：不比，前後對得上的站照樣接起來
+    }
+    const eA = sched[k].arr + dl * 60, eD = sched[k].dep + dl * 60;
+    const rA = arr - eA, rD = dep - eD;
+    const res = stop ? (k === 0 || Math.abs(rD) <= Math.abs(rA) ? rD : rA) : (Math.abs(rA) < Math.abs(rD) ? rA : rD);
+    const ok = Math.abs(res) <= U.tolSec;
+    checks.push(ok ? { ok, a: Math.max(arr, eA - U.tolSec), b: Math.min(dep, eD + U.tolSec) } : { ok, a: arr, b: dep });
+  }
+  if (!checks.length) return flags;
+  checks.sort((x, y) => x.a - y.a);
+  const spans = [];
+  for (let i = 0; i < checks.length; i++) {
+    const c = checks[i], nx = checks[i + 1];
+    if (c.ok) spans.push([c.a, nx && nx.ok ? Math.max(c.b, nx.a) : c.b]);
+  }
+  // 頭尾往外接：第一個（最後一個）比得到的站對得上時，從那裡往前（往後）一路接到人停住 stopMinSec 以上、或斷訊超過 passGapSec 為止。
+  // 起站、終點常在地下段比不到（11-02 正式快照裡對得上的 134 組，6,910 列中有 1,303 列在第一站之前或最後一站之後、人還在車上動）；
+  // 上下車、換車一定要停住，所以停住的那一段不接。
+  const still = pts.map(() => false);
+  for (let i = 0; i < pts.length;) {
+    if (!(pts[i].v < U.stopMps)) { i++; continue; }
+    let j = i;
+    while (j + 1 < pts.length && pts[j + 1].v < U.stopMps && pts[j + 1].t - pts[j].t <= U.passGapSec) j++;
+    if (pts[j].t - pts[i].t >= U.stopMinSec) for (let k = i; k <= j; k++) still[k] = true;
+    i = j + 1;
+  }
+  const reach = (i, step) => {
+    while (i + step >= 0 && i + step < pts.length && !still[i + step] && Math.abs(pts[i + step].t - pts[i].t) <= U.passGapSec) i += step;
+    return pts[i].t;
+  };
+  if (spans.length && checks[0].ok) {
+    const i = pts.findIndex(p => p.t >= spans[0][0]);
+    if (i >= 0) spans[0][0] = Math.min(spans[0][0], reach(i, -1));
+  }
+  if (spans.length && checks[checks.length - 1].ok) {
+    const s = spans[spans.length - 1];
+    let i = pts.length - 1;
+    while (i > 0 && pts[i].t > s[1]) i--;
+    if (pts[i].t <= s[1]) s[1] = Math.max(s[1], reach(i, 1));
+  }
+  const bad = new Set();
+  for (const p of pts) if (!spans.some(([a, b]) => p.t >= a && p.t <= b)) bad.add(rowOf.get(p));
+  for (const id of new Set(rowOf.values())) flags.set(id, bad.has(id) ? 0 : 1);
+  return flags;
+}
+
+// 判定 cron 跑完之後接著跑（同一個子請求計數器，見 scheduled() 的 BOUNTY_CRON）：挑乘車日在 BOUNTY_USABLE.days 天內、
+// 有 ok 的台鐵列還沒標過（usable_at IS NULL）的班車，整班重算、整班重寫——遲傳的批次判 ok 之後，同一班的舊列也跟著重算。
+// 一班車：讀列 1＋讀誤點 1（同一天同一車次多人搭只讀一次）＋寫入 1 個 batch；班表與站碼兩個資產檔一個 isolate 各讀一次。
+// 比不了的（那天不在班表檔、沒有官方誤點、整段地下）照樣寫 usable_at、usable 留 NULL，下一發不再挑它。
+// 太大（ok 列的 payload 總長超過 BOUNTY_VERIFY_MAX_TRAIN_BYTES，可以跨好幾晚累積）與出錯的班車也一樣蓋掉：挑班車的順序是固定的，
+// 不蓋的話同一批車每晚都排在最前面，連錯 3 次就停，後面的車永遠輪不到。出錯時連蓋都蓋不上（D1 壞了），下一發再試。
+// 不圍租約：寫的值只由那班車的 payload、班表與官方誤點決定，兩發重疊時寫的是同一組值；WHERE 只碰 verdict='ok' 的列。
+async function bountyUsableCron(env0) {
+  const env = bountyCounted(env0);
+  const ctr = env.__bountySubreq;
+  const U = BOUNTY_USABLE;
+  const now = Number(env.BOUNTY_NOW) || Date.now();
+  const stat = { trains: 0, rows: 0, usable: 0, mismatch: 0, unknown: 0, skipped: 0, errors: 0, budgetStop: false, subreq: 0 };
+  const room = () => ctr.n + 3 <= ctr.budget && Date.now() - ctr.t0 < ctr.wallMs && ctr.bytes + ctr.rows * BOUNTY_BYTES_PER_ROW < ctr.bytesBudget;
+  if (!room()) { stat.budgetStop = true; stat.subreq = ctr.n; return stat; }
+  const since = isoFromDate(new Date(now + 8 * 3600e3 - U.days * 86400e3));
+  const list = (await env.DELAY_DB.prepare(
+    "SELECT actor, trip_date, train_no FROM bounty_samples INDEXED BY idx_samples_pending WHERE verdict='ok' AND trip_date >= ?" +
+    " AND sys='tra_sched' AND usable_at IS NULL GROUP BY actor, trip_date, train_no LIMIT ?"
+  ).bind(since, U.trainsPerRun).all()).results || [];
+  if (!list.length) { stat.subreq = ctr.n; return stat; }
+  const M = await bountyUnits(env);
+  const S = await cloudRideAsset(env, 'tra_widget_schedule.json');
+  const info = await cloudRideAsset(env, 'tra_station_info.json');
+  const code = new Map(Object.values(info || {}).map(s => [String(s && s.id), s && s.name]));
+  const nameOf = sta => code.get(String(sta));
+  const evMem = new Map();
+  const SET = 'UPDATE bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 SET usable=?, usable_at=?' +
+    " WHERE id IN (SELECT value FROM json_each(?)) AND +verdict='ok'";
+  const skip = c => env.DELAY_DB.prepare(
+    "UPDATE bounty_samples INDEXED BY idx_samples_trip SET usable=NULL, usable_at=? WHERE actor=? AND trip_date=? AND train_no=? AND verdict='ok' AND sys='tra_sched'"
+  ).bind(now, c.actor, c.trip_date, c.train_no).run();
+  for (const c of list) {
+    if (!room()) { stat.budgetStop = true; break; }
+    try {
+      // 讀取上界照 bountyVerifyTrain：依讀取順序累加 payload 長度，只送回加到前一列還沒超過上限的列（最多上限再加一列）
+      const rows = (await env.DELAY_DB.prepare(
+        'SELECT id, ln_id, payload, cum_bytes FROM (SELECT id, ln_id, payload, submitted_at, SUM(length(payload)) OVER (ORDER BY submitted_at, id ROWS UNBOUNDED PRECEDING) AS cum_bytes' +
+        " FROM bounty_samples INDEXED BY idx_samples_trip WHERE actor=? AND trip_date=? AND train_no=? AND verdict='ok' AND sys='tra_sched')" +
+        ' WHERE cum_bytes - length(payload) <= ? ORDER BY submitted_at, id LIMIT ?'
+      ).bind(c.actor, c.trip_date, c.train_no, BOUNTY_VERIFY_MAX_TRAIN_BYTES, BOUNTY_MAX_BATCHES_PER_DAY + 1).all()).results || [];
+      ctr.rows += rows.length;
+      for (const r of rows) ctr.bytes += String(r.payload || '').length;
+      if (!rows.length) continue;
+      if (rows.length > BOUNTY_MAX_BATCHES_PER_DAY || Number(rows[rows.length - 1].cum_bytes) > BOUNTY_VERIFY_MAX_TRAIN_BYTES) {
+        await skip(c);
+        stat.skipped++;
+        continue;
+      }
+      // data/tra_widget_schedule.json：dates[日期]＝該日開行的 trains 索引；trains[i]＝[車次, 車種, [[站索引, 到站秒, 停站秒, 1 停／0 過],…]]（見 cloudRideTrainOk）
+      const idxs = S && S.dates && S.dates[c.trip_date];
+      const t = Array.isArray(idxs) ? idxs.map(i => S.trains[i]).find(x => x && String(x[0]) === String(c.train_no)) : null;
+      const sched = t && Array.isArray(t[2]) ? t[2].filter(s => s && s[3] === 1 && S.stations[s[0]])
+        .map(s => ({ name: S.stations[s[0]][0], arr: Number(s[1]), dep: Number(s[1]) + (Number(s[2]) || 0) })) : [];
+      let ev = [];
+      if (sched.length) {
+        const ek = c.trip_date + '|' + c.train_no;
+        ev = evMem.get(ek);
+        if (!ev) {
+          ev = (await env.DELAY_DB.prepare('SELECT sta, status, delay FROM tra_station_events WHERE service_date=? AND train_no=?')
+            .bind(c.trip_date, c.train_no).all()).results || [];
+          evMem.set(ek, ev);
+        }
+      }
+      const byLine = new Map();
+      for (const r of rows) (byLine.get(r.ln_id) || byLine.set(r.ln_id, []).get(r.ln_id)).push(r);
+      const flags = new Map();
+      for (const [ln, lr] of byLine) {
+        const line = M.lines['tra_sched|' + ln];
+        for (const [id, v] of line ? bountyUsableFlags(lr, line, sched, ev, nameOf) : lr.map(r => [r.id, null])) flags.set(id, v);
+      }
+      const ids = v => JSON.stringify([...flags].filter(([, x]) => x === v).map(([id]) => id));
+      await env.DELAY_DB.batch([1, 0, null].map(v => env.DELAY_DB.prepare(SET).bind(v, now, ids(v))));
+      stat.trains++;
+      stat.rows += flags.size;
+      for (const v of flags.values()) stat[v === 1 ? 'usable' : v === 0 ? 'mismatch' : 'unknown']++;
+    } catch (e) {
+      stat.errors++;
+      console.error('[cron bounty 可用] 班車出錯:', (e && e.stack) || String(e));
+      try { await skip(c); } catch (e2) {}
+      if (stat.errors >= 3) break;                                     // D1 不能用時別把剩下的預算耗在同一個錯誤上
+    }
+  }
+  stat.subreq = ctr.n;                                                 // 整發累計（跟估值、判定共用的計數器）
+  return stat;
+}
+
 // ── 台鐵準點統計「每日增量」cron(scheduled handler) ────────────────────────
 // 把本機 python 腳本 scripts/ingest_tra_delay.py 的邏輯搬進 worker:每天自動抓 TDX
 // 歷史 API 前一日資料 → 寫 D1 tra_delay_daily → 重建 kv_blobs 統計 blob(供 /api/
@@ -10714,12 +10923,21 @@ export default {
         console.log(`[cron bounty 估值] 新上架 ${v.inserted}, 退場 ${v.retired}, 重算 ${v.updated}, 首次到頂 ${v.capped}, 自動開關 ${v.unlocked}`);
       } catch (e) { console.error('[cron bounty 估值] 失敗:', (e && e.stack) || String(e)); }
       // 順序仍是先估值後驗證（驗證要用當下的板價）。
+      let q = null;
       try {
-        const q = await bountyVerifyCron(cenv);
+        q = await bountyVerifyCron(cenv);
         // 判定途中有班車出錯（出錯的班車記下來、繼續下一班，D1 不能用才停手）：錯誤已在判定裡接住、不再往外丟，
         // 這一行改用 error 等級印——與以前「整發丟例外」時同一個等級，警示照樣看得到
         (q.stopBy === 'error' || q.errors ? console.error : console.log)(bountyVerifyLine(q));
       } catch (e) { console.error('[cron bounty 驗證] 失敗:', (e && e.stack) || String(e)); }
+      // 「資料可用」標記排在判定之後、跟判定與點數分開（見 bountyUsableCron），用同一個計數器剩下的預算。
+      // 判定因為 D1 不能用而停手（stopBy 'error'）時不跑：同一個 D1，再試只是多一串錯誤。子請求印整發累計（估值＋判定＋這一段）。
+      if (!q || q.stopBy !== 'error') try {
+        const u = await bountyUsableCron(cenv);
+        console.log(`[cron bounty 可用] 班車 ${u.trains}、列 ${u.rows}（可用 ${u.usable}、對不上 ${u.mismatch}、比不了 ${u.unknown}）` +
+          `${u.skipped ? `、太大略過 ${u.skipped} 班` : ''}` +
+          `${u.budgetStop ? '、預算用完先停' : ''}${u.errors ? `、出錯 ${u.errors}` : ''}／整發子請求 ${u.subreq}`);
+      } catch (e) { console.error('[cron bounty 可用] 失敗:', (e && e.stack) || String(e)); }
       return;
     }
     try {
@@ -10947,7 +11165,7 @@ export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoar
   bountyClaim, hasGeoKeys, sanitizeSamples, sanitizeClient, bountySubmit, firebaseUid, bountyMe, bountyMerge, bountyPurgeUid,
   chipsMe, garageRedeem, cloudRide,
   bountyMedian, bountyL1, bountyL2, bountyPointsOf, bountyUnlocked, bountyValuationCron,
-  assembleTrip, integrityGate, qualityGate, verdictOf, coverageOf, bountyCoverage, bountyKeptSegments, bountyUnionLen, bountyLineMeters, bountyPriorGroups, bountyVerifyCron, bountyResetMemCaches, bountyCounted, BOUNTY_BYTES_PER_ROW };
+  assembleTrip, integrityGate, qualityGate, verdictOf, coverageOf, bountyCoverage, bountyKeptSegments, bountyUnionLen, bountyLineMeters, bountyPriorGroups, bountyVerifyCron, bountyResetMemCaches, bountyCounted, BOUNTY_BYTES_PER_ROW, bountyUsableFlags, bountyUsableCron, BOUNTY_USABLE };
 // 純函式導出,供離線回歸測試 import:trtcParse 雙路徑解析(含上游故障回 HTML 錯誤頁、
 // HTTP 仍 200 那個坑應回 null)、trtcEpoch 台北時間換算、dedupeLatest 同車次抵站歷史去重
 // (文湖線 CarWeightBR 把歷史當現況回傳的真實坑,C1)。trtcCall 不是純函式(真的打上游),
