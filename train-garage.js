@@ -45,7 +45,7 @@
   let mode='model',running=false,direction=1,distance=0,travelTime=0,inView=true,period='day';
   // 第 4 格「場景」開場景頁（三端同一套規則）：場景是主角，畫哪一座看 frameScene，不由車款推；頁上一排場景鈕就地換座。
   // 預設車庫「田園小站」每款車都能跑、永遠能進；已做好的四座只跑分派表（train-garage-scenes.js）分到那座的車，照錢包的已解鎖清單進，
-  // 鎖著的點了開兌換視窗（見下面「兌換專屬場景」）。沒有錢包（沒登入、懸賞關著、展示模式）只有田園小站，不出場景列與場景鈕。
+  // 鎖著的點了開兌換視窗（見下面「兌換專屬場景」）。沒有錢包（沒登入、展示模式）只有田園小站，不出場景列與場景鈕。
   // 已做好的四座要跟 rail-3d/garage-diorama.js 的 SCENES 一致。
   const DEFAULT_SCENE='paddy',DEFAULT_PLACE='預設車庫・田園小站',BUILT_SCENES=new Set(['south-coast','alishan','viaduct','shifen']);
   // 場景格、場景鈕用的短名（阿里山那座用線名，不用它畫的那段「之字形」）。
