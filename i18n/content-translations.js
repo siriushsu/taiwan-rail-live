@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "看板、列車資訊卡這類底部面板改成直接拖拉調整高度：按住卡頭上下拖，放開就停在那裡，下次打開會記得這個高度": "Bottom panels such as station boards and train cards now resize by dragging: hold the header, drag up or down and let go where you like; the height is remembered next time",
     "臺中州廳、新竹州廳、西門紅樓的 3D 模型轉到正確方向，跟實際建築的方位一致（謝謝網友回報）": "The 3D models of the Taichung Prefectural Hall, Hsinchu Prefectural Hall and the Red House now face the right way, matching the real buildings (thanks to the user who reported it)",
     "跟隨高鐵列車時，資訊卡多一行對號座還有沒有位子（有位／剩不多／售完），從列車接下來停的那站算到終點；官方座位表沒有這班就不顯示": "When following a THSR train, the info card now shows whether reserved seats are still available (Seats available / Few seats left / Sold out) from its next stop to the terminal; trains missing from the official seat table show nothing",
     "校正懸賞給點更公平：長隧道或手機很久沒定位時只扣沒錄到的那段，不再整條路線 0 點；隔天才上傳的後半段會補發點數；到站忘了停止錄製也不會讓整趟作廢": "Fairer points for calibration bounties: a long tunnel or a long GPS gap now only drops the part that was not recorded instead of zeroing the whole line; a second half uploaded the next day now earns its points; forgetting to stop recording at your stop no longer voids the trip",
@@ -342,6 +343,7 @@
   });
 
   Object.assign(messages.ja, {
+    "看板、列車資訊卡這類底部面板改成直接拖拉調整高度：按住卡頭上下拖，放開就停在那裡，下次打開會記得這個高度": "駅ボードや列車カードなど下部パネルの高さを、ヘッダーを上下にドラッグして調整できるようになりました。離した位置で止まり、次回もその高さで開きます",
     "臺中州廳、新竹州廳、西門紅樓的 3D 模型轉到正確方向，跟實際建築的方位一致（謝謝網友回報）": "台中州庁、新竹州庁、西門紅楼の3Dモデルの向きを、実際の建物に合わせて直しました（ご報告ありがとうございます）",
     "跟隨高鐵列車時，資訊卡多一行對號座還有沒有位子（有位／剩不多／售完），從列車接下來停的那站算到終點；官方座位表沒有這班就不顯示": "新幹線（高鐵）の列車を追跡すると、情報カードに指定席の空き（空席あり／残りわずか／満席）が表示されます。次の停車駅から終点までの状況で、公式座席表にない列車は表示しません",
     "校正懸賞給點更公平：長隧道或手機很久沒定位時只扣沒錄到的那段，不再整條路線 0 點；隔天才上傳的後半段會補發點數；到站忘了停止錄製也不會讓整趟作廢": "校正懸賞のポイントをより公平に。長いトンネルや長時間GPSが途切れても、記録できなかった区間だけを除き、路線全体が0ポイントになることはなくなりました。翌日にアップロードした後半もポイントが付き、到着後に記録を止め忘れても乗車全体が無効になりません",

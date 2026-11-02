@@ -5648,6 +5648,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="sheetdrag1102"><span class="d">11/02</span><span>看板、列車資訊卡這類底部面板改成直接拖拉調整高度：按住卡頭上下拖，放開就停在那裡，下次打開會記得這個高度</span></li>
         <li data-cl-of="prefheading1102"><span class="d">11/02</span><span>臺中州廳、新竹州廳、西門紅樓的 3D 模型轉到正確方向，跟實際建築的方位一致（謝謝網友回報）</span></li>
         <li data-cl-of="thsrseatcard1102"><span class="d">11/02</span><span>跟隨高鐵列車時，資訊卡多一行對號座還有沒有位子（有位／剩不多／售完），從列車接下來停的那站算到終點；官方座位表沒有這班就不顯示</span></li>
         <li data-cl-of="bountyfix1102"><span class="d">11/02</span><span>校正懸賞給點更公平：長隧道或手機很久沒定位時只扣沒錄到的那段，不再整條路線 0 點；隔天才上傳的後半段會補發點數；到站忘了停止錄製也不會讓整趟作廢</span></li>
@@ -5655,7 +5656,6 @@
         <li data-cl-of="paddydetail1101"><span class="d">11/01</span><span>車庫「田園小站」做得更精緻：樹分好幾種樹形，站房和三合院有門窗、瓦屋頂，透天厝的鐵窗有窗條，還多了冷氣和直立招牌，秧苗田看得到一叢叢秧苗，電線桿拉上了電線</span></li>
         <li data-cl-of="garageframe1101"><span class="d">11/01</span><span>車庫第 4 格改成全螢幕場景頁：白天、黃昏、夜晚可以自己切，夜晚整頁變深藍；修好田園小站列車進隧道時整節車殼變透明</span></li>
         <li data-cl-of="garageredeem1101"><span class="d">11/01</span><span>網站也能用島民點數兌換車庫場景了：車庫最上面多一列「車庫場景」，點格子就能解鎖；護照的點數那句點了直接開車庫</span></li>
-        <li data-cl-of="buildinglook1031"><span class="d">10/31</span><span>3D 建築改成實心並加上光影與牆腳陰影；列車開到大樓後面時，樓上會開一扇窗讓你看到車，想看穿建築仍可打開「透視顯示」</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6041,6 +6041,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="sheetdrag1102"><span class="d">11/02</span><span>看板、列車資訊卡這類底部面板改成直接拖拉調整高度：按住卡頭上下拖，放開就停在那裡，下次打開會記得這個高度</span></li>
         <li data-cl="helpnew1030"><span class="d">10/30</span><span>使用說明補上觀看設定、立體列車、車站地標導覽、地圖風格、轉乘、跟車鎖定、營運公告、語言等新功能，首訪卡第一列也改成實際位置</span></li>
         <li data-cl="helpaudit1030"><span class="d">10/30</span><span>使用說明對上現在的畫面：字級、儲存地點、平交道、衛星等設定改指「觀看」裡的實際位置，手機與電腦版分開寫；分享、跟車小卡、查詢的說明照實際操作更正，步驟與提示字放大一號</span></li>
         <li data-cl="kbdremain0927"><span class="d">9/27</span><span>補齊鍵盤操作：用鍵盤開啟面板時會直接選到有名稱的關閉鈕，按 Esc 可收起搜尋結果或面板並回到入口；公車搜尋列、最愛車站與誤點履歷都能用 Tab 選到、Enter 開啟，跟車合併卡收起時也不再弄丟選取；桌面時鐘可直接點開資料狀態</span></li>
@@ -7113,7 +7114,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1102c：平交道說明（設定裡的說明與使用說明中心）總數 415 → 346，跟 data/crossings.json 現行筆數一致。
 // v1102e：高鐵列車卡加對號座一行（官方座位表查得到才出現，上車站＝還沒開出的第一個停靠站），座位表超過 10 分鐘重抓。
 // v1102f：臺中州廳轉 90°（issue #105）、新竹州廳轉 180°、西門紅樓轉回 0°，正面對上 OSM 輪廓；Worker 原生 iOS 送審 build 加 227（1.7.7）。
-const BUILD = 'v1102f';
+// v1102g：看板家族 sheet 改成直接拖拉調整高度（跟手、放開停在原處、貼合內容、記住佔視窗高比例），點卡頭不再切換兩段高；小高度不再藏內文。
+const BUILD = 'v1102g';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
