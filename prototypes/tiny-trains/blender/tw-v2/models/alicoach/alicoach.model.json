@@ -1,0 +1,230 @@
+{
+  "modelId": "alicoach",
+  "name": "阿里山號・紅白客車",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "forestcoach",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.044000148773193,
+      -1.161314845085144,
+      0.0
+    ],
+    "max": [
+      4.044000148773193,
+      1.161314845085144,
+      3.140000104904175
+    ]
+  },
+  "sizeM": [
+    8.088000297546387,
+    2.322629690170288,
+    3.140000104904175
+  ],
+  "mesh": {
+    "file": "alicoach.mesh.bin",
+    "sha256": "133bc058f2153879cf7bcc69ef4e7a175146540c945bbc7da7bc96c76ae35330",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 99348,
+    "triangleCount": 33116,
+    "drawGroups": [
+      {
+        "name": "afred",
+        "start": 0,
+        "count": 7224,
+        "color": [
+          0.7758222222328186,
+          0.0423114113509655,
+          0.03688944876194
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.36000001430511475,
+        "clearcoat": 0.25999999046325684
+      },
+      {
+        "name": "alicream",
+        "start": 7224,
+        "count": 14940,
+        "color": [
+          0.7605245113372803,
+          0.715693473815918,
+          0.6038273572921753
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.25999999046325684
+      },
+      {
+        "name": "alufr",
+        "start": 22164,
+        "count": 4416,
+        "color": [
+          0.38642942905426025,
+          0.41788506507873535,
+          0.41788506507873535
+        ],
+        "metalness": 0.44999998807907104,
+        "roughness": 0.3499999940395355,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "glass",
+        "start": 26580,
+        "count": 6624,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "hdblack",
+        "start": 33204,
+        "count": 1608,
+        "color": [
+          0.01032982300966978,
+          0.012983032502233982,
+          0.015208514407277107
+        ],
+        "metalness": 0.20000000298023224,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "metal",
+        "start": 34812,
+        "count": 24168,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "chassis",
+        "start": 58980,
+        "count": 29316,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "frame",
+        "start": 88296,
+        "count": 912,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 89208,
+        "count": 8448,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "roof",
+        "start": 97656,
+        "count": 1128,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "hdframe",
+        "start": 98784,
+        "count": 564,
+        "color": [
+          0.023153366521000862,
+          0.027320891618728638,
+          0.03071344457566738
+        ],
+        "metalness": 0.30000001192092896,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.11999999731779099
+      }
+    ]
+  },
+  "nativeObjectCount": 167,
+  "features": {
+    "sideDoorGroups": 0,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "alicoach",
+    "family": "forestcoach",
+    "L": 7.3,
+    "W": 2.2,
+    "H": 3.0,
+    "power": "unpowered",
+    "body": "E2DCCC",
+    "accent": "E43A36"
+  },
+  "reference": {
+    "source": "https://blair-train.blogspot.com/2012/01/1.html",
+    "detail": "奶油色車身 · 紅色窗帶與斜帶 · 端面紅色下半",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}
