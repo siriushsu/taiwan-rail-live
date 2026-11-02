@@ -5441,7 +5441,7 @@
       <button type="button" class="pn-exit" id="pinHintExit">結束</button>
     </div>
     <div class="xing-card" id="nearCard" hidden></div>
-    <div class="xing-help" id="xingHelp" hidden>顯示全台 415 處台鐵平交道（官方公開資料）。圖示比照官方交叉標誌：雙線以上於紅叉下加人字、閃電＝電化（拉近顯示）。點擊任一平交道，可查看接下來通過的列車與倒數；貨運／專用線上的道口僅標示位置。預測依時刻表與即時誤點推算，遮斷機通常提前 30–60 秒動作，請以現場號誌為準。平交道位置以台鐵官方資料為準，可能與現場實際略有落差，歡迎透過頁尾「回報問題或建議」提供修正。</div>
+    <div class="xing-help" id="xingHelp" hidden>顯示全台 346 處台鐵平交道（官方公開資料）。圖示比照官方交叉標誌：雙線以上於紅叉下加人字、閃電＝電化（拉近顯示）。點擊任一平交道，可查看接下來通過的列車與倒數；貨運／專用線上的道口僅標示位置。預測依時刻表與即時誤點推算，遮斷機通常提前 30–60 秒動作，請以現場號誌為準。平交道位置以台鐵官方資料為準，可能與現場實際略有落差，歡迎透過頁尾「回報問題或建議」提供修正。</div>
     <div class="board" id="favPanel" hidden></div>
     <div class="board" id="ridePanel" hidden></div>
     <!-- 亮點面板固定骨架(Batch B):h3 常駐,renderExplorePanel 只重建 #expBody -->
@@ -5699,7 +5699,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
-        <li data-cl="xingstale1102"><span class="d">11/02</span><span>平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）</span></li>
+        <li data-cl="xingstale1102"><span class="d">11/02</span><span>平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）；平交道說明裡的總數也跟著改成 346 處</span></li>
         <li data-cl="paddydetail1101"><span class="d">11/01</span><span>車庫「田園小站」做得更精緻：樹分好幾種樹形，站房和三合院有門窗、瓦屋頂，透天厝的鐵窗有窗條，還多了冷氣和直立招牌，秧苗田看得到一叢叢秧苗，電線桿拉上了電線</span></li>
         <li data-cl="garageframe1101"><span class="d">11/01</span><span>車庫第 4 格改成全螢幕場景頁：白天、黃昏、夜晚可以自己切，夜晚整頁變深藍；修好田園小站列車進隧道時整節車殼變透明</span></li>
         <li data-cl="garageredeem1101"><span class="d">11/01</span><span>網站也能用島民點數兌換車庫場景了：車庫最上面多一列「車庫場景」，點格子就能解鎖；護照的點數那句點了直接開車庫</span></li>
@@ -7116,7 +7116,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1101b：車庫第 4 格改開 9-29 樣式的全螢幕場景頁（三個手動時段、頁底跟著換色、陪它走走、專屬場景切換；舞台上的預設車庫／專屬場景列拿掉）；田園小站隧道透視改 stencil 五步，隔著山只透出最外層車殼。
 // v1101c：車庫預設場景田園小站精修——七種樹形加檳榔竹叢、站房與三合院的門窗瓦頂、土地公廟燈籠、透天厝細節、秧苗、草地斑塊、電桿電線（場景本體 42→51 draws、5.2 萬→11.2 萬三角形，手機照舊關陰影＋像素比 1）；更新紀錄加一條。
 // v1102a：平交道拿掉 38 處已地下化／高架化的（高雄、屏東、臺中山線、員林等；issue #102）：官方 XML 仍帶座標，清單與依據在 scripts/lib/crossings_removed.mjs。
-const BUILD = 'v1102a';
+// v1102b：平交道說明（設定裡的說明與使用說明中心）總數 415 → 346，跟 data/crossings.json 現行筆數一致。
+const BUILD = 'v1102b';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -37865,7 +37866,7 @@ const HELP_GROUPS = [
       steps: ['點台鐵車站打開看板', '按站名旁的「追蹤一班車」', '從「接下來的班次」挑你要等的那一班'],
       tip: '倒數照官方表定加即時誤點，車到站後自動收起。鎖定畫面同時只留一張等候卡——追蹤台鐵這班會把捷運那張收掉。時鐘不在「現在」時會先幫你帶回現在。這項不需要通行證。' },
     { key: 'xing', ic: '平', nm: '平交道', tg: 'xingBtn',
-      one: '全台 415 處台鐵平交道，看接下來哪班車會通過。',
+      one: '全台 346 處台鐵平交道，看接下來哪班車會通過。',
       steps: ['手機按地圖右上的「觀看」、桌面用地圖右側的直欄，點「標示」→ 打開「平交道記號」', '把地圖拉近就看得到記號', '點任一平交道，看接下來通過的列車與倒數'],
       tip: '遮斷機通常提前 30–60 秒動作，請以現場號誌為準。', try: 'xing' },
     // 訂閱是新功能,依專案慣例必須有一節;avail 掛 PLUS_ENABLED,旗標關掉整節自動消失(不教一個按不到的東西)。
