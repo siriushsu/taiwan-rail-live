@@ -5667,6 +5667,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="guideroute1103"><span class="d">11/03</span><span>觀看的「導覽」分頁拆開了：查詢首頁多「去哪裡」，車站、地標和縣市點一下就飛過去；搜尋也找得到地點、縣市和路線；最愛可以新增地點；選路線直接看全線並亮線；精選取景移到觀看的視角</span></li>
         <li data-cl-of="twfleet1103"><span class="d">11/03</span><span>車庫和地圖上的立體列車換成照著實車照片重做的精修模型，共 57 款：各地捷運與輕軌、區間車、自強號、莒光號、高鐵、柴電與電力機車、阿里山林鐵</span></li>
         <li data-cl-of="sheetdrag1102"><span class="d">11/02</span><span>看板、列車資訊卡這類底部面板改成直接拖拉調整高度：按住卡頭上下拖，放開就停在那裡，下次打開會記得這個高度</span></li>
         <li data-cl-of="prefheading1102"><span class="d">11/02</span><span>臺中州廳、新竹州廳、西門紅樓的 3D 模型轉到正確方向，跟實際建築的方位一致（謝謝網友回報）</span></li>
@@ -5674,7 +5675,6 @@
         <li data-cl-of="bountyfix1102"><span class="d">11/02</span><span>校正懸賞給點更公平：長隧道或手機很久沒定位時只扣沒錄到的那段，不再整條路線 0 點；隔天才上傳的後半段會補發點數；到站忘了停止錄製也不會讓整趟作廢</span></li>
         <li data-cl-of="xingstale1102"><span class="d">11/02</span><span>平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）</span></li>
         <li data-cl-of="paddydetail1101"><span class="d">11/01</span><span>車庫「田園小站」做得更精緻：樹分好幾種樹形，站房和三合院有門窗、瓦屋頂，透天厝的鐵窗有窗條，還多了冷氣和直立招牌，秧苗田看得到一叢叢秧苗，電線桿拉上了電線</span></li>
-        <li data-cl-of="garageframe1101"><span class="d">11/01</span><span>車庫第 4 格改成全螢幕場景頁：白天、黃昏、夜晚可以自己切，夜晚整頁變深藍；修好田園小站列車進隧道時整節車殼變透明</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5938,6 +5938,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="guideroute1103"><span class="d">11/03</span><span>觀看的「導覽」分頁拆開了：查詢首頁多「去哪裡」，車站、地標和縣市點一下就飛過去；搜尋也找得到地點、縣市和路線；最愛可以新增地點；選路線直接看全線並亮線；精選取景移到觀看的視角</span></li>
         <li data-cl="thsrseatcard1102"><span class="d">11/02</span><span>跟隨高鐵列車時，資訊卡多一行對號座還有沒有位子（有位／剩不多／售完），從列車接下來停的那站算到終點；官方座位表沒有這班就不顯示</span></li>
         <li data-cl="thsrchiayistop1029"><span class="d">10/29</span><span>立體列車：高鐵嘉義站停靠的列車改停在月台中段，不再有半列車身凸出月台外</span></li>
         <li data-cl="followrotateflat1029"><span class="d">10/29</span><span>修正電腦版跟車時，用滑鼠右鍵或 Ctrl＋拖曳轉動、傾斜視角會卡住轉不動的問題；從全台地圖點車開始跟車時最常遇到</span></li>
@@ -7139,7 +7140,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1102f：臺中州廳轉 90°（issue #105）、新竹州廳轉 180°、西門紅樓轉回 0°，正面對上 OSM 輪廓；Worker 原生 iOS 送審 build 加 227（1.7.7）。
 // v1102g：看板家族 sheet 改成直接拖拉調整高度（跟手、放開停在原處、貼合內容、記住佔視窗高比例），點卡頭不再切換兩段高；小高度不再藏內文。
 // v1103a：台灣車隊精修車模第 1～10、12 批（57 款）的車庫網格與地圖 LOD 換成照片重做版；車庫阿里山場景的林鐵機車整台轉 180°、駕駛室朝外。
-const BUILD = 'v1103a';
+// v1103b：導覽改版——觀看拿掉導覽分頁；查詢首頁「去哪裡」、搜尋分地點／縣市／路線、最愛新增地點、路線面板選線直進詳情並亮線、精選取景移到視角、標示的軌道與路線原地展開。
+const BUILD = 'v1103b';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

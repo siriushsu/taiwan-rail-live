@@ -143,7 +143,8 @@ const widths = [360, 375, 414, 768];
 // 11/01: the Countryside Station garage scene gets more detail adds one (540 -> 541).
 // 11/02: level crossings on underground/elevated sections removed adds one (541 -> 542).
 // 11/03: refined models for 57 Taiwanese trains in the garage and on the 3D map adds one (546 -> 547).
-const expectedHistoryCount = 547;
+// 11/03: the Places tab in View split up into Lookup, Favorites and Routes adds one (547 -> 548).
+const expectedHistoryCount = 548;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
