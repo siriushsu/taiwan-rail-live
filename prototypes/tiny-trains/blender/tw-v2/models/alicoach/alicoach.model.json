@@ -46,11 +46,11 @@
   ],
   "mesh": {
     "file": "alicoach.mesh.bin",
-    "sha256": "133bc058f2153879cf7bcc69ef4e7a175146540c945bbc7da7bc96c76ae35330",
+    "sha256": "64a832592359b66a8ece0164faa3c9e647d522ac74865d540f9f4192a501e29c",
     "encoding": "float32-le",
     "strideBytes": 24,
-    "vertexCount": 99348,
-    "triangleCount": 33116,
+    "vertexCount": 116100,
+    "triangleCount": 38700,
     "drawGroups": [
       {
         "name": "afred",
@@ -120,7 +120,7 @@
       {
         "name": "metal",
         "start": 34812,
-        "count": 24168,
+        "count": 30264,
         "color": [
           0.30946892499923706,
           0.38642942905426025,
@@ -131,8 +131,34 @@
         "clearcoat": 0.18000000715255737
       },
       {
+        "name": "frame",
+        "start": 65076,
+        "count": 6240,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "taillamp",
+        "start": 71316,
+        "count": 5328,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
         "name": "chassis",
-        "start": 58980,
+        "start": 76644,
         "count": 29316,
         "color": [
           0.03433980792760849,
@@ -144,21 +170,8 @@
         "clearcoat": 0.18000000715255737
       },
       {
-        "name": "frame",
-        "start": 88296,
-        "count": 912,
-        "color": [
-          0.008568125776946545,
-          0.016807375475764275,
-          0.022173885256052017
-        ],
-        "metalness": 0.10000000149011612,
-        "roughness": 0.3799999952316284,
-        "clearcoat": 0.18000000715255737
-      },
-      {
         "name": "rubber",
-        "start": 89208,
+        "start": 105960,
         "count": 8448,
         "color": [
           0.014443843625485897,
@@ -171,7 +184,7 @@
       },
       {
         "name": "roof",
-        "start": 97656,
+        "start": 114408,
         "count": 1128,
         "color": [
           0.4677838087081909,
@@ -184,7 +197,7 @@
       },
       {
         "name": "hdframe",
-        "start": 98784,
+        "start": 115536,
         "count": 564,
         "color": [
           0.023153366521000862,
@@ -197,7 +210,7 @@
       }
     ]
   },
-  "nativeObjectCount": 167,
+  "nativeObjectCount": 179,
   "features": {
     "sideDoorGroups": 0,
     "doorLeavesPerGroup": 2,

@@ -23,7 +23,9 @@ const spillGLSL=`vec3 coastTrainSpill(vec3 p,vec4 cabin,vec4 beam){float ground=
  float ahead=(p.x-beam.x)*beam.y,width=.7+max(ahead,0.)*.28;
  float pool=beam.z*smoothstep(0.,.5,ahead)*exp(-max(ahead,0.)*.16)*(1.-smoothstep(width*.55,width,abs(p.y)));
  return ground*(vec3(1.,.76,.46)*windows+vec3(1.,.92,.78)*pool);}`;
-const lampGLSL='outgoingLight+=vec3(1.,.91,.68)*5.*lampHead.z*step(lampHead.x,lightWorld.x)*step(lightWorld.x,lampHead.y)+vec3(1.,.05,.02)*2.5*lampTail.z*step(lampTail.x,lightWorld.x)*step(lightWorld.x,lampTail.y);';
+// lampTail.w＝1：尾端有 taillamp（尾燈鏡片），亮的是尾燈、頭燈燈體不亮；0：沒有尾燈鏡片的車退回頭燈燈體亮紅光。
+const lampGLSL='outgoingLight+=vec3(1.,.91,.68)*5.*lampHead.z*step(lampHead.x,lightWorld.x)*step(lightWorld.x,lampHead.y)+vec3(1.,.05,.02)*2.5*lampTail.z*(1.-lampTail.w)*step(lampTail.x,lightWorld.x)*step(lightWorld.x,lampTail.y);';
+const tailGLSL='outgoingLight+=vec3(1.,.05,.02)*2.5*lampTail.z*lampTail.w*step(lampTail.x,lightWorld.x)*step(lightWorld.x,lampTail.y);';
 // 車內燈在天花板：窗上緣亮、下緣（座椅背）暗；兩端駕駛室不亮。
 const cabinGLSL='outgoingLight+=vec3(1.,.85,.6)*1.4*cabin.x*mix(.45,1.,smoothstep(.55,1.25,lightWorld.z))*smoothstep(cabin.y+.35,cabin.y+.8,lightWorld.x)*(1.-smoothstep(cabin.z-.8,cabin.z-.35,lightWorld.x));';
 const groundGLSL='outgoingLight+=material.diffuseColor*coastTrainSpill(lightWorld,cabin,beam)/PI;';
@@ -34,12 +36,12 @@ function addLight(m,uniforms,code){const before=m.onBeforeCompile,key=m.customPr
   s.vertexShader='varying vec3 lightWorld;\n'+s.vertexShader.replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nvec4 lightPos=vec4(transformed,1.);\n#ifdef USE_INSTANCING\nlightPos=instanceMatrix*lightPos;\n#endif\nlightWorld=(modelMatrix*lightPos).xyz;');
   s.fragmentShader=`varying vec3 lightWorld;uniform vec4 ${Object.keys(uniforms).join(',')};\n${spillGLSL}\n`+s.fragmentShader.replace('#include <opaque_fragment>',code+'\n#include <opaque_fragment>');};
  m.needsUpdate=true;return m;}
-// 車模 lamp 材質的燈體（模型座標）：0.25 m 格子分群、相鄰 26 格算同一盞，同 App 的 lampBlobs。
+// 車模 lamp（頭燈）或 taillamp（尾燈）材質的燈體（模型座標）：0.25 m 格子分群、相鄰 26 格算同一盞，同 App 的 lampBlobs。
 const blobCache=new WeakMap();
-function lampBlobs(asset){
- let blobs=blobCache.get(asset);if(blobs)return blobs;blobs=[];
+function lampBlobs(asset,name='lamp'){
+ const byName=blobCache.get(asset)||{};blobCache.set(asset,byName);let blobs=byName[name];if(blobs)return blobs;blobs=[];
  const g=asset.geometry,pos=g.attributes.position,index=g.index,cells=new Map();
- for(const group of g.groups)if(asset.materials[group.materialIndex]?.name==='lamp')for(let k=group.start;k<group.start+group.count;k++){
+ for(const group of g.groups)if(asset.materials[group.materialIndex]?.name===name)for(let k=group.start;k<group.start+group.count;k++){
   const p=new THREE.Vector3().fromBufferAttribute(pos,index?index.getX(k):k),cell=[p.x,p.y,p.z].map(v=>Math.floor(v/.25)),key=cell.join(),box=cells.get(key);
   if(box)box.expandByPoint(p);else cells.set(key,Object.assign(new THREE.Box3(p.clone(),p.clone()),{cell}));
  }
@@ -47,7 +49,7 @@ function lampBlobs(asset){
   while(stack.length){const [x,y,z]=stack.pop().cell;for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){const key=[x+dx,y+dy,z+dz].join(),next=cells.get(key);if(!next)continue;cells.delete(key);stack.push(next);box.union(next);}}
   blobs.push({center:box.getCenter(new THREE.Vector3()),size:box.getSize(new THREE.Vector3())});
  }
- blobCache.set(asset,blobs);return blobs;
+ byName[name]=blobs;return blobs;
 }
 // 各時段的車燈強度（燈體、光暈、車窗、車窗灑地、頭燈照地），同 App 的 trackLights；白天只有燈體微亮。
 const LIGHTS={sunrise:[.6,.45,0,0,.3],day:[.3,0,0,0,0],sunset:[1,1,0,0,.7],night:[1,1,1,1,1]},MAX_HALOS=32;
@@ -171,15 +173,18 @@ export function createCoast(){
  lights(consist,direction,period,eye){
   for(const k of Object.keys(train))train[k].value.set(0,0,0,0);uniforms.beam.value.set(0,0,0,0);halos.visible=false;haloGeometry.instanceCount=0;
   if(!consist)return 0;
-  for(const c of consist.cars)for(const m of c.asset.materials)if((m.name==='lamp'||m.name==='glass')&&!lit.has(m)){lit.add(m);addLight(m,train,m.name==='lamp'?lampGLSL:cabinGLSL);}
+  const code={lamp:lampGLSL,taillamp:tailGLSL,glass:cabinGLSL};
+  for(const c of consist.cars)for(const m of c.asset.materials)if(code[m.name]&&!lit.has(m)){lit.add(m);addLight(m,train,code[m.name]);}
   const [lamp,halo,cabin,spill,beam]=LIGHTS[period]||LIGHTS.day,length=consist.length,travel=direction===-1?1:-1,headX=travel*length/2;let n=0;
   for(const [c,endX,tail] of [[consist.cars[0],headX,false],[consist.cars.at(-1),-headX,true]]){
    const scale=c.car.scale.x;
-   let lamps=lampBlobs(c.asset).map(b=>({center:b.center.clone().applyMatrix4(c.body.matrixWorld),half:b.size.clone().multiplyScalar(.5*scale)})).filter(l=>Math.abs(l.center.x-endX)<c.length*.3);
+   const near=name=>lampBlobs(c.asset,name).map(b=>({center:b.center.clone().applyMatrix4(c.body.matrixWorld),half:b.size.clone().multiplyScalar(.5*scale)})).filter(l=>Math.abs(l.center.x-endX)<c.length*.3);
+   // 尾端先找尾燈鏡片（taillamp），有就只亮尾燈；沒有才用頭燈燈體亮紅光。
+   const tails=tail?near('taillamp'):[],taillamp=tails.length>0;let lamps=taillamp?tails:near('lamp');
    const found=lamps.length>0;
    if(!found){const inward=tail?travel:-travel,height=c.asset.size.z*scale;lamps=[-1,1].map(side=>({center:new THREE.Vector3(endX+inward*.02,side*.3,.18+height*.3),half:new THREE.Vector3(.02,.07,.07)}));}
    const x0=Math.min(...lamps.map(l=>l.center.x-l.half.x))-.03,x1=Math.max(...lamps.map(l=>l.center.x+l.half.x))+.03;
-   train[tail?'lampTail':'lampHead'].value.set(x0,x1,found?lamp*(tail?.8:1):0,0);
+   train[tail?'lampTail':'lampHead'].value.set(x0,x1,found?lamp*(tail?.8:1):0,taillamp?1:0);
    if(halo>0)for(const l of lamps){if(n>=MAX_HALOS)break;
     // 光暈往鏡頭拉近半個車寬：投影位置不變，只是不被車身側面擋住。
     const center=toEye.subVectors(eye,l.center).normalize().multiplyScalar(.75).add(l.center),radius=Math.min(1.3,Math.max(.9,Math.max(l.half.y,l.half.z)*4))*(tail?.6:1);
