@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "校正懸賞給點更公平：長隧道或手機很久沒定位時只扣沒錄到的那段，不再整條路線 0 點；隔天才上傳的後半段會補發點數；到站忘了停止錄製也不會讓整趟作廢": "Fairer points for calibration bounties: a long tunnel or a long GPS gap now only drops the part that was not recorded instead of zeroing the whole line; a second half uploaded the next day now earns its points; forgetting to stop recording at your stop no longer voids the trip",
     "平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）": "Removed 38 level crossing markers on sections that are now underground or elevated: city lines in Kaohsiung, Pingtung, Taichung, Yuanlin and elsewhere no longer have level crossings, though the official data has not been updated yet (thanks to the user who reported it)",
     "平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）；平交道說明裡的總數也跟著改成 346 處": "Removed 38 level crossing markers on sections that are now underground or elevated: city lines in Kaohsiung, Pingtung, Taichung, Yuanlin and elsewhere no longer have level crossings, though the official data has not been updated yet (thanks to the user who reported it); the level crossing help text now gives the total as 346",
     "車庫「田園小站」做得更精緻：樹分好幾種樹形，站房和三合院有門窗、瓦屋頂，透天厝的鐵窗有窗條，還多了冷氣和直立招牌，秧苗田看得到一叢叢秧苗，電線桿拉上了電線": "The Countryside Station garage scene is more detailed: several kinds of trees, doors, windows and tiled roofs on the station and farmhouse, bars on the townhouse window grilles plus air conditioners and upright signs, rice seedlings in clumps in the young paddies, and wires strung between the power poles",
@@ -339,6 +340,7 @@
   });
 
   Object.assign(messages.ja, {
+    "校正懸賞給點更公平：長隧道或手機很久沒定位時只扣沒錄到的那段，不再整條路線 0 點；隔天才上傳的後半段會補發點數；到站忘了停止錄製也不會讓整趟作廢": "校正懸賞のポイントをより公平に。長いトンネルや長時間GPSが途切れても、記録できなかった区間だけを除き、路線全体が0ポイントになることはなくなりました。翌日にアップロードした後半もポイントが付き、到着後に記録を止め忘れても乗車全体が無効になりません",
     "平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）": "地下化・高架化された区間にある踏切38か所の表示を削除しました。高雄・屏東・台中・員林などの市街地区間にはもう踏切がありませんが、公式データはまだ更新されていません（ご報告ありがとうございます）",
     "平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）；平交道說明裡的總數也跟著改成 346 處": "地下化・高架化された区間にある踏切38か所の表示を削除しました。高雄・屏東・台中・員林などの市街地区間にはもう踏切がありませんが、公式データはまだ更新されていません（ご報告ありがとうございます）。踏切の説明にある総数も346か所に更新しました",
     "車庫「田園小站」做得更精緻：樹分好幾種樹形，站房和三合院有門窗、瓦屋頂，透天厝的鐵窗有窗條，還多了冷氣和直立招牌，秧苗田看得到一叢叢秧苗，電線桿拉上了電線": "車庫の「田園の小駅」を作り込みました。木の形が何種類にも増え、駅舎や三合院に戸と窓、瓦屋根を付けました。街の家の鉄格子には桟が入り、窓用エアコンや縦型看板も付きました。苗の田んぼには株ごとに苗が並び、電柱には電線が張られています",

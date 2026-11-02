@@ -5650,7 +5650,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/01</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/02</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5658,6 +5658,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="bountyfix1102"><span class="d">11/02</span><span>校正懸賞給點更公平：長隧道或手機很久沒定位時只扣沒錄到的那段，不再整條路線 0 點；隔天才上傳的後半段會補發點數；到站忘了停止錄製也不會讓整趟作廢</span></li>
         <li data-cl-of="xingstale1102"><span class="d">11/02</span><span>平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）</span></li>
         <li data-cl-of="paddydetail1101"><span class="d">11/01</span><span>車庫「田園小站」做得更精緻：樹分好幾種樹形，站房和三合院有門窗、瓦屋頂，透天厝的鐵窗有窗條，還多了冷氣和直立招牌，秧苗田看得到一叢叢秧苗，電線桿拉上了電線</span></li>
         <li data-cl-of="garageframe1101"><span class="d">11/01</span><span>車庫第 4 格改成全螢幕場景頁：白天、黃昏、夜晚可以自己切，夜晚整頁變深藍；修好田園小站列車進隧道時整節車殼變透明</span></li>
@@ -5665,7 +5666,6 @@
         <li data-cl-of="buildinglook1031"><span class="d">10/31</span><span>3D 建築改成實心並加上光影與牆腳陰影；列車開到大樓後面時，樓上會開一扇窗讓你看到車，想看穿建築仍可打開「透視顯示」</span></li>
         <li data-cl-of="garagefs1031"><span class="d">10/31</span><span>車庫重開或切回網頁時不再閃一下：車直接出現、車卡不重排；舞台多了全畫面鈕，四個分頁都能鋪滿畫面看，直式橫式都行，再按一次、Esc 或返回鍵退出</span></li>
         <li data-cl-of="garagescene1031"><span class="d">10/31</span><span>車庫新增第 4 個分頁「田園小站」：每款車都能開進這座預設車庫，白天夜晚跟著現在時間，按「陪它走走」跟著車看；開著車庫時背後的地圖會暫停，手機跑起來更順</span></li>
-        <li data-cl-of="garagelights1031"><span class="d">10/31</span><span>車庫海岸行旅加上車燈：頭燈、尾燈、夜晚車窗亮起並照亮軌道與草地；修好跑久了地面紋路變糊；護照註明場景在 App 兌換</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6022,6 +6022,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="bountyfix1102"><span class="d">11/02</span><span>校正懸賞給點更公平：長隧道或手機很久沒定位時只扣沒錄到的那段，不再整條路線 0 點；隔天才上傳的後半段會補發點數；到站忘了停止錄製也不會讓整趟作廢</span></li>
         <li data-cl="bountypoints"><span class="d">10/27</span><span>校正懸賞改用島民點數：合格的一趟照實際錄到的沿線里程給點，1 公里 1 點，南迴、臺東線加倍，每天最多 500 點；原有籌碼 1 顆換 50 點，已解鎖的車庫場景照舊</span></li>
         <li data-cl="ridekbfocus0925"><span class="d">9/25</span><span>修正旅程護照用鍵盤往回移動（Shift+Tab）時，被選到的成就章、收集章與按鈕會停在最上方的標題列底下看不到；現在會停在標題下方，字級調大也一樣</span></li>
         <li data-cl="achvhelp"><span class="d">9/25</span><span>護照成就章新增說明卡，顯示達成條件、建議與目前進度；明星列車、車種圖鑑與支線收集章也能查看內容。9/25 修正滑鼠停在章上時，說明卡旁邊還會多跳出瀏覽器的小提示框，並讓鍵盤也能打開說明卡；英日文版收集章的文字改成滑鼠、觸控都適用的說法</span></li>
@@ -7116,8 +7117,9 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1101b：車庫第 4 格改開 9-29 樣式的全螢幕場景頁（三個手動時段、頁底跟著換色、陪它走走、專屬場景切換；舞台上的預設車庫／專屬場景列拿掉）；田園小站隧道透視改 stencil 五步，隔著山只透出最外層車殼。
 // v1101c：車庫預設場景田園小站精修——七種樹形加檳榔竹叢、站房與三合院的門窗瓦頂、土地公廟燈籠、透天厝細節、秧苗、草地斑塊、電桿電線（場景本體 42→51 draws、5.2 萬→11.2 萬三角形，手機照舊關陰影＋像素比 1）；更新紀錄加一條。
 // v1102a：平交道拿掉 38 處已地下化／高架化的（高雄、屏東、臺中山線、員林等；issue #102）：官方 XML 仍帶座標，清單與依據在 scripts/lib/crossings_removed.mjs。
-// v1102b：平交道說明（設定裡的說明與使用說明中心）總數 415 → 346，跟 data/crossings.json 現行筆數一致。
-const BUILD = 'v1102b';
+// v1102b：校正懸賞判定修正（Worker）：移動中斷訊切段不再整條線判 underground；隔天才到的後半段寫 topup 差額列；到站不動的尾巴不算物理丟點；index.html 只加更新紀錄。
+// v1102c：平交道說明（設定裡的說明與使用說明中心）總數 415 → 346，跟 data/crossings.json 現行筆數一致。
+const BUILD = 'v1102c';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
