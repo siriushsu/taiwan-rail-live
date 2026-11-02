@@ -32750,18 +32750,26 @@ const LAST_BOARD_KEY = 'trainmap-last-board-v1';         // {sys,name}:上次看
 // 安靜的站整片白紙)。.sheet-small 只剩外觀意義:高度 ≤ 視窗 30% 時套實色紙面與「往上拉」提示,不再藏內容。
 const SHEET_H_KEY = 'trainmap-sheet-h-v1', NIGHT_SHEET_H_KEY = 'trainmap-night-sheet-h-v1';
 const SHEET_MIN_PX = 120, SHEET_TOP_RESERVE_PX = 56, SHEET_COMPACT_FRAC = 0.30, SHEET_QUERY_FRAC = 0.46;
+// null＝還沒拖過、照舊中段:用這張 sheet 樣式表宣告的 --sheet-size(多數 46%,夜間看板與列車 sheet 62%,night-theme.css),
+// 打開高度跟改版前一樣;拖過才存比例。
 function loadSheetFrac(key, oldKey, fallback) {
   try {
     const v = parseFloat(localStorage.getItem(key));
     if (v > 0 && v <= 1) return v;
-    const old = localStorage.getItem(oldKey); // 舊兩段制換算:small→30%,medium(含更早的 large)→46%
+    const old = localStorage.getItem(oldKey); // 舊兩段制換算:small→30%,medium(含更早的 large)→中段
     if (old === 'small') return 0.30;
-    if (old === 'medium' || old === 'large') return 0.46;
+    if (old === 'medium' || old === 'large') return null;
   } catch (e) {}
   return fallback;
 }
 let sheetFracPref = loadSheetFrac(SHEET_H_KEY, SHEET_SIZE_KEY, 0.30);
-let nightSheetFracPref = loadSheetFrac(NIGHT_SHEET_H_KEY, 'trainmap-night-sheet-size', 0.46);
+let nightSheetFracPref = loadSheetFrac(NIGHT_SHEET_H_KEY, 'trainmap-night-sheet-size', null);
+function sheetMediumPx(el) {
+  el.style.removeProperty('--sheet-size');
+  const v = getComputedStyle(el).getPropertyValue('--sheet-size').trim();
+  const n = parseFloat(v);
+  return !(n > 0) ? innerHeight * SHEET_QUERY_FRAC : v.endsWith('%') ? innerHeight * n / 100 : n;
+}
 let sheetDragging = null; // 拖曳中的那張:這段時間 updateSheetOpenClass 不回套偏好,免得把手指底下的高度拉回去
 // 段高只在「底部 sheet」形態才有意義。兩個例外:
 //   #searchPanel 在【打字態】(body.search-open)是上錨面板(高度由上下錨撐出)——瀏覽態則是一般 sheet,有段高;
@@ -32819,7 +32827,10 @@ function updateSheetOpenClass() {
   // 一律以 46%(spec 的半高)打開:關掉時上面的迴圈已清掉 inline 高度 ⇒ 每次打開都是 46%;這次打開中拖過就留著。
   // 夜間(state.mapDark)有自己一份 nightSheetFracPref(origin/main v0907c 起);查詢 sheet 一樣兩份都不吃。
   if (sizedAct && sizedAct !== sheetDragging) {
-    if (sizedAct.id !== 'searchPanel') applySheetPx(sizedAct, innerHeight * (state.mapDark ? nightSheetFracPref : sheetFracPref));
+    if (sizedAct.id !== 'searchPanel') {
+      const frac = state.mapDark ? nightSheetFracPref : sheetFracPref;
+      applySheetPx(sizedAct, frac == null ? sheetMediumPx(sizedAct) : innerHeight * frac);
+    }
     else if (!sizedAct.style.getPropertyValue('--sheet-size')) applySheetPx(sizedAct, innerHeight * SHEET_QUERY_FRAC);
   }
   syncSheetLift(act);
