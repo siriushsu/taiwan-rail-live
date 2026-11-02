@@ -48,8 +48,8 @@ try{
   await page.waitForFunction(()=>M.raw.getLayer('building-glass-edges')?.implementation?.count>0||M.raw.getLayer('building-glass-edges')?.count>0,null,{timeout:30000}).catch(()=>{});
   // 凍結其他移動層，將細線層 draw count 歸零作像素 A/B，避免只驗樣式參數。
   await page.evaluate(()=>{document.getElementById('overlay').style.visibility='hidden';M.raw.setPaintProperty('building-3d','fill-extrusion-opacity-transition',{duration:0});});
-  // v0907e（b8f468fc）起街圖建築多了「透視顯示」開關，預設透視（比夜間玻璃更透）；.30 是切到「實體」時的夜間玻璃。
-  // 本支寫在那之前，兩個狀態都要驗：先量預設，再按設定裡那顆「實體」鈕。
+  // v0907e（b8f468fc）起街圖建築多了「透視顯示」開關；10-31 建物質感第一輪起預設改「實體」（不透明的深藍灰 D2，車在樓後面由著色器挖窗），
+  // 透視時是 .24。兩個狀態都要驗：先量預設，再按設定裡那顆「實體」鈕確認來回切不會留下透視值。
   await settle(page);const see=await page.evaluate(buildings);await page.screenshot({path:path.join(out,en+'-glass-see.png')});
   // MapLibre 原生 zoom 13.4 介於建築層 minzoom 13 與立體列車 render 門檻 13.8 之間：
   // 這裡重裝建築層後不會有 render() 幫忙補同步，所以必須當場保住「透視」的 .24。
@@ -58,8 +58,8 @@ try{
   await page.evaluate(()=>M.raw.setZoom(16));
   await page.evaluate(()=>document.querySelector('[data-rail3d="inspection"] button[data-value="off"]')?.click());
   await settle(page);const glass=await page.evaluate(buildings);
-  ok(en+' 預設透視顯示：藍色建築比實體更透',see.inspection==='on'&&see.alpha>0&&see.alpha<glass.alpha&&see.color==='#638BC5'&&see.source==='openmaptiles',see);
-  ok(en+' 透明藍色建築使用原始建築資料',glass.alpha===.30&&glass.color==='#638BC5'&&glass.source==='openmaptiles',glass);
+  ok(en+' 預設實體：暗色建築不透明深藍灰',see.inspection==='off'&&see.alpha===1&&JSON.stringify(see.color).includes('#34486b')&&see.source==='openmaptiles',see);
+  ok(en+' 透視切回實體恢復不透明、用原始建築資料',glass.inspection==='off'&&glass.alpha===1&&JSON.stringify(glass.color).includes('#34486b')&&glass.source==='openmaptiles',glass);
   ok(en+' 屋頂與樓層線確實產生頂點',glass.count>0&&glass.count<=161000,glass);
   const order=await page.evaluate(()=>{const ids=M.raw.getLayersOrder();return {glass:ids.indexOf('building-glass-edges'),track:ids.indexOf('track-glow'),labels:ids.filter(id=>M.raw.getLayer(id).type==='symbol').map(id=>ids.indexOf(id))};});
   ok(en+' 玻璃細線在所有軌道與站名之下',order.glass>=0&&order.glass<order.track&&order.labels.every(i=>i>order.glass),order);
@@ -98,7 +98,7 @@ try{
   ok(en+' 亮色無霓虹',await page.evaluate(()=>M.raw.getPaintProperty('track-glow-inner','line-opacity')===0&&M.raw.getPaintProperty('track-casing-'+glTracks.ranks[0],'line-opacity')===1));
   await page.evaluate(()=>state._setAppearance('dark'));
   await page.waitForFunction(()=>M.raw.getLayer('building-glass-edges'));
-  ok(en+' 主題切換重建玻璃層',await page.evaluate(()=>M.raw.getPaintProperty('building-3d','fill-extrusion-opacity')===.3));
+  ok(en+' 主題切換重建玻璃層',await page.evaluate(()=>M.raw.getLayer('building-glass-edges')&&M.raw.getPaintProperty('building-3d','fill-extrusion-opacity')===1));
   ok(en+' 無執行例外',errors.length===0,errors);await ctx.close();
   // 手機使用真觸控。面板／全畫面／橫幅／抽屜組合逐一掃描；所有可見互動元件做兩兩相交。
   const mobile=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,locale:'zh-TW'});await mobile.addInitScript(setup);

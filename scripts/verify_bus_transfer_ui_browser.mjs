@@ -17,6 +17,9 @@ const stats = async () => {
 };
 
 async function openStation(page, query, expected = query, system = '台鐵') {
+  // 開機的 loadAllGroup／loadSystem 會清空搜尋框（同一段同步程式裡設 state.sysId）；先等它跑完再打字，
+  // 不然字在開機前填進去會被清掉，.stn-row 永遠不出來（10-31 真 GPU 模式 4 發全紅在這裡）。
+  await page.waitForFunction(() => typeof state !== 'undefined' && state.sysId != null);
   const start = page.getByRole('button', { name: '開始看車' });
   if (await start.isVisible().catch(() => false)) await start.click();
   const input = page.locator('#trainSearch');
