@@ -938,8 +938,10 @@ try {
   // 乾淨樹裡刻意多放的唯一一個非追蹤檔：Envato 授權的車聲原檔不能進公開 repo，網站只放打亂過的 .bin
   // （理由見 scripts/build_ambience_web.mjs）。放在所有閘門之後，閘門與帳本看到的仍是純追蹤檔的樹。
   // 缺原檔就停：靜默略過的症狀只有「網站的車聲開關不見了」，沒有別的訊號（同 prepare-web 的理由）。
+  // 它是產物、不是閘門，所以用 rawSpawnSync 不經帳本：經帳本時同一份產品先 --preview 再正式出貨，
+  // 正式那發會帳本命中而跳過、出貨樹裡沒有這個檔（verify_ship_web_guard W10）。
   const ambOut = path.join(wt, 'audio', 'train-ride-loop.bin');
-  const amb = spawnSync('node', [path.join(wt, 'scripts', 'build_ambience_web.mjs'), ambOut], { cwd: wt, encoding: 'utf8' });
+  const amb = rawSpawnSync('node', [path.join(wt, 'scripts', 'build_ambience_web.mjs'), ambOut], { cwd: wt, encoding: 'utf8' });
   process.stdout.write(amb.stdout || ''); process.stderr.write(amb.stderr || '');
   if (amb.status !== 0) fail('車聲打亂檔產生失敗');
   const ambMd5 = md5(fs.readFileSync(ambOut));

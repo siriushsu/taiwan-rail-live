@@ -142,7 +142,8 @@ const widths = [360, 375, 414, 768];
 // 10/30: the website gains the Rail sound switch adds one (533 -> 534).
 // 11/01: the Countryside Station garage scene gets more detail adds one (540 -> 541).
 // 11/02: level crossings on underground/elevated sections removed adds one (541 -> 542).
-const expectedHistoryCount = 546;
+// 11/03: refined models for 57 Taiwanese trains in the garage and on the 3D map adds one (546 -> 547).
+const expectedHistoryCount = 547;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

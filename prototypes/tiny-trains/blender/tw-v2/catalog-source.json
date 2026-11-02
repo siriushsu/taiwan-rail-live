@@ -1,0 +1,2944 @@
+[
+ {
+  "id": "c301",
+  "name": "C301・北捷初代",
+  "label": "C301",
+  "detail": "不鏽鋼框黑色窗區 · 粗藍腰帶 · 中央逃生門",
+  "color": "#2479c9",
+  "source": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/04/301.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-URC_C301_EMU.jpg"
+   }
+  ],
+  "features": [
+   "垂直平頭：黑色窗區四周留一圈不鏽鋼框，中央逃生門從防爬器上緣一路到窗頂。",
+   "窗下一段不鏽鋼、再下來是粗藍帶，頭尾燈座嵌在藍帶兩端；左窗上緣目的地字幕、下緣車號字牌。",
+   "每側四組雙開門，門扇上的藍帶跟車身接成一條；壓紋平頂、邊緣小通風口，底下第三軌集電靴。"
+  ],
+  "photos": [
+   {
+    "file": "File:Kawasaki-URC C301 EMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-URC_C301_EMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側、車側門窗配置"
+   },
+   {
+    "file": "File:C301 & C381 at Beitou Station 20150721.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:C301_%26_C381_at_Beitou_Station_20150721.jpg",
+    "author": "James970028",
+    "licence": "CC BY-SA 3.0",
+    "use": "車頭正面（窗區外框、燈座、藍帶高度）"
+   },
+   {
+    "file": "File:A Taipei Metro C301 train at Beitou Depot 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:A_Taipei_Metro_C301_train_at_Beitou_Depot_01.jpg",
+    "author": "Lokseng01",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面高度、壓紋平頂與通風口"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "c321",
+  "name": "C321・板南線",
+  "label": "C321",
+  "detail": "後傾黑色車頭 · 粗藍腰帶 · 中央逃生門",
+  "color": "#2479c9",
+  "source": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2010/03/321.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Sinsyuan（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:C321_Bannan_BL02_20260108.jpg"
+   }
+  ],
+  "features": [
+   "車頭微微後傾，黑色窗區一路延伸到車頂邊。",
+   "粗藍帶、燈座與中央逃生門跟 C301 同一套端面配置。",
+   "與 C341 外觀幾乎相同，只靠車號字牌區分，不假造差異。"
+  ],
+  "photos": [
+   {
+    "file": "File:C321 Bannan BL02 20260108.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:C321_Bannan_BL02_20260108.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面與傾角"
+   },
+   {
+    "file": "File:C321 at Zhongxiao Xinsheng 20250906.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:C321_at_Zhongxiao_Xinsheng_20250906.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車側門窗與色帶"
+   },
+   {
+    "file": "File:C321 modern version at Ximen Station 20250718 T1445.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:C321_modern_version_at_Ximen_Station_20250718_T1445.jpg",
+    "author": "Daniel.yin2",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "c341",
+  "name": "C341・板南線",
+  "label": "C341",
+  "detail": "後傾黑色車頭 · 粗藍腰帶 · 中央逃生門",
+  "color": "#2479c9",
+  "source": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/03/341.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:C341_1201_at_Ximen_Station_20060531.jpg"
+   }
+  ],
+  "features": [
+   "車頭微微後傾，黑色窗區一路延伸到車頂邊。",
+   "粗藍帶、燈座與中央逃生門跟 C301 同一套端面配置。",
+   "與 C321 同一家族，外觀共用同一份車頭，只換車號字牌。"
+  ],
+  "photos": [
+   {
+    "file": "File:C341 1201 at Ximen Station 20060531.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:C341_1201_at_Ximen_Station_20060531.jpg",
+    "author": "蒼空　翔",
+    "licence": "CC BY-SA 3.0",
+    "use": "車頭正面與車側"
+   },
+   {
+    "file": "File:Siemens SGP Verkehrstechnik 2003 plate on Taipei MRT train 341.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Siemens_SGP_Verkehrstechnik_2003_plate_on_Taipei_MRT_train_341.jpg",
+    "author": "Solomon203",
+    "licence": "CC BY-SA 3.0",
+    "use": "製造商銘板（確認與 C321 同廠）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "c371",
+  "name": "C371・北捷主力",
+  "label": "C371",
+  "detail": "圓弧車頂邊 · 黑色窗區 · 粗藍腰帶",
+  "color": "#2479c9",
+  "source": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2010/03/301.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_C371_EMU.jpg"
+   }
+  ],
+  "features": [
+   "車頭上緣圓弧後收，黑色窗區兩側留窄不鏽鋼柱、頂端大圓角。",
+   "粗藍帶、燈座與中央逃生門沿用北捷標準端面。",
+   "三節支線與六節列車共用車系，這裡展示一節駕駛車。"
+  ],
+  "photos": [
+   {
+    "file": "File:Kawasaki-TRSC C371 EMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_C371_EMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側、車側門窗"
+   },
+   {
+    "file": "File:3-car C371 at Qizhang station 20250912.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:3-car_C371_at_Qizhang_station_20250912.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面（圓弧上緣與窗區外框）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "c381",
+  "name": "C381・圓弧車頭",
+  "label": "C381",
+  "detail": "銀色圓鼓車頭 · 藍色 V 帶 · 三片前窗",
+  "color": "#2479c9",
+  "source": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/11/381.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_C381_EMU.jpg"
+   }
+  ],
+  "features": [
+   "銀色圓鼓車頭，上緣一圈黑帶；三片前窗各有黑框、中間隔銀色窗柱，中央是逃生門。",
+   "粗藍帶從兩側燈座內緣斜下到中央成 V 字，下方一條細藍線；兩角燈座內白外紅，黑帶上兩角琥珀燈、中央紅色標識燈。",
+   "深灰防爬器；車側是粗藍帶加一條細藍線。"
+  ],
+  "photos": [
+   {
+    "file": "File:Taipei-MRT C381 20130908.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taipei-MRT_C381_20130908.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "車頭正面（V 帶、燈組、窗分割）"
+   },
+   {
+    "file": "File:C301 & C381 at Beitou Station 20150721.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:C301_%26_C381_at_Beitou_Station_20150721.jpg",
+    "author": "James970028",
+    "licence": "CC BY-SA 3.0",
+    "use": "跟 C301 並排比車頭高度與鼓出量"
+   },
+   {
+    "file": "File:Kawasaki-TRSC C381 EMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_C381_EMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側、車側色帶"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu500",
+  "name": "EMU500 通勤電車",
+  "label": "EMU500",
+  "detail": "藍色平頭 · 中央貫通門 · 窗下兩道藍線",
+  "color": "#416ea3",
+  "source": "https://blair-train.blogspot.com/2010/02/emu500.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/emu500.html"
+   },
+   {
+    "label": "Wikimedia Commons／billy1125（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EM510_20130313.jpg"
+   }
+  ],
+  "features": [
+   "藍色平頭，中央貫通門外凸一圈門框、門窗下一塊白牌；左右前窗上方分別是車號牌與目的地顯示器。",
+   "車頂前緣中央一座雙頭燈，窗下兩條白細線，兩角內白外紅圓燈，下緣黃黑警戒斜紋。",
+   "不鏽鋼車身下半部橫向壓紋、窗下兩道藍線，每側三組雙開門；駕駛車沒有受電弓。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EM510 20130313.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EM510_20130313.jpg",
+    "author": "billy1125",
+    "licence": "CC BY 2.0",
+    "use": "車頭正面（貫通門、前窗、燈位、白細線、警戒斜紋）"
+   },
+   {
+    "file": "File:TRA EMU609 20160714.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU609_20160714.jpg",
+    "author": "林昱維",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側、車側門窗與藍線"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu600",
+  "name": "EMU600・通勤電車",
+  "label": "EMU600",
+  "detail": "藍色平頭 · 中央貫通門 · 窗下兩道藍線",
+  "color": "#467ba5",
+  "source": "https://blair-train.blogspot.com/2010/03/emu600.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/03/emu600.html"
+   },
+   {
+    "label": "Wikimedia Commons（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU609_20160714.jpg"
+   }
+  ],
+  "features": [
+   "外觀與 EMU500 同款：藍色平頭、外凸的中央貫通門與門窗下白牌。",
+   "車頂前緣中央雙頭燈、窗下兩條白細線、兩角內白外紅圓燈與警戒斜紋。",
+   "不鏽鋼車身橫向壓紋、窗下兩道藍線，每側三組雙開門。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EMU609 20160714.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU609_20160714.jpg",
+    "author": "林昱維",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側、車側門窗與藍線"
+   },
+   {
+    "file": "File:TRA EM510 20130313.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EM510_20130313.jpg",
+    "author": "billy1125",
+    "licence": "CC BY 2.0",
+    "use": "車頭正面（貫通門、前窗、燈位、白細線、警戒斜紋）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "haifeng",
+  "name": "海風號",
+  "label": "海風號",
+  "detail": "海水藍綠整車上色 · 下緣漸層到白",
+  "color": "#9acdc5",
+  "source": "https://blair-train.blogspot.com/2024/08/blog-post.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2024/08/blog-post.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%B5%B7%E9%A2%A8%E8%99%9F%E5%8F%8A%E5%B1%B1%E5%B5%90%E8%99%9F%E5%88%97%E8%BB%8A%E5%A4%96%E8%A7%80%E8%A8%AD%E8%A8%88%E7%A4%BA%E6%84%8F%E5%9C%96.png"
+   }
+  ],
+  "features": [
+   "EMU500 改造：平頭、中央貫通門與車頂雙頭燈沿用原車。",
+   "整車海水藍綠，車身與門扇下緣漸層到白色，車頭下方黑色下裙。",
+   "不放車名字樣與標誌，只做車體配色。"
+  ],
+  "photos": [
+   {
+    "file": "File:海風號及山嵐號列車外觀設計示意圖.png",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%B5%B7%E9%A2%A8%E8%99%9F%E5%8F%8A%E5%B1%B1%E5%B5%90%E8%99%9F%E5%88%97%E8%BB%8A%E5%A4%96%E8%A7%80%E8%A8%AD%E8%A8%88%E7%A4%BA%E6%84%8F%E5%9C%96.png",
+    "author": "臺灣鐵路公司",
+    "licence": "Attribution",
+    "use": "整車配色與漸層位置（官方示意圖）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "shanlan",
+  "name": "山嵐號",
+  "label": "山嵐號",
+  "detail": "稻穗黃綠整車上色 · 下緣漸層到白",
+  "color": "#cedb90",
+  "source": "https://blair-train.blogspot.com/2024/08/emu583.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2024/08/emu583.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU583_SHANLAN_Changhua_Station_20260719.jpg"
+   }
+  ],
+  "features": [
+   "EMU500 改造：平頭、中央貫通門與車頂雙頭燈沿用原車。",
+   "整車稻穗黃綠，車身與門扇下緣漸層到白色，車頭下方黑色下裙。",
+   "不放車名字樣與標誌，只做車體配色。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EMU583 SHANLAN Changhua Station 20260719.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU583_SHANLAN_Changhua_Station_20260719.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "山嵐號實車車頭與車側配色"
+   },
+   {
+    "file": "File:海風號及山嵐號列車外觀設計示意圖.png",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%B5%B7%E9%A2%A8%E8%99%9F%E5%8F%8A%E5%B1%B1%E5%B5%90%E8%99%9F%E5%88%97%E8%BB%8A%E5%A4%96%E8%A7%80%E8%A8%AD%E8%A8%88%E7%A4%BA%E6%84%8F%E5%9C%96.png",
+    "author": "臺灣鐵路公司",
+    "licence": "Attribution",
+    "use": "整車配色與漸層位置（官方示意圖）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu800",
+  "name": "EMU800 微笑號",
+  "label": "EMU800",
+  "detail": "長車鼻 · 藍色面罩 · 黃色微笑框",
+  "color": "#e2bd51",
+  "source": "https://blair-train.blogspot.com/2012/06/emu800-tra-emu800-type-electric.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/06/emu800-tra-emu800-type-electric.html"
+   },
+   {
+    "label": "Wikimedia Commons／Ltdccba（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA-EMU800-2013-08-27-0003(%E8%BB%8A%E9%A0%AD1).JPG"
+   }
+  ],
+  "features": [
+   "銀色下巴往前凸、面罩往後傾，藍色面罩被黃色色帶框住，下緣彎成微笑弧線。",
+   "面罩上緣三顆頭燈、大片前窗，窗下四顆圓燈內白外紅；下巴兩個通風格柵。",
+   "不鏽鋼車身窗下黃藍兩條線，每側三組雙開門。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA-EMU800-2013-08-27-0003(車頭1).JPG",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA-EMU800-2013-08-27-0003(%E8%BB%8A%E9%A0%AD1).JPG",
+    "author": "Ltdccba",
+    "licence": "CC BY-SA 3.0",
+    "use": "車頭正面（面罩、微笑色帶、燈組、下巴格柵）"
+   },
+   {
+    "file": "File:TRA EMU882 in Douliu Station 2017-07-17.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU882_in_Douliu_Station_2017-07-17.jpg",
+    "author": "Subscriptshoe9",
+    "licence": "CC BY-SA 4.0",
+    "use": "增備反色版車頭配色"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu800r",
+  "name": "EMU800・增備反色版",
+  "label": "EMU800",
+  "detail": "長車鼻 · 黃色面罩 · 藍色微笑框",
+  "color": "#d7bb55",
+  "source": "https://blair-train.blogspot.com/2012/06/emu800-tra-emu800-type-electric.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/06/emu800-tra-emu800-type-electric.html"
+   },
+   {
+    "label": "Wikimedia Commons／Subscriptshoe9（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU882_in_Douliu_Station_2017-07-17.jpg"
+   }
+  ],
+  "features": [
+   "跟 EMU800 同一個車頭造型，配色相反：黃色面罩、藍色框與微笑弧線。",
+   "面罩上緣三顆頭燈、窗下四顆圓燈、下巴兩個通風格柵。",
+   "車側窗下黃藍兩條線，每側三組雙開門。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EMU882 in Douliu Station 2017-07-17.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU882_in_Douliu_Station_2017-07-17.jpg",
+    "author": "Subscriptshoe9",
+    "licence": "CC BY-SA 4.0",
+    "use": "增備反色版車頭配色"
+   },
+   {
+    "file": "File:TRA-EMU800-2013-08-27-0003(車頭1).JPG",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA-EMU800-2013-08-27-0003(%E8%BB%8A%E9%A0%AD1).JPG",
+    "author": "Ltdccba",
+    "licence": "CC BY-SA 3.0",
+    "use": "車頭正面（面罩、微笑色帶、燈組、下巴格柵）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu900",
+  "name": "EMU900 區間車",
+  "label": "EMU900",
+  "detail": "黑色面罩 · 白色 LED 燈帶 · 嫩綠側頰",
+  "color": "#83bd35",
+  "source": "https://newtalk.tw/news/view/2023-11-18/897088",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/emu900-tra-emu900-type-electric.html"
+   },
+   {
+    "label": "Wikimedia Commons／jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU900_running_a_local_train_service_on_the_Western_Line.jpg"
+   }
+  ],
+  "features": [
+   "車頭上半一整片黑色面罩，前窗融在黑裡；頂端中央目的地顯示、上方兩角各一顆圓頭燈。",
+   "窗下兩側斜放煙燻燈座、下緣一條白色 LED 燈帶；燈座外側的嫩綠側頰繞過車角，接成車側窗下的綠帶。",
+   "駕駛室後面是長圓窗與乘務員門，再往後三組雙開門；面罩以下銀色，中央開口露出車鉤。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EMU900 running a local train service on the Western Line.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU900_running_a_local_train_service_on_the_Western_Line.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面（面罩、前窗、燈座、LED 燈帶、側頰高度）"
+   },
+   {
+    "file": "File:EMU900 Yingge Station 20260108 (2).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU900_Yingge_Station_20260108_(2).jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側（側頰接車側綠帶、長圓窗、乘務員門）"
+   },
+   {
+    "file": "File:EMU900 Yingge Station 20260108.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU900_Yingge_Station_20260108.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側（燈座與燈帶形狀）"
+   },
+   {
+    "file": "File:臺鐵EMU900型電聯車於現代工廠.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%87%BA%E9%90%B5EMU900%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A%E6%96%BC%E7%8F%BE%E4%BB%A3%E5%B7%A5%E5%BB%A0.jpg",
+    "author": "中華民國交通部",
+    "licence": "Attribution",
+    "use": "駕駛車側面（門窗配置、車頂冷氣）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu700",
+  "name": "EMU700・阿福號",
+  "label": "EMU700",
+  "detail": "白色平直車頭 · 橘色外框與月牙下巴 · 藍色裙部",
+  "color": "#467ba5",
+  "source": "https://blair-train.blogspot.com/2011/09/emu740.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2011/09/emu740.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.trsc.com.tw/train/tran-58acf525031f4"
+   },
+   {
+    "label": "Wikimedia Commons／jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU700_running_a_local_train_service_on_the_Western_Line_approaching_Wudu_Station.jpg"
+   }
+  ],
+  "features": [
+   "平直的白色車頭，左右緣橘色外框、車角與駕駛室側面藍色；大片圓角前窗加黑框。",
+   "頂端中央藥丸形雙頭燈座、右上目的地顯示，窗下四顆鍍鉻圈圓燈（外紅內白）。",
+   "下巴往前凸、橘色月牙形，下方藍色裙部；車側窗下粗藍帶加細橘線、車頂邊一條藍帶，每側三組雙開門。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EMU700 running a local train service on the Western Line approaching Wudu Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU700_running_a_local_train_service_on_the_Western_Line_approaching_Wudu_Station.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面（前窗、燈位、橘色外框與月牙下巴高度）"
+   },
+   {
+    "file": "File:EMU700 at Daqing Station 20240204.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU700_at_Daqing_Station_20240204.jpg",
+    "author": "鐵路1",
+    "licence": "CC BY-SA 4.0",
+    "use": "2024 年塗裝確認、車頭斜側與下巴凸出"
+   },
+   {
+    "file": "File:20230505 TRA EMU700 at Zhunan Station 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:20230505_TRA_EMU700_at_Zhunan_Station_01.jpg",
+    "author": "鐵路1",
+    "licence": "CC BY-SA 4.0",
+    "use": "車側（窗下藍帶、細橘線、車頂邊藍帶、門窗）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "temu1000",
+  "name": "TEMU1000 太魯閣",
+  "label": "TEMU1000",
+  "detail": "鈍圓長車鼻 · 黑色遮陽面 · 橘色笑臉帶",
+  "color": "#dc8b46",
+  "source": "https://blair-train.blogspot.com/2010/02/temu1000.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/temu1000.html"
+   },
+   {
+    "label": "Wikimedia Commons／Cheng-en Cheng（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_Taroko_Express_at_Xizhi_Station.jpg"
+   }
+  ],
+  "features": [
+   "鈍圓的長車鼻、前窗往後倒；前窗連同上方一整片黑色遮陽面，頂端中央凸出雙頭燈座。",
+   "窗下兩個煙燻「眼睛」燈座往中央下斜；橘帶從車側沿駕駛室往下掃，到車頭變成笑臉弧，下巴是 U 形車鉤蓋。",
+   "白色車身、深灰連續窗帶、窗帶下緣接橘帶；每側兩扇單開塞拉門。"
+  ],
+  "photos": [
+   {
+    "file": "File:2019-07-19 TEMU1000 on the Western Line (Northern Section).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2019-07-19_TEMU1000_on_the_Western_Line_(Northern_Section).jpg",
+    "author": "魏 子棋",
+    "licence": "Public domain",
+    "use": "車頭正面（遮陽面、前窗、頭燈座、眼睛燈座、笑臉弧、車鉤蓋高度）"
+   },
+   {
+    "file": "File:A TRA Taroko Express at Xizhi Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_Taroko_Express_at_Xizhi_Station.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "車頭斜側（車鼻圓角、橘帶從車側掃進車頭）"
+   },
+   {
+    "file": "File:北迴線 (35177226555).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E5%8C%97%E8%BF%B4%E7%B7%9A_(35177226555).jpg",
+    "author": "billy1125",
+    "licence": "CC BY 2.0",
+    "use": "駕駛車側面（車鼻長度、前窗斜度、駕駛室側窗、門窗配置）"
+   },
+   {
+    "file": "File:TRA TEMU1000 \"Taroko\" Express at Changhua Station 2007-01-20.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_TEMU1000_%22Taroko%22_Express_at_Changhua_Station_2007-01-20.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "車側（窗帶、橘帶、單開塞拉門的比例）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "temu2000",
+  "name": "TEMU2000 普悠瑪",
+  "label": "TEMU2000",
+  "detail": "紅色楔形車頭 · 黑框前窗 · 白色臉頰",
+  "color": "#c8514b",
+  "source": "https://blair-train.blogspot.com/2012/06/temu2000.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/06/temu2000.html"
+   },
+   {
+    "label": "Wikimedia Commons／Tbatb（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:A_Southbound_TRA_Puyuma_express_approaching_North_Hsinchu_Station_02.jpg"
+   }
+  ],
+  "features": [
+   "楔形車鼻：下巴中央往前凸、前窗往後倒；紅色車頭從車頂往下收窄，車角與下巴兩側是白色臉頰。",
+   "頂端左右各一個圓頭燈座、中間目的地顯示；黑框前窗下緣中間往下彎；窗下兩個外高內低的眼睛燈座（白頭燈＋紅尾燈）。",
+   "下巴有 U 形分模線框住往下收窄的紅色部分；車側白色、獨立車窗，窗下一粗一細兩條紅帶；每側兩扇單開塞拉門。"
+  ],
+  "photos": [
+   {
+    "file": "File:A Southbound TRA Puyuma express approaching North Hsinchu Station 02.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:A_Southbound_TRA_Puyuma_express_approaching_North_Hsinchu_Station_02.jpg",
+    "author": "Tbatb",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面（頭燈座、前窗、眼睛燈座、紅色車頭與白色臉頰、U 形分模線高度）"
+   },
+   {
+    "file": "File:2015-08-19 TEMU2000 on the Western Line (Northern Section).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2015-08-19_TEMU2000_on_the_Western_Line_(Northern_Section).jpg",
+    "author": "魏子棋",
+    "licence": "Public domain",
+    "use": "車頭斜前方（車鼻、駕駛室側窗、門位、紅帶在駕駛室後結束）"
+   },
+   {
+    "file": "File:A Southbound TRA Puyuma Express on Western Line south of Hsinchu Station 02.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:A_Southbound_TRA_Puyuma_Express_on_Western_Line_south_of_Hsinchu_Station_02.jpg",
+    "author": "Tbatb",
+    "licence": "CC BY-SA 4.0",
+    "use": "車側（獨立車窗、一粗一細兩條紅帶的比例）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "700t",
+  "name": "700T 高鐵",
+  "label": "700T",
+  "detail": "鴨嘴長車鼻 · 黑色水滴窗罩 · 橘黑腰線",
+  "color": "#ef842b",
+  "source": "https://blair-train.blogspot.com/2010/02/700t.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/700t.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:THSR_700T_frontnose_20130807.jpg"
+   }
+  ],
+  "features": [
+   "鴨嘴長車鼻：鼻尖在下、一路往後抬高到車頂；黑色駕駛窗罩包住車鼻兩肩、側面看得到一長條，白頭燈與紅尾燈在窗罩前端裡面，鼻蓋前段有一圈分模線。",
+   "橘帶上緣全車同高：駕駛室段橘色一路到深灰裙邊，在車鼻變成往下包的 U 形；客室段只剩窄橘帶，上面壓一條前端削尖的黑線。",
+   "駕駛室門後一塊黑色楔形（前緣從裙邊彎上來、後緣斜切）；小圓角獨立窗，每側兩扇單開門；平頂，駕駛車沒有受電弓。"
+  ],
+  "photos": [
+   {
+    "file": "File:THSR 700T frontnose 20130807.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:THSR_700T_frontnose_20130807.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "駕駛車正側面（車鼻上下輪廓、橘帶上緣與裙邊高度、門與窗的高度）"
+   },
+   {
+    "file": "File:THSR 700T 126-12 20130807.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:THSR_700T_126-12_20130807.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "色帶結構（黑線前端削尖、門後黑色楔形、客室段窄橘帶）"
+   },
+   {
+    "file": "File:THSR 700T 126-11 20130807.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:THSR_700T_126-11_20130807.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "中間車（窗、黑線、窄橘帶的高度）"
+   },
+   {
+    "file": "File:Shinkansen 700T.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Shinkansen_700T.jpg",
+    "author": "Graham2000",
+    "licence": "Public domain",
+    "use": "正面（駕駛窗罩寬度、頭燈位置、U 形橘色）"
+   },
+   {
+    "file": "File:THSR 700T Front view.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:THSR_700T_Front_view.jpg",
+    "author": "Alec @ Taiwan",
+    "licence": "CC BY 2.0",
+    "use": "斜前方（水滴形窗罩、頭尾燈、鼻蓋分模線）"
+   },
+   {
+    "file": "File:THSR 700T trains at Yanchao Workshop 20080404.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:THSR_700T_trains_at_Yanchao_Workshop_20080404.jpg",
+    "author": "Chopstick",
+    "licence": "CC BY-SA 3.0",
+    "use": "斜上方（車鼻平面收窄、黑線與楔形的位置）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "e1000",
+  "name": "E1000・推拉自強",
+  "label": "E1000",
+  "detail": "銀色車身 · 橘帶往前下掃 · 橘色下巴",
+  "color": "#e98b46",
+  "source": "https://blair-train.blogspot.com/2010/02/e1000.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/e1000.html"
+   },
+   {
+    "label": "Wikimedia Commons／WC-QHS（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_Push-pull_Tze-chiang_express_trains_at_TRA_Changhua_Station.jpg"
+   }
+  ],
+  "features": [
+   "往後倒的長車頭：上半銀色、兩扇黑框大前窗，頂端中央膠囊形雙頭燈座；窗下一道往上拱的折線，下巴整片橘色，左右兩個黑色燈座各兩顆圓燈。",
+   "車側橘色窗帶，帶下白細線與紅線、車身下緣另一條紅線；駕駛室前方橘帶與紅白線一起往前下掃，在車頭併成下巴的 V 字。",
+   "只有前端駕駛室（側窗前緣斜切、側門與扶手），後端是接客車的端牆；車頂後段是設備罩與單臂受電弓。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA E1000 Push-pull Express train on the Western Line.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E1000_Push-pull_Express_train_on_the_Western_Line.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面（前窗、頭燈座、下巴燈座與通風口、V 字紅白線、裙板警戒條的橫向位置）"
+   },
+   {
+    "file": "File:TRA Push-pull Tze-chiang express trains at TRA Changhua Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_Push-pull_Tze-chiang_express_trains_at_TRA_Changhua_Station.jpg",
+    "author": "WC-QHS",
+    "licence": "CC BY-SA 4.0",
+    "use": "駕駛室正側面（車頭輪廓、橘帶與紅線高度、側窗與側門、往前下掃的線）"
+   },
+   {
+    "file": "File:A TRA Push-pull Tze-chiang Express at Hsinchu Station 02.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_Push-pull_Tze-chiang_Express_at_Hsinchu_Station_02.jpg",
+    "author": "Lokseng01",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜前方全車（百葉、受電弓、車頂設備罩的位置）"
+   },
+   {
+    "file": "File:Push-Pull Tze-Chiang Limited Express Trainset.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Push-Pull_Tze-Chiang_Limited_Express_Trainset.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "機車與客車色帶對齊"
+   },
+   {
+    "file": "File:Close-up of a TRA Push-pull Tze-chiang express at Taichung Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Close-up_of_a_TRA_Push-pull_Tze-chiang_express_at_Taichung_Station.jpg",
+    "author": "WC-QHS",
+    "licence": "CC BY-SA 4.0",
+    "use": "後端牆（上橘下銀、紅線）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "ppcoach",
+  "name": "推拉自強・40PPD2500 客貨車",
+  "label": "40PPD2500",
+  "detail": "銀色車身 · 橘色窗帶 · 一半行李間",
+  "color": "#de8645",
+  "source": "https://blair-train.blogspot.com/2011/04/40ppd2500.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2011/04/40ppd2500.html"
+   },
+   {
+    "label": "Wikimedia Commons／Encino（Public domain）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_PPD2525_20021229.jpg"
+   }
+  ],
+  "features": [
+   "不鏽鋼車身，橘色窗帶、帶下白細線與紅線、車身下緣另一條紅線，高度跟 E1000 機車對齊。",
+   "兩端各一扇有窗的單開塞拉門；窗只在一半（兩大兩小），另一半是行李間、只有橘帶，橘帶上緣兩個小百葉。",
+   "壓紋車頂，行李間那端車頂一大台冷氣；兩端是貫通道端牆。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA PPD2525 20021229.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_PPD2525_20021229.jpg",
+    "author": "Encino",
+    "licence": "Public domain",
+    "use": "車體配置（門在一端、窗在另一半；這輛是廣告彩繪車，只看結構不看顏色）"
+   },
+   {
+    "file": "File:Push-Pull Tze-Chiang Limited Express Trainset.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Push-Pull_Tze-Chiang_Limited_Express_Trainset.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "客車色帶跟 E1000 對齊"
+   },
+   {
+    "file": "Blair Yu 40PPD2527 照片 3 張",
+    "url": "https://blair-train.blogspot.com/2011/04/40ppd2500.html",
+    "author": "Blair Yu",
+    "licence": "All rights reserved",
+    "use": "只在本機看門窗、百葉與冷氣的配置，不轉載、不量色"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dr3100",
+  "name": "DR3100・柴聯自強",
+  "label": "DR3100",
+  "detail": "黃色警戒車頭 · 黃色凸框貫通門 · 不鏽鋼壓紋車身",
+  "color": "#dd8751",
+  "source": "https://blair-train.blogspot.com/2011/09/dr3100.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2011/09/dr3100.html"
+   },
+   {
+    "label": "Wikimedia Commons／Takeshi Aida（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7_DR3100,_%E6%B1%90%E6%AD%A2%E8%BB%8A%E7%AB%99_(20250216).jpg"
+   }
+  ],
+  "features": [
+   "黃色車頭、橘色上緣；兩側黑框前窗，頭燈在窗框上緣；中央貫通門外框是黃色凸框。",
+   "窗下橘帶接往中央下斜的橘色斜紋，內側隔一道黃色斜帶、再往內到貫通門框是橘色；上緣兩塊高壓警示牌，下緣黃圈紅尾燈與黃黑警戒條。",
+   "不鏽鋼車身加縱向壓紋，窗上黃細線、窗下橘帶；駕駛室後是乘務員門；車頂兩台斜端冷氣罩與排氣管。"
+  ],
+  "photos": [
+   {
+    "file": "File:柴聯自強 DR3100, 汐止車站 (20250216).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7_DR3100,_%E6%B1%90%E6%AD%A2%E8%BB%8A%E7%AB%99_(20250216).jpg",
+    "author": "Takeshi Aida",
+    "licence": "CC BY-SA 2.0",
+    "use": "車頭正面（窗、頭燈、貫通門、斜紋、尾燈高度）"
+   },
+   {
+    "file": "File:Two TRA DR3100 on the Western Line.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Two_TRA_DR3100_on_the_Western_Line.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭近照（兩道斜紋的間距與斜率）"
+   },
+   {
+    "file": "File:DR3100 Series DMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:DR3100_Series_DMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "車側門窗配置、縱向壓紋、車頂冷氣罩"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dr1000",
+  "name": "DR1000 支線小車",
+  "label": "DR1000",
+  "detail": "黃色警戒車頭 · 黑框寬貫通門 · 雙頭單車",
+  "color": "#eaa33c",
+  "source": "https://railscenery.ever.jp/taiwan/taolin/index.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/dr1000.html"
+   },
+   {
+    "label": "Wikimedia Commons／Tbatb（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_DR1000_train_approaching_Hsinchu_Station.jpg"
+   }
+  ],
+  "features": [
+   "跟 DR3100 同一套警戒塗裝（窗下橘帶、往中央下斜的橘色斜紋與黃色斜帶）；貫通門外框是黑色橡膠框，門比 DR3100 寬。",
+   "頭燈在左右前窗窗框上緣，尾燈在下緣黃圈裡；上緣兩塊高壓警示牌；兩端都是車頭。",
+   "不鏽鋼車身加縱向壓紋，門窗前後對稱；車頂兩端冷氣、中央四個散熱風扇與管線。"
+  ],
+  "photos": [
+   {
+    "file": "File:2019-07-19 DR1000 on the Western Line (Northern Section).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2019-07-19_DR1000_on_the_Western_Line_(Northern_Section).jpg",
+    "author": "魏 子棋",
+    "licence": "Public domain",
+    "use": "車頭正面（窗、頭燈、橡膠框、斜紋、尾燈位置）"
+   },
+   {
+    "file": "File:A TRA DR1000 train approaching Hsinchu Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_DR1000_train_approaching_Hsinchu_Station.jpg",
+    "author": "Tbatb",
+    "licence": "CC BY-SA 4.0",
+    "use": "車側門窗配置與車頂設備"
+   },
+   {
+    "file": "File:TRA DR1000.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR1000.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 2.0",
+    "use": "車頭與車側塗裝交界"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dr2700",
+  "name": "DR2700 白鐵仔",
+  "label": "DR2700",
+  "detail": "不鏽鋼波紋車身與車頭 · 頂端雙頭燈 · 中央貫通門",
+  "color": "#a9beb7",
+  "source": "https://blair-train.blogspot.com/2011/09/dr2700.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2011/09/dr2700.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR2706_Yuli_20130906.jpg"
+   }
+  ],
+  "features": [
+   "整車不鏽鋼，車側窗上、窗下滿滿的縱向波紋，車頭窗下兩側也有橫向波紋。",
+   "車頭上緣圓角大，頂端中央凸出雙頭燈座；兩側圓角大前窗、中央貫通門外框一圈古銅色邊。",
+   "深褐色車頂中央一段高起；下緣兩角鍍鉻圈小尾燈、深灰下裙；兩端都是車頭。"
+  ],
+  "photos": [
+   {
+    "file": "File:A TRA DR2700 charter train 2015-11-28.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_DR2700_charter_train_2015-11-28.jpg",
+    "author": "魏 子棋",
+    "licence": "Public domain",
+    "use": "車頭正面（頭燈座、前窗、貫通門、波紋、尾燈高度）"
+   },
+   {
+    "file": "File:TRA DR2706 Yuli 20130906.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR2706_Yuli_20130906.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "車頭斜側與車頂高起段"
+   },
+   {
+    "file": "File:TRA DR2723 Taitung 20130906.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR2723_Taitung_20130906.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "車側門窗配置"
+   },
+   {
+    "file": "File:Close-up of a TRA DR2700 train.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Close-up_of_a_TRA_DR2700_train.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "車側波紋近照"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu100",
+  "name": "EMU100 英國婆",
+  "label": "EMU100",
+  "detail": "橘紅與琥珀黃警戒車頭 · 米金與赭金雙色車身",
+  "color": "#c49651",
+  "source": "https://www.nrm.gov.tw/News_Content2.aspx?n=3338&s=135580",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/emu100.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.nrm.gov.tw/News_Content2.aspx?n=3338&s=135580"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU100_at_the_Huatan_Station_20231112.jpg"
+   }
+  ],
+  "features": [
+   "橘紅車頭，中央貫通門外圍一圈琥珀黃框；兩側小窗那一段琥珀黃，窗下一道往中央微斜的琥珀黃帶。",
+   "頂端中央雙頭燈座、上緣兩角高壓警示小牌、下緣橘紅凸圈尾燈、黃色直槽排障板；本款是警戒色版本，不混用復原的原始米棕色端面。",
+   "車側米金色上半、赭金色下半；駕駛室後是百葉通風窗與窄窗，再接客室門與六扇大窗。"
+  ],
+  "photos": [
+   {
+    "file": "File:EMU100 at the Huatan Station 20231112.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU100_at_the_Huatan_Station_20231112.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "車頭正面（貫通門框、窗、色帶斜度、尾燈、排障板）"
+   },
+   {
+    "file": "File:2019-02-28 a TRA EMU100 at Dali Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2019-02-28_a_TRA_EMU100_at_Dali_Station.jpg",
+    "author": "魏 子棋",
+    "licence": "Public domain",
+    "use": "車頭正面（色帶與燈位對照）"
+   },
+   {
+    "file": "File:TRA EMU100 55EM101.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU100_55EM101.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "車側雙色分界與窗高"
+   },
+   {
+    "file": "File:TRA EMU100 50EP101.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU100_50EP101.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "駕駛車車側門窗配置（2014；這輛駕駛室那端車頂有受電弓，花壇、大里兩張頭車沒有，模型照後兩張）"
+   },
+   {
+    "file": "File:EMU100 電聯車.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU100_%E9%9B%BB%E8%81%AF%E8%BB%8A.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "另一端復原塗裝（只確認兩端塗裝不同，不建模）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu1200",
+  "name": "EMU1200 紅斑馬",
+  "label": "EMU1200",
+  "detail": "白色圓角車頭 · 五道橘帶繞到駕駛室 · 紅色下裙",
+  "color": "#d97444",
+  "source": "https://blair-train.blogspot.com/2010/09/emu1200.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/09/emu1200.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU1200_Series_EMU.jpg"
+   }
+  ],
+  "features": [
+   "白色圓角車頭，頂端膠囊形頭燈與兩個小標識窗；一整片黑框大前窗、中間一根窗柱。",
+   "窗下五道橘帶是車殼本身的分色，繞過車角到駕駛室側面，被一道往後上揚的橘色斜帶收掉；兩側黑色燈座、黃黑 V 字排障板。",
+   "車側白色、紅色下裙、車頂邊一條橘線；駕駛室後一組受電弓。"
+  ],
+  "photos": [
+   {
+    "file": "File:2015-08-09 EMU1200 on the Western Line (Northern Section).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2015-08-09_EMU1200_on_the_Western_Line_(Northern_Section).jpg",
+    "author": "魏 子棋",
+    "licence": "Public domain",
+    "use": "車頭正面（頭燈、前窗、五道橘帶高度、燈座、排障板）"
+   },
+   {
+    "file": "File:EMU1200 Series EMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU1200_Series_EMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭斜側（橘帶繞到駕駛室、斜帶、車側紅裙與窗）"
+   },
+   {
+    "file": "File:Close-up of a TRA EMU1200 train at Taichung Station 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Close-up_of_a_TRA_EMU1200_train_at_Taichung_Station_01.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "車頭近照"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "airportlocal",
+  "name": "機捷普通車・1000型",
+  "label": "機捷普通車",
+  "detail": "藍色面罩夾逃生門 · 斜放燈座 · 窗上粉紫漸層帶",
+  "color": "#467ba5",
+  "source": "https://blair-bus.blogspot.com/2011/10/blog-post_08.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/10/blog-post_08.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_1000_Series_EMU.jpg"
+   }
+  ],
+  "features": [
+   "藍色面罩：兩片大前窗夾中央逃生門（門上半藍、有小窗），頂端綠字目的地；面罩下緣在車角往上收，露出不鏽鋼。",
+   "窗下兩側斜放黑色燈座（外側紅圈尾燈、內側頭燈），藍色腰帶在車角往下斜成車頭下方的斜線；灰色防爬器。",
+   "不鏽鋼車身、每側三組雙開門；窗上一條淡粉紫色帶，靠駕駛室那段從淡藍漸層過來。"
+  ],
+  "photos": [
+   {
+    "file": "File:Taoyuan MRT train approaching Dayuan February 2026 1.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taoyuan_MRT_train_approaching_Dayuan_February_2026_1.jpg",
+    "author": "4300streetcar",
+    "licence": "CC BY 4.0",
+    "use": "車頭正面（面罩、前窗、逃生門、燈座、斜線高度）"
+   },
+   {
+    "file": "File:Kawasaki-TRSC 1000 Series EMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_1000_Series_EMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側（門數、窗上色帶漸層、腰帶高度、取色）"
+   },
+   {
+    "file": "File:Taoyuan MRT train approaching Dayuan February 2026 2.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taoyuan_MRT_train_approaching_Dayuan_February_2026_2.jpg",
+    "author": "4300streetcar",
+    "licence": "CC BY 4.0",
+    "use": "車頭近照"
+   },
+   {
+    "file": "File:Taoyuan Airport MRT Line Commuter train 20230508 063000.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taoyuan_Airport_MRT_Line_Commuter_train_20230508_063000.jpg",
+    "author": "Anas1712",
+    "licence": "CC BY 4.0",
+    "use": "車側"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "airportexpress",
+  "name": "機捷直達車・2000型",
+  "label": "機捷直達車",
+  "detail": "紫色面罩夾逃生門 · 斜放燈座 · 每側三組門",
+  "color": "#836a9d",
+  "source": "https://blair-bus.blogspot.com/2011/10/blog-post.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/10/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_2000_Series_EMU.jpg"
+   }
+  ],
+  "features": [
+   "跟普通車同一個車體，主色換成紫色：面罩、腰帶與車頭斜線都是紫色，窗上色帶淡紫、靠駕駛室那段從紫色漸層過來。",
+   "每側三組雙開門（照片可數；fleet-v1 是兩組）。",
+   "窗下兩側斜放黑色燈座、中央逃生門有小窗、頂端綠字目的地、灰色防爬器。"
+  ],
+  "photos": [
+   {
+    "file": "File:Kawasaki-TRSC 2000 Series EMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_2000_Series_EMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側（三組門、紫色面罩、淡紫窗上色帶、取色）"
+   },
+   {
+    "file": "File:Taoyuan Metro Express Train 2020-01-23.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taoyuan_Metro_Express_Train_2020-01-23.jpg",
+    "author": "Subscriptshoe9",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭與車側"
+   },
+   {
+    "file": "File:Express Train entering New Taipei Industrial Park Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Express_Train_entering_New_Taipei_Industrial_Park_Station.jpg",
+    "author": "Cheng-en Cheng from Taichung City, Taiwan",
+    "licence": "CC BY-SA 2.0",
+    "use": "車側"
+   },
+   {
+    "file": "File:Taoyuan MRT train approaching Dayuan February 2026 1.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taoyuan_MRT_train_approaching_Dayuan_February_2026_1.jpg",
+    "author": "4300streetcar",
+    "licence": "CC BY 4.0",
+    "use": "車頭正面（與普通車同一個車體）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "y100",
+  "name": "環狀線・日立電聯車",
+  "label": "環狀線",
+  "detail": "白色圓鼓車頭 · 黃色 U 形環 · 黑色窗帶",
+  "color": "#d6b93d",
+  "source": "https://milkyrailway.blogspot.com/2020/03/blog-post.html",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://milkyrailway.blogspot.com/2020/03/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Sinsyuan（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:C610_at_Shisizhang_20260107_(3).jpg"
+   }
+  ],
+  "features": [
+   "白色圓鼓車頭，一圈黃色 U 形環框住黑色大窗區，環的兩臂往上接到車頂、再順著車頂邊變成車側的黃色細線；黑色一路到車頂成為頂帽。",
+   "窗區兩下角各一個花生形燈座；下方一道折線、兩個百葉格柵與中央檢修蓋。",
+   "車側白色、整條黑色窗帶、窗下黃色腰帶（門扇上也有）；每側三組雙開門。做的是通車時的白色原塗裝。"
+  ],
+  "photos": [
+   {
+    "file": "File:C610 at Shisizhang 20260107 (3).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:C610_at_Shisizhang_20260107_(3).jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面（量高度）"
+   },
+   {
+    "file": "File:TRTC Circular Line EMU train by ntpcdorts.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRTC_Circular_Line_EMU_train_by_ntpcdorts.jpg",
+    "author": "Department of Rapid Transit Systems, New Taipei City Government",
+    "licence": "Public domain",
+    "use": "斜側（車側色帶、門窗、取色）"
+   },
+   {
+    "file": "File:環狀線列車車體.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E7%92%B0%E7%8B%80%E7%B7%9A%E5%88%97%E8%BB%8A%E8%BB%8A%E9%AB%94.jpg",
+    "author": "Ryan lin91",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜前（U 形環接車頂邊線）"
+   },
+   {
+    "file": "File:Trains on the Taipei Metro Circular Line 20180810(2).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Trains_on_the_Taipei_Metro_Circular_Line_20180810(2).jpg",
+    "author": "臺北市政府",
+    "licence": "Attribution",
+    "use": "機廠內車頭"
+   },
+   {
+    "file": "File:Trains on the Taipei Metro Circular Line 20180810(1).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Trains_on_the_Taipei_Metro_Circular_Line_20180810(1).jpg",
+    "author": "臺北市政府",
+    "licence": "Attribution",
+    "use": "機廠內車頭"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "sanying",
+  "name": "三鶯線・日立電聯車",
+  "label": "三鶯線",
+  "detail": "淺藍車身 · 深灰頭盔 · 銀色燈眉",
+  "color": "#4d9abd",
+  "source": "https://www.dorts.ntpc.gov.tw/news/indexInfo/W0OdPjwWmnbJ?page=1",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://www.dorts.ntpc.gov.tw/news/indexInfo/W0OdPjwWmnbJ?page=1"
+   },
+   {
+    "label": "Wikimedia Commons／Sinsyuan（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Sanying_Line_EMU_@LB01_20260630.jpg"
+   }
+  ],
+  "features": [
+   "跟環狀線同一個車體，塗裝完全不同：淺藍車身，深灰頭盔包住大前窗並延伸成頂帽。",
+   "窗下一條往兩端上翹的銀色燈眉，兩端各一簇紅白 LED；燈眉下深色凹槽。",
+   "深灰下裙有兩個百葉格柵與中央檢修蓋；每側三組雙開門。"
+  ],
+  "photos": [
+   {
+    "file": "File:Sanying Line EMU @LB01 20260630.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Sanying_Line_EMU_@LB01_20260630.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭正面（量高度）"
+   },
+   {
+    "file": "File:Sanying Line EMU @LB04 20260702.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Sanying_Line_EMU_@LB04_20260702.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭"
+   },
+   {
+    "file": "File:New Taipei Metro Sanying Line EMU 20230830.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:New_Taipei_Metro_Sanying_Line_EMU_20230830.jpg",
+    "author": "新北市政府",
+    "licence": "Attribution",
+    "use": "斜側（車身顏色、頭盔、下裙、取色）"
+   },
+   {
+    "file": "File:202607 Sanying Line metro trains at Dingpu Station (LB01).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:202607_Sanying_Line_metro_trains_at_Dingpu_Station_(LB01).jpg",
+    "author": "Junyu-K",
+    "licence": "CC BY 4.0",
+    "use": "車側"
+   },
+   {
+    "file": "File:Sanying Line EMU @LB12 20260702.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Sanying_Line_EMU_@LB12_20260702.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "taichung",
+  "name": "台中捷運・綠線",
+  "label": "台中捷運",
+  "detail": "黑色盾形車頭 · 白色弧面 · 深藍與嫩綠車側",
+  "color": "#70ac68",
+  "source": "https://blair-bus.blogspot.com/2023/08/blog-post_20.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2023/08/blog-post_20.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.tmrt.com.tw/metro-status/train-info"
+   },
+   {
+    "label": "Wikimedia Commons／Cheng-en Cheng（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Taichung_Metro_Green_Line_EMU_at_Beitun_Main_Station_2021-03-25.jpg"
+   }
+  ],
+  "features": [
+   "白色圓鼓車頭，中央一面上寬下窄的黑色盾形（前窗在裡面、到車頂成為頂帽），兩側白色弧面、最外緣深藍。",
+   "兩下角斜放黑色燈艙（上頭燈、下尾燈）；下方深灰弧形保險桿與兩個通風口，車底兩角白色排障角。",
+   "車側上半深藍、下半銀色，車底嫩綠帶、車頂邊嫩綠線、窗中間一條黃綠細線；駕駛室側面白色，後緣一道嫩綠＋深藍斜帶；每側五組雙開門。"
+  ],
+  "photos": [
+   {
+    "file": "File:Taichung Metro Green Line EMU at Beitun Main Station 2021-03-25.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taichung_Metro_Green_Line_EMU_at_Beitun_Main_Station_2021-03-25.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "車頭正面（量高度）"
+   },
+   {
+    "file": "File:Train approaching Songzhu Station on Taichung Metro Green Line 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Train_approaching_Songzhu_Station_on_Taichung_Metro_Green_Line_01.jpg",
+    "author": "Lokseng01",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側"
+   },
+   {
+    "file": "File:2021-03-25 MRT train approaching Songzhu Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2021-03-25_MRT_train_approaching_Songzhu_Station.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "斜側（駕駛室斜帶、車側色帶）"
+   },
+   {
+    "file": "File:2020-10-10 台中捷運綠線列車：01-02編組.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2020-10-10_%E5%8F%B0%E4%B8%AD%E6%8D%B7%E9%81%8B%E7%B6%A0%E7%B7%9A%E5%88%97%E8%BB%8A%EF%BC%9A01-02%E7%B7%A8%E7%B5%84.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "編組側面"
+   },
+   {
+    "file": "File:Train of Taichung MRT 20210107.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Train_of_Taichung_MRT_20210107.jpg",
+    "author": "臺中市政府",
+    "licence": "Attribution",
+    "use": "車頭"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "kaohsiung",
+  "name": "高雄捷運・西門子",
+  "label": "高雄捷運",
+  "detail": "青綠頂帽 · 黑色面罩 · 青綠笑臉帶",
+  "color": "#52937c",
+  "source": "https://blair-bus.blogspot.com/2011/01/blog-post.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/01/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Siemens_Modular_Metro_EMU.jpg"
+   }
+  ],
+  "features": [
+   "平直車頭：上緣青綠頂帽（延伸到駕駛室車頂）、中央頂燈；黑色面罩夾兩扇前窗與中央逃生門，門頂一塊青綠飾板。",
+   "面罩下緣是往兩側上揚的笑臉弧，弧下一條白線、再下是青綠帶與兩組燈座（外紅內白），最下銀色。",
+   "不鏽鋼車身、窗下一條青綠寬帶、車頂兩端冷氣箱；每側四組雙開門。"
+  ],
+  "photos": [
+   {
+    "file": "File:KMRT Gangshan Station 2024.06.30.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:KMRT_Gangshan_Station_2024.06.30.jpg",
+    "author": "總統府",
+    "licence": "CC BY 2.0",
+    "use": "車頭正面（量高度）"
+   },
+   {
+    "file": "File:Siemens Modular Metro EMU.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Siemens_Modular_Metro_EMU.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側（取色）"
+   },
+   {
+    "file": "File:Color of the Siemens Modular Metro (Kaohsiung MRT) 20241111.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Color_of_the_Siemens_Modular_Metro_(Kaohsiung_MRT)_20241111.jpg",
+    "author": "阿道",
+    "licence": "CC BY-SA 4.0",
+    "use": "青綠塗裝近照（取色）"
+   },
+   {
+    "file": "File:Kaohsiung MRT Train.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Kaohsiung_MRT_Train.jpg",
+    "author": "chia ying Yang",
+    "licence": "CC BY 2.0",
+    "use": "車頭"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "val256",
+  "name": "VAL256・文湖馬特拉",
+  "label": "VAL256",
+  "detail": "白色平頭大前窗 · 深藍下緣 · 膠輪與水平導向輪",
+  "color": "#467ba5",
+  "source": "https://blair-bus.blogspot.com/2011/03/val256.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/03/val256.html"
+   },
+   {
+    "label": "Wikimedia Commons／Subscriptshoe9（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Matra_VAL256,_Taipei_Metro_20210509.jpg"
+   }
+  ],
+  "features": [
+   "白色平頭，一整片圓角大前窗（無人駕駛），窗下一塊白色飾板；下方深藍帶、兩側各一大一小圓燈，最下黑色裙板。",
+   "車側上半白、窗下淺灰藍帶夾深藍細線、下緣深藍；每側兩組雙開門。",
+   "每節兩根膠輪單軸，軸的前後兩側各一個水平導向輪，貼在導軌高度（工程圖正面）。"
+  ],
+  "photos": [
+   {
+    "file": "File:Matra VAL256, Taipei Metro 20210509.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Matra_VAL256,_Taipei_Metro_20210509.jpg",
+    "author": "Subscriptshoe9",
+    "licence": "CC BY-SA 4.0",
+    "use": "車頭與車側（取色）"
+   },
+   {
+    "file": "File:Matra-GEC Alsthom VAL256 APM.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Matra-GEC_Alsthom_VAL256_APM.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側"
+   },
+   {
+    "file": "File:Engineering drawings of the VAL 256.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Engineering_drawings_of_the_VAL_256.jpg",
+    "author": "作者不詳",
+    "licence": "Attribution",
+    "use": "正面與側面工程圖（導向輪位置、窗高）"
+   },
+   {
+    "file": "File:VAL256 No.10 at Neihu Depot 20200711.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:VAL256_No.10_at_Neihu_Depot_20200711.jpg",
+    "author": "Solomon203",
+    "licence": "CC BY-SA 4.0",
+    "use": "機廠內車頭"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "e200",
+  "name": "E200 電力機車",
+  "label": "E200",
+  "detail": "橘色車身上半奶油色 · 正面 V 字色帶 · 單臂受電弓",
+  "color": "#ec7838",
+  "source": "https://blair-train.blogspot.com/2010/02/e200.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/e200.html"
+   },
+   {
+    "label": "Wikimedia Commons／Lokseng01（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E236_at_Hsinchu_Station.jpg"
+   }
+  ],
+  "features": [
+   "車頭下半垂直，兩扇黑框圓角前窗往後倒，車頂前緣凸出頭燈箱（兩顆頭燈、兩支氣笛）；窗下兩塊黑底車號牌，上角暗紅標識燈。",
+   "橘色車身、上半奶油色，奶油色帶在車角繞到正面變成往中央下降的 V 字；車側是平滑大板，沒有百葉。",
+   "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。",
+   "轉向架之間吊一個機車自己的車下設備箱：深灰箱體偏一端，一端兩側各兩組百葉、另一端下角斜切（E236、E311、E405 側面照都看得到；電聯車式的設備箱不放）。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA E236 at Hsinchu Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E236_at_Hsinchu_Station.jpg",
+    "author": "Lokseng01",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側（駕駛室側窗與門的順序、車頂設備）"
+   },
+   {
+    "file": "File:TRA E236 and TPC Hsinchu Branch 20210328.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E236_and_TPC_Hsinchu_Branch_20210328.jpg",
+    "author": "Solomon203",
+    "licence": "CC BY-SA 4.0",
+    "use": "正側面（色帶高度）；車下設備箱"
+   },
+   {
+    "file": "File:TRA E333 and E202 at Changhua Rolling Stock Branch.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E333_and_E202_at_Changhua_Rolling_Stock_Branch.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面（前窗、V 字色帶、車號牌、頭燈箱）"
+   },
+   {
+    "file": "File:TRA E200 PANTOGRAPH.JPG",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E200_PANTOGRAPH.JPG",
+    "author": "CCY18999",
+    "licence": "CC BY-SA 3.0",
+    "use": "單臂受電弓"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "e300",
+  "name": "E300・電力機車",
+  "label": "E300",
+  "detail": "橘色車身上半奶油色 · 正面 V 字色帶 · 單臂受電弓",
+  "color": "#ec7838",
+  "source": "https://blair-train.blogspot.com/2010/02/e300.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/e300.html"
+   },
+   {
+    "label": "Wikimedia Commons／Solomon203（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TR_E311_passing_Platform_1,_Baifu_Station_20240705.jpg"
+   }
+  ],
+  "features": [
+   "車頭下半垂直，兩扇黑框圓角前窗往後倒，車頂前緣凸出頭燈箱（兩顆頭燈、兩支氣笛）；窗下兩塊黑底車號牌，上角暗紅標識燈。",
+   "橘色車身、上半奶油色，奶油色帶在車角繞到正面變成往中央下降的 V 字；車側是平滑大板，沒有百葉。",
+   "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。",
+   "轉向架之間吊一個機車自己的車下設備箱：深灰箱體偏一端，一端兩側各兩組百葉、另一端下角斜切（E236、E311、E405 側面照都看得到；電聯車式的設備箱不放）。"
+  ],
+  "photos": [
+   {
+    "file": "File:TR E311 passing Platform 1, Baifu Station 20240705.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TR_E311_passing_Platform_1,_Baifu_Station_20240705.jpg",
+    "author": "Solomon203",
+    "licence": "CC BY-SA 4.0",
+    "use": "側面（跟 E200 同車體）；車下設備箱"
+   },
+   {
+    "file": "File:TRA E333 and E202 at Changhua Rolling Stock Branch.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E333_and_E202_at_Changhua_Rolling_Stock_Branch.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面（E333 與 E202 並排，車頭一樣）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "e400",
+  "name": "E400・電力機車",
+  "label": "E400",
+  "detail": "橘色車身上半奶油色 · 正面 V 字色帶 · 單臂受電弓",
+  "color": "#ec7838",
+  "source": "https://blair-train.blogspot.com/2010/02/e400.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/e400.html"
+   },
+   {
+    "label": "Wikimedia Commons／Tbatb（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E415_at_Hsinchu_Station.jpg"
+   }
+  ],
+  "features": [
+   "車頭下半垂直，兩扇黑框圓角前窗往後倒，車頂前緣凸出頭燈箱（兩顆頭燈、兩支氣笛）；窗下兩塊黑底車號牌，上角暗紅標識燈。",
+   "橘色車身、上半奶油色，奶油色帶在車角繞到正面變成往中央下降的 V 字；車側是平滑大板，沒有百葉。",
+   "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。",
+   "轉向架之間吊一個機車自己的車下設備箱：深灰箱體偏一端，一端兩側各兩組百葉、另一端下角斜切（E236、E311、E405 側面照都看得到；電聯車式的設備箱不放）。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA E415 at Hsinchu Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E415_at_Hsinchu_Station.jpg",
+    "author": "Tbatb",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側（跟 E200 同車體）"
+   },
+   {
+    "file": "File:TRA E333 and E202 at Changhua Rolling Stock Branch.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E333_and_E202_at_Changhua_Rolling_Stock_Branch.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "mingri",
+  "name": "鳴日號・經典車頭",
+  "label": "E400",
+  "detail": "黑色車身橘色塗裝 · 兩端塗裝不同 · 金色圓徽",
+  "color": "#d2441a",
+  "source": "https://blair-train.blogspot.com/2019/12/blog-post.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Kazehayashi（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E405_with_Future_passenger_cars_at_Taitung_Station_20210117.jpg"
+   }
+  ],
+  "features": [
+   "E400 換塗裝的觀光列車車頭，車體跟 E200 系同款：兩扇黑框前窗、頂部頭燈箱、兩組單臂受電弓。",
+   "A 端全黑、中央一道橘色直帶，右車號牌下方金色圓徽；B 端上黑下橘，中間一道往中央下彎的黑色弧線，車號牌之間偏左一枚金色大圓徽。",
+   "車側上半黑色；B 端駕駛室下半橘色，往 A 端收窄、以圓弧收尾，橘色裡一道黑色細線跟著上緣走。",
+   "轉向架之間吊一個機車自己的車下設備箱：深灰箱體偏一端，一端兩側各兩組百葉、另一端下角斜切（E236、E311、E405 側面照都看得到；電聯車式的設備箱不放）。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA E405 Front.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E405_Front.jpg",
+    "author": "臺灣鐵路管理局",
+    "licence": "Attribution",
+    "use": "B 端正面（上黑下橘交界與黑色弧線高度）"
+   },
+   {
+    "file": "File:TRA E405 Rear.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E405_Rear.jpg",
+    "author": "臺灣鐵路管理局",
+    "licence": "Attribution",
+    "use": "A 端正面（橘色直帶寬度、金色圓徽）"
+   },
+   {
+    "file": "File:TRA E405 with Future passenger cars at Taitung Station 20210117.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E405_with_Future_passenger_cars_at_Taitung_Station_20210117.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "A 端與車側；車下設備箱"
+   },
+   {
+    "file": "File:TRA E405 at Taitung Station 20210811.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E405_at_Taitung_Station_20210811.jpg",
+    "author": "Tzuhsun Hsu",
+    "licence": "CC BY-SA 2.0",
+    "use": "B 端近照（金色圓徽位置）"
+   },
+   {
+    "file": "File:TRA E405 at Platform 3B, Nangang Station 20210811.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E405_at_Platform_3B,_Nangang_Station_20210811.jpg",
+    "author": "Tzuhsun Hsu",
+    "licence": "CC BY-SA 2.0",
+    "use": "B 端與車側（弧線延伸到車側）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "e500",
+  "name": "E500・新電力機車",
+  "label": "E500",
+  "detail": "橘色車身 · 深灰面罩大前窗 · 車頂格柵蓋",
+  "color": "#f06a2e",
+  "source": "https://blair-train.blogspot.com/2019/12/e500-tra-e500-type-electric-locomotive.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/e500-tra-e500-type-electric-locomotive.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E501_Kita-Fuch%C5%AB_20230820.jpg"
+   }
+  ],
+  "features": [
+   "車頭上半一整片深灰面罩包住大前窗、往後包住駕駛室頂，面罩頂端中央兩顆頭燈；窗下左右黑色燈座各一白一紅圓燈。",
+   "整車橘色、車側平滑沒有百葉；下巴以下深灰端梁、兩角橘色側裙。",
+   "車頂淺灰，中央兩段高起的設備罩各五片格柵蓋，兩端各一組單臂受電弓；三軸轉向架。",
+   "轉向架之間不放電聯車的車下設備箱（fleet-v1 與上一版都有，機車沒有這種設備箱；車底主梁保留）。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA E501 Kita-Fuchū 20230820.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E501_Kita-Fuch%C5%AB_20230820.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "斜前方"
+   },
+   {
+    "file": "File:TRA E501 Kita-Fuchū side 20230820.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E501_Kita-Fuch%C5%AB_side_20230820.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "正側面（車頂格柵蓋、受電弓）"
+   },
+   {
+    "file": "File:臺鐵E500型電力機車.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%87%BA%E9%90%B5E500%E5%9E%8B%E9%9B%BB%E5%8A%9B%E6%A9%9F%E8%BB%8A.jpg",
+    "author": "Mafalda4144",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面（前窗、燈座、面罩高度）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "r200",
+  "name": "R200・新柴電機車",
+  "label": "R200",
+  "detail": "白色車身深藍機房 · 環繞大前窗 · 車頂散熱風扇",
+  "color": "#173660",
+  "source": "https://blair-train.blogspot.com/2019/12/r200-tra-r200-type-diesel-electric.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/r200-tra-r200-type-diesel-electric.html"
+   },
+   {
+    "label": "Wikimedia Commons／jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R201_on_its_test_run_on_the_Yilan_Line.jpg"
+   }
+  ],
+  "features": [
+   "單頭：黑框環繞大前窗，窗上黑帶與頂部頭燈、窗下黑帶與扶手；白色下巴兩角黑色燈座、中央黑色格柵。",
+   "白色車身，機房側面一大片深藍板（駕駛室後方留一段白），板上一大一小兩組百葉；下面白細線、深藍細帶，最下黑色裙板。",
+   "機房車頂深藍：中段高起的引擎罩與排氣消音器、後段兩座圓形散熱風扇；駕駛室頂白色；三軸轉向架、車底燃油箱。",
+   "拿掉被燃油箱包住的電聯車車下設備箱（外觀不變，少 3,384 個三角形）；車底主梁保留。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA R201 on its test run on the Yilan Line.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R201_on_its_test_run_on_the_Yilan_Line.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜前方"
+   },
+   {
+    "file": "File:TRA R201 at TRA Changhua Roundhouse 20231112.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R201_at_TRA_Changhua_Roundhouse_20231112.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "斜側"
+   },
+   {
+    "file": "File:臺鐵局R200新柴電機車見面會活動照片 03.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%87%BA%E9%90%B5%E5%B1%80R200%E6%96%B0%E6%9F%B4%E9%9B%BB%E6%A9%9F%E8%BB%8A%E8%A6%8B%E9%9D%A2%E6%9C%83%E6%B4%BB%E5%8B%95%E7%85%A7%E7%89%87_03.jpg",
+    "author": "臺灣鐵路管理局",
+    "licence": "Attribution",
+    "use": "正側面（色帶高度、藍板與百葉位置）"
+   },
+   {
+    "file": "File:TRA R200 203.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R200_203.jpg",
+    "author": "Qhlsohandsome",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面（前窗、燈座、格柵高度）"
+   },
+   {
+    "file": "File:TRA R200 locomotive front side view April 2026.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R200_locomotive_front_side_view_April_2026.jpg",
+    "author": "4300streetcar",
+    "licence": "CC BY 4.0",
+    "use": "斜側"
+   },
+   {
+    "file": "File:Houtong station February 2026 1.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Houtong_station_February_2026_1.jpg",
+    "author": "4300streetcar",
+    "licence": "CC BY 4.0",
+    "use": "車頂（散熱風扇與引擎罩）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "r100",
+  "name": "R100・柴電機車",
+  "label": "R100",
+  "detail": "低短鼻斜角駕駛室 · 橘色白腰帶 · 圓筒燃油箱",
+  "color": "#df7c3b",
+  "source": "https://blair-train.blogspot.com/2010/02/r100.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r100.html"
+   },
+   {
+    "label": "Wikimedia Commons／Jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R124_side_view_at_Taitung_Station.jpg"
+   }
+  ],
+  "features": [
+   "低短鼻（上緣大圓角），駕駛室正面兩角斜切、斜面上各一扇角窗；正面上方兩塊車號牌夾直列雙頭燈。",
+   "橘色車身，白色腰帶在短鼻正面變成到鼻底的 V 字飛翼、在車尾附近斜降到走道上方；短鼻兩角紅色標識燈。",
+   "長機房跟駕駛室頂同高，靠駕駛室兩扇大百葉門；沒有沿長機房的連續欄杆，只有短鼻旁走道與兩端平台的白色管扶手；車架側樑厚、兩組轉向架之間灰色圓筒燃油箱、端梁兩側黑色解聯桿、三軸轉向架。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA R124 side view at Taitung Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R124_side_view_at_Taitung_Station.jpg",
+    "author": "Jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "正側面（短鼻、駕駛室、腰帶高度）"
+   },
+   {
+    "file": "File:TRA R137 Locomotive.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R137_Locomotive.jpg",
+    "author": "小朱",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面（前窗、車號牌、頭燈、標識燈、V 字飛翼）"
+   },
+   {
+    "file": "File:R100 Series Diesel Locomotive.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:R100_Series_Diesel_Locomotive.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側（腰帶在車尾斜降、車下圓筒燃油箱）"
+   },
+   {
+    "file": "File:TRA R112.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R112.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側（圓筒燃油箱、端梁解聯桿、短鼻旁扶手）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "blue",
+  "name": "藍皮解憂・R135",
+  "label": "藍皮解憂",
+  "detail": "低短鼻 · R135 雙字牌 · 深海軍藍與白飛翼",
+  "color": "#42657c",
+  "source": "https://commons.wikimedia.org/wiki/File:藍皮解憂號於太麻里車站.jpg",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://commons.wikimedia.org/wiki/File:藍皮解憂號於太麻里車站.jpg"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.trc.com.tw/tra-tip-web/tip/tip00N/tipN01/blue/index"
+   },
+   {
+    "label": "Wikimedia Commons／jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R101_leading_a_Breezy_Blue_Train_at_Taitung_Station.jpg"
+   }
+  ],
+  "features": [
+   "車體同 R100：低短鼻、斜角駕駛室、正面上方兩塊 R135 字牌夾直列雙頭燈。",
+   "深海軍藍車身與車頂，白色腰帶與短鼻 V 字飛翼；黃黑警戒端梁、銀灰色排障器。",
+   "9 月車庫線補的前端制軔軟管、端梁上的斜桿（解聯桿）、車下圓筒燃油箱這版都有（照片自己量的）；三軸轉向架。"
+  ],
+  "photos": [
+   {
+    "file": "File:藍皮解憂號於太麻里車站.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%97%8D%E7%9A%AE%E8%A7%A3%E6%86%82%E8%99%9F%E6%96%BC%E5%A4%AA%E9%BA%BB%E9%87%8C%E8%BB%8A%E7%AB%99.jpg",
+    "author": "臺灣鐵路管理局",
+    "licence": "Attribution",
+    "use": "R135 正面（V 字飛翼、字牌、端梁解聯桿與制軔軟管）"
+   },
+   {
+    "file": "File:TRA R101 leading a Breezy Blue Train at Taitung Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R101_leading_a_Breezy_Blue_Train_at_Taitung_Station.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜前方（塗裝、排障器）"
+   },
+   {
+    "file": "File:TRA R111 on display at the Taichung Station Railway Cultural Park 2024.png",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R111_on_display_at_the_Taichung_Station_Railway_Cultural_Park_2024.png",
+    "author": "RwysTC",
+    "licence": "CC BY 4.0",
+    "use": "藍色塗裝斜側"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "r150",
+  "name": "R150・柴電機車",
+  "label": "R150",
+  "detail": "低短鼻 · 灰色機房頂 · 圓角短燃油箱",
+  "color": "#df7c3b",
+  "source": "https://blair-train.blogspot.com/2010/02/r150.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r150.html"
+   },
+   {
+    "label": "Wikimedia Commons／ChS&Rh（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R153.jpg"
+   }
+  ],
+  "features": [
+   "跟 R100 同一系的低短鼻與斜角駕駛室；長機房頂灰色、駕駛室頂淺灰。",
+   "長機房靠駕駛室兩組各兩欄百葉、車尾直條散熱器格柵；腰帶約在車長八成處斜降到走道上方。",
+   "車架側樑薄、圓角短燃油箱、三軸轉向架（Co-Co）。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA R153.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R153.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜前方（百葉位置、灰色機房頂、燃油箱、扶手）"
+   },
+   {
+    "file": "File:TRA R155 (front closeup).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R155_(front_closeup).jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面近照"
+   },
+   {
+    "file": "File:TRA R156.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R156.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "r180",
+  "name": "R180／R190・柴電機車",
+  "label": "R180／R190",
+  "detail": "方短鼻 · 右側大進氣格柵 · 駕駛室冷氣",
+  "color": "#e5853e",
+  "source": "https://blair-train.blogspot.com/2010/02/r180r190.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r180r190.html"
+   },
+   {
+    "label": "Wikimedia Commons／ChS&Rh（CC BY 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R182.png"
+   }
+  ],
+  "features": [
+   "短鼻比 R100、R150 方（上緣小圓角），正面 V 字飛翼與兩角紅色標識燈；駕駛室頂加裝冷氣。",
+   "右側（行進方向右手邊）靠駕駛室一大片進氣格柵、車尾散熱器格柵；長機房頂灰色，腰帶在車尾附近斜降。",
+   "車下長空氣筒與電池箱、三軸轉向架。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA R182.png",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R182.png",
+    "author": "ChS&Rh",
+    "licence": "CC BY 4.0",
+    "use": "斜前方（右側進氣格柵、短鼻、車下設備）"
+   },
+   {
+    "file": "File:R180 Series Diesel Locomotive.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:R180_Series_Diesel_Locomotive.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜前方（方短鼻）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "r20",
+  "name": "R20 柴電機車",
+  "label": "R20",
+  "detail": "高短鼻 · 灰色圓頂駕駛室 · 橘色白腰帶",
+  "color": "#e27836",
+  "source": "https://blair-train.blogspot.com/2010/02/r20r50.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r20r50.html"
+   },
+   {
+    "label": "Wikimedia Commons／Lokseng01（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R38_at_Hsinchu_Station_01.jpg"
+   }
+  ],
+  "features": [
+   "高短鼻：短鼻跟長機房一樣高、比駕駛室窄；車頭是短鼻那端，正面切角，上方兩塊車號牌夾直列雙頭燈，白色 V 字飛翼。",
+   "駕駛室頂灰色圓頂、側面兩片拉窗；長機房靠駕駛室三組高百葉、一組小百葉、車尾上方散熱器格柵。",
+   "腰帶在車長約七成處斜降到走道上方；沒有連續欄杆，只有角落與駕駛室的直扶手；三軸轉向架。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA R38 at Hsinchu Station 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R38_at_Hsinchu_Station_01.jpg",
+    "author": "Lokseng01",
+    "licence": "CC BY-SA 4.0",
+    "use": "正側面（短鼻、駕駛室、長機房長度與腰帶高度）"
+   },
+   {
+    "file": "File:R20 Series Diesel Locomotive.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:R20_Series_Diesel_Locomotive.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "短鼻端正面"
+   },
+   {
+    "file": "File:TRA R34 at Changhua Rolling Stock Branch.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R34_at_Changhua_Rolling_Stock_Branch.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "長機房端"
+   },
+   {
+    "file": "File:Close-up of TRA R71 before Changhua Roundhouse.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Close-up_of_TRA_R71_before_Changhua_Roundhouse.jpg",
+    "author": "Lokseng01",
+    "licence": "CC BY-SA 4.0",
+    "use": "近照"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dhl100",
+  "name": "DHL100・調車機車",
+  "label": "DHL100",
+  "detail": "偏前駕駛室 · 長短機房與側走道",
+  "color": "#dd7a39",
+  "source": "https://blair-train.blogspot.com/2013/07/dhl100.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2013/07/dhl100.html"
+   },
+   {
+    "label": "Wikimedia Commons／Solomon203（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DHL102_at_Qidu_Marshalling_Yard_20191102.jpg"
+   }
+  ],
+  "features": [
+   "駕駛室偏短機房那端（短機房、駕駛室、長機房約 14%、24%、62%），比兩邊機房高、淺灰色斜頂；正面兩扇前窗夾直列雙頭燈。",
+   "窄機房兩側走道；短機房正面上方黑色車號牌、白色 V 字飛翼，全車白色腰帶；長機房頂三個圓形散熱風扇、車尾兩片大散熱格柵。",
+   "黃黑警戒端梁上一白一紅兩顆燈，兩端平台與駕駛室門口白色管扶手；二軸轉向架。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA DHL102 at Qidu Marshalling Yard 20191102.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DHL102_at_Qidu_Marshalling_Yard_20191102.jpg",
+    "author": "Solomon203",
+    "licence": "CC BY-SA 4.0",
+    "use": "正側面（駕駛室位置、各段長度與高度）"
+   },
+   {
+    "file": "File:TRA DHL109 2023-07-19.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DHL109_2023-07-19.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "短機房端斜前方（車號牌、V 字飛翼、駕駛室正面、端梁燈、扶手）"
+   },
+   {
+    "file": "File:TRA DHL108.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DHL108.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "juguang",
+  "name": "莒光號・客車",
+  "label": "莒光號",
+  "detail": "橘色下半 · 奶油色窗帶 · 兩端橘色門區",
+  "color": "#d87a45",
+  "source": "https://blair-train.blogspot.com/2010/02/blog-post_8855.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_8855.html"
+   },
+   {
+    "label": "Wikimedia Commons／Lokseng01（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Different_generations_of_TRA_Chu-Kuang_Express_coaches_at_Qidu_Marshalling_Yard_20210403.jpg"
+   }
+  ],
+  "features": [
+   "下半橘色、窗帶奶油色，窗下一道橘細線與白線；橘色與奶油色跟 GE 機車同色（車庫裡 GE、柴電機車後面掛的都是這款）。",
+   "兩端門區整段橘色（奶油色帶在門區前結束、上角圓角），白線跨過門區；兩端各一扇有窗的單開門，門區車身往下包住踏階。",
+   "九扇寬窄不一的窗（照正側面照的順序），車頂淺灰、兩端各一台冷氣；兩端是貫通道端牆。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA FPK10535 at Qidu Marshalling Yard 20170402.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_FPK10535_at_Qidu_Marshalling_Yard_20170402.jpg",
+    "author": "林昱維",
+    "licence": "CC BY-SA 4.0",
+    "use": "正側面（色帶與窗的高度、窗的順序與寬窄、門區）"
+   },
+   {
+    "file": "File:Different generations of TRA Chu-Kuang Express coaches at Qidu Marshalling Yard 20210403.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Different_generations_of_TRA_Chu-Kuang_Express_coaches_at_Qidu_Marshalling_Yard_20210403.jpg",
+    "author": "Lokseng01",
+    "licence": "CC BY-SA 4.0",
+    "use": "新舊兩型並排（門區與奶油色帶收尾、車頂冷氣在兩端）"
+   },
+   {
+    "file": "File:A TRA FPK10600 coach at Qidu Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_FPK10600_coach_at_Qidu_Station.jpg",
+    "author": "Lokseng01",
+    "licence": "CC BY-SA 4.0",
+    "use": "FPK10600 側面與車頂"
+   },
+   {
+    "file": "File:TRA FPK10638 20160715.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_FPK10638_20160715.jpg",
+    "author": "林昱維",
+    "licence": "CC BY-SA 4.0",
+    "use": "FPK10600 側面"
+   },
+   {
+    "file": "File:35SP32955 Chu-Kuang Express.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:35SP32955_Chu-Kuang_Express.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "早期型（手動折門、奶油色帶斜切收尾）對照，這版做 FPK10600 系"
+   },
+   {
+    "file": "File:TRA Chu-Kuang Express 561 passing North Hsinchu Station toward Hsinchu Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_Chu-Kuang_Express_561_passing_North_Hsinchu_Station_toward_Hsinchu_Station.jpg",
+    "author": "Nomad112",
+    "licence": "CC BY-SA 4.0",
+    "use": "機車與客車在同一張照片，比顏色（客車奶油色比機車暖、橘色相近）"
+   },
+   {
+    "file": "File:TRA E212 pulling Chu-Kuang Express coaches and passing Zhubei Station 20190131.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E212_pulling_Chu-Kuang_Express_coaches_and_passing_Zhubei_Station_20190131.jpg",
+    "author": "魏子棋",
+    "licence": "Public domain",
+    "use": "編組（GE 機車加客車）"
+   },
+   {
+    "file": "File:TRA R116 leading a Chu-Kuang Express.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R116_leading_a_Chu-Kuang_Express.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 2.0",
+    "use": "編組（柴電機車加客車）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "mingricoach",
+  "name": "鳴日號・客車",
+  "label": "鳴日號",
+  "detail": "深色上半 · 橘色下半與橘細線 · 寬窗夾白框小窗",
+  "color": "#d68c47",
+  "source": "https://blair-train.blogspot.com/2019/12/blog-post.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Lokseng01（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_BCK10609_at_Shulin_Marshalling_Yard_20210401.jpg"
+   }
+  ],
+  "features": [
+   "莒光號 FPK10600 改造，車體跟莒光號客車同一支；上半與車頂深色、下半橘色，顏色跟鳴日號經典車頭同一組。",
+   "橘色上緣一道深色細帶、再上一道橘細線，窗下緣就在橘細線上（fleet-v1 的金色腰線照片上沒有，改成橘色）。",
+   "寬的深色窗之間夾白框小窗；兩端各一扇單開門、門區車身往下包住踏階；車頂兩端灰色冷氣。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA BCK10609 at Shulin Marshalling Yard 20210401.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_BCK10609_at_Shulin_Marshalling_Yard_20210401.jpg",
+    "author": "Lokseng01",
+    "licence": "CC BY-SA 4.0",
+    "use": "正側面（色帶與窗的高度、窗的順序、門區裙板、車頂冷氣）"
+   },
+   {
+    "file": "File:TRA PC10501 at Taitung Station 20201114.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_PC10501_at_Taitung_Station_20201114.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "橘細線與深色細帶"
+   },
+   {
+    "file": "File:Taiwan Railways Administration The Future Train near Zhongli Station 20220729.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Taiwan_Railways_Administration_The_Future_Train_near_Zhongli_Station_20220729.jpg",
+    "author": "Subscriptshoe9",
+    "licence": "CC BY-SA 4.0",
+    "use": "編組"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "bluecoach",
+  "name": "藍皮解憂・復古客車",
+  "label": "藍皮解憂",
+  "detail": "深海軍藍側牆 · 窗下白帶 · 淺拱銀灰車頂",
+  "color": "#42657c",
+  "source": "https://blair-train.blogspot.com/2023/09/blog-post_97.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2023/09/blog-post_97.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.trc.com.tw/tra-tip-web/tip/tip00N/tipN01/blue/index"
+   },
+   {
+    "label": "Wikimedia Commons／Tze Chiang Hao（CC BY 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:2023-09-12_TRA_Taimali_Station_01.jpg"
+   }
+  ],
+  "features": [
+   "深海軍藍車身、窗下白帶，跟藍皮 R135 同色；淺拱銀灰車頂、雨水槽、車頂中線一排白色蕈狀通風器。",
+   "九扇可開窗：白銀色圓角窗框、上下兩格、每扇各自的窗台，窗的高度照正側面照重量（fleet-v1 太高）；一端廁所霧面小窗。",
+   "兩端各一扇窄的手動單開門、門下外露踏階；端牆有門、風擋折片、紅色尾燈。"
+  ],
+  "photos": [
+   {
+    "file": "File:2023-09-12 TRA Taimali Station 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2023-09-12_TRA_Taimali_Station_01.jpg",
+    "author": "Tze Chiang Hao",
+    "licence": "CC BY 4.0",
+    "use": "正側面（白帶、窗、雨水槽高度）"
+   },
+   {
+    "file": "File:藍皮解憂號.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%97%8D%E7%9A%AE%E8%A7%A3%E6%86%82%E8%99%9F.jpg",
+    "author": "臺灣鐵路管理局",
+    "licence": "Attribution",
+    "use": "車窗、車門與白帶"
+   },
+   {
+    "file": "File:藍色懷舊 臺鐵公司「藍皮解憂號」與日本四國「藍吉野川觀光小火車」 締結姊妹車輛協定 新聞稿照片 頁面 07 影像 0001.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%97%8D%E8%89%B2%E6%87%B7%E8%88%8A_%E8%87%BA%E9%90%B5%E5%85%AC%E5%8F%B8%E3%80%8C%E8%97%8D%E7%9A%AE%E8%A7%A3%E6%86%82%E8%99%9F%E3%80%8D%E8%88%87%E6%97%A5%E6%9C%AC%E5%9B%9B%E5%9C%8B%E3%80%8C%E8%97%8D%E5%90%89%E9%87%8E%E5%B7%9D%E8%A7%80%E5%85%89%E5%B0%8F%E7%81%AB%E8%BB%8A%E3%80%8D_%E7%B7%A0%E7%B5%90%E5%A7%8A%E5%A6%B9%E8%BB%8A%E8%BC%9B%E5%8D%94%E5%AE%9A_%E6%96%B0%E8%81%9E%E7%A8%BF%E7%85%A7%E7%89%87_%E9%A0%81%E9%9D%A2_07_%E5%BD%B1%E5%83%8F_0001.jpg",
+    "author": "臺灣鐵路股份有限公司",
+    "licence": "Attribution",
+    "use": "車窗近照（窗框、上下兩格）與車身藍"
+   },
+   {
+    "file": "File:TRA R123 at Jinlun Station 20131229.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R123_at_Jinlun_Station_20131229.jpg",
+    "author": "billy1125",
+    "licence": "CC BY 2.0",
+    "use": "機車與客車在同一張照片，比顏色（客車藍跟機車同色）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dl25",
+  "name": "DL25～34・三菱車系",
+  "label": "DL25～34",
+  "detail": "短鼻在前 · 白色 V 字與腰帶 · 長機房端格柵",
+  "color": "#e43a36",
+  "source": "https://blair-train.blogspot.com/2010/02/blog-post_2428.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_2428.html"
+   },
+   {
+    "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_26%27_at_Beimen_2023-07-18.jpg"
+   }
+  ],
+  "features": [
+   "駕駛室那端在前：行駛中的列車照片上機車都是駕駛室端朝外、客車接長機房端（fleet-v1 相反）。",
+   "短鼻很短，正面白色 V 字、車號牌、兩角小燈；駕駛室兩扇前窗、中間上方一顆頭燈；全車白色腰帶、機房腰帶上方一排百葉、車下圓筒燃油箱。",
+   "長機房端整面橫條散熱器格柵、白色 V 字疊在格柵上、兩角圓燈；高度照正側面照換算（腰帶 1.84–2.00、機房頂 2.30、屋簷 2.84）。"
+  ],
+  "photos": [
+   {
+    "file": "File:AFR 'DL 26' at Beimen 2023-07-18.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_26%27_at_Beimen_2023-07-18.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "正側面（車架、腰帶、機房頂、駕駛室窗與屋簷高度）"
+   },
+   {
+    "file": "File:AFR DL-29 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL-29_01.jpg",
+    "author": "ⓥⓘⓣⓐ",
+    "licence": "CC BY 2.0",
+    "use": "駕駛室端斜前方（短鼻、前窗、頭燈）"
+   },
+   {
+    "file": "File:Close-up of AFR DL-31 2012-12-12.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Close-up_of_AFR_DL-31_2012-12-12.jpg",
+    "author": "Wentao",
+    "licence": "CC BY 2.0",
+    "use": "長機房端（格柵、V 字、兩角燈）"
+   },
+   {
+    "file": "File:AFR DL-25 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL-25_01.jpg",
+    "author": "ⓥⓘⓣⓐ",
+    "licence": "CC BY 2.0",
+    "use": "行駛中的列車：駕駛室端朝外"
+   },
+   {
+    "file": "File:AFR DL-30 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL-30_01.jpg",
+    "author": "育昌",
+    "licence": "CC BY-SA 3.0",
+    "use": "行駛中的列車：客車接長機房端"
+   },
+   {
+    "file": "File:AFR DL-28 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL-28_01.jpg",
+    "author": "manginwu",
+    "licence": "CC BY-SA 2.0",
+    "use": "行駛中的列車：駕駛室端朝外"
+   },
+   {
+    "file": "File:JhushanDL-26.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:JhushanDL-26.jpg",
+    "author": "Hhaithait",
+    "licence": "CC BY-SA 3.0",
+    "use": "行駛中的列車：駕駛室端朝外"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dl38",
+  "name": "DL38・日車試作型",
+  "label": "DL38",
+  "detail": "平整短鼻 · 白色 V 字 · 長機房端黑色格柵",
+  "color": "#e43a36",
+  "source": "https://blair-train.blogspot.com/2010/02/blog-post_5539.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_5539.html"
+   },
+   {
+    "label": "Wikimedia Commons／bugsy ho（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL38_01.jpg"
+   }
+  ],
+  "features": [
+   "駕駛室那端在前；短鼻比 DL25 長、正面平整：白色 V 字、上方車號牌、兩角圓燈、腰帶上方兩角紅色標識燈、鼻頂水平扶手。",
+   "駕駛室兩扇大前窗、車頂氣笛；側面門靠短鼻。",
+   "長機房端大片黑色橫條散熱器格柵、上方車號牌與兩角小圓燈，2023 年照片上沒有 V 字。"
+  ],
+  "photos": [
+   {
+    "file": "File:AFR DL38 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL38_01.jpg",
+    "author": "bugsy ho",
+    "licence": "CC BY 2.0",
+    "use": "駕駛室端（短鼻、V 字、燈、扶手）"
+   },
+   {
+    "file": "File:Alishan Train Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Alishan_Train_Station.jpg",
+    "author": "Professional Maniniyot Wannabe",
+    "licence": "CC BY 2.0",
+    "use": "駕駛室端正面（燈與紅色標識燈位置）"
+   },
+   {
+    "file": "File:AFR 'DL 38' at Alishan 2023-07-18.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_38%27_at_Alishan_2023-07-18.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "長機房端斜側（格柵、兩角燈、沒有 V 字）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dl39",
+  "name": "DL39～43・阿里山號",
+  "label": "DL39～43",
+  "detail": "外凸大圓燈 · 短鼻兩側百葉 · 高長機房",
+  "color": "#e43a36",
+  "source": "https://blair-train.blogspot.com/2010/02/blog-post_5539.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_5539.html"
+   },
+   {
+    "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_41%27_at_Alishan_2023-07-18.jpg"
+   }
+  ],
+  "features": [
+   "駕駛室那端在前；短鼻正面白色 V 字、上方兩角外凸大圓燈筒、下方兩角小紅燈，短鼻兩側腰帶上下各兩列百葉。",
+   "駕駛室側面門靠短鼻、一扇大側窗；長機房比 DL25 高、腰帶上方整排百葉。",
+   "長機房端格柵上白色 V 字、兩角外凸燈筒；高度照 DL41 正側面照換算（腰帶 1.81–1.97、機房頂 2.61、屋簷 2.88）。"
+  ],
+  "photos": [
+   {
+    "file": "File:AFR 'DL 41' at Alishan 2023-07-18.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_41%27_at_Alishan_2023-07-18.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "正側面（車架、腰帶、短鼻與機房頂、駕駛室窗高度）"
+   },
+   {
+    "file": "File:AFR DL-39 2012-12-10.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL-39_2012-12-10.jpg",
+    "author": "Wentao",
+    "licence": "CC BY 2.0",
+    "use": "駕駛室正側面（門、側窗、短鼻百葉）"
+   },
+   {
+    "file": "File:AFR DL-39.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL-39.jpg",
+    "author": "Wentao",
+    "licence": "CC BY 2.0",
+    "use": "駕駛室端斜前方（外凸大燈、V 字、紅燈）"
+   },
+   {
+    "file": "File:AFR 'DL 42' at Alishan 2023-07-19.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_42%27_at_Alishan_2023-07-19.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "長機房端（格柵、V 字、燈筒）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dl45",
+  "name": "DL45～51・林鐵新主力",
+  "label": "DL45～51",
+  "detail": "正面百葉與 V 字 · 外凸大圓燈 · 大駕駛室",
+  "color": "#e43a36",
+  "source": "https://blair-train.blogspot.com/2010/02/blog-post_1163.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_1163.html"
+   },
+   {
+    "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_51%27_at_Beimen_2023-07-18.jpg"
+   }
+  ],
+  "features": [
+   "駕駛室那端在前；短鼻正面整面橫條百葉、白色 V 字疊在百葉上、上方中央車號牌、兩角外凸大圓燈筒、下方兩角小紅燈。",
+   "車高比前幾代高；駕駛室大，側面門靠短鼻、一扇大側窗；短鼻兩側與機房側面百葉。",
+   "長機房端格柵、V 字、兩角外凸燈筒；長度比例照正側面照（短鼻 13%、駕駛室 29%、長機房 58%）。"
+  ],
+  "photos": [
+   {
+    "file": "File:AFR 'DL 51' at Beimen 2023-07-18.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_51%27_at_Beimen_2023-07-18.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "正側面（長度比例、腰帶、機房頂、駕駛室窗高度）"
+   },
+   {
+    "file": "File:Alishan DL48.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Alishan_DL48.jpg",
+    "author": "Kirk",
+    "licence": "CC BY-SA 3.0",
+    "use": "駕駛室端斜前方（正面百葉、V 字、燈、門與側窗位置）"
+   },
+   {
+    "file": "File:AFR DL46 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL46_01.jpg",
+    "author": "maviscwling",
+    "licence": "CC BY 2.0",
+    "use": "行駛中的列車：駕駛室端朝外"
+   },
+   {
+    "file": "File:AFR 'DL 49' at Beimen 2023-07-18.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_49%27_at_Beimen_2023-07-18.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "長機房端（格柵、V 字、燈筒）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "alicoach",
+  "name": "阿里山號・紅白客車",
+  "label": "阿里山號",
+  "detail": "奶油色車身 · 紅色窗帶與斜帶 · 端面紅色下半",
+  "color": "#e43a36",
+  "source": "https://blair-train.blogspot.com/2012/01/1.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/01/1.html"
+   },
+   {
+    "label": "Wikimedia Commons／Professional Maniniyot Wannabe（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Passenger_cars_of_the_Alishan_Forest_Railway_at_Beimen_Depot_2018-04-06_01.jpg"
+   }
+  ],
+  "features": [
+   "奶油色車身與車頂、紅色窗帶、車底紅色裙帶；兩端各一道紅色斜帶從車端下角往內上斜接到窗帶（fleet-v1 沒有斜帶與裙帶）。",
+   "每側只有一端有門：由有門那端往內是上下兩格窗、雙摺門（門扇跟著塗裝，上紅下奶油）、上下兩格窗、四扇大窗，另一端沒有窗；紅色跟林鐵機車同色。",
+   "端面下半紅色、奶油色 V 字，上半奶油色、偏一側端門與小窗。"
+  ],
+  "photos": [
+   {
+    "file": "File:Passenger car of the Alishan Forest Railway 2016-07-30.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Passenger_car_of_the_Alishan_Forest_Railway_2016-07-30.jpg",
+    "author": "江 東翰",
+    "licence": "CC BY-SA 2.0",
+    "use": "車端與側面塗裝、取色（陰天）"
+   },
+   {
+    "file": "File:Train at Fenqihu Station 2016-07-19.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Train_at_Fenqihu_Station_2016-07-19.jpg",
+    "author": "姜 明雄",
+    "licence": "CC0",
+    "use": "整列側面（窗與門的順序）"
+   },
+   {
+    "file": "File:Passenger cars of the Alishan Forest Railway at Beimen Depot 2018-04-06 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Passenger_cars_of_the_Alishan_Forest_Railway_at_Beimen_Depot_2018-04-06_01.jpg",
+    "author": "Professional Maniniyot Wannabe",
+    "licence": "CC BY 2.0",
+    "use": "端面塗裝與端門"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "hinoki",
+  "name": "檜木列車・木造客車",
+  "label": "檜木列車",
+  "detail": "金黃色檜木車身 · 開放式端平台 · 淺灰拱頂",
+  "color": "#bf7518",
+  "source": "https://blair-train.blogspot.com/2013/06/blog-post_9.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2013/06/blog-post_9.html"
+   },
+   {
+    "label": "Wikimedia Commons／Shoichi（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Cypress_railroad_car.JPG"
+   }
+  ],
+  "features": [
+   "金黃色上漆檜木車身、窗下直條木板、窗台腰板與窗上飾條；每側十扇深色木框小窗。",
+   "淺灰拱頂延伸蓋住兩端開放式平台；平台黑色花格欄杆、中央開口、側面上車踏階。",
+   "端牆中央門、兩側小窗、上方三顆圓燈（客車沒有駕駛室，燈用不發光鏡片）。"
+  ],
+  "photos": [
+   {
+    "file": "File:Alishan cypress train.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Alishan_cypress_train.jpg",
+    "author": "邰秉宥",
+    "licence": "CC BY-SA 2.0",
+    "use": "正側面（窗數、木板、車頂、取色）"
+   },
+   {
+    "file": "File:Cypress railroad car.JPG",
+    "url": "https://commons.wikimedia.org/wiki/File:Cypress_railroad_car.JPG",
+    "author": "Shoichi",
+    "licence": "CC BY-SA 3.0",
+    "use": "車端與端平台（欄杆、端門、圓燈）"
+   },
+   {
+    "file": "File:Tourist train of Alishan Forest Railway at Chiayi Station 2006-10-07 03.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Tourist_train_of_Alishan_Forest_Railway_at_Chiayi_Station_2006-10-07_03.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "整列與端平台"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "fushen",
+  "name": "福森號・檜木客車",
+  "label": "福森號",
+  "detail": "檜木本色 · 觀景端大窗 · 深灰車頂",
+  "color": "#d9a86c",
+  "source": "https://www.forest.gov.tw/news/0072298",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://www.forest.gov.tw/news/0072298"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.forest.gov.tw/hualien_intro/news/0070949"
+   }
+  ],
+  "features": [
+   "淺色檜木本色、寬直條木板、深灰車頂；每側七扇窗（兩小、兩大、三小，照正側面照順序），小窗下框紅色。",
+   "觀景端（車頭）大窗、上方一顆頭燈、下方兩角頭燈與內側紅色尾燈；另一端是貫通端。",
+   "窗高照正側面照換算（窗 1.65–2.63、屋簷 2.86）；fleet-v1 是一排等寬大窗、全長紅色腰線、淺灰車頂，照片上是兩小兩大三小、只有小窗下框紅色、深灰車頂。"
+  ],
+  "photos": [
+   {
+    "file": "File:AFR TC13 20230224.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_TC13_20230224.jpg",
+    "author": "行政院農業委員會林務局阿里山林業鐵路及文化資產管理處",
+    "licence": "Attribution",
+    "use": "正側面（窗的順序、寬窄與高度、取色）"
+   },
+   {
+    "file": "File:福森號列車.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E7%A6%8F%E6%A3%AE%E8%99%9F%E5%88%97%E8%BB%8A.jpg",
+    "author": "行政院農業委員會林務局阿里山林業鐵路及文化資產管理處",
+    "licence": "Attribution",
+    "use": "觀景端"
+   },
+   {
+    "file": "File:2024.07.19 Train at Chushan Station 03.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2024.07.19_Train_at_Chushan_Station_03.jpg",
+    "author": "總統府",
+    "licence": "CC BY 2.0",
+    "use": "觀景端燈組"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "xuyue",
+  "name": "栩悅號・觀景客車",
+  "label": "栩悅號",
+  "detail": "白色上半 · 藍色下半與黃線 · 大觀景窗",
+  "color": "#2763c6",
+  "source": "https://www.forest.gov.tw/park/news/0072890",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://www.forest.gov.tw/park/news/0072890"
+   }
+  ],
+  "features": [
+   "上半白色、下半藍色、窗下一道黃線（fleet-v1 是淺灰配深灰藍下緣）。",
+   "每側六扇大觀景窗；觀景端（車頭）大窗與頭燈、另一端是貫通端。",
+   "照片上客車在陰影裡，藍色用同一張照片裡受光的 DL46（同一套栩悅號塗裝）取色。"
+  ],
+  "photos": [
+   {
+    "file": "File:阿里山林鐵改裝車廂 《栩悅號》另類登場 04.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E9%98%BF%E9%87%8C%E5%B1%B1%E6%9E%97%E9%90%B5%E6%94%B9%E8%A3%9D%E8%BB%8A%E5%BB%82_%E3%80%8A%E6%A0%A9%E6%82%85%E8%99%9F%E3%80%8B%E5%8F%A6%E9%A1%9E%E7%99%BB%E5%A0%B4_04.jpg",
+    "author": "農業部林業及自然保育署阿里山林業鐵路及文化資產管理處",
+    "licence": "Attribution",
+    "use": "車身塗裝、窗、跟 DL46 比顏色"
+   },
+   {
+    "file": "File:阿里山林鐵改裝車廂 《栩悅號》另類登場 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E9%98%BF%E9%87%8C%E5%B1%B1%E6%9E%97%E9%90%B5%E6%94%B9%E8%A3%9D%E8%BB%8A%E5%BB%82_%E3%80%8A%E6%A0%A9%E6%82%85%E8%99%9F%E3%80%8B%E5%8F%A6%E9%A1%9E%E7%99%BB%E5%A0%B4_01.jpg",
+    "author": "農業部林業及自然保育署阿里山林業鐵路及文化資產管理處",
+    "licence": "Attribution",
+    "use": "觀景窗大小"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "danhai",
+  "name": "淡海輕軌・行武者",
+  "label": "淡海輕軌",
+  "detail": "水藍駕駛節 · 黑色 U 字車頭 · 白底水藍波點",
+  "color": "#65b4c8",
+  "source": "https://blair-bus.blogspot.com/2020/06/blog-post.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2020/06/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／4300streetcar（CC BY 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Danhai_LRT_tram_on_Shalun_Road_March_2026_5.jpg"
+   }
+  ],
+  "features": [
+   "五節低地板鉸接車，節長與節間距照舊（地圖分節預算不動）；駕駛節是「駕駛室側窗 → 雙開門 → 窄寬窄三扇窗」，懸浮節的門在遠離車頭那端（fleet-v1 把駕駛節的門放在靠節間那端）。",
+   "車頭：水藍 A 柱夾著大前窗，前窗下方黑色連成 U 字，U 字兩個下角是燈組（頭燈在內、尾燈在外，下方一排紅色 LED）；水藍下巴兩顆小燈、兩顆紅燈，車頂前緣兩角攝影機。",
+   "駕駛節門前整片水藍，門後下半與車頂圓角白底撒水藍波點、越靠門越大；懸浮節與中間節下半白色、窗帶以上銀色，懸浮節靠車頭那端撒水藍波點；中間節車頂受電弓、銀色風琴接合。"
+  ],
+  "photos": [
+   {
+    "file": "File:Danhai LRT tram on Shalun Road March 2026 5.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Danhai_LRT_tram_on_Shalun_Road_March_2026_5.jpg",
+    "author": "4300streetcar",
+    "licence": "CC BY 4.0",
+    "use": "正側面（窗帶、門窗位置、塗裝）"
+   },
+   {
+    "file": "File:Danhai LRT tram on Shalun Road March 2026 2.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Danhai_LRT_tram_on_Shalun_Road_March_2026_2.jpg",
+    "author": "4300streetcar",
+    "licence": "CC BY 4.0",
+    "use": "斜前方（車頭 U 字與駕駛室側窗）"
+   },
+   {
+    "file": "File:Danhai LRV at Binhai Shalun intersection (Wharf) 20260107.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Danhai_LRV_at_Binhai_Shalun_intersection_(Wharf)_20260107.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "整列側面（各節門窗順序）"
+   },
+   {
+    "file": "File:New Taipei Danhai LRT (20181224c) (53560575387).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:New_Taipei_Danhai_LRT_(20181224c)_(53560575387).jpg",
+    "author": "Takeshi Aida from Hong Kong, Hong Kong",
+    "licence": "CC BY-SA 2.0",
+    "use": "整列斜前方"
+   },
+   {
+    "file": "File:淡海輕軌藍海線履勘委員勘察機廠整備狀況.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%B7%A1%E6%B5%B7%E8%BC%95%E8%BB%8C%E8%97%8D%E6%B5%B7%E7%B7%9A%E5%B1%A5%E5%8B%98%E5%A7%94%E5%93%A1%E5%8B%98%E5%AF%9F%E6%A9%9F%E5%BB%A0%E6%95%B4%E5%82%99%E7%8B%80%E6%B3%81.jpg",
+    "author": "新北市政府",
+    "licence": "Attribution",
+    "use": "車頭近照（燈組、下巴）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "ankeng",
+  "name": "安坑輕軌・光耀金",
+  "label": "安坑輕軌",
+  "detail": "香檳金車身 · 黑色 U 字車頭 · 黑色窗帶",
+  "color": "#c6a355",
+  "source": "https://newtaipei.travel/zh-tw/tour/729",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://newtaipei.travel/zh-tw/tour/729"
+   },
+   {
+    "label": "Wikimedia Commons／Takeshi Aida from Hong Kong, Hong Kong（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:New_Taipei_Ankang_LRT,_Shuangcheng_(20240114a)_(53561313121).jpg"
+   }
+  ],
+  "features": [
+   "跟淡海輕軌同一種車體（台灣車輛），五節低地板鉸接車，門窗配置相同；只換塗裝：整列香檳金、黑色窗帶，沒有波點。",
+   "車頭：金色 A 柱夾著大前窗，前窗下方黑色連成 U 字，兩個下角是燈組（頭燈在內、尾燈在外，下方一排紅色 LED）；金色下巴兩顆小燈、兩顆紅燈。",
+   "高度照正面照量：黑色 U 字中央下緣 .90、兩角 1.22、上緣 2.67，燈組 .92–1.16；車側黑色窗帶 1.39–2.86。"
+  ],
+  "photos": [
+   {
+    "file": "File:New Taipei Ankang LRT, Shuangcheng (20240114a) (53561313121).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:New_Taipei_Ankang_LRT,_Shuangcheng_(20240114a)_(53561313121).jpg",
+    "author": "Takeshi Aida from Hong Kong, Hong Kong",
+    "licence": "CC BY-SA 2.0",
+    "use": "正面（量高度：U 字、燈組、下巴燈）"
+   },
+   {
+    "file": "File:Ankeng LRV at Shisizhang 20260107.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Ankeng_LRV_at_Shisizhang_20260107.jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜前方（駕駛室側窗、門）"
+   },
+   {
+    "file": "File:Ankeng LRV at Ankang 20260107 (3).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Ankeng_LRV_at_Ankang_20260107_(3).jpg",
+    "author": "Sinsyuan",
+    "licence": "CC BY-SA 4.0",
+    "use": "月台兩列並排（車頭、取色）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "caf",
+  "name": "高雄輕軌・CAF",
+  "label": "高雄輕軌",
+  "detail": "白車身深綠斜塊 · 綠環車頭 · 黑色儲能箱",
+  "color": "#80b44d",
+  "source": "https://blair-bus.blogspot.com/2015/01/blog-post.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2015/01/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kaohsiung_LRT_20150902.JPG"
+   }
+  ],
+  "features": [
+   "CAF Urbos 3，五節低地板鉸接車，節長與節間距照舊；駕駛節是「駕駛室側窗 → 綠色弦月 → 白柱 → 雙開門 → 兩扇窗」，懸浮節門在中間、兩側各一扇窗。",
+   "車頭一圈綠環：上緣橫帶、兩側弦月往後彎過駕駛室側窗、下緣橫帶；大前窗幾乎垂直，前窗下白色燈板（頭燈與紅色尾燈在內、兩顆小燈在外）。",
+   "白色車身、黑色窗帶，車側上下各有深綠平行四邊形斜塊，往下偏向最近的車頭、前後兩半鏡射；車頂整排黑色儲能設備箱，受電弓降下（位置沿用 fleet-v1）。"
+  ],
+  "photos": [
+   {
+    "file": "File:Kaohsiung LRT 20150902.JPG",
+    "url": "https://commons.wikimedia.org/wiki/File:Kaohsiung_LRT_20150902.JPG",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "正面（量高度：綠環、燈板、前窗）"
+   },
+   {
+    "file": "File:Urbos 3 of Kaohsiung LRT 2018-01-01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Urbos_3_of_Kaohsiung_LRT_2018-01-01.jpg",
+    "author": "xiquinhosilva",
+    "licence": "CC BY 2.0",
+    "use": "駕駛節側面（弦月、駕駛室側窗、門、斜塊）"
+   },
+   {
+    "file": "File:CAF Urbos 3 LRV.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:CAF_Urbos_3_LRV.jpg",
+    "author": "Samson Ng . D201@EAL",
+    "licence": "CC BY-SA 4.0",
+    "use": "車側斜塊與門窗"
+   },
+   {
+    "file": "File:KMRT CAF train 2016-08-27.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:KMRT_CAF_train_2016-08-27.jpg",
+    "author": "Subscriptshoe9",
+    "licence": "CC BY-SA 4.0",
+    "use": "整列（斜塊方向）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "citadis",
+  "name": "高雄輕軌・Citadis",
+  "label": "高雄輕軌",
+  "detail": "珍珠白深綠斜塊 · 黑色車頭綠框 · 白色燈罩",
+  "color": "#80b44d",
+  "source": "https://blair-bus.blogspot.com/2022/02/citadis-x-05-305.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2022/02/citadis-x-05-305.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.alstom.com/press-releases-news/2021/1/alstom-introduces-citadis-x05-trams-kaohsiung"
+   },
+   {
+    "label": "Wikimedia Commons／The Nature Box（CC0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Hamasen_Sky_Balcony_Pedestrian_Bridge_2026_03_29.jpg"
+   }
+  ],
+  "features": [
+   "Alstom Citadis X05，五節低地板鉸接車，節長與節間距照舊；駕駛節是「駕駛室側窗 → 黑柱 → 雙開門 → 兩扇窗」，中間節只有窗。",
+   "車頭整面黑：車頂前帽、大幅後傾的前窗、下半燈板；外圍一圈深綠細框沿 A 柱從車頂走到下緣，下緣深綠保險桿往後包到車側；燈板兩側白色橢圓燈罩各兩顆燈。",
+   "珍珠白車身、黑色窗帶，車側上下各有極深綠斜塊，往下偏向最近的車頭、前後兩半鏡射；中間節車頂一具降下的受電弓（fleet-v1 沒有），其他節白色設備箱。"
+  ],
+  "photos": [
+   {
+    "file": "File:Hamasen Sky Balcony Pedestrian Bridge 2026 03 29.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Hamasen_Sky_Balcony_Pedestrian_Bridge_2026_03_29.jpg",
+    "author": "The Nature Box",
+    "licence": "CC0",
+    "use": "整列正側面（各節門窗、斜塊方向、受電弓在中間節）"
+   },
+   {
+    "file": "File:KMRT Citadis 305 at Depot 2018-09-05 02.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:KMRT_Citadis_305_at_Depot_2018-09-05_02.jpg",
+    "author": "高雄市政府捷運工程局 Mass Rapid Transit Bureau, Kaohsiung City",
+    "licence": "Attribution",
+    "use": "正面（黑色車頭、綠框、燈罩）"
+   },
+   {
+    "file": "File:KMRT Citadis 305 at Depot 2018-09-05 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:KMRT_Citadis_305_at_Depot_2018-09-05_01.jpg",
+    "author": "高雄市政府捷運工程局 Mass Rapid Transit Bureau, Kaohsiung City",
+    "licence": "Attribution",
+    "use": "斜前方"
+   },
+   {
+    "file": "File:KMRT Citadis 305 at Depot 2018-09-05 03.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:KMRT_Citadis_305_at_Depot_2018-09-05_03.jpg",
+    "author": "高雄市政府捷運工程局 Mass Rapid Transit Bureau, Kaohsiung City",
+    "licence": "Attribution",
+    "use": "懸浮節側面斜塊"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ }
+]
