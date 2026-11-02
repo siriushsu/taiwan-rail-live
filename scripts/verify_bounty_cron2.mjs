@@ -1154,9 +1154,13 @@ await attempt('M4', async () => {
   const w3 = mk();
   const r3 = await fire(w3, '30 19 * * *');
   const line3 = r3.logs.find(l => l.includes('[cron bounty 驗證]')) || '';
-  ok('M4d [S13d log] 預算充足：驗證那行 log 印「1 班／1 線組」、入帳點數 13、子請求＝整發（估值＋判定）在測試端獨立數到的總數，沒有預算用盡的警告',
-    line3.includes('1 班／1 線組') && line3.includes('入帳點數 13') && line3.includes(`子請求 ${w3.tally.n}`) && !line3.includes('預算用盡') && q.verdicts(w3.db, 'm4', 'M4') === 'ok',
-    J({ line3, tally: w3.tally.n }));
+  const lineU = r3.logs.find(l => l.includes('[cron bounty 可用]')) || '';
+  // 判定之後還有「資料可用」標記那一段（bountyUsableCron，同一個計數器）：整發的總數印在它那一行的「整發子請求」，判定那一行印到判定為止的累計
+  const nV = Number((line3.match(/子請求 (\d+)/) || [])[1]);
+  ok('M4d [S13d log] 預算充足：驗證那行 log 印「1 班／1 線組」、入帳點數 13、沒有預算用盡的警告；「可用」那行的整發子請求＝測試端在下一層獨立數到的總數，且大於驗證那行的累計',
+    line3.includes('1 班／1 線組') && line3.includes('入帳點數 13') && !line3.includes('預算用盡') && q.verdicts(w3.db, 'm4', 'M4') === 'ok' &&
+      lineU.includes(`整發子請求 ${w3.tally.n}`) && nV > 0 && nV < w3.tally.n,
+    J({ line3, lineU, tally: w3.tally.n }));
   // 舊分支（15 4 * * *）也共用計數器、也印同一行 log（每日 ingest 的用量不在計數範圍內——見 scheduled() 的註解）
   const w4 = mk();
   w4.env.BOUNTY_SUBREQ_BUDGET = String(valN + 1);
