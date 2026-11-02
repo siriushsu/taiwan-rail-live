@@ -1495,7 +1495,7 @@ const L_SNAP = () => {
         return oy === 'auto' || oy === 'scroll';
       }).map(e => e.id || e.className || e.tagName).slice(0, 4); })(),
     boardTop: Math.round(bd.scrollTop),
-    // 兩段制(2026-08-26):大段('large'／.expand)已退役,判法逐字對齊 app 自己的 sheetSizeOf()
+    // 兩段制(2026-08-26):大段('large'／.expand)已退役,11-02 改拖拉後 .sheet-small＝高度 ≤30% 的小樣式
     size: bd.classList.contains('sheet-small') ? 'small' : 'medium',
     hintVis: vis(hint), hintH: hr ? Math.round(hr.height) : 0,
     hintHit: hr && vis(hint) ? (() => { const q = document.elementFromPoint(hr.left + hr.width / 2, (hr.top + hr.bottom) / 2);
@@ -1606,7 +1606,7 @@ async function sectionL(browser, engine) {
     JSON.stringify({ opacity: B.fpOpacity, 命中卡: B.cardHit }));
   // 反向對照:回到小段提示列要回來——少了這半,「提示列永遠不顯示」也會讓 L6 過。
   // 兩段制之後提示列只掛在小段(中段已經看得到下面了),所以反向對照的目標段是 small。
-  await page.evaluate(() => setSheetSize(document.getElementById('board'), 'small'));
+  await page.evaluate(() => setSheetPx(document.getElementById('board'), innerHeight * 0.30));
   await page.waitForTimeout(900);
   const C = await snap();
   ok(`L7 ${tag} 反向對照:回到小段提示列又出現,而且照樣命中自己`,
@@ -1704,9 +1704,9 @@ async function sectionM(browser, engine, tier = 'std') {
   await page.evaluate(() => { if (state.playing) togglePlay(); });
   await page.evaluate(() => document.getElementById('tabExplore').click());
   await page.waitForTimeout(1300);
-  // 撐到最大段:直接讀 app 自己的段位清單,免得段制再變一次時這裡又留著一個不存在的段名
+  // 撐到最高:交給 app 自己夾到上限,免得高度制再變一次時這裡又留著一個不存在的段名
   // (2026-08-26 兩段制上路時就是這樣留下 'large' ⇒ 面板只到 46%、後兩張卡掉出視野)
-  await page.evaluate(() => setSheetSize(document.getElementById('explorePanel'), SHEET_SIZES[SHEET_SIZES.length - 1]));
+  await page.evaluate(() => setSheetPx(document.getElementById('explorePanel'), Infinity));
   await page.waitForTimeout(800);
   const A = await snap();
   ok(`M1 ${tag} 正向對照:亮點面板開著,今日之最四格,而且排在最前面`,

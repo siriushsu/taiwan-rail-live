@@ -87,17 +87,14 @@ html[data-theme=dark] :is(.night-directions button,.night-next):focus-visible { 
 }
 @media (max-width:900px),(max-height:500px),(any-pointer:coarse) and (max-width:1400px) {
   html[data-theme=dark] .board { width:auto; --sheet-size:62%; max-height:min(var(--sheet-size),calc(100dvh - var(--sheet-safe-top,var(--sa-t)) - 8px - var(--sheet-bottom-offset))); }
-  html[data-theme=dark] .board.sheet-small { --sheet-size:30%; }
   html[data-theme=dark] #board h3 { font-size:calc(22px * var(--ui)); padding-top:16px; padding-bottom:12px; }
   html[data-theme=dark] .board h3 { font-size:calc(18px * var(--ui)); }
   html[data-theme=dark] .night-next { padding:14px; margin-bottom:12px; }
   html[data-theme=dark] .night-next-time { font-size:44px; }
   html[data-theme=dark] .night-next-detail { font-size:14px; }
   html[data-theme=dark]:not([data-fs=large]):not([data-fs=xlarge]) #board .row { font-size:14px; }
-  html[data-theme=dark] .board.sheet-small .night-next { display:none; }
   html[data-theme=dark] .board.sheet-small .night-directions { padding-bottom:6px; }
   html[data-theme=dark] body.fs .traincard.tc-sheet { --sheet-size:62%; }
-  html[data-theme=dark] body.fs .traincard.tc-sheet.sheet-small { --sheet-size:30%; }
   html[data-theme=dark] body.fs #board.uni-train :is(.night-next,.night-directions) { display:none; }
 }
 @media (max-height:500px),(orientation:landscape) and (min-width:700px) and (max-width:1400px) and (any-pointer:coarse) {

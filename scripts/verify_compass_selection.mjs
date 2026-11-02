@@ -17,7 +17,7 @@ const prepare=kind=>{
  resetFollowHeading({immediate:true});state._setAppearance(kind==='board-light'?'light':'dark');
  if(kind.includes('board')){
   let st;if(kind==='metro-board'){const ln=state.lines.find(l=>l._sys==='mrt'&&l.stations.some(s=>s.name==='關渡'));st={...ln.stations.find(s=>s.name==='關渡'),sys:'freq',metroSysId:'mrt'};}else st=state.schedStations.find(s=>s.sys==='tra_sched'&&s.name==='萬華');
-  M.setView([st.lat,st.lon],16,{animate:false,bearing:79,pitch:45});openBoard(st);setSheetSize(document.getElementById('board'),kind==='board-small'?'small':'medium');
+  M.setView([st.lat,st.lon],16,{animate:false,bearing:79,pitch:45});openBoard(st);setSheetPx(document.getElementById('board'),innerHeight*(kind==='board-small'?0.30:0.46));
  }else if(kind==='freq'||kind==='deco'){
   const lines=kind==='freq'?state.lines:state.decoLines;let found;
   for(const ln of lines){if(!ln._tt||isTrtcBoardLine(ln))continue;for(const tr of ln._tt){for(let i=1;i+2<tr.length;i+=2){const sec=tr[i]+5,info=freqTrainInfoAt(ln,tr,sec),a=freqTrainInfoAt(ln,tr,sec-5).pos,b=freqTrainInfoAt(ln,tr,sec+5).pos;if(!a||!b||!info.pos)continue;const heading=initialBearing(a,b);if(Number.isFinite(heading)&&Math.abs(heading)>30){found={ln,tr,sec};break;}}if(found)break;}if(found)break;}

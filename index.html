@@ -4337,7 +4337,9 @@
     .follow-panel .fp-head .spd { font-size: calc(9.5px * var(--uis)); }
     .follow-panel .fp-head .spd b { font-size: calc(16px * var(--ui)); }
     /* sheet 開啟時跟隨小卡讓道到 sheet 上方(!important:fs 時 placeFsOverlays 會寫 inline bottom,必須蓋過) */
-    body.sheet-open .follow-panel, body.sheet-open .freq-card { bottom: calc(46% + 16px) !important; max-height: calc(54% - 84px); }
+    body.sheet-open .follow-panel, body.sheet-open .freq-card { bottom: calc(var(--sheet-cur-h, 46%) + 16px) !important; max-height: calc(100% - var(--sheet-cur-h, 46%) - 84px); }
+    /* --sheet-cur-h=sheet 實際高度(syncSheetLift);sheet 高到小卡放不下(頂緣離頂列不到 150)就讓小卡淡出,sheet 變矮再出現 */
+    body.sheet-tall .follow-panel, body.sheet-tall .freq-card { opacity: 0; pointer-events: none; }
     /* sheet 開啟時速度膠囊/版權條/跟隨鎖淡出讓位,不壓面板文字(見 updateSheetOpenClass)。
        跟隨鎖(z800)併入通案:實測 .board 家族全部 sheet 手機寬都會頂進鎖鈕座位(鎖鈕離 sheet 下錨僅約 120px),
        原 dh-open 個案已拆除。 */
@@ -4347,7 +4349,7 @@
     body.ride-picking .controls { opacity: 0; pointer-events: none; }
     /* 全畫面時 stage 佔滿視窗:底部 sheet(與其上讓位的跟隨小卡)要再讓開 fixed tab bar(58px+safe-area) */
     body.fs .board { --sheet-bottom-offset: calc(var(--tabbar-clear) + 8px); bottom: var(--sheet-bottom-offset); } /* =58+8+env=原 66+env */
-    body.fs.sheet-open .follow-panel, body.fs.sheet-open .freq-card { bottom: calc(46% + var(--tabbar-clear) + 24px) !important; } /* =46%+58+24+env=原 46%+82+env(板讓位 66+小卡間距 16) */
+    body.fs.sheet-open .follow-panel, body.fs.sheet-open .freq-card { bottom: calc(var(--sheet-cur-h, 46%) + var(--tabbar-clear) + 24px) !important; } /* =sheet 高+58+24+env(板讓位 66+小卡間距 16) */
     .traincard { padding: 11px 13px 12px; }
     .traincard .tc-body { grid-template-columns: 1fr; }
     .traincard .tc-events { margin-top: 4px; border-left: 0; padding-left: 0; }
@@ -4400,20 +4402,8 @@
     .traincard.tc-sheet .tc-intro { margin: 4px 0 2px; }
     .traincard.tc-sheet .tc-events { margin-top: 9px; border-left: 0; padding-left: 0; }
     .traincard.tc-sheet .tc-events #tcEvents { flex: none; }
-    /* 兩段高:小 30% 上限／中 46%;兩段都再受頂部安全區夾限(搜尋 sheet 不含,見其獨立塊)。
-       列車小段只留 sticky 標題＋即時遙測；標題實高約 100–107px,不拿 30% 空白硬撐、更不露出內文。 */
-    .board.sheet-small, .traincard.tc-sheet.sheet-small, #nearCard.sheet-small { --sheet-size: 30%; }
-    /* 兩段制(2026-08-26):下限給【中】——中段是「展開」的那一段,按下去一定要看得出變化,
-       所以撐到 46%(仍受頂部安全區夾限)。小段維持只有上限、貼合內容 ⇒ 預設打開不留白。
-       中段沒有自己的 class(小段才有 .sheet-small),故用 :not() 表達。 */
-    .board:not(.sheet-small), .traincard.tc-sheet:not(.sheet-small), #nearCard:not(.sheet-small) {
-      min-height: min(var(--sheet-size), calc(100dvh - var(--sheet-safe-top, var(--sa-t)) - 8px - var(--sheet-bottom-offset)));
-    }
-    .traincard.tc-sheet.sheet-small .tc-body,
-    .traincard.tc-sheet.sheet-small .tc-freeseat,
-    .traincard.tc-sheet.sheet-small .tc-dhlink,
-    .traincard.tc-sheet.sheet-small .tc-sparkwrap,
-    .traincard.tc-sheet.sheet-small .tc-stops { display: none; }
+    /* 高度(2026-11-02 起連續拖拉):JS 把使用者拖的高度寫進 inline --sheet-size,上面的 max-height 再受頂部安全區夾限;
+       只有上限、沒有下限 ⇒ 內容比較短時貼合內容不留白。小高度(.sheet-small)不再藏內文,超出就在 sheet 裡捲動。 */
     /* 「列車」sheet 開啟時跟隨小卡隱藏(資訊重複,見 mock D) */
     body.train-open .follow-panel { display: none; }
     /* 契約③(body.sheet-full 把頂列/徽章/動作列/站名牌/跟隨小卡整組淡出)2026-08-26 隨大段 88% 一起退役:
@@ -4655,12 +4645,6 @@
        JS 側由 sheetHasSizeSteps() 一併回 false,兩邊都要,否則點標題列會變成「只改 body class、看不出差別」。 */
     body.fs .board::before, body.fs #nearCard::before, body.fs .traincard.tc-sheet::before { display: none; }
     body.fs .board h3, body.fs #nearCard .xc-head, body.fs .traincard.tc-sheet .tc-head { padding-top: 10px; }
-    /* 小段收起內文的規則在側欄不該生效(側欄沒有段高) */
-    body.fs .traincard.tc-sheet.sheet-small .tc-body,
-    body.fs .traincard.tc-sheet.sheet-small .tc-freeseat,
-    body.fs .traincard.tc-sheet.sheet-small .tc-dhlink,
-    body.fs .traincard.tc-sheet.sheet-small .tc-sparkwrap,
-    body.fs .traincard.tc-sheet.sheet-small .tc-stops { display: block; }
 
     /* ── 跟車卡在橫式=右側欄(§04c v3,2026-08-27)────────────────────────
        v2(08-26)廢除左欄的理由是「同一份資訊在卡的『這班車』分頁裡已經有了」——但那一頁只在
@@ -32704,22 +32688,26 @@ const QUERY_ANSWER_ROWS_MAX = 4;   // 答案區每站可見列上限
 const QUERY_OPEN_KEY = 'trainmap-query-open';            // '1'/'0':使用者自己的開關記憶
 const QUERY_DISMISS_KEY = 'trainmap-query-dismissed-v1'; // 'sys|name':自動開之後被關掉的站
 const LAST_BOARD_KEY = 'trainmap-last-board-v1';         // {sys,name}:上次看過的站(退路用)
-// 2026-08-26 改版:三段改兩段。大段(88%)拿掉——實測安靜的站在大段是「750px 裝 2 筆」,
-// 其餘全是白紙,而且要多點一下才縮得回去。
-// 🔴 預設同時從「中」改成「小」,這兩件事必須一起做:小與中原本都只有 max-height(上限),
-//    內容比 30% 還短時兩段會量出同高(談文 207/207,webkit 195/195)⇒ 切換完全看不出變化,
-//    正是 2026-07-30 出現過的問題:提供了調整大小的切換,實際高度卻完全沒變。
-//    解法是給【中】下限(見 CSS)、預設退到【小】:打開時貼合內容不留白,按一下才展開到 46%。
-//    下限只給中不給小 ⇒ 不會出現「小比中高」的邏輯反轉(那正是當初不給小段下限的理由)。
-const SHEET_SIZES = ['small', 'medium'];
-let sheetSizePref = 'small', nightSheetSizePref = 'medium';
-try { const value = localStorage.getItem('trainmap-night-sheet-size'); if (SHEET_SIZES.includes(value)) nightSheetSizePref = value; } catch (e) {}
-try {
-  const saved = localStorage.getItem(SHEET_SIZE_KEY);
-  // 存過 'large' 的人遷移到 'medium'(留在 large 會讓 sheetSizeOf 讀到不存在的段而卡住)
-  if (saved === 'large') sheetSizePref = 'medium';
-  else if (SHEET_SIZES.includes(saved)) sheetSizePref = saved;
-} catch (e) {}
+// 2026-11-02 改版:兩段改連續拖拉(使用者:「大小調整可以直接用拖拉的,不是點擊後變成固定的大小」)。
+// 拖到哪就停哪,存「佔視窗高的比例」,白天/夜間各一份;點標題列不再改高度。三邊同一份規格:
+// native docs/m9/lanes/sheet-drag-handoff.md。
+// 高度仍寫進 --sheet-size 當 max-height 用 ⇒ 內容比較短時貼合內容不留白(08-26 拿掉 88% 大段的原因:
+// 安靜的站整片白紙)。.sheet-small 只剩外觀意義:高度 ≤ 視窗 30% 時套實色紙面與「往上拉」提示,不再藏內容。
+const SHEET_H_KEY = 'trainmap-sheet-h-v1', NIGHT_SHEET_H_KEY = 'trainmap-night-sheet-h-v1';
+const SHEET_MIN_PX = 120, SHEET_TOP_RESERVE_PX = 56, SHEET_COMPACT_FRAC = 0.30, SHEET_QUERY_FRAC = 0.46;
+function loadSheetFrac(key, oldKey, fallback) {
+  try {
+    const v = parseFloat(localStorage.getItem(key));
+    if (v > 0 && v <= 1) return v;
+    const old = localStorage.getItem(oldKey); // 舊兩段制換算:small→30%,medium(含更早的 large)→46%
+    if (old === 'small') return 0.30;
+    if (old === 'medium' || old === 'large') return 0.46;
+  } catch (e) {}
+  return fallback;
+}
+let sheetFracPref = loadSheetFrac(SHEET_H_KEY, SHEET_SIZE_KEY, 0.30);
+let nightSheetFracPref = loadSheetFrac(NIGHT_SHEET_H_KEY, 'trainmap-night-sheet-size', 0.46);
+let sheetDragging = null; // 拖曳中的那張:這段時間 updateSheetOpenClass 不回套偏好,免得把手指底下的高度拉回去
 // 段高只在「底部 sheet」形態才有意義。兩個例外:
 //   #searchPanel 在【打字態】(body.search-open)是上錨面板(高度由上下錨撐出)——瀏覽態則是一般 sheet,有段高;
 //   橫式側欄同理——高度撐滿、沒有段可換。
@@ -32728,11 +32716,38 @@ function sheetHasSizeSteps(el) {
   if (el.id === 'searchPanel' && document.body.classList.contains('search-open')) return false;
   return !sheetIsSideRail();
 }
-function sheetSizeOf(el) {
-  return el.classList.contains('sheet-small') ? 'small' : 'medium';
+let sheetSafeTopProbe = null;
+function sheetSafeTopPx() {
+  if (!sheetSafeTopProbe) {
+    sheetSafeTopProbe = document.createElement('div');
+    sheetSafeTopProbe.style.cssText = 'position:fixed;top:0;left:0;width:0;visibility:hidden;pointer-events:none;height:var(--sheet-safe-top, var(--sa-t))';
+    document.body.appendChild(sheetSafeTopProbe);
+  }
+  return sheetSafeTopProbe.getBoundingClientRect().height;
 }
-function applySheetSize(el, size) {
-  el.classList.toggle('sheet-small', size === 'small');
+// 可拖的上限:頂列那一排(安全區＋8＋56)要露出來;下緣是這張 sheet 自己的底邊讓位
+function sheetMaxPx(el) {
+  const bottom = parseFloat(getComputedStyle(el).bottom) || 0;
+  return Math.max(SHEET_MIN_PX, innerHeight - bottom - sheetSafeTopPx() - 8 - SHEET_TOP_RESERVE_PX);
+}
+function applySheetPx(el, px) {
+  const h = Math.round(Math.max(SHEET_MIN_PX, Math.min(sheetMaxPx(el), px)));
+  el.style.setProperty('--sheet-size', h + 'px');
+  el.classList.toggle('sheet-small', h <= Math.round(innerHeight * SHEET_COMPACT_FRAC)); // 跟 h 一樣取整,存回的 0.3 才不會因進位掉出小樣式
+  return h;
+}
+function clearSheetPx(el) {
+  el.style.removeProperty('--sheet-size');
+  el.classList.remove('sheet-small');
+}
+// 跟隨小卡/班距卡抬到 sheet 頂上:讀 sheet 實際高度(原本 CSS 寫死 46%);sheet 高到小卡放不下就讓小卡淡出。
+// 內容晚到(先開面板再 render)也要跟上 ⇒ 另由 ResizeObserver 呼叫(見抓把掛載處)。
+function syncSheetLift(act) {
+  const sized = act && window.matchMedia(MOBILE_MQ).matches && sheetHasSizeSteps(act);
+  if (!sized) { document.body.style.removeProperty('--sheet-cur-h'); document.body.classList.remove('sheet-tall'); return; }
+  const r = act.getBoundingClientRect();
+  document.body.style.setProperty('--sheet-cur-h', Math.round(r.height) + 'px');
+  document.body.classList.toggle('sheet-tall', r.top - (sheetSafeTopPx() + 8 + SHEET_TOP_RESERVE_PX) < 150);
 }
 function updateSheetOpenClass() {
   const tcSheet = document.getElementById('trainCard').classList.contains('tc-sheet');
@@ -32743,13 +32758,16 @@ function updateSheetOpenClass() {
   const sizedAct = window.matchMedia(MOBILE_MQ).matches && sheetHasSizeSteps(act) ? act : null;
   for (const id of [...SHEET_PANEL_IDS, 'trainCard']) {
     const el = document.getElementById(id);
-    if (el && el !== sizedAct) el.classList.remove('sheet-small');
+    if (el && el !== sizedAct) clearSheetPx(el);
   }
-  // 查詢 sheet 的瀏覽態不吃全站段高偏好:它的價值在答案區,偏好「小」(30%)只露搜尋框＋第一列(整枝審查 I-5)。
-  // 一律以「中」(spec 的半高)打開:關掉時上面的迴圈已清掉 sheet-small ⇒ 每次打開都是中;本次打開中的抓把切換
-  // 由 setSheetSize 直接 applySheetSize(整枝審查必修 4——這裡不再對它自己讀回目前段重複套用,那是空轉)。
-  // 夜間(state.mapDark)有自己一份 nightSheetSizePref(origin/main v0907c 起);查詢 sheet 一樣兩份都不吃。
-  if (sizedAct && sizedAct.id !== 'searchPanel') applySheetSize(sizedAct, state.mapDark ? nightSheetSizePref : sheetSizePref);
+  // 查詢 sheet 的瀏覽態不吃全站高度偏好:它的價值在答案區,偏好小高度只露搜尋框＋第一列(整枝審查 I-5)。
+  // 一律以 46%(spec 的半高)打開:關掉時上面的迴圈已清掉 inline 高度 ⇒ 每次打開都是 46%;這次打開中拖過就留著。
+  // 夜間(state.mapDark)有自己一份 nightSheetFracPref(origin/main v0907c 起);查詢 sheet 一樣兩份都不吃。
+  if (sizedAct && sizedAct !== sheetDragging) {
+    if (sizedAct.id !== 'searchPanel') applySheetPx(sizedAct, innerHeight * (state.mapDark ? nightSheetFracPref : sheetFracPref));
+    else if (!sizedAct.style.getPropertyValue('--sheet-size')) applySheetPx(sizedAct, innerHeight * SHEET_QUERY_FRAC);
+  }
+  syncSheetLift(act);
   // §04c 契約9:打字態(search-open)只由 setSearchTyping 進入;面板不再是作用中 sheet 時一律清掉
   if (!(act && act.id === 'searchPanel')) document.body.classList.remove('search-open');
   invalidateMapInsets(); // 面板開關/換段高=露出地圖變了,量測快取立即失效(下一行 reframeFocus 要拿新值)
@@ -32790,43 +32808,26 @@ function closeTrainSheet() {
   document.body.classList.remove('train-open');
   updateSheetOpenClass();
 }
-// 三段高:標題列循環小→中→大；拖抓把只往相鄰段移動，邊界不繞回。
-function setSheetSize(el, size) {
-  if (!sheetHasSizeSteps(el) || !window.matchMedia(MOBILE_MQ).matches || !SHEET_SIZES.includes(size)) return;
-  // 查詢 sheet 不寫全站段高偏好(整枝審查必修 4):它的抓把切換只對「這次打開」生效(下面 applySheetSize
-  // 照跑),不污染 sheetSizePref/localStorage——不然拉小查詢 sheet 會靜靜把看板也變小(整枝審查 N-3)。
-  // 夜間(state.mapDark)另存一份 nightSheetSizePref(origin/main v0907c 起),同樣不讓查詢 sheet 寫進去。
+// 放開抓把(或「往上拉看完整資料」)時定案:套高度、寫偏好、重算讓位。
+function setSheetPx(el, px) {
+  if (!sheetHasSizeSteps(el) || !window.matchMedia(MOBILE_MQ).matches) return;
+  const h = applySheetPx(el, px);
+  // 查詢 sheet 不寫全站高度偏好(整枝審查必修 4):拖曳只對「這次打開」生效,
+  // 不污染 sheetFracPref/localStorage——不然拉小查詢 sheet 會靜靜把看板也變小(整枝審查 N-3)。
+  // 夜間(state.mapDark)另存一份 nightSheetFracPref(origin/main v0907c 起),同樣不讓查詢 sheet 寫進去。
   if (el.id !== 'searchPanel') {
-    const night = !!state.mapDark;
-    if (night) nightSheetSizePref = size; else sheetSizePref = size;
-    try { localStorage.setItem(night ? 'trainmap-night-sheet-size' : SHEET_SIZE_KEY, size); } catch (e) {}
+    const frac = Math.round(h / innerHeight * 1000) / 1000, night = !!state.mapDark;
+    if (night) nightSheetFracPref = frac; else sheetFracPref = frac;
+    try { localStorage.setItem(night ? NIGHT_SHEET_H_KEY : SHEET_H_KEY, String(frac)); } catch (e) {}
   }
-  applySheetSize(el, size);
-  // 兩段制之後筆數不再跟段高走(一律 12),但小段用 CSS 收內文、renderBoard 仍要跟上開合狀態;
-  // renderBoard 自己會再叫一次 updateSheetOpenClass
+  // 小高度會換外觀(.sheet-small)、renderBoard 要跟上;renderBoard 自己會再叫一次 updateSheetOpenClass
   if (el.id === 'board' && state.boardStation && state.mode === 'sched') renderBoard();
   updateSheetOpenClass();
 }
-function cycleSheetSize(el) {
-  // 打字態的標題列輕點/下滑:回瀏覽態並展開到中段(不寫入全站段高偏好)——
-  // setSheetSize 會把 'medium' 存進 sheetSizePref/localStorage,對其他 sheet 也生效,不是這裡要的。
-  if (el.id === 'searchPanel' && document.body.classList.contains('search-open')) { setSearchTyping(false); applySheetSize(el, 'medium'); return; }
-  const i = SHEET_SIZES.indexOf(sheetSizeOf(el));
-  setSheetSize(el, SHEET_SIZES[(i + 1) % SHEET_SIZES.length]);
-}
-function stepSheetSize(el, direction) {
-  // 同上:回瀏覽態並展開到中段(不寫入全站段高偏好)
-  if (el.id === 'searchPanel' && document.body.classList.contains('search-open')) { if (direction < 0) { setSearchTyping(false); applySheetSize(el, 'medium'); } return; }
-  const i = SHEET_SIZES.indexOf(sheetSizeOf(el));
-  // 已經在最小段還往下滑 ⇒ 收起附近車站卡。手機的 sheet 一律「下滑＝丟掉」,原本這裡在邊界直接不動作,
-  // 使用者下滑兩次看它縮一下就不動了,只會更確定「關不掉」。只給附近車站卡:
-  // 看板/護照/查詢那幾張各自有開關記憶與 tab 選中態,把它們一起改成下滑即關是另一件事。
-  if (direction < 0 && i === 0 && el.id === 'nearCard') { closeNearbyStations(); return; }
-  setSheetSize(el, SHEET_SIZES[Math.max(0, Math.min(SHEET_SIZES.length - 1, i + direction))]);
-}
-// 抓把/標題列的點擊(循環)與拖曳(相鄰 snap);只在標題列頂區觸發,不攔內容捲動與按鈕
+// 抓把/標題列拖曳:頂緣跟著手指走、放開停在原處(不吸附);只在標題列頂區觸發,不攔內容捲動與按鈕。
+// 點一下不改高度(打字態的查詢 sheet 例外:點標題列回瀏覽態,那是狀態切換)。
 function initSheetHandle(el) {
-  let sy = null, dy = 0, active = false, swallowClick = false, swallowTimer = 0;
+  let sy = null, startH = 0, wantH = 0, dragging = false, active = false, swallowClick = false, swallowTimer = 0;
   const EXC = 'button, a, input, select, textarea, .close, .board-star, .tc-star, .tc-x, .tc-tt, .fp-close, .fp-end, .fp-tripshare, .fp-notify, .tc-dhlink, [role=button]';
   const inHeader = (e) => {
     if (e.target.closest(EXC)) return false;
@@ -32835,16 +32836,32 @@ function initSheetHandle(el) {
   };
   el.addEventListener('pointerdown', (e) => {
     if (!window.matchMedia(MOBILE_MQ).matches || !inHeader(e)) { active = false; return; }
-    active = true; sy = e.clientY; dy = 0;
+    active = true; dragging = false; sy = e.clientY; startH = wantH = el.getBoundingClientRect().height;
     try { el.setPointerCapture(e.pointerId); } catch (err) {} // 上滑抓把常滑出 sheet 頂緣,不捕捉指標會斷收 move/up 使拖曳失效
   });
-  el.addEventListener('pointermove', (e) => { if (active && sy != null) { dy = e.clientY - sy; if (Math.abs(dy) > 6) e.preventDefault(); } }, { passive: false });
+  el.addEventListener('pointermove', (e) => {
+    if (!active || sy == null) return;
+    const dy = e.clientY - sy;
+    if (!dragging && Math.abs(dy) > 6 && sheetHasSizeSteps(el)) { dragging = true; sheetDragging = el; }
+    if (!dragging) return;
+    e.preventDefault();
+    wantH = startH - dy;
+    applySheetPx(el, wantH); // 拖曳中只動高度與小卡讓位;地圖讓位等放開再算一次
+    syncSheetLift(el);
+  }, { passive: false });
   const end = () => {
     if (!active) return; active = false;
-    if (Math.abs(dy) < 8) cycleSheetSize(el);          // 輕點標題列 → 循環往上一段
-    else if (dy < -40) stepSheetSize(el, 1);           // 上滑 → 往大一段
-    else if (dy > 40) stepSheetSize(el, -1);           // 下滑 → 往小一段
-    // 🔴 段高一改,面板高度立刻變,原本指標底下的元素就換人;瀏覽器接著合成的那一發 click 會落在
+    if (dragging) {
+      dragging = false; sheetDragging = null;
+      // 附近車站卡拖到最小高度還往下 48 以上 ⇒ 收起(手機 sheet「下滑＝丟掉」)。只給附近車站卡:
+      // 看板/護照/查詢那幾張各自有開關記憶與 tab 選中態,把它們一起改成下滑即關是另一件事。
+      if (el.id === 'nearCard' && wantH < SHEET_MIN_PX - 48) closeNearbyStations();
+      else setSheetPx(el, wantH);
+    } else if (el.id === 'searchPanel' && document.body.classList.contains('search-open')) {
+      // 打字態的標題列輕點/下滑:回瀏覽態,高度回 46%(不寫入全站偏好)
+      setSearchTyping(false); applySheetPx(el, innerHeight * SHEET_QUERY_FRAC);
+    }
+    // 🔴 高度一改,面板高度立刻變,原本指標底下的元素就換人;瀏覽器接著合成的那一發 click 會落在
     //    「新位置」的元素上。實測(2026-07-30):點亮點面板標題列 → 面板從 46% 長到 88% → click
     //    落到內容區的列車列 → index.html 的 `#explorePanel` onclick 把面板關掉、還跟了一班
     //    完全不相干的車。這個坑在雙段高時代就存在(origin/main 同樣重現),只是當時 expand 會被
@@ -32856,7 +32873,7 @@ function initSheetHandle(el) {
     swallowTimer = setTimeout(() => { swallowClick = false; }, 350); // click 沒送達(被別人吃掉)也要自解,免得誤吞下一次真點擊
   };
   el.addEventListener('pointerup', end);
-  el.addEventListener('pointercancel', () => { active = false; });
+  el.addEventListener('pointercancel', end); // 拖到一半被系統手勢搶走也要定案,不然 sheetDragging 卡住、偏好不再回套
   el.addEventListener('click', (e) => {
     if (!swallowClick) return;
     swallowClick = false; clearTimeout(swallowTimer);
@@ -33921,8 +33938,7 @@ function unmountUniCard() {
 }
 let uniPrimed = false; // 這次跟車有沒有已經把「這班車」那一頁備妥(停靠表打開、曲線畫過)
 // 設計 3a 的「往上拉看完整資料」:40%／46% 兩段看不出下面還有東西,卡緣給一條明路。
-// 點它直接跳到最大段(與抓把同一個入口 setSheetSize,段高偏好也跟著記,不另立一套)。
-// 2026-08-26 兩段制之後最大段＝中段 46%(原本是大段 88%,已退役)。
+// 點它直接拉到最高(與放開抓把同一個入口 setSheetPx,高度偏好也跟著記,不另立一套;再被貼合內容夾住)。
 function uniDetailHint(fp) {
   let h = fp.querySelector('.uni-more');
   if (!h) {
@@ -33933,7 +33949,7 @@ function uniDetailHint(fp) {
     h.onclick = ev => {
       ev.stopPropagation();
       const bd = document.getElementById('board');
-      if (bd) setSheetSize(bd, SHEET_SIZES[SHEET_SIZES.length - 1]); // 最大段(兩段制=medium)
+      if (bd) setSheetPx(bd, Infinity); // applySheetPx 夾到可拖的上限
     };
   }
   const tc = document.getElementById('trainCard');
@@ -41229,8 +41245,13 @@ document.getElementById('followPanel').addEventListener('keydown', e => {
 });
 document.getElementById('tcStar').onclick = (e) => { e.stopPropagation(); toggleFav(state.followTrain); }; // stopPropagation:sheet 態不觸發標題列 toggle
 document.getElementById('tcSheetClose').onclick = (e) => { e.stopPropagation(); closeTrainSheet(); }; // ✕ 收「列車」sheet(跟車不中斷,小卡回來)
-// 三段高抓把:.board 家族 + 「列車」sheet(#trainCard)綁點擊循環 / 拖曳相鄰 snap
+// 抓把:.board 家族 + 「列車」sheet(#trainCard)綁拖曳調整高度
 ['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel', 'todayPanel', 'delayHistPanel', 'trainCard', 'nearCard', 'searchPanel'].forEach(id => { const el = document.getElementById(id); if (el) initSheetHandle(el); });
+// 面板內容晚到或貼合內容的高度變了,小卡讓位跟著 sheet 實際高度走(syncSheetLift)
+if (typeof ResizeObserver === 'function') {
+  const ro = new ResizeObserver(() => syncSheetLift(activeSheetEl()));
+  [...SHEET_PANEL_IDS, 'trainCard'].forEach(id => { const el = document.getElementById(id); if (el) ro.observe(el); });
+}
 // 車次介紹卡的「誤點履歷 ›」次要入口(fs 模式卡會被搬進跟隨面板,stopPropagation 避免觸發膠囊展開)
 document.getElementById('tcDelayHist').onclick = (e) => { e.stopPropagation(); openDelayHist(state.followTrain); };
 document.getElementById('tcDelayHist').onkeydown = e => boardRowKey(e, '#tcDelayHist');

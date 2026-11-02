@@ -1,15 +1,14 @@
-// 手機底部 sheet 段高的驗收：起因是車站資訊 sheet 的段高拉了沒有作用。
+// 手機底部 sheet 高度的驗收。
 //
-// 真因：段高原本只有 max-height（上限），內容比該段短時各段一律貼合內容 ⇒ 拉了完全沒反應。
-// 判準刻意寫「使用者看得到的行為」而不是 CSS 公式（46% / min() 那串是實作，拿它當判準＝同源、
-// 公式錯的話判準會跟著錯）：展開段一定要明顯變大、兩段要真的不同高、面板不得超出畫面。
+// 歷史:2026-07-30「拉了沒反應」(段高只有上限、內容短時各段同高)→ 08-26 三段改兩段(大段 88% 留白退役)
+// → 2026-11-02 改成連續拖拉(使用者:「大小調整可以直接用拖拉的,不是點擊後變成固定的大小」)。
+// 規格與三邊一致的條文在 native repo docs/m9/lanes/sheet-drag-handoff.md。
 //
-// 🔴 2026-08-26 三段改兩段：大段 88% 退役——許多站在大段時內容撐不滿，畫面大半留白，
-//    要縮小還得額外再點一次。同輪把預設從中改成小、並把下限給中段，否則兩段在安靜的
-//    站會量出同高（談文實測 207/207）＝ 2026-07-30 那個病灶原封不動搬到兩段制。
-//    G2 因此是這支腳本的核心判準，且刻意用**嚴格**不等式：`小 < 中`，相等就是病灶復發。
+// 判準寫「使用者看得到的行為」:拖曳中頂緣跟著手指、放開停在原處、重開記得、點一下不變、
+// 內容短時貼合內容不留白、頂列露出、查詢 sheet 不寫偏好、跟隨小卡跟著 sheet 實際高度讓位。
+// 數字只用「手指移了多少」與視窗本身,不用 30%/46% 這類實作常數(同源判準)。
 //
-// 用法：node scripts/verify_sheet_sizes.mjs [目標目錄]   ENGINES=chromium 只跑一個引擎
+// 用法:node scripts/verify_sheet_sizes.mjs [目標目錄]   ENGINES=chromium 只跑一個引擎
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -57,25 +56,27 @@ await new Promise(r => server.listen(PORT, r));
   if (disk !== served) { server.close(); process.exit(1); }
 }
 
-const SNAP = `(() => {
-  const el = document.getElementById('board');
+const SNAP = (id) => `(() => {
+  const el = document.getElementById(${JSON.stringify(id)});
   const r = el.getBoundingClientRect();
   return { cls: el.className, h: Math.round(r.height), top: Math.round(r.top), bottom: Math.round(r.bottom),
-    scrollH: el.scrollHeight, rows: el.querySelectorAll('.row').length,
-    pref: localStorage.getItem('trainmap-sheet-size'), vh: innerHeight,
-    size: (typeof sheetSizeOf === 'function' ? sheetSizeOf(el) : null),
-    full: document.body.classList.contains('sheet-full') };
+    scrollH: el.scrollHeight, clientH: el.clientHeight, inline: el.style.getPropertyValue('--sheet-size'),
+    pref: localStorage.getItem('trainmap-sheet-h-v1'), night: localStorage.getItem('trainmap-night-sheet-h-v1'),
+    vh: innerHeight, rows: [...el.querySelectorAll('.row')].filter(x => x.getClientRects().length).length };
 })()`;
+const snap = (page, id = 'board') => page.evaluate(c => eval(c), SNAP(id));
 
-async function boot(browser, { width, height, touch }) {
-  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, deviceScaleFactor: 1 });
-  await ctx.addInitScript(() => {
+async function boot(browser, { width, height, touch, init = {} }) {
+  // 語系釘繁中:英文環境會跳出「語言提示卡」蓋在小高度 sheet 的卡頭上,拖曳的手指落在提示卡、量成假的拖不動
+  const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, deviceScaleFactor: 1, locale: 'zh-TW', timezoneId: 'Asia/Taipei' });
+  await ctx.addInitScript((init) => {
     try {
       localStorage.setItem('trainmap-howto-seen', '1');
       localStorage.setItem('trainmap-appearance', 'light');
-      localStorage.removeItem('trainmap-sheet-size'); // 每次從預設段起手，不吃上一輪殘留
+      for (const k of ['trainmap-sheet-size', 'trainmap-night-sheet-size', 'trainmap-sheet-h-v1', 'trainmap-night-sheet-h-v1']) localStorage.removeItem(k);
+      for (const [k, v] of Object.entries(init)) localStorage.setItem(k, v);
     } catch (e) {}
-  });
+  }, init);
   const page = await ctx.newPage();
   const errs = [];
   page.on('pageerror', e => errs.push(String(e).slice(0, 160)));
@@ -91,24 +92,27 @@ async function selectTRA(page) {
   await page.waitForFunction(() => state.mode === 'sched' && (state.trains || []).some(t => t.sys === 'tra_sched'), null, { timeout: 45000 });
 }
 
-async function tapHandle(page) {
-  const box = await page.evaluate(() => { const r = document.getElementById('board').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 12 }; });
+/// 從卡頭(頂緣下 12)按住、分 8 步移 dy、量一次拖曳中的樣子、放開。回傳 { during, after, fingerY }。
+/// 手指夾在視窗內(上下各留 4):移到視窗外瀏覽器不送 pointermove,量到的會是假的「拖不動」。
+async function drag(page, id, dy) {
+  const box = await page.evaluate(id => { const r = document.getElementById(id).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 12, vh: innerHeight }; }, id);
+  dy = Math.max(4 - box.y, Math.min(box.vh - 4 - box.y, dy));
   await page.mouse.move(box.x, box.y);
-  await page.mouse.down(); await page.waitForTimeout(60); await page.mouse.up();
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) { await page.mouse.move(box.x, box.y + dy * i / 8); await page.waitForTimeout(16); }
+  await page.waitForTimeout(60);
+  const during = await snap(page, id);
+  await page.mouse.up();
   await page.waitForTimeout(450);
-  return await page.evaluate(c => eval(c), SNAP);
+  return { during, after: await snap(page, id), fingerY: box.y + dy };
 }
-
-/// 開看板 → 兩段各量一次（點抓把循環：小→中→小）。
-/// 🔴 起手是**小**段（2026-08-26 起的預設）：打開就貼合內容不留白，按一下才展開。
-async function cycle(page, openExpr) {
-  await page.evaluate(c => eval(c), openExpr);
-  await page.waitForTimeout(800);
-  const small = await page.evaluate(c => eval(c), SNAP);
-  const medium = await tapHandle(page);
-  const back = await tapHandle(page);
-  return { small, medium, back };
+async function tap(page, id) {
+  const box = await page.evaluate(id => { const r = document.getElementById(id).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 12 }; }, id);
+  await page.mouse.move(box.x, box.y); await page.mouse.down(); await page.waitForTimeout(60); await page.mouse.up();
+  await page.waitForTimeout(450);
+  return snap(page, id);
 }
+const open = n => `openBoard({ name: ${JSON.stringify(n)}, sys: 'tra_sched', lat: 25.0478, lon: 121.517 })`;
 
 for (const engineName of ENGINES) {
   const engine = engineName === 'webkit' ? webkit : chromium;
@@ -118,102 +122,138 @@ for (const engineName of ENGINES) {
   {
     const { ctx, page, errs } = await boot(browser, { width: 390, height: 844, touch: true });
     await selectTRA(page);
-
-    // 取兩個對照站：當下停靠最多的（內容撐得起段高）與最少的（內容比 30% 還短＝原本的病灶）
-    const [busy, quiet] = await page.evaluate(() => {
+    // 兩個對照站：當下停靠最多的（內容夠長，拖多少就該長多少）與最少的（內容短＝貼合內容的現場）
+    const [busy, busy2, quiet] = await page.evaluate(() => {
       const cnt = {};
       for (const tr of state.trains) { if (tr.sys !== 'tra_sched') continue; for (const s of tr.stops) { if (s.stop === false) continue; cnt[s.name] = (cnt[s.name] || 0) + 1; } }
       const arr = Object.entries(cnt).sort((a, b) => b[1] - a[1]);
-      return [arr[0][0], arr[arr.length - 1][0]];
+      return [arr[0][0], arr[1][0], arr[arr.length - 1][0]];
     });
-    const open = n => `openBoard({ name: ${JSON.stringify(n)}, sys: 'tra_sched', lat: 25.0478, lon: 121.517 })`;
+    const tag = `${engineName}/mobile`;
+    await page.evaluate(c => eval(c), open(busy)); await page.waitForTimeout(800);
+    const start = await snap(page);
 
-    for (const [label, station] of [[`台鐵・多班次 ${busy}`, busy], [`台鐵・少班次 ${quiet}`, quiet]]) {
-      const c = await cycle(page, open(station));
-      const tag = `${engineName}/mobile/${label}`;
-      const dims = `小 ${c.small.h} / 中 ${c.medium.h}（內容 ${c.small.scrollH}，視窗 ${c.small.vh}）`;
+    // D1 拖曳中：頂緣跟著手指（往上 150）
+    const up = await drag(page, 'board', -150);
+    ok(`D1 ${tag} 拖曳中高度跟著手指走（${busy}）`,
+      Math.abs(up.during.h - (start.h + 150)) <= 4 && Math.abs(up.during.top - (up.fingerY - 12)) <= 4,
+      `起 ${start.h} → 拖曳中 ${up.during.h}（期望 ${start.h + 150}），頂緣 ${up.during.top}／手指 ${up.fingerY}`);
+    // D2 放開不吸附
+    ok(`D2 ${tag} 放開後停在原處（不跳段）`, Math.abs(up.after.h - up.during.h) <= 2, `拖曳中 ${up.during.h} → 放開 ${up.after.h}`);
+    // D3 記住：偏好是比例，換一站重開同高
+    const frac = Number(up.after.pref);
+    ok(`D3a ${tag} 高度偏好寫成比例`, Math.abs(frac - up.after.h / up.after.vh) <= 0.01, `pref ${up.after.pref}，實際 ${(up.after.h / up.after.vh).toFixed(3)}`);
+    await page.evaluate(() => closeBoard()); await page.waitForTimeout(300);
+    await page.evaluate(c => eval(c), open(busy2)); await page.waitForTimeout(800);
+    const reopen = await snap(page);
+    ok(`D3b ${tag} 換站重開記得高度（${busy2}）`, Math.abs(reopen.h - up.after.h) <= 2, `${up.after.h} → ${reopen.h}`);
+    // D4 點一下不改高度
+    const tapped = await tap(page, 'board');
+    ok(`D4 ${tag} 點卡頭不改高度`, Math.abs(tapped.h - reopen.h) <= 1 && tapped.pref === reopen.pref, `${reopen.h} → ${tapped.h}，pref ${reopen.pref} → ${tapped.pref}`);
+    // D5 往下拖到底：停在最小高度、內容沒被藏起來
+    const down = await drag(page, 'board', 900);
+    ok(`D5 ${tag} 往下拖到底停在下限且仍在畫面內`, down.after.h >= 100 && down.after.h < 0.25 * down.after.vh && down.after.bottom <= down.after.vh,
+      `高 ${down.after.h}，bottom ${down.after.bottom}`);
+    ok(`D5b ${tag} 小高度只捲動、不藏班次列`, down.after.rows > 0 && down.after.scrollH > down.after.clientH, `可見列 ${down.after.rows}，內容 ${down.after.scrollH}／可視 ${down.after.clientH}`);
+    // D6 往上拖到頂：頂列那一排要露出（頂緣離視窗頂至少 56）、底緣不出畫面
+    const top = await drag(page, 'board', -1200);
+    ok(`D6 ${tag} 拖到最高時明顯變高、頂列仍露出、底緣在畫面內`, top.after.h > 0.6 * top.after.vh && top.after.top >= 56 && top.after.bottom <= top.after.vh,
+      `高 ${top.after.h} top ${top.after.top} bottom ${top.after.bottom}（手指到 ${top.fingerY}）`);
+    // D7 偏好拉到最高後開安靜的站：貼合內容、不留白
+    await page.evaluate(() => closeBoard()); await page.waitForTimeout(300);
+    await page.evaluate(c => eval(c), open(quiet)); await page.waitForTimeout(800);
+    const q = await snap(page);
+    ok(`D7 ${tag} 內容短時貼合內容（${quiet}）`, q.h < top.after.h - 40 && q.scrollH <= q.clientH + 1, `高 ${q.h}（偏好高 ${top.after.h}），內容 ${q.scrollH}／可視 ${q.clientH}`);
+    await page.evaluate(() => closeBoard()); await page.waitForTimeout(300);
 
-      // 判準：按下去要「真的變大」。門檻取視窗的 40%，
-      // 不寫 46%／388px——那是實作的數字，寫進來就變成同源判準。
-      ok(`G1 ${tag} 中段真的撐開（不受內容長度影響）`,
-        c.medium.h >= 0.4 * c.medium.vh, dims);
-      // 🔴 嚴格不等式：這一條就是 2026-07-30／2026-08-26 兩次病灶的守門人。
-      //    只要有人把中段的 min-height 拿掉，安靜的站立刻回到「兩段同高、按了沒反應」。
-      ok(`G2 ${tag} 小段嚴格比中段矮（按下去看得出變化）`,
-        c.small.h < c.medium.h, dims);
-      ok(`G3 ${tag} 兩段都沒有超出畫面`,
-        c.medium.top >= 0 && c.medium.bottom <= c.medium.vh + 1 && c.small.bottom <= c.small.vh + 1,
-        `中段 top ${c.medium.top} bottom ${c.medium.bottom} / 小段 bottom ${c.small.bottom}`);
-      ok(`G4 ${tag} 段高偏好有記住（小→中→回小）`,
-        c.medium.pref === 'medium' && c.back.pref === 'small',
-        `${c.small.pref} → ${c.medium.pref} → ${c.back.pref}`);
-      ok(`G5 ${tag} 循環回到小段時高度與一開始相同`,
-        c.back.h === c.small.h, `${c.small.h} → ${c.back.h}`);
-      ok(`G5b ${tag} 打開時就是小段（預設不留白）`,
-        c.small.size === 'small' && c.medium.size === 'medium',
-        `${c.small.size} → ${c.medium.size}`);
-      // 班次多的那站才驗筆數：安靜的站本來就沒有 12 班可截。
-      // 🔴 大段 24 筆退役後筆數不再跟段高走 ⇒ 判準改成「兩段筆數一致且不超過 12」；
-      //    有人把筆數重新綁回段高（或把上限改掉）這條就會紅。
-      if (station === busy) {
-        ok(`G6 ${tag} 段高不再改變列出的班次數（上限 12）`,
-          c.small.rows === c.medium.rows && c.medium.rows <= 12,
-          `小 ${c.small.rows} 筆 → 中 ${c.medium.rows} 筆`);
-      }
-    }
+    // D8 查詢 sheet：拖曳不寫偏好、關掉再開回到原本的打開高度（瀏覽態內容短,往下拖才看得出變化）
+    const prefBefore = await page.evaluate(() => localStorage.getItem('trainmap-sheet-h-v1'));
+    await page.evaluate(() => openSearchPanel({ user: true })); await page.waitForTimeout(700);
+    const s0 = await snap(page, 'searchPanel');
+    const sd = await drag(page, 'searchPanel', 120);
+    await page.evaluate(() => closeSearchPanel({ user: true })); await page.waitForTimeout(300);
+    await page.evaluate(() => openSearchPanel({ user: true })); await page.waitForTimeout(700);
+    const s1 = await snap(page, 'searchPanel');
+    ok(`D8 ${tag} 查詢 sheet 拖得動、不寫全站偏好、重開回原高`,
+      sd.after.h < s0.h - 60 && sd.after.pref === prefBefore && Math.abs(s1.h - s0.h) <= 2,
+      `開 ${s0.h} → 拖 ${sd.after.h} → 重開 ${s1.h}；pref ${prefBefore} → ${sd.after.pref}`);
+    await page.evaluate(() => closeSearchPanel({ user: true })); await page.waitForTimeout(300);
 
-    // 捷運來車看板：內容天生短，是「拉了沒反應」的第二個常見現場
-    await page.evaluate(() => selectGroup(GROUPS.find(g => g.id === 'metro')));
-    await page.waitForFunction(() => state.mode === 'freq' && (state.lines || []).length > 0, null, { timeout: 45000 });
-    const metro = await page.evaluate(() => {
-      for (const ln of state.lines) { const s = (ln.stations || [])[3]; if (s && s.name) return { name: s.name, sys: ln.sys || 'mrt' }; }
-      return null;
-    });
-    if (metro) {
-      const c = await cycle(page, `openBoard(${JSON.stringify({ ...metro, lat: 25.0478, lon: 121.517 })})`);
-      const tag = `${engineName}/mobile/捷運來車看板 ${metro.name}`;
-      // 捷運來車看板內容天生短（一目的地只列一班），是「兩段同高」最容易復發的現場
-      ok(`G7 ${tag} 中段真的撐開且小段嚴格較矮`,
-        c.medium.h >= 0.4 * c.medium.vh && c.small.h < c.medium.h,
-        `小 ${c.small.h} / 中 ${c.medium.h}（內容 ${c.small.scrollH}）`);
-    } else {
-      ok('G7 捷運來車看板取得到樣本', false, '找不到捷運站樣本');
-    }
+    // D9 夜間另存一份
+    await page.evaluate(() => { state.mapDark = true; }); 
+    await page.evaluate(c => eval(c), open(busy)); await page.waitForTimeout(800);
+    const n0 = await snap(page);
+    const nd = await drag(page, 'board', -80);
+    ok(`D9 ${tag} 夜間拖曳寫夜間偏好、不動白天偏好`, nd.after.night != null && nd.after.pref === n0.pref && Math.abs(Number(nd.after.night) - nd.after.h / nd.after.vh) <= 0.01,
+      `白天 ${n0.pref} → ${nd.after.pref}；夜間 ${n0.night} → ${nd.after.night}`);
+    await page.evaluate(() => { state.mapDark = false; closeBoard(); }); await page.waitForTimeout(300);
 
-    // 🔴 G8b「大段已退役」：正向對照——刻意用舊 API 呼叫 'large'，必須完全不生效。
-    //    沒有這條，未來有人把 'large' 加回 SHEET_SIZES、或讓 body 又掛上 sheet-full（那組規則會把
-    //    頂列/徽章/動作列整組淡出並關掉指標事件），G1–G7 一條都照不到——它們只量兩段各自的高度。
-    const relic = await page.evaluate(() => {
-      const bd = document.getElementById('board');
-      setSheetSize(bd, 'large');
-      return { size: sheetSizeOf(bd), full: document.body.classList.contains('sheet-full'),
-        expand: bd.classList.contains('expand'), steps: SHEET_SIZES.slice(),
-        pref: localStorage.getItem('trainmap-sheet-size') };
-    });
-    ok(`G8b ${engineName}/mobile 大段（'large'／body.sheet-full）已退役`,
-      relic.steps.join(',') === 'small,medium' && !relic.full && !relic.expand
-      && relic.size !== 'large' && relic.pref !== 'large',
-      JSON.stringify(relic));
+    // D10 跟隨小卡照 sheet 實際高度讓位；sheet 拉到最高時小卡淡出
+    await page.evaluate(() => document.getElementById('randBtn').click());
+    await page.waitForTimeout(1500);
+    const followed = await page.evaluate(() => !!state.followTrain && !document.getElementById('followPanel').hidden);
+    if (followed) {
+      await page.evaluate(() => openExplorePanel()); await page.waitForTimeout(900);
+      // 透明度只看「sheet 高度」這條規則:停靠中(body.dwell-show)小卡本來就讓位給站名牌,先暫時拿掉;
+      // 過場動畫關掉,否則剛切 class 讀到的是動畫起點的舊值(兩邊都會量成 0 ⇒ 假綠)。
+      const lift = async () => page.evaluate(() => {
+        const fpEl = document.getElementById('followPanel'), body = document.body, dwell = body.classList.contains('dwell-show');
+        fpEl.style.transition = 'none'; body.classList.remove('dwell-show');
+        const fp = fpEl.getBoundingClientRect(), sh = document.getElementById('explorePanel').getBoundingClientRect();
+        const out = { fpBottom: Math.round(fp.bottom), shTop: Math.round(sh.top), fpOpacity: getComputedStyle(fpEl).opacity, tall: body.classList.contains('sheet-tall'), dwell };
+        if (dwell) body.classList.add('dwell-show');
+        fpEl.style.transition = '';
+        return out;
+      });
+      await drag(page, 'explorePanel', 200); // 先拉矮,讓小卡放得下
+      const low = await lift();
+      ok(`D10a ${tag} 跟隨小卡貼在 sheet 頂上（不重疊、看得到）`, low.fpBottom <= low.shTop && low.shTop - low.fpBottom <= 24 && !low.tall && Number(low.fpOpacity) > 0.95, JSON.stringify(low));
+      await drag(page, 'explorePanel', -1200);
+      const high = await lift();
+      ok(`D10b ${tag} sheet 拉到最高時小卡讓開（淡出）`, high.tall && Number(high.fpOpacity) < 0.05, JSON.stringify(high));
+    } else ok(`D10 ${tag} 隨機跟隨有跟到車`, false, '按了隨機跟隨,state.followTrain 或 #followPanel 沒出現');
 
-    ok(`G8 ${engineName}/mobile 無 JS 錯誤`, errs.length === 0, errs.slice(0, 2).join(' | '));
+    ok(`G8 ${tag} 無 JS 錯誤`, errs.length === 0, errs.slice(0, 2).join(' | '));
     await ctx.close();
   }
 
-  // ── 桌機 1280×800：段高是手機專屬，桌面不得掛上 class、也不得改變高度 ──
+  // ── 舊兩段偏好換算：存過 medium 的人打開約為視窗 46%（內容夠長的站） ──
+  {
+    const { ctx, page, errs } = await boot(browser, { width: 390, height: 844, touch: true, init: { 'trainmap-sheet-size': 'medium' } });
+    await selectTRA(page);
+    const busy = await page.evaluate(() => { const cnt = {}; for (const tr of state.trains) { if (tr.sys !== 'tra_sched') continue; for (const s of tr.stops) if (s.stop !== false) cnt[s.name] = (cnt[s.name] || 0) + 1; } return Object.entries(cnt).sort((a, b) => b[1] - a[1])[0][0]; });
+    await page.evaluate(c => eval(c), open(busy)); await page.waitForTimeout(800);
+    const m = await snap(page);
+    ok(`D11 ${engineName} 舊鍵 medium 換算成同樣的高度`, Math.abs(m.h / m.vh - 0.46) <= 0.01, `高 ${m.h}／視窗 ${m.vh}`);
+    ok(`D11b ${engineName} 無 JS 錯誤`, errs.length === 0, errs.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+
+  // ── 橫式 844×390：右側欄沒有高度可拖 ──
+  {
+    const { ctx, page, errs } = await boot(browser, { width: 844, height: 390, touch: true });
+    await selectTRA(page);
+    await page.evaluate(() => openBoard({ name: '臺北', sys: 'tra_sched', lat: 25.0478, lon: 121.517 }));
+    await page.waitForTimeout(700);
+    const before = await snap(page);
+    const d = await drag(page, 'board', -100);
+    ok(`G9a ${engineName}/landscape 側欄拖了不變高、不掛 inline 高度`, Math.abs(d.after.h - before.h) <= 1 && !d.after.inline && !/sheet-small/.test(d.after.cls), `高 ${before.h} → ${d.after.h} inline "${d.after.inline}"`);
+    ok(`G9b ${engineName}/landscape 無 JS 錯誤`, errs.length === 0, errs.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+
+  // ── 桌機 1280×800：高度是手機專屬，直接呼叫 API 也不得生效 ──
   {
     const { ctx, page, errs } = await boot(browser, { width: 1280, height: 800, touch: false });
     await selectTRA(page);
     await page.evaluate(() => openBoard({ name: '臺北', sys: 'tra_sched', lat: 25.0478, lon: 121.517 }));
     await page.waitForTimeout(700);
-    const before = await page.evaluate(c => eval(c), SNAP);
-    // 直接呼叫 API 也不該生效（不是只有「點不到把手」而已）
-    await page.evaluate(() => setSheetSize(document.getElementById('board'), 'medium'));
+    const before = await snap(page);
+    await page.evaluate(() => setSheetPx(document.getElementById('board'), 600));
     await page.waitForTimeout(400);
-    const after = await page.evaluate(c => eval(c), SNAP);
-    ok(`G9 ${engineName}/desktop 桌面不套段高`,
-      !/sheet-small|expand/.test(after.cls) && after.h === before.h,
-      `class="${after.cls}" 高 ${before.h} → ${after.h}`);
-    ok(`G10 ${engineName}/desktop 無 JS 錯誤`, errs.length === 0, errs.slice(0, 2).join(' | '));
+    const after = await snap(page);
+    ok(`G10 ${engineName}/desktop 桌面不套高度`, !/sheet-small|expand/.test(after.cls) && after.h === before.h && !after.inline, `class="${after.cls}" 高 ${before.h} → ${after.h}`);
+    ok(`G10b ${engineName}/desktop 無 JS 錯誤`, errs.length === 0, errs.slice(0, 2).join(' | '));
     await ctx.close();
   }
 

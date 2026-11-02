@@ -906,14 +906,14 @@ const CARDS2 = {
 const OPEN2 = {
   // 合併卡預設開在「這一站」;提示列在「這班車」那一頁,照使用者的路徑點分頁鈕切過去
   uni: `(async () => { await ${OPEN.uni}; document.querySelector('#board > .uni-tabs button[data-t=train]')?.click(); await new Promise(r => setTimeout(r, 300)); })()`,
-  // 列車 sheet 小段只露標題＋遙測,內容到中段才有。setSheetSize 會寫全站段高偏好,量完要還給小段
+  // 列車 sheet 拉到 46%(舊中段)。setSheetPx 會寫全站高度偏好,量完要還給 30%
   tc: `(async () => {
     const cands = state.trains.filter(t => t.sys === 'tra_sched' && t.stops && t.stops.length > 20);
     const tr = cands.find(t => { const tt = effTLive(t), info = nextStopInfo(t, tt); return tt >= t.stops[0].depSec && !dwellInfoOf(t, tt) && info && info.min >= 3; }) || cands[0];
     followTrainNo(String(tr.train), { sys: 'tra_sched' });
     await new Promise(r => setTimeout(r, 400));
     openTrainSheet(); await new Promise(r => setTimeout(r, 300));
-    setSheetSize(document.getElementById('trainCard'), 'medium'); await new Promise(r => setTimeout(r, 300));
+    setSheetPx(document.getElementById('trainCard'), innerHeight * 0.46); await new Promise(r => setTimeout(r, 300));
   })()`,
   // 平交道資料是開機後才非同步抓(ensureCrossings),開卡前等它到
   xing: `(async () => {
@@ -983,9 +983,9 @@ const FOOT0 = async () => {
 };
 const footFits = s => s.shown && s.pinned && Math.abs(s.pad - s.stuck) <= 1;
 const fmtF = s => !s.shown ? `提示列不在(讓位 ${s.pad})` : `讓位 ${s.pad} 實際 ${s.stuck}${s.pinned ? '' : '(沒釘在卡緣)'}`;
-// 換段高走抓把／標題列用的同一個入口 setSheetSize
+// 換高度走放開抓把用的同一個入口 setSheetPx;small／medium＝舊兩段的 30%／46%
 const SIZE = async size => {
-  setSheetSize(document.getElementById('board'), size);
+  setSheetPx(document.getElementById('board'), innerHeight * (size === 'small' ? 0.30 : 0.46));
   for (let i = 0; i < 3; i++) await new Promise(r => requestAnimationFrame(r));
   await new Promise(r => setTimeout(r, 250));
 };
@@ -1933,7 +1933,7 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
     if (isTc) {
       await cardS(page, P, '360', 'tc');
       await cardJ(page, P, '360', 'tc', ':scope > .tc-head button');
-      await page.evaluate(() => setSheetSize(document.getElementById('trainCard'), 'small')); // 段高偏好還給小段
+      await page.evaluate(() => setSheetPx(document.getElementById('trainCard'), innerHeight * 0.30)); // 高度偏好還給 30%
     }
     // 平交道卡家族(網頁版):平交道卡、台糖卡標題以外沒有可聚焦元素(S);落釘卡、附近車站卡的列 v0926j 起可聚焦,
     // S 的前提不成立,改成真的走(附近車站卡在這裡、落釘卡在 844×390 那段)。直式只有附近車站卡捲得動,其餘三張的 J 在 844×390 量
@@ -2300,7 +2300,7 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
       ok(P(`T ${V} 跟車卡誤點履歷:Tab 可達,Enter 開面板並聚焦 close`), d1.steps >= 0 && da.open && da.close && da.fv, `Tab ${d1.steps} 步；${JSON.stringify(da)}`);
       await page.keyboard.press('Escape'); await settle(page);
       await page.evaluate(() => openTrainSheet()); await settle(page);
-      await page.evaluate(() => setSheetSize(document.getElementById('trainCard'), 'medium')); await settle(page);
+      await page.evaluate(() => setSheetPx(document.getElementById('trainCard'), innerHeight * 0.46)); await settle(page);
       const d2 = await kfTabTo(page, eng, '#tcSheetClose', '#tcDelayHist[role="button"]', '#trainCard');
       await page.keyboard.press('Enter'); await settle(page);
       const db = await page.evaluate(() => ({ open: !document.getElementById('delayHistPanel').hidden, close: document.activeElement && document.activeElement.matches('#delayHistClose'), fv: __kf.fv(document.activeElement) }));

@@ -49,7 +49,7 @@ for(const [name,engine]of Object.entries({chromium,webkit})){
   // 展開的列車卡開著也要能進觀看設定；放空時不顯示觀看鈕。跟車會拉鏡頭，放在 motion 之後另開一頁。
   await boot('&train=117');await page.waitForFunction(()=>!!state.followTrain,null,{timeout:60000});
   // 拉到中段：卡片更高，觀看面板下半會跟卡片重疊，量得到面板有沒有浮在卡片上（列車卡 z 1105 高於觀看面板原本的 1050）。
-  const trainSheet=await page.evaluate(()=>{state.playing=false;openTrainSheet();setSheetSize(document.getElementById('trainCard'),'medium');return document.body.classList.contains('train-open')&&!document.getElementById('trainCard').classList.contains('sheet-small');});
+  const trainSheet=await page.evaluate(()=>{state.playing=false;openTrainSheet();setSheetPx(document.getElementById('trainCard'),innerHeight*0.46);return document.body.classList.contains('train-open')&&!document.getElementById('trainCard').classList.contains('sheet-small');});
   await openMapTab();await page.locator('#sunlightRow').scrollIntoViewIfNeeded();
   const trainHit=await page.locator('#sunlightRow').evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));});
   const trainStill=await page.evaluate(()=>document.body.classList.contains('train-open'));

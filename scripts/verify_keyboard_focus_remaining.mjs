@@ -273,7 +273,7 @@ async function core(browserType, eng) {
       check(`${tag} 跟車卡誤點履歷 Enter 開面板並聚焦 close`, dh.open && dh.wanted && dh.fv, dh.active);
       await page.keyboard.press('Escape'); await settle(page);
       await page.evaluate(() => openTrainSheet()); await settle(page);
-      await page.evaluate(() => setSheetSize(document.getElementById('trainCard'), 'medium')); await settle(page);
+      await page.evaluate(() => setSheetPx(document.getElementById('trainCard'), innerHeight * 0.46)); await settle(page);
       await focusKeyboard(page, '#tcSheetClose');
       const tt = await tabUntil(page, eng, '#tcDelayHist[role="button"]', '#trainCard');
       check(`${tag} 列車 sheet 誤點履歷入口可由 Tab 到達`, tt >= 0, `步數 ${tt}`);

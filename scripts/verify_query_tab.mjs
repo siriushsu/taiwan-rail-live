@@ -259,8 +259,9 @@ sections.push({ name: 'G2 打字態', run: async (browser, en) => {
   const advances = new Set([b0, b1, b2, b3]).size - 1;
   ok(`[${en}] G2i 倍速對照:300ms 內推 3 次 simSec ⇒ 牆鐘戳記最多前進 1 次`, advances <= 1, JSON.stringify({ b0, b1, b2, b3, advances }));
   // 牙：F6 修前 cycleSheetSize 對 search-open 分支呼叫 setSheetSize(el,'medium') 會持久化全站偏好 ⇒ G2f 紅
-  const sheetSizeLS = await page.evaluate(() => { try { return localStorage.getItem('trainmap-sheet-size'); } catch (e) { return 'ERR'; } });
-  ok(`[${en}] G2f 離開打字態不寫入全站段高偏好`, sheetSizeLS === null, JSON.stringify({ sheetSizeLS }));
+  // (11-02 改拖拉後偏好存在 trainmap-sheet-h-v1;舊鍵也一起看,兩個都不該被寫)
+  const sheetSizeLS = await page.evaluate(() => { try { return localStorage.getItem('trainmap-sheet-h-v1') ?? localStorage.getItem('trainmap-sheet-size'); } catch (e) { return 'ERR'; } });
+  ok(`[${en}] G2f 離開打字態不寫入全站高度偏好`, sheetSizeLS === null, JSON.stringify({ sheetSizeLS }));
   // 再進打字態，用 × 關閉 ⇒ 兩者皆清
   await page.touchscreen.tap(inp.x, inp.y); await page.waitForTimeout(300);
   await page.evaluate(() => document.getElementById('searchPanelClose').click()); await page.waitForTimeout(300);
@@ -830,14 +831,14 @@ sections.push({ name: 'G10 小工具節', run: async (browser, en) => {
   }
 }});
 
-// G13 查詢 sheet 瀏覽態不吃全站段高偏好(整枝審查 I-5):偏好存 small 仍以中段開、最近站整塊答案(所有列＋公車連結)落在面板可視框內;
-// 看板 #board 照舊吃偏好(正向對照,證明改的只有查詢 sheet)。牙:updateSheetOpenClass 那行退回 sheetSizePref ⇒ G13a/G13b 紅、G13c 仍綠。
-// G13e-h(整枝審查必修 4,N-3):查詢 sheet 的抓把切小不得寫回全站偏好——把查詢 sheet 拉到小、關掉、開看板,
-// 看板不能被那次操作帶成 small,sheetSizePref/localStorage 也不能變;正向對照對 #board 呼叫 setSheetSize('small')
-// 偏好要真的變 small(證明牙量得到寫入,不是恆真判準)。牙:setSheetSize 那個 if 拿掉 ⇒ G13f/G13g 紅。
+// G13 查詢 sheet 瀏覽態不吃全站高度偏好(整枝審查 I-5):偏好存 30% 仍以 46% 開、最近站整塊答案(所有列＋公車連結)落在面板可視框內;
+// 看板 #board 照舊吃偏好(正向對照,證明改的只有查詢 sheet)。牙:updateSheetOpenClass 那行退回 sheetFracPref ⇒ G13a/G13b 紅、G13c 仍綠。
+// G13e-h(整枝審查必修 4,N-3):查詢 sheet 的抓把拖小不得寫回全站偏好——把查詢 sheet 拉到 30%、關掉、開看板,
+// 看板不能被那次操作帶成小樣式,sheetFracPref/localStorage 也不能變;正向對照對 #board 呼叫 setSheetPx 拉到 30%
+// 偏好要真的變 0.3(證明牙量得到寫入,不是恆真判準)。牙:setSheetPx 那個 if 拿掉 ⇒ G13f/G13g 紅。
 sections.push({ name: 'G13 查詢 sheet 以半高開', run: async (browser, en) => {
   const r0 = await boot(browser, {}); const taipei = await stationOf(r0.page, '臺北', 'tra_sched'); await r0.ctx.close();
-  const { ctx, page, errs } = await boot(browser, { query: geomock(offsetLatLon(taipei, 100)), storage: { 'trainmap-sheet-size': 'small' } });
+  const { ctx, page, errs } = await boot(browser, { query: geomock(offsetLatLon(taipei, 100)), storage: { 'trainmap-sheet-h-v1': '0.3' } });
   await page.waitForFunction(() => !document.getElementById('searchPanel').hidden, null, { timeout: 8000 }); await page.waitForTimeout(600);
   const s = await page.evaluate(() => {
     const p = document.getElementById('searchPanel'), pr = p.getBoundingClientRect();
@@ -846,33 +847,33 @@ sections.push({ name: 'G13 查詢 sheet 以半高開', run: async (browser, en) 
     const rows = blk ? [...blk.querySelectorAll('.row')] : [];
     const parts = blk ? [...rows, ...blk.querySelectorAll('.qa-bus')] : [];
     const rects = parts.map(n => n.getBoundingClientRect());
-    return { small: p.classList.contains('sheet-small'), pref: sheetSizePref, h: Math.round(pr.height), vh: innerHeight, parts: parts.length, rows: rows.length,
+    return { small: p.classList.contains('sheet-small'), pref: sheetFracPref, h: Math.round(pr.height), vh: innerHeight, parts: parts.length, rows: rows.length,
       allIn: rows.length > 0 && rects.every(r => r.top >= pr.top - 1 && r.bottom <= pr.bottom + 1) };
   });
-  ok(`[${en}] G13a 偏好 small 時查詢 sheet 仍以中段開`, !s.small && s.pref === 'small', JSON.stringify(s));
+  ok(`[${en}] G13a 偏好 30% 時查詢 sheet 仍以 46% 開`, !s.small && s.pref === 0.3, JSON.stringify(s));
   ok(`[${en}] G13b 最近站整塊答案(至少一列)在面板可視框內`, s.allIn, JSON.stringify(s));
   await page.evaluate(({ name, sys }) => { closeSearchPanel({ user: true }); const c = nearbyStationCandidates().find(x => x.st.name === name && x.st.sys === sys); openBoard(c.st); }, taipei); await page.waitForTimeout(600);
   const b = await page.evaluate(() => ({ small: document.getElementById('board').classList.contains('sheet-small'), hidden: document.getElementById('board').hidden }));
-  ok(`[${en}] G13c 正向對照:看板照舊吃偏好 small`, !b.hidden && b.small, JSON.stringify(b));
+  ok(`[${en}] G13c 正向對照:看板照舊吃偏好 30%`, !b.hidden && b.small, JSON.stringify(b));
   ok(`[${en}] G13d 零 pageerror`, errs.length === 0, errs.join(' | '));
-  // 查詢 sheet 拉到小(setSheetSize 直接呼叫,模擬拖抓把):先把偏好定在跟 small 不同的 medium,
-  // 這樣「有沒有被寫成 small」才有鑑別力(偏好本來就是 small 的話,寫不寫都看起來一樣)。
+  // 查詢 sheet 拉到 30%(setSheetPx 直接呼叫,即放開抓把的入口):先把偏好定在跟 30% 不同的 46%,
+  // 這樣「有沒有被寫成 0.3」才有鑑別力(偏好本來就是 0.3 的話,寫不寫都看起來一樣)。
   await page.evaluate(() => { openSearchPanel(); });
   await page.waitForTimeout(400);
   const w = await page.evaluate(() => {
-    sheetSizePref = 'medium'; try { localStorage.setItem('trainmap-sheet-size', 'medium'); } catch (e) {}
-    setSheetSize(document.getElementById('searchPanel'), 'small');
-    let ls = null; try { ls = localStorage.getItem('trainmap-sheet-size'); } catch (e) {}
-    return { searchSmall: document.getElementById('searchPanel').classList.contains('sheet-small'), pref: sheetSizePref, ls };
+    sheetFracPref = 0.46; try { localStorage.setItem('trainmap-sheet-h-v1', '0.46'); } catch (e) {}
+    setSheetPx(document.getElementById('searchPanel'), innerHeight * 0.30);
+    let ls = null; try { ls = localStorage.getItem('trainmap-sheet-h-v1'); } catch (e) {}
+    return { searchSmall: document.getElementById('searchPanel').classList.contains('sheet-small'), pref: sheetFracPref, ls };
   });
-  ok(`[${en}] G13e 查詢 sheet 抓把切小:面板本身變小(這次打開照常生效)`, w.searchSmall === true, JSON.stringify(w));
-  ok(`[${en}] G13f 查詢 sheet 抓把切小:不寫全站偏好(pref/localStorage 仍是 medium)`, w.pref === 'medium' && w.ls === 'medium', JSON.stringify(w));
+  ok(`[${en}] G13e 查詢 sheet 抓把拖小:面板本身變小(這次打開照常生效)`, w.searchSmall === true, JSON.stringify(w));
+  ok(`[${en}] G13f 查詢 sheet 抓把拖小:不寫全站偏好(pref/localStorage 仍是 0.46)`, w.pref === 0.46 && w.ls === '0.46', JSON.stringify(w));
   await page.evaluate(({ name, sys }) => { closeSearchPanel({ user: true }); const c = nearbyStationCandidates().find(x => x.st.name === name && x.st.sys === sys); openBoard(c.st); }, taipei);
   await page.waitForTimeout(600);
   const b2 = await page.evaluate(() => ({ small: document.getElementById('board').classList.contains('sheet-small') }));
   ok(`[${en}] G13g 查詢 sheet 拉小之後開看板:看板不是 sheet-small(沒被那次操作污染)`, b2.small === false, JSON.stringify(b2));
-  const ctrl = await page.evaluate(() => { setSheetSize(document.getElementById('board'), 'small'); return { pref: sheetSizePref }; });
-  ok(`[${en}] G13h 正向對照:對看板呼叫 setSheetSize 偏好真的變 small(證明牙量得到寫入,不是恆真)`, ctrl.pref === 'small', JSON.stringify(ctrl));
+  const ctrl = await page.evaluate(() => { setSheetPx(document.getElementById('board'), innerHeight * 0.30); return { pref: sheetFracPref }; });
+  ok(`[${en}] G13h 正向對照:對看板呼叫 setSheetPx 偏好真的變 0.3(證明牙量得到寫入,不是恆真)`, Math.abs(ctrl.pref - 0.3) < 0.005, JSON.stringify(ctrl));
   await ctx.close();
 }});
 
