@@ -723,7 +723,7 @@ await attempt('LSe', async () => {
 // ═══ R1：一條線組的寫入＝一個 batch ═══════════════════════════════════════════════
 await attempt('R1', async () => {
   // 超長線 120 段、一班 12,001 點（21 批）；板上 120 段都有、X000|X001 有這個人的認領（鎖價 9）。
-  // 期望：標記已判定只有一句（綁 10 個值：8 個（含收下點的里程範圍 kept_d0／kept_d1）＋租約圍欄的鍵與值；樣本 id 是一個 21 個元素的 JSON 陣列），跟點數、sample_count、關認領在同一個 batch（共 4 句）。
+  // 期望：標記已判定只有一句（綁 12 個值：10 個（含收下點的里程範圍 kept_d0／kept_d1 與時刻 kept_t0／kept_t1）＋租約圍欄的鍵與值；樣本 id 是一個 21 個元素的 JSON 陣列），跟點數、sample_count、關認領在同一個 batch（共 4 句）。
   // 點數：119 段×3＋9＝366 → 每日計點上限 200。入帳：收下 40–240000 m → 239 點（每日上限 500 之內）。舊版一批一句標記（21 句、每句重綁整份覆蓋段），外加逐段各幾句。
   const A = 'dev-r1-000001';
   const w = world({ seed: boardSql('超長線', XL_SEGS) + claimSql({ id: 'claim-r1', actor: A, seg: KT('超長線', 'X000|X001'), pts: 9 }) });
@@ -734,17 +734,17 @@ await attempt('R1', async () => {
   const g = withMark[0] || [];
   const mark = g.find(s => MARK_RE.test(s.sql));
   let ids = [];
-  try { ids = JSON.parse(mark.p[7]); } catch (e) {}
+  try { ids = JSON.parse(mark.p[9]); } catch (e) {}
   const kinds = g.map(s => /^UPDATE bounty_samples/.test(s.sql) ? 'mark' : /^INSERT INTO bounty_points/.test(s.sql) ? 'points'
     : /^UPDATE bounty_board SET sample_count/.test(s.sql) ? 'sample_count' : /^UPDATE bounty_claims/.test(s.sql) ? 'claims' : s.sql.slice(0, 30));
   const bindChars = g.reduce((a, s) => a + s.p.reduce((b, x) => b + String(x).length, 0), 0);
   ok('R1a [R1] 這一條線組（120 段）的寫入＝一個 batch、四句：標記、點數、sample_count、關認領',
     withMark.length === 1 && J(kinds) === J(['mark', 'points', 'sample_count', 'claims']), J({ batches: withMark.length, kinds }));
   let leaseTok = null;
-  try { leaseTok = JSON.parse(mark.p[9]).token; } catch (e) {}
-  ok('R1b [R1] 標記只有一句、綁 10 個值（最後兩個是租約圍欄：租約的鍵與這一發的租約值），樣本 id 以一個 JSON 陣列帶 21 個（不是一批一句）；整個 batch 綁的字元數 < 64 KB',
-    !!mark && mark.p.length === 10 && mark.p[8] === LEASE && typeof leaseTok === 'string' && leaseTok.length > 0 && ids.length === 21 && bindChars < 65536,
-    J({ p: mark && mark.p.length, fence: mark && mark.p.slice(8), ids: ids.length, bindChars }));
+  try { leaseTok = JSON.parse(mark.p[11]).token; } catch (e) {}
+  ok('R1b [R1] 標記只有一句、綁 12 個值（最後兩個是租約圍欄：租約的鍵與這一發的租約值），樣本 id 以一個 JSON 陣列帶 21 個（不是一批一句）；整個 batch 綁的字元數 < 64 KB',
+    !!mark && mark.p.length === 12 && mark.p[10] === LEASE && typeof leaseTok === 'string' && leaseTok.length > 0 && ids.length === 21 && bindChars < 65536,
+    J({ p: mark && mark.p.length, fence: mark && mark.p.slice(10), ids: ids.length, bindChars }));
   ok('R1c 結果照舊：ok、點數 200（119×3＋9＝366 過每日上限 200）、120 段 sample_count 各 1、認領 fulfilled、入帳 239 點',
     q.verdicts(w, A, 'R1') === 'ok' && q.points(w, A) === 200 && q.sampleCounts(w, '超長線').length === 120 && q.sampleCounts(w, '超長線').every(n => n === 1) &&
       one(w, "SELECT status FROM bounty_claims WHERE id='claim-r1'").status === 'fulfilled' && st.chips === 239,
@@ -764,10 +764,10 @@ await attempt('R2a', async () => {
   spyRows(w.DELAY_DB, (sql, rs) => { if (PRIOR_RE.test(sql)) prior.push(...rs.map(r => ({ ...r }))); });
   const st2 = await w.cron({ BOUNTY_NOW: String(NOW_MS + 3600e3) });
   // u0／u1＝「小於半天的 t 加一天」之後的最早與最晚（跨午夜用）：30000、30400 都小於 43200 → 116400、116800（這一組沒跨午夜，判定端用 t0／t1）
-  // ivs＝前一發判定時寫下的收下點里程範圍（kept_d0／kept_d1；入帳的里程與「整趟停在一站」用），一段一個「d0:d1:t0:t1:u0:u1」：
-  // 20 m/s × 400 秒，開頭兩點（0、20）不收 → 40、8000；那一段的時刻 30000–30400（跨午夜用的 116400–116800）。
-  ok('R2a1 前次線組在 SQL 裡依線彙總：前半 3 批只回 1 列（山線）——最壞判定 ok（worst 1）、最早 30000、最晚 30400、跨午夜用的 u0／u1＝116400／116800、一段里程 40–8000（收下的點）與它的時刻、不是模擬器；payload、segs 等其他欄都不送回',
-    J(prior) === J([{ sys: 'tra_sched', ln_id: '山線', worst: 1, t0: 30000, t1: 30400, u0: 116400, u1: 116800, ivs: '40.0:8000.0:30000:30400:116400:116800', sim: 0 }]), J(prior));
+  // ivs＝前一發判定時寫下的收下點里程範圍（kept_d0／kept_d1；入帳的里程與「整趟停在一站」用），一段一個「d0:d1:t0:t1:u0:u1:q0:q1」：
+  // 20 m/s × 400 秒，開頭兩點（0、20）不收 → 40、8000；那一段原始時刻 30000–30400（跨午夜用的 116400–116800），收下點的時刻（kept_t0／kept_t1）30002–30400。
+  ok('R2a1 前次線組在 SQL 裡依線彙總：前半 3 批只回 1 列（山線）——最壞判定 ok（worst 1）、最早 30000、最晚 30400、跨午夜用的 u0／u1＝116400／116800、一段里程 40–8000（收下的點）與它的原始時刻、收下點時刻 30002–30400、不是模擬器；payload、segs 等其他欄都不送回',
+    J(prior) === J([{ sys: 'tra_sched', ln_id: '山線', worst: 1, t0: 30000, t1: 30400, u0: 116400, u1: 116800, ivs: '40.0:8000.0:30000:30400:116400:116800:30002.0:30400.0', sim: 0 }]), J(prior));
   ok('R2a2 入帳照舊看整班（前 400＋後 400＝801 秒 ≥ 600；里程取兩發收下範圍的聯集 40–16000 m）：補入帳 15 點', st2.chips === 15 && q.bal(w, A) === 15, J({ chips: st2.chips, bal: q.bal(w, A) }));
 });
 await attempt('C4', async () => {
@@ -1331,7 +1331,7 @@ await attempt('B1f', async () => {
   const h = { fired: 0 };
   const ob = w.DELAY_DB.batch.bind(w.DELAY_DB);
   w.DELAY_DB.batch = async stmts => {
-    if (!h.fired && stmts.some(x => MARK_RE.test(String(x && x._sql)) && String((x._p || [])[7]).includes(`${A}.T1.`))) { h.fired++; throw new Error('D1_ERROR: 模擬的暫時錯誤'); }
+    if (!h.fired && stmts.some(x => MARK_RE.test(String(x && x._sql)) && String((x._p || [])[9]).includes(`${A}.T1.`))) { h.fired++; throw new Error('D1_ERROR: 模擬的暫時錯誤'); }
     return ob(stmts);
   };
   const st = await w.cron({ BOUNTY_VERIFY_ORDER: 'fixed' });
@@ -2155,8 +2155,8 @@ const PL_PINS = [
   ['判定：標記', /^UPDATE bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 SET verdict=\?/],
   ['判定：第②段的「這一組還是 pending」', /FROM bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 WHERE id IN \(SELECT value FROM json_each\(\?\)\) AND \+verdict='pending'/],
   ['判定：第③段的「真的標到」', /FROM bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 WHERE id IN \(SELECT value FROM json_each\(\?\)\) AND \+verdict=\? AND \+verdict_at=\?/],
-  ['判定：入帳（今天已得的點數，v2 籌碼列照換算）', /\(SELECT COALESCE\(SUM\(\(CASE WHEN unit='chip' THEN delta \* CAST\(\? AS INTEGER\) ELSE delta END\)\), 0\) FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND kind='trip' AND day=\?\)/],
-  ['判定：入帳（這一班沒入過帳）', /NOT EXISTS \(SELECT 1 FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND kind='trip' AND day=\? AND substr\(ref/],
+  ['判定：入帳（今天已得的點數，v2 籌碼列照換算）', /\(SELECT COALESCE\(SUM\(\(CASE WHEN unit='chip' THEN delta \* CAST\(\? AS INTEGER\) ELSE delta END\)\), 0\) FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND \(kind='trip' OR \(kind='adjust' AND substr\(ref, 1, 8\) = 'rejudge\|'\)\) AND day=\?\)/],
+  ['判定：入帳（這一班沒入過帳）', /NOT EXISTS \(SELECT 1 FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND day=\? AND \(\(kind='trip' OR/],
   ['認領：刪同一張卡的舊認領', /^DELETE FROM bounty_claims INDEXED BY idx_claims_actor WHERE actor=\? AND status='open' AND train_kind=\?/],
   ['認領：回傳的認領人數', /COUNT\(DISTINCT actor\) AS n FROM bounty_claims INDEXED BY idx_claims_unit WHERE seg_key=\?/],
   ['看板：開著的認領人數', /COUNT\(DISTINCT actor\) AS n FROM bounty_claims INDEXED BY idx_claims_expiry WHERE status='open' AND expires_at > \?/],

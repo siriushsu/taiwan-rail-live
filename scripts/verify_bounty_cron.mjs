@@ -636,6 +636,51 @@ await attempt('D8', async () => {
   ok('D8 補差額把人工重判補點列（adjust、rejudge|…|日|車）算進已入帳：入帳 7＋重判補 7 → 第二段不補；對照：通行證加成列（plus|…）不算 → 照補 7',
     got.rejudge.s1 === 7 && got.rejudge.s2 === 0 && got.rejudge.trip === 7 && got.plus.s1 === 7 && got.plus.s2 === 7 && got.plus.trip === 14, J(got));
 });
+await attempt('D9', async () => {
+  // 前次段的時刻要用收下點的（kept_t0／kept_t1），不是原始 payload（11-02 複審的中 1）：
+  // A 段 400 秒 @10 m/s（0–4 km），同一批尾巴一個往回的雜點（t=30900，防偽閘不收）；B 段從 t=31700、12 km 起 400 秒（12–16 km）。
+  // A、B 收下的點相隔 1,300 秒：超過 20 分鐘，照設計不接。同一晚判兩段合計 7 點；分兩晚判也要 7（A 單獨太短給 0，第二晚補 7）。
+  // 舊寫法第二晚拿到 A 的原始最晚時刻 30900（雜點），dt＝800 秒 → 把 4–12 km 也接起來，多給。
+  const A = [...leg({ sec: 400, speed: 10, t0: 30000, d0: 0 }), { d: -3000, t: 30900, v: null, acc: 8 }];
+  const B = leg({ sec: 400, speed: 10, t0: 31700, d0: 12000 });
+  const run = async (actor, sameNight) => {
+    const w = world({ seed: boardAll(['山線']) });
+    putBatches(w.db, { actor, trainNo: '606', lnId: '山線', pts: A, first: 0 });
+    if (sameNight) putBatches(w.db, { actor, trainNo: '606', lnId: '山線', pts: B, first: 100 });
+    const s1 = (await w.cron()).chips;
+    if (!sameNight) putBatches(w.db, { actor, trainNo: '606', lnId: '山線', pts: B, first: 100 });
+    const s2 = sameNight ? 0 : (await w.cron(NOW_MS + 3600e3)).chips;
+    return { s1, s2, trip: q.chips(w.db, actor, D28) };
+  };
+  const got = { same: await run('d9-same', true), split: await run('d9-split', false) };
+  ok('D9 前次段時刻用收下點：A 尾巴有雜點、跟 B 斷 1,300 秒——同一晚判 7；分兩晚判 0＋補 7＝7（不把長斷訊接起來多給）',
+    got.same.trip === 7 && got.split.s1 === 0 && got.split.s2 === 7 && got.split.trip === 7, J(got));
+});
+await attempt('D10', async () => {
+  // 人工重判列（adjust、rejudge|…|日|車）算進每日上限，也算「這班入過帳」（11-02 複審的低 2）。
+  // (a) 當天別班已入 480；這班第一段入 7（487），再手動補 rejudge 7（494）；後三段到、整班 28、應補 14，但上限只剩 6 → 補 6，當天合計 500。
+  //     舊寫法上限只數 trip 列，剩 13 → 補 13，當天 trip 500＋重判 7＝507。
+  // (b) 只有人工重判列（7）、沒有錄程列的班：第一段到（整班 7）不再整班發一次；第二段到（整班 14）補 7。舊寫法第一段就再發 7。
+  const put = (w, actor, train, k, first) => putBatches(w.db, { actor, trainNo: train, lnId: '山線', pts: leg({ sec: 750, speed: 10, t0: 30000 + 751 * k, d0: 7510 * k }), first });
+  const rejudge = (w, actor, train, delta) => w.db.prepare("INSERT INTO chip_ledger (id,actor,kind,delta,ref,day,created_at,unit) VALUES (?,?,'adjust',?,?,?,1,'point')")
+    .run(`adjust|rejudge|${actor}|${D28}|${train}`, actor, delta, `rejudge|${actor}|${D28}|${train}`, D28);
+  const dayAll = (w, actor) => w.db.prepare("SELECT COALESCE(SUM(delta),0) n FROM chip_ledger WHERE actor=? AND day=? AND (kind='trip' OR ref LIKE 'rejudge|%')").get(actor, D28).n;
+  const wa = world({ seed: boardAll(['山線']) + `\nINSERT INTO chip_ledger (id,actor,kind,delta,ref,day,created_at,unit) VALUES ('seed-d10','d10-cap','trip',480,'d10-cap|${D28}|999','${D28}',1,'point');` });
+  put(wa, 'd10-cap', '707', 0, 0);
+  const a1 = (await wa.cron()).chips;
+  rejudge(wa, 'd10-cap', '707', 7);
+  for (const k of [1, 2, 3]) put(wa, 'd10-cap', '707', k, 100 * k);
+  const a2 = (await wa.cron(NOW_MS + 3600e3)).chips;
+  const wb = world({ seed: boardAll(['山線']) });
+  rejudge(wb, 'd10-only', '708', 7);
+  put(wb, 'd10-only', '708', 0, 0);
+  const b1 = (await wb.cron()).chips;
+  put(wb, 'd10-only', '708', 1, 100);
+  const b2 = (await wb.cron(NOW_MS + 3600e3)).chips;
+  const got = { a1, a2, aDay: dayAll(wa, 'd10-cap'), b1, b2, bDay: dayAll(wb, 'd10-only') };
+  ok('D10 人工重判列算進上限與已入帳：(a) 上限只剩 6 → 補 6、當天合計 500；(b) 只有重判列的班第一段不再整班發、第二段補 7（合計 14）',
+    a1 === 7 && a2 === 6 && got.aDay === 500 && b1 === 0 && b2 === 7 && got.bDay === 14, J(got));
+});
 await attempt('D4', async () => {
   // 合併發生在「cron 讀完樣本」之後、「入帳」之前（注入點：身分解析那一句之前，那一步在讀樣本之後、早於入帳與登記）。
   // 入帳與登記都要用「當下」的身分＝uid：帳本列掛 uid、貢獻掛 uid；uid 自己也交過同一段時人數不多算 1。

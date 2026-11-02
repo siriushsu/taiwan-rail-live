@@ -8807,8 +8807,11 @@ function bountyPriorGroups(rows) {
     const wrap = r.t0 != null && Number(r.t1) - Number(r.t0) > BOUNTY_HALF_DAY_SEC;
     const tn = x => x === '' || x == null ? NaN : Number(x);
     const dr = String(r.ivs == null ? '' : r.ivs).split(',').map(x => {
-      const [lo, hi, t0, t1, u0, u1] = x.split(':'), d = bountyDRange(lo, hi);
-      return d && { lo: d[0], hi: d[1], t0: tn(wrap ? u0 : t0), t1: tn(wrap ? u1 : t1) };
+      const [lo, hi, t0, t1, u0, u1, q0, q1] = x.split(':'), d = bountyDRange(lo, hi);
+      // 有收下點的時刻（q）就用它：原始時刻含防偽閘丟掉的雜點，段尾一個雜點落在斷訊中間就會把段拉近下一段、接起長斷訊（0019 的說明）。
+      // q 可能是加過一天的值，跟其他段一起在 bountyCreditTripChips 的 bountyUnwrapMidnight 再認一次午夜。
+      const kept = Number.isFinite(tn(q0)) && Number.isFinite(tn(q1));
+      return d && { lo: d[0], hi: d[1], t0: kept ? tn(q0) : tn(wrap ? u0 : t0), t1: kept ? tn(q1) : tn(wrap ? u1 : t1) };
     }).filter(Boolean);
     return {
       dr: dr.length ? dr : null,
@@ -8900,25 +8903,29 @@ async function bountyCreditTripChips(env, rules, groups, prior, now, who, fence,
   //   ・這班車入過帳沒：比對 ref 的尾巴（|乘車日|車次），不是完整 ref——併帳號時帳本列整批改名但 ref 不動，前半趟以舊 token 入的那一筆
   //     ref 前綴還是舊 token，後半趟（合併後上傳、存在 uid 名下）的完整 ref 對不上它，只看 UNIQUE(kind, ref) 會同一班車發兩次。
   //     比對結尾用 substr 不用 LIKE（LIKE 的 _ 與 % 是萬用字元、樣式還有長度上限）。
-  //   ・每日上限：這個身分同一天（trip_date）已入帳的 trip 點數加總，不信客戶端；份量＝min(這一趟, 上限−已領)，不到 1 點就不寫
+  //   ・每日上限：這個身分同一天（trip_date）已入帳的 trip 點數（含人工重判列）加總，不信客戶端；份量＝min(這一趟, 上限−已領)，不到 1 點就不寫
   //     （與 scripts/bounty_chips_core.mjs 的 applyDailyChipCap 同一條）。上線當天 v2 寫的籌碼列照換算計入（BOUNTY_POINTS_OF_ROW）。
   //   ・租約圍欄（BOUNTY_VERIFY_HELD）：這一發若已被下一發接手，一點都不寫——兩發各自讀到「今天還沒領」再各自寫，當天就超過上限。
   //   ・樣本還在（BOUNTY_VERIFY_PENDING）：判定途中帳號被刪（樣本已刪）就不寫，刪掉的帳號不會再長出一筆帳。
   // ref＝趟鍵（身分|乘車日|車次），UNIQUE(kind, ref) ＋ OR IGNORE 是最後一道：同一趟不會重複入帳。RETURNING 回實際寫進去的份量（判定那一行 log 用）。
   const tail = `|${tripDate}|${trainNo}`;
+  // 人工重判補的那一列（kind 'adjust'、ref 'rejudge|身分|乘車日|車次'，10-30 起手動補點的格式）當成這班車的錄程點數：
+  // 算進每日上限（DAY_ROWS），也算「這班車入過帳」（CREDITED，綁 2 個：tail、tail）——只有人工補點列、沒有錄程列的班，不會再整班發一次，改走補差額。
+  const DAY_ROWS = "(kind='trip' OR (kind='adjust' AND substr(ref, 1, 8) = 'rejudge|'))";
+  const CREDITED = "((kind='trip' OR (kind='adjust' AND substr(ref, 1, 8) = 'rejudge|')) AND substr(ref, -length(?)) = ?)";
   const got = await env.DELAY_DB.prepare(
     "INSERT OR IGNORE INTO chip_ledger (id,actor,kind,delta,ref,day,created_at,unit)" +
     " SELECT 'trip|' || w || ?, w, 'trip', g, w || ?, ?, ?, 'point' FROM (" +
-    "SELECT w, MIN(?, ? - (SELECT COALESCE(SUM(" + BOUNTY_POINTS_OF_ROW + "), 0) FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND kind='trip' AND day=?)) AS g" +
+    "SELECT w, MIN(?, ? - (SELECT COALESCE(SUM(" + BOUNTY_POINTS_OF_ROW + "), 0) FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND " + DAY_ROWS + " AND day=?)) AS g" +
     ' FROM (SELECT ' + BOUNTY_WHO_SQL + ' AS w))' +
-    " WHERE g > 0 AND NOT EXISTS (SELECT 1 FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND kind='trip' AND day=? AND substr(ref, -length(?)) = ?)" +
+    " WHERE g > 0 AND NOT EXISTS (SELECT 1 FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND day=? AND " + CREDITED + ")" +
     BOUNTY_VERIFY_HELD + BOUNTY_VERIFY_PENDING + ' RETURNING delta'
   ).bind(tail, tail, tripDate, now, raw, chips.dailyChipCap, chips.chipToPoints, tripDate, who, who, tripDate, tail, tail,
     BOUNTY_VERIFY_LEASE_KEY, fence.lease, fence.ids, fence.n).first();
-  // 補差額：這班車已經有錄程列（前一發入的帳）時才寫，數額＝整班重算的點數 raw 減掉這班車已入帳的（錄程列＋之前的補差額，v2 籌碼列照換算；
+  // 補差額：這班車已經有錄程列或人工重判列（前一發入的帳、手動補的點）時才寫，數額＝整班重算的點數 raw 減掉這班車已入帳的（錄程列＋之前的補差額，v2 籌碼列照換算；
   // 另加人工重判補的那一列：kind 'adjust'、ref 'rejudge|身分|乘車日|車次'，10-30 起手動補點用這個格式），與當日上限剩下的取小，不到 1 點不寫。kind 照樣是 'trip'：每日上限、today.chips、「入帳過錄程」的可信身分都把它算進去。
   // ref＝趟鍵＋'|topup|'＋raw：同一個 raw 再算一次（重判、兩發交錯）由 UNIQUE(kind, ref) 擋；之後再補一段、raw 變大才會再寫一列。
-  // 結尾不是「|乘車日|車次」，所以上面「這班車入過帳沒」只認錄程列；這班車的補差額用 instr 找「|乘車日|車次|topup|」（乘車日固定長度、前後都有 |，不會撞到別班）。
+  // 結尾不是「|乘車日|車次」，所以上面「這班車入過帳沒」只認錄程列與人工重判列；這班車的補差額用 instr 找「|乘車日|車次|topup|」（乘車日固定長度、前後都有 |，不會撞到別班）。
   // 同一句裡當場看身分、已入帳、日額、租約、樣本還在，理由同錄程那一句。
   const topTail = `${tail}|topup|${raw}`;
   const top = got ? null : await env.DELAY_DB.prepare(
@@ -8927,9 +8934,9 @@ async function bountyCreditTripChips(env, rules, groups, prior, now, who, fence,
     "SELECT w, MIN(? - (SELECT COALESCE(SUM(" + BOUNTY_POINTS_OF_ROW + "), 0) FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day" +
     " WHERE actor=w AND day=? AND ((kind='trip' AND (substr(ref, -length(?)) = ? OR instr(ref, ?) > 0))" +
     " OR (kind='adjust' AND substr(ref, 1, 8) = 'rejudge|' AND substr(ref, -length(?)) = ?)))," +
-    " ? - (SELECT COALESCE(SUM(" + BOUNTY_POINTS_OF_ROW + "), 0) FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND kind='trip' AND day=?)) AS g" +
+    " ? - (SELECT COALESCE(SUM(" + BOUNTY_POINTS_OF_ROW + "), 0) FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND " + DAY_ROWS + " AND day=?)) AS g" +
     ' FROM (SELECT ' + BOUNTY_WHO_SQL + ' AS w))' +
-    " WHERE g > 0 AND EXISTS (SELECT 1 FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND kind='trip' AND day=? AND substr(ref, -length(?)) = ?)" +
+    " WHERE g > 0 AND EXISTS (SELECT 1 FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=w AND day=? AND " + CREDITED + ")" +
     BOUNTY_VERIFY_HELD + BOUNTY_VERIFY_PENDING + ' RETURNING delta'
   ).bind(topTail, topTail, tripDate, now, raw, chips.chipToPoints, tripDate, tail, tail, `${tail}|topup|`, tail, tail,
     chips.dailyChipCap, chips.chipToPoints, tripDate, who, who, tripDate, tail, tail,
@@ -9389,7 +9396,7 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
       .filter(c => c.cov >= rules.quality.segCoverageMin);
     // dr：這一組收下的點切成的段（bountyKeptSegments，長的移動斷訊處切開）各段的里程與時刻範圍 { lo, hi, t0, t1 }。籌碼照 bountyLineMeters 接段算里程、
     // 判斷「整趟停在一站」（防偽閘不收的點不算，與覆蓋段同一個基準）。
-    // rowRange：每一列寫進 kept_d0／kept_d1 的範圍＝那一列最早一點的時刻正在錄的那一段（全部點都沒收下的列也照時刻歸段；沒有點的列歸第一段）。
+    // rowRange：每一列寫進 kept_d0／kept_d1（範圍）與 kept_t0／kept_t1（那一段收下點的最早與最晚時刻）的段＝那一列最早一點的時刻正在錄的那一段（全部點都沒收下的列也照時刻歸段；沒有點的列歸第一段）。
     // 之後的發次讀前次組時取各列範圍的聯集（見 bountyPriorGroups），所以斷訊那一段之後也不會被接起來。只有一段時跟以前一樣：整組每一列都是收下點的最小與最大。
     // 不 ok 的組不參與籌碼，記 null（寫進庫也是 NULL）。
     let dr = null;
@@ -9404,7 +9411,7 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
           const t = t0Of.get(id);
           let k = 0;
           if (Number.isFinite(t)) while (k + 1 < segs.length && segs[k + 1].t0 <= t) k++;
-          rowRange.set(id, segs[k].r);
+          rowRange.set(id, segs[k]);
         }
       }
     }
@@ -9428,15 +9435,20 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
   // （舊版每一列都送回 segs——判定時寫下的整組覆蓋段，最長的線一列約 8 KB；列數是「這班車前次的批數」，一個帳號併 k 台都錄了同一班的裝置
   // 就是 k 倍，實測 k＝10 約 75 MB，而 Workers 一個 isolate 只有 128 MB。）
   // ivs：ok 列在判定當下寫下的收下點里程範圍（kept_d0／kept_d1，兩欄都是數字才算）。同一段的列寫的是同一個範圍，內層依範圍分組、
-  // 一段一個「d0:d1:t0:t1:u0:u1」（那一段各列樣本的最早與最晚時刻，跨午夜的另給 u），外層以逗號串起來；不讀 payload 的 d（見 bountyPriorGroups）。
+  // 一段一個「d0:d1:t0:t1:u0:u1:q0:q1」（t／u 是那一段各列原始樣本的最早與最晚時刻、跨午夜的另給 u；q 是判定當下寫下的收下點時刻），
+  // 外層以逗號串起來；不讀 payload 的 d（見 bountyPriorGroups）。
   // 回傳的量是「段數」，不是列數。🔴 不再取全部列的最小與最大：那會把長斷訊兩邊、或前後兩發中間沒錄到的里程接起來（見 bountyLineMeters）。
   const KEPT_OK = "s.verdict = 'ok' AND typeof(s.kept_d0) IN ('integer', 'real') AND typeof(s.kept_d1) IN ('integer', 'real')";
   const priorRs = await env.DELAY_DB.prepare(
     'SELECT sys, ln_id, MAX(worst) AS worst, MIN(t0) AS t0, MAX(t1) AS t1, MIN(u0) AS u0, MAX(u1) AS u1,' +
-    " group_concat(CASE WHEN k0 IS NOT NULL THEN k0 || ':' || k1 || ':' || COALESCE(t0, '') || ':' || COALESCE(t1, '') || ':' || COALESCE(u0, '') || ':' || COALESCE(u1, '') END) AS ivs," +
+    " group_concat(CASE WHEN k0 IS NOT NULL THEN k0 || ':' || k1 || ':' || COALESCE(t0, '') || ':' || COALESCE(t1, '') || ':' || COALESCE(u0, '') || ':' || COALESCE(u1, '')" +
+    " || ':' || COALESCE(q0, '') || ':' || COALESCE(q1, '') END) AS ivs," +
     ' MAX(sim) AS sim FROM (' +
     'SELECT s.sys AS sys, s.ln_id AS ln_id,' +
     ` CASE WHEN ${KEPT_OK} THEN s.kept_d0 END AS k0, CASE WHEN ${KEPT_OK} THEN s.kept_d1 END AS k1,` +
+    // q0／q1：那一段收下點的時刻（kept_t0／kept_t1，兩欄都是數字才算；0019 之前判的舊列是 NULL，退回 t0／t1 或 u0／u1）
+    ` MIN(CASE WHEN ${KEPT_OK} AND typeof(s.kept_t0) IN ('integer', 'real') AND typeof(s.kept_t1) IN ('integer', 'real') THEN s.kept_t0 END) AS q0,` +
+    ` MAX(CASE WHEN ${KEPT_OK} AND typeof(s.kept_t0) IN ('integer', 'real') AND typeof(s.kept_t1) IN ('integer', 'real') THEN s.kept_t1 END) AS q1,` +
     " MAX(CASE s.verdict WHEN 'suspect' THEN 2 WHEN 'ok' THEN 1 ELSE 0 END) AS worst," +
     " MIN(json_extract(j.value, '$.t')) AS t0, MAX(json_extract(j.value, '$.t')) AS t1," +
     // u0／u1：同一組的 t 若跨過午夜（t1−t0 超過半天），改用「小於半天的加一天」之後的最早與最晚（與 assembleTrip 同一條，見 bountyUnwrapMidnight）
@@ -9513,13 +9525,14 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
     // 段數有上界：一段至少隔 BOUNTY_BRIDGE_MAX_SEC，一天的錄程切不出幾十段。
     const byRange = new Map();
     for (const id of trip.sampleIds) {
-      const r = rowRange.get(id) || null, k = r ? `${r[0]}:${r[1]}` : '';
-      (byRange.get(k) || byRange.set(k, { r, ids: [] }).get(k)).ids.push(id);
+      const s = rowRange.get(id) || null, k = s ? `${s.r[0]}:${s.r[1]}:${s.t0}:${s.t1}` : '';
+      (byRange.get(k) || byRange.set(k, { s, ids: [] }).get(k)).ids.push(id);
     }
-    const marks = [...byRange.values()].map(({ r, ids }) => env.DELAY_DB.prepare(
-      'UPDATE bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 SET verdict=?, verdict_at=?, quality_code=?, reject_code=?, segs=?, kept_d0=?, kept_d1=?' +
+    const tOf = x => Number.isFinite(x) ? x : null;
+    const marks = [...byRange.values()].map(({ s, ids }) => env.DELAY_DB.prepare(
+      'UPDATE bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 SET verdict=?, verdict_at=?, quality_code=?, reject_code=?, segs=?, kept_d0=?, kept_d1=?, kept_t0=?, kept_t1=?' +
       " WHERE +verdict='pending' AND id IN (SELECT value FROM json_each(?))" + HELD
-    ).bind(v.verdict, now, v.qualityCode, v.rejectCode, JSON.stringify(cov), r ? r[0] : null, r ? r[1] : null,
+    ).bind(v.verdict, now, v.qualityCode, v.rejectCode, JSON.stringify(cov), s ? s.r[0] : null, s ? s.r[1] : null, s ? tOf(s.t0) : null, s ? tOf(s.t1) : null,
       JSON.stringify(ids), BOUNTY_VERIFY_LEASE_KEY, lease));
     if (sim || v.verdict === 'suspect') {                       // 模擬器：只留判定；suspect：不給章、不計點、不計入門檻
       if (marked(await env.DELAY_DB.batch(marks), marks.length)) { stat.trips++; stat[v.verdict]++; judged++; }

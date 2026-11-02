@@ -42,6 +42,7 @@ const { db } = openTestDb();
     'submitted_at', 'verdict', 'verdict_at', 'quality_code', 'reject_code',
     'client',                 // 0014（路段懸賞 v2）：上傳當下的 {platform,app,simulator} JSON 字串
     'kept_d0', 'kept_d1',     // 0016：判定當下這一組收下點的最小與最大沿線里程（只有 ok 組寫）
+    'kept_t0', 'kept_t1',     // 0019：同一段收下點的最早與最晚時刻（只有 ok 組寫）
   ]), cols('bounty_samples').join(','));
   ok('A6 bounty_points 欄位', eq(cols('bounty_points'), ['actor', 'uid', 'points', 'merged_into', 'updated_at']),
     cols('bounty_points').join(','));
