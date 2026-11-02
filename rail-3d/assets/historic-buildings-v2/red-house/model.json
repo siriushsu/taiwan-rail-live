@@ -30,7 +30,7 @@
   ],
   "verifiedDimensionsM": {},
   "estimatedDimensionsM": {
-    "width": 92.0326919555664,
+    "width": 92.03268432617188,
     "depth": 51.54697608947754,
     "height": 15.0,
     "basis": "平面依各部件來源校正；高度仍為外觀建模估值"
@@ -82,12 +82,12 @@
           121.50650533073967,
           25.042079456734108
         ],
-        "rotationDeg": 254.75,
+        "rotationDeg": 74.75,
         "scaleXY": [
           0.9999561312340236,
           0.999973019210501
         ],
-        "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+        "basis": "OSM 建物輪廓軸向與包圍框；八角樓依 OSM 輪廓在東端、十字樓在西，原 flipDeg 180 把兩者對調，改回 0",
         "facadeBearingDeg": null
       }
     ],
@@ -116,18 +116,18 @@
   "engineeringDimensionsM": null,
   "bounds": {
     "min": [
-      -45.490821838378906,
-      -28.903478622436523,
+      -46.541866302490234,
+      -22.643495559692383,
       0.0
     ],
     "max": [
-      46.5418701171875,
-      22.64349937438965,
+      45.49081802368164,
+      28.90348243713379,
       15.0
     ]
   },
   "sizeM": [
-    92.0326919555664,
+    92.03268432617188,
     51.54697799682617,
     15.0
   ],
@@ -135,8 +135,8 @@
     "near": {
       "file": "near.mesh.bin",
       "glb": "near.glb",
-      "sha256": "2002bc22036af11c03fb858167521a703e4303129506545e978450ec7542b288",
-      "glbSha256": "bb89338b0f58c85e94489c6bc3639cc9789046e7547d698bb9e02a83e43c2e9f",
+      "sha256": "54dd8419c2ba543ef457f42a65fe17068811050123ae25437b34acf8eddfdfd4",
+      "glbSha256": "b28c38a0191ee41d215772b02df33da7288db9867423700a1ace21adce106f9f",
       "strideBytes": 24,
       "vertexCount": 13470,
       "triangleCount": 4490,
@@ -225,8 +225,8 @@
     "far": {
       "file": "far.mesh.bin",
       "glb": "far.glb",
-      "sha256": "4d0ae5b9c1debac07ca26fa46086f588613a7331aa310cc38f5a6b62d3c92c0f",
-      "glbSha256": "5dac47292d3eff0293173501c70401a7f3ca3860b6da587bd178468b4eb730e9",
+      "sha256": "01ecf71a6a238fa641042c4228c332eb37415521f15473595046daab10a5158f",
+      "glbSha256": "ddb82fa5aaf9eedbda11bfb2df200573f40cefd24d25f62bec2a1ea184bc09be",
       "strideBytes": 24,
       "vertexCount": 7530,
       "triangleCount": 2510,
@@ -326,12 +326,12 @@
         121.50650533073967,
         25.042079456734108
       ],
-      "rotationDeg": 254.75,
+      "rotationDeg": 74.75,
       "scaleXY": [
         0.9999561312340236,
         0.999973019210501
       ],
-      "basis": "OSM 建物輪廓軸向與包圍框；180° 正反向與立面細節待目視複核",
+      "basis": "OSM 建物輪廓軸向與包圍框；八角樓依 OSM 輪廓在東端、十字樓在西，原 flipDeg 180 把兩者對調，改回 0",
       "facadeBearingDeg": null
     }
   ],
