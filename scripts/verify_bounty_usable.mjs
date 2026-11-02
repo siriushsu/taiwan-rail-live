@@ -166,7 +166,7 @@ function put(db, { actor, trainNo = 'U1', sys = 'tra_sched', lnId = '山線', da
 }
 const putEvents = (db, rows) => { for (const e of rows) db.prepare('INSERT INTO tra_station_events (service_date,train_no,sta,status,delay,delay_max,obs_at) VALUES (?,?,?,?,?,?,?)').run(D28, 'U1', e.sta, e.status, e.delay, e.delay, '2026-07-28T08:20:00+08:00'); };
 const rowsDb = (db, actor) => db.prepare('SELECT id, usable, usable_at, verdict FROM bounty_samples WHERE actor=? ORDER BY submitted_at').all(actor).map(r => ({ ...r }));
-const run = async (w, env = w.env) => { _bounty.bountyResetMemCaches(); const c = _bounty.bountyCounted(env); const st = await _bounty.bountyUsableCron(c); return { st, n: c.__bountySubreq.n, by: c.__bountySubreq.by }; };
+const run = async (w, env = w.env) => { _bounty.bountyResetMemCaches(); const c = _bounty.bountyCounted(env); const st = await _bounty.bountyUsableCron(c); return { st, n: c.__bountySubreq.n, by: c.__bountySubreq.by, bytes: c.__bountySubreq.bytes }; };
 const want1 = expect(rowsOf(ride()), 29820, 31420);
 
 function cWorld(over) {
@@ -223,6 +223,53 @@ await attempt('C3', async () => {
     r.st.trains === 1 && r.st.budgetStop === true && r.n === 7 && rowsDb(w.db, 'a4').every(x => x.usable_at === null) && rowsDb(w.db, 'a5').every(x => x.usable_at === null), J(r));
   const r2 = await run(w, { ...w.env, BOUNTY_SUBREQ_BUDGET: '8000' });
   ok('C3b 下一發接著把剩下的兩班標完', r2.st.trains === 2 && rowsDb(w.db, 'a5').every(x => x.usable === 0), J(r2.st));
+});
+
+await attempt('C4', async () => {
+  const w = cWorld();
+  // 一班 4 列、每列 payload 約 1.5 MB（ok 列可以跨好幾晚累積到超過 4 MB）：加到第 3 列 4.5 MB 超過上限，第 4 列不送回
+  const pad = 'x'.repeat(1500000);
+  for (let k = 0; k < 4; k++) w.db.prepare(
+    'INSERT INTO bounty_samples (id,actor,sys,ln_id,train_no,dir,trip_date,payload,segs,submitted_at,verdict,client) VALUES (?,?,?,?,?,0,?,?,NULL,?,?,?)'
+  ).run(`c4.${k}`, 'c4', 'tra_sched', '山線', 'U1', D28, J([{ d: 0, t: 30000 + k, pad }, { d: 1, t: 30001 + k, pad: '' }]), NOW_MS - 3600e3 + k, 'ok', J(APP));
+  const r = await run(w);
+  const c4 = rowsDb(w.db, 'c4');
+  ok('C4a 太大的一班：不拿去比、整班蓋上 usable_at（usable 留 NULL），skipped 1；其他三班照 C1 標',
+    c4.length === 4 && c4.every(x => x.usable === null && x.usable_at === NOW_MS) && r.st.skipped === 1 && r.st.trains === 3 && r.st.rows === 93 &&
+      J(rowsDb(w.db, 'a1').filter(x => x.verdict === 'ok').map(x => x.usable)) === J(want1), J({ st: r.st, c4: c4.slice(0, 1) }));
+  // 手算：C1 的 11 次＋c4（讀列 1、蓋掉 1）＝13；讀進來的 payload：c4 三列 4.5 MB 多（第 4 列沒送回，送回就超過 6 MB）＋其他三班 93 列
+  ok('C4b 讀取有上界：子請求 13、讀進來的位元組在 4.5 MB 到 6 MB 之間（第 4 列沒讀）', r.n === 13 && r.bytes > 4.5e6 && r.bytes < 6e6, J({ n: r.n, bytes: r.bytes }));
+  const r2 = await run(w);
+  ok('C4c 再跑一發：太大的那班不再被挑', r2.st.trains === 0 && r2.st.skipped === 0 && r2.n === 1, J(r2.st));
+});
+
+await attempt('C5', async () => {
+  const w = cWorld();
+  // 三班讀列就出錯的車，車主排在 a1 前面（挑班車依 actor 排序）：模擬每晚都會錯的班車
+  const bad = ['0e1', '0e2', '0e3'];
+  for (const a of bad) put(w.db, { actor: a, pts: ride() });
+  const DB = w.DELAY_DB;
+  const flaky = new Proxy(DB, { get(t, k) {
+    if (k !== 'prepare') { const v = t[k]; return typeof v === 'function' ? v.bind(t) : v; }
+    return sql => {
+      const st = t.prepare(sql);
+      if (!sql.startsWith('SELECT id, ln_id, payload')) return st;
+      return new Proxy(st, { get(s, kk) {
+        if (kk !== 'bind') { const v = s[kk]; return typeof v === 'function' ? v.bind(s) : v; }
+        return (...a) => { if (bad.includes(a[0])) throw new Error('模擬壞班車'); return s.bind(...a); };
+      } });
+    };
+  } });
+  const env = { ...w.env, DELAY_DB: flaky };
+  const r1 = await run(w, env);
+  const b1 = bad.flatMap(a => rowsDb(w.db, a));
+  ok('C5a 連錯 3 班就停：三班都蓋上 usable_at（usable 留 NULL），還沒輪到的 a1 沒動',
+    r1.st.errors === 3 && r1.st.trains === 0 && b1.length === 93 && b1.every(x => x.usable === null && x.usable_at === NOW_MS) &&
+      rowsDb(w.db, 'a1').every(x => x.usable_at === null), J(r1.st));
+  const NOW2 = NOW_MS + 3600e3;
+  const r2 = await run(w, { ...env, BOUNTY_NOW: String(NOW2) });
+  ok('C5b 下一發不再卡在同三班：出錯 0、照 C1 標完三班',
+    r2.st.errors === 0 && r2.st.trains === 3 && J(rowsDb(w.db, 'a1').filter(x => x.verdict === 'ok').map(x => x.usable)) === J(want1), J(r2.st));
 });
 
 // ═══ S 組：掛在 scheduled() 的判定 cron 之後 ═══════════════════════════════

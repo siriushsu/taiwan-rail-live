@@ -9755,13 +9755,15 @@ function bountyUsableFlags(rows, line, sched, events, nameOf) {
 // 有 ok 的台鐵列還沒標過（usable_at IS NULL）的班車，整班重算、整班重寫——遲傳的批次判 ok 之後，同一班的舊列也跟著重算。
 // 一班車：讀列 1＋讀誤點 1（同一天同一車次多人搭只讀一次）＋寫入 1 個 batch；班表與站碼兩個資產檔一個 isolate 各讀一次。
 // 比不了的（那天不在班表檔、沒有官方誤點、整段地下）照樣寫 usable_at、usable 留 NULL，下一發不再挑它。
+// 太大（ok 列的 payload 總長超過 BOUNTY_VERIFY_MAX_TRAIN_BYTES，可以跨好幾晚累積）與出錯的班車也一樣蓋掉：挑班車的順序是固定的，
+// 不蓋的話同一批車每晚都排在最前面，連錯 3 次就停，後面的車永遠輪不到。出錯時連蓋都蓋不上（D1 壞了），下一發再試。
 // 不圍租約：寫的值只由那班車的 payload、班表與官方誤點決定，兩發重疊時寫的是同一組值；WHERE 只碰 verdict='ok' 的列。
 async function bountyUsableCron(env0) {
   const env = bountyCounted(env0);
   const ctr = env.__bountySubreq;
   const U = BOUNTY_USABLE;
   const now = Number(env.BOUNTY_NOW) || Date.now();
-  const stat = { trains: 0, rows: 0, usable: 0, mismatch: 0, unknown: 0, errors: 0, budgetStop: false, subreq: 0 };
+  const stat = { trains: 0, rows: 0, usable: 0, mismatch: 0, unknown: 0, skipped: 0, errors: 0, budgetStop: false, subreq: 0 };
   const room = () => ctr.n + 3 <= ctr.budget && Date.now() - ctr.t0 < ctr.wallMs && ctr.bytes + ctr.rows * BOUNTY_BYTES_PER_ROW < ctr.bytesBudget;
   if (!room()) { stat.budgetStop = true; stat.subreq = ctr.n; return stat; }
   const since = isoFromDate(new Date(now + 8 * 3600e3 - U.days * 86400e3));
@@ -9778,15 +9780,26 @@ async function bountyUsableCron(env0) {
   const evMem = new Map();
   const SET = 'UPDATE bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 SET usable=?, usable_at=?' +
     " WHERE id IN (SELECT value FROM json_each(?)) AND +verdict='ok'";
+  const skip = c => env.DELAY_DB.prepare(
+    "UPDATE bounty_samples INDEXED BY idx_samples_trip SET usable=NULL, usable_at=? WHERE actor=? AND trip_date=? AND train_no=? AND verdict='ok' AND sys='tra_sched'"
+  ).bind(now, c.actor, c.trip_date, c.train_no).run();
   for (const c of list) {
     if (!room()) { stat.budgetStop = true; break; }
     try {
+      // 讀取上界照 bountyVerifyTrain：依讀取順序累加 payload 長度，只送回加到前一列還沒超過上限的列（最多上限再加一列）
       const rows = (await env.DELAY_DB.prepare(
-        "SELECT id, ln_id, payload FROM bounty_samples INDEXED BY idx_samples_trip WHERE actor=? AND trip_date=? AND train_no=? AND verdict='ok' AND sys='tra_sched'"
-      ).bind(c.actor, c.trip_date, c.train_no).all()).results || [];
+        'SELECT id, ln_id, payload, cum_bytes FROM (SELECT id, ln_id, payload, submitted_at, SUM(length(payload)) OVER (ORDER BY submitted_at, id ROWS UNBOUNDED PRECEDING) AS cum_bytes' +
+        " FROM bounty_samples INDEXED BY idx_samples_trip WHERE actor=? AND trip_date=? AND train_no=? AND verdict='ok' AND sys='tra_sched')" +
+        ' WHERE cum_bytes - length(payload) <= ? ORDER BY submitted_at, id LIMIT ?'
+      ).bind(c.actor, c.trip_date, c.train_no, BOUNTY_VERIFY_MAX_TRAIN_BYTES, BOUNTY_MAX_BATCHES_PER_DAY + 1).all()).results || [];
       ctr.rows += rows.length;
       for (const r of rows) ctr.bytes += String(r.payload || '').length;
       if (!rows.length) continue;
+      if (rows.length > BOUNTY_MAX_BATCHES_PER_DAY || Number(rows[rows.length - 1].cum_bytes) > BOUNTY_VERIFY_MAX_TRAIN_BYTES) {
+        await skip(c);
+        stat.skipped++;
+        continue;
+      }
       // data/tra_widget_schedule.json：dates[日期]＝該日開行的 trains 索引；trains[i]＝[車次, 車種, [[站索引, 到站秒, 停站秒, 1 停／0 過],…]]（見 cloudRideTrainOk）
       const idxs = S && S.dates && S.dates[c.trip_date];
       const t = Array.isArray(idxs) ? idxs.map(i => S.trains[i]).find(x => x && String(x[0]) === String(c.train_no)) : null;
@@ -9817,6 +9830,7 @@ async function bountyUsableCron(env0) {
     } catch (e) {
       stat.errors++;
       console.error('[cron bounty 可用] 班車出錯:', (e && e.stack) || String(e));
+      try { await skip(c); } catch (e2) {}
       if (stat.errors >= 3) break;                                     // D1 不能用時別把剩下的預算耗在同一個錯誤上
     }
   }
@@ -10921,6 +10935,7 @@ export default {
       if (!q || q.stopBy !== 'error') try {
         const u = await bountyUsableCron(cenv);
         console.log(`[cron bounty 可用] 班車 ${u.trains}、列 ${u.rows}（可用 ${u.usable}、對不上 ${u.mismatch}、比不了 ${u.unknown}）` +
+          `${u.skipped ? `、太大略過 ${u.skipped} 班` : ''}` +
           `${u.budgetStop ? '、預算用完先停' : ''}${u.errors ? `、出錯 ${u.errors}` : ''}／整發子請求 ${u.subreq}`);
       } catch (e) { console.error('[cron bounty 可用] 失敗:', (e && e.stack) || String(e)); }
       return;
