@@ -1379,6 +1379,10 @@
   }
   .traincard .tc-freeseat .fs-box.on { background: var(--ok); border-color: var(--ok); }
   .traincard .tc-freeseat .fs-text { font-size: calc(12.5px * var(--ui)); font-weight: 700; color: var(--navy); white-space: nowrap; }
+  /* 高鐵對號座:接在自由座下一行;自由座沒資料時自己接上那條虛線分隔。小段 sheet 一起收起(同清單) */
+  .traincard .tc-seat { display: flex; align-items: center; gap: 2px 8px; flex-wrap: wrap; margin-top: 6px; }
+  .traincard .tc-freeseat[hidden] + .tc-seat { margin-top: 8px; padding-top: 7px; border-top: 1.5px dashed var(--line-dash); }
+  .traincard .tc-seat .ts-od { font-size: calc(11.5px * var(--uis)); color: var(--faint); white-space: nowrap; }
   .traincard .tc-body {
     display: grid; grid-template-columns: 1.3fr 1fr; gap: 6px 26px;
     margin-top: 9px; padding-top: 9px; border-top: 1.5px dashed var(--line-dash);
@@ -4411,6 +4415,7 @@
     }
     .traincard.tc-sheet.sheet-small .tc-body,
     .traincard.tc-sheet.sheet-small .tc-freeseat,
+    .traincard.tc-sheet.sheet-small .tc-seat,
     .traincard.tc-sheet.sheet-small .tc-dhlink,
     .traincard.tc-sheet.sheet-small .tc-sparkwrap,
     .traincard.tc-sheet.sheet-small .tc-stops { display: none; }
@@ -4661,6 +4666,7 @@
     body.fs .traincard.tc-sheet.sheet-small .tc-dhlink,
     body.fs .traincard.tc-sheet.sheet-small .tc-sparkwrap,
     body.fs .traincard.tc-sheet.sheet-small .tc-stops { display: block; }
+    body.fs .traincard.tc-sheet.sheet-small .tc-seat { display: flex; }
 
     /* ── 跟車卡在橫式=右側欄(§04c v3,2026-08-27)────────────────────────
        v2(08-26)廢除左欄的理由是「同一份資訊在卡的『這班車』分頁裡已經有了」——但那一頁只在
@@ -5617,6 +5623,8 @@
       <span class="fs-cars" id="fsCars" aria-hidden="true"></span>
       <span class="fs-text" id="fsText"></span>
     </div>
+    <!-- 高鐵對號座(renderTrainSeat):官方座位表查得到這班才出現 -->
+    <div class="tc-seat" id="tcSeat" hidden></div>
     <div class="tc-body">
       <div class="tc-intro" id="tcIntro"></div>
       <div class="tc-events">
@@ -5658,6 +5666,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="thsrseatcard1102"><span class="d">11/02</span><span>跟隨高鐵列車時，資訊卡多一行對號座還有沒有位子（有位／剩不多／售完），從列車接下來停的那站算到終點；官方座位表沒有這班就不顯示</span></li>
         <li data-cl-of="bountyfix1102"><span class="d">11/02</span><span>校正懸賞給點更公平：長隧道或手機很久沒定位時只扣沒錄到的那段，不再整條路線 0 點；隔天才上傳的後半段會補發點數；到站忘了停止錄製也不會讓整趟作廢</span></li>
         <li data-cl-of="xingstale1102"><span class="d">11/02</span><span>平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）</span></li>
         <li data-cl-of="paddydetail1101"><span class="d">11/01</span><span>車庫「田園小站」做得更精緻：樹分好幾種樹形，站房和三合院有門窗、瓦屋頂，透天厝的鐵窗有窗條，還多了冷氣和直立招牌，秧苗田看得到一叢叢秧苗，電線桿拉上了電線</span></li>
@@ -5665,7 +5674,6 @@
         <li data-cl-of="garageredeem1101"><span class="d">11/01</span><span>網站也能用島民點數兌換車庫場景了：車庫最上面多一列「車庫場景」，點格子就能解鎖；護照的點數那句點了直接開車庫</span></li>
         <li data-cl-of="buildinglook1031"><span class="d">10/31</span><span>3D 建築改成實心並加上光影與牆腳陰影；列車開到大樓後面時，樓上會開一扇窗讓你看到車，想看穿建築仍可打開「透視顯示」</span></li>
         <li data-cl-of="garagefs1031"><span class="d">10/31</span><span>車庫重開或切回網頁時不再閃一下：車直接出現、車卡不重排；舞台多了全畫面鈕，四個分頁都能鋪滿畫面看，直式橫式都行，再按一次、Esc 或返回鍵退出</span></li>
-        <li data-cl-of="garagescene1031"><span class="d">10/31</span><span>車庫新增第 4 個分頁「田園小站」：每款車都能開進這座預設車庫，白天夜晚跟著現在時間，按「陪它走走」跟著車看；開著車庫時背後的地圖會暫停，手機跑起來更順</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5927,6 +5935,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="thsrseatcard1102"><span class="d">11/02</span><span>跟隨高鐵列車時，資訊卡多一行對號座還有沒有位子（有位／剩不多／售完），從列車接下來停的那站算到終點；官方座位表沒有這班就不顯示</span></li>
         <li data-cl="thsrchiayistop1029"><span class="d">10/29</span><span>立體列車：高鐵嘉義站停靠的列車改停在月台中段，不再有半列車身凸出月台外</span></li>
         <li data-cl="followrotateflat1029"><span class="d">10/29</span><span>修正電腦版跟車時，用滑鼠右鍵或 Ctrl＋拖曳轉動、傾斜視角會卡住轉不動的問題；從全台地圖點車開始跟車時最常遇到</span></li>
         <li data-cl="mytrainpicker1020"><span class="d">10/20</span><span>自製列車排班更好選站：點起站、訖站就列出常用大站與各路線的站，選完起站自動跳到訖站，也能一鍵對調；打出完整站名不用再點建議</span></li>
@@ -7119,7 +7128,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1102a：平交道拿掉 38 處已地下化／高架化的（高雄、屏東、臺中山線、員林等；issue #102）：官方 XML 仍帶座標，清單與依據在 scripts/lib/crossings_removed.mjs。
 // v1102b：校正懸賞判定修正（Worker）：移動中斷訊切段不再整條線判 underground；隔天才到的後半段寫 topup 差額列；到站不動的尾巴不算物理丟點；index.html 只加更新紀錄。
 // v1102c：平交道說明（設定裡的說明與使用說明中心）總數 415 → 346，跟 data/crossings.json 現行筆數一致。
-const BUILD = 'v1102c';
+// v1102e：高鐵列車卡加對號座一行（官方座位表查得到才出現，上車站＝還沒開出的第一個停靠站），座位表超過 10 分鐘重抓。
+const BUILD = 'v1102e';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -21736,16 +21746,56 @@ function renderFreeSeat(tr) {
 let _thsrSeatCache;
 let _thsrSeatAt = null;
 let _thsrSeatPromise = null;
+let _thsrSeatLoadedAt = 0;   // 本機抓完(含失敗)的時刻;列車卡靠它判斷要不要重抓
 async function loadThsrSeat() {
   if (_thsrSeatCache !== undefined) return _thsrSeatCache;
   if (!_thsrSeatPromise) {
     _thsrSeatPromise = fetchJSONAt(apiUrl('api/thsr-seat')).then(d => {
       _thsrSeatCache = (d && d.table && typeof d.table === 'object') ? d.table : null;
       _thsrSeatAt = (d && d.at) || null;   // 官方 UpdateTime:導言與票價頁要寫出「這是幾點的座位表」
+      _thsrSeatLoadedAt = Date.now();
       return _thsrSeatCache;
     });
   }
   return _thsrSeatPromise;
+}
+// 列車卡會一路開著跟車,整頁只抓一次的表會停在好幾小時前:超過 10 分鐘(上游 UpdateInterval=600 秒)
+// 就重抓。抓到之前、抓失敗都沿用手上那份,不把卡上的座位行清掉;看板也一起吃到新表。
+const THSR_SEAT_MAX_AGE_MS = 10 * 60e3;
+let _thsrSeatRefreshing = false;
+function refreshThsrSeatIfStale(onDone) {
+  if (_thsrSeatCache === undefined || _thsrSeatRefreshing || Date.now() - _thsrSeatLoadedAt < THSR_SEAT_MAX_AGE_MS) return;
+  _thsrSeatRefreshing = true;
+  fetchJSONAt(apiUrl('api/thsr-seat')).then(d => {
+    if (d && d.table && typeof d.table === 'object') { _thsrSeatCache = d.table; _thsrSeatAt = d.at || null; }
+    _thsrSeatLoadedAt = Date.now();
+    _thsrSeatRefreshing = false;
+    onDone();
+  });
+}
+// 列車卡的高鐵對號座:上車站＝還沒開出的第一個停靠站(同時刻表高亮 cur 的規則),下車站＝終點。
+// 官方座位表只涵蓋部分班次(2026-11-02 實測 156 班只有 25 班四碼車次有資料),查不到就整行不出現,
+// 不像看板寫「座位狀態未提供」——那會讓大部分高鐵卡多一行沒用的字。每秒由 updateFollowPanel 叫,
+// 簽章沒變就不動 DOM。
+function renderTrainSeat(tr) {
+  const box = document.getElementById('tcSeat');
+  if (!isHSR(tr)) { box.hidden = true; state._tcSeatSig = null; return; }
+  const redo = () => { if (state.followTrain === tr) { state._tcSeatSig = null; renderTrainSeat(tr); } };
+  if (_thsrSeatCache === undefined) { box.hidden = true; loadThsrSeat().then(redo); return; }
+  refreshThsrSeatIfStale(redo);
+  const now = effTLive(tr), stops = tr.stops, last = stops[stops.length - 1];
+  let on = -1;
+  for (let i = 0; i < stops.length - 1; i++) if (stops[i].stop !== false && now <= stops[i].depSec) { on = i; break; }
+  const rec = on >= 0 ? thsrSeatRec(stops[on].name, last.name, tr.train) : null;
+  const sig = rec ? `${tr.train}|${stops[on].name}|${rec.std}|${rec.biz}|${_thsrSeatAt}` : '';
+  if (sig === state._tcSeatSig) return;
+  state._tcSeatSig = sig;
+  if (!rec) { box.hidden = true; return; }
+  const stamp = thsrSeatStampHM();
+  box.innerHTML = thsrSeatTextHtml(stops[on].name, last.name, tr.train) +
+    `<span class="ts-od">${escHtml(stationName(stops[on].name, tr.sys) + ' → ' + stationName(last.name, tr.sys))}` +
+    (stamp ? '・' + escHtml(t('官方座位表 {hm}', { hm: stamp })) : '') + '</span>';
+  box.hidden = false;
 }
 // 票價是建置期靜態表(data/thsr_fare.json,scripts/build_thsr_fare.mjs 產生),直接當一般靜態
 // 資產抓,不經 Worker——票價幾乎不變動,比照 thsr_track.json 的既有慣例,不需要即時代理層。
@@ -22266,6 +22316,8 @@ function renderTrainCard(tr) {
   state._tcCurIdx = null;
   updateStar();
   renderFreeSeat(tr);
+  state._tcSeatSig = null;
+  renderTrainSeat(tr);
   renderFollowEvents();
   document.getElementById('trainCard').hidden = false;
   setTimeout(() => drawSpark(tr, effTLive(tr)), 0); // 等 layout 有寬度再畫速度曲線
@@ -28001,6 +28053,7 @@ function updateFollowPanel(tr) {
       });
     }
   }
+  renderTrainSeat(tr); // 過站後上車站跟著換;簽章沒變不動 DOM
   laSync(tr, false); // 跟車即時動態:本函式每秒被叫,節流交給 laSync
 }
 
