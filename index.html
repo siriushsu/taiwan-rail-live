@@ -23376,8 +23376,8 @@ function ownTrainView() {
   window.TrainGarage?.close();
   return ownTrainFollow({});
 }
-// 車庫兌換視窗（train-garage.js，照 App 的 GarageRedeemCopy／WalletController）用的錢包。只有懸賞開著、已登入才有
-// （同 sceneUnlocks：網頁登出時讀不到點數，不出兌換入口）。actor 一律送帳號 uid（契約 v3：網頁一律登入後才兌換）——
+// 車庫兌換視窗與場景鎖（train-garage.js，照 App 的 GarageRedeemCopy／WalletController）用的錢包。只有懸賞開著、已登入才有
+// （網頁登出時讀不到點數，不出兌換入口，場景頁只有田園小站）。actor 一律送帳號 uid（契約 v3：網頁一律登入後才兌換）——
 // 送裝置 id 的話錢會扣在裝置名下，chips-me（Bearer）讀的卻是帳號，兩邊對不上。
 // 送出前先把 {uid, scene, requestId} 存進 GARAGE_REDEEM_PENDING_KEY：結果沒確認前重試一律沿用同一個 requestId，伺服器靠它不重扣。
 const GARAGE_REDEEM_PENDING_KEY = 'trainmap-garage-redeem-pending-v1';
@@ -23430,14 +23430,6 @@ function openTrainGarage(options = {}) {
     ...ownTrainHost(), // 自製列車:TrainGarage 用 host.plan();下面同名欄位以車庫自己的為準
     ownTrainCard, ownTrainSchedule, ownTrainView, ownTrainReplan,
     snapshot: garageSnapshot, t, lang: () => I18N_LANG, dark: () => !!state.mapDark,
-    // 場景頁的專屬場景鎖：已解鎖的場景 id（/api/chips-me 的 unlocked[].scene，見 fetchChipsMe／BOUNTY_CHIPS_KEY）。
-    // 懸賞關著、沒登入、還沒讀到錢包就回 null，車庫只畫預設車庫、不出切換列（同 App 沒有錢包時）。
-    sceneUnlocks: () => {
-      if (!BOUNTY_ENABLED || !(state.account && state.account.user)) return null;
-      let c = chipsMeMem;
-      if (!c) try { c = JSON.parse(localStorage.getItem(BOUNTY_CHIPS_KEY) || 'null'); } catch (e) { c = null; }
-      return chipsMeShapeOk(c) ? new Set(c.unlocked.map(u => String(u && u.scene))) : null;
-    },
     wallet: garageWallet,
     onClose: () => {
       // 車庫開著時主地圖停在 tick 開頭（見 tick），t0 也停在開車庫那一刻：不歸零的話接回第一拍 dt＝整段開車庫的時間，
