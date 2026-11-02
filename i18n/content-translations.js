@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "臺中州廳、新竹州廳、西門紅樓的 3D 模型轉到正確方向，跟實際建築的方位一致（謝謝網友回報）": "The 3D models of the Taichung Prefectural Hall, Hsinchu Prefectural Hall and the Red House now face the right way, matching the real buildings (thanks to the user who reported it)",
     "校正懸賞給點更公平：長隧道或手機很久沒定位時只扣沒錄到的那段，不再整條路線 0 點；隔天才上傳的後半段會補發點數；到站忘了停止錄製也不會讓整趟作廢": "Fairer points for calibration bounties: a long tunnel or a long GPS gap now only drops the part that was not recorded instead of zeroing the whole line; a second half uploaded the next day now earns its points; forgetting to stop recording at your stop no longer voids the trip",
     "平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）": "Removed 38 level crossing markers on sections that are now underground or elevated: city lines in Kaohsiung, Pingtung, Taichung, Yuanlin and elsewhere no longer have level crossings, though the official data has not been updated yet (thanks to the user who reported it)",
     "平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）；平交道說明裡的總數也跟著改成 346 處": "Removed 38 level crossing markers on sections that are now underground or elevated: city lines in Kaohsiung, Pingtung, Taichung, Yuanlin and elsewhere no longer have level crossings, though the official data has not been updated yet (thanks to the user who reported it); the level crossing help text now gives the total as 346",
@@ -340,6 +341,7 @@
   });
 
   Object.assign(messages.ja, {
+    "臺中州廳、新竹州廳、西門紅樓的 3D 模型轉到正確方向，跟實際建築的方位一致（謝謝網友回報）": "台中州庁、新竹州庁、西門紅楼の3Dモデルの向きを、実際の建物に合わせて直しました（ご報告ありがとうございます）",
     "校正懸賞給點更公平：長隧道或手機很久沒定位時只扣沒錄到的那段，不再整條路線 0 點；隔天才上傳的後半段會補發點數；到站忘了停止錄製也不會讓整趟作廢": "校正懸賞のポイントをより公平に。長いトンネルや長時間GPSが途切れても、記録できなかった区間だけを除き、路線全体が0ポイントになることはなくなりました。翌日にアップロードした後半もポイントが付き、到着後に記録を止め忘れても乗車全体が無効になりません",
     "平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）": "地下化・高架化された区間にある踏切38か所の表示を削除しました。高雄・屏東・台中・員林などの市街地区間にはもう踏切がありませんが、公式データはまだ更新されていません（ご報告ありがとうございます）",
     "平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）；平交道說明裡的總數也跟著改成 346 處": "地下化・高架化された区間にある踏切38か所の表示を削除しました。高雄・屏東・台中・員林などの市街地区間にはもう踏切がありませんが、公式データはまだ更新されていません（ご報告ありがとうございます）。踏切の説明にある総数も346か所に更新しました",

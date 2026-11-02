@@ -5658,6 +5658,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="prefheading1102"><span class="d">11/02</span><span>臺中州廳、新竹州廳、西門紅樓的 3D 模型轉到正確方向，跟實際建築的方位一致（謝謝網友回報）</span></li>
         <li data-cl-of="bountyfix1102"><span class="d">11/02</span><span>校正懸賞給點更公平：長隧道或手機很久沒定位時只扣沒錄到的那段，不再整條路線 0 點；隔天才上傳的後半段會補發點數；到站忘了停止錄製也不會讓整趟作廢</span></li>
         <li data-cl-of="xingstale1102"><span class="d">11/02</span><span>平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）</span></li>
         <li data-cl-of="paddydetail1101"><span class="d">11/01</span><span>車庫「田園小站」做得更精緻：樹分好幾種樹形，站房和三合院有門窗、瓦屋頂，透天厝的鐵窗有窗條，還多了冷氣和直立招牌，秧苗田看得到一叢叢秧苗，電線桿拉上了電線</span></li>
@@ -5665,7 +5666,6 @@
         <li data-cl-of="garageredeem1101"><span class="d">11/01</span><span>網站也能用島民點數兌換車庫場景了：車庫最上面多一列「車庫場景」，點格子就能解鎖；護照的點數那句點了直接開車庫</span></li>
         <li data-cl-of="buildinglook1031"><span class="d">10/31</span><span>3D 建築改成實心並加上光影與牆腳陰影；列車開到大樓後面時，樓上會開一扇窗讓你看到車，想看穿建築仍可打開「透視顯示」</span></li>
         <li data-cl-of="garagefs1031"><span class="d">10/31</span><span>車庫重開或切回網頁時不再閃一下：車直接出現、車卡不重排；舞台多了全畫面鈕，四個分頁都能鋪滿畫面看，直式橫式都行，再按一次、Esc 或返回鍵退出</span></li>
-        <li data-cl-of="garagescene1031"><span class="d">10/31</span><span>車庫新增第 4 個分頁「田園小站」：每款車都能開進這座預設車庫，白天夜晚跟著現在時間，按「陪它走走」跟著車看；開著車庫時背後的地圖會暫停，手機跑起來更順</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5699,6 +5699,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="prefheading1102"><span class="d">11/02</span><span>臺中州廳、新竹州廳、西門紅樓的 3D 模型轉到正確方向，跟實際建築的方位一致（謝謝網友回報）</span></li>
         <li data-cl="xingstale1102"><span class="d">11/02</span><span>平交道記號拿掉已地下化或高架化路段上的 38 處：高雄、屏東、臺中、員林等市區鐵路已沒有平交道，官方資料還沒更新（謝謝網友回報）；平交道說明裡的總數也跟著改成 346 處</span></li>
         <li data-cl="paddydetail1101"><span class="d">11/01</span><span>車庫「田園小站」做得更精緻：樹分好幾種樹形，站房和三合院有門窗、瓦屋頂，透天厝的鐵窗有窗條，還多了冷氣和直立招牌，秧苗田看得到一叢叢秧苗，電線桿拉上了電線</span></li>
         <li data-cl="garageframe1101"><span class="d">11/01</span><span>車庫第 4 格改成全螢幕場景頁：白天、黃昏、夜晚可以自己切，夜晚整頁變深藍；修好田園小站列車進隧道時整節車殼變透明</span></li>
@@ -7119,7 +7120,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1102a：平交道拿掉 38 處已地下化／高架化的（高雄、屏東、臺中山線、員林等；issue #102）：官方 XML 仍帶座標，清單與依據在 scripts/lib/crossings_removed.mjs。
 // v1102b：校正懸賞判定修正（Worker）：移動中斷訊切段不再整條線判 underground；隔天才到的後半段寫 topup 差額列；到站不動的尾巴不算物理丟點；index.html 只加更新紀錄。
 // v1102c：平交道說明（設定裡的說明與使用說明中心）總數 415 → 346，跟 data/crossings.json 現行筆數一致。
-const BUILD = 'v1102c';
+// v1102d：臺中州廳轉 90°（issue #105）、新竹州廳轉 180°、西門紅樓轉回 0°，正面對上 OSM 輪廓；Worker 原生 iOS 送審 build 加 227（1.7.7）。
+const BUILD = 'v1102d';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
