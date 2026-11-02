@@ -155,21 +155,34 @@ const matrix = await runEngineMatrix(async ({ engineUrl, check }) => {
     errors.push(...themeErrors.filter(message => !/^AbortError: (?:Fetch is aborted|The user aborted a request\.|signal is aborted without reason)$/.test(message)));
     ok(`${engName} A4 外觀 亮→暗`, t0 === 'light' && t1[0] === 'dark' && t1[1] === true && t1[2] === 'dark' && t1[3] !== 'rgb(239, 230, 210)', JSON.stringify(t1));
     ok(`${engName} A4b 外觀 暗→自動→亮`, t2 === 'auto' && t3[0] === 'light' && t3[1] === false, `${t2},${t3}`);
-    // A5 軌道與路線面板:開/篩選 chips/三段切換
+    // A5 「軌」鈕開「路線」面板;車種篩選 chips 與三段切換在觀看 → 標示「軌道與路線」原地展開(#msTracks)。
+    //    2026-11-03 導覽改版 G4/G6:路線面板拿掉「顯示設定」分頁,判準跟著拆成「鈕開路線面板」＋「展開那列看得到 chips 與三段」,
+    //    量的東西沒少:chips 數、預設 auto、點 faint 生效、關面板。
     await page.evaluate(() => document.getElementById('trackBtn').click());
     const tp = await page.evaluate(() => ({
       open: !document.getElementById('trackPanel').hidden,
-      chips: document.querySelectorAll('#lineToggles .chip').length,
-      segOn: document.querySelector('#trackSeg button.on') && document.querySelector('#trackSeg button.on').dataset.v,
+      routes: document.querySelectorAll('#trackPanel .rd-route').length,
       btnActive: document.getElementById('trackBtn').classList.contains('active'),
+    }));
+    await page.click('#trackClose');
+    const tpClosed = await page.evaluate(() => document.getElementById('trackPanel').hidden);
+    await page.evaluate(() => window.railViewControls.open('labels'));
+    await page.click('.ms-row[data-act=track]');
+    const ms = await page.evaluate(() => ({
+      expanded: !document.getElementById('msTracks').hidden,
+      chips: [...document.querySelectorAll('#lineToggles .chip')].filter(c => c.getBoundingClientRect().width > 0).length,
+      segOn: document.querySelector('#trackSeg button.on') && document.querySelector('#trackSeg button.on').dataset.v,
+      panelStillClosed: document.getElementById('trackPanel').hidden,
     }));
     await page.click('#trackSeg button[data-v=faint]');
     const ts2 = await page.evaluate(() => [state.trackStyle, document.querySelector('#trackSeg button.on').dataset.v]);
     await page.click('#trackSeg button[data-v=auto]');
-    await page.click('#trackClose');
-    const tpClosed = await page.evaluate(() => document.getElementById('trackPanel').hidden);
-    ok(`${engName} A5 軌面板開+票根+seg`, tp.open && tp.chips > 0 && tp.segOn === 'auto' && tp.btnActive, JSON.stringify(tp));
-    ok(`${engName} A5b 三段切換+關閉`, ts2[0] === 'faint' && ts2[1] === 'faint' && tpClosed, JSON.stringify(ts2));
+    await page.click('.ms-row[data-act=track]');
+    const msClosed = await page.evaluate(() => document.getElementById('msTracks').hidden);
+    await page.evaluate(() => document.querySelector('#viewSettingsPanel .view-close').click());
+    ok(`${engName} A5 軌鈕開路線面板(有路線列、鈕亮)+關閉`, tp.open && tp.routes > 0 && tp.btnActive && tpClosed, JSON.stringify({ ...tp, tpClosed }));
+    ok(`${engName} A5a 標示「軌道與路線」原地展開:票根看得到、seg 預設 auto、不開面板`, ms.expanded && ms.chips > 0 && ms.segOn === 'auto' && ms.panelStillClosed, JSON.stringify(ms));
+    ok(`${engName} A5b 三段切換+再點收起`, ts2[0] === 'faint' && ts2[1] === 'faint' && msClosed, JSON.stringify({ ts2, msClosed }));
     // A6 速度磁吸:拉到 11 吸到 10;29 吸到 30
     const snap = await page.evaluate(() => {
       const s = document.getElementById('speed'); const out = [];
@@ -256,21 +269,26 @@ const matrix = await runEngineMatrix(async ({ engineUrl, check }) => {
       hiddenRows: [...document.querySelectorAll('#moreBody .ms-row')].filter(r => r.style.display === 'none').map(r => r.dataset.proxy),
     }));
     ok(`${engName} C4 更多 sheet 開+列數`, sheet.open && sheet.rows >= 8, JSON.stringify(sheet));
-    // C5 sheet 外觀 seg → 暗
+    // C5 外觀 seg → 暗。外觀、平交道兩列早已搬進觀看設定(畫面／標示分類,rail-3d/integration/view-controls.js),
+    //    原本在更多 sheet 直接點會逾時(7d22991a 上就紅,整個手機情境停在這裡);先開對應分類再點,判準不變。
+    await page.evaluate(() => window.railViewControls.open('display'));
     await page.tap('#msThemeSeg button[data-v=dark]');
     const dk = await page.evaluate(() => [document.documentElement.dataset.theme, state.mapDark, document.querySelector('#msThemeSeg button.on').dataset.v]);
     await page.tap('#msThemeSeg button[data-v=light]');
     ok(`${engName} C5 sheet 外觀切暗`, dk[0] === 'dark' && dk[1] === true && dk[2] === 'dark', JSON.stringify(dk));
     // C6 sheet 開關代理:平交道
-    await page.tap('#moreBody .ms-row[data-proxy=xingBtn]');
+    await page.evaluate(() => window.railViewControls.open('labels'));
+    await page.tap('.ms-row[data-proxy=xingBtn]');
     const xg = await page.evaluate(() => [state.xingOn, document.querySelector('.toggle[data-tg=xingBtn]').classList.contains('on')]);
-    await page.tap('#moreBody .ms-row[data-proxy=xingBtn]');
+    await page.tap('.ms-row[data-proxy=xingBtn]');
     ok(`${engName} C6 sheet 代理平交道開關`, xg[0] === true && xg[1] === true, JSON.stringify(xg));
-    // C7 sheet 軌道列 → trackPanel(手機底部 sheet)
-    await page.tap('#moreBody .ms-row[data-act=track]');
-    const tp = await page.evaluate(() => ({ more: document.body.classList.contains('tools-open'), track: !document.getElementById('trackPanel').hidden, sheetOpen: document.body.classList.contains('sheet-open') }));
-    ok(`${engName} C7 sheet→軌面板`, !tp.more && tp.track && tp.sheetOpen, JSON.stringify(tp));
-    await page.tap('#trackClose');
+    // C7 觀看 → 標示「軌道與路線」原地展開(2026-11-03 導覽改版 G6:不再開 trackPanel,判準照新規格改寫)
+    await page.evaluate(() => window.railViewControls.open('labels'));
+    await page.tap('.ms-row[data-act=track]');
+    const tp = await page.evaluate(() => ({ view: !document.getElementById('viewSettingsPanel').hidden, expanded: !document.getElementById('msTracks').hidden, track: !document.getElementById('trackPanel').hidden, segH: document.getElementById('trackSeg').getBoundingClientRect().height }));
+    ok(`${engName} C7 標示→軌道與路線原地展開`, tp.view && tp.expanded && !tp.track && tp.segH > 0, JSON.stringify(tp));
+    await page.tap('.ms-row[data-act=track]');
+    await page.evaluate(() => document.querySelector('#viewSettingsPanel .view-close').click());
     // C8 tab 亮點:開面板+tab active；現行五分頁沒有舊 #tabMap，同一顆再按一次即回地圖。
     await page.tap('#tabExplore');
     const te = await page.evaluate(() => [!document.getElementById('explorePanel').hidden, document.getElementById('tabExplore').classList.contains('active')]);

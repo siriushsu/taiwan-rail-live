@@ -48,7 +48,7 @@ html[data-theme=dark] .board .sub { font-size:calc(12px * var(--uis)); line-heig
 html[data-theme=dark] .board :is(.bgrp,.grp) { border-color:var(--line); }
 html[data-theme=dark] .board .row :is(.t,.min) { font-variant-numeric:tabular-nums; }
 html[data-theme=dark] #board .row .min { color:#F4F7FD; }
-html[data-theme=dark] :is(.rd-station,.rd-route,.rd-scene) { min-height:44px; }
+html[data-theme=dark] :is(.rd-station,.rd-route) { min-height:44px; }
 html[data-theme=dark] body :is(.badge,.maptools,.mapbtn,.city-menu,.chip,.m-tabbar) {
   border-color:rgba(146,180,235,.25); box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 4px 18px rgba(2,6,16,.25);
 }

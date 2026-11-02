@@ -2370,17 +2370,14 @@ async function sectionS(browser, engine) {
 async function sectionT(browser, engine) {
   const { page, errs, close } = await boot(browser, { width: 1280 });
   await page.evaluate(() => { if (state.playing) togglePlay(); });
+  // 🔴 2026-09-07 的 d8fc2fc7 把 #lineToggles 搬進路線面板的「顯示設定」分頁;2026-11-03 導覽改版(G6)再搬到
+  //    觀看 → 標示「軌道與路線」那列底下原地展開(#msTracks),路線面板不再有分頁。走使用者真正的路:開觀看的標示頁、點那列展開。
+  //    姊妹腳本 verify_discovery.mjs 同一輪改走同一條路。
+  await page.evaluate(() => { if (window.railViewControls) window.railViewControls.open('labels'); });
+  await page.waitForTimeout(300);
   await page.evaluate(() => {
-    const b = document.getElementById('trackBtn') || document.querySelector('[data-proxy="trackBtn"]');
-    if (b) b.click();
-  });
-  await page.waitForTimeout(500);
-  // 🔴 2026-09-07 的 d8fc2fc7 把 #lineToggles 搬進 <div id="rdSettings" hidden>(「顯示設定」分頁),
-  //    只點 #trackBtn 已經不夠。同一顆 commit 有替姊妹腳本補上這一下(verify_discovery.mjs:77 的
-  //    `tap('[data-rdtab=settings]')`),漏掉了這一支。
-  await page.evaluate(() => {
-    const t = document.querySelector('#rdTabs [data-rdtab="settings"]');
-    if (t) t.click();
+    const row = document.querySelector('.ms-row[data-act="track"]');
+    if (row && document.getElementById('msTracks').hidden) row.click();
   });
   await page.waitForTimeout(400);
   const n0 = await page.evaluate(() => document.querySelectorAll('#lineToggles .chip').length);
@@ -2395,7 +2392,7 @@ async function sectionT(browser, engine) {
   //    chip 的 rect 是 0×0 ⇒ 後面 `page.mouse.click(0,0)` 打在地圖 canvas 上 ⇒ T3–T7 全紅。
   //    ✱ 這一條與 U0 同族:DOM 在場 ≠ 看得見,正向對照要量**版面實際給的尺寸與命中**。
   const g0 = await page.evaluate(() => {
-    const wrap = document.getElementById('rdSettings');
+    const wrap = document.getElementById('msTracks');
     const on = document.querySelector('#lineToggles .chip:not(.off)');
     const r = on ? on.getBoundingClientRect() : null;
     const d = on && on.querySelector('.dot');

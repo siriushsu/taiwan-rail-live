@@ -1,4 +1,6 @@
 // 真實引擎操作：路線雙向、跨系統同名站、分岔、查詢入口、鏡頭、手機互斥與可點擊性。
+// 2026-11-03 導覽改版：路線面板拿掉分頁——軌道顯示設定改在觀看 → 標示「軌道與路線」原地展開（G6），
+// 精選取景改在觀看 → 視角最後幾列（G5），可及性掃描跟著搬到 #viewScenes；從入口開路線面板一律從所有路線開始（G4）。
 import { chromium, webkit } from 'playwright';
 import { createServer } from 'node:http';
 import fs from 'node:fs';
@@ -30,16 +32,16 @@ async function tap(page,selector) {
   if(!hit) throw new Error('控件被遮住 '+selector);
   await l.tap();
 }
-async function geometry(page,label) {
-  const g=await page.evaluate(()=>{
-    const fresh=[...document.querySelectorAll('#trackPanel button,#trackPanel input,#trackPanel select')].filter(e=>!e.closest('[hidden]')&&getComputedStyle(e).display!=='none');
+async function geometry(page,label,root='#trackPanel',own='#rdRoutes') {
+  const g=await page.evaluate(([root,own])=>{
+    const fresh=[...document.querySelectorAll(`${root} button,${root} input,${root} select`)].filter(e=>!e.closest('[hidden]')&&getComputedStyle(e).display!=='none');
     const bad=[];
     for(const e of fresh) {
       e.scrollIntoView({block:'center',inline:'nearest'});
       const r=e.getBoundingClientRect(), h=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
       if(r.width&&r.height&&((r.height<43&&matchMedia('(any-pointer: coarse)').matches)||r.left<0||r.right>innerWidth+1||!(h===e||e.contains(h)))) bad.push({id:e.id||e.textContent.trim().slice(0,35),h:r.height,hit:h?.id||h?.tagName});
     }
-    document.getElementById('trackPanel').scrollTop=0;
+    document.querySelector(root).scrollTop=0;
     const visible=e=>{
       let r=e.getBoundingClientRect();if(!r.width||!r.height||e.closest('[hidden]'))return null;
       let l=Math.max(0,r.left),t=Math.max(0,r.top),rr=Math.min(innerWidth,r.right),b=Math.min(innerHeight,r.bottom);
@@ -51,12 +53,12 @@ async function geometry(page,label) {
     const all=[...document.querySelectorAll('button,input,select,a,[role=button],[role=slider],.chip')].map(e=>({e,r:visible(e)})).filter(x=>x.r);
     const pairs=[];
     for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++){
-      const a=all[i],b=all[j];if(!(a.e.closest('#rdTabs,#rdRoutes,#rdScenes')||b.e.closest('#rdTabs,#rdRoutes,#rdScenes'))||a.e.contains(b.e)||b.e.contains(a.e))continue;
+      const a=all[i],b=all[j];if(!(a.e.closest(own)||b.e.closest(own))||a.e.contains(b.e)||b.e.contains(a.e))continue;
       const w=Math.min(a.r.r,b.r.r)-Math.max(a.r.l,b.r.l),h=Math.min(a.r.b,b.r.b)-Math.max(a.r.t,b.r.t);
       if(w>2&&h>2)pairs.push([a.e.id||a.e.textContent.trim().slice(0,20),b.e.id||b.e.textContent.trim().slice(0,20)]);
     }
     return {bad,pairs,overflow:document.documentElement.scrollWidth>innerWidth+1};
-  });
+  },[root,own]);
   ok(label,!g.bad.length&&!g.pairs.length&&!g.overflow,g);
 }
 let browser;
@@ -73,10 +75,11 @@ try {
   await page.waitForFunction(()=>typeof state!=='undefined'&&state.ready&&state.systems.length>5,null,{timeout:60000});
   await page.evaluate(()=>{selectGroup(GROUPS.find(g=>g.id==='all'));setSimSec(8*3600);state.playing=false;syncTimeUI();});
   await tap(page,'#tabSearch');await tap(page,'#queryLinks [data-act=routes]');
-  ok(en+' 查詢入口開導覽',await page.locator('#rdRoutes').isVisible()&&!await page.locator('#searchPanel').isVisible());
-  await tap(page,'[data-rdtab=settings]');await tap(page,'#trackSeg [data-v=hidden]');
+  ok(en+' 查詢入口開路線面板',await page.locator('#rdRoutes').isVisible()&&!await page.locator('#searchPanel').isVisible());
+  // 軌道顯示設定搬到觀看 → 標示「軌道與路線」原地展開（G6）；操作與存的偏好照舊
+  await page.evaluate(()=>window.railViewControls.open('labels'));await tap(page,'.ms-row[data-act=track]');await tap(page,'#trackSeg [data-v=hidden]');
   ok(en+' 原有軌道顯示設定仍能操作',await page.locator('#trackSeg [data-v=hidden]').evaluate(e=>e.classList.contains('on')));
-  await tap(page,'#trackSeg [data-v=auto]');await tap(page,'[data-rdtab=routes]');
+  await tap(page,'#trackSeg [data-v=auto]');await page.evaluate(()=>{window.railViewControls.close();openTrackPanel();});
   const cat=await page.evaluate(()=>{
     const before=JSON.stringify(state.systems.map(s=>(s.mode==='sched'?s._track:s.data)?.lines?.map(l=>l.stations)));
     const c=RailDiscovery.catalog(state.systems,buildStnIndex());for(const r of c)RailDiscovery.ordered(r,true);
@@ -94,7 +97,7 @@ try {
   ok(en+' 全台同框點站開裝飾層看板',st.name==='南港展覽館'&&st.sys==='deco'&&st.metroSysId==='mrt',st);
   // 同名站要保持系統：從各自的路線選到市政府。
   for(const sys of ['tmrt','mrt']) {
-    await page.evaluate(()=>openTrackPanel('routes'));await tap(page,'[data-rd=back]');
+    await page.evaluate(()=>openTrackPanel());
     await page.locator('#rdSearch').fill('市政府');await page.locator('#rdSystem').selectOption(sys);
     await tap(page,'#rdList .rd-route');
     const ix=await page.locator('.rd-stations button').allTextContents();
@@ -102,8 +105,8 @@ try {
     st=await page.evaluate(()=>state.boardStation);ok(en+' 市政府辨識 '+sys,st.name==='市政府'&&st.metroSysId===sys,st);
   }
   // 模擬時間和倍速不因跨系統取景改變，跟車需退出，鏡頭到指定區域。
-  await page.evaluate(()=>{selectGroup(GROUPS.find(g=>g.id==='hsr'));setSimSec(9*3600);setSpeed(10);state.playing=false;openTrackPanel('scenes');});
-  await tap(page,'[data-scene=danhai]');
+  await page.evaluate(()=>{selectGroup(GROUPS.find(g=>g.id==='hsr'));setSimSec(9*3600);setSpeed(10);state.playing=false;closeTrackPanel();window.railViewControls.open('angle');});
+  await tap(page,'#viewScenes [data-scene=danhai]');
   await page.waitForFunction(()=>!M.raw.isMoving());
   const view=await page.evaluate(()=>({group:state.group,time:state.simSec,speed:state.speedMult,playing:state.playing,pitch:M.getPitch(),center:M.getCenter(),follow:!!(state.followTrain||state.freqFollow)}));
   ok(en+' 淡海取景保留時間與速度',view.group==='all'&&view.time===32400&&view.speed===10&&!view.playing&&view.pitch>25&&view.pitch<=55&&!view.follow,view);
@@ -124,8 +127,7 @@ try {
   for(const width of [360,375,390,414,640,768,900,1280]) {
     await page.evaluate(()=>document.fullscreenElement?document.exitFullscreen():undefined);
     await page.setViewportSize({width,height:900});
-    await page.evaluate(()=>{closeSearchPanel();openTrackPanel('routes');});
-    if(await page.locator('[data-rd=back]').isVisible()) await tap(page,'[data-rd=back]');
+    await page.evaluate(()=>{closeSearchPanel();openTrackPanel();});
     await page.locator('#rdSearch').fill('文湖');await page.locator('#rdSystem').selectOption('mrt');
     await tap(page,'[data-route="mrt|BR"]');
     // 手機產品只支援全畫面，不能直接移除 fs 製造使用者到不了的狀態。
@@ -134,7 +136,9 @@ try {
       await page.waitForTimeout(120);
       await geometry(page,`${en} ${width} ${fsMode?'全畫面':'一般'} 導覽可及性與全控件相交`);
     }
-    await tap(page,'[data-rdtab=scenes]');await geometry(page,`${en} ${width} 取景可及性`);
+    await page.evaluate(()=>{closeTrackPanel();window.railViewControls.open('angle');});
+    await geometry(page,`${en} ${width} 取景可及性（觀看 → 視角）`,'#viewScenes','#viewScenes');
+    await page.evaluate(()=>{window.railViewControls.close();openTrackPanel({route:'mrt|BR'});});
     if(width===390||width===1280) await page.screenshot({path:path.join(out,`${en}-${width}.png`)});
   }
   await page.evaluate(()=>document.fullscreenElement?document.exitFullscreen():undefined);
@@ -144,26 +148,27 @@ try {
   await geometry(page,en+' 跟車與公告同時存在');
   await tap(page,'#tabMore');
   ok(en+' 更多抽屜可開啟',await page.evaluate(()=>document.body.classList.contains('tools-open')));
-  await page.evaluate(()=>{document.getElementById('moreClose').click();openTrackPanel('scenes');setLanguage('en');});
-  ok(en+' 切英文重畫導覽',!/[\u3400-\u9fff]/.test(await page.locator('#rdScenes').innerText()));
-  await page.evaluate(()=>openTrackPanel('routes'));
-  if(await page.locator('[data-rd=back]').isVisible()) await tap(page,'[data-rd=back]');
+  await page.evaluate(()=>{document.getElementById('moreClose').click();window.railViewControls.open('angle');setLanguage('en');});
+  ok(en+' 切英文重畫精選取景',!/[\u3400-\u9fff]/.test(await page.locator('#viewScenes').innerText()));
+  await page.evaluate(()=>{window.railViewControls.close();openTrackPanel();});
   await page.locator('#rdSearch').fill('');await page.locator('#rdSystem').selectOption('');
   const untranslated=await page.locator('#rdList .rd-route').allTextContents().then(rows=>rows.filter(s=>/[\u3400-\u9fff]/.test(s)));
   ok(en+' 英文路線清單與起終站',!untranslated.length,untranslated);
   await page.locator('#rdSearch').fill('Wenhu');
   ok(en+' 英文搜尋路線',await page.locator('#rdList [data-route="mrt|BR"]').count()===1);
-  await page.evaluate(()=>{document.documentElement.setAttribute('data-fs','xlarge');openTrackPanel('scenes');});
+  await page.evaluate(()=>{document.documentElement.setAttribute('data-fs','xlarge');openTrackPanel({route:'mrt|BR'});});
   await geometry(page,en+' 英文特大字級');
+  await page.evaluate(()=>{closeTrackPanel();window.railViewControls.open('angle');});
+  await geometry(page,en+' 英文特大字級 精選取景','#viewScenes','#viewScenes');
   await page.evaluate(()=>document.documentElement.removeAttribute('data-fs'));
-  await page.evaluate(()=>setLanguage('ja'));ok(en+' 日文取景',await page.locator('#rdScenes').innerText().then(s=>s.includes('嘉義')));
+  await page.evaluate(()=>setLanguage('ja'));ok(en+' 日文取景',await page.locator('#viewScenes').innerText().then(s=>s.includes('嘉義')));
   ok(en+' 無前端例外',!errors.length,errors);
   await ctx.close();
   const desktop=await browser.newContext({viewport:{width:1280,height:900},hasTouch:false});
   await desktop.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));
   const dp=await desktop.newPage();await dp.goto(base+'?lang=zh-TW');
   await dp.waitForFunction(()=>typeof state!=='undefined'&&state.ready);
-  await dp.evaluate(()=>openTrackPanel('routes'));
+  await dp.evaluate(()=>openTrackPanel());
   for(const on of [false,true]) {
     await dp.evaluate(on=>state._setFs(on),on);await dp.waitForTimeout(150);
     await geometry(dp,en+' 桌面 '+(on?'全畫面':'一般'));
