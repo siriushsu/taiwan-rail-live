@@ -23378,13 +23378,13 @@ function ownTrainView() {
   window.TrainGarage?.close();
   return ownTrainFollow({});
 }
-// 車庫兌換視窗（train-garage.js，照 App 的 GarageRedeemCopy／WalletController）用的錢包。只有懸賞開著、已登入才有
-// （同 sceneUnlocks：網頁登出時讀不到點數，不出兌換入口）。actor 一律送帳號 uid（契約 v3：網頁一律登入後才兌換）——
+// 車庫兌換視窗（train-garage.js，照 App 的 GarageRedeemCopy／WalletController）用的錢包。已登入才有，不看懸賞旗標
+// （點數是帳號共用的錢包，旗標管的是懸賞板與網頁錄程；同 sceneUnlocks：網頁登出時讀不到點數，不出兌換入口）。actor 一律送帳號 uid（契約 v3：網頁一律登入後才兌換）——
 // 送裝置 id 的話錢會扣在裝置名下，chips-me（Bearer）讀的卻是帳號，兩邊對不上。
 // 送出前先把 {uid, scene, requestId} 存進 GARAGE_REDEEM_PENDING_KEY：結果沒確認前重試一律沿用同一個 requestId，伺服器靠它不重扣。
 const GARAGE_REDEEM_PENDING_KEY = 'trainmap-garage-redeem-pending-v1';
 const garageWallet = {
-  uid: () => (BOUNTY_ENABLED && state.account && state.account.user && state.account.user.uid) || '',
+  uid: () => (state.account && state.account.user && state.account.user.uid) || '',
   scenes: () => ((bountyRulesMem && bountyRulesMem.chips && bountyRulesMem.chips.scenes) || []).map(String),
   ledger: () => {
     let c = chipsMeMem;
@@ -23433,9 +23433,9 @@ function openTrainGarage(options = {}) {
     ownTrainCard, ownTrainSchedule, ownTrainView, ownTrainReplan,
     snapshot: garageSnapshot, t, lang: () => I18N_LANG, dark: () => !!state.mapDark,
     // 場景頁的專屬場景鎖：已解鎖的場景 id（/api/chips-me 的 unlocked[].scene，見 fetchChipsMe／BOUNTY_CHIPS_KEY）。
-    // 懸賞關著、沒登入、還沒讀到錢包就回 null，車庫只畫預設車庫、不出切換列（同 App 沒有錢包時）。
+    // 沒登入、還沒讀到錢包就回 null，車庫只畫預設車庫、不出切換列（同 App 沒有錢包時）；不看懸賞旗標（同 garageWallet）。
     sceneUnlocks: () => {
-      if (!BOUNTY_ENABLED || !(state.account && state.account.user)) return null;
+      if (!(state.account && state.account.user)) return null;
       let c = chipsMeMem;
       if (!c) try { c = JSON.parse(localStorage.getItem(BOUNTY_CHIPS_KEY) || 'null'); } catch (e) { c = null; }
       return chipsMeShapeOk(c) ? new Set(c.unlocked.map(u => String(u && u.scene))) : null;
@@ -25235,11 +25235,12 @@ async function fetchBountyMe() {
   return bountyMeMem;
 }
 // 籌碼（/api/chips-me：餘額、已解鎖的場景、下一座要幾顆、雲端搭乘進度）。
-// 只在懸賞開著、而且已登入時讀，一律帶 Bearer、永遠不用 ?actor=——同一個瀏覽器的裝置 id 可能屬於前一位登入者，
+// 只在已登入時讀，一律帶 Bearer、永遠不用 ?actor=——同一個瀏覽器的裝置 id 可能屬於前一位登入者，
 // 登出狀態拿它去讀就是讀到別人的帳（契約的身分規則）。已登入的帳號第一次帶 Bearer 呼叫時伺服器才建帳號列，
 // 所以登入後一定要讀一次。
 // 成功就把回應原樣存進 BOUNTY_CHIPS_KEY（車庫的場景頁讀 unlocked[].scene 決定場景鎖不鎖）；
 // 401 清掉快取；其他失敗（限流、網路）留著上一份。回應回來時人已經換了、登出了，或後面又發了新的一發，就丟掉、不寫快取。
+// 不看懸賞旗標：車庫錢包（garageWallet.reload）旗標關著也要讀。旗標關時只有打開車庫會叫到這裡，登入回呼與合併完成那兩處各自擋旗標。
 const BOUNTY_CHIPS_KEY = 'trainmap-chips-me-v1';
 let chipsMeMem = null;
 let chipsMeSeq = 0;
@@ -25251,7 +25252,6 @@ function chipsMeShapeOk(j) {
   return !!j && typeof j === 'object' && !Array.isArray(j) && Number.isFinite(Number(j.balance)) && Array.isArray(j.unlocked);
 }
 async function fetchChipsMe() {
-  if (!BOUNTY_ENABLED) return null;
   const a = state.account, user = a && a.user;
   if (!user) return null;
   const seq = ++chipsMeSeq, uid = user.uid;
@@ -40428,7 +40428,7 @@ async function boot() {
   // no-op——併發呼叫兩邊比只呼叫 renderPassport() 更保險,不用賭使用者開 sheet 時 fetch 一定已經回來。
   // 2026-07-29 下架期間不打這支:那一節根本不渲染,每次開機還去問一次 /api/bounty-me 是白花的 Worker 呼叫。
   if (BOUNTY_ENABLED) fetchBountyMe().then(() => { renderPassport(); renderRidePanel(); });
-  // 懸賞關著時，上次開著留下的籌碼快取不能繼續留著(車庫的場景頁讀它決定場景鎖不鎖)；籌碼只在登入後由 onAuthStateChanged 讀
+  // 懸賞關著時開機清掉上次留下的籌碼快取(車庫的場景頁讀它決定場景鎖不鎖)：這時點數只在打開車庫時讀(garageWallet.reload)，讀到的才算數
   else { try { localStorage.removeItem(BOUNTY_CHIPS_KEY); } catch (e) {} }
   publishTrackContinuityAudit();
   if (window.__notifyMockLog) {
