@@ -1,0 +1,220 @@
+{
+  "modelId": "mingricoach",
+  "name": "鳴日號・客車",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "coach",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.894000053405762,
+      -1.4900000095367432,
+      0.0
+    ],
+    "max": [
+      4.894000053405762,
+      1.4900000095367432,
+      3.6500000953674316
+    ]
+  },
+  "sizeM": [
+    9.788000106811523,
+    2.9800000190734863,
+    3.6500000953674316
+  ],
+  "mesh": {
+    "file": "mingricoach.mesh.bin",
+    "sha256": "6cbd9ffbd216c7837a618e2bc3645ae20beb342410cca004d33742a0bf3cad0a",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 109692,
+    "triangleCount": 36564,
+    "drawGroups": [
+      {
+        "name": "mblack",
+        "start": 0,
+        "count": 7380,
+        "color": [
+          0.007499032188206911,
+          0.009134058840572834,
+          0.012286487966775894
+        ],
+        "metalness": 0.11999999731779099,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.4000000059604645
+      },
+      {
+        "name": "morange",
+        "start": 7380,
+        "count": 9588,
+        "color": [
+          0.6444796919822693,
+          0.05780543014407158,
+          0.01032982300966978
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3199999928474426,
+        "clearcoat": 0.3199999928474426
+      },
+      {
+        "name": "frame",
+        "start": 16968,
+        "count": 8088,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 25056,
+        "count": 6072,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "white",
+        "start": 31128,
+        "count": 1104,
+        "color": [
+          0.8713670969009399,
+          0.838798999786377,
+          0.6938717365264893
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "metal",
+        "start": 32232,
+        "count": 22344,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "fpkac",
+        "start": 54576,
+        "count": 1128,
+        "color": [
+          0.3967552185058594,
+          0.43415364623069763,
+          0.4507857859134674
+        ],
+        "metalness": 0.4000000059604645,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.07999999821186066
+      },
+      {
+        "name": "chassis",
+        "start": 55704,
+        "count": 30372,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "roof",
+        "start": 86076,
+        "count": 12408,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 98484,
+        "count": 11208,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 214,
+  "features": {
+    "sideDoorGroups": 2,
+    "doorLeavesPerGroup": 1,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "mingricoach",
+    "family": "coach",
+    "L": 9.0,
+    "W": 2.8,
+    "H": 3.4,
+    "doors": 2,
+    "doorLeaves": 1,
+    "doorW": 0.62,
+    "radiusTop": 0.42,
+    "body": "15181D",
+    "accent": "D2441A"
+  },
+  "reference": {
+    "source": "https://blair-train.blogspot.com/2019/12/blog-post.html",
+    "detail": "深色上半 · 橘色下半與橘細線 · 寬窗夾白框小窗",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

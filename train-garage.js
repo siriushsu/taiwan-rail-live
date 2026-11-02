@@ -676,7 +676,7 @@
     trainView=innerWidth<=800;frameScene=viewScene='';
     rendererPromise=renderer?Promise.resolve():startRenderer();
     showDialog();build();dialog.scrollTop=0;$('.g-close').focus({preventScroll:true});requestDraw();
-    reloadWallet(); // 「車庫場景」列出現時讀一次最新點數（同 App）；沒登入、懸賞關著時什麼都不做
+    reloadWallet(); // 「車庫場景」列出現時讀一次最新點數（同 App）；沒登入時什麼都不做
   }
   window.addEventListener('rail:native-back', e => {if(dialog?.open){e.preventDefault();e.stopImmediatePropagation();if(!backOut())close();}}, {capture:true});
   for(const type of ['fullscreenchange','webkitfullscreenchange'])document.addEventListener(type,()=>{if(fs&&!fsHistory&&!fsElement())setFullscreen(false);});

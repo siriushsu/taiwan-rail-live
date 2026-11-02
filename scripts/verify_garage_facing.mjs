@@ -4,7 +4,7 @@
 // 9/26 網友截圖：環形試跑按 ⇄ 後每節車原地轉 180°，頭尾車頭都轉進車廂之間；舊判準只量「位置不動、朝向差 π」，量不到這個。
 // 另外兩條（9/26 獨立複驗建議）：直線跑道上 follow(dir) 要跟海岸行旅 straight(dir) 逐值相同——反向＝整列掉頭，
 // 同時守住「按 ⇄ 不沿軌道滑移」「車鉤接在相鄰兩節相對的那一端」「沒有車燈可判的車款頭車也朝外」；
-// 福森號、栩悅號傳 locoAtTail 時兩端仍朝外（尾車 flip 排在換端之前會讓兩端全部朝內）。
+// 阿里山場景（locoAtTail）的車款：換到尾端的機關車駕駛室朝外，福森號、栩悅號兩端仍朝外（尾車 flip 排在換端之前會讓兩端全部朝內）。
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
@@ -54,8 +54,12 @@ for(const id of ids){
  }
  consist.dispose();primary.dispose();
 }
-// 福森號、栩悅號在 locoAtTail 下（阿里山場景）兩端仍要朝外。
-for(const id of ['fushen','xuyue']){const primary=await loadGarageModel(id),consist=await createConsist(id,primary,undefined,{locoAtTail:true}),ends=consist.cars.map(c=>cabEnd(c.asset));
+// 阿里山場景（locoAtTail）分到的車款逐款驗：換到尾端的機關車駕駛室朝外，福森號、栩悅號兩端仍朝外。
+// 車款照 train-garage-scenes.js 的 scene:'alishan' 讀；尾端是機關車（跟相鄰那節不同款）卻沒有可判的車頭端，這條就驗不到，也算錯。
+const alishan=[...fs.readFileSync(path.join(root,'train-garage-scenes.js'),'utf8').matchAll(/^\s*([\w-]+):\s*\{[^}]*scene:'alishan'/gm)].map(m=>m[1]);
+if(!alishan.length)failures.push('train-garage-scenes.js 讀不到阿里山場景的車款');
+for(const id of alishan){const primary=await loadGarageModel(id),consist=await createConsist(id,primary,undefined,{locoAtTail:true}),ends=consist.cars.map(c=>cabEnd(c.asset));
+ if(consist.cars[2].id!==consist.cars[1].id&&!ends[2])failures.push(id+' locoAtTail 尾端機關車沒有可判的車頭端');
  for(const direction of [1,-1]){const tag=id+' locoAtTail'+(direction===1?' 正向':' 反向');consist.follow(loop,10,direction);outward(consist,ends,tag+'環形');consist.straight(direction);outward(consist,ends,tag+'海岸');}
  consist.dispose();primary.dispose();}
 // 正向對照：同一套判準對「原地各轉 180°」的舊擺法必須紅，否則判準沒有牙。

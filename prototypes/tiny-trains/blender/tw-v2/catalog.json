@@ -1,0 +1,1587 @@
+[
+ {
+  "id": "c301",
+  "name": "C301・北捷初代",
+  "family": "metro",
+  "detail": "不鏽鋼框黑色窗區 · 粗藍腰帶 · 中央逃生門",
+  "features": [
+   "垂直平頭：黑色窗區四周留一圈不鏽鋼框，中央逃生門從防爬器上緣一路到窗頂。",
+   "窗下一段不鏽鋼、再下來是粗藍帶，頭尾燈座嵌在藍帶兩端；左窗上緣目的地字幕、下緣車號字牌。",
+   "每側四組雙開門，門扇上的藍帶跟車身接成一條；壓紋平頂、邊緣小通風口，底下第三軌集電靴。"
+  ],
+  "metadata": "models/c301/c301.model.json",
+  "blend": "models/c301/c301.blend",
+  "glb": "models/c301/c301.glb",
+  "hero": "models/c301/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/04/301.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-URC_C301_EMU.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/c301/renders/thumb.webp"
+ },
+ {
+  "id": "c321",
+  "name": "C321・板南線",
+  "family": "metro",
+  "detail": "後傾黑色車頭 · 粗藍腰帶 · 中央逃生門",
+  "features": [
+   "車頭微微後傾，黑色窗區一路延伸到車頂邊。",
+   "粗藍帶、燈座與中央逃生門跟 C301 同一套端面配置。",
+   "與 C341 外觀幾乎相同，只靠車號字牌區分，不假造差異。"
+  ],
+  "metadata": "models/c321/c321.model.json",
+  "blend": "models/c321/c321.blend",
+  "glb": "models/c321/c321.glb",
+  "hero": "models/c321/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2010/03/321.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Sinsyuan（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:C321_Bannan_BL02_20260108.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/c321/renders/thumb.webp"
+ },
+ {
+  "id": "c341",
+  "name": "C341・板南線",
+  "family": "metro",
+  "detail": "後傾黑色車頭 · 粗藍腰帶 · 中央逃生門",
+  "features": [
+   "車頭微微後傾，黑色窗區一路延伸到車頂邊。",
+   "粗藍帶、燈座與中央逃生門跟 C301 同一套端面配置。",
+   "與 C321 同一家族，外觀共用同一份車頭，只換車號字牌。"
+  ],
+  "metadata": "models/c341/c341.model.json",
+  "blend": "models/c341/c341.blend",
+  "glb": "models/c341/c341.glb",
+  "hero": "models/c341/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/03/341.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:C341_1201_at_Ximen_Station_20060531.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/c341/renders/thumb.webp"
+ },
+ {
+  "id": "c371",
+  "name": "C371・北捷主力",
+  "family": "metro",
+  "detail": "圓弧車頂邊 · 黑色窗區 · 粗藍腰帶",
+  "features": [
+   "車頭上緣圓弧後收，黑色窗區兩側留窄不鏽鋼柱、頂端大圓角。",
+   "粗藍帶、燈座與中央逃生門沿用北捷標準端面。",
+   "三節支線與六節列車共用車系，這裡展示一節駕駛車。"
+  ],
+  "metadata": "models/c371/c371.model.json",
+  "blend": "models/c371/c371.blend",
+  "glb": "models/c371/c371.glb",
+  "hero": "models/c371/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2010/03/301.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_C371_EMU.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/c371/renders/thumb.webp"
+ },
+ {
+  "id": "c381",
+  "name": "C381・圓弧車頭",
+  "family": "metro",
+  "detail": "銀色圓鼓車頭 · 藍色 V 帶 · 三片前窗",
+  "features": [
+   "銀色圓鼓車頭，上緣一圈黑帶；三片前窗各有黑框、中間隔銀色窗柱，中央是逃生門。",
+   "粗藍帶從兩側燈座內緣斜下到中央成 V 字，下方一條細藍線；兩角燈座內白外紅，黑帶上兩角琥珀燈、中央紅色標識燈。",
+   "深灰防爬器；車側是粗藍帶加一條細藍線。"
+  ],
+  "metadata": "models/c381/c381.model.json",
+  "blend": "models/c381/c381.blend",
+  "glb": "models/c381/c381.glb",
+  "hero": "models/c381/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/11/381.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://ebook.dorts.gov.taipei/ebook/no21/files/basic-html/page114.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_C381_EMU.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/c381/renders/thumb.webp"
+ },
+ {
+  "id": "emu500",
+  "name": "EMU500 通勤電車",
+  "family": "railcar",
+  "detail": "藍色平頭 · 中央貫通門 · 窗下兩道藍線",
+  "features": [
+   "藍色平頭，中央貫通門外凸一圈門框、門窗下一塊白牌；左右前窗上方分別是車號牌與目的地顯示器。",
+   "車頂前緣中央一座雙頭燈，窗下兩條白細線，兩角內白外紅圓燈，下緣黃黑警戒斜紋。",
+   "不鏽鋼車身下半部橫向壓紋、窗下兩道藍線，每側三組雙開門；駕駛車沒有受電弓。"
+  ],
+  "metadata": "models/emu500/emu500.model.json",
+  "blend": "models/emu500/emu500.blend",
+  "glb": "models/emu500/emu500.glb",
+  "hero": "models/emu500/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/emu500.html"
+   },
+   {
+    "label": "Wikimedia Commons／billy1125（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EM510_20130313.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu500/renders/thumb.webp"
+ },
+ {
+  "id": "emu600",
+  "name": "EMU600・通勤電車",
+  "family": "railcar",
+  "detail": "藍色平頭 · 中央貫通門 · 窗下兩道藍線",
+  "features": [
+   "外觀與 EMU500 同款：藍色平頭、外凸的中央貫通門與門窗下白牌。",
+   "車頂前緣中央雙頭燈、窗下兩條白細線、兩角內白外紅圓燈與警戒斜紋。",
+   "不鏽鋼車身橫向壓紋、窗下兩道藍線，每側三組雙開門。"
+  ],
+  "metadata": "models/emu600/emu600.model.json",
+  "blend": "models/emu600/emu600.blend",
+  "glb": "models/emu600/emu600.glb",
+  "hero": "models/emu600/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/03/emu600.html"
+   },
+   {
+    "label": "Wikimedia Commons（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU609_20160714.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu600/renders/thumb.webp"
+ },
+ {
+  "id": "haifeng",
+  "name": "海風號",
+  "family": "railcar",
+  "detail": "海水藍綠整車上色 · 下緣漸層到白",
+  "features": [
+   "EMU500 改造：平頭、中央貫通門與車頂雙頭燈沿用原車。",
+   "整車海水藍綠，車身與門扇下緣漸層到白色，車頭下方黑色下裙。",
+   "不放車名字樣與標誌，只做車體配色。"
+  ],
+  "metadata": "models/haifeng/haifeng.model.json",
+  "blend": "models/haifeng/haifeng.blend",
+  "glb": "models/haifeng/haifeng.glb",
+  "hero": "models/haifeng/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2024/08/blog-post.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%B5%B7%E9%A2%A8%E8%99%9F%E5%8F%8A%E5%B1%B1%E5%B5%90%E8%99%9F%E5%88%97%E8%BB%8A%E5%A4%96%E8%A7%80%E8%A8%AD%E8%A8%88%E7%A4%BA%E6%84%8F%E5%9C%96.png"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/haifeng/renders/thumb.webp"
+ },
+ {
+  "id": "shanlan",
+  "name": "山嵐號",
+  "family": "railcar",
+  "detail": "稻穗黃綠整車上色 · 下緣漸層到白",
+  "features": [
+   "EMU500 改造：平頭、中央貫通門與車頂雙頭燈沿用原車。",
+   "整車稻穗黃綠，車身與門扇下緣漸層到白色，車頭下方黑色下裙。",
+   "不放車名字樣與標誌，只做車體配色。"
+  ],
+  "metadata": "models/shanlan/shanlan.model.json",
+  "blend": "models/shanlan/shanlan.blend",
+  "glb": "models/shanlan/shanlan.glb",
+  "hero": "models/shanlan/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2024/08/emu583.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU583_SHANLAN_Changhua_Station_20260719.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/shanlan/renders/thumb.webp"
+ },
+ {
+  "id": "emu800",
+  "name": "EMU800 微笑號",
+  "family": "railcar",
+  "detail": "長車鼻 · 藍色面罩 · 黃色微笑框",
+  "features": [
+   "銀色下巴往前凸、面罩往後傾，藍色面罩被黃色色帶框住，下緣彎成微笑弧線。",
+   "面罩上緣三顆頭燈、大片前窗，窗下四顆圓燈內白外紅；下巴兩個通風格柵。",
+   "不鏽鋼車身窗下黃藍兩條線，每側三組雙開門。"
+  ],
+  "metadata": "models/emu800/emu800.model.json",
+  "blend": "models/emu800/emu800.blend",
+  "glb": "models/emu800/emu800.glb",
+  "hero": "models/emu800/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/06/emu800-tra-emu800-type-electric.html"
+   },
+   {
+    "label": "Wikimedia Commons／Ltdccba（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA-EMU800-2013-08-27-0003(%E8%BB%8A%E9%A0%AD1).JPG"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu800/renders/thumb.webp"
+ },
+ {
+  "id": "emu800r",
+  "name": "EMU800・增備反色版",
+  "family": "railcar",
+  "detail": "長車鼻 · 黃色面罩 · 藍色微笑框",
+  "features": [
+   "跟 EMU800 同一個車頭造型，配色相反：黃色面罩、藍色框與微笑弧線。",
+   "面罩上緣三顆頭燈、窗下四顆圓燈、下巴兩個通風格柵。",
+   "車側窗下黃藍兩條線，每側三組雙開門。"
+  ],
+  "metadata": "models/emu800r/emu800r.model.json",
+  "blend": "models/emu800r/emu800r.blend",
+  "glb": "models/emu800r/emu800r.glb",
+  "hero": "models/emu800r/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/06/emu800-tra-emu800-type-electric.html"
+   },
+   {
+    "label": "Wikimedia Commons／Subscriptshoe9（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU882_in_Douliu_Station_2017-07-17.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu800r/renders/thumb.webp"
+ },
+ {
+  "id": "emu900",
+  "name": "EMU900 區間車",
+  "family": "railcar",
+  "detail": "黑色面罩 · 白色 LED 燈帶 · 嫩綠側頰",
+  "features": [
+   "車頭上半一整片黑色面罩，前窗融在黑裡；頂端中央目的地顯示、上方兩角各一顆圓頭燈。",
+   "窗下兩側斜放煙燻燈座、下緣一條白色 LED 燈帶；燈座外側的嫩綠側頰繞過車角，接成車側窗下的綠帶。",
+   "駕駛室後面是長圓窗與乘務員門，再往後三組雙開門；面罩以下銀色，中央開口露出車鉤。"
+  ],
+  "metadata": "models/emu900/emu900.model.json",
+  "blend": "models/emu900/emu900.blend",
+  "glb": "models/emu900/emu900.glb",
+  "hero": "models/emu900/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/emu900-tra-emu900-type-electric.html"
+   },
+   {
+    "label": "Wikimedia Commons／jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU900_running_a_local_train_service_on_the_Western_Line.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu900/renders/thumb.webp"
+ },
+ {
+  "id": "emu700",
+  "name": "EMU700・阿福號",
+  "family": "railcar",
+  "detail": "白色平直車頭 · 橘色外框與月牙下巴 · 藍色裙部",
+  "features": [
+   "平直的白色車頭，左右緣橘色外框、車角與駕駛室側面藍色；大片圓角前窗加黑框。",
+   "頂端中央藥丸形雙頭燈座、右上目的地顯示，窗下四顆鍍鉻圈圓燈（外紅內白）。",
+   "下巴往前凸、橘色月牙形，下方藍色裙部；車側窗下粗藍帶加細橘線、車頂邊一條藍帶，每側三組雙開門。"
+  ],
+  "metadata": "models/emu700/emu700.model.json",
+  "blend": "models/emu700/emu700.blend",
+  "glb": "models/emu700/emu700.glb",
+  "hero": "models/emu700/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2011/09/emu740.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.trsc.com.tw/train/tran-58acf525031f4"
+   },
+   {
+    "label": "Wikimedia Commons／jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU700_running_a_local_train_service_on_the_Western_Line_approaching_Wudu_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu700/renders/thumb.webp"
+ },
+ {
+  "id": "temu1000",
+  "name": "TEMU1000 太魯閣",
+  "family": "express",
+  "detail": "鈍圓長車鼻 · 黑色遮陽面 · 橘色笑臉帶",
+  "features": [
+   "鈍圓的長車鼻、前窗往後倒；前窗連同上方一整片黑色遮陽面，頂端中央凸出雙頭燈座。",
+   "窗下兩個煙燻「眼睛」燈座往中央下斜；橘帶從車側沿駕駛室往下掃，到車頭變成笑臉弧，下巴是 U 形車鉤蓋。",
+   "白色車身、深灰連續窗帶、窗帶下緣接橘帶；每側兩扇單開塞拉門。"
+  ],
+  "metadata": "models/temu1000/temu1000.model.json",
+  "blend": "models/temu1000/temu1000.blend",
+  "glb": "models/temu1000/temu1000.glb",
+  "hero": "models/temu1000/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/temu1000.html"
+   },
+   {
+    "label": "Wikimedia Commons／Cheng-en Cheng（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_Taroko_Express_at_Xizhi_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/temu1000/renders/thumb.webp"
+ },
+ {
+  "id": "temu2000",
+  "name": "TEMU2000 普悠瑪",
+  "family": "express",
+  "detail": "紅色楔形車頭 · 黑框前窗 · 白色臉頰",
+  "features": [
+   "楔形車鼻：下巴中央往前凸、前窗往後倒；紅色車頭從車頂往下收窄，車角與下巴兩側是白色臉頰。",
+   "頂端左右各一個圓頭燈座、中間目的地顯示；黑框前窗下緣中間往下彎；窗下兩個外高內低的眼睛燈座（白頭燈＋紅尾燈）。",
+   "下巴有 U 形分模線框住往下收窄的紅色部分；車側白色、獨立車窗，窗下一粗一細兩條紅帶；每側兩扇單開塞拉門。"
+  ],
+  "metadata": "models/temu2000/temu2000.model.json",
+  "blend": "models/temu2000/temu2000.blend",
+  "glb": "models/temu2000/temu2000.glb",
+  "hero": "models/temu2000/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/06/temu2000.html"
+   },
+   {
+    "label": "Wikimedia Commons／Tbatb（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:A_Southbound_TRA_Puyuma_express_approaching_North_Hsinchu_Station_02.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/temu2000/renders/thumb.webp"
+ },
+ {
+  "id": "700t",
+  "name": "700T 高鐵",
+  "family": "express",
+  "detail": "鴨嘴長車鼻 · 黑色水滴窗罩 · 橘黑腰線",
+  "features": [
+   "鴨嘴長車鼻：鼻尖在下、一路往後抬高到車頂；黑色駕駛窗罩包住車鼻兩肩、側面看得到一長條，白頭燈與紅尾燈在窗罩前端裡面，鼻蓋前段有一圈分模線。",
+   "橘帶上緣全車同高：駕駛室段橘色一路到深灰裙邊，在車鼻變成往下包的 U 形；客室段只剩窄橘帶，上面壓一條前端削尖的黑線。",
+   "駕駛室門後一塊黑色楔形（前緣從裙邊彎上來、後緣斜切）；小圓角獨立窗，每側兩扇單開門；平頂，駕駛車沒有受電弓。"
+  ],
+  "metadata": "models/700t/700t.model.json",
+  "blend": "models/700t/700t.blend",
+  "glb": "models/700t/700t.glb",
+  "hero": "models/700t/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/700t.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:THSR_700T_frontnose_20130807.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/700t/renders/thumb.webp"
+ },
+ {
+  "id": "e1000",
+  "name": "E1000・推拉自強",
+  "family": "electric",
+  "detail": "銀色車身 · 橘帶往前下掃 · 橘色下巴",
+  "features": [
+   "往後倒的長車頭：上半銀色、兩扇黑框大前窗，頂端中央膠囊形雙頭燈座；窗下一道往上拱的折線，下巴整片橘色，左右兩個黑色燈座各兩顆圓燈。",
+   "車側橘色窗帶，帶下白細線與紅線、車身下緣另一條紅線；駕駛室前方橘帶與紅白線一起往前下掃，在車頭併成下巴的 V 字。",
+   "只有前端駕駛室（側窗前緣斜切、側門與扶手），後端是接客車的端牆；車頂後段是設備罩與單臂受電弓。"
+  ],
+  "metadata": "models/e1000/e1000.model.json",
+  "blend": "models/e1000/e1000.blend",
+  "glb": "models/e1000/e1000.glb",
+  "hero": "models/e1000/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/e1000.html"
+   },
+   {
+    "label": "Wikimedia Commons／WC-QHS（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_Push-pull_Tze-chiang_express_trains_at_TRA_Changhua_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/e1000/renders/thumb.webp"
+ },
+ {
+  "id": "ppcoach",
+  "name": "推拉自強・40PPD2500 客貨車",
+  "family": "coach",
+  "detail": "銀色車身 · 橘色窗帶 · 一半行李間",
+  "features": [
+   "不鏽鋼車身，橘色窗帶、帶下白細線與紅線、車身下緣另一條紅線，高度跟 E1000 機車對齊。",
+   "兩端各一扇有窗的單開塞拉門；窗只在一半（兩大兩小），另一半是行李間、只有橘帶，橘帶上緣兩個小百葉。",
+   "壓紋車頂，行李間那端車頂一大台冷氣；兩端是貫通道端牆。"
+  ],
+  "metadata": "models/ppcoach/ppcoach.model.json",
+  "blend": "models/ppcoach/ppcoach.blend",
+  "glb": "models/ppcoach/ppcoach.glb",
+  "hero": "models/ppcoach/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2011/04/40ppd2500.html"
+   },
+   {
+    "label": "Wikimedia Commons／Encino（Public domain）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_PPD2525_20021229.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/ppcoach/renders/thumb.webp"
+ },
+ {
+  "id": "dr3100",
+  "name": "DR3100・柴聯自強",
+  "family": "railcar",
+  "detail": "黃色警戒車頭 · 黃色凸框貫通門 · 不鏽鋼壓紋車身",
+  "features": [
+   "黃色車頭、橘色上緣；兩側黑框前窗，頭燈在窗框上緣；中央貫通門外框是黃色凸框。",
+   "窗下橘帶接往中央下斜的橘色斜紋，內側隔一道黃色斜帶、再往內到貫通門框是橘色；上緣兩塊高壓警示牌，下緣黃圈紅尾燈與黃黑警戒條。",
+   "不鏽鋼車身加縱向壓紋，窗上黃細線、窗下橘帶；駕駛室後是乘務員門；車頂兩台斜端冷氣罩與排氣管。"
+  ],
+  "metadata": "models/dr3100/dr3100.model.json",
+  "blend": "models/dr3100/dr3100.blend",
+  "glb": "models/dr3100/dr3100.glb",
+  "hero": "models/dr3100/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2011/09/dr3100.html"
+   },
+   {
+    "label": "Wikimedia Commons／Takeshi Aida（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7_DR3100,_%E6%B1%90%E6%AD%A2%E8%BB%8A%E7%AB%99_(20250216).jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dr3100/renders/thumb.webp"
+ },
+ {
+  "id": "dr1000",
+  "name": "DR1000 支線小車",
+  "family": "railcar",
+  "detail": "黃色警戒車頭 · 黑框寬貫通門 · 雙頭單車",
+  "features": [
+   "跟 DR3100 同一套警戒塗裝（窗下橘帶、往中央下斜的橘色斜紋與黃色斜帶）；貫通門外框是黑色橡膠框，門比 DR3100 寬。",
+   "頭燈在左右前窗窗框上緣，尾燈在下緣黃圈裡；上緣兩塊高壓警示牌；兩端都是車頭。",
+   "不鏽鋼車身加縱向壓紋，門窗前後對稱；車頂兩端冷氣、中央四個散熱風扇與管線。"
+  ],
+  "metadata": "models/dr1000/dr1000.model.json",
+  "blend": "models/dr1000/dr1000.blend",
+  "glb": "models/dr1000/dr1000.glb",
+  "hero": "models/dr1000/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/dr1000.html"
+   },
+   {
+    "label": "Wikimedia Commons／Tbatb（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:A_TRA_DR1000_train_approaching_Hsinchu_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dr1000/renders/thumb.webp"
+ },
+ {
+  "id": "dr2700",
+  "name": "DR2700 白鐵仔",
+  "family": "railcar",
+  "detail": "不鏽鋼波紋車身與車頭 · 頂端雙頭燈 · 中央貫通門",
+  "features": [
+   "整車不鏽鋼，車側窗上、窗下滿滿的縱向波紋，車頭窗下兩側也有橫向波紋。",
+   "車頭上緣圓角大，頂端中央凸出雙頭燈座；兩側圓角大前窗、中央貫通門外框一圈古銅色邊。",
+   "深褐色車頂中央一段高起；下緣兩角鍍鉻圈小尾燈、深灰下裙；兩端都是車頭。"
+  ],
+  "metadata": "models/dr2700/dr2700.model.json",
+  "blend": "models/dr2700/dr2700.blend",
+  "glb": "models/dr2700/dr2700.glb",
+  "hero": "models/dr2700/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2011/09/dr2700.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR2706_Yuli_20130906.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dr2700/renders/thumb.webp"
+ },
+ {
+  "id": "emu100",
+  "name": "EMU100 英國婆",
+  "family": "railcar",
+  "detail": "橘紅與琥珀黃警戒車頭 · 米金與赭金雙色車身",
+  "features": [
+   "橘紅車頭，中央貫通門外圍一圈琥珀黃框；兩側小窗那一段琥珀黃，窗下一道往中央微斜的琥珀黃帶。",
+   "頂端中央雙頭燈座、上緣兩角高壓警示小牌、下緣橘紅凸圈尾燈、黃色直槽排障板；本款是警戒色版本，不混用復原的原始米棕色端面。",
+   "車側米金色上半、赭金色下半；駕駛室後是百葉通風窗與窄窗，再接客室門與六扇大窗。"
+  ],
+  "metadata": "models/emu100/emu100.model.json",
+  "blend": "models/emu100/emu100.blend",
+  "glb": "models/emu100/emu100.glb",
+  "hero": "models/emu100/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/emu100.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.nrm.gov.tw/News_Content2.aspx?n=3338&s=135580"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU100_at_the_Huatan_Station_20231112.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu100/renders/thumb.webp"
+ },
+ {
+  "id": "emu1200",
+  "name": "EMU1200 紅斑馬",
+  "family": "railcar",
+  "detail": "白色圓角車頭 · 五道橘帶繞到駕駛室 · 紅色下裙",
+  "features": [
+   "白色圓角車頭，頂端膠囊形頭燈與兩個小標識窗；一整片黑框大前窗、中間一根窗柱。",
+   "窗下五道橘帶是車殼本身的分色，繞過車角到駕駛室側面，被一道往後上揚的橘色斜帶收掉；兩側黑色燈座、黃黑 V 字排障板。",
+   "車側白色、紅色下裙、車頂邊一條橘線；駕駛室後一組受電弓。"
+  ],
+  "metadata": "models/emu1200/emu1200.model.json",
+  "blend": "models/emu1200/emu1200.blend",
+  "glb": "models/emu1200/emu1200.glb",
+  "hero": "models/emu1200/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/09/emu1200.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU1200_Series_EMU.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu1200/renders/thumb.webp"
+ },
+ {
+  "id": "airportlocal",
+  "name": "機捷普通車・1000型",
+  "family": "metro",
+  "detail": "藍色面罩夾逃生門 · 斜放燈座 · 窗上粉紫漸層帶",
+  "features": [
+   "藍色面罩：兩片大前窗夾中央逃生門（門上半藍、有小窗），頂端綠字目的地；面罩下緣在車角往上收，露出不鏽鋼。",
+   "窗下兩側斜放黑色燈座（外側紅圈尾燈、內側頭燈），藍色腰帶在車角往下斜成車頭下方的斜線；灰色防爬器。",
+   "不鏽鋼車身、每側三組雙開門；窗上一條淡粉紫色帶，靠駕駛室那段從淡藍漸層過來。"
+  ],
+  "metadata": "models/airportlocal/airportlocal.model.json",
+  "blend": "models/airportlocal/airportlocal.blend",
+  "glb": "models/airportlocal/airportlocal.glb",
+  "hero": "models/airportlocal/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/10/blog-post_08.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_1000_Series_EMU.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/airportlocal/renders/thumb.webp"
+ },
+ {
+  "id": "airportexpress",
+  "name": "機捷直達車・2000型",
+  "family": "metro",
+  "detail": "紫色面罩夾逃生門 · 斜放燈座 · 每側三組門",
+  "features": [
+   "跟普通車同一個車體，主色換成紫色：面罩、腰帶與車頭斜線都是紫色，窗上色帶淡紫、靠駕駛室那段從紫色漸層過來。",
+   "每側三組雙開門（照片可數；fleet-v1 是兩組）。",
+   "窗下兩側斜放黑色燈座、中央逃生門有小窗、頂端綠字目的地、灰色防爬器。"
+  ],
+  "metadata": "models/airportexpress/airportexpress.model.json",
+  "blend": "models/airportexpress/airportexpress.blend",
+  "glb": "models/airportexpress/airportexpress.glb",
+  "hero": "models/airportexpress/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/10/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kawasaki-TRSC_2000_Series_EMU.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/airportexpress/renders/thumb.webp"
+ },
+ {
+  "id": "y100",
+  "name": "環狀線・日立電聯車",
+  "family": "metro",
+  "detail": "白色圓鼓車頭 · 黃色 U 形環 · 黑色窗帶",
+  "features": [
+   "白色圓鼓車頭，一圈黃色 U 形環框住黑色大窗區，環的兩臂往上接到車頂、再順著車頂邊變成車側的黃色細線；黑色一路到車頂成為頂帽。",
+   "窗區兩下角各一個花生形燈座；下方一道折線、兩個百葉格柵與中央檢修蓋。",
+   "車側白色、整條黑色窗帶、窗下黃色腰帶（門扇上也有）；每側三組雙開門。做的是通車時的白色原塗裝。"
+  ],
+  "metadata": "models/y100/y100.model.json",
+  "blend": "models/y100/y100.blend",
+  "glb": "models/y100/y100.glb",
+  "hero": "models/y100/renders/hero.png",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://milkyrailway.blogspot.com/2020/03/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Sinsyuan（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:C610_at_Shisizhang_20260107_(3).jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/y100/renders/thumb.webp"
+ },
+ {
+  "id": "sanying",
+  "name": "三鶯線・日立電聯車",
+  "family": "metro",
+  "detail": "淺藍車身 · 深灰頭盔 · 銀色燈眉",
+  "features": [
+   "跟環狀線同一個車體，塗裝完全不同：淺藍車身，深灰頭盔包住大前窗並延伸成頂帽。",
+   "窗下一條往兩端上翹的銀色燈眉，兩端各一簇紅白 LED；燈眉下深色凹槽。",
+   "深灰下裙有兩個百葉格柵與中央檢修蓋；每側三組雙開門。"
+  ],
+  "metadata": "models/sanying/sanying.model.json",
+  "blend": "models/sanying/sanying.blend",
+  "glb": "models/sanying/sanying.glb",
+  "hero": "models/sanying/renders/hero.png",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://www.dorts.ntpc.gov.tw/news/indexInfo/W0OdPjwWmnbJ?page=1"
+   },
+   {
+    "label": "Wikimedia Commons／Sinsyuan（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Sanying_Line_EMU_@LB01_20260630.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/sanying/renders/thumb.webp"
+ },
+ {
+  "id": "taichung",
+  "name": "台中捷運・綠線",
+  "family": "metro",
+  "detail": "黑色盾形車頭 · 白色弧面 · 深藍與嫩綠車側",
+  "features": [
+   "白色圓鼓車頭，中央一面上寬下窄的黑色盾形（前窗在裡面、到車頂成為頂帽），兩側白色弧面、最外緣深藍。",
+   "兩下角斜放黑色燈艙（上頭燈、下尾燈）；下方深灰弧形保險桿與兩個通風口，車底兩角白色排障角。",
+   "車側上半深藍、下半銀色，車底嫩綠帶、車頂邊嫩綠線、窗中間一條黃綠細線；駕駛室側面白色，後緣一道嫩綠＋深藍斜帶；每側五組雙開門。"
+  ],
+  "metadata": "models/taichung/taichung.model.json",
+  "blend": "models/taichung/taichung.blend",
+  "glb": "models/taichung/taichung.glb",
+  "hero": "models/taichung/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2023/08/blog-post_20.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.tmrt.com.tw/metro-status/train-info"
+   },
+   {
+    "label": "Wikimedia Commons／Cheng-en Cheng（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Taichung_Metro_Green_Line_EMU_at_Beitun_Main_Station_2021-03-25.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/taichung/renders/thumb.webp"
+ },
+ {
+  "id": "kaohsiung",
+  "name": "高雄捷運・西門子",
+  "family": "metro",
+  "detail": "青綠頂帽 · 黑色面罩 · 青綠笑臉帶",
+  "features": [
+   "平直車頭：上緣青綠頂帽（延伸到駕駛室車頂）、中央頂燈；黑色面罩夾兩扇前窗與中央逃生門，門頂一塊青綠飾板。",
+   "面罩下緣是往兩側上揚的笑臉弧，弧下一條白線、再下是青綠帶與兩組燈座（外紅內白），最下銀色。",
+   "不鏽鋼車身、窗下一條青綠寬帶、車頂兩端冷氣箱；每側四組雙開門。"
+  ],
+  "metadata": "models/kaohsiung/kaohsiung.model.json",
+  "blend": "models/kaohsiung/kaohsiung.blend",
+  "glb": "models/kaohsiung/kaohsiung.glb",
+  "hero": "models/kaohsiung/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/01/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Siemens_Modular_Metro_EMU.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/kaohsiung/renders/thumb.webp"
+ },
+ {
+  "id": "val256",
+  "name": "VAL256・文湖馬特拉",
+  "family": "metro",
+  "detail": "白色平頭大前窗 · 深藍下緣 · 膠輪與水平導向輪",
+  "features": [
+   "白色平頭，一整片圓角大前窗（無人駕駛），窗下一塊白色飾板；下方深藍帶、兩側各一大一小圓燈，最下黑色裙板。",
+   "車側上半白、窗下淺灰藍帶夾深藍細線、下緣深藍；每側兩組雙開門。",
+   "每節兩根膠輪單軸，軸的前後兩側各一個水平導向輪，貼在導軌高度（工程圖正面）。"
+  ],
+  "metadata": "models/val256/val256.model.json",
+  "blend": "models/val256/val256.blend",
+  "glb": "models/val256/val256.glb",
+  "hero": "models/val256/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2011/03/val256.html"
+   },
+   {
+    "label": "Wikimedia Commons／Subscriptshoe9（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Matra_VAL256,_Taipei_Metro_20210509.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/val256/renders/thumb.webp"
+ },
+ {
+  "id": "e200",
+  "name": "E200 電力機車",
+  "family": "electric",
+  "detail": "橘色車身上半奶油色 · 正面 V 字色帶 · 單臂受電弓",
+  "features": [
+   "車頭下半垂直，兩扇黑框圓角前窗往後倒，車頂前緣凸出頭燈箱（兩顆頭燈、兩支氣笛）；窗下兩塊黑底車號牌，上角暗紅標識燈。",
+   "橘色車身、上半奶油色，奶油色帶在車角繞到正面變成往中央下降的 V 字；車側是平滑大板，沒有百葉。",
+   "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。",
+   "轉向架之間吊一個機車自己的車下設備箱：深灰箱體偏一端，一端兩側各兩組百葉、另一端下角斜切（E236、E311、E405 側面照都看得到；電聯車式的設備箱不放）。"
+  ],
+  "metadata": "models/e200/e200.model.json",
+  "blend": "models/e200/e200.blend",
+  "glb": "models/e200/e200.glb",
+  "hero": "models/e200/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/e200.html"
+   },
+   {
+    "label": "Wikimedia Commons／Lokseng01（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E236_at_Hsinchu_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/e200/renders/thumb.webp"
+ },
+ {
+  "id": "e300",
+  "name": "E300・電力機車",
+  "family": "electric",
+  "detail": "橘色車身上半奶油色 · 正面 V 字色帶 · 單臂受電弓",
+  "features": [
+   "車頭下半垂直，兩扇黑框圓角前窗往後倒，車頂前緣凸出頭燈箱（兩顆頭燈、兩支氣笛）；窗下兩塊黑底車號牌，上角暗紅標識燈。",
+   "橘色車身、上半奶油色，奶油色帶在車角繞到正面變成往中央下降的 V 字；車側是平滑大板，沒有百葉。",
+   "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。",
+   "轉向架之間吊一個機車自己的車下設備箱：深灰箱體偏一端，一端兩側各兩組百葉、另一端下角斜切（E236、E311、E405 側面照都看得到；電聯車式的設備箱不放）。"
+  ],
+  "metadata": "models/e300/e300.model.json",
+  "blend": "models/e300/e300.blend",
+  "glb": "models/e300/e300.glb",
+  "hero": "models/e300/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/e300.html"
+   },
+   {
+    "label": "Wikimedia Commons／Solomon203（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TR_E311_passing_Platform_1,_Baifu_Station_20240705.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/e300/renders/thumb.webp"
+ },
+ {
+  "id": "e400",
+  "name": "E400・電力機車",
+  "family": "electric",
+  "detail": "橘色車身上半奶油色 · 正面 V 字色帶 · 單臂受電弓",
+  "features": [
+   "車頭下半垂直，兩扇黑框圓角前窗往後倒，車頂前緣凸出頭燈箱（兩顆頭燈、兩支氣笛）；窗下兩塊黑底車號牌，上角暗紅標識燈。",
+   "橘色車身、上半奶油色，奶油色帶在車角繞到正面變成往中央下降的 V 字；車側是平滑大板，沒有百葉。",
+   "駕駛室側面兩片拉窗、側門與踏階；車頂兩組單臂受電弓、中央電阻器與高壓母線；三軸轉向架，黃黑警戒排障板。",
+   "轉向架之間吊一個機車自己的車下設備箱：深灰箱體偏一端，一端兩側各兩組百葉、另一端下角斜切（E236、E311、E405 側面照都看得到；電聯車式的設備箱不放）。"
+  ],
+  "metadata": "models/e400/e400.model.json",
+  "blend": "models/e400/e400.blend",
+  "glb": "models/e400/e400.glb",
+  "hero": "models/e400/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/e400.html"
+   },
+   {
+    "label": "Wikimedia Commons／Tbatb（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E415_at_Hsinchu_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/e400/renders/thumb.webp"
+ },
+ {
+  "id": "mingri",
+  "name": "鳴日號・經典車頭",
+  "family": "electric",
+  "detail": "黑色車身橘色塗裝 · 兩端塗裝不同 · 金色圓徽",
+  "features": [
+   "E400 換塗裝的觀光列車車頭，車體跟 E200 系同款：兩扇黑框前窗、頂部頭燈箱、兩組單臂受電弓。",
+   "A 端全黑、中央一道橘色直帶，右車號牌下方金色圓徽；B 端上黑下橘，中間一道往中央下彎的黑色弧線，車號牌之間偏左一枚金色大圓徽。",
+   "車側上半黑色；B 端駕駛室下半橘色，往 A 端收窄、以圓弧收尾，橘色裡一道黑色細線跟著上緣走。",
+   "轉向架之間吊一個機車自己的車下設備箱：深灰箱體偏一端，一端兩側各兩組百葉、另一端下角斜切（E236、E311、E405 側面照都看得到；電聯車式的設備箱不放）。"
+  ],
+  "metadata": "models/mingri/mingri.model.json",
+  "blend": "models/mingri/mingri.blend",
+  "glb": "models/mingri/mingri.glb",
+  "hero": "models/mingri/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Kazehayashi（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E405_with_Future_passenger_cars_at_Taitung_Station_20210117.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/mingri/renders/thumb.webp"
+ },
+ {
+  "id": "e500",
+  "name": "E500・新電力機車",
+  "family": "electric",
+  "detail": "橘色車身 · 深灰面罩大前窗 · 車頂格柵蓋",
+  "features": [
+   "車頭上半一整片深灰面罩包住大前窗、往後包住駕駛室頂，面罩頂端中央兩顆頭燈；窗下左右黑色燈座各一白一紅圓燈。",
+   "整車橘色、車側平滑沒有百葉；下巴以下深灰端梁、兩角橘色側裙。",
+   "車頂淺灰，中央兩段高起的設備罩各五片格柵蓋，兩端各一組單臂受電弓；三軸轉向架。",
+   "轉向架之間不放電聯車的車下設備箱（fleet-v1 與上一版都有，機車沒有這種設備箱；車底主梁保留）。"
+  ],
+  "metadata": "models/e500/e500.model.json",
+  "blend": "models/e500/e500.blend",
+  "glb": "models/e500/e500.glb",
+  "hero": "models/e500/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/e500-tra-e500-type-electric-locomotive.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E501_Kita-Fuch%C5%AB_20230820.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/e500/renders/thumb.webp"
+ },
+ {
+  "id": "r200",
+  "name": "R200・新柴電機車",
+  "family": "electric",
+  "detail": "白色車身深藍機房 · 環繞大前窗 · 車頂散熱風扇",
+  "features": [
+   "單頭：黑框環繞大前窗，窗上黑帶與頂部頭燈、窗下黑帶與扶手；白色下巴兩角黑色燈座、中央黑色格柵。",
+   "白色車身，機房側面一大片深藍板（駕駛室後方留一段白），板上一大一小兩組百葉；下面白細線、深藍細帶，最下黑色裙板。",
+   "機房車頂深藍：中段高起的引擎罩與排氣消音器、後段兩座圓形散熱風扇；駕駛室頂白色；三軸轉向架、車底燃油箱。",
+   "拿掉被燃油箱包住的電聯車車下設備箱（外觀不變，少 3,384 個三角形）；車底主梁保留。"
+  ],
+  "metadata": "models/r200/r200.model.json",
+  "blend": "models/r200/r200.blend",
+  "glb": "models/r200/r200.glb",
+  "hero": "models/r200/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/r200-tra-r200-type-diesel-electric.html"
+   },
+   {
+    "label": "Wikimedia Commons／jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R201_on_its_test_run_on_the_Yilan_Line.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/r200/renders/thumb.webp"
+ },
+ {
+  "id": "r100",
+  "name": "R100・柴電機車",
+  "family": "hood",
+  "detail": "低短鼻斜角駕駛室 · 橘色白腰帶 · 圓筒燃油箱",
+  "features": [
+   "低短鼻（上緣大圓角），駕駛室正面兩角斜切、斜面上各一扇角窗；正面上方兩塊車號牌夾直列雙頭燈。",
+   "橘色車身，白色腰帶在短鼻正面變成到鼻底的 V 字飛翼、在車尾附近斜降到走道上方；短鼻兩角紅色標識燈。",
+   "長機房跟駕駛室頂同高，靠駕駛室兩扇大百葉門；沒有沿長機房的連續欄杆，只有短鼻旁走道與兩端平台的白色管扶手；車架側樑厚、兩組轉向架之間灰色圓筒燃油箱、端梁兩側黑色解聯桿、三軸轉向架。"
+  ],
+  "metadata": "models/r100/r100.model.json",
+  "blend": "models/r100/r100.blend",
+  "glb": "models/r100/r100.glb",
+  "hero": "models/r100/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r100.html"
+   },
+   {
+    "label": "Wikimedia Commons／Jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R124_side_view_at_Taitung_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/r100/renders/thumb.webp"
+ },
+ {
+  "id": "blue",
+  "name": "藍皮解憂・R135",
+  "family": "hood",
+  "detail": "低短鼻 · R135 雙字牌 · 深海軍藍與白飛翼",
+  "features": [
+   "車體同 R100：低短鼻、斜角駕駛室、正面上方兩塊 R135 字牌夾直列雙頭燈。",
+   "深海軍藍車身與車頂，白色腰帶與短鼻 V 字飛翼；黃黑警戒端梁、銀灰色排障器。",
+   "9 月車庫線補的前端制軔軟管、端梁上的斜桿（解聯桿）、車下圓筒燃油箱這版都有（照片自己量的）；三軸轉向架。"
+  ],
+  "metadata": "models/blue/blue.model.json",
+  "blend": "models/blue/blue.blend",
+  "glb": "models/blue/blue.glb",
+  "hero": "models/blue/renders/hero.png",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://commons.wikimedia.org/wiki/File:藍皮解憂號於太麻里車站.jpg"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.trc.com.tw/tra-tip-web/tip/tip00N/tipN01/blue/index"
+   },
+   {
+    "label": "Wikimedia Commons／jason199567（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R101_leading_a_Breezy_Blue_Train_at_Taitung_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/blue/renders/thumb.webp"
+ },
+ {
+  "id": "r150",
+  "name": "R150・柴電機車",
+  "family": "hood",
+  "detail": "低短鼻 · 灰色機房頂 · 圓角短燃油箱",
+  "features": [
+   "跟 R100 同一系的低短鼻與斜角駕駛室；長機房頂灰色、駕駛室頂淺灰。",
+   "長機房靠駕駛室兩組各兩欄百葉、車尾直條散熱器格柵；腰帶約在車長八成處斜降到走道上方。",
+   "車架側樑薄、圓角短燃油箱、三軸轉向架（Co-Co）。"
+  ],
+  "metadata": "models/r150/r150.model.json",
+  "blend": "models/r150/r150.blend",
+  "glb": "models/r150/r150.glb",
+  "hero": "models/r150/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r150.html"
+   },
+   {
+    "label": "Wikimedia Commons／ChS&Rh（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R153.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/r150/renders/thumb.webp"
+ },
+ {
+  "id": "r180",
+  "name": "R180／R190・柴電機車",
+  "family": "hood",
+  "detail": "方短鼻 · 右側大進氣格柵 · 駕駛室冷氣",
+  "features": [
+   "短鼻比 R100、R150 方（上緣小圓角），正面 V 字飛翼與兩角紅色標識燈；駕駛室頂加裝冷氣。",
+   "右側（行進方向右手邊）靠駕駛室一大片進氣格柵、車尾散熱器格柵；長機房頂灰色，腰帶在車尾附近斜降。",
+   "車下長空氣筒與電池箱、三軸轉向架。"
+  ],
+  "metadata": "models/r180/r180.model.json",
+  "blend": "models/r180/r180.blend",
+  "glb": "models/r180/r180.glb",
+  "hero": "models/r180/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r180r190.html"
+   },
+   {
+    "label": "Wikimedia Commons／ChS&Rh（CC BY 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R182.png"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/r180/renders/thumb.webp"
+ },
+ {
+  "id": "r20",
+  "name": "R20 柴電機車",
+  "family": "hood",
+  "detail": "高短鼻 · 灰色圓頂駕駛室 · 橘色白腰帶",
+  "features": [
+   "高短鼻：短鼻跟長機房一樣高、比駕駛室窄；車頭是短鼻那端，正面切角，上方兩塊車號牌夾直列雙頭燈，白色 V 字飛翼。",
+   "駕駛室頂灰色圓頂、側面兩片拉窗；長機房靠駕駛室三組高百葉、一組小百葉、車尾上方散熱器格柵。",
+   "腰帶在車長約七成處斜降到走道上方；沒有連續欄杆，只有角落與駕駛室的直扶手；三軸轉向架。"
+  ],
+  "metadata": "models/r20/r20.model.json",
+  "blend": "models/r20/r20.blend",
+  "glb": "models/r20/r20.glb",
+  "hero": "models/r20/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/r20r50.html"
+   },
+   {
+    "label": "Wikimedia Commons／Lokseng01（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_R38_at_Hsinchu_Station_01.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/r20/renders/thumb.webp"
+ },
+ {
+  "id": "dhl100",
+  "name": "DHL100・調車機車",
+  "family": "hood",
+  "detail": "偏前駕駛室 · 長短機房與側走道",
+  "features": [
+   "駕駛室偏短機房那端（短機房、駕駛室、長機房約 14%、24%、62%），比兩邊機房高、淺灰色斜頂；正面兩扇前窗夾直列雙頭燈。",
+   "窄機房兩側走道；短機房正面上方黑色車號牌、白色 V 字飛翼，全車白色腰帶；長機房頂三個圓形散熱風扇、車尾兩片大散熱格柵。",
+   "黃黑警戒端梁上一白一紅兩顆燈，兩端平台與駕駛室門口白色管扶手；二軸轉向架。"
+  ],
+  "metadata": "models/dhl100/dhl100.model.json",
+  "blend": "models/dhl100/dhl100.blend",
+  "glb": "models/dhl100/dhl100.glb",
+  "hero": "models/dhl100/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2013/07/dhl100.html"
+   },
+   {
+    "label": "Wikimedia Commons／Solomon203（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DHL102_at_Qidu_Marshalling_Yard_20191102.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dhl100/renders/thumb.webp"
+ },
+ {
+  "id": "juguang",
+  "name": "莒光號・客車",
+  "family": "coach",
+  "detail": "橘色下半 · 奶油色窗帶 · 兩端橘色門區",
+  "features": [
+   "下半橘色、窗帶奶油色，窗下一道橘細線與白線；橘色與奶油色跟 GE 機車同色（車庫裡 GE、柴電機車後面掛的都是這款）。",
+   "兩端門區整段橘色（奶油色帶在門區前結束、上角圓角），白線跨過門區；兩端各一扇有窗的單開門，門區車身往下包住踏階。",
+   "九扇寬窄不一的窗（照正側面照的順序），車頂淺灰、兩端各一台冷氣；兩端是貫通道端牆。"
+  ],
+  "metadata": "models/juguang/juguang.model.json",
+  "blend": "models/juguang/juguang.blend",
+  "glb": "models/juguang/juguang.glb",
+  "hero": "models/juguang/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_8855.html"
+   },
+   {
+    "label": "Wikimedia Commons／Lokseng01（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Different_generations_of_TRA_Chu-Kuang_Express_coaches_at_Qidu_Marshalling_Yard_20210403.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/juguang/renders/thumb.webp"
+ },
+ {
+  "id": "mingricoach",
+  "name": "鳴日號・客車",
+  "family": "coach",
+  "detail": "深色上半 · 橘色下半與橘細線 · 寬窗夾白框小窗",
+  "features": [
+   "莒光號 FPK10600 改造，車體跟莒光號客車同一支；上半與車頂深色、下半橘色，顏色跟鳴日號經典車頭同一組。",
+   "橘色上緣一道深色細帶、再上一道橘細線，窗下緣就在橘細線上（fleet-v1 的金色腰線照片上沒有，改成橘色）。",
+   "寬的深色窗之間夾白框小窗；兩端各一扇單開門、門區車身往下包住踏階；車頂兩端灰色冷氣。"
+  ],
+  "metadata": "models/mingricoach/mingricoach.model.json",
+  "blend": "models/mingricoach/mingricoach.blend",
+  "glb": "models/mingricoach/mingricoach.glb",
+  "hero": "models/mingricoach/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2019/12/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Lokseng01（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_BCK10609_at_Shulin_Marshalling_Yard_20210401.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/mingricoach/renders/thumb.webp"
+ },
+ {
+  "id": "bluecoach",
+  "name": "藍皮解憂・復古客車",
+  "family": "coach",
+  "detail": "深海軍藍側牆 · 窗下白帶 · 淺拱銀灰車頂",
+  "features": [
+   "深海軍藍車身、窗下白帶，跟藍皮 R135 同色；淺拱銀灰車頂、雨水槽、車頂中線一排白色蕈狀通風器。",
+   "九扇可開窗：白銀色圓角窗框、上下兩格、每扇各自的窗台，窗的高度照正側面照重量（fleet-v1 太高）；一端廁所霧面小窗。",
+   "兩端各一扇窄的手動單開門、門下外露踏階；端牆有門、風擋折片、紅色尾燈。"
+  ],
+  "metadata": "models/bluecoach/bluecoach.model.json",
+  "blend": "models/bluecoach/bluecoach.blend",
+  "glb": "models/bluecoach/bluecoach.glb",
+  "hero": "models/bluecoach/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2023/09/blog-post_97.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.trc.com.tw/tra-tip-web/tip/tip00N/tipN01/blue/index"
+   },
+   {
+    "label": "Wikimedia Commons／Tze Chiang Hao（CC BY 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:2023-09-12_TRA_Taimali_Station_01.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/bluecoach/renders/thumb.webp"
+ },
+ {
+  "id": "dl25",
+  "name": "DL25～34・三菱車系",
+  "family": "forestloco",
+  "detail": "短鼻在前 · 白色 V 字與腰帶 · 長機房端格柵",
+  "features": [
+   "駕駛室那端在前：行駛中的列車照片上機車都是駕駛室端朝外、客車接長機房端（fleet-v1 相反）。",
+   "短鼻很短，正面白色 V 字、車號牌、兩角小燈；駕駛室兩扇前窗、中間上方一顆頭燈；全車白色腰帶、機房腰帶上方一排百葉、車下圓筒燃油箱。",
+   "長機房端整面橫條散熱器格柵、白色 V 字疊在格柵上、兩角圓燈；高度照正側面照換算（腰帶 1.84–2.00、機房頂 2.30、屋簷 2.84）。"
+  ],
+  "metadata": "models/dl25/dl25.model.json",
+  "blend": "models/dl25/dl25.blend",
+  "glb": "models/dl25/dl25.glb",
+  "hero": "models/dl25/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_2428.html"
+   },
+   {
+    "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_26%27_at_Beimen_2023-07-18.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dl25/renders/thumb.webp"
+ },
+ {
+  "id": "dl38",
+  "name": "DL38・日車試作型",
+  "family": "forestloco",
+  "detail": "平整短鼻 · 白色 V 字 · 長機房端黑色格柵",
+  "features": [
+   "駕駛室那端在前；短鼻比 DL25 長、正面平整：白色 V 字、上方車號牌、兩角圓燈、腰帶上方兩角紅色標識燈、鼻頂水平扶手。",
+   "駕駛室兩扇大前窗、車頂氣笛；側面門靠短鼻。",
+   "長機房端大片黑色橫條散熱器格柵、上方車號牌與兩角小圓燈，2023 年照片上沒有 V 字。"
+  ],
+  "metadata": "models/dl38/dl38.model.json",
+  "blend": "models/dl38/dl38.blend",
+  "glb": "models/dl38/dl38.glb",
+  "hero": "models/dl38/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_5539.html"
+   },
+   {
+    "label": "Wikimedia Commons／bugsy ho（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_DL38_01.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dl38/renders/thumb.webp"
+ },
+ {
+  "id": "dl39",
+  "name": "DL39～43・阿里山號",
+  "family": "forestloco",
+  "detail": "外凸大圓燈 · 短鼻兩側百葉 · 高長機房",
+  "features": [
+   "駕駛室那端在前；短鼻正面白色 V 字、上方兩角外凸大圓燈筒、下方兩角小紅燈，短鼻兩側腰帶上下各兩列百葉。",
+   "駕駛室側面門靠短鼻、一扇大側窗；長機房比 DL25 高、腰帶上方整排百葉。",
+   "長機房端格柵上白色 V 字、兩角外凸燈筒；高度照 DL41 正側面照換算（腰帶 1.81–1.97、機房頂 2.61、屋簷 2.88）。"
+  ],
+  "metadata": "models/dl39/dl39.model.json",
+  "blend": "models/dl39/dl39.blend",
+  "glb": "models/dl39/dl39.glb",
+  "hero": "models/dl39/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_5539.html"
+   },
+   {
+    "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_41%27_at_Alishan_2023-07-18.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dl39/renders/thumb.webp"
+ },
+ {
+  "id": "dl45",
+  "name": "DL45～51・林鐵新主力",
+  "family": "forestloco",
+  "detail": "正面百葉與 V 字 · 外凸大圓燈 · 大駕駛室",
+  "features": [
+   "駕駛室那端在前；短鼻正面整面橫條百葉、白色 V 字疊在百葉上、上方中央車號牌、兩角外凸大圓燈筒、下方兩角小紅燈。",
+   "車高比前幾代高；駕駛室大，側面門靠短鼻、一扇大側窗；短鼻兩側與機房側面百葉。",
+   "長機房端格柵、V 字、兩角外凸燈筒；長度比例照正側面照（短鼻 13%、駕駛室 29%、長機房 58%）。"
+  ],
+  "metadata": "models/dl45/dl45.model.json",
+  "blend": "models/dl45/dl45.blend",
+  "glb": "models/dl45/dl45.glb",
+  "hero": "models/dl45/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/02/blog-post_1163.html"
+   },
+   {
+    "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_%27DL_51%27_at_Beimen_2023-07-18.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dl45/renders/thumb.webp"
+ },
+ {
+  "id": "alicoach",
+  "name": "阿里山號・紅白客車",
+  "family": "forestcoach",
+  "detail": "奶油色車身 · 紅色窗帶與斜帶 · 端面紅色下半",
+  "features": [
+   "奶油色車身與車頂、紅色窗帶、車底紅色裙帶；兩端各一道紅色斜帶從車端下角往內上斜接到窗帶（fleet-v1 沒有斜帶與裙帶）。",
+   "每側只有一端有門：由有門那端往內是上下兩格窗、雙摺門（門扇跟著塗裝，上紅下奶油）、上下兩格窗、四扇大窗，另一端沒有窗；紅色跟林鐵機車同色。",
+   "端面下半紅色、奶油色 V 字，上半奶油色、偏一側端門與小窗。"
+  ],
+  "metadata": "models/alicoach/alicoach.model.json",
+  "blend": "models/alicoach/alicoach.blend",
+  "glb": "models/alicoach/alicoach.glb",
+  "hero": "models/alicoach/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2012/01/1.html"
+   },
+   {
+    "label": "Wikimedia Commons／Professional Maniniyot Wannabe（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Passenger_cars_of_the_Alishan_Forest_Railway_at_Beimen_Depot_2018-04-06_01.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/alicoach/renders/thumb.webp"
+ },
+ {
+  "id": "hinoki",
+  "name": "檜木列車・木造客車",
+  "family": "forestcoach",
+  "detail": "金黃色檜木車身 · 開放式端平台 · 淺灰拱頂",
+  "features": [
+   "金黃色上漆檜木車身、窗下直條木板、窗台腰板與窗上飾條；每側十扇深色木框小窗。",
+   "淺灰拱頂延伸蓋住兩端開放式平台；平台黑色花格欄杆、中央開口、側面上車踏階。",
+   "端牆中央門、兩側小窗、上方三顆圓燈（客車沒有駕駛室，燈用不發光鏡片）。"
+  ],
+  "metadata": "models/hinoki/hinoki.model.json",
+  "blend": "models/hinoki/hinoki.blend",
+  "glb": "models/hinoki/hinoki.glb",
+  "hero": "models/hinoki/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2013/06/blog-post_9.html"
+   },
+   {
+    "label": "Wikimedia Commons／Shoichi（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Cypress_railroad_car.JPG"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/hinoki/renders/thumb.webp"
+ },
+ {
+  "id": "fushen",
+  "name": "福森號・檜木客車",
+  "family": "forestcoach",
+  "detail": "檜木本色 · 觀景端大窗 · 深灰車頂",
+  "features": [
+   "淺色檜木本色、寬直條木板、深灰車頂；每側七扇窗（兩小、兩大、三小，照正側面照順序），小窗下框紅色。",
+   "觀景端（車頭）大窗、上方一顆頭燈、下方兩角頭燈與內側紅色尾燈；另一端是貫通端。",
+   "窗高照正側面照換算（窗 1.65–2.63、屋簷 2.86）；fleet-v1 是一排等寬大窗、全長紅色腰線、淺灰車頂，照片上是兩小兩大三小、只有小窗下框紅色、深灰車頂。"
+  ],
+  "metadata": "models/fushen/fushen.model.json",
+  "blend": "models/fushen/fushen.blend",
+  "glb": "models/fushen/fushen.glb",
+  "hero": "models/fushen/renders/hero.png",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://www.forest.gov.tw/news/0072298"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.forest.gov.tw/hualien_intro/news/0070949"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/fushen/renders/thumb.webp"
+ },
+ {
+  "id": "xuyue",
+  "name": "栩悅號・觀景客車",
+  "family": "forestcoach",
+  "detail": "白色上半 · 藍色下半與黃線 · 大觀景窗",
+  "features": [
+   "上半白色、下半藍色、窗下一道黃線（fleet-v1 是淺灰配深灰藍下緣）。",
+   "每側六扇大觀景窗；觀景端（車頭）大窗與頭燈、另一端是貫通端。",
+   "照片上客車在陰影裡，藍色用同一張照片裡受光的 DL46（同一套栩悅號塗裝）取色。"
+  ],
+  "metadata": "models/xuyue/xuyue.model.json",
+  "blend": "models/xuyue/xuyue.blend",
+  "glb": "models/xuyue/xuyue.glb",
+  "hero": "models/xuyue/renders/hero.png",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://www.forest.gov.tw/park/news/0072890"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/xuyue/renders/thumb.webp"
+ },
+ {
+  "id": "danhai",
+  "name": "淡海輕軌・行武者",
+  "family": "tram",
+  "detail": "水藍駕駛節 · 黑色 U 字車頭 · 白底水藍波點",
+  "features": [
+   "五節低地板鉸接車，節長與節間距照舊（地圖分節預算不動）；駕駛節是「駕駛室側窗 → 雙開門 → 窄寬窄三扇窗」，懸浮節的門在遠離車頭那端（fleet-v1 把駕駛節的門放在靠節間那端）。",
+   "車頭：水藍 A 柱夾著大前窗，前窗下方黑色連成 U 字，U 字兩個下角是燈組（頭燈在內、尾燈在外，下方一排紅色 LED）；水藍下巴兩顆小燈、兩顆紅燈，車頂前緣兩角攝影機。",
+   "駕駛節門前整片水藍，門後下半與車頂圓角白底撒水藍波點、越靠門越大；懸浮節與中間節下半白色、窗帶以上銀色，懸浮節靠車頭那端撒水藍波點；中間節車頂受電弓、銀色風琴接合。"
+  ],
+  "metadata": "models/danhai/danhai.model.json",
+  "blend": "models/danhai/danhai.blend",
+  "glb": "models/danhai/danhai.glb",
+  "hero": "models/danhai/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2020/06/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／4300streetcar（CC BY 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Danhai_LRT_tram_on_Shalun_Road_March_2026_5.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/danhai/renders/thumb.webp"
+ },
+ {
+  "id": "ankeng",
+  "name": "安坑輕軌・光耀金",
+  "family": "tram",
+  "detail": "香檳金車身 · 黑色 U 字車頭 · 黑色窗帶",
+  "features": [
+   "跟淡海輕軌同一種車體（台灣車輛），五節低地板鉸接車，門窗配置相同；只換塗裝：整列香檳金、黑色窗帶，沒有波點。",
+   "車頭：金色 A 柱夾著大前窗，前窗下方黑色連成 U 字，兩個下角是燈組（頭燈在內、尾燈在外，下方一排紅色 LED）；金色下巴兩顆小燈、兩顆紅燈。",
+   "高度照正面照量：黑色 U 字中央下緣 .90、兩角 1.22、上緣 2.67，燈組 .92–1.16；車側黑色窗帶 1.39–2.86。"
+  ],
+  "metadata": "models/ankeng/ankeng.model.json",
+  "blend": "models/ankeng/ankeng.blend",
+  "glb": "models/ankeng/ankeng.glb",
+  "hero": "models/ankeng/renders/hero.png",
+  "sources": [
+   {
+    "label": "原始照片與車型介紹",
+    "url": "https://newtaipei.travel/zh-tw/tour/729"
+   },
+   {
+    "label": "Wikimedia Commons／Takeshi Aida from Hong Kong, Hong Kong（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:New_Taipei_Ankang_LRT,_Shuangcheng_(20240114a)_(53561313121).jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/ankeng/renders/thumb.webp"
+ },
+ {
+  "id": "caf",
+  "name": "高雄輕軌・CAF",
+  "family": "tram",
+  "detail": "白車身深綠斜塊 · 綠環車頭 · 黑色儲能箱",
+  "features": [
+   "CAF Urbos 3，五節低地板鉸接車，節長與節間距照舊；駕駛節是「駕駛室側窗 → 綠色弦月 → 白柱 → 雙開門 → 兩扇窗」，懸浮節門在中間、兩側各一扇窗。",
+   "車頭一圈綠環：上緣橫帶、兩側弦月往後彎過駕駛室側窗、下緣橫帶；大前窗幾乎垂直，前窗下白色燈板（頭燈與紅色尾燈在內、兩顆小燈在外）。",
+   "白色車身、黑色窗帶，車側上下各有深綠平行四邊形斜塊，往下偏向最近的車頭、前後兩半鏡射；車頂整排黑色儲能設備箱，受電弓降下（位置沿用 fleet-v1）。"
+  ],
+  "metadata": "models/caf/caf.model.json",
+  "blend": "models/caf/caf.blend",
+  "glb": "models/caf/caf.glb",
+  "hero": "models/caf/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2015/01/blog-post.html"
+   },
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Kaohsiung_LRT_20150902.JPG"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/caf/renders/thumb.webp"
+ },
+ {
+  "id": "citadis",
+  "name": "高雄輕軌・Citadis",
+  "family": "tram",
+  "detail": "珍珠白深綠斜塊 · 黑色車頭綠框 · 白色燈罩",
+  "features": [
+   "Alstom Citadis X05，五節低地板鉸接車，節長與節間距照舊；駕駛節是「駕駛室側窗 → 黑柱 → 雙開門 → 兩扇窗」，中間節只有窗。",
+   "車頭整面黑：車頂前帽、大幅後傾的前窗、下半燈板；外圍一圈深綠細框沿 A 柱從車頂走到下緣，下緣深綠保險桿往後包到車側；燈板兩側白色橢圓燈罩各兩顆燈。",
+   "珍珠白車身、黑色窗帶，車側上下各有極深綠斜塊，往下偏向最近的車頭、前後兩半鏡射；中間節車頂一具降下的受電弓（fleet-v1 沒有），其他節白色設備箱。"
+  ],
+  "metadata": "models/citadis/citadis.model.json",
+  "blend": "models/citadis/citadis.blend",
+  "glb": "models/citadis/citadis.glb",
+  "hero": "models/citadis/renders/hero.png",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-bus.blogspot.com/2022/02/citadis-x-05-305.html"
+   },
+   {
+    "label": "官方設計與車輛資料",
+    "url": "https://www.alstom.com/press-releases-news/2021/1/alstom-introduces-citadis-x05-trams-kaohsiung"
+   },
+   {
+    "label": "Wikimedia Commons／The Nature Box（CC0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Hamasen_Sky_Balcony_Pedestrian_Bridge_2026_03_29.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/citadis/renders/thumb.webp"
+ }
+]

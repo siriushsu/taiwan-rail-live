@@ -1,0 +1,269 @@
+{
+  "modelId": "xuyue",
+  "name": "栩悅號・觀景客車",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "forestcoach",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.044000148773193,
+      -1.128999948501587,
+      0.0
+    ],
+    "max": [
+      4.068999767303467,
+      1.128999948501587,
+      3.0
+    ]
+  },
+  "sizeM": [
+    8.11299991607666,
+    2.257999897003174,
+    3.0
+  ],
+  "mesh": {
+    "file": "xuyue.mesh.bin",
+    "sha256": "32d514a44c9853ff2b7599eab94593d0ae93323a63d72e2e4fdccad72cf40d41",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 101712,
+    "triangleCount": 33904,
+    "drawGroups": [
+      {
+        "name": "xywhite",
+        "start": 0,
+        "count": 4644,
+        "color": [
+          0.8549926280975342,
+          0.8713670969009399,
+          0.8549926280975342
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.25999999046325684
+      },
+      {
+        "name": "xyblue",
+        "start": 4644,
+        "count": 2136,
+        "color": [
+          0.020288562402129173,
+          0.12477181851863861,
+          0.5647115111351013
+        ],
+        "metalness": 0.07999999821186066,
+        "roughness": 0.36000001430511475,
+        "clearcoat": 0.25999999046325684
+      },
+      {
+        "name": "xyyellow",
+        "start": 6780,
+        "count": 396,
+        "color": [
+          0.672443151473999,
+          0.5647115111351013,
+          0.07227185368537903
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.36000001430511475,
+        "clearcoat": 0.23999999463558197
+      },
+      {
+        "name": "xyroof",
+        "start": 7176,
+        "count": 396,
+        "color": [
+          0.6514056324958801,
+          0.6795424818992615,
+          0.672443151473999
+        ],
+        "metalness": 0.30000001192092896,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "hdblack",
+        "start": 7572,
+        "count": 4848,
+        "color": [
+          0.01032982300966978,
+          0.012983032502233982,
+          0.015208514407277107
+        ],
+        "metalness": 0.20000000298023224,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "glass",
+        "start": 12420,
+        "count": 4848,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "metal",
+        "start": 17268,
+        "count": 29100,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "frame",
+        "start": 46368,
+        "count": 7848,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "lamp",
+        "start": 54216,
+        "count": 3996,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "red",
+        "start": 58212,
+        "count": 2664,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "hdframe",
+        "start": 60876,
+        "count": 564,
+        "color": [
+          0.023153366521000862,
+          0.027320891618728638,
+          0.03071344457566738
+        ],
+        "metalness": 0.30000001192092896,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.11999999731779099
+      },
+      {
+        "name": "chassis",
+        "start": 61440,
+        "count": 29316,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 90756,
+        "count": 9828,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "roof",
+        "start": 100584,
+        "count": 1128,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 135,
+  "features": {
+    "sideDoorGroups": 0,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "xuyue",
+    "family": "forestcoach",
+    "L": 7.3,
+    "W": 2.2,
+    "H": 3.0,
+    "power": "unpowered",
+    "body": "EEF0EE",
+    "accent": "2763C6"
+  },
+  "reference": {
+    "source": "https://www.forest.gov.tw/park/news/0072890",
+    "detail": "白色上半 · 藍色下半與黃線 · 大觀景窗",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}
