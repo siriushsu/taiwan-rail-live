@@ -23383,7 +23383,11 @@ function closeRidePanel() {
 function garageSnapshot(rides = loadRides()) {
   const sd = state.special;
   const special = sd && Object.fromEntries(['rollingStock', 'namedTrains'].map(cat => [cat, sd[cat].map(item => ({...item, name:i18nContentData(cat, item, 'name')}))]));
-  return { rides, coll: collectionOf(rides), special, stationCount: stationCollection(rides).size };
+  // 兌換車款：價格表在規則檔 chips.items，換到的在錢包（chips-me 的 items）；沒登入、沒讀到就是空的。
+  const chips = bountyRulesMem && bountyRulesMem.chips, led = garageWallet.uid() ? garageWallet.ledger() : null;
+  const itemPrices = chips && chips.items && typeof chips.items === 'object' ? chips.items : {};
+  const items = led && Array.isArray(led.items) ? led.items.map(x => String(x && x.item)) : [];
+  return { rides, coll: collectionOf(rides), special, stationCount: stationCollection(rides).size, itemPrices, items };
 }
 function garageCollection(rides = loadRides()) { return window.TrainGarage?.collection(garageSnapshot(rides), window.RailGarageCatalog || {}) || []; }
 function buildGarageEntry(rides) {
