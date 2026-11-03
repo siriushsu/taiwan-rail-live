@@ -19,7 +19,7 @@ export const SCENES={
  paddy:{module:'default-paddy',speed:2.1,yaw:-1.12,world:.58,train:.5,focus:[0,1.0,1.2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:1},
 };
 // 田園小站的電車線依車款（同 native railcore GarageCatenary）：電聯車、城際、電力機車畫，柴油客車不畫；輕軌只有淡海、安坑有架空線。
-const WIRED=new Set(['railcar','express','electric']),DIESEL=new Set(['dr1000','dr2700','dr3100']),OVERHEAD=new Set(['danhai','ankeng']);
+const WIRED=new Set(['railcar','express','electric']),DIESEL=new Set(['dr1000','dr2700','dr3000','dr3100']),OVERHEAD=new Set(['danhai','ankeng']);
 export const catenaryFor=(id,family)=>WIRED.has(family)?!DIESEL.has(id):OVERHEAD.has(id);
 // 場景只有白天、黃昏、夜晚三套；車庫的日出用黃昏那套（同 App R3DDiorama.theme）。
 const themeOf=period=>period==='day'||period==='night'?period:'sunset';
