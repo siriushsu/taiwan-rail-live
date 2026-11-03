@@ -148,7 +148,8 @@ const widths = [360, 375, 414, 768];
 // 11/03: garage tail lights and the Countryside Station bridge flicker fix add one (549 -> 550).
 // 11/03: garage scene train lights at night add one (550 -> 551).
 // 11/03: garage scenes take the lead (scene buttons, unified design) and the stage drops its rotate/view buttons add two (551 -> 553).
-const expectedHistoryCount = 553;
+// 11/03: the 1.7.8 garage batch (new and refined scenes, nine station scenes, five classics, EMU3000, South Link trees, Countryside hill, map-style gestures, replay restyle) adds eight (553 -> 561).
+const expectedHistoryCount = 561;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

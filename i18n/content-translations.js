@@ -4,7 +4,15 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
-    "車庫舞台拿掉旋轉和視角的四顆按鈕，改用拖曳、右鍵拖曳或方向鍵轉動；海岸行旅多了「天色」選單，可選自動、日出、藍天、黃昏或星空，會記在這台裝置": "The garage stage drops its four rotate and view buttons: drag, right-drag or use the arrow keys to turn it; the Coastal journey adds a “Sky” menu (Auto, Sunrise, Blue skies, Dusk or Starry night), remembered on this device",
+    "車庫新增九座車站場景（劍潭、動物園、山鼻、陶瓷老街、淡水漁人碼頭、文心森林公園、美麗島、駁二大義、高鐵新竹），可以用島民點數兌換，捷運、輕軌、機捷與高鐵列車都有自己的車站": "The garage adds nine station scenes (Jiantan, Taipei Zoo, Shanbi, Ceramics Old Street, Tamsui Fisherman's Wharf, Wenxin Forest Park, Formosa Boulevard, Dayi Pier-2 and THSR Hsinchu), redeemable with Islander Points, so metro, light rail, Airport MRT and high-speed trains each get a station of their own",
+    "車庫新增五款退役經典車：DR3000、CT250、復興號、EMU300、騰雲號，用島民點數兌換，換到就永久收進車庫": "The garage adds five retired classics: DR3000, CT250, Fu-Hsing Express, EMU300 and Tengyun. Redeem them with Islander Points and they stay in your garage for good",
+    "車庫新增多良車站、街角平交道、台南光華街三座可兌換場景，台鐵車都能開進每座台鐵場景；原有四座更精緻：樹和站房重做、列車會停站，阿里山有雲海和螢火蟲；環形試跑的樹換成台灣樹種": "The garage adds three redeemable scenes (Duoliang Station, a street-corner level crossing and Guanghua Street in Tainan), and every TRA train can run in every TRA scene; the original four scenes are more detailed, with rebuilt trees and station buildings, trains that stop at the station, and a sea of clouds and fireflies at Alishan; the loop track now has Taiwanese tree species",
+    "EMU3000 新自強照實車重做：地圖上跑的和車庫裡的都換上新車頭與自己的中間車，有電車線的車庫場景集電弓會升到線上；車庫卡縮圖也換成新車頭": "The EMU3000 Tze-Chiang has been rebuilt from the real train: both the one on the map and the one in the garage get the new cab and their own intermediate cars, the pantograph rises to the wire in garage scenes with overhead lines, and the garage card thumbnail shows the new cab",
+    "車庫場景南迴海岸的山坡改種台灣東部海岸常見的血桐、相思樹、黃槿和林投；山腳那排一明一暗的鋸齒也修平了": "The hillsides in the South Link Coast garage scene are now planted with trees common on Taiwan's east coast (macaranga, Taiwan acacia, sea hibiscus and screw pine), and the jagged light-and-dark strip at the foot of the hills has been smoothed out",
+    "車庫「田園小站」後山山腳那排鋸齒狀的明暗三角形修平了，月台站名牌也不再閃爍": "In the garage's Countryside Station scene, the row of jagged light and dark triangles at the foot of the hill behind the station has been smoothed out, and the platform station sign no longer flickers",
+    "車庫和台南鐵道兩頁歷史重播的操作改成跟地圖一樣：拖曳移動、右鍵拖曳轉方向與傾斜、滾輪縮放；手機上雙指縮放、扭轉，兩指一起往上推壓低視角": "The garage and the two Tainan railway history replays now work like the map: drag to move, right-drag to turn and tilt, scroll to zoom; on phones, pinch to zoom, twist two fingers to rotate, and push two fingers up to lower the view",
+    "台南鐵道兩頁歷史重播換上跟 App 一致的配色和按鈕樣式，也支援深色模式": "The two Tainan railway history replays now use the same colors and button styles as the app, and support dark mode",
+    "車庫舞台拿掉旋轉和視角的四顆按鈕，改用右鍵拖曳、雙指扭轉或方向鍵轉動；海岸行旅多了「天色」選單，可選自動、日出、藍天、黃昏或星空，會記在這台裝置": "The garage stage drops its four rotate and view buttons: right-drag, twist two fingers or use the arrow keys to turn it; the Coastal journey adds a “Sky” menu (Auto, Sunrise, Blue skies, Dusk or Starry night), remembered on this device",
     "車庫場景頁上方多一排場景鈕，點一下就地換到別座；點場景名和車名那塊只列在這座跑的車；整個車庫換上一致的新設計，使用說明多了「車庫場景」一節": "The garage scene page now has a row of scene buttons at the top for switching scenes in place; tapping the scene and train name lists only the trains that run there; the whole garage has a unified new look, and the guide has a new “Garage scenes” section",
     "車庫場景的列車晚上會亮燈：車頭白燈照亮前方軌道、車尾亮紅燈、客車窗透出暖光；海岸行旅也照實車，只掛客車的那一頭不再亮頭燈": "Trains in garage scenes now light up at night: white headlights light the track ahead, red tail lights glow at the rear and coach windows give off a warm light; the Coastal journey also follows the real trains, so an end with only coaches no longer shows headlights",
     "車庫的莒光號、鳴日號、阿里山號與檜木列車客車補上尾燈，海岸行旅夜裡車尾改由尾燈亮紅光；田園小站的鐵橋在列車經過或轉動畫面時不再閃爍": "Chu-Kuang Express, Future, Alishan and cypress coaches in the garage now have tail lights, and at night the Coastal journey lights the tail lights at the rear; the bridge at Countryside Station no longer flickers when a train passes or the view turns",
@@ -349,7 +357,15 @@
   });
 
   Object.assign(messages.ja, {
-    "車庫舞台拿掉旋轉和視角的四顆按鈕，改用拖曳、右鍵拖曳或方向鍵轉動；海岸行旅多了「天色」選單，可選自動、日出、藍天、黃昏或星空，會記在這台裝置": "車庫のステージから回転と視点の4つのボタンをなくし、ドラッグ・右ドラッグ・矢印キーで回せるようにしました。「海辺の旅」に「時間帯」メニューを追加し、自動・日の出・青空・夕暮れ・星空から選べます。選んだものはこの端末に記憶されます",
+    "車庫新增九座車站場景（劍潭、動物園、山鼻、陶瓷老街、淡水漁人碼頭、文心森林公園、美麗島、駁二大義、高鐵新竹），可以用島民點數兌換，捷運、輕軌、機捷與高鐵列車都有自己的車站": "車庫に駅の情景を9つ追加しました（剣潭・動物園・山鼻・陶瓷老街・淡水漁人碼頭・文心森林公園・美麗島・駁二大義・高鐵新竹）。島民ポイントで交換でき、MRT・ライトレール・空港MRT・高鉄の列車にそれぞれの駅ができます",
+    "車庫新增五款退役經典車：DR3000、CT250、復興號、EMU300、騰雲號，用島民點數兌換，換到就永久收進車庫": "車庫に引退した名車5両を追加しました：DR3000、CT250、復興号、EMU300、騰雲号。島民ポイントで交換すると、ずっと車庫に収蔵されます",
+    "車庫新增多良車站、街角平交道、台南光華街三座可兌換場景，台鐵車都能開進每座台鐵場景；原有四座更精緻：樹和站房重做、列車會停站，阿里山有雲海和螢火蟲；環形試跑的樹換成台灣樹種": "車庫に交換できる情景を3つ追加しました（多良駅・街角の踏切・台南の光華街）。台鉄の列車はどの台鉄の情景にも乗り入れられます。既存の4つの情景も精細になり、木と駅舎を作り直し、列車が駅に停車し、阿里山には雲海と蛍が現れます。周回コースの木も台湾の樹種に変えました",
+    "EMU3000 新自強照實車重做：地圖上跑的和車庫裡的都換上新車頭與自己的中間車，有電車線的車庫場景集電弓會升到線上；車庫卡縮圖也換成新車頭": "EMU3000新自強号を実車どおりに作り直しました。地図を走る車両も車庫の車両も新しい先頭車と専用の中間車になり、架線のある車庫の情景ではパンタグラフが架線まで上がります。車庫カードのサムネイルも新しい先頭車に替えました",
+    "車庫場景南迴海岸的山坡改種台灣東部海岸常見的血桐、相思樹、黃槿和林投；山腳那排一明一暗的鋸齒也修平了": "車庫の情景「南廻海岸」の山肌を、台湾東部の海岸でよく見るオオバギ・タイワンアカシア・オオハマボウ・アダンに植え替えました。山すそに並んでいた明暗のギザギザもなくしました",
+    "車庫「田園小站」後山山腳那排鋸齒狀的明暗三角形修平了，月台站名牌也不再閃爍": "車庫の「田園の小駅」で、裏山のふもとに並んでいたギザギザの明暗の三角形をなくし、ホームの駅名標もちらつかなくなりました",
+    "車庫和台南鐵道兩頁歷史重播的操作改成跟地圖一樣：拖曳移動、右鍵拖曳轉方向與傾斜、滾輪縮放；手機上雙指縮放、扭轉，兩指一起往上推壓低視角": "車庫と台南鉄道の2つの歴史リプレイの操作を地図と同じにしました。ドラッグで移動、右ドラッグで向きと傾きを変え、ホイールで拡大縮小。スマホでは2本指でピンチして拡大縮小、ひねって回転、2本指で上に押し上げると視点が低くなります",
+    "台南鐵道兩頁歷史重播換上跟 App 一致的配色和按鈕樣式，也支援深色模式": "台南鉄道の2つの歴史リプレイを、アプリと同じ配色とボタンのデザインにし、ダークモードにも対応しました",
+    "車庫舞台拿掉旋轉和視角的四顆按鈕，改用右鍵拖曳、雙指扭轉或方向鍵轉動；海岸行旅多了「天色」選單，可選自動、日出、藍天、黃昏或星空，會記在這台裝置": "車庫のステージから回転と視点の4つのボタンをなくし、右ドラッグ・2本指のひねり・矢印キーで回せるようにしました。「海辺の旅」に「時間帯」メニューを追加し、自動・日の出・青空・夕暮れ・星空から選べます。選んだものはこの端末に記憶されます",
     "車庫場景頁上方多一排場景鈕，點一下就地換到別座；點場景名和車名那塊只列在這座跑的車；整個車庫換上一致的新設計，使用說明多了「車庫場景」一節": "車庫の情景ページの上に情景ボタンが並び、その場でほかの情景に切り替えられます。情景名と車両名の部分をタップすると、その情景を走る車両だけが出ます。車庫全体を統一したデザインに一新し、使い方に「車庫の情景」の節を追加しました",
     "車庫場景的列車晚上會亮燈：車頭白燈照亮前方軌道、車尾亮紅燈、客車窗透出暖光；海岸行旅也照實車，只掛客車的那一頭不再亮頭燈": "車庫の情景で、夜は列車に灯りがともります。先頭の白い前照灯が前方の線路を照らし、最後尾は赤い尾灯、客車の窓には暖かな明かり。「海辺の旅」も実車どおりになり、客車だけの側には前照灯が付かなくなりました",
     "車庫的莒光號、鳴日號、阿里山號與檜木列車客車補上尾燈，海岸行旅夜裡車尾改由尾燈亮紅光；田園小站的鐵橋在列車經過或轉動畫面時不再閃爍": "車庫の莒光号・鳴日号・阿里山号・檜の客車に尾灯を付け、「海辺の旅」では夜、最後尾の尾灯が赤く灯ります。「田園の小駅」の鉄橋が、列車の通過や視点の回転でちらつかなくなりました",
