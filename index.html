@@ -5738,6 +5738,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="delayclimate1103"><span class="d">11/03</span><span>新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開</span></li>
         <li data-cl-of="garagemetro1103"><span class="d">11/03</span><span>車庫新增九座車站場景（劍潭、動物園、山鼻、陶瓷老街、淡水漁人碼頭、文心森林公園、美麗島、駁二大義、高鐵新竹），可以用島民點數兌換，捷運、輕軌、機捷與高鐵列車都有自己的車站</span></li>
         <li data-cl-of="garageclassic1103"><span class="d">11/03</span><span>車庫新增五款退役經典車：DR3000、CT250、復興號、EMU300、騰雲號，用島民點數兌換，換到就永久收進車庫</span></li>
         <li data-cl-of="garagenewscenes1103"><span class="d">11/03</span><span>車庫新增多良車站、街角平交道、台南光華街三座可兌換場景，台鐵車都能開進每座台鐵場景；原有四座更精緻：樹和站房重做、列車會停站，阿里山有雲海和螢火蟲；環形試跑的樹換成台灣樹種</span></li>
@@ -5745,7 +5746,6 @@
         <li data-cl-of="southcoasttrees1103"><span class="d">11/03</span><span>車庫場景南迴海岸的山坡改種台灣東部海岸常見的血桐、相思樹、黃槿和林投；山腳那排一明一暗的鋸齒也修平了</span></li>
         <li data-cl-of="paddyhill1103"><span class="d">11/03</span><span>車庫「田園小站」後山山腳那排鋸齒狀的明暗三角形修平了，月台站名牌也不再閃爍</span></li>
         <li data-cl-of="mapcontrols1103"><span class="d">11/03</span><span>車庫和台南鐵道兩頁歷史重播的操作改成跟地圖一樣：拖曳移動、右鍵拖曳轉方向與傾斜、滾輪縮放；手機上雙指縮放、扭轉，兩指一起往上推壓低視角</span></li>
-        <li data-cl-of="replaystyle1103"><span class="d">11/03</span><span>台南鐵道兩頁歷史重播換上跟 App 一致的配色和按鈕樣式，也支援深色模式</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5959,6 +5959,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="delayclimate1103"><span class="d">11/03</span><span>新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開</span></li>
         <li data-cl="krtcterminal1030"><span class="d">10/30</span><span>高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」</span></li>
         <li data-cl="ntmegress1005"><span class="d">10/5</span><span>淡海、安坑、環狀線的即時列車資料改由全站集中一處向新北捷運官網查詢，再分送給所有訪客；正常情況下官網收到的查詢為淡海、安坑約每 55 秒、環狀線約每 60 秒一次，不隨觀看人數與地區增加；集中查詢沒有回應時，改由備援補上資料，不會一直空等</span></li>
         <li data-cl="trtcnoy1005"><span class="d">10/5</span><span>環狀線的即時資料改為即用即丟：只用來畫當下的列車與看板，伺服器不再累積環狀線列車的行駛紀錄；畫車與站牌跟隨用的暫存只留還在路線上或剛收班的車，每晚收班後清除</span></li>
@@ -7231,7 +7232,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1103e：車庫場景頁車燈（garage-coast.js createTrainLamps，同 App dioramaLights）：每節車複製燈／窗材質、lampFrame 釘直線編組座標，頭燈照地改車頭前點光，阿里山折返頭尾對調；海岸行旅照實車（車端沒燈體不亮、頭端沒燈不照地、窗光只給有客室的車）。
 // v1103f：車庫場景是主角（場景頁上方場景鈕就地換座、車款選單只列這座、統一設計、使用說明「車庫場景」）＋舞台拿掉旋轉／視角四鈕改拖曳與方向鍵、海岸行旅天色選單記在裝置；Worker 送審 sandbox build 加 229（1.7.8）。
 // v1103g：1.7.8 車庫整併（網頁 release-178c-web 1e1d7553）——0507 四座精緻化＋多良／街角平交道／光華街、捷運九座、經典退役車五款兌換（chips.items 各 150，需 schema 0021）、EMU3000 新車頭與中間車、南迴換樹＋山腳、田園後山與站名牌、車庫與台南重播手勢照主地圖、重播頁換 1.7.0 色票加深色。
-const BUILD = 'v1103g';
+// v1103h：誤點趨勢地圖（/api/delay-climate，台鐵每段每天「多出幾分鐘」，1／3／7 天窗、比前 4 週／去年、可播放；入口在查詢快捷列與更多→資訊）；Worker 每日誤點 cron 順便寫 tra_delay_climate（schema 0021）。
+const BUILD = 'v1103h';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
