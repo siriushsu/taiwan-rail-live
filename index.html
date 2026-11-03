@@ -26840,9 +26840,9 @@ function climateTimeline() {
 }
 // 進入時看全台(俯視、北朝上),讓開面板:寬螢幕面板在左下 → 左邊留白;手機面板橫跨底部 → 底部留白
 function climateFit() {
-  const panel = document.getElementById('climatePanel'), map = document.getElementById('map');
-  if (!panel || panel.hidden || !map) return;
-  const p = panel.getBoundingClientRect(), m = map.getBoundingClientRect();
+  const panel = document.getElementById('climatePanel'), box = document.getElementById('map');
+  if (!panel || panel.hidden || !box) return;
+  const p = panel.getBoundingClientRect(), m = box.getBoundingClientRect();
   const side = p.width < m.width * 0.6;
   const padding = side ? { top: 30, bottom: 30, left: Math.max(30, p.right - m.left + 30), right: 60 }
     : { top: 40, bottom: Math.max(30, m.bottom - p.top + 20), left: 20, right: 20 };
