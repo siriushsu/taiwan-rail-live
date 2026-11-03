@@ -4697,6 +4697,14 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '夜市燈火': 'Night market lights',
   '正在把小車送上劍潭站…': 'Lifting the little train up to Jiantan Station…',
   '淡水信義線劍潭站 · 微縮印象': 'Jiantan Station, Tamsui-Xinyi Line · miniature impression',
+  '動物園站': 'Taipei Zoo',
+  '文湖線・動物園站': 'Wenhu Line · Taipei Zoo Station',
+  '動物園全景': 'Taipei Zoo panorama',
+  '木柵晴日': 'Sunny day in Muzha',
+  '貓纜夕照': 'Sunset on the Maokong Gondola',
+  '茶山夜燈': 'Tea hills at night',
+  '正在把小車送上動物園站…': 'Lifting the little train up to Taipei Zoo Station…',
+  '文湖線動物園站 · 微縮印象': 'Taipei Zoo Station, Wenhu Line · miniature impression',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '劍潭站': '剣潭',
@@ -4707,4 +4715,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '夜市燈火': '夜市の灯り',
   '正在把小車送上劍潭站…': '小さな列車を剣潭駅へ送り出しています…',
   '淡水信義線劍潭站 · 微縮印象': '淡水信義線 剣潭駅 · ミニチュアの印象',
+  '動物園站': '動物園',
+  '文湖線・動物園站': '文湖線・動物園駅',
+  '動物園全景': '動物園の全景',
+  '木柵晴日': '木柵の晴天',
+  '貓纜夕照': 'マオコンゴンドラの夕焼け',
+  '茶山夜燈': '茶畑の山の夜灯り',
+  '正在把小車送上動物園站…': '小さな列車を動物園駅へ送り出しています…',
+  '文湖線動物園站 · 微縮印象': '文湖線 動物園駅 · ミニチュアの印象',
 });
