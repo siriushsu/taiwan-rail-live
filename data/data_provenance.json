@@ -26,7 +26,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "059d31d396237eb35ad146802e14c26e"
+   "checksum": "58c2df5f0b5834463b7ce8220f1966bc"
   },
   "data/crossings.json": {
    "sourceDescription": "官方 XML 共 801 筆,含座標 415 筆(src:tra;無座標 386 筆為已裁撤/立體化)。座標投影取沿線位置(d,km,haversine 弧長,算法與站點 d 一致);投影垂足離原點 >50m 的 4 筆(候選線不含實際路廊,如八股頭/光復路實在舊山線)改用官方原始座標標點。",
