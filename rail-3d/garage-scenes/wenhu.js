@@ -33,8 +33,8 @@ export function createScene(){
  const hallY0=-9.7,hallY1=-1.6,hallTop=railZ-.73,hallH=hallTop-groundZ;
  block(cream,[22,hallY1-hallY0,hallH],[0,(hallY0+hallY1)/2,groundZ+hallH/2]);
  block(mat('#cfd4d4'),[22.3,front-1.75-hallY0+.15,.12],[0,(hallY0+front-1.75)/2-.07,hallTop+.06]);
- const arch=geo(new THREE.CylinderGeometry(.5,.5,1,16,1,false,0,Math.PI));arch.rotateX(Math.PI/2);arch.rotateY(Math.PI/2);   // 半圓柱，軸沿 y、圓頂朝 +z
- for(let x=-9;x<=9.1;x+=2.25){block(M.glass,[1.5,.1,1.5],[x,hallY0-.03,groundZ+.95]);instance(arch,M.glass,[x,hallY0-.03,groundZ+1.7],[1.5,.1,1.5]);}
+ const arch=geo(new THREE.CylinderGeometry(.5,.5,1,16,1,false,0,Math.PI));arch.rotateY(-Math.PI/2);   // 半圓柱，軸沿 y、圓頂朝 +z
+ for(let x=-9;x<=9.1;x+=2.25){block(M.glass,[1.5,.1,1.5],[x,hallY0-.03,groundZ+.95]);instance(arch,M.glass,[x,hallY0-.03,groundZ+1.7],[1.5,.1,1.0]);}   // 拱頂壓扁到 .5 高，中間三扇才不會從入口雨庇上冒出來
  block(brown,[22.1,.08,.26],[0,hallY0-.05,hallTop-.3]);
  block(white,[6.4,1.6,.14],[0,hallY0-.8,groundZ+2.2]);for(const s of [-1,1])block(white,[.12,.12,2.2],[s*3.0,hallY0-1.5,groundZ+1.1]);
  block(M.sign,[3.2,.12,.42],[0,hallY0-.07,groundZ+2.75]);
