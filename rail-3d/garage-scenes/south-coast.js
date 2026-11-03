@@ -55,8 +55,21 @@ export function createScene(palmsKit=null,stationKit=null){
  // 中景山丘形成遮擋，遠處軌道從山後繞回；固定三角網格不需外部地形圖。
  const hills=[[-16,4.8,7.6,4.5,7],[-8,5.3,6.5,3.7,7.8],[2,5.2,7,4,6],[12,5.2,6.2,4.1,9.2],[19,4.8,5,3.2,6.5]];
  function height(x,y){let h=0;for(const [cx,cy,rx,ry,z]of hills){const d=((x-cx)/rx)**2+((y-cy)/ry)**2;h=Math.max(h,z*Math.max(0,1-d)**1.25);}return h;}
+ // 網格的山腳（11-03）。原本有一排明暗交錯的鋸齒，兩個原因：山腳那條折線（平地轉陡坡）斜穿過格子，跨過它的三角形
+ // 在平面著色下一明一暗；u^1.25 在山腳由 0 陡升，第一排格點離山腳遠近不一，坡度差一倍以上。對應兩處改法：
+ // footHeight 把 u<FOOT（約山腳往內一格，含斜邊方向）換成過原點、在 FOOT 接回原曲線的直線，坡度一致，FOOT 以上同 height()；
+ // 下面的山腳貼齊把地面格點挪到折線上。撒樹仍用 height()，rand() 順序與樹位不變；網格只在這一圈比 height() 高（最多約 .14），樹根略埋進坡面。
+ const FOOT=.26;function footHeight(x,y){let h=0;for(const [cx,cy,rx,ry,z]of hills){const d=((x-cx)/rx)**2+((y-cy)/ry)**2,u=1-d;if(u>0)h=Math.max(h,z*(u<FOOT?u*FOOT**.25:u**1.25));}return h;}
  const hv=[],hi=[],hc=[],cols=['#8b9a76','#7b8e6c','#93a17d','#748563'].map(x=>new THREE.Color(x));
- const nx=112,ny=28;for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){const x=-27+i/nx*54,y=.7+j/ny*8.6,h=height(x,y);hv.push(x,y,h-.05);const c=cols[0].clone().lerp(cols[3],Math.min(1,h/11)).multiplyScalar(.97+rand()*.06);hc.push(c.r,c.g,c.b);}
+ const nx=112,ny=28;for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){const x=-27+i/nx*54,y=.7+j/ny*8.6,h=footHeight(x,y);hv.push(x,y,h-.05);const c=cols[0].clone().lerp(cols[3],Math.min(1,h/11)).multiplyScalar(.97+rand()*.06);hc.push(c.r,c.g,c.b);}
+ // 山腳貼齊：地面格點（h=0）的上下左右或三角形斜邊方向有山上的格點，就沿那條邊挪到最近的山腳點（二分找 footHeight 由 0 轉正處）。
+ // 只在 xy 挪、不到一格，三角形不會翻面；格點數、順序、顏色都不變。
+ const up=k=>hv[k*3+2]>-.05;
+ for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){const k=j*(nx+1)+i;if(up(k))continue;let best=1,bx=0,by=0;
+  for(const [di,dj] of [[1,0],[-1,0],[0,1],[0,-1],[-1,1],[1,-1]]){const n=(j+dj)*(nx+1)+i+di;if(i+di<0||i+di>nx||j+dj<0||j+dj>ny||!up(n))continue;
+   const x0=hv[k*3],y0=hv[k*3+1],x1=hv[n*3],y1=hv[n*3+1];let lo=0,top=1;for(let it=0;it<24;it++){const m=(lo+top)/2;if(footHeight(x0+(x1-x0)*m,y0+(y1-y0)*m)>0)top=m;else lo=m;}
+   if(lo<best){best=lo;bx=x0+(x1-x0)*lo;by=y0+(y1-y0)*lo;}}
+  if(best<1){hv[k*3]=bx;hv[k*3+1]=by;}}
  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const k=j*(nx+1)+i;hi.push(k,k+1,k+nx+1,k+1,k+nx+2,k+nx+1);}const hg=geo(new THREE.BufferGeometry());hg.setAttribute('position',new THREE.Float32BufferAttribute(hv,3));hg.setAttribute('color',new THREE.Float32BufferAttribute(hc,3));hg.setIndex(hi);hg.computeVertexNormals();mesh(hg,mat('#ffffff',{vertexColors:true,flatShading:true}));
  // 植被兩個迴圈（山坡 loop1、後排平地 loop2）抽 rand() 的次數與順序跟 HEAD 逐行相同：每棵先抽 x/y（loop1
  // 過地形門檻才抽 s），迴圈尾端再抽固定次數（loop1 六次、loop2 四次，原本是舊版扇葉的 jitter，現在不用了，
