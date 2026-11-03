@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "車庫的莒光號、鳴日號、阿里山號與檜木列車客車補上尾燈，海岸行旅夜裡車尾改由尾燈亮紅光；田園小站的鐵橋在列車經過或轉動畫面時不再閃爍": "Chu-Kuang Express, Future, Alishan and cypress coaches in the garage now have tail lights, and at night the Coastal journey lights the tail lights at the rear; the bridge at Countryside Station no longer flickers when a train passes or the view turns",
     "觀看的「導覽」分頁拆開了：查詢首頁多「去哪裡」，車站、地標和縣市點一下就飛過去；搜尋也找得到地點、縣市和路線；最愛可以新增地點；選路線直接看全線並亮線；精選取景移到觀看的視角": "The Places tab under View has been split up: Lookup now opens with “Where to”, so tapping a station, landmark or county flies you there; search also finds places, counties and routes; Favorites can add a place; picking a route shows the whole line highlighted; Scenic views moved to View → Camera",
     "車庫和地圖上的立體列車換成照著實車照片重做的精修模型，共 57 款：各地捷運與輕軌、區間車、自強號、莒光號、高鐵、柴電與電力機車、阿里山林鐵": "The garage and the 3D trains on the map now use detailed models rebuilt from photos of the real trains, 57 in all: metro and light rail, local trains, Tze-Chiang and Chu-Kuang expresses, THSR, diesel and electric locomotives, and the Alishan Forest Railway",
     "看板、列車資訊卡這類底部面板改成直接拖拉調整高度：按住卡頭上下拖，放開就停在那裡，下次打開會記得這個高度": "Bottom panels such as station boards and train cards now resize by dragging: hold the header, drag up or down and let go where you like; the height is remembered next time",
@@ -344,6 +345,7 @@
   });
 
   Object.assign(messages.ja, {
+    "車庫的莒光號、鳴日號、阿里山號與檜木列車客車補上尾燈，海岸行旅夜裡車尾改由尾燈亮紅光；田園小站的鐵橋在列車經過或轉動畫面時不再閃爍": "車庫の莒光号・鳴日号・阿里山号・檜の客車に尾灯を付け、「海辺の旅」では夜、最後尾の尾灯が赤く灯ります。「田園の小駅」の鉄橋が、列車の通過や視点の回転でちらつかなくなりました",
     "觀看的「導覽」分頁拆開了：查詢首頁多「去哪裡」，車站、地標和縣市點一下就飛過去；搜尋也找得到地點、縣市和路線；最愛可以新增地點；選路線直接看全線並亮線；精選取景移到觀看的視角": "「表示」の「スポット」タブを分けました。「調べる」のトップに「行き先」を追加し、駅・名所・県市をタップするとそこへ移動します。検索で場所・県市・路線も見つかります。お気に入りで場所を追加でき、路線を選ぶと全線をハイライト表示します。「おすすめの眺め」は「表示」の「視点」に移りました",
     "車庫和地圖上的立體列車換成照著實車照片重做的精修模型，共 57 款：各地捷運與輕軌、區間車、自強號、莒光號、高鐵、柴電與電力機車、阿里山林鐵": "車庫と地図の3D列車を、実車の写真をもとに作り直した精密モデルに更新しました（全57種：各地のMRTとライトレール、区間車、自強号、莒光号、高鉄、ディーゼル・電気機関車、阿里山森林鉄道）",
     "看板、列車資訊卡這類底部面板改成直接拖拉調整高度：按住卡頭上下拖，放開就停在那裡，下次打開會記得這個高度": "駅ボードや列車カードなど下部パネルの高さを、ヘッダーを上下にドラッグして調整できるようになりました。離した位置で止まり、次回もその高さで開きます",
