@@ -3,9 +3,10 @@
 //
 // WebKit(iPhone Safari、App 的 WKWebView、Mac Safari)把 select 選中那一項的整行字寬算進最近的 overflow:auto
 // 祖先的捲動範圍:字在畫面上已經裁在箭頭前,容器卻能左右拖、左邊被切掉。修法是 select 本身 overflow:hidden:
-// index.html 跟車卡的「接公車」#fpBusTo、「我上車了」#fpRideTo、到站提醒 #notifyStation,rail-3d.css 觀看面板的
-// 車站／地標導覽 #riGuidePlace(車庫 .g-model-select 由 verify_garage_loop 守)。
-// 修前 WebKit 英文實測:#fpBusTo 127px、#fpRideTo 61、#notifyStation 19(360 寬)、#riGuidePlace 50(1280 寬)。
+// index.html 跟車卡的「接公車」#fpBusTo、「我上車了」#fpRideTo、到站提醒 #notifyStation(車庫 .g-model-select 由 verify_garage_loop 守)。
+// 修前 WebKit 英文實測:#fpBusTo 127px、#fpRideTo 61、#notifyStation 19(360 寬)。
+// 原本還有觀看面板「導覽」頁的 #riGuidePlace(修前 50px、1280 寬):2026-11-03 導覽改版把那個下拉整個拿掉
+// (地標改成查詢首頁「去哪裡」的 chip,是按鈕不是 select),那一格跟著刪,不是放寬。
 // Chromium 的 select 計算後 overflow 恆為 visible、這個缺陷也不發生,select 那幾格只跑 WebKit。
 //   S 每個 select 塞一個長選項並選它,對每個 overflow-x 為 auto／scroll 的祖先與文件本身寫 scrollLeft＝大數再讀回:
 //     讀回值 ≤ 1px(＝使用者拖不動)。長選項是注入的(兩個實測最長的英文名接起來),不靠今天跟到哪班車、剩哪幾站。
@@ -120,12 +121,6 @@ const CELLS = [
     close: `(() => { const c = document.getElementById('fpBusCancel'); if (c && !document.getElementById('fpBusBox').hidden) c.click(); })()` },
   { key: 'notifyStation', sel: '#notifyStation', width: 360, open: `(async () => { await openLocalReminderSheet(state.followTrain, 'verify'); await new Promise(r => setTimeout(r, 200)); })()`,
     close: `(() => { document.getElementById('notifyModal').hidden = true; })()` },
-  // 觀看面板的「導覽」頁,rail-3d 載入後才掛上;修前只在桌面寬度(Mac Safari)漏
-  { key: 'riGuidePlace', sel: '#riGuidePlace', width: 1280, open: `(async () => {
-      for (let i = 0; i < 150 && !(window.railViewControls && document.getElementById('riGuidePlace')); i++) await new Promise(r => setTimeout(r, 100));
-      if (window.railViewControls) window.railViewControls.open('places');
-      await new Promise(r => setTimeout(r, 300));
-    })()`, close: `(() => { if (window.railViewControls) window.railViewControls.close(); })()` },
 ];
 
 // 跟車卡「下一站」:塞長站名 → 量可拖 px、行數、有沒有被截 → 同一格改回修前的 nowrap 再量一次 → 還原

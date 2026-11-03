@@ -143,7 +143,12 @@ const widths = [360, 375, 414, 768];
 // 11/01: the Countryside Station garage scene gets more detail adds one (540 -> 541).
 // 11/02: level crossings on underground/elevated sections removed adds one (541 -> 542).
 // 11/03: refined models for 57 Taiwanese trains in the garage and on the 3D map adds one (546 -> 547).
-const expectedHistoryCount = 547;
+// 11/03: the Places tab in View split up into Lookup, Favorites and Routes adds one (547 -> 548).
+// 11/03: far route lines on rolling terrain no longer break up in tunnel-heavy sections adds one (548 -> 549).
+// 11/03: garage tail lights and the Countryside Station bridge flicker fix add one (549 -> 550).
+// 11/03: garage scene train lights at night add one (550 -> 551).
+// 11/03: garage scenes take the lead (scene buttons, unified design) and the stage drops its rotate/view buttons add two (551 -> 553).
+const expectedHistoryCount = 553;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

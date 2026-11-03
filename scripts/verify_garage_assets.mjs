@@ -10,7 +10,8 @@ const box={matchMedia(){return {matches:false,addEventListener(){}};},window:{ad
 vm.runInContext(read('train-garage-catalog.js').toString(),box);vm.runInContext(read('train-garage.js').toString(),box);
 const catalog=box.window.RailGarageCatalog,{collection,goals}=box.TrainGarage,ids=Object.keys(catalog);
 const assert=(ok,msg)=>{if(!ok)throw Error(msg);};
-assert(ids.length===62&&JSON.stringify(ids.slice().sort())===JSON.stringify(Object.keys(goals).sort()),'62 款車型與規則應一一對應');
+const redeem=ids.filter(id=>goals[id].metric==='redeem'),passport=ids.length-redeem.length;
+assert(ids.length===67&&redeem.length===5&&JSON.stringify(ids.slice().sort())===JSON.stringify(Object.keys(goals).sort()),'67 款車型（含 5 款點數兌換）與規則應一一對應');
 let bytes=0;
 for(const id of ids){
  const meta=JSON.parse(read('rail-3d/assets/garage-blender-v1/'+id+'.json')),zip=read('rail-3d/assets/garage-blender-v1/'+id+'.bin.gz'),raw=gunzipSync(zip);bytes+=zip.length;
@@ -21,6 +22,15 @@ for(const id of ids){
  assert(fs.existsSync(path.join(root,catalog[id].thumbnail)),'缩圖 '+id);
  assert(catalog[id].sources.length>0&&catalog[id].sources.every(s=>/^https?:\/\//.test(s.url)),'來源 '+id);
  const goal=goals[id];
+ // 點數兌換：規則檔沒列價格就不出現；列了照價格寫、還沒換到；換到的（帳本 items）不看價格照樣入庫。
+ if(goal.metric==='redeem'){
+  const base={rides:[],coll:{stock:new Set(),named:new Set(),branch:new Set(),at:{}},stationCount:0};
+  assert(goal.item==='train:'+id&&!collection(base,catalog).some(r=>r.id===id),'沒價格不出現 '+id);
+  const sale=collection({...base,itemPrices:{[goal.item]:150}},catalog).find(r=>r.id===id);
+  assert(sale&&!sale.owned&&sale.goal.need===150&&sale.rule.id===goal.item,'有價格才出現、照價格 '+id);
+  assert(collection({...base,items:[goal.item]},catalog).find(r=>r.id===id)?.owned===true,'換到的照樣入庫 '+id);
+  continue;
+ }
  for(const n of [goal.need-1,goal.need]){
   const snapshot={rides:[],coll:{stock:new Set(),named:new Set(),branch:new Set(),at:{}},stationCount:0};
   if(goal.metric==='rides')snapshot.rides=Array.from({length:n},()=>({}));
@@ -36,7 +46,7 @@ assert(collection(empty,catalog).every(r=>!r.owned),'空白護照不可自動收
 const legacy={...empty,coll:{...empty.coll,stock:new Set(['taroko']),at:{'stock|taroko':'2026-08-02'}}};
 const row=collection(legacy,catalog).find(r=>r.id==='temu1000');assert(row.owned&&row.date==='2026-08-02'&&row.now===0,'舊章無需重新完成里程碑');
 const full={rides:Array.from({length:100},()=>({km:100})),coll:{...empty.coll,branch:new Set(['1','2','3','4'])},stationCount:100};
-assert(collection(full,catalog).every(r=>r.owned),'62 款全部可由護照解鎖');
+const all=collection(full,catalog);assert(all.length===passport&&all.every(r=>r.owned),passport+' 款護照車款全部可由護照解鎖');
 const html=read('index.html').toString(),prep=read('app/scripts/prepare-web.mjs').toString();
 for(const f of ['train-garage.js','train-garage.css','train-garage-catalog.js'])assert(html.includes('./'+f)&&prep.includes("'"+f+"'"),'首頁與 App 接線 '+f);
 // 英日文：車名與出處標籤曾直接顯示中文(2026-09-19 修)。兩道：字典每條都有 en/ja(en 不得含漢字)，
@@ -58,4 +68,4 @@ assert(rawReads(toast,'t')===0,'車庫入庫通知的車名沒過 t()');
 // 正向對照：拿掉一個 tr() 必須被抓到，否則上面兩條是恆真。
 assert(rawReads(garageSrc.replace('tr(row.model.name)','row.model.name'),'tr')===1,'顯示端檢查沒有牙齒');
 for(const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g))if(!/src=|type="(?:module|application)/.test(m[1]))new vm.Script(m[2]);
-console.log(`PASS 62 款 Blender 原始網格／材質／來源、124 個門檻邊界、舊章帶入、零進度與全部可解鎖、首頁與 App 接線、${names} 條車名與出處英日文且顯示端都過翻譯。壓縮 ${Math.round(bytes/1024/1024)} MB。`);
+console.log(`PASS ${ids.length} 款 Blender 原始網格／材質／來源、${passport*2} 個門檻邊界、${redeem.length} 款點數兌換（沒價格不出現、照價格、換到入庫）、舊章帶入、零進度與全部可解鎖、首頁與 App 接線、${names} 條車名與出處英日文且顯示端都過翻譯。壓縮 ${Math.round(bytes/1024/1024)} MB。`);

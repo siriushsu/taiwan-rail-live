@@ -46,11 +46,11 @@
   ],
   "mesh": {
     "file": "hinoki.mesh.bin",
-    "sha256": "dba68aae01c5a3e0619bad80783995fe3cbc1c61446ee8fdda76cdb03a76147f",
+    "sha256": "d07baa2ee65bc3b5760fd07405c1408645e2a15915f43c154b31107b9a12bb5c",
     "encoding": "float32-le",
     "strideBytes": 24,
-    "vertexCount": 127692,
-    "triangleCount": 42564,
+    "vertexCount": 144444,
+    "triangleCount": 48148,
     "drawGroups": [
       {
         "name": "hkwood",
@@ -107,7 +107,7 @@
       {
         "name": "metal",
         "start": 23880,
-        "count": 30624,
+        "count": 36720,
         "color": [
           0.30946892499923706,
           0.38642942905426025,
@@ -119,8 +119,8 @@
       },
       {
         "name": "frame",
-        "start": 54504,
-        "count": 8904,
+        "start": 60600,
+        "count": 14232,
         "color": [
           0.008568125776946545,
           0.016807375475764275,
@@ -132,7 +132,7 @@
       },
       {
         "name": "hdlens",
-        "start": 63408,
+        "start": 74832,
         "count": 7992,
         "color": [
           0.8468732237815857,
@@ -145,7 +145,7 @@
       },
       {
         "name": "hkrail",
-        "start": 71400,
+        "start": 82824,
         "count": 17400,
         "color": [
           0.024157632142305374,
@@ -157,8 +157,21 @@
         "clearcoat": 0.11999999731779099
       },
       {
+        "name": "taillamp",
+        "start": 100224,
+        "count": 5328,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
         "name": "chassis",
-        "start": 88800,
+        "start": 105552,
         "count": 29316,
         "color": [
           0.03433980792760849,
@@ -171,7 +184,7 @@
       },
       {
         "name": "rubber",
-        "start": 118116,
+        "start": 134868,
         "count": 8448,
         "color": [
           0.014443843625485897,
@@ -184,7 +197,7 @@
       },
       {
         "name": "roof",
-        "start": 126564,
+        "start": 143316,
         "count": 1128,
         "color": [
           0.4677838087081909,
@@ -197,7 +210,7 @@
       }
     ]
   },
-  "nativeObjectCount": 350,
+  "nativeObjectCount": 362,
   "features": {
     "sideDoorGroups": 0,
     "doorLeavesPerGroup": 2,

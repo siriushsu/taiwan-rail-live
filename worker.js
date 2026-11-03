@@ -31,7 +31,7 @@ import {
   parseDirectBulkUpdateTime, parseProviderConfig, providerForCity, resolveDirectBulkStop, resolveTdxStop,
 } from './scripts/bus_live_core.mjs';
 import { twDayStr, nextHolidaySpan, weekendBody } from './scripts/weekend_core.mjs';
-import { tripPoints, priceOfNth, canRedeem, taipeiDay, cloudRideCounts } from './scripts/bounty_chips_core.mjs';
+import { tripPoints, priceOfNth, canRedeem, taipeiDay, cloudRideCounts, itemPrice, canCollect } from './scripts/bounty_chips_core.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
@@ -2645,7 +2645,7 @@ const PLUS_SANDBOX_LEGACY_BUILDS = new Set(['21', '22']);
 const PLUS_SANDBOX_UID_ALLOWLIST_BUILDS = new Set(['16']);
 // 原生 iOS 送審 build：App Review 用 sandbox 購買（含終身），審查員的 Firebase UID 事先無從得知，
 // 所以訂閱與終身都不查 UID allowlist。上架後同一顆 build 照舊先查正式環境，正式沒資格才回退 sandbox。
-const PLUS_SANDBOX_REVIEW_BUILDS = new Set(['224', '225', '226', '227']);
+const PLUS_SANDBOX_REVIEW_BUILDS = new Set(['224', '225', '226', '227', '228', '229']);
 const PLUS_ENTITLEMENT_COLLECTION = Object.freeze({
   [RC_ENV_PRODUCTION]: 'entitlements',
   [RC_ENV_SANDBOX]: 'sandboxEntitlements',
@@ -6557,14 +6557,14 @@ const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
 // 不可以改成「全部放行」——擋掉的是「隨手對唯讀端點打 POST」這類探測,而那正是最便宜的防線。
 // ⚠️ 這道門的粒度是「路徑」不是「方法」：列進來等於該路徑的所有非 GET 方法都到得了處理函式。
 // /api/pass-admin 正是需要這樣（POST 匯入、DELETE 清批），它自己在函式內分派方法、未知的回 405。
-const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/garage-redeem', '/api/cloud-ride', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind', '/api/tra-wait/bind', '/api/tra-wait/unbind', '/api/trackside/bind', '/api/trackside/unbind', '/api/pass-claim', '/api/pass-admin', '/api/journey-share', '/api/push/register', '/api/push/unregister', '/api/rail-push/decide']);
+const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/garage-redeem', '/api/garage-collect', '/api/cloud-ride', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind', '/api/tra-wait/bind', '/api/tra-wait/unbind', '/api/trackside/bind', '/api/trackside/unbind', '/api/pass-claim', '/api/pass-admin', '/api/journey-share', '/api/push/register', '/api/push/unregister', '/api/rail-push/decide']);
 // /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-platforms', 'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'rail-status', 'metro-live', 'ntmetro-live', 'trtc-live',
   'klrt-position', 'bus-transfer', 'bus-leg-live', 'bus-route-stops', 'bus-stop-search', 'bus-stop-live', 'journey-share',
   'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'thsr-seat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
-  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'chips-me', 'garage-redeem', 'cloud-ride', 'plus-status', 'revenuecat-webhook',
+  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'chips-me', 'garage-redeem', 'garage-collect', 'cloud-ride', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
   'trackside/bind', 'trackside/unbind', 'push/register', 'push/unregister', 'rail-push/decide', 'weather',
 ]);
@@ -6828,7 +6828,7 @@ async function firebaseUid(env, idToken) {
 // 只跟一跳:合併端點保證 merged_into 一定指向一個沒有 merged_into 的列(uid 列)，
 // 跟多跳等於默許鏈狀合併，而那會在合併失敗重試時繞成環。
 // 🔴 這個函式只回答「這個 token 的東西記在誰名下」，不回答「這個請求有沒有資格用那個帳號」：
-// 現在只剩驗證 cron 與 /api/bounty-me 的 ?actor= 讀取還走它；錢包端點（garage-redeem、cloud-ride、chips-me）與
+// 現在只剩驗證 cron 與 /api/bounty-me 的 ?actor= 讀取還走它；錢包端點（garage-redeem、garage-collect、cloud-ride、chips-me）與
 // 賺的端點（bounty-submit、bounty-claim）一律走下面的 bountyIdentity——merged_into 是任何人拿著 uid 都能替別人掛上的標記，
 // 只靠它轉向就等於「知道 token 就能花掉帳號的錢」。
 // 🔴 帳號列（uid 欄非 NULL）一律回自己，不跟 merged_into：v2 之後沒有路徑會讓帳號列掛上 merged_into，
@@ -6842,7 +6842,7 @@ async function resolveActor(env, actor) {
 // 合併若剛好落在兩者之間，寫進去的就是已併掉的裝置（判定 cron 的點數、認領、籌碼、去重登記都走這一條）。
 const BOUNTY_WHO_SQL = 'COALESCE((SELECT merged_into FROM bounty_points WHERE actor=? AND uid IS NULL), ?)';
 // ── 查詢計畫釘死（INDEXED BY）────────────────────────────────
-// 會隨使用者一直長大的六張表（bounty_samples、bounty_claims、chip_ledger、garage_unlocks、cloud_rides、bounty_seg_contrib），
+// 會隨使用者一直長大的七張表（bounty_samples、bounty_claims、chip_ledger、garage_unlocks、garage_items、cloud_rides、bounty_seg_contrib），
 // 逐人、逐班、逐組讀寫的每一句都寫 INDEXED BY，指名那一句該走的索引。不寫的話計畫由 sqlite_stat1 決定，而 D1 文件要使用者
 // 「建索引之後、每次改 schema 之後跑 PRAGMA optimize」：表只有幾列時跑過一次（上線前自己測、或之後任何一次改 schema），統計就說
 // 「整張表幾列」，規劃器改走全表掃描；表長大之後統計不會自己更新（optimize 要列數差十倍、而且要有人再跑一次）。
@@ -6881,7 +6881,7 @@ async function bountyEnsureAccount(env, uid) {
 // 解析這一次請求「以誰的身分」寫入。回 { who }（用這個 key 讀寫）或 { res }（直接把這個錯誤回應丟給客戶端）。
 //   Authorization: Bearer 有帶 → 用 firebaseUid 驗；驗不過一律 401 unauthorized（不降級成匿名：帶了壞 token 多半是過期，
 //   悄悄當匿名處理會把使用者的兌換記到錯的 key 上）。驗過的 uid 先過 S0。
-//   mode 'wallet'（花／查餘額：garage-redeem、cloud-ride、chips-me ?actor=）：
+//   mode 'wallet'（花／查餘額：garage-redeem、garage-collect、cloud-ride、chips-me ?actor=）：
 //     這個 actor 不是帳號、也沒併進任何人 → 它就是匿名裝置，who＝actor，不需要 token；
 //     是帳號、或併進了某個帳號 → 必須帶那個帳號的 Bearer：沒帶 401 auth_required、是別人的 403 wrong_account，通過則 who＝帳號。
 //   mode 'earn'（賺：bounty-submit、bounty-claim）：
@@ -7494,6 +7494,30 @@ async function bountyMerge(request, env) {
       ' AND (g.created_at < garage_unlocks.created_at OR (g.created_at = garage_unlocks.created_at AND g.rowid <= garage_unlocks.rowid)))' +
       ' WHERE actor=?' + G
     ).bind(uid, dev, uid));
+    // ⑦b 換到的車款（garage_items，schema/0021）：兩邊換過同一款＝只留 created_at 較早的一份（平手留 uid 那份），
+    // 較晚那份花掉的點數以一筆 kind='merge' 的正數入帳退回。順序同 ⑦（先退款、刪 uid 較晚的、刪 dev 剩下的孿生、其餘改名）；
+    // 車款沒有「第幾款」，不重排。退款列的 ref＝'item|<dev>|<兌換品>'、id＝'merge|'＋ref，跟場景的退款（ref 'merge|<dev>|<場景>'）分開。
+    add('itemRefund', db.prepare(
+      'INSERT OR IGNORE INTO chip_ledger (id,actor,kind,delta,ref,day,created_at,unit)' +
+      " SELECT 'merge|item|' || d.actor || '|' || d.item, ?, 'merge'," +
+      ' CASE WHEN u.created_at > d.created_at THEN u.cost ELSE d.cost END,' +
+      " 'item|' || d.actor || '|' || d.item, NULL, ?," +
+      ' CASE WHEN u.created_at > d.created_at THEN u.unit ELSE d.unit END' +
+      // 兩邊都指名主鍵，理由同 ⑦ 的退款
+      ' FROM garage_items d INDEXED BY sqlite_autoindex_garage_items_1' +
+      ' JOIN garage_items u INDEXED BY sqlite_autoindex_garage_items_1 ON u.actor=? AND u.item=d.item' +
+      ' WHERE d.actor=?' + G
+    ).bind(uid, now, uid, dev, dev, uid));
+    add('itemDropLater', db.prepare(
+      'DELETE FROM garage_items INDEXED BY sqlite_autoindex_garage_items_1 WHERE actor=?' + G +
+      ' AND EXISTS (SELECT 1 FROM garage_items d WHERE d.actor=? AND d.item=garage_items.item' +
+      ' AND d.created_at < garage_items.created_at)'
+    ).bind(uid, dev, uid, dev));
+    add('itemDropTwin', db.prepare(
+      'DELETE FROM garage_items INDEXED BY sqlite_autoindex_garage_items_1 WHERE actor=?' + G +
+      ' AND EXISTS (SELECT 1 FROM garage_items u WHERE u.actor=? AND u.item=garage_items.item)'
+    ).bind(dev, dev, uid, uid));
+    add('itemMove', db.prepare('UPDATE garage_items INDEXED BY sqlite_autoindex_garage_items_1 SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
     // ⑧ 雲端搭乘：同一天兩邊都有＝留一筆。「算次數」的那筆（simulator=0）勝過模擬器的；同類則 created_at 較早的勝，
     // 平手留 uid 的。（(simulator, created_at) 是列值比較，小的勝。）其餘改名。
     add('rideDropLater', db.prepare(
@@ -7572,20 +7596,22 @@ async function bountyMerge(request, env) {
 // 舊版合併劫持留下的髒列（帳號列卻掛著 merged_into＝攻擊者）不是攻擊者的裝置，攻擊者刪自己的帳號時不能連它一起帶走。
 async function bountyPurgeUid(env, uid, deviceActor) {
   const db = env.DELAY_DB;
-  if (!db) return { samples: 0, claims: 0, points: 0, chips: 0, unlocks: 0, cloudRides: 0, contrib: 0 };
+  if (!db) return { samples: 0, claims: 0, points: 0, chips: 0, unlocks: 0, items: 0, cloudRides: 0, contrib: 0 };
   const dev = (deviceActor && deviceActor !== uid) ? String(deviceActor) : null;
   const sub = 'SELECT actor FROM bounty_points WHERE merged_into=? AND uid IS NULL';
   // 「這個 token 是裝置、而且沒有被併進別的 uid」。注意它讀的是 bounty_points，所以刪 bounty_points 的那句
   // 必須排在最後——提前刪掉就等於把自己的守衛拆了。
   const notElsewhere = ' AND NOT EXISTS (SELECT 1 FROM bounty_points' +
     ' WHERE actor=? AND (uid IS NOT NULL OR (merged_into IS NOT NULL AND merged_into<>?)))';
-  // 有 actor 欄的六張明細表（前兩張是 v1，後四張是路段懸賞 v2：籌碼帳本、車庫解鎖、雲端搭乘、每段去重貢獻）。
+  // 有 actor 欄的七張明細表（前兩張是 v1，後五張是路段懸賞 v2 起的錢包：籌碼帳本、車庫解鎖、換到的車款、雲端搭乘、每段去重貢獻）。
   // 🔴 bounty_board 的 distinct_ok_users／收滿狀態刻意不回扣：那是「每一段」的匿名彙總、沒有任何欄位指向人，
   // 回扣會讓別人看到的路段進度因為某個人刪帳號而倒退；被刪掉的只有「誰貢獻了」那一半（bounty_seg_contrib）。
   // 第二欄是 FROM 後面整段（表名＋INDEXED BY，理由見 BOUNTY_WHO_SQL 下面「查詢計畫釘死」）；「uid 自己或併進 uid 的裝置」寫成一個 IN，
   // 不寫成 actor=? OR actor IN (…)——OR 的兩邊要各自走索引再合併，INDEXED BY 之下統計一偏就改成整個索引從頭掃到尾（實測）。
   const TABLES_V1 = [['samples', 'bounty_samples INDEXED BY idx_samples_trip'], ['claims', 'bounty_claims INDEXED BY idx_claims_actor']];
+  // 換到的車款（garage_items，schema/0021）是錢包的一部分，規則同這四張（items）。
   const TABLES_V2 = [['chips', 'chip_ledger INDEXED BY idx_chip_ledger_actor_day'], ['unlocks', 'garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1'],
+    ['items', 'garage_items INDEXED BY sqlite_autoindex_garage_items_1'],
     ['cloudRides', 'cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1'], ['contrib', 'bounty_seg_contrib INDEXED BY idx_seg_contrib_actor']];
   const stmts = [], at = {};                       // at[名稱] ＝ 這個名稱的語句在 batch 裡的位置們（結果加總時用名字取，不寫死索引）
   const add = (name, st) => { (at[name] = at[name] || []).push(stmts.length); stmts.push(st); };
@@ -7606,7 +7632,7 @@ async function bountyPurgeUid(env, uid, deviceActor) {
   const sum = name => at[name].reduce((a, i) => a + (Number(res[i] && res[i].meta && res[i].meta.changes) || 0), 0);
   return {
     samples: sum('samples'), claims: sum('claims'), points: sum('points'),
-    chips: sum('chips'), unlocks: sum('unlocks'), cloudRides: sum('cloudRides'), contrib: sum('contrib'),
+    chips: sum('chips'), unlocks: sum('unlocks'), items: sum('items'), cloudRides: sum('cloudRides'), contrib: sum('contrib'),
   };
 }
 
@@ -7652,19 +7678,29 @@ function bountyPointsConvert(db, actor, rate, now) {
     ' FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=?) WHERE d > 0'
   ).bind(actor, now, actor, rate, actor);
 }
-// 餘額（點數）與解鎖清單。餘額由帳本現算，不另存一份（避免兩份真相，見 0014）。解鎖清單依 nth 排序。
+// 點數餘額：由帳本現算，不另存一份（避免兩份真相，見 0014）。
+async function pointsBalanceOf(db, actor, chips) {
+  const b = await db.prepare('SELECT ' + BOUNTY_POINTS_BALANCE_SQL + ' AS n').bind(chips.chipToPoints, actor).first();
+  return Number(b && b.n) || 0;
+}
+// 餘額（點數）與解鎖清單。解鎖清單依 nth 排序。
 async function chipStateOf(db, actor, chips) {
   const u = await db.prepare('SELECT scene, nth, cost, created_at FROM garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1 WHERE actor=? ORDER BY nth').bind(actor).all();
-  const b = await db.prepare('SELECT ' + BOUNTY_POINTS_BALANCE_SQL + ' AS n').bind(chips.chipToPoints, actor).first();
   return {
-    balance: Number(b && b.n) || 0,
+    balance: await pointsBalanceOf(db, actor, chips),
     unlocked: (u.results || []).map(r => ({ scene: String(r.scene), nth: Number(r.nth), cost: Number(r.cost), at: Number(r.created_at) })),
   };
 }
 // 對外只給 {scene, nth, at}；cost 是兌換當下的價格，只放在兌換成功的那一層。
 const chipUnlockedView = list => list.map(({ scene, nth, at }) => ({ scene, nth, at }));
+// 換到的車款（garage_items，schema/0021），依兌換時間排。對外只給 {item, at}，價格同樣只放在兌換成功的那一層。
+async function garageItemsOf(db, actor) {
+  const r = await db.prepare('SELECT item, created_at FROM garage_items INDEXED BY sqlite_autoindex_garage_items_1 WHERE actor=? ORDER BY created_at, item').bind(actor).all();
+  return (r.results || []).map(x => ({ item: String(x.item), at: Number(x.created_at) }));
+}
 
-// GET /api/chips-me：點數餘額、已解鎖場景、下一座的價格、雲端搭乘次數、今天已得的錄程點數（形狀見 docs/bounty/contract-v3.md）。
+// GET /api/chips-me：點數餘額、已解鎖場景、換到的車款、下一座的價格、雲端搭乘次數、今天已得的錄程點數（形狀見 docs/bounty/contract-v3.md）。
+// items 是 11-03 加的欄（車款兌換）：舊客端遇到不認得的欄位直接略過。
 // 頂層 unit:'point' 是 v3 的記號（新客端據此判斷數字是點數）；其餘欄位名沿用 v2，App 1.7.3 照樣解析得了。
 // 身分：Bearer Firebase idToken（走 AUTH_LIMITER），或 actor 查詢參數（走 BOUNTY_LIMITER，這條路徑以前完全不限流）。
 // 🔴 兩個都帶時 Bearer 贏、?actor= 被無視（不是「兩個都要對得上」）：驗過的 uid 就是最終身分，不再跟 merged_into——
@@ -7707,10 +7743,12 @@ async function chipsMe(request, env) {
     const got = await env.DELAY_DB.prepare(
       "SELECT COALESCE(SUM(" + BOUNTY_POINTS_OF_ROW + "),0) AS n FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=? AND kind='trip' AND day=?")
       .bind(chips.chipToPoints, actor, day).first();
+    const items = await garageItemsOf(env.DELAY_DB, actor);
     return jsonRes({
       unit: 'point',
       balance: st.balance,
       unlocked: chipUnlockedView(st.unlocked),
+      items,
       nextCost: priceOfNth(st.unlocked.length + 1, chips),
       // toNextChip 固定 1：v3 每一次雲端搭乘都入帳 cloud.points 點。這個欄位只留給 App 1.7.3（它要求 ≥ 1 的整數，
       // 小於 1 會一直退避重查），新客端讀 points。
@@ -7823,6 +7861,96 @@ async function garageRedeem(request, env) {
     return jsonRes({ error: 'conflict' }, 409, 'no-store');
   } catch (e) {
     return jsonRes({ error: 'redeem_failed' }, 503, 'no-store');
+  }
+}
+
+// POST /api/garage-collect {actor, item, requestId}：用點數兌換一款車庫車款（永久，不綁通行證）。
+// 跟場景兌換（garageRedeem）同一套做法，差在三處：
+//   ・價格是規則檔 chips.items 那一款的固定價（itemPrice），不看第幾款，也不吃場景的「第幾座」。
+//   ・換到的車款寫進 garage_items（schema/0021），不寫進 garage_unlocks：那張表的列數就是場景的「第幾座」。
+//   ・chips.items 沒列價格的兌換品回 400 unknown_item：上線開關就是規則檔，沒開放的車款伺服器不收。
+// 判斷與寫入同一筆交易（理由同 garageRedeem）：一個 D1 batch 兩句條件式寫入——
+//   (1) 帳本寫一筆負數的 redeem，條件：這款還沒換過 AND 目前餘額≥價格；
+//   (2) garage_items 寫這一款，條件：(1) 那一列在（用帳本 id 指名，id 裡有兌換品）。
+//   🔴 (2) 要用 id 指名，不能只比 ref 與金額：同一個 requestId 併發拿去換「同價的另一款」時，第二個 batch 的 (1) 被
+//   UNIQUE(kind, ref) 擋掉，只比 ref 與金額的話 (2) 會憑第一款的帳本列白送第二款。場景那支靠「解鎖數＝nth−1」擋這一種，車款沒有數量可押。
+// batch 之後查帳本 ref 在不在來判斷成敗；守衛沒過就重讀現況再試一次，仍失敗回 409 conflict。
+// 冪等：帳本 ref＝`<解析前的 b.actor>.<requestId>`、id＝`item|<兌換品>|<ref>`（理由同 garageRedeem）。重送：兌換品相同回 200，
+// cost 是當初扣的（帳本 delta 的相反數）；不同回 409 conflict。requestId 跟場景兌換共用同一個 (kind='redeem', ref)：
+// 拿兌換場景用過的 requestId 來換車（或反過來），讀到的帳本 id 對不上，一樣回 409 conflict。
+// 身分：bountyIdentity 'wallet'（同 garageRedeem）。
+async function garageCollect(request, env) {
+  // API_POST_ALLOWED 的粒度是路徑，其他方法也進得來——收斂成只收 POST（比照 garageRedeem）
+  if (request.method !== 'POST') return jsonRes({ error: 'method' }, 405, 'no-store');
+  // 節流與寫入總閘擋在任何 D1 存取之前（比照 garageRedeem）
+  if (await rateLimited(env.BOUNTY_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  if (bountyWritesOff(env)) return jsonRes({ error: 'bounty_paused' }, 503, 'no-store');
+  let b;
+  try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
+  if (!b || !isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
+  if (hasGeoKeys(b)) return jsonRes({ error: 'coordinates_not_accepted' }, 400, 'no-store');
+  // requestId 必填：兌換是扣錢的動作（理由同 garageRedeem）
+  if (typeof b.requestId !== 'string' || !BOUNTY_REQUEST_ID_RE.test(b.requestId))
+    return jsonRes({ error: 'bad_request_id' }, 400, 'no-store');
+  let chips;
+  try { chips = await bountyChipsRules(env); } catch (e) { return jsonRes({ error: 'not_ready' }, 503, 'no-store'); }
+  const item = typeof b.item === 'string' ? b.item : '';
+  if (itemPrice(item, chips) == null) return jsonRes({ error: 'unknown_item' }, 400, 'no-store');
+  try {
+    const db = env.DELAY_DB;
+    // 身分：兌換是「花」（理由見 garageRedeem），擋在第一次讀寫 D1 之前；有帶 Bearer 時先跑 S0。
+    const idn = await bountyIdentity(request, env, b.actor, 'wallet');
+    if (idn.res) return idn.res;
+    const actor = idn.who;
+    // 🔴 ref 用「解析前」的 b.actor（理由見 garageRedeem 的冪等說明）
+    const ref = `${b.actor}.${b.requestId}`;
+    const now = Number(env.BOUNTY_NOW) || Date.now();
+    const ledgerId = `item|${item}|${ref}`;
+    const priorRedeem = async () => db.prepare("SELECT id, delta, unit FROM chip_ledger WHERE kind='redeem' AND ref=?").bind(ref).first();
+    // 成功的回應（第一次成功與重送共用）：cost 是當初扣的，餘額與清單是現況。
+    const done = async (led) => {
+      // 帳本 id 對不上：這個 requestId 換的是別款、或是拿去換了場景。不當成功回。
+      if (String(led.id) !== ledgerId) return jsonRes({ error: 'conflict' }, 409, 'no-store');
+      const items = await garageItemsOf(db, actor);
+      // 扣過款、這款卻不在清單（帳本列在、車款列沒寫進去）：也不當成功回。
+      if (!items.some(x => x.item === item)) return jsonRes({ error: 'conflict' }, 409, 'no-store');
+      const balance = await pointsBalanceOf(db, actor, chips);
+      return jsonRes({ ok: true, item, cost: -Number(led.delta), balance, items }, 200, 'no-store');
+    };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let led = await priorRedeem();
+      if (led) return await done(led);
+      const owned = (await garageItemsOf(db, actor)).map(x => x.item);
+      const balance = await pointsBalanceOf(db, actor, chips);
+      const can = canCollect(item, owned, balance, chips);
+      if (!can.ok) {
+        if (can.why === 'already') return jsonRes({ error: 'already' }, 409, 'no-store');
+        if (can.why === 'not_enough') return jsonRes({ error: 'not_enough', cost: can.cost, balance }, 409, 'no-store');
+        return jsonRes({ error: 'unknown_item' }, 400, 'no-store');
+      }
+      const cost = can.cost;
+      // 同一筆交易先補 v2 籌碼的換算列（同 garageRedeem）。
+      await db.batch([
+        bountyPointsConvert(db, actor, chips.chipToPoints, now),
+        db.prepare(
+          'INSERT OR IGNORE INTO chip_ledger (id,actor,kind,delta,ref,day,created_at,unit)' +
+          " SELECT ?,?,'redeem',?,?,NULL,?,'point'" +
+          ' WHERE NOT EXISTS (SELECT 1 FROM garage_items WHERE actor=? AND item=?)' +
+          ' AND ' + BOUNTY_POINTS_BALANCE_SQL + ' >= ?'
+        ).bind(ledgerId, actor, -cost, ref, now, actor, item, chips.chipToPoints, actor, cost),
+        db.prepare(
+          'INSERT OR IGNORE INTO garage_items (actor,item,cost,created_at,unit)' +
+          " SELECT ?,?,?,?,'point'" +
+          " WHERE EXISTS (SELECT 1 FROM chip_ledger WHERE id=? AND kind='redeem' AND ref=? AND actor=? AND delta=?)"
+        ).bind(actor, item, cost, now, ledgerId, ref, actor, -cost),
+      ]);
+      led = await priorRedeem();
+      if (led) return await done(led);
+      // 守衛沒過：這一輪讀到的現況在寫入前被別的兌換改掉了。下一輪重讀，可能變成 already／not_enough，也可能這次過。
+    }
+    return jsonRes({ error: 'conflict' }, 409, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'collect_failed' }, 503, 'no-store');
   }
 }
 
@@ -11069,6 +11197,7 @@ export default {
     else if (url.pathname === '/api/bounty-merge') res = await bountyMerge(request, env);
     else if (url.pathname === '/api/chips-me') res = await chipsMe(request, env);
     else if (url.pathname === '/api/garage-redeem') res = await garageRedeem(request, env);
+    else if (url.pathname === '/api/garage-collect') res = await garageCollect(request, env);
     else if (url.pathname === '/api/cloud-ride') res = await cloudRide(request, env);
     else if (url.pathname === '/api/pass-claim') res = await passClaim(request, env);
     else if (url.pathname === '/api/pass-admin') res = await passAdmin(request, env);
@@ -11163,7 +11292,7 @@ export const _accountDelete = { deleteAccountData, deletePlusEntitlement };
 // D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。
 export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoard, isActorId, resolveActor,
   bountyClaim, hasGeoKeys, sanitizeSamples, sanitizeClient, bountySubmit, firebaseUid, bountyMe, bountyMerge, bountyPurgeUid,
-  chipsMe, garageRedeem, cloudRide,
+  chipsMe, garageRedeem, garageCollect, cloudRide,
   bountyMedian, bountyL1, bountyL2, bountyPointsOf, bountyUnlocked, bountyValuationCron,
   assembleTrip, integrityGate, qualityGate, verdictOf, coverageOf, bountyCoverage, bountyKeptSegments, bountyUnionLen, bountyLineMeters, bountyPriorGroups, bountyVerifyCron, bountyResetMemCaches, bountyCounted, BOUNTY_BYTES_PER_ROW, bountyUsableFlags, bountyUsableCron, BOUNTY_USABLE };
 // 純函式導出,供離線回歸測試 import:trtcParse 雙路徑解析(含上游故障回 HTML 錯誤頁、

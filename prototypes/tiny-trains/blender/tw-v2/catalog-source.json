@@ -2940,5 +2940,338 @@
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dr3000",
+  "name": "DR3000・柴聯自強",
+  "label": "DR3000",
+  "detail": "車頂中央雙頭燈 · 黃橘警戒車頭 · 大小窗交錯",
+  "color": "#dd8751",
+  "source": "https://commons.wikimedia.org/wiki/File:DR3000%E5%9E%8B%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7%E8%99%9F.jpg",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／臺灣鐵路管理局（Attribution）",
+    "url": "https://commons.wikimedia.org/wiki/File:DR3000%E5%9E%8B%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7%E8%99%9F.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Cheng-en Cheng（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR3024_at_Platform_3B,_Changhua_Station_20210419.jpg"
+   }
+  ],
+  "features": [
+   "黃色車頭、上緣橘色；雙頭燈在車頂中央的黑色燈座，燈座後面是車頂的引擎冷卻器罩；兩側黑框前窗，中央貫通門是灰色凸框。",
+   "窗下橘帶接往中央下斜的橘色斜紋，內側隔一道黃色斜帶、再往內到門框是橘色；上緣兩塊高壓警示牌，黃圈紅尾燈內側是標識燈掛架，下緣黃黑警戒條。",
+   "不鏽鋼車身加縱向壓紋，窗上黃細線、窗下橘帶，大小窗交錯；駕駛室後是緊急逃生門、車尾一扇滑塞式電動門，車身中段上方是 LED 終點顯示器。三輛一組，中間是兩端開門的 DR3070 電源拖車。"
+  ],
+  "photos": [
+   {
+    "file": "File:DR3000型柴聯自強號.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:DR3000%E5%9E%8B%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7%E8%99%9F.jpg",
+    "author": "臺灣鐵路管理局",
+    "licence": "Attribution",
+    "use": "車頭正面（車頂頭燈座、前窗、貫通門框、斜紋、尾燈與標識燈掛架高度）"
+   },
+   {
+    "file": "File:Mitsubishi Delica and TRA DR3000 20110707.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Mitsubishi_Delica_and_TRA_DR3000_20110707.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "車頭正面（車頂冷卻器罩的寬度與高度、黃黑警戒條）"
+   },
+   {
+    "file": "File:TRA DR3024 at Platform 3B, Changhua Station 20210419.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR3024_at_Platform_3B,_Changhua_Station_20210419.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "車側色帶、車尾上下車門旁的小窗"
+   },
+   {
+    "file": "File:TRA DR3000 auto doors closed at Taipei Station 20110701.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR3000_auto_doors_closed_at_Taipei_Station_20110701.jpg",
+    "author": "Solomon203",
+    "licence": "CC BY-SA 3.0",
+    "use": "車端滑塞門、窗上黃線與窗下橘帶、縱向壓紋"
+   },
+   {
+    "file": "File:TRA DR3070 interior 20130616.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR3070_interior_20130616.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 3.0",
+    "use": "車窗大小交錯的順序"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "ct250",
+  "name": "CT250・C55 蒸汽機車",
+  "label": "CT250",
+  "detail": "輻條動輪 · 汽包砂箱一體罩 · 大型導煙板",
+  "color": "#4a5052",
+  "source": "https://commons.wikimedia.org/wiki/File:%E8%87%BA%E9%90%B5CT251_%E5%89%8D%E9%9D%A2.jpg",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Pbdragonwang（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%87%BA%E9%90%B5CT251_%E5%89%8D%E9%9D%A2.jpg"
+   },
+   {
+    "label": "Wikimedia Commons（CC0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Rear_Right_View_of_TRA_CT259_in_Takao_Railway_Museum_20151129.jpg"
+   }
+  ],
+  "features": [
+   "日本 C55 形，1935、1938 年引進九輛，跑西部幹線客運，1979 年縱貫線電氣化後逐漸停用、1982 年報廢：前方兩軸先輪、三組 1,750 mm 大動輪、一軸從輪；動輪是輻條輪，根部有「水かき」補強，輪箍外緣白線。",
+   "煙箱上方前燈、煙箱門上緣紅色車號牌；汽包和砂箱同一個長圓罩；兩側大型導煙板的下緣跟著步道往下彎到前端甲板，甲板上橫放給水溫水器。",
+   "紅色主連桿與連結桿、華氏閥動裝置；圓拱頂駕駛室兩側各兩扇窗；煤水車前段煤堆、後段注水口，兩組兩軸轉向架，後端梯子、前燈與紅色標識燈。"
+  ],
+  "photos": [
+   {
+    "file": "File:臺鐵CT251 前面.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%87%BA%E9%90%B5CT251_%E5%89%8D%E9%9D%A2.jpg",
+    "author": "Pbdragonwang",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面（煙箱上方前燈、煙箱門紅色車號牌、導煙板、甲板上的給水溫水器、排障器）"
+   },
+   {
+    "file": "File:臺鐵CT251 後面.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%87%BA%E9%90%B5CT251_%E5%BE%8C%E9%9D%A2.jpg",
+    "author": "Pbdragonwang",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜後方（煤水車側板與上緣、駕駛室側窗與紅牌）"
+   },
+   {
+    "file": "File:打狗鐵道故事館CT259.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%89%93%E7%8B%97%E9%90%B5%E9%81%93%E6%95%85%E4%BA%8B%E9%A4%A8CT259.jpg",
+    "author": "Ahph",
+    "licence": "CC BY-SA 3.0",
+    "use": "斜前方（步道外緣白線與往下彎的前段、導煙板下緣、汽包砂箱一體罩、輪箍白線）"
+   },
+   {
+    "file": "File:Detail of TRA CT259 2013-10-17.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Detail_of_TRA_CT259_2013-10-17.jpg",
+    "author": "MiNe",
+    "licence": "CC BY 2.0",
+    "use": "動輪輻條與配重、紅色主連桿與連結桿、步道下的主空氣筒"
+   },
+   {
+    "file": "File:Rear Right View of TRA CT259 in Takao Railway Museum 20151129.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Rear_Right_View_of_TRA_CT259_in_Takao_Railway_Museum_20151129.jpg",
+    "author": "玄史生",
+    "licence": "CC0",
+    "use": "側面全長（汽包位置、駕駛室窗、煤水車長度與兩組轉向架）"
+   },
+   {
+    "file": "File:TRA CT259 at the Takao Railway Museum 2020-03-06.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_CT259_at_the_Takao_Railway_Museum_2020-03-06.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "煤水車後端（梯子、上方前燈、標識燈、車號牌）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "fuxing",
+  "name": "復興號・客車",
+  "label": "復興號",
+  "detail": "天藍下半 · 白色窗帶 · 一端車門一端冷氣機室",
+  "color": "#2b7cc4",
+  "source": "https://commons.wikimedia.org/wiki/File:TRA_40SP20073T_at_Chiayi_Station_20191011.jpg",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Kazehayashi（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_40SP20073T_at_Chiayi_Station_20191011.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Foxy Who（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%BD%AE%E5%B7%9E%E8%BB%8A%E7%AB%992B%E6%9C%88%E5%8F%B0_%E5%BE%A9%E8%88%88%E8%99%9F_20130801.jpg"
+   }
+  ],
+  "features": [
+   "唐榮鐵工廠 1980 年起造的 20000 型冷氣對號車，1981 年定名復興號，用到 2022 年退役：車體設計同莒光號，座位比莒光號多、窗跟座位沒有對齊。",
+   "1985 年起漆天藍與白色（原本跟莒光號同色、多一道白線）：下半天藍、窗帶以上白色；兩端整段天藍，白色帶在兩端前結束、上角圓角。",
+   "「落地冷氣式單端門」：一端一扇兩片窗的車門，另一端是冷氣機室、車側兩片百葉，車頂沒有冷氣機；一扇小窗加六扇等距大窗，兩端是貫通道端牆。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA 40SP20073T at Chiayi Station 20191011.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_40SP20073T_at_Chiayi_Station_20191011.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側面（兩端、窗的順序與寬窄、白色帶收邊）"
+   },
+   {
+    "file": "File:40SPK21008T, Fu-Hsing Semi Express.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:40SPK21008T,_Fu-Hsing_Semi_Express.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "冷氣機室的車側百葉（附車長室的 21000 型）"
+   },
+   {
+    "file": "File:潮州車站2B月台 復興號 20130801.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%BD%AE%E5%B7%9E%E8%BB%8A%E7%AB%992B%E6%9C%88%E5%8F%B0_%E5%BE%A9%E8%88%88%E8%99%9F_20130801.jpg",
+    "author": "Foxy Who",
+    "licence": "CC BY-SA 3.0",
+    "use": "近照（窗下緣到色界的距離、窗框）"
+   },
+   {
+    "file": "File:CK124 with Fu-Hsing Semi Express.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:CK124_with_Fu-Hsing_Semi_Express.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "編組（端牆顏色）"
+   },
+   {
+    "file": "File:TRA E409 leading a Fu-Hsing Semi-Express on the Yilan Line.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E409_leading_a_Fu-Hsing_Semi-Express_on_the_Yilan_Line.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "2022 年退役前的編組"
+   },
+   {
+    "file": "File:35SPK21202.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:35SPK21202.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "1985 年型（兩端車門、車頂冷氣）對照，這版做 20000 型"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu300",
+  "name": "EMU300 義大利製自強號",
+  "label": "EMU300",
+  "detail": "琥珀黃斜面車頭 · 乳黃與橘褐雙色車身 · 駕駛室後米灰色塊",
+  "color": "#f0b22a",
+  "source": "https://commons.wikimedia.org/wiki/File:TRA_EMU300_50EMC301.jpg",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU300_50EMC301.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Cheng-en Cheng（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU300_approaching_Xizhi_Station_20191201.jpg"
+   }
+  ],
+  "features": [
+   "義大利 Socimi 1988–89 年製造，三節一組共 8 組 24 節（兩節駕駛馬達車夾一節受電弓拖車），1989 年 9 月起當自強號營運，2021 年 11 月停駛；國家鐵道博物館保存 EMC307。",
+   "外型像 EMU200 但比較方正、車頭比較斜：琥珀黃車頭上下緣橘紅、中間一條往中央下斜的橘紅帶，中央黑色凸框裡是琥珀黃貫通門；車側乳黃上半、橘褐下半，駕駛室後一塊米灰色塊。",
+   "2008–2012 年手動摺疊門換成單階滑塞門、車側顯示器移到車身中段；駕駛馬達車只有車尾一組上下車門，駕駛室後是緊急安全門。車頂兩端電阻器、中間兩台冷氣，受電弓在中間的拖車（車庫的中間車是駕駛車後半鏡射，沒有受電弓）。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EMU300 50EMC301.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU300_50EMC301.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "駕駛馬達車車側（窗序、安全門、進氣口、米灰色塊）"
+   },
+   {
+    "file": "File:TRA EMU301 at Changhua Station 20130806.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU301_at_Changhua_Station_20130806.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "斜側（車頭與駕駛室側面的色帶）"
+   },
+   {
+    "file": "File:TRA EMU300 approaching Xizhi Station 20191201.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU300_approaching_Xizhi_Station_20191201.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "正面（斜帶、貫通門、頭燈與下緣燈）"
+   },
+   {
+    "file": "File:TRA 50EMC307.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_50EMC307.jpg",
+    "author": "鐵路1",
+    "licence": "CC BY-SA 4.0",
+    "use": "動力車進氣口"
+   },
+   {
+    "file": "File:LED monitor outside of TRA EMU300 with auto doors.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:LED_monitor_outside_of_TRA_EMU300_with_auto_doors.jpg",
+    "author": "Solomon203",
+    "licence": "CC BY 3.0",
+    "use": "改裝後的滑塞門與車側 LED 顯示器"
+   },
+   {
+    "file": "File:TRA EMU300 45EP301.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU300_45EP301.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "中間的受電弓拖車（這版沒做）"
+   },
+   {
+    "file": "File:TRA ED104 EMC307 at the National Railway Museum Taiwan 20250914.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_ED104_EMC307_at_the_National_Railway_Museum_Taiwan_20250914.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "國家鐵道博物館保存車"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "tengyun",
+  "name": "騰雲號・1887 年蒸汽機車",
+  "label": "騰雲號",
+  "detail": "鑽石形大漏斗煙囪 · 兩軸四輪水櫃式 · 紅色緩衝梁與長緩衝器",
+  "color": "#c42420",
+  "source": "https://commons.wikimedia.org/wiki/File:1887_Hohenzollern_0-4-0_%E2%80%98No1%E2%80%99_%E2%80%9CTeng-Yung%E2%80%9D_at_the_National_Taiwan_Museum_in_Taipei._04-03-2026_(55236084362).jpg",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Alan Wilson（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:1887_Hohenzollern_0-4-0_%E2%80%98No1%E2%80%99_%E2%80%9CTeng-Yung%E2%80%9D_at_the_National_Taiwan_Museum_in_Taipei._04-03-2026_(55236084362).jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Dquai（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_1_circa_late_1990s.jpg"
+   }
+  ],
+  "features": [
+   "德國 Hohenzollern 1887 年製，1888 年跟御風號一起運到台灣，是劉銘傳興建台北—基隆鐵路時買的機車；1891 年起跑基隆—台北，多半拉貨物與調車，1924 年退役後保存在台北新公園（今二二八和平紀念公園），現在在國立臺灣博物館前的展示亭。",
+   "兩軸四輪（0-4-0T）水櫃式：沒有煤水車，駕駛室前面兩側是小水櫃；出廠時是直筒煙囪，1906 年為了收集火星改成上端大漏斗的鑽石形煙囪，之後一直是這個樣子；煙箱頂側邊一盞油燈式前燈，步道前端兩角各一盞標識燈。",
+   "黑色車身、紅色前後緩衝梁，兩端各兩個長緩衝器加鉤頭與鏈條；彈簧秤式安全閥在煙囪後面，駕駛室圓弧頂、前後各兩扇方窗、側面拱形出入口；水櫃側面兩塊紅牌（這版不放字）。車庫裡跟其他蒸機一樣後面掛兩節藍皮客車。"
+  ],
+  "photos": [
+   {
+    "file": "File:1887 Hohenzollern 0-4-0 ‘No1’ “Teng-Yung” at the National Taiwan Museum in Taipei. 04-03-2026 (55236084362).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:1887_Hohenzollern_0-4-0_%E2%80%98No1%E2%80%99_%E2%80%9CTeng-Yung%E2%80%9D_at_the_National_Taiwan_Museum_in_Taipei._04-03-2026_(55236084362).jpg",
+    "author": "Alan Wilson",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜前方（鑽石形煙囪、油燈式前燈、彈簧秤式安全閥、紅色緩衝梁與長緩衝器、駕駛室與水櫃）"
+   },
+   {
+    "file": "File:TRA 1 circa late 1990s.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_1_circa_late_1990s.jpg",
+    "author": "Dquai",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面（煙箱門與把手輪、緩衝梁鉚釘、前端扶手、鉤頭與鏈條）"
+   },
+   {
+    "file": "File:Teng-Yung locomotive in Taipei Railway Workshop 1999-01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Teng-Yung_locomotive_in_Taipei_Railway_Workshop_1999-01.jpg",
+    "author": "Winertai",
+    "licence": "CC BY-SA 3.0",
+    "use": "1999 年台北機廠整修時（還沒上漆，看得出鍋爐、水櫃、汽缸與連桿）"
+   },
+   {
+    "file": "File:The Steam Locomotive No.1 of Taiwan Railway plaque 20171207.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:The_Steam_Locomotive_No.1_of_Taiwan_Railway_plaque_20171207.jpg",
+    "author": "Gary Lee Todd",
+    "licence": "CC0",
+    "use": "說明牌上 1920 年代行駛中的照片（整台側面比例）"
+   },
+   {
+    "file": "File:Replica Victor Type Steam Locomotive.JPG",
+    "url": "https://commons.wikimedia.org/wiki/File:Replica_Victor_Type_Steam_Locomotive.JPG",
+    "author": "SSR2000",
+    "licence": "CC BY-SA 3.0",
+    "use": "東勢的仿製車（水櫃與駕駛室的相對位置；顏色不同）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
  }
 ]

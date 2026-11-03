@@ -1,9 +1,9 @@
 import * as THREE from '../../rail-3d/vendor/three.module.js';
 import {createScene,THEMES} from '../../rail-3d/garage-scenes/south-coast.js';
-import {loadGarageModel,createConsist} from '../../rail-3d/garage-model.js';
+import {loadGarageModel,createConsist,loadGarageParts} from '../../rail-3d/garage-model.js';
 const canvas=document.querySelector('#scene'),loading=document.querySelector('#loading');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-let renderer,environment,primary,train,coast,raf=0,last=0,time=0,distance=0,period='day',view=matchMedia('(max-width:800px)').matches?'train':'world',running=!reduced.matches,zoom=1,span=1,yaw=-1.14,elevation=.65,disposed=false,ready=false,draws=0;
+let renderer,kits=[],environment,primary,train,coast,raf=0,last=0,time=0,distance=0,period='day',view=matchMedia('(max-width:800px)').matches?'train':'world',running=!reduced.matches,zoom=1,span=1,yaw=-1.14,elevation=.65,disposed=false,ready=false,draws=0;
 const scene=new THREE.Scene(),camera=new THREE.OrthographicCamera(-40,40,30,-30,.1,400);camera.up.set(0,0,1);
 const focus=new THREE.Vector3(),pan=new THREE.Vector3(),target=new THREE.Vector3(),sun=new THREE.DirectionalLight('#fff1cf',3.2),hemi=new THREE.HemisphereLight('#c1dce7','#7b8663',2.1);
 sun.position.set(-25,-30,45);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-42,right:42,top:35,bottom:-35,near:1,far:140});sun.shadow.normalBias=.035;sun.shadow.bias=-.0001;scene.add(sun,hemi,sun.target);
@@ -43,13 +43,15 @@ canvas.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','-'
 const observer=new ResizeObserver(resize);observer.observe(canvas);
 document.addEventListener('visibilitychange',()=>{last=0;if(document.hidden){cancelAnimationFrame(raf);raf=0;}else schedule();});
 reduced.addEventListener('change',()=>{if(reduced.matches){running=false;controls();schedule();}});
-function dispose(){if(disposed)return;disposed=true;ready=false;cancelAnimationFrame(raf);observer.disconnect();train?.dispose();primary?.dispose();coast?.dispose();environment?.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();renderer?.dispose();}
+function dispose(){if(disposed)return;disposed=true;ready=false;cancelAnimationFrame(raf);observer.disconnect();train?.dispose();primary?.dispose();coast?.dispose();kits.forEach(k=>k.dispose());environment?.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();renderer?.dispose();}
 window.addEventListener('pagehide',dispose);window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 try{
  renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();dispose();loading.hidden=false;loading.replaceChildren(document.createTextNode('畫面暫時中斷，請重新開啟場景。'));const b=document.createElement('button');b.textContent='重新開啟';b.onclick=()=>location.reload();loading.append(b);});
  const studio=new THREE.Scene();studio.background=new THREE.Color('#9dafb0');const pmrem=new THREE.PMREMGenerator(renderer);environment=pmrem.fromScene(studio,.1);scene.environment=environment.texture;pmrem.dispose();
- coast=createScene();scene.add(coast.group);primary=await loadGarageModel('blue');if(disposed){primary.dispose();throw Error('disposed');}train=await createConsist('blue',primary);if(disposed){train.dispose();throw Error('disposed');}scene.add(train.root);train.root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+ // 場景的樹、雲、棕櫚、站房是 Blender 零件庫，要先載好再交給 createScene。
+     kits=await Promise.all(['garage-palms-v1/palms','garage-coast-v1/station'].map(n=>loadGarageParts(new URL(`../../rail-3d/assets/${n}.json`,import.meta.url))));if(disposed){kits.forEach(k=>k.dispose());throw Error('disposed');}
+     coast=createScene(...kits);scene.add(coast.group);primary=await loadGarageModel('blue');if(disposed){primary.dispose();throw Error('disposed');}train=await createConsist('blue',primary);if(disposed){train.dispose();throw Error('disposed');}scene.add(train.root);train.root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
  ready=true;loading.hidden=true;setView(view);setTheme(period);controls();resize();draw();schedule();
  window.southCoastPreview={
   get state(){return{ready,period,view,running,pan:{x:pan.x,y:pan.y},distance,time,zoom,draws,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},poses:train.cars.map(c=>({id:c.id,x:c.car.position.x,y:c.car.position.y,z:c.car.position.z,heading:c.heading})),pathLength:coast.path.length, bounds:train.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),ps=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const q=new THREE.Vector3(x,y,z).project(camera);ps.push([(q.x+1)*canvas.width/2,(1-q.y)*canvas.height/2]);}return{left:Math.min(...ps.map(p=>p[0])),right:Math.max(...ps.map(p=>p[0])),top:Math.min(...ps.map(p=>p[1])),bottom:Math.max(...ps.map(p=>p[1]))};})};},

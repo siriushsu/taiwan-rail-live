@@ -123,7 +123,7 @@ def c381(s):
  for side in [-1,1]:
   lamp_pair(f,side*.88,1.62,True,r=.056,gap=.24,hw=.52,hh=.22)
   lamp_color('上部琥珀標識燈',f,side*.80,H-.29,.032,'amber')
- lamp_color('上部中央紅色標識燈',f,-.08,H-.24,.034,'red')
+ lamp_color('上部中央紅色標識燈',f,-.08,H-.24,.034,'taillamp')
  for y in [-.89,.78]:wiper(f,y,2.05,.60)
  front_panel('深灰防爬器',f,0,1.25,W-.30,.12,'chassis',.04,.10)
  return f
@@ -540,7 +540,7 @@ def t700(s):
   pts=[(xc,yc)]+[(xc+rx*math.cos(2*math.pi*k/20),yc+ry*math.sin(2*math.pi*k/20)) for k in range(20)]
   return mesh(name,[(x,y,top_z(x,y)+off) for x,y in pts],[(0,1+k,1+(k+1)%20) for k in range(20)],material,0,True)
  use('03')
- for side in [-1,1]:top_disc('頭燈',3.50,side*.22,.05,.09,'lamp',.006);top_disc('尾燈',3.50,side*.38,.04,.06,'red',.006)
+ for side in [-1,1]:top_disc('頭燈',3.50,side*.22,.05,.09,'lamp',.006);top_disc('尾燈',3.50,side*.38,.04,.06,'taillamp',.006)
  # 鼻蓋分模線：x=4.0 那一圈斷面，橘色下緣以上
  pts=loaf(*shape(4.0),8,12);seam=[]
  for i,(y,z) in enumerate(pts):
@@ -763,17 +763,19 @@ def slant(f,side,top,width,slope,z0,z1,u0,material,name='橘色警戒斜紋'):
 def dmu_face(s,f,k):
  """DR3100／DR1000 的車頭。k 是各款照片量到的位置：win=(|y| 內緣, 外緣, 下緣, 上緣)、glass 玻璃上緣、lampZ 頭燈高、
  gang=(外框寬, 外框高下緣, 上緣, 外框材質)、door=(寬, 下緣, 上緣)、dwin=(寬, 下緣, 上緣)、tail=(|y|, z, 黃圈半徑)、stripes=[(外緣 |y|, 寬), ...]、slope、sz=(z0, z1)、
- band=(窗下橘帶下緣, 上緣, |y| 內緣)、hv=(高壓警示牌中心 |y|, 下緣, 上緣, 寬)。"""
+ band=(窗下橘帶下緣, 上緣, |y| 內緣)、hv=(高壓警示牌中心 |y|, 下緣, 上緣, 寬)。
+ 頭燈不在窗框上緣的（DR3000 在車頂中央）不給 lampZ；hook=(|y|, z) 是標識燈掛架位置，預設在尾燈正上方 1.61。"""
  W,H=s['W'],s['H'];a,b,z0,z1=k['win'];yc=(a+b)/2;w=b-a;g=k['gang'][0]/2
  for side in [-1,1]:
   front_panel('前窗黑框',f,side*yc,(z0+z1)/2,w,z1-z0,'frame',.09,.030)
   front_panel('前窗玻璃',f,side*yc,(z0+.06+k['glass'])/2,w-.08,k['glass']-z0-.06,'glass',.07,.042)
-  lamp('窗框上緣頭燈',f,side*yc,k['lampZ'],.080);wiper(f,side*(yc+.10),z0+.10,.55)
+  if k.get('lampZ'):lamp('窗框上緣頭燈',f,side*yc,k['lampZ'],.080)
+  wiper(f,side*(yc+.10),z0+.10,.55)
   for top,width in k['stripes']:slant(f,side,top,width,k['slope'],*k['sz'],g-.02,'dorange')
   ty,tz,tr=k['tail']
   front_panel('尾燈黃色燈圈',f,side*ty,tz,2*tr,2*tr,'dyellow',tr,.036);lamp('尾燈',f,side*ty,tz,.065,red=True)
   box('尾燈遮簷',(f(side*ty,tz+tr+.03)+.07,side*ty,tz+tr+.03),(.14,2*tr-.04,.024),'dyellow',.006)
-  box('標識燈掛架',(f(side*ty,1.61)+.05,side*ty,1.61),(.08,.07,.11),'dyellow',.012)
+  hy,hz=k.get('hook',(ty,1.61));box('標識燈掛架',(f(side*hy,hz)+.05,side*hy,hz),(.08,.07,.11),'dyellow',.012)
   line('貫通門扶手',[(f(side*(g+.07),1.25)+.10,side*(g+.07),1.25),(f(side*(g+.07),2.60)+.10,side*(g+.07),2.60)],.016,'metal')
  if k.get('band'):
   lo,hi,u=k['band']
@@ -1087,7 +1089,7 @@ def sanying(s):
  front_patch('燈眉下深色凹槽',f,-1.0,1.0,lo,bar_lo,'sdark',.030,cols=32,rows=4)
  for side in [-1,1]:
   # 燈眉兩端的 LED：上排白、下排紅
-  for y,dz,m in [(1.22,.06,'lamp'),(1.14,.05,'lamp'),(1.06,.04,'lamp'),(1.18,-.02,'red'),(1.10,-.03,'red')]:
+  for y,dz,m in [(1.22,.06,'lamp'),(1.14,.05,'lamp'),(1.06,.04,'lamp'),(1.18,-.02,'taillamp'),(1.10,-.03,'taillamp')]:
    lamp_color('LED 頭尾燈',f,side*y,bar_lo(y)+.10+dz,.026,m)
   front_panel('百葉格柵底槽',f,side*.98,1.095,.40,.33,'frame',.03,.030)
   for k in range(6):front_panel('格柵百葉',f,side*.98,.97+k*.05,.36,.020,'sgun',.005,.036)
@@ -1720,13 +1722,15 @@ def dhl100(s):
 
 # ── 客車：莒光號、鳴日號（FPK10600 系，鳴日號是改造車）與藍皮解憂復古客車 ─────────────────────────────
 # 三款都跟機車一起編組，顏色用機車那批的材質：莒光號的橘色同 GE 機車（georange），鳴日號同鳴日號機車（mblack、morange），藍皮客車同藍皮 R135（hood_colours('blue')）。
-# 客車沒有駕駛室，不放 lamp 材質（fleet-v1 三款也沒有；verify_garage_facing 對沒有 lamp 的車不判車頭端）；藍皮客車端牆的尾燈用 red。
+# 客車沒有駕駛室，不放 lamp 材質（fleet-v1 三款也沒有；verify_garage_facing 對沒有 lamp 的車不判車頭端）。
+# 客車兩端的紅色尾燈用 taillamp：夜裡排在編組尾端時發紅光（App 車庫與網頁海岸行旅的車燈都認這個材質），排在中間或車頭端不亮。
 
-def fpk_coach(s,zones,windows,win,door,door_bands,lower,end,end_low=None,vest=None,sign=None):
- """莒光號 FPK10600 系客車車體（莒光號、鳴日號客車共用）：平頭、兩端各一扇有窗的單開門，門區車身往下延伸包住踏階（照片上門區下緣比車身低）；
+def fpk_coach(s,zones,windows,win,door,door_bands,lower,end,end_low=None,vest=None,sign=None,doors=(-1,1),door_win=None,roof_ac=True):
+ """莒光號 FPK10600 系客車車體（莒光號、鳴日號、復興號客車共用）：平頭、兩端各一扇有窗的單開門，門區車身往下延伸包住踏階（照片上門區下緣比車身低）；
  窗照正側面照的順序與寬窄放，兩側同位置；車頂兩端各一台冷氣（fleet-v1 放在中段兩台不對）。
  zones：車側分區（由下往上）；windows：[(x, 寬, 窗框材質), ...]；win：(窗下緣, 上緣)；door：門扇底色、door_bands：門扇色帶 [(z0, z1, 材質)]；
- lower：門區裙板顏色；end：端牆顏色、end_low：(端牆下半材質, 上緣)；vest：門區上半另塗 (材質, 下緣, 上緣, 內側上角圓角)；sign：側面目的地顯示器 (x, z)。"""
+ lower：門區裙板顏色；end：端牆顏色、end_low：(端牆下半材質, 上緣)；vest：門區上半另塗 (材質, 下緣, 上緣, 內側上角圓角)；sign：側面目的地顯示器 (x, z)；
+ doors：哪幾端有門（-1、1）；door_win：門窗 [(離門中心的 x, 寬, 中心高, 高), ...]，None 是一扇居中的門窗；roof_ac：車頂兩端的冷氣。"""
  L,W,H=s['L'],s['W'],s['H'];color('fpkac','A9B0B3',.40,.40,.08)
  f,neck=zoned_shell(s,[(.83,L/2),(H,L/2)],0,zones,zones)
  dw=s['doorW'];lw=dw-.022;z0,z1=win;zc=(z0+z1)/2;xd=L/2-.62;xv=L/2-1.05
@@ -1743,17 +1747,22 @@ def fpk_coach(s,zones,windows,win,door,door_bands,lower,end,end_low=None,vest=No
     side_paint('門區上半',s,f,side,gs,a,b,za,zb,m,step=.05)
   if sign:use('02');panel('側面目的地顯示器',(sign[0],y,sign[1]),.36,.14,'frame',r=.02)
   for i,x in enumerate([-xd,xd]):
+   if (1 if x>0 else -1) not in doors:continue
    use('02');cz=(.60+2.80)/2;h=2.20
    panel('側門門框',(x,y,cz),dw+.05,h+.03,'frame',r=.03)
    d=panel('獨立門扇',(x,y+side*.023,cz),lw,h,door,r=.025,depth=.024)
    d['side_door']=True;d['door_group']=i+1;d['side']=side;d['leaf']=0
    for za,zb,m in door_bands:box('門扇色帶',(x,y+side*.041,(za+zb)/2),(lw,.011,zb-za),m,.002)
-   panel('門窗嵌框',(x,y+side*.052,zc+.04),.30,z1-z0+.14,'frame',r=.05)
-   panel('門窗玻璃',(x,y+side*.066,zc+.04),.25,z1-z0+.08,'glass',r=.045,depth=.012)
+   if door_win is None:
+    panel('門窗嵌框',(x,y+side*.052,zc+.04),.30,z1-z0+.14,'frame',r=.05)
+    panel('門窗玻璃',(x,y+side*.066,zc+.04),.25,z1-z0+.08,'glass',r=.045,depth=.012)
+   for dx,ww,c,hh in door_win or []:
+    panel('門窗嵌框',(x+dx,y+side*.052,c),ww+.05,hh+.06,'frame',r=.045)
+    panel('門窗玻璃',(x+dx,y+side*.066,c),ww,hh,'glass',r=.04,depth=.012)
    for xx in [x-dw/2-.07,x+dw/2+.07]:rod('門邊扶手',(xx,y+side*.03,1.05),(xx,y+side*.03,1.85),.014,'metal')
    use('01');box('門區裙板',(math.copysign(L/2-.575,x),side*(W/2-.03),.71),(1.15,.06,.26),lower,.01)
  use('05')
- for x in [-3.40,3.40]:
+ for x in [-3.40,3.40] if roof_ac else []:
   box('冷氣機罩',(x,0,H+.11),(1.30,W*.64,.26),'fpkac',.08)
   for k in range(7):box('冷氣罩頂部格柵',(x-.51+k*.17,0,H+.245),(.035,W*.46,.01),'chassis',0)
   for sd in [-1,1]:grille('冷氣側格柵',x,sd*W*.32,H+.10,.95,.12,True,5)
@@ -1762,6 +1771,11 @@ def fpk_coach(s,zones,windows,win,door,door_bands,lower,end,end_low=None,vest=No
   if end_low:use('07');panel('端牆下半',(e*(L/2+.014),0,(.83+end_low[1])/2),W-.08,end_low[1]-.83,end_low[0],'front',r=.01,depth=.008)
   use('07');panel('客車端牆貫通門',(e*(L/2+.018),0,2.0),.72,1.70,'chassis','front',r=.065)
   panel('端門玻璃',(e*(L/2+.042),0,2.46),.45,.65,'glass','front',r=.04)
+  # 端牆下角一對紅色尾燈，避開中央貫通門與風擋；位置、尺寸同藍皮客車（同為台鐵客車端牆的尾燈）
+  use('03')
+  for sd in [-1,1]:
+   cyl('客車尾燈座',(e*(L/2+.040),sd*.94,1.21),.095,.045,'frame','X',24)
+   cyl('客車尾燈紅透鏡',(e*(L/2+.066),sd*.94,1.21),.070,.017,'taillamp','X',24)
   coupler(e*(L/2+.025),W,e,z=.58,gangway=True)
  bogies(L,W,r=.39)
 
@@ -1861,7 +1875,7 @@ def bluecoach(s):
   use('03')
   for sd in [-1,1]:
    cyl('客車尾燈座',(x+e*.03,sd*.94,1.21),.095,.045,'frame','X',24)
-   cyl('客車尾燈紅透鏡',(x+e*.056,sd*.94,1.21),.070,.017,'red','X',24)
+   cyl('客車尾燈紅透鏡',(x+e*.056,sd*.94,1.21),.070,.017,'taillamp','X',24)
   coupler(e*(end+.10),W,e,z=.56)
  bogies(L,W,r=.39)
  use('05')
@@ -2077,6 +2091,8 @@ def alicoach(s):
   box('端門門縫',(x+.030,-.25,2.58),(.010,.56,.014),'hdblack',0)
   panel('端門窗框',(x+.030,-.25,2.18),.36,.56,'hdblack','front',r=.04,depth=.010);panel('端門窗玻璃',(x+.038,-.25,2.18),.30,.50,'glass','front',r=.03,depth=.010)
   panel('端窗窗框',(x+.030,.48,2.18),.42,.56,'hdblack','front',r=.04,depth=.010);panel('端窗玻璃',(x+.038,.48,2.18),.36,.50,'glass','front',r=.03,depth=.010)
+  # 端面下半兩角、奶油色 V 字下方一對鍍鉻圈尾燈（北門機務段那張端面照）
+  for sd in [-1,1]:lamp('客車尾燈',lambda yy,zz:x-.05,sd*.78,1.32,.055,red=True)
   coupler(x+.025,W,1,z=.62)
   if e<0:to_rear(list(p.MODEL[head:]))
  bogies(L,W,r=.33)
@@ -2101,7 +2117,7 @@ def hinoki(s):
  """檜木列車（木造客車）。參考：Commons「Alishan cypress train.jpg」（邰秉宥，CC BY-SA 2.0，正側面）、「Cypress railroad car.JPG」（Shoichi，CC BY-SA 3.0，車端與端平台）、
  「Tourist train of Alishan Forest Railway at Chiayi Station 2006-10-07 03.jpg」（Cheng-en Cheng，CC BY-SA 2.0）。
  金黃色上漆檜木車身、窗下直條木板、窗台腰板與窗上飾條；每側十扇小窗（深色木窗框）；淺灰拱頂延伸蓋住兩端開放式平台；
- 端平台黑色欄杆與花格板、中央開口、側面上車踏階；端牆中央門、兩側小窗、上方三顆圓燈（客車不放 lamp，用不發光鏡片）。顏色照正側面照取中位數。"""
+ 端平台黑色欄杆與花格板、中央開口、側面上車踏階；端牆中央門、兩側小窗、上方三顆圓燈（客車不放 lamp，用不發光鏡片）；端梁兩角紅色尾燈。顏色照正側面照取中位數。"""
  L,W,H=s['L'],s['W'],s['H'];afr_colours()
  color('hkwood','BF7518',.04,.32,.30);color('hkdark','8A4E12',.04,.36,.24);color('hkroof','CFCCC4',.30,.42,.10);color('hkrail','2B2725',.30,.40,.12)
  gut=2.72;xb=L/2-.42
@@ -2122,6 +2138,7 @@ def hinoki(s):
   panel('端牆小窗框',(x+.010,sd*.70,2.12),.36,.58,'hkdark','front',r=.03,depth=.012);panel('端牆小窗玻璃',(x+.018,sd*.70,2.12),.28,.50,'glass','front',r=.02,depth=.010)
  for y,z in [(0,2.70),(-.78,2.58),(.78,2.58)]:lamp_color('端牆圓燈',lambda yy,zz:x-.07,y,z,.06,'hdlens')
  use('04');box('端平台地板',((xb+L/2)/2,0,.98),(L/2-xb,W-.10,.08),'hkdark',.01);box('端平台端梁',(L/2-.04,0,.86),(.08,W-.12,.18),'hkrail',.01)
+ for sd in [-1,1]:lamp('端梁尾燈',lambda yy,zz:L/2-.07,sd*(W/2-.16),.86,.032,red=True)  # 車端照片：端梁兩角各一顆紅色小燈
  use('07')
  for sd in [-1,1]:
   yo=sd*(W/2-.07)
@@ -2300,7 +2317,7 @@ def trsc_face(ss,f):
  for sd in [-1,1]:
   front_panel('燈組燈座',f,sd*.60,1.04,.40,.20,'frame',.08,.030)
   lamp('頭燈',lambda y,z:f(y,z)-.09,sd*.50,1.07,.040);lamp('尾燈',lambda y,z:f(y,z)-.09,sd*.64,1.07,.034,red=True)
-  front_panel('尾燈 LED 列',f,sd*.59,.97,.26,.025,'red',.01,.036)
+  front_panel('尾燈 LED 列',f,sd*.59,.97,.26,.025,'taillamp',.01,.036)
   lamp('下巴小燈',lambda y,z:f(y,z)-.10,sd*.58,.71,.026);lamp('下巴紅燈',lambda y,z:f(y,z)-.10,sd*.58,.47,.026,red=True)
   use('03');box('車頂角攝影機',(f(sd*W/2,2.75)-.06,sd*(W/2+.04),2.75),(.14,.08,.16),'tblack',.03)
  wiper(lambda y,z:f(y,z)-.09,.30,1.36,.80)
