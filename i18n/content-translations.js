@@ -4651,6 +4651,13 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '重試': 'Retry',
   '重試儲存': 'Retry saving',
   '重新讀取': 'Reload',
+  '兌換「{name}」': 'Redeem “{name}”',
+  '用點數兌換，換到就永久收進車庫。': 'Redeem with points. Once redeemed, it stays in your garage for good.',
+  '這款車已經入庫。': 'This model is in your garage.',
+  '目前 {balance} 點，這款要 {cost} 點。': { one: 'You have {balance} point. This model costs {cost} points.', other: 'You have {balance} points. This model costs {cost} points.' },
+  '已入庫！用了 {cost} 點，還剩 {balance} 點。': { one: 'In your garage! Used {cost} points, {balance} point left.', other: 'In your garage! Used {cost} points, {balance} points left.' },
+  '這款車之前就換過了，這次沒有扣除。': 'You already redeemed this model, so nothing was deducted.',
+  '另一款車的兌換還沒確認，請先處理那一款。': 'Another model’s redemption isn’t confirmed yet. Finish that one first.',
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '田園小站': '田園の小駅',
@@ -4704,4 +4711,11 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '重試': '再試行',
   '重試儲存': '保存を再試行',
   '重新讀取': '再読み込み',
+  '兌換「{name}」': '「{name}」を交換',
+  '用點數兌換，換到就永久收進車庫。': 'ポイントで交換できます。交換すると車庫にずっと残ります。',
+  '這款車已經入庫。': 'このモデルは車庫に入っています。',
+  '目前 {balance} 點，這款要 {cost} 點。': '現在 {balance}ポイント、このモデルは {cost}ポイントです。',
+  '已入庫！用了 {cost} 點，還剩 {balance} 點。': '車庫に入りました！{cost}ポイントを使い、残りは{balance}ポイントです。',
+  '這款車之前就換過了，這次沒有扣除。': 'このモデルはすでに交換済みのため、今回は差し引かれていません。',
+  '另一款車的兌換還沒確認，請先處理那一款。': '別のモデルの交換がまだ確認できていません。先にそちらを済ませてください。',
 });
