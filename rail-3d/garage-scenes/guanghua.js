@@ -191,7 +191,7 @@ function createPhotographers(kits,specs){
   return list.map(v=>{const min=[Infinity,Infinity,Infinity],max=[-Infinity,-Infinity,-Infinity],parts={};
    for(const [name,ks] of Object.entries(v.slots)){const e=meshes.get(name),b=e.part.geometry.boundingBox,pz=parts[name]={minZ:Infinity,maxZ:-Infinity};
     for(const kk of ks){e.mesh.getMatrixAt(kk,m4);for(let c=0;c<8;c++){p3.set(c&1?b.max.x:b.min.x,c&2?b.max.y:b.min.y,c&4?b.max.z:b.min.z).applyMatrix4(m4);for(let a=0;a<3;a++){min[a]=Math.min(min[a],p3.getComponent(a));max[a]=Math.max(max[a],p3.getComponent(a));}pz.minZ=Math.min(pz.minZ,p3.z);pz.maxZ=Math.max(pz.maxZ,p3.z);}}}
-   return{i:v.i,kind:'photographer',pos:[v.x,v.y,v.z],rel:v.rel,bodyYaw:v.yaw,turn:v.turn,car:v.car,bbox:{min,max},parts};});
+   return{i:v.i,kind:'photographer',pos:[v.x,v.y,v.z],rel:v.rel,bodyYaw:v.yaw,turn:v.turn,car:v.car,bbox:{min,max},parts,slots:v.slots};});
  }
  return{group,update,inspect,get seen(){return seenCount;},count:list.length,dispose(){for(const {mesh} of meshes.values())mesh.dispose();peopleMat.dispose();cameraMat.dispose();group.clear();}};
 }

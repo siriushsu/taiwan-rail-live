@@ -82,7 +82,7 @@ function createVisitors(kits,specs){
    for(const [name,ks] of Object.entries(v.slots)){const b=meshes.get(name).part.geometry.boundingBox,e=meshes.get(name);for(const k of ks){e.mesh.getMatrixAt(k,m4);
     for(let c=0;c<8;c++){p3.set(c&1?b.max.x:b.min.x,c&2?b.max.y:b.min.y,c&4?b.max.z:b.min.z).applyMatrix4(m4);for(let a=0;a<3;a++){min[a]=Math.min(min[a],p3.getComponent(a));max[a]=Math.max(max[a],p3.getComponent(a));}}}}
    const out={i:v.i,kind:v.kind,pos:[v.x,v.y,v.z],bodyYaw:v.yaw,head:{pos:world('head',0,new THREE.Vector3()),yaw:dirOf('head')},bbox:{min,max},
-    feet:[0,1].map(k=>world('shoe',k,center('shoe'))),car:v.car};
+    feet:[0,1].map(k=>world('shoe',k,center('shoe'))),car:v.car,slots:v.slots};
    if(v.kind==='photographer'){const b=world('camera-body',0,center('camera-body')),g=world('camera-glass',0,center('camera-glass'));out.camera={pos:b,yaw:Math.atan2(g[1]-b[1],g[0]-b[0])};}
    return out;});
  }
@@ -161,5 +161,6 @@ export function createScene(kits=null){
  // 電車線離軌頂 1.95（與高架同一個高度），集電弓伸得到；腕臂在線上方，弓頭不會穿過它。
  for(let s=-22;s<=22;s+=8){const p=offsetPoint(path,s,1.15,5.065);k.part(wireGroup,wireMat,[.08,.08,2.13],p);const q=offsetPoint(path,s,.5,6.01);k.part(wireGroup,wireMat,[.10,1.35,.08],q,[0,0,path.sample(s).heading]);}
  for(let s=-25;s<25;s+=.5){const a=offsetPoint(path,s,0,5.95),b=offsetPoint(path,s+.5,0,5.95),v=new THREE.Vector3(...b).sub(new THREE.Vector3(...a));const o=k.part(wireGroup,wireMat,[v.length(),.023,.023],a);o.position.addScaledVector(v,.5);o.rotation.z=path.sample(s).heading;}
- k.bake();let state={};return{...k,path,kind:'duoliang',contactWireZ:5.95-.0115,focus:[0,5,6],update(time,period,train){const light=k.illumination(period);sea.color.set(period==='night'?'#193e52':period==='dawn'?'#8c9999':period==='sunset'?'#658c93':'#3b8d9d');for(const {w,y,phase}of waves){w.position.y=y+Math.sin(time*.35+phase)*.18;w.scale.x=1+Math.sin(time*.5+phase)*.12;}visitors?.update(time,train.cars??[],UNIT_PER_M[train.id]??METER);wireGroup.visible=train.id==='emu3000';state={visitors:specs.length,watching:visitors?.seen??0,lights:light,electrified:wireGroup.visible,stairs,tunnels,curved:true};},get state(){return state;},inspect:()=>visitors?.inspect()??[],dispose(){k.dispose();visitors?.dispose();}};
+ // nativeFx：浪花的基準 y 與相位，給原生烘焙器照下面 update 的公式逐幀擺（網頁自己不用）。
+ k.bake();let state={};return{...k,path,kind:'duoliang',contactWireZ:5.95-.0115,focus:[0,5,6],nativeFx:{waves:waves.map(({w,y,phase})=>({mesh:w,y,phase}))},update(time,period,train){const light=k.illumination(period);sea.color.set(period==='night'?'#193e52':period==='dawn'?'#8c9999':period==='sunset'?'#658c93':'#3b8d9d');for(const {w,y,phase}of waves){w.position.y=y+Math.sin(time*.35+phase)*.18;w.scale.x=1+Math.sin(time*.5+phase)*.12;}visitors?.update(time,train.cars??[],UNIT_PER_M[train.id]??METER);wireGroup.visible=train.id==='emu3000';state={visitors:specs.length,watching:visitors?.seen??0,lights:light,electrified:wireGroup.visible,stairs,tunnels,curved:true};},get state(){return state;},inspect:()=>visitors?.inspect()??[],dispose(){k.dispose();visitors?.dispose();}};
 }
