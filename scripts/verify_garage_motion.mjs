@@ -27,8 +27,9 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
  try{
   const {c,p,errors}=await boot(b);const original=await p.evaluate(()=>JSON.stringify({rides:loadRides(),checkins:loadCheckins()}));
   const before=await snapshot(p),box=await p.locator('.g-view').boundingBox();
-  await p.mouse.move(box.x+box.width/2,box.y+box.height*.65);await p.mouse.down();await p.mouse.move(box.x+box.width/2,box.y+box.height*.35,{steps:8});await p.mouse.up();await settle(p);
-  const raised=await snapshot(p);check(engine+' 垂直拖曳確實改變俯仰與車體像素',Number(raised.elevation)>Number(before.elevation)+.3&&raised.hash!==before.hash&&raised.yaw===before.yaw);
+  // 照主地圖：右鍵往下拖＝鏡頭抬高；放手前停 250 ms，不帶慣性。
+  await p.mouse.move(box.x+box.width/2,box.y+box.height*.35);await p.mouse.down({button:'right'});await p.mouse.move(box.x+box.width/2,box.y+box.height*.65,{steps:8});await p.waitForTimeout(250);await p.mouse.up({button:'right'});await settle(p);
+  const raised=await snapshot(p);check(engine+' 右鍵往下拖確實抬高鏡頭並改變車體像素',Number(raised.elevation)>Number(before.elevation)+.3&&raised.hash!==before.hash&&raised.yaw===before.yaw);
   await p.locator('.g-view').focus();await p.keyboard.press('ArrowRight');await p.keyboard.press('ArrowDown');await settle(p);const keyed=await snapshot(p);
   check(engine+' 鍵盤可控制水平與垂直視角',keyed.yaw!==raised.yaw&&Number(keyed.elevation)<Number(raised.elevation));
   for(let i=0;i<8;i++)await p.click('.g-up');await settle(p);const high=await snapshot(p);
@@ -73,7 +74,7 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
    check(engine+' '+width+' 全部控件可捲動觸及',!bad.length,bad);
    if(engine==='chromium'&&width===375){await p.locator('.g-reset-view').scrollIntoViewIfNeeded();await p.tap('.g-reset-view');await settle(p);await p.locator('.g-view').scrollIntoViewIfNeeded();const box=await p.locator('.g-view').boundingBox(),client=await c.newCDPSession(p),old=await snapshot(p);const x=box.x+box.width/2,y=box.y+box.height*.65;
     await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});for(let i=1;i<=6;i++)await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+i*4,y:y-i*8}]});await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await settle(p);const now=await snapshot(p);
-    check(engine+' 手指上下左右拖曳可轉視角且不被頁面捲動取消',Number(now.elevation)>Number(old.elevation)&&Number(now.yaw)>Number(old.yaw)&&now.hash!==old.hash);await client.detach();
+    check(engine+' 手指拖曳平移畫面且不被頁面捲動取消',now.pan!==old.pan&&now.yaw===old.yaw&&now.elevation===old.elevation&&now.hash!==old.hash,{pan:[old.pan,now.pan]});await client.detach();
    }
    await p.locator('.g-close').scrollIntoViewIfNeeded();await p.tap('.g-close');check(engine+' '+width+' 返回護照與無例外',await p.evaluate(()=>!TrainGarage.isOpen&&!document.getElementById('ridePanel').hidden)&&!errors.length,errors);await c.close();
   }

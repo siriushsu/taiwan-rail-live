@@ -2,7 +2,7 @@
 // 鏡頭、光照、陰影、行駛照網頁原型 prototypes/garage-*/main.js；田園小站用十分老街的鏡頭、高架的速度（同 App）。
 // 參數跟 native scripts/garage-scenes/bake.mjs 的 META 同一組：App 的場景也是拿這幾支場景模組烘出來的，幾何不另寫。
 // 跟原型不同的只有三處：手機（lite）關陰影、像素比 1（10-30 A54 量測：十分老街跟車 22→57 fps），場景內容不砍；
-// 平移手勢與各座的專屬按鈕（折返、停在月台）沒搬；車庫自己的旋轉、縮放照 App。
+// 各座的專屬按鈕（折返、停在月台）沒搬；手勢與滑鼠照主地圖（rail-3d/map-gestures.js），平移由 draw 的 pan 接。
 import * as THREE from './vendor/three.module.js';
 import {createConsist} from './garage-model.js';
 import {createTerrainFollower} from './garage-scenes/consist-3d.js';
@@ -64,7 +64,7 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
  return{
   scene,camera,consist,meta:m,wires,
   // time：行駛累計秒數（distance＝time×速度，同原型只在行駛時累加）。回傳這一幀的狀態給 data-* 用。
-  draw(w,h,{period:want='day',time=0,trainView=false,yaw=m.yaw,elevation=m.world,zoom=1,owned=true,lite:wantLite=false}={}){
+  draw(w,h,{period:want='day',time=0,trainView=false,yaw=m.yaw,elevation=m.world,zoom=1,owned=true,lite:wantLite=false,pan=[0,0]}={}){
    const p=themeOf(want);if(p!==period)setTheme(p);if(wantLite!==lite)setLite(wantLite);
    renderer.shadowMap.enabled=!lite;renderer.toneMappingExposure=themes[p].exposure;
    world.update(time,p);consist.update(owned);
@@ -79,6 +79,9 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
     for(const [step,x] of Object.entries(parts)){x.material=xrayOf(list,step);x.visible=step==='unmark'?inTunnel>0:touching[i];}});
    const aspect=w/Math.max(1,h);
    if(trainView){target.set(0,0,0);for(const c of consist.cars)target.add(c.car.position);target.multiplyScalar(1/consist.cars.length);target.z=m.focusZ?target.z+1.4:1.4;}else target.set(...m.focus);
+   // 平移：焦點從這裡挪 pan，限在場景中段（跟車時在編組長度內），車和場景拖不出畫面。
+   const base=[target.x,target.y],reach=trainView?consist.length/2:m.span[1]*.6,box=[base[0]-reach,base[1]-reach,base[0]+reach,base[1]+reach];
+   target.x=Math.max(box[0],Math.min(box[2],base[0]+pan[0]));target.y=Math.max(box[1],Math.min(box[3],base[1]+pan[1]));
    const span=(trainView?Math.max(9,consist.length*.65/aspect):Math.max(m.span[0],m.span[1]/aspect))/zoom;
    Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});
    camera.position.set(target.x+100*Math.cos(elevation)*Math.cos(yaw),target.y+100*Math.cos(elevation)*Math.sin(yaw),target.z+100*Math.sin(elevation));camera.lookAt(target);camera.updateProjectionMatrix();camera.updateMatrixWorld();scene.updateMatrixWorld(true);
@@ -90,7 +93,7 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
     renderer.render(scene,camera);
     camera.layers.set(0);scene.background=background;renderer.autoClear=autoClear;renderer.shadowMap.autoUpdate=autoUpdate;renderer.info.autoReset=true;
    }
-   return{period:p,distance:s,route,inTunnel,shadows:!lite};
+   return{period:p,distance:s,route,inTunnel,shadows:!lite,span,base,box,focus:[target.x,target.y,target.z]};
   },
   dispose(){consist.dispose();world.dispose();for(const by of xrayMaterials.values())for(const list of Object.values(by))list.forEach(x=>x.dispose());clearDepth.geometry.dispose();clearDepth.material.dispose();environment.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();sun.dispose();}
  };

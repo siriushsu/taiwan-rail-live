@@ -36,6 +36,8 @@ export function createRenderer(onLost = () => {}) {
   const dropDiorama=()=>{diorama?.dispose();diorama=null;dioramaKey='';};
   const clear=()=>{dropDiorama();trainRoot.clear();primary?.dispose();primary=null;car=null;if(consist){scene.remove(consist.root);consist.dispose();consist=null;}id=loadKey='';};
   const boundsIn=(cars,view,w,h)=>cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),points=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){project.set(x,y,z).project(view);points.push([(project.x+1)*w/2,(1-project.y)*h/2]);}return{model:c.id,left:Math.min(...points.map(p=>p[0])),right:Math.max(...points.map(p=>p[0])),top:Math.min(...points.map(p=>p[1])),bottom:Math.max(...points.map(p=>p[1]))};});
+  // 給量測用：焦點與它旁邊兩點（+x、+y 各 1）投到畫面上的 CSS px，從外面看得出地面怎麼跟著手勢走。
+  const probe=(view,f,rect)=>JSON.stringify([[0,0],[1,0],[0,1]].map(([x,y])=>{project.set(f[0]+x,f[1]+y,f[2]).project(view);return[(project.x+1)*rect.width/2,(1-project.y)*rect.height/2];}));
   renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();if(!disposed){lost=true;onLost();}});
   return {
     // mode 'scene' 要帶 scene（場景 id）與 family（田園小站的電車線依車款）；同一款車只留目前這一座。
@@ -52,7 +54,7 @@ export function createRenderer(onLost = () => {}) {
     },
     draw(target,row,angle,options={}){
       if(disposed||lost||row.id!==id||!car)return false;
-      const onDiorama=options.mode==='scene';
+      const onDiorama=options.mode==='scene',pan=options.pan||[0,0];
       if(onDiorama&&(!diorama||dioramaKey!==options.scene))return false;
       const rect=target.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,onDiorama&&options.lite?1:1.5),w=Math.max(1,Math.round(rect.width*dpr)),h=Math.max(1,Math.round(rect.height*dpr)),aspect=w/h;
       if(target.width!==w||target.height!==h){target.width=w;target.height=h;}
@@ -64,24 +66,29 @@ export function createRenderer(onLost = () => {}) {
         for(const a of new Set(diorama.consist.cars.map(c=>c.asset)))for(const m of [...a.materials,...a.lockedMaterials])if(m.name==='glass'||m.name==='glass:locked'){
           if(m.envMap!==diorama.scene.environment){m.envMap=diorama.scene.environment;m.needsUpdate=true;}m.envMapIntensity=1;
         }
-        const shot=diorama.draw(w,h,{period:options.period,time:options.time||0,trainView:!!options.trainView,yaw:angle,elevation,zoom,owned:row.owned,lite:!!options.lite});
+        const shot=diorama.draw(w,h,{period:options.period,time:options.time||0,trainView:!!options.trainView,yaw:angle,elevation,zoom,owned:row.owned,lite:!!options.lite,pan});
         const ctx=target.getContext('2d');ctx.clearRect(0,0,w,h);ctx.drawImage(renderer.domElement,0,0);
         Object.assign(target.dataset,{rendered:id,appearance:'blender-original',lock:row.owned?'off':'grey',vertices:String(primary.geometry.attributes.position.count),mode:'scene',scene:options.scene,
           yaw:String(angle),zoom:String(zoom),elevation:String(elevation),drawCalls:String(renderer.info.render.calls),triangles:String(renderer.info.render.triangles),carCount:'3',projection:'orthographic',
           period:shot.period,distance:String(shot.distance),trainView:String(!!options.trainView),shadows:String(shot.shadows),catenary:String(diorama.wires),inTunnel:String(shot.inTunnel),pixelRatio:String(dpr),
           formation:JSON.stringify(boundsIn(diorama.consist.cars,diorama.camera,w,h))});
+        // 這一幀的鏡頭留給手勢換算（train-garage.js lens）；u＝每 CSS px 幾個世界單位。
+        this.view={key:'scene:'+options.scene+(options.trainView?':train':''),u:2*shot.span/rect.height,zoom,base:shot.base,box:shot.box,pan:[shot.focus[0]-shot.base[0],shot.focus[1]-shot.base[1]]};
+        Object.assign(target.dataset,{focus:JSON.stringify(shot.focus),probe:probe(diorama.camera,shot.focus,rect),pan:JSON.stringify(this.view.pan)});
         return true;
       }
       renderer.shadowMap.enabled=false; // 只有場景頁有投影的太陽
       const elevation=Math.max(.08,Math.min(1.48,options.elevation??.39)),onTrack=options.mode==='track',onLoop=options.mode==='loop',onScene=onTrack||onLoop;
       car.material=row.owned?primary.materials:primary.lockedMaterials;trainRoot.visible=!onScene;if(consist)consist.root.visible=onScene;if(loop)loop.group.visible=onLoop;if(coast)coast.group.visible=onTrack;
       const zoom=Math.max(.7,Math.min(3,options.zoom??1));camera.zoom=coastCamera.zoom=zoom;
-      let view=camera;
+      let view=camera,u,base,box,baseAt;
       if(onTrack){
         if(!consist)return false;if(!coast){coast=createCoast();scene.add(coast.group);}coast.group.visible=true;
         consist.update(row.owned);const heading=options.direction===-1?0:Math.PI;consist.straight(options.direction);
-        focus.set(0,0,1.9);const span=Math.max(3.6,consist.length*.61/aspect),radius=span/Math.tan(THREE.MathUtils.degToRad(22));
-        coastCamera.aspect=aspect;coastCamera.updateProjectionMatrix();coastCamera.position.set(radius*Math.cos(elevation)*Math.cos(angle),radius*Math.cos(elevation)*Math.sin(angle),focus.z+radius*Math.sin(elevation));coastCamera.lookAt(focus);coastCamera.updateMatrixWorld();view=coastCamera;
+        const span=Math.max(3.6,consist.length*.61/aspect),radius=span/Math.tan(THREE.MathUtils.degToRad(22)),reach=consist.length/2;
+        // 平移只沿著編組左右、前後各 2，車拖不出畫面。
+        base=[0,0];box=[-reach,-2,reach,2];u=2*span/(zoom*rect.height);focus.set(Math.max(-reach,Math.min(reach,pan[0])),Math.max(-2,Math.min(2,pan[1])),1.9);
+        coastCamera.aspect=aspect;coastCamera.updateProjectionMatrix();coastCamera.position.set(focus.x+radius*Math.cos(elevation)*Math.cos(angle),focus.y+radius*Math.cos(elevation)*Math.sin(angle),focus.z+radius*Math.sin(elevation));coastCamera.lookAt(focus);coastCamera.updateMatrixWorld();view=coastCamera;
         const theme=coast.update(options.distance||0,options.period,view,options.time||0);coast.shadow.scale.x=consist.length/14;
         if(reflectedTheme!==theme){const reflection=createCoastReflection(renderer,theme);coastalReflection?.dispose();coastalReflection=reflection;reflectedTheme=theme;}scene.environment=coastalReflection.texture;
         hemi.color.set(theme.ambient);hemi.groundColor.set('#525c4a');hemi.intensity=theme.night?.75:1.05;
@@ -102,9 +109,9 @@ export function createRenderer(onLost = () => {}) {
           consist.update(row.owned);consist.follow(loop,options.distance||0,options.direction);
           const horizontal=loop.half*Math.abs(Math.sin(angle))+loop.outer,vertical=Math.sin(elevation)*(loop.half*Math.abs(Math.cos(angle))+loop.outer)+2.3*Math.cos(elevation),span=Math.max(horizontal/aspect,vertical)*1.07;
           scene.updateMatrixWorld(true);focus.set(0,0,1.0);
-          if(zoom>1){
+          {
             // 依畫面方向取得整列車的中心，彎道也同時照顧前、中、後三節。
-            // 100% 保留全景；100–120% 隨縮放連續轉向列車，之後鎖住編組。
+            // 100% 保留全景；100–120% 隨縮放連續轉向列車，之後鎖住編組。每幀都算：手勢以游標為準縮放時要知道放大後焦點在哪（baseAt）。
             viewRight.set(-Math.sin(angle),Math.cos(angle),0);viewUp.set(-Math.sin(elevation)*Math.cos(angle),-Math.sin(elevation)*Math.sin(angle),Math.cos(elevation));
             let left=Infinity,right=-Infinity,bottom=Infinity,top=-Infinity;loopFocus.set(0,0,0);
             for(const c of consist.cars){const b=c.asset.geometry.boundingBox;
@@ -116,13 +123,20 @@ export function createRenderer(onLost = () => {}) {
             loopFocus.addScaledVector(viewRight,(left+right)/2-loopFocus.dot(viewRight));loopFocus.addScaledVector(viewUp,(bottom+top)/2-loopFocus.dot(viewUp));
             focus.lerp(loopFocus,THREE.MathUtils.smoothstep(zoom,1,1.2));
           }
+          // 平移：焦點限在環形底座範圍內。
+          const reach=loop.half+loop.outer,follow=[loopFocus.x,loopFocus.y];baseAt=z=>{const k=THREE.MathUtils.smoothstep(z,1,1.2);return[follow[0]*k,follow[1]*k];};
+          base=[focus.x,focus.y];box=[-reach,-loop.outer,reach,loop.outer];u=2*span/(zoom*rect.height);
+          focus.x=Math.max(box[0],Math.min(box[2],focus.x+pan[0]));focus.y=Math.max(box[1],Math.min(box[3],focus.y+pan[1]));
           Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});camera.updateProjectionMatrix();camera.position.set(focus.x+60*Math.cos(elevation)*Math.cos(angle),focus.y+60*Math.cos(elevation)*Math.sin(angle),focus.z+60*Math.sin(elevation));camera.lookAt(focus);camera.updateMatrixWorld();
           target.dataset.carCount='3';target.dataset.projection='orthographic';target.dataset.distance=String(options.distance||0);target.dataset.loopLength=String(loop.length);
           target.dataset.poses=JSON.stringify(consist.cars.map(c=>({model:c.id,x:c.car.position.x,y:c.car.position.y,heading:c.car.rotation.z,length:c.length})));
           target.dataset.formation=JSON.stringify(consist.cars.map(c=>{const b=new THREE.Box3().setFromObject(c.car),points=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){project.set(x,y,z).project(camera);points.push([(project.x+1)*w/2,(1-project.y)*h/2]);}return{model:c.id,left:Math.min(...points.map(p=>p[0])),right:Math.max(...points.map(p=>p[0])),top:Math.min(...points.map(p=>p[1])),bottom:Math.max(...points.map(p=>p[1]))};}));
         }else{
         const {size,center}=primary,diag=Math.hypot(size.x,size.y),span=Math.max(diag/2/aspect,diag*Math.sin(elevation)/2+size.z*Math.cos(elevation)/2)*1.12;
-        Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});camera.updateProjectionMatrix();camera.position.set(center.x+50*Math.cos(elevation)*Math.cos(angle),center.y+50*Math.cos(elevation)*Math.sin(angle),center.z+50*Math.sin(elevation));camera.lookAt(center);target.dataset.carCount='1';target.dataset.projection='orthographic';
+        // 平移：焦點限在車身底面再往外半個畫面高（這個縮放下），車身最近的一點還在畫面裡。
+        const margin=.5*span/zoom;base=[center.x,center.y];box=[center.x-size.x/2-margin,center.y-size.y/2-margin,center.x+size.x/2+margin,center.y+size.y/2+margin];u=2*span/(zoom*rect.height);
+        focus.set(Math.max(box[0],Math.min(box[2],center.x+pan[0])),Math.max(box[1],Math.min(box[3],center.y+pan[1])),center.z);
+        Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});camera.updateProjectionMatrix();camera.position.set(focus.x+50*Math.cos(elevation)*Math.cos(angle),focus.y+50*Math.cos(elevation)*Math.sin(angle),focus.z+50*Math.sin(elevation));camera.lookAt(focus);target.dataset.carCount='1';target.dataset.projection='orthographic';
         }
       }
       // 玻璃單獨使用環境反射強度；只依賴 scene.environment 時，Three 會改用場景的統一強度。
@@ -132,6 +146,8 @@ export function createRenderer(onLost = () => {}) {
       renderer.render(scene,view);const ctx=target.getContext('2d');ctx.clearRect(0,0,w,h);ctx.drawImage(renderer.domElement,0,0);
       target.dataset.rendered=id;target.dataset.appearance='blender-original';target.dataset.lock=row.owned?'off':'grey';target.dataset.vertices=String(primary.geometry.attributes.position.count);
       target.dataset.mode=onLoop?'loop':onTrack?'track':'model';target.dataset.yaw=String(angle);target.dataset.zoom=String(zoom);target.dataset.elevation=String(elevation);target.dataset.drawCalls=String(renderer.info.render.calls);
+      this.view={key:target.dataset.mode,u,zoom,base,box,baseAt,pan:[focus.x-base[0],focus.y-base[1]]};
+      Object.assign(target.dataset,{focus:JSON.stringify([focus.x,focus.y,focus.z]),probe:probe(view,[focus.x,focus.y,focus.z],rect),pan:JSON.stringify(this.view.pan)});
       return true;
     },
     // 車庫關掉時不丟 context：留著環境光、已編好的 shader 與目前這款車，重開才不用冷啟動（A54 冷啟動約 0.4 秒，舞台先空白再出車）。

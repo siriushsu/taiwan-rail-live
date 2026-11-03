@@ -13,7 +13,7 @@ for(const [name,type]of Object.entries({chromium,webkit})){
   // 與使用者相同的 pointerdown/move/up，驗證左右拖曳會改變像素。
   const hash=()=>p.locator('.g-view').evaluate(c=>c.toDataURL());const before=await hash(),box=await p.locator('.g-view').boundingBox();
   await p.mouse.move(box.x+box.width*.4,box.y+box.height*.5);await p.mouse.down();await p.mouse.move(box.x+box.width*.65,box.y+box.height*.5,{steps:8});await p.mouse.up();await p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
-  check(name+' 拖曳確實旋轉車模',await hash()!==before);
+  check(name+' 拖曳確實移動車模',await hash()!==before);
   // 在下載尚未完成時丟失 WebGL context，舊 Promise 不可把錯誤提示再藏掉。
   let release,notify;const requested=new Promise(r=>notify=r);
   await p.route('**/garage-blender-v1/ck124.bin.gz',async route=>{await new Promise(r=>{release=r;notify();});await route.continue().catch(()=>{});});

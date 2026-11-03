@@ -38,8 +38,9 @@
   }
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let host, dialog, rows = [], selected, filter = 'all', demo = false;
-  let active = false, renderer, raf = 0, auto = false, yaw = -.55, elevation = .39, last = 0, drag = null, resize, visibility;
-  const pointers=new Map();let pinch=null,zoom=1;
+  let active = false, renderer, raf = 0, auto = false, yaw = -.55, elevation = .39, last = 0, resize, visibility;
+  // 手勢、滑鼠照主地圖（rail-3d/map-gestures.js）。panX／panY＝焦點在地面上挪開的量（世界座標），⌂ 與換格歸零。
+  let zoom=1,panX=0,panY=0,gestures=[],gestureModule;
   // 全畫面觀看（同 App，見 native build/garage-web-port/全螢幕-設計.md）：fsHistory＝CSS 備案推過一筆瀏覽紀錄，返回手勢靠它退出。
   let fs=false,fsScroll=0,fsHistory=false;
   let mode='model',running=false,direction=1,distance=0,travelTime=0,inView=true,period='day';
@@ -80,7 +81,7 @@
   const inFilter=r=>filter==='all'||(filter==='owned'?r.owned:r.rule&&!r.owned);
   const maxZoom=()=>mode==='scene'?1.8:3;
   function scenePeriod(){const now=new Date(),h=(now.getUTCHours()+8)%24+now.getUTCMinutes()/60;return h>=5&&h<7?'sunrise':h>=7&&h<17?'day':h>=17&&h<19?'sunset':'night';}
-  function resetView(){zoom=1;pointers.clear();pinch=drag=null;
+  function resetView(){zoom=1;panX=panY=0;for(const g of gestures)g.stop();
     // 場景頁的預設角度各座不同（SCENES 的 yaw／仰角）；模組還沒載完先用田園小站那組，載完再補一次（同 App）。
     if(mode==='scene'){viewScene=frameScene;const m=sceneMeta?.[viewScene];viewPending=!m;yaw=m?m.yaw:-1.12;elevation=trainView?(m?m.train:.5):(m?m.world:.58);return;}
     yaw=mode==='track'?-Math.PI/2:mode==='loop'?-.9:-.55;elevation=mode==='track'?.16:mode==='loop'?.8:.39;}
@@ -136,10 +137,13 @@
     // 精修網格試跑最多約 30 fps；離開展示台或切到背景後不持續佔用 GPU。
     if((auto||running)&&last&&at-last<32){requestDraw();return;}
     const dt=last?Math.min((at-last)/1000,.06):0;last=at;
-    if(auto&&!drag)yaw+=dt*.35;
+    if(auto)yaw+=dt*.35;
     if(mode!=='model'&&running&&loadedId){distance+=dt*2.1*direction;travelTime+=dt;}
     const row=rows.find(r=>r.id===selected);
-    if(row&&loadedId===row.id) { renderer?.draw($(frameBack?'.g-sf-view':'.g-view'),row,yaw,{elevation,zoom,mode,distance,direction,period,time:travelTime,scene:loadedScene,trainView,lite:lite.matches}); }
+    if(row&&loadedId===row.id&&renderer?.draw($(frameBack?'.g-sf-view':'.g-view'),row,yaw,{elevation,zoom,pan:[panX,panY],mode,distance,direction,period,time:travelTime,scene:loadedScene,trainView,lite:lite.matches})) {
+      // renderer 把焦點夾在可平移的範圍裡，夾過的值收回來，往回拖才不會有一段拖不動。
+      if(renderer.view?.key===viewKey())[panX,panY]=renderer.view.pan;
+    }
 
     if((auto||running)&&loadedId)requestDraw();
   }
@@ -202,7 +206,30 @@
     const menu=dialog&&$('.g-sf-cars');if(!menu||menu.hidden)return false;
     menu.hidden=true;$('.g-sf-title').setAttribute('aria-expanded','false');if(refocus)$('.g-sf-title').focus({preventScroll:true});return true;
   }
-  function setZoom(value){zoom=Math.max(.7,Math.min(maxZoom(),value));showControls();requestDraw();}
+  function setZoom(value){for(const g of gestures)g.halt();zoom=Math.max(.7,Math.min(maxZoom(),value));showControls();requestDraw();}
+  // renderer 每畫一幀留下這一格的鏡頭（key 對得上目前這一格才用）：u＝縮放 zoom 時每 CSS px 幾個世界單位，base＝沒平移時的焦點
+  // （環形試跑放大時焦點會轉向列車，baseAt(縮放) 算那時的焦點），box＝焦點能到的範圍。
+  const viewKey=()=>mode==='scene'?'scene:'+loadedScene+(trainView?':train':''):mode;
+  // 手勢換成鏡頭（同主地圖）：平移、扭轉、縮放都讓手勢那一點底下的地面留在手指下——先記下那點的地面，套完角度與縮放再把焦點挪回去；
+  // 地面是過焦點的水平面，畫面上 (sx,sy)（畫面中心起算、y 向下）對到地面 right·sx·u − forward·sy·u／sin(仰角)。轉向與仰角照舊夾在各格的範圍裡。
+  function lens(canvas){
+    const ground=(x,y,s)=>{const sx=x-canvas.clientWidth/2,sy=y-canvas.clientHeight/2,k=s.u/Math.max(.05,Math.sin(s.elevation));return[-Math.sin(s.yaw)*sx*s.u+Math.cos(s.yaw)*sy*k,Math.cos(s.yaw)*sx*s.u+Math.sin(s.yaw)*sy*k];};
+    return{
+      begin(){auto=false;showControls();},
+      zoomLevel:()=>[Math.log2(zoom),Math.log2(.7),Math.log2(maxZoom())],
+      apply({pan,zoom:step=0,bearing=0,pitch=0,around}){
+        const v=renderer?.view?.key===viewKey()?renderer.view:null,w=canvas.clientWidth,h=canvas.clientHeight,at=around||[w/2,h/2];
+        const point=v&&(pan||around)?at:null,baseAt=v?.baseAt||(()=>v.base);
+        let held;if(point){const b=baseAt(zoom),g=ground(point[0]-(pan?.[0]||0),point[1]-(pan?.[1]||0),{yaw,elevation,u:v.u*v.zoom/zoom});held=[b[0]+panX+g[0],b[1]+panY+g[1]];}
+        yaw-=bearing*Math.PI/180;elevation=Math.max(.08,Math.min(1.48,elevation-pitch*Math.PI/180));zoom=Math.max(.7,Math.min(maxZoom(),zoom*2**step));clampView();
+        if(held){
+          const b=baseAt(zoom),g=ground(point[0],point[1],{yaw,elevation,u:v.u*v.zoom/zoom});
+          panX=Math.max(v.box[0],Math.min(v.box[2],held[0]-g[0]))-b[0];panY=Math.max(v.box[1],Math.min(v.box[3],held[1]-g[1]))-b[1];
+        }
+        showControls();requestDraw();
+      },
+    };
+  }
   function showControls() {
     $('.g-zoom-in').disabled=zoom>=maxZoom();$('.g-zoom-out').disabled=zoom<=.7;$('.g-zoom-level').textContent=Math.round(zoom*100)+'%';
     // 舞台照車庫停著的那一格（場景頁開著時是點之前那一格）。
@@ -214,7 +241,7 @@
     $('.g-auto').setAttribute('aria-label',tr(mode!=='model'?(running?'暫停行駛':'開始行駛'):'自動旋轉'));
     $('.g-auto').setAttribute('aria-pressed',String(mode!=='model'?running:auto));$('.g-auto').textContent=(mode!=='model'?running:auto)?'Ⅱ':'▷';
     const sky=tr({sunrise:'日出',day:'藍天',sunset:'黃昏',night:'星空'}[period]);
-    $('.g-view-hint').textContent=at==='track'?tr('頭城海岸・龜山島')+' · '+sky:at==='loop'?tr('環形試跑 · 拖曳旋轉，欣賞三節小車'):tr('上下左右拖曳，看看每一面');
+    $('.g-view-hint').textContent=at==='track'?tr('頭城海岸・龜山島')+' · '+sky:at==='loop'?tr('環形試跑 · 拖曳移動，右鍵拖曳或雙指扭轉換角度'):tr('拖曳移動，右鍵拖曳或雙指扭轉看每一面');
     if(frameBack)showFrame(row);
   }
   // 場景頁：標題那塊是這座的地名＋車名・狀態，這座跑的車不只一款時整塊是車款選單的按鈕（加 ▾）。
@@ -555,7 +582,7 @@
     showGrid();
   }
   function build() {
-    setFullscreen(false);data();resize?.disconnect();visibility?.disconnect();pointers.clear();pinch=drag=null;inView=true;gridKey='';redeemScene='';redeemOpener=null;
+    setFullscreen(false);data();resize?.disconnect();visibility?.disconnect();for(const g of gestures)g.stop();gestures=[];inView=true;gridKey='';redeemScene='';redeemOpener=null;
     // 換語言重建時場景頁一起關掉，回到點之前那一格。
     if(frameBack){mode=frameBack;frameBack='';frameScene='';period=scenePeriod();resetView();keepFrameCar();}
     dialog.classList.remove('g-sf-open');
@@ -580,7 +607,7 @@
       <div class="g-sf-scenes" hidden><div class="g-sf-seg" role="group" aria-label="${esc(tr('選擇場景'))}"></div></div>
       <div class="g-sf-cars" hidden><p>${esc(tr('在這座跑的車'))}</p><div class="g-sf-car-list"></div></div>
       <div class="g-sf-stage"><div class="g-sf-wrap"><canvas class="g-sf-view" tabindex="0" role="img"></canvas><div class="g-sf-views" role="group" aria-label="${esc(tr('觀賞視角'))}"><button data-sf-view="world" type="button"></button><button data-sf-view="train" type="button">${esc(tr('陪它走走'))}</button></div>
-      <p class="g-sf-hint">${esc(tr('拖曳轉個角度 · 滾動或雙指縮放'))}</p><div class="g-sf-loading" role="status"><span></span><button class="g-sf-retry" type="button" hidden>${esc(tr('重新載入小車'))}</button></div></div>
+      <p class="g-sf-hint">${esc(tr('拖曳移動 · 右鍵拖曳或雙指扭轉換角度 · 滾動或雙指縮放'))}</p><div class="g-sf-loading" role="status"><span></span><button class="g-sf-retry" type="button" hidden>${esc(tr('重新載入小車'))}</button></div></div>
       <div class="g-sf-tools"><div class="g-sf-seg" role="group" aria-label="${esc(tr('時間'))}">${FRAME_PERIODS.map(p=>`<button data-sf-period="${p}" type="button"></button>`).join('')}</div>
       <div class="g-sf-icons" role="group" aria-label="${esc(tr('列車與視角控制'))}"><button class="g-sf-play g-sf-icon" type="button"></button><button class="g-sf-out g-sf-icon" type="button" aria-label="${esc(tr('縮小場景'))}">−</button><button class="g-sf-in g-sf-icon" type="button" aria-label="${esc(tr('放大場景'))}">＋</button><button class="g-sf-reset g-sf-icon" type="button" aria-label="${esc(tr('重設視角'))}">⌂</button></div></div>
       <p class="g-sf-caption"></p></div></section>
@@ -597,7 +624,7 @@
     $('.g-reset').onclick=()=>{filter='all';showGrid();};
     for(const b of dialog.querySelectorAll('[data-filter]'))b.onclick=()=>{filter=b.dataset.filter;showGrid();};
     $('.g-model-select').onchange=e=>chooseModel(e.target.value);
-    const turn=(horizontal,vertical=0)=>{auto=false;yaw+=horizontal;elevation=Math.max(.08,Math.min(1.48,elevation+vertical));clampView();showControls();requestDraw();};
+    const turn=(horizontal,vertical=0)=>{for(const g of gestures)g.halt();auto=false;yaw+=horizontal;elevation=Math.max(.08,Math.min(1.48,elevation+vertical));clampView();showControls();requestDraw();};
     $('.g-left').onclick=()=>turn(-Math.PI/6);$('.g-right').onclick=()=>turn(Math.PI/6);
     $('.g-up').onclick=()=>turn(0,Math.PI/12);$('.g-down').onclick=()=>turn(0,-Math.PI/12);
     $('.g-reset-view').onclick=()=>{auto=false;resetView();showControls();requestDraw();};
@@ -618,20 +645,17 @@
     // 場景頁的鈕跟舞台同一套動作。
     $('.g-sf-retry').onclick=$('.g-retry').onclick;$('.g-sf-play').onclick=$('.g-auto').onclick;$('.g-sf-reset').onclick=$('.g-reset-view').onclick;
     $('.g-sf-in').onclick=$('.g-zoom-in').onclick;$('.g-sf-out').onclick=$('.g-zoom-out').onclick;
+    gestureModule??=import('./rail-3d/map-gestures.js').catch(()=>{gestureModule=null;});
     for(const canvas of [$('.g-view'),$('.g-sf-view')]){
       canvas.onkeydown=e=>{if(['+','=','-','0'].includes(e.key)){e.preventDefault();if(e.key==='0')setZoom(1);else setZoom(zoom*(e.key==='-'?1/1.2:1.2));return;}const directions={ArrowLeft:[-.15,0],ArrowRight:[.15,0],ArrowUp:[0,.12],ArrowDown:[0,-.12]};if(directions[e.key]){e.preventDefault();turn(...directions[e.key]);}};
-      const gap=()=>{const [a,b]=[...pointers.values()];return Math.hypot(a.x-b.x,a.y-b.y);};
-      canvas.addEventListener('wheel',e=>{e.preventDefault();const pixels=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?canvas.clientHeight:1);setZoom(zoom*Math.exp(-Math.max(-160,Math.min(160,pixels))*.002));},{passive:false});
-      canvas.onpointerdown=e=>{if(e.button>0)return;auto=false;showControls();pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});canvas.setPointerCapture(e.pointerId);if(pointers.size===1)drag={id:e.pointerId,x:e.clientX,y:e.clientY};else{drag=null;pinch={gap:Math.max(1,gap()),zoom};}};
-      canvas.onpointermove=e=>{if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size>=2){if(pinch)setZoom(pinch.zoom*gap()/pinch.gap);}else if(drag?.id===e.pointerId){turn((e.clientX-drag.x)*.012,(drag.y-e.clientY)*.008);drag.x=e.clientX;drag.y=e.clientY;}};
-      canvas.onpointerup=canvas.onpointercancel=canvas.onlostpointercapture=e=>{if(!pointers.delete(e.pointerId))return;pinch=drag=null;if(pointers.size===1){const [id,p]=pointers.entries().next().value;drag={id,...p};}else if(pointers.size>=2)pinch={gap:Math.max(1,gap()),zoom};};
+      gestureModule.then(m=>{if(m&&active&&canvas.isConnected)gestures.push(m.attachMapGestures(canvas,lens(canvas)));});
     }
     refresh();
   }
   function cleanup() {
     if (!active) return;
     active = false;renderSession++;modelTicket++;loadedId='';setFullscreen(false);
-    cancelAnimationFrame(raf);raf=0;auto=running=false;drag=pinch=null;pointers.clear();resize?.disconnect();visibility?.disconnect();
+    cancelAnimationFrame(raf);raf=0;auto=running=false;for(const g of gestures)g.stop();gestures=[];resize?.disconnect();visibility?.disconnect();
     renderer?.trim();
     host?.onClose();
   }
