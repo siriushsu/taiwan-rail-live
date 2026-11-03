@@ -53,12 +53,12 @@
   let mode='model',running=false,direction=1,distance=0,travelTime=0,inView=true,period='day';
   // 第 4 格「場景」開場景頁（三端同一套規則）：場景是主角，畫哪一座看 frameScene，不由車款推；頁上一排場景鈕就地換座。
   // 預設車庫「田園小站」每款車都能跑、永遠能進；已做好的幾座照場景規則（train-garage-scenes.js 的 RailGarageSceneRules：台鐵景跑
-  // 所有台鐵車、阿里山跑林鐵車）跑那個系統的車，照錢包的已解鎖清單進，
+  // 所有台鐵車、阿里山跑林鐵車；同系統分兩座的規則再列車款）跑那個系統的車，照錢包的已解鎖清單進，
   // 鎖著的點了開兌換視窗（見下面「兌換專屬場景」）。沒有錢包（沒登入、展示模式）只有田園小站，不出場景列與場景鈕。
   // 已做好的場景要跟 rail-3d/garage-diorama.js 的 SCENES 一致。
-  const DEFAULT_SCENE='paddy',DEFAULT_PLACE='預設車庫・田園小站',BUILT_SCENES=new Set(['south-coast','alishan','viaduct','shifen','duoliang','crossing','guanghua']);
+  const DEFAULT_SCENE='paddy',DEFAULT_PLACE='預設車庫・田園小站',BUILT_SCENES=new Set(['south-coast','alishan','viaduct','shifen','duoliang','crossing','guanghua','taipei-metro','wenhu','airport-mrt','ntpc-metro','ntpc-lrt','taichung-metro','kaohsiung-metro','kaohsiung-lrt','thsr']);
   // 場景格、場景鈕用的短名（阿里山那座用線名，不用它畫的那段「之字形」）。
-  const SCENE_SHORT={paddy:'田園小站','south-coast':'南迴海岸',shifen:'十分老街',viaduct:'站前街',alishan:'阿里山林鐵',duoliang:'多良車站',crossing:'街角平交道',guanghua:'光華街'};
+  const SCENE_SHORT={paddy:'田園小站','south-coast':'南迴海岸',shifen:'十分老街',viaduct:'站前街',alishan:'阿里山林鐵',duoliang:'多良車站',crossing:'街角平交道',guanghua:'光華街','taipei-metro':'劍潭站',wenhu:'動物園站','airport-mrt':'山鼻站','ntpc-metro':'陶瓷老街站','ntpc-lrt':'淡水漁人碼頭站','taichung-metro':'文心森林公園站','kaohsiung-metro':'美麗島站','kaohsiung-lrt':'駁二大義站',thsr:'高鐵新竹站'};
   // trainView＝原型的「陪它走走」（跟著車看），手機寬預設開。frameCars＝這次開著場景頁時各座最後看的車：換座時記下，每次打開場景頁清空。
   let trainView=false,frameScene='',frameCars=new Map(),viewScene='',viewPending=false,sceneMeta=null,loadedScene='';
   // 第 4 格點下去開「場景頁」：蓋住整個車庫的 9-29 外框頁（網頁分支 garage/scene-03 的 garage-scene.html；規格與對照稿在
@@ -76,12 +76,21 @@
     duoliang:['海景全景',['海邊晴日','黃昏海色','月台夜色'],'正在把小車開到多良…','南迴線多良車站 · 微縮印象'],
     crossing:['街角全景',['街角晴日','黃昏車流','路口夜燈'],'正在把小車開到平交道…','街角平交道 · 微縮印象'],
     guanghua:['街區全景',['巷口晴日','黃昏斜陽','涵洞夜燈'],'正在把小車開過光華街…','台南光華街 · 微縮印象'],
+    'taipei-metro':['劍潭全景',['河岸晴日','圓山夕照','夜市燈火'],'正在把小車送上劍潭站…','淡水信義線劍潭站 · 微縮印象'],
+    wenhu:['動物園全景',['木柵晴日','貓纜夕照','茶山夜燈'],'正在把小車送上動物園站…','文湖線動物園站 · 微縮印象'],
+    'airport-mrt':['山鼻全景',['田野晴日','埤塘夕照','航燈入夜'],'正在把小車送上山鼻站…','機場捷運山鼻站 · 微縮印象'],
+    'ntpc-metro':['陶瓷老街全景',['磚窯晴日','陶坊夕照','老街燈火'],'正在把小車送上陶瓷老街站…','三鶯線陶瓷老街站 · 微縮印象'],
+    'ntpc-lrt':['漁人碼頭全景',['河口晴日','淡水夕照','橋燈入夜'],'正在把小車送上淡水漁人碼頭站…','淡海輕軌淡水漁人碼頭站 · 微縮印象'],
+    'taichung-metro':['森林公園全景',['公園晴日','劇場夕照','文心夜色'],'正在把小車送上文心森林公園站…','台中捷運綠線文心森林公園站 · 微縮印象'],
+    'kaohsiung-metro':['美麗島全景',['港都晴日','港都夕照','穹頂夜光'],'正在把小車送進美麗島站…','高雄捷運美麗島站 · 微縮印象'],
+    'kaohsiung-lrt':['駁二全景',['港邊晴日','港灣夕照','倉庫夜色'],'正在把小車送進駁二大義站…','高雄輕軌駁二大義站 · 微縮印象'],
+    thsr:['新竹站全景',['風城晴日','竹塹夕照','風帆夜色'],'正在把小車送上高鐵新竹站…','台灣高鐵新竹站 · 微縮印象'],
   };
   // 手機預設關陰影、像素比 1（10-30 A54 量測），只用在場景頁。
   const lite=matchMedia('(pointer:coarse) and (hover:none)');
   // 這款車能不能進這座（車款目錄的系統對場景規則）；地名也取場景規則，同 App manifest 的 cars 與 place。
   const sceneRule=scene=>BUILT_SCENES.has(scene)?globalThis.RailGarageSceneRules?.[scene]:null;
-  const runsIn=(row,scene)=>scene===DEFAULT_SCENE||!!row&&row.model.system===sceneRule(scene)?.system;
+  const runsIn=(row,scene)=>{if(scene===DEFAULT_SCENE)return true;const r=sceneRule(scene);return !!row&&!!r&&row.model.system===r.system&&(!r.cars||r.cars.includes(row.id));};
   const scenePlace=scene=>scene===DEFAULT_SCENE?DEFAULT_PLACE:sceneRule(scene)?.place||'';
   // 場景清單：田園小站排第一，後面是錢包裡可兌換、這裡也做好的那幾座。能進＝田園小站，或錢包的已解鎖清單有它。
   const sceneList=ctx=>ctx?[DEFAULT_SCENE,...ctx.scenes]:[DEFAULT_SCENE];

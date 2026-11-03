@@ -33,6 +33,17 @@ ok('R4 prices 是非空正整數陣列', Array.isArray(c.prices) && c.prices.len
     bad.length === 0 && new Set(c.scenes).size === c.scenes.length,
     `場景規則 ${sceneIds.size} 座；缺：${bad.join(',') || '無'}`);
 }
+{
+  // chips.items 是車款兌換的上線開關（列了價格的那款才賣）：鍵要是車款表裡用點數兌換的那款，價格是正整數；
+  // 寫成陣列、打錯 id、價格寫成字串或 0，伺服器與三端都會當成沒列（不賣），不會報錯，所以在這裡擋。
+  const redeem = new Set([...read('train-garage.js').matchAll(/"metric":"redeem","item":"(train:[a-z0-9]+)"/g)].map(m => m[1]));
+  const items = c.items === undefined ? {} : c.items;
+  const bad = items && typeof items === 'object' && !Array.isArray(items)
+    ? Object.entries(items).filter(([k, p]) => !redeem.has(k) || !Number.isInteger(p) || p <= 0).map(([k, p]) => `${k}=${JSON.stringify(p)}`)
+    : ['不是物件：' + JSON.stringify(items)];
+  ok('R5b chips.items 每個鍵都是車款表的兌換車款、價格是正整數', redeem.size > 0 && bad.length === 0,
+    `車款表兌換車款 ${redeem.size} 款、列價 ${Object.keys(items || {}).length} 款；不對：${bad.join(',') || '無'}`);
+}
 // multiplier 必須是正整數：帳本 delta 是 INTEGER，倍率是整數時 tripPoints 全程整數運算（小數倍率要靠捨去前的 1e-9 才不少給）。
 ok('R6 events 是陣列，每筆有 id/from/to、multiplier 是正整數', Array.isArray(c.events) &&
   c.events.every(e => e.id && /^\d{4}-\d\d-\d\d$/.test(e.from) && /^\d{4}-\d\d-\d\d$/.test(e.to) &&

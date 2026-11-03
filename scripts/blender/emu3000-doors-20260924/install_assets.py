@@ -18,12 +18,15 @@ rail-3d/assets/garage-blender-v1/emu3000.{json,bin.gz}。
 用法（中間車／集電弓零件庫，Task 5，新增）：
   python3 scripts/blender/emu3000-doors-20260924/install_assets.py mid [build目錄=output/emu3000-doors/build-mid]
   python3 scripts/blender/emu3000-doors-20260924/install_assets.py pantograph [build目錄=output/emu3000-doors/build-pantograph]
+
+用法（已裝好的 emu3000、emu3000-mid 改成車隊精修的燈材質名，可重跑）：
+  python3 scripts/blender/emu3000-doors-20260924/install_assets.py normalize
 """
 import sys, gzip, hashlib, json, array, math, subprocess
 from pathlib import Path
 
 W = Path(__file__).resolve().parents[3]  # repo 根目錄（scripts/blender/<本目錄>/<本檔>）
-_MODE = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in ('mid', 'pantograph') else None
+_MODE = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in ('mid', 'pantograph', 'normalize') else None
 _PATH_ARG = sys.argv[2] if _MODE and len(sys.argv) > 2 else (sys.argv[1] if not _MODE and len(sys.argv) > 1 else None)
 _DEFAULT_BUILD = {'mid': 'build-mid', 'pantograph': 'build-pantograph'}.get(_MODE, 'build')
 BUILD_DIR = Path(_PATH_ARG) if _PATH_ARG else (W / 'output/emu3000-doors' / _DEFAULT_BUILD)
@@ -33,6 +36,23 @@ ASSET_BIN_GZ = ASSET_DIR / 'emu3000.bin.gz'
 
 BASE_REF = '65682ab6b492f8ede13b890f3689de468ed69bb2'  # 改動前的 commit；與 scripts/verify_garage_stop_assets.mjs 的 BASE 相同
 BASE_ASSET = 'rail-3d/assets/garage-blender-v1/emu3000'
+
+
+def night_lamp_name(name):
+    """build_doors.py 把發光材質叫 railLight:<位置>:<材質>；正式資產改用車隊精修與夜燈的材質名
+    （三個平台的車燈只認 lamp、taillamp、glass）：尾燈位置（tail*）一律 taillamp，其餘取最後一段。
+    發光位置仍留在 drawGroups[].lightingRole（garage-doors.js 用 window 找窗燈）。"""
+    if not name.startswith('railLight:'):
+        return name
+    _, role, material = name.split(':', 2)
+    return 'taillamp' if role.startswith('tail') else material
+
+
+def normalize_doors(doors):
+    for item in doors['items']:
+        for r in item['ranges']:
+            r['group'] = night_lamp_name(r['group'])
+    return doors
 
 
 def sub(p, q): return (p[0] - q[0], p[1] - q[1], p[2] - q[2])
@@ -231,9 +251,10 @@ def install_head_car():
         sys.exit(f'drawGroups 數量不符：既有 {len(orig_groups)} vs 新算 {len(new_groups)}')
     merged_groups = []
     for i, (og, ng) in enumerate(zip(orig_groups, new_groups)):
-        if og['name'] != ng['name']:
+        if night_lamp_name(og['name']) != night_lamp_name(ng['name']):
             sys.exit(f'drawGroups[{i}] 名稱不符：既有 {og["name"]!r} vs 新算 {ng["name"]!r}（順序可能跑掉）')
         merged = dict(og)  # 保留既有的 color/metalness/roughness/clearcoat/lightingRole 原樣
+        merged['name'] = night_lamp_name(og['name'])
         merged['start'] = ng['start']
         merged['count'] = ng['count']
         merged_groups.append(merged)
@@ -250,7 +271,7 @@ def install_head_car():
     asset['mesh']['drawGroups'] = merged_groups
     # file/encoding/strideBytes/compression 格式不變，原樣保留（不覆寫）
 
-    asset['doors'] = meta['doors']
+    asset['doors'] = normalize_doors(json.loads(json.dumps(meta['doors'])))
     # bounds/sizeM 等其餘既有欄位完全不動（沿用讀進來的 asset dict 原值）
 
     ASSET_DIR.mkdir(parents=True, exist_ok=True)
@@ -293,7 +314,7 @@ def install_mid():
         'mesh': {
             'file': 'emu3000-mid.bin.gz', 'sha256': raw_sha, 'encoding': 'float32-le', 'strideBytes': 24,
             'vertexCount': meta['vertexCount'], 'triangleCount': meta['triangleCount'],
-            'drawGroups': meta['drawGroups'], 'compression': 'gzip',
+            'drawGroups': [{**g, 'name': night_lamp_name(g['name'])} for g in meta['drawGroups']], 'compression': 'gzip',
         },
         'nativeObjectCount': None,
         'features': {
@@ -310,7 +331,7 @@ def install_mid():
         'reference': head['reference'],
         'formation': {'default': 'single-vehicle', 'illustrative': True, 'liveAssignment': False, 'shortFormation': None},
         'lighting': None,
-        'doors': meta['doors'],
+        'doors': normalize_doors(meta['doors']),
         'pantograph': meta['pantograph'],
     }
     ASSET_DIR.mkdir(parents=True, exist_ok=True)
@@ -357,9 +378,23 @@ def install_pantograph():
     }, ensure_ascii=False))
 
 
+def normalize_installed():
+    """已裝好的頭車與中間車就地改燈材質名（drawGroups 與門扇 ranges 的 group），網格不動；已經改過的不變。"""
+    for name in ('emu3000.json', 'emu3000-mid.json'):
+        path = ASSET_DIR / name
+        asset = json.loads(path.read_text(encoding='utf-8'))
+        asset['mesh']['drawGroups'] = [{**g, 'name': night_lamp_name(g['name'])} for g in asset['mesh']['drawGroups']]
+        if 'doors' in asset:
+            normalize_doors(asset['doors'])
+        path.write_text(json.dumps(asset, ensure_ascii=False, separators=(',', ':')) + '\n', encoding='utf-8')
+        print('GD_NORMALIZE_OK', name, [g['name'] for g in asset['mesh']['drawGroups']])
+
+
 if _MODE is None:
     install_head_car()
 elif _MODE == 'mid':
     install_mid()
 elif _MODE == 'pantograph':
     install_pantograph()
+elif _MODE == 'normalize':
+    normalize_installed()

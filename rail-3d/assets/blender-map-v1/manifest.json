@@ -1000,7 +1000,7 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/emu3000.json",
-        "rawSha256": "f42a4d2d2a78eb8f9d600333e9eabeb84dca1e9512580afabcb2ddb7d778e700",
+        "rawSha256": "6e0131efdeb3de2e98edd54d4c337df75550db59aa9b83017ce0f1d5abf0de96",
         "engineeringDimensionsM": null
       },
       "sources": [
@@ -3496,31 +3496,31 @@
     },
     "emu3000": {
       "file": "emu3000.bin",
-      "sha256": "87b4d0abecdc8cb5440a9b5ec3ad1b1d8e849370c45b18d80fce06f8dbbffe9f",
-      "byteLength": 952080,
-      "vertexCount": 23802,
+      "sha256": "cbd90337c7a4eb30a7f97d8eac458b68715f0f745017a863cd99b4876dbd13f5",
+      "byteLength": 959280,
+      "vertexCount": 23982,
       "min": [
         -5.199000358581543,
         -1.5145492553710938,
         0.001103037502616644
       ],
       "max": [
-        4.8514862060546875,
+        4.87346887588501,
         1.5145492553710938,
         3.6500003337860107
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/emu3000.json",
-        "rawSha256": "f42a4d2d2a78eb8f9d600333e9eabeb84dca1e9512580afabcb2ddb7d778e700",
+        "rawSha256": "6e0131efdeb3de2e98edd54d4c337df75550db59aa9b83017ce0f1d5abf0de96",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
     },
     "emu3000-mid": {
       "file": "emu3000-mid.bin",
-      "sha256": "89b94481d81dcfa91a4d902ef61a65cc113e7f92e93499107d0b1c1bc422bd9b",
-      "byteLength": 957960,
-      "vertexCount": 23949,
+      "sha256": "ad14a0a0467925607c699a4f316c8f6be18305af8fb8e719a10eac03e1731768",
+      "byteLength": 955680,
+      "vertexCount": 23892,
       "min": [
         -5.199000358581543,
         -1.5145492553710938,
@@ -3533,7 +3533,7 @@
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/emu3000.json",
-        "rawSha256": "f42a4d2d2a78eb8f9d600333e9eabeb84dca1e9512580afabcb2ddb7d778e700",
+        "rawSha256": "6e0131efdeb3de2e98edd54d4c337df75550db59aa9b83017ce0f1d5abf0de96",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"

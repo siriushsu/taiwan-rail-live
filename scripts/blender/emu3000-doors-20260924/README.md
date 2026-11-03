@@ -36,6 +36,10 @@ python3 scripts/blender/emu3000-doors-20260924/install_assets.py pantograph   # 
 /Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup \
   --python scripts/blender/emu3000-doors-20260924/render_mid_pantograph.py   # renders/10~13（讀已併入的資產）
 
+# 車庫縮圖：讀上面另存的 .blend，照 fleet-v1 工坊同一套 hero 鏡頭拍，縮成 360×240（跟其他 61 款同角度）
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup -t 4 \
+  --python scripts/blender/emu3000-doors-20260924/render_thumbnail.py   # 寫 rail-3d/assets/garage-blender-v1/emu3000.webp
+
 # 驗收
 node --no-warnings scripts/verify_garage_stop_assets.mjs D M # D1～D12 頭車門＋M1～M9 中間車與集電弓，共 21 項
 node --no-warnings scripts/verify_garage_assets.mjs          # 62 款資產完整性
@@ -50,7 +54,7 @@ node --no-warnings scripts/verify_garage_assets.mjs          # 62 款資產完�
 正式輸出（會進 repo）：`rail-3d/assets/garage-blender-v1/emu3000.{json,bin.gz}`——由 `install_assets.py`
 寫入，只更新 `mesh.sha256`／`vertexCount`／`triangleCount`／`drawGroups[].start+count` 與新增的頂層
 `doors` 欄位，其餘既有欄位（bounds、sizeM、specification、reference、formation……）原封不動搬過去；
-不改 `emu3000.webp`，不跑 `import_garage_blender.py`（會重匯全部 62 款）。
+不改 `emu3000.webp`（縮圖另由 `render_thumbnail.py` 產），不跑 `import_garage_blender.py`（會重匯全部 62 款）。
 併入時另外把門口以外的外觀改回 BASE（改動前的 commit）：範圍沒變、只是切法不同的平面整塊換回 BASE 的
 三角形，其餘逐角把法向量改回 BASE 的內插值；位置不動、三角形數不變（見下方第 8 點）。
 所以正式資產的 sha256 與 build 輸出的 `meta.json` 不同，這是預期的。
