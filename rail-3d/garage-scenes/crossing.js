@@ -36,9 +36,11 @@ const staticGeometry=a=>{const g=new THREE.BufferGeometry();g.setAttribute('posi
 const expand=a=>{const n=a.idx.length,pos=new Float32Array(n*3),nor=new Float32Array(n*3),col=a.col?new Float32Array(n*3):null;for(let i=0;i<n;i++){const s=a.idx[i]*3;for(let j=0;j<3;j++){pos[i*3+j]=a.pos[s+j];nor[i*3+j]=a.nor[s+j];if(col)col[i*3+j]=a.col[s+j];}}return{pos,nor,col};};
 const shown=o=>{for(;o;o=o.parent)if(!o.visible)return false;return true;};
 // 一顆動態 mesh：收 N 個 rig 的模板，每幀把可見的 rig 依其 matrixWorld 寫進同一份緩衝（只有姿態或可見性變了才重寫）。
+// rigs 與 mesh 給原生烘焙器讀（native scripts/garage-scenes/bake.mjs：模板照原樣烘、原生每幀照 rig 擺實例）。
 function dynamicMesh(k,material,withColor){
  const rigs=[];let cap=0,geom,mesh,P,Nr,C,last;const M=new THREE.Matrix3(),sig=[];
  return{
+  rigs,get mesh(){return mesh;},
   add(rig,t){rigs.push({rig,t,n:t.pos.length/3});cap+=t.pos.length/3;},
   build(){P=new Float32Array(cap*3);Nr=new Float32Array(cap*3);C=withColor?new Float32Array(cap*3):null;geom=new THREE.BufferGeometry();
    const p=new THREE.BufferAttribute(P,3),n=new THREE.BufferAttribute(Nr,3);p.setUsage(THREE.DynamicDrawUsage);n.setUsage(THREE.DynamicDrawUsage);geom.setAttribute('position',p);geom.setAttribute('normal',n);
@@ -182,7 +184,8 @@ export function createScene(){
  const roadTop=y=>{const a=Math.abs(y);return a<2.9?.305:a<4.6?.21+(3.6-a)*.06:.14;};
  // 車藏起來就把那塊縮成一點。
  const writePools=()=>{let o=0;for(const c of heads){const p=c.g.position,on=c.g.visible;for(let j=0;j<=NY;j++){const y=p.y+c.dir*(c.L/2+POOL.near+j/NY*(POOL.far-POOL.near));for(let i=0;i<=NX;i++,o+=3){poolPos[o]=on?p.x+c.dir*(i/NX-.5)*2*POOL.half:p.x;poolPos[o+1]=on?y:p.y;poolPos[o+2]=on?roadTop(y)+.12:-5;}}}poolGeo.attributes.position.needsUpdate=true;};
- let state={};return{...k,dispose(){atlasTexture?.dispose();poolTex?.dispose();k.dispose();},path,opposingPath,kind:'crossing',contactWireZ:2.31-.0125,focus:[0,5,1],update(time,period,train){const f=k.illumination(period),a=crossingState(train.distance,train.length,path.length,train.speed),b=crossingState(train.opposingDistance??train.distance,train.length,path.length,train.speed),s={...a,arrival:Math.max(a.arrival,b.arrival),clear:Math.min(a.clear,b.clear),closed:Math.max(a.closed,b.closed),alarm:a.alarm||b.alarm,occupied:a.occupied||b.occupied};s.phase=s.occupied?'雙向列車通過':!s.alarm?'通行開放':s.closed===1?'等待雙線清空':s.clear>.8?'遮斷桿上升':s.closed>0?'遮斷桿下降':'列車接近';for(const {pivot,side}of gates)pivot.rotation.y=side*(1-s.closed)*Math.PI/2;
+ // nativeRigs：原生烘焙器讀的會動零件（汽機車、遮斷桿臂的模板與 rig）、閃燈材質與警示紅光，原生照 update 的公式逐幀擺。
+ let state={};return{...k,nativeRigs:{fleet,cars,gates,lamps,redLights},dispose(){atlasTexture?.dispose();poolTex?.dispose();k.dispose();},path,opposingPath,kind:'crossing',contactWireZ:2.31-.0125,focus:[0,5,1],update(time,period,train){const f=k.illumination(period),a=crossingState(train.distance,train.length,path.length,train.speed),b=crossingState(train.opposingDistance??train.distance,train.length,path.length,train.speed),s={...a,arrival:Math.max(a.arrival,b.arrival),clear:Math.min(a.clear,b.clear),closed:Math.max(a.closed,b.closed),alarm:a.alarm||b.alarm,occupied:a.occupied||b.occupied};s.phase=s.occupied?'雙向列車通過':!s.alarm?'通行開放':s.closed===1?'等待雙線清空':s.clear>.8?'遮斷桿上升':s.closed>0?'遮斷桿下降':'列車接近';for(const {pivot,side}of gates)pivot.rotation.y=side*(1-s.closed)*Math.PI/2;
   for(const l of redLights)l.intensity=s.alarm?(f?2.5:.4):0;const blink=Math.floor(time*2.2)%2;for(const {m,index}of lamps){const on=s.alarm&&blink===index;m.emissiveIntensity=on?3:0;m.color.set(on?'#ff5943':'#551c19');}
   // 車流只在全開後通行；下一次警示前回到入口，所有回繞都在道路邊界。
   const span=38,openStart=3.2,openDuration=(path.length-train.length-7)/train.speed-9.2;
