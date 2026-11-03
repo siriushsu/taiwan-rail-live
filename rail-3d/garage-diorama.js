@@ -43,6 +43,7 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
  const lamps=createTrainLamps(consist,environment.texture);scene.add(lamps.halos,lamps.beam);
  const wires=sceneId==='paddy'?catenaryFor(carId,family):null;
  if(wires!==null)world.group.traverse(o=>{if(o.name==='catenary')o.visible=wires;});
+ consist.setContactWire(wires===false?null:world.contactWireZ??null);
  // 隧道透視（田園小站，同 App 與網頁 3D 地圖的地下列車 .42）：被山擋住的車隔著山只透出最外層車殼，不透出車內與對面那片車殼。
  // 整幀畫完後只畫 XRAY 圖層再一趟，stencil 五步（同 App R3DRenderer／garage_scene.cpp）：mark 標出車身比深度遠的像素 →
  // unmark 車身看得到的像素取消（不然車窗玻璃、陰影會被疊色改掉）→ clearDepth 只在剩下的像素把深度清成最遠 → depth 寫車殼深度 → color 只畫最近那層。
@@ -74,6 +75,7 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
    let route=0,s=time*m.speed,travel=1;
    if(journey){const pose=journey.at(time);route=pose.route;s=pose.s;travel=pose.sign;follow3D(world.routes[route],s);}
    else if(m.drive===0)consist.follow(world.path,s,1);else follow3D(world.path,s);
+   consist.updateParts();
    const path=journey?world.routes[route]:world.path;let inTunnel=0;
    const touching=xrays.map((_,i)=>{const c=consist.cars[i];return touchesTunnel(s+c.offset,c.length/2,world.tunnel,path.length);});
    inTunnel=touching.filter(Boolean).length;
