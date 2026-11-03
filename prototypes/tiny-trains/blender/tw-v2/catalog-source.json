@@ -3212,5 +3212,66 @@
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "tengyun",
+  "name": "騰雲號・1887 年蒸汽機車",
+  "label": "騰雲號",
+  "detail": "鑽石形大漏斗煙囪 · 兩軸四輪水櫃式 · 紅色緩衝梁與長緩衝器",
+  "color": "#c42420",
+  "source": "https://commons.wikimedia.org/wiki/File:1887_Hohenzollern_0-4-0_%E2%80%98No1%E2%80%99_%E2%80%9CTeng-Yung%E2%80%9D_at_the_National_Taiwan_Museum_in_Taipei._04-03-2026_(55236084362).jpg",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Alan Wilson（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:1887_Hohenzollern_0-4-0_%E2%80%98No1%E2%80%99_%E2%80%9CTeng-Yung%E2%80%9D_at_the_National_Taiwan_Museum_in_Taipei._04-03-2026_(55236084362).jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Dquai（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_1_circa_late_1990s.jpg"
+   }
+  ],
+  "features": [
+   "德國 Hohenzollern 1887 年製，1888 年跟御風號一起運到台灣，是劉銘傳興建台北—基隆鐵路時買的機車；1891 年起跑基隆—台北，多半拉貨物與調車，1924 年退役後保存在台北新公園（今二二八和平紀念公園），現在在國立臺灣博物館前的展示亭。",
+   "兩軸四輪（0-4-0T）水櫃式：沒有煤水車，駕駛室前面兩側是小水櫃；出廠時是直筒煙囪，1906 年為了收集火星改成上端大漏斗的鑽石形煙囪，之後一直是這個樣子；煙箱頂側邊一盞油燈式前燈，步道前端兩角各一盞標識燈。",
+   "黑色車身、紅色前後緩衝梁，兩端各兩個長緩衝器加鉤頭與鏈條；彈簧秤式安全閥在煙囪後面，駕駛室圓弧頂、前後各兩扇方窗、側面拱形出入口；水櫃側面兩塊紅牌（這版不放字）。車庫裡跟其他蒸機一樣後面掛兩節藍皮客車。"
+  ],
+  "photos": [
+   {
+    "file": "File:1887 Hohenzollern 0-4-0 ‘No1’ “Teng-Yung” at the National Taiwan Museum in Taipei. 04-03-2026 (55236084362).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:1887_Hohenzollern_0-4-0_%E2%80%98No1%E2%80%99_%E2%80%9CTeng-Yung%E2%80%9D_at_the_National_Taiwan_Museum_in_Taipei._04-03-2026_(55236084362).jpg",
+    "author": "Alan Wilson",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜前方（鑽石形煙囪、油燈式前燈、彈簧秤式安全閥、紅色緩衝梁與長緩衝器、駕駛室與水櫃）"
+   },
+   {
+    "file": "File:TRA 1 circa late 1990s.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_1_circa_late_1990s.jpg",
+    "author": "Dquai",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面（煙箱門與把手輪、緩衝梁鉚釘、前端扶手、鉤頭與鏈條）"
+   },
+   {
+    "file": "File:Teng-Yung locomotive in Taipei Railway Workshop 1999-01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Teng-Yung_locomotive_in_Taipei_Railway_Workshop_1999-01.jpg",
+    "author": "Winertai",
+    "licence": "CC BY-SA 3.0",
+    "use": "1999 年台北機廠整修時（還沒上漆，看得出鍋爐、水櫃、汽缸與連桿）"
+   },
+   {
+    "file": "File:The Steam Locomotive No.1 of Taiwan Railway plaque 20171207.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:The_Steam_Locomotive_No.1_of_Taiwan_Railway_plaque_20171207.jpg",
+    "author": "Gary Lee Todd",
+    "licence": "CC0",
+    "use": "說明牌上 1920 年代行駛中的照片（整台側面比例）"
+   },
+   {
+    "file": "File:Replica Victor Type Steam Locomotive.JPG",
+    "url": "https://commons.wikimedia.org/wiki/File:Replica_Victor_Type_Steam_Locomotive.JPG",
+    "author": "SSR2000",
+    "licence": "CC BY-SA 3.0",
+    "use": "東勢的仿製車（水櫃與駕駛室的相對位置；顏色不同）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
  }
 ]
