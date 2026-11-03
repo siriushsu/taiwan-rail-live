@@ -64,7 +64,8 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
  scene.add(world.group,...consists.map(c=>c.root));
  // 車燈（同 App 的 dioramaLights）：每列車一套（平交道、光華街還有對向那列）。點光要在下面隧道透視把燈開進 XRAY 圖層之前加進場景，兩趟的燈數才一樣。
  const lamps=consists.map(c=>createTrainLamps(c,environment.texture));for(const l of lamps)scene.add(l.halos,l.beam);
- const wires=sceneId==='paddy'?catenaryFor(carId,family):null;
+ // 電車線依車款畫不畫（同 App GarageCatenary）：田園小站是 catenary 物件，多良那組由場景模組照 update 收到的 wires 開關。
+ const wires=sceneId==='paddy'||sceneId==='duoliang'?catenaryFor(carId,family):null;
  if(wires!==null)world.group.traverse(o=>{if(o.name==='catenary')o.visible=wires;});
  // 集電弓頂到場景的接觸線；沒有電車線的場景（或田園小站這款車不畫線）降弓。
  for(const c of consists)c.setContactWire(wires===false?null:world.contactWireZ??null);
@@ -133,7 +134,7 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
    else{if(tt){stop=tt.at(now);s=stop.distance+m.stop;}else s=now*m.speed;if(m.drive===0)consist.follow(world.path,s,1);else follow3D(world.path,s);consist.updateParts();}
    if(stop)consist.doors?.update(stop.doors,platformNormal);
    const cars=[];if(passAt)for(const c of consists)if(c.root.visible)for(const car of c.cars)cars.push(car.car.getWorldPosition(point).toArray());
-   world.update(now,p,pose??(passAt?{id:carId,distance:s,opposingDistance:opposing?passAt(now-m.opposing):undefined,length:consist.length,speed:m.speed,cars,scale:mod.UNIT_PER_M?.[carId]??mod.METER}:undefined));
+   world.update(now,p,pose??(passAt?{id:carId,wires,distance:s,opposingDistance:opposing?passAt(now-m.opposing):undefined,length:consist.length,speed:m.speed,cars,scale:mod.UNIT_PER_M?.[carId]??mod.METER}:undefined));
    people?.update(now);lanterns?.update(now,p);vegetation?.update?.(now,p);visitors?.update?.(now,stop.distance,world.path,consist);
    const path=journey?world.routes[route]:world.path;let inTunnel=0;
    const touching=xrays.map((_,i)=>{const c=consist.cars[i];return touchesTunnel(s+c.offset,c.length/2,world.tunnel,path.length);});

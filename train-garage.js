@@ -44,7 +44,8 @@
   let fs=false,fsScroll=0,fsHistory=false;
   let mode='model',running=false,direction=1,distance=0,travelTime=0,inView=true,period='day';
   // 第 4 格「場景」開場景頁（三端同一套規則）：場景是主角，畫哪一座看 frameScene，不由車款推；頁上一排場景鈕就地換座。
-  // 預設車庫「田園小站」每款車都能跑、永遠能進；已做好的四座只跑分派表（train-garage-scenes.js）分到那座的車，照錢包的已解鎖清單進，
+  // 預設車庫「田園小站」每款車都能跑、永遠能進；已做好的幾座照場景規則（train-garage-scenes.js 的 RailGarageSceneRules：台鐵景跑
+  // 所有台鐵車、阿里山跑林鐵車）跑那個系統的車，照錢包的已解鎖清單進，
   // 鎖著的點了開兌換視窗（見下面「兌換專屬場景」）。沒有錢包（沒登入、展示模式）只有田園小站，不出場景列與場景鈕。
   // 已做好的場景要跟 rail-3d/garage-diorama.js 的 SCENES 一致。
   const DEFAULT_SCENE='paddy',DEFAULT_PLACE='預設車庫・田園小站',BUILT_SCENES=new Set(['south-coast','alishan','viaduct','shifen','duoliang','crossing','guanghua']);
@@ -70,14 +71,15 @@
   };
   // 手機預設關陰影、像素比 1（10-30 A54 量測），只用在場景頁。
   const lite=matchMedia('(pointer:coarse) and (hover:none)');
-  const exclusiveScene=id=>{const s=globalThis.RailGarageScenes?.[id];return s&&BUILT_SCENES.has(s.scene)?s.scene:'';};
-  // 專屬場景的地名取分派表裡 params 為空的那款（原型實際畫的那一段），同 App manifest 的 place。
-  const scenePlace=scene=>scene===DEFAULT_SCENE?DEFAULT_PLACE:Object.values(globalThis.RailGarageScenes||{}).find(s=>s.scene===scene&&!Object.keys(s.params||{}).length)?.place||'';
+  // 這款車能不能進這座（車款目錄的系統對場景規則）；地名也取場景規則，同 App manifest 的 cars 與 place。
+  const sceneRule=scene=>BUILT_SCENES.has(scene)?globalThis.RailGarageSceneRules?.[scene]:null;
+  const runsIn=(row,scene)=>scene===DEFAULT_SCENE||!!row&&row.model.system===sceneRule(scene)?.system;
+  const scenePlace=scene=>scene===DEFAULT_SCENE?DEFAULT_PLACE:sceneRule(scene)?.place||'';
   // 場景清單：田園小站排第一，後面是錢包裡可兌換、這裡也做好的那幾座。能進＝田園小站，或錢包的已解鎖清單有它。
   const sceneList=ctx=>ctx?[DEFAULT_SCENE,...ctx.scenes]:[DEFAULT_SCENE];
   const sceneOpen=(ctx,scene)=>scene===DEFAULT_SCENE||!!ctx?.ledger?.unlocked.includes(scene);
-  // 每座跑的車：田園小站＝全部車款，其他＝分派表分到那座的；已入庫的排前面，其餘照目錄順序。
-  function roster(scene){const cars=scene===DEFAULT_SCENE?rows:rows.filter(r=>exclusiveScene(r.id)===scene);return [...cars.filter(r=>r.owned),...cars.filter(r=>!r.owned)];}
+  // 每座跑的車：田園小站＝全部車款，其他＝場景規則那個系統的車；已入庫的排前面，其餘照目錄順序。
+  function roster(scene){const cars=rows.filter(r=>runsIn(r,scene));return [...cars.filter(r=>r.owned),...cars.filter(r=>!r.owned)];}
   // 換到某座時選哪台車：這次在那座最後看的 > 目前的車（跑得了那座的話）> 那座第一款已入庫的 > 那座第一款。
   function pickCar(scene){const cars=roster(scene),had=frameCars.get(scene);return (cars.find(r=>r.id===had)||cars.find(r=>r.id===selected)||cars[0])?.id;}
   const inFilter=r=>filter==='all'||(filter==='owned'?r.owned:r.rule&&!r.owned);
@@ -613,8 +615,8 @@
     $('.g-reset-view').onclick=()=>{auto=false;resetView();showControls();requestDraw();};
     $('.g-auto').onclick=()=>{if(mode!=='model')running=!running;else auto=!auto;last=0;showControls();requestDraw();};
     $('.g-reverse').onclick=()=>{direction*=-1;showControls();requestDraw();};
-    // 第 4 格：先畫這款車的專屬場景（已解鎖的話），不然田園小站。
-    for(const b of dialog.querySelectorAll('[data-view]'))b.onclick=()=>{if(b.dataset.view==='scene'){const ex=exclusiveScene(selected);openFrame(ex&&sceneOpen(walletCtx(),ex)?ex:DEFAULT_SCENE);showDetail();return;}if(mode===b.dataset.view)return;mode=b.dataset.view;auto=false;running=mode!=='model'&&!reduced.matches;resetView();last=0;showDetail();};
+    // 第 4 格：先畫這款車能進、已解鎖的第一座（照場景列的順序），不然田園小站。
+    for(const b of dialog.querySelectorAll('[data-view]'))b.onclick=()=>{if(b.dataset.view==='scene'){const ctx=walletCtx(),row=rows.find(r=>r.id===selected);openFrame(sceneList(ctx).find(s=>s!==DEFAULT_SCENE&&sceneOpen(ctx,s)&&runsIn(row,s))||DEFAULT_SCENE);showDetail();return;}if(mode===b.dataset.view)return;mode=b.dataset.view;auto=false;running=mode!=='model'&&!reduced.matches;resetView();last=0;showDetail();};
     $('.g-sf-leave').onclick=closeFrame;
     $('.g-sf-title').onclick=()=>{if(!closeCars(true))openCars();};
     $('.g-sf').addEventListener('pointerdown',e=>{if(!e.target.closest('.g-sf-cars,.g-sf-title'))closeCars();});
