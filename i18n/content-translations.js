@@ -4705,6 +4705,14 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '茶山夜燈': 'Tea hills at night',
   '正在把小車送上動物園站…': 'Lifting the little train up to Taipei Zoo Station…',
   '文湖線動物園站 · 微縮印象': 'Taipei Zoo Station, Wenhu Line · miniature impression',
+  '山鼻站': "Shanbi",
+  '機場捷運・山鼻站': "Taoyuan Airport MRT · Shanbi Station",
+  '山鼻全景': "Shanbi panorama",
+  '田野晴日': "Sunny fields",
+  '埤塘夕照': "Sunset over the farm pond",
+  '航燈入夜': "Aircraft lights at night",
+  '正在把小車送上山鼻站…': "Lifting the little train up to Shanbi Station…",
+  '機場捷運山鼻站 · 微縮印象': "Shanbi Station, Taoyuan Airport MRT · miniature impression",
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '劍潭站': '剣潭',
@@ -4723,4 +4731,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '茶山夜燈': '茶畑の山の夜灯り',
   '正在把小車送上動物園站…': '小さな列車を動物園駅へ送り出しています…',
   '文湖線動物園站 · 微縮印象': '文湖線 動物園駅 · ミニチュアの印象',
+  '山鼻站': "山鼻",
+  '機場捷運・山鼻站': "桃園空港MRT・山鼻駅",
+  '山鼻全景': "山鼻の全景",
+  '田野晴日': "田園の晴天",
+  '埤塘夕照': "ため池の夕焼け",
+  '航燈入夜': "夜の航空灯",
+  '正在把小車送上山鼻站…': "小さな列車を山鼻駅へ送り出しています…",
+  '機場捷運山鼻站 · 微縮印象': "桃園空港MRT 山鼻駅 · ミニチュアの印象",
 });
