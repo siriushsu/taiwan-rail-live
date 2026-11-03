@@ -125,7 +125,8 @@ function createKit(seedValue){
   const gt=L.railZ+.42,gb=L.bedZ-.36;
   L.strips(girder,[[-1.0,gb,-1.0,gt],[-1.12,gt,-1.12,gb],[-1.12,gt,-1.0,gt],[1.0,gt,1.0,gb],[1.12,gb,1.12,gt],[1.0,gt,1.12,gt]],{s0,s1});
   for(let s=s0+.3;s<s1;s+=.62){const q=L.sample(s);for(const o of [-1.16,1.16])block(girder,[.06,.07,gt-gb-.08],[q.x-Math.sin(q.heading)*o,q.y+Math.cos(q.heading)*o,(gt+gb)/2],[0,0,q.heading]);}
-  for(const s of [s0,s1]){const q=L.sample(s);block(abut,[1.0,3.0,L.bedZ-groundZ+.1],[q.x,q.y,(L.bedZ+groundZ)/2-.05],[0,0,q.heading]);}
+  // 橋台頂面比橋面、道碴面低 3 公分：同高會跟兩者搶深度，鏡頭一動就閃。
+  for(const s of [s0,s1]){const q=L.sample(s);block(abut,[1.0,3.0,L.bedZ-groundZ+.07],[q.x,q.y,(L.bedZ+groundZ)/2-.065],[0,0,q.heading]);}
  }
 
  // 隧道口：一面石砌門牆，拱形開口（Shape＋hole 擠出），兩側翼牆；朝向跟著那一點的軌道切線。dir=+1 門面朝弧長增加的方向。
