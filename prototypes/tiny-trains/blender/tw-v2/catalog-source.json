@@ -3001,5 +3001,73 @@
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "ct250",
+  "name": "CT250・C55 蒸汽機車",
+  "label": "CT250",
+  "detail": "輻條動輪 · 汽包砂箱一體罩 · 大型導煙板",
+  "color": "#4a5052",
+  "source": "https://commons.wikimedia.org/wiki/File:%E8%87%BA%E9%90%B5CT251_%E5%89%8D%E9%9D%A2.jpg",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Pbdragonwang（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%87%BA%E9%90%B5CT251_%E5%89%8D%E9%9D%A2.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／玄史生（CC0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Rear_Right_View_of_TRA_CT259_in_Takao_Railway_Museum_20151129.jpg"
+   }
+  ],
+  "features": [
+   "日本 C55 形，1935、1938 年引進九輛，跑西部幹線客運，1979 年縱貫線電氣化後逐漸停用、1982 年報廢：前方兩軸先輪、三組 1,750 mm 大動輪、一軸從輪；動輪是輻條輪，根部有「水かき」補強，輪箍外緣白線。",
+   "煙箱上方前燈、煙箱門上緣紅色車號牌；汽包和砂箱同一個長圓罩；兩側大型導煙板的下緣跟著步道往下彎到前端甲板，甲板上橫放給水溫水器。",
+   "紅色主連桿與連結桿、華氏閥動裝置；圓拱頂駕駛室兩側各兩扇窗；煤水車前段煤堆、後段注水口，兩組兩軸轉向架，後端梯子、前燈與紅色標識燈。"
+  ],
+  "photos": [
+   {
+    "file": "File:臺鐵CT251 前面.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%87%BA%E9%90%B5CT251_%E5%89%8D%E9%9D%A2.jpg",
+    "author": "Pbdragonwang",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面（煙箱上方前燈、煙箱門紅色車號牌、導煙板、甲板上的給水溫水器、排障器）"
+   },
+   {
+    "file": "File:臺鐵CT251 後面.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E8%87%BA%E9%90%B5CT251_%E5%BE%8C%E9%9D%A2.jpg",
+    "author": "Pbdragonwang",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜後方（煤水車側板與上緣、駕駛室側窗與紅牌）"
+   },
+   {
+    "file": "File:打狗鐵道故事館CT259.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%89%93%E7%8B%97%E9%90%B5%E9%81%93%E6%95%85%E4%BA%8B%E9%A4%A8CT259.jpg",
+    "author": "Ahph",
+    "licence": "CC BY-SA 3.0",
+    "use": "斜前方（步道外緣白線與往下彎的前段、導煙板下緣、汽包砂箱一體罩、輪箍白線）"
+   },
+   {
+    "file": "File:Detail of TRA CT259 2013-10-17.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Detail_of_TRA_CT259_2013-10-17.jpg",
+    "author": "MiNe",
+    "licence": "CC BY 2.0",
+    "use": "動輪輻條與配重、紅色主連桿與連結桿、步道下的主空氣筒"
+   },
+   {
+    "file": "File:Rear Right View of TRA CT259 in Takao Railway Museum 20151129.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Rear_Right_View_of_TRA_CT259_in_Takao_Railway_Museum_20151129.jpg",
+    "author": "玄史生",
+    "licence": "CC0",
+    "use": "側面全長（汽包位置、駕駛室窗、煤水車長度與兩組轉向架）"
+   },
+   {
+    "file": "File:TRA CT259 at the Takao Railway Museum 2020-03-06.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_CT259_at_the_Takao_Railway_Museum_2020-03-06.jpg",
+    "author": "Industrial Wales",
+    "licence": "CC BY-SA 2.0",
+    "use": "煤水車後端（梯子、上方前燈、標識燈、車號牌）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
  }
 ]
