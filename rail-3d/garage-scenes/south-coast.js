@@ -1,6 +1,7 @@
 // 南迴海岸的微縮印象；不是特定車站或實際線形的重建。沿線物件由固定 seed 生成。
 import * as THREE from '../vendor/three.module.js';
 import {personPose} from '../garage-people.js';
+import {createTaiwanTrees,pickSpecies,seedFromPosition} from './taiwan-trees.js';
 export const THEMES = {
  day:{background:'#eae7dd',sun:'#fff1cf',ambient:'#c1dce7',ground:'#7b8663',power:3.2,exposure:1.05,water:'#307c8c',shallow:'#71b3ae'},
  sunset:{background:'#e9d6c3',sun:'#ffbc77',ambient:'#d5b7b2',ground:'#6c7161',power:3.1,exposure:.95,water:'#547f89',shallow:'#9db5a4'},
@@ -54,8 +55,21 @@ export function createScene(palmsKit=null,stationKit=null){
  // 中景山丘形成遮擋，遠處軌道從山後繞回；固定三角網格不需外部地形圖。
  const hills=[[-16,4.8,7.6,4.5,7],[-8,5.3,6.5,3.7,7.8],[2,5.2,7,4,6],[12,5.2,6.2,4.1,9.2],[19,4.8,5,3.2,6.5]];
  function height(x,y){let h=0;for(const [cx,cy,rx,ry,z]of hills){const d=((x-cx)/rx)**2+((y-cy)/ry)**2;h=Math.max(h,z*Math.max(0,1-d)**1.25);}return h;}
+ // 網格的山腳（11-03）。原本有一排明暗交錯的鋸齒，兩個原因：山腳那條折線（平地轉陡坡）斜穿過格子，跨過它的三角形
+ // 在平面著色下一明一暗；u^1.25 在山腳由 0 陡升，第一排格點離山腳遠近不一，坡度差一倍以上。對應兩處改法：
+ // footHeight 把 u<FOOT（約山腳往內一格，含斜邊方向）換成過原點、在 FOOT 接回原曲線的直線，坡度一致，FOOT 以上同 height()；
+ // 下面的山腳貼齊把地面格點挪到折線上。撒樹仍用 height()，rand() 順序與樹位不變；網格只在這一圈比 height() 高（最多約 .14），樹根略埋進坡面。
+ const FOOT=.26;function footHeight(x,y){let h=0;for(const [cx,cy,rx,ry,z]of hills){const d=((x-cx)/rx)**2+((y-cy)/ry)**2,u=1-d;if(u>0)h=Math.max(h,z*(u<FOOT?u*FOOT**.25:u**1.25));}return h;}
  const hv=[],hi=[],hc=[],cols=['#8b9a76','#7b8e6c','#93a17d','#748563'].map(x=>new THREE.Color(x));
- const nx=112,ny=28;for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){const x=-27+i/nx*54,y=.7+j/ny*8.6,h=height(x,y);hv.push(x,y,h-.05);const c=cols[0].clone().lerp(cols[3],Math.min(1,h/11)).multiplyScalar(.97+rand()*.06);hc.push(c.r,c.g,c.b);}
+ const nx=112,ny=28;for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){const x=-27+i/nx*54,y=.7+j/ny*8.6,h=footHeight(x,y);hv.push(x,y,h-.05);const c=cols[0].clone().lerp(cols[3],Math.min(1,h/11)).multiplyScalar(.97+rand()*.06);hc.push(c.r,c.g,c.b);}
+ // 山腳貼齊：地面格點（h=0）的上下左右或三角形斜邊方向有山上的格點，就沿那條邊挪到最近的山腳點（二分找 footHeight 由 0 轉正處）。
+ // 只在 xy 挪、不到一格，三角形不會翻面；格點數、順序、顏色都不變。
+ const up=k=>hv[k*3+2]>-.05;
+ for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){const k=j*(nx+1)+i;if(up(k))continue;let best=1,bx=0,by=0;
+  for(const [di,dj] of [[1,0],[-1,0],[0,1],[0,-1],[-1,1],[1,-1]]){const n=(j+dj)*(nx+1)+i+di;if(i+di<0||i+di>nx||j+dj<0||j+dj>ny||!up(n))continue;
+   const x0=hv[k*3],y0=hv[k*3+1],x1=hv[n*3],y1=hv[n*3+1];let lo=0,top=1;for(let it=0;it<24;it++){const m=(lo+top)/2;if(footHeight(x0+(x1-x0)*m,y0+(y1-y0)*m)>0)top=m;else lo=m;}
+   if(lo<best){best=lo;bx=x0+(x1-x0)*lo;by=y0+(y1-y0)*lo;}}
+  if(best<1){hv[k*3]=bx;hv[k*3+1]=by;}}
  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const k=j*(nx+1)+i;hi.push(k,k+1,k+nx+1,k+1,k+nx+2,k+nx+1);}const hg=geo(new THREE.BufferGeometry());hg.setAttribute('position',new THREE.Float32BufferAttribute(hv,3));hg.setAttribute('color',new THREE.Float32BufferAttribute(hc,3));hg.setIndex(hi);hg.computeVertexNormals();mesh(hg,mat('#ffffff',{vertexColors:true,flatShading:true}));
  // 植被兩個迴圈（山坡 loop1、後排平地 loop2）抽 rand() 的次數與順序跟 HEAD 逐行相同：每棵先抽 x/y（loop1
  // 過地形門檻才抽 s），迴圈尾端再抽固定次數（loop1 六次、loop2 四次，原本是舊版扇葉的 jitter，現在不用了，
@@ -76,7 +90,7 @@ export function createScene(palmsKit=null,stationKit=null){
  const PALM_MODELS=['coco-straight','coco-curved-a','coco-curved-b','betel-a','betel-b'];
  const PALM_OF_KIND={coco:'coco-straight',cocoCurvedA:'coco-curved-a',cocoCurvedB:'coco-curved-b'}; // HEAD 的物種 → 三款椰子各自的樹幹
  // 整棵高度（場景單位，UNITS_PER_METER=.4435）：棕櫚要讀得出是高大的樹，不能比同一坡帶
- // 的闊葉樹矮一截。同一坡帶（ratio<.38）的闊葉樹實測 1.79～3.41（平均 2.47），所以椰子 2.8～3.5（6.3～7.9 m）、
+ // 的闊葉樹矮一截。同一坡帶（ratio<.38）的闊葉樹 09-28 實測 1.79～3.41（平均 2.47；11-03 換成台灣樹種後見 COAST_H），所以椰子 2.8～3.5（6.3～7.9 m）、
  // 檳榔 3.0～3.7（6.8～8.3 m），用同一個 s 內插（樹越高冠越寬是同一個尺寸因子，等比縮放）。
  const COCO_HEIGHT=[2.8,3.5],BETEL_HEIGHT=[3.0,3.7];
  // 後排（車站周邊內側平地，loop2）整棵等比縮成幼樹：它們在回程直線（y=9.8）的外側，跟車鏡頭從環線外側往內看時
@@ -94,8 +108,8 @@ export function createScene(palmsKit=null,stationKit=null){
  // 稜線改闊葉樹冠團塊——原本檳榔不分海拔種到山頂，遠看像「插滿牙籤的綠色軟糖」。物種取捨用
  // z（已經抽出來的地形高度，不是新抽樣）換算成的高度比例＋雜湊值做決定性判斷，跟上面 plant/coco
  // 判斷同一個紀律（雜湊取餘數、不呼叫新 rand()），不影響既有 rand() 序列（後排／礫石等下游
- // 取樣的抽樣次序不變）。闊葉樹零件（broadleaf-a/b-trunk+canopy）見
- // scripts/blender/coast-20260928/build_coast_flora.py。
+ // 取樣的抽樣次序不變）。闊葉樹 11-03 起改種台灣樹種（見下方 COAST_LOW）；09-28 的 Blender 闊葉樹零件
+ // （broadleaf-a/b-trunk+canopy，scripts/blender/coast-20260928/build_coast_flora.py）還在零件庫裡，這裡不再用。
  const PEAK=Math.max(...hills.map(h=>h[4])); // 9.2，跟地形同源用量的不手打常數。
  // 門檻由 scratchpad/garage-b/sim_exact.mjs 對正式 seed=9184 逐配置實測選定（不是猜的）：
  // [.18,.38,.01] 讓「棕櫚中 ratio>.35」≈5.8%（門檻 ≤10%）、「ridge(ratio≥.5) 已種植裡闊葉佔比」
@@ -107,9 +121,13 @@ export function createScene(palmsKit=null,stationKit=null){
   const t=(ratio-PALM_MAX_RATIO)/(BROADLEAF_MIN_RATIO-PALM_MAX_RATIO);
   return hashVal<1-t*(1-RIDGE_PALM_RESIDUAL)?'palm':'broadleaf'; // 過渡帶：棕櫚機率線性遞減，避免硬邊界。
  }
- const broadleafTrunkMat=mat('#6b5d4a'),broadleafCanopyAMat=mat('#4a7048'),broadleafCanopyBMat=mat('#5c8a4f');
- const BL_SCALE_MIN=.85,BL_SCALE_MAX=1.4; // 闊葉樹整棵縮放範圍，重用同一個 s（見迴圈內），不額外抽樣。
- const boulders=[],broadleafATrunks=[],broadleafACanopy=[],broadleafBTrunks=[],broadleafBCanopy=[];
+ // 闊葉樹換成台灣樹種東部海岸組（11-03；taiwan-trees.js MIX.eastCoast 的樹種），依坡帶覆寫比例：林投只在下坡（離海近），
+ // 稜線以血桐、相思樹為主。樹高照真實比例（UNITS_PER_METER≈.4435）：血桐 5～7 m、相思樹 6～8.5 m、黃槿 4～6 m、林投 3.5～5 m。
+ // 擺放點、物種的雜湊、s 都照原本的闊葉樹（不多抽 rand()）；樹種與樹形由座標種子決定。坡地上的樹不鋪樹下貼片（ground:false）。
+ const COAST_LOW=[['macaranga',.5],['pandanus',.3],['hibiscus',.12],['acacia',.08]],COAST_RIDGE=[['macaranga',.7],['acacia',.25],['hibiscus',.05]];
+ const COAST_LOW_RATIO=.3,COAST_H={macaranga:[2.3,3.2],acacia:[2.7,3.8],hibiscus:[1.8,2.6],pandanus:[1.5,2.2]};
+ const coastTrees=createTaiwanTrees({geo,material:m=>(materials.add(m),m),shadowCap:.0015}),coastSpots=[];
+ const boulders=[];
  // 樹冠被闊葉樹冠蓋住的山坡棕櫚挪位（09-28）：闊葉樹不動，只把樹冠一半以上埋在闊葉樹冠裡的山坡棕櫚移開。
  // 48dfc156 量到 20 棵（樹冠取樣點 ≥50% 落在闊葉樹冠內）。鍵＝下面迴圈的序號 i，值＝[dx,dy]（場景單位）：物種、款式、yaw、高度、
  // 深淺仍照原位的抽樣決定，只把樹幹底挪到 (x+dx,y+dy)、z 重算 height()；不在表裡的棕櫚與闊葉樹逐 byte 不變，也不多抽 rand()。
@@ -117,6 +135,7 @@ export function createScene(palmsKit=null,stationKit=null){
  // 棕櫚、在迴圈抽樣範圍內、樹冠不比原本靠近軌道（離道碴夠遠時除外）、樹冠中心離別棵棕櫚 ≥ 較大樹冠半徑的一半、樹幹離闊葉樹幹
  // ≥ 兩倍半徑和、不跟任兩棵棕櫚排成一排。23 與 239 另加兩條（其餘 18 棵照原搜尋結果）：樹幹底到樹冠中心那段
  // 不穿過闊葉樹冠、六個鏡頭方向至少一個看得到一半以上的樹冠。驗收：verify_garage_south_coast_stop.mjs「南迴-棕櫚 not buried」（闊葉樹冠實際網格）。
+ // 這張表是對 09-28 的 Blender 闊葉樹冠算的；11-03 換成台灣樹種後，改由闊葉樹讓開棕櫚的冠（見種樹那段的 maxReach）。
  const PALM_NUDGE={23:[0,.3],33:[.05,.75],47:[1.3,.4],95:[4,-2.75],101:[.7,-.45],120:[3.9,-1.8],137:[-5.25,-.05],146:[6.15,-1],147:[2.1,-1.9],227:[3.6,0],239:[1.25,-5.2],246:[-1.35,-3.75],289:[1.9,-6.5],298:[1.3,-4.9],308:[1.8,2.35],331:[7.55,-4.5],365:[.55,-.1],431:[2.9,-.8],432:[-3.35,-.05],453:[1,0]};
  for(let i=0;i<460;i++){const x=rand()*51-25.5,y=rand()*7.4+1.2,z=height(x,y);if(z<.6)continue;const s=.38+rand()*.58;
   const plant=((i*2654435761)>>>0)%1000<520; // 山坡「有沒有種東西」，跟原本一樣先決定，不因新的物種邏輯改變機率。
@@ -134,10 +153,8 @@ export function createScene(palmsKit=null,stationKit=null){
   if(kind==='betel')placePalm(kind,i,at,s,1,i*.71);
   else if(PALM_OF_KIND[kind])placePalm(kind,i,at,s,1,seaward(i));
   else if(kind==='broadleafA'||kind==='broadleafB'){
-   const bs=BL_SCALE_MIN+uOf(s)*(BL_SCALE_MAX-BL_SCALE_MIN),yawTrunk=i*.71; // 重用同一個 s，不額外抽樣。
-   const trunks=kind==='broadleafA'?broadleafATrunks:broadleafBTrunks,canopy=kind==='broadleafA'?broadleafACanopy:broadleafBCanopy;
-   trunks.push({pos:[x,y,z],rot:[0,0,yawTrunk],scale:[bs,bs,bs]});
-   canopy.push({pos:[x,y,z],rot:[0,0,yawTrunk],scale:[bs,bs,bs]});
+   const species=pickSpecies(ratio<COAST_LOW_RATIO?COAST_LOW:COAST_RIDGE,((i*668265263)>>>0)%1000/1000),[h0,h1]=COAST_H[species];
+   coastSpots.push({species,x,y,z,h:h0+uOf(s)*(h1-h0)}); // 重用同一個 s，不額外抽樣；棕櫚擺好之後才種（要讓開棕櫚的冠）。
   }
   for(let j=0;j<6;j++)rand(); // 次數保留（見本段開頭）。
  }
@@ -151,7 +168,7 @@ export function createScene(palmsKit=null,stationKit=null){
   const plant=(partName,material,items)=>{if(!items.length)return;const o=instances(palmsKit.parts.get(partName).geometry,material,items);o.name='palm-'+partName;};
   // 一款棕櫚＝零件庫裡 `<款>/<子零件>` 的幾個零件接成一份幾何，頂點色照 PALM_COLORS；子零件在幾何裡的
   // 範圍記在 userData.palmParts（verify 用它找樹冠、葉色、椰子果，不靠顏色反推）。
-  const palmMat=mat('#ffffff',{vertexColors:true,side:THREE.DoubleSide}),tint=new THREE.Color();
+  const palmMat=mat('#ffffff',{vertexColors:true,side:THREE.DoubleSide}),tint=new THREE.Color(),palmCrowns=[];
   function palmGeometry(model){
    const colors=PALM_COLORS[model.split('-')[0]],subs=[...palmsKit.parts.values()].filter(p=>p.name.startsWith(model+'/'));
    if(!subs.length)throw Error('palms: 零件庫沒有 '+model);
@@ -167,9 +184,16 @@ export function createScene(palmsKit=null,stationKit=null){
    const g=palmGeometry(model),H=g.boundingBox.max.z; // 模型整棵高（樹幹底 z=0），目標高度÷它＝等比縮放。
    const o=instances(g,palmMat,items.map(t=>({pos:t.pos,rot:[0,0,t.yaw],scale:[t.height/H,t.height/H,t.height/H]})));
    o.name='palm-'+model;items.forEach((t,k)=>o.setColorAt(k,tint.setScalar(t.tint)));
+   // 每棵棕櫚的冠（綠葉）中心與水平半徑，給下面的闊葉樹讓開。
+   const fr=g.userData.palmParts.find(p=>p.name==='fronds'),fb=new THREE.Box3(),pa=g.attributes.position,v=new THREE.Vector3();
+   for(let k=fr.start;k<fr.start+fr.count;k++)fb.expandByPoint(v.fromBufferAttribute(pa,k));
+   const fc=fb.getCenter(new THREE.Vector3()),fw=Math.max(fb.max.x-fb.min.x,fb.max.y-fb.min.y)/2,mm=new THREE.Matrix4();
+   items.forEach((t,k)=>{o.getMatrixAt(k,mm);const c=fc.clone().applyMatrix4(mm);palmCrowns.push({x:c.x,y:c.y,r:fw*t.height/H});});
   }
-  plant('broadleaf-a-trunk',broadleafTrunkMat,broadleafATrunks);plant('broadleaf-a-canopy',broadleafCanopyAMat,broadleafACanopy);
-  plant('broadleaf-b-trunk',broadleafTrunkMat,broadleafBTrunks);plant('broadleaf-b-canopy',broadleafCanopyBMat,broadleafBCanopy);
+  // 闊葉樹的冠不蓋到棕櫚的冠：冠幅上限＝到最近棕櫚冠中心的水平距離減該棕櫚冠半徑的一半（taiwan-trees.js 的 maxReach：超過就降高，最多到 75%）。
+  for(const t of coastSpots){let d=Infinity;for(const p of palmCrowns)d=Math.min(d,Math.hypot(p.x-t.x,p.y-t.y)-p.r*.5);
+   coastTrees.plant(t.species,t.x,t.y,t.z,t.h,{seed:seedFromPosition(t.x,t.y),ground:false,maxReach:Math.max(.3,d)});}
+  coastTrees.build(group);
  }
  instances(stoneGeo,rock,boulders);
  // 小站只取南迴沿線的意象，不標上真實站名。
