@@ -4,6 +4,8 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "車庫舞台拿掉旋轉和視角的四顆按鈕，改用拖曳、右鍵拖曳或方向鍵轉動；海岸行旅多了「天色」選單，可選自動、日出、藍天、黃昏或星空，會記在這台裝置": "The garage stage drops its four rotate and view buttons: drag, right-drag or use the arrow keys to turn it; the Coastal journey adds a “Sky” menu (Auto, Sunrise, Blue skies, Dusk or Starry night), remembered on this device",
+    "車庫場景頁上方多一排場景鈕，點一下就地換到別座；點場景名和車名那塊只列在這座跑的車；整個車庫換上一致的新設計，使用說明多了「車庫場景」一節": "The garage scene page now has a row of scene buttons at the top for switching scenes in place; tapping the scene and train name lists only the trains that run there; the whole garage has a unified new look, and the guide has a new “Garage scenes” section",
     "車庫場景的列車晚上會亮燈：車頭白燈照亮前方軌道、車尾亮紅燈、客車窗透出暖光；海岸行旅也照實車，只掛客車的那一頭不再亮頭燈": "Trains in garage scenes now light up at night: white headlights light the track ahead, red tail lights glow at the rear and coach windows give off a warm light; the Coastal journey also follows the real trains, so an end with only coaches no longer shows headlights",
     "車庫的莒光號、鳴日號、阿里山號與檜木列車客車補上尾燈，海岸行旅夜裡車尾改由尾燈亮紅光；田園小站的鐵橋在列車經過或轉動畫面時不再閃爍": "Chu-Kuang Express, Future, Alishan and cypress coaches in the garage now have tail lights, and at night the Coastal journey lights the tail lights at the rear; the bridge at Countryside Station no longer flickers when a train passes or the view turns",
     "開啟起伏地形時，地圖拉遠看的路線不再在隧道多的路段斷成一節一節（例如蘆竹到樹林的高鐵）；地下路線拉遠也改成實線": "With rolling terrain on, route lines seen zoomed out no longer break into pieces where tunnels are frequent (such as the high-speed rail from Luzhu to Shulin); underground lines also show as solid lines when zoomed out",
@@ -347,6 +349,8 @@
   });
 
   Object.assign(messages.ja, {
+    "車庫舞台拿掉旋轉和視角的四顆按鈕，改用拖曳、右鍵拖曳或方向鍵轉動；海岸行旅多了「天色」選單，可選自動、日出、藍天、黃昏或星空，會記在這台裝置": "車庫のステージから回転と視点の4つのボタンをなくし、ドラッグ・右ドラッグ・矢印キーで回せるようにしました。「海辺の旅」に「時間帯」メニューを追加し、自動・日の出・青空・夕暮れ・星空から選べます。選んだものはこの端末に記憶されます",
+    "車庫場景頁上方多一排場景鈕，點一下就地換到別座；點場景名和車名那塊只列在這座跑的車；整個車庫換上一致的新設計，使用說明多了「車庫場景」一節": "車庫の情景ページの上に情景ボタンが並び、その場でほかの情景に切り替えられます。情景名と車両名の部分をタップすると、その情景を走る車両だけが出ます。車庫全体を統一したデザインに一新し、使い方に「車庫の情景」の節を追加しました",
     "車庫場景的列車晚上會亮燈：車頭白燈照亮前方軌道、車尾亮紅燈、客車窗透出暖光；海岸行旅也照實車，只掛客車的那一頭不再亮頭燈": "車庫の情景で、夜は列車に灯りがともります。先頭の白い前照灯が前方の線路を照らし、最後尾は赤い尾灯、客車の窓には暖かな明かり。「海辺の旅」も実車どおりになり、客車だけの側には前照灯が付かなくなりました",
     "車庫的莒光號、鳴日號、阿里山號與檜木列車客車補上尾燈，海岸行旅夜裡車尾改由尾燈亮紅光；田園小站的鐵橋在列車經過或轉動畫面時不再閃爍": "車庫の莒光号・鳴日号・阿里山号・檜の客車に尾灯を付け、「海辺の旅」では夜、最後尾の尾灯が赤く灯ります。「田園の小駅」の鉄橋が、列車の通過や視点の回転でちらつかなくなりました",
     "開啟起伏地形時，地圖拉遠看的路線不再在隧道多的路段斷成一節一節（例如蘆竹到樹林的高鐵）；地下路線拉遠也改成實線": "起伏のある地形をオンにしたとき、地図を引いて見ると、トンネルの多い区間（蘆竹〜樹林の高鉄など）で路線が途切れ途切れになっていた問題を直しました。地下の路線も引いて見ると実線で表示します",
