@@ -4729,6 +4729,14 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '橋燈入夜': "Bridge lights at night",
   '正在把小車送上淡水漁人碼頭站…': "Lifting the little train up to Tamsui Fisherman's Wharf Station…",
   '淡海輕軌淡水漁人碼頭站 · 微縮印象': "Tamsui Fisherman's Wharf Station, Danhai LRT · miniature impression",
+  '文心森林公園站': "Wenxin Forest Park",
+  '台中捷運綠線・文心森林公園站': "Taichung Metro Green Line · Wenxin Forest Park Station",
+  '森林公園全景': "Forest Park panorama",
+  '公園晴日': "Sunny park",
+  '劇場夕照': "Sunset over the amphitheater",
+  '文心夜色': "Wenxin at night",
+  '正在把小車送上文心森林公園站…': "Lifting the little train up to Wenxin Forest Park Station…",
+  '台中捷運綠線文心森林公園站 · 微縮印象': "Wenxin Forest Park Station, Taichung Metro Green Line · miniature impression",
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '劍潭站': '剣潭',
@@ -4771,4 +4779,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '橋燈入夜': "夜の橋の灯り",
   '正在把小車送上淡水漁人碼頭站…': "小さな列車を淡水漁人碼頭駅へ送り出しています…",
   '淡海輕軌淡水漁人碼頭站 · 微縮印象': "淡海ライトレール 淡水漁人碼頭駅 · ミニチュアの印象",
+  '文心森林公園站': "文心森林公園",
+  '台中捷運綠線・文心森林公園站': "台中メトロ緑線・文心森林公園駅",
+  '森林公園全景': "森林公園の全景",
+  '公園晴日': "公園の晴天",
+  '劇場夕照': "野外劇場の夕焼け",
+  '文心夜色': "文心の夜景",
+  '正在把小車送上文心森林公園站…': "小さな列車を文心森林公園駅へ送り出しています…",
+  '台中捷運綠線文心森林公園站 · 微縮印象': "台中メトロ緑線 文心森林公園駅 · ミニチュアの印象",
 });
