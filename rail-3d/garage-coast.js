@@ -62,9 +62,10 @@ function createHalos(){
  const mesh=new THREE.Mesh(geometry,new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
   vertexShader:'attribute vec4 halo,tint;varying vec2 v;varying vec4 c;void main(){v=position.xy;c=tint;vec3 right=vec3(viewMatrix[0][0],viewMatrix[1][0],viewMatrix[2][0]),up=vec3(viewMatrix[0][1],viewMatrix[1][1],viewMatrix[2][1]);gl_Position=projectionMatrix*viewMatrix*vec4(halo.xyz+(right*position.x+up*position.y)*halo.w,1.);}',
   fragmentShader:'varying vec2 v;varying vec4 c;void main(){float r=length(v),glow=(exp(-r*r*9.)*.9+exp(-r*4.)*.25)*(1.-smoothstep(.8,1.,r)),core=1.-smoothstep(.03,.12,r);gl_FragColor=vec4(mix(c.rgb,vec3(1.,.99,.94),core*.85),min(1.,(glow+core*.8)*c.w));}'}));
- mesh.frustumCulled=false;mesh.renderOrder=1;mesh.visible=false;let n=0;
- return{mesh,clear(){n=0;geometry.instanceCount=0;mesh.visible=false;},
-  add(center,radius,tail,strength){if(n>=MAX_HALOS)return;at.setXYZW(n,center.x,center.y,center.z,radius);if(tail)tint.setXYZW(n,1,.16,.06,strength*.8);else tint.setXYZW(n,1,.91,.68,strength);n++;},
+ mesh.frustumCulled=false;mesh.renderOrder=1;mesh.visible=false;let n=0,limit=Infinity;
+ // clip(x)：世界 |x| 超過 x 的光暈不加（車庫場景穿越的車在底座邊緣被裁掉，燈也跟著不見）。clear() 之後設。
+ return{mesh,clear(){n=0;limit=Infinity;geometry.instanceCount=0;mesh.visible=false;},clip(x){limit=x;},
+  add(center,radius,tail,strength){if(n>=MAX_HALOS||Math.abs(center.x)>limit)return;at.setXYZW(n,center.x,center.y,center.z,radius);if(tail)tint.setXYZW(n,1,.16,.06,strength*.8);else tint.setXYZW(n,1,.91,.68,strength);n++;},
   commit(){geometry.instanceCount=n;mesh.visible=n>0;at.needsUpdate=tint.needsUpdate=true;return n;},
   dispose(){geometry.dispose();mesh.material.dispose();}};
 }
@@ -99,21 +100,24 @@ function cabinRange(consist,sign){
 export function createTrainLamps(consist,environment){
  const train={lampHead:{value:new THREE.Vector4()},lampTail:{value:new THREE.Vector4()},cabin:{value:new THREE.Vector4()}},code={lamp:lampGLSL,taillamp:tailGLSL,glass:cabinGLSL},clones=[];
  consist.straight(-1);consist.root.updateMatrixWorld(true);
+ // 從 litMaterials 複製：有車門的車那幾份是開門位移的複本（garage-doors.js），clone() 不帶 onBeforeCompile，接回去再疊燈；
+ // 其餘是車模原本那份，海岸行旅可能已在上面疊過它自己的燈，照舊丟掉。
  const cars=consist.cars.map(c=>{const frame=c.body.matrixWorld.clone();
-  const materials=c.asset.materials.map(src=>{if(!code[src.name])return src;const m=src.clone();if(m.name==='glass')Object.assign(m,{envMap:environment,envMapIntensity:1});clones.push(m);
+  const materials=c.litMaterials.map((src,i)=>{if(!code[src.name])return src;const m=src.clone();if(src!==c.asset.materials[i])Object.assign(m,{onBeforeCompile:src.onBeforeCompile,customProgramCacheKey:src.customProgramCacheKey});if(m.name==='glass')Object.assign(m,{envMap:environment,envMapIntensity:1});clones.push(m);
    return addLight(m,{...train,lampFrame:{value:frame}},code[m.name],true);});
   return{c,frame,inverse:frame.clone().invert(),materials};});
  // 車頭前 1.8 m、軌面上 1 m 的點光（同 App：場景的燈是 9 cd、7 m，這盞亮一點、照遠一點）；一直掛著、白天強度 0，燈數不變就不重編場景的材質。
  const halos=createHalos(),beam=new THREE.PointLight(new THREE.Color(1,.92,.78),0,9,2),world=new THREE.Matrix4();
- return{halos:halos.mesh,beam,
+ return{halos:halos.mesh,beam,materials:clones,
   apply(){for(const k of cars)k.c.body.material=k.materials;},
   // travel：沿路徑前進 +1、倒退 −1（阿里山折返時列車不掉頭，頭尾燈對調）。on＝false（沒入庫、關燈）就全部關掉。回傳光暈數。
-  lights(on,period,travel,eye){
-   for(const u of Object.values(train))u.value.set(0,0,0,0);halos.clear();beam.intensity=0;
+  // clipX：穿越的場景裁切線（世界 x），線外的光暈與照地點光不畫。
+  lights(on,period,travel,eye,clipX=Infinity){
+   for(const u of Object.values(train))u.value.set(0,0,0,0);halos.clear();halos.clip(clipX);beam.intensity=0;
    if(!on)return 0;
    const strength=LIGHTS[period]||LIGHTS.day,headX=travel*consist.length/2,[head,tail]=travel>0?[cars[0],cars.at(-1)]:[cars.at(-1),cars[0]];
    const toWorld=k=>world.multiplyMatrices(k.c.body.matrixWorld,k.inverse);
-   if(endLamps(head.c,head.frame,toWorld(head),headX,false,strength,eye,train.lampHead,halos)&&strength[4]>0){beam.position.set(headX+travel*1.8,0,1.18).applyMatrix4(world);beam.intensity=12*strength[4];}
+   if(endLamps(head.c,head.frame,toWorld(head),headX,false,strength,eye,train.lampHead,halos)&&strength[4]>0){beam.position.set(headX+travel*1.8,0,1.18).applyMatrix4(world);if(Math.abs(beam.position.x)<=clipX)beam.intensity=12*strength[4];}
    endLamps(tail.c,tail.frame,toWorld(tail),-headX,true,strength,eye,train.lampTail,halos);
    const range=cabinRange(consist,1);if(range)train.cabin.value.set(strength[2],range[0],range[1],0);
    return halos.commit();

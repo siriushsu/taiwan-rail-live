@@ -1,8 +1,10 @@
 // 車款 → 場景對照表。**手維護，不是產生檔**（對照 train-garage-catalog.js 是 import_garage_blender.py 整份覆寫的產生檔）。
 // 設計書：docs/superpowers/specs/2026-09-09-車庫一車一景-design.md §3.4、2026-09-12-車庫場景複審與特色車站-design.md §4
 //
-// 讀這個檔的有兩處：車庫第 4 格「場景」（train-garage.js，只認已完成的四座），以及 App 的烘焙腳本
-//    （native scripts/garage-scenes/bake.mjs 讀網頁釘版，manifest 的 cars 與 place 都從這裡來）。改分派或地名，App 要重烘。
+// 讀這個檔的有兩處：車庫第 4 格「場景」（train-garage.js），以及 App 的烘焙腳本
+//    （native scripts/garage-scenes/bake.mjs 讀網頁釘版，manifest 的 cars 與 place 都從這裡來）。改規則、分派或地名，App 要重烘。
+//    已做好的場景跑哪些車、地名叫什麼，看檔尾的 RailGarageSceneRules（照車款目錄的系統分）。下面的對照表留著
+//    原型畫的是哪款車（params 為空那款：烘焙拿它的車寬當人與天燈的比例尺）、故事與參數，以及待做場景的草案。
 //    其餘待做的場景還沒有程式；站點分派也還沒定案（2026-09-12 草案）。
 //
 // 欄位：
@@ -12,7 +14,7 @@
 //   story  data/tra_special_trains.json 的 id；沒有故事的留 null
 //   params 傳進 createScene(params) 的參數
 //
-// 已實作：south-coast、alishan、viaduct、shifen。其餘為待做。
+// 已實作：south-coast、alishan、viaduct、shifen，以及不在對照表裡的 duoliang、crossing、guanghua。其餘為待做。
 window.RailGarageScenes = {
 
  // ───────── Tier A：手工場景（19 座，4 座已完成） ─────────
@@ -131,3 +133,16 @@ window.RailGarageScenes = {
 //  辨識度極高又好用低面數做，但現有對照裡沒有車空著。要用得先挪一款（例如把某款
 //  區間車從 seaside-platform 移過來），屬於配置調整，尚待定案。
 //  參考照片與幾何筆記：~/Documents/軌島封存/車站參考照片-20260912/（不進 repo）
+
+// 已做好的場景各跑哪個系統的車（train-garage-catalog.js 的 system）、場景的地名（給 UI 的 label 與 aria-label）。
+// 台鐵的場景所有台鐵車都能進，阿里山進所有林鐵車；預設車庫田園小站不在這裡，每款車都能跑。
+// 要跟 train-garage.js 的 BUILT_SCENES 與 rail-3d/garage-diorama.js 的 SCENES 一致。
+window.RailGarageSceneRules = {
+ 'south-coast': {system:'台鐵',place:'南迴線・南迴海岸'},
+ alishan:       {system:'阿里山林鐵',place:'阿里山林鐵・之字形'},
+ viaduct:       {system:'台鐵',place:'高架車站・站前街'},
+ shifen:        {system:'台鐵',place:'平溪線・十分老街'},
+ duoliang:      {system:'台鐵',place:'南迴線・多良車站'},
+ crossing:      {system:'台鐵',place:'街角平交道'},
+ guanghua:      {system:'台鐵',place:'台南・光華街'},
+};

@@ -50,7 +50,7 @@ export function createProps({geo,mat,instance,rand}){
   else put(box,wall,0,0,H/2,[width,depth,H]);
   // 每層窗戶（一格一格，不是一條帶）、陽台
   const nw=Math.max(1,Math.round((width-.5)/.85));
-  for(let f=0;f<floors;f++){const zc=z+f*fh;
+  for(let f=0;f<floors;f++){const zc=f*fh; // put 已經加上地面 z，這裡只傳樓層的相對高度。
    if(f>0||ground==='plain')for(let i=0;i<nw;i++)put(box,glass,depth/2+.02,(i-(nw-1)/2)*.85,zc+fh*.6,[.5,.06,.58]);
    if(back){for(let i=0;i<nw;i++)if(f>0||i!==nw-1)put(box,glass,-(depth/2+.02),(i-(nw-1)/2)*.85,zc+fh*.6,[.5,.06,.58]);if(f===0)put(box,dark,-(depth/2+.02),((nw-1)/2)*.85,fh*.45,[.5,.06,fh*.8]);}
    if(f>0){if(balcony==='rail'){put(box,wall,depth/2+.22,0,zc+.05,[width*1.02,.5,.1]);put(box,railing,depth/2+.45,0,zc+.32,[width*1.02,.04,.45]);}
