@@ -4,6 +4,8 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "車庫舞台拿掉旋轉和視角的四顆按鈕，改用拖曳、右鍵拖曳或方向鍵轉動；海岸行旅多了「天色」選單，可選自動、日出、藍天、黃昏或星空，會記在這台裝置": "The garage stage drops its four rotate and view buttons: drag, right-drag or use the arrow keys to turn it; the Coastal journey adds a “Sky” menu (Auto, Sunrise, Blue skies, Dusk or Starry night), remembered on this device",
+    "車庫場景頁上方多一排場景鈕，點一下就地換到別座；點場景名和車名那塊只列在這座跑的車；整個車庫換上一致的新設計，使用說明多了「車庫場景」一節": "The garage scene page now has a row of scene buttons at the top for switching scenes in place; tapping the scene and train name lists only the trains that run there; the whole garage has a unified new look, and the guide has a new “Garage scenes” section",
     "車庫場景的列車晚上會亮燈：車頭白燈照亮前方軌道、車尾亮紅燈、客車窗透出暖光；海岸行旅也照實車，只掛客車的那一頭不再亮頭燈": "Trains in garage scenes now light up at night: white headlights light the track ahead, red tail lights glow at the rear and coach windows give off a warm light; the Coastal journey also follows the real trains, so an end with only coaches no longer shows headlights",
     "車庫的莒光號、鳴日號、阿里山號與檜木列車客車補上尾燈，海岸行旅夜裡車尾改由尾燈亮紅光；田園小站的鐵橋在列車經過或轉動畫面時不再閃爍": "Chu-Kuang Express, Future, Alishan and cypress coaches in the garage now have tail lights, and at night the Coastal journey lights the tail lights at the rear; the bridge at Countryside Station no longer flickers when a train passes or the view turns",
     "開啟起伏地形時，地圖拉遠看的路線不再在隧道多的路段斷成一節一節（例如蘆竹到樹林的高鐵）；地下路線拉遠也改成實線": "With rolling terrain on, route lines seen zoomed out no longer break into pieces where tunnels are frequent (such as the high-speed rail from Luzhu to Shulin); underground lines also show as solid lines when zoomed out",
@@ -347,6 +349,8 @@
   });
 
   Object.assign(messages.ja, {
+    "車庫舞台拿掉旋轉和視角的四顆按鈕，改用拖曳、右鍵拖曳或方向鍵轉動；海岸行旅多了「天色」選單，可選自動、日出、藍天、黃昏或星空，會記在這台裝置": "車庫のステージから回転と視点の4つのボタンをなくし、ドラッグ・右ドラッグ・矢印キーで回せるようにしました。「海辺の旅」に「時間帯」メニューを追加し、自動・日の出・青空・夕暮れ・星空から選べます。選んだものはこの端末に記憶されます",
+    "車庫場景頁上方多一排場景鈕，點一下就地換到別座；點場景名和車名那塊只列在這座跑的車；整個車庫換上一致的新設計，使用說明多了「車庫場景」一節": "車庫の情景ページの上に情景ボタンが並び、その場でほかの情景に切り替えられます。情景名と車両名の部分をタップすると、その情景を走る車両だけが出ます。車庫全体を統一したデザインに一新し、使い方に「車庫の情景」の節を追加しました",
     "車庫場景的列車晚上會亮燈：車頭白燈照亮前方軌道、車尾亮紅燈、客車窗透出暖光；海岸行旅也照實車，只掛客車的那一頭不再亮頭燈": "車庫の情景で、夜は列車に灯りがともります。先頭の白い前照灯が前方の線路を照らし、最後尾は赤い尾灯、客車の窓には暖かな明かり。「海辺の旅」も実車どおりになり、客車だけの側には前照灯が付かなくなりました",
     "車庫的莒光號、鳴日號、阿里山號與檜木列車客車補上尾燈，海岸行旅夜裡車尾改由尾燈亮紅光；田園小站的鐵橋在列車經過或轉動畫面時不再閃爍": "車庫の莒光号・鳴日号・阿里山号・檜の客車に尾灯を付け、「海辺の旅」では夜、最後尾の尾灯が赤く灯ります。「田園の小駅」の鉄橋が、列車の通過や視点の回転でちらつかなくなりました",
     "開啟起伏地形時，地圖拉遠看的路線不再在隧道多的路段斷成一節一節（例如蘆竹到樹林的高鐵）；地下路線拉遠也改成實線": "起伏のある地形をオンにしたとき、地図を引いて見ると、トンネルの多い区間（蘆竹〜樹林の高鉄など）で路線が途切れ途切れになっていた問題を直しました。地下の路線も引いて見ると実線で表示します",
@@ -1794,8 +1798,8 @@
     ]
   };
 
-  Object.assign(messages.en, {"庫":"Garage"});
-  Object.assign(messages.ja, {"庫":"庫"});
+  Object.assign(messages.en, {"庫":"Garage","景":"Scene"});
+  Object.assign(messages.ja, {"庫":"庫","景":"景"});
   // 收藏車庫：網站與 App 共用。
   Object.assign(messages.en, {
     "我的車庫": "My garage",
@@ -1807,6 +1811,11 @@
     "把旅程護照裡的收集章，變成可以旋轉欣賞的小車。": "Turn your passport stamps into little trains you can rotate and admire.",
     "「更多」或「旅程護照」→「我的車庫」": "More or Journey passport → My garage",
     "選一款車，左右拖曳查看外觀與來源": "Select a train, drag to rotate it, and check its references",
+    "田園小站免費，其他場景用島民點數兌換；在場景頁裡可以直接換場景、換車。": "Countryside Station is free; the other scenes are redeemed with Islander Points. On the scene page you can switch scenes and cars right there.",
+    "登入軌島帳號後，「更多」→「我的車庫」，最上面的「車庫場景」第一格是免費的田園小站，後面是可以兌換的場景（例如南迴海岸、十分老街），旁邊有你目前的點數": "After signing in to your Rail Island account, open More → My garage. Garage scenes at the top starts with the free Countryside Station, followed by the scenes you can redeem (such as South Link Coast and Shifen Old Street), with your current points",
+    "點田園小站或已解鎖的場景，直接打開場景頁；點鎖住的會打開兌換視窗，按「用 N 點兌換」，兌換後按「看場景」。點數不夠會寫「還差 N 點」": "Tap Countryside Station or an unlocked scene to open the scene page. A locked one opens the redeem window: press Redeem for N points, then View scene. If you’re short, it shows N points short",
+    "場景頁上方那排點別座場景就地換過去，鎖住的會打開兌換視窗；點場景名和車名那塊，換一台在這座跑的車。從舞台上的「場景」分頁也能進來": "On the scene page, tap another scene in the row at the top to switch right there; a locked one opens the redeem window. Tap the scene and car name to switch to another car that runs on this scene. The Scene tab on the stage opens the scene page too",
+    "島民點數靠 App 的「校正懸賞」錄旅程累積，照實際錄到的里程算；兌換一次就永久解鎖。沒登入時只有田園小站。": "Islander Points come from recording trips for Calibration bounties in the app, based on the distance actually recorded; a scene unlocks permanently once redeemed. Without signing in, only Countryside Station is available.",
     "點「開始收集」，從發車一路陪它到終點": "Choose Start collecting and follow from departure to the terminus",
     "舊有車種章自動帶入；收藏條件準備中的款式不計入完成比例。": "Existing train-type stamps count automatically. Models without collection rules are excluded from your completion total.",
     "新增收藏車庫，可旋轉欣賞已入庫的小車、查看來源與收集條件；既有車種章會自動帶入。": "Added a collection garage to rotate your little trains and view their references and collection requirements. Existing train-type stamps count automatically.",
@@ -1853,6 +1862,7 @@
     "藍天": "Blue skies",
     "黃昏": "Dusk",
     "星空": "Starry night",
+    "天色": "Sky",
     "車庫新增三節編組的頭城海岸行旅，沿著無盡鐵道欣賞立體海岸與龜山島；依台灣時間呈現日出、藍天、黃昏或星空，也能調整視角與反向欣賞車身": "Take a three-car train along endless rails through the 3D Toucheng coast and Guishan Island scenery. Sunrise, blue skies, dusk or stars follow Taiwan time. Adjust the view or reverse direction to see the other side.",
     "近看小車": "Close-up",
     "提高視角": "Raise viewing angle",
@@ -1883,6 +1893,11 @@
     "把旅程護照裡的收集章，變成可以旋轉欣賞的小車。": "旅程パスポートのスタンプが、回して眺められる小さな車両になります。",
     "「更多」或「旅程護照」→「我的車庫」": "「もっと」または「旅程パスポート」→「マイ車庫」",
     "選一款車，左右拖曳查看外觀與來源": "車両を選んで左右にドラッグし、外観と出典を確認します",
+    "田園小站免費，其他場景用島民點數兌換；在場景頁裡可以直接換場景、換車。": "「田園の小駅」は無料、ほかの情景は島民ポイントで交換します。情景ページでは、その場で情景や車両を切り替えられます。",
+    "登入軌島帳號後，「更多」→「我的車庫」，最上面的「車庫場景」第一格是免費的田園小站，後面是可以兌換的場景（例如南迴海岸、十分老街），旁邊有你目前的點數": "軌島アカウントにログインしてから「その他」→「マイ車庫」。一番上の「車庫の情景」は無料の「田園の小駅」が先頭で、続いて交換できる情景（南廻海岸、十分老街など）と、いまのポイントが表示されます",
+    "點田園小站或已解鎖的場景，直接打開場景頁；點鎖住的會打開兌換視窗，按「用 N 點兌換」，兌換後按「看場景」。點數不夠會寫「還差 N 點」": "「田園の小駅」か解放済みの情景をタップすると情景ページが開きます。未解放の情景は交換画面が開くので「N ポイントで交換」を押し、交換したら「情景を見る」を押します。ポイントが足りないと「あと N ポイント」と表示されます",
+    "場景頁上方那排點別座場景就地換過去，鎖住的會打開兌換視窗；點場景名和車名那塊，換一台在這座跑的車。從舞台上的「場景」分頁也能進來": "情景ページ上部の列で別の情景をタップすると、その場で切り替わります。未解放の情景は交換画面が開きます。情景名と車両名の部分をタップすると、この情景を走る別の車両に変えられます。ステージの「情景」タブからも開けます",
+    "島民點數靠 App 的「校正懸賞」錄旅程累積，照實際錄到的里程算；兌換一次就永久解鎖。沒登入時只有田園小站。": "島民ポイントはアプリの「校正懸賞」で旅程を記録してたまり、実際に記録できた距離で計算します。一度交換すると永久に解放されます。ログインしていないときは「田園の小駅」だけです。",
     "點「開始收集」，從發車一路陪它到終點": "「収集を始める」を押し、始発から終点まで追いかけます",
     "舊有車種章自動帶入；收藏條件準備中的款式不計入完成比例。": "取得済みの車種スタンプを自動で反映します。収集条件を準備中の車両は達成率に含みません。",
     "新增收藏車庫，可旋轉欣賞已入庫的小車、查看來源與收集條件；既有車種章會自動帶入。": "コレクション車庫を追加しました。集めた小さな車両を回して眺め、出典と収集条件を確認できます。取得済みの車種スタンプも自動で反映されます。",
@@ -1929,6 +1944,7 @@
     "藍天": "青空",
     "黃昏": "夕暮れ",
     "星空": "星空",
+    "天色": "時間帯",
     "車庫新增三節編組的頭城海岸行旅，沿著無盡鐵道欣賞立體海岸與龜山島；依台灣時間呈現日出、藍天、黃昏或星空，也能調整視角與反向欣賞車身": "車庫に3両編成で走る頭城海岸の旅を追加。どこまでも続く線路と立体的な海岸、亀山島を眺められます。台湾時間に合わせて日の出、青空、夕暮れ、星空に変化。視点や進行方向を変えて車体を楽しめます。",
     "近看小車": "車両を眺める",
     "提高視角": "視点を上げる",
@@ -4611,7 +4627,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '結果待確認': 'Not confirmed yet',
   '暫時無法兌換': 'Unavailable for now',
   '解鎖「{place}」': 'Unlock “{place}”',
-  '永久解鎖這座場景。選到在這裡跑的車款時，點舞台的「{tab}」分頁就能看。': 'Unlocks this scene for good. When you pick a train that runs here, tap the “{tab}” tab on the stage to see it.',
+  '永久解鎖這座場景。解鎖後在場景頁上方點它就能看。': 'Unlocks this scene for good. Once unlocked, pick it at the top of the scene page.',
+  '軌島・收藏': 'Rail Island · Collection',
+  '場景': 'Scene',
+  '免費': 'Free',
+  '在這座跑的車': 'Cars on this scene',
+  '換車：{name}': 'Change car: {name}',
   '目前 {balance} 點，這座要 {cost} 點。': { one: 'You have {balance} point. This scene costs {cost} points.', other: 'You have {balance} points. This scene costs {cost} points.' },
   '已解鎖！用了 {cost} 點，還剩 {balance} 點。': { one: 'Unlocked! Used {cost} points, {balance} point left.', other: 'Unlocked! Used {cost} points, {balance} points left.' },
   '這座場景已經解鎖。': 'This scene is unlocked.',
@@ -4659,7 +4680,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '結果待確認': '結果未確認',
   '暫時無法兌換': '現在交換できません',
   '解鎖「{place}」': '「{place}」を解放',
-  '永久解鎖這座場景。選到在這裡跑的車款時，點舞台的「{tab}」分頁就能看。': 'この情景をずっと解放します。ここを走る車両を選んだら、ステージの「{tab}」タブをタップすると見られます。',
+  '永久解鎖這座場景。解鎖後在場景頁上方點它就能看。': 'この情景をずっと使えるようにします。解放後は情景ページの上で選ぶと見られます。',
+  '軌島・收藏': '軌島・コレクション',
+  '場景': '情景',
+  '免費': '無料',
+  '在這座跑的車': 'この情景を走る車両',
+  '換車：{name}': '車両を変える：{name}',
   '目前 {balance} 點，這座要 {cost} 點。': '現在 {balance}ポイント、この情景は {cost}ポイントです。',
   '已解鎖！用了 {cost} 點，還剩 {balance} 點。': '解放しました！{cost}ポイントを使い、残りは{balance}ポイントです。',
   '這座場景已經解鎖。': 'この情景は解放済みです。',

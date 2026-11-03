@@ -675,8 +675,8 @@ try {
     const g = await until(() => s.page.evaluate(() => { const b = document.querySelector('#trainGarage .g-scenes'); return b && !b.hidden && b.querySelector('.g-sc') ? {
       head: b.querySelector('.g-scenes-head').textContent, scenes: [...b.querySelectorAll('.g-sc')].map(x => x.dataset.scene + (x.classList.contains('on') ? ':on' : '')) } : null; }), 30000);
     const last = s.chips[s.chips.length - 1] || {};
-    ok('CH7i 旗標關、已登入打開車庫：最上面有「車庫場景」列，列出規則檔的四座、已解鎖那座標成解鎖、標頭是帳號的點數（目前 5 點・下一座 7 點）；開車庫讀了 1 次 chips-me、帶 Bearer',
-      !!g && g.scenes.join() === SCENES.map((x, i) => i === 0 ? x + ':on' : x).join() && g.head === '目前 5 點・下一座 7 點' && s.chips.length === n0 + 1 && last.auth === 'Bearer fake-id-token',
+    ok('CH7i 旗標關、已登入打開車庫：最上面有「車庫場景」列，田園小站在第一格（免費、標成解鎖），後面列出規則檔的四座、已解鎖那座標成解鎖，標頭是帳號的點數（目前 5 點・下一座 7 點）；開車庫讀了 1 次 chips-me、帶 Bearer',
+      !!g && g.scenes.join() === ['paddy:on', ...SCENES.map((x, i) => i === 0 ? x + ':on' : x)].join() && g.head === '目前 5 點・下一座 7 點' && s.chips.length === n0 + 1 && last.auth === 'Bearer fake-id-token',
       JSON.stringify({ g, n: s.chips.length - n0 }));
     await s.ctx.close();
   });
