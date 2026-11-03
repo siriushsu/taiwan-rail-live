@@ -4713,6 +4713,14 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '航燈入夜': "Aircraft lights at night",
   '正在把小車送上山鼻站…': "Lifting the little train up to Shanbi Station…",
   '機場捷運山鼻站 · 微縮印象': "Shanbi Station, Taoyuan Airport MRT · miniature impression",
+  '陶瓷老街站': "Ceramics Old Street",
+  '三鶯線・陶瓷老街站': "Sanying Line · Ceramics Old Street Station",
+  '陶瓷老街全景': "Ceramics Old Street panorama",
+  '磚窯晴日': "Brick kilns in the sun",
+  '陶坊夕照': "Sunset over the pottery shops",
+  '老街燈火': "Old street lights",
+  '正在把小車送上陶瓷老街站…': "Lifting the little train up to Ceramics Old Street Station…",
+  '三鶯線陶瓷老街站 · 微縮印象': "Ceramics Old Street Station, Sanying Line · miniature impression",
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '劍潭站': '剣潭',
@@ -4739,4 +4747,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '航燈入夜': "夜の航空灯",
   '正在把小車送上山鼻站…': "小さな列車を山鼻駅へ送り出しています…",
   '機場捷運山鼻站 · 微縮印象': "桃園空港MRT 山鼻駅 · ミニチュアの印象",
+  '陶瓷老街站': "陶瓷老街",
+  '三鶯線・陶瓷老街站': "三鶯線・陶瓷老街駅",
+  '陶瓷老街全景': "陶瓷老街の全景",
+  '磚窯晴日': "れんが窯の晴天",
+  '陶坊夕照': "陶房の夕焼け",
+  '老街燈火': "老街の灯り",
+  '正在把小車送上陶瓷老街站…': "小さな列車を陶瓷老街駅へ送り出しています…",
+  '三鶯線陶瓷老街站 · 微縮印象': "三鶯線 陶瓷老街駅 · ミニチュアの印象",
 });
