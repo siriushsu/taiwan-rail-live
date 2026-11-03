@@ -71,7 +71,12 @@ groups = {
         "mingricoach",
         "ck124",
         "dt668",
-        "ct273"
+        "ct273",
+        "dr3000",
+        "ct250",
+        "fuxing",
+        "emu300",
+        "tengyun"
     ],
     "台灣高鐵": [
         "700t"
