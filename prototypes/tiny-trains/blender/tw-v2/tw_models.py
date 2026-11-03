@@ -763,17 +763,19 @@ def slant(f,side,top,width,slope,z0,z1,u0,material,name='橘色警戒斜紋'):
 def dmu_face(s,f,k):
  """DR3100／DR1000 的車頭。k 是各款照片量到的位置：win=(|y| 內緣, 外緣, 下緣, 上緣)、glass 玻璃上緣、lampZ 頭燈高、
  gang=(外框寬, 外框高下緣, 上緣, 外框材質)、door=(寬, 下緣, 上緣)、dwin=(寬, 下緣, 上緣)、tail=(|y|, z, 黃圈半徑)、stripes=[(外緣 |y|, 寬), ...]、slope、sz=(z0, z1)、
- band=(窗下橘帶下緣, 上緣, |y| 內緣)、hv=(高壓警示牌中心 |y|, 下緣, 上緣, 寬)。"""
+ band=(窗下橘帶下緣, 上緣, |y| 內緣)、hv=(高壓警示牌中心 |y|, 下緣, 上緣, 寬)。
+ 頭燈不在窗框上緣的（DR3000 在車頂中央）不給 lampZ；hook=(|y|, z) 是標識燈掛架位置，預設在尾燈正上方 1.61。"""
  W,H=s['W'],s['H'];a,b,z0,z1=k['win'];yc=(a+b)/2;w=b-a;g=k['gang'][0]/2
  for side in [-1,1]:
   front_panel('前窗黑框',f,side*yc,(z0+z1)/2,w,z1-z0,'frame',.09,.030)
   front_panel('前窗玻璃',f,side*yc,(z0+.06+k['glass'])/2,w-.08,k['glass']-z0-.06,'glass',.07,.042)
-  lamp('窗框上緣頭燈',f,side*yc,k['lampZ'],.080);wiper(f,side*(yc+.10),z0+.10,.55)
+  if k.get('lampZ'):lamp('窗框上緣頭燈',f,side*yc,k['lampZ'],.080)
+  wiper(f,side*(yc+.10),z0+.10,.55)
   for top,width in k['stripes']:slant(f,side,top,width,k['slope'],*k['sz'],g-.02,'dorange')
   ty,tz,tr=k['tail']
   front_panel('尾燈黃色燈圈',f,side*ty,tz,2*tr,2*tr,'dyellow',tr,.036);lamp('尾燈',f,side*ty,tz,.065,red=True)
   box('尾燈遮簷',(f(side*ty,tz+tr+.03)+.07,side*ty,tz+tr+.03),(.14,2*tr-.04,.024),'dyellow',.006)
-  box('標識燈掛架',(f(side*ty,1.61)+.05,side*ty,1.61),(.08,.07,.11),'dyellow',.012)
+  hy,hz=k.get('hook',(ty,1.61));box('標識燈掛架',(f(side*hy,hz)+.05,side*hy,hz),(.08,.07,.11),'dyellow',.012)
   line('貫通門扶手',[(f(side*(g+.07),1.25)+.10,side*(g+.07),1.25),(f(side*(g+.07),2.60)+.10,side*(g+.07),2.60)],.016,'metal')
  if k.get('band'):
   lo,hi,u=k['band']

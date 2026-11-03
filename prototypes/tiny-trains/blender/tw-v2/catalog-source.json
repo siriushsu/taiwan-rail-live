@@ -2940,5 +2940,66 @@
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dr3000",
+  "name": "DR3000・柴聯自強",
+  "label": "DR3000",
+  "detail": "車頂中央雙頭燈 · 黃橘警戒車頭 · 大小窗交錯",
+  "color": "#dd8751",
+  "source": "https://commons.wikimedia.org/wiki/File:DR3000%E5%9E%8B%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7%E8%99%9F.jpg",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／臺灣鐵路管理局（Attribution）",
+    "url": "https://commons.wikimedia.org/wiki/File:DR3000%E5%9E%8B%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7%E8%99%9F.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Cheng-en Cheng（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR3024_at_Platform_3B,_Changhua_Station_20210419.jpg"
+   }
+  ],
+  "features": [
+   "黃色車頭、上緣橘色；雙頭燈在車頂中央的黑色燈座，燈座後面是車頂的引擎冷卻器罩；兩側黑框前窗，中央貫通門是灰色凸框。",
+   "窗下橘帶接往中央下斜的橘色斜紋，內側隔一道黃色斜帶、再往內到門框是橘色；上緣兩塊高壓警示牌，黃圈紅尾燈內側是標識燈掛架，下緣黃黑警戒條。",
+   "不鏽鋼車身加縱向壓紋，窗上黃細線、窗下橘帶，大小窗交錯；駕駛室後是緊急逃生門、車尾一扇滑塞式電動門，車身中段上方是 LED 終點顯示器。三輛一組，中間是兩端開門的 DR3070 電源拖車。"
+  ],
+  "photos": [
+   {
+    "file": "File:DR3000型柴聯自強號.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:DR3000%E5%9E%8B%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7%E8%99%9F.jpg",
+    "author": "臺灣鐵路管理局",
+    "licence": "Attribution",
+    "use": "車頭正面（車頂頭燈座、前窗、貫通門框、斜紋、尾燈與標識燈掛架高度）"
+   },
+   {
+    "file": "File:Mitsubishi Delica and TRA DR3000 20110707.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Mitsubishi_Delica_and_TRA_DR3000_20110707.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "車頭正面（車頂冷卻器罩的寬度與高度、黃黑警戒條）"
+   },
+   {
+    "file": "File:TRA DR3024 at Platform 3B, Changhua Station 20210419.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR3024_at_Platform_3B,_Changhua_Station_20210419.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "車側色帶、車尾上下車門旁的小窗"
+   },
+   {
+    "file": "File:TRA DR3000 auto doors closed at Taipei Station 20110701.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR3000_auto_doors_closed_at_Taipei_Station_20110701.jpg",
+    "author": "Solomon203",
+    "licence": "CC BY-SA 3.0",
+    "use": "車端滑塞門、窗上黃線與窗下橘帶、縱向壓紋"
+   },
+   {
+    "file": "File:TRA DR3070 interior 20130616.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR3070_interior_20130616.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 3.0",
+    "use": "車窗大小交錯的順序"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
  }
 ]
