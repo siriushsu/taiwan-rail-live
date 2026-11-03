@@ -43,6 +43,11 @@ html[data-theme=dark] #trainGarage{--g-hdr:var(--paper-tr);--g-hdr-ink:var(--ink
 #trainGarage .g-controls{display:flex;gap:6px;flex:none}
 /* 控制鈕＝44 方卡片鈕（不再是圓形）。 */
 #trainGarage .g-controls button{width:44px;min-width:44px;padding:0;border:1.5px solid var(--g-btn-bd);border-radius:8px;background:var(--g-card);color:var(--ink-strong);box-shadow:var(--shadow-1);font-size:16px}
+/* 天色選單跟 44 方鈕同一套外觀。線框用內陰影畫（不佔高度），裡面的選單才撐得滿 44px 觸控高度。 */
+#trainGarage .g-period{display:flex;align-items:center;gap:6px;min-height:44px;padding:0 6px 0 12px;border-radius:8px;box-shadow:inset 0 0 0 1.5px var(--g-btn-bd),var(--shadow-1);background:var(--g-card);font-size:12px;font-weight:700;color:var(--g-muted)}
+#trainGarage .g-period[hidden]{display:none}
+/* 16px：iPhone Safari 對小於 16px 的選單會在點下時放大整頁。 */
+#trainGarage .g-period select{border:0;background:transparent;font:inherit;font-size:16px;color:var(--ink-strong);height:44px;padding:0 2px}
 #trainGarage .g-detail{padding:28px;min-width:0;align-self:center}
 /* 狀態：待收集是虛線膠囊，已入庫是章（雙線紅框）。 */
 #trainGarage .g-status{display:inline-block;font-size:11px;font-weight:800;letter-spacing:1px;line-height:1.5;border:1.5px dashed var(--g-line);border-radius:999px;padding:4px 11px;color:var(--g-muted)}

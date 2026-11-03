@@ -256,6 +256,13 @@ await group('W', async () => {
     labelDedup > firstGate && labelDedup < strip
       && /const labelDedup = spawnSync\('node', \[path\.join\(wt, 'scripts', 'verify_basemap_label_dedup\.mjs'\)\],\s*\{[^}]*BASE_URL: ''[^]*?if \(labelDedup\.status !== 0\) fail\(/.test(src),
     `label-dedup@${labelDedup}、strip@${strip}`);
+  // 車聲打亂檔是出貨樹裡的產物、不是閘門:走帳本的 spawnSync 時,同一份產品先 --preview 再正式出貨,
+  // 正式那發會帳本命中而跳過,出貨樹沒有 audio/train-ride-loop.bin,strip 之後才 ENOENT。
+  const amb = at("'build_ambience_web.mjs'");
+  ok('W10 車聲打亂檔不經帳本產生(rawSpawnSync)、在 strip 之後與 upload 之前、失敗就停',
+    amb > strip && amb < upload
+      && /const amb = rawSpawnSync\('node', \[path\.join\(wt, 'scripts', 'build_ambience_web\.mjs'\), ambOut\][^]*?if \(amb\.status !== 0\) fail\(/.test(src),
+    `ambience@${amb}、strip@${strip}、upload@${upload}`);
 });
 
 // ── WB 組:路段懸賞總閘門的接線(靜態)。各支驗收只在分支上手動跑了一個月,拔掉這一段不會有任何別的東西變紅 ──

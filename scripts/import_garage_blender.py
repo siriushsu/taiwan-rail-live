@@ -71,7 +71,12 @@ groups = {
         "mingricoach",
         "ck124",
         "dt668",
-        "ct273"
+        "ct273",
+        "dr3000",
+        "ct250",
+        "fuxing",
+        "emu300",
+        "tengyun"
     ],
     "台灣高鐵": [
         "700t"
@@ -114,6 +119,10 @@ for item in items:
         raise ValueError('來源雜湊不符：'+id)
     (out/(id+'.bin.gz')).write_bytes(gzip.compress(raw, compresslevel=9, mtime=0))
     meta['mesh'].update(file=id+'.bin.gz', compression='gzip')
+    if id == 'wenhu':
+        # 文湖線的材質是編號中文名；車燈認 lamp、車窗夜光認 glass（App 車庫與 rail-3d/garage-coast.js），這兩個角色換回通用名。
+        for g in meta['mesh']['drawGroups']:
+            g['name'] = {'05 深色車窗': 'glass', '12 乳白燈罩': 'lamp'}.get(g['name'], g['name'])
     (out/(id+'.json')).write_text(json.dumps(meta, ensure_ascii=False, separators=(',',':'))+'\n')
     shutil.copy2(source/item['thumbnail'],out/(id+'.webp'))
     sources = item['sources']

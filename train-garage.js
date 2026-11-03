@@ -10,12 +10,19 @@
   ].map(([model,category,id]) => ({model,category,id}));
   const ruleByModel = new Map(RULES.map(r => [r.model,r]));
   // 穩定的產品里程碑；不是實際搭過該車型的推定。既有章仍以 OR 條件帶入。
-  const GOALS = {"c301":{"metric":"stations","need":2},"c321":{"metric":"stations","need":4},"c341":{"metric":"stations","need":6},"c371":{"metric":"stations","need":8},"c381":{"metric":"stations","need":12},"val256":{"metric":"stations","need":16},"wenhu":{"metric":"stations","need":20},"airportlocal":{"metric":"stations","need":24},"airportexpress":{"metric":"stations","need":28},"y100":{"metric":"stations","need":32},"sanying":{"metric":"stations","need":36},"taichung":{"metric":"stations","need":40},"kaohsiung":{"metric":"stations","need":45},"danhai":{"metric":"stations","need":50},"ankeng":{"metric":"stations","need":60},"caf":{"metric":"stations","need":70},"citadis":{"metric":"stations","need":80},"emu500":{"metric":"rides","need":1},"emu600":{"metric":"rides","need":2},"emu700":{"metric":"rides","need":3},"emu800":{"metric":"rides","need":4},"emu800r":{"metric":"rides","need":5},"emu900":{"metric":"rides","need":6},"dr1000":{"metric":"rides","need":8},"dr3100":{"metric":"rides","need":10},"temu1000":{"metric":"rides","need":12},"temu2000":{"metric":"rides","need":15},"emu3000":{"metric":"rides","need":18},"e1000":{"metric":"rides","need":20},"e500":{"metric":"rides","need":25},"emu100":{"metric":"rides","need":30},"emu1200":{"metric":"rides","need":35},"dr2700":{"metric":"rides","need":40},"ck124":{"metric":"rides","need":50},"dt668":{"metric":"rides","need":75},"ct273":{"metric":"rides","need":100},"e200":{"metric":"km","need":50},"e300":{"metric":"km","need":100},"e400":{"metric":"km","need":150},"r20":{"metric":"km","need":200},"r100":{"metric":"km","need":250},"r150":{"metric":"km","need":300},"r180":{"metric":"km","need":400},"r200":{"metric":"km","need":500},"dhl100":{"metric":"km","need":600},"juguang":{"metric":"km","need":700},"ppcoach":{"metric":"km","need":800},"bluecoach":{"metric":"km","need":900},"mingricoach":{"metric":"km","need":1000},"blue":{"metric":"km","need":1200},"haifeng":{"metric":"km","need":1500},"shanlan":{"metric":"km","need":1800},"mingri":{"metric":"km","need":2000},"700t":{"metric":"km","need":2500},"dl25":{"metric":"branches","need":1},"dl38":{"metric":"branches","need":2},"dl39":{"metric":"branches","need":3},"dl45":{"metric":"branches","need":4},"alicoach":{"metric":"branches","need":1},"hinoki":{"metric":"branches","need":2},"fushen":{"metric":"branches","need":3},"xuyue":{"metric":"branches","need":4}};
+  const GOALS = {"c301":{"metric":"stations","need":2},"c321":{"metric":"stations","need":4},"c341":{"metric":"stations","need":6},"c371":{"metric":"stations","need":8},"c381":{"metric":"stations","need":12},"val256":{"metric":"stations","need":16},"wenhu":{"metric":"stations","need":20},"airportlocal":{"metric":"stations","need":24},"airportexpress":{"metric":"stations","need":28},"y100":{"metric":"stations","need":32},"sanying":{"metric":"stations","need":36},"taichung":{"metric":"stations","need":40},"kaohsiung":{"metric":"stations","need":45},"danhai":{"metric":"stations","need":50},"ankeng":{"metric":"stations","need":60},"caf":{"metric":"stations","need":70},"citadis":{"metric":"stations","need":80},"emu500":{"metric":"rides","need":1},"emu600":{"metric":"rides","need":2},"emu700":{"metric":"rides","need":3},"emu800":{"metric":"rides","need":4},"emu800r":{"metric":"rides","need":5},"emu900":{"metric":"rides","need":6},"dr1000":{"metric":"rides","need":8},"dr3100":{"metric":"rides","need":10},"temu1000":{"metric":"rides","need":12},"temu2000":{"metric":"rides","need":15},"emu3000":{"metric":"rides","need":18},"e1000":{"metric":"rides","need":20},"e500":{"metric":"rides","need":25},"emu100":{"metric":"rides","need":30},"emu1200":{"metric":"rides","need":35},"dr2700":{"metric":"rides","need":40},"ck124":{"metric":"rides","need":50},"dt668":{"metric":"rides","need":75},"ct273":{"metric":"rides","need":100},"e200":{"metric":"km","need":50},"e300":{"metric":"km","need":100},"e400":{"metric":"km","need":150},"r20":{"metric":"km","need":200},"r100":{"metric":"km","need":250},"r150":{"metric":"km","need":300},"r180":{"metric":"km","need":400},"r200":{"metric":"km","need":500},"dhl100":{"metric":"km","need":600},"juguang":{"metric":"km","need":700},"ppcoach":{"metric":"km","need":800},"bluecoach":{"metric":"km","need":900},"mingricoach":{"metric":"km","need":1000},"blue":{"metric":"km","need":1200},"haifeng":{"metric":"km","need":1500},"shanlan":{"metric":"km","need":1800},"mingri":{"metric":"km","need":2000},"700t":{"metric":"km","need":2500},"dl25":{"metric":"branches","need":1},"dl38":{"metric":"branches","need":2},"dl39":{"metric":"branches","need":3},"dl45":{"metric":"branches","need":4},"alicoach":{"metric":"branches","need":1},"hinoki":{"metric":"branches","need":2},"fushen":{"metric":"branches","need":3},"xuyue":{"metric":"branches","need":4},"dr3000":{"metric":"redeem","item":"train:dr3000"},"ct250":{"metric":"redeem","item":"train:ct250"},"fuxing":{"metric":"redeem","item":"train:fuxing"},"emu300":{"metric":"redeem","item":"train:emu300"},"tengyun":{"metric":"redeem","item":"train:tengyun"}};
+  // 用點數兌換的車款（goal.metric＝'redeem'，goal.item＝兌換品 id）：價格讀規則檔 chips.items（snapshot.itemPrices），
+  // 沒列價格的不出現；換到的（錢包 chips-me 的 items，snapshot.items）照樣在、算入庫。goal.need 換成價格，畫面照它寫「用 N 點兌換」。
   function collection(snapshot, models) {
-    const {coll, rides = [], special, stationCount = 0} = snapshot;
+    const {coll, rides = [], special, stationCount = 0, itemPrices = {}, items = []} = snapshot;
     const progress = {rides:rides.length, km:rides.reduce((n,r)=>n+Math.max(0,Number(r.km)||0),0), stations:stationCount, branches:coll?.branch?.size||0};
     return Object.entries(models).map(([id,model]) => {
       const legacy = ruleByModel.get(id), goal = GOALS[id];
+      if (goal.metric === 'redeem') {
+        const price = Object.hasOwn(itemPrices, goal.item) ? itemPrices[goal.item] : null, owned = items.includes(goal.item);
+        if (!owned && !(Number.isInteger(price) && price > 0)) return null;
+        return {id, model, rule:{category:'redeem',id:goal.item}, goal:{...goal,need:price}, now:0, owned, earned:owned, date:'', label:''};
+      }
       let earned = false, date = '', label = '';
       if (legacy?.category === 'system') {
         const matches = rides.filter(r => r.sys === legacy.id);
@@ -30,7 +37,7 @@
       }
       const now = progress[goal.metric], owned = earned || now >= goal.need;
       return {id, model, rule:legacy || {category:'progress',id:goal.metric}, goal, now, owned, earned, date:earned?date:'', label};
-    });
+    }).filter(Boolean);
   }
   function goalText(row) {
     const keys={rides:'完乘 {count} 趟',km:'累積旅程 {count} 公里',stations:'收集 {count} 座車站',branches:'取得 {count} 枚支線章'};
@@ -45,17 +52,18 @@
   let fs=false,fsScroll=0,fsHistory=false;
   let mode='model',running=false,direction=1,distance=0,travelTime=0,inView=true,period='day';
   // 第 4 格「場景」開場景頁（三端同一套規則）：場景是主角，畫哪一座看 frameScene，不由車款推；頁上一排場景鈕就地換座。
-  // 預設車庫「田園小站」每款車都能跑、永遠能進；已做好的四座只跑分派表（train-garage-scenes.js）分到那座的車，照錢包的已解鎖清單進，
+  // 預設車庫「田園小站」每款車都能跑、永遠能進；已做好的幾座照場景規則（train-garage-scenes.js 的 RailGarageSceneRules：台鐵景跑
+  // 所有台鐵車、阿里山跑林鐵車）跑那個系統的車，照錢包的已解鎖清單進，
   // 鎖著的點了開兌換視窗（見下面「兌換專屬場景」）。沒有錢包（沒登入、展示模式）只有田園小站，不出場景列與場景鈕。
-  // 已做好的四座要跟 rail-3d/garage-diorama.js 的 SCENES 一致。
-  const DEFAULT_SCENE='paddy',DEFAULT_PLACE='預設車庫・田園小站',BUILT_SCENES=new Set(['south-coast','alishan','viaduct','shifen']);
+  // 已做好的場景要跟 rail-3d/garage-diorama.js 的 SCENES 一致。
+  const DEFAULT_SCENE='paddy',DEFAULT_PLACE='預設車庫・田園小站',BUILT_SCENES=new Set(['south-coast','alishan','viaduct','shifen','duoliang','crossing','guanghua']);
   // 場景格、場景鈕用的短名（阿里山那座用線名，不用它畫的那段「之字形」）。
-  const SCENE_SHORT={paddy:'田園小站','south-coast':'南迴海岸',shifen:'十分老街',viaduct:'站前街',alishan:'阿里山林鐵'};
+  const SCENE_SHORT={paddy:'田園小站','south-coast':'南迴海岸',shifen:'十分老街',viaduct:'站前街',alishan:'阿里山林鐵',duoliang:'多良車站',crossing:'街角平交道',guanghua:'光華街'};
   // trainView＝原型的「陪它走走」（跟著車看），手機寬預設開。frameCars＝這次開著場景頁時各座最後看的車：換座時記下，每次打開場景頁清空。
   let trainView=false,frameScene='',frameCars=new Map(),viewScene='',viewPending=false,sceneMeta=null,loadedScene='';
   // 第 4 格點下去開「場景頁」：蓋住整個車庫的 9-29 外框頁（網頁分支 garage/scene-03 的 garage-scene.html；規格與對照稿在
   // native build/garage-web-port/scene-frame-mock/）。開著時 mode＝'scene'，frameBack＝點之前那一格，離開就回到那一格。
-  // 各座文字：全景鈕、三個時段（白天／黃昏／夜晚）、載入字、最底說明；前四座照 9-29，田園小站是新寫的。
+  // 各座文字：全景鈕、三個時段（白天／黃昏／夜晚）、載入字、最底說明；前四座照 9-29，田園小站與多良、平交道、光華街是新寫的。
   // rowScroll＝下次畫場景鈕列時把選中那格捲進畫面（開頁、換座時）。
   let frameBack='',rowScroll=false;
   const tab=()=>frameBack||mode;
@@ -65,22 +73,31 @@
     shifen:['老街全景',['山谷晴日','黃昏放燈','老街夜燈'],'正在把小車開進老街…','平溪線十分老街 · 微縮印象'],
     alishan:['山林全景',['山中晴日','午後斜光','林間夜色'],'正在把小車帶進森林…','阿里山林鐵 · 微縮印象'],
     paddy:['田園全景',['稻田晴日','黃昏收工','小站夜燈'],'正在把小車開進田園小站…','田園小站 · 微縮印象'],
+    duoliang:['海景全景',['海邊晴日','黃昏海色','月台夜色'],'正在把小車開到多良…','南迴線多良車站 · 微縮印象'],
+    crossing:['街角全景',['街角晴日','黃昏車流','路口夜燈'],'正在把小車開到平交道…','街角平交道 · 微縮印象'],
+    guanghua:['街區全景',['巷口晴日','黃昏斜陽','涵洞夜燈'],'正在把小車開過光華街…','台南光華街 · 微縮印象'],
   };
   // 手機預設關陰影、像素比 1（10-30 A54 量測），只用在場景頁。
   const lite=matchMedia('(pointer:coarse) and (hover:none)');
-  const exclusiveScene=id=>{const s=globalThis.RailGarageScenes?.[id];return s&&BUILT_SCENES.has(s.scene)?s.scene:'';};
-  // 專屬場景的地名取分派表裡 params 為空的那款（原型實際畫的那一段），同 App manifest 的 place。
-  const scenePlace=scene=>scene===DEFAULT_SCENE?DEFAULT_PLACE:Object.values(globalThis.RailGarageScenes||{}).find(s=>s.scene===scene&&!Object.keys(s.params||{}).length)?.place||'';
+  // 這款車能不能進這座（車款目錄的系統對場景規則）；地名也取場景規則，同 App manifest 的 cars 與 place。
+  const sceneRule=scene=>BUILT_SCENES.has(scene)?globalThis.RailGarageSceneRules?.[scene]:null;
+  const runsIn=(row,scene)=>scene===DEFAULT_SCENE||!!row&&row.model.system===sceneRule(scene)?.system;
+  const scenePlace=scene=>scene===DEFAULT_SCENE?DEFAULT_PLACE:sceneRule(scene)?.place||'';
   // 場景清單：田園小站排第一，後面是錢包裡可兌換、這裡也做好的那幾座。能進＝田園小站，或錢包的已解鎖清單有它。
   const sceneList=ctx=>ctx?[DEFAULT_SCENE,...ctx.scenes]:[DEFAULT_SCENE];
   const sceneOpen=(ctx,scene)=>scene===DEFAULT_SCENE||!!ctx?.ledger?.unlocked.includes(scene);
-  // 每座跑的車：田園小站＝全部車款，其他＝分派表分到那座的；已入庫的排前面，其餘照目錄順序。
-  function roster(scene){const cars=scene===DEFAULT_SCENE?rows:rows.filter(r=>exclusiveScene(r.id)===scene);return [...cars.filter(r=>r.owned),...cars.filter(r=>!r.owned)];}
+  // 每座跑的車：田園小站＝全部車款，其他＝場景規則那個系統的車；已入庫的排前面，其餘照目錄順序。
+  function roster(scene){const cars=rows.filter(r=>runsIn(r,scene));return [...cars.filter(r=>r.owned),...cars.filter(r=>!r.owned)];}
   // 換到某座時選哪台車：這次在那座最後看的 > 目前的車（跑得了那座的話）> 那座第一款已入庫的 > 那座第一款。
   function pickCar(scene){const cars=roster(scene),had=frameCars.get(scene);return (cars.find(r=>r.id===had)||cars.find(r=>r.id===selected)||cars[0])?.id;}
   const inFilter=r=>filter==='all'||(filter==='owned'?r.owned:r.rule&&!r.owned);
   const maxZoom=()=>mode==='scene'?1.8:3;
   function scenePeriod(){const now=new Date(),h=(now.getUTCHours()+8)%24+now.getUTCMinutes()/60;return h>=5&&h<7?'sunrise':h>=7&&h<17?'day':h>=17&&h<19?'sunset':'night';}
+  // 時段選擇，記在這台裝置：auto＝照台灣時間（scenePeriod），其餘固定。舞台只有海岸行旅有天色，選單只在那一格出現；場景頁開時用它當起點，頁上的時段鈕照舊、只管開著的這段。
+  const PERIOD_KEY='trainmap-garage-period-v1',PERIOD_CHOICES=[['auto','自動'],['sunrise','日出'],['day','藍天'],['sunset','黃昏'],['night','星空']];
+  let periodChoice='auto';
+  function savedPeriodChoice(){try{const v=localStorage.getItem(PERIOD_KEY);if(PERIOD_CHOICES.some(([id])=>id===v))return v;}catch{}return 'auto';}
+  const pickedPeriod=()=>periodChoice==='auto'?scenePeriod():periodChoice;
   function resetView(){zoom=1;panX=panY=0;for(const g of gestures)g.stop();
     // 場景頁的預設角度各座不同（SCENES 的 yaw／仰角）；模組還沒載完先用田園小站那組，載完再補一次（同 App）。
     if(mode==='scene'){viewScene=frameScene;const m=sceneMeta?.[viewScene];viewPending=!m;yaw=m?m.yaw:-1.12;elevation=trainView?(m?m.train:.5):(m?m.world:.58);return;}
@@ -89,7 +106,9 @@
   const reduced=matchMedia('(prefers-reduced-motion:reduce)');
   const tr = (key, values) => host.t(key, values);
   const $ = sel => dialog.querySelector(sel);
-  const status = row => row.owned ? tr('已入庫') : tr('待收集');
+  // 兌換車款沒換到：第二行寫兌換狀態（「用 150 點兌換」「還差 N 點」，同 App GarageRedeemCopy）；沒有錢包（沒登入、展示模式）照「待收集」。
+  const status = row => row.owned ? tr('已入庫') : redeemable(row) ? redeemView(walletCtx(),row.rule.id).status : tr('待收集');
+  const redeemable = row => row.rule.category==='redeem' && !row.owned && !!walletCtx();
   function data() {
     rows = collection(host.snapshot(), globalThis.RailGarageCatalog || {});
     if (demo) for (const row of rows) if (['emu3000','e200','e1000','700t','blue','temu2000'].includes(row.id)) {
@@ -172,12 +191,12 @@
   }
   // Esc／返回手勢：兌換視窗開著先關它，再來是車款選單、場景頁；全畫面時先退全畫面、不關車庫。瀏覽器自己退出全畫面時同一下可能再送一次 cancel，那一下也不關。
   const backOut=()=>{if(redeemScene){closeRedeem();return true;}if(closeCars(true))return true;if(frameBack){closeFrame();return true;}if(fs){setFullscreen(false);return true;}return performance.now()-fsLeftAt<400;};
-  // 開場景頁到 scene（開著就就地換座，先記下離開那座最後看的車），車照 pickCar。時段照台灣時間（日出併進黃昏那顆），
+  // 開場景頁到 scene（開著就就地換座，先記下離開那座最後看的車），車照 pickCar。時段從記著的天色選擇起（自動＝台灣時間；日出併進黃昏那顆），
   // 開著時手動選的留到離開；呼叫的人接著 showDetail 載入這座。
   function openFrame(scene){
     if(!frameBack){
       setFullscreen(false);frameBack=mode;mode='scene';auto=false;running=!reduced.matches;last=0;frameCars=new Map();rowScroll=true;
-      const p=scenePeriod();period=FRAME_PERIODS.includes(p)?p:'sunset';
+      const p=pickedPeriod();period=FRAME_PERIODS.includes(p)?p:'sunset';
       dialog.classList.add('g-sf-open');$('.g-top').inert=$('.g-main').inert=true;$('.g-sf').hidden=false;$('.g-sf-leave').focus({preventScroll:true});
     }else if(frameScene!==scene){frameCars.set(frameScene,selected);rowScroll=true;}
     frameScene=scene;selected=pickCar(scene)||selected;closeCars();resetView();
@@ -186,7 +205,7 @@
   function keepFrameCar(){const row=rows.find(r=>r.id===selected);if(row&&!inFilter(row))filter='all';}
   function closeFrame(){
     if(!frameBack)return;
-    closeCars();mode=frameBack;frameBack='';frameScene='';auto=false;running=mode!=='model'&&!reduced.matches;period=scenePeriod();resetView();last=0;
+    closeCars();mode=frameBack;frameBack='';frameScene='';auto=false;running=mode!=='model'&&!reduced.matches;period=pickedPeriod();resetView();last=0;
     dialog.classList.remove('g-sf-open');$('.g-sf').hidden=true;$('.g-top').inert=$('.g-main').inert=false;
     keepFrameCar();showGrid();$('[data-view="scene"]').focus({preventScroll:true});
   }
@@ -240,6 +259,7 @@
     const row=rows.find(r=>r.id===selected);
     $('.g-auto').setAttribute('aria-label',tr(mode!=='model'?(running?'暫停行駛':'開始行駛'):'自動旋轉'));
     $('.g-auto').setAttribute('aria-pressed',String(mode!=='model'?running:auto));$('.g-auto').textContent=(mode!=='model'?running:auto)?'Ⅱ':'▷';
+    $('.g-period').hidden=at!=='track';$('.g-period-select').value=periodChoice;
     const sky=tr({sunrise:'日出',day:'藍天',sunset:'黃昏',night:'星空'}[period]);
     $('.g-view-hint').textContent=at==='track'?tr('頭城海岸・龜山島')+' · '+sky:at==='loop'?tr('環形試跑 · 拖曳移動，右鍵拖曳或雙指扭轉換角度'):tr('拖曳移動，右鍵拖曳或雙指扭轉看每一面');
     if(frameBack)showFrame(row);
@@ -286,14 +306,20 @@
     const badge=$('.g-status');badge.textContent=status(row);badge.classList.toggle('owned',row.owned);
     $('.g-name').textContent=tr(row.model.name);
     $('.g-system').textContent=tr(row.model.system)+' · '+tr('Q 版收藏模型');
-    $('.g-reason').textContent=demo ? tr('展示模式・不計入收藏') : row.earned ? tr('完成「{name}」收藏，代表車型已入庫。',{name:tr(row.label)}) :
+    const redeem=row.rule.category==='redeem';
+    $('.g-reason').textContent=demo ? tr('展示模式・不計入收藏') : redeem ? tr(row.owned?'這款車已經入庫。':'用點數兌換，換到就永久收進車庫。') :
+      row.earned ? tr('完成「{name}」收藏，代表車型已入庫。',{name:tr(row.label)}) :
       row.owned ? tr('已達成「{goal}」，紀念模型已入庫。',{goal:goalText(row)}) :
       row.rule.category==='progress' ? goalText(row) : tr('取得「{name}」收集章，或達成「{goal}」。',{name:tr(row.label),goal:goalText(row)});
-    $('.g-goal').textContent=goalText(row)+' · '+Math.min(Math.floor(row.now),row.goal.need)+' / '+row.goal.need;
-    $('.g-goal').hidden=demo||row.earned;
+    // 兌換車款沒有收集條件，夠不夠點在主要鈕與兌換視窗說。
+    $('.g-goal').textContent=redeem?'':goalText(row)+' · '+Math.min(Math.floor(row.now),row.goal.need)+' / '+row.goal.need;
+    $('.g-goal').hidden=demo||row.earned||redeem;
     $('.g-date').textContent=demo?tr('展示模式・不計入收藏'):row.date?tr('首次入庫：{date}',{date:row.date}):'';
-    const action=$('.g-cta');action.hidden=!row.rule||demo;action.textContent=row.rule.category==='progress'?tr('查看旅程護照'):tr(row.owned?'再陪它跑一趟':'開始收集');
-    action.onclick=()=>{const rule=row.rule;close();host.launch(rule);};
+    const action=$('.g-cta');
+    // 兌換車款沒換到：紅鈕寫兌換狀態，點了開兌換視窗（夠不夠、要不要登入都在視窗裡說）；換到了、沒有錢包不出鈕。
+    if(redeem){action.hidden=demo||!redeemable(row);action.textContent=action.hidden?'':status(row);action.onclick=()=>openRedeem(row.rule.id,action);}
+    else{action.hidden=!row.rule||demo;action.textContent=row.rule.category==='progress'?tr('查看旅程護照'):tr(row.owned?'再陪它跑一趟':'開始收集');
+      action.onclick=()=>{const rule=row.rule;close();host.launch(rule);};}
     ownTrainDetail(row);
     $('.g-source-body').replaceChildren();
     for(const text of [tr('模型製作：軌島（Q 版示意）'),tr('收藏的是紀念模型，不代表曾搭乘這個實際車型或車號。'),tr('外觀依公開照片參考繪製；照片僅連結，未作為模型貼圖。')]) {
@@ -350,7 +376,8 @@
   }
   // ── 兌換專屬場景：照 App（railcore GarageRedeemCopy＋WalletController，規格見 native build/garage-web-port/）。──
   // 網頁只有登入的人有錢包（host.wallet.uid() 空的就不出入口），只認點數制（v3）。入口兩個：首頁「車庫場景」列、
-  // 場景頁的場景鈕，都是點鎖著的那座。redeemAction＝這個帳號最近一筆 {uid,scene,requestId,phase,error,cost,balance}；
+  // 場景頁的場景鈕，都是點鎖著的那座；車款格點鎖著的兌換車款也開同一個視窗（兌換品 id＝train:<款>，下面的 scene 欄位放它）。
+  // redeemAction＝這個帳號最近一筆 {uid,scene,requestId,phase,error,cost,balance}；
   // redeemStored＝它的 pending 還在 host 的儲存裡，結果沒確認前重試都沿用同一個 requestId（伺服器靠它不重扣）。
   // redeemAck＝關視窗時看過的終局那筆，再開就不重播「已解鎖！用了…」；redeemResent＝401 後憑證好了自動重送過的那筆（只重送一次）。
   let redeemScene='',redeemAction=null,redeemStored=false,redeemAck='',redeemResent='',redeemOpener=null;
@@ -365,10 +392,14 @@
     const action=redeemAction?.uid===uid?redeemAction:null;
     // 舊伺服器回的是籌碼（沒有 unit:'point'）：網頁只做點數制，一律當暫時無法兌換。
     // storageBlocked：網頁只有送出前寫 pending 會寫不進去；這時四格都等，不能再開別座。
-    return {uid,scenes,sale:new Set(!c||c.unit==='point'?scenes:[]),loadState:w.loadState(),action,stored:!!action&&redeemStored,storageBlocked:action?.phase==='STORAGE_FAILURE',
-      ledger:c&&{balance:num(c.balance),nextCost:num(c.nextCost),unlocked:c.unlocked.map(u=>String(u&&u.scene))}};
+    return {uid,scenes,sale:new Set(!c||c.unit==='point'?scenes:[]),points:!c||c.unit==='point',loadState:w.loadState(),action,stored:!!action&&redeemStored,storageBlocked:action?.phase==='STORAGE_FAILURE',
+      ledger:c&&{balance:num(c.balance),nextCost:num(c.nextCost),unlocked:c.unlocked.map(u=>String(u&&u.scene)),items:Array.isArray(c.items)?c.items.map(x=>String(x&&x.item)):[]}};
   }
+  const isItem=id=>id.startsWith('train:');
+  // 車款的價格是規則檔的固定價（collection() 放在 goal.need），不看兌換順序。
+  const itemPrice=item=>{const n=rows.find(r=>r.rule.id===item)?.goal.need;return Number.isInteger(n)&&n>0?n:null;};
   function sceneState(ctx,scene){
+    if(isItem(scene))return itemState(ctx,scene);
     if(ctx.ledger?.unlocked.includes(scene))return 'UNLOCKED';
     if(!ctx.sale.has(scene))return 'UNAVAILABLE';
     const a=ctx.action,l=ctx.ledger;
@@ -376,6 +407,16 @@
     if(ctx.loadState==='AUTH_REQUIRED'||ctx.loadState==='WRONG_ACCOUNT')return 'AUTH_REQUIRED';
     if(ctx.loadState!=='READY'||!l||l.balance==null||l.nextCost==null||ctx.storageBlocked)return 'WAITING';
     return l.balance>=l.nextCost?'CAN_REDEEM':'NOT_ENOUGH';
+  }
+  // 同 App WalletController.itemState：換到了、沒價格（舊伺服器不是點數制也不賣）、自己那筆、登入、讀取，最後比點數夠不夠。
+  function itemState(ctx,item){
+    if(ctx.ledger?.items.includes(item))return 'UNLOCKED';
+    const price=itemPrice(item),a=ctx.action,l=ctx.ledger;
+    if(price==null||!ctx.points)return 'UNAVAILABLE';
+    if(a&&a.scene===item&&ctx.stored)return a.phase==='PENDING'?'PENDING':a.phase==='AUTH_REQUIRED'?'AUTH_REQUIRED':'FAILED';
+    if(ctx.loadState==='AUTH_REQUIRED'||ctx.loadState==='WRONG_ACCOUNT')return 'AUTH_REQUIRED';
+    if(ctx.loadState!=='READY'||!l||l.balance==null||ctx.storageBlocked)return 'WAITING';
+    return l.balance>=price?'CAN_REDEEM':'NOT_ENOUGH';
   }
   function walletHeader(ctx){
     if(ctx.loadState==='AUTH_REQUIRED'||ctx.loadState==='WRONG_ACCOUNT')return T('需要登入');
@@ -386,15 +427,16 @@
   }
   // 回 {unlocked,status,message,button,text,enabled}：status 是場景格第二行；button 是主按鈕做什麼，text 為 null 就不畫主按鈕。
   function redeemView(ctx,scene){
-    const state=sceneState(ctx,scene),l=ctx.ledger,action=ctx.action,balance=l?.balance??null,cost=l?.nextCost??null;
-    const status=state==='UNLOCKED'?T('已解鎖'):state==='CAN_REDEEM'?T('用 {cost} 點兌換',{cost}):state==='NOT_ENOUGH'?T('還差 {n} 點',{n:cost-balance}):
+    const item=isItem(scene),state=sceneState(ctx,scene),l=ctx.ledger,action=ctx.action,balance=l?.balance??null,cost=item?itemPrice(scene):l?.nextCost??null;
+    const status=state==='UNLOCKED'?T(item?'已入庫':'已解鎖'):state==='CAN_REDEEM'?T('用 {cost} 點兌換',{cost}):state==='NOT_ENOUGH'?T('還差 {n} 點',{n:cost-balance}):
       state==='PENDING'?T('兌換處理中…'):state==='FAILED'?T('結果待確認'):state==='AUTH_REQUIRED'?T('需要登入'):state==='WAITING'?T(ctx.storageBlocked?'結果待確認':ctx.loadState==='FAILED'?'讀取失敗':'讀取中…'):T('暫時無法兌換');
-    const balanceLine=balance!=null&&cost!=null?T('目前 {balance} 點，這座要 {cost} 點。',{balance,cost}):null;
+    const costLine=(balance,cost)=>T(item?'目前 {balance} 點，這款要 {cost} 點。':'目前 {balance} 點，這座要 {cost} 點。',{balance,cost});
+    const balanceLine=balance!=null&&cost!=null?costLine(balance,cost):null;
     const short=(have,need)=>have!=null&&need!=null&&need>have?T('還差 {n} 點',{n:need-have}):null;
     const V=(unlocked,message,button,text,enabled)=>({unlocked,status,message,button,text,enabled});
     const byState=message=>{
       switch(state){
-        case 'UNLOCKED':return V(true,message??T('這座場景已經解鎖。'),'VIEW',T('看場景'),true);
+        case 'UNLOCKED':return item?V(true,message??T('這款車已經入庫。'),'',null,false):V(true,message??T('這座場景已經解鎖。'),'VIEW',T('看場景'),true);
         case 'CAN_REDEEM':return V(false,message??balanceLine,'REDEEM',T('用 {cost} 點兌換',{cost}),true);
         case 'NOT_ENOUGH':return V(false,message??balanceLine,'REDEEM',short(balance,cost),false);
         case 'AUTH_REQUIRED':return V(false,message??T('需要登入才能兌換。'),'',null,false);
@@ -403,16 +445,16 @@
       }
     };
     const a=action?.scene===scene&&!(TERMINAL.has(action.phase)&&action.requestId===redeemAck)?action:null;
-    if(!a)return action&&action.scene!==scene&&OPEN.has(action.phase)&&state!=='UNLOCKED'?V(false,T('另一座場景的兌換還沒確認，請先處理那一座。'),'',null,false):byState(null);
+    if(!a)return action&&action.scene!==scene&&OPEN.has(action.phase)&&state!=='UNLOCKED'?V(false,T(isItem(action.scene)?'另一款車的兌換還沒確認，請先處理那一款。':'另一座場景的兌換還沒確認，請先處理那一座。'),'',null,false):byState(null);
     switch(a.phase){
       case 'PENDING':return V(false,T('兌換處理中…'),'',T('兌換處理中…'),false);
       case 'RETRYABLE_FAILURE':return V(false,T(a.error==='bounty_paused'?'懸賞暫停中，兌換結果還沒確認。稍後重試，不會重複扣。':'還沒確認兌換結果。重試會沿用同一筆兌換，不會重複扣。'),'RETRY',T('重試'),true);
       case 'AUTH_REQUIRED':return V(false,T('需要登入才能兌換。'),'',null,false);
       case 'STORAGE_FAILURE':return V(false,T('這台裝置的儲存寫入失敗，兌換結果還沒確認。'),'RETRY_STORAGE',T('重試儲存'),true);
-      case 'SUCCEEDED':return byState(a.cost!=null&&a.balance!=null?T('已解鎖！用了 {cost} 點，還剩 {balance} 點。',{cost:a.cost,balance:a.balance}):T('這座場景已經解鎖。'));
-      case 'ALREADY':return byState(T('這座場景之前就解鎖了，這次沒有扣除。'));
+      case 'SUCCEEDED':return byState(a.cost!=null&&a.balance!=null?T(item?'已入庫！用了 {cost} 點，還剩 {balance} 點。':'已解鎖！用了 {cost} 點，還剩 {balance} 點。',{cost:a.cost,balance:a.balance}):T(item?'這款車已經入庫。':'這座場景已經解鎖。'));
+      case 'ALREADY':return byState(T(item?'這款車之前就換過了，這次沒有扣除。':'這座場景之前就解鎖了，這次沒有扣除。'));
       case 'NOT_ENOUGH':{
-        const line=a.balance!=null&&a.cost!=null?T('目前 {balance} 點，這座要 {cost} 點。',{balance:a.balance,cost:a.cost}):balanceLine;
+        const line=a.balance!=null&&a.cost!=null?costLine(a.balance,a.cost):balanceLine;
         return state==='CAN_REDEEM'?byState(line):V(false,line,'REDEEM',short(a.balance,a.cost)??short(balance,cost),false);
       }
       case 'CONFLICT_REFRESH':return V(false,T('點數剛有變動，正在重新讀取…'),'',null,false);
@@ -441,6 +483,11 @@
     if(!b||b.ok!==true||b.scene!==scene||!whole(b.nth)||b.nth<1||!whole(b.cost)||!whole(b.balance)||!Array.isArray(b.unlocked))return false;
     const ids=b.unlocked.map(u=>u&&u.scene);return ids.includes(scene)&&new Set(ids).size===ids.length;
   }
+  // 車款的 200：ok、是這一款、數字是 ≥0 整數、items 含這款且不重複（同 App parseCollectSuccess）。
+  function collectOk(b,item){
+    if(!b||b.ok!==true||b.item!==item||!whole(b.cost)||!whole(b.balance)||!Array.isArray(b.items))return false;
+    const ids=b.items.map(x=>x&&x.item);return ids.includes(item)&&new Set(ids).size===ids.length;
+  }
   function beginRedeem(ctx,scene){
     if(ctx.action&&OPEN.has(ctx.action.phase))return;
     const id=crypto.randomUUID?crypto.randomUUID():[...crypto.getRandomValues(new Uint8Array(16))].map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -454,10 +501,15 @@
   async function sendRedeem(p){
     const w=host.wallet,base={uid:p.uid,scene:p.scene,requestId:p.requestId};
     redeemAction={...base,phase:'PENDING'};renderWallet();
-    const {status,body}=await w.redeem(p.scene,p.requestId);
+    const item=isItem(p.scene),{status,body}=await (item?w.collect(p.scene,p.requestId):w.redeem(p.scene,p.requestId));
     if(redeemAction?.requestId!==p.requestId||w.uid()!==p.uid)return; // 回來時人換了，或這筆已經被取代
     const e=body&&typeof body==='object'?body.error:undefined,set=(phase,extra)=>{redeemAction={...base,phase,...extra};},done=()=>{w.pending.clear();redeemStored=false;};
-    if(status===200&&redeemOk(body,p.scene)){set('SUCCEEDED',{cost:body.cost,balance:body.balance});done();w.patch({balance:body.balance,unlocked:body.unlocked,nextCost:null});reloadWallet();}
+    // 車款只動餘額與 items：場景的下一座價格不受影響。
+    if(item&&status===200&&collectOk(body,p.scene)){set('SUCCEEDED',{cost:body.cost,balance:body.balance});done();w.patch({balance:body.balance,items:body.items});reloadWallet();}
+    else if(item&&status===409&&e==='already'){set('ALREADY');done();const l=w.ledger(),had=Array.isArray(l?.items)?l.items:[];if(l&&!had.some(x=>x?.item===p.scene))w.patch({items:[...had,{item:p.scene}]});reloadWallet();}
+    else if(item&&status===409&&e==='not_enough'){set('NOT_ENOUGH',{cost:num(body.cost),balance:num(body.balance)});done();if(num(body.balance)!=null)w.patch({balance:num(body.balance)});}
+    else if(item&&status===409&&e==='conflict'){set('CONFLICT_REFRESH');done();reloadWallet();}
+    else if(!item&&status===200&&redeemOk(body,p.scene)){set('SUCCEEDED',{cost:body.cost,balance:body.balance});done();w.patch({balance:body.balance,unlocked:body.unlocked,nextCost:null});reloadWallet();}
     else if(status===401){set('AUTH_REQUIRED');reloadWallet();}
     else if(status===403&&e==='wrong_account'){set('FAILED',{error:e});done();w.wrongAccount();}
     else if(status===409&&e==='already'){set('ALREADY');done();const l=w.ledger();if(l&&!l.unlocked.some(u=>u?.scene===p.scene))w.patch({unlocked:[...l.unlocked,{scene:p.scene}]});reloadWallet();}
@@ -496,9 +548,13 @@
   }
   function showRedeem(){
     const ctx=walletCtx();if(!ctx){closeRedeem();return;}
-    const v=redeemView(ctx,redeemScene),place=scenePlace(redeemScene);
-    $('.g-redeem h2').textContent=v.unlocked?tr(place):tr('解鎖「{place}」',{place:tr(place)});
-    $('.g-redeem-desc').textContent=tr('永久解鎖這座場景。解鎖後在場景頁上方點它就能看。');
+    const v=redeemView(ctx,redeemScene);
+    if(isItem(redeemScene)){const row=rows.find(r=>r.rule.id===redeemScene),name=row?tr(row.model.name):'';
+      $('.g-redeem h2').textContent=v.unlocked?name:tr('兌換「{name}」',{name});
+      $('.g-redeem-desc').textContent=tr('用點數兌換，換到就永久收進車庫。');}
+    else{const place=scenePlace(redeemScene);
+      $('.g-redeem h2').textContent=v.unlocked?tr(place):tr('解鎖「{place}」',{place:tr(place)});
+      $('.g-redeem-desc').textContent=tr('永久解鎖這座場景。解鎖後在場景頁上方點它就能看。');}
     const msg=$('.g-redeem-msg'),go=$('.g-redeem-go');msg.hidden=!v.message;msg.textContent=v.message||'';
     go.hidden=!v.text;go.textContent=v.text||'';go.disabled=!v.enabled;go.dataset.do=v.button;
     // 訊息的樣子：要重試的是警示框；剛兌換成功（還沒關過視窗）那句加粗。
@@ -538,7 +594,7 @@
     if(!frameBack&&!list.some(r=>r.id===selected))selected=list[0]?.id;
     // host 每次重畫護照都會呼叫 refresh（登入的人回前景同步完就一次）：卡片與選單內容沒變就不重建，
     // 整批換掉 62 張縮圖會讓手機重新解碼、閃一下。
-    const key=dialog.lang+'|'+filter+'|'+list.map(r=>r.id+(r.owned?'+':'-')).join(),picker=$('.g-model-select');
+    const key=dialog.lang+'|'+filter+'|'+list.map(r=>r.id+(r.owned?'+':'-')+(redeemable(r)?status(r):'')).join(),picker=$('.g-model-select');
     if(key!==gridKey){gridKey=key;
       picker.replaceChildren();picker.disabled=!list.length;
       for(const sys of new Set(list.map(r=>r.model.system))) {
@@ -554,7 +610,7 @@
         const b=document.createElement('button');b.type='button';b.className=row.owned?'g-car':'g-car g-locked';b.dataset.model=row.id;b.setAttribute('aria-pressed',String(selected===row.id));
         b.setAttribute('aria-label',tr(row.model.name)+' · '+status(row));
         b.innerHTML=`<span class="g-check" aria-hidden="true">${row.owned?'入':'○'}</span><img src="${esc(row.model.thumbnail)}" alt="" loading="lazy" width="320" height="200"><b>${esc(tr(row.model.name))}</b><small>${esc(status(row))}</small>`;
-        b.onclick=()=>{chooseModel(row.id);$('.g-filters').scrollIntoView({block:'start',behavior:'instant'});$('.g-model-select').focus({preventScroll:true});};
+        b.onclick=()=>{chooseModel(row.id);$('.g-filters').scrollIntoView({block:'start',behavior:'instant'});$('.g-model-select').focus({preventScroll:true});if(redeemable(row))openRedeem(row.rule.id,b);};
         $('.g-grid').append(b);
       }
     }
@@ -584,7 +640,7 @@
   function build() {
     setFullscreen(false);data();resize?.disconnect();visibility?.disconnect();for(const g of gestures)g.stop();gestures=[];inView=true;gridKey='';redeemScene='';redeemOpener=null;
     // 換語言重建時場景頁一起關掉，回到點之前那一格。
-    if(frameBack){mode=frameBack;frameBack='';frameScene='';period=scenePeriod();resetView();keepFrameCar();}
+    if(frameBack){mode=frameBack;frameBack='';frameScene='';period=pickedPeriod();resetView();keepFrameCar();}
     dialog.classList.remove('g-sf-open');
     dialog.lang=host.lang();
     dialog.classList.toggle('dark',host.dark());
@@ -598,15 +654,15 @@
       <label class="g-picker"><span>${esc(tr('選擇車款'))}</span><select class="g-model-select"></select></label></div>
       <div class="g-empty" hidden><p class="g-empty-text"></p><button class="g-reset">${esc(tr('查看所有車款'))}</button><button class="g-demo-start">${esc(tr('看看展示車庫'))}</button></div>
       <section class="g-showcase" aria-label="${esc(tr('車型展示'))}"><div class="g-stage"><div class="g-scene-bar"><div class="g-scene-tabs">${[['model','近看小車'],['loop','環形試跑'],['track','海岸行旅'],['scene','場景']].map(([id,label])=>`<button data-view="${id}" aria-pressed="${mode===id}">${esc(tr(label))}</button>`).join('')}</div><button class="g-reverse" hidden aria-pressed="false" title="${esc(tr('反向行駛'))}" aria-label="${esc(tr('反向行駛'))}">⇄</button></div>
-      <div class="g-viewport"><canvas class="g-view" tabindex="0" role="img"></canvas><div class="g-zoom"><button class="g-zoom-in" title="${esc(tr('放大場景'))}" aria-label="${esc(tr('放大場景'))}">+</button><output class="g-zoom-level" aria-label="${esc(tr('縮放比例'))}">100%</output><button class="g-zoom-out" title="${esc(tr('縮小場景'))}" aria-label="${esc(tr('縮小場景'))}">−</button></div><button class="g-fs" type="button" aria-pressed="false" title="${esc(tr('全畫面觀看'))}" aria-label="${esc(tr('全畫面觀看'))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${FS_PATH.off}"/></svg></button></div><div class="g-fallback" hidden>${esc(tr('這個裝置暫時無法顯示 3D，收藏紀錄與來源仍可查看。'))}</div>
-      <div class="g-stage-foot"><span class="g-view-hint"></span><div class="g-controls"><button class="g-left" title="${esc(tr('向左旋轉'))}" aria-label="${esc(tr('向左旋轉'))}">↶</button><button class="g-auto" aria-label="${esc(tr('自動旋轉'))}" aria-pressed="false">▷</button><button class="g-right" title="${esc(tr('向右旋轉'))}" aria-label="${esc(tr('向右旋轉'))}">↷</button><button class="g-up" title="${esc(tr('提高視角'))}" aria-label="${esc(tr('提高視角'))}">↑</button><button class="g-down" title="${esc(tr('降低視角'))}" aria-label="${esc(tr('降低視角'))}">↓</button><button class="g-reset-view" title="${esc(tr('重設視角'))}" aria-label="${esc(tr('重設視角'))}">⌂</button><button class="g-retry" hidden aria-label="${esc(tr('重新載入小車'))}">↻</button></div></div></div>
+      <div class="g-viewport"><canvas class="g-view" tabindex="0" role="img" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown"></canvas><div class="g-zoom"><button class="g-zoom-in" title="${esc(tr('放大場景'))}" aria-label="${esc(tr('放大場景'))}">+</button><output class="g-zoom-level" aria-label="${esc(tr('縮放比例'))}">100%</output><button class="g-zoom-out" title="${esc(tr('縮小場景'))}" aria-label="${esc(tr('縮小場景'))}">−</button></div><button class="g-fs" type="button" aria-pressed="false" title="${esc(tr('全畫面觀看'))}" aria-label="${esc(tr('全畫面觀看'))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${FS_PATH.off}"/></svg></button></div><div class="g-fallback" hidden>${esc(tr('這個裝置暫時無法顯示 3D，收藏紀錄與來源仍可查看。'))}</div>
+      <div class="g-stage-foot"><span class="g-view-hint"></span><div class="g-controls"><button class="g-auto" aria-label="${esc(tr('自動旋轉'))}" aria-pressed="false">▷</button><button class="g-reset-view" title="${esc(tr('重設視角'))}" aria-label="${esc(tr('重設視角'))}">⌂</button><label class="g-period" hidden><span>${esc(tr('天色'))}</span><select class="g-period-select">${PERIOD_CHOICES.map(([id,label])=>`<option value="${id}">${esc(tr(label))}</option>`).join('')}</select></label><button class="g-retry" hidden aria-label="${esc(tr('重新載入小車'))}">↻</button></div></div></div>
       <div class="g-detail"><span class="g-status"></span><h2 class="g-name"></h2><p class="g-system"></p><p class="g-reason"></p><p class="g-goal"></p><p class="g-date"></p><button class="g-cta"></button><button class="mt-g-plan" type="button" data-mt-g="schedule" hidden></button><p class="mt-g-note" data-mt-g="note" hidden></p><div class="mt-g-mine" hidden><p class="mt-g-status" data-mt-g="status" data-i18n-skip></p><button class="mt-g-view" type="button" data-mt-g="view"></button></div><details class="g-sources"><summary>${esc(tr('車型與來源'))} ↗</summary><div class="g-source-body"></div></details></div></section>
       <p class="g-result" role="status" aria-live="polite"></p><div class="g-grid"></div>
       <footer class="g-footer"><span class="g-catalog"></span> · ${esc(tr('模型製作：軌島（Q 版示意）'))}<br>${esc(tr('進度沿用旅程護照；62 款小車都有收集條件，既有車種章自動帶入。'))}<br>${esc(tr('收藏的是紀念模型，不代表曾搭乘這個實際車型或車號。'))}</footer></main>
       <section class="g-sf" hidden aria-labelledby="gSfTitle"><div class="g-sf-bar"><button class="g-sf-leave" type="button">${esc(tr('離開'))}</button><button class="g-sf-title" type="button" aria-expanded="false"><b id="gSfTitle"></b><small></small></button></div>
       <div class="g-sf-scenes" hidden><div class="g-sf-seg" role="group" aria-label="${esc(tr('選擇場景'))}"></div></div>
       <div class="g-sf-cars" hidden><p>${esc(tr('在這座跑的車'))}</p><div class="g-sf-car-list"></div></div>
-      <div class="g-sf-stage"><div class="g-sf-wrap"><canvas class="g-sf-view" tabindex="0" role="img"></canvas><div class="g-sf-views" role="group" aria-label="${esc(tr('觀賞視角'))}"><button data-sf-view="world" type="button"></button><button data-sf-view="train" type="button">${esc(tr('陪它走走'))}</button></div>
+      <div class="g-sf-stage"><div class="g-sf-wrap"><canvas class="g-sf-view" tabindex="0" role="img" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown"></canvas><div class="g-sf-views" role="group" aria-label="${esc(tr('觀賞視角'))}"><button data-sf-view="world" type="button"></button><button data-sf-view="train" type="button">${esc(tr('陪它走走'))}</button></div>
       <p class="g-sf-hint">${esc(tr('拖曳移動 · 右鍵拖曳或雙指扭轉換角度 · 滾動或雙指縮放'))}</p><div class="g-sf-loading" role="status"><span></span><button class="g-sf-retry" type="button" hidden>${esc(tr('重新載入小車'))}</button></div></div>
       <div class="g-sf-tools"><div class="g-sf-seg" role="group" aria-label="${esc(tr('時間'))}">${FRAME_PERIODS.map(p=>`<button data-sf-period="${p}" type="button"></button>`).join('')}</div>
       <div class="g-sf-icons" role="group" aria-label="${esc(tr('列車與視角控制'))}"><button class="g-sf-play g-sf-icon" type="button"></button><button class="g-sf-out g-sf-icon" type="button" aria-label="${esc(tr('縮小場景'))}">−</button><button class="g-sf-in g-sf-icon" type="button" aria-label="${esc(tr('放大場景'))}">＋</button><button class="g-sf-reset g-sf-icon" type="button" aria-label="${esc(tr('重設視角'))}">⌂</button></div></div>
@@ -625,13 +681,14 @@
     for(const b of dialog.querySelectorAll('[data-filter]'))b.onclick=()=>{filter=b.dataset.filter;showGrid();};
     $('.g-model-select').onchange=e=>chooseModel(e.target.value);
     const turn=(horizontal,vertical=0)=>{for(const g of gestures)g.halt();auto=false;yaw+=horizontal;elevation=Math.max(.08,Math.min(1.48,elevation+vertical));clampView();showControls();requestDraw();};
-    $('.g-left').onclick=()=>turn(-Math.PI/6);$('.g-right').onclick=()=>turn(Math.PI/6);
-    $('.g-up').onclick=()=>turn(0,Math.PI/12);$('.g-down').onclick=()=>turn(0,-Math.PI/12);
+    // 旋轉、視角高低沒有按鈕：手勢（跟主地圖同一套，滑鼠右鍵拖曳、雙指扭轉與上推）與畫布上的方向鍵。
+    const periodSelect=$('.g-period-select');periodSelect.value=periodChoice;
+    periodSelect.onchange=()=>{periodChoice=periodSelect.value;try{localStorage.setItem(PERIOD_KEY,periodChoice);}catch{}period=pickedPeriod();showControls();requestDraw();};
     $('.g-reset-view').onclick=()=>{auto=false;resetView();showControls();requestDraw();};
     $('.g-auto').onclick=()=>{if(mode!=='model')running=!running;else auto=!auto;last=0;showControls();requestDraw();};
     $('.g-reverse').onclick=()=>{direction*=-1;showControls();requestDraw();};
-    // 第 4 格：先畫這款車的專屬場景（已解鎖的話），不然田園小站。
-    for(const b of dialog.querySelectorAll('[data-view]'))b.onclick=()=>{if(b.dataset.view==='scene'){const ex=exclusiveScene(selected);openFrame(ex&&sceneOpen(walletCtx(),ex)?ex:DEFAULT_SCENE);showDetail();return;}if(mode===b.dataset.view)return;mode=b.dataset.view;auto=false;running=mode!=='model'&&!reduced.matches;resetView();last=0;showDetail();};
+    // 第 4 格：先畫這款車能進、已解鎖的第一座（照場景列的順序），不然田園小站。
+    for(const b of dialog.querySelectorAll('[data-view]'))b.onclick=()=>{if(b.dataset.view==='scene'){const ctx=walletCtx(),row=rows.find(r=>r.id===selected);openFrame(sceneList(ctx).find(s=>s!==DEFAULT_SCENE&&sceneOpen(ctx,s)&&runsIn(row,s))||DEFAULT_SCENE);showDetail();return;}if(mode===b.dataset.view)return;mode=b.dataset.view;auto=false;running=mode!=='model'&&!reduced.matches;resetView();last=0;showDetail();};
     $('.g-sf-leave').onclick=closeFrame;
     $('.g-sf-title').onclick=()=>{if(!closeCars(true))openCars();};
     $('.g-sf').addEventListener('pointerdown',e=>{if(!e.target.closest('.g-sf-cars,.g-sf-title'))closeCars();});
@@ -696,7 +753,7 @@
     host=adapter;active=true;
     if(!dialog){dialog=document.createElement('dialog');dialog.id='trainGarage';dialog.setAttribute('aria-labelledby','garageTitle');document.body.append(dialog);dialog.addEventListener('cancel',e=>{e.preventDefault();if(!backOut())close();});dialog.addEventListener('close',()=>{if(!dialog.open)cleanup();});}
     demo=!!options.demo;data();selected=demo?'e200':rows.find(r=>r.owned)?.id||'emu3000';
-    filter=demo||rows.some(r=>r.owned)?'owned':'all';auto=running=false;mode='model';frameBack='';resetView();direction=1;distance=0;travelTime=0;period=scenePeriod();last=0;inView=true;
+    filter=demo||rows.some(r=>r.owned)?'owned':'all';auto=running=false;mode='model';frameBack='';resetView();direction=1;distance=0;travelTime=0;periodChoice=savedPeriodChoice();period=pickedPeriod();last=0;inView=true;
     trainView=innerWidth<=800;frameScene=viewScene='';
     rendererPromise=renderer?Promise.resolve():startRenderer();
     showDialog();build();dialog.scrollTop=0;$('.g-close').focus({preventScroll:true});requestDraw();

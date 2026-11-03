@@ -25,7 +25,7 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
     await page.locator('.g-showcase').scrollIntoViewIfNeeded();
     const look=await page.evaluate(()=>{const c=document.querySelector('.g-view'),d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let count=0,left=c.width,right=-1,top=c.height,bottom=-1,hash=0;for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++){const i=(y*c.width+x)*4;if(d[i+3]){count++;left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);hash=(hash*31+d[i]+d[i+1]*3+d[i+2]*7)>>>0;}}return{count,left,right,top,bottom,w:c.width,h:c.height,hash,vertices:Number(c.dataset.vertices),lock:c.dataset.lock,overflow:document.documentElement.scrollWidth>innerWidth};});
     check(`${engine} ${width} ${id} 新網格全貌及塗裝`,look.vertices===meta[id].mesh.vertexCount&&look.lock==='off'&&look.count>500&&look.left>1&&look.top>1&&look.right<look.w-2&&look.bottom<look.h-2&&!look.overflow,look);
-    await page.locator('.g-right').tap();await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+    for(let i=0;i<3;i++)await page.locator('.g-view').press('ArrowRight');await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
     if(width===375||width===1280)await page.screenshot({path:`${out}/${engine}-${width}-${id}.png`});
     await page.locator('.g-sources summary').scrollIntoViewIfNeeded();if(!await page.locator('.g-sources').evaluate(e=>e.open))await page.locator('.g-sources summary').tap();
     const sources=await page.locator('.g-source-body a').evaluateAll(es=>es.map(e=>e.href));

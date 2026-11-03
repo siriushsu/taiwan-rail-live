@@ -168,12 +168,12 @@ await attempt('M1', async () => {
   const w = world();
   put.ledger(w.db, A, 'adjust', 250);
   const r = await me(w, `?actor=${A}`);
-  ok("M1a 種入 +250 → unit 'point'、balance 250、nextCost 200、unlocked []、雲端 0 次（toNextChip 1、一次 20 點）、今天 0／上限 500，六個欄位一個不多",
-    r.status === 200 && same(r.json, { unit: 'point', balance: 250, unlocked: [], nextCost: 200, cloud: CLOUD0, today: TODAY0 }), r.text);
+  ok("M1a 種入 +250 → unit 'point'、balance 250、nextCost 200、unlocked []、雲端 0 次（toNextChip 1、一次 20 點）、今天 0／上限 500、items []（11-03 車款兌換加的），七個欄位一個不多",
+    r.status === 200 && same(r.json, { unit: 'point', balance: 250, unlocked: [], items: [], nextCost: 200, cloud: CLOUD0, today: TODAY0 }), r.text);
   ok('M1b 回應標 no-store（個人餘額不能進邊緣快取）', r.headers.get('cache-control') === 'no-store', String(r.headers.get('cache-control')));
   const r0 = await me(w, '?actor=device-m1zero001');
   ok('M1c 一個沒有任何紀錄的人：餘額 0、nextCost 200，不是 404 也不是錯誤',
-    r0.status === 200 && same(r0.json, { unit: 'point', balance: 0, unlocked: [], nextCost: 200, cloud: CLOUD0, today: TODAY0 }), r0.text);
+    r0.status === 200 && same(r0.json, { unit: 'point', balance: 0, unlocked: [], items: [], nextCost: 200, cloud: CLOUD0, today: TODAY0 }), r0.text);
 });
 
 // M2 解鎖清單依 nth 排序（種子故意反著插）；每一項只有 scene／nth／at；nextCost＝下一座的價格（第 1 座 200、其後都 300）
@@ -186,7 +186,7 @@ await attempt('M2', async () => {
   put.ledger(w.db, A, 'adjust', 1000, { ref: 'm2-a' }); put.ledger(w.db, A, 'redeem', -200, { ref: 'm2-r1' }); put.ledger(w.db, A, 'redeem', -300, { ref: 'm2-r2' });
   const r = await me(w, `?actor=${A}`);
   ok('M2a unlocked 依 nth 排序、每項只有 scene／nth／at（cost 不外洩）；balance 1000−200−300＝500；第 3 座價格 300',
-    r.status === 200 && same(r.json, { unit: 'point', balance: 500, unlocked: [{ scene: 'viaduct', nth: 1, at: NOW_MS - 9000 }, { scene: 'shifen', nth: 2, at: NOW_MS - 2000 }],
+    r.status === 200 && same(r.json, { unit: 'point', balance: 500, unlocked: [{ scene: 'viaduct', nth: 1, at: NOW_MS - 9000 }, { scene: 'shifen', nth: 2, at: NOW_MS - 2000 }], items: [],
       nextCost: 300, cloud: CLOUD0, today: TODAY0 }) &&
       JSON.stringify(r.json.unlocked.map(u => u.nth)) === '[1,2]', r.text);
   give(w.db, B, { balance: 0, unlocked: SCN });
@@ -970,9 +970,9 @@ await attempt('P1', async () => {
   const clean = await run(false), loaded = await run(true);
   ok('P1a 乾淨世界與「處處有通行證」的世界：六次操作（餘額、兌換、餘額、第 2 座、餘額不足、重送）的狀態碼與本文逐欄相同', canon(clean.out) === canon(loaded.out), JSON.stringify({ clean: clean.out, loaded: loaded.out }));
   // 對照組本身要有牙：乾淨世界的六次結果是寫死的預期（不是「兩邊一樣就好」——兩邊一起錯也會一樣）
-  const exp0 = { unit: 'point', balance: 650, unlocked: [], nextCost: 200, cloud: CLOUD0, today: TODAY0 };
+  const exp0 = { unit: 'point', balance: 650, unlocked: [], items: [], nextCost: 200, cloud: CLOUD0, today: TODAY0 };
   const exp1 = { ok: true, scene: 'south-coast', nth: 1, cost: 200, balance: 450, unlocked: [{ scene: 'south-coast', nth: 1, at: NOW_MS }] };
-  const exp2 = { unit: 'point', balance: 450, unlocked: [{ scene: 'south-coast', nth: 1, at: NOW_MS }], nextCost: 300, cloud: CLOUD0, today: TODAY0 };
+  const exp2 = { unit: 'point', balance: 450, unlocked: [{ scene: 'south-coast', nth: 1, at: NOW_MS }], items: [], nextCost: 300, cloud: CLOUD0, today: TODAY0 };
   const exp3 = { ok: true, scene: 'shifen', nth: 2, cost: 300, balance: 150, unlocked: [{ scene: 'south-coast', nth: 1, at: NOW_MS }, { scene: 'shifen', nth: 2, at: NOW_MS }] };
   const exp4 = { error: 'not_enough', cost: 300, balance: 150 };
   ok('P1b 乾淨世界的六次結果對得上寫死的預期（650 → 兌換第 1 座 200 → 450 → 第 2 座 300 → 150 → 第 3 座餘額不足 → 重送第 1 座回同一份）',

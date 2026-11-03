@@ -1,4 +1,4 @@
-/* 路線導覽：只讀路網，不修改站序、班表、篩選或繪圖層。網站與 App 共用。 */
+/* 路線面板與精選取景：只讀路網，不修改站序、班表、篩選或繪圖層。網站與 App 共用。 */
 (function () {
   'use strict';
   const norm = s => String(s || '').replace(/臺/g, '台').replace(/\s+/g, '').toLowerCase();
@@ -58,22 +58,26 @@
     return chosen.flatMap(points);
   }
 
+  // 「路線」面板(2026-11-03 導覽改版 G4):只剩路線瀏覽與路線詳情；精選取景與顯示設定已搬到觀看設定。
+  // 選線的後續(框線、亮線、抬高 sheet)由主站的 a.onRoute 處理,這裡只管清單與站序;
+  // 點站時把「從哪條線、哪個方向來」交給 a.openStation,看板才能長出「‹ 線名」回到同一條線。
   function create(a) {
     const $ = id => document.getElementById(id), t = a.t;
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const tx = s => esc(t(s));
-    let routes = [], selected = '', reverse = false, tab = 'routes';
+    let routes = [], selected = '', reverse = false;
     // 起終站已在下一行，標題只保留路線名；也能沿用既有基礎線名的外語字典。
     const routeLabel = r => a.routeName(r.name.replace(/[（(].*[）)]$/, '').trim(), r.sysId);
     const stationLabel = s => a.stationName(s.name, s.sysId);
     const color = r => /^#[0-9a-f]{3,8}$/i.test(r.color) ? r.color : '#55728c';
     const row = r => `<button type="button" class="rd-route" data-route="${esc(r.id)}" style="--route-color:${color(r)}"><span class="rd-color" aria-hidden="true"></span><span class="rd-copy"><b>${esc(routeLabel(r))}</b><small>${esc(t(r.sysLabel))} · ${esc(t('{n} 站', { n: r.stations.length }))}</small><small>${esc(stationLabel(r.stations[0]))} ↔ ${esc(stationLabel(r.stations.at(-1)))}</small></span><span aria-hidden="true">›</span></button>`;
+    const current = () => routes.find(r => r.id === selected) || null;
     function renderList() {
       const list = search(routes, $('rdSearch').value, $('rdSystem').value, r => routeLabel(r) + t(r.sysLabel) + r.stations.map(stationLabel).join(' '));
       $('rdList').innerHTML = list.length ? list.map(row).join('') : `<p class="rd-note" role="status">${tx('找不到符合的路線')}</p>`;
     }
     function renderDetail() {
-      const route = routes.find(r => r.id === selected);
+      const route = current();
       $('rdBrowse').hidden = !!route; $('rdDetail').hidden = !route;
       if (!route) { selected = ''; renderList(); return; }
       const stops = ordered(route, reverse);
@@ -83,43 +87,43 @@
         `<p class="rd-note">${tx('點車站看班次；實際停靠以看板為準。')}</p>` +
         `<ol class="rd-stations" style="--route-color:${color(route)}">${stops.map((s, i) => `<li><button type="button" data-stop="${i}"><span class="rd-dot" aria-hidden="true"></span><span>${esc(stationLabel(s))}</span><span class="rd-chevron" aria-hidden="true">›</span></button></li>`).join('')}</ol>`;
     }
-    function renderScenes() {
-      $('rdScenes').innerHTML = `<p class="rd-note">${tx('選一個視角看車；跨路網會切到全台同框，時間維持不變。')}</p>` + scenes.filter(s => scenePoints(s, routes).length > 1).map(s =>
-        `<button type="button" class="rd-scene" data-scene="${s.id}"><b>${tx(s.title)}</b><small>${tx(s.note)}</small><span>${tx('前往取景')} ↗</span></button>`).join('');
-    }
-    function switchTab(next) {
-      tab = next;
-      for (const b of $('rdTabs').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.rdtab === tab));
-      $('rdRoutes').hidden = tab !== 'routes'; $('rdScenes').hidden = tab !== 'scenes'; $('rdSettings').hidden = tab !== 'settings';
-      if (tab === 'routes') renderDetail();
-      if (tab === 'scenes') renderScenes();
-      $('trackPanel').scrollTop = 0;
+    // 選線(清單點一條、搜尋結果、看板的「‹ 線名」)與回到清單都走這裡,主站才能在同一個點框線、亮線、抬 sheet。
+    function select(id, rev) {
+      selected = routes.some(r => r.id === id) ? id : ''; reverse = !!rev && !!selected;
+      renderDetail(); $('trackPanel').scrollTop = 0;
+      const route = current();
+      a.onRoute(route, route ? points(route) : null);
     }
     $('rdSearch').addEventListener('input', renderList);
     $('rdSystem').addEventListener('change', renderList);
-    $('rdTabs').onclick = e => { const b = e.target.closest('[data-rdtab]'); if (b) switchTab(b.dataset.rdtab); };
     $('rdRoutes').onclick = e => {
       const b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.route) { selected = b.dataset.route; reverse = false; renderDetail(); $('trackPanel').scrollTop = 0; return; }
-      const route = routes.find(r => r.id === selected); if (!route) return;
-      if (b.dataset.rd === 'back') { selected = ''; renderDetail(); }
+      if (b.dataset.route) { select(b.dataset.route, false); return; }
+      const route = current(); if (!route) return;
+      if (b.dataset.rd === 'back') select('', false);
       if (b.dataset.rd === 'reverse') { reverse = !reverse; renderDetail(); $('rdDetail').querySelector('[data-rd="reverse"]').focus({ preventScroll: true }); }
-      if (b.dataset.rd === 'view') a.view(points(route), { system: route.sysId, pitch: null, maxZoom: 14 });
-      if (b.dataset.stop != null) { const s = ordered(route, reverse)[Number(b.dataset.stop)]; if (s) a.openStation(s); }
+      if (b.dataset.rd === 'view') a.view(points(route), { system: route.sysId, pitch: 0, maxZoom: 14 }); // 跟選線同一個取景(放平才框得住整條線)
+      if (b.dataset.stop != null) {
+        const s = ordered(route, reverse)[Number(b.dataset.stop)];
+        if (s) a.openStation(s, { route: route.id, reverse, name: routeLabel(route), color: color(route) });
+      }
     };
-    $('rdScenes').onclick = e => {
-      const b = e.target.closest('[data-scene]'); if (!b) return;
-      const scene = scenes.find(s => s.id === b.dataset.scene);
-      if (scene) a.view(scenePoints(scene, routes), scene);
+    // refresh():重讀路網、保留目前畫面(換語言重畫用,不重新框線)。
+    // refresh({ reset: true }):回到所有路線。refresh({ route, reverse }):直接進那條線的詳情。
+    return {
+      refresh(opts) {
+        routes = catalog(a.systems(), a.stations());
+        const value = $('rdSystem').value;
+        const systems = [...new Map(routes.map(r => [r.sysId, r.sysLabel])).entries()];
+        $('rdSystem').innerHTML = `<option value="">${tx('所有系統')}</option>` + systems.map(([id, label]) => `<option value="${esc(id)}">${tx(label)}</option>`).join('');
+        $('rdSystem').value = value;
+        if (opts && opts.route) select(opts.route, opts.reverse);
+        else if (opts && opts.reset) select('', false);
+        else renderDetail();
+      },
+      get route() { return current(); },
+      get reverse() { return reverse; },
     };
-    return { refresh(next) {
-      routes = catalog(a.systems(), a.stations());
-      const value = $('rdSystem').value;
-      const systems = [...new Map(routes.map(r => [r.sysId, r.sysLabel])).entries()];
-      $('rdSystem').innerHTML = `<option value="">${tx('所有系統')}</option>` + systems.map(([id, label]) => `<option value="${esc(id)}">${tx(label)}</option>`).join('');
-      $('rdSystem').value = value;
-      switchTab(next || tab);
-    } };
   }
   window.RailDiscovery = { catalog, search, ordered, points, scenes, scenePoints, create };
 })();

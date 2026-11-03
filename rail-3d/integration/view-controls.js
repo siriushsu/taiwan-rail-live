@@ -1,12 +1,13 @@
 // 移動原本的設定元素；事件與狀態沿用主站，避免兩個入口各自記住不同值。
+// 2026-11-03 導覽改版：拿掉「導覽」分頁（地標、縣市搬到查詢首頁「去哪裡」，儲存地點搬到最愛「＋ 新增地點」）；
+// 精選取景排在視角最後（#viewScenes），標示的「軌道與路線」改成原地展開（#msTracks），不再開面板。
 export function mountViewControls({translate:t}) {
   if(window.railViewControls)return;
   const categories=[
-    ['angle','視角','◩',['[data-rail3d="perspective"]','[data-rail3d="camera"]','#followHeadingRow','[data-proxy="immBtn"]','[data-proxy="ambientBtn"]']],
+    ['angle','視角','◩',['[data-rail3d="perspective"]','[data-rail3d="camera"]','#followHeadingRow','[data-proxy="immBtn"]','[data-proxy="ambientBtn"]','#viewScenes']],
     ['map','地圖','▧',['.ri-basemap-row','[data-rail3d="ground"]','[data-rail3d="inspection"]','#map3dRow','#sunlightRow']],
     ['train','列車','▰',['[data-rail3d="enabled"]','[data-rail3d="formation"]','[data-rail3d="size"]','[data-rail3d="models"]','#trainHaloRow','[data-proxy="dirBtn"]','.ri-3d-help']],
-    ['labels','標示','⌖',['[data-act="track"]','[data-proxy="xingBtn"]','[data-proxy="introBtn"]']],
-    ['places','導覽','◇',['#riGuideRow','[data-act="cities"]','#msCities','[data-proxy="pinBtn"]']],
+    ['labels','標示','⌖',['[data-act="track"]','#msTracks','[data-proxy="xingBtn"]','[data-proxy="introBtn"]']],
     ['display','畫面','◐',['[data-act="theme"]','[data-act="fontscale"]','[data-act="panelOpacity"]','[data-proxy="powerBtn"]','[data-proxy="musicBtn"]']]
   ];
   const el=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text)e.textContent=text;return e;};
@@ -35,7 +36,7 @@ export function mountViewControls({translate:t}) {
   function close(restore=false){opened=false;panel.hidden=true;document.body.classList.remove('view-open');sync();if(restore){const shown=e=>!!(e?.isConnected&&e.getClientRects().length&&!e.closest('[hidden],[inert]')&&getComputedStyle(e).visibility!=='hidden');const to=[opener,buttons.get(active)?.[0],toggle].find(shown);to?.focus({preventScroll:true});}}
   toggle.onclick=()=>opened?close():open();closeBtn.onclick=()=>close(true);
   // 開子面板或進沉浸時先收觀看面板；原本的事件仍在相同元素上執行。
-  body.addEventListener('click',e=>{const row=e.target.closest('.ms-row');if(!row)return;let keyboard=false;try{keyboard=row.contains(document.activeElement)&&document.activeElement.matches(':focus-visible');}catch(_){}if(row.dataset.close==='1'||['track','fontscale'].includes(row.dataset.act)||row.dataset.proxy==='immBtn')close(keyboard);});
+  body.addEventListener('click',e=>{const row=e.target.closest('.ms-row');if(!row)return;let keyboard=false;try{keyboard=row.contains(document.activeElement)&&document.activeElement.matches(':focus-visible');}catch(_){}if(row.dataset.close==='1'||row.dataset.act==='fontscale'||row.dataset.proxy==='immBtn')close(keyboard);});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&opened){e.preventDefault();close(true);}});
   document.addEventListener('pointerdown',e=>{if(opened&&!dock.contains(e.target)&&!toggle.contains(e.target))close();});
   function layout(){
