@@ -4753,6 +4753,14 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '倉庫夜色': "Warehouses at night",
   '正在把小車送進駁二大義站…': "Bringing the little train to Dayi Pier-2 Station…",
   '高雄輕軌駁二大義站 · 微縮印象': "Dayi Pier-2 Station, Kaohsiung Light Rail · miniature impression",
+  '高鐵新竹站': "THSR Hsinchu",
+  '台灣高鐵・新竹站': "Taiwan High Speed Rail · Hsinchu Station",
+  '新竹站全景': "Hsinchu Station panorama",
+  '風城晴日': "Sunny Windy City",
+  '竹塹夕照': "Hsinchu sunset",
+  '風帆夜色': "The sail roof at night",
+  '正在把小車送上高鐵新竹站…': "Lifting the little train up to THSR Hsinchu Station…",
+  '台灣高鐵新竹站 · 微縮印象': "Hsinchu Station, Taiwan High Speed Rail · miniature impression",
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '劍潭站': '剣潭',
@@ -4819,4 +4827,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '倉庫夜色': "夜の倉庫街",
   '正在把小車送進駁二大義站…': "小さな列車を駁二大義駅へ送り出しています…",
   '高雄輕軌駁二大義站 · 微縮印象': "高雄ライトレール 駁二大義駅 · ミニチュアの印象",
+  '高鐵新竹站': "高鐵新竹",
+  '台灣高鐵・新竹站': "台湾高速鉄道・新竹駅",
+  '新竹站全景': "新竹駅の全景",
+  '風城晴日': "風の街の晴天",
+  '竹塹夕照': "新竹の夕焼け",
+  '風帆夜色': "夜の帆の屋根",
+  '正在把小車送上高鐵新竹站…': "小さな列車を高鐵新竹駅へ送り出しています…",
+  '台灣高鐵新竹站 · 微縮印象': "台湾高速鉄道 新竹駅 · ミニチュアの印象",
 });
