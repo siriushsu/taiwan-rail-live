@@ -5,6 +5,7 @@
 // 平移手勢與各座的專屬按鈕（折返、停在月台）沒搬；車庫自己的旋轉、縮放照 App。
 import * as THREE from './vendor/three.module.js';
 import {createConsist} from './garage-model.js';
+import {createTrainLamps} from './garage-coast.js';
 import {createTerrainFollower} from './garage-scenes/consist-3d.js';
 import {createJourney} from './garage-scenes/alishan-route.js';
 
@@ -38,6 +39,8 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
  const groundGeo=new THREE.PlaneGeometry(2000,2000),groundMat=new THREE.ShadowMaterial({opacity:.12}),ground=new THREE.Mesh(groundGeo,groundMat);ground.position.z=m.ground;ground.receiveShadow=true;scene.add(ground);
  const studio=new THREE.Scene();studio.background=new THREE.Color('#9dafb0');const pmrem=new THREE.PMREMGenerator(renderer),environment=pmrem.fromScene(studio,.1);scene.environment=environment.texture;pmrem.dispose();
  scene.add(world.group,consist.root);
+ // 車燈（同 App 的 dioramaLights）：點光要在下面隧道透視把燈開進 XRAY 圖層之前加進場景，兩趟的燈數才一樣。
+ const lamps=createTrainLamps(consist,environment.texture);scene.add(lamps.halos,lamps.beam);
  const wires=sceneId==='paddy'?catenaryFor(carId,family):null;
  if(wires!==null)world.group.traverse(o=>{if(o.name==='catenary')o.visible=wires;});
  // 隧道透視（田園小站，同 App 與網頁 3D 地圖的地下列車 .42）：被山擋住的車隔著山只透出最外層車殼，不透出車內與對面那片車殼。
@@ -64,12 +67,12 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
  return{
   scene,camera,consist,meta:m,wires,
   // time：行駛累計秒數（distance＝time×速度，同原型只在行駛時累加）。回傳這一幀的狀態給 data-* 用。
-  draw(w,h,{period:want='day',time=0,trainView=false,yaw=m.yaw,elevation=m.world,zoom=1,owned=true,lite:wantLite=false}={}){
+  draw(w,h,{period:want='day',time=0,trainView=false,yaw=m.yaw,elevation=m.world,zoom=1,owned=true,lite:wantLite=false,lights=true}={}){
    const p=themeOf(want);if(p!==period)setTheme(p);if(wantLite!==lite)setLite(wantLite);
    renderer.shadowMap.enabled=!lite;renderer.toneMappingExposure=themes[p].exposure;
-   world.update(time,p);consist.update(owned);
-   let route=0,s=time*m.speed;
-   if(journey){const pose=journey.at(time);route=pose.route;s=pose.s;follow3D(world.routes[route],s);}
+   world.update(time,p);consist.update(owned);if(owned)lamps.apply();
+   let route=0,s=time*m.speed,travel=1;
+   if(journey){const pose=journey.at(time);route=pose.route;s=pose.s;travel=pose.sign;follow3D(world.routes[route],s);}
    else if(m.drive===0)consist.follow(world.path,s,1);else follow3D(world.path,s);
    const path=journey?world.routes[route]:world.path;let inTunnel=0;
    const touching=xrays.map((_,i)=>{const c=consist.cars[i];return touchesTunnel(s+c.offset,c.length/2,world.tunnel,path.length);});
@@ -82,6 +85,8 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
    const span=(trainView?Math.max(9,consist.length*.65/aspect):Math.max(m.span[0],m.span[1]/aspect))/zoom;
    Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});
    camera.position.set(target.x+100*Math.cos(elevation)*Math.cos(yaw),target.y+100*Math.cos(elevation)*Math.sin(yaw),target.z+100*Math.sin(elevation));camera.lookAt(target);camera.updateProjectionMatrix();camera.updateMatrixWorld();scene.updateMatrixWorld(true);
+   // 車燈強度照時段（日出不併黃昏），同 App 的 lampStrength。
+   const halos=lamps.lights(owned&&lights,want,travel,camera.position);
    renderer.render(scene,camera);
    if(inTunnel){
     // 透視那趟：不清畫面（背景是顏色時 three 會強制清，先拿掉）、不重算陰影圖、draw call 累加到同一幀。
@@ -90,8 +95,8 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
     renderer.render(scene,camera);
     camera.layers.set(0);scene.background=background;renderer.autoClear=autoClear;renderer.shadowMap.autoUpdate=autoUpdate;renderer.info.autoReset=true;
    }
-   return{period:p,distance:s,route,inTunnel,shadows:!lite};
+   return{period:p,distance:s,route,inTunnel,shadows:!lite,halos};
   },
-  dispose(){consist.dispose();world.dispose();for(const by of xrayMaterials.values())for(const list of Object.values(by))list.forEach(x=>x.dispose());clearDepth.geometry.dispose();clearDepth.material.dispose();environment.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();sun.dispose();}
+  dispose(){lamps.dispose();consist.dispose();world.dispose();for(const by of xrayMaterials.values())for(const list of Object.values(by))list.forEach(x=>x.dispose());clearDepth.geometry.dispose();clearDepth.material.dispose();environment.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();sun.dispose();}
  };
 }

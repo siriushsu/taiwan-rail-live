@@ -26,15 +26,16 @@ const spillGLSL=`vec3 coastTrainSpill(vec3 p,vec4 cabin,vec4 beam){float ground=
 // lampTail.w＝1：尾端有 taillamp（尾燈鏡片），亮的是尾燈、頭燈燈體不亮；0：沒有尾燈鏡片的車退回頭燈燈體亮紅光。
 const lampGLSL='outgoingLight+=vec3(1.,.91,.68)*5.*lampHead.z*step(lampHead.x,lightWorld.x)*step(lightWorld.x,lampHead.y)+vec3(1.,.05,.02)*2.5*lampTail.z*(1.-lampTail.w)*step(lampTail.x,lightWorld.x)*step(lightWorld.x,lampTail.y);';
 const tailGLSL='outgoingLight+=vec3(1.,.05,.02)*2.5*lampTail.z*lampTail.w*step(lampTail.x,lightWorld.x)*step(lightWorld.x,lampTail.y);';
-// 車內燈在天花板：窗上緣亮、下緣（座椅背）暗；兩端駕駛室不亮。
-const cabinGLSL='outgoingLight+=vec3(1.,.85,.6)*1.4*cabin.x*mix(.45,1.,smoothstep(.55,1.25,lightWorld.z))*smoothstep(cabin.y+.35,cabin.y+.8,lightWorld.x)*(1.-smoothstep(cabin.z-.8,cabin.z-.35,lightWorld.x));';
+// 車內燈在天花板：窗上緣亮、下緣（座椅背）暗；兩端駕駛室不亮。顏色、強度、下緣同 App（11-02 改暖、改柔）。
+const cabinGLSL='outgoingLight+=vec3(1.,.8,.52)*cabin.x*mix(.3,1.,smoothstep(.55,1.25,lightWorld.z))*smoothstep(cabin.y+.35,cabin.y+.8,lightWorld.x)*(1.-smoothstep(cabin.z-.8,cabin.z-.35,lightWorld.x));';
 const groundGLSL='outgoingLight+=material.diffuseColor*coastTrainSpill(lightWorld,cabin,beam)/PI;';
 // 在 PBR 材質加世界座標，色調映射前把車燈光加進 outgoingLight（同 App 在 ACES 前加色）。燈關著時 uniform 全 0，畫面不變。
 // 快取鍵接上原本的鍵：道床已有 onBeforeCompile，不分開的話鋼軌會拿到道床的程式。
-function addLight(m,uniforms,code){const before=m.onBeforeCompile,key=m.customProgramCacheKey()+'|'+code;
+// framed：車庫場景的車（createTrainLamps）改用 uniforms.lampFrame（車模 → 直線編組座標）取代 modelMatrix，同 App 的 lightFrame。
+function addLight(m,uniforms,code,framed=false){const before=m.onBeforeCompile,key=m.customProgramCacheKey()+'|'+code+(framed?'|framed':'');
  m.customProgramCacheKey=()=>key;m.onBeforeCompile=(s,r)=>{before.call(m,s,r);Object.assign(s.uniforms,uniforms);
-  s.vertexShader='varying vec3 lightWorld;\n'+s.vertexShader.replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nvec4 lightPos=vec4(transformed,1.);\n#ifdef USE_INSTANCING\nlightPos=instanceMatrix*lightPos;\n#endif\nlightWorld=(modelMatrix*lightPos).xyz;');
-  s.fragmentShader=`varying vec3 lightWorld;uniform vec4 ${Object.keys(uniforms).join(',')};\n${spillGLSL}\n`+s.fragmentShader.replace('#include <opaque_fragment>',code+'\n#include <opaque_fragment>');};
+  s.vertexShader='varying vec3 lightWorld;\n'+(framed?'uniform mat4 lampFrame;\n':'')+s.vertexShader.replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nvec4 lightPos=vec4(transformed,1.);\n#ifdef USE_INSTANCING\nlightPos=instanceMatrix*lightPos;\n#endif\nlightWorld=('+(framed?'lampFrame':'modelMatrix')+'*lightPos).xyz;');
+  s.fragmentShader=`varying vec3 lightWorld;uniform vec4 ${Object.keys(uniforms).filter(k=>k!=='lampFrame').join(',')};\n${spillGLSL}\n`+s.fragmentShader.replace('#include <opaque_fragment>',code+'\n#include <opaque_fragment>');};
  m.needsUpdate=true;return m;}
 // 車模 lamp（頭燈）或 taillamp（尾燈）材質的燈體（模型座標）：0.25 m 格子分群、相鄰 26 格算同一盞，同 App 的 lampBlobs。
 const blobCache=new WeakMap();
@@ -51,8 +52,74 @@ function lampBlobs(asset,name='lamp'){
  }
  byName[name]=blobs;return blobs;
 }
-// 各時段的車燈強度（燈體、光暈、車窗、車窗灑地、頭燈照地），同 App 的 trackLights；白天只有燈體微亮。
+// 各時段的車燈強度（燈體、光暈、車窗、車窗灑地、頭燈照地），同 App 的 lampStrength（海岸行旅與車庫場景共用）；白天只有燈體微亮。
 const LIGHTS={sunrise:[.6,.45,0,0,.3],day:[.3,0,0,0,0],sunset:[1,1,0,0,.7],night:[1,1,1,1,1]},MAX_HALOS=32;
+// 車燈光暈：面向鏡頭的方片（半徑是世界公尺），中心偏白、外圈是燈色，加法混色、不寫深度，同 App 的 glow_fs；輸出不轉色彩空間，跟 App 一樣直接疊在畫面上。
+function createHalos(){
+ const plane=new THREE.PlaneGeometry(2,2),geometry=new THREE.InstancedBufferGeometry().copy(plane);plane.dispose();
+ const at=new THREE.InstancedBufferAttribute(new Float32Array(MAX_HALOS*4),4),tint=new THREE.InstancedBufferAttribute(new Float32Array(MAX_HALOS*4),4);
+ geometry.setAttribute('halo',at);geometry.setAttribute('tint',tint);geometry.instanceCount=0;
+ const mesh=new THREE.Mesh(geometry,new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+  vertexShader:'attribute vec4 halo,tint;varying vec2 v;varying vec4 c;void main(){v=position.xy;c=tint;vec3 right=vec3(viewMatrix[0][0],viewMatrix[1][0],viewMatrix[2][0]),up=vec3(viewMatrix[0][1],viewMatrix[1][1],viewMatrix[2][1]);gl_Position=projectionMatrix*viewMatrix*vec4(halo.xyz+(right*position.x+up*position.y)*halo.w,1.);}',
+  fragmentShader:'varying vec2 v;varying vec4 c;void main(){float r=length(v),glow=(exp(-r*r*9.)*.9+exp(-r*4.)*.25)*(1.-smoothstep(.8,1.,r)),core=1.-smoothstep(.03,.12,r);gl_FragColor=vec4(mix(c.rgb,vec3(1.,.99,.94),core*.85),min(1.,(glow+core*.8)*c.w));}'}));
+ mesh.frustumCulled=false;mesh.renderOrder=1;mesh.visible=false;let n=0;
+ return{mesh,clear(){n=0;geometry.instanceCount=0;mesh.visible=false;},
+  add(center,radius,tail,strength){if(n>=MAX_HALOS)return;at.setXYZW(n,center.x,center.y,center.z,radius);if(tail)tint.setXYZW(n,1,.16,.06,strength*.8);else tint.setXYZW(n,1,.91,.68,strength);n++;},
+  commit(){geometry.instanceCount=n;mesh.visible=n>0;at.needsUpdate=tint.needsUpdate=true;return n;},
+  dispose(){geometry.dispose();mesh.material.dispose();}};
+}
+// 編組一端的頭燈或尾燈，同 App 的 addEndLamps。frame：車模 → 燈座標（燈的範圍在這裡比）；world：燈座標 → 世界（光暈畫的位置，null＝同一個座標）。
+// 範圍寫進 target（lampHead／lampTail 的 uniform），光暈加進 halos。回傳這端有沒有燈體：沒有就不亮、不畫光暈（照實車：純客車編組的頭端、推拉客車的兩端全暗）。
+const toEye=new THREE.Vector3(),lampAt=new THREE.Vector3();
+function endLamps(c,frame,world,endX,tail,[lamp,halo],eye,target,halos){
+ const scale=c.car.scale.x;
+ const near=name=>lampBlobs(c.asset,name).map(b=>({center:b.center.clone().applyMatrix4(frame),half:b.size.clone().multiplyScalar(.5*scale)})).filter(l=>Math.abs(l.center.x-endX)<c.length*.3);
+ // 尾端先找尾燈鏡片（taillamp），有就只亮尾燈；沒有才用頭燈燈體亮紅光。
+ const tails=tail?near('taillamp'):[],taillamp=tails.length>0,lamps=taillamp?tails:near('lamp');
+ if(!lamps.length)return false;
+ const x0=Math.min(...lamps.map(l=>l.center.x-l.half.x))-.03,x1=Math.max(...lamps.map(l=>l.center.x+l.half.x))+.03;
+ target.value.set(x0,x1,lamp*(tail?.8:1),taillamp?1:0);
+ if(halo>0)for(const l of lamps){const p=world?lampAt.copy(l.center).applyMatrix4(world):l.center;
+  // 光暈往鏡頭拉近半個車寬：投影位置不變，只是不被車身側面擋住。
+  halos.add(toEye.subVectors(eye,p).normalize().multiplyScalar(.75).add(p),Math.min(1.3,Math.max(.9,Math.max(l.half.y,l.half.z)*4))*(tail?.6:1),tail,halo);
+ }
+ return true;
+}
+// 車窗暖光的 x 範圍（燈座標），同 App 的 cabinRange：只涵蓋有客室的車（c.cabin；機車、動力車沒有）。sign 是車的 offset 到燈座標的正負。
+// 編組端是機車時範圍收到客車那端再往外 .35，抵掉 cabinGLSL 為避開駕駛室留的漸暗（客車端窗照常亮、機車全暗）；整列都沒有客室就回 null。
+function cabinRange(consist,sign){
+ const spans=consist.cars.filter(c=>c.cabin).map(c=>[sign*c.offset-c.length/2,sign*c.offset+c.length/2]);if(!spans.length)return null;
+ const half=consist.length/2,low=Math.min(...spans.map(s=>s[0])),high=Math.max(...spans.map(s=>s[1]));
+ return[low>.01-half?low-.35:-half,high<half-.01?high+.35:half];
+}
+// 車庫場景（garage-diorama.js）的車燈，同 App 的 dioramaLights：車身沿路徑彎曲，燈在每節車的直線編組座標裡比（App 的 lightFrame，排法同海岸行旅
+// direction −1），光暈畫在這節車實際的位置；頭燈照地改成車頭前方一盞點光，場景與列車都照得到。
+// 車模材質跟海岸行旅共用，three 不會逐物件重傳同一份材質的 uniform，所以每節車各複製一份燈、車窗材質，lampFrame 釘在這節車的直線編組位置。
+// 要在編組剛建好、還沒 follow 時建；入庫的車每幀先 apply() 換上這份材質，畫之前（matrixWorld 已更新）再 lights()。
+export function createTrainLamps(consist,environment){
+ const train={lampHead:{value:new THREE.Vector4()},lampTail:{value:new THREE.Vector4()},cabin:{value:new THREE.Vector4()}},code={lamp:lampGLSL,taillamp:tailGLSL,glass:cabinGLSL},clones=[];
+ consist.straight(-1);consist.root.updateMatrixWorld(true);
+ const cars=consist.cars.map(c=>{const frame=c.body.matrixWorld.clone();
+  const materials=c.asset.materials.map(src=>{if(!code[src.name])return src;const m=src.clone();if(m.name==='glass')Object.assign(m,{envMap:environment,envMapIntensity:1});clones.push(m);
+   return addLight(m,{...train,lampFrame:{value:frame}},code[m.name],true);});
+  return{c,frame,inverse:frame.clone().invert(),materials};});
+ // 車頭前 1.8 m、軌面上 1 m 的點光（同 App：場景的燈是 9 cd、7 m，這盞亮一點、照遠一點）；一直掛著、白天強度 0，燈數不變就不重編場景的材質。
+ const halos=createHalos(),beam=new THREE.PointLight(new THREE.Color(1,.92,.78),0,9,2),world=new THREE.Matrix4();
+ return{halos:halos.mesh,beam,
+  apply(){for(const k of cars)k.c.body.material=k.materials;},
+  // travel：沿路徑前進 +1、倒退 −1（阿里山折返時列車不掉頭，頭尾燈對調）。on＝false（沒入庫、關燈）就全部關掉。回傳光暈數。
+  lights(on,period,travel,eye){
+   for(const u of Object.values(train))u.value.set(0,0,0,0);halos.clear();beam.intensity=0;
+   if(!on)return 0;
+   const strength=LIGHTS[period]||LIGHTS.day,headX=travel*consist.length/2,[head,tail]=travel>0?[cars[0],cars.at(-1)]:[cars.at(-1),cars[0]];
+   const toWorld=k=>world.multiplyMatrices(k.c.body.matrixWorld,k.inverse);
+   if(endLamps(head.c,head.frame,toWorld(head),headX,false,strength,eye,train.lampHead,halos)&&strength[4]>0){beam.position.set(headX+travel*1.8,0,1.18).applyMatrix4(world);beam.intensity=12*strength[4];}
+   endLamps(tail.c,tail.frame,toWorld(tail),-headX,true,strength,eye,train.lampTail,halos);
+   const range=cabinRange(consist,1);if(range)train.cabin.value.set(strength[2],range[0],range[1],0);
+   return halos.commit();
+  },
+  dispose(){clones.forEach(m=>m.dispose());halos.dispose();beam.dispose();}};
+}
 const color=s=>new THREE.Color(s);
 // 海岸車窗反射同一時段的天光；PMREM 保留世界 Z 軸朝上，與場景及車體一致。
 export function createCoastReflection(renderer,theme){
@@ -150,15 +217,7 @@ export function createCoast(){
  const grass=new THREE.InstancedMesh(geometry(grassG),material(receive(new THREE.MeshStandardMaterial({color:'#7b9562',side:THREE.DoubleSide,roughness:1}))),620),grassData=[];group.add(grass);instances.push(grass);
  for(let i=0;i<620;i++)grassData.push([random()*160-80,i%2?-2.3-random()*4:2.3+random()*3,.5+random(),random()*6.28]);
  const shadow=mesh(new THREE.PlaneGeometry(14,2.2),new THREE.ShaderMaterial({transparent:true,depthWrite:false,vertexShader:'varying vec2 v;void main(){v=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'varying vec2 v;void main(){float a=(1.-smoothstep(.2,.5,abs(v.y-.5)))*(1.-smoothstep(.43,.5,abs(v.x-.5)));gl_FragColor=vec4(.015,.025,.03,a*.27);}'}));shadow.position.z=-.001;
- // 車燈光暈：面向鏡頭的方片（半徑是世界公尺），中心偏白、外圈是燈色，加法混色、不寫深度，同 App 的 glow_fs；輸出不轉色彩空間，跟 App 一樣直接疊在畫面上。
- const plane=new THREE.PlaneGeometry(2,2),haloGeometry=geometry(new THREE.InstancedBufferGeometry().copy(plane));plane.dispose();
- const haloAt=new THREE.InstancedBufferAttribute(new Float32Array(MAX_HALOS*4),4),tint=new THREE.InstancedBufferAttribute(new Float32Array(MAX_HALOS*4),4);
- haloGeometry.setAttribute('halo',haloAt);haloGeometry.setAttribute('tint',tint);haloGeometry.instanceCount=0;
- const halos=mesh(haloGeometry,new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
-  vertexShader:'attribute vec4 halo,tint;varying vec2 v;varying vec4 c;void main(){v=position.xy;c=tint;vec3 right=vec3(viewMatrix[0][0],viewMatrix[1][0],viewMatrix[2][0]),up=vec3(viewMatrix[0][1],viewMatrix[1][1],viewMatrix[2][1]);gl_Position=projectionMatrix*viewMatrix*vec4(halo.xyz+(right*position.x+up*position.y)*halo.w,1.);}',
-  fragmentShader:'varying vec2 v;varying vec4 c;void main(){float r=length(v),glow=(exp(-r*r*9.)*.9+exp(-r*4.)*.25)*(1.-smoothstep(.8,1.,r)),core=1.-smoothstep(.03,.12,r);gl_FragColor=vec4(mix(c.rgb,vec3(1.,.99,.94),core*.85),min(1.,(glow+core*.8)*c.w));}'}));
- halos.frustumCulled=false;halos.renderOrder=1;halos.visible=false;
- const toEye=new THREE.Vector3();
+ const halos=createHalos();group.add(halos.mesh);
  let previousPeriod;
  return {group,island,land,sea,bed,sky,shadow,update(distance,period,camera,time=0){
   const p=THEMES[period]||THEMES.day;uniforms.distance.value=distance;uniforms.time.value=time;
@@ -169,29 +228,17 @@ export function createCoast(){
   return p;
  },
  // 海岸行旅的車燈，同 App 的 trackLights：列車沿世界 x 軸排成直線（呼叫前要更新過 matrixWorld），行進方向那端是頭燈、另一端是尾燈。
- // 燈體位置取自車模的 lamp 材質；車端沒有 lamp 的車（客車廂等）在車端左右各放一盞光暈。consist 給 null（沒入庫、環形、近看）就全部關掉。回傳光暈數。
+ // 某一端沒有燈體就不亮、頭端沒燈也不照地（照實車）。consist 給 null（沒入庫、環形、近看）就全部關掉。回傳光暈數。
  lights(consist,direction,period,eye){
-  for(const k of Object.keys(train))train[k].value.set(0,0,0,0);uniforms.beam.value.set(0,0,0,0);halos.visible=false;haloGeometry.instanceCount=0;
+  for(const k of Object.keys(train))train[k].value.set(0,0,0,0);uniforms.beam.value.set(0,0,0,0);halos.clear();
   if(!consist)return 0;
   const code={lamp:lampGLSL,taillamp:tailGLSL,glass:cabinGLSL};
   for(const c of consist.cars)for(const m of c.asset.materials)if(code[m.name]&&!lit.has(m)){lit.add(m);addLight(m,train,code[m.name]);}
-  const [lamp,halo,cabin,spill,beam]=LIGHTS[period]||LIGHTS.day,length=consist.length,travel=direction===-1?1:-1,headX=travel*length/2;let n=0;
-  for(const [c,endX,tail] of [[consist.cars[0],headX,false],[consist.cars.at(-1),-headX,true]]){
-   const scale=c.car.scale.x;
-   const near=name=>lampBlobs(c.asset,name).map(b=>({center:b.center.clone().applyMatrix4(c.body.matrixWorld),half:b.size.clone().multiplyScalar(.5*scale)})).filter(l=>Math.abs(l.center.x-endX)<c.length*.3);
-   // 尾端先找尾燈鏡片（taillamp），有就只亮尾燈；沒有才用頭燈燈體亮紅光。
-   const tails=tail?near('taillamp'):[],taillamp=tails.length>0;let lamps=taillamp?tails:near('lamp');
-   const found=lamps.length>0;
-   if(!found){const inward=tail?travel:-travel,height=c.asset.size.z*scale;lamps=[-1,1].map(side=>({center:new THREE.Vector3(endX+inward*.02,side*.3,.18+height*.3),half:new THREE.Vector3(.02,.07,.07)}));}
-   const x0=Math.min(...lamps.map(l=>l.center.x-l.half.x))-.03,x1=Math.max(...lamps.map(l=>l.center.x+l.half.x))+.03;
-   train[tail?'lampTail':'lampHead'].value.set(x0,x1,found?lamp*(tail?.8:1):0,taillamp?1:0);
-   if(halo>0)for(const l of lamps){if(n>=MAX_HALOS)break;
-    // 光暈往鏡頭拉近半個車寬：投影位置不變，只是不被車身側面擋住。
-    const center=toEye.subVectors(eye,l.center).normalize().multiplyScalar(.75).add(l.center),radius=Math.min(1.3,Math.max(.9,Math.max(l.half.y,l.half.z)*4))*(tail?.6:1);
-    haloAt.setXYZW(n,center.x,center.y,center.z,radius);if(tail)tint.setXYZW(n,1,.16,.06,halo*.8);else tint.setXYZW(n,1,.91,.68,halo);n++;
-   }
-  }
-  train.cabin.value.set(cabin,-length/2,length/2,spill*3);uniforms.beam.value.set(headX,travel,beam*6,0);
-  haloGeometry.instanceCount=n;halos.visible=n>0;haloAt.needsUpdate=tint.needsUpdate=true;return n;
- },dispose(){instances.forEach(o=>o.dispose());geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());}};
+  const strength=LIGHTS[period]||LIGHTS.day,[,,cabin,spill,beam]=strength,travel=direction===-1?1:-1,headX=travel*consist.length/2,[first,last]=[consist.cars[0],consist.cars.at(-1)];
+  const headLit=endLamps(first,first.body.matrixWorld,null,headX,false,strength,eye,train.lampHead,halos);
+  endLamps(last,last.body.matrixWorld,null,-headX,true,strength,eye,train.lampTail,halos);
+  const range=cabinRange(consist,travel);if(range)train.cabin.value.set(cabin,range[0],range[1],spill*3);
+  if(headLit)uniforms.beam.value.set(headX,travel,beam*6,0);
+  return halos.commit();
+ },dispose(){halos.dispose();instances.forEach(o=>o.dispose());geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());}};
 }

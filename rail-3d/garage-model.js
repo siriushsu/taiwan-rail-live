@@ -58,6 +58,8 @@ export async function loadGarageModel(id,signal,mapMeta,reference){
  }catch(e){geometry.dispose();[...materials,...lockedMaterials].forEach(m=>m.dispose());throw e;}
 }
 let manifestPromise;
+// 機車類車款（同 native railcore GarageCabin）：編組裡車模就是車款本身的那節是機車或動力車，沒有客室，車窗不透暖光（garage-coast.js cabinRange）。
+const LOCO=new Set(['electric','hood','forestloco','steam']);
 export async function createConsist(id,primary,signal,opts={}){
  // Manifest 只含已發布的素材與示意編組；不推論使用者是否真的搭過這個編組。
  const catalog=await (manifestPromise??=json(new URL('manifest.json',mapBase)).catch(e=>{manifestPromise=null;throw e;}));
@@ -81,7 +83,7 @@ export async function createConsist(id,primary,signal,opts={}){
   const scale=1.25/primary.size.y,items=parts.map(part=>({...part,asset:assets.get(part.mesh)}));
   const gap=template.articulated?.08:.14,total=items.reduce((n,p)=>n+p.asset.size.x*scale,0)+gap*2;let front=total/2;
   for(const part of items){const a=part.asset,length=a.size.x*scale,car=new THREE.Group(),body=new THREE.Mesh(a.geometry,a.materials);
-   body.position.set(-a.center.x,-a.center.y,-a.geometry.boundingBox.min.z);car.add(body);car.scale.setScalar(scale);car.rotation.z=part.flip?Math.PI:0;car.position.set(front-length/2,0,.18);front-=length+gap;root.add(car);cars.push({car,body,asset:a,id:part.mesh,length,offset:car.position.x,flip:part.flip,heading:0});
+   body.position.set(-a.center.x,-a.center.y,-a.geometry.boundingBox.min.z);car.add(body);car.scale.setScalar(scale);car.rotation.z=part.flip?Math.PI:0;car.position.set(front-length/2,0,.18);front-=length+gap;root.add(car);cars.push({car,body,asset:a,id:part.mesh,length,offset:car.position.x,flip:part.flip,heading:0,cabin:!(LOCO.has(template.family)&&part.mesh===id)});
   }
   const couplers=[],cg=new THREE.BoxGeometry(1,.11,.11),cm=new THREE.MeshStandardMaterial({color:'#343b3c',roughness:.8});
   for(let i=0;i<2;i++){const c=new THREE.Mesh(cg,cm);root.add(c);couplers.push(c);}
