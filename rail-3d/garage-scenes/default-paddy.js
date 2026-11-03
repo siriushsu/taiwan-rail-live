@@ -423,8 +423,9 @@ export function createScene(params = {}){
   block(paint,[1.0,.3,.05],[x,yy,platTop+.42],[0,0,0],c);block(paint,[1.0,.05,.28],[x,yy-.17,platTop+.62],[.15,0,0],c);
   for(const dx of [-.4,.4])block(paint,[.06,.3,.4],[x+dx,yy,platTop+.2],[0,0,0],tone('#4d4f50'));}
  for(const [x,c] of [[5.4,'#3f7a5a'],[11.6,'#3d6fa3']]){instance(cyl,paint,[x,platY1+.3,platTop+.18],[.24,.24,.36],[0,0,0],tone(c));instance(cyl,paint,[x,platY1+.3,platTop+.38],[.26,.26,.04],[0,0,0],tone('#d9d6cc'));}
+ // 站名牌：木腳比白板薄（.05 對 .07），插進白板的那段整個包在板子裡；同厚度時兩者前後兩面疊在同一平面，會閃爍（11-03）。
  for(const x of [stX0+1.4,stX1-1.5]){const yy=platY1+.4;
-  for(const dx of [-.62,.62])block(woodDark,[.07,.07,1.35],[x+dx,yy,platTop+.67]);
+  for(const dx of [-.62,.62])block(woodDark,[.07,.05,1.35],[x+dx,yy,platTop+.67]);
   block(edge,[1.5,.07,.46],[x,yy,platTop+1.3]);block(blue,[1.5,.08,.09],[x,yy,platTop+1.04]);
   for(const dx of [-.42,0,.42])block(paint,[.22,.08,.2],[x+dx,yy,platTop+1.33],[0,0,0],tone('#2c3136'));}
  // 站房：石砌牆腳、灰泥牆、下半截直紋腰板、木柱與窗框窗台、對開木門（上半玻璃）、站名招牌、灰瓦兩坡頂（瓦溝、屋脊、破風板）。
