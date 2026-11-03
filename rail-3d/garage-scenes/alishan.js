@@ -370,6 +370,8 @@ export function createScene(fx,trees){
  // 跟車鏡頭遮擋淡出：main.js 的 draw() 要在 camera.position 算好之後才呼叫這個方法（不能塞進
  // 上面的 update()——coast.update() 本身在 camera 定位之前執行，見 main.js 註解）。
  updateTreeFade,
+ // 原生烘焙器（native scripts/garage-scenes/bake.mjs）照這些參數在 App 逐幀重算擋路樹淡出、雲海飄、螢火蟲閃與飄；網頁畫面不受影響。
+ nativeFx:{fade:{opacity:FADE_OPACITY,radius:FADE_RADIUS,radiusSoft:FADE_RADIUS_SOFT,endSoft:FADE_END_SOFT,groups:treeFadeGroups},clouds:cloudInstances,fireflies:fireflyInstances,glow:glowTex,fireflyColor:FIREFLY_COLOR,lit:{base:LIT_BASE,amp:LIT_AMP}},
  forest:forestDiagnostics,
  fx:{
   get state(){return{cloudOpacity:cloudMat.opacity,cloudVisible:[...cloudMeshes.values()].some(o=>o.visible),
