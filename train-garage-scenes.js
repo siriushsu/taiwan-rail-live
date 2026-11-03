@@ -12,7 +12,7 @@
 //   story  data/tra_special_trains.json 的 id；沒有故事的留 null
 //   params 傳進 createScene(params) 的參數
 //
-// 已實作：south-coast、alishan、viaduct、shifen。其餘為待做。
+// 已實作：south-coast、alishan、viaduct、shifen；捷運、高鐵、機捷九座做好的見 train-garage.js 的 BUILT_SCENES。其餘為待做。
 window.RailGarageScenes = {
 
  // ───────── Tier A：手工場景（19 座，4 座已完成） ─────────
@@ -50,11 +50,6 @@ window.RailGarageScenes = {
  // 新竹車站：1913 巴洛克古蹟站房
  e200:        {tier:'A',scene:'hsinchu',place:'新竹車站',story:'chukuang',params:{}},
  juguang:     {tier:'A',scene:'hsinchu',place:'新竹車站',story:'chukuang',params:{}},
- // 士林站：淡水信義線高架段，宮殿式（歇山式）黃琉璃瓦翹脊屋頂＋朱紅橫帶。
- // 　不是弧形頂棚——那條線上以弧形出名的是隔壁劍潭站（龍舟造型）；要換站再說。
- c301:        {tier:'A',scene:'shilin',place:'捷運士林站',story:null,params:{}},
- // 美麗島站：光之穹頂
- kaohsiung:   {tier:'A',scene:'formosa',place:'捷運美麗島站',story:null,params:{}},
  // 台北地下月台：寬島式月台、通勤人潮
  emu500:      {tier:'A',scene:'taipei-under',place:'台北車站・地下月台',story:'local',params:{}},
  emu900:      {tier:'A',scene:'taipei-under',place:'台北車站・地下月台',story:'fast-local',params:{crowd:'rush'}},
@@ -72,32 +67,39 @@ window.RailGarageScenes = {
  // 舊高雄車站：1941 帝冠樣式
  mingri:      {tier:'A',scene:'kaohsiung-old',place:'舊高雄車站',story:'mingri',params:{}},
  mingricoach: {tier:'A',scene:'kaohsiung-old',place:'舊高雄車站',story:'mingri',params:{}},
- // 高鐵新竹站：姚仁喜設計，單一平行四邊形彎曲屋頂（風帆），屋頂高 26 公尺
- '700t':      {tier:'A',scene:'thsr-hsinchu',place:'高鐵新竹站',story:null,params:{}},
- // 淡海輕軌：街道與行武者塗裝
- danhai:      {tier:'A',scene:'tamsui-lrt',place:'淡海輕軌・街道',story:null,params:{}},
 
- // ───────── Tier B：原型＋參數（30 款，8 個原型） ─────────
+ // ───────── 捷運、高鐵、機捷（2026-11-03 起，一個系統一座，各照一個經典車站；共用骨架 metro-kit.js） ─────────
+ // 選站與分組見 native docs/m9/lanes/metro-garage-scenes-handoff.md。
 
- // 高架捷運站
- c371:         {tier:'B',scene:'metro-elevated',place:'高架捷運站',story:null,params:{livery:'trtc'}},
- c381:         {tier:'B',scene:'metro-elevated',place:'高架捷運站',story:null,params:{livery:'trtc'}},
- wenhu:        {tier:'B',scene:'metro-elevated',place:'文湖線・高架彎道',story:null,params:{gauge:'rubber'}},
- val256:       {tier:'B',scene:'metro-elevated',place:'文湖線・高架彎道',story:null,params:{gauge:'rubber'}},
- airportlocal: {tier:'B',scene:'metro-elevated',place:'機場線・高架站',story:null,params:{livery:'tymc'}},
- airportexpress:{tier:'B',scene:'metro-elevated',place:'機場線・高架站',story:null,params:{livery:'tymc'}},
- y100:         {tier:'B',scene:'metro-elevated',place:'環狀線・高架站',story:null,params:{livery:'ntmc'}},
- sanying:      {tier:'B',scene:'metro-elevated',place:'三鶯線・高架站',story:null,params:{livery:'ntmc'}},
- taichung:     {tier:'B',scene:'metro-elevated',place:'台中捷運・高架站',story:null,params:{livery:'tmrt'}},
+ // 台北捷運高運量：淡水信義線劍潭站（龍舟造型屋頂的高架站）
+ c301:        {tier:'A',scene:'taipei-metro',place:'淡水信義線・劍潭站',story:null,params:{}},
+ c321:        {tier:'A',scene:'taipei-metro',place:'淡水信義線・劍潭站',story:null,params:{}},
+ c341:        {tier:'A',scene:'taipei-metro',place:'淡水信義線・劍潭站',story:null,params:{}},
+ c371:        {tier:'A',scene:'taipei-metro',place:'淡水信義線・劍潭站',story:null,params:{}},
+ c381:        {tier:'A',scene:'taipei-metro',place:'淡水信義線・劍潭站',story:null,params:{}},
+ // 文湖線：動物園站（端點站，旁邊是貓空纜車動物園站）
+ wenhu:       {tier:'A',scene:'wenhu',place:'文湖線・動物園站',story:null,params:{}},
+ val256:      {tier:'A',scene:'wenhu',place:'文湖線・動物園站',story:null,params:{}},
+ // 桃園機場捷運：山鼻站（田野中的高架站）
+ airportlocal:  {tier:'A',scene:'airport-mrt',place:'機場捷運・山鼻站',story:null,params:{}},
+ airportexpress:{tier:'A',scene:'airport-mrt',place:'機場捷運・山鼻站',story:null,params:{}},
+ // 新北捷運中運量（環狀線、三鶯線）：三鶯線陶瓷老街站
+ y100:        {tier:'A',scene:'ntpc-metro',place:'三鶯線・陶瓷老街站',story:null,params:{}},
+ sanying:     {tier:'A',scene:'ntpc-metro',place:'三鶯線・陶瓷老街站',story:null,params:{}},
+ // 新北輕軌（淡海、安坑）：淡海輕軌淡水漁人碼頭站
+ danhai:      {tier:'A',scene:'ntpc-lrt',place:'淡海輕軌・淡水漁人碼頭站',story:null,params:{}},
+ ankeng:      {tier:'A',scene:'ntpc-lrt',place:'淡海輕軌・淡水漁人碼頭站',story:null,params:{}},
+ // 台中捷運：綠線文心森林公園站（旁邊是圓滿戶外劇場）
+ taichung:    {tier:'A',scene:'taichung-metro',place:'台中捷運綠線・文心森林公園站',story:null,params:{}},
+ // 高雄捷運：美麗島站（地下站，光之穹頂）
+ kaohsiung:   {tier:'A',scene:'kaohsiung-metro',place:'高雄捷運・美麗島站',story:null,params:{}},
+ // 高雄輕軌：駁二大義站（駁二倉庫群旁的草皮軌道）
+ caf:         {tier:'A',scene:'kaohsiung-lrt',place:'高雄輕軌・駁二大義站',story:null,params:{}},
+ citadis:     {tier:'A',scene:'kaohsiung-lrt',place:'高雄輕軌・駁二大義站',story:null,params:{}},
+ // 台灣高鐵：新竹站（風帆般的彎曲屋頂）
+ '700t':      {tier:'A',scene:'thsr',place:'台灣高鐵・新竹站',story:null,params:{}},
 
- // 地下站
- c321:         {tier:'B',scene:'metro-underground',place:'地下捷運站',story:null,params:{}},
- c341:         {tier:'B',scene:'metro-underground',place:'地下捷運站',story:null,params:{}},
-
- // 輕軌街道
- ankeng:       {tier:'B',scene:'lrt-street',place:'輕軌・街道站',story:null,params:{livery:'ankeng'}},
- caf:          {tier:'B',scene:'lrt-street',place:'輕軌・海邊段',story:null,params:{scenery:'harbour'}},
- citadis:      {tier:'B',scene:'lrt-street',place:'輕軌・市區段',story:null,params:{scenery:'city'}},
+ // ───────── Tier B：原型＋參數（台鐵，待做） ─────────
 
  // 支線木造小站
  emu600:       {tier:'B',scene:'branch-wooden',place:'內灣線・木造小站',story:'neiwan',params:{}},

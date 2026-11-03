@@ -17,6 +17,10 @@ export function createKit({seed = 1, plinth = [66, 40, 4], grass = '#87956b'} = 
  const geo=g=>(geometries.add(g),g),mat=(color,extra={})=>{const m=new THREE.MeshStandardMaterial({color,roughness:.88,...extra});materials.add(m);return m;};
  const box=geo(new THREE.BoxGeometry(1,1,1)),disc=geo(new THREE.CircleGeometry(1,24));
  const cylinder=geo(new THREE.CylinderGeometry(.5,.5,1,14));cylinder.rotateX(Math.PI/2);   // Z 朝上的單位圓柱：圓墩、圓柱
+ // 單位屋頂：底面 x、y 各 ±.5、高 1。prism 是兩坡（屋脊沿 x 整條）；hip 是四坡（屋脊只有中間一半），宮殿式、倉庫的屋頂都用它們縮放。
+ const solid=(v,i)=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));g.setIndex(i);const flat=g.toNonIndexed();flat.computeVertexNormals();g.dispose();return geo(flat);};
+ const prism=solid([-.5,-.5,0,-.5,.5,0,-.5,0,1,.5,-.5,0,.5,.5,0,.5,0,1],[0,2,1,3,4,5,0,1,4,0,4,3,1,2,5,1,5,4,2,0,3,2,3,5]);
+ const hip=solid([-.5,-.5,0,.5,-.5,0,.5,.5,0,-.5,.5,0,-.25,0,1,.25,0,1],[0,1,5,0,5,4,2,3,4,2,4,5,1,2,5,3,0,4,0,3,2,0,2,1]);
  // 骨架的材質。場景要別的顏色就自己 mat()；glass／lamp／sign 的夜間自發光由 period() 統一調。
  const M={
   concrete:mat('#cdc7b8'),concreteDark:mat('#a79f8e'),deck:mat('#d7d2c4'),slab:mat('#bdb8ab'),
@@ -44,6 +48,8 @@ export function createKit({seed = 1, plinth = [66, 40, 4], grass = '#87956b'} = 
  mesh(geo(new THREE.ExtrudeGeometry(rounded(plinthW+.6,plinthD+.6,plinthR+.2),{depth:.23,bevelEnabled:true,bevelSize:.13,bevelThickness:.1,bevelSegments:2,curveSegments:12})),mat('#614f3a'),[0,0,-2.16]);
  const plinthTop=-2+1.05+.2,groundZ=plinthTop+.05;
  const ground=mesh(geo(new THREE.ShapeGeometry(outline,24)),M.grass,[0,0,groundZ]);ground.castShadow=false;
+ // 點在不在底座頂面（圓角矩形）裡、離邊至少 m：亂數撒的樹與房子先問這個，才不會長到底座外面。
+ const inside=(x,y,m=1)=>{const ax=Math.abs(x)-(plinthW/2-plinthR),ay=Math.abs(y)-(plinthD/2-plinthR);return Math.abs(x)<=plinthW/2-m&&Math.abs(y)<=plinthD/2-m&&(ax<=0||ay<=0||Math.hypot(ax,ay)<=plinthR-m);};
 
  // 環線（同 viaduct.js）：前直線 y＝cy−radius 是車站段，逆時針跑；z 是軌頂（車模原點是輪底，跟車器把車放在 path.z）。
  function loop({half=19,radius=8,cy=1.5,z=groundZ+4.18}={}){
@@ -75,12 +81,12 @@ export function createKit({seed = 1, plinth = [66, 40, 4], grass = '#87956b'} = 
  const at=(q,offset,dz=0)=>[q.x-Math.sin(q.heading)*offset,q.y+Math.cos(q.heading)*offset,q.z+dz];
 
  // 高架橋：橋面、往內斜的腹板、底板，兩側矮牆，下面一排橋墩。橋面在軌頂下 .23（同 viaduct.js）。
- // walls＝[外側牆高, 內側牆高]，open(q) 為真的地方外側不砌牆（月台邊）；pier(q) 為假的地方不立墩（站體自己有柱子）。
+ // walls＝[外側牆高, 內側牆高]，open(q, side) 為真的地方那一側不砌牆（月台邊；side −1 外側、＋1 內側）；pier(q) 為假的地方不立墩（站體自己有柱子）。
  function viaduct(path,{half=1.75,depth=.5,walls=[.5,.5],spacing=3.4,round=false,open=()=>false,pier=()=>true}={}){
   const top=-.23,bottom=top-depth,inset=Math.min(.7,half*.4);
   ribbon(path,0,half*2,top,M.deck);
   strips(path,M.concreteDark,[[-(half-inset),bottom,-half,top],[half,top,half-inset,bottom],[half-inset,bottom,-(half-inset),bottom]],{N:360});
-  along(path,1.05,q=>{for(const [side,h] of [[-1,walls[0]],[1,walls[1]]]){if(!h||(side<0&&open(q)))continue;block(M.concrete,[1.06,.16,h],at(q,side*(half-.08),top+h/2),[0,0,q.heading]);}});
+  along(path,1.05,q=>{for(const [side,h] of [[-1,walls[0]],[1,walls[1]]]){if(!h||open(q,side))continue;block(M.concrete,[1.06,.16,h],at(q,side*(half-.08),top+h/2),[0,0,q.heading]);}});
   // 柱身高度由「柱帽底緣減地面」推導，橋高改動時柱子不會浮空也不會插進地裡。
   const capH=.32;
   along(path,spacing,q=>{if(!pier(q))return;const capZ=q.z+bottom-capH/2,colH=capZ-capH/2-groundZ,[x,y]=at(q,0);
@@ -231,7 +237,7 @@ export function createKit({seed = 1, plinth = [66, 40, 4], grass = '#87956b'} = 
   };
  }
 
- return{THREE,group,rand,geo,mat,M,box,cylinder,disc,instance,block,mesh,rounded,props,plinthW,plinthD,plinthR,groundZ,
+ return{THREE,group,rand,geo,mat,M,box,cylinder,disc,prism,hip,instance,block,mesh,rounded,props,plinthW,plinthD,plinthR,groundZ,inside,
   loop,strips,ribbon,along,at,viaduct,rails,slabTrack,ballastTrack,guideway,embeddedTrack,thirdRail,overhead,
   platform,gates,screenDoors,lights,addLight,pool,sea,river,result};
 }

@@ -4687,3 +4687,24 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '重試儲存': '保存を再試行',
   '重新讀取': '再読み込み',
 });
+// 車庫的捷運、高鐵、機捷場景（一個系統一座）：短名、地名、場景頁的全景鈕、三個時段、載入字、說明。
+Object.assign(window.RAIL_I18N_MESSAGES.en, {
+  '劍潭站': 'Jiantan',
+  '淡水信義線・劍潭站': 'Tamsui-Xinyi Line · Jiantan Station',
+  '劍潭全景': 'Jiantan panorama',
+  '河岸晴日': 'Sunny riverside',
+  '圓山夕照': 'Sunset over Yuanshan',
+  '夜市燈火': 'Night market lights',
+  '正在把小車送上劍潭站…': 'Lifting the little train up to Jiantan Station…',
+  '淡水信義線劍潭站 · 微縮印象': 'Jiantan Station, Tamsui-Xinyi Line · miniature impression',
+});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {
+  '劍潭站': '剣潭',
+  '淡水信義線・劍潭站': '淡水信義線・剣潭駅',
+  '劍潭全景': '剣潭の全景',
+  '河岸晴日': '川辺の晴天',
+  '圓山夕照': '圓山の夕焼け',
+  '夜市燈火': '夜市の灯り',
+  '正在把小車送上劍潭站…': '小さな列車を剣潭駅へ送り出しています…',
+  '淡水信義線劍潭站 · 微縮印象': '淡水信義線 剣潭駅 · ミニチュアの印象',
+});
