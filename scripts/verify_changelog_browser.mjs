@@ -147,7 +147,8 @@ const widths = [360, 375, 414, 768];
 // 11/03: far route lines on rolling terrain no longer break up in tunnel-heavy sections adds one (548 -> 549).
 // 11/03: garage tail lights and the Countryside Station bridge flicker fix add one (549 -> 550).
 // 11/03: garage scene train lights at night add one (550 -> 551).
-const expectedHistoryCount = 551;
+// 11/03: garage scenes take the lead (scene buttons, unified design) and the stage drops its rotate/view buttons add two (551 -> 553).
+const expectedHistoryCount = 553;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

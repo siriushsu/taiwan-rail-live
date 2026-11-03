@@ -56,13 +56,17 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   await page.click('[data-filter="owned"]');await page.click('.g-demo-start');await ready(page);
   check(engine+' 展示模式不寫護照',await storage(page)===original&&await page.locator('.g-demo').isVisible()&&!await page.locator('.g-goal').isVisible());
   await page.click('.g-demo-off');await page.click('[data-filter="all"]');
+  // 點數兌換車款要規則檔列了價格才出現：照測試價格表（每款 150 點）注入記憶體裡的規則，讓逐款網格檢查涵蓋每一款；下面重新整理後回到正式規則。
+  await page.evaluate(()=>{const items=Object.fromEntries(Object.values(TrainGarage.goals).filter(g=>g.metric==='redeem').map(g=>[g.item,150]));
+   bountyRulesMem={...(bountyRulesMem||{}),chips:{...(bountyRulesMem?.chips||{}),items}};TrainGarage.refresh();});
   const catalog=await page.evaluate(()=>Object.keys(RailGarageCatalog)),bad=[];
+  check(engine+' 規則檔列了價格，兌換車款跟著出現在收藏架',await page.locator('.g-car').count()===catalog.length,await page.locator('.g-car').count());
   for(const id of catalog){
-   await select(page,id);const a=await pix(page);await page.click('.g-right');await settle(page);const b=await pix(page);
+   await select(page,id);const a=await pix(page);await page.locator('.g-view').press('ArrowRight');await settle(page);const b=await pix(page);
    for(const x of [a,b])if(x.count<500||x.left<2||x.top<2||x.right>x.w-3||x.bottom>x.h-3)bad.push({id,pixels:x});
    if(a.hash===b.hash)bad.push({id,reason:'rotation'});
   }
-  check(engine+' 62 款原始 Blender 網格兩角度完整入鏡與旋轉',bad.length===0,bad);
+  check(engine+' '+catalog.length+' 款原始 Blender 網格兩角度完整入鏡與旋轉',bad.length===0,bad);
   await select(page,'700t');await page.screenshot({path:OUT+'/'+engine+'-desktop.png'});
   await page.click('.g-sources summary');
   check(engine+' 模型來源與安全外連',await page.evaluate(()=>document.querySelectorAll('.g-source-body a').length>0&&[...document.querySelectorAll('.g-source-body a')].every(a=>a.href.startsWith('https://')&&a.rel.includes('noopener'))));
@@ -120,7 +124,7 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
    await page.tap('.g-model-select');await page.selectOption('.g-model-select','700t');await page.tap('.g-view');await page.waitForFunction(()=>document.querySelector('.g-view').dataset.rendered==='700t');
    check(engine+' '+width+' 觸控下拉換車不跳離展示台',await page.locator('.g-model-select').inputValue()==='700t'&&await page.evaluate(()=>document.getElementById('trainGarage').scrollTop===0));
    let audit=await auditControls(page);check(engine+' '+width+' 全畫面／公告／跟車／抽屜／護照組合',!audit.failures.length&&!audit.overflow,audit);
-   await page.locator('.g-right').scrollIntoViewIfNeeded();const before=await pix(page);await page.tap('.g-right');await settle(page);const after=await pix(page);check(engine+' '+width+' 真觸控旋轉',before.hash!==after.hash);
+   await page.locator('.g-view').scrollIntoViewIfNeeded();const before=await pix(page);await page.locator('.g-view').press('ArrowRight');await settle(page);const after=await pix(page);check(engine+' '+width+' 方向鍵旋轉',before.hash!==after.hash);
    await page.locator('.g-filters').scrollIntoViewIfNeeded();audit=await auditControls(page);check(engine+' '+width+' 收藏架與所有背景控件相交及命中',!audit.failures.length&&!audit.overflow,audit);
    await page.tap('[data-filter="owned"]');await page.locator('.g-demo-start').scrollIntoViewIfNeeded();await page.tap('.g-demo-start');await ready(page);
    await page.evaluate(()=>document.getElementById('trainGarage').scrollTop=0);

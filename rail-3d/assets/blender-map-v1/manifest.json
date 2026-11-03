@@ -2126,6 +2126,175 @@
           "url": "https://www.alstom.com/press-releases-news/2021/1/alstom-introduces-citadis-x05-trams-kaohsiung"
         }
       ]
+    },
+    "dr3000": {
+      "id": "dr3000",
+      "name": "DR3000・柴聯自強",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "dr3000",
+          "flip": false
+        },
+        {
+          "mesh": "dr3000-mid",
+          "flip": false
+        },
+        {
+          "mesh": "dr3000",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/dr3000.json",
+        "rawSha256": "4f2fd20d413f5a0d93a818f8f1c175bd4ffecdb27c38ca9a8e496adef9b16d22",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Wikimedia Commons／臺灣鐵路管理局（Attribution）",
+          "url": "https://commons.wikimedia.org/wiki/File:DR3000%E5%9E%8B%E6%9F%B4%E8%81%AF%E8%87%AA%E5%BC%B7%E8%99%9F.jpg"
+        },
+        {
+          "label": "Wikimedia Commons／Cheng-en Cheng（CC BY-SA 2.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:TRA_DR3024_at_Platform_3B,_Changhua_Station_20210419.jpg"
+        }
+      ]
+    },
+    "ct250": {
+      "id": "ct250",
+      "name": "CT250・C55 蒸汽機車",
+      "family": "steam",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "ct250",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/ct250.json",
+        "rawSha256": "1958f3902857e84b64795ce8699ae3f5e2575998069446232b2b7d43c673785b",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Wikimedia Commons／Pbdragonwang（CC BY-SA 4.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:%E8%87%BA%E9%90%B5CT251_%E5%89%8D%E9%9D%A2.jpg"
+        },
+        {
+          "label": "Wikimedia Commons（CC0）",
+          "url": "https://commons.wikimedia.org/wiki/File:Rear_Right_View_of_TRA_CT259_in_Takao_Railway_Museum_20151129.jpg"
+        }
+      ]
+    },
+    "fuxing": {
+      "id": "fuxing",
+      "name": "復興號・客車",
+      "family": "coach",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "fuxing",
+          "flip": false
+        },
+        {
+          "mesh": "fuxing",
+          "flip": false
+        },
+        {
+          "mesh": "fuxing",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/fuxing.json",
+        "rawSha256": "1fb196a2bae8b82a1cce072c8f409e7c87526843933b6bd52eccd128121b8df1",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Wikimedia Commons／Kazehayashi（CC BY-SA 4.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:TRA_40SP20073T_at_Chiayi_Station_20191011.jpg"
+        },
+        {
+          "label": "Wikimedia Commons／Foxy Who（CC BY-SA 3.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:%E6%BD%AE%E5%B7%9E%E8%BB%8A%E7%AB%992B%E6%9C%88%E5%8F%B0_%E5%BE%A9%E8%88%88%E8%99%9F_20130801.jpg"
+        }
+      ]
+    },
+    "emu300": {
+      "id": "emu300",
+      "name": "EMU300 義大利製自強號",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "emu300",
+          "flip": false
+        },
+        {
+          "mesh": "emu300-mid",
+          "flip": false
+        },
+        {
+          "mesh": "emu300",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/emu300.json",
+        "rawSha256": "2dc376e13363a13a0b3f56e0e65a89dd349a4adf4c32478e74b1da319b40f885",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU300_50EMC301.jpg"
+        },
+        {
+          "label": "Wikimedia Commons／Cheng-en Cheng（CC BY-SA 2.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU300_approaching_Xizhi_Station_20191201.jpg"
+        }
+      ]
+    },
+    "tengyun": {
+      "id": "tengyun",
+      "name": "騰雲號・1887 年蒸汽機車",
+      "family": "steam",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "tengyun",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/tengyun.json",
+        "rawSha256": "33147dbc87445e296178e630142c3cbd8f242c2c3d7bdfda376cd702a4f53639",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Wikimedia Commons／Alan Wilson（CC BY-SA 4.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:1887_Hohenzollern_0-4-0_%E2%80%98No1%E2%80%99_%E2%80%9CTeng-Yung%E2%80%9D_at_the_National_Taiwan_Museum_in_Taipei._04-03-2026_(55236084362).jpg"
+        },
+        {
+          "label": "Wikimedia Commons／Dquai（CC BY-SA 4.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:TRA_1_circa_late_1990s.jpg"
+        }
+      ]
     }
   },
   "meshes": {
@@ -4553,6 +4722,160 @@
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/citadis.json",
         "rawSha256": "a70ed610131417a24db4679a09fa95cdf0bc5263779450d794da66f04aac667e",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "dr3000": {
+      "file": "dr3000.bin",
+      "sha256": "d4b3fd761f4713c17259a7901ed5e17032c05c3c9d7fbccf137594f1f4d3d026",
+      "byteLength": 957480,
+      "vertexCount": 23937,
+      "min": [
+        -4.548999786376953,
+        -1.4809999465942383,
+        0.0011030026944354177
+      ],
+      "max": [
+        4.638999938964844,
+        1.4809999465942383,
+        3.8594424724578857
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/dr3000.json",
+        "rawSha256": "4f2fd20d413f5a0d93a818f8f1c175bd4ffecdb27c38ca9a8e496adef9b16d22",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "dr3000-mid": {
+      "file": "dr3000-mid.bin",
+      "sha256": "4966de584345f1e8bb7adafc3c1f3d66f2ffa39cfe4281dede5cedc26f4ed46e",
+      "byteLength": 954360,
+      "vertexCount": 23859,
+      "min": [
+        -4.548999786376953,
+        -1.482168436050415,
+        0.0011030035093426704
+      ],
+      "max": [
+        4.548999786376953,
+        1.482168436050415,
+        3.8599162101745605
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/dr3000.json",
+        "rawSha256": "4f2fd20d413f5a0d93a818f8f1c175bd4ffecdb27c38ca9a8e496adef9b16d22",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "ct250": {
+      "file": "ct250.bin",
+      "sha256": "a0421d68d0d0b682c285054a85dc856067d450c20bd96a3a62ba4a8d321b41b9",
+      "byteLength": 955080,
+      "vertexCount": 23877,
+      "min": [
+        -6.686429023742676,
+        -1.433053970336914,
+        0.0
+      ],
+      "max": [
+        6.026600360870361,
+        1.433053970336914,
+        3.9600000381469727
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/ct250.json",
+        "rawSha256": "1958f3902857e84b64795ce8699ae3f5e2575998069446232b2b7d43c673785b",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "fuxing": {
+      "file": "fuxing.bin",
+      "sha256": "9d2e9614ed77118e349e42beaf47a80ac972a822bf0c6f8afbc0e688b0a455bc",
+      "byteLength": 954000,
+      "vertexCount": 23850,
+      "min": [
+        -4.894000053405762,
+        -1.4900001287460327,
+        0.0011029987363144755
+      ],
+      "max": [
+        4.894000053405762,
+        1.4900001287460327,
+        3.4000003337860107
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/fuxing.json",
+        "rawSha256": "1fb196a2bae8b82a1cce072c8f409e7c87526843933b6bd52eccd128121b8df1",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu300": {
+      "file": "emu300.bin",
+      "sha256": "066459f61541360945421e5d9e663a87ec1b35d872012560acf16e60f8996f19",
+      "byteLength": 955800,
+      "vertexCount": 23895,
+      "min": [
+        -4.848999977111816,
+        -1.4809999465942383,
+        0.0010656609665602446
+      ],
+      "max": [
+        4.928999900817871,
+        1.4809999465942383,
+        3.749366521835327
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/emu300.json",
+        "rawSha256": "2dc376e13363a13a0b3f56e0e65a89dd349a4adf4c32478e74b1da319b40f885",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu300-mid": {
+      "file": "emu300-mid.bin",
+      "sha256": "e05ae3ccc43a577ed00bfcce3e388c991fe486d3becd5db9d90f9c7c1ee64d99",
+      "byteLength": 954720,
+      "vertexCount": 23868,
+      "min": [
+        -4.848999977111816,
+        -1.4809999465942383,
+        0.0011029996676370502
+      ],
+      "max": [
+        4.848999977111816,
+        1.4809999465942383,
+        3.7093665599823
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/emu300.json",
+        "rawSha256": "2dc376e13363a13a0b3f56e0e65a89dd349a4adf4c32478e74b1da319b40f885",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "tengyun": {
+      "file": "tengyun.bin",
+      "sha256": "424abbdc218353c328a04dc536ad54584f8abafcb78751d55df4aa28b238af82",
+      "byteLength": 953520,
+      "vertexCount": 23838,
+      "min": [
+        -2.32903790473938,
+        -1.1015383005142212,
+        0.0
+      ],
+      "max": [
+        2.329038143157959,
+        1.1015383005142212,
+        3.3399999141693115
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/tengyun.json",
+        "rawSha256": "33147dbc87445e296178e630142c3cbd8f242c2c3d7bdfda376cd702a4f53639",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"

@@ -27,6 +27,7 @@
 | `0018_weather_frames.sql` | 權威 | 跟車即時天氣 P0（`scripts/weather_frames.mjs`、`/api/weather`）：`weather_frames` 一個雷達時刻一列，body 是 gzip 的本島雷達格點＋綜觀測站＋雨量站，保留 90 天。**部署新版 Worker 前先套用**；沒套時天氣 cron 自己吞錯、`/api/weather` 回 503，其他功能不受影響。 |
 | `0019_bounty_kept_time.sql` | ✅ **權威** | 路段懸賞：替 `bounty_samples` 補 `kept_t0`／`kept_t1`（判定當下這一列所屬那一段防偽閘收下點的最早與最晚時刻，跟 `kept_d0`／`kept_d1` 同一句寫）。遲傳合併判時前次段照時間接段要用收下點的時刻，舊列沒有才退回原始 payload 的時刻（見檔頭）。只有兩句 `ALTER`，自成一檔。**所有環境都要跑。** 🔴 先套 schema、再部署用到它的 Worker。 |
 | `0020_bounty_usable.sql` | ✅ **權威** | 路段懸賞：替 `bounty_samples` 補 `usable`（1 跟車次對得上／0 對不上／NULL 比不了或還沒標）與 `usable_at`（標的時刻）。跟點數分開，判定 cron 跑完之後由 `bountyUsableCron` 只替 ok 的台鐵列寫（見檔頭）。只有兩句 `ALTER`，自成一檔。**所有環境都要跑。** 🔴 先套 schema、再部署用到它的 Worker。 |
+| `0021_garage_items.sql` | ✅ **權威** | 車庫兌換車款：新表 `garage_items`（每人每款一列，主鍵 `(actor, item)`），`POST /api/garage-collect` 寫、`chips-me` 的 `items` 讀、合併搬與退款、刪帳號一起刪。跟場景的 `garage_unlocks` 分開（那張表的列數是場景的「第幾座」）。只有 `CREATE … IF NOT EXISTS`，重跑無害。**所有環境都要跑。** 🔴 先套 schema、再部署用到它的 Worker：沒套時刪帳號對所有人 502、錢包 503（見檔頭）。 |
 
 0014–0016 各有兩支同號的檔（路段懸賞 v2 與軌道邊卡片／AI 營運整理在兩條分支上同時開號）。兩組碰的表互不重疊，
 這裡沒有 migration 追蹤表，套用一律照檔名逐支執行，所以同號不影響套用；路段懸賞那幾支彼此要照 0014 → 0015 → 0016 → 0017 的順序（0017 只有一個號）。
@@ -50,6 +51,7 @@ arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --r
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0017_bounty_points.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0019_bounty_kept_time.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0020_bounty_usable.sql
+arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0021_garage_items.sql
 ```
 
 （`npx wrangler` 在這台機器是壞的，一律用上面的完整寫法。）

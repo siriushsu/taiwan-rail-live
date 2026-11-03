@@ -54,10 +54,12 @@ export async function loadGarageModel(id,signal,mapMeta,reference){
    geometry.setAttribute('position',new THREE.InterleavedBufferAttribute(buffer,3,0));geometry.setAttribute('normal',new THREE.InterleavedBufferAttribute(buffer,3,3));
    doors=meta.doors||null;pantograph=meta.pantograph||null;
    const flat=v=>Math.min(1,Math.max(0,(v*.95-.5)*.45+.5));
-   for(const [i,g]of meta.mesh.drawGroups.entries()){geometry.addGroup(g.start,g.count,i);materials.push(new THREE.MeshPhysicalMaterial({name:g.name,color:new THREE.Color(...g.color),metalness:g.metalness,roughness:g.roughness,clearcoat:g.clearcoat,side:THREE.DoubleSide}));
-    // 發光位置（window、headFront…）：車門（garage-doors.js）用 window 找這節車的窗燈。
+   for(const [i,g]of meta.mesh.drawGroups.entries()){
+    // 帶車門的資產把燈的材質叫 railLight:<位置>:<材質>（例如 railLight:headFront:lamp）；車燈（garage-coast.js）認的是最後一段 lamp／glass。
+    const name=g.name.startsWith('railLight:')?g.name.slice(g.name.lastIndexOf(':')+1):g.name;
+    geometry.addGroup(g.start,g.count,i);materials.push(new THREE.MeshPhysicalMaterial({name,color:new THREE.Color(...g.color),metalness:g.metalness,roughness:g.roughness,clearcoat:g.clearcoat,side:THREE.DoubleSide}));
     materials[i].userData.railLightingRole=g.lightingRole||null;
-    const l=flat(.2126*g.color[0]+.7152*g.color[1]+.0722*g.color[2]);lockedMaterials.push(grey(new THREE.MeshPhysicalMaterial({name:g.name+':locked',color:new THREE.Color(l,l,l),roughness:.9,side:THREE.DoubleSide})));
+    const l=flat(.2126*g.color[0]+.7152*g.color[1]+.0722*g.color[2]);lockedMaterials.push(grey(new THREE.MeshPhysicalMaterial({name:name+':locked',color:new THREE.Color(l,l,l),roughness:.9,side:THREE.DoubleSide})));
    }
   }
   geometry.computeBoundingBox();geometry.computeBoundingSphere();const center=new THREE.Vector3(),size=new THREE.Vector3();geometry.boundingBox.getCenter(center);geometry.boundingBox.getSize(size);

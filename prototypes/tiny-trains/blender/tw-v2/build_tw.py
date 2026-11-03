@@ -8,6 +8,7 @@ OUT=Path(__file__).resolve().parent;sys.path.insert(0,str(OUT))
 from tw_specs import S
 import blender_parts as p
 from tw_models import BUILDERS
+import tw_classic  # 經典退役車另放一檔，匯入時登記進 S 與 BUILDERS
 args=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else list(S)
 refs={m['id']:m for m in json.load(open(OUT/'catalog-source.json'))};results=[]
 for id in args:
