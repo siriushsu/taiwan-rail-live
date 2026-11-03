@@ -138,6 +138,7 @@ window.RailGarageScenes = {
 
 // 已做好的場景各跑哪個系統的車（train-garage-catalog.js 的 system）、場景的地名（給 UI 的 label 與 aria-label）。
 // 台鐵的場景所有台鐵車都能進，阿里山進所有林鐵車；預設車庫田園小站不在這裡，每款車都能跑。
+// cars：同一系統分成兩座的再列車款，只跑列出的那幾款（台北捷運的高運量進劍潭、文湖線進動物園；新北捷運的三鶯線、環狀線進陶瓷老街，輕軌進漁人碼頭）。
 // 要跟 train-garage.js 的 BUILT_SCENES 與 rail-3d/garage-diorama.js 的 SCENES 一致。
 window.RailGarageSceneRules = {
  'south-coast': {system:'台鐵',place:'南迴線・南迴海岸'},
@@ -147,5 +148,13 @@ window.RailGarageSceneRules = {
  duoliang:      {system:'台鐵',place:'南迴線・多良車站'},
  crossing:      {system:'台鐵',place:'街角平交道'},
  guanghua:      {system:'台鐵',place:'台南・光華街'},
+ 'taipei-metro':   {system:'台北捷運',place:'淡水信義線・劍潭站',cars:['c301','c321','c341','c371','c381']},
+ wenhu:            {system:'台北捷運',place:'文湖線・動物園站',cars:['wenhu','val256']},
+ 'airport-mrt':    {system:'桃園捷運',place:'機場捷運・山鼻站'},
+ 'ntpc-metro':     {system:'新北捷運',place:'三鶯線・陶瓷老街站',cars:['y100','sanying']},
+ 'ntpc-lrt':       {system:'新北捷運',place:'淡海輕軌・淡水漁人碼頭站',cars:['danhai','ankeng']},
+ 'taichung-metro': {system:'台中捷運',place:'台中捷運綠線・文心森林公園站'},
  'kaohsiung-metro':{system:'高雄捷運',place:'高雄捷運・美麗島站'},
+ 'kaohsiung-lrt':  {system:'高雄輕軌',place:'高雄輕軌・駁二大義站'},
+ thsr:             {system:'台灣高鐵',place:'台灣高鐵・新竹站'},
 };

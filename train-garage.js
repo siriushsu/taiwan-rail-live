@@ -52,7 +52,7 @@
   let mode='model',running=false,direction=1,distance=0,travelTime=0,inView=true,period='day';
   // 第 4 格「場景」開場景頁（三端同一套規則）：場景是主角，畫哪一座看 frameScene，不由車款推；頁上一排場景鈕就地換座。
   // 預設車庫「田園小站」每款車都能跑、永遠能進；已做好的幾座照場景規則（train-garage-scenes.js 的 RailGarageSceneRules：台鐵景跑
-  // 所有台鐵車、阿里山跑林鐵車）跑那個系統的車，照錢包的已解鎖清單進，
+  // 所有台鐵車、阿里山跑林鐵車；同系統分兩座的規則再列車款）跑那個系統的車，照錢包的已解鎖清單進，
   // 鎖著的點了開兌換視窗（見下面「兌換專屬場景」）。沒有錢包（沒登入、展示模式）只有田園小站，不出場景列與場景鈕。
   // 已做好的場景要跟 rail-3d/garage-diorama.js 的 SCENES 一致。
   const DEFAULT_SCENE='paddy',DEFAULT_PLACE='預設車庫・田園小站',BUILT_SCENES=new Set(['south-coast','alishan','viaduct','shifen','duoliang','crossing','guanghua','taipei-metro','wenhu','airport-mrt','ntpc-metro','ntpc-lrt','taichung-metro','kaohsiung-metro','kaohsiung-lrt','thsr']);
@@ -89,7 +89,7 @@
   const lite=matchMedia('(pointer:coarse) and (hover:none)');
   // 這款車能不能進這座（車款目錄的系統對場景規則）；地名也取場景規則，同 App manifest 的 cars 與 place。
   const sceneRule=scene=>BUILT_SCENES.has(scene)?globalThis.RailGarageSceneRules?.[scene]:null;
-  const runsIn=(row,scene)=>scene===DEFAULT_SCENE||!!row&&row.model.system===sceneRule(scene)?.system;
+  const runsIn=(row,scene)=>{if(scene===DEFAULT_SCENE)return true;const r=sceneRule(scene);return !!row&&!!r&&row.model.system===r.system&&(!r.cars||r.cars.includes(row.id));};
   const scenePlace=scene=>scene===DEFAULT_SCENE?DEFAULT_PLACE:sceneRule(scene)?.place||'';
   // 場景清單：田園小站排第一，後面是錢包裡可兌換、這裡也做好的那幾座。能進＝田園小站，或錢包的已解鎖清單有它。
   const sceneList=ctx=>ctx?[DEFAULT_SCENE,...ctx.scenes]:[DEFAULT_SCENE];
