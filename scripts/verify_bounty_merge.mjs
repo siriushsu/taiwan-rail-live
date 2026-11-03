@@ -527,7 +527,7 @@ await attempt('P1', async () => {
     q.nLedger(w, DEV3) === 2 && q.nUnlocks(w, DEV3) === 2 && q.nRides(w, DEV3) === 2 && q.nContrib(w, DEV3) === 2 &&
     q.nLedger(w, OTHER) === 3 && q.nUnlocks(w, OTHER) === 1 && q.nRides(w, OTHER) === 1 && q.nContrib(w, OTHER) === 2);
   ok('P1d 回應如實回報刪了幾列：points 3（UID／DEV／DEV2，v1 的 bounty_points 維持舊行為）、chips 3、unlocks 3、cloudRides 3、contrib 4（只算 UID 與 DEV），samples／claims 0',
-    b.json && same(b.json.deleted, { samples: 0, claims: 0, points: 3, chips: 3, unlocks: 3, cloudRides: 3, contrib: 4 }), JSON.stringify(b.json && b.json.deleted));
+    b.json && same(b.json.deleted, { samples: 0, claims: 0, points: 3, chips: 3, unlocks: 3, items: 0, cloudRides: 3, contrib: 4 }), JSON.stringify(b.json && b.json.deleted));
   const boardAfter = w.db.prepare('SELECT * FROM bounty_board ORDER BY seg_key').all().map(x => ({ ...x }));
   ok('P1e 看板的去重人數不回扣（5 列 bounty_board 逐列相同、distinct_ok_users 全都仍是 5；其中 3 列是被刪的人貢獻過的段）——那是匿名彙總，刪帳號不讓別人看到的進度倒退', same(boardAfter, boardBefore) && boardAfter.length === 5 && boardAfter.every(x => x.distinct_ok_users === 5), JSON.stringify(boardAfter));
   ok('P1f bounty_points：本人／併進本人的墓碑／本機 device 三列刪了，DEV3 的墓碑與 OTHER 留著', same(w.db.prepare('SELECT actor FROM bounty_points ORDER BY actor').all().map(r => r.actor), [DEV3, OTHER].sort()));
@@ -538,8 +538,8 @@ await attempt('P2', async () => {
   S.points(w, DEV, 5); S.ledger(w, DEV, 'adjust', 5, 'p2-dev'); S.unlock(w, DEV, 'shifen', 1, 4, 100);
   S.ledger(w, UID, 'adjust', 2, 'p2-uid');
   const out = await _bounty.bountyPurgeUid(w.env, UID);
-  ok('P2 不傳 deviceActor：只刪 uid 家族（uid 的 1 列帳本），沒併進 uid 的 token 的四張表一列不動；回傳七欄',
-    out.chips === 1 && out.unlocks === 0 && q.nLedger(w, DEV) === 1 && q.nUnlocks(w, DEV) === 1 && Object.keys(out).length === 7, JSON.stringify(out));
+  ok('P2 不傳 deviceActor：只刪 uid 家族（uid 的 1 列帳本），沒併進 uid 的 token 的四張表一列不動；回傳八欄（items 是 11-03 車款兌換加的）',
+    out.chips === 1 && out.unlocks === 0 && q.nLedger(w, DEV) === 1 && q.nUnlocks(w, DEV) === 1 && Object.keys(out).length === 8, JSON.stringify(out));
 });
 
 ok('Z 這支腳本全程只打過 Firebase 查 uid 的端點（其餘連線一律丟例外）', fetchCalls.every(u => u.includes('identitytoolkit.googleapis.com')), String(fetchCalls.length) + ' 次');

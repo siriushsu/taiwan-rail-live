@@ -135,6 +135,7 @@
   "unit": "point",
   "balance": 250,
   "unlocked": [{ "scene": "south-coast", "nth": 1, "at": 1791600000000 }],
+  "items": [{ "item": "train:dr3000", "at": 1791700000000 }],
   "nextCost": 300,
   "cloud": { "rides": 4, "toNextChip": 1, "points": 20 },
   "today": { "chips": 0, "cap": 500 }
@@ -144,6 +145,7 @@
 - `unit`：固定 `"point"`，v3 的記號。**沒有這個欄位＝v2 伺服器，下面的數字是籌碼**（新 App 先上架、伺服器還沒換的過渡期）。
 - `balance`：點數餘額＝帳本加總（錄程、雲端搭乘、兌換扣除、合併退款），v2 的籌碼 1 顆算 `chips.chipToPoints` 點。
 - `unlocked`：依 `nth`（第幾座）排序；`at` 是 epoch 毫秒。
+- `items`：換到的車款（3.0 節），依兌換時間排；`at` 是 epoch 毫秒，不帶價格。11-03 加的欄位，沒換過就是 `[]`；舊伺服器沒有這一欄，讀的一方當 `[]`。
 - `nextCost`：下一座的價格（點數；`priceOfNth`：第 1 座與之後每座見 `chips.prices`，最後一格沿用）。全部場景都解鎖之後它仍回最後一格的價格；判斷「全解鎖」請比 `unlocked.length` 與 `chips.scenes.length`。
 - `cloud.rides`：算次數的雲端搭乘總次數（不含模擬器）。`cloud.points`：一次合格的雲端搭乘入帳幾點（＝`chips.cloud.points`）。
   `cloud.toNextChip` 固定 `1`：v3 每一次都入帳，這個欄位只留給 App 1.7.3（它要求 ≥ 1 的整數，小於 1 會一直退避重查）。**新客端不要讀它。**
@@ -177,6 +179,20 @@
 - 409 `already`（已解鎖，不扣）、409 `not_enough`（附 `cost`、`balance`，都是點數）、409 `conflict`（同時有別的兌換搶先，重讀 `chips-me` 後讓使用者再按一次）。
 - 扣點與餘額的判斷在同一筆交易裡做，跟 v2 籌碼換算的那一筆也在同一筆交易（第一次花點數時一定留下換算記錄）。
 - 解鎖永久；與通行證無關。
+
+## 3.0 `POST /api/garage-collect`：用點數兌換一款車庫車款
+
+```json
+{ "actor": "installId", "item": "train:dr3000", "requestId": "..." }
+```
+
+- `item` 是兌換品 id（`train:<車庫車款 id>`），必須在規則檔 `chips.items` 列了價格（正整數），否則 400 `unknown_item`。**`chips.items` 就是上線開關**：沒列價格的車款伺服器不收，客戶端也不該列出來（第 6 節）。
+- 價格是那一款的固定價，不看兌換順序，也跟場景的 `prices`／`nextCost` 分開算：換車不會讓下一座場景變貴。
+- 身分、`requestId`（必填）、座標、限流、寫入總閘都同 `garage-redeem`。`requestId` 跟 `garage-redeem` 共用同一個空間：兌換場景用過的拿來換車（或反過來）→ 409 `conflict`。
+- 200 `{ok:true, item, cost, balance, items}`（`items` 形狀同 `chips-me`）。同一個 `requestId` 重送同一款不重扣、`cost` 與第一次相同；拿去換別款 → 409 `conflict`。
+- 409 `already`（已經有這款，不扣）、409 `not_enough`（附 `cost`、`balance`）、409 `conflict`（同時有別的兌換搶先，重讀 `chips-me` 後讓使用者再按一次）。
+- 其他：400 `bad_actor`／`bad_request_id`／`bad_json`／`coordinates_not_accepted`；401 `unauthorized`／`auth_required`；403 `wrong_account`；405 `method`；429 `rate_limited`；503 `bounty_paused`／`not_ready`／`collect_failed`。
+- 帳號合併：兩邊換過同一款＝留較早的那份，較晚那份的點數退回（帳本一筆 `kind:'merge'`）。刪帳號一起刪。換到的車款永久、與通行證無關。
 
 ## 3.1 `GET /api/bounty-board`：看板（只讀）
 
@@ -275,6 +291,7 @@ v2 的卡片欄位（舊欄位 `samples`、`coverN` 保留給舊客端）：
 | `chipToPoints` | 50 | v2 的 1 顆籌碼值幾點。**上線後只准調高**：已補的換算記錄是寫死的數額，調低不會收回、新舊兩種人會不一致 |
 | `plusBonusPct` | 0（上線時先關） | 通行證錄程加成的百分比（整數，0＝關），見 1.1 |
 | `scenes`／`events`／`evergreen` | 同 v2 | 場景清單、期間活動（`{id, from, to, multiplier, lines?}`）、收滿也照常顯示的線 |
+| `items` | 沒有這個鍵（上線時才加） | 車款兌換的價目表 `{兌換品 id: 點數}`，例如 `{"train:dr3000": 150}`。列了價格的那款才出現在車庫、才換得到（3.0）；沒有這個鍵＝還沒開放任何車款 |
 
 客戶端預估一趟點數：照第 1 節「一趟幾點」，用 `scripts/bounty_chips_core.mjs` 的 `tripPoints` 同一套算；里程用客戶端自己投影的沿線里程（伺服器只算防偽閘收下的點，實際入帳可能少 1 點）。
 
