@@ -4737,6 +4737,14 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '文心夜色': "Wenxin at night",
   '正在把小車送上文心森林公園站…': "Lifting the little train up to Wenxin Forest Park Station…",
   '台中捷運綠線文心森林公園站 · 微縮印象': "Wenxin Forest Park Station, Taichung Metro Green Line · miniature impression",
+  '美麗島站': "Formosa Boulevard",
+  '高雄捷運・美麗島站': "Kaohsiung Metro · Formosa Boulevard Station",
+  '美麗島全景': "Formosa Boulevard panorama",
+  '港都晴日': "Sunny harbor city",
+  '港都夕照': "Harbor city sunset",
+  '穹頂夜光': "The dome glows at night",
+  '正在把小車送進美麗島站…': "Bringing the little train down into Formosa Boulevard Station…",
+  '高雄捷運美麗島站 · 微縮印象': "Formosa Boulevard Station, Kaohsiung Metro · miniature impression",
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '劍潭站': '剣潭',
@@ -4787,4 +4795,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '文心夜色': "文心の夜景",
   '正在把小車送上文心森林公園站…': "小さな列車を文心森林公園駅へ送り出しています…",
   '台中捷運綠線文心森林公園站 · 微縮印象': "台中メトロ緑線 文心森林公園駅 · ミニチュアの印象",
+  '美麗島站': "美麗島",
+  '高雄捷運・美麗島站': "高雄メトロ・美麗島駅",
+  '美麗島全景': "美麗島の全景",
+  '港都晴日': "港町の晴天",
+  '港都夕照': "港町の夕焼け",
+  '穹頂夜光': "夜に輝くドーム",
+  '正在把小車送進美麗島站…': "小さな列車を美麗島駅へ送り込んでいます…",
+  '高雄捷運美麗島站 · 微縮印象': "高雄メトロ 美麗島駅 · ミニチュアの印象",
 });
