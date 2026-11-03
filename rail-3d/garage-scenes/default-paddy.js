@@ -150,10 +150,17 @@ function createKit(seedValue){
  }
 
  // 地形網格：給一個高度函式，在 [x0,x1]×[y0,y1] 鋪格子，頂點收進底座圓角；頂點色從低到高。drop(三頂點座標) 回傳 true 的三角形不畫。
- function terrain(fn,{x0,x1,y0,y1,step=.45,colors=['#7f9068','#6c8259','#5b7349'],jitter=.06,name='hills',drop}){
+ // snap：山腳貼齊（後山，11-03）。地面格點（h=0）的上下左右或三角形斜邊方向有山上的格點，就沿那條邊挪到最近的山腳點（二分找 fn 由 0 轉正處）；
+ // 只在 xy 挪、不到一格，三角形不翻面，格點數、順序、顏色都不變。
+ function terrain(fn,{x0,x1,y0,y1,step=.45,colors=['#7f9068','#6c8259','#5b7349'],jitter=.06,name='hills',drop,snap=false}){
   const nx=Math.round((x1-x0)/step),ny=Math.round((y1-y0)/step),v=[],c=[],idx=[],cols=colors.map(x=>new THREE.Color(x));
   for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){let x=x0+(x1-x0)*i/nx;const y=y0+(y1-y0)*j/ny,lim=rimX(y)-.15;x=Math.max(-lim,Math.min(lim,x));
    const h=fn(x,y);v.push(x,y,groundZ+.02+h);const t=Math.min(1,h/5),k=t<.5?cols[0].clone().lerp(cols[1],t*2):cols[1].clone().lerp(cols[2],(t-.5)*2);k.multiplyScalar(1-jitter/2+rand()*jitter);c.push(k.r,k.g,k.b);}
+  if(snap){const up=n=>v[n*3+2]>groundZ+.02;for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){const n=j*(nx+1)+i;if(up(n))continue;let best=1,bx=0,by=0;
+   for(const [di,dj] of [[1,0],[-1,0],[0,1],[0,-1],[-1,1],[1,-1]]){const q=(j+dj)*(nx+1)+i+di;if(i+di<0||i+di>nx||j+dj<0||j+dj>ny||!up(q))continue;
+    const ax=v[n*3],ay=v[n*3+1],qx=v[q*3],qy=v[q*3+1];let lo=0,top=1;for(let it=0;it<24;it++){const mid=(lo+top)/2;if(fn(ax+(qx-ax)*mid,ay+(qy-ay)*mid)>0)top=mid;else lo=mid;}
+    if(lo<best){best=lo;bx=ax+(qx-ax)*lo;by=ay+(qy-ay)*lo;}}
+   if(best<1){v[n*3]=bx;v[n*3+1]=by;}}}
   for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const k=j*(nx+1)+i;for(const t of [[k,k+1,k+nx+1],[k+1,k+nx+2,k+nx+1]])if(!drop?.(t.map(n=>v.slice(n*3,n*3+3))))idx.push(...t);}
   const g=geo(new THREE.BufferGeometry());g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));g.setAttribute('color',new THREE.Float32BufferAttribute(c,3));g.setIndex(idx);g.computeVertexNormals();
   const m=mesh(g,mat('#ffffff',{vertexColors:true,flatShading:true}));m.name=name;
@@ -361,8 +368,12 @@ export function createScene(params = {}){
  // （10-27 使用者實機看到）。軌道走廊上落差超過 1.5 的三角形不畫，缺口由門牆、帽石與內襯蓋住。
  const portalRamp=t=>{const z=t.map(p=>p[2]);return Math.max(...z)-Math.min(...z)>1.5&&L.nearest((t[0][0]+t[1][0]+t[2][0])/3,(t[0][1]+t[1][1]+t[2][1])/3).d<1.75;};
  k.terrain(westHill,{x0:-33,x1:-14.5,y0:-11,y1:12,step:.42,drop:portalRamp});
- const backHill=(x,y)=>{const bumps=[[-24,19,10,5,4.2],[-10,20,11,5.5,5.4],[5,19.5,10,5,4.4],[19,20,12,5.5,5.8],[30,18,6,4,3.6]];let h=0;for(const [cx,cy,rx,ry,hz] of bumps){const d=((x-cx)/rx)**2+((y-cy)/ry)**2;h=Math.max(h,hz*Math.max(0,1-d)**1.3);}return h*k.smooth((y-12.2)/2.2)*k.smooth((20-y)/1.2)*k.smooth((k.rimX(y)-Math.abs(x))/1.5)*(Math.abs(x+28)<6&&y<14?0:1);};
- k.terrain(backHill,{x0:-33,x1:33,y0:12,y1:20,step:.55,name:'back-hills'});
+ // 後山的山腳（11-03）。原本有一排明暗交錯的鋸齒，兩個原因：山腳那條折線（平地轉陡坡）斜穿過格子，跨過它的三角形在平面著色下一明一暗；
+ // u^1.3 的坡度在山腳由 0 陡升，第一排格點離山腳遠近不一，跨山腳的三角形坡度忽大忽小。對應兩處改法：網格用 backHill(x,y,.26)，
+ // 把 u<.26（約山腳往內一格，含斜邊方向）換成過原點、在 .26 接回原曲線的直線，坡度一致，以上同 backHill(x,y)；terrain 的 snap 把地面格點挪到折線上。
+ // 撒樹、灌木仍用 backHill(x,y)（foot=0 跟原本逐位元相同），rand() 順序與樹位不變；網格只在這一圈比它高（最多約 .1），樹根略埋進坡面。
+ const backHill=(x,y,foot=0)=>{const bumps=[[-24,19,10,5,4.2],[-10,20,11,5.5,5.4],[5,19.5,10,5,4.4],[19,20,12,5.5,5.8],[30,18,6,4,3.6]];let h=0;for(const [cx,cy,rx,ry,hz] of bumps){const d=((x-cx)/rx)**2+((y-cy)/ry)**2,u=1-d;if(u>0)h=Math.max(h,hz*(u<foot?u*foot**.3:u**1.3));}return h*k.smooth((y-12.2)/2.2)*k.smooth((20-y)/1.2)*k.smooth((k.rimX(y)-Math.abs(x))/1.5)*(Math.abs(x+28)<6&&y<14?0:1);};
+ k.terrain((x,y)=>backHill(x,y,.26),{x0:-33,x1:33,y0:12,y1:20,step:.55,name:'back-hills',snap:true});
  k.portal(L,tIn,-1);k.portal(L,tOut,1);k.tunnelLining(L,tIn-.3,tOut+.3);
  {const wall=mat('#a39d8f');for(const [a,b,dir] of [[tIn-4.2,tIn,-1],[tOut,tOut+4.2,1]])for(let s=a;s<b;s+=.5){const q=L.sample(s),u=dir<0?(s-a)/(b-a):1-(s-a)/(b-a),h=.5+2.3*u;for(const side of [-1,1])block(wall,[.52,.3,h],[q.x-Math.sin(q.heading)*side*1.75,q.y+Math.cos(q.heading)*side*1.75,groundZ+h/2],[0,0,q.heading]);}}
 
@@ -412,8 +423,9 @@ export function createScene(params = {}){
   block(paint,[1.0,.3,.05],[x,yy,platTop+.42],[0,0,0],c);block(paint,[1.0,.05,.28],[x,yy-.17,platTop+.62],[.15,0,0],c);
   for(const dx of [-.4,.4])block(paint,[.06,.3,.4],[x+dx,yy,platTop+.2],[0,0,0],tone('#4d4f50'));}
  for(const [x,c] of [[5.4,'#3f7a5a'],[11.6,'#3d6fa3']]){instance(cyl,paint,[x,platY1+.3,platTop+.18],[.24,.24,.36],[0,0,0],tone(c));instance(cyl,paint,[x,platY1+.3,platTop+.38],[.26,.26,.04],[0,0,0],tone('#d9d6cc'));}
+ // 站名牌：木腳比白板薄（.05 對 .07），插進白板的那段整個包在板子裡；同厚度時兩者前後兩面疊在同一平面，會閃爍（11-03）。
  for(const x of [stX0+1.4,stX1-1.5]){const yy=platY1+.4;
-  for(const dx of [-.62,.62])block(woodDark,[.07,.07,1.35],[x+dx,yy,platTop+.67]);
+  for(const dx of [-.62,.62])block(woodDark,[.07,.05,1.35],[x+dx,yy,platTop+.67]);
   block(edge,[1.5,.07,.46],[x,yy,platTop+1.3]);block(blue,[1.5,.08,.09],[x,yy,platTop+1.04]);
   for(const dx of [-.42,0,.42])block(paint,[.22,.08,.2],[x+dx,yy,platTop+1.33],[0,0,0],tone('#2c3136'));}
  // 站房：石砌牆腳、灰泥牆、下半截直紋腰板、木柱與窗框窗台、對開木門（上半玻璃）、站名招牌、灰瓦兩坡頂（瓦溝、屋脊、破風板）。
@@ -623,6 +635,7 @@ export function createScene(params = {}){
   group:k.group,path:L.path,params:p,label:p.label,themes:THEMES,
   // 隧道的弧長範圍：App 由 bake.mjs 寫進 META 22–23、網頁由 garage-diorama.js 直接讀；碰到這段的車多畫一趟半透明，隔著山也看得到（同網頁 3D 地圖的地下列車）。
   tunnel:[tIn,tOut],
+  contactWireZ:L.railZ+1.98, // 同 catenary() 的接觸線高；電聯車的集電弓頂到這裡
   update(time,period='day'){
    const t=THEMES[period]||THEMES.day;
    for(const m of [pondMat,streamMat]){m.color.set(t.water);const sh=m.userData.shader;if(sh){sh.uniforms.seaTime.value=time;sh.uniforms.shallow.value.set(t.shallow);}}

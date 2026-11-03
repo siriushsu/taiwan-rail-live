@@ -36,7 +36,7 @@
 //   N1  可信名額最多先用掉剩下預算（子請求、牆鐘各算）的一半：養出來的可信分身擠不掉新使用者的第一趟；讓出來的名額同一輪排在別人之後照判
 //   M3  兌換的交易內餘額守衛的邊界（讀到之後被扣）——這一層原本只有 redeem C6 一條在守
 //   M5b 刪帳號時 body 的 deviceActor 若已併進別的帳號，一列不刪——這一層原本只有 auth A11d 一條在守
-//   PL  會隨使用者長大的六張表：每個端點與兩支 cron 實際送出的每一句，查詢計畫在八種統計形狀下都與沒有統計時相同
+//   PL  會隨使用者長大的七張表：每個端點與兩支 cron 實際送出的每一句，查詢計畫在八種統計形狀下都與沒有統計時相同
 //   PF  防偽閘丟掉／不收的點不進覆蓋率（孤立的遠點、斷點後的頭兩點）、也不能拿去過品質閘；跨午夜的班車照整班長度判入帳（一次上傳、兩發、前次組本身跨午夜）
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -2050,7 +2050,7 @@ await attempt('CL4', async () => {
   });
 });
 
-// ═══ PL：會隨使用者長大的六張表，每一句的查詢計畫不看統計═════════════════
+// ═══ PL：會隨使用者長大的七張表，每一句的查詢計畫不看統計═════════════════
 // 最早出現的是認領那五句：表很小時算的統計（D1 文件要使用者建索引後、每次改 schema 後都跑 PRAGMA optimize）會讓規劃器改走全表掃描。
 // 後來實測同一件事也發生在樣本表（判定 cron 讀一班、前次列、標記、清掃出錯記錄）與另外四張表的逐人查詢；修法是每一句都寫 INDEXED BY。
 // 這一組判準不另外抄一份 SQL：把每個端點（上傳、認領、看板、bounty-me、chips-me、兌換、雲端搭乘、合併、刪帳號兩種形式）
@@ -2062,12 +2062,12 @@ await attempt('CL4', async () => {
 //   cheap   「表 1 列、每個索引每個值 100 萬列」——全表掃描看起來最便宜
 //   favorK  每張表第 K 個索引（依名字排序）看起來完美、其餘毫無選擇性；K＝0…3 輪一遍，每個索引都當過一次「最好看的」
 // PLa 覆蓋：worker.js 每一個寫 INDEXED BY 的片段都被攔到過（沒攔到＝那一句的計畫沒被看過，下面兩條對它失明）。
-// PLb 穩定：碰到六張表的每一句，每一種統計形狀下的計畫都與沒有統計時逐行相同；沒有統計時也不掃六張表的全表（例外逐條列在 PL_SCAN_OK）。
+// PLb 穩定：碰到七張表的每一句，每一種統計形狀下的計畫都與沒有統計時逐行相同；沒有統計時也不掃七張表的全表（例外逐條列在 PL_SCAN_OK）。
 // PLc 指名：每一族句子寫的是指定的索引（拿掉 INDEXED BY 而 node 的計畫剛好沒變的那幾句靠這一條抓——workerd 的成本模型與 node 不同，CL4d 的前例）。
 // PLd 對照（統計真的偏、PLb 有牙）：同一份統計下把 INDEXED BY 全部拿掉，指名的幾句計畫會變。
-// PLc2／PLd2 覆蓋：每一句寫了 INDEXED BY 的都有族名；六張表每一張都有會翻的對照（兩張清單被刪空或跟不上新加的句子時，PLc／PLd 會空轉成綠）。
-const GROW6 = ['bounty_samples', 'bounty_claims', 'chip_ledger', 'garage_unlocks', 'cloud_rides', 'bounty_seg_contrib'];
-const PL_STAT_TABLES = [...GROW6, 'bounty_points', 'kv_blobs'];   // 會跟六張表 join 的兩張也寫統計（更刁）
+// PLc2／PLd2 覆蓋：每一句寫了 INDEXED BY 的都有族名；七張表每一張都有會翻的對照（兩張清單被刪空或跟不上新加的句子時，PLc／PLd 會空轉成綠）。
+const GROW7 = ['bounty_samples', 'bounty_claims', 'chip_ledger', 'garage_unlocks', 'garage_items', 'cloud_rides', 'bounty_seg_contrib'];
+const PL_STAT_TABLES = [...GROW7, 'bounty_points', 'kv_blobs'];   // 會跟七張表 join 的兩張也寫統計（更刁）
 const PL_SHAPES = {
   one: k => Array(k + 1).fill(1).join(' '),
   tiny3: (k, u) => Array.from({ length: k + 1 }, (_, j) => (u && j === k) ? 1 : 3).join(' '),
@@ -2093,13 +2093,13 @@ const plPlan = (db, sql) => {
   try { return db.prepare('EXPLAIN QUERY PLAN ' + sql).all(...Array((sql.match(/\?/g) || []).length).fill(null)).map(r => String(r.detail)); }
   catch (e) { return ['ERR ' + String((e && e.message) || e)]; }
 };
-const touchesGrow = sql => GROW6.some(t => new RegExp(`\\b${t}\\b`).test(sql));
-// 沒有統計時也掃全表的句子：六張表的別名（FROM t a、JOIN t a）也要認得，計畫裡寫的是別名。
+const touchesGrow = sql => GROW7.some(t => new RegExp(`\\b${t}\\b`).test(sql));
+// 沒有統計時也掃全表的句子：七張表的別名（FROM t a、JOIN t a）也要認得，計畫裡寫的是別名。
 const SQL_WORDS = new Set(['INDEXED', 'WHERE', 'SET', 'ON', 'JOIN', 'LEFT', 'INNER', 'CROSS', 'GROUP', 'ORDER', 'LIMIT', 'USING', 'WITH', 'VALUES',
   'AND', 'OR', 'NOT', 'AS', 'SELECT', 'UNION', 'EXCEPT', 'INTERSECT', 'DEFAULT']);
 const growNames = sql => {
-  const names = new Set(GROW6);
-  for (const m of sql.matchAll(/\b(bounty_samples|bounty_claims|chip_ledger|garage_unlocks|cloud_rides|bounty_seg_contrib)\s+(?:AS\s+)?([A-Za-z_]\w*)/g))
+  const names = new Set(GROW7);
+  for (const m of sql.matchAll(/\b(bounty_samples|bounty_claims|chip_ledger|garage_unlocks|garage_items|cloud_rides|bounty_seg_contrib)\s+(?:AS\s+)?([A-Za-z_]\w*)/g))
     if (!SQL_WORDS.has(m[2].toUpperCase())) names.add(m[2]);
   return names;
 };
@@ -2109,7 +2109,9 @@ const growScans = (sql, lines) => { const n = growNames(sql); return lines.filte
 async function plCapture() {
   const A = 'dev-pl-00000A', B = 'dev-pl-00000B', U = 'uid-pl-0000U', CARD = 'tra_sched|山線|0|自強|track|';
   // A、B 各種 20 顆 v2 籌碼（＝1000 點）：chips-me 與兌換會走到補換算列那一句，兌換也買得起第一座。
-  const w = world({ seed: boardSql('山線') + pointsSql([[U, U, 0, null]]) + ledgerSql(A, 'adjust', 20, 'pl-seed-a') + ledgerSql(B, 'adjust', 20, 'pl-seed-b') +
+  // 規則檔多列一款車的價格（chips.items），換車那一步才走得到 garage_items 的句子。
+  const w = world({ rules: { ...RULES, chips: { ...RULES.chips, items: { 'train:pl-car': 150 } } },
+    seed: boardSql('山線') + pointsSql([[U, U, 0, null]]) + ledgerSql(A, 'adjust', 20, 'pl-seed-a') + ledgerSql(B, 'adjust', 20, 'pl-seed-b') +
     `INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(B, 'PLGONE')}','{"at":1,"error":"x","n":1}','x');` });
   const seen = [], seenSet = new Set();
   const orig = w.DELAY_DB.prepare.bind(w.DELAY_DB);
@@ -2137,6 +2139,7 @@ async function plCapture() {
   const me = await bountyMe(w, '?actor=' + A);
   st.bountyMe = me.status; st.firsts = me.json && me.json.firsts;
   st.redeem = (await redeem(w, A, RULES.chips.scenes[0], nextReq())).status;
+  st.collect = (await call(_bounty.garageCollect, post('/api/garage-collect', { actor: A, item: 'train:pl-car', requestId: nextReq() }), w.env)).status;
   const ride = { actor: A, day: '2026-07-29', trainKey: 'mrt|BR|veh-0001', startedAt: tpe('2026-07-29', 9), sec: 600, requestId: nextReq(), client: APP };
   st.cloud = (await call(_bounty.cloudRide, post('/api/cloud-ride', ride), w.env)).status;
   st.cloudResend = (await call(_bounty.cloudRide, post('/api/cloud-ride', ride), w.env)).status;   // 重送：照 ref 找回第一次入帳幾點那一句
@@ -2186,6 +2189,10 @@ const PL_PINS = [
   ['合併：刪較晚與孿生的解鎖', /^DELETE FROM garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1 WHERE actor=\? AND EXISTS/, 2],
   ['合併：解鎖改名', /^UPDATE garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1 SET actor=\?/],
   ['合併：重排 nth（內外兩層）', /^UPDATE garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1 SET nth = \(SELECT COUNT\(\*\) FROM garage_unlocks g INDEXED BY sqlite_autoindex_garage_unlocks_1/],
+  ['錢包：車款清單', /FROM garage_items INDEXED BY sqlite_autoindex_garage_items_1 WHERE actor=\? ORDER BY created_at, item/],
+  ['合併：車款退款（兩邊都指名）', /FROM garage_items d INDEXED BY sqlite_autoindex_garage_items_1 JOIN garage_items u INDEXED BY sqlite_autoindex_garage_items_1 ON/],
+  ['合併：刪較晚與孿生的車款', /^DELETE FROM garage_items INDEXED BY sqlite_autoindex_garage_items_1 WHERE actor=\? AND EXISTS/, 2],
+  ['合併：車款改名', /^UPDATE garage_items INDEXED BY sqlite_autoindex_garage_items_1 SET actor=\?/],
   ['雲端搭乘：次數', /FROM cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1 WHERE actor=\? AND simulator=0/],
   ['雲端搭乘：重送判斷', /FROM cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1 WHERE actor=\? AND request_id=\?/],
   ['合併：刪較晚與孿生的搭乘', /^DELETE FROM cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1 WHERE actor=\? AND EXISTS/, 2],
@@ -2198,7 +2205,8 @@ const PL_PINS = [
   ['合併：刪孿生貢獻', /^DELETE FROM bounty_seg_contrib INDEXED BY idx_seg_contrib_actor WHERE actor=\? AND EXISTS/],
   ['合併：貢獻改名', /^UPDATE bounty_seg_contrib INDEXED BY idx_seg_contrib_actor SET actor=\?/],
   ...[['bounty_samples', 'idx_samples_trip'], ['bounty_claims', 'idx_claims_actor'], ['chip_ledger', 'idx_chip_ledger_actor_day'],
-    ['garage_unlocks', 'sqlite_autoindex_garage_unlocks_1'], ['cloud_rides', 'sqlite_autoindex_cloud_rides_1'], ['bounty_seg_contrib', 'idx_seg_contrib_actor']]
+    ['garage_unlocks', 'sqlite_autoindex_garage_unlocks_1'], ['garage_items', 'sqlite_autoindex_garage_items_1'], ['cloud_rides', 'sqlite_autoindex_cloud_rides_1'],
+    ['bounty_seg_contrib', 'idx_seg_contrib_actor']]
     .map(([t, i]) => [`刪帳號：${t}（uid 自己＋併進的裝置寫成一個 IN）`, new RegExp(`^DELETE FROM ${t} INDEXED BY ${i} WHERE actor IN \\(SELECT \\? UNION ALL SELECT actor FROM bounty_points`)]),
   ['刪帳號：body 帶的裝置（樣本）', /^DELETE FROM bounty_samples INDEXED BY idx_samples_trip WHERE actor=\? AND NOT EXISTS/],
   ['刪帳號：body 帶的裝置（認領）', /^DELETE FROM bounty_claims INDEXED BY idx_claims_actor WHERE actor=\? AND NOT EXISTS/],
@@ -2213,6 +2221,7 @@ const PL_CTRL = [
   ['判定：前次列', /FROM bounty_samples s INDEXED BY idx_samples_trip LEFT JOIN json_each\(/],
   ['錢包：餘額', /^SELECT \(SELECT COALESCE\(SUM\(delta\),0\) \+ MAX\(0, .* FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=\?\) AS n$/],
   ['錢包：解鎖清單', /FROM garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1 WHERE actor=\? ORDER BY nth/],
+  ['錢包：車款清單', /FROM garage_items INDEXED BY sqlite_autoindex_garage_items_1 WHERE actor=\? ORDER BY created_at, item/],
   ['雲端搭乘：次數', /FROM cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1 WHERE actor=\? AND simulator=0/],
   ['合併：撞段扣人數', /FROM bounty_seg_contrib d INDEXED BY idx_seg_contrib_actor WHERE d\.actor=\? AND EXISTS/],
   ['合併：解鎖退款', /FROM garage_unlocks d INDEXED BY sqlite_autoindex_garage_unlocks_1 JOIN garage_unlocks u/],
@@ -2224,18 +2233,19 @@ const PL_CTRL = [
 // 印在最前面，八種形狀都與沒有統計時逐行相同（10-25 兩個版本各跑一次對照）。兩邊用的索引與條件一字不差、都沒有全表掃描。
 // 錄程補差額那一句（2026-11-02）：WHERE 的「這班車有錄程列」EXISTS 與租約圍欄的 EXISTS kv_blobs，八種形狀裡有四種把兩行對調，
 // 兩行用的索引與條件一字不差（錄程那一句是 NOT EXISTS，不會被搬動）。
-// 這幾句照樣要：排序後逐行相同、每一種形狀下都不掃六張表的全表；每條比對式要恰好攔到一句，攔不到或攔到多句 PLb 就紅。
+// 這幾句照樣要：排序後逐行相同、每一種形狀下都不掃七張表的全表；每條比對式要恰好攔到一句，攔不到或攔到多句 PLb 就紅。
 const PL_ORDER_FREE = [
   ['合併：解鎖退款', /FROM garage_unlocks d INDEXED BY sqlite_autoindex_garage_unlocks_1 JOIN garage_unlocks u/],
+  ['合併：車款退款（同解鎖退款的寫法）', /FROM garage_items d INDEXED BY sqlite_autoindex_garage_items_1 JOIN garage_items u/],
   ['錄程：補差額', /^INSERT OR IGNORE INTO chip_ledger .* WHERE g > 0 AND EXISTS \(SELECT 1 FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day/],
 ];
 await attempt('PL', async () => {
   const { sqls, st } = await plCapture();
   ok('PL0 [前提] 每一步都真的走到了：上傳、認領、看板 200；A 那班 ok、B 那班超量 suspect；資料可用略過 4 MB 以上的一班；估值上架 1 個新單位；bounty-me 有首位校正者；' +
-    'chips-me、兌換、雲端搭乘與它的重送、合併、刪帳號都 200',
+    'chips-me、兌換、換車、雲端搭乘與它的重送、合併、刪帳號都 200',
     st.submit === 200 && st.claim === 200 && st.board === 200 && st.fire === 'ok' && st.verdictA === 'ok' && st.verdictB === 'suspect' && st.usableSkip === 1 &&
       JSON.parse(st.valuation).inserted === 1 && st.chipsMe === 200 && st.bountyMe === 200 && Array.isArray(st.firsts) && st.firsts.length > 0 &&
-      st.redeem === 200 && st.cloud === 200 && st.cloudResend === 200 && st.merge === 200 && st.del === 200, J(st));
+      st.redeem === 200 && st.collect === 200 && st.cloud === 200 && st.cloudResend === 200 && st.merge === 200 && st.del === 200, J(st));
   // PLa：worker.js（整行註解以外）每一處 INDEXED BY 所在的字串片段；片段數必須等於 INDEXED BY 出現的次數（抽取本身沒有漏）。
   const code = readFileSync(join(ROOT, 'worker.js'), 'utf8').split('\n').filter(l => !/^\s*\/\//.test(l));
   const frags = [];
@@ -2250,7 +2260,7 @@ await attempt('PL', async () => {
   const missed = [...new Set(frags)].filter(f => !sqls.some(s => s.includes(f)));
   ok(`PLa 覆蓋：worker.js 每一處 INDEXED BY（${occurrences} 處）所在的片段都被攔到過——沒攔到的那一句，下面三條對它失明`,
     occurrences > 0 && frags.length === occurrences && missed.length === 0, J({ occurrences, frags: frags.length, missed }));
-  // PLb：碰到六張表的每一句
+  // PLb：碰到七張表的每一句
   const grow = sqls.filter(touchesGrow);
   const DB0 = plDb(null), DBS = Object.fromEntries(Object.entries(PL_SHAPES).map(([k, f]) => [k, plDb(f)]));
   const unstable = [], scans = [], errs = [];
@@ -2267,9 +2277,9 @@ await attempt('PL', async () => {
       if (!same) unstable.push({ shape: k, sql: sql.slice(0, 120), p0, p });
     }
   }
-  ok(`PLb 穩定：碰到六張表的 ${grow.length} 句，在 ${Object.keys(PL_SHAPES).length} 種統計形狀（${Object.keys(PL_SHAPES).join('、')}）下的計畫都與沒有統計時逐行相同` +
+  ok(`PLb 穩定：碰到七張表的 ${grow.length} 句，在 ${Object.keys(PL_SHAPES).length} 種統計形狀（${Object.keys(PL_SHAPES).join('、')}）下的計畫都與沒有統計時逐行相同` +
     `（PL_ORDER_FREE 的 ${PL_ORDER_FREE.length} 句比排序後的行、且每種形狀都不掃全表）；` +
-    '沒有統計時也沒有一句掃六張表的全表（含 USING COVERING INDEX 的整個索引掃描）',
+    '沒有統計時也沒有一句掃七張表的全表（含 USING COVERING INDEX 的整個索引掃描）',
     grow.length > 0 && errs.length === 0 && scans.length === 0 && unstable.length === 0 && orderFreeHits.length === 0,
     J({ n: grow.length, errs, scans, orderFreeHits, unstable: unstable.slice(0, 4) }));
   // PLc：指名
@@ -2280,16 +2290,16 @@ await attempt('PL', async () => {
   ok('PLc2 指名的覆蓋：攔到的每一句寫了 INDEXED BY 的句子都屬於 PL_PINS 的某一族（沒有族名的那一句，改掉它指名的索引 PLc 也看不出來）',
     sqls.some(s => s.includes('INDEXED BY')) && unnamed.length === 0, J(unnamed.map(s => s.slice(0, 120))));
   // PLd：對照。同一份統計下把每一句的 INDEXED BY 全部拿掉：指名的幾句至少在一種形狀下計畫會變（或掃全表）；
-  // 另外至少一句被判成「掃六張表的全表」——證明 growScans 認得出掃描（不然 PLb 的「沒有全表掃描」是空的）。
+  // 另外至少一句被判成「掃七張表的全表」——證明 growScans 認得出掃描（不然 PLb 的「沒有全表掃描」是空的）。
   const strip = s => s.replace(/ INDEXED BY \w+/g, '');
   const flips = (sql) => Object.entries(DBS).filter(([, db]) => { const p = plPlan(db, strip(sql)); return J(p) !== J(plPlan(DB0, sql)) || growScans(sql, p).length > 0; }).map(([k]) => k);
   const ctrl = PL_CTRL.map(([name, re]) => { const s = grow.find(x => re.test(x)); return { name, sql: s || '', found: !!s, flips: s ? flips(s) : [] }; });
   const scanSeen = grow.filter(s => s.includes('INDEXED BY')).some(s => Object.values(DBS).some(db => growScans(s, plPlan(db, strip(s))).length > 0));
-  ok(`PLd [對照] 同一份統計下把 INDEXED BY 拿掉：${PL_CTRL.length} 句指名的句子都至少在一種形狀下計畫會變；而且看得到「掃六張表的全表」（PLb 的掃描偵測不是空的）`,
+  ok(`PLd [對照] 同一份統計下把 INDEXED BY 拿掉：${PL_CTRL.length} 句指名的句子都至少在一種形狀下計畫會變；而且看得到「掃七張表的全表」（PLb 的掃描偵測不是空的）`,
     ctrl.every(c => c.found && c.flips.length > 0) && scanSeen, J({ scanSeen, ctrl: ctrl.filter(c => !c.found || !c.flips.length).map(c => ({ name: c.name, found: c.found, flips: c.flips })) }));
-  // PLd2：對照要涵蓋六張表的每一張——某張表沒有一句會翻，那張表上的 PLb 綠燈就沒有證據說明統計真的偏得動它（PL_CTRL 被刪空時 PLd 也會空轉成綠）。
-  const noCtrl = GROW6.filter(t => !ctrl.some(c => c.found && c.flips.length > 0 && new RegExp(`\\b${t}\\b`).test(c.sql)));
-  ok('PLd2 [對照的覆蓋] 六張表每一張都至少有一句對照在拿掉 INDEXED BY 後計畫會變', noCtrl.length === 0, J(noCtrl));
+  // PLd2：對照要涵蓋七張表的每一張——某張表沒有一句會翻，那張表上的 PLb 綠燈就沒有證據說明統計真的偏得動它（PL_CTRL 被刪空時 PLd 也會空轉成綠）。
+  const noCtrl = GROW7.filter(t => !ctrl.some(c => c.found && c.flips.length > 0 && new RegExp(`\\b${t}\\b`).test(c.sql)));
+  ok('PLd2 [對照的覆蓋] 七張表每一張都至少有一句對照在拿掉 INDEXED BY 後計畫會變', noCtrl.length === 0, J(noCtrl));
 });
 
 // ═══ PH：同一秒的點══════════════════════════════════════════════
@@ -2477,9 +2487,9 @@ await attempt('B4e', async () => {
   w.db.exec('INSERT INTO kv_blobs (k,v,updated) VALUES ' + [X, DX, DN, W, DW].map(a => `('${STRIKE(a, 'P1')}','{"at":1,"error":"x","n":1}','x')`).join(',') + ';');
   const del = await delAccount(w, { actor: DN }, X);
   const left = strikes(w).map(r => r.k);
-  ok('B4ea 刪帳號 X（body 帶裝置 DN）：X、併進 X 的 DX、DN 的出錯記錄都刪掉；別人的帳號 W 與併進 W 的 DW 的留著；回應的欄位與以前相同',
+  ok('B4ea 刪帳號 X（body 帶裝置 DN）：X、併進 X 的 DX、DN 的出錯記錄都刪掉；別人的帳號 W 與併進 W 的 DW 的留著；回應的欄位與以前相同（11-03 多一欄 items：換到的車款）',
     del.status === 200 && J(left) === J([STRIKE(DW, 'P1'), STRIKE(W, 'P1')].sort()) &&
-      J(Object.keys(del.json.deleted).sort()) === J(['chips', 'claims', 'cloudRides', 'contrib', 'points', 'samples', 'unlocks']),
+      J(Object.keys(del.json.deleted).sort()) === J(['chips', 'claims', 'cloudRides', 'contrib', 'items', 'points', 'samples', 'unlocks']),
     J({ status: del.status, left, deleted: del.json && del.json.deleted }));
   const { w: w2, X: X2, DW: DW2 } = m5bWorld();
   w2.db.exec(`INSERT INTO kv_blobs (k,v,updated) VALUES ('${STRIKE(DW2, 'P1')}','{"at":1,"error":"x","n":1}','x');`);
