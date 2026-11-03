@@ -16,7 +16,8 @@ def reset(spec):
  for n in ['01 車殼與塗裝','02 窗門與細框','03 燈組與車頭','04 底盤與輪軸','05 車頂與機構','06 可換識別牌','07 編組接合','90 攝影棚']:
   c=bpy.data.collections.new(n);SCENE.collection.children.link(c);COL[n[:2]]=c
  ACTIVE=COL['01'];M={}
- colors={'body':spec['body'],'accent':spec['accent'],'frame':'172329','glass':'183544','metal':'97A7AC','roof':'B6BFC0','chassis':'34424A','rubber':'20272A','white':'F0ECD9','lamp':'FFF2C9','red':'B03733','blue':'245799','yellow':'ECC147','gold':'B89A5A','dark':'303E45','cream':'E9DEBE','orange':'E77C33','wood':'AE7645'}
+ # taillamp：尾燈鏡片，顏色與參數同 red（白天外觀不變；中間車與輕軌分節用地圖 LOD 的色票對回車庫材質，兩者必須同色），只差名字讓車燈認得。
+ colors={'body':spec['body'],'accent':spec['accent'],'frame':'172329','glass':'183544','metal':'97A7AC','roof':'B6BFC0','chassis':'34424A','rubber':'20272A','white':'F0ECD9','lamp':'FFF2C9','taillamp':'B03733','red':'B03733','blue':'245799','yellow':'ECC147','gold':'B89A5A','dark':'303E45','cream':'E9DEBE','orange':'E77C33','wood':'AE7645'}
  for key,h in colors.items():
   metallic=.64 if key=='metal' else .37 if key in ['roof','chassis'] else .26 if key=='glass' else .10
   rough=.19 if key=='glass' else .77 if key=='rubber' else .38
@@ -198,7 +199,7 @@ def lamp(name,xfun,y,z,r=.105,red=False):
  use('03');x=xfun(y,z)+.075
  cyl(name+' 鍍鉻圈',(x+.022,y,z),r+.025,.045,'metal','X',32)
  cyl(name+' 黑色內襯',(x+.049,y,z),r+.01,.023,'frame','X',28,.002)
- cyl(name+' 透鏡',(x+.066,y,z),r,.017,'red' if red else 'lamp','X',28,.003)
+ cyl(name+' 透鏡',(x+.066,y,z),r,.017,'taillamp' if red else 'lamp','X',28,.003)
 def wiper(f,y,z,extent=.64):
  use('03');a=(f(y,z)+.145,y,z);b=(f(y-.10,z+extent*.53)+.145,y-.10,z+extent*.53);c=(f(y-.12,z+extent)+.145,y-.12,z+extent)
  line('獨立雨刷臂',[a,b],.012,'chassis');line('雨刷膠條',[b,c],.014,'frame')
