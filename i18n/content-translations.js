@@ -4721,6 +4721,14 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '老街燈火': "Old street lights",
   '正在把小車送上陶瓷老街站…': "Lifting the little train up to Ceramics Old Street Station…",
   '三鶯線陶瓷老街站 · 微縮印象': "Ceramics Old Street Station, Sanying Line · miniature impression",
+  '淡水漁人碼頭站': "Tamsui Fisherman's Wharf",
+  '淡海輕軌・淡水漁人碼頭站': "Danhai LRT · Tamsui Fisherman's Wharf Station",
+  '漁人碼頭全景': "Fisherman's Wharf panorama",
+  '河口晴日': "Sunny river mouth",
+  '淡水夕照': "Tamsui sunset",
+  '橋燈入夜': "Bridge lights at night",
+  '正在把小車送上淡水漁人碼頭站…': "Lifting the little train up to Tamsui Fisherman's Wharf Station…",
+  '淡海輕軌淡水漁人碼頭站 · 微縮印象': "Tamsui Fisherman's Wharf Station, Danhai LRT · miniature impression",
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '劍潭站': '剣潭',
@@ -4755,4 +4763,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '老街燈火': "老街の灯り",
   '正在把小車送上陶瓷老街站…': "小さな列車を陶瓷老街駅へ送り出しています…",
   '三鶯線陶瓷老街站 · 微縮印象': "三鶯線 陶瓷老街駅 · ミニチュアの印象",
+  '淡水漁人碼頭站': "淡水漁人碼頭",
+  '淡海輕軌・淡水漁人碼頭站': "淡海ライトレール・淡水漁人碼頭駅",
+  '漁人碼頭全景': "漁人碼頭の全景",
+  '河口晴日': "河口の晴天",
+  '淡水夕照': "淡水の夕焼け",
+  '橋燈入夜': "夜の橋の灯り",
+  '正在把小車送上淡水漁人碼頭站…': "小さな列車を淡水漁人碼頭駅へ送り出しています…",
+  '淡海輕軌淡水漁人碼頭站 · 微縮印象': "淡海ライトレール 淡水漁人碼頭駅 · ミニチュアの印象",
 });
