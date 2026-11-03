@@ -53,13 +53,13 @@
 //     等價的那一顆)、亮框、捲動不動,而且每格要走過點名的區(標題列、方向鈕、分頁列、搬進來的跟車卡);分頁鈕用鍵盤 Enter 真按,
 //     焦點留在新的那顆分頁鈕上。
 //   O 關面板:12 張面板從真入口用鍵盤打開(入口不是鍵盤走得到的——公車站牌列、誤點履歷連結、合併卡——直接叫開函式),焦點放到 ×
-//     按 Enter 關,焦點回到開它的鈕、亮框;開它的鈕看不到時回到面板固定的入口(手機的軌道與路線、字級回「觀看設定」鈕,看板、
+//     按 Enter 關,焦點回到開它的鈕、亮框;開它的鈕看不到時回到面板固定的入口(手機的字級回「觀看設定」鈕,路線(11-03 起從查詢快捷列開)、看板、
 //     公車站牌回「查詢」分頁,誤點履歷回跟車卡第一顆鈕)。另外直接造三個狀態:開它的鈕不是固定入口(焦點在護照鈕上叫開我的最愛)、
 //     合併卡「這班車」裡按行程分享(看板收起、跟車卡搬回原位時焦點留在那顆鈕上)、焦點在文字欄位時關(不送,觸控點進文字欄位也亮框)。
 //     行程分享列 Enter 分享後面板收起、焦點回到「行程分享」鈕(第 3 件)。C 1280 滑鼠點 × 關:不送(只接鍵盤焦點)。
 //   捷運膠囊(第 4 件)在 360 標準字級段的 E 格:Enter 展開焦點落在卡的 ×、× 按 Enter 收起落在膠囊,兩下都亮框。
 //   N 逐層突變,各自那格要紅:renderBoard／mountUniCard 不放回、無鍵的鈕不用父層 class 當鍵(紅在方向鈕、標題列不紅)、關面板不放回
-//     (我的最愛、行程分享列)、固定入口清空(軌道與路線)、開面板不記開它的鈕(從護照鈕開的那格)、搬出面板的那顆不算(合併卡行程分享)、
+//     (我的最愛、行程分享列)、固定入口清空(路線)、開面板不記開它的鈕(從護照鈕開的那格)、搬出面板的那顆不算(合併卡行程分享)、
 //     文字欄位也送、滑鼠點的也送(只做 Chromium:WebKit 點按鈕不給焦點)、膠囊切換不放回(膠囊兩格)。
 // v0926j 平交道卡、落釘卡、附近車站卡(xp* 那幾支):修前兩張卡每一模擬秒整張 innerHTML 重寫(附近車站卡在 App 定位更新時也是),
 //   鍵盤停在卡頭 ✕／存 上每次重畫都被踢回 body(兩個引擎、360／844×390／1280 全部);滑鼠按下後、放開前碰上重畫,按下的節點
@@ -502,8 +502,10 @@ const O_360 = {
   ridePanel: { name: '旅程護照', steps: [['focus', '#tabRide'], ['key', 'Enter']], close: '#rideClose', expect: '#tabRide' },
   explorePanel: { name: '今日亮點', steps: [['focus', '#tabExplore'], ['key', 'Enter']], close: '#exploreClose', expect: '#tabExplore' },
   searchPanel: { name: '查詢', steps: [['focus', '#tabSearch'], ['key', 'Enter']], close: '#searchPanelClose', expect: '#tabSearch' },
-  // 軌道與路線、字級兩列被搬進「觀看設定」(rail-3d/integration/view-controls.js);按下去觀看設定跟著收起,那一列看不到
-  trackPanel: { name: '軌道與路線', steps: [['focus', '#viewSettingsBtn'], ['key', 'Enter'], ['wait', 200], ['focus', '.view-tabs .view-tab[data-view="labels"]'], ['key', 'Enter'], ['wait', 200], ['focus', '[data-act="track"]'], ['key', 'Enter']], close: '#trackClose', expect: '#viewSettingsBtn' },
+  // 字級那列被搬進「觀看設定」(rail-3d/integration/view-controls.js);按下去觀看設定跟著收起,那一列看不到。
+  // 2026-11-03 導覽改版 G4/G6:「路線」面板的入口改成查詢快捷列「路線」(觀看 → 標示「軌道與路線」改成原地展開、不再開面板),
+  // 開它的那列跟著查詢面板收起 ⇒ 關掉後回到固定入口 #tabSearch(比照今日動態)
+  trackPanel: { name: '路線', steps: [['focus', '#tabSearch'], ['key', 'Enter'], ['wait', 300], ['focus', '.ql-row[data-act="routes"]'], ['key', 'Enter']], close: '#trackClose', expect: '#tabSearch' },
   fontPanel: { name: '字級', steps: [['focus', '#viewSettingsBtn'], ['key', 'Enter'], ['wait', 200], ['focus', '.view-tabs .view-tab[data-view="display"]'], ['key', 'Enter'], ['wait', 200], ['focus', '[data-act="fontscale"]'], ['key', 'Enter']], close: '#fontClose', expect: '#viewSettingsBtn' },
   todayPanel: { name: '今日動態', steps: [['focus', '#tabSearch'], ['key', 'Enter'], ['wait', 300], ['focus', '.ql-row[data-act="today"]'], ['key', 'Enter']], close: '#todayClose', expect: '#tabSearch' },
   board: { name: '車站看板', steps: KF_SEARCH, close: '#boardClose', expect: '#tabSearch' },
@@ -526,8 +528,9 @@ const O_1280 = {
   ridePanel: { name: '旅程護照', steps: [['focus', '#rideBtn'], ['key', 'Enter']], close: '#rideClose', expect: '#rideBtn' },
   explorePanel: { name: '今日亮點', steps: [['focus', '#exploreBtn'], ['key', 'Enter']], close: '#exploreClose', expect: '#exploreBtn' },
   todayPanel: { name: '今日動態', steps: [['focus', '#todayBtn'], ['key', 'Enter']], close: '#todayClose', expect: '#todayBtn' },
-  // 桌機的 #trackBtn 在工具列是 display:none,真入口是右側觀看設定直欄的「標示／畫面」
-  trackPanel: { name: '軌道與路線', steps: [['focus', '.view-rail [aria-controls="view-labels"]'], ['key', 'Enter'], ['wait', 200], ['focus', '[data-act="track"]'], ['key', 'Enter']], close: '#trackClose', expect: '.view-rail [aria-controls="view-labels"]' },
+  // 桌機的 #trackBtn 在工具列是 display:none;2026-11-03 導覽改版後真入口是搜尋框空白下拉的「路線 ›」,
+  // 那顆跟著下拉收起 ⇒ 關掉後回到固定入口 #trainSearch
+  trackPanel: { name: '路線', steps: [['focus', '#trainSearch'], ['wait', 200], ['focus', '#searchDrop [data-discovery="routes"]'], ['key', 'Enter']], close: '#trackClose', expect: '#trainSearch' },
   fontPanel: { name: '字級', steps: [['focus', '.view-rail [aria-controls="view-display"]'], ['key', 'Enter'], ['wait', 200], ['focus', '[data-act="fontscale"]'], ['key', 'Enter']], close: '#fontClose', expect: '.view-rail [aria-controls="view-display"]' },
   board: { name: '車站看板', steps: [['focus', '#trainSearch'], ['type', '臺北'], ['key', 'Enter'], ['wait', 300]], close: '#boardClose', expect: '#trainSearch' },
   busStopPanel: { name: '公車站牌', steps: [['focus', '#trainSearch'], ['type', '固定站'], ['wait', 800], ['focus', '#searchDrop .bus-row[role="button"]'], ['key', 'Enter']], close: '#busStopClose', expect: '#trainSearch' },
@@ -906,14 +909,14 @@ const CARDS2 = {
 const OPEN2 = {
   // 合併卡預設開在「這一站」;提示列在「這班車」那一頁,照使用者的路徑點分頁鈕切過去
   uni: `(async () => { await ${OPEN.uni}; document.querySelector('#board > .uni-tabs button[data-t=train]')?.click(); await new Promise(r => setTimeout(r, 300)); })()`,
-  // 列車 sheet 小段只露標題＋遙測,內容到中段才有。setSheetSize 會寫全站段高偏好,量完要還給小段
+  // 列車 sheet 拉到 46%(舊中段)。setSheetPx 會寫全站高度偏好,量完要還給 30%
   tc: `(async () => {
     const cands = state.trains.filter(t => t.sys === 'tra_sched' && t.stops && t.stops.length > 20);
     const tr = cands.find(t => { const tt = effTLive(t), info = nextStopInfo(t, tt); return tt >= t.stops[0].depSec && !dwellInfoOf(t, tt) && info && info.min >= 3; }) || cands[0];
     followTrainNo(String(tr.train), { sys: 'tra_sched' });
     await new Promise(r => setTimeout(r, 400));
     openTrainSheet(); await new Promise(r => setTimeout(r, 300));
-    setSheetSize(document.getElementById('trainCard'), 'medium'); await new Promise(r => setTimeout(r, 300));
+    setSheetPx(document.getElementById('trainCard'), innerHeight * 0.46); await new Promise(r => setTimeout(r, 300));
   })()`,
   // 平交道資料是開機後才非同步抓(ensureCrossings),開卡前等它到
   xing: `(async () => {
@@ -983,9 +986,9 @@ const FOOT0 = async () => {
 };
 const footFits = s => s.shown && s.pinned && Math.abs(s.pad - s.stuck) <= 1;
 const fmtF = s => !s.shown ? `提示列不在(讓位 ${s.pad})` : `讓位 ${s.pad} 實際 ${s.stuck}${s.pinned ? '' : '(沒釘在卡緣)'}`;
-// 換段高走抓把／標題列用的同一個入口 setSheetSize
+// 換高度走放開抓把用的同一個入口 setSheetPx;small／medium＝舊兩段的 30%／46%
 const SIZE = async size => {
-  setSheetSize(document.getElementById('board'), size);
+  setSheetPx(document.getElementById('board'), innerHeight * (size === 'small' ? 0.30 : 0.46));
   for (let i = 0; i < 3; i++) await new Promise(r => requestAnimationFrame(r));
   await new Promise(r => setTimeout(r, 250));
 };
@@ -1933,7 +1936,7 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
     if (isTc) {
       await cardS(page, P, '360', 'tc');
       await cardJ(page, P, '360', 'tc', ':scope > .tc-head button');
-      await page.evaluate(() => setSheetSize(document.getElementById('trainCard'), 'small')); // 段高偏好還給小段
+      await page.evaluate(() => setSheetPx(document.getElementById('trainCard'), innerHeight * 0.30)); // 高度偏好還給 30%
     }
     // 平交道卡家族(網頁版):平交道卡、台糖卡標題以外沒有可聚焦元素(S);落釘卡、附近車站卡的列 v0926j 起可聚焦,
     // S 的前提不成立,改成真的走(附近車站卡在這裡、落釘卡在 844×390 那段)。直式只有附近車站卡捲得動,其餘三張的 J 在 844×390 量
@@ -2300,7 +2303,7 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
       ok(P(`T ${V} 跟車卡誤點履歷:Tab 可達,Enter 開面板並聚焦 close`), d1.steps >= 0 && da.open && da.close && da.fv, `Tab ${d1.steps} 步；${JSON.stringify(da)}`);
       await page.keyboard.press('Escape'); await settle(page);
       await page.evaluate(() => openTrainSheet()); await settle(page);
-      await page.evaluate(() => setSheetSize(document.getElementById('trainCard'), 'medium')); await settle(page);
+      await page.evaluate(() => setSheetPx(document.getElementById('trainCard'), innerHeight * 0.46)); await settle(page);
       const d2 = await kfTabTo(page, eng, '#tcSheetClose', '#tcDelayHist[role="button"]', '#trainCard');
       await page.keyboard.press('Enter'); await settle(page);
       const db = await page.evaluate(() => ({ open: !document.getElementById('delayHistPanel').hidden, close: document.activeElement && document.activeElement.matches('#delayHistClose'), fv: __kf.fv(document.activeElement) }));
@@ -2330,11 +2333,12 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
     };
     focusMark = 'directClose:input';
     const tx = await TXT();
-    ok(P(`O ${V} 軌道與路線:焦點在搜尋框(文字欄位)時關掉,焦點不被送去入口`), tx.fv && !tx.moved, `搜尋框${tx.fv ? '' : '沒'}亮框、關掉後焦點在 ${tx.active}`);
+    ok(P(`O ${V} 路線:焦點在搜尋框(文字欄位)時關掉,焦點不被送去入口`), tx.fv && !tx.moved, `搜尋框${tx.fv ? '' : '沒'}亮框、關掉後焦點在 ${tx.active}`);
     if (mobile) {
+      // 2026-11-03 導覽改版:路線面板從查詢快捷列「路線」進(原本觀看 → 標示 →「軌道與路線」),固定入口跟著改成 #tabSearch
       const openTrackViaView = async () => {
         await page.evaluate(CLOSE_ALL); await page.evaluate(KF_RESET);
-        for (const sel of ['#viewSettingsBtn', '.view-tabs .view-tab[data-view="labels"]', '[data-act="track"]']) {
+        for (const sel of ['#tabSearch', '.ql-row[data-act="routes"]']) {
           await page.keyboard.press('Shift');
           const found = await page.evaluate(sel => { const e = [...document.querySelectorAll(sel)].find(__kf.shown); if (e) e.focus(); return !!e; }, sel);
           if (!found) return false;
@@ -2350,12 +2354,12 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
         const input = await page.evaluate(() => document.activeElement === document.getElementById('rdSearch') && __kf.fv(document.activeElement));
         await page.keyboard.press('Escape'); await settle(page); await page.waitForTimeout(100);
         return page.evaluate(([opened, input]) => { const a = document.activeElement; return { opened, input,
-          closed: document.getElementById('trackPanel').hidden, back: a === document.getElementById('viewSettingsBtn'),
+          closed: document.getElementById('trackPanel').hidden, back: a === document.getElementById('tabSearch'),
           fv: __kf.fv(a), active: __bsp.desc(a) }; }, [opened, input]);
       };
       focusMark = 'Esc輸入框:正向';
       const ie = await trackInputEsc();
-      ok(P(`E ${V} 軌道與路線 input:真按 Esc 關面板並回觀看入口`), ie.opened && ie.input && ie.closed && ie.back && ie.fv, JSON.stringify(ie));
+      ok(P(`E ${V} 路線 input:真按 Esc 關面板並回查詢入口`), ie.opened && ie.input && ie.closed && ie.back && ie.fv, JSON.stringify(ie));
 
       // 先用沒有自訂 opener 的直接開啟情境，單獨觀察 PANEL_ENTRY 固定入口退路。
       const trackFixedBack = async () => {
@@ -2370,12 +2374,12 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
         if (!found) return { opened: false };
         await page.keyboard.press('Enter'); await settle(page);
         return page.evaluate(() => { const a = document.activeElement; return { opened: true,
-          closed: document.getElementById('trackPanel').hidden, back: a === document.getElementById('viewSettingsBtn'),
+          closed: document.getElementById('trackPanel').hidden, back: a === document.getElementById('tabSearch'),
           fv: __kf.fv(a), active: __bsp.desc(a) }; });
       };
       focusMark = '固定入口:正向';
       const fixed = await trackFixedBack();
-      ok(P(`O ${V} 軌道與路線:沒有自訂 opener 時關閉走固定觀看入口`), fixed.opened && fixed.closed && fixed.back && fixed.fv, JSON.stringify(fixed));
+      ok(P(`O ${V} 路線:沒有自訂 opener 時關閉走固定查詢入口`), fixed.opened && fixed.closed && fixed.back && fixed.fv, JSON.stringify(fixed));
 
       focusMark = 'mutation:panelFocusBack整段';
       let m = await mutFn(page, 'panelFocusBack', KF_BACK, '');
@@ -2390,14 +2394,14 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
       ok(P(`N ${V} 突變目標那一段還在 panelFocusBack 裡(固定入口退路)`), m);
       if (m) {
         const te = await trackFixedBack(); await unmutFn(page, 'panelFocusBack');
-        ok(P(`N ${V} 突變:拿掉固定入口退路 ⇒ 沒有 opener 時關閉後焦點回不到觀看入口(O 量得到紅)`), te.opened && te.closed && !te.back, JSON.stringify(te));
+        ok(P(`N ${V} 突變:拿掉固定入口退路 ⇒ 沒有 opener 時關閉後焦點回不到查詢入口(O 量得到紅)`), te.opened && te.closed && !te.back, JSON.stringify(te));
       }
       focusMark = 'mutation:byEsc';
       m = await mutFn(page, 'panelFocusBack', KF_BY_ESC, 'const byEsc = false;');
       ok(P(`N ${V} 突變目標那一行還在 panelFocusBack 裡(Esc 明確鍵盤關閉)`), m);
       if (m) {
         const im = await trackInputEsc(); await unmutFn(page, 'panelFocusBack');
-        ok(P(`N ${V} 突變:input 的 Esc 不標成鍵盤關閉 ⇒ 面板會關但焦點回不到觀看入口(E 量得到紅)`), im.opened && im.input && im.closed && !im.back, JSON.stringify(im));
+        ok(P(`N ${V} 突變:input 的 Esc 不標成鍵盤關閉 ⇒ 面板會關但焦點回不到查詢入口(E 量得到紅)`), im.opened && im.input && im.closed && !im.back, JSON.stringify(im));
       }
       focusMark = 'mutation:noteOpener';
       const hadNote = await page.evaluate(() => { window.__kfNote = notePanelOpener; window.notePanelOpener = () => {}; delete panelOpener.favPanel; return typeof window.__kfNote === 'function'; });

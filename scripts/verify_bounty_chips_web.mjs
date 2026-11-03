@@ -12,7 +12,8 @@
 //   CH4  請求：沒登入 0 次；登入後帶 Bearer、不帶 ?actor=；開機已登入／登入／合併完成各讀一次
 //   CH5  身分：409 merged_elsewhere 與 403 wrong_account → 換新的懸賞 actor、再併一次；同一次登入只換一次
 //   CH6  登出：併過的 actor 換新、籌碼快取與記憶體清掉；在途的籌碼與 bounty-me 回應不會在登出後寫回
-//   CH7  懸賞旗標關：開機清掉籌碼快取、沒有點數列、0 次 chips-me／bounty-me（含直接呼叫 fetchChipsMe()、fetchBountyMe()）、不寫新的 actor key
+//   CH7  懸賞旗標關：開機清掉籌碼快取、沒有點數列、開機與登入 0 次 chips-me／bounty-me（含直接呼叫 fetchBountyMe()）、不寫新的 actor key；
+//        車庫錢包不看旗標：直接呼叫 fetchChipsMe() 照讀（帶 Bearer）、已登入打開車庫有「車庫場景」列，對照是沒登入時沒有那一列
 //   CH8  上傳佇列：旗標開時 400 app_only 是終態（清掉、不重送）；其他錯誤照舊保留；旗標關時 app_only 也照舊保留、下次開機重送
 //   CH9  看板收滿的卡：有「已收滿」說明、沒有接單鈕
 //   CH10 錄程入口：懸賞開著時不啟動定位取樣；網頁顯示「要用 App」、現行 App 殼顯示請先更新軌島 App 的那一句（兩個平台訊號各自成立、英日文、旗標關與 ?demo=bounty 的對照；看板開著時提示要在最上層，網頁點「接下」的那句也是）
@@ -649,19 +650,46 @@ try {
     ok('CH7c 旗標關：護照裡沒有點數列（桌面護照與手機護照面板都沒有）', (await s.page.evaluate(() => document.querySelectorAll('.ph-chips').length)) === 0);
     ok('CH7d 旗標關：chips-me 請求 0 次、bounty-merge 0 次、bounty-me 0 次', s.chips.length === 0 && s.merges.length === 0 && s.bme.length === 0, JSON.stringify({ c: s.chips.length, m: s.merges.length, b: s.bme.length }));
     ok('CH7e 旗標關：不寫新的懸賞 actor key、不產生籌碼快取', (await lsGet(s.page, KEY_ACTOR)) === null && (await s.page.evaluate(() => window.__writes.actor)) === 0);
-    // 開機流程裡呼叫 fetchChipsMe 的每一處各自也看旗標；只看開機流程的話，函式自己的那一道檢查被拿掉也不會紅，所以直接呼叫一次。
+    // 車庫錢包（garageWallet.reload）不看旗標，走的就是這支：旗標關著直接呼叫也要讀到帳號的點數。
+    // 讀的是帳號（Bearer），懸賞那兩支（bounty-me、bounty-merge）照樣不打、不寫懸賞 actor。開機與登入流程不叫它，見 CH7d、CH7g。
     const direct = await s.page.evaluate(async () => { try { return { r: await fetchChipsMe(), threw: '' }; } catch (e) { return { r: 'x', threw: String((e && e.message) || e) }; } });
     await sleep(500);
-    ok('CH7f 旗標關、已登入時直接呼叫 fetchChipsMe()：回 null、不丟例外、chips-me 請求仍是 0 次（擋的是函式自己的旗標檢查，不是「開機流程剛好沒有呼叫它」）',
-      direct.r === null && !direct.threw && s.chips.length === 0, JSON.stringify({ direct, n: s.chips.length }));
+    const c0 = s.chips[0] || {};
+    ok('CH7f 旗標關、已登入時直接呼叫 fetchChipsMe()（車庫錢包走這支）：讀到 chips-me 回的點數（餘額 5）、chips-me 1 次、帶 Bearer、網址沒有 actor=；bounty-me、bounty-merge 仍 0 次、不寫懸賞 actor key',
+      !!direct.r && direct.r.balance === 5 && !direct.threw && s.chips.length === 1 && c0.auth === 'Bearer fake-id-token' && !/actor=/i.test(c0.url || '')
+        && s.bme.length === 0 && s.merges.length === 0 && (await lsGet(s.page, KEY_ACTOR)) === null && (await s.page.evaluate(() => window.__writes.actor)) === 0,
+      JSON.stringify({ direct, chips: s.chips.length, auth: c0.auth, bme: s.bme.length, m: s.merges.length }));
     // fetchBountyMe 同理：開機流程裡它的三個呼叫端（登入回呼、合併完成、開機）各自也看旗標，函式自己的那一道要直接呼叫才量得到。
     const directMe = await s.page.evaluate(async () => { try { return { r: await fetchBountyMe(), threw: '' }; } catch (e) { return { r: 'x', threw: String((e && e.message) || e) }; } });
     await sleep(500);
     ok('CH7h 旗標關、已登入時直接呼叫 fetchBountyMe()：回 null、不丟例外、bounty-me 請求仍是 0 次（擋的是函式自己的旗標檢查，不是「開機流程剛好沒有呼叫它」）',
       directMe.r === null && !directMe.threw && s.bme.length === 0, JSON.stringify({ directMe, n: s.bme.length }));
+    const nBefore = s.chips.length;
     await s.page.reload();
     await loggedIn(s.page); await sleep(1000);
-    ok('CH7g 重新整理後仍然乾淨（沒有點數列、沒有請求）', (await s.page.evaluate(() => document.querySelectorAll('.ph-chips').length)) === 0 && s.chips.length === 0);
+    const n0 = s.chips.length;
+    ok('CH7g 重新整理後開機仍然乾淨：快取又清掉、沒有點數列、開機與登入流程沒有發 chips-me', (await lsGet(s.page, KEY_CHIPS)) === null
+      && (await s.page.evaluate(() => document.querySelectorAll('.ph-chips').length)) === 0 && n0 === nBefore, JSON.stringify({ before: nBefore, after: n0 }));
+    // 車庫：同一頁（記憶體與快取都是空的）打開車庫，最上面要有「車庫場景」列——點數只能是開車庫這一下讀來的。對照組是 CH7j 沒登入的同一個動作。
+    await s.page.evaluate(() => openTrainGarage());
+    const g = await until(() => s.page.evaluate(() => { const b = document.querySelector('#trainGarage .g-scenes'); return b && !b.hidden && b.querySelector('.g-sc') ? {
+      head: b.querySelector('.g-scenes-head').textContent, scenes: [...b.querySelectorAll('.g-sc')].map(x => x.dataset.scene + (x.classList.contains('on') ? ':on' : '')) } : null; }), 30000);
+    const last = s.chips[s.chips.length - 1] || {};
+    ok('CH7i 旗標關、已登入打開車庫：最上面有「車庫場景」列，田園小站在第一格（免費、標成解鎖），後面列出規則檔的四座、已解鎖那座標成解鎖，標頭是帳號的點數（目前 5 點・下一座 7 點）；開車庫讀了 1 次 chips-me、帶 Bearer',
+      !!g && g.scenes.join() === ['paddy:on', ...SCENES.map((x, i) => i === 0 ? x + ':on' : x)].join() && g.head === '目前 5 點・下一座 7 點' && s.chips.length === n0 + 1 && last.auth === 'Bearer fake-id-token',
+      JSON.stringify({ g, n: s.chips.length - n0 }));
+    await s.ctx.close();
+  });
+  // 對照：同一個動作、只差沒登入——沒有錢包就不出那一列、也不讀點數（CH7i 的列是登入帶出來的，不是無條件出現）
+  if (want('CH7')) await attempt('CH7j', async () => {
+    const s = await newSession({ noUser: true });
+    await s.page.goto(`${BASE}/?lang=zh-TW`);
+    await authResolvedNull(s.page);
+    await s.page.evaluate(() => openTrainGarage());
+    await s.page.waitForFunction(() => !!document.querySelector('#trainGarage .g-scenes'), null, { timeout: 30000 });
+    await sleep(1500);
+    const hidden = await s.page.evaluate(() => document.querySelector('#trainGarage .g-scenes').hidden);
+    ok('CH7j 對照：旗標關、沒登入打開車庫——沒有「車庫場景」列、chips-me 0 次', hidden === true && s.chips.length === 0, JSON.stringify({ hidden, n: s.chips.length }));
     await s.ctx.close();
   });
 

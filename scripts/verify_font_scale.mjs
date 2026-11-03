@@ -1495,7 +1495,7 @@ const L_SNAP = () => {
         return oy === 'auto' || oy === 'scroll';
       }).map(e => e.id || e.className || e.tagName).slice(0, 4); })(),
     boardTop: Math.round(bd.scrollTop),
-    // 兩段制(2026-08-26):大段('large'／.expand)已退役,判法逐字對齊 app 自己的 sheetSizeOf()
+    // 兩段制(2026-08-26):大段('large'／.expand)已退役,11-02 改拖拉後 .sheet-small＝高度 ≤30% 的小樣式
     size: bd.classList.contains('sheet-small') ? 'small' : 'medium',
     hintVis: vis(hint), hintH: hr ? Math.round(hr.height) : 0,
     hintHit: hr && vis(hint) ? (() => { const q = document.elementFromPoint(hr.left + hr.width / 2, (hr.top + hr.bottom) / 2);
@@ -1606,7 +1606,7 @@ async function sectionL(browser, engine) {
     JSON.stringify({ opacity: B.fpOpacity, 命中卡: B.cardHit }));
   // 反向對照:回到小段提示列要回來——少了這半,「提示列永遠不顯示」也會讓 L6 過。
   // 兩段制之後提示列只掛在小段(中段已經看得到下面了),所以反向對照的目標段是 small。
-  await page.evaluate(() => setSheetSize(document.getElementById('board'), 'small'));
+  await page.evaluate(() => setSheetPx(document.getElementById('board'), innerHeight * 0.30));
   await page.waitForTimeout(900);
   const C = await snap();
   ok(`L7 ${tag} 反向對照:回到小段提示列又出現,而且照樣命中自己`,
@@ -1704,9 +1704,9 @@ async function sectionM(browser, engine, tier = 'std') {
   await page.evaluate(() => { if (state.playing) togglePlay(); });
   await page.evaluate(() => document.getElementById('tabExplore').click());
   await page.waitForTimeout(1300);
-  // 撐到最大段:直接讀 app 自己的段位清單,免得段制再變一次時這裡又留著一個不存在的段名
+  // 撐到最高:交給 app 自己夾到上限,免得高度制再變一次時這裡又留著一個不存在的段名
   // (2026-08-26 兩段制上路時就是這樣留下 'large' ⇒ 面板只到 46%、後兩張卡掉出視野)
-  await page.evaluate(() => setSheetSize(document.getElementById('explorePanel'), SHEET_SIZES[SHEET_SIZES.length - 1]));
+  await page.evaluate(() => setSheetPx(document.getElementById('explorePanel'), Infinity));
   await page.waitForTimeout(800);
   const A = await snap();
   ok(`M1 ${tag} 正向對照:亮點面板開著,今日之最四格,而且排在最前面`,
@@ -2370,17 +2370,14 @@ async function sectionS(browser, engine) {
 async function sectionT(browser, engine) {
   const { page, errs, close } = await boot(browser, { width: 1280 });
   await page.evaluate(() => { if (state.playing) togglePlay(); });
+  // 🔴 2026-09-07 的 d8fc2fc7 把 #lineToggles 搬進路線面板的「顯示設定」分頁;2026-11-03 導覽改版(G6)再搬到
+  //    觀看 → 標示「軌道與路線」那列底下原地展開(#msTracks),路線面板不再有分頁。走使用者真正的路:開觀看的標示頁、點那列展開。
+  //    姊妹腳本 verify_discovery.mjs 同一輪改走同一條路。
+  await page.evaluate(() => { if (window.railViewControls) window.railViewControls.open('labels'); });
+  await page.waitForTimeout(300);
   await page.evaluate(() => {
-    const b = document.getElementById('trackBtn') || document.querySelector('[data-proxy="trackBtn"]');
-    if (b) b.click();
-  });
-  await page.waitForTimeout(500);
-  // 🔴 2026-09-07 的 d8fc2fc7 把 #lineToggles 搬進 <div id="rdSettings" hidden>(「顯示設定」分頁),
-  //    只點 #trackBtn 已經不夠。同一顆 commit 有替姊妹腳本補上這一下(verify_discovery.mjs:77 的
-  //    `tap('[data-rdtab=settings]')`),漏掉了這一支。
-  await page.evaluate(() => {
-    const t = document.querySelector('#rdTabs [data-rdtab="settings"]');
-    if (t) t.click();
+    const row = document.querySelector('.ms-row[data-act="track"]');
+    if (row && document.getElementById('msTracks').hidden) row.click();
   });
   await page.waitForTimeout(400);
   const n0 = await page.evaluate(() => document.querySelectorAll('#lineToggles .chip').length);
@@ -2395,7 +2392,7 @@ async function sectionT(browser, engine) {
   //    chip 的 rect 是 0×0 ⇒ 後面 `page.mouse.click(0,0)` 打在地圖 canvas 上 ⇒ T3–T7 全紅。
   //    ✱ 這一條與 U0 同族:DOM 在場 ≠ 看得見,正向對照要量**版面實際給的尺寸與命中**。
   const g0 = await page.evaluate(() => {
-    const wrap = document.getElementById('rdSettings');
+    const wrap = document.getElementById('msTracks');
     const on = document.querySelector('#lineToggles .chip:not(.off)');
     const r = on ? on.getBoundingClientRect() : null;
     const d = on && on.querySelector('.dot');

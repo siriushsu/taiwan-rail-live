@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // 2026-09-26 鍵盤焦點交棒剩餘項目的獨立瀏覽器驗收。
 // - .board：鍵盤開啟後焦點進面板；Esc 關閉並回入口（含 input 內按 Esc）
-// - 觀看設定子列：收起觀看設定後，軌道／字級面板仍收到焦點
+// - 觀看設定子列：收起觀看設定後，字級面板仍收到焦點
+// - 路線面板（2026-11-03 導覽改版起從查詢快捷列／桌面搜尋框下拉的「路線 ›」進）：Esc 關閉回查詢入口
 // - 公車搜尋列、最愛車站列、兩個誤點履歷入口可用 Tab 到達、Enter 開啟
 // - 直式合併卡收合後，焦點落在可見的「結束」鈕
 // - 六顆原本只念「×」的 close 有可翻譯 accessible name
@@ -169,10 +170,16 @@ async function core(browserType, eng) {
         mobile ? '#viewSettingsBtn' : `.view-rail [aria-controls="view-${kind}"]`, async () => {
           if (mobile) { await activate(page, '#viewSettingsBtn'); await activate(page, `.view-tabs .view-tab[data-view="${kind}"]`); }
           else await activate(page, `.view-rail [aria-controls="view-${kind}"]`);
-          await activate(page, kind === 'labels' ? '[data-act="track"]' : '[data-act="fontscale"]');
+          await activate(page, '[data-act="fontscale"]');
         });
     };
-    await viewPanel('labels', 'trackPanel', '#trackClose', '軌道與路線');
+    // 2026-11-03 導覽改版 G4/G6:觀看 → 標示「軌道與路線」改成原地展開(不開面板);「路線」面板的入口是查詢快捷列(手機)
+    // 與搜尋框空白下拉的「路線 ›」(桌面),開它的那顆跟著收起 ⇒ Esc 關閉後回到固定入口(手機 #tabSearch、桌面 #trainSearch)
+    const openRoutes = async () => {
+      if (mobile) { await activate(page, '#tabSearch'); await activate(page, '.ql-row[data-act="routes"]'); }
+      else { await focusKeyboard(page, '#trainSearch'); await activate(page, '#searchDrop [data-discovery="routes"]'); }
+    };
+    await panelOpenEsc(page, `${tag} 路線`, 'trackPanel', '#trackClose', mobile ? '#tabSearch' : '#trainSearch', openRoutes);
     await viewPanel('display', 'fontPanel', '#fontClose', '顯示與字級');
 
     // 文字欄位內按 Esc：這是明確鍵盤關閉，要走同一條焦點退路；直接／觸控 close 仍不強送。
@@ -189,14 +196,12 @@ async function core(browserType, eng) {
       check(`${tag} searchPanel 第二發 Esc 關閉並回 #tabSearch`, s.closed && s.back, s.active);
     }
     await reset(page);
-    if (mobile) { await activate(page, '#viewSettingsBtn'); await activate(page, '.view-tabs .view-tab[data-view="labels"]'); }
-    else await activate(page, '.view-rail [aria-controls="view-labels"]');
-    await activate(page, '[data-act="track"]'); await focusKeyboard(page, '#rdSearch');
+    await openRoutes(); await focusKeyboard(page, '#rdSearch');
     await page.keyboard.press('Escape'); await settle(page);
     const ti = await page.evaluate(sel => ({ closed: document.getElementById('trackPanel').hidden,
       back: document.activeElement && document.activeElement.matches(sel), active: __kbdDesc() }),
-      mobile ? '#viewSettingsBtn' : '.view-rail [aria-controls="view-labels"]');
-    check(`${tag} trackPanel input 內 Esc 關閉並回觀看入口`, ti.closed && ti.back, ti.active);
+      mobile ? '#tabSearch' : '#trainSearch');
+    check(`${tag} trackPanel input 內 Esc 關閉並回查詢入口`, ti.closed && ti.back, ti.active);
 
     // ridePanel 內的成就說明 tooltip 也是暫態層：第一發只收 tooltip，第二發才收整張護照。
     await reset(page); await activate(page, mobile ? '#tabRide' : '#rideBtn');
@@ -273,7 +278,7 @@ async function core(browserType, eng) {
       check(`${tag} 跟車卡誤點履歷 Enter 開面板並聚焦 close`, dh.open && dh.wanted && dh.fv, dh.active);
       await page.keyboard.press('Escape'); await settle(page);
       await page.evaluate(() => openTrainSheet()); await settle(page);
-      await page.evaluate(() => setSheetSize(document.getElementById('trainCard'), 'medium')); await settle(page);
+      await page.evaluate(() => setSheetPx(document.getElementById('trainCard'), innerHeight * 0.46)); await settle(page);
       await focusKeyboard(page, '#tcSheetClose');
       const tt = await tabUntil(page, eng, '#tcDelayHist[role="button"]', '#trainCard');
       check(`${tag} 列車 sheet 誤點履歷入口可由 Tab 到達`, tt >= 0, `步數 ${tt}`);
@@ -332,7 +337,7 @@ for (const [browserType, eng] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
         view: '#viewSettingsBtn',
         random: '#randBtn',
         clock: '#statBadge',
-        city: '#msCities button[data-city]',
+        city: '#queryWhere button[data-city]',
         zoom: '.maplibregl-ctrl-zoom-in,.maplibregl-ctrl-zoom-out,.leaflet-control-zoom-in,.leaflet-control-zoom-out',
         follow: '#followPanel button',
         alert: '#alertChip,#alertBanner button',
@@ -388,14 +393,13 @@ for (const [browserType, eng] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
     }, { label, kinds });
     await page.evaluate(() => userDataSaveCollection('stations', [{ name: '臺北', lat: 25.0478, lon: 121.517, sys: 'tra_sched', group: 'all', label: '台鐵' }]));
 
-    // 手機全畫面刻意隱藏 header 的 #citySel；走使用者真正可用的「觀看 → 導覽 →
-    // 縣市快速移動」入口，展開後逐顆驗證 chip，而不是覆寫 CSS 造出不存在的狀態。
-    await page.tap('#viewSettingsBtn'); await settle(page);
-    await page.tap('.view-tabs .view-tab[data-view="places"]'); await settle(page);
-    await page.tap('#view-places [data-act="cities"]'); await settle(page);
+    // 手機全畫面刻意隱藏 header 的 #citySel；走使用者真正可用的縣市入口——2026-11-03 導覽改版起是查詢首頁
+    // 「去哪裡」的縣市那排(原本是「觀看 → 導覽 → 縣市快速移動」)，打開後逐顆捲入驗證 chip，而不是覆寫 CSS 造出不存在的狀態。
+    // 跟車卡會為 sheet 讓位(top 過場約 300ms);量過場結束後的版面,不量過場中間那幾格
+    await page.tap('#tabSearch'); await settle(page); await page.waitForTimeout(450); await settle(page);
     const cityKinds = ['tab', 'view', 'random', 'clock', 'city', 'follow', 'alert'];
     const city = await audit('city-drawer', cityKinds);
-    const cityChips = page.locator('#msCities button[data-city]');
+    const cityChips = page.locator('#queryWhere button[data-city]');
     const cityCount = await cityChips.count();
     // 360／375 最後一顆會合理地落在可捲面板摺線下；逐顆捲入並驗中心命中，
     // 才能證明所有控制真的可及，而不是只數 DOM 或只驗首屏 16 顆。
@@ -419,7 +423,7 @@ for (const [browserType, eng] of [[chromium, 'chromium'], [webkit, 'webkit']]) {
     check(`${eng} touch ${width} 真手機縣市入口可展開且 chips 可命中、零相交、在 viewport 內`,
       city.coverage.city >= 17 && !city.badHit.length && !city.overlaps.length && !city.out.length && city.overflow <= 1,
       `coverage=${city.coverage.city} hit=${city.badHit.map(x => x.name).join(',') || '-'} overlap=${city.overlaps.map(x => x.name).join(',') || '-'} out=${city.out.map(x => x.name).join(',') || '-'} overflow=${city.overflow}`);
-    await page.tap('#viewSettingsPanel .view-close'); await settle(page);
+    await page.tap('#searchPanelClose'); await settle(page);
 
     await page.tap('#tabFav'); await settle(page);
     const fav = await audit('favorite-station', ['fav']);

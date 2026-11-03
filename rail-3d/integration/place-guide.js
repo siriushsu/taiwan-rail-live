@@ -36,7 +36,7 @@ export function guidePadding(map){
 }
 
 export function createPlaceGuide({getRenderer,ensure3D,getRoutes,unlock,onSelect,onView,closePanels,toast,translate=s=>s}){
-  let request=0,current=null,select,button;
+  let request=0,current=null;
   async function fly(place,custom=false){
     const ticket=++request;onSelect(place.key);unlock();
     try{
@@ -74,14 +74,6 @@ export function createPlaceGuide({getRenderer,ensure3D,getRoutes,unlock,onSelect
     const bearing=best?90-Math.atan2(best.b[1]-best.a[1],(best.b[0]-best.a[0])*Math.cos(center[1]*Math.PI/180))*180/Math.PI-35:25;
     return fly({key:st.id||st.name,name:st.name,center,pitch:55,bearing,zoom:16.8},true);
   }
-  function mount(after){
-    const row=document.createElement('div');row.id='riGuideRow';row.className='ms-row ri-guide-row';
-    const label=document.createElement('label');label.htmlFor='riGuidePlace';label.textContent=translate('車站／地標導覽');
-    const controls=document.createElement('span');controls.className='ri-guide-input';
-    select=document.createElement('select');select.id='riGuidePlace';
-    for(const [name,list]of [['車站',stationCatalog],['地標',landmarkCatalog]]){const group=document.createElement('optgroup');group.label=translate(name);for(const p of list){const option=document.createElement('option');option.value=p.key;option.textContent=translate(p.name);group.append(option);}select.append(group);}
-    button=document.createElement('button');button.type='button';button.id='riGuideGo';button.textContent=translate('前往');button.onclick=()=>void goTo(select.value);
-    controls.append(select,button);row.append(label,controls);after.after(row);
-  }
-  return {mount,goTo,station,get current(){return current;},catalog};
+  // 入口在查詢首頁「去哪裡」與搜尋結果(導覽改版 G2);原本觀看 → 導覽的下拉＋前往已拿掉。
+  return {goTo,station,get current(){return current;},catalog,stationKeys:stationCatalog.map(p=>p.key)};
 }

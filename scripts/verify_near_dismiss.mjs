@@ -39,8 +39,9 @@ const MUTATIONS = {
   ],
   swipe: [
     {
-      from: `  if (direction < 0 && i === 0 && el.id === 'nearCard') { closeNearbyStations(); return; }\n`,
-      to: '',
+      // 11-02 改連續拖拉後,收起改在放開時判斷(手指比最小高度再低 48 以上)
+      from: `      if (el.id === 'nearCard' && wantH < SHEET_MIN_PX - 48) closeNearbyStations();\n      else setSheetPx(el, wantH);\n`,
+      to: `      setSheetPx(el, wantH);\n`,
     },
   ],
   hit: [
@@ -168,14 +169,16 @@ async function openNear(page) {
 }
 
 // 標題列抓把的上/下滑:用 pointer 事件序列(initSheetHandle 綁的就是 pointerdown/move/up),
-// 每次都在手勢開始前重新量一次卡片位置——段高一變卡片上緣就跟著動,沿用舊座標會滑到卡外的地圖上。
-async function sheetSwipe(page, dy) {
-  await page.waitForTimeout(500); // 等段高轉場收斂再量,否則量到的是動畫中途的位置
+// 每次都在手勢開始前重新量一次卡片位置——高度一變卡片上緣就跟著動,沿用舊座標會滑到卡外的地圖上。
+// 11-02 改連續拖拉:回報的是卡片實際高度(px),dy 可以給函式、依起始高度算(拖到最小高度用)。
+async function sheetSwipe(page, dyOrFn) {
+  await page.waitForTimeout(500); // 等高度轉場收斂再量,否則量到的是動畫中途的位置
   const from = await page.evaluate(() => {
     const el = document.getElementById('nearCard');
     const r = el.getBoundingClientRect();
-    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + 14), small: el.classList.contains('sheet-small') };
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + 14), h: Math.round(r.height) };
   });
+  const dy = typeof dyOrFn === 'function' ? dyOrFn(from.h) : dyOrFn;
   const common = { pointerId: 1, pointerType: 'touch', isPrimary: true, bubbles: true };
   await page.dispatchEvent('#nearCard', 'pointerdown', { ...common, clientX: from.x, clientY: from.y });
   await page.dispatchEvent('#nearCard', 'pointermove', { ...common, clientX: from.x, clientY: from.y + dy });
@@ -184,9 +187,9 @@ async function sheetSwipe(page, dy) {
   const after = await page.evaluate(() => {
     const el = document.getElementById('nearCard');
     if (el.hidden || !state.meLoc) return 'closed';
-    return el.classList.contains('sheet-small') ? 'small' : 'medium';
+    return Math.round(el.getBoundingClientRect().height);
   });
-  return { before: from.small ? 'small' : 'medium', after };
+  return { dy, before: from.h, after };
 }
 
 // 卡片以外、地圖上真正的空白處:取卡片上緣與工具列之間那一帶的左側。
@@ -223,19 +226,23 @@ async function verifyDismiss(page, tag) {
   check(`${tag} [對照] 同一個空白點對車站看板同樣有效(收口一致)`,
     boardWasOpen && !(await boardOpen(page)));
 
-  // [出口B] 標題列下滑 ⇒ 收起(在最小段仍然要收,不是縮到最小就停住)
-  // 只做下滑手勢、不夾雜輕點:輕點會循環段高,卡片高度一變,下一個座標就可能落到卡外的地圖上,
+  // [出口B] 標題列下滑 ⇒ 收起(拖到最小高度仍然要收得掉,不是縮到最小就停住)
+  // 只做拖曳手勢、不夾雜輕點:卡片高度一變,下一個座標就可能落到卡外的地圖上,
   // 那時收起來的其實是[出口A],等於白驗(第一版就踩到這個坑,MUT=swipe 照樣全綠)。
+  // 11-02 改連續拖拉:高度跟著手指走、放開停在原處,最小 120;附近車站卡放開時比最小高度再低 48 以上才收。
   await openNear(page);
   const swipeLog = [];
   const up = await sheetSwipe(page, -70); swipeLog.push({ dir: 'up', ...up });
   const down1 = await sheetSwipe(page, 70); swipeLog.push({ dir: 'down', ...down1 });
+  const toMin = await sheetSwipe(page, h => h - 120); swipeLog.push({ dir: 'down-to-min', ...toMin });
   const down2 = await sheetSwipe(page, 70); swipeLog.push({ dir: 'down', ...down2 });
-  // 手勢真的有被標題列收到的證據:上滑放大、下滑縮小都看得到段高變化。少了這一條,
-  // 「滑完就關了」也可能是別的機制(例如[出口A])順手關掉的,那就等於沒驗到下滑本身。
-  check(`${tag} [出口B] 標題列收得到上/下滑手勢(小段↑中段、中段↓小段)`,
-    up.after === 'medium' && down1.after === 'small', JSON.stringify(swipeLog));
-  check(`${tag} [出口B] 已經在最小段再下滑一次就收起來`, down2.after === 'closed', JSON.stringify(swipeLog));
+  // 手勢真的有被標題列收到的證據:下滑看得到高度跟著手指變矮(上滑可能已貼合內容拉不動,只要求沒變矮)。
+  // 少了這一條,「滑完就關了」也可能是別的機制(例如[出口A])順手關掉的,那就等於沒驗到下滑本身。
+  const near = (a, b) => typeof a === 'number' && Math.abs(a - b) <= 3;
+  check(`${tag} [出口B] 標題列收得到上/下滑手勢(上滑不變矮、下滑跟著手指變矮 70)`,
+    typeof up.after === 'number' && up.after >= up.before - 1 && near(down1.after, Math.max(120, down1.before - 70)), JSON.stringify(swipeLog));
+  check(`${tag} [出口B] 拖到最小高度停住、不收`, near(toMin.after, 120), JSON.stringify(swipeLog));
+  check(`${tag} [出口B] 已經在最小高度再下滑一次就收起來`, down2.after === 'closed', JSON.stringify(swipeLog));
 
   // [出口C] ✕ 的觸控目標:離字形中心 18px 的地方要打得到那顆鈕,而且真的收得掉
   await openNear(page);

@@ -1,0 +1,304 @@
+{
+  "modelId": "emu700",
+  "name": "EMU700・阿福號",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "railcar",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.89900016784668,
+      -1.4932169914245605,
+      0.0
+    ],
+    "max": [
+      4.809000015258789,
+      1.4932169914245605,
+      3.6700000762939453
+    ]
+  },
+  "sizeM": [
+    9.708000183105469,
+    2.986433982849121,
+    3.6700000762939453
+  ],
+  "mesh": {
+    "file": "emu700.mesh.bin",
+    "sha256": "0b46d41659fa212a1406b84ea4ea99c5a7540a3000289fef3cba3e591c1fd9a6",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 180864,
+    "triangleCount": 60288,
+    "drawGroups": [
+      {
+        "name": "e7stain",
+        "start": 0,
+        "count": 5352,
+        "color": [
+          0.5394794940948486,
+          0.577580451965332,
+          0.5972017645835876
+        ],
+        "metalness": 0.5,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.15000000596046448
+      },
+      {
+        "name": "e7blue",
+        "start": 5352,
+        "count": 10728,
+        "color": [
+          0.013702083379030228,
+          0.07818742096424103,
+          0.3915724754333496
+        ],
+        "metalness": 0.07999999821186066,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "e7roof",
+        "start": 16080,
+        "count": 1500,
+        "color": [
+          0.3967552185058594,
+          0.43415364623069763,
+          0.4507857859134674
+        ],
+        "metalness": 0.4000000059604645,
+        "roughness": 0.41999998688697815,
+        "clearcoat": 0.07999999821186066
+      },
+      {
+        "name": "e7orange",
+        "start": 17580,
+        "count": 9000,
+        "color": [
+          0.8962693810462952,
+          0.32314321398735046,
+          0.023153366521000862
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3199999928474426,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "e7white",
+        "start": 26580,
+        "count": 2496,
+        "color": [
+          0.7681511640548706,
+          0.7912979125976562,
+          0.7758222222328186
+        ],
+        "metalness": 0.07999999821186066,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.25
+      },
+      {
+        "name": "frame",
+        "start": 29076,
+        "count": 24924,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 54000,
+        "count": 8160,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "metal",
+        "start": 62160,
+        "count": 34224,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "chassis",
+        "start": 96384,
+        "count": 43620,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "roof",
+        "start": 140004,
+        "count": 12408,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 152412,
+        "count": 9828,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 162240,
+        "count": 9096,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "lamp",
+        "start": 171336,
+        "count": 5328,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "e7led",
+        "start": 176664,
+        "count": 1536,
+        "color": [
+          0.8069522380828857,
+          0.05951123684644699,
+          0.027320891618728638
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.25,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "taillamp",
+        "start": 178200,
+        "count": 2664,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 276,
+  "features": {
+    "sideDoorGroups": 3,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "emu700",
+    "family": "railcar",
+    "L": 9.0,
+    "W": 2.8,
+    "H": 3.45,
+    "doors": 3,
+    "doorLeaves": 2,
+    "rearDoor": 1.2,
+    "frontDoor": 1.25,
+    "crewDoor": true,
+    "winH": 0.66,
+    "winZ": 2.52,
+    "doorWinH": 0.7,
+    "doorWinZ": 2.45,
+    "doorTop": 2.95,
+    "body": "C2C8CB",
+    "accent": "1F4FA8",
+    "acUnits": [
+      [
+        -2.2,
+        1.7
+      ],
+      [
+        0.9,
+        1.7
+      ]
+    ],
+    "acMat": "e7roof",
+    "label": "EMU700",
+    "bowPow": 3
+  },
+  "reference": {
+    "source": "https://blair-train.blogspot.com/2011/09/emu740.html",
+    "detail": "白色平直車頭 · 橘色外框與月牙下巴 · 藍色裙部",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

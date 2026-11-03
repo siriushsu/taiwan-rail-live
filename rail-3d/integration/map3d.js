@@ -200,22 +200,24 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   // 交界就變粗變糊，交界連起來是圍著鏡頭的一圈；原生 R3dLines 也是全程 3D 畫線、靠深度到地平線。
   // 只畫示意線：實體股道、橋墩、洞口、profileVertices 都是近景的事。取樣步距跟畫面比例走（每 2.5 個
   // CSS 像素一點、最少 20 公尺），範圍取可見邊界外推四分之一，鏡頭移過邊界的兩成才重建（見 update）。
+  // 遠景跟 App 的平面線一樣不分地上地下：地下段貼著地表畫（取軌頂與地表＋0.65 m 的高者），不藏、不透視。
+  // 示意線借來的層位在隧道口、短隧道與短橋交錯處每幾百公尺就換一次，照近景規則藏起來，線會斷成一節一節。
   function buildFarLines(bounds){
     const c=map.getCenter(),mpp=40075016.686*Math.cos(c.lat*Math.PI/180)/(512*2**map.getZoom()),stepM=Math.max(20,2.5*mpp);
     const spanLon=bounds.getEast()-bounds.getWest(),spanLat=bounds.getNorth()-bounds.getSouth();
     const w=bounds.getWest()-spanLon/4,e=bounds.getEast()+spanLon/4,s0=bounds.getSouth()-spanLat/4,n0=bounds.getNorth()+spanLat/4;
     farSpan=Math.max(spanLon,spanLat);
-    const lineSegments=[],buriedSegments=[];let missing=0;
+    const lineSegments=[];let missing=0;
     for(const r of frame.routes){if(r.physical)continue;const path=pathFor(r);if(!path?.elevation)continue;const coords=r.coordinates;
       for(let i=1;i<coords.length;i++){const a=coords[i-1],b=coords[i];
         if(Math.min(a[0],b[0])>e||Math.max(a[0],b[0])<w||Math.min(a[1],b[1])>n0||Math.max(a[1],b[1])<s0)continue;
         const start=path.d[i-1],end=path.d[i],length=end-start;if(!(length>0))continue;
         const n=Math.max(1,Math.ceil(length/stepM));let prev=null;
-        for(let k=0;k<=n;k++){const s=start+length*k/n,q=path.at(Math.min(path.length,s)).coordinate,h=railHeight(path,s),p=h===null?null:world(q,h);if(h===null)missing++;
-          if(prev&&p){const draw=buriedDraw(path,s,q,h);if(draw!=='none')(draw==='xray'?buriedSegments:lineSegments).push({a:prev,b:p,color:r.displayColor||r.color,physical:false});}
+        for(let k=0;k<=n;k++){const s=start+length*k/n,q=path.at(Math.min(path.length,s)).coordinate,h=railHeight(path,s),g=h!==null&&isUnderground(path,s)?terrainAt(q):NaN,p=h===null?null:world(q,Number.isFinite(g)?Math.max(h,g+.65):h);if(h===null)missing++;
+          if(prev&&p)lineSegments.push({a:prev,b:p,color:r.displayColor||r.color,physical:false});
           prev=p;}
       }}
-    rails.set(lineSegments);undergroundRails.set(buriedSegments);stats.railSegments=lineSegments.length;stats.undergroundRailSegments=buriedSegments.length;
+    rails.set(lineSegments);undergroundRails.set([]);stats.railSegments=lineSegments.length;stats.undergroundRailSegments=0;
     farMissing=missing>0;stats.farMissingSamples=missing;
   }
   function rebuildLines(){
@@ -257,7 +259,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       for(let k=0;k<=n;k++){const s=start+length*k/n,q=path.at(Math.min(path.length,s)).coordinate,h=railHeight(path,s),p=h===null?null:world(q,h);if(prev&&p){vertices.push(...prev,...p);
         if(terrainState.terrain||r.physical||r.drawingRanges){const draw=buriedDraw(path,s,q,h);
           if(draw==='none')stats.buriedHiddenSegments++;
-          else{if(draw==='depth')stats.buriedDepthSegments++;(draw==='xray'?buriedSegments:lineSegments).push({a:prev,b:p,color:r.displayColor||r.color,physical:!!r.physical});}}}
+          else{if(draw==='depth')stats.buriedDepthSegments++;(draw==='xray'?buriedSegments:lineSegments).push({a:prev,b:p,color:r.displayColor||r.color,physical:!!r.physical,depth:draw==='depth'});}}}
         if(r.physical&&p&&!isUnderground(path,s)){
           const g=ground(q),gp=Number.isFinite(g)?world(q,g)[2]:null,level=path.level?.(s),scale=ml.MercatorCoordinate.fromLngLat(q).meterInMercatorCoordinateUnits()/unit;
           if(prev&&Number.isFinite(gp)&&Number.isFinite(prevGround))structureSegments.push({a:prev,b:p,groundA:prevGround,groundB:gp,bridge:level?.kind==='bridge'&&level.offsetM>0,transition:!!level?.terrainTransition,scale});
@@ -480,7 +482,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       render(gl,args){
         // DEM 在 MapLibre 本幀準備完成後才同步橋墩與車體，避免沿用前一幀地表。
         if(terrainRefreshPending&&terrainState.terrain&&frame&&Number.isFinite(terrainSample(map.getCenter().toArray()))){if(demRebuildWanted()){dirty=true;lastBuild=-Infinity;update(frame);}if(map.isSourceLoaded('terrain'))terrainRefreshPending=false;}
-        const night=nightAmount(globalThis.railIslandSunlight?.current);ambientLight.intensity=1.9*(1-night*.7);sun.intensity=2*(1-night*.94);camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));deepenFar(deepProjection.copy(camera.projectionMatrix));updateModelScales();trainHalo.update(models,(c,h,deep)=>project(world(c,h),deep),viewW,viewH,frame?.display);structures.setVisible(map.getZoom()>=14);rails.render(viewW,viewH,routeWidth(map.getZoom()),terrainState.terrain||(map.getZoom()>=14&&frame?.routes.some(r=>r.physical||r.drawingRanges)),frame?.display?.dark);webgl.resetState();camera.layers.enable(3);webgl.render(scene,camera);camera.layers.disable(3);stats.frames++;
+        const night=nightAmount(globalThis.railIslandSunlight?.current);ambientLight.intensity=1.9*(1-night*.7);sun.intensity=2*(1-night*.94);camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));deepenFar(deepProjection.copy(camera.projectionMatrix));updateModelScales();trainHalo.update(models,(c,h,deep)=>project(world(c,h),deep),viewW,viewH,frame?.display);structures.setVisible(map.getZoom()>=14);rails.render(viewW,viewH,routeWidth(map.getZoom()),terrainState.terrain||(map.getZoom()>=14&&frame?.routes.some(r=>r.physical||r.drawingRanges)),frame?.display?.dark,camera.projectionMatrix);webgl.resetState();camera.layers.enable(3);webgl.render(scene,camera);camera.layers.disable(3);stats.frames++;
         const lead=models.get(frame?.selectedVehicleId)?.cars?.[0],pad=map.getPadding();
         stats.headLockErrorPx=frame?.headLocked&&lead?Math.hypot(project(lead.position.toArray()).x-(viewW+pad.left-pad.right)/2,project(lead.position.toArray()).y-(viewH+pad.top-pad.bottom)/2):null;
       }});vehicleLayer=map.getLayer('live-vehicles-3d');

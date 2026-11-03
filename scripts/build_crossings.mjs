@@ -9,6 +9,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { REMOVED_CROSSINGS, removedKey } from './lib/crossings_removed.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE_DIR = path.join(ROOT, 'scripts/.crossings_cache');
@@ -30,6 +31,7 @@ const DEDUP_TRA_GEOM_M = 40;// 對官方筆:raw 座標(任一線)在此半徑(m)
 const CLUSTER_DM = 40;      // OSM 內部:同 lnId 且 |Δd|<此值(m) 聚類成一筆(雙軌常拆兩節點)
 // 平交道只採官方資料——台鐵官方現役 415 處與 dataset 帶座標筆數恰吻合
 // (無座標 386 筆=已裁撤/立體化),OSM 聯集反而混入非台鐵管理道口。OSM 邏輯保留,要重開加 --with-osm
+// 但帶座標的也不全是現役(高雄、台中、員林、屏東等立體化路段仍帶座標),另由 lib/crossings_removed.mjs 排除。
 const WITH_OSM = process.argv.includes('--with-osm');
 
 const R = 6371, toR = Math.PI / 180;
@@ -248,6 +250,19 @@ async function main() {
     });
   }
 
+  // 官方 XML 仍帶座標、現地已立體化或停用的平交道(清單與依據在 lib/crossings_removed.mjs),不上圖,記入稽核。
+  const removedKeys = new Set(REMOVED_CROSSINGS.map(removedKey));
+  const removedHit = new Set();
+  for (let i = matched.length - 1; i >= 0; i--) {
+    const k = removedKey(matched[i]);
+    if (!removedKeys.has(k)) continue;
+    removedHit.add(k);
+    excluded.push({ name: matched[i].name, line: matched[i].xmlLine, county: matched[i].county, reason: REMOVED_CROSSINGS.find(r => removedKey(r) === k).reason });
+    matched.splice(i, 1);
+  }
+  const removedMiss = [...removedKeys].filter(k => !removedHit.has(k));
+  if (removedMiss.length) throw new Error(`crossings_removed.mjs 有對不到的條目(官方改名或已下架?):${removedMiss.join('、')}`);
+
   // ─────────────── 4. OSM 補缺(預設停用,--with-osm 才跑;見檔頭 WITH_OSM 註解) ───────────────
   let osmMerged = [], osmSnapped = [], levelNodes = [], pedNodes = [];
   let matchedToTra = 0, traMatchedFlag = new Set(), crossValidDiffs = [];
@@ -381,12 +396,12 @@ async function main() {
     source: '交通部台鐵局「平交道公開資料」' + (osmMerged.length ? ' + OpenStreetMap (ODbL)' : ''),
     sourceUrl: SOURCE_URL,
     fetchedAt: new Date().toISOString().slice(0, 10),
-    source_notes: `官方 XML 共 ${all.length} 筆,含座標 ${withPos.length} 筆(src:tra;與台鐵官方公布現役平交道數一致,無座標 ${all.length - withPos.length} 筆為已裁撤/立體化)。` +
+    source_notes: `官方 XML 共 ${all.length} 筆,含座標 ${withPos.length} 筆(src:tra;無座標 ${all.length - withPos.length} 筆為已裁撤/立體化,但帶座標者也有已立體化的,見下)。` +
       (osmMerged.length ? `另以 OpenStreetMap (Overpass) railway=level_crossing 節點投影 data/tra.json 線形(≤${SNAP_MAX_M}m)補缺 ${osmMerged.length} 筆(src:osm),` +
         `對官方去重、OSM 內部聚類雙軌;OSM 筆命名取通過道路名(無名者「平交道」),縣市取最近官方筆。` : '') +
       `座標投影取沿線位置(d,km,haversine 弧長,算法與站點 d 一致);投影垂足離原點 >50m 的 ${cleanOut.filter(c => c.projFallback).length} 筆` +
       `(候選線不含實際路廊,如八股頭/光復路實在舊山線)改用官方原始座標標點。貨運/專用/已停用線平交道不在模擬路網上、` +
-      `底下無軌道,不上圖(見 audit excluded)。合計 ${cleanOut.length} 筆。`,
+      `底下無軌道,不上圖(見 audit excluded)。官方 XML 仍帶座標、現地已地下化/高架化或停用的 ${REMOVED_CROSSINGS.length} 處另行排除(清單與依據見 scripts/lib/crossings_removed.mjs)。合計 ${cleanOut.length} 筆。`,
     crossings: cleanOut,
   };
   writeFileSync(path.join(ROOT, 'data/crossings.json'), JSON.stringify(out));

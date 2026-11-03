@@ -25,6 +25,8 @@
 | `0017_bounty_points.sql` | ✅ **權威** | 路段懸賞 v3（籌碼改點數）：替 `chip_ledger`、`garage_unlocks` 補 `unit`（這一列的數字是 v2 籌碼 `chip` 還是 v3 點數 `point`，預設 `chip`）。換算不在這支做，由 v3 的 Worker 在每個人讀錢包或兌換時補一筆換算列（見檔頭）。只有兩句 `ALTER`，自成一檔。**所有環境都要跑，新環境＝`0002` + `0014` + `0015` + `0016` + `0017`。** 🔴 先套 schema、再出 v3 的 Worker。**2026-10-27 已套到正式庫**（兩句 `ALTER` 用 `--command` 逐句送）。 |
 | `0016_rail_push.sql` | 權威 | AI 營運整理的推播（`scripts/rail_push.mjs`）：`rail_push_devices`（App 的 APNs token、關掉的系統、開著卡片的系統、管理者／測試機旗標）、`rail_push_requests`（每則草稿、核可與送出進度、AI 檢查結論）、`rail_push_recipients`（一般等級推給了誰）。**部署新版 Worker 前先套用**；沒套時 `/api/push/register` 回 503，cron 的推播任務自己吞錯，其他功能不受影響。 |
 | `0018_weather_frames.sql` | 權威 | 跟車即時天氣 P0（`scripts/weather_frames.mjs`、`/api/weather`）：`weather_frames` 一個雷達時刻一列，body 是 gzip 的本島雷達格點＋綜觀測站＋雨量站，保留 90 天。**部署新版 Worker 前先套用**；沒套時天氣 cron 自己吞錯、`/api/weather` 回 503，其他功能不受影響。 |
+| `0019_bounty_kept_time.sql` | ✅ **權威** | 路段懸賞：替 `bounty_samples` 補 `kept_t0`／`kept_t1`（判定當下這一列所屬那一段防偽閘收下點的最早與最晚時刻，跟 `kept_d0`／`kept_d1` 同一句寫）。遲傳合併判時前次段照時間接段要用收下點的時刻，舊列沒有才退回原始 payload 的時刻（見檔頭）。只有兩句 `ALTER`，自成一檔。**所有環境都要跑。** 🔴 先套 schema、再部署用到它的 Worker。 |
+| `0020_bounty_usable.sql` | ✅ **權威** | 路段懸賞：替 `bounty_samples` 補 `usable`（1 跟車次對得上／0 對不上／NULL 比不了或還沒標）與 `usable_at`（標的時刻）。跟點數分開，判定 cron 跑完之後由 `bountyUsableCron` 只替 ok 的台鐵列寫（見檔頭）。只有兩句 `ALTER`，自成一檔。**所有環境都要跑。** 🔴 先套 schema、再部署用到它的 Worker。 |
 
 0014–0016 各有兩支同號的檔（路段懸賞 v2 與軌道邊卡片／AI 營運整理在兩條分支上同時開號）。兩組碰的表互不重疊，
 這裡沒有 migration 追蹤表，套用一律照檔名逐支執行，所以同號不影響套用；路段懸賞那幾支彼此要照 0014 → 0015 → 0016 → 0017 的順序（0017 只有一個號）。
@@ -46,6 +48,8 @@ arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --r
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0016_bounty_kept_range.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0016_rail_push.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0017_bounty_points.sql
+arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0019_bounty_kept_time.sql
+arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0020_bounty_usable.sql
 ```
 
 （`npx wrangler` 在這台機器是壞的，一律用上面的完整寫法。）
@@ -106,6 +110,12 @@ iPhone 跟車卡的伺服器推播全停，期間 `la_bindings` 一直是 0 列�
 
 🔴 **0017 忘了套的症狀**：v3 Worker 寫帳本、寫解鎖、讀錢包的每一句都提到 `unit`，缺欄整句失敗——`chips-me`、`garage-redeem`、`cloud-ride` 一律 503，`bounty-merge` 搬帳本那個 batch 也失敗；判定 cron 的錄程入帳那一句丟錯（排在標記已判定之前，樣本留在 pending、記一次出錯，補套之後下一發重判，不會永久漏發）。
 **先套 0017 再部署 v3 的 Worker**；只有兩句 `ALTER TABLE`，重跑會報 `duplicate column name`（無害）。v2 的 Worker 在套過 0017 的庫上照常運作（它不寫 `unit`，預設值就是 `chip`）。
+
+🔴 **0019 忘了套的症狀**：判定 cron 讀前次線組那一句與標記已判定那一句都讀寫 `kept_t0`／`kept_t1`，缺欄整句失敗——跟 0016 一樣整支判定 cron 判不出任何一班車（樣本留在 pending，補套之後下一發重判，不會永久漏發）。
+**先套 0019 再部署新 Worker**（ship-web 2.4 的正式庫 schema 守門人缺欄會擋）；重跑會報 `duplicate column name`（無害）。
+
+🔴 **0020 忘了套的症狀**：只有「資料可用」標記停擺——`bountyUsableCron` 挑班車那一句缺欄失敗、cron 印 `[cron bounty 可用] 失敗`，判定、點數、帳本都不受影響。
+**先套 0020 再部署新 Worker**（ship-web 2.4 的正式庫 schema 守門人缺欄會擋）；重跑會報 `duplicate column name`（無害）。
 
 🔴 **只有「已經用舊版 0003 建過表」的環境才要再依序套 0004／0005／0006**（本機 `.wrangler`、
 開發庫）。`CREATE TABLE IF NOT EXISTS` 不會替既有的表補欄位，少了 `fail_streak` 會讓 cron

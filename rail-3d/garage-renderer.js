@@ -8,7 +8,8 @@ import {createDiorama,SCENES} from './garage-diorama.js';
 export {SCENES};
 
 export function createRenderer(onLost = () => {}) {
-  const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true, preserveDrawingBuffer:true});
+  // stencil：田園小站的隧道透視要用（garage-diorama.js）。
+  const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true, preserveDrawingBuffer:true, stencil:true});
   // 只有場景頁的太陽投影（原型同款柔邊陰影）；其餘三格沒有投影光源，不受影響。
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -57,17 +58,17 @@ export function createRenderer(onLost = () => {}) {
       if(target.width!==w||target.height!==h){target.width=w;target.height=h;}
       if(renderer.domElement.width!==w||renderer.domElement.height!==h)renderer.setSize(w,h,false);
       if(onDiorama){
-        // 車燈只有海岸行旅開；燈材質跟場景的編組共用，先關掉。
+        // 海岸行旅的燈材質跟場景的編組共用，先關掉；場景的車燈每節車另有一份材質（garage-coast.js createTrainLamps）。
         if(coast){coast.group.visible=false;coast.lights(null);}
         const zoom=Math.max(.7,Math.min(1.8,options.zoom??1)),elevation=Math.max(.2,Math.min(1.2,options.elevation??diorama.meta.world));
         for(const a of new Set(diorama.consist.cars.map(c=>c.asset)))for(const m of [...a.materials,...a.lockedMaterials])if(m.name==='glass'||m.name==='glass:locked'){
           if(m.envMap!==diorama.scene.environment){m.envMap=diorama.scene.environment;m.needsUpdate=true;}m.envMapIntensity=1;
         }
-        const shot=diorama.draw(w,h,{period:options.period,time:options.time||0,trainView:!!options.trainView,yaw:angle,elevation,zoom,owned:row.owned,lite:!!options.lite});
+        const shot=diorama.draw(w,h,{period:options.period,time:options.time||0,trainView:!!options.trainView,yaw:angle,elevation,zoom,owned:row.owned,lite:!!options.lite,lights:options.lights!==false});
         const ctx=target.getContext('2d');ctx.clearRect(0,0,w,h);ctx.drawImage(renderer.domElement,0,0);
         Object.assign(target.dataset,{rendered:id,appearance:'blender-original',lock:row.owned?'off':'grey',vertices:String(primary.geometry.attributes.position.count),mode:'scene',scene:options.scene,
           yaw:String(angle),zoom:String(zoom),elevation:String(elevation),drawCalls:String(renderer.info.render.calls),triangles:String(renderer.info.render.triangles),carCount:'3',projection:'orthographic',
-          period:shot.period,distance:String(shot.distance),trainView:String(!!options.trainView),shadows:String(shot.shadows),catenary:String(diorama.wires),inTunnel:String(shot.inTunnel),pixelRatio:String(dpr),
+          period:shot.period,distance:String(shot.distance),trainView:String(!!options.trainView),shadows:String(shot.shadows),catenary:String(diorama.wires),inTunnel:String(shot.inTunnel),lampHalos:String(shot.halos),pixelRatio:String(dpr),
           formation:JSON.stringify(boundsIn(diorama.consist.cars,diorama.camera,w,h))});
         return true;
       }

@@ -1,0 +1,295 @@
+{
+  "modelId": "ankeng",
+  "name": "安坑輕軌・光耀金",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "tram",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -7.662499904632568,
+      -1.3799999952316284,
+      0.0
+    ],
+    "max": [
+      7.662499904632568,
+      1.380000114440918,
+      4.441999912261963
+    ]
+  },
+  "sizeM": [
+    15.324999809265137,
+    2.760000228881836,
+    4.441999912261963
+  ],
+  "mesh": {
+    "file": "ankeng.mesh.bin",
+    "sha256": "5f68d832634be4b1a689478656cca702c3349d2a2f008ee815d02b217ada4cf4",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 246522,
+    "triangleCount": 82174,
+    "drawGroups": [
+      {
+        "name": "tblack",
+        "start": 0,
+        "count": 28830,
+        "color": [
+          0.006995410192757845,
+          0.009134058840572834,
+          0.010960093699395657
+        ],
+        "metalness": 0.20000000298023224,
+        "roughness": 0.2199999988079071,
+        "clearcoat": 0.44999998807907104
+      },
+      {
+        "name": "akgold",
+        "start": 28830,
+        "count": 21432,
+        "color": [
+          0.577580451965332,
+          0.4564110338687897,
+          0.22322796285152435
+        ],
+        "metalness": 0.44999998807907104,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.3499999940395355
+      },
+      {
+        "name": "frame",
+        "start": 50262,
+        "count": 37608,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 87870,
+        "count": 25440,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "metal",
+        "start": 113310,
+        "count": 58908,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "dark",
+        "start": 172218,
+        "count": 6144,
+        "color": [
+          0.02955683507025242,
+          0.04817182570695877,
+          0.05951123684644699
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "tled",
+        "start": 178362,
+        "count": 3072,
+        "color": [
+          0.8069522380828857,
+          0.32314321398735046,
+          0.02518685907125473
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.25,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "lamp",
+        "start": 181434,
+        "count": 10656,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "taillamp",
+        "start": 192090,
+        "count": 16800,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "chassis",
+        "start": 208890,
+        "count": 25152,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "trbellow",
+        "start": 234042,
+        "count": 6624,
+        "color": [
+          0.3967552185058594,
+          0.423267662525177,
+          0.43965718150138855
+        ],
+        "metalness": 0.4000000059604645,
+        "roughness": 0.41999998688697815,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "trroof",
+        "start": 240666,
+        "count": 2832,
+        "color": [
+          0.4564110338687897,
+          0.4969329833984375,
+          0.5149176716804504
+        ],
+        "metalness": 0.3499999940395355,
+        "roughness": 0.41999998688697815,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "cream",
+        "start": 243498,
+        "count": 3024,
+        "color": [
+          0.8148465752601624,
+          0.7304607629776001,
+          0.5149176716804504
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 330,
+  "features": {
+    "sideDoorGroups": 4,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 1,
+    "axlesPerBogie": 2,
+    "articulatedSections": 5,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "ankeng",
+    "family": "tram",
+    "L": 15.3,
+    "W": 2.6,
+    "H": 3.2,
+    "bottom": 0.37,
+    "radiusBottom": 0.1,
+    "radiusTop": 0.3,
+    "sections": 5,
+    "doors": 4,
+    "power": "overhead",
+    "body": "C8B482",
+    "accent": "14181B",
+    "articulationCenters": [
+      {
+        "index": 0,
+        "centerX": -5.87,
+        "length": 3.56,
+        "orientation": -1
+      },
+      {
+        "index": 1,
+        "centerX": -2.8200000000000003,
+        "length": 2.14,
+        "orientation": -1
+      },
+      {
+        "index": 2,
+        "centerX": 2.220446049250313e-16,
+        "length": 3.1,
+        "orientation": 1
+      },
+      {
+        "index": 3,
+        "centerX": 2.8200000000000003,
+        "length": 2.14,
+        "orientation": 1
+      },
+      {
+        "index": 4,
+        "centerX": 5.870000000000001,
+        "length": 3.56,
+        "orientation": 1
+      }
+    ],
+    "doorLeaves": 2,
+    "pantos": 1
+  },
+  "reference": {
+    "source": "https://newtaipei.travel/zh-tw/tour/729",
+    "detail": "香檳金車身 · 黑色 U 字車頭 · 黑色窗帶",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "five-section-tram",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

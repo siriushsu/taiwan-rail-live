@@ -1,21 +1,23 @@
 # Blender 地圖衍生資產 v1
 
-從已交付的 `prototypes/tiny-trains/blender/fleet-v1` 62 款車庫唯讀產生，沒有改原始 `.blend`、GLB 或 Raw。包含歷史／收藏車，**不代表全部都應出現在即時營運班表**。
+從車庫資產 `rail-3d/assets/garage-blender-v1`（已交付的 `prototypes/tiny-trains/blender/fleet-v1` 62 款，修過疊面）唯讀產生，沒有改原始 `.blend`、GLB 或 Raw。包含歷史／收藏車，**不代表全部都應出現在即時營運班表**。
 
 - `manifest.json`：62 款外觀、110 個車體／中間車／輕軌分節網格，每項附來源與 SHA-256。
 - `*.bin`：little-endian Float32 `[x,y,z,nx,ny,nz,r,g,b,gloss]`；+X 前、+Y 左、+Z 上，輪底為 0。
-- 原車身經 Blender Decimate，單車目標 8,000 三角形；鏡射／裁切衍生件最多約 10,524。材質色由線性轉 sRGB，保留簡化光澤；不是原車庫攝影棚的完整 PBR 效果。
+- 減面前先把共面疊層拉開 2 mm、拿掉整個看不到的元件與深埋的面，貼在車身上的薄零件（格柵條、飾條、雨刷等）只留朝外那面；Blender Decimate 時色彩交界的頂點不減，色帶邊緣不被拉成鋸齒；減面後被誤差蓋住的薄零件推回表面前，再依結果自己的可見性剔面（大三角形用密格點再查，只從窗縫露出的面不會被刪），被減面併回板厚中間的疊層再拉開一次（仍不到 1 mm 的，面積小的那片整個平移）；朝向照輸出哪一側看得到，每個角的法線從來源附近同材質的面取，同位置、方向相近的角共用一條、整片一起解，曲面光影連續。每個網格最多 8,000 三角形；車體與中間車不超過 `scripts/map_lod_budget.json` 記的改版前數量，輕軌五節的總數不超過改版前五節加總（依各節看得到的面數分配）。材質色由線性轉 sRGB，保留簡化光澤；不是原車庫攝影棚的完整 PBR 效果。
 - 中間車以不含駕駛端的後半車體鏡射組合，保持同款外觀、平直車端；窗位／屋頂設備仍屬示意。DR1000、DR2700 保留雙端駕駛室。
 - 輕軌依交付 metadata 的車體長度與鉸接間隙中線分開，首尾已朝外；不把剛性五節模型當一節車。
 - 來源的展示車籍字牌排除，避免看起來像即時派車；車號由原站資料顯示。
 - 尺寸由 `integration/formations.js` 給定。來源大部分是縮短的 Q 版比例，**包圍盒不是工程車長**；地圖沿縱軸調整到編組要求的公尺長度，近景外觀仍是簡化模型。
-- 執行期只載入畫面中需要的部件，所有車廂共用幾何；換車時將閒置網格快取控制在 18 件。整份 86 MB 資產不會隨首頁一次下載。
+- 執行期只載入畫面中需要的部件，所有車廂共用幾何；換車時將閒置網格快取控制在 18 件。整份 85 MB 資產不會隨首頁一次下載。
 
 重建：
 
 ```sh
-/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup -t 4 --python prototypes/taiwan-3d/scripts/build-blender-map-fleet.py
+Blender -b -t 1 --factory-startup --python scripts/import_blender_map.py -- --all
 ```
+
+`-t 1` 必加：Blender 減面在多執行緒下同一份輸入每次結果不同。只重產幾款用 `--models e200 dr1000`；`--out <資料夾>` 另存試跑、不覆蓋這裡。車庫網格改過要先跑 `scripts/repair_garage_blender.py`（見車庫 README）。
 
 來源與簡化範圍請見原車庫的 `README.md`、`references.json`。原圖沒有封裝為貼圖。地圖衍生檔保留來源連結，不改變原資料的授權或適用範圍。
 

@@ -25,14 +25,6 @@ body.ambient .ri-formation-caption{display:none}
 #msBasemapSeg button{min-width:44px;min-height:44px;padding:6px 10px}
 #msBasemapSeg button:disabled{opacity:.4;cursor:default}
 
-.ri-guide-row { flex-wrap:wrap; gap:8px; }
-.ri-guide-input { display:flex; flex:1; gap:8px; min-width:0; }
-/* overflow:hidden:WebKit 把選中那項的整行字寬算進 #viewSettingsBody 的捲動範圍,桌面英文選到「Chiang Kai-shek
-   Memorial Hall」整個觀看面板可左右拖 50px(2026-09-25 實測;同 index.html .fp-busbox select)。 */
-.ri-guide-input select { flex:1; min-width:0; width:100%; min-height:44px; color:var(--navy); background:var(--paper); border:1px solid var(--line); border-radius:6px; font:inherit; overflow:hidden; }
-.ri-guide-input button { flex:none; min-width:52px; min-height:44px; color:var(--paper); background:var(--navy); border:0; border-radius:6px; font:inherit; }
-@media(max-width:480px){.ri-guide-row > label{width:100%;}}
-
 /* 觀看工具：桌面右側分類欄；觸控殼由「觀看」打開同一份設定。 */
 .view-dock{position:fixed;right:16px;top:var(--view-top,160px);z-index:1050;display:flex;align-items:flex-start;gap:10px;color:var(--navy);font-size:13px;pointer-events:none}
 .view-dock button{font:inherit;cursor:pointer;color:inherit}

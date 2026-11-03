@@ -18,9 +18,13 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
    const maskMaterial=new T.MeshBasicMaterial({color:0xff00ff,side:T.DoubleSide,toneMapped:false,fog:false});
    const pixels=()=>{const c=frame.renderer.domElement;if(copy.width!==c.width||copy.height!==c.height){copy.width=c.width;copy.height=c.height;}ctx.drawImage(c,0,0);return ctx.getImageData(0,0,c.width,c.height).data;};
    const redraw=()=>frame.renderer.render(frame.scene,frame.camera),rows=[];
+   // 夜間車窗暖光只給有客室的車（同 native railcore GarageCabin、garage-model.js 的 LOCO）：機車類車款的機車那節窗不亮。
+   // 編組照 createConsist 取三節；traverseVisible 依 root.add 的順序走，玻璃網格的順序就是編組順序。
+   const manifest=await (await fetch('/rail-3d/assets/blender-map-v1/manifest.json')).json(),LOCO=new Set(['electric','hood','forestloco','steam']);
    try{
     for(const id of ['emu3000','700t','c301','e200','danhai']){
      await r.load(id,'track');
+     const t=manifest.models[id],parts=t.articulated?[t.parts[0],t.parts[2],t.parts[4]]:t.parts,cabin=parts.map(p=>!(LOCO.has(t.family)&&p.mesh===id));
      for(const period of ['sunrise','day','sunset','night'])for(const direction of [1,-1]){
       // 夜晚車窗燈會把玻璃打到接近飽和，反射增量要關燈量（同 App 比像素時關燈）；開燈後車窗變亮另外量。
       const draw=lights=>r.draw(canvas,{id,owned:true},-Math.PI/2,{mode:'track',period,direction,elevation:.16,distance:2.4,lights});
@@ -35,7 +39,8 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
        cars.push({pixels:indices.length,reflection:response/Math.max(1,indices.length),luminance:luminance/Math.max(1,indices.length)});
       }
       if(period==='night'){draw(true);const lit=pixels();cars.forEach((c,k)=>{let sum=0;for(const i of masks[k])sum+=lit[i]*.2126+lit[i+1]*.7152+lit[i+2]*.0722;c.lit=sum/Math.max(1,masks[k].length);});}
-      const positive=cars.every(c=>c.pixels>30&&c.reflection>(period==='night'?.5:5)&&(period!=='night'||c.lit-c.luminance>40));
+      cars.forEach((c,k)=>c.cabin=cabin[k]);
+      const positive=cars.every(c=>c.pixels>30&&c.reflection>(period==='night'?.5:5)&&(period!=='night'||(c.lit-c.luminance>40)===c.cabin));
       rows.push({id,period,direction,cars,pass:cars.length===3&&positive});
      }
     }

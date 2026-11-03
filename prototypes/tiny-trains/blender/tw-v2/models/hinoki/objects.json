@@ -1,0 +1,2501 @@
+[
+  {
+    "name": "木造車體",
+    "type": "MESH",
+    "polygons": 37,
+    "modifiers": []
+  },
+  {
+    "name": "平台雨棚",
+    "type": "MESH",
+    "polygons": 52,
+    "modifiers": []
+  },
+  {
+    "name": "平台雨棚.001",
+    "type": "MESH",
+    "polygons": 52,
+    "modifiers": []
+  },
+  {
+    "name": "窗台腰板",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "窗上飾條",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "屋簷飾條",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "直條木板縫",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.001",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.002",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.003",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.004",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.005",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.006",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.007",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.008",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.009",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.010",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.011",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.012",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.013",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.014",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.015",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.016",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.017",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.018",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.019",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.020",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.021",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.022",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.023",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.024",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.025",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.026",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.027",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.028",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.029",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.030",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.031",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.032",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.033",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.034",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.035",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.036",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.037",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.038",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.039",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.002",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.002",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.003",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.003",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.004",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.004",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.005",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.005",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.006",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.006",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.007",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.007",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.008",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.008",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.009",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.009",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗台腰板.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "窗上飾條.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "屋簷飾條.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "直條木板縫.040",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.041",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.042",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.043",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.044",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.045",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.046",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.047",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.048",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.049",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.050",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.051",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.052",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.053",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.054",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.055",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.056",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.057",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.058",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.059",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.060",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.061",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.062",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.063",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.064",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.065",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.066",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.067",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.068",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.069",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.070",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.071",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.072",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.073",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.074",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.075",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.076",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.077",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.078",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "直條木板縫.079",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.010",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.010",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.011",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.011",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.012",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.012",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.013",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.013",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.014",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.014",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.015",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.015",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.016",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.016",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.017",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.017",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.018",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.018",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "木窗框.019",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "窗玻璃.019",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "端門框",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "端門",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "端門窗玻璃",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "端牆小窗框",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "端牆小窗玻璃",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "端牆小窗框.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "端牆小窗玻璃.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "端牆圓燈 鍍鉻圈",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端牆圓燈 黑色內襯",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端牆圓燈 透鏡",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端牆圓燈 鍍鉻圈.001",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端牆圓燈 黑色內襯.001",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端牆圓燈 透鏡.001",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端牆圓燈 鍍鉻圈.002",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端牆圓燈 黑色內襯.002",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端牆圓燈 透鏡.002",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端平台地板",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端平台端梁",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端梁尾燈 鍍鉻圈",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端梁尾燈 黑色內襯",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端梁尾燈 透鏡",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端梁尾燈 鍍鉻圈.001",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端梁尾燈 黑色內襯.001",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端梁尾燈 透鏡.001",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端平台花格欄杆",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.002",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.003",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.004",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.005",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.006",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.007",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台欄杆扶手",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台欄杆扶手.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台欄杆扶手.002",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.008",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.009",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.010",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.011",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.012",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.013",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.014",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.015",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台欄杆扶手.003",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台欄杆扶手.004",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "上車扶手",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "上車踏階",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "上車踏階.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "踏階吊板",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "端平台花格欄杆.016",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.017",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.018",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.019",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.020",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.021",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.022",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.023",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台欄杆扶手.005",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台欄杆扶手.006",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台欄杆扶手.007",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.024",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.025",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.026",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.027",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.028",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.029",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.030",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台花格欄杆.031",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台欄杆扶手.008",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "端平台欄杆扶手.009",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "上車扶手.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "上車踏階.002",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "上車踏階.003",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "踏階吊板.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "車鉤緩衝座",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "密著車鉤頭",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "車鉤接孔",
+    "type": "MESH",
+    "polygons": 22,
+    "modifiers": []
+  },
+  {
+    "name": "車鉤接孔.001",
+    "type": "MESH",
+    "polygons": 22,
+    "modifiers": []
+  },
+  {
+    "name": "柔性連接線",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "柔性連接線.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "柔性連接線.002",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "柔性連接線.003",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端門框",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端門",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端門窗玻璃",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端牆小窗框",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端牆小窗玻璃",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端牆小窗框.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端牆小窗玻璃.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端牆圓燈 鍍鉻圈",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端牆圓燈 黑色內襯",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端牆圓燈 透鏡",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端牆圓燈 鍍鉻圈.001",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端牆圓燈 黑色內襯.001",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端牆圓燈 透鏡.001",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端牆圓燈 鍍鉻圈.002",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端牆圓燈 黑色內襯.002",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端牆圓燈 透鏡.002",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端平台地板",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端平台端梁",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端梁尾燈 鍍鉻圈",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端梁尾燈 黑色內襯",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端梁尾燈 透鏡",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端梁尾燈 鍍鉻圈.001",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端梁尾燈 黑色內襯.001",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端梁尾燈 透鏡.001",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端平台花格欄杆",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.002",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.003",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.004",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.005",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.006",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.007",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台欄杆扶手",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台欄杆扶手.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台欄杆扶手.002",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.008",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.009",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.010",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.011",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.012",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.013",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.014",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.015",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台欄杆扶手.003",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台欄杆扶手.004",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 上車扶手",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 上車踏階",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 上車踏階.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 踏階吊板",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 端平台花格欄杆.016",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.017",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.018",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.019",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.020",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.021",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.022",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.023",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台欄杆扶手.005",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台欄杆扶手.006",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台欄杆扶手.007",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.024",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.025",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.026",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.027",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.028",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.029",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.030",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台花格欄杆.031",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台欄杆扶手.008",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 端平台欄杆扶手.009",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 上車扶手.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 上車踏階.002",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 上車踏階.003",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 踏階吊板.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 車鉤緩衝座",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 密著車鉤頭",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "反向端 車鉤接孔",
+    "type": "MESH",
+    "polygons": 22,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 車鉤接孔.001",
+    "type": "MESH",
+    "polygons": 22,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 柔性連接線",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 柔性連接線.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 柔性連接線.002",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "反向端 柔性連接線.003",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "轉向架構架",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "輪軸",
+    "type": "MESH",
+    "polygons": 114,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "鋼輪輪盤",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "輪緣",
+    "type": "MESH",
+    "polygons": 216,
+    "modifiers": []
+  },
+  {
+    "name": "輪軸端蓋",
+    "type": "MESH",
+    "polygons": 170,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "鋼輪輪盤.001",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "輪緣.001",
+    "type": "MESH",
+    "polygons": 216,
+    "modifiers": []
+  },
+  {
+    "name": "輪軸端蓋.001",
+    "type": "MESH",
+    "polygons": 170,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "輪軸.001",
+    "type": "MESH",
+    "polygons": 114,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "鋼輪輪盤.002",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "輪緣.002",
+    "type": "MESH",
+    "polygons": 216,
+    "modifiers": []
+  },
+  {
+    "name": "輪軸端蓋.002",
+    "type": "MESH",
+    "polygons": 170,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "鋼輪輪盤.003",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "輪緣.003",
+    "type": "MESH",
+    "polygons": 216,
+    "modifiers": []
+  },
+  {
+    "name": "輪軸端蓋.003",
+    "type": "MESH",
+    "polygons": 170,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "轉向架側樑",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "空氣彈簧",
+    "type": "MESH",
+    "polygons": 142,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "煞車與避震連桿",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "空氣彈簧.001",
+    "type": "MESH",
+    "polygons": 142,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "煞車與避震連桿.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "轉向架側樑.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "空氣彈簧.002",
+    "type": "MESH",
+    "polygons": 142,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "煞車與避震連桿.002",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "空氣彈簧.003",
+    "type": "MESH",
+    "polygons": 142,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "煞車與避震連桿.003",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "轉向架構架.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "輪軸.002",
+    "type": "MESH",
+    "polygons": 114,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "鋼輪輪盤.004",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "輪緣.004",
+    "type": "MESH",
+    "polygons": 216,
+    "modifiers": []
+  },
+  {
+    "name": "輪軸端蓋.004",
+    "type": "MESH",
+    "polygons": 170,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "鋼輪輪盤.005",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "輪緣.005",
+    "type": "MESH",
+    "polygons": 216,
+    "modifiers": []
+  },
+  {
+    "name": "輪軸端蓋.005",
+    "type": "MESH",
+    "polygons": 170,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "輪軸.003",
+    "type": "MESH",
+    "polygons": 114,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "鋼輪輪盤.006",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "輪緣.006",
+    "type": "MESH",
+    "polygons": 216,
+    "modifiers": []
+  },
+  {
+    "name": "輪軸端蓋.006",
+    "type": "MESH",
+    "polygons": 170,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "鋼輪輪盤.007",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "輪緣.007",
+    "type": "MESH",
+    "polygons": 216,
+    "modifiers": []
+  },
+  {
+    "name": "輪軸端蓋.007",
+    "type": "MESH",
+    "polygons": 170,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "轉向架側樑.002",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "空氣彈簧.004",
+    "type": "MESH",
+    "polygons": 142,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "煞車與避震連桿.004",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "空氣彈簧.005",
+    "type": "MESH",
+    "polygons": 142,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "煞車與避震連桿.005",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "轉向架側樑.003",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "空氣彈簧.006",
+    "type": "MESH",
+    "polygons": 142,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "煞車與避震連桿.006",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "空氣彈簧.007",
+    "type": "MESH",
+    "polygons": 142,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "煞車與避震連桿.007",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "車底主梁",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "車下獨立設備箱",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵.002",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵.003",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵.004",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵.005",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵.006",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵.007",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "車下獨立設備箱.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵.008",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵.009",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵.010",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵.011",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵.012",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵.013",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵.014",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "設備箱通風格柵.015",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  }
+]

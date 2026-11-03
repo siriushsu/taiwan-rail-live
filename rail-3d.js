@@ -244,7 +244,7 @@
     const sizeHint=document.createElement('p');sizeHint.className='ri-3d-help';sizeHint.textContent=t('容易辨認會在遠景加寬車身，近看維持原始比例。');group.querySelector('[data-rail3d="size"]').append(sizeHint);
     const help=document.createElement('p');help.className='ri-3d-help';help.textContent=t('放大地圖即可看見立體列車。完整編組依車型或路線標準；缺少當班資料時顯示三節示意。起伏為地表顯示，非實測軌道高程。透視顯示同時管建築與地下列車，切到實體就看得到地下列車原本的顏色。');group.append(help);host.after(group);
     guide=createPlaceGuide({getRenderer:()=>renderer,ensure3D:async()=>{if(!enabled)setOption('enabled','on');if(!renderer){if(!loading)attach();await loadSerial;}setMap3d(true);return !!renderer;},getRoutes:()=>lastFrame?.routes||[],unlock:()=>{setFollowLock(false);renderer?.cancelCamera();},onSelect:()=>{},onView:v=>{lastTilt={pitch:v.pitch,bearing:v.bearing,elevation:v.elevation};save('ri-last-tilt',JSON.stringify(lastTilt));},closePanels:()=>{window.railViewControls?.close();document.getElementById('moreClose').click();closeBoard();},toast:showToast,translate:t});
-    guide.mount(group.querySelector('[data-rail3d="perspective"]'));
+    setTimeout(()=>window.dispatchEvent(new Event('rail-place-guide-ready')),0); // 查詢首頁「去哪裡」的地點 chip 要等目錄到了才畫得出來
     import(base+'view-controls.js').then(({mountViewControls})=>mountViewControls({translate:t}));
     M.raw.on('pitchend',syncUI);
     if(params.has('visit'))queueMicrotask(()=>loadSerial.then(()=>guide.goTo(params.get('visit'))));

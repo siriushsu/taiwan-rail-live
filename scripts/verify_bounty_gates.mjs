@@ -750,6 +750,21 @@ ok('F3 第一重 日期太舊 → suspect',
     r36.pass === false && r36.code === 'impossible_physics' && ms < 2000, JSON.stringify({ code: r36.code, cpuMs: ms }));
 }
 
+// ── F37：到站忘了停錄（2026-11-02：正式庫高鐵 0152 到站後多錄 11 小時、6,452 點在 40 m 內，整組判可疑）────────────
+// 乾淨的一趟之後隔 10 分鐘，手機放在離軌道很遠的地方 2 小時：每 6 秒一點、在 40 m 內晃，投影在收下點後面 20 km（全部「往後退」、全部丟掉）。
+//   → 通過，收下的點與沒有尾巴時逐點相同（停著不動只算頭一分鐘的丟點，見 integrityGate）。舊版 1,198 點全算丟點 → impossible_physics。
+//   對照：同樣 1,200 點但在 4 km 內亂跳（不是停著，兩個方向都接不上）→ impossible_physics——略過的只有停著不動的點。
+{
+  const base = cleanTrip(), last = base.pts[base.pts.length - 1];
+  const tail = span => Array.from({ length: 1200 }, (_, k) => ({ d: last.d - 20000 - (k * 7919) % span, t: last.t + 600 + 6 * k, v: null, acc: 10 }));
+  const clean = integrityGate(base, CTX, RULES);
+  const still = integrityGate({ ...base, pts: [...base.pts, ...tail(40)] }, CTX, RULES);
+  const moving = integrityGate({ ...base, pts: [...base.pts, ...tail(4000)] }, CTX, RULES);
+  ok('F37 到站沒停錄、手機在遠處放 2 小時（1,200 點在 40 m 內、全部往後退）→ 通過、收下的點與沒有尾巴時相同；對照：同樣 1,200 點但在 4 km 內亂跳 → impossible_physics',
+    clean.pass === true && still.pass === true && JSON.stringify(still.pts) === JSON.stringify(clean.pts) && moving.code === 'impossible_physics',
+    JSON.stringify({ clean: clean.code || clean.pass, still: still.code || still.pass, n: still.pts && still.pts.length, n0: clean.pts && clean.pts.length, moving: moving.code || moving.pass }));
+}
+
 // ── G 組：品質閘七項 ──────────────────────────────────────────────────────
 ok('G1 乾淨樣本通過品質閘', qualityGate(cleanTrip(), CTX, RULES).pass === true,
   JSON.stringify(qualityGate(cleanTrip(), CTX, RULES)));
@@ -785,15 +800,18 @@ ok('G5 錄得太短（覆蓋率 < 60%）→ too_short',
     JSON.stringify({ a: g6.a.code || g6.a.pass, b: g6.b.code || g6.b.pass, c: g6.c.code || g6.c.pass, covC }));
 }
 {
-  // 收下的點之間斷超過 20 分鐘、里程又動了超過 200 m → 照舊 underground（斷訊兩邊的里程不接起來算；10-30 複審：
-  // 沒有上限時，錄兩段各幾分鐘、中間關掉 3 小時，也能拿到中間整段里程）。25 m/s 跑 601 點，第 300、301 點之間斷 g 秒：
-  //   a 斷 1201 秒、里程照 25 m/s 接著走（跳 30 km）→ underground；c 斷 1200 秒（剛好在上限上）→ 通過；
-  //   b 斷 3 小時、里程沒動（月台上等車，跳 25 m）→ 通過。
+  // 收下的點之間斷超過 20 分鐘、里程又動了超過 200 m：斷訊兩邊的里程不接起來算（10-30 複審：沒有上限時，錄兩段各幾分鐘、中間關掉 3 小時，
+  // 也能拿到中間整段里程）。2026-11-02 起在那裡切段、不再整條判 underground（南迴隧道群 27 分鐘的真斷訊整條線 0 點）。
+  // 25 m/s 跑 601 點，第 300、301 點之間斷 g 秒：
+  //   a 斷 1201 秒、里程照 25 m/s 接著走（跳 30 km）→ 通過、切成兩段，里程只算兩段（0–7,500 與 37,525–45,000 m，共 14,975 m），中間 30 km 不給；
+  //   c 斷 1200 秒（剛好在上限上）→ 一段，中間照接（44,975 m）；b 斷 3 小時、里程沒動（月台上等車，跳 25 m）→ 一段（15,000 m）。
   const gapped = (g, moving) => cleanTrip({ pts: cleanTrip().pts.map((p, i) => i > 300 ? { ...p, t: p.t + g - 1, d: p.d + (moving ? 25 * (g - 1) : 0) } : p) });
-  const g8 = { a: qualityGate(gapped(1201, true), CTX, RULES), b: qualityGate(gapped(10800, false), CTX, RULES), c: qualityGate(gapped(1200, true), CTX, RULES) };
-  ok('G8 斷訊兩邊不接起來算的上限：移動中斷 1201 秒 → underground；斷 1200 秒 → 通過；月台上等 3 小時（里程沒動）→ 通過',
-    g8.a.code === 'underground' && g8.b.pass === true && g8.c.pass === true,
-    JSON.stringify({ a: g8.a.code || g8.a.pass, b: g8.b.code || g8.b.pass, c: g8.c.code || g8.c.pass }));
+  const g8 = Object.fromEntries([['a', gapped(1201, true)], ['b', gapped(10800, false)], ['c', gapped(1200, true)]].map(([k, trip]) => {
+    const segs = _bounty.bountyKeptSegments(trip.pts);
+    return [k, { q: qualityGate(trip, CTX, RULES).code || 'pass', n: segs.length, m: _bounty.bountyLineMeters(segs, 36.2) }];
+  }));
+  ok('G8 斷訊兩邊不接起來算的上限：移動中斷 1201 秒 → 通過、切兩段、里程 14,975 m（中間 30 km 不給）；斷 1200 秒 → 一段 44,975 m；月台上等 3 小時（里程沒動）→ 一段 15,000 m',
+    JSON.stringify(g8) === JSON.stringify({ a: { q: 'pass', n: 2, m: 14975 }, b: { q: 'pass', n: 1, m: 15000 }, c: { q: 'pass', n: 1, m: 44975 } }), JSON.stringify(g8));
 }
 ok('G7 歸屬不到唯一班次 → unknown_train（不是 suspect！）',
   qualityGate(cleanTrip({ trainNo: '' }), CTX, RULES).code === 'unknown_train');

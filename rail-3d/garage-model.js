@@ -72,6 +72,8 @@ export async function loadGarageParts(jsonUrl,signal){
  return buildGarageParts(meta,b);
 }
 let manifestPromise;
+// 機車類車款（同 native railcore GarageCabin）：編組裡車模就是車款本身的那節是機車或動力車，沒有客室，車窗不透暖光（garage-coast.js cabinRange）。
+const LOCO=new Set(['electric','hood','forestloco','steam']);
 export async function createConsist(id,primary,signal,opts={}){
  // Manifest 只含已發布的素材與示意編組；不推論使用者是否真的搭過這個編組。
  const catalog=await (manifestPromise??=json(new URL('manifest.json',mapBase)).catch(e=>{manifestPromise=null;throw e;}));
@@ -80,8 +82,9 @@ export async function createConsist(id,primary,signal,opts={}){
  if(parts.length===1)parts=[parts[0],{mesh:'bluecoach',flip:false},{mesh:'bluecoach',flip:false}];
  if(parts.length!==3)throw Error('formation count');
  // 阿里山林鐵的機關車固定連結在下山端、以推進方式上山（交通部觀光署與農業部都記載之字形是「時而前拖、時而後推」）。
- // 車身朝向不動，只是換到編組的另一端。
- if(opts.locoAtTail)parts=[...parts].reverse();
+ // 整列倒序把機關車換到編組另一端，機關車再整台轉 180°：車模的 +X 是車頭（駕駛室）端，換端後駕駛室要朝外、不朝客車。
+ // 換到尾端的那節跟相鄰那節同款（福森號、栩悅號、客車三節同款）就不是機關車，不轉；福森號、栩悅號的端車由下一段處理。
+ if(opts.locoAtTail){parts=[...parts].reverse();if(parts[2].mesh!==parts[1].mesh)parts[2]={...parts[2],flip:!parts[2].flip};}
  // 福森號、栩悅號的車模是端車：+X 端是觀景窗與頭燈、另一端是貫通門。三節同向會讓觀景窗頂著前一節、尾端露出貫通門，尾車轉 180° 讓兩端都是車頭面。
  // 要排在 locoAtTail 換端之後：先 flip 再整列倒序，被 flip 的那節會換到頭車，兩端的觀景窗全部朝內。
  if(id==='fushen'||id==='xuyue')parts=[parts[0],parts[1],{...parts[2],flip:true}];
@@ -94,7 +97,7 @@ export async function createConsist(id,primary,signal,opts={}){
   const scale=1.25/primary.size.y,items=parts.map(part=>({...part,asset:assets.get(part.mesh)}));
   const gap=template.articulated?.08:.14,total=items.reduce((n,p)=>n+p.asset.size.x*scale,0)+gap*2;let front=total/2;
   for(const part of items){const a=part.asset,length=a.size.x*scale,car=new THREE.Group(),body=new THREE.Mesh(a.geometry,a.materials);
-   body.position.set(-a.center.x,-a.center.y,-a.geometry.boundingBox.min.z);car.add(body);car.scale.setScalar(scale);car.rotation.z=part.flip?Math.PI:0;car.position.set(front-length/2,0,.18);front-=length+gap;root.add(car);cars.push({car,body,asset:a,id:part.mesh,length,offset:car.position.x,flip:part.flip,heading:0});
+   body.position.set(-a.center.x,-a.center.y,-a.geometry.boundingBox.min.z);car.add(body);car.scale.setScalar(scale);car.rotation.z=part.flip?Math.PI:0;car.position.set(front-length/2,0,.18);front-=length+gap;root.add(car);cars.push({car,body,asset:a,id:part.mesh,length,offset:car.position.x,flip:part.flip,heading:0,cabin:!(LOCO.has(template.family)&&part.mesh===id)});
   }
   const couplers=[],cg=new THREE.BoxGeometry(1,.11,.11),cm=new THREE.MeshStandardMaterial({color:'#343b3c',roughness:.8});
   for(let i=0;i<2;i++){const c=new THREE.Mesh(cg,cm);root.add(c);couplers.push(c);}

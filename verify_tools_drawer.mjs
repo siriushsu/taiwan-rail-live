@@ -146,21 +146,30 @@ const openDrawer = async page => {
   });
   ok('T4e 抽屜切換「外觀」生效（暗→亮）', th.mid === 'dark' && th.after === 'light' && th.segOn.join() === 'light',
      `${th.before} → ${th.mid} → ${th.after}，seg on=${th.segOn.join()}`);
-  // 軌道與路線（開面板，並關抽屜）
-  await openDrawer(page);
+  // 軌道與路線：2026-11-03 導覽改版 G6 起改在觀看 → 標示那列原地展開，不再開面板（判準照新規格改寫，
+  // 量的仍是「點了看得到篩選票根、點得到」，另加「沒有開面板」「再點收起」）
   const tr = await page.evaluate(async () => {
-    document.querySelector('.ms-row[data-act="track"]').click();
+    window.railViewControls.open('labels');
+    await new Promise(r => setTimeout(r, 250));
+    const row = document.querySelector('.ms-row[data-act="track"]');
+    row.click();
     await new Promise(r => setTimeout(r, 300));
-    const p = document.getElementById('trackPanel');
-    const b = p.getBoundingClientRect();
-    const hit = document.elementFromPoint(b.left + b.width / 2, b.top + 30);
-    return { open: !p.hidden, drawerClosed: !document.body.classList.contains('tools-open'),
-             reachable: !!(hit && p.contains(hit)), chips: p.querySelectorAll('.chip').length };
+    const box = document.getElementById('msTracks');
+    const chip = box.querySelector('#lineToggles .chip');
+    const b = chip ? chip.getBoundingClientRect() : null;
+    const hit = b ? document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2) : null;
+    const res = { expanded: !box.hidden, aria: row.getAttribute('aria-expanded'),
+                  panelClosed: document.getElementById('trackPanel').hidden,
+                  reachable: !!(hit && chip.contains(hit)), chips: box.querySelectorAll('.chip').length };
+    row.click();
+    await new Promise(r => setTimeout(r, 200));
+    res.collapsed = box.hidden;
+    document.querySelector('#viewSettingsPanel .view-close').click();
+    return res;
   });
-  ok('T4f 抽屜「軌道與路線」開面板、抽屜自動收、面板點得到',
-     tr.open && tr.drawerClosed && tr.reachable && tr.chips > 0,
-     `面板開=${tr.open} 抽屜收=${tr.drawerClosed} 可點=${tr.reachable} 篩選票根=${tr.chips}`);
-  await page.evaluate(() => { const c = document.getElementById('trackClose'); if (c) c.click(); });
+  ok('T4f 觀看 → 標示「軌道與路線」原地展開、不開面板、票根點得到、再點收起',
+     tr.expanded && tr.aria === 'true' && tr.panelClosed && tr.reachable && tr.chips > 0 && tr.collapsed,
+     `展開=${tr.expanded} aria=${tr.aria} 面板沒開=${tr.panelClosed} 可點=${tr.reachable} 篩選票根=${tr.chips} 收起=${tr.collapsed}`);
 
   // T6 關閉路徑：Esc、點面板外面、再點 ☰
   await openDrawer(page);
