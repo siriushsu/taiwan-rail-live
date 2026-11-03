@@ -5667,6 +5667,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="scenelamps1103"><span class="d">11/03</span><span>車庫場景的列車晚上會亮燈：車頭白燈照亮前方軌道、車尾亮紅燈、客車窗透出暖光；海岸行旅也照實車，只掛客車的那一頭不再亮頭燈</span></li>
         <li data-cl-of="garagetail1103"><span class="d">11/03</span><span>車庫的莒光號、鳴日號、阿里山號與檜木列車客車補上尾燈，海岸行旅夜裡車尾改由尾燈亮紅光；田園小站的鐵橋在列車經過或轉動畫面時不再閃爍</span></li>
         <li data-cl-of="farlineterrain1103"><span class="d">11/03</span><span>開啟起伏地形時，地圖拉遠看的路線不再在隧道多的路段斷成一節一節（例如蘆竹到樹林的高鐵）；地下路線拉遠也改成實線</span></li>
         <li data-cl-of="guideroute1103"><span class="d">11/03</span><span>觀看的「導覽」分頁拆開了：查詢首頁多「去哪裡」，車站、地標和縣市點一下就飛過去；搜尋也找得到地點、縣市和路線；最愛可以新增地點；選路線直接看全線並亮線；精選取景移到觀看的視角</span></li>
@@ -5674,7 +5675,6 @@
         <li data-cl-of="sheetdrag1102"><span class="d">11/02</span><span>看板、列車資訊卡這類底部面板改成直接拖拉調整高度：按住卡頭上下拖，放開就停在那裡，下次打開會記得這個高度</span></li>
         <li data-cl-of="prefheading1102"><span class="d">11/02</span><span>臺中州廳、新竹州廳、西門紅樓的 3D 模型轉到正確方向，跟實際建築的方位一致（謝謝網友回報）</span></li>
         <li data-cl-of="thsrseatcard1102"><span class="d">11/02</span><span>跟隨高鐵列車時，資訊卡多一行對號座還有沒有位子（有位／剩不多／售完），從列車接下來停的那站算到終點；官方座位表沒有這班就不顯示</span></li>
-        <li data-cl-of="bountyfix1102"><span class="d">11/02</span><span>校正懸賞給點更公平：長隧道或手機很久沒定位時只扣沒錄到的那段，不再整條路線 0 點；隔天才上傳的後半段會補發點數；到站忘了停止錄製也不會讓整趟作廢</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5708,6 +5708,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="scenelamps1103"><span class="d">11/03</span><span>車庫場景的列車晚上會亮燈：車頭白燈照亮前方軌道、車尾亮紅燈、客車窗透出暖光；海岸行旅也照實車，只掛客車的那一頭不再亮頭燈</span></li>
         <li data-cl="garagetail1103"><span class="d">11/03</span><span>車庫的莒光號、鳴日號、阿里山號與檜木列車客車補上尾燈，海岸行旅夜裡車尾改由尾燈亮紅光；田園小站的鐵橋在列車經過或轉動畫面時不再閃爍</span></li>
         <li data-cl="farlineterrain1103"><span class="d">11/03</span><span>開啟起伏地形時，地圖拉遠看的路線不再在隧道多的路段斷成一節一節（例如蘆竹到樹林的高鐵）；地下路線拉遠也改成實線</span></li>
         <li data-cl="twfleet1103"><span class="d">11/03</span><span>車庫和地圖上的立體列車換成照著實車照片重做的精修模型，共 57 款：各地捷運與輕軌、區間車、自強號、莒光號、高鐵、柴電與電力機車、阿里山林鐵</span></li>
@@ -7145,7 +7146,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1103b：導覽改版——觀看拿掉導覽分頁；查詢首頁「去哪裡」、搜尋分地點／縣市／路線、最愛新增地點、路線面板選線直進詳情並亮線、精選取景移到視角、標示的軌道與路線原地展開。
 // v1103c：車庫車模尾燈鏡片改名 taillamp、莒光號／鳴日號／阿里山號／檜木列車客車補尾燈，海岸行旅尾端有 taillamp 就只亮尾燈；田園小站鐵橋橋台壓低 3 公分不再閃。
 // v1103d：起伏地形的遠景示意線（buildFarLines）不分地上地下，地下段取 max(軌頂, 地表＋0.65 m) 貼地表畫、不藏不透視；示意線深度沿視線往鏡頭拉近 1.5%（近景 depth 淺隧道不拉），修蘆竹–龜山高鐵等隧道密集段斷成一節一節，同 App 11-02 修法。
-const BUILD = 'v1103d';
+// v1103e：車庫場景頁車燈（garage-coast.js createTrainLamps，同 App dioramaLights）：每節車複製燈／窗材質、lampFrame 釘直線編組座標，頭燈照地改車頭前點光，阿里山折返頭尾對調；海岸行旅照實車（車端沒燈體不亮、頭端沒燈不照地、窗光只給有客室的車）。
+const BUILD = 'v1103e';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。

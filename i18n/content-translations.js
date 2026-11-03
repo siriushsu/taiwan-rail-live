@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "車庫場景的列車晚上會亮燈：車頭白燈照亮前方軌道、車尾亮紅燈、客車窗透出暖光；海岸行旅也照實車，只掛客車的那一頭不再亮頭燈": "Trains in garage scenes now light up at night: white headlights light the track ahead, red tail lights glow at the rear and coach windows give off a warm light; the Coastal journey also follows the real trains, so an end with only coaches no longer shows headlights",
     "車庫的莒光號、鳴日號、阿里山號與檜木列車客車補上尾燈，海岸行旅夜裡車尾改由尾燈亮紅光；田園小站的鐵橋在列車經過或轉動畫面時不再閃爍": "Chu-Kuang Express, Future, Alishan and cypress coaches in the garage now have tail lights, and at night the Coastal journey lights the tail lights at the rear; the bridge at Countryside Station no longer flickers when a train passes or the view turns",
     "開啟起伏地形時，地圖拉遠看的路線不再在隧道多的路段斷成一節一節（例如蘆竹到樹林的高鐵）；地下路線拉遠也改成實線": "With rolling terrain on, route lines seen zoomed out no longer break into pieces where tunnels are frequent (such as the high-speed rail from Luzhu to Shulin); underground lines also show as solid lines when zoomed out",
     "觀看的「導覽」分頁拆開了：查詢首頁多「去哪裡」，車站、地標和縣市點一下就飛過去；搜尋也找得到地點、縣市和路線；最愛可以新增地點；選路線直接看全線並亮線；精選取景移到觀看的視角": "The Places tab under View has been split up: Lookup now opens with “Where to”, so tapping a station, landmark or county flies you there; search also finds places, counties and routes; Favorites can add a place; picking a route shows the whole line highlighted; Scenic views moved to View → Camera",
@@ -346,6 +347,7 @@
   });
 
   Object.assign(messages.ja, {
+    "車庫場景的列車晚上會亮燈：車頭白燈照亮前方軌道、車尾亮紅燈、客車窗透出暖光；海岸行旅也照實車，只掛客車的那一頭不再亮頭燈": "車庫の情景で、夜は列車に灯りがともります。先頭の白い前照灯が前方の線路を照らし、最後尾は赤い尾灯、客車の窓には暖かな明かり。「海辺の旅」も実車どおりになり、客車だけの側には前照灯が付かなくなりました",
     "車庫的莒光號、鳴日號、阿里山號與檜木列車客車補上尾燈，海岸行旅夜裡車尾改由尾燈亮紅光；田園小站的鐵橋在列車經過或轉動畫面時不再閃爍": "車庫の莒光号・鳴日号・阿里山号・檜の客車に尾灯を付け、「海辺の旅」では夜、最後尾の尾灯が赤く灯ります。「田園の小駅」の鉄橋が、列車の通過や視点の回転でちらつかなくなりました",
     "開啟起伏地形時，地圖拉遠看的路線不再在隧道多的路段斷成一節一節（例如蘆竹到樹林的高鐵）；地下路線拉遠也改成實線": "起伏のある地形をオンにしたとき、地図を引いて見ると、トンネルの多い区間（蘆竹〜樹林の高鉄など）で路線が途切れ途切れになっていた問題を直しました。地下の路線も引いて見ると実線で表示します",
     "觀看的「導覽」分頁拆開了：查詢首頁多「去哪裡」，車站、地標和縣市點一下就飛過去；搜尋也找得到地點、縣市和路線；最愛可以新增地點；選路線直接看全線並亮線；精選取景移到觀看的視角": "「表示」の「スポット」タブを分けました。「調べる」のトップに「行き先」を追加し、駅・名所・県市をタップするとそこへ移動します。検索で場所・県市・路線も見つかります。お気に入りで場所を追加でき、路線を選ぶと全線をハイライト表示します。「おすすめの眺め」は「表示」の「視点」に移りました",
