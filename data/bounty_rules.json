@@ -15,6 +15,7 @@
     "dailyChipCap": 500,
     "cloud": { "minSec": 600, "dailyMax": 1, "perChip": 1, "points": 20 },
     "prices": [200, 300],
+    "items": { "train:dr3000": 150, "train:ct250": 150, "train:fuxing": 150, "train:emu300": 150, "train:tengyun": 150 },
     "chipToPoints": 50,
     "plusBonusPct": 0,
     "scenes": ["south-coast", "shifen", "viaduct", "alishan", "duoliang", "crossing", "guanghua", "taipei-metro", "wenhu", "airport-mrt", "ntpc-metro", "ntpc-lrt", "taichung-metro", "kaohsiung-metro", "kaohsiung-lrt", "thsr"],
