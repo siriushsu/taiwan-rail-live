@@ -301,18 +301,19 @@ sections.push({ name: 'G7 更多抽屜', run: async (browser, en) => {
 }});
 
 // G8a 快捷列閘門（spec §7-8）：網站沒有提醒/附近/小工具三列；App 替身有。牙：拿掉任一閘門 ⇒ 網站那半紅。
+// 誤點趨勢（v1103h）兩邊都有，排在今日動態後面。
 sections.push({ name: 'G8a 快捷列閘門', run: async (browser, en) => {
   let { ctx, page } = await boot(browser, {});
   await tapTab(page);
   let s = await snap(page);
-  ok(`[${en}] G8a-web 網站有路線與今日動態，無原生專用入口`, JSON.stringify(s.links) === JSON.stringify(['routes', 'today']), JSON.stringify(s.links));
+  ok(`[${en}] G8a-web 網站有路線與今日動態，無原生專用入口`, JSON.stringify(s.links) === JSON.stringify(['routes', 'today', 'climate']), JSON.stringify(s.links));
   await ctx.close();
   ({ ctx, page } = await boot(browser, { app: true, notify: true, query: 'geomock=25.0478,121.5170', plugins: { RailMetroWait: {} } }));
   // 這個 boot 的 geomock 落在 Task 5 自動開門檻內,boot() 回傳前面板可能已經自動開好;
   // 裸 tapTab 會把它當「使用者要關」點掉(見 openQuery 定義處的說明),故改用 openQuery(page)。
   await openQuery(page);
   s = await snap(page);
-  ok(`[${en}] G8a-app App 路線與原有四列齊`, JSON.stringify(s.links) === JSON.stringify(['notify', 'routes', 'today', 'near', 'widget']) && !s.hidden, JSON.stringify({ links: s.links, hidden: s.hidden }));
+  ok(`[${en}] G8a-app App 路線與原有四列齊`, JSON.stringify(s.links) === JSON.stringify(['notify', 'routes', 'today', 'climate', 'near', 'widget']) && !s.hidden, JSON.stringify({ links: s.links, hidden: s.hidden }));
   // 小工具列 ⇒ 說明中心開在 metrowidget 節（群組展開、節在可視區）；先量該列寬高 > 0——
   // 面板若仍是塌陷的隱藏態,子孫 rect 會全零,對零尺寸元素做合成點擊會測不出使用者其實點不到。
   const widgetRect = await page.evaluate(() => document.querySelector('#queryLinks .ql-row[data-act="widget"]').getBoundingClientRect());
