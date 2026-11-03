@@ -6563,7 +6563,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 const API_ENDPOINTS = new Set([
   'tra-platforms', 'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'rail-status', 'metro-live', 'ntmetro-live', 'trtc-live',
   'klrt-position', 'bus-transfer', 'bus-leg-live', 'bus-route-stops', 'bus-stop-search', 'bus-stop-live', 'journey-share',
-  'delay-stats', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'thsr-seat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
+  'delay-stats', 'delay-climate', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'thsr-seat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'chips-me', 'garage-redeem', 'garage-collect', 'cloud-ride', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
   'trackside/bind', 'trackside/unbind', 'push/register', 'push/unregister', 'rail-push/decide', 'weather',
@@ -10255,6 +10255,9 @@ async function ingestDelayHistory(env) {
       const prevRows = new Map((prevRes.results || []).map(r => [String(r.train_no), r]));
       const { ownRows, mergedPrev } = buildDayRows(day, events, prevRows);
       const nStmt = await writeDayRows(db, prevDate, day, ownRows, mergedPrev);
+      // 誤點氣候圖搭這一發的資料順便算,不另打 TDX;算壞了只記 log,不能拖垮上面的誤點統計。
+      try { await writeClimateDay(env, day, events); }
+      catch (e) { console.warn(`[cron delay] ${day} 誤點氣候圖失敗: ${e && e.message}`); }
       written.push(day);
       console.log(`[cron delay] ${day}: 事件 ${events.length}, 本日列 ${ownRows.length}, 併回前一日 ${mergedPrev.length}, 寫入 ${nStmt} 句`);
     }
@@ -10282,6 +10285,152 @@ async function ingestDelayHistory(env) {
     console.log('[cron delay] blob 無需重建');
   }
   return { written, dbMax };
+}
+
+// ── 誤點氣候圖(/api/delay-climate):台鐵每一段每天「多出幾分鐘」─────────────────
+// 一段的值＝列車開到下一站時的誤點 − 上一站的誤點,每班平均。畫誤點本身會讓下游整片紅(誤點會往後傳),
+// 畫增量才看得出是哪一段在製造誤點;負值＝這段有寬裕、會追回來。
+// 2025-01-21～2026-11-02 共 650 天的歷史檔驗過:相鄰 4 週窗相關 0.85、一年後同期 0.43,有演化可看。
+// 一班車的紀錄依時間排,同站連續多筆只留最後一筆(最接近離站);相鄰紀錄隔 2 小時以上算下一趟。
+// 每趟第一段不算:起站紀錄停在 0、開出才跳,會把起站晚開算進第一段(實測全台平均偏高 +0.21)。
+// 中間沒紀錄的站(通過站常缺)走最短路徑,增量依里程分攤到每一段。
+// 段鍵＝兩端站名排序後用 | 接(站名去括號、台→臺),跟前端 lineNetwork 的站名對得起來,不綁 tra.json 的站序。
+const CLIMATE_GAP_MS = 2 * 3600 * 1000;
+const CLIMATE_MAX_KM = 80;   // 跳站超過這個里程就不分攤(多半是資料斷掉,不是真的一路沒停)
+const climateNorm = n => String(n).replace(/\s*\(.*\)$/, '').replace(/台/g, '臺');
+const climateKey = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
+
+// tra.json 的線(跳過 aux 輔助線)→ 相鄰站的圖;tra_station_info.json 給 TDX StationID → 站名。
+function climateBuildNet(tra, stationInfo) {
+  const idName = new Map(), graph = new Map(), edges = new Map();
+  for (const s of Object.values(stationInfo || {})) if (s && s.id && s.name) idName.set(String(s.id), climateNorm(s.name));
+  for (const line of (tra && tra.lines) || []) {
+    if (line.aux) continue;
+    const st = line.stations || [];
+    for (let i = 0; i + 1 < st.length; i++) {
+      const a = climateNorm(st[i].name), b = climateNorm(st[i + 1].name), key = climateKey(a, b);
+      if (a === b || edges.has(key)) continue;   // 內灣線的新竹–北新竹跟縱貫線重疊:同一段只記一次
+      const km = Math.abs(st[i + 1].d - st[i].d) || 0.5;
+      edges.set(key, km);
+      for (const [u, v] of [[a, b], [b, a]]) {
+        if (!graph.has(u)) graph.set(u, []);
+        graph.get(u).push([v, km]);
+      }
+    }
+  }
+  return { idName, graph, edges, paths: new Map() };
+}
+
+// a→b 的最短路徑(≤ CLIMATE_MAX_KM),回 [[段鍵, km], ...];找不到回 null。結果快取在 net 上。
+function climatePath(net, a, b) {
+  const ck = a + '>' + b;
+  if (net.paths.has(ck)) return net.paths.get(ck);
+  const dist = new Map([[a, 0]]), prev = new Map(), done = new Set();
+  let res = null;
+  for (;;) {
+    let u = null, du = Infinity;
+    for (const [n, d] of dist) if (!done.has(n) && d < du) { u = n; du = d; }
+    if (u == null || du > CLIMATE_MAX_KM) break;
+    if (u === b) {
+      const nodes = [b];
+      while (nodes[nodes.length - 1] !== a) nodes.push(prev.get(nodes[nodes.length - 1]));
+      nodes.reverse();
+      res = nodes.slice(1).map((v, i) => { const k = climateKey(nodes[i], v); return [k, net.edges.get(k)]; });
+      break;
+    }
+    done.add(u);
+    for (const [v, w] of net.graph.get(u) || []) if (du + w < (dist.get(v) ?? Infinity)) { dist.set(v, du + w); prev.set(v, u); }
+  }
+  net.paths.set(ck, res);
+  return res;
+}
+
+// 一天的事件(parseDayEvents 的輸出)→ { 段鍵: [班次, 增量總和(分)] }。兩個方向合在一起;
+// 分攤到的班次也按里程比例算,所以班次會有小數。
+function climateDayAgg(events, net) {
+  const acc = new Map();
+  for (const arr of groupAndSort(events).values()) {
+    const visits = [];
+    for (const e of arr) {
+      const last = visits[visits.length - 1];
+      if (last && last.station === e.station && e.ms - last.ms < CLIMATE_GAP_MS) visits[visits.length - 1] = e;
+      else visits.push(e);
+    }
+    for (let i = 1; i + 1 < visits.length; i++) {
+      const v0 = visits[i], v1 = visits[i + 1];
+      if (v1.ms - v0.ms >= CLIMATE_GAP_MS || v0.ms - visits[i - 1].ms >= CLIMATE_GAP_MS) continue;   // 跨趟,或這一趟的第一段
+      const a = net.idName.get(v0.station), b = net.idName.get(v1.station);
+      if (!a || !b || !net.graph.has(a) || !net.graph.has(b)) continue;
+      const k = climateKey(a, b);
+      const hops = net.edges.has(k) ? [[k, net.edges.get(k)]] : climatePath(net, a, b);
+      if (!hops) continue;
+      const inc = Math.max(-60, Math.min(120, v1.delay - v0.delay));
+      const tot = hops.reduce((s, h) => s + h[1], 0);
+      for (const [key, km] of hops) {
+        const w = km / tot, cur = acc.get(key);
+        if (cur) { cur[0] += w; cur[1] += inc * w; } else acc.set(key, [w, inc * w]);
+      }
+    }
+  }
+  const out = {};
+  for (const [k, [n, s]] of acc) out[k] = [Math.round(n * 100) / 100, Math.round(s * 100) / 100];
+  return out;
+}
+
+let climateNetCache = null;
+async function climateNetwork(env) {
+  if (climateNetCache) return climateNetCache;
+  const get = async f => {
+    const r = await env.ASSETS.fetch(new Request('https://railisland.tw/data/' + f));
+    if (!r.ok) throw new Error(f + ' ' + r.status);
+    return r.json();
+  };
+  const [tra, info] = await Promise.all([get('tra.json'), get('tra_station_info.json')]);
+  return (climateNetCache = climateBuildNet(tra, info));
+}
+
+async function writeClimateDay(env, day, events) {
+  const segs = climateDayAgg(events, await climateNetwork(env));
+  await env.DELAY_DB.prepare('INSERT OR REPLACE INTO tra_delay_climate (service_date, segs) VALUES (?, ?)')
+    .bind(day, JSON.stringify(segs)).run();
+  return Object.keys(segs).length;
+}
+
+// D1 每天一列 → 前端要的形狀:{ d0, have:'0/1 字串', segs: { 段鍵: { N:[每天班次], S:[每天增量和] } } }。
+// 日期從第一列連續排到最後一列,中間缺的天(TDX 回空)have 記 0、數值補 0。
+function climateBody(rows) {
+  const d0 = String(rows[0].service_date), dEnd = String(rows[rows.length - 1].service_date);
+  const idx = new Map();
+  for (let d = d0, i = 0; d <= dEnd; d = addDays(d, 1), i++) idx.set(d, i);
+  const T = idx.size, have = new Array(T).fill(0), segs = {};
+  for (const r of rows) {
+    const i = idx.get(String(r.service_date));
+    let m;
+    try { m = JSON.parse(r.segs); } catch { continue; }
+    have[i] = 1;
+    for (const k in m) {
+      const s = segs[k] || (segs[k] = { N: new Array(T).fill(0), S: new Array(T).fill(0) });
+      s.N[i] = Math.round(m[k][0]);
+      s.S[i] = Math.round(m[k][1] * 10) / 10;
+    }
+  }
+  return JSON.stringify({ d0, have: have.join(''), segs });
+}
+
+async function delayClimate(request, env) {
+  const cacheKey = new Request(new URL('/api/delay-climate', request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  try {
+    const res = await env.DELAY_DB.prepare('SELECT service_date, segs FROM tra_delay_climate ORDER BY service_date').all();
+    const rows = res.results || [];
+    if (!rows.length) return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
+    // 每天 09:15 才多一天,快取一小時夠新;整包約 1.4 MB(壓縮後約 300 KB),每次都從 D1 重組划不來。
+    return await bodyResCached(edge, cacheKey, climateBody(rows), 200, 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400');
+  } catch (e) {
+    return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
+  }
 }
 
 // ── 台鐵誤點統計自我檢查(掛每分鐘 cron,形狀同下面的 thsrSelfHeal)─────────────────
@@ -11175,6 +11324,7 @@ export default {
     else if (url.pathname === '/api/bus-stop-live') res = await busStopLive(request, env);
     else if (url.pathname === '/api/journey-share') res = await journeyShare(request, env);
     else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
+    else if (url.pathname === '/api/delay-climate') res = await delayClimate(request, env);
     else if (url.pathname === '/api/thsr-schedule') res = await thsrSchedule(request, env);
     else if (url.pathname === '/api/tra-daily-trains') res = await traDailyTrains(request, env);
     else if (url.pathname === '/api/thsr-freeseat') res = await thsrFreeSeat(request, env);
@@ -11259,6 +11409,7 @@ export const _journeyShare = {
   pruneJourneyShares, JOURNEY_SHARE_MIN_SEC, JOURNEY_SHARE_MAX_SEC,
 };
 // 純函式導出,供離線回歸測試 import:誤點履歷視窗計算、車次驗證與回應組裝。
+export const _climate = { climateBuildNet, climateDayAgg, climateBody, climateKey, climateNorm };
 export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isValidTrainNo };
 // 供離線回歸測試 import:Plus 資格的環境收斂(scripts/verify_plus_entitlement_env.mjs)。
 // plusEntitledFromSubscriptions 是純函式;checkPlusEntitlement/plusStatus 不是,測試要自備

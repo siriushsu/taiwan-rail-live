@@ -799,6 +799,59 @@
   }
   .collect-bar .cb-tgl:hover { opacity: 1; }
   .collect-bar .cb-tgl.on { background: #ffd60a; border-color: #ffd60a; color: #1a1400; opacity: 1; }
+  /* ── 誤點趨勢地圖面板(置底置中;是這個模式唯一的出口,z 同 .collect-bar) ── */
+  .climate-panel {
+    position: absolute; left: 50%; transform: translateX(-50%); z-index: 680;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    width: min(560px, calc(100% - 24px)); box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 6px;
+    background: var(--paper-tr); color: var(--ink); border: 2px solid var(--navy); border-radius: var(--r-l);
+    box-shadow: var(--shadow-navy); padding: 8px 10px; font-variant-numeric: tabular-nums;
+  }
+  /* 寬螢幕放左下:台灣本島在地圖中間,面板擺在海峽那一側才不會蓋住路網 */
+  @media (min-width: 1000px) and (min-height: 560px) {
+    .climate-panel { left: 12px; transform: none; width: min(430px, calc(100% - 24px)); }
+  }
+  .climate-panel .cp-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .climate-panel .cp-ttl { flex: none; font-size: calc(13px * var(--ui)); font-weight: 900; letter-spacing: 1px; color: var(--navy); }
+  .climate-panel .cp-date { flex: 1; min-width: 0; font-size: calc(12.5px * var(--uis)); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .climate-panel .cp-date small { font-size: calc(11px * var(--uis)); font-weight: 600; color: var(--muted); margin-left: 6px; }
+  .climate-panel .cp-exit {
+    flex: none; background: var(--navy); color: var(--on-navy); border: 0; border-radius: var(--r-pill);
+    padding: 4px 14px; min-height: 30px; min-width: 56px; /* 唯一的出口,觸控尺寸不能省 */
+    font-size: calc(12px * var(--uis)); font-weight: 800; cursor: pointer; font-family: inherit;
+  }
+  .climate-panel .cp-ctl { display: flex; flex-wrap: wrap; gap: 6px; }
+  .climate-panel .cp-seg { display: inline-flex; border: 1.5px solid var(--navy); border-radius: var(--r-pill); overflow: hidden; }
+  .climate-panel .cp-seg button {
+    border: 0; background: transparent; color: var(--navy); font-family: inherit; cursor: pointer;
+    font-size: calc(12px * var(--uis)); font-weight: 800; padding: 4px 10px; min-height: 30px; white-space: nowrap;
+  }
+  .climate-panel .cp-seg button + button { border-left: 1px solid var(--navy); }
+  .climate-panel .cp-seg button.on { background: var(--navy); color: var(--on-navy); }
+  .climate-panel .cp-tl { display: flex; align-items: center; gap: 8px; }
+  .climate-panel .cp-play {
+    flex: none; width: 38px; height: 38px; border-radius: 50%; border: 0; cursor: pointer;
+    background: var(--navy); color: var(--on-navy); display: grid; place-items: center;
+  }
+  .climate-panel .cp-play svg { width: 14px; height: 14px; fill: currentColor; }
+  .climate-panel .cp-tlsvg { flex: 1; min-width: 0; height: 60px; touch-action: none; cursor: pointer; }
+  .climate-panel .cp-tlsvg rect { fill: var(--line); }
+  .climate-panel .cp-tlsvg rect.on { fill: var(--navy); }
+  .climate-panel .cp-tlsvg text { font-size: 9.5px; fill: var(--muted); }
+  .climate-panel .cp-tlsvg text.sp { fill: #c2410c; }
+  .climate-panel .cp-tlsvg line { stroke: var(--muted); }
+  .climate-panel .cp-tlsvg line.cur { stroke: var(--ink); stroke-width: 2; }
+  .climate-panel .cp-legend { display: flex; align-items: center; gap: 8px; font-size: calc(11px * var(--uis)); color: var(--muted); white-space: nowrap; }
+  .climate-panel .cp-grad { flex: 1; height: 8px; border-radius: 4px; }
+  .climate-panel .cp-note { font-size: calc(11px * var(--uis)); color: var(--muted); line-height: 1.45; }
+  .climate-panel .cp-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: calc(11.5px * var(--uis)); }
+  .climate-panel .cp-top:empty { display: none; }
+  .climate-panel .cp-toplbl { color: var(--muted); font-weight: 700; }
+  .climate-panel .cp-top button, .climate-panel .cp-retry {
+    border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: var(--r-pill);
+    padding: 2px 9px; min-height: 28px; font-family: inherit; font-size: inherit; cursor: pointer;
+  }
   /* ── 錄製中常駐狀態列(2026-07-28 規格覆審,推翻原本「黑幕接管」設計的理由見 #recordScreen
      旁的完整註解)：比照 .collect-bar 的位置與結構(同樣的置頂置中、同樣的出場方式)，只換色——
      沿用懸賞既有的紅(#bountyBriefGo/.bt-take 那組 --red/--red-deep)，不自創一套視覺語言。
@@ -847,7 +900,9 @@
      .badge 的「N 班奔跑中」在不畫車的模式下恆為 0、看起來像壞掉;
      .map-actions 的隨機跟隨也沒車可跟——兩個都收掉。 */
   body.collect-map .controls, body.collect-map .tabbar,
-  body.collect-map .badge, body.collect-map .map-actions { display: none; }
+  body.collect-map .badge, body.collect-map .map-actions,
+  body.delay-climate .controls, body.delay-climate .tabbar,
+  body.delay-climate .badge, body.delay-climate .map-actions { display: none; }
   /* 錄製「詳細面板」全螢幕接管時比照 body.collect-map 收掉會說謊的 UI(理由同上)。
      🔴 2026-07-28 規格覆審：這條原本綁的是 body.recording(整段錄製期間)，但錄製期間裝置本來就該能照常使用，
      所以錄製期預設是地圖可見可操作(見 #recordBar)，
@@ -5281,6 +5336,22 @@
       <button class="cb-tgl" id="collectBountyBtn" type="button" title="標出我校正過的路段">校正過的</button>
       <button class="cb-exit" id="collectExit" title="離開收集地圖，回到即時地圖">離開</button>
     </div>
+    <!-- 誤點趨勢地圖:台鐵每段「多出幾分鐘」的長期走勢、可播放。純檢視模式(見 setDelayClimate),面板是唯一的出口 -->
+    <div class="climate-panel" id="climatePanel" hidden>
+      <div class="cp-head">
+        <span class="cp-ttl">誤點趨勢</span>
+        <span class="cp-date" id="climateDate"></span>
+        <button class="cp-exit" id="climateExit" type="button" title="離開誤點趨勢地圖，回到即時地圖">離開</button>
+      </div>
+      <div class="cp-ctl">
+        <div class="cp-seg" id="climateWin" role="group" aria-label="統計天數"><button type="button" data-v="1">1 天</button><button type="button" data-v="3">3 天</button><button type="button" data-v="7">7 天</button></div>
+        <div class="cp-seg" id="climateMode" role="group" aria-label="顯示方式"><button type="button" data-v="inc">多出幾分</button><button type="button" data-v="prev">比前 4 週</button><button type="button" data-v="yoy">比去年</button></div>
+      </div>
+      <div class="cp-tl"><button class="cp-play" id="climatePlay" type="button"></button><svg class="cp-tlsvg" id="climateTl" role="img" aria-label="全台每天平均多出幾分鐘，點或拖曳選日期"></svg></div>
+      <div class="cp-legend" id="climateLegend" hidden><span id="climateLo"></span><span class="cp-grad" id="climateGrad"></span><span id="climateHi"></span></div>
+      <div class="cp-note" id="climateNote"></div>
+      <div class="cp-top" id="climateTop"></div>
+    </div>
     <!-- GPS 校正旅程錄製中的常駐狀態列(2026-07-28 規格覆審,取代原本的全螢幕黑幕接管——
          理由與取捨寫在 #recordScreen 旁)：比照上面 .collect-bar 同一個先例,地圖維持可見可操作,
          這裡是這個模式在地圖上的唯一常駐標示。里程/訊號燈由 renderRecordScreen()／
@@ -6608,6 +6679,7 @@
     <!-- 週末鐵道活動:內容在 weekend.html(正式網站獨立頁,App 內開系統瀏覽器) -->
     <button class="ms-row" data-act="weekend" data-close="1"><span>週末鐵道活動</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="todayBtn" data-close="1" data-home="query"><span>今日台鐵動態</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="climate" data-home="query"><span>誤點趨勢地圖</span><span class="chev">›</span></button>
     <!-- 全日班次走勢(Batch B):.flow 全日走勢圖的手機新家;點列把 #flowWrap 搬進下方 slot 並重繪,收合搬回原位 -->
     <button class="ms-row" data-act="flow"><span>全日班次走勢</span><span class="chev">›</span></button>
     <div class="ms-flowslot" id="msFlowSlot" hidden></div>
@@ -7822,6 +7894,7 @@ const state = {
   panelTranslucent: document.body.classList.contains('panel-translucent'), // 面板半透明:預設關,偏好由首繪腳本從 localStorage 還原
   ambientStyle: 'hotspot', // 放空視角:follow=跟著一班車跑 / hotspot=群車(鏡頭掛在最繁忙路段看群車交錯);預設群車(v0717v)
   collectMap: false, // 收集地圖:全路網轉灰、只有搭過的區間亮起(純檢視,不動任何收集資料),見 setCollectMap
+  delayClimate: false, // 誤點趨勢地圖:全路網轉灰、台鐵區間依「多出幾分鐘」上色,見 setDelayClimate
   collectBounty: false, // 收集地圖的懸賞層:我校正過的段用特殊色(規格 §8「換一層資料即可」)
   recording: null,   // 錄製中的校正旅程;非 null 代表正在錄,見 startBountyRecording
   metroWait: null,   // 捷運等車卡(Live Activity 手動入口)開卡中的目標:{sys,station} 或 null,見 metroWaitStartFor
@@ -13608,7 +13681,7 @@ function drawFreq(w, h) {
   const ff = state.freqFollow;
   const officialNow = Date.now() / 1000;
   trainPaintQ = []; // 這一幀的車先收集,交叉口高低排序後才畫(見 flushTrainPaint)
-  if (!state.collectMap) state.lines.forEach(ln => { // 收集地圖不畫跑動的車(比照 drawSched)
+  if (!greyNet()) state.lines.forEach(ln => { // 收集地圖不畫跑動的車(比照 drawSched)
     if (!state.visible.has(ln.id)) return;
     const tc = textColorFor(ln.color);
     const core = metroCoreDisplayItemsForLine(ln, officialNow);
@@ -14039,7 +14112,7 @@ function drawDecoTrains(w, h) {
   const tau = state.decoElapsed * state.speedMult;
   const ff = state.freqFollow;
   const officialNow = Date.now() / 1000;
-  for (const ln of (state.collectMap ? [] : state.decoLines)) { // 收集地圖不畫跑動的車(比照 drawSched)
+  for (const ln of (greyNet() ? [] : state.decoLines)) { // 收集地圖不畫跑動的車(比照 drawSched)
     if (offLine(ln)) continue; // 整條離屏:線上的示意列車也在屏外,跳過
     const tc = textColorFor(ln.color);
     const core = metroCoreDisplayItemsForLine(ln, officialNow);
@@ -14133,19 +14206,21 @@ function railMix(color, keep) { // 純混色(向底圖色 railCase),帶快取
 function railDimColor(color, keep = RAIL_DIM) { // 僅暗色壓暗;衛星底圖明暗不均,壓暗後軌道近隱形→原色直出
   return state.mapDark && state.basemap !== 'sat' && state.basemap !== 'landscape' ? railMix(color, keep) : color;
 }
+// 收集地圖與誤點趨勢地圖都是「全路網轉灰、不畫跑動的車」的靜態檢視
+function greyNet() { return state.collectMap || state.delayClimate; }
 // 軌道底圖線最終色:吃「軌道顯示」選項
 function trackLineColor(color) {
   // 收集地圖:所有線一律轉灰,搭過的區間另一輪覆蓋上原色(見 drawCollectSegs)。
   // 灰值三種底圖各給一個(pal().collectGrey),刻意不走 railMix——混向底圖色在亮紙底會淡到
   // 跟 CARTO 自己的道路灰分不開(實測 keep 0.34/0.48/0.60 三檔都看不出鐵路網在哪)。
-  if (state.collectMap) return pal().collectGrey;
+  if (greyNet()) return pal().collectGrey;
   if (state.trackStyle === 'hidden') return railMix(color, trainGlow() ? GHOST_GLOW : GHOST_LIGHT);
   if (state.trackStyle === 'faint') return railMix(color, trainGlow() ? FAINT_GLOW : FAINT_LIGHT);
   return railDimColor(color);
 }
 // 捷運/裝飾層線色:無光暈拖尾,auto 一律原色不淡化;手動「淡化/隱藏」與收集地圖照吃 trackLineColor
 function metroLineColor(color) {
-  return (state.trackStyle === 'auto' && !state.collectMap) ? color : trackLineColor(color);
+  return (state.trackStyle === 'auto' && !greyNet()) ? color : trackLineColor(color);
 }
 // 收集地圖描一段的共用 helper——「走過」與懸賞校正層(見 drawCollectSegs 尾端)共用同一份描線邏輯,
 // 兩份實作才不會日後分岔。沒線形的線(shape 缺)退化成站到站直線,總比整段不畫好;整段離屏時
@@ -14251,7 +14326,7 @@ function glTracksSync() {
   const K = glTracksKeys();
   const profileKeys = window.railIslandIntegration?.profileKeys() || [];
   K.lineKeys = K.lineKeys.filter(key => !profileKeys.includes(key));
-  const st = state.collectMap ? 'collect' : state.trackStyle;           // 與 trackLineColor 的優先序相同:collectMap > hidden/faint > auto
+  const st = greyNet() ? 'collect' : state.trackStyle;           // 與 trackLineColor 的優先序相同:collectMap > hidden/faint > auto
   const theme = glLandTheme(); // 同 pal()
   glFollowRouteSync(raw, theme);
   routeHlSync(); // 路線亮線:近景 3D 股道接手時比照跟隨路線先藏(每幀呼叫,狀態沒變就早退)
@@ -14472,6 +14547,7 @@ function drawSched(w, h, paintDecoTrains) {
       { lines: state.deco ? state.decoLines : null, color: metroLineColor },
     ]);
     if (state.collectMap) drawCollectSegs(w, h); // 灰底線鋪完才描亮段,順序反了會被灰線蓋掉
+    if (state.delayClimate) drawClimateSegs(w, h);
   }
   // 跟隨路線高亮:奶白外描+加粗實線(取代模糊光暈),描在軌道上、車站與列車下
   // 「隱藏」模式不畫——這個模式就是純流星畫面,跟隨路線也不留
@@ -14524,7 +14600,7 @@ function drawSched(w, h, paintDecoTrains) {
   if (paintDecoTrains) paintDecoTrains();
   let n = 0;
   for (const tr of state.trains) {
-    if (state.collectMap) break; // 收集地圖是一張靜態的「你走過哪裡」,跑動的車只是雜訊
+    if (greyNet()) break; // 收集地圖是一張靜態的「你走過哪裡」,跑動的車只是雜訊
     const isFollow = tr === state.followTrain;
     if (!isFollow && !state.visible.has(tr.typeName)) continue;
     const pos = trainPos(tr, state.simSec); if (!pos) continue;
@@ -26555,6 +26631,7 @@ function setCollectMap(on) {
   // 🔴 規格覆審 2026-07-28：錄製改成地圖預設可見可操作之後，護照(內含收集地圖入口)在錄製中
   // 也點得到——兩個模式都要接管地圖的視覺(靜態收集圖 vs 即時列車+常駐錄製列)，不能同時開。
   if (to && state.recording) { showToast(t('錄製中無法開啟收集地圖')); return; }
+  if (to && state.delayClimate) setDelayClimate(false);
   state.collectMap = to;
   document.body.classList.toggle('collect-map', to);
   document.getElementById('collectBar').hidden = !to;
@@ -26568,6 +26645,263 @@ function setCollectMap(on) {
     document.getElementById('collectBountyBtn').classList.remove('on'); // 按鈕視覺跟著歸零,下次進來不會看起來還開著
   }
   if (state.ready) draw();
+}
+// ── 誤點趨勢地圖(/api/delay-climate):台鐵每一段「多出幾分鐘」的長期走勢,可播放 ──
+// 一段的值＝列車開過這段,平均多出幾分鐘(下一站誤點 − 上一站誤點;資料與算法見 worker.js 的 climateDayAgg)。
+// 畫誤點本身會讓下游整片紅(誤點會往後傳),畫增量才看得出是哪一段在製造誤點;負值＝這段會把誤點追回來。
+// 跟收集地圖同一類:全路網轉灰、不畫跑動的車(greyNet),只把有資料的台鐵區間描上顏色。
+// 數值一律做區間平滑(同一條線、段中心前後 10 公里內的段一起加總):大站常見「進站追回、出站又多」的一正一負,
+// 逐段看滿地紅綠交錯,平滑後才看得到大趨勢。色階照平滑後的真資料分位數定(7 日窗 P1 −0.14、P99 +0.35)。
+// 2025-01-21～2026-11-02 的驗證:相鄰 4 週窗相關 0.85、一年後同期 0.43,所以「比去年」看得到演化。
+const climate = { data: null, loading: false, err: false, d: 0, k: 7, mode: 'inc', timer: null, net: null, sig: '' };
+const CLIMATE_STEP_MS = 110;   // 播放一天的間隔:650 天約 70 秒播完
+const CLIMATE_SCALE = {
+  inc: [[-0.15, '#14a39a'], [0, null], [0.075, '#f0b429'], [0.2, '#e4572e'], [0.4, '#a4167a']],
+  chg: [[-0.125, '#2f6fde'], [0, null], [0.125, '#d93a3a']],
+};
+// 段鍵規則同 worker.js 的 climateKey:站名去括號、台→臺,兩端排序後用 | 接
+function climateKey(a, b) {
+  const n = s => String(s).replace(/\s*\(.*\)$/, '').replace(/台/g, '臺');
+  a = n(a); b = n(b);
+  return a < b ? a + '|' + b : b + '|' + a;
+}
+function climateLoad() {
+  if (climate.data || climate.loading) return;
+  climate.loading = true; climate.err = false;
+  fetch(apiUrl('api/delay-climate'))
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(j => {
+      const T = j.have.length, t0 = Date.parse(j.d0 + 'T00:00:00Z'), segs = j.segs;
+      const days = Array.from({ length: T }, (_, i) => new Date(t0 + i * 864e5).toISOString().slice(0, 10));
+      // 全台每天平均(不平滑):時間軸的長條,一眼看出哪幾天特別糟
+      const nat = days.map((_, i) => { let n = 0, x = 0; for (const k in segs) { n += segs[k].N[i]; x += segs[k].S[i]; } return n ? x / n : null; });
+      climate.data = { days, have: j.have, segs, nat };
+      climate.d = T - 1; climate.sig = '';
+    })
+    .catch(() => { climate.err = true; })
+    .finally(() => { climate.loading = false; climateRender(); if (state.ready) draw(); if (climate.data && state.delayClimate) climateFit(); });
+  climateRender();
+}
+// 台鐵各線的段,外加段鍵與平滑鄰居(同一條線、段中心相距 10 公里內,含自己)。trackLines 換了才重建。
+function climateNet() {
+  if (climate.net && climate.net.src === state.trackLines) return climate.net.recs;
+  const recs = [];
+  for (const rec of lineNetwork().values()) {
+    if (rec.sys !== 'tra_sched') continue;
+    const segs = rec.segs.map(s => ({ ...s, ck: climateKey(s.a, s.b), v: null }));
+    for (const s of segs) s.nb = [...new Set(segs.filter(o => Math.abs(o.mid - s.mid) <= 10).map(o => o.ck))];
+    recs.push({ ln: rec.ln, id: rec.id, segs });
+  }
+  climate.net = { src: state.trackLines, recs };
+  climate.sig = '';
+  return recs;
+}
+function climateSum(ck, a, b) {
+  const s = climate.data.segs[ck];
+  let n = 0, x = 0;
+  if (s) for (let i = Math.max(0, a); i <= b; i++) { n += s.N[i]; x += s.S[i]; }
+  return [n, x];
+}
+function climateSmooth(seg, a, b) {
+  if (!climateSum(seg.ck, a, b)[0]) return [0, 0];   // 自己沒資料就不跟鄰居借
+  let n = 0, x = 0;
+  for (const k of seg.nb) { const [n1, x1] = climateSum(k, a, b); n += n1; x += x1; }
+  return [n, x];
+}
+// 班次太少就不上色:單日窗 20 班、多日窗 40 班;比較基準要 90 班
+function climateValue(seg) {
+  const { d, k, mode } = climate;
+  const [n, x] = climateSmooth(seg, d - k + 1, d);
+  const cur = n >= (k === 1 ? 20 : 40) ? x / n : null;
+  if (mode === 'inc' || cur == null) return cur;
+  // 比較基準:緊接在這個窗之前的 4 週,或去年同一天前後各兩週
+  const [a, b] = mode === 'yoy' ? [d - 364 - 13, d - 364 + 14] : [d - k - 27, d - k];
+  if (a < 0) return null;
+  const [bn, bx] = climateSmooth(seg, a, b);
+  return bn < 90 ? null : cur - bx / bn;
+}
+function climateValues() {
+  const recs = climateNet(), sig = climate.d + '|' + climate.k + '|' + climate.mode;
+  if (climate.sig !== sig) {
+    for (const rec of recs) for (const s of rec.segs) s.v = climateValue(s);
+    climate.sig = sig;
+  }
+  return recs;
+}
+function climateStops() {
+  const z = pal().collectGrey;   // 0＝持平,跟灰底線同色
+  return CLIMATE_SCALE[climate.mode === 'inc' ? 'inc' : 'chg'].map(([x, c]) => [x, c || z]);
+}
+function climateColor(stops, v) {
+  const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  if (v <= stops[0][0]) return stops[0][1];
+  for (let i = 1; i < stops.length; i++) if (v <= stops[i][0]) {
+    const f = (v - stops[i - 1][0]) / (stops[i][0] - stops[i - 1][0]), a = rgb(stops[i - 1][1]), b = rgb(stops[i][1]);
+    return 'rgb(' + a.map((c, j) => Math.round(c + (b[j] - c) * f)).join(',') + ')';
+  }
+  return stops[stops.length - 1][1];
+}
+// 疊在灰底線之上、車站之下(同 drawCollectSegs 的位置與守門)。
+// 不用 drawSegOnShape:它每段先描外框再描色,相鄰段的圓頭外框會蓋掉前一段的尾巴,整條線每到一站就斷一截;
+// 這裡是整條線都上色,所以先描完全部外框、再描全部顏色。
+function drawClimateSegs(w, h) {
+  if (!climate.data) return;
+  const stops = climateStops(), paths = [];
+  const inPad = p => p.x >= -60 && p.x <= w + 60 && p.y >= -60 && p.y <= h + 60;
+  for (const rec of climateValues()) {
+    if (state.trackVisible && !state.trackVisible.has(rec.id)) continue;
+    const ln = rec.ln;
+    if (ln._bbox && (ln._bbox[2] < -40 || ln._bbox[0] > w + 40 || ln._bbox[3] < -40 || ln._bbox[1] > h + 40)) continue;
+    for (const s of rec.segs) {
+      if (s.v == null) continue;
+      const pts = ln.shape ? shapeSlice(ln, s.dA, s.dB) : [s.pA, s.pB];
+      if (pts.length < 2) continue;
+      const sp = pts.map(p => M.toScreen([p.lat, p.lon]));
+      if (sp.some(inPad)) paths.push([sp, climateColor(stops, s.v)]);
+    }
+  }
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = pal().railCase; ctx.lineWidth = 6.6;
+  for (const [sp] of paths) { ctx.beginPath(); tracePolyline(sp); ctx.stroke(); }
+  ctx.lineWidth = 4;
+  for (const [sp, c] of paths) { ctx.beginPath(); tracePolyline(sp); ctx.strokeStyle = c; ctx.stroke(); }
+}
+const climateSigned = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(2);
+function climateDayLabel(i, withYear) {
+  const [y, m, d] = climate.data.days[Math.max(0, i)].split('-').map(Number);
+  return (withYear ? y + '/' : '') + m + '/' + d;
+}
+function climateRender() {
+  const panel = document.getElementById('climatePanel');
+  if (!panel || panel.hidden) return;
+  const D = climate.data, dateEl = document.getElementById('climateDate');
+  panel.querySelectorAll('#climateWin button').forEach(b => b.classList.toggle('on', +b.dataset.v === climate.k));
+  panel.querySelectorAll('#climateMode button').forEach(b => b.classList.toggle('on', b.dataset.v === climate.mode));
+  document.getElementById('climatePlay').innerHTML = climate.timer
+    ? '<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="1" width="3.6" height="12" rx="1"/><rect x="8.4" y="1" width="3.6" height="12" rx="1"/></svg>'
+    : '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.2v11.6a.6.6 0 0 0 .9.5l9.2-5.8a.6.6 0 0 0 0-1L3.9.7a.6.6 0 0 0-.9.5z"/></svg>';
+  document.getElementById('climatePlay').setAttribute('aria-label', climate.timer ? t('暫停') : t('播放'));
+  const note = document.getElementById('climateNote'), top = document.getElementById('climateTop');
+  if (!D) {
+    dateEl.textContent = climate.err ? t('讀不到誤點資料') : t('載入中…');
+    note.innerHTML = climate.err ? `<button type="button" class="cp-retry" data-act="retry">${escHtml(t('重試'))}</button>` : '';
+    top.innerHTML = ''; document.getElementById('climateTl').innerHTML = '';
+    document.getElementById('climateLegend').hidden = true;
+    return;
+  }
+  const d = climate.d, k = climate.k;
+  const wd = [t('週日'), t('週一'), t('週二'), t('週三'), t('週四'), t('週五'), t('週六')][new Date(D.days[d] + 'T00:00:00Z').getUTCDay()];
+  dateEl.innerHTML = `${climateDayLabel(d, true)}（${escHtml(wd)}）<small>${escHtml(k === 1 ? t('這一天') : t('往前 {n} 天', { n: k }))}${D.have[d] === '1' ? '' : escHtml(t('・這天沒有資料'))}</small>`;
+  const stops = climateStops(), lo = stops[0][0], hi = stops[stops.length - 1][0];
+  document.getElementById('climateLegend').hidden = false;
+  document.getElementById('climateGrad').style.background = 'linear-gradient(90deg,' + stops.map(([x, c]) => `${c} ${((x - lo) / (hi - lo) * 100).toFixed(0)}%`).join(',') + ')';
+  document.getElementById('climateLo').textContent = climate.mode === 'inc' ? t('追回') : t('變好');
+  document.getElementById('climateHi').textContent = climate.mode === 'inc' ? t('多 {n} 分／班', { n: hi }) : t('變差');
+  note.textContent = climate.mode === 'inc' ? t('顏色＝列車開過這段，平均多出幾分鐘；灰＝持平或班次太少')
+    : climate.mode === 'prev' ? t('跟再往前 4 週比，每班多出的分鐘變了多少')
+    : t('跟去年同一天前後兩週比，每班多出的分鐘變了多少');
+  // 最會長誤點(或變最糟)的三段;同一對站出現在兩條線上只列一次
+  const seen = new Set(), rows = [];
+  for (const rec of climateValues()) for (const s of rec.segs) if (s.v != null && !seen.has(s.ck)) { seen.add(s.ck); rows.push([s, rec]); }
+  rows.sort((a, b) => b[0].v - a[0].v);
+  top.innerHTML = rows.length ? `<span class="cp-toplbl">${escHtml(climate.mode === 'inc' ? t('多出最多') : t('變最糟'))}</span>` +
+    rows.slice(0, 3).map(([s], i) => `<button type="button" data-i="${i}">${escHtml(stationName(s.a, 'tra_sched'))}–${escHtml(stationName(s.b, 'tra_sched'))} <b>${climateSigned(s.v)}</b></button>`).join('') : '';
+  climate.top = rows.slice(0, 3);
+  climateTimeline();
+}
+function climateTimeline() {
+  const svg = document.getElementById('climateTl'), D = climate.data;
+  if (!svg || !D) return;
+  const W = Math.max(160, svg.getBoundingClientRect().width), H = 60, base = H - 13, T = D.days.length, bw = W / T;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  if (!D.max) {
+    D.max = Math.max(...D.nat.filter(v => v != null)) || 1;
+    D.spikes = D.nat.map((v, i) => [v ?? -1, i]).sort((a, b) => b[0] - a[0]).slice(0, 60).map(r => r[1]);
+  }
+  let html = '';
+  D.nat.forEach((v, i) => {
+    if (v == null) return;
+    const bh = Math.max(1, Math.sqrt(Math.max(0, v) / D.max) * (base - 12));   // 平方根刻度:最糟那天不會把其他天壓扁
+    const on = i <= climate.d && i > climate.d - climate.k;
+    html += `<rect x="${(i * bw).toFixed(2)}" y="${(base - bh).toFixed(1)}" width="${Math.max(0.8, bw - 0.3).toFixed(2)}" height="${bh.toFixed(1)}"${on ? ' class="on"' : ''}/>`;
+  });
+  const shown = [];   // 最糟的幾天標日期,依嚴重程度挑、彼此至少隔 34 px
+  for (const i of D.spikes) { if (shown.every(j => Math.abs(j - i) * bw > 34)) shown.push(i); if (shown.length >= (W < 420 ? 3 : 6)) break; }
+  for (const i of shown) html += `<text class="sp" x="${Math.min(W - 14, Math.max(14, i * bw + bw / 2)).toFixed(1)}" y="8" text-anchor="middle">${climateDayLabel(i)}</text>`;
+  D.days.forEach((d, i) => {
+    if (d.slice(5) !== '01-01' && d.slice(5) !== '07-01') return;
+    html += `<line x1="${(i * bw).toFixed(1)}" x2="${(i * bw).toFixed(1)}" y1="${base}" y2="${base + 3}"/><text x="${(i * bw + 2).toFixed(1)}" y="${H - 1}">${d.slice(5) === '01-01' ? d.slice(0, 4) : escHtml(t('7 月'))}</text>`;
+  });
+  const cx = (climate.d * bw + bw / 2).toFixed(1);
+  html += `<line class="cur" x1="${cx}" x2="${cx}" y1="11" y2="${base}"/>`;
+  svg.innerHTML = html;
+}
+// 進入時看全台(俯視、北朝上),讓開面板:寬螢幕面板在左下 → 左邊留白;手機面板橫跨底部 → 底部留白
+function climateFit() {
+  const panel = document.getElementById('climatePanel'), map = document.getElementById('map');
+  if (!panel || panel.hidden || !map) return;
+  const p = panel.getBoundingClientRect(), m = map.getBoundingClientRect();
+  const side = p.width < m.width * 0.6;
+  const padding = side ? { top: 30, bottom: 30, left: Math.max(30, p.right - m.left + 30), right: 60 }
+    : { top: 40, bottom: Math.max(30, m.bottom - p.top + 20), left: 20, right: 20 };
+  M.fitBounds(M.latLngBounds(TW_BOX[0], TW_BOX[1]), { padding, duration: 0.8, bearing: 0, pitch: 0 });
+}
+function climateSetDay(d) {
+  if (!climate.data) return;
+  climate.d = Math.max(0, Math.min(climate.data.days.length - 1, d));
+  climateRender();
+  if (state.ready) draw();
+}
+function climatePlay(on) {
+  clearInterval(climate.timer); climate.timer = null;
+  if (on && climate.data) {
+    const last = climate.data.days.length - 1;
+    if (climate.d >= last) climate.d = Math.min(last, climate.k - 1);
+    climate.timer = setInterval(() => { if (climate.d >= last) climatePlay(false); else climateSetDay(climate.d + 1); }, CLIMATE_STEP_MS);
+  }
+  climateRender();
+}
+function climateOnKey(e) {
+  if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) climatePlay(!climate.timer); return true; }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); climateSetDay(climate.d + (e.key === 'ArrowLeft' ? -1 : 1)); return true; }
+  return false;
+}
+function setDelayClimate(on) {
+  const to = !!on;
+  if (state.delayClimate === to) return;
+  if (to && state.recording) { showToast(t('錄製中無法開啟誤點趨勢地圖')); return; }   // 理由同 setCollectMap
+  if (to && state.collectMap) setCollectMap(false);
+  state.delayClimate = to;
+  document.body.classList.toggle('delay-climate', to);
+  document.getElementById('climatePanel').hidden = !to;
+  if (to) {
+    clearFollow();   // 車都不畫了,鏡頭還在追一班看不見的車只會讓人以為地圖卡住
+    soloPanel(''); closeRidePanel(); closeBoard(); closeNearbyStations(); closeExplorePanel(); closeFavPanel(); closeTodayPanel(); closeSearchPanel();
+    climateLoad();
+    climateRender();
+    if (climate.data) climateFit();   // 第一次進來等資料到了面板長好再框(climateLoad 收尾)
+  } else climatePlay(false);
+  if (state.ready) draw();
+}
+function setupDelayClimate() {
+  const panel = document.getElementById('climatePanel');
+  document.getElementById('climateExit').onclick = () => setDelayClimate(false);
+  document.getElementById('climatePlay').onclick = () => climatePlay(!climate.timer);
+  panel.querySelector('#climateWin').onclick = e => { const b = e.target.closest('button'); if (b) { climate.k = +b.dataset.v; climateSetDay(climate.d); } };
+  panel.querySelector('#climateMode').onclick = e => { const b = e.target.closest('button'); if (b) { climate.mode = b.dataset.v; climateSetDay(climate.d); } };
+  document.getElementById('climateNote').onclick = e => { if (e.target.closest('[data-act="retry"]')) climateLoad(); };
+  // 點前三名:地圖飛過去看那一段
+  document.getElementById('climateTop').onclick = e => {
+    const b = e.target.closest('button[data-i]'), r = b && climate.top && climate.top[+b.dataset.i];
+    if (!r) return;
+    const s = r[0];
+    M.flyToBounds(M.latLngBounds([[s.pA.lat, s.pA.lon], [s.pB.lat, s.pB.lon]]), { padding: { top: 60, bottom: panel.offsetHeight + 40, left: 40, right: 40 }, duration: 0.8, maxZoom: 12 });
+  };
+  const tl = document.getElementById('climateTl');
+  const pick = ev => { const r = tl.getBoundingClientRect(); if (climate.data && r.width) climateSetDay(Math.floor((ev.clientX - r.left) / r.width * climate.data.days.length)); };
+  tl.addEventListener('pointerdown', e => { tl.setPointerCapture(e.pointerId); climatePlay(false); pick(e); });
+  tl.addEventListener('pointermove', e => { if (e.buttons) pick(e); });
+  addEventListener('resize', () => { if (state.delayClimate) climateTimeline(); });
 }
 function renderCollectStat() {
   const lines = lineCompletion();
@@ -33774,6 +34108,7 @@ function queryLinkRows() {
   if (NOTIFY_LOCAL_ENABLED) rows.push({ act: 'notify', label: '已排提醒', run: () => openLocalReminderOverview() });
   rows.push({ act: 'routes', label: '路線', run: () => openTrackPanel() });
   rows.push({ act: 'today', label: '今日台鐵動態', run: () => openTodayPanel() });
+  rows.push({ act: 'climate', label: '誤點趨勢地圖', run: () => setDelayClimate(true) });
   // 跟「更多」的附近車站(#nearBtn)是同一件事(都是 showNearby),名稱統一叫「附近車站」(導覽改版 G1)
   if (LOCATE_ENABLED) rows.push({ act: 'near', label: '附近車站', run: () => showNearby() });
   if (IS_NATIVE_APP && metroWaitEnabled()) rows.push({ act: 'widget', label: '小工具', run: () => openHelp('metrowidget') });
@@ -38922,6 +39257,7 @@ function setupMapTools() {
     if (row.dataset.act === 'fontscale') { setMore(false); openFontPanel(); return; } // 設計 6c:字級是 `›` 子頁
     if (row.dataset.act === 'notify') { setMore(false); openLocalReminderOverview(); return; } // 已排提醒總覽
     if (row.dataset.act === 'weekend') { setMore(false); openWeekendPage(); return; }  // 週末活動:外開網站頁
+    if (row.dataset.act === 'climate') { setMore(false); setDelayClimate(true); return; }
     if (row.dataset.act === 'panelOpacity') { setPanelTranslucent(!state.panelTranslucent); syncMoreSheet(); return; }
     if (row.dataset.act === 'diagStrip') { setDiagStrip(!state.diagStrip); syncMoreSheet(); return; }
     if (row.dataset.act === 'exportTrtcDiag') { exportTrtcEntityDiagnostics(); return; }
@@ -41408,6 +41744,7 @@ document.getElementById('fpRideBox').onclick = (e) => {
   if (tr && idx >= 0) startRiding(tr, idx);
 };
 document.getElementById('collectExit').onclick = () => setCollectMap(false);
+setupDelayClimate();
 document.getElementById('collectBountyBtn').onclick = () => {
   state.collectBounty = !state.collectBounty;
   document.getElementById('collectBountyBtn').classList.toggle('on', state.collectBounty);
@@ -41731,6 +42068,7 @@ document.getElementById('tcStops').onclick = e => {
 document.addEventListener('keydown', e => {
   const tg = e.target;
   if (tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA' || tg.isContentEditable)) return;
+  if (state.delayClimate && climateOnKey(e)) return; // 誤點趨勢地圖開著:空白鍵播放時間軸、←→ 換日
   // 空白鍵只做播放／暫停這一件事:不按下聚焦中的按鈕,焦點也留在原地。原本(v0718i 起)把聚焦中的按鈕 blur 掉來防止
   // 它被空白鍵按下去,代價是鍵盤使用者按一下暫停焦點就掉回頁面、得從頭 Tab;其實 keydown 擋掉預設動作就夠了
   // (2026-09-26 實測 Chromium、WebKit 的 button／summary 都不會被啟動)。按住不放的連發不算,只切一次(原本按住會連切)。

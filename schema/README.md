@@ -28,6 +28,7 @@
 | `0019_bounty_kept_time.sql` | ✅ **權威** | 路段懸賞：替 `bounty_samples` 補 `kept_t0`／`kept_t1`（判定當下這一列所屬那一段防偽閘收下點的最早與最晚時刻，跟 `kept_d0`／`kept_d1` 同一句寫）。遲傳合併判時前次段照時間接段要用收下點的時刻，舊列沒有才退回原始 payload 的時刻（見檔頭）。只有兩句 `ALTER`，自成一檔。**所有環境都要跑。** 🔴 先套 schema、再部署用到它的 Worker。 |
 | `0020_bounty_usable.sql` | ✅ **權威** | 路段懸賞：替 `bounty_samples` 補 `usable`（1 跟車次對得上／0 對不上／NULL 比不了或還沒標）與 `usable_at`（標的時刻）。跟點數分開，判定 cron 跑完之後由 `bountyUsableCron` 只替 ok 的台鐵列寫（見檔頭）。只有兩句 `ALTER`，自成一檔。**所有環境都要跑。** 🔴 先套 schema、再部署用到它的 Worker。 |
 | `0021_garage_items.sql` | ✅ **權威** | 車庫兌換車款：新表 `garage_items`（每人每款一列，主鍵 `(actor, item)`），`POST /api/garage-collect` 寫、`chips-me` 的 `items` 讀、合併搬與退款、刪帳號一起刪。跟場景的 `garage_unlocks` 分開（那張表的列數是場景的「第幾座」）。只有 `CREATE … IF NOT EXISTS`，重跑無害。**所有環境都要跑。** 🔴 先套 schema、再部署用到它的 Worker：沒套時刪帳號對所有人 502、錢包 503（見檔頭）。 |
+| `0022_delay_climate.sql` | 權威 | 誤點趨勢地圖（`/api/delay-climate`）：`tra_delay_climate` 一天一列，`segs` 是台鐵每段「班次、增量總和」的 JSON。每日誤點 cron 順便寫，2026-11-02 以前由 `scripts/delay_climate_backfill.mjs` 回補。**部署新版 Worker 前先套用**；沒套時 cron 那一步自己吞錯（誤點統計照常）、`/api/delay-climate` 回 503，其他功能不受影響。正式庫 2026-11-03 已套用、回補 2025-01-21～2026-11-02 共 650 天。 |
 
 0014–0016 各有兩支同號的檔（路段懸賞 v2 與軌道邊卡片／AI 營運整理在兩條分支上同時開號）。兩組碰的表互不重疊，
 這裡沒有 migration 追蹤表，套用一律照檔名逐支執行，所以同號不影響套用；路段懸賞那幾支彼此要照 0014 → 0015 → 0016 → 0017 的順序（0017 只有一個號）。
@@ -52,6 +53,7 @@ arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --r
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0019_bounty_kept_time.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0020_bounty_usable.sql
 arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0021_garage_items.sql
+arch -arm64 node ./node_modules/wrangler/bin/wrangler.js d1 execute DELAY_DB --remote --file=schema/0022_delay_climate.sql
 ```
 
 （`npx wrangler` 在這台機器是壞的，一律用上面的完整寫法。）
