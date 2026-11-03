@@ -43,16 +43,20 @@
   // 全畫面觀看（同 App，見 native build/garage-web-port/全螢幕-設計.md）：fsHistory＝CSS 備案推過一筆瀏覽紀錄，返回手勢靠它退出。
   let fs=false,fsScroll=0,fsHistory=false;
   let mode='model',running=false,direction=1,distance=0,travelTime=0,inView=true,period='day';
-  // 第 4 格「場景」（規則照 App 的 Garage3DStage）：每款車都有預設車庫「田園小站」；分派表（train-garage-scenes.js）分到已做好那四座的
-  // 12 款車另有專屬場景，照錢包（host.sceneUnlocks）鎖或不鎖。沒有錢包（沒登入、懸賞關著、展示模式）只畫預設車庫、不出切換列。
-  // 已做好的四座要跟 rail-3d/garage-diorama.js 的 SCENES 一致。鎖著的專屬場景點了開兌換視窗（見下面「兌換專屬場景」）。
+  // 第 4 格「場景」開場景頁（三端同一套規則）：場景是主角，畫哪一座看 frameScene，不由車款推；頁上一排場景鈕就地換座。
+  // 預設車庫「田園小站」每款車都能跑、永遠能進；已做好的四座只跑分派表（train-garage-scenes.js）分到那座的車，照錢包的已解鎖清單進，
+  // 鎖著的點了開兌換視窗（見下面「兌換專屬場景」）。沒有錢包（沒登入、展示模式）只有田園小站，不出場景列與場景鈕。
+  // 已做好的四座要跟 rail-3d/garage-diorama.js 的 SCENES 一致。
   const DEFAULT_SCENE='paddy',DEFAULT_PLACE='預設車庫・田園小站',BUILT_SCENES=new Set(['south-coast','alishan','viaduct','shifen']);
-  // trainView＝原型的「陪它走走」（跟著車看），手機寬預設開；preferDefault＝有專屬場景的車切去預設車庫，換車就回到專屬場景。
-  let trainView=false,preferDefault=false,sceneCar='',viewScene='',viewPending=false,sceneMeta=null,loadedScene='';
+  // 場景格、場景鈕用的短名（阿里山那座用線名，不用它畫的那段「之字形」）。
+  const SCENE_SHORT={paddy:'田園小站','south-coast':'南迴海岸',shifen:'十分老街',viaduct:'站前街',alishan:'阿里山林鐵'};
+  // trainView＝原型的「陪它走走」（跟著車看），手機寬預設開。frameCars＝這次開著場景頁時各座最後看的車：換座時記下，每次打開場景頁清空。
+  let trainView=false,frameScene='',frameCars=new Map(),viewScene='',viewPending=false,sceneMeta=null,loadedScene='';
   // 第 4 格點下去開「場景頁」：蓋住整個車庫的 9-29 外框頁（網頁分支 garage/scene-03 的 garage-scene.html；規格與對照稿在
   // native build/garage-web-port/scene-frame-mock/）。開著時 mode＝'scene'，frameBack＝點之前那一格，離開就回到那一格。
   // 各座文字：全景鈕、三個時段（白天／黃昏／夜晚）、載入字、最底說明；前四座照 9-29，田園小站是新寫的。
-  let frameBack='';
+  // rowScroll＝下次畫場景鈕列時把選中那格捲進畫面（開頁、換座時）。
+  let frameBack='',rowScroll=false;
   const tab=()=>frameBack||mode;
   const FRAME_PERIODS=['day','sunset','night'],FRAME_TEXT={
     'south-coast':['山海全景',['晴日','夕照','入夜'],'正在把小車搬到海邊…','南迴海岸 · 微縮印象'],
@@ -66,14 +70,19 @@
   const exclusiveScene=id=>{const s=globalThis.RailGarageScenes?.[id];return s&&BUILT_SCENES.has(s.scene)?s.scene:'';};
   // 專屬場景的地名取分派表裡 params 為空的那款（原型實際畫的那一段），同 App manifest 的 place。
   const scenePlace=scene=>scene===DEFAULT_SCENE?DEFAULT_PLACE:Object.values(globalThis.RailGarageScenes||{}).find(s=>s.scene===scene&&!Object.keys(s.params||{}).length)?.place||'';
-  const shortPlace=place=>place.slice(place.lastIndexOf('・')+1);
-  function sceneAccess(row){const ex=row&&exclusiveScene(row.id);if(!ex||demo)return 'hidden';const unlocked=host.sceneUnlocks?.();return unlocked?(unlocked.has(ex)?'unlocked':'locked'):'hidden';}
-  function sceneOf(row){const ex=row&&exclusiveScene(row.id);return ex&&!preferDefault&&sceneAccess(row)==='unlocked'?ex:DEFAULT_SCENE;}
+  // 場景清單：田園小站排第一，後面是錢包裡可兌換、這裡也做好的那幾座。能進＝田園小站，或錢包的已解鎖清單有它。
+  const sceneList=ctx=>ctx?[DEFAULT_SCENE,...ctx.scenes]:[DEFAULT_SCENE];
+  const sceneOpen=(ctx,scene)=>scene===DEFAULT_SCENE||!!ctx?.ledger?.unlocked.includes(scene);
+  // 每座跑的車：田園小站＝全部車款，其他＝分派表分到那座的；已入庫的排前面，其餘照目錄順序。
+  function roster(scene){const cars=scene===DEFAULT_SCENE?rows:rows.filter(r=>exclusiveScene(r.id)===scene);return [...cars.filter(r=>r.owned),...cars.filter(r=>!r.owned)];}
+  // 換到某座時選哪台車：這次在那座最後看的 > 目前的車（跑得了那座的話）> 那座第一款已入庫的 > 那座第一款。
+  function pickCar(scene){const cars=roster(scene),had=frameCars.get(scene);return (cars.find(r=>r.id===had)||cars.find(r=>r.id===selected)||cars[0])?.id;}
+  const inFilter=r=>filter==='all'||(filter==='owned'?r.owned:r.rule&&!r.owned);
   const maxZoom=()=>mode==='scene'?1.8:3;
   function scenePeriod(){const now=new Date(),h=(now.getUTCHours()+8)%24+now.getUTCMinutes()/60;return h>=5&&h<7?'sunrise':h>=7&&h<17?'day':h>=17&&h<19?'sunset':'night';}
   function resetView(){zoom=1;pointers.clear();pinch=drag=null;
     // 場景頁的預設角度各座不同（SCENES 的 yaw／仰角）；模組還沒載完先用田園小站那組，載完再補一次（同 App）。
-    if(mode==='scene'){viewScene=sceneOf(rows.find(r=>r.id===selected));const m=sceneMeta?.[viewScene];viewPending=!m;yaw=m?m.yaw:-1.12;elevation=trainView?(m?m.train:.5):(m?m.world:.58);return;}
+    if(mode==='scene'){viewScene=frameScene;const m=sceneMeta?.[viewScene];viewPending=!m;yaw=m?m.yaw:-1.12;elevation=trainView?(m?m.train:.5):(m?m.world:.58);return;}
     yaw=mode==='track'?-Math.PI/2:mode==='loop'?-.9:-.55;elevation=mode==='track'?.16:mode==='loop'?.8:.39;}
   function clampView(){if(mode==='loop')elevation=Math.max(.25,Math.min(1.35,elevation));if(mode==='scene')elevation=Math.max(.2,Math.min(1.2,elevation));if(mode==='track'){yaw=Math.max(-Math.PI/2-.20,Math.min(-Math.PI/2+.20,yaw));elevation=Math.max(.08,Math.min(.30,elevation));}}
   const reduced=matchMedia('(prefers-reduced-motion:reduce)');
@@ -97,7 +106,7 @@
     } catch { renderer=null; }
   }
   async function loadSelected() {
-    const ticket=++modelTicket, id=selected, row=rows.find(r=>r.id===id), scene=mode==='scene'?sceneOf(row):'', view=$(scene?'.g-sf-view':'.g-view');
+    const ticket=++modelTicket, id=selected, row=rows.find(r=>r.id===id), scene=mode==='scene'?frameScene:'', view=$(scene?'.g-sf-view':'.g-view');
     loadedId='';delete view.dataset.rendered;
     view.getContext('2d').clearRect(0,0,view.width,view.height);
     if(scene)frameNotice(tr(FRAME_TEXT[scene][2]));
@@ -157,22 +166,41 @@
     const b=$('.g-fs'),label=fs?tr('退出全畫面'):tr('全畫面觀看');b.setAttribute('aria-pressed',String(fs));b.setAttribute('aria-label',label);b.title=label;
     b.querySelector('path').setAttribute('d',fs?FS_PATH.on:FS_PATH.off);requestDraw();
   }
-  // Esc／返回手勢：兌換視窗開著先關它，再來是場景頁；全畫面時先退全畫面、不關車庫。瀏覽器自己退出全畫面時同一下可能再送一次 cancel，那一下也不關。
-  const backOut=()=>{if(redeemScene){closeRedeem();return true;}if(frameBack){closeFrame();return true;}if(fs){setFullscreen(false);return true;}return performance.now()-fsLeftAt<400;};
-  // 時段照台灣時間（日出併進黃昏那顆），開著時手動選的留到離開；呼叫的人接著 showDetail／showGrid 載入這座。
-  function openFrame(){
+  // Esc／返回手勢：兌換視窗開著先關它，再來是車款選單、場景頁；全畫面時先退全畫面、不關車庫。瀏覽器自己退出全畫面時同一下可能再送一次 cancel，那一下也不關。
+  const backOut=()=>{if(redeemScene){closeRedeem();return true;}if(closeCars(true))return true;if(frameBack){closeFrame();return true;}if(fs){setFullscreen(false);return true;}return performance.now()-fsLeftAt<400;};
+  // 開場景頁到 scene（開著就就地換座，先記下離開那座最後看的車），車照 pickCar。時段照台灣時間（日出併進黃昏那顆），
+  // 開著時手動選的留到離開；呼叫的人接著 showDetail 載入這座。
+  function openFrame(scene){
     if(!frameBack){
-      setFullscreen(false);frameBack=mode;mode='scene';auto=false;running=!reduced.matches;last=0;
+      setFullscreen(false);frameBack=mode;mode='scene';auto=false;running=!reduced.matches;last=0;frameCars=new Map();rowScroll=true;
       const p=scenePeriod();period=FRAME_PERIODS.includes(p)?p:'sunset';
       dialog.classList.add('g-sf-open');$('.g-top').inert=$('.g-main').inert=true;$('.g-sf').hidden=false;$('.g-sf-leave').focus({preventScroll:true});
-    }
-    resetView();
+    }else if(frameScene!==scene){frameCars.set(frameScene,selected);rowScroll=true;}
+    frameScene=scene;selected=pickCar(scene)||selected;closeCars();resetView();
   }
+  // 場景頁最後看的車不在目前的篩選裡（例如篩選「已入庫」、車是待收集）才切回全部車款，首頁的選擇跟著它。
+  function keepFrameCar(){const row=rows.find(r=>r.id===selected);if(row&&!inFilter(row))filter='all';}
   function closeFrame(){
     if(!frameBack)return;
-    mode=frameBack;frameBack='';auto=false;running=mode!=='model'&&!reduced.matches;period=scenePeriod();resetView();last=0;
+    closeCars();mode=frameBack;frameBack='';frameScene='';auto=false;running=mode!=='model'&&!reduced.matches;period=scenePeriod();resetView();last=0;
     dialog.classList.remove('g-sf-open');$('.g-sf').hidden=true;$('.g-top').inert=$('.g-main').inert=false;
-    showDetail();$('[data-view="scene"]').focus({preventScroll:true});
+    keepFrameCar();showGrid();$('[data-view="scene"]').focus({preventScroll:true});
+  }
+  // 車款選單：場景頁標題那塊點了打開，只列這座跑的車，選了就地換車、場景不變。點外面、Esc、選了、換座、離開都會關。
+  function openCars(){
+    const list=$('.g-sf-car-list'),menu=$('.g-sf-cars'),title=$('.g-sf-title');
+    list.replaceChildren(...roster(frameScene).map(row=>{
+      const b=document.createElement('button');b.type='button';b.dataset.car=row.id;b.setAttribute('aria-pressed',String(row.id===selected));
+      b.innerHTML=`<b>${esc(tr(row.model.name))}</b><small>${esc(status(row))}</small>`;
+      b.onclick=()=>{closeCars(true);if(row.id!==selected){selected=row.id;showDetail();}};return b;}));
+    menu.style.top=(title.getBoundingClientRect().bottom-$('.g-sf').getBoundingClientRect().top+4)+'px';
+    menu.hidden=false;title.setAttribute('aria-expanded','true');
+    const on=list.querySelector('[aria-pressed="true"]')||list.firstElementChild;
+    if(on){list.scrollTop=Math.max(0,on.offsetTop-(list.clientHeight-on.offsetHeight)/2);on.focus({preventScroll:true});}
+  }
+  function closeCars(refocus=false){
+    const menu=dialog&&$('.g-sf-cars');if(!menu||menu.hidden)return false;
+    menu.hidden=true;$('.g-sf-title').setAttribute('aria-expanded','false');if(refocus)$('.g-sf-title').focus({preventScroll:true});return true;
   }
   function setZoom(value){zoom=Math.max(.7,Math.min(maxZoom(),value));showControls();requestDraw();}
   function showControls() {
@@ -182,27 +210,37 @@
     dialog.classList.toggle('g-scene',at!=='model');
     for(const b of dialog.querySelectorAll('[data-view]'))b.setAttribute('aria-pressed',String(b.dataset.view===at));
     $('.g-reverse').hidden=at==='model';$('.g-reverse').setAttribute('aria-pressed',String(direction===-1));
-    // 場景分頁的名字：看得到錢包的 12 款車維持專屬場景的地名，畫的是哪一座看場景頁右上的切換（同 App）。
-    const row=rows.find(r=>r.id===selected),access=sceneAccess(row);
-    $('[data-view="scene"]').textContent=tr(shortPlace(scenePlace(access==='hidden'?DEFAULT_SCENE:exclusiveScene(row.id))));
+    const row=rows.find(r=>r.id===selected);
     $('.g-auto').setAttribute('aria-label',tr(mode!=='model'?(running?'暫停行駛':'開始行駛'):'自動旋轉'));
     $('.g-auto').setAttribute('aria-pressed',String(mode!=='model'?running:auto));$('.g-auto').textContent=(mode!=='model'?running:auto)?'Ⅱ':'▷';
     const sky=tr({sunrise:'日出',day:'藍天',sunset:'黃昏',night:'星空'}[period]);
     $('.g-view-hint').textContent=at==='track'?tr('頭城海岸・龜山島')+' · '+sky:at==='loop'?tr('環形試跑 · 拖曳旋轉，欣賞三節小車'):tr('上下左右拖曳，看看每一面');
-    if(frameBack)showFrame(row,access);
+    if(frameBack)showFrame(row);
   }
-  // 場景頁：標題是這座的地名＋車名；有專屬場景、看得到錢包的車右上多「田園小站｜專屬地名」，鎖著的那顆帶鎖、點了開兌換視窗。
-  function showFrame(row,access){
-    const showing=sceneOf(row),[world,periods,,caption]=FRAME_TEXT[showing],f=$('.g-sf');
+  // 場景頁：標題那塊是這座的地名＋車名・狀態，這座跑的車不只一款時整塊是車款選單的按鈕（加 ▾）。
+  // 有錢包時標題下一排場景鈕：能進的就地換座，鎖著的帶鎖、點了開兌換視窗（疊在場景頁上）。
+  function showFrame(row){
+    const [world,periods,,caption]=FRAME_TEXT[frameScene],f=$('.g-sf'),many=roster(frameScene).length>1,title=$('.g-sf-title');
     f.dataset.period=period;
-    $('.g-sf-title b').textContent=tr(showing===DEFAULT_SCENE?'田園小站':scenePlace(showing));
-    $('.g-sf-title small').textContent=row?tr(row.model.name)+(row.owned?'':' · '+tr('待收集')):'';
-    $('.g-sf-switch').hidden=access==='hidden';
-    if(access!=='hidden'){
-      const d=$('[data-pick="default"]'),x=$('[data-pick="exclusive"]'),place=tr(shortPlace(scenePlace(exclusiveScene(row.id))));
-      d.textContent=tr('田園小站');d.setAttribute('aria-pressed',String(showing===DEFAULT_SCENE));
-      x.innerHTML=(access==='locked'?LOCK:'')+esc(place);x.setAttribute('aria-pressed',String(showing!==DEFAULT_SCENE));x.setAttribute('aria-label',place+(access==='locked'?' · '+tr('未解鎖'):''));
+    $('.g-sf-title b').textContent=tr(frameScene===DEFAULT_SCENE?'田園小站':scenePlace(frameScene));
+    $('.g-sf-title small').innerHTML=row?esc(tr(row.model.name)+' · '+status(row))+(many?'<span aria-hidden="true"> ▾</span>':''):'';
+    title.disabled=!many;
+    if(many&&row)title.setAttribute('aria-label',tr('換車：{name}',{name:tr(row.model.name)}));else title.removeAttribute('aria-label');
+    const ctx=walletCtx(),box=$('.g-sf-scenes'),seg=box.firstElementChild;
+    box.hidden=!ctx||!ctx.scenes.length;
+    if(!box.hidden){
+      const scenes=sceneList(ctx);
+      if(seg.dataset.key!==scenes.join()){seg.dataset.key=scenes.join();seg.replaceChildren(...scenes.map(scene=>{
+        const b=document.createElement('button');b.type='button';b.dataset.sfScene=scene;
+        b.onclick=()=>{if(scene===frameScene)return;if(!sceneOpen(walletCtx(),scene)){openRedeem(scene,b);return;}openFrame(scene);showDetail();};return b;}));}
+      for(const b of seg.children){
+        const scene=b.dataset.sfScene,open=sceneOpen(ctx,scene),name=tr(SCENE_SHORT[scene]);
+        b.innerHTML=(open?'':LOCK)+esc(name);b.setAttribute('aria-pressed',String(scene===frameScene));b.setAttribute('aria-label',name+(open?'':' · '+tr('未解鎖')));
+      }
+      const on=seg.querySelector('[aria-pressed="true"]');
+      if(rowScroll&&on){const l=on.offsetLeft,r=l+on.offsetWidth;if(l<box.scrollLeft+12)box.scrollLeft=l-12;else if(r>box.scrollLeft+box.clientWidth-12)box.scrollLeft=r-box.clientWidth+12;}
     }
+    rowScroll=false;
     $('[data-sf-view="world"]').textContent=tr(world);
     for(const b of f.querySelectorAll('[data-sf-view]'))b.setAttribute('aria-pressed',String((b.dataset.sfView==='train')===trainView));
     f.querySelectorAll('[data-sf-period]').forEach((b,i)=>{b.textContent=tr(periods[i]);b.setAttribute('aria-pressed',String(b.dataset.sfPeriod===period));});
@@ -214,10 +252,9 @@
     const row=rows.find(r=>r.id===selected);
     $('.g-showcase').hidden=!row;
     if(!row){auto=running=false;cancelAnimationFrame(raf);raf=0;showControls();return;}
-    // 換車就回到專屬場景（同 App configure）；場景換座（解鎖、切換、換車）視角照新那座重設。
-    if(row.id!==sceneCar){sceneCar=row.id;preferDefault=false;}
-    if(mode==='scene'&&viewScene!==sceneOf(row))resetView();
-    $(frameBack?'.g-sf-view':'.g-view').setAttribute('aria-label',tr(row.model.name)+' · '+status(row)+' · '+(mode==='scene'?tr(shortPlace(scenePlace(sceneOf(row)))):tr(mode==='track'?'海岸行旅':mode==='loop'?'環形試跑':'近看小車')));
+    // 場景換座時視角照新那座重設。
+    if(mode==='scene'&&viewScene!==frameScene)resetView();
+    $(frameBack?'.g-sf-view':'.g-view').setAttribute('aria-label',tr(row.model.name)+' · '+status(row)+' · '+(mode==='scene'?tr(SCENE_SHORT[frameScene]):tr(mode==='track'?'海岸行旅':mode==='loop'?'環形試跑':'近看小車')));
     showControls();
     const badge=$('.g-status');badge.textContent=status(row);badge.classList.toggle('owned',row.owned);
     $('.g-name').textContent=tr(row.model.name);
@@ -240,7 +277,7 @@
       const p=document.createElement('p'),a=document.createElement('a');
       a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';a.textContent=tr('外觀參考')+' · '+tr(source.label)+' ↗';p.append(a);$('.g-source-body').append(p);
     }
-    if(loadedId!==row.id||loadedMode!==mode||loadedScene!==(mode==='scene'?sceneOf(row):''))loadSelected();
+    if(loadedId!==row.id||loadedMode!==mode||loadedScene!==(mode==='scene'?frameScene:''))loadSelected();
     requestDraw();
   }
   // ── 自製列車:按鈕與狀態只看 host 給的資料,本檔不讀儲存。──
@@ -285,8 +322,8 @@
     else el.textContent=tr('通行證專屬：已入庫的車可以自己排班上地圖');
   }
   // ── 兌換專屬場景：照 App（railcore GarageRedeemCopy＋WalletController，規格見 native build/garage-web-port/）。──
-  // 網頁只有登入的人有錢包（host.wallet.uid() 空的就不出入口），只認點數制（v3）。入口兩個：最上面的「車庫場景」列、
-  // 舞台第 4 格鎖著的「專屬場景」。redeemAction＝這個帳號最近一筆 {uid,scene,requestId,phase,error,cost,balance}；
+  // 網頁只有登入的人有錢包（host.wallet.uid() 空的就不出入口），只認點數制（v3）。入口兩個：首頁「車庫場景」列、
+  // 場景頁的場景鈕，都是點鎖著的那座。redeemAction＝這個帳號最近一筆 {uid,scene,requestId,phase,error,cost,balance}；
   // redeemStored＝它的 pending 還在 host 的儲存裡，結果沒確認前重試都沿用同一個 requestId（伺服器靠它不重扣）。
   // redeemAck＝關視窗時看過的終局那筆，再開就不重播「已解鎖！用了…」；redeemResent＝401 後憑證好了自動重送過的那筆（只重送一次）。
   let redeemScene='',redeemAction=null,redeemStored=false,redeemAck='',redeemResent='',redeemOpener=null;
@@ -418,13 +455,15 @@
     box.hidden=!ctx||!ctx.scenes.length;
     if(box.hidden){if(redeemScene)closeRedeem();return;}
     $('.g-scenes-head').textContent=walletHeader(ctx);
-    const list=$('.g-scenes-list');
-    if(list.dataset.key!==ctx.scenes.join()){list.dataset.key=ctx.scenes.join();list.replaceChildren(...ctx.scenes.map(scene=>{
-      const b=document.createElement('button');b.type='button';b.className='g-sc';b.dataset.scene=scene;b.onclick=()=>openRedeem(scene,b);return b;}));}
+    // 田園小站和已解鎖的直接開場景頁到那一座，鎖著的開兌換視窗。
+    const list=$('.g-scenes-list'),scenes=sceneList(ctx);
+    if(list.dataset.key!==scenes.join()){list.dataset.key=scenes.join();list.replaceChildren(...scenes.map(scene=>{
+      const b=document.createElement('button');b.type='button';b.className='g-sc';b.dataset.scene=scene;
+      b.onclick=()=>{if(sceneOpen(walletCtx(),scene))goScene(scene);else openRedeem(scene,b);};return b;}));}
     for(const b of list.children){
-      const scene=b.dataset.scene,v=redeemView(ctx,scene),place=scenePlace(scene);
-      b.classList.toggle('on',v.unlocked);b.setAttribute('aria-label',tr(place)+' · '+v.status);
-      b.innerHTML=`<b>${v.unlocked?'':LOCK}${esc(tr(shortPlace(place)))}</b><small>${esc(v.status)}</small>`;
+      const scene=b.dataset.scene,v=scene===DEFAULT_SCENE?{unlocked:true,status:tr('免費')}:redeemView(ctx,scene);
+      b.classList.toggle('on',v.unlocked);b.setAttribute('aria-label',tr(scenePlace(scene))+' · '+v.status);
+      b.innerHTML=`<b>${v.unlocked?'':LOCK}${esc(tr(SCENE_SHORT[scene]))}</b><small>${esc(v.status)}</small>`;
     }
     if(redeemScene)showRedeem();
   }
@@ -432,9 +471,12 @@
     const ctx=walletCtx();if(!ctx){closeRedeem();return;}
     const v=redeemView(ctx,redeemScene),place=scenePlace(redeemScene);
     $('.g-redeem h2').textContent=v.unlocked?tr(place):tr('解鎖「{place}」',{place:tr(place)});
-    $('.g-redeem-desc').textContent=tr('永久解鎖這座場景。選到在這裡跑的車款時，點舞台的「{tab}」分頁就能看。',{tab:tr(shortPlace(place))});
+    $('.g-redeem-desc').textContent=tr('永久解鎖這座場景。解鎖後在場景頁上方點它就能看。');
     const msg=$('.g-redeem-msg'),go=$('.g-redeem-go');msg.hidden=!v.message;msg.textContent=v.message||'';
     go.hidden=!v.text;go.textContent=v.text||'';go.disabled=!v.enabled;go.dataset.do=v.button;
+    // 訊息的樣子：要重試的是警示框；剛兌換成功（還沒關過視窗）那句加粗。
+    const a=redeemAction,done=a?.scene===redeemScene&&a.phase==='SUCCEEDED'&&a.requestId!==redeemAck;
+    $('.g-redeem-card').dataset.state=['RETRY','RETRY_STORAGE','RELOAD'].includes(v.button)?'warn':done?'done':'';
   }
   function renderWallet(){if(dialog?.open){showScenes();showControls();}}
   function openRedeem(scene,opener){
@@ -452,14 +494,11 @@
     redeemScene='';$('.g-redeem').hidden=true;$('.g-top').inert=$('.g-main').inert=!!frameBack;$('.g-sf').inert=false;
     if(redeemOpener?.isConnected)redeemOpener.focus({preventScroll:true});redeemOpener=null;
   }
-  // 看場景（同 App）：關視窗；目前的車不在這座就改選這座的車（先挑已入庫的、不然目錄第一款；不在目前篩選裡就切回全部車款），
-  // 車庫捲回篩選列，開場景頁畫這座（從場景頁點鎖頭來的就留在場景頁、換畫這座）。
+  // 看場景、首頁點能進的場景格：關視窗，開場景頁到這座（場景頁開著就就地換座）。從首頁來的先把車庫捲回篩選列，離開時看得到展示台。
   function goScene(scene){
     closeRedeem();
-    const cars=rows.filter(r=>exclusiveScene(r.id)===scene),inFilter=r=>filter==='all'||(filter==='owned'?r.owned:r.rule&&!r.owned);
-    if(!cars.some(r=>r.id===selected)){const pick=cars.find(r=>r.owned)||cars[0];if(pick){selected=pick.id;if(!inFilter(pick))filter='all';}}
-    preferDefault=false;sceneCar=selected;$('.g-filters').scrollIntoView({block:'start',behavior:'instant'});
-    openFrame();showGrid();
+    if(!frameBack)$('.g-filters').scrollIntoView({block:'start',behavior:'instant'});
+    openFrame(scene);showDetail();
   }
   function chooseModel(id) {
     selected=id;$('.g-model-select').value=id;
@@ -467,9 +506,9 @@
     showDetail();
   }
   function showGrid() {
-    const list=rows.filter(r=>filter==='all'||(filter==='owned'?r.owned:r.rule&&!r.owned))
-      .sort((a,b)=>Number(b.owned)-Number(a.owned)||Number(!!b.rule)-Number(!!a.rule));
-    if(!list.some(r=>r.id===selected))selected=list[0]?.id;
+    const list=rows.filter(inFilter).sort((a,b)=>Number(b.owned)-Number(a.owned)||Number(!!b.rule)-Number(!!a.rule));
+    // 場景頁開著時車由場景頁決定（可能不在篩選裡），離開時 keepFrameCar 再對齊篩選。
+    if(!frameBack&&!list.some(r=>r.id===selected))selected=list[0]?.id;
     // host 每次重畫護照都會呼叫 refresh（登入的人回前景同步完就一次）：卡片與選單內容沒變就不重建，
     // 整批換掉 62 張縮圖會讓手機重新解碼、閃一下。
     const key=dialog.lang+'|'+filter+'|'+list.map(r=>r.id+(r.owned?'+':'-')).join(),picker=$('.g-model-select');
@@ -487,7 +526,7 @@
       for(const row of list) {
         const b=document.createElement('button');b.type='button';b.className=row.owned?'g-car':'g-car g-locked';b.dataset.model=row.id;b.setAttribute('aria-pressed',String(selected===row.id));
         b.setAttribute('aria-label',tr(row.model.name)+' · '+status(row));
-        b.innerHTML=`<span class="g-check" aria-hidden="true">${row.owned?'✓':'○'}</span><img src="${esc(row.model.thumbnail)}" alt="" loading="lazy" width="320" height="200"><b>${esc(tr(row.model.name))}</b><small>${esc(status(row))}</small>`;
+        b.innerHTML=`<span class="g-check" aria-hidden="true">${row.owned?'入':'○'}</span><img src="${esc(row.model.thumbnail)}" alt="" loading="lazy" width="320" height="200"><b>${esc(tr(row.model.name))}</b><small>${esc(status(row))}</small>`;
         b.onclick=()=>{chooseModel(row.id);$('.g-filters').scrollIntoView({block:'start',behavior:'instant'});$('.g-model-select').focus({preventScroll:true});};
         $('.g-grid').append(b);
       }
@@ -518,11 +557,11 @@
   function build() {
     setFullscreen(false);data();resize?.disconnect();visibility?.disconnect();pointers.clear();pinch=drag=null;inView=true;gridKey='';redeemScene='';redeemOpener=null;
     // 換語言重建時場景頁一起關掉，回到點之前那一格。
-    if(frameBack){mode=frameBack;frameBack='';period=scenePeriod();resetView();}
+    if(frameBack){mode=frameBack;frameBack='';frameScene='';period=scenePeriod();resetView();keepFrameCar();}
     dialog.classList.remove('g-sf-open');
     dialog.lang=host.lang();
     dialog.classList.toggle('dark',host.dark());
-    dialog.innerHTML=`<header class="g-top"><span class="g-brand">RAIL ISLAND / COLLECTION</span><button class="g-close" autofocus>${esc(tr('回到地圖'))} ↗</button></header>
+    dialog.innerHTML=`<header class="g-top"><span class="g-brand">${esc(tr('軌島・收藏'))}</span><button class="g-close" autofocus>${esc(tr('回到地圖'))} ↗</button></header>
       <main class="g-main"><div class="g-heading"><h1 id="garageTitle">${esc(tr('我的車庫'))}</h1>
       <div class="g-progress"><strong class="g-count">0</strong><span class="g-total"></span><progress max="1" value="0"></progress><span>${esc(tr('可收集車款'))}</span></div></div>
       <p class="mt-g-hint" data-mt-g="hint" hidden data-i18n-skip></p>
@@ -531,18 +570,19 @@
       <div class="g-filters"><div class="g-tabs">${[['all','全部車款'],['owned','已入庫'],['pending','待收集']].map(([id,text])=>`<button data-filter="${id}" aria-pressed="${filter===id}">${esc(tr(text))}</button>`).join('')}</div>
       <label class="g-picker"><span>${esc(tr('選擇車款'))}</span><select class="g-model-select"></select></label></div>
       <div class="g-empty" hidden><p class="g-empty-text"></p><button class="g-reset">${esc(tr('查看所有車款'))}</button><button class="g-demo-start">${esc(tr('看看展示車庫'))}</button></div>
-      <section class="g-showcase" aria-label="${esc(tr('車型展示'))}"><div class="g-stage"><div class="g-scene-bar"><div class="g-scene-tabs">${[['model','近看小車'],['loop','環形試跑'],['track','海岸行旅'],['scene','田園小站']].map(([id,label])=>`<button data-view="${id}" aria-pressed="${mode===id}">${esc(tr(label))}</button>`).join('')}</div><button class="g-reverse" hidden aria-pressed="false" title="${esc(tr('反向行駛'))}" aria-label="${esc(tr('反向行駛'))}">⇄</button></div>
+      <section class="g-showcase" aria-label="${esc(tr('車型展示'))}"><div class="g-stage"><div class="g-scene-bar"><div class="g-scene-tabs">${[['model','近看小車'],['loop','環形試跑'],['track','海岸行旅'],['scene','場景']].map(([id,label])=>`<button data-view="${id}" aria-pressed="${mode===id}">${esc(tr(label))}</button>`).join('')}</div><button class="g-reverse" hidden aria-pressed="false" title="${esc(tr('反向行駛'))}" aria-label="${esc(tr('反向行駛'))}">⇄</button></div>
       <div class="g-viewport"><canvas class="g-view" tabindex="0" role="img"></canvas><div class="g-zoom"><button class="g-zoom-in" title="${esc(tr('放大場景'))}" aria-label="${esc(tr('放大場景'))}">+</button><output class="g-zoom-level" aria-label="${esc(tr('縮放比例'))}">100%</output><button class="g-zoom-out" title="${esc(tr('縮小場景'))}" aria-label="${esc(tr('縮小場景'))}">−</button></div><button class="g-fs" type="button" aria-pressed="false" title="${esc(tr('全畫面觀看'))}" aria-label="${esc(tr('全畫面觀看'))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${FS_PATH.off}"/></svg></button></div><div class="g-fallback" hidden>${esc(tr('這個裝置暫時無法顯示 3D，收藏紀錄與來源仍可查看。'))}</div>
       <div class="g-stage-foot"><span class="g-view-hint"></span><div class="g-controls"><button class="g-left" title="${esc(tr('向左旋轉'))}" aria-label="${esc(tr('向左旋轉'))}">↶</button><button class="g-auto" aria-label="${esc(tr('自動旋轉'))}" aria-pressed="false">▷</button><button class="g-right" title="${esc(tr('向右旋轉'))}" aria-label="${esc(tr('向右旋轉'))}">↷</button><button class="g-up" title="${esc(tr('提高視角'))}" aria-label="${esc(tr('提高視角'))}">↑</button><button class="g-down" title="${esc(tr('降低視角'))}" aria-label="${esc(tr('降低視角'))}">↓</button><button class="g-reset-view" title="${esc(tr('重設視角'))}" aria-label="${esc(tr('重設視角'))}">⌂</button><button class="g-retry" hidden aria-label="${esc(tr('重新載入小車'))}">↻</button></div></div></div>
       <div class="g-detail"><span class="g-status"></span><h2 class="g-name"></h2><p class="g-system"></p><p class="g-reason"></p><p class="g-goal"></p><p class="g-date"></p><button class="g-cta"></button><button class="mt-g-plan" type="button" data-mt-g="schedule" hidden></button><p class="mt-g-note" data-mt-g="note" hidden></p><div class="mt-g-mine" hidden><p class="mt-g-status" data-mt-g="status" data-i18n-skip></p><button class="mt-g-view" type="button" data-mt-g="view"></button></div><details class="g-sources"><summary>${esc(tr('車型與來源'))} ↗</summary><div class="g-source-body"></div></details></div></section>
       <p class="g-result" role="status" aria-live="polite"></p><div class="g-grid"></div>
       <footer class="g-footer"><span class="g-catalog"></span> · ${esc(tr('模型製作：軌島（Q 版示意）'))}<br>${esc(tr('進度沿用旅程護照；62 款小車都有收集條件，既有車種章自動帶入。'))}<br>${esc(tr('收藏的是紀念模型，不代表曾搭乘這個實際車型或車號。'))}</footer></main>
-      <section class="g-sf" hidden aria-labelledby="gSfTitle"><div class="g-sf-bar"><button class="g-sf-leave" type="button">${esc(tr('離開'))}</button><div class="g-sf-title" id="gSfTitle"><b></b><small></small></div>
-      <div class="g-sf-switch" role="group" aria-label="${esc(tr('選擇場景'))}" hidden><button data-pick="default" type="button"></button><button data-pick="exclusive" type="button"></button></div></div>
+      <section class="g-sf" hidden aria-labelledby="gSfTitle"><div class="g-sf-bar"><button class="g-sf-leave" type="button">${esc(tr('離開'))}</button><button class="g-sf-title" type="button" aria-expanded="false"><b id="gSfTitle"></b><small></small></button></div>
+      <div class="g-sf-scenes" hidden><div class="g-sf-seg" role="group" aria-label="${esc(tr('選擇場景'))}"></div></div>
+      <div class="g-sf-cars" hidden><p>${esc(tr('在這座跑的車'))}</p><div class="g-sf-car-list"></div></div>
       <div class="g-sf-stage"><div class="g-sf-wrap"><canvas class="g-sf-view" tabindex="0" role="img"></canvas><div class="g-sf-views" role="group" aria-label="${esc(tr('觀賞視角'))}"><button data-sf-view="world" type="button"></button><button data-sf-view="train" type="button">${esc(tr('陪它走走'))}</button></div>
       <p class="g-sf-hint">${esc(tr('拖曳轉個角度 · 滾動或雙指縮放'))}</p><div class="g-sf-loading" role="status"><span></span><button class="g-sf-retry" type="button" hidden>${esc(tr('重新載入小車'))}</button></div></div>
-      <div class="g-sf-tools"><div class="g-sf-cluster" role="group" aria-label="${esc(tr('時間'))}">${FRAME_PERIODS.map(p=>`<button data-sf-period="${p}" type="button"></button>`).join('')}</div>
-      <div class="g-sf-cluster" role="group" aria-label="${esc(tr('列車與視角控制'))}"><button class="g-sf-play g-sf-icon" type="button"></button><button class="g-sf-out g-sf-icon" type="button" aria-label="${esc(tr('縮小場景'))}">−</button><button class="g-sf-in g-sf-icon" type="button" aria-label="${esc(tr('放大場景'))}">＋</button><button class="g-sf-reset g-sf-icon" type="button" aria-label="${esc(tr('重設視角'))}">⌂</button></div></div>
+      <div class="g-sf-tools"><div class="g-sf-seg" role="group" aria-label="${esc(tr('時間'))}">${FRAME_PERIODS.map(p=>`<button data-sf-period="${p}" type="button"></button>`).join('')}</div>
+      <div class="g-sf-icons" role="group" aria-label="${esc(tr('列車與視角控制'))}"><button class="g-sf-play g-sf-icon" type="button"></button><button class="g-sf-out g-sf-icon" type="button" aria-label="${esc(tr('縮小場景'))}">−</button><button class="g-sf-in g-sf-icon" type="button" aria-label="${esc(tr('放大場景'))}">＋</button><button class="g-sf-reset g-sf-icon" type="button" aria-label="${esc(tr('重設視角'))}">⌂</button></div></div>
       <p class="g-sf-caption"></p></div></section>
       <div class="g-redeem" hidden><div class="g-redeem-card" role="dialog" aria-modal="true" aria-labelledby="gRedeemTitle" tabindex="-1"><h2 id="gRedeemTitle"></h2><p class="g-redeem-desc"></p><p class="g-redeem-msg" role="status"></p><button class="g-redeem-go" type="button"></button><button class="g-redeem-close" type="button">${esc(tr('關閉'))}</button></div></div>`;
 
@@ -563,11 +603,12 @@
     $('.g-reset-view').onclick=()=>{auto=false;resetView();showControls();requestDraw();};
     $('.g-auto').onclick=()=>{if(mode!=='model')running=!running;else auto=!auto;last=0;showControls();requestDraw();};
     $('.g-reverse').onclick=()=>{direction*=-1;showControls();requestDraw();};
-    $('[data-pick="default"]').onclick=()=>{preferDefault=true;showDetail();};
-    // 鎖著的專屬場景：開這款車那一座的兌換視窗（疊在場景頁上）；解鎖了就直接切過去（同 App）。
-    $('[data-pick="exclusive"]').onclick=e=>{const row=rows.find(r=>r.id===selected);if(sceneAccess(row)==='locked'){openRedeem(exclusiveScene(row.id),e.currentTarget);return;}preferDefault=false;showDetail();};
-    for(const b of dialog.querySelectorAll('[data-view]'))b.onclick=()=>{if(b.dataset.view==='scene'){openFrame();showDetail();return;}if(mode===b.dataset.view)return;mode=b.dataset.view;auto=false;running=mode!=='model'&&!reduced.matches;resetView();last=0;showDetail();};
+    // 第 4 格：先畫這款車的專屬場景（已解鎖的話），不然田園小站。
+    for(const b of dialog.querySelectorAll('[data-view]'))b.onclick=()=>{if(b.dataset.view==='scene'){const ex=exclusiveScene(selected);openFrame(ex&&sceneOpen(walletCtx(),ex)?ex:DEFAULT_SCENE);showDetail();return;}if(mode===b.dataset.view)return;mode=b.dataset.view;auto=false;running=mode!=='model'&&!reduced.matches;resetView();last=0;showDetail();};
     $('.g-sf-leave').onclick=closeFrame;
+    $('.g-sf-title').onclick=()=>{if(!closeCars(true))openCars();};
+    $('.g-sf').addEventListener('pointerdown',e=>{if(!e.target.closest('.g-sf-cars,.g-sf-title'))closeCars();});
+    $('.g-sf-cars').addEventListener('focusout',e=>{const to=e.relatedTarget;if(to&&!e.currentTarget.contains(to)&&!to.closest('.g-sf-title'))closeCars();});
     for(const b of dialog.querySelectorAll('[data-sf-view]'))b.onclick=()=>{trainView=b.dataset.sfView==='train';resetView();showControls();requestDraw();};
     for(const b of dialog.querySelectorAll('[data-sf-period]'))b.onclick=()=>{period=b.dataset.sfPeriod;showControls();requestDraw();};
     $('.g-redeem-go').onclick=e=>redeemDo(e.currentTarget.dataset.do);$('.g-redeem-close').onclick=closeRedeem;
@@ -632,7 +673,7 @@
     if(!dialog){dialog=document.createElement('dialog');dialog.id='trainGarage';dialog.setAttribute('aria-labelledby','garageTitle');document.body.append(dialog);dialog.addEventListener('cancel',e=>{e.preventDefault();if(!backOut())close();});dialog.addEventListener('close',()=>{if(!dialog.open)cleanup();});}
     demo=!!options.demo;data();selected=demo?'e200':rows.find(r=>r.owned)?.id||'emu3000';
     filter=demo||rows.some(r=>r.owned)?'owned':'all';auto=running=false;mode='model';frameBack='';resetView();direction=1;distance=0;travelTime=0;period=scenePeriod();last=0;inView=true;
-    trainView=innerWidth<=800;preferDefault=false;sceneCar=viewScene='';
+    trainView=innerWidth<=800;frameScene=viewScene='';
     rendererPromise=renderer?Promise.resolve():startRenderer();
     showDialog();build();dialog.scrollTop=0;$('.g-close').focus({preventScroll:true});requestDraw();
     reloadWallet(); // 「車庫場景」列出現時讀一次最新點數（同 App）；沒登入時什麼都不做
