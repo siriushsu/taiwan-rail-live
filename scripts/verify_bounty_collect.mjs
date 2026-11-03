@@ -4,7 +4,7 @@
 //
 // 期望值全部寫死在這裡，不呼叫實作去產生期望（scripts/bounty_chips_core.mjs 只在 P 組驗它自己）：
 //   ・產品規則：每款固定 150 點，不隨兌換順序漲，跟場景的「第 1 座 200、之後每座 300」分開算；規則檔 chips.items 列了價格的那款才收。
-//   ・測試用的價目表寫在這裡（ITEMS），不讀正式規則檔的 chips.items：正式規則檔還沒列價格（上線開關），K1 拿它驗「沒列就不收」。
+//   ・測試用的價目表寫在這裡（ITEMS），不讀正式規則檔的 chips.items（上線開關，哪幾款開賣會變）；K1 把正式規則檔的 chips.items 拿掉，驗「沒列就不收」。
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」——答不出來的判準等於沒有判準。
 //
 // ⚠️ 假 D1 的保真度同 verify_bounty_redeem.mjs 檔頭：batch 是排隊序列化的，C 組只證明「序列化之後的各種交錯」安全。
@@ -24,6 +24,7 @@ const RULES = JSON.parse(readFileSync('data/bounty_rules.json', 'utf8'));
 const SCN = RULES.chips.scenes;
 const ITEMS = { 'train:dr3000': 150, 'train:ct250': 150, 'train:fuxing': 150 };   // 測試用價目表（產品規則：每款 150）
 const RULES_I = { ...RULES, chips: { ...RULES.chips, items: ITEMS } };
+const RULES_OFF = { ...RULES, chips: Object.fromEntries(Object.entries(RULES.chips).filter(([k]) => k !== 'items')) };   // 上線開關關著
 const R = [];
 const ok = (n, p, msg = '') => { R.push({ n, p }); console.log(`${p ? '  ok ' : 'FAIL '} ${n}${msg ? ' — ' + msg : ''}`); };
 const attempt = async (name, fn) => {
@@ -101,10 +102,10 @@ const q = {
 // ═══ K：規則開關（chips.items 列了價格的那款才收）════════════════════════════════
 await attempt('K1', async () => {
   const A = 'device-k1aa0001';
-  const w = world({ rules: RULES });                         // 正式規則檔：還沒有 chips.items
+  const w = world({ rules: RULES_OFF });                     // 正式規則檔拿掉 chips.items
   put.ledger(w.db, A, 'adjust', 1000);
   const r = await collect(w, cb(A, 'train:dr3000', 'req-k1-000001'));
-  ok('K1 正式規則檔（沒有 chips.items）：換 dr3000 → 400 unknown_item，帳本與 garage_items 一列都沒多',
+  ok('K1 規則檔沒有 chips.items（上線開關關著）：換 dr3000 → 400 unknown_item，帳本與 garage_items 一列都沒多',
     r.status === 400 && r.json.error === 'unknown_item' && q.nItems(w.db, A) === 0 && q.nLedger(w.db) === 1, r.text);
   const m = await me(w, `?actor=${A}`);
   ok('K1b 同一個人讀錢包：items []（欄位在、空的），餘額 1000 沒動', m.status === 200 && same(m.json.items, []) && m.json.balance === 1000, m.text);

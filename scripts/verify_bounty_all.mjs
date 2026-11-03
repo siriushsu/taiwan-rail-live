@@ -23,7 +23,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const NODE_SUITES = ['hardening', 'schema', 'valuation', 'gates', 'dwell', 'api', 'ledger', 'chips', 'rules',
   'redeem', 'collect', 'cloud', 'merge', 'cron', 'auth', 'cron2', 'plus', 'usable'];
 const BROWSER_SUITES = ['merge_web', 'recorder_web', 'chips_web'];
-const EXPECT = { hardening: 184, schema: 53, valuation: 88, gates: 78, dwell: 16, api: 105, ledger: 73, chips: 37, rules: 20,
+const EXPECT = { hardening: 184, schema: 53, valuation: 88, gates: 78, dwell: 16, api: 105, ledger: 73, chips: 37, rules: 21,
   redeem: 106, collect: 44, cloud: 119, merge: 60, cron: 74, auth: 89, cron2: 131, plus: 24, usable: 29, merge_web: 27, recorder_web: 8, chips_web: 648 };
 // 逾時是拿來抓「卡住」的，不是拿來抓「慢」：別的工作把 1 分鐘負載壓到 16 以上時，chips_web 單獨跑完就要 16 分鐘以上，
 // 固定的「每支 15 分鐘」會把還在一條一條出結果的驗收砍掉。所以分兩道：
