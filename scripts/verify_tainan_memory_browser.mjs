@@ -470,18 +470,19 @@ async function singleLineChecks(page,{engine,width,height,click,sweep}){
   if(g.note.sh>g.note.ch+1){assert.equal(g.note.pe,'auto',at+'：說明被截高、文字卻不接收指標，捲不到後半段');assert.ok(['auto','scroll'].includes(g.note.oy),at+'：說明被截高、卻不能捲動（overflow-y '+g.note.oy+'）');assert.notEqual(g.note.ta,'none',at+'：說明被截高、觸控卻不能上下拖');
    const moved=await page.evaluate(()=>{const n=document.getElementById('slNote');n.scrollTop=n.scrollHeight;const t=n.scrollTop;n.scrollTop=0;return t;});assert.ok(moved>0,at+'：說明被截高，scrollTop 卻推不動');
    // 真的用滾輪捲一次：說明要捲動、鏡頭與跟車都不變；同一下滾在畫布上，鏡頭要變（正向對照），再滾回原狀。Playwright 的行動版 WebKit 不支援 mouse.wheel，只在 Chromium 滾。
+   // 畫布的滾輪照主地圖：先等 40 ms 分辨滾輪或觸控板，再用 200 ms 平滑縮放，每一下都等 320 ms 跑完再量。
    if(engine==='chromium'){
    const cam=()=>page.evaluate(()=>{const c=tainanMemory.camera;return {span:c.top-c.bottom,x:c.position.x,y:c.position.y,follow:tainanMemory.state.follow,top:document.getElementById('slNote').scrollTop};});
    const nb=await page.locator('#slNote').boundingBox(),c0=await cam();
    const canvasPt=()=>page.evaluate(()=>{const c=document.querySelector('#scene canvas'),r=c.getBoundingClientRect();for(const fy of [.5,.3,.7,.2,.8])for(const fx of [.5,.7,.3,.85,.15]){const x=r.left+r.width*fx,y=r.top+r.height*fy;if(document.elementFromPoint(x,y)===c)return [x,y];}return null;});
    const pt=await canvasPt();   // 滾輪要真的落在畫布上，不能落在說明或按鈕上
    assert.ok(pt,at+'：場景裡找不到滾輪落得到畫布的點');
-   await page.mouse.move(nb.x+nb.width/2,nb.y+nb.height/2);await page.mouse.wheel(0,120);await frames();await frames();const c1=await cam();
+   await page.mouse.move(nb.x+nb.width/2,nb.y+nb.height/2);await page.mouse.wheel(0,120);await page.waitForTimeout(320);await frames();const c1=await cam();
    assert.ok(c1.top>c0.top,at+'：在說明上滾動，說明沒有捲動 '+JSON.stringify([c0,c1]));assert.deepEqual({...c1,top:0},{...c0,top:0},at+'：在說明上滾動，鏡頭或跟車跟著變了');
-   await page.evaluate(()=>{document.getElementById('slNote').scrollTop=0;});await page.mouse.move(...pt);await page.mouse.wheel(0,120);await frames();await frames();const c2=await cam();
+   await page.evaluate(()=>{document.getElementById('slNote').scrollTop=0;});await page.mouse.move(...pt);await page.mouse.wheel(0,120);await page.waitForTimeout(320);await frames();const c2=await cam();
    assert.ok(Math.abs(c2.span-c0.span)>1e-6,at+'：在畫布上滾動，鏡頭沒有縮放，上面那項「鏡頭不變」是空轉');
    // 跟車展開時預留的帶子隨縮放改變，縮放之後說明框的高度可能跟著變、蓋到剛才那一點；滾回去之前重新找一個落在畫布上的點。
-   const pt2=await canvasPt();assert.ok(pt2,at+'：縮放之後場景裡找不到滾輪落得到畫布的點');await page.mouse.move(...pt2);await page.mouse.wheel(0,-120);await frames();await frames();
+   const pt2=await canvasPt();assert.ok(pt2,at+'：縮放之後場景裡找不到滾輪落得到畫布的點');await page.mouse.move(...pt2);await page.mouse.wheel(0,-120);await page.waitForTimeout(320);await frames();
    assert.ok(Math.abs((await cam()).span-c0.span)<1e-6*Math.max(1,c0.span),at+'：滾回去之後鏡頭沒有回到原本的縮放');WHEEL.ran.push(at);}}
   assert.equal(g.toggle.pe,'auto');
   s=await scan();assert.deepEqual(s.errors,[],at+' 展開：'+JSON.stringify(s.errors)+' 細節：'+JSON.stringify(s.detail));assert.ok(s.toggleHit,at+` 展開：「說明」鈕座標的 elementFromPoint 不是它自己（是 ${s.hitName}）`);
@@ -763,8 +764,8 @@ async function lastDayLayoutChecks(page,{engine,width,height,click,sweep}){
  });
  // 縮放連續：寬版（說明直接列出）跟車時，用滾輪小步縮放跨過讓位門檻，讓位量（跟車點投影在場景中線上方幾 px，用上面的 probe 自己投影，不讀頁面算好的值）不能跳。
  // 縮放方式：Chromium 用 page.mouse.wheel 滾在畫布上（每步重找落在畫布上的點）；Playwright 的行動版 WebKit 不支援 mouse.wheel，改對畫布送 WheelEvent，走頁面同一個 wheel 處理。
- // 滾輪不取消跟車；每步都驗還在跟車、span 真的乘了 e^(deltaY×0.001)，沒有就紅（那一步沒縮放到，相鄰差是空轉）。
- // 一步 deltaY ±40（span ×1.041）。I8 量到一步縮放本身讓讓位量自然變 ≤6.4 px（1280×800 跟 145 拉近到 span 221 時 Chromium 6.2、WebKit 6.4；1280×700 跟 3782 ≤3.4）；
+ // 滾輪不取消跟車；滾輪照主地圖（一下 deltaY d 縮放 2/(1+e^(−|d|/450)) 倍、200 ms 平滑，每步等 320 ms 跑完），每步都驗還在跟車、span 真的乘了這個倍數，沒有就紅（那一步沒縮放到，相鄰差是空轉）。
+ // 一步 deltaY ±40（span ×1.044；照主地圖改滾輪之前是 ×1.041）。I8 量到一步縮放本身讓讓位量自然變 ≤6.4 px（1280×800 跟 145 拉近到 span 221 時 Chromium 6.2、WebKit 6.4；1280×700 跟 3782 ≤3.4）；
  // 「框上緣高過門檻才讓、一讓就把車身外框置中」的寫法在門檻上一步跳 52 px。門檻取 12 px：約自然變化的兩倍、跳動的四分之一。
  // 覆蓋率：每個樣本的整段縮放至少一步讓位量 ≤0.5 px、至少一步 ≥6 px（真的跨過門檻），否則紅。1000×650 跟 3782 從 span 330 拉遠到 403 仍讓 20–25 px（門檻在 span 約 1100），跨不到，改用 1280×700。
  const ZOOM_SAMPLES=[[1280,800,T.sm,'145',82200],[1280,700,T.gm,'3782',83100]],ZOOM_DY=40,ZOOM_IN=10,ZOOM_OUT=15,ZOOM_JUMP=12;
@@ -773,7 +774,7 @@ async function lastDayLayoutChecks(page,{engine,width,height,click,sweep}){
   const wheel=async dy=>{const pt=await canvasPt();assert.ok(pt,'縮放連續：場景裡找不到滾輪落得到畫布的點');
    if(engine==='chromium'){await page.mouse.move(...pt);await page.mouse.wheel(0,dy);}
    else await page.evaluate(([dy,x,y])=>tainanMemory.renderer.domElement.dispatchEvent(new WheelEvent('wheel',{deltaY:dy,deltaMode:0,clientX:x,clientY:y,bubbles:true,cancelable:true})),[dy,...pt]);
-   await frames();await frames();};
+   await page.waitForTimeout(320);await frames();};
   const bad=[],uncovered=[],summary=[],r2=x=>Math.round(x*100)/100;
   try{for(const [w,h,id,no,sec] of ZOOM_SAMPLES){await resize(w,h);await reset();await page.evaluate(()=>tainanMemory.stationView());await frames();
     await page.evaluate(([id,sec])=>{const m=tainanMemory;m.state.playing=false;m.jump(sec);m.followTrain(id);},[id,sec]);await frames();
@@ -782,7 +783,8 @@ async function lastDayLayoutChecks(page,{engine,width,height,click,sweep}){
      assert.ok(c.drawn&&c.follow&&c.noteShown,at+'：縮放中不再跟車、畫面內沒有這班車，或說明不在 '+JSON.stringify({drawn:c.drawn,follow:c.follow,note:c.noteShown}));return {lift:-c.center[1],span:sp};};
     const rows=[await read()];
     for(const dy of [...Array(ZOOM_IN).fill(-ZOOM_DY),...Array(ZOOM_OUT).fill(ZOOM_DY)]){await wheel(dy);const r=await read(),prev=rows.at(-1);
-     assert.ok(Math.abs(Math.log(r.span/prev.span)-dy*.001)<1e-3,at+`：滾一下（deltaY ${dy}）span ${prev.span.toFixed(1)}→${r.span.toFixed(1)}，不是乘 e^(${dy*.001})，這一步沒縮放到`);rows.push(r);}
+     const step=Math.sign(dy)*Math.log(2/(1+Math.exp(-Math.abs(dy)/450)));
+     assert.ok(Math.abs(Math.log(r.span/prev.span)-step)<1e-3,at+`：滾一下（deltaY ${dy}）span ${prev.span.toFixed(1)}→${r.span.toFixed(1)}，不是乘 ${Math.exp(step).toFixed(4)}，這一步沒縮放到`);rows.push(r);}
     const L=rows.map(r=>r.lift),d=L.slice(1).map((v,i)=>v-L[i]),worst=Math.max(...d.map(Math.abs)),k=d.findIndex(v=>Math.abs(v)===worst),lo=Math.min(...L),hi=Math.max(...L);
     ZOOM_LOG.push({engine,at,how:engine==='chromium'?'page.mouse.wheel':'WheelEvent',spans:rows.map(r=>r2(r.span)),lifts:rows.map(r=>r2(r.lift)),worstStep:r2(worst),min:r2(lo),max:r2(hi)});fs.writeFileSync(out+'/zoom-results.json',JSON.stringify(ZOOM_LOG,null,1));
     summary.push(`${at} 讓位量 ${r2(lo)}–${r2(hi)} px、相鄰最大變化 ${r2(worst)} px`);
