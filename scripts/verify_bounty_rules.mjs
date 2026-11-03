@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from 'nod
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { runInNewContext } from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
 const R = [];
@@ -11,7 +12,8 @@ const ok = (n, p, msg = '') => { R.push({ n, p }); console.log(`${p ? '  ok ' : 
 const read = f => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 const rules = JSON.parse(read('data/bounty_rules.json'));
 const units = JSON.parse(read('data/bounty_units.json'));
-const sceneIds = new Set([...read('train-garage-scenes.js').matchAll(/scene:\s*'([a-z0-9-]+)'/g)].map(m => m[1]));
+// 可兌換的場景要是做好了的那幾座：train-garage-scenes.js 檔尾的 RailGarageSceneRules（每座跑哪個系統的車、地名）。
+const sceneIds = new Set(Object.keys((() => { const window = {}; runInNewContext(read('train-garage-scenes.js'), { window }); return window.RailGarageSceneRules || {}; })()));
 const c = rules.chips || {};
 
 ok('R1 coverDistinct 台鐵 50、高鐵 15，沒有捷運鍵',
@@ -27,9 +29,9 @@ ok('R4 prices 是非空正整數陣列', Array.isArray(c.prices) && c.prices.len
   c.prices.every(p => Number.isInteger(p) && p > 0), JSON.stringify(c.prices));
 {
   const bad = (c.scenes || []).filter(s => !sceneIds.has(s));
-  ok('R5 chips.scenes 每個 id 都在 train-garage-scenes.js', Array.isArray(c.scenes) && c.scenes.length > 0 &&
+  ok('R5 chips.scenes 每個 id 都在 train-garage-scenes.js 的場景規則', Array.isArray(c.scenes) && c.scenes.length > 0 &&
     bad.length === 0 && new Set(c.scenes).size === c.scenes.length,
-    `場景表 ${sceneIds.size} 個 id；缺：${bad.join(',') || '無'}`);
+    `場景規則 ${sceneIds.size} 座；缺：${bad.join(',') || '無'}`);
 }
 // multiplier 必須是正整數：帳本 delta 是 INTEGER，倍率是整數時 tripPoints 全程整數運算（小數倍率要靠捨去前的 1e-9 才不少給）。
 ok('R6 events 是陣列，每筆有 id/from/to、multiplier 是正整數', Array.isArray(c.events) &&
