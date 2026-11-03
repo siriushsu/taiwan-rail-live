@@ -4745,6 +4745,14 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '穹頂夜光': "The dome glows at night",
   '正在把小車送進美麗島站…': "Bringing the little train down into Formosa Boulevard Station…",
   '高雄捷運美麗島站 · 微縮印象': "Formosa Boulevard Station, Kaohsiung Metro · miniature impression",
+  '駁二大義站': "Dayi Pier-2",
+  '高雄輕軌・駁二大義站': "Kaohsiung Light Rail · Dayi Pier-2 Station",
+  '駁二全景': "Pier-2 panorama",
+  '港邊晴日': "Sunny harborside",
+  '港灣夕照': "Harbor sunset",
+  '倉庫夜色': "Warehouses at night",
+  '正在把小車送進駁二大義站…': "Bringing the little train to Dayi Pier-2 Station…",
+  '高雄輕軌駁二大義站 · 微縮印象': "Dayi Pier-2 Station, Kaohsiung Light Rail · miniature impression",
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '劍潭站': '剣潭',
@@ -4803,4 +4811,12 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '穹頂夜光': "夜に輝くドーム",
   '正在把小車送進美麗島站…': "小さな列車を美麗島駅へ送り込んでいます…",
   '高雄捷運美麗島站 · 微縮印象': "高雄メトロ 美麗島駅 · ミニチュアの印象",
+  '駁二大義站': "駁二大義",
+  '高雄輕軌・駁二大義站': "高雄ライトレール・駁二大義駅",
+  '駁二全景': "駁二の全景",
+  '港邊晴日': "港の晴天",
+  '港灣夕照': "港の夕焼け",
+  '倉庫夜色': "夜の倉庫街",
+  '正在把小車送進駁二大義站…': "小さな列車を駁二大義駅へ送り出しています…",
+  '高雄輕軌駁二大義站 · 微縮印象': "高雄ライトレール 駁二大義駅 · ミニチュアの印象",
 });

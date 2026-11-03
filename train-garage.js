@@ -47,9 +47,9 @@
   // 預設車庫「田園小站」每款車都能跑、永遠能進；已做好的四座只跑分派表（train-garage-scenes.js）分到那座的車，照錢包的已解鎖清單進，
   // 鎖著的點了開兌換視窗（見下面「兌換專屬場景」）。沒有錢包（沒登入、展示模式）只有田園小站，不出場景列與場景鈕。
   // 已做好的四座要跟 rail-3d/garage-diorama.js 的 SCENES 一致。
-  const DEFAULT_SCENE='paddy',DEFAULT_PLACE='預設車庫・田園小站',BUILT_SCENES=new Set(['south-coast','alishan','viaduct','shifen','taipei-metro','wenhu','airport-mrt','ntpc-metro','ntpc-lrt','taichung-metro','kaohsiung-metro']);
+  const DEFAULT_SCENE='paddy',DEFAULT_PLACE='預設車庫・田園小站',BUILT_SCENES=new Set(['south-coast','alishan','viaduct','shifen','taipei-metro','wenhu','airport-mrt','ntpc-metro','ntpc-lrt','taichung-metro','kaohsiung-metro','kaohsiung-lrt']);
   // 場景格、場景鈕用的短名（阿里山那座用線名，不用它畫的那段「之字形」）。
-  const SCENE_SHORT={paddy:'田園小站','south-coast':'南迴海岸',shifen:'十分老街',viaduct:'站前街',alishan:'阿里山林鐵','taipei-metro':'劍潭站',wenhu:'動物園站','airport-mrt':'山鼻站','ntpc-metro':'陶瓷老街站','ntpc-lrt':'淡水漁人碼頭站','taichung-metro':'文心森林公園站','kaohsiung-metro':'美麗島站'};
+  const SCENE_SHORT={paddy:'田園小站','south-coast':'南迴海岸',shifen:'十分老街',viaduct:'站前街',alishan:'阿里山林鐵','taipei-metro':'劍潭站',wenhu:'動物園站','airport-mrt':'山鼻站','ntpc-metro':'陶瓷老街站','ntpc-lrt':'淡水漁人碼頭站','taichung-metro':'文心森林公園站','kaohsiung-metro':'美麗島站','kaohsiung-lrt':'駁二大義站'};
   // trainView＝原型的「陪它走走」（跟著車看），手機寬預設開。frameCars＝這次開著場景頁時各座最後看的車：換座時記下，每次打開場景頁清空。
   let trainView=false,frameScene='',frameCars=new Map(),viewScene='',viewPending=false,sceneMeta=null,loadedScene='';
   // 第 4 格點下去開「場景頁」：蓋住整個車庫的 9-29 外框頁（網頁分支 garage/scene-03 的 garage-scene.html；規格與對照稿在
@@ -71,6 +71,7 @@
     'ntpc-lrt':['漁人碼頭全景',['河口晴日','淡水夕照','橋燈入夜'],'正在把小車送上淡水漁人碼頭站…','淡海輕軌淡水漁人碼頭站 · 微縮印象'],
     'taichung-metro':['森林公園全景',['公園晴日','劇場夕照','文心夜色'],'正在把小車送上文心森林公園站…','台中捷運綠線文心森林公園站 · 微縮印象'],
     'kaohsiung-metro':['美麗島全景',['港都晴日','港都夕照','穹頂夜光'],'正在把小車送進美麗島站…','高雄捷運美麗島站 · 微縮印象'],
+    'kaohsiung-lrt':['駁二全景',['港邊晴日','港灣夕照','倉庫夜色'],'正在把小車送進駁二大義站…','高雄輕軌駁二大義站 · 微縮印象'],
   };
   // 手機預設關陰影、像素比 1（10-30 A54 量測），只用在場景頁。
   const lite=matchMedia('(pointer:coarse) and (hover:none)');
