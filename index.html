@@ -23383,7 +23383,11 @@ function closeRidePanel() {
 function garageSnapshot(rides = loadRides()) {
   const sd = state.special;
   const special = sd && Object.fromEntries(['rollingStock', 'namedTrains'].map(cat => [cat, sd[cat].map(item => ({...item, name:i18nContentData(cat, item, 'name')}))]));
-  return { rides, coll: collectionOf(rides), special, stationCount: stationCollection(rides).size };
+  // 兌換車款：價格表在規則檔 chips.items，換到的在錢包（chips-me 的 items）；沒登入、沒讀到就是空的。
+  const chips = bountyRulesMem && bountyRulesMem.chips, led = garageWallet.uid() ? garageWallet.ledger() : null;
+  const itemPrices = chips && chips.items && typeof chips.items === 'object' ? chips.items : {};
+  const items = led && Array.isArray(led.items) ? led.items.map(x => String(x && x.item)) : [];
+  return { rides, coll: collectionOf(rides), special, stationCount: stationCollection(rides).size, itemPrices, items };
 }
 function garageCollection(rides = loadRides()) { return window.TrainGarage?.collection(garageSnapshot(rides), window.RailGarageCatalog || {}) || []; }
 function buildGarageEntry(rides) {
@@ -23431,6 +23435,22 @@ function ownTrainView() {
 // 送裝置 id 的話錢會扣在裝置名下，chips-me（Bearer）讀的卻是帳號，兩邊對不上。
 // 送出前先把 {uid, scene, requestId} 存進 GARAGE_REDEEM_PENDING_KEY：結果沒確認前重試一律沿用同一個 requestId，伺服器靠它不重扣。
 const GARAGE_REDEEM_PENDING_KEY = 'trainmap-garage-redeem-pending-v1';
+// 兌換的 POST（帶 Bearer、actor＝帳號 uid）。status 0＝網路失敗或 20 秒逾時（同 App）；body 不是 JSON 就是 null。
+async function garageWalletPost(path, fields) {
+  const a = state.account, user = a && a.user;
+  if (!user) return { status: 401, body: null };
+  try {
+    const token = a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken();
+    const r = await fetch(apiUrl(path), {
+      method: 'POST', cache: 'no-store',
+      signal: typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(20000) : undefined,
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ actor: user.uid, ...fields }),
+    });
+    let body = null; try { body = await r.json(); } catch (e) {}
+    return { status: r.status, body };
+  } catch (e) { return { status: 0, body: null }; }
+}
 const garageWallet = {
   uid: () => (state.account && state.account.user && state.account.user.uid) || '',
   scenes: () => ((bountyRulesMem && bountyRulesMem.chips && bountyRulesMem.chips.scenes) || []).map(String),
@@ -23448,22 +23468,9 @@ const garageWallet = {
     try { localStorage.setItem(BOUNTY_CHIPS_KEY, JSON.stringify(chipsMeMem)); } catch (e) {}
     renderPassport(); renderRidePanel();
   },
-  // status 0＝網路失敗或 20 秒逾時（同 App）；body 不是 JSON 就是 null。
-  redeem: async (scene, requestId) => {
-    const a = state.account, user = a && a.user;
-    if (!user) return { status: 401, body: null };
-    try {
-      const token = a.fb && a.fb.getIdToken ? await a.fb.getIdToken(user) : await user.getIdToken();
-      const r = await fetch(apiUrl('api/garage-redeem'), {
-        method: 'POST', cache: 'no-store',
-        signal: typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(20000) : undefined,
-        headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ actor: user.uid, scene, requestId }),
-      });
-      let body = null; try { body = await r.json(); } catch (e) {}
-      return { status: r.status, body };
-    } catch (e) { return { status: 0, body: null }; }
-  },
+  redeem: (scene, requestId) => garageWalletPost('api/garage-redeem', { scene, requestId }),
+  // 車款兌換（契約 v3 POST /api/garage-collect）：回應的處理照場景那條（train-garage.js sendRedeem）。
+  collect: (item, requestId) => garageWalletPost('api/garage-collect', { item, requestId }),
   wrongAccount: () => bountyOnWrongAccount(),
   pending: {
     get: () => { try { const p = JSON.parse(localStorage.getItem(GARAGE_REDEEM_PENDING_KEY) || 'null'); return p && typeof p === 'object' ? p : null; } catch (e) { return null; } },

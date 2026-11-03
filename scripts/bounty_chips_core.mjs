@@ -65,3 +65,23 @@ export function canRedeem(sceneId, unlocked, balance, chips) {
   if (balance < cost) return { ok: false, why: 'not_enough', cost };
   return { ok: true, cost };
 }
+
+// 兌換車款的價目表是 chips.items（{兌換品 id: 點數}）：每款固定價，不看兌換順序，跟場景的價目表分開算。
+// 沒有 items＝還沒開放任何車款（上線開關就是規則檔）。id 不合格式、價格不是正整數的那一款當成沒列，回 null。
+// id 不含 '|'：帳本列的 id＝item|<兌換品>|<ref>，前後綴要切得出來。
+export const GARAGE_ITEM_ID_RE = /^train:[a-z0-9_-]{1,40}$/;
+export function itemPrice(itemId, chips) {
+  const items = chips && chips.items;
+  if (typeof itemId !== 'string' || !GARAGE_ITEM_ID_RE.test(itemId) || !items || typeof items !== 'object' || !Object.hasOwn(items, itemId)) return null;
+  const p = items[itemId];
+  return Number.isInteger(p) && p > 0 ? p : null;
+}
+
+// 能不能兌換某一款。owned 是已換到的兌換品 id 陣列，balance 是目前點數。
+export function canCollect(itemId, owned, balance, chips) {
+  const cost = itemPrice(itemId, chips);
+  if (cost == null) return { ok: false, why: 'unknown_item' };
+  if (owned.includes(itemId)) return { ok: false, why: 'already' };
+  if (balance < cost) return { ok: false, why: 'not_enough', cost };
+  return { ok: true, cost };
+}

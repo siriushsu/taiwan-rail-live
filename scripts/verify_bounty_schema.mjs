@@ -214,6 +214,17 @@ const tryRun = (d, sql, ...p) => { try { d.prepare(sql).run(...p); return ''; } 
     JSON.stringify(got));
 }
 
+// A26（11-03 車款兌換）：0021 的 garage_items——欄位、主鍵 (actor, item)、五欄都 NOT NULL、unit 預設 'point'。期望值寫死。
+{
+  const info = db.prepare('PRAGMA table_info(garage_items)').all();
+  const nn = info.filter(r => r.notnull === 1).map(r => r.name).sort();
+  const unit = info.find(r => r.name === 'unit');
+  ok("A26 garage_items：欄位 actor／item／cost／created_at／unit，主鍵 (actor, item)，五欄都 NOT NULL，unit 預設 'point'",
+    sameSet(colsOf(db, 'garage_items'), ['actor', 'item', 'cost', 'created_at', 'unit']) && JSON.stringify(pkOf(db, 'garage_items')) === '["actor","item"]' &&
+      JSON.stringify(nn) === JSON.stringify(['actor', 'cost', 'created_at', 'item', 'unit']) && !!unit && String(unit.dflt_value) === "'point'",
+    JSON.stringify({ cols: colsOf(db, 'garage_items'), pk: pkOf(db, 'garage_items'), nn, dflt: unit && unit.dflt_value }));
+}
+
 // A17 UNIQUE(kind, ref)：同一個來源只能入帳一次；換 kind 則是不同來源（不是「ref 全域唯一」）
 {
   const { db: d } = openTestDb();
@@ -464,6 +475,14 @@ const schemaStmts = f => {
     noUnit.rc === 1 && /chip_ledger\.unit（0017_bounty_points\.sql）/.test(noUnit.out) && /garage_unlocks\.unit（0017_bounty_points\.sql）/.test(noUnit.out) &&
       /--file=schema\/0017_bounty_points\.sql/.test(noUnit.out) && !fileCmd.test(noUnit.out),
     noUnit.out.trim().slice(0, 600));
+  // A23m／n（11-03 車款兌換）：正式庫還沒套 0021（整張 garage_items 不在）→ 補法是套 0021；表在、主鍵自動索引不在 → 點名它與 0021、叫人先停手。
+  const noItems = runGate('no-items', rows.filter(r => r.tbl_name !== 'garage_items'));
+  ok('A23m 正式庫沒有 garage_items（還沒套 0021）→ exit 1，點名整張表 garage_items，補法是套 0021_garage_items.sql',
+    noItems.rc === 1 && /整張表 garage_items/.test(noItems.out) && /--file=schema\/0021_garage_items\.sql/.test(noItems.out), noItems.out.trim().slice(0, 600));
+  const noItemsAuto = runGate('no-items-auto', rows.filter(r => r.name !== 'sqlite_autoindex_garage_items_1'));
+  ok('A23n 正式庫的 garage_items 沒有主鍵自動索引 → exit 1，點名 sqlite_autoindex_garage_items_1 與 0021_garage_items.sql，叫人重建整張表',
+    noItemsAuto.rc === 1 && /sqlite_autoindex_garage_items_1（ON garage_items/.test(noItemsAuto.out) && /0021_garage_items\.sql/.test(noItemsAuto.out) &&
+      /重建整張表/.test(noItemsAuto.out), noItemsAuto.out.trim().slice(0, 600));
 }
 
 const pass = R.filter(r => r.p).length;
