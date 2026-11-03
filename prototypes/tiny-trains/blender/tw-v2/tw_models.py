@@ -1725,11 +1725,12 @@ def dhl100(s):
 # 客車沒有駕駛室，不放 lamp 材質（fleet-v1 三款也沒有；verify_garage_facing 對沒有 lamp 的車不判車頭端）。
 # 客車兩端的紅色尾燈用 taillamp：夜裡排在編組尾端時發紅光（App 車庫與網頁海岸行旅的車燈都認這個材質），排在中間或車頭端不亮。
 
-def fpk_coach(s,zones,windows,win,door,door_bands,lower,end,end_low=None,vest=None,sign=None):
- """莒光號 FPK10600 系客車車體（莒光號、鳴日號客車共用）：平頭、兩端各一扇有窗的單開門，門區車身往下延伸包住踏階（照片上門區下緣比車身低）；
+def fpk_coach(s,zones,windows,win,door,door_bands,lower,end,end_low=None,vest=None,sign=None,doors=(-1,1),door_win=None,roof_ac=True):
+ """莒光號 FPK10600 系客車車體（莒光號、鳴日號、復興號客車共用）：平頭、兩端各一扇有窗的單開門，門區車身往下延伸包住踏階（照片上門區下緣比車身低）；
  窗照正側面照的順序與寬窄放，兩側同位置；車頂兩端各一台冷氣（fleet-v1 放在中段兩台不對）。
  zones：車側分區（由下往上）；windows：[(x, 寬, 窗框材質), ...]；win：(窗下緣, 上緣)；door：門扇底色、door_bands：門扇色帶 [(z0, z1, 材質)]；
- lower：門區裙板顏色；end：端牆顏色、end_low：(端牆下半材質, 上緣)；vest：門區上半另塗 (材質, 下緣, 上緣, 內側上角圓角)；sign：側面目的地顯示器 (x, z)。"""
+ lower：門區裙板顏色；end：端牆顏色、end_low：(端牆下半材質, 上緣)；vest：門區上半另塗 (材質, 下緣, 上緣, 內側上角圓角)；sign：側面目的地顯示器 (x, z)；
+ doors：哪幾端有門（-1、1）；door_win：門窗 [(離門中心的 x, 寬, 中心高, 高), ...]，None 是一扇居中的門窗；roof_ac：車頂兩端的冷氣。"""
  L,W,H=s['L'],s['W'],s['H'];color('fpkac','A9B0B3',.40,.40,.08)
  f,neck=zoned_shell(s,[(.83,L/2),(H,L/2)],0,zones,zones)
  dw=s['doorW'];lw=dw-.022;z0,z1=win;zc=(z0+z1)/2;xd=L/2-.62;xv=L/2-1.05
@@ -1746,17 +1747,22 @@ def fpk_coach(s,zones,windows,win,door,door_bands,lower,end,end_low=None,vest=No
     side_paint('門區上半',s,f,side,gs,a,b,za,zb,m,step=.05)
   if sign:use('02');panel('側面目的地顯示器',(sign[0],y,sign[1]),.36,.14,'frame',r=.02)
   for i,x in enumerate([-xd,xd]):
+   if (1 if x>0 else -1) not in doors:continue
    use('02');cz=(.60+2.80)/2;h=2.20
    panel('側門門框',(x,y,cz),dw+.05,h+.03,'frame',r=.03)
    d=panel('獨立門扇',(x,y+side*.023,cz),lw,h,door,r=.025,depth=.024)
    d['side_door']=True;d['door_group']=i+1;d['side']=side;d['leaf']=0
    for za,zb,m in door_bands:box('門扇色帶',(x,y+side*.041,(za+zb)/2),(lw,.011,zb-za),m,.002)
-   panel('門窗嵌框',(x,y+side*.052,zc+.04),.30,z1-z0+.14,'frame',r=.05)
-   panel('門窗玻璃',(x,y+side*.066,zc+.04),.25,z1-z0+.08,'glass',r=.045,depth=.012)
+   if door_win is None:
+    panel('門窗嵌框',(x,y+side*.052,zc+.04),.30,z1-z0+.14,'frame',r=.05)
+    panel('門窗玻璃',(x,y+side*.066,zc+.04),.25,z1-z0+.08,'glass',r=.045,depth=.012)
+   for dx,ww,c,hh in door_win or []:
+    panel('門窗嵌框',(x+dx,y+side*.052,c),ww+.05,hh+.06,'frame',r=.045)
+    panel('門窗玻璃',(x+dx,y+side*.066,c),ww,hh,'glass',r=.04,depth=.012)
    for xx in [x-dw/2-.07,x+dw/2+.07]:rod('門邊扶手',(xx,y+side*.03,1.05),(xx,y+side*.03,1.85),.014,'metal')
    use('01');box('門區裙板',(math.copysign(L/2-.575,x),side*(W/2-.03),.71),(1.15,.06,.26),lower,.01)
  use('05')
- for x in [-3.40,3.40]:
+ for x in [-3.40,3.40] if roof_ac else []:
   box('冷氣機罩',(x,0,H+.11),(1.30,W*.64,.26),'fpkac',.08)
   for k in range(7):box('冷氣罩頂部格柵',(x-.51+k*.17,0,H+.245),(.035,W*.46,.01),'chassis',0)
   for sd in [-1,1]:grille('冷氣側格柵',x,sd*W*.32,H+.10,.95,.12,True,5)

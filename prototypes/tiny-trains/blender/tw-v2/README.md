@@ -14,7 +14,7 @@
 | --- | --- |
 | `tw_specs.py` | 每款的 Q 版尺寸、門數、車頂設備 |
 | `tw_models.py` | 每款的建模函式；同車體的家族共用一支（例如北捷高運量的 `metro_body`、`metro_black_face`） |
-| `tw_classic.py` | 台灣經典退役車的規格與建模函式（DR3000、CT250 等），匯入時登記進 `tw_specs.S` 與 `BUILDERS`；DR3000 的車殼沿用 `tw_models` 同家族的函式，CT250 是另寫的蒸機函式 |
+| `tw_classic.py` | 台灣經典退役車的規格與建模函式（DR3000、CT250 等），匯入時登記進 `tw_specs.S` 與 `BUILDERS`；DR3000 的車殼沿用 `tw_models` 同家族的函式，CT250 是另寫的蒸機函式，復興號沿用莒光號的 `fpk_coach`（加了單端門、門窗、車頂冷氣三個選項，預設不變） |
 | `build_tw.py` | Blender 入口 |
 | `finalize_tw.py` | 渲染完之後產 360×240 WebP 縮圖與 `catalog.json`（給車庫匯入讀） |
 | `compare_page.py` | 改前（fleet-v1）／改後三角度對照頁，渲染圖內嵌成單一 HTML；參考照片只連 Commons 縮圖，其他來源只放文字連結 |
@@ -52,6 +52,7 @@ python3 prototypes/tiny-trains/blender/tw-v2/finalize_tw.py c301 c321 c341 c371 
 | `danhai` 淡海輕軌、`ankeng` 安坑輕軌、`caf` `citadis` 高雄輕軌 | 精修，五節節長與分節沿用 fleet-v1（地圖五節共用預算）；淡海、安坑同車體共用一支換塗裝，車頭高度照正面照量；高雄兩款的斜塊照正側面照量、往下偏向最近的車頭（2026-11-02） |
 | `dr3000` 柴聯自強（經典退役車，`tw_classic.py`） | 新做，車殼與車頭借 DR3100；車頭照 2023 正面照量、車側大小窗交錯照車內照與車側照（2026-11-03） |
 | `ct250` C55 蒸汽機車（經典退役車，`tw_classic.py`） | 新做，不沿用 fleet-v1 的蒸機函式：輻條動輪根部補強、汽包砂箱一體罩、導煙板跟著步道彎到前端甲板、煤水車照 Commons 照片重畫（2026-11-03） |
+| `fuxing` 復興號客車（經典退役車，`tw_classic.py`） | 新做，車體借莒光號：20000 型一端車門、一端冷氣機室百葉，車頂沒有冷氣；窗序照斜側照片透視還原（2026-11-03） |
 
 ## 照片與標誌
 

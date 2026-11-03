@@ -3069,5 +3069,73 @@
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "fuxing",
+  "name": "復興號・客車",
+  "label": "復興號",
+  "detail": "天藍下半 · 白色窗帶 · 一端車門一端冷氣機室",
+  "color": "#2b7cc4",
+  "source": "https://commons.wikimedia.org/wiki/File:TRA_40SP20073T_at_Chiayi_Station_20191011.jpg",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Kazehayashi（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_40SP20073T_at_Chiayi_Station_20191011.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Foxy Who（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%BD%AE%E5%B7%9E%E8%BB%8A%E7%AB%992B%E6%9C%88%E5%8F%B0_%E5%BE%A9%E8%88%88%E8%99%9F_20130801.jpg"
+   }
+  ],
+  "features": [
+   "唐榮鐵工廠 1980 年起造的 20000 型冷氣對號車，1981 年定名復興號，用到 2022 年退役：車體設計同莒光號，座位比莒光號多、窗跟座位沒有對齊。",
+   "1985 年起漆天藍與白色（原本跟莒光號同色、多一道白線）：下半天藍、窗帶以上白色；兩端整段天藍，白色帶在兩端前結束、上角圓角。",
+   "「落地冷氣式單端門」：一端一扇兩片窗的車門，另一端是冷氣機室、車側兩片百葉，車頂沒有冷氣機；一扇小窗加六扇等距大窗，兩端是貫通道端牆。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA 40SP20073T at Chiayi Station 20191011.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_40SP20073T_at_Chiayi_Station_20191011.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜側面（兩端、窗的順序與寬窄、白色帶收邊）"
+   },
+   {
+    "file": "File:40SPK21008T, Fu-Hsing Semi Express.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:40SPK21008T,_Fu-Hsing_Semi_Express.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "冷氣機室的車側百葉（附車長室的 21000 型）"
+   },
+   {
+    "file": "File:潮州車站2B月台 復興號 20130801.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E6%BD%AE%E5%B7%9E%E8%BB%8A%E7%AB%992B%E6%9C%88%E5%8F%B0_%E5%BE%A9%E8%88%88%E8%99%9F_20130801.jpg",
+    "author": "Foxy Who",
+    "licence": "CC BY-SA 3.0",
+    "use": "近照（窗下緣到色界的距離、窗框）"
+   },
+   {
+    "file": "File:CK124 with Fu-Hsing Semi Express.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:CK124_with_Fu-Hsing_Semi_Express.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "編組（端牆顏色）"
+   },
+   {
+    "file": "File:TRA E409 leading a Fu-Hsing Semi-Express on the Yilan Line.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E409_leading_a_Fu-Hsing_Semi-Express_on_the_Yilan_Line.jpg",
+    "author": "jason199567",
+    "licence": "CC BY-SA 4.0",
+    "use": "2022 年退役前的編組"
+   },
+   {
+    "file": "File:35SPK21202.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:35SPK21202.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "1985 年型（兩端車門、車頂冷氣）對照，這版做 20000 型"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
  }
 ]

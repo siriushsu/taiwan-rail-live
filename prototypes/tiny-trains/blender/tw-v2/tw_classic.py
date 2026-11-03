@@ -233,4 +233,28 @@ def ct250(s):
  rod('機車與煤水車連結桿',(x1,0,.95),(-2.72,0,.95),.05,'ctblack')
  coupler(5.66,W,1,z=.92);coupler(x0-.12,W,-1,z=.70)
 
-BUILDERS.update({'dr3000':dr3000,'ct250':ct250})
+# 復興號（唐榮鐵工廠，1980）：20000 型「落地冷氣式單端門」座車，一端是車門、另一端是冷氣機室，車頂沒有冷氣機；1985 年起漆天藍與白色，用到 2022 年退役。
+# 車體設計同莒光號，車庫一樣是 L 9.0，沿用 tw_models.fpk_coach。
+add('fuxing','coach',L=9.0,W=2.8,H=3.4,doors=1,doorLeaves=1,doorW=.62,radiusTop=.42,body='1E6EC4',accent='EDF0EE',label='復興號')
+
+def fuxing(s):
+ """復興號座車（40SP20000 系）。參考：Commons「TRA 40SP20073T at Chiayi Station 20191011.jpg」（Kazehayashi，CC BY-SA 4.0，側面、兩端、窗的順序）、
+ 「40SPK21008T, Fu-Hsing Semi Express.jpg」（Kazehayashi，CC BY-SA 4.0，冷氣機室百葉）、「潮州車站2B月台 復興號 20130801.jpg」（Foxy Who，CC BY-SA 3.0，色界與窗的高度）、
+ 「CK124 with Fu-Hsing Semi Express.jpg」（Kazehayashi，CC BY-SA 4.0，端牆顏色）、「35SPK21202.jpg」（Kazehayashi，CC BY-SA 4.0，1985 年型對照，這版做 20000 型）。
+ 下半天藍、窗帶以上白色，天藍在窗下緣下方一點收邊；兩端整段天藍（白色帶在兩端前結束、上角圓角）；+X 端一扇兩片窗的車門，-X 端冷氣機室車側兩片直條百葉；
+ 車頂淺灰、沒有冷氣機；一扇小窗、六扇等距大窗（斜側照片用透視還原：大窗寬約窗距八成，小窗緊接冷氣機室）。
+ 窗高同莒光號 1.79–2.49；天藍上緣 1.72（潮州近照量窗下緣到色界約 .07 m）。"""
+ L,W,H=s['L'],s['W'],s['H']
+ color('fxblue','1E6EC4',.06,.34,.26);color('fxwhite','EDF0EE',.06,.34,.26);color('fxroof','B4B9BB',.40,.40,.08)
+ zones=[(1.72,'fxblue'),(2.96,'fxwhite'),(H+1,'fxroof')]
+ win=[(-2.67,.40)]+[(-1.90+.943*k,.75) for k in range(6)]
+ fpk_coach(s,zones,[(x,w,'frame') for x,w in win],(1.79,2.49),'fxblue',[],'fxblue','fxblue',vest=('fxblue',1.72,2.96,.30),
+  doors=(1,),door_win=[(-.13,.14,2.27,.88),(.13,.14,2.27,.88)],roof_ac=False)
+ xd=L/2-.62
+ for side in [-1,1]:
+  y=side*(W/2+.018);use('02');box('車門中縫',(xd,y+side*.037,1.70),(.012,.008,2.14),'frame',0)
+  for x in [-L/2+.40,-L/2+.84]:
+   bar_grille('冷氣機室百葉',x,side*(W/2+.012),1.85,.36,1.60,6,frame='frame',bar='fxblue')
+   box('百葉中橫條',(x,side*(W/2+.028),1.85),(.34,.014,.03),'fxblue',0)
+
+BUILDERS.update({'dr3000':dr3000,'ct250':ct250,'fuxing':fuxing})
