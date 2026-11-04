@@ -5738,6 +5738,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="speedzoom1104"><span class="d">11/04</span><span>快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大</span></li>
         <li data-cl-of="garagepolish1104"><span class="d">11/04</span><span>車庫七座捷運與高鐵車站改成雙線穿過，列車來得更勤；多良、平交道、光華街也更常有車；換上新汽機車、高樓與台灣樹種，劍潭的北藝中心重做</span></li>
         <li data-cl-of="delayclimate1103"><span class="d">11/03</span><span>新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開</span></li>
         <li data-cl-of="garagemetro1103"><span class="d">11/03</span><span>車庫新增九座車站場景（劍潭、動物園、山鼻、陶瓷老街、淡水漁人碼頭、文心森林公園、美麗島、駁二大義、高鐵新竹），可以用島民點數兌換，捷運、輕軌、機捷與高鐵列車都有自己的車站</span></li>
@@ -5745,7 +5746,6 @@
         <li data-cl-of="garagenewscenes1103"><span class="d">11/03</span><span>車庫新增多良車站、街角平交道、台南光華街三座可兌換場景，台鐵車都能開進每座台鐵場景；原有四座更精緻：樹和站房重做、列車會停站，阿里山有雲海和螢火蟲；環形試跑的樹換成台灣樹種</span></li>
         <li data-cl-of="emu3000refine1103"><span class="d">11/03</span><span>EMU3000 新自強照實車重做：地圖上跑的和車庫裡的都換上新車頭與自己的中間車，有電車線的車庫場景集電弓會升到線上；車庫卡縮圖也換成新車頭</span></li>
         <li data-cl-of="southcoasttrees1103"><span class="d">11/03</span><span>車庫場景南迴海岸的山坡改種台灣東部海岸常見的血桐、相思樹、黃槿和林投；山腳那排一明一暗的鋸齒也修平了</span></li>
-        <li data-cl-of="paddyhill1103"><span class="d">11/03</span><span>車庫「田園小站」後山山腳那排鋸齒狀的明暗三角形修平了，月台站名牌也不再閃爍</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5779,6 +5779,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="speedzoom1104"><span class="d">11/04</span><span>快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大</span></li>
         <li data-cl="garagepolish1104"><span class="d">11/04</span><span>車庫七座捷運與高鐵車站改成雙線穿過，列車來得更勤；多良、平交道、光華街也更常有車；換上新汽機車、高樓與台灣樹種，劍潭的北藝中心重做</span></li>
         <li data-cl="garagemetro1103"><span class="d">11/03</span><span>車庫新增九座車站場景（劍潭、動物園、山鼻、陶瓷老街、淡水漁人碼頭、文心森林公園、美麗島、駁二大義、高鐵新竹），可以用島民點數兌換，捷運、輕軌、機捷與高鐵列車都有自己的車站</span></li>
         <li data-cl="garageclassic1103"><span class="d">11/03</span><span>車庫新增五款退役經典車：DR3000、CT250、復興號、EMU300、騰雲號，用島民點數兌換，換到就永久收進車庫</span></li>
@@ -7235,7 +7236,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1103g：1.7.8 車庫整併（網頁 release-178c-web 1e1d7553）——0507 四座精緻化＋多良／街角平交道／光華街、捷運九座、經典退役車五款兌換（chips.items 各 150，需 schema 0021）、EMU3000 新車頭與中間車、南迴換樹＋山腳、田園後山與站名牌、車庫與台南重播手勢照主地圖、重播頁換 1.7.0 色票加深色。
 // v1103h：誤點趨勢地圖（/api/delay-climate，台鐵每段每天「多出幾分鐘」，1／3／7 天窗、比前 4 週／去年、可播放；入口在查詢快捷列與更多→資訊）；Worker 每日誤點 cron 順便寫 tra_delay_climate（schema 0021）。
 // v1104a：車庫場景修整——七座改雙線穿過（對向車晚半趟）、多良／平交道一趟 110、光華街 90、平交道放行計時兩股各自算、新車輛高樓與台灣樹種、北藝中心重做；連帶出 main 上的 ea4df56a（搭乘過期補路段）。
-const BUILD = 'v1104a';
+// v1104b：拿掉 ≥30× 的縮放上限（HISPEED_ZOOM_CAP）：放慢時只還原到 z20（引擎原本 z23），30× 時滾過滾輪更會留在 z16 解不開、要重新整理；底圖已不按張計費（OpenFreeMap 免費、z14 以上不再多抓，Esri 40 張後換 session），這道鎖沒有作用了
+const BUILD = 'v1104b';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -8176,7 +8178,6 @@ function createMaplibreEngine(containerId, view) {
     flyToBounds: (b, o) => E.fitBounds(b, o), // MapLibre 的 fitBounds 本來就會動畫;duration 由 o 決定
     stop: () => { raw.stop(); return E; },
     setMinZoom: z => { raw.setMinZoom(z - ML_Z); return E; },
-    setMaxZoom: z => { raw.setMaxZoom(z - ML_Z); return E; },
     setMaxBounds: b => { raw.setMaxBounds(b ? mlToLngLatBounds(b) : null); return E; },
     distance: (a, b) => { // 球面大圓距離(R=6371000 haversine)
       const p = mlToLL(a), q = mlToLL(b), rad = Math.PI / 180, R = 6371000;
@@ -8594,29 +8595,6 @@ function setSpeed(v) {
   state.speedMult = v;
   document.getElementById('speed').value = v;
   document.getElementById('speedOut').textContent = v + '×';
-  applySpeedZoomCap();
-}
-// 高速鎖縮放:播放 ≥30× 時把地圖縮放上限收到 z16(每圖磚約1.2km,60×也只需~2.6張/秒、讀得動)。
-// 因為最大 zoom(z19-20)+快車+高速時圖磚需求爆到~28張/秒,連眼前那屏都載不進來→底圖整片全黑(實測)。
-// 降回 <30× 即解除上限,並還原到加速前的縮放。用 _zoomCapped 只在跨越門檻時動作。
-const HISPEED_ZOOM_CAP = 16;
-function applySpeedZoomCap() {
-  if (!M) return;
-  const fast = state.speedMult >= 30;
-  if (fast === !!state._zoomCapped) return;
-  state._zoomCapped = fast;
-  if (fast) {
-    // 只有真的把他從高處壓下來才記(≤CAP 就沒動他,也無從還原)
-    state._preCapZoom = M.getZoom() > HISPEED_ZOOM_CAP ? M.getZoom() : null;
-    if (M.getZoom() > HISPEED_ZOOM_CAP) M.setView(M.getCenter(), HISPEED_ZOOM_CAP, { animate: false });
-    M.setMaxZoom(HISPEED_ZOOM_CAP);
-  } else {
-    M.setMaxZoom(state.basemap === 'sat' ? 19 : 20); // 還原各底圖層原本的上限
-    // 只有他還停在 CAP(高速時沒自己再改縮放)才還原,免得蓋掉他刻意選的全景視角
-    if (state._preCapZoom != null && Math.abs(M.getZoom() - HISPEED_ZOOM_CAP) < 0.01)
-      M.setView(M.getCenter(), state._preCapZoom, { animate: false });
-    state._preCapZoom = null;
-  }
 }
 function syncTimeUI() {
   // 手機把站台帶收成一小條,「現在」鈕在那條 CSS 裡是 display:none ⇒ 時鐘一旦被撥走
