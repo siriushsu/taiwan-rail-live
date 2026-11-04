@@ -184,7 +184,7 @@ try {
         await page.route('**/api/weekend*', r => r.fulfill({contentType:'application/json',body:JSON.stringify({span:{label:'國慶連假',from:'2026-10-09',to:'2026-10-11',days:3},events:[{title:'官方活動',note:'中文公告',days:['2026-10-10'],places:[]}],alsoOpen:[],updated:'2026-10-09'})}));
         await page.goto(base+'weekend.html?lang=ko-KR');
         await page.waitForFunction(() => document.body.dataset.ready==='1');
-        assert.equal(await page.locator('#h1').innerText(), '국경일 연휴 · 철도 행사');
+        assert.equal(await page.locator('#h1').innerText(), '국경절 연휴 · 철도 행사');
         assert.equal(await page.locator('.src-zh').innerText(), '중국어 원문');
         assert((await page.locator('#foot').innerText()).includes('지도로 돌아가기'));
         await page.screenshot({path:path.join(output,`${engine}-weekend.png`)});
