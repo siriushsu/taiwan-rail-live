@@ -188,8 +188,9 @@ export function createScene(){
  let state={};return{...k,nativeRigs:{fleet,cars,gates,lamps,redLights},dispose(){atlasTexture?.dispose();poolTex?.dispose();k.dispose();},path,opposingPath,kind:'crossing',contactWireZ:2.31-.0125,focus:[0,5,1],update(time,period,train){const f=k.illumination(period),a=crossingState(train.distance,train.length,path.length,train.speed),b=crossingState(train.opposingDistance??train.distance,train.length,path.length,train.speed),s={...a,arrival:Math.max(a.arrival,b.arrival),clear:Math.min(a.clear,b.clear),closed:Math.max(a.closed,b.closed),alarm:a.alarm||b.alarm,occupied:a.occupied||b.occupied};s.phase=s.occupied?'雙向列車通過':!s.alarm?'通行開放':s.closed===1?'等待雙線清空':s.clear>.8?'遮斷桿上升':s.closed>0?'遮斷桿下降':'列車接近';for(const {pivot,side}of gates)pivot.rotation.y=side*(1-s.closed)*Math.PI/2;
   for(const l of redLights)l.intensity=s.alarm?(f?2.5:.4):0;const blink=Math.floor(time*2.2)%2;for(const {m,index}of lamps){const on=s.alarm&&blink===index;m.emissiveIntensity=on?3:0;m.color.set(on?'#ff5943':'#551c19');}
   // 車流只在全開後通行；下一次警示前回到入口，所有回繞都在道路邊界。
-  const span=38,openStart=3.2,openDuration=(path.length-train.length-7)/train.speed-9.2;
-  const openElapsed=s.clear>=openStart?s.clear-openStart:s.clear+path.length/train.speed-openStart;
+  const span=38,openStart=3.2,openDuration=(path.length-train.length-7)/train.speed-9.2,lap=path.length/train.speed;
+  // 兩股各自算清空後過了幾秒再取小的：直接取 clear 的最小值，先走的車繞回起點那一刻會少算對向那 3 秒，路上的車跟著瞬移。
+  const since=c=>(c%lap+lap)%lap,openElapsed=Math.min(since(a.clear),since(b.clear))-openStart;
   cars.forEach((c,i)=>{let y=c.initial;if(!s.alarm&&s.closed===0&&openElapsed<openDuration){const t=Math.max(0,openElapsed-Math.floor(i/3)*.5-(i%3)*1.25),d=t*3.2;const progress=d%span;y=c.initial+c.dir*progress;if(c.dir*y>19)y-=c.dir*span; // 回到邊界後向停止線前進並停等
    if(d>=span)y=c.initial;
   }c.g.position.y=y;c.g.visible=Math.abs(y)<17+c.L/2+.2;c.g.position.z=.18+.12*smooth((4.2-Math.abs(y))/1.2);fleet.tail.m.emissiveIntensity=s.alarm?1.1:f*.5;});

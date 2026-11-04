@@ -1,14 +1,14 @@
 import * as THREE from '../vendor/three.module.js';
 import {createProps} from './props.js';
 export const smooth=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);};
-// 單向穿越：可見鐵道 70 單位，進退場緩衝留到 ±90，整列離景後才循環。
+// 單向穿越：可見鐵道 70 單位，進退場緩衝留到 ±55，整列離景後才循環（一趟 110 單位，車速 2.6 約 42 秒一班；平交道兩股共用，車流要 18 秒的放行才走得完）。
 // 時段光照（同原型 prototypes/garage-new-scenes/main.js）：欄位同其他場景模組的 THEMES，hemi、env 是半球光與環境光強度。
 export const THEMES={
  day:{background:'#e8e9df',sun:'#fff0ce',ambient:'#c9dce4',ground:'#7d8866',power:3,exposure:1.02,hemi:2,env:.65},
  sunset:{background:'#e7d1ba',sun:'#ffbb77',ambient:'#c9dce4',ground:'#7d8866',power:2.2,exposure:.94,hemi:1.55,env:.65},
  night:{background:'#172c35',sun:'#a9c7df',ambient:'#7694b0',ground:'#243a36',power:.45,exposure:.94,hemi:.48,env:.18},
 };
-export function straightPath(z){return{length:180,trackStart:-35,trackLength:70,sample(s){return{x:s,y:0,z,heading:0};}};}
+export function straightPath(z){return{length:110,trackStart:-35,trackLength:70,sample(s){return{x:s,y:0,z,heading:0};}};}
 export function createKit(){
  const group=new THREE.Group(),geometries=new Set(),materials=new Set(),textures=new Set(),batches=new Map(),cache=new Map(),lights=[],glowing=[];
  let seed=913;const rand=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);

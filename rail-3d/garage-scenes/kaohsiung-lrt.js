@@ -14,7 +14,7 @@ export const THEMES = {
 };
 
 export function createScene(){
- const k=createKit({seed:20433});
+ const k=createKit({seed:20433,trees:[['terminalia',.4],['koelreuteria',.3],['delonix',.3]]});
  const {THREE,M,mat,geo,block,instance,rand,groundZ,props,prism,cylinder,disc,pool}=k;
  const path=k.loop({z:groundZ+.02}),railZ=path.z,front=path.front;
  const pick=list=>list[Math.floor(rand()*list.length)];

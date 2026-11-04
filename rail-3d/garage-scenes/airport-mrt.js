@@ -1,7 +1,7 @@
 // 桃園機場捷運：山鼻站的微縮印象——田野中的高架站（機翼剖面的屋頂、玻璃帷幕站體、機捷紫的腰帶），
 // 四周是稻田、埤塘與農舍，後方一架降落中的客機架在透明支柱上。不是實際線形、方位或比例的重建。
 // 飛機不會動：App 的場景檔是烘好的靜態幾何，網頁照同一份，兩邊一樣。
-// 機翼屋頂只靠月台後緣一排 Y 形柱撐著，前緣伸到環外側、離軌頂 3.8：從正面看，屋簷外伸 d 擋掉的車身高度是 .73×(d−.63)，
+// 雙線高架穿過站體（島式月台），車從底座一端開進、另一端開出。機翼屋頂只靠月台中線一排 Y 形柱撐著，前緣伸到軌道外側、離軌頂 3.8：從正面看，屋簷外伸 d 擋掉的車身高度是 .73×(d−.63)，
 // 前緣外伸 2.9 還露得出 2.1，車高 1.54 整個側面看得到。
 import {createKit} from './metro-kit.js';
 
@@ -12,26 +12,27 @@ export const THEMES = {
 };
 
 export function createScene(){
- const k=createKit({seed:20333});
+ const k=createKit({seed:20333,trees:[['acacia',.4],['koelreuteria',.35],['terminalia',.25]]});
  const {THREE,M,mat,geo,block,instance,mesh,rand,groundZ,props,cylinder,pool,inside}=k;
- const path=k.loop(),railZ=path.z,front=path.front;
- const inStation=q=>q.y<path.cy&&Math.abs(q.x)<11.6;
+ const path=k.line(),far=k.line({y:-1.86}),railZ=path.z,front=path.front;
+ const inStation=q=>Math.abs(q.x)<11.6;
+ k.keepClear((x,y)=>y>-9&&y<.7);   // 高架橋底不種樹
  const pick=list=>list[Math.floor(rand()*list.length)];
 
- // 高架橋與道床：站內那段內側不砌牆、不立墩（站體撐著）；第三軌在月台對面（環外）。
+ // 高架橋與道床：站內月台那側不砌牆、不立墩（站體撐著）；第三軌在月台對面。
  k.viaduct(path,{round:true,walls:[.45,.45],open:(q,side)=>side>0&&inStation(q),pier:q=>!inStation(q)});
- k.slabTrack(path);
- k.thirdRail(path,{side:-1});
+ k.viaduct(far,{round:true,walls:[.45,.45],open:(q,side)=>side<0&&inStation(q),pier:q=>!inStation(q)});
+ k.slabTrack(path);k.slabTrack(far);
+ k.thirdRail(path,{side:-1});k.thirdRail(far,{side:1});
 
  const white=mat('#eef0ec',{roughness:.45,metalness:.2}),silver=mat('#c2c7cb',{roughness:.35,metalness:.55}),purple=mat('#7f4aa6',{roughness:.5});
  const under=mat('#cfd4d4',{roughness:.6}),plaza=mat('#bab5a8'),bench=mat('#8b6f52'),dark=mat('#3b4449');
 
- // 月台（環內側）＋半高月台閘門；穿堂層在月台底下，往外延伸到高架橋外側的站前入口。
+ // 島式月台＋兩側半高月台閘門；穿堂層在月台底下，往外延伸到高架橋外側的站前入口。
  const p=k.platform({y:front,z:railZ,side:1,length:20,width:3.2,edge:.72,top:.2,bottom:railZ-.73});
- k.gates(p);
- block(M.gateGlass,[20,.04,.85],[0,p.y1-.04,p.z+.43]);
- for(let x=-7.5;x<=7.5;x+=5){block(bench,[1.3,.36,.12],[x,p.y1-.55,p.z+.36]);block(M.steel,[1.3,.05,.3],[x,p.y1-.36,p.z+.52]);}
- const hallY0=-9.7,hallY1=-1.4,hallTop=railZ-.73,hallH=hallTop-groundZ;
+ k.gates(p);k.gates({...p,y0:p.y1,side:-1});
+ for(let x=-7.5;x<=7.5;x+=5)for(const s of [-1,1]){block(bench,[1.3,.3,.12],[x,(p.y0+p.y1)/2+s*.45,p.z+.36]);block(M.steel,[1.3,.05,.3],[x,(p.y0+p.y1)/2+s*.28,p.z+.52]);}
+ const hallY0=-9.7,hallY1=-.1,hallTop=railZ-.73,hallH=hallTop-groundZ;
  block(white,[22,hallY1-hallY0,hallH],[0,(hallY0+hallY1)/2,groundZ+hallH/2]);
  block(under,[22.3,front-1.75-hallY0+.15,.12],[0,(hallY0+front-1.75)/2-.07,hallTop+.06]);   // 高架橋外側那條站體頂
  // 前後兩面整片玻璃帷幕、細細的銀色豎框；正面頂上一條機捷紫的腰帶。
@@ -47,8 +48,8 @@ export function createScene(){
  }
  k.addLight('entrance',0,hallY0-1.3,groundZ+2.0,1.3,6);
 
- // 機翼屋頂：翼型剖面（NACA 四位數的厚度分布、一點拱度）沿 x 擠出，前緣在環外側、往環內側降低。
- const wing={L:12.6,yOut:-9.4,yIn:-1.6,zl:railZ+3.8,zt:railZ+3.2,camber:.25,t:.08},chord=wing.yIn-wing.yOut;
+ // 機翼屋頂：翼型剖面（NACA 四位數的厚度分布、一點拱度）沿 x 擠出，前緣在站前那側、往後股降低。
+ const wing={L:12.6,yOut:-9.4,yIn:-.7,zl:railZ+3.8,zt:railZ+3.2,camber:.25,t:.08},chord=wing.yIn-wing.yOut;
  const wingAt=(u,side)=>{const th=5*wing.t*chord*(.2969*Math.sqrt(u)-.126*u-.3516*u*u+.2843*u**3-.1036*u**4);
   return [wing.yOut+u*chord,wing.zl+(wing.zt-wing.zl)*u+wing.camber*4*u*(1-u)+side*th];};
  const roofBottom=y=>wingAt((y-wing.yOut)/chord,-1)[1];   // 屋頂底面在 y 處的高度
@@ -69,8 +70,8 @@ export function createScene(){
   strip(.03,.11,purple);
   for(const u of [.36,.6])for(let x=-10.5;x<=10.6;x+=3)strip(u,u+.07,M.glass,x-1.2,x+1.2);
  }
- // Y 形柱：立在月台後緣，柱頭分兩叉頂住屋頂。
- for(let x=-9.6;x<=9.7;x+=4.8){const y=p.y1-.35,h=roofBottom(y)-.78-p.z;
+ // Y 形柱：立在月台中線，柱頭分兩叉頂住屋頂。
+ for(let x=-9.6;x<=9.7;x+=4.8){const y=(p.y0+p.y1)/2,h=roofBottom(y)-.78-p.z;
   instance(cylinder,silver,[x,y,p.z+h/2],[.26,.26,h]);
   for(const s of [-1,1])block(silver,[.13,.13,1.05],[x+s*.35,y,p.z+h+.38],[0,s*.75,0]);}
  // 月台吊燈（點光源四盞）＋屋頂底下沿中線一條燈帶。
@@ -80,18 +81,17 @@ export function createScene(){
  // 站前：廣場、機車格、機捷紫的站名柱、轉乘停車場，最外面是馬路。
  block(plaza,[23,6.8,.04],[0,-13.2,groundZ+.02]);
  block(white,[.5,.5,3.2],[-10.6,-11.2,groundZ+1.6]);block(M.sign,[.56,.56,.7],[-10.6,-11.2,groundZ+2.95]);block(purple,[.56,.56,.14],[-10.6,-11.2,groundZ+2.45]);
- const scooter=mat('#2f2f33'),seat=mat('#c7c2b6');
- for(let i=0;i<14;i++){const x=1.5+i*.5;block(scooter,[.3,.7,.34],[x,-12.0,groundZ+.21]);block(seat,[.26,.38,.1],[x,-12.05,groundZ+.42]);}
+ for(let i=0;i<14;i++)k.scooter(1.5+i*.5,-12.0,{yaw:Math.PI/2});
  const roadY=-18.5;props.road(0,roadY,groundZ,60,2.0);
- const cars=['#e9e6df','#3f4a63','#b4402f','#8f9498','#d9c35a','#f0efe9'].map(c=>mat(c,{roughness:.5,metalness:.15})),carGlass=mat('#2e3a44',{roughness:.3});
- const car=(x,y,yaw=0)=>{block(pick(cars),[1.75,.8,.48],[x,y,groundZ+.3],[0,0,yaw]);block(carGlass,[.9,.7,.34],[x,y,groundZ+.68],[0,0,yaw]);};
- for(const [x,lane] of [[-21,-1],[-6.5,1],[5.5,-1],[19,1],[27,-1]])car(x,roadY+lane*.5);
+ const carGlass=mat('#2e3a44',{roughness:.3});
+ for(const [x,lane] of [[-21,-1],[-6.5,1],[5.5,-1],[19,1],[27,-1]])k.car(x,roadY+lane*.5,{yaw:lane<0?0:Math.PI});
+ k.bus(-14,roadY+.5,{yaw:Math.PI,stripe:purple});
  for(let x=-27.5;x<=27.5;x+=11){block(M.steel,[.11,.11,3.0],[x,roadY+1.25,groundZ+1.5]);block(M.steel,[.08,1.0,.08],[x,roadY+.8,groundZ+2.96]);block(M.lamp,[.4,.34,.1],[x,roadY+.35,groundZ+2.9]);pool(x,roadY+.35,groundZ+.06,2.6,1.9);}
  // 轉乘停車場：柏油、白線、停了大半的車。
  const lot={x0:12.6,x1:23.4,y0:-16.6,y1:-10.8},line=mat('#e8e4d8');
  block(mat('#6b6d6b'),[lot.x1-lot.x0,lot.y1-lot.y0,.04],[(lot.x0+lot.x1)/2,(lot.y0+lot.y1)/2,groundZ+.02]);
  for(const [y0,dir] of [[lot.y0+.15,1],[lot.y1-.15,-1]])for(let x=lot.x0+.4,i=0;x<lot.x1-.6;x+=1.1,i++){
-  block(line,[.05,2.0,.01],[x,y0+dir*1.0,groundZ+.045]);if(rand()<.75)car(x+.55,y0+dir*1.05,Math.PI/2);}
+  block(line,[.05,2.0,.01],[x,y0+dir*1.0,groundZ+.045]);if(rand()<.75)k.car(x+.55,y0+dir*1.05,{yaw:dir*Math.PI/2});}
  for(const x of [lot.x0+2.5,lot.x1-2.5]){block(M.steel,[.1,.1,2.6],[x,(lot.y0+lot.y1)/2,groundZ+1.3]);block(M.lamp,[.36,.36,.1],[x,(lot.y0+lot.y1)/2,groundZ+2.6]);pool(x,(lot.y0+lot.y1)/2,groundZ+.06,2.4);}
 
  // 稻田：一格格不同綠，田埂格線；農舍、防風林。
@@ -103,7 +103,7 @@ export function createScene(){
   for(let j=0;j<=ny;j++)block(bund,[x1-x0+.14,.14,.09],[(x0+x1)/2,y0+j*dy,groundZ+.045]);
  }
  fields(-24.6,-12.6,-16.8,-10.8);
- fields(11.8,19,-3.6,6.6);fields(-19,-11.8,-3.6,6.6);
+ fields(-31,31,.8,10.6);
  fields(2,27.4,12.4,18.6);
  props.farmhouse(-28.2,-13.2,groundZ,{width:3.2,depth:2.4,tint:1});props.farmhouse(-27.6,-9.4,groundZ,{width:2.4,depth:2.0,tint:2,pitched:false,facing:Math.PI/2});
  props.farmhouse(27.4,-13.4,groundZ,{width:3.0,depth:2.3,tint:0});
@@ -141,16 +141,17 @@ export function createScene(){
  instance(cylinder,M.gateGlass,[ap.x,ap.y,(groundZ+ap.z-.38)/2],[.1,.1,ap.z-.38-groundZ]);
  block(dark,[.7,.7,.08],[ap.x,ap.y,groundZ+.04]);
 
- // 環內兩端與站前空隙的樹。
- const inCurve=(x,y,cx)=>Math.hypot(x-cx,y-path.cy)<5.4;
- for(let n=0;n<10;){const x=-25+rand()*6,y=-3+rand()*9;if(!inCurve(x,y,-19))continue;props.broadleaf(x,y,groundZ,1.8+rand()*1.0);n++;}
- for(let n=0;n<8;){const x=19+rand()*6,y=-3+rand()*9;if(!inCurve(x,y,19))continue;props.broadleaf(x,y,groundZ,1.6+rand()*1.0);n++;}
+ // 田邊的防風林、農路與站前空隙的樹；田裡一間農舍。
+ block(mat('#c8bc9c'),[62,.7,.03],[0,11.2,groundZ+.02]);
+ for(let x=9;x<=30;x+=2.3)props.broadleaf(x+(rand()-.5)*.5,11.9+rand()*.3,groundZ,2.0+rand()*.8);
+ props.farmhouse(-22,6.4,groundZ,{width:3.0,depth:2.3,tint:0});props.farmhouse(23,6.8,groundZ,{width:2.8,depth:2.2,tint:3,pitched:false});
  for(const [x,y] of [[-12,-10.2],[12,-10.2],[-24.8,-10.2],[25.2,-10.0]])props.broadleaf(x,y,groundZ,2.0+rand()*.6);
  for(let n=0;n<14;n++){const x=-24+rand()*11,y=-17.2+rand()*.3;props.bush(x,y,groundZ,.3+rand()*.25);}
 
  return k.result({
   path,label:'山鼻站',themes:THEMES,camera:{yaw:-1.12,elevation:.58,radius:50},
   anchors:{platform:[0,(p.y0+p.y1)/2,p.z],station:[0,hallY0,groundZ+1.6],deck:[0,front,railZ],backdrop:[ap.x,ap.y,ap.z]},
+  extra:{opposingPath:k.reversed(far)},
   update(time,t){navRed.emissiveIntensity=t.lamp*1.4;navGreen.emissiveIntensity=t.lamp*1.4;}
  });
 }

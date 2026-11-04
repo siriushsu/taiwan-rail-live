@@ -14,29 +14,30 @@ import {createStopTimetable} from './garage-scenes/stop-timetable.js';
 
 // drive：0 平面環線（garage-model.js follow）、1 車身跟坡度（consist-3d.js）、2 阿里山六段折返（機關車在下山端）、
 // 3 穿越：一端開進、另一端開出，車身在 x＝±clip 被裁掉，整列開出去才繞回來；pass＝[一趟的弧長, 時間 0 的車心位置]。
+// 一趟的弧長決定多久來一班：至少 2×clip＋最長編組（14.5），不然車頭進場時車尾還沒出場；雙線把 opposing 設半趟，兩股輪流來。
 // focusZ：跟車焦點 0＝固定 1.4、1＝各節平均高度＋1.4。span：全景半高＝max(a, b/aspect)。沒寫 focus 的取場景模組的 focus。
 // stop：每圈在月台停一次（stop-timetable.js），值是路徑 s≡0 要搬到的位置（月台中心）；doors：停站開月台側車門、乘客上下車。
 // kits：場景要的 Blender 零件庫（rail-3d/assets/<名>.json；scooter＝光華街的機車），見下面 SCENE_ARGS 與掛件。ground：null＝不放接影子的地面。
-// start：時間 0 往後挪幾秒（多良開頁就看得到車）；opposing：對向車晚幾秒（平交道雙線）。
+// start：時間 0 往後挪幾秒（多良開頁就看得到車）；opposing：對向車晚幾秒（平交道 3 秒、一起過；九座的雙線半趟、輪流來）。
 export const SCENES={
  'south-coast':{speed:2.1,yaw:-1.14,world:.65,train:.38,focus:[0,0,1],span:[23,39],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:0,drive:0,stop:-3,kits:['garage-palms-v1/palms','garage-coast-v1/station','garage-people-v1/people']},
  alishan:{speed:2.6,yaw:-1.35,world:.67,train:.48,focus:[0,0,6.5],span:[29,43],ground:-3.05,shadow:[-42,42,45,-45,1,140],focusZ:1,drive:2,locoAtTail:true,kits:['garage-alishan-fx-v1/alishan-fx','garage-alishan-trees-v1/alishan-trees']},
  viaduct:{speed:2.1,yaw:-1.12,world:.58,train:.42,focus:[0,1.5,2.6],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:1,stop:0,doors:true,kits:['garage-people-v1/people']},
  shifen:{speed:1.7,yaw:-1.12,world:.58,train:.5,focus:[0,1.0,1.2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:1,stop:13.2,kits:['garage-lanterns-v1/lanterns','garage-shifen-v1/shifen-veg','garage-people-v1/people']},
  // 捷運、高鐵、機捷（metro-kit.js 骨架）：高架的照站前街的鏡頭與焦點。
- 'taipei-metro':{speed:2.1,yaw:-1.12,world:.58,train:.42,focus:[0,1.5,2.6],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:1},
- wenhu:{speed:2.1,yaw:-1.12,world:.58,train:.42,focus:[0,1.5,2.6],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:1},
- 'airport-mrt':{speed:2.1,yaw:-1.12,world:.58,train:.42,focus:[0,1.5,2.6],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:1},
- 'ntpc-metro':{speed:2.1,yaw:-1.12,world:.58,train:.42,focus:[0,1.5,2.6],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:1},
+ 'taipei-metro':{speed:2.1,yaw:-1.12,world:.58,train:.42,focus:[0,1.5,2.6],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8},
+ wenhu:{speed:2.1,yaw:-1.12,world:.58,train:.42,focus:[0,1.5,2.6],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8},
+ 'airport-mrt':{speed:2.1,yaw:-1.12,world:.58,train:.42,focus:[0,1.5,2.6],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8},
+ 'ntpc-metro':{speed:2.1,yaw:-1.12,world:.58,train:.42,focus:[0,1.5,2.6],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8},
  'ntpc-lrt':{speed:1.8,yaw:-1.12,world:.58,train:.5,focus:[0,1,1.2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:1},
- 'taichung-metro':{speed:2.1,yaw:-1.12,world:.58,train:.42,focus:[0,1.5,2.6],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:1},
- 'kaohsiung-metro':{speed:2.1,yaw:-1.12,world:.58,train:.42,focus:[0,1,1.2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:1},
+ 'taichung-metro':{speed:2.1,yaw:-1.12,world:.58,train:.42,focus:[0,1.5,2.6],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8},
+ 'kaohsiung-metro':{speed:2.1,yaw:-1.12,world:.58,train:.42,focus:[0,1,1.2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[96,-6],clip:29.6,opposing:22.9},
  'kaohsiung-lrt':{speed:1.8,yaw:-1.12,world:.58,train:.5,focus:[0,1,1.2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:1},
- thsr:{speed:2.5,yaw:-1.12,world:.58,train:.42,focus:[0,1.5,2.6],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:1},
+ thsr:{speed:2.5,yaw:-1.12,world:.58,train:.42,focus:[0,1.5,2.6],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:20.0},
  paddy:{module:'default-paddy',speed:2.1,yaw:-1.12,world:.58,train:.5,focus:[0,1.0,1.2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:1},
- duoliang:{speed:2.6,yaw:-1.12,world:.61,train:.61,span:[28,42],ground:null,shadow:[-45,45,40,-38,1,150],drive:3,pass:[180,-30],clip:35,start:8,kits:['garage-people-v1/people','garage-camera-v1/camera']},
- crossing:{speed:2.6,yaw:-1.12,world:.61,train:.61,span:[28,42],ground:null,shadow:[-45,45,40,-38,1,150],drive:3,pass:[180,-30],clip:35,opposing:3},
- guanghua:{speed:2.6,yaw:-1.4,world:.42,train:.4,span:[10.5,21.5],ground:-2.5,shadow:[-42,42,35,-35,1,140],drive:3,pass:[130,-10],clip:26,trainZ:.9,kits:['garage-people-v1/people','garage-camera-v1/camera','scooter']},
+ duoliang:{speed:2.6,yaw:-1.12,world:.61,train:.61,span:[28,42],ground:null,shadow:[-45,45,40,-38,1,150],drive:3,pass:[110,-30],clip:35,start:8,kits:['garage-people-v1/people','garage-camera-v1/camera']},
+ crossing:{speed:2.6,yaw:-1.12,world:.61,train:.61,span:[28,42],ground:null,shadow:[-45,45,40,-38,1,150],drive:3,pass:[110,-30],clip:35,opposing:3},
+ guanghua:{speed:2.6,yaw:-1.4,world:.42,train:.4,span:[10.5,21.5],ground:-2.5,shadow:[-42,42,35,-35,1,140],drive:3,pass:[90,-10],clip:26,trainZ:.9,kits:['garage-people-v1/people','garage-camera-v1/camera','scooter']},
 };
 // 零件庫怎麼交給場景模組：南迴（棕櫚、站房）、阿里山（雲海螢火蟲、樹）照位置傳，多良、光華街整包傳；其餘不傳，零件庫給下面的掛件用。
 const SCENE_ARGS={'south-coast':k=>[k[0],k[1]],alishan:k=>[k[0],k[1]],duoliang:k=>[k],guanghua:k=>[k]};

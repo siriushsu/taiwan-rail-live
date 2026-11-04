@@ -25,7 +25,7 @@ import {createScooterRider} from '../garage-scooter.js';
 //   ・前後兩端在底座緣（y＝±Y）被剪裁面切掉（同列車在 ±CLIP 的做法），起訖時整台機車都在剪裁面外，所以不會憑空冒出來。
 //   ・點光源上限 3 盞（涵洞頂 1、路燈 2）；其餘夜間效果一律用自發光材質，不加點光源與光池圓盤。
 export {METER,UNIT_PER_M};
-export const LAP=130,SPEED=2.6,CLIP=26,PHASE=-10; // 環線長（單位）、巡航速度（單位／秒）、車體被裁掉的 x 界線（同 crossing：整列離景後才循環）；第二輪底座縮短，CLIP 由 35 縮到 26；PHASE：時間 0 時本線車中心在 x＝-10（view 的 distanceAt 與機車時刻表共用這一個常數）
+export const LAP=90,SPEED=2.6,CLIP=26,PHASE=-10; // 環線長（單位）、巡航速度（單位／秒）、車體被裁掉的 x 界線（同 crossing：整列離景後才循環）；第二輪底座縮短，CLIP 由 35 縮到 26；PHASE：時間 0 時本線車中心在 x＝-10（view 的 distanceAt 與機車時刻表共用這一個常數）
 export const THEMES={ // 同高架景那組色（viaduct.js），粗模沿用
  day:{background:'#e7e8e1',sun:'#fff2d4',ambient:'#c6d9e2',ground:'#84936c',power:3.0,exposure:1.04},
  sunset:{background:'#ecd9c6',sun:'#ffb974',ambient:'#d2b9b4',ground:'#74795e',power:2.9,exposure:.94},

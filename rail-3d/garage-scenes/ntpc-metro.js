@@ -1,5 +1,5 @@
 // 新北捷運中運量：三鶯線陶瓷老街站的微縮印象——紅磚與陶瓦的高架站（人字形陶瓦屋頂、紅磚柱、拱窗站體），
-// 站前的陶瓷老街（紅磚街屋、騎樓、陶器攤、大陶瓶），環內的隧道窯與方煙囪、陶瓷博物館，後方山頭的鶯歌石。
+// 站前的陶瓷老街（紅磚街屋、騎樓、陶器攤、大陶瓶），站後的隧道窯與方煙囪、陶瓷博物館，後方山頭的鶯歌石。雙線高架穿過站體（島式月台）。
 // 不是實際線形、方位或比例的重建。
 // 屋頂簷口外伸到軌道中心外 2.8、底面離軌頂 3.21：從正面看露得出的車身高度是 3.21−.73×(2.8−.63)=1.62，比車高 1.56 多，整個側面看得到。
 import {createKit} from './metro-kit.js';
@@ -11,16 +11,18 @@ export const THEMES = {
 };
 
 export function createScene(){
- const k=createKit({seed:20344});
+ const k=createKit({seed:20344,trees:[['koelreuteria',.35],['terminalia',.3],['acacia',.35]]});
  const {THREE,M,mat,geo,block,instance,mesh,rand,groundZ,props,prism,cylinder,pool,inside}=k;
- const path=k.loop(),railZ=path.z,front=path.front;
- const inStation=q=>q.y<path.cy&&Math.abs(q.x)<11.6;
+ const path=k.line(),far=k.line({y:-1.86}),railZ=path.z,front=path.front;
+ const inStation=q=>Math.abs(q.x)<11.6;
+ k.keepClear((x,y)=>y>-9&&y<.7);   // 高架橋底不種樹
  const pick=list=>list[Math.floor(rand()*list.length)];
 
- // 高架橋與道床：站內那段內側不砌牆、不立墩（站體撐著）；第三軌在月台對面（環外）。
+ // 高架橋與道床：站內月台那側不砌牆、不立墩（站體撐著）；第三軌在月台對面。
  k.viaduct(path,{round:true,walls:[.45,.45],open:(q,side)=>side>0&&inStation(q),pier:q=>!inStation(q)});
- k.slabTrack(path);
- k.thirdRail(path,{side:-1});
+ k.viaduct(far,{round:true,walls:[.45,.45],open:(q,side)=>side<0&&inStation(q),pier:q=>!inStation(q)});
+ k.slabTrack(path);k.slabTrack(far);
+ k.thirdRail(path,{side:-1});k.thirdRail(far,{side:1});
 
  const brick=mat('#a5553b',{roughness:.85}),brick2=mat('#94493a',{roughness:.85}),brick3=mat('#b8694a',{roughness:.85});
  const tile=mat('#b4683f',{roughness:.7}),tileDark=mat('#8a4a2f',{roughness:.7}),trim=mat('#efe9dc'),under=mat('#cfd4d4',{roughness:.6});
@@ -31,13 +33,12 @@ export function createScene(){
  const vase=geo(new THREE.LatheGeometry([[0,0],[.3,0],[.42,.18],[.5,.42],[.44,.66],[.24,.84],[.16,.92],[.22,1],[0,1]].map(([r,h])=>new THREE.Vector2(r,h)),10));vase.rotateX(Math.PI/2);
  const glazes=['#9fc5b0','#2f5d9a','#c98a3a','#efece2','#b5432f','#5b7f4f','#3e6f86'].map(c=>mat(c,{roughness:.28,metalness:.1}));
 
- // 月台（環內側）＋半高月台閘門；站體在月台底下，往外延伸到高架橋外側的站前入口。
+ // 島式月台＋兩側半高月台閘門；站體在月台底下，往外延伸到高架橋外側的站前入口。
  const p=k.platform({y:front,z:railZ,side:1,length:20,width:3.2,edge:.72,top:.2,bottom:railZ-.73});
- k.gates(p);
- block(M.gateGlass,[20,.04,.85],[0,p.y1-.04,p.z+.43]);
- for(let x=-7.5;x<=7.5;x+=5){block(bench,[1.3,.36,.12],[x,p.y1-.55,p.z+.36]);block(M.steel,[1.3,.05,.3],[x,p.y1-.36,p.z+.52]);}
+ k.gates(p);k.gates({...p,y0:p.y1,side:-1});
+ for(let x=-7.5;x<=7.5;x+=5)for(const s of [-1,1]){block(bench,[1.3,.3,.12],[x,(p.y0+p.y1)/2+s*.45,p.z+.36]);block(M.steel,[1.3,.05,.3],[x,(p.y0+p.y1)/2+s*.28,p.z+.52]);}
  // 站體：紅磚、白色腰線、正面一排拱窗，中間三個拱門入口。
- const hallY0=-9.7,hallY1=-1.4,hallTop=railZ-.73,hallH=hallTop-groundZ;
+ const hallY0=-9.7,hallY1=-.1,hallTop=railZ-.73,hallH=hallTop-groundZ;
  block(brick,[22,hallY1-hallY0,hallH],[0,(hallY0+hallY1)/2,groundZ+hallH/2]);
  block(under,[22.3,front-1.75-hallY0+.15,.12],[0,(hallY0+front-1.75)/2-.07,hallTop+.06]);
  block(trim,[22.2,hallY1-hallY0+.2,.14],[0,(hallY0+hallY1)/2,groundZ+2.55]);
@@ -49,14 +50,14 @@ export function createScene(){
  k.addLight('entrance',0,hallY0-1.2,groundZ+1.9,1.3,6);
 
  // 人字形陶瓦屋頂：一條長三角柱，兩坡一道道瓦壟、屋脊壓一條脊瓦；底下一圈深色屋簷。
- const roof={z:railZ+3.3,y0:-9.25,y1:-1.65,rise:1.5,L:12.6},roofYc=(roof.y0+roof.y1)/2,roofHalf=(roof.y1-roof.y0)/2,slope=Math.atan2(roof.rise,roofHalf);
+ const roof={z:railZ+3.3,y0:-9.25,y1:-.55,rise:1.7,L:12.6},roofYc=(roof.y0+roof.y1)/2,roofHalf=(roof.y1-roof.y0)/2,slope=Math.atan2(roof.rise,roofHalf);
  instance(prism,tile,[0,roofYc,roof.z],[2*roof.L,roof.y1-roof.y0,roof.rise]);
  block(tileDark,[2*roof.L+.2,roof.y1-roof.y0+.1,.14],[0,roofYc,roof.z-.02]);   // 簷口：外伸到 2.8、底面 3.21，車身側面還露得出 1.62
  for(const sd of [-1,1])for(let i=1;i<6;i++){const f=i/6;block(tileDark,[2*roof.L,.08,.06],[0,roofYc+sd*roofHalf*(1-f),roof.z+roof.rise*f+.03],[-sd*slope,0,0]);}
  block(tileDark,[2*roof.L+.2,.32,.2],[0,roofYc,roof.z+roof.rise]);
- // 屋頂柱：月台後緣一排紅磚柱（白柱頭）；環外側橋面緣一排細鋼柱。
- for(let x=-9.6;x<=9.7;x+=4.8){const y=p.y1-.35,h=roof.z-p.z;block(brick2,[.42,.42,h],[x,y,p.z+h/2]);block(trim,[.58,.58,.12],[x,y,roof.z-.08]);
-  const h2=roof.z-(railZ-.23);block(M.steel,[.13,.13,h2],[x,front-1.62,railZ-.23+h2/2]);}
+ // 屋頂柱：月台中線一排紅磚柱（白柱頭）；兩側橋面緣一排細鋼柱。
+ for(let x=-9.6;x<=9.7;x+=4.8){const y=(p.y0+p.y1)/2,h=roof.z-p.z;block(brick2,[.42,.42,h],[x,y,p.z+h/2]);block(trim,[.58,.58,.12],[x,y,roof.z-.08]);
+  const h2=roof.z-(railZ-.23);for(const yo of [front-1.62,far.front+1.62])block(M.steel,[.13,.13,h2],[x,yo,railZ-.23+h2/2]);}
  for(let i=0;i<4;i++){const x=-7.5+i*5,y=-4.3,z=p.z+2.3;block(M.lamp,[.5,.5,.42],[x,y,z]);block(M.steel,[.03,.03,roof.z-z],[x,y,(z+roof.z)/2]);k.addLight('platform-'+i,x,y,z-.15,2.8,7);}
 
  // 站前：磚鋪廣場、兩只大陶瓶；外面一條紅磚步道是老街，靠站這側一排紅磚街屋（騎樓），外側一排陶器攤。
@@ -84,18 +85,18 @@ export function createScene(){
   if(n%2){block(M.steel,[.08,.08,2.4],[x+1.2,streetY-1.2,groundZ+1.2]);block(M.lamp,[.3,.3,.2],[x+1.2,streetY-1.2,groundZ+2.4]);pool(x+1.2,streetY-.9,groundZ+.06,1.8,1.4);}
  }
 
- // 環內左邊：隧道窯（長長的磚造拱頂）與兩根方磚煙囪。
- block(brick2,[8.6,3.0,1.0],[-16.6,4.4,groundZ+.5]);instance(arch,brick,[-16.6,4.4,groundZ+1.0],[3.0,8.6,1.6],[0,0,Math.PI/2]);
- for(let x=-19.8;x<=-13.4;x+=1.6)block(dark,[.5,.1,.5],[x,2.88,groundZ+.4]);   // 窯口
- for(const [x,y,h] of [[-21.8,3.0,10.2],[-11.5,4.4,8.0]]){block(brick,[1.3,1.3,h*.55],[x,y,groundZ+h*.275]);block(brick2,[1.0,1.0,h*.45],[x,y,groundZ+h*.55+h*.225]);block(dark,[1.1,1.1,.22],[x,y,groundZ+h+.06]);block(trim,[1.36,1.36,.12],[x,y,groundZ+h*.55]);}
- for(let n2=0;n2<8;){const x=-25+rand()*12,y=-3.4+rand()*5;if(Math.hypot(x+19,y-path.cy)>5.6&&x<-19)continue;props.broadleaf(x,y,groundZ,1.6+rand()*1.0);n2++;}
- // 環內右邊：陶瓷博物館（清水混凝土盒子、整面玻璃、出挑的屋頂板），前面草坪擺幾件陶藝。
- const mu={x:16.4,y:3.6};
- block(concrete2,[8.0,4.4,2.2],[mu.x,mu.y,groundZ+1.1]);block(M.glass,[7.4,.1,1.5],[mu.x,mu.y-2.22,groundZ+.95]);
+ // 站後左邊：隧道窯（長長的磚造拱頂）與兩根方磚煙囪。
+ block(brick2,[8.6,3.0,1.0],[-16.6,6.6,groundZ+.5]);instance(arch,brick,[-16.6,6.6,groundZ+1.0],[3.0,8.6,1.6],[0,0,Math.PI/2]);
+ for(let x=-19.8;x<=-13.4;x+=1.6)block(dark,[.5,.1,.5],[x,5.08,groundZ+.4]);   // 窯口
+ for(const [x,y,h] of [[-21.8,5.2,10.2],[-11.5,6.6,8.0]]){block(brick,[1.3,1.3,h*.55],[x,y,groundZ+h*.275]);block(brick2,[1.0,1.0,h*.45],[x,y,groundZ+h*.55+h*.225]);block(dark,[1.1,1.1,.22],[x,y,groundZ+h+.06]);block(trim,[1.36,1.36,.12],[x,y,groundZ+h*.55]);}
+ for(let n2=0;n2<12;){const x=-31+rand()*18,y=.9+rand()*3.4;if(!inside(x,y,1.2))continue;props.broadleaf(x,y,groundZ,1.6+rand()*1.0);n2++;}
+ // 站後右邊：陶瓷博物館（清水混凝土盒子、整面玻璃、出挑的屋頂板），前面草坪擺幾件陶藝。
+ const mu={x:16.4,y:7.2};
+ block(concrete2,[8.0,4.4,2.2],[mu.x,mu.y,groundZ+1.1]);block(M.glass,[7.4,.1,1.5],[mu.x,mu.y-2.22,groundZ+.95]);for(let x=-3.3;x<=3.31;x+=1.1)block(concrete2,[.09,.14,1.5],[mu.x+x,mu.y-2.24,groundZ+.95]);block(concrete2,[7.4,.14,.08],[mu.x,mu.y-2.24,groundZ+1.2]);
  block(concrete2,[9.4,5.6,.22],[mu.x,mu.y-.3,groundZ+2.3]);block(concrete2,[.5,6.6,1.2],[mu.x-4.8,mu.y-1.0,groundZ+.6]);
- for(const [x,y,s,g] of [[13.6,-1.4,.5,1],[15.2,-2.4,.7,4],[17.6,-1.6,.42,0],[19.4,-2.6,.6,2]])instance(vase,glazes[g],[x,y,groundZ],[s,s,s*1.8]);
- instance(ball,glazes[6],[20.6,-.6,groundZ+.5],[.5,.5,.5]);
- for(let n2=0;n2<6;){const x=19+rand()*6,y=-3+rand()*9;if(Math.hypot(x-19,y-path.cy)>5.4||(x<21.8&&y>.2))continue;props.broadleaf(x,y,groundZ,1.6+rand()*1.0);n2++;}
+ for(const [x,y,s,g] of [[13.6,3.2,.5,1],[15.2,2.4,.7,4],[17.6,3.0,.42,0],[19.4,2.2,.6,2]])instance(vase,glazes[g],[x,y,groundZ],[s,s,s*1.8]);
+ instance(ball,glazes[6],[20.6,3.2,groundZ+.5],[.5,.5,.5]);
+ for(let n2=0;n2<10;){const x=22+rand()*9,y=1+rand()*10;if(!inside(x,y,1.2))continue;props.broadleaf(x,y,groundZ,1.6+rand()*1.0);n2++;}
 
  // 後方：山頭與山頂的鶯歌石（兩塊灰岩疊成），右後方一排老窯房與一根小煙囪；樹。
  const hill={x:-12,y:17.2,rx:12,ry:2.8,rz:3.8},dome=geo(new THREE.SphereGeometry(1,28,8,0,Math.PI*2,0,Math.PI/2));dome.rotateX(Math.PI/2);
@@ -104,14 +105,18 @@ export function createScene(){
  const rock=mat('#8c8a83',{roughness:.9}),rk={x:-10.4,y:17.0};rk.z=hillZ(rk.x,rk.y);
  instance(ball,rock,[rk.x,rk.y,rk.z+.6],[1.9,1.3,1.3],[0,.25,.3]);instance(ball,rock,[rk.x+1.5,rk.y-.1,rk.z+1.5],[1.0,.8,.8],[0,-.4,.5]);
  for(let n2=0;n2<22;){const x=hill.x-hill.rx+rand()*hill.rx*2,y=hill.y-hill.ry+rand()*hill.ry*2,z=hillZ(x,y);if(z<=groundZ+.1||Math.hypot(x-rk.x,y-rk.y)<2.6||!inside(x,y,1.2))continue;props.broadleaf(x,y,z-.1,1.4+rand()*1.0);n2++;}
- for(let x=6;x<=26;x+=4.2){const w=3.4,h=1.6+rand()*.6;block(pick([brick,brick2,brick3]),[w,2.6,h],[x,15.6,groundZ+h/2]);instance(prism,tileDark,[x,15.6,groundZ+h],[w+.3,2.9,.9]);}
+ for(let x=6;x<=26;x+=4.2){const w=3.4,h=1.6+rand()*.6;block(pick([brick,brick2,brick3]),[w,2.6,h],[x,15.6,groundZ+h/2]);instance(prism,tileDark,[x,15.6,groundZ+h],[w+.3,2.9,.9]);
+  block(dark,[.8,.05,1.05],[x-.9,14.28,groundZ+.53]);for(const dx of [.2,1.1])block(M.glass,[.56,.05,.62],[x+dx,14.28,groundZ+.82]);block(trim,[w+.02,2.62,.08],[x,15.6,groundZ+.3]);}
  block(brick,[.9,.9,6.0],[22.4,17.6,groundZ+3.0]);block(dark,[.95,.95,.18],[22.4,17.6,groundZ+6.05]);
  for(let n2=0;n2<12;){const x=4+rand()*26,y=17.6+rand()*1.6;if(!inside(x,y,1.2)||Math.abs(x-22.4)<1.2)continue;props.broadleaf(x,y,groundZ,1.5+rand()*.9);n2++;}
- for(const [x,y] of [[-31,-8],[-30.5,-3],[-30.8,2.6],[30.8,-8.4],[30.5,-3.2],[30.6,2.4],[-30.6,8.6],[30.8,9]])props.broadleaf(x,y,groundZ,2.0+rand()*.8);
+ for(const [x,y] of [[-30.6,8.6],[-27,10.4],[-23.4,9.2],[-8,10],[-3,8.6],[2.4,10.2],[7,9],[30.8,12]])props.broadleaf(x,y,groundZ,2.0+rand()*.8);
+ // 老街上的機車。
+ for(const [x0,n2] of [[-29,8],[-21,6],[14,7],[23,8]])for(let i=0;i<n2;i++)k.scooter(x0+i*.62,streetY+.9,{yaw:Math.PI/2});
 
  return k.result({
   path,label:'陶瓷老街站',themes:THEMES,camera:{yaw:-1.12,elevation:.58,radius:50},
   anchors:{platform:[0,(p.y0+p.y1)/2,p.z],station:[0,hallY0,groundZ+1.6],deck:[0,front,railZ],backdrop:[rk.x,rk.y,rk.z]},
+  extra:{opposingPath:k.reversed(far)},
   update(time,t){for(const s of signs)s.emissiveIntensity=t.lamp*.6;}
  });
 }

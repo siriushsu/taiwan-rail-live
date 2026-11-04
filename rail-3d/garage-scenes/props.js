@@ -39,7 +39,8 @@ export function createProps({geo,mat,instance,rand}){
 
  // 透天厝。facing 是正面朝向：0 朝 −y（面向觀者）。
  // roof 'parapet' 女兒牆｜'tin' 鐵皮加蓋｜'pitched' 瓦斜頂；ground 'plain'｜'arcade' 騎樓｜'shop' 店面招牌；balcony 'rail'｜'cage' 鐵窗；back 背面也開窗開門（背面朝觀者時用）。
- function townhouse(x,y,z,{floors=3,width=2.6,depth=3.2,tint=0,facing=0,roof='tin',ground='plain',balcony='rail',tanks=1,back=false}={}){
+ // detail 多畫窗楣窗台、冷氣室外機、落水管、騎樓店面的直招牌與鐵捲門（metro-kit 的九座用；其他場景不帶，亂數序列不變）。
+ function townhouse(x,y,z,{floors=3,width=2.6,depth=3.2,tint=0,facing=0,roof='tin',ground='plain',balcony='rail',tanks=1,back=false,detail=false}={}){
   const fh=1.05,H=floors*fh,wall=walls[tint%walls.length],rot=[0,0,facing];
   const fx=Math.sin(facing),fy=-Math.cos(facing),tx=Math.cos(facing),ty=Math.sin(facing);   // 正面法向量、沿立面切向量
   const put=(g,m,o,a,dz,size)=>instance(g,m,[x+fx*o+tx*a,y+fy*o+ty*a,z+dz],size,rot);
@@ -55,6 +56,13 @@ export function createProps({geo,mat,instance,rand}){
    if(back){for(let i=0;i<nw;i++)if(f>0||i!==nw-1)put(box,glass,-(depth/2+.02),(i-(nw-1)/2)*.85,zc+fh*.6,[.5,.06,.58]);if(f===0)put(box,dark,-(depth/2+.02),((nw-1)/2)*.85,fh*.45,[.5,.06,fh*.8]);}
    if(f>0){if(balcony==='rail'){put(box,wall,depth/2+.22,0,zc+.05,[width*1.02,.5,.1]);put(box,railing,depth/2+.45,0,zc+.32,[width*1.02,.04,.45]);}
     else put(box,cage,depth/2+.14,0,zc+fh*.55,[width*.9,.26,fh*.62]);}
+  }
+  if(detail){
+   for(let f=1;f<floors;f++)for(let i=0;i<nw;i++){const a=(i-(nw-1)/2)*.85,zc=f*fh;
+    put(box,railing,depth/2+.05,a,zc+fh*.6+.32,[.6,.09,.05]);put(box,railing,depth/2+.05,a,zc+fh*.6-.32,[.6,.11,.05]);
+    if(rand()<.5)put(box,tank,depth/2+.13,a+.14,zc+.16,[.3,.22,.2]);}
+   put(box,cage,depth/2-.14,-width/2-.03,H/2,[.05,.05,H]);put(box,cage,-depth/4,width/2+.02,H*.6,[depth*.4,.02,.03]);
+   if(ground!=='plain'){put(box,signs[(tint+1)%3],depth/2+.26,width/2-.16,fh+.62,[.1,.34,1.05]);put(box,cage,depth/2+.04,-width*.2,fh*.2,[width*.5,.04,fh*.34]);}
   }
   if(ground==='shop'){put(box,signs[tint%3],depth/2+.09,0,fh-.05,[width*.94,.12,.5]);put(box,glass,depth/2+.02,0,fh*.42,[width*.82,.06,fh*.7]);}
   else if(ground==='plain')put(box,signs[0],depth/2+.3,0,fh-.1,[width*.6,.55,.06]);            // 一樓雨遮

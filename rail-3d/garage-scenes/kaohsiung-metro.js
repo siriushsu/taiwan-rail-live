@@ -15,15 +15,16 @@ export const THEMES = {
 export function createScene(){
  const k=createKit({seed:20411,grass:'#8e8a83'});
  const {THREE,M,mat,geo,mesh,block,instance,rand,groundZ,props,cylinder,disc,pool}=k;
- const path=k.loop({z:groundZ+.23}),railZ=path.z,front=path.front;
+ // 兩股紅線從左牆的隧道口開進來、穿過坑底、鑽進右牆：前股在月台前，後股在大廳後面。
+ const line={z:groundZ+.23,half:29.6,cycle:96},path=k.line(line),far=k.line({...line,y:8.52}),railZ=path.z,front=path.front;
  const pick=list=>list[Math.floor(rand()*list.length)];
  // 兩點之間一根方料（沿 x 的 box 轉過去）。
  const beam=(m,A,B,w,h=w)=>{const d=[B[0]-A[0],B[1]-A[1],B[2]-A[2]],r=Math.hypot(d[0],d[1]);
   block(m,[Math.hypot(r,d[2]),w,h],[(A[0]+B[0])/2,(A[1]+B[1])/2,(A[2]+B[2])/2],[0,-Math.atan2(d[2],r),Math.atan2(d[1],d[0])]);};
 
  // 坑底：直結軌道＋第三軌（月台對側），軌道板底貼著坑底。
- k.slabTrack(path);
- k.thirdRail(path,{side:-1});
+ k.slabTrack(path);k.slabTrack(far);
+ k.thirdRail(path,{side:-1});k.thirdRail(far,{side:1});
 
  const white=mat('#f3f1ea',{roughness:.5}),redLine=mat('#d2283a',{roughness:.5}),orangeLine=mat('#f0962a',{roughness:.5});
  const stone=mat('#d4c4a8'),tile=mat('#c6b493'),inlay=mat('#ece4d3'),frame=mat('#39383a',{metalness:.4,roughness:.45}),joint=mat('#a6a298');
@@ -32,7 +33,7 @@ export function createScene(){
  const asphalt=mat('#5d6368'),lineW=mat('#ebe7dc'),lineY=mat('#e2b64a');
 
  // ── 剖面：街面是底座外框一圈，中間挖到底。坑壁是連續壁（混凝土），底座外側的切面看得到土層 ──
- const Zs=groundZ+3.0,pit={x0:-29.6,x1:30.2,y0:-11.2,y1:12.2},wt=.22;
+ const Zs=groundZ+3.0,pit={x0:-29.6,x1:29.6,y0:-11.2,y1:12.2},wt=.22;
  const rect=(x0,y0,x1,y1,P=THREE.Path)=>{const s=new P();s.moveTo(x0,y0);s.lineTo(x1,y0);s.lineTo(x1,y1);s.lineTo(x0,y1);s.lineTo(x0,y0);return s;};
  const ring=(x0,y0,x1,y1)=>{const s=k.rounded(k.plinthW,k.plinthD,k.plinthR);s.holes.push(rect(x0,y0,x1,y1));return s;};
  const slab=(shape,z0,z1,m,name)=>{const o=mesh(geo(new THREE.ExtrudeGeometry(shape,{depth:z1-z0,bevelEnabled:false,curveSegments:12})),m,[0,0,z0]);o.name=name;return o;};
@@ -52,8 +53,10 @@ export function createScene(){
  const torus=geo(new THREE.TorusGeometry(1,.12,8,32));
  instance(disc,mat('#1d1f24'),[pit.x0+.02,tunnel.y,tunnel.z],[tunnel.r,tunnel.r,1],[0,Math.PI/2,0]);
  instance(torus,orangeLine,[pit.x0+.03,tunnel.y,tunnel.z],[tunnel.r+.06,tunnel.r+.06,1],[0,Math.PI/2,0]);
+ // 紅線的隧道口：車高 1.6、車寬 1.25，圓心比軌頂高 .75。
+ for(const y of [front,far.front])for(const [x,d] of [[pit.x0,1],[pit.x1,-1]]){instance(disc,mat('#1d1f24'),[x+d*.02,y,railZ+.75],[1.5,1.5,1],[0,d*Math.PI/2,0]);instance(torus,redLine,[x+d*.03,y,railZ+.75],[1.56,1.56,1],[0,Math.PI/2,0]);}
 
- // ── 月台（環內側、高月台 .2）＋全高月台門；門楣上一片天花（站體樓板的切面，前緣是紅線色帶）──
+ // ── 月台（前股內側、高月台 .2）＋全高月台門；門楣上一片天花（站體樓板的切面，前緣是紅線色帶）──
  const p=k.platform({y:front,z:railZ,side:1,length:20,width:3.35,edge:.72,top:.2,bottom:groundZ});
  k.screenDoors(p);
  const ceilY0=p.y0+.05-.15,ceilZ=p.z+2.0;   // 門楣箱的前緣與頂
@@ -63,12 +66,15 @@ export function createScene(){
  for(const x of [-5,5]){block(white,[1.8,.05,.42],[x,p.y1-.12,p.z+1.3]);block(redLine,[1.8,.055,.07],[x,p.y1-.12,p.z+1.47]);
   for(const s of [-1,1])block(M.steel,[.06,.06,1.1],[x+s*.8,p.y1-.12,p.z+.55]);}
 
- // ── 大廳（環內，跟月台同高）：中間穹頂，兩側閘門與售票機，後側小店，兩端花台 ──
+ // ── 大廳（兩股之間，跟月台同高）：中間穹頂，兩側閘門與售票機，後側小店，兩端花台 ──
  const hall={y0:p.y1,y1:7.8},hc=(hall.y0+hall.y1)/2,hr=(hall.y1-hall.y0)/2;
  const st=new THREE.Shape();st.moveTo(-19,hall.y0);st.lineTo(19,hall.y0);st.absarc(19,hc,hr,-Math.PI/2,Math.PI/2,false);
  st.lineTo(-19,hall.y1);st.absarc(-19,hc,hr,Math.PI/2,Math.PI*1.5,false);
  slab(st,groundZ,p.z,stone,'concourse');
  const floorZ=p.z,C=[0,2.4],a=4.4;
+ // 大廳後緣接後股：全高月台門、門上一片天花。
+ k.screenDoors({x:0,y:far.front,y0:hall.y1+.01,z:p.z,side:-1,length:20});
+ block(white,[20,1.1,.14],[0,hall.y1-.5,p.z+2.07]);block(redLine,[20,.03,.14],[0,hall.y1+.05,p.z+2.07]);
  // 地磚：兩色磨石子棋盤格，穹頂底下另鋪一圈淺色。
  const inHall=(x,y)=>Math.abs(x)<=19?y>=hall.y0+.1&&y<=hall.y1-.1:Math.hypot(Math.abs(x)-19,y-hc)<=hr-.2;
  for(let i=0,x=-23.4;x<=23.4;x+=1.2,i++)for(let j=0,y=hall.y0+.6;y<=hall.y1-.5;y+=1.2,j++)
@@ -115,21 +121,18 @@ export function createScene(){
  railing(pit.x0-.08,pit.y0,pit.x0-.08,pit.y1);railing(pit.x1+.08,pit.y0,pit.x1+.08,pit.y1);
 
  // 大馬路：前面一條四線道（中間雙黃線），後面一條雙線道。
- const roads=[{y:-17.3,w:2.4,L:64,two:true},{y:15.2,w:2.0,L:60,two:false}];
+ const roads=[{y:-17.3,w:2.8,L:64,two:true},{y:15.2,w:2.0,L:60,two:false}];
  for(const r of roads){block(asphalt,[r.L,r.w,.03],[0,r.y,Zs+.015]);
   for(const s of [-1,1])block(lineW,[r.L,.05,.01],[0,r.y+s*(r.w/2-.12),Zs+.035]);
   if(r.two)for(const s of [-1,1])block(lineY,[r.L,.04,.01],[0,r.y+s*.05,Zs+.035]);
   for(let x=-r.L/2+1;x<r.L/2-1;x+=2.2)for(const s of r.two?[-1,1]:[0])block(lineW,[1.0,.05,.01],[x,r.y+s*r.w/4,Zs+.035]);}
  // 車：計程車黃、白、紅，前路一台公車（車與機車共用三個車身色，少幾個 draw）。
- const carCols=['#e8c23a','#efefea','#c23b35'].map(c=>mat(c,{roughness:.45}));
- const car=(x,y,dir,m)=>{block(m,[1.15,.55,.34],[x,y,Zs+.24]);block(frame,[.62,.5,.24],[x-dir*.06,y,Zs+.52]);};
- [[-24,-16.4,1],[-9,-17.0,1],[13,-16.4,1],[-17,-17.6,-1],[4,-18.2,-1],[25,-17.6,-1],[-20,14.7,1],[8,14.7,1],[-2,15.7,-1],[19,15.7,-1]]
-  .forEach(([x,y,d],i)=>car(x,y,d,carCols[i%3]));
- block(white,[3.4,.66,.82],[-1,-17.0,Zs+.5]);block(tvm,[3.42,.68,.16],[-1,-17.0,Zs+.42]);block(frame,[3.0,.68,.3],[-.9,-17.0,Zs+.72]);
+ [[-24,-18,1],[-9,-16.6,-1],[13,-18,1],[-17,-16.6,-1],[4,-18,1],[25,-16.6,-1],[-20,14.7,1],[8,14.7,1],[-2,15.7,-1],[19,15.7,-1]]
+  .forEach(([x,y,d],i)=>k.car(x,y,{yaw:d>0?0:Math.PI,z:Zs,taxi:i%3===0}));
+ k.bus(-1,-16.6,{yaw:Math.PI,z:Zs,paint:white,stripe:tvm});
 
  // 機車格：前面人行道兩排機車（港都日常）。
- for(const [x0,x1] of [[-26,-8.6],[8.6,26]])for(let x=x0;x<=x1;x+=.6){
-  block(carCols[rand()<.5?1:2],[.22,.56,.3],[x,-12.1,Zs+.2]);block(frame,[.18,.26,.05],[x,-12.02,Zs+.37]);}
+ for(const [x0,x1] of [[-26,-8.6],[8.6,26]])for(let x=x0;x<=x1;x+=.6)k.scooter(x,-12.1,{yaw:Math.PI/2,z:Zs});
 
  // 「祈禱」出入口：兩片斜玻璃合起來像合十的手，一頭低、一頭翹高；鋼骨收邊。前面兩座翹的那頭朝坑，後面兩座左右對稱。
  const wedge=(()=>{let g=new THREE.BufferGeometry();
@@ -160,9 +163,7 @@ export function createScene(){
 
  // 後面：騎樓街屋夾幾棟大樓；右後角 85 大樓（兩腳在中段併成一棟、再往上收成主塔）。
  const towerM=mat('#d6d6cf');
- [{x:-22,w:4.6,h:8.5},{x:-9.6,w:3.8,h:11.5},{x:6.6,w:5.0,h:9.4}].forEach(t=>{const m=towerM;
-  block(m,[t.w,3.0,t.h],[t.x,18.1,Zs+t.h/2]);for(let z=1.0;z<t.h-.4;z+=1.0)block(M.glass,[t.w+.04,3.04,.34],[t.x,18.1,Zs+z]);
-  block(m,[t.w*.6,1.8,.6],[t.x,18.3,Zs+t.h+.3]);});
+ [{x:-22,w:4.6,h:8.5},{x:-9.6,w:3.8,h:11.5,kind:'office'},{x:6.6,w:5.0,h:9.4}].forEach(({x,w,h,kind})=>k.tower(x,18.1,{w,d:3.0,h,body:towerM,kind,z:Zs}));
  for(const [x0,x1] of [[-29.6,-24.6],[-19.2,-12.2],[-7.2,3.6],[9.6,22.9]]){const n=Math.max(1,Math.round((x1-x0)/1.75)),w=(x1-x0)/n;
   for(let i=0;i<n;i++)props.townhouse(x0+(i+.5)*w,17.9,Zs,{floors:3+Math.floor(rand()*3),width:w-.06,depth:2.6,tint:Math.floor(rand()*4),ground:'arcade',roof:pick(['flat','tin']),back:true});}
  const sky={x:26.4,y:18.0},skyM=mat('#9fb3bf',{roughness:.3,metalness:.25});
@@ -179,6 +180,7 @@ export function createScene(){
  return k.result({
   path,label:'美麗島站',themes:THEMES,camera:{yaw:-1.12,elevation:.58,radius:50},
   anchors:{platform:[0,(p.y0+p.y1)/2,p.z],station:[C[0],C[1],rimZ+h],deck:[0,front,railZ],backdrop:[sky.x,sky.y,Zs+8]},
+  extra:{opposingPath:k.reversed(far)},
   update(time,t){for(const m of tileMats)m.emissiveIntensity=.1+t.lamp*.85;entGlass.emissiveIntensity=t.window*.5;}
  });
 }

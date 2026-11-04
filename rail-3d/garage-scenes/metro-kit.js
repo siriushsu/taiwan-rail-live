@@ -1,17 +1,18 @@
-// 捷運、高鐵、機捷車庫場景的共用骨架：底座、環線、高架橋、四種軌道、第三軌、架空線、月台、月台門、水面、燈與光池、合批。
+// 捷運、高鐵、機捷車庫場景的共用骨架：底座、環線與直線穿越、高架橋、四種軌道、第三軌、架空線、月台、月台門、水面、燈與光池、街上的車、高樓、合批。
 // 各座場景只寫自己的地標站房與街景，骨架都從這裡拿；幾何全是程式算的，零資產檔。
 // App 的場景檔是 native scripts/garage-scenes/bake.mjs 拿這些模組烘出來的（靜態幾何＋三時段材質、燈、光池），所以：
 // 材質只用 MeshStandardMaterial（光池是唯一的 MeshBasicMaterial，名字要叫 lamp-pool）；會動的東西在 App 不會動；
 // 不要把物件命名成 catenary（那是田園小站照車款開關的電車線，原生會依車款藏起來）。
 import * as THREE from '../vendor/three.module.js';
 import {createProps} from './props.js';
+import {createTaiwanTrees,MIX} from './taiwan-trees.js';
 
 // 軌距的一半（場景單位，車寬一律 1.25）：從車模底部頂點量，輪子最密的橫向位置。
 // 高運量、機捷、環狀線、三鶯線、台中、高雄、高鐵都是 .455（同 EMU3000 的 .46）；淡海、安坑、高雄輕軌 .42；
 // 文湖線膠輪 APM256 .43、VAL256 .457，走行面取中間、做寬一點兩款都托得住。
 export const GAUGE = {heavy:.46, light:.42, rubber:.445};
 
-export function createKit({seed = 1, plinth = [66, 40, 4], grass = '#87956b'} = {}) {
+export function createKit({seed = 1, plinth = [66, 40, 4], grass = '#87956b', trees: treeMix = MIX.city} = {}) {
  const group=new THREE.Group(),geometries=new Set(),materials=new Set();
  const rand=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
  const geo=g=>(geometries.add(g),g),mat=(color,extra={})=>{const m=new THREE.MeshStandardMaterial({color,roughness:.88,...extra});materials.add(m);return m;};
@@ -64,9 +65,15 @@ export function createKit({seed = 1, plinth = [66, 40, 4], grass = '#87956b'} = 
   }
   return{sample,length,half,radius,cy,z,front:cy-radius,back:cy+radius};
  }
+ // 直線穿越（garage-diorama.js 行駛方式 3）：沿 x 一股軌道，軌道鋪到底座邊（±half）。cycle 是一趟長（SCENES 的 pass[0]），車開出底座就繞回另一端。
+ function line({y=-6.5,z=groundZ+4.18,half=plinthW/2,cycle=100}={}){
+  return{sample:s=>({x:s,y,z,heading:0}),length:cycle,trackStart:-half,trackLength:half*2,half,z,front:y};
+ }
+ // 同一股往 −x 開（對向車）：幾何照原方向鋪，只有車走這條。
+ const reversed=p=>({...p,sample:s=>{const q=p.sample(-s);return{...q,heading:q.heading+Math.PI};}});
  // 沿環線鋪帶狀面：每段給左右兩緣的橫向偏移與高度（相對軌頂），同材質的幾段合成一個網格。偏移正的往環內（行進方向左手），負的往環外（前直線上就是觀者那一側）。
  // 法向量跟著頂點順序走：偏移由小到大鋪出來朝上，反過來朝下；立面由下往上鋪朝 −偏移側，由上往下鋪朝 ＋偏移側（同 viaduct.js）。
- function strips(path,material,parts,{N=520,from=0,to=path.length}={}){
+ function strips(path,material,parts,{N=520,from=path.trackStart??0,to=from+(path.trackLength??path.length)}={}){
   const v=[],idx=[];
   for(const [o1,z1,o2,z2] of parts){const base=v.length/3;
    for(let i=0;i<=N;i++){const q=path.sample(from+(to-from)*i/N),sx=-Math.sin(q.heading),cx=Math.cos(q.heading);
@@ -76,7 +83,7 @@ export function createKit({seed = 1, plinth = [66, 40, 4], grass = '#87956b'} = 
  }
  const ribbon=(path,offset,width,z,material,opts)=>strips(path,material,[[offset-width/2,z,offset+width/2,z]],opts);
  // 沿環線每隔約 step 擺一次（取每格中點）；只鋪 [from, to] 這段。
- function along(path,step,fn,{from=0,to=path.length}={}){const n=Math.max(1,Math.round((to-from)/step)),d=(to-from)/n;for(let k=0;k<n;k++){const s=from+d*(k+.5);fn(path.sample(s),s);}}
+ function along(path,step,fn,{from=path.trackStart??0,to=from+(path.trackLength??path.length)}={}){const n=Math.max(1,Math.round((to-from)/step)),d=(to-from)/n;for(let k=0;k<n;k++){const s=from+d*(k+.5);fn(path.sample(s),s);}}
  // 環線上某點往旁邊 offset、往上 dz 的世界座標。
  const at=(q,offset,dz=0)=>[q.x-Math.sin(q.heading)*offset,q.y+Math.cos(q.heading)*offset,q.z+dz];
 
@@ -213,10 +220,83 @@ export function createKit({seed = 1, plinth = [66, 40, 4], grass = '#87956b'} = 
  }
 
  const props=createProps({geo,mat,instance,rand});
+ // 透天厝帶細節（窗楣、冷氣、落水管、直招牌）；樹一律種台灣樹種（整批一個 draw call，不吃場景亂數）。keepClear(f)：f(x,y) 為真的地方不種（高架橋底、軌道邊）。
+ const plainHouse=props.townhouse,trees=createTaiwanTrees({geo,material:m=>(materials.add(m),m),shadowCap:.0015});
+ let blocked=()=>false;const keepClear=f=>{blocked=f;};
+ props.townhouse=(x,y,z,o={})=>plainHouse(x,y,z,{detail:true,...o});
+ props.broadleaf=(x,y,z,h=2.2)=>{if(!blocked(x,y))trees.plantMix(treeMix,x,y,z,h*1.15);};
+
+ // 街上的車：車身、車窗、車頂都是側面輪廓沿車寬擠出（車頭朝 +x、輪底在 0），輪子一軸一根貫穿、燈各一小塊。yaw 0 朝 +x。
+ const extruded=(pts,w)=>{const g=new THREE.ExtrudeGeometry(new THREE.Shape(pts.map(p=>new THREE.Vector2(...p))),{depth:w,bevelEnabled:false});g.rotateX(Math.PI/2);g.translate(0,w/2,0);return geo(g);};
+ const CW=.78,BODY={
+  sedan:{wheel:[-.56,.56],body:extruded([[-.92,.16],[-.93,.36],[-.86,.45],[-.46,.47],[.3,.47],[.78,.41],[.92,.33],[.93,.16]],CW),
+   cabin:extruded([[-.72,.45],[-.46,.66],[.06,.68],[.44,.46]],CW*.86),roof:extruded([[-.52,.65],[-.44,.7],[.08,.71],[.15,.65]],CW*.88)},
+  suv:{wheel:[-.54,.54],body:extruded([[-.86,.18],[-.88,.48],[-.8,.54],[.3,.54],[.76,.48],[.9,.38],[.9,.18]],CW*1.02),
+   cabin:extruded([[-.84,.52],[-.76,.8],[.14,.82],[.5,.54]],CW*.88),roof:extruded([[-.8,.79],[-.76,.85],[.16,.85],[.22,.79]],CW*.9)},
+ };
+ const paints=['#e9e6df','#f2f1ec','#3f4a63','#b4402f','#8f9498','#2f3236','#5c7f8f'].map(c=>mat(c,{roughness:.42,metalness:.2})),taxiPaint=mat('#e7c23c',{roughness:.42,metalness:.15});
+ const carGlass=mat('#2e3a44',{roughness:.22,metalness:.25}),tyre=mat('#25272a',{roughness:.8}),hub=mat('#b8bcbe',{roughness:.4,metalness:.5}),trim=mat('#33363a',{roughness:.6}),tail=mat('#b52a28',{emissive:'#ff2c1e',emissiveIntensity:0});
+ const pick=list=>list[Math.floor(rand()*list.length)];
+ // 車身座標（a 往車頭、b 往左）換到世界。
+ const onCar=(x,y,yaw)=>{const c=Math.cos(yaw),s=Math.sin(yaw);return(a,b)=>[x+a*c-b*s,y+a*s+b*c];};
+ function axle(P,a,r,w,z,yaw){const [x,y]=P(a,0);instance(cylinder,tyre,[x,y,z+r],[r*2,r*2,w],[Math.PI/2,0,yaw]);instance(cylinder,hub,[x,y,z+r],[r,r,w+.02],[Math.PI/2,0,yaw]);}
+ function car(x,y,{yaw=0,kind=rand()<.3?'suv':'sedan',paint=pick(paints),taxi=false,z=groundZ}={}){
+  const b=BODY[kind],P=onCar(x,y,yaw),rot=[0,0,yaw],m=taxi?taxiPaint:paint,at=(a,s,h)=>[...P(a,s),z+h];
+  instance(b.body,m,[x,y,z],[1,1,1],rot);instance(b.cabin,carGlass,[x,y,z],[1,1,1],rot);instance(b.roof,m,[x,y,z],[1,1,1],rot);
+  for(const a of b.wheel)axle(P,a,.15,CW+.02,z,yaw);
+  block(trim,[.05,CW+.01,.08],at(.92,0,.22),rot);block(trim,[.05,CW+.01,.08],at(-.92,0,.22),rot);
+  for(const s of [-.26,.26]){block(M.lamp,[.03,.17,.06],at(.93,s,.33),rot);block(tail,[.03,.17,.07],at(-.93,s,.37),rot);}
+  for(const s of [-1,1])block(m,[.1,.05,.04],at(.3,s*(CW/2+.03),.47),rot);   // 後照鏡
+  if(taxi)block(M.sign,[.26,.12,.1],at(-.15,0,.76),rot);
+ }
+ // 公車：車身、整排車窗、擋風玻璃、車門、車頂冷氣、車頭電子看板、色帶。len 全長。
+ const busBody=extruded([[-.5,.12],[-.5,.95],[-.47,1],[.45,1],[.5,.86],[.5,.12]],1);
+ function bus(x,y,{yaw=0,len=4.2,paint=paints[1],stripe=paints[3],z=groundZ}={}){
+  const P=onCar(x,y,yaw),rot=[0,0,yaw],W=.98,H=1.22,at=(a,s,h)=>[...P(a,s),z+h];
+  instance(busBody,paint,[x,y,z],[len,W,H],rot);
+  block(carGlass,[len*.9,W+.02,.42],at(-.02,0,.84),rot);
+  block(carGlass,[.04,W*.86,.5],at(len/2-.03,0,.82),rot);block(stripe,[len+.02,W+.02,.12],at(0,0,.46),rot);
+  for(const a of [.33,-.05]){block(trim,[.56,.03,.74],at(len*a,-W/2-.01,.5),rot);block(carGlass,[.2,.03,.6],at(len*a-.14,-W/2-.02,.55),rot);block(carGlass,[.2,.03,.6],at(len*a+.14,-W/2-.02,.55),rot);}
+  block(paints[4],[len*.42,W*.62,.14],at(-.1,0,H+.05),rot);block(M.sign,[.04,W*.6,.13],at(len/2-.02,0,H-.1),rot);
+  for(const s of [-.34,.34]){block(M.lamp,[.03,.16,.08],at(len/2+.01,s,.3),rot);block(tail,[.03,.16,.1],at(-len/2-.01,s,.34),rot);}
+  for(const a of [-len*.28,len*.3])axle(P,a,.2,W+.02,z,yaw);
+ }
+ // 機車：踏板、車殼、前擋、座墊、把手、前後輪。yaw 0 朝 +x，一格長 .7。
+ const scooterPaint=['#f2f1ec','#b4402f','#3f6ea3','#8f9498','#2f3236','#d9a441'].map(c=>mat(c,{roughness:.4,metalness:.15}));
+ function scooter(x,y,{yaw=0,paint=pick(scooterPaint),z=groundZ}={}){
+  const P=onCar(x,y,yaw),rot=[0,0,yaw],at=(a,h)=>[...P(a,0),z+h];
+  block(paint,[.36,.15,.07],at(.02,.17),rot);block(paint,[.26,.17,.18],at(-.2,.29),rot);block(paint,[.06,.17,.3],at(.21,.33),[0,-.22,yaw]);
+  block(tyre,[.24,.14,.06],at(-.18,.41),rot);block(trim,[.04,.3,.03],at(.22,.52),rot);
+  for(const a of [-.26,.27]){const [wx,wy]=P(a,0);instance(cylinder,tyre,[wx,wy,z+.11],[.22,.22,.06],[Math.PI/2,0,yaw]);}
+ }
+ const towerGlass=mat('#5f7c88',{metalness:.3,roughness:.16,emissive:'#ffd79a',emissiveIntensity:0}),towerDark=mat('#5f7c88',{metalness:.3,roughness:.16});   // 夜裡一半的窗沒開燈
+ // 高樓。office：玻璃帷幕，每層一道樓板、四面豎框；home：牆面開窗（一層三扇）、正面一排陽台。都帶一樓店面、屋頂機房、水塔、天線。
+ function tower(x,y,{w=3.6,d=3,h=10,body=paints[1],kind='home',floor=.98,z=groundZ}={}){
+  const base=z,podium=1.05,top=base+h,n=Math.floor((h-podium)/floor);
+  block(body,[w+.3,d+.3,podium],[x,y,base+podium/2]);block(towerGlass,[w*.86,d+.34,podium*.62],[x,y,base+podium*.42]);block(trim,[w+.36,d+.36,.08],[x,y,base+podium]);
+  if(kind==='office'){
+   block(towerDark,[w,d,h-podium],[x,y,base+podium+(h-podium)/2]);
+   for(let i=0;i<=n;i++)block(body,[w+.06,d+.06,.09],[x,y,base+podium+i*(h-podium)/n]);
+   for(let i=0;i<n;i++)if(rand()<.45)block(towerGlass,[w+.02,d+.02,(h-podium)/n-.12],[x,y,base+podium+(i+.5)*(h-podium)/n]);
+   const zc=base+podium+(h-podium)/2,nx=Math.round(w/.72),ny=Math.round(d/.72);
+   for(let i=1;i<nx;i++)block(body,[.07,d+.08,h-podium],[x-w/2+i*w/nx,y,zc]);
+   for(let i=1;i<ny;i++)block(body,[w+.08,.07,h-podium],[x,y-d/2+i*d/ny,zc]);
+   for(const a of [-1,1])for(const c of [-1,1])block(body,[.14,.14,h-podium],[x+a*w/2,y+c*d/2,zc]);
+  }else{
+   block(body,[w,d,h-podium],[x,y,base+podium+(h-podium)/2]);
+   for(let i=0;i<n;i++){const z=base+podium+(i+.58)*floor;
+    for(const a of [-1,0,1])block(rand()<.5?towerGlass:towerDark,[w*.24,d+.04,floor*.5],[x+a*w*.31,y,z]);
+    for(const a of [-1,1])block(rand()<.5?towerGlass:towerDark,[w+.04,d*.26,floor*.5],[x,y+a*d*.27,z]);
+    block(body,[w*.94,.34,.07],[x,y-d/2-.16,z-floor*.42]);block(cage,[w*.94,.03,.26],[x,y-d/2-.32,z-floor*.26]);}
+  }
+  block(body,[w+.12,d+.12,.2],[x,y,top+.1]);block(paints[4],[w*.44,d*.5,.62],[x-w*.14,y,top+.5]);
+  instance(cylinder,hub,[x+w*.28,y+d*.2,top+.5],[.5,.5,.6]);block(M.steel,[.05,.05,1.2],[x+w*.28,y-d*.28,top+.8]);
+ }
+ const cage=mat('#6b7274',{metalness:.3,roughness:.5});
  let poolMesh=null;
  // 時段：玻璃、燈、招牌的自發光、點光源、光池跟著 THEMES 的 lamp／window 走（倍率同 viaduct.js）。
  function period(t){
-  M.glass.emissiveIntensity=t.window*1.1;M.lamp.emissiveIntensity=t.lamp*1.3;M.sign.emissiveIntensity=t.lamp*1.1;
+  M.glass.emissiveIntensity=t.window*1.1;towerGlass.emissiveIntensity=t.window*.9;M.lamp.emissiveIntensity=t.lamp*1.3;M.sign.emissiveIntensity=t.lamp*1.1;tail.emissiveIntensity=t.lamp*1.1;
   props.glass.emissiveIntensity=t.window;for(const s of props.signs)s.emissiveIntensity=t.window*.7;
   for(const l of lights)l.intensity=t.lamp*9*l.userData.k;
   poolMat.opacity=t.lamp*.8;if(poolMesh)poolMesh.visible=t.lamp>0;
@@ -230,6 +310,7 @@ export function createKit({seed = 1, plinth = [66, 40, 4], grass = '#87956b'} = 
    if(material===poolMat)poolMesh=o;
   }
   batches.clear();
+  if(trees.count)trees.build(group);
   return{
    group,path,anchors,label,themes,camera,...extra,
    update(time,p='day'){const t=themes[p]||themes.day;water?.update(time,t);period(t);update?.(time,t,p);},
@@ -238,6 +319,6 @@ export function createKit({seed = 1, plinth = [66, 40, 4], grass = '#87956b'} = 
  }
 
  return{THREE,group,rand,geo,mat,M,box,cylinder,disc,prism,hip,instance,block,mesh,rounded,props,plinthW,plinthD,plinthR,groundZ,inside,
-  loop,strips,ribbon,along,at,viaduct,rails,slabTrack,ballastTrack,guideway,embeddedTrack,thirdRail,overhead,
+  loop,line,reversed,strips,ribbon,along,at,keepClear,car,bus,scooter,tower,viaduct,rails,slabTrack,ballastTrack,guideway,embeddedTrack,thirdRail,overhead,
   platform,gates,screenDoors,lights,addLight,pool,sea,river,result};
 }

@@ -11,7 +11,7 @@ export const THEMES = {
 };
 
 export function createScene(){
- const k=createKit({seed:20366});
+ const k=createKit({seed:20366,trees:[['hibiscus',.35],['terminalia',.35],['koelreuteria',.3]]});
  const {M,mat,block,instance,rand,groundZ,props,prism,cylinder,pool,inside}=k;
  const path=k.loop({z:groundZ+.02}),railZ=path.z,front=path.front;
  const pick=list=>list[Math.floor(rand()*list.length)];
@@ -101,10 +101,9 @@ export function createScene(){
  block(asphalt,[11,6.6,.04],[-10.2,.4,groundZ+.02]);
  for(let x=-14.6;x<=-5.8;x+=1.8)block(line,[.06,4.6,.01],[x,.4,groundZ+.045]);
  const buses=['#f1efe9','#4c79b8','#d8b04a','#f1efe9'].map(c=>mat(c,{roughness:.5}));
- for(let i=0;i<4;i++){const x=-13.7+i*1.8;block(buses[i],[1.05,4.2,1.2],[x,.4,groundZ+.66]);block(M.glass,[1.07,3.7,.4],[x,.5,groundZ+.98]);}
- const cars=['#e9e6df','#3f4a63','#b4402f','#8f9498','#d9c35a'].map(c=>mat(c,{roughness:.5,metalness:.15})),carGlass=mat('#2e3a44',{roughness:.3});
+ for(let i=0;i<4;i++)k.bus(-13.7+i*1.8,.4,{yaw:Math.PI/2,paint:buses[i],stripe:buses[(i+1)%4]});
  block(asphalt,[7.2,3.6,.04],[14.2,-1.2,groundZ+.02]);
- for(let x=11.2;x<=17.3;x+=1.2){block(line,[.05,1.8,.01],[x-.6,-1.2,groundZ+.045]);if(rand()<.75){block(pick(cars),[.8,1.75,.48],[x,-1.25,groundZ+.3]);block(carGlass,[.7,.9,.34],[x,-1.25,groundZ+.68]);}}
+ for(let x=11.2;x<=17.3;x+=1.2){block(line,[.05,1.8,.01],[x-.6,-1.2,groundZ+.045]);if(rand()<.75)k.car(x,-1.25,{yaw:Math.PI/2});}
  block(white,[5.2,3.0,1.6],[12.4,2.4,groundZ+.8]);instance(prism,mat('#3f6f9e'),[12.4,2.4,groundZ+1.6],[5.6,3.4,.9]);block(M.glass,[4.2,.06,.7],[12.4,.88,groundZ+.8]);
  for(const [x,y] of [[-2.6,1.2],[1.4,3.8],[5.4,.6],[7.6,5.4],[17.6,-.8],[19.4,4.6],[-17.8,3.4],[-20.4,-.4]])palm(x,y,2.4+rand()*.8);
  for(let n=0;n<10;){const x=-16+rand()*34,y=6.2+rand()*1.6;props.bush(x,y,groundZ,.5+rand()*.4);n++;}
