@@ -60,7 +60,9 @@ globalThis.fetch = async (u) => {
   throw new Error('offline: ' + String(u));
 };
 
-const RULES = JSON.parse(readFileSync(join(ROOT, 'data/bounty_rules.json'), 'utf8'));
+// 這支不驗通行證加成（verify_bounty_plus.mjs 管）：世界裡沒有 RevenueCat，規則檔打開時帳號的班車會整班留 pending，所以固定成關。
+const RULES_FILE = JSON.parse(readFileSync(join(ROOT, 'data/bounty_rules.json'), 'utf8'));
+const RULES = { ...RULES_FILE, chips: { ...RULES_FILE.chips, plusBonusPct: 0 } };
 // 對照版（v2 的實作）讀的規則：籌碼區塊照 v2 的規則檔寫死（它要 perTrip > 0，v3 的規則檔是 0），其餘區塊與現行規則檔相同。
 const RULES_V2 = { ...RULES, v: 2, chips: { perTrip: 1, minTripSec: 600, minTripMoveM: 1000, remoteLines: ['tra_sched|南迴線', 'tra_sched|臺東線'], remoteMultiplier: 2,
   dailyChipCap: 4, cloud: { minSec: 600, dailyMax: 1, perChip: 3 }, prices: [4, 8], scenes: RULES.chips.scenes, events: [], evergreen: RULES.chips.evergreen } };

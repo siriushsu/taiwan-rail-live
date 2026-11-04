@@ -152,7 +152,7 @@ const widths = [360, 375, 414, 768];
 // 11/03: delay trend map adds one (561 -> 562).
 // 11/04: garage scene polish adds one (562 -> 563).
 // 11/04: removing the fast playback zoom cap adds one (563 -> 564).
-const expectedHistoryCount = 564;
+const expectedHistoryCount = 565;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
