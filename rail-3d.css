@@ -41,6 +41,7 @@ body.ambient .ri-formation-caption{display:none}
 #viewSettingsBtn{display:none;min-width:44px;min-height:44px;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--navy);font:inherit;font-size:12px;box-shadow:var(--shadow-1);cursor:pointer;padding:6px 9px}
 body.mobile-shell #viewSettingsBtn{display:flex}
 .view-mobile{left:10px;right:10px;display:block}.view-mobile .view-rail{display:none}.view-mobile .view-panel{width:100%}.view-mobile .view-tabs{display:flex;flex:none;gap:2px;overflow-x:auto;padding:5px 6px;border-bottom:1px solid var(--line)}
+.view-grip{display:none}.view-drag .view-grip{display:block;position:absolute;top:6px;left:50%;width:38px;height:4px;margin-left:-19px;border-radius:3px;background:var(--line)}.view-drag .view-panel{position:relative}.view-drag .view-head{touch-action:none}
 .view-mobile .view-tab{flex:1;min-width:44px;min-height:44px;padding:7px 3px;gap:0}.view-mobile .view-tabs .view-symbol{display:none}.view-mobile .view-head{padding-top:0;padding-bottom:0}
 body.mobile-shell.view-open #followPanel,body.mobile-shell.view-open #freqCard{visibility:hidden}
 body:is(.ambient,.tools-open,.search-open,.rec-panel,.collect-map) .view-dock{display:none}

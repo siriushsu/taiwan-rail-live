@@ -15,9 +15,10 @@ export function mountViewControls({translate:t}) {
   const toggle=el('button','view-toggle',t('觀看'));toggle.id='viewSettingsBtn';toggle.type='button';toggle.setAttribute('aria-controls','viewSettingsPanel');toggle.setAttribute('aria-expanded','false');
   const panel=el('section','view-panel');panel.id='viewSettingsPanel';panel.hidden=true;panel.setAttribute('aria-label',t('觀看設定'));
   const head=el('div','view-head'),title=el('strong','',t('觀看設定')),closeBtn=el('button','view-close','×');closeBtn.type='button';closeBtn.setAttribute('aria-label',t('關閉觀看設定'));head.append(title,closeBtn);
-  const nav=el('nav','view-tabs');nav.setAttribute('aria-label',t('觀看設定分類'));
+  const grip=el('span','view-grip'),nav=el('nav','view-tabs');nav.setAttribute('aria-label',t('觀看設定分類'));
   const body=el('div','view-body');body.id='viewSettingsBody';
   const rail=el('nav','view-rail');rail.setAttribute('aria-label',t('觀看設定'));
+  const VIEW_H_KEY='trainmap-view-h-v1';let chosen=loadPanelFrac(VIEW_H_KEY),room=0,space=0,pillH=0; // pillH：速度膠囊閒置會縮小，用看過最高的那個高度算卡底，卡才不會跟著跳
   const more=document.getElementById('moreBody'),pages=new Map(),buttons=new Map();let active='angle',opened=false,opener=null;
   for(const[key,name,icon,selectors]of categories){
     const page=el('div','view-page');page.id='view-'+key;page.hidden=true;
@@ -30,9 +31,9 @@ export function mountViewControls({translate:t}) {
   more.querySelector('.ri-3d-settings')?.remove();
   // 觀看模式整組移出後，移除空標題；其他帳號、診斷與資訊仍留在更多。
   for(const heading of more.querySelectorAll('.ms-sec')){if(heading.textContent.trim()===t('地圖顯示'))heading.textContent=t('其他設定');let next=heading.nextElementSibling;if(!next||next.classList.contains('ms-sec'))heading.hidden=true;}
-  panel.append(head,nav,body);dock.append(rail,panel);document.body.append(dock);document.getElementById('mapActions').append(toggle);
+  panel.append(grip,head,nav,body);dock.append(rail,panel);document.body.append(dock);document.getElementById('mapActions').append(toggle);
   function sync(){state._syncMoreSheet?.();for(const[key,page]of pages){page.hidden=key!==active;for(const b of buttons.get(key)){b.classList.toggle('on',opened&&key===active);b.setAttribute('aria-expanded',String(opened&&key===active));}}toggle.setAttribute('aria-expanded',String(opened));}
-  function open(key=active,source=toggle){opener=source;active=key;document.getElementById('moreClose').click();opened=true;panel.hidden=false;document.body.classList.add('view-open');sync();layout();}
+  function open(key=active,source=toggle){opener=source;active=key;document.getElementById('moreClose').click();if(!sheetIsSideRail())soloPanel('view');opened=true;panel.hidden=false;document.body.classList.add('view-open');sync();layout();}
   function close(restore=false){opened=false;panel.hidden=true;document.body.classList.remove('view-open');sync();if(restore){const shown=e=>!!(e?.isConnected&&e.getClientRects().length&&!e.closest('[hidden],[inert]')&&getComputedStyle(e).visibility!=='hidden');const to=[opener,buttons.get(active)?.[0],toggle].find(shown);to?.focus({preventScroll:true});}}
   toggle.onclick=()=>opened?close():open();closeBtn.onclick=()=>close(true);
   // 開子面板或進沉浸時先收觀看面板；原本的事件仍在相同元素上執行。
@@ -46,8 +47,11 @@ export function mountViewControls({translate:t}) {
     const right=Math.min(innerWidth-16,stage.right-12),left=right-52;dock.style.right=(innerWidth-right)+'px';let top=Math.max(16,stage.top+16);
     for(const q of document.querySelectorAll('#topbar,.badge,#randBtn,#nearBtn,#followLockBtn,#fsFab,.maplibregl-ctrl-top-right,#alertBanner,#alertDetail')){const r=q.getBoundingClientRect(),s=getComputedStyle(q);if(!r.width||!r.height||s.display==='none'||s.visibility==='hidden'||Number(s.opacity)<.5)continue;if(r.right>left&&r.left<right&&r.top<stage.top+220)top=Math.max(top,r.bottom+12);}
     if(mobile){const actions=document.getElementById('mapActions').getBoundingClientRect();top=Math.max(top,actions.bottom+10);}
-    let bottom=Math.min(innerHeight-88,stage.bottom-88);if(!mobile)for(const q of document.querySelectorAll('.maplibregl-ctrl-bottom-right')){const r=q.getBoundingClientRect();if(r.width&&r.height&&r.top>top)bottom=Math.min(bottom,r.top-12);}if(mobile)dock.style.right='10px';dock.style.setProperty('--view-top',Math.round(top)+'px');dock.style.setProperty('--view-space',Math.max(120,Math.floor(bottom-top))+'px');
+    let bottom=Math.min(innerHeight-88,stage.bottom-88);if(!mobile)for(const q of document.querySelectorAll('.maplibregl-ctrl-bottom-right')){const r=q.getBoundingClientRect();if(r.width&&r.height&&r.top>top)bottom=Math.min(bottom,r.top-12);}if(mobile){dock.style.right='10px';const c=document.querySelector('.controls')?.getBoundingClientRect();if(c?.height){pillH=Math.max(pillH,c.height);bottom=Math.min(bottom,c.bottom-pillH-8);}}
+    // 直式手機可拖高度：下緣不動、頂緣跟手；卡高仍貼合內容（--view-space 是上限），換分頁時卡頂不跳。
+    const draggable=mobile&&!sheetIsSideRail();dock.classList.toggle('view-drag',draggable);room=Math.max(120,Math.floor(bottom-top));space=draggable&&chosen!=null?Math.max(120,Math.min(room,chosen*innerHeight)):room;top=Math.max(top,bottom-space);dock.style.setProperty('--view-top',Math.round(top)+'px');dock.style.setProperty('--view-space',Math.round(space)+'px');
   }
+  initPanelDrag(panel,{key:VIEW_H_KEY,inHead:e=>!!e.target.closest('.view-head,.view-grip'),cur:()=>space,max:()=>room,set:px=>{chosen=px/innerHeight;layout();}});
   let scheduled=false;function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;layout();});}
   new ResizeObserver(schedule).observe(document.getElementById('mapActions'));
   new ResizeObserver(schedule).observe(document.getElementById('topbar'));

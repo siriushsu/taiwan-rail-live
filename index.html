@@ -3610,6 +3610,7 @@
     background: var(--paper); border-top: 2px solid var(--navy);
     border-radius: 16px 16px 0 0;
     padding-bottom: calc(10px + var(--sa-b));
+    touch-action: none; /* 卡頭拖高度(initPanelDrag)；清單自己捲,見 .ms-body */
   }
   .more-sheet .grab { display: block; width: 38px; height: 5px; border-radius: 3px; background: var(--line); margin: 7px auto 4px; flex: none; }
   .more-sheet .ms-head {
@@ -3620,7 +3621,7 @@
   .more-sheet .ms-head .ms-close { margin-left: auto; background: none; border: 0; color: var(--on-navy); font-size: calc(15px * var(--ui)); cursor: pointer; padding: 2px 4px; }
   .more-sheet .ms-body {
     margin: 0 12px; border: 1.5px solid var(--line); border-top: 0; border-radius: 0 0 8px 8px;
-    overflow-y: auto; overscroll-behavior: contain;
+    overflow-y: auto; overscroll-behavior: contain; touch-action: pan-x pan-y;
   }
   :is(.more-sheet, .view-panel) .ms-row {
     display: flex; justify-content: space-between; align-items: center; gap: 10px;
@@ -33123,7 +33124,7 @@ function jumpToNow() {
 // 手機底部 sheet 家族(看板/最愛/旅程/探索/軌道/今日/誤點履歷 + 「列車」sheet):互斥開啟。
 // nearCard(附近車站)2026-07-25 起併入 sheet 家族:它原本是上錨卡(頂緣 y=152、高 462),
 // 手機上直接把地圖中心埋在卡內 274px——藍點必然看不到。改成底部 sheet 後與看板/列車同一組幾何與三段高。
-const SHEET_PANEL_IDS = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'searchPanel', 'trackPanel', 'fontPanel', 'todayPanel', 'delayHistPanel', 'nearCard', 'busStopPanel'];
+const SHEET_PANEL_IDS = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'searchPanel', 'trackPanel', 'fontPanel', 'todayPanel', 'delayHistPanel', 'nearCard', 'busStopPanel', 'tripPanel'];
 // 目前開啟中的那張 sheet(至多一張;含「列車」sheet)——供三段高定位
 function activeSheetEl() {
   const tc = document.getElementById('trainCard');
@@ -33290,6 +33291,41 @@ function setSheetPx(el, px) {
   // 小高度會換外觀(.sheet-small)、renderBoard 要跟上;renderBoard 自己會再叫一次 updateSheetOpenClass
   if (el.id === 'board' && state.boardStation && state.mode === 'sched') renderBoard();
   updateSheetOpenClass();
+}
+// 「更多」與「觀看設定」也能拖高度:手感同 initSheetHandle(按住卡頭、頂緣跟手、放開停在原處),
+// 但它們有自己的定位與上限,不進看板家族的全站偏好、不算地圖讓位。只管直式手機;key 存佔視窗高的比例。
+function loadPanelFrac(key) {
+  try { const v = parseFloat(localStorage.getItem(key)); if (v > 0 && v <= 1) return v; } catch (e) {}
+  return null;
+}
+function initPanelDrag(el, { key, inHead, cur, max, set }) {
+  let sy = null, startH = 0, h = 0, dragging = false, swallowUntil = 0;
+  el.addEventListener('pointerdown', (e) => {
+    if (!window.matchMedia(MOBILE_MQ).matches || sheetIsSideRail() || e.target.closest('button, a, input, select') || !inHead(e)) return;
+    sy = e.clientY; dragging = false; startH = h = cur();
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (sy == null) return;
+    const dy = e.clientY - sy;
+    if (!dragging && Math.abs(dy) > 6) dragging = true;
+    if (!dragging) return;
+    e.preventDefault();
+    h = Math.max(SHEET_MIN_PX, Math.min(max(), startH - dy));
+    set(h);
+  }, { passive: false });
+  const end = () => {
+    if (sy == null) return; sy = null;
+    if (!dragging) return; dragging = false;
+    try { localStorage.setItem(key, String(Math.round(h / innerHeight * 1000) / 1000)); } catch (e) {}
+    swallowUntil = performance.now() + 350; // 高度一變,緊接的 click 會落到手指底下換上來的那一列(同 initSheetHandle)
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  el.addEventListener('click', (e) => {
+    if (performance.now() >= swallowUntil) return;
+    swallowUntil = 0; e.preventDefault(); e.stopPropagation();
+  }, true);
 }
 // 抓把/標題列拖曳:頂緣跟著手指走、放開停在原處(不吸附);只在標題列頂區觸發,不攔內容捲動與按鈕。
 // 點一下不改高度(打字態的查詢 sheet 例外:點標題列回瀏覽態,那是狀態切換)。
@@ -34286,6 +34322,7 @@ function soloPanel(keep) {
   if (keep !== 'busstop') closeBusStopPanel();
   if (keep !== 'delayhist') closeDelayHist();
   if (keep !== 'train') closeTrainSheet();
+  if (keep !== 'trip') closeTripSharePanel();
 }
 // 整合卡(設計狀態機 tapStation):點站＝切到「這一站」,跟車不中斷。
 let busTransferBoardStationId = null;
@@ -39022,12 +39059,27 @@ function setupMapTools() {
       Math.max(12, Math.min(window.innerHeight - r.top + 8, window.innerHeight - H - 12))
     ) + 'px';
   }
+  // 拖過的高度只在直式手機套用;上限照 CSS 的 max-height(沒拖過＝撐到上限,跟原本一樣)
+  const MORE_H_KEY = 'trainmap-more-h-v1';
+  const moreEl = document.getElementById('moreSheet');
+  const moreMaxPx = () => parseFloat(getComputedStyle(moreEl).maxHeight) || innerHeight;
+  const applyMoreH = () => {
+    const f = window.matchMedia(MOBILE_MQ).matches && !sheetIsSideRail() ? loadPanelFrac(MORE_H_KEY) : null;
+    moreEl.style.height = f == null ? '' : Math.max(SHEET_MIN_PX, Math.min(moreMaxPx(), f * innerHeight)) + 'px';
+  };
+  initPanelDrag(moreEl, {
+    key: MORE_H_KEY,
+    inHead: e => e.clientY - moreEl.getBoundingClientRect().top <= 46 || !!e.target.closest('.ms-head'), // 同 initSheetHandle:抓把上下的留白也算
+    cur: () => moreEl.getBoundingClientRect().height,
+    max: moreMaxPx,
+    set: px => { moreEl.style.height = px + 'px'; },
+  });
   const setMore = on => {
     if (on) window.railViewControls?.close();
     document.body.classList.toggle('tools-open', on);
     const fab = document.getElementById('toolsFab');
     if (fab) fab.setAttribute('aria-expanded', String(on));
-    if (on) { syncMoreSheet(); positionMoreSheet(); }
+    if (on) { applyMoreH(); syncMoreSheet(); positionMoreSheet(); }
     else collapseMsFlow(); // 關 sheet:走勢圖搬回原位(不留在隱藏 sheet 裡)
   };
   watchBadgeForMoreSheet();
@@ -39042,7 +39094,7 @@ function setupMapTools() {
     if (e.target.closest('#moreSheet') || e.target.closest('#toolsFab')) return;
     setMore(false);
   });
-  window.addEventListener('resize', () => { if (document.body.classList.contains('tools-open')) positionMoreSheet(); });
+  window.addEventListener('resize', () => { if (document.body.classList.contains('tools-open')) { applyMoreH(); positionMoreSheet(); } });
   document.getElementById('moreClose').onclick = () => setMore(false);
   document.getElementById('moreScrim').onclick = () => setMore(false);
   // 查詢(2026-09-06;v0726a 起是搜尋):再按一次收起,與其他三顆 tab 同語意;user:true=使用者自己的動作(開關記憶)
@@ -41590,8 +41642,10 @@ function openTripSharePanel() {
   if (!tr || !tripSysCode(tr.sys)) return;
   notePanelOpener('tripPanel');
   closeBoard(); // 面板家族共用右上槽，先收車站看板避免疊
+  soloPanel('trip');
   renderTripSharePanel();
   document.getElementById('tripPanel').hidden = false;
+  updateSheetOpenClass();
   panelFocusIn('tripPanel');
 }
 function renderTripSharePanel() {
@@ -41611,9 +41665,11 @@ function renderTripSharePanel() {
       : `<div class="sub" style="padding:8px 0 4px">${escHtml(t('這班車沒有剩餘停站了（已接近終點），沒辦法再選目的站。'))}</div>`);
 }
 function closeTripSharePanel() {
-  const back = panelFocusBack('tripPanel'); // 列上按 Enter 分享也走這裡:焦點回到跟車卡的「行程分享」
   const el = document.getElementById('tripPanel');
+  if (el.hidden) return;
+  const back = panelFocusBack('tripPanel'); // 列上按 Enter 分享也走這裡:焦點回到跟車卡的「行程分享」
   el.hidden = true; el.innerHTML = '';
+  updateSheetOpenClass();
   back();
 }
 // ── 接收端：解碼 ?trip= → 強制 live、自動跟車、顯示行程橫幅(不受 TRIP_SHARE_ENABLED 影響) ──
@@ -41924,7 +41980,7 @@ document.getElementById('followPanel').addEventListener('keydown', e => {
 document.getElementById('tcStar').onclick = (e) => { e.stopPropagation(); toggleFav(state.followTrain); }; // stopPropagation:sheet 態不觸發標題列 toggle
 document.getElementById('tcSheetClose').onclick = (e) => { e.stopPropagation(); closeTrainSheet(); }; // ✕ 收「列車」sheet(跟車不中斷,小卡回來)
 // 抓把:.board 家族 + 「列車」sheet(#trainCard)綁拖曳調整高度
-['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel', 'todayPanel', 'delayHistPanel', 'trainCard', 'nearCard', 'searchPanel'].forEach(id => { const el = document.getElementById(id); if (el) initSheetHandle(el); });
+['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel', 'fontPanel', 'todayPanel', 'delayHistPanel', 'busStopPanel', 'tripPanel', 'trainCard', 'nearCard', 'searchPanel'].forEach(id => { const el = document.getElementById(id); if (el) initSheetHandle(el); });
 // 面板內容晚到或貼合內容的高度變了,小卡讓位跟著 sheet 實際高度走(syncSheetLift)
 if (typeof ResizeObserver === 'function') {
   const ro = new ResizeObserver(() => syncSheetLift(activeSheetEl()));
