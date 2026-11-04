@@ -150,7 +150,8 @@ const widths = [360, 375, 414, 768];
 // 11/03: garage scenes take the lead (scene buttons, unified design) and the stage drops its rotate/view buttons add two (551 -> 553).
 // 11/03: the 1.7.8 garage batch (new and refined scenes, nine station scenes, five classics, EMU3000, South Link trees, Countryside hill, map-style gestures, replay restyle) adds eight (553 -> 561).
 // 11/03: delay trend map adds one (561 -> 562).
-const expectedHistoryCount = 562;
+// 11/04: garage scene polish adds one (562 -> 563).
+const expectedHistoryCount = 563;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
