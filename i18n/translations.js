@@ -1339,8 +1339,8 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {"觀看設定移到網站右側；�
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟": "表示設定をウェブサイトの右側に移動しました。モバイルでは「表示」から視点・地図・列車の設定を変更でき、没入モード中も開き直せます。"});
 
-Object.assign(window.RAIL_I18N_MESSAGES.en, {"容易辨認會在遠景加寬車身，近看維持原始比例。":"Easy to see widens trains at a distance. Close-up views retain their original scale."});
-Object.assign(window.RAIL_I18N_MESSAGES.ja, {"容易辨認會在遠景加寬車身，近看維持原始比例。":"見やすい表示では遠景の車幅を広げます。近くでは元の縮尺を維持します。"});
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"Q 版把列車畫成放大的三節，遠看也看得清楚，列車編組的設定不影響；容易辨認會在遠景加寬車身，近看維持原始比例。":"Q-style draws each train as three enlarged cars, so it stays clear from a distance; the formation setting does not apply. Easy to see widens trains at a distance. Close-up views retain their original scale."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"Q 版把列車畫成放大的三節，遠看也看得清楚，列車編組的設定不影響；容易辨認會在遠景加寬車身，近看維持原始比例。":"デフォルメ表示は列車を大きな3両で描き、遠くからでも見やすくします。編成の設定は反映されません。見やすい表示では遠景の車幅を広げます。近くでは元の縮尺を維持します。"});
 
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟；修正地形切換時橋墩閃現與遠景列車大小設定未生效；9/18 起開著車站卡或列車卡也能直接進觀看設定":"View settings now live on the right side of the website. On mobile, tap View to adjust the scene, including in immersive mode. Fixed flashing bridge piers when switching terrain and restored distant train size settings. Since 9/18, View is also available while a station or train card is open."});
 
