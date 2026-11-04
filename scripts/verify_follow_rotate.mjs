@@ -19,7 +19,7 @@ async function openFollowing(browser, zoom = 18) {
   await context.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
   const page = await context.newPage(), errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.goto(`${BASE}?scene=3d&g=all&train=117&t=12:00&z=${zoom}&formation=actual&ground=flat&lang=zh-TW`);
+  await page.goto(`${BASE}?scene=3d&g=all&train=117&t=12:00&z=${zoom}&formation=actual&trainSize=readable&ground=flat&lang=zh-TW`);
   await page.waitForFunction(() => state.ready && state.followTrain, null, { timeout: 60000 });
   if (zoom >= 15) {
     // 立體列車真的接手相機之後才算數:followMoves 要開始跳,否則量到的是平面那條路徑。

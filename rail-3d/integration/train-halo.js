@@ -72,7 +72,7 @@ export function createTrainHalo(scene) {
       const {sample,color}=m.screenPose,opacity=trainDisplayOpacity(m.screenPose.displayOpacity),cars=sample.cars,first=cars[0],last=cars.at(-1);
       if(!first||opacity<=0)continue;
       // 地下車的光暈畫在地下那一趟，深度要用那一趟往下延伸的遠裁切面（project 第三個參數），地面車照主畫面。
-      const p=cars.map(c=>project(c.coordinate,c.height+1.75,c.underground)),before=project(shift(first.coordinate,first.angle,m.model.parts[0].bodyLengthM/2),first.height+1.75,first.underground),after=project(shift(last.coordinate,last.angle,-m.model.parts.at(-1).bodyLengthM/2),last.height+1.75,last.underground);
+      const p=cars.map(c=>project(c.coordinate,c.height+1.75,c.underground)),before=project(shift(first.coordinate,first.angle,(m.parts||m.model.parts)[0].bodyLengthM/2),first.height+1.75,first.underground),after=project(shift(last.coordinate,last.angle,-(m.parts||m.model.parts).at(-1).bodyLengthM/2),last.height+1.75,last.underground);
       let radius=2.5;
       for(let i=0;i<cars.length;i++) {
         if(p[i].z<-1||p[i].z>1)continue;

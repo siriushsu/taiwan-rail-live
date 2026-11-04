@@ -38,6 +38,6 @@ export function makeHeightProfile(values,step,length){
 export function formationPoses(path,s,direction,parts,elevation=()=>.65){
   const first=parts[0],last=parts.at(-1),front=s+direction*(first.offsetM+first.lengthM/2),back=s+direction*(last.offsetM-last.lengthM/2);
   if(!path.at(front)||!path.at(back))return null; // 未知的接續段不畫直線、也不把車廂堆在端點。
-  return parts.map(part=>{const chainage=s+part.offsetM*direction,c=path.at(chainage),half=Math.min(8,part.lengthM*.32),a=path.at(chainage-direction*half),b=path.at(chainage+direction*half),z=elevation(chainage),za=elevation(a.s),zb=elevation(b.s);
+  return parts.map(part=>{const chainage=s+part.offsetM*direction,c=path.at(chainage),half=part.poseHalfM??Math.min(8,part.lengthM*.32),a=path.at(chainage-direction*half),b=path.at(chainage+direction*half),z=elevation(chainage),za=elevation(a.s),zb=elevation(b.s);
     const dx=(b.coordinate[0]-a.coordinate[0])*Math.cos(c.coordinate[1]*Math.PI/180),dy=b.coordinate[1]-a.coordinate[1];return {coordinate:c.coordinate,s:chainage,height:z,angle:Math.atan2(dy,dx),pitch:Math.atan2(zb-za,distanceM(a.coordinate,b.coordinate))};});
 }

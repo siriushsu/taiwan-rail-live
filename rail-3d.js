@@ -25,11 +25,11 @@
   // 網址參數(?scene=2d、?formation=…)仍然只是這一次的覆寫,照舊不落盤,分享連結才不會改到對方的設定。
   const read=(key,fallback)=>{try{return localStorage.getItem(key)||fallback;}catch{return fallback;}};
   let enabled=params.get('scene')!=='2d'&&read('ri-trains-enabled','1')!=='0',formationMode=params.get('formation')||read('ri-formation-mode','actual'),
-    groundMode=params.get('ground')||read('ri-ground-mode','flat'),trainSizeMode=params.get('trainSize')||read('ri-train-size-v21','readable'),
+    groundMode=params.get('ground')||read('ri-ground-mode','flat'),trainSizeMode=params.get('trainSize')||read('ri-train-size-v21','q'),
     modelMode=read('ri-model-mode','all'),ambientCamera=read('ri-ambient-camera','side'),transparent=read('ri-transparent','0')==='1',satelliteTransparent=read('ri-satellite-transparent','0')==='1';
   let landscapeGround=(params.get('ground')||read('ri-landscape-ground','terrain'))==='flat'?'flat':'terrain';
   const effectiveGround=()=>state.basemap==='landscape'?landscapeGround:groundMode;
-  formationMode=formationMode==='three'?'three':'actual';groundMode=groundMode==='terrain'?'terrain':'flat';trainSizeMode=trainSizeMode==='scale'?'scale':'readable';
+  formationMode=formationMode==='three'?'three':'actual';groundMode=groundMode==='terrain'?'terrain':'flat';trainSizeMode=trainSizeMode==='scale'||trainSizeMode==='q'?trainSizeMode:'readable';
   let renderer=null,lastFrame=null,loading=false,loadSerial=Promise.resolve(),epoch=0,manualTarget=null,appearanceKey='',noteAt=0,renderAt=-Infinity,farAt=0,noteLang='';
   let trainIds=new WeakMap(),lineIds=new WeakMap();
   const shapeCache=new WeakMap(),lineBounds=new WeakMap(),stationIds=new WeakMap(),tripKeys=new WeakMap(),targets=new Map(),stationTargets=new Map(),motionItems=new Map(),headings=new Map(),errors=[];
@@ -216,13 +216,13 @@
     const done=await r.animateCamera(mode==='flat'?{pitch:0,bearing:0,elevation:0}:lastTilt);
     syncUI();return done;
   }
-  const labels={perspective:['地圖視角','俯視','傾斜'],enabled:['立體列車','開啟','關閉'],formation:['列車編組','完整編組','三節示意'],ground:['地形','平坦','起伏試驗'],size:['列車大小','容易辨認','原始比例'],models:['顯示列車','全部近景','只看選取'],inspection:['透視顯示','透視','實體'],camera:['賞車視角','側拍','環繞']};
+  const labels={perspective:['地圖視角','俯視','傾斜'],enabled:['立體列車','開啟','關閉'],formation:['列車編組','完整編組','三節示意'],ground:['地形','平坦','起伏試驗'],size:['列車大小','Q 版','容易辨認','原始比例'],models:['顯示列車','全部近景','只看選取'],inspection:['透視顯示','透視','實體'],camera:['賞車視角','側拍','環繞']};
   function syncUI(){for(const row of document.querySelectorAll('[data-rail3d]')){const key=row.dataset.rail3d,value={perspective:M.getPitch()<1?'flat':'tilt',enabled:enabled?'on':'off',formation:formationMode,ground:effectiveGround(),size:trainSizeMode,models:modelMode,inspection:inspectionEnabled()?'on':'off',camera:ambientCamera}[key];for(const b of row.querySelectorAll('button')){b.setAttribute('aria-pressed',String(b.dataset.value===value));b.classList.toggle('on',b.dataset.value===value);b.disabled=loading;}}}
   // persist=false 給 index.html 的 3D 自動降級用:只關這一次,不動使用者記住的 ri-trains-enabled,下次開頁重新判斷。
   function setOption(key,value,persist=true){switch(key){case 'perspective':void setPerspective(value);return;case 'enabled':enabled=value==='on';if(persist)save('ri-trains-enabled',enabled?'1':'0');break;
     case 'formation':formationMode=value==='three'?'three':'actual';save('ri-formation-mode',formationMode);renderer?.setFormationMode(formationMode);break;
     case 'ground':if(state.basemap==='landscape'){landscapeGround=value==='terrain'?'terrain':'flat';save('ri-landscape-ground',landscapeGround);}else{groundMode=value==='terrain'?'terrain':'flat';save('ri-ground-mode',groundMode);}renderer?.setGroundMode(effectiveGround());glTracks.sig='';M.raw.getLayer('building-glass-edges')?.implementation?.schedule();break;
-    case 'size':trainSizeMode=value==='scale'?'scale':'readable';save('ri-train-size-v21',trainSizeMode);renderer?.setTrainSizeMode(trainSizeMode);break;
+    case 'size':trainSizeMode=value==='scale'||value==='q'?value:'readable';save('ri-train-size-v21',trainSizeMode);renderer?.setTrainSizeMode(trainSizeMode);break;
     case 'models':modelMode=value==='selected'?'selected':'all';save('ri-model-mode',modelMode);break;
     case 'inspection':if(state.basemap==='landscape'){landscapeTransparent=value==='on';save('ri-landscape-transparent',landscapeTransparent?'1':'0');}else if(state.basemap==='sat'){satelliteTransparent=value==='on';save('ri-satellite-transparent',satelliteTransparent?'1':'0');}else{transparent=value==='on';save('ri-transparent',transparent?'1':'0');}break;
     case 'camera':ambientCamera=value==='orbit'?'orbit':'side';save('ri-ambient-camera',ambientCamera);break;}
@@ -239,9 +239,9 @@
       return {center:new maplibregl.LngLat(fallback.lon,fallback.lat),elevation:0,padding};
     });
     const group=document.createElement('div');group.className='ri-3d-settings';
-    const values={perspective:['flat','tilt'],enabled:['on','off'],formation:['actual','three'],ground:['flat','terrain'],size:['readable','scale'],models:['all','selected'],inspection:['on','off'],camera:['side','orbit']};
+    const values={perspective:['flat','tilt'],enabled:['on','off'],formation:['actual','three'],ground:['flat','terrain'],size:['q','readable','scale'],models:['all','selected'],inspection:['on','off'],camera:['side','orbit']};
     for(const [key,[label,...options]]of Object.entries(labels)){const row=document.createElement('div');row.className='ms-row ri-3d-row';row.dataset.rail3d=key;const name=document.createElement('span');name.className='nm';name.textContent=t(label);row.append(name);const seg=document.createElement('div');seg.className='seg';seg.setAttribute('role','group');seg.setAttribute('aria-label',t(label));options.forEach((text,i)=>{const b=document.createElement('button');b.type='button';b.dataset.value=values[key][i];b.textContent=t(text);b.onclick=e=>{e.stopPropagation();setOption(key,b.dataset.value);};seg.append(b);});row.append(seg);group.append(row);}
-    const sizeHint=document.createElement('p');sizeHint.className='ri-3d-help';sizeHint.textContent=t('容易辨認會在遠景加寬車身，近看維持原始比例。');group.querySelector('[data-rail3d="size"]').append(sizeHint);
+    const sizeHint=document.createElement('p');sizeHint.className='ri-3d-help';sizeHint.textContent=t('Q 版把列車畫成放大的三節，遠看也看得清楚，列車編組的設定不影響；容易辨認會在遠景加寬車身，近看維持原始比例。');group.querySelector('[data-rail3d="size"]').append(sizeHint);
     const help=document.createElement('p');help.className='ri-3d-help';help.textContent=t('放大地圖即可看見立體列車。完整編組依車型或路線標準；缺少當班資料時顯示三節示意。起伏為地表顯示，非實測軌道高程。透視顯示同時管建築與地下列車，切到實體就看得到地下列車原本的顏色。');group.append(help);host.after(group);
     guide=createPlaceGuide({getRenderer:()=>renderer,ensure3D:async()=>{if(!enabled)setOption('enabled','on');if(!renderer){if(!loading)attach();await loadSerial;}setMap3d(true);return !!renderer;},getRoutes:()=>lastFrame?.routes||[],unlock:()=>{setFollowLock(false);renderer?.cancelCamera();},onSelect:()=>{},onView:v=>{lastTilt={pitch:v.pitch,bearing:v.bearing,elevation:v.elevation};save('ri-last-tilt',JSON.stringify(lastTilt));},closePanels:()=>{window.railViewControls?.close();document.getElementById('moreClose').click();closeBoard();},toast:showToast,translate:t});
     setTimeout(()=>window.dispatchEvent(new Event('rail-place-guide-ready')),0); // 查詢首頁「去哪裡」的地點 chip 要等目錄到了才畫得出來
