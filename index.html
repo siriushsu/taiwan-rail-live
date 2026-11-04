@@ -24862,28 +24862,33 @@ function lineNetwork() {
   }
   return m;
 }
+// 一段停靠區間攤成的最細區間鍵。writeSegments 與上車快照(見 startRiding 的 sk)共用。
+function rideSegKeys(net, seg) {
+  if (!seg.segLn) return []; // 沒貼上軌道(退化成直線)的段:算不出走過哪些最細區間,寧可不記
+  const rec = net.get(seg.segLn.sys + '|' + seg.segLn.id);
+  if (!rec) return [];
+  const lo = Math.min(seg.dA, seg.dB), hi = Math.max(seg.dA, seg.dB);
+  return rec.segs.filter(s => s.mid >= lo && s.mid <= hi).map(s => s.key);
+}
 // verified:上車那一刻定位有沒有驗過(來自搭乘記錄的 r.bv)。沒驗過仍照收進 n,
 // 只是不進 nv——使用者的護照不因為地下站定不到位就少一段。
-function writeSegments(tr, fromIdx, toIdx, verified) {
-  if (toIdx <= fromIdx) return;
-  const net = lineNetwork(), c = loadCheckins();
+function writeSegKeys(keys, verified) {
+  const c = loadCheckins();
   c.sg = c.sg || {};
-  // stops[i] 描述的是「第 i 站到第 i+1 站」那一段,所以走到 toIdx 要迭代到 toIdx-1
-  for (let i = fromIdx; i < toIdx; i++) {
-    const seg = tr.stops[i];
-    if (!seg.segLn) continue; // 沒貼上軌道(退化成直線)的段:算不出走過哪些最細區間,寧可不記
-    const rec = net.get(seg.segLn.sys + '|' + seg.segLn.id);
-    if (!rec) continue;
-    const lo = Math.min(seg.dA, seg.dB), hi = Math.max(seg.dA, seg.dB);
-    for (const s of rec.segs) if (s.mid >= lo && s.mid <= hi) {
-      const cur = c.sg[s.key] || { n: 0, nv: 0 };
-      cur.n += 1;
-      cur.u = userDataNow();   // 逐筆時間戳:多裝置合併時比這個決定誰贏(LWW)
-      if (verified) cur.nv += 1;   // 上車站定位驗過才算「有在場證據」
-      c.sg[s.key] = cur;
-    }
+  for (const k of keys) {
+    const cur = c.sg[k] || { n: 0, nv: 0 };
+    cur.n += 1;
+    cur.u = userDataNow();   // 逐筆時間戳:多裝置合併時比這個決定誰贏(LWW)
+    if (verified) cur.nv += 1;   // 上車站定位驗過才算「有在場證據」
+    c.sg[k] = cur;
   }
   saveCheckins(c); checkinsChanged();
+}
+function writeSegments(tr, fromIdx, toIdx, verified) {
+  if (toIdx <= fromIdx) return;
+  const net = lineNetwork();
+  // stops[i] 描述的是「第 i 站到第 i+1 站」那一段,所以走到 toIdx 要迭代到 toIdx-1
+  writeSegKeys(tr.stops.slice(fromIdx, toIdx).flatMap(seg => rideSegKeys(net, seg)), verified);
 }
 // 各線完乘率:只列走過至少一段的線(全 0 的線列出來只是噪音)
 function lineCompletion() {
@@ -24939,14 +24944,16 @@ function startRiding(tr, toIdx) {
   // 判定寬鬆是刻意的(章是給自己的),嚴格的是要影響別人的眾包校正(批次 C)。
   const st = ridingStObj(tr, i0), j = checkinJudge(st);
   writeCheckin(st, j.ok ? 'visit' : 'pass', { low: j.low });
+  const net = lineNetwork();
   saveRiding({
     sys: tr.sys, train: String(tr.train), date: todayStr(activeTz()),
     fromIdx: i0, fromName: st.name, toIdx, toName: tr.stops[toIdx].name,
     atIdx: i0, bv: j.ok ? 1 : 0, startedAt: Date.now(),
-    // 預計抵達下車站的真實時刻,與沿途站的快照:車從班表消失時(過午夜換班表、連假加班車隔天沒開)
-    // ridingTrainOf 找不到它,只能靠這兩樣把旅程收尾,見 ridingExpire。
+    // 預計抵達下車站的真實時刻,與沿途站、沿途路段的快照:車從班表消失時(過午夜換班表、連假加班車隔天沒開)
+    // ridingTrainOf 找不到它,只能靠這三樣把旅程收尾,見 ridingExpire。
     dueAt: Date.now() + Math.max(0, tr.stops[toIdx].arrSec - ridingNowSched(tr)) * 1000,
     stops: tr.stops.slice(i0 + 1, toIdx + 1).map(s => [s.name, s.lat, s.lon]),
+    sk: tr.stops.slice(i0, toIdx).map(s => rideSegKeys(net, s)), // 第 k 筆＝第 fromIdx+k 站到下一站
   });
   showToast(t('開始收集 · {from} → {to}{note}', {
     from: escHtml(stationName(st.name, tr.sys)), to: escHtml(stationName(tr.stops[toIdx].name, tr.sys)),
@@ -24994,7 +25001,7 @@ function finishRiding(tr, r) {
   }, n), { wrap: true });
   renderPassport(); renderRidePanel(); updateRideBtn(state.followTrain);
 }
-// 過了抵達時間仍沒收尾:照上車時選的下車站把剩下的站補蓋成「搭過」(與原本「忘了按下車就蓋到
+// 過了抵達時間仍沒收尾:照上車時選的下車站把剩下的站與路段補成「搭過」(與原本「忘了按下車就蓋到
 // 下車站」同一個約定),再結束。車已不在班表上時用上車時存的快照,舊版紀錄沒快照就只結束不補蓋。
 function ridingExpire(tr, r) {
   const snap = r.stops || [];
@@ -25003,6 +25010,7 @@ function ridingExpire(tr, r) {
     const st = s ? { name: s[0], lat: s[1], lon: s[2], sys: r.sys } : (tr && tr.stops[i] ? ridingStObj(tr, i) : null);
     if (st) writeCheckin(st, 'pass', {});
   }
+  writeSegKeys((r.sk || []).slice(r.atIdx - r.fromIdx, r.toIdx - r.fromIdx).flat(), r.bv === 1);
   saveRiding(null);
   showToast(t('{train} 次已過抵達時間，自動幫你下車', { train: escHtml(r.train) }));
   renderPassport(); renderRidePanel(); updateRideBtn(state.followTrain);

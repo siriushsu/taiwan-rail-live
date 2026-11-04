@@ -637,6 +637,32 @@ try {
   ok('H10 搭乘中不能再上另一班車', guard.second === false, `第二次上車回傳 ${guard.second}`);
   ok('H11 跨日殘留的搭乘紀錄會被清掉（不會隔天繼續亂蓋）', guard.afterStale === null, `殘留=${guard.afterStale}`);
 
+  // 過了抵達時間才回來、車與路網都不在了：路段要跟正常搭完一樣補上（真值取正常搭完那一趟，不讀 sk）
+  const expired = await hp.evaluate(([train, sys, toIdx, jEnd]) => {
+    const reset = () => {
+      localStorage.removeItem('trainmap-checkins-v1');
+      localStorage.removeItem('trainmap-riding-v1');
+      window.liveDelaySec = () => -window.__SHIFT;
+    };
+    const segKeys = () => Object.keys(JSON.parse(localStorage.getItem('trainmap-checkins-v1')).sg || {}).sort();
+    const tr = state.trains.find(x => String(x.train) === train && x.sys === sys);
+    reset(); startRiding(tr, toIdx);
+    window.liveDelaySec = () => -jEnd;
+    ridingTick();
+    const normal = segKeys();
+    reset(); startRiding(tr, toIdx);
+    const r = JSON.parse(localStorage.getItem('trainmap-riding-v1'));
+    r.dueAt = Date.now() - 21 * 60e3; localStorage.setItem('trainmap-riding-v1', JSON.stringify(r));
+    const keep = [state.trains, state.trackLines];
+    state.trains = []; state.trackLines = [];
+    ridingTick();
+    [state.trains, state.trackLines] = keep;
+    return { normal, gone: segKeys(), riding: localStorage.getItem('trainmap-riding-v1') };
+  }, [trip.train, trip.sys, expectTo, jump2]);
+  ok('H11b 過期自動下車時車已不在班表，路段照樣補上，跟正常搭完相同',
+    expired.normal.length > 0 && expired.riding === null && JSON.stringify(expired.gone) === JSON.stringify(expired.normal),
+    `正常 ${expired.normal.length} 段／過期 ${expired.gone.length} 段`);
+
   // GPS 在上車站 → 升級成「到訪」
   const withGps = await hp.evaluate(([train, sys, toIdx, fromIdx]) => {
     localStorage.removeItem('trainmap-checkins-v1');
