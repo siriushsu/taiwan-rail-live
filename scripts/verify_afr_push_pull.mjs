@@ -9,7 +9,7 @@ const rows=[];
 async function open(browser,options={}){
  const page=await browser.newPage({viewport:{width:1280,height:900},locale:'zh-TW',...options});await page.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));await page.clock.install({time:new Date('2026-09-13T12:00:00+08:00')});
  if(process.env.MUTATE==='initial')await page.route('**/rail-3d/physical/afr-operation.js',r=>r.fulfill({contentType:'text/javascript',body:'export function afrInitialFacing(){return 1;}'}));
- await page.goto(`http://127.0.0.1:${server.address().port}/?scene=3d&g=all&at=23.51,120.81&z=17&t=09:02`);await page.waitForFunction(()=>state.ready&&window.railIslandPhysical&&window.railIslandIntegration?.renderer,null,{timeout:180000});await page.clock.pauseAt(new Date('2026-09-13T12:01:00+08:00'));
+ await page.goto(`http://127.0.0.1:${server.address().port}/?scene=3d&g=all&at=23.51,120.81&z=17&t=09:02&trainSize=readable`);await page.waitForFunction(()=>state.ready&&window.railIslandPhysical&&window.railIslandIntegration?.renderer,null,{timeout:180000});await page.clock.pauseAt(new Date('2026-09-13T12:01:00+08:00'));
  await page.evaluate(()=>{state.playing=false;_blockHold.clear();updateBlockHolds=()=>{};railIslandIntegration.setModelMode('all');});return page;
 }
 async function show(page,no,station){
