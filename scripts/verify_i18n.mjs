@@ -547,10 +547,10 @@ async function desktopCore(browser, engine) {
 }
 
 // 2026-09-29(v0929b):網頁版首次開啟不再依 navigator.languages 自動切語言——Googlebot 是 en-US,
-// 原本會把中文首頁算繪成英文頁。新行為:?lang → 已存偏好 → zh-TW;en／ja 瀏覽器只給一條小提示(#langHint)。
+// 原本會把中文首頁算繪成英文頁。新行為:?lang → 已存偏好 → zh-TW;en／ja／ko 瀏覽器只給一條小提示(#langHint)。
 // 原生 App(Capacitor.isNativePlatform())維持依 navigator.languages 自動切換,由 nativeDetection 對照。
 async function navigatorDetection(browser, engine) {
-  for (const [locale, lang, hintRe, buttonText] of [['en-US', 'en', /View Rail Island in English\?/, 'English'], ['ja-JP', 'ja', /日本語で表示しますか/, '日本語']]) {
+  for (const [locale, lang, hintRe, buttonText] of [['en-US', 'en', /View Rail Island in English\?/, 'English'], ['ja-JP', 'ja', /日本語で表示しますか/, '日本語'], ['ko-KR', 'ko', /한국어로 볼까요/, '한국어']]) {
     // (一)首次開啟:中文＋提示;點切換→該語言,且重新整理(沒有 ?lang)後仍是該語言,提示不再出現
     const context = await browser.newContext({ viewport: { width: 1024, height: 768 }, locale });
     const { page, pageErrors } = await preparePage(context);

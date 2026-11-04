@@ -4,6 +4,9 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車": "The garage has a new Change car button, also in fullscreen and on scene pages",
+    "介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文": "Korean is here: pick 한국어 in the language row to read the map, help, about and legal pages in Korean",
+    "快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大": "At 30× speed and above the map no longer limits zooming in, and it no longer stays stuck short of full zoom after you slow back down",
     "車庫七座捷運與高鐵車站改成雙線穿過，列車來得更勤；多良、平交道、光華街也更常有車；換上新汽機車、高樓與台灣樹種，劍潭的北藝中心重做": "Seven garage metro and high speed rail stations now have double track running straight through, so trains come more often; Duoliang, the level crossing and Guanghua Street get more trains too, plus new cars, scooters, towers and Taiwanese trees, and the Performing Arts Center at Jiantan is rebuilt",
     "新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開": "New delay trend map: how many minutes TRA trains add on each section, over 1, 3 or 7 days, compared with the previous 4 weeks or the same time last year; press play to watch nearly two years unfold. Open it from Lookup or More",
     "車庫新增九座車站場景（劍潭、動物園、山鼻、陶瓷老街、淡水漁人碼頭、文心森林公園、美麗島、駁二大義、高鐵新竹），可以用島民點數兌換，捷運、輕軌、機捷與高鐵列車都有自己的車站": "The garage adds nine station scenes (Jiantan, Taipei Zoo, Shanbi, Ceramics Old Street, Tamsui Fisherman's Wharf, Wenxin Forest Park, Formosa Boulevard, Dayi Pier-2 and THSR Hsinchu), redeemable with Islander Points, so metro, light rail, Airport MRT and high-speed trains each get a station of their own",
@@ -387,6 +390,9 @@
   });
 
   Object.assign(messages.ja, {
+    "車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車": "車庫に「車両を変える」ボタンを追加。全画面や情景ページでも切り替えられます",
+    "介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文": "韓国語に対応：言語の列に「한국어」を追加し、地図・使い方・紹介ページ・規約を韓国語で読めます",
+    "快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大": "30倍速以上でも地図の拡大が制限されなくなり、速度を戻したあとに最大まで拡大できなくなる問題も直りました",
     "車庫七座捷運與高鐵車站改成雙線穿過，列車來得更勤；多良、平交道、光華街也更常有車；換上新汽機車、高樓與台灣樹種，劍潭的北藝中心重做": "車庫のMRTと高鉄の駅7つを複線の通り抜けに変更し、列車が来る間隔を短くしました。多良・踏切・光華街も列車が増えました。新しい車とバイク、高層ビル、台湾の樹木を追加し、剣潭の台北パフォーミングアーツセンターも作り直しました",
     "新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開": "遅延トレンド地図を追加：台湾鉄路の区間ごとに1本あたり平均何分遅れが増えるかを1・3・7日単位で表示し、前4週や前年同期とも比べられます。再生でほぼ2年間の移り変わりを見られます。「調べる」または「その他」から開けます",
     "車庫新增九座車站場景（劍潭、動物園、山鼻、陶瓷老街、淡水漁人碼頭、文心森林公園、美麗島、駁二大義、高鐵新竹），可以用島民點數兌換，捷運、輕軌、機捷與高鐵列車都有自己的車站": "車庫に駅の情景を9つ追加しました（剣潭・動物園・山鼻・陶瓷老街・淡水漁人碼頭・文心森林公園・美麗島・駁二大義・高鐵新竹）。島民ポイントで交換でき、MRT・ライトレール・空港MRT・高鉄の列車にそれぞれの駅ができます",
@@ -993,9 +999,9 @@
     "模型是外觀示意，不是精確的建築圖；只有清單裡的車站與地標有。": "The models are illustrative, not precise architectural drawings, and only the stations and landmarks in the list have one.",
     "導": "Tour",
     "語言與台南歷史重播": "Language and Tainan historical replays",
-    "介面可以切成繁中、英文、日文；「更多」裡也收著台南地面鐵道的兩場歷史重播。": "The interface can switch between Traditional Chinese, English and Japanese, and More also holds two historical replays of the Tainan surface railway.",
+    "介面可以切成繁中、英文、日文、韓文；「更多」裡也收著台南地面鐵道的兩場歷史重播。": "The interface can switch between Traditional Chinese, English, Japanese and Korean, and More also holds two historical replays of the Tainan surface railway.",
     "手機按底部「更多」、桌面按下方工具列的「☰ 更多」": "On a phone, tap More at the bottom; on desktop, press ☰ More on the toolbar",
-    "「語言」那一列點「繁中」「EN」「日本語」其中一個，介面文字就換過去": "In the Language row, choose the Traditional Chinese, English or Japanese button and the interface text switches over",
+    "「語言」那一列點「繁中」「EN」「日本語」「한국어」其中一個，介面文字就換過去": "In the Language row, choose the Traditional Chinese, English, Japanese or Korean button and the interface text switches over",
     "要看台南地面鐵道的歷史重播，同一個「更多」裡往下找「台南地面鐵道・歷史重播」與「臺南地面鐵道最後一天・歷史重播」，點下去會開到另一個頁面": "For the Tainan surface railway replays, look further down in More for Tainan surface railway · Historical replay and Tainan surface railway’s last day · Historical replay; each opens a separate page",
     "語言切換只換介面文字，不用重新整理；選擇會記在這台裝置上。": "Switching language changes only the interface text, with no reload needed; your choice is remembered on this device.",
     "語": "Lang",
@@ -1067,9 +1073,9 @@
     "模型是外觀示意，不是精確的建築圖；只有清單裡的車站與地標有。": "モデルは外観のイメージで、正確な建築図ではありません。リストにある駅とランドマークだけが対象です。",
     "導": "案内",
     "語言與台南歷史重播": "言語と台南の過去の運行再生",
-    "介面可以切成繁中、英文、日文；「更多」裡也收著台南地面鐵道的兩場歷史重播。": "表示は繁体字中国語・英語・日本語に切り替えられます。「その他」には、台南の地上鉄道の過去の運行を再生する 2 つの項目もあります。",
+    "介面可以切成繁中、英文、日文、韓文；「更多」裡也收著台南地面鐵道的兩場歷史重播。": "表示は繁体字中国語・英語・日本語・韓国語に切り替えられます。「その他」には、台南の地上鉄道の過去の運行を再生する 2 つの項目もあります。",
     "手機按底部「更多」、桌面按下方工具列的「☰ 更多」": "スマートフォンは下部の「その他」、デスクトップはツールバーの「☰ その他」を押す",
-    "「語言」那一列點「繁中」「EN」「日本語」其中一個，介面文字就換過去": "「言語」の行で「繁中」「EN」「日本語」のどれかを押すと、表示がその言語に切り替わります",
+    "「語言」那一列點「繁中」「EN」「日本語」「한국어」其中一個，介面文字就換過去": "「言語」の行で「繁中」「EN」「日本語」「한국어」のどれかを押すと、表示がその言語に切り替わります",
     "要看台南地面鐵道的歷史重播，同一個「更多」裡往下找「台南地面鐵道・歷史重播」與「臺南地面鐵道最後一天・歷史重播」，點下去會開到另一個頁面": "台南の地上鉄道の過去の運行は、同じ「その他」を下へたどり「台南の地上鉄道・過去の運行を再生」と「台南の地上鉄道・最終日の運行を再生」を押すと、別のページが開きます",
     "語言切換只換介面文字，不用重新整理；選擇會記在這台裝置上。": "言語の切り替えで変わるのは画面の文字だけで、再読み込みは不要です。選んだ言語はこの端末に記憶されます。",
     "語": "言語",
@@ -4750,6 +4756,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '免費': 'Free',
   '在這座跑的車': 'Cars on this scene',
   '換車：{name}': 'Change car: {name}',
+  '換列車': 'Change car',
   '目前 {balance} 點，這座要 {cost} 點。': { one: 'You have {balance} point. This scene costs {cost} points.', other: 'You have {balance} points. This scene costs {cost} points.' },
   '已解鎖！用了 {cost} 點，還剩 {balance} 點。': { one: 'Unlocked! Used {cost} points, {balance} point left.', other: 'Unlocked! Used {cost} points, {balance} points left.' },
   '這座場景已經解鎖。': 'This scene is unlocked.',
@@ -4815,6 +4822,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '免費': '無料',
   '在這座跑的車': 'この情景を走る車両',
   '換車：{name}': '車両を変える：{name}',
+  '換列車': '車両を変える',
   '目前 {balance} 點，這座要 {cost} 點。': '現在 {balance}ポイント、この情景は {cost}ポイントです。',
   '已解鎖！用了 {cost} 點，還剩 {balance} 點。': '解放しました！{cost}ポイントを使い、残りは{balance}ポイントです。',
   '這座場景已經解鎖。': 'この情景は解放済みです。',

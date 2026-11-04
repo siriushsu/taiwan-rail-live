@@ -248,6 +248,12 @@ html[data-theme=dark] #trainGarage{--g-hdr:var(--paper-tr);--g-hdr-ink:var(--ink
 #trainGarage .g-sf-scenes::-webkit-scrollbar{display:none}
 /* 車款選單：浮在標題那塊下面（top 由 train-garage.js 量），最高約六成畫面、可捲；目前那台淡 navy 底＋左緣色條。 */
 #trainGarage .g-sf-cars{position:absolute;left:calc(12px + env(safe-area-inset-left));z-index:6;width:min(320px,calc(100% - 24px));max-height:60%;display:flex;flex-direction:column;border:1.5px solid var(--sf-btn-bd);border-radius:12px;background:var(--sf-card);box-shadow:var(--sf-shadow);overflow:hidden}
+/* 換車鈕：跟旁邊的圖示鈕同高，字寬多少算多少。 */
+#trainGarage .g-controls .g-swap,#trainGarage .g-sf-icons .g-sf-swap{width:auto;padding:0 12px;font-size:14px;font-weight:800;white-space:nowrap}
+/* 舞台的車款選單：浮在換車鈕上方（bottom 由 train-garage.js 量），靠右，全畫面時一樣在舞台裡。列的樣式跟場景頁同一套，變數換成車庫的。 */
+#trainGarage .g-swap-menu{--sf-card:var(--g-card);--sf-btn-bd:var(--g-btn-bd);--sf-shadow:var(--shadow-1);--sf-faint:var(--g-line);--sf-ink:var(--g-ink);--sf-muted:var(--g-muted);--sf-navy:var(--navy);--sf-min-bg:var(--g-stage);
+  position:absolute;right:calc(12px + env(safe-area-inset-right));z-index:6;width:min(320px,calc(100% - 24px));max-height:60%;display:flex;flex-direction:column;border:1.5px solid var(--sf-btn-bd);border-radius:12px;background:var(--sf-card);box-shadow:var(--sf-shadow);overflow:hidden}
+#trainGarage .g-swap-menu>p{margin:0;padding:10px 14px 6px;font-size:12px;font-weight:800;letter-spacing:1px;line-height:1.4;color:var(--sf-muted)}
 #trainGarage .g-sf-cars>p{margin:0;padding:10px 14px 6px;font-size:12px;font-weight:800;letter-spacing:1px;line-height:1.4;color:var(--sf-muted)}
 #trainGarage .g-sf-car-list{position:relative;min-height:0;overflow:auto;overscroll-behavior:contain}
 #trainGarage .g-sf-car-list button{display:flex;align-items:center;gap:10px;width:100%;padding:0 14px;border:0;border-top:1px solid var(--sf-faint);border-radius:0;background:none;color:var(--sf-ink);text-align:left}
