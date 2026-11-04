@@ -153,7 +153,7 @@ const widths = [360, 375, 414, 768];
 // 11/04: garage scene polish adds one (562 -> 563).
 // 11/04: removing the fast playback zoom cap adds one (563 -> 564).
 // 11/04: Korean interface adds one (564 -> 565).
-const expectedHistoryCount = 565;
+const expectedHistoryCount = 566;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

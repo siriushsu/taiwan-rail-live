@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車": "The garage has a new Change car button, also in fullscreen and on scene pages",
     "介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文": "Korean is here: pick 한국어 in the language row to read the map, help, about and legal pages in Korean",
     "快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大": "At 30× speed and above the map no longer limits zooming in, and it no longer stays stuck short of full zoom after you slow back down",
     "車庫七座捷運與高鐵車站改成雙線穿過，列車來得更勤；多良、平交道、光華街也更常有車；換上新汽機車、高樓與台灣樹種，劍潭的北藝中心重做": "Seven garage metro and high speed rail stations now have double track running straight through, so trains come more often; Duoliang, the level crossing and Guanghua Street get more trains too, plus new cars, scooters, towers and Taiwanese trees, and the Performing Arts Center at Jiantan is rebuilt",
@@ -388,6 +389,7 @@
   });
 
   Object.assign(messages.ja, {
+    "車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車": "車庫に「車両を変える」ボタンを追加。全画面や情景ページでも切り替えられます",
     "介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文": "韓国語に対応：言語の列に「한국어」を追加し、地図・使い方・紹介ページ・規約を韓国語で読めます",
     "快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大": "30倍速以上でも地図の拡大が制限されなくなり、速度を戻したあとに最大まで拡大できなくなる問題も直りました",
     "車庫七座捷運與高鐵車站改成雙線穿過，列車來得更勤；多良、平交道、光華街也更常有車；換上新汽機車、高樓與台灣樹種，劍潭的北藝中心重做": "車庫のMRTと高鉄の駅7つを複線の通り抜けに変更し、列車が来る間隔を短くしました。多良・踏切・光華街も列車が増えました。新しい車とバイク、高層ビル、台湾の樹木を追加し、剣潭の台北パフォーミングアーツセンターも作り直しました",
