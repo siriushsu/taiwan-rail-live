@@ -23717,33 +23717,33 @@ const depExtreme = (r, pickMin) => r.reduce((a, x) => {
   return a == null || (pickMin ? s < a : s > a) ? s : a;
 }, null);
 const ACH_PROG = {
-  first:  r => ({ now: Math.min(r.length, 1), need: 1, unit: '趟' }),
-  rider5: r => ({ now: r.length, need: 5, unit: '趟' }),
-  rider15: r => ({ now: r.length, need: 15, unit: '趟' }),
+  first:  r => ({ now: Math.min(r.length, 1), need: 1, unit: t('趟') }),
+  rider5: r => ({ now: r.length, need: 5, unit: t('趟') }),
+  rider15: r => ({ now: r.length, need: 15, unit: t('趟') }),
   km100:  (r, c, km) => ({ now: Math.round(km), need: 100, unit: 'km' }),
   km500:  (r, c, km) => ({ now: Math.round(km), need: 500, unit: 'km' }),
   km1000: (r, c, km) => ({ now: Math.round(km), need: 1000, unit: 'km' }),
   km5000: (r, c, km) => ({ now: Math.round(km), need: 5000, unit: 'km' }),
   // 單趟型:分子取「你最長／最多的那一趟」,不是總和——總和會讓人以為快到了
-  long300: r => ({ now: Math.round(r.reduce((a, x) => Math.max(a, x.km || 0), 0)), need: 300, unit: 'km（最長一趟）' }),
-  stops50: r => ({ now: r.reduce((a, x) => Math.max(a, x.stops || 0), 0), need: 50, unit: '站（最多的一趟）' }),
+  long300: r => ({ now: Math.round(r.reduce((a, x) => Math.max(a, x.km || 0), 0)), need: 300, unit: t('km（最長一趟）') }),
+  stops50: r => ({ now: r.reduce((a, x) => Math.max(a, x.stops || 0), 0), need: 50, unit: t('站（最多的一趟）') }),
   early:  r => { const s = depExtreme(r, true);
-    return { note: s == null ? '還沒有任何完乘記錄。' : '你目前最早跟過 ' + fmtHM(s) + ' 發車的車。' }; },
+    return { note: s == null ? t('還沒有任何完乘記錄。') : t('你目前最早跟過 {time} 發車的車。', { time: fmtHM(s) }) }; },
   night:  r => { const s = depExtreme(r, false);
-    return { note: s == null ? '還沒有任何完乘記錄。' : '你目前最晚跟過 ' + fmtHM(s) + ' 發車的車。' }; },
+    return { note: s == null ? t('還沒有任何完乘記錄。') : t('你目前最晚跟過 {time} 發車的車。', { time: fmtHM(s) }) }; },
   loop:   r => ({ note: r.some(x => x.namedId === 'shanhai' || x.namedId === 'pingyuan' || x.namedId === 'endless-loop')
-    ? '你已經跟滿過半圈。' : '還沒跟滿過半圈——中途中斷會從頭算。' }),
-  day3:   r => ({ now: dayCount(r).reduce((a, n) => Math.max(a, n), 0), need: 3, unit: '趟（同一天最多）' }),
-  tilting: (r, c) => ({ now: ['taroko', 'puyuma'].filter(k => c.stock.has(k)).length, need: 2, unit: '枚' }),
+    ? t('你已經跟滿過半圈。') : t('還沒跟滿過半圈——中途中斷會從頭算。') }),
+  day3:   r => ({ now: dayCount(r).reduce((a, n) => Math.max(a, n), 0), need: 3, unit: t('趟（同一天最多）') }),
+  tilting: (r, c) => ({ now: ['taroko', 'puyuma'].filter(k => c.stock.has(k)).length, need: 2, unit: t('枚') }),
   // 分母跟著 ACH_TESTS 走:namedAll 只算有固定車次的(搭不到的觀光列車不進分母)
   namedAll: (r, c) => { const n = state.special ? state.special.namedTrains.filter(x => x.trainNos.length).length : 0;
-    return n ? { now: Math.min(c.named.size, n), need: n, unit: '枚' } : null; },
-  stockAll: (r, c) => state.special ? { now: Math.min(c.stock.size, state.special.rollingStock.length), need: state.special.rollingStock.length, unit: '種' } : null,
-  branchAll: (r, c) => state.special ? { now: Math.min(c.branch.size, state.special.branchLines.length), need: state.special.branchLines.length, unit: '條' } : null,
-  stn25:  (r, c, km, x) => ({ now: x.stnN, need: 25, unit: '座' }),
-  stn100: (r, c, km, x) => ({ now: x.stnN, need: 100, unit: '座' }),
-  commute100: (r, c, km, x) => ({ now: x.maxSeg, need: 100, unit: '次（最常搭的一段）' }),
-  commute500: (r, c, km, x) => ({ now: x.maxSeg, need: 500, unit: '次（最常搭的一段）' }),
+    return n ? { now: Math.min(c.named.size, n), need: n, unit: t('枚') } : null; },
+  stockAll: (r, c) => state.special ? { now: Math.min(c.stock.size, state.special.rollingStock.length), need: state.special.rollingStock.length, unit: t('種') } : null,
+  branchAll: (r, c) => state.special ? { now: Math.min(c.branch.size, state.special.branchLines.length), need: state.special.branchLines.length, unit: t('條') } : null,
+  stn25:  (r, c, km, x) => ({ now: x.stnN, need: 25, unit: t('座') }),
+  stn100: (r, c, km, x) => ({ now: x.stnN, need: 100, unit: t('座') }),
+  commute100: (r, c, km, x) => ({ now: x.maxSeg, need: 100, unit: t('次（最常搭的一段）') }),
+  commute500: (r, c, km, x) => ({ now: x.maxSeg, need: 500, unit: t('次（最常搭的一段）') }),
 };
 // ACH_TESTS 與 ACH_PROG 共用的那一組輸入。抽出來是為了讓說明卡的進度不要自己另算一套:
 // 算法一分岔,卡片上的「4/5」就會跟章亮不亮對不起來。
