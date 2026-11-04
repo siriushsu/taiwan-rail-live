@@ -34876,6 +34876,19 @@ function evWhen(ev) {
   if (ev.endGuess) return '進行中'; // 推估值不得寫得像官方資訊
   return ev.start === ev.end ? f(ev.start) : f(ev.start) + '–' + f(ev.end);
 }
+// 活動名稱與備註是來源原文；地點、日期是這裡自己組的字，外語版要翻。eventHasChineseSource 仍看原值。
+function evWhenLabel(ev) {
+  const s = evWhen(ev);
+  const from = s.match(/^(.+) 起$/);
+  return from ? t('{date} 起', { date: from[1] }) : t(s);
+}
+function evWhereLabel(ev) {
+  const a = ev.anchor || {};
+  if (a.kind !== 'station' || !a.name) return t(evWhere(ev));
+  if (I18N_LANG === 'zh-TW') return evWhere(ev);
+  const exact = stationName(a.name, a.sys);
+  return exact !== a.name ? exact : stationName(a.name.replace(/站$/, ''), a.sys);
+}
 function evWhere(ev) {
   const a = ev.anchor || {};
   // 站名帶不帶「站」字尾各家線檔不一致(機捷 22/22 全帶、高捷 13/77、北捷 2/150、淡海 0/23),
@@ -34949,7 +34962,7 @@ function eventRowsHtml(st) {
     const u = evUrl(ev);
     const sourceZh = I18N_LANG !== 'zh-TW' && eventHasChineseSource(ev);
     const sourceAttr = sourceZh ? ' data-source-lang="zh-TW"' : '';
-    const inner = `<span class="ev-when">${escHtml(evWhen(ev))}</span>` +
+    const inner = `<span class="ev-when">${escHtml(evWhenLabel(ev))}</span>` +
       `<b>${escHtml(ev.title)}</b>` +
       (ev.note ? `<span class="ev-note">${escHtml(ev.note)}</span>` : '') +
       (ev.source === 'partner' ? `<span class="ev-tag">${escHtml(t('合作'))}</span>` : '') +
@@ -35034,8 +35047,8 @@ function eventSecHtml() {
     const sourceZh = I18N_LANG !== 'zh-TW' && eventHasChineseSource(ev);
     return `<div class="row"${sourceZh ? ' data-source-lang="zh-TW"' : ''}${(eventStation(ev) || evUrl(ev)) ? ` data-ev="${escHtml(ev.id)}"` : ''} title="${escHtml(ev.title)}">` +
     `<b>${escHtml(ev.title)}</b>` +
-    `<span class="dest">${escHtml(evWhere(ev))}${ev.source === 'partner' ? ' · ' + escHtml(t('合作')) : ''}${sourceZh ? ' · ' + escHtml(t('中文原文')) : ''}</span>` +
-    `<span class="min">${escHtml(evWhen(ev))}</span></div>`;
+    `<span class="dest">${escHtml(evWhereLabel(ev))}${ev.source === 'partner' ? ' · ' + escHtml(t('合作')) : ''}${sourceZh ? ' · ' + escHtml(t('中文原文')) : ''}</span>` +
+    `<span class="min">${escHtml(evWhenLabel(ev))}</span></div>`;
   }).join('');
 }
 function eventHasChineseSource(ev) {

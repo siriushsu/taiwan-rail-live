@@ -4,6 +4,9 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "進行中": "Ongoing",
+    "{date} 起": "From {date}",
+    "沿線": "Along the line",
     "地圖上的立體列車改成放大的 Q 版三節，遠看也看得清楚；可在「觀看」→「列車」→「列車大小」切回": "3D trains on the map are now enlarged three-car Q-style models, easy to see from afar; switch back under View → Train → Train size",
     "車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車": "The garage has a new Change car button, also in fullscreen and on scene pages",
     "介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文": "Korean is here: pick 한국어 in the language row to read the map, help, about and legal pages in Korean",
@@ -392,6 +395,9 @@
   });
 
   Object.assign(messages.ja, {
+    "進行中": "開催中",
+    "{date} 起": "{date}から",
+    "沿線": "沿線",
     "地圖上的立體列車改成放大的 Q 版三節，遠看也看得清楚；可在「觀看」→「列車」→「列車大小」切回": "地図の3D列車を大きな3両のデフォルメ表示にしました。遠くからでも見やすく、「表示」→「列車」→「列車の大きさ」で戻せます",
     "車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車": "車庫に「車両を変える」ボタンを追加。全画面や情景ページでも切り替えられます",
     "介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文": "韓国語に対応：言語の列に「한국어」を追加し、地図・使い方・紹介ページ・規約を韓国語で読めます",
