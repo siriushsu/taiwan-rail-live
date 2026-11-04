@@ -93,6 +93,9 @@ const dictionaryFiles = [
   ['i18n/content-translations.js', contentDictionarySource],
   ['i18n/bus-transfer-translations.js', busTransferDictionarySource],
   ['i18n/legal-translations.js', legalDictionarySource],
+  ['i18n/ko-legal-translations.js', fs.readFileSync(path.join(root, 'i18n/ko-legal-translations.js'), 'utf8')],
+  ['i18n/ko-public-pages.js', fs.readFileSync(path.join(root, 'i18n/ko-public-pages.js'), 'utf8')],
+  ['i18n/ko-translations.js', fs.readFileSync(path.join(root, 'i18n/ko-translations.js'), 'utf8')],
   ['i18n/legal-pages.js', fs.readFileSync(path.join(root, 'i18n/legal-pages.js'), 'utf8')],
 ];
 for (const [name, source] of dictionaryFiles) {

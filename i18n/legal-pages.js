@@ -5,14 +5,19 @@
     const v = String(value || '').toLowerCase();
     if (v === 'zh-tw' || v === 'zh-hant' || v.startsWith('zh-')) return 'zh-TW';
     if (v === 'ja' || v.startsWith('ja-')) return 'ja';
+    if (v === 'ko' || v.startsWith('ko-')) return 'ko';
     if (v === 'en' || v.startsWith('en-')) return 'en';
     return '';
   };
+  const supported = value => {
+    const lang = normalize(value);
+    return lang === 'zh-TW' || messages[lang] ? lang : '';
+  };
   let lang = 'zh-TW';
   try {
-    lang = normalize(new URLSearchParams(location.search).get('lang')) ||
-      normalize(localStorage.getItem('trainmap-language')) ||
-      (navigator.languages || [navigator.language]).map(normalize).find(Boolean) || 'zh-TW';
+    lang = supported(new URLSearchParams(location.search).get('lang')) ||
+      supported(localStorage.getItem('trainmap-language')) ||
+      (navigator.languages || [navigator.language]).map(supported).find(Boolean) || 'zh-TW';
   } catch (e) {}
   document.documentElement.lang = lang;
   const t = source => lang === 'zh-TW' ? source : (messages[lang]?.[source] ?? source);

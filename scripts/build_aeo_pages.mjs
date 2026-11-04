@@ -551,7 +551,7 @@ ${header()}
     </section>
     ${content}
   </main>
-${footer()}`;
+${footer().replace('</body>', '<script src="/i18n/ko-public-pages.js"></script>\n<script src="/i18n/legal-pages.js"></script>\n</body>')}`;
 }
 
 // ── 捷運路線圖頁（階段 A，2026-09-29）：scripts/build_metro_pages.mjs，三語共 60 頁，全部由 data/ 產生 ──

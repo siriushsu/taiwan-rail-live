@@ -80,6 +80,11 @@ var STR = {
              err:'暫時讀不到活動資料，稍後再試。', updated:'活動資料更新於',
              src:'活動資訊摘自各營運機構官方公告，實際場次與時間以官方為準。',
              back:'回到地圖', zhSrc:'中文原文' },
+  'ko':    { title:'주말 철도 행사', only:'이 기간 한정', also:'기간 중에도 운영', days:'일',
+             go:'', to:'', station:'역', empty:'이 기간에 등록된 행사가 아직 없어요.',
+             err:'행사 정보를 불러올 수 없어요. 잠시 후 다시 시도하세요.', updated:'행사 정보 갱신',
+             src:'행사 정보는 운영사의 공식 공지를 바탕으로 정리했어요. 실제 일정과 시간은 공식 안내를 확인하세요.',
+             back:'지도로 돌아가기', zhSrc:'중국어 원문' },
   'en':    { title:'Rail Events This Weekend', only:'Only during these days', also:'Also open',
              days:'days', go:'Take', to:'to', station:' Station',
              empty:'No events listed for these days yet.',
@@ -96,16 +101,27 @@ var STR = {
 var LANG = (function () {
   try {
     var q = new URLSearchParams(location.search).get('lang');
+    if (q && /^ko(?:-|$)/i.test(q)) return 'ko';
     if (q && STR[q]) return q;
   } catch (e) {}
   return 'zh-TW';
 })();
 var T = STR[LANG];
 document.documentElement.lang = LANG === 'zh-TW' ? 'zh-Hant' : LANG;
+// 韓文頁的靜態標題與品牌列；活動資料回來後 h1 仍由 spanTitle 換成期間名。
+if (LANG === 'ko') {
+  document.title = T.title + ' | Rail Island';
+  document.querySelector('meta[name="description"]').content = 'Rail Island: 이번 주말과 연휴 기간의 MRT · 대만철도 · 삼림철도 주변 행사를 모았어요.';
+  document.querySelector('.brand').textContent = '← Rail Island';
+  document.getElementById('h1').textContent = T.title;
+}
 // 期間名是核心層(scripts/weekend_core.mjs spanLabel)的中文分類：本週末／假日／這個連假／<節日>／<節日>連假，
 // 節日名只來自 data/holiday_names.json 的短名 ⇒ 有限集合，逐一翻。查不到的(之後新增的節日)才退回中文原字，
 // 外語標題以前一律是「本週末 · Rail Events This Weekend」(2026-09-19)。譯名與 index.html 字典同一套。
 var SPAN = {
+  'ko': { kind:'철도 행사', pair:'{h} 연휴', '本週末':'이번 주말', '假日':'휴일', '這個連假':'이번 연휴',
+          '春節':'춘절', '和平紀念日':'평화기념일', '兒童節與清明':'어린이날 · 청명절',
+          '中秋':'중추절', '國慶':'국경절', '光復節':'대만 광복절', '行憲紀念日':'헌법기념일' },
   'en': { kind: 'Rail events', pair: '{h} long weekend', '本週末': 'This weekend', '假日': 'Holiday', '這個連假': 'This long weekend',
           '春節': 'Lunar New Year', '和平紀念日': 'Peace Memorial Day', '兒童節與清明': 'Children’s Day & Tomb Sweeping Day',
           '中秋': 'Mid-Autumn Festival', '國慶': 'National Day', '光復節': 'Retrocession Day', '行憲紀念日': 'Constitution Day' },
