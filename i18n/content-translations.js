@@ -5,6 +5,7 @@
 
   Object.assign(messages.en, {
     "介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文": "Korean is here: pick 한국어 in the language row to read the map, help, about and legal pages in Korean",
+    "快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大": "At 30× speed and above the map no longer limits zooming in, and it no longer stays stuck short of full zoom after you slow back down",
     "車庫七座捷運與高鐵車站改成雙線穿過，列車來得更勤；多良、平交道、光華街也更常有車；換上新汽機車、高樓與台灣樹種，劍潭的北藝中心重做": "Seven garage metro and high speed rail stations now have double track running straight through, so trains come more often; Duoliang, the level crossing and Guanghua Street get more trains too, plus new cars, scooters, towers and Taiwanese trees, and the Performing Arts Center at Jiantan is rebuilt",
     "新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開": "New delay trend map: how many minutes TRA trains add on each section, over 1, 3 or 7 days, compared with the previous 4 weeks or the same time last year; press play to watch nearly two years unfold. Open it from Lookup or More",
     "車庫新增九座車站場景（劍潭、動物園、山鼻、陶瓷老街、淡水漁人碼頭、文心森林公園、美麗島、駁二大義、高鐵新竹），可以用島民點數兌換，捷運、輕軌、機捷與高鐵列車都有自己的車站": "The garage adds nine station scenes (Jiantan, Taipei Zoo, Shanbi, Ceramics Old Street, Tamsui Fisherman's Wharf, Wenxin Forest Park, Formosa Boulevard, Dayi Pier-2 and THSR Hsinchu), redeemable with Islander Points, so metro, light rail, Airport MRT and high-speed trains each get a station of their own",
@@ -388,6 +389,7 @@
 
   Object.assign(messages.ja, {
     "介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文": "韓国語に対応：言語の列に「한국어」を追加し、地図・使い方・紹介ページ・規約を韓国語で読めます",
+    "快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大": "30倍速以上でも地図の拡大が制限されなくなり、速度を戻したあとに最大まで拡大できなくなる問題も直りました",
     "車庫七座捷運與高鐵車站改成雙線穿過，列車來得更勤；多良、平交道、光華街也更常有車；換上新汽機車、高樓與台灣樹種，劍潭的北藝中心重做": "車庫のMRTと高鉄の駅7つを複線の通り抜けに変更し、列車が来る間隔を短くしました。多良・踏切・光華街も列車が増えました。新しい車とバイク、高層ビル、台湾の樹木を追加し、剣潭の台北パフォーミングアーツセンターも作り直しました",
     "新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開": "遅延トレンド地図を追加：台湾鉄路の区間ごとに1本あたり平均何分遅れが増えるかを1・3・7日単位で表示し、前4週や前年同期とも比べられます。再生でほぼ2年間の移り変わりを見られます。「調べる」または「その他」から開けます",
     "車庫新增九座車站場景（劍潭、動物園、山鼻、陶瓷老街、淡水漁人碼頭、文心森林公園、美麗島、駁二大義、高鐵新竹），可以用島民點數兌換，捷運、輕軌、機捷與高鐵列車都有自己的車站": "車庫に駅の情景を9つ追加しました（剣潭・動物園・山鼻・陶瓷老街・淡水漁人碼頭・文心森林公園・美麗島・駁二大義・高鐵新竹）。島民ポイントで交換でき、MRT・ライトレール・空港MRT・高鉄の列車にそれぞれの駅ができます",

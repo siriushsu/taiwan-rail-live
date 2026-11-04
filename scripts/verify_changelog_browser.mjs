@@ -151,8 +151,9 @@ const widths = [360, 375, 414, 768];
 // 11/03: the 1.7.8 garage batch (new and refined scenes, nine station scenes, five classics, EMU3000, South Link trees, Countryside hill, map-style gestures, replay restyle) adds eight (553 -> 561).
 // 11/03: delay trend map adds one (561 -> 562).
 // 11/04: garage scene polish adds one (562 -> 563).
-// 11/04: Korean interface adds one (563 -> 564).
-const expectedHistoryCount = 564;
+// 11/04: removing the fast playback zoom cap adds one (563 -> 564).
+// 11/04: Korean interface adds one (564 -> 565).
+const expectedHistoryCount = 565;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
