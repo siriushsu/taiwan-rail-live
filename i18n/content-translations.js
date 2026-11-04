@@ -4,8 +4,10 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "地圖上的立體列車改成放大的 Q 版三節，遠看也看得清楚；可在「觀看」→「列車」→「列車大小」切回": "3D trains on the map are now enlarged three-car Q-style models, easy to see from afar; switch back under View → Train → Train size",
     "車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車": "The garage has a new Change car button, also in fullscreen and on scene pages",
     "介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文": "Korean is here: pick 한국어 in the language row to read the map, help, about and legal pages in Korean",
+    "有軌島通行證的人，App 校正懸賞錄程的島民點數多 50%，加成不算進每天 500 點上限": "With a Rail Island Pass, calibration bounty recordings in the app earn 50% more Islander Points, and the bonus does not count toward the 500-point daily limit",
     "快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大": "At 30× speed and above the map no longer limits zooming in, and it no longer stays stuck short of full zoom after you slow back down",
     "車庫七座捷運與高鐵車站改成雙線穿過，列車來得更勤；多良、平交道、光華街也更常有車；換上新汽機車、高樓與台灣樹種，劍潭的北藝中心重做": "Seven garage metro and high speed rail stations now have double track running straight through, so trains come more often; Duoliang, the level crossing and Guanghua Street get more trains too, plus new cars, scooters, towers and Taiwanese trees, and the Performing Arts Center at Jiantan is rebuilt",
     "新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開": "New delay trend map: how many minutes TRA trains add on each section, over 1, 3 or 7 days, compared with the previous 4 weeks or the same time last year; press play to watch nearly two years unfold. Open it from Lookup or More",
@@ -390,8 +392,10 @@
   });
 
   Object.assign(messages.ja, {
+    "地圖上的立體列車改成放大的 Q 版三節，遠看也看得清楚；可在「觀看」→「列車」→「列車大小」切回": "地図の3D列車を大きな3両のデフォルメ表示にしました。遠くからでも見やすく、「表示」→「列車」→「列車の大きさ」で戻せます",
     "車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車": "車庫に「車両を変える」ボタンを追加。全画面や情景ページでも切り替えられます",
     "介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文": "韓国語に対応：言語の列に「한국어」を追加し、地図・使い方・紹介ページ・規約を韓国語で読めます",
+    "有軌島通行證的人，App 校正懸賞錄程的島民點數多 50%，加成不算進每天 500 點上限": "軌島パスをお持ちの方は、アプリの校正懸賞の記録で得られる島民ポイントが50%増えます。増えた分は1日500ポイントの上限に含まれません",
     "快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大": "30倍速以上でも地図の拡大が制限されなくなり、速度を戻したあとに最大まで拡大できなくなる問題も直りました",
     "車庫七座捷運與高鐵車站改成雙線穿過，列車來得更勤；多良、平交道、光華街也更常有車；換上新汽機車、高樓與台灣樹種，劍潭的北藝中心重做": "車庫のMRTと高鉄の駅7つを複線の通り抜けに変更し、列車が来る間隔を短くしました。多良・踏切・光華街も列車が増えました。新しい車とバイク、高層ビル、台湾の樹木を追加し、剣潭の台北パフォーミングアーツセンターも作り直しました",
     "新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開": "遅延トレンド地図を追加：台湾鉄路の区間ごとに1本あたり平均何分遅れが増えるかを1・3・7日単位で表示し、前4週や前年同期とも比べられます。再生でほぼ2年間の移り変わりを見られます。「調べる」または「その他」から開けます",

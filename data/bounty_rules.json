@@ -17,7 +17,7 @@
     "prices": [200, 300],
     "items": { "train:dr3000": 150, "train:ct250": 150, "train:fuxing": 150, "train:emu300": 150, "train:tengyun": 150 },
     "chipToPoints": 50,
-    "plusBonusPct": 0,
+    "plusBonusPct": 50,
     "scenes": ["south-coast", "shifen", "viaduct", "alishan", "duoliang", "crossing", "guanghua", "taipei-metro", "wenhu", "airport-mrt", "ntpc-metro", "ntpc-lrt", "taichung-metro", "kaohsiung-metro", "kaohsiung-lrt", "thsr"],
     "events": [],
     "evergreen": ["tra_sched|南迴線", "tra_sched|臺東線"]

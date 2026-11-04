@@ -152,8 +152,10 @@ const widths = [360, 375, 414, 768];
 // 11/03: delay trend map adds one (561 -> 562).
 // 11/04: garage scene polish adds one (562 -> 563).
 // 11/04: removing the fast playback zoom cap adds one (563 -> 564).
-// 11/04: Korean interface adds one (564 -> 565).
-const expectedHistoryCount = 566;
+// 11/04: Korean interface and the garage swap button add two (564 -> 566).
+// 11/04: Pass recording bonus adds one (566 -> 567).
+// 11/04: Q-style 3D trains add one (567 -> 568).
+const expectedHistoryCount = 568;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

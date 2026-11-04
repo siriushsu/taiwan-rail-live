@@ -37,7 +37,9 @@ globalThis.fetch = async (u) => {
   throw new Error('offline: ' + String(u));
 };
 
-const RULES = JSON.parse(readFileSync('data/bounty_rules.json', 'utf8'));
+// 這支不驗通行證加成（verify_bounty_plus.mjs 管）：世界裡沒有 RevenueCat，規則檔打開時帳號的班車會整班留 pending，所以固定成關。
+const RULES_FILE = JSON.parse(readFileSync('data/bounty_rules.json', 'utf8'));
+const RULES = { ...RULES_FILE, chips: { ...RULES_FILE.chips, plusBonusPct: 0 } };
 const R = [];
 const ok = (n, p, msg = '') => { R.push({ n, p }); console.log(`${p ? '  ok ' : 'FAIL '} ${n}${msg ? ' — ' + msg : ''}`); };
 // 例外也要記成 FAIL（不讓整支腳本崩潰、後面的判準全部沒跑）：突變測試時「紅」有兩種長相——斷言為假、或流程直接丟例外。

@@ -174,12 +174,20 @@ await attempt('P5', async () => {
 
 // ── Q：開關 ─────────────────────────────────────────────────────────────────
 await attempt('Q1', async () => {
-  const w = world({ seed: account('uid-q1'), rules: RULES, rc: { 'uid-q1': { production: [sub()] } } });
+  const w = world({ seed: account('uid-q1'), rules: withPct(0), rc: { 'uid-q1': { production: [sub()] } } });
   putTrain(w.db, { actor: 'uid-q1', trainNo: 'Q1' });
   await w.cron();
-  ok(`Q1 規則檔原樣（plusBonusPct＝${RULES.chips.plusBonusPct}）＋帳號＋有通行證：錄程 13、沒有加成列、不查 RevenueCat`,
-    RULES.chips.plusBonusPct === 0 && sum(trips(w.db, 'uid-q1')) === 13 && pluses(w.db, 'uid-q1').length === 0 && rcCalls.length === 0,
+  ok('Q1 plusBonusPct＝0＋帳號＋有通行證：錄程 13、沒有加成列、不查 RevenueCat',
+    sum(trips(w.db, 'uid-q1')) === 13 && pluses(w.db, 'uid-q1').length === 0 && rcCalls.length === 0,
     J({ l: rows(w.db, 'uid-q1'), rcCalls }));
+});
+await attempt('Q1b', async () => {
+  const w = world({ seed: account('uid-q1b'), rules: RULES, rc: { 'uid-q1b': { production: [sub()] } } });
+  putTrain(w.db, { actor: 'uid-q1b', trainNo: 'Q1b' });
+  await w.cron();
+  ok(`Q1b 規則檔原樣（plusBonusPct＝${RULES.chips.plusBonusPct}）＋帳號＋有通行證：錄程 13、加成 6`,
+    RULES.chips.plusBonusPct === 50 && sum(trips(w.db, 'uid-q1b')) === 13 && sum(pluses(w.db, 'uid-q1b')) === 6,
+    J({ l: rows(w.db, 'uid-q1b') }));
 });
 await attempt('Q2', async () => {
   const { plusBonusPct, ...chipsNoKey } = RULES.chips;
