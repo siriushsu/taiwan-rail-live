@@ -4,6 +4,7 @@
   if (!messages || !messages.en || !messages.ja) return;
 
   Object.assign(messages.en, {
+    "車庫的點數現在寫明存在哪個帳號；換了登入方式會提醒你原本的帳號，刪帳號前也會列出會一起刪掉的點數和場景": "Garage points now show which account they’re saved to. You’ll get a reminder if you switch sign-in methods, and the delete-account prompt lists the points and scenes that go with it",
     "新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開": "New delay trend map: how many minutes TRA trains add on each section, over 1, 3 or 7 days, compared with the previous 4 weeks or the same time last year; press play to watch nearly two years unfold. Open it from Lookup or More",
     "車庫新增九座車站場景（劍潭、動物園、山鼻、陶瓷老街、淡水漁人碼頭、文心森林公園、美麗島、駁二大義、高鐵新竹），可以用島民點數兌換，捷運、輕軌、機捷與高鐵列車都有自己的車站": "The garage adds nine station scenes (Jiantan, Taipei Zoo, Shanbi, Ceramics Old Street, Tamsui Fisherman's Wharf, Wenxin Forest Park, Formosa Boulevard, Dayi Pier-2 and THSR Hsinchu), redeemable with Islander Points, so metro, light rail, Airport MRT and high-speed trains each get a station of their own",
     "車庫新增五款退役經典車：DR3000、CT250、復興號、EMU300、騰雲號，用島民點數兌換，換到就永久收進車庫": "The garage adds five retired classics: DR3000, CT250, Fu-Hsing Express, EMU300 and Tengyun. Redeem them with Islander Points and they stay in your garage for good",
@@ -385,6 +386,7 @@
   });
 
   Object.assign(messages.ja, {
+    "車庫的點數現在寫明存在哪個帳號；換了登入方式會提醒你原本的帳號，刪帳號前也會列出會一起刪掉的點數和場景": "車庫のポイントがどのアカウントに保存されているか表示するようにしました。ログイン方法を変えたときは元のアカウントを案内し、アカウント削除の確認には一緒に消えるポイントと情景の数も表示します",
     "新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開": "遅延トレンド地図を追加：台湾鉄路の区間ごとに1本あたり平均何分遅れが増えるかを1・3・7日単位で表示し、前4週や前年同期とも比べられます。再生でほぼ2年間の移り変わりを見られます。「調べる」または「その他」から開けます",
     "車庫新增九座車站場景（劍潭、動物園、山鼻、陶瓷老街、淡水漁人碼頭、文心森林公園、美麗島、駁二大義、高鐵新竹），可以用島民點數兌換，捷運、輕軌、機捷與高鐵列車都有自己的車站": "車庫に駅の情景を9つ追加しました（剣潭・動物園・山鼻・陶瓷老街・淡水漁人碼頭・文心森林公園・美麗島・駁二大義・高鐵新竹）。島民ポイントで交換でき、MRT・ライトレール・空港MRT・高鉄の列車にそれぞれの駅ができます",
     "車庫新增五款退役經典車：DR3000、CT250、復興號、EMU300、騰雲號，用島民點數兌換，換到就永久收進車庫": "車庫に引退した名車5両を追加しました：DR3000、CT250、復興号、EMU300、騰雲号。島民ポイントで交換すると、ずっと車庫に収蔵されます",
