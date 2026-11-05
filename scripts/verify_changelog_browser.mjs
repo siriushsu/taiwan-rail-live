@@ -165,7 +165,8 @@ const widths = [360, 375, 414, 768];
 // 11/05: Jianshanpu Road level crossing adds one (578 -> 579).
 // 11/05: garage background music adds one (579 -> 580).
 // 11/05: metro page dates adds one (580 -> 581).
-const expectedHistoryCount = 581;
+// 11/06: custom train fleet and roundhouse depot adds one (581 -> 582).
+const expectedHistoryCount = 582;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

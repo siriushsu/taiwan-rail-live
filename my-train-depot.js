@@ -71,10 +71,10 @@
     return frameHead(r) + `<div class="md-fb"><div class="md-nm"><h2>${esc(tr('挑一款車'))}</h2></div>${list}</div>`;
   }
   function statsHTML(r) {
-    const x = r.stats, stat = (label, value, unit = '', more = '') => `<div class="md-st"><span>${esc(label)}</span><b>${value}${unit ? `<small>${esc(unit)}${more}</small>` : ''}</b></div>`;
+    const x = r.stats, wait = r.meetsWait && !x.meets, stat = (label, value, unit = '', more = '') => `<div class="md-st"><span>${esc(label)}</span><b>${value}${unit ? `<small>${esc(unit)}${more}</small>` : ''}</b></div>`;
     return `<h3 class="md-sec">${esc(tr('這列車的紀錄'))}</h3><div class="md-grid">
       ${stat(tr('首航日'), esc(r.first || '—'))}${stat(tr('已行駛'), fmt(x.days), tr('天'))}${stat(tr('累計里程'), fmt(x.km), tr('公里'))}
-      ${stat(tr('發車'), fmt(x.trips), tr('趟'), `<span class="md-hd">${esc(tr('・親手 {count}', { count: fmt(x.hand) }))}</span>`)}${stat(tr('停靠'), fmt(x.stops), tr('站次'))}${stat(tr('交會真車'), fmt(x.meets), tr('次'))}</div>`;
+      ${stat(tr('發車'), fmt(x.trips), tr('趟'), `<span class="md-hd">${esc(tr('・親手 {count}', { count: fmt(x.hand) }))}</span>`)}${stat(tr('停靠'), fmt(x.stops), tr('站次'))}${stat(tr('交會真車'), wait ? esc(tr('計算中')) : fmt(x.meets), wait ? '' : tr('次'))}</div>`;
   }
   const bar = pct => `<div class="md-bar"><i style="width:${Math.min(100, pct)}%"></i></div>`;
   // 畫框上那一排章,和往下一枚走到哪了。首航沒有進度,告訴他怎麼拿。

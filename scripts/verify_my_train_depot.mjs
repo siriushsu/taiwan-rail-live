@@ -170,6 +170,21 @@ const standbyFits = page => page.evaluate(() => {
   return out;
 });
 
+// 畫框的交會數:掃完之前不能寫 0 次,但親手趟或舊段已經有次數就照顯示。量完還原,不動後面的案例。
+const meetsCell = page => page.evaluate(() => {
+  const cur = MyTrainUI.load(), first = cur.trains.find(t => t.track === 0), last = first.legs.length - 1;
+  const read = (meets, handMeets) => {
+    const train = { ...first, legs: first.legs.map((l, i) => i === last ? { ...l, meets } : l), hand: { 'device-a': { n: 2, km: 60, stops: 16, meets: handMeets } } };
+    MyTrainUI.save({ ...cur, trains: cur.trains.map(t => t === first ? train : t) });
+    MyTrainDepot.refresh();
+    return [...document.querySelectorAll('#mtDepot .md-st')].find(e => e.textContent.includes('交會真車'))?.innerText.replace(/\s+/g, ' ');
+  };
+  const out = { wait: read(null, 0), done: read(4, 0), zero: read(0, 0), hand: read(null, 5) };
+  MyTrainUI.save(cur);
+  MyTrainDepot.refresh();
+  return out;
+});
+
 // 成就頁與外觀頁。第 1 股有十天紀錄,開頁判定給首航與十日;千里補一枚給車牌框,第 4 股這款路上沒有同款真車。
 const PANEL = '#mtDepot .md-panel.on';
 const lookOf = (page, i) => page.evaluate(n => MyTrainUI.load().trains.find(t => t.track === n)?.look, i);
@@ -178,7 +193,9 @@ const PICK = (kind, id) => `#mtDepot .md-frame.on [data-a="${kind}"][data-k="${i
 async function honorPages(page, P, touch, has3d) {
   await chip(page, 0, touch);
   const f = await frame(page);
-  ok(P('[成就] 畫框:六格紀錄、六枚章、下一個目標、換外觀'), /交會真車\s*\d+\s*次/.test(f.text) && /成就 3／31/.test(f.text) && /下一個「萬里」/.test(f.text) && f.acts.includes('look'), f.text.slice(0, 260));
+  ok(P('[成就] 畫框:六格紀錄、六枚章、下一個目標、換外觀'), /交會真車\s*(\d+\s*次|計算中)/.test(f.text) && /成就 3／31/.test(f.text) && /下一個「萬里」/.test(f.text) && f.acts.includes('look'), f.text.slice(0, 260));
+  const meets = await meetsCell(page);
+  ok(P('[畫框] 交會數掃完前寫計算中,掃完換成次數,已有次數就不蓋掉'), meets.wait === '交會真車 計算中' && /^交會真車 [1-9]\d* ?次$/.test(meets.done) && /^交會真車 0 ?次$/.test(meets.zero) && /^交會真車 5 ?次$/.test(meets.hand), js(meets));
   const shelf = await page.evaluate(() => [...document.querySelectorAll('#mtDepot .md-stp')].map(e => [e.classList.contains('got'), e.textContent.trim()]));
   ok(P('[成就] 六枚章:首航、十日、千里亮,其他暗'), shelf.length === 6 && js(shelf.filter(x => x[0]).map(x => x[1])) === js(['首航首航', '十日十日', '千里千里']), js(shelf));
   await press(page, A('ach'), touch); await page.waitForTimeout(450);

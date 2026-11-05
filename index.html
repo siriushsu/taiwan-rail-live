@@ -5884,7 +5884,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/05</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/06</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5892,6 +5892,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="roundhouse1106"><span class="d">11/06</span><span>通行證的自製列車擴成 6 列，住進新的 3D 扇形車庫「軌島機務段」：每列有成就、頭牌和車牌框，還能親手發車；登入同帳號，車隊跨裝置同步（目前網站版）</span></li>
         <li data-cl-of="metrodate1105"><span class="d">11/05</span><span>捷運路線圖頁拿掉已結束的設計展疏運附註，頁面日期和時刻表抓取日也改成實際資料日期</span></li>
         <li data-cl-of="garagemusic1105"><span class="d">11/05</span><span>進車庫會隨機放背景音樂，離開就收掉；頂列和場景頁多了音樂鈕，關過音樂就不自動放</span></li>
         <li data-cl-of="jianshanpu1105"><span class="d">11/05</span><span>平交道補上鶯歌到鳳鳴之間的尖山埔路，全台共 347 處（謝謝網友回報）</span></li>
@@ -5899,7 +5900,6 @@
         <li data-cl-of="trainstock1105"><span class="d">11/05</span><span>區間車列車卡新增車型推估：依鐵道維基館運用表標出 EMU500／600／700／800／900，實際以當日調度為準</span></li>
         <li data-cl-of="hidefictional1105"><span class="d">11/05</span><span>「觀看」→「列車」新增「顯示虛構專列」開關，關掉後地圖、看板和查詢只留真實列車</span></li>
         <li data-cl-of="stationgarage1105"><span class="d">11/05</span><span>車庫新增 11 座台鐵特色車站場景：新竹、台南、台中舊站、嘉義、保安、集集、冬山、高雄、大山、勝興、台北地下月台</span></li>
-        <li data-cl-of="walletaccount1104"><span class="d">11/05</span><span>車庫的點數現在寫明存在哪個帳號；換了登入方式會提醒你原本的帳號，刪帳號前也會列出會一起刪掉的點數和場景</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6436,6 +6436,7 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li data-cl="roundhouse1106"><span class="d">11/06</span><span>通行證的自製列車擴成 6 列，住進新的 3D 扇形車庫「軌島機務段」：每列有成就、頭牌和車牌框，還能親手發車；登入同帳號，車隊跨裝置同步（目前網站版）</span></li>
         <li data-cl="metrodate1105"><span class="d">11/05</span><span>捷運路線圖頁拿掉已結束的設計展疏運附註，頁面日期和時刻表抓取日也改成實際資料日期</span></li>
         <li data-cl="garagemusic1105"><span class="d">11/05</span><span>進車庫會隨機放背景音樂，離開就收掉；頂列和場景頁多了音樂鈕，關過音樂就不自動放</span></li>
         <li data-cl="stationgarage1105"><span class="d">11/05</span><span>車庫新增 11 座台鐵特色車站場景：新竹、台南、台中舊站、嘉義、保安、集集、冬山、高雄、大山、勝興、台北地下月台</span></li>
@@ -7424,7 +7425,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1105d：韓文捷運路線圖頁 /ko/metro/（總覽、5 系統、14 線），韓文介面與韓文靜態頁的路線圖入口改連韓文版，不再走英文頁。
 // v1105e：下一批網站（跟 App 1.8.0 同批）——誤點外框、區間車車型推估、虛構專列開關、台鐵特色車站 11 座、點數帳號提示、活動更新、尖山埔路平交道、車庫放音樂、Worker 認 231；LICENSE 開放官方 App 短片配樂窄例外。
 // v1105f：捷運路線圖頁的資料日期跟著班表走，過期的設計展附註消失
-const BUILD = 'v1105f';
+// v1106a：自製列車擴成六股車隊，新增 3D 扇形車庫「軌島機務段」、成就與外觀，車隊跟著帳號同步（網站版）
+const BUILD = 'v1106a';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
@@ -24082,7 +24084,7 @@ function ownTrainDepotRow(train, today) {
     n: train.track + 1, id: train.id, name: train.name, modelId: cat ? train.modelId : null, kind: cat ? t(cat.name) : '',
     state: out ? 'out' : 'home', from: ownTrainStopName(train, train.from), to: ownTrainStopName(train, train.to),
     line: ownTrainDepotLine(train, rec, out), time: fmtHM(train.depSec), first: (train.firstDay || today).replaceAll('-', '/'), firstToday: train.firstDay === today,
-    stats: MyTrainPlan.fleetStats(train, today, nowSecOfDay()), earned: train.earned, look: train.look, base: ownTrainBasePlate(train),
+    stats: MyTrainPlan.fleetStats(train, today, nowSecOfDay()), meetsWait: train.legs[train.legs.length - 1]?.meets === null, earned: train.earned, look: train.look, base: ownTrainBasePlate(train),
     issue: state.ownTrainIssues[train.id]?.reason || null, block,
   };
 }
