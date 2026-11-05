@@ -25,6 +25,7 @@ const LANG_INFO = {
   zh: { html: 'zh-Hant', og: 'zh_TW', prefix: '' },
   en: { html: 'en', og: 'en_US', prefix: '/en' },
   ja: { html: 'ja', og: 'ja_JP', prefix: '/ja' },
+  ko: { html: 'ko', og: 'ko_KR', prefix: '/ko' },   // 只有車站頁、說明頁與 /ko/ 著陸頁用這個外殼；捷運路線圖沒有韓文頁（LANGS 不含 ko）
 };
 const GITHUB = 'https://github.com/siriushsu/taiwan-rail-live';
 
@@ -32,7 +33,7 @@ const N = (zh, en, ja) => ({ zh, en, ja });
 const SITE = 'https://railisland.tw';
 let esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 const jsonLd = value => JSON.stringify(value).replace(/</g, '\\u003c');
-const pick = (lang, zh, en, ja) => (lang === 'zh' ? zh : lang === 'en' ? en : ja);
+const pick = (lang, zh, en, ja, ko) => (lang === 'zh' ? zh : lang === 'en' ? en : lang === 'ko' ? ko : ja);
 
 // ── 系統與路線設定 ───────────────────────────────────────────────────────────────
 // 資料檔：data/<file>.json（路線幾何＋站序）與 data/<file>_times.json（逐班時刻）。
@@ -715,11 +716,13 @@ function geoMapSvg(model, built, lang, panelLineIds, mapId, titleText, descText)
 let M = null; // loadMetroModel 的結果（buildMetroPages 開頭設定；本模組一次建置只用一份）
 let B = null; // buildPages 的結果
 let ZH_SHELL = null; // build_aeo_pages.mjs 傳入的繁中頁首／頁尾（沿用站上既有版型）
+let K = null;         // build_aeo_pages.mjs 傳入的韓文字典查詢（查不到就 throw）
 
 const SYS = Object.fromEntries(SYSTEMS.map(s => [s.id, s]));
 const GENERIC_NAMES = new Set(['green', 'red', 'orange']); // 台中綠線、高雄紅／橘線：跨系統引用時要冠上系統名
 const homeHref = lang => (lang === 'zh' ? '/' : `${LANG_INFO[lang].prefix}/`);
-const ovHref = lang => `${LANG_INFO[lang].prefix}/metro/`;
+// 韓文介面的路線圖連結走英文頁（index.html 的 metroHref 同一規則），/ko/ 底下沒有路線圖
+const ovHref = lang => `${LANG_INFO[lang === 'ko' ? 'en' : lang].prefix}/metro/`;
 const sysHref = (lang, sysId) => `${LANG_INFO[lang].prefix}/metro/${sysId}/`;
 const lineHref = (lang, page) => `${LANG_INFO[lang].prefix}/metro/${page.sysId}/${page.slug}/`;
 const absUrl = pathname => `${SITE}${pathname}`;
@@ -969,7 +972,7 @@ function overviewRunNote(lang) {
 // alts 只放有頁面的語言：缺 en／ja 的頁（只有中文的車站頁）就不輸出那一條 hreflang；x-default 一律指中文（也就是自己）。
 function headHtml(lang, { title, description, pathname, alts, schema }) {
   const canonical = absUrl(pathname);
-  const alt = [['zh-Hant', alts.zh], ['en', alts.en], ['ja', alts.ja], ['x-default', alts.zh]].filter(([, p]) => p);
+  const alt = [['zh-Hant', alts.zh], ['en', alts.en], ['ja', alts.ja], ['ko', alts.ko], ['x-default', alts.zh]].filter(([, p]) => p);
   return `<!doctype html>
 <html lang="${LANG_INFO[lang].html}">
 <head>
@@ -982,7 +985,7 @@ function headHtml(lang, { title, description, pathname, alts, schema }) {
 ${alt.map(([code, p]) => `  <link rel="alternate" hreflang="${code}" href="${absUrl(p)}">`).join('\n')}
   <meta property="og:locale" content="${LANG_INFO[lang].og}">
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="軌島 Rail Island">
+  <meta property="og:site_name" content="${lang === 'ko' ? 'Rail Island' : '軌島 Rail Island'}">
   <meta property="og:title" content="${esc(title)}">
   <meta property="og:description" content="${esc(description)}">
   <meta property="og:url" content="${canonical}">
@@ -1001,40 +1004,50 @@ ${alt.map(([code, p]) => `  <link rel="alternate" hreflang="${code}" href="${abs
 
 function headerHtml(lang, alts) {
   if (lang === 'zh') return ZH_SHELL.header();
-  const switchLinks = LANGS.filter(l => l !== lang).map(l => [pick(l, '中文', 'English', '日本語'), alts[l], LANG_INFO[l].html]);
+  // 韓文連結放英日文頁的頁尾：標頭多一項，390–430px 手機會擠成三列，目錄跳轉的標題也會被蓋住。
+  const switchLinks = Object.keys(LANG_INFO).filter(l => l !== lang && l !== 'ko' && alts[l]).map(l => [pick(l, '中文', 'English', '日本語', '한국어'), alts[l], LANG_INFO[l].html]);
   const live = `/?lang=${lang}`;
   return `<body>
-  <a class="skip-link" href="#main">${esc(pick(lang, '', 'Skip to main content', 'メインコンテンツへ'))}</a>
+  <a class="skip-link" href="#main">${esc(pick(lang, '', 'Skip to main content', 'メインコンテンツへ', lang === 'ko' && K('跳到主要內容')))}</a>
   <header class="site-header">
     <div class="header-inner">
-      <a class="brand" href="${homeHref(lang)}" aria-label="${esc(pick(lang, '', 'Rail Island home', '軌島 ホーム'))}">${BRAND_MARK}<span>軌島 Rail Island</span></a>
-      <nav class="site-nav" aria-label="${esc(pick(lang, '', 'Main navigation', 'メインナビゲーション'))}">
+      <a class="brand" href="${homeHref(lang)}" aria-label="${esc(pick(lang, '', 'Rail Island home', '軌島 ホーム', 'Rail Island 홈'))}">${BRAND_MARK}<span>${lang === 'ko' ? 'Rail Island' : '軌島 Rail Island'}</span></a>
+      <nav class="site-nav" aria-label="${esc(pick(lang, '', 'Main navigation', 'メインナビゲーション', lang === 'ko' && K('主要導覽')))}">
         ${switchLinks.map(([label, href, code]) => `<a href="${href}" hreflang="${code}" lang="${code}">${esc(label)}</a>`).join('\n        ')}
-        <a href="${ovHref(lang)}">${esc(pick(lang, '', 'Metro maps', 'メトロ路線図'))}</a>
-        <a class="nav-live" href="${live}">${esc(pick(lang, '', 'Open the live map', 'ライブ地図を開く'))}</a>
+        ${lang === 'ko' ? `<a href="/ko/stations/">${esc(K('車站索引'))}</a>` : `<a href="${ovHref(lang)}">${esc(pick(lang, '', 'Metro maps', 'メトロ路線図'))}</a>`}
+        <a class="nav-live" href="${live}">${esc(pick(lang, '', 'Open the live map', 'ライブ地図を開く', lang === 'ko' && K('打開即時地圖')))}</a>
       </nav>
     </div>
   </header>`;
 }
 
 // 中文頁尾的 English／日本語連結：該頁沒有對應語言的頁面時（只有中文的車站頁），改連 fallback 給的頁（例如車站索引）；兩者都沒有就 throw。
+// 한국어 連結同樣先看 alts 再看 fallback；捷運路線圖沒有韓文頁，兩者都沒有就不放。
 function footerHtml(lang, alts, fallback = {}) {
   if (lang === 'zh') {
     const en = alts.en || fallback.en, ja = alts.ja || fallback.ja;
     if (!en || !ja) throw new Error(`中文頁尾缺 English／日本語連結的目標（alts.en／alts.ja／fallback 都沒有）`);
-    const extra = `<a href="${ovHref('zh')}">捷運路線圖</a><a href="${en}" hreflang="en" lang="en">English</a><a href="${ja}" hreflang="ja" lang="ja">日本語</a>`;
+    const ko = alts.ko || fallback.ko;
+    const extra = `<a href="${ovHref('zh')}">捷運路線圖</a><a href="${en}" hreflang="en" lang="en">English</a><a href="${ja}" hreflang="ja" lang="ja">日本語</a>${ko ? `<a href="${ko}" hreflang="ko" lang="ko">한국어</a>` : ''}`;
     return ZH_SHELL.footer(extra);
   }
-  const links = [
+  const links = lang === 'ko' ? [
+    [K('關於'), '/ko/about/', null],
+    [K('準確度與限制'), '/ko/accuracy/', null],
+    [K('資料來源'), '/ko/data-sources/', null],
+    [`${K('捷運路線圖')}(영어)`, ovHref(lang), 'en'],
+    [K('GitHub 原始碼'), GITHUB, null],
+  ] : [
     [pick(lang, '', 'Metro maps', 'メトロ路線図'), ovHref(lang), null],
     [pick(lang, '', 'Accuracy and limits (Traditional Chinese)', '精度と限界（繁体字中国語）'), '/accuracy/', 'zh-Hant'],
     [pick(lang, '', 'Data sources (Traditional Chinese)', 'データの出典（繁体字中国語）'), '/data-sources/', 'zh-Hant'],
     [pick(lang, '', 'GitHub source', 'GitHub ソースコード'), GITHUB, null],
+    ...(alts.ko ? [['한국어', alts.ko, 'ko']] : []),
   ];
   return `<footer class="site-footer">
     <div class="site-footer-inner">
-      <div>${esc(pick(lang, '', 'Rail Island is an independently maintained, source-available animated map of Taiwan\'s railways and is not affiliated with any operator.', '軌島は独立して運営している、ソースコード公開の台湾鉄道アニメーション地図です。各鉄道事業者とは関係ありません。'))}</div>
-      <div class="footer-links">${links.map(([label, href, hl]) => `<a href="${href}"${hl ? ` hreflang="${hl}"` : ''}>${esc(label)}</a>`).join('')}</div>
+      <div>${esc(pick(lang, '', 'Rail Island is an independently maintained, source-available animated map of Taiwan\'s railways and is not affiliated with any operator.', '軌島は独立して運営している、ソースコード公開の台湾鉄道アニメーション地図です。各鉄道事業者とは関係ありません。', lang === 'ko' && K('軌島是獨立維護、原始碼公開可查的台灣鐵道即時動畫地圖，與各營運機構無關。')))}</div>
+      <div class="footer-links">${links.map(([label, href, hl]) => `<a href="${href}"${hl ? ` hreflang="${hl}"` : ''}${hl === 'ko' ? ' lang="ko"' : ''}>${esc(label)}</a>`).join('')}</div>
     </div>
   </footer>
 </body>
@@ -1043,7 +1056,7 @@ function footerHtml(lang, alts, fallback = {}) {
 }
 
 function crumbsHtml(lang, items) {
-  const label = pick(lang, '麵包屑', 'Breadcrumb', 'パンくずリスト');
+  const label = pick(lang, '麵包屑', 'Breadcrumb', 'パンくずリスト', '이동 경로');
   return `<nav class="breadcrumbs" aria-label="${label}"><ol>${items.map((item, i) => `<li>${i === items.length - 1 ? esc(item.label) : `<a href="${item.href}">${esc(item.label)}</a>`}</li>`).join('')}</ol></nav>`;
 }
 
@@ -1568,9 +1581,10 @@ function buildOverviewPage(lang) {
 
 // ── 對外入口 ─────────────────────────────────────────────────────────────────────────
 // 回傳所有頁面內容（不寫檔；寫檔與 --check 在 build_aeo_pages.mjs）。
-export function buildMetroPages(root, { stationPages = [], zhShell, escapeHtml } = {}) {
+export function buildMetroPages(root, { stationPages = [], zhShell, koText, escapeHtml } = {}) {
   if (escapeHtml) esc = escapeHtml;
   ZH_SHELL = zhShell;
+  K = koText;
   M = loadMetroModel(root, stationPages);
   B = buildPages(M);
   const files = new Map();

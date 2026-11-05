@@ -3,9 +3,13 @@
   <url><loc>https://railisland.tw/</loc><lastmod>2026-09-29</lastmod></url>
   <url><loc>https://railisland.tw/en/</loc><lastmod>2026-09-29</lastmod></url>
   <url><loc>https://railisland.tw/ja/</loc><lastmod>2026-09-29</lastmod></url>
+  <url><loc>https://railisland.tw/ko/</loc><lastmod>2026-11-05</lastmod></url>
   <url><loc>https://railisland.tw/about/</loc><lastmod>2026-09-29</lastmod></url>
   <url><loc>https://railisland.tw/accuracy/</loc><lastmod>2026-09-03</lastmod></url>
   <url><loc>https://railisland.tw/data-sources/</loc><lastmod>2026-09-03</lastmod></url>
+  <url><loc>https://railisland.tw/ko/about/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/accuracy/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/data-sources/</loc><lastmod>2026-11-05</lastmod></url>
   <url><loc>https://railisland.tw/stations/</loc><lastmod>2026-11-05</lastmod></url>
   <url><loc>https://railisland.tw/stations/taipei/</loc><lastmod>2026-11-05</lastmod></url>
   <url><loc>https://railisland.tw/stations/banqiao/</loc><lastmod>2026-11-05</lastmod></url>
@@ -314,6 +318,37 @@
   <url><loc>https://railisland.tw/ja/stations/shifen/</loc><lastmod>2026-11-05</lastmod></url>
   <url><loc>https://railisland.tw/ja/stations/jingtong/</loc><lastmod>2026-11-05</lastmod></url>
   <url><loc>https://railisland.tw/ja/stations/ruifang/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/taipei/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/banqiao/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/nangang/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/songshan/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/taoyuan/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/taoyuan-hsr/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/hsinchu/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/hsinchu-hsr/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/miaoli-hsr/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/taichung/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/taichung-hsr/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/changhua-hsr/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/yunlin-hsr/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/tainan/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/tainan-hsr/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/zuoying/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/kaohsiung/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/hualien/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/taitung/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/yilan/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/chiayi/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/chiayi-hsr/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/formosa-boulevard/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/jiji/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/zhiben/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/jiaoxi/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/fulong/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/shifen/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/jingtong/</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://railisland.tw/ko/stations/ruifang/</loc><lastmod>2026-11-05</lastmod></url>
   <url><loc>https://railisland.tw/metro/</loc><lastmod>2026-09-29</lastmod></url>
   <url><loc>https://railisland.tw/metro/taipei/</loc><lastmod>2026-09-29</lastmod></url>
   <url><loc>https://railisland.tw/metro/taoyuan-airport/</loc><lastmod>2026-09-29</lastmod></url>

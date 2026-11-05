@@ -34,6 +34,8 @@ body {
   line-height: 1.75;
 }
 
+html:lang(ko) body { word-break: keep-all; overflow-wrap: break-word; }
+
 a { color: var(--navy); text-underline-offset: .18em; }
 a:hover { color: var(--red); }
 

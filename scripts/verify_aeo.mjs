@@ -7,28 +7,28 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const failures = [];
 const fail = message => failures.push(message);
 
-const generatedRoots = ['about', 'accuracy', 'data-sources', 'stations', 'en/stations', 'ja/stations'];
+const generatedRoots = ['about', 'accuracy', 'data-sources', 'stations', 'en/stations', 'ja/stations', 'ko/about', 'ko/accuracy', 'ko/data-sources', 'ko/stations'];
 const listHtml = directory => fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
   const target = path.join(directory, entry.name);
   return entry.isDirectory() ? listHtml(target) : entry.name.endsWith('.html') ? [target] : [];
 });
 const pages = generatedRoots.flatMap(name => listHtml(path.join(root, name)));
-// 中文車站頁（既有的內容斷言只針對這一組）；en／ja 車站頁另列，套用同一組結構檢查。
-const langOf = file => path.relative(root, file).startsWith(`en${path.sep}`) ? 'en' : path.relative(root, file).startsWith(`ja${path.sep}`) ? 'ja' : 'zh-Hant';
+// 中文車站頁（既有的內容斷言只針對這一組）；en／ja／ko 車站頁另列，套用同一組結構檢查。
+const langOf = file => ['en', 'ja', 'ko'].find(lang => path.relative(root, file).startsWith(`${lang}${path.sep}`)) || 'zh-Hant';
 const isStationPage = file => file.includes(`${path.sep}stations${path.sep}`) && path.basename(path.dirname(file)) !== 'stations';
 const stationPages = pages.filter(file => langOf(file) === 'zh-Hant' && isStationPage(file));
-const stationPagesByLang = { en: pages.filter(file => langOf(file) === 'en' && isStationPage(file)), ja: pages.filter(file => langOf(file) === 'ja' && isStationPage(file)) };
+const stationPagesByLang = Object.fromEntries(['en', 'ja', 'ko'].map(lang => [lang, pages.filter(file => langOf(file) === lang && isStationPage(file))]));
 
-// 3 個說明頁 + 車站索引 1 + 車站 ZH_STATIONS（zh），en／ja 各 索引 1 + 車站 ENJA_STATIONS。
+// 中、韓各 3 個說明頁 + 車站索引 1 + 車站 ZH_STATIONS（zh），en／ja／ko 各 索引 1 + 車站 ENJA_STATIONS。
 // 09-30 P2：車站頁 20 → 23（加苗栗、彰化、雲林三個高鐵站）、加 en／ja 兩套。
 // 09-30 B2：中文 23 → 244（第二批加 221 個台鐵站），en／ja 23 → 30（加瑞芳、十分、菁桐、礁溪、福隆、集集、知本）。
 // 這兩個是具名常數：站數變動（例如 2026-10 平鎮臨時站通車、班表多一個站）時要跟著改，
 // 改之前先確認新頁的網址（英文站名）、縣市與鄉鎮市區、轉乘句都對。
 const ZH_STATIONS = 245, ENJA_STATIONS = 30;
-const EXPECTED_PAGES = 3 + (1 + ZH_STATIONS) + 2 * (1 + ENJA_STATIONS);
-if (pages.length !== EXPECTED_PAGES) fail(`AEO HTML 應為 ${EXPECTED_PAGES} 頁（3 個說明頁 + 三語各 1 個車站索引 + 中文 ${ZH_STATIONS} 車站 + en／ja 各 ${ENJA_STATIONS} 車站），實際 ${pages.length}`);
+const EXPECTED_PAGES = 2 * 3 + (1 + ZH_STATIONS) + 3 * (1 + ENJA_STATIONS);
+if (pages.length !== EXPECTED_PAGES) fail(`AEO HTML 應為 ${EXPECTED_PAGES} 頁（中韓各 3 個說明頁 + 四語各 1 個車站索引 + 中文 ${ZH_STATIONS} 車站 + en／ja／ko 各 ${ENJA_STATIONS} 車站），實際 ${pages.length}`);
 if (stationPages.length !== ZH_STATIONS) fail(`中文車站資料頁應為 ${ZH_STATIONS} 頁，實際 ${stationPages.length}`);
-for (const lang of ['en', 'ja']) if (stationPagesByLang[lang].length !== ENJA_STATIONS) fail(`${lang} 車站資料頁應為 ${ENJA_STATIONS} 頁，實際 ${stationPagesByLang[lang].length}`);
+for (const lang of ['en', 'ja', 'ko']) if (stationPagesByLang[lang].length !== ENJA_STATIONS) fail(`${lang} 車站資料頁應為 ${ENJA_STATIONS} 頁，實際 ${stationPagesByLang[lang].length}`);
 
 function first(source, regex) { return regex.exec(source)?.[1]?.trim() || ''; }
 function text(source) { return source.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(); }
@@ -72,6 +72,12 @@ for (const file of pages) {
   if (descriptions.has(description)) fail(`description 重複：${relative}`);
   descriptions.add(description);
   if (text(source).length < 430) fail(`${relative} 可讀正文過薄（${text(source).length} 字）`);
+  // 韓文頁只准語言切換連結留原文；說明頁是把中文換成字典譯文，漏換的字串會在這裡現形。
+  if (langOf(file) === 'ko') {
+    const visible = `${title} ${description} ${text(source.replace(/<a\b[^>]*\blang="(?:zh-Hant|en|ja)"[^>]*>[^<]*<\/a>/g, ''))}`;
+    const leak = visible.match(/[\u3040-\u30ff\u3400-\u9fff]+/);
+    if (leak) fail(`${relative} 韓文頁殘留中日文字：${leak[0]}`);
+  }
   for (const match of source.matchAll(/href="([^"]+)"/g)) {
     const href = match[1];
     if (href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) continue;
@@ -93,21 +99,34 @@ for (const required of ['台鐵桃園車站', '高鐵桃園站', '台鐵新竹�
 
 // 09-30 P2：三語車站頁（含索引）互相指向——zh-Hant／en／ja 各一條、x-default＝中文，且 canonical 是自己那一語。
 // 09-30 B2：只有中文的車站頁（第二批 214 站）只有 zh-Hant＋x-default；同一個 slug 存在哪幾語，就各有一條。
-// en 與 ja 必須成對出現、且一定有中文那一頁。
+// en、ja、ko 必須一起出現、且一定有中文那一頁。
 const pageSet = new Set(pages.map(f => path.relative(root, f)));
 for (const file of pages.filter(f => f.includes(`${path.sep}stations${path.sep}`))) {
   const relative = path.relative(root, file);
   const source = fs.readFileSync(file, 'utf8');
-  const tail = relative.replace(/^(en|ja)\//, '');
+  const tail = relative.replace(/^(en|ja|ko)\//, '');
   const url = prefix => `https://railisland.tw/${prefix}${tail.replace(/index\.html$/, '')}`;
   const has = prefix => pageSet.has(`${prefix}${tail}`);
-  if (has('en/') !== has('ja/')) fail(`${tail} 的 en／ja 頁沒有成對存在（en ${has('en/')}、ja ${has('ja/')}）`);
-  if ((has('en/') || has('ja/')) && !has('')) fail(`${tail} 有英日文頁卻沒有中文頁`);
-  const want = { 'zh-Hant': url(''), ...(has('en/') ? { en: url('en/') } : {}), ...(has('ja/') ? { ja: url('ja/') } : {}), 'x-default': url('') };
+  if (has('en/') !== has('ja/') || has('en/') !== has('ko/')) fail(`${tail} 的 en／ja／ko 頁沒有一起存在（en ${has('en/')}、ja ${has('ja/')}、ko ${has('ko/')}）`);
+  if ((has('en/') || has('ja/') || has('ko/')) && !has('')) fail(`${tail} 有外語頁卻沒有中文頁`);
+  const want = { 'zh-Hant': url(''), ...(has('en/') ? { en: url('en/') } : {}), ...(has('ja/') ? { ja: url('ja/') } : {}), ...(has('ko/') ? { ko: url('ko/') } : {}), 'x-default': url('') };
   const got = Object.fromEntries([...source.matchAll(/<link rel="alternate" hreflang="([^"]+)" href="([^"]+)">/g)].map(m => [m[1], m[2]]));
   if (JSON.stringify(got) !== JSON.stringify(want)) fail(`${relative} hreflang 不符：${JSON.stringify(got)}`);
   const canonical = first(source, /<link rel="canonical" href="([^"]+)"/i);
   if (canonical !== want[langOf(file) === 'zh-Hant' ? 'zh-Hant' : langOf(file)]) fail(`${relative} canonical 不是自己那一語：${canonical}`);
+}
+
+// 說明頁只有中文與韓文兩語。
+for (const guide of ['about', 'accuracy', 'data-sources']) {
+  const url = prefix => `https://railisland.tw/${prefix}${guide}/`;
+  const want = { 'zh-Hant': url(''), ko: url('ko/'), 'x-default': url('') };
+  for (const [prefix, lang] of [['', 'zh-Hant'], ['ko/', 'ko']]) {
+    const source = fs.readFileSync(path.join(root, prefix, guide, 'index.html'), 'utf8');
+    const got = Object.fromEntries([...source.matchAll(/<link rel="alternate" hreflang="([^"]+)" href="([^"]+)">/g)].map(m => [m[1], m[2]]));
+    if (JSON.stringify(got) !== JSON.stringify(want)) fail(`${prefix}${guide} hreflang 不符：${JSON.stringify(got)}`);
+    const canonical = first(source, /<link rel="canonical" href="([^"]+)"/i);
+    if (canonical !== want[lang]) fail(`${prefix}${guide} canonical 不是自己那一語：${canonical}`);
+  }
 }
 
 const robots = fs.readFileSync(path.join(root, 'robots.txt'), 'utf8');
@@ -149,4 +168,4 @@ if (failures.length) {
   for (const message of failures) console.error(`- ${message}`);
   process.exit(1);
 }
-console.log(`AEO 靜態驗收通過：${pages.length} 頁、${stationPages.length} 車站（en／ja 各 ${stationPagesByLang.en.length}／${stationPagesByLang.ja.length}）、${locations.length} sitemap 網址`);
+console.log(`AEO 靜態驗收通過：${pages.length} 頁、${stationPages.length} 車站（en／ja／ko 各 ${stationPagesByLang.en.length}／${stationPagesByLang.ja.length}／${stationPagesByLang.ko.length}）、${locations.length} sitemap 網址`);
