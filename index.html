@@ -2155,6 +2155,19 @@
   }
   body.fs.immersive:not(.ambient) #nearBtn { display: none !important; }
 
+  /* 誤點外框的圖例：只是說明，不接手勢，地圖照樣拖得動 */
+  .delay-legend {
+    position: absolute; top: 58px; left: 12px; z-index: 600; box-sizing: border-box;
+    width: calc(164px * var(--ui)); padding: 4px 9px 3px; pointer-events: none;
+    background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-m); box-shadow: var(--shadow-1);
+    font-size: calc(11px * var(--uis)); line-height: 1.3; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .delay-legend .dl-title { font-weight: 800; color: var(--ink); }
+  .delay-legend .dl-bar { height: 7px; margin: 3px 0 1px; border-radius: 4px; }
+  .delay-legend .dl-ticks { display: flex; justify-content: space-between; }
+  .delay-legend .dl-note { margin-top: 1px; color: var(--ink); }
+  body.ambient #delayLegend, body.fs.immersive #delayLegend { display: none; }
+
   /* ── HUD 小牌 ── */
   .badge {
     position: absolute; top: 12px; left: 12px; z-index: 600;
@@ -4177,6 +4190,8 @@
        同一族缺陷的成因(那邊把整個 top 算成一個絕對 px 寫進 inline style,安全區一注入就對不上)。
        只掛在 html[data-fs]:標準檔一格都不動。 */
     html[data-fs] .badge { top: calc(8px + var(--sa-t) + var(--tb-h, 40px) + 10px); }
+    .delay-legend { top: calc(58px + var(--sa-t)); left: 10px; }
+    html[data-fs] .delay-legend { top: calc(8px + var(--sa-t) + var(--tb-h, 40px) + 10px); }
     .badge .clock { font-size: calc(17px * var(--ui)); }
     .badge .count { font-size: calc(12px * var(--uis)); }
     /* 行程連結的追蹤橫幅原本固定 top:56，會整片壓住這列時鐘。接收行程時先把非必要的
@@ -5454,6 +5469,12 @@
           <p class="rs-gnote">一條線一班車，線變平＝車停住。點一下跳到那個時間</p>
         </div>
       </div>
+    </div>
+    <div class="delay-legend" id="delayLegend" hidden>
+      <div class="dl-title">台鐵誤點（分）</div>
+      <div class="dl-bar" id="delayLegendBar"></div>
+      <div class="dl-ticks"><span>準點</span><span>5</span><span>15</span><span>30</span><span>60+</span></div>
+      <div class="dl-note" id="delayLegendNote" hidden>目前沒有即時誤點</div>
     </div>
     <div class="climate-panel" id="climatePanel" hidden>
       <div class="rp-days" id="rpDays" hidden>
@@ -6778,6 +6799,7 @@
     <div class="ms-row ri-basemap-row"><span>地圖風格</span><div class="seg" id="msBasemapSeg" role="group" aria-label="地圖風格"><button type="button" data-map="light">明</button><button type="button" data-map="dark">暗</button><button type="button" data-map="sat">衛星</button><button type="button" data-map="landscape"><span>地景</span> <small class="ri-beta">Beta</small></button></div></div>
     <button class="ms-row" id="sunlightRow" type="button" role="switch" aria-checked="true" disabled title="光線跟隨地圖時間；傾斜地圖可看天空"><span>日夜光影</span><span class="toggle on"></span></button>
     <button class="ms-row" id="trainHaloRow" type="button" role="switch" aria-checked="true"><span>列車光環</span><span class="toggle on"></span></button>
+    <button class="ms-row" id="delayFrameRow" type="button" role="switch" aria-checked="false"><span>誤點外框</span><span class="toggle"></span></button>
     <button class="ms-row" id="map3dRow" data-proxy="map3dBtn" style="display:none"><span>3D 建築</span><span class="toggle" data-tg="map3dBtn"></span></button>
     <button class="ms-row" data-act="garage" data-close="1"><span>我的車庫</span><span class="chev">›</span></button>
     <!-- 「軌道與路線」(觀看 → 標示):點列在下方原地展開軌道顯示三段與各路線開關,再點收起(導覽改版 G6;原本開面板) -->
@@ -14732,7 +14754,14 @@ function drawSched(w, h, paintDecoTrains) {
     if (!isFollow && !inDetailArea(pos)) continue;
     const cp = mapDetailPoint([pos.lat, pos.lon]);
     if (!inView(cp)) continue;
-    if (window.railIslandIntegration?.hasModel({tr})) continue;
+    if (window.railIslandIntegration?.hasModel({tr})) {
+      // 近景換成 3D 車模後本來沒有車牌;開著誤點外框時補畫牌,不然放大就看不到誤點。跟隨中的車面板已寫誤點,不擋畫面。
+      if (!isFollow && delayFrameMin(tr) !== undefined) paintTrain(cp.x, cp.y, tr.sys, null, () => {
+        drawTag(cp, trainDisplayNo(tr), tr.color, textColorFor(tr.color), false);
+        drawDelayFrame(cp, tr, true);
+      });
+      continue;
+    }
     const sh = blockSideShift(tr, pos, cp, showTrain); // 同線同向貼太近 → 兩顆標記各往軌道法線偏一半
     // 跟隨中的那台一律畫牌(drawFollowMarker 內不看 showTrain),所以框也一律取牌的尺寸
     if (isFollow) { state._trainHits.push({ x: cp.x, y: cp.y, tr, ...trainMarkBox(tr, true) }); paintTrain(cp.x, cp.y, tr.sys, null, () => drawFollowMarker(cp, tr)); continue; }
@@ -14748,6 +14777,7 @@ function drawSched(w, h, paintDecoTrains) {
       glowUnder(cp, glowC, showTrain ? 10 : 3.5); // 車號牌模式:光暈放大到繞出牌緣,近看也發亮
       if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train) : drawTag(cp, trainDisplayNo(tr), tr.color, textColorFor(tr.color));
       else isHSR(tr) ? drawHSRDot(cp) : drawDot(cp, tr.color);
+      drawDelayFrame(cp, tr, showTrain);
       if (state.dirArrow && showTrain) drawDirArrow(cp, tr, glowC, sh); // 車號牌前緣加行進方向箭頭(遠景圓點不畫,避免密集小點雜亂)
     });
   }
@@ -14860,6 +14890,7 @@ function drawFollowMarker(p, tr) {
     ctx.strokeStyle = tr.color; ctx.globalAlpha = opacity * (0.9); ctx.lineWidth = 2.5; ctx.stroke();
     ctx.globalAlpha = opacity * (1);
     isHSR(tr) ? drawHSRTag(p, tr.train) : drawTag(p, trainDisplayNo(tr), tr.color, textColorFor(tr.color));
+    drawDelayFrame(p, tr, true);
     if (state.dirArrow && M.getZoom() >= 11) drawDirArrow(p, tr, glowC); // 跟隨主角同樣加方向箭頭(牌模式才畫)
   } finally { ctx.restore(); }
 }
@@ -19103,6 +19134,7 @@ function draw() {
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (glTracksActive()) { glTracksSync(); glStationClipSync(); } // GL 軌道:狀態沒變就早退(簽名比對),有變才 setFilter/setPaintProperty
   glPlaceDedupSync(); // 底圖地名、機場名跟站名同名就不畫底圖那個(竹北站旁的「竹北市」、松山機場站旁的「臺北松山機場」);沒變就早退
+  syncDelayFrame();
   if (state.mode === 'sched') { if (state.deco) drawDecoBase(w, h); drawSched(w, h, state.deco ? () => drawDecoTrains(w, h) : null); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
   if (state.delayClimate) drawReplayOverlay(w);
   drawMe(); // 「我的位置」畫最後=在所有軌道與列車之上,不會被蓋掉
@@ -26803,6 +26835,64 @@ const RP_CORRIDORS = [
 ];
 const rpBin = d => d >= 60 ? 4 : d >= 30 ? 3 : d >= 15 ? 2 : d >= 5 ? 1 : 0;
 const rpColor = d => RP_COL[rpBin(d)] || pal().collectGrey;
+// ── 誤點外框(「列車光環」下一列):台鐵車牌／圓點外多一圈,顏色跟著現在的誤點分鐘連續變 ──
+// 5／15／30／60 分的顏色與誤點一日重播同一組,只補 0 分的綠;中間逐分鐘內插,圖例的漸層也讀這一份,地圖和圖例不會各說各話。
+const DELAY_FRAME_STOPS = [[0, '#22c55e'], [5, RP_COL[1]], [15, RP_COL[2]], [30, RP_COL[3]], [60, RP_COL[4]]];
+const DELAY_FRAME_PREF_KEY = 'trainmap-delay-frame';
+const delayFrameColors = [];   // 索引＝分鐘,60 分以上都用最深的顏色
+for (let i = 1; i < DELAY_FRAME_STOPS.length; i++) {
+  const [m0, c0] = DELAY_FRAME_STOPS[i - 1], [m1, c1] = DELAY_FRAME_STOPS[i];
+  const rgb = c => [1, 3, 5].map(k => parseInt(c.slice(k, k + 2), 16));
+  const a = rgb(c0), b = rgb(c1);
+  for (let m = m0; m <= m1; m++) delayFrameColors[m] = `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * (m - m0) / (m1 - m0))).join(',')})`;
+}
+document.getElementById('delayLegendBar').style.background = `linear-gradient(90deg,${DELAY_FRAME_STOPS.map(s => s[1]).join(',')})`;
+try { state.delayFrame = localStorage.getItem(DELAY_FRAME_PREF_KEY) === '1'; } catch (e) {}
+document.getElementById('delayFrameRow').onclick = () => {
+  state.delayFrame = !state.delayFrame;
+  try { localStorage.setItem(DELAY_FRAME_PREF_KEY, state.delayFrame ? '1' : '0'); } catch (e) {}
+  syncDelayFrameRow(); window.railIslandIntegration?.render();
+};
+function syncDelayFrameRow() {
+  const row = document.getElementById('delayFrameRow');
+  row.setAttribute('aria-checked', String(!!state.delayFrame));
+  row.querySelector('.toggle').classList.toggle('on', !!state.delayFrame);
+}
+syncDelayFrameRow();
+// 每幀一次。外框只講「現在」:拉到別的時間就不畫,不拿現在的誤點去標別的時間的車。
+function syncDelayFrame() {
+  const on = !!state.delayFrame && state.mode === 'sched' && !greyNet() && !!state.schedSystems?.some(s => s.live);
+  const now = on && liveActive() && Math.abs(state.simSec - nowSecOfDay()) <= 120;
+  state._delayFeed = now ? state.live.map : null;
+  // 跟車時圖例讓位給跟車卡(同在左上),卡上已寫這班誤點幾分;外框照畫。
+  const show = on && !state.followTrain && !state.freqFollow;
+  const legend = document.getElementById('delayLegend');
+  if (legend.hidden === show) legend.hidden = !show;
+  const note = document.getElementById('delayLegendNote');
+  if (note.hidden === (show && !now)) note.hidden = !(show && !now);
+}
+// undefined＝這班沒有即時資料,跟「準點」(0)分開,沒資料不畫框。
+function delayFrameMin(tr) {
+  const feed = state._delayFeed;
+  return feed && tr.sys === 'tra_sched' && !isMyTrain(tr) ? feed.get(String(tr.train)) : undefined;
+}
+function drawDelayFrame(p, tr, tag) {
+  const d = delayFrameMin(tr), opacity = p.detailOpacity ?? 1;
+  if (d === undefined || opacity <= 0) return;
+  const m = Math.max(0, Math.min(60, Math.round(d)));
+  ctx.save();
+  try {
+    ctx.globalAlpha = opacity; ctx.strokeStyle = delayFrameColors[m];
+    ctx.lineWidth = 2 + m / 40;   // 越嚴重越粗,色盲或看不清顏色時還有粗細可以分
+    const out = .75 + ctx.lineWidth / 2;   // 貼在牌原本 1.5px 描邊的外緣,車種色不被蓋掉
+    ctx.beginPath();
+    if (tag) {
+      const r = TAG_H / 2 + out, dx = tagW(tr) / 2 + out - r;   // 車牌是藥丸形,兩個半圓接起來
+      ctx.arc(p.x - dx, p.y, r, Math.PI / 2, Math.PI * 1.5); ctx.arc(p.x + dx, p.y, r, -Math.PI / 2, Math.PI / 2); ctx.closePath();
+    } else ctx.arc(p.x, p.y, 6 + out, 0, 7);
+    ctx.stroke();
+  } finally { ctx.restore(); }
+}
 const rpHhmm = m => { m = Math.max(0, Math.min(1439, Math.floor(m))); return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
 const rpName = s => String(s).replace(/\s*\(.*\)$/, '').replace(/台/g, '臺');
 const rpSt = n => stationName(n, 'tra_sched');
