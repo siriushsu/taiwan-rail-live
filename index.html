@@ -6819,6 +6819,7 @@
     <button class="ms-row" data-proxy="introBtn"><span>特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
     <button class="ms-row" id="followHeadingRow" type="button" aria-pressed="false"><span>跟車時車頭朝上</span><span class="toggle"></span></button>
     <button class="ms-row" data-proxy="dirBtn"><span>列車方向箭頭</span><span class="toggle" data-tg="dirBtn"></span></button>
+    <button class="ms-row" id="fictionalRow" type="button" aria-pressed="true"><span>顯示虛構專列</span><span class="toggle on"></span></button>
     <!-- 定位是原生 App 限定(LOCATE_ENABLED),網站/PWA 沒有:比照 #nearBtn 的 hidden 先 inline 藏,
          不靠 setupMapTools 才移除——它前段一拋(2026-07-26 實測過),這列就會留成「點了沒反應」的死列。
          App 的還原點在 setupMapTools 的 LOCATE_ENABLED 分支 -->
@@ -8067,6 +8068,7 @@ const state = {
   stnIntroPref: false, // 特殊站介紹:使用者自己按出來的那個選擇(trainmap-stn-intro)。放空進出會臨時覆寫 stnIntro,
                        // 不落盤也不動這裡;離開放空回到這個值,放空一趟才不會把使用者的設定抹掉
   xingOn: false, // 台鐵平交道顯示開關(預設關;開了才畫記號、建命中、攔點擊)
+  hideFictional: false, // 觀看的「顯示虛構專列」關掉時為 true(issue #107,見 syncFictionalTrains)
   dirArrow: true, // 列車行進方向箭頭開關(預設開;台鐵/高鐵車號牌前緣加小箭頭,由前後點位推方向)
   panelTranslucent: document.body.classList.contains('panel-translucent'), // 面板半透明:預設關,偏好由首繪腳本從 localStorage 還原
   ambientStyle: 'hotspot', // 放空視角:follow=跟著一班車跑 / hotspot=群車(鏡頭掛在最繁忙路段看群車交錯);預設群車(v0717v)
@@ -8568,6 +8570,7 @@ function setupMapOrientation() {
   try { headingUp = localStorage.getItem('trainmap-follow-heading-up') === '1'; } catch (e) {}
   setFollowHeadingUp(headingUp);
   document.getElementById('followHeadingRow').onclick = () => setFollowHeadingUp(!state.followHeadingUp);
+  document.getElementById('fictionalRow').onclick = () => setShowFictional(state.hideFictional);
   // 原生 compass 的 easeTo 會被跟車 setView／面板 padding 打斷；改由同一個 tick 完成回正。
   M.getContainer().addEventListener('click', event => {
     if (!event.target.closest('.maplibregl-ctrl-compass')) return;
@@ -13397,6 +13400,7 @@ function applySchedSystems(sysList) {
   // 一到就換值而名冊還是昨天那份 ⇒ 正在跨夜行駛的車會在午夜當下掉條目、誤點瞬間歸零再爬回來。
   // 名冊日只在真的換名冊時才變,正是我們要的那條線。
   state.trains = [];
+  state._fictionalOff = [];
   for (const sys of sysList) for (const tr of (sys.data.trains || [])) {
     tr.sys = sys.id; tr._rday = sys.data._schedDay || ''; state.trains.push(tr);
   }
@@ -13511,6 +13515,7 @@ function applySchedSystems(sysList) {
     // 聯集班表與 dates 走 _denseTrains(今日名冊只是它的切片),與離線預算餵同一份輸入。
   }
   if (sysList.some(s => s.special)) retimeLoopTrains(); // 貼軌後才有弧長,環島車此時才能鋪
+  syncFictionalTrains(); // 排在 retime 之後:那支走 state.trains 鋪時刻,先移出去就鋪不到
   computeFlow();
   pollLive();  // 逐車即時誤點(schedSystems 中有 live 的系統,台鐵限定)
   if (sysList.some(s => s.id === 'tra_sched')) ensureCrossings(); // 含台鐵才 lazy fetch 平交道(一次快取)
@@ -19506,6 +19511,26 @@ function buildLoopTrains(data) {
   data.trains.push(mk('8889', '平原號', '#d2a12a', west));
 }
 // 貼軌完成後才知道每段實際弧長,把一圈時刻按里程等比鋪滿 12 小時
+// 觀看的「顯示虛構專列」(issue #107):關掉就把山海號／平原號移出 state.trains,理由同停駛車
+// (applyTraDailyDelta):留著加旗標,每條畫車／看板／亮點／流量路徑都得記得跳過。
+// 跟隨中的那班留到結束跟車,不讓鏡頭當場跟丟;搜尋掃的是 data.trains,另看 fictionalOff。
+function fictionalOff(tr) { return state.hideFictional && !!tr.loop; }
+function syncFictionalTrains() {
+  const all = state.trains.concat(state._fictionalOff || []);
+  const off = all.filter(tr => fictionalOff(tr) && tr !== state.followTrain);
+  state._fictionalOff = off;
+  state.trains = off.length ? all.filter(tr => !off.includes(tr)) : all;
+  state._featured = null;
+}
+function setShowFictional(on) {
+  state.hideFictional = !on;
+  try { localStorage.setItem('trainmap-fictional', on ? '1' : '0'); } catch (e) {}
+  const row = document.getElementById('fictionalRow');
+  if (row) { row.setAttribute('aria-pressed', String(!!on)); row.querySelector('.toggle').classList.toggle('on', !!on); }
+  if (!state.trains.length) return; // 開機還原時班表還沒載,applySchedSystems 會接手
+  syncFictionalTrains();
+  computeFlow();
+}
 function retimeLoopTrains() {
   for (const tr of state.trains) {
     if (!tr.loop) continue;
@@ -20234,7 +20259,9 @@ function clearFollow() {
   clearFreqFollow(); // 換系統/群組/進放空都經過這裡 → 一併清掉捷運幽靈車跟隨
   restoreFollowSpeed(); // 中途取消跟隨也要還原 fromStart 重播強制的速度
   busTransferCancelJourney(false);
+  const wasLoop = state.followTrain && state.followTrain.loop;
   state.followTrain = null; state.followId = null; state.followStatus = null;
+  if (wasLoop && state.hideFictional) syncFictionalTrains(); // 開關關著時留到現在的那班,這時才收
   resetFollowHeading(); // M3：離開跟車回正北；pitch 是使用者偏好，不在此改動
   state.followWrapStops = null;
   if (state.amb) state.amb.at = 0; // 車聲圖層:停跟即淡出(下一拍 ambTick 判無新位置)
@@ -34282,7 +34309,7 @@ function searchTrainMatch(q) {
   for (const sid of ['tra_sched', 'thsr_sched', 'afr_sched']) {
     const sys = state.systems.find(s => s.id === sid);
     if (!sys) continue;
-    for (const tr of (sys.data.trains || [])) if (String(tr.train).startsWith(nq)) out.push({ tr, sys });
+    for (const tr of (sys.data.trains || [])) if (String(tr.train).startsWith(nq) && !fictionalOff(tr)) out.push({ tr, sys });
   }
   out.sort((a, b) => ((String(a.tr.train) === nq ? 0 : 1) - (String(b.tr.train) === nq ? 0 : 1))
     || String(a.tr.train).localeCompare(String(b.tr.train), 'en', { numeric: true }));
@@ -34315,7 +34342,7 @@ function searchNamedMatch(q) {
       for (const sid of ['tra_sched', 'thsr_sched']) {
         const sys = state.systems.find(s => s.id === sid);
         const tr = sys && (sys.data.trains || []).find(t => String(t.train) === no);
-        if (tr) { out.trs.push({ tr, sys }); found = true; }
+        if (tr) { if (!fictionalOff(tr)) out.trs.push({ tr, sys }); found = true; }
       }
     }
     if (!found) out.infos.push(n);
@@ -34359,7 +34386,7 @@ function searchTypeMatch(q) {
   const now = state.simSec;
   const hits = [];
   for (const tr of sys.data.trains) {
-    if (!tr.stops || !tr.stops.length) continue;
+    if (!tr.stops || !tr.stops.length || fictionalOff(tr)) continue;
     const sp = specialOf(tr);
     const stock = sp && sp.stock;
     if (!(stock && stockIds.has(stock.id)) && !searchTypeNorm(tr.typeName).includes(nq)) continue;
@@ -41473,6 +41500,7 @@ async function boot() {
   try { state.immersive = localStorage.getItem('trainmap-immersive') === '1'; } catch (e) {}
   try { state.xingOn = localStorage.getItem('trainmap-xing') === '1'; } catch (e) {}
   try { state.stnIntro = state.stnIntroPref = localStorage.getItem('trainmap-stn-intro') === '1'; } catch (e) {} // 特殊站介紹:預設關,使用者開過才記 '1'
+  try { setShowFictional(localStorage.getItem('trainmap-fictional') !== '0'); } catch (e) {} // 虛構專列:預設顯示,使用者關過才記 '0'
   try { state.dirArrow = localStorage.getItem('trainmap-diron') !== '0'; } catch (e) {} // 列車方向箭頭:預設開(沒存過即開),使用者關過才記 '0'
   try { setAmbientStyle(localStorage.getItem('trainmap-ambient-style') === 'follow' ? 'follow' : 'hotspot'); } catch (e) {} // 預設群車(v0717v);使用者切過跟車才存 'follow'
   // 省電模式預設:手機開、桌機關;使用者手動切過就記住(setupMapTools 內 setPowerSave 讀此值初始化按鈕)
