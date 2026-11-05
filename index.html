@@ -21816,6 +21816,7 @@ function updateMusicBtn() {
   // enabled=偏好(預設 true 但自動播放被擋時根本沒聲音),真正「在放」= 偏好開且 audio 沒暫停
   // 等化器常駐佔位(停播時凍結,見 CSS),鈕寬開關兩態一致不跳動
   b.classList.toggle('playing', state.music.enabled && !state.music.audio.paused);
+  window.TrainGarage?.showMusic();
 }
 function musicLoadCur() {
   const m = state.music;
@@ -21899,9 +21900,26 @@ function musicPlay() {
   m.audio.play().then(() => musicRamp(m.vol, 1200)).catch(() => {}); // 自動播放被擋就靜默略過
 }
 function musicStop() { musicRamp(0, 800, true); }
+// 看車庫放音樂（規則同 App 的 garageOpened／garageClosed）：開關開著、現在沒在放才換一首開播（清單洗過，下一首就是隨機），
+// 關過的人不自動放，已經在放的不動。離開時是車庫開的才收，開關偏好不動；中途自己按過開關就算他的（setMusicEnabled 清掉）。
+// 要在點擊那一拍同步呼叫，瀏覽器才認得是使用者手勢；被擋時 musicNext 裡的 catch 靜默略過，鈕面照實際狀態。
+let musicGarageStarted = false;
+function musicGarageOpened() {
+  const m = state.music;
+  if (!musicAvailable() || !m.enabled || !m.audio.paused) return;
+  musicGarageStarted = true;
+  musicNext();
+  m.audio.volume = 0; musicRamp(m.vol, 1200);
+}
+function musicGarageClosed() {
+  if (!musicGarageStarted) return;
+  musicGarageStarted = false;
+  if (!state.music.audio.paused) musicStop();
+}
 function setMusicEnabled(on) {
   if (!musicAvailable()) on = false;
   state.music.enabled = on;
+  musicGarageStarted = false;
   saveMusicPref();
   updateMusicBtn();
   on ? musicPlay() : musicStop(); // 開關即播/停,放空與否都一樣
@@ -23702,12 +23720,15 @@ function openTrainGarage(options = {}) {
   if (!window.TrainGarage) { showToast(t('車庫暫時無法載入，請稍後重試。')); return; }
   if (!state.ready) { showToast(t('收藏資料載入中，請稍後再試。')); return; }
   garageReturnFocus = document.activeElement;
+  if (!window.TrainGarage.isOpen) musicGarageOpened();
   window.TrainGarage.open({
     ...ownTrainHost(), // 自製列車:TrainGarage 用 host.plan();下面同名欄位以車庫自己的為準
     ownTrainCard, ownTrainSchedule, ownTrainView, ownTrainReplan,
     snapshot: garageSnapshot, t, lang: () => I18N_LANG, dark: () => !!state.mapDark,
     wallet: garageWallet,
+    music: { available: musicAvailable, playing: () => state.music.enabled && !state.music.audio.paused, toggle: () => document.getElementById('musicBtn').click() },
     onClose: () => {
+      musicGarageClosed();
       // 車庫開著時主地圖停在 tick 開頭（見 tick），t0 也停在開車庫那一刻：不歸零的話接回第一拍 dt＝整段開車庫的時間，
       // 會把車庫裡撥好的時鐘（「去看它」撥到發車前 20 秒）再往後推一遍。同回前景（visibilitychange）：歸零 dt 基準，
       // 貼著現在的時鐘由 clockDriftGuard 錨回真實時刻。
