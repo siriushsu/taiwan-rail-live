@@ -33,12 +33,12 @@ service cloud.firestore {
         && entitlement.data.activeUntilMs > request.time.toMillis();
     }
 
-    // 六份同步文件：pins / favs / rides / stations / checkins（打卡站）/ segments（走過的路段，成就用）。只能由本人讀寫，其他使用者完全看不到。
+    // 七份同步文件：pins / favs / rides / stations / checkins（打卡站）/ segments（走過的路段，成就用）/ mytrains（自製列車，存檔上限 12 列加一筆車隊成就）。只能由本人讀寫，其他使用者完全看不到。
     match /users/{uid}/data/{kind} {
-      allow read, delete: if owns(uid) && kind in ['pins', 'favs', 'rides', 'stations', 'checkins', 'segments'];
+      allow read, delete: if owns(uid) && kind in ['pins', 'favs', 'rides', 'stations', 'checkins', 'segments', 'mytrains'];
       allow create, update: if owns(uid)
         && hasActiveEntitlement(uid)
-        && kind in ['pins', 'favs', 'rides', 'stations', 'checkins', 'segments']
+        && kind in ['pins', 'favs', 'rides', 'stations', 'checkins', 'segments', 'mytrains']
         && request.resource.data.keys().hasOnly([
           'version', 'kind', 'revision', 'clientUpdatedAt', 'items', 'tombstones', 'updatedAt'
         ])
@@ -55,16 +55,17 @@ service cloud.firestore {
         && (kind != 'rides' || request.resource.data.items.size() <= 2000)
         && (kind != 'stations' || request.resource.data.items.size() <= 500)
         && (kind != 'checkins' || request.resource.data.items.size() <= 3000)
-        && (kind != 'segments' || request.resource.data.items.size() <= 5000);
+        && (kind != 'segments' || request.resource.data.items.size() <= 5000)
+        && (kind != 'mytrains' || request.resource.data.items.size() <= 13);
     }
 
     // TestFlight build 21 的跨裝置同步使用完全獨立的資料空間；Sandbox 資格不能寫正式 users/{uid}。
     // 規則形狀刻意與正式同步相同，測到的是同一套限制，但資料與權限不互相滲透。
     match /sandboxUsers/{uid}/data/{kind} {
-      allow read, delete: if owns(uid) && kind in ['pins', 'favs', 'rides', 'stations', 'checkins', 'segments'];
+      allow read, delete: if owns(uid) && kind in ['pins', 'favs', 'rides', 'stations', 'checkins', 'segments', 'mytrains'];
       allow create, update: if owns(uid)
         && hasActiveSandboxEntitlement(uid)
-        && kind in ['pins', 'favs', 'rides', 'stations', 'checkins', 'segments']
+        && kind in ['pins', 'favs', 'rides', 'stations', 'checkins', 'segments', 'mytrains']
         && request.resource.data.keys().hasOnly([
           'version', 'kind', 'revision', 'clientUpdatedAt', 'items', 'tombstones', 'updatedAt'
         ])
@@ -81,7 +82,8 @@ service cloud.firestore {
         && (kind != 'rides' || request.resource.data.items.size() <= 2000)
         && (kind != 'stations' || request.resource.data.items.size() <= 500)
         && (kind != 'checkins' || request.resource.data.items.size() <= 3000)
-        && (kind != 'segments' || request.resource.data.items.size() <= 5000);
+        && (kind != 'segments' || request.resource.data.items.size() <= 5000)
+        && (kind != 'mytrains' || request.resource.data.items.size() <= 13);
     }
 
     // Plus 資格只能由本人讀；寫入必須由受信任的購買驗證後端使用 Admin SDK 完成。

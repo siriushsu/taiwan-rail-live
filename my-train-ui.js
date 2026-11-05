@@ -1,19 +1,21 @@
 // 自製列車：儲存、排班表單、自製車面板。透過 host 跟 index.html 溝通，比照 train-garage.js。
 // 對應的純函式在 my-train-plan.js，接進網頁的部分在 index.html 的 ownTrain 系列函式。
-// 🔴 儲存那六個函式（storeDefaults／storeSanitizeTrain／storeSanitize／storeMigrate／storeLoad／storeSave）
+// 🔴 儲存那八個函式（storeDefaults／storeSanitizeTrain／storeSanitize／storeMigrate／storeUid／storeKey／storeLoad／storeSave）
 //    被 scripts/verify_my_train_plan.mjs 用 extractFunction 單獨抽出來測：它們只准用 localStorage、MyTrainPlan
-//    與 STORAGE_KEY／LEGACY_KEY／HALO_SIZES 三個常數，不准用這個檔裡的其他東西。改名要同步改那支腳本。
+//    與 STORAGE_KEY／LEGACY_KEY／LAST_UID_KEY／HALO_SIZES 四個常數，不准用這個檔裡的其他東西。改名要同步改那支腳本。
 // 🔴 localStorage 一律包 try/catch（私密模式、配額滿、被封鎖都會丟錯），讀不到就當沒有自製車。
 (() => {
   'use strict';
   // 車隊存在新鍵。舊鍵只在新鍵還不存在時讀一次，之後不寫不刪：舊版只認舊鍵，新鍵存在也就不會因為車隊刪光而復活。
   const STORAGE_KEY = 'trainmap-my-fleet-v1';
   const LEGACY_KEY = 'trainmap-my-train-v1';
+  const LAST_UID_KEY = 'trainmap-account-last-uid'; // index.html 的 ACCOUNT_LAST_UID_KEY
+  const OWNER_KEY = 'trainmap-my-fleet-owner'; // 共用那份是誰的，見 storeLoad
   const HALO_SIZES = ['std', 'lg', 'xl'];
 
   // ── 儲存─────────────────────────────────────────────────
   function storeDefaults() {
-    return { v: 1, appearance: { haloOn: true, haloSize: 'std' }, trains: [], device: null, earned: {} };
+    return { v: 1, appearance: { haloOn: true, haloSize: 'std' }, trains: [], device: null, earned: {}, gone: [] };
   }
   // 只看形狀，不看車款與站還在不在：那兩種失效要在站點資料與車庫目錄都載入之後才判斷，
   // 而且失效時還要拿名字寫提示，所以這裡不能丟掉。名字存正規化後的版本。
@@ -49,6 +51,7 @@
     out.trains = MyTrainPlan.assignTracks(out.trains);
     if (typeof raw.device === 'string' && MyTrainPlan.DEVICE_RE.test(raw.device)) out.device = raw.device;
     out.earned = MyTrainPlan.earnedOf(raw.earned);
+    out.gone = MyTrainPlan.goneOf(raw.gone);
     return out;
   }
   // 舊存檔搬進第 1 股，首航日算今天（舊存檔沒有建立日期，回推不到）。
@@ -59,15 +62,33 @@
     const train = raw.train && typeof raw.train === 'object' ? { ...raw.train, track: 0, firstDay: MyTrainPlan.taipeiDay(Date.now()) } : null;
     return storeSanitize({ v: raw.v, appearance: raw.appearance, trains: train ? [train] : [] });
   }
-  function storeLoad() {
+  // 車隊跟著帳號分區，規則照打卡（index.html 的 checkinStorageKey）：不分的話，換人登入時會把上一個人的車傳進他的帳號。
+  function storeUid() {
+    try { return typeof userDataActiveUid === 'function' ? userDataActiveUid() : null; } catch (e) { return null; }
+  }
+  function storeKey(uid) { return uid ? STORAGE_KEY + ':uid:' + uid : STORAGE_KEY; }
+  function storeLoad(uid = storeUid()) {
     let text = null;
-    try { text = localStorage.getItem(STORAGE_KEY); } catch (e) { return storeDefaults(); }
+    try { text = localStorage.getItem(storeKey(uid)); } catch (e) { return storeDefaults(); }
     if (text == null) {
-      let legacy = null;
-      try { legacy = localStorage.getItem(LEGACY_KEY); } catch (e) { return storeDefaults(); }
-      if (legacy == null) return storeDefaults();
-      const moved = storeMigrate(legacy);
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(moved)); } catch (e) {}
+      let moved = null;
+      if (uid) {
+        // 分區第一次被讀：共用那份是本人的就接手，別人的就從空的開始。上一個登入的人每次換人都會變，
+        // 所以第一次判定是別人時要記下主人，不然本人回來時接不到，別人刪帳號也分不出能不能清。
+        let owner = null;
+        try { owner = localStorage.getItem(OWNER_KEY) || localStorage.getItem(LAST_UID_KEY); } catch (e) {}
+        if (!owner || owner === uid) moved = storeLoad(null);
+        else {
+          moved = storeDefaults();
+          try { localStorage.setItem(OWNER_KEY, owner); } catch (e) {}
+        }
+      } else {
+        let legacy = null;
+        try { legacy = localStorage.getItem(LEGACY_KEY); } catch (e) { return storeDefaults(); }
+        if (legacy == null) return storeDefaults();
+        moved = storeMigrate(legacy);
+      }
+      try { localStorage.setItem(storeKey(uid), JSON.stringify(moved)); } catch (e) {}
       return moved;
     }
     let raw = null;
@@ -75,12 +96,20 @@
     return storeSanitize(raw);
   }
   // trains 裡有任何一列不合格 → 不寫、回 false（原本存的不動）。沒帶 trains 也不寫，免得把車隊洗掉。
-  function storeSave(data) {
+  function storeSave(data, uid = storeUid()) {
     if (!data || typeof data !== 'object' || !Array.isArray(data.trains)) return false;
     const clean = storeSanitize({ ...data, v: 1 });
     if (clean.trains.length !== data.trains.length) return false;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(clean)); } catch (e) { return false; }
+    try { localStorage.setItem(storeKey(uid), JSON.stringify(clean)); } catch (e) { return false; }
     return true;
+  }
+  // 刪帳號：清這個帳號的分區。共用那兩把是自己的才清（舊鍵留著的話下次開頁又會把車搬回來），
+  // 是別人的就留著，那份可能還沒上過雲。
+  function storeForget(uid) {
+    let owner = null;
+    try { owner = localStorage.getItem(OWNER_KEY); } catch (e) {}
+    const keys = !owner || owner === uid ? [storeKey(uid), STORAGE_KEY, LEGACY_KEY, OWNER_KEY] : [storeKey(uid)];
+    for (const key of keys) { try { localStorage.removeItem(key); } catch (e) {} }
   }
 
   // ── 自製車面板（DOM 契約見 scripts/verify_my_train_isolation.mjs）───────
@@ -282,7 +311,7 @@
   let apCacheRaw, apCacheVal;
   function loadAppearanceForPanel() {
     let text = null;
-    try { text = localStorage.getItem(STORAGE_KEY); } catch (e) { text = null; }
+    try { text = localStorage.getItem(storeKey(storeUid())); } catch (e) { text = null; }
     if (text !== apCacheRaw) { apCacheRaw = text; apCacheVal = storeLoad().appearance; }
     return apCacheVal;
   }
@@ -622,10 +651,7 @@
   function formParseHM(v) { const n = Math.round(Number(v)); return Number.isFinite(n) ? n : NaN; }
 
   // 只有 mode==='edit' 時才判斷 nameOnly:七個欄位全等才算。
-  function formSameExceptName(a, b) {
-    return a.modelId === b.modelId && a.sys === b.sys && a.from === b.from && a.to === b.to
-      && a.via === b.via && (a.dir || null) === (b.dir || null) && a.pattern === b.pattern && a.depSec === b.depSec;
-  }
+  function formSameExceptName(a, b) { return MyTrainPlan.sameSchedule(a, b); }
 
   // 開頭擋掉表單已經關著的情況——關掉的表單理論上不該再送出,但取消只呼叫 dialog.close()
   // 不會讓裡面的控件失去可操作性,程式化 .click() 或鍵盤 Enter 仍能一路跑到這裡,必須自己再擋一次。
@@ -810,6 +836,8 @@
     newDevice: mtUuid,
     load: storeLoad,
     save: storeSave,
+    forget: storeForget,
+    cloudValue: v => MyTrainPlan.fleetCloudValue(v, storeSanitizeTrain),
     mountPanel,
     updatePanel,
     unmountPanel,

@@ -611,7 +611,8 @@
   // hand：各裝置分開記 { n 次數, km, stops, meets }，帳號合併時每台取最大。outRun：進行中的親手趟 { at 按下去的毫秒, dep 發車秒, dur 全程秒 }。
   // firstDay：第一班每日班次的日子，當天發車時刻已過就是隔天（親手發車會把它提前到按下去那天）。
   // earned：{ 成就鍵: 拿到那天 }。judged：判斷到哪一天（那天的班次已經算過）。look：{ mark 頭牌, plate 車牌框 }。
-  const TRACKS = 6, FLEET_MAX = 12;
+  // u：使用者最後改排班或外觀的毫秒，帳號合併時新的贏。存檔另有 gone：刪掉的車 [{ id, deletedAt }]，別台才知道要刪。
+  const TRACKS = 6, FLEET_MAX = 12, FLEET_GONE_MAX = 100;
   const DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DEVICE_RE = /^[0-9A-Za-z-]{8,64}$/;
   const num0 = v => (Number.isFinite(v) && v >= 0 ? v : 0);
   const int0 = v => (Number.isInteger(v) && v >= 0 ? v : 0);
@@ -634,7 +635,7 @@
     return {
       track: Number.isInteger(t.track) && t.track >= 0 && t.track < TRACKS ? t.track : null,
       firstDay: DAY_RE.test(t.firstDay) ? t.firstDay : null,
-      legs, hand,
+      legs, hand, u: num0(t.u),
       outRun: r && Number.isFinite(r.at) && Number.isInteger(r.dep) && r.dep >= 0 && r.dep < 86400 && Number.isFinite(r.dur) && r.dur > 0
         ? { at: r.at, dep: r.dep, dur: r.dur } : null,
       earned: earnedOf(t.earned),
@@ -642,6 +643,8 @@
       look: { mark: MyTrainPlan.MARK_IDS.includes(look.mark) ? look.mark : null, plate: PLATES[look.plate] ? look.plate : null },
     };
   }
+  const goneOf = g => (Array.isArray(g) ? g : []).filter(x => x && typeof x.id === 'string' && Number.isFinite(x.deletedAt) && x.deletedAt >= 0)
+    .map(x => ({ id: x.id, deletedAt: x.deletedAt })).sort((a, b) => b.deletedAt - a.deletedAt).slice(0, FLEET_GONE_MAX);
   // 一段路線的內容（不含起始日）。兩段算同一段的標準是這裡每一欄都一樣，meets、twin、kin 是掃出來的結果，不算。
   function legFields(l) {
     const rel = v => (Number.isFinite(v) && v >= 0 ? v : null), pair = Array.isArray(l.set) && l.set.length === 2 && l.set.every(v => rel(v) !== null);
@@ -680,8 +683,11 @@
     const old = trains.find(t => t.id === train.id);
     if (old) return trains.map(t => (t === old ? { ...old, ...train, outRun: keepRun ? old.outRun : null } : t));
     if (track < 0 || trains.some(t => t.track === track)) return null;
-    return [...trains, { ...train, ...MyTrainPlan.fleetFields({ track, firstDay }) }];
+    return [...trains, { ...train, ...MyTrainPlan.fleetFields({ track, firstDay, u: train.u }) }];
   }
+  // 除了名字、顏色都一樣就是同一班車，進行中的親手趟留著。
+  const sameSchedule = (a, b) => a.modelId === b.modelId && a.sys === b.sys && a.from === b.from && a.to === b.to
+    && a.via === b.via && (a.dir || null) === (b.dir || null) && a.pattern === b.pattern && a.depSec === b.depSec;
   // 第一班每日班次：今天的發車時刻還沒到就是今天，過了就是明天。
   function firstRunDay(depSec, nowSec, today) { return nowSec < depSec ? today : dayOf(dayNo(today) + 1); }
   // graph 給了才看路線標籤。
@@ -1002,6 +1008,85 @@
     return { trains, earned, fresh, changed };
   }
 
+  // ── 帳號同步：users/{uid}/data/mytrains，一列車一筆，id 是 fleet 那筆放車隊成就 ──
+  // items 照 id 排序是同步契約。outRun、judged 是這台裝置自己的進度，不上傳，別台要自己算。
+  const FLEET_ITEM = 'fleet';
+  const byId = (a, b) => a.id.localeCompare(b.id);
+  function fleetToCloud(fleet) {
+    const items = fleet.trains.map(t => {
+      const { outRun, judged, u, ...value } = t;
+      return { id: t.id, value, updatedAt: u };
+    });
+    if (Object.keys(fleet.earned).length) items.push({ id: FLEET_ITEM, value: { id: FLEET_ITEM, earned: fleet.earned }, updatedAt: 0 });
+    return { items: items.sort(byId), tombstones: [...fleet.gone].sort(byId) };
+  }
+  // 雲端的一筆：列車走 sanitize，車隊那筆只留成就。
+  function fleetCloudValue(v, sanitize) {
+    if (v.id === FLEET_ITEM) return { id: FLEET_ITEM, earned: earnedOf(v.earned) };
+    const t = sanitize(v);
+    if (!t) return null;
+    const { outRun, judged, u, ...value } = t;
+    return value;
+  }
+  const earnedUnion = (a, b) => {
+    const earned = { ...a }, give = honorGiver(earned);
+    for (const [k, d] of Object.entries(b)) give(k, d);
+    return earned;
+  };
+  // 同一天的段以 newer 為準，它還沒掃到交會就沿用另一邊掃好的。起始日不同的段都留著，時間線才接得起來。
+  function mergeLegs(newer, older) {
+    const byDay = new Map(older.map(l => [l.day, l]));
+    for (const l of newer) {
+      const o = byDay.get(l.day);
+      byDay.set(l.day, o && l.meets === null && sameRoute(l, o) ? { ...l, meets: o.meets, twin: o.twin, kin: o.kin } : l);
+    }
+    return [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+  }
+  // hand 每台只加自己那格，次數多的就是新的。
+  function mergeTrain(newer, older) {
+    const hand = { ...older.hand };
+    for (const [dev, h] of Object.entries(newer.hand)) if (!hand[dev] || h.n >= hand[dev].n) hand[dev] = h;
+    return {
+      ...newer, hand, legs: mergeLegs(newer.legs, older.legs), earned: earnedUnion(newer.earned, older.earned),
+      firstDay: [newer.firstDay, older.firstDay].filter(Boolean).sort()[0] || null,
+    };
+  }
+  // 兩邊都是 { items, tombstones }。排班、外觀、股道看 updatedAt，新的贏；平手算 cloud 的，兩台才收得攏。
+  // 刪除不早於最後一次修改就算刪了。股道撞號時 id 小的留著，比股道多的車待命；超過存檔上限才丟，先丟沒股道裡最舊的。
+  function fleetMerge(local, cloud) {
+    const gone = new Map();
+    for (const t of [...local.tombstones, ...cloud.tombstones]) gone.set(t.id, Math.max(gone.get(t.id) || 0, t.deletedAt));
+    const mine = new Map(local.items.map(i => [i.id, i])), theirs = new Map(cloud.items.map(i => [i.id, i]));
+    let earned = null;
+    const trains = [];
+    for (const id of new Set([...mine.keys(), ...theirs.keys()])) {
+      const l = mine.get(id), c = theirs.get(id);
+      if (id === FLEET_ITEM) { earned = earnedUnion(l ? l.value.earned : {}, c ? c.value.earned : {}); continue; }
+      const top = !c || (l && l.updatedAt > c.updatedAt) ? l : c, low = top === l ? c : l;
+      if (gone.has(id) && gone.get(id) >= top.updatedAt) continue;
+      trains.push({ id, value: low ? mergeTrain(top.value, low.value) : top.value, updatedAt: top.updatedAt });
+    }
+    const kept = [...trains].sort((a, b) => (a.value.track === null) - (b.value.track === null) || b.updatedAt - a.updatedAt || byId(a, b)).slice(0, FLEET_MAX).sort(byId);
+    const tracks = assignTracks(kept.map(i => i.value));
+    const items = kept.map((i, n) => ({ ...i, value: tracks[n] }));
+    if (earned && Object.keys(earned).length) items.push({ id: FLEET_ITEM, value: { id: FLEET_ITEM, earned }, updatedAt: 0 });
+    return { items: items.sort(byId), tombstones: goneOf([...gone].map(([id, deletedAt]) => ({ id, deletedAt }))).sort(byId) };
+  }
+  // 合併結果寫回本機存檔，outRun、judged、appearance、device 留本機的。別台改了排班，親手趟比照 fleetPut 取消。
+  function fleetFromCloud(col, local) {
+    const mine = new Map(local.trains.map(t => [t.id, t])), meta = col.items.find(i => i.id === FLEET_ITEM);
+    return {
+      ...local, gone: col.tombstones, earned: meta ? meta.value.earned : {},
+      trains: col.items.filter(i => i.id !== FLEET_ITEM).map(i => {
+        const t = mine.get(i.id);
+        return { ...i.value, u: i.updatedAt, outRun: t && sameSchedule(t, i.value) ? t.outRun : null, judged: t ? t.judged : null };
+      }),
+    };
+  }
+  // Firestore 回來的物件鍵順序跟本機不同，比內容不能直接比字串。
+  const canon = v => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canon(v[k])])) : v);
+  const fleetSame = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
+
   globalThis.MyTrainPlan = {
     MODELS, familyStatus, normalizeName, nameLength, validateName, stationKey, NAME_MAX,
     COLOR_PALETTE, defaultColor, normalizeColor,
@@ -1011,7 +1096,7 @@
     buildRunStats, runSpeed, dwellSec, physMinSec,
     buildTimetable, planTrain,
     tripRel, scanSpan, tripDay, tripDayCheck, stopEventsBetween, addEvent,
-    TRACKS, FLEET_MAX, DEVICE_RE, taipeiDay, fleetFields, assignTracks, freeTrack, fleetPut, firstRunDay, legOf, syncLegs, addHandRun, runEnded, fleetStats,
+    TRACKS, FLEET_MAX, DEVICE_RE, taipeiDay, fleetFields, goneOf, sameSchedule, fleetToCloud, fleetCloudValue, fleetMerge, fleetFromCloud, fleetSame, assignTracks, freeTrack, fleetPut, firstRunDay, legOf, syncLegs, addHandRun, runEnded, fleetStats,
     HONOR_GROUPS, FLEET_HONORS, HONOR_SHELF, MARK_IDS, PLATES, earnedOf, routeTraits, judgeTrain, judgeFleet, finishRun, fleetTotals, weatherHonors, weatherFrame, weatherAt, TWIN_MODELS,
   };
 })();

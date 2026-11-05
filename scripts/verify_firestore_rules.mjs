@@ -34,7 +34,7 @@ console.log(`[G0] firestore.rules md5=${createHash('md5').update(RULES).digest('
 
 // 預期會執行的斷言數。具名常數，刻意寫死——**不可**從下面的 pass/fail 計數自己推導，
 // 那樣「少跑幾條」永遠會自動通過，這道閘門就變成零資訊的裝飾品。
-const EXPECTED_CHECK_COUNT = 20;
+const EXPECTED_CHECK_COUNT = 23;
 
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.FIRESTORE_EMULATOR_PORT || (process.env.FIRESTORE_EMULATOR_HOST || '').split(':')[1] || 8080);
@@ -225,6 +225,32 @@ await check('R12 路段筆數上限 5000 有牙（5000 可寫、5001 寫不了�
   await assertFails(setDoc(dataRef(db, uid, 'segments'), { ...validDoc('segments'), items: items(5001) }));
 });
 
+await check('R13 自製列車(mytrains)本人有資格可寫、可刪，無資格寫不了、別人讀不了', async () => {
+  const uid = 'r13-owner';
+  await seedEntitlement(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  const intruderDb = testEnv.authenticatedContext(UID_B).firestore();
+  const item = { id: 'my:r13', value: { id: 'my:r13', name: '520', legs: [{ day: '2026-11-05', km: 180.5, tags: ['east'], set: [60, 120], kin: ['my:b'] }], hand: {}, earned: { maiden: '2026-11-05' } }, updatedAt: 1 };
+  const tombstones = [{ id: 'my:gone', deletedAt: 1 }];
+  await assertSucceeds(setDoc(dataRef(db, uid, 'mytrains'), { ...validDoc('mytrains'), items: [item], tombstones }));
+  await assertSucceeds(getDoc(dataRef(db, uid, 'mytrains')));
+  await assertFails(getDoc(dataRef(intruderDb, uid, 'mytrains')));
+  await assertFails(setDoc(dataRef(intruderDb, uid, 'mytrains'), validDoc('mytrains', 2)));
+  await assertSucceeds(deleteDoc(dataRef(db, uid, 'mytrains')));
+  await removeEntitlement(uid);
+  await assertFails(setDoc(dataRef(db, uid, 'mytrains'), validDoc('mytrains')));
+});
+
+// 12 列車加一筆車隊成就。
+await check('R14 自製列車筆數上限 13 有牙（13 可寫、14 寫不了）', async () => {
+  const uid = 'r14-owner';
+  await seedEntitlement(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  const items = n => Array.from({ length: n }, (_, i) => ({ id: 'my:' + i, value: { id: 'my:' + i }, updatedAt: 1 }));
+  await assertSucceeds(setDoc(dataRef(db, uid, 'mytrains'), { ...validDoc('mytrains'), items: items(13) }));
+  await assertFails(setDoc(dataRef(db, uid, 'mytrains'), { ...validDoc('mytrains'), items: items(14) }));
+});
+
 await check('R9 entitlements 客戶端一律寫不了（只能由後端 Admin 憑證寫）', async () => {
   const uid = 'r9-owner';
   const db = testEnv.authenticatedContext(uid).firestore();
@@ -340,6 +366,16 @@ await check('S3 Sandbox 同步資料仍只允許本人讀寫，別人不可碰',
   await assertSucceeds(getDoc(sandboxDataRef(ownerDb, uid)));
   await assertFails(getDoc(sandboxDataRef(intruderDb, uid)));
   await assertFails(setDoc(sandboxDataRef(intruderDb, uid), validDoc('favs', 2)));
+});
+
+await check('S5 Sandbox 的自製列車只認 Sandbox 資格，筆數上限一樣', async () => {
+  const uid = 's5-mytrains';
+  await seedSandboxEntitlement(uid);
+  const db = testEnv.authenticatedContext(uid).firestore();
+  const items = n => Array.from({ length: n }, (_, i) => ({ id: 'my:' + i, value: { id: 'my:' + i }, updatedAt: 1 }));
+  await assertSucceeds(setDoc(sandboxDataRef(db, uid, 'mytrains'), { ...validDoc('mytrains'), items: items(13) }));
+  await assertFails(setDoc(sandboxDataRef(db, uid, 'mytrains'), { ...validDoc('mytrains'), items: items(14) }));
+  await assertFails(setDoc(dataRef(db, uid, 'mytrains'), validDoc('mytrains')));
 });
 
 await check('S4 sandboxEntitlements 本人可讀、客戶端一律不可寫', async () => {

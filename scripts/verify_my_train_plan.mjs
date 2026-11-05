@@ -1295,20 +1295,20 @@ section('儲存', () => {
     removeItem: k => { store.delete(k); },
   };
   const ctx = vm.createContext({ localStorage, MyTrainPlan: planCtx.MyTrainPlan });
-  vm.runInContext([extractConst(src, 'STORAGE_KEY'), extractConst(src, 'LEGACY_KEY'), extractConst(src, 'HALO_SIZES'),
-    ...['storeDefaults', 'storeSanitizeTrain', 'storeSanitize', 'storeMigrate', 'storeLoad', 'storeSave'].map(n => extractFunction(src, n)),
+  vm.runInContext([extractConst(src, 'STORAGE_KEY'), extractConst(src, 'LEGACY_KEY'), extractConst(src, 'LAST_UID_KEY'), extractConst(src, 'HALO_SIZES'),
+    ...['storeDefaults', 'storeSanitizeTrain', 'storeSanitize', 'storeMigrate', 'storeUid', 'storeKey', 'storeLoad', 'storeSave'].map(n => extractFunction(src, n)),
     'globalThis.__ui = { STORAGE_KEY, LEGACY_KEY, load: storeLoad, save: storeSave };'].join('\n'), ctx);
   const UI = ctx.__ui, KEY = 'trainmap-my-fleet-v1', OLD = 'trainmap-my-train-v1';
   const js = x => JSON.stringify(x);
   const AP = { haloOn: false, haloSize: 'xl' };
-  const DEFAULTS = { v: 1, appearance: { haloOn: true, haloSize: 'std' }, trains: [], device: null, earned: {} };
+  const DEFAULTS = { v: 1, appearance: { haloOn: true, haloSize: 'std' }, trains: [], device: null, earned: {}, gone: [] };
   check(UI.STORAGE_KEY === KEY && UI.LEGACY_KEY === OLD, `localStorage 鍵是 ${KEY}，舊鍵是 ${OLD}`);
   check(/globalThis\.MyTrainUI\s*=\s*\{/.test(src) && /\bSTORAGE_KEY\s*[,}\n]/.test(src) && /load:\s*storeLoad\b/.test(src) && /save:\s*storeSave\b/.test(src),
     'MyTrainUI 對外的 STORAGE_KEY／load／save 就是這幾個函式');
   // color 用 emu800 自己系統的合法值(且恰為它的預設色)，round-trip 才會是 no-op，才能拿 TRAIN 原樣當期望值比對。
   const SCHEDULE = { id: 'my:0f8e2d1c-aaaa-4bbb-8ccc-123456789abc', name: '520', modelId: 'emu800', sys: 'tra_sched',
     from: '台北', to: '花蓮', via: null, dir: null, pattern: 'major', depSec: 27000, color: '#2E6FB0' };
-  const BLANK = { legs: [], hand: {}, outRun: null, earned: {}, judged: null, look: { mark: null, plate: null } };
+  const BLANK = { legs: [], hand: {}, u: 0, outRun: null, earned: {}, judged: null, look: { mark: null, plate: null } };
   const TRAIN = { ...SCHEDULE, track: 0, firstDay: '2026-11-05', ...BLANK };
   const DEV = '0f8e2d1c-dddd-4eee-8fff-123456789abc';
   const LEG_TAIL = { dep: 27000, dur: 7200, tags: ['east'], rise: null, set: [60, 120], meets: 3, twin: true, kin: ['my:b'] };
@@ -1317,7 +1317,7 @@ section('儲存', () => {
     earned: { maiden: '2026-11-05' }, judged: '2026-11-19', look: { mark: 'east', plate: 'bronze' } };
   const put = obj => store.set(KEY, typeof obj === 'string' ? obj : js(obj));
   const putOld = obj => store.set(OLD, typeof obj === 'string' ? obj : js(obj));
-  const fleet = (...trains) => ({ v: 1, appearance: AP, trains, device: null, earned: {} });
+  const fleet = (...trains) => ({ v: 1, appearance: AP, trains, device: null, earned: {}, gone: [] });
   const one = (patch) => { put(fleet({ ...TRAIN, ...patch })); return UI.load().trains[0]; };
   store.clear();
   check(js(UI.load()) === js(DEFAULTS) && store.size === 0, '兩把鍵都沒有 → 預設值，而且不寫任何鍵', js(UI.load()));
@@ -1402,7 +1402,7 @@ section('儲存', () => {
   check(!threw && got.trains.length === 1 && !store.has(KEY), '搬移時寫不進新鍵 → 這次照樣讀到車、不丟錯，下次再搬');
   store.clear();
   check(UI.save({ appearance: { haloOn: false, haloSize: 'lg' }, trains: [TRAIN], device: DEV }) === true
-    && store.get(KEY) === js({ v: 1, appearance: { haloOn: false, haloSize: 'lg' }, trains: [TRAIN], device: DEV, earned: {} }), 'save 寫進去的是正規化後的完整內容');
+    && store.get(KEY) === js({ v: 1, appearance: { haloOn: false, haloSize: 'lg' }, trains: [TRAIN], device: DEV, earned: {}, gone: [] }), 'save 寫進去的是正規化後的完整內容');
   const before = store.get(KEY);
   check(UI.save({ appearance: { haloOn: true, haloSize: 'std' }, trains: [TRAIN, { ...OTHER, depSec: 99999 }] }) === false && store.get(KEY) === before,
     '有一列不合格 → save 回 false、原本存的不動');

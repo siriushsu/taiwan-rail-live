@@ -182,7 +182,8 @@
     "check-my-train-walkthrough": "node scripts/verify_my_train_walkthrough.mjs",
     "check-my-train-plus": "node scripts/verify_my_train_plus.mjs",
     "check-my-train-fleet": "node scripts/verify_my_train_fleet.mjs",
-    "check-my-train-depot": "node scripts/verify_my_train_depot.mjs"
+    "check-my-train-depot": "node scripts/verify_my_train_depot.mjs",
+    "check-my-train-sync": "node scripts/verify_my_train_sync.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1",

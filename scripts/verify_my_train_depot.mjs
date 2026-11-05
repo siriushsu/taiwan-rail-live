@@ -156,6 +156,20 @@ async function seed(page, rows) {
 }
 const ROWS = [[0, '一號', 'emu800', '臺北', '七堵'], [1, '二號', 'emu3000', '七堵', '臺北'], [2, '三號', 'e1000', '臺北', '高雄'], [4, '五號', 'emu800', '花蓮', '臺東']];
 
+// 待命的字樣放得下:六股全滿再多兩列。量完還原,不動後面的案例。
+// 手機窄寬會折行,所以除了不溢出,還要量頂列沒有被撐高。里程放大成六列跑過一年的量級,數字短的時候量不出來。
+const standbyFits = page => page.evaluate(() => {
+  const head = document.querySelector('#mtDepot .md-head'), tall = head.offsetHeight;
+  const cur = MyTrainUI.load(), base = cur.trains[0];
+  const more = Array.from({ length: 8 - cur.trains.length }, (_, i) => ({ ...base, id: 'my:standby0' + i, name: '待命' + i, track: null, legs: [], hand: {}, outRun: null }));
+  MyTrainUI.save({ ...cur, trains: [...cur.trains.map(t => ({ ...t, legs: t.legs.map(l => ({ ...l, km: l.km * 3000 })) })), ...more] });
+  MyTrainDepot.refresh();
+  const el = document.querySelector('#mtDepot .md-fleet'), r = el.getBoundingClientRect(), out = { text: el.textContent, lines: Math.round(r.height / parseFloat(getComputedStyle(el).lineHeight)), head: [tall, head.offsetHeight], fits: head.offsetHeight === tall && el.scrollWidth <= el.clientWidth + 1 && r.left >= -.5 && r.right <= innerWidth + .5 };
+  MyTrainUI.save(cur);
+  MyTrainDepot.refresh();
+  return out;
+});
+
 // 成就頁與外觀頁。第 1 股有十天紀錄,開頁判定給首航與十日;千里補一枚給車牌框,第 4 股這款路上沒有同款真車。
 const PANEL = '#mtDepot .md-panel.on';
 const lookOf = (page, i) => page.evaluate(n => MyTrainUI.load().trains.find(t => t.track === n)?.look, i);
@@ -575,6 +589,8 @@ async function phone(browser, tag, width, height) {
   const over = await scan(page, '#mtDepot .md-exit,#mtDepot [data-period],#mtDepot .md-chip');
   ok(P('總覽:控件不互蓋、都點得到、都在畫面內'), clean(over), js(over));
   ok(P('總覽:沒有水平捲動'), (await overflow(page)) <= 0, String(await overflow(page)));
+  const stand = await standbyFits(page);
+  ok(P('總覽:待命字樣放得下'), stand.fits && /待命 2 列/.test(stand.text), js(stand));
   if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${tag}-${width}x${height}-overview.png`) });
   for (const id of ['night', 'day']) await press(page, `#mtDepot [data-period="${id}"]`, true);
   ok(P('總覽:時段鈕手指按得到'), await page.evaluate(() => document.querySelector('#mtDepot [data-period="day"]').getAttribute('aria-pressed') === 'true'));
@@ -668,6 +684,8 @@ async function language(browser, tag, lang) {
   await page.waitForTimeout(300);
   const over = await scan(page, '#mtDepot .md-exit,#mtDepot [data-period],#mtDepot .md-chip');
   ok(P('總覽放得下'), clean(over), js(over));
+  const stand = await standbyFits(page);
+  ok(P('待命字樣有翻譯、放得下'), stand.fits && !/待命/.test(stand.text), js(stand));
   if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${tag}-${lang}-overview.png`) });
   await chip(page, 0, true);
   await page.waitForTimeout(has3d ? 1300 : 0);

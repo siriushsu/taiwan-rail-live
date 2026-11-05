@@ -8106,7 +8106,7 @@ const state = {
   _metroLiveRaw: {}, // pollMetroLive 最近一次原始回應快取:sys → {at,rows,receivedAt},供等車卡取官方分鐘(不另發 fetch)
   myTrains: [], ownTrainIssues: {}, ownTrainLogs: new Map(), ownTrainShow: true, // 自製列車
   ownTrainAppearance: { haloOn: true, haloSize: 'std' }, _ownTrainHits: [],
-  ownMeetJob: null, ownMeetPending: false, ownMeetBeat: 0, ownJudgeAt: 0, ownWeather: { frame: null, tried: 0, next: 0, key: '', samples: [] },
+  ownTrainUid: null, ownMeetJob: null, ownMeetPending: false, ownMeetBeat: 0, ownJudgeAt: 0, ownWeather: { frame: null, tried: 0, next: 0, key: '', samples: [] },
 };
 // 自製列車:使用者自己排的班,永遠不進 state.trains,唯一判斷式 isMyTrain。
 function isMyTrain(tr) { return !!(tr && tr.mine === true); }
@@ -13085,6 +13085,23 @@ function ownTrainEntitlementSync() {
   buildToggles();
   draw();
 }
+// 車隊跟著帳號分區,換人要換車。userDataRenderAll 每次同步都會跑,身分沒變就不重建。
+// 分區第一次讀要趕在 ACCOUNT_LAST_UID_KEY 改寫之前,不然陌生人判斷看到的是自己(見 onAuthStateChanged 那段)。
+function ownTrainIdentitySync() {
+  if (!window.MyTrainUI) return;
+  const uid = userDataActiveUid();
+  if (uid === state.ownTrainUid) return;
+  state.ownTrainUid = uid;
+  MyTrainUI.load(uid);
+  ownTrainEntitlementSync();
+}
+// 同步結果寫回。交易期間可能又發了一趟車,拿此刻的本機再併一次。
+// 這裡和重建都不排同步:排同步的只有使用者動手的那幾個地方,寫回才不會繞圈(Android 10-31 那次每 1.2 秒同步一次)。
+function ownTrainCloudApply(col, uid) {
+  const cur = MyTrainUI.load(uid), mine = MyTrainPlan.fleetToCloud(cur), merged = MyTrainPlan.fleetMerge(mine, col);
+  if (MyTrainPlan.fleetSame(mine, merged) || !MyTrainUI.save(MyTrainPlan.fleetFromCloud(merged, cur), uid)) return;
+  ownTrainEntitlementSync();
+}
 function ownTrainHost() {
   return {
     t, lang: I18N_LANG, dark: state.mapDark, plan: () => MyTrainPlan,
@@ -13109,10 +13126,11 @@ function ownTrainDelete(rec) {
   if (!saved) return false;
   if (!confirm(t('確定要刪除「{name}」？', { name: saved.name }))) return false;
   const cur = MyTrainUI.load();
-  if (!MyTrainUI.save({ ...cur, trains: cur.trains.filter(x => x.id !== saved.id) })) {
+  if (!MyTrainUI.save({ ...cur, trains: cur.trains.filter(x => x.id !== saved.id), gone: [...cur.gone, { id: saved.id, deletedAt: Date.now() }] })) {
     showToast(escHtml(t('存檔失敗，請再試一次')));
     return false;
   }
+  accountScheduleSync();
   const following = isMyTrain(state.followTrain) ? state.followTrain : null;
   ownTrainRebuild(); // 重建時會把不在車隊裡的事件列清掉
   if (following && (ownTrainBaseId(following) === saved.id || !ownTrainRelink(following.train))) clearFollow();
@@ -13143,8 +13161,9 @@ function ownTrainFirstDay(train) { return MyTrainPlan.firstRunDay(train.depSec, 
 function ownTrainDepart(train) {
   if (!ownTrainRequire(() => ownTrainDepart(train))) return false;
   const cur = MyTrainUI.load();
-  const trains = MyTrainPlan.fleetPut(cur.trains, train, ownTrainFirstDay(train));
+  const trains = MyTrainPlan.fleetPut(cur.trains, { ...train, u: Date.now() }, ownTrainFirstDay(train));
   if (!trains || !MyTrainUI.save({ ...cur, trains })) return false;
+  accountScheduleSync();
   ownTrainRebuild();
   ownTrainLogReset(train.id);
   window.TrainGarage?.close();
@@ -13160,8 +13179,9 @@ function ownTrainEdit(train, opts) {
   if (!ownTrainRequire(() => ownTrainEdit(train, opts))) return false;
   const nameOnly = !!(opts && opts.nameOnly);
   const cur = MyTrainUI.load();
-  const trains = MyTrainPlan.fleetPut(cur.trains, train, ownTrainFirstDay(train), nameOnly, opts && opts.track);
+  const trains = MyTrainPlan.fleetPut(cur.trains, { ...train, u: Date.now() }, ownTrainFirstDay(train), nameOnly, opts && opts.track);
   if (!trains || !MyTrainUI.save({ ...cur, trains })) return false;
+  accountScheduleSync();
   const following = isMyTrain(state.followTrain) ? state.followTrain : null;
   ownTrainRebuild();
   if (!nameOnly) ownTrainLogReset(train.id);
@@ -13444,6 +13464,7 @@ function ownTrainHandDepart(id) {
   const maiden = MyTrainPlan.fleetStats(train, today, dep).trips === 0;
   const next = MyTrainPlan.addHandRun(train, device, run, leg, today);
   if (!MyTrainUI.save({ ...cur, device, trains: cur.trains.map(x => (x === train ? next : x)) })) return null;
+  accountScheduleSync();
   const rec = ownTrainRunRecord(next, run, result);
   rec._ownMaiden = maiden;
   state.myTrains.push(rec);
@@ -13479,6 +13500,7 @@ function ownTrainJudge() {
 }
 // 新成就:機務段開著就重畫畫框(toast 被 dialog 蓋住看不到),地圖上用 toast。
 function ownTrainHonorNews(fresh) {
+  accountScheduleSync();
   if (window.MyTrainDepot?.isOpen) { window.MyTrainDepot.refresh(); return; }
   const one = fresh.length === 1 && [...MyTrainPlan.HONOR_GROUPS.flatMap(g => g.list), ...MyTrainPlan.FLEET_HONORS].find(h => h.id === fresh[0].id);
   showToast(escHtml(one ? t('拿到成就「{name}」', { name: t(one.name) }) : t('拿到 {count} 枚成就', { count: fresh.length })));
@@ -16737,6 +16759,8 @@ function userDataCleanValue(kind, value) {
       if (v.lo) out.lo = 1;
       v = out;
     }
+  } else if (kind === 'mytrains') {
+    return window.MyTrainUI ? MyTrainUI.cloudValue(v) : null;
   }
   return v;
 }
@@ -16751,6 +16775,7 @@ function userDataItemId(kind, v) {
   // 造成同 kind 全部筆記塌陷成同一個 id(userDataNormalizeCollection 只認這裡算出來的 id,
   // 不採用呼叫端自己帶的 item.id)。
   if (kind === 'checkins' || kind === 'segments') return String(v.k);
+  if (kind === 'mytrains') return String(v.id);
   return String(v.sys || 'tra_sched') + '|' + String(v.train) + '|' + String(v.date);
 }
 // 最愛列車 id 從「車次」升級為「系統|車次」。items 可由 value.sys 重算；舊 tombstone
@@ -17504,6 +17529,7 @@ function userDataRenderAll() {
   if (typeof renderRidePanel === 'function') renderRidePanel();
   if (typeof renderPassport === 'function') renderPassport();
   try { nativeCollectionNotify(); } catch (e) {} // 登出／刪帳號／換帳號後護照數字變了,桌面小工具跟著
+  if (typeof ownTrainIdentitySync === 'function') ownTrainIdentitySync();
 }
 // accountSyncNow 拆出來的實際交易邏輯——獨立成函式是為了讓 permission-denied 的重試
 // (見下方 catch)只重跑交易本身,不重新經過外層的 a.syncing/a.loggingOut/plusIsActive() 閘門。
@@ -17521,14 +17547,18 @@ async function accountSyncTxn(reason, myGen, myUid, retried) {
     // 整筆交易會被擋,跟 stations 當初上線是同一個時間差。示範資料(?demo=collect)永不上傳。
     const localCk = loadCheckins(myUid);
     const ckKinds = (a.legacyKinds || localCk.demo) ? [] : CHECKIN_SYNC_KINDS;
+    // 自製列車:登入後第一次一定讀(別台排的車才下得來),之後只有手上有車的人才帶,其他人不多花讀寫。
+    const localFleet = !a.legacyKinds && window.MyTrainUI ? MyTrainUI.load(myUid) : null;
+    const fleetKinds = localFleet && (a.fleetUid !== myUid || localFleet.trains.length || localFleet.gone.length) ? [OWN_SYNC_KIND] : [];
+    const syncKinds = [...kinds, ...ckKinds, ...fleetKinds];
     const syncCollection = plusSyncCollection();
-    const refs = Object.fromEntries([...kinds, ...ckKinds].map(kind => [kind, a.fb.doc(a.db, syncCollection, myUid, 'data', kind)]));
+    const refs = Object.fromEntries(syncKinds.map(kind => [kind, a.fb.doc(a.db, syncCollection, myUid, 'data', kind)]));
     const local = userDataRead(myUid);
     const localCkCols = checkinsToCollections(localCk);
-    let ckMerged = null;
+    let ckMerged = null, fleetMerged = null;
     const merged = await a.fb.runTransaction(a.db, async tx => {
       const docs = {};
-      for (const kind of [...kinds, ...ckKinds]) { const snap = await tx.get(refs[kind]); docs[kind] = snap.exists() ? snap.data() : null; }
+      for (const kind of syncKinds) { const snap = await tx.get(refs[kind]); docs[kind] = snap.exists() ? snap.data() : null; }
       const out = userDataMergeEnvelopes(local, accountCloudEnvelope(docs));
       for (const kind of kinds) tx.set(refs[kind], {
         version: USER_DATA_VERSION, kind, revision: out.revision, clientUpdatedAt: out.updatedAt,
@@ -17541,6 +17571,16 @@ async function accountSyncTxn(reason, myGen, myUid, retried) {
         tx.set(refs[kind], {
           version: USER_DATA_VERSION, kind, revision: out.revision, clientUpdatedAt: out.updatedAt,
           items: ckMerged[kind].items, tombstones: ckMerged[kind].tombstones,
+          updatedAt: a.fb.serverTimestamp(),
+        });
+      }
+      if (fleetKinds.length) {
+        // 車隊的合併規則跟其他 kind 不同,見 MyTrainPlan.fleetMerge。內容沒變就不寫,帶著這個 kind 的人每次同步都會走到這裡。
+        const cloud = accountCloudCollection(OWN_SYNC_KIND, docs[OWN_SYNC_KIND]);
+        fleetMerged = MyTrainPlan.fleetMerge(MyTrainPlan.fleetToCloud(localFleet), cloud);
+        if (!MyTrainPlan.fleetSame(fleetMerged, cloud)) tx.set(refs[OWN_SYNC_KIND], {
+          version: USER_DATA_VERSION, kind: OWN_SYNC_KIND, revision: out.revision, clientUpdatedAt: out.updatedAt,
+          items: fleetMerged.items, tombstones: fleetMerged.tombstones,
           updatedAt: a.fb.serverTimestamp(),
         });
       }
@@ -17558,6 +17598,7 @@ async function accountSyncTxn(reason, myGen, myUid, retried) {
       for (const kind of ckKinds) cols[kind] = userDataMergeCollection(userDataNormalizeCollection(kind, nowCols[kind]), ckMerged[kind]);
       saveCheckins(collectionsToCheckins(cols), myUid);
     }
+    if (fleetMerged) { a.fleetUid = myUid; ownTrainCloudApply(fleetMerged, myUid); }
     userDataNotify('remote');
     a.lastSync = Date.now();
     try { localStorage.setItem('trainmap-last-sync-uid', myUid); } catch (e) {}
@@ -17741,6 +17782,7 @@ function accountClearLocal(uid) {
   userDataWrite(blank(), uid);  // 這個帳號自己的分區
   userDataWrite(blank(), null); // 共用匿名 key ＋ 四個 legacy 陣列(走 userDataWrite 的 if (!uid) 分支)
   try { localStorage.removeItem(checkinStorageKey(uid)); localStorage.removeItem(CHECKIN_KEY); } catch (e) {} // 打卡／路段兩個分區比照清空
+  if (window.MyTrainUI) MyTrainUI.forget(uid);
   // 2026-08-04 複審 Minor:LAST_UID 在登出時刻意留著(擋下一個登入的別人),但帳號已經刪掉時
   // 它指向一個不存在的 uid——同一個人重新註冊會拿到新 uid,陌生人判斷因而把他當外人:他在
   // 刪帳號之後、重新註冊之前以匿名身分累積的收藏不會被帶進新帳號。刪除是不可逆的終點,
@@ -17874,8 +17916,8 @@ async function accountDelete() {
     await accountDeleteServerData(u);
     for (const collection of ['users', 'sandboxUsers']) {
       for (const kind of USER_DATA_COLLECTIONS) await a.fb.deleteDoc(a.fb.doc(a.db, collection, u.uid, 'data', kind));
-      // rules 還沒放行這兩個 kind 時連文件都不可能存在,被擋就是「沒東西可刪」,不能讓它卡住刪帳號
-      for (const kind of CHECKIN_SYNC_KINDS) {
+      // rules 還沒放行這幾個 kind 時連文件都不可能存在,被擋就是「沒東西可刪」,不能讓它卡住刪帳號
+      for (const kind of [...CHECKIN_SYNC_KINDS, OWN_SYNC_KIND]) {
         try { await a.fb.deleteDoc(a.fb.doc(a.db, collection, u.uid, 'data', kind)); }
         catch (e) { if (!(e && e.code === 'permission-denied')) throw e; }
       }
@@ -24067,7 +24109,8 @@ function ownTrainDepotForm(opts, track) {
 // 換外觀:地圖上的車牌當下跟著換,不用重建。
 function ownTrainSetLook(id, look) {
   const cur = MyTrainUI.load();
-  if (!MyTrainUI.save({ ...cur, trains: cur.trains.map(x => (x.id === id ? { ...x, look } : x)) })) return false;
+  if (!MyTrainUI.save({ ...cur, trains: cur.trains.map(x => (x.id === id ? { ...x, look, u: Date.now() } : x)) })) return false;
+  accountScheduleSync();
   for (const r of state.myTrains) if (ownTrainBaseId(r) === id) r._ownLook = look;
   return true;
 }
@@ -24077,7 +24120,7 @@ function ownTrainDepotHost(back) {
     t, lang: () => I18N_LANG, dark: () => !!state.mapDark,
     period: () => { const h = nowSecOfDay() / 3600; return h >= 7 && h < 17 ? 'day' : h >= 5 && h < 19 ? 'dusk' : 'night'; },
     rows: ownTrainDepotRows,
-    fleet: () => { const cur = MyTrainUI.load(); return { earned: cur.earned, totals: MyTrainPlan.fleetTotals(cur.trains, todayStr(), nowSecOfDay(), Date.now()) }; },
+    fleet: () => { const cur = MyTrainUI.load(); return { earned: cur.earned, standby: cur.trains.filter(x => x.track === null).length, totals: MyTrainPlan.fleetTotals(cur.trains, todayStr(), nowSecOfDay(), Date.now()) }; },
     setLook: ownTrainSetLook,
     models: () => garageCollection().filter(r => r.owned && MyTrainPlan.MODELS[r.id] && MyTrainPlan.familyStatus(r.model.family) === 'drivable').map(r => ({ id: r.id, name: t(r.model.name) })),
     schedule: (modelId, track) => ownTrainDepotForm({ modelId, preset: null, mode: 'schedule' }, track),
@@ -25003,6 +25046,7 @@ function sealName(n, kind) {
 //   沿途站要等批次 B 的搭乘模式才有真資料——不硬猜。
 const CHECKIN_KEY = 'trainmap-checkins-v1';
 const CHECKIN_SYNC_KINDS = ['checkins', 'segments']; // 雲端文件名;與 firestore.rules 的白名單同步
+const OWN_SYNC_KIND = 'mytrains'; // 同上
 const STN_STATUS_RANK = { follow: 0, pass: 1, visit: 2 };
 const STN_STATUS_LABEL = { follow: '跟完', pass: '搭過', visit: '到訪' };
 // 打卡／路段比照 userData envelope 依帳號分區(userDataStorageKey 同一套規則):接上雲端同步之後,
@@ -39800,8 +39844,8 @@ const HELP_GROUPS = [
     { key: 'myTrain', ic: '製', nm: '自製列車',
       one: '需要通行證。車庫裡已入庫的台鐵、高鐵、林鐵列車，都可以自己排一班路線、選停站方式、車牌顏色與名字，每天照那個時刻在地圖上跑——這班車是你自己排的，不在官方時刻表上。',
       steps: ['「我的車庫」→ 已入庫的車款卡片上按「自己排一班」', '選起訖站、停站方式（站站停／只停大站／直達）與出發時間，取個名字',
-        '按「發車」——地圖跟著它跑，面板上會記下停靠哪些站、和哪些真車交會', '之後從車庫按「去看它」隨時回來看；同時只能有一班，排新的一班會取代原本那班'],
-      tip: '通行證失效後，自製列車存檔會留在這台裝置，但不會上地圖，也不能新建或編輯；再次取得通行證後會恢復。台鐵、高鐵、林鐵目前開放，捷運與輕軌、純客車還不能排。跟著這班車時，面板下方可以切換光環開關與大小（標準／大／特大），方便截圖分享。號誌閉塞看不到這班車，可能會跟真車疊在一起或穿過去——這是虛構班次本來就有的限制。',
+        '按「發車」——車住進機務段的一股，每天照那個時刻開出去', '在「軌島機務段」按「去看它」，地圖就跟著它跑，面板上會記下停靠哪些站、和哪些真車交會', '最多 6 列。在機務段點列車看特寫，可以親手發車、看累計里程與成就，換頭牌和車牌框'],
+      tip: '通行證失效後，自製列車存檔會留在這台裝置，但不會上地圖，也不能新建或編輯；再次取得通行證後會恢復。台鐵、高鐵、林鐵目前開放，捷運與輕軌、純客車還不能排。跟著這班車時，面板下方可以切換光環開關與大小（標準／大／特大），方便截圖分享。號誌閉塞看不到這班車，可能會跟真車疊在一起或穿過去——這是虛構班次本來就有的限制。每列都有自己的成就，拿到的成就解鎖頭牌與車牌框，不給點數。登入同一個帳號，車隊的排班、外觀、成就與紀錄會跨裝置同步（目前只有網站版）。',
       try: 'garage' },
     { key: 'sat', ic: '圖', nm: '地圖風格：明、暗、衛星、地景',
       one: '同一張地圖可以換底：亮色或暗色的一般地圖、衛星照片，或帶地形與建築的「地景」。',

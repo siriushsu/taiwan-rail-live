@@ -16,8 +16,9 @@ html[data-theme=dark] #mtDepot{--md-hdr:var(--paper-tr);--md-hdr-ink:var(--ink);
 #mtDepot .md-head{position:absolute;inset:0 0 auto;z-index:10;display:flex;align-items:center;gap:10px;min-height:44px;background:var(--md-hdr);color:var(--md-hdr-ink);
   padding-top:env(safe-area-inset-top,0px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 #mtDepot .md-head b{font-size:15px;font-weight:800;letter-spacing:3px;white-space:nowrap}
-#mtDepot:lang(en) .md-head b{letter-spacing:1px}
-#mtDepot .md-fleet{margin-left:auto;font-size:12px;font-weight:600;opacity:.86;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#mtDepot:lang(en) .md-head b,#mtDepot:lang(ko) .md-head b{letter-spacing:1px}
+#mtDepot .md-fleet{margin-left:auto;font-size:12px;font-weight:600;line-height:1.2;opacity:.86;text-align:right;text-wrap:balance;min-width:0}
+#mtDepot .md-fleet span{white-space:nowrap}
 #mtDepot .md-exit{flex:none;min-height:44px;font-size:14px;font-weight:700;text-decoration:underline;text-underline-offset:4px;white-space:nowrap}
 
 #mtDepot .md-ctl{position:absolute;top:calc(52px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));z-index:4;display:flex;flex-wrap:wrap;gap:8px;align-items:center;transition:opacity .25s;pointer-events:none}

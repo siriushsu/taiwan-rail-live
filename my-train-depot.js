@@ -45,8 +45,11 @@
     if (html !== chipsNow) { box.innerHTML = chipsNow = html; }
     for (const c of box.children) c.setAttribute('aria-pressed', String(+c.dataset.i === cur));
     const own = rows.filter(r => r.id), km = own.reduce((n, r) => n + r.stats.km, 0);
-    $('.md-fleet').textContent = own.length ? tr('{count} 列車 · {km} 公里', { count: own.length, km: fmt(km) }) : '';
     const f = host.fleet(), honors = own.reduce((n, r) => n + gotCount(r.earned), FLEET_HONORS.filter(h => f.earned[h.id]).length);
+    // 窄手機放不下一行時只在段與段之間折，數字和單位不拆開。
+    const line = own.length ? tr('{count} 列車 · {km} 公里', { count: own.length, km: fmt(km) }).split(' · ') : [];
+    if (line.length && f.standby) line.push(tr('待命 {count} 列', { count: f.standby }));
+    $('.md-fleet').innerHTML = line.map(s => `<span>${esc(s)}</span>`).join(' · ');
     $('.md-sum').hidden = !own.length;
     $('.md-sum span').textContent = tr('成就 {count} 枚', { count: honors });
   }

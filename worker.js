@@ -5445,6 +5445,24 @@ async function deletePlusEntitlement(uid, env, nowMs = Date.now(), entitlementEn
   throw new Error(`firestore entitlement delete ${response.status}`);
 }
 
+// 自製列車的雲端文件（users/{uid}/data/mytrains）。其他 kind 由客戶端逐一刪，舊版 App 不認得這個 kind，
+// 用舊版刪帳號時文件會留下來，所以在這裡用伺服器權限刪。正式與 Sandbox 兩邊都刪；200 與 404 都算成功，理由同上。
+async function deleteMyTrainsDoc(uid, env, nowMs = Date.now()) {
+  if (!validFirestoreDocumentId(uid)) throw new Error('invalid mytrains uid');
+  const token = await getFirestoreAccessToken(env, nowMs);
+  const project = encodeURIComponent(env.FIRESTORE_PROJECT_ID);
+  const documentId = encodeURIComponent(uid);
+  for (const collection of ['users', 'sandboxUsers']) {
+    const url = `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/${collection}/${documentId}/data/mytrains`;
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+      redirect: 'manual',                                      // C-1:見檔頭「憑證 subrequest 的 redirect 政策」
+    });
+    if (!(response.ok || response.status === 404)) throw new Error(`firestore mytrains delete ${response.status}`);
+  }
+}
+
 // 刪除帳號時清除「我們這邊」的伺服器資料：RevenueCat customer ＋ D1 的懸賞校正旅程資料
 // ＋資格文件（見上方 deletePlusEntitlement）。
 // Secret API key 只能存在 Worker runtime；先以 Firebase Auth REST lookup 驗證呼叫者的 ID token，
@@ -5516,6 +5534,11 @@ async function deleteAccountData(request, env) {
       } catch (e) {
         console.error('[plus-entitlement] account-delete entitlement deletion failed:', String(e && e.message || e));
         return jsonRes({ error: 'entitlement deletion failed' }, 502, 'no-store');
+      }
+      try { await deleteMyTrainsDoc(uid, env, Date.now()); }
+      catch (e) {
+        console.error('[account-delete] mytrains deletion failed:', String(e && e.message || e));
+        return jsonRes({ error: 'cloud data deletion failed' }, 502, 'no-store');
       }
     }
     return jsonRes({ ok: true, deleted: purged }, 200, 'no-store');

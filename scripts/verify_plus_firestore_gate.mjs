@@ -766,12 +766,17 @@ section(SECTIONS[10]);
   let response = await deleteAccountData(deleteAccountRequest(), ENV());
   let respBody = await response.json();
   let deletes = firestoreDeletes();
-  check(response.status === 200 && respBody.ok === true && deletes.length === 2
+  check(response.status === 200 && respBody.ok === true && deletes.length === 4
       && deletes.some(call => call.url.endsWith(`/documents/entitlements/${UID}`))
       && deletes.some(call => call.url.endsWith(`/documents/sandboxEntitlements/${UID}`))
       && firestoreWrites().length === 0,
     '刪帳號同時刪除正式與 Sandbox 資格文件（不是 PATCH），且整體回應成功',
     JSON.stringify({ status: response.status, body: respBody, deletes: deletes.map(c => `${c.method} ${c.url}`) }));
+  // 舊版 App 不認得 mytrains，用舊版刪帳號時客戶端不會刪這份，只能靠這裡。
+  check(deletes.some(call => call.url.endsWith(`/documents/users/${UID}/data/mytrains`))
+      && deletes.some(call => call.url.endsWith(`/documents/sandboxUsers/${UID}/data/mytrains`)),
+    '刪帳號用伺服器權限刪掉正式與 Sandbox 的自製列車同步文件',
+    deletes.map(c => c.url).join(' '));
 
   // 11-2：資格文件本來就不存在（Firestore 對 DELETE 回 404）⇒ 視同成功，不是失敗——冪等。
   resetIo();
@@ -812,7 +817,7 @@ section(SECTIONS[10]);
   // 「有 RC 才刪資格文件」）。
   resetIo();
   response = await deleteAccountData(deleteAccountRequest(), ENV({ REVENUECAT_PROJECT_ID: undefined, REVENUECAT_V2_SECRET_KEY: undefined }));
-  check(response.status === 200 && callsTo('api.revenuecat.com').length === 0 && firestoreDeletes().length === 2,
+  check(response.status === 200 && callsTo('api.revenuecat.com').length === 0 && firestoreDeletes().length === 4,
     '正向對照：未設定 RevenueCat 時仍會刪除正式與 Sandbox 資格文件（兩者互不綁架）',
     JSON.stringify({ status: response.status, rcCalls: callsTo('api.revenuecat.com').length, entitlementDeletes: firestoreDeletes().length }));
 

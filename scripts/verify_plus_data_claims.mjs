@@ -123,7 +123,10 @@ function compact(value) { return String(value).replace(/\s+/g, ' ').trim(); }
 
 const indexKindsMatch = stripComments(src.index).match(/const\s+USER_DATA_COLLECTIONS\s*=\s*\[([^\]]+)\]/);
 if (!indexKindsMatch) throw new Error('找不到 USER_DATA_COLLECTIONS');
-const indexKinds = quotedValues(indexKindsMatch[1]);
+const indexCode = stripComments(src.index);
+const indexKinds = [...quotedValues(indexKindsMatch[1]),
+  ...quotedValues((indexCode.match(/const\s+CHECKIN_SYNC_KINDS\s*=\s*\[([^\]]+)\]/) || [])[1] || ''),
+  ...((indexCode.match(/const\s+OWN_SYNC_KIND\s*=\s*'([^']+)'/) || []).slice(1))];
 const readDeleteRule = extractAllow(src.rules, 'read, delete');
 const createUpdateRule = extractAllow(src.rules, 'create, update');
 const readDeleteKinds = quotedValues((readDeleteRule.match(/kind\s+in\s*\[([^\]]+)\]/) || [])[1] || '');

@@ -926,6 +926,12 @@ try {
   process.stdout.write(mtDepot.stdout || ''); process.stderr.write(mtDepot.stderr || '');
   if (mtDepot.status !== 0) fail('機務段守門未過'
     + '（單獨重跑：npm run check-my-train-depot）');
+  // 帳號同步守兩台互傳、各發一次車都留著、寫回不繞圈、換人不帶車；golden 是 App 移植合併時逐筆比對的基準。
+  const mtSync = spawnSync('node', [path.join(wt, 'scripts', 'verify_my_train_sync.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '' } });
+  process.stdout.write(mtSync.stdout || ''); process.stderr.write(mtSync.stderr || '');
+  if (mtSync.status !== 0) fail('自製列車帳號同步守門未過'
+    + '（單獨重跑：npm run check-my-train-sync）');
   // ── 2.29 捷運小工具免費守門人(2026-10-05) ──────────────────────────────────────
   // 為什麼值得進出貨鏈(2.8 那把尺):(a) 它守的缺陷對真人 100% 復現——方案面板、條款第 3 節或說明中心把小工具的
   // 多站／自動寫回付費,網站一上線就對每個訪客說錯,而即時資訊不設付費門檻是資料授權的條件;(b) 別的閘門量不到——
