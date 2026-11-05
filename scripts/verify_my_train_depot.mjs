@@ -286,7 +286,9 @@ async function desktop(browser, tag, opts) {
     const info = await page.evaluate(() => MyTrainDepot.stage.info());
     ok(P('[入口] 四列車與場景都畫出來'), info.calls > 50 && info.triangles > 100000, js(info));
   }
-  const paused = await page.evaluate(async () => { const a = state.simSec; await new Promise(r => setTimeout(r, 1200)); return { a, b: state.simSec }; });
+  // 停過 3 秒才離開:時鐘落後超過 2 秒才重錨,而 nowSecOfDay 只到整秒,實際落後滿 3 秒才保證讀得出來。
+  // 停得比這短,離開時錨不錨看開機落在整秒的哪一段,底下的 off 會在 0.4 和 2.1 之間跳,跟機器忙不忙無關。
+  const paused = await page.evaluate(async () => { const a = state.simSec; await new Promise(r => setTimeout(r, 3500)); return { a, b: state.simSec }; });
   ok(P('[入口] 開著時地圖不跑'), paused.a === paused.b, js(paused));
   await press(page, '#mtDepot .md-exit');
   await page.waitForFunction(() => !window.MyTrainDepot.isOpen && !!window.TrainGarage?.isOpen, null, { timeout: 8000 });
