@@ -84,12 +84,13 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 export const THSR_ORDER = ['南港', '台北', '板橋', '桃園', '新竹', '苗栗', '台中', '彰化', '雲林', '嘉義', '台南', '左營'];
-const LANGS = ['zh', 'en', 'ja'];
+const LANGS = ['zh', 'en', 'ja', 'ko'];
 const MON_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WD = {
   zh: ['一', '二', '三', '四', '五', '六', '日'],
   en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
   ja: ['月', '火', '水', '木', '金', '土', '日'],
+  ko: ['월', '화', '수', '목', '금', '토', '일'],
 };
 
 const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);   // 刻意不用語系相關的比較:語系不同排序會漂
@@ -113,7 +114,7 @@ export function fmtTime(sec) {
   const m = Math.floor(sec / 60);                       // 捨去到分
   const hm = `${pad2(Math.floor(m / 60) % 24)}:${pad2(m % 60)}`;
   const nextDay = sec >= 86400;
-  return { hm, nextDay, zh: hm + (nextDay ? '（+1）' : ''), en: hm + (nextDay ? ' (+1)' : ''), ja: hm + (nextDay ? '（翌日）' : '') };
+  return { hm, nextDay, zh: hm + (nextDay ? '（+1）' : ''), en: hm + (nextDay ? ' (+1)' : ''), ja: hm + (nextDay ? '（翌日）' : ''), ko: hm + (nextDay ? '(+1)' : '') };
 }
 
 // ── 日曆與行駛日標籤 ──────────────────────────────────────────────────────────
@@ -140,6 +141,7 @@ export function mdLabel(cal, iso, lang) {
   const name = cal.holidayNames[iso] || (cal.daytype[iso] === 1 && cal.wd[iso] < 5 ? '放假' : null);
   if (lang === 'zh') return `${m}/${d}` + (name ? `（${name}）` : '');
   if (lang === 'en') return `${MON_EN[m - 1]} ${d}` + (name ? ' (holiday)' : '');
+  if (lang === 'ko') return `${m}월 ${d}일` + (name ? '(휴일)' : '');
   return `${m}月${d}日` + (name ? '（休日）' : '');
 }
 
@@ -162,6 +164,12 @@ const T = {
     extra: l => `、ほか${l}`, miss: l => `；${l}は運休`, only: l => `${l}のみ`,
     sep: '、', wdSep: '・', wd: i => `${WD.ja[i]}曜`, wdRange: (a, b) => `${WD.ja[a]}曜〜${WD.ja[b]}曜`,   // 單獨一個「日」易讀成別的意思,每個星期都寫「曜」
   },
+  ko: {
+    daily: '매일', workdays: '평일(휴일 운휴)', offdays: '주말 · 휴일',
+    from: m => `${m}부터 매일`, until: m => `${m}까지 매일`, span: (a, b) => `${a}~${b} 매일`,
+    extra: l => `, ${l} 추가 운행`, miss: l => `; ${l} 운휴`, only: l => `${l}만 운행`,
+    sep: ', ', wdSep: ' · ', wd: i => `${WD.ko[i]}요일`, wdRange: (a, b) => `${WD.ko[a]}요일~${WD.ko[b]}요일`,
+  },
 };
 
 function weekdayText(ws, lang) {                        // ws 升冪的 0–6;連續 ≥3 個才用範圍
@@ -177,7 +185,7 @@ export function runLabel(runDates, cal) {
   if (!run.size) throw new Error('runLabel: 空的行駛日集合');
   for (const d of run) if (!(d in cal.wd)) throw new Error(`runLabel: ${d} 不在資料涵蓋的日期內`);
   const dates = cal.dates, sameSet = s => s.size === run.size && [...s].every(d => run.has(d));
-  const make = (kind, f) => ({ kind, special: kind !== 'daily', zh: f(T.zh, 'zh'), en: f(T.en, 'en'), ja: f(T.ja, 'ja') });
+  const make = (kind, f) => ({ kind, special: kind !== 'daily', zh: f(T.zh, 'zh'), en: f(T.en, 'en'), ja: f(T.ja, 'ja'), ko: f(T.ko, 'ko') });
   const md = (d, lang) => mdLabel(cal, d, lang);
 
   if (run.size === dates.length) return make('daily', t => t.daily);
@@ -209,11 +217,11 @@ export function runLabel(runDates, cal) {
 const displayEn = en => en && en.replace(/^([^_\s]+)_([^_\s]+)$/, '$1 ($2)');
 function nameOf(i18n, sys, zh, lenient = false) {
   const e = (i18n.systems[sys] || {})[zh];
-  if (!e || !e.en || !e.ja) {
-    if (lenient) return { zh, en: displayEn(e && e.en) || null, ja: e && e.ja || null };
-    throw new Error(`i18n/stations.json systems.${sys} 缺「${zh}」的英日文名`);
+  if (!e || !e.en || !e.ja || !e.ko) {
+    if (lenient) return { zh, en: displayEn(e && e.en) || null, ja: e && e.ja || null, ko: e && e.ko || null };
+    throw new Error(`i18n/stations.json systems.${sys} 缺「${zh}」的英日韓文名`);
   }
-  return { zh, en: displayEn(e.en), ja: e.ja };
+  return { zh, en: displayEn(e.en), ja: e.ja, ko: e.ko };
 }
 
 function typeOf(i18n, typeName, carName) {
@@ -221,7 +229,7 @@ function typeOf(i18n, typeName, carName) {
   for (const cand of [typeName, carName]) {
     if (!cand) continue;
     for (const k of [cand, cand.replace(/[(（].*$/, '')]) {
-      if (tt[k]) return { key: k, zh: k, en: tt[k].en, ja: tt[k].ja };
+      if (tt[k]) return { key: k, zh: k, en: tt[k].en, ja: tt[k].ja, ko: tt[k].ko };
     }
   }
   throw new Error(`i18n/stations.json trainTypes 對不上車種 typeName=${typeName} carName=${carName}`);
@@ -291,7 +299,7 @@ function assemble({ system, station, stationName, ds, inputs, sysKey, defaultTyp
   const perDay = dates.map(d => {
     const departing = directions.reduce((n, g) => n + g.rows.filter(r => r.run.includes(d)).length, 0);
     const terminating = arrivals.filter(r => r.run.includes(d)).length;
-    return { date: d, weekday: cal.wd[d], md: { zh: mdLabel(cal, d, 'zh'), en: mdLabel(cal, d, 'en'), ja: mdLabel(cal, d, 'ja') },
+    return { date: d, weekday: cal.wd[d], md: { zh: mdLabel(cal, d, 'zh'), en: mdLabel(cal, d, 'en'), ja: mdLabel(cal, d, 'ja'), ko: mdLabel(cal, d, 'ko') },
              departing, terminating, stopping: departing + terminating };
   });
 
@@ -340,8 +348,8 @@ export function thsrStationTimetable(stationName, inputs) {
     return [{ terminating: false, sec: st[k].depSec, to: st[st.length - 1].name, dir: pos(st[k + 1].name) > here ? 'south' : 'north' }];
   };
   const DIRS = {
-    south: { label: { zh: '南下', en: 'Southbound', ja: '南下' }, endpoint: '左營' },
-    north: { label: { zh: '北上', en: 'Northbound', ja: '北上' }, endpoint: '南港' },
+    south: { label: { zh: '南下', en: 'Southbound', ja: '南下', ko: '남행' }, endpoint: '左營' },
+    north: { label: { zh: '北上', en: 'Northbound', ja: '北上', ko: '북행' }, endpoint: '南港' },
   };
   return assemble({
     system: 'THSR', station: nameOf(i18n, 'thsr_sched', stationName), stationName, ds: thsr, inputs, sysKey: 'thsr_sched', defaultType: '高鐵', occ,

@@ -16,6 +16,7 @@
 <link rel="alternate" hreflang="zh-Hant" href="https://railisland.tw/" />
 <link rel="alternate" hreflang="en" href="https://railisland.tw/en/" />
 <link rel="alternate" hreflang="ja" href="https://railisland.tw/ja/" />
+<link rel="alternate" hreflang="ko" href="https://railisland.tw/ko/" />
 <link rel="alternate" hreflang="x-default" href="https://railisland.tw/" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
@@ -5862,13 +5863,13 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li data-cl-of="sheetdragall1105"><span class="d">11/05</span><span>觀看設定、更多、字級、公車站牌和行程分享的面板也能上下拖拉調整高度，觀看設定可以拉過工具欄；面板之間不再互相重疊</span></li>
+        <li data-cl-of="kostatic1105"><span class="d">11/05</span><span>新增韓文網頁：30 個車站的時刻表與轉乘，還有介紹、準確度、資料來源頁都有韓文版</span></li>
         <li data-cl-of="delayreplay1105"><span class="d">11/05</span><span>誤點趨勢改成誤點重播：選一天，看誤點從哪裡開始、怎麼一路傳開，還能跳到這天的重點時刻</span></li>
         <li data-cl-of="qtrains1104"><span class="d">11/04</span><span>地圖上的立體列車改成放大的 Q 版三節，遠看也看得清楚；可在「觀看」→「列車」→「列車大小」切回</span></li>
         <li data-cl-of="garageswap1104"><span class="d">11/04</span><span>車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車</span></li>
         <li data-cl-of="korean1104"><span class="d">11/04</span><span>介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文</span></li>
         <li data-cl-of="plusride1104"><span class="d">11/04</span><span>有軌島通行證的人，App 校正懸賞錄程的島民點數多 50%，加成不算進每天 500 點上限</span></li>
         <li data-cl-of="speedzoom1104"><span class="d">11/04</span><span>快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大</span></li>
-        <li data-cl-of="garagepolish1104"><span class="d">11/04</span><span>車庫七座捷運與高鐵車站改成雙線穿過，列車來得更勤；多良、平交道、光華街也更常有車；換上新汽機車、高樓與台灣樹種，劍潭的北藝中心重做</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5902,6 +5903,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="kostatic1105"><span class="d">11/05</span><span>新增韓文網頁：30 個車站的時刻表與轉乘，還有介紹、準確度、資料來源頁都有韓文版</span></li>
         <li data-cl="qtrains1104"><span class="d">11/04</span><span>地圖上的立體列車改成放大的 Q 版三節，遠看也看得清楚；可在「觀看」→「列車」→「列車大小」切回</span></li>
         <li data-cl="garageswap1104"><span class="d">11/04</span><span>車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車</span></li>
         <li data-cl="korean1104"><span class="d">11/04</span><span>介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文</span></li>
@@ -7370,7 +7372,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1104c：通行證錄程加成打開（規則檔 chips.plusBonusPct 50，判定在 worker.js），網頁本身沒有改行為，這裡只有更新紀錄。
 // v1104d：韓文版——語言列加한국어、介面與使用說明字典、介紹／準確度／資料來源／法律／活動頁；路線圖連結走英文頁；車庫 3D 畫面加換列車鈕，車站頁仍是繁中（/ko/ 靜態樹另開）；Worker 送審 build 加 230。；Q 版列車（放大三節，預設開，全員免費）跟這版一起出。
 // v1105a：誤點趨勢改成一日重播（/api/delay-replay、D1 tra_delay_replay、算法在 scripts/delay_replay.mjs）；舊的 1／3／7 天窗與比前 4 週／去年拿掉，/api/delay-climate 只留給選日期的長條。
-// v1105c：更多、字級、公車站牌、行程分享、觀看也能拖高度（各存比例鍵），開觀看收掉其他面板、不壓速度膠囊，觀看可往上拖過工具欄到頂列下方；v1105b 給還沒上線的 /ko/ 靜態頁分支，這裡跳過避免同號。
+// v1105b：韓文靜態頁 /ko/——車站時刻 30 頁＋索引、介紹／準確度／資料來源、著陸頁，hreflang 與 sitemap 帶到；網站首次開啟仍是繁中。
+// v1105c：更多、字級、公車站牌、行程分享、觀看也能拖高度（各存比例鍵），開觀看收掉其他面板、不壓速度膠囊，觀看可往上拖過工具欄到頂列下方。
 const BUILD = 'v1105c';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');

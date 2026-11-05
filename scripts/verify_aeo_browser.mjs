@@ -28,7 +28,7 @@ const server = http.createServer((request, response) => {
     return;
   }
   const headers = { 'content-type': types[path.extname(target)] || 'application/octet-stream' };
-  if (siteCsp && /^\/(?:en\/|ja\/)?stations\//.test(url.pathname) && path.extname(target) === '.html') headers['content-security-policy'] = siteCsp;
+  if (siteCsp && /^\/(?:en\/|ja\/|ko\/)?stations\//.test(url.pathname) && path.extname(target) === '.html') headers['content-security-policy'] = siteCsp;
   response.writeHead(200, headers);
   fs.createReadStream(target).pipe(response);
 });
@@ -36,10 +36,10 @@ const server = http.createServer((request, response) => {
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 const failures = [];
-const paths = ['/about/', '/accuracy/', '/data-sources/', '/stations/', '/stations/taipei/', '/stations/formosa-boulevard/', '/en/', '/ja/', '/en/stations/', '/ja/stations/', '/en/stations/taipei/', '/ja/stations/taipei/'];
-// 英日文著陸頁與首頁必須互相對應:同一組 hreflang、各自 canonical、CTA 帶 ?lang= 進即時地圖
-const hreflangExpected = { 'zh-Hant': 'https://railisland.tw/', en: 'https://railisland.tw/en/', ja: 'https://railisland.tw/ja/', 'x-default': 'https://railisland.tw/' };
-const landings = { '/en/': { lang: 'en', cta: '/?lang=en', titleRe: /Taiwan Train Map/, canonical: 'https://railisland.tw/en/' }, '/ja/': { lang: 'ja', cta: '/?lang=ja', titleRe: /台湾鉄道/, canonical: 'https://railisland.tw/ja/' } };
+const paths = ['/about/', '/accuracy/', '/data-sources/', '/stations/', '/stations/taipei/', '/stations/formosa-boulevard/', '/en/', '/ja/', '/ko/', '/ko/about/', '/ko/accuracy/', '/ko/data-sources/', '/en/stations/', '/ja/stations/', '/ko/stations/', '/ko/stations/taipei/', '/en/stations/taipei/', '/ja/stations/taipei/'];
+// 英日韓文著陸頁與首頁必須互相對應:同一組 hreflang、各自 canonical、CTA 帶 ?lang= 進即時地圖
+const hreflangExpected = { 'zh-Hant': 'https://railisland.tw/', en: 'https://railisland.tw/en/', ja: 'https://railisland.tw/ja/', ko: 'https://railisland.tw/ko/', 'x-default': 'https://railisland.tw/' };
+const landings = { '/ko/': { lang: 'ko', cta: '/?lang=ko', titleRe: /대만 철도/, canonical: 'https://railisland.tw/ko/' }, '/en/': { lang: 'en', cta: '/?lang=en', titleRe: /Taiwan Train Map/, canonical: 'https://railisland.tw/en/' }, '/ja/': { lang: 'ja', cta: '/?lang=ja', titleRe: /台湾鉄道/, canonical: 'https://railisland.tw/ja/' } };
 async function hreflangSet(page) {
   return page.evaluate(() => Object.fromEntries([...document.querySelectorAll('link[rel=alternate][hreflang]')].map(el => [el.getAttribute('hreflang'), el.getAttribute('href')])));
 }
@@ -350,8 +350,8 @@ async function inspect(page, label) {
 // (3) 時刻表每一列不到 3 行（表格不擠）；(4) 暗色真的套上：data-theme 與 body 背景色＝assets/aeo.css 宣告的色票（期望值從檔案取，
 // 不用頁面自己量自己）；(5) 點索引縣市跳轉按鈕與頁內目錄連結後，目標標題落在 sticky 標頭下方且看得到（亮色每個寬度都點，375 三種亮暗都點）。
 const STATION_MATRIX_PAGES = [
-  ['三語索引 zh', '/stations/'], ['三語索引 en', '/en/stations/'], ['三語索引 ja', '/ja/stations/'],
-  ['瑞芳 zh', '/stations/ruifang/'], ['瑞芳 en', '/en/stations/ruifang/'], ['瑞芳 ja', '/ja/stations/ruifang/'],
+  ['三語索引 zh', '/stations/'], ['三語索引 en', '/en/stations/'], ['三語索引 ja', '/ja/stations/'], ['索引 ko', '/ko/stations/'],
+  ['瑞芳 zh', '/stations/ruifang/'], ['瑞芳 en', '/en/stations/ruifang/'], ['瑞芳 ja', '/ja/stations/ruifang/'], ['瑞芳 ko', '/ko/stations/ruifang/'],
   ['十分 zh', '/stations/shifen/'], ['台鐵左營 zh', '/stations/zuoying-tra/'], ['彰化 zh', '/stations/changhua/'], ['台北 zh（第一批回歸）', '/stations/taipei/'],
 ].map(([name, pathname]) => ({ name, pathname }));
 const STATION_WIDTHS = [360, 375, 414, 768, 1280];
@@ -573,9 +573,10 @@ try {
             if (!response?.ok()) failures.push(`${engineName} ${width}px ${pathname} HTTP ${response?.status()}`);
             await inspect(page, `${engineName} ${width}px ${pathname}`);
             if (pathname === '/about/') {
-              await page.locator('.site-nav a[href="/stations/"]').tap();
-              await page.waitForURL('**/stations/');
-              if (!page.url().endsWith('/stations/')) failures.push(`${engineName} ${width}px 觸控導覽未成功`);
+              // i18n/legal-pages.js 會把說明頁的連結改成帶 ?lang= 的完整網址，所以比路徑。
+              await page.locator('.site-nav a[href*="/stations/"]').tap();
+              await page.waitForURL(url => url.pathname === '/stations/');
+              if (new URL(page.url()).pathname !== '/stations/') failures.push(`${engineName} ${width}px 觸控導覽未成功`);
             }
             await page.close();
           }
@@ -641,4 +642,4 @@ const stationSummary = `車站頁矩陣 ${stationStats.loads} 筆（${STATION_MA
 if (stationsOnly) { console.log(`AEO 車站頁瀏覽器驗收通過：${stationSummary}`); process.exit(0); }
 const covers = metroPages.map(e => e.cover).filter(Boolean);
 const minCover = covers.length ? Math.min(...covers.flat()) : null;
-console.log(`AEO 瀏覽器驗收通過：Chromium + WebKit；桌面與 ${widths.join('/')}px 觸控寬度；${paths.length} 個代表頁面（含 /en/、/ja/ 的 lang／title／canonical／hreflang／CTA）；捷運路線圖頁 ${metroPages.length}／${allMetro.length} 頁${metroAll ? '（全部）' : '（總覽＋5 系統＋捷運 bannan／輕軌 danhai 各語言；--metro-all 驗全部）'}：版面矩陣、SVG 地圖標籤、深連結 CTA${minCover == null ? '' : `（可視範圍最低覆蓋 ${(minCover * 100).toFixed(0)}%）`}；${stationSummary}`);
+console.log(`AEO 瀏覽器驗收通過：Chromium + WebKit；桌面與 ${widths.join('/')}px 觸控寬度；${paths.length} 個代表頁面（含 /en/、/ja/、/ko/ 的 lang／title／canonical／hreflang／CTA）；捷運路線圖頁 ${metroPages.length}／${allMetro.length} 頁${metroAll ? '（全部）' : '（總覽＋5 系統＋捷運 bannan／輕軌 danhai 各語言；--metro-all 驗全部）'}：版面矩陣、SVG 地圖標籤、深連結 CTA${minCover == null ? '' : `（可視範圍最低覆蓋 ${(minCover * 100).toFixed(0)}%）`}；${stationSummary}`);

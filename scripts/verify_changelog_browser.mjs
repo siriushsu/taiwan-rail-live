@@ -156,7 +156,9 @@ const widths = [360, 375, 414, 768];
 // 11/04: Pass recording bonus adds one (566 -> 567).
 // 11/04: Q-style 3D trains add one (567 -> 568).
 // 11/05: delay replay adds one (568 -> 569).
-const expectedHistoryCount = 570;
+// 11/05: Korean static pages add one (569 -> 570).
+// 11/05: Panel drag and overlap fixes add one (570 -> 571).
+const expectedHistoryCount = 571;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
