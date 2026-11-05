@@ -46,6 +46,11 @@ Copyright (c) 2025-2026 Hsu Hsiang. 保留所有未明示授予的權利。
      「由作者本人於訂閱有效期間生成」為條件，**不隨本授權授予任何第三方**。
      任何形式的再散布、打包進其他應用程式或用於影片，皆無授權。
      這些檔案沒有隨附授權標示，不代表可自由使用。
+     唯一例外：以軌島官方 App 內建的錄短片功能產生的短片，可以連同片中配樂保存、
+     轉傳或發布到社群平台，也可以用平台內建的功能裁切、加字幕，限個人、非商業用途；
+     廣告、業配與其他靠短片取得收入的用途都不算。這個例外只及於該短片本身：不得把
+     配樂從短片中分離、單獨使用、放進其他影片與作品，或用於訓練 AI 模型，也不及於
+     音樂檔本身。發布到第三方平台時另須遵守該平台的規定，作者不保證平台接受。
   4. 其他圖片、字體等素材若另有授權標示，以該標示為準。
      前端函式庫與原生框架依其各自的開源授權，逐項清單見
      `app/THIRD_PARTY_NOTICES.md`。
@@ -102,7 +107,15 @@ share-alike obligation the author cannot waive, and the MOI boundary data is und
 Taiwan's Open Government Data License v1.0, which requires attribution. Audio under `suno musics/` is licensed to the
 author only, conditional on generation during the author's paid Suno
 subscription, and is NOT sublicensed to anyone — the absence of a per-file
-license notice does not imply free use. Third-party services called at runtime
+license notice does not imply free use.
+The sole exception: clips made with the built-in clip feature of the official
+Rail Island app may be kept, forwarded and posted with their soundtrack, and
+trimmed or captioned with a platform's built-in tools, for personal,
+non-commercial purposes only (not advertising, sponsorship or other
+income-generating use). The music may not be extracted, used on its own, placed
+in other videos or works, or used to train AI models, and the music files
+themselves remain unlicensed. Platform rules also apply; no platform's acceptance
+is guaranteed. Third-party services called at runtime
 require your own valid credentials; none are included.
 
 Provided "as is", without warranty of any kind. Train positions shown are
