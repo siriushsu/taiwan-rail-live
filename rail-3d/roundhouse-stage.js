@@ -76,11 +76,11 @@ export async function createRoundhouseStage({canvas,lite,label,layout,reduced=fa
   consist.straight(-1);consist.root.updateMatrixWorld(true);
   const lamps=createTrainLamps(consist,scene.environment);lamps.apply();
   holder.add(consist.root);holder.rotation.x=-PI/2;holder.scale.setScalar(s);holder.position.set(-consist.length*s/2,-.18*s,0);g.add(holder);
-  scene.add(g,lamps.halos,lamps.beam);
+  scene.add(g,lamps.halos); // lamps.beam 不掛：車庫場景只有一列所以掛得起，這裡六列就是六盞點光，整個畫面每個像素都多算六盞（量過 A54 特寫 60 掉到 27 fps）
   holder.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
   return{i,model,primary,consist,lamps,g,holder,half:consist.length*s/2,phi:phiOf(i),r:R_PARK,lamp:0,tk:0,tail:consist.cars[2].car};
  }
- function dropTrain(t){scene.remove(t.g,t.lamps.halos,t.lamps.beam);t.lamps.dispose();t.consist.dispose();t.primary.dispose();}
+ function dropTrain(t){scene.remove(t.g,t.lamps.halos);t.lamps.dispose();t.consist.dispose();t.primary.dispose();}
  // 列車尾段在屋頂下看不到，停著的時候不畫；開出去才露面。
  const seat=t=>{t.r=R_PARK;t.phi=phiOf(t.i);t.tail.visible=false;t.lamp=0;placeTrain(t);lightUp(t);};
  function applySlot(i){const s=slots[i],t=trains[i],on=s.state==='out'||s.state==='empty';if(t)t.g.visible=s.state==='home';doors[i].visible=false;signs[i].visible=on;signs[i].userData.post.visible=on;if(on)signs[i].material=s.state==='out'?mOut:mEmpty;shadowDirty=true;dirty=true;wake();}
