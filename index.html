@@ -5891,6 +5891,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="garagemusic1105"><span class="d">11/05</span><span>進車庫會隨機放背景音樂，離開就收掉；頂列和場景頁多了音樂鈕，關過音樂就不自動放</span></li>
         <li data-cl-of="jianshanpu1105"><span class="d">11/05</span><span>平交道補上鶯歌到鳳鳴之間的尖山埔路，全台共 347 處（謝謝網友回報）</span></li>
         <li data-cl-of="delayframe1105"><span class="d">11/05</span><span>「觀看」→「列車」新增誤點外框：台鐵車牌與圓點外加一圈，顏色照現在誤點幾分鐘由綠轉紅，車種色保留</span></li>
         <li data-cl-of="trainstock1105"><span class="d">11/05</span><span>區間車列車卡新增車型推估：依鐵道維基館運用表標出 EMU500／600／700／800／900，實際以當日調度為準</span></li>
@@ -5898,7 +5899,6 @@
         <li data-cl-of="stationgarage1105"><span class="d">11/05</span><span>車庫新增 11 座台鐵特色車站場景：新竹、台南、台中舊站、嘉義、保安、集集、冬山、高雄、大山、勝興、台北地下月台</span></li>
         <li data-cl-of="walletaccount1104"><span class="d">11/05</span><span>車庫的點數現在寫明存在哪個帳號；換了登入方式會提醒你原本的帳號，刪帳號前也會列出會一起刪掉的點數和場景</span></li>
         <li data-cl-of="kometro1105"><span class="d">11/05</span><span>新增韓文捷運路線圖：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車都有韓文版</span></li>
-        <li data-cl-of="delaypins1105"><span class="d">11/05</span><span>誤點重播的站牌靠近畫面邊緣時會換邊擺，手機上不再蓋到時間</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6435,6 +6435,7 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li data-cl="garagemusic1105"><span class="d">11/05</span><span>進車庫會隨機放背景音樂，離開就收掉；頂列和場景頁多了音樂鈕，關過音樂就不自動放</span></li>
         <li data-cl="stationgarage1105"><span class="d">11/05</span><span>車庫新增 11 座台鐵特色車站場景：新竹、台南、台中舊站、嘉義、保安、集集、冬山、高雄、大山、勝興、台北地下月台</span></li>
         <li data-cl="tracksideprivacy1020"><span class="d">10/20</span><span>隱私權政策補充 iOS 軌道邊鎖定畫面卡片會傳送的資料</span></li>
         <li data-cl="journeyapplinks1007"><span class="d">10/7</span><span>行程分享的網址換成新格式，之前的連結仍可使用</span></li>
@@ -7417,7 +7418,7 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1105c：更多、字級、公車站牌、行程分享、觀看也能拖高度（各存比例鍵），開觀看收掉其他面板、不壓速度膠囊，觀看可往上拖過工具欄到頂列下方。
 // v1105c 同批：誤點重播站牌放不下就換邊，不再夾回畫面內蓋到自己的站與時間
 // v1105d：韓文捷運路線圖頁 /ko/metro/（總覽、5 系統、14 線），韓文介面與韓文靜態頁的路線圖入口改連韓文版，不再走英文頁。
-// v1105e：下一批網站（跟 App 1.8.0 同批）——誤點外框、區間車車型推估、虛構專列開關、台鐵特色車站 11 座、點數帳號提示、活動更新、尖山埔路平交道、Worker 認 231；LICENSE 開放官方 App 短片配樂窄例外。
+// v1105e：下一批網站（跟 App 1.8.0 同批）——誤點外框、區間車車型推估、虛構專列開關、台鐵特色車站 11 座、點數帳號提示、活動更新、尖山埔路平交道、車庫放音樂、Worker 認 231；LICENSE 開放官方 App 短片配樂窄例外。
 const BUILD = 'v1105e';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
