@@ -161,7 +161,8 @@ const widths = [360, 375, 414, 768];
 // 11/05: delay replay pin placement adds one (571 -> 572).
 // 11/05: Korean metro maps add one (572 -> 573).
 // 11/05: wallet account notice adds one (573 -> 574).
-const expectedHistoryCount = 574;
+// 11/05: 1.8.0 web batch (delay outline, local train type, fictional trains switch, 11 station garages) adds four (574 -> 578).
+const expectedHistoryCount = 578;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
