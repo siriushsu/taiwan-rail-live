@@ -5860,6 +5860,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="delaypins1105"><span class="d">11/05</span><span>誤點重播的站牌靠近畫面邊緣時會換邊擺，手機上不再蓋到時間</span></li>
         <li data-cl-of="delayreplay1105"><span class="d">11/05</span><span>誤點趨勢改成誤點重播：選一天，看誤點從哪裡開始、怎麼一路傳開，還能跳到這天的重點時刻</span></li>
         <li data-cl-of="qtrains1104"><span class="d">11/04</span><span>地圖上的立體列車改成放大的 Q 版三節，遠看也看得清楚；可在「觀看」→「列車」→「列車大小」切回</span></li>
         <li data-cl-of="garageswap1104"><span class="d">11/04</span><span>車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車</span></li>
@@ -5867,7 +5868,6 @@
         <li data-cl-of="plusride1104"><span class="d">11/04</span><span>有軌島通行證的人，App 校正懸賞錄程的島民點數多 50%，加成不算進每天 500 點上限</span></li>
         <li data-cl-of="speedzoom1104"><span class="d">11/04</span><span>快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大</span></li>
         <li data-cl-of="garagepolish1104"><span class="d">11/04</span><span>車庫七座捷運與高鐵車站改成雙線穿過，列車來得更勤；多良、平交道、光華街也更常有車；換上新汽機車、高樓與台灣樹種，劍潭的北藝中心重做</span></li>
-        <li data-cl-of="delayclimate1103"><span class="d">11/03</span><span>新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6086,6 +6086,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="delaypins1105"><span class="d">11/05</span><span>誤點重播的站牌靠近畫面邊緣時會換邊擺，手機上不再蓋到時間</span></li>
         <li data-cl="delayreplay1105"><span class="d">11/05</span><span>誤點趨勢改成誤點重播：選一天，看誤點從哪裡開始、怎麼一路傳開，還能跳到這天的重點時刻</span></li>
         <li data-cl="delayclimate1103"><span class="d">11/03</span><span>新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開</span></li>
         <li data-cl="krtcterminal1030"><span class="d">10/30</span><span>高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」</span></li>
@@ -7368,7 +7369,7 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1104c：通行證錄程加成打開（規則檔 chips.plusBonusPct 50，判定在 worker.js），網頁本身沒有改行為，這裡只有更新紀錄。
 // v1104d：韓文版——語言列加한국어、介面與使用說明字典、介紹／準確度／資料來源／法律／活動頁；路線圖連結走英文頁；車庫 3D 畫面加換列車鈕，車站頁仍是繁中（/ko/ 靜態樹另開）；Worker 送審 build 加 230。；Q 版列車（放大三節，預設開，全員免費）跟這版一起出。
 // v1105a：誤點趨勢改成一日重播（/api/delay-replay、D1 tra_delay_replay、算法在 scripts/delay_replay.mjs）；舊的 1／3／7 天窗與比前 4 週／去年拿掉，/api/delay-climate 只留給選日期的長條。
-const BUILD = 'v1105a';
+const BUILD = 'v1105b';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -26967,12 +26968,15 @@ function drawReplayPins(w) {
     const p = M.toScreen([nd.lat, nd.lon]);
     const west = nd.lon < 120.6 + (nd.lat - 22) * 0.35;   // 中央山脈西側的站,牌子往海峽那邊擺
     const txt = rpHhmm(m.t) + ' ' + (m.k === 'reach' ? t('傳到{s}', { s: rpSt(n) }) : m.k === 'start' ? t('{s}最早卡住', { s: rpSt(n) }) : t('{s}也卡住', { s: rpSt(n) }));
-    const W = ctx.measureText(txt).width + 14, x = Math.max(6, Math.min(w - W - 6, west ? p.x - 18 - W : p.x + 18));
+    const W = ctx.measureText(txt).width + 14;
+    let left = west;
+    if (left ? p.x - 18 - W < 6 : p.x + 18 + W > w - 6) left = !left;   // 這邊放不下就換邊,夾回畫面內會蓋到自己的站
+    const x = Math.max(6, Math.min(w - W - 6, left ? p.x - 18 - W : p.x + 18));
     let y = p.y - H / 2;
     for (let i = 1; i < 12 && placed.some(r => x < r.x + r.w && r.x < x + W && y < r.y + H + 3 && r.y < y + H + 3); i++) y = p.y - H / 2 + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * (H + 3);
     placed.push({ x, y, w: W });
     const red = m.k !== 'reach';
-    ctx.strokeStyle = red ? RP_COL[3] : ink; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(west ? x + W : x, y + H / 2); ctx.stroke();
+    ctx.strokeStyle = red ? RP_COL[3] : ink; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(left ? x + W : x, y + H / 2); ctx.stroke();
     ctx.fillStyle = paper; ctx.beginPath(); ctx.roundRect(x, y, W, H, 5); ctx.fill(); ctx.stroke();
     ctx.fillStyle = red ? RP_COL[3] : ink; ctx.fillText(txt, x + 7, y + H / 2 + .5);
     ctx.beginPath(); ctx.arc(p.x, p.y, 4.5, 0, 7); ctx.fillStyle = paper; ctx.fill(); ctx.stroke();
