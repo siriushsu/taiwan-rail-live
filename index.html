@@ -801,58 +801,158 @@
   }
   .collect-bar .cb-tgl:hover { opacity: 1; }
   .collect-bar .cb-tgl.on { background: #ffd60a; border-color: #ffd60a; color: #1a1400; opacity: 1; }
-  /* ── 誤點趨勢地圖面板(置底置中;是這個模式唯一的出口,z 同 .collect-bar) ── */
+  /* ── 誤點一日重播:底部控制列＋海峽側的「這天的重點」;版面語彙同歷史重播頁(memories/tainan-2026-10-16/replay.css) ── */
+  /* 版權字移到控制列底下那條縫:平常它墊在底部工具列上方,這個模式工具列收掉了,留在原位會被控制列蓋住 */
+  html body.delay-climate .maplibregl-ctrl-bottom-right { bottom: calc(1px + env(safe-area-inset-bottom, 0px)); }
+  /* 即時通阻公告講的是現在,跟重播的那一天無關 */
+  body.delay-climate #alertBanner, body.delay-climate #alertDetail, body.delay-climate #alertChip { display: none; }
+  .climate-panel, .replay-side { --rp1: #f0b429; --rp2: #e8792b; --rp3: #d4322f; --rp4: #8e1173; font-variant-numeric: tabular-nums; }
   .climate-panel {
-    position: absolute; left: 50%; transform: translateX(-50%); z-index: 680;
-    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-    width: min(560px, calc(100% - 24px)); box-sizing: border-box;
-    display: flex; flex-direction: column; gap: 6px;
-    background: var(--paper-tr); color: var(--ink); border: 2px solid var(--navy); border-radius: var(--r-l);
-    box-shadow: var(--shadow-navy); padding: 8px 10px; font-variant-numeric: tabular-nums;
+    position: absolute; left: 12px; right: 76px; z-index: 680;
+    bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box; display: flex; flex-direction: column; gap: 5px;
+    background: var(--paper); color: var(--ink); border: 2px solid var(--navy); border-radius: var(--r-l);
+    box-shadow: var(--shadow-navy); padding: 7px 12px 8px;
   }
-  /* 寬螢幕放左下:台灣本島在地圖中間,面板擺在海峽那一側才不會蓋住路網 */
-  @media (min-width: 1000px) and (min-height: 560px) {
-    .climate-panel { left: 12px; transform: none; width: min(430px, calc(100% - 24px)); }
+  .climate-panel .rp-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .climate-panel .rp-date {
+    flex: none; display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 10px;
+    background: transparent; color: var(--ink); border: 1.5px solid var(--line); border-radius: var(--r-m);
+    font: inherit; font-size: calc(13px * var(--ui)); font-weight: 800; cursor: pointer; white-space: nowrap;
   }
-  .climate-panel .cp-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .climate-panel .cp-ttl { flex: none; font-size: calc(13px * var(--ui)); font-weight: 900; letter-spacing: 1px; color: var(--navy); }
-  .climate-panel .cp-date { flex: 1; min-width: 0; font-size: calc(12.5px * var(--ui)); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .climate-panel .cp-date small { font-size: calc(11px * var(--uis)); font-weight: 600; color: var(--muted); margin-left: 6px; }
+  .climate-panel .rp-date svg { width: 10px; height: 10px; color: var(--muted); }
+  .climate-panel .rp-clock { flex: none; font-size: calc(26px * var(--ui)); font-weight: 900; line-height: 1; letter-spacing: .5px; color: var(--navy); }
+  .climate-panel .rp-now { flex: 1; min-width: 0; font-size: calc(12.5px * var(--ui)); font-weight: 700; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .climate-panel .rp-now b { color: var(--ink); font-weight: 800; }
+  .climate-panel .rp-legend { flex: none; display: flex; align-items: center; gap: 8px; font-size: calc(11px * var(--uis)); color: var(--muted); white-space: nowrap; }
+  .climate-panel .rp-legend span { display: inline-flex; align-items: center; gap: 3px; }
+  .climate-panel .rp-legend i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
   .climate-panel .cp-exit {
     flex: none; background: var(--navy); color: var(--on-navy); border: 0; border-radius: var(--r-pill);
-    padding: 4px 14px; min-height: 30px; min-width: 56px; /* 唯一的出口,觸控尺寸不能省 */
-    font-size: calc(12px * var(--uis)); font-weight: 800; cursor: pointer; font-family: inherit;
+    padding: 4px 16px; min-height: 34px; min-width: 60px; /* 唯一的出口,觸控尺寸不能省 */
+    font-size: calc(12.5px * var(--ui)); font-weight: 800; cursor: pointer; font-family: inherit;
   }
-  .climate-panel .cp-ctl { display: flex; flex-wrap: wrap; gap: 6px; }
-  .climate-panel .cp-seg { display: inline-flex; border: 1.5px solid var(--navy); border-radius: var(--r-pill); overflow: hidden; }
-  .climate-panel .cp-seg button {
-    border: 0; background: transparent; color: var(--navy); font-family: inherit; cursor: pointer;
-    font-size: calc(12px * var(--uis)); font-weight: 800; padding: 4px 10px; min-height: 30px; white-space: nowrap;
+  .climate-panel .rp-ctl { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .climate-panel .rp-play {
+    flex: none; min-width: 72px; min-height: 40px; padding: 0 14px; border: 0; border-radius: var(--r-m); cursor: pointer;
+    background: var(--navy); color: var(--on-navy); font: inherit; font-size: calc(14px * var(--ui)); font-weight: 800;
   }
-  .climate-panel .cp-seg button + button { border-left: 1px solid var(--navy); }
-  .climate-panel .cp-seg button.on { background: var(--navy); color: var(--on-navy); }
-  .climate-panel .cp-tl { display: flex; align-items: center; gap: 8px; }
-  .climate-panel .cp-play {
-    flex: none; width: 38px; height: 38px; border-radius: 50%; border: 0; cursor: pointer;
-    background: var(--navy); color: var(--on-navy); display: grid; place-items: center;
+  .climate-panel .rp-play.on { background: var(--red); color: #fff; }
+  .climate-panel .rp-scrub { position: relative; flex: 1; min-width: 0; height: 50px; touch-action: none; cursor: pointer; border-radius: var(--r-s); }
+  .climate-panel .rp-scrub:focus-within { outline: 2px solid var(--navy); outline-offset: 1px; }
+  .climate-panel .rp-scrub canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  /* 真正的滑桿只留給鍵盤與讀屏;手指與滑鼠走 #rpScrub 的 pointer 事件,點哪就跳哪(iOS 的 range 點軌道不會跳) */
+  .climate-panel .rp-scrub input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; pointer-events: none; }
+  .climate-panel .rp-speed, .climate-panel .rp-next {
+    flex: none; min-height: 40px; box-sizing: border-box; border-radius: var(--r-m); font: inherit;
+    font-size: calc(12.5px * var(--ui)); font-weight: 800; cursor: pointer; color: var(--navy); background: var(--paper); border: 1.5px solid var(--navy);
   }
-  .climate-panel .cp-play svg { width: 14px; height: 14px; fill: currentColor; }
-  .climate-panel .cp-tlsvg { flex: 1; min-width: 0; height: 60px; touch-action: none; cursor: pointer; }
+  .climate-panel .rp-speed { padding: 0 6px; }
+  .climate-panel .rp-next { padding: 0 12px; white-space: nowrap; }
+  .climate-panel .rp-next:disabled { color: var(--faint); border-color: var(--line); cursor: default; }
+  /* 選日期:浮在控制列上方 */
+  .climate-panel .rp-days {
+    position: absolute; left: -2px; bottom: calc(100% + 6px); width: min(540px, calc(100vw - 16px)); box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 8px; padding: 10px 12px;
+    background: var(--paper); border: 2px solid var(--navy); border-radius: var(--r-l); box-shadow: var(--shadow-navy);
+  }
+  .climate-panel .rp-days[hidden] { display: none; }
+  .climate-panel .rp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .climate-panel .rp-chips:empty { display: none; }
+  .climate-panel .rp-chips button {
+    min-height: 34px; padding: 0 12px; background: transparent; color: var(--navy); border: 1.5px solid var(--navy);
+    border-radius: var(--r-pill); font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800; cursor: pointer; white-space: nowrap;
+  }
+  .climate-panel .cp-tlsvg { display: block; width: 100%; height: 64px; touch-action: none; cursor: pointer; }
   .climate-panel .cp-tlsvg rect { fill: var(--line); }
   .climate-panel .cp-tlsvg rect.on { fill: var(--navy); }
   .climate-panel .cp-tlsvg text { font-size: 9.5px; fill: var(--muted); }
   .climate-panel .cp-tlsvg text.sp { fill: #c2410c; }
   .climate-panel .cp-tlsvg line { stroke: var(--muted); }
   .climate-panel .cp-tlsvg line.cur { stroke: var(--ink); stroke-width: 2; }
-  .climate-panel .cp-legend { display: flex; align-items: center; gap: 8px; font-size: calc(11px * var(--uis)); color: var(--muted); white-space: nowrap; }
-  .climate-panel .cp-grad { flex: 1; height: 8px; border-radius: 4px; }
-  .climate-panel .cp-note { font-size: calc(11px * var(--uis)); color: var(--muted); line-height: 1.45; }
-  .climate-panel .cp-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: calc(11.5px * var(--uis)); }
-  .climate-panel .cp-top:empty { display: none; }
-  .climate-panel .cp-toplbl { color: var(--muted); font-weight: 700; }
-  .climate-panel .cp-top button, .climate-panel .cp-retry {
-    border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: var(--r-pill);
-    padding: 2px 9px; min-height: 28px; font-family: inherit; font-size: inherit; cursor: pointer;
+  .climate-panel .rp-dnote { display: flex; align-items: center; gap: 10px; font-size: calc(11px * var(--uis)); color: var(--muted); }
+  .climate-panel .rp-dnote input { min-height: 34px; box-sizing: border-box; padding: 0 6px; font: inherit; font-size: calc(13px * var(--ui)); color: var(--ink); background: transparent; border: 1.5px solid var(--line); border-radius: var(--r-m); }
+  .replay-side {
+    position: absolute; left: 12px; top: 12px; z-index: 679; width: clamp(264px, 25vw, 336px);
+    bottom: calc(var(--rp-bar, 118px) + 30px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;
+    background: var(--paper); color: var(--ink); border: 2px solid var(--navy); border-radius: var(--r-l); box-shadow: var(--shadow-navy);
+  }
+  .replay-side.wide { width: min(600px, calc(100% - 100px)); }
+  .replay-side.shut { bottom: auto; }
+  .replay-side .rs-head {
+    flex: none; display: flex; align-items: baseline; gap: 8px; min-height: 40px; box-sizing: border-box; padding: 8px 12px; text-align: left;
+    background: var(--navy); color: var(--on-navy); border: 0; font-family: inherit; cursor: pointer;
+  }
+  .replay-side .rs-t { font-size: calc(13px * var(--ui)); font-weight: 900; letter-spacing: 3px; white-space: nowrap; }
+  .replay-side .rs-s { flex: 1; min-width: 0; font-size: calc(11px * var(--uis)); font-weight: 600; opacity: .82; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .replay-side .rs-chev { flex: none; width: 12px; height: 12px; align-self: center; transition: transform .15s; }
+  .replay-side.shut .rs-chev { transform: rotate(-90deg); }
+  .replay-side .rs-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .replay-side.shut .rs-body { display: none; }
+  .replay-side .rs-sum { flex: none; margin: 0; padding: 9px 12px 8px; font-size: calc(12.5px * var(--ui)); font-weight: 700; line-height: 1.5; border-bottom: 1px solid var(--line-faint); }
+  .replay-side .rs-sum:empty { display: none; }
+  .replay-side .rs-tabs { flex: none; display: flex; border-bottom: 1.5px solid var(--line); }
+  .replay-side .rs-tabs button {
+    flex: 1; min-height: 36px; background: transparent; color: var(--muted); border: 0; border-bottom: 3px solid transparent; margin-bottom: -1.5px;
+    font: inherit; font-size: calc(12.5px * var(--ui)); font-weight: 800; cursor: pointer;
+  }
+  .replay-side .rs-tabs button.on { color: var(--navy); border-bottom-color: var(--navy); }
+  .replay-side .rs-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; list-style: none; margin: 0; padding: 0; position: relative; }
+  .replay-side .rs-list[hidden] { display: none; }
+  .replay-side .rs-msg { padding: 14px 12px; font-size: calc(12.5px * var(--ui)); color: var(--muted); }
+  .replay-side .rs-msg button { margin-left: 6px; min-height: 30px; padding: 0 10px; background: transparent; color: var(--navy); border: 1.5px solid var(--navy); border-radius: var(--r-pill); font: inherit; font-weight: 800; cursor: pointer; }
+  .replay-side .ev + .ev { border-top: 1px solid var(--line-faint); }
+  .replay-side .evb {
+    display: grid; grid-template-columns: 3.2em 1fr auto; column-gap: 7px; align-items: baseline; width: 100%; min-height: 44px; box-sizing: border-box;
+    padding: 7px 10px 7px 13px; background: transparent; color: inherit; border: 0; text-align: left; font: inherit; cursor: pointer;
+    box-shadow: inset 4px 0 0 var(--mk, transparent);
+  }
+  .replay-side .ev[data-state="current"] .evb { background: color-mix(in srgb, var(--navy) 9%, var(--paper)); box-shadow: inset 4px 0 0 var(--mk, transparent), inset 0 0 0 2px var(--navy); }
+  .replay-side .ev-t { font-size: calc(12.5px * var(--ui)); font-weight: 800; color: var(--navy); }
+  .replay-side .ev-h { font-size: calc(13px * var(--ui)); font-weight: 800; line-height: 1.35; }
+  .replay-side .ev-x { grid-column: 2 / 4; font-size: calc(11.5px * var(--uis)); line-height: 1.4; color: var(--muted); margin-top: 1px; }
+  .replay-side .kd { font-size: calc(10px * var(--uis)); line-height: 15px; font-weight: 800; border-radius: 4px; padding: 0 6px; white-space: nowrap; background: var(--line-faint); color: var(--navy); }
+  .replay-side .rs-graph { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 4px; padding: 7px 10px 8px; }
+  .replay-side .rs-graph[hidden] { display: none; }
+  .replay-side .rs-gctl { flex: none; display: flex; gap: 8px; align-items: center; }
+  .replay-side .rs-gctl select, .replay-side .rs-gctl button {
+    min-height: 34px; box-sizing: border-box; border-radius: var(--r-m); font: inherit; font-size: calc(12px * var(--uis)); font-weight: 800;
+    color: var(--navy); background: var(--paper); border: 1.5px solid var(--navy); cursor: pointer;
+  }
+  .replay-side .rs-gctl select { flex: 1; min-width: 0; padding: 0 6px; }
+  .replay-side .rs-gctl button { flex: none; padding: 0 10px; }
+  .replay-side .rs-gctl button[aria-pressed="true"] { background: var(--navy); color: var(--on-navy); }
+  .replay-side #rsTs { flex: 1; min-height: 0; width: 100%; display: block; touch-action: pan-y; cursor: pointer; }
+  .replay-side .rs-gnote { flex: none; margin: 0; font-size: calc(11px * var(--uis)); color: var(--muted); }
+  /* 窄版:控制列置底滿版、時鐘與日期一行,清單接在控制列上方、預設收合(同歷史重播頁的窄版) */
+  @media (max-width: 999px), (max-height: 559px) {
+    .climate-panel { left: 8px; right: 8px; bottom: calc(19px + env(safe-area-inset-bottom, 0px)); padding: 6px 9px 7px; gap: 4px; }
+    .climate-panel .rp-head { flex-wrap: wrap; gap: 3px 8px; }
+    .climate-panel .rp-clock { font-size: calc(22px * var(--ui)); flex: 1; }
+    .climate-panel .rp-now { order: 3; flex: 1 1 100%; }
+    .climate-panel .rp-legend { order: 4; flex: 1 1 100%; gap: 7px; }
+    .climate-panel .rp-ctl { flex-wrap: wrap; gap: 5px 8px; }
+    .climate-panel .rp-scrub { flex: 1 1 100%; order: -1; height: 46px; }
+    .climate-panel .rp-play { flex: 1; }
+    .climate-panel .rp-next { flex: 1; }
+    .replay-side, .replay-side.wide, .replay-side.shut {
+      left: 8px; right: 8px; top: auto; width: auto; max-height: min(52dvh, 420px);
+      bottom: calc(var(--rp-bar, 190px) + 25px + env(safe-area-inset-bottom, 0px));
+    }
+    .replay-side:not(.shut) .rs-body { height: calc(min(52dvh, 420px) - 48px); }
+    .replay-side .rs-head { min-height: 44px; align-items: center; }
+  }
+  /* 手機橫放:高度不夠,控制列只留時鐘、時間軸和按鈕 */
+  @media (max-height: 459px) {
+    .climate-panel .rp-now, .climate-panel .rp-legend { display: none; }
+    .climate-panel .rp-ctl { flex-wrap: nowrap; }
+    .climate-panel .rp-scrub { flex: 1; order: 0; height: 40px; }
+    .climate-panel .rp-play, .climate-panel .rp-next { flex: none; }
+    .replay-side, .replay-side.wide, .replay-side.shut { right: auto; width: min(420px, calc(100% - 16px)); top: 8px; bottom: auto; }
+    .replay-side:not(.shut) { bottom: calc(var(--rp-bar, 110px) + 25px + env(safe-area-inset-bottom, 0px)); max-height: none; }
+    .replay-side:not(.shut) .rs-body { height: auto; }
+    .replay-side .rs-sum, .replay-side .rs-gnote { display: none; }
   }
   /* ── 錄製中常駐狀態列(2026-07-28 規格覆審,推翻原本「黑幕接管」設計的理由見 #recordScreen
      旁的完整註解)：比照 .collect-bar 的位置與結構(同樣的置頂置中、同樣的出場方式)，只換色——
@@ -5338,21 +5438,42 @@
       <button class="cb-tgl" id="collectBountyBtn" type="button" title="標出我校正過的路段">校正過的</button>
       <button class="cb-exit" id="collectExit" title="離開收集地圖，回到即時地圖">離開</button>
     </div>
-    <!-- 誤點趨勢地圖:台鐵每段「多出幾分鐘」的長期走勢、可播放。純檢視模式(見 setDelayClimate),面板是唯一的出口 -->
+    <!-- 誤點一日重播:選一天,看誤點在真實軌道上怎麼擴散。純檢視模式(見 setDelayClimate),控制列是唯一的出口 -->
+    <div class="replay-side" id="replaySide" hidden>
+      <button class="rs-head" id="rsToggle" type="button" aria-expanded="true" aria-controls="rsBody">
+        <span class="rs-t">這天的重點</span><span class="rs-s">點一列，跳到那個時刻</span>
+        <svg class="rs-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="rs-body" id="rsBody">
+        <p class="rs-sum" id="rsSum"></p>
+        <div class="rs-tabs" id="rsTabs" role="group" aria-label="切換檢視"><button type="button" data-v="list" class="on">重點</button><button type="button" data-v="graph">時間 × 路線</button></div>
+        <ol class="rs-list" id="rsList"></ol>
+        <div class="rs-graph" id="rsGraph" hidden>
+          <div class="rs-gctl"><select id="rsCor" aria-label="選路線"></select><button type="button" id="rsZoom" aria-pressed="false">放大現在</button></div>
+          <canvas id="rsTs" aria-label="一條線是一班車，橫軸時間、縱軸站；線變平代表車停住"></canvas>
+          <p class="rs-gnote">一條線一班車，線變平＝車停住。點一下跳到那個時間</p>
+        </div>
+      </div>
+    </div>
     <div class="climate-panel" id="climatePanel" hidden>
-      <div class="cp-head">
-        <span class="cp-ttl">誤點趨勢</span>
-        <span class="cp-date" id="climateDate"></span>
-        <button class="cp-exit" id="climateExit" type="button" title="離開誤點趨勢地圖，回到即時地圖">離開</button>
+      <div class="rp-days" id="rpDays" hidden>
+        <div class="rp-chips" id="rpChips"></div>
+        <svg class="cp-tlsvg" id="climateTl" role="img" aria-label="全台每天平均多出幾分鐘，點一下選那一天"></svg>
+        <div class="rp-dnote"><input type="date" id="rpDateIn" aria-label="選日期"><span>長條越高，那天全台誤點越多</span></div>
       </div>
-      <div class="cp-ctl">
-        <div class="cp-seg" id="climateWin" role="group" aria-label="統計天數"><button type="button" data-v="1">1 天</button><button type="button" data-v="3">3 天</button><button type="button" data-v="7">7 天</button></div>
-        <div class="cp-seg" id="climateMode" role="group" aria-label="顯示方式"><button type="button" data-v="inc">多出幾分</button><button type="button" data-v="prev">比前 4 週</button><button type="button" data-v="yoy">比去年</button></div>
+      <div class="rp-head">
+        <button class="rp-date" id="rpDate" type="button" aria-expanded="false" aria-controls="rpDays"><span id="rpDateTxt"></span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span class="rp-clock" id="rpClock">--:--</span>
+        <span class="rp-now" id="rpNow"></span>
+        <span class="rp-legend"><span>誤點</span><span><i style="--c:var(--rp1)"></i>5</span><span><i style="--c:var(--rp2)"></i>15</span><span><i style="--c:var(--rp3)"></i>30</span><span><i style="--c:var(--rp4)"></i>60 分以上</span></span>
+        <button class="cp-exit" id="climateExit" type="button" title="離開誤點重播，回到即時地圖">離開</button>
       </div>
-      <div class="cp-tl"><button class="cp-play" id="climatePlay" type="button"></button><svg class="cp-tlsvg" id="climateTl" role="img" aria-label="全台每天平均多出幾分鐘，點或拖曳選日期"></svg></div>
-      <div class="cp-legend" id="climateLegend" hidden><span id="climateLo"></span><span class="cp-grad" id="climateGrad"></span><span id="climateHi"></span></div>
-      <div class="cp-note" id="climateNote"></div>
-      <div class="cp-top" id="climateTop"></div>
+      <div class="rp-ctl">
+        <button class="rp-play" id="rpPlay" type="button">播放</button>
+        <div class="rp-scrub" id="rpScrub"><canvas id="rpCurve" aria-hidden="true"></canvas><input type="range" id="rpTime" min="0" max="1439" step="1" value="360" aria-label="重播時間"></div>
+        <select class="rp-speed" id="rpSpeed" aria-label="播放速度"><option value="5">慢速</option><option value="15" selected>中速</option><option value="30">快速</option></select>
+        <button class="rp-next" id="rpNext" type="button">下一個重點</button>
+      </div>
     </div>
     <!-- GPS 校正旅程錄製中的常駐狀態列(2026-07-28 規格覆審,取代原本的全螢幕黑幕接管——
          理由與取捨寫在 #recordScreen 旁)：比照上面 .collect-bar 同一個先例,地圖維持可見可操作,
@@ -5741,13 +5862,13 @@
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
         <li data-cl-of="kostatic1105"><span class="d">11/05</span><span>新增韓文網頁：30 個車站的時刻表與轉乘，還有介紹、準確度、資料來源頁都有韓文版</span></li>
+        <li data-cl-of="delayreplay1105"><span class="d">11/05</span><span>誤點趨勢改成誤點重播：選一天，看誤點從哪裡開始、怎麼一路傳開，還能跳到這天的重點時刻</span></li>
         <li data-cl-of="qtrains1104"><span class="d">11/04</span><span>地圖上的立體列車改成放大的 Q 版三節，遠看也看得清楚；可在「觀看」→「列車」→「列車大小」切回</span></li>
         <li data-cl-of="garageswap1104"><span class="d">11/04</span><span>車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車</span></li>
         <li data-cl-of="korean1104"><span class="d">11/04</span><span>介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文</span></li>
         <li data-cl-of="plusride1104"><span class="d">11/04</span><span>有軌島通行證的人，App 校正懸賞錄程的島民點數多 50%，加成不算進每天 500 點上限</span></li>
         <li data-cl-of="speedzoom1104"><span class="d">11/04</span><span>快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大</span></li>
         <li data-cl-of="garagepolish1104"><span class="d">11/04</span><span>車庫七座捷運與高鐵車站改成雙線穿過，列車來得更勤；多良、平交道、光華街也更常有車；換上新汽機車、高樓與台灣樹種，劍潭的北藝中心重做</span></li>
-        <li data-cl-of="delayclimate1103"><span class="d">11/03</span><span>新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5967,6 +6088,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="delayreplay1105"><span class="d">11/05</span><span>誤點趨勢改成誤點重播：選一天，看誤點從哪裡開始、怎麼一路傳開，還能跳到這天的重點時刻</span></li>
         <li data-cl="delayclimate1103"><span class="d">11/03</span><span>新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開</span></li>
         <li data-cl="krtcterminal1030"><span class="d">10/30</span><span>高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」</span></li>
         <li data-cl="ntmegress1005"><span class="d">10/5</span><span>淡海、安坑、環狀線的即時列車資料改由全站集中一處向新北捷運官網查詢，再分送給所有訪客；正常情況下官網收到的查詢為淡海、安坑約每 55 秒、環狀線約每 60 秒一次，不隨觀看人數與地區增加；集中查詢沒有回應時，改由備援補上資料，不會一直空等</span></li>
@@ -6689,7 +6811,7 @@
     <!-- 週末鐵道活動:內容在 weekend.html(正式網站獨立頁,App 內開系統瀏覽器) -->
     <button class="ms-row" data-act="weekend" data-close="1"><span>週末鐵道活動</span><span class="chev">›</span></button>
     <button class="ms-row" data-proxy="todayBtn" data-close="1" data-home="query"><span>今日台鐵動態</span><span class="chev">›</span></button>
-    <button class="ms-row" data-act="climate" data-home="query"><span>誤點趨勢地圖</span><span class="chev">›</span></button>
+    <button class="ms-row" data-act="climate" data-home="query"><span>誤點重播</span><span class="chev">›</span></button>
     <!-- 全日班次走勢(Batch B):.flow 全日走勢圖的手機新家;點列把 #flowWrap 搬進下方 slot 並重繪,收合搬回原位 -->
     <button class="ms-row" data-act="flow"><span>全日班次走勢</span><span class="chev">›</span></button>
     <div class="ms-flowslot" id="msFlowSlot" hidden></div>
@@ -7247,6 +7369,7 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1104b：拿掉 ≥30× 的縮放上限（HISPEED_ZOOM_CAP）：放慢時只還原到 z20（引擎原本 z23），30× 時滾過滾輪更會留在 z16 解不開、要重新整理；底圖已不按張計費（OpenFreeMap 免費、z14 以上不再多抓，Esri 40 張後換 session），這道鎖沒有作用了
 // v1104c：通行證錄程加成打開（規則檔 chips.plusBonusPct 50，判定在 worker.js），網頁本身沒有改行為，這裡只有更新紀錄。
 // v1104d：韓文版——語言列加한국어、介面與使用說明字典、介紹／準確度／資料來源／法律／活動頁；路線圖連結走英文頁；車庫 3D 畫面加換列車鈕，車站頁仍是繁中（/ko/ 靜態樹另開）；Worker 送審 build 加 230。；Q 版列車（放大三節，預設開，全員免費）跟這版一起出。
+// v1105a：誤點趨勢改成一日重播（/api/delay-replay、D1 tra_delay_replay、算法在 scripts/delay_replay.mjs）；舊的 1／3／7 天窗與比前 4 週／去年拿掉，/api/delay-climate 只留給選日期的長條。
 // v1105b：韓文靜態頁 /ko/——車站時刻 30 頁＋索引、介紹／準確度／資料來源、著陸頁，hreflang 與 sitemap 帶到；網站首次開啟仍是繁中。
 const BUILD = 'v1105b';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
@@ -7919,7 +8042,7 @@ const state = {
   panelTranslucent: document.body.classList.contains('panel-translucent'), // 面板半透明:預設關,偏好由首繪腳本從 localStorage 還原
   ambientStyle: 'hotspot', // 放空視角:follow=跟著一班車跑 / hotspot=群車(鏡頭掛在最繁忙路段看群車交錯);預設群車(v0717v)
   collectMap: false, // 收集地圖:全路網轉灰、只有搭過的區間亮起(純檢視,不動任何收集資料),見 setCollectMap
-  delayClimate: false, // 誤點趨勢地圖:全路網轉灰、台鐵區間依「多出幾分鐘」上色,見 setDelayClimate
+  delayClimate: false, // 誤點重播:全路網轉灰、畫當天每班車,見 setDelayClimate
   collectBounty: false, // 收集地圖的懸賞層:我校正過的段用特殊色(規格 §8「換一層資料即可」)
   recording: null,   // 錄製中的校正旅程;非 null 代表正在錄,見 startBountyRecording
   metroWait: null,   // 捷運等車卡(Live Activity 手動入口)開卡中的目標:{sys,station} 或 null,見 metroWaitStartFor
@@ -14207,7 +14330,7 @@ function railMix(color, keep) { // 純混色(向底圖色 railCase),帶快取
 function railDimColor(color, keep = RAIL_DIM) { // 僅暗色壓暗;衛星底圖明暗不均,壓暗後軌道近隱形→原色直出
   return state.mapDark && state.basemap !== 'sat' && state.basemap !== 'landscape' ? railMix(color, keep) : color;
 }
-// 收集地圖與誤點趨勢地圖都是「全路網轉灰、不畫跑動的車」的靜態檢視
+// 收集地圖與誤點重播都是「全路網轉灰、不畫跑動的車」的靜態檢視
 function greyNet() { return state.collectMap || state.delayClimate; }
 // 軌道底圖線最終色:吃「軌道顯示」選項
 function trackLineColor(color) {
@@ -14548,7 +14671,7 @@ function drawSched(w, h, paintDecoTrains) {
       { lines: state.deco ? state.decoLines : null, color: metroLineColor },
     ]);
     if (state.collectMap) drawCollectSegs(w, h); // 灰底線鋪完才描亮段,順序反了會被灰線蓋掉
-    if (state.delayClimate) drawClimateSegs(w, h);
+    if (state.delayClimate) drawReplaySegs(w, h);
   }
   // 跟隨路線高亮:奶白外描+加粗實線(取代模糊光暈),描在軌道上、車站與列車下
   // 「隱藏」模式不畫——這個模式就是純流星畫面,跟隨路線也不留
@@ -14629,6 +14752,7 @@ function drawSched(w, h, paintDecoTrains) {
     });
   }
   flushTrainPaint(); // 捷運＋台鐵＋高鐵的車一起排序後畫:交叉口依真實高低,其餘維持原順序
+  if (state.delayClimate) drawReplayTrains(w, h);
   ownTrainDraw2D(); // 自製列車獨立一輪繪製,畫在真車上面
   // 站名標籤:大站先取位、字級隨站等、蓋在列車上層;錨點放軌道側邊(法線方向)——
   // 列車沿軌道跑就壓不到字,標籤與車號牌位置都固定不動(對列車做避讓會讓牌亂跳,已撤)
@@ -18980,6 +19104,7 @@ function draw() {
   if (glTracksActive()) { glTracksSync(); glStationClipSync(); } // GL 軌道:狀態沒變就早退(簽名比對),有變才 setFilter/setPaintProperty
   glPlaceDedupSync(); // 底圖地名、機場名跟站名同名就不畫底圖那個(竹北站旁的「竹北市」、松山機場站旁的「臺北松山機場」);沒變就早退
   if (state.mode === 'sched') { if (state.deco) drawDecoBase(w, h); drawSched(w, h, state.deco ? () => drawDecoTrains(w, h) : null); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
+  if (state.delayClimate) drawReplayOverlay(w);
   drawMe(); // 「我的位置」畫最後=在所有軌道與列車之上,不會被蓋掉
   drawJourneyShareMarker(); // 收件端的分享位置同樣是移動元素：永遠畫在真實座標，不做碰撞位移
   if (skyTop > 0) ctx.clearRect(0, 0, w, skyTop); // 兜底：地平線外殘留的像素（列下方標記伸上去的部分）不可浮在天空。
@@ -19059,6 +19184,7 @@ function tickCore(now) {
   state._stg = 't'; // 診斷條 st 欄:本幀走到哪(t=core 起點,d=進 draw,i=本幀完繪)
   if (!state.t0) state.t0 = now;
   const dt = (now - state.t0) / 1000; state.t0 = now;
+  if (state.delayClimate) replayAdvance(dt);
   // _scrubTime=正在拖時刻尺:暫停時間積分,免得拖曳與播放互相拉扯(放手即自動續播,state.playing 不動)
   if (state.playing && !state._scrubTime) {
     if (state.mode === 'sched') {
@@ -19739,6 +19865,7 @@ function selectGroup(g, keepView, keepLastView) {
   if (!state.systems.length) return; // 預渲染期(資料未載入)頁籤先不動作,boot 完成後恢復
   if (!keepLastView) state._lastViewHold = false;
   if (state.group === g.id) return;
+  if (state.delayClimate && g.id !== 'all' && g.id !== 'tra') setDelayClimate(false);   // 別的分頁沒有台鐵路網,重播接不下去
   const keep = !!keepView && groupInView(g);
   if (g.mode === 'all') loadAllGroup(g, keep);
   else if (g.mode === 'sched') loadSchedGroup(g, null, keep);
@@ -26658,23 +26785,35 @@ function setCollectMap(on) {
   }
   if (state.ready) draw();
 }
-// ── 誤點趨勢地圖(/api/delay-climate):台鐵每一段「多出幾分鐘」的長期走勢,可播放 ──
-// 一段的值＝列車開過這段,平均多出幾分鐘(下一站誤點 − 上一站誤點;資料與算法見 worker.js 的 climateDayAgg)。
-// 畫誤點本身會讓下游整片紅(誤點會往後傳),畫增量才看得出是哪一段在製造誤點;負值＝這段會把誤點追回來。
-// 跟收集地圖同一類:全路網轉灰、不畫跑動的車(greyNet),只把有資料的台鐵區間描上顏色。
-// 數值一律做區間平滑(同一條線、段中心前後 10 公里內的段一起加總):大站常見「進站追回、出站又多」的一正一負,
-// 逐段看滿地紅綠交錯,平滑後才看得到大趨勢。色階照平滑後的真資料分位數定(7 日窗 P1 −0.14、P99 +0.35)。
-// 2025-01-21～2026-11-02 的驗證:相鄰 4 週窗相關 0.85、一年後同期 0.43,所以「比去年」看得到演化。
-const climate = { data: null, loading: false, err: false, d: 0, k: 7, mode: 'inc', timer: null, net: null, sig: '' };
-const CLIMATE_STEP_MS = 110;   // 播放一天的間隔:650 天約 70 秒播完
-const CLIMATE_SCALE = {
-  inc: [[-0.15, '#14a39a'], [0, null], [0.075, '#f0b429'], [0.2, '#e4572e'], [0.4, '#a4167a']],
-  chg: [[-0.125, '#2f6fde'], [0, null], [0.125, '#d93a3a']],
-};
+// ── 誤點一日重播(/api/delay-replay):一天裡每班車的誤點畫在真實軌道上,看它從哪一段開始、怎麼往外傳 ──
+// 每班車是一串影格 [車次, 站索引[], 分鐘[], 誤點[]],兩影格之間線性內插(車停住時誤點大致 1:1 往上加,不需要時刻表)。
+// 軌道熱度＝近 40 分鐘開過這段的車裡誤點最多的那班,時間越久越淡;車跟軌道同一套色階。
+// 跟收集地圖同一類 greyNet:路網轉灰、不畫即時的車,車由 drawReplayTrains 畫在重播時間的位置。
+// /api/delay-climate 只拿來畫選日期的長條(全台每天平均多出幾分鐘)。
+const climate = { data: null, loading: false, err: false };
+const replay = { day: '', data: null, loading: '', err: false, t: 300, playing: false, speed: 15, sel: null, shown: -1, drag: false,
+  heat: null, late: null, net: null, now: [], mo: -1, tab: 'list', cor: 0, zoom: false, zc: 0, tsc: null, stat: '' };
+const RP_BINS = 288;   // 5 分鐘一格
+const RP_COL = [null, '#f0b429', '#e8792b', '#d4322f', '#8e1173'];
+const RP_CORRIDORS = [
+  { name: '西部幹線（山線）', path: ['基隆', '竹南', '彰化', '高雄'], via: ['縱貫線北段', '山線', '縱貫線南段'] },
+  { name: '西部幹線（海線）', path: ['基隆', '竹南', '彰化', '高雄'], via: ['縱貫線北段', '海線', '縱貫線南段'] },
+  { name: '東部幹線', path: ['八堵', '蘇澳新', '花蓮', '臺東'], via: ['宜蘭線', '北迴線', '臺東線'] },
+  { name: '屏東線＋南迴線', path: ['高雄', '枋寮', '臺東'], via: ['屏東線', '南迴線'] },
+];
+const rpBin = d => d >= 60 ? 4 : d >= 30 ? 3 : d >= 15 ? 2 : d >= 5 ? 1 : 0;
+const rpColor = d => RP_COL[rpBin(d)] || pal().collectGrey;
+const rpHhmm = m => { m = Math.max(0, Math.min(1439, Math.floor(m))); return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+const rpName = s => String(s).replace(/\s*\(.*\)$/, '').replace(/台/g, '臺');
+const rpSt = n => stationName(n, 'tra_sched');
+function rpDur(m) {
+  m = Math.round(m);
+  const h = Math.floor(m / 60), r = m % 60;
+  return h ? (r ? t('{h} 小時 {m} 分', { h, m: r }) : t('{h} 小時', { h })) : t('{m} 分', { m: r });
+}
 // 段鍵規則同 worker.js 的 climateKey:站名去括號、台→臺,兩端排序後用 | 接
 function climateKey(a, b) {
-  const n = s => String(s).replace(/\s*\(.*\)$/, '').replace(/台/g, '臺');
-  a = n(a); b = n(b);
+  a = rpName(a); b = rpName(b);
   return a < b ? a + '|' + b : b + '|' + a;
 }
 function climateLoad() {
@@ -26685,235 +26824,614 @@ function climateLoad() {
     .then(j => {
       const T = j.have.length, t0 = Date.parse(j.d0 + 'T00:00:00Z'), segs = j.segs;
       const days = Array.from({ length: T }, (_, i) => new Date(t0 + i * 864e5).toISOString().slice(0, 10));
-      // 全台每天平均(不平滑):時間軸的長條,一眼看出哪幾天特別糟
       const nat = days.map((_, i) => { let n = 0, x = 0; for (const k in segs) { n += segs[k].N[i]; x += segs[k].S[i]; } return n ? x / n : null; });
-      climate.data = { days, have: j.have, segs, nat };
-      climate.d = T - 1; climate.sig = '';
+      climate.data = { days, have: j.have, nat };
     })
     .catch(() => { climate.err = true; })
-    .finally(() => { climate.loading = false; climateRender(); if (state.ready) draw(); if (climate.data && state.delayClimate) climateFit(); });
-  climateRender();
+    .finally(() => {
+      climate.loading = false;
+      if (!state.delayClimate) return;
+      if (climate.data && !replay.day) replayLoadDay(rpWorst(30));
+      replayRender();
+    });
+  replayRender();
 }
-// 台鐵各線的段,外加段鍵與平滑鄰居(同一條線、段中心相距 10 公里內,含自己)。trackLines 換了才重建。
-function climateNet() {
-  if (climate.net && climate.net.src === state.trackLines) return climate.net.recs;
-  const recs = [];
+// 近 n 天(沒給就全部)裡全台最糟的一天
+function rpWorst(n) {
+  const D = climate.data, last = D.days.length - 1;
+  let best = last, bv = -Infinity;
+  for (let i = last; i >= (n ? Math.max(0, last - n + 1) : 0); i--) if (D.have[i] === '1' && (D.nat[i] ?? -Infinity) > bv) { bv = D.nat[i]; best = i; }
+  return D.days[best];
+}
+// 台鐵路網:站與段(同一對站出現在兩條線上只留一段)。trackLines 換了才重建。
+function rpNet() {
+  if (replay.net && replay.net.src === state.trackLines) return replay.net;
+  const nodes = new Map(), edges = [], seen = new Set();
+  const node = (n, p) => { let v = nodes.get(n); if (!v) nodes.set(n, v = { n, lat: p.lat, lon: p.lon, adj: [] }); return v; };
   for (const rec of lineNetwork().values()) {
     if (rec.sys !== 'tra_sched') continue;
-    const segs = rec.segs.map(s => ({ ...s, ck: climateKey(s.a, s.b), v: null }));
-    for (const s of segs) s.nb = [...new Set(segs.filter(o => Math.abs(o.mid - s.mid) <= 10).map(o => o.ck))];
-    recs.push({ ln: rec.ln, id: rec.id, segs });
-  }
-  climate.net = { src: state.trackLines, recs };
-  climate.sig = '';
-  return recs;
-}
-function climateSum(ck, a, b) {
-  const s = climate.data.segs[ck];
-  let n = 0, x = 0;
-  if (s) for (let i = Math.max(0, a); i <= b; i++) { n += s.N[i]; x += s.S[i]; }
-  return [n, x];
-}
-function climateSmooth(seg, a, b) {
-  if (!climateSum(seg.ck, a, b)[0]) return [0, 0];   // 自己沒資料就不跟鄰居借
-  let n = 0, x = 0;
-  for (const k of seg.nb) { const [n1, x1] = climateSum(k, a, b); n += n1; x += x1; }
-  return [n, x];
-}
-// 班次太少就不上色:單日窗 20 班、多日窗 40 班;比較基準要 90 班
-function climateValue(seg) {
-  const { d, k, mode } = climate;
-  const [n, x] = climateSmooth(seg, d - k + 1, d);
-  const cur = n >= (k === 1 ? 20 : 40) ? x / n : null;
-  if (mode === 'inc' || cur == null) return cur;
-  // 比較基準:緊接在這個窗之前的 4 週,或去年同一天前後各兩週
-  const [a, b] = mode === 'yoy' ? [d - 364 - 13, d - 364 + 14] : [d - k - 27, d - k];
-  if (a < 0) return null;
-  const [bn, bx] = climateSmooth(seg, a, b);
-  return bn < 90 ? null : cur - bx / bn;
-}
-function climateValues() {
-  const recs = climateNet(), sig = climate.d + '|' + climate.k + '|' + climate.mode;
-  if (climate.sig !== sig) {
-    for (const rec of recs) for (const s of rec.segs) s.v = climateValue(s);
-    climate.sig = sig;
-  }
-  return recs;
-}
-function climateStops() {
-  const z = pal().collectGrey;   // 0＝持平,跟灰底線同色
-  return CLIMATE_SCALE[climate.mode === 'inc' ? 'inc' : 'chg'].map(([x, c]) => [x, c || z]);
-}
-function climateColor(stops, v) {
-  const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
-  if (v <= stops[0][0]) return stops[0][1];
-  for (let i = 1; i < stops.length; i++) if (v <= stops[i][0]) {
-    const f = (v - stops[i - 1][0]) / (stops[i][0] - stops[i - 1][0]), a = rgb(stops[i - 1][1]), b = rgb(stops[i][1]);
-    return 'rgb(' + a.map((c, j) => Math.round(c + (b[j] - c) * f)).join(',') + ')';
-  }
-  return stops[stops.length - 1][1];
-}
-// 疊在灰底線之上、車站之下(同 drawCollectSegs 的位置與守門)。
-// 不用 drawSegOnShape:它每段先描外框再描色,相鄰段的圓頭外框會蓋掉前一段的尾巴,整條線每到一站就斷一截;
-// 這裡是整條線都上色,所以先描完全部外框、再描全部顏色。
-function drawClimateSegs(w, h) {
-  if (!climate.data) return;
-  const stops = climateStops(), paths = [];
-  const inPad = p => p.x >= -60 && p.x <= w + 60 && p.y >= -60 && p.y <= h + 60;
-  for (const rec of climateValues()) {
-    if (state.trackVisible && !state.trackVisible.has(rec.id)) continue;
-    const ln = rec.ln;
-    if (ln._bbox && (ln._bbox[2] < -40 || ln._bbox[0] > w + 40 || ln._bbox[3] < -40 || ln._bbox[1] > h + 40)) continue;
+    ensureCum(rec.ln);
     for (const s of rec.segs) {
-      if (s.v == null) continue;
-      const pts = ln.shape ? shapeSlice(ln, s.dA, s.dB) : [s.pA, s.pB];
-      if (pts.length < 2) continue;
-      const sp = pts.map(p => M.toScreen([p.lat, p.lon]));
-      if (sp.some(inPad)) paths.push([sp, climateColor(stops, s.v)]);
+      const a = rpName(s.a), b = rpName(s.b), k = climateKey(a, b);
+      if (a === b || seen.has(k)) continue;
+      seen.add(k);
+      const e = { i: edges.length, km: s.km, ln: rec.ln, dA: s.dA, dB: s.dB, pA: s.pA, pB: s.pB, pts: null };
+      edges.push(e);
+      node(a, s.pA).adj.push([b, e, false]); node(b, s.pB).adj.push([a, e, true]);
     }
   }
+  replay.net = { src: state.trackLines, nodes, edges, memo: new Map(), cors: null };
+  if (replay.data) rpPrep();
+  return replay.net;
+}
+// 兩站之間最短的軌道:紀錄常跳過不停的站,要靠路網補回中間那幾段
+function rpRoute(a, b) {
+  const N = rpNet(), key = a + '|' + b;
+  if (N.memo.has(key)) return N.memo.get(key);
+  const dist = new Map([[a, 0]]), prev = new Map(), done = new Set();
+  for (;;) {
+    let u = null, du = Infinity;
+    for (const [n, d] of dist) if (!done.has(n) && d < du) { u = n; du = d; }
+    if (u == null || u === b) break;
+    done.add(u);
+    for (const [v, e, rev] of N.nodes.get(u)?.adj || []) if (du + e.km < (dist.get(v) ?? Infinity)) { dist.set(v, du + e.km); prev.set(v, [u, e, rev]); }
+  }
+  let r = null;
+  if (a !== b && dist.has(b)) {
+    const km = dist.get(b), hops = [];
+    for (let v = b; v !== a; v = prev.get(v)[0]) hops.unshift(prev.get(v));
+    let acc = 0;
+    r = { km, hops: hops.map(([, e, rev]) => { const h = { e, rev, f0: acc / km, f1: (acc + e.km) / km }; acc += e.km; return h; }) };
+  }
+  N.memo.set(key, r);
+  return r;
+}
+function rpAlong(r, f) {
+  const last = r.hops[r.hops.length - 1];
+  for (const h of r.hops) if (f <= h.f1 || h === last) {
+    const g = (f - h.f0) / ((h.f1 - h.f0) || 1), x = h.rev ? 1 - g : g, e = h.e;
+    if (e.ln.shape) return posAlongShape(e.ln, e.dA + (e.dB - e.dA) * x);
+    return { lat: e.pA.lat + (e.pB.lat - e.pA.lat) * x, lon: e.pA.lon + (e.pB.lon - e.pA.lon) * x };
+  }
+}
+function rpKf(tt, m) {
+  let lo = 0, hi = tt.length - 1;
+  if (m < tt[0] || m > tt[hi]) return -1;
+  while (hi - lo > 1) { const c = (lo + hi) >> 1; if (tt[c] <= m) lo = c; else hi = c; }
+  return lo;
+}
+function rpDelayAt(tt, d, m) {
+  const k = rpKf(tt, m);
+  if (k < 0) return 0;
+  if (k + 1 >= tt.length) return d[k];
+  return d[k] + (d[k + 1] - d[k]) * (m - tt[k]) / ((tt[k + 1] - tt[k]) || 1);
+}
+// 算一次:每段每 5 分鐘開過的車裡最大的誤點(軌道熱度)、每 5 分鐘全台誤點 5 分以上的車數(時間軸曲線)
+function rpPrep() {
+  const D = replay.data, N = rpNet();
+  const heat = new Float32Array(N.edges.length * RP_BINS), late = new Uint16Array(RP_BINS);
+  for (const [, s, tt, d] of D.tr) {
+    for (let k = 0; k + 1 < tt.length; k++) {
+      if (s[k] === s[k + 1]) continue;
+      const r = rpRoute(D.names[s[k]], D.names[s[k + 1]]);
+      if (r) for (const h of r.hops) {
+        const f = (h.f0 + h.f1) / 2, m = tt[k] + (tt[k + 1] - tt[k]) * f, dd = d[k] + (d[k + 1] - d[k]) * f;
+        const o = h.e.i * RP_BINS + Math.min(RP_BINS - 1, Math.max(0, m / 5 | 0));
+        if (dd > heat[o]) heat[o] = dd;
+      }
+    }
+    for (let b = Math.ceil(tt[0] / 5); b < RP_BINS && b * 5 <= tt[tt.length - 1]; b++) if (rpDelayAt(tt, d, b * 5) >= 5) late[b]++;
+  }
+  replay.heat = heat; replay.late = late;
+}
+function rpTrainAt(tr, m) {
+  const [no, s, tt, d] = tr, k = rpKf(tt, m);
+  if (k < 0) return null;
+  const names = replay.data.names, k2 = Math.min(k + 1, tt.length - 1), dt = (tt[k2] - tt[k]) || 1;
+  const f = Math.max(0, Math.min(1, (m - tt[k]) / dt)), a = names[s[k]], b = names[s[k2]], dl = d[k] + (d[k2] - d[k]) * f;
+  let p, stuck = 0;
+  if (a === b) { p = rpNet().nodes.get(a); if (dt >= 10 && d[k2] - d[k] >= 5) stuck = m - tt[k]; }
+  else {
+    const r = rpRoute(a, b);
+    if (r) { p = rpAlong(r, f); if (dt >= 12 && r.km / dt * 60 < 12 && d[k2] - d[k] >= 5) stuck = m - tt[k]; }
+    else p = rpNet().nodes.get(a);
+  }
+  return p ? { no, lat: p.lat, lon: p.lon, d: dl, stuck, a, b, x: 0, y: 0 } : null;
+}
+// 疊在灰底線之上、車站之下(同 drawCollectSegs 的位置與守門)
+function drawReplaySegs(w, h) {
+  if (!replay.data || !replay.heat) return;
+  const N = rpNet(), b = Math.min(RP_BINS - 1, replay.t / 5 | 0), paths = [];
+  const inPad = p => p.x >= -60 && p.x <= w + 60 && p.y >= -60 && p.y <= h + 60;
+  for (const e of N.edges) {
+    let v = 0;
+    for (let k = 0; k < 8 && b - k >= 0; k++) { const q = replay.heat[e.i * RP_BINS + b - k] * (1 - k / 10); if (q > v) v = q; }
+    if (v < 5) continue;
+    if (!e.pts) e.pts = e.ln.shape ? shapeSlice(e.ln, e.dA, e.dB) : [e.pA, e.pB];
+    if (e.pts.length < 2) continue;
+    const sp = e.pts.map(p => M.toScreen([p.lat, p.lon]));
+    if (sp.some(inPad)) paths.push([sp, v]);
+  }
+  paths.sort((x, y) => x[1] - y[1]);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = pal().railCase; ctx.lineWidth = 6.6;
+  ctx.strokeStyle = pal().railCase; ctx.lineWidth = 7.4;
   for (const [sp] of paths) { ctx.beginPath(); tracePolyline(sp); ctx.stroke(); }
-  ctx.lineWidth = 4;
-  for (const [sp, c] of paths) { ctx.beginPath(); tracePolyline(sp); ctx.strokeStyle = c; ctx.stroke(); }
+  for (const [sp, v] of paths) { ctx.beginPath(); tracePolyline(sp); ctx.strokeStyle = rpColor(v); ctx.lineWidth = v >= 30 ? 5 : v >= 15 ? 4.2 : 3.4; ctx.stroke(); }
 }
-const climateSigned = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(2);
-function climateDayLabel(i, withYear) {
-  const [y, m, d] = climate.data.days[Math.max(0, i)].split('-').map(Number);
-  return (withYear ? y + '/' : '') + m + '/' + d;
+// 事發點與「傳到」的站:時間走到才出現,整天的擴散一眼留在地圖上。站名牌是靜態的,撞到才上下錯開。
+function drawReplayPins(w) {
+  const N = rpNet(), H = 20, placed = [];
+  ctx.save();
+  ctx.font = '700 11px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.lineWidth = 1.5;
+  const paper = pal().railCase, ink = pal().lbl;
+  for (const m of replay.data.m) {
+    const n = m.k === 'reach' ? m.to : (m.k === 'start' || m.k === 'other') ? m.a : null, nd = n && N.nodes.get(n);
+    if (!nd || m.t > replay.t) continue;
+    const p = M.toScreen([nd.lat, nd.lon]);
+    const west = nd.lon < 120.6 + (nd.lat - 22) * 0.35;   // 中央山脈西側的站,牌子往海峽那邊擺
+    const txt = rpHhmm(m.t) + ' ' + (m.k === 'reach' ? t('傳到{s}', { s: rpSt(n) }) : m.k === 'start' ? t('{s}最早卡住', { s: rpSt(n) }) : t('{s}也卡住', { s: rpSt(n) }));
+    const W = ctx.measureText(txt).width + 14, x = Math.max(6, Math.min(w - W - 6, west ? p.x - 18 - W : p.x + 18));
+    let y = p.y - H / 2;
+    for (let i = 1; i < 12 && placed.some(r => x < r.x + r.w && r.x < x + W && y < r.y + H + 3 && r.y < y + H + 3); i++) y = p.y - H / 2 + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * (H + 3);
+    placed.push({ x, y, w: W });
+    const red = m.k !== 'reach';
+    ctx.strokeStyle = red ? RP_COL[3] : ink; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(west ? x + W : x, y + H / 2); ctx.stroke();
+    ctx.fillStyle = paper; ctx.beginPath(); ctx.roundRect(x, y, W, H, 5); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = red ? RP_COL[3] : ink; ctx.fillText(txt, x + 7, y + H / 2 + .5);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 4.5, 0, 7); ctx.fillStyle = paper; ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
 }
-function climateRender() {
+function drawReplayTrains(w, h) {
+  if (!replay.data) return;
+  const now = [];
+  for (const tr of replay.data.tr) { const q = rpTrainAt(tr, replay.t); if (q) now.push(q); }
+  now.sort((a, b) => a.d - b.d);
+  replay.now = now;
+  const z = M.getZoom(), tags = z >= 10.5, pulse = 2 * Math.sin(performance.now() / 180), halo = pal().railCase;
+  let late = 0, stuck = 0;
+  for (const q of now) {
+    if (q.d >= 5) late++;
+    if (q.stuck >= 10) stuck++;
+    const p = mapDetailPoint([q.lat, q.lon]);
+    q.x = p.x; q.y = p.y;
+    if ((p.detailOpacity ?? 1) <= 0 || p.x < -14 || p.x > w + 14 || p.y < -14 || p.y > h + 14) { q.x = q.y = -999; continue; }
+    if (tags && q.d >= 5) drawTag(p, q.no, rpColor(q.d), rpBin(q.d) === 1 ? '#3a2a05' : '#fff', false);
+    else {
+      const r = q.d >= 30 ? 5.5 : q.d >= 5 ? 4.5 : 2.8;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fillStyle = rpColor(q.d); ctx.fill();
+      ctx.lineWidth = 1.2; ctx.strokeStyle = halo; ctx.stroke();
+    }
+    if (q.stuck >= 10 && z >= 9.5) { ctx.beginPath(); ctx.arc(p.x, p.y, (tags ? 15 : 9) + pulse, 0, 7); ctx.strokeStyle = RP_COL[4]; ctx.lineWidth = 1.6; ctx.stroke(); }
+  }
+  const stat = now.length + '|' + late + '|' + stuck;
+  if (stat !== replay.stat) {
+    replay.stat = stat;
+    document.getElementById('rpNow').innerHTML = t('<b>{n}</b> 班在路上・<b>{l}</b> 班誤點 5 分以上', { n: now.length, l: late }) + (stuck ? t('・<b>{s}</b> 班停住', { s: stuck }) : '');
+  }
+}
+// 站牌與選取的車次牌:蓋在站名之上,不然跟站名疊在一起讀不出來
+function drawReplayOverlay(w) {
+  if (!replay.data) return;
+  drawReplayPins(w);
+  const q = replay.now.find(x => x.no === replay.sel && x.x > -999);
+  if (!q) return;
+  const lbl = t('{no} 次 誤點 {d} 分', { no: q.no, d: Math.round(q.d) }) + (q.stuck >= 10 ? t(' 已停 {m} 分', { m: Math.round(q.stuck) }) : '');
+  ctx.beginPath(); ctx.arc(q.x, q.y, 9, 0, 7); ctx.strokeStyle = pal().lbl; ctx.lineWidth = 2.5; ctx.stroke();
+  drawTag({ x: q.x, y: q.y - 22 }, lbl, RP_COL[rpBin(q.d)] || '#5f6b78', rpBin(q.d) === 1 ? '#3a2a05' : '#fff', false);
+}
+// 點車看車次;模式裡點別的地方只是收掉選取(站牌、車卡都是看「現在」的,不屬於這一天)
+function replayTap(cp) {
+  let best = null, bd = 18;
+  for (const q of replay.now) { const d = Math.hypot(q.x - cp.x, q.y - cp.y); if (d <= bd) { bd = d; best = q; } }
+  replay.sel = best ? best.no : null;
+  replay.tsc = null;
+  rpGraphDraw();
+  if (state.ready) draw();
+}
+function rpMoment(m) {
+  const s = rpSt, r = { start: () => [t('{a}—{b} 開始卡住', { a: s(m.a), b: s(m.b) }), t('{no} 次本來準點，這段多出 {inc} 分；45 分鐘內 {n} 班車在{x}—{y}一帶卡住', { no: m.no, inc: m.inc, n: m.n, x: s(m.area[0]), y: s(m.area[1]) }), t('事發'), RP_COL[3]],
+    stall: () => [t('{no} 次在{a}—{b}停了 {d}', { no: m.no, a: s(m.a), b: s(m.b), d: rpDur(m.t1 - m.t0) }), t('{x} 到 {y}，誤點多了 {inc} 分', { x: rpHhmm(m.t0), y: rpHhmm(m.t1), inc: m.inc }), t('停住'), RP_COL[4]],
+    reach: () => [t('誤點傳到{s}', { s: s(m.to) }), t('開始卡住後 {d}，{no} 次到這裡時誤點 {x} 分', { d: rpDur(m.after), no: m.no, x: m.d }), t('傳到'), RP_COL[1]],
+    other: () => [t('{a}—{b} 也卡住', { a: s(m.a), b: s(m.b) }), t('另一處，{n} 班車在這裡多出分鐘', { n: m.n }), t('另一處'), RP_COL[3]],
+    peak: () => [t('最多 {n} 班同時誤點', { n: m.n }), m.after >= 60 ? t('比最早卡住晚了 {d}。誤點會一路累積，大事故的尖峰通常晚 4 小時左右', { d: rpDur(m.after) }) : t('全台誤點 5 分以上的車，這天這時候最多'), t('尖峰'), 'var(--navy)'],
+    small: () => [t('{a}—{b} 多出 {inc} 分', { a: s(m.a), b: s(m.b), inc: m.inc }), t('{no} 次，這天最明顯的一段', { no: m.no }), t('小狀況'), RP_COL[1]],
+    night: () => [t('半夜還有 {n} 班誤點', { n: m.n }), replay.data.sum.k === 'event' && m.n >= 10 ? t('到收班都還沒回到準點。大事故的日子有六成多會這樣，平常不到一成') : t('到收班都還沒回到準點'), t('收尾'), 'var(--navy)'] };
+  return r[m.k]();
+}
+function rpSummary(s) {
+  if (s.k !== 'event') return t('這天沒有大事故，{t} 最多 {n} 班同時誤點', { t: rpHhmm(s.pkT), n: s.pk });
+  const far = s.farTo ? t('，{d}後傳到{s}', { d: rpDur(s.farAfter), s: rpSt(s.farTo) }) : '';
+  return t('{t} {a}—{b}一帶開始卡住{far}，{p} 最多 {n} 班同時誤點', { t: rpHhmm(s.t), a: rpSt(s.area[0]), b: rpSt(s.area[1]), far, p: rpHhmm(s.pkT), n: s.pk });
+}
+function replayRender() {
   const panel = document.getElementById('climatePanel');
   if (!panel || panel.hidden) return;
-  const D = climate.data, dateEl = document.getElementById('climateDate');
-  panel.querySelectorAll('#climateWin button').forEach(b => b.classList.toggle('on', +b.dataset.v === climate.k));
-  panel.querySelectorAll('#climateMode button').forEach(b => b.classList.toggle('on', b.dataset.v === climate.mode));
-  document.getElementById('climatePlay').innerHTML = climate.timer
-    ? '<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="1" width="3.6" height="12" rx="1"/><rect x="8.4" y="1" width="3.6" height="12" rx="1"/></svg>'
-    : '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.2v11.6a.6.6 0 0 0 .9.5l9.2-5.8a.6.6 0 0 0 0-1L3.9.7a.6.6 0 0 0-.9.5z"/></svg>';
-  document.getElementById('climatePlay').setAttribute('aria-label', climate.timer ? t('暫停') : t('播放'));
-  const note = document.getElementById('climateNote'), top = document.getElementById('climateTop');
+  const D = replay.data, list = document.getElementById('rsList'), sum = document.getElementById('rsSum'), day = replay.day;
+  if (day) {
+    const [y, m, d] = day.split('-').map(Number);
+    const wd = [t('週日'), t('週一'), t('週二'), t('週三'), t('週四'), t('週五'), t('週六')][new Date(day + 'T00:00:00Z').getUTCDay()];
+    document.getElementById('rpDateTxt').textContent = `${y}/${m}/${d}（${wd}）`;
+  } else document.getElementById('rpDateTxt').textContent = climate.err ? t('讀不到誤點資料') : t('載入中…');
+  document.getElementById('rpPlay').disabled = !D;
+  document.getElementById('rpNext').disabled = !D;
+  replay.mo = -2;
   if (!D) {
-    dateEl.textContent = climate.err ? t('讀不到誤點資料') : t('載入中…');
-    note.innerHTML = climate.err ? `<button type="button" class="cp-retry" data-act="retry">${escHtml(t('重試'))}</button>` : '';
-    top.innerHTML = ''; document.getElementById('climateTl').innerHTML = '';
-    document.getElementById('climateLegend').hidden = true;
-    return;
+    sum.textContent = '';
+    const none = replay.err === 'none', fail = !none && (replay.err || climate.err), msg = none ? t('這天還沒有重播資料') : fail ? t('這天的資料讀不到') : '';
+    list.innerHTML = `<li class="rs-msg">${escHtml(msg || t('載入中…'))}${fail ? `<button type="button" data-act="retry">${escHtml(t('重試'))}</button>` : ''}</li>`;
+    document.getElementById('rpNow').textContent = msg;
+  } else {
+    sum.textContent = rpSummary(D.sum);
+    list.innerHTML = D.m.map((m, i) => {
+      const [h, x, tag, c] = rpMoment(m);
+      return `<li class="ev" style="--mk:${c}"><button class="evb" type="button" data-i="${i}"><span class="ev-t">${rpHhmm(m.t)}</span><span class="ev-h">${escHtml(h)}</span><span class="kd">${escHtml(tag)}</span><span class="ev-x">${escHtml(x)}</span></button></li>`;
+    }).join('');
   }
-  const d = climate.d, k = climate.k;
-  const wd = [t('週日'), t('週一'), t('週二'), t('週三'), t('週四'), t('週五'), t('週六')][new Date(D.days[d] + 'T00:00:00Z').getUTCDay()];
-  dateEl.innerHTML = `${climateDayLabel(d, true)}（${escHtml(wd)}）<small>${escHtml(k === 1 ? t('這一天') : t('往前 {n} 天', { n: k }))}${D.have[d] === '1' ? '' : escHtml(t('・這天沒有資料'))}</small>`;
-  const stops = climateStops(), lo = stops[0][0], hi = stops[stops.length - 1][0];
-  document.getElementById('climateLegend').hidden = false;
-  document.getElementById('climateGrad').style.background = 'linear-gradient(90deg,' + stops.map(([x, c]) => `${c} ${((x - lo) / (hi - lo) * 100).toFixed(0)}%`).join(',') + ')';
-  document.getElementById('climateLo').textContent = climate.mode === 'inc' ? t('追回') : t('變好');
-  document.getElementById('climateHi').textContent = climate.mode === 'inc' ? t('多 {n} 分／班', { n: hi }) : t('變差');
-  note.textContent = climate.mode === 'inc' ? t('顏色＝列車開過這段，平均多出幾分鐘；灰＝持平或班次太少')
-    : climate.mode === 'prev' ? t('跟再往前 4 週比，每班多出的分鐘變了多少')
-    : t('跟去年同一天前後兩週比，每班多出的分鐘變了多少');
-  // 最會長誤點(或變最糟)的三段;同一對站出現在兩條線上只列一次
-  const seen = new Set(), rows = [];
-  for (const rec of climateValues()) for (const s of rec.segs) if (s.v != null && !seen.has(s.ck)) { seen.add(s.ck); rows.push([s, rec]); }
-  rows.sort((a, b) => b[0].v - a[0].v);
-  top.innerHTML = rows.length ? `<span class="cp-toplbl">${escHtml(climate.mode === 'inc' ? t('多出最多') : t('變最糟'))}</span>` +
-    rows.slice(0, 3).map(([s], i) => `<button type="button" data-i="${i}">${escHtml(stationName(s.a, 'tra_sched'))}–${escHtml(stationName(s.b, 'tra_sched'))} <b>${climateSigned(s.v)}</b></button>`).join('') : '';
-  climate.top = rows.slice(0, 3);
+  replay.shown = -1;
+  rpPlayUI();
+  replayTick();
+  rpCurve();
   climateTimeline();
+  rpGraphDraw();
+}
+function rpPlayUI() {
+  const b = document.getElementById('rpPlay');
+  b.textContent = replay.playing ? t('暫停') : t('播放');
+  b.classList.toggle('on', replay.playing);
+}
+// 跟時間有關的畫面:一分鐘更新一次
+function replayTick() {
+  const m = Math.floor(replay.t);
+  if (m === replay.shown) return;
+  replay.shown = m;
+  document.getElementById('rpClock').textContent = replay.data ? rpHhmm(m) : '--:--';
+  const inp = document.getElementById('rpTime');
+  inp.value = m; inp.setAttribute('aria-valuetext', rpHhmm(m));
+  if (replay.data) {
+    let cur = -1;
+    replay.data.m.forEach((x, i) => { if (x.t <= m) cur = i; });
+    if (cur !== replay.mo) {
+      replay.mo = cur;
+      const list = document.getElementById('rsList');
+      [...list.children].forEach((li, i) => { if (i === cur) li.dataset.state = 'current'; else delete li.dataset.state; });
+      const li = list.children[cur];
+      if (li && replay.playing) list.scrollTo({ top: li.offsetTop - 6, behavior: 'smooth' });
+    }
+    document.getElementById('rpNext').disabled = !replay.data.m.some(x => x.t > m);
+  }
+  rpCurve();
+  rpGraphDraw();
+}
+function replaySetTime(m) {
+  replay.t = Math.max(0, Math.min(1439, m));
+  replayTick();
+  if (state.ready) draw();
+}
+function replayAdvance(dt) {
+  if (!replay.playing || !replay.data || replay.drag) return;
+  replay.t = Math.min(1439, replay.t + Math.min(dt, .1) * replay.speed);
+  replayTick();
+  if (replay.t >= 1439) replayPlay(false);
+}
+function replayPlay(on) {
+  replay.playing = !!on && !!replay.data;
+  if (replay.playing && replay.t >= 1439) replay.t = 240;
+  rpPlayUI();
+}
+function replayLoadDay(day) {
+  if (!day || replay.loading === day) return;
+  replayPlay(false);
+  replay.day = day; replay.data = null; replay.err = false; replay.loading = day; replay.sel = null; replay.tsc = null; replay.heat = null; replay.now = []; replay.stat = '';
+  replayRender();
+  if (state.ready) draw();
+  fetch(apiUrl('api/delay-replay') + '?date=' + day)
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(j => {
+      if (replay.day !== day) return;
+      replay.data = j;
+      rpPrep();
+      replay.t = Math.max(240, (j.sum.k === 'event' ? j.sum.t : 330) - 30);
+      const st = j.m[0] && j.m[0].a, ci = st ? rpCorridors().findIndex(c => c.pos.has(st)) : -1;
+      replay.cor = Math.max(0, ci);
+      document.getElementById('rsCor').value = replay.cor;
+    })
+    .catch(e => { if (replay.day === day) replay.err = e === 404 ? 'none' : true; })
+    .finally(() => {
+      if (replay.loading === day) replay.loading = '';
+      if (replay.day !== day || !state.delayClimate) return;
+      replayRender();
+      if (replay.data) replayPlay(true);
+      if (state.ready) draw();
+    });
+}
+// 時間軸:全台同時誤點的車數曲線,走過的實色、還沒走到的淡色,底下標重點與小時
+function rpCurve() {
+  const c = document.getElementById('rpCurve');
+  if (!c || !c.offsetWidth) return;
+  const w = c.offsetWidth, h = c.offsetHeight, p = Math.min(2, devicePixelRatio || 1), g = c.getContext('2d');
+  if (c.width !== Math.round(w * p) || c.height !== Math.round(h * p)) { c.width = Math.round(w * p); c.height = Math.round(h * p); }
+  g.setTransform(p, 0, 0, p, 0, 0); g.clearRect(0, 0, w, h);
+  const cs = getComputedStyle(c), navy = cs.getPropertyValue('--navy'), line = cs.getPropertyValue('--line'), muted = cs.getPropertyValue('--muted');
+  const base = h - 15, X = m => m / 1440 * w, late = replay.late;
+  g.strokeStyle = line; g.lineWidth = 1; g.beginPath(); g.moveTo(0, base + .5); g.lineTo(w, base + .5); g.stroke();
+  g.font = '10px ' + FONT; g.fillStyle = muted; g.textBaseline = 'alphabetic';
+  const step = w < 420 ? 6 : 3;
+  for (let hh = 0; hh <= 24; hh += step) {
+    const x = X(hh * 60); g.textAlign = hh === 0 ? 'left' : hh === 24 ? 'right' : 'center';
+    g.fillText(hh + ':00', x, h - 2);
+    g.beginPath(); g.moveTo(x, base); g.lineTo(x, base + 3); g.stroke();
+  }
+  if (!replay.data || !late) return;
+  let pk = 10;
+  for (const v of late) if (v > pk) pk = v;
+  const Y = v => base - v / pk * (base - 5), m = replay.t;
+  const area = () => { g.beginPath(); g.moveTo(0, base); for (let b = 0; b < RP_BINS; b++) g.lineTo(X(b * 5), Y(late[b])); g.lineTo(w, base); g.closePath(); };
+  g.save(); area(); g.fillStyle = 'rgba(232,121,43,.22)'; g.fill(); g.restore();
+  g.save(); g.beginPath(); g.rect(0, 0, X(m), h); g.clip(); area(); g.fillStyle = RP_COL[2]; g.fill(); g.restore();
+  for (const e of replay.data.m) {
+    if (e.k === 'peak' || e.k === 'night') continue;
+    g.beginPath(); g.arc(X(e.t), base, 3.2, 0, 7); g.fillStyle = e.k === 'reach' ? RP_COL[1] : RP_COL[3]; g.fill(); g.lineWidth = 1; g.strokeStyle = '#fff'; g.stroke();
+  }
+  const x = X(m);
+  g.strokeStyle = navy; g.lineWidth = 2; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, base + 3); g.stroke();
+  g.beginPath(); g.arc(Math.max(5, Math.min(w - 5, x)), 6, 5, 0, 7); g.fillStyle = navy; g.fill();
 }
 function climateTimeline() {
   const svg = document.getElementById('climateTl'), D = climate.data;
-  if (!svg || !D) return;
-  const W = Math.max(160, svg.getBoundingClientRect().width), H = 60, base = H - 13, T = D.days.length, bw = W / T;
+  if (!svg || !D || document.getElementById('rpDays').hidden) return;
+  const W = Math.max(160, svg.getBoundingClientRect().width), H = 64, base = H - 13, T = D.days.length, bw = W / T, cur = D.days.indexOf(replay.day);
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   if (!D.max) {
     D.max = Math.max(...D.nat.filter(v => v != null)) || 1;
     D.spikes = D.nat.map((v, i) => [v ?? -1, i]).sort((a, b) => b[0] - a[0]).slice(0, 60).map(r => r[1]);
   }
+  const label = i => { const [, m, d] = D.days[i].split('-').map(Number); return m + '/' + d; };
   let html = '';
   D.nat.forEach((v, i) => {
     if (v == null) return;
     const bh = Math.max(1, Math.sqrt(Math.max(0, v) / D.max) * (base - 12));   // 平方根刻度:最糟那天不會把其他天壓扁
-    const on = i <= climate.d && i > climate.d - climate.k;
-    html += `<rect x="${(i * bw).toFixed(2)}" y="${(base - bh).toFixed(1)}" width="${Math.max(0.8, bw - 0.3).toFixed(2)}" height="${bh.toFixed(1)}"${on ? ' class="on"' : ''}/>`;
+    html += `<rect x="${(i * bw).toFixed(2)}" y="${(base - bh).toFixed(1)}" width="${Math.max(0.8, bw - 0.3).toFixed(2)}" height="${bh.toFixed(1)}"${i === cur ? ' class="on"' : ''}/>`;
   });
   const shown = [];   // 最糟的幾天標日期,依嚴重程度挑、彼此至少隔 34 px
   for (const i of D.spikes) { if (shown.every(j => Math.abs(j - i) * bw > 34)) shown.push(i); if (shown.length >= (W < 420 ? 3 : 6)) break; }
-  for (const i of shown) html += `<text class="sp" x="${Math.min(W - 14, Math.max(14, i * bw + bw / 2)).toFixed(1)}" y="8" text-anchor="middle">${climateDayLabel(i)}</text>`;
+  for (const i of shown) html += `<text class="sp" x="${Math.min(W - 14, Math.max(14, i * bw + bw / 2)).toFixed(1)}" y="8" text-anchor="middle">${label(i)}</text>`;
   D.days.forEach((d, i) => {
     if (d.slice(5) !== '01-01' && d.slice(5) !== '07-01') return;
     html += `<line x1="${(i * bw).toFixed(1)}" x2="${(i * bw).toFixed(1)}" y1="${base}" y2="${base + 3}"/><text x="${(i * bw + 2).toFixed(1)}" y="${H - 1}">${d.slice(5) === '01-01' ? d.slice(0, 4) : escHtml(t('7 月'))}</text>`;
   });
-  const cx = (climate.d * bw + bw / 2).toFixed(1);
-  html += `<line class="cur" x1="${cx}" x2="${cx}" y1="11" y2="${base}"/>`;
+  if (cur >= 0) { const cx = (cur * bw + bw / 2).toFixed(1); html += `<line class="cur" x1="${cx}" x2="${cx}" y1="11" y2="${base}"/>`; }
   svg.innerHTML = html;
 }
-// 進入時看全台(俯視、北朝上),讓開面板:寬螢幕面板在左下 → 左邊留白;手機面板橫跨底部 → 底部留白
-function climateFit() {
-  const panel = document.getElementById('climatePanel'), box = document.getElementById('map');
-  if (!panel || panel.hidden || !box) return;
-  const p = panel.getBoundingClientRect(), m = box.getBoundingClientRect();
-  const side = p.width < m.width * 0.6;
-  const padding = side ? { top: 30, bottom: 30, left: Math.max(30, p.right - m.left + 30), right: 60 }
-    : { top: 40, bottom: Math.max(30, m.bottom - p.top + 20), left: 20, right: 20 };
-  M.fitBounds(M.latLngBounds(TW_BOX[0], TW_BOX[1]), { padding, duration: 0.8, bearing: 0, pitch: 0 });
-}
-function climateSetDay(d) {
-  if (!climate.data) return;
-  climate.d = Math.max(0, Math.min(climate.data.days.length - 1, d));
-  climateRender();
-  if (state.ready) draw();
-}
-function climatePlay(on) {
-  clearInterval(climate.timer); climate.timer = null;
-  if (on && climate.data) {
-    const last = climate.data.days.length - 1;
-    if (climate.d >= last) climate.d = Math.min(last, climate.k - 1);
-    climate.timer = setInterval(() => { if (climate.d >= last) climatePlay(false); else climateSetDay(climate.d + 1); }, CLIMATE_STEP_MS);
+function rpDaysOpen(on) {
+  const box = document.getElementById('rpDays'), D = climate.data;
+  box.hidden = !on;
+  document.getElementById('rpDate').setAttribute('aria-expanded', String(!!on));
+  if (!on) return;
+  const inp = document.getElementById('rpDateIn');
+  inp.value = replay.day;
+  if (D) {
+    inp.min = D.days[0]; inp.max = D.days[D.days.length - 1];
+    const last = D.days.length - 1;
+    document.getElementById('rpChips').innerHTML = [[t('最近一天'), D.days[last]], [t('近 30 天最嚴重'), rpWorst(30)], [t('有紀錄以來最嚴重'), rpWorst(0)]]
+      .map(([l, d]) => `<button type="button" data-day="${d}">${escHtml(l)}</button>`).join('');
   }
-  climateRender();
+  climateTimeline();
+}
+function rpPad() {
+  const bar = document.getElementById('climatePanel').getBoundingClientRect(), side = document.getElementById('replaySide').getBoundingClientRect(), m = document.getElementById('map').getBoundingClientRect();
+  const beside = side.height > 120 && side.width < m.width * .55;   // 寬版清單在海峽側;窄版清單接在控制列上方
+  return beside ? { top: 26, bottom: Math.max(30, m.bottom - bar.top + 14), left: Math.max(30, side.right - m.left + 24), right: 84 }
+    : { top: 40, bottom: Math.max(30, m.bottom - Math.min(bar.top, side.top) + 12), left: 18, right: 18 };
+}
+// 平移硬牆比寬螢幕的全台視野還窄時,鏡頭會被鉗回正中央,面板讓不開;重播期間放寬,離開時收回
+function rpFence() { M.setMaxBounds(M.latLngBounds(TW_BOX[0], TW_BOX[1]).pad(ROAM_PAD * 2)); }
+// 進入時看全台(俯視、北朝上),讓開兩塊面板
+function climateFit() {
+  if (document.getElementById('climatePanel').hidden) return;
+  rpFence();
+  M.fitBounds(M.latLngBounds(TW_BOX[0], TW_BOX[1]), { padding: rpPad(), duration: 0.8, bearing: 0, pitch: 0 });
+}
+function rpPick(i) {
+  const m = replay.data.m[i], N = rpNet();
+  replayPlay(false);
+  replay.sel = m.no || null; replay.tsc = null;
+  replaySetTime(m.t);
+  const pts = (m.st || []).map(n => N.nodes.get(n)).filter(Boolean);
+  if (!pts.length) return climateFit();
+  rpFence();
+  const la = pts.map(p => p.lat), lo = pts.map(p => p.lon);
+  M.flyToBounds(M.latLngBounds([Math.min(...la), Math.min(...lo)], [Math.max(...la), Math.max(...lo)]), { padding: rpPad(), duration: 0.8, maxZoom: 11.5, bearing: 0, pitch: 0 });
+}
+function rpNextMoment() {
+  const i = replay.data ? replay.data.m.findIndex(x => x.t > Math.floor(replay.t)) : -1;
+  if (i >= 0) rpPick(i);
+}
+// 時間 × 路線:一條線一班車,線變平＝車停住。走廊的站與里程從線形資料組,接線處里程累加
+function rpCorridors() {
+  const N = rpNet();
+  if (N.cors) return N.cors;
+  N.cors = RP_CORRIDORS.map(c => {
+    const st = []; let base = 0;
+    c.via.forEach((id, i) => {
+      const L = (state.trackLines || []).find(l => l.sys === 'tra_sched' && l.id === id);
+      if (!L) return;
+      let s = L.stations.filter(x => x.d != null && x.name).map(x => ({ n: rpName(x.name), d: x.d }));
+      const ia = s.findIndex(x => x.n === c.path[i]), ib = s.findIndex(x => x.n === c.path[i + 1]);
+      if (ia < 0 || ib < 0) return;
+      s = ia < ib ? s.slice(ia, ib + 1) : s.slice(ib, ia + 1).reverse();
+      const d0 = s[0].d;
+      s.forEach((x, j) => { if (j || !st.length) st.push([x.n, base + Math.abs(x.d - d0)]); });
+      base += Math.abs(s[s.length - 1].d - d0);
+    });
+    return { name: c.name, st, pos: new Map(st), km: base };
+  });
+  return N.cors;
+}
+const RP_TS = { l: 44, r: 6, t: 16, b: 4 };
+const RP_BIG = new Set(['基隆', '臺北', '桃園', '新竹', '竹南', '苗栗', '臺中', '彰化', '嘉義', '臺南', '高雄', '屏東', '枋寮', '臺東', '花蓮', '蘇澳新', '宜蘭', '八堵', '樹林']);
+function rpGraphRange() {
+  if (!replay.zoom) return [0, 1440];
+  const a = Math.max(0, Math.min(1080, replay.zc - 180));
+  return [a, a + 360];
+}
+function rpGraphBuild(w, h, p) {
+  const c = rpCorridors()[replay.cor], [t0, t1] = rpGraphRange(), S = RP_TS, iw = w - S.l - S.r, ih = h - S.t - S.b, D = replay.data;
+  const X = m => S.l + (m - t0) / (t1 - t0) * iw, Y = k => S.t + k / (c.km || 1) * ih;
+  const o = document.createElement('canvas'); o.width = w * p; o.height = h * p;
+  const g = o.getContext('2d'), cs = getComputedStyle(document.getElementById('replaySide'));
+  const ink = cs.getPropertyValue('--ink'), faint = cs.getPropertyValue('--faint'), lf = cs.getPropertyValue('--line-faint'), navy = cs.getPropertyValue('--navy');
+  g.scale(p, p);
+  g.font = '10px ' + FONT; g.textBaseline = 'middle'; g.textAlign = 'right'; g.lineWidth = 1;
+  const used = [];
+  for (const big of [true, false]) for (const [n, km] of c.st) {
+    if (RP_BIG.has(n) !== big) continue;
+    const y = Y(km);
+    if (used.some(u => Math.abs(u - y) < 13)) continue;
+    used.push(y);
+    g.strokeStyle = lf; g.beginPath(); g.moveTo(S.l, y); g.lineTo(w - S.r, y); g.stroke();
+    g.fillStyle = big ? ink : faint; g.fillText(rpSt(n), S.l - 4, y);
+  }
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillStyle = faint;
+  const hs = (t1 - t0) > 600 ? (iw < 300 ? 360 : 180) : 60;
+  for (let m = Math.ceil(t0 / hs) * hs; m <= t1; m += hs) {
+    const x = X(m);
+    g.strokeStyle = lf; g.beginPath(); g.moveTo(x, S.t); g.lineTo(x, h - S.b); g.stroke();
+    g.fillText(rpHhmm(Math.min(m, 1439)).slice(0, 2) + ':00', Math.max(S.l + 8, Math.min(w - 12, x)), 11);
+  }
+  g.save(); g.beginPath(); g.rect(S.l, S.t, iw, ih); g.clip(); g.lineCap = 'round';
+  const paths = [[], [], [], [], []], segs = [];
+  for (const [no, s, tt, d] of D.tr) for (let k = 0; k + 1 < tt.length; k++) {
+    const a = c.pos.get(D.names[s[k]]), b = c.pos.get(D.names[s[k + 1]]);
+    if (a == null || b == null || tt[k + 1] < t0 || tt[k] > t1) continue;
+    const q = [X(tt[k]), Y(a), X(tt[k + 1]), Y(b)];
+    paths[rpBin(Math.max(d[k], d[k + 1]))].push(q);
+    if (no === replay.sel) segs.push(q);
+  }
+  const wide = [.6, 1.1, 1.3, 1.5, 1.6];
+  paths.forEach((P, i) => {
+    g.strokeStyle = RP_COL[i] || pal().collectGrey; g.lineWidth = wide[i]; g.beginPath();
+    for (const q of P) { g.moveTo(q[0], q[1]); g.lineTo(q[2], q[3]); }
+    g.stroke();
+  });
+  if (segs.length) { g.strokeStyle = navy; g.lineWidth = 2.4; g.beginPath(); for (const q of segs) { g.moveTo(q[0], q[1]); g.lineTo(q[2], q[3]); } g.stroke(); }
+  g.restore();
+  return { o, X, w, h, t0, t1, navy };
+}
+function rpGraphDraw() {
+  const c = document.getElementById('rsTs');
+  if (!c || replay.tab !== 'graph' || !replay.data || !c.offsetWidth) return;
+  const w = c.offsetWidth, h = c.offsetHeight, p = Math.min(2, devicePixelRatio || 1), g = c.getContext('2d');
+  if (w < 2 || h < 2) return;
+  if (replay.zoom && Math.abs(replay.t - replay.zc) > 120) { replay.zc = replay.t; replay.tsc = null; }
+  if (!replay.tsc || replay.tsc.w !== w || replay.tsc.h !== h) { c.width = Math.round(w * p); c.height = Math.round(h * p); replay.tsc = rpGraphBuild(w, h, p); }
+  const T = replay.tsc, x = T.X(replay.t);
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.width, c.height); g.drawImage(T.o, 0, 0);
+  g.setTransform(p, 0, 0, p, 0, 0);
+  if (x >= RP_TS.l && x <= w - RP_TS.r) { g.strokeStyle = T.navy; g.lineWidth = 1.6; g.beginPath(); g.moveTo(x, RP_TS.t - 3); g.lineTo(x, h - RP_TS.b); g.stroke(); }
+}
+function rpTab(v) {
+  replay.tab = v;
+  document.querySelectorAll('#rsTabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  document.getElementById('rsList').hidden = v !== 'list';
+  document.getElementById('rsGraph').hidden = v !== 'graph';
+  document.getElementById('replaySide').classList.toggle('wide', v === 'graph');
+  replay.tsc = null;
+  rpGraphDraw();
+  if (innerWidth >= 1000) climateFit();
+}
+function rpSideOpen(on) {
+  const s = document.getElementById('replaySide');
+  s.classList.toggle('shut', !on);
+  document.getElementById('rsToggle').setAttribute('aria-expanded', String(!!on));
+  replay.tsc = null;
+  rpGraphDraw();
+}
+function rpLayout() {
+  const panel = document.getElementById('climatePanel');
+  if (panel.hidden) return;
+  document.getElementById('replaySide').style.setProperty('--rp-bar', panel.offsetHeight + 'px');
+  rpCurve();
+  climateTimeline();
+  replay.tsc = null;
+  rpGraphDraw();
 }
 function climateOnKey(e) {
-  if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) climatePlay(!climate.timer); return true; }
-  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); climateSetDay(climate.d + (e.key === 'ArrowLeft' ? -1 : 1)); return true; }
+  if (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName) && e.target.id !== 'rpTime') return false;
+  if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) replayPlay(!replay.playing); return true; }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); replaySetTime(replay.t + (e.key === 'ArrowLeft' ? -5 : 5)); return true; }
   return false;
 }
 function setDelayClimate(on) {
   const to = !!on;
   if (state.delayClimate === to) return;
-  if (to && state.recording) { showToast(t('錄製中無法開啟誤點趨勢地圖')); return; }   // 理由同 setCollectMap
+  if (to && state.recording) { showToast(t('錄製中無法開啟誤點重播')); return; }   // 理由同 setCollectMap
   if (to && state.collectMap) setCollectMap(false);
+  if (to && state.group !== 'all' && state.group !== 'tra') selectGroup(GROUPS.find(g => g.id === 'tra'));   // 高鐵、捷運分頁的路網裡沒有台鐵
   state.delayClimate = to;
   document.body.classList.toggle('delay-climate', to);
   document.getElementById('climatePanel').hidden = !to;
+  document.getElementById('replaySide').hidden = !to;
   if (to) {
-    clearFollow();   // 車都不畫了,鏡頭還在追一班看不見的車只會讓人以為地圖卡住
+    clearFollow();   // 即時的車都不畫了,鏡頭還在追一班看不見的車只會讓人以為地圖卡住
     soloPanel(''); closeRidePanel(); closeBoard(); closeNearbyStations(); closeExplorePanel(); closeFavPanel(); closeTodayPanel(); closeSearchPanel();
+    rpSideOpen(innerWidth >= 1000 && innerHeight >= 560);   // 窄版清單預設收合,地圖先看得到
+    rpLayout();
     climateLoad();
-    climateRender();
-    if (climate.data) climateFit();   // 第一次進來等資料到了面板長好再框(climateLoad 收尾)
-  } else climatePlay(false);
+    if (climate.data && !replay.day) replayLoadDay(rpWorst(30));
+    replayRender();
+    climateFit();
+    if (replay.data) replayPlay(true);
+  } else { replayPlay(false); rpDaysOpen(false); M.setMaxBounds(state._panFence); }
   if (state.ready) draw();
 }
 function setupDelayClimate() {
-  const panel = document.getElementById('climatePanel');
+  const panel = document.getElementById('climatePanel'), side = document.getElementById('replaySide'), scrub = document.getElementById('rpScrub');
   document.getElementById('climateExit').onclick = () => setDelayClimate(false);
-  document.getElementById('climatePlay').onclick = () => climatePlay(!climate.timer);
-  panel.querySelector('#climateWin').onclick = e => { const b = e.target.closest('button'); if (b) { climate.k = +b.dataset.v; climateSetDay(climate.d); } };
-  panel.querySelector('#climateMode').onclick = e => { const b = e.target.closest('button'); if (b) { climate.mode = b.dataset.v; climateSetDay(climate.d); } };
-  document.getElementById('climateNote').onclick = e => { if (e.target.closest('[data-act="retry"]')) climateLoad(); };
-  // 點前三名:地圖飛過去看那一段
-  document.getElementById('climateTop').onclick = e => {
-    const b = e.target.closest('button[data-i]'), r = b && climate.top && climate.top[+b.dataset.i];
-    if (!r) return;
-    const s = r[0];
-    M.flyToBounds(M.latLngBounds([[s.pA.lat, s.pA.lon], [s.pB.lat, s.pB.lon]]), { padding: { top: 60, bottom: panel.offsetHeight + 40, left: 40, right: 40 }, duration: 0.8, maxZoom: 12 });
+  document.getElementById('rpPlay').onclick = () => replayPlay(!replay.playing);
+  document.getElementById('rpSpeed').onchange = e => { replay.speed = +e.target.value; };
+  document.getElementById('rpNext').onclick = rpNextMoment;
+  document.getElementById('rpTime').oninput = e => replaySetTime(+e.target.value);
+  document.getElementById('rsToggle').onclick = () => rpSideOpen(side.classList.contains('shut'));
+  document.getElementById('rsTabs').onclick = e => { const b = e.target.closest('button'); if (b) rpTab(b.dataset.v); };
+  document.getElementById('rsList').onclick = e => {
+    const b = e.target.closest('button[data-i]');
+    if (b) return rpPick(+b.dataset.i);
+    if (e.target.closest('[data-act="retry"]')) { const d = replay.day; replay.day = ''; d ? replayLoadDay(d) : climateLoad(); }
   };
+  const cor = document.getElementById('rsCor');
+  cor.innerHTML = RP_CORRIDORS.map((c, i) => `<option value="${i}">${escHtml(t(c.name))}</option>`).join('');
+  cor.onchange = e => { replay.cor = +e.target.value; replay.tsc = null; rpGraphDraw(); };
+  document.getElementById('rsZoom').onclick = e => {
+    replay.zoom = !replay.zoom; replay.zc = replay.t; replay.tsc = null;
+    e.currentTarget.setAttribute('aria-pressed', String(replay.zoom));
+    rpGraphDraw();
+  };
+  document.getElementById('rsTs').addEventListener('click', e => {
+    const T = replay.tsc, r = e.currentTarget.getBoundingClientRect();
+    if (T) replaySetTime(T.t0 + (e.clientX - r.left - RP_TS.l) / (T.w - RP_TS.l - RP_TS.r) * (T.t1 - T.t0));
+  });
+  // 時間軸:點哪跳哪、拖曳時暫停積分,放手照原本的播放狀態續走
+  const go = e => { const r = scrub.getBoundingClientRect(); if (r.width) replaySetTime((e.clientX - r.left) / r.width * 1440); };
+  scrub.addEventListener('pointerdown', e => { scrub.setPointerCapture(e.pointerId); replay.drag = true; go(e); });
+  scrub.addEventListener('pointermove', e => { if (replay.drag) go(e); });
+  for (const n of ['pointerup', 'pointercancel']) scrub.addEventListener(n, () => { replay.drag = false; });
+  // 選日期
+  document.getElementById('rpDate').onclick = e => { e.stopPropagation(); rpDaysOpen(document.getElementById('rpDays').hidden); };
+  document.getElementById('rpChips').onclick = e => { const b = e.target.closest('button[data-day]'); if (b) { rpDaysOpen(false); replayLoadDay(b.dataset.day); climateFit(); } };
+  document.getElementById('rpDateIn').onchange = e => { if (e.target.value) { rpDaysOpen(false); replayLoadDay(e.target.value); climateFit(); } };
   const tl = document.getElementById('climateTl');
-  const pick = ev => { const r = tl.getBoundingClientRect(); if (climate.data && r.width) climateSetDay(Math.floor((ev.clientX - r.left) / r.width * climate.data.days.length)); };
-  tl.addEventListener('pointerdown', e => { tl.setPointerCapture(e.pointerId); climatePlay(false); pick(e); });
-  tl.addEventListener('pointermove', e => { if (e.buttons) pick(e); });
-  addEventListener('resize', () => { if (state.delayClimate) climateTimeline(); });
+  tl.addEventListener('click', e => {
+    const r = tl.getBoundingClientRect(), D = climate.data;
+    if (!D || !r.width) return;
+    const i = Math.max(0, Math.min(D.days.length - 1, Math.floor((e.clientX - r.left) / r.width * D.days.length)));
+    if (D.have[i] === '1') { rpDaysOpen(false); replayLoadDay(D.days[i]); climateFit(); }
+  });
+  document.addEventListener('pointerdown', e => {
+    if (!document.getElementById('rpDays').hidden && !e.target.closest('#rpDays, #rpDate')) rpDaysOpen(false);
+  });
+  new ResizeObserver(rpLayout).observe(panel);
+  addEventListener('resize', () => { if (state.delayClimate) rpLayout(); });
 }
 function renderCollectStat() {
   const lines = lineCompletion();
@@ -34120,7 +34638,7 @@ function queryLinkRows() {
   if (NOTIFY_LOCAL_ENABLED) rows.push({ act: 'notify', label: '已排提醒', run: () => openLocalReminderOverview() });
   rows.push({ act: 'routes', label: '路線', run: () => openTrackPanel() });
   rows.push({ act: 'today', label: '今日台鐵動態', run: () => openTodayPanel() });
-  rows.push({ act: 'climate', label: '誤點趨勢地圖', run: () => setDelayClimate(true) });
+  rows.push({ act: 'climate', label: '誤點重播', run: () => setDelayClimate(true) });
   // 跟「更多」的附近車站(#nearBtn)是同一件事(都是 showNearby),名稱統一叫「附近車站」(導覽改版 G1)
   if (LOCATE_ENABLED) rows.push({ act: 'near', label: '附近車站', run: () => showNearby() });
   if (IS_NATIVE_APP && metroWaitEnabled()) rows.push({ act: 'widget', label: '小工具', run: () => openHelp('metrowidget') });
@@ -40471,6 +40989,7 @@ async function boot() {
     if (!M.isOnSurface(cp)) return;
     const stationRadius = stationHitRadius();
     closeTapPick(); // 點地圖任何地方先收掉歧義選單(選單列自身的點擊不會冒泡到 map)
+    if (state.delayClimate) return replayTap(cp);
     if (state.takeoutPick && state.takeoutResult) {
       const pick = state.takeoutPick, ll = e.latlng || M.fromScreen(cp);
       const item = pick.item; item.coord = { lat: ll.lat, lon: ll.lng }; item.selected = true;
@@ -42093,7 +42612,7 @@ document.getElementById('tcStops').onclick = e => {
 document.addEventListener('keydown', e => {
   const tg = e.target;
   if (tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA' || tg.isContentEditable)) return;
-  if (state.delayClimate && climateOnKey(e)) return; // 誤點趨勢地圖開著:空白鍵播放時間軸、←→ 換日
+  if (state.delayClimate && climateOnKey(e)) return; // 誤點重播開著:空白鍵播放、←→ 前後 5 分鐘
   // 空白鍵只做播放／暫停這一件事:不按下聚焦中的按鈕,焦點也留在原地。原本(v0718i 起)把聚焦中的按鈕 blur 掉來防止
   // 它被空白鍵按下去,代價是鍵盤使用者按一下暫停焦點就掉回頁面、得從頭 Tab;其實 keydown 擋掉預設動作就夠了
   // (2026-09-26 實測 Chromium、WebKit 的 button／summary 都不會被啟動)。按住不放的連發不算,只切一次(原本按住會連切)。

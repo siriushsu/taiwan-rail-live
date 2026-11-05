@@ -155,8 +155,9 @@ const widths = [360, 375, 414, 768];
 // 11/04: Korean interface and the garage swap button add two (564 -> 566).
 // 11/04: Pass recording bonus adds one (566 -> 567).
 // 11/04: Q-style 3D trains add one (567 -> 568).
-// 11/05: Korean static pages add one (568 -> 569).
-const expectedHistoryCount = 569;
+// 11/05: delay replay adds one (568 -> 569).
+// 11/05: Korean static pages add one (569 -> 570).
+const expectedHistoryCount = 570;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
