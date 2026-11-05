@@ -2624,6 +2624,18 @@ async function plusSyncCooling(request, env, uid, nowMs) {
   } catch (e) { plusSyncSchemaReady = false; return false; }
 }
 
+// 舊版原生 App 停止帳號同步（2026-11-05）：1.8.0 以前的 App 上傳漏掉「我上車了」寫的路段，寫回又先清空再匯入，
+// 通行證有效的帳號每同步一次就清一次（native claude/pass-sync-segments-1105）。修好的版本帶 X-Rail-Sync-Version，
+// 沒帶或比這個數字舊的原生 App 走冷卻同一條路：回 cloudSyncReady:false、不寫資格文件，那一輪同步不做，資料留在本機。
+// 之後同步再出問題：新版把標頭加一、這裡跟著加一，不用等審查就能先停掉舊版。Sandbox 不擋：裡面只有測試帳號，
+// 送審中的舊包買完還要同步得動。網頁與舊 Capacitor 殼沒有原生 UA，不受影響。
+const NATIVE_SYNC_MIN_VERSION = 2;
+function nativeSyncOutdated(request, entitlementEnvironment) {
+  if (!NATIVE_APP_USER_AGENTS.has(request.headers.get('User-Agent') || '')) return false;
+  if (plusEnvironment(entitlementEnvironment) === RC_ENV_SANDBOX) return false;
+  return !(Number(request.headers.get('X-Rail-Sync-Version')) >= NATIVE_SYNC_MIN_VERSION);
+}
+
 // RevenueCat 的環境值。⚠️ REST API(v1/v2)的 query 參數與 schema enum 是**小寫**
 // production/sandbox;**webhook** payload 是**大寫** PRODUCTION/SANDBOX。兩套慣例不同世代,
 // 絕不可拿同一個常數去比對兩邊——之後接 webhook 時要另外定義自己的大寫常數。
@@ -3423,6 +3435,7 @@ async function plusStatus(request, env) {
   if (!check.ok && check.status !== 403) return jsonRes({ error: check.error }, check.status, 'no-store');
   let cloudSyncReady = false;
   if (check.uid && check.subscriptions && check.productionSubscriptions
+    && !nativeSyncOutdated(request, check.entitlementEnvironment)
     && !(await plusSyncCooling(request, env, check.uid, Date.now()))) {
     const wantEntitlement = env.REVENUECAT_ENTITLEMENT || 'plus';
     // nowMs 明確傳進去,好讓下面的 cloudSyncReady 跟這份文件用同一個時鐘判斷到期(不要各自 Date.now())。

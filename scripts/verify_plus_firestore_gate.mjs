@@ -42,6 +42,7 @@ const SECTIONS = [
   '11 刪帳號一併刪除資格文件',
   '12 終身資格文件（滾動窗）與購買／退款 webhook',
   '13 原生 App 同步冷卻（plus-status 按 uid）',
+  '14 舊版原生 App 停止同步（X-Rail-Sync-Version）',
 ];
 const seen = new Map();
 let SECTION = '(未分段)';
@@ -993,7 +994,7 @@ section(SECTIONS[12]);
   const { db, DELAY_DB } = openTestDb();
   const gateRows = () => { try { return db.prepare('SELECT uid_hash, window_ms, n FROM plus_sync_gate').all(); } catch { return null; } };
   const statusFrom = (ua) => new Request('https://railisland.tw/api/plus-status', {
-    headers: { Authorization: `Bearer ${'x'.repeat(900)}`, 'cf-connecting-ip': '203.0.113.13', ...(ua ? { 'User-Agent': ua } : {}) },
+    headers: { Authorization: `Bearer ${'x'.repeat(900)}`, 'cf-connecting-ip': '203.0.113.13', ...(ua ? { 'User-Agent': ua, 'X-Rail-Sync-Version': '2' } : {}) },
   });
   const send = async (ua, d1, times = 3) => {
     const out = [];
@@ -1045,6 +1046,51 @@ section(SECTIONS[12]);
     check(healed.body.cloudSyncReady === false && healed.firestore === 0 && gateRows()?.[0]?.n === 3,
       'D1 出錯之後表不見了：建表旗標已重設，重新建表、冷卻照樣生效', JSON.stringify({ healed, rows: gateRows() }));
   }
+}
+
+section(SECTIONS[13]);
+{
+  // 舊版原生 App 同步會清掉本機路段：沒帶夠新 X-Rail-Sync-Version 的原生 App 只回答資格，cloudSyncReady:false，
+  // 不碰 Firestore、不碰 D1，同步就走不到寫回。App 只在 true 時做交易。
+  let d1Touched = 0;
+  const d1Spy = { prepare() { d1Touched += 1; throw new Error('D1 不該被碰'); } };
+  const ask = async ({ ua, version, sandboxBuild, sandboxOnly = false }) => {
+    resetIo();
+    if (sandboxOnly) rcBody = { items: [baseSubscription({ environment: 'sandbox' })] };
+    d1Touched = 0;
+    const response = await worker.fetch(new Request('https://railisland.tw/api/plus-status', {
+      headers: {
+        Authorization: `Bearer ${'x'.repeat(900)}`, 'cf-connecting-ip': '203.0.113.14',
+        ...(ua ? { 'User-Agent': ua } : {}),
+        ...(version === undefined ? {} : { 'X-Rail-Sync-Version': version }),
+        ...(sandboxBuild ? { 'X-Rail-Plus-Sandbox-Build': sandboxBuild } : {}),
+      },
+    }), ENV({ DELAY_DB: d1Spy }), {});
+    return { status: response.status, body: await response.json(), firestore: callsTo('firestore.googleapis.com').length, writes: firestoreWrites().length, d1: d1Touched };
+  };
+  for (const ua of ['RailIsland-Android Mobile', 'RailIsland-iOS Mobile']) {
+    for (const version of [undefined, '', '1', 'abc']) {
+      const old = await ask({ ua, version });
+      check(old.status === 200 && old.body.active === true && old.body.environment === 'production'
+          && old.body.cloudSyncReady === false && old.firestore === 0 && old.d1 === 0,
+        `${ua} 版本 ${version === undefined ? '沒帶' : JSON.stringify(version)}：照樣回 active:true，但 cloudSyncReady:false、不碰 Firestore 與 D1`, JSON.stringify(old));
+    }
+    for (const version of ['2', '3']) {
+      const current = await ask({ ua, version });
+      check(current.body.cloudSyncReady === true && current.writes === 1 && current.d1 === 1,
+        `${ua} 版本 ${version}：放行，照常寫資格文件，也照常過冷卻`, JSON.stringify(current));
+    }
+    const review = await ask({ ua, sandboxBuild: '230', sandboxOnly: true });
+    check(review.body.active === true && review.body.environment === 'sandbox' && review.body.cloudSyncReady === true,
+      `${ua} 送審中的舊包走 Sandbox：沒帶版本也放行，審查員買完同步得動`, JSON.stringify(review));
+    const production = await ask({ ua, sandboxBuild: '230' });
+    check(production.body.environment === 'production' && production.body.cloudSyncReady === false && production.firestore === 0,
+      `${ua} 同一顆舊包的正式資格：帶 sandbox 標頭也一樣擋`, JSON.stringify(production));
+  }
+  const web = await ask({});
+  check(web.body.cloudSyncReady === true && web.writes === 1 && web.d1 === 0, '網頁（沒有原生 UA）沒帶版本：不受影響', JSON.stringify(web));
+  const shell = await ask({ ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148' });
+  check(shell.body.cloudSyncReady === true && shell.writes === 1, '舊 Capacitor 殼（WebView UA）沒帶版本：不受影響', JSON.stringify(shell));
 }
 
 globalThis.fetch = realFetch;
