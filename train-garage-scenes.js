@@ -148,6 +148,7 @@ window.RailGarageSceneRules = {
  duoliang:      {system:'台鐵',place:'南迴線・多良車站'},
  crossing:      {system:'台鐵',place:'街角平交道'},
  guanghua:      {system:'台鐵',place:'台南・光華街'},
+ 'tainan-line':  {system:'台鐵',place:'台南・地面鐵道沿線'},
  'taipei-metro':   {system:'台北捷運',place:'淡水信義線・劍潭站',cars:['c301','c321','c341','c371','c381']},
  wenhu:            {system:'台北捷運',place:'文湖線・動物園站',cars:['wenhu','val256']},
  'airport-mrt':    {system:'桃園捷運',place:'機場捷運・山鼻站'},

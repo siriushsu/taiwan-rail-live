@@ -62,7 +62,7 @@ export function createRenderer(onLost = () => {}) {
       if(onDiorama){
         // 海岸行旅的燈材質跟場景的編組共用，先關掉；場景的車燈每節車另有一份材質（garage-coast.js createTrainLamps）。
         if(coast){coast.group.visible=false;coast.lights(null);}
-        const zoom=Math.max(.7,Math.min(1.8,options.zoom??1)),elevation=Math.max(.2,Math.min(1.2,options.elevation??diorama.meta.world));
+        const zoom=Math.max(.7,Math.min(diorama.meta.zoomMax??1.8,options.zoom??1)),elevation=Math.max(.2,Math.min(1.2,options.elevation??diorama.meta.world));
         for(const a of new Set(diorama.consist.cars.map(c=>c.asset)))for(const m of [...a.materials,...a.lockedMaterials])if(m.name==='glass'||m.name==='glass:locked'){
           if(m.envMap!==diorama.scene.environment){m.envMap=diorama.scene.environment;m.needsUpdate=true;}m.envMapIntensity=1;
         }

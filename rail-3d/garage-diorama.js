@@ -49,9 +49,12 @@ export const SCENES={
  shengxing:{speed:2.4,yaw:-1.12,trainYaw:2.02,world:.58,train:.42,focus:[0,-3,2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33},
  'taipei-under':{speed:2.4,yaw:-1.12,trainYaw:2.02,world:.58,train:.42,focus:[0,-2,2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8},
  guanghua:{speed:2.6,yaw:-1.4,world:.42,train:.4,span:[10.5,21.5],ground:-2.5,shadow:[-42,42,35,-35,1,140],drive:3,pass:[90,-10],clip:26,trainZ:.9,kits:['garage-people-v1/people','garage-camera-v1/camera','scooter']},
+ // 台南沿線：底座長 240，所以 followClamp（跟車鏡頭走多遠）、reach（全景平移多遠）、zoomMax（放大上限）、near（鏡頭擺在中段時兩端不被近裁切面切掉）都要放寬；沒寫的場景照舊。
+ // speed 與 pass 讓一趟剛好是光華街機車週期的 3 倍（300÷26/9＝90÷2.6×3），本線車過涵洞時機車在洞裡；opposing 讓兩列在車站與光華街會車。
+ 'tainan-line':{speed:26/9,yaw:-1.38,trainYaw:2.02,world:.5,train:.58,focus:[0,0,2],span:[34,128],ground:-4.1,shadow:[-135,135,80,-80,-90,300],drive:3,pass:[300,81.9],clip:120,opposing:60.2,followClamp:118,reach:118,zoomMax:6,near:-170,kits:['garage-stations-v1/tainan','garage-people-v1/people','garage-camera-v1/camera','scooter']},
 };
 // 零件庫怎麼交給場景模組：南迴（棕櫚、站房）、阿里山（雲海螢火蟲、樹）照位置傳，多良、光華街整包傳；其餘不傳，零件庫給下面的掛件用。
-const SCENE_ARGS={'south-coast':k=>[k[0],k[1]],alishan:k=>[k[0],k[1]],duoliang:k=>[k],guanghua:k=>[k],...Object.fromEntries(['hsinchu','tainan','taichung-old','chiayi','baoan','jiji','haixian','dongshan'].map(id=>[id,k=>[k[0]]])),'kaohsiung-old':k=>[k]};
+const SCENE_ARGS={'south-coast':k=>[k[0],k[1]],alishan:k=>[k[0],k[1]],duoliang:k=>[k],guanghua:k=>[k],'tainan-line':k=>[k],...Object.fromEntries(['hsinchu','tainan','taichung-old','chiayi','baoan','jiji','haixian','dongshan'].map(id=>[id,k=>[k[0]]])),'kaohsiung-old':k=>[k]};
 // 田園小站的電車線依車款（同 native railcore GarageCatenary）：電聯車、城際、電力機車畫，柴油客車不畫；輕軌只有淡海、安坑有架空線。
 const WIRED=new Set(['railcar','express','electric']),DIESEL=new Set(['dr1000','dr2700','dr3000','dr3100']),OVERHEAD=new Set(['danhai','ankeng']);
 export const catenaryFor=(id,family)=>WIRED.has(family)?!DIESEL.has(id):OVERHEAD.has(id);
@@ -78,7 +81,7 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
   if(m.opposing)consists.push(await createConsist(carId,primary,signal));
  }catch(e){consists.forEach(c=>c.dispose());world.dispose();kits.forEach(k=>k.dispose());throw e;}
  const [consist,opposing]=consists,scale=1.25/primary.size.y;
- const scene=new THREE.Scene(),camera=new THREE.OrthographicCamera(-40,40,30,-30,.1,400);camera.up.set(0,0,1);
+ const scene=new THREE.Scene(),camera=new THREE.OrthographicCamera(-40,40,30,-30,m.near??.1,400);camera.up.set(0,0,1);
  const sun=new THREE.DirectionalLight('#fff1cf',3.2),hemi=new THREE.HemisphereLight('#c1dce7','#7b8663',2.1);
  sun.position.set(-25,-30,45);sun.shadow.mapSize.set(1024,1024);const [l,r,t,b,n,f]=m.shadow;Object.assign(sun.shadow.camera,{left:l,right:r,top:t,bottom:b,near:n,far:f});sun.shadow.normalBias=.035;sun.shadow.bias=-.0001;scene.add(sun,hemi,sun.target);
  const groundGeo=new THREE.PlaneGeometry(2000,2000),groundMat=new THREE.ShadowMaterial({opacity:.12}),ground=new THREE.Mesh(groundGeo,groundMat);ground.position.z=m.ground??0;ground.receiveShadow=true;if(m.ground!=null)scene.add(ground);
@@ -165,10 +168,10 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
    xrays.forEach((parts,i)=>{const c=consist.cars[i],list=owned?c.asset.materials:c.asset.lockedMaterials;
     for(const [step,x] of Object.entries(parts)){x.material=xrayOf(list,step);x.visible=step==='unmark'?inTunnel>0:touching[i];}});
    const aspect=w/Math.max(1,h);center.set(0,0,0);for(const c of consist.cars)center.add(c.car.position);center.multiplyScalar(1/consist.cars.length);
-   if(trainView&&passAt){const q=world.path.sample(THREE.MathUtils.clamp(s,-19,19));target.set(q.x,q.y,q.z+(m.trainZ??1));}
+   if(trainView&&passAt){const q=world.path.sample(THREE.MathUtils.clamp(s,-(m.followClamp??19),m.followClamp??19));target.set(q.x,q.y,q.z+(m.trainZ??1));}
    else if(trainView){target.copy(center);target.z=m.focusZ?target.z+1.4:1.4;}else target.set(...(m.focus||world.focus));
    // 平移：焦點從這裡挪 pan，限在場景中段（跟車時在編組長度內），車和場景拖不出畫面。
-   const base=[target.x,target.y],reach=trainView?consist.length/2:m.span[1]*.6,box=[base[0]-reach,base[1]-reach,base[0]+reach,base[1]+reach];
+   const base=[target.x,target.y],reach=trainView?consist.length/2:m.reach??m.span[1]*.6,box=[base[0]-reach,base[1]-reach,base[0]+reach,base[1]+reach];
    target.x=Math.max(box[0],Math.min(box[2],base[0]+pan[0]));target.y=Math.max(box[1],Math.min(box[3],base[1]+pan[1]));
    const span=(trainView?(passAt?Math.max(8,consist.length*.7/aspect):Math.max(9,consist.length*.65/aspect)):Math.max(m.span[0],m.span[1]/aspect))/zoom;
    Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});
