@@ -7,13 +7,16 @@
 //   node scripts/check_tymc_official_dates.mjs --special=30               往後 30 天內的特殊日
 //        （國定假日/補假、special_ops 例外日，外加最近一個一般平日與一般週末當對照組）
 //   加 --detail 印出每站差在哪幾班
+//   node scripts/check_tymc_official_dates.mjs --gate      sync-metro 用：這次重建動到機捷才比（往後最近的一般平日與一般週末），
+//        比不過或比不到就把 data/tymc_times.json 還原成 HEAD、結束碼 1，擋下後面的步驟。TDX 跟官網對不上時班表維持現狀，等人看
 // 結束碼：0＝比到的日子全部逐筆相同（官網還沒資料的日子只提示、不算失敗）；1＝有日子對不上；2＝抓取失敗
 //
 // 比法：官網是出發時刻表（終點站沒有時刻），所以只比每站「出發」紀錄的時分，不比車種；
 // 網站挑班表的規則照 index.html prepFreqTimes()：dates 例外 > 國定假日/補班 > 星期幾。
 // 官網查詢流程：先開一頁拿 session，每一站之前都要重 POST 一次日期（session 裡的日期只管一頁），
 // 抓完核對頁面上的 timetable_date 真的是要的那天。
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -76,7 +79,8 @@ async function fetchOfficial(date) {
 }
 
 // ---- 網站那天會選的班表（照 index.html prepFreqTimes 的挑法）----
-const T = J('data/tymc_times.json').lines.A;
+const TIMES = 'data/tymc_times.json';
+const T = J(TIMES).lines.A;
 const DT = J('data/tw_daytype.json');
 function siteSet(date) {
   const dt = DT[date];
@@ -111,7 +115,7 @@ function compare(date, off) {
 }
 
 // ---- 要查哪幾天 ----
-const args = process.argv.slice(2), DETAIL = args.includes('--detail');
+const args = process.argv.slice(2), DETAIL = args.includes('--detail'), GATE = args.includes('--gate');
 let dates = args.filter(a => /^\d{4}-\d{2}-\d{2}$/.test(a));
 const sp = args.find(a => a.startsWith('--special='));
 if (sp) {
@@ -130,6 +134,11 @@ if (sp) {
   dates = [...new Set([...dates, ...[...want].sort()])];
   console.log(`往後 ${n} 天要查的日子：${dates.map(d => `${d}(${why[d] || '指定'})`).join('、')}`);
 }
+if (GATE) {
+  if (!execFileSync('git', ['status', '--porcelain', '--', TIMES], { cwd: ROOT, encoding: 'utf8' }).trim()) { console.log('機捷班表跟 HEAD 相同，不比官網'); process.exit(0); }
+  const plain = test => { for (let i = 1; i <= 14; i++) { const d = addDays(taipeiToday(), i); if (!DT[d] && !T.dates?.[d] && test(wd(d))) return d; } };
+  dates = [plain(w => w >= 1 && w <= 5), plain(w => w === 0 || w === 6)].filter(Boolean);
+}
 if (!dates.length) { console.error('用法：node scripts/check_tymc_official_dates.mjs YYYY-MM-DD … ｜ --special=天數 [--detail]'); process.exit(2); }
 
 let bad = 0, fetchErr = 0, compared = 0;
@@ -145,4 +154,9 @@ for (const d of dates) {
   if (DETAIL && r.lines.length) console.log(r.lines.join('\n'));
 }
 console.log(`\n比對 ${compared} 天：對不上 ${bad} 天${fetchErr ? `、抓取失敗 ${fetchErr} 天` : ''}`);
+if (GATE && (bad || fetchErr || !compared)) {
+  writeFileSync(path.join(ROOT, TIMES), execFileSync('git', ['show', `HEAD:${TIMES}`], { cwd: ROOT }));
+  console.error(`⛔ 機捷重建比不過官網，${TIMES} 已還原成 HEAD，sync-metro 停在這裡`);
+  process.exit(1);
+}
 process.exit(fetchErr ? 2 : bad ? 1 : 0);
