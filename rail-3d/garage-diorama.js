@@ -49,9 +49,10 @@ export const SCENES={
  shengxing:{speed:2.4,yaw:-1.12,trainYaw:2.02,world:.58,train:.42,focus:[0,-3,2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33},
  'taipei-under':{speed:2.4,yaw:-1.12,trainYaw:2.02,world:.58,train:.42,focus:[0,-2,2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8},
  guanghua:{speed:2.6,yaw:-1.4,world:.42,train:.4,span:[10.5,21.5],ground:-2.5,shadow:[-42,42,35,-35,1,140],drive:3,pass:[90,-10],clip:26,trainZ:.9,kits:['garage-people-v1/people','garage-camera-v1/camera','scooter']},
- // 台南沿線：底座長 240，所以 followClamp（跟車鏡頭走多遠）、reach（全景平移多遠）、zoomMax（放大上限）、near（鏡頭擺在中段時兩端不被近裁切面切掉）都要放寬；沒寫的場景照舊。
- // speed 與 pass 讓一趟剛好是光華街機車週期的 3 倍（300÷26/9＝90÷2.6×3），本線車過涵洞時機車在洞裡；opposing 讓兩列在車站與光華街會車。
- 'tainan-line':{speed:26/9,yaw:-1.38,trainYaw:2.02,world:.5,train:.58,focus:[0,0,2],span:[34,128],ground:-4.1,shadow:[-135,135,80,-80,-90,300],drive:3,pass:[300,81.9],clip:120,opposing:60.2,followClamp:118,reach:118,zoomMax:6,near:-170,kits:['garage-stations-v1/tainan','garage-people-v1/people','garage-camera-v1/camera','scooter']},
+ // 台南沿線：底座長 510，所以 followClamp（跟車鏡頭走多遠）、reach（全景平移多遠）、zoomMax（放大上限）、near（鏡頭擺在中段時兩端不被近裁切面切掉）都要放寬；hide（比裁切面再遠多少才整列藏起來）、shadowMap（影子圖解析度）、shadowFollow（影子只算鏡頭範圍）也只有它用。沒寫的場景照舊。
+ // trainYaw 順著鐵路看：從側面看，沿線街屋和東側的高樓會把列車擋住（高樓整整擋 10 秒）。
+ // speed 與 pass 讓一趟剛好是光華街機車週期的 6 倍（600÷26/9＝90÷2.6×6），本線車過涵洞時機車在洞裡；opposing 讓對向車過涵洞時也一樣。
+ 'tainan-line':{speed:26/9,yaw:-1.38,trainYaw:-.35,world:.5,train:.58,focus:[0,30,2],span:[34,270],ground:-4.1,shadow:[-280,280,170,-170,-200,420],shadowMap:2048,shadowFollow:16,drive:3,pass:[600,214.64],clip:255,hide:264,opposing:87.24,followClamp:252,reach:262,zoomMax:10,near:-300,kits:['garage-stations-v1/tainan','garage-people-v1/people','garage-camera-v1/camera','scooter']},
 };
 // 零件庫怎麼交給場景模組：南迴（棕櫚、站房）、阿里山（雲海螢火蟲、樹）照位置傳，多良、光華街整包傳；其餘不傳，零件庫給下面的掛件用。
 const SCENE_ARGS={'south-coast':k=>[k[0],k[1]],alishan:k=>[k[0],k[1]],duoliang:k=>[k],guanghua:k=>[k],'tainan-line':k=>[k],...Object.fromEntries(['hsinchu','tainan','taichung-old','chiayi','baoan','jiji','haixian','dongshan'].map(id=>[id,k=>[k[0]]])),'kaohsiung-old':k=>[k]};
@@ -83,7 +84,7 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
  const [consist,opposing]=consists,scale=1.25/primary.size.y;
  const scene=new THREE.Scene(),camera=new THREE.OrthographicCamera(-40,40,30,-30,m.near??.1,400);camera.up.set(0,0,1);
  const sun=new THREE.DirectionalLight('#fff1cf',3.2),hemi=new THREE.HemisphereLight('#c1dce7','#7b8663',2.1);
- sun.position.set(-25,-30,45);sun.shadow.mapSize.set(1024,1024);const [l,r,t,b,n,f]=m.shadow;Object.assign(sun.shadow.camera,{left:l,right:r,top:t,bottom:b,near:n,far:f});sun.shadow.normalBias=.035;sun.shadow.bias=-.0001;scene.add(sun,hemi,sun.target);
+ sun.position.set(-25,-30,45);sun.shadow.mapSize.set(m.shadowMap??1024,m.shadowMap??1024);const [l,r,t,b,n,f]=m.shadow;Object.assign(sun.shadow.camera,{left:l,right:r,top:t,bottom:b,near:n,far:f});sun.shadow.normalBias=.035;sun.shadow.bias=-.0001;scene.add(sun,hemi,sun.target);
  const groundGeo=new THREE.PlaneGeometry(2000,2000),groundMat=new THREE.ShadowMaterial({opacity:.12}),ground=new THREE.Mesh(groundGeo,groundMat);ground.position.z=m.ground??0;ground.receiveShadow=true;if(m.ground!=null)scene.add(ground);
  const studio=new THREE.Scene();studio.background=new THREE.Color('#9dafb0');const pmrem=new THREE.PMREMGenerator(renderer),environment=pmrem.fromScene(studio,.1);scene.environment=environment.texture;pmrem.dispose();
  scene.add(world.group,...consists.map(c=>c.root));
@@ -141,10 +142,10 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
   return pts;
  }
  const target=new THREE.Vector3(),center=new THREE.Vector3(),point=new THREE.Vector3();let period,lite;
- function setTheme(next){period=next;const t=themes[next];scene.background=new THREE.Color(t.background);hemi.color.set(t.ambient);hemi.groundColor.set(t.ground);hemi.intensity=t.hemi??(next==='night'?1.2:2);scene.environmentIntensity=t.env??1;sun.color.set(t.sun);sun.intensity=t.power;sun.position.set(next==='sunset'?-40:-25,next==='sunset'?10:-30,next==='sunset'?20:45);}
+ function setTheme(next){period=next;const t=themes[next];scene.background=new THREE.Color(t.background);hemi.color.set(t.ambient);hemi.groundColor.set(t.ground);hemi.intensity=t.hemi??(next==='night'?1.2:2);scene.environmentIntensity=t.env??1;sun.color.set(t.sun);sun.intensity=t.power;sun.position.set(next==='sunset'?-40:-25,next==='sunset'?10:-30,next==='sunset'?20:45);sun.target.position.set(0,0,0);}
  function setLite(next){lite=next;sun.castShadow=!lite;ground.visible=!lite;}
  // 穿越的車：擺好、更新集電弓；整列開出底座就整列藏起來（裁切面之外還有車鉤、陰影）。
- function pass(c,follow,path,d){follow(path,d);c.updateParts();c.root.visible=Math.abs(d)<m.clip+3+c.length/2+.8;}
+ function pass(c,follow,path,d){follow(path,d);c.updateParts();c.root.visible=Math.abs(d)<(m.hide??m.clip)+3+c.length/2+.8;}
  return{
   scene,camera,consist,meta:m,wires,
   // time：行駛累計秒數（同原型只在行駛時累加；停站與穿越都是時間的純函數）。回傳這一幀的狀態給 data-* 用。
@@ -176,6 +177,8 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
    const span=(trainView?(passAt?Math.max(8,consist.length*.7/aspect):Math.max(9,consist.length*.65/aspect)):Math.max(m.span[0],m.span[1]/aspect))/zoom;
    Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});
    camera.position.set(target.x+100*Math.cos(elevation)*Math.cos(yaw),target.y+100*Math.cos(elevation)*Math.sin(yaw),target.z+100*Math.sin(elevation));camera.lookAt(target);camera.updateProjectionMatrix();camera.updateMatrixWorld();
+   // 場景比影子圖大太多（台南沿線）：影子只算鏡頭看得到的範圍，跟著鏡頭走；每 8 單位跳一格，影子邊緣不會每幀抖。
+   if(m.shadowFollow&&!lite){const R=Math.min(m.shadow[1],Math.max(span*aspect,span/Math.sin(elevation))*1.15+m.shadowFollow),c=sun.shadow.camera,x=Math.round(target.x/8)*8,y=Math.round(target.y/8)*8,dx=sun.position.x-sun.target.position.x,dy=sun.position.y-sun.target.position.y;sun.target.position.set(x,y,0);sun.position.set(x+dx,y+dy,sun.position.z);Object.assign(c,{left:-R,right:R,top:R,bottom:-R});c.updateProjectionMatrix();}
    // 阿里山：鏡頭和車身之間的樹淡出；要在鏡頭擺好之後算，焦點取車身中段（車廂原點在車底，＋車高一半）。
    if(world.updateTreeFade){center.z+=.625;world.updateTreeFade(camera.position,center);}
    if(world.setCanopyOpacity&&stop){

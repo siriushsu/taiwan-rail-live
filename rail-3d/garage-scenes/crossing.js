@@ -62,21 +62,22 @@ function dynamicMesh(k,material,withColor){
   }
  };
 }
-export function createScene(){
- const k=createKit(),{group,mat,block,beam,mesh,props,part}=k,path=offsetPath(straightPath(.36),1.65),opposingPath=offsetPath(straightPath(.36),-1.65,true),asphalt=mat('#6c7470'),white=mat('#e5e1cf'),yellow=mat('#dfb943'),dark=mat('#333d40'),concrete=mat('#bab5a3');
- k.slab('#665440',76,46,-1.35,.35,5);k.slab('#b49c75',75.6,45.6,-1,.6,5);k.slab('#95a078',75,45,-.4,.4,5);
+// bare：搬進別的場景時用，只留路面、鋪面、柵欄、車流；底座、軌道、電車線、街景由外面給。half＝軌道中線到平交道中心的距離；road＝車流跑到哪裡（y＝±road）；loops＝每次開放跑幾圈。
+export function createScene({bare=false,half=1.65,road=17,loops=1}={}){
+ const k=createKit(),{group,mat,block,beam,mesh,props,part}=k,path=offsetPath(straightPath(.36),half),opposingPath=offsetPath(straightPath(.36),-half,true),asphalt=mat('#6c7470'),white=mat('#e5e1cf'),yellow=mat('#dfb943'),dark=mat('#333d40'),concrete=mat('#bab5a3');
+ if(!bare){k.slab('#665440',76,46,-1.35,.35,5);k.slab('#b49c75',75.6,45.6,-1,.6,5);k.slab('#95a078',75,45,-.4,.4,5);}
  block(asphalt,[6.8,34,.14],[0,0,.07]);for(const x of [-3.8,3.8])block(concrete,[.7,34,.18],[x,0,.09]);
  for(const y of [-12,-9,-6,6,9]){block(yellow,[.06,1.5,.02],[-.10,y,.155]);block(yellow,[.06,1.5,.02],[.10,y,.155]);}
  for(const side of [-1,1]){block(white,[2.65,.20,.02],[-side*1.6,side*6.0,.155]);for(let i=0;i<5;i++)block(white,[.34,1.2,.02],[-2.3+i*.95,side*11,.155]);}
- k.track(path,true);k.track(opposingPath,true);
- for(const center of [-1.65,1.65])for(const y of [-.89,0,.89])block(mat('#656966'),[6.9,.71,.21],[0,center+y,.20]);
+ if(!bare){k.track(path,true);k.track(opposingPath,true);}
+ for(const center of [-half,half])for(const y of [-.89,0,.89])block(mat('#656966'),[6.9,.71,.21],[0,center+y,.20]);
  block(mat('#656966'),[6.9,.8,.21],[0,0,.20]);
  // 兩側橡膠鋪面之間保留鋼軌與輪緣槽，路面到軌面有平緩坡面。
  for(const side of [-1,1])block(asphalt,[6.8,2,.14],[0,side*3.6,.14],[side*-.06,0,0]);
  // 依實景把禁停區放在兩股軌道外，輪緣槽保持可見。
  for(const side of [-1,1])for(let x=-3.1;x<3.2;x+=.8){beam(yellow,[x,side*4.0,.23],[Math.min(3.25,x+1.3),side*5.5,.23],.04);beam(yellow,[x,side*5.5,.23],[Math.min(3.25,x+1.3),side*4.0,.23],.04);}
- const street=taiwanStreet(k);
- for(const [x,y]of [[-5,-9],[5,7],[-14,6],[16,6]])k.lamp(x,y,0,4.8);
+ const street=bare?null:taiwanStreet(k);
+ if(!bare)for(const [x,y]of [[-5,-9],[5,7],[-14,6],[16,6]])k.lamp(x,y,0,4.8);
  const gates=[],lamps=[],redLights=[],armRigs=[];let tipMaterial;
  for(const side of [-1,1]){
   const x=side*3.25,y=-side*4.6,pole=new THREE.Group();pole.position.set(x,y,.18);group.add(pole);
@@ -104,12 +105,12 @@ export function createScene(){
  // 雙線電車線跨距與兩股軌道對位，不落柱在軌道中心。
  // 電車線離軌頂約 1.94（與高架同一個高度），集電弓伸得到；電桿、橫樑、吊線跟著降。
  const wire=new THREE.Group();group.add(wire);
- for(let x=-28;x<=28;x+=14){for(const y of [-3.25,3.25])part(wire,dark,[.1,.1,2.97],[x,y,1.485]);part(wire,dark,[.1,6.6,.08],[x,0,2.89]);for(const y of [-1.65,1.65])part(wire,concrete,[.06,.06,.6],[x,y,2.62]);}
- for(const y of [-1.65,1.65])part(wire,dark,[70,.025,.025],[0,y,2.31]);
+ if(!bare){for(let x=-28;x<=28;x+=14){for(const y of [-3.25,3.25])part(wire,dark,[.1,.1,2.97],[x,y,1.485]);part(wire,dark,[.1,6.6,.08],[x,0,2.89]);for(const y of [-1.65,1.65])part(wire,concrete,[.06,.06,.6],[x,y,2.62]);}
+ for(const y of [-1.65,1.65])part(wire,dark,[70,.025,.025],[0,y,2.31]);}
  k.bake();
  // ── 合併（見檔頭說明）。先收動態 rig（車輛、遮斷桿臂）的零件，再把其餘靜態的攤平，最後才建動態 mesh。
  group.updateMatrixWorld(true);
- const clips=[new THREE.Plane(new THREE.Vector3(0,1,0),17),new THREE.Plane(new THREE.Vector3(0,-1,0),17)],own=m=>k.ownMaterial(m),clipped=m=>(m.clippingPlanes=clips,m.clipShadows=true,own(m)),std=o=>new THREE.MeshStandardMaterial(o);
+ const clips=[new THREE.Plane(new THREE.Vector3(0,1,0),road),new THREE.Plane(new THREE.Vector3(0,-1,0),road)],own=m=>k.ownMaterial(m),clipped=m=>(m.clippingPlanes=clips,m.clipShadows=true,own(m)),std=o=>new THREE.MeshStandardMaterial(o);
  const cls=(m,withColor)=>({m,withColor,d:dynamicMesh(k,m,withColor)});
  // 車輛材質原本每輛車各複製一份（為了掛裁切面）；現在同角色共用一份，裁切面照舊（y=±17，連陰影一起裁）。
  const fleet={body:cls(clipped(std({vertexColors:true,metalness:.15,roughness:.4})),true),glass:cls(clipped(std({color:'#426272',metalness:.3,roughness:.2})),false),trim:cls(clipped(std({vertexColors:true,roughness:.8})),true),head:cls(clipped(std({color:'#fff0d1',roughness:.8,emissive:'#ffe0a4'})),false),tail:cls(clipped(std({color:'#ad3028',roughness:.8,emissive:'#ff3220'})),false),tip:cls(tipMaterial,false)};
@@ -188,12 +189,12 @@ export function createScene(){
  let state={};return{...k,nativeRigs:{fleet,cars,gates,lamps,redLights},dispose(){atlasTexture?.dispose();poolTex?.dispose();k.dispose();},path,opposingPath,kind:'crossing',contactWireZ:2.31-.0125,focus:[0,5,1],update(time,period,train){const f=k.illumination(period),a=crossingState(train.distance,train.length,path.length,train.speed),b=crossingState(train.opposingDistance??train.distance,train.length,path.length,train.speed),s={...a,arrival:Math.max(a.arrival,b.arrival),clear:Math.min(a.clear,b.clear),closed:Math.max(a.closed,b.closed),alarm:a.alarm||b.alarm,occupied:a.occupied||b.occupied};s.phase=s.occupied?'雙向列車通過':!s.alarm?'通行開放':s.closed===1?'等待雙線清空':s.clear>.8?'遮斷桿上升':s.closed>0?'遮斷桿下降':'列車接近';for(const {pivot,side}of gates)pivot.rotation.y=side*(1-s.closed)*Math.PI/2;
   for(const l of redLights)l.intensity=s.alarm?(f?2.5:.4):0;const blink=Math.floor(time*2.2)%2;for(const {m,index}of lamps){const on=s.alarm&&blink===index;m.emissiveIntensity=on?3:0;m.color.set(on?'#ff5943':'#551c19');}
   // 車流只在全開後通行；下一次警示前回到入口，所有回繞都在道路邊界。
-  const span=38,openStart=3.2,openDuration=(path.length-train.length-7)/train.speed-9.2,lap=path.length/train.speed;
+  const span=2*road+4,openStart=3.2,openDuration=(path.length-train.length-7)/train.speed-9.2,lap=path.length/train.speed;
   // 兩股各自算清空後過了幾秒再取小的：直接取 clear 的最小值，先走的車繞回起點那一刻會少算對向那 3 秒，路上的車跟著瞬移。
   const since=c=>(c%lap+lap)%lap,openElapsed=Math.min(since(a.clear),since(b.clear))-openStart;
-  cars.forEach((c,i)=>{let y=c.initial;if(!s.alarm&&s.closed===0&&openElapsed<openDuration){const t=Math.max(0,openElapsed-Math.floor(i/3)*.5-(i%3)*1.25),d=t*3.2;const progress=d%span;y=c.initial+c.dir*progress;if(c.dir*y>19)y-=c.dir*span; // 回到邊界後向停止線前進並停等
-   if(d>=span)y=c.initial;
-  }c.g.position.y=y;c.g.visible=Math.abs(y)<17+c.L/2+.2;c.g.position.z=.18+.12*smooth((4.2-Math.abs(y))/1.2);fleet.tail.m.emissiveIntensity=s.alarm?1.1:f*.5;});
+  cars.forEach((c,i)=>{let y=c.initial;if(!s.alarm&&s.closed===0&&openElapsed<openDuration){const t=Math.max(0,openElapsed-Math.floor(i/3)*.5-(i%3)*1.25),d=t*3.2;const progress=d%span;y=c.initial+c.dir*progress;if(c.dir*y>road+2)y-=c.dir*span; // 回到邊界後向停止線前進並停等
+   if(d>=span*loops)y=c.initial;
+  }c.g.position.y=y;c.g.visible=Math.abs(y)<road+c.L/2+.2;c.g.position.z=.18+.12*smooth((4.2-Math.abs(y))/1.2);fleet.tail.m.emissiveIntensity=s.alarm?1.1:f*.5;});
   // 黃昏、清晨（f＝.35）環境光亮好幾倍，真燈在路面最多只加 10 左右（11-02 對照），所以照 f^2.5 淡下去。
   for(const o of pools)o.visible=f>0;if(f){const [mul,add]=poolMats,w=f**2.5;mul.color.setRGB(...POOL.mul.map(x=>x*w));add.color.setRGB(...POOL.add);add.opacity=w;writePools();}
   wire.visible=true;for(const c of Object.values(fleet))c.d.update();state={...s,street,tracks:2,directions:[1,-1],trains:[a,b],lights:f,vehicles:cars.map(c=>({x:c.g.position.x,y:c.g.position.y,length:c.L,dir:c.dir})),gates:gates.map(g=>g.pivot.rotation.y),flashes:lamps.map(l=>l.m.emissiveIntensity),electrified:wire.visible};},get state(){return state;}};
