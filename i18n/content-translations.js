@@ -109,6 +109,10 @@
     "減少同股道列車追上、穿過前車的情況：後車依前車位置減速跟隨，顯示位置最多延後 120 秒。部分交會與待避仍受班表及股道資料限制。": "Reduced trains catching and passing through a train ahead on the same track. Following trains slow down, with display positions delayed by up to 120 seconds. Some meetings and passing waits remain limited by timetable and track data.",
     "修正全網平坦地圖的橋梁與引道突起，列車行經短橋時更平順": "Smoothed bridge and approach humps across the flat map, so trains pass over short bridges more smoothly.",
     "列車光環": "Train glow",
+    "誤點外框": "Delay outline",
+    "台鐵誤點（分）": "TRA delay (min)",
+    "準點": "On time",
+    "目前沒有即時誤點": "No live delay data now",
     "列車周圍新增自然散開的柔光，夜晚呈暖色、白天沿用車次顏色，可在「更多」開關": "Trains now have a naturally diffused glow: warm at night and in their service color by day. Toggle it in More.",
 
     "台南地面鐵道・歷史重播": "Tainan surface railway · Historical replay",
@@ -477,6 +481,10 @@
     "減少同股道列車追上、穿過前車的情況：後車依前車位置減速跟隨，顯示位置最多延後 120 秒。部分交會與待避仍受班表及股道資料限制。": "同じ線路で後続列車が前の列車に追いつき、すり抜ける表示を低減。後続列車は減速し、表示位置を最大120秒遅らせます。一部の交換・待避には時刻表や線路データによる制約が残ります。",
     "修正全網平坦地圖的橋梁與引道突起，列車行經短橋時更平順": "平坦な地図全体で橋と接続区間の不自然な盛り上がりを修正し、列車が短い橋を滑らかに通過するようになりました。",
     "列車光環": "列車の光",
+    "誤點外框": "遅延の枠",
+    "台鐵誤點（分）": "台鉄の遅延（分）",
+    "準點": "定刻",
+    "目前沒有即時誤點": "現在リアルタイムの遅延情報はありません",
     "列車周圍新增自然散開的柔光，夜晚呈暖色、白天沿用車次顏色，可在「更多」開關": "列車の周囲に自然に広がる柔らかな光を追加。夜は暖色、昼は列車の色になり、「その他」で切り替えられます。",
 
     "台南地面鐵道・歷史重播": "台南の地上鉄道・過去の運行を再生",
