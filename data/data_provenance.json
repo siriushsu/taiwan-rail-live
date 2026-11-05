@@ -35,7 +35,7 @@
    "effectiveDateField": "fetchedAt",
    "geometrySource": "TRA-ODS",
    "coordinateBasis": "WGS84(台鐵平交道公開資料的 POS 欄位標示 WGS84,見 scripts/build_crossings.mjs:6)",
-   "checksum": "ce1198ca9b045b8bdb41e2c5e47409ac"
+   "checksum": "c7fa5027ed1e247b3dc902e9068f9a95"
   },
   "data/krtc.json": {
    "sourceDescription": "交通部 TDX 運輸資料流通服務(高雄捷運紅/橘線與高雄輕軌:路線幾何/站序/站間行駛時間,2026-07 抓取);輕軌班距為官方公告估算(尖峰約10分/離峰約15分)",

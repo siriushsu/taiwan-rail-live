@@ -162,7 +162,8 @@ const widths = [360, 375, 414, 768];
 // 11/05: Korean metro maps add one (572 -> 573).
 // 11/05: wallet account notice adds one (573 -> 574).
 // 11/05: 1.8.0 web batch (delay outline, local train type, fictional trains switch, 11 station garages) adds four (574 -> 578).
-const expectedHistoryCount = 578;
+// 11/05: Jianshanpu Road level crossing adds one (578 -> 579).
+const expectedHistoryCount = 579;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
