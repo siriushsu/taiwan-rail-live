@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-15",
+  "updated": "2026-11-05",
   "events": [
     {
       "id": "tra-20261013-tainan-underground-switch",
@@ -72,16 +72,6 @@
       "url": "https://www.trc.com.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac2a0cfb55601a0d3373b9c04fd&page=0"
     },
     {
-      "id": "tra-20260924-kato-e500-pp",
-      "source": "official",
-      "title": "臺鐵×KATO E500＋PP自強號模型首賣會",
-      "note": "N 規模型限量首賣（10/3 上午 10 點），兩天都有鐵道模型運轉會，11 點到 17 點",
-      "start": "2026-10-03",
-      "end": "2026-10-04",
-      "anchor": { "kind": "station", "sys": "tra_sched", "name": "臺北" },
-      "url": "https://www.trc.com.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac2a0cfb55601a0d307034d0497"
-    },
-    {
       "id": "trtc-20260924-exit-music-fest",
       "source": "official",
       "title": "2026出口音樂節",
@@ -100,27 +90,6 @@
       "end": "2026-11-22",
       "anchor": { "kind": "station", "sys": "mrt", "name": "雙連" },
       "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=681B26EB737DAB11"
-    },
-    {
-      "id": "tymc-20260826-indigenous-passset",
-      "source": "official",
-      "title": "桃捷原民精裝套票冊",
-      "note": "三張原民主題一日票裝成精裝小書，全線車站開賣（興南站除外），限量 300 組",
-      "start": "2026-08-29",
-      "end": "2026-09-30",
-      "endGuess": true,
-      "anchor": { "kind": "system", "sys": "tymc" },
-      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2411-1.html"
-    },
-    {
-      "id": "trtc-20260829-guangci-concert-0919",
-      "source": "official",
-      "title": "廣慈/奉天宮站通車音樂會",
-      "note": "站內大廳公共藝術區，14 時 15 分起，雨帆藝術結合傳統國樂與現代音樂；特別嘉賓臺北市名聲樂團",
-      "start": "2026-09-19",
-      "end": "2026-09-19",
-      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
-      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=196975BB815C087E"
     },
     {
       "id": "afr-20260901-guaiguai-beimen",
@@ -143,36 +112,6 @@
       "endGuess": true,
       "anchor": { "kind": "station", "sys": "afr_sched", "name": "阿里山" },
       "url": "https://afrch.forest.gov.tw/AllNews/0079128"
-    },
-    {
-      "id": "trtc-20260902-cpr-0919",
-      "source": "official",
-      "title": "閃電CPR挑戰",
-      "note": "12 時至 18 時在月臺體驗 CPR 與 AED，完成任務可玩線上小遊戲",
-      "start": "2026-09-19",
-      "end": "2026-09-19",
-      "anchor": { "kind": "station", "sys": "mrt", "name": "市政府" },
-      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=C413B5C4CF0BBB21"
-    },
-    {
-      "id": "trtc-20260902-guangci-firstmonth",
-      "source": "official",
-      "title": "廣慈／奉天宮站通車首月好康",
-      "note": "搭捷運到站可抽捷運年票或自行車，現場每日發限量霜淇淋禮物卡，另有首月乘車優惠",
-      "start": "2026-08-30",
-      "end": "2026-09-28",
-      "anchor": { "kind": "station", "sys": "mrt", "name": "廣慈/奉天宮" },
-      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=F90C50DBBB49A03F"
-    },
-    {
-      "id": "tymc-20260902-jingjun93",
-      "source": "official",
-      "title": "敬軍93 感恩同行",
-      "note": "現役軍人、替代役、榮民、國防部職員及軍校教職員生持證免費搭；同行親友同起訖單程票 8 折",
-      "start": "2026-09-03",
-      "end": "2026-09-25",
-      "anchor": { "kind": "system", "sys": "tymc" },
-      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2416-1.html"
     },
     {
       "id": "tymc-20260907-designexpo-qingpu",
@@ -225,26 +164,6 @@
       "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=267CEA86CE2AB5C2"
     },
     {
-      "id": "trtc-20260910-kidsmovie-daan",
-      "source": "official",
-      "title": "假日親子電影院：大安森林公園站場",
-      "note": "在陽光大廳，魔術開場後放《哆啦A夢：大雄的繪畫世界物語》",
-      "start": "2026-09-19",
-      "end": "2026-09-19",
-      "anchor": { "kind": "station", "sys": "mrt", "name": "大安森林公園" },
-      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=A2C11A764A640D3D"
-    },
-    {
-      "id": "trtc-20260911-kidspark-teacher",
-      "source": "official",
-      "title": "兒童新樂園敬師月",
-      "note": "臺北市教師持教師證或學校識別證，本人加親友共 4 人免費入園；假日再送 4 項設施遊樂券。劍潭站出口 3 轉公車可到",
-      "start": "2026-09-11",
-      "end": "2026-09-30",
-      "anchor": { "kind": "station", "sys": "mrt", "name": "劍潭" },
-      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=FD5BEE81DC171572"
-    },
-    {
       "id": "thsr-20260911-hsinchu-p3-parking",
       "source": "official",
       "title": "高鐵新竹站 P3 停車場新費率",
@@ -266,14 +185,74 @@
       "url": "https://www.thsrc.com.tw/ArticleContent/a1ee91c8-74ef-4eb9-9da0-6b3637541885"
     },
     {
-      "id": "trtc-20260917-kidspark-midautumn",
+      "id": "tra-20261102-itf",
       "source": "official",
-      "title": "兒童新樂園「中秋童樂」打卡抽獎",
-      "note": "園區有中秋限定的玉兔與發光月亮布置，打卡可參加抽獎",
-      "start": "2026-09-19",
-      "end": "2026-09-28",
-      "anchor": { "kind": "station", "sys": "mrt", "name": "劍潭" },
-      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=220D0D7A2C8B041E"
+      "title": "2026 ITF 臺鐵館",
+      "note": "台北國際旅展的臺鐵攤位，在南港展覽館 1 館 4 樓",
+      "start": "2026-11-06",
+      "end": "2026-11-09",
+      "anchor": { "kind": "station", "sys": "mrt", "name": "南港展覽館" },
+      "url": "https://www.trc.com.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac3a1988e1201a19bb9659107fe&page=0"
+    },
+    {
+      "id": "krtc-20261031-hellokitty",
+      "source": "official",
+      "title": "Hello Kitty × 蜜柑站長 超級好朋友號",
+      "note": "高捷首度車內外全彩繪列車，上線行駛中",
+      "start": "2026-10-31",
+      "end": "2027-09-30",
+      "anchor": { "kind": "system", "sys": "krtc" },
+      "url": "https://www.krtc.com.tw/Information/news_more?id=f10f93225fa24724994567dc40dfe661"
+    },
+    {
+      "id": "afr-20261030-maple-1201",
+      "source": "official",
+      "title": "「楓度翩翩」蒸汽主題列車",
+      "note": "蒸汽火車 31 號掛檜木車廂，行駛阿里山遊樂區與二萬平一帶；首梯 11/17 上午 10 點開放訂票",
+      "start": "2026-12-01",
+      "end": "2026-12-01",
+      "anchor": { "kind": "station", "sys": "afr_sched", "name": "阿里山" },
+      "url": "https://afrch.forest.gov.tw/AllNews/0079549"
+    },
+    {
+      "id": "afr-20261030-maple-1208",
+      "source": "official",
+      "title": "「楓度翩翩」蒸汽主題列車",
+      "note": "蒸汽火車 31 號掛檜木車廂，行駛阿里山遊樂區與二萬平一帶；首梯 11/17 上午 10 點開放訂票",
+      "start": "2026-12-08",
+      "end": "2026-12-08",
+      "anchor": { "kind": "station", "sys": "afr_sched", "name": "阿里山" },
+      "url": "https://afrch.forest.gov.tw/AllNews/0079549"
+    },
+    {
+      "id": "afr-20261030-maple-1215",
+      "source": "official",
+      "title": "「楓度翩翩」蒸汽主題列車",
+      "note": "蒸汽火車 31 號掛檜木車廂，行駛阿里山遊樂區與二萬平一帶；首梯 11/17 上午 10 點開放訂票",
+      "start": "2026-12-15",
+      "end": "2026-12-15",
+      "anchor": { "kind": "station", "sys": "afr_sched", "name": "阿里山" },
+      "url": "https://afrch.forest.gov.tw/AllNews/0079549"
+    },
+    {
+      "id": "afr-20261030-maple-1222",
+      "source": "official",
+      "title": "「楓度翩翩」蒸汽主題列車",
+      "note": "蒸汽火車 31 號掛檜木車廂，行駛阿里山遊樂區與二萬平一帶；首梯 11/17 上午 10 點開放訂票",
+      "start": "2026-12-22",
+      "end": "2026-12-22",
+      "anchor": { "kind": "station", "sys": "afr_sched", "name": "阿里山" },
+      "url": "https://afrch.forest.gov.tw/AllNews/0079549"
+    },
+    {
+      "id": "afr-20261030-maple-1229",
+      "source": "official",
+      "title": "「楓度翩翩」蒸汽主題列車",
+      "note": "蒸汽火車 31 號掛檜木車廂，行駛阿里山遊樂區與二萬平一帶；首梯 11/17 上午 10 點開放訂票",
+      "start": "2026-12-29",
+      "end": "2026-12-29",
+      "anchor": { "kind": "station", "sys": "afr_sched", "name": "阿里山" },
+      "url": "https://afrch.forest.gov.tw/AllNews/0079549"
     }
   ]
 }
