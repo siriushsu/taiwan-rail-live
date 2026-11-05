@@ -56,9 +56,9 @@
   // 所有台鐵車、阿里山跑林鐵車；同系統分兩座的規則再列車款）跑那個系統的車，照錢包的已解鎖清單進，
   // 鎖著的點了開兌換視窗（見下面「兌換專屬場景」）。沒有錢包（沒登入、展示模式）只有田園小站，不出場景列與場景鈕。
   // 已做好的場景要跟 rail-3d/garage-diorama.js 的 SCENES 一致。
-  const DEFAULT_SCENE='paddy',DEFAULT_PLACE='預設車庫・田園小站',BUILT_SCENES=new Set(['south-coast','alishan','viaduct','shifen','duoliang','crossing','guanghua','taipei-metro','wenhu','airport-mrt','ntpc-metro','ntpc-lrt','taichung-metro','kaohsiung-metro','kaohsiung-lrt','thsr']);
+  const DEFAULT_SCENE='paddy',DEFAULT_PLACE='預設車庫・田園小站',BUILT_SCENES=new Set(['south-coast','alishan','viaduct','shifen','duoliang','crossing','guanghua','taipei-metro','wenhu','airport-mrt','ntpc-metro','ntpc-lrt','taichung-metro','kaohsiung-metro','kaohsiung-lrt','thsr','hsinchu','tainan','taichung-old','chiayi','baoan','jiji','dongshan','kaohsiung-old','haixian','shengxing','taipei-under']);
   // 場景格、場景鈕用的短名（阿里山那座用線名，不用它畫的那段「之字形」）。
-  const SCENE_SHORT={paddy:'田園小站','south-coast':'南迴海岸',shifen:'十分老街',viaduct:'站前街',alishan:'阿里山林鐵',duoliang:'多良車站',crossing:'街角平交道',guanghua:'光華街','taipei-metro':'劍潭站',wenhu:'動物園站','airport-mrt':'山鼻站','ntpc-metro':'陶瓷老街站','ntpc-lrt':'淡水漁人碼頭站','taichung-metro':'文心森林公園站','kaohsiung-metro':'美麗島站','kaohsiung-lrt':'駁二大義站',thsr:'高鐵新竹站'};
+  const SCENE_SHORT={paddy:'田園小站','south-coast':'南迴海岸',shifen:'十分老街',viaduct:'站前街',alishan:'阿里山林鐵',duoliang:'多良車站',crossing:'街角平交道',guanghua:'光華街','taipei-metro':'劍潭站',wenhu:'動物園站','airport-mrt':'山鼻站','ntpc-metro':'陶瓷老街站','ntpc-lrt':'淡水漁人碼頭站','taichung-metro':'文心森林公園站','kaohsiung-metro':'美麗島站','kaohsiung-lrt':'駁二大義站',thsr:'高鐵新竹站',hsinchu:'新竹車站',tainan:'台南車站','taichung-old':'台中舊站',chiayi:'嘉義車站',baoan:'保安車站',jiji:'集集車站',dongshan:'冬山車站','kaohsiung-old':'高雄車站',haixian:'大山車站',shengxing:'勝興車站','taipei-under':'台北車站'};
   // trainView＝原型的「陪它走走」（跟著車看），手機寬預設開。frameCars＝這次開著場景頁時各座最後看的車：換座時記下，每次打開場景頁清空。
   let trainView=false,frameScene='',frameCars=new Map(),viewScene='',viewPending=false,sceneMeta=null,loadedScene='';
   // 第 4 格點下去開「場景頁」：蓋住整個車庫的 9-29 外框頁（網頁分支 garage/scene-03 的 garage-scene.html；規格與對照稿在
@@ -85,6 +85,17 @@
     'kaohsiung-metro':['美麗島全景',['港都晴日','港都夕照','穹頂夜光'],'正在把小車送進美麗島站…','高雄捷運美麗島站 · 微縮印象'],
     'kaohsiung-lrt':['駁二全景',['港邊晴日','港灣夕照','倉庫夜色'],'正在把小車送進駁二大義站…','高雄輕軌駁二大義站 · 微縮印象'],
     thsr:['新竹站全景',['風城晴日','竹塹夕照','風帆夜色'],'正在把小車送上高鐵新竹站…','台灣高鐵新竹站 · 微縮印象'],
+    hsinchu:['新竹車站全景',['風城午後','東門夕照','鐘塔夜色'],'正在把小車送進新竹車站…','新竹車站 · 微縮印象'],
+    tainan:['台南車站全景',['府城晴日','鳳凰木夕照','圓環夜色'],'正在把小車送進台南車站…','台南車站 · 微縮印象'],
+    'taichung-old':['台中舊站全景',['紅磚晴日','綠空夕照','紅磚夜色'],'正在把小車送進台中舊站…','台中舊站 · 微縮印象'],
+    chiayi:['嘉義車站全景',['諸羅晴日','水塔夕照','林鐵夜色'],'正在把小車送進嘉義車站…','嘉義車站 · 微縮印象'],
+    baoan:['保安車站全景',['永保晴日','蔗田夕照','椰影夜色'],'正在把小車送進保安車站…','保安車站 · 微縮印象'],
+    jiji:['集集車站全景',['山城晴日','綠隧夕照','山城夜色'],'正在把小車送進集集車站…','集集車站 · 微縮印象'],
+    dongshan:['冬山車站全景',['瓜棚晴日','蘭陽夕照','拱棚夜色'],'正在把小車送進冬山車站…','冬山車站 · 微縮印象'],
+    'kaohsiung-old':['高雄車站全景',['港都晴日','綠之丘夕照','燈籠夜色'],'正在把小車送進高雄車站…','高雄車站 · 微縮印象'],
+    haixian:['大山車站全景',['海風晴日','海線夕照','海岸夜色'],'正在把小車送進大山車站…','大山車站 · 微縮印象'],
+    shengxing:['勝興車站全景',['山線晴日','隧道夕照','老街夜色'],'正在把小車送進勝興車站…','勝興車站 · 微縮印象'],
+    'taipei-under':['台北車站全景',['北門晴日','市民大道夕照','都心夜色'],'正在把小車送進台北車站…','台北車站 · 微縮印象'],
   };
   // 手機預設關陰影、像素比 1（10-30 A54 量測），只用在場景頁。
   const lite=matchMedia('(pointer:coarse) and (hover:none)');
@@ -109,7 +120,7 @@
   const pickedPeriod=()=>periodChoice==='auto'?scenePeriod():periodChoice;
   function resetView(){zoom=1;panX=panY=0;for(const g of gestures)g.stop();
     // 場景頁的預設角度各座不同（SCENES 的 yaw／仰角）；模組還沒載完先用田園小站那組，載完再補一次（同 App）。
-    if(mode==='scene'){viewScene=frameScene;const m=sceneMeta?.[viewScene];viewPending=!m;yaw=m?m.yaw:-1.12;elevation=trainView?(m?m.train:.5):(m?m.world:.58);return;}
+    if(mode==='scene'){viewScene=frameScene;const m=sceneMeta?.[viewScene];viewPending=!m;yaw=m?(trainView?m.trainYaw??m.yaw:m.yaw):-1.12;elevation=trainView?(m?m.train:.5):(m?m.world:.58);return;}
     yaw=mode==='track'?-Math.PI/2:mode==='loop'?-.9:-.55;elevation=mode==='track'?.16:mode==='loop'?.8:.39;}
   function clampView(){if(mode==='loop')elevation=Math.max(.25,Math.min(1.35,elevation));if(mode==='scene')elevation=Math.max(.2,Math.min(1.2,elevation));if(mode==='track'){yaw=Math.max(-Math.PI/2-.20,Math.min(-Math.PI/2+.20,yaw));elevation=Math.max(.08,Math.min(.30,elevation));}}
   const reduced=matchMedia('(prefers-reduced-motion:reduce)');
