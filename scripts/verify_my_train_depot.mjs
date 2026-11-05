@@ -49,7 +49,7 @@ const PASS = () => { document.addEventListener('DOMContentLoaded', () => { plusS
 
 // 外部圖磚失手跟機務段無關;本機檔案載入失敗、頁面自己印的錯誤照算。
 const externalNoise = (text, url) => /^https?:/.test(url || '') && !(url || '').startsWith(`http://127.0.0.1:${PORT}/`)
-  || /^(Fetch API cannot load|Access to fetch at '?)https?:\/\/(?!127\.0\.0\.1)/.test(text);
+  || /^(Fetch API cannot load |Access to fetch at '?)https?:\/\/(?!127\.0\.0\.1)/.test(text);
 async function newPage(ctx, errors) {
   const page = await ctx.newPage();
   page.on('dialog', d => (d.type() === 'confirm' && /確定要刪除/.test(d.message()) ? d.accept() : d.dismiss()).catch(() => {}));
@@ -717,7 +717,8 @@ async function honors(browser, tag) {
   const again = await page.evaluate(() => ({ big: !!document.querySelector('[data-mt-panel] .mt-big-stamp'), mark: document.querySelector('[data-mt-mark] img')?.alt, plate: document.querySelector('[data-mt-name]')?.className }));
   ok(P('[跟車卡] 跑過的車不蓋章,看得到頭牌與車牌框'), !again.big && /首航/.test(again.mark || '') && /mt-plate/.test(again.plate), js(again));
   if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${tag}-follow-plate.png`) });
-  // 地圖上的牌:畫出來的像素要有框的顏色,不是真車的車牌色。
+  // 地圖上的牌:畫出來的像素要有框的顏色,不是真車的車牌色。關掉機務段後時鐘要追一兩拍,車才上地圖。
+  await page.waitForFunction(() => !!trainPos(state.followTrain, state.simSec), null, { timeout: 5000 });
   const plate = await page.evaluate(async () => {
     const rec = state.followTrain, p = mapDetailPoint([trainPos(rec, state.simSec).lat, trainPos(rec, state.simSec).lon]);
     const dpr = state.dpr, c = document.createElement('canvas'), x = c.getContext('2d', { willReadFrequently: true });

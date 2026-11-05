@@ -8106,7 +8106,7 @@ const state = {
   _metroLiveRaw: {}, // pollMetroLive 最近一次原始回應快取:sys → {at,rows,receivedAt},供等車卡取官方分鐘(不另發 fetch)
   myTrains: [], ownTrainIssues: {}, ownTrainLogs: new Map(), ownTrainShow: true, // 自製列車
   ownTrainAppearance: { haloOn: true, haloSize: 'std' }, _ownTrainHits: [],
-  ownMeetJob: null, ownMeetPending: false, ownJudgeAt: 0, ownWeather: { frame: null, tried: 0, next: 0, key: '', samples: [] },
+  ownMeetJob: null, ownMeetPending: false, ownMeetBeat: 0, ownJudgeAt: 0, ownWeather: { frame: null, tried: 0, next: 0, key: '', samples: [] },
 };
 // 自製列車:使用者自己排的班,永遠不進 state.trains,唯一判斷式 isMyTrain。
 function isMyTrain(tr) { return !!(tr && tr.mine === true); }
@@ -13483,7 +13483,8 @@ function ownTrainHonorNews(fresh) {
   const one = fresh.length === 1 && [...MyTrainPlan.HONOR_GROUPS.flatMap(g => g.list), ...MyTrainPlan.FLEET_HONORS].find(h => h.id === fresh[0].id);
   showToast(escHtml(one ? t('拿到成就「{name}」', { name: t(one.name) }) : t('拿到 {count} 枚成就', { count: fresh.length })));
 }
-// 交會數:拿今天的班表當代表日掃一趟,不算誤點。路線變了才重掃。一拍只掃一小段,6 小時的車約 1 分半掃完,不卡畫面。
+// 交會數:拿今天的班表當代表日掃一趟,不算誤點。路線變了才重掃。一拍只掃一小段,6 小時的車約 1 分半掃完,不卡畫面;
+// 跟車時畫面最吃緊(A54 全速掃少約 5 fps),改成 2 秒一拍。
 const OWN_MEET_SLICE = 120;
 let ownFormationFor = null; // formations.js:2D 地圖不會先載,要比「同款」才載
 function ownTrainMeetJob() {
@@ -13502,6 +13503,7 @@ function ownTrainSameModel(rec, o) {
 }
 function ownTrainMeetsTick() {
   if (!state.ownMeetJob && !state.ownMeetPending) return;
+  if (state.followTrain && ++state.ownMeetBeat % 4) return;
   if (!ownFormationFor) {
     import('./rail-3d/integration/formations.js').then(m => { ownFormationFor = m.formationFor; }).catch(e => console.warn('formations', e));
     return;

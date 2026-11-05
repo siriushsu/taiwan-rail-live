@@ -47,7 +47,7 @@ const INIT = (rides) => {
 
 // 外部圖磚失手跟車隊無關;本機檔案載入失敗、頁面自己印的錯誤照算。
 const externalNoise = (text, url) => /^https?:/.test(url || '') && !(url || '').startsWith(`http://127.0.0.1:${PORT}/`)
-  || /^(Fetch API cannot load|Access to fetch at '?)https?:\/\/(?!127\.0\.0\.1)/.test(text);
+  || /^(Fetch API cannot load |Access to fetch at '?)https?:\/\/(?!127\.0\.0\.1)/.test(text);
 async function boot(ctx, errors) {
   const page = await ctx.newPage();
   page.on('dialog', d => (d.type() === 'confirm' && /確定要刪除/.test(d.message()) ? d.accept() : d.dismiss()).catch(() => {}));
