@@ -639,9 +639,51 @@ const results_dir = path.join(ROOT, 'scratchpad'); // repo 的 scratchpad/ 已�
 // flex:none+顯式 width:30px(安全);.pf-txt 是同一個 flex row 裡的 item,只有
 // `display:flex;flex-direction:column;line-height:1.35`,沒有顯式 width、沒有 flex 覆寫——
 // 形狀與踩過的坑一致,必須實測,不能用「應該沒事」帶過。
+//
+// .pf-txt 的量測,WebKit 三個寬度、突變與 chromium 對照組共用這一支,兩邊不會量成不同的東西。
+// naturalW＝內容自己要的寬度:每個子行的文字放進 nowrap 的隱藏 span、套該行計算後的字型,取最寬一行。
+// 它不受 .pf-txt 自己的寬度規則影響(崩縮時 naturalW 不會跟著縮),所以能當「撐不撐得起內容」的參照。
+// 🔴 不拿兩個引擎的絕對字寬互比:字寬取決於各引擎對系統字型 PingFang 算出的每字前進寬度,不是版面演算法,
+//    而且隨引擎版本變。實測 16 字的副標(11.5px):chromium 130 每字恰為 1em(184.00px);chromium 149 與
+//    Chrome 156 每字 1.0216em(187.97px);webkit 26.5 走 -apple-system 串接每字 0.9932em(182.75px)。
+//    指名 Hiragino／Heiti 時三者都是 1em;CSS 的 optical-sizing／kerning／feature 開關也改不動這個差。
+//    差距＝字數×每字差(現在約 16×0.33≈5.2px),文案變長就變大,任何固定像素門檻遲早再紅。
+//    要問的是「該引擎有沒有把這個 flex 項撐到它自己內容那麼寬」,所以每個引擎只跟自己的 naturalW 比。
+const PF_MEASURE = () => {
+  const founding = document.querySelector('.ph-founding');
+  const mark = document.querySelector('.pf-mark');
+  const txt = document.querySelector('.pf-txt');
+  const iEl = document.querySelector('.pf-txt i');
+  const csF = getComputedStyle(founding);
+  const contentW = founding.clientWidth - parseFloat(csF.paddingLeft) - parseFloat(csF.paddingRight);
+  const gap = parseFloat(csF.columnGap || csF.gap) || 10;
+  const markW = mark.getBoundingClientRect().width;
+  const txtW = txt.getBoundingClientRect().width;
+  const naturalW = Math.max(...[...txt.children].map(el => {
+    const cs = getComputedStyle(el), probe = document.createElement('span');
+    probe.textContent = el.textContent;
+    probe.style.cssText = `position:absolute;left:0;top:0;visibility:hidden;white-space:nowrap;font-family:${cs.fontFamily};font-size:${cs.fontSize};font-weight:${cs.fontWeight};font-style:${cs.fontStyle};letter-spacing:${cs.letterSpacing};`;
+    document.body.appendChild(probe);
+    const w = probe.getBoundingClientRect().width;
+    probe.remove();
+    return w;
+  }));
+  return { contentW, markW, txtW, naturalW, remainingSpace: contentW - markW - gap, iLines: iEl ? Array.from(iEl.getClientRects()).length : -1 };
+};
+// 沒崩縮:實際寬度撐得起自己的內容(內容自然寬度與剩餘空間取小;1px 容許次像素捨入)。
+// 單邊判準——變寬(例如日後加 flex-grow)不算崩縮,超出剩餘空間另由 G5.*.1 與 G5.*.4 的天花板管。
+const pfHealthy = m => m.txtW >= Math.min(m.naturalW, m.remainingSpace) - 1;
+// 突變:把 .pf-txt 壓成 min-content(重現 WebKit flex 內在寬度算法把項目壓到一個字寬的坑),量完還原。
+const pfCollapsed = async page => {
+  await page.evaluate(() => { document.querySelector('.pf-txt').style.width = 'min-content'; });
+  const m = await page.evaluate(PF_MEASURE);
+  await page.evaluate(() => { document.querySelector('.pf-txt').style.width = ''; });
+  return m;
+};
 try {
   const wk = await webkit.launch();
   const webkitPfMetrics = {}; // 存每個寬度量到的 .pf-txt 數據,給後面跨引擎比對用
+  let webkitPfCollapsed = null; // 375 下把 .pf-txt 壓成 min-content 的量測(突變),給對照組那條判準驗牙
   for (const [w, h] of [[360, 780], [375, 812], [414, 896]]) {
     const { ctx, page, errors } = await boot(wk, { width: w, height: h, touch: true });
     await injectCollector(page);
@@ -677,26 +719,17 @@ try {
     // 縮到只剩 min-content(理論上限:CJK 換行幾乎不受限,崩壞可以窄到剩一個字)。
     // 第一版在這裡假設「健康情況=吃滿剩餘空間」算了個 expectedTxtW 直接比對,結果 360/375/414
     // 全 FAIL——但同一個 formula 拿去 chromium(已知沒有這個坑的引擎)當正向對照,一樣 FAIL
-    // 且兩個引擎的 txtW 幾乎一模一樣(webkit 182.75px vs chromium 184px,誤差 1.25px)。
+    // 且兩個引擎的 txtW 幾乎一模一樣(當時 webkit 182.75px vs chromium 184px;同一台機器上 chromium 130
+    // 仍量到 184px、chromium 149 起量到 187.97px,差距來自字型每字前進寬度,見上方 PF_MEASURE 的說明)。
     // 這證明錯的是 formula 本身,不是版面:.pf-txt 沒有設 flex-grow,預設 `flex:0 1 auto`
     // 本來就不會撐滿剩餘空間(那段空白留白是 CSS 規格下的正確行為,不是 bug),两個引擎在這點上
     // 完全一致。改成兩層真正有鑑別力的檢查:①「有沒有崩到不合理窄」的樓地板(遠低於健康值
     // 183px 才會觸發)②「有沒有超出剩餘空間」的天花板(超出就會被 G5.*.1 的窮舉溢出檢查連帶
     // 抓到,這裡多一層對 .pf-txt 專屬的直接證據)。真正回答「WebKit 算得跟 chromium 不一樣嗎」
-    // 的是下面 G5.control 的跨引擎數字比對,不是這裡自證的樓地板。
-    const pfMetrics = await page.evaluate(() => {
-      const founding = document.querySelector('.ph-founding');
-      const mark = document.querySelector('.pf-mark');
-      const txt = document.querySelector('.pf-txt');
-      const iEl = document.querySelector('.pf-txt i');
-      const csF = getComputedStyle(founding);
-      const contentW = founding.clientWidth - parseFloat(csF.paddingLeft) - parseFloat(csF.paddingRight);
-      const gap = parseFloat(csF.columnGap || csF.gap) || 10;
-      const markW = mark.getBoundingClientRect().width;
-      const txtW = txt.getBoundingClientRect().width;
-      return { contentW, markW, txtW, remainingSpace: contentW - markW - gap, iLines: iEl ? Array.from(iEl.getClientRects()).length : -1 };
-    });
+    // 的是下面 G5.control:兩個引擎各自對自己內容寬度的填充,不是這裡自證的樓地板。
+    const pfMetrics = await page.evaluate(PF_MEASURE);
     webkitPfMetrics[w] = pfMetrics;
+    if (w === 375) webkitPfCollapsed = await pfCollapsed(page);
     const MIN_SANE_PX = 100; // 健康值 183px 的樓地板,遠高於「崩成 min-content」會落到的範圍(單一 CJK 字約 15-20px)
     const notCollapsed = pfMetrics.txtW > MIN_SANE_PX;
     const notOverflowing = pfMetrics.txtW <= pfMetrics.remainingSpace + 2; // +2px 容錯
@@ -715,31 +748,26 @@ try {
     await ctx.close();
   }
 
-  // 真正回答「WebKit 是不是把 .pf-txt 算得跟 chromium 不一樣」的檢查:同一寬度(375)下,
-  // 兩個引擎的 .pf-txt 實測寬度/換行數直接比對數字,不是各自跟自己的假設比。誤差容許 5px
-  // (次像素字型渲染/kerning 的正常引擎間差異,不是版面 bug)。
+  // 真正回答「WebKit 是不是把 .pf-txt 算得跟 chromium 不一樣」的檢查:同一寬度(375)下,兩個引擎
+  // 各自量「實際寬度 vs 自己內容的自然寬度」(為什麼不比絕對字寬,見 PF_MEASURE 旁的說明),
+  // 副標換行數仍跨引擎直接比數字。絕對字寬只印成資訊,不判定。
   const crCheck = await chromium.launch();
   {
     const { ctx, page, errors } = await boot(crCheck, { width: 375, height: 812, touch: true });
     await page.evaluate(() => { state.plus = { active: true, founding: true }; });
     await page.click('#tabRide');
     await page.waitForFunction(() => document.getElementById('ridePanel').hidden === false, null, { timeout: 10000 });
-    const pfMetrics = await page.evaluate(() => {
-      const founding = document.querySelector('.ph-founding');
-      const mark = document.querySelector('.pf-mark');
-      const txt = document.querySelector('.pf-txt');
-      const iEl = document.querySelector('.pf-txt i');
-      const csF = getComputedStyle(founding);
-      const contentW = founding.clientWidth - parseFloat(csF.paddingLeft) - parseFloat(csF.paddingRight);
-      const gap = parseFloat(csF.columnGap || csF.gap) || 10;
-      const markW = mark.getBoundingClientRect().width;
-      const txtW = txt.getBoundingClientRect().width;
-      return { contentW, markW, txtW, remainingSpace: contentW - markW - gap, iLines: iEl ? Array.from(iEl.getClientRects()).length : -1 };
-    });
+    const pfMetrics = await page.evaluate(PF_MEASURE);
+    const crCollapsed = await pfCollapsed(page);
     const wkAt375 = webkitPfMetrics[375];
-    const widthDiff = Math.abs(pfMetrics.txtW - wkAt375.txtW);
-    ok(`G5.control(375).pf-txt 實測寬度跨引擎一致(誤差≤5px)`,
-      widthDiff <= 5, `chromium=${pfMetrics.txtW} webkit=${wkAt375.txtW} diff=${widthDiff.toFixed(2)}px`);
+    ok(`G5.control(375).pf-txt 兩個引擎的實際寬度都撐得起自己的內容(≥ min(內容自然寬度, 剩餘空間)−1px)`,
+      pfHealthy(pfMetrics) && pfHealthy(wkAt375),
+      `chromium txtW=${pfMetrics.txtW} natural=${pfMetrics.naturalW.toFixed(2)} ｜ webkit txtW=${wkAt375.txtW} natural=${wkAt375.naturalW.toFixed(2)} ｜ 剩餘空間=${wkAt375.remainingSpace}`);
+    ok(`G5.control(375,突變).pf-txt 壓成 min-content(重現崩縮)時,同一條判準在兩個引擎都翻紅(證明它有牙)`,
+      !!webkitPfCollapsed && !pfHealthy(crCollapsed) && !pfHealthy(webkitPfCollapsed),
+      `chromium txtW=${crCollapsed.txtW} natural=${crCollapsed.naturalW.toFixed(2)} ｜ webkit txtW=${webkitPfCollapsed && webkitPfCollapsed.txtW} natural=${webkitPfCollapsed && webkitPfCollapsed.naturalW.toFixed(2)}`);
+    info('G5.control(375) 兩引擎 .pf-txt 絕對字寬(不判定,字型每字前進寬度的差)',
+      `chromium=${pfMetrics.txtW} webkit=${wkAt375.txtW} diff=${Math.abs(pfMetrics.txtW - wkAt375.txtW).toFixed(2)}px`);
     ok(`G5.control(375).pf-txt 副標換行數跨引擎一致`,
       pfMetrics.iLines === wkAt375.iLines, `chromium iLines=${pfMetrics.iLines} webkit iLines=${wkAt375.iLines}`);
     ok('G5.control 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
@@ -1010,7 +1038,7 @@ server.close();
 // 變小,「N/N PASS」看起來一模一樣漂亮。斷言數本身就是要被守住的東西,所以下面這張表是刻意手寫的:
 // 新增/刪除斷言時必須同步改它——改不動就代表有東西沒被跑到,那正是這道閘門要攔的。
 // (表不含這條閘門自己;它在把自己 push 進去之前先數,所以不會自我計數。)
-const EXPECTED_COUNTS = { G0: 9, G1: 11, G2: 43, G3: 6, G4: 3, G5: 24, G6: 15, G7: 6 };
+const EXPECTED_COUNTS = { G0: 9, G1: 11, G2: 43, G3: 6, G4: 3, G5: 25, G6: 15, G7: 6 };
 const actualCounts = {};
 // `\d+`(不是 `\d`):只吃一位數的話,日後加的 G10 會被歸進 G1 ⇒ G1 被灌水,而 G1 自己少跑幾條時
 // 反而不會紅——一道用來防假綠的閘門自己製造假綠。

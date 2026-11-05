@@ -281,6 +281,33 @@ const REQUIRED = [
       && fnBodyContains(SRC, 'plusRequire', 'plusIsActive()'),
   },
   { needle: '高解析', check: () => fnBodyContains(SRC, 'satRetinaAllowed', 'plusIsActive()') },
+  {
+    needle: '校正懸賞錄程',
+    // 這項的資格判定全在伺服器(worker.js 的懸賞判定),客端沒有閘門、不走 plusRequire／plusIsActive,
+    // 所以驗伺服器那條鏈,三段缺一不可:
+    //  ① 清單寫的百分比＝規則檔 chips.plusBonusPct(伺服器與客端讀同一份 data/bounty_rules.json)。規則檔
+    //     關掉或改了數字而清單還寫著舊的,就是對外宣稱與實作脫鉤;百分比不寫死在這支腳本,清單那側讀
+    //     plusRender() 實際渲染出的文字(T1F 傳進來的 text),規則檔那側讀檔。
+    //  ② bountyPlusPct() 要經 bountyPlusEntitled() 的結果才給百分比(只讀規則檔不問資格＝人人有加成),
+    //     bountyPlusEntitled() 走 RevenueCat 真相(fetchRevenueCatPlusTruth＋plusEntitledFromTruth,
+    //     與 /api/plus-status 同一組判定)。
+    //  ③ 寫加成那一列的 bountyCreditTripChips() 用的是 ② 算出來的 plusPct,不是規則檔的原值。
+    // 「加成不算進每天上限」那半句是帳本行為,由 verify_bounty_plus.mjs(S1、T1)在真 SQLite 上驗;
+    // 這裡只驗清單與判定鏈的對映,不重複驗帳本。三段都是對原始碼的絆線,不是行為證明。
+    check: text => {
+      const rules = JSON.parse(readFileSync(path.join(ROOT, 'data/bounty_rules.json'), 'utf8'));
+      const rulePct = rules && rules.chips && rules.chips.plusBonusPct;
+      const copyPct = /校正懸賞錄程的島民點數多\s*(\d+)\s*%/.exec(text || '');
+      const parity = Number.isInteger(rulePct) && rulePct > 0 && !!copyPct && Number(copyPct[1]) === rulePct;
+      const entitlementGate = fnBodyContains(WSRC, 'bountyPlusPct', 'bountyPlusEntitled(')
+        && fnBodyContains(WSRC, 'bountyPlusEntitled', 'fetchRevenueCatPlusTruth(')
+        && fnBodyContains(WSRC, 'bountyPlusEntitled', 'plusEntitledFromTruth(');
+      const credit = stripComments(extractFnSrc(WSRC, 'bountyCreditTripChips') || '');
+      const creditUsesGate = /const plusPct = await bountyPlusPct\(/.test(credit)
+        && /bountyCreditPlusBonus\(\s*env,\s*plusPct\b/.test(credit);
+      return parity && entitlementGate && creditUsesGate;
+    },
+  },
   // 捷運小工具的多站與自動選站 2026-10-05 起對所有人免費,不在付費清單上,這裡也不再對映
   // (小工具側的放行由 app/scripts/verify_metro_plus_gate.mjs S1 守)。
   {
@@ -351,7 +378,7 @@ const GATE_DISCLOSURE = {
   feats.forEach((text, i) => {
     const match = REQUIRED.find(r => text.includes(r.needle));
     ok(`T1F feats[${i}] 對得到 REQUIRED 裡的某個 needle`, !!match, text);
-    ok(`T1F feats[${i}] 對應的 check() 通過(真的有資格判定,不是空話)`, match ? match.check() : false, match ? match.needle : '(無對應項目)');
+    ok(`T1F feats[${i}] 對應的 check() 通過(真的有資格判定,不是空話)`, match ? match.check(text) : false, match ? match.needle : '(無對應項目)');
     // T1T:付費視窗的法務列直接連到 terms.html ⇒ 使用者是在決定付錢的當下讀到那份條款的。
     // 面板列了、條款沒寫(或反之)就是在付款決定點做不一致宣稱。這一條是 2026-08-03「有付費牆卻
     // 不在任何對外清單裡」那件事的根因判準——舊的對映是單向的(清單項→閘門),照不到揭露這一側。
