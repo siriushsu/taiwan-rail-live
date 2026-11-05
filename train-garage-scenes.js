@@ -14,7 +14,7 @@
 //   story  data/tra_special_trains.json 的 id；沒有故事的留 null
 //   params 傳進 createScene(params) 的參數
 //
-// 已實作：south-coast、alishan、viaduct、shifen，以及不在對照表裡的 duoliang、crossing、guanghua；捷運、高鐵、機捷九座在對照表後段，跑哪些車看檔尾的場景規則。其餘為待做。
+// 已實作：south-coast、alishan、viaduct、shifen，以及不在對照表裡的 duoliang、crossing、guanghua；台鐵特色車站 11 座（station-stage.js 的舞台，檔尾場景規則列的那幾座）；捷運、高鐵、機捷九座在對照表後段，跑哪些車看檔尾的場景規則。其餘為待做。
 window.RailGarageScenes = {
 
  // ───────── Tier A：手工場景（19 座，4 座已完成） ─────────
@@ -39,7 +39,7 @@ window.RailGarageScenes = {
  // 平溪線十分老街（已完成）
  dr1000:      {tier:'A',scene:'shifen',place:'平溪線・十分老街',story:'pingxi',params:{}},
 
- // ── 以下待做 ──
+ // ── 以下是 9/12 的分派草案：場景做好的跑所有台鐵車（看檔尾場景規則），這裡只留故事；qingshui、huadong、roundhouse 還沒做 ──
 
  // 冬山車站（宜蘭線）：連續白色鋼拱＋半透明膜材屋頂，東部幹線第一個高架車站。
  // 　台鐵沒有「東山車站」（查過臺灣鐵路車站列表全文），「東山」指的即是此站。
@@ -157,4 +157,15 @@ window.RailGarageSceneRules = {
  'kaohsiung-metro':{system:'高雄捷運',place:'高雄捷運・美麗島站'},
  'kaohsiung-lrt':  {system:'高雄輕軌',place:'高雄輕軌・駁二大義站'},
  thsr:             {system:'台灣高鐵',place:'台灣高鐵・新竹站'},
+ hsinchu:       {system:'台鐵',place:'縱貫線・新竹車站'},
+ tainan:        {system:'台鐵',place:'縱貫線・台南車站'},
+ 'taichung-old': {system:'台鐵',place:'縱貫線・台中舊站'},
+ chiayi:        {system:'台鐵',place:'縱貫線・嘉義車站'},
+ baoan:         {system:'台鐵',place:'縱貫線・保安車站'},
+ jiji:          {system:'台鐵',place:'集集線・集集車站'},
+ dongshan:      {system:'台鐵',place:'宜蘭線・冬山車站'},
+ 'kaohsiung-old': {system:'台鐵',place:'縱貫線・高雄車站'},
+ haixian:       {system:'台鐵',place:'海線・大山車站'},
+ shengxing:     {system:'台鐵',place:'舊山線・勝興車站'},
+ 'taipei-under': {system:'台鐵',place:'台北車站・地下月台'},
 };
