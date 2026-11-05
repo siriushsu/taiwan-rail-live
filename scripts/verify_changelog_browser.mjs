@@ -157,7 +157,9 @@ const widths = [360, 375, 414, 768];
 // 11/04: Q-style 3D trains add one (567 -> 568).
 // 11/05: delay replay adds one (568 -> 569).
 // 11/05: Korean static pages add one (569 -> 570).
-const expectedHistoryCount = 570;
+// 11/05: Panel drag and overlap fixes add one (570 -> 571).
+// 11/05: delay replay pin placement adds one (571 -> 572).
+const expectedHistoryCount = 572;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

@@ -3712,6 +3712,7 @@
     background: var(--paper); border-top: 2px solid var(--navy);
     border-radius: 16px 16px 0 0;
     padding-bottom: calc(10px + var(--sa-b));
+    touch-action: none; /* 卡頭拖高度(initPanelDrag)；清單自己捲,見 .ms-body */
   }
   .more-sheet .grab { display: block; width: 38px; height: 5px; border-radius: 3px; background: var(--line); margin: 7px auto 4px; flex: none; }
   .more-sheet .ms-head {
@@ -3722,7 +3723,7 @@
   .more-sheet .ms-head .ms-close { margin-left: auto; background: none; border: 0; color: var(--on-navy); font-size: calc(15px * var(--ui)); cursor: pointer; padding: 2px 4px; }
   .more-sheet .ms-body {
     margin: 0 12px; border: 1.5px solid var(--line); border-top: 0; border-radius: 0 0 8px 8px;
-    overflow-y: auto; overscroll-behavior: contain;
+    overflow-y: auto; overscroll-behavior: contain; touch-action: pan-x pan-y;
   }
   :is(.more-sheet, .view-panel) .ms-row {
     display: flex; justify-content: space-between; align-items: center; gap: 10px;
@@ -5862,14 +5863,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="delaypins1105"><span class="d">11/05</span><span>誤點重播的站牌靠近畫面邊緣時會換邊擺，手機上不再蓋到時間</span></li>
+        <li data-cl-of="sheetdragall1105"><span class="d">11/05</span><span>觀看設定、更多、字級、公車站牌和行程分享的面板也能上下拖拉調整高度，觀看設定可以拉過工具欄；面板之間不再互相重疊</span></li>
         <li data-cl-of="kostatic1105"><span class="d">11/05</span><span>新增韓文網頁：30 個車站的時刻表與轉乘，還有介紹、準確度、資料來源頁都有韓文版</span></li>
         <li data-cl-of="delayreplay1105"><span class="d">11/05</span><span>誤點趨勢改成誤點重播：選一天，看誤點從哪裡開始、怎麼一路傳開，還能跳到這天的重點時刻</span></li>
         <li data-cl-of="qtrains1104"><span class="d">11/04</span><span>地圖上的立體列車改成放大的 Q 版三節，遠看也看得清楚；可在「觀看」→「列車」→「列車大小」切回</span></li>
         <li data-cl-of="garageswap1104"><span class="d">11/04</span><span>車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車</span></li>
         <li data-cl-of="korean1104"><span class="d">11/04</span><span>介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文</span></li>
         <li data-cl-of="plusride1104"><span class="d">11/04</span><span>有軌島通行證的人，App 校正懸賞錄程的島民點數多 50%，加成不算進每天 500 點上限</span></li>
-        <li data-cl-of="speedzoom1104"><span class="d">11/04</span><span>快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大</span></li>
-        <li data-cl-of="garagepolish1104"><span class="d">11/04</span><span>車庫七座捷運與高鐵車站改成雙線穿過，列車來得更勤；多良、平交道、光華街也更常有車；換上新汽機車、高樓與台灣樹種，劍潭的北藝中心重做</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6089,6 +6090,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="delaypins1105"><span class="d">11/05</span><span>誤點重播的站牌靠近畫面邊緣時會換邊擺，手機上不再蓋到時間</span></li>
         <li data-cl="delayreplay1105"><span class="d">11/05</span><span>誤點趨勢改成誤點重播：選一天，看誤點從哪裡開始、怎麼一路傳開，還能跳到這天的重點時刻</span></li>
         <li data-cl="delayclimate1103"><span class="d">11/03</span><span>新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開</span></li>
         <li data-cl="krtcterminal1030"><span class="d">10/30</span><span>高捷列車開到終點站時不再還沒停妥就消失：會完整開進終點月台、停留約 10 秒再淡出，跟車卡會顯示「列車已抵達終點」</span></li>
@@ -6279,6 +6281,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="sheetdragall1105"><span class="d">11/05</span><span>觀看設定、更多、字級、公車站牌和行程分享的面板也能上下拖拉調整高度，觀看設定可以拉過工具欄；面板之間不再互相重疊</span></li>
         <li data-cl="sheetdrag1102"><span class="d">11/02</span><span>看板、列車資訊卡這類底部面板改成直接拖拉調整高度：按住卡頭上下拖，放開就停在那裡，下次打開會記得這個高度</span></li>
         <li data-cl="helpnew1030"><span class="d">10/30</span><span>使用說明補上觀看設定、立體列車、車站地標導覽、地圖風格、轉乘、跟車鎖定、營運公告、語言等新功能，首訪卡第一列也改成實際位置</span></li>
         <li data-cl="helpaudit1030"><span class="d">10/30</span><span>使用說明對上現在的畫面：字級、儲存地點、平交道、衛星等設定改指「觀看」裡的實際位置，手機與電腦版分開寫；分享、跟車小卡、查詢的說明照實際操作更正，步驟與提示字放大一號</span></li>
@@ -7373,7 +7376,9 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1104d：韓文版——語言列加한국어、介面與使用說明字典、介紹／準確度／資料來源／法律／活動頁；路線圖連結走英文頁；車庫 3D 畫面加換列車鈕，車站頁仍是繁中（/ko/ 靜態樹另開）；Worker 送審 build 加 230。；Q 版列車（放大三節，預設開，全員免費）跟這版一起出。
 // v1105a：誤點趨勢改成一日重播（/api/delay-replay、D1 tra_delay_replay、算法在 scripts/delay_replay.mjs）；舊的 1／3／7 天窗與比前 4 週／去年拿掉，/api/delay-climate 只留給選日期的長條。
 // v1105b：韓文靜態頁 /ko/——車站時刻 30 頁＋索引、介紹／準確度／資料來源、著陸頁，hreflang 與 sitemap 帶到；網站首次開啟仍是繁中。
-const BUILD = 'v1105b';
+// v1105c：更多、字級、公車站牌、行程分享、觀看也能拖高度（各存比例鍵），開觀看收掉其他面板、不壓速度膠囊，觀看可往上拖過工具欄到頂列下方。
+// v1105c 同批：誤點重播站牌放不下就換邊，不再夾回畫面內蓋到自己的站與時間
+const BUILD = 'v1105c';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -27144,12 +27149,15 @@ function drawReplayPins(w) {
     const p = M.toScreen([nd.lat, nd.lon]);
     const west = nd.lon < 120.6 + (nd.lat - 22) * 0.35;   // 中央山脈西側的站,牌子往海峽那邊擺
     const txt = rpHhmm(m.t) + ' ' + (m.k === 'reach' ? t('傳到{s}', { s: rpSt(n) }) : m.k === 'start' ? t('{s}最早卡住', { s: rpSt(n) }) : t('{s}也卡住', { s: rpSt(n) }));
-    const W = ctx.measureText(txt).width + 14, x = Math.max(6, Math.min(w - W - 6, west ? p.x - 18 - W : p.x + 18));
+    const W = ctx.measureText(txt).width + 14;
+    let left = west;
+    if (left ? p.x - 18 - W < 6 : p.x + 18 + W > w - 6) left = !left;   // 這邊放不下就換邊,夾回畫面內會蓋到自己的站
+    const x = Math.max(6, Math.min(w - W - 6, left ? p.x - 18 - W : p.x + 18));
     let y = p.y - H / 2;
     for (let i = 1; i < 12 && placed.some(r => x < r.x + r.w && r.x < x + W && y < r.y + H + 3 && r.y < y + H + 3); i++) y = p.y - H / 2 + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * (H + 3);
     placed.push({ x, y, w: W });
     const red = m.k !== 'reach';
-    ctx.strokeStyle = red ? RP_COL[3] : ink; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(west ? x + W : x, y + H / 2); ctx.stroke();
+    ctx.strokeStyle = red ? RP_COL[3] : ink; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(left ? x + W : x, y + H / 2); ctx.stroke();
     ctx.fillStyle = paper; ctx.beginPath(); ctx.roundRect(x, y, W, H, 5); ctx.fill(); ctx.stroke();
     ctx.fillStyle = red ? RP_COL[3] : ink; ctx.fillText(txt, x + 7, y + H / 2 + .5);
     ctx.beginPath(); ctx.arc(p.x, p.y, 4.5, 0, 7); ctx.fillStyle = paper; ctx.fill(); ctx.stroke();
@@ -33835,7 +33843,7 @@ function jumpToNow() {
 // 手機底部 sheet 家族(看板/最愛/旅程/探索/軌道/今日/誤點履歷 + 「列車」sheet):互斥開啟。
 // nearCard(附近車站)2026-07-25 起併入 sheet 家族:它原本是上錨卡(頂緣 y=152、高 462),
 // 手機上直接把地圖中心埋在卡內 274px——藍點必然看不到。改成底部 sheet 後與看板/列車同一組幾何與三段高。
-const SHEET_PANEL_IDS = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'searchPanel', 'trackPanel', 'fontPanel', 'todayPanel', 'delayHistPanel', 'nearCard', 'busStopPanel'];
+const SHEET_PANEL_IDS = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'searchPanel', 'trackPanel', 'fontPanel', 'todayPanel', 'delayHistPanel', 'nearCard', 'busStopPanel', 'tripPanel'];
 // 目前開啟中的那張 sheet(至多一張;含「列車」sheet)——供三段高定位
 function activeSheetEl() {
   const tc = document.getElementById('trainCard');
@@ -34002,6 +34010,41 @@ function setSheetPx(el, px) {
   // 小高度會換外觀(.sheet-small)、renderBoard 要跟上;renderBoard 自己會再叫一次 updateSheetOpenClass
   if (el.id === 'board' && state.boardStation && state.mode === 'sched') renderBoard();
   updateSheetOpenClass();
+}
+// 「更多」與「觀看設定」也能拖高度:手感同 initSheetHandle(按住卡頭、頂緣跟手、放開停在原處),
+// 但它們有自己的定位與上限,不進看板家族的全站偏好、不算地圖讓位。只管直式手機;key 存佔視窗高的比例。
+function loadPanelFrac(key) {
+  try { const v = parseFloat(localStorage.getItem(key)); if (v > 0 && v <= 1) return v; } catch (e) {}
+  return null;
+}
+function initPanelDrag(el, { key, inHead, cur, max, set }) {
+  let sy = null, startH = 0, h = 0, dragging = false, swallowUntil = 0;
+  el.addEventListener('pointerdown', (e) => {
+    if (!window.matchMedia(MOBILE_MQ).matches || sheetIsSideRail() || e.target.closest('button, a, input, select') || !inHead(e)) return;
+    sy = e.clientY; dragging = false; startH = h = cur();
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (sy == null) return;
+    const dy = e.clientY - sy;
+    if (!dragging && Math.abs(dy) > 6) dragging = true;
+    if (!dragging) return;
+    e.preventDefault();
+    h = Math.max(SHEET_MIN_PX, Math.min(max(), startH - dy));
+    set(h);
+  }, { passive: false });
+  const end = () => {
+    if (sy == null) return; sy = null;
+    if (!dragging) return; dragging = false;
+    try { localStorage.setItem(key, String(Math.round(h / innerHeight * 1000) / 1000)); } catch (e) {}
+    swallowUntil = performance.now() + 350; // 高度一變,緊接的 click 會落到手指底下換上來的那一列(同 initSheetHandle)
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  el.addEventListener('click', (e) => {
+    if (performance.now() >= swallowUntil) return;
+    swallowUntil = 0; e.preventDefault(); e.stopPropagation();
+  }, true);
 }
 // 抓把/標題列拖曳:頂緣跟著手指走、放開停在原處(不吸附);只在標題列頂區觸發,不攔內容捲動與按鈕。
 // 點一下不改高度(打字態的查詢 sheet 例外:點標題列回瀏覽態,那是狀態切換)。
@@ -34998,6 +35041,7 @@ function soloPanel(keep) {
   if (keep !== 'busstop') closeBusStopPanel();
   if (keep !== 'delayhist') closeDelayHist();
   if (keep !== 'train') closeTrainSheet();
+  if (keep !== 'trip') closeTripSharePanel();
 }
 // 整合卡(設計狀態機 tapStation):點站＝切到「這一站」,跟車不中斷。
 let busTransferBoardStationId = null;
@@ -39747,12 +39791,27 @@ function setupMapTools() {
       Math.max(12, Math.min(window.innerHeight - r.top + 8, window.innerHeight - H - 12))
     ) + 'px';
   }
+  // 拖過的高度只在直式手機套用;上限照 CSS 的 max-height(沒拖過＝撐到上限,跟原本一樣)
+  const MORE_H_KEY = 'trainmap-more-h-v1';
+  const moreEl = document.getElementById('moreSheet');
+  const moreMaxPx = () => parseFloat(getComputedStyle(moreEl).maxHeight) || innerHeight;
+  const applyMoreH = () => {
+    const f = window.matchMedia(MOBILE_MQ).matches && !sheetIsSideRail() ? loadPanelFrac(MORE_H_KEY) : null;
+    moreEl.style.height = f == null ? '' : Math.max(SHEET_MIN_PX, Math.min(moreMaxPx(), f * innerHeight)) + 'px';
+  };
+  initPanelDrag(moreEl, {
+    key: MORE_H_KEY,
+    inHead: e => e.clientY - moreEl.getBoundingClientRect().top <= 46 || !!e.target.closest('.ms-head'), // 同 initSheetHandle:抓把上下的留白也算
+    cur: () => moreEl.getBoundingClientRect().height,
+    max: moreMaxPx,
+    set: px => { moreEl.style.height = px + 'px'; },
+  });
   const setMore = on => {
     if (on) window.railViewControls?.close();
     document.body.classList.toggle('tools-open', on);
     const fab = document.getElementById('toolsFab');
     if (fab) fab.setAttribute('aria-expanded', String(on));
-    if (on) { syncMoreSheet(); positionMoreSheet(); }
+    if (on) { applyMoreH(); syncMoreSheet(); positionMoreSheet(); }
     else collapseMsFlow(); // 關 sheet:走勢圖搬回原位(不留在隱藏 sheet 裡)
   };
   watchBadgeForMoreSheet();
@@ -39767,7 +39826,7 @@ function setupMapTools() {
     if (e.target.closest('#moreSheet') || e.target.closest('#toolsFab')) return;
     setMore(false);
   });
-  window.addEventListener('resize', () => { if (document.body.classList.contains('tools-open')) positionMoreSheet(); });
+  window.addEventListener('resize', () => { if (document.body.classList.contains('tools-open')) { applyMoreH(); positionMoreSheet(); } });
   document.getElementById('moreClose').onclick = () => setMore(false);
   document.getElementById('moreScrim').onclick = () => setMore(false);
   // 查詢(2026-09-06;v0726a 起是搜尋):再按一次收起,與其他三顆 tab 同語意;user:true=使用者自己的動作(開關記憶)
@@ -42317,8 +42376,10 @@ function openTripSharePanel() {
   if (!tr || !tripSysCode(tr.sys)) return;
   notePanelOpener('tripPanel');
   closeBoard(); // 面板家族共用右上槽，先收車站看板避免疊
+  soloPanel('trip');
   renderTripSharePanel();
   document.getElementById('tripPanel').hidden = false;
+  updateSheetOpenClass();
   panelFocusIn('tripPanel');
 }
 function renderTripSharePanel() {
@@ -42338,9 +42399,11 @@ function renderTripSharePanel() {
       : `<div class="sub" style="padding:8px 0 4px">${escHtml(t('這班車沒有剩餘停站了（已接近終點），沒辦法再選目的站。'))}</div>`);
 }
 function closeTripSharePanel() {
-  const back = panelFocusBack('tripPanel'); // 列上按 Enter 分享也走這裡:焦點回到跟車卡的「行程分享」
   const el = document.getElementById('tripPanel');
+  if (el.hidden) return;
+  const back = panelFocusBack('tripPanel'); // 列上按 Enter 分享也走這裡:焦點回到跟車卡的「行程分享」
   el.hidden = true; el.innerHTML = '';
+  updateSheetOpenClass();
   back();
 }
 // ── 接收端：解碼 ?trip= → 強制 live、自動跟車、顯示行程橫幅(不受 TRIP_SHARE_ENABLED 影響) ──
@@ -42651,7 +42714,7 @@ document.getElementById('followPanel').addEventListener('keydown', e => {
 document.getElementById('tcStar').onclick = (e) => { e.stopPropagation(); toggleFav(state.followTrain); }; // stopPropagation:sheet 態不觸發標題列 toggle
 document.getElementById('tcSheetClose').onclick = (e) => { e.stopPropagation(); closeTrainSheet(); }; // ✕ 收「列車」sheet(跟車不中斷,小卡回來)
 // 抓把:.board 家族 + 「列車」sheet(#trainCard)綁拖曳調整高度
-['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel', 'todayPanel', 'delayHistPanel', 'trainCard', 'nearCard', 'searchPanel'].forEach(id => { const el = document.getElementById(id); if (el) initSheetHandle(el); });
+['board', 'favPanel', 'ridePanel', 'explorePanel', 'trackPanel', 'fontPanel', 'todayPanel', 'delayHistPanel', 'busStopPanel', 'tripPanel', 'trainCard', 'nearCard', 'searchPanel'].forEach(id => { const el = document.getElementById(id); if (el) initSheetHandle(el); });
 // 面板內容晚到或貼合內容的高度變了,小卡讓位跟著 sheet 實際高度走(syncSheetLift)
 if (typeof ResizeObserver === 'function') {
   const ro = new ResizeObserver(() => syncSheetLift(activeSheetEl()));

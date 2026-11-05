@@ -5051,6 +5051,8 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   "西部幹線（海線）": "Western Trunk Line (Coast Line)",
   "屏東線＋南迴線": "Pingtung + South Link Lines",
   "誤點趨勢改成誤點重播：選一天，看誤點從哪裡開始、怎麼一路傳開，還能跳到這天的重點時刻": "The delay trend map is now Delay replay: pick a day, watch where delays began and how they spread, and jump to the day’s key moments",
+  "誤點重播的站牌靠近畫面邊緣時會換邊擺，手機上不再蓋到時間": "Delay replay labels now switch sides near the screen edge, so they no longer cover the time on phones",
+  "觀看設定、更多、字級、公車站牌和行程分享的面板也能上下拖拉調整高度，觀看設定可以拉過工具欄；面板之間不再互相重疊": "The View settings, More, text size, bus stop and journey sharing panels can now be dragged to resize too, and View settings can go past the toolbar; panels no longer overlap each other",
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "{h} 小時": "{h}時間",
@@ -5118,6 +5120,8 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "西部幹線（海線）": "西部幹線（海線）",
   "屏東線＋南迴線": "屏東線＋南廻線",
   "誤點趨勢改成誤點重播：選一天，看誤點從哪裡開始、怎麼一路傳開，還能跳到這天的重點時刻": "遅延トレンド地図が遅延リプレイになりました。日を選ぶと、遅延がどこで始まりどう広がったかを見られ、その日のポイントへ移動できます",
+  "誤點重播的站牌靠近畫面邊緣時會換邊擺，手機上不再蓋到時間": "遅延リプレイのラベルは画面の端に近いと反対側に置くようにし、スマホで時刻が隠れなくなりました",
+  "觀看設定、更多、字級、公車站牌和行程分享的面板也能上下拖拉調整高度，觀看設定可以拉過工具欄；面板之間不再互相重疊": "表示設定、その他、文字サイズ、バス停、旅程共有のパネルも上下にドラッグして高さを変えられるようになりました。表示設定はツールバーより上まで広げられ、パネル同士も重ならなくなりました",
 });
 
 // 2026-11-05 機務段:扇形車庫頁的字串。
