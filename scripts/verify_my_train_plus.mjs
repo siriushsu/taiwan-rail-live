@@ -9,8 +9,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const originalSource = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const mutations = {
   entry: s => s.replace('if (!PLUS_ENABLED || plusIsActive()) return true;', 'return true;'),
-  map: s => s.replace('(PLUS_ENABLED && !plusIsActive()) || !saved.train', '!saved.train'),
-  paid: s => s.replace('(PLUS_ENABLED && !plusIsActive()) || !saved.train', 'true || !saved.train'),
+  map: s => s.replace('(PLUS_ENABLED && !plusIsActive()) || !saved.trains.length', '!saved.trains.length'),
+  paid: s => s.replace('(PLUS_ENABLED && !plusIsActive()) || !saved.trains.length', 'true || !saved.trains.length'),
   sync: s => s.replaceAll('ownTrainEntitlementSync();', ''),
   storage: s => s.replace('function ownTrainEntitlementSync() {', 'function ownTrainEntitlementSync() {\n  if (!plusIsActive()) localStorage.removeItem(MyTrainUI.STORAGE_KEY);'),
   layout: s => s.replace("plusRequire('my-train', onGranted);", "plusRequire('my-train', onGranted);\n  document.documentElement.style.minWidth = '2000px';"),
@@ -164,6 +164,9 @@ try {
           await page.locator('[data-mt-f="name"]').fill('通行證測');
           await page.locator('[data-mt-f="name"]').dispatchEvent('input');
           await tap(page, '[data-mt-f="depart"]');
+          // 排好車留在機務段;這支接著驗跟車,接到車庫「去看它」同一條路。
+          await page.waitForFunction(() => !document.getElementById('mtForm').open, null, { timeout: 8000 });
+          await page.evaluate(() => { MyTrainDepot.close(); ownTrainFollow({ id: MyTrainUI.load().trains.at(-1).id }); });
           const drawn = await page.evaluate(() => {
             const tr = state.myTrains[0]; if (!tr) return false;
             state.simSec = tr.stops[0].depSec + 20; state.clockAtNow = false;
@@ -173,7 +176,7 @@ try {
           });
           const b = await snapshot(page);
           savedTrain = b.save;
-          check(`${prefix} B1 持證可新建且地圖畫出列車`, b.n === 1 && drawn && !!JSON.parse(b.save || '{}').train);
+          check(`${prefix} B1 持證可新建且地圖畫出列車`, b.n === 1 && drawn && JSON.parse(b.save || '{}').trains?.length === 1);
           // 同一次取樣避免正常跟車 rAF 混入資格重驗前後的比較。
           const refreshed = await page.evaluate(() => {
             const before = { time: state.simSec, center: [M.getCenter().lat, M.getCenter().lng] };
@@ -191,7 +194,7 @@ try {
           check(`${prefix} A2 未持證重建仍為零台`, (await snapshot(page)).n === 0);
           // 存檔仍有資料的入口及表單、面板回呼都要經過相同的付費牆。
           const bypass = await page.evaluate(() => {
-            const train = MyTrainUI.load().train;
+            const train = MyTrainUI.load().trains[0];
             const calls = [() => ownTrainSchedule(train.modelId), () => ownTrainReplan(), () => ownTrainOpenForm(),
               () => ownTrainView(), () => ownTrainFollow(), () => ownTrainDepart(train), () => ownTrainEdit(train),
               () => ownTrainSetAppearance({ haloOn: false }), () => MyTrainUI.openForm(ownTrainHost(), { modelId: train.modelId })];
@@ -213,7 +216,7 @@ try {
           window.RAIL_ANDROID_PLUS_ENABLED = false;
           localStorage.setItem('trainmap-howto-seen', '1'); localStorage.setItem('trainmap-language', 'zh-TW');
           localStorage.setItem('trainmap-rides', JSON.stringify(rides));
-          if (save) localStorage.setItem('trainmap-my-train-v1', save);
+          if (save) localStorage.setItem('trainmap-my-fleet-v1', save);
         }, { save: savedTrain, rides });
         const page = await disabled.newPage();
         await page.goto(base + '/?g=nat', { waitUntil: 'domcontentloaded' });

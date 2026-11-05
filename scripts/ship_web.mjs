@@ -907,6 +907,17 @@ try {
   process.stdout.write(mtPlus.stdout || ''); process.stderr.write(mtPlus.stderr || '');
   if (mtPlus.status !== 0) fail('自製列車通行證驗收未過'
     + '（單獨重跑：node scripts/verify_my_train_plus.mjs）');
+  // 車隊守多列才會出事的地方（舊存檔搬移、六列同跑、親手趟）；機務段守入口到發車接跟車的每顆按鈕。兩支都兩引擎＋手機寬度。
+  const mtFleet = spawnSync('node', [path.join(wt, 'scripts', 'verify_my_train_fleet.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '' } });
+  process.stdout.write(mtFleet.stdout || ''); process.stderr.write(mtFleet.stderr || '');
+  if (mtFleet.status !== 0) fail('自製列車車隊守門未過'
+    + '（單獨重跑：npm run check-my-train-fleet）');
+  const mtDepot = spawnSync('node', [path.join(wt, 'scripts', 'verify_my_train_depot.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '', DEPOT_ENGINE: '' } });
+  process.stdout.write(mtDepot.stdout || ''); process.stderr.write(mtDepot.stderr || '');
+  if (mtDepot.status !== 0) fail('機務段守門未過'
+    + '（單獨重跑：npm run check-my-train-depot）');
   // ── 2.29 捷運小工具免費守門人(2026-10-05) ──────────────────────────────────────
   // 為什麼值得進出貨鏈(2.8 那把尺):(a) 它守的缺陷對真人 100% 復現——方案面板、條款第 3 節或說明中心把小工具的
   // 多站／自動寫回付費,網站一上線就對每個訪客說錯,而即時資訊不設付費門檻是資料授權的條件;(b) 別的閘門量不到——

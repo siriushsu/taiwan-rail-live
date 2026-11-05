@@ -603,6 +603,99 @@
     return i;
   }
 
+  // ── 車隊：六股、路線分段、親手趟（存檔形狀與讀寫在 my-train-ui.js，這裡只有規則）────
+  // TRACKS 是股道數；FLEET_MAX 是存檔上限，比股道多的車 track 是 null（待命），資料留著、不上地圖。
+  // day 一律是台灣日期 YYYY-MM-DD。legs：每段 { day 起始日, km 每趟公里, stops 每趟停站數 }，
+  // 里程＝各段「每趟公里 × 該段天數」加總，所以改路線只開新段，不回頭動舊段。
+  // hand：各裝置分開記 { n 次數, km, stops }，帳號合併時每台取最大。outRun：進行中的親手趟 { at 按下去的毫秒, dep 發車秒, dur 全程秒 }。
+  // earned：{ 成就鍵: 拿到那天 }。look：{ mark 頭牌, plate 車牌框 }。
+  const TRACKS = 6, FLEET_MAX = 12;
+  const DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DEVICE_RE = /^[0-9A-Za-z-]{8,64}$/;
+  const num0 = v => (Number.isFinite(v) && v >= 0 ? v : 0);
+  const int0 = v => (Number.isInteger(v) && v >= 0 ? v : 0);
+  const km1 = v => Math.round(v * 10) / 10;
+  function taipeiDay(ms) { return new Date(ms + 8 * 3600e3).toISOString().slice(0, 10); }
+  // 排班以外的欄位：認得的留下，其他丟掉。形狀錯了不丟整列車，壞的那一欄回到空值。
+  function fleetFields(t) {
+    const legs = [], hand = {}, earned = {};
+    for (const l of Array.isArray(t.legs) ? t.legs : []) {
+      if (l && DAY_RE.test(l.day)) legs.push({ day: l.day, km: num0(l.km), stops: int0(l.stops) });
+    }
+    for (const [dev, h] of Object.entries(t.hand && typeof t.hand === 'object' ? t.hand : {})) {
+      if (DEVICE_RE.test(dev) && h && typeof h === 'object') hand[dev] = { n: int0(h.n), km: num0(h.km), stops: int0(h.stops) };
+    }
+    for (const [k, d] of Object.entries(t.earned && typeof t.earned === 'object' ? t.earned : {})) {
+      if (DAY_RE.test(d)) earned[k] = d;
+    }
+    const r = t.outRun, look = t.look && typeof t.look === 'object' ? t.look : {};
+    return {
+      track: Number.isInteger(t.track) && t.track >= 0 && t.track < TRACKS ? t.track : null,
+      firstDay: DAY_RE.test(t.firstDay) ? t.firstDay : null,
+      legs, hand,
+      outRun: r && Number.isFinite(r.at) && Number.isInteger(r.dep) && r.dep >= 0 && r.dep < 86400 && Number.isFinite(r.dur) && r.dur > 0
+        ? { at: r.at, dep: r.dep, dur: r.dur } : null,
+      earned,
+      look: { mark: typeof look.mark === 'string' ? look.mark : null, plate: typeof look.plate === 'string' ? look.plate : null },
+    };
+  }
+  // 股道撞號或沒有股道的車，依序補進空股；補不下的就是待命。空出來的股道也由待命的車遞補。
+  function assignTracks(trains) {
+    const used = new Set();
+    const kept = trains.map(t => {
+      if (t.track === null || used.has(t.track)) return { ...t, track: null };
+      used.add(t.track);
+      return t;
+    });
+    return kept.map(t => {
+      const free = t.track === null ? [...Array(TRACKS).keys()].find(i => !used.has(i)) : undefined;
+      if (free === undefined) return t;
+      used.add(free);
+      return { ...t, track: free };
+    });
+  }
+  function freeTrack(trains) {
+    const used = new Set(trains.map(t => t.track));
+    const i = [...Array(TRACKS).keys()].find(n => !used.has(n));
+    return i === undefined ? -1 : i;
+  }
+  // 排班存進車隊：id 已經在就只換排班（股道與紀錄留著），不在就進指定的股（沒指定就第一條空股）；股道沒空回 null。
+  // 改了路線或時間，進行中的親手趟跟著取消，不然地圖上那台還照舊路線跑；只改名字用 keepRun 留著。
+  function fleetPut(trains, train, today, keepRun, track = MyTrainPlan.freeTrack(trains)) {
+    const old = trains.find(t => t.id === train.id);
+    if (old) return trains.map(t => (t === old ? { ...old, ...train, outRun: keepRun ? old.outRun : null } : t));
+    if (track < 0 || trains.some(t => t.track === track)) return null;
+    return [...trains, { ...train, ...MyTrainPlan.fleetFields({ track, firstDay: today }) }];
+  }
+  function legOf(result) {
+    return { km: km1(result.route.km), stops: result.timetable.stops.filter(s => s.stop !== false).length };
+  }
+  // 回傳的是同一個陣列就代表沒有變動。同一天改好幾次只留最後一次。
+  function syncLegs(legs, leg, firstDay, today) {
+    const last = legs[legs.length - 1];
+    if (!last) return [{ day: firstDay || today, ...leg }];
+    if (last.km === leg.km && last.stops === leg.stops) return legs;
+    if (last.day >= today) return [...legs.slice(0, -1), { day: last.day, ...leg }];
+    return [...legs, { day: today, ...leg }];
+  }
+  // 親手發車：次數與公里按下去就記，outRun 只管地圖上那一台，跑完收掉也不會少算。
+  function addHandRun(train, device, run, leg) {
+    const h = train.hand[device] || { n: 0, km: 0, stops: 0 };
+    return { ...train, outRun: run, hand: { ...train.hand, [device]: { n: h.n + 1, km: km1(h.km + leg.km), stops: h.stops + leg.stops } } };
+  }
+  function runEnded(run, nowMs) { return nowMs >= run.at + run.dur * 1000; }
+  // 累計數字。每日班次：跑了幾天＝首航日到今天，每段「每趟×該段天數」加總，改路線時舊段收到前一天、累計不歸零；親手趟另外加。
+  function fleetStats(train, today) {
+    const dayNo = d => Date.parse(d + 'T00:00:00Z') / 864e5, end = dayNo(today);
+    const first = dayNo(train.firstDay || today), days = Math.max(0, end - first);
+    let km = 0, stops = 0, hand = 0;
+    train.legs.forEach((l, i) => {
+      const from = Math.max(first, dayNo(l.day)), to = i + 1 < train.legs.length ? dayNo(train.legs[i + 1].day) : end, n = Math.max(0, Math.min(to, end) - from);
+      km += l.km * n; stops += l.stops * n;
+    });
+    for (const h of Object.values(train.hand)) { hand += h.n; km += h.km; stops += h.stops; }
+    return { days, trips: days + hand, hand, km: km1(km), stops };
+  }
+
   globalThis.MyTrainPlan = {
     MODELS, familyStatus, normalizeName, nameLength, validateName, stationKey, NAME_MAX,
     COLOR_PALETTE, defaultColor, normalizeColor,
@@ -612,5 +705,6 @@
     buildRunStats, runSpeed, dwellSec, physMinSec,
     buildTimetable, planTrain,
     tripRel, scanSpan, tripDay, tripDayCheck, stopEventsBetween, addEvent,
+    TRACKS, FLEET_MAX, DEVICE_RE, taipeiDay, fleetFields, assignTracks, freeTrack, fleetPut, legOf, syncLegs, addHandRun, runEnded, fleetStats,
   };
 })();

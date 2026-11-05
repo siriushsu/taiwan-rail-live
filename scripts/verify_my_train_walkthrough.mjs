@@ -136,6 +136,16 @@ async function pickModel(page, modelId) {
     modelId, { timeout: 5000 });
 }
 
+// 排好車留在機務段;這支接著驗跟車,接到車庫「去看它」同一條路。機務段本身的流程在 verify_my_train_depot.mjs。
+async function leaveDepot(page) {
+  await page.waitForFunction(() => !document.getElementById('mtForm')?.open, null, { timeout: 8000 }).catch(() => {});
+  await page.evaluate(() => {
+    if (document.getElementById('mtForm')?.open || !window.MyTrainDepot?.isOpen) return;
+    MyTrainDepot.close();
+    ownTrainFollow({ id: MyTrainUI.load().trains.at(-1).id });
+  });
+}
+
 async function openFormFromGarage(page, modelId) {
   await openGarage(page);
   await pickModel(page, modelId);
@@ -390,6 +400,7 @@ async function restoreUiDuration(page) {
 
 async function followStateMatrix(page, engineName, width) {
   await tap(page, '[data-mt-f="depart"]', '發車');
+  await leaveDepot(page);
   await page.waitForFunction(() => state.myTrains.length === 1 && state.followTrain && isMyTrain(state.followTrain)
     && !document.getElementById('mtForm').open, null, { timeout: 10000 });
 
@@ -778,12 +789,12 @@ async function runWidth(browser, engineName, width) {
         && overflow.page <= 1 && overflow.form <= 1 && overflow.body <= 1,
       `controls=${controls.seen.length} bad=${JSON.stringify(controls.bad)} touch=${JSON.stringify(controls.badTouch)} overflow=${JSON.stringify(overflow)}`);
 
-    const storageBefore = await page.evaluate(() => localStorage.getItem('trainmap-my-train-v1'));
+    const storageBefore = await page.evaluate(() => localStorage.getItem(MyTrainUI.STORAGE_KEY));
     const b86399 = await forceUiDuration(page, 86399);
     const b86400 = await forceUiDuration(page, 86400);
     const b86401 = await forceUiDuration(page, 86401);
     const recovered = await forceUiDuration(page, 86399);
-    const storageAfter = await page.evaluate(() => localStorage.getItem('trainmap-my-train-v1'));
+    const storageAfter = await page.evaluate(() => localStorage.getItem(MyTrainUI.STORAGE_KEY));
     check(`${engineName} ${width}px UI exact 24h：86399/86400 可發、86401 擋、切回恢復且未覆寫存檔`,
       !b86399.disabled && !b86400.disabled && b86401.disabled && /超過 24 小時/.test(b86401.reason)
         && !recovered.disabled && storageAfter === storageBefore,
@@ -810,12 +821,13 @@ async function submitOpenForm(page, { from, to, name, hh = 8, mm = 0 }) {
   await page.locator('[data-mt-f="name"]').fill(name);
   await page.waitForFunction(() => !document.querySelector('[data-mt-f="depart"]')?.disabled, null, { timeout: 10000 });
   await tap(page, '[data-mt-f="depart"]', '發車');
+  await leaveDepot(page);
   await page.waitForFunction(() => state.myTrains.length === 1 && !document.getElementById('mtForm').open, null, { timeout: 10000 });
 }
 
 async function blueSnapshot(page) {
   return page.evaluate(() => {
-    const rec = state.myTrains[0], saved = MyTrainUI.load().train;
+    const rec = state.myTrains[0], saved = MyTrainUI.load().trains[0];
     const dwell = name => { const s = rec?.stops.find(x => x.name === name); return s ? s.depSec - s.arrSec : null; };
     return { from: rec?.stops[0]?.name, to: rec?.stops.at(-1)?.name, id: rec?.train,
       savedFrom: saved?.from, savedTo: saved?.to,
@@ -882,23 +894,23 @@ async function runMidnightAndShare(browser, engineName) {
         if (reset) ownTrainLogReset(rec.train);
         else {
           // 保留既有 items，只把掃描錨點移回發車前；第二輪才真的會走到 addEvent 的去重分支。
-          state.ownTrainLog.lastSimSec = null;
-          state.ownTrainLog.lastWallMs = null;
-          state.ownTrainLog.lastSpd = null;
+          state.ownTrainLogs.get(state.myTrains[0]?.train).lastSimSec = null;
+          state.ownTrainLogs.get(state.myTrains[0]?.train).lastWallMs = null;
+          state.ownTrainLogs.get(state.myTrains[0]?.train).lastSpd = null;
         }
         state.simSec = (dep - 10 + 86400) % 86400;
         ownTrainScan();
         for (let rel = 230; rel <= 1910; rel += 240) {
-          state.ownTrainLog.lastWallMs = performance.now() - 5000;
-          state.ownTrainLog.lastSpd = 60;
+          state.ownTrainLogs.get(state.myTrains[0]?.train).lastWallMs = performance.now() - 5000;
+          state.ownTrainLogs.get(state.myTrains[0]?.train).lastSpd = 60;
           state.simSec = (dep + rel) % 86400;
           ownTrainScan();
         }
       };
       run(true);
-      const first = state.ownTrainLog.items.map(x => ({ kind: x.kind, key: x.key, rel: x.rel, simT: x.simT }));
+      const first = state.ownTrainLogs.get(state.myTrains[0]?.train).items.map(x => ({ kind: x.kind, key: x.key, rel: x.rel, simT: x.simT }));
       run(false); // 同一段完整重掃但不清 items；addEvent 必須把所有停靠事件去重。
-      const second = state.ownTrainLog.items.map(x => ({ kind: x.kind, key: x.key, rel: x.rel, simT: x.simT }));
+      const second = state.ownTrainLogs.get(state.myTrains[0]?.train).items.map(x => ({ kind: x.kind, key: x.key, rel: x.rel, simT: x.simT }));
       const keys = second.map(x => `${x.kind}|${x.key}`);
       return { dep, first, second, stable: JSON.stringify(first) === JSON.stringify(second),
         duplicates: keys.filter((x, i) => keys.indexOf(x) !== i),

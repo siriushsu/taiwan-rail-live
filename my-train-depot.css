@@ -1,0 +1,97 @@
+/* 機務段頁：全畫面 3D 舞台，上方標題列，總覽時底部選車列，特寫時側邊（手機在下方）資訊畫框。元件語彙跟車庫 train-garage.css 同一套。 */
+#mtDepot{--md-hdr:var(--navy);--md-hdr-ink:var(--on-navy);--md-card-bd:var(--navy);--md-tint:rgba(42,74,115,.08);--md-sim-bg:#E4E9F2;--md-sim-ink:#3A5680;--md-sim-bd:#B9C6DC;
+  --md-shadow:0 3px 0 rgba(42,74,115,.22);--md-faint:#8A7C62;--md-ok:#1B8F4D;--md-gold:#D2A12A;
+  position:fixed;inset:0;width:100%;height:100%;height:100dvh;max-width:none;max-height:none;margin:0;border:0;padding:0;overflow:hidden;color:var(--ink);background:#e8e9df;font-family:inherit;font-variant-numeric:tabular-nums;-webkit-tap-highlight-color:transparent;transition:opacity .65s}
+html[data-theme=dark] #mtDepot{--md-hdr:var(--paper-tr);--md-hdr-ink:var(--ink);--md-card-bd:rgba(175,203,245,.38);--md-tint:rgba(175,203,245,.10);--md-sim-bg:rgba(127,166,224,.16);--md-sim-ink:#B9CEF0;--md-sim-bd:rgba(127,166,224,.42);--md-shadow:0 2px 0 rgba(0,0,0,.5);--md-faint:#8394B2;--md-ok:#3DDC97;--md-gold:#F5C242}
+#mtDepot.dark{color-scheme:dark}
+#mtDepot.leaving{opacity:0;pointer-events:none}
+#mtDepot::backdrop{background:transparent}
+#mtDepot *{box-sizing:border-box}
+#mtDepot [hidden]{display:none!important}
+#mtDepot button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;touch-action:manipulation}
+#mtDepot button:focus-visible{outline:2px solid var(--md-gold);outline-offset:2px}
+#mtDepot .md-gl{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab;outline:0}
+#mtDepot .md-gl.hot{cursor:pointer}
+
+#mtDepot .md-head{position:absolute;inset:0 0 auto;z-index:10;display:flex;align-items:center;gap:10px;min-height:44px;background:var(--md-hdr);color:var(--md-hdr-ink);
+  padding-top:env(safe-area-inset-top,0px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#mtDepot .md-head b{font-size:15px;font-weight:800;letter-spacing:3px;white-space:nowrap}
+#mtDepot:lang(en) .md-head b{letter-spacing:1px}
+#mtDepot .md-fleet{margin-left:auto;font-size:12px;font-weight:600;opacity:.86;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#mtDepot .md-exit{flex:none;min-height:44px;font-size:14px;font-weight:700;text-decoration:underline;text-underline-offset:4px;white-space:nowrap}
+
+#mtDepot .md-ctl{position:absolute;top:calc(52px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));z-index:4;display:flex;flex-wrap:wrap;gap:8px;align-items:center;transition:opacity .25s;pointer-events:none}
+#mtDepot .md-ctl.dim{opacity:0}
+#mtDepot .md-ctl.dim .md-seg{pointer-events:none}
+#mtDepot .md-seg{display:inline-flex;background:var(--paper);border:1px solid var(--line);border-radius:6px;overflow:hidden;pointer-events:auto}
+#mtDepot .md-seg button{min-height:32px;padding:0 10px;font-size:12.5px;font-weight:600;color:var(--muted);white-space:nowrap}
+#mtDepot .md-seg button[aria-pressed="true"]{background:var(--navy);color:var(--on-navy);font-weight:800}
+
+#mtDepot .md-dock{position:absolute;inset:auto 0 0;z-index:4;background:var(--paper);border-top:2px solid var(--md-card-bd);padding-block:10px max(12px,env(safe-area-inset-bottom,0px));transition:transform .35s cubic-bezier(.3,.8,.3,1),visibility .35s}
+#mtDepot .md-dock.off{transform:translateY(105%);visibility:hidden}
+#mtDepot .md-dock-top{display:flex;align-items:baseline;gap:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));margin-bottom:8px}
+#mtDepot .md-dock-top b{font-size:14px;font-weight:800;color:var(--ink-strong);white-space:nowrap}
+#mtDepot .md-chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:3px}
+#mtDepot .md-chips::-webkit-scrollbar{display:none}
+#mtDepot .md-chip{flex:1 0 128px;min-width:0;display:grid;grid-template-columns:30px 1fr;gap:0 8px;align-items:center;text-align:left;background:var(--paper);border:1.5px solid var(--line);border-radius:8px;padding:7px 9px;box-shadow:0 2px 0 var(--line)}
+#mtDepot .md-chip i{grid-row:1/3;width:30px;height:30px;display:grid;place-items:center;font-style:normal;font-weight:900;font-size:15px;background:var(--navy);color:var(--on-navy);border-radius:5px}
+#mtDepot .md-chip b{font-size:13.5px;font-weight:800;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mtDepot .md-chip small{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mtDepot .md-chip.out i{background:var(--md-sim-bg);color:var(--md-sim-ink);box-shadow:inset 0 0 0 1px var(--md-sim-bd)}
+#mtDepot .md-chip.empty{border-style:dashed}
+#mtDepot .md-chip.empty i{background:none;color:var(--md-faint);box-shadow:inset 0 0 0 1.5px var(--line)}
+
+#mtDepot .md-frame{position:absolute;z-index:6;display:flex;flex-direction:column;background:var(--paper);border:2px solid var(--md-card-bd);box-shadow:var(--md-shadow);overflow:hidden;
+  top:calc(56px + env(safe-area-inset-top,0px));bottom:16px;right:max(16px,env(safe-area-inset-right,0px));width:348px;border-radius:12px;
+  transform:translateX(calc(100% + 28px));visibility:hidden;transition:transform .42s cubic-bezier(.25,.85,.3,1),visibility .42s}
+#mtDepot .md-frame.on{transform:none;visibility:visible}
+#mtDepot .md-fh{display:flex;align-items:center;flex:none;height:44px;background:var(--md-hdr);color:var(--md-hdr-ink);padding-left:14px}
+#mtDepot .md-fh b{font-size:14px;font-weight:800;letter-spacing:3px}
+#mtDepot:lang(en) .md-fh b{letter-spacing:1px}
+#mtDepot .md-nav{margin-left:auto;display:flex}
+#mtDepot .md-fh button{width:44px;height:44px;display:grid;place-items:center;color:var(--md-hdr-ink)}
+#mtDepot .md-fh svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+#mtDepot .md-fb{flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:13px;-webkit-overflow-scrolling:touch}
+#mtDepot .md-nm{display:flex;align-items:center;gap:8px;min-width:0}
+#mtDepot .md-nm h2{margin:0;font-size:24px;line-height:1.2;font-weight:900;color:var(--ink-strong);letter-spacing:1px;min-width:0;overflow-wrap:anywhere}
+#mtDepot .md-tag{flex:none;font-size:10.5px;font-weight:800;color:var(--navy);border:1px solid var(--line);border-radius:99px;padding:1px 7px}
+#mtDepot .md-pill{margin-left:auto;flex:none;font-size:11.5px;font-weight:800;border-radius:99px;padding:2px 9px;background:var(--md-tint);color:var(--md-ok)}
+#mtDepot .md-pill.out{background:var(--md-sim-bg);color:var(--md-sim-ink);box-shadow:inset 0 0 0 1px var(--md-sim-bd)}
+#mtDepot .md-kind{margin:3px 0 0;font-size:12.5px;color:var(--muted)}
+#mtDepot .md-route{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;border-block:1.5px dashed var(--line-dash);padding-block:9px}
+#mtDepot .md-route b{font-size:17px;font-weight:900;color:var(--ink);min-width:0;overflow-wrap:anywhere}
+#mtDepot .md-route b:last-of-type{text-align:right}
+#mtDepot .md-ln{height:3px;width:56px;background:var(--md-gold);position:relative}
+#mtDepot .md-ln::after{content:"";position:absolute;right:-1px;top:-4px;border-left:8px solid var(--md-gold);border-block:5.5px solid transparent}
+#mtDepot .md-route p{grid-column:1/-1;margin:0;font-size:12.5px;color:var(--muted)}
+#mtDepot .md-sec{margin:0;font-size:12px;font-weight:800;letter-spacing:1.5px;color:var(--muted)}
+#mtDepot .md-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;margin-top:-6px}
+#mtDepot .md-st{display:flex;flex-direction:column;padding-block:7px;border-bottom:1px solid var(--line-faint);min-width:0}
+#mtDepot .md-st span{font-size:11.5px;color:var(--muted)}
+#mtDepot .md-st b{font-size:18px;font-weight:900;color:var(--ink-strong);line-height:1.3}
+#mtDepot .md-st b small{font-size:11.5px;font-weight:700;color:var(--muted);margin-left:2px}
+#mtDepot .md-note{margin:0;font-size:12px;color:var(--muted);line-height:1.5}
+#mtDepot .md-lead{margin:0;font-size:14px;line-height:1.65;color:var(--ink)}
+#mtDepot .md-models{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#mtDepot .md-models button{min-height:44px;padding:6px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);font-size:13px;font-weight:700;text-align:left;box-shadow:0 2px 0 var(--line)}
+#mtDepot .md-ff{flex:none;display:flex;align-items:center;gap:14px;padding:11px 16px 12px;border-top:1.5px solid var(--line)}
+#mtDepot .md-btn{flex:1;min-width:0;min-height:46px;border-radius:6px;background:var(--red);color:#FFFDF6;font-size:16px;font-weight:800;letter-spacing:3px;box-shadow:0 2px 0 var(--red-deep)}
+#mtDepot:lang(en) .md-btn{letter-spacing:.5px}
+#mtDepot .md-btn:active{transform:translateY(2px);box-shadow:none}
+#mtDepot .md-btn.navy{background:var(--navy);color:var(--on-navy);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#mtDepot .md-lnk{flex:none;min-height:44px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+
+#mtDepot .md-skip{position:absolute;z-index:9;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));min-height:44px;padding:0 14px;border-radius:6px;background:var(--paper);border:1px solid var(--line);font-size:13px;font-weight:700}
+#mtDepot .md-cap{position:absolute;z-index:6;left:50%;top:calc(60px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--md-hdr);color:var(--md-hdr-ink);font-size:13.5px;font-weight:700;letter-spacing:1px;padding:7px 14px;border-radius:99px;white-space:nowrap;max-width:calc(100% - 32px);overflow:hidden;text-overflow:ellipsis}
+#mtDepot .md-load{position:absolute;inset:0;z-index:9;display:grid;place-items:center;background:var(--bg-stage);color:var(--muted);font-size:14px;font-weight:600;letter-spacing:1px;transition:opacity .5s,visibility .5s}
+#mtDepot .md-load.off{opacity:0;visibility:hidden;pointer-events:none}
+#mtDepot .md-load.flat{inset:auto 16px 50% 16px;background:none;pointer-events:none}
+
+@media (max-width:759px),(orientation:portrait){
+  #mtDepot .md-frame{top:auto;left:0;right:0;bottom:0;width:auto;height:min(62%,500px);border-width:2px 0 0;border-radius:16px 16px 0 0;transform:translateY(102%);padding-bottom:env(safe-area-inset-bottom,0px)}
+  #mtDepot .md-fb{padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));gap:11px;padding-block:12px}
+  #mtDepot .md-grid{grid-template-columns:1.3fr 1fr 1fr;gap:0 10px}
+  #mtDepot .md-st b{font-size:16px}
+  #mtDepot .md-ff{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+}
+@media (prefers-reduced-motion:reduce){#mtDepot .md-frame,#mtDepot .md-dock{transition-duration:.01s}}

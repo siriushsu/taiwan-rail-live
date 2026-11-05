@@ -12,7 +12,7 @@
 // 面板/表單/車庫卡片 DOM 契約(實作見 my-train-ui.js、train-garage.js):
 //   面板根節點:任一位置的 [data-mt-panel]。名字文字:[data-mt-name](textContent,data-i18n-skip)。
 //   面板操作:[data-mt-action="halo"|"size"|"edit"|"delete"],結束跟車沿用既有 #fpEnd。
-//   事件列狀態:state.ownTrainLog.items(本檔讀 state 不讀 DOM)。
+//   事件列狀態:state.ownTrainLogs 裡這一班的 items(本檔讀 state 不讀 DOM)。
 //   排班表單:<dialog id="mtForm" data-mt-form>,欄位 [data-mt-f=...],建議列 [data-mt-sug=...]/
 //   [data-mt-sug-key],停站 [data-mt-fpattern=...],山海線 [data-mt-fvia=...]。
 //   車庫卡片:[data-mt-g="schedule"|"view"|"replan"|"status"|"note"|"hint"]。
@@ -107,7 +107,7 @@ const localBuild = (idxSrc.match(/const BUILD = '([^']*)'/) || [])[1] || '?';
 console.log(`\n目標: ${path.join(ROOT, 'index.html')}\n      md5=${md5}  BUILD=${localBuild}  ${idxSrc.split('\n').length} 行\n`);
 
 // ── localStorage 白名單／永遠不准變(腳本啟動先印出來)───────────
-const LS_WHITELIST = ['trainmap-my-train-v1', 'trainmap-fprail-min', 'trainmap-follow-heading-up', 'trainmap-map-pitch', 'trainmap-last-view'];
+const LS_WHITELIST = ['trainmap-my-fleet-v1', 'trainmap-fprail-min', 'trainmap-follow-heading-up', 'trainmap-map-pitch', 'trainmap-last-view'];
 const LS_NEVER = ['trainmap-user-data-v1', 'trainmap-rides', 'trainmap-riding-v1', 'trainmap-checkins-v1', 'trainmap-bounty-v1',
   'trainmap-local-reminders-v1', 'trainmap-local-reminders-next-id-v1', 'trainmap-local-reminder-walk-v1',
   'trainmap-favs', 'trainmap-fav-stations', 'trainmap-pins', 'trainmap-last-board-v1'];
@@ -198,10 +198,10 @@ const RIDES_INIT = (rides) => { try { localStorage.setItem('trainmap-rides', JSO
 async function bootPage(ctx, qs, lang) {
   const page = await ctx.newPage();
   const errors = [];
-  // 刪除自製車、取代確認都走原生 confirm()(跟本專案既有的刪除/排班流程一致)。Playwright 預設把
+  // 刪除自製車走原生 confirm()(跟本專案既有的刪除/排班流程一致)。Playwright 預設把
   // 對話框自動「取消」,於是刪除永遠不會發生、[分流] delete 那條會紅在錯的理由上。這裡預設**只**
   // 接受刪除那一句,其他任何對話框一律照預設取消——不是把整個 harness 對 confirm 放行。
-  // page.__mtNextDialog 是一次性覆蓋(nextDialog() 設,用一次就清),讓「取代確認先 dismiss 一次、
+  // page.__mtNextDialog 是一次性覆蓋(nextDialog() 設,用一次就清),讓「刪除確認先 dismiss 一次、
   // 再 accept 一次」這種測試不必動全域規則。page.__mtDialogs 記下每個對話框的型別與訊息,
   // 供後面驗證「確實跳出過那個對話框」,不是巧合沒開表單。
   page.__mtDialogs = [];
@@ -285,7 +285,17 @@ async function openGarage(page, touch = false) {
   await press(page, '#moreSheet [data-act="garage"]', touch);
   await page.waitForFunction(() => !!window.TrainGarage?.isOpen, null, { timeout: 8000 });
 }
+// 排好車留在機務段;這支接著驗跟車,接到車庫「去看它」同一條路。機務段本身的流程在 verify_my_train_depot.mjs。
+async function leaveDepot(page) {
+  await page.waitForFunction(() => !document.getElementById('mtForm')?.open, null, { timeout: 8000 }).catch(() => {});
+  await page.evaluate(() => {
+    if (document.getElementById('mtForm')?.open || !window.MyTrainDepot?.isOpen) return;
+    MyTrainDepot.close();
+    ownTrainFollow({ id: MyTrainUI.load().trains.at(-1).id });
+  });
+}
 async function closeGarage(page, touch = false) {
+  await page.evaluate(() => window.MyTrainDepot?.close());
   if (!(await page.evaluate(() => !!window.TrainGarage?.isOpen))) return;
   await press(page, '#trainGarage .g-close', touch);
   await page.waitForFunction(() => !window.TrainGarage?.isOpen, null, { timeout: 5000 });
@@ -385,10 +395,10 @@ async function keyboardCannotSubmitClosedForm(page) {
       });
     }
   }
-  const before = await page.evaluate(() => ({ stored: MyTrainUI.load().train, rec: state.myTrains[0] ? state.myTrains[0].train : null }));
+  const before = await page.evaluate(() => ({ stored: MyTrainUI.load().trains[0], rec: state.myTrains[0] ? state.myTrains[0].train : null }));
   await page.keyboard.press('Enter');
   await page.waitForTimeout(300);
-  const after = await page.evaluate(() => ({ stored: MyTrainUI.load().train, rec: state.myTrains[0] ? state.myTrains[0].train : null }));
+  const after = await page.evaluate(() => ({ stored: MyTrainUI.load().trains[0], rec: state.myTrains[0] ? state.myTrains[0].train : null }));
   return { landed, unchanged: JSON.stringify(before) === JSON.stringify(after), before, after };
 }
 // 表單已經開著(任何 mode):填起訖(打字+點建議列)/時間/名字/停站方式/山海線,按發車,等真的發車。
@@ -410,6 +420,7 @@ async function fillFormAndDepart(page, { from, to, depOffset, name, pattern, via
     return { ok: false, reason: 'depart-disabled: ' + reason, fromHit, toHit };
   }
   await press(page, '[data-mt-f="depart"]', touch);
+  await leaveDepot(page);
   const departed = await page.waitForFunction(() => (state.myTrains || []).length > 0 && !window.TrainGarage?.isOpen, null, { timeout: 8000 })
     .then(() => true).catch(() => false);
   if (!departed) return { ok: false, reason: 'not-departed', fromHit, toHit };
@@ -428,18 +439,22 @@ async function fillFormAndDepart(page, { from, to, depOffset, name, pattern, via
 // 路線固定經過台北–松山;預設終點南港湊不到松山就退而求其次改七堵(沒指定終點,
 // 只要求經過台北–松山且停靠站數 >=3);opts.to 給定時直接用那個終點,不做退路判斷(mobile 場景挑
 // 經過竹南/彰化的路線用)。id 由介面自己產生(crypto.randomUUID()),回傳讀回來的真實值,呼叫端
-// 不能指定——已經有一班時「自己排一班」會先跳取代確認,這裡預設直接 accept(dismiss 分支另外測,
-// 見 Scenario C)。
+// 不能指定。本檔各情境只看一列車,所以已經有車時先清掉;多列的行為在 verify_my_train_fleet.mjs。
 async function makeOwnTrain(page, { name, depOffset, modelId = 'emu800', from = '臺北', to, pattern, via, touch = false }) {
   const dest = to || await page.evaluate(() => {
     const g = MyTrainPlan.buildGraph(systemData('tra_sched').lines, 'tra_sched');
     const r = MyTrainPlan.findRoute(g, MyTrainPlan.stationKey('tra_sched', '臺北'), MyTrainPlan.stationKey('tra_sched', '南港'), {});
     return r.ok && r.stops.some(s => s.name === '松山') ? '南港' : '七堵';
   });
-  const already = await page.evaluate(() => !!(window.MyTrainUI && MyTrainUI.load().train));
+  const already = await page.evaluate(() => !!(window.MyTrainUI && MyTrainUI.load().trains[0]));
+  if (already) await page.evaluate(() => {
+    const cur = MyTrainUI.load();
+    MyTrainUI.save({ ...cur, trains: [] });
+    if (isMyTrain(state.followTrain)) clearFollow();
+    ownTrainRebuild();
+  });
   await openGarage(page, touch);
   await pickModel(page, modelId, touch);
-  if (already) nextDialog(page, 'accept');
   await press(page, '[data-mt-g="schedule"]', touch);
   const opened = await page.waitForFunction(() => document.getElementById('mtForm')?.open === true, null, { timeout: 5000 })
     .then(() => true).catch(() => false);
@@ -487,7 +502,7 @@ async function fastForwardToArrival(page, timeoutMs) {
   // 等事件列確實掃過抵達時刻再讀——等完成訊號,不等固定秒數。事件列不存在時逾時略過,由後面的斷言報紅。
   if (done) {
     await page.waitForFunction(() => {
-      const log = state.ownTrainLog, rec = state.myTrains && state.myTrains[0];
+      const log = state.ownTrainLogs.get(state.myTrains[0]?.train), rec = state.myTrains && state.myTrains[0];
       if (!log || !rec || log.lastSimSec == null) return false;
       const s = rec.stops, dep0 = s[0].depSec, dur = s[s.length - 1].arrSec - dep0;
       const rel = ((log.lastSimSec - dep0) % 86400 + 86400) % 86400;
@@ -515,7 +530,7 @@ async function deleteOwnTrain(page, touch = false) {
     // 面板不該打不到刪除鈕;defensive fallback 避免整支腳本卡死,同時如實記錄不是走 UI 刪的。
     return page.evaluate(() => {
       const cur = MyTrainUI.load();
-      MyTrainUI.save({ v: 1, appearance: cur.appearance, train: null });
+      MyTrainUI.save({ ...cur, trains: [] });
       ownTrainRebuild(); clearFollow();
       return { myTrainsLen: state.myTrains.length, uiFallback: true };
     });
@@ -673,7 +688,7 @@ async function mobileFormWalkthrough(page, P) {
   const departEnabled = await waitDepartEnabled(page);
   const departHit = departEnabled ? await hitsSelf(page, '[data-mt-f="depart"]') : false;
   const beforeDepart = await page.evaluate(() => ({ myTrainsLen: (state.myTrains || []).length, garageOpen: !!window.TrainGarage?.isOpen }));
-  if (departEnabled) await press(page, '[data-mt-f="depart"]', true);
+  if (departEnabled) { await press(page, '[data-mt-f="depart"]', true); await leaveDepot(page); }
   const departed = departEnabled ? await page.waitForFunction(() => (state.myTrains || []).length > 0 && !window.TrainGarage?.isOpen, null, { timeout: 8000 })
     .then(() => true).catch(() => false) : false;
   const rec = departed ? await page.evaluate(() => {
@@ -1135,7 +1150,7 @@ async function runDirCheck(browser, engineName, P) {
     const dep = await fillFormAndDepart(page, { depOffset: -60, name: '順行測' });
     ok(P('[順逆行] 選順行發車成功,停站經過高雄、枋寮,沒經過花蓮'),
       dep.ok && dep.stopNames.includes('高雄') && dep.stopNames.includes('枋寮') && !dep.stopNames.includes('花蓮'), JSON.stringify({ ok: dep.ok, reason: dep.reason }));
-    const after = await page.evaluate(() => ({ dir: state.myTrains[0]?._ownDir, saved: MyTrainUI.load().train?.dir,
+    const after = await page.evaluate(() => ({ dir: state.myTrains[0]?._ownDir, saved: MyTrainUI.load().trains[0]?.dir,
       route: document.querySelector('[data-mt-route]')?.textContent ?? null }));
     ok(P('[順逆行] 發車後 record._ownDir 與存檔 dir 都是 shun'), after.dir === 'shun' && after.saved === 'shun', JSON.stringify(after));
     ok(P('[順逆行] 面板路線列標出「順行」與「山線」'), typeof after.route === 'string' && after.route.includes(' · 順行') && after.route.endsWith(' · 山線'),
@@ -1460,15 +1475,15 @@ async function runEngine(engineName, engine) {
     ok(P('[推播綁定] 自製車跟隨全程沒有把停站表送去 /api/la/bind(pushToken 回呼不綁定,同一份原生零呼叫證據)'),
       laCalls.length === 0, `calls=${JSON.stringify(laCalls)}`);
 
-    // 事件列(state.ownTrainLog,沒有這個欄位時一律清楚 FAIL)
+    // 事件列(state.ownTrainLogs.get(state.myTrains[0]?.train),沒有這個欄位時一律清楚 FAIL)
     const ev1 = await page.evaluate(() => {
-      const log = state.ownTrainLog;
+      const log = state.ownTrainLogs.get(state.myTrains[0]?.train);
       if (!log || !Array.isArray(log.items)) return { exists: false };
       return { exists: true, items: log.items };
     });
     if (!ev1.exists) {
-      ok(P('[事件] state.ownTrainLog.items 存在'), false, 'state.ownTrainLog 不存在');
-      ok(P('[事件] 跑完一趟:發車/每個停靠站/抵達各一條,沒有待避禮讓'), false, 'state.ownTrainLog 不存在');
+      ok(P('[事件] state.ownTrainLogs.get(state.myTrains[0]?.train).items 存在'), false, 'state.ownTrainLogs.get(state.myTrains[0]?.train) 不存在');
+      ok(P('[事件] 跑完一趟:發車/每個停靠站/抵達各一條,沒有待避禮讓'), false, 'state.ownTrainLogs.get(state.myTrains[0]?.train) 不存在');
     } else {
       const texts = ev1.items.map(x => JSON.stringify(x));
       const hasDepart = texts.some(t => t.includes('發車')); // 發車
@@ -1484,7 +1499,7 @@ async function runEngine(engineName, engine) {
       const evDom = await page.evaluate(() => {
         const fp = document.getElementById('followPanel');
         const rows = [...fp.querySelectorAll('[data-mt-events] .mt-ev')];
-        return { rows: rows.length, items: state.ownTrainLog.items.length, fpShown: !fp.hidden,
+        return { rows: rows.length, items: state.ownTrainLogs.get(state.myTrains[0]?.train).items.length, fpShown: !fp.hidden,
           arriveRow: rows.some(r => r.textContent.includes('抵達')), status: state.followStatus };
       });
       ok(P('[事件] 抵達後面板上的事件列跟記下的一樣多條,看得到「抵達」那條'),
@@ -1514,11 +1529,11 @@ async function runEngine(engineName, engine) {
     const f2 = { ok: view1.ok };
     const arrivedA2 = f2.ok ? await fastForwardToArrival(page, 60000) : false;
     const ev2 = await page.evaluate(() => {
-      const log = state.ownTrainLog;
+      const log = state.ownTrainLogs.get(state.myTrains[0]?.train);
       return log && Array.isArray(log.items) ? log.items.map(x => ({ kind: x.kind, key: x.key, rel: x.rel })) : null;
     });
     if (!ev1.exists) {
-      ok(P('[事件]「去看它」重看之後,事件列沒有任何一條重複'), false, 'state.ownTrainLog 不存在');
+      ok(P('[事件]「去看它」重看之後,事件列沒有任何一條重複'), false, 'state.ownTrainLogs.get(state.myTrains[0]?.train) 不存在');
     } else {
       // 事件列的去重(直接照規則寫,不讀實作):發車/停靠/抵達同一站一趟一次;
       // 交會/從旁通過同一班真車前後 900 秒內一次。重看同一趟也不清空(發車日一樣＝重看),
@@ -1607,32 +1622,30 @@ async function runEngine(engineName, engine) {
   const mkC1 = await makeOwnTrain(page, { name: '替代測試1', depOffset: 90 });
   ok(P('前置:Scenario C 第一班(替代測試1)建立成功'), mkC1.ok, JSON.stringify(mkC1));
   if (mkC1.ok) {
-    // 取代確認・dismiss:全域對話框處理預設會 dismiss 非「確定要刪除」的 confirm,不必特別蓋;
-    // 用 page.__mtDialogs 確認 confirm() 真的跳出過且訊息含原名字,不是巧合什麼都沒發生。
+    // 已經有車時再排一班:不問取代,表單直接打開,發車後兩列都在。
     await openGarage(page);
     await pickModel(page, 'emu800');
     const dlgIdxBefore = page.__mtDialogs.length;
     await press(page, '[data-mt-g="schedule"]');
-    await page.waitForTimeout(400);
-    const sawDismissDialog = page.__mtDialogs.slice(dlgIdxBefore).some(d => d.type === 'confirm' && d.message.includes('替代測試1'));
-    const afterDismiss = await page.evaluate(() => ({
-      formOpen: document.getElementById('mtForm')?.open === true,
-      name: MyTrainUI.load().train.name,
-    }));
-    ok(P('[取代確認] dismiss:confirm() 真的跳出且訊息含原名字,表單沒開、原本那班沒變'),
-      sawDismissDialog && !afterDismiss.formOpen && afterDismiss.name === '替代測試1', JSON.stringify({ sawDismissDialog, afterDismiss }));
-
-    // 取代確認・accept:蓋一次性 accept,表單應該打開,發車後真的取代成功。
-    nextDialog(page, 'accept');
-    await press(page, '[data-mt-g="schedule"]');
     const formOpened = await page.waitForFunction(() => document.getElementById('mtForm')?.open === true, null, { timeout: 5000 })
       .then(() => true).catch(() => false);
-    ok(P('[取代確認] accept:表單打開'), formOpened, String(formOpened));
+    ok(P('[再排一班] 表單直接打開,沒有跳取代確認'), formOpened && page.__mtDialogs.length === dlgIdxBefore, String(formOpened));
     let mkC2 = { ok: false };
     if (formOpened) {
-      mkC2 = await fillFormAndDepart(page, { from: '臺北', to: '七堵', depOffset: 90, name: '替代測試2' });
-      ok(P('[取代確認] accept 之後真的取代成功(名字換成新排的那班,識別碼跟舊的不同)'),
-        mkC2.ok && mkC2.label === '替代測試2' && mkC2.id !== mkC1.id, JSON.stringify({ mkC2, oldId: mkC1.id }));
+      await fillFormAndDepart(page, { from: '臺北', to: '七堵', depOffset: 90, name: '替代測試2' });
+      const both = await page.evaluate(() => MyTrainUI.load().trains.map(x => x.name));
+      ok(P('[再排一班] 發車後兩列都在,新的跟上去'), both.length === 2 && both.includes('替代測試1') && both.includes('替代測試2'), JSON.stringify(both));
+      // 下面的編輯情境只看一列:留下新排的那列
+      mkC2 = await page.evaluate(() => {
+        const cur = MyTrainUI.load();
+        MyTrainUI.save({ ...cur, trains: cur.trains.slice(1) });
+        const followId = state.followTrain.train;
+        ownTrainRebuild();
+        ownTrainRelink(followId);
+        const rec = state.myTrains[0];
+        return { ok: !!rec && state.followTrain === rec, label: rec?.label, id: rec?.train };
+      });
+      ok(P('[再排一班] 留下新排的那列,識別碼跟舊的不同'), mkC2.ok && mkC2.label === '替代測試2' && mkC2.id !== mkC1.id, JSON.stringify({ mkC2, oldId: mkC1.id }));
     }
 
     if (mkC2.ok) {
@@ -1641,7 +1654,7 @@ async function runEngine(engineName, engine) {
       const arrivedC = await fastForwardToArrival(page, 60000);
       await page.evaluate(() => { state.playing = false; });
       ok(P('前置:Scenario C 快轉抵達,供編輯保留/清空對照、且確保「只改名字」edit 在車不在路上時做'), arrivedC, String(arrivedC));
-      const itemsBefore = await page.evaluate(() => state.ownTrainLog.items.map(x => ({ kind: x.kind, key: x.key, rel: x.rel })));
+      const itemsBefore = await page.evaluate(() => state.ownTrainLogs.get(state.myTrains[0]?.train).items.map(x => ({ kind: x.kind, key: x.key, rel: x.rel })));
       const simBeforeRename = await page.evaluate(() => state.simSec);
 
       // [編輯] 只改名字:面板的編輯鈕開表單,只填名字,發車 → 面板/儲存的名字都變,事件列逐條比對原樣保留。
@@ -1653,8 +1666,8 @@ async function runEngine(engineName, engine) {
       await page.waitForTimeout(300);
       const afterRename = await page.evaluate(() => ({
         panelName: document.querySelector('[data-mt-name]')?.textContent || '',
-        storedName: MyTrainUI.load().train.name,
-        items: state.ownTrainLog.items.map(x => ({ kind: x.kind, key: x.key, rel: x.rel })),
+        storedName: MyTrainUI.load().trains[0].name,
+        items: state.ownTrainLogs.get(state.myTrains[0]?.train).items.map(x => ({ kind: x.kind, key: x.key, rel: x.rel })),
         simSec: state.simSec,
         sameObj: state.followTrain === state.myTrains[0],
       }));
@@ -1676,7 +1689,7 @@ async function runEngine(engineName, engine) {
       if (editOpened2) patternOk = await fillFormAndDepart(page, { pattern: 'express' });
       await page.waitForTimeout(300);
       const afterPatternEdit = await page.evaluate(() => ({
-        items: (state.ownTrainLog?.items || []).length, pattern: MyTrainUI.load().train.pattern,
+        items: (state.ownTrainLogs.get(state.myTrains[0]?.train)?.items || []).length, pattern: MyTrainUI.load().trains[0].pattern,
         sameObj: state.followTrain === state.myTrains[0],
       }));
       ok(P('[編輯] 改停站方式(正向對照,跟上面「只改名字」相反):事件列被清空'),
@@ -1684,11 +1697,10 @@ async function runEngine(engineName, engine) {
       ok(P('改停站方式:跟到的是新物件(state.followTrain === state.myTrains[0])'),
         afterPatternEdit.sameObj, JSON.stringify(afterPatternEdit));
 
-      // ── 表單取消與關閉:取代確認→改內容→取消(按鈕、Esc 各一次),原本那班不能被換掉 ──
-      const beforeCancelSnap = await page.evaluate(() => ({ stored: MyTrainUI.load().train, rec: state.myTrains[0] ? state.myTrains[0].train : null }));
+      // ── 表單取消與關閉:開表單→改內容→取消(按鈕、Esc 各一次),車隊不能多一列、原本那班不能被換掉 ──
+      const beforeCancelSnap = await page.evaluate(() => ({ stored: MyTrainUI.load().trains[0], rec: state.myTrains[0] ? state.myTrains[0].train : null }));
       await openGarage(page);
       await pickModel(page, 'emu800');
-      nextDialog(page, 'accept');
       await press(page, '[data-mt-g="schedule"]');
       await page.waitForFunction(() => document.getElementById('mtForm')?.open === true, null, { timeout: 5000 });
       await sugPick(page, 'from', '臺北');
@@ -1697,10 +1709,10 @@ async function runEngine(engineName, engine) {
       await press(page, '.mt-f-foot [data-mt-f="cancel"]');
       await page.waitForTimeout(300);
       const afterBtnCancel = await page.evaluate(() => ({
-        stored: MyTrainUI.load().train, rec: state.myTrains[0] ? state.myTrains[0].train : null,
+        stored: MyTrainUI.load().trains[0], rec: state.myTrains[0] ? state.myTrains[0].train : null,
         formOpen: document.getElementById('mtForm').open,
       }));
-      ok(P('取代確認接受後改內容、按「取消」鈕:表單關閉、原本那班的儲存與 state.myTrains[0].train 都沒變'),
+      ok(P('開表單改內容、按「取消」鈕:表單關閉、原本那班的儲存與 state.myTrains[0].train 都沒變'),
         !afterBtnCancel.formOpen && JSON.stringify(afterBtnCancel.stored) === JSON.stringify(beforeCancelSnap.stored)
           && JSON.stringify(afterBtnCancel.rec) === JSON.stringify(beforeCancelSnap.rec),
         JSON.stringify({ before: beforeCancelSnap, after: afterBtnCancel }));
@@ -1708,7 +1720,6 @@ async function runEngine(engineName, engine) {
 
       await openGarage(page);
       await pickModel(page, 'emu800');
-      nextDialog(page, 'accept');
       await press(page, '[data-mt-g="schedule"]');
       await page.waitForFunction(() => document.getElementById('mtForm')?.open === true, null, { timeout: 5000 });
       await sugPick(page, 'from', '臺北');
@@ -1717,10 +1728,10 @@ async function runEngine(engineName, engine) {
       await page.keyboard.press('Escape');
       await page.waitForTimeout(300);
       const afterEsc = await page.evaluate(() => ({
-        stored: MyTrainUI.load().train, rec: state.myTrains[0] ? state.myTrains[0].train : null,
+        stored: MyTrainUI.load().trains[0], rec: state.myTrains[0] ? state.myTrains[0].train : null,
         formOpen: document.getElementById('mtForm').open,
       }));
-      ok(P('取代確認接受後改內容、按 Esc:表單關閉、原本那班的儲存與 state.myTrains[0].train 都沒變'),
+      ok(P('開表單改內容、按 Esc:表單關閉、原本那班的儲存與 state.myTrains[0].train 都沒變'),
         !afterEsc.formOpen && JSON.stringify(afterEsc.stored) === JSON.stringify(beforeCancelSnap.stored)
           && JSON.stringify(afterEsc.rec) === JSON.stringify(beforeCancelSnap.rec),
         JSON.stringify({ before: beforeCancelSnap, after: afterEsc }));
@@ -1736,10 +1747,10 @@ async function runEngine(engineName, engine) {
         cssClosed.display === 'none' && !cssClosed.focusLanded && !cssClosed.open, JSON.stringify(cssClosed));
 
       // (b) formSubmit 的 open 檢查:關閉狀態下程式化 .click() 發車鈕,儲存不變。
-      const beforeClick = await page.evaluate(() => ({ stored: MyTrainUI.load().train, rec: state.myTrains[0] ? state.myTrains[0].train : null }));
+      const beforeClick = await page.evaluate(() => ({ stored: MyTrainUI.load().trains[0], rec: state.myTrains[0] ? state.myTrains[0].train : null }));
       await page.evaluate(() => document.querySelector('[data-mt-f="depart"]').click());
       await page.waitForTimeout(300);
-      const afterClick = await page.evaluate(() => ({ stored: MyTrainUI.load().train, rec: state.myTrains[0] ? state.myTrains[0].train : null }));
+      const afterClick = await page.evaluate(() => ({ stored: MyTrainUI.load().trains[0], rec: state.myTrains[0] ? state.myTrains[0].train : null }));
       ok(P('關閉狀態下對發車鈕程式化 .click(),儲存與 state.myTrains[0].train 都沒變'),
         JSON.stringify(beforeClick) === JSON.stringify(afterClick), JSON.stringify({ beforeClick, afterClick }));
 
@@ -1904,12 +1915,12 @@ async function runEngine(engineName, engine) {
       editTap.ok && editTap.hit && editFormOpen && editPrefill === editNameBefore,
       JSON.stringify({ editTap, editFormOpen, editPrefill, editNameBefore }));
     if (editFormOpen) {
-      const beforeEditCancel = await page2.evaluate(() => ({ stored: MyTrainUI.load().train, rec: state.myTrains[0] ? state.myTrains[0].train : null }));
+      const beforeEditCancel = await page2.evaluate(() => ({ stored: MyTrainUI.load().trains[0], rec: state.myTrains[0] ? state.myTrains[0].train : null }));
       const cancelTap = await tapCenter(page2, '.mt-f-foot [data-mt-f="cancel"]', true);
       await page2.waitForTimeout(300);
       const afterEditCancel = await page2.evaluate(() => ({
         formOpen: document.getElementById('mtForm').open,
-        stored: MyTrainUI.load().train, rec: state.myTrains[0] ? state.myTrains[0].train : null,
+        stored: MyTrainUI.load().trains[0], rec: state.myTrains[0] ? state.myTrains[0].train : null,
       }));
       ok(P('F手機 編輯表單裡真觸控點「取消」:命中本體,表單關閉,儲存不變'),
         cancelTap.ok && cancelTap.hit && !afterEditCancel.formOpen

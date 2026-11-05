@@ -1284,7 +1284,7 @@ section('跟真車比（只出報表；硬斷言只有樣本數）', () => {
 });
 
 // ═══ 儲存（my-train-ui.js 的 load／save）═══
-// 只抽儲存那五個函式＋兩個常數出來跑（檔案其他部分會碰 DOM）；localStorage 用替身，MyTrainPlan 用上面載入的那一份。
+// 只抽儲存那六個函式＋三個常數出來跑（檔案其他部分會碰 DOM）；localStorage 用替身，MyTrainPlan 用上面載入的那一份。
 section('儲存', () => {
   const src = read('my-train-ui.js');
   const store = new Map();
@@ -1295,70 +1295,158 @@ section('儲存', () => {
     removeItem: k => { store.delete(k); },
   };
   const ctx = vm.createContext({ localStorage, MyTrainPlan: planCtx.MyTrainPlan });
-  vm.runInContext([extractConst(src, 'STORAGE_KEY'), extractConst(src, 'HALO_SIZES'),
-    ...['storeDefaults', 'storeSanitizeTrain', 'storeSanitize', 'storeLoad', 'storeSave'].map(n => extractFunction(src, n)),
-    'globalThis.__ui = { STORAGE_KEY, load: storeLoad, save: storeSave };'].join('\n'), ctx);
-  const UI = ctx.__ui, KEY = 'trainmap-my-train-v1';
+  vm.runInContext([extractConst(src, 'STORAGE_KEY'), extractConst(src, 'LEGACY_KEY'), extractConst(src, 'HALO_SIZES'),
+    ...['storeDefaults', 'storeSanitizeTrain', 'storeSanitize', 'storeMigrate', 'storeLoad', 'storeSave'].map(n => extractFunction(src, n)),
+    'globalThis.__ui = { STORAGE_KEY, LEGACY_KEY, load: storeLoad, save: storeSave };'].join('\n'), ctx);
+  const UI = ctx.__ui, KEY = 'trainmap-my-fleet-v1', OLD = 'trainmap-my-train-v1';
   const js = x => JSON.stringify(x);
-  const DEFAULTS = { v: 1, appearance: { haloOn: true, haloSize: 'std' }, train: null };
-  check(UI.STORAGE_KEY === KEY, `localStorage 鍵是 ${KEY}`);
+  const AP = { haloOn: false, haloSize: 'xl' };
+  const DEFAULTS = { v: 1, appearance: { haloOn: true, haloSize: 'std' }, trains: [], device: null };
+  check(UI.STORAGE_KEY === KEY && UI.LEGACY_KEY === OLD, `localStorage 鍵是 ${KEY}，舊鍵是 ${OLD}`);
   check(/globalThis\.MyTrainUI\s*=\s*\{/.test(src) && /\bSTORAGE_KEY\s*[,}\n]/.test(src) && /load:\s*storeLoad\b/.test(src) && /save:\s*storeSave\b/.test(src),
     'MyTrainUI 對外的 STORAGE_KEY／load／save 就是這幾個函式');
   // color 用 emu800 自己系統的合法值(且恰為它的預設色)，round-trip 才會是 no-op，才能拿 TRAIN 原樣當期望值比對。
-  const TRAIN = { id: 'my:0f8e2d1c-aaaa-4bbb-8ccc-123456789abc', name: '520', modelId: 'emu800', sys: 'tra_sched',
+  const SCHEDULE = { id: 'my:0f8e2d1c-aaaa-4bbb-8ccc-123456789abc', name: '520', modelId: 'emu800', sys: 'tra_sched',
     from: '台北', to: '花蓮', via: null, dir: null, pattern: 'major', depSec: 27000, color: '#2E6FB0' };
+  const BLANK = { legs: [], hand: {}, outRun: null, earned: {}, look: { mark: null, plate: null } };
+  const TRAIN = { ...SCHEDULE, track: 0, firstDay: '2026-11-05', ...BLANK };
+  const DEV = '0f8e2d1c-dddd-4eee-8fff-123456789abc';
+  const FULL = { ...TRAIN, track: 3, legs: [{ day: '2026-11-05', km: 180.5, stops: 9 }, { day: '2026-11-20', km: 88, stops: 4 }],
+    hand: { [DEV]: { n: 2, km: 361, stops: 18 } }, outRun: { at: 1793000000000, dep: 27000, dur: 7200 },
+    earned: { 首航: '2026-11-05' }, look: { mark: '親手', plate: '銅' } };
   const put = obj => store.set(KEY, typeof obj === 'string' ? obj : js(obj));
+  const putOld = obj => store.set(OLD, typeof obj === 'string' ? obj : js(obj));
+  const fleet = (...trains) => ({ v: 1, appearance: AP, trains, device: null });
+  const one = (patch) => { put(fleet({ ...TRAIN, ...patch })); return UI.load().trains[0]; };
   store.clear();
-  check(js(UI.load()) === js(DEFAULTS), '沒有存過 → 預設值（光環開、標準、沒有車）', js(UI.load()));
+  check(js(UI.load()) === js(DEFAULTS) && store.size === 0, '兩把鍵都沒有 → 預設值，而且不寫任何鍵', js(UI.load()));
   flags.failGet = true;
   let threw = false, got = null;
   try { got = UI.load(); } catch { threw = true; }
   flags.failGet = false;
   check(!threw && js(got) === js(DEFAULTS), '讀 localStorage 丟錯 → 預設值、不丟錯');
-  for (const bad of ['{', '"x"', 'null', '[]', js({ v: 2, appearance: { haloOn: false }, train: TRAIN })]) {
+  for (const bad of ['{', '"x"', 'null', '[]', js({ v: 2, appearance: { haloOn: false }, trains: [TRAIN] })]) {
     put(bad);
     check(js(UI.load()) === js(DEFAULTS), `壞掉的內容 ${bad.slice(0, 24)} → 當作沒有自製車`);
   }
-  put({ v: 1, appearance: { haloOn: false, haloSize: 'xl' }, train: TRAIN });
-  check(js(UI.load()) === js({ v: 1, appearance: { haloOn: false, haloSize: 'xl' }, train: TRAIN }), '對照組：完整的內容原樣讀回');
-  put({ v: 1, appearance: { haloOn: false, haloSize: 'xl' }, train: { ...TRAIN, name: IDEO + '自強520\n' } });
-  check(UI.load().train.name === '自強520', '名字讀回來是正規化過的');
+  put(fleet(TRAIN));
+  check(js(UI.load()) === js(fleet(TRAIN)), '對照組：完整的內容原樣讀回');
+  put(fleet(FULL));
+  check(js(UI.load()) === js(fleet(FULL)), '對照組：分段、親手、進行中、成就、外觀都原樣讀回');
+  check(one({ name: IDEO + '自強520\n' }).name === '自強520', '名字讀回來是正規化過的');
   // 車牌顏色：color 欄位存檔/讀回的三種邊界情況（跟 my-train-ui.js 的 storeSanitizeTrain 對）。
-  put({ v: 1, appearance: { haloOn: false, haloSize: 'xl' }, train: (() => { const { color, ...rest } = TRAIN; return rest; })() });
-  check(UI.load().train.color === MyTrainPlan.defaultColor('emu800'), '舊紀錄沒有 color 欄 → 補上這款車的預設色');
-  put({ v: 1, appearance: { haloOn: false, haloSize: 'xl' }, train: { ...TRAIN, color: '#ff2bd6' } });
-  check(UI.load().train.color === MyTrainPlan.defaultColor('emu800'), '存檔內容混進不合法的顏色（舊版螢光色）→ 回退預設色，不是原樣收下');
-  put({ v: 1, appearance: { haloOn: false, haloSize: 'xl' }, train: { ...TRAIN, color: '#e8792b' } });
-  check(UI.load().train.color === '#E8792B', '合法值大小寫不拘 → 回傳色盤標準寫法');
+  { const { color, ...rest } = TRAIN; put(fleet(rest)); }
+  check(UI.load().trains[0].color === MyTrainPlan.defaultColor('emu800'), '舊紀錄沒有 color 欄 → 補上這款車的預設色');
+  check(one({ color: '#ff2bd6' }).color === MyTrainPlan.defaultColor('emu800'), '存檔內容混進不合法的顏色（舊版螢光色）→ 回退預設色，不是原樣收下');
+  check(one({ color: '#e8792b' }).color === '#E8792B', '合法值大小寫不拘 → 回傳色盤標準寫法');
   // 順行／逆行：dir 欄位。舊紀錄沒有這欄＝走最短那邊（null）。
-  put({ v: 1, appearance: { haloOn: false, haloSize: 'xl' }, train: (() => { const { dir, ...rest } = TRAIN; return rest; })() });
-  check(UI.load().train && UI.load().train.dir === null, '舊紀錄沒有 dir 欄 → dir null（走最短那邊）');
-  put({ v: 1, appearance: { haloOn: false, haloSize: 'xl' }, train: { ...TRAIN, dir: 'shun' } });
-  check(UI.load().train && UI.load().train.dir === 'shun', 'dir 順行原樣讀回');
-  put({ v: 1, appearance: { haloOn: false, haloSize: 'xl' }, train: { ...TRAIN, modelId: 'retired-model' } });
-  check(UI.load().train && UI.load().train.modelId === 'retired-model', '車款不在表裡的照樣讀回（失效提示要用名字）');
+  { const { dir, ...rest } = TRAIN; put(fleet(rest)); }
+  check(UI.load().trains[0]?.dir === null, '舊紀錄沒有 dir 欄 → dir null（走最短那邊）');
+  check(one({ dir: 'shun' })?.dir === 'shun', 'dir 順行原樣讀回');
+  check(one({ modelId: 'retired-model' })?.modelId === 'retired-model', '車款不在表裡的照樣讀回（失效提示要用名字）');
   const broken = [['id', 'x'], ['id', 'my:'], ['name', ''], ['name', '一二三四五六七八九十一二三'], ['modelId', ''], ['sys', 'krtc'],
     ['from', ''], ['to', 5], ['via', 'sea'], ['dir', 'east'], ['dir', 1], ['pattern', 'fast'], ['depSec', 86400], ['depSec', -1], ['depSec', 1.5], ['depSec', '27000']];
+  const OTHER = { ...TRAIN, id: 'my:1f8e2d1c-aaaa-4bbb-8ccc-123456789abc', track: 1 };
   for (const [k, v] of broken) {
-    put({ v: 1, appearance: { haloOn: false, haloSize: 'lg' }, train: { ...TRAIN, [k]: v } });
+    put({ v: 1, appearance: { haloOn: false, haloSize: 'lg' }, trains: [{ ...TRAIN, [k]: v }, OTHER] });
     const r = UI.load();
-    check(r.train === null && r.appearance.haloOn === false && r.appearance.haloSize === 'lg', `train.${k} = ${js(v)} → 沒有車、外觀留著`);
+    check(r.trains.length === 1 && r.trains[0].id === OTHER.id && r.appearance.haloOn === false && r.appearance.haloSize === 'lg',
+      `train.${k} = ${js(v)} → 這列不收，別列與外觀留著`);
   }
-  put({ v: 1, appearance: { haloOn: 'yes', haloSize: 'huge' }, train: null });
+  put({ v: 1, appearance: { haloOn: 'yes', haloSize: 'huge' }, trains: [] });
   check(js(UI.load().appearance) === js({ haloOn: true, haloSize: 'std' }), '外觀的值不認得 → 用預設');
+  // 排班以外的欄位壞掉：壞的那一欄回到空值，這列車留著。
+  const bad = one({ track: 9, firstDay: '11/05', legs: [{ day: 'x', km: 1 }, { day: '2026-11-06', km: -3, stops: 1.5 }], hand: { 'a b': { n: 1 }, [DEV]: { n: -1, km: 'x', stops: 2 } },
+    outRun: { at: 'x', dep: 1, dur: 1 }, earned: { 首航: 'x', 十日: '2026-11-15' }, look: { mark: 5, plate: '銀' } });
+  check(bad && bad.track === 0 && bad.firstDay === null && js(bad.legs) === js([{ day: '2026-11-06', km: 0, stops: 0 }])
+    && js(bad.hand) === js({ [DEV]: { n: 0, km: 0, stops: 2 } }) && bad.outRun === null && js(bad.earned) === js({ 十日: '2026-11-15' })
+    && js(bad.look) === js({ mark: null, plate: '銀' }), '排班以外的欄位壞掉 → 壞的那一欄回到空值，這列車留著', js(bad));
+  // 車隊：同一個 id 只留一列、上限 12、撞股補空股、滿了待命、裝置碼。
+  const mk = (i, track) => ({ ...TRAIN, id: `my:${String(i).padStart(8, '0')}-aaaa`, track });
+  put(fleet(mk(1, 2), mk(1, 3), mk(2, 2), mk(3, null)));
+  check(js(UI.load().trains.map(t => [t.id.slice(-9, -5), t.track])) === js([['0001', 2], ['0002', 0], ['0003', 1]]), '同一個 id 只留第一列；撞股、沒有股道的依序補空股', js(UI.load().trains.map(t => t.track)));
+  put(fleet(...Array.from({ length: 14 }, (_, i) => mk(i, i < 6 ? i : null))));
+  const big = UI.load().trains;
+  check(big.length === 12 && js(big.map(t => t.track)) === js([0, 1, 2, 3, 4, 5, null, null, null, null, null, null]), '超過 12 列不收；比股道多的待命（track null）');
+  put(fleet(...big.slice(1)));
+  check(UI.load().trains.find(t => t.id === big[6].id)?.track === 0, '空出來的股道由待命的車遞補');
+  put({ ...fleet(TRAIN), device: DEV });
+  check(UI.load().device === DEV, '裝置碼原樣讀回');
+  put({ ...fleet(TRAIN), device: 'a b' });
+  check(UI.load().device === null, '裝置碼形狀不對 → null');
+  // 舊存檔搬進第 1 股。
+  const TODAY = MyTrainPlan.taipeiDay(Date.now());
+  const LEGACY = js({ v: 1, appearance: AP, train: SCHEDULE });
+  store.clear(); store.set(OLD, LEGACY);
+  const moved = UI.load();
+  const movedTrain = moved.trains[0];
+  check(moved.trains.length === 1 && Object.keys(SCHEDULE).every(k => movedTrain[k] === SCHEDULE[k]), '舊存檔搬進車隊，排班欄位逐欄相同', js(movedTrain));
+  check(movedTrain.track === 0 && movedTrain.firstDay === TODAY && js(moved.appearance) === js(AP), '搬進第 1 股、首航日是今天、外觀帶過來');
+  check(store.get(OLD) === LEGACY, '舊鍵一個字都沒變');
+  check(js(JSON.parse(store.get(KEY))) === js(moved), '搬完新鍵已經寫入');
+  UI.save({ ...moved, trains: [] });
+  check(UI.load().trains.length === 0 && store.get(OLD) === LEGACY, '搬完之後刪光：車不會從舊鍵復活，舊鍵還是沒動');
+  store.set(OLD, js({ v: 1, appearance: AP, train: { ...SCHEDULE, name: '舊分頁' } }));
+  check(UI.load().trains.length === 0, '舊分頁之後寫舊鍵：新版不看');
+  store.clear(); putOld({ v: 1, appearance: AP, train: null });
+  check(js(UI.load()) === js({ ...DEFAULTS, appearance: AP }) && store.has(KEY), '舊存檔沒有車：外觀帶過來，新鍵寫入');
+  for (const badOld of ['{', 'null', js({ v: 2, appearance: AP, train: SCHEDULE }), js({ v: 1, appearance: AP, train: { ...SCHEDULE, pattern: 'fast' } })]) {
+    store.clear(); store.set(OLD, badOld);
+    check(UI.load().trains.length === 0, `舊鍵內容 ${badOld.slice(0, 24)} → 沒有車，跟舊版讀到的一樣`);
+  }
+  store.clear(); store.set(OLD, LEGACY); flags.failSet = true;
+  threw = false; got = null;
+  try { got = UI.load(); } catch { threw = true; }
+  flags.failSet = false;
+  check(!threw && got.trains.length === 1 && !store.has(KEY), '搬移時寫不進新鍵 → 這次照樣讀到車、不丟錯，下次再搬');
   store.clear();
-  check(UI.save({ appearance: { haloOn: false, haloSize: 'lg' }, train: TRAIN }) === true
-    && store.get(KEY) === js({ v: 1, appearance: { haloOn: false, haloSize: 'lg' }, train: TRAIN }), 'save 寫進去的是正規化後的完整內容');
+  check(UI.save({ appearance: { haloOn: false, haloSize: 'lg' }, trains: [TRAIN], device: DEV }) === true
+    && store.get(KEY) === js({ v: 1, appearance: { haloOn: false, haloSize: 'lg' }, trains: [TRAIN], device: DEV }), 'save 寫進去的是正規化後的完整內容');
   const before = store.get(KEY);
-  check(UI.save({ appearance: { haloOn: true, haloSize: 'std' }, train: { ...TRAIN, depSec: 99999 } }) === false && store.get(KEY) === before,
-    '不合格的車 → save 回 false、原本存的不動');
-  check(UI.save({ appearance: { haloOn: false, haloSize: 'lg' }, train: null }) === true && JSON.parse(store.get(KEY)).train === null
-    && JSON.parse(store.get(KEY)).appearance.haloSize === 'lg', '刪掉這班（train: null）→ 外觀留著');
+  check(UI.save({ appearance: { haloOn: true, haloSize: 'std' }, trains: [TRAIN, { ...OTHER, depSec: 99999 }] }) === false && store.get(KEY) === before,
+    '有一列不合格 → save 回 false、原本存的不動');
+  check(UI.save({ appearance: { haloOn: true, haloSize: 'std' } }) === false && store.get(KEY) === before, '沒帶 trains → save 回 false，車隊不會被洗掉');
+  check(UI.save({ appearance: { haloOn: false, haloSize: 'lg' }, trains: [] }) === true && JSON.parse(store.get(KEY)).trains.length === 0
+    && JSON.parse(store.get(KEY)).appearance.haloSize === 'lg', '刪光（trains: []）→ 外觀留著');
   flags.failSet = true;
   threw = false; let ok = null;
-  try { ok = UI.save({ appearance: { haloOn: true, haloSize: 'std' }, train: TRAIN }); } catch { threw = true; }
+  try { ok = UI.save({ appearance: { haloOn: true, haloSize: 'std' }, trains: [TRAIN] }); } catch { threw = true; }
   flags.failSet = false;
   check(!threw && ok === false, '寫 localStorage 丟錯 → 回 false、不丟錯');
+});
+
+// ═══ 車隊的規則（股道、分段、親手趟）═══
+section('車隊', () => {
+  const js = x => JSON.stringify(x);
+  const P = MyTrainPlan;
+  check(P.taipeiDay(Date.UTC(2026, 10, 4, 15, 59, 59)) === '2026-11-04' && P.taipeiDay(Date.UTC(2026, 10, 4, 16, 0, 0)) === '2026-11-05', '台灣日期在 UTC 16:00 換日');
+  const blank = { id: 'my:aaaaaaaa', name: '甲', modelId: 'emu800', sys: 'tra_sched', from: 'a', to: 'b', via: null, dir: null, pattern: 'all', depSec: 100, color: '#2E6FB0' };
+  const t0 = P.fleetPut([], blank, '2026-11-05');
+  check(t0.length === 1 && t0[0].track === 0 && t0[0].firstDay === '2026-11-05' && js(t0[0].legs) === '[]' && t0[0].outRun === null, '第一列進第 1 股、首航日是今天');
+  const six = Array.from({ length: 6 }, (_, i) => ({ ...t0[0], id: `my:bbbbbbb${i}`, track: i }));
+  check(P.freeTrack(six) === -1 && P.fleetPut(six, blank, '2026-11-05') === null, '六股滿了：freeTrack -1、新車進不去');
+  check(P.freeTrack([six[0], six[2]]) === 1, '中間空一股就補那一股');
+  check(P.fleetPut([six[0], six[2]], blank, '2026-11-05').at(-1).track === 1, '新車進第一條空股');
+  const running = { ...six[3], firstDay: '2026-01-01', legs: [{ day: '2026-01-01', km: 10, stops: 2 }], hand: { d: { n: 1, km: 10, stops: 2 } }, outRun: { at: 1, dep: 2, dur: 3 } };
+  const moved = P.fleetPut([running], { ...blank, id: running.id, name: '乙', depSec: 200 }, '2026-11-05');
+  check(moved.length === 1 && moved[0].track === 3 && moved[0].firstDay === '2026-01-01' && moved[0].name === '乙' && moved[0].depSec === 200
+    && moved[0].legs.length === 1 && moved[0].hand.d.n === 1 && moved[0].outRun === null, '同 id 只換排班：股道與紀錄留著，進行中的親手趟取消');
+  check(P.fleetPut([running], { ...blank, id: running.id, name: '乙' }, '2026-11-05', true)[0].outRun !== null, '只改名字：親手趟留著');
+  const leg = { km: 100.5, stops: 5 };
+  const a = P.syncLegs([], leg, '2026-11-01', '2026-11-05');
+  check(js(a) === js([{ day: '2026-11-01', ...leg }]), '第一段從首航日算起');
+  check(P.syncLegs([], leg, null, '2026-11-05')[0].day === '2026-11-05', '沒有首航日就從今天算');
+  check(P.syncLegs(a, { ...leg }, '2026-11-01', '2026-11-09') === a, '路線沒變回傳同一個陣列');
+  const b = P.syncLegs(a, { km: 50, stops: 3 }, '2026-11-01', '2026-11-09');
+  check(js(b) === js([...a, { day: '2026-11-09', km: 50, stops: 3 }]), '隔天改路線：開新段，舊段不動');
+  check(js(P.syncLegs(b, { km: 60, stops: 3 }, '2026-11-01', '2026-11-09')) === js([...a, { day: '2026-11-09', km: 60, stops: 3 }]), '同一天再改：換掉當天那段');
+  check(js(P.legOf({ route: { km: 12.34 }, timetable: { stops: [{}, { stop: false }, { stop: true }] } })) === js({ km: 12.3, stops: 2 }), '每趟公里取一位小數，通過站不算停站');
+  const h1 = P.addHandRun({ ...running, hand: {}, outRun: null }, 'd1', { at: 5, dep: 6, dur: 7 }, leg);
+  const h2 = P.addHandRun(h1, 'd1', { at: 8, dep: 9, dur: 7 }, leg);
+  const h3 = P.addHandRun(h2, 'd2', { at: 9, dep: 9, dur: 7 }, leg);
+  check(js(h2.hand) === js({ d1: { n: 2, km: 201, stops: 10 } }) && h2.outRun.at === 8, '親手趟按下去就記次數與公里，outRun 換成這一趟');
+  check(js(Object.keys(h3.hand)) === js(['d1', 'd2']) && h3.hand.d2.n === 1 && h3.hand.d1.n === 2, '不同裝置分開記');
+  check(P.runEnded({ at: 1000, dur: 2 }, 2999) === false && P.runEnded({ at: 1000, dur: 2 }, 3000) === true, '親手趟到牆鐘抵達時刻才算跑完');
 });
 
 // ═══ golden fixture，給原生 App（Kotlin 逐字翻譯版）驗收用 ═══

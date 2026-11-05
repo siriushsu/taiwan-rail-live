@@ -1,17 +1,19 @@
 // 自製列車：儲存、排班表單、自製車面板。透過 host 跟 index.html 溝通，比照 train-garage.js。
 // 對應的純函式在 my-train-plan.js，接進網頁的部分在 index.html 的 ownTrain 系列函式。
-// 🔴 儲存那五個函式（storeDefaults／storeSanitizeTrain／storeSanitize／storeLoad／storeSave）
+// 🔴 儲存那六個函式（storeDefaults／storeSanitizeTrain／storeSanitize／storeMigrate／storeLoad／storeSave）
 //    被 scripts/verify_my_train_plan.mjs 用 extractFunction 單獨抽出來測：它們只准用 localStorage、MyTrainPlan
-//    與 STORAGE_KEY／HALO_SIZES 兩個常數，不准用這個檔裡的其他東西。改名要同步改那支腳本。
+//    與 STORAGE_KEY／LEGACY_KEY／HALO_SIZES 三個常數，不准用這個檔裡的其他東西。改名要同步改那支腳本。
 // 🔴 localStorage 一律包 try/catch（私密模式、配額滿、被封鎖都會丟錯），讀不到就當沒有自製車。
 (() => {
   'use strict';
-  const STORAGE_KEY = 'trainmap-my-train-v1';
+  // 車隊存在新鍵。舊鍵只在新鍵還不存在時讀一次，之後不寫不刪：舊版只認舊鍵，新鍵存在也就不會因為車隊刪光而復活。
+  const STORAGE_KEY = 'trainmap-my-fleet-v1';
+  const LEGACY_KEY = 'trainmap-my-train-v1';
   const HALO_SIZES = ['std', 'lg', 'xl'];
 
   // ── 儲存─────────────────────────────────────────────────
   function storeDefaults() {
-    return { v: 1, appearance: { haloOn: true, haloSize: 'std' }, train: null };
+    return { v: 1, appearance: { haloOn: true, haloSize: 'std' }, trains: [], device: null };
   }
   // 只看形狀，不看車款與站還在不在：那兩種失效要在站點資料與車庫目錄都載入之後才判斷，
   // 而且失效時還要拿名字寫提示，所以這裡不能丟掉。名字存正規化後的版本。
@@ -29,7 +31,7 @@
     if (dir !== null && dir !== 'shun' && dir !== 'ni') return null;
     if (!['all', 'major', 'express'].includes(t.pattern)) return null;
     if (!Number.isInteger(t.depSec) || t.depSec < 0 || t.depSec >= 86400) return null;
-    return { id: t.id, name: nm.name, modelId: t.modelId, sys: t.sys, from: t.from, to: t.to, via, dir, pattern: t.pattern, depSec: t.depSec, color: MyTrainPlan.normalizeColor(t.modelId, t.color) };
+    return { id: t.id, name: nm.name, modelId: t.modelId, sys: t.sys, from: t.from, to: t.to, via, dir, pattern: t.pattern, depSec: t.depSec, color: MyTrainPlan.normalizeColor(t.modelId, t.color), ...MyTrainPlan.fleetFields(t) };
   }
   function storeSanitize(raw) {
     const out = storeDefaults();
@@ -39,22 +41,43 @@
       if (typeof ap.haloOn === 'boolean') out.appearance.haloOn = ap.haloOn;
       if (HALO_SIZES.includes(ap.haloSize)) out.appearance.haloSize = ap.haloSize;
     }
-    out.train = storeSanitizeTrain(raw.train);
+    const ids = new Set();
+    for (const t of Array.isArray(raw.trains) ? raw.trains : []) {
+      const clean = storeSanitizeTrain(t);
+      if (clean && !ids.has(clean.id) && ids.size < MyTrainPlan.FLEET_MAX) { ids.add(clean.id); out.trains.push(clean); }
+    }
+    out.trains = MyTrainPlan.assignTracks(out.trains);
+    if (typeof raw.device === 'string' && MyTrainPlan.DEVICE_RE.test(raw.device)) out.device = raw.device;
     return out;
+  }
+  // 舊存檔搬進第 1 股，首航日算今天（舊存檔沒有建立日期，回推不到）。
+  function storeMigrate(text) {
+    let raw = null;
+    try { raw = JSON.parse(text); } catch (e) { return storeDefaults(); }
+    if (!raw || typeof raw !== 'object') return storeDefaults();
+    const train = raw.train && typeof raw.train === 'object' ? { ...raw.train, track: 0, firstDay: MyTrainPlan.taipeiDay(Date.now()) } : null;
+    return storeSanitize({ v: raw.v, appearance: raw.appearance, trains: train ? [train] : [] });
   }
   function storeLoad() {
     let text = null;
     try { text = localStorage.getItem(STORAGE_KEY); } catch (e) { return storeDefaults(); }
-    if (text == null) return storeDefaults();
+    if (text == null) {
+      let legacy = null;
+      try { legacy = localStorage.getItem(LEGACY_KEY); } catch (e) { return storeDefaults(); }
+      if (legacy == null) return storeDefaults();
+      const moved = storeMigrate(legacy);
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(moved)); } catch (e) {}
+      return moved;
+    }
     let raw = null;
     try { raw = JSON.parse(text); } catch (e) { return storeDefaults(); }
     return storeSanitize(raw);
   }
-  // 傳進來的 train 不合格 → 不寫、回 false（原本存的不動）。train: null ＝刪掉這班、外觀留著。
+  // trains 裡有任何一列不合格 → 不寫、回 false（原本存的不動）。沒帶 trains 也不寫，免得把車隊洗掉。
   function storeSave(data) {
-    if (!data || typeof data !== 'object') return false;
+    if (!data || typeof data !== 'object' || !Array.isArray(data.trains)) return false;
     const clean = storeSanitize({ ...data, v: 1 });
-    if (data.train != null && !clean.train) return false;
+    if (clean.trains.length !== data.trains.length) return false;
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(clean)); } catch (e) { return false; }
     return true;
   }
@@ -110,6 +133,7 @@
   // 使用者捲在最底時跟著捲到最新一條；往上捲的時候不拉回最底。「在不在最底」記在 evStick，由使用者的捲動更新：
   // 面板收合（display:none）時量到的捲動數字全是 0，不能拿當下量的值判斷；收合期間新增的列，等面板再出現時補捲。
   let evRows = new Map();
+  let evLog = null;
   let evVer = -1;
   let evLang = null;
   let evStick = true;
@@ -130,7 +154,8 @@
     if (!box) return;
     const items = log && Array.isArray(log.items) ? log.items : [];
     const ver = log ? log.ver : -1;
-    if (ver === evVer && evRows.size === items.length && evLang === host.lang) return;
+    if (log === evLog && ver === evVer && evRows.size === items.length && evLang === host.lang) return;
+    if (log !== evLog) { evLog = log; evStick = true; }
     evVer = ver;
     evLang = host.lang;
     const live = new Set(items);
@@ -217,6 +242,7 @@
     panelEl = el;
     panelHost = host;
     evRows = new Map();
+    evLog = null;
     evVer = -1;
     evStick = true;
     evPendingStick = false;
@@ -287,7 +313,7 @@
     const dep0 = first ? first.depSec : 0, dur = last ? last.arrSec - dep0 : 0;
     const rel = first ? globalThis.MyTrainPlan.tripRel(now, dep0) : 0;
     const running = rel <= dur;
-    const arrived = !running && rel - dur < 86400 - rel;
+    const arrived = !running && (!!rec._ownRun || rel - dur < 86400 - rel);
     let nextStop = null, etaSec = 0;
     if (running) {
       for (const s of stops) { if (s.stop !== false && s.arrSec - dep0 > rel) { nextStop = s; etaSec = s.arrSec - dep0 - rel; break; } }
@@ -327,6 +353,7 @@
     panelHost = null;
     panelRefs = null;
     evRows = new Map();
+    evLog = null;
     evVer = -1;
     evLang = null;
   }
@@ -586,7 +613,7 @@
   function formSubmit() {
     if (!formEl || !formEl.open) return;
     if (!formPlanned || formEl.querySelector('[data-mt-f="depart"]').disabled) return;
-    const train = { ...formPlanned, id: (formMode === 'edit' && formPreset) ? formPreset.id : ('my:' + mtUuid()) };
+    const train = { ...formPlanned, id: (formMode !== 'schedule' && formPreset) ? formPreset.id : ('my:' + mtUuid()) };
     const meta = formMode === 'edit' ? { mode: 'edit', nameOnly: formPreset ? formSameExceptName(formPreset, train) : false } : { mode: formMode };
     const host = formCtx.host;
     const success = host.onDepart ? host.onDepart(train, meta) : false;
@@ -701,6 +728,7 @@
       if (lbl) lbl.textContent = host.lang === 'zh-TW' && (k === 'dir-shun' || k === 'dir-ni') ? zh.slice(2) : host.t(zh);
     }
     formEl.querySelector('[data-mt-close]').setAttribute('aria-label', host.t('關閉'));
+    if (opts.submit) formEl.querySelector('[data-mt-f="depart"]').textContent = opts.submit;
 
     const cat = (host.catalog() || {})[modelId];
     formEl.querySelector('.mt-f-title').textContent = host.t(mode === 'edit' ? '編輯這班車' : mode === 'replan' ? '重新排' : '自己排一班');
@@ -757,6 +785,8 @@
 
   globalThis.MyTrainUI = {
     STORAGE_KEY,
+    LEGACY_KEY,
+    newDevice: mtUuid,
     load: storeLoad,
     save: storeSave,
     mountPanel,

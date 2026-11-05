@@ -185,6 +185,12 @@ html[data-theme=dark] #trainGarage{--g-hdr:var(--paper-tr);--g-hdr-ink:var(--ink
 #trainGarage .mt-g-status{flex:1 1 180px;margin:0;font-size:14px;color:var(--g-ink);overflow-wrap:anywhere}
 #trainGarage .mt-g-hint{font-size:13px;color:var(--g-muted);margin:0 0 14px}
 #trainGarage .mt-g-hint.mt-g-warn{color:var(--warn-ink);font-weight:700}
+#trainGarage .mt-g-depot{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:56px;margin:0 0 16px;padding:8px 14px;border:1.5px solid var(--navy);border-radius:8px;background:var(--paper);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+#trainGarage .mt-g-depot[hidden]{display:none}
+#trainGarage .mt-g-depot span{display:flex;flex-direction:column;gap:1px;min-width:0}
+#trainGarage .mt-g-depot b{font-size:15px;font-weight:800;letter-spacing:1px}
+#trainGarage .mt-g-depot small{font-size:12px;color:var(--g-muted)}
+#trainGarage .mt-g-depot i{font-style:normal;font-size:20px;font-weight:700;color:var(--navy)}
 /* 全畫面觀看（位置同 App，見 native build/garage-web-port/全螢幕-設計.md）：鈕在 3D 畫面右下，44 方卡片鈕。
    全畫面時舞台鋪滿畫面，3D 畫面墊在最底；頁籤、提示在上，縮放在右上，同一顆鈕在提示列最右端、六顆控制鈕上面一列（卡片色 82%，避開瀏海）。
    橫向矮螢幕的提示與控制鈕併成一列，鈕就在那一列的最右端。

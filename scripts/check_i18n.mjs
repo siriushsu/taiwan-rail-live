@@ -174,6 +174,10 @@ literalKeys.push(
   '每天發車時間', '順行', '逆行', '全程超過 24 小時，換個停站方式或方向試試',
   '車牌顏色', '自強', '莒光/復興', '區間車', '區間快', '其他', '阿里山號', '神木線', '沼平線', '祝山線',
 );
+// 機務段:my-train-depot.js 的 tr(…)。時段鈕、股道看板與 index.html 三元運算式裡的字串經變數才翻,regex 抓不到,手動列出。
+const depotSource = fs.readFileSync(path.join(root, 'my-train-depot.js'), 'utf8');
+literalKeys.push(...[...depotSource.matchAll(/\btr\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]));
+literalKeys.push('白天', '黃昏', '夜晚', '出勤中', '空股', '下一班今天 {time}', '下一班明天 {time}', '排進這一股', '存好班次');
 const rail3dSource = fs.readFileSync(path.join(root, 'rail-3d.js'), 'utf8');
 literalKeys.push(...[...rail3dSource.matchAll(/\bt\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]));
 literalKeys.push('其他設定','觀看設定','關閉觀看設定','觀看設定分類','觀看','視角','地圖','列車','標示','導覽','畫面');

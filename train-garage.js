@@ -372,32 +372,35 @@
     const fam=api.familyStatus(row.model.family);
     const drivable=fam==='drivable'&&!!api.MODELS[row.id];
     if(row.owned&&(drivable||fam==='metro'||fam==='coach')){
-      plan.hidden=false;plan.textContent=tr('自己排一班');plan.disabled=!drivable;
-      if(drivable)plan.onclick=()=>host.ownTrainSchedule(row.id);
-      else{note.hidden=false;note.textContent=fam==='metro'?tr('捷運路線下一版開放'):tr('客車要有車頭牽引，編組組裝還沒開放');}
+      const full=drivable&&!!host.ownTrainFull?.();
+      plan.hidden=false;plan.textContent=tr('自己排一班');plan.disabled=!drivable||full;
+      if(drivable&&!full)plan.onclick=()=>host.ownTrainSchedule(row.id);
+      else{note.hidden=false;note.textContent=full?tr('六條股道都排滿了，先刪掉一列再排'):fam==='metro'?tr('捷運路線下一版開放'):tr('客車要有車頭牽引，編組組裝還沒開放');}
     }
-    const card=host.ownTrainCard?.()||null;
+    const card=host.ownTrainCard?.(row.id)||null;
     if(!card||card.modelId!==row.id||card.issue==='model_gone')return;
     if(card.issue==='pass_required'){
       mine.hidden=false;status.textContent=tr('自製列車需要通行證；你的 {name} 存檔已保留',{name:card.name});
-      view.textContent=tr('去看它');view.setAttribute('data-mt-g','view');view.onclick=()=>host.ownTrainView();
+      view.textContent=tr('去看它');view.setAttribute('data-mt-g','view');view.onclick=()=>host.ownTrainView(card.id);
     }else if(card.issue==='station_gone'){
       mine.hidden=false;status.textContent=tr('你排的 {name} 要重新排：起站或訖站已經不在站點資料裡',{name:card.name});
-      view.textContent=tr('重新排');view.setAttribute('data-mt-g','replan');view.onclick=()=>host.ownTrainReplan();
+      view.textContent=tr('重新排');view.setAttribute('data-mt-g','replan');view.onclick=()=>host.ownTrainReplan(card.id);
     }else if(card.issue){
       // 其他排班失敗原因(路線資料變動等)比照 station_gone,給重新排+通用原因,不讓車悄悄消失卻沒有任何提示。
       mine.hidden=false;status.textContent=tr('你排的 {name} 要重新排：路線資料有變動',{name:card.name});
-      view.textContent=tr('重新排');view.setAttribute('data-mt-g','replan');view.onclick=()=>host.ownTrainReplan();
+      view.textContent=tr('重新排');view.setAttribute('data-mt-g','replan');view.onclick=()=>host.ownTrainReplan(card.id);
     }else if(card.from&&card.to){
       mine.hidden=false;status.textContent=tr('你的 {name} 每天 {time} 從{from}開往{to}',{name:card.name,time:card.time,from:card.from,to:card.to});
-      view.textContent=tr('去看它');view.setAttribute('data-mt-g','view');view.onclick=()=>host.ownTrainView();
+      view.textContent=tr('去看它');view.setAttribute('data-mt-g','view');view.onclick=()=>host.ownTrainView(card.id);
     }
   }
   function ownTrainHint() {
     const el=$('.mt-g-hint');
     el.classList.remove('mt-g-warn');
     el.hidden=!host.plan?.()||demo;
+    $('.mt-g-depot').hidden=true;
     if(el.hidden)return;
+    const depot=$('.mt-g-depot');depot.hidden=false;depot.onclick=()=>host.ownTrainDepot();
     const card=host.ownTrainCard?.()||null;
     if(card&&card.issue==='model_gone'){el.classList.add('mt-g-warn');el.textContent=tr('你排的 {name} 要重新排：車款已經不在車庫目錄裡',{name:card.name});}
     else el.textContent=tr('通行證專屬：已入庫的車可以自己排班上地圖');
@@ -678,6 +681,7 @@
       <main class="g-main"><div class="g-heading"><h1 id="garageTitle">${esc(tr('我的車庫'))}</h1>
       <div class="g-progress"><strong class="g-count">0</strong><span class="g-total"></span><progress max="1" value="0"></progress><span>${esc(tr('可收集車款'))}</span></div></div>
       <p class="mt-g-hint" data-mt-g="hint" hidden data-i18n-skip></p>
+      <button class="mt-g-depot" type="button" data-mt-g="depot" hidden><span><b>${esc(tr('軌島機務段'))}</b><small>${esc(tr('六股車隊：排班、看車、親手發車'))}</small></span><i aria-hidden="true">›</i></button>
       <div class="g-demo" hidden><span>${esc(tr('展示模式・不計入收藏'))}</span><button class="g-demo-off"></button></div>
       <section class="g-scenes" hidden aria-labelledby="gScenesTitle"><div class="g-scenes-bar"><h2 id="gScenesTitle">${esc(tr('車庫場景'))}</h2><span class="g-scenes-head"></span></div><div class="g-scenes-list"></div></section>
       <div class="g-filters"><div class="g-tabs">${[['all','全部車款'],['owned','已入庫'],['pending','待收集']].map(([id,text])=>`<button data-filter="${id}" aria-pressed="${filter===id}">${esc(tr(text))}</button>`).join('')}</div>
