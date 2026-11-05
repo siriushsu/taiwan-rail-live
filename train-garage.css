@@ -128,6 +128,7 @@ html[data-theme=dark] #trainGarage{--g-hdr:var(--paper-tr);--g-hdr-ink:var(--ink
 #trainGarage .g-scenes-bar{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px}
 #trainGarage .g-scenes-bar h2{margin:0;font-size:15px;font-weight:800;letter-spacing:1px}
 #trainGarage .g-scenes-head{font-size:12px;font-weight:600;color:var(--g-muted);text-align:right;font-variant-numeric:tabular-nums}
+#trainGarage .g-scenes-acct:not(:empty){margin-bottom:8px}
 #trainGarage .g-scenes-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
 @media(max-width:600px){#trainGarage .g-scenes-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #trainGarage .g-sc{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;min-width:0;min-height:58px;padding:8px 12px;border:1.5px solid var(--g-btn-bd);border-radius:8px;background:var(--g-card);box-shadow:var(--shadow-1);text-align:left}

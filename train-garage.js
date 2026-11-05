@@ -573,6 +573,7 @@
     box.hidden=!ctx||!ctx.scenes.length;
     if(box.hidden){if(redeemScene)closeRedeem();return;}
     $('.g-scenes-head').textContent=walletHeader(ctx);
+    $('.g-scenes-acct').innerHTML=host.wallet.accountLine();
     // 田園小站和已解鎖的直接開場景頁到那一座，鎖著的開兌換視窗。
     const list=$('.g-scenes-list'),scenes=sceneList(ctx);
     if(list.dataset.key!==scenes.join()){list.dataset.key=scenes.join();list.replaceChildren(...scenes.map(scene=>{
@@ -594,6 +595,7 @@
     else{const place=scenePlace(redeemScene);
       $('.g-redeem h2').textContent=v.unlocked?tr(place):tr('解鎖「{place}」',{place:tr(place)});
       $('.g-redeem-desc').textContent=tr('永久解鎖這座場景。解鎖後在場景頁上方點它就能看。');}
+    $('.g-redeem-acct').innerHTML=host.wallet.accountLine();
     const msg=$('.g-redeem-msg'),go=$('.g-redeem-go');msg.hidden=!v.message;msg.textContent=v.message||'';
     go.hidden=!v.text;go.textContent=v.text||'';go.disabled=!v.enabled;go.dataset.do=v.button;
     // 訊息的樣子：要重試的是警示框；剛兌換成功（還沒關過視窗）那句加粗。
@@ -690,7 +692,7 @@
       <div class="g-progress"><strong class="g-count">0</strong><span class="g-total"></span><progress max="1" value="0"></progress><span>${esc(tr('可收集車款'))}</span></div></div>
       <p class="mt-g-hint" data-mt-g="hint" hidden data-i18n-skip></p>
       <div class="g-demo" hidden><span>${esc(tr('展示模式・不計入收藏'))}</span><button class="g-demo-off"></button></div>
-      <section class="g-scenes" hidden aria-labelledby="gScenesTitle"><div class="g-scenes-bar"><h2 id="gScenesTitle">${esc(tr('車庫場景'))}</h2><span class="g-scenes-head"></span></div><div class="g-scenes-list"></div></section>
+      <section class="g-scenes" hidden aria-labelledby="gScenesTitle"><div class="g-scenes-bar"><h2 id="gScenesTitle">${esc(tr('車庫場景'))}</h2><span class="g-scenes-head"></span></div><div class="g-scenes-acct"></div><div class="g-scenes-list"></div></section>
       <div class="g-filters"><div class="g-tabs">${[['all','全部車款'],['owned','已入庫'],['pending','待收集']].map(([id,text])=>`<button data-filter="${id}" aria-pressed="${filter===id}">${esc(tr(text))}</button>`).join('')}</div>
       <label class="g-picker"><span>${esc(tr('選擇車款'))}</span><select class="g-model-select"></select></label></div>
       <div class="g-empty" hidden><p class="g-empty-text"></p><button class="g-reset">${esc(tr('查看所有車款'))}</button><button class="g-demo-start">${esc(tr('看看展示車庫'))}</button></div>
@@ -708,7 +710,7 @@
       <div class="g-sf-tools"><div class="g-sf-seg" role="group" aria-label="${esc(tr('時間'))}">${FRAME_PERIODS.map(p=>`<button data-sf-period="${p}" type="button"></button>`).join('')}</div>
       <div class="g-sf-icons" role="group" aria-label="${esc(tr('列車與視角控制'))}"><button class="g-sf-play g-sf-icon" type="button"></button><button class="g-sf-out g-sf-icon" type="button" aria-label="${esc(tr('縮小場景'))}">−</button><button class="g-sf-in g-sf-icon" type="button" aria-label="${esc(tr('放大場景'))}">＋</button><button class="g-sf-reset g-sf-icon" type="button" aria-label="${esc(tr('重設視角'))}">⌂</button><button class="g-sf-swap g-sf-icon" type="button" hidden aria-haspopup="true" aria-expanded="false">${esc(tr('換列車'))}</button></div></div>
       <p class="g-sf-caption"></p></div></section>
-      <div class="g-redeem" hidden><div class="g-redeem-card" role="dialog" aria-modal="true" aria-labelledby="gRedeemTitle" tabindex="-1"><h2 id="gRedeemTitle"></h2><p class="g-redeem-desc"></p><p class="g-redeem-msg" role="status"></p><button class="g-redeem-go" type="button"></button><button class="g-redeem-close" type="button">${esc(tr('關閉'))}</button></div></div>`;
+      <div class="g-redeem" hidden><div class="g-redeem-card" role="dialog" aria-modal="true" aria-labelledby="gRedeemTitle" tabindex="-1"><h2 id="gRedeemTitle"></h2><p class="g-redeem-desc"></p><div class="g-redeem-acct"></div><p class="g-redeem-msg" role="status"></p><button class="g-redeem-go" type="button"></button><button class="g-redeem-close" type="button">${esc(tr('關閉'))}</button></div></div>`;
 
     // 頂列實高給 CSS 當內容的 scroll-margin-top（見 train-garage.css「避開 sticky 頂列」那條）。
     // 要看 border-box：頂列上內距是 max(12px, 瀏海安全區)，轉向時只有內距變、內容框不變，預設的觀察框收不到。
