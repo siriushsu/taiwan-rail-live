@@ -143,17 +143,86 @@ async function seed(page, rows) {
     let trains = [];
     for (const [track, name, modelId, from, to] of list) {
       trains = MyTrainPlan.fleetPut(trains, { id: 'my:seed000' + track, name, modelId, sys: 'tra_sched', from: k(from), to: k(to), via: null, dir: null, pattern: 'major',
-        depSec: dep, color: '#2E6FB0' }, today, false, track);
+        depSec: dep, color: '#2E6FB0' }, MyTrainPlan.firstRunDay(dep, nowSecOfDay(), today), false, track);
     }
     const first = trains[0], leg = MyTrainPlan.legOf(ownTrainPlan(first));
     const day = new Date(Date.parse(today + 'T12:00:00+08:00') - 10 * 864e5).toISOString().slice(0, 10);
     trains[0] = { ...first, firstDay: day, legs: [{ day, ...leg }], hand: { 'device-a': { n: 2, km: 60, stops: 16 } } };
     MyTrainUI.save({ ...cur, trains });
     ownTrainRebuild();
-    return { leg, day };
+    // 開車時間排在半天後:下午開頁時那個時間已經過了,今天的班次也算進累計。
+    return { leg, day, ran: dep + leg.dur < 86400 && nowSecOfDay() >= dep + leg.dur };
   }, rows);
 }
 const ROWS = [[0, '一號', 'emu800', '臺北', '七堵'], [1, '二號', 'emu3000', '七堵', '臺北'], [2, '三號', 'e1000', '臺北', '高雄'], [4, '五號', 'emu800', '花蓮', '臺東']];
+
+// 成就頁與外觀頁。第 1 股有十天紀錄,開頁判定給首航與十日;千里補一枚給車牌框,第 4 股這款路上沒有同款真車。
+const PANEL = '#mtDepot .md-panel.on';
+const lookOf = (page, i) => page.evaluate(n => MyTrainUI.load().trains.find(t => t.track === n)?.look, i);
+const markOn = (page, i) => page.evaluate(n => MyTrainDepot.stage?.markOf(n), i);
+const PICK = (kind, id) => `#mtDepot .md-frame.on [data-a="${kind}"][data-k="${id}"]`;
+async function honorPages(page, P, touch, has3d) {
+  await chip(page, 0, touch);
+  const f = await frame(page);
+  ok(P('[成就] 畫框:六格紀錄、六枚章、下一個目標、換外觀'), /交會真車\s*\d+\s*次/.test(f.text) && /成就 3／31/.test(f.text) && /下一個「萬里」/.test(f.text) && f.acts.includes('look'), f.text.slice(0, 260));
+  const shelf = await page.evaluate(() => [...document.querySelectorAll('#mtDepot .md-stp')].map(e => [e.classList.contains('got'), e.textContent.trim()]));
+  ok(P('[成就] 六枚章:首航、十日、千里亮,其他暗'), shelf.length === 6 && js(shelf.filter(x => x[0]).map(x => x[1])) === js(['首航首航', '十日十日', '千里千里']), js(shelf));
+  await press(page, A('ach'), touch); await page.waitForTimeout(450);
+  const pa = await page.evaluate(() => { const el = document.querySelector('#mtDepot .md-panel');
+    return { sections: el.querySelectorAll('section').length, items: el.querySelectorAll('li').length, got: el.querySelectorAll('li.got').length, text: el.innerText.replace(/\s+/g, ' '), sw: el.querySelector('.md-fb').scrollWidth, cw: el.querySelector('.md-fb').clientWidth }; });
+  ok(P('[成就] 全部成就:八組、31 枚、拿到 3 枚'), pa.sections === 8 && pa.items === 31 && pa.got === 3 && /已拿 3／31/.test(pa.text), js({ ...pa, text: pa.text.slice(0, 60) }));
+  ok(P('[成就] 獎勵照目錄寫,天氣標資料來源,不給點數'), ['頭牌「首航」', '車牌框「銅」', '資料來源：中央氣象署', '不給點數'].every(w => pa.text.includes(w)), pa.text.slice(0, 120));
+  ok(P('[成就] 成就頁沒有橫向溢出'), pa.sw <= pa.cw, js([pa.sw, pa.cw]));
+  ok(P('[成就] 有同款真車的車款不寫拿不到'), !pa.text.includes('拿不到'));
+  const pscan = await scan(page, `${PANEL} [data-a="achClose"]`);
+  ok(P('[成就] 關閉鈕按得到'), clean(pscan), js(pscan));
+  await press(page, `${PANEL} [data-a="achClose"]`, touch); await page.waitForTimeout(450);
+  ok(P('[成就] 關掉回畫框'), await page.evaluate(() => !document.querySelector('#mtDepot .md-panel').classList.contains('on') && document.querySelector('#mtDepot .md-frame').classList.contains('on')));
+
+  await press(page, A('look'), touch); await page.waitForTimeout(has3d ? 400 : 0);
+  const lk = await page.evaluate(() => ({ marks: document.querySelectorAll('#mtDepot .md-mki').length, plates: document.querySelectorAll('#mtDepot .md-pli').length, locked: document.querySelectorAll('#mtDepot .md-mki.lock').length, text: document.querySelector('#mtDepot .md-frame').innerText.replace(/\s+/g, ' ') }));
+  ok(P('[外觀] 頭牌 18 款＋不掛、車牌框 8 款,拿到的數字對'), lk.marks === 19 && lk.plates === 8 && lk.locked === 17 && /掛在車頭 1／18/.test(lk.text) && /地圖上看得到 2／8/.test(lk.text), js({ ...lk, text: lk.text.slice(0, 100) }));
+  await press(page, PICK('mk', 'maiden'), touch);
+  ok(P('[外觀] 拿到的點了就掛上'), (await lookOf(page, 0)).mark === 'maiden' && (!has3d || (await markOn(page, 0)) === 'maiden'), js(await lookOf(page, 0)));
+  await press(page, PICK('mk', 'rain'), touch);
+  const tried = await frame(page);
+  ok(P('[外觀] 沒拿到的可以試掛,不存檔'), (await lookOf(page, 0)).mark === 'maiden' && (!has3d || (await markOn(page, 0)) === 'rain') && /試掛中。拿到「雨行」才能留著/.test(tried.text), tried.text.slice(0, 90));
+  await page.evaluate(() => MyTrainDepot.refresh());
+  ok(P('[外觀] 定時重算不會把試掛蓋掉'), !has3d || (await markOn(page, 0)) === 'rain');
+  await press(page, PICK('pl', 'bronze'), touch);
+  ok(P('[外觀] 拿到的車牌框掛上,地圖上的車跟著換'), (await lookOf(page, 0)).plate === 'bronze' && await page.evaluate(() => state.myTrains.filter(r => ownTrainBaseId(r) === 'my:seed0000').every(r => r._ownLook.plate === 'bronze')));
+  await press(page, PICK('pl', 'gold'), touch);
+  ok(P('[外觀] 沒拿到的車牌框試掛,不存檔'), (await lookOf(page, 0)).plate === 'bronze' && /試掛中。拿到「環球」/.test((await frame(page)).text));
+  if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `look-${page.viewportSize().width}.png`) });
+  const every = await page.evaluate(() => [...document.querySelectorAll('#mtDepot .md-mki,#mtDepot .md-pli')].map(el => el.dataset.k));
+  let reach = 0;
+  for (const k of every) {
+    const loc = page.locator(`#mtDepot .md-frame.on [data-k="${k}"]`);
+    await loc.scrollIntoViewIfNeeded();
+    if (await loc.evaluate(el => { const r = el.getBoundingClientRect(), h = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return r.height >= 44 && (h === el || el.contains(h)); })) reach++;
+  }
+  ok(P('[外觀] 每一款都捲得到、點得到、高 44 以上'), reach === every.length, `${reach}/${every.length}`);
+  await press(page, `#mtDepot .md-ff ${'[data-a="lookDone"]'}`, touch); await settle(page);
+  const after = await frame(page);
+  ok(P('[外觀] 完成回畫框,試掛回原樣,畫框看得到掛的東西'), after.acts.includes('go') && (await lookOf(page, 0)).plate === 'bronze' && (!has3d || (await markOn(page, 0)) === 'maiden')
+    && await page.evaluate(() => !!document.querySelector('#mtDepot .md-lk img') && !!document.querySelector('#mtDepot .md-lk .md-plt')), after.text.slice(0, 60));
+  await press(page, A('back'), touch); await settle(page);
+  await press(page, '#mtDepot [data-a="achFleet"]', touch); await page.waitForTimeout(450);
+  const fl = await page.evaluate(() => { const el = document.querySelector('#mtDepot .md-panel'); return { items: el.querySelectorAll('li').length, text: el.innerText.replace(/\s+/g, ' ') }; });
+  ok(P('[成就] 車隊成就:6 枚,獎勵是車庫佈置'), fl.items === 6 && /車庫佈置：招牌金字/.test(fl.text) && /車庫佈置之後才開放/.test(fl.text), js(fl).slice(0, 120));
+  await press(page, `${PANEL} [data-a="achClose"]`, touch); await page.waitForTimeout(450);
+  await chip(page, 3, touch);
+  await press(page, A('ach'), touch); await page.waitForTimeout(450);
+  ok(P('[成就] 路上沒有同款真車的車款寫清楚拿不到'), /這款車路上沒有同款真車，拿不到。/.test(await page.evaluate(() => document.querySelector('#mtDepot .md-panel').innerText)));
+  await press(page, `${PANEL} [data-a="achClose"]`, touch); await page.waitForTimeout(450);
+  await press(page, A('back'), touch); await settle(page);
+}
+// 第 4 股用路上沒有的車款;第 1 股補一枚千里。
+const HONOR_ROWS = [...ROWS.slice(0, 3), [3, '四號', 'dr2700', '臺北', '七堵'], ROWS[3]];
+const seedHonors = page => seed(page, HONOR_ROWS).then(() => page.evaluate(() => {
+  const cur = MyTrainUI.load();
+  MyTrainUI.save({ ...cur, trains: cur.trains.map(t => (t.track === 0 ? { ...t, earned: { km1k: '2026-01-02' } } : t)) });
+}));
 
 async function sugPick(page, which, name, touch) {
   await press(page, `[data-mt-f="${which}"]`, touch);
@@ -174,7 +243,7 @@ async function desktop(browser, tag, opts) {
   await ctx.addInitScript(INIT, RIDES);
   await ctx.addInitScript(PASS);
   const page = await boot(ctx, errors);
-  const { leg } = await seed(page, ROWS);
+  const { leg, ran } = await seed(page, ROWS);
 
   // ── 入口:車庫一格進來,地圖暫停,離開回車庫,關掉車庫時鐘接回現在 ──
   await openGarage(page);
@@ -211,9 +280,9 @@ async function desktop(browser, tag, opts) {
   // ── 畫框 ──
   await chip(page, 0);
   const f0 = await frame(page);
-  const km = Math.round(leg.km * 10 + 60), stops = leg.stops * 10 + 16;
+  const days = ran ? 11 : 10, km = Math.round(leg.km * days + 60), stops = leg.stops * days + 16;
   ok(P('[畫框] 第 1 股:名字、車款、起訖、時間'), f0.on && /第 1 股/.test(f0.text) && /一號/.test(f0.text) && /臺北/.test(f0.text) && /七堵/.test(f0.text) && /每天 \d\d:\d\d 開/.test(f0.text), f0.text.slice(0, 70));
-  ok(P('[畫框] 紀錄:10 天、12 趟、親手 2 次,里程與停靠照段落算'), /已行駛\s*10\s*天/.test(f0.text) && /發車\s*12\s*趟/.test(f0.text) && /親手發車\s*2\s*次/.test(f0.text)
+  ok(P('[畫框] 紀錄:天數、趟數、親手 2 次,里程與停靠照段落算'), new RegExp(`已行駛\\s*${days}\\s*天`).test(f0.text) && new RegExp(`發車\\s*${days + 2}\\s*趟・親手 2`).test(f0.text)
     && f0.text.includes(`累計里程 ${km.toLocaleString('en-US')}`) && f0.text.includes(`停靠 ${stops.toLocaleString('en-US')}`), f0.text.slice(70, 170));
   ok(P('[畫框] 在庫的車有發車、編輯、刪除'), ['go', 'edit', 'delete'].every(a => f0.acts.includes(a)), js(f0.acts));
   if (SHOTS) { await page.waitForTimeout(1400); await page.screenshot({ path: path.join(SHOTS, `${tag}-focus0.png`) }); }
@@ -496,7 +565,7 @@ async function phone(browser, tag, width, height) {
   await ctx.addInitScript(INIT, RIDES);
   await ctx.addInitScript(PASS);
   const page = await boot(ctx, errors);
-  await seed(page, ROWS);
+  await seedHonors(page);
   await openGarage(page, true);
   await press(page, '#trainGarage [data-mt-g="depot"]', true);
   await depotOpen(page);
@@ -520,7 +589,8 @@ async function phone(browser, tag, width, height) {
 
   await chip(page, 0, true);
   await page.waitForTimeout(has3d ? 1300 : 0);
-  const fr = await scan(page, '#mtDepot .md-exit,#mtDepot .md-frame [data-a]');
+  // 內文裡的「全部成就」捲到才看得到,honorPages 真的按一次。
+  const fr = await scan(page, '#mtDepot .md-exit,#mtDepot .md-fh [data-a],#mtDepot .md-ff [data-a]');
   ok(P('畫框:每顆按鈕不互蓋、點得到、在畫面內'), clean(fr), js(fr));
   const box = await page.evaluate(() => { const f = document.querySelector('#mtDepot .md-frame').getBoundingClientRect(), h = document.querySelector('#mtDepot .md-head').getBoundingClientRect(), b = document.querySelector('#mtDepot .md-fb'); return { top: f.top, head: h.bottom, right: f.right, w: innerWidth, bottom: f.bottom, hh: innerHeight, sw: b.scrollWidth, cw: b.clientWidth }; });
   ok(P('畫框:不蓋標題列、不超出畫面、內文沒有橫向溢出'), box.top >= box.head - .5 && box.right <= box.w + .5 && box.bottom <= box.hh + .5 && box.sw <= box.cw, js(box));
@@ -535,9 +605,11 @@ async function phone(browser, tag, width, height) {
   await press(page, A('back'), true); await settle(page);
   await page.waitForTimeout(has3d ? 1500 : 0);
 
+  await honorPages(page, P, true, has3d);
+
   // 空股的選車清單,每一款都摸得到。
-  await page.locator(CHIP(3)).scrollIntoViewIfNeeded();
-  await chip(page, 3, true);
+  await page.locator(CHIP(5)).scrollIntoViewIfNeeded();
+  await chip(page, 5, true);
   await press(page, A('pick'), true);
   await page.locator('#mtDepot .md-models [data-a="model"]').first().waitFor({ state: 'visible', timeout: 3000 });
   const models = await page.locator('#mtDepot .md-models [data-a="model"]').count();
@@ -599,7 +671,7 @@ async function language(browser, tag, lang) {
   if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${tag}-${lang}-overview.png`) });
   await chip(page, 0, true);
   await page.waitForTimeout(has3d ? 1300 : 0);
-  const fr = await scan(page, '#mtDepot .md-exit,#mtDepot .md-frame [data-a]');
+  const fr = await scan(page, '#mtDepot .md-exit,#mtDepot .md-fh [data-a],#mtDepot .md-ff [data-a]');
   ok(P('畫框放得下'), clean(fr), js(fr));
   if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${tag}-${lang}-focus.png`) });
   if (lang !== 'ja') {
@@ -611,6 +683,63 @@ async function language(browser, tag, lang) {
   await ctx.close();
 }
 
+// 成就與外觀:桌機滑鼠。地圖上的車牌框、親手首航的大章接在後面。
+async function honors(browser, tag) {
+  const P = s => `[${tag}] ${s}`;
+  const errors = [];
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-TW', timezoneId: 'Asia/Taipei' });
+  await ctx.addInitScript(INIT, RIDES);
+  await ctx.addInitScript(PASS);
+  const page = await boot(ctx, errors);
+  await seedHonors(page);
+  await page.evaluate(() => openMyTrainDepot());
+  await depotOpen(page);
+  const has3d = await stageUp(page);
+  await honorPages(page, P, false, has3d);
+
+  // 親手發第一趟:大章只蓋在這列車的第一趟。第 2 股是新車,第 1 股跑過了。
+  await chip(page, 1);
+  await press(page, A('go'));
+  if (has3d) { await page.waitForTimeout(300); await press(page, '#mtDepot .md-skip'); }
+  await page.waitForFunction(() => !document.getElementById('mtDepot').open && isMyTrain(state.followTrain), null, { timeout: 8000 });
+  await page.waitForTimeout(700);
+  const card = await page.evaluate(() => ({ big: !!document.querySelector('[data-mt-panel] .mt-big-stamp'), text: document.querySelector('[data-mt-maiden]')?.innerText }));
+  ok(P('[跟車卡] 第一趟親手發車蓋首航大章'), card.big && /拿到成就「首航」，解鎖頭牌「首航」/.test(card.text), js(card));
+  if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${tag}-maiden.png`) });
+  await page.evaluate(() => openMyTrainDepot());
+  await depotOpen(page);
+  await stageUp(page);
+  await chip(page, 0);
+  await press(page, A('go'));
+  if (has3d) { await page.waitForTimeout(300); await press(page, '#mtDepot .md-skip'); }
+  await page.waitForFunction(() => !document.getElementById('mtDepot').open && isMyTrain(state.followTrain) && state.followTrain.label === '一號', null, { timeout: 8000 });
+  await page.waitForTimeout(700);
+  const again = await page.evaluate(() => ({ big: !!document.querySelector('[data-mt-panel] .mt-big-stamp'), mark: document.querySelector('[data-mt-mark] img')?.alt, plate: document.querySelector('[data-mt-name]')?.className }));
+  ok(P('[跟車卡] 跑過的車不蓋章,看得到頭牌與車牌框'), !again.big && /首航/.test(again.mark || '') && /mt-plate/.test(again.plate), js(again));
+  if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${tag}-follow-plate.png`) });
+  // 地圖上的牌:畫出來的像素要有框的顏色,不是真車的車牌色。
+  const plate = await page.evaluate(async () => {
+    const rec = state.followTrain, p = mapDetailPoint([trainPos(rec, state.simSec).lat, trainPos(rec, state.simSec).lon]);
+    const dpr = state.dpr, c = document.createElement('canvas'), x = c.getContext('2d', { willReadFrequently: true });
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    c.width = 120 * dpr; c.height = 30 * dpr;
+    x.drawImage(cv, (p.x - 60) * dpr, (p.y - 15) * dpr, 120 * dpr, 30 * dpr, 0, 0, c.width, c.height);
+    const d = x.getImageData(0, 0, c.width, c.height).data; let bronze = 0, navy = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 200) continue;
+      if (Math.abs(d[i] - 0xD0) + Math.abs(d[i + 1] - 0x93) + Math.abs(d[i + 2] - 0x5C) < 60) bronze++;
+      if (Math.abs(d[i] - 0x2A) + Math.abs(d[i + 1] - 0x4A) + Math.abs(d[i + 2] - 0x73) < 40) navy++;
+    }
+    return { bronze, navy, three: !!window.railIslandIntegration?.hasModel({ tr: rec }) };
+  });
+  ok(P('[地圖] 車牌框畫上地圖'), plate.three || (plate.bronze > 4 && plate.navy > 20), js(plate));
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await ready(page);
+  ok(P('[外觀] 重開頁留著'), js(await lookOf(page, 0)) === js({ mark: 'maiden', plate: 'bronze' }), js(await lookOf(page, 0)));
+  ok(P('整段沒有頁面錯誤'), errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 const METAL = ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization'];
 const engines = [['chromium', chromium, { channel: 'chrome', headless: true, args: METAL }, true], ['webkit', webkit, { headless: true }, false]];
 const notes = [];
@@ -618,6 +747,7 @@ for (const [tag, type, opts, needs3d] of engines.filter(e => !process.env.DEPOT_
   const browser = await type.launch(opts);
   try {
     const has3d = await desktop(browser, tag, { needs3d });
+    await honors(browser, tag);
     if (!has3d) notes.push(`${tag} 開不了 WebGL:3D 項目沒驗到,走的是開不了 3D 的路`);
     const sizes = tag === 'webkit' ? [[375, 812]] : [[360, 740], [375, 812], [414, 896], [768, 1024], [812, 375]];
     for (const [w, h] of sizes) await phone(browser, tag, w, h);

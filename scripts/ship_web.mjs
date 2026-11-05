@@ -892,6 +892,11 @@ try {
   process.stdout.write(mtPlan.stdout || ''); process.stderr.write(mtPlan.stderr || '');
   if (mtPlan.status !== 0) fail('自製列車純函式與存檔守門未過'
     + '（單獨重跑：npm run check-my-train-plan）');
+  // 37 枚成就每枚都要有該亮、不該亮的案例；golden 是 App 移植時逐枚比對的基準。
+  const mtHonors = spawnSync('node', [path.join(wt, 'scripts', 'verify_my_train_honors.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(mtHonors.stdout || ''); process.stderr.write(mtHonors.stderr || '');
+  if (mtHonors.status !== 0) fail('自製列車成就守門未過'
+    + '（單獨重跑：npm run check-my-train-honors）');
   const mtIso = spawnSync('node', [path.join(wt, 'scripts', 'verify_my_train_isolation.mjs')],
     { cwd: wt, encoding: 'utf8', env: { ...process.env, PORT: '' } });   // 埠號由系統挑（同 2.25／2.26）
   process.stdout.write(mtIso.stdout || ''); process.stderr.write(mtIso.stderr || '');

@@ -177,6 +177,7 @@
     "check-krtc-terminal-browser": "node scripts/verify_krtc_terminal_browser.mjs",
     "check-tra-supplements": "node scripts/verify_tra_schedule_supplements.mjs",
     "check-my-train-plan": "node scripts/verify_my_train_plan.mjs",
+    "check-my-train-honors": "node scripts/verify_my_train_honors.mjs",
     "check-my-train-isolation": "node scripts/verify_my_train_isolation.mjs",
     "check-my-train-walkthrough": "node scripts/verify_my_train_walkthrough.mjs",
     "check-my-train-plus": "node scripts/verify_my_train_plus.mjs",

@@ -178,6 +178,13 @@ literalKeys.push(
 const depotSource = fs.readFileSync(path.join(root, 'my-train-depot.js'), 'utf8');
 literalKeys.push(...[...depotSource.matchAll(/\btr\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]));
 literalKeys.push('白天', '黃昏', '夜晚', '出勤中', '空股', '下一班今天 {time}', '下一班明天 {time}', '排進這一股', '存好班次');
+literalKeys.push('按「發車」就拿到，或等今天 {time} 的班次跑完。', '按「發車」就拿到，或等明天 {time} 的班次跑完。', '車隊', '六股一起算',
+  '獎勵都是外觀，不給點數。', '獎勵都是外觀，不給點數。車庫佈置之後才開放，現在拿到的會留著。');
+// 成就與車牌框的目錄在 my-train-plan.js,名字和條件經變數才丟進 t()。
+const planBox = {}; vm.runInNewContext(fs.readFileSync(path.join(root, 'my-train-plan.js'), 'utf8'), planBox);
+const { HONOR_GROUPS, FLEET_HONORS, PLATES } = planBox.MyTrainPlan;
+literalKeys.push(...HONOR_GROUPS.flatMap(g => [g.name, g.note, g.source, ...g.list.flatMap(h => [h.name, h.desc])]).filter(Boolean),
+  ...FLEET_HONORS.flatMap(h => [h.name, h.desc, h.deco]), ...Object.values(PLATES).map(p => p.name));
 const rail3dSource = fs.readFileSync(path.join(root, 'rail-3d.js'), 'utf8');
 literalKeys.push(...[...rail3dSource.matchAll(/\bt\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]));
 literalKeys.push('其他設定','觀看設定','關閉觀看設定','觀看設定分類','觀看','視角','地圖','列車','標示','導覽','畫面');

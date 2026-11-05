@@ -66,8 +66,9 @@ function textColorFor3D(hex) {
 }
 const nameplates = new Map();
 // isHSR:布林,決定畫哪一種牌形——快取鍵要帶這個,否則同一個 label+color 撞到不同牌形會拿錯貼圖。
-export function nameplateSprite(label, color, isHSR) {
-  const key = (isHSR ? 'hsr' : 'std') + ':' + color + ':' + label;
+// frame:成就給的車牌框 {bg,line,ink,dbl}(MyTrainPlan.PLATES),比例照 index.html 的 drawOwnPlate。
+export function nameplateSprite(label, color, isHSR, frame) {
+  const key = (isHSR ? 'hsr' : 'std') + ':' + color + ':' + label + ':' + (frame ? JSON.stringify(frame) : '');
   if (nameplates.has(key)) return nameplates.get(key);
   const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 80;
   const ctx = canvas.getContext('2d');
@@ -75,24 +76,29 @@ export function nameplateSprite(label, color, isHSR) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const textWidth = ctx.measureText(label).width, padX = 22, w = Math.min(240, Math.max(70, textWidth + padX * 2)), h = 52,
     x = (256 - w) / 2, y = (80 - h) / 2, midY = 40;
-  if (isHSR) {
-    // 比照 index.html drawHSRTag 的比例(HSR_NOSE/TAG_H = 5/15):兩端尖角、白底橘框橘字。
-    const nose = h / 3, x0 = x, x1 = x + w, y0 = y, y1 = y + h;
+  // 比照 index.html drawHSRTag 的比例(HSR_NOSE/TAG_H = 5/15):兩端尖角、白底橘框橘字。
+  // 藥丸牌：圓角半徑＝牌高一半，跟 2D drawTag（rx 7.5／TAG_H 15）同比例
+  const path = inset => {
+    const x0 = x + inset, x1 = x + w - inset, y0 = y + inset, y1 = y + h - inset, rx = (y1 - y0) / 2, nose = h / 3;
     ctx.beginPath();
-    ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1 + nose, midY);
-    ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.lineTo(x0 - nose, midY);
+    if (isHSR) {
+      ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1 + nose, midY);
+      ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.lineTo(x0 - nose, midY);
+    } else {
+      ctx.moveTo(x0 + rx, y0); ctx.arcTo(x1, y0, x1, y1, rx); ctx.arcTo(x1, y1, x0, y1, rx);
+      ctx.arcTo(x0, y1, x0, y0, rx); ctx.arcTo(x0, y0, x1, y0, rx);
+    }
     ctx.closePath();
-    ctx.fillStyle = '#fffdf6'; ctx.fill();
-    ctx.lineWidth = 3; ctx.strokeStyle = HSR_ORANGE_3D; ctx.stroke();
-    ctx.fillStyle = HSR_ORANGE_3D; ctx.fillText(label, 128, midY + 1);
-  } else {
-    const rx = h / 2; // 藥丸牌：圓角半徑＝牌高一半，跟 2D drawTag（rx 7.5／TAG_H 15）同比例
-    ctx.beginPath(); ctx.moveTo(x + rx, y); ctx.arcTo(x + w, y, x + w, y + h, rx); ctx.arcTo(x + w, y + h, x, y + h, rx);
-    ctx.arcTo(x, y + h, x, y, rx); ctx.arcTo(x, y, x + w, y, rx); ctx.closePath();
-    ctx.fillStyle = color; ctx.fill();
-    ctx.lineWidth = 3; ctx.strokeStyle = TAG_OUTLINE_3D; ctx.stroke();
-    ctx.fillStyle = textColorFor3D(color); ctx.fillText(label, 128, y + h / 2 + 1);
+  };
+  path(0);
+  ctx.fillStyle = frame ? frame.bg : isHSR ? '#fffdf6' : color; ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = frame || !isHSR ? TAG_OUTLINE_3D : HSR_ORANGE_3D; ctx.stroke();
+  if (frame) {
+    ctx.strokeStyle = frame.line;
+    if (frame.dbl) { path(2.6); ctx.lineWidth = 2.8; ctx.stroke(); path(7.6); ctx.stroke(); } else { path(4.3); ctx.lineWidth = 4.5; ctx.stroke(); }
   }
+  ctx.fillStyle = frame ? frame.ink : isHSR ? HSR_ORANGE_3D : textColorFor3D(color);
+  ctx.fillText(label, 128, midY + 1);
   if (nameplates.size >= 8) nameplates.delete(nameplates.keys().next().value); nameplates.set(key, canvas);
   return canvas;
 }

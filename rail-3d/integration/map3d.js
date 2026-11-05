@@ -397,7 +397,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
             beamMs+=performance.now()-beamStart;
           }
           stats.undergroundModels+=poses.some(p=>p.underground)?1:0;hit.modelled=true;positions[i*3+2]=-1e7;stats.models++;stats.poseSamples.push({id:v.id,coordinate:coord,displayHeightM:h,railElevationM:null,level:profile.path.level?.(profile.s)||null,underground:poses.some(p=>p.underground),angle:poses[0].angle,displayScale,lengthScale:1,lengthM:m.model.lengthM,carCount:m.cars.length,formationQuality:m.model.quality,formationMode,modelId:m.model.id,actualCarCount:m.model.actualCarCount,countBasis:m.model.countBasis,lengthKnown:m.model.lengthKnown,caption:m.model.caption,label:v.publicLabel,cars:poses});
-          m.screenPose={p,color:v.color,displayOpacity:opacity,angle:poses[0].angle,ratio,sample:stats.poseSamples.at(-1),physical:!!v.route?.physical,ownTrain:!!v.ownTrain,haloOn:v.haloOn,haloSizeMul:v.haloSizeMul,systemId:v.systemId};
+          m.screenPose={p,color:v.color,displayOpacity:opacity,angle:poses[0].angle,ratio,sample:stats.poseSamples.at(-1),physical:!!v.route?.physical,ownTrain:!!v.ownTrain,haloOn:v.haloOn,haloSizeMul:v.haloSizeMul,plate:v.plate,systemId:v.systemId};
         }else stats.modelFallbacks.push({id:v.id,reason:!profile?'來源位置不在線形上':terrainState.terrain&&!profile.path.elevation?'缺少固定顯示高程':'編組超出已知線形端點'});
       }else if(v.followed&&!formationFor(v,fMode()))stats.modelFallbacks.push({id:v.id,reason:'車型或編組長度尚未確認'});
       const screen=!markers&&next.display?.dirArrow?project(p):null;

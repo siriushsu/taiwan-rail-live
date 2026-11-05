@@ -24,6 +24,15 @@
 /* 小字說明:字級與顏色比照 .ri-formation-caption,但另立一個 class 不沿用它——那個 class
    在放空模式與面板縮小時會整行藏起來,這裡展開時要一律顯示。縮小時的隱藏交給
    檔尾 .fp-min 規則統一處理,不重複寫在這裡。 */
+[data-mt-panel] { position: relative; --mt-stamp: #D23C2A; --mt-faint: var(--muted); }
+html[data-theme=dark] [data-mt-panel] { --mt-stamp: #FF6B57; }
+[data-mt-panel] .mt-mark { width: 26px; height: 26px; display: block; border-radius: 50%; }
+[data-mt-panel] .mt-name.mt-plate { padding: 2px 9px; border-radius: 5px; background: var(--pb); color: var(--pi); box-shadow: inset 0 0 0 1.5px var(--pb), inset 0 0 0 3px var(--pl); }
+[data-mt-panel] .mt-name.mt-plate.dbl { box-shadow: inset 0 0 0 1px var(--pl), inset 0 0 0 2.5px var(--pb), inset 0 0 0 3.5px var(--pl); }
+[data-mt-panel] .mt-big-stamp { position: absolute; right: 2px; top: 22px; width: 64px; height: 64px; transform: rotate(-9deg); animation: mt-slam .5s .6s cubic-bezier(.2, 1.5, .4, 1) both; pointer-events: none; }
+[data-mt-panel] .mt-maiden { margin: 6px 0 0; font-size: calc(12px * var(--uis)); font-weight: 700; color: var(--ink); line-height: 1.5; }
+@keyframes mt-slam { from { transform: rotate(-30deg) scale(2.6); opacity: 0; } to { transform: rotate(-9deg) scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { [data-mt-panel] .mt-big-stamp { animation: none; } }
 [data-mt-panel] .mt-caption { margin-top: 2px; font-size: calc(11px * var(--uis)); font-weight: 700; color: var(--muted); }
 
 [data-mt-panel] .mt-body { margin-top: 7px; display: grid; gap: 5px; }

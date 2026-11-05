@@ -97,7 +97,7 @@
         const route=pos.physical?pos.route:g?.ln?lineRecord(g.ln,tr.sys):null;
         const id=[tr.sys,day,tr.train,tr.stops[0]?.depSec,tr.stops.at(-1)?.arrSec].join(':');
         add(id,pos,{systemId:tr.sys,routeId:route?.routeId||null,route,color:tr.color,publicLabel:tr.label,typeName:tr.typeName,carName:tr.carName,
-          modelId:tr.modelId,ownTrain:true,haloOn:state.ownTrainAppearance.haloOn,haloSizeMul:OWN_TRAIN_SIZE_MUL[state.ownTrainAppearance.haloSize]||1,
+          modelId:tr.modelId,ownTrain:true,plate:ownTrainPlate(tr),haloOn:state.ownTrainAppearance.haloOn,haloSizeMul:OWN_TRAIN_SIZE_MUL[state.ownTrainAppearance.haloSize]||1,
           chainageM:pos.physical?pos.chainageM:Number.isFinite(g?.d)?g.d*1000:null,railDirection:pos.physical?pos.railDirection:null,formationFacing:pos.formationFacing||1,
           sourceKind:'timetable',direction:g?.dir??null,followed},{tr});
       }

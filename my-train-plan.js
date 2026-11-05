@@ -605,27 +605,30 @@
 
   // ── 車隊：六股、路線分段、親手趟（存檔形狀與讀寫在 my-train-ui.js，這裡只有規則）────
   // TRACKS 是股道數；FLEET_MAX 是存檔上限，比股道多的車 track 是 null（待命），資料留著、不上地圖。
-  // day 一律是台灣日期 YYYY-MM-DD。legs：每段 { day 起始日, km 每趟公里, stops 每趟停站數 }，
+  // day 一律是台灣日期 YYYY-MM-DD。legs：每段 { day 起始日, km 每趟公里, stops 每趟停站數, dep 發車秒, dur 全程秒, tags 路線標籤,
+  // rise／set 經過太麻里、海線的本趟秒數, meets 每趟交會數（null＝還沒算）, twin 有同款真車, kin 會交會的自製車 }，
   // 里程＝各段「每趟公里 × 該段天數」加總，所以改路線只開新段，不回頭動舊段。
-  // hand：各裝置分開記 { n 次數, km, stops }，帳號合併時每台取最大。outRun：進行中的親手趟 { at 按下去的毫秒, dep 發車秒, dur 全程秒 }。
-  // earned：{ 成就鍵: 拿到那天 }。look：{ mark 頭牌, plate 車牌框 }。
+  // hand：各裝置分開記 { n 次數, km, stops, meets }，帳號合併時每台取最大。outRun：進行中的親手趟 { at 按下去的毫秒, dep 發車秒, dur 全程秒 }。
+  // firstDay：第一班每日班次的日子，當天發車時刻已過就是隔天（親手發車會把它提前到按下去那天）。
+  // earned：{ 成就鍵: 拿到那天 }。judged：判斷到哪一天（那天的班次已經算過）。look：{ mark 頭牌, plate 車牌框 }。
   const TRACKS = 6, FLEET_MAX = 12;
   const DAY_RE = /^\d{4}-\d{2}-\d{2}$/, DEVICE_RE = /^[0-9A-Za-z-]{8,64}$/;
   const num0 = v => (Number.isFinite(v) && v >= 0 ? v : 0);
   const int0 = v => (Number.isInteger(v) && v >= 0 ? v : 0);
   const km1 = v => Math.round(v * 10) / 10;
+  // 當天的班次跑完了沒。過午夜的班要到隔天才算。
+  const doneToday = (leg, nowSec) => !!leg && leg.dur > 0 && leg.dep + leg.dur < 86400 && nowSec >= leg.dep + leg.dur;
   function taipeiDay(ms) { return new Date(ms + 8 * 3600e3).toISOString().slice(0, 10); }
+  // 成就存檔：日期合法的留下。新版才有的成就 id 舊版讀到也不丟，同步回去才不會少。
+  const earnedOf = o => Object.fromEntries(Object.entries(o && typeof o === 'object' ? o : {}).filter(([, d]) => DAY_RE.test(d)));
   // 排班以外的欄位：認得的留下，其他丟掉。形狀錯了不丟整列車，壞的那一欄回到空值。
   function fleetFields(t) {
-    const legs = [], hand = {}, earned = {};
+    const legs = [], hand = {};
     for (const l of Array.isArray(t.legs) ? t.legs : []) {
-      if (l && DAY_RE.test(l.day)) legs.push({ day: l.day, km: num0(l.km), stops: int0(l.stops) });
+      if (l && DAY_RE.test(l.day)) legs.push({ day: l.day, ...legFields(l) });
     }
     for (const [dev, h] of Object.entries(t.hand && typeof t.hand === 'object' ? t.hand : {})) {
-      if (DEVICE_RE.test(dev) && h && typeof h === 'object') hand[dev] = { n: int0(h.n), km: num0(h.km), stops: int0(h.stops) };
-    }
-    for (const [k, d] of Object.entries(t.earned && typeof t.earned === 'object' ? t.earned : {})) {
-      if (DAY_RE.test(d)) earned[k] = d;
+      if (DEVICE_RE.test(dev) && h && typeof h === 'object') hand[dev] = { n: int0(h.n), km: num0(h.km), stops: int0(h.stops), meets: int0(h.meets) };
     }
     const r = t.outRun, look = t.look && typeof t.look === 'object' ? t.look : {};
     return {
@@ -634,10 +637,23 @@
       legs, hand,
       outRun: r && Number.isFinite(r.at) && Number.isInteger(r.dep) && r.dep >= 0 && r.dep < 86400 && Number.isFinite(r.dur) && r.dur > 0
         ? { at: r.at, dep: r.dep, dur: r.dur } : null,
-      earned,
-      look: { mark: typeof look.mark === 'string' ? look.mark : null, plate: typeof look.plate === 'string' ? look.plate : null },
+      earned: earnedOf(t.earned),
+      judged: DAY_RE.test(t.judged) ? t.judged : null,
+      look: { mark: MyTrainPlan.MARK_IDS.includes(look.mark) ? look.mark : null, plate: PLATES[look.plate] ? look.plate : null },
     };
   }
+  // 一段路線的內容（不含起始日）。兩段算同一段的標準是這裡每一欄都一樣，meets、twin、kin 是掃出來的結果，不算。
+  function legFields(l) {
+    const rel = v => (Number.isFinite(v) && v >= 0 ? v : null), pair = Array.isArray(l.set) && l.set.length === 2 && l.set.every(v => rel(v) !== null);
+    return {
+      km: num0(l.km), stops: int0(l.stops), dep: int0(l.dep), dur: num0(l.dur),
+      tags: Array.isArray(l.tags) ? l.tags.filter(k => typeof k === 'string') : [], rise: rel(l.rise), set: pair ? [l.set[0], l.set[1]] : null,
+      meets: Number.isInteger(l.meets) && l.meets >= 0 ? l.meets : null, twin: l.twin === true,
+      kin: Array.isArray(l.kin) ? l.kin.filter(k => typeof k === 'string') : [],
+    };
+  }
+  const sameRoute = (a, b) => a.km === b.km && a.stops === b.stops && a.dep === b.dep && a.dur === b.dur && a.rise === b.rise
+    && String(a.tags) === String(b.tags) && String(a.set) === String(b.set);
   // 股道撞號或沒有股道的車，依序補進空股；補不下的就是待命。空出來的股道也由待命的車遞補。
   function assignTracks(trains) {
     const used = new Set();
@@ -660,40 +676,330 @@
   }
   // 排班存進車隊：id 已經在就只換排班（股道與紀錄留著），不在就進指定的股（沒指定就第一條空股）；股道沒空回 null。
   // 改了路線或時間，進行中的親手趟跟著取消，不然地圖上那台還照舊路線跑；只改名字用 keepRun 留著。
-  function fleetPut(trains, train, today, keepRun, track = MyTrainPlan.freeTrack(trains)) {
+  function fleetPut(trains, train, firstDay, keepRun, track = MyTrainPlan.freeTrack(trains)) {
     const old = trains.find(t => t.id === train.id);
     if (old) return trains.map(t => (t === old ? { ...old, ...train, outRun: keepRun ? old.outRun : null } : t));
     if (track < 0 || trains.some(t => t.track === track)) return null;
-    return [...trains, { ...train, ...MyTrainPlan.fleetFields({ track, firstDay: today }) }];
+    return [...trains, { ...train, ...MyTrainPlan.fleetFields({ track, firstDay }) }];
   }
-  function legOf(result) {
-    return { km: km1(result.route.km), stops: result.timetable.stops.filter(s => s.stop !== false).length };
+  // 第一班每日班次：今天的發車時刻還沒到就是今天，過了就是明天。
+  function firstRunDay(depSec, nowSec, today) { return nowSec < depSec ? today : dayOf(dayNo(today) + 1); }
+  // graph 給了才看路線標籤。
+  function legOf(result, graph) {
+    const stops = result.timetable.stops;
+    return legFields({
+      km: km1(result.route.km), stops: stops.filter(s => s.stop !== false).length, dep: stops[0].depSec, dur: result.timetable.totalSec,
+      ...(graph ? MyTrainPlan.routeTraits(graph, result.route, stops) : null),
+    });
   }
   // 回傳的是同一個陣列就代表沒有變動。同一天改好幾次只留最後一次。
   function syncLegs(legs, leg, firstDay, today) {
     const last = legs[legs.length - 1];
     if (!last) return [{ day: firstDay || today, ...leg }];
-    if (last.km === leg.km && last.stops === leg.stops) return legs;
+    if (sameRoute(last, leg)) return legs;
     if (last.day >= today) return [...legs.slice(0, -1), { day: last.day, ...leg }];
     return [...legs, { day: today, ...leg }];
   }
   // 親手發車：次數與公里按下去就記，outRun 只管地圖上那一台，跑完收掉也不會少算。
-  function addHandRun(train, device, run, leg) {
-    const h = train.hand[device] || { n: 0, km: 0, stops: 0 };
-    return { ...train, outRun: run, hand: { ...train.hand, [device]: { n: h.n + 1, km: km1(h.km + leg.km), stops: h.stops + leg.stops } } };
+  // 頭班、末班看按下去那一刻，車還沒跑完也算；首航日若還沒到，提前到今天。
+  function addHandRun(train, device, run, leg, today) {
+    const h = train.hand[device] || { n: 0, km: 0, stops: 0, meets: 0 };
+    const earned = { ...train.earned }, give = honorGiver(earned);
+    if (today) {
+      give('maiden', today);
+      if (run.dep < 6 * 3600) give('dawn', today);
+      if (run.dep >= 23 * 3600) give('late', today);
+    }
+    return {
+      ...train, outRun: run, earned, firstDay: today && train.firstDay > today ? today : train.firstDay,
+      hand: { ...train.hand, [device]: { n: h.n + 1, km: km1(h.km + leg.km), stops: h.stops + leg.stops, meets: h.meets + (leg.meets || 0) } },
+    };
   }
   function runEnded(run, nowMs) { return nowMs >= run.at + run.dur * 1000; }
-  // 累計數字。每日班次：跑了幾天＝首航日到今天，每段「每趟×該段天數」加總，改路線時舊段收到前一天、累計不歸零；親手趟另外加。
-  function fleetStats(train, today) {
-    const dayNo = d => Date.parse(d + 'T00:00:00Z') / 864e5, end = dayNo(today);
-    const first = dayNo(train.firstDay || today), days = Math.max(0, end - first);
-    let km = 0, stops = 0, hand = 0;
+  // 累計數字。每日班次：跑完一趟算一天，當天的班次跑完才算進去（過午夜的班隔天才算），每段「每趟×該段天數」加總，
+  // 改路線時舊段收到前一天、累計不歸零；親手趟另外加。
+  function fleetStats(train, today, nowSec = 0) {
+    const first = dayNo(train.firstDay || today), last = train.legs[train.legs.length - 1];
+    const end = dayNo(today) + (doneToday(last, nowSec) ? 1 : 0);
+    let days = 0, km = 0, stops = 0, meets = 0, hand = 0;
     train.legs.forEach((l, i) => {
       const from = Math.max(first, dayNo(l.day)), to = i + 1 < train.legs.length ? dayNo(train.legs[i + 1].day) : end, n = Math.max(0, Math.min(to, end) - from);
-      km += l.km * n; stops += l.stops * n;
+      days += n; km += l.km * n; stops += l.stops * n; meets += (l.meets || 0) * n;
     });
-    for (const h of Object.values(train.hand)) { hand += h.n; km += h.km; stops += h.stops; }
-    return { days, trips: days + hand, hand, km: km1(km), stops };
+    for (const h of Object.values(train.hand)) { hand += h.n; km += h.km; stops += h.stops; meets += h.meets || 0; }
+    return { days, trips: days + hand, hand, km: km1(km), stops, meets };
+  }
+
+  // ── 成就：每列 31 枚＋車隊 6 枚 ───────────────
+  // stat＋goal 是數字型，看 fleetStats 的累計。其他：路線與時刻類看每一趟（runHonors），第一趟跑完才給；頭班、末班按下去當下看（addHandRun）；
+  // 天氣類跟車時取樣（index.html 的 ownTrainWeather）；手足看車隊互相比的結果。id 寫進存檔，改名要搬資料。
+  // 獎勵一律是外觀，不給點數：mark 給同 id 的頭牌、plate 給車牌框、deco 是車庫佈置。
+  const HONOR_GROUPS = [
+    { id: 'tenure', name: '資歷', note: '這列車跑了多久', list: [
+      { id: 'maiden', name: '首航', desc: '第一次上路', stat: 'trips', goal: 1, mark: true },
+      { id: 'days10', name: '十日', desc: '跑滿 10 天', stat: 'days', goal: 10 },
+      { id: 'days100', name: '百日', desc: '跑滿 100 天', stat: 'days', goal: 100 },
+      { id: 'days365', name: '週年', desc: '跑滿 365 天', stat: 'days', goal: 365, plate: 'enamel' },
+    ] },
+    { id: 'distance', name: '里程', note: '累計公里，不會歸零', list: [
+      { id: 'km1k', name: '千里', desc: '累計 1,000 公里', stat: 'km', goal: 1e3, plate: 'bronze' },
+      { id: 'km10k', name: '萬里', desc: '累計 10,000 公里', stat: 'km', goal: 1e4, plate: 'silver' },
+      { id: 'earth', name: '環球', desc: '累計 40,075 公里，繞地球一圈', stat: 'km', goal: 40075, plate: 'gold' },
+      { id: 'moon', name: '奔月', desc: '累計 384,400 公里，到月球', stat: 'km', goal: 384400, plate: 'moon' },
+    ] },
+    { id: 'hand', name: '親手', note: '你親自按下發車的紀錄', list: [
+      { id: 'hand100', name: '百發', desc: '親手發車 100 次', stat: 'hand', goal: 100, plate: 'glove' },
+      { id: 'dawn', name: '頭班', desc: '親手發一班清晨 6 點前的車', mark: true },
+      { id: 'late', name: '末班', desc: '親手發一班晚上 11 點後的車', mark: true },
+    ] },
+    { id: 'route', name: '路線', note: '排班走過的路', list: [
+      { id: 'east', name: '東線', desc: '全程跑完臺東線', mark: true },
+      { id: 'south', name: '南迴', desc: '翻過南迴線', mark: true },
+      { id: 'loop', name: '環島', desc: '單趟繞完臺灣一圈', mark: true },
+      { id: 'coast', name: '海線', desc: '走完竹南到彰化的海線', mark: true },
+      { id: 'alishan', name: '上山', desc: '開上阿里山線', mark: true },
+    ] },
+    { id: 'meet', name: '相遇', note: '路上和真車的交會', list: [
+      { id: 'meet1', name: '初會', desc: '第一次和真車交會', stat: 'meets', goal: 1 },
+      { id: 'meet100', name: '百會', desc: '交會真車 100 次', stat: 'meets', goal: 100 },
+      { id: 'meet1k', name: '千會', desc: '交會真車 1,000 次', stat: 'meets', goal: 1e3, plate: 'double' },
+      { id: 'twin', name: '本尊', desc: '和同款真車交會' },
+      { id: 'kin', name: '手足', desc: '和自己另一列自製車交會' },
+    ] },
+    { id: 'scene', name: '時刻與地景', note: '什麼時候經過哪裡', list: [
+      { id: 'sunrise', name: '日出', desc: '日出時經過太麻里', mark: true },
+      { id: 'sunset', name: '落日', desc: '日落時走在海線上', mark: true },
+      { id: 'tropic', name: '回歸', desc: '穿過北回歸線', mark: true },
+      { id: 'midnight', name: '跨夜', desc: '跑過午夜 12 點', mark: true },
+    ] },
+    { id: 'festival', name: '節日', note: '那一天它在線上', list: [
+      { id: 'newyear', name: '跨年', desc: '12/31 午夜還在跑', mark: true },
+      { id: 'lunar', name: '除夕', desc: '除夕夜在線上', mark: true },
+      { id: 'birthday', name: '生日', desc: '首航週年當天在線上', mark: true },
+    ] },
+    { id: 'weather', name: '天氣', note: '跟著車的時候才算', source: '資料來源：中央氣象署', list: [
+      { id: 'rain', name: '雨行', desc: '穿過雨區', mark: true },
+      { id: 'fog', name: '霧行', desc: '在霧裡跑完一段', mark: true },
+      { id: 'clear', name: '放晴', desc: '出發時下雨、抵達時放晴', mark: true },
+    ] },
+  ];
+  const FLEET_HONORS = [
+    { id: 'full', name: '滿庫', desc: '排滿 6 股', stat: 'tracks', goal: 6, deco: '招牌金字' },
+    { id: 'five', name: '齊發', desc: '5 列同時在線上', stat: 'peak', goal: 5, deco: '門架紅旗' },
+    { id: 'three', name: '三鐵', desc: '臺鐵、高鐵、阿里山各有一列', stat: 'systems', goal: 3, deco: '站前大鐘' },
+    { id: 'dex', name: '圖鑑', desc: '6 列全是不同車款', stat: 'models', goal: 6, deco: '車款牆' },
+    { id: 'km100k', name: '十萬', desc: '車隊累計 100,000 公里', stat: 'km', goal: 1e5, deco: '里程碑' },
+    { id: 'sun', name: '日不落', desc: '一整天隨時都有一列在跑', stat: 'cover', goal: 1, deco: '屋頂塔燈' },
+  ];
+  // 路上有同款真車的車款，其他車款拿不到「本尊」。scripts/verify_my_train_honors.mjs 拿 formations.js 比對。
+  const TWIN_MODELS = ['dr1000', 'emu800', 'haifeng', 'shanlan', 'e200', 'blue', 'temu1000', 'temu2000', 'e1000', 'e500', 'emu3000', 'dr3100', 'mingri', '700t', 'dl25'];
+  // 畫框上那一排六枚。
+  const HONOR_SHELF = ['maiden', 'days10', 'km1k', 'km10k', 'days100', 'days365'];
+  const honorList = HONOR_GROUPS.flatMap(g => g.list);
+  const MARK_IDS = honorList.filter(h => h.mark).map(h => h.id);
+  // 車牌框：bg 底、line 框線、ink 字；base 是預設，用排班時選的車牌顏色，所以沒有固定的底色。by 是哪一枚成就給的。
+  const PLATES = {
+    base: { name: '原色', by: null },
+    bronze: { name: '銅', bg: '#2A4A73', line: '#D0935C', ink: '#FFFDF6', by: 'km1k' },
+    silver: { name: '銀', bg: '#2A4A73', line: '#DCE1E6', ink: '#FFFDF6', by: 'km10k' },
+    gold: { name: '金', bg: '#2A4A73', line: '#E9B949', ink: '#FFE9B0', by: 'earth' },
+    moon: { name: '月光', bg: '#171F38', line: '#CFD8F0', ink: '#EEF2FF', by: 'moon' },
+    enamel: { name: '琺瑯紅', bg: '#B83226', line: '#FFFDF6', ink: '#FFFDF6', by: 'days365' },
+    glove: { name: '白手套', bg: '#FFFDF6', line: '#2A4A73', ink: '#2A4A73', by: 'hand100' },
+    double: { name: '雙線', bg: '#2A4A73', line: '#FFFDF6', ink: '#FFFDF6', by: 'meet1k', dbl: true },
+  };
+
+  const dayNo = d => Date.parse(d + 'T00:00:00Z') / 864e5;
+  const dayOf = n => new Date(n * 864e5).toISOString().slice(0, 10);
+  const dayMs = d => Date.parse(d + 'T00:00:00+08:00');
+  const honorGiver = earned => (id, day) => { if (!earned[id] || day < earned[id]) earned[id] = day; };
+  // 除夕的日期，農曆新年前一天。scripts/verify_my_train_honors.mjs 拿 Intl 的農曆逐日比對。
+  const LUNAR_EVE = new Set(['2026-02-16', '2027-02-05', '2028-01-25', '2029-02-12', '2030-02-02', '2031-01-22', '2032-02-10', '2033-01-30', '2034-02-18',
+    '2035-02-07', '2036-01-27', '2037-02-14', '2038-02-03', '2039-01-23', '2040-02-11', '2041-01-31', '2042-01-21', '2043-02-09', '2044-01-29', '2045-02-16', '2046-02-05']);
+  const EVE_FROM = 18 * 3600;   // 除夕夜從晚上 6 點算
+  const TROPIC_LAT = 23.4365;
+  const TAIMALI = [22.619, 121.005], TONGXIAO = [24.492, 120.678];
+  const HORIZON = -0.83;        // 太陽上緣切地平線的高度角（含大氣折射）
+  const birthdayOf = (day, first) => day > first
+    && (day.slice(5) === first.slice(5) || (first.slice(5) === '02-29' && day.slice(5) === '02-28' && dayOf(dayNo(day) + 1).slice(5) === '03-01'));
+  // 環上的七段幹線都走到才算繞完一圈；山線、海線擇一，竹南到彰化中間起訖的車走不到也沒關係。
+  const LOOP_TRUNKS = LOOP_LINES.filter(id => id !== '山線' && id !== '海線');
+  // 路線本身的特徵。stops 是時刻表上的站，順序跟 route.stops 相同。
+  function routeTraits(graph, route, stops) {
+    const keys = route.stops.map(s => s.key), have = new Set(keys), dep = stops[0].depSec;
+    const on = (key, id) => graph.nodes.get(key).lines[id] != null;
+    const covers = id => { const all = [...graph.nodes.keys()].filter(k => on(k, id)); return all.length > 1 && all.every(k => have.has(k)); };
+    const touches = id => keys.some((k, i) => i > 0 && on(k, id) && on(keys[i - 1], id));
+    const tags = [];
+    if (covers('臺東線')) tags.push('east');
+    if (covers('南迴線')) tags.push('south');
+    if (LOOP_TRUNKS.every(touches)) tags.push('loop');
+    if (covers('海線')) tags.push('coast');
+    if (touches('AFR_MAIN')) tags.push('alishan');
+    const lats = route.stops.map(s => s.lat);
+    if (Math.min(...lats) < TROPIC_LAT && Math.max(...lats) > TROPIC_LAT) tags.push('tropic');
+    const rise = keys.indexOf(MyTrainPlan.stationKey(TRA, '太麻里'));
+    const sea = keys.flatMap((k, i) => (i > 0 && on(k, '海線') && on(keys[i - 1], '海線') ? [i - 1, i] : []));
+    return {
+      tags, rise: rise >= 0 ? stops[rise].arrSec - dep : null,
+      set: sea.length ? [stops[sea[0]].arrSec - dep, stops[sea[sea.length - 1]].arrSec - dep] : null,
+    };
+  }
+  // 跑完的一趟給哪些成就。start 是發車的毫秒、dur 是全程秒。每日班次與親手趟都走這裡。
+  function runHonors(give, leg, start, dur, firstDay, sun) {
+    const end = start + dur * 1000, day = taipeiDay(start), endDay = taipeiDay(end);
+    for (const k of leg.tags) give(k, endDay);
+    if (leg.twin) give('twin', endDay);
+    if (leg.kin.length) give('kin', endDay);
+    if (endDay > day) {
+      give('midnight', endDay);
+      if (day.endsWith('-12-31')) give('newyear', endDay);
+    }
+    for (const eve of day === endDay ? [day] : [day, endDay]) {
+      if (LUNAR_EVE.has(eve) && start < dayMs(eve) + 864e5 && end > dayMs(eve) + EVE_FROM * 1000) give('lunar', eve);
+    }
+    if (birthdayOf(day, firstDay)) give('birthday', day);
+    if (!sun) return;
+    if (leg.rise !== null) {
+      const at = start + leg.rise * 1000, e = sun(at, TAIMALI[0], TAIMALI[1]).elevation;
+      // 日出前幾分鐘到日出後半小時，太陽還貼著海面。早上才算，傍晚的同樣高度是日落。
+      if (e >= -2 && e <= 6 && (at - dayMs(taipeiDay(at))) < 12 * 3600e3) give('sunrise', taipeiDay(at));
+    }
+    if (leg.set) {
+      const a = start + leg.set[0] * 1000, b = start + leg.set[1] * 1000;
+      if (sun(a, TONGXIAO[0], TONGXIAO[1]).elevation > HORIZON && sun(b, TONGXIAO[0], TONGXIAO[1]).elevation <= HORIZON) give('sunset', taipeiDay(b));
+    }
+  }
+  const legOn = (legs, day) => { let hit = null; for (const l of legs) if (l.day <= day) hit = l; return hit; };
+  function numberHonors(give, stats, day) {
+    for (const h of honorList) if (h.stat && stats[h.stat] >= h.goal) give(h.id, day);
+  }
+  // 從上次判斷的隔天補算到現在。當天的班次跑完才算那一天。
+  function judgeTrain(train, today, nowSec, sun) {
+    const earned = { ...train.earned }, give = honorGiver(earned), first = train.firstDay || today;
+    const last = dayNo(today) - (doneToday(train.legs[train.legs.length - 1], nowSec) ? 0 : 1);
+    const from = train.judged ? dayNo(train.judged) + 1 : dayNo(first);
+    for (let n = from; n <= last; n++) {
+      const day = dayOf(n), leg = legOn(train.legs, day);
+      if (leg && leg.dur > 0) runHonors(give, leg, dayMs(day) + leg.dep * 1000, leg.dur, first, sun);
+      numberHonors(give, MyTrainPlan.fleetStats(train, dayOf(n + 1)), day);
+    }
+    numberHonors(give, MyTrainPlan.fleetStats(train, today, nowSec), today);
+    return { ...train, earned, judged: last >= from ? dayOf(last) : train.judged };
+  }
+  // 親手趟跑完收掉，順便看這一趟給了什麼。
+  function finishRun(train, sun) {
+    const run = train.outRun, leg = train.legs[train.legs.length - 1];
+    if (!run || !leg) return { ...train, outRun: null };
+    const earned = { ...train.earned };
+    runHonors(honorGiver(earned), leg, run.at, run.dur, train.firstDay || taipeiDay(run.at), sun);
+    return { ...train, outRun: null, earned };
+  }
+  // 跟車時的天氣取樣給哪些成就。samples：[{ at 毫秒, rain 有沒有下雨, fog 0～1 }]，start、end 是這一趟的毫秒。
+  function weatherHonors(samples, start, end) {
+    const out = [], fogs = samples.filter(s => s.fog >= .5);
+    const late = samples.filter(s => s.at >= end - 600e3);
+    if (samples.some(s => s.rain)) out.push('rain');
+    if (fogs.length && fogs[fogs.length - 1].at - fogs[0].at >= 300e3) out.push('fog');
+    if (samples.some(s => s.rain && s.at <= start + 600e3) && late.length && !late.some(s => s.rain)) out.push('clear');
+    return out;
+  }
+  // /api/weather 的一筆。規則跟 App 的 railcore LiveWeather 同一份：雷達 3×3 最大值 20 dBZ 以上算下雨，霧看測站能見度與天氣欄。
+  const numOf = s => (s.trim() !== '' && Number.isFinite(+s) ? +s : null);
+  function visibilityKm(v) {
+    if (typeof v !== 'string') return null;
+    const s = v.trim(), rest = numOf(s.slice(1)), parts = s.split('-');
+    if (s[0] === '<') return rest === null ? null : rest / 2;
+    if (s[0] === '>') return rest === null ? null : rest + 1;
+    if (parts.length === 2 && numOf(parts[0]) !== null && numOf(parts[1]) !== null) return (+parts[0] + +parts[1]) / 2;
+    return numOf(s);
+  }
+  function fogOf(weather, vis) {
+    const km = visibilityKm(vis);
+    let f = km === null ? null : Math.min(1, Math.max(0, (10 - km) / 9.5));
+    if (typeof weather === 'string') {
+      if (weather.includes('霧')) f = Math.max(f ?? 0, .85);
+      else if (weather.includes('靄') || weather.includes('霾')) f = Math.max(f ?? 0, .3);
+      else if (f === null) f = 0;
+    }
+    return f;
+  }
+  // 格式不對回 null，呼叫端當成沒資料。
+  function weatherFrame(body) {
+    const r = body && body.radar, at = r ? Date.parse(r.at) : NaN;
+    if (!Number.isFinite(at)) return null;
+    let cells = null;
+    try { cells = Uint8Array.from(atob(r.data), c => c.charCodeAt(0)); } catch (e) { cells = null; }
+    const radar = cells && r.w > 0 && r.h > 0 && r.res > 0 && cells.length === r.w * r.h ? { lon0: r.lon0, lat0: r.lat0, res: r.res, w: r.w, h: r.h, cells } : null;
+    const o = body.obs || {}, f = Array.isArray(o.fields) ? o.fields : [], iLon = f.indexOf('lon'), iLat = f.indexOf('lat'), iW = f.indexOf('weather'), iV = f.indexOf('vis');
+    const stations = [];
+    for (const c of Array.isArray(o.rows) ? o.rows : []) {
+      const fog = Array.isArray(c) ? fogOf(c[iW], c[iV]) : null;
+      if (fog !== null && Number.isFinite(c[iLon]) && Number.isFinite(c[iLat])) stations.push({ lon: c[iLon], lat: c[iLat], fog });
+    }
+    return { at, radar, stations };
+  }
+  function weatherAt(frame, lon, lat) {
+    const r = frame.radar;
+    let dbz = 0;
+    if (r) {
+      const i = Math.round((lon - r.lon0) / r.res), j = Math.round((lat - r.lat0) / r.res);
+      for (let y = j - 1; y <= j + 1; y++) for (let x = i - 1; x <= i + 1; x++) {
+        const v = x < 0 || y < 0 || x >= r.w || y >= r.h ? 255 : r.cells[y * r.w + x];
+        if (v !== 255 && v > dbz) dbz = v;
+      }
+    }
+    // 25 公里內最近 4 站，距離平方反比；一站都沒有當成無霧。
+    const kx = 111.32 * Math.cos(lat * Math.PI / 180);
+    const near = frame.stations.map(s => ({ w: 1 / (((s.lon - lon) * kx) ** 2 + ((s.lat - lat) * 110.57) ** 2 + 1), fog: s.fog }))
+      .filter(s => 1 / s.w - 1 <= 625).sort((a, b) => b.w - a.w).slice(0, 4);
+    const sum = near.reduce((n, s) => n + s.w, 0);
+    return { rain: dbz >= 20, fog: sum ? near.reduce((n, s) => n + s.w * s.fog, 0) / sum : 0 };
+  }
+  // 一天裡每一列在線上的時段，過午夜的切成兩段。
+  function fleetSpans(trains, nowMs) {
+    const spans = [];
+    const add = (id, dep, dur) => {
+      const end = dep + dur;
+      spans.push({ id, a: dep, b: Math.min(end, 86400) });
+      if (end > 86400) spans.push({ id, a: 0, b: Math.min(end - 86400, 86400) });
+    };
+    for (const t of trains) {
+      const leg = t.legs[t.legs.length - 1];
+      if (leg && leg.dur > 0) add(t.id, leg.dep, leg.dur);
+      if (t.outRun && !MyTrainPlan.runEnded(t.outRun, nowMs)) add(t.id, t.outRun.dep, t.outRun.dur);
+    }
+    return spans;
+  }
+  // 車隊的現況，成就看這幾個數字。cover 是 1 代表一整天都有車在跑。
+  function fleetTotals(trains, today, nowSec, nowMs) {
+    const on = trains.filter(t => t.track !== null), spans = fleetSpans(on, nowMs);
+    let reach = 0;
+    for (const s of [...spans].sort((x, y) => x.a - y.a)) if (s.a <= reach) reach = Math.max(reach, s.b);
+    return {
+      tracks: on.length, peak: Math.max(0, ...spans.map(s => new Set(spans.filter(o => o.a <= s.a && o.b > s.a).map(o => o.id)).size)),
+      systems: new Set(on.map(t => t.sys)).size, models: new Set(on.map(t => t.modelId)).size,
+      km: km1(trains.reduce((n, t) => n + MyTrainPlan.fleetStats(t, today, nowSec).km, 0)), cover: reach >= 86400 ? 1 : 0,
+    };
+  }
+  // 判斷整個車隊。回傳新的 trains、earned，fresh 是這一輪新拿到的 [{ train, id }]，train 是 null 代表車隊成就。
+  function judgeFleet(fleet, today, nowSec, nowMs, sun) {
+    let trains = fleet.trains.map(t => (t.outRun && MyTrainPlan.runEnded(t.outRun, nowMs) ? MyTrainPlan.finishRun(t, sun) : t))
+      .map(t => MyTrainPlan.judgeTrain(t, today, nowSec, sun));
+    // 交會是互相的：A 掃到 B，B 也算。
+    const met = new Map();
+    for (const t of trains) for (const k of t.legs[t.legs.length - 1]?.kin || []) met.set(k, t.earned.kin || today);
+    trains = trains.map(t => {
+      if (!met.has(t.id) || t.earned.kin) return t;
+      return { ...t, earned: { ...t.earned, kin: met.get(t.id) } };
+    });
+    const earned = { ...fleet.earned }, give = honorGiver(earned), totals = fleetTotals(trains, today, nowSec, nowMs);
+    for (const h of FLEET_HONORS) if (totals[h.stat] >= h.goal) give(h.id, today);
+    const fresh = [];
+    trains.forEach((t, i) => { for (const id of Object.keys(t.earned)) if (!fleet.trains[i].earned[id]) fresh.push({ train: t.id, id }); });
+    for (const id of Object.keys(earned)) if (!fleet.earned[id]) fresh.push({ train: null, id });
+    const changed = fresh.length > 0 || trains.some((t, i) => t.judged !== fleet.trains[i].judged || t.outRun !== fleet.trains[i].outRun);
+    return { trains, earned, fresh, changed };
   }
 
   globalThis.MyTrainPlan = {
@@ -705,6 +1011,7 @@
     buildRunStats, runSpeed, dwellSec, physMinSec,
     buildTimetable, planTrain,
     tripRel, scanSpan, tripDay, tripDayCheck, stopEventsBetween, addEvent,
-    TRACKS, FLEET_MAX, DEVICE_RE, taipeiDay, fleetFields, assignTracks, freeTrack, fleetPut, legOf, syncLegs, addHandRun, runEnded, fleetStats,
+    TRACKS, FLEET_MAX, DEVICE_RE, taipeiDay, fleetFields, assignTracks, freeTrack, fleetPut, firstRunDay, legOf, syncLegs, addHandRun, runEnded, fleetStats,
+    HONOR_GROUPS, FLEET_HONORS, HONOR_SHELF, MARK_IDS, PLATES, earnedOf, routeTraits, judgeTrain, judgeFleet, finishRun, fleetTotals, weatherHonors, weatherFrame, weatherAt, TWIN_MODELS,
   };
 })();

@@ -6915,6 +6915,7 @@
 <script src="./train-garage.js"></script>
 <script src="./my-train-plan.js"></script>
 <script src="./my-train-ui.js"></script>
+<script src="./my-train-marks.js"></script>
 <script src="./my-train-depot.js"></script>
 <script src="./rail-discovery.js"></script>
 <script src="./night-map.js"></script>
@@ -8103,6 +8104,7 @@ const state = {
   _metroLiveRaw: {}, // pollMetroLive 最近一次原始回應快取:sys → {at,rows,receivedAt},供等車卡取官方分鐘(不另發 fetch)
   myTrains: [], ownTrainIssues: {}, ownTrainLogs: new Map(), ownTrainShow: true, // 自製列車
   ownTrainAppearance: { haloOn: true, haloSize: 'std' }, _ownTrainHits: [],
+  ownMeetJob: null, ownMeetPending: false, ownJudgeAt: 0, ownWeather: { frame: null, tried: 0, next: 0, key: '', samples: [] },
 };
 // 自製列車:使用者自己排的班,永遠不進 state.trains,唯一判斷式 isMyTrain。
 function isMyTrain(tr) { return !!(tr && tr.mine === true); }
@@ -13133,12 +13135,13 @@ function ownTrainSetAppearance(next) {
   if (state.followTrain && isMyTrain(state.followTrain)) ownTrainPanelUpdate(state.followTrain); // 鈕上的字當下就換
   return true;
 }
+function ownTrainFirstDay(train) { return MyTrainPlan.firstRunDay(train.depSec, nowSecOfDay(), todayStr()); }
 // 發車:新排的車進第一條空股,重新排沿用原本那一列(股道與紀錄留著)。都清空事件列、關車庫、跟上去
 // (面板由 setFollow 內的 showFollowPanel 自動打開,見 ownTrainPanelShow)。
 function ownTrainDepart(train) {
   if (!ownTrainRequire(() => ownTrainDepart(train))) return false;
   const cur = MyTrainUI.load();
-  const trains = MyTrainPlan.fleetPut(cur.trains, train, todayStr());
+  const trains = MyTrainPlan.fleetPut(cur.trains, train, ownTrainFirstDay(train));
   if (!trains || !MyTrainUI.save({ ...cur, trains })) return false;
   ownTrainRebuild();
   ownTrainLogReset(train.id);
@@ -13155,7 +13158,7 @@ function ownTrainEdit(train, opts) {
   if (!ownTrainRequire(() => ownTrainEdit(train, opts))) return false;
   const nameOnly = !!(opts && opts.nameOnly);
   const cur = MyTrainUI.load();
-  const trains = MyTrainPlan.fleetPut(cur.trains, train, todayStr(), nameOnly, opts && opts.track);
+  const trains = MyTrainPlan.fleetPut(cur.trains, train, ownTrainFirstDay(train), nameOnly, opts && opts.track);
   if (!trains || !MyTrainUI.save({ ...cur, trains })) return false;
   const following = isMyTrain(state.followTrain) ? state.followTrain : null;
   ownTrainRebuild();
@@ -13299,17 +13302,17 @@ function ownTrainScanOne(rec) {
     if (lo <= hi) ownTrainScanMeets(rec, log, dep0, lo, hi);
   }
 }
-// 交會／從旁通過:以 5 模擬秒為一步,判斷照 scanFollowEvents 真車那一套(450 公尺、方向相反＝交會;
-// 自己停站時同方向的真車經過＝從旁通過)。不說「待避禮讓」:自製車不受號誌管,沒有真的在讓車。
-function ownTrainScanMeets(rec, log, dep0, lo, hi) {
+// 這段時間內 rec 碰到哪些車:以 5 模擬秒為一步,450 公尺內算碰到,判斷照 scanFollowEvents 真車那一套。
+// pos 是取位置的函式(trainPos 含誤點、trainPosAt 不含);hit(對方, 這一步, 兩車行進方向的內積),內積小於 0 是方向相反。
+function ownTrainNearby(rec, dep0, lo, hi, pos, others, hit) {
   const steps = [];
   let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
   for (let rel = lo; ; rel += 5) {
     const r = Math.min(rel, hi), tAbs = dep0 + r;
-    const myP = trainPos(rec, tAbs);
+    const myP = pos(rec, tAbs);
     if (myP) {
       const dw = dwellInfoOf(rec, tAbs);
-      const myQ = trainPos(rec, dw ? dw.st.depSec + 30 : tAbs + 30) || myP;
+      const myQ = pos(rec, dw ? dw.st.depSec + 30 : tAbs + 30) || myP;
       steps.push({ rel: r, simT: tAbs % 86400, p: myP, mvx: myQ.lon - myP.lon, mvy: myQ.lat - myP.lat, dw: !!dw });
       minLat = Math.min(minLat, myP.lat); maxLat = Math.max(maxLat, myP.lat);
       minLon = Math.min(minLon, myP.lon); maxLon = Math.max(maxLon, myP.lon);
@@ -13320,25 +13323,31 @@ function ownTrainScanMeets(rec, log, dep0, lo, hi) {
   // 粗篩:這段時間內最多能跑多遠(以 100 m/s 算)加 600 公尺,範圍外的真車整班跳過,不逐步算位置
   const pad = 0.006 + (hi - lo) * 0.0009;
   const midT = steps[steps.length >> 1].simT;
-  for (const o of state.trains) {
-    if (o.sys !== rec.sys || isMyTrain(o)) continue;
-    const pm = trainPos(o, midT);
+  for (const o of others) {
+    if (o.sys !== rec.sys || o === rec) continue;
+    const pm = pos(o, midT);
     if (!pm || pm.lat < minLat - pad || pm.lat > maxLat + pad || pm.lon < minLon - pad || pm.lon > maxLon + pad) continue;
     for (const st of steps) {
-      const p = trainPos(o, st.simT); if (!p) continue;
+      const p = pos(o, st.simT); if (!p) continue;
       if (Math.abs(p.lat - st.p.lat) > 0.006 || Math.abs(p.lon - st.p.lon) > 0.006) continue;
       if (haversineKm(st.p, p) > 0.45) continue;
-      const q = trainPos(o, st.simT + 30) || p;
+      const q = pos(o, st.simT + 30) || p;
       const ovx = q.lon - p.lon, ovy = q.lat - p.lat;
       if (Math.hypot(ovx, ovy) < 1e-7) continue; // 對方也停著,不記
-      const dot = st.mvx * ovx + st.mvy * ovy;
-      const vals = { kind: trainTypeName(o.typeName), train: o.train };
-      if (st.dw && dot > 0) ownTrainPushEvent(log, 'pass', String(o.train), t('{kind} {train} 從旁通過', vals), st.rel, st.simT,
-        { train: String(o.train), typeName: o.typeName || '' });
-      else if (dot < 0) ownTrainPushEvent(log, 'meet', String(o.train), t('與 {kind} {train} 交會', vals), st.rel, st.simT,
-        { train: String(o.train), typeName: o.typeName || '' });
+      hit(o, st, st.mvx * ovx + st.mvy * ovy);
     }
   }
+}
+// 交會／從旁通過:方向相反＝交會;自己停站時同方向的真車經過＝從旁通過。不說「待避禮讓」:自製車不受號誌管,沒有真的在讓車。
+function ownTrainScanMeets(rec, log, dep0, lo, hi) {
+  ownTrainNearby(rec, dep0, lo, hi, trainPos, state.trains, (o, st, dot) => {
+    if (isMyTrain(o)) return;
+    const vals = { kind: trainTypeName(o.typeName), train: o.train };
+    if (st.dw && dot > 0) ownTrainPushEvent(log, 'pass', String(o.train), t('{kind} {train} 從旁通過', vals), st.rel, st.simT,
+      { train: String(o.train), typeName: o.typeName || '' });
+    else if (dot < 0) ownTrainPushEvent(log, 'meet', String(o.train), t('與 {kind} {train} 交會', vals), st.rel, st.simT,
+      { train: String(o.train), typeName: o.typeName || '' });
+  });
 }
 // 自製列車重算的系統/路線/跑時快取:同一系統的圖、跑時統計只算一次,同頁籤重用。
 const _ownTrainCache = new Map();
@@ -13368,6 +13377,7 @@ function ownTrainRunRecord(train, run, result = ownTrainPlan({ ...train, depSec:
   result.record.train = train.id + '#' + run.at;
   result.record._ownBase = train.id;
   result.record._ownRun = run;
+  result.record._ownLook = train.look;
   return result.record;
 }
 function ownTrainRebuild() {
@@ -13386,11 +13396,13 @@ function ownTrainRebuild() {
       state.ownTrainIssues[train.id] = { reason: result.reason, name: train.name };
       return train;
     }
+    result.record._ownLook = train.look;
     daily.push(result.record);
-    const legs = MyTrainPlan.syncLegs(train.legs, MyTrainPlan.legOf(result), train.firstDay, today);
+    const legs = MyTrainPlan.syncLegs(train.legs, MyTrainPlan.legOf(result, ownTrainSysCache(train.sys).graph), train.firstDay, today);
+    // 跑完的親手趟留給 ownTrainJudge 收:它要看這一趟給了什麼成就。
     let run = train.outRun;
-    if (run) {
-      const rec = MyTrainPlan.runEnded(run, now) ? null : ownTrainRunRecord(train, run);
+    if (run && !MyTrainPlan.runEnded(run, now)) {
+      const rec = ownTrainRunRecord(train, run);
       if (rec) runs.push(rec); else run = null;
     }
     if (legs === train.legs && run === train.outRun) return train;
@@ -13400,6 +13412,8 @@ function ownTrainRebuild() {
   state.myTrains = [...daily, ...runs];
   if (changed) MyTrainUI.save({ ...saved, trains });
   for (const id of state.ownTrainLogs.keys()) if (!ownTrainRecord(id)) state.ownTrainLogs.delete(id);
+  state.ownMeetJob = null; state.ownMeetPending = true;
+  ownTrainJudge();
 }
 // 親手發車:按下去就開一趟,每日班次照跑。不能發車的時候回原因:地圖時鐘不在現在、車已經在路上、排班失效。
 function ownTrainHandBlock(train) {
@@ -13422,10 +13436,14 @@ function ownTrainHandDepart(id) {
   const result = ownTrainPlan({ ...train, depSec: dep });
   if (!result.ok) return null;
   const run = { at: Date.now(), dep, dur: result.timetable.totalSec };
-  const device = cur.device || MyTrainUI.newDevice();
-  const next = MyTrainPlan.addHandRun(train, device, run, MyTrainPlan.legOf(result));
+  const device = cur.device || MyTrainUI.newDevice(), today = todayStr();
+  // 交會數跟著每日班次那一段:親手趟走同一條路,不另外掃。
+  const leg = { ...MyTrainPlan.legOf(result), meets: train.legs[train.legs.length - 1]?.meets ?? null };
+  const maiden = MyTrainPlan.fleetStats(train, today, dep).trips === 0;
+  const next = MyTrainPlan.addHandRun(train, device, run, leg, today);
   if (!MyTrainUI.save({ ...cur, device, trains: cur.trains.map(x => (x === train ? next : x)) })) return null;
   const rec = ownTrainRunRecord(next, run, result);
+  rec._ownMaiden = maiden;
   state.myTrains.push(rec);
   return rec;
 }
@@ -13434,11 +13452,104 @@ function ownTrainHandDepart(id) {
 function ownTrainRunsTick() {
   const now = Date.now();
   const done = state.myTrains.filter(r => r._ownRun && MyTrainPlan.runEnded(r._ownRun, now));
-  if (!done.length) return;
-  const cur = MyTrainUI.load(), ids = new Set(done.map(ownTrainBaseId));
-  MyTrainUI.save({ ...cur, trains: cur.trains.map(x => (ids.has(x.id) ? { ...x, outRun: null } : x)) });
   state.myTrains = state.myTrains.filter(r => !done.includes(r));
   for (const r of done) if (state.followTrain !== r) state.ownTrainLogs.delete(r.train);
+  // 每日班次跑完不會有事件,一分鐘看一次。
+  if (done.length || now >= state.ownJudgeAt) ownTrainJudge();
+}
+// 判斷成就:開頁、進機務段、一趟跑完。太陽位置的模組第一次要用才載,載好再判一次。
+let ownTrainSun = null, ownTrainSunLoading = false;
+function ownTrainJudge() {
+  state.ownJudgeAt = Date.now() + 60000;
+  if (!ownTrainSun) {
+    if (!ownTrainSunLoading) {
+      ownTrainSunLoading = true;
+      import('./rail-3d/environment/sun.mjs').then(m => { ownTrainSun = m.sunPosition; ownTrainJudge(); })
+        .catch(e => console.warn('sun', e)).finally(() => { ownTrainSunLoading = false; });
+    }
+    return;
+  }
+  const cur = MyTrainUI.load();
+  if (!cur.trains.length) return;
+  const out = MyTrainPlan.judgeFleet(cur, todayStr(), nowSecOfDay(), Date.now(), ownTrainSun);
+  if (out.changed && !MyTrainUI.save({ ...cur, trains: out.trains, earned: out.earned })) return;
+  if (out.fresh.length) ownTrainHonorNews(out.fresh);
+}
+// 新成就:機務段開著就重畫畫框(toast 被 dialog 蓋住看不到),地圖上用 toast。
+function ownTrainHonorNews(fresh) {
+  if (window.MyTrainDepot?.isOpen) { window.MyTrainDepot.refresh(); return; }
+  const one = fresh.length === 1 && [...MyTrainPlan.HONOR_GROUPS.flatMap(g => g.list), ...MyTrainPlan.FLEET_HONORS].find(h => h.id === fresh[0].id);
+  showToast(escHtml(one ? t('拿到成就「{name}」', { name: t(one.name) }) : t('拿到 {count} 枚成就', { count: fresh.length })));
+}
+// 交會數:拿今天的班表當代表日掃一趟,不算誤點。路線變了才重掃。一拍只掃一小段,6 小時的車約 1 分半掃完,不卡畫面。
+const OWN_MEET_SLICE = 120;
+let ownFormationFor = null; // formations.js:2D 地圖不會先載,要比「同款」才載
+function ownTrainMeetJob() {
+  for (const train of MyTrainUI.load().trains) {
+    const leg = train.legs[train.legs.length - 1], rec = ownTrainRecord(train.id);
+    if (!leg || leg.meets !== null || !rec || !state.trains.some(o => o.sys === rec.sys)) continue;
+    const dep0 = rec.stops[0].depSec;
+    return { id: train.id, rec, dep0, dur: rec.stops[rec.stops.length - 1].arrSec - dep0, lo: 0, met: new Set(), kin: new Set(), twin: false };
+  }
+  return null;
+}
+function ownTrainSameModel(rec, o) {
+  const sp = specialOf(o), mine = ownFormationFor({ modelId: rec.modelId }, 'actual');
+  const theirs = ownFormationFor({ systemId: o.sys, carName: o.carName, typeName: o.typeName, stockId: sp?.stock?.id, branchId: sp?.branch?.id, namedId: sp?.named?.id, trainNo: String(o.train) }, 'actual');
+  return !!mine && mine.id === theirs?.id;
+}
+function ownTrainMeetsTick() {
+  if (!state.ownMeetJob && !state.ownMeetPending) return;
+  if (!ownFormationFor) {
+    import('./rail-3d/integration/formations.js').then(m => { ownFormationFor = m.formationFor; }).catch(e => console.warn('formations', e));
+    return;
+  }
+  const job = state.ownMeetJob ||= ownTrainMeetJob();
+  state.ownMeetPending = !!job;
+  if (!job) return;
+  const hi = Math.min(job.lo + OWN_MEET_SLICE, job.dur);
+  ownTrainNearby(job.rec, job.dep0, job.lo, hi, trainPosAt, state.trains, (o, st, dot) => {
+    if (dot >= 0 || job.met.has(String(o.train))) return;
+    job.met.add(String(o.train));
+    job.twin ||= ownTrainSameModel(job.rec, o);
+  });
+  ownTrainNearby(job.rec, job.dep0, job.lo, hi, trainPosAt, state.myTrains.filter(r => !r._ownRun), (o, st, dot) => { if (dot < 0) job.kin.add(o.train); });
+  job.lo = hi;
+  if (hi < job.dur) return;
+  state.ownMeetJob = null;
+  const cur = MyTrainUI.load();
+  MyTrainUI.save({ ...cur, trains: cur.trains.map(x => {
+    const last = x.legs[x.legs.length - 1];
+    return x.id === job.id && last ? { ...x, legs: [...x.legs.slice(0, -1), { ...last, meets: job.met.size, twin: job.twin, kin: [...job.kin] }] } : x;
+  }) });
+  ownTrainJudge();
+}
+// 天氣成就:跟著自製車、地圖在現在、1 倍速時,每分鐘在車的位置取樣一次。天氣資料 10 分鐘一筆,整份下載,位置不上傳。
+async function ownTrainWeatherFetch(now) {
+  const wx = state.ownWeather;
+  wx.tried = now;
+  try {
+    const r = await fetch(apiUrl('api/weather'));
+    if (r.ok) wx.frame = MyTrainPlan.weatherFrame(await r.json()) || wx.frame;
+  } catch (e) { /* 這一輪沒有天氣,下一輪再抓 */ }
+}
+function ownTrainWeatherTick() {
+  const rec = state.followTrain, wx = state.ownWeather, now = Date.now();
+  if (!isMyTrain(rec) || !state.clockAtNow || state.speedMult * SCHED_K !== 1 || now < wx.next) return;
+  wx.next = now + 60000;
+  // 雷達每 10 分鐘一版,約 7 分鐘後才進資料庫;超過半小時沒更新就不算。
+  if ((!wx.frame || now >= wx.frame.at + 1020000) && now >= wx.tried + 120000) ownTrainWeatherFetch(now);
+  const dep0 = rec.stops[0].depSec, dur = rec.stops[rec.stops.length - 1].arrSec - dep0, rel = MyTrainPlan.tripRel(nowSecOfDay(), dep0), pos = trainPos(rec, state.simSec);
+  if (!wx.frame || now > wx.frame.at + 1800000 || rel > dur || !pos) return;
+  const start = now - rel * 1000, key = rec.train + '@' + MyTrainPlan.taipeiDay(start);
+  if (wx.key !== key) { wx.key = key; wx.samples = []; }
+  wx.samples.push({ at: now, ...MyTrainPlan.weatherAt(wx.frame, pos.lon, pos.lat) });
+  const cur = MyTrainUI.load(), id = ownTrainBaseId(rec), train = cur.trains.find(x => x.id === id);
+  const got = train ? MyTrainPlan.weatherHonors(wx.samples, start, start + dur * 1000).filter(k => !train.earned[k]) : [];
+  if (!got.length) return;
+  const today = todayStr(), earned = { ...train.earned };
+  for (const k of got) earned[k] = today;
+  if (MyTrainUI.save({ ...cur, trains: cur.trains.map(x => (x === train ? { ...x, earned } : x)) })) ownTrainHonorNews(got.map(k => ({ train: id, id: k })));
 }
 
 // 載入一組 sched 系統(1=單一,2=台鐵+高鐵同框):合併列車/軌道/車站/車種,各打系統標記,
@@ -14986,11 +15097,42 @@ function ownTrainDrawOne(rec) {
     // 不再手畫虛線藥丸/圓點,一律借真車那四支共用畫牌函式——車牌長相跟真車完全一樣,
     // 只靠光環／名字辨識這是自製車。
     const halo = state.ownTrainAppearance.haloOn ? { own: true, warmMix: false } : false;
-    if (showTag) {
+    const plate = ownTrainPlate(rec);
+    if (showTag && plate) {
+      if (halo) drawTrainHalo(cp, hsr ? HSR_ORANGE : rec.color, halo);
+      drawOwnPlate(cp, label, plate, hsr);
+    } else if (showTag) {
       hsr ? drawHSRTag(cp, label, halo) : drawTag(cp, label, rec.color, textColorFor(rec.color), halo);
     } else {
       hsr ? drawHSRDot(cp, halo) : drawDot(cp, rec.color, halo);
     }
+  } finally { ctx.restore(); }
+}
+
+// 這趟車掛的車牌框；原色或沒掛回 null，照真車的畫法。
+function ownTrainPlate(rec) {
+  const plate = MyTrainPlan.PLATES[rec._ownLook?.plate];
+  return plate?.bg ? plate : null;
+}
+// 成就給的車牌框：外形跟真車的牌同一套（圓角、高鐵兩端尖角），換底、框、字的顏色。
+function drawOwnPlate(p, label, plate, hsr) {
+  ctx.save(); ctx.globalAlpha = p.detailOpacity ?? 1;
+  try {
+    ctx.font = '700 10px ' + FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+    const pw = ctx.measureText(label).width + (hsr ? HSR_TAG_PAD : TAG_PAD), nose = hsr ? HSR_NOSE : 0;
+    const path = inset => {
+      const x0 = p.x - pw / 2 + inset, x1 = p.x + pw / 2 - inset, y0 = p.y - TAG_H / 2 + inset, y1 = p.y + TAG_H / 2 - inset, rx = (y1 - y0) / 2;
+      ctx.beginPath();
+      if (hsr) { ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1 + nose, p.y); ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.lineTo(x0 - nose, p.y); }
+      else { ctx.moveTo(x0 + rx, y0); ctx.arcTo(x1, y0, x1, y1, rx); ctx.arcTo(x1, y1, x0, y1, rx); ctx.arcTo(x0, y1, x0, y0, rx); ctx.arcTo(x0, y0, x1, y0, rx); }
+      ctx.closePath();
+    };
+    path(0);
+    ctx.fillStyle = plate.bg; ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = pal().tagOutline; ctx.stroke();
+    ctx.strokeStyle = plate.line;
+    if (plate.dbl) { path(.75); ctx.lineWidth = .8; ctx.stroke(); path(2.2); ctx.stroke(); } else { path(1.25); ctx.lineWidth = 1.3; ctx.stroke(); }
+    ctx.fillStyle = plate.ink; ctx.fillText(label, p.x, p.y + 0.5);
   } finally { ctx.restore(); }
 }
 
@@ -19405,7 +19547,7 @@ function tickCore(now) {
   if (state.myTrains && state.myTrains.length) {
     state._ownEvClock = (state._ownEvClock || 0) + dt;
     if (state._ownEvClock >= 0.5) {
-      state._ownEvClock = 0; ownTrainRunsTick(); ownTrainScan();
+      state._ownEvClock = 0; ownTrainRunsTick(); ownTrainScan(); ownTrainMeetsTick(); ownTrainWeatherTick();
       // 面板每 0.5 秒至少更新一次:updateFollowCamera 在發車前、抵達後都不會走到 updateFollowPanel,
       // 只靠它的話「抵達」那條、發車前的倒數都停在畫面上不動
       if (state.followTrain && isMyTrain(state.followTrain)) ownTrainPanelUpdate(state.followTrain);
@@ -23881,14 +24023,21 @@ function ownTrainDepotLine(train, rec, out) {
   const time = fmtHM(train.depSec), via = { mountain: '山線', coast: '海線' }[train.via] || { shun: '順行', ni: '逆行' }[train.dir];
   return [via && t(via), t('每天 {time} 開', { time }), t(nowSecOfDay() < train.depSec ? '下一班今天 {time}' : '下一班明天 {time}', { time })].filter(Boolean).join('・');
 }
+// 原色車牌：地圖上沒換框時長什麼樣。高鐵的牌不吃車牌顏色。
+function ownTrainBasePlate(train) {
+  if (train.sys === 'thsr_sched') return { bg: '#fffdf6', line: HSR_ORANGE, ink: HSR_ORANGE };
+  const color = MyTrainPlan.normalizeColor(train.modelId, train.color);
+  return { bg: color, line: color, ink: textColorFor(color) };
+}
 function ownTrainDepotRow(train, today) {
   const cat = window.RailGarageCatalog?.[train.modelId], block = ownTrainHandBlock(train), out = block === 'out';
   const rec = state.myTrains.find(r => r._ownBase === train.id) || ownTrainRecord(train.id);
   return {
     n: train.track + 1, id: train.id, name: train.name, modelId: cat ? train.modelId : null, kind: cat ? t(cat.name) : '',
     state: out ? 'out' : 'home', from: ownTrainStopName(train, train.from), to: ownTrainStopName(train, train.to),
-    line: ownTrainDepotLine(train, rec, out), time: fmtHM(train.depSec), first: (train.firstDay || today).replaceAll('-', '/'),
-    stats: MyTrainPlan.fleetStats(train, today), issue: state.ownTrainIssues[train.id]?.reason || null, block,
+    line: ownTrainDepotLine(train, rec, out), time: fmtHM(train.depSec), first: (train.firstDay || today).replaceAll('-', '/'), firstToday: train.firstDay === today,
+    stats: MyTrainPlan.fleetStats(train, today, nowSecOfDay()), earned: train.earned, look: train.look, base: ownTrainBasePlate(train),
+    issue: state.ownTrainIssues[train.id]?.reason || null, block,
   };
 }
 function ownTrainDepotRows() {
@@ -23911,12 +24060,21 @@ function ownTrainDepotForm(opts, track) {
     return ok;
   } }, { ...opts, submit: t(opts.mode === 'schedule' ? '排進這一股' : '存好班次') });
 }
+// 換外觀:地圖上的車牌當下跟著換,不用重建。
+function ownTrainSetLook(id, look) {
+  const cur = MyTrainUI.load();
+  if (!MyTrainUI.save({ ...cur, trains: cur.trains.map(x => (x.id === id ? { ...x, look } : x)) })) return false;
+  for (const r of state.myTrains) if (ownTrainBaseId(r) === id) r._ownLook = look;
+  return true;
+}
 function ownTrainDepotHost(back) {
   const saved = (id, mode) => { const preset = ownTrainSaved(id); if (preset) ownTrainDepotForm({ modelId: preset.modelId, preset, mode }); };
   return {
     t, lang: () => I18N_LANG, dark: () => !!state.mapDark,
     period: () => { const h = nowSecOfDay() / 3600; return h >= 7 && h < 17 ? 'day' : h >= 5 && h < 19 ? 'dusk' : 'night'; },
     rows: ownTrainDepotRows,
+    fleet: () => { const cur = MyTrainUI.load(); return { earned: cur.earned, totals: MyTrainPlan.fleetTotals(cur.trains, todayStr(), nowSecOfDay(), Date.now()) }; },
+    setLook: ownTrainSetLook,
     models: () => garageCollection().filter(r => r.owned && MyTrainPlan.MODELS[r.id] && MyTrainPlan.familyStatus(r.model.family) === 'drivable').map(r => ({ id: r.id, name: t(r.model.name) })),
     schedule: (modelId, track) => ownTrainDepotForm({ modelId, preset: null, mode: 'schedule' }, track),
     edit: id => saved(id, 'edit'), replan: id => saved(id, 'replan'),
@@ -23937,6 +24095,7 @@ function ownTrainDepotHost(back) {
 function openMyTrainDepot(opts = {}) {
   if (!state.ready) { showToast(t('收藏資料載入中，請稍後再試。')); return; }
   window.TrainGarage?.close();
+  ownTrainJudge();
   window.MyTrainDepot.open(ownTrainDepotHost(opts.back), opts);
 }
 // 車庫兌換視窗與場景鎖（train-garage.js，照 App 的 GarageRedeemCopy／WalletController）用的錢包。已登入才有，不看懸賞旗標

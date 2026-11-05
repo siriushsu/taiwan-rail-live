@@ -13,7 +13,7 @@
 
   // ── 儲存─────────────────────────────────────────────────
   function storeDefaults() {
-    return { v: 1, appearance: { haloOn: true, haloSize: 'std' }, trains: [], device: null };
+    return { v: 1, appearance: { haloOn: true, haloSize: 'std' }, trains: [], device: null, earned: {} };
   }
   // 只看形狀，不看車款與站還在不在：那兩種失效要在站點資料與車庫目錄都載入之後才判斷，
   // 而且失效時還要拿名字寫提示，所以這裡不能丟掉。名字存正規化後的版本。
@@ -48,6 +48,7 @@
     }
     out.trains = MyTrainPlan.assignTracks(out.trains);
     if (typeof raw.device === 'string' && MyTrainPlan.DEVICE_RE.test(raw.device)) out.device = raw.device;
+    out.earned = MyTrainPlan.earnedOf(raw.earned);
     return out;
   }
   // 舊存檔搬進第 1 股，首航日算今天（舊存檔沒有建立日期，回推不到）。
@@ -206,8 +207,10 @@
       '<div class="mt-head">' +
         '<span class="mt-badge">' + mtEsc(host.t('自製')) + '</span>' +
         '<b class="mt-name" data-mt-name data-i18n-skip></b>' +
+        '<span data-mt-mark></span>' +
       '</div>' +
       '<div class="mt-caption">' + mtEsc(host.t('你自己排的班次，不在官方時刻表上')) + '</div>' +
+      '<div data-mt-maiden></div>' +
       '<div class="mt-body">' +
         '<div class="mt-row mt-model" data-mt-model></div>' +
         '<div class="mt-row mt-route" data-mt-route></div>' +
@@ -248,6 +251,8 @@
     evPendingStick = false;
     panelRefs = {
       name: el.querySelector('[data-mt-name]'),
+      mark: el.querySelector('[data-mt-mark]'),
+      maiden: el.querySelector('[data-mt-maiden]'),
       model: el.querySelector('[data-mt-model]'),
       route: el.querySelector('[data-mt-route]'),
       pattern: el.querySelector('[data-mt-pattern]'),
@@ -282,6 +287,21 @@
     return apCacheVal;
   }
 
+  // 頭牌、車牌框、第一趟親手發車的大章。每幀都會走到,外觀沒變就不碰 DOM。
+  function renderLook(rec, host) {
+    const lk = rec._ownLook || {}, key = [lk.mark, lk.plate, rec._ownMaiden, host.lang].join('|');
+    if (key === panelRefs.lookKey) return;
+    panelRefs.lookKey = key;
+    const plan = globalThis.MyTrainPlan, marks = globalThis.MyTrainMarks, honors = plan.HONOR_GROUPS.flatMap(g => g.list);
+    const nameOf = id => host.t(honors.find(h => h.id === id).name), plate = plan.PLATES[lk.plate];
+    panelRefs.mark.innerHTML = lk.mark ? '<img class="mt-mark" src="' + marks.url(lk.mark, nameOf(lk.mark)) + '" alt="' + mtEsc(host.t('頭牌「{name}」', { name: nameOf(lk.mark) })) + '">' : '';
+    panelRefs.name.classList.toggle('mt-plate', !!(plate && plate.bg));
+    panelRefs.name.classList.toggle('dbl', !!(plate && plate.dbl));
+    panelRefs.name.style.cssText = plate && plate.bg ? '--pb:' + plate.bg + ';--pl:' + plate.line + ';--pi:' + plate.ink : '';
+    const first = nameOf('maiden');
+    panelRefs.maiden.innerHTML = rec._ownMaiden ? marks.stamp(first, true, 'mt-big-stamp') + '<p class="mt-maiden">' + mtEsc(host.t('拿到成就「{name}」，解鎖頭牌「{name}」，回車庫就能掛上。', { name: first })) + '</p>' : '';
+  }
+
   // 每秒呼叫：只改會變的文字節點，逐站時刻那一塊用 innerHTML 做 diff-guard 但那個區塊裡
   // 沒有任何按鈕。事件列逐條插入，見 renderEvents。
   // log＝state.ownTrainLog；沒傳（undefined）就不動事件列，免得把已經畫好的列整批拿掉。
@@ -289,6 +309,7 @@
     if (!panelEl || !panelRefs || !rec) return;
     panelHost = host;
     mtSetText(panelRefs.name, rec.label);
+    renderLook(rec, host);
     mtSetText(panelRefs.model, rec.typeName ? host.t(rec.typeName) : '');
 
     const stops = rec.stops || [];

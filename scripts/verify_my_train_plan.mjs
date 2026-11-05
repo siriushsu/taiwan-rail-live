@@ -1301,22 +1301,23 @@ section('儲存', () => {
   const UI = ctx.__ui, KEY = 'trainmap-my-fleet-v1', OLD = 'trainmap-my-train-v1';
   const js = x => JSON.stringify(x);
   const AP = { haloOn: false, haloSize: 'xl' };
-  const DEFAULTS = { v: 1, appearance: { haloOn: true, haloSize: 'std' }, trains: [], device: null };
+  const DEFAULTS = { v: 1, appearance: { haloOn: true, haloSize: 'std' }, trains: [], device: null, earned: {} };
   check(UI.STORAGE_KEY === KEY && UI.LEGACY_KEY === OLD, `localStorage 鍵是 ${KEY}，舊鍵是 ${OLD}`);
   check(/globalThis\.MyTrainUI\s*=\s*\{/.test(src) && /\bSTORAGE_KEY\s*[,}\n]/.test(src) && /load:\s*storeLoad\b/.test(src) && /save:\s*storeSave\b/.test(src),
     'MyTrainUI 對外的 STORAGE_KEY／load／save 就是這幾個函式');
   // color 用 emu800 自己系統的合法值(且恰為它的預設色)，round-trip 才會是 no-op，才能拿 TRAIN 原樣當期望值比對。
   const SCHEDULE = { id: 'my:0f8e2d1c-aaaa-4bbb-8ccc-123456789abc', name: '520', modelId: 'emu800', sys: 'tra_sched',
     from: '台北', to: '花蓮', via: null, dir: null, pattern: 'major', depSec: 27000, color: '#2E6FB0' };
-  const BLANK = { legs: [], hand: {}, outRun: null, earned: {}, look: { mark: null, plate: null } };
+  const BLANK = { legs: [], hand: {}, outRun: null, earned: {}, judged: null, look: { mark: null, plate: null } };
   const TRAIN = { ...SCHEDULE, track: 0, firstDay: '2026-11-05', ...BLANK };
   const DEV = '0f8e2d1c-dddd-4eee-8fff-123456789abc';
-  const FULL = { ...TRAIN, track: 3, legs: [{ day: '2026-11-05', km: 180.5, stops: 9 }, { day: '2026-11-20', km: 88, stops: 4 }],
-    hand: { [DEV]: { n: 2, km: 361, stops: 18 } }, outRun: { at: 1793000000000, dep: 27000, dur: 7200 },
-    earned: { 首航: '2026-11-05' }, look: { mark: '親手', plate: '銅' } };
+  const LEG_TAIL = { dep: 27000, dur: 7200, tags: ['east'], rise: null, set: [60, 120], meets: 3, twin: true, kin: ['my:b'] };
+  const FULL = { ...TRAIN, track: 3, legs: [{ day: '2026-11-05', km: 180.5, stops: 9, ...LEG_TAIL }, { day: '2026-11-20', km: 88, stops: 4, ...LEG_TAIL, meets: null }],
+    hand: { [DEV]: { n: 2, km: 361, stops: 18, meets: 6 } }, outRun: { at: 1793000000000, dep: 27000, dur: 7200 },
+    earned: { maiden: '2026-11-05' }, judged: '2026-11-19', look: { mark: 'east', plate: 'bronze' } };
   const put = obj => store.set(KEY, typeof obj === 'string' ? obj : js(obj));
   const putOld = obj => store.set(OLD, typeof obj === 'string' ? obj : js(obj));
-  const fleet = (...trains) => ({ v: 1, appearance: AP, trains, device: null });
+  const fleet = (...trains) => ({ v: 1, appearance: AP, trains, device: null, earned: {} });
   const one = (patch) => { put(fleet({ ...TRAIN, ...patch })); return UI.load().trains[0]; };
   store.clear();
   check(js(UI.load()) === js(DEFAULTS) && store.size === 0, '兩把鍵都沒有 → 預設值，而且不寫任何鍵', js(UI.load()));
@@ -1357,10 +1358,10 @@ section('儲存', () => {
   check(js(UI.load().appearance) === js({ haloOn: true, haloSize: 'std' }), '外觀的值不認得 → 用預設');
   // 排班以外的欄位壞掉：壞的那一欄回到空值，這列車留著。
   const bad = one({ track: 9, firstDay: '11/05', legs: [{ day: 'x', km: 1 }, { day: '2026-11-06', km: -3, stops: 1.5 }], hand: { 'a b': { n: 1 }, [DEV]: { n: -1, km: 'x', stops: 2 } },
-    outRun: { at: 'x', dep: 1, dur: 1 }, earned: { 首航: 'x', 十日: '2026-11-15' }, look: { mark: 5, plate: '銀' } });
-  check(bad && bad.track === 0 && bad.firstDay === null && js(bad.legs) === js([{ day: '2026-11-06', km: 0, stops: 0 }])
-    && js(bad.hand) === js({ [DEV]: { n: 0, km: 0, stops: 2 } }) && bad.outRun === null && js(bad.earned) === js({ 十日: '2026-11-15' })
-    && js(bad.look) === js({ mark: null, plate: '銀' }), '排班以外的欄位壞掉 → 壞的那一欄回到空值，這列車留著', js(bad));
+    outRun: { at: 'x', dep: 1, dur: 1 }, earned: { maiden: 'x', days10: '2026-11-15' }, look: { mark: 5, plate: 'silver' } });
+  check(bad && bad.track === 0 && bad.firstDay === null && js(bad.legs) === js([{ day: '2026-11-06', km: 0, stops: 0, dep: 0, dur: 0, tags: [], rise: null, set: null, meets: null, twin: false, kin: [] }])
+    && js(bad.hand) === js({ [DEV]: { n: 0, km: 0, stops: 2, meets: 0 } }) && bad.outRun === null && js(bad.earned) === js({ days10: '2026-11-15' })
+    && js(bad.look) === js({ mark: null, plate: 'silver' }), '排班以外的欄位壞掉 → 壞的那一欄回到空值，這列車留著', js(bad));
   // 車隊：同一個 id 只留一列、上限 12、撞股補空股、滿了待命、裝置碼。
   const mk = (i, track) => ({ ...TRAIN, id: `my:${String(i).padStart(8, '0')}-aaaa`, track });
   put(fleet(mk(1, 2), mk(1, 3), mk(2, 2), mk(3, null)));
@@ -1401,7 +1402,7 @@ section('儲存', () => {
   check(!threw && got.trains.length === 1 && !store.has(KEY), '搬移時寫不進新鍵 → 這次照樣讀到車、不丟錯，下次再搬');
   store.clear();
   check(UI.save({ appearance: { haloOn: false, haloSize: 'lg' }, trains: [TRAIN], device: DEV }) === true
-    && store.get(KEY) === js({ v: 1, appearance: { haloOn: false, haloSize: 'lg' }, trains: [TRAIN], device: DEV }), 'save 寫進去的是正規化後的完整內容');
+    && store.get(KEY) === js({ v: 1, appearance: { haloOn: false, haloSize: 'lg' }, trains: [TRAIN], device: DEV, earned: {} }), 'save 寫進去的是正規化後的完整內容');
   const before = store.get(KEY);
   check(UI.save({ appearance: { haloOn: true, haloSize: 'std' }, trains: [TRAIN, { ...OTHER, depSec: 99999 }] }) === false && store.get(KEY) === before,
     '有一列不合格 → save 回 false、原本存的不動');
@@ -1440,11 +1441,12 @@ section('車隊', () => {
   const b = P.syncLegs(a, { km: 50, stops: 3 }, '2026-11-01', '2026-11-09');
   check(js(b) === js([...a, { day: '2026-11-09', km: 50, stops: 3 }]), '隔天改路線：開新段，舊段不動');
   check(js(P.syncLegs(b, { km: 60, stops: 3 }, '2026-11-01', '2026-11-09')) === js([...a, { day: '2026-11-09', km: 60, stops: 3 }]), '同一天再改：換掉當天那段');
-  check(js(P.legOf({ route: { km: 12.34 }, timetable: { stops: [{}, { stop: false }, { stop: true }] } })) === js({ km: 12.3, stops: 2 }), '每趟公里取一位小數，通過站不算停站');
+  const legShape = P.legOf({ route: { km: 12.34 }, timetable: { totalSec: 600, stops: [{ depSec: 300 }, { stop: false }, { stop: true }] } });
+  check(legShape.km === 12.3 && legShape.stops === 2 && legShape.dep === 300 && legShape.dur === 600 && legShape.meets === null, '每趟公里取一位小數，通過站不算停站，交會還沒算是 null');
   const h1 = P.addHandRun({ ...running, hand: {}, outRun: null }, 'd1', { at: 5, dep: 6, dur: 7 }, leg);
   const h2 = P.addHandRun(h1, 'd1', { at: 8, dep: 9, dur: 7 }, leg);
   const h3 = P.addHandRun(h2, 'd2', { at: 9, dep: 9, dur: 7 }, leg);
-  check(js(h2.hand) === js({ d1: { n: 2, km: 201, stops: 10 } }) && h2.outRun.at === 8, '親手趟按下去就記次數與公里，outRun 換成這一趟');
+  check(js(h2.hand) === js({ d1: { n: 2, km: 201, stops: 10, meets: 0 } }) && h2.outRun.at === 8, '親手趟按下去就記次數與公里，outRun 換成這一趟');
   check(js(Object.keys(h3.hand)) === js(['d1', 'd2']) && h3.hand.d2.n === 1 && h3.hand.d1.n === 2, '不同裝置分開記');
   check(P.runEnded({ at: 1000, dur: 2 }, 2999) === false && P.runEnded({ at: 1000, dur: 2 }, 3000) === true, '親手趟到牆鐘抵達時刻才算跑完');
 });

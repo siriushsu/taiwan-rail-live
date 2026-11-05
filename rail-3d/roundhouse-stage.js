@@ -6,6 +6,7 @@ import {createRoundhouseWorld} from './garage-scenes/roundhouse.js';
 import {loadGarageModel,createConsist} from './garage-model.js';
 import {createTrainLamps} from './garage-coast.js';
 import {attachMapGestures} from './map-gestures.js';
+import {HEAD_MARKS} from './head-marks.js';
 
 const {PI,sin,cos,atan2,tan,min,max,abs,pow}=Math;
 const clamp=(v,a,b)=>min(b,max(a,v)),lerp=(a,b,t)=>a+(b-a)*t,io=t=>t<.5?4*t*t*t:1-pow(-2*t+2,3)/2;
@@ -26,7 +27,8 @@ const THEMES={
 const LAMP_PERIOD={day:'day',dusk:'sunset',night:'night'};
 
 // layout()：畫面上被文字蓋住的範圍 {top,bottom,side,under,narrow}。總覽避開上下兩條，特寫避開畫框（寬螢幕 side 在右、窄螢幕 under 在下）。
-export async function createRoundhouseStage({canvas,lite,label,layout,reduced=false,onPick=()=>{},onLost=()=>{}}){
+// markImage(id)：頭牌那張圖的 canvas。
+export async function createRoundhouseStage({canvas,lite,label,layout,markImage,reduced=false,onPick=()=>{},onLost=()=>{}}){
  const renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
  renderer.setPixelRatio(lite?1:min(devicePixelRatio||1,2));
  renderer.shadowMap.enabled=!lite;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.shadowMap.autoUpdate=false;
@@ -36,8 +38,8 @@ export async function createRoundhouseStage({canvas,lite,label,layout,reduced=fa
  const MATS=[],std=o=>{const m=new T.MeshStandardMaterial(o);MATS.push(m);return m;};
  const world=createRoundhouseWorld({renderer,scene,std,MATS,phone:lite,label,G:{RP,RD,RB,STEP,HS,RC,RAIL,NS:TRACKS,phiOf,P,YARD}});
  const {bridge,doors,signs,mOut,mEmpty,mPlates,mGlow,mGlass,mSky,mCity,poolMat,doorGlow,heads,sky,mRed,mGreen}=world;
- let disposed=false,theme='day',dirty=true,shadowDirty=true,raf=0,lost=false,bridgeA=phiOf(2)+PI,cur=-1,busy=false,view='overview';
- const trains=Array(TRACKS).fill(null),slots=Array.from({length:TRACKS},()=>({model:null,state:'empty',ticket:0}));
+ let disposed=false,theme='day',dirty=true,shadowDirty=true,raf=0,lost=false,bridgeA=phiOf(2)+PI,cur=-1,busy=false,view='overview',looking=false;
+ const trains=Array(TRACKS).fill(null),slots=Array.from({length:TRACKS},()=>({model:null,state:'empty',mark:null,ticket:0}));
  const placeBridge=()=>{bridge.rotation.y=bridgeA;shadowDirty=true;};placeBridge();
  const signal=go=>{mRed.emissiveIntensity=go?0:3;mGreen.emissiveIntensity=go?4:0;dirty=true;};
 
@@ -61,7 +63,7 @@ export async function createRoundhouseStage({canvas,lite,label,layout,reduced=fa
   mGlow.emissiveIntensity=t.glow*2.6;mGlass.emissiveIntensity=t.glow*.22;mSky.color.set(t.win);for(const m of mPlates)m.emissiveIntensity=t.glow*.55;
   for(const m of mCity){m.emissiveIntensity=t.glow*.62;m.color.set(n==='night'?'#66707e':'#ffffff');}for(const m of world.towns){m.material.map=n==='night'?m.userData.lit:m.userData.day;m.material.color.set(n==='dusk'?'#e6b791':'#ffffff');m.material.needsUpdate=true;}
   poolMat.opacity=t.glow*.34;wash.intensity=t.glow*1.9;doorGlow.opacity=t.glow*.2;for(const h of heads)h.material.opacity=t.glow*.9;
-  for(const tr of trains)if(tr){trainEnv(tr);lightUp(tr);}shadowDirty=true;dirty=true;wake();}
+  for(const tr of trains)if(tr){trainEnv(tr);lightUp(tr);tr.mark.material.emissiveIntensity=t.glow*.55;}shadowDirty=true;dirty=true;wake();}
 
  // ── 列車：車庫同一套車模與三節編組，縮回車模原尺寸（1 單位約 1 公尺）──
  const eye=new T.Vector3();
@@ -78,20 +80,33 @@ export async function createRoundhouseStage({canvas,lite,label,layout,reduced=fa
   holder.add(consist.root);holder.rotation.x=-PI/2;holder.scale.setScalar(s);holder.position.set(-consist.length*s/2,-.18*s,0);g.add(holder);
   scene.add(g,lamps.halos); // lamps.beam 不掛：車庫場景只有一列所以掛得起，這裡六列就是六盞點光，整個畫面每個像素都多算六盞（量過 A54 特寫 60 掉到 27 fps）
   holder.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
-  return{i,model,primary,consist,lamps,g,holder,half:consist.length*s/2,phi:phiOf(i),r:R_PARK,lamp:0,tk:0,tail:consist.cars[2].car};
+  const mark=makeMark(model);consist.cars[0].body.add(mark.group);
+  return{i,model,primary,consist,lamps,g,holder,mark,half:consist.length*s/2,phi:phiOf(i),r:R_PARK,lamp:0,tk:0,tail:consist.cars[2].car};
  }
- function dropTrain(t){scene.remove(t.g,t.lamps.halos);t.lamps.dispose();t.consist.dispose();t.primary.dispose();}
+ function dropTrain(t){scene.remove(t.g,t.lamps.halos);t.mark.dispose();t.lamps.dispose();t.consist.dispose();t.primary.dispose();}
+ // 頭牌：掛在頭車車身上，座標跟車模同一套（+X 車頭、Z 往上）。不加點光，理由同上面的 lamps.beam。
+ const mRim=std({color:'#b8923e',roughness:.4,metalness:.7}),rimGeo=new Map(),discGeo=new Map(),markTex=new Map();
+ function makeMark(model){const h=HEAD_MARKS[model],group=new T.Group(),material=new T.MeshStandardMaterial({color:'#fff',roughness:.62,metalness:0,emissive:'#fff',emissiveIntensity:THEMES[theme].glow*.55});
+  if(!discGeo.has(h.r)){discGeo.set(h.r,new T.CircleGeometry(h.r,40));rimGeo.set(h.r,new T.CylinderGeometry(h.r+.035,h.r+.035,.09,40));}
+  const disc=new T.Mesh(discGeo.get(h.r),material),rim=new T.Mesh(rimGeo.get(h.r),mRim);
+  rim.rotation.x=PI/2;disc.position.z=.05;group.add(rim,disc);
+  // 牌面朝車頭、順著車鼻往上仰 t，圖的上方朝車頂。
+  group.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(new T.Vector3(0,1,0),new T.Vector3(-sin(h.t),0,cos(h.t)),new T.Vector3(cos(h.t),0,sin(h.t))));
+  group.position.set(h.x+.02,0,h.z);group.visible=false;
+  return{group,material,dispose(){material.dispose();}};}
+ function markTexture(id){if(!markTex.has(id)){const t=new T.CanvasTexture(markImage(id));t.colorSpace=T.SRGBColorSpace;t.anisotropy=8;markTex.set(id,t);}return markTex.get(id);}
+ function showMark(t,id){if(t.mark.id===id)return;t.mark.id=id;t.mark.group.visible=!!id;if(id){const x=markTexture(id),m=t.mark.material;m.map=x;m.emissiveMap=x;m.needsUpdate=true;}shadowDirty=true;dirty=true;wake();}
  // 列車尾段在屋頂下看不到，停著的時候不畫；開出去才露面。
  const seat=t=>{t.r=R_PARK;t.phi=phiOf(t.i);t.tail.visible=false;t.lamp=0;placeTrain(t);lightUp(t);};
  function applySlot(i){const s=slots[i],t=trains[i],on=s.state==='out'||s.state==='empty';if(t)t.g.visible=s.state==='home';doors[i].visible=false;signs[i].visible=on;signs[i].userData.post.visible=on;if(on)signs[i].material=s.state==='out'?mOut:mEmpty;shadowDirty=true;dirty=true;wake();}
- // rows[i]：{model:車款或 null, state:'home'|'out'|'empty'}。車款沒變的不重建；同時改很多列時各股各自等自己的車模。
+ // rows[i]：{model:車款或 null, state:'home'|'out'|'empty', mark:頭牌或 null}。車款沒變的不重建；同時改很多列時各股各自等自己的車模。
  async function setFleet(rows){
-  await Promise.all(rows.map(async(row,i)=>{const s=slots[i],same=s.model===row.model;s.state=row.state;s.model=row.model;
-   if(same){applySlot(i);return;}
+  await Promise.all(rows.map(async(row,i)=>{const s=slots[i],same=s.model===row.model;s.state=row.state;s.model=row.model;s.mark=row.mark;
+   if(same){applySlot(i);if(trains[i])showMark(trains[i],row.mark);return;}
    const ticket=++s.ticket;if(trains[i]){dropTrain(trains[i]);trains[i]=null;}applySlot(i);if(!row.model)return;
    let t;try{t=await makeTrain(i,row.model);}catch(e){if(e?.name!=='AbortError')console.error('roundhouse train',row.model,e);return;}
    if(disposed||ticket!==s.ticket){dropTrain(t);return;}
-   trains[i]=t;seat(t);trainEnv(t);applySlot(i);}));
+   trains[i]=t;seat(t);trainEnv(t);showMark(t,s.mark);applySlot(i);}));
  }
 
  // ── 轉場 ──
@@ -111,18 +126,22 @@ export async function createRoundhouseStage({canvas,lite,label,layout,reduced=fa
  function focusGoal(i){const{side:fw,under:fh,narrow}=layout(),phi=phiOf(i),has=!!(trains[i]&&trains[i].g.visible),hr=has?R_FOCUS+4.7:RD+2,turn=i<3?-1:1,ht=halfTan(),aW=W-fw,aH=H-fh-44,need=has?11:15;
   const rad=max(need/(2*ht*(W/H))*(W/aW),(has?6.6:10)/(2*ht)*(H/aH));
   return{tx:sin(phi)*hr,ty:has?2.2:3.4,tz:cos(phi)*hr,az:-phi+turn*.62,el:has?.13:.2,rad,sx:fw/2,sy:narrow?(fh-44)/2:-22,w:0};}
+ // 換外觀：拉近到車頭，看得到頭牌。
+ function lookGoal(i){if(!trains[i]?.g.visible)return focusGoal(i);const{side:fw,under:fh}=layout(),phi=phiOf(i),turn=i<3?-1:1,hr=R_FOCUS+1.4,ht=halfTan(),rad=max(5.4/(2*ht*(W/H))*(W/(W-fw)),3.8/(2*ht)*(H/(H-fh-44)));
+  return{...focusGoal(i),tx:sin(phi)*hr,ty:1.8,tz:cos(phi)*hr,az:-phi+turn*.34,el:.07,rad};}
  const tgt=new T.Vector3();
  function applyCam(){const az=cam.az+user.az,el=clamp(cam.el+user.el,.03,1.4),r=cam.rad/pow(2,user.zoom),tx=cam.tx+user.x,tz=cam.tz+user.z,cx=tx+r*cos(el)*sin(az),cy=cam.ty+r*sin(el),cz=tz-r*cos(el)*cos(az);
   camera.position.set(lerp(cx,fix.x,cam.w),lerp(cy,fix.y,cam.w),lerp(cz,fix.z,cam.w));camera.lookAt(tx,cam.ty,tz);
   const d=camera.position.distanceTo(tgt.set(tx,cam.ty,tz));camera.near=clamp(min(d*.25,camera.position.y*1.6),1,60);camera.setViewOffset(W,H,cam.sx,cam.sy,W,H);scene.fog.near=d+70;scene.fog.far=d+820;}
  function resize(){const r=canvas.getBoundingClientRect();W=max(1,r.width);H=max(1,r.height);camera.aspect=W/H;camera.fov=W<H?36:30;camera.updateProjectionMatrix();renderer.setSize(W,H,false);
-  if(!busy)Object.assign(cam,view==='overview'?overviewGoal():focusGoal(cur));dirty=true;wake();}
+  if(!busy)Object.assign(cam,view==='overview'?overviewGoal():looking?lookGoal(cur):focusGoal(cur));dirty=true;wake();}
 
  // ── 選車 ──
- function select(i){if(busy||i===cur)return;const prev=cur;cur=i;view='focus';resetUser();if(prev>=0&&prev!==i)rollTo(prev,R_PARK,1.25,0);
+ function select(i){if(busy||i===cur)return;const prev=cur;cur=i;view='focus';looking=false;resetUser();if(prev>=0&&prev!==i)rollTo(prev,R_PARK,1.25,0);
   const has=!!(trains[i]&&trains[i].g.visible);if(has)rollTo(i,R_FOCUS,1.45,.75);turnBridge(phiOf(i));
   key.intensity=0;camTo(focusGoal(i),1.55).then(()=>{if(cur===i&&has&&view==='focus'){const a=phiOf(i),r=R_FOCUS+3;key.position.set(sin(a)*(r-9),10,cos(a)*(r-9));key.target.position.set(sin(a)*(r+1),1.4,cos(a)*(r+1));key.target.updateMatrixWorld();key.intensity=THEMES[theme].key;dirty=true;wake();}});}
- function back(){if(busy)return;if(cur>=0)rollTo(cur,R_PARK,1.25,0);cur=-1;view='overview';resetUser();key.intensity=0;camTo(overviewGoal(),1.5);}
+ function back(){if(busy)return;if(cur>=0)rollTo(cur,R_PARK,1.25,0);cur=-1;view='overview';looking=false;resetUser();key.intensity=0;camTo(overviewGoal(),1.5);}
+ function look(on){if(busy||cur<0||looking===on)return;looking=on;resetUser();camTo(on?lookGoal(cur):focusGoal(cur),1.1);}
  // 看著的這一股換了車（剛排進來、刪掉）：鏡頭照新的狀況重新對一次。
  function refocus(){if(busy||cur<0)return;const i=cur;cur=-1;select(i);}
 
@@ -173,12 +192,13 @@ export async function createRoundhouseStage({canvas,lite,label,layout,reduced=fa
  for(let i=0;i<TRACKS;i++)applySlot(i);
  setTheme('day');resize();Object.assign(cam,overviewGoal());applyCam();
  return{
-  setFleet,setTheme,select,back,refocus,depart,skip,resize,
+  setFleet,setTheme,select,back,look,refocus,depart,skip,resize,
   get view(){return view;},get busy(){return busy;},get current(){return cur;},
+  markOf:i=>trains[i]?.mark.id, // 測試用：這一股車頭掛的牌。
   info:()=>({calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries}),
   // 測試用：把這一幀立刻畫出來，不等下一個 requestAnimationFrame。
   frame(){applyCam();if(!lite)renderer.shadowMap.needsUpdate=true;renderer.render(scene,camera);},
-  dispose(){disposed=true;cancelAnimationFrame(raf);signal0.abort();gestures.stop();canvas.removeEventListener('webglcontextlost',onLostContext);
+  dispose(){disposed=true;cancelAnimationFrame(raf);signal0.abort();gestures.stop();for(const t of markTex.values())t.dispose();canvas.removeEventListener('webglcontextlost',onLostContext);
    canvas.removeEventListener('pointerdown',onDown);canvas.removeEventListener('pointermove',onMove);canvas.removeEventListener('pointerup',onUp);
    for(let i=0;i<TRACKS;i++){slots[i].ticket++;if(trains[i]){dropTrain(trains[i]);trains[i]=null;}}
    const seen=new Set();scene.traverse(o=>{o.geometry?.dispose();for(const m of [].concat(o.material||[])){if(seen.has(m))continue;seen.add(m);for(const v of Object.values(m))if(v?.isTexture)v.dispose();m.dispose();}});
