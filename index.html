@@ -6468,6 +6468,7 @@
         <li><span class="d">北捷</span><span>臺北捷運各線與環狀線的秒級到站倒數取自臺北大眾捷運股份有限公司「臺北捷運 API」（會員申請制），依「政府資料開放授權條款」使用</span></li>
         <li><span class="d">新北捷</span><span>淡海輕軌・安坑輕軌的即時列車動態引用自新北大眾捷運股份有限公司官網「列車動態」公開頁面，著作權屬該公司所有</span></li>
         <li><span class="d">軌道</span><span>台鐵軌道及阿里山林鐵的 TDX 缺口補線取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass／OSM API</span></li>
+        <li><span class="d">車型</span><a href="https://taiwanrailwiki.miraheze.org/wiki/%E9%99%84%E4%BB%B6:%E8%87%BA%E9%90%B5%E5%8D%80%E9%96%93%E8%BB%8A" target="_blank" rel="noopener">區間車車型推估改編自臺灣鐵道維基館「附件:臺鐵區間車」編組運用表（CC BY-SA 4.0），僅供參考</a></li>
         <li><span class="d">公車</span><span>全臺公車站牌名冊與非臺北市的到站預估介接交通部 TDX 運輸資料流通服務（Bus/Station、Bus/EstimatedTimeOfArrival），依政府資料開放授權條款第1版使用</span></li>
         <li><span class="d">北市公車</span><span>臺北市公車的站牌、路線與到站預估取自臺北市政府交通局公共運輸處「臺北市公車動態資訊」（tcgbusfs.blob.core.windows.net/blobbus 之 GetEstimateTime／GetStop／GetRoute），依「政府資料開放授權條款－第1版」使用</span></li>
         <li><span class="d">底圖</span><span><!-- APP_REPLACE_START basemap-credit（App 換 OpenFreeMap/Stadia/Esri 授權版文字，prepare-web.mjs 替換） -->OpenFreeMap（© OpenFreeMap © OpenMapTiles © OpenStreetMap 貢獻者，街道圖）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）<!-- APP_REPLACE_END basemap-credit --></span></li>
@@ -20248,6 +20249,18 @@ function isDr1000(tr) {
   const branch = specialOf(tr)?.branch;
   return !!branch && DIESEL_BRANCH_IDS.has(branch.id) && /區間/.test(tr.typeName || tr.carName || '');
 }
+// 區間車世代:官方班表一律標「區間車」分不出,commuterStock 是社群編組運用表的推估(見
+// scripts/build_tra_commuter_stock.mjs),畫面一律帶「推估」。表上查無此車次就回 null,退回只寫區間車,不猜。
+function commuterModels(tr) {
+  const sd = state.special, cs = sd && sd.commuterStock;
+  if (!cs || tr.sys !== 'tra_sched' || !/區間/.test(tr.carName || '')) return null;
+  if (!sd._commuterByNo) sd._commuterByNo = new Map(cs.groups.flatMap(g => g.trains.map(no => [no, g.models])));
+  const models = sd._commuterByNo.get(String(tr.train));
+  return models ? models.map((m, i) => i ? m.replace('EMU', '') : m).join('／') : null; // EMU500／800
+}
+function commuterKindText(tr, it) {
+  return t('{kind} {model} 推估', { kind: trainTypeName(tr.typeName), model: it.model });
+}
 // carName（官方 CarClass 中文名）→ 車型說明;由上而下比對,先中先贏
 const KIND_RULES = [
   [/普快車|普通車/, '藍皮普快', '無空調、可開窗的傳統客車，全台碩果僅存的普快車體。'],
@@ -20343,6 +20356,9 @@ function trainIntro(tr) {
   if (dr1000) {
     kind = DR1000_KIND; desc = DR1000_DESC; fact = null;
   }
+  // 車型家族的小知識(「EMU900 一列 10 輛」)接在推估為 EMU500 的車後面讀起來像在說這班,換成推估依據那句
+  const model = dr1000 || spd?.named ? null : commuterModels(tr);
+  if (model) fact = null;
   const amens = [];
   const par = (cn.match(/\(([^)]*)\)/) || [])[1] || '';
   for (const [flag, icon, label] of AMEN_FLAGS) if (par.includes(flag)) amens.push({ icon, label });
@@ -20355,7 +20371,7 @@ function trainIntro(tr) {
   // 的 EMU900 故事(7/18 正名時只改了 kind／desc,跟車面板對了、列車卡沒對,09-19 驗收才抓到)。
   // 圖鑑收集不受影響:recordRide 的 stockId 直接讀 specialOf().stock,照舊記成區間車。
   return { special: sp || null, named: spd?.named || null, stock: dr1000 ? null : spd?.stock || null,
-    kind, desc: sp ? sp.desc : desc, amens, nStops: stops.length, dur, fact, factIndex, branch };
+    kind, desc: sp ? sp.desc : desc, amens, nStops: stops.length, dur, fact, factIndex, branch, model };
 }
 // ── 隨機挑車:加權挑一班正在跑的車。放空會定時回來換下一班(1–2 分鐘),
 //    使用者手按「隨機跟隨」則只挑這一次,跟到終點為止(換車由使用者按「換一班」,見 tick 的 rotate 閘) ──
@@ -22542,7 +22558,7 @@ function renderTrainCard(tr) {
   document.getElementById('tcDot').style.background = tr.color;
   document.getElementById('tcNo').textContent = trainDisplayNo(tr);
   document.getElementById('tcKind').textContent = tr.loop ? trainDisplayKind(tr) : tr.est ? `${trainTypeName(tr.typeName)}・${t('時刻推算')}`
-    : it.stock ? i18nContentData('rollingStock', it.stock, 'name') : trainTypeName(it.kind || tr.typeName);
+    : it.model ? commuterKindText(tr, it) : it.stock ? i18nContentData('rollingStock', it.stock, 'name') : trainTypeName(it.kind || tr.typeName);
   document.getElementById('tcRoute').textContent =
     `${stationName(first.name, tr.sys)} ${fmtHM(first.depSec % 86400)} → ${stationName(last.name, tr.sys)} ${fmtHM(last.arrSec % 86400)}`;
   let html = '';
@@ -22550,6 +22566,7 @@ function renderTrainCard(tr) {
   if (it.desc) html += escHtml(it.named ? i18nContentData('namedTrains', it.named, 'story')
     : it.stock ? i18nContentData('rollingStock', it.stock, 'story') : t(it.desc));
   if (it.fact) html += `<span class="fact">${escHtml(it.stock ? i18nContentData('rollingStock', it.stock, 'facts', it.factIndex) : t(it.fact))}</span>`;
+  if (it.model) html += `<span class="fact">${escHtml(t('車型依臺灣鐵道維基館的編組運用表（{date} 起）推估，實際以當日調度為準。', { date: state.special.commuterStock.asOf }))}</span>`;
   if (it.branch) html += `<span class="fact">${escHtml(i18nContentData('branchLines', it.branch, 'name'))}：${escHtml(i18nContentData('branchLines', it.branch, 'story'))}</span>`;
   html += `<span class="amen">${escHtml(t('停靠 {n} 站 · 全程約 {duration}', { n: i18nNumber(it.nStops), duration: it.dur }, it.nStops))}` +
     (it.amens.length ? ' · ' + it.amens.map(a => `<span class="amen-item">${railIcon(a.icon)}${escHtml(t(a.label))}</span>`).join('') : '') + '</span>';
@@ -28710,7 +28727,7 @@ function setFollowHead(tr, it = trainIntro(tr)) {
   setFollowTitle(tr);
   // 車型名(區間車（通勤電聯車）…)是資料檔 rollingStock 的名稱,要走 i18nContentData 才有外語(同 renderTrainCard 的 tcKind);
   // DR1000 那種被 trainIntro 覆寫掉的 kind 已不是車型名,照舊走 trainTypeName。
-  document.getElementById('fpKind').textContent = tr.loop ? trainDisplayKind(tr)
+  document.getElementById('fpKind').textContent = tr.loop ? trainDisplayKind(tr) : it.model ? commuterKindText(tr, it)
     : it.stock && it.kind === it.stock.name ? i18nContentData('rollingStock', it.stock, 'name') : trainTypeName(it.kind || tr.typeName);
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   document.getElementById('fpDest').textContent = tr.loop

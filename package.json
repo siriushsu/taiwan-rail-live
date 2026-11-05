@@ -20,6 +20,7 @@
     "check-nangang-stop-position": "node scripts/verify_nangang_stop_position.mjs",
     "check-nangang-stop-browser": "node scripts/verify_nangang_stop_browser.mjs",
     "check-formations": "node scripts/verify_formations.mjs",
+    "check-commuter-stock": "node scripts/build_tra_commuter_stock.mjs --check",
     "check-sun": "node scripts/verify_sun.mjs",
     "check-sunlight-terrain": "node scripts/verify_sunlight_terrain.mjs",
     "check-aeo-browser": "node scripts/verify_aeo_browser.mjs",

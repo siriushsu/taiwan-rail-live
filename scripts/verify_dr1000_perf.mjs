@@ -91,7 +91,7 @@ if (badRp.length) failures.push(`${badRp.length}/${trap} 條 DR1000 梯形剖面
 //    列車卡沒對，09-19 瀏覽器驗收才抓到。語系函式換成恆等替身：比的是中文正本，不是翻譯。
 runInContext('var t = s => s; var i18nNumber = n => String(n);', ctx);
 runInContext(extract(loadIndexSource(join(ROOT, 'index.html')),
-  ['SPECIAL_TRAINS', 'KIND_RULES', 'TYPE_DESC', 'AMEN_FLAGS', 'DR1000_KIND', 'DR1000_DESC', 'trainIntro']), ctx);
+  ['SPECIAL_TRAINS', 'KIND_RULES', 'TYPE_DESC', 'AMEN_FLAGS', 'DR1000_KIND', 'DR1000_DESC', 'commuterModels', 'trainIntro']), ctx);
 const cardBad = dr.filter(tr => { const it = ctx.trainIntro(tr); return it.stock !== null || it.kind !== 'DR1000 型柴油客車'; });
 if (cardBad.length) {
   const it = ctx.trainIntro(cardBad[0]);
