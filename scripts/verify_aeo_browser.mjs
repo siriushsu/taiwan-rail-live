@@ -61,9 +61,9 @@ async function inspectLanding(page, pathname, label) {
 const widths = [360, 375, 414, 768];
 
 // ── 捷運路線圖頁（SEO 階段 A）─────────────────────────────────────────────────────────
-// 預設驗：總覽＋5 系統頁＋2 條路線頁（一條捷運 bannan、一條輕軌 danhai），三語各一份；--metro-all 驗全部 60 頁。
+// 預設驗：總覽＋5 系統頁＋2 條路線頁（一條捷運 bannan、一條輕軌 danhai），四語各一份；--metro-all 驗全部 80 頁。
 // 版面矩陣＝桌面 1280 ＋ 觸控 360/375/414/768；CTA 用 page.tap() 真的點「在地圖上看即時列車」，
-// 再驗 state.group、M.getCenter()／getZoom()、地圖可視範圍蓋得住該頁的路線範圍、en／ja 進入對應語言。
+// 再驗 state.group、M.getCenter()／getZoom()、地圖可視範圍蓋得住該頁的路線範圍、en／ja／ko 進入對應語言。
 // 另有兩個縮短迭代的旗標（驗收與出貨都不用）：--metro-only 略過既有代表頁與首頁入口的驗證，只驗捷運頁；
 // --only=<正規式> 只驗網址符合該正規式的捷運頁（例：--only=^/en/metro/taipei/$）。
 const metroAll = process.argv.includes('--metro-all');
@@ -72,8 +72,8 @@ const stationsOnly = process.argv.includes('--stations-only');   // 只跑車站
 const stationFilter = (process.argv.find(a => a.startsWith('--st-filter=')) || '').slice('--st-filter='.length);   // 只跑標籤符合此正規式的車站頁組合，例：--st-filter="^chromium 375px light /stations/"
 const stationVerbose = process.argv.includes('--st-verbose');   // 每個組合印耗時
 const onlyFilter = (process.argv.find(a => a.startsWith('--only=')) || '').slice('--only='.length);
-const LANG_DIR = { zh: 'metro', en: 'en/metro', ja: 'ja/metro' };
-const APP_LANG = { zh: 'zh-TW', en: 'en', ja: 'ja' };
+const LANG_DIR = { zh: 'metro', en: 'en/metro', ja: 'ja/metro', ko: 'ko/metro' };
+const APP_LANG = { zh: 'zh-TW', en: 'en', ja: 'ja', ko: 'ko' };
 const metroEntry = (lang, sys, slug) => ({
   lang, sys, slug, kind: slug ? 'line' : sys ? 'system' : 'overview',
   pathname: `/${LANG_DIR[lang]}/${sys ? `${sys}/` : ''}${slug ? `${slug}/` : ''}`,
@@ -545,11 +545,11 @@ try {
             if (!metroRoot.url().endsWith('/metro/')) failures.push(`${engineName} ${width}px 「捷運路線圖」入口觸控未成功`);
           }
           await metroRoot.close();
-          // 英日介面：兩處入口改指同語言版；另開 context，免得 ?lang= 記進 localStorage 影響後面的中文檢查
+          // 英日韓介面：兩處入口改指同語言版；另開 context，免得 ?lang= 記進 localStorage 影響後面的中文檢查
           if (width === widths[0]) {
             const langCtx = await browser.newContext({ viewport: { width, height: 900 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
             try {
-              for (const [lang, want] of [['en', 'en/metro/'], ['ja', 'ja/metro/']]) {
+              for (const [lang, want] of [['en', 'en/metro/'], ['ja', 'ja/metro/'], ['ko', 'ko/metro/']]) {
                 const langPage = await langCtx.newPage();
                 await langPage.goto(`${base}/?lang=${lang}`, { waitUntil: 'domcontentloaded' });
                 await waitAppReady(langPage);

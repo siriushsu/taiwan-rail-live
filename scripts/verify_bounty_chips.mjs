@@ -89,7 +89,7 @@ ok('C5 價格 200/300/300/300', priceOfNth(1, chips) === 200 && priceOfNth(2, ch
   ok('C6b 餘額 299 兌第二座（價 300）→ not_enough', b.ok === false && b.why === 'not_enough' && b.cost === 300, JSON.stringify(b));
   const c = canRedeem('south-coast', ['south-coast'], 9999, chips);
   ok('C6c 已解鎖 → already', c.ok === false && c.why === 'already', JSON.stringify(c));
-  const d = canRedeem('taipei-under', [], 9999, chips);
+  const d = canRedeem('no-such-scene', [], 9999, chips);
   ok('C6d 不在可兌換清單 → unknown_scene', d.ok === false && d.why === 'unknown_scene', JSON.stringify(d));
   const e = canRedeem('alishan', ['south-coast', 'shifen', 'viaduct'], 300, chips);
   ok('C6e 第四座剛好 300 → ok', e.ok === true && e.cost === 300, JSON.stringify(e));

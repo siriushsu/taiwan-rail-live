@@ -37,10 +37,21 @@ export const SCENES={
  paddy:{module:'default-paddy',speed:2.1,yaw:-1.12,world:.58,train:.5,focus:[0,1.0,1.2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:1},
  duoliang:{speed:2.6,yaw:-1.12,world:.61,train:.61,span:[28,42],ground:null,shadow:[-45,45,40,-38,1,150],drive:3,pass:[110,-30],clip:35,start:8,kits:['garage-people-v1/people','garage-camera-v1/camera']},
  crossing:{speed:2.6,yaw:-1.12,world:.61,train:.61,span:[28,42],ground:null,shadow:[-45,45,40,-38,1,150],drive:3,pass:[110,-30],clip:35,opposing:3},
+ hsinchu:{speed:2.4,yaw:-1.12,trainYaw:2.02,world:.58,train:.42,focus:[0,-3,2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8,kits:['garage-stations-v1/hsinchu']},
+ tainan:{speed:2.4,yaw:-1.12,trainYaw:2.02,world:.58,train:.42,focus:[0,-3,2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8,kits:['garage-stations-v1/tainan']},
+ 'taichung-old':{speed:2.4,yaw:-1.12,trainYaw:2.02,world:.58,train:.42,focus:[0,-3,2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8,kits:['garage-stations-v1/taichung-old']},
+ chiayi:{speed:2.4,yaw:-1.12,trainYaw:2.02,world:.58,train:.42,focus:[0,-3,2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8,kits:['garage-stations-v1/chiayi']},
+ baoan:{speed:2.4,yaw:-1.12,trainYaw:2.02,world:.58,train:.42,focus:[0,-3,2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8,kits:['garage-stations-v1/baoan']},
+ jiji:{speed:2.4,yaw:-1.12,trainYaw:2.02,world:.58,train:.42,focus:[0,-2,2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,kits:['garage-stations-v1/jiji']},
+ haixian:{speed:2.4,yaw:-1.12,trainYaw:2.02,world:.58,train:.42,focus:[0,-2,2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8,kits:['garage-stations-v1/dashan']},
+ dongshan:{speed:2.4,yaw:-1.12,trainYaw:2.02,world:.58,train:.42,focus:[0,-1,2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8,kits:['garage-stations-v1/dongshan']},
+ 'kaohsiung-old':{speed:2.4,yaw:-1.12,trainYaw:2.02,world:.58,train:.42,focus:[0,-2,2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8,kits:['garage-stations-v1/kaohsiung-imperial','garage-stations-v1/kaohsiung-canopy']},
+ shengxing:{speed:2.4,yaw:-1.12,trainYaw:2.02,world:.58,train:.42,focus:[0,-3,2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33},
+ 'taipei-under':{speed:2.4,yaw:-1.12,trainYaw:2.02,world:.58,train:.42,focus:[0,-2,2],span:[24,35],ground:-2.5,shadow:[-42,42,35,-35,1,140],focusZ:1,drive:3,pass:[100,-6],clip:33,opposing:23.8},
  guanghua:{speed:2.6,yaw:-1.4,world:.42,train:.4,span:[10.5,21.5],ground:-2.5,shadow:[-42,42,35,-35,1,140],drive:3,pass:[90,-10],clip:26,trainZ:.9,kits:['garage-people-v1/people','garage-camera-v1/camera','scooter']},
 };
 // 零件庫怎麼交給場景模組：南迴（棕櫚、站房）、阿里山（雲海螢火蟲、樹）照位置傳，多良、光華街整包傳；其餘不傳，零件庫給下面的掛件用。
-const SCENE_ARGS={'south-coast':k=>[k[0],k[1]],alishan:k=>[k[0],k[1]],duoliang:k=>[k],guanghua:k=>[k]};
+const SCENE_ARGS={'south-coast':k=>[k[0],k[1]],alishan:k=>[k[0],k[1]],duoliang:k=>[k],guanghua:k=>[k],...Object.fromEntries(['hsinchu','tainan','taichung-old','chiayi','baoan','jiji','haixian','dongshan'].map(id=>[id,k=>[k[0]]])),'kaohsiung-old':k=>[k]};
 // 田園小站的電車線依車款（同 native railcore GarageCatenary）：電聯車、城際、電力機車畫，柴油客車不畫；輕軌只有淡海、安坑有架空線。
 const WIRED=new Set(['railcar','express','electric']),DIESEL=new Set(['dr1000','dr2700','dr3000','dr3100']),OVERHEAD=new Set(['danhai','ankeng']);
 export const catenaryFor=(id,family)=>WIRED.has(family)?!DIESEL.has(id):OVERHEAD.has(id);

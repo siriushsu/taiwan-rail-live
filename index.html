@@ -1763,6 +1763,13 @@
   .ph-chips .pc-go { font: inherit; color: inherit; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
   .ph-chips .pc-l { font-weight: 800; color: var(--navy); }
   .ph-chips b { font-size: calc(15px * var(--ui)); font-weight: 800; color: var(--gold); }
+  /* 錢包旁邊「點數存在哪個帳號」(bountyAccountLine):車庫、懸賞板、護照、帳號面板共用。換登入方式的提示走琥珀警示族。 */
+  .acct-wallet { font-size: calc(11.5px * var(--uis)); line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
+  .ph-chips + .acct-wallet { margin: 0 0 6px; }
+  #accountBody .acct-wallet { margin: 8px 0 12px; }
+  .acct-switch { margin-top: 6px; padding: 10px; border: 1px solid var(--warn-line); border-radius: var(--r-m); background: var(--warn-bg); color: var(--warn-ink); font-size: calc(12px * var(--uis)); font-weight: 600; }
+  .acct-switch span { display: block; }
+  .acct-switch button { display: block; min-height: 44px; margin-top: 6px; padding: 0 14px; border: 1px solid var(--warn-line); border-radius: var(--r-m); background: none; color: inherit; font: inherit; font-weight: 800; cursor: pointer; }
   .datestamp {
     display: inline-block; font-family: var(--mono); font-size: calc(11px * var(--uis)); font-weight: 700;
     color: var(--navy); border: 1.5px solid var(--navy); border-radius: 3px; padding: 0 5px;
@@ -2154,6 +2161,19 @@
     width: 100%; height: max(100%, 44px); transform: translate(-50%, -50%);
   }
   body.fs.immersive:not(.ambient) #nearBtn { display: none !important; }
+
+  /* 誤點外框的圖例：只是說明，不接手勢，地圖照樣拖得動 */
+  .delay-legend {
+    position: absolute; top: 58px; left: 12px; z-index: 600; box-sizing: border-box;
+    width: calc(164px * var(--ui)); padding: 4px 9px 3px; pointer-events: none;
+    background: var(--paper); border: 1.5px solid var(--line); border-radius: var(--r-m); box-shadow: var(--shadow-1);
+    font-size: calc(11px * var(--uis)); line-height: 1.3; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .delay-legend .dl-title { font-weight: 800; color: var(--ink); }
+  .delay-legend .dl-bar { height: 7px; margin: 3px 0 1px; border-radius: 4px; }
+  .delay-legend .dl-ticks { display: flex; justify-content: space-between; }
+  .delay-legend .dl-note { margin-top: 1px; color: var(--ink); }
+  body.ambient #delayLegend, body.fs.immersive #delayLegend { display: none; }
 
   /* ── HUD 小牌 ── */
   .badge {
@@ -3334,6 +3354,7 @@
     cursor: pointer; min-width: 44px; min-height: 44px;
   }
   .bounty-modal .tk-sub { padding: 12px 16px 0; font-size: calc(12px * var(--uis)); color: var(--muted); line-height: 1.6; flex: none; }
+  #bountyAcct:empty { display: none; }
   .bounty-modal .tk-body { padding: 6px 16px 14px; overflow-y: auto; overscroll-behavior: contain; }
   .bounty-modal .bt-card { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px;
     align-items: center; padding: 10px 12px; border-bottom: 1px dashed var(--line); }
@@ -4178,6 +4199,8 @@
        同一族缺陷的成因(那邊把整個 top 算成一個絕對 px 寫進 inline style,安全區一注入就對不上)。
        只掛在 html[data-fs]:標準檔一格都不動。 */
     html[data-fs] .badge { top: calc(8px + var(--sa-t) + var(--tb-h, 40px) + 10px); }
+    .delay-legend { top: calc(58px + var(--sa-t)); left: 10px; }
+    html[data-fs] .delay-legend { top: calc(8px + var(--sa-t) + var(--tb-h, 40px) + 10px); }
     .badge .clock { font-size: calc(17px * var(--ui)); }
     .badge .count { font-size: calc(12px * var(--uis)); }
     /* 行程連結的追蹤橫幅原本固定 top:56，會整片壓住這列時鐘。接收行程時先把非必要的
@@ -5457,6 +5480,12 @@
         </div>
       </div>
     </div>
+    <div class="delay-legend" id="delayLegend" hidden>
+      <div class="dl-title">台鐵誤點（分）</div>
+      <div class="dl-bar" id="delayLegendBar"></div>
+      <div class="dl-ticks"><span>準點</span><span>5</span><span>15</span><span>30</span><span>60+</span></div>
+      <div class="dl-note" id="delayLegendNote" hidden>目前沒有即時誤點</div>
+    </div>
     <div class="climate-panel" id="climatePanel" hidden>
       <div class="rp-days" id="rpDays" hidden>
         <div class="rp-chips" id="rpChips"></div>
@@ -5648,7 +5677,7 @@
       <button type="button" class="pn-exit" id="pinHintExit"><span class="pn-mode">結束</span><span class="pn-once">取消</span></button>
     </div>
     <div class="xing-card" id="nearCard" hidden></div>
-    <div class="xing-help" id="xingHelp" hidden>顯示全台 346 處台鐵平交道（官方公開資料）。圖示比照官方交叉標誌：雙線以上於紅叉下加人字、閃電＝電化（拉近顯示）。點擊任一平交道，可查看接下來通過的列車與倒數；貨運／專用線上的道口僅標示位置。預測依時刻表與即時誤點推算，遮斷機通常提前 30–60 秒動作，請以現場號誌為準。平交道位置以台鐵官方資料為準，可能與現場實際略有落差，歡迎透過頁尾「回報問題或建議」提供修正。</div>
+    <div class="xing-help" id="xingHelp" hidden>顯示全台 347 處台鐵平交道（官方公開資料）。圖示比照官方交叉標誌：雙線以上於紅叉下加人字、閃電＝電化（拉近顯示）。點擊任一平交道，可查看接下來通過的列車與倒數；貨運／專用線上的道口僅標示位置。預測依時刻表與即時誤點推算，遮斷機通常提前 30–60 秒動作，請以現場號誌為準。平交道位置以台鐵官方資料為準，可能與現場實際略有落差，歡迎透過頁尾「回報問題或建議」提供修正。</div>
     <div class="board" id="favPanel" hidden></div>
     <div class="board" id="ridePanel" hidden></div>
     <!-- 亮點面板固定骨架(Batch B):h3 常駐,renderExplorePanel 只重建 #expBody -->
@@ -5863,14 +5892,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="delaypins1105"><span class="d">11/05</span><span>誤點重播的站牌靠近畫面邊緣時會換邊擺，手機上不再蓋到時間</span></li>
-        <li data-cl-of="sheetdragall1105"><span class="d">11/05</span><span>觀看設定、更多、字級、公車站牌和行程分享的面板也能上下拖拉調整高度，觀看設定可以拉過工具欄；面板之間不再互相重疊</span></li>
-        <li data-cl-of="kostatic1105"><span class="d">11/05</span><span>新增韓文網頁：30 個車站的時刻表與轉乘，還有介紹、準確度、資料來源頁都有韓文版</span></li>
-        <li data-cl-of="delayreplay1105"><span class="d">11/05</span><span>誤點趨勢改成誤點重播：選一天，看誤點從哪裡開始、怎麼一路傳開，還能跳到這天的重點時刻</span></li>
-        <li data-cl-of="qtrains1104"><span class="d">11/04</span><span>地圖上的立體列車改成放大的 Q 版三節，遠看也看得清楚；可在「觀看」→「列車」→「列車大小」切回</span></li>
-        <li data-cl-of="garageswap1104"><span class="d">11/04</span><span>車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車</span></li>
-        <li data-cl-of="korean1104"><span class="d">11/04</span><span>介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文</span></li>
-        <li data-cl-of="plusride1104"><span class="d">11/04</span><span>有軌島通行證的人，App 校正懸賞錄程的島民點數多 50%，加成不算進每天 500 點上限</span></li>
+        <li data-cl-of="garagemusic1105"><span class="d">11/05</span><span>進車庫會隨機放背景音樂，離開就收掉；頂列和場景頁多了音樂鈕，關過音樂就不自動放</span></li>
+        <li data-cl-of="jianshanpu1105"><span class="d">11/05</span><span>平交道補上鶯歌到鳳鳴之間的尖山埔路，全台共 347 處（謝謝網友回報）</span></li>
+        <li data-cl-of="delayframe1105"><span class="d">11/05</span><span>「觀看」→「列車」新增誤點外框：台鐵車牌與圓點外加一圈，顏色照現在誤點幾分鐘由綠轉紅，車種色保留</span></li>
+        <li data-cl-of="trainstock1105"><span class="d">11/05</span><span>區間車列車卡新增車型推估：依鐵道維基館運用表標出 EMU500／600／700／800／900，實際以當日調度為準</span></li>
+        <li data-cl-of="hidefictional1105"><span class="d">11/05</span><span>「觀看」→「列車」新增「顯示虛構專列」開關，關掉後地圖、看板和查詢只留真實列車</span></li>
+        <li data-cl-of="stationgarage1105"><span class="d">11/05</span><span>車庫新增 11 座台鐵特色車站場景：新竹、台南、台中舊站、嘉義、保安、集集、冬山、高雄、大山、勝興、台北地下月台</span></li>
+        <li data-cl-of="walletaccount1104"><span class="d">11/05</span><span>車庫的點數現在寫明存在哪個帳號；換了登入方式會提醒你原本的帳號，刪帳號前也會列出會一起刪掉的點數和場景</span></li>
+        <li data-cl-of="kometro1105"><span class="d">11/05</span><span>新增韓文捷運路線圖：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車都有韓文版</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5904,6 +5933,8 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="jianshanpu1105"><span class="d">11/05</span><span>平交道補上鶯歌到鳳鳴之間的尖山埔路，全台共 347 處（謝謝網友回報）</span></li>
+        <li data-cl="kometro1105"><span class="d">11/05</span><span>新增韓文捷運路線圖：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車都有韓文版</span></li>
         <li data-cl="kostatic1105"><span class="d">11/05</span><span>新增韓文網頁：30 個車站的時刻表與轉乘，還有介紹、準確度、資料來源頁都有韓文版</span></li>
         <li data-cl="qtrains1104"><span class="d">11/04</span><span>地圖上的立體列車改成放大的 Q 版三節，遠看也看得清楚；可在「觀看」→「列車」→「列車大小」切回</span></li>
         <li data-cl="garageswap1104"><span class="d">11/04</span><span>車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車</span></li>
@@ -6090,6 +6121,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="delayframe1105"><span class="d">11/05</span><span>「觀看」→「列車」新增誤點外框：台鐵車牌與圓點外加一圈，顏色照現在誤點幾分鐘由綠轉紅，車種色保留</span></li>
         <li data-cl="delaypins1105"><span class="d">11/05</span><span>誤點重播的站牌靠近畫面邊緣時會換邊擺，手機上不再蓋到時間</span></li>
         <li data-cl="delayreplay1105"><span class="d">11/05</span><span>誤點趨勢改成誤點重播：選一天，看誤點從哪裡開始、怎麼一路傳開，還能跳到這天的重點時刻</span></li>
         <li data-cl="delayclimate1103"><span class="d">11/03</span><span>新增誤點趨勢地圖：台鐵每一段平均多出幾分鐘，可看 1、3、7 天，也能跟前 4 週或去年同期比，按播放看近兩年怎麼變；從查詢或更多打開</span></li>
@@ -6156,6 +6188,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="trainstock1105"><span class="d">11/05</span><span>區間車列車卡新增車型推估：依鐵道維基館運用表標出 EMU500／600／700／800／900，實際以當日調度為準</span></li>
         <li data-cl="guideroute1103"><span class="d">11/03</span><span>觀看的「導覽」分頁拆開了：查詢首頁多「去哪裡」，車站、地標和縣市點一下就飛過去；搜尋也找得到地點、縣市和路線；最愛可以新增地點；選路線直接看全線並亮線；精選取景移到觀看的視角</span></li>
         <li data-cl="thsrseatcard1102"><span class="d">11/02</span><span>跟隨高鐵列車時，資訊卡多一行對號座還有沒有位子（有位／剩不多／售完），從列車接下來停的那站算到終點；官方座位表沒有這班就不顯示</span></li>
         <li data-cl="thsrchiayistop1029"><span class="d">10/29</span><span>立體列車：高鐵嘉義站停靠的列車改停在月台中段，不再有半列車身凸出月台外</span></li>
@@ -6253,6 +6286,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="walletaccount1104"><span class="d">11/05</span><span>車庫的點數現在寫明存在哪個帳號；換了登入方式會提醒你原本的帳號，刪帳號前也會列出會一起刪掉的點數和場景</span></li>
         <li data-cl="plusride1104"><span class="d">11/04</span><span>有軌島通行證的人，App 校正懸賞錄程的島民點數多 50%，加成不算進每天 500 點上限</span></li>
         <li data-cl="bountyfix1102"><span class="d">11/02</span><span>校正懸賞給點更公平：長隧道或手機很久沒定位時只扣沒錄到的那段，不再整條路線 0 點；隔天才上傳的後半段會補發點數；到站忘了停止錄製也不會讓整趟作廢</span></li>
         <li data-cl="bountypoints"><span class="d">10/27</span><span>校正懸賞改用島民點數：合格的一趟照實際錄到的沿線里程給點，1 公里 1 點，南迴、臺東線加倍，每天最多 500 點；原有籌碼 1 顆換 50 點，已解鎖的車庫場景照舊</span></li>
@@ -6281,6 +6315,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="hidefictional1105"><span class="d">11/05</span><span>「觀看」→「列車」新增「顯示虛構專列」開關，關掉後地圖、看板和查詢只留真實列車</span></li>
         <li data-cl="sheetdragall1105"><span class="d">11/05</span><span>觀看設定、更多、字級、公車站牌和行程分享的面板也能上下拖拉調整高度，觀看設定可以拉過工具欄；面板之間不再互相重疊</span></li>
         <li data-cl="sheetdrag1102"><span class="d">11/02</span><span>看板、列車資訊卡這類底部面板改成直接拖拉調整高度：按住卡頭上下拖，放開就停在那裡，下次打開會記得這個高度</span></li>
         <li data-cl="helpnew1030"><span class="d">10/30</span><span>使用說明補上觀看設定、立體列車、車站地標導覽、地圖風格、轉乘、跟車鎖定、營運公告、語言等新功能，首訪卡第一列也改成實際位置</span></li>
@@ -6401,6 +6436,8 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li data-cl="garagemusic1105"><span class="d">11/05</span><span>進車庫會隨機放背景音樂，離開就收掉；頂列和場景頁多了音樂鈕，關過音樂就不自動放</span></li>
+        <li data-cl="stationgarage1105"><span class="d">11/05</span><span>車庫新增 11 座台鐵特色車站場景：新竹、台南、台中舊站、嘉義、保安、集集、冬山、高雄、大山、勝興、台北地下月台</span></li>
         <li data-cl="tracksideprivacy1020"><span class="d">10/20</span><span>隱私權政策補充 iOS 軌道邊鎖定畫面卡片會傳送的資料</span></li>
         <li data-cl="journeyapplinks1007"><span class="d">10/7</span><span>行程分享的網址換成新格式，之前的連結仍可使用</span></li>
         <li data-cl="share3d0926"><span class="d">9/26</span><span>修正 Safari 開啟分享畫面時偶爾遺失立體設定：立體列車開關、列車編組、地形模式與分享視角都會照對方傳來的連結開啟，不再被開機過程清掉</span></li>
@@ -6472,6 +6509,7 @@
         <li><span class="d">北捷</span><span>臺北捷運各線與環狀線的秒級到站倒數取自臺北大眾捷運股份有限公司「臺北捷運 API」（會員申請制），依「政府資料開放授權條款」使用</span></li>
         <li><span class="d">新北捷</span><span>淡海輕軌・安坑輕軌的即時列車動態引用自新北大眾捷運股份有限公司官網「列車動態」公開頁面，著作權屬該公司所有</span></li>
         <li><span class="d">軌道</span><span>台鐵軌道及阿里山林鐵的 TDX 缺口補線取自 © OpenStreetMap 貢獻者（ODbL），經 Overpass／OSM API</span></li>
+        <li><span class="d">車型</span><a href="https://taiwanrailwiki.miraheze.org/wiki/%E9%99%84%E4%BB%B6:%E8%87%BA%E9%90%B5%E5%8D%80%E9%96%93%E8%BB%8A" target="_blank" rel="noopener">區間車車型推估改編自臺灣鐵道維基館「附件:臺鐵區間車」編組運用表（CC BY-SA 4.0），僅供參考</a></li>
         <li><span class="d">公車</span><span>全臺公車站牌名冊與非臺北市的到站預估介接交通部 TDX 運輸資料流通服務（Bus/Station、Bus/EstimatedTimeOfArrival），依政府資料開放授權條款第1版使用</span></li>
         <li><span class="d">北市公車</span><span>臺北市公車的站牌、路線與到站預估取自臺北市政府交通局公共運輸處「臺北市公車動態資訊」（tcgbusfs.blob.core.windows.net/blobbus 之 GetEstimateTime／GetStop／GetRoute），依「政府資料開放授權條款－第1版」使用</span></li>
         <li><span class="d">底圖</span><span><!-- APP_REPLACE_START basemap-credit（App 換 OpenFreeMap/Stadia/Esri 授權版文字，prepare-web.mjs 替換） -->OpenFreeMap（© OpenFreeMap © OpenMapTiles © OpenStreetMap 貢獻者，街道圖）、Esri World Imagery（衛星影像）與內政部「直轄市、縣市界線」（離線海陸輪廓，政府資料開放授權條款第1版）<!-- APP_REPLACE_END basemap-credit --></span></li>
@@ -6609,6 +6647,7 @@
   <div class="tk-box" role="dialog" aria-modal="true" aria-labelledby="bountyTitle">
     <div class="tk-head"><b id="bountyTitle">校正懸賞</b><button class="tk-x" id="bountyClose" type="button" aria-label="關閉">×</button></div>
     <div class="tk-sub" id="bountySub"></div>
+    <div class="tk-sub" id="bountyAcct"></div>
     <div class="tk-body" id="bountyList"></div>
   </div>
 </div>
@@ -6782,6 +6821,7 @@
     <div class="ms-row ri-basemap-row"><span>地圖風格</span><div class="seg" id="msBasemapSeg" role="group" aria-label="地圖風格"><button type="button" data-map="light">明</button><button type="button" data-map="dark">暗</button><button type="button" data-map="sat">衛星</button><button type="button" data-map="landscape"><span>地景</span> <small class="ri-beta">Beta</small></button></div></div>
     <button class="ms-row" id="sunlightRow" type="button" role="switch" aria-checked="true" disabled title="光線跟隨地圖時間；傾斜地圖可看天空"><span>日夜光影</span><span class="toggle on"></span></button>
     <button class="ms-row" id="trainHaloRow" type="button" role="switch" aria-checked="true"><span>列車光環</span><span class="toggle on"></span></button>
+    <button class="ms-row" id="delayFrameRow" type="button" role="switch" aria-checked="false"><span>誤點外框</span><span class="toggle"></span></button>
     <button class="ms-row" id="map3dRow" data-proxy="map3dBtn" style="display:none"><span>3D 建築</span><span class="toggle" data-tg="map3dBtn"></span></button>
     <button class="ms-row" data-act="garage" data-close="1"><span>我的車庫</span><span class="chev">›</span></button>
     <!-- 「軌道與路線」(觀看 → 標示):點列在下方原地展開軌道顯示三段與各路線開關,再點收起(導覽改版 G6;原本開面板) -->
@@ -6796,6 +6836,7 @@
     <button class="ms-row" data-proxy="introBtn"><span>特殊站介紹</span><span class="toggle" data-tg="introBtn"></span></button>
     <button class="ms-row" id="followHeadingRow" type="button" aria-pressed="false"><span>跟車時車頭朝上</span><span class="toggle"></span></button>
     <button class="ms-row" data-proxy="dirBtn"><span>列車方向箭頭</span><span class="toggle" data-tg="dirBtn"></span></button>
+    <button class="ms-row" id="fictionalRow" type="button" aria-pressed="true"><span>顯示虛構專列</span><span class="toggle on"></span></button>
     <!-- 定位是原生 App 限定(LOCATE_ENABLED),網站/PWA 沒有:比照 #nearBtn 的 hidden 先 inline 藏,
          不靠 setupMapTools 才移除——它前段一拋(2026-07-26 實測過),這列就會留成「點了沒反應」的死列。
          App 的還原點在 setupMapTools 的 LOCATE_ENABLED 分支 -->
@@ -7378,7 +7419,10 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1105b：韓文靜態頁 /ko/——車站時刻 30 頁＋索引、介紹／準確度／資料來源、著陸頁，hreflang 與 sitemap 帶到；網站首次開啟仍是繁中。
 // v1105c：更多、字級、公車站牌、行程分享、觀看也能拖高度（各存比例鍵），開觀看收掉其他面板、不壓速度膠囊，觀看可往上拖過工具欄到頂列下方。
 // v1105c 同批：誤點重播站牌放不下就換邊，不再夾回畫面內蓋到自己的站與時間
-const BUILD = 'v1105c';
+// v1105d：韓文捷運路線圖頁 /ko/metro/（總覽、5 系統、14 線），韓文介面與韓文靜態頁的路線圖入口改連韓文版，不再走英文頁。
+// v1105e：下一批網站（跟 App 1.8.0 同批）——誤點外框、區間車車型推估、虛構專列開關、台鐵特色車站 11 座、點數帳號提示、活動更新、尖山埔路平交道、車庫放音樂、Worker 認 231；LICENSE 開放官方 App 短片配樂窄例外。
+const BUILD = 'v1105e';
+// v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -7695,10 +7739,9 @@ function i18nSyncLanguageControl() {
 }
 function i18nSyncDocumentMeta() {
   document.title = t('軌島｜台鐵、高鐵、捷運即時列車地圖與時刻表');
-  // 捷運路線圖頁有中英日三版：頁尾與「更多」的入口跟著介面語言指到同語言那版。App build 會把這兩排換成
+  // 捷運路線圖頁有中英日韓四版：頁尾與「更多」的入口跟著介面語言指到同語言那版。App build 會把這兩排換成
   // 正式站絕對網址（app/scripts/prepare-web.mjs 的 aeoLinksHtml），那邊不帶 data-metro-link，這裡碰不到。
-  // 韓文還沒有自己的路線圖頁，指到英文版（韓文讀者看英文比看中文方便）。
-  const metroHref = I18N_LANG === 'en' || I18N_LANG === 'ko' ? 'en/metro/' : I18N_LANG === 'ja' ? 'ja/metro/' : 'metro/';
+  const metroHref = I18N_LANG === 'en' ? 'en/metro/' : I18N_LANG === 'ja' ? 'ja/metro/' : I18N_LANG === 'ko' ? 'ko/metro/' : 'metro/';
   for (const a of document.querySelectorAll('a[data-metro-link]')) a.setAttribute('href', metroHref);
   const description = document.querySelector('meta[name="description"]');
   if (description) description.content = t('台鐵、高鐵、捷運與輕軌列車依官方時刻表與即時資料在地圖上跑動，可查車站班次、捷運路線與台鐵誤點。軌島 railisland.tw，一張會動的台灣鐵道地圖。');
@@ -8045,6 +8088,7 @@ const state = {
   stnIntroPref: false, // 特殊站介紹:使用者自己按出來的那個選擇(trainmap-stn-intro)。放空進出會臨時覆寫 stnIntro,
                        // 不落盤也不動這裡;離開放空回到這個值,放空一趟才不會把使用者的設定抹掉
   xingOn: false, // 台鐵平交道顯示開關(預設關;開了才畫記號、建命中、攔點擊)
+  hideFictional: false, // 觀看的「顯示虛構專列」關掉時為 true(issue #107,見 syncFictionalTrains)
   dirArrow: true, // 列車行進方向箭頭開關(預設開;台鐵/高鐵車號牌前緣加小箭頭,由前後點位推方向)
   panelTranslucent: document.body.classList.contains('panel-translucent'), // 面板半透明:預設關,偏好由首繪腳本從 localStorage 還原
   ambientStyle: 'hotspot', // 放空視角:follow=跟著一班車跑 / hotspot=群車(鏡頭掛在最繁忙路段看群車交錯);預設群車(v0717v)
@@ -8546,6 +8590,7 @@ function setupMapOrientation() {
   try { headingUp = localStorage.getItem('trainmap-follow-heading-up') === '1'; } catch (e) {}
   setFollowHeadingUp(headingUp);
   document.getElementById('followHeadingRow').onclick = () => setFollowHeadingUp(!state.followHeadingUp);
+  document.getElementById('fictionalRow').onclick = () => setShowFictional(state.hideFictional);
   // 原生 compass 的 easeTo 會被跟車 setView／面板 padding 打斷；改由同一個 tick 完成回正。
   M.getContainer().addEventListener('click', event => {
     if (!event.target.closest('.maplibregl-ctrl-compass')) return;
@@ -13466,6 +13511,7 @@ function applySchedSystems(sysList) {
   // 一到就換值而名冊還是昨天那份 ⇒ 正在跨夜行駛的車會在午夜當下掉條目、誤點瞬間歸零再爬回來。
   // 名冊日只在真的換名冊時才變,正是我們要的那條線。
   state.trains = [];
+  state._fictionalOff = [];
   for (const sys of sysList) for (const tr of (sys.data.trains || [])) {
     tr.sys = sys.id; tr._rday = sys.data._schedDay || ''; state.trains.push(tr);
   }
@@ -13580,6 +13626,7 @@ function applySchedSystems(sysList) {
     // 聯集班表與 dates 走 _denseTrains(今日名冊只是它的切片),與離線預算餵同一份輸入。
   }
   if (sysList.some(s => s.special)) retimeLoopTrains(); // 貼軌後才有弧長,環島車此時才能鋪
+  syncFictionalTrains(); // 排在 retime 之後:那支走 state.trains 鋪時刻,先移出去就鋪不到
   computeFlow();
   pollLive();  // 逐車即時誤點(schedSystems 中有 live 的系統,台鐵限定)
   if (sysList.some(s => s.id === 'tra_sched')) ensureCrossings(); // 含台鐵才 lazy fetch 平交道(一次快取)
@@ -14830,7 +14877,14 @@ function drawSched(w, h, paintDecoTrains) {
     if (!isFollow && !inDetailArea(pos)) continue;
     const cp = mapDetailPoint([pos.lat, pos.lon]);
     if (!inView(cp)) continue;
-    if (window.railIslandIntegration?.hasModel({tr})) continue;
+    if (window.railIslandIntegration?.hasModel({tr})) {
+      // 近景換成 3D 車模後本來沒有車牌;開著誤點外框時補畫牌,不然放大就看不到誤點。跟隨中的車面板已寫誤點,不擋畫面。
+      if (!isFollow && delayFrameMin(tr) !== undefined) paintTrain(cp.x, cp.y, tr.sys, null, () => {
+        drawTag(cp, trainDisplayNo(tr), tr.color, textColorFor(tr.color), false);
+        drawDelayFrame(cp, tr, true);
+      });
+      continue;
+    }
     const sh = blockSideShift(tr, pos, cp, showTrain); // 同線同向貼太近 → 兩顆標記各往軌道法線偏一半
     // 跟隨中的那台一律畫牌(drawFollowMarker 內不看 showTrain),所以框也一律取牌的尺寸
     if (isFollow) { state._trainHits.push({ x: cp.x, y: cp.y, tr, ...trainMarkBox(tr, true) }); paintTrain(cp.x, cp.y, tr.sys, null, () => drawFollowMarker(cp, tr)); continue; }
@@ -14846,6 +14900,7 @@ function drawSched(w, h, paintDecoTrains) {
       glowUnder(cp, glowC, showTrain ? 10 : 3.5); // 車號牌模式:光暈放大到繞出牌緣,近看也發亮
       if (showTrain) isHSR(tr) ? drawHSRTag(cp, tr.train) : drawTag(cp, trainDisplayNo(tr), tr.color, textColorFor(tr.color));
       else isHSR(tr) ? drawHSRDot(cp) : drawDot(cp, tr.color);
+      drawDelayFrame(cp, tr, showTrain);
       if (state.dirArrow && showTrain) drawDirArrow(cp, tr, glowC, sh); // 車號牌前緣加行進方向箭頭(遠景圓點不畫,避免密集小點雜亂)
     });
   }
@@ -14959,6 +15014,7 @@ function drawFollowMarker(p, tr) {
     ctx.strokeStyle = tr.color; ctx.globalAlpha = opacity * (0.9); ctx.lineWidth = 2.5; ctx.stroke();
     ctx.globalAlpha = opacity * (1);
     isHSR(tr) ? drawHSRTag(p, tr.train) : drawTag(p, trainDisplayNo(tr), tr.color, textColorFor(tr.color));
+    drawDelayFrame(p, tr, true);
     if (state.dirArrow && M.getZoom() >= 11) drawDirArrow(p, tr, glowC); // 跟隨主角同樣加方向箭頭(牌模式才畫)
   } finally { ctx.restore(); }
 }
@@ -17131,6 +17187,8 @@ async function accountLoadModules() {
 function accountOpen() {
   const modal = document.getElementById('accountModal'); if (!modal) return;
   modal.hidden = false; document.body.classList.add('account-open'); accountRender();
+  // 刪除確認要寫這個帳號的點數與已兌換場景數：懸賞旗標關著時沒人讀過錢包，這裡先讀好（見 accountDelete）。
+  if (state.account && state.account.user) garageWallet.reload();
   requestAnimationFrame(() => document.getElementById('accountX').focus());
 }
 function accountClose() {
@@ -17185,6 +17243,7 @@ function accountRender() {
     // plusConfigured()(此平台能否發起付款)——讓網站即使沒設 Web Billing key 也能查看訂閱狀態與
     // 「請在 App 內訂閱」說明;真正發起付款仍受 plusConfigured() 控管(見 plusOpen 內的 plusRefresh 閘)。
     body.innerHTML = `<div class="account-profile"><span class="account-avatar">${avatar}</span><span><b>${escHtml(accountDisplayName(u))}</b><small>${escHtml(u.email || t('Apple 隱藏電子郵件'))}</small></span></div>` +
+      bountyAccountLine() +
       `<div class="account-syncbox"><b>${escHtml(t('跨裝置同步'))}</b><span>${escHtml(sync)}</span></div>` +
       (plusProjectConfigured() ? `<div class="account-syncbox"><b>${escHtml(t('軌島通行證'))}</b><span>${escHtml(plus)}</span></div>` : '') +
       (guestPending ? `<div class="account-syncbox guestbox"><b>${escHtml(t('這台裝置還有訪客紀錄'))}</b><span>${escHtml(t('有 {n} 筆收藏與完乘紀錄是登入前存的，還沒併進這個帳號。', { n: guestPending }))}</span></div>` +
@@ -17531,6 +17590,7 @@ function accountEndSession(uid) { accountForgetIdentity(uid); userDataRenderAll(
 // 自己的分區)。
 function accountClearLocal(uid) {
   accountForgetIdentity(uid);
+  bountyAccountForget(uid);
   const blank = () => { const e = userDataEmpty(); e.revision = 0; e.updatedAt = userDataNow(); return e; };
   userDataWrite(blank(), uid);  // 這個帳號自己的分區
   userDataWrite(blank(), null); // 共用匿名 key ＋ 四個 legacy 陣列(走 userDataWrite 的 if (!uid) 分支)
@@ -17568,6 +17628,8 @@ async function accountSignOut() {
 //   · 409 merged_elsewhere（這台裝置的 actor 已經併進別的帳號）：換新的 actor、再併一次，之後都用新的；同一次登入只換一次。
 // 併發：onAuthStateChanged 可能連發兩次（session 還原＋登入事件），_busy 讓同一組只有一個請求在途。
 function bountyMergeOnLogin(user) {
+  // 登入紀錄不看懸賞旗標：車庫錢包旗標關著也在用，換登入方式的提示靠這筆紀錄（見 bountyAccountSignedIn）。
+  if (user && user.uid) bountyAccountSignedIn(user);
   if (!BOUNTY_ENABLED || !user || !user.uid) return;
   const dev = bountyActor();
   if (!dev || dev === 'ephemeral' || dev === user.uid) return;
@@ -17627,7 +17689,8 @@ async function accountDeleteServerData(user) {
 }
 async function accountDelete() {
   const a = state.account, u = a && a.user; if (!a || !u) return;
-  if (!confirm(t('確定要永久刪除軌島帳號、雲端收藏與完乘紀錄？這個動作無法復原。'))) return;
+  // 確認之前不等網路：下面的重新驗證要開 popup，離使用者按下去越遠越可能被瀏覽器擋。點數在開帳號面板時先讀好（accountOpen）。
+  if (!confirm(t('確定要永久刪除軌島帳號、雲端收藏與完乘紀錄？這個動作無法復原。') + '\n\n' + bountyAccountDeleteWarning())) return;
   // 2026-08-04 複審 Important 5:比照 accountSignOut 的 a.loggingOut,從這裡到刪除流程結束
   // (無論成功或失敗)為止一律不受理任何同步(見 accountSyncNow/accountScheduleSync 的
   // a.syncSuspended 檢查)。旗標刻意取語意中性的名字,不沿用 a.loggingOut——這裡是刪帳號,不是
@@ -19202,6 +19265,7 @@ function draw() {
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (glTracksActive()) { glTracksSync(); glStationClipSync(); } // GL 軌道:狀態沒變就早退(簽名比對),有變才 setFilter/setPaintProperty
   glPlaceDedupSync(); // 底圖地名、機場名跟站名同名就不畫底圖那個(竹北站旁的「竹北市」、松山機場站旁的「臺北松山機場」);沒變就早退
+  syncDelayFrame();
   if (state.mode === 'sched') { if (state.deco) drawDecoBase(w, h); drawSched(w, h, state.deco ? () => drawDecoTrains(w, h) : null); if (state.deco) drawDecoLabels(); } else drawFreq(w, h);
   if (state.delayClimate) drawReplayOverlay(w);
   drawMe(); // 「我的位置」畫最後=在所有軌道與列車之上,不會被蓋掉
@@ -19566,6 +19630,26 @@ function buildLoopTrains(data) {
   data.trains.push(mk('8889', '平原號', '#d2a12a', west));
 }
 // 貼軌完成後才知道每段實際弧長,把一圈時刻按里程等比鋪滿 12 小時
+// 觀看的「顯示虛構專列」(issue #107):關掉就把山海號／平原號移出 state.trains,理由同停駛車
+// (applyTraDailyDelta):留著加旗標,每條畫車／看板／亮點／流量路徑都得記得跳過。
+// 跟隨中的那班留到結束跟車,不讓鏡頭當場跟丟;搜尋掃的是 data.trains,另看 fictionalOff。
+function fictionalOff(tr) { return state.hideFictional && !!tr.loop; }
+function syncFictionalTrains() {
+  const all = state.trains.concat(state._fictionalOff || []);
+  const off = all.filter(tr => fictionalOff(tr) && tr !== state.followTrain);
+  state._fictionalOff = off;
+  state.trains = off.length ? all.filter(tr => !off.includes(tr)) : all;
+  state._featured = null;
+}
+function setShowFictional(on) {
+  state.hideFictional = !on;
+  try { localStorage.setItem('trainmap-fictional', on ? '1' : '0'); } catch (e) {}
+  const row = document.getElementById('fictionalRow');
+  if (row) { row.setAttribute('aria-pressed', String(!!on)); row.querySelector('.toggle').classList.toggle('on', !!on); }
+  if (!state.trains.length) return; // 開機還原時班表還沒載,applySchedSystems 會接手
+  syncFictionalTrains();
+  computeFlow();
+}
 function retimeLoopTrains() {
   for (const tr of state.trains) {
     if (!tr.loop) continue;
@@ -20294,7 +20378,9 @@ function clearFollow() {
   clearFreqFollow(); // 換系統/群組/進放空都經過這裡 → 一併清掉捷運幽靈車跟隨
   restoreFollowSpeed(); // 中途取消跟隨也要還原 fromStart 重播強制的速度
   busTransferCancelJourney(false);
+  const wasLoop = state.followTrain && state.followTrain.loop;
   state.followTrain = null; state.followId = null; state.followStatus = null;
+  if (wasLoop && state.hideFictional) syncFictionalTrains(); // 開關關著時留到現在的那班,這時才收
   resetFollowHeading(); // M3：離開跟車回正北；pitch 是使用者偏好，不在此改動
   state.followWrapStops = null;
   if (state.amb) state.amb.at = 0; // 車聲圖層:停跟即淡出(下一拍 ambTick 判無新位置)
@@ -20346,6 +20432,18 @@ const DR1000_DESC = '1998 年起投入的冷氣柴油客車，自帶柴油引擎
 function isDr1000(tr) {
   const branch = specialOf(tr)?.branch;
   return !!branch && DIESEL_BRANCH_IDS.has(branch.id) && /區間/.test(tr.typeName || tr.carName || '');
+}
+// 區間車世代:官方班表一律標「區間車」分不出,commuterStock 是社群編組運用表的推估(見
+// scripts/build_tra_commuter_stock.mjs),畫面一律帶「推估」。表上查無此車次就回 null,退回只寫區間車,不猜。
+function commuterModels(tr) {
+  const sd = state.special, cs = sd && sd.commuterStock;
+  if (!cs || tr.sys !== 'tra_sched' || !/區間/.test(tr.carName || '')) return null;
+  if (!sd._commuterByNo) sd._commuterByNo = new Map(cs.groups.flatMap(g => g.trains.map(no => [no, g.models])));
+  const models = sd._commuterByNo.get(String(tr.train));
+  return models ? models.map((m, i) => i ? m.replace('EMU', '') : m).join('／') : null; // EMU500／800
+}
+function commuterKindText(tr, it) {
+  return t('{kind} {model} 推估', { kind: trainTypeName(tr.typeName), model: it.model });
 }
 // carName（官方 CarClass 中文名）→ 車型說明;由上而下比對,先中先贏
 const KIND_RULES = [
@@ -20442,6 +20540,9 @@ function trainIntro(tr) {
   if (dr1000) {
     kind = DR1000_KIND; desc = DR1000_DESC; fact = null;
   }
+  // 車型家族的小知識(「EMU900 一列 10 輛」)接在推估為 EMU500 的車後面讀起來像在說這班,換成推估依據那句
+  const model = dr1000 || spd?.named ? null : commuterModels(tr);
+  if (model) fact = null;
   const amens = [];
   const par = (cn.match(/\(([^)]*)\)/) || [])[1] || '';
   for (const [flag, icon, label] of AMEN_FLAGS) if (par.includes(flag)) amens.push({ icon, label });
@@ -20454,7 +20555,7 @@ function trainIntro(tr) {
   // 的 EMU900 故事(7/18 正名時只改了 kind／desc,跟車面板對了、列車卡沒對,09-19 驗收才抓到)。
   // 圖鑑收集不受影響:recordRide 的 stockId 直接讀 specialOf().stock,照舊記成區間車。
   return { special: sp || null, named: spd?.named || null, stock: dr1000 ? null : spd?.stock || null,
-    kind, desc: sp ? sp.desc : desc, amens, nStops: stops.length, dur, fact, factIndex, branch };
+    kind, desc: sp ? sp.desc : desc, amens, nStops: stops.length, dur, fact, factIndex, branch, model };
 }
 // ── 隨機挑車:加權挑一班正在跑的車。放空會定時回來換下一班(1–2 分鐘),
 //    使用者手按「隨機跟隨」則只挑這一次,跟到終點為止(換車由使用者按「換一班」,見 tick 的 rotate 閘) ──
@@ -21910,6 +22011,7 @@ function updateMusicBtn() {
   // enabled=偏好(預設 true 但自動播放被擋時根本沒聲音),真正「在放」= 偏好開且 audio 沒暫停
   // 等化器常駐佔位(停播時凍結,見 CSS),鈕寬開關兩態一致不跳動
   b.classList.toggle('playing', state.music.enabled && !state.music.audio.paused);
+  window.TrainGarage?.showMusic();
 }
 function musicLoadCur() {
   const m = state.music;
@@ -21993,9 +22095,26 @@ function musicPlay() {
   m.audio.play().then(() => musicRamp(m.vol, 1200)).catch(() => {}); // 自動播放被擋就靜默略過
 }
 function musicStop() { musicRamp(0, 800, true); }
+// 看車庫放音樂（規則同 App 的 garageOpened／garageClosed）：開關開著、現在沒在放才換一首開播（清單洗過，下一首就是隨機），
+// 關過的人不自動放，已經在放的不動。離開時是車庫開的才收，開關偏好不動；中途自己按過開關就算他的（setMusicEnabled 清掉）。
+// 要在點擊那一拍同步呼叫，瀏覽器才認得是使用者手勢；被擋時 musicNext 裡的 catch 靜默略過，鈕面照實際狀態。
+let musicGarageStarted = false;
+function musicGarageOpened() {
+  const m = state.music;
+  if (!musicAvailable() || !m.enabled || !m.audio.paused) return;
+  musicGarageStarted = true;
+  musicNext();
+  m.audio.volume = 0; musicRamp(m.vol, 1200);
+}
+function musicGarageClosed() {
+  if (!musicGarageStarted) return;
+  musicGarageStarted = false;
+  if (!state.music.audio.paused) musicStop();
+}
 function setMusicEnabled(on) {
   if (!musicAvailable()) on = false;
   state.music.enabled = on;
+  musicGarageStarted = false;
   saveMusicPref();
   updateMusicBtn();
   on ? musicPlay() : musicStop(); // 開關即播/停,放空與否都一樣
@@ -22641,7 +22760,7 @@ function renderTrainCard(tr) {
   document.getElementById('tcDot').style.background = tr.color;
   document.getElementById('tcNo').textContent = trainDisplayNo(tr);
   document.getElementById('tcKind').textContent = tr.loop ? trainDisplayKind(tr) : tr.est ? `${trainTypeName(tr.typeName)}・${t('時刻推算')}`
-    : it.stock ? i18nContentData('rollingStock', it.stock, 'name') : trainTypeName(it.kind || tr.typeName);
+    : it.model ? commuterKindText(tr, it) : it.stock ? i18nContentData('rollingStock', it.stock, 'name') : trainTypeName(it.kind || tr.typeName);
   document.getElementById('tcRoute').textContent =
     `${stationName(first.name, tr.sys)} ${fmtHM(first.depSec % 86400)} → ${stationName(last.name, tr.sys)} ${fmtHM(last.arrSec % 86400)}`;
   let html = '';
@@ -22649,6 +22768,7 @@ function renderTrainCard(tr) {
   if (it.desc) html += escHtml(it.named ? i18nContentData('namedTrains', it.named, 'story')
     : it.stock ? i18nContentData('rollingStock', it.stock, 'story') : t(it.desc));
   if (it.fact) html += `<span class="fact">${escHtml(it.stock ? i18nContentData('rollingStock', it.stock, 'facts', it.factIndex) : t(it.fact))}</span>`;
+  if (it.model) html += `<span class="fact">${escHtml(t('車型依臺灣鐵道維基館的編組運用表（{date} 起）推估，實際以當日調度為準。', { date: state.special.commuterStock.asOf }))}</span>`;
   if (it.branch) html += `<span class="fact">${escHtml(i18nContentData('branchLines', it.branch, 'name'))}：${escHtml(i18nContentData('branchLines', it.branch, 'story'))}</span>`;
   html += `<span class="amen">${escHtml(t('停靠 {n} 站 · 全程約 {duration}', { n: i18nNumber(it.nStops), duration: it.dur }, it.nStops))}` +
     (it.amens.length ? ' · ' + it.amens.map(a => `<span class="amen-item">${railIcon(a.icon)}${escHtml(t(a.label))}</span>`).join('') : '') + '</span>';
@@ -23861,6 +23981,7 @@ const garageWallet = {
   // 車款兌換（契約 v3 POST /api/garage-collect）：回應的處理照場景那條（train-garage.js sendRedeem）。
   collect: (item, requestId) => garageWalletPost('api/garage-collect', { item, requestId }),
   wrongAccount: () => bountyOnWrongAccount(),
+  accountLine: () => bountyAccountLine(),
   pending: {
     get: () => { try { const p = JSON.parse(localStorage.getItem(GARAGE_REDEEM_PENDING_KEY) || 'null'); return p && typeof p === 'object' ? p : null; } catch (e) { return null; } },
     set: p => { try { localStorage.setItem(GARAGE_REDEEM_PENDING_KEY, JSON.stringify(p)); return true; } catch (e) { return false; } },
@@ -23881,13 +24002,16 @@ function openTrainGarage(options = {}) {
   if (!window.TrainGarage) { showToast(t('車庫暫時無法載入，請稍後重試。')); return; }
   if (!state.ready) { showToast(t('收藏資料載入中，請稍後再試。')); return; }
   garageReturnFocus = document.activeElement;
+  if (!window.TrainGarage.isOpen) musicGarageOpened();
   window.TrainGarage.open({
     ...ownTrainHost(), // 自製列車:TrainGarage 用 host.plan();下面同名欄位以車庫自己的為準
     ownTrainCard, ownTrainSchedule, ownTrainView, ownTrainReplan, ownTrainFull,
     ownTrainDepot: () => openMyTrainDepot({ back: true }),
     snapshot: garageSnapshot, t, lang: () => I18N_LANG, dark: () => !!state.mapDark,
     wallet: garageWallet,
+    music: { available: musicAvailable, playing: () => state.music.enabled && !state.music.audio.paused, toggle: () => document.getElementById('musicBtn').click() },
     onClose: () => {
+      musicGarageClosed();
       garageResumeMap();
       if (garageReturnFocus?.isConnected && garageReturnFocus.getClientRects().length) garageReturnFocus.focus({preventScroll:true});
     },
@@ -25473,6 +25597,95 @@ function bountyOnIdentityGone(uid) {
   bountyForgetChips();
   bountyRetireActor(uid);
 }
+// 點數跟著帳號走（照 App railcore BountyAccountCopy／BountyAccountMerge）：Apple 與 Google 登入是兩個帳號、各有各的錢包，
+// 換一種方式登入會安靜地進到一個 0 點的新帳號；刪帳號會把點數與解鎖一起永久刪掉（worker bountyPurgeUid）。
+// 這台裝置登入過哪些帳號記在 ACCOUNT_NOTES_KEY，只存在本機、不送伺服器：uid、登入方式、遮罩過的 email，
+// 以及按過「知道了」的組合（「登入中的 uid>另一個 uid」）。最多 8 個帳號、16 組。
+// 🔴 App 看併帳旗標就夠，網頁不行：trainmap-bounty-merged-* 只有 BOUNTY_ENABLED 開著才寫，而正式站這個旗標是關的。
+//    所以提示主要看這份紀錄；併帳旗標只當「這版之前併過、沒有紀錄」的那一種，說法不提登入方式。
+const ACCOUNT_NOTES_KEY = 'trainmap-account-notes-v1';
+function bountyAccountNotes() {
+  try {
+    const o = JSON.parse(localStorage.getItem(ACCOUNT_NOTES_KEY) || 'null');
+    return { accounts: Array.isArray(o && o.accounts) ? o.accounts.filter(n => n && typeof n.uid === 'string') : [],
+      seen: Array.isArray(o && o.seen) ? o.seen.filter(s => typeof s === 'string') : [] };
+  } catch (e) { return { accounts: [], seen: [] }; }
+}
+function bountyAccountNotesSave(notes) { try { localStorage.setItem(ACCOUNT_NOTES_KEY, JSON.stringify(notes)); } catch (e) {} }
+// Apple「隱藏我的電子郵件」的轉寄位址，或讀不到 email。
+function bountyAccountHiddenEmail(email) {
+  const v = String(email || '').trim().toLowerCase();
+  return !v.includes('@') || v.endsWith('@privaterelay.appleid.com');
+}
+// 只留帳號名稱前兩個字與網域：islander@example.com → is***@example.com；隱藏 email 不記。
+function bountyAccountMask(email) {
+  if (bountyAccountHiddenEmail(email)) return '';
+  const v = String(email).trim(), at = v.lastIndexOf('@'), name = v.slice(0, at);
+  return name.slice(0, name.length > 2 ? 2 : 1) + '***' + v.slice(at);
+}
+function bountyAccountProvider(user) { return (user.providerData && user.providerData[0] && user.providerData[0].providerId) || ''; }
+// 登入（含開機還原登入）：記下這個帳號的登入方式與遮罩過的 email，之後換帳號時提示才說得出是哪一個。先登入的在前。
+function bountyAccountSignedIn(user) {
+  const n = bountyAccountNotes(), note = { uid: user.uid, provider: bountyAccountProvider(user), email: bountyAccountMask(user.email) };
+  const last = n.accounts[n.accounts.length - 1];
+  if (last && last.uid === note.uid && last.provider === note.provider && last.email === note.email) return;
+  n.accounts = n.accounts.filter(a => a.uid !== note.uid).concat(note).slice(-8);
+  bountyAccountNotesSave(n);
+}
+// uid 登入中、這台裝置之前登入過另一個帳號、而且這組還沒按過「知道了」：回那個帳號（有紀錄的取最近登入的）。
+function bountyAccountOther(uid) {
+  const { accounts, seen } = bountyAccountNotes();
+  const open = id => id !== uid && !seen.includes(`${uid}>${id}`);
+  for (let i = accounts.length - 1; i >= 0; i--) if (open(accounts[i].uid)) return accounts[i];
+  try {
+    const prefix = 'trainmap-bounty-merged-';
+    const legacy = Object.keys(localStorage).filter(k => k.startsWith(prefix)).map(k => k.slice(prefix.length)).filter(open).sort()[0];
+    return legacy ? { uid: legacy } : null;
+  } catch (e) { return null; }
+}
+function bountyAccountOwnerText(user) {
+  if (!bountyAccountHiddenEmail(user.email)) return t('點數存在 {email} 的軌島帳號', { email: String(user.email).trim() });
+  return bountyAccountProvider(user) === 'apple.com' ? t('點數存在用 Apple 登入的軌島帳號') : t('點數存在目前登入的軌島帳號');
+}
+// App 寫「這支手機」；網頁也跑在電腦上，改寫「這台裝置」（日文原本就是この端末）。
+function bountyAccountSwitchText(other) {
+  const provider = other.provider === 'apple.com' ? 'Apple' : other.provider === 'google.com' ? 'Google' : '';
+  if (!provider) return t('這台裝置之前登入過另一個軌島帳號，點數和車庫在那個帳號。如果你剛換了登入方式（Apple／Google），請登出，改用原本的方式登入。');
+  if (!other.email) return t('這台裝置之前用 {provider} 登入過另一個軌島帳號，點數和車庫在那個帳號。如果你剛換了登入方式，請登出，改用 {provider} 登入。', { provider });
+  return t('這台裝置之前用 {provider} 登入過另一個軌島帳號（{email}），點數和車庫在那個帳號。如果你剛換了登入方式，請登出，改用 {provider} 登入。', { provider, email: other.email });
+}
+// 錢包旁邊那行：點數存在哪個帳號，加上換登入方式的提示。車庫、懸賞板、護照、帳號面板共用；沒登入回空字串。
+function bountyAccountLine() {
+  const u = state.account && state.account.user;
+  if (!u) return '';
+  const other = bountyAccountOther(u.uid);
+  return `<div class="acct-wallet"><div>${escHtml(bountyAccountOwnerText(u))}</div>` +
+    (other ? `<div class="acct-switch"><span>${escHtml(bountyAccountSwitchText(other))}</span><button type="button" data-act="acct-dismiss">${escHtml(t('知道了'))}</button></div>` : '') +
+    '</div>';
+}
+function bountyBoardAccount() { document.getElementById('bountyAcct').innerHTML = bountyAccountLine(); }
+// 按了「知道了」：這組之後不再提示，四處一起收。監聽掛在 document：這行長在四個各有各點擊處理的畫面裡。
+function bountyAccountDismiss() {
+  const u = state.account && state.account.user, other = u && bountyAccountOther(u.uid);
+  if (!other) return;
+  const n = bountyAccountNotes(), key = `${u.uid}>${other.uid}`;
+  n.seen = n.seen.filter(s => s !== key).concat(key).slice(-16);
+  bountyAccountNotesSave(n);
+  accountRender(); bountyBoardAccount(); renderPassport(); renderRidePanel();
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-act="acct-dismiss"]')) bountyAccountDismiss(); });
+// 帳號刪掉了：這台裝置忘掉它，提示不再叫人回去找。bountyRetireActor 要讀併帳旗標，所以呼叫端先走完 accountForgetIdentity 才叫這裡。
+function bountyAccountForget(uid) {
+  try { localStorage.removeItem('trainmap-bounty-merged-' + uid); } catch (e) {}
+  const n = bountyAccountNotes();
+  bountyAccountNotesSave({ accounts: n.accounts.filter(a => a.uid !== uid), seen: n.seen.filter(s => !s.startsWith(uid + '>') && !s.endsWith('>' + uid)) });
+}
+// 刪除確認那句：讀得到這個帳號的錢包就寫幾點、幾座。chipsMeMem 換人就清（bountyForgetChips），裡面一定是登入中這個帳號的。
+function bountyAccountDeleteWarning() {
+  const c = chipsMeMem;
+  if (!c) return t('你的島民點數與已兌換的車庫場景會一起永久刪除，重新註冊也拿不回來。');
+  return t('島民點數 {points} 點與已兌換的 {scenes} 座車庫場景會一起永久刪除，重新註冊也拿不回來。', { points: i18nNumber(bountyNum(c.balance)), scenes: i18nNumber(c.unlocked.length) });
+}
 // 形狀第一版就是最終的 userData collection 形狀（規格 §6 硬條件）：Plus 上線接同步時是純上傳、
 // 零遷移。逐筆 u 是 LWW 的比較鍵，與 checkinsToCollections 同一套規則。
 function loadBounty() {
@@ -25805,6 +26018,7 @@ async function openBountyBoard() {
   const m = document.getElementById('bountyModal');
   m.hidden = false;
   const seq = ++bountyBoardSeq;
+  bountyBoardAccount();
   document.getElementById('bountyList').innerHTML = `<div class="bt-empty">${escHtml(t('載入中…'))}</div>`;
   // 卡片上的點數倍率標記要讀規則檔：跟看板請求一起讀，上限之內讀到了，畫第一次就帶得到。讀不到只是不標倍率，不擋看板。
   const rulesP = bountyRules().catch(() => null);
@@ -26982,6 +27196,64 @@ const RP_CORRIDORS = [
 ];
 const rpBin = d => d >= 60 ? 4 : d >= 30 ? 3 : d >= 15 ? 2 : d >= 5 ? 1 : 0;
 const rpColor = d => RP_COL[rpBin(d)] || pal().collectGrey;
+// ── 誤點外框(「列車光環」下一列):台鐵車牌／圓點外多一圈,顏色跟著現在的誤點分鐘連續變 ──
+// 5／15／30／60 分的顏色與誤點一日重播同一組,只補 0 分的綠;中間逐分鐘內插,圖例的漸層也讀這一份,地圖和圖例不會各說各話。
+const DELAY_FRAME_STOPS = [[0, '#22c55e'], [5, RP_COL[1]], [15, RP_COL[2]], [30, RP_COL[3]], [60, RP_COL[4]]];
+const DELAY_FRAME_PREF_KEY = 'trainmap-delay-frame';
+const delayFrameColors = [];   // 索引＝分鐘,60 分以上都用最深的顏色
+for (let i = 1; i < DELAY_FRAME_STOPS.length; i++) {
+  const [m0, c0] = DELAY_FRAME_STOPS[i - 1], [m1, c1] = DELAY_FRAME_STOPS[i];
+  const rgb = c => [1, 3, 5].map(k => parseInt(c.slice(k, k + 2), 16));
+  const a = rgb(c0), b = rgb(c1);
+  for (let m = m0; m <= m1; m++) delayFrameColors[m] = `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * (m - m0) / (m1 - m0))).join(',')})`;
+}
+document.getElementById('delayLegendBar').style.background = `linear-gradient(90deg,${DELAY_FRAME_STOPS.map(s => s[1]).join(',')})`;
+try { state.delayFrame = localStorage.getItem(DELAY_FRAME_PREF_KEY) === '1'; } catch (e) {}
+document.getElementById('delayFrameRow').onclick = () => {
+  state.delayFrame = !state.delayFrame;
+  try { localStorage.setItem(DELAY_FRAME_PREF_KEY, state.delayFrame ? '1' : '0'); } catch (e) {}
+  syncDelayFrameRow(); window.railIslandIntegration?.render();
+};
+function syncDelayFrameRow() {
+  const row = document.getElementById('delayFrameRow');
+  row.setAttribute('aria-checked', String(!!state.delayFrame));
+  row.querySelector('.toggle').classList.toggle('on', !!state.delayFrame);
+}
+syncDelayFrameRow();
+// 每幀一次。外框只講「現在」:拉到別的時間就不畫,不拿現在的誤點去標別的時間的車。
+function syncDelayFrame() {
+  const on = !!state.delayFrame && state.mode === 'sched' && !greyNet() && !!state.schedSystems?.some(s => s.live);
+  const now = on && liveActive() && Math.abs(state.simSec - nowSecOfDay()) <= 120;
+  state._delayFeed = now ? state.live.map : null;
+  // 跟車時圖例讓位給跟車卡(同在左上),卡上已寫這班誤點幾分;外框照畫。
+  const show = on && !state.followTrain && !state.freqFollow;
+  const legend = document.getElementById('delayLegend');
+  if (legend.hidden === show) legend.hidden = !show;
+  const note = document.getElementById('delayLegendNote');
+  if (note.hidden === (show && !now)) note.hidden = !(show && !now);
+}
+// undefined＝這班沒有即時資料,跟「準點」(0)分開,沒資料不畫框。
+function delayFrameMin(tr) {
+  const feed = state._delayFeed;
+  return feed && tr.sys === 'tra_sched' && !isMyTrain(tr) ? feed.get(String(tr.train)) : undefined;
+}
+function drawDelayFrame(p, tr, tag) {
+  const d = delayFrameMin(tr), opacity = p.detailOpacity ?? 1;
+  if (d === undefined || opacity <= 0) return;
+  const m = Math.max(0, Math.min(60, Math.round(d)));
+  ctx.save();
+  try {
+    ctx.globalAlpha = opacity; ctx.strokeStyle = delayFrameColors[m];
+    ctx.lineWidth = 2 + m / 40;   // 越嚴重越粗,色盲或看不清顏色時還有粗細可以分
+    const out = .75 + ctx.lineWidth / 2;   // 貼在牌原本 1.5px 描邊的外緣,車種色不被蓋掉
+    ctx.beginPath();
+    if (tag) {
+      const r = TAG_H / 2 + out, dx = tagW(tr) / 2 + out - r;   // 車牌是藥丸形,兩個半圓接起來
+      ctx.arc(p.x - dx, p.y, r, Math.PI / 2, Math.PI * 1.5); ctx.arc(p.x + dx, p.y, r, -Math.PI / 2, Math.PI / 2); ctx.closePath();
+    } else ctx.arc(p.x, p.y, 6 + out, 0, 7);
+    ctx.stroke();
+  } finally { ctx.restore(); }
+}
 const rpHhmm = m => { m = Math.max(0, Math.min(1439, Math.floor(m))); return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
 const rpName = s => String(s).replace(/\s*\(.*\)$/, '').replace(/台/g, '臺');
 const rpSt = n => stationName(n, 'tra_sched');
@@ -27793,7 +28065,7 @@ function buildChipsRow() {
   const c = chipsMeMem;
   const cell = (k, html) => `<span class="pc-i" data-k="${k}">${html}</span>`;
   const label = `<span class="pc-l">${escHtml(t('島民點數'))}</span> `;
-  if (!c) return `<div class="ph-chips">${cell('balance', label + '<b>—</b>')}</div>`;
+  if (!c) return `<div class="ph-chips">${cell('balance', label + '<b>—</b>')}</div>${bountyAccountLine()}`;
   const parts = [cell('balance', label + `<b>${bountyNum(c.balance)}</b>`)];
   const sceneN = ((bountyRulesMem && bountyRulesMem.chips && bountyRulesMem.chips.scenes) || []).length;
   // 點了開車庫（兌換在車庫最上面的「車庫場景」列，同 App 護照的車庫卡只開車庫頁）。價格未知不畫，不顯示 0。
@@ -27807,7 +28079,7 @@ function buildChipsRow() {
     const cap = bountyNum(c.today.cap);
     parts.push(cell('cap', t('錄程每天最多 <b>{n}</b> 點', { n: cap }, cap)));
   }
-  return `<div class="ph-chips">${parts.join(' ')}</div>`;
+  return `<div class="ph-chips">${parts.join(' ')}</div>${bountyAccountLine()}`;
 }
 // 收集章(明星列車/車種圖鑑/支線行腳):完成與否皆掛點擊鉤子→got 章也可點重播;桌面與 sheet 逐字相同
 // opts.date=true:章面下緣印取得日期(設計 3g,護照 sheet 專用)。
@@ -28892,7 +29164,7 @@ function setFollowHead(tr, it = trainIntro(tr)) {
   setFollowTitle(tr);
   // 車型名(區間車（通勤電聯車）…)是資料檔 rollingStock 的名稱,要走 i18nContentData 才有外語(同 renderTrainCard 的 tcKind);
   // DR1000 那種被 trainIntro 覆寫掉的 kind 已不是車型名,照舊走 trainTypeName。
-  document.getElementById('fpKind').textContent = tr.loop ? trainDisplayKind(tr)
+  document.getElementById('fpKind').textContent = tr.loop ? trainDisplayKind(tr) : it.model ? commuterKindText(tr, it)
     : it.stock && it.kind === it.stock.name ? i18nContentData('rollingStock', it.stock, 'name') : trainTypeName(it.kind || tr.typeName);
   const first = tr.stops[0], last = tr.stops[tr.stops.length - 1];
   document.getElementById('fpDest').textContent = tr.loop
@@ -34348,7 +34620,7 @@ function searchTrainMatch(q) {
   for (const sid of ['tra_sched', 'thsr_sched', 'afr_sched']) {
     const sys = state.systems.find(s => s.id === sid);
     if (!sys) continue;
-    for (const tr of (sys.data.trains || [])) if (String(tr.train).startsWith(nq)) out.push({ tr, sys });
+    for (const tr of (sys.data.trains || [])) if (String(tr.train).startsWith(nq) && !fictionalOff(tr)) out.push({ tr, sys });
   }
   out.sort((a, b) => ((String(a.tr.train) === nq ? 0 : 1) - (String(b.tr.train) === nq ? 0 : 1))
     || String(a.tr.train).localeCompare(String(b.tr.train), 'en', { numeric: true }));
@@ -34381,7 +34653,7 @@ function searchNamedMatch(q) {
       for (const sid of ['tra_sched', 'thsr_sched']) {
         const sys = state.systems.find(s => s.id === sid);
         const tr = sys && (sys.data.trains || []).find(t => String(t.train) === no);
-        if (tr) { out.trs.push({ tr, sys }); found = true; }
+        if (tr) { if (!fictionalOff(tr)) out.trs.push({ tr, sys }); found = true; }
       }
     }
     if (!found) out.infos.push(n);
@@ -34425,7 +34697,7 @@ function searchTypeMatch(q) {
   const now = state.simSec;
   const hits = [];
   for (const tr of sys.data.trains) {
-    if (!tr.stops || !tr.stops.length) continue;
+    if (!tr.stops || !tr.stops.length || fictionalOff(tr)) continue;
     const sp = specialOf(tr);
     const stock = sp && sp.stock;
     if (!(stock && stockIds.has(stock.id)) && !searchTypeNorm(tr.typeName).includes(nq)) continue;
@@ -39321,7 +39593,7 @@ const HELP_GROUPS = [
       steps: ['點台鐵車站打開看板', '按站名旁的「追蹤一班車」', '從「接下來的班次」挑你要等的那一班'],
       tip: '倒數照官方表定加即時誤點，車到站後自動收起。鎖定畫面同時只留一張等候卡——追蹤台鐵這班會把捷運那張收掉。時鐘不在「現在」時會先幫你帶回現在。這項不需要通行證。' },
     { key: 'xing', ic: '平', nm: '平交道', tg: 'xingBtn',
-      one: '全台 346 處台鐵平交道，看接下來哪班車會通過。',
+      one: '全台 347 處台鐵平交道，看接下來哪班車會通過。',
       steps: ['手機按地圖右上的「觀看」、桌面用地圖右側的直欄，點「標示」→ 打開「平交道記號」', '把地圖拉近就看得到記號', '點任一平交道，看接下來通過的列車與倒數'],
       tip: '遮斷機通常提前 30–60 秒動作，請以現場號誌為準。', try: 'xing' },
     // 訂閱是新功能,依專案慣例必須有一節;avail 掛 PLUS_ENABLED,旗標關掉整節自動消失(不教一個按不到的東西)。
@@ -41539,6 +41811,7 @@ async function boot() {
   try { state.immersive = localStorage.getItem('trainmap-immersive') === '1'; } catch (e) {}
   try { state.xingOn = localStorage.getItem('trainmap-xing') === '1'; } catch (e) {}
   try { state.stnIntro = state.stnIntroPref = localStorage.getItem('trainmap-stn-intro') === '1'; } catch (e) {} // 特殊站介紹:預設關,使用者開過才記 '1'
+  try { setShowFictional(localStorage.getItem('trainmap-fictional') !== '0'); } catch (e) {} // 虛構專列:預設顯示,使用者關過才記 '0'
   try { state.dirArrow = localStorage.getItem('trainmap-diron') !== '0'; } catch (e) {} // 列車方向箭頭:預設開(沒存過即開),使用者關過才記 '0'
   try { setAmbientStyle(localStorage.getItem('trainmap-ambient-style') === 'follow' ? 'follow' : 'hotspot'); } catch (e) {} // 預設群車(v0717v);使用者切過跟車才存 'follow'
   // 省電模式預設:手機開、桌機關;使用者手動切過就記住(setupMapTools 內 setPowerSave 讀此值初始化按鈕)

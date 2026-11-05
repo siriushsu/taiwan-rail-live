@@ -18,7 +18,7 @@
     "items": { "train:dr3000": 150, "train:ct250": 150, "train:fuxing": 150, "train:emu300": 150, "train:tengyun": 150 },
     "chipToPoints": 50,
     "plusBonusPct": 50,
-    "scenes": ["south-coast", "shifen", "viaduct", "alishan", "duoliang", "crossing", "guanghua", "taipei-metro", "wenhu", "airport-mrt", "ntpc-metro", "ntpc-lrt", "taichung-metro", "kaohsiung-metro", "kaohsiung-lrt", "thsr"],
+    "scenes": ["south-coast", "shifen", "viaduct", "alishan", "duoliang", "crossing", "guanghua", "taipei-metro", "wenhu", "airport-mrt", "ntpc-metro", "ntpc-lrt", "taichung-metro", "kaohsiung-metro", "kaohsiung-lrt", "thsr", "hsinchu", "tainan", "taichung-old", "chiayi", "baoan", "jiji", "dongshan", "kaohsiung-old", "haixian", "shengxing", "taipei-under"],
     "events": [],
     "evergreen": ["tra_sched|南迴線", "tra_sched|臺東線"]
   },

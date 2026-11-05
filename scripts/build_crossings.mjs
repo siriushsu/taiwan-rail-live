@@ -10,6 +10,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { REMOVED_CROSSINGS, removedKey } from './lib/crossings_removed.mjs';
+import { ADDED_CROSSINGS } from './lib/crossings_added.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE_DIR = path.join(ROOT, 'scripts/.crossings_cache');
@@ -32,6 +33,7 @@ const CLUSTER_DM = 40;      // OSM 內部:同 lnId 且 |Δd|<此值(m) 聚類成
 // 平交道只採官方資料——台鐵官方現役 415 處與 dataset 帶座標筆數恰吻合
 // (無座標 386 筆=已裁撤/立體化),OSM 聯集反而混入非台鐵管理道口。OSM 邏輯保留,要重開加 --with-osm
 // 但帶座標的也不全是現役(高雄、台中、員林、屏東等立體化路段仍帶座標),另由 lib/crossings_removed.mjs 排除。
+// 無座標的也不全是裁撤(尖山埔路現地仍在),另由 lib/crossings_added.mjs 補座標。
 const WITH_OSM = process.argv.includes('--with-osm');
 
 const R = 6371, toR = Math.PI / 180;
@@ -178,6 +180,10 @@ const EXCLUDED_LINES = new Set([
 async function main() {
   const xml = await fetchXml();
   const all = parseNodes(xml);
+  for (const a of ADDED_CROSSINGS) {
+    const n = all.find(x => x.name === a.name && x.county === a.county && x.lat == null);
+    if (n) [n.lat, n.lon] = [a.lat, a.lon];
+  }
   const withPos = all.filter(n => n.lat != null);
   console.log(`XML 節點總數 ${all.length},含座標 ${withPos.length}`);
 

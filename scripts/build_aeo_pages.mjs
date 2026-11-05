@@ -683,14 +683,14 @@ ${header()}
 ${footer(`<a href="/ko${pathname}" hreflang="ko" lang="ko">한국어</a>`).replace('</body>', '<script src="/i18n/ko-public-pages.js"></script>\n<script src="/i18n/legal-pages.js"></script>\n</body>')}`;
 }
 
-// ── 捷運路線圖頁（階段 A，2026-09-29）：scripts/build_metro_pages.mjs，三語共 60 頁，全部由 data/ 產生 ──
+// ── 捷運路線圖頁（階段 A，2026-09-29）：scripts/build_metro_pages.mjs，四語共 80 頁，全部由 data/ 產生 ──
 const metro = buildMetroPages(root, { stationPages: stations, zhShell: { header, footer }, koText: K, escapeHtml });
 for (const [relative, html] of metro.files) write(relative, html);
 const sh = metro.shell;
 const metroLinkSection = ({ h, text, href, label, hreflang }) => `<section class="content-section"><h2>${escapeHtml(h)}</h2><div class="answer-box"><p>${escapeHtml(text)}</p></div><p><a class="button secondary" href="${href}"${hreflang ? ` hreflang="${hreflang}"` : ''}>${escapeHtml(label)}</a></p></section>`;
 const zhMetroSection = () => metroLinkSection({ h: metro.linkSectionText.zh.h, text: metro.linkSectionText.zh.text, href: metro.overviewHref('zh'), label: metro.linkSectionText.zh.link });
-// 韓文沒有路線圖頁：入口文字查字典，連到英文版（overviewHref('ko')），按鈕標明語言
-metro.linkSectionText.ko = { h: K(metro.linkSectionText.zh.h), text: K(metro.linkSectionText.zh.text), link: `${K(metro.linkSectionText.zh.link)}(영어)` };
+// 韓文入口文字查字典
+metro.linkSectionText.ko = { h: K(metro.linkSectionText.zh.h), text: K(metro.linkSectionText.zh.text), link: K(metro.linkSectionText.zh.link) };
 
 // ── 關於／準確度／資料來源：中文頁與 /ko/ 韓文頁 ──
 // 韓文頁把中文內文的文字節點換成字典譯文（i18n/legal-pages.js 在瀏覽器裡做的同一件事），只換外殼與站內連結；
@@ -698,7 +698,7 @@ metro.linkSectionText.ko = { h: K(metro.linkSectionText.zh.h), text: K(metro.lin
 const koGuideDate = '2026-11-05';
 const KO_GUIDE_LINKS = {
   '/': { href: '/?lang=ko' }, '/about/': { href: '/ko/about/' }, '/accuracy/': { href: '/ko/accuracy/' }, '/data-sources/': { href: '/ko/data-sources/' },
-  '/stations/': { href: '/ko/stations/' }, '/metro/': { href: metro.overviewHref('ko'), hreflang: 'en' }, '/status.html': { href: '/status.html', hreflang: 'zh-Hant' },
+  '/stations/': { href: '/ko/stations/' }, '/metro/': { href: metro.overviewHref('ko') }, '/status.html': { href: '/status.html', hreflang: 'zh-Hant' },
 };
 const KO_GUIDE_ALT = { 'TDX 運輸資料流通服務標章 / Transport Data eXchange': 'TDX / Transport Data eXchange' };
 function koGuideContent(html) {
@@ -715,8 +715,7 @@ function koGuideContent(html) {
     .replace(/>([^<>]+)</g, (all, text) => {
       const source = text.trim();
       if (!/\p{Script=Han}/u.test(source)) return all;
-      const ko = source === metro.linkSectionText.zh.link ? metro.linkSectionText.ko.link : K(source);
-      return `>${text.replace(source, () => escapeHtml(ko))}<`;
+      return `>${text.replace(source, () => escapeHtml(K(source)))}<`;
     });
   return out;
 }
@@ -804,6 +803,7 @@ writeGuide({
     <div class="fact-row"><div class="fact-label">交通部 TDX</div><div class="fact-value">台鐵即時誤點與車站資訊，以及高鐵、捷運、輕軌等系統的路線、站序、時刻表或班距資料，依政府資料開放授權條款第1版使用。<a href="https://motc-ptx.gitbook.io/tdx-xin-shou-zhi-yin/api-shi-yong-shuo-ming/zi-liao-shi-yong-chang-jian-wen-ti"><img src="/assets/tdx-logo.svg" alt="TDX 運輸資料流通服務標章 / Transport Data eXchange" width="184" height="34" style="display:block;max-width:100%;height:auto;margin-top:8px"></a></div></div>
     <div class="fact-row"><div class="fact-label">營運機構資料</div><div class="fact-value">在授權與技術條件允許時，使用各營運機構的到站倒數、列車動態或營運公告校正畫面。</div></div>
     <div class="fact-row"><div class="fact-label">OpenStreetMap</div><div class="fact-value">補足部分軌道幾何；資料來自 OpenStreetMap 貢獻者並依 ODbL 使用。</div></div>
+    <div class="fact-row"><div class="fact-label">臺灣鐵道維基館</div><div class="fact-value">區間車車型推估改編自社群整理的編組運用表（CC BY-SA 4.0）；官方班表不分世代，僅供參考。</div></div>
     <div class="fact-row"><div class="fact-label">地圖圖磚</div><div class="fact-value">網站街道圖使用 OpenFreeMap，衛星影像使用 Esri World Imagery；App 的 OpenFreeMap 載入失敗時改用 Stadia Maps。實際授權標示會顯示在地圖上。</div></div>
   </div></section>
   <section class="content-section"><h2>為什麼不只用一個 API</h2><div class="answer-box"><p>班表、站點、路線幾何、逐車狀態與營運公告通常分散在不同來源，而且每個鐵道系統公開的欄位不同。軌島保留來源差異：有即時訊號就校正，只有班表就明確當作推演，不用一種資料精度冒充所有系統。</p></div></section>
@@ -1298,7 +1298,7 @@ function howParagraphs(lang, model) {
       `捷運的路線、首末班車與班距請看<a href="${metro.overviewHref('zh')}">捷運路線圖</a>。`,
       `For metro lines, first and last trains and headways, see the <a href="${metro.overviewHref('en')}">metro maps</a>.`,
       `メトロの路線、始発・終電、運転間隔は、<a href="${metro.overviewHref('ja')}">メトロ路線図</a>をご覧ください。`,
-      `MRT 노선, 첫차 · 막차, 배차간격은 <a href="${metro.overviewHref('ko')}" hreflang="en">MRT 노선도(영어)</a>에서 볼 수 있어요.`)}</p>` : '';
+      `MRT 노선, 첫차 · 막차, 배차간격은 <a href="${metro.overviewHref('ko')}">MRT 노선도</a>에서 볼 수 있어요.`)}</p>` : '';
   return `<p>${escapeHtml(first.join(pick4(lang, '', ' ', '', ' ')))}</p><p>${escapeHtml(second)}</p>${metroLink}`;
 }
 
@@ -1477,7 +1477,7 @@ ${sh.headerHtml(lang, alts)}
       <div class="hero-actions"><a class="button" href="${live}">${escapeHtml(t.live)}</a>${lang === 'zh' ? `<a class="button secondary" href="${pathname}">${escapeHtml(t.second)}</a>` : ''}</div>
     </section>
     <section class="content-section"><h2>${escapeHtml(t.h2)}</h2><p class="section-intro">${escapeHtml(t.intro)}</p><div class="card-grid station-grid">${cards}</div></section>${lang === 'zh' ? `\n    ${traStationGroupsHtml()}` : ''}
-  ${metroLinkSection({ h: linkText.h, text: linkText.text, href: metro.overviewHref(lang), label: linkText.link, hreflang: lang === 'ko' ? 'en' : undefined })}
+  ${metroLinkSection({ h: linkText.h, text: linkText.text, href: metro.overviewHref(lang), label: linkText.link })}
   <section class="content-section"><div class="notice"><strong>${escapeHtml(t.noticeLead)}</strong>${gap}${[t.zhIndexNote ? t.zhIndexNote(featured.length) : '', escapeHtml(t.noticeText)].filter(Boolean).join(gap)}</div></section>
   </main>
 ${sh.footerHtml(lang, alts)}`;
@@ -1535,6 +1535,7 @@ const landings = {
         ['Ministry of Transportation TDX', 'TRA real-time delays and station information, plus routes, stop sequences, timetables or headways for high speed rail, metro and light rail, used under the Open Government Data License, version 1.'],
         ['Operator public data', 'Arrival countdowns, train movements or service notices, used where licensing and technical conditions allow.'],
         ['OpenStreetMap', 'Fills in some track geometry. Data by OpenStreetMap contributors under the ODbL.'],
+        ['Taiwan Railway Wiki', 'Estimated models for local trains are adapted from a community-compiled rolling-stock roster (CC BY-SA 4.0). Official timetables do not separate these series, so treat them as estimates.'],
       ] },
       { h: 'Open the map', type: 'cta', text: 'Rail Island opens in Traditional Chinese by default. The button below opens the live map in English.' },
       { h: 'Not a replacement for official travel information', type: 'notice', lead: 'Important:', text: 'Rail Island is good for exploring the network, not as the only basis for catching a train, safety decisions or operations. Check the operator\'s app, website, station boards or announcements for temporary suspensions and platform changes.' },
@@ -1576,6 +1577,7 @@ const landings = {
         ['交通部 TDX', '台鉄のリアルタイム遅延と駅情報、高鉄・メトロ・ライトレールの路線、停車駅順、時刻表または運転間隔。政府資料オープンライセンス第1版にもとづいて利用しています。'],
         ['運行会社の公開データ', '許諾と技術的な条件が許す範囲で、到着カウントダウン、列車の動き、運行のお知らせを使います。'],
         ['OpenStreetMap', '一部の線路形状を補います。OpenStreetMap の貢献者によるデータで、ODbL にもとづいて利用しています。'],
+        ['臺灣鐵道維基館', '区間車の車種推定は、有志がまとめた編成運用表（CC BY-SA 4.0）を改変して使っています。公式時刻表は世代を区別しないため、参考情報です。'],
       ] },
       { h: '地図を開く', type: 'cta', text: '軌島の地図は最初、繁体字中国語で表示されます。下のボタンから日本語表示で開けます。' },
       { h: '公式の運行情報の代わりにはなりません', type: 'notice', lead: '重要：', text: '軌島は路線網を眺めて楽しみ、理解するための地図です。列車に間に合うかどうかや安全にかかわる判断、運行管理の唯一の根拠にはしないでください。臨時運休やのりばの変更は、運行会社のアプリ、ウェブサイト、駅の案内、お知らせで確認してください。' },
@@ -1617,6 +1619,7 @@ const landings = {
         [K('交通部 TDX'), K('台鐵即時誤點與車站資訊，以及高鐵、捷運、輕軌等系統的路線、站序、時刻表或班距資料，依政府資料開放授權條款第1版使用。')],
         [K('營運機構資料'), K('在授權與技術條件允許時，使用各營運機構的到站倒數、列車動態或營運公告校正畫面。')],
         ['OpenStreetMap', K('補足部分軌道幾何；資料來自 OpenStreetMap 貢獻者並依 ODbL 使用。')],
+        [K('臺灣鐵道維基館'), K('區間車車型推估改編自社群整理的編組運用表（CC BY-SA 4.0）；官方班表不分世代，僅供參考。')],
       ] },
       { h: '지도 열기', type: 'cta', text: 'Rail Island 지도는 처음에 번체 중국어로 열려요. 아래 버튼을 누르면 한국어 화면으로 열려요.' },
       { h: K('不能取代官方行車資訊'), type: 'notice', lead: K('重要：').trim(), text: K('軌島適合探索與輔助理解路網，不應作為趕車、安全決策或營運調度的唯一依據。臨時停駛、月台異動與現場狀況請以營運機構公告為準。') },
@@ -1627,10 +1630,10 @@ const landings = {
   },
 };
 
-// /en/、/ja/、/ko/ 第二段插入「捷運路線圖」入口（文字由 build_metro_pages.mjs 提供，和 zh 頁同一份來源；韓文沒有捷運頁，連英文版）
+// /en/、/ja/、/ko/ 第二段插入「捷運路線圖」入口（文字由 build_metro_pages.mjs 提供，和 zh 頁同一份來源）
 for (const code of ['en', 'ja', 'ko']) {
   const t = metro.linkSectionText[code];
-  landings[code].sections.splice(1, 0, { h: t.h, type: 'link', text: t.text, href: metro.overviewHref(code), label: t.link, hreflang: code === 'ko' ? 'en' : undefined });
+  landings[code].sections.splice(1, 0, { h: t.h, type: 'link', text: t.text, href: metro.overviewHref(code), label: t.link });
 }
 // 車站時刻頁的入口（英日韓文首頁到 /en/stations/、/ja/stations/、/ko/stations/ 的內部連結；sitemap 之外的另一條路）
 const stationLinkText = {
@@ -1751,7 +1754,7 @@ write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="htt
 
 // ── 寫檔或比對 ────────────────────────────────────────────────────────────────────────
 // 捷運頁與車站頁的目錄只由本腳本產生，所以磁碟上有、但這次沒產出的檔案＝孤兒（路線或車站被拿掉、改 slug），寫檔模式會刪、--check 會報。
-const metroDirs = ['metro', 'en/metro', 'ja/metro', 'stations', 'en/stations', 'ja/stations', 'ko/stations'];
+const metroDirs = ['metro', 'en/metro', 'ja/metro', 'ko/metro', 'stations', 'en/stations', 'ja/stations', 'ko/stations'];
 function filesUnder(relativeDir) {
   const dir = path.join(root, relativeDir);
   if (!fs.existsSync(dir)) return [];
@@ -1761,7 +1764,7 @@ function filesUnder(relativeDir) {
   });
 }
 const orphans = metroDirs.flatMap(filesUnder).filter(relative => !outputs.has(relative)).sort();
-const metroSummary = `${metro.paths.length} metro pages (${Object.entries(metro.counts).map(([kind, n]) => `${kind} ${n}`).join(' / ')}), missing en/ja station names: ${metro.missingNames.length}`;
+const metroSummary = `${metro.paths.length} metro pages (${Object.entries(metro.counts).map(([kind, n]) => `${kind} ${n}`).join(' / ')}), missing en/ja/ko station names: ${metro.missingNames.length}`;
 
 if (checkMode) {
   const problems = [];

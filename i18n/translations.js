@@ -198,7 +198,9 @@
       '本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。': 'This independent enthusiast project is not affiliated with TRA or any metro operator.',
       '語言': 'Language', '選擇介面語言': 'Choose interface language',
       '班距改變，已結束跟隨': 'Service frequency changed; follow mode ended.', '列車已抵達終點': 'The train has reached its terminus.', '已離開此班次的行駛時段': 'This service is no longer running at the selected time.',
-      '換一班': 'Another train', '離開放空': 'Exit ambient mode', '時刻推算': 'Estimated timetable', '停靠站': 'Stops', '到站': 'Arr.', '開車': 'Dep.',
+      '換一班': 'Another train', '離開放空': 'Exit ambient mode', '時刻推算': 'Estimated timetable', '{kind} {model} 推估': '{kind} {model} (est.)',
+      '車型依臺灣鐵道維基館的編組運用表（{date} 起）推估，實際以當日調度為準。': 'Model estimated from the Taiwan Railway Wiki rolling-stock roster (from {date}); the actual train depends on that day’s operations.',
+      '區間車車型推估改編自臺灣鐵道維基館「附件:臺鐵區間車」編組運用表（CC BY-SA 4.0），僅供參考': 'Local-train model estimates are adapted from the Taiwan Railway Wiki rolling-stock roster (CC BY-SA 4.0), for reference only', '停靠站': 'Stops', '到站': 'Arr.', '開車': 'Dep.',
       '推估': 'Estimated', '⚠ 異常推定': '⚠ Possible disruption', 
       '晚 {n} 分': '{n} min late', '早 {n} 分': '{n} min early',
       
@@ -260,7 +262,7 @@
       '實際到離站時刻請以各營運機構官方資訊為準。': 'Always confirm actual arrivals and departures with the operator’s official information.',
       '在 Google 地圖開啟 ↗': 'Open in Google Maps ↗',
       '接下來 3 小時會有誰來': 'Arrivals in the next 3 hours', '點班次跟隨': 'Tap a service to follow it',
-      '虛構 {train}': 'Fictional {train}', '虛構專列': 'Fictional special', '軌島虛構專列': 'Rail Island fictional special',
+      '虛構 {train}': 'Fictional {train}', '虛構專列': 'Fictional special', '顯示虛構專列': 'Show fictional trains', '軌島虛構專列': 'Rail Island fictional special',
       '查看接下來 3 小時全部 {n} 班': 'View all {n} services in the next 3 hours', '收起完整班次': 'Show fewer services',
       '此時段無停靠班次': 'No stopping services at this time', '接下來的班車': 'Upcoming trains',
       '依官方當日時刻表': 'Official timetable', '已依官方即時資訊校正': 'Corrected with official live data',
@@ -759,7 +761,9 @@
       '📍 回報問題或建議': '📍 問題・翻訳を報告', '本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。': '個人運営の非公式プロジェクトで、台湾鉄路および各交通事業者とは関係ありません。',
       '語言': '言語', '選擇介面語言': '表示言語を選択',
       '班距改變，已結束跟隨': '運転間隔が変わったため追跡を終了しました。', '列車已抵達終點': '列車は終点に到着しました。', '已離開此班次的行駛時段': '選択した時刻にはこの列車は運行していません。',
-      '換一班': '別の列車', '離開放空': '鑑賞モードを終了', '時刻推算': '推定時刻', '停靠站': '停車駅', '到站': '着', '開車': '発',
+      '換一班': '別の列車', '離開放空': '鑑賞モードを終了', '時刻推算': '推定時刻', '{kind} {model} 推估': '{kind} {model} 推定',
+      '車型依臺灣鐵道維基館的編組運用表（{date} 起）推估，實際以當日調度為準。': '車種は臺灣鐵道維基館の編成運用表（{date} 改正）からの推定で、実際の車両は当日の運用によります。',
+      '區間車車型推估改編自臺灣鐵道維基館「附件:臺鐵區間車」編組運用表（CC BY-SA 4.0），僅供參考': '区間車の車種推定は臺灣鐵道維基館の編成運用表（CC BY-SA 4.0）を改変したもので、参考情報です', '停靠站': '停車駅', '到站': '着', '開車': '発',
       '推估': '推定', '⚠ 異常推定': '⚠ 運行異常の可能性', 
       
       
@@ -812,7 +816,7 @@
       '帳號與資料刪除': 'アカウント・データの削除', '資料來源與授權': 'データ出典・ライセンス',
       '實際到離站時刻請以各營運機構官方資訊為準。': '実際の発着時刻は各事業者の公式情報をご確認ください。', '在 Google 地圖開啟 ↗': 'Google マップで開く ↗',
       '接下來 3 小時會有誰來': '今後3時間の列車', '點班次跟隨': '列車をタップして追跡',
-      '虛構 {train}': '架空 {train}', '虛構專列': '架空特別列車', '軌島虛構專列': '軌島の架空特別列車',
+      '虛構 {train}': '架空 {train}', '虛構專列': '架空特別列車', '顯示虛構專列': '架空列車を表示', '軌島虛構專列': '軌島の架空特別列車',
       '此時段無停靠班次': 'この時間帯に停車する列車はありません',
       '查看接下來 3 小時全部 {n} 班': '今後3時間の全{n}本を表示', '收起完整班次': '表示本数を減らす',
       '接下來的班車': '次の列車', '依官方當日時刻表': '公式時刻表', '已依官方即時資訊校正': '公式リアルタイム情報で補正済み',
@@ -1351,3 +1355,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {"觀看設定移到網站右側；�
 // 3D 自動降級吐司(index.html watch3dFrameBudget)
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"這台電腦跑立體列車不夠順，已切回平面；要再試可在觀看設定重新開啟": "This computer can't run 3D trains smoothly, so they're back to flat. To try again, turn them on in View settings."});
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"這台電腦跑立體列車不夠順，已切回平面；要再試可在觀看設定重新開啟": "このパソコンでは立体列車の表示が重いため、平面表示に戻しました。もう一度試すには、表示設定で立体列車をオンにしてください。"});
+
+// 點數存在哪個帳號、換登入方式提示、刪帳號確認(index.html bountyAccountLine／bountyAccountDeleteWarning),文案照 App
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"點數存在 {email} 的軌島帳號": "Points are saved to the Rail Island account {email}", "點數存在用 Apple 登入的軌島帳號": "Points are saved to the Rail Island account you signed in to with Apple", "點數存在目前登入的軌島帳號": "Points are saved to the Rail Island account you’re signed in to", "島民點數 {points} 點與已兌換的 {scenes} 座車庫場景會一起永久刪除，重新註冊也拿不回來。": "Your {points} Islander Points and {scenes} redeemed garage scenes will be permanently deleted too. Signing up again won’t bring them back.", "你的島民點數與已兌換的車庫場景會一起永久刪除，重新註冊也拿不回來。": "Your Islander Points and redeemed garage scenes will be permanently deleted too. Signing up again won’t bring them back.", "這台裝置之前登入過另一個軌島帳號，點數和車庫在那個帳號。如果你剛換了登入方式（Apple／Google），請登出，改用原本的方式登入。": "This device was signed in to another Rail Island account before, and your points and garage are in that account. If you just switched sign-in methods (Apple/Google), sign out and sign in the way you did before.", "這台裝置之前用 {provider} 登入過另一個軌島帳號，點數和車庫在那個帳號。如果你剛換了登入方式，請登出，改用 {provider} 登入。": "This device was signed in to another Rail Island account with {provider} before, and your points and garage are in that account. If you just switched sign-in methods, sign out and sign in with {provider}.", "這台裝置之前用 {provider} 登入過另一個軌島帳號（{email}），點數和車庫在那個帳號。如果你剛換了登入方式，請登出，改用 {provider} 登入。": "This device was signed in to another Rail Island account ({email}) with {provider} before, and your points and garage are in that account. If you just switched sign-in methods, sign out and sign in with {provider}."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"點數存在 {email} 的軌島帳號": "ポイントは{email}の軌島アカウントに保存されています", "點數存在用 Apple 登入的軌島帳號": "ポイントはAppleでログインした軌島アカウントに保存されています", "點數存在目前登入的軌島帳號": "ポイントはログイン中の軌島アカウントに保存されています", "島民點數 {points} 點與已兌換的 {scenes} 座車庫場景會一起永久刪除，重新註冊也拿不回來。": "島民ポイント{points}ポイントと交換済みの車庫の情景{scenes}件も完全に削除され、登録し直しても戻りません。", "你的島民點數與已兌換的車庫場景會一起永久刪除，重新註冊也拿不回來。": "島民ポイントと交換済みの車庫の情景も完全に削除され、登録し直しても戻りません。", "這台裝置之前登入過另一個軌島帳號，點數和車庫在那個帳號。如果你剛換了登入方式（Apple／Google），請登出，改用原本的方式登入。": "この端末は以前、別の軌島アカウントにログインしていました。ポイントと車庫はそのアカウントにあります。ログイン方法（Apple／Google）を変えたばかりなら、ログアウトして元の方法でログインしてください。", "這台裝置之前用 {provider} 登入過另一個軌島帳號，點數和車庫在那個帳號。如果你剛換了登入方式，請登出，改用 {provider} 登入。": "この端末は以前、{provider}で別の軌島アカウントにログインしていました。ポイントと車庫はそのアカウントにあります。ログイン方法を変えたばかりなら、ログアウトして{provider}でログインしてください。", "這台裝置之前用 {provider} 登入過另一個軌島帳號（{email}），點數和車庫在那個帳號。如果你剛換了登入方式，請登出，改用 {provider} 登入。": "この端末は以前、{provider}で別の軌島アカウント（{email}）にログインしていました。ポイントと車庫はそのアカウントにあります。ログイン方法を変えたばかりなら、ログアウトして{provider}でログインしてください。"});

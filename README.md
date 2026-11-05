@@ -119,7 +119,7 @@ python3 -m http.server 5178      # 或用 .claude/launch.json 的 "static" 設�
 製作衍生作品或另行發布**。完整條款見 [LICENSE](LICENSE)。
 
 `data/` 的資料衍生自 OpenStreetMap（ODbL）、TDX、台鐵官方公開資料與內政部界線資料，
-`suno musics/` 的音樂僅授權予作者本人——**這兩者作者都無權轉授權**，取用前請看 LICENSE 第三節。
+`suno musics/` 的音樂僅授權予作者本人——**這兩者都不在本專案的授權範圍內**，取用前請看 LICENSE 第三節（音樂只有一項窄例外：官方 App 產生的短片可以分享）。
 
 歡迎回報問題與指正資料，這是目前最有價值的貢獻；想寫程式、做 Android 版或移植到其他平台，
 請先開 Issue 談（有幾個從 repo 看不出來的障礙）。作法見 [CONTRIBUTING.md](CONTRIBUTING.md)。
