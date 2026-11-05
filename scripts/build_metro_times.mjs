@@ -774,12 +774,17 @@ const SYSTEMS = [
     lines: { A: [
       // SP5=南下直達、SP2=北上直達,兩者都與 SP1 普通車共用同一筆記錄的 DestinationStaionID=A22。
       // 官方(tymetro.com.tw 各站時刻表)：直達車兩端是 A1 台北車站 ↔ A21 環北,不到 A22 老街溪。
+      // TDX 2026-11-05(VersionID 2495)起直達車搬出 A-1:A13 起訖的直達車在 A-2,開到 A21 的★與北上◆在新路線 A-4,
+      // A-1 只剩 SP1,這兩個覆寫不再命中(建置會印「覆寫從未命中」)。留著是因為機捷路線結構換過不只一次(2026-10-16 一天兩版),
+      // 2494 舊結構用同一份設定仍建得出一樣的班表。A-2、A-4 第一個有記錄的站就是真起點,
+      // 不宣告 noOriginBackfill 的話北上直達車會憑空從 A14a、A22 開出來。
       // 2026 台灣設計展(9/24–10/11)A12↔A21 區間加班車:官方各站時刻表標「空心圓-增開區間服務班次(A12←→A21,
       // 每站停靠)」,TDX 掛在 SP1 普通車、終點仍寫 A22/A1 ⇒ 用 shuttles 補對折返站(見補終點段)。
       { op: 'TYMC', routeId: 'A-1', destByPattern: { SP5: 'A21' }, originByPattern: { SP2: 'A21' },
         shuttles: [{ dir: 0, pat: 'SP1', from: 'A12', to: 'A21' }, { dir: 1, pat: 'SP1', from: 'A21', to: 'A12' }] },
-      { op: 'TYMC', routeId: 'A-2' },
+      { op: 'TYMC', routeId: 'A-2', noOriginBackfill: true },
       { op: 'TYMC', routeId: 'A-3' },
+      { op: 'TYMC', routeId: 'A-4', noOriginBackfill: true },
     ] } },
   { file: 'data/ntdlrt.json', out: 'data/ntdlrt_times.json', allStop: false,
     src: '淡海輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);綠山線/藍海線各依實際時刻',
@@ -866,6 +871,20 @@ const SYSTEMS = [
 //    判準要盯的是「這次重建真正要讀的那份資料」,不是同一個上游的另一份。
 // 2026-09-18:StationTimeTable 已有 R01(6 筆,UpdateTime 09-16),本閘門已自動放行;同快照重建的
 //    淡水信義線對 data.taipei 平日/週六/週日站別時刻表逐站相符(週六廣慈 23:08 一班仍接不起來)。
+// 🔴 路線涵蓋閘門:TDX 多一條沒有 spec 接手的路線,那條路線的班次會整批消失、建置照樣成功
+// (2026-11-05 機捷 ★與◆ 搬到新路線 A-4,平日少 18 班)。有這種路線就不重建該系統、維持現有檔案,
+// 結束碼非 0 擋下 sync-metro 後面的步驟;新路線接進 lines,確定不要才加進 UNREAD_ROUTES。
+// 刻意不讀的:NTMC 空路線編號＝三鶯線(不吃 StationTimeTable,理由見上面 sanying);K-2＝安坑清晨 K06 出發的一班。
+const UNREAD_ROUTES = { NTMC: [''], NTALRT: ['K-2'] };
+const unreadRoutes = sys => {
+  const specs = Object.values(sys.lines).flat();
+  return [...new Set(specs.map(s => s.op))].flatMap(op => {
+    const read = new Set(specs.filter(s => s.op === op).map(s => s.routeId));
+    if (read.has('*')) return [];
+    return [...new Set(sttCache(op).map(r => r.RouteID ?? ''))]
+      .filter(id => !read.has(id) && !(UNREAD_ROUTES[op] || []).includes(id)).map(id => `${op}/${id}`);
+  });
+};
 const FORCE_TRTC = process.argv.includes('--force-trtc');
 const ONLY = (process.argv.find(a => a.startsWith('--only=')) || '').slice('--only='.length);
 const trtcSourceHasR01 = () => {
@@ -881,6 +900,13 @@ for (const sys of SYSTEMS) {
     console.log(`== ${sys.file}`);
     console.log('  ⏭ 跳過重建:TDX 的 TRTC 快照仍缺 R01 廣慈/奉天宮(信義線東延段),重建會產生殘缺 R 線班表。');
     console.log('     TDX 上架 R01 後本閘門自動失效;要強制重建加 --force-trtc。');
+    continue;
+  }
+  const unread = unreadRoutes(sys);
+  if (unread.length) {
+    console.log(`== ${sys.file}`);
+    console.error(`  ⛔ 跳過重建:TDX 有路線沒有 spec 接手(${unread.join('、')}),班次會整批消失。${sys.out} 維持現狀。`);
+    process.exitCode = 1;
     continue;
   }
   const data = J(sys.file);
