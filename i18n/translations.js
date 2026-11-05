@@ -472,6 +472,7 @@
       '行程分享：把你在哪班車上分享給朋友': 'Trip sharing: tell friends which train you are on',
       '匯入 Google Maps 已儲存清單，成為軌島的最愛地點': 'Import Google Maps saved lists as Rail Island favorite places',
       '非跟車時的衛星高解析圖磚（支援 Retina 螢幕）': 'High-resolution satellite tiles when not following a train (Retina supported)',
+      'App 校正懸賞錄程的島民點數多 50%，加成不算進每天上限': '50% more Islander Points on Calibration bounty recordings in the app, on top of the daily limit',
       '跟車時在鎖定畫面與動態島顯示即時動態（iOS 17.6 以上）': 'Live train status on the Lock Screen and Dynamic Island while following (iOS 17.6+)',
       '旅程護照的創始島民徽章': 'Founding Islander badge in the Journey Passport',
       '列車位置、誤點資訊與系統覆蓋現在免費提供——通行證不影響準確度。': 'Train positions, delay information and system coverage remain free—the pass does not affect accuracy.',
@@ -1011,6 +1012,7 @@
       '行程分享：把你在哪班車上分享給朋友': '旅程共有：乗車中の列車を友だちに共有',
       '匯入 Google Maps 已儲存清單，成為軌島的最愛地點': 'Googleマップの保存済みリストを軌島のお気に入り場所として読み込み',
       '非跟車時的衛星高解析圖磚（支援 Retina 螢幕）': '列車追跡中以外に高解像度衛星地図を表示（Retina対応）',
+      'App 校正懸賞錄程的島民點數多 50%，加成不算進每天上限': 'アプリの校正懸賞の記録で得られる島民ポイントが50%増加（増加分は1日の上限に含まれません）',
       '跟車時在鎖定畫面與動態島顯示即時動態（iOS 17.6 以上）': '列車追跡中にロック画面とDynamic Islandへライブ表示（iOS 17.6以降）',
       '旅程護照的創始島民徽章': '旅のパスポートに創始島民バッジ',
       '列車位置、誤點資訊與系統覆蓋現在免費提供——通行證不影響準確度。': '列車位置、遅延情報、対応路線は引き続き無料です。パスの有無で精度は変わりません。',
@@ -1339,8 +1341,8 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {"觀看設定移到網站右側；�
 
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {"觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟": "表示設定をウェブサイトの右側に移動しました。モバイルでは「表示」から視点・地図・列車の設定を変更でき、没入モード中も開き直せます。"});
 
-Object.assign(window.RAIL_I18N_MESSAGES.en, {"容易辨認會在遠景加寬車身，近看維持原始比例。":"Easy to see widens trains at a distance. Close-up views retain their original scale."});
-Object.assign(window.RAIL_I18N_MESSAGES.ja, {"容易辨認會在遠景加寬車身，近看維持原始比例。":"見やすい表示では遠景の車幅を広げます。近くでは元の縮尺を維持します。"});
+Object.assign(window.RAIL_I18N_MESSAGES.en, {"Q 版把列車畫成放大的三節，遠看也看得清楚，列車編組的設定不影響；容易辨認會在遠景加寬車身，近看維持原始比例。":"Q-style draws each train as three enlarged cars, so it stays clear from a distance; the formation setting does not apply. Easy to see widens trains at a distance. Close-up views retain their original scale."});
+Object.assign(window.RAIL_I18N_MESSAGES.ja, {"Q 版把列車畫成放大的三節，遠看也看得清楚，列車編組的設定不影響；容易辨認會在遠景加寬車身，近看維持原始比例。":"デフォルメ表示は列車を大きな3両で描き、遠くからでも見やすくします。編成の設定は反映されません。見やすい表示では遠景の車幅を広げます。近くでは元の縮尺を維持します。"});
 
 Object.assign(window.RAIL_I18N_MESSAGES.en, {"觀看設定移到網站右側；手機可按「觀看」切換視角、地圖與列車設定，沉浸模式也能隨時重新開啟；修正地形切換時橋墩閃現與遠景列車大小設定未生效；9/18 起開著車站卡或列車卡也能直接進觀看設定":"View settings now live on the right side of the website. On mobile, tap View to adjust the scene, including in immersive mode. Fixed flashing bridge piers when switching terrain and restored distant train size settings. Since 9/18, View is also available while a station or train card is open."});
 

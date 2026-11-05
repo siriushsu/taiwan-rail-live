@@ -705,7 +705,7 @@ async function runNameplateOrientation(browser, engineName, P) {
     ctx3d = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'zh-TW' });
     await ctx3d.addInitScript(INIT);
     await ctx3d.addInitScript(RIDES_INIT, OWN_TRAIN_RIDES);
-    const { page, errors, ready } = await bootPage(ctx3d, '&scene=3d&sun=off');
+    const { page, errors, ready } = await bootPage(ctx3d, '&scene=3d&sun=off&trainSize=readable');
     if (!ready) throw new Error('3D 開機逾時: ' + (errors.slice(0, 3).join(' | ') || 'timeout'));
     await page.evaluate(() => { state.simSec = 8 * 3600; state.clockAtNow = false; state.playing = false; });
 

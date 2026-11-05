@@ -31,6 +31,7 @@ import {
   parseDirectBulkUpdateTime, parseProviderConfig, providerForCity, resolveDirectBulkStop, resolveTdxStop,
 } from './scripts/bus_live_core.mjs';
 import { twDayStr, nextHolidaySpan, weekendBody } from './scripts/weekend_core.mjs';
+import { replayBuildNet, replayDay } from './scripts/delay_replay.mjs';
 import { tripPoints, priceOfNth, canRedeem, taipeiDay, cloudRideCounts, itemPrice, canCollect } from './scripts/bounty_chips_core.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
@@ -2645,7 +2646,7 @@ const PLUS_SANDBOX_LEGACY_BUILDS = new Set(['21', '22']);
 const PLUS_SANDBOX_UID_ALLOWLIST_BUILDS = new Set(['16']);
 // 原生 iOS 送審 build：App Review 用 sandbox 購買（含終身），審查員的 Firebase UID 事先無從得知，
 // 所以訂閱與終身都不查 UID allowlist。上架後同一顆 build 照舊先查正式環境，正式沒資格才回退 sandbox。
-const PLUS_SANDBOX_REVIEW_BUILDS = new Set(['224', '225', '226', '227', '228', '229']);
+const PLUS_SANDBOX_REVIEW_BUILDS = new Set(['224', '225', '226', '227', '228', '229', '230']);
 const PLUS_ENTITLEMENT_COLLECTION = Object.freeze({
   [RC_ENV_PRODUCTION]: 'entitlements',
   [RC_ENV_SANDBOX]: 'sandboxEntitlements',
@@ -6563,7 +6564,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 const API_ENDPOINTS = new Set([
   'tra-platforms', 'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'rail-status', 'metro-live', 'ntmetro-live', 'trtc-live',
   'klrt-position', 'bus-transfer', 'bus-leg-live', 'bus-route-stops', 'bus-stop-search', 'bus-stop-live', 'journey-share',
-  'delay-stats', 'delay-climate', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'thsr-seat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
+  'delay-stats', 'delay-climate', 'delay-replay', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'thsr-seat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'chips-me', 'garage-redeem', 'garage-collect', 'cloud-ride', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
   'trackside/bind', 'trackside/unbind', 'push/register', 'push/unregister', 'rail-push/decide', 'weather',
@@ -10258,6 +10259,8 @@ async function ingestDelayHistory(env) {
       // 誤點氣候圖搭這一發的資料順便算,不另打 TDX;算壞了只記 log,不能拖垮上面的誤點統計。
       try { await writeClimateDay(env, day, events); }
       catch (e) { console.warn(`[cron delay] ${day} 誤點氣候圖失敗: ${e && e.message}`); }
+      try { await writeReplayDay(env, day, events); }
+      catch (e) { console.warn(`[cron delay] ${day} 誤點重播失敗: ${e && e.message}`); }
       written.push(day);
       console.log(`[cron delay] ${day}: 事件 ${events.length}, 本日列 ${ownRows.length}, 併回前一日 ${mergedPrev.length}, 寫入 ${nStmt} 句`);
     }
@@ -10284,6 +10287,8 @@ async function ingestDelayHistory(env) {
   } else {
     console.log('[cron delay] blob 無需重建');
   }
+  try { await healReplayDays(env, since); }
+  catch (e) { console.warn(`[cron delay] 誤點重播補缺日失敗: ${e && e.message}`); }
   return { written, dbMax };
 }
 
@@ -10377,15 +10382,18 @@ function climateDayAgg(events, net) {
   return out;
 }
 
-let climateNetCache = null;
-async function climateNetwork(env) {
-  if (climateNetCache) return climateNetCache;
+async function traNetFiles(env) {
   const get = async f => {
     const r = await env.ASSETS.fetch(new Request('https://railisland.tw/data/' + f));
     if (!r.ok) throw new Error(f + ' ' + r.status);
     return r.json();
   };
-  const [tra, info] = await Promise.all([get('tra.json'), get('tra_station_info.json')]);
+  return Promise.all([get('tra.json'), get('tra_station_info.json')]);
+}
+let climateNetCache = null;
+async function climateNetwork(env) {
+  if (climateNetCache) return climateNetCache;
+  const [tra, info] = await traNetFiles(env);
   return (climateNetCache = climateBuildNet(tra, info));
 }
 
@@ -10433,6 +10441,48 @@ async function delayClimate(request, env) {
   }
 }
 
+// ── 誤點一日重播(/api/delay-replay):一天每班車的影格與當天重點,算法在 scripts/delay_replay.mjs ──
+const REPLAY_FETCH_PER_RUN = 2;   // 一發最多為了補重播多抓幾天 TDX 歷史檔;平常只缺昨天,上面那圈已經寫了,不會多抓
+let replayNetCache = null;
+async function writeReplayDay(env, day, events) {
+  if (!replayNetCache) replayNetCache = replayBuildNet(...await traNetFiles(env));
+  const json = JSON.stringify(replayDay(day, events, replayNetCache));
+  const gz = await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
+  await env.DELAY_DB.prepare('INSERT OR REPLACE INTO tra_delay_replay (service_date, gz) VALUES (?, ?)').bind(day, gz).run();
+}
+// 誤點統計寫過、重播沒寫到的日子(算壞了、上線前的空窗)自己補。TDX 回空的日子統計也沒有,不會一直重抓。
+async function healReplayDays(env, since) {
+  const res = await env.DELAY_DB.prepare(`SELECT DISTINCT d.service_date AS day FROM tra_delay_daily d
+    LEFT JOIN tra_delay_replay r ON r.service_date = d.service_date
+    WHERE d.service_date >= ? AND r.service_date IS NULL ORDER BY d.service_date DESC LIMIT ?`).bind(since, REPLAY_FETCH_PER_RUN).all();
+  const todo = (res.results || []).map(r => String(r.day));
+  if (!todo.length) return;
+  const token = await getToken(env);
+  for (let i = 0; i < todo.length; i++) {
+    if (i > 0) await sleep(2000);
+    const events = parseDayEvents(await fetchDelayDay(token, todo[i]));
+    if (events.length) await writeReplayDay(env, todo[i], events);
+    console.log(`[cron delay] 補重播 ${todo[i]}: 事件 ${events.length}`);
+  }
+}
+async function delayReplay(request, env) {
+  const day = new URL(request.url).searchParams.get('date') || '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return jsonRes({ error: 'bad_date' }, 400, 'public, s-maxage=3600');
+  const cacheKey = new Request(new URL('/api/delay-replay?date=' + day, request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  try {
+    const row = await env.DELAY_DB.prepare('SELECT gz FROM tra_delay_replay WHERE service_date = ?').bind(day).first();
+    if (!row) return jsonRes({ error: 'no_data' }, 404, 'public, s-maxage=300');
+    const body = await new Response(new Blob([new Uint8Array(row.gz)]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+    // 過去的日子不會再變
+    return await bodyResCached(edge, cacheKey, body, 200, 'public, max-age=86400, s-maxage=604800');
+  } catch (e) {
+    return jsonRes({ error: 'not_ready' }, 503, 'public, s-maxage=60');
+  }
+}
+
 // ── 台鐵誤點統計自我檢查(掛每分鐘 cron,形狀同下面的 thsrSelfHeal)─────────────────
 // 為什麼要有這條:上面的每日誤點 ingest 一天只有一發(15 1 * * *＝台北 09:15);第二發
 // (15 4 * * *)已停用(同 thsrSelfHeal 那條註解講的第二發高鐵 cron,不得以任何
@@ -10457,7 +10507,8 @@ async function delayClimate(request, env) {
 // 固定時刻 + 每日 cron 那 1 發(15 1 * * *,不受這個閘門控管,無條件執行)。每發最多補
 // MAX_DATES_PER_RUN=3 天,每天遇 429 最多重試 1 次(fetchDelayDay)⇒ 每發最多 3×2=6 次
 // 歷史 API 請求。合計最壞情形 6 發×6 次＝36 次歷史 API 請求/天(全部遇到 429 重試);不計
-// 429 重試則是 6×3=18 次/天。TDX 公開規則是歷史服務 10 次呼叫＝1 點、用量到 105% 會硬斷線
+// 429 重試則是 6×3=18 次/天。補誤點重播的缺日(healReplayDays)每發再多 REPLAY_FETCH_PER_RUN=2 天,
+// 最壞再加 6×2×2=24 次/天;平常不缺就是 0。TDX 公開規則是歷史服務 10 次呼叫＝1 點、用量到 105% 會硬斷線
 // (斷線會讓所有即時資料一起停擺),所以不對 TDX 迴圈重打。
 // 挑 :37 而不是整點/:15/:30/:45 是為了避開熱門 cron 分鐘——TDX token 端點按來源 IP 限流,
 // Cloudflare Workers 的出口 IP 與其他客戶共用,常見的整點/:15/:30/:45 更可能撞到別的服務也在
@@ -11325,6 +11376,7 @@ export default {
     else if (url.pathname === '/api/journey-share') res = await journeyShare(request, env);
     else if (url.pathname === '/api/delay-stats') res = await delayStats(request, env);
     else if (url.pathname === '/api/delay-climate') res = await delayClimate(request, env);
+    else if (url.pathname === '/api/delay-replay') res = await delayReplay(request, env);
     else if (url.pathname === '/api/thsr-schedule') res = await thsrSchedule(request, env);
     else if (url.pathname === '/api/tra-daily-trains') res = await traDailyTrains(request, env);
     else if (url.pathname === '/api/thsr-freeseat') res = await thsrFreeSeat(request, env);
@@ -11410,6 +11462,7 @@ export const _journeyShare = {
 };
 // 純函式導出,供離線回歸測試 import:誤點履歷視窗計算、車次驗證與回應組裝。
 export const _climate = { climateBuildNet, climateDayAgg, climateBody, climateKey, climateNorm };
+export const _replay = { ingestDelayHistory, writeReplayDay, healReplayDays, delayReplay };
 export const _delayHistory = { delayHistoryWindow, buildDelayHistoryBody, isValidTrainNo };
 // 供離線回歸測試 import:Plus 資格的環境收斂(scripts/verify_plus_entitlement_env.mjs)。
 // plusEntitledFromSubscriptions 是純函式;checkPlusEntitlement/plusStatus 不是,測試要自備

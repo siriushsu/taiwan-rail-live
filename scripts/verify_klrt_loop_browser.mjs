@@ -16,7 +16,7 @@ try{for(const [name,engine]of [['chromium',chromium],['webkit',webkit]]){
   const context=await browser.newContext({viewport:{width:1280,height:900},isMobile:true,hasTouch:true,locale:'zh-TW'}),page=await context.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(e.message));await context.addInitScript(()=>localStorage.setItem('trainmap-howto-seen','1'));
   await page.route('**/api/**',r=>r.fulfill({status:404,body:'{}',contentType:'application/json'}));
-  await page.goto(base+`?g=${group}&scene=3d&t=07:30&at=22.6065,120.3255&z=17&lang=zh-TW`,{waitUntil:'domcontentloaded',timeout:60000});
+  await page.goto(base+`?g=${group}&scene=3d&t=07:30&at=22.6065,120.3255&z=17&trainSize=readable&lang=zh-TW`,{waitUntil:'domcontentloaded',timeout:60000});
   await page.waitForFunction(()=>typeof state!=='undefined'&&state.ready&&metroLivePool().some(l=>l.id==='C'&&l._tt?.length)&&window.railIslandPhysical?.metro&&window.railIslandIntegration?.renderer,null,{timeout:90000});
   assert.equal(await page.evaluate(()=>BUILD),expected,'必須驗當前出貨版本');
   await page.evaluate(()=>{
