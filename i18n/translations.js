@@ -201,6 +201,7 @@
       '換一班': 'Another train', '離開放空': 'Exit ambient mode', '時刻推算': 'Estimated timetable', '{kind} {model} 推估': '{kind} {model} (est.)',
       '車型依臺灣鐵道維基館的編組運用表（{date} 起）推估，實際以當日調度為準。': 'Model estimated from the Taiwan Railway Wiki rolling-stock roster (from {date}); the actual train depends on that day’s operations.',
       '區間車車型推估改編自臺灣鐵道維基館「附件:臺鐵區間車」編組運用表（CC BY-SA 4.0），僅供參考': 'Local-train model estimates are adapted from the Taiwan Railway Wiki rolling-stock roster (CC BY-SA 4.0), for reference only', '停靠站': 'Stops', '到站': 'Arr.', '開車': 'Dep.',
+      '「台南沿線」的道路中線、軌道與樓層取自 © OpenStreetMap 貢獻者（ODbL）；路面、街廓、建物輪廓、屋頂色與樹位依內政部國土測繪中心圖資繪製': '“Tainan Trackside” takes road centerlines, tracks and floor counts from © OpenStreetMap contributors (ODbL); road surfaces, city blocks, building outlines, roof colors and tree positions are drawn from maps by the National Land Surveying and Mapping Center, Ministry of the Interior',
       '推估': 'Estimated', '⚠ 異常推定': '⚠ Possible disruption', 
       '晚 {n} 分': '{n} min late', '早 {n} 分': '{n} min early',
       
@@ -764,6 +765,7 @@
       '換一班': '別の列車', '離開放空': '鑑賞モードを終了', '時刻推算': '推定時刻', '{kind} {model} 推估': '{kind} {model} 推定',
       '車型依臺灣鐵道維基館的編組運用表（{date} 起）推估，實際以當日調度為準。': '車種は臺灣鐵道維基館の編成運用表（{date} 改正）からの推定で、実際の車両は当日の運用によります。',
       '區間車車型推估改編自臺灣鐵道維基館「附件:臺鐵區間車」編組運用表（CC BY-SA 4.0），僅供參考': '区間車の車種推定は臺灣鐵道維基館の編成運用表（CC BY-SA 4.0）を改変したもので、参考情報です', '停靠站': '停車駅', '到站': '着', '開車': '発',
+      '「台南沿線」的道路中線、軌道與樓層取自 © OpenStreetMap 貢獻者（ODbL）；路面、街廓、建物輪廓、屋頂色與樹位依內政部國土測繪中心圖資繪製': '「台南沿線」の道路中心線・線路・階数は © OpenStreetMap 貢献者（ODbL）によるものです。路面・街区・建物の輪郭・屋根の色・樹木の位置は、内政部国土測絵センターの地図資料をもとに描いています',
       '推估': '推定', '⚠ 異常推定': '⚠ 運行異常の可能性', 
       
       

@@ -804,6 +804,7 @@ writeGuide({
     <div class="fact-row"><div class="fact-label">營運機構資料</div><div class="fact-value">在授權與技術條件允許時，使用各營運機構的到站倒數、列車動態或營運公告校正畫面。</div></div>
     <div class="fact-row"><div class="fact-label">OpenStreetMap</div><div class="fact-value">補足部分軌道幾何；資料來自 OpenStreetMap 貢獻者並依 ODbL 使用。</div></div>
     <div class="fact-row"><div class="fact-label">臺灣鐵道維基館</div><div class="fact-value">區間車車型推估改編自社群整理的編組運用表（CC BY-SA 4.0）；官方班表不分世代，僅供參考。</div></div>
+    <div class="fact-row"><div class="fact-label">車庫場景</div><div class="fact-value">「台南沿線」的道路中線、軌道與樓層來自 OpenStreetMap 貢獻者（ODbL）；路面、街廓、建物輪廓、屋頂色與樹位依內政部國土測繪中心圖資繪製。</div></div>
     <div class="fact-row"><div class="fact-label">地圖圖磚</div><div class="fact-value">網站街道圖使用 OpenFreeMap，衛星影像使用 Esri World Imagery；App 的 OpenFreeMap 載入失敗時改用 Stadia Maps。實際授權標示會顯示在地圖上。</div></div>
   </div></section>
   <section class="content-section"><h2>為什麼不只用一個 API</h2><div class="answer-box"><p>班表、站點、路線幾何、逐車狀態與營運公告通常分散在不同來源，而且每個鐵道系統公開的欄位不同。軌島保留來源差異：有即時訊號就校正，只有班表就明確當作推演，不用一種資料精度冒充所有系統。</p></div></section>
@@ -1536,6 +1537,7 @@ const landings = {
         ['Operator public data', 'Arrival countdowns, train movements or service notices, used where licensing and technical conditions allow.'],
         ['OpenStreetMap', 'Fills in some track geometry. Data by OpenStreetMap contributors under the ODbL.'],
         ['Taiwan Railway Wiki', 'Estimated models for local trains are adapted from a community-compiled rolling-stock roster (CC BY-SA 4.0). Official timetables do not separate these series, so treat them as estimates.'],
+        ['Garage scenes', '“Tainan Trackside” takes road centerlines, tracks and floor counts from OpenStreetMap contributors (ODbL). Road surfaces, city blocks, building outlines, roof colors and tree positions are drawn from maps by the National Land Surveying and Mapping Center, Ministry of the Interior.'],
       ] },
       { h: 'Open the map', type: 'cta', text: 'Rail Island opens in Traditional Chinese by default. The button below opens the live map in English.' },
       { h: 'Not a replacement for official travel information', type: 'notice', lead: 'Important:', text: 'Rail Island is good for exploring the network, not as the only basis for catching a train, safety decisions or operations. Check the operator\'s app, website, station boards or announcements for temporary suspensions and platform changes.' },
@@ -1578,6 +1580,7 @@ const landings = {
         ['運行会社の公開データ', '許諾と技術的な条件が許す範囲で、到着カウントダウン、列車の動き、運行のお知らせを使います。'],
         ['OpenStreetMap', '一部の線路形状を補います。OpenStreetMap の貢献者によるデータで、ODbL にもとづいて利用しています。'],
         ['臺灣鐵道維基館', '区間車の車種推定は、有志がまとめた編成運用表（CC BY-SA 4.0）を改変して使っています。公式時刻表は世代を区別しないため、参考情報です。'],
+        ['車庫の情景', '「台南沿線」の道路中心線・線路・階数は OpenStreetMap の貢献者（ODbL）によるものです。路面・街区・建物の輪郭・屋根の色・樹木の位置は、内政部国土測絵センターの地図資料をもとに描いています。'],
       ] },
       { h: '地図を開く', type: 'cta', text: '軌島の地図は最初、繁体字中国語で表示されます。下のボタンから日本語表示で開けます。' },
       { h: '公式の運行情報の代わりにはなりません', type: 'notice', lead: '重要：', text: '軌島は路線網を眺めて楽しみ、理解するための地図です。列車に間に合うかどうかや安全にかかわる判断、運行管理の唯一の根拠にはしないでください。臨時運休やのりばの変更は、運行会社のアプリ、ウェブサイト、駅の案内、お知らせで確認してください。' },
@@ -1620,6 +1623,7 @@ const landings = {
         [K('營運機構資料'), K('在授權與技術條件允許時，使用各營運機構的到站倒數、列車動態或營運公告校正畫面。')],
         ['OpenStreetMap', K('補足部分軌道幾何；資料來自 OpenStreetMap 貢獻者並依 ODbL 使用。')],
         [K('臺灣鐵道維基館'), K('區間車車型推估改編自社群整理的編組運用表（CC BY-SA 4.0）；官方班表不分世代，僅供參考。')],
+        [K('車庫場景'), K('「台南沿線」的道路中線、軌道與樓層來自 OpenStreetMap 貢獻者（ODbL）；路面、街廓、建物輪廓、屋頂色與樹位依內政部國土測繪中心圖資繪製。')],
       ] },
       { h: '지도 열기', type: 'cta', text: 'Rail Island 지도는 처음에 번체 중국어로 열려요. 아래 버튼을 누르면 한국어 화면으로 열려요.' },
       { h: K('不能取代官方行車資訊'), type: 'notice', lead: K('重要：').trim(), text: K('軌島適合探索與輔助理解路網，不應作為趕車、安全決策或營運調度的唯一依據。臨時停駛、月台異動與現場狀況請以營運機構公告為準。') },
