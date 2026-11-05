@@ -198,7 +198,9 @@
       '本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。': 'This independent enthusiast project is not affiliated with TRA or any metro operator.',
       '語言': 'Language', '選擇介面語言': 'Choose interface language',
       '班距改變，已結束跟隨': 'Service frequency changed; follow mode ended.', '列車已抵達終點': 'The train has reached its terminus.', '已離開此班次的行駛時段': 'This service is no longer running at the selected time.',
-      '換一班': 'Another train', '離開放空': 'Exit ambient mode', '時刻推算': 'Estimated timetable', '停靠站': 'Stops', '到站': 'Arr.', '開車': 'Dep.',
+      '換一班': 'Another train', '離開放空': 'Exit ambient mode', '時刻推算': 'Estimated timetable', '{kind} {model} 推估': '{kind} {model} (est.)',
+      '車型依臺灣鐵道維基館的編組運用表（{date} 起）推估，實際以當日調度為準。': 'Model estimated from the Taiwan Railway Wiki rolling-stock roster (from {date}); the actual train depends on that day’s operations.',
+      '區間車車型推估改編自臺灣鐵道維基館「附件:臺鐵區間車」編組運用表（CC BY-SA 4.0），僅供參考': 'Local-train model estimates are adapted from the Taiwan Railway Wiki rolling-stock roster (CC BY-SA 4.0), for reference only', '停靠站': 'Stops', '到站': 'Arr.', '開車': 'Dep.',
       '推估': 'Estimated', '⚠ 異常推定': '⚠ Possible disruption', 
       '晚 {n} 分': '{n} min late', '早 {n} 分': '{n} min early',
       
@@ -759,7 +761,9 @@
       '📍 回報問題或建議': '📍 問題・翻訳を報告', '本站為個人愛好者專案，與台灣鐵路公司及各捷運公司皆無關。': '個人運営の非公式プロジェクトで、台湾鉄路および各交通事業者とは関係ありません。',
       '語言': '言語', '選擇介面語言': '表示言語を選択',
       '班距改變，已結束跟隨': '運転間隔が変わったため追跡を終了しました。', '列車已抵達終點': '列車は終点に到着しました。', '已離開此班次的行駛時段': '選択した時刻にはこの列車は運行していません。',
-      '換一班': '別の列車', '離開放空': '鑑賞モードを終了', '時刻推算': '推定時刻', '停靠站': '停車駅', '到站': '着', '開車': '発',
+      '換一班': '別の列車', '離開放空': '鑑賞モードを終了', '時刻推算': '推定時刻', '{kind} {model} 推估': '{kind} {model} 推定',
+      '車型依臺灣鐵道維基館的編組運用表（{date} 起）推估，實際以當日調度為準。': '車種は臺灣鐵道維基館の編成運用表（{date} 改正）からの推定で、実際の車両は当日の運用によります。',
+      '區間車車型推估改編自臺灣鐵道維基館「附件:臺鐵區間車」編組運用表（CC BY-SA 4.0），僅供參考': '区間車の車種推定は臺灣鐵道維基館の編成運用表（CC BY-SA 4.0）を改変したもので、参考情報です', '停靠站': '停車駅', '到站': '着', '開車': '発',
       '推估': '推定', '⚠ 異常推定': '⚠ 運行異常の可能性', 
       
       
