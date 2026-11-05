@@ -164,7 +164,8 @@ const widths = [360, 375, 414, 768];
 // 11/05: 1.8.0 web batch (delay outline, local train type, fictional trains switch, 11 station garages) adds four (574 -> 578).
 // 11/05: Jianshanpu Road level crossing adds one (578 -> 579).
 // 11/05: garage background music adds one (579 -> 580).
-const expectedHistoryCount = 580;
+// 11/05: metro page dates adds one (580 -> 581).
+const expectedHistoryCount = 581;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

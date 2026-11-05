@@ -100,7 +100,7 @@ const BRANCH_NAME = {
 const KIND_LABEL = { '1': N('普通車', 'Commuter', '普通列車', '보통열차'), '2': N('直達車', 'Express', '直達列車', '급행열차') };
 
 // 臨時營運調整的頁面附註：data/special_ops.json 仍有該條、且頁面日期（M.date，由資料日期決定、不讀時鐘）不晚於 until 才輸出。
-// 展後那條 op 要留到 TDX 換版（可能到 2027），附註講的疏運期卻在 10/11 結束；10/12 後重抓機捷資料、M.date 越過 until，附註就消失。
+// 展後那條 op 的 until 是保險上限（可能到 2027），附註講的疏運期卻在 10/11 結束；之後任一份時刻表重抓有變動，build_metro_times 就更新 source_notes 的抓取日，M.date 越過 until，附註就消失。
 // 文字改寫自該條 `quote`（桃園捷運官網原文，已在 special_ops.json 留存）；站名／站號從資料線的站序取，不手打。
 // text(lang, a, z)：a／z＝區間起訖站（「站名（站號）」）。
 const SPECIAL_NOTES = [

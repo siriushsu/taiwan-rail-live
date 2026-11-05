@@ -741,7 +741,7 @@ const stnNameCache = op => {
 
 const SYSTEMS = [
   { file: 'data/trtc.json', out: 'data/trtc_times.json',
-    src: '台北捷運/新北捷運(環狀線)各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);班次依平日/週六/週日/國定假日對應;文湖線無逐站時刻表,以官方班距與首末班推算(非公告時刻)',
+    src: '台北捷運/新北捷運(環狀線)各站時刻表:交通部TDX運輸資料流通服務(FETCH_DATE 抓取);班次依平日/週六/週日/國定假日對應;文湖線無逐站時刻表,以官方班距與首末班推算(非公告時刻)',
     synth: [{ lineId: 'BR', freqFile: 'data/tdx/TRTC_Frequency.json', routeId: 'BR-1',
       flFile: 'data/tdx/TRTC_FirstLastTimetable.json', terminals: ['BR01', 'BR24'],
       measured: BR_MEASURED_HEADWAY }],
@@ -763,14 +763,14 @@ const SYSTEMS = [
         drop: [{ station: 'Y19', dir: 1, tag: '假日' }, { station: 'Y12', dir: 0, tag: '平日' }, { station: 'Y12', dir: 1, tag: '平日' }] }],
     } },
   { file: 'data/krtc.json', out: 'data/krtc_times.json',
-    src: '高雄捷運/高雄輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);高捷班表分平日(週一~四)/假日前一天(週五)/假日(週六)/週日,國定假日跑假日班表',
+    src: '高雄捷運/高雄輕軌各站時刻表:交通部TDX運輸資料流通服務(FETCH_DATE 抓取);高捷班表分平日(週一~四)/假日前一天(週五)/假日(週六)/週日,國定假日跑假日班表',
     lines: {
       KR: [{ op: 'KRTC', routeId: 'R' }],
       KO: [{ op: 'KRTC', routeId: 'O' }],
       C: [{ op: 'KLRT', routeId: 'C' }],
     } },
   { file: 'data/tymc.json', out: 'data/tymc_times.json', allStop: false, // 直達車合法跳站
-    src: '桃園機場捷運各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);普通車與直達車皆依實際時刻',
+    src: '桃園機場捷運各站時刻表:交通部TDX運輸資料流通服務(FETCH_DATE 抓取);普通車與直達車皆依實際時刻',
     lines: { A: [
       // SP5=南下直達、SP2=北上直達,兩者都與 SP1 普通車共用同一筆記錄的 DestinationStaionID=A22。
       // 官方(tymetro.com.tw 各站時刻表)：直達車兩端是 A1 台北車站 ↔ A21 環北,不到 A22 老街溪。
@@ -782,7 +782,7 @@ const SYSTEMS = [
       { op: 'TYMC', routeId: 'A-3' },
     ] } },
   { file: 'data/ntdlrt.json', out: 'data/ntdlrt_times.json', allStop: false,
-    src: '淡海輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);綠山線/藍海線各依實際時刻',
+    src: '淡海輕軌各站時刻表:交通部TDX運輸資料流通服務(FETCH_DATE 抓取);綠山線/藍海線各依實際時刻',
     // 線檔已拆綠山線(V)/藍海線(VB)兩條實際營運線(分岔在濱海沙崙),各自站序連續。
     // 回程(往紅樹林)的幹線記錄被 TDX 亂拆在 V-1/V-2/空路線編號 → 合併成虛擬路線再鏈;
     // 幹線記錄混含兩線班次 → requireFirst 只留從本線支線端(V10淡海新市鎮/V26漁人碼頭)發起的鏈。
@@ -803,15 +803,15 @@ const SYSTEMS = [
         only: ['V26', 'V27', 'V28', 'V02', 'V03', 'V04', 'V05', 'V06', 'V07', 'V08', 'V09'] },
     ] } },
   { file: 'data/ntalrt.json', out: 'data/ntalrt_times.json',
-    src: '安坑輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取)',
+    src: '安坑輕軌各站時刻表:交通部TDX運輸資料流通服務(FETCH_DATE 抓取)',
     lines: { K: [{ op: 'NTALRT', routeId: 'K-1' }] } },
   { file: 'data/tmrt.json', out: 'data/tmrt_times.json', estimated: true,
-    src: '台中捷運無公開逐班時刻表:以交通部TDX官方班距(各時段)與首末班車推算班次(2026-07-16 抓取),非公告時刻',
+    src: '台中捷運無公開逐班時刻表:以交通部TDX官方班距(各時段)與首末班車推算班次(FETCH_DATE 抓取),非公告時刻',
     synth: [{ lineId: 'TG', freqFile: 'data/tdx/TMRT_Frequency.json', lineIdF: 'G',
       flFile: 'data/tdx/TMRT_FirstLastTimetable.json', terminals: ['G0', 'G17'] }],
     lines: {} },
   { file: 'data/sanying.json', out: 'data/sanying_times.json', estimated: true,
-    src: '三鶯線無公開逐班時刻表:營運時段06:00-24:00(各站首末班)與站間行駛時間取自交通部TDX運輸資料流通服務(新北捷運三鶯線,2026-09-12 抓取),班距依新北捷運公司公告(平日尖峰06:30-08:30、17:30-19:30 6分/平日離峰及假日8分)合成,非公告時刻',
+    src: '三鶯線無公開逐班時刻表:營運時段06:00-24:00(各站首末班)與站間行駛時間取自交通部TDX運輸資料流通服務(新北捷運三鶯線,FETCH_DATE 抓取),班距依新北捷運公司公告(平日尖峰06:30-08:30、17:30-19:30 6分/平日離峰及假日8分)合成,非公告時刻',
     // 首末班自 2026-09-12 起改吃 TDX 官方逐站首末班表(該日 TDX 以 NTMC 營運商上架三鶯線):
     //   兩端點 LB01 頂埔 / LB12 鶯桃福德,平日假日都是 06:00 首班、00:00 末班,與先前照抄官方
     //   node=863 公告「6時至24時」得到的值相同,但自此隨官方更新,不必再有人記得回來改。
@@ -866,6 +866,16 @@ const SYSTEMS = [
 //    判準要盯的是「這次重建真正要讀的那份資料」,不是同一個上游的另一份。
 // 2026-09-18:StationTimeTable 已有 R01(6 筆,UpdateTime 09-16),本閘門已自動放行;同快照重建的
 //    淡水信義線對 data.taipei 平日/週六/週日站別時刻表逐站相符(週六廣慈 23:08 一班仍接不起來)。
+// src 的 FETCH_DATE 寫檔時才決定:班表變了換成當天(台北),沒變留上一份的日期。
+// 寫死的話重抓也不會動,捷運頁的資料日期、頁面日期和附註到期全卡住(build_metro_pages.mjs 讀這個日期);
+// 沒變也換日期的話,每次巡檢都會改檔案雜湊,App 開機白抓一次。
+function fetchNote(src, lines, outFile) {
+  let prev = null;
+  try { prev = J(outFile); } catch { /* 第一次建置還沒有舊檔 */ }
+  const kept = prev && JSON.stringify(prev.lines) === JSON.stringify(lines) && /(\d{4}-\d{2}-\d{2}) 抓取/.exec(prev.source_notes)?.[1];
+  return src.replace('FETCH_DATE', kept || new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10));
+}
+
 const FORCE_TRTC = process.argv.includes('--force-trtc');
 const ONLY = (process.argv.find(a => a.startsWith('--only=')) || '').slice('--only='.length);
 const trtcSourceHasR01 = () => {
@@ -910,6 +920,7 @@ for (const sys of SYSTEMS) {
   for (const n of notes) console.log(`  ℹ ${n}`);
   applyGapFill(out, data);   // 站別記錄缺口造成的假折返:補回真端點(見 metro_times_gapfill.mjs)
   applySpecialOps(out, sys.out, ROOT);
+  out.source_notes = fetchNote(sys.src, out.lines, sys.out);
   writeFileSync(path.join(ROOT, sys.out), JSON.stringify(out));
   console.log(`  → ${sys.out} ${(JSON.stringify(out).length / 1024).toFixed(0)}KB`);
 }
